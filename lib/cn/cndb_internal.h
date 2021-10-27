@@ -513,9 +513,6 @@ int
 nfault_probe(struct nfault_probe *probes, int id);
 
 void
-cndb_validate_vector_failed(int i);
-
-void
 cndb_validate_vector(void **v, size_t c);
 
 /* MTF_MOCK */
@@ -671,45 +668,60 @@ cndb_record_unpack(u32 cndb_version, struct cndb_hdr_omf *buf, union cndb_mtu **
 
 #endif
 
-#define CNDB_LOG_E(err, cndb, pri, mark, fmt, ...)   \
-    do {                                             \
-        void *av[] = { &err, 0 };                    \
-        hse_log_pri(                                 \
-            pri,                                     \
-            mark "%s: cndb (%lx, %lx) " fmt ": @@e", \
-            true,                                    \
-            av,                                      \
-            __func__,                                \
-            (ulong)(cndb)->cndb_oid1,                \
-            (ulong)(cndb)->cndb_oid2,                \
-            ##__VA_ARGS__);                          \
+#define CNDB_LOG_E(err, cndb, pri, fmt, ...)    \
+    do {                                        \
+        void *av[] = { &err, 0 };               \
+                                                \
+        log_pri(                                \
+            pri,                                \
+            "cndb (%lx, %lx) " fmt ": @@e",     \
+            true,                               \
+            av,                                 \
+            (ulong)(cndb)->cndb_oid1,           \
+            (ulong)(cndb)->cndb_oid2,           \
+            ##__VA_ARGS__);                     \
     } while (0)
 
-#define CNDB_LOG_NE(cndb, pri, mark, fmt, ...) \
-    hse_log_pri(                               \
-        pri,                                   \
-        mark "%s: cndb (%lx, %lx) " fmt,       \
-        true,                                  \
-        NULL,                                  \
-        __func__,                              \
-        (ulong)(cndb)->cndb_oid1,              \
-        (ulong)(cndb)->cndb_oid2,              \
+#define CNDB_LOG_NE(cndb, pri, fmt, ...)        \
+    log_pri(                                    \
+        pri,                                    \
+        "cndb (%lx, %lx) " fmt,                 \
+        true,                                   \
+        NULL,                                   \
+        (ulong)(cndb)->cndb_oid1,               \
+        (ulong)(cndb)->cndb_oid2,               \
         ##__VA_ARGS__)
 
-/* use e.g., CNDB_LOG(err, cndb, HSE_ERR, " thing %d failed", thing); */
-#define CNDB_LOG(err, cndb, primark, fmt, ...)                \
-    do {                                                      \
-        if (err) {                                            \
-            merr_t e = (err);                                 \
-            CNDB_LOG_E(e, cndb, primark, fmt, ##__VA_ARGS__); \
-        } else if ((cndb) && (!(cndb)->cndb_rp || (cndb)->cndb_rp->cndb_debug)) { \
-            CNDB_LOG_NE(cndb, primark, fmt, ##__VA_ARGS__);   \
-        }                                                     \
+#define CNDB_LOG(err, cndb, pri, fmt, ...)                                              \
+    do {                                                                                \
+        if (err) {                                                                      \
+            merr_t e = (err);                                                           \
+                                                                                        \
+            CNDB_LOG_E(e, cndb, pri, fmt, ##__VA_ARGS__);                               \
+        } else if ((cndb) && (!(cndb)->cndb_rp || (cndb)->cndb_rp->cndb_debug)) {       \
+            CNDB_LOG_NE(cndb, pri, fmt, ##__VA_ARGS__);                                 \
+        }                                                                               \
     } while (0)
 
-/* use e.g., CNDB_LOGTX(err, cndb, txid, HSE_ERR, " thing %d failed", thing); */
-#define CNDB_LOGTX(err, cndb, txid, primark, fmt, ...) \
-    CNDB_LOG(err, cndb, primark, "tx %lu" fmt, (ulong)txid, ##__VA_ARGS__)
+#define CNDB_LOG_DEBUG(_err, _cndb, _fmt, ...) \
+    CNDB_LOG((_err), (_cndb), HSE_LOGPRI_DEBUG, _fmt, ##__VA_ARGS__)
+
+#define CNDB_LOG_INFO(_err, _cndb, _fmt, ...) \
+    CNDB_LOG((_err), (_cndb), HSE_LOGPRI_INFO, _fmt, ##__VA_ARGS__)
+
+#define CNDB_LOG_WARN(_err, _cndb, _fmt, ...) \
+    CNDB_LOG((_err), (_cndb), HSE_LOGPRI_WARN, _fmt, ##__VA_ARGS__)
+
+#define CNDB_LOG_ERR(_err, _cndb, _fmt, ...) \
+    CNDB_LOG((_err), (_cndb), HSE_LOGPRI_ERR, _fmt, ##__VA_ARGS__)
+
+/* use e.g., CNDB_LOGTX(err, cndb, txid, " thing %d failed", thing); */
+
+#define CNDB_LOGTX_INFO(_err, _cndb, _txid, _fmt, ...) \
+    CNDB_LOG((_err), (_cndb), HSE_LOGPRI_INFO, "tx %lu" _fmt, (ulong)(_txid), ##__VA_ARGS__)
+
+#define CNDB_LOGTX_ERR(_err, _cndb, _txid, _fmt, ...) \
+    CNDB_LOG((_err), (_cndb), HSE_LOGPRI_ERR, "tx %lu" _fmt, (ulong)(_txid), ##__VA_ARGS__)
 
 #if HSE_MOCKING
 #include "cndb_internal_ut.h"

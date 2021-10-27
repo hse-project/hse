@@ -191,6 +191,7 @@ finalize_log_structure(
 bool
 vpreprocess_fmt_string(
     struct hse_log_fmt_state *state,
+    const char *              func,
     const char *              fmt,
     char *                    new_fmt,
     s32                       new_len,

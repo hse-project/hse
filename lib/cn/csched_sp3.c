@@ -413,8 +413,7 @@ sp3_log_samp_overall_type(struct cn_samp_stats *s, const char *type, bool work_i
         est = samp_est(s, 100);
     }
 
-    hse_slog(
-        HSE_NOTICE,
+    slog_info(
         HSE_SLOG_START("cn_samp_work"),
         HSE_SLOG_FIELD("type", "%s", type),
         HSE_SLOG_FIELD("samp", "%u", est),
@@ -462,8 +461,7 @@ sp3_log_samp_one_tree(struct cn_tree *tree)
     i_avg_sz = (tree->ct_i_nodec ? s->i_alen / tree->ct_i_nodec : 0) >> 20;
     l_avg_sz = (tree->ct_l_nodec ? s->l_alen / tree->ct_l_nodec : 0) >> 20;
 
-    hse_slog(
-        HSE_NOTICE,
+    slog_info(
         HSE_SLOG_START("cn_samp_tree"),
         HSE_SLOG_FIELD("cnid", "%lu", tree->cnid),
         HSE_SLOG_FIELD("ialen", "%ld", s->i_alen),
@@ -515,8 +513,7 @@ sp3_log_progress(struct cn_compaction_work *w, struct cn_merge_stats *ms, bool f
     vblk_read_efficiency =
         safe_div(1.0 * ms->ms_val_bytes_out, ms->ms_vblk_read1.op_size + ms->ms_vblk_read2.op_size);
 
-    hse_slog(
-        HSE_NOTICE,
+    slog_info(
         HSE_SLOG_START("cn_comp_stats"),
         HSE_SLOG_FIELD("type", "%s", msg_type),
         HSE_SLOG_FIELD("job", "%u", w->cw_job.sj_id),
@@ -582,8 +579,7 @@ sp3_log_job_samp(
     const char *               stage,
     struct cn_samp_stats *     samp)
 {
-    hse_slog(
-        HSE_NOTICE,
+    slog_info(
         HSE_SLOG_START("cn_job_samp"),
         HSE_SLOG_FIELD("job", "%u", w->cw_job.sj_id),
         HSE_SLOG_FIELD("stage", "%s", stage),
@@ -620,47 +616,45 @@ sp3_refresh_samp(struct sp3 *sp)
     if (csched_samp_max_changed) {
         const u64 new_val =
             clamp_t(u64, sp->rp->csched_samp_max, CSCHED_SAMP_MAX_MIN, CSCHED_SAMP_MAX_MAX);
-        hse_log(
-            HSE_NOTICE "sp3 kvdb_rparam csched_samp_max changed from %lu to %lu",
-            (ulong)sp->inputs.csched_samp_max,
-            (ulong)new_val);
+
+        log_info("sp3 kvdb_rparam csched_samp_max changed from %lu to %lu",
+                 (ulong)sp->inputs.csched_samp_max,
+                 (ulong)new_val);
         sp->inputs.csched_samp_max = new_val;
     }
     if (csched_lo_th_pct_changed) {
         const u64 new_val =
             clamp_t(u64, sp->rp->csched_lo_th_pct, CSCHED_LO_TH_PCT_MIN, CSCHED_LO_TH_PCT_MAX);
-        hse_log(
-            HSE_NOTICE "sp3 kvdb_rparam csched_lo_th_pct changed from %lu to %lu",
-            (ulong)sp->inputs.csched_lo_th_pct,
-            (ulong)new_val);
+
+        log_info("sp3 kvdb_rparam csched_lo_th_pct changed from %lu to %lu",
+                 (ulong)sp->inputs.csched_lo_th_pct,
+                 (ulong)new_val);
         sp->inputs.csched_lo_th_pct = new_val;
     }
     if (csched_hi_th_pct_changed) {
         const u64 new_val =
             clamp_t(u64, sp->rp->csched_hi_th_pct, CSCHED_HI_TH_PCT_MIN, CSCHED_HI_TH_PCT_MAX);
-        hse_log(
-            HSE_NOTICE "sp3 kvdb_rparam csched_hi_th_pct changed from %lu to %lu",
-            (ulong)sp->inputs.csched_hi_th_pct,
-            (ulong)new_val);
+
+        log_info("sp3 kvdb_rparam csched_hi_th_pct changed from %lu to %lu",
+                 (ulong)sp->inputs.csched_hi_th_pct,
+                 (ulong)new_val);
         sp->inputs.csched_hi_th_pct = new_val;
     }
     if (csched_leaf_pct_changed) {
         const u64 new_val =
             clamp_t(u64, sp->rp->csched_leaf_pct, CSCHED_LEAF_PCT_MIN, CSCHED_LEAF_PCT_MAX);
-        hse_log(
-            HSE_NOTICE "sp3 kvdb_rparam csched_leaf_pct changed from %lu to %lu",
-            (ulong)sp->inputs.csched_leaf_pct,
-            (ulong)new_val);
+
+        log_info("sp3 kvdb_rparam csched_leaf_pct changed from %lu to %lu",
+                 (ulong)sp->inputs.csched_leaf_pct,
+                 (ulong)new_val);
         sp->inputs.csched_leaf_pct = new_val;
     }
 
-    hse_log(
-        HSE_NOTICE "sp3 new samp input params:"
-                   " samp %lu, lwm_pct %lu, hwm_pct %lu, leaf_pct %lu",
-        (ulong)sp->inputs.csched_samp_max,
-        (ulong)sp->inputs.csched_lo_th_pct,
-        (ulong)sp->inputs.csched_hi_th_pct,
-        (ulong)sp->inputs.csched_leaf_pct);
+    log_info("sp3 new samp input params: samp %lu, lwm_pct %lu, hwm_pct %lu, leaf_pct %lu",
+             (ulong)sp->inputs.csched_samp_max,
+             (ulong)sp->inputs.csched_lo_th_pct,
+             (ulong)sp->inputs.csched_hi_th_pct,
+             (ulong)sp->inputs.csched_leaf_pct);
 
     /* Input params (from kvdb_rparams) are scaled up by 100.
      * Internally we scale up by SCALE (10000) to get more
@@ -707,16 +701,15 @@ sp3_refresh_samp(struct sp3 *sp)
     sp->samp_hwm = samp_hwm;
     sp->samp_max = samp;
 
-    hse_log(
-        HSE_NOTICE "sp3 samp derived params:"
-                   " samp lo/hi/max: %.3f %.3f %.3f"
-                   " good/leaf ratio min/lo/hi: %.3f %.3f %.3f",
-        scale2dbl(sp->samp_lwm),
-        scale2dbl(sp->samp_hwm),
-        scale2dbl(sp->samp_max),
-        scale2dbl(good_min),
-        scale2dbl(good_lwm),
-        scale2dbl(good_hwm));
+    log_info("sp3 samp derived params:"
+             " samp lo/hi/max: %.3f %.3f %.3f"
+             " good/leaf ratio min/lo/hi: %.3f %.3f %.3f",
+             scale2dbl(sp->samp_lwm),
+             scale2dbl(sp->samp_hwm),
+             scale2dbl(sp->samp_max),
+             scale2dbl(good_min),
+             scale2dbl(good_lwm),
+             scale2dbl(good_hwm));
 }
 
 static uint
@@ -824,34 +817,34 @@ sp3_refresh_thresholds(struct sp3 *sp)
 
     sp->thresh = thresh;
 
-    hse_log(
-        HSE_NOTICE "sp3 thresholds:"
-                   " rspill: min/max %u/%u,"
-                   " ispill: min/max %u/%u,"
-                   " lcomp: min/max/pop %u/%u/%u%%,"
-                   " llen: min/max %u/%u,"
-                   " kvcompc: %u,"
-                   " idlec: %u,"
-                   " idlem: %u,"
-                   " lscatter_pct: %u%%",
-        thresh.rspill_kvsets_min,
-        thresh.rspill_kvsets_max,
+    log_info("sp3 thresholds:"
+             " rspill: min/max %u/%u,"
+             " ispill: min/max %u/%u,"
+             " lcomp: min/max/pop %u/%u/%u%%,"
+             " llen: min/max %u/%u,"
+             " kvcompc: %u,"
+             " idlec: %u,"
+             " idlem: %u,"
+             " lscatter_pct: %u%%",
 
-        thresh.ispill_kvsets_min,
-        thresh.ispill_kvsets_max,
+             thresh.rspill_kvsets_min,
+             thresh.rspill_kvsets_max,
 
-        thresh.lcomp_kvsets_min,
-        thresh.lcomp_kvsets_max,
-        thresh.lcomp_pop_pct,
+             thresh.ispill_kvsets_min,
+             thresh.ispill_kvsets_max,
 
-        thresh.llen_runlen_min,
-        thresh.llen_runlen_max,
+             thresh.lcomp_kvsets_min,
+             thresh.lcomp_kvsets_max,
+             thresh.lcomp_pop_pct,
 
-        thresh.llen_kvcompc,
-        thresh.llen_idlec,
-        thresh.llen_idlem,
+             thresh.llen_runlen_min,
+             thresh.llen_runlen_max,
 
-        thresh.lscatter_pct);
+             thresh.llen_kvcompc,
+             thresh.llen_idlec,
+             thresh.llen_idlem,
+
+             thresh.lscatter_pct);
 }
 
 static void
@@ -890,12 +883,12 @@ static void
 sp3_ucomp_cancel(struct sp3 *sp)
 {
     if (!sp->ucomp_active) {
-        hse_log(HSE_NOTICE "ignoring request to cancel user-initiated"
-                           " compaction because there is no active request");
+        log_info("ignoring request to cancel user-initiated"
+                 " compaction because there is no active request");
         return;
     }
 
-    hse_log(HSE_NOTICE "canceling user-initiated compaction");
+    log_info("canceling user-initiated compaction");
 
     sp->ucomp_active = false;
     sp->ucomp_canceled = true;
@@ -905,9 +898,9 @@ static void
 sp3_ucomp_start(struct sp3 *sp)
 {
     if (sp->ucomp_active)
-        hse_log(HSE_NOTICE "restarting user-initiated compaction (was already active)");
+        log_info("restarting user-initiated compaction (was already active)");
     else
-        hse_log(HSE_NOTICE "starting user-initiated compaction");
+        log_info("starting user-initiated compaction");
 
     sp->ucomp_active = true;
     sp->ucomp_canceled = false;
@@ -921,10 +914,8 @@ sp3_ucomp_report(struct sp3 *sp, bool final)
 
     if (final) {
 
-        hse_log(
-            HSE_NOTICE "user-initiated compaction complete: space_amp %u.%02u",
-            curr / 100,
-            curr % 100);
+        log_info("user-initiated compaction complete: space_amp %u.%02u",
+                 curr / 100, curr % 100);
 
     } else {
 
@@ -932,17 +923,16 @@ sp3_ucomp_report(struct sp3 *sp, bool final)
         u64  finished = sp->jobs_finished;
         uint goal = sp->samp_lwm * 100 / SCALE;
 
-        hse_log(
-            HSE_NOTICE "user-initiated compaction in progress:"
-                       " jobs: active %lu, started %lu, finished %lu;"
-                       " space_amp: current %u.%02u, goal %u.%02u;",
-            started - finished,
-            started,
-            finished,
-            curr / 100,
-            curr % 100,
-            goal / 100,
-            goal % 100);
+        log_info("user-initiated compaction in progress:"
+                 " jobs: active %lu, started %lu, finished %lu;"
+                 " space_amp: current %u.%02u, goal %u.%02u;",
+                 started - finished,
+                 started,
+                 finished,
+                 curr / 100,
+                 curr % 100,
+                 goal / 100,
+                 goal % 100);
     }
 }
 
@@ -1094,8 +1084,7 @@ sp3_dirty_node(struct sp3 *sp, struct cn_tree_node *tn)
 
         bool isleaf = cn_node_isleaf(tn);
 
-        hse_slog(
-            HSE_NOTICE,
+        slog_info(
             HSE_SLOG_START("cn_dirty_node"),
             HSE_SLOG_FIELD("cnid", "%lu", (ulong)tn->tn_tree->cnid),
             HSE_SLOG_FIELD("lvl", "%u", tn->tn_loc.node_level),
@@ -1265,7 +1254,7 @@ sp3_process_new_trees(struct sp3 *sp)
         struct tree_iter     iter;
 
         if (debug_tree_life(sp))
-            hse_log(HSE_NOTICE "sp3 acquire tree cnid %lu", (ulong)tree->cnid);
+            log_info("sp3 acquire tree cnid %lu", (ulong)tree->cnid);
 
         tree_iter_init(tree, &iter, TRAVERSE_TOPDOWN);
         while (NULL != (tn = tree_iter_next(tree, &iter))) {
@@ -1304,7 +1293,7 @@ sp3_prune_trees(struct sp3 *sp)
         if (!enabled && spt->spt_job_cnt == 0) {
 
             if (debug_tree_life(sp))
-                hse_log(HSE_NOTICE "sp3 release tree cnid %lu", (ulong)tree->cnid);
+                log_info("sp3 release tree cnid %lu", (ulong)tree->cnid);
 
             sp3_unlink_all_nodes(sp, tree);
             list_del_init(&spt->spt_tlink);
@@ -1524,8 +1513,7 @@ sp3_submit(struct sp3 *sp, struct cn_compaction_work *w, uint qnum, uint rbt_idx
 
         const char *rbt = rbt_idx < RBT_MAX ? rbt_name[rbt_idx] : "root";
 
-        hse_slog(
-            HSE_NOTICE,
+        slog_info(
             HSE_SLOG_START("cn_comp_start"),
             HSE_SLOG_FIELD("job", "%u", w->cw_job.sj_id),
             HSE_SLOG_FIELD("comp", "%s", cn_action2str(w->cw_action)),
@@ -1625,8 +1613,7 @@ sp3_rb_dump(struct sp3 *sp, uint tx, uint count_max)
         spn = (void *)(rbe - tx);
         tn = spn2tn(spn);
 
-        hse_slog(
-            HSE_NOTICE,
+        slog_info(
             HSE_SLOG_START("cn_rbt"),
             HSE_SLOG_FIELD("rbt", "%s", rbt_name[tx]),
             HSE_SLOG_FIELD("item", "%u", count),
@@ -1657,8 +1644,7 @@ sp3_tree_shape_log(const struct cn_tree_node *tn, bool bad, const char *category
 
     pcap = cn_node_isleaf(tn) ? tn->tn_ns.ns_pcap : 0;
 
-    hse_slog(
-        HSE_NOTICE,
+    slog_info(
         HSE_SLOG_START("cn_tree_shape"),
         HSE_SLOG_FIELD("type", "%s", category),
         HSE_SLOG_FIELD("lvl", "%u", tn->tn_loc.node_level),
@@ -1767,9 +1753,9 @@ sp3_tree_shape_check(struct sp3 *sp)
     if (sp->tree_shape_bad != bad) {
 
         if (bad)
-            hse_log(HSE_WARNING "tree shape changed from good to bad");
+            log_warn("tree shape changed from good to bad");
         else
-            hse_log(HSE_NOTICE "tree shape changed from bad to good");
+            log_info("tree shape changed from bad to good");
 
         sp->tree_shape_bad = bad;
         log = true; /* log details below */
@@ -1782,8 +1768,7 @@ sp3_tree_shape_check(struct sp3 *sp)
         sp3_tree_shape_log(llen_node, llen_bad, "longest_leaf");
         sp3_tree_shape_log(lsiz_node, lsiz_bad, "largest_leaf");
 
-        hse_slog(
-            HSE_NOTICE,
+        slog_info(
             HSE_SLOG_START("cn_sched"),
             HSE_SLOG_FIELD("samp_lwm", "%.3f", scale2dbl(sp->samp_lwm)),
             HSE_SLOG_FIELD("hwm", "%.3f", scale2dbl(sp->samp_hwm)),
@@ -1914,8 +1899,7 @@ sp3_qos_check(struct sp3 *sp)
     throttle_sensor_set(sp->throttle_sensor_root, (uint)sval);
 
     if (log) {
-        hse_slog(
-            HSE_NOTICE,
+        slog_info(
             HSE_SLOG_START("cn_qos_sensors"),
             HSE_SLOG_FIELD("root_sensor", "%lu", sval),
             HSE_SLOG_FIELD("root_len", "%u", rootlen),
@@ -2098,18 +2082,16 @@ sp3_update_samp(struct sp3 *sp)
     if (sp->samp_reduce) {
         if (sp->samp_targ < sp->samp_lwm) {
             sp->samp_reduce = false;
-            hse_log(
-                HSE_NOTICE "sp3 expected samp %u below lwm %u, disable samp reduction",
-                sp->samp_targ * 100 / SCALE,
-                sp->samp_lwm * 100 / SCALE);
+            log_info("sp3 expected samp %u below lwm %u, disable samp reduction",
+                     sp->samp_targ * 100 / SCALE,
+                     sp->samp_lwm * 100 / SCALE);
         }
     } else {
         if (sp->samp_targ > sp->samp_hwm) {
             sp->samp_reduce = true;
-            hse_log(
-                HSE_NOTICE "sp3 expected samp %u above hwm %u, enable samp reduction",
-                sp->samp_targ * 100 / SCALE,
-                sp->samp_hwm * 100 / SCALE);
+            log_info("sp3 expected samp %u above hwm %u, enable samp reduction",
+                     sp->samp_targ * 100 / SCALE,
+                     sp->samp_hwm * 100 / SCALE);
         }
     }
 }
@@ -2182,7 +2164,7 @@ sp3_monitor(struct work_struct *work)
         err = kvdb_health_check(sp->health, KVDB_HEALTH_FLAG_ALL);
         if (ev(err)) {
             if (!bad_health)
-                hse_elog(HSE_ERR "%s: KVDB is in bad health, @@e", err, sp->name);
+                log_errx("KVDB %s is in bad health; @@e", err, sp->name);
 
             bad_health = true;
         }
@@ -2240,7 +2222,7 @@ sp3_op_compact_request(struct csched_ops *handle, int flags)
     } else if (flags & HSE_KVDB_COMPACT_SAMP_LWM) {
         sp3_ucomp_start(sp);
     } else {
-        hse_log(HSE_NOTICE "invalid user-initiated compaction request: flags 0x%x", flags);
+        log_info("invalid user-initiated compaction request: flags 0x%x", flags);
     }
 }
 
@@ -2291,7 +2273,7 @@ sp3_op_tree_add(struct csched_ops *handle, struct cn_tree *tree)
     assert(!sp3_tree_is_managed(tree));
 
     if (debug_tree_life(sp))
-        hse_log(HSE_NOTICE "sp3 %s cnid %lu", __func__, (ulong)tree->cnid);
+        log_info("sp3 %s cnid %lu", __func__, (ulong)tree->cnid);
 
     cn_ref_get(tree->cn);
 
@@ -2317,7 +2299,7 @@ sp3_op_tree_remove(struct csched_ops *handle, struct cn_tree *tree, bool cancel)
         return;
 
     if (debug_tree_life(sp))
-        hse_log(HSE_NOTICE "sp3 %s cnid %lu", __func__, (ulong)tree->cnid);
+        log_info("sp3 %s cnid %lu", __func__, (ulong)tree->cnid);
 
     /* Disable scheduling for tree.  Monitor will remove the tree
      * out when no more jobs are pending.
@@ -2394,8 +2376,7 @@ sp3_create(
     if (!rp->csched_qthreads)
         rp->csched_qthreads = CSCHED_QTHREADS_DEFAULT;
 
-    hse_slog(
-        HSE_NOTICE,
+    slog_info(
         HSE_SLOG_START("cn_threads"),
         HSE_SLOG_FIELD("root", "%lu", (rp->csched_qthreads >> (8 * SP3_QNUM_ROOT)) & 0xff),
         HSE_SLOG_FIELD("intern", "%lu", (rp->csched_qthreads >> (8 * SP3_QNUM_INTERN)) & 0xff),
@@ -2458,9 +2439,10 @@ sp3_create(
     sp->ops.cs_tree_add = sp3_op_tree_add;
     sp->ops.cs_tree_remove = sp3_op_tree_remove;
 
-    if (perfc_ctrseti_alloc(
-            sp->rp->perfc_level, sp->name, csched_sp3_perfc, PERFC_EN_SP3, "sp3", &sp->sched_pc))
-        hse_log(HSE_ERR "cannot alloc sp3 perf counters");
+    err = perfc_ctrseti_alloc(sp->rp->perfc_level, sp->name, csched_sp3_perfc,
+                              PERFC_EN_SP3, "sp3", &sp->sched_pc);
+    if (err)
+        log_errx("cannot alloc sp3 perf counters: @@e", err);
 
     *handle = &sp->ops;
     return 0;

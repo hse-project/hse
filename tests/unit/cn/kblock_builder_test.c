@@ -164,12 +164,8 @@ add_entries(
     merr_t err = 0;
     uint   i;
 
-    hse_log(
-        HSE_INFO "Add entries: %u keys * (%u klen + %u kmd) = %u bytes",
-        kcnt,
-        klen,
-        kmdlen,
-        kcnt * (klen + kmdlen));
+    log_info("Add entries: %u keys * (%u klen + %u kmd) = %u bytes",
+             kcnt, klen, kmdlen, kcnt * (klen + kmdlen));
 
     for (i = 0; !err && i < kcnt; i++)
         err = add_entry(lcl_ti, kbb, klen, pfx_len, kmdlen, -2);
@@ -607,7 +603,7 @@ fill_test(struct mtf_test_info *lcl_ti, uint kcnt, uint klen, uint kmdlen)
     wc = mapi_calls(mapi_idx_mpool_mblock_write) - wc;
     cc = mapi_calls(mapi_idx_mpool_mblock_commit) - cc;
 
-    hse_log(HSE_INFO "--> mblock stats: allocated %u, writes %u, committed %u", ac, wc, cc);
+    log_info("--> mblock stats: allocated %u, writes %u, committed %u", ac, wc, cc);
 
     return 0;
 }

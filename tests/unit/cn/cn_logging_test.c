@@ -12,11 +12,8 @@
  * scaffolding lifted from logging_test.c
  */
 
-#undef hse_xlog
-#define hse_xlog(log_fmt, hse_args, ...) hse_log_pri(log_fmt, false, hse_args, ##__VA_ARGS__)
-
-#undef hse_alog
-#define hse_alog(log_fmt, hse_args, ...) hse_log_pri(log_fmt, true, hse_args, ##__VA_ARGS__)
+#define hse_xlog(_fmt, _argv, ...) \
+    log_pri(HSE_LOGPRI_ERR, (_fmt), false, _argv, ##__VA_ARGS__)
 
 #define MAX_MSG_SIZE 500
 #define MAX_NV_PAIRS 50
@@ -55,12 +52,12 @@ parse_json_key_values(char *key)
     int   index = 0;
     int   count = 0;
 
-    curr_pos = strstr(shared_result.msg_buffer, key);
-
     char names[MAX_NV_SIZE];
     char values[MAX_NV_SIZE];
 
-    assert(curr_pos != NULL);
+    curr_pos = strstr(shared_result.msg_buffer, key);
+    if (!curr_pos)
+        abort();
 
     while (count < 2 && j < MAX_NV_SIZE) {
         if (curr_pos[i] == '"')
@@ -109,7 +106,6 @@ process_json_payload(void)
 
     parse_json_key_values("hse_logver");
     parse_json_key_values("hse_version");
-    parse_json_key_values("hse_branch");
     parse_json_key_values("hse_0_category");
     parse_json_key_values("hse_0_version");
     parse_json_key_values("hse_0_hash_count");
@@ -160,20 +156,19 @@ MTF_DEFINE_UTEST(cn_logging_test, test_bloom)
     stats.bfs_no_hit_cnt = 303;
     stats.bfs_hit_failed_cnt = 404;
 
-    hse_xlog(HSE_ERR "[UNIT TEST] @@bsx", av);
+    hse_gparams.gp_logging.structured = true;
+
+    hse_xlog("[UNIT TEST] @@bsx", av);
 
     process_json_payload();
 
-    ASSERT_EQ(11, shared_result.count);
+    ASSERT_EQ(10, shared_result.count);
 
     ASSERT_STREQ("hse_logver", shared_result.names[ix]);
     ASSERT_STREQ("1", shared_result.values[ix]);
     ix++;
 
     ASSERT_STREQ("hse_version", shared_result.names[ix]);
-    ix++;
-
-    ASSERT_STREQ("hse_branch", shared_result.names[ix]);
     ix++;
 
     ASSERT_STREQ("hse_0_category", shared_result.names[ix]);
@@ -226,7 +221,7 @@ MTF_DEFINE_UTEST(cn_logging_test, test_wbtree)
     void *av[] = { "foo", 0 };
     char *needle;
 
-    hse_xlog(HSE_ERR "[UNIT_TEST] @@w wbtree", av);
+    hse_xlog("[UNIT_TEST] @@w wbtree", av);
 
     sprintf(errbuf, "%s %c", errmsg, 'w');
     needle = strstr(shared_result.msg_buffer, errbuf);
@@ -239,7 +234,7 @@ MTF_DEFINE_UTEST(cn_logging_test, test_compact)
     void *av[] = { "foo", 0 };
     char *needle;
 
-    hse_xlog(HSE_ERR "[UNIT_TEST] @@k compact", av);
+    hse_xlog("[UNIT_TEST] @@k compact", av);
 
     sprintf(errbuf, "%s %c", errmsg, 'k');
     needle = strstr(shared_result.msg_buffer, errbuf);
@@ -252,7 +247,7 @@ MTF_DEFINE_UTEST(cn_logging_test, test_candidate)
     void *av[] = { "foo", 0 };
     char *needle;
 
-    hse_xlog(HSE_ERR "[UNIT_TEST] @@K candidate", av);
+    hse_xlog("[UNIT_TEST] @@K candidate", av);
 
     sprintf(errbuf, "%s %c", errmsg, 'K');
     needle = strstr(shared_result.msg_buffer, errbuf);

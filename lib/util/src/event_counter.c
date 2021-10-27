@@ -63,7 +63,7 @@ ev_match_select_handler(struct dt_element *dte, char *field, char *value)
                 return true;
         }
     } else if (!strcmp(field, "ev_pri")) {
-        log_priority_t pri = hse_logprio_name_to_val(value);
+        log_priority_t pri = hse_logpri_name_to_val(value);
 
         if (ec->ev_pri <= pri)
             return true;
@@ -78,7 +78,7 @@ ev_set_handler(struct dt_element *dte, struct dt_set_parameters *dsp)
 
     switch (dsp->field) {
         case DT_FIELD_PRIORITY:
-            ec->ev_pri = hse_logprio_name_to_val(dsp->value);
+            ec->ev_pri = hse_logpri_name_to_val(dsp->value);
             break;
 
         case DT_FIELD_TRIP_ODOMETER:
@@ -111,7 +111,7 @@ ev_set_handler(struct dt_element *dte, struct dt_set_parameters *dsp)
  *       odometer timestamp: 1463576343.291465
  *       trip odometer: 1
  *       trip odometer timestamp: 0.0
- *       priority: HSE_INFO
+ *       priority: INFO
  *
  * Fields are indented 6 spaces.
  */
@@ -124,7 +124,7 @@ ev_emit_handler(struct dt_element *dte, struct yaml_context *yc)
 
     yaml_start_element(yc, "path", dte->dte_path);
 
-    snprintf(value, sizeof(value), "%s", hse_logprio_val_to_name(ec->ev_pri));
+    snprintf(value, sizeof(value), "%s", hse_logpri_val_to_name(ec->ev_pri));
     yaml_element_field(yc, "level", value);
 
     snprintf(value, sizeof(value), "%d", odometer_val);

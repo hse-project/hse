@@ -28,14 +28,6 @@
 
 /* PRIVATE */
 void
-cndb_validate_vector_failed(int i)
-{
-    hse_alog(HSE_CRIT "%s: element %d is corrupt", __func__, i);
-    abort();
-}
-
-/* PRIVATE */
-void
 cndb_validate_vector(void **v, size_t c)
 {
     union cndb_mtu *mtu;
@@ -47,8 +39,10 @@ cndb_validate_vector(void **v, size_t c)
         if (!mtu)
             continue;
 
-        if (mtu->h.mth_type == 0 || mtu->h.mth_type > CNDB_TYPE_META)
-            cndb_validate_vector_failed(i);
+        if (mtu->h.mth_type == 0 || mtu->h.mth_type > CNDB_TYPE_META) {
+            log_err("element %d is corrupt", i);
+            abort();
+        }
     }
 }
 
@@ -79,17 +73,17 @@ nfault_probe(struct nfault_probe *probes, int id)
     val = probes[id].probe_trigger.trig_value;
 
     if (trig == NFAULT_TRIG_ONESHOT && od == val) {
-        hse_alog(HSE_NOTICE "%s: trigger %d %lu %lu", __func__, trig, (ulong)od, (ulong)val);
+        log_info("trigger %d %lu %lu", trig, (ulong)od, (ulong)val);
         return NFAULT_TRIG_ONESHOT;
     }
 
     if (trig == NFAULT_TRIG_PERIOD && (od % val) == 0) {
-        hse_alog(HSE_NOTICE "%s: trigger %d %lu %lu", __func__, trig, (ulong)od, (ulong)val);
+        log_info("trigger %d %lu %lu", trig, (ulong)od, (ulong)val);
         return NFAULT_TRIG_PERIOD;
     }
 
     if (trig == NFAULT_TRIG_LEVEL && od >= val) {
-        hse_alog(HSE_NOTICE "%s: trigger %d %lu %lu", __func__, trig, (ulong)od, (ulong)val);
+        log_info("trigger %d %lu %lu", trig, (ulong)od, (ulong)val);
         return NFAULT_TRIG_LEVEL;
     }
 
@@ -154,7 +148,7 @@ cndb_alloc(struct mpool *ds, u64 *captgt, u64 *oid1_out, u64 *oid2_out)
 
     err = mpool_mdc_alloc(ds, CNDB_MAGIC, capacity, mclass, oid1_out, oid2_out);
     if (ev(err)) {
-        hse_elog(HSE_ERR "%s: cannot allocate cNDB MDC (%zu): @@e", err, __func__, capacity);
+        log_errx("cannot allocate cNDB MDC (%zu): @@e", err, capacity);
         return err;
     }
 
@@ -177,14 +171,13 @@ cndb_create(struct mpool *ds, u64 captgt, u64 oid1, u64 oid2)
 
     err = mpool_mdc_commit(ds, oid1, oid2);
     if (err) {
-        hse_elog(
-            HSE_ERR "%s: cannot commit cNDB MDC (%lld): @@e", err, __func__, (long long int)captgt);
+        log_errx("cannot commit cNDB MDC (%lld): @@e", err, (long long int)captgt);
         return err;
     }
 
     err = mpool_mdc_open(ds, oid1, oid2, &mdc);
     if (err) {
-        hse_elog(HSE_ERR "%s: cannot open cNDB MDC: @@e", err, __func__);
+        log_errx("cannot open cNDB MDC: @@e", err);
         return err;
     }
 
@@ -206,7 +199,7 @@ cndb_create(struct mpool *ds, u64 captgt, u64 oid1, u64 oid2)
 
     err2 = mpool_mdc_close(mdc);
     if (err2) {
-        hse_elog(HSE_ERR "%s: MDC close failed: @@e", err, __func__);
+        log_errx("MDC close failed: @@e", err);
         if (!err)
             return err2;
     }
@@ -214,12 +207,12 @@ cndb_create(struct mpool *ds, u64 captgt, u64 oid1, u64 oid2)
     return err;
 
 errout:
-    hse_elog(
-        HSE_ERR "%s: MDC append (%lx, %lx) failed: @@e", err, __func__, (ulong)oid1, (ulong)oid2);
+    log_errx("MDC append (%lx, %lx) failed: @@e", err, (ulong)oid1, (ulong)oid2);
+
     err2 = mpool_mdc_delete(ds, oid1, oid2);
     if (err2)
-        hse_elog(
-            HSE_ERR "%s: destroy (%lx,%lx) failed: @@e", err2, __func__, (ulong)oid1, (ulong)oid2);
+        log_errx("destroy (%lx,%lx) failed: @@e", err2, (ulong)oid1, (ulong)oid2);
+
     return err;
 }
 
@@ -257,28 +250,28 @@ cndb_init(
     cndb->cndb_workv = calloc(1, sz);
     if (!cndb->cndb_workv) {
         err = merr(ENOMEM);
-        hse_elog(HSE_ERR "%s: workv allocation: @@e", err, __func__);
+        log_errx("workv allocation: @@e", err);
         return err;
     }
 
     cndb->cndb_keepv = calloc(1, sz);
     if (!cndb->cndb_keepv) {
         err = merr(ENOMEM);
-        hse_elog(HSE_ERR "%s: keepv allocation: @@e", err, __func__);
+        log_errx("keepv allocation: @@e", err);
         return err;
     }
 
     cndb->cndb_tagv = calloc(1, sz);
     if (!cndb->cndb_tagv) {
         err = merr(ENOMEM);
-        hse_elog(HSE_ERR "%s: tagv allocation: @@e", err, __func__);
+        log_errx("tagv allocation: @@e", err);
         return err;
     }
 
     cndb->cndb_cbuf = calloc(1, CNDB_CBUFSZ_DEFAULT);
     if (!cndb->cndb_cbuf) {
         err = merr(ENOMEM);
-        hse_elog(HSE_ERR "%s: cbuf allocation: @@e", err, __func__);
+        log_errx("cbuf allocation: @@e", err);
         return err;
     }
 
@@ -318,19 +311,19 @@ cndb_open(
     cndb = calloc(1, sizeof(*cndb));
     if (!cndb) {
         err = merr(ENOMEM);
-        hse_elog(HSE_ERR "%s: cndb allocation failed: @@e", err, __func__);
+        log_errx("cndb allocation failed: @@e", err);
         return err;
     }
 
     err = cndb_init(cndb, ds, rdonly, ikvdb_seqno, cndb_entries, oid1, oid2, health, rp);
     if (err) {
-        CNDB_LOG(err, cndb, HSE_ERR, " initialization failed");
+        CNDB_LOG_ERR(err, cndb, " initialization failed");
         goto errout;
     }
 
     err = mpool_mdc_open(ds, oid1, oid2, &cndb->cndb_mdc);
     if (err) {
-        CNDB_LOG(err, cndb, HSE_ERR, " mdc open failed");
+        CNDB_LOG_ERR(err, cndb, " mdc open failed");
         goto errout;
     }
 
@@ -380,11 +373,10 @@ mtx2omf(struct cndb *cndb, void *omf, union cndb_mtu *mtu)
             if (sz > cndb->cndb_cbufsz) {
                 merr_t err = merr(EMLINK);
 
-                CNDB_LOGTX(
+                CNDB_LOGTX_ERR(
                     err,
                     cndb,
                     mtxid(mtu),
-                    HSE_ERR,
                     " tag %lu size %zd exceeds limit %zd",
                     (ulong)mtxtag(mtu),
                     sz,
@@ -431,11 +423,10 @@ mtx2omf(struct cndb *cndb, void *omf, union cndb_mtu *mtu)
             if (sz > cndb->cndb_cbufsz) {
                 merr_t err = merr(EMLINK);
 
-                CNDB_LOGTX(
+                CNDB_LOGTX_ERR(
                     err,
                     cndb,
                     mtxid(mtu),
-                    HSE_ERR,
                     " tag %lu size %zd exceeds limit %zd",
                     (ulong)mtxtag(mtu),
                     sz,
@@ -535,10 +526,9 @@ cndb_realloc(struct cndb *cndb, size_t entries)
     cndb->cndb_workv = workv_new;
     cndb->cndb_tagv = tagv_new;
 
-    CNDB_LOG(
+    CNDB_LOG_INFO(
         0,
         cndb,
-        HSE_NOTICE,
         " old entries %lu -> new entries %lu",
         (ulong)cndb->cndb_entries,
         entries);
@@ -595,8 +585,8 @@ cndb_shrink(struct cndb *cndb)
     if (new_entries < cndb->cndb_min_entries)
         return;
 
-    CNDB_LOG(
-        0, cndb, HSE_DEBUG, " old entries %lu -> new entries %lu", cndb->cndb_entries, new_entries);
+    CNDB_LOG_DEBUG(
+        0, cndb, " old entries %lu -> new entries %lu", cndb->cndb_entries, new_entries);
 
     /* if we fail to shrink, cndb remains unchanged and we can continue */
     cndb_realloc(cndb, new_entries);
@@ -620,7 +610,7 @@ cndb_grow(struct cndb *cndb, size_t capreq)
         if (ev(err))
             return err;
 
-        CNDB_LOG(0, cndb, HSE_DEBUG, " grew entries from %lu to %lu\n", count, new_entries);
+        CNDB_LOG_DEBUG(0, cndb, " grew entries from %lu to %lu\n", count, new_entries);
     }
 
     /* MDC grow not needed */
@@ -645,11 +635,8 @@ cndb_cnv_get(struct cndb *cndb, u64 cnid, struct cndb_cn **cn_out)
     struct cndb_cn *cn;
     merr_t          err = 0;
 
-    if (!cndb) {
-        err = merr(EINVAL);
-        hse_alog(HSE_ERR "%s: cndb unspecified", __func__);
-        return err;
-    }
+    if (!cndb)
+        return merr(EINVAL);
 
     for (i = 0; i < cndb->cndb_cnc; i++) {
         cn = cndb->cndb_cnv[i];
@@ -661,7 +648,7 @@ cndb_cnv_get(struct cndb *cndb, u64 cnid, struct cndb_cn **cn_out)
     }
 
     err = merr(ENOENT);
-    CNDB_LOG(err, cndb, HSE_ERR, " cnid %lu not found", (ulong)cnid);
+    CNDB_LOG_ERR(err, cndb, " cnid %lu not found", (ulong)cnid);
 
     return err;
 }
@@ -678,7 +665,7 @@ cndb_cnv_blob_set(struct cndb *cndb, struct cndb_cn *cn, size_t metasz, void *me
         p = realloc(cn->cn_cbuf, newsz);
         if (!p) {
             err = merr(ENOMEM);
-            CNDB_LOG(err, cndb, HSE_ERR, " cannot adopt metadata (%zd)", metasz);
+            CNDB_LOG_ERR(err, cndb, " cannot adopt metadata (%zd)", metasz);
             return err;
         }
         cn->cn_cbuf = p;
@@ -719,14 +706,14 @@ cndb_cnv_add(
 
     if (cndb->cndb_cnc == NELEM(cndb->cndb_cnv)) {
         err = merr(ENFILE);
-        CNDB_LOG(err, cndb, HSE_ERR, " cannot add cn %s", name);
+        CNDB_LOG_ERR(err, cndb, " cannot add cn %s", name);
         return err;
     }
 
     cn = calloc(1, sizeof(*cn));
     if (!cn) {
         err = merr(ENOMEM);
-        CNDB_LOG(err, cndb, HSE_ERR, " cannot add cn %s", name);
+        CNDB_LOG_ERR(err, cndb, " cannot add cn %s", name);
         return err;
     }
 
@@ -739,7 +726,7 @@ update_entry:
 
     err = cndb_cnv_blob_set(cndb, cn, metasz, meta);
     if (err)
-        CNDB_LOG(err, cndb, HSE_ERR, " cannot add cn %s", name);
+        CNDB_LOG_ERR(err, cndb, " cannot add cn %s", name);
 
     if (!update) {
         if (err)
@@ -784,13 +771,13 @@ cndb_import_md(struct cndb *cndb, struct cndb_hdr_omf *buf, union cndb_mtu **mtu
     *mtu = NULL;
     if (HSE_UNLIKELY(typ == CNDB_TYPE_VERSION)) {
         err = merr(EPROTO);
-        CNDB_LOG(err, cndb, HSE_ERR, " bad preamble (type %d)", typ);
+        CNDB_LOG_ERR(err, cndb, " bad preamble (type %d)", typ);
         return err;
     }
 
     err = cndb_record_unpack(cndb->cndb_version, buf, &lmtu);
     if (err) {
-        CNDB_LOG(err, cndb, HSE_ERR, " bad record (type %d)", typ);
+        CNDB_LOG_ERR(err, cndb, " bad record (type %d)", typ);
         free(lmtu);
         return err;
     }
@@ -813,7 +800,7 @@ cndb_import_md(struct cndb *cndb, struct cndb_hdr_omf *buf, union cndb_mtu **mtu
             mti->mti_metasz,
             mti->mti_meta);
         if (err)
-            CNDB_LOG(err, cndb, HSE_ERR, " cn %s adoption failed", mti->mti_name);
+            CNDB_LOG_ERR(err, cndb, " cn %s adoption failed", mti->mti_name);
         free(lmtu);
         return err;
     }
@@ -825,7 +812,7 @@ cndb_import_md(struct cndb *cndb, struct cndb_hdr_omf *buf, union cndb_mtu **mtu
         err = cndb_cnv_get(cndb, lmtu->i.mti_cnid, &cn);
         free(lmtu);
         if (err) {
-            CNDB_LOG(err, cndb, HSE_ERR, " cn %s already deleted", lmtu->i.mti_name);
+            CNDB_LOG_ERR(err, cndb, " cn %s already deleted", lmtu->i.mti_name);
             return err;
         }
 
@@ -843,7 +830,7 @@ cndb_import_md(struct cndb *cndb, struct cndb_hdr_omf *buf, union cndb_mtu **mtu
     if (cndb->cndb_workc >= cndb->cndb_entries) {
         err = cndb_grow(cndb, 0);
         if (err) {
-            CNDB_LOG(err, cndb, HSE_ERR, " table full");
+            CNDB_LOG_ERR(err, cndb, " table full");
             free(lmtu);
             return err;
         }
@@ -943,14 +930,14 @@ cndb_tagalloc(struct cndb *cndb, struct cndb_txc *txc, struct cndb_tx *tx, bool 
 
     if (cndb->cndb_tagc >= cndb->cndb_entries) {
         err = merr(EMLINK);
-        CNDB_LOG(err, cndb, HSE_ERR, " too many tags");
+        CNDB_LOG_ERR(err, cndb, " too many tags");
         return err;
     }
 
     p = calloc(1, sizeof(*p));
     if (!p) {
         err = merr(ENOMEM);
-        CNDB_LOG(err, cndb, HSE_ERR, " allocation failed");
+        CNDB_LOG_ERR(err, cndb, " allocation failed");
         return err;
     }
 
@@ -990,7 +977,7 @@ cndb_tagack(struct cndb *cndb, u64 tag, struct cndb_ack *ack)
     p = idxfind(cndb, tag);
     if (!p) {
         err = merr(EIDRM);
-        CNDB_LOGTX(err, cndb, mtxid((void *)ack), HSE_ERR, " extinct tag %lu", (ulong)tag);
+        CNDB_LOGTX_ERR(err, cndb, mtxid((void *)ack), " extinct tag %lu", (ulong)tag);
         return err;
     }
 
@@ -1010,7 +997,7 @@ cndb_tagmeta(struct cndb *cndb, struct cndb_txm *txm)
     p = idxfind(cndb, tag);
     if (!p) {
         err = merr(EIDRM);
-        CNDB_LOGTX(err, cndb, mtxid((void *)txm), HSE_ERR, " extinct tag %lu", (ulong)tag);
+        CNDB_LOGTX_ERR(err, cndb, mtxid((void *)txm), " extinct tag %lu", (ulong)tag);
         return err;
     }
 
@@ -1029,13 +1016,13 @@ cndb_tagdel(struct cndb *cndb, u64 tag)
     p = idxfind(cndb, tag);
     if (!p) {
         err = merr(EL2NSYNC);
-        CNDB_LOG(err, cndb, HSE_ERR, " extinct tag %lu", (ulong)tag);
+        CNDB_LOG_ERR(err, cndb, " extinct tag %lu", (ulong)tag);
         return err;
     }
 
     if (!(*p)->cdx_tx) {
         err = merr(EIDRM);
-        CNDB_LOG(err, cndb, HSE_ERR, " tag %lu metadata missing", (ulong)tag);
+        CNDB_LOG_ERR(err, cndb, " tag %lu metadata missing", (ulong)tag);
         return err;
     }
 
@@ -1101,10 +1088,10 @@ cndb_blklist_add(struct cndb *cndb, u64 txid, struct blk_list *blks, u32 c, u64 
     u32    bx;
 
     for (bx = 0; bx < c; bx++, p++) {
-        CNDB_LOGTX(0, cndb, txid, HSE_NOTICE, " un-acked mblock %lx", (ulong)*p);
+        CNDB_LOGTX_INFO(0, cndb, txid, " un-acked mblock %lx", (ulong)*p);
         err = blk_list_append(blks, *p);
         if (err) {
-            CNDB_LOGTX(err, cndb, txid, HSE_ERR, " mblock %lx blklist append failed", (ulong)*p);
+            CNDB_LOGTX_ERR(err, cndb, txid, " mblock %lx blklist append failed", (ulong)*p);
             break;
         }
     }
@@ -1159,28 +1146,27 @@ cndb_blkdel(struct cndb *cndb, union cndb_mtu *mtu, u64 txid)
         err = mpool_mblock_props_get(cndb->cndb_ds, blks.blks[bx].bk_blkid, NULL);
         if (err) {
             if (merr_errno(err) != ENOENT) {
-                CNDB_LOGTX(
+                CNDB_LOGTX_ERR(
                     err,
                     cndb,
                     txid,
-                    HSE_ERR,
                     "block %lx delete failed",
                     (ulong)blks.blks[bx].bk_blkid);
                 goto done;
             }
 
-            CNDB_LOGTX(
-                0, cndb, txid, HSE_NOTICE, "extinct block %lx ", (ulong)blks.blks[bx].bk_blkid);
+            CNDB_LOGTX_INFO(
+                0, cndb, txid, "extinct block %lx ", (ulong)blks.blks[bx].bk_blkid);
             err = 0;
             continue;
         }
 
-        CNDB_LOGTX(0, cndb, txid, HSE_NOTICE, " delete block %lx", (ulong)blks.blks[bx].bk_blkid);
+        CNDB_LOGTX_INFO(0, cndb, txid, " delete block %lx", (ulong)blks.blks[bx].bk_blkid);
 
         err = delete_mblock(cndb->cndb_ds, &blks.blks[bx]);
         if (err) {
-            CNDB_LOGTX(
-                err, cndb, txid, HSE_ERR, "block %lx delete failed", (ulong)blks.blks[bx].bk_blkid);
+            CNDB_LOGTX_ERR(
+                err, cndb, txid, "block %lx delete failed", (ulong)blks.blks[bx].bk_blkid);
             goto done;
         }
     }
@@ -1208,7 +1194,7 @@ md_rollforward(struct cndb *cndb, int from, int to, int unseen)
     merr_t            err = 0;
     u64               txid = mtxid(cndb->cndb_workv[from]);
 
-    CNDB_LOGTX(0, cndb, txid, HSE_NOTICE, " retry %d deletes", unseen);
+    CNDB_LOGTX_INFO(0, cndb, txid, " retry %d deletes", unseen);
 
     cndb_validate_vector(cndb->cndb_workv, cndb->cndb_workc);
     cndb_validate_vector(cndb->cndb_keepv, cndb->cndb_keepc);
@@ -1223,7 +1209,7 @@ md_rollforward(struct cndb *cndb, int from, int to, int unseen)
     mtud = calloc(2 * c, sizeof(*mtud));
     if (!mtud) {
         err = merr(ENOMEM);
-        CNDB_LOGTX(err, cndb, txid, HSE_ERR, "");
+        CNDB_LOGTX_ERR(err, cndb, txid, "");
         return err;
     }
     mtua = mtud + c;
@@ -1231,7 +1217,7 @@ md_rollforward(struct cndb *cndb, int from, int to, int unseen)
     dacks = calloc(c, sizeof(int));
     if (!dacks) {
         err = merr(ENOMEM);
-        CNDB_LOGTX(err, cndb, txid, HSE_ERR, "");
+        CNDB_LOGTX_ERR(err, cndb, txid, "");
         goto done;
     }
 
@@ -1286,7 +1272,7 @@ md_rollforward(struct cndb *cndb, int from, int to, int unseen)
         ack[recoveracks] = calloc(1, sizeof(struct cndb_ack));
         if (!ack[recoveracks]) {
             err = merr(ENOMEM);
-            CNDB_LOGTX(err, cndb, txid, HSE_ERR, "");
+            CNDB_LOGTX_ERR(err, cndb, txid, "");
             goto done;
         }
 
@@ -1304,7 +1290,7 @@ md_rollforward(struct cndb *cndb, int from, int to, int unseen)
     assert(c == txrecs);
     cndb_validate_vector((void **)mtua, txrecs);
 
-    CNDB_LOGTX(0, cndb, txid, HSE_NOTICE, ", %d records", txrecs);
+    CNDB_LOGTX_INFO(0, cndb, txid, ", %d records", txrecs);
     /* Step 3 */
     cndb->cndb_workv = (void **)mtua;
     cndb->cndb_workc = txrecs;
@@ -1333,7 +1319,7 @@ md_rollforward(struct cndb *cndb, int from, int to, int unseen)
 
     /* Step 6 */
     if (err) {
-        CNDB_LOGTX(err, cndb, txid, HSE_ERR, " roll forward failed");
+        CNDB_LOGTX_ERR(err, cndb, txid, " roll forward failed");
         goto done;
     }
 
@@ -1387,7 +1373,7 @@ md_rollback(struct cndb *cndb, int from, int to)
      * 2) deallocate each record and remove it from workv.
      */
 
-    CNDB_LOGTX(0, cndb, mtxid(cndb->cndb_workv[from]), HSE_NOTICE, " rollback");
+    CNDB_LOGTX_INFO(0, cndb, mtxid(cndb->cndb_workv[from]), " rollback");
 
     for (i = from; i < to; i++) {
         mtu = cndb->cndb_workv[i];
@@ -1427,24 +1413,24 @@ md_reap(struct cndb *cndb, int from, int to, struct txstate *needed, struct txst
          */
         if (seen->c != needed->c || seen->m != needed->m || seen->nak || seen->d != needed->d) {
             err = merr(EPROTO);
-            CNDB_LOGTX(err, cndb, txid, HSE_ERR, " unrecoverable");
+            CNDB_LOGTX_ERR(err, cndb, txid, " unrecoverable");
             return err;
         }
 
         unseen = seen->d - seen->ackd;
-        CNDB_LOGTX(0, cndb, txid, HSE_NOTICE, " recoverable(%d)", unseen);
+        CNDB_LOGTX_INFO(0, cndb, txid, " recoverable(%d)", unseen);
 
         err = md_rollforward(cndb, from, to, unseen);
         if (err)
-            CNDB_LOGTX(err, cndb, txid, HSE_ERR, " recovery failed ");
+            CNDB_LOGTX_ERR(err, cndb, txid, " recovery failed ");
         return err;
     }
 
-    CNDB_LOGTX(0, cndb, txid, HSE_NOTICE, " incomple, rollback");
+    CNDB_LOGTX_INFO(0, cndb, txid, " incomple, rollback");
 
     err = md_rollback(cndb, from, to);
     if (err)
-        CNDB_LOGTX(err, cndb, txid, HSE_ERR, " rollback failed");
+        CNDB_LOGTX_ERR(err, cndb, txid, " rollback failed");
 
     return err;
 }
@@ -1491,7 +1477,7 @@ md_keep(struct cndb *cndb, int from, int to)
     /* The simplest transaction is TX, TXD, ACKD */
     if (c <= 2) {
         err = merr(EPROTO);
-        CNDB_LOGTX(err, cndb, txid, HSE_ERR, "");
+        CNDB_LOGTX_ERR(err, cndb, txid, "");
         return err;
     }
 
@@ -1502,7 +1488,7 @@ md_keep(struct cndb *cndb, int from, int to)
 
     if (!tc || !tm || !td || !ta) {
         err = merr(ENOMEM);
-        CNDB_LOGTX(err, cndb, txid, HSE_ERR, "");
+        CNDB_LOGTX_ERR(err, cndb, txid, "");
         goto errout;
     }
 
@@ -1525,11 +1511,10 @@ md_keep(struct cndb *cndb, int from, int to)
                 tc[nc++] = mtu->c.mtc_tag;
                 err = cndb_tagalloc(cndb, &mtu->c, txp, true);
                 if (err) {
-                    CNDB_LOGTX(
+                    CNDB_LOGTX_ERR(
                         err,
                         cndb,
                         txid,
-                        HSE_ERR,
                         " tag %lu "
                         "index failed",
                         (ulong)tc[nc - 1]);
@@ -1549,11 +1534,10 @@ md_keep(struct cndb *cndb, int from, int to)
             case CNDB_TYPE_TXM:
                 err = cndb_tagack(cndb, tc[nm], cack);
                 if (err) {
-                    CNDB_LOGTX(
+                    CNDB_LOGTX_ERR(
                         err,
                         cndb,
                         txid,
-                        HSE_ERR,
                         " tag %lu "
                         "ack failed",
                         (ulong)tc[nm]);
@@ -1563,11 +1547,10 @@ md_keep(struct cndb *cndb, int from, int to)
                 tm[nm++] = mtu->m.mtm_tag;
                 err = cndb_tagmeta(cndb, &mtu->m);
                 if (err) {
-                    CNDB_LOGTX(
+                    CNDB_LOGTX_ERR(
                         err,
                         cndb,
                         txid,
-                        HSE_ERR,
                         " tag %lu "
                         "meta failed",
                         (ulong)tm[nm - 1]);
@@ -1582,8 +1565,8 @@ md_keep(struct cndb *cndb, int from, int to)
                     err = cndb_tagdel(cndb, mtu->a.mta_tag);
                     mtu->a.mta_txid = 0; /* don't keep ack-D */
                     if (err) {
-                        CNDB_LOGTX(
-                            err, cndb, txid, HSE_ERR, " tag %lu delete failed", (ulong)ta[na - 1]);
+                        CNDB_LOGTX_ERR(
+                            err, cndb, txid, " tag %lu delete failed", (ulong)ta[na - 1]);
                         goto errout;
                     }
                 } else {
@@ -1600,7 +1583,7 @@ md_keep(struct cndb *cndb, int from, int to)
 
     if (nc != nm || nd != na) {
         err = merr(EPROTO);
-        CNDB_LOGTX(err, cndb, txid, HSE_ERR, "");
+        CNDB_LOGTX_ERR(err, cndb, txid, "");
         goto errout;
     }
 
@@ -1615,13 +1598,13 @@ md_keep(struct cndb *cndb, int from, int to)
      */
     if (memcmp(tc, tm, nc * sizeof(*tc))) {
         err = merr(EBADMSG);
-        CNDB_LOGTX(err, cndb, txid, HSE_ERR, "");
+        CNDB_LOGTX_ERR(err, cndb, txid, "");
         goto errout;
     }
 
     if (memcmp(td, ta, nd * sizeof(*td))) {
         err = merr(EBADMSG);
-        CNDB_LOGTX(err, cndb, txid, HSE_ERR, "");
+        CNDB_LOGTX_ERR(err, cndb, txid, "");
         goto errout;
     }
 
@@ -1661,7 +1644,7 @@ md_partial_keep(struct cndb *cndb, int from, int to, struct txstate *needed, str
     /* The simplest transaction is TX, TXC, ACKC */
     if (c <= 2) {
         err = merr(EPROTO);
-        CNDB_LOGTX(err, cndb, txid, HSE_ERR, "");
+        CNDB_LOGTX_ERR(err, cndb, txid, "");
         return err;
     }
 
@@ -1670,7 +1653,7 @@ md_partial_keep(struct cndb *cndb, int from, int to, struct txstate *needed, str
 
     if (!tc || !tm) {
         err = merr(ENOMEM);
-        CNDB_LOGTX(err, cndb, txid, HSE_ERR, "");
+        CNDB_LOGTX_ERR(err, cndb, txid, "");
         goto errout;
     }
 
@@ -1688,11 +1671,10 @@ md_partial_keep(struct cndb *cndb, int from, int to, struct txstate *needed, str
                 tc[nc++] = mtu->c.mtc_tag;
                 err = cndb_tagalloc(cndb, &mtu->c, txp, false);
                 if (err) {
-                    CNDB_LOGTX(
+                    CNDB_LOGTX_ERR(
                         err,
                         cndb,
                         txid,
-                        HSE_ERR,
                         " tag %lu "
                         "index failed",
                         (ulong)tc[nc - 1]);
@@ -1704,11 +1686,10 @@ md_partial_keep(struct cndb *cndb, int from, int to, struct txstate *needed, str
             case CNDB_TYPE_TXM:
                 err = cndb_tagack(cndb, tc[nm], cack);
                 if (err) {
-                    CNDB_LOGTX(
+                    CNDB_LOGTX_ERR(
                         err,
                         cndb,
                         txid,
-                        HSE_ERR,
                         " tag %lu "
                         "ack failed",
                         (ulong)tc[nm]);
@@ -1718,11 +1699,10 @@ md_partial_keep(struct cndb *cndb, int from, int to, struct txstate *needed, str
                 tm[nm++] = mtu->m.mtm_tag;
                 err = cndb_tagmeta(cndb, &mtu->m);
                 if (err) {
-                    CNDB_LOGTX(
+                    CNDB_LOGTX_ERR(
                         err,
                         cndb,
                         txid,
-                        HSE_ERR,
                         " tag %lu "
                         "meta failed",
                         (ulong)tm[nm - 1]);
@@ -1740,7 +1720,7 @@ md_partial_keep(struct cndb *cndb, int from, int to, struct txstate *needed, str
 
     if (memcmp(tc, tm, nc * sizeof(*tc))) {
         err = merr(EBADMSG);
-        CNDB_LOGTX(err, cndb, txid, HSE_ERR, "");
+        CNDB_LOGTX_ERR(err, cndb, txid, "");
         goto errout;
     }
 
@@ -1862,10 +1842,9 @@ cndb_compact(struct cndb *cndb)
     struct txstate needed;
     struct txstate seen;
 
-    CNDB_LOG(
+    CNDB_LOG_DEBUG(
         0,
         cndb,
-        HSE_DEBUG,
         " compact starting, %lu records (%lu/%lu)",
         (ulong)(cndb->cndb_workc + cndb->cndb_keepc),
         (ulong)cndb->cndb_workc,
@@ -1898,7 +1877,7 @@ cndb_compact(struct cndb *cndb)
             /* first rec with new txid is TX else TX is missing */
             if (mtu->h.mth_type != CNDB_TYPE_TX) {
                 err = merr(EPROTO);
-                CNDB_LOGTX(err, cndb, txid, HSE_ERR, " missing TX start");
+                CNDB_LOGTX_ERR(err, cndb, txid, " missing TX start");
                 goto errout;
             }
 
@@ -1939,7 +1918,7 @@ cndb_compact(struct cndb *cndb)
                 continue;
             default:
                 err = merr(EPROTO);
-                CNDB_LOGTX(err, cndb, txid, HSE_ERR, " unknown type %d", mtu->h.mth_type);
+                CNDB_LOGTX_ERR(err, cndb, txid, " unknown type %d", mtu->h.mth_type);
                 goto errout;
         }
     }
@@ -1955,12 +1934,11 @@ cndb_compact(struct cndb *cndb)
 
 errout:
     if (err) {
-        CNDB_LOG(err, cndb, HSE_ERR, " compact failed");
+        CNDB_LOG_ERR(err, cndb, " compact failed");
     } else {
-        CNDB_LOG(
+        CNDB_LOG_DEBUG(
             0,
             cndb,
-            HSE_DEBUG,
             " compact finished, %lu records "
             "(%lu/%lu)",
             (ulong)(cndb->cndb_workc + cndb->cndb_keepc),
@@ -2003,7 +1981,7 @@ cndb_read(struct cndb *cndb, size_t *len)
             p = realloc(cndb->cndb_cbuf, *len);
             if (!p) {
                 err = merr(ENOMEM);
-                CNDB_LOG(err, cndb, HSE_ERR, " buffer realloc (%ld) failed", *len);
+                CNDB_LOG_ERR(err, cndb, " buffer realloc (%ld) failed", *len);
                 return err;
             }
             cndb->cndb_cbuf = p;
@@ -2012,7 +1990,7 @@ cndb_read(struct cndb *cndb, size_t *len)
     } while (merr_errno(err) == EOVERFLOW);
 
     if (err)
-        CNDB_LOG(err, cndb, HSE_ERR, " read failed");
+        CNDB_LOG_ERR(err, cndb, " read failed");
 
     return err;
 }
@@ -2055,7 +2033,7 @@ cndb_replay(struct cndb *cndb, u64 *seqno, u64 *ingestid, u64 *txhorizon)
 
     if (len == 0) {
         err = merr(ENODATA);
-        CNDB_LOG(err, cndb, HSE_ERR, " empty version record");
+        CNDB_LOG_ERR(err, cndb, " empty version record");
         return err;
     }
 
@@ -2065,23 +2043,22 @@ cndb_replay(struct cndb *cndb, u64 *seqno, u64 *ingestid, u64 *txhorizon)
      */
     if (omf_cnhdr_type(cndb->cndb_cbuf) != CNDB_TYPE_VERSION) {
         err = merr(EPROTO);
-        CNDB_LOG(err, cndb, HSE_ERR, " missing version record");
+        CNDB_LOG_ERR(err, cndb, " missing version record");
         return err;
     }
 
     if (omf_cnver_magic(cndb->cndb_cbuf) != CNDB_MAGIC) {
         err = merr(EUNATCH);
-        CNDB_LOG(err, cndb, HSE_ERR, " bad magic");
+        CNDB_LOG_ERR(err, cndb, " bad magic");
         return err;
     }
 
     cndb->cndb_version = omf_cnver_version(cndb->cndb_cbuf);
     if (cndb->cndb_version > CNDB_VERSION) {
         err = merr(EPROTONOSUPPORT);
-        CNDB_LOG(
+        CNDB_LOG_ERR(
             err,
             cndb,
-            HSE_ERR,
             " media (cndb version %u) is newer"
             " than software (cndb version %u), please update",
             cndb->cndb_version,
@@ -2090,20 +2067,18 @@ cndb_replay(struct cndb *cndb, u64 *seqno, u64 *ingestid, u64 *txhorizon)
     }
     if (cndb->cndb_version != CNDB_VERSION) {
         if (cndb->cndb_read_only)
-            CNDB_LOG(
+            CNDB_LOG_INFO(
                 0,
                 cndb,
-                HSE_NOTICE,
                 " read-only media uses "
                 "deprecated cndb version %u, next R/W use will"
                 " update to cndb version %u",
                 cndb->cndb_version,
                 CNDB_VERSION);
         else
-            CNDB_LOG(
+            CNDB_LOG_INFO(
                 0,
                 cndb,
-                HSE_NOTICE,
                 " upgrading media from "
                 "cndb version %u to cndb version %u",
                 cndb->cndb_version,
@@ -2150,7 +2125,7 @@ cndb_replay(struct cndb *cndb, u64 *seqno, u64 *ingestid, u64 *txhorizon)
     *seqno = cndb->cndb_seqno;
 
     if (err && merr_errno(err) != ENOMSG) {
-        CNDB_LOG(err, cndb, HSE_ERR, " read failed");
+        CNDB_LOG_ERR(err, cndb, " read failed");
         return err;
     }
 
@@ -2166,10 +2141,10 @@ cndb_replay(struct cndb *cndb, u64 *seqno, u64 *ingestid, u64 *txhorizon)
              */
             cndb->cndb_read_only = true;
             err = merr(EUCLEAN);
-            CNDB_LOG(err, cndb, HSE_ERR, "");
+            CNDB_LOG_ERR(err, cndb, "");
         }
     } else {
-        CNDB_LOG(err, cndb, HSE_ERR, " %s failed", cndb->cndb_read_only ? "compact" : "rollover");
+        CNDB_LOG_ERR(err, cndb, " %s failed", cndb->cndb_read_only ? "compact" : "rollover");
     }
 
     for (i = 0, cndb->cndb_cnid = 0; i < cndb->cndb_cnc; i++)
@@ -2228,7 +2203,7 @@ cndb_cn_blob_get(struct cndb *cndb, u64 cnid, size_t *blobsz, void **blob)
     mutex_unlock(&cndb->cndb_cnv_lock);
 
     if (err) {
-        CNDB_LOG(err, cndb, HSE_ERR, " cnid %lu", (ulong)cnid);
+        CNDB_LOG_ERR(err, cndb, " cnid %lu", (ulong)cnid);
         return err;
     }
 
@@ -2237,7 +2212,7 @@ cndb_cn_blob_get(struct cndb *cndb, u64 cnid, size_t *blobsz, void **blob)
         p = calloc(1, sz);
         if (!p) {
             err = merr(ENOMEM);
-            CNDB_LOG(err, cndb, HSE_ERR, " cnid %lu", (ulong)cnid);
+            CNDB_LOG_ERR(err, cndb, " cnid %lu", (ulong)cnid);
             return err;
         }
 
@@ -2267,13 +2242,13 @@ cndb_cn_blob_set(struct cndb *cndb, u64 cnid, size_t blobsz, void *blob)
     mutex_unlock(&cndb->cndb_cnv_lock);
 
     if (err) {
-        CNDB_LOG(err, cndb, HSE_ERR, " cnid %lu cannot update blob", (ulong)cnid);
+        CNDB_LOG_ERR(err, cndb, " cnid %lu cannot update blob", (ulong)cnid);
         return err;
     }
 
     err = cndb_cnv_blob_set(cndb, cn, blobsz, blob);
     if (err) {
-        CNDB_LOG(err, cndb, HSE_ERR, " cnid %lu cannot update blob", (ulong)cnid);
+        CNDB_LOG_ERR(err, cndb, " cnid %lu cannot update blob", (ulong)cnid);
         return err;
     }
 
@@ -2287,7 +2262,7 @@ cndb_cn_blob_set(struct cndb *cndb, u64 cnid, size_t blobsz, void *blob)
      */
     err = cndb_journal(cndb, inf, sz);
     if (err)
-        CNDB_LOG(err, cndb, HSE_ERR, " cnid %lu metadata update failed", (ulong)cnid);
+        CNDB_LOG_ERR(err, cndb, " cnid %lu metadata update failed", (ulong)cnid);
 
     return err;
 }
@@ -2326,7 +2301,7 @@ cndb_cn_info_idx(
 errout:
     mutex_unlock(&cndb->cndb_cnv_lock);
     if (err)
-        CNDB_LOG(err, cndb, HSE_ERR, " extinct cn idx %d", idx);
+        CNDB_LOG_ERR(err, cndb, " extinct cn idx %d", idx);
     return err;
 }
 
@@ -2354,10 +2329,10 @@ done:
     mutex_unlock(&cndb->cndb_cnv_lock);
     if (err) {
         if (merr_errno(err) == ESTALE)
-            CNDB_LOG(
-                err, cndb, HSE_ERR, " cn %s cnid %lu already closed", cn->cn_name, (ulong)cnid);
+            CNDB_LOG_ERR(
+                err, cndb, " cn %s cnid %lu already closed", cn->cn_name, (ulong)cnid);
         else
-            CNDB_LOG(err, cndb, HSE_ERR, "cnid %lu", (ulong)cnid);
+            CNDB_LOG_ERR(err, cndb, "cnid %lu", (ulong)cnid);
     }
     return err;
 }
@@ -2463,7 +2438,7 @@ done:
 
     mutex_unlock(&cndb->cndb_lock);
     if (err)
-        CNDB_LOG(err, cndb, HSE_ERR, " cnid %lu instantiation failed", (ulong)cnid);
+        CNDB_LOG_ERR(err, cndb, " cnid %lu instantiation failed", (ulong)cnid);
     return err;
 }
 
@@ -2492,11 +2467,10 @@ cndb_cull_loop(struct cndb *cndb, void **vector, size_t count, u64 drop_cnid)
         if (drop_cnid && mtxcnid(vector[i]) == drop_cnid) {
             err = cndb_drop_mtx(cndb, mtu, txp);
             if (err) {
-                CNDB_LOGTX(
+                CNDB_LOGTX_ERR(
                     err,
                     cndb,
                     mtxid(mtu),
-                    HSE_ERR,
                     " cnid %lu drop record %d failed",
                     (ulong)drop_cnid,
                     i);
@@ -2530,13 +2504,13 @@ cndb_cull(struct cndb *cndb, u64 drop_cnid)
      */
     err = cndb_cull_loop(cndb, cndb->cndb_keepv, cndb->cndb_keepc, drop_cnid);
     if (err) {
-        CNDB_LOG(err, cndb, HSE_ERR, " cnid %lu keepv drop failed", (ulong)drop_cnid);
+        CNDB_LOG_ERR(err, cndb, " cnid %lu keepv drop failed", (ulong)drop_cnid);
         goto errout;
     }
 
     err = cndb_cull_loop(cndb, cndb->cndb_workv, cndb->cndb_workc, drop_cnid);
     if (err) {
-        CNDB_LOG(err, cndb, HSE_ERR, " cnid %lu workv drop failed", (ulong)drop_cnid);
+        CNDB_LOG_ERR(err, cndb, " cnid %lu workv drop failed", (ulong)drop_cnid);
         goto errout;
     }
 
@@ -2569,7 +2543,7 @@ cndb_rollover(struct cndb *cndb)
     struct cndb_meta_omf *meta = NULL;
     struct cndb_info_omf *inf = NULL;
 
-    CNDB_LOG(0, cndb, HSE_DEBUG, " rollover starting");
+    CNDB_LOG_DEBUG(0, cndb, " rollover starting");
 
     /* Append workv to keepv, then clear workv */
     memcpy(
@@ -2587,14 +2561,14 @@ cndb_rollover(struct cndb *cndb)
 
     err = cndb_compact(cndb);
     if (err) {
-        CNDB_LOG(err, cndb, HSE_ERR, " compact failed");
+        CNDB_LOG_ERR(err, cndb, " compact failed");
         goto errout;
     }
 
     err = mpool_mdc_cstart(cndb->cndb_mdc);
     if (err) {
         cndb->cndb_mdc = NULL; /* cstart closes the MDC on error */
-        CNDB_LOG(err, cndb, HSE_ERR, " cstart failed");
+        CNDB_LOG_ERR(err, cndb, " cstart failed");
         goto errout;
     }
 
@@ -2606,7 +2580,7 @@ cndb_rollover(struct cndb *cndb)
 
     err = mpool_mdc_append(cndb->cndb_mdc, ver, sizeof(*ver), false);
     if (err) {
-        CNDB_LOG(err, cndb, HSE_ERR, " version write failed");
+        CNDB_LOG_ERR(err, cndb, " version write failed");
         goto errout;
     }
 
@@ -2616,7 +2590,7 @@ cndb_rollover(struct cndb *cndb)
 
     err = mpool_mdc_append(cndb->cndb_mdc, meta, sizeof(*meta), false);
     if (err) {
-        CNDB_LOG(err, cndb, HSE_ERR, " meta write failed");
+        CNDB_LOG_ERR(err, cndb, " meta write failed");
         goto errout;
     }
 
@@ -2627,10 +2601,9 @@ cndb_rollover(struct cndb *cndb)
         if (cn->cn_removed) {
             if (drop_cnid || (drop_idx != -1)) {
                 err = merr(EPROTO);
-                CNDB_LOG(
+                CNDB_LOG_ERR(
                     err,
                     cndb,
-                    HSE_ERR,
                     " nested kvs drop (%lu, %lu)",
                     (ulong)drop_cnid,
                     (ulong)cn->cn_cnid);
@@ -2650,7 +2623,7 @@ cndb_rollover(struct cndb *cndb)
 
         err = mpool_mdc_append(cndb->cndb_mdc, inf, sz, false);
         if (err) {
-            CNDB_LOG(err, cndb, HSE_ERR, " info %lu failed", (ulong)cn->cn_cnid);
+            CNDB_LOG_ERR(err, cndb, " info %lu failed", (ulong)cn->cn_cnid);
             goto errout;
         }
     }
@@ -2659,7 +2632,7 @@ cndb_rollover(struct cndb *cndb)
         cndb_cnv_del(cndb, drop_idx);
         err = cndb_cull(cndb, drop_cnid);
         if (err) {
-            CNDB_LOG(err, cndb, HSE_ERR, " cull cnid %lu failed", (ulong)drop_cnid);
+            CNDB_LOG_ERR(err, cndb, " cull cnid %lu failed", (ulong)drop_cnid);
             goto errout;
         }
         cndb_defragment(cndb);
@@ -2677,15 +2650,15 @@ cndb_rollover(struct cndb *cndb)
 
         err = mtx2omf(cndb, buf, cndb->cndb_keepv[i]);
         if (err) {
-            CNDB_LOGTX(
-                err, cndb, mtxid(cndb->cndb_keepv[i]), HSE_ERR, " OMF conversion failed (keepv)");
+            CNDB_LOGTX_ERR(
+                err, cndb, mtxid(cndb->cndb_keepv[i]), " OMF conversion failed (keepv)");
             goto errout;
         }
 
         sz = omf_cnhdr_len(buf) + sizeof(struct cndb_hdr_omf);
         err = mpool_mdc_append(cndb->cndb_mdc, buf, sz, false);
         if (err) {
-            CNDB_LOGTX(err, cndb, mtxid(cndb->cndb_keepv[i]), HSE_ERR, " append failed (keepv)");
+            CNDB_LOGTX_ERR(err, cndb, mtxid(cndb->cndb_keepv[i]), " append failed (keepv)");
             goto errout;
         }
     }
@@ -2695,15 +2668,15 @@ cndb_rollover(struct cndb *cndb)
 
         err = mtx2omf(cndb, buf, cndb->cndb_workv[i]);
         if (err) {
-            CNDB_LOGTX(
-                err, cndb, mtxid(cndb->cndb_keepv[i]), HSE_ERR, " OMF conversion failed (workv)");
+            CNDB_LOGTX_ERR(
+                err, cndb, mtxid(cndb->cndb_keepv[i]), " OMF conversion failed (workv)");
             goto errout;
         }
 
         sz = omf_cnhdr_len(buf) + sizeof(struct cndb_hdr_omf);
         err = mpool_mdc_append(cndb->cndb_mdc, buf, sz, false);
         if (err) {
-            CNDB_LOGTX(err, cndb, mtxid(cndb->cndb_keepv[i]), HSE_ERR, " append failed (workv)");
+            CNDB_LOGTX_ERR(err, cndb, mtxid(cndb->cndb_keepv[i]), " append failed (workv)");
             goto errout;
         }
     }
@@ -2711,15 +2684,15 @@ cndb_rollover(struct cndb *cndb)
     err = mpool_mdc_cend(cndb->cndb_mdc);
     if (err) {
         cndb->cndb_mdc = NULL; /* cend closes the MDC on error */
-        CNDB_LOG(err, cndb, HSE_ERR, " cend failed");
+        CNDB_LOG_ERR(err, cndb, " cend failed");
         goto errout;
     }
 
 errout:
     if (err)
-        CNDB_LOG(err, cndb, HSE_ERR, " rollover failed");
+        CNDB_LOG_ERR(err, cndb, " rollover failed");
     else
-        CNDB_LOG(0, cndb, HSE_DEBUG, " cndb rollover finished");
+        CNDB_LOG_DEBUG(0, cndb, " cndb rollover finished");
 
     ver = NULL;
     inf = NULL;
@@ -2749,22 +2722,21 @@ cndb_accept(struct cndb *cndb, void *data, size_t sz)
 
     if (cndb->cndb_read_only) {
         err = merr(EROFS);
-        CNDB_LOG(err, cndb, HSE_ERR, "");
+        CNDB_LOG_ERR(err, cndb, "");
         goto errout;
     }
 
     err = mpool_mdc_usage(cndb->cndb_mdc, NULL, &usage);
     if (err) {
-        CNDB_LOG(err, cndb, HSE_ERR, " statistics unavailable");
+        CNDB_LOG_ERR(err, cndb, " statistics unavailable");
         goto errout;
     }
 
     count = cndb->cndb_workc + cndb->cndb_keepc;
     if (!(count % 1024))
-        CNDB_LOG(
+        CNDB_LOG_DEBUG(
             0,
             cndb,
-            HSE_DEBUG,
             " journal count %d entries %ld odometer %d",
             count,
             (ulong)cndb->cndb_entries,
@@ -2775,13 +2747,13 @@ cndb_accept(struct cndb *cndb, void *data, size_t sz)
         err = cndb_rollover(cndb);
         if (err) {
             cndb->cndb_read_only = true;
-            CNDB_LOG(err, cndb, HSE_ERR, " rollover failed");
+            CNDB_LOG_ERR(err, cndb, " rollover failed");
             goto errout;
         }
 
         err = mpool_mdc_usage(cndb->cndb_mdc, NULL, &usage);
         if (err) {
-            CNDB_LOG(err, cndb, HSE_ERR, " statistics unavailable");
+            CNDB_LOG_ERR(err, cndb, " statistics unavailable");
             goto errout;
         }
 
@@ -2789,10 +2761,9 @@ cndb_accept(struct cndb *cndb, void *data, size_t sz)
         if (count >= cndb->cndb_entries_high_water) {
             err = cndb_grow(cndb, usage + sz);
             if (err)
-                CNDB_LOG(
+                CNDB_LOG_WARN(
                     err,
                     cndb,
-                    HSE_WARNING,
                     " working set "
                     " watermark exceeded count %d hwm %zd",
                     count,
@@ -2803,7 +2774,7 @@ cndb_accept(struct cndb *cndb, void *data, size_t sz)
         if ((usage + sz) >= cndb->cndb_captgt || count >= cndb->cndb_entries) {
             cndb->cndb_read_only = true;
             err = merr(ENOSPC);
-            CNDB_LOG(err, cndb, HSE_ERR, " MDC full");
+            CNDB_LOG_ERR(err, cndb, " MDC full");
             kvdb_health_event(cndb->cndb_kvdb_health, KVDB_HEALTH_FLAG_CNDBFAIL, err);
             goto errout;
         }
@@ -2821,20 +2792,20 @@ accept_record:
         err = omf2len(data, CNDB_VERSION, &mtlen);
         if (err || !mtlen) {
             err = merr(EPROTO);
-            CNDB_LOG(err, cndb, HSE_ERR, " invalid record");
+            CNDB_LOG_ERR(err, cndb, " invalid record");
             goto errout;
         }
 
         mtu = calloc(1, mtlen);
         if (!mtu) {
             err = merr(ENOMEM);
-            CNDB_LOG(err, cndb, HSE_ERR, "");
+            CNDB_LOG_ERR(err, cndb, "");
             goto errout;
         }
 
         err = omf2mtx(mtu, &mtlen, data, CNDB_VERSION);
         if (err) {
-            CNDB_LOG(err, cndb, HSE_ERR, " invalid OMF");
+            CNDB_LOG_ERR(err, cndb, " invalid OMF");
             free(mtu);
             goto errout;
         }
@@ -2849,7 +2820,7 @@ accept_record:
         struct cndb_hdr_omf *hdr = data;
 
         kvdb_health_error(cndb->cndb_kvdb_health, err);
-        CNDB_LOGTX(err, cndb, mtxid(mtu), HSE_ERR, " append failed (type %d)", hdr->cnhdr_type);
+        CNDB_LOGTX_ERR(err, cndb, mtxid(mtu), " append failed (type %d)", hdr->cnhdr_type);
     }
 
 errout:
@@ -2903,7 +2874,7 @@ cndb_close(struct cndb *cndb)
     if (cndb->cndb_mdc) {
         err = mpool_mdc_close(cndb->cndb_mdc);
         if (err)
-            CNDB_LOG(err, cndb, HSE_ERR, " MDC close failed");
+            CNDB_LOG_ERR(err, cndb, " MDC close failed");
     }
 
     for (i = 0; i < cndb->cndb_cnc; i++) {
@@ -2956,7 +2927,7 @@ cndb_cn_create2(struct cndb *cndb, const struct kvs_cparams *cparams, u64 *cnid_
 
     if (cparams->fanout < 2 || cparams->fanout > 16) {
         err = merr(EINVAL);
-        CNDB_LOG(err, cndb, HSE_ERR, " fanout");
+        CNDB_LOG_ERR(err, cndb, " fanout");
         goto done;
     }
     fanout_bits = ilog2(cparams->fanout);
@@ -2978,14 +2949,14 @@ cndb_cn_create2(struct cndb *cndb, const struct kvs_cparams *cparams, u64 *cnid_
     err = cndb_cnv_add(cndb, flags, cparams, *cnid_out, name, 0, NULL);
     mutex_unlock(&cndb->cndb_cnv_lock);
     if (err) {
-        CNDB_LOG(err, cndb, HSE_ERR, " cn %s add failed", name);
+        CNDB_LOG_ERR(err, cndb, " cn %s add failed", name);
         goto done;
     }
 
     omf_set_cninfo_cnid(&info, *cnid_out);
     err = cndb_journal(cndb, &info, sizeof(info));
     if (err)
-        CNDB_LOG(err, cndb, HSE_ERR, " cn %s adoption failed", name);
+        CNDB_LOG_ERR(err, cndb, " cn %s adoption failed", name);
 
 done:
     return err;
@@ -2998,19 +2969,19 @@ cndb_cn_create(struct cndb *cndb, const struct kvs_cparams *cparams, u64 *cnid_o
 
     if (strnlen(name, CNDB_CN_NAME_MAX) >= CNDB_CN_NAME_MAX) {
         err = merr(ENAMETOOLONG);
-        CNDB_LOG(err, cndb, HSE_ERR, " cn %s", name);
+        CNDB_LOG_ERR(err, cndb, " cn %s", name);
         return err;
     }
 
     err = cn_make(cndb->cndb_ds, cparams, cndb->cndb_kvdb_health);
     if (err) {
-        CNDB_LOG(err, cndb, HSE_ERR, " cn %s creation failed", name);
+        CNDB_LOG_ERR(err, cndb, " cn %s creation failed", name);
         return err;
     }
 
     err = cndb_cn_create2(cndb, cparams, cnid_out, name);
     if (err)
-        CNDB_LOG(err, cndb, HSE_ERR, " cn %s adoption failed", name);
+        CNDB_LOG_ERR(err, cndb, " cn %s adoption failed", name);
 
     return err;
 }
@@ -3075,7 +3046,7 @@ done:
     mutex_unlock(&cndb->cndb_cnv_lock);
 
     if (err)
-        CNDB_LOG(err, cndb, HSE_ERR, "cnid %lu%s", (ulong)cnid, msg);
+        CNDB_LOG_ERR(err, cndb, "cnid %lu%s", (ulong)cnid, msg);
 
     return err;
 }

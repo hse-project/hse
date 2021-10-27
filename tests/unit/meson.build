@@ -45,7 +45,7 @@ components = {
         # there are multiple threads that use syslog/vsyslog, so by the
         # time this message is parsed by process_json_payload(), the
         # buffer could have been reused.
-        # 'cn_logging_test': {},
+        'cn_logging_test': {},
         'cn_make_test': {},
         'cn_mblock_test': {},
         'cn_open_test': {},
@@ -239,7 +239,7 @@ components = {
         # there are multiple threads that use syslog/vsyslog, so by the
         # time this message is parsed by process_json_payload(), the
         # buffer could have been reused.
-        # 'logging_test': {},
+        'logging_test': {},
         'parse_num_test': {},
         'perfc_test': {},
         'printbuf_test': {},

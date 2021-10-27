@@ -60,7 +60,7 @@ fatal(char *who, hse_err_t err)
     char buf[ERROR_BUF_SIZE];
     hse_strerror(err, buf, sizeof(buf));
 
-    hse_log(HSE_ERR "cndb_log: %s: %s", who, buf);
+    log_err("cndb_log: %s: %s", who, buf);
     exit(1);
 }
 
@@ -313,7 +313,7 @@ read_rec(struct tool_info *ti, size_t *len)
     if (!ti->rpath) {
         err = merr_to_hse_err(mpool_mdc_read(ti->cndb->cndb_mdc, ti->buf, ti->bufsz, len));
         if (hse_err_to_errno(err) == EOVERFLOW) {
-            hse_log(HSE_INFO "bufsz:%lu, reclen:%lu\n", ti->bufsz, *len);
+            log_info("bufsz:%lu, reclen:%lu\n", ti->bufsz, *len);
             ti->bufsz = *len;
             ti->buf = realloc(ti->buf, ti->bufsz);
             if (!ti->buf)

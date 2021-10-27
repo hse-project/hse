@@ -1252,10 +1252,10 @@ void
 kvs_cursor_perfc_alloc(uint prio, const char *dbname, struct perfc_set *pcs_cc, struct perfc_set *pcs_cd)
 {
     if (perfc_ctrseti_alloc(prio, dbname, kvs_cc_perfc_op, PERFC_EN_CC, "set", pcs_cc))
-        hse_log(HSE_ERR "cannot alloc kvs perf counters");
+        log_err("cannot alloc kvs perf counters");
 
     if (perfc_ctrseti_alloc(prio, dbname, kvs_cd_perfc_op, PERFC_EN_CD, "set", pcs_cd))
-        hse_log(HSE_ERR "cannot alloc kvs perf counters");
+        log_err("cannot alloc kvs perf counters");
 }
 
 void
@@ -1279,7 +1279,7 @@ kvs_cursor_perfc_init(void)
 
     err = perfc_ivl_create(PERFC_IVL_MAX, boundv, &ivl);
     if (err) {
-        hse_elog(HSE_WARNING "cursor perfc, unable to allocate pow2 ivl: @@e", err);
+        log_warnx("cursor perfc, unable to allocate pow2 ivl: @@e", err);
         return;
     }
 
@@ -1361,12 +1361,7 @@ kvs_curcache_init(void)
         bkt->cb_root = RB_ROOT;
     }
 
-    hse_log(
-        HSE_NOTICE "%s: bktsz %zu, bktc %u, nperbkt %u",
-        __func__,
-        ikvs_curcachesz,
-        ikvs_curcachec,
-        nperbkt);
+    log_debug("bktsz %zu, bktc %u, nperbkt %u", ikvs_curcachesz, ikvs_curcachec, nperbkt);
 
     setup_timer(&ikvs_curcache_timer, ikvs_curcache_timer_cb, 0);
     add_timer(&ikvs_curcache_timer);
@@ -1402,9 +1397,8 @@ kvs_curcache_fini(void)
     }
 
     if (bktc > 0) {
-        hse_log(
-            HSE_NOTICE "%s: bucket utilization %.1lf%% (%u/%u), entry utilization %.1lf%% (%u/%u)",
-            __func__,
+        log_info(
+            "bucket utilization %.1lf%% (%u/%u), entry utilization %.1lf%% (%u/%u)",
             (bktc * 100.0) / ikvs_curcachec,
             bktc,
             ikvs_curcachec,

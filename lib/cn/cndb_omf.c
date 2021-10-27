@@ -163,16 +163,11 @@ omf_cndb_ver_unpack(void *omf, u32 ver, union cndb_mtu *mtu, u32 *plen)
     type = omf_cnhdr_type(&(ver_omf->hdr));
 
     if (type != CNDB_TYPE_VERSION) {
-        hse_alog(
-            HSE_ERR "%s: Invalid record type %u for this "
-                    "unpacking function, version %u",
-            __func__,
-            type,
-            ver);
+        log_err("Invalid record type %u for this unpacking function, version %u", type, ver);
         return merr(EINVAL);
     }
     if ((mtu == NULL) && (plen == NULL)) {
-        hse_alog(HSE_ERR "%s: NULL length pointer, version %u", __func__, ver);
+        log_err("NULL length pointer, version %u", ver);
         return merr(EINVAL);
     }
     len = sizeof(struct cndb_ver);
@@ -182,7 +177,7 @@ omf_cndb_ver_unpack(void *omf, u32 ver, union cndb_mtu *mtu, u32 *plen)
         return 0;
     }
     if (plen && (*plen < len)) {
-        hse_alog(HSE_ERR "%s: Receive buffer too small, version %u", __func__, ver);
+        log_err("Receive buffer too small, version %u", ver);
         return merr(EINVAL);
     }
 
@@ -204,17 +199,12 @@ omf_cndb_meta_unpack(void *omf_blob, u32 ver, union cndb_mtu *mtu, u32 *plen)
 
     type = omf_cnhdr_type(&(omf->hdr));
     if (type != CNDB_TYPE_META) {
-        hse_alog(
-            HSE_ERR "%s: Invalid record type %u for this "
-                    "unpacking function, version %u",
-            __func__,
-            type,
-            ver);
+        log_err("Invalid record type %u for this unpacking function, version %u", type, ver);
         return merr(EINVAL);
     }
 
     if ((mtu == NULL) && (plen == NULL)) {
-        hse_alog(HSE_ERR "%s: NULL length pointer, version %u", __func__, ver);
+        log_err("NULL length pointer, version %u", ver);
         return merr(EINVAL);
     }
 
@@ -226,7 +216,7 @@ omf_cndb_meta_unpack(void *omf_blob, u32 ver, union cndb_mtu *mtu, u32 *plen)
     }
 
     if (plen && (*plen < len)) {
-        hse_alog(HSE_ERR "%s: Receive buffer too small, version %u", __func__, ver);
+        log_err("Receive buffer too small, version %u", ver);
         return merr(EINVAL);
     }
 
@@ -248,17 +238,12 @@ omf_cndb_info_unpack(void *omf_blob, u32 ver, union cndb_mtu *mtu, u32 *plen)
 
     type = omf_cnhdr_type(&(omf->hdr));
     if (type != CNDB_TYPE_INFO && type != CNDB_TYPE_INFOD) {
-        hse_alog(
-            HSE_ERR "%s: Invalid record type %u for this "
-                    "unpacking function, version %u",
-            __func__,
-            type,
-            ver);
+        log_err("Invalid record type %u for this unpacking function, version %u", type, ver);
         return merr(EINVAL);
     }
 
     if ((mtu == NULL) && (plen == NULL)) {
-        hse_alog(HSE_ERR "%s: NULL length pointer, version %u", __func__, ver);
+        log_err("NULL length pointer, version %u", ver);
         return merr(EINVAL);
     }
 
@@ -270,7 +255,7 @@ omf_cndb_info_unpack(void *omf_blob, u32 ver, union cndb_mtu *mtu, u32 *plen)
     }
 
     if (plen && (*plen < len)) {
-        hse_alog(HSE_ERR "%s: Receive buffer too small, version %u", __func__, ver);
+        log_err("Receive buffer too small, version %u", ver);
         return merr(EINVAL);
     }
 
@@ -301,17 +286,12 @@ omf_cndb_info_unpack_v9(void *omf_blob, u32 ver, union cndb_mtu *mtu, u32 *plen)
 
     type = omf_cnhdr_type(&(omf->hdr));
     if (type != CNDB_TYPE_INFO && type != CNDB_TYPE_INFOD) {
-        hse_alog(
-            HSE_ERR "%s: Invalid record type %u for this "
-                    "unpacking function, version %u",
-            __func__,
-            type,
-            ver);
+        log_err("Invalid record type %u for this unpacking function, version %u", type, ver);
         return merr(EINVAL);
     }
 
     if ((mtu == NULL) && (plen == NULL)) {
-        hse_alog(HSE_ERR "%s: NULL length pointer, version %u", __func__, ver);
+        log_err("NULL length pointer, version %u", ver);
         return merr(EINVAL);
     }
 
@@ -323,7 +303,7 @@ omf_cndb_info_unpack_v9(void *omf_blob, u32 ver, union cndb_mtu *mtu, u32 *plen)
     }
 
     if (plen && (*plen < len)) {
-        hse_alog(HSE_ERR "%s: Receive buffer too small, version %u", __func__, ver);
+        log_err("Receive buffer too small, version %u", ver);
         return merr(EINVAL);
     }
 
@@ -353,16 +333,11 @@ omf_cndb_info_unpack_v7(void *omf, u32 ver, union cndb_mtu *mtu, u32 *plen)
 
     type = omf_cnhdr_type(&(info_omf->hdr));
     if (type != CNDB_TYPE_INFO && type != CNDB_TYPE_INFOD) {
-        hse_alog(
-            HSE_ERR "%s: Invalid record type %u for this "
-                    "unpacking function, version %u",
-            __func__,
-            type,
-            ver);
+        log_err("Invalid record type %u for this unpacking function, version %u", type, ver);
         return merr(EINVAL);
     }
     if ((mtu == NULL) && (plen == NULL)) {
-        hse_alog(HSE_ERR "%s: NULL length pointer, version %u", __func__, ver);
+        log_err("NULL length pointer, version %u", ver);
         return merr(EINVAL);
     }
     len = sizeof(struct cndb_info) + omf_cninfo_metasz_v7(info_omf);
@@ -372,7 +347,7 @@ omf_cndb_info_unpack_v7(void *omf, u32 ver, union cndb_mtu *mtu, u32 *plen)
         return 0;
     }
     if (plen && (*plen < len)) {
-        hse_alog(HSE_ERR "%s: Receive buffer too small, version %u", __func__, ver);
+        log_err("Receive buffer too small, version %u", ver);
         return merr(EINVAL);
     }
 
@@ -398,16 +373,11 @@ omf_cndb_tx_unpack_v4(void *omf, u32 ver, union cndb_mtu *mtu, u32 *plen)
 
     type = omf_cnhdr_type(&(tx_omf->hdr));
     if (type != CNDB_TYPE_TX) {
-        hse_alog(
-            HSE_ERR "%s: Invalid record type %u for this "
-                    "unpacking function, version %u",
-            __func__,
-            type,
-            ver);
+        log_err("Invalid record type %u for this unpacking function, version %u", type, ver);
         return merr(EINVAL);
     }
     if ((mtu == NULL) && (plen == NULL)) {
-        hse_alog(HSE_ERR "%s: NULL length pointer, version %u", __func__, ver);
+        log_err("NULL length pointer, version %u", ver);
         return merr(EINVAL);
     }
     len = sizeof(struct cndb_tx);
@@ -417,7 +387,7 @@ omf_cndb_tx_unpack_v4(void *omf, u32 ver, union cndb_mtu *mtu, u32 *plen)
         return 0;
     }
     if (plen && (*plen < len)) {
-        hse_alog(HSE_ERR "%s: Receive buffer too small, version %u", __func__, ver);
+        log_err("Receive buffer too small, version %u", ver);
         return merr(EINVAL);
     }
 
@@ -441,16 +411,11 @@ omf_cndb_tx_unpack_v5(void *omf, u32 ver, union cndb_mtu *mtu, u32 *plen)
 
     type = omf_cnhdr_type(&(tx_omf->hdr));
     if (type != CNDB_TYPE_TX) {
-        hse_alog(
-            HSE_ERR "%s: Invalid record type %u for this "
-                    "unpacking function, version %u",
-            __func__,
-            type,
-            ver);
+        log_err("Invalid record type %u for this unpacking function, version %u", type, ver);
         return merr(EINVAL);
     }
     if ((mtu == NULL) && (plen == NULL)) {
-        hse_alog(HSE_ERR "%s: NULL length pointer, version %u", __func__, ver);
+        log_err("NULL length pointer, version %u", ver);
         return merr(EINVAL);
     }
     len = sizeof(struct cndb_tx);
@@ -460,7 +425,7 @@ omf_cndb_tx_unpack_v5(void *omf, u32 ver, union cndb_mtu *mtu, u32 *plen)
         return 0;
     }
     if (plen && (*plen < len)) {
-        hse_alog(HSE_ERR "%s: Receive buffer too small, version %u", __func__, ver);
+        log_err("Receive buffer too small, version %u", ver);
         return merr(EINVAL);
     }
 
@@ -485,16 +450,11 @@ omf_cndb_tx_unpack(void *omf, u32 ver, union cndb_mtu *mtu, u32 *plen)
 
     type = omf_cnhdr_type(&(tx_omf->hdr));
     if (type != CNDB_TYPE_TX) {
-        hse_alog(
-            HSE_ERR "%s: Invalid record type %u for this "
-                    "unpacking function, version %u",
-            __func__,
-            type,
-            ver);
+        log_err("Invalid record type %u for this unpacking function, version %u", type, ver);
         return merr(EINVAL);
     }
     if ((mtu == NULL) && (plen == NULL)) {
-        hse_alog(HSE_ERR "%s: NULL length pointer, version %u", __func__, ver);
+        log_err("NULL length pointer, version %u", ver);
         return merr(EINVAL);
     }
     len = sizeof(struct cndb_tx);
@@ -504,7 +464,7 @@ omf_cndb_tx_unpack(void *omf, u32 ver, union cndb_mtu *mtu, u32 *plen)
         return 0;
     }
     if (plen && (*plen < len)) {
-        hse_alog(HSE_ERR "%s: Receive buffer too small, version %u", __func__, ver);
+        log_err("Receive buffer too small, version %u", ver);
         return merr(EINVAL);
     }
 
@@ -533,16 +493,11 @@ omf_cndb_txc_unpack_v4(void *omf, u32 ver, union cndb_mtu *mtu, u32 *plen)
 
     type = omf_cnhdr_type(&(txc_omf->hdr));
     if (type != CNDB_TYPE_TXC) {
-        hse_alog(
-            HSE_ERR "%s: Invalid record type %u for this "
-                    "unpacking function, version %u",
-            __func__,
-            type,
-            ver);
+        log_err("Invalid record type %u for this unpacking function, version %u", type, ver);
         return merr(EINVAL);
     }
     if ((mtu == NULL) && (plen == NULL)) {
-        hse_alog(HSE_ERR "%s: NULL length pointer, version %u", __func__, ver);
+        log_err("NULL length pointer, version %u", ver);
         return merr(EINVAL);
     }
     len = sizeof(struct cndb_txc) +
@@ -553,7 +508,7 @@ omf_cndb_txc_unpack_v4(void *omf, u32 ver, union cndb_mtu *mtu, u32 *plen)
         return 0;
     }
     if (plen && (*plen < len)) {
-        hse_alog(HSE_ERR "%s: Receive buffer too small, version %u", __func__, ver);
+        log_err("Receive buffer too small, version %u", ver);
         return merr(EINVAL);
     }
 
@@ -571,7 +526,7 @@ omf_cndb_txc_unpack_v4(void *omf, u32 ver, union cndb_mtu *mtu, u32 *plen)
         mtc->mtc_keepvbc = 0;
 
     if (omf_txc_mcnt_v4(txc_omf) != 0)
-        hse_alog(HSE_NOTICE "cndb tx %lu OMF contains meta blocks, ignored", (ulong)mtc->mtc_id);
+        log_info("cndb tx %lu OMF contains meta blocks, ignored", (ulong)mtc->mtc_id);
 
     mto = (void *)&mtc[1];
     omo = (void *)&txc_omf[1];
@@ -599,16 +554,11 @@ omf_cndb_txc_unpack(void *omf, u32 ver, union cndb_mtu *mtu, u32 *plen)
 
     type = omf_cnhdr_type(&(txc_omf->hdr));
     if (type != CNDB_TYPE_TXC) {
-        hse_alog(
-            HSE_ERR "%s: Invalid record type %u for this "
-                    "unpacking function, version %u",
-            __func__,
-            type,
-            ver);
+        log_err("Invalid record type %u for this unpacking function, version %u", type, ver);
         return merr(EINVAL);
     }
     if ((mtu == NULL) && (plen == NULL)) {
-        hse_alog(HSE_ERR "%s: NULL length pointer, version %u", __func__, ver);
+        log_err("NULL length pointer, version %u", ver);
         return merr(EINVAL);
     }
     len = sizeof(struct cndb_txc) +
@@ -619,7 +569,7 @@ omf_cndb_txc_unpack(void *omf, u32 ver, union cndb_mtu *mtu, u32 *plen)
         return 0;
     }
     if (plen && (*plen < len)) {
-        hse_alog(HSE_ERR "%s: Receive buffer too small, version %u", __func__, ver);
+        log_err("Receive buffer too small, version %u", ver);
         return merr(EINVAL);
     }
 
@@ -631,7 +581,7 @@ omf_cndb_txc_unpack(void *omf, u32 ver, union cndb_mtu *mtu, u32 *plen)
     mtc->mtc_vcnt = omf_txc_vcnt(txc_omf);
     mtc->mtc_keepvbc = omf_txc_keepvbc(txc_omf);
     if (omf_txc_mcnt(txc_omf) != 0)
-        hse_alog(HSE_NOTICE "cndb tx %lu OMF contains meta blocks, ignored", (ulong)mtc->mtc_id);
+        log_info("cndb tx %lu OMF contains meta blocks, ignored", (ulong)mtc->mtc_id);
 
     mto = (void *)&mtc[1];
     omo = (void *)&txc_omf[1];
@@ -656,16 +606,11 @@ omf_cndb_txm_unpack(void *omf, u32 ver, union cndb_mtu *mtu, u32 *plen)
 
     type = omf_cnhdr_type(&(txm_omf->hdr));
     if (type != CNDB_TYPE_TXM) {
-        hse_alog(
-            HSE_ERR "%s: Invalid record type %u for this "
-                    "unpacking function, version %u",
-            __func__,
-            type,
-            ver);
+        log_err("Invalid record type %u for this unpacking function, version %u", type, ver);
         return merr(EINVAL);
     }
     if ((mtu == NULL) && (plen == NULL)) {
-        hse_alog(HSE_ERR "%s: NULL length pointer, version %u", __func__, ver);
+        log_err("NULL length pointer, version %u", ver);
         return merr(EINVAL);
     }
     len = sizeof(struct cndb_txm);
@@ -675,7 +620,7 @@ omf_cndb_txm_unpack(void *omf, u32 ver, union cndb_mtu *mtu, u32 *plen)
         return 0;
     }
     if (plen && (*plen < len)) {
-        hse_alog(HSE_ERR "%s: Receive buffer too small, version %u", __func__, ver);
+        log_err("Receive buffer too small, version %u", ver);
         return merr(EINVAL);
     }
 
@@ -703,16 +648,11 @@ omf_cndb_txm_unpack_v8(void *omf, u32 ver, union cndb_mtu *mtu, u32 *plen)
 
     type = omf_cnhdr_type(&(txm_omf->hdr));
     if (type != CNDB_TYPE_TXM) {
-        hse_alog(
-            HSE_ERR "%s: Invalid record type %u for this "
-                    "unpacking function, version %u",
-            __func__,
-            type,
-            ver);
+        log_err("Invalid record type %u for this unpacking function, version %u", type, ver);
         return merr(EINVAL);
     }
     if ((mtu == NULL) && (plen == NULL)) {
-        hse_alog(HSE_ERR "%s: NULL length pointer, version %u", __func__, ver);
+        log_err("NULL length pointer, version %u", ver);
         return merr(EINVAL);
     }
     len = sizeof(struct cndb_txm);
@@ -722,7 +662,7 @@ omf_cndb_txm_unpack_v8(void *omf, u32 ver, union cndb_mtu *mtu, u32 *plen)
         return 0;
     }
     if (plen && (*plen < len)) {
-        hse_alog(HSE_ERR "%s: Receive buffer too small, version %u", __func__, ver);
+        log_err("Receive buffer too small, version %u", ver);
         return merr(EINVAL);
     }
 
@@ -753,16 +693,11 @@ omf_cndb_txd_unpack(void *omf, u32 ver, union cndb_mtu *mtu, u32 *plen)
 
     type = omf_cnhdr_type(&(txd_omf->hdr));
     if (type != CNDB_TYPE_TXD) {
-        hse_alog(
-            HSE_ERR "%s: Invalid record type %u for this "
-                    "unpacking function, version %u",
-            __func__,
-            type,
-            ver);
+        log_err("Invalid record type %u for this unpacking function, version %u", type, ver);
         return merr(EINVAL);
     }
     if ((mtu == NULL) && (plen == NULL)) {
-        hse_alog(HSE_ERR "%s: NULL length pointer, version %u", __func__, ver);
+        log_err("NULL length pointer, version %u", ver);
         return merr(EINVAL);
     }
     len = sizeof(struct cndb_oid) * omf_txd_n_oids(txd_omf) + sizeof(struct cndb_txd);
@@ -772,7 +707,7 @@ omf_cndb_txd_unpack(void *omf, u32 ver, union cndb_mtu *mtu, u32 *plen)
         return 0;
     }
     if (plen && (*plen < len)) {
-        hse_alog(HSE_ERR "%s: Receive buffer too small, version %u", __func__, ver);
+        log_err("Receive buffer too small, version %u", ver);
         return merr(EINVAL);
     }
 
@@ -800,16 +735,11 @@ omf_cndb_ack_unpack(void *omf, u32 ver, union cndb_mtu *mtu, u32 *plen)
 
     type = omf_cnhdr_type(&(ack_omf->hdr));
     if (type != CNDB_TYPE_ACK) {
-        hse_alog(
-            HSE_ERR "%s: Invalid record type %u for this "
-                    "unpacking function, version %u",
-            __func__,
-            type,
-            ver);
+        log_err("Invalid record type %u for this unpacking function, version %u", type, ver);
         return merr(EINVAL);
     }
     if ((mtu == NULL) && (plen == NULL)) {
-        hse_alog(HSE_ERR "%s: NULL length pointer, version %u", __func__, ver);
+        log_err("NULL length pointer, version %u", ver);
         return merr(EINVAL);
     }
     len = sizeof(struct cndb_ack);
@@ -819,7 +749,7 @@ omf_cndb_ack_unpack(void *omf, u32 ver, union cndb_mtu *mtu, u32 *plen)
         return 0;
     }
     if (plen && (*plen < len)) {
-        hse_alog(HSE_ERR "%s: Receive buffer too small, version %u", __func__, ver);
+        log_err("Receive buffer too small, version %u", ver);
         return merr(EINVAL);
     }
 
@@ -842,16 +772,11 @@ omf_cndb_nak_unpack(void *omf, u32 ver, union cndb_mtu *mtu, u32 *plen)
 
     type = omf_cnhdr_type(&(nak_omf->hdr));
     if (type != CNDB_TYPE_NAK) {
-        hse_alog(
-            HSE_ERR "%s: Invalid record type %u for this "
-                    "unpacking function, version %u",
-            __func__,
-            type,
-            ver);
+        log_err("Invalid record type %u for this unpacking function, version %u", type, ver);
         return merr(EINVAL);
     }
     if ((mtu == NULL) && (plen == NULL)) {
-        hse_alog(HSE_ERR "%s: NULL length pointer, version %u", __func__, ver);
+        log_err("NULL length pointer, version %u", ver);
         return merr(EINVAL);
     }
     len = sizeof(struct cndb_nak);
@@ -861,7 +786,7 @@ omf_cndb_nak_unpack(void *omf, u32 ver, union cndb_mtu *mtu, u32 *plen)
         return 0;
     }
     if (plen && (*plen < len)) {
-        hse_alog(HSE_ERR "%s: Receive buffer too small, version %u", __func__, ver);
+        log_err("Receive buffer too small, version %u", ver);
         return merr(EINVAL);
     }
 
@@ -906,22 +831,14 @@ omf2mtx(union cndb_mtu *mtu, u32 *mtulen, void *omf, u32 cndb_version)
 
     type = omf_cnhdr_type(omf);
     if (type >= NELEM(cndb_unpackt)) {
-        hse_alog(
-            HSE_ERR "%s: Unknown cndb mdc record type %u version "
-                    "%u",
-            __func__,
-            type,
-            cndb_version);
+        log_err("Unknown cndb mdc record type %u version %u", type, cndb_version);
         return merr(EPROTO);
     }
     upghl = &cndb_unpackt[type];
     fn = cndb_unpack_get_fn(upghl, cndb_version);
     if (fn == NULL) {
-        hse_alog(
-            HSE_ERR "The cndb metadata (version %u type %u) is too"
-                    " old, the KVDB can't be opened",
-            cndb_version,
-            type);
+        log_err("The cndb metadata (version %u type %u) is too old, the KVDB can't be opened",
+                cndb_version, type);
         return merr(EPROTO);
     }
     err = fn(omf, cndb_version, mtu, mtulen);
@@ -941,22 +858,14 @@ omf2len(void *omf, u32 cndb_version, u32 *len)
 
     type = omf_cnhdr_type(omf);
     if (type >= NELEM(cndb_unpackt)) {
-        hse_alog(
-            HSE_ERR "%s: Unknown cndb mdc record type %u version "
-                    "%u",
-            __func__,
-            type,
-            cndb_version);
+        log_err("Unknown cndb mdc record type %u version %u", type, cndb_version);
         return merr(EPROTO);
     }
     upghl = &cndb_unpackt[type];
     fn = cndb_unpack_get_fn(upghl, cndb_version);
     if (fn == NULL) {
-        hse_alog(
-            HSE_ERR "The cndb metadata (version %u type %u) is too"
-                    " old, the KVDB can't be opened",
-            cndb_version,
-            type);
+        log_err("The cndb metadata (version %u type %u) is too old, the KVDB can't be opened",
+                cndb_version, type);
         return merr(EPROTO);
     }
     err = fn(omf, cndb_version, NULL, len);

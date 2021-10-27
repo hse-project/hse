@@ -16,14 +16,17 @@
 #define MAX_NV_PAIRS 50
 #define MAX_NV_SIZE 100
 
-#undef hse_xlog
-#define hse_xlog(log_fmt, hse_args, ...) hse_log_pri(log_fmt, false, hse_args, ##__VA_ARGS__)
+#define hse_xlog(_fmt, hse_args, ...) \
+    log_pri(HSE_LOGPRI_ERR, (_fmt), false, hse_args, ##__VA_ARGS__)
 
-#undef hse_log
-#define hse_log(log_fmt, ...) hse_log_pri(log_fmt, false, NULL, ##__VA_ARGS__)
+#define hse_log_notice(_fmt, ...) \
+    log_pri(HSE_LOGPRI_NOTICE, (_fmt), false, NULL, ##__VA_ARGS__)
 
-#undef hse_alog
-#define hse_alog(log_fmt, ...) hse_log_pri(log_fmt, true, NULL, ##__VA_ARGS__)
+#define hse_log_err(_fmt, ...) \
+    log_pri(HSE_LOGPRI_ERR, (_fmt), false, NULL, ##__VA_ARGS__)
+
+#define hse_alog(_fmt, ...) \
+    log_pri(HSE_LOGPRI_ERR, (_fmt), true, NULL, ##__VA_ARGS__)
 
 void
 parse_json_key_values(char *key)
@@ -33,9 +36,12 @@ parse_json_key_values(char *key)
     int   index = 0;
     int   count = 0;
 
-    curr_pos = strstr(shared_result.msg_buffer, key);
     char names[MAX_NV_SIZE];
     char values[MAX_NV_SIZE];
+
+    curr_pos = strstr(shared_result.msg_buffer, key);
+    if (!curr_pos)
+        abort();
 
     while (count < 2 && j < MAX_NV_SIZE) {
         if (curr_pos[i] == '"')
@@ -82,7 +88,6 @@ process_json_payload(void)
 {
     parse_json_key_values("hse_logver");
     parse_json_key_values("hse_version");
-    parse_json_key_values("hse_branch");
     parse_json_key_values("hse_0_category");
     parse_json_key_values("hse_0_version");
     parse_json_key_values("hse_0_code");
@@ -241,7 +246,7 @@ MTF_DEFINE_UTEST(hse_logging_test, Test_string)
 {
     const char str[] = "A string with no special characters.";
 
-    hse_log(HSE_NOTICE "A string with no special characters.");
+    hse_log_notice("A string with no special characters.");
 
     ASSERT_TRUE(strstr(shared_result.msg_buffer, str));
 }
@@ -348,6 +353,8 @@ MTF_DEFINE_UTEST(hse_logging_test, Test_preprocess_fmt_string_std)
 
         sprintf(reference, fmt, i);
 
+        hse_gparams.gp_logging.structured = true;
+
         test_finalize_log_structure(
             &state, false, __FILE__, 1, fmt, scratch, sizeof(scratch), 0, i);
         msg = strstr(shared_result.msg_buffer, reference);
@@ -451,23 +458,17 @@ MTF_DEFINE_UTEST(hse_logging_test, Test_log_call)
 
     merr_strerror(err, description, sizeof(description));
 
-    hse_xlog(
-        HSE_ERR "[UNIT TEST] Error in strdup() while modifying "
-                "configuration: @@e",
-        av);
+    hse_xlog("[UNIT TEST] Error in strdup() while modifying configuration: @@e", av);
 
     process_json_payload();
 
-    ASSERT_EQ(9, shared_result.count);
+    ASSERT_EQ(8, shared_result.count);
 
     ASSERT_STREQ("hse_logver", shared_result.names[ix]);
     ASSERT_STREQ("1", shared_result.values[ix]);
     ix++;
 
     ASSERT_STREQ("hse_version", shared_result.names[ix]);
-    ix++;
-
-    ASSERT_STREQ("hse_branch", shared_result.names[ix]);
     ix++;
 
     ASSERT_STREQ("hse_0_category", shared_result.names[ix]);
@@ -483,7 +484,7 @@ MTF_DEFINE_UTEST(hse_logging_test, Test_log_call)
     ix++;
 
     ASSERT_STREQ("hse_0_file", shared_result.names[ix]);
-    ASSERT_STREQ("test/logging_test.c", shared_result.values[ix]);
+    ASSERT_STREQ("tests/unit/util/logging_test.c", shared_result.values[ix]);
     ix++;
 
     ASSERT_STREQ("hse_0_line", shared_result.names[ix]);
@@ -497,77 +498,33 @@ MTF_DEFINE_UTEST(hse_logging_test, Test_log_call)
     ASSERT_EQ(ix, shared_result.count);
 }
 
-MTF_DEFINE_UTEST(hse_logging_test, Test_hse_logprio_val_to_name)
+MTF_DEFINE_UTEST(hse_logging_test, Test_hse_logpri_val_to_name)
 {
+    static const char *namev[] = {
+        "EMERG", "ALERT", "CRIT", "ERR", "WARNING", "NOTICE", "INFO", "DEBUG"
+    };
+    log_priority_t pri;
     const char *name;
 
-    name = hse_logprio_val_to_name(HSE_DEBUG_VAL);
-    ASSERT_EQ(0, strncmp("HSE_DEBUG", name, strlen("HSE_DEBUG")));
-
-    name = hse_logprio_val_to_name(HSE_INFO_VAL);
-    ASSERT_EQ(0, strncmp("HSE_INFO", name, strlen("HSE_INFO")));
-
-    name = hse_logprio_val_to_name(HSE_NOTICE_VAL);
-    ASSERT_EQ(0, strncmp("HSE_NOTICE", name, strlen("HSE_NOTICE")));
-
-    name = hse_logprio_val_to_name(HSE_WARNING_VAL);
-    ASSERT_EQ(0, strncmp("HSE_WARNING", name, strlen("HSE_WARNING")));
-
-    name = hse_logprio_val_to_name(HSE_ERR_VAL);
-    ASSERT_EQ(0, strncmp("HSE_ERR", name, strlen("HSE_ERR")));
-
-    name = hse_logprio_val_to_name(HSE_CRIT_VAL);
-    ASSERT_EQ(0, strncmp("HSE_CRIT", name, strlen("HSE_CRIT")));
-
-    name = hse_logprio_val_to_name(HSE_ALERT_VAL);
-    ASSERT_EQ(0, strncmp("HSE_ALERT", name, strlen("HSE_ALERT")));
-
-    name = hse_logprio_val_to_name(HSE_EMERG_VAL);
-    ASSERT_EQ(0, strncmp("HSE_EMERG", name, strlen("HSE_EMERG")));
+    for (pri = HSE_LOGPRI_EMERG; pri <= HSE_LOGPRI_DEBUG; ++pri) {
+        name = hse_logpri_val_to_name(pri);
+        ASSERT_EQ(0, strcmp(namev[pri], name));
+    }
 }
 
-MTF_DEFINE_UTEST(hse_logging_test, Test_hse_logprio_name_to_val)
+MTF_DEFINE_UTEST(hse_logging_test, Test_hse_logpri_name_to_val)
 {
-    log_priority_t pri;
+    static const char *namev[] = {
+        "EMERG", "ALERT", "CRIT", "ERR", "WARNING", "NOTICE", "INFO", "DEBUG",
+        "emerg", "alert", "crit", "err", "warning", "notice", "info", "debug",
+        "em", "al", "cr", "err", "warn", "not", "inf", "deb"
+    };
+    log_priority_t pri, i;
 
-    pri = hse_logprio_name_to_val("HSE_DEBUG");
-    ASSERT_EQ(pri, HSE_DEBUG_VAL);
-
-    pri = hse_logprio_name_to_val("HSE_INFO");
-    ASSERT_EQ(pri, HSE_INFO_VAL);
-
-    pri = hse_logprio_name_to_val("HSE_NOTICE");
-    ASSERT_EQ(pri, HSE_NOTICE_VAL);
-
-    pri = hse_logprio_name_to_val("HSE_WARNING");
-    ASSERT_EQ(pri, HSE_WARNING_VAL);
-
-    pri = hse_logprio_name_to_val("hse_warning");
-    ASSERT_EQ(pri, HSE_WARNING_VAL);
-
-    pri = hse_logprio_name_to_val("WARNING");
-    ASSERT_EQ(pri, HSE_WARNING_VAL);
-
-    pri = hse_logprio_name_to_val("warning");
-    ASSERT_EQ(pri, HSE_WARNING_VAL);
-
-    pri = hse_logprio_name_to_val("WARN");
-    ASSERT_EQ(pri, HSE_WARNING_VAL);
-
-    pri = hse_logprio_name_to_val("warn");
-    ASSERT_EQ(pri, HSE_WARNING_VAL);
-
-    pri = hse_logprio_name_to_val("HSE_ERR");
-    ASSERT_EQ(pri, HSE_ERR_VAL);
-
-    pri = hse_logprio_name_to_val("HSE_CRIT");
-    ASSERT_EQ(pri, HSE_CRIT_VAL);
-
-    pri = hse_logprio_name_to_val("HSE_ALERT");
-    ASSERT_EQ(pri, HSE_ALERT_VAL);
-
-    pri = hse_logprio_name_to_val("HSE_EMERG");
-    ASSERT_EQ(pri, HSE_EMERG_VAL);
+    for (i = 0; i < NELEM(namev); ++i) {
+        pri = hse_logpri_name_to_val(namev[i]);
+        ASSERT_EQ(i % 8, pri);
+    }
 }
 
 MTF_DEFINE_UTEST(hse_logging_test, Test_hse_alog)
@@ -579,7 +536,7 @@ MTF_DEFINE_UTEST(hse_logging_test, Test_hse_alog)
     rc = hse_logging_init();
     ASSERT_EQ(0, rc);
 
-    hse_log(HSE_ERR "Test %s %d", "test", -1);
+    hse_log_err("Test %s %d", "test", -1);
 
     /*
      * Fill up the circular buffer and overflow it by 20 entries
@@ -588,7 +545,7 @@ MTF_DEFINE_UTEST(hse_logging_test, Test_hse_alog)
      * shoud be discarded.
      */
     for (i = 0; i < MAX_LOGGING_ASYNC_ENTRIES + 20; i++)
-        hse_alog(HSE_ERR "Test %s %d", "test", i);
+        hse_alog("Test %s %d", "test", i);
     /*
      * Give the consumer thread time  to consume and show all
      * MAX_LOGGING_ASYNC_ENTRIES log messages.
@@ -597,9 +554,7 @@ MTF_DEFINE_UTEST(hse_logging_test, Test_hse_alog)
 
     /* Post 10 new messages, these ones shpuld show and not be discarded. */
     for (i = 0; i < 10; i++)
-        hse_alog(HSE_ERR "Test %s %d", "test after overflow", i);
-
-    hse_logging_fini();
+        hse_alog("Test %s %d", "test after overflow", i);
 }
 
 MTF_DEFINE_UTEST(hse_logging_test, Test_hse_slog)
@@ -615,22 +570,19 @@ MTF_DEFINE_UTEST(hse_logging_test, Test_hse_slog)
      * These message are currently logged in journalctl.
      */
 
-    hse_slog(
-        HSE_NOTICE,
+    slog_info(
         HSE_SLOG_START("utest"),
         HSE_SLOG_FIELD("desc", "%s", "object with field"),
         HSE_SLOG_FIELD("hello", "%s", "world"),
         HSE_SLOG_END);
 
-    hse_slog(
-        HSE_NOTICE,
+    slog_info(
         HSE_SLOG_START("utest"),
         HSE_SLOG_FIELD("desc", "%s", "object with list"),
         HSE_SLOG_LIST("content", "%s", argc, argv),
         HSE_SLOG_END);
 
-    hse_slog(
-        HSE_NOTICE,
+    slog_info(
         HSE_SLOG_START("utest"),
         HSE_SLOG_FIELD("desc", "%s", "nested object"),
         HSE_SLOG_CHILD_START("level_1"),
@@ -640,8 +592,7 @@ MTF_DEFINE_UTEST(hse_logging_test, Test_hse_slog)
         HSE_SLOG_CHILD_END,
         HSE_SLOG_END);
 
-    hse_slog(
-        HSE_NOTICE,
+    slog_info(
         HSE_SLOG_START("foobar"),
         HSE_SLOG_FIELD("xxxxxxxxxxxxxxxxxxxxxxxx_0", "%u", 0),
         HSE_SLOG_FIELD("xxxxxxxxxxxxxxxxxxxxxxxx_1", "%u", 1),
@@ -744,8 +695,6 @@ MTF_DEFINE_UTEST(hse_logging_test, Test_hse_slog)
         HSE_SLOG_FIELD("xxxxxxxxxxxxxxxxxxxxxxxx_98", "%u", 98),
         HSE_SLOG_FIELD("xxxxxxxxxxxxxxxxxxxxxxxx_99", "%u", 99),
         HSE_SLOG_END);
-
-    hse_logging_fini();
 }
 
 MTF_DEFINE_UTEST(hse_logging_test, Test_hse_slog_dynamic)
@@ -764,7 +713,7 @@ MTF_DEFINE_UTEST(hse_logging_test, Test_hse_slog_dynamic)
     hse_logging_fini();
     hse_logging_init();
 
-    hse_slog_create(HSE_NOTICE, &logger, "utest");
+    hse_slog_create(HSE_LOGPRI_NOTICE, &logger, "utest");
 
     jc = &logger->sl_json;
 
@@ -779,7 +728,6 @@ MTF_DEFINE_UTEST(hse_logging_test, Test_hse_slog_dynamic)
     /* check for source info */
     ASSERT_NE(strstr(jc->json_buf, "hse_logver"), NULL);
     ASSERT_NE(strstr(jc->json_buf, "hse_version"), NULL);
-    ASSERT_NE(strstr(jc->json_buf, "hse_branch"), NULL);
 
     /* check for keys */
     ASSERT_NE(strstr(jc->json_buf, "\"type\":\"utest\""), NULL);
@@ -788,8 +736,6 @@ MTF_DEFINE_UTEST(hse_logging_test, Test_hse_slog_dynamic)
     ASSERT_NE(strstr(jc->json_buf, "\"foobar\":2000"), NULL);
 
     hse_slog_commit(logger);
-
-    hse_logging_fini();
 }
 
 MTF_DEFINE_UTEST(hse_logging_test, Test_hse_slog_dynamic_resize)
@@ -801,7 +747,7 @@ MTF_DEFINE_UTEST(hse_logging_test, Test_hse_slog_dynamic_resize)
     hse_logging_fini();
     hse_logging_init();
 
-    hse_slog_create(HSE_NOTICE, &logger, "utest");
+    hse_slog_create(HSE_LOGPRI_NOTICE, &logger, "utest");
 
     jc = &logger->sl_json;
     original = jc->json_buf_sz;
@@ -814,8 +760,6 @@ MTF_DEFINE_UTEST(hse_logging_test, Test_hse_slog_dynamic_resize)
     ASSERT_EQ(original * 2, jc->json_buf_sz);
 
     hse_slog_commit(logger);
-
-    hse_logging_fini();
 }
 
 MTF_END_UTEST_COLLECTION(hse_logging_test);

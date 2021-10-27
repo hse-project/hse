@@ -16,7 +16,7 @@ extern bool hse_initialized;
 #define CLOG_ERR(...)                     \
     do {                                  \
         if (hse_initialized) {            \
-            hse_log(HSE_ERR __VA_ARGS__); \
+            log_err(__VA_ARGS__);         \
         } else {                          \
             fprintf(stderr, __VA_ARGS__); \
             fputc('\n', stderr);          \
@@ -26,7 +26,7 @@ extern bool hse_initialized;
 #define CLOG_DEBUG(...)                     \
     do {                                    \
         if (hse_initialized) {              \
-            hse_log(HSE_DEBUG __VA_ARGS__); \
+            log_debug(__VA_ARGS__);         \
         }                                   \
     } while (0)
 

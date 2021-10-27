@@ -176,12 +176,12 @@ static void
 cancel_job(struct sts_job *job)
 {
     if (csched_rp_dbg_jobs(job->sj_sts->rp))
-        hse_log(HSE_NOTICE "sts/job %u canceled", job->sj_id);
+        log_info("sts/job %u canceled", job->sj_id);
 
     if (job->sj_cancel_fn)
         job->sj_cancel_fn(job);
     else
-        hse_log(HSE_NOTICE "canceled sts job %p has no cancel callback", job);
+        log_info("canceled sts job %p has no cancel callback", job);
 }
 
 static void
@@ -324,13 +324,11 @@ sts_monitor(void *rock)
             u64 delay = 5ULL * 1000 * 1000 * 1000;
 
             if (now > dbg_last + delay) {
-                hse_log(
-                    HSE_NOTICE "sts/mon sig %lu"
-                               " timeo %lu other %lu ss %d",
-                    (ulong)dbg_wake_signals,
-                    (ulong)dbg_wake_timeouts,
-                    (ulong)dbg_wake_other,
-                    ss);
+                log_info("sts/mon sig %lu timeo %lu other %lu ss %d",
+                         (ulong)dbg_wake_signals,
+                         (ulong)dbg_wake_timeouts,
+                         (ulong)dbg_wake_other,
+                         ss);
 
                 dbg_wake_signals = 0;
                 dbg_wake_timeouts = 0;
@@ -363,9 +361,8 @@ sts_monitor(void *rock)
     }
 
     if (csched_rp_dbg_mon(self->rp))
-        hse_log(
-            HSE_NOTICE "sts/mon exiting, waiting for %d workers to finish",
-            atomic_read(&self->spawned_workers));
+        log_info("sts/mon exiting, waiting for %d workers to finish",
+                 atomic_read(&self->spawned_workers));
 
     while (atomic_read(&self->spawned_workers) > 0)
         msleep(EXIT_SLEEP_MS);
@@ -423,11 +420,8 @@ sts_create(struct kvdb_rparams *rp, const char *name, uint nq, struct sts **hand
     self->name = name;
 
     if (csched_rp_dbg_mon(rp))
-        hse_log(
-            HSE_NOTICE "sts/mon create %s, queues %u, policy 0x%x",
-            self->name,
-            nq,
-            rp->csched_policy);
+        log_info("sts/mon create %s, queues %u, policy 0x%x",
+                 self->name, nq, rp->csched_policy);
 
     /* Allocate cache aligned queue structs */
     len = sizeof(self->qv[0]) * (nq + 1);
@@ -513,7 +507,7 @@ worker_run_slice(struct sts_worker *w, struct sts_queue *q, struct sts_job *job)
 
     debug = !!(csched_rp_dbg_jobs(w->sts->rp));
     if (debug)
-        hse_log(HSE_NOTICE "sts/job %u qnum %u worker %s start", job->sj_id, qnum, w->wname);
+        log_info("sts/job %u qnum %u worker %s start", job->sj_id, qnum, w->wname);
 
     perfc_inc(&q->qpc, PERFC_RA_STS_JOBS);
     perfc_inc(&q->qpc, PERFC_BA_STS_JOBS_RUN);
@@ -530,12 +524,8 @@ worker_run_slice(struct sts_worker *w, struct sts_queue *q, struct sts_job *job)
     perfc_dec(&q->qpc, PERFC_BA_STS_JOBS_RUN);
 
     if (debug)
-        hse_log(
-            HSE_NOTICE "sts/job %u qnum %u worker %s end dt(ms) %lu",
-            id,
-            qnum,
-            w->wname,
-            (t1 - t0) / 1000000);
+        log_info("sts/job %u qnum %u worker %s end dt(ms) %lu",
+                 id, qnum, w->wname, (t1 - t0) / 1000000);
 }
 
 struct sts_queue *
@@ -601,14 +591,14 @@ sts_worker_main(void *rock)
     pthread_setname_np(tid, w->wname);
 
     if (csched_rp_dbg_worker(self->rp))
-        hse_log(HSE_NOTICE "sts/worker %s initializing", w->wname);
+        log_info("sts/worker %s initializing", w->wname);
 
     /* orderly startup: wait for signal to proceed */
     while (atomic_read(&w->initializing))
         msleep(WORKER_INIT_SLEEP_MS);
 
     if (csched_rp_dbg_worker(self->rp))
-        hse_log(HSE_NOTICE "sts/worker %s ready state %d", w->wname, atomic_read(&self->state));
+        log_info("sts/worker %s ready state %d", w->wname, atomic_read(&self->state));
 
     atomic_inc(&self->ready_workers);
     perfc_inc(&self->qv[w->wqnum].qpc, PERFC_BA_STS_WORKERS);
@@ -672,7 +662,8 @@ sts_worker_main(void *rock)
     perfc_dec(&self->qv[w->wqnum].qpc, PERFC_BA_STS_WORKERS);
 
     if (csched_rp_dbg_worker(self->rp))
-        hse_log(HSE_NOTICE "sts/worker %s exit", w->wname);
+        log_info("sts/worker %s exit", w->wname);
+
     atomic_dec(&self->ready_workers);
     atomic_dec(&self->spawned_workers);
     free_aligned(w);
@@ -689,7 +680,7 @@ sts_job_submit(struct sts *self, struct sts_job *job)
     assert(job->sj_qnum < self->qc);
 
     if (csched_rp_dbg_jobs(self->rp))
-        hse_log(HSE_NOTICE "sts/job %u submit qnum %u", job->sj_id, job->sj_qnum);
+        log_info("sts/job %u submit qnum %u", job->sj_id, job->sj_qnum);
 
     job->sj_sts = self;
 
@@ -703,7 +694,8 @@ void
 sts_pause(struct sts *self)
 {
     if (csched_rp_dbg_mon(self->rp))
-        hse_log(HSE_NOTICE "sts/mon pausing");
+        log_info("sts/mon %d pausing", gettid());
+
     m_lock(self);
     atomic_set(&self->state, SS_PAUSE);
     cv_signal(&self->mcv);
@@ -714,7 +706,8 @@ void
 sts_resume(struct sts *self)
 {
     if (csched_rp_dbg_mon(self->rp))
-        hse_log(HSE_NOTICE "sts/mon resuming");
+        log_info("sts/mon %d resuming", gettid());
+
     m_lock(self);
     atomic_set(&self->state, SS_RUN);
     cv_signal(&self->mcv);

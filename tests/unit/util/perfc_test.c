@@ -79,8 +79,8 @@ MTF_DEFINE_UTEST(perfc, perfc_get_cycles)
      * investigate...
      */
     if ((tstop - tstart) < cycles_to_nsecs(cstop - cstart)) {
-        hse_log(HSE_WARNING "%s: get_time_ns %lu < get_cycles %lu\n",
-                __func__, (tstop - tstart), cycles_to_nsecs(cstop - cstart));
+        log_warn("get_time_ns %lu < get_cycles %lu\n",
+                 (tstop - tstart), cycles_to_nsecs(cstop - cstart));
         free(cyclev);
         return;
     }
@@ -93,9 +93,9 @@ MTF_DEFINE_UTEST(perfc, perfc_get_cycles)
      * busy machine.
      */
     if ((tstop - tstart) - cycles_to_nsecs(cstop - cstart) > 5000) {
-        hse_log(HSE_NOTICE "%s: %lu %lu, %lu\n", __func__,
-                (tstop - tstart), cycles_to_nsecs(cstop - cstart),
-                (tstop - tstart) - cycles_to_nsecs(cstop - cstart));
+        log_info("%lu %lu, %lu\n",
+                 (tstop - tstart), cycles_to_nsecs(cstop - cstart),
+                 (tstop - tstart) - cycles_to_nsecs(cstop - cstart));
         goto again;
     }
 

@@ -68,7 +68,7 @@ sp_noop_create(
 
     assert(handle);
 
-    hse_log(HSE_NOTICE "NOOP compaction scheduler");
+    log_info("NOOP compaction scheduler");
 
     self = calloc(1, sizeof(*self));
     if (ev(!self))

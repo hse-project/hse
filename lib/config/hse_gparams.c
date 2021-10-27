@@ -27,10 +27,10 @@
 struct hse_gparams hse_gparams;
 
 bool HSE_NONNULL(1, 2, 3)
-logging_destination_converter(
-    const struct param_spec *const ps,
-    const cJSON *const             node,
-    void *const                    data)
+    logging_destination_converter(
+        const struct param_spec *const ps,
+        const cJSON *const             node,
+        void *const                    data)
 {
     assert(ps);
     assert(node);
@@ -76,85 +76,85 @@ socket_path_default(const struct param_spec *ps, void *value)
 
 static const struct param_spec pspecs[] = {
     {
-		.ps_name = "logging.enabled",
-		.ps_description = "Whether logging is enabled",
-		.ps_flags = 0,
-		.ps_type = PARAM_TYPE_BOOL,
-		.ps_offset = offsetof(struct hse_gparams, gp_logging.enabled),
-		.ps_size = PARAM_SZ(struct hse_gparams, gp_logging.enabled),
-		.ps_convert = param_default_converter,
-		.ps_validate = param_default_validator,
-		.ps_default_value = {
-			.as_bool = true,
-		},
+        .ps_name = "logging.enabled",
+        .ps_description = "Whether logging is enabled",
+        .ps_flags = 0,
+        .ps_type = PARAM_TYPE_BOOL,
+        .ps_offset = offsetof(struct hse_gparams, gp_logging.enabled),
+        .ps_size = PARAM_SZ(struct hse_gparams, gp_logging.enabled),
+        .ps_convert = param_default_converter,
+        .ps_validate = param_default_validator,
+        .ps_default_value = {
+            .as_bool = true,
+        },
     },
     {
-		.ps_name = "logging.structured",
-		.ps_description = "Whether logging is structured",
-		.ps_flags = 0,
-		.ps_type = PARAM_TYPE_BOOL,
-		.ps_offset = offsetof(struct hse_gparams, gp_logging.structured),
-		.ps_size = PARAM_SZ(struct hse_gparams, gp_logging.structured),
-		.ps_convert = param_default_converter,
-		.ps_validate = param_default_validator,
-		.ps_default_value = {
-			.as_bool = false,
-		},
+        .ps_name = "logging.structured",
+        .ps_description = "Whether logging is structured",
+        .ps_flags = 0,
+        .ps_type = PARAM_TYPE_BOOL,
+        .ps_offset = offsetof(struct hse_gparams, gp_logging.structured),
+        .ps_size = PARAM_SZ(struct hse_gparams, gp_logging.structured),
+        .ps_convert = param_default_converter,
+        .ps_validate = param_default_validator,
+        .ps_default_value = {
+            .as_bool = false,
+        },
     },
     {
-		.ps_name = "logging.destination",
-		.ps_description = "Where log messages should be written to",
-		.ps_flags = 0,
-		.ps_type = PARAM_TYPE_ENUM,
-		.ps_offset = offsetof(struct hse_gparams, gp_logging.destination),
-		.ps_size = PARAM_SZ(struct hse_gparams, gp_logging.destination),
-		.ps_convert = logging_destination_converter,
-		.ps_validate = param_default_validator,
-		.ps_default_value = {
-			.as_enum = LD_SYSLOG,
-		},
-		.ps_bounds = {
-			.as_enum = {
+        .ps_name = "logging.destination",
+        .ps_description = "Where log messages should be written to",
+        .ps_flags = 0,
+        .ps_type = PARAM_TYPE_ENUM,
+        .ps_offset = offsetof(struct hse_gparams, gp_logging.destination),
+        .ps_size = PARAM_SZ(struct hse_gparams, gp_logging.destination),
+        .ps_convert = logging_destination_converter,
+        .ps_validate = param_default_validator,
+        .ps_default_value = {
+            .as_enum = LD_SYSLOG,
+        },
+        .ps_bounds = {
+            .as_enum = {
                 .ps_min = LD_MIN,
                 .ps_max = LD_MAX,
             }
-		},
+        },
     },
     {
-		.ps_name = "logging.path",
-		.ps_description = "Name of log file when destination == file",
-		.ps_flags = 0,
-		.ps_type = PARAM_TYPE_STRING,
-		.ps_offset = offsetof(struct hse_gparams, gp_logging.path),
-		.ps_convert = param_default_converter,
-		.ps_validate = param_default_validator,
-		.ps_default_value = {
-			.as_string = "hse.log",
-		},
-		.ps_bounds = {
-			.as_string = {
-				.ps_max_len = PARAM_SZ(struct hse_gparams, gp_logging.path),
-			},
-		},
+        .ps_name = "logging.path",
+        .ps_description = "Name of log file when destination == file",
+        .ps_flags = 0,
+        .ps_type = PARAM_TYPE_STRING,
+        .ps_offset = offsetof(struct hse_gparams, gp_logging.path),
+        .ps_convert = param_default_converter,
+        .ps_validate = param_default_validator,
+        .ps_default_value = {
+            .as_string = "hse.log",
+        },
+        .ps_bounds = {
+            .as_string = {
+                .ps_max_len = PARAM_SZ(struct hse_gparams, gp_logging.path),
+            },
+        },
     },
     {
-		.ps_name = "logging.level",
-		.ps_description = "Maximum log level which will be written",
-		.ps_flags = 0,
-		.ps_type = PARAM_TYPE_ENUM,
-		.ps_offset = offsetof(struct hse_gparams, gp_logging.level),
-		.ps_size = sizeof(log_priority_t),
-		.ps_convert = param_default_converter,
-		.ps_validate = param_default_validator,
-		.ps_default_value = {
-			.as_scalar = HSE_LOG_PRI_DEFAULT,
-		},
-		.ps_bounds = {
-			.as_scalar = {
-				.ps_min = HSE_EMERG_VAL,
-				.ps_max = HSE_DEBUG_VAL,
-			}
-		}
+        .ps_name = "logging.level",
+        .ps_description = "Maximum log level which will be written",
+        .ps_flags = 0,
+        .ps_type = PARAM_TYPE_ENUM,
+        .ps_offset = offsetof(struct hse_gparams, gp_logging.level),
+        .ps_size = sizeof(log_priority_t),
+        .ps_convert = param_default_converter,
+        .ps_validate = param_default_validator,
+        .ps_default_value = {
+            .as_scalar = HSE_LOGPRI_DEFAULT,
+        },
+        .ps_bounds = {
+            .as_scalar = {
+                .ps_min = HSE_LOGPRI_EMERG,
+                .ps_max = HSE_LOGPRI_DEBUG,
+            }
+        }
     },
     {
         .ps_name = "logging.squelch_ns",

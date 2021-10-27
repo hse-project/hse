@@ -194,8 +194,8 @@ c0_open(
     new_c0 = calloc(1, sizeof(*new_c0));
     if (!new_c0) {
         err = merr(ENOMEM);
-        hse_elog(HSE_ERR "Allocation failed for struct c0: @@e", err);
-        goto err_exit;
+        log_errx("Allocation failed for struct c0: @@e", err);
+        return err;
     }
 
     assert(cn);
@@ -205,25 +205,22 @@ c0_open(
     new_c0->c0_rp = rp;
 
     ikvdb_get_c0sk(kvdb, &new_c0->c0_c0sk);
-    if (!new_c0->c0_c0sk) {
+    if (ev(!new_c0->c0_c0sk)) {
         free(new_c0);
-        return merr(ev(EINVAL));
+        return merr(EINVAL);
     }
 
     err = c0sk_c0_register(new_c0->c0_c0sk, new_c0->c0_cn, &skidx);
-    if (ev(err))
-        goto err_exit;
+    if (ev(err)) {
+        log_errx("c0sk_c0_register failed: @@e", err);
+        free(new_c0);
+        return err;
+    }
 
     new_c0->c0_index = skidx;
     *c0 = &new_c0->c0_handle;
 
     return 0;
-
-err_exit:
-    free(new_c0);
-    hse_elog(HSE_INFO "c0_open failed: @@e", err);
-
-    return err;
 }
 
 merr_t

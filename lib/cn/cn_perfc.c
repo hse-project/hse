@@ -114,7 +114,7 @@ cn_perfc_bkts_create(struct perfc_name *pcn, int edgec, u64 *edgev, uint sample_
 
     err = perfc_ivl_create(edgec, edgev, &ivl);
     if (err) {
-        hse_elog(HSE_NOTICE "%s counters: perfc_ivl_create failed @@e", err, pcn->pcn_name);
+        log_errx("%s counters: perfc_ivl_create failed @@e", err, pcn->pcn_name);
         return;
     }
 

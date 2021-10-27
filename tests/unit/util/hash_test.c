@@ -76,9 +76,10 @@ MTF_DEFINE_UTEST(hash_test, FanoutDistribution)
     for (j = 0; j < 8; ++j)
         ASSERT_TRUE(abs(d1[j] - n / 8) < (n / 8 / 20));
 
-    hse_log(HSE_INFO "freq distrib for 64k prefix values / cn tree levels");
+    log_info("freq distrib for 64k prefix values / cn tree levels");
+
     for (i = 0; i < 8; ++i)
-        hse_log(HSE_INFO "%d: d1 %d  d2 %d  d3 %d", i, d1[i], d2[i], d3[i]);
+        log_info("%d: d1 %d  d2 %d  d3 %d", i, d1[i], d2[i], d3[i]);
 }
 
 MTF_DEFINE_UTEST(hash_test, hash_seed)

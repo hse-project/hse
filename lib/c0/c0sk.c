@@ -46,7 +46,7 @@ c0sk_perfc_alloc(struct c0sk_impl *self)
             PERFC_EN_C0SKOP,
             "set",
             &self->c0sk_pc_op))
-        hse_log(HSE_ERR "cannot alloc c0sk op perf counters");
+        log_err("cannot alloc c0sk op perf counters");
 
     if (perfc_ctrseti_alloc(
             self->c0sk_kvdb_rp->perfc_level,
@@ -55,7 +55,7 @@ c0sk_perfc_alloc(struct c0sk_impl *self)
             PERFC_EN_C0SKING,
             "set",
             &self->c0sk_pc_ingest))
-        hse_log(HSE_ERR "cannot alloc c0sk ingest perf counters");
+        log_err("cannot alloc c0sk ingest perf counters");
 }
 
 /**
@@ -211,8 +211,8 @@ c0sk_c0_register(struct c0sk *handle, struct cn *cn, u16 *skidx)
         }
     }
 
-    err = merr(ev(ENOSPC));
-    hse_elog(HSE_DEBUG "Attempt to register too many c0's with c0sk: @@e", err);
+    err = merr(ENOSPC);
+    log_errx("Attempt to register more than %d c0's with c0sk: @@e", err, HSE_KVS_COUNT_MAX);
 
     return err;
 }
@@ -557,11 +557,11 @@ c0sk_open(
 
     *c0skp = &c0sk->c0sk_handle;
 
-    hse_log(HSE_INFO "c0sk_open(%s) complete", mp_name);
+    log_info("c0sk_open(%s) complete", mp_name);
 
 errout:
     if (err) {
-        hse_elog(HSE_ERR "c0sk_open(%s) failed: @@e", err, mp_name);
+        log_errx("c0sk_open(%s) failed: @@e", err, mp_name);
 
         if (c0sk) {
             destroy_workqueue(c0sk->c0sk_wq_ingest);
@@ -716,13 +716,11 @@ c0sk_rparams(struct c0sk *handle)
 static void
 c0sk_sync_debug(struct c0sk_impl *self, u64 waiter_gen)
 {
-    hse_log(
-        HSE_WARNING "%s: %lu %lu %lu %d",
-        __func__,
-        (ulong)atomic64_read(&self->c0sk_ingest_gen),
-        (ulong)waiter_gen,
-        (ulong)self->c0sk_release_gen,
-        self->c0sk_kvmultisets_cnt);
+    log_warn("ingest %lu waiter %lu release %lu cnt %d",
+             (ulong)atomic64_read(&self->c0sk_ingest_gen),
+             (ulong)waiter_gen,
+             (ulong)self->c0sk_release_gen,
+             self->c0sk_kvmultisets_cnt);
 }
 
 /*

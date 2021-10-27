@@ -65,10 +65,11 @@ extern struct dt_element_ops event_counter_ops;
  * counting of hot paths.  It's about 10x faster than the other
  * forms because it never udpates the time stamp.
  */
-#define ev_info(_expr)      ev_impl((_expr), HSE_INFO_VAL, EV_FLAGS_NOTIME)
-#define ev_warn(_expr)      ev_impl((_expr), HSE_WARNING_VAL, 0)
-#define ev_err(_expr)       ev_impl((_expr), HSE_ERR_VAL, 0)
-#define ev(_expr)           ev_impl((_expr), HSE_ERR_VAL, 0)
+#define ev_debug(_expr)     ev_impl((_expr), HSE_LOGPRI_DEBUG, EV_FLAGS_NOTIME)
+#define ev_info(_expr)      ev_impl((_expr), HSE_LOGPRI_INFO, EV_FLAGS_NOTIME)
+#define ev_warn(_expr)      ev_impl((_expr), HSE_LOGPRI_WARN, 0)
+#define ev_err(_expr)       ev_impl((_expr), HSE_LOGPRI_ERR, 0)
+#define ev(_expr)           ev_impl((_expr), HSE_LOGPRI_ERR, 0)
 
 /* clang-format on */
 

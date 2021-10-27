@@ -331,7 +331,7 @@ config_deserialize_to_kvs_rparams(
     if (err)
         return err;
     if (default_kvs) {
-        hse_log(HSE_DEBUG "Found a default config node for KVS (%s)", kvs_name);
+        log_debug("Found a default config node for KVS (%s)", kvs_name);
         num_providers++;
     }
 
@@ -339,7 +339,7 @@ config_deserialize_to_kvs_rparams(
     if (err)
         return err;
     if (named_kvs) {
-        hse_log(HSE_DEBUG "Found a named config node for KVS (%s)", kvs_name);
+        log_debug("Found a named config node for KVS (%s)", kvs_name);
         num_providers++;
     }
 
@@ -524,9 +524,8 @@ config_from_kvdb_conf(const char *kvdb_home, struct config **conf)
 
     n = snprintf(conf_file_path, sizeof(conf_file_path), "%s/kvdb.conf", kvdb_home);
     if (n >= sizeof(conf_file_path)) {
-        hse_log(
-            HSE_ERR "Failed to create the %s/kvdb.conf file path because the path was too large",
-            kvdb_home);
+        log_err("Failed to create the %s/kvdb.conf file path because the path was too large",
+                kvdb_home);
         err = merr(ENAMETOOLONG);
         goto out;
     } else if (n < 0) {
@@ -537,10 +536,10 @@ config_from_kvdb_conf(const char *kvdb_home, struct config **conf)
     err = config_create(conf_file_path, &impl);
     if (err) {
         if (merr_errno(err) == ENOENT) {
-            hse_log(HSE_DEBUG "No config file (%s)", conf_file_path);
+            log_debug("No config file (%s)", conf_file_path);
             err = 0;
         } else {
-            hse_log(HSE_ERR "Failed to read %s", conf_file_path);
+            log_err("Failed to read %s", conf_file_path);
         }
         goto out;
     }

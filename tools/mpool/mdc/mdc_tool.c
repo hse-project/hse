@@ -31,8 +31,9 @@ void
 fatal(char *who, hse_err_t err)
 {
     char buf[ERROR_BUF_SIZE];
+
     hse_strerror(err, buf, sizeof(buf));
-    hse_log(HSE_ERR "mdc_tool: %s: %s", who, buf);
+    log_err("mdc_tool: %s: %s", who, buf);
     exit(1);
 }
 
@@ -52,7 +53,7 @@ syntax(const char *fmt, ...)
 int
 dump(char *buf, size_t sz)
 {
-    hse_log(HSE_ERR "mdc_tool: record dumps not yet supported");
+    log_err("mdc_tool: record dumps not yet supported");
     return 0;
 }
 

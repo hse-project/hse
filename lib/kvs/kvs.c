@@ -100,7 +100,7 @@ kvs_perfc_alloc(const char *kvdb_home, const char *kvs_name, struct ikvs *kvs)
     err = perfc_ctrseti_alloc(kvs->ikv_rp.perfc_level, dbname_buf,
                               kvs_pkvsl_perfc_op, PERFC_EN_PKVSL, "set", &kvs->ikv_pkvsl_pc);
     if (err)
-        hse_elog(HSE_ERR "%s: cannot alloc kvs perf counters: @@e", err, __func__);
+        log_errx("cannot alloc kvs perf counters: @@e", err);
 }
 
 /**
@@ -253,11 +253,11 @@ kvs_close(struct ikvs *ikvs)
 
     err = c0_close(ikvs->ikv_c0);
     if (err)
-        hse_elog(HSE_ERR "%s: c0_close @@e", err, __func__);
+        log_errx("c0_close(c0) failed: @@e", err);
 
     err = cn_close(ikvs->ikv_cn);
     if (err)
-        hse_elog(HSE_ERR "%s: cn_close @@e", err, __func__);
+        log_errx("cn_close(cn) failed: @@e", err);
 
     kvs_perfc_free(ikvs);
 
@@ -309,8 +309,7 @@ kvs_put(
      */
     if (HSE_UNLIKELY(sfx_len && kt->kt_len < sfx_len + kvs->ikv_pfx_len)) {
 #ifndef HSE_BUILD_RELEASE
-        hse_log(HSE_ERR "%s: suffixed kvs %s %lu min key length is pfx_len(%u) + sfx_len(%u)",
-                __func__,
+        log_err("suffixed kvs %s %lu min key length is pfx_len(%u) + sfx_len(%u)",
                 kvs->ikv_kvs_name,
                 kvs->ikv_cnid,
                 kvs->ikv_pfx_len,
@@ -433,8 +432,7 @@ kvs_del(struct ikvs *kvs, struct hse_kvdb_txn *const txn, struct kvs_ktuple *kt,
      */
     if (HSE_UNLIKELY(sfx_len && kt->kt_len < sfx_len + kvs->ikv_pfx_len)) {
 #ifndef HSE_BUILD_RELEASE
-        hse_log(HSE_ERR "%s: suffixed kvs %s %lu min key length is pfx_len(%u) + sfx_len(%u)",
-                __func__,
+        log_err("suffixed kvs %s %lu min key length is pfx_len(%u) + sfx_len(%u)",
                 kvs->ikv_kvs_name,
                 kvs->ikv_cnid,
                 kvs->ikv_pfx_len,
@@ -553,8 +551,8 @@ kvs_pfx_probe(
 
     if (HSE_UNLIKELY(kvs->ikv_sfx_len == 0)) {
 #ifndef HSE_BUILD_RELEASE
-        hse_log(HSE_ERR "%s: unsuffixed kvs %s %lu does not support prefix probe",
-                __func__, kvs->ikv_kvs_name, kvs->ikv_cnid);
+        log_err("unsuffixed kvs %s %lu does not support prefix probe",
+                kvs->ikv_kvs_name, kvs->ikv_cnid);
 #endif
         return merr(EINVAL);
     }

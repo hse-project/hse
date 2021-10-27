@@ -92,7 +92,7 @@ curl_get(const char *path, const char *sock, char *buf, size_t buf_size)
 
     if (err == 0) {
         err = http_code == MHD_HTTP_OK ? 0 : merr(ev(ENOANO));
-        hse_log(HSE_INFO "http response code: %ld", http_code);
+        log_info("http response code: %ld", http_code);
     }
 
     return err;

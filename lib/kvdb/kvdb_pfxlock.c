@@ -540,10 +540,10 @@ kvdb_pfxlock_prune(struct kvdb_pfxlock *pfxlock)
 
 #ifndef HSE_BUILD_RELEASE
     if (scanned > 0)
-        hse_log(HSE_NOTICE "%s: %4luus %4u/%u %4u %4u  %s",
-                __func__, (get_time_ns() - tstart) / 1000,
-                skipped, KVDB_PFXLOCK_TREES_MAX,
-                scanned, pruned, distbuf);
+        log_info("%4luus %4u/%u %4u %4u  %s",
+                 (get_time_ns() - tstart) / 1000,
+                 skipped, KVDB_PFXLOCK_TREES_MAX,
+                 scanned, pruned, distbuf);
 #endif
 }
 

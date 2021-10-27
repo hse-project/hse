@@ -42,7 +42,7 @@ fatal(char *who, merr_t err)
 {
     struct merr_info info;
 
-    hse_log(HSE_ERR "%s: %s", who, merr_info(err, &info));
+    log_err("%s: %s", who, merr_info(err, &info));
     exit(1);
 }
 

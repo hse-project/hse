@@ -39,8 +39,8 @@ MTF_DEFINE_UTEST(event_counter, ev_create_and_search)
     };
     union dt_iterate_parameters dip = {.yc = &yc };
 
-    char *dbg_lvl = "HSE_DEBUG";
-    char *err_lvl = "HSE_ERR";
+    char *dbg_lvl = "DEBUG";
+    char *err_lvl = "ERR";
     size_t dbg_before, dbg_after;
     size_t err_before, err_after;
     char * buf;
@@ -153,7 +153,7 @@ MTF_DEFINE_UTEST(event_counter, ev_create_and_find)
     ASSERT_NE(direct, NULL);
 
     ev = (struct event_counter *)direct->dte_data;
-    ASSERT_EQ(ev->ev_pri, HSE_INFO_VAL);
+    ASSERT_EQ(ev->ev_pri, HSE_LOGPRI_INFO);
 
     /* Now, with both a priority and a rock */
     /* clang-format off */
@@ -174,7 +174,7 @@ MTF_DEFINE_UTEST(event_counter, ev_create_and_find)
     ASSERT_NE(direct, NULL);
 
     ev = (struct event_counter *)direct->dte_data;
-    ASSERT_EQ(ev->ev_pri, HSE_WARNING_VAL);
+    ASSERT_EQ(ev->ev_pri, HSE_LOGPRI_WARN);
 }
 
 /**
@@ -526,7 +526,7 @@ validate_buf(
                        "- path: %s/%s/%s/%s/%d\n", DT_PATH_EVENT, component, phile, func, line);
     remaining = MY_BUF_SIZE - offset;
 
-    offset += snprintf(my_buf + offset, remaining, "  level: HSE_INFO\n");
+    offset += snprintf(my_buf + offset, remaining, "  level: INFO\n");
     remaining = MY_BUF_SIZE - offset;
 
     offset +=
@@ -900,7 +900,7 @@ MTF_DEFINE_UTEST(event_counter, ev_match_select_test)
     dte.dte_data = &ec;
     dte.dte_ops = &event_counter_ops;
 
-    /* make the EC 'come from a hse_log message' */
+    /* make the EC 'come from a hse_logpri_warn message' */
     ec.ev_flags = EV_FLAGS_HSE_LOG;
 
     /* Should match with "hse_log" */

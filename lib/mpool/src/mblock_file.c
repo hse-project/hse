@@ -479,13 +479,8 @@ mblock_file_meta_load(struct mblock_file *mbfp)
         addr += MBLOCK_FILE_META_OIDLEN;
     }
 
-    hse_log(
-        HSE_DEBUG "%s: mclass %d, file-id %d found %lu valid mblocks, uniq %u.",
-        __func__,
-        mbfp->mcid,
-        mbfp->fileid,
-        mblkc,
-        mbfp->uniq);
+    log_debug("mclass %d, file-id %d found %lu valid mblocks, uniq %u.",
+              mbfp->mcid, mbfp->fileid, mblkc, mbfp->uniq);
 
     return 0;
 }
@@ -1188,13 +1183,8 @@ mblock_file_unmapall(struct mblock_file *mbfp)
         if (addr) {
             int rc;
 
-            hse_log(
-                HSE_WARNING "%s: Leaked map mcid %d fileid %d chunk-id %d ref %lu",
-                __func__,
-                mbfp->mcid,
-                mbfp->fileid,
-                i,
-                map->ref);
+            log_warn("Leaked map mcid %d fileid %d chunk-id %d ref %lu",
+                     mbfp->mcid, mbfp->fileid, i, map->ref);
 
             rc = munmap(addr, mblock_mmap_csize(mbfp->mblocksz));
             ev(rc);

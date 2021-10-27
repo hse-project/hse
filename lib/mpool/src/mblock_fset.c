@@ -80,12 +80,11 @@ mblock_metahdr_validate(struct mblock_fset *mbfsp, struct mblock_metahdr *mh)
 		if (mh->magic != bswap_32(MBLOCK_METAHDR_MAGIC))
 			return merr(EBADMSG);
 
-		hse_log(HSE_ERR "%s: MDC format is %s endian, but libhse is configured to use %s endian,"
-				"try reconfiguring with -Domf-byte-order=%s",
-				__func__,
-				big ? "little" : "big",
-				big ? "big" : "little",
-				big ? "little" : "big");
+		log_err("MDC format is %s endian, but libhse is configured to use %s endian,"
+                        "try reconfiguring with -Domf-byte-order=%s",
+                        big ? "little" : "big",
+                        big ? "big" : "little",
+                        big ? "little" : "big");
 
 		return merr(EPROTO);
 	}
@@ -346,11 +345,8 @@ mblock_fset_open(
     mblocksz = mclass_mblocksz_get(mbfsp->mc);
     if ((mbfsp->fszmax < mblocksz) || ((1ULL << MBID_BLOCK_BITS) * mblocksz < mbfsp->fszmax)) {
         err = merr(EINVAL);
-        hse_log(
-            HSE_ERR "%s: Invalid mblock parameters filesz %lu mblocksz %lu",
-            __func__,
-            mbfsp->fszmax,
-            mblocksz);
+        log_err("Invalid mblock parameters filesz %lu mblocksz %lu",
+                mbfsp->fszmax, mblocksz);
         goto errout;
     }
 

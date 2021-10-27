@@ -28,7 +28,7 @@
 int
 init(struct mtf_test_info *info)
 {
-    hse_log(HSE_INFO "Assuming mpool VEB size == %zu bytes", VEB_SIZE);
+    log_info("Assuming mpool VEB size == %zu bytes", VEB_SIZE);
     return 0;
 }
 
@@ -63,9 +63,9 @@ runtest(
 
     result = cn_mb_est_alen(max_size, alloc_unit, wlen, flags);
 
-    hse_log(
-        HSE_INFO "Test: (maxsz = %10zu, aunit = %10zu, wlen = %10zu,"
-                 " flags = 0x%02x) ==> (expect = %10zu, result = %10zu)%s",
+    log_info(
+        "Test: (maxsz = %10zu, aunit = %10zu, wlen = %10zu,"
+        " flags = 0x%02x) ==> (expect = %10zu, result = %10zu)%s",
         max_size,
         alloc_unit,
         wlen,
@@ -89,7 +89,8 @@ MTF_DEFINE_UTEST_PREPOST(test, t_cn_mb_est_typical_kblock, pre, post)
 {
     uint flags = CN_MB_EST_FLAGS_POW2;
 
-    hse_log(HSE_INFO "Test group: typical kblock use cases (pow2)");
+    log_info("Test group: "
+             "typical kblock use cases (pow2)");
 
     ASSERT_EQ(KBLOCK_MAX_SIZE, 32 * MiB);
     ASSERT_EQ(VEB_SIZE, 4 * MiB);
@@ -119,8 +120,8 @@ MTF_DEFINE_UTEST_PREPOST(test, t_cn_mb_est_typical_vblock, pre, post)
 
     size_t lo, hi, exp;
 
-    hse_log(HSE_INFO "Test group: "
-                     "typical vblock use cases");
+    log_info("Test group: "
+             "typical vblock use cases");
 
     lo = 4096;
     hi = msize;
@@ -151,8 +152,8 @@ MTF_DEFINE_UTEST_PREPOST(test, t_cn_mb_est_bogus_input, pre, post)
     size_t wlen = 1 * MiB;
     uint   flags = CN_MB_EST_FLAGS_NONE;
 
-    hse_log(HSE_INFO "Test group: "
-                     "bogus input, expect 0");
+    log_info("Test group: "
+             "bogus input, expect 0");
 
     RUNTEST(0, aunit, wlen, flags, 0);
     RUNTEST(msize, 0, wlen, flags, 0);
@@ -184,7 +185,7 @@ MTF_DEFINE_UTEST_PREPOST(test, t_cn_mb_est_normal, pre, post)
         char *desc = test_cases[i].desc;
         uint  flags = test_cases[i].flags;
 
-        hse_log(HSE_INFO "Test group: %s, expect wlen rounded to alloc_unit", desc);
+        log_info("Test group: %s, expect wlen rounded to alloc_unit", desc);
 
         /*      msize,  aunit,       wlen, flags,     expect */
         RUNTEST(1048576, 100, 1, flags, 100);
@@ -225,10 +226,10 @@ MTF_DEFINE_UTEST_PREPOST(test, t_cn_mb_est_normal_pow2, pre, post)
         char *desc = test_cases[i].desc;
         uint  flags = test_cases[i].flags;
 
-        hse_log(
-            HSE_INFO "Test group: %s, expect wlen"
-                     " rounded to pow2 then to alloc_unit"
-                     " (max_size has no effect on result)",
+        log_info(
+            "Test group: %s, expect wlen"
+            " rounded to pow2 then to alloc_unit"
+            " (max_size has no effect on result)",
             desc);
 
         /*      msize,  aunit,   wlen, flags,     expect */
@@ -248,9 +249,9 @@ MTF_DEFINE_UTEST_PREPOST(test, t_cn_mb_est_prealloc, pre, post)
 {
     uint flags = CN_MB_EST_FLAGS_PREALLOC;
 
-    hse_log(HSE_INFO "Test group:"
-                     " prealloc w/o truncate, expect max_size"
-                     " rounded to allocation unit");
+    log_info("Test group:"
+             " prealloc w/o truncate, expect max_size"
+             " rounded to allocation unit");
 
     /*       msize,   aunit,        wlen, flags,   expect */
     RUNTEST(1110123, 1000, 1, flags, 1111000);
@@ -273,9 +274,9 @@ MTF_DEFINE_UTEST_PREPOST(test, t_cn_mb_est_prealloc_pow2, pre, post)
     uint flags = CN_MB_EST_FLAGS_PREALLOC | CN_MB_EST_FLAGS_POW2;
     uint n;
 
-    hse_log(HSE_INFO "Test group:"
-                     " prealloc w/o truncate w/ pow2, expect result"
-                     " rounded to pow2 then to allocation unit");
+    log_info("Test group:"
+             " prealloc w/o truncate w/ pow2, expect result"
+             " rounded to pow2 then to allocation unit");
 
     /* msize=1000, aunit=100:
      * mblock alen will be rup(rup2(1000),100 == 1100

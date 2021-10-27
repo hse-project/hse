@@ -250,9 +250,9 @@ MTF_DEFINE_UTEST_PRE(hse_gparams_test, logging_level, test_pre)
     ASSERT_EQ(PARAM_TYPE_ENUM, ps->ps_type);
     ASSERT_EQ((uintptr_t)ps->ps_convert, (uintptr_t)param_default_converter);
     ASSERT_EQ((uintptr_t)ps->ps_validate, (uintptr_t)param_default_validator);
-    ASSERT_EQ(HSE_LOG_PRI_DEFAULT, params.gp_logging.level);
-    ASSERT_EQ(HSE_EMERG_VAL, ps->ps_bounds.as_uscalar.ps_min);
-    ASSERT_EQ(HSE_DEBUG_VAL, ps->ps_bounds.as_uscalar.ps_max);
+    ASSERT_EQ(HSE_LOGPRI_DEFAULT, params.gp_logging.level);
+    ASSERT_EQ(HSE_LOGPRI_EMERG, ps->ps_bounds.as_uscalar.ps_min);
+    ASSERT_EQ(HSE_LOGPRI_DEBUG, ps->ps_bounds.as_uscalar.ps_max);
 }
 
 MTF_DEFINE_UTEST_PRE(hse_gparams_test, logging_squelch_ns, test_pre)

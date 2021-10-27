@@ -682,8 +682,9 @@ sp3_work(
     if (tn->tn_rspills_wedged) {
         if (!sp3_node_is_idle(tn))
             goto locked_nowork;
+
+        log_info("re-enable compaction after wedge");
         tn->tn_rspills_wedged = false;
-        hse_log(HSE_NOTICE "re-enable compaction after wedge");
     }
 
     if (cn_node_isleaf(tn)) {
@@ -747,11 +748,10 @@ sp3_work(
 
         if (!tn->tn_terminal_node_warning) {
             tn->tn_terminal_node_warning = true;
-            hse_log(
-                HSE_WARNING "cnid %lu node (%lu,%lu) at max depth",
-                (ulong)tn->tn_tree->cnid,
-                (ulong)tn->tn_loc.node_level,
-                (ulong)tn->tn_loc.node_offset);
+            log_warn("cnid %lu node (%lu,%lu) at max depth",
+                     (ulong)tn->tn_tree->cnid,
+                     (ulong)tn->tn_loc.node_level,
+                     (ulong)tn->tn_loc.node_offset);
         }
 
         goto locked_nowork;

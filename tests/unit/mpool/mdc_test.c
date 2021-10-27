@@ -397,7 +397,7 @@ mdc_rw_test(
                     memset(rdbuf, 0, reclen);
                 }
             } else {
-                hse_log(HSE_ERR "Failure rdlen %lu reclen %lu start %lu", rdlen, reclen, start);
+                log_err("Failure rdlen %lu reclen %lu start %lu", rdlen, reclen, start);
                 ASSERT_TRUE(0);
             }
         }

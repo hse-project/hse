@@ -549,7 +549,7 @@ c0kvms_cursor_create(
     err = bin_heap2_create(
         HSE_C0_INGEST_WIDTH_MAX, reverse ? bn_kv_cmp_rev : bn_kv_cmp, &cur->c0mc_bh);
     if (ev(err)) {
-        hse_elog(HSE_ERR "%s: bin_heap2_create failed: @@e", err, __func__);
+        log_errx("bin_heap2_create failed: @@e", err);
         return err;
     }
 

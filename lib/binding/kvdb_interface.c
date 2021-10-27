@@ -124,7 +124,7 @@ hse_init(const char *const config, const size_t paramc, const char *const *const
     if (err)
         return merr_to_hse_err(err);
 
-    hse_log(HSE_NOTICE "%s: Memory available: %lu GiB", __func__, memgb);
+    log_info("Memory available: %lu GiB", memgb);
 
     err = ikvdb_init();
     if (err) {
@@ -136,14 +136,14 @@ hse_init(const char *const config, const size_t paramc, const char *const *const
     if (hse_gparams.gp_socket.enabled) {
         err = rest_server_start(hse_gparams.gp_socket.path);
         if (ev(err)) {
-            hse_log(HSE_WARNING "Could not start rest server on %s", hse_gparams.gp_socket.path);
+            log_warn("Could not start rest server on %s", hse_gparams.gp_socket.path);
             err = 0;
         } else {
-            hse_log(HSE_INFO "Rest server started: %s", hse_gparams.gp_socket.path);
+            log_info("Rest server started: %s", hse_gparams.gp_socket.path);
         }
     }
 
-    hse_log(HSE_INFO "%s, version %s", HSE_KVDB_DESC, HSE_VERSION_STRING);
+    log_info("%s, version %s", HSE_KVDB_DESC, HSE_VERSION_STRING);
 
     hse_initialized = true;
 
@@ -174,7 +174,7 @@ hse_kvdb_create(const char *kvdb_home, size_t paramc, const char *const *const p
     struct pidfile       content = {};
 
     if (HSE_UNLIKELY(!kvdb_home)) {
-        hse_log(HSE_ERR "A KVDB home must be provided");
+        log_err("A KVDB home must be provided");
         return merr_to_hse_err(EINVAL);
     }
 
@@ -183,26 +183,26 @@ hse_kvdb_create(const char *kvdb_home, size_t paramc, const char *const *const p
 
     err = argv_deserialize_to_kvdb_cparams(paramc, paramv, &dbparams);
     if (ev(err)) {
-        hse_log(HSE_ERR "Failed to deserialize paramv for KVDB (%s) cparams", kvdb_home);
+        log_errx("Failed to deserialize paramv for KVDB (%s) cparams: @@e", err, kvdb_home);
         return merr_to_hse_err(err);
     }
 
     err = kvdb_cparams_resolve(&dbparams, kvdb_home);
     if (ev(err)) {
-        hse_log(HSE_ERR "Failed to resolve KVDB (%s) cparams", kvdb_home);
+        log_errx("Failed to resolve KVDB (%s) cparams: @@e", err, kvdb_home);
         goto out;
     }
 
     err = kvdb_home_pidfile_path_get(kvdb_home, pidfile_path, sizeof(pidfile_path));
     if (err) {
-        hse_log(HSE_ERR "Failed to create KVDB pidfile path (%s/kvdb.pid)", kvdb_home);
+        log_errx("Failed to create KVDB pidfile path (%s/kvdb.pid): @@e", err, kvdb_home);
         goto out;
     }
 
     pfh = pidfile_open(pidfile_path, S_IRUSR | S_IWUSR, NULL);
     if (!pfh) {
-        hse_log(HSE_ERR "Failed to open KVDB pidfile (%s)", pidfile_path);
         err = merr(errno);
+        log_errx("Failed to open KVDB pidfile (%s): @@e", err, pidfile_path);
         goto out;
     }
 
@@ -210,7 +210,7 @@ hse_kvdb_create(const char *kvdb_home, size_t paramc, const char *const *const p
 
     err = merr(pidfile_serialize(pfh, &content));
     if (err) {
-        hse_log(HSE_ERR "Failed to serialize data to the KVDB pidfile (%s)", pidfile_path);
+        log_errx("Failed to serialize data to the KVDB pidfile (%s): @@e", err, pidfile_path);
         goto out;
     }
 
@@ -236,25 +236,22 @@ hse_kvdb_drop(const char *kvdb_home)
     merr_t              err;
 
     if (HSE_UNLIKELY(!kvdb_home)) {
-        hse_log(HSE_ERR "A KVDB home must be provided");
+        log_err("A KVDB home must be provided");
         return merr_to_hse_err(EINVAL);
     }
 
     err = kvdb_home_pidfile_path_get(kvdb_home, pidfile_path, sizeof(pidfile_path));
     if (err) {
-        hse_log(HSE_ERR "Failed to create KVDB pidfile path (%s)/kvdb.pid", kvdb_home);
+        log_errx("Failed to create KVDB pidfile path (%s)/kvdb.pid: @@e", err, kvdb_home);
         goto out;
     }
 
     pfh = pidfile_open(pidfile_path, S_IRUSR | S_IWUSR, NULL);
     if (!pfh) {
-        if (errno == EEXIST) {
-            hse_log(HSE_ERR "Failed to open KVDB pidfile (%s) because file already exists", pidfile_path);
-            err = merr(EBUSY);
-        } else {
-            hse_log(HSE_ERR "Failed to open KVDB pidfile (%s)", pidfile_path);
-            err = merr(errno);
-        }
+        if (errno == EEXIST)
+            errno = EBUSY;
+        err = merr(errno);
+        log_errx("Failed to open KVDB pidfile (%s): @@e", err, pidfile_path);
         goto out;
     }
 
@@ -286,7 +283,7 @@ hse_kvdb_open(
     struct pidfile      content = {};
 
     if (HSE_UNLIKELY(!kvdb_home)) {
-        hse_log(HSE_ERR "A KVDB home must be provided");
+        log_err("A KVDB home must be provided");
         return merr_to_hse_err(EINVAL);
     }
 
@@ -298,49 +295,51 @@ hse_kvdb_open(
 
     err = argv_deserialize_to_kvdb_rparams(paramc, paramv, &params);
     if (ev(err)) {
-        hse_log(HSE_ERR "Failed to deserialize paramv for KVDB (%s) rparams", kvdb_home);
+        log_errx("Failed to deserialize paramv for KVDB (%s) rparams: @@e", err, kvdb_home);
         goto out;
     }
 
     err = config_from_kvdb_conf(kvdb_home, &conf);
     if (ev(err)) {
-        hse_log(HSE_ERR "Failed to read KVDB config file (%s/kvdb.conf)", kvdb_home);
+        log_errx("Failed to read KVDB config file (%s/kvdb.conf): @@e", err, kvdb_home);
         goto out;
     }
 
     err = config_deserialize_to_kvdb_rparams(conf, &params);
     if (ev(err)) {
-        hse_log(HSE_ERR "Failed to deserialize config file for KVDB (%s) rparams", kvdb_home);
+        log_errx("Failed to deserialize config file for KVDB (%s) rparams: @@e", err, kvdb_home);
         goto out;
     }
 
     err = kvdb_rparams_resolve(&params, kvdb_home);
     if (ev(err)) {
-        hse_log(HSE_ERR "Failed to resolve KVDB (%s) rparams", kvdb_home);
+        log_errx("Failed to resolve KVDB (%s) rparams: @@e", err, kvdb_home);
         goto out;
     }
 
     err = kvdb_home_pidfile_path_get(kvdb_home, pidfile_path, sizeof(pidfile_path));
     if (err) {
-        hse_log(HSE_ERR "Failed to create KVDB pidfile path (%s)/kvdb.pid", kvdb_home);
+        log_errx("Failed to create KVDB pidfile path (%s)/kvdb.pid: @@e", err, kvdb_home);
         goto out;
     }
 
     pfh = pidfile_open(pidfile_path, S_IRUSR | S_IWUSR, NULL);
     if (!pfh) {
         err = errno == EEXIST ? merr(EBUSY) : merr(errno);
-        hse_log(HSE_ERR "Failed to open KVDB pidfile (%s)", pidfile_path);
+        log_errx("Failed to open KVDB pidfile (%s): @@e", err, pidfile_path);
         goto out;
     }
 
     content.pid = getpid();
-    static_assert(sizeof(content.socket.path) == sizeof(hse_gparams.gp_socket.path), "Unequal buffer sizes");
+    static_assert(sizeof(content.socket.path) == sizeof(hse_gparams.gp_socket.path),
+                  "Unequal socket buffer sizes");
+
     if (hse_gparams.gp_socket.enabled)
         strlcpy(content.socket.path, hse_gparams.gp_socket.path, sizeof(content.socket.path));
 
     err = merr(pidfile_serialize(pfh, &content));
     if (err) {
-        hse_log(HSE_ERR "Failed to serialize data to the KVDB pidfile (%s)", pidfile_path);
+        log_errx("Failed to serialize data to the KVDB pidfile (%s): @@e", err, pidfile_path);
         goto out;
     }
 
@@ -433,13 +432,13 @@ hse_kvdb_kvs_create(
 
     err = validate_kvs_name(kvs_name);
     if (ev(err)) {
-        hse_log(HSE_ERR "Invalid KVS name: %s, must match the regex [-_A-Za-z0-9]", kvs_name);
+        log_errx("Invalid KVS name: %s, must match the regex [-_A-Za-z0-9]: @@e", err, kvs_name);
         return merr_to_hse_err(err);
     }
 
     err = argv_deserialize_to_kvs_cparams(paramc, paramv, &params);
     if (ev(err)) {
-        hse_log(HSE_ERR "Failed to deserialize paramv for KVS (%s) cparams", kvs_name);
+        log_errx("Failed to deserialize paramv for KVS (%s) cparams: @@e", err, kvs_name);
         return merr_to_hse_err(err);
     }
 
@@ -485,7 +484,7 @@ hse_kvdb_kvs_open(
 
     err = argv_deserialize_to_kvs_rparams(paramc, paramv, &params);
     if (ev(err)) {
-        hse_log(HSE_ERR "Failed to deserialize paramv for KVS (%s) rparams", kvs_name);
+        log_errx("Failed to deserialize paramv for KVS (%s) rparams: @@e", err, kvs_name);
         return merr_to_hse_err(err);
     }
 
@@ -534,12 +533,12 @@ hse_kvdb_storage_add(const char *kvdb_home, size_t paramc, const char *const *co
     struct pidfile       content = {};
 
     if (HSE_UNLIKELY(!kvdb_home)) {
-        hse_log(HSE_ERR "A KVDB home must be provided");
+        log_err("A KVDB home must be provided");
         return merr_to_hse_err(EINVAL);
     }
 
     if (HSE_UNLIKELY(!paramv || paramc == 0)) {
-        hse_log(HSE_ERR "Cannot add storage to the the KVDB (%s) if paramv is empty", kvdb_home);
+        log_err("Cannot add storage to the the KVDB (%s) if paramv is empty", kvdb_home);
         return merr_to_hse_err(merr(EINVAL));
     }
 
@@ -550,32 +549,33 @@ hse_kvdb_storage_add(const char *kvdb_home, size_t paramc, const char *const *co
 
     err = argv_deserialize_to_kvdb_cparams(paramc, paramv, &cparams);
     if (err) {
-        hse_log(HSE_ERR "Failed to deserialize paramv for KVDB (%s) cparams", kvdb_home);
+        log_errx("Failed to deserialize paramv for KVDB (%s) cparams: @@e", err, kvdb_home);
         return merr_to_hse_err(err);
     }
 
     err = kvdb_cparams_resolve(&cparams, kvdb_home);
     if (err) {
-        hse_log(HSE_ERR "Failed to resolve KVDB (%s) cparams", kvdb_home);
+        log_errx("Failed to resolve KVDB (%s) cparams: @@e", err, kvdb_home);
         return merr_to_hse_err(err);
     }
 
     if (cparams.storage.mclass[MP_MED_CAPACITY].path[0] != '\0') {
-        hse_log(HSE_ERR "Cannot add %s to %s: capacity media class path must be provided only "
-                "at KVDB create", cparams.storage.mclass[MP_MED_CAPACITY].path, kvdb_home);
+        log_err(
+            "Cannot add %s to %s: capacity media class path must be provided only at KVDB create",
+            cparams.storage.mclass[MP_MED_CAPACITY].path, kvdb_home);
         return merr_to_hse_err(merr(EINVAL));
     }
 
     err = kvdb_home_pidfile_path_get(kvdb_home, pidfile_path, sizeof(pidfile_path));
     if (err) {
-        hse_log(HSE_ERR "Failed to create KVDB pidfile path (%s)/kvdb.pid", kvdb_home);
+        log_errx("Failed to create KVDB pidfile path (%s)/kvdb.pid: @@e", err, kvdb_home);
         return merr_to_hse_err(err);
     }
 
     pfh = pidfile_open(pidfile_path, S_IRUSR | S_IWUSR, NULL);
     if (!pfh) {
         err = errno == EEXIST ? merr(EBUSY) : merr(errno);
-        hse_log(HSE_ERR "Failed to open KVDB pidfile (%s)", pidfile_path);
+        log_errx("Failed to open KVDB pidfile (%s): @@e", err, pidfile_path);
         goto out;
     }
 
@@ -583,7 +583,7 @@ hse_kvdb_storage_add(const char *kvdb_home, size_t paramc, const char *const *co
 
     err = merr(pidfile_serialize(pfh, &content));
     if (err) {
-        hse_log(HSE_ERR "Failed to serialize data to the KVDB pidfile (%s)", pidfile_path);
+        log_errx("Failed to serialize data to the KVDB pidfile (%s): @@e", err, pidfile_path);
         goto out;
     }
 
@@ -921,7 +921,7 @@ hse_kvs_cursor_create(
 
     t_cur = get_time_ns() - t_cur;
     if (t_cur > MAX_CUR_TIME)
-        hse_elog(HSE_ERR "cursor create taking too long: %lus: @@e", err, t_cur / NSEC_PER_SEC);
+        log_errx("cursor create taking too long: %lus: @@e", err, t_cur / NSEC_PER_SEC);
 
     return merr_to_hse_err(err);
 }

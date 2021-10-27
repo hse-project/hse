@@ -15,8 +15,8 @@
  * scaffolding lifted from logging_test.c
  */
 
-#undef hse_xlog
-#define hse_xlog(log_fmt, hse_args, ...) hse_log_pri(log_fmt "\\n", false, hse_args, ##__VA_ARGS__)
+#define hse_xlog(_fmt, hse_args, ...) \
+    log_pri(HSE_ERR_VAL, _fmt "\\n", false, hse_args, ##__VA_ARGS__)
 
 #define MAX_MSG_SIZE 1000
 #define MAX_NV_PAIRS 50
@@ -195,7 +195,7 @@ MTF_DEFINE_UTEST(structured_logging_test, test_config)
     dte.dte_data = (void *)cfg;
     config_set_handler(&dte, &dsp);
 
-    hse_xlog(HSE_ERR "[UNIT TEST] @@c", av);
+    hse_xlog("[UNIT TEST] @@c", av);
 
     process_json_payload();
 
@@ -272,7 +272,7 @@ MTF_DEFINE_UTEST(structured_logging_test, test_ev)
     event_counter(&dte, &ev);
     av[0] = &ev;
 
-    hse_xlog(HSE_ERR "[UNIT TEST] @@E", av);
+    hse_xlog("[UNIT TEST] @@E", av);
 
     dt_remove(dt_data_tree, &dte);
     process_json_payload_test_ev();
@@ -497,7 +497,7 @@ MTF_DEFINE_UTEST(structured_logging_test, Test_multi_hse_args)
     /* int        line1 = __LINE__ - 1; */
     void *av[] = { &err0, &err1, 0 };
 
-    hse_xlog(HSE_ERR "Error 0: @@e    Error 1: @@e", av);
+    hse_xlog("Error 0: @@e    Error 1: @@e", av);
 }
 
 MTF_END_UTEST_COLLECTION(structured_logging_test);

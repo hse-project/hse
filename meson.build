@@ -135,7 +135,7 @@ add_project_arguments(
     '-Wno-sign-compare',
     '-Wno-unused-parameter',
     '-Wno-clobbered', # TODO: figure out a way to get back to compiling with -Wclobbered (enabled by -Wextra)
-    '-DHSE_LOG_PRI_DEFAULT=@0@'.format(log_pri_default),
+    '-DHSE_LOGPRI_DEFAULT=@0@'.format(log_pri_default),
     '-DLEVEL1_DCACHE_LINESIZE=@0@'.format(level1_dcache_linesize),
     language: 'c',
 )

@@ -237,7 +237,7 @@ c0sk_bkv_sort_vals(struct bonsai_kv *bkv, struct bonsai_val **val_head)
         }
 
         if (unsorted > 0)
-            hse_log(HSE_WARNING "%s: %p unsorted %u", __func__, bkv->bkv_key, unsorted);
+            log_warn("%p unsorted %u",bkv->bkv_key, unsorted);
     } while (unsorted > 0);
 }
 
@@ -479,12 +479,12 @@ c0sk_merge_loop(
             return err;
     }
 
-    hse_log(
-        HSE_DEBUG "%s: (%lu) Entries added: cn %lu lc %lu",
-        __func__,
-        pthread_self(),
-        bkv_collection_count(cn_list),
-        lc_list ? bkv_collection_count((void *)lc_list) : 0);
+#ifndef HSE_BUILD_RELEASE
+    log_debug("(%lu) Entries added: cn %lu lc %lu",
+              pthread_self(),
+              bkv_collection_count(cn_list),
+              lc_list ? bkv_collection_count((void *)lc_list) : 0);
+#endif
 
     return 0;
 }
@@ -717,12 +717,8 @@ exit_err:
 
         if (!err) {
             if (debug && cn_min && cn_max)
-                hse_log(
-                    HSE_DEBUG "c0_ingest minseq: c0sk %lu cn %lu; maxseq: c0sk %lu cn %lu",
-                    min_seq,
-                    cn_min,
-                    max_seq,
-                    cn_max);
+                log_debug("minseq: c0sk %lu cn %lu; maxseq: c0sk %lu cn %lu",
+                          min_seq, cn_min, max_seq, cn_max);
 
             assert(!cn_min || cn_min >= min_seq);
             assert(!cn_max || cn_max <= max_seq);
@@ -733,7 +729,7 @@ exit_err:
         ingest->t9 = get_time_ns();
 
     if (err) {
-        hse_elog(HSE_ERR "c0 ingest failed on %p: @@e", err, kvms);
+        log_errx("c0 ingest failed on %p: @@e", err, kvms);
     } else {
         int finlat;
 

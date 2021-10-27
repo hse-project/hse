@@ -33,7 +33,7 @@ test_collection_setup(struct mtf_test_info *info)
     int                        len, idx;
 
     if (coll_info->tci_argc - coll_info->tci_optind != 1) {
-        hse_log(HSE_ERR "Usage: %s [test framework options] <mblock_image_dir>", coll_info->tci_argv[0]);
+        log_err("Usage: %s [test framework options] <mblock_image_dir>", coll_info->tci_argv[0]);
         return -1;
     }
 
@@ -75,7 +75,7 @@ t_wbtr_read_vref_helper(struct mtf_test_info *lcl_ti, const char *kblock_image_f
     rc = snprintf(filename, sizeof(filename), "%s/%s", data_path, kblock_image_file);
     ASSERT_LT(rc, sizeof(filename));
 
-    hse_log(HSE_DEBUG "Testing with kblock %s", filename);
+    log_debug("Testing with kblock %s", filename);
 
     err = mpm_mblock_alloc_file(&blkid, filename);
     ASSERT_EQ(err, 0);

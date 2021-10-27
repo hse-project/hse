@@ -114,7 +114,7 @@ jhandler(struct sts_job *sj)
     int         add_value = 0;
 
     if (job->debug)
-        hse_log(HSE_NOTICE "%lu: job %p: queue %u", get_time_ns(), sj, sj->sj_qnum);
+        log_info("%lu: job %p: queue %u", get_time_ns(), sj, sj->sj_qnum);
 
     job->tid = pthread_self();
 
@@ -126,27 +126,24 @@ jhandler(struct sts_job *sj)
         t0 = get_time_ns();
         while (atomic_read(job->var) != job->var_wait) {
             if (job->debug && count == 0)
-                hse_log(
-                    HSE_NOTICE "%lu: job %p: wait for v == %d", get_time_ns(), sj, job->var_wait);
+                log_info("%lu: job %p: wait for v == %d", get_time_ns(), sj, job->var_wait);
             msleep(20);
             count++;
         }
         t1 = get_time_ns();
         if (job->debug)
-            hse_log(
-                HSE_NOTICE "%lu: job %p: got v == %u after %lu waits,"
-                           " %lu nsecs",
-                get_time_ns(),
-                sj,
-                job->var_wait,
-                count,
-                t1 - t0);
+            log_info("%lu: job %p: got v == %u after %lu waits, %lu nsecs",
+                     get_time_ns(),
+                     sj,
+                     job->var_wait,
+                     count,
+                     t1 - t0);
     }
 
     if (job->var_add) {
         /* var and var_add must be cached in case the job struct is freed (untested) */
         if (job->debug)
-            hse_log(HSE_NOTICE "%lu: job %p: var += %d", get_time_ns(), sj, job->var_add);
+            log_info("%lu: job %p: var += %d", get_time_ns(), sj, job->var_add);
         add_var = job->var;
         add_value = job->var_add;
     }
@@ -156,7 +153,7 @@ jhandler(struct sts_job *sj)
         if (job->change_qnum)
             sj->sj_qnum = (sj->sj_qnum + 1) % job->qmax;
         if (job->debug)
-            hse_log(HSE_NOTICE "%lu: job %p: continue on queue %u", get_time_ns(), sj, sj->sj_qnum);
+            log_info("%lu: job %p: continue on queue %u", get_time_ns(), sj, sj->sj_qnum);
         if (add_var)
             atomic_add(add_value, add_var);
         sts_job_submit(sj->sj_sts, sj);
@@ -334,7 +331,7 @@ MTF_DEFINE_UTEST_PRE(test, t_sts_wcnt, pre_test)
     nw = 3;
     rp->csched_qthreads = nw << (8 * nq);
 
-    hse_log(HSE_NOTICE "%s: create nq=%u qthreads=0x%08lx", __func__, nq, rp->csched_qthreads);
+    log_info("create nq=%u qthreads=0x%08lx", nq, rp->csched_qthreads);
 
     err = sts_create(rp, "E1", nq, &s);
     ASSERT_EQ(err, 0);
@@ -351,7 +348,7 @@ MTF_DEFINE_UTEST_PRE(test, t_sts_wcnt, pre_test)
 
     /* Bump workers, Verify target, wait for ready */
     nw += 2;
-    hse_log(HSE_NOTICE "%s: set wcnt to %u, then wait", __func__, nw);
+    log_info("set wcnt to %u, then wait", nw);
     sts_wcnt_set_target(s, nq, nw);
     w = sts_wcnt_get_target(s, nq);
     ASSERT_EQ(w, nw);
@@ -362,7 +359,7 @@ MTF_DEFINE_UTEST_PRE(test, t_sts_wcnt, pre_test)
 
     /* Drop workers, Verify target, wait for ready */
     nw = 1;
-    hse_log(HSE_NOTICE "%s: set wcnt to %u, then wait", __func__, nw);
+    log_info("set wcnt to %u, then wait", nw);
     sts_wcnt_set_target(s, nq, nw);
     w = sts_wcnt_get_target(s, nq);
     ASSERT_EQ(w, nw);
@@ -408,12 +405,12 @@ MTF_DEFINE_UTEST_PRE(test, t_ping, pre_test)
         err = test_sts_create(name, nq, &s);
         ASSERT_EQ(err, 0);
 
-        hse_log(HSE_NOTICE "%s: create w/ %u queues", __func__, nq);
+        log_info("create w/ %u queues", nq);
 
         for (q = 0; q < nq; q++) {
             err = job_ping(s, q, timeo_usec, &rtt);
             ASSERT_EQ(err, 0);
-            hse_log(HSE_NOTICE "%s: queue %u of %u, %lu ns ping", __func__, q, nq, rtt);
+            log_info("queue %u of %u, %lu ns ping", q, nq, rtt);
         }
 
         sts_destroy(s);
@@ -496,7 +493,7 @@ MTF_DEFINE_UTEST_PRE(test, t_sts_pause, pre_test)
         v1 = atomic_read(&var);
 
         sts_pause(s);
-        hse_log(HSE_NOTICE "var incremented %d times after resume", v1 - v2);
+        log_info("var incremented %d times after resume", v1 - v2);
         msleep(1000);
         v1 = atomic_read(&var);
     }

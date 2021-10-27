@@ -204,7 +204,7 @@ MTF_DEFINE_UTEST(allocation, kmem_cache_test)
     void * zone;
     u64    avg;
 
-    hse_log(HSE_INFO "%16s: %8s %8s %8s", "FUNC", "SIZE", "ITERMAX", "NS/ALLOC");
+    log_info("%16s: %8s %8s %8s", "FUNC", "SIZE", "ITERMAX", "NS/ALLOC");
 
     for (size = 1; size < 32 * 1024; size *= 2) {
         size_t align;
@@ -221,7 +221,7 @@ MTF_DEFINE_UTEST(allocation, kmem_cache_test)
         if (zone) {
             avg = uma_test_alloc(lcl_ti, size, align, itermax, samplemax, zone);
 
-            hse_log(HSE_INFO "%16s: %8zu %8d %8lu", __func__, size, itermax, avg);
+            log_info("%16s: %8zu %8d %8lu", __func__, size, itermax, avg);
 
             kmem_cache_destroy(zone);
         }

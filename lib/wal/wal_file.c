@@ -141,11 +141,10 @@ wal_fileset_reclaim(
 #ifndef NDEBUG
         struct wal_minmax_info *info = &cur->info;
 
-        hse_log(HSE_DEBUG
-                "Reclaiming gen %lu [%lu, %lu] seqno %lu [%lu, %lu] txid %lu [%lu, %lu]",
-                gen, info->min_gen, info->max_gen,
-                seqno, info->min_seqno, info->max_seqno,
-                txhorizon, info->min_txid, info->max_txid);
+        log_debug("Reclaiming gen %lu [%lu, %lu] seqno %lu [%lu, %lu] txid %lu [%lu, %lu]",
+                  gen, info->min_gen, info->max_gen,
+                  seqno, info->min_seqno, info->max_seqno,
+                  txhorizon, info->min_txid, info->max_txid);
 #endif
 
         list_del(&cur->link);
@@ -578,8 +577,8 @@ wal_fileset_replay(
         if (err) {
             if (merr_errno(err) == EINVAL && wal_file_size(cur) == 0) {
                 /* Possible that the crash happened just after file creation */
-                hse_log(HSE_NOTICE "WAL replay: Discarding empty wal file: gen %lu fileid %u",
-                        cur->gen, cur->fileid);
+                log_info("WAL replay: Discarding empty wal file: gen %lu fileid %u",
+                         cur->gen, cur->fileid);
                 discard = true;
                 goto discard;
             }
@@ -591,8 +590,8 @@ wal_fileset_replay(
         if (err) {
             if (cur->gen == maxgen && merr_errno(err) == ENODATA) {
                 /* Can safely delete this empty file */
-                hse_log(HSE_NOTICE "WAL replay: Discarding empty wal file, gen %lu fileid %u",
-                        cur->gen, cur->fileid);
+                log_info("WAL replay: Discarding empty wal file, gen %lu fileid %u",
+                         cur->gen, cur->fileid);
                 discard = true;
                 goto discard;
             }
@@ -601,8 +600,9 @@ wal_fileset_replay(
              * then all the files belonging to this corrupted gen can be destroyed.
              * TODO: Address this when adding force replay support.
              */
-            hse_elog(HSE_NOTICE "WAL replay: Need force replay support to recover data, "
-                     "gen %lu fileid %u maxgen %lu: @@e", err, cur->gen, cur->fileid, maxgen);
+            log_errx("WAL replay: Need force replay support to recover data, "
+                     "gen %lu fileid %u maxgen %lu: @@e",
+                     err, cur->gen, cur->fileid, maxgen);
             goto exit;
         }
 
@@ -620,9 +620,9 @@ wal_fileset_replay(
                             info->max_txid < rinfo->txhorizon);
 
             if (seqno_discard && txid_discard) {
-                hse_log(HSE_NOTICE "WAL replay: Skipping wal file, gen %lu fileid %u, "
-                        "cndb seqno %lu txhorizon %lu gen %lu",
-                        cur->gen, cur->fileid, rinfo->seqno, rinfo->txhorizon, rinfo->gen);
+                log_info("WAL replay: Skipping wal file, gen %lu fileid %u, "
+                         "cndb seqno %lu txhorizon %lu gen %lu",
+                         cur->gen, cur->fileid, rinfo->seqno, rinfo->txhorizon, rinfo->gen);
                 discard = true;
                 goto discard;
             } else {

@@ -773,7 +773,7 @@ bn_reset(struct bonsai_root *tree)
     if ((tree->br_oomslab || bn_summary_calls_tls++ % 8 == 0) &&
         bn_summary(tree, buf, sizeof(buf)) > 0) {
 
-        hse_log(HSE_NOTICE "%s: %s", __func__, buf);
+        log_info("%s", buf);
     }
 #endif
 

@@ -7,6 +7,7 @@
 #include <hse_util/slab.h>
 #include <hse_util/string.h>
 #include <hse_util/mutex.h>
+#include <hse_util/minmax.h>
 #include <hse_util/parse_num.h>
 #include <hse_util/data_tree.h>
 #include <hse_util/event_counter.h>
@@ -35,16 +36,6 @@
 
 #define PARAM_GET_INVALID(_type, _dst, _dstsz) \
     ({ ((_dstsz) < sizeof(_type) || !(_dst) || (uintptr_t)(_dst) & (__alignof(_type) - 1)); })
-
-/**
- * struct priority_name - A table mapping priorities to their enum values
- * @priority_name:
- * @priority_val:
- */
-struct priority_name {
-    const char *   priority_name;
-    log_priority_t priority_val;
-};
 
 DEFINE_MUTEX(hse_logging_lock);
 
@@ -98,8 +89,6 @@ _hse_consume_one_async(struct hse_log_async_entry *entry)
  * Process the log messages that were posted in the circular buffer
  * until the circular buffer is empty.
  * It offloads the processing and actual logging of the log messages.
- * The posting of log messages in the circular buffer is done via
- * hse_alog() which can safely be called from interrupt context.
  */
 static void
 _hse_log_async_cons_th(struct work_struct *wstruct)
@@ -144,7 +133,7 @@ get_log_level(const char *str, void *dst, size_t dstsz)
 
     err = parse_u64(str, &num);
     if (err)
-        *(log_priority_t *)dst = hse_logprio_name_to_val(str);
+        *(log_priority_t *)dst = hse_logpri_name_to_val(str);
     else
         *(log_priority_t *)dst = num;
 
@@ -307,7 +296,7 @@ log_level_validator(
     if (err)
         return merr(EINVAL);
 
-    if ((level < HSE_EMERG_VAL) || (level > HSE_DEBUG_VAL))
+    if ((level < HSE_LOGPRI_EMERG) || (level > HSE_LOGPRI_DEBUG))
         return merr(EINVAL);
 
     return 0;
@@ -535,7 +524,7 @@ _hse_log_post_async(const char *source_file, s32 source_line, s32 priority, char
  * representing the extended types are passed in as an array of pointers.
  */
 void
-_hse_log(
+hse_log(
     struct event_counter *ev, /* contains call site info and pri     */
     const char *fmt_string,   /* the platform-specific format string */
     bool        async,        /* true=>only queue in circular buffer */
@@ -609,7 +598,7 @@ _hse_log(
 
     va_start(args, hse_args);
     res = vpreprocess_fmt_string(
-        &state, fmt_string, int_fmt, MAX_STRUCTURED_DATA_LENGTH, hse_args, args);
+        &state, ev->ev_dte.dte_func, fmt_string, int_fmt, MAX_STRUCTURED_DATA_LENGTH, hse_args, args);
     va_end(args);
 
     if (!res)
@@ -647,7 +636,7 @@ pack_source_info(struct hse_log_fmt_state *state)
         if (!res)
             return res;
 
-        state->nv_hse_index = 3;
+        state->nv_hse_index = 2;
         state->source_info_set = true;
     }
 
@@ -657,6 +646,7 @@ pack_source_info(struct hse_log_fmt_state *state)
 bool
 vpreprocess_fmt_string(
     struct hse_log_fmt_state *state,
+    const char               *func,
     const char *              fmt,
     char *                    new_fmt,
     s32                       new_len,
@@ -697,6 +687,8 @@ vpreprocess_fmt_string(
     s32   hse_cnt = 0;
 
     enum hse_log_fmt_parse_state parse_state = LITERAL;
+
+    tgt_pos += snprintf(tgt_pos, tgt_end - tgt_pos, "%s %s: ", HSE_MARK, func);
 
     /* optimization: copy until special char, if any */
     while (c && c != '%' && c != '@' && tgt_pos < tgt_end) {
@@ -1077,51 +1069,28 @@ finalize_log_structure(
         hse_slog_emit(priority, "%s%s\n", slog_prefix, jc.json_buf);
 }
 
-static const char *pri_name[] = {
-    "HSE_EMERG",   "HSE_ALERT",  "HSE_CRIT", "HSE_ERR",
-    "HSE_WARNING", "HSE_NOTICE", "HSE_INFO", "HSE_DEBUG",
-};
-
 const char *
-hse_logprio_val_to_name(int priority)
+hse_logpri_val_to_name(log_priority_t val)
 {
-    if (priority > HSE_DEBUG_VAL || priority < 0)
-        priority = HSE_DEBUG_VAL;
+    static const char *namev[] = {
+        "EMERG", "ALERT", "CRIT", "ERR", "WARNING", "NOTICE", "INFO", "DEBUG"
+    };
 
-    return pri_name[priority];
+    val = clamp_t(log_priority_t, val, 0, NELEM(namev) - 1);
+
+    return namev[val];
 }
 
-struct priority_name priority_names[] = {
-    { "HSE_EMERG", HSE_EMERG_VAL },     { "HSE_ALERT", HSE_ALERT_VAL },
-    { "HSE_CRIT", HSE_CRIT_VAL },       { "HSE_ERR", HSE_ERR_VAL },
-    { "HSE_WARNING", HSE_WARNING_VAL }, { "HSE_NOTICE", HSE_NOTICE_VAL },
-    { "HSE_INFO", HSE_INFO_VAL },       { "HSE_DEBUG", HSE_DEBUG_VAL },
-};
-
 log_priority_t
-hse_logprio_name_to_val(const char *priority)
+hse_logpri_name_to_val(const char *name)
 {
-    int  i = 0, best_fit = -1;
-    char pri[20];
+    const char *list = "EMERG   ALERT   CRIT    ERR     WARNING NOTICE  INFO    DEBUG   ";
 
-    if (strncasecmp("hse_", priority, strlen("hse_")))
-        snprintf(pri, sizeof(pri), "hse_%s", priority);
-    else
-        snprintf(pri, sizeof(pri), "%s", priority);
+    name = strcasestr(list, name);
+    if (name)
+        return (name - list) / 8;
 
-    while (priority_names[i].priority_name != NULL) {
-        if (!strcasecmp(priority_names[i].priority_name, pri))
-            break;
-        if (!strncasecmp(priority_names[i].priority_name, pri, strlen(pri))) {
-            assert(best_fit != -1);
-            best_fit = i;
-        }
-        i++;
-    }
-    if ((priority_names[i].priority_name == NULL) && (best_fit != -1))
-        i = best_fit;
-
-    return priority_names[i].priority_val;
+    return HSE_LOGPRI_DEBUG;
 }
 
 static void
@@ -1256,7 +1225,7 @@ hse_format_payload(struct json_context *jc, va_list payload)
  * this extra post processing .
  */
 void
-hse_slog_internal(int priority, const char *fmt, ...)
+hse_slog_internal(log_priority_t priority, const char *fmt, ...)
 {
     va_list       payload;
     const char *  buf;
@@ -1304,7 +1273,7 @@ hse_slog_emit(int priority, const char *fmt, ...)
 }
 
 int
-hse_slog_create(int priority, const char *unused, struct slog **sl, const char *type)
+hse_slog_create(log_priority_t priority, struct slog **sl, const char *type)
 {
     struct json_context *jc;
 

@@ -617,7 +617,7 @@ tree_iter_callback(
         return 0;
 
     if (t->p.verbose) {
-        hse_log(HSE_INFO "node; level %2u, offset %4u", loc->node_level, loc->node_offset);
+        log_info("node; level %2u, offset %4u", loc->node_level, loc->node_offset);
     }
 
     ASSERT_EQ_RET(kvset->node_level, loc->node_level, 1);
@@ -672,7 +672,7 @@ test_tree_create(struct test *t)
             uint num_kvsets_this_node = num_kvsets_in_node(lx, nx);
 
             if (t->p.verbose)
-                hse_log(HSE_INFO "add %3u kvsets to node (%2u,%4u)", num_kvsets_this_node, lx, nx);
+                log_info("add %3u kvsets to node (%2u,%4u)", num_kvsets_this_node, lx, nx);
             for (kx = 0; kx < num_kvsets_this_node; kx++) {
                 kvset = fake_kvset_create_add(&t->kvset_list, t->tree, lx, nx, 100 + kx);
                 ASSERT_TRUE_RET(kvset != NULL, -1);

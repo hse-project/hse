@@ -120,7 +120,7 @@ test_preprocess_fmt_string(
 
     va_start(args, hse_args);
 
-    vpreprocess_fmt_string(state, fmt, new_fmt, new_len, hse_args, args);
+    vpreprocess_fmt_string(state, __func__, fmt, new_fmt, new_len, hse_args, args);
 
     va_end(args);
 }
@@ -141,7 +141,7 @@ test_finalize_log_structure(
 
     va_start(args, hse_args);
 
-    vpreprocess_fmt_string(state, fmt, new_fmt, new_len, hse_args, args);
+    vpreprocess_fmt_string(state, __func__, fmt, new_fmt, new_len, hse_args, args);
 
     va_end(args);
 

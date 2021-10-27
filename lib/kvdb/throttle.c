@@ -155,9 +155,8 @@ throttle_init_params(struct throttle *self, struct kvdb_rparams *rp)
     self->thr_delay = rp->throttle_init_policy;
 
     if (self->thr_rp->throttle_debug_intvl_s == 0) {
-        hse_log(
-            HSE_NOTICE "Invalid setting for throttle_debug_intvl_s: %u, using 1",
-            self->thr_rp->throttle_debug_intvl_s);
+        log_warn("Invalid setting for throttle_debug_intvl_s: %u, using 1",
+                 self->thr_rp->throttle_debug_intvl_s);
         self->thr_rp->throttle_debug_intvl_s = 1U;
     }
 
@@ -189,9 +188,8 @@ throttle_init_params(struct throttle *self, struct kvdb_rparams *rp)
     self->thr_delta_cycles =
         time_ms / self->thr_update_ms + (time_ms % self->thr_update_ms ? 1 : 0);
 
-    hse_log(
-        HSE_NOTICE "throttle init: delay %d u_ms %d rcycles %d"
-                   " icycles %d scycles %d dcycles %d",
+    log_info(
+        "delay %d u_ms %d rcycles %d icycles %d scycles %d dcycles %d",
         self->thr_delay,
         self->thr_update_ms,
         self->thr_reduce_cycles,
@@ -221,9 +219,8 @@ throttle_reset_mavg(struct throttle *self)
 void
 throttle_reduce_debug(struct throttle *self, uint sensor, uint mavg)
 {
-    hse_log(
-        HSE_NOTICE "throttle: icnt %u raw %d prev %d trial %d"
-                   " mcnt %d v %d cmavg %d",
+    log_info(
+        "icnt %u raw %d prev %d trial %d mcnt %d v %d cmavg %d",
         self->thr_inject_cnt,
         self->thr_delay,
         self->thr_delay_prev,
@@ -550,13 +547,13 @@ throttle_update(struct throttle *self)
 void
 throttle_debug(struct throttle *self)
 {
-    hse_log(HSE_NOTICE "%s: delay %d min %d mavg %d cnt %d state %d sensors %d %d",
-            __func__,
-            self->thr_delay,
-            self->thr_delay_min,
-            self->thr_mavg.tm_curr,
-            self->thr_monitor_cnt,
-            self->thr_state,
-            atomic_read(&self->thr_sensorv[0].ts_sensor),
-            atomic_read(&self->thr_sensorv[1].ts_sensor));
+    log_info(
+        "delay %d min %d mavg %d cnt %d state %d sensors %d %d",
+        self->thr_delay,
+        self->thr_delay_min,
+        self->thr_mavg.tm_curr,
+        self->thr_monitor_cnt,
+        self->thr_state,
+        atomic_read(&self->thr_sensorv[0].ts_sensor),
+        atomic_read(&self->thr_sensorv[1].ts_sensor));
 }

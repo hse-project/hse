@@ -202,8 +202,8 @@ new_kvsets(struct test_tree *tt, int n_kvsets, int lvl, int off)
 void
 job_done(struct cn_compaction_work *w, int cancel)
 {
-    hse_log(
-        HSE_NOTICE "job %s: cnid=%lu loc=(%u,%u)",
+    log_info(
+        "job %s: cnid=%lu loc=(%u,%u)",
         cancel ? "canceled" : "complete",
         w->cw_tree->cnid,
         w->cw_node->tn_loc.node_level,
@@ -313,9 +313,8 @@ sp3_work_mock(
     w->cw_rp = tn->tn_tree->rp;
     w->cw_pfx_len = tn->tn_tree->ct_cp->pfx_len;
 
-    hse_log(
-        HSE_DEBUG "%s(cnid=%lu loc=(%u,%u), action=%s",
-        __func__,
+    log_debug(
+        "cnid=%lu loc=(%u,%u), action=%s",
         tn->tn_tree->cnid,
         tn->tn_loc.node_level,
         tn->tn_loc.node_offset,

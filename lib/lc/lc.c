@@ -848,10 +848,8 @@ lc_cursor_create(
     cur->lcc_seq_horizon = lc_horizon_register(self, &cur->lcc_ib_cookie);
     cur->lcc_seqnoref = seqnoref;
     if (cur->lcc_seq_view < cur->lcc_seq_horizon) {
-        hse_log(
-            HSE_DEBUG "LC cursor will be empty, view (%lu) < horizon (%lu)",
-            cur->lcc_seq_view,
-            cur->lcc_seq_horizon);
+        log_debug("LC cursor will be empty, view (%lu) < horizon (%lu)",
+                  cur->lcc_seq_view, cur->lcc_seq_horizon);
     }
 
     /* HSE_REVISIT Consider using comparators that use key_obj_cmp_spl() */
@@ -1204,13 +1202,11 @@ lc_gc_worker(struct work_struct *work)
     if (horizon_incl == gc->lgc_last_horizon_incl)
         goto exit;
 
-    hse_log(
-        HSE_DEBUG "%s: Horizon %lu Last %lu Head %lu ListLen %u",
-        __func__,
-        horizon_incl,
-        gc->lgc_last_horizon_incl,
-        lc_ib_head_seqno(lc),
-        atomic_read(&lc->lc_ib_len));
+    log_debug("Horizon %lu Last %lu Head %lu ListLen %u",
+              horizon_incl,
+              gc->lgc_last_horizon_incl,
+              lc_ib_head_seqno(lc),
+              atomic_read(&lc->lc_ib_len));
 
     gc->lgc_last_horizon_incl = horizon_incl;
     gc->lgc_c0snr_cnt = 0;
@@ -1255,7 +1251,7 @@ lc_gc_worker(struct work_struct *work)
                 if (HSE_SQNREF_INDIRECT_P(val->bv_seqnoref)) {
                     lc->lc_err = lc_gc_c0snr_add(gc, (uintptr_t *)val->bv_seqnoref);
                     if (lc->lc_err) {
-                        hse_elog(HSE_ERR "%s: failed to add seqnoref: @@e", lc->lc_err, __func__);
+                        log_errx("failed to add seqnoref: @@e", lc->lc_err);
                         goto health_err;
                     }
                 }
@@ -1277,7 +1273,7 @@ lc_gc_worker(struct work_struct *work)
 
                 lc->lc_err = bn_delete(root, &skey);
                 if (ev(lc->lc_err)) {
-                    hse_elog(HSE_ERR "%s: failed to delete bonsai node: @@e", lc->lc_err, __func__);
+                    log_errx("failed to delete bonsai node: @@e", lc->lc_err);
                     goto health_err;
                 }
             }
