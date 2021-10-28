@@ -1296,7 +1296,7 @@ ikvdb_open(
     err = c0sk_open(
         &self->ikdb_rp,
         self->ikdb_mp,
-        self->ikdb_home,
+        self->ikdb_alias,
         &self->ikdb_health,
         self->ikdb_csched,
         &self->ikdb_seqno,

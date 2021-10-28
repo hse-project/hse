@@ -205,7 +205,7 @@ MTF_DEFINE_UTEST(structured_logging_test, test_ev)
     ix++;
 
     ASSERT_STREQ("hse_0_category", shared_result.names[ix]);
-    ASSERT_STREQ("event_counter", shared_result.values[ix]);
+    ASSERT_STREQ("events", shared_result.values[ix]);
     ix++;
 
     ASSERT_STREQ("hse_0_version", shared_result.names[ix]);

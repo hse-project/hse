@@ -53,7 +53,7 @@ add_event_counter_stats(struct hse_log_fmt_state *state, void *obj)
 
     bool               res = true;
     static const char *cat = "hse_%d_category";
-    static const char *cat_val = "event_counter";
+    static const char *cat_val = "events";
     static const char *ver = "hse_%d_version";
     static const char *ver_val = "0";
 

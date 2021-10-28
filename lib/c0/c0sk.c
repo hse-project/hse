@@ -41,7 +41,7 @@ c0sk_perfc_alloc(struct c0sk_impl *self)
 {
     if (perfc_ctrseti_alloc(
             self->c0sk_kvdb_rp->perfc_level,
-            self->c0sk_kvdbhome,
+            self->c0sk_kvdb_alias,
             c0sk_perfc_op,
             PERFC_EN_C0SKOP,
             "set",
@@ -50,7 +50,7 @@ c0sk_perfc_alloc(struct c0sk_impl *self)
 
     if (perfc_ctrseti_alloc(
             self->c0sk_kvdb_rp->perfc_level,
-            self->c0sk_kvdbhome,
+            self->c0sk_kvdb_alias,
             c0sk_perfc_ingest,
             PERFC_EN_C0SKING,
             "set",
@@ -457,7 +457,7 @@ merr_t
 c0sk_open(
     struct kvdb_rparams *kvdb_rp,
     struct mpool *       mp_dataset,
-    const char *         mp_name,
+    const char *         kvdb_alias,
     struct kvdb_health * health,
     struct csched *      csched,
     atomic64_t *         kvdb_seq,
@@ -487,8 +487,8 @@ c0sk_open(
 
     c0sk->c0sk_kvdb_seq = kvdb_seq;
 
-    c0sk->c0sk_kvdbhome = strdup(mp_name);
-    if (!c0sk->c0sk_kvdbhome) {
+    c0sk->c0sk_kvdb_alias = strdup(kvdb_alias);
+    if (!c0sk->c0sk_kvdb_alias) {
         err = merr(ENOMEM);
         goto errout;
     }
@@ -557,11 +557,11 @@ c0sk_open(
 
     *c0skp = &c0sk->c0sk_handle;
 
-    log_info("c0sk_open(%s) complete", mp_name);
+    log_info("c0sk_open(%s) complete", kvdb_alias);
 
 errout:
     if (err) {
-        log_errx("c0sk_open(%s) failed: @@e", err, mp_name);
+        log_errx("c0sk_open(%s) failed: @@e", err, kvdb_alias);
 
         if (c0sk) {
             destroy_workqueue(c0sk->c0sk_wq_ingest);
@@ -569,7 +569,7 @@ errout:
             cv_destroy(&c0sk->c0sk_kvms_cv);
             mutex_destroy(&c0sk->c0sk_sync_mutex);
             mutex_destroy(&c0sk->c0sk_kvms_mutex);
-            free(c0sk->c0sk_kvdbhome);
+            free(c0sk->c0sk_kvdb_alias);
             free(c0sk);
         }
     }
@@ -622,7 +622,7 @@ c0sk_close(struct c0sk *handle)
     mutex_destroy(&self->c0sk_sync_mutex);
     mutex_destroy(&self->c0sk_kvms_mutex);
     c0sk_perfc_free(self);
-    free(self->c0sk_kvdbhome);
+    free(self->c0sk_kvdb_alias);
     free(self);
 
     return 0;

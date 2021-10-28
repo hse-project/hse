@@ -46,16 +46,13 @@ enum { DT_OP_INVALID, DT_OP_EMIT, DT_OP_SET, DT_OP_COUNT, DT_OP_LOG };
 
 /* DT_PATH_SZ restricts the path size of a statically allocated dt_element
  * to avoid wasting too much space.
- *
- * [MU_REVISIT] Reduce the size of DT_PATH_MAX to (192 - DTE_PATH_OFFSET)
- * once we have replaced the kvdb name in the path with it's inode number.
  */
 #define DT_PATH_ELEMENT_MAX       (32)
 #define DTE_PATH_OFFSET           (80)
-#define DT_PATH_MAX               (256 - DTE_PATH_OFFSET)
+#define DT_PATH_MAX               (192 - DTE_PATH_OFFSET)
 
 #define DT_PATH_ROOT              "/data"
-#define DT_PATH_EVENT             "/data/event_counter"
+#define DT_PATH_EVENT             "/data/events"
 #define DT_PATH_PERFC             "/data/perfc"
 #define DT_PATH_TEST              "/data/test"
 

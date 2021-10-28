@@ -55,7 +55,7 @@ struct c0sk {
  * @c0sk_ingest_ldrcnt:   used to elect ingest leader
  * @c0sk_sync_sema:       used to serialize kvs_close() calls c0sk_queue_ingest(0
  * @c0sk_ingest_width:    ingest width hint/suggestion to use for next kvms
- * @c0sk_kvdbhome:        kvdb home
+ * @c0sk_kvdb_alias:      kvdb alias
  * @c0sk_stash:           storage for caching a recently freed c0kvms
  * @c0sk_ingest_refv:     vector of ingest synchronization ref counts
  *
@@ -104,7 +104,7 @@ struct c0sk_impl {
     u32        c0sk_ingest_width_max HSE_ALIGNED(SMP_CACHE_BYTES);
     u32        c0sk_ingest_width;
     int        c0sk_boost;
-    char      *c0sk_kvdbhome;
+    char      *c0sk_kvdb_alias;
     void      *c0sk_stash;
 
     struct {

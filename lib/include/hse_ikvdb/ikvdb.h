@@ -45,7 +45,6 @@ struct hse_kvdb_storage_info;
 struct hse_kvdb_txn {
 };
 
-#define IKVDB_SUB_NAME_SEP ":"
 #define HSE_KVDB_DESC      "Heterogeneous-memory Storage Engine KVDB"
 
 /**

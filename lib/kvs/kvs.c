@@ -88,13 +88,7 @@ kvs_perfc_alloc(const char *kvdb_alias, const char *kvs_name, struct ikvs *kvs)
     INVARIANT(kvdb_alias);
     INVARIANT(kvs_name);
 
-    n = strlcpy(dbname_buf, kvdb_alias, sizeof(dbname_buf));
-    if (ev(n >= sizeof(dbname_buf)))
-        return;
-    n = strlcat(dbname_buf, IKVDB_SUB_NAME_SEP, sizeof(dbname_buf));
-    if (ev(n >= sizeof(dbname_buf)))
-        return;
-    n = strlcat(dbname_buf, kvs_name, sizeof(dbname_buf));
+    n = snprintf(dbname_buf, sizeof(dbname_buf), "%s/kvs/%s", kvdb_alias, kvs_name);
     if (ev(n >= sizeof(dbname_buf)))
         return;
 
@@ -188,7 +182,7 @@ kvs_open(
         cndb,
         cnid,
         &ikvs->ikv_rp,
-        ikvdb_home(kvdb),
+        ikvdb_alias(kvdb),
         kvs_name,
         health,
         flags,
