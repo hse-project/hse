@@ -277,8 +277,8 @@ if not get_option('tools').disabled() and (not HdrHistogram_c_dep.found()
 else
     HdrHistogram_c_from_subproject = false
 endif
-libmongoc_dep = dependency('libmongoc-1.0', version: '>=1.17.3', required: get_option('tools'))
-libbson_dep = dependency('libbson-1.0', version: '>=1.17.3', required: get_option('tools'))
+libmongoc_dep = dependency('libmongoc-1.0', version: '>=1.17.3', required: false)
+libbson_dep = dependency('libbson-1.0', version: '>=1.17.3', required: false)
 mongo_c_driver_force_fallback = get_option('wrap_mode') == 'forcefallback' or 'mongo-c-driver' in get_option('force_fallback_for')
 if not get_option('tools').disabled() and (not libmongoc_dep.found()
         or not libbson_dep.found() or mongo_c_driver_force_fallback)
@@ -298,7 +298,7 @@ if not get_option('tools').disabled() and (not libmongoc_dep.found()
     if not libmongoc_dep.found() or mongo_c_driver_force_fallback
         libmongoc_dep = [
             mongo_c_driver_proj.dependency('mongoc_static'),
-            cc.find_library('resolv', required: get_option('tools')),
+            cc.find_library('resolv'),
         ]
     endif
     if not libbson_dep.found() or mongo_c_driver_force_fallback
