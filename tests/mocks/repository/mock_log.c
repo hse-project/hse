@@ -9,7 +9,7 @@
 
 #include <mocks/mock_log.h>
 
-logging_result shared_result;
+thread_local logging_result shared_result;
 
 /*
  * In order to allow testing the very lowest levels of the logging code, we

@@ -100,7 +100,7 @@ if get_option('debug')
         language: 'c',
     )
 else
-    log_pri_default = 5
+    log_pri_default = 6
 
     add_project_arguments(
         '-DHSE_BUILD_RELEASE',

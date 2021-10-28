@@ -32,7 +32,7 @@ typedef struct logging_result {
     char index;
 } logging_result;
 
-extern logging_result shared_result;
+extern thread_local logging_result shared_result;
 
 void
 test_preprocess_fmt_string(
