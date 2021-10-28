@@ -159,7 +159,7 @@ struct hse_log_fmt_state {
 };
 
 bool
-is_std_specifier(char c);
+is_std_specifier(int c);
 
 enum std_length_modifier
 get_std_length_modifier(char *specifier_pos);

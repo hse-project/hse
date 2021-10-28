@@ -112,8 +112,8 @@ MTF_DEFINE_UTEST(hse_logging_test, Test_is_std_specifier)
 {
     int i;
 
-    for (i = 0; i < 128; ++i) {
-        bool b = is_std_specifier((char)i);
+    for (i = -1024; i < 1024; ++i) {
+        bool b = is_std_specifier(i);
 
         if (i == 'd' || i == 'i' || i == 'u' || i == 'o' || i == 'x' || i == 'X' || i == 'f' ||
             i == 'F' || i == 'e' || i == 'E' || i == 'g' || i == 'G' || i == 'a' || i == 'A' ||

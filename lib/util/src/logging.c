@@ -849,17 +849,17 @@ append_hse_arg(
  * Is the given character a valid printf() conversion specifier?
  ******************************************************************************/
 bool
-is_std_specifier(char c)
+is_std_specifier(int c)
 {
-    static char std_specifiers[] = { 'd', 'i', 'u', 'o', 'x', 'X', 'f', 'F', 'e', 'E',
-                                     'g', 'G', 'a', 'A', 'c', 's', 'p', 'n', '%' };
-    int i;
+    static const bool specv[] = {
+        ['%'] = true, ['A'] = true, ['E'] = true, ['F'] = true,
+        ['G'] = true, ['X'] = true, ['a'] = true, ['c'] = true,
+        ['d'] = true, ['e'] = true, ['f'] = true, ['g'] = true,
+        ['i'] = true, ['n'] = true, ['o'] = true, ['p'] = true,
+        ['s'] = true, ['u'] = true, ['x'] = true
+    };
 
-    for (i = 0; i < sizeof(std_specifiers); ++i) {
-        if (c == std_specifiers[i])
-            return true;
-    }
-    return false;
+    return (c > 0) && (c < NELEM(specv)) && specv[c];
 }
 
 /******************************************************************************
