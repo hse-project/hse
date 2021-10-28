@@ -39,12 +39,6 @@ components = {
         },
         'cndb_test': {},
         'cn_ingest_test': {},
-        # REVISIT: cn_logging_test test periodically fails because the
-        # because the syslog/vsyslog functions underlying hse_xlog() are
-        # intercepted to save log messages into a shared buffer. But
-        # there are multiple threads that use syslog/vsyslog, so by the
-        # time this message is parsed by process_json_payload(), the
-        # buffer could have been reused.
         'cn_logging_test': {},
         'cn_make_test': {},
         'cn_mblock_test': {},
@@ -233,12 +227,6 @@ components = {
         'key_util_test': {},
         'list_test': {},
         'log2_test': {},
-        # REVISIT: logging_test test periodically fails because the
-        # because the syslog/vsyslog functions underlying hse_xlog() are
-        # intercepted to save log messages into a shared buffer. But
-        # there are multiple threads that use syslog/vsyslog, so by the
-        # time this message is parsed by process_json_payload(), the
-        # buffer could have been reused.
         'logging_test': {},
         'parse_num_test': {},
         'perfc_test': {},
@@ -261,13 +249,7 @@ components = {
                 ),
             ],
         },
-        # REVISIT: structured_logging_test test periodically fails because the
-        # because the syslog/vsyslog functions underlying hse_xlog() are
-        # intercepted to save log messages into a shared buffer. But
-        # there are multiple threads that use syslog/vsyslog, so by the
-        # time this message is parsed by process_json_payload(), the
-        # buffer could have been reused.
-        # 'structured_logging_test': {},
+	'structured_logging_test': {},
         'table_test': {},
         'timer_test': {},
         'token_bucket_test': {},

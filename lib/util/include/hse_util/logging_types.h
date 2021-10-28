@@ -26,6 +26,6 @@ typedef enum {
     HSE_LOGPRI_NOTICE,
     HSE_LOGPRI_INFO,
     HSE_LOGPRI_DEBUG
-} log_priority_t;
+} hse_logpri_t;
 
 #endif

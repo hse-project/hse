@@ -63,7 +63,7 @@ ev_match_select_handler(struct dt_element *dte, char *field, char *value)
                 return true;
         }
     } else if (!strcmp(field, "ev_pri")) {
-        log_priority_t pri = hse_logpri_name_to_val(value);
+        hse_logpri_t pri = hse_logpri_name_to_val(value);
 
         if (ec->ev_pri <= pri)
             return true;

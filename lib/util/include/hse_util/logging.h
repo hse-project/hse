@@ -95,7 +95,7 @@
                 .dte_line = __LINE__,                                   \
                 .dte_file = __FILE__,                                   \
                 .dte_func = __func__,                                   \
-            },                                                          \
+            }                                                           \
         };                                                              \
                                                                         \
         hse_log(&hse_ev_log, (_fmt), (_async), (_argv), ##__VA_ARGS__); \
@@ -125,9 +125,9 @@ void
 hse_log(struct event_counter *ev, const char *fmt, bool async, void **args, ...) HSE_PRINTF(2, 5);
 
 const char *
-hse_logpri_val_to_name(log_priority_t val);
+hse_logpri_val_to_name(hse_logpri_t val);
 
-log_priority_t
+hse_logpri_t
 hse_logpri_name_to_val(const char *name);
 
 struct hse_log_fmt_state;
@@ -178,10 +178,10 @@ enum slog_token {
 #define slog_err(...)       hse_slog_internal(HSE_LOGPRI_ERR, __VA_ARGS__, NULL)
 
 void
-hse_slog_internal(log_priority_t priority, const char *fmt, ...);
+hse_slog_internal(hse_logpri_t priority, const char *fmt, ...);
 
 int
-hse_slog_create(log_priority_t priority, struct slog **sl, const char *type);
+hse_slog_create(hse_logpri_t priority, struct slog **sl, const char *type);
 
 int
 hse_slog_append_internal(struct slog *sl, ...);

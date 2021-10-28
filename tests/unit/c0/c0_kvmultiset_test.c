@@ -252,7 +252,7 @@ MTF_DEFINE_UTEST_PREPOST(c0_kvmultiset_test, ingest_sk, no_fail_pre, no_fail_pos
     struct bonsai_kv *     bkv;
     bool                   first_time = true;
     struct kvs_ktuple      last_kt = { 0, 0, 0 };
-    u16                    last_skidx;
+    u16                    last_skidx = 0;
 
     c0skwork = c0kvms_ingest_work_prepare(kvms, NULL);
 

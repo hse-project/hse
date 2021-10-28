@@ -89,9 +89,9 @@ enum std_length_modifier {
  *      "string" is logged by the async log consumer thread with a format %s.
  */
 struct hse_log_async_entry {
-    s32  ae_source_line;
-    s32  ae_priority;
-    char ae_buf[MAX_STRUCTURED_DATA_LENGTH];
+    s32          ae_source_line;
+    hse_logpri_t ae_priority;
+    char         ae_buf[MAX_STRUCTURED_DATA_LENGTH];
 };
 
 /**
@@ -132,7 +132,7 @@ struct hse_logging_infrastructure {
 };
 
 struct slog {
-    int                 sl_priority;
+    hse_logpri_t        sl_priority;
     int                 sl_entries;
     struct json_context sl_json;
 };
@@ -180,7 +180,7 @@ pack_source_info(struct hse_log_fmt_state *state);
 
 void
 finalize_log_structure(
-    int                       priority,
+    hse_logpri_t              priority,
     bool                      async,
     const char *              source_file,
     s32                       source_line,
@@ -244,6 +244,6 @@ bool
 add_hse_err(struct hse_log_fmt_state *state, void *object);
 
 void
-hse_slog_emit(int priority, const char *fmt, ...);
+hse_slog_emit(hse_logpri_t priority, const char *fmt, ...);
 
 #endif /* HSE_LOGGING_IMPL_HEADER */

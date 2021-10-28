@@ -31,8 +31,8 @@ struct hse_gparams {
     struct {
         bool                 enabled;
         bool                 structured;
+        hse_logpri_t         level;
         enum log_destination destination;
-        log_priority_t       level;
         uint64_t             squelch_ns;
         char                 path[PATH_MAX];
     } gp_logging;

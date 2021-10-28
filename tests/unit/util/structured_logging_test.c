@@ -11,24 +11,24 @@
 
 #include "../src/logging_impl.h"
 
+#include <mocks/mock_log.h>
+
 /* --------------------------------------------------
  * scaffolding lifted from logging_test.c
  */
 
-#define hse_xlog(_fmt, hse_args, ...) \
-    log_pri(HSE_ERR_VAL, _fmt "\\n", false, hse_args, ##__VA_ARGS__)
+#define hse_xlog(_fmt, _argv, ...) \
+    log_pri(HSE_LOGPRI_ERR, _fmt, false, _argv, ##__VA_ARGS__)
 
-#define MAX_MSG_SIZE 1000
-#define MAX_NV_PAIRS 50
-#define MAX_NV_SIZE 100
+void
+hse_slog_emit(hse_logpri_t priority, const char *fmt, ...)
+{
+    va_list ap;
 
-struct logging_result {
-    char msg_buffer[MAX_MSG_SIZE];
-    char count;
-    char names[MAX_NV_PAIRS][MAX_NV_SIZE];
-    char values[MAX_NV_PAIRS][MAX_NV_SIZE];
-    char index;
-} shared_result;
+    va_start(ap, fmt);
+    vsnprintf(shared_result.msg_buffer, MAX_MSG_SIZE, fmt, ap);
+    va_end(ap);
+}
 
 void
 parse_json_key_values(char *key)
@@ -42,7 +42,8 @@ parse_json_key_values(char *key)
     char values[MAX_NV_SIZE];
 
     curr_pos = strstr(shared_result.msg_buffer, key);
-    assert(curr_pos != NULL);
+    if (!curr_pos)
+        abort();
 
     while (count < 2 && j < MAX_NV_SIZE) {
         if (curr_pos[i] == '"')
@@ -91,7 +92,6 @@ process_json_payload(void)
 
     parse_json_key_values("hse_logver");
     parse_json_key_values("hse_version");
-    parse_json_key_values("hse_branch");
     parse_json_key_values("hse_0_category");
     parse_json_key_values("hse_0_version");
     parse_json_key_values("hse_0_path");
@@ -109,7 +109,6 @@ process_json_payload_test_ev(void)
 
     parse_json_key_values("hse_logver");
     parse_json_key_values("hse_version");
-    parse_json_key_values("hse_branch");
     parse_json_key_values("hse_0_category");
     parse_json_key_values("hse_0_version");
     parse_json_key_values("hse_0_path");
@@ -128,7 +127,6 @@ process_json_payload_test_fmt_string(void)
     parse_json_key_values("msg");
     parse_json_key_values("hse_logver");
     parse_json_key_values("hse_version");
-    parse_json_key_values("hse_branch");
     parse_json_key_values("hse_0_category");
     parse_json_key_values("hse_0_version");
     parse_json_key_values("hse_0_code");
@@ -151,6 +149,7 @@ vsyslog(int pri, const char *fmt, va_list args)
 int
 structured_logging_test_pre(struct mtf_test_info *ti)
 {
+    hse_gparams.gp_logging.structured = true;
     return 0;
 }
 
@@ -165,128 +164,44 @@ MTF_BEGIN_UTEST_COLLECTION_PREPOST(
     structured_logging_test_pre,
     structured_logging_test_post);
 
-MTF_DEFINE_UTEST(structured_logging_test, test_config)
-{
-    struct hse_config *      cfg;
-    void *                   av[] = { 0, 0 };
-    int                      x1 = 1;
-    int                      def_x1 = 2;
-    int                      ix = 0;
-    struct dt_element        dte;
-    struct dt_set_parameters dsp = {.value = "42", .value_len = 3, .field = DT_FIELD_DATA };
-
-    cfg =
-        CFG("laptop/lenovo",
-            "carbon",
-            &x1,
-            sizeof(x1),
-            &def_x1,
-            NULL,
-            NULL,
-            NULL,
-            NULL,
-            show_s32,
-            true);
-    av[0] = cfg;
-
-    /**
-     * Now change the value so change_timestamp will be set
-     */
-    dte.dte_data = (void *)cfg;
-    config_set_handler(&dte, &dsp);
-
-    hse_xlog("[UNIT TEST] @@c", av);
-
-    process_json_payload();
-
-    ASSERT_EQ(10, shared_result.count);
-
-    ASSERT_STREQ("hse_logver", shared_result.names[ix]);
-    ASSERT_STREQ("1", shared_result.values[ix]);
-    ix++;
-
-    ASSERT_STREQ("hse_version", shared_result.names[ix]);
-    ix++;
-
-    ASSERT_STREQ("hse_branch", shared_result.names[ix]);
-    ix++;
-
-    ASSERT_STREQ("hse_0_category", shared_result.names[ix]);
-    ASSERT_STREQ("hse_config", shared_result.values[ix]);
-    ix++;
-
-    ASSERT_STREQ("hse_0_version", shared_result.names[ix]);
-    ASSERT_STREQ("0", shared_result.values[ix]);
-    ix++;
-
-    ASSERT_STREQ("hse_0_path", shared_result.names[ix]);
-    ASSERT_STREQ("laptop/lenovo", shared_result.values[ix]);
-    ix++;
-
-    ASSERT_STREQ("hse_0_varname", shared_result.names[ix]);
-    ASSERT_STREQ("carbon", shared_result.values[ix]);
-    ix++;
-
-    ASSERT_STREQ("hse_0_value", shared_result.names[ix]);
-    ASSERT_STREQ("0x2a", shared_result.values[ix]);
-    ix++;
-
-    ASSERT_STREQ("hse_0_writable", shared_result.names[ix]);
-    ASSERT_STREQ("1", shared_result.values[ix]);
-    ix++;
-
-    ASSERT_STREQ("hse_0_timestamp", shared_result.names[ix]);
-    ix++;
-
-    ASSERT_EQ(ix, shared_result.count);
-}
-
 MTF_DEFINE_UTEST(structured_logging_test, test_ev)
 {
-    struct event_counter ev;
-    void *               av[] = { 0, 0 };
-    struct dt_element    dte;
-    char                 path[200];
-    int                  ix = 0;
+    static struct event_counter ev = {
+        .ev_odometer = ATOMIC_INIT(0),
+        .ev_pri = HSE_LOGPRI_DEBUG,
+        .ev_flags = EV_FLAGS_HSE_LOG,
+        .ev_file = __FILE__,
+        .ev_line = __LINE__,
+        .ev_dte = {
+            .dte_data = &ev,
+            .dte_ops = &event_counter_ops,
+            .dte_type = DT_TYPE_ERROR_COUNTER,
+            .dte_file = __FILE__,
+            .dte_line = __LINE__,
+            .dte_func = __func__,
+        }
+    };
+    void *av[] = { NULL, NULL };
+    int ix = 0;
+    int rc;
 
-    memset(&ev, 0, sizeof(ev));
-    memset(&dte, 0, sizeof(dte));
-
-    dte.dte_data = &ev;
-    dte.dte_file = __FILE__;
-    dte.dte_line = __LINE__;
-    dte.dte_func = __func__;
-    dte.dte_comp = "test_ev_comp";
-
-    snprintf(
-        path,
-        sizeof(path),
-        "%s/%s/%s/%d",
-        dte.dte_comp,
-        basename(dte.dte_file),
-        dte.dte_func,
-        dte.dte_line);
-
-    ev.ev_dte = &dte;
-    snprintf(dte.dte_path, sizeof(dte.dte_path), "%s/%s", DT_PATH_EVENT, path);
-    event_counter(&dte, &ev);
+    event_counter(&ev);
     av[0] = &ev;
 
     hse_xlog("[UNIT TEST] @@E", av);
 
-    dt_remove(dt_data_tree, &dte);
+    rc = dt_remove(&ev.ev_dte);
+    ASSERT_NE(0, rc);
+
     process_json_payload_test_ev();
 
-    ASSERT_EQ(10, shared_result.count);
+    ASSERT_EQ(9, shared_result.count);
 
     ASSERT_STREQ("hse_logver", shared_result.names[ix]);
     ASSERT_STREQ("1", shared_result.values[ix]);
     ix++;
 
     ASSERT_STREQ("hse_version", shared_result.names[ix]);
-    ix++;
-
-    ASSERT_STREQ("hse_branch", shared_result.names[ix]);
     ix++;
 
     ASSERT_STREQ("hse_0_category", shared_result.names[ix]);
@@ -298,7 +213,7 @@ MTF_DEFINE_UTEST(structured_logging_test, test_ev)
     ix++;
 
     ASSERT_STREQ("hse_0_path", shared_result.names[ix]);
-    ASSERT_STREQ(path, shared_result.values[ix]);
+    ASSERT_NE(NULL, strstr(ev.ev_dte.dte_path, shared_result.values[ix]));
     ix++;
 
     ASSERT_STREQ("hse_0_odometer", shared_result.names[ix]);
@@ -310,7 +225,7 @@ MTF_DEFINE_UTEST(structured_logging_test, test_ev)
     ix++;
 
     ASSERT_STREQ("hse_0_flags", shared_result.names[ix]);
-    ASSERT_STREQ("0x0", shared_result.values[ix]);
+    ASSERT_STREQ("0x1", shared_result.values[ix]);
     ix++;
 
     ASSERT_STREQ("hse_0_timestamp", shared_result.names[ix]);
@@ -342,52 +257,6 @@ test_helper(char *buf, const char *fmt, ...)
     va_end(args);
 
     return 0;
-}
-
-void
-test_preprocess_fmt_string(
-    struct hse_log_fmt_state *state,
-    const char *              fmt,
-    char *                    new_fmt,
-    s32                       new_len,
-    void **                   hse_args,
-    ...)
-{
-
-    va_list args;
-
-    va_start(args, hse_args);
-
-    vpreprocess_fmt_string(state, fmt, new_fmt, new_len, hse_args, args);
-
-    va_end(args);
-}
-
-void
-test_finalize_log_structure(
-    struct hse_log_fmt_state *state,
-    bool                      async,
-    char *                    source_file,
-    s32                       source_line,
-    const char *              fmt,
-    char *                    new_fmt,
-    s32                       new_len,
-    void **                   hse_args,
-    ...)
-{
-    va_list args;
-
-    va_start(args, hse_args);
-
-    vpreprocess_fmt_string(state, fmt, new_fmt, new_len, hse_args, args);
-
-    va_end(args);
-
-    va_start(args, hse_args);
-
-    finalize_log_structure(1, async, source_file, source_line, state, new_fmt, args);
-
-    va_end(args);
 }
 
 MTF_DEFINE_UTEST(structured_logging_test, Test_preprocess_fmt_string_hse)
@@ -437,10 +306,10 @@ MTF_DEFINE_UTEST(structured_logging_test, Test_preprocess_fmt_string_hse)
     process_json_payload_test_fmt_string();
 
     ix = 0;
-    ASSERT_EQ(10, shared_result.count);
+    ASSERT_EQ(9, shared_result.count);
 
     ASSERT_STREQ("msg", shared_result.names[ix]);
-    ASSERT_STREQ(reference, shared_result.values[ix]);
+    ASSERT_NE(NULL, strstr(shared_result.values[ix], reference));
     ix++;
 
     ASSERT_STREQ("hse_logver", shared_result.names[ix]);
@@ -448,10 +317,6 @@ MTF_DEFINE_UTEST(structured_logging_test, Test_preprocess_fmt_string_hse)
     ix++;
 
     ASSERT_STREQ("hse_version", shared_result.names[ix]);
-    ASSERT_NE(shared_result.values[ix], NULL);
-    ix++;
-
-    ASSERT_STREQ("hse_branch", shared_result.names[ix]);
     ASSERT_NE(shared_result.values[ix], NULL);
     ix++;
 
@@ -468,7 +333,7 @@ MTF_DEFINE_UTEST(structured_logging_test, Test_preprocess_fmt_string_hse)
     ix++;
 
     ASSERT_STREQ("hse_0_file", shared_result.names[ix]);
-    ASSERT_STREQ("test/structured_logging_test.c", shared_result.values[ix]);
+    ASSERT_STREQ(__FILE__, shared_result.values[ix]);
     ix++;
 
     ASSERT_STREQ("hse_0_line", shared_result.names[ix]);

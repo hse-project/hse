@@ -13,9 +13,6 @@
 
 #include <mocks/mock_log.h>
 
-#define MAX_NV_PAIRS 50
-#define MAX_NV_SIZE 100
-
 #define hse_xlog(_fmt, hse_args, ...) \
     log_pri(HSE_LOGPRI_ERR, (_fmt), false, hse_args, ##__VA_ARGS__)
 
@@ -27,6 +24,16 @@
 
 #define hse_alog(_fmt, ...) \
     log_pri(HSE_LOGPRI_ERR, (_fmt), true, NULL, ##__VA_ARGS__)
+
+void
+hse_slog_emit(hse_logpri_t priority, const char *fmt, ...)
+{
+    va_list ap;
+
+    va_start(ap, fmt);
+    vsnprintf(shared_result.msg_buffer, MAX_MSG_SIZE, fmt, ap);
+    va_end(ap);
+}
 
 void
 parse_json_key_values(char *key)
@@ -499,7 +506,7 @@ MTF_DEFINE_UTEST(hse_logging_test, Test_hse_logpri_val_to_name)
     static const char *namev[] = {
         "EMERG", "ALERT", "CRIT", "ERR", "WARNING", "NOTICE", "INFO", "DEBUG"
     };
-    log_priority_t pri;
+    hse_logpri_t pri;
     const char *name;
 
     for (pri = HSE_LOGPRI_EMERG; pri <= HSE_LOGPRI_DEBUG; ++pri) {
@@ -515,7 +522,7 @@ MTF_DEFINE_UTEST(hse_logging_test, Test_hse_logpri_name_to_val)
         "emerg", "alert", "crit", "err", "warning", "notice", "info", "debug",
         "em", "al", "cr", "err", "warn", "not", "inf", "deb"
     };
-    log_priority_t pri, i;
+    hse_logpri_t pri, i;
 
     for (i = 0; i < NELEM(namev); ++i) {
         pri = hse_logpri_name_to_val(namev[i]);

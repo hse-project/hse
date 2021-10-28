@@ -336,11 +336,11 @@ hse_logging_fini(void)
  */
 static void
 _hse_log_post_vasync(
-    const char *source_file,
-    s32         source_line,
-    s32         priority,
-    const char *fmt_string,
-    va_list     args)
+    const char   *source_file,
+    s32           source_line,
+    hse_logpri_t  priority,
+    const char   *fmt_string,
+    va_list       args)
 {
     struct hse_log_async *      async;
     struct hse_log_async_entry *entry;
@@ -405,7 +405,7 @@ _hse_log_post_vasync(
  * Locking: can be called from interrupt handler => can't block.
  */
 static void
-_hse_log_post_async(const char *source_file, s32 source_line, s32 priority, char *payload)
+_hse_log_post_async(const char *source_file, s32 source_line, hse_logpri_t priority, char *payload)
 {
     struct hse_log_async *      async;
     struct hse_log_async_entry *entry;
@@ -497,10 +497,7 @@ hse_log(
     bool                     res = false;
     u64 now;
 
-    if (!hse_gparams.gp_logging.enabled)
-        return;
-
-    if (ev->ev_pri > hse_gparams.gp_logging.level)
+    if (ev->ev_pri > hse_gparams.gp_logging.level || !hse_gparams.gp_logging.enabled)
         return;
 
     event_counter(ev);
@@ -979,7 +976,7 @@ pack_nv(
 
 void
 finalize_log_structure(
-    int                       priority,
+    hse_logpri_t              priority,
     bool                      async,
     const char *              source_file,
     s32                       source_line,
@@ -1029,18 +1026,18 @@ finalize_log_structure(
 }
 
 const char *
-hse_logpri_val_to_name(log_priority_t val)
+hse_logpri_val_to_name(hse_logpri_t val)
 {
     static const char *namev[] = {
         "EMERG", "ALERT", "CRIT", "ERR", "WARNING", "NOTICE", "INFO", "DEBUG"
     };
 
-    val = clamp_t(log_priority_t, val, 0, NELEM(namev) - 1);
+    val = clamp_t(hse_logpri_t, val, 0, NELEM(namev) - 1);
 
     return namev[val];
 }
 
-log_priority_t
+hse_logpri_t
 hse_logpri_name_to_val(const char *name)
 {
     const char *list = "EMERG   ALERT   CRIT    ERR     WARNING NOTICE  INFO    DEBUG   ";
@@ -1184,7 +1181,7 @@ hse_format_payload(struct json_context *jc, va_list payload)
  * this extra post processing .
  */
 void
-hse_slog_internal(log_priority_t priority, const char *fmt, ...)
+hse_slog_internal(hse_logpri_t priority, const char *fmt, ...)
 {
     va_list       payload;
     const char *  buf;
@@ -1192,7 +1189,7 @@ hse_slog_internal(log_priority_t priority, const char *fmt, ...)
     if (!hse_gparams.gp_logging.structured)
         return;
 
-    if (priority > hse_gparams.gp_logging.level || !hse_gparams.gp_logging.enabled)
+    if (priority >= hse_gparams.gp_logging.level || !hse_gparams.gp_logging.enabled)
         return;
 
     va_start(payload, fmt);
@@ -1217,8 +1214,10 @@ hse_slog_internal(log_priority_t priority, const char *fmt, ...)
     va_end(payload);
 }
 
-void
-hse_slog_emit(int priority, const char *fmt, ...)
+/* hse_slog_emit() is overridden by all the logging unit tests.
+ */
+void HSE_WEAK
+hse_slog_emit(hse_logpri_t priority, const char *fmt, ...)
 {
     va_list payload;
 
@@ -1232,7 +1231,7 @@ hse_slog_emit(int priority, const char *fmt, ...)
 }
 
 int
-hse_slog_create(log_priority_t priority, struct slog **sl, const char *type)
+hse_slog_create(hse_logpri_t priority, struct slog **sl, const char *type)
 {
     struct json_context *jc;
 
@@ -1320,7 +1319,7 @@ hse_slog_commit(struct slog *sl)
     json_element_end(jc);
 
     if (sl->sl_entries)
-	    hse_slog_emit(sl->sl_priority, "@cee:%s\n", jc->json_buf);
+        hse_slog_emit(sl->sl_priority, "@cee:%s\n", jc->json_buf);
 
     free(jc->json_buf);
     free(sl);

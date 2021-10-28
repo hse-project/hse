@@ -20,6 +20,16 @@
     log_pri(HSE_LOGPRI_ERR, (_fmt), false, _argv, ##__VA_ARGS__)
 
 void
+hse_slog_emit(hse_logpri_t priority, const char *fmt, ...)
+{
+    va_list ap;
+
+    va_start(ap, fmt);
+    vsnprintf(shared_result.msg_buffer, MAX_MSG_SIZE, fmt, ap);
+    va_end(ap);
+}
+
+void
 parse_json_key_values(char *key)
 {
     char *curr_pos = NULL;

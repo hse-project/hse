@@ -13,23 +13,17 @@ thread_local logging_result shared_result;
 
 /*
  * In order to allow testing the very lowest levels of the logging code, we
- * need to provide mock interfaces that will catch the calls to the
- * system-level routines printk_emit() and syslog().
+ * need to provide mock interfaces that will catch the calls to hse_slog_emit().
  *
  * For expediency we use a global structure to communicate between the mock
- * functions and the test code. This is not thread-safe and would have to
- * be changed if the tests had to run multi-threaded.
+ * functions and the test code.  This is thread-safe, but different threads
+ * will see only their own log message.
  */
-
-void
-vsyslog(int priority, const char *fmt, va_list args)
-{
-    vsnprintf(shared_result.msg_buffer, MAX_MSG_SIZE, fmt, args);
-}
 
 void
 test_preprocess_fmt_string(
     struct hse_log_fmt_state *state,
+    const char               *func,
     const char *              fmt,
     char *                    new_fmt,
     s32                       new_len,
@@ -40,7 +34,7 @@ test_preprocess_fmt_string(
 
     va_start(args, hse_args);
 
-    vpreprocess_fmt_string(state, __func__, fmt, new_fmt, new_len, hse_args, args);
+    vpreprocess_fmt_string(state, func, fmt, new_fmt, new_len, hse_args, args);
 
     va_end(args);
 }
