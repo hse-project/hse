@@ -29,13 +29,21 @@
 #include <bsd/string.h>
 
 static int
-rest_kvs_list(const char *socket_path, struct yaml_context *yc, const char *kvdb)
+rest_kvs_list(const char *socket_path, const char *alias, struct yaml_context *yc)
 {
-    const char *url = "kvdb";
-    char *      buf, *next;
-    size_t      bufsz = (32 * 1024);
-    char *      c;
-    hse_err_t   err;
+    char      url[64];
+    char *    buf, *next;
+    size_t    bufsz = (32 * 1024);
+    char *    c;
+    int       n;
+    hse_err_t err;
+
+    n = snprintf(url, sizeof(url), "kvdb/%s", alias);
+    if (n < 0) {
+        return EBADMSG;
+    } else if (n >= sizeof(url)) {
+        return ENAMETOOLONG;
+    }
 
     buf = calloc(1, bufsz);
     if (!buf)
@@ -73,13 +81,14 @@ static int
 rest_storage_stats_list(
     struct yaml_context *         yc,
     const char *                  sock,
+    const char *                  alias,
     struct hse_kvdb_storage_info *info)
 {
-    const char *url = "kvdb/storage_stats";
-    char *      buf;
-    size_t      bufsz = 32 * 1024;
-    int         i;
-    merr_t      err;
+    char   url[64];
+    char * buf;
+    size_t bufsz = 32 * 1024;
+    int    i, n;
+    merr_t err;
 
     struct {
         const char *key;
@@ -90,6 +99,13 @@ rest_storage_stats_list(
         { "allocated:", &info->allocated_bytes },
         { "used:", &info->used_bytes },
     };
+
+    n = snprintf(url, sizeof(url), "kvdb/%s/storage_stats", alias);
+    if (n < 0) {
+        return EBADMSG;
+    } else if (n >= sizeof(url)) {
+        return ENAMETOOLONG;
+    }
 
     buf = calloc(1, bufsz);
     if (!buf)
@@ -220,7 +236,7 @@ kvdb_info_props(
         }
 
         yaml_start_element_type(yc, "kvslist");
-        err = rest_kvs_list(content.socket.path, yc, kvdb_home);
+        err = rest_kvs_list(content.socket.path, content.alias, yc);
         yaml_end_element_type(yc);
         goto exit;
     }
@@ -288,7 +304,7 @@ kvdb_storage_info_props(
             goto exit;
         }
 
-        err = rest_storage_stats_list(yc, content.socket.path, &info);
+        err = rest_storage_stats_list(yc, content.socket.path, content.alias, &info);
         if (!err)
             emit_storage_info(yc, &info);
 
@@ -362,14 +378,14 @@ kvdb_storage_info_print(
 #endif
 
 static hse_err_t
-rest_kvdb_comp(const char *socket_path, const char *policy)
+rest_kvdb_comp(const char *socket_path, const char *alias, const char *policy)
 {
     char      url[PATH_MAX];
     char *    buf;
     size_t    bufsz = (4 * 1024);
     hse_err_t err;
 
-    snprintf(url, sizeof(url), "kvdb/compact/request?policy=%s", policy);
+    snprintf(url, sizeof(url), "kvdb/%s/compact/request?policy=%s", alias, policy);
 
     buf = calloc(1, bufsz);
     if (!buf)
@@ -382,10 +398,18 @@ rest_kvdb_comp(const char *socket_path, const char *policy)
 }
 
 static hse_err_t
-rest_kvdb_status(const char *socket_path, size_t bufsz, char *buf)
+rest_kvdb_status(const char *socket_path, const char *alias, size_t bufsz, char *buf)
 {
-    const char *url = "kvdb/compact/status";
-    hse_err_t   err;
+    char      url[64];
+    int       n;
+    hse_err_t err;
+
+    n = snprintf(url, sizeof(url), "kvdb/%s/compact/status", alias);
+    if (n < 0) {
+        return EBADMSG;
+    } else if (n >= sizeof(url)) {
+        return ENAMETOOLONG;
+    }
 
     err = merr_to_hse_err(curl_get(url, socket_path, buf, bufsz));
     if (err)
@@ -630,7 +654,7 @@ kvdb_compact_request(const char *kvdb_home, const char *request_type, u32 timeou
     if (strcmp(request_type, "request") == 0) {
         const char *policy = "samp_lwm";
 
-        err = rest_kvdb_comp(content.socket.path, policy);
+        err = rest_kvdb_comp(content.socket.path, content.alias, policy);
         if (err) {
             char buf[256];
             hse_strerror(err, buf, sizeof(buf));
@@ -638,7 +662,7 @@ kvdb_compact_request(const char *kvdb_home, const char *request_type, u32 timeou
             goto err_out;
         }
 
-        err = rest_kvdb_status(content.socket.path, sizeof(stat_buf), stat_buf);
+        err = rest_kvdb_status(content.socket.path, content.alias, sizeof(stat_buf), stat_buf);
         if (err) {
             char buf[256];
             hse_strerror(err, buf, sizeof(buf));
@@ -657,7 +681,7 @@ kvdb_compact_request(const char *kvdb_home, const char *request_type, u32 timeou
         stop_ts = get_time_ns() + (timeout_sec * 1000ul * 1000ul * 1000ul);
         while (status.kvcs_active) {
 
-            err = rest_kvdb_status(content.socket.path, sizeof(stat_buf), stat_buf);
+            err = rest_kvdb_status(content.socket.path, content.alias, sizeof(stat_buf), stat_buf);
             if (err) {
                 char buf[256];
                 hse_strerror(err, buf, sizeof(buf));
@@ -673,7 +697,7 @@ kvdb_compact_request(const char *kvdb_home, const char *request_type, u32 timeou
             if (get_time_ns() > stop_ts) {
                 fprintf(stderr, "Compaction request timed out for the KVDB (%s)\n", kvdb_home);
 
-                err = rest_kvdb_comp(content.socket.path, "cancel");
+                err = rest_kvdb_comp(content.socket.path, content.alias, "cancel");
                 if (err) {
                     char buf[256];
                     hse_strerror(err, buf, sizeof(buf));
@@ -687,7 +711,7 @@ kvdb_compact_request(const char *kvdb_home, const char *request_type, u32 timeou
 
         printf("Compaction request was %s for KVDB (%s)\n", status.kvcs_canceled ? "canceled" : "successful", kvdb_home);
     } else if (strcmp(request_type, "cancel") == 0) {
-        err = rest_kvdb_comp(content.socket.path, "cancel");
+        err = rest_kvdb_comp(content.socket.path, content.alias, "cancel");
         if (err) {
             char buf[256];
             hse_strerror(err, buf, sizeof(buf));
@@ -697,7 +721,7 @@ kvdb_compact_request(const char *kvdb_home, const char *request_type, u32 timeou
 
         printf("Successfully canceled the compaction request for the KVDB (%s)\n", kvdb_home);
     } else if (strcmp(request_type, "status") == 0) {
-        err = rest_kvdb_status(content.socket.path, sizeof(stat_buf), stat_buf);
+        err = rest_kvdb_status(content.socket.path, content.alias, sizeof(stat_buf), stat_buf);
         if (err) {
             char buf[256];
             hse_strerror(err, buf, sizeof(buf));

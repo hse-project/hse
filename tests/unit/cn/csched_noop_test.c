@@ -1,6 +1,6 @@
 /* SPDX-License-Identifier: Apache-2.0 */
 /*
- * Copyright (C) 2015-2020 Micron Technology, Inc.  All rights reserved.
+ * Copyright (C) 2015-2021 Micron Technology, Inc.  All rights reserved.
  */
 
 #include <hse_ut/framework.h>
@@ -56,7 +56,7 @@ MTF_DEFINE_UTEST_PRE(test, t_sp_noop, pre_test)
     struct csched_ops *ops;
     merr_t             err;
 
-    err = sp_noop_create(rp, mp, &health, &ops);
+    err = sp_noop_create(&ops);
     ASSERT_EQ(err, 0);
 
     ops->cs_tree_add(ops, tree);

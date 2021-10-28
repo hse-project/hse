@@ -214,19 +214,25 @@ rest_kvdb_storage_stats_get(
 }
 
 merr_t
-kvdb_rest_register(void *kvdb)
+kvdb_rest_register(struct ikvdb *kvdb)
 {
     merr_t status, err = 0;
 
     if (!kvdb)
         return merr(ev(EINVAL));
 
-    status = rest_url_register(kvdb, URL_FLAG_EXACT, rest_kvdb_get, 0, "kvdb");
+    status =
+        rest_url_register(kvdb, URL_FLAG_EXACT, rest_kvdb_get, 0, "kvdb/%s", ikvdb_alias(kvdb));
     if (ev(status) && !err)
         err = status;
 
-    status = rest_url_register(kvdb, URL_FLAG_EXACT, rest_kvdb_storage_stats_get,
-                               0, "kvdb/storage_stats");
+    status = rest_url_register(
+        kvdb,
+        URL_FLAG_EXACT,
+        rest_kvdb_storage_stats_get,
+        NULL,
+        "kvdb/%s/storage_stats",
+        ikvdb_alias(kvdb));
     if (ev(status) && !err)
         err = status;
 
@@ -235,15 +241,16 @@ kvdb_rest_register(void *kvdb)
         URL_FLAG_NONE,
         rest_kvdb_compact_status_get,
         rest_kvdb_compact_request,
-        "kvdb/compact");
+        "kvdb/%s/compact",
+        ikvdb_alias(kvdb));
 
     return err;
 }
 
 merr_t
-kvdb_rest_deregister()
+kvdb_rest_deregister(struct ikvdb *const kvdb)
 {
-    return rest_url_deregister("kvdb");
+    return rest_url_deregister("kvdb/%s", ikvdb_alias(kvdb));
 }
 
 /*---------------------------------------------------------------
@@ -648,7 +655,7 @@ rest_kvs_tree(
 }
 
 merr_t
-kvs_rest_register(const char *kvs_name, void *kvs)
+kvs_rest_register(struct ikvdb *const kvdb, const char *kvs_name, void *kvs)
 {
     merr_t err = 0;
     merr_t status;
@@ -657,7 +664,13 @@ kvs_rest_register(const char *kvs_name, void *kvs)
         return merr(ev(EINVAL));
 
     status = rest_url_register(
-        kvs, URL_FLAG_EXACT, rest_kvs_tree, 0, "kvdb/kvs/%s/cn/tree", kvs_name);
+        kvs,
+        URL_FLAG_EXACT,
+        rest_kvs_tree,
+        0,
+        "kvdb/%s/kvs/%s/cn/tree",
+        ikvdb_alias(kvdb),
+        kvs_name);
 
     if (ev(status) && !err)
         err = status;
@@ -666,7 +679,7 @@ kvs_rest_register(const char *kvs_name, void *kvs)
 }
 
 merr_t
-kvs_rest_deregister(const char *kvs_name)
+kvs_rest_deregister(struct ikvdb *const kvdb, const char *kvs_name)
 {
     merr_t err = 0;
     merr_t status;
@@ -674,7 +687,7 @@ kvs_rest_deregister(const char *kvs_name)
     if (!kvs_name)
         return merr(ev(EINVAL));
 
-    status = rest_url_deregister("kvdb/kvs/%s/cn/tree", kvs_name);
+    status = rest_url_deregister("kvdb/%s/kvs/%s/cn/tree", ikvdb_alias(kvdb), kvs_name);
 
     if (ev(status) && !err)
         err = status;

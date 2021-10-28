@@ -195,6 +195,20 @@ ikvdb_pidfh_attach(struct ikvdb *kvdb, struct pidfh *pfh);
 const char *
 ikvdb_home(struct ikvdb *kvdb);
 
+/** @brief Get the KVDB alias.
+ *
+ * The alias is a way to reference a KVDB without needing the home directory.
+ * The alias is useful in contexts like data tree or REST paths. The pointer to
+ * the alias will be valid for the entire lifetime of the KVDB.
+ *
+ * @param kvdb: KVDB handle.
+ *
+ * @returns KVDB alias.
+ */
+/* MTF_MOCK */
+const char *
+ikvdb_alias(struct ikvdb *kvdb);
+
 /**
  * ikvdb_home() - get the config object
  * @kvdb: kvdb handle

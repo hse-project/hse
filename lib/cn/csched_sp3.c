@@ -2360,7 +2360,7 @@ merr_t
 sp3_create(
     struct mpool *       ds,
     struct kvdb_rparams *rp,
-    const char *         mp,
+    const char *         kvdb_alias,
     struct kvdb_health * health,
     struct csched_ops ** handle)
 {
@@ -2370,7 +2370,7 @@ sp3_create(
     uint        tx;
 
     assert(rp);
-    assert(mp);
+    assert(kvdb_alias);
     assert(handle);
 
     if (!rp->csched_qthreads)
@@ -2387,7 +2387,7 @@ sp3_create(
         HSE_SLOG_END);
 
     /* Allocate cache aligned space for struct csched + sp->name */
-    name_sz = strlen(mp) + 1;
+    name_sz = strlen(kvdb_alias) + 1;
     alloc_sz = sizeof(*sp) + name_sz;
     sp = alloc_aligned(alloc_sz, SMP_CACHE_BYTES);
     if (ev(!sp))
@@ -2397,7 +2397,7 @@ sp3_create(
 
     sp->ds = ds;
     sp->name = (void *)(sp + 1);
-    strlcpy(sp->name, mp, name_sz);
+    strlcpy(sp->name, kvdb_alias, name_sz);
 
     sp->rp = rp;
     sp->health = health;

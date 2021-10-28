@@ -1,6 +1,6 @@
 /* SPDX-License-Identifier: Apache-2.0 */
 /*
- * Copyright (C) 2015-2020 Micron Technology, Inc.  All rights reserved.
+ * Copyright (C) 2015-2021 Micron Technology, Inc.  All rights reserved.
  */
 
 #define MTF_MOCK_IMPL_csched_noop
@@ -58,11 +58,7 @@ noop_tree_remove(struct csched_ops *handle, struct cn_tree *tree, bool cancel)
 
 /* Public API */
 merr_t
-sp_noop_create(
-    struct kvdb_rparams *rp,
-    const char *         mp,
-    struct kvdb_health * health,
-    struct csched_ops ** handle)
+sp_noop_create(struct csched_ops **handle)
 {
     struct csched_noop *self;
 

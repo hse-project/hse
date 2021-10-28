@@ -11,13 +11,15 @@
 
 #include <bsd/libutil.h>
 
-#define PIDFILE_NAME "kvdb.pid"
+#define PIDFILE_ALIAS_LEN_MAX 32
+#define PIDFILE_NAME          "kvdb.pid"
 
 struct pidfile {
-	pid_t pid;
-	struct {
-		char path[sizeof(((struct sockaddr_un *) 0)->sun_path)];
-	} socket;
+    pid_t pid;
+    char  alias[PIDFILE_ALIAS_LEN_MAX];
+    struct {
+        char path[sizeof(((struct sockaddr_un *)0)->sun_path)];
+    } socket;
 };
 
 int

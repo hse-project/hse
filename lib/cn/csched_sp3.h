@@ -1,12 +1,16 @@
 /* SPDX-License-Identifier: Apache-2.0 */
 /*
- * Copyright (C) 2015-2020 Micron Technology, Inc.  All rights reserved.
+ * Copyright (C) 2015-2021 Micron Technology, Inc.  All rights reserved.
  */
 
 #ifndef HSE_KVDB_CN_CSCHED_SP3_H
 #define HSE_KVDB_CN_CSCHED_SP3_H
 
+#include <rbtree.h>
+
+#include <hse_util/atomic.h>
 #include <hse_util/hse_err.h>
+#include <hse_util/list.h>
 
 /* MTF_MOCK_DECL(csched_sp3) */
 
@@ -16,13 +20,14 @@
 struct kvdb_rparams;
 struct csched_ops;
 struct mpool;
+struct kvdb_health;
 
 /* MTF_MOCK */
 merr_t
 sp3_create(
     struct mpool *       ds,
     struct kvdb_rparams *rp,
-    const char *         mp,
+    const char *         kvdb_alias,
     struct kvdb_health * health,
     struct csched_ops ** handle);
 

@@ -73,7 +73,7 @@ cn_init(void)
 {
     struct kmem_cache *cache;
     uint               sz;
-    merr_t err;
+    merr_t             err;
 
     err = wbti_init();
     if (err)
@@ -317,8 +317,7 @@ cn_disable_maint(struct cn *cn, bool onoff)
     if (cn->rp->cn_maint_disable != onoff) {
         cn->rp->cn_maint_disable = onoff;
 
-        log_info("%s: background compaction %s",
-                 cn->cn_kvsname, onoff ? "disabled" : "enabled");
+        log_info("%s: background compaction %s", cn->cn_kvsname, onoff ? "disabled" : "enabled");
     }
 }
 
@@ -671,8 +670,8 @@ cn_ingestv(
     uint                   ingestc,
     u64                    ingestid,
     u64                    txhorizon,
-    u64                   *min_seqno_out,
-    u64                   *max_seqno_out)
+    u64 *                  min_seqno_out,
+    u64 *                  max_seqno_out)
 {
     struct kvset **    kvsetv = NULL;
     struct cndb *      cndb = NULL;
@@ -1062,7 +1061,12 @@ cn_perfc_alloc(struct cn *cn)
     };
 
     i = snprintf(
-        name_buf, sizeof(name_buf), "%s%s%s", cn->cn_kvdbhome, IKVDB_SUB_NAME_SEP, cn->cn_kvsname);
+        name_buf,
+        sizeof(name_buf),
+        "%s%s%s",
+        cn->cn_kvdb_alias,
+        IKVDB_SUB_NAME_SEP,
+        cn->cn_kvsname);
 
     if (i >= sizeof(name_buf)) {
         log_warn("cn perfc name buffer too small");
@@ -1120,7 +1124,7 @@ cn_open(
     struct cndb *       cndb,
     u64                 cnid,
     struct kvs_rparams *rp,
-    const char *        kvdb_home,
+    const char *        kvdb_alias,
     const char *        kvs_name,
     struct kvdb_health *health,
     uint                flags,
@@ -1142,7 +1146,7 @@ cn_open(
     assert(ds);
     assert(kvs);
     assert(cndb);
-    assert(kvdb_home);
+    assert(kvdb_alias);
     assert(kvs_name);
     assert(health);
     assert(cn_out);
@@ -1169,7 +1173,7 @@ cn_open(
         *rp = kvs_rparams_defaults();
     }
 
-    strlcpy(cn->cn_kvdbhome, kvdb_home, sizeof(cn->cn_kvdbhome));
+    cn->cn_kvdb_alias = kvdb_alias;
     strlcpy(cn->cn_kvsname, kvs_name, sizeof(cn->cn_kvsname));
 
     cn->cn_kvdb = cn_kvdb;
@@ -1266,7 +1270,7 @@ cn_open(
     log_info(
         "%s/%s replay %d fanout %u pfx_len %u pfx_pivot %u cnid %lu depth %u/%u %s "
         "kb %lu%c/%lu vb %lu%c/%lu",
-        cn->cn_kvdbhome,
+        cn->cn_kvdb_alias,
         cn->cn_kvsname,
         cn->cn_replay,
         cn->cp->fanout,
@@ -1344,12 +1348,12 @@ err_exit:
 merr_t
 cn_close(struct cn *cn)
 {
-    u64   report_ns = 5 * NSEC_PER_SEC;
-    void *maint_wq = cn->cn_maint_wq;
-    void *io_wq = cn->cn_io_wq;
-    u64   next_report;
+    u64        report_ns = 5 * NSEC_PER_SEC;
+    void *     maint_wq = cn->cn_maint_wq;
+    void *     io_wq = cn->cn_io_wq;
+    u64        next_report;
     useconds_t dlymax, dly;
-    bool  cancel;
+    bool       cancel;
 
     cn->cn_maintenance_stop = true;
     cn->cn_closing = true;
@@ -1381,8 +1385,7 @@ cn_close(struct cn *cn)
         if (get_time_ns() < next_report)
             continue;
 
-        log_info("cn %s waiting for %d async jobs...",
-                 cn->cn_kvsname, atomic_read(&cn->cn_refcnt));
+        log_info("cn %s waiting for %d async jobs...", cn->cn_kvsname, atomic_read(&cn->cn_refcnt));
 
         next_report = get_time_ns() + report_ns;
         dlymax = 10000;
@@ -1498,8 +1501,8 @@ cn_cursor_create(
     struct cursor_summary *summary,
     struct cn_cursor **    cursorp)
 {
-    int           ct_pfx_len = cn->cp->pfx_len;
-    merr_t        err;
+    int    ct_pfx_len = cn->cp->pfx_len;
+    merr_t err;
 
     struct cn_cursor *cur;
 
@@ -1548,8 +1551,8 @@ cn_cursor_create(
 merr_t
 cn_cursor_update(struct cn_cursor *cur, u64 seqno, bool *updated)
 {
-    u64           dgen = atomic64_read(&cur->cn->cn_ingest_dgen);
-    merr_t        err;
+    u64    dgen = atomic64_read(&cur->cn->cn_ingest_dgen);
+    merr_t err;
 
     if (updated)
         *updated = false;
@@ -1577,26 +1580,23 @@ cn_cursor_update(struct cn_cursor *cur, u64 seqno, bool *updated)
 }
 
 merr_t
-cn_cursor_seek(
-    struct cn_cursor * cursor,
-    const void *       key,
-    u32                len,
-    struct kc_filter * filter)
+cn_cursor_seek(struct cn_cursor *cursor, const void *key, u32 len, struct kc_filter *filter)
 {
     return cn_tree_cursor_seek(cursor, key, len, filter);
 }
 
 merr_t
-cn_cursor_read(struct cn_cursor *cursor, struct kvs_cursor_element *elem,  bool *eof)
+cn_cursor_read(struct cn_cursor *cursor, struct kvs_cursor_element *elem, bool *eof)
 {
     return cn_tree_cursor_read(cursor, elem, eof);
 }
 
 static bool
-cncur_next(struct element_source *es, void **element) {
+cncur_next(struct element_source *es, void **element)
+{
     struct cn_cursor *cncur = container_of(es, struct cn_cursor, es);
-    bool eof;
-    merr_t err;
+    bool              eof;
+    merr_t            err;
 
     err = cn_cursor_read(cncur, &cncur->elem, &eof);
     if (ev(err) || eof)
@@ -1608,14 +1608,16 @@ cncur_next(struct element_source *es, void **element) {
 }
 
 struct element_source *
-cn_cursor_es_make(struct cn_cursor *cncur) {
-	cncur->es = es_make(cncur_next, 0, 0);
-	return &cncur->es;
+cn_cursor_es_make(struct cn_cursor *cncur)
+{
+    cncur->es = es_make(cncur_next, 0, 0);
+    return &cncur->es;
 }
 
 struct element_source *
-cn_cursor_es_get(struct cn_cursor *cncur) {
-	return &cncur->es;
+cn_cursor_es_get(struct cn_cursor *cncur)
+{
+    return &cncur->es;
 }
 
 void

@@ -68,6 +68,7 @@
 #include "kvdb_ctxn_pfxlock.h"
 
 #include <mpool/mpool.h>
+#include <pidfile/pidfile.h>
 
 #include <xxhash.h>
 #include <cjson/cJSON.h>
@@ -91,6 +92,8 @@ struct perfc_set kvdb_pc        HSE_READ_MOSTLY;
 
 struct perfc_set kvdb_metrics_pc HSE_READ_MOSTLY;
 struct perfc_set c0_metrics_pc   HSE_READ_MOSTLY;
+
+static atomic_t kvdb_alias = ATOMIC_INIT(0);
 
 #define ikvdb_h2r(_ikvdb_handle) \
     container_of(_ikvdb_handle, struct ikvdb_impl, ikdb_handle)
@@ -204,6 +207,7 @@ struct ikvdb_impl {
     unsigned int     ikdb_omf_version;
     struct pidfh    *ikdb_pidfh;
     struct config   *ikdb_config;
+    char             ikdb_alias[PIDFILE_ALIAS_LEN_MAX];
     const char       ikdb_home[]; /* flexible array */
 };
 
@@ -220,8 +224,13 @@ ikvdb_perfc_alloc(struct ikvdb_impl *self)
 {
     merr_t err;
 
-    err = perfc_ctrseti_alloc(self->ikdb_rp.perfc_level, self->ikdb_home,
-                              ctxn_perfc_op, PERFC_EN_CTXNOP, "set", &self->ikdb_ctxn_op);
+    err = perfc_ctrseti_alloc(
+        self->ikdb_rp.perfc_level,
+        self->ikdb_alias,
+        ctxn_perfc_op,
+        PERFC_EN_CTXNOP,
+        "set",
+        &self->ikdb_ctxn_op);
     if (err)
         log_warnx("cannot alloc ctxn op perf counters for %s: @@e", err, self->ikdb_home);
 }
@@ -880,7 +889,7 @@ ikvdb_rest_register(struct ikvdb_impl *self, struct ikvdb *handle)
     merr_t err;
 
     for (i = 0; i < self->ikdb_kvs_cnt; i++) {
-        err = kvs_rest_register(self->ikdb_kvs_vec[i]->kk_name, self->ikdb_kvs_vec[i]);
+        err = kvs_rest_register(handle, self->ikdb_kvs_vec[i]->kk_name, self->ikdb_kvs_vec[i]);
         if (err)
             log_warnx("%s/%s REST registration failed: @@e",
                       err,
@@ -1115,7 +1124,7 @@ ikvdb_open(
     u64                    seqno = 0; /* required by unit test */
     ulong                  mavail;
     size_t                 sz;
-    int                    i;
+    int                    i, n;
     uint32_t               flags;
     u64                    ingestid, gen = 0, txhorizon = 0;
     struct wal_replay_info rinfo = {0};
@@ -1136,6 +1145,16 @@ ikvdb_open(
 
     mutex_init(&self->ikdb_lock);
     ikvdb_txn_init(self);
+
+    n = snprintf(
+        self->ikdb_alias, sizeof(self->ikdb_alias), "%d", atomic_fetch_add(1, &kvdb_alias));
+    if (n < 0) {
+        err = merr(EBADMSG);
+        goto out;
+    } else if (n >= sizeof(self->ikdb_alias)) {
+        err = merr(EMSGSIZE);
+        goto out;
+    }
 
     err = kvdb_meta_deserialize(&meta, kvdb_home);
     if (ev(err)) {
@@ -1190,7 +1209,7 @@ ikvdb_open(
             csched_rp_policy(&self->ikdb_rp),
             self->ikdb_mp,
             &self->ikdb_rp,
-            self->ikdb_home,
+            self->ikdb_alias,
             &self->ikdb_health,
             &self->ikdb_csched);
         if (err) {
@@ -1389,6 +1408,14 @@ ikvdb_home(struct ikvdb *kvdb)
     return self->ikdb_home;
 }
 
+const char *
+ikvdb_alias(struct ikvdb *kvdb)
+{
+    struct ikvdb_impl *self = ikvdb_h2r(kvdb);
+
+    return self->ikdb_alias;
+}
+
 struct config *
 ikvdb_config(struct ikvdb *kvdb)
 {
@@ -1578,7 +1605,7 @@ ikvdb_kvs_create(struct ikvdb *handle, const char *kvs_name, const struct kvs_cp
     /* Register in kvs make instead of open so all KVSes can be queried for
      * info
      */
-    err = kvs_rest_register(self->ikdb_kvs_vec[idx]->kk_name, self->ikdb_kvs_vec[idx]);
+    err = kvs_rest_register(handle, self->ikdb_kvs_vec[idx]->kk_name, self->ikdb_kvs_vec[idx]);
     if (ev(err))
         log_warnx("rest: %s registration failed: @@e", err, self->ikdb_kvs_vec[idx]->kk_name);
 
@@ -1625,7 +1652,7 @@ ikvdb_kvs_drop(struct ikvdb *handle, const char *kvs_name)
         goto out_unlock;
     }
 
-    kvs_rest_deregister(kvs->kk_name);
+    kvs_rest_deregister(handle, kvs->kk_name);
 
     /* kvs_rest_deregister() waits until all active rest requests
      * have finished. Verify that the refcnt has gone down to zero
@@ -1891,6 +1918,9 @@ ikvdb_close(struct ikvdb *handle)
     merr_t             err;
     merr_t             ret = 0; /* store the first error encountered */
 
+    if (!handle)
+        return 0;
+
     /* Shutdown workqueue
      */
     if (!self->ikdb_read_only) {
@@ -1901,7 +1931,7 @@ ikvdb_close(struct ikvdb *handle)
     /* Deregistering this url before trying to get ikdb_lock prevents
      * a deadlock between this call and an ongoing call to ikvdb_kvs_names_get()
      */
-    kvdb_rest_deregister();
+    kvdb_rest_deregister(handle);
 
     mutex_lock(&self->ikdb_lock);
 
@@ -1914,7 +1944,7 @@ ikvdb_close(struct ikvdb *handle)
         if (kvs->kk_ikvs)
             atomic_dec(&kvs->kk_refcnt);
 
-        kvs_rest_deregister(kvs->kk_name);
+        kvs_rest_deregister(handle, kvs->kk_name);
 
         /* kvs_rest_deregister() waits until all active rest requests
          * have finished. Verify that the refcnt has gone down to zero
