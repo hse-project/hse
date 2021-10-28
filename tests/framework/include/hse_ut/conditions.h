@@ -1,12 +1,17 @@
 /* SPDX-License-Identifier: Apache-2.0 */
 /*
- * Copyright (C) 2015-2017 Micron Technology, Inc. All rights reserved.
+ * Copyright (C) 2015-2017,2021 Micron Technology, Inc. All rights reserved.
  */
 #ifndef HSE_UTEST_CONDITIONS_H
 #define HSE_UTEST_CONDITIONS_H
 
+#include <stdlib.h>
+
 #include "common.h"
-#include "fixtures.h"
+
+#ifndef MTF_DEBUG_HOOK
+#define MTF_DEBUG_HOOK() abort()
+#endif
 
 /* Set the mtf_verify_flag when the verify check fails the first time and record
  * file/line info. Subsequent failures are likely to be duplicates or collateral
@@ -19,7 +24,7 @@
                 mtf_verify_flag = 1;        \
                 mtf_verify_file = __FILE__; \
                 mtf_verify_line = __LINE__; \
-                mtf_debug_hook();           \
+                MTF_DEBUG_HOOK();           \
             }                               \
             return rc;                      \
         }                                   \
@@ -35,7 +40,7 @@
             if (!mtf_verify_flag) {                                     \
                 mtf_print(tci, "%s:%d: Failure\n", __FILE__, __LINE__); \
                 mtf_print(tci, "\texpected true: %s\n", #cond);         \
-                mtf_debug_hook();                                       \
+                MTF_DEBUG_HOOK();                                       \
             }                                                           \
             lcl_ti->ti_status = 0;                                      \
             if (assert)                                                 \
@@ -64,7 +69,7 @@
             if (!mtf_verify_flag) {                                     \
                 mtf_print(tci, "%s:%d: Failure\n", __FILE__, __LINE__); \
                 mtf_print(tci, "\texpected false: %s\n", #cond);        \
-                mtf_debug_hook();                                       \
+                MTF_DEBUG_HOOK();                                       \
             }                                                           \
             lcl_ti->ti_status = 0;                                      \
             if (assert)                                                 \
@@ -89,7 +94,7 @@
 #define ___MTF_INNER_EQ(assert, reference, actual, rc)                                             \
     do {                                                                                           \
         struct mtf_test_coll_info *tci = lcl_ti->ti_coll;                                          \
-        __typeof__(actual) ___mtf_val = (actual);                                                  \
+        __typeof__(actual)         ___mtf_val = (actual);                                          \
                                                                                                    \
         tci = tci;                                                                                 \
         if (mtf_verify_flag || (__typeof__(actual))(reference) != (___mtf_val)) {                  \
@@ -97,7 +102,7 @@
                 mtf_print(                                                                         \
                     tci, "%s:%d: Failure %s == %s\n", __FILE__, __LINE__, #reference, #actual);    \
                 mtf_print(tci, "\t%ld == %ld --> false\n", (long)(reference), (long)(___mtf_val)); \
-                mtf_debug_hook();                                                                  \
+                MTF_DEBUG_HOOK();                                                                  \
             }                                                                                      \
             lcl_ti->ti_status = 0;                                                                 \
             if (assert)                                                                            \
@@ -120,7 +125,7 @@
 #define ___MTF_INNER_NE(assert, reference, actual, rc)                                             \
     do {                                                                                           \
         struct mtf_test_coll_info *tci = lcl_ti->ti_coll;                                          \
-        __typeof__(actual) ___mtf_val = (actual);                                                  \
+        __typeof__(actual)         ___mtf_val = (actual);                                          \
                                                                                                    \
         tci = tci;                                                                                 \
         if (mtf_verify_flag || ((__typeof__(actual))(reference) == (___mtf_val))) {                \
@@ -128,7 +133,7 @@
                 mtf_print(                                                                         \
                     tci, "%s:%d: Failure %s == %s\n", __FILE__, __LINE__, #reference, #actual);    \
                 mtf_print(tci, "\t%ld != %ld --> false\n", (long)(reference), (long)(___mtf_val)); \
-                mtf_debug_hook();                                                                  \
+                MTF_DEBUG_HOOK();                                                                  \
             }                                                                                      \
             lcl_ti->ti_status = 0;                                                                 \
             if (assert)                                                                            \
@@ -153,7 +158,7 @@
 #define ___MTF_INNER_LT(assert, reference, actual, rc)                                            \
     do {                                                                                          \
         struct mtf_test_coll_info *tci = lcl_ti->ti_coll;                                         \
-        __typeof__(actual) ___mtf_val = (actual);                                                 \
+        __typeof__(actual)         ___mtf_val = (actual);                                         \
                                                                                                   \
         tci = tci;                                                                                \
         if (mtf_verify_flag || !((__typeof__(actual))(reference) < (___mtf_val))) {               \
@@ -161,7 +166,7 @@
                 mtf_print(                                                                        \
                     tci, "%s:%d: Failure %s == %s\n", __FILE__, __LINE__, #reference, #actual);   \
                 mtf_print(tci, "\t%ld < %ld --> false\n", (long)(reference), (long)(___mtf_val)); \
-                mtf_debug_hook();                                                                 \
+                MTF_DEBUG_HOOK();                                                                 \
             }                                                                                     \
             lcl_ti->ti_status = 0;                                                                \
             if (assert)                                                                           \
@@ -184,7 +189,7 @@
 #define ___MTF_INNER_LE(assert, reference, actual, rc)                                             \
     do {                                                                                           \
         struct mtf_test_coll_info *tci = lcl_ti->ti_coll;                                          \
-        __typeof__(actual) ___mtf_val = (actual);                                                  \
+        __typeof__(actual)         ___mtf_val = (actual);                                          \
                                                                                                    \
         tci = tci;                                                                                 \
         if (mtf_verify_flag || !((__typeof__(actual))(reference) <= (___mtf_val))) {               \
@@ -192,7 +197,7 @@
                 mtf_print(                                                                         \
                     tci, "%s:%d: Failure %s == %s\n", __FILE__, __LINE__, #reference, #actual);    \
                 mtf_print(tci, "\t%ld <= %ld --> false\n", (long)(reference), (long)(___mtf_val)); \
-                mtf_debug_hook();                                                                  \
+                MTF_DEBUG_HOOK();                                                                  \
             }                                                                                      \
             lcl_ti->ti_status = 0;                                                                 \
             if (assert)                                                                            \
@@ -215,7 +220,7 @@
 #define ___MTF_INNER_GT(assert, reference, actual, rc)                                            \
     do {                                                                                          \
         struct mtf_test_coll_info *tci = lcl_ti->ti_coll;                                         \
-        __typeof__(actual) ___mtf_val = (actual);                                                 \
+        __typeof__(actual)         ___mtf_val = (actual);                                         \
                                                                                                   \
         tci = tci;                                                                                \
         if (mtf_verify_flag || !((__typeof__(actual))(reference) > (___mtf_val))) {               \
@@ -223,7 +228,7 @@
                 mtf_print(                                                                        \
                     tci, "%s:%d: Failure %s == %s\n", __FILE__, __LINE__, #reference, #actual);   \
                 mtf_print(tci, "\t%ld > %ld --> false\n", (long)(reference), (long)(___mtf_val)); \
-                mtf_debug_hook();                                                                 \
+                MTF_DEBUG_HOOK();                                                                 \
             }                                                                                     \
             lcl_ti->ti_status = 0;                                                                \
             if (assert)                                                                           \
@@ -246,7 +251,7 @@
 #define ___MTF_INNER_GE(assert, reference, actual, rc)                                             \
     do {                                                                                           \
         struct mtf_test_coll_info *tci = lcl_ti->ti_coll;                                          \
-        __typeof__(actual) ___mtf_val = (actual);                                                  \
+        __typeof__(actual)         ___mtf_val = (actual);                                          \
                                                                                                    \
         tci = tci;                                                                                 \
         if (mtf_verify_flag || !((__typeof__(actual))(reference) >= (___mtf_val))) {               \
@@ -254,7 +259,7 @@
                 mtf_print(                                                                         \
                     tci, "%s:%d: Failure %s == %s\n", __FILE__, __LINE__, #reference, #actual);    \
                 mtf_print(tci, "\t%ld >= %ld --> false\n", (long)(reference), (long)(___mtf_val)); \
-                mtf_debug_hook();                                                                  \
+                MTF_DEBUG_HOOK();                                                                  \
             }                                                                                      \
             lcl_ti->ti_status = 0;                                                                 \
             if (assert)                                                                            \
@@ -291,7 +296,7 @@
                     __LINE__,                                            \
                     (reference),                                         \
                     (actual));                                           \
-                mtf_debug_hook();                                        \
+                MTF_DEBUG_HOOK();                                        \
             }                                                            \
             lcl_ti->ti_status = 0;                                       \
             if (assert)                                                  \
@@ -329,7 +334,7 @@
                     __LINE__,                                            \
                     (reference),                                         \
                     (actual));                                           \
-                mtf_debug_hook();                                        \
+                MTF_DEBUG_HOOK();                                        \
             }                                                            \
             lcl_ti->ti_status = 0;                                       \
             if (assert)                                                  \
@@ -365,7 +370,7 @@
                 mtf_print(                                                                      \
                     tci, "%s:%d: Failure %s == %s\n", __FILE__, __LINE__, #reference, #actual); \
                 mtf_print(tci, "\t%g == %g --> false\n", (reference), (actual));                \
-                mtf_debug_hook();                                                               \
+                MTF_DEBUG_HOOK();                                                               \
             }                                                                                   \
             lcl_ti->ti_status = 0;                                                              \
             if (assert)                                                                         \

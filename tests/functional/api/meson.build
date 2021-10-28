@@ -10,7 +10,6 @@ foreach t, params : tests
     t_exe = executable(
         t,
         [
-            test_framework_sources,
             '@0@.c'.format(t),
             params.get('sources', []),
         ],
@@ -24,6 +23,7 @@ foreach t, params : tests
         dependencies: [
             hse_internal_dep,
             hse_dependencies,
+            hse_fixtures_dep,
             params.get('dependencies', [])
         ],
     )

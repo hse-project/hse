@@ -5,7 +5,7 @@
 
 #include <hse_ut/framework.h>
 #include <errno.h>
-#include <hse_ut/fixtures.h>
+#include <fixtures/kvdb.h>
 
 /* Globals */
 struct hse_kvdb *kvdb_handle;
@@ -13,22 +13,21 @@ struct hse_kvdb *kvdb_handle;
 int
 test_collection_setup(struct mtf_test_info *lcl_ti)
 {
-    int                        rc;
+    hse_err_t err;
 
-    rc = mtf_kvdb_setup(lcl_ti, &kvdb_handle, 0);
-    ASSERT_EQ_RET(rc, 0, -1);
-    ASSERT_NE_RET(kvdb_handle, NULL, -1);
+    err = fxt_kvdb_setup(home, 0, NULL, 0, NULL, &kvdb_handle);
 
-    return 0;
+    return hse_err_to_errno(err);
 }
 
 int
 test_collection_teardown(struct mtf_test_info *lcl_ti)
 {
-    int rc;
-    rc = mtf_kvdb_teardown(lcl_ti);
-    ASSERT_EQ_RET(rc, 0, -1);
-    return 0;
+    hse_err_t err;
+
+    err = fxt_kvdb_teardown(home, kvdb_handle);
+
+    return hse_err_to_errno(err);
 }
 
 MTF_BEGIN_UTEST_COLLECTION_PREPOST(kvdb_api, test_collection_setup, test_collection_teardown);
