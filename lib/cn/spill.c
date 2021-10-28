@@ -591,7 +591,7 @@ done:
     }
 
     if (seqno_errcnt)
-        hse_log(HSE_WARNING "%s: seqno errcnt %u", __func__, seqno_errcnt);
+        log_warn("seqno errcnt %u", seqno_errcnt);
 
     if (tprog)
         w->cw_progress(w);

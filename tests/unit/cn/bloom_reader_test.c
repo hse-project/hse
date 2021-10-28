@@ -35,7 +35,7 @@ test_collection_setup(struct mtf_test_info *info)
     int                        len, idx;
 
     if (coll_info->tci_argc - coll_info->tci_optind != 1) {
-        hse_log(HSE_ERR "Usage: %s [test framework options] <mblock_image_dir>", coll_info->tci_argv[0]);
+        log_err("Usage: %s [test framework options] <mblock_image_dir>", coll_info->tci_argv[0]);
         return -1;
     }
 
@@ -88,7 +88,7 @@ read_blooms(struct mtf_test_info *lcl_ti, char *kblock_file)
 
     snprintf(filename, sizeof(filename), "%s/%s", data_path, kblock_file);
 
-    hse_log(HSE_DEBUG "Testing with kblock %s", filename);
+    log_debug("Testing with kblock %s", filename);
 
     err = mpm_mblock_alloc_file(&blkid, filename);
     ASSERT_EQ(0, err);

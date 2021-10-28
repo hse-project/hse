@@ -317,10 +317,8 @@ cn_disable_maint(struct cn *cn, bool onoff)
     if (cn->rp->cn_maint_disable != onoff) {
         cn->rp->cn_maint_disable = onoff;
 
-        hse_log(
-            HSE_NOTICE "cn_disable_maint: %s: background compaction %s",
-            cn->cn_kvsname,
-            onoff ? "disabled" : "enabled");
+        log_info("%s: background compaction %s",
+                 cn->cn_kvsname, onoff ? "disabled" : "enabled");
     }
 }
 
@@ -780,8 +778,7 @@ cn_ingestv(
     assert(check == count);
 
     if (log_ingest) {
-        hse_slog(
-            HSE_NOTICE,
+        slog_info(
             HSE_SLOG_START("cn_ingest"),
             HSE_SLOG_FIELD("dgen", "%lu", (ulong)dgen),
             HSE_SLOG_FIELD("seqno", "%lu", (ulong)ingestid),
@@ -963,7 +960,7 @@ cn_tstate_create(struct cn *cn)
 
 errout:
     if (err) {
-        hse_elog(HSE_ERR "%s: %s: @@e", err, __func__, errmsg);
+        log_errx("%s: @@e", err, errmsg);
         mutex_destroy(&impl->tsi_lock);
         free_aligned(impl);
     }
@@ -1068,7 +1065,7 @@ cn_perfc_alloc(struct cn *cn)
         name_buf, sizeof(name_buf), "%s%s%s", cn->cn_kvdbhome, IKVDB_SUB_NAME_SEP, cn->cn_kvsname);
 
     if (i >= sizeof(name_buf)) {
-        hse_log(HSE_WARNING "cn perfc name buffer too small");
+        log_warn("cn perfc name buffer too small");
         return;
     }
 
@@ -1089,7 +1086,7 @@ cn_perfc_alloc(struct cn *cn)
     }
 
     if (warn)
-        hse_log(HSE_WARNING "Failed %d of %lu cn perf counter sets", warn, NELEM(pc_sets));
+        log_warn("Failed to alloc %d of %lu cn perf counter sets", warn, NELEM(pc_sets));
 }
 
 /**
@@ -1152,7 +1149,7 @@ cn_open(
 
     mperr = mpool_props_get(ds, &mpprops);
     if (mperr) {
-        hse_log(HSE_ERR "mpool_props_get error %s\n", merr_info(mperr, &ei));
+        log_err("mpool_props_get failed: %s\n", merr_info(mperr, &ei));
         return merr_errno(mperr);
     }
 
@@ -1189,9 +1186,7 @@ cn_open(
     staging_absent = mpool_mclass_props_get(ds, MP_MED_STAGING, NULL);
     if (staging_absent) {
         if (strcmp(rp->mclass_policy, "capacity_only")) {
-            hse_log(
-                HSE_WARNING
-                "Staging media is not configured. Switching to capacity_only media class policy.");
+            log_warn("Staging media not configured, using capacity_only media class policy");
             strlcpy(rp->mclass_policy, "capacity_only", HSE_MPOLICY_NAME_LEN_MAX);
         }
     }
@@ -1205,12 +1200,13 @@ cn_open(
     cn->csched = ikvdb_get_csched(cn->ikvdb);
 
     cn->cn_mpolicy = ikvdb_get_mclass_policy(cn->ikvdb, rp->mclass_policy);
-    hse_log(HSE_NOTICE "%s is using %s media class policy", cn->cn_kvsname, rp->mclass_policy);
     if (ev(!cn->cn_mpolicy)) {
         err = merr(EINVAL);
-        hse_log(HSE_ERR "%s Invalid media class policy.", cn->cn_kvsname);
+        log_err("%s: invalid media class policy %s", cn->cn_kvsname, rp->mclass_policy);
         goto err_exit;
     }
+
+    log_info("%s using %s media class policy", cn->cn_kvsname, rp->mclass_policy);
 
     cn->cn_replay = flags & IKVS_OFLAG_REPLAY;
     maint = cn->csched && !cn->cn_replay && !rp->cn_diag_mode && !rp->read_only;
@@ -1267,10 +1263,9 @@ cn_open(
 
     atomic64_set(&cn->cn_ingest_dgen, cn_tree_initial_dgen(cn->cn_tree));
 
-    hse_log(
-        HSE_NOTICE "cn_open %s/%s replay %d fanout %u "
-                   "pfx_len %u pfx_pivot %u cnid %lu depth %u/%u %s "
-                   "kb %lu%c/%lu vb %lu%c/%lu",
+    log_info(
+        "%s/%s replay %d fanout %u pfx_len %u pfx_pivot %u cnid %lu depth %u/%u %s "
+        "kb %lu%c/%lu vb %lu%c/%lu",
         cn->cn_kvdbhome,
         cn->cn_kvsname,
         cn->cn_replay,
@@ -1386,11 +1381,8 @@ cn_close(struct cn *cn)
         if (get_time_ns() < next_report)
             continue;
 
-        hse_log(
-            HSE_NOTICE "%s: cn %s waiting for %d async jobs...",
-            __func__,
-            cn->cn_kvsname,
-            atomic_read(&cn->cn_refcnt));
+        log_info("cn %s waiting for %d async jobs...",
+                 cn->cn_kvsname, atomic_read(&cn->cn_refcnt));
 
         next_report = get_time_ns() + report_ns;
         dlymax = 10000;
@@ -1577,8 +1569,7 @@ cn_cursor_update(struct cn_cursor *cur, u64 seqno, bool *updated)
         *updated = true;
 
     if (err) {
-        hse_elog(HSE_ERR "%s: update failed (%p %lu): @@e",
-                 err, __func__, cur, seqno);
+        log_errx("update failed (%p %lu): @@e", err, cur, seqno);
         cur->merr = err;
     }
 

@@ -8,42 +8,25 @@
 #include <hse_util/bloom_filter.h>
 #include <hse_ikvdb/cn.h>
 
+#include "../src/logging_impl.h"
+
+#include <mocks/mock_log.h>
+
 /* --------------------------------------------------
  * scaffolding lifted from logging_test.c
  */
 
-#undef hse_xlog
-#define hse_xlog(log_fmt, hse_args, ...) hse_log_pri(log_fmt, false, hse_args, ##__VA_ARGS__)
-
-#undef hse_alog
-#define hse_alog(log_fmt, hse_args, ...) hse_log_pri(log_fmt, true, hse_args, ##__VA_ARGS__)
-
-#define MAX_MSG_SIZE 500
-#define MAX_NV_PAIRS 50
-#define MAX_NV_SIZE 100
-
-struct logging_result {
-    char msg_buffer[MAX_MSG_SIZE];
-    char count;
-    char names[MAX_NV_PAIRS][MAX_NV_SIZE];
-    char values[MAX_NV_PAIRS][MAX_NV_SIZE];
-    char index;
-} shared_result;
+#define hse_xlog(_fmt, _argv, ...) \
+    log_pri(HSE_LOGPRI_ERR, (_fmt), false, _argv, ##__VA_ARGS__)
 
 void
-vsyslog(int pri, const char *fmt, va_list args)
+hse_slog_emit(hse_logpri_t priority, const char *fmt, ...)
 {
-    vsnprintf(shared_result.msg_buffer, MAX_MSG_SIZE, fmt, args);
-}
+    va_list ap;
 
-void
-syslog(int priority, const char *fmt, ...)
-{
-    va_list args;
-
-    va_start(args, fmt);
-    vsnprintf(shared_result.msg_buffer, MAX_MSG_SIZE, fmt, args);
-    va_end(args);
+    va_start(ap, fmt);
+    vsnprintf(shared_result.msg_buffer, MAX_MSG_SIZE, fmt, ap);
+    va_end(ap);
 }
 
 void
@@ -55,12 +38,12 @@ parse_json_key_values(char *key)
     int   index = 0;
     int   count = 0;
 
-    curr_pos = strstr(shared_result.msg_buffer, key);
-
     char names[MAX_NV_SIZE];
     char values[MAX_NV_SIZE];
 
-    assert(curr_pos != NULL);
+    curr_pos = strstr(shared_result.msg_buffer, key);
+    if (!curr_pos)
+        abort();
 
     while (count < 2 && j < MAX_NV_SIZE) {
         if (curr_pos[i] == '"')
@@ -109,7 +92,6 @@ process_json_payload(void)
 
     parse_json_key_values("hse_logver");
     parse_json_key_values("hse_version");
-    parse_json_key_values("hse_branch");
     parse_json_key_values("hse_0_category");
     parse_json_key_values("hse_0_version");
     parse_json_key_values("hse_0_hash_count");
@@ -160,20 +142,19 @@ MTF_DEFINE_UTEST(cn_logging_test, test_bloom)
     stats.bfs_no_hit_cnt = 303;
     stats.bfs_hit_failed_cnt = 404;
 
-    hse_xlog(HSE_ERR "[UNIT TEST] @@bsx", av);
+    hse_gparams.gp_logging.structured = true;
+
+    hse_xlog("[UNIT TEST] @@bsx", av);
 
     process_json_payload();
 
-    ASSERT_EQ(11, shared_result.count);
+    ASSERT_EQ(10, shared_result.count);
 
     ASSERT_STREQ("hse_logver", shared_result.names[ix]);
     ASSERT_STREQ("1", shared_result.values[ix]);
     ix++;
 
     ASSERT_STREQ("hse_version", shared_result.names[ix]);
-    ix++;
-
-    ASSERT_STREQ("hse_branch", shared_result.names[ix]);
     ix++;
 
     ASSERT_STREQ("hse_0_category", shared_result.names[ix]);
@@ -218,45 +199,62 @@ MTF_DEFINE_UTEST(cn_logging_test, test_bloom)
     ASSERT_EQ(ix, shared_result.count);
 }
 
-static const char errmsg[] = "cannot append hse conversion specifier";
-
+/* cn registers conversion for @@w, @@k, and @@K with the logger, but all
+ * of their conversion functions return false.  Since the error message
+ * is sent to the backstop stop we cannot look for it in the log buffer.
+ * Therefore, we use merr() to generate a unique string that should be
+ * printed with the log message, and assert that the unique string did
+ * not get entered into the log.
+ */
 MTF_DEFINE_UTEST(cn_logging_test, test_wbtree)
 {
-    char  errbuf[50];
-    void *av[] = { "foo", 0 };
+    char msgbuf[128], errbuf[128];
+    merr_t err;
+    void *av[] = { "test_wbtree", &err, NULL };
     char *needle;
 
-    hse_xlog(HSE_ERR "[UNIT_TEST] @@w wbtree", av);
+    err = merr(EINVAL);
+    snprintf(msgbuf, sizeof(msgbuf), "%s %s",
+             (char *)av[0], merr_strinfo(err, errbuf, sizeof(errbuf), NULL));
 
-    sprintf(errbuf, "%s %c", errmsg, 'w');
-    needle = strstr(shared_result.msg_buffer, errbuf);
-    ASSERT_NE(NULL, needle);
+    hse_xlog("[UNIT_TEST] @@w @@e", av);
+
+    needle = strstr(shared_result.msg_buffer, msgbuf);
+    ASSERT_EQ(NULL, needle);
 }
 
 MTF_DEFINE_UTEST(cn_logging_test, test_compact)
 {
-    char  errbuf[50];
-    void *av[] = { "foo", 0 };
+    char msgbuf[128], errbuf[128];
+    merr_t err;
+    void *av[] = { "test_compact", &err, NULL };
     char *needle;
 
-    hse_xlog(HSE_ERR "[UNIT_TEST] @@k compact", av);
+    err = merr(EINVAL);
+    snprintf(msgbuf, sizeof(msgbuf), "%s %s",
+             (char *)av[0], merr_strinfo(err, errbuf, sizeof(errbuf), NULL));
 
-    sprintf(errbuf, "%s %c", errmsg, 'k');
-    needle = strstr(shared_result.msg_buffer, errbuf);
-    ASSERT_NE(NULL, needle);
+    hse_xlog("[UNIT_TEST] @@k @@e", av);
+
+    needle = strstr(shared_result.msg_buffer, msgbuf);
+    ASSERT_EQ(NULL, needle);
 }
 
 MTF_DEFINE_UTEST(cn_logging_test, test_candidate)
 {
-    char  errbuf[50];
-    void *av[] = { "foo", 0 };
+    char msgbuf[128], errbuf[128];
+    merr_t err;
+    void *av[] = { "test_candidate", &err, NULL };
     char *needle;
 
-    hse_xlog(HSE_ERR "[UNIT_TEST] @@K candidate", av);
+    err = merr(EINVAL);
+    snprintf(msgbuf, sizeof(msgbuf), "%s %s",
+             (char *)av[0], merr_strinfo(err, errbuf, sizeof(errbuf), NULL));
 
-    sprintf(errbuf, "%s %c", errmsg, 'K');
-    needle = strstr(shared_result.msg_buffer, errbuf);
-    ASSERT_NE(NULL, needle);
+    hse_xlog("[UNIT_TEST] @@K @@e", av);
+
+    needle = strstr(shared_result.msg_buffer, msgbuf);
+    ASSERT_EQ(NULL, needle);
 }
 
 MTF_END_UTEST_COLLECTION(cn_logging_test);

@@ -6,9 +6,9 @@
 #ifndef HSE_PLATFORM_MOCK_LOG_H
 #define HSE_PLATFORM_MOCK_LOG_H
 
-#define MAX_MSG_SIZE 500
+#define MAX_MSG_SIZE 1024
 #define MAX_NV_PAIRS 50
-#define MAX_NV_SIZE 100
+#define MAX_NV_SIZE 256
 
 enum type_spec {
     ts_char = 1,
@@ -32,11 +32,12 @@ typedef struct logging_result {
     char index;
 } logging_result;
 
-extern logging_result shared_result;
+extern thread_local logging_result shared_result;
 
 void
 test_preprocess_fmt_string(
     struct hse_log_fmt_state *state,
+    const char               *func,
     const char *              fmt,
     char *                    new_fmt,
     s32                       new_len,

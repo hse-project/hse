@@ -422,12 +422,11 @@ test_init(struct test *t, struct test_params *params, struct mtf_test_info *lcl_
     memset(t, 0, sizeof(*t));
     t->p = *params;
     t->mtf = lcl_ti;
-    hse_log(
-        HSE_INFO "Test Params: %s width=%d iters=%d workers=%d",
-        tc_str(t->p.tc),
-        t->p.width,
-        t->p.iters,
-        t->p.threads);
+    log_info("Test Params: %s width=%d iters=%d workers=%d",
+             tc_str(t->p.tc),
+             t->p.width,
+             t->p.iters,
+             t->p.threads);
 
     ASSERT_GT(t->p.iters, 0);
 

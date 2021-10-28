@@ -52,7 +52,7 @@ mclass_open(
     dirp = opendir(params->path);
     if (!dirp) {
         err = merr(errno);
-        hse_elog(HSE_ERR "%s: Opening mclass dir %s failed: @@e", err, __func__, params->path);
+        log_errx("Opening mclass dir %s failed: @@e", err, params->path);
         return err;
     }
 
@@ -75,7 +75,7 @@ mclass_open(
 
     err = mblock_fset_open(mc, params->filecnt, params->fmaxsz, flags, &mc->mbfsp);
     if (err) {
-        hse_elog(HSE_ERR "%s: Opening data files failed, mclass %d: @@e", err, __func__, mclass);
+        log_errx("Opening data files failed, mclass %d: @@e", err, mclass);
         goto err_exit1;
     }
 

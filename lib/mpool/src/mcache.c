@@ -108,7 +108,7 @@ mpool_mcache_munmap(struct mpool_mcache_map *map)
 
         err = mblock_fset_unmap(mclass_fset(mc), mbid);
         if (ev(err))
-            hse_log(HSE_ERR "%s: Unable to unmap mblock %lu, map %p", __func__, mbid, map);
+            log_errx("Unable to unmap mblock %lu, map %p: @@e", err, mbid, map);
     }
 
     free(map);

@@ -418,9 +418,9 @@ wal_recs_validate(struct wal_replay_work *rw)
 
     if (rginfo->eoff && !valid) {
         assert(valid);
-        hse_log(HSE_CRIT "WAL replay: Corrupted record found in gen %lu file %d, "
-                "off (%lu:%lu:%lu), failing replay",
-                gen, rginfo->fileid, curoff, rginfo->eoff, rgeoff);
+        log_crit("WAL replay: Corrupted record found in gen %lu file %d, "
+                 "off (%lu:%lu:%lu), failing replay",
+                 gen, rginfo->fileid, curoff, rginfo->eoff, rgeoff);
         err = merr(EBADMSG);
         goto exit;
     }
@@ -547,8 +547,8 @@ wal_replay_gen_impl(struct wal_replay *rep, struct wal_replay_gen *rgen, bool fl
         if (HSE_UNLIKELY(err)) {
             struct wal_rec *cur, *next;
 
-            hse_log(HSE_CRIT "WAL replay: Unrecognized record op %d in gen %lu, failing replay",
-                    rec->op, rgen->rg_gen);
+            log_crit("WAL replay: Unrecognized record op %d in gen %lu, failing replay",
+                     rec->op, rgen->rg_gen);
 
             rbtree_postorder_for_each_entry_safe(cur, next, root, node)
                 kmem_cache_free(rep->r_cache, cur);
@@ -622,8 +622,8 @@ wal_replay_core(struct wal_replay *rep)
 
         maxseqno = max_t(uint64_t, maxseqno, cur->rg_maxseqno);
 
-        hse_log(HSE_NOTICE "WAL replay: Gen %lu, maxseqno %lu replayed %lu keys",
-                cur->rg_gen, maxseqno, cur->rg_krcnt);
+        log_info("WAL replay: Gen %lu, maxseqno %lu replayed %lu keys",
+                 cur->rg_gen, maxseqno, cur->rg_krcnt);
 
         list_del_init(&cur->rg_link);
         free(cur);
@@ -918,8 +918,8 @@ wal_replay_worker(struct work_struct *work)
     if (rw->rw_err)
         return;
 
-    hse_log(HSE_NOTICE "WAL replay: Gen %lu fileid %d nrecs %lu ntxrecs %lu nskipped %lu",
-            rginfo->gen, rginfo->fileid, nrecs, ntxrecs, nskipped);
+    log_info("WAL replay: Gen %lu fileid %d nrecs %lu ntxrecs %lu nskipped %lu",
+             rginfo->gen, rginfo->fileid, nrecs, ntxrecs, nskipped);
 
 #ifndef NDEBUG
     assert(wal_rec_iter_eof(&iter));
@@ -991,7 +991,7 @@ wal_replay(struct wal *wal, struct wal_replay_info *rinfo)
         goto exit;
 
 #ifndef NDEBUG
-    hse_log(HSE_NOTICE "WAL replay: Info: ");
+    log_info("WAL replay: Info: ");
     wal_replay_dump_info(rep);
 #endif
 
@@ -1000,7 +1000,7 @@ wal_replay(struct wal *wal, struct wal_replay_info *rinfo)
         goto exit;
 
 #ifndef NDEBUG
-    hse_log(HSE_NOTICE "WAL replay: Gen info: ");
+    log_info("WAL replay: Gen info: ");
     wal_replay_dump_rgen(rep);
 #endif
 
@@ -1018,21 +1018,21 @@ exit:
 static void
 wal_replay_dump_info(struct wal_replay *rep)
 {
-    hse_log(HSE_NOTICE "WAL replay: Entry count: %u", rep->r_cnt);
+    log_info("WAL replay: Entry count: %u", rep->r_cnt);
 
     for (int i = 0; i < rep->r_cnt; i++) {
         struct wal_replay_gen_info *rginfo;
         struct wal_minmax_info *info;
 
-        hse_log(HSE_NOTICE "WAL replay: Entry %u", i);
+        log_info("WAL replay: Entry %u", i);
 
         rginfo = rep->r_ginfo + i;
         info = &rginfo->info;
 
-        hse_log(HSE_NOTICE "WAL replay: Gen %lu Fileid %u Seqno (%lu : %lu) gen (%lu : %lu) "
-                "txhorizon (%lu : %lu) eoff %lu", rginfo->gen, rginfo->fileid,
-                info->min_seqno, info->max_seqno, info->min_gen, info->max_gen,
-                info->min_txid, info->max_txid, rginfo->eoff);
+        log_info("WAL replay: Gen %lu Fileid %u Seqno (%lu : %lu) gen (%lu : %lu) "
+                 "txhorizon (%lu : %lu) eoff %lu", rginfo->gen, rginfo->fileid,
+                 info->min_seqno, info->max_seqno, info->min_gen, info->max_gen,
+                 info->min_txid, info->max_txid, rginfo->eoff);
     }
 }
 
@@ -1042,8 +1042,8 @@ wal_replay_dump_rgen(struct wal_replay *rep)
     struct wal_replay_gen *cur;
 
     list_for_each_entry(cur, &rep->r_head, rg_link) {
-        hse_log(HSE_NOTICE "WAL replay: Gen %lu Seqno (%lu : %lu) Memsz: %lu", cur->rg_gen,
-                cur->rg_info.min_seqno, cur->rg_info.max_seqno, cur->rg_bytes);
+        log_info("WAL replay: Gen %lu Seqno (%lu : %lu) Memsz: %lu",
+                 cur->rg_gen, cur->rg_info.min_seqno, cur->rg_info.max_seqno, cur->rg_bytes);
     }
 }
 #endif

@@ -548,13 +548,10 @@ kmc_slab_free(struct kmem_cache *zone, struct kmc_slab *slab)
     assert_slab_magic(slab);
 
     if (slab->slab_iused > 0) {
-        hse_log(
-            HSE_ERR "%s: mem leak in zone %s, slab %p, iused %u, max %u",
-            __func__,
-            zone->zone_name,
-            slab,
-            slab->slab_iused,
-            slab->slab_imax);
+        log_err("mem leak in zone %s, slab %p, iused %u, max %u",
+                zone->zone_name, slab,
+                slab->slab_iused,
+                slab->slab_imax);
         return; /* leak the slab */
     }
 

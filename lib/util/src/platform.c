@@ -145,8 +145,9 @@ hse_cpu_init(void)
     hse_tsc_shift = 21;
     hse_tsc_mult = (NSEC_PER_SEC << hse_tsc_shift) / hse_tsc_freq;
 
-    hse_log(HSE_NOTICE "%s: bogomips %d, freq %lu, shift %u, mult %u, L1D_CLSZ %d",
-            __func__, bogomips, hse_tsc_freq, hse_tsc_shift, hse_tsc_mult, LEVEL1_DCACHE_LINESIZE);
+    log_info("bogomips %d, freq %lu, shift %u, mult %u, L1D_CLSZ %d",
+             bogomips, hse_tsc_freq, hse_tsc_shift, hse_tsc_mult,
+             LEVEL1_DCACHE_LINESIZE);
 
     return 0;
 }
@@ -199,8 +200,8 @@ hse_platform_init(void)
     rest_url_register(0, 0, rest_dt_get, rest_dt_put, "data"); /* for dt */
     rest_url_register(0, 0, kmc_rest_get, NULL, "kmc");
 
-    hse_log_sync(HSE_NOTICE "%s: version %s, image %s",
-                 HSE_UTIL_DESC, HSE_VERSION_STRING, hse_progname);
+    log_info_sync("%s: version %s, image %s",
+                  HSE_UTIL_DESC, HSE_VERSION_STRING, hse_progname);
 
 errout:
     if (err) {

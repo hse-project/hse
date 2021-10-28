@@ -364,12 +364,11 @@ parse_v1(const cJSON *const root, struct kvdb_meta *const meta, const char *cons
     omf_version_val = cJSON_GetNumberValue(omf_version);
     if (round(omf_version_val) != omf_version_val || omf_version_val <= 0.0 ||
         omf_version_val > UINT_MAX) {
-        hse_log(
-            HSE_ERR "'omf_version' key in %s/kvdb.meta must be a whole number greater than 0 and "
-                    "less than or equal to %d, found %f",
-            kvdb_home,
-            UINT_MAX,
-            omf_version_val);
+        log_err("'omf_version' key in %s/kvdb.meta must be a whole number greater than 0 and "
+                "less than or equal to %d, found %f",
+                kvdb_home,
+                UINT_MAX,
+                omf_version_val);
         err = merr(EPROTO);
         return err;
     }
@@ -483,13 +482,13 @@ kvdb_meta_deserialize(struct kvdb_meta *const meta, const char *const kvdb_home)
 
     version = cJSON_GetObjectItemCaseSensitive(root, "version");
     if (!cJSON_IsNumber(version)) {
-        hse_log(HSE_ERR "'version' key in %s/kvdb.meta is not a number", kvdb_home);
+        log_err("'version' key in %s/kvdb.meta is not a number", kvdb_home);
         err = merr(EPROTO);
         goto out;
     }
     version_val = cJSON_GetNumberValue(version);
     if (round(version_val) != version_val) {
-        hse_log(HSE_ERR "'version' key in %s/kvdb.meta is not a whole number", kvdb_home);
+        log_err("'version' key in %s/kvdb.meta is not a whole number", kvdb_home);
         err = merr(EPROTO);
         goto out;
     }
@@ -499,7 +498,7 @@ kvdb_meta_deserialize(struct kvdb_meta *const meta, const char *const kvdb_home)
             err = parse_v1(root, meta, kvdb_home);
             break;
         default:
-            hse_log(HSE_ERR "Unknown 'version' in %s/kvdb.meta", kvdb_home);
+            log_err("Unknown 'version' in %s/kvdb.meta", kvdb_home);
             err = merr(EPROTO);
             goto out;
     }

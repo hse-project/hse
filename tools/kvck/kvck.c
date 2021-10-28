@@ -107,8 +107,7 @@ _verify_kvs(struct cndb *cndb, int cndb_idx, struct entity *ent)
 
     err = merr_to_hse_err(cndb_cn_blob_get(cndb, cn->cn_cnid, &sz, &ptr));
     if (ev(err)) {
-        hse_log(HSE_ERR "Failed to retrieve key hashmap "
-                        "blob from cndb");
+        log_err("Failed to retrieve key hashmap blob from cndb");
         return EBUG;
     }
 

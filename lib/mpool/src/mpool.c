@@ -93,7 +93,7 @@ mpool_mclass_open(
 
     if (mcp->path[0] == '\0') {
         if (mclass == MP_MED_CAPACITY) {
-            hse_log(HSE_ERR "%s: capacity storage path not set for %s", __func__, mp->home);
+            log_err("capacity storage path not set for %s", mp->home);
             return merr(EINVAL);
         }
         return 0;
@@ -105,28 +105,22 @@ mpool_mclass_open(
 
     for (int i = mclass - 1; i >= 0; i--) {
         if (mp->mc[i] && !strcmp(path, mclass_dpath(mp->mc[i]))) {
+            log_err("Duplicate storage path %s detected for mc %d and %d", path, mclass, i);
             free(path);
-            hse_log(
-                HSE_ERR "%s: Duplicate storage path detected for mc %d and %d",
-                __func__,
-                mclass,
-                i);
             return merr(EINVAL);
         }
     }
 
     if ((flags & O_CREAT) && mclass_files_exist(path)) {
-        hse_log(HSE_ERR "%s: mclass %d path %s already initialized, should be emptied manually",
-                __func__, mclass, path);
+        log_err("mclass %d path %s already initialized, should be emptied manually", mclass, path);
         free(path);
         return merr(EEXIST);
     }
 
     err = mclass_open(mclass, mcp, flags, mc);
     if (err) {
+        log_errx("Cannot access storage path %s for mclass %d: @@e", err, path, mclass);
         free(path);
-        hse_elog(
-            HSE_ERR "%s: Cannot access storage path for mclass %d: @@e", err, __func__, mclass);
         return err;
     }
 

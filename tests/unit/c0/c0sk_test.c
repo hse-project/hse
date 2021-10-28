@@ -550,25 +550,25 @@ MTF_DEFINE_UTEST_PREPOST(c0sk_test, throttling, no_fail_pre, no_fail_post)
     self->c0sk_kvmultisets_sz = 0;
 
 /* verify result is in range expect-1 to expect+1 */
-#define check(msg, ilo, ihi, pct, expect)                \
-    do {                                                 \
-        int    result;                                   \
-        size_t input = ilo + pct * (ihi - ilo) / 100;    \
-                                                         \
-        self->c0sk_kvmultisets_sz = input;               \
-        result = c0sk_adjust_throttling(self);           \
-        hse_log(                                         \
-            HSE_NOTICE "%s: input: %zu <= %12zu <= %zu," \
-                       " expect: %d .. %d, actual: %d",  \
-            msg,                                         \
-            (size_t)ilo,                                 \
-            input,                                       \
-            (size_t)ihi,                                 \
-            expect - 1,                                  \
-            expect + 1,                                  \
-            result);                                     \
-        ASSERT_GE(result, expect - 1);                   \
-        ASSERT_LE(result, expect + 1);                   \
+#define check(msg, ilo, ihi, pct, expect)               \
+    do {                                                \
+        int    result;                                  \
+        size_t input = ilo + pct * (ihi - ilo) / 100;   \
+                                                        \
+        self->c0sk_kvmultisets_sz = input;              \
+        result = c0sk_adjust_throttling(self);          \
+        log_info(                                       \
+            "%s: input: %zu <= %12zu <= %zu,"           \
+            " expect: %d .. %d, actual: %d",            \
+            msg,                                        \
+            (size_t)ilo,                                \
+            input,                                      \
+            (size_t)ihi,                                \
+            expect - 1,                                 \
+            expect + 1,                                 \
+            result);                                    \
+        ASSERT_GE(result, expect - 1);                  \
+        ASSERT_LE(result, expect + 1);                  \
     } while (0)
 
     for (i = 0; i < 100; i += 10)
@@ -1124,7 +1124,7 @@ retry:
             ctxn_unlock(idx);
 
         if (err)
-            hse_elog(HSE_ERR "c0sk_put() failed: @@e", err);
+            log_errx("c0sk_put() failed: @@e", err);
         VERIFY_EQ_RET(0, err, 0);
     }
 

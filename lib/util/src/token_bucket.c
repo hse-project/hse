@@ -250,10 +250,10 @@ tbkt_request(struct tbkt *self, u64 request, u64 *now)
 
 #if HSE_TBKT_DEBUG
     if (++tstats.updates % 1048576 == 0) {
-        hse_log(HSE_NOTICE "%s: %8lu %8lu %4lu, %8lu %lu",
-                __func__, tstats.calls, tstats.updates,
-                (tstats.updates * 1000) / tstats.calls,
-                rate, delay);
+        log_info("%8lu %8lu %4lu, %8lu %lu",
+                 tstats.calls, tstats.updates,
+                 (tstats.updates * 1000) / tstats.calls,
+                 rate, delay);
         tstats.updates /= 2;
         tstats.calls /= 2;
     }

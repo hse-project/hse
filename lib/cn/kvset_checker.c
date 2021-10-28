@@ -168,7 +168,7 @@ default_print(char *fmt, ...)
     vsnprintf(buf, sizeof(buf), fmt, ap);
     va_end(ap);
 
-    hse_log(HSE_DEBUG "%s", buf);
+    log_debug("%s", buf);
 }
 
 static struct print_info print_info = { false, default_print };

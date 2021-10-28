@@ -33,11 +33,10 @@ validate_cn_node_size_lo(const struct param_spec *const ps, const struct params 
     assert(p->p_params.as_kvs_rp);
 
     if (p->p_params.as_kvs_rp->cn_node_size_lo > p->p_params.as_kvs_rp->cn_node_size_hi) {
-        hse_log(
-            HSE_ERR "Invalid KVS rparam cn_node_size_lo value: %lu, must be less"
-                    " than or equal to cn_node_size_hi (%lu)",
-            p->p_params.as_kvs_rp->cn_node_size_lo,
-            p->p_params.as_kvs_rp->cn_node_size_hi);
+        log_err("Invalid KVS rparam cn_node_size_lo value: %lu, must be less"
+                " than or equal to cn_node_size_hi (%lu)",
+                p->p_params.as_kvs_rp->cn_node_size_lo,
+                p->p_params.as_kvs_rp->cn_node_size_hi);
         return false;
     }
 
@@ -52,11 +51,10 @@ validate_cn_node_size_hi(const struct param_spec *ps, const struct params *const
     assert(p->p_params.as_kvs_rp);
 
     if (p->p_params.as_kvs_rp->cn_node_size_hi < p->p_params.as_kvs_rp->cn_node_size_lo) {
-        hse_log(
-            HSE_ERR "Invalid KVS rparam cn_node_size_hi value: %lu, must be greater"
-                    " than or equal to cn_node_size_lo (%lu)",
-            p->p_params.as_kvs_rp->cn_node_size_hi,
-            p->p_params.as_kvs_rp->cn_node_size_lo);
+        log_err("Invalid KVS rparam cn_node_size_hi value: %lu, must be greater"
+                " than or equal to cn_node_size_lo (%lu)",
+                p->p_params.as_kvs_rp->cn_node_size_hi,
+                p->p_params.as_kvs_rp->cn_node_size_lo);
         return false;
     }
 
@@ -69,7 +67,9 @@ compression_value_algorithm_converter(
     const cJSON *const             node,
     void *const                    data)
 {
-    static const char *algos[VCOMP_ALGO_COUNT] = { VCOMP_PARAM_NONE, VCOMP_PARAM_LZ4 };
+    static const char *algos[VCOMP_ALGO_COUNT] = {
+        VCOMP_PARAM_NONE, VCOMP_PARAM_LZ4
+    };
 
     assert(ps);
     assert(node);
@@ -79,6 +79,7 @@ compression_value_algorithm_converter(
         return false;
 
     const char *value = cJSON_GetStringValue(node);
+
     for (size_t i = VCOMP_ALGO_NONE; i < NELEM(algos); i++) {
         if (!strcmp(algos[i], value)) {
             *(enum vcomp_algorithm *)data = i;
@@ -86,7 +87,7 @@ compression_value_algorithm_converter(
         }
     }
 
-    hse_log(HSE_ERR "Unknown compression algorithm: %s", value);
+    log_err("Unknown compression algorithm: %s", value);
 
     return false;
 }

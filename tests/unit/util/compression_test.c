@@ -40,8 +40,8 @@ MTF_DEFINE_UTEST(compression_test, compress)
      */
     err = compress_lz4_ops.cop_compress(src, srcsz, cbuf, cbufsz, &cbuflen);
     if (err)
-        hse_elog(HSE_ERR "%s: srcsz %zu, cbufsz %zu, cbuflen %u: @@e",
-                 err, __func__, srcsz, cbufsz, cbuflen);
+        log_errx("srcsz %zu, cbufsz %zu, cbuflen %u: @@e",
+                 err, srcsz, cbufsz, cbuflen);
     ASSERT_EQ(0, err);
 
     memset(dbuf, 0xaa, dbufsz);
@@ -61,8 +61,8 @@ MTF_DEFINE_UTEST(compression_test, compress)
 
         err = compress_lz4_ops.cop_decompress(cbuf, cbuflen, dbuf, i, &dbuflen);
         if (err)
-            hse_elog(HSE_ERR "%s: i %u, cbuflen %u, dbuflen %u: @@e",
-                     err, __func__, i, cbuflen, dbuflen);
+            log_errx("i %u, cbuflen %u, dbuflen %u: @@e",
+                     err, i, cbuflen, dbuflen);
 
         ASSERT_EQ(0, err);
         ASSERT_EQ(i, dbuflen);
@@ -80,8 +80,8 @@ MTF_DEFINE_UTEST(compression_test, compress)
 
         err = compress_lz4_ops.cop_compress(src + i, srcsz, cbuf + i, cbufsz - i, &cbuflen);
         if (err)
-            hse_elog(HSE_ERR "%s: srcsz %zu, cbufsz %zu, cbuflen %u: @@e",
-                     err, __func__, srcsz, cbufsz - i, cbuflen);
+            log_errx("srcsz %zu, cbufsz %zu, cbuflen %u: @@e",
+                     err, srcsz, cbufsz - i, cbuflen);
         ASSERT_EQ(0, err);
 
         memset(dbuf, 0xaa, dbufsz);
@@ -136,8 +136,8 @@ MTF_DEFINE_UTEST(compression_test, mongo)
      */
     err = compress_lz4_ops.cop_compress(srcv, srcsz, cbuf, cbufsz, &cbuflen);
     if (err)
-        hse_elog(HSE_ERR "%s: srcsz %zu, cbufsz %zu, cbuflen %u: @@e",
-                 err, __func__, srcsz, cbufsz, cbuflen);
+        log_errx("srcsz %zu, cbufsz %zu, cbuflen %u: @@e",
+                 err, srcsz, cbufsz, cbuflen);
     ASSERT_EQ(0, err);
 
     memset(dbuf, 0xaa, dbufsz);

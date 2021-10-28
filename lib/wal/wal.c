@@ -273,7 +273,7 @@ wal_cond_sync(struct wal *wal, uint64_t gen)
     end = get_time_ns();
 
     if (!err && (dur = NSEC_TO_MSEC(end - start)) > 20)
-        hse_log(HSE_NOTICE "%s: WAL ingest sync for dgen %lu took %u msec", __func__, gen, dur);
+        log_info("WAL ingest sync for dgen %lu took %u msec", gen, dur);
 
     return err;
 }

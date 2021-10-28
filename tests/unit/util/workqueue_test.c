@@ -154,15 +154,16 @@ MTF_DEFINE_UTEST(workqueue_test, run)
         queue_work(q, &myworks[i]->wstruct);
     }
 
-    hse_log(HSE_DEBUG "Running  %d jobs", expected);
+    log_debug("Running  %d jobs", expected);
+
     for (i = 0; i < expected * 3; ++i) {
         if (atomic_read(&counter) >= expected)
             break;
         usleep(1000);
     }
     actual = atomic_read(&counter);
-    hse_log(HSE_DEBUG "Finished %d of %d delayed jobs in %d milliseconds",
-            actual, expected, i);
+    log_debug("Finished %d of %d delayed jobs in %d milliseconds",
+              actual, expected, i);
     ASSERT_EQ(expected, actual);
 
     destroy_workqueue(q);
@@ -210,7 +211,8 @@ MTF_DEFINE_UTEST(workqueue_test, run_delay)
         ASSERT_TRUE(b);
     }
 
-    hse_log(HSE_DEBUG "Running %d delayed jobs", expected);
+    log_debug("Running %d delayed jobs", expected);
+
     for (i = 0; i < expected * 333; ++i) {
         if (atomic_read(&counter) >= expected)
             break;
@@ -218,8 +220,8 @@ MTF_DEFINE_UTEST(workqueue_test, run_delay)
     }
     delta = nsecs_to_jiffies(get_time_ns() - delta);
     actual = atomic_read(&counter);
-    hse_log(HSE_DEBUG "Finished %d of %d delayed jobs in %d milliseconds",
-            actual, expected, i);
+    log_debug("Finished %d of %d delayed jobs in %d milliseconds",
+              actual, expected, i);
     ASSERT_EQ(expected, actual);
     ASSERT_GE(delta, deltamax);
 
@@ -512,7 +514,7 @@ MTF_DEFINE_UTEST(workqueue_test, flush_test)
     flush_workqueue(q);
 
     actual = atomic_read(&counter);
-    hse_log(HSE_DEBUG "Finished flush %d jobs", actual);
+    log_debug("Finished flush %d jobs", actual);
     ASSERT_EQ(num_works, actual);
 
     destroy_workqueue(q);
@@ -567,27 +569,24 @@ MTF_DEFINE_UTEST(workqueue_test, destroy_test)
 
         workc *= 3;
 
-        hse_log(
-            HSE_DEBUG "Waiting for %d of %d jobs to complete by %d workers",
-            workc - atomic_read(&counter),
-            workc,
-            n + 1);
+        log_debug("Waiting for %d of %d jobs to complete by %d workers",
+                  workc - atomic_read(&counter),
+                  workc,
+                  n + 1);
 
         flush_workqueue(wq);
 
-        hse_log(
-            HSE_DEBUG "Waiting for %d of %d jobs to complete by %d workers",
-            workc - atomic_read(&counter),
-            workc,
-            n + 1);
+        log_debug("Waiting for %d of %d jobs to complete by %d workers",
+                  workc - atomic_read(&counter),
+                  workc,
+                  n + 1);
 
         flush_workqueue(wq);
 
-        hse_log(
-            HSE_DEBUG "Waiting for %d of %d jobs to complete by %d workers",
-            workc - atomic_read(&counter),
-            workc,
-            n + 1);
+        log_debug("Waiting for %d of %d jobs to complete by %d workers",
+                  workc - atomic_read(&counter),
+                  workc,
+                  n + 1);
 
         destroy_workqueue(wq);
 
@@ -618,27 +617,24 @@ MTF_DEFINE_UTEST(workqueue_test, destroy_test)
 
         workc *= 3;
 
-        hse_log(
-            HSE_DEBUG "Waiting for %d of %d jobs to complete by %d workers",
-            workc - atomic_read(&counter),
-            workc,
-            n + 1);
+        log_debug("Waiting for %d of %d jobs to complete by %d workers",
+                  workc - atomic_read(&counter),
+                  workc,
+                  n + 1);
 
         flush_workqueue(wq);
 
-        hse_log(
-            HSE_DEBUG "Waiting for %d of %d jobs to complete by %d workers",
-            workc - atomic_read(&counter),
-            workc,
-            n + 1);
+        log_debug("Waiting for %d of %d jobs to complete by %d workers",
+                  workc - atomic_read(&counter),
+                  workc,
+                  n + 1);
 
         flush_workqueue(wq);
 
-        hse_log(
-            HSE_DEBUG "Waiting for %d of %d jobs to complete by %d workers",
-            workc - atomic_read(&counter),
-            workc,
-            n + 1);
+        log_debug("Waiting for %d of %d jobs to complete by %d workers",
+                  workc - atomic_read(&counter),
+                  workc,
+                  n + 1);
 
         destroy_workqueue(wq);
 
@@ -727,7 +723,7 @@ MTF_DEFINE_UTEST(workqueue_test, flush_destroy)
             ASSERT_EQ(0, rc);
         }
 
-        hse_log(HSE_DEBUG "%s: iter %d, wqtdmax %d", __func__, i, wqtdmax);
+        log_debug("iter %d, wqtdmax %d", i, wqtdmax);
 
         /* Wait for each thread to call queue_work() and flush-
          * _workqueue(), but dont wait too long as we want to call
@@ -811,7 +807,7 @@ MTF_DEFINE_UTEST(workqueue_test, flush_party)
             queue_delayed_work(wq, &w->dwstruct, usecs_to_jiffies(j * 133));
         }
 
-        hse_log(HSE_DEBUG "%s: iter %d, tdwqmax %d", __func__, i, wqtdmax);
+        log_debug("iter %d, tdwqmax %d", i, wqtdmax);
 
         for (j = 0; j < tdmax; ++j)
             (void)pthread_join(tdv[j], NULL);

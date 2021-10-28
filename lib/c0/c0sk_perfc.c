@@ -54,7 +54,7 @@ c0sk_perfc_init(void)
 
     err = perfc_ivl_create(PERFC_IVL_MAX, boundv, &ivl);
     if (err) {
-        hse_elog(HSE_WARNING "%s: unable to allocate pow2 ivl: @@e", err, __func__);
+        log_errx("unable to allocate pow2 ivl: @@e", err);
         return;
     }
 

@@ -133,9 +133,9 @@ spinlock_test_report(struct thread_test *stester, void *test_data, double elapse
         expected_value += ts->expected_value;
     }
 
-    hse_log(
-        HSE_INFO "Test: Threads=%d Iterations=%d Time=%f secs:"
-                 " EV=%d, Protected=%d UnProtected=%d\n",
+    log_info(
+        "Test: Threads=%d Iterations=%d Time=%f secs:"
+        " EV=%d, Protected=%d UnProtected=%d\n",
         stest_data->sltest_num_threads,
         stest_data->sltest_iters,
         elapsed_time,

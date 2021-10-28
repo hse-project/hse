@@ -262,9 +262,9 @@ insert_next(struct test *t)
 
     if (t->show_puts) {
         if (t->inserted < 20)
-            hse_log(HSE_INFO "put %12lu", item);
+            log_info("put %12lu", item);
         else if (t->inserted == 20)
-            hse_log(HSE_INFO "put ...");
+            log_info("put ...");
     }
     err = bin_heap_insert(t->bh, &item);
     ASSERT_FALSE(err);
@@ -350,12 +350,9 @@ UpAroundDown(struct test *t)
             dcnt = ins_tot - del_tot;
         }
 
-        hse_log(
-            HSE_INFO "add %lu (cursor=%lu); del %lu (cursor=%lu)",
-            icnt,
-            icnt + ins_tot,
-            dcnt,
-            dcnt + del_tot);
+        log_info("add %lu (cursor=%lu); del %lu (cursor=%lu)",
+                 icnt, icnt + ins_tot,
+                 dcnt, dcnt + del_tot);
 
         for (i = 0; i < icnt; i++)
             insert_next(t);
@@ -430,7 +427,7 @@ test_fini(struct test *t)
         };                                                                         \
         struct test test;                                                          \
                                                                                    \
-        hse_log(HSE_INFO "Test %s(seed=%lu count=%lu)", #NAME, tp.seed, tp.count); \
+        log_info("Test %s(seed=%lu count=%lu)", #NAME, tp.seed, tp.count);         \
         test_init(&test, &tp, lcl_ti);                                             \
         NAME(&test);                                                               \
         test_fini(&test);                                                          \

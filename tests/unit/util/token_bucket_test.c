@@ -35,12 +35,11 @@ tbkt_check_delay(struct mtf_test_info *lcl_ti, u64 delay, uint tolerance_pct, in
     result = (lo <= delay) && (delay <= hi);
 
     if (debug || !result) {
-        hse_log(
-            HSE_DEBUG "check %lu <= %lu <= %lu: %s",
-            (ulong)lo,
-            (ulong)delay,
-            (ulong)hi,
-            result ? "pass" : "FAILED");
+        log_debug("check %lu <= %lu <= %lu: %s",
+                  (ulong)lo,
+                  (ulong)delay,
+                  (ulong)hi,
+                  result ? "pass" : "FAILED");
     }
 
     ASSERT_LE_RET(lo, delay, -1);
@@ -64,7 +63,7 @@ tbkt_test(struct mtf_test_info *lcl_ti, u64 burst, u64 rate)
     ASSERT_GT_RET((u64)rate, (u64)0, -1);
 
     tbkt_init(&tb, burst, rate);
-    hse_log(HSE_DEBUG "burst %ld, rate %ld", burst, rate);
+    log_debug("burst %ld, rate %ld", burst, rate);
 
     /* Request up to 'burst' tokens without delay, start with small request,
      * make it bigger each time. */

@@ -48,19 +48,19 @@ init_rwsem(struct rw_semaphore *sem)
 
     rc = pthread_rwlockattr_init(&attr);
     if (rc)
-        hse_log(HSE_INFO "pthread_rwlockattr_init() failed: %d", rc);
+        log_err("pthread_rwlockattr_init() failed: %d", rc);
 
     rc = pthread_rwlockattr_setkind_np(&attr, PTHREAD_RWLOCK_PREFER_WRITER_NP);
     if (rc)
-        hse_log(HSE_INFO "pthread_rwlockattr_setkind_np() failed: %d", rc);
+        log_err("pthread_rwlockattr_setkind_np() failed: %d", rc);
 
     rc = pthread_rwlock_init(&tmp.rwsemlock, &attr);
     if (rc)
-        hse_log(HSE_INFO "pthread_rwlock_init() failed: %d", rc);
+        log_err("pthread_rwlock_init() failed: %d", rc);
 
     rc = pthread_rwlockattr_destroy(&attr);
     if (rc)
-        hse_log(HSE_INFO "pthread_rwlockattr_destroy() failed: %d", rc);
+        log_err("pthread_rwlockattr_destroy() failed: %d", rc);
 
     *sem = tmp;
 }
@@ -72,7 +72,7 @@ init_rwsem_reader(struct rw_semaphore *sem)
 
     rc = pthread_rwlock_init(&sem->rwsemlock, NULL);
     if (rc)
-        hse_log(HSE_INFO "pthread_rwlock_init() failed: %d", rc);
+        log_err("pthread_rwlock_init() failed: %d", rc);
 }
 
 static HSE_ALWAYS_INLINE void

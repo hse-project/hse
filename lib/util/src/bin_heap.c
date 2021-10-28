@@ -82,6 +82,7 @@ swap_items(struct bin_heap *bh, s32 a_index, s32 b_index)
     bh->bh_item_ptrs[b_index] = tmp;
 }
 
+#if HSE_MOCKING
 void
 bin_heap_print(struct bin_heap *bh, bool verbose, void (*printer)(const void *))
 {
@@ -94,11 +95,10 @@ bin_heap_print(struct bin_heap *bh, bool verbose, void (*printer)(const void *))
     assert(bh->bh_compare != NULL);
 
     if (verbose) {
-        hse_log(
-            HSE_INFO "binheap: %d items, %d allocated, size %d",
-            bh->bh_n_items,
-            bh->bh_max_items,
-            bh->bh_item_size);
+        log_info("%d items, %d allocated, size %d",
+                 bh->bh_n_items,
+                 bh->bh_max_items,
+                 bh->bh_item_size);
     }
 
     for (node = 0; node < bh->bh_n_items; node++) {
@@ -108,13 +108,11 @@ bin_heap_print(struct bin_heap *bh, bool verbose, void (*printer)(const void *))
         s32 right = BH_RIGHT(node);
 
         if (verbose) {
-            hse_log(
-                HSE_INFO "binheap: node[%3d] : Parent %3d, "
-                         "Left %3d, Right %3d :",
-                node,
-                node > 0 ? BH_PARENT(node) : 0,
-                BH_LEFT(node),
-                BH_RIGHT(node));
+            log_info("node[%3d] : Parent %3d, Left %3d, Right %3d :",
+                     node,
+                     node > 0 ? BH_PARENT(node) : 0,
+                     BH_LEFT(node),
+                     BH_RIGHT(node));
         }
 
         if (printer)
@@ -141,6 +139,7 @@ bin_heap_check(struct bin_heap *bh)
 {
     bin_heap_print(bh, false, NULL);
 }
+#endif
 
 void
 bin_heap_delete_top(struct bin_heap *bh)

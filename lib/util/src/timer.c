@@ -181,7 +181,7 @@ hse_timer_init(void)
      */
     timer_wq = alloc_workqueue("timer_wq", 0, 3);
     if (!timer_wq) {
-        hse_log(HSE_ERR "%s: alloc_workqueue failed", __func__);
+        log_err("unable to alloc timer_wq");
         return merr(ENOMEM);
     }
 
@@ -211,7 +211,7 @@ hse_timer_fini(void)
      */
     timer_lock();
     list_for_each_entry_safe (t, next, &timer_list, entry) {
-        hse_log(HSE_ERR "%s: timer %p abandoned, expires %lu\n", __func__, t, t->expires);
+        log_err("timer %p abandoned, expires %lu\n", t, t->expires);
     }
     timer_unlock();
 }

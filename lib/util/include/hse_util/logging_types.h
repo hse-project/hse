@@ -18,14 +18,14 @@ enum log_destination {
 #define LD_COUNT (LD_MAX + 1)
 
 typedef enum {
-    HSE_EMERG_VAL,
-    HSE_ALERT_VAL,
-    HSE_CRIT_VAL,
-    HSE_ERR_VAL,
-    HSE_WARNING_VAL,
-    HSE_NOTICE_VAL,
-    HSE_INFO_VAL,
-    HSE_DEBUG_VAL,
-} log_priority_t;
+    HSE_LOGPRI_EMERG,
+    HSE_LOGPRI_ALERT,
+    HSE_LOGPRI_CRIT,
+    HSE_LOGPRI_ERR,
+    HSE_LOGPRI_WARN,
+    HSE_LOGPRI_NOTICE,
+    HSE_LOGPRI_INFO,
+    HSE_LOGPRI_DEBUG
+} hse_logpri_t;
 
 #endif

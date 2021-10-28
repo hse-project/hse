@@ -403,8 +403,7 @@ bonsai_client_producer(void *arg)
         }
 
         if (err) {
-            hse_elog(HSE_ERR "%s: bn_insert %u/%u result @@e",
-                     err, __func__, i, key_current);
+            log_errx("bn_insert %u/%u result @@e", err, i, key_current);
             break;
         }
     }
@@ -476,7 +475,7 @@ bonsai_client_lcp_test(void *arg)
         key[KI_DLEN_MAX + 26] = 'a';
 
         if (err) {
-            hse_elog(HSE_ERR "lcp_test bn_insert %u result @@e", err, i);
+            log_errx("lcp_test bn_insert %u result @@e", err, i);
             assert(!err);
         }
     }
@@ -586,7 +585,7 @@ bonsai_client_consumer(void *arg)
                 break;
 
             if (!found) {
-                hse_log(HSE_ERR "key %u not found", i);
+                log_err("key %u not found", i);
                 break;
             }
         }
@@ -597,7 +596,7 @@ bonsai_client_consumer(void *arg)
     }
 
 #ifdef BONSAI_TREE_DEBUG
-    hse_log(HSE_INFO "Stopped consumer ... last key %u", i);
+    log_info("Stopped consumer ... last key %u", i);
 #endif
 
     BONSAI_RCU_UNREGISTER();
@@ -640,7 +639,7 @@ bonsai_client_multithread_test(enum bonsai_alloc_mode allocm)
 
     err = bn_create(cheap, bonsai_client_insert_callback, NULL, &broot);
     if (err) {
-        hse_log(HSE_ERR "Bonsai tree create failed");
+        log_err("Bonsai tree create failed");
         return err;
     }
 
@@ -683,7 +682,7 @@ bonsai_client_multithread_test(enum bonsai_alloc_mode allocm)
     }
 
 #ifdef BONSAI_TREE_DEBUG
-    hse_log(HSE_INFO "Before teardown noded added %ld removed %ld", client.bnc_add, client.bnc_del);
+    log_info("Before teardown noded added %ld removed %ld", client.bnc_add, client.bnc_del);
 #endif
 
     rcu_barrier();
@@ -702,7 +701,7 @@ bonsai_client_multithread_test(enum bonsai_alloc_mode allocm)
             if (random_number)
                 continue;
 
-            hse_log(HSE_ERR "Key %u (%x) not found", i, *key);
+            log_err("Key %u (%x) not found", i, *key);
             rc = ENOENT;
             break;
         }
@@ -710,7 +709,7 @@ bonsai_client_multithread_test(enum bonsai_alloc_mode allocm)
         /* Verify that the first key_current items are in order.
          */
         if (kvnext != kv) {
-            hse_log(HSE_ERR "Key %u (%x) not found in sorted list", i, *key);
+            log_err("Key %u (%x) not found in sorted list", i, *key);
             rc = EINVAL;
             break;
         }
@@ -740,8 +739,8 @@ bonsai_client_multithread_test(enum bonsai_alloc_mode allocm)
             ++k;
         }
 
-        hse_log(HSE_DEBUG "%s: %d %d %d, key_current %d, rand %d",
-                __func__, i, j, k, key_current, random_number);
+        log_debug("%d %d %d, key_current %d, rand %d",
+                  i, j, k, key_current, random_number);
         assert(j == k);
     }
 
@@ -750,7 +749,7 @@ bonsai_client_multithread_test(enum bonsai_alloc_mode allocm)
 #endif
 
 #ifdef BONSAI_TREE_DEBUG
-    hse_log(HSE_INFO "Tree height %d", bn_height_get(broot.br_root));
+    log_info("Tree height %d", bn_height_get(broot.br_root));
 #endif
 
     bn_destroy(broot);
@@ -803,7 +802,7 @@ bonsai_client_singlethread_test(enum bonsai_alloc_mode allocm)
 
     err = bn_create(cheap, bonsai_client_insert_callback, NULL, &broot);
     if (err) {
-        hse_log(HSE_ERR "Bonsai tree create failed");
+        log_errx("Bonsai tree create failed: @@e", err);
         return err;
     }
 
@@ -818,7 +817,7 @@ bonsai_client_singlethread_test(enum bonsai_alloc_mode allocm)
             rcu_read_unlock();
 
             if (err) {
-                hse_log(HSE_ERR "Inserting %ld result %d", a[i], merr_errno(err));
+                log_errx("Inserting %ld result %d: @@e", err, a[i], merr_errno(err));
                 assert(merr_errno(err) != EEXIST);
                 break;
             }
@@ -837,7 +836,7 @@ bonsai_client_singlethread_test(enum bonsai_alloc_mode allocm)
         found = bn_find(broot, &skey, &kv);
         if (!found) {
             rcu_read_unlock();
-            hse_log(HSE_ERR "Finding %ld result %d", a[i], found);
+            log_err("Finding %ld result %d", a[i], found);
             break;
         }
 
@@ -1032,10 +1031,10 @@ MTF_DEFINE_UTEST_PREPOST(bonsai_tree_test, insdel, no_fail_pre, no_fail_post)
         bn_traverse(tree);
         rcu_read_unlock();
 
-        hse_log(HSE_NOTICE "%s: %7u: height %2u %2u, ins %6u, del %6u, %lu ns/insdel\n",
-                __func__, maxkeys, tree->br_height,
-                tree->br_root ? tree->br_root->bn_height : 0,
-                ninserted, ndeleted, tstart / itermax);
+        log_info("%7u: height %2u %2u, ins %6u, del %6u, %lu ns/insdel\n",
+                 maxkeys, tree->br_height,
+                 tree->br_root ? tree->br_root->bn_height : 0,
+                 ninserted, ndeleted, tstart / itermax);
 
         /* Remove all the keys that we think are in the tree...
          */
@@ -1087,13 +1086,11 @@ MTF_DEFINE_UTEST_PREPOST(bonsai_tree_test, producer_test, no_fail_pre, no_fail_p
     ASSERT_EQ(0, bonsai_client_multithread_test(allocm));
 
 #ifdef BONSAI_TREE_DEBUG
-    hse_log(
-        HSE_INFO "Run time %d seconds consumers %d "
-                 "producers %d last key %ld",
-        runtime_insecs,
-        num_consumers,
-        num_producers,
-        key_current);
+    log_info("Run time %d seconds consumers %d producers %d last key %ld",
+             runtime_insecs,
+             num_consumers,
+             num_producers,
+             key_current);
 #endif
 }
 

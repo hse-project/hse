@@ -200,9 +200,9 @@ restart:
 
 #ifndef NDEBUG
     if (atomic64_inc_return(&wb->wb_flushc) % 1536 == 0)
-        hse_log(HSE_DEBUG "Flush stats: coff %lu,%lu foff %lu doff %lu igen %lu",
-                atomic64_read(&wb->wb_offset_head), atomic64_read(&wb->wb_offset_tail),
-                foff, atomic64_read(&wb->wb_doff), atomic64_read(wb->wb_bs->wbs_ingestgen));
+        log_debug("Flush stats: coff %lu,%lu foff %lu doff %lu igen %lu",
+                  atomic64_read(&wb->wb_offset_head), atomic64_read(&wb->wb_offset_tail),
+                  foff, atomic64_read(&wb->wb_doff), atomic64_read(wb->wb_bs->wbs_ingestgen));
 #endif
 
 exit:
@@ -310,9 +310,9 @@ wal_bufset_stats_dump(struct wal_bufset *wbs)
     for (int i = 0; i < wbs->wbs_bufc; ++i) {
         struct wal_buffer *wb = wbs->wbs_bufv + i;
 
-        hse_log(HSE_DEBUG "WAL closing - Offsets (%d - %lu, %lu : %lu : %lu)",
-                i, atomic64_read(&wb->wb_offset_head), atomic64_read(&wb->wb_offset_tail),
-                atomic64_read(&wb->wb_foff), atomic64_read(&wb->wb_doff));
+        log_debug("WAL closing - Offsets (%d - %lu, %lu : %lu : %lu)",
+                  i, atomic64_read(&wb->wb_offset_head), atomic64_read(&wb->wb_offset_tail),
+                  atomic64_read(&wb->wb_foff), atomic64_read(&wb->wb_doff));
     }
 }
 #endif

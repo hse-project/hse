@@ -130,7 +130,7 @@ MTF_DEFINE_UTEST(timer_test, timer_test_basic)
                 break;
 
             del_timer(&cb.timer);
-            hse_log(HSE_ERR "%s: %lu %lu", __func__, jlast, jiffies);
+            log_err("%lu %lu", jlast, jiffies);
         }
 
         retries = 3000;
@@ -146,7 +146,7 @@ MTF_DEFINE_UTEST(timer_test, timer_test_basic)
         tdiff = cb.tdispatch - cb.tinit;
 
         if (tdiff < i * 10000 || tdiff > (i + 1) * 10000)
-            hse_log(HSE_ERR "%s: %lu %lu %lu %d", __func__, cb.tinit, cb.tdispatch, tdiff, i);
+            log_err("%lu %lu %lu %d", cb.tinit, cb.tdispatch, tdiff, i);
         ASSERT_GE(tdiff, i * 10000);
     }
 }

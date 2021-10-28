@@ -947,7 +947,7 @@ kblock_finish(struct kblock_builder *bld, struct wbb *ptree)
 
     kblocksz = bld->rp->kblock_size;
     if (wlen > kblocksz) {
-        hse_log(HSE_DEBUG "wlen %lu kblocksz %lu", wlen, kblocksz);
+        log_debug("BUG: wlen %lu kblocksz %lu", wlen, kblocksz);
         assert(wlen <= kblocksz);
         err = merr(EBUG);
         goto errout;

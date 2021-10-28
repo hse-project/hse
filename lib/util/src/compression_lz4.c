@@ -85,8 +85,8 @@ compress_lz4_decompress(
      * (i.e., any version prior to v1.9.2).
      */
     if (HSE_UNLIKELY( len < 1 )) {
-        hse_log(HSE_ERR "%s: slen %u, cap %u, len %d, src %p, dst %p, ver %s",
-                __func__, src_len, dst_capacity, len, src, dst, LZ4_versionString());
+        log_err("slen %u, cap %u, len %d, src %p, dst %p, ver %s",
+                src_len, dst_capacity, len, src, dst, LZ4_versionString());
 
         return merr(EFBIG);
     }

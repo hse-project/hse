@@ -223,7 +223,7 @@ ikvdb_perfc_alloc(struct ikvdb_impl *self)
     err = perfc_ctrseti_alloc(self->ikdb_rp.perfc_level, self->ikdb_home,
                               ctxn_perfc_op, PERFC_EN_CTXNOP, "set", &self->ikdb_ctxn_op);
     if (err)
-        hse_elog(HSE_ERR "cannot alloc ctxn op perf counters for %s: @@e", err, self->ikdb_home);
+        log_warnx("cannot alloc ctxn op perf counters for %s: @@e", err, self->ikdb_home);
 }
 
 static void
@@ -374,7 +374,7 @@ ikvdb_storage_add(const char *kvdb_home, struct kvdb_cparams *params)
         return err;
 
     if (meta.km_omf_version != GLOBAL_OMF_VERSION) {
-        hse_log(HSE_ERR "Mismatched global OMF version: %u != %u", meta.km_omf_version, GLOBAL_OMF_VERSION);
+        log_err("Mismatched global OMF version: %u != %u", meta.km_omf_version, GLOBAL_OMF_VERSION);
         err = merr(EPROTO);
         return err;
     }
@@ -508,9 +508,9 @@ ikvdb_rate_limit_set(struct ikvdb_impl *self, u64 rate)
             long dbg_bytes = atomic64_read(&self->ikdb_tb_dbg_bytes);
             long dbg_sleep_ns = atomic64_read(&self->ikdb_tb_dbg_sleep_ns);
 
-            hse_log(
-                HSE_NOTICE " tbkt_debug: manual %d shunt %d ops %8ld  bytes %10ld"
-                           " sleep_ns %12ld burst %10lu rate %10lu raw %10u",
+            log_info(
+                "tbkt_debug: manual %d shunt %d ops %8ld  bytes %10ld"
+                " sleep_ns %12ld burst %10lu rate %10lu raw %10u",
                 (bool)(self->ikdb_tb_dbg & THROTTLE_DEBUG_TB_MANUAL),
                 (bool)(self->ikdb_tb_dbg & THROTTLE_DEBUG_TB_SHUNT),
                 dbg_ops,
@@ -588,11 +588,8 @@ ikvdb_maint_task(struct work_struct *work)
             atomic_set(&self->ikdb_curcnt, curcnt);
 
             if (ev(curcnt > self->ikdb_curcnt_max && tstart > curcnt_warn)) {
-                hse_log(
-                    HSE_WARNING "%s: active cursors (%lu) > max allowed (%u)",
-                    __func__,
-                    curcnt,
-                    self->ikdb_curcnt_max);
+                log_warn("active cursors (%lu) > max allowed (%u)",
+                         curcnt, self->ikdb_curcnt_max);
 
                 curcnt_warn = tstart + NSEC_PER_SEC * 15;
             }
@@ -776,7 +773,7 @@ ikvdb_diag_open(
         goto self_cleanup;
 
     if (meta.km_omf_version != GLOBAL_OMF_VERSION) {
-        hse_log(HSE_ERR "Mismatched global OMF version: %u != %u", meta.km_omf_version, GLOBAL_OMF_VERSION);
+        log_err("Mismatched global OMF version: %u != %u", meta.km_omf_version, GLOBAL_OMF_VERSION);
         err = merr(EPROTO);
         goto self_cleanup;
     }
@@ -885,16 +882,15 @@ ikvdb_rest_register(struct ikvdb_impl *self, struct ikvdb *handle)
     for (i = 0; i < self->ikdb_kvs_cnt; i++) {
         err = kvs_rest_register(self->ikdb_kvs_vec[i]->kk_name, self->ikdb_kvs_vec[i]);
         if (err)
-            hse_elog(
-                HSE_WARNING "%s/%s REST registration failed: @@e",
-                err,
-                self->ikdb_home,
-                self->ikdb_kvs_vec[i]->kk_name);
+            log_warnx("%s/%s REST registration failed: @@e",
+                      err,
+                      self->ikdb_home,
+                      self->ikdb_kvs_vec[i]->kk_name);
     }
 
     err = kvdb_rest_register(handle);
     if (err)
-        hse_elog(HSE_WARNING "%s REST registration failed: @@e", err, self->ikdb_home);
+        log_warnx("%s REST registration failed: @@e", err, self->ikdb_home);
 }
 
 /**
@@ -910,21 +906,21 @@ ikvdb_maint_start(struct ikvdb_impl *self)
     self->ikdb_workqueue = alloc_workqueue("kvdb_maint", 0, 3);
     if (!self->ikdb_workqueue) {
         err = merr(ENOMEM);
-        hse_elog(HSE_ERR "%s cannot start kvdb maintenance", err, self->ikdb_home);
+        log_errx("%s cannot start kvdb maintenance", err, self->ikdb_home);
         return err;
     }
 
     INIT_WORK(&self->ikdb_maint_work, ikvdb_maint_task);
     if (!queue_work(self->ikdb_workqueue, &self->ikdb_maint_work)) {
         err = merr(EBUG);
-        hse_elog(HSE_ERR "%s cannot start kvdb maintenance", err, self->ikdb_home);
+        log_errx("%s cannot start kvdb maintenance", err, self->ikdb_home);
         return err;
     }
 
     INIT_WORK(&self->ikdb_throttle_work, ikvdb_throttle_task);
     if (!queue_work(self->ikdb_workqueue, &self->ikdb_throttle_work)) {
         err = merr(EBUG);
-        hse_elog(HSE_ERR "%s cannot start kvdb throttle", err, self->ikdb_home);
+        log_errx("%s cannot start kvdb throttle", err, self->ikdb_home);
         return err;
     }
 
@@ -1035,7 +1031,7 @@ ikvdb_lowmem_adjust(struct ikvdb_impl *self, ulong memgb)
     if (memgb > HSE_LOWMEM_THRESHOLD_GB_DFLT)
         return;
 
-    hse_log(HSE_NOTICE "Configuring %s for %lu GiB memory", self->ikdb_home, memgb);
+    log_info("Configuring %s for %lu GiB memory", self->ikdb_home, memgb);
 
     scale = ikvdb_lowmem_scale(memgb);
 
@@ -1046,10 +1042,10 @@ ikvdb_lowmem_adjust(struct ikvdb_impl *self, ulong memgb)
     if (rp->c0_ingest_width == rpdef.c0_ingest_width)
         rp->c0_ingest_width = HSE_C0_INGEST_WIDTH_MIN;
 
-    hse_log(HSE_DEBUG "Low mem config settings for %s: c0kvs_cache %lu c0kvs_cheap %lu "
-            "c0_width %u dur_bufsz_mb %u vlb cache %lu",
-            self->ikdb_home, hse_gparams.gp_c0kvs_ccache_sz_max, hse_gparams.gp_c0kvs_cheap_sz,
-            rp->c0_ingest_width, rp->dur_bufsz_mb, hse_gparams.gp_vlb_cache_sz);
+    log_debug("Low mem config settings for %s: c0kvs_cache %lu c0kvs_cheap %lu "
+              "c0_width %u dur_bufsz_mb %u vlb cache %lu",
+              self->ikdb_home, hse_gparams.gp_c0kvs_ccache_sz_max, hse_gparams.gp_c0kvs_cheap_sz,
+              rp->c0_ingest_width, rp->dur_bufsz_mb, hse_gparams.gp_vlb_cache_sz);
 }
 
 static void
@@ -1134,7 +1130,7 @@ ikvdb_open(
 
     err = ikvdb_alloc(kvdb_home, params, &self);
     if (err) {
-        hse_elog(HSE_ERR "cannot open %s: @@e", err, kvdb_home);
+        log_errx("cannot open %s: @@e", err, kvdb_home);
         return err;
     }
 
@@ -1143,12 +1139,12 @@ ikvdb_open(
 
     err = kvdb_meta_deserialize(&meta, kvdb_home);
     if (ev(err)) {
-        hse_elog(HSE_ERR "cannot open %s: @@e", err, kvdb_home);
+        log_errx("cannot open %s: @@e", err, kvdb_home);
         goto out;
     }
 
     if (meta.km_omf_version != GLOBAL_OMF_VERSION) {
-        hse_log(HSE_ERR "Mismatched global OMF version: %u != %u", meta.km_omf_version, GLOBAL_OMF_VERSION);
+        log_err("Mismatched global OMF version: %u != %u", meta.km_omf_version, GLOBAL_OMF_VERSION);
         err = merr(EPROTO);
         goto out;
     }
@@ -1198,7 +1194,7 @@ ikvdb_open(
             &self->ikdb_health,
             &self->ikdb_csched);
         if (err) {
-            hse_elog(HSE_ERR "cannot open %s: @@e", err, kvdb_home);
+            log_errx("cannot open %s: @@e", err, kvdb_home);
             goto out;
         }
     }
@@ -1216,7 +1212,7 @@ ikvdb_open(
     err = kvdb_ctxn_set_create(
         &self->ikdb_ctxn_set, self->ikdb_rp.txn_timeout, self->ikdb_rp.txn_wkth_delay);
     if (err) {
-        hse_elog(HSE_ERR "cannot open %s: @@e", err, kvdb_home);
+        log_errx("cannot open %s: @@e", err, kvdb_home);
         goto out;
     }
 
@@ -1224,19 +1220,19 @@ ikvdb_open(
 
     err = viewset_create(&self->ikdb_txn_viewset, &self->ikdb_seqno, tseqnop);
     if (err) {
-        hse_elog(HSE_ERR "cannot open %s: @@e", err, kvdb_home);
+        log_errx("cannot open %s: @@e", err, kvdb_home);
         goto out;
     }
 
     err = viewset_create(&self->ikdb_cur_viewset, &self->ikdb_seqno, tseqnop);
     if (err) {
-        hse_elog(HSE_ERR "cannot open %s: @@e", err, kvdb_home);
+        log_errx("cannot open %s: @@e", err, kvdb_home);
         goto out;
     }
 
     err = kvdb_keylock_create(&self->ikdb_keylock, params->keylock_tables);
     if (err) {
-        hse_elog(HSE_ERR "cannot open %s: @@e", err, kvdb_home);
+        log_errx("cannot open %s: @@e", err, kvdb_home);
         goto out;
     }
 
@@ -1249,7 +1245,7 @@ ikvdb_open(
 
     err = ikvdb_cndb_open(self, &seqno, &ingestid, &txhorizon);
     if (err) {
-        hse_elog(HSE_ERR "cannot open %s: @@e", err, kvdb_home);
+        log_errx("cannot open %s: @@e", err, kvdb_home);
         goto out;
     }
 
@@ -1259,19 +1255,19 @@ ikvdb_open(
 
     err = c0snr_set_create(&self->ikdb_c0snr_set);
     if (err) {
-        hse_elog(HSE_ERR "cannot open %s: @@e", err, kvdb_home);
+        log_errx("cannot open %s: @@e", err, kvdb_home);
         goto out;
     }
 
     err = cn_kvdb_create(&self->ikdb_cn_kvdb);
     if (err) {
-        hse_elog(HSE_ERR "cannot open %s: @@e", err, kvdb_home);
+        log_errx("cannot open %s: @@e", err, kvdb_home);
         goto out;
     }
 
     err = lc_create(&self->ikdb_lc, &self->ikdb_health);
     if (ev(err)) {
-        hse_elog(HSE_ERR "failed to create lc: @@e", err);
+        log_errx("failed to create lc: @@e", err);
         goto out;
     }
 
@@ -1288,7 +1284,7 @@ ikvdb_open(
         gen,
         &self->ikdb_c0sk);
     if (err) {
-        hse_elog(HSE_ERR "cannot open %s: @@e", err, kvdb_home);
+        log_errx("cannot open %s: @@e", err, kvdb_home);
         goto out;
     }
 
@@ -1303,7 +1299,7 @@ ikvdb_open(
     err = wal_open(self->ikdb_mp, &self->ikdb_rp, &rinfo, &self->ikdb_handle, &self->ikdb_health,
                    &self->ikdb_wal);
     if (err) {
-        hse_elog(HSE_ERR "cannot open %s: @@e", err, kvdb_home);
+        log_errx("cannot open %s: @@e", err, kvdb_home);
         goto out;
     }
 
@@ -1316,7 +1312,7 @@ ikvdb_open(
     if (!self->ikdb_read_only) {
         err = ikvdb_maint_start(self);
         if (err) {
-            hse_elog(HSE_ERR "cannot open %s: @@e", err, kvdb_home);
+            log_errx("cannot open %s: @@e", err, kvdb_home);
             goto out;
         }
     }
@@ -1584,8 +1580,7 @@ ikvdb_kvs_create(struct ikvdb *handle, const char *kvs_name, const struct kvs_cp
      */
     err = kvs_rest_register(self->ikdb_kvs_vec[idx]->kk_name, self->ikdb_kvs_vec[idx]);
     if (ev(err))
-        hse_elog(
-            HSE_WARNING "rest: %s registration failed: @@e", err, self->ikdb_kvs_vec[idx]->kk_name);
+        log_warnx("rest: %s registration failed: @@e", err, self->ikdb_kvs_vec[idx]->kk_name);
 
     return 0;
 
@@ -2855,7 +2850,7 @@ ikvdb_wal_replay_open(struct ikvdb *ikvdb, struct ikvdb_kvs_hdl **ikvsh_out)
     for (i = 0; i < kvshc; i++) {
         err = ikvdb_kvs_open(ikvdb, knamev[i], &params, IKVS_OFLAG_REPLAY, &kvshv[i]);
         if (err) {
-            hse_elog(HSE_WARNING "ikvdb_kvs_open %s: @@e", err, knamev[i]);
+            log_warnx("ikvdb_kvs_open %s: @@e", err, knamev[i]);
             break;
         }
     }
@@ -3061,8 +3056,8 @@ ikvdb_wal_replay_size_set(struct ikvdb *ikvdb, struct ikvdb_kvs_hdl *ikvsh, uint
     if (scale > 1) {
         cheap_sz = scale * ikvsh->cheap_sz;
 
-        hse_log(HSE_NOTICE "WAL replay: Setting c0kvms cheap size from %lu to %lu",
-                ikvsh->cheap_sz, cheap_sz);
+        log_info("WAL replay: Setting c0kvms cheap size from %lu to %lu",
+                 ikvsh->cheap_sz, cheap_sz);
 
         c0kvs_reinit_force(0, cheap_sz);
         ikvsh->needs_reset = true;
@@ -3079,7 +3074,7 @@ ikvdb_wal_replay_size_reset(struct ikvdb_kvs_hdl *ikvsh)
     assert(ikvsh);
 
     if (ikvsh->needs_reset) {
-        hse_log(HSE_NOTICE "WAL replay: Resetting c0kvms cheap size back to %lu", ikvsh->cheap_sz);
+        log_info("WAL replay: Resetting c0kvms cheap size back to %lu", ikvsh->cheap_sz);
         c0kvs_reinit_force(ikvsh->cache_sz, ikvsh->cheap_sz);
     }
 
@@ -3096,6 +3091,7 @@ static void
 kvdb_perfc_initialize(void)
 {
     uint prio = hse_gparams.gp_perfc_level;
+    merr_t err;
 
     kvdb_perfc_init();
     kvs_perfc_init();
@@ -3103,20 +3099,24 @@ kvdb_perfc_initialize(void)
     cn_perfc_init();
     throttle_perfc_init();
 
-    if (perfc_ctrseti_alloc(prio, "global", kvdb_perfc_op, PERFC_EN_KVDBOP, "set", &kvdb_pc))
-        hse_log(HSE_ERR "cannot alloc kvdb op perf counters");
+    err = perfc_ctrseti_alloc(prio, "global", kvdb_perfc_op, PERFC_EN_KVDBOP, "set", &kvdb_pc);
+    if (err)
+        log_warnx("cannot alloc kvdb op perf counters: @@e", err);
 
-    if (perfc_ctrseti_alloc(
-            prio, "global", kvdb_perfc_pkvdbl_op, PERFC_EN_PKVDBL, "set", &kvdb_pkvdbl_pc))
-        hse_log(HSE_ERR "cannot alloc kvdb public op perf counters");
+    err = perfc_ctrseti_alloc(prio, "global", kvdb_perfc_pkvdbl_op,
+                              PERFC_EN_PKVDBL, "set", &kvdb_pkvdbl_pc);
+    if (err)
+        log_warnx("cannot alloc kvdb public op perf counters: @@e", err);
 
-    if (perfc_ctrseti_alloc(
-            prio, "global", c0_metrics_perfc, PERFC_EN_C0METRICS, "set", &c0_metrics_pc))
-        hse_log(HSE_ERR "cannot alloc c0 metrics perf counters");
+    err = perfc_ctrseti_alloc(prio, "global", c0_metrics_perfc,
+                              PERFC_EN_C0METRICS, "set", &c0_metrics_pc);
+    if (err)
+        log_warnx("cannot alloc c0 metrics perf counters: @@e", err);
 
-    if (perfc_ctrseti_alloc(
-            prio, "global", kvdb_metrics_perfc, PERFC_EN_KVDBMETRICS, "set", &kvdb_metrics_pc))
-        hse_log(HSE_ERR "cannot alloc kvdb metrics perf counters");
+    err = perfc_ctrseti_alloc(prio, "global", kvdb_metrics_perfc,
+                              PERFC_EN_KVDBMETRICS, "set", &kvdb_metrics_pc);
+    if (err)
+        log_warnx("cannot alloc kvdb metrics perf counters: @@e", err);
 }
 
 static void

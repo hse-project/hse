@@ -39,7 +39,7 @@ test_set_create(int num_entries, u32 seed)
     int              i;
 
     if (num_entries < 0 || num_entries > 100000) {
-        hse_log(HSE_ERR "num_entries out of range!\n");
+        log_err("num_entries out of range!\n");
         exit(-1);
     }
 
@@ -47,7 +47,7 @@ test_set_create(int num_entries, u32 seed)
 
     ts = calloc(1, sizeof(struct test_set));
     if (!ts) {
-        hse_log(HSE_ERR "OUT OF MEMORY!\n");
+        log_err("OUT OF MEMORY!\n");
         exit(-1);
     }
 
@@ -56,7 +56,7 @@ test_set_create(int num_entries, u32 seed)
     ts->shuffled_keys = calloc(num_entries, sizeof(int));
 
     if (!ts->ordered_keys || !ts->shuffled_keys) {
-        hse_log(HSE_ERR "OUT OF MEMORY!\n");
+        log_err("OUT OF MEMORY!\n");
         exit(-1);
     }
 
@@ -95,11 +95,11 @@ test_set_print(struct test_set *ts)
 {
     int i;
 
-    hse_log(HSE_INFO "Test set: %d entries\n", ts->num_entries);
-    hse_log(HSE_INFO "  %3s: %12s  %12s\n", "i", "ordered", "shuffled");
+    log_info("Test set: %d entries\n", ts->num_entries);
+    log_info("  %3s: %12s  %12s\n", "i", "ordered", "shuffled");
 
     for (i = 0; i < ts->num_entries; i++) {
-        hse_log(HSE_INFO "  %03d: %12d  %12d\n", i, ts->ordered_keys[i], ts->shuffled_keys[i]);
+        log_info("  %03d: %12d  %12d\n", i, ts->ordered_keys[i], ts->shuffled_keys[i]);
     }
 }
 
@@ -125,7 +125,7 @@ insert(int key, bool expect_success, struct mtf_test_info *lcl_ti)
     bool found = false;
 
     if (verbose)
-        hse_log(HSE_INFO "put %d -> %08x\n", key, value);
+        log_info("put %d -> %08x\n", key, value);
 
     while (*link) {
         struct entry *e;
@@ -166,7 +166,7 @@ _remove_entry(int key, bool expect_success, int value, struct mtf_test_info *lcl
     /* Needed for ASSERT* macros */
 
     if (verbose)
-        hse_log(HSE_INFO "remove %d %d\n", key, expect_success);
+        log_info("remove %d %d\n", key, expect_success);
 
     while (node) {
         entry = rb_entry(node, struct entry, entry_node);
@@ -204,7 +204,7 @@ lookup(int key, bool expect_success, struct mtf_test_info *lcl_ti)
     bool            found = false;
 
     if (verbose)
-        hse_log(HSE_INFO "lookup %d %d\n", key, expect_success);
+        log_info("lookup %d %d\n", key, expect_success);
 
     while (node) {
         entry = rb_entry(node, struct entry, entry_node);
@@ -236,7 +236,7 @@ replace(int key, int new_value, struct mtf_test_info *lcl_ti)
     bool            found = false;
 
     if (verbose)
-        hse_log(HSE_INFO "replace %d\n", key);
+        log_info("replace %d\n", key);
 
     while (node) {
         entry = rb_entry(node, struct entry, entry_node);
@@ -275,8 +275,8 @@ print_tree(void)
          node;
          node = rb_next(node), i++) {
         entry = rb_entry(node, struct entry, entry_node);
-        hse_log(HSE_INFO "%d: key %d val %08x\n",
-            i, entry->key, entry->value);
+        log_info("%d: key %d val %08x\n",
+                 i, entry->key, entry->value);
     }
 }
 #endif

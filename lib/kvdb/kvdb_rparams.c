@@ -208,7 +208,9 @@ mclass_policies_default_builder(const struct param_spec *ps, void *data)
          i++) {
         const size_t HSE_MAYBE_UNUSED sz =
             strlcpy(mclass_policies[i].mc_name, HSE_MPOLICY_DEFAULT_NAME, HSE_MPOLICY_NAME_LEN_MAX);
+
         assert(sz == strlen(HSE_MPOLICY_DEFAULT_NAME));
+
         for (int age = 0; age < (int)HSE_MPOLICY_AGE_CNT; age++) {
             for (int dtype = 0; dtype < (int)HSE_MPOLICY_DTYPE_CNT; dtype++) {
                 if (age != (int)HSE_MPOLICY_AGE_ROOT && dtype == (int)HSE_MPOLICY_DTYPE_VALUE) {
@@ -255,6 +257,7 @@ mclass_policies_converter(const struct param_spec *ps, const cJSON *node, void *
         /* Make sure there are no unknown keys */
         for (cJSON *n = policy_json->child; n; n = n->next) {
             bool found = false;
+
             for (size_t i = 0; i < NELEM(policy_allowed_keys); i++) {
                 if (!strcmp(policy_allowed_keys[i], n->string)) {
                     found = true;
@@ -262,35 +265,28 @@ mclass_policies_converter(const struct param_spec *ps, const cJSON *node, void *
                 }
             }
             if (!found) {
-                hse_log(
-                    HSE_ERR "Unknown key in mclass policy object: %s",
-                    n->string);
+                log_err("Unknown key in mclass policy object: %s", n->string);
                 return false;
             }
         }
 
         const cJSON *policy_name_json = cJSON_GetObjectItemCaseSensitive(policy_json, "name");
         if (!policy_name_json || !cJSON_IsString(policy_name_json)) {
-            hse_log(
-                HSE_ERR
-                "Key 'name' in media class policy object must be a string");
+            log_err("Key 'name' in media class policy object must be a string");
             return false;
         }
+
         const cJSON *policy_config_json = cJSON_GetObjectItemCaseSensitive(policy_json, "config");
         if (!policy_config_json || !cJSON_IsObject(policy_config_json)) {
-            hse_log(
-                HSE_ERR "Key 'config' in media class policy object must be "
-                        "an object");
+            log_err("Key 'config' in media class policy object must be an object");
             return false;
         }
 
         const char *policy_name = cJSON_GetStringValue(policy_name_json);
         if (strlen(policy_name) >= HSE_MPOLICY_NAME_LEN_MAX) {
-            hse_log(
-                HSE_ERR
-                "Length of media class policy name '%s' is greater than %d",
-                policy_name,
-                HSE_MPOLICY_NAME_LEN_MAX - 1);
+            log_err("Length of media class policy name '%s' is greater than %d",
+                    policy_name,
+                    HSE_MPOLICY_NAME_LEN_MAX - 1);
             return false;
         }
 
@@ -299,9 +295,7 @@ mclass_policies_converter(const struct param_spec *ps, const cJSON *node, void *
         for (cJSON *agegroup_json = policy_config_json->child; agegroup_json;
              agegroup_json = agegroup_json->next) {
             if (!cJSON_IsObject(agegroup_json)) {
-                hse_log(
-                    HSE_ERR
-                    "Media class policy age group must be an object");
+                log_err("Media class policy age group must be an object");
                 return false;
             }
 
@@ -313,18 +307,15 @@ mclass_policies_converter(const struct param_spec *ps, const cJSON *node, void *
                 }
             }
             if (agegroup == -1) {
-                hse_log(
-                    HSE_ERR "Invalid media class policy age group: %s, must be one of sync, root, internal, or leaf",
-                    agegroup_json->string);
+                log_err("Invalid media class policy age group: %s, must be one of sync, root, internal, or leaf",
+                        agegroup_json->string);
                 return false;
             }
 
             for (cJSON *dtype_json = agegroup_json->child; dtype_json;
                  dtype_json = dtype_json->next) {
                 if (!cJSON_IsArray(dtype_json)) {
-                    hse_log(
-                        HSE_ERR
-                        "Media class policy data type must be an array");
+                    log_err("Media class policy data type must be an array");
                     return false;
                 }
 
@@ -336,27 +327,22 @@ mclass_policies_converter(const struct param_spec *ps, const cJSON *node, void *
                     }
                 }
                 if (dtype == -1) {
-                    hse_log(
-                        HSE_ERR "Invalid media class policy data type: %s, must be one of key or value",
-                        dtype_json->string);
+                    log_err("Invalid media class policy data type: %s, must be one of key or value",
+                            dtype_json->string);
                     return false;
                 }
 
                 const int sz = cJSON_GetArraySize(dtype_json);
                 if (sz > HSE_MPOLICY_MEDIA_CNT) {
-                    hse_log(
-                        HSE_ERR "Too many items in media class policy data "
-                                "type array (max = %d)",
-                        HSE_MPOLICY_MEDIA_CNT);
+                    log_err("Too many items in media class policy data type array (max = %d)",
+                            HSE_MPOLICY_MEDIA_CNT);
                     return false;
                 }
 
                 for (int j = 0; j < sz; j++) {
                     const cJSON *media_json = cJSON_GetArrayItem(dtype_json, j);
                     if (!cJSON_IsString(media_json)) {
-                        hse_log(
-                            HSE_ERR "Item in media class policy data type "
-                                    "array is not a string");
+                        log_err("Item in media class policy data type array is not a string");
                         return false;
                     }
 
@@ -369,11 +355,9 @@ mclass_policies_converter(const struct param_spec *ps, const cJSON *node, void *
                         }
                     }
                     if (media == -1) {
-                        hse_log(
-                            HSE_ERR
-                            "Unknown media class in media class policy "
-                            "data type array: %s, must be one of capacity or staging",
-                            ctx);
+                        log_err("Unknown media class in media class policy "
+                                "data type array: %s, must be one of capacity or staging",
+                                ctx);
                         return false;
                     }
 
@@ -389,11 +373,11 @@ mclass_policies_converter(const struct param_spec *ps, const cJSON *node, void *
 static bool
 mclass_policies_validator(const struct param_spec *ps, const void *data)
 {
-    assert(ps);
-    assert(data);
-
     const struct mclass_policy *policies = data;
     unsigned int                times_matched[HSE_MPOLICY_COUNT] = { 0 };
+
+    assert(ps);
+    assert(data);
 
     /* Make sure all policies have unique names */
     for (size_t i = 0; i < ps->ps_bounds.as_array.ps_max_len; i++) {
@@ -407,9 +391,7 @@ mclass_policies_validator(const struct param_spec *ps, const void *data)
                 times_matched[i]++;
 
             if (times_matched[i] > 1) {
-                hse_log(
-                    HSE_ERR "Duplicate media class policy name found: %s",
-                    policies[i].mc_name);
+                log_err("Duplicate media class policy name found: %s", policies[i].mc_name);
                 return false;
             }
         }
@@ -424,7 +406,9 @@ dur_mclass_converter(
     const cJSON *const             node,
     void *const                    data)
 {
-    static const char *mclasses[MP_MED_COUNT] = { MP_MED_NAME_CAPACITY, MP_MED_NAME_STAGING };
+    static const char *mclasses[MP_MED_COUNT] = {
+        MP_MED_NAME_CAPACITY, MP_MED_NAME_STAGING
+    };
 
     assert(ps);
     assert(node);
@@ -434,6 +418,7 @@ dur_mclass_converter(
         return false;
 
     const char *value = cJSON_GetStringValue(node);
+
     for (size_t i = 0; i < NELEM(mclasses); i++) {
         if (!strcmp(mclasses[i], value)) {
             *(enum mpool_mclass *)data = i;
@@ -441,9 +426,7 @@ dur_mclass_converter(
         }
     }
 
-    hse_log(
-        HSE_ERR "Invalid value: %s, must be one of capacity or staging",
-        value);
+    log_err("Invalid value: %s, must be one of capacity or staging", value);
 
     return false;
 }
@@ -469,10 +452,7 @@ throttle_init_policy_converter(
     } else if (!strcmp(value, "medium")) {
         *(uint *)data = THROTTLE_DELAY_START_MEDIUM;
     } else {
-        hse_log(
-            HSE_ERR "Invalid value: %s, must be one of "
-                    "default, light, or medium",
-            value);
+        log_err("Invalid value: %s, must be one of default, light, or medium", value);
         return false;
     }
 
@@ -482,10 +462,10 @@ throttle_init_policy_converter(
 static bool HSE_NONNULL(1, 2)
 csched_policy_validator(const struct param_spec *const ps, const void *const data)
 {
+    const enum csched_policy policy = *(enum csched_policy *)data;
+
     assert(ps);
     assert(data);
-
-    const enum csched_policy policy = *(enum csched_policy *)data;
 
     return policy == csched_policy_old || policy == csched_policy_sp3 ||
            policy == csched_policy_noop;

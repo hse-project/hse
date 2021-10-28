@@ -169,8 +169,7 @@ kvset_put_ref_final(struct kvset *ks)
     }
 
     if (tries >= maxtries) {
-        hse_log(
-            HSE_WARNING "%s: kvset %lu has lingering vbd references", __func__, (ulong)ks->ks_dgen);
+        log_warn("kvset %lu has lingering vbd references", (ulong)ks->ks_dgen);
 
         assert(tries < maxtries); /* leak it in release build */
         return;
@@ -1415,8 +1414,8 @@ kvset_lookup_val_direct(
 
     err = mpool_mblock_read(ks->ks_ds, mbid, &iov, 1, off);
     if (err) {
-        hse_elog(HSE_ERR "%s: off %lx, len %lx, copylen %u, vbufsz %u: @@e",
-                 err, __func__, off, iov.iov_len, copylen, vbufsz);
+        log_errx("off %lx, len %lx, copylen %u, vbufsz %u: @@e",
+                 err, off, iov.iov_len, copylen, vbufsz);
     } else {
         if (!aligned_all) {
             void *src = iov.iov_base + (vboff & ~PAGE_MASK);
@@ -1467,8 +1466,8 @@ kvset_lookup_val_direct_decompress(
 
     err = mpool_mblock_read(ks->ks_ds, mbid, &iov, 1, off);
     if (err) {
-        hse_elog(HSE_ERR "%s: off %lx, len %lx, copylen %u, omlen %u: @@e",
-                 err, __func__, off, iov.iov_len, copylen, omlen);
+        log_errx("off %lx, len %lx, copylen %u, omlen %u: @@e",
+                 err, off, iov.iov_len, copylen, omlen);
     } else {
         src = iov.iov_base + (vboff & ~PAGE_MASK);
 

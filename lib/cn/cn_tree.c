@@ -484,15 +484,12 @@ cn_tree_destroy(struct cn_tree *tree)
      */
     destroy_workqueue(wq);
 
-    hse_log(
-        HSE_DEBUG "%s: destroyed %lu nodes on wq %p in %lu ms "
-                  "(inflight %d, nodec %u)",
-        __func__,
-        nodecnt,
-        wq,
-        (ulong)(get_time_ns() - tstart) / 1000000,
-        atomic_read(&inflight),
-        tree->ct_l_nodec);
+    log_debug("destroyed %lu nodes on wq %p in %lu ms (inflight %d, nodec %u)",
+              nodecnt,
+              wq,
+              (ulong)(get_time_ns() - tstart) / 1000000,
+              atomic_read(&inflight),
+              tree->ct_l_nodec);
 
     assert(atomic_dec_return(&inflight) == -1);
 
@@ -1960,14 +1957,10 @@ cn_tree_cursor_create(struct cn_cursor *cur, struct cn_tree *tree)
         if (HSE_UNLIKELY(err)) {
             rmlock_runlock(lock);
 
-            hse_elog(
-                HSE_NOTICE "%s: cnid %lx pfx_len %d loc %u,%u: @@e",
-                err,
-                __func__,
-                (ulong)tree->cnid,
-                cur->pfx_len,
-                level,
-                node->tn_loc.node_offset);
+            log_errx("cnid %lx pfx_len %d loc %u,%u: @@e",
+                     err, (ulong)tree->cnid,
+                     cur->pfx_len, level,
+                     node->tn_loc.node_offset);
             goto errout;
         }
 
@@ -3066,18 +3059,18 @@ cn_comp_cleanup(struct cn_compaction_work *w)
          * unless debugging.
          */
         if (w->cw_debug || !w->cw_canceled)
-            hse_elog(HSE_ERR "compaction error @@e: sts/job %u comp %s rule %s"
-                " cnid %lu lvl %u off %u dgenlo %lu dgenhi %lu wedge %d",
-                w->cw_err,
-                w->cw_job.sj_id,
-                cn_action2str(w->cw_action),
-                cn_comp_rule2str(w->cw_comp_rule),
-                cn_tree_get_cnid(w->cw_tree),
-                w->cw_node->tn_loc.node_level,
-                w->cw_node->tn_loc.node_offset,
-                w->cw_dgen_lo,
-                w->cw_dgen_hi,
-                w->cw_node->tn_rspills_wedged);
+            log_errx("compaction error @@e: sts/job %u comp %s rule %s"
+                     " cnid %lu lvl %u off %u dgenlo %lu dgenhi %lu wedge %d",
+                     w->cw_err,
+                     w->cw_job.sj_id,
+                     cn_action2str(w->cw_action),
+                     cn_comp_rule2str(w->cw_comp_rule),
+                     cn_tree_get_cnid(w->cw_tree),
+                     w->cw_node->tn_loc.node_level,
+                     w->cw_node->tn_loc.node_offset,
+                     w->cw_dgen_lo,
+                     w->cw_dgen_hi,
+                     w->cw_node->tn_rspills_wedged);
 
         if (merr_errno(w->cw_err) == ENOSPC)
             w->cw_tree->ct_nospace = true;
@@ -3341,7 +3334,7 @@ cn_comp_cancel_cb(struct sts_job *job)
     w = container_of(job, struct cn_compaction_work, cw_job);
 
     if (w->cw_debug)
-        hse_log(HSE_NOTICE "sts/job %u cancel callback", w->cw_job.sj_id);
+        log_info("sts/job %u cancel callback", w->cw_job.sj_id);
 
     w->cw_canceled = true;
     w->cw_err = merr(ESHUTDOWN);

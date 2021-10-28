@@ -40,13 +40,13 @@ c0_ingest_work_fini(struct c0_ingest_work *w)
         w->t5 = (w->t5 > w->t4) ? w->t5 : w->t4;
         w->t6 = (w->t6 > w->t5) ? w->t6 : w->t5;
 
-        hse_log(
-            HSE_WARNING "c0_ingest: gen %lu/%lu width %u/%u "
-                        "keys %lu tombs %lu keykb %lu valkb %lu "
-                        "rcu %lu queue %lu bhprep+bldrs %lu "
-                        "merge_loop1 %lu merge_loop2 %lu "
-                        "lc_finish %lu cn_finish %lu bldr_destroy %lu "
-                        "serialize_wait %lu ingestv %lu total %lu",
+        log_info(
+            "c0_ingest: gen %lu/%lu width %u/%u "
+            "keys %lu tombs %lu keykb %lu valkb %lu "
+            "rcu %lu queue %lu bhprep+bldrs %lu "
+            "merge_loop1 %lu merge_loop2 %lu "
+            "lc_finish %lu cn_finish %lu bldr_destroy %lu "
+            "serialize_wait %lu ingestv %lu total %lu",
             (ulong)w->gen,
             (ulong)w->gencur,
             w->c0iw_usage.u_count,

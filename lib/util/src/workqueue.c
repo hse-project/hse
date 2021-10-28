@@ -130,7 +130,7 @@ destroy_workqueue(struct workqueue_struct *wq)
 
     mutex_lock(&wq->wq_lock);
     if (!list_empty(&wq->wq_delayed)) {
-        hse_log(HSE_ERR "%s: delayed work pending:", __func__);
+        log_err("delayed work pending");
         workqueue_dump(wq);
         mutex_unlock(&wq->wq_lock);
         return;
@@ -443,27 +443,20 @@ workqueue_dump(struct workqueue_struct *wq)
     char                 buf[128];
     int                  i, n;
 
-    hse_log(
-        HSE_ERR "%s(%p) name %s, refcnt %d, tdcnt %u, tdmax %u",
-        __func__,
-        wq,
-        wq->wq_name,
-        wq->wq_refcnt,
-        wq->wq_tdcnt,
-        wq->wq_tdmax);
+    log_err("wq %p name %s, refcnt %d, tdcnt %u, tdmax %u",
+            wq, wq->wq_name, wq->wq_refcnt,
+            wq->wq_tdcnt, wq->wq_tdmax);
 
     for (i = 0; i < wq->wq_tdmax; ++i) {
         struct wq_priv *priv = wq->wq_priv + i;
 
-        snprintf(
-            buf,
-            sizeof(buf),
-            "thread %3u, tid %8lx, barid %u",
-            priv->wqp_id,
-            priv->wqp_tid,
-            priv->wqp_barid);
+        snprintf(buf, sizeof(buf),
+                 "thread %3u, tid %8lx, barid %u",
+                 priv->wqp_id,
+                 priv->wqp_tid,
+                 priv->wqp_barid);
 
-        hse_log(HSE_ERR "%s(%p) %s", __func__, wq, buf);
+        log_err("wq %p %s", wq, buf);
     }
 
     i = 0;
@@ -473,15 +466,13 @@ workqueue_dump(struct workqueue_struct *wq)
         if (w->func == flush_barrier) {
             b = container_of(w, struct wq_barrier, wqb_work);
 
-            snprintf(
-                buf + n,
-                sizeof(buf) - n,
-                ", barid %4u, visitors %4d",
-                b->wqb_barid,
-                b->wqb_visitors);
+            snprintf(buf + n, sizeof(buf) - n,
+                     ", barid %4u, visitors %4d",
+                     b->wqb_barid,
+                     b->wqb_visitors);
         }
 
-        hse_log(HSE_ERR "%s(%p) %s", __func__, wq, buf);
+        log_err("wq %p %s", wq, buf);
     }
 
     i = 0;
@@ -489,7 +480,7 @@ workqueue_dump(struct workqueue_struct *wq)
         n = snprintf(
             buf, sizeof(buf), " dwork %3d %p, expires %lu", i++, d, (ulong)d->timer.expires);
 
-        hse_log(HSE_ERR "%s(%p) %s", __func__, wq, buf);
+        log_err("wq %p %s", wq, buf);
     }
 }
 

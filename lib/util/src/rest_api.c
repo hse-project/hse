@@ -125,7 +125,7 @@ string_validate(const char *str, size_t max)
     while (*str && max-- > 0) {
         if (!isalnum(*str) && *str != '_' && *str != '-' && *str != '.' && *str != '/' &&
             *str != ':') {
-            hse_log(HSE_ERR "rest, bad request: %s", str);
+            log_err("rest, bad request: %s", str);
             return merr(ev(EINVAL));
         }
         ++str;
@@ -507,11 +507,12 @@ url_handler(struct work_struct *w)
     else
         err = ud->put_handler(ta->path, ta->ci, ud->name, &ta->iter, ud->context);
 
+    if (ev(err))
+        log_errx("%s handler for %s failed: @@e",
+                 err, (ta->op == URL_GET) ? "GET" : "PUT", ta->path);
+
     shutdown(ta->ci->resp_fd, SHUT_RDWR);
     atomic_dec(&ud->refcnt);
-
-    if (ev(err))
-        hse_elog(HSE_WARNING "rest: handler failed: @@e", err);
 
     atomic_set(&ta->busy, 0);
 
@@ -900,7 +901,7 @@ respond:
     }
 
     if (ev(err))
-        hse_elog(HSE_ERR "rest api internal error: @@e", err);
+        log_errx("rest api internal error: @@e", err);
 
     ret = MHD_queue_response(connection, http_status, session->response);
     MHD_destroy_response(session->response);
@@ -988,7 +989,7 @@ rest_server_start(const char *sock_path)
 
     err = get_socket(rest.sock_name, &rest.sockfd);
     if (ev(err)) {
-        hse_elog(HSE_ERR "Could not create socket %s: @@e", err, rest.sock_name);
+        log_errx("Could not create socket %s: @@e", err, rest.sock_name);
         return err;
     }
 
@@ -1053,7 +1054,7 @@ rest_server_stop(void)
         if (nbusy == 0)
             break;
 
-        hse_log(HSE_WARNING "%s: %d sessions still active", __func__, nbusy);
+        log_warn("%d sessions still active", nbusy);
         msleep(3000);
     }
 

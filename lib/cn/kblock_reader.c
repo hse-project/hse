@@ -201,12 +201,8 @@ kbr_read_blm_region_desc(struct kvs_mblk_desc *kbd, struct bloom_desc *desc)
 
     magic = omf_bh_magic(blm_omf);
     if (ev(magic != BLOOM_OMF_MAGIC)) {
-        hse_log(
-            HSE_ERR "%s: bloom %lx invalid magic %x (expected %x)",
-            __func__,
-            mbid,
-            magic,
-            BLOOM_OMF_MAGIC);
+        log_err("bloom %lx invalid magic %x (expected %x)",
+                mbid, magic, BLOOM_OMF_MAGIC);
         return merr(EINVAL);
     }
 
@@ -216,12 +212,8 @@ kbr_read_blm_region_desc(struct kvs_mblk_desc *kbd, struct bloom_desc *desc)
      */
     version = omf_bh_version(blm_omf);
     if (ev(version != BLOOM_OMF_VERSION)) {
-        hse_log(
-            HSE_ERR "%s: bloom %lx invalid version %u (expected %u)",
-            __func__,
-            mbid,
-            version,
-            BLOOM_OMF_VERSION);
+        log_err("bloom %lx invalid version %u (expected %u)",
+                mbid, version, BLOOM_OMF_VERSION);
         return 0;
     }
 

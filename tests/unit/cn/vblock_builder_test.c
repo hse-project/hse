@@ -516,19 +516,17 @@ run_test_case(struct mtf_test_info *lcl_ti, enum test_case tc, size_t n_vblocks)
     mapi_calls_clear(mapi_idx_mpool_mblock_commit);
     mapi_calls_clear(mapi_idx_mpool_mblock_delete);
 
-    hse_log(
-        HSE_INFO "Creating vbb: size %zu = hdr %zu"
-                 " + %zu values x %zu bytes/value + %ld leftover",
-        mblock_size,
-        PAGE_SIZE,
-        values_per_mblock,
-        vlen,
-        (long)(mblock_size - PAGE_SIZE - values_per_mblock * vlen));
+    log_info("Creating vbb: size %zu = hdr %zu + %zu values x %zu bytes/value + %ld leftover",
+             mblock_size,
+             PAGE_SIZE,
+             values_per_mblock,
+             vlen,
+             (long)(mblock_size - PAGE_SIZE - values_per_mblock * vlen));
 
     err = vbb_create(VBB_CREATE_ARGS);
     ASSERT_EQ_RET(err, 0, 1);
 
-    hse_log(HSE_INFO "Adding %zu values, expect %zu vblocks to be created", add_count, n_vblocks);
+    log_info("Adding %zu values, expect %zu vblocks to be created", add_count, n_vblocks);
 
     if (add_entries(lcl_ti, vbb, add_count, vlen, 0))
         return 1;
