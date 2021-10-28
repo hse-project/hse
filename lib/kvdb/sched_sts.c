@@ -694,7 +694,7 @@ void
 sts_pause(struct sts *self)
 {
     if (csched_rp_dbg_mon(self->rp))
-        log_info("sts/mon %d pausing", gettid());
+        log_info("sts/mon %s pausing", self->name);
 
     m_lock(self);
     atomic_set(&self->state, SS_PAUSE);
@@ -706,7 +706,7 @@ void
 sts_resume(struct sts *self)
 {
     if (csched_rp_dbg_mon(self->rp))
-        log_info("sts/mon %d resuming", gettid());
+        log_info("sts/mon %s resuming", self->name);
 
     m_lock(self);
     atomic_set(&self->state, SS_RUN);
