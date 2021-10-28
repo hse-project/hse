@@ -333,7 +333,7 @@ MTF_DEFINE_UTEST(structured_logging_test, Test_preprocess_fmt_string_hse)
     ix++;
 
     ASSERT_STREQ("hse_0_file", shared_result.names[ix]);
-    ASSERT_STREQ(__FILE__, shared_result.values[ix]);
+    ASSERT_NE(NULL, strstr(__FILE__, shared_result.values[ix]));
     ix++;
 
     ASSERT_STREQ("hse_0_line", shared_result.names[ix]);
