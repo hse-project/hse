@@ -4,9 +4,9 @@ on:
   workflow_dispatch:
     inputs:
       branch:
-        description: 'Branch to use'
+        description: "Branch to use"
         required: true
-        default: 'master'
+        default: "master"
 
 jobs:
   stress_ub:
@@ -18,45 +18,46 @@ jobs:
         build_type: [release, debugoptimized]
 
     steps:
-    - name: Freeing up disk space on CI system
-      run: |
-        df -h
-        echo "Removing large packages"
-        sudo apt-get remove -y azure-cli google-cloud-sdk hhvm google-chrome-stable firefox powershell mono-devel
-        sudo apt-get autoremove -y
-        sudo apt-get clean
-        echo "Removing large directories"
-        # deleting 15GB
-        rm -rf /usr/share/dotnet/
-        df -h
+      - name: Freeing up disk space on CI system
+        run: |
+          df -h
+          echo "Removing large packages"
+          sudo apt-get remove -y azure-cli google-cloud-sdk hhvm google-chrome-stable firefox powershell mono-devel
+          sudo apt-get autoremove -y
+          sudo apt-get clean
+          echo "Removing large directories"
+          # deleting 15GB
+          rm -rf /usr/share/dotnet/
+          df -h
 
-    - name: Install dependencies
-      run: |
-        sudo apt-get update
-        sudo apt-get install build-essential libbsd-dev pkg-config openjdk-8-jdk libmicrohttpd-dev liburcu-dev libyaml-dev liblz4-dev libcurl4-openssl-dev
-        sudo apt-get install libmongoc-1.0-0 libbson-1.0-0 libssl-dev libsasl2-dev
-        python3 -m pip install --user setuptools_rust wheel
-        python3 -m pip install --user poetry
+      - name: Install dependencies
+        run: |
+          sudo apt-get update
+          sudo apt-get install build-essential libbsd-dev pkg-config openjdk-8-jdk libmicrohttpd-dev liburcu-dev libyaml-dev liblz4-dev libcurl4-openssl-dev
+          sudo apt-get install libmongoc-1.0-0 libbson-1.0-0 libssl-dev libsasl2-dev
+          python3 -m pip install --user setuptools_rust wheel
+          python3 -m pip install --user poetry
 
-    - uses: actions/checkout@v2
-      with:
-        ref: ${{ github.event.inputs.branch }}
+      - uses: actions/checkout@v2
+        with:
+          ref: ${{ github.event.inputs.branch }}
 
-    - name: Setup python environment to run branch
-      run: |
-        poetry install
+      - name: Setup python environment to run branch
+        run: |
+          poetry install
 
-    - name: Build setup with YCSB, tools and configs
-      run: |
-        poetry run meson builddir -Dbuildtype=${{ matrix.build_type }} -Dycsb=true
+      - name: Build setup with YCSB, tools and configs
+        run: |
+          poetry run meson builddir -Dbuildtype=${{ matrix.build_type }} -Dycsb=true
 
-    - name: Run tests
-      run: |
-        poetry run meson test -C builddir --suite=nightly-small --print-errorlogs --no-stdsplit
+      - name: Run tests
+        run: |
+          poetry run meson test -C builddir --suite=nightly-small --print-errorlogs --no-stdsplit
 
-    - uses: actions/upload-artifact@v2
-      if: failure()
-      with:
-        name: build-artifact-ubuntu
-        path: builddir/meson-logs/
-
+      - uses: actions/upload-artifact@v2
+        if: failure()
+        with:
+          name: build-artifact-ubuntu-${{ matrix.build_type }}
+          path: |
+            builddir/meson-logs/
+            /var/log/syslog
