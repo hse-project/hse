@@ -1,9 +1,6 @@
 hsejni_parse_test = executable(
     'hsejni_parse_test',
     ['hsejni_parse_test.c'],
-    c_args: [
-        '-DCOMPNAME="hsejni"',
-    ],
     dependencies: [
         hse_mock_dep,
         hsejni_dep,
