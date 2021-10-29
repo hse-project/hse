@@ -22,7 +22,7 @@
 /* clang-format off */
 
 static struct perfc_name throttle_sen_perfc[] = {
-    NE(PERFC_DI_THSR_CNROOT, 1, "csched root sensor",         "thsr_csched_root"),
+    NE(PERFC_DI_THSR_CNROOT, 1, "csched root sensor",         "thsr_cnroot"),
     NE(PERFC_DI_THSR_C0SK,   1, "c0sk ingest queue sensor",   "thsr_c0sk"),
     NE(PERFC_DI_THSR_WAL,    1, "wal buffer length sensor",   "thsr_wal"),
     NE(PERFC_DI_THSR_MAX,    1, "max sensor",                 "thsr_max"),
@@ -108,12 +108,15 @@ throttle_perfc_fini(void)
 }
 
 void
-throttle_init(struct throttle *self, struct kvdb_rparams *rp)
+throttle_init(struct throttle *self, struct kvdb_rparams *rp, const char *kvdb_alias)
 {
-    int    i;
+    char namebuf[128];
     merr_t err;
+    int i;
 
     assert(IS_ALIGNED((uintptr_t)self, alignof(*self)));
+
+    snprintf(namebuf, sizeof(namebuf), "kvdb/%s", kvdb_alias);
 
     memset(self, 0, sizeof(*self));
     spin_lock_init(&self->thr_lock);
@@ -126,24 +129,28 @@ throttle_init(struct throttle *self, struct kvdb_rparams *rp)
 
         err = perfc_ctrseti_alloc(
             rp->perfc_level,
-            "global",
+            namebuf,
             throttle_sen_perfc,
             NELEM(throttle_sen_perfc),
             "set",
             &self->thr_sensor_perfc);
-        ev(err);
+
+        if (err)
+            log_warnx("unable to alloc throttle sensor perf counters: @@e", err);
     }
 
     if (throttle_sleep_perfc[PERFC_DI_THR_SVAL].pcn_ivl) {
 
         err = perfc_ctrseti_alloc(
             rp->perfc_level,
-            "global",
+            namebuf,
             throttle_sleep_perfc,
             NELEM(throttle_sleep_perfc),
             "set",
             &self->thr_sleep_perfc);
-        ev(err);
+
+        if (err)
+            log_warnx("unable to alloc throttle sleep perf counters: @@e", err);
     }
 }
 

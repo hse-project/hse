@@ -191,7 +191,7 @@ struct throttle {
 };
 
 void
-throttle_init(struct throttle *self, struct kvdb_rparams *rp);
+throttle_init(struct throttle *self, struct kvdb_rparams *rp, const char *kvdb_alias);
 
 void
 throttle_init_params(struct throttle *self, struct kvdb_rparams *rp);

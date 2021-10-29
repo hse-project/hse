@@ -1200,7 +1200,7 @@ ikvdb_open(
     hse_meminfo(NULL, &mavail, 0);
     ikvdb_lowmem_adjust(self, mavail >> 30);
 
-    throttle_init(&self->ikdb_throttle, &self->ikdb_rp);
+    throttle_init(&self->ikdb_throttle, &self->ikdb_rp, self->ikdb_alias);
     throttle_init_params(&self->ikdb_throttle, &self->ikdb_rp);
 
     self->ikdb_tb_burst = self->ikdb_rp.throttle_burst;

@@ -665,7 +665,7 @@ perfc_ctr_name2type(const char *ctr_name)
 merr_t
 perfc_ctrseti_alloc(
     uint                     prio,
-    const char *             name,
+    const char              *group,
     const struct perfc_name *ctrv,
     u32                      ctrc,
     const char *             ctrseti_name,
@@ -681,16 +681,14 @@ perfc_ctrseti_alloc(
     u32                n, i;
     int rc;
 
-    assert(setp);
+    if (!group || !ctrv || ctrc == 0 || !setp)
+        return merr(EINVAL);
 
     setp->ps_seti = NULL;
     setp->ps_bitmap = 0;
 
-    if (!name || ctrc == 0)
-        return merr(EINVAL);
-
-    if (strlen(name) >= sizeof(path))
-        return merr(ENAMETOOLONG);
+    if (!ctrseti_name)
+        ctrseti_name = "set";
 
     /*
      * Find out the number of counters in the set.
@@ -703,7 +701,6 @@ perfc_ctrseti_alloc(
      * <family name> is all caps and doesn't contain '_'
      * <meaning> describes the meaning of the counter. It can contain
      * '_' character.
-     *
      */
     for (i = 0; i < ctrc; i++) {
         const char *name = ctrv[i].pcn_name;
@@ -747,7 +744,7 @@ perfc_ctrseti_alloc(
     }
 
     sz = snprintf(path, sizeof(path), "%s/%s/%s/%s",
-                  PERFC_ROOT_PATH, name, family, ctrseti_name);
+                  PERFC_ROOT_PATH, group, family, ctrseti_name);
     if (ev(sz >= sizeof(path)))
         return merr(EINVAL);
 
