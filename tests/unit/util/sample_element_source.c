@@ -9,7 +9,7 @@
 #include <hse_util/inttypes.h>
 #include <hse_util/assert.h>
 
-#include <hse_test_support/random_buffer.h>
+#include <support/random_buffer.h>
 
 struct sample_es {
     u32 *                 tes_elts;

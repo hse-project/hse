@@ -4,7 +4,7 @@
  */
 
 #include "hse_util/hse_err.h"
-#include <hse_ut/framework.h>
+#include <mtf/framework.h>
 
 #include <hse_ikvdb/kvdb_meta.h>
 #include <hse_ikvdb/omf_version.h>

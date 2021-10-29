@@ -7,7 +7,7 @@
 #include <hse_util/hse_err.h>
 #include <hse_util/slab.h>
 
-#include <hse_ut/framework.h>
+#include <mtf/framework.h>
 
 #include "../src/logging_impl.h"
 

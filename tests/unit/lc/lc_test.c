@@ -3,8 +3,8 @@
  * Copyright (C) 2021 Micron Technology, Inc.  All rights reserved.
  */
 
-#include <hse_ut/framework.h>
-#include <hse_test_support/mock_api.h>
+#include <mtf/framework.h>
+#include <mock/api.h>
 
 #include <hse_util/bonsai_tree.h>
 #include <hse_util/seqno.h>

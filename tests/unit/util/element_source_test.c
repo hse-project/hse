@@ -3,8 +3,8 @@
  * Copyright (C) 2015-2020 Micron Technology, Inc.  All rights reserved.
  */
 
-#include <hse_ut/framework.h>
-#include <hse_test_support/random_buffer.h>
+#include <mtf/framework.h>
+#include <support/random_buffer.h>
 
 #include <hse_util/hse_err.h>
 #include <hse_util/inttypes.h>

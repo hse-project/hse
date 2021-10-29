@@ -55,7 +55,7 @@ mocked_headers = [
     meson.project_source_root() / 'lib/util/include/hse_util/token_bucket.h',
     meson.project_source_root() / 'lib/util/include/hse_util/workqueue.h',
     meson.project_source_root() / 'lib/util/src/logging_util.h',
-    meson.project_source_root() / 'tests/support/include/hse_test_support/allocation.h',
+    meson.project_source_root() / 'tests/mocks/include/mock/allocation.h',
 ]
 
 mapi_idx_h = custom_target(
@@ -82,13 +82,13 @@ mocked_components = {
     'kvdb': meson.project_source_root() / 'lib/kvdb',
     'kvs': meson.project_source_root() / 'lib/kvs',
     'mpool': meson.project_source_root() / 'lib/mpool/include/mpool',
-    'test-support': meson.project_source_root() / 'tests/support/include/hse_test_support',
+    'mock': meson.project_source_root() / 'tests/mocks/include/mock',
     'util': meson.project_source_root() / 'lib/util/include/hse_util',
     'util-internal': meson.project_source_root() / 'lib/util/src',
 }
 
-mock_includes = include_directories('.')
-mock_sources = [mapi_idx_h]
+mocked_includes = include_directories('.')
+mocked_sources = [mapi_idx_h]
 
 foreach mc, source_dir : mocked_components
     if not fs.exists(source_dir)
@@ -127,7 +127,7 @@ foreach mc, source_dir : mocked_components
             output: hdr,
         )
 
-        mock_sources += mock_decl
+        mocked_sources += mock_decl
 
         src = '@0@_ut_impl.i'.format(stem)
         mock_impl = custom_target(
@@ -146,6 +146,59 @@ foreach mc, source_dir : mocked_components
             output: src,
         )
 
-        mock_sources += mock_impl
+        mocked_sources += mock_impl
     endforeach
 endforeach
+
+subdir('include')
+subdir('lib')
+
+hse_mock_c_args = ['-DHSE_MOCKING=1']
+
+hse_mock_include_directories = [
+    hse_mock_includes,
+    mocked_includes,
+    support_includes,
+    tools_includes,
+]
+
+hse_mock = static_library(
+    '@0@-mock'.format(lib_name),
+    [
+        hse_sources,
+        hse_mock_sources,
+        support_sources,
+        mocked_sources,
+    ],
+    c_args: [
+        hse_c_args,
+        hse_mock_c_args,
+    ],
+    include_directories: [
+        hse_include_directories,
+        hse_mock_include_directories,
+    ],
+    dependencies: [
+        hse_dependencies,
+        hse_test_framework_dep,
+    ],
+    gnu_symbol_visibility: 'hidden'
+)
+
+hse_mock_dep = declare_dependency(
+    link_with: hse_mock,
+    version: meson.project_version(),
+    compile_args: hse_mock_c_args,
+    sources: [
+        version_h,
+        mapi_idx_h,
+        mocked_sources,
+    ],
+    include_directories: [
+        public_includes,
+        hse_include_directories,
+        hse_mock_include_directories,
+    ],
+)
+
+subdir('repository')

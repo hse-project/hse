@@ -3,10 +3,6 @@
  * Copyright (C) 2015-2021 Micron Technology, Inc.  All rights reserved.
  */
 
-#include "framework_external.h"
-
-#include <hse_ut/conditions.h>
-
 #include <hse_util/hse_err.h>
 #include <hse_util/inttypes.h>
 #include <hse_util/logging.h>
@@ -14,6 +10,7 @@
 #include <hse_util/page.h>
 #include <hse_util/slab.h>
 #include <hse_util/minmax.h>
+#include <hse_util/compiler.h>
 
 #include <hse_ikvdb/limits.h>
 
@@ -44,7 +41,7 @@ struct mocked_map    mocked_maps[MPM_MAX_MAPS];
 /* Can only mock a single MDC */
 u64 mocked_mdc_id;
 
-#define id2index(id) ((id)-MPM_MBLOCK_ID_BASE)
+#define id2index(id)    ((id)-MPM_MBLOCK_ID_BASE)
 #define index2id(index) ((index) + MPM_MBLOCK_ID_BASE)
 
 static merr_t
@@ -53,11 +50,17 @@ get_mocked_map(struct mpool_mcache_map *map, struct mocked_map **mocked)
     size_t addr = (size_t)map;
     size_t base = (size_t)&mocked_maps[0];
 
-    VERIFY_TRUE_RET(base <= addr, merr(EBUG));
-    VERIFY_TRUE_RET(addr < base + sizeof(mocked_maps), merr(EBUG));
-    VERIFY_TRUE_RET(0 == ((addr - base) % sizeof(mocked_maps[0])), merr(EBUG));
+    if (base > addr)
+        return merr(EBUG);
+
+    if (addr >= (base + sizeof(mocked_maps)))
+        return merr(EBUG);
+
+    if (((addr - base) % sizeof(mocked_maps[0])))
+        return merr(EBUG);
 
     *mocked = (struct mocked_map *)addr;
+
     return 0;
 }
 
@@ -66,10 +69,14 @@ get_mblock(u64 id, struct mocked_mblock **mb)
 {
     u64 i = id2index(id);
 
-    VERIFY_LT_RET(i, MPM_MAX_MBLOCKS, merr(EBUG));
-    VERIFY_TRUE_RET(mocked_mblocks[i].mb_base, merr(EBUG));
+    if (i >= MPM_MAX_MBLOCKS)
+        return merr(EBUG);
+
+    if (!mocked_mblocks[i].mb_base)
+        return merr(EBUG);
 
     *mb = &mocked_mblocks[i];
+
     return 0;
 }
 
@@ -85,10 +92,12 @@ _mpool_mblock_alloc(
     u64                   blkid;
 
     err = mpm_mblock_alloc(KBLOCK_MAX_SIZE, &blkid);
-    VERIFY_TRUE_RET(err == 0, err);
+    if (err)
+        return err;
 
     err = get_mblock(blkid, &mb);
-    VERIFY_TRUE_RET(err == 0, err);
+    if (err)
+        return err;
 
     *handle = blkid & 0x0fffffffffffffff; /* make sure not negative */
     if (props) {
@@ -116,10 +125,14 @@ _mpool_mblock_props_get(struct mpool *mp, uint64_t objid, struct mblock_props *p
             break;
         }
     }
-    VERIFY_TRUE_RET(mb, merr(EBUG));
+
+    if (!mb)
+        return merr(EBUG);
 
     err = get_mblock(objid, &mb);
-    VERIFY_TRUE_RET(err == 0, err);
+    if (err)
+        return err;
+
     if (props) {
         memset(props, 0, sizeof(*props));
         props->mpr_objid = objid;
@@ -147,9 +160,11 @@ _mpool_mblock_delete(struct mpool *mp, uint64_t id)
     struct mocked_mblock *mb = 0;
 
     err = get_mblock(id, &mb);
-    VERIFY_EQ_RET(err, 0, err);
+    if (err)
+        return err;
 
-    VERIFY_TRUE_RET(mb->mb_base, merr(EBUG));
+    if (!mb->mb_base)
+        return merr(EBUG);
 
     free(mb->mb_base);
     mb->mb_base = 0;
@@ -170,7 +185,7 @@ _mpool_props_get(struct mpool *mp, struct mpool_props *props)
 
 merr_t
 _mpool_mclass_props_get(
-    struct mpool              *mp,
+    struct mpool *             mp,
     enum mpool_mclass          mclass,
     struct mpool_mclass_props *props)
 {
@@ -198,10 +213,11 @@ mblock_rw(u64 id, const struct iovec *iov, int niov, size_t off, bool read)
     int                   i;
 
     err = get_mblock(id, &mb);
-    VERIFY_EQ_RET(err, 0, err);
+    if (err)
+        return err;
 
-    if (!read)
-        VERIFY_TRUE_RET(off == 0, merr(EBUG));
+    if (!read && off != 0)
+        return merr(EBUG);
 
     /*
      * Enforce mpool_mblock_read/write IO restrictions.
@@ -221,10 +237,13 @@ mblock_rw(u64 id, const struct iovec *iov, int niov, size_t off, bool read)
         total_len += iov[i].iov_len;
     }
 
-    if (read)
-        VERIFY_TRUE_RET(off + total_len <= mb->mb_write_len, merr(EBUG));
-    else
-        VERIFY_TRUE_RET(off + total_len <= mb->mb_alloc_cap, merr(EBUG));
+    if (read) {
+        if (off + total_len > mb->mb_write_len)
+            return merr(EBUG);
+    } else {
+        if (off + total_len > mb->mb_alloc_cap)
+            return merr(EBUG);
+    }
 
     for (i = 0; i < niov; i++) {
         if (read) {
@@ -251,9 +270,14 @@ _mpool_mcache_mmap(
     struct mocked_map *map = 0;
     int                i;
 
-    VERIFY_TRUE_RET(handle, merr(EBUG));
-    VERIFY_GT_RET(mbidc, 0, merr(EBUG));
-    VERIFY_TRUE_RET(mbidv, merr(EBUG));
+    if (!handle)
+        return merr(EBUG);
+
+    if (!mbidc)
+        return merr(EBUG);
+
+    if (!mbidv)
+        return merr(EBUG);
 
     for (i = 0; i < MPM_MAX_MAPS; i++) {
         if (!mocked_maps[i].mapped) {
@@ -261,10 +285,13 @@ _mpool_mcache_mmap(
             break;
         }
     }
-    VERIFY_TRUE_RET(map, merr(EBUG));
+
+    if (!map)
+        return merr(EBUG);
 
     map->mbidv = mapi_safe_malloc(mbidc * sizeof(*mbidv));
-    VERIFY_TRUE_RET(map->mbidv, merr(EBUG));
+    if (!map->mbidv)
+        return merr(EBUG);
 
     for (i = 0; i < mbidc; i++)
         map->mbidv[i] = mbidv[i];
@@ -280,11 +307,11 @@ _mpool_mcache_mmap(
 static void
 _mpool_mcache_munmap(struct mpool_mcache_map *handle)
 {
-    merr_t             err;
+    HSE_MAYBE_UNUSED merr_t err;
     struct mocked_map *map = NULL;
 
     err = get_mocked_map(handle, &map);
-    VERIFY_EQ(err, 0);
+    assert(err == 0);
 
     free(map->mbidv);
     map->mbidv = 0;
@@ -297,14 +324,18 @@ _mpool_mcache_getbase(struct mpool_mcache_map *handle, u_int idx)
 {
     merr_t                err;
     struct mocked_map *   map = NULL;
-    struct mocked_mblock *mb  = 0;
+    struct mocked_mblock *mb = 0;
 
     err = get_mocked_map(handle, &map);
-    VERIFY_EQ_RET(err, 0, NULL);
-    VERIFY_LT_RET(idx, map->mbidc, NULL);
+    if (err)
+        return NULL;
+
+    if (idx >= map->mbidv[idx])
+        return NULL;
 
     err = get_mblock(map->mbidv[idx], &mb);
-    VERIFY_EQ_RET(err, 0, NULL);
+    if (err)
+        return NULL;
 
     return mb->mb_base;
 }
@@ -333,22 +364,27 @@ _mpool_mcache_getpages(
     u_int              i;
 
     err = get_mocked_map(handle, &map);
-    VERIFY_EQ_RET(err, 0, err);
+    if (err)
+        return err;
 
-    VERIFY_LT_RET(idx, map->mbidc, merr(EBUG));
+    if (idx >= map->mbidc)
+        return merr(EBUG);
 
     for (i = 0; i < pagec; i++) {
         struct iovec iov;
 
         iov.iov_len = PAGE_SIZE;
         iov.iov_base = hse_page_alloc();
-        VERIFY_TRUE_RET(iov.iov_base, merr(EBUG));
+        if (!iov.iov_base)
+            return merr(EBUG);
 
         err = mblock_rw(map->mbidv[idx], &iov, 1, offsets[i] * PAGE_SIZE, true);
-        VERIFY_EQ_RET(err, 0, err);
+        if (err)
+            return err;
 
         pagev[i] = iov.iov_base;
     }
+
     return 0;
 }
 
@@ -398,18 +434,17 @@ mpm_getlen_default(void *buf, size_t len)
 }
 
 static merr_t
-_mpool_mdc_open(
-    struct mpool *     mp,
-    uint64_t           oid1,
-    uint64_t           oid2,
-    struct mpool_mdc **mdc)
+_mpool_mdc_open(struct mpool *mp, uint64_t oid1, uint64_t oid2, struct mpool_mdc **mdc)
 {
     struct mocked_mblock *mb = 0;
     struct mocked_mdc *   m;
     int                   cap;
 
-    VERIFY_NE_RET(0, mocked_mdc_id, 0);
-    VERIFY_EQ_RET(0, get_mblock(mocked_mdc_id, &mb), 0);
+    if (!mocked_mdc_id)
+        return 0;
+
+    if (get_mblock(mocked_mdc_id, &mb))
+        return 0;
 
     cap = mb->mb_write_len;
     cap += cap / 2;
@@ -490,8 +525,11 @@ _mpool_mdc_read(struct mpool_mdc *mdc, void *data, size_t max, size_t *dlen)
     struct mocked_mblock *mb = 0;
     size_t                len = 0;
 
-    VERIFY_NE_RET(0, mocked_mdc_id, 0);
-    VERIFY_EQ_RET(0, get_mblock(mocked_mdc_id, &mb), 0);
+    if (!mocked_mdc_id)
+        return merr(EBUG);
+
+    if (get_mblock(mocked_mdc_id, &mb))
+        return merr(EBUG);
 
     /* read one record, do not read past end of mocked_mdc */
 
@@ -530,11 +568,13 @@ mpm_mblock_alloc(size_t capacity, u64 *id_out)
         }
     }
 
-    VERIFY_TRUE_RET(mb, merr(EBUG));
+    if (!mb)
+        return merr(EBUG);
 
     capacity = ALIGN(capacity, PAGE_SIZE);
     mem = mapi_safe_malloc(capacity);
-    VERIFY_TRUE_RET(mem, merr(EBUG));
+    if (!mem)
+        return merr(EBUG);
 
     memset(mem, 0xff, capacity);
 
@@ -552,11 +592,16 @@ mpm_mblock_write(u64 id, const void *data, u64 off, u32 len)
     struct mocked_mblock *mb = 0;
 
     err = get_mblock(id, &mb);
-    VERIFY_EQ_RET(err, 0, err);
+    if (err)
+        return err;
 
-    VERIFY_TRUE_RET(off + len <= mb->mb_alloc_cap, merr(EBUG));
+    if (off + len > mb->mb_alloc_cap)
+        return merr(EBUG);
+
     mb->mb_write_len = max(mb->mb_write_len, off + len);
+
     memcpy(mb->mb_base + off, data, len);
+
     return 0;
 }
 
@@ -567,10 +612,14 @@ mpm_mblock_read(u64 id, void *data, u64 off, u32 len)
     struct mocked_mblock *mb = 0;
 
     err = get_mblock(id, &mb);
-    VERIFY_EQ_RET(err, 0, err);
+    if (err)
+        return err;
 
-    VERIFY_TRUE_RET(off + len <= mb->mb_write_len, merr(EBUG));
+    if (off + len > mb->mb_alloc_cap)
+        return merr(EBUG);
+
     memcpy(data, mb->mb_base + off, len);
+
     return 0;
 }
 
@@ -588,13 +637,15 @@ mpm_read_fd(void *buf, size_t bufsz, size_t *bytes_read, int fd)
             break;
         if (rc < 0 && errno == EINTR)
             continue;
-        VERIFY_TRUE_RET(rc > 0, merr(errno));
+        if (rc < 0)
+            return merr(errno);
         off += rc;
     }
 
     if (off != bufsz) {
         rc = read(fd, &tmp, 1);
-        VERIFY_TRUE_RET(rc == 0, merr(ENOSPC));
+        if (rc != 0)
+            return merr(ENOSPC);
     }
 
     *bytes_read = off;
@@ -618,11 +669,12 @@ mpm_read_pipe(void *buf, size_t bufsz, size_t *bytes_read, char *fmt, ...)
         return merr(EINVAL);
 
     fp = popen(cmd, "r");
-    VERIFY_TRUE_RET(fp != 0, merr(errno));
+    if (!fp)
+        return merr(errno);
 
     err = mpm_read_fd(buf, bufsz, bytes_read, fileno(fp));
     pclose(fp);
-    VERIFY_EQ_RET(err, 0, err);
+
     return err;
 }
 
@@ -641,12 +693,13 @@ mpm_read_file(void *buf, size_t bufsz, size_t *bytes_read, const char *file)
         return mpm_read_pipe(buf, bufsz, bytes_read, "xzcat %s", file);
 
     fp = fopen(file, "r");
-    VERIFY_TRUE_RET(fp != 0, merr(errno));
+    if (!fp)
+        return merr(errno);
 
     err = mpm_read_fd(buf, bufsz, bytes_read, fileno(fp));
     fclose(fp);
-    VERIFY_EQ_RET(err, 0, err);
-    return 0;
+
+    return err;
 }
 
 merr_t
@@ -657,13 +710,16 @@ mpm_mblock_load_file(u64 id, const char *filename)
     size_t                bytes_read;
 
     err = get_mblock(id, &mb);
-    VERIFY_EQ_RET(err, 0, err);
+    if (err)
+        return err;
 
     err = mpm_read_file(mb->mb_base, mb->mb_alloc_cap, &bytes_read, filename);
-    VERIFY_EQ_RET(err, 0, err);
+    if (err)
+        return err;
 
     mb->mb_write_len = bytes_read;
-    return 0;
+
+    return err;
 }
 
 merr_t
@@ -673,10 +729,12 @@ mpm_mblock_alloc_file(u64 *id_out, const char *filename)
     merr_t err;
 
     err = mpm_mblock_alloc(VBLOCK_MAX_SIZE, &id);
-    VERIFY_TRUE_RET(err == 0, err);
+    if (err)
+        return err;
 
     err = mpm_mblock_load_file(id, filename);
-    VERIFY_TRUE_RET(err == 0, err);
+    if (err)
+        return err;
 
     *id_out = id;
     return 0;
@@ -689,10 +747,12 @@ mpm_mdc_load_file(const char *filename, char **data, int *len)
     merr_t                err;
 
     err = mpm_mblock_alloc_file(&mocked_mdc_id, filename);
-    VERIFY_TRUE_RET(err == 0, err);
+    if (err)
+        return err;
 
     err = get_mblock(mocked_mdc_id, &mb);
-    VERIFY_EQ_RET(err, 0, err);
+    if (err)
+        return err;
 
     if (data) {
         *data = mb->mb_base;
@@ -709,6 +769,7 @@ mpm_mdc_get_written(struct mpool_mdc *mdc, char **data, int *len)
 
     *data = m->array;
     *len = m->wcur;
+
     return 0;
 }
 

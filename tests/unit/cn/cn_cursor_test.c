@@ -19,7 +19,7 @@
  * within the test.  This is not intuitive.
  */
 
-#include <hse_ut/framework.h>
+#include <mtf/framework.h>
 #include <hse_util/slab.h>
 #include <hse_util/page.h>
 

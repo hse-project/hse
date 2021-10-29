@@ -3,8 +3,6 @@
  * Copyright (C) 2015-2021 Micron Technology, Inc.  All rights reserved.
  */
 
-#include "framework_external.h"
-
 #include "util/src/logging_impl.h"
 
 #include <mocks/mock_log.h>

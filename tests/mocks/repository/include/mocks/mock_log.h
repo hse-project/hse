@@ -1,10 +1,10 @@
 /* SPDX-License-Identifier: Apache-2.0 */
 /*
- * Copyright (C) 2015-2020 Micron Technology, Inc.  All rights reserved.
+ * Copyright (C) 2015-2021 Micron Technology, Inc.  All rights reserved.
  */
 
-#ifndef HSE_PLATFORM_MOCK_LOG_H
-#define HSE_PLATFORM_MOCK_LOG_H
+#ifndef MOCKS_MOCK_LOG_H
+#define MOCKS_MOCK_LOG_H
 
 #define MAX_MSG_SIZE 1024
 #define MAX_NV_PAIRS 50

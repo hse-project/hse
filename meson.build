@@ -268,7 +268,6 @@ if not get_option('tools').disabled() and (not HdrHistogram_c_dep.found()
         'HDR_HISTOGRAM_BUILD_SHARED': false,
         'HDR_HISTOGRAM_BUILD_PROGRAMS': false,
         'HDR_HISTOGRAM_BUILD_STATIC': true,
-        'HDR_HISTOGRAM_INSTALL_STATIC': false,
     })
     HdrHistogram_c_options.set_override_option('werror', 'false')
     HdrHistogram_c_options.set_override_option('warning_level', '0')
@@ -348,18 +347,9 @@ if get_option('tests') or not get_option('tools').disabled()
     # need access to tools_includes for unit tests and tools
     subdir('tools/include')
 endif
-if get_option('tests')
-    # need to know about mocks, framework, test support sources before entering lib directory
-    subdir('tests/mocks')
-    subdir('tests/support')
-    subdir('tests/framework')
-endif
 subdir('lib')
 subdir('cli')
 subdir('samples')
-if get_option('ycsb')
-    subdir('hsejni')
-endif
 if get_option('docs')
     subdir('docs')
 endif
@@ -404,9 +394,11 @@ subdir('tools')
 run_env.prepend('PATH', executable_paths)
 
 if get_option('tests')
-    # now that we have libhse-mock, go into repository directory
-    subdir('tests/mocks/repository')
     subdir('tests')
+endif
+
+if get_option('ycsb')
+    subdir('hsejni')
 endif
 
 format = find_program('scripts/dev/format')

@@ -5,7 +5,7 @@
 
 #include <hse_util/logging.h>
 
-#include <hse_ut/conditions.h>
+#include <mtf/conditions.h>
 
 #include "multithreaded_tester.h"
 #include "thread_tester.h"

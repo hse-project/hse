@@ -2,16 +2,19 @@
 /*
  * Copyright (C) 2015-2017,2021 Micron Technology, Inc. All rights reserved.
  */
-#ifndef HSE_UTEST_CONDITIONS_H
-#define HSE_UTEST_CONDITIONS_H
+
+#ifndef MTF_CONDITIONS_H
+#define MTF_CONDITIONS_H
 
 #include <stdlib.h>
 
+#include <hse_util/compiler.h>
+
 #include "common.h"
 
-#ifndef MTF_DEBUG_HOOK
-#define MTF_DEBUG_HOOK() abort()
-#endif
+HSE_WEAK
+void
+mtf_test_failure(void);
 
 /* Set the mtf_verify_flag when the verify check fails the first time and record
  * file/line info. Subsequent failures are likely to be duplicates or collateral
@@ -24,7 +27,7 @@
                 mtf_verify_flag = 1;        \
                 mtf_verify_file = __FILE__; \
                 mtf_verify_line = __LINE__; \
-                MTF_DEBUG_HOOK();           \
+                mtf_test_failure();         \
             }                               \
             return rc;                      \
         }                                   \
@@ -40,7 +43,7 @@
             if (!mtf_verify_flag) {                                     \
                 mtf_print(tci, "%s:%d: Failure\n", __FILE__, __LINE__); \
                 mtf_print(tci, "\texpected true: %s\n", #cond);         \
-                MTF_DEBUG_HOOK();                                       \
+                mtf_test_failure();                                     \
             }                                                           \
             lcl_ti->ti_status = 0;                                      \
             if (assert)                                                 \
@@ -69,7 +72,7 @@
             if (!mtf_verify_flag) {                                     \
                 mtf_print(tci, "%s:%d: Failure\n", __FILE__, __LINE__); \
                 mtf_print(tci, "\texpected false: %s\n", #cond);        \
-                MTF_DEBUG_HOOK();                                       \
+                mtf_test_failure();                                     \
             }                                                           \
             lcl_ti->ti_status = 0;                                      \
             if (assert)                                                 \
@@ -102,7 +105,7 @@
                 mtf_print(                                                                         \
                     tci, "%s:%d: Failure %s == %s\n", __FILE__, __LINE__, #reference, #actual);    \
                 mtf_print(tci, "\t%ld == %ld --> false\n", (long)(reference), (long)(___mtf_val)); \
-                MTF_DEBUG_HOOK();                                                                  \
+                mtf_test_failure();                                                                \
             }                                                                                      \
             lcl_ti->ti_status = 0;                                                                 \
             if (assert)                                                                            \
@@ -133,7 +136,7 @@
                 mtf_print(                                                                         \
                     tci, "%s:%d: Failure %s == %s\n", __FILE__, __LINE__, #reference, #actual);    \
                 mtf_print(tci, "\t%ld != %ld --> false\n", (long)(reference), (long)(___mtf_val)); \
-                MTF_DEBUG_HOOK();                                                                  \
+                mtf_test_failure();                                                                \
             }                                                                                      \
             lcl_ti->ti_status = 0;                                                                 \
             if (assert)                                                                            \
@@ -166,7 +169,7 @@
                 mtf_print(                                                                        \
                     tci, "%s:%d: Failure %s == %s\n", __FILE__, __LINE__, #reference, #actual);   \
                 mtf_print(tci, "\t%ld < %ld --> false\n", (long)(reference), (long)(___mtf_val)); \
-                MTF_DEBUG_HOOK();                                                                 \
+                mtf_test_failure();                                                               \
             }                                                                                     \
             lcl_ti->ti_status = 0;                                                                \
             if (assert)                                                                           \
@@ -197,7 +200,7 @@
                 mtf_print(                                                                         \
                     tci, "%s:%d: Failure %s == %s\n", __FILE__, __LINE__, #reference, #actual);    \
                 mtf_print(tci, "\t%ld <= %ld --> false\n", (long)(reference), (long)(___mtf_val)); \
-                MTF_DEBUG_HOOK();                                                                  \
+                mtf_test_failure();                                                                \
             }                                                                                      \
             lcl_ti->ti_status = 0;                                                                 \
             if (assert)                                                                            \
@@ -228,7 +231,7 @@
                 mtf_print(                                                                        \
                     tci, "%s:%d: Failure %s == %s\n", __FILE__, __LINE__, #reference, #actual);   \
                 mtf_print(tci, "\t%ld > %ld --> false\n", (long)(reference), (long)(___mtf_val)); \
-                MTF_DEBUG_HOOK();                                                                 \
+                mtf_test_failure();                                                               \
             }                                                                                     \
             lcl_ti->ti_status = 0;                                                                \
             if (assert)                                                                           \
@@ -259,7 +262,7 @@
                 mtf_print(                                                                         \
                     tci, "%s:%d: Failure %s == %s\n", __FILE__, __LINE__, #reference, #actual);    \
                 mtf_print(tci, "\t%ld >= %ld --> false\n", (long)(reference), (long)(___mtf_val)); \
-                MTF_DEBUG_HOOK();                                                                  \
+                mtf_test_failure();                                                                \
             }                                                                                      \
             lcl_ti->ti_status = 0;                                                                 \
             if (assert)                                                                            \
@@ -296,7 +299,7 @@
                     __LINE__,                                            \
                     (reference),                                         \
                     (actual));                                           \
-                MTF_DEBUG_HOOK();                                        \
+                mtf_test_failure();                                      \
             }                                                            \
             lcl_ti->ti_status = 0;                                       \
             if (assert)                                                  \
@@ -334,7 +337,7 @@
                     __LINE__,                                            \
                     (reference),                                         \
                     (actual));                                           \
-                MTF_DEBUG_HOOK();                                        \
+                mtf_test_failure();                                      \
             }                                                            \
             lcl_ti->ti_status = 0;                                       \
             if (assert)                                                  \
@@ -370,7 +373,7 @@
                 mtf_print(                                                                      \
                     tci, "%s:%d: Failure %s == %s\n", __FILE__, __LINE__, #reference, #actual); \
                 mtf_print(tci, "\t%g == %g --> false\n", (reference), (actual));                \
-                MTF_DEBUG_HOOK();                                                               \
+                mtf_test_failure();                                                             \
             }                                                                                   \
             lcl_ti->ti_status = 0;                                                              \
             if (assert)                                                                         \

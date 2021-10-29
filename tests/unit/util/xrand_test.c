@@ -6,8 +6,7 @@
 #include <hse_util/xrand.h>
 #include <hse_util/base.h>
 
-#include <hse_ut/framework.h>
-
+#include <mtf/framework.h>
 
 int compare_u64(const void *ptr_a, const void *ptr_b)
 {

@@ -3,13 +3,9 @@
  * Copyright (C) 2015-2021 Micron Technology, Inc.  All rights reserved.
  */
 
-#include "framework_external.h"
-
-#include <hse_ut/conditions.h>
-#include <hse_test_support/mock_api.h>
+#include <mock/api.h>
 
 #include <hse_util/hse_err.h>
-#include <hse_util/inttypes.h>
 
 #include <hse_ikvdb/kvset_builder.h>
 
@@ -20,12 +16,13 @@ _kvset_builder_create(
     struct kvset_builder **bld_out,
     struct cn *            cn,
     struct perfc_set *     pc,
-    u64                    vgroup)
+    uint64_t               vgroup)
 {
     struct mock_kvset_builder *mock;
 
     mock = mapi_safe_malloc(sizeof(*mock));
-    VERIFY_TRUE_RET(mock, merr(EBUG));
+    if (!mock)
+        return merr(EBUG);
 
     memset(mock, 0, sizeof(*mock));
 

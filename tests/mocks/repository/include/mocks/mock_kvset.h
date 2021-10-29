@@ -3,8 +3,8 @@
  * Copyright (C) 2015-2021 Micron Technology, Inc.  All rights reserved.
  */
 
-#ifndef HSE_KVS_CN_TEST_MOCK_KVSET_H
-#define HSE_KVS_CN_TEST_MOCK_KVSET_H
+#ifndef MOCKS_MOCK_KVSET_H
+#define MOCKS_MOCK_KVSET_H
 
 #include <hse_util/page.h>
 

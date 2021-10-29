@@ -3,10 +3,7 @@
  * Copyright (C) 2015-2021 Micron Technology, Inc.  All rights reserved.
  */
 
-#include "framework_external.h"
-
-#include <hse_ut/conditions.h>
-#include <hse_test_support/mock_api.h>
+#include <mock/api.h>
 
 #include <hse_util/page.h>
 #include <hse_util/keycmp.h>
@@ -170,7 +167,7 @@ _c0_close(struct c0 *h)
         munmap(cur, sizeof(*cur));
     }
 
-    if (munmap(c0, sizeof(c0)))
+    if (munmap(c0, sizeof(*c0)))
         return merr(errno);
 
     return 0;

@@ -12,7 +12,7 @@
 /* MTF_MOCK_DECL(alloc) */
 
 #if HSE_MOCKING
-#include <hse_test_support/allocation.h>
+#include <mock/allocation.h>
 #endif /* HSE_MOCKING */
 
 /**

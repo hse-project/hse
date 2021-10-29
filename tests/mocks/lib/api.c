@@ -1,10 +1,10 @@
 /* SPDX-License-Identifier: Apache-2.0 */
 /*
- * Copyright (C) 2015-2017 Micron Technology, Inc. All rights reserved.
+ * Copyright (C) 2015-2017,2021 Micron Technology, Inc. All rights reserved.
  */
 
-#include <hse_ut/conditions.h>
-#include <hse_test_support/mock_api.h>
+#include <mtf/conditions.h>
+#include <mock/api.h>
 
 #include <hse_util/arch.h>
 #include <hse_util/inttypes.h>
@@ -18,12 +18,12 @@ union rc {
 };
 
 struct mocked_api {
-    u64     start1 HSE_ALIGNED(SMP_CACHE_BYTES * 2);
-    u64     stop1;
-    union rc rc1;
+    u64 start1 HSE_ALIGNED(SMP_CACHE_BYTES * 2);
+    u64        stop1;
+    union rc   rc1;
 
-    u64     start2;
-    u64     stop2;
+    u64      start2;
+    u64      stop2;
     union rc rc2;
 
     atomic64_t calls HSE_ALIGNED(SMP_CACHE_BYTES);
@@ -98,7 +98,7 @@ valid_api(u32 api)
  * can now call malloc/free directly.
  */
 #ifdef TESTS_MOCKS_ALLOCATION_UT_H
-#error "Do not include hse_util/alloc.h nor hse_test_support/allocation.h"
+#error "Do not include hse_util/alloc.h nor mock/allocation.h"
 #endif
 
 void *
@@ -261,9 +261,7 @@ mapi_inject_check(u32 api, u64 *i)
 }
 
 void
-mapi_inject_list(
-    struct mapi_injection  *inject,
-    bool                    set)
+mapi_inject_list(struct mapi_injection *inject, bool set)
 {
     while (inject->api != -1) {
 

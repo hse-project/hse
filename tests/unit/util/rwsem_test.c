@@ -5,7 +5,7 @@
 
 #include "multithreaded_tester.h"
 
-#include <hse_ut/framework.h>
+#include <mtf/framework.h>
 
 #include <hse_util/rwsem.h>
 

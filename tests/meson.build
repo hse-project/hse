@@ -44,7 +44,10 @@ add_test_setup(
     exclude_suites: ['long', 'smoke', 'non-deterministic', 'stress', 'stress_large'] + additional_suite_exclusions,
 )
 
+subdir('framework')
+subdir('support')
 subdir('fixtures')
+subdir('mocks')
 
 subdir('unit')
 subdir('functional')

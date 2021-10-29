@@ -8,7 +8,7 @@
 
 #include <hse_util/hse_err.h>
 #include <hse_ikvdb/kvdb_home.h>
-#include <hse_ut/framework.h>
+#include <mtf/framework.h>
 #include <pidfile/pidfile.h>
 
 static const char *capdir = "capacity";

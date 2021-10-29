@@ -16,7 +16,7 @@
 
 #include <hse_util/base.h>
 
-#include <hse_ut/common.h>
+#include <mtf/common.h>
 
 #define MTEST_ALIGN 128
 

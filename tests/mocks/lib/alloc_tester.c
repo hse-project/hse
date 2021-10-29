@@ -3,9 +3,9 @@
  * Copyright (C) 2018 Micron Technology, Inc. All rights reserved.
  */
 
-#include <hse_ut/conditions.h>
-#include <hse_test_support/mock_api.h>
-#include <hse_test_support/mapi_alloc_tester.h>
+#include <mtf/conditions.h>
+#include <mock/api.h>
+#include <mock/alloc_tester.h>
 
 /*
  * Example use of mapi_alloc_tester() to test function a create/destroy

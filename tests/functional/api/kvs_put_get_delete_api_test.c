@@ -5,7 +5,7 @@
 
 #include <hse/hse.h>
 
-#include <hse_ut/framework.h>
+#include <mtf/framework.h>
 #include <fixtures/kvdb.h>
 #include <fixtures/kvs.h>
 

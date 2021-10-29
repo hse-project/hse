@@ -2,8 +2,8 @@
 /*
  * Copyright (C) 2015-2017,2021 Micron Technology, Inc. All rights reserved.
  */
-#ifndef HSE_UTEST_COMMON_H
-#define HSE_UTEST_COMMON_H
+#ifndef MTF_COMMON_H
+#define MTF_COMMON_H
 
 #include <stdarg.h>
 

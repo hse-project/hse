@@ -3,14 +3,10 @@
  * Copyright (C) 2015-2021 Micron Technology, Inc.  All rights reserved.
  */
 
-#include "framework_external.h"
-
-#include <hse_ut/conditions.h>
-
 #include <hse_util/hse_err.h>
 #include <hse_util/inttypes.h>
 
-#include <hse_test_support/mock_api.h>
+#include <mock/api.h>
 
 #include <cn/kblock_builder.h>
 #include <cn/vblock_builder.h>

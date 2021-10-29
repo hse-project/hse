@@ -3,8 +3,8 @@
  * Copyright (C) 2015-2021 Micron Technology, Inc.  All rights reserved.
  */
 
-#ifndef HSE_KVDB_TEST_MOCK_C0CN_H
-#define HSE_KVDB_TEST_MOCK_C0CN_H
+#ifndef MOCKS_MOCK_C0CN_H
+#define MOCKS_MOCK_C0CN_H
 
 void
 mock_kvdb_meta_set(void);

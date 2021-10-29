@@ -1,10 +1,10 @@
 /* SPDX-License-Identifier: Apache-2.0 */
 /*
- * Copyright (C) 2015-2020 Micron Technology, Inc.  All rights reserved.
+ * Copyright (C) 2015-2021 Micron Technology, Inc.  All rights reserved.
  */
 
-#ifndef HSE_KVS_CN_TEST_MOCK_KVSET_BUILDERH
-#define HSE_KVS_CN_TEST_MOCK_KVSET_BUILDERH
+#ifndef MOCKS_MOCK_KVSET_BUILDERH
+#define MOCKS_MOCK_KVSET_BUILDERH
 
 struct mpool;
 struct kvs_rparams;

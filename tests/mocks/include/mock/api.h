@@ -1,16 +1,18 @@
 /* SPDX-License-Identifier: Apache-2.0 */
 /*
- * Copyright (C) 2015-2017 Micron Technology, Inc. All rights reserved.
+ * Copyright (C) 2015-2017,2021 Micron Technology, Inc. All rights reserved.
  */
 
-#ifndef HSE_CORE_HSE_TEST_MOCK_H
-#define HSE_CORE_HSE_TEST_MOCK_H
+#ifndef MOCK_API_H
+#define MOCK_API_H
 
-#include <hse_util/inttypes.h>
+#include <stdbool.h>
+#include <stddef.h>
+#include <stdint.h>
 
 #include "mapi_idx.h"
 
-#define MOCK_SET(group, func) mtfm_##group##func##_set(func)
+#define MOCK_SET(group, func)   mtfm_##group##func##_set(func)
 #define MOCK_UNSET(group, func) mtfm_##group##func##_set(0)
 
 #define MOCK_SET_FN(group, orig_func, new_func) mtfm_##group##_##orig_func##_set(new_func)
@@ -90,20 +92,34 @@ mapi_safe_free(void *mem);
  *     mapi_inject_set(api_foobar, 0, 0, 0, 0, 0, 0);
  */
 void
-mapi_inject_set(u32 api, u32 start1, u32 stop1, u64 rc1, u32 start2, u32 stop2, u64 rc2);
+mapi_inject_set(
+    uint32_t api,
+    uint32_t start1,
+    uint32_t stop1,
+    uint64_t rc1,
+    uint32_t start2,
+    uint32_t stop2,
+    uint64_t rc2);
 
 void
-mapi_inject_set_ptr(u32 api, u32 start1, u32 stop1, void *rc1, u32 start2, u32 stop2, void *rc2);
+mapi_inject_set_ptr(
+    uint32_t api,
+    uint32_t start1,
+    uint32_t stop1,
+    void *   rc1,
+    uint32_t start2,
+    uint32_t stop2,
+    void *   rc2);
 
 /**
  * mapi_inject_unset - configure @api to operate normally
  *                  and reset the call count
  */
 void
-mapi_inject_unset(u32 api);
+mapi_inject_unset(uint32_t api);
 
 void
-mapi_inject_unset_range(u32 low, u32 hi);
+mapi_inject_unset_range(uint32_t low, uint32_t hi);
 
 /**
  * mapi_inject_clear - remove all injected errors
@@ -115,15 +131,15 @@ mapi_inject_clear(void);
 /**
  * mapi_calls - return the number of times @api was called
  */
-u64
-mapi_calls(u32 api);
+uint64_t
+mapi_calls(uint32_t api);
 
 /**
  * mapi_calls_clear - return the number of times @api was called
  *     and then reset counter
  */
-u64
-mapi_calls_clear(u32 api);
+uint64_t
+mapi_calls_clear(uint32_t api);
 
 /**
  * mapi_inject - configure @api to always return @value.
@@ -146,18 +162,18 @@ mapi_calls_clear(u32 api);
  * These are normally called by the generated mocking framework.
  */
 bool
-mapi_inject_check(u32 api, u64 *rc);
+mapi_inject_check(uint32_t api, uint64_t *rc);
 
 bool
-mapi_inject_check_ptr(u32 api, void **ptr);
+mapi_inject_check_ptr(uint32_t api, void **ptr);
 
 extern bool mapi_enabled;
 
 struct mapi_injection {
-    int   api;
-    int   rc_cookie;
-    u64   rc_scalar;
-    void *rc_ptr;
+    int      api;
+    int      rc_cookie;
+    uint64_t rc_scalar;
+    void *   rc_ptr;
 };
 /* A hack to make the initialization of struct mapi_injection arrays
  * both readable and safe (ie, can detect misuse).  Users do this:
@@ -171,26 +187,22 @@ struct mapi_injection {
  * The above will result in rc_cookie indicating scalar or ptr.  If
  * rc_cookie is invalid, the array was incorrectly initialized.
  */
-#define MAPI_RC_COOKIE_SCALAR  0x835ab001
-#define MAPI_RC_COOKIE_PTR     0x835ab002
-#define MAPI_RC_SCALAR  MAPI_RC_COOKIE_SCALAR
-#define MAPI_RC_PTR     MAPI_RC_COOKIE_PTR, 0
+#define MAPI_RC_COOKIE_SCALAR 0x835ab001
+#define MAPI_RC_COOKIE_PTR    0x835ab002
+#define MAPI_RC_SCALAR        MAPI_RC_COOKIE_SCALAR
+#define MAPI_RC_PTR           MAPI_RC_COOKIE_PTR, 0
 
 void
-mapi_inject_list(
-    struct mapi_injection  *injectv,
-    bool                    set);
+mapi_inject_list(struct mapi_injection *injectv, bool set);
 
 static inline void
-mapi_inject_list_set(
-    struct mapi_injection  *injectv)
+mapi_inject_list_set(struct mapi_injection *injectv)
 {
     mapi_inject_list(injectv, true);
 }
 
 static inline void
-mapi_inject_list_unset(
-    struct mapi_injection  *injectv)
+mapi_inject_list_unset(struct mapi_injection *injectv)
 {
     mapi_inject_list(injectv, false);
 }

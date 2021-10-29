@@ -3,8 +3,8 @@
  * Copyright (C) 2015-2021 Micron Technology, Inc.  All rights reserved.
  */
 
-#include <hse_ut/framework.h>
-#include <hse_test_support/mock_api.h>
+#include <mtf/framework.h>
+#include <mock/api.h>
 
 #include <hse/hse.h>
 
@@ -23,7 +23,7 @@
 
 #include <tools/key_generation.h>
 #include <hse_ikvdb/tuple.h>
-#include <hse_test_support/random_buffer.h>
+#include <support/random_buffer.h>
 
 #include <mocks/mock_c0cn.h>
 

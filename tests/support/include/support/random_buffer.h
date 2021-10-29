@@ -1,12 +1,13 @@
 /* SPDX-License-Identifier: Apache-2.0 */
 /*
- * Copyright (C) 2015-2017 Micron Technology, Inc.  All rights reserved.
+ * Copyright (C) 2015-2017,2021 Micron Technology, Inc.  All rights reserved.
  */
 
-#ifndef HSE_CORE_HSE_TEST_RANDOM_BUFFER_H
-#define HSE_CORE_HSE_TEST_RANDOM_BUFFER_H
+#ifndef SUPPORT_RANDOM_BUFFER_H
+#define SUPPORT_RANDOM_BUFFER_H
 
-#include <hse_util/inttypes.h>
+#include <stddef.h>
+#include <stdint.h>
 
 /* randomize_buffer
  *
@@ -29,8 +30,8 @@ validate_random_buffer(void *buf, size_t len, unsigned int seed);
  * Create and return a random u32 between min and max inclusive with
  * a uniform distribution.
  */
-u32
-generate_random_u32(u32 min, u32 max);
+uint32_t
+generate_random_u32(uint32_t min, uint32_t max);
 
 /* permute_u32_sequence
  *
@@ -38,7 +39,7 @@ generate_random_u32(u32 min, u32 max);
  * introducing repeats.
  */
 void
-permute_u32_sequence(u32 *values, u32 num_values);
+permute_u32_sequence(uint32_t *values, uint32_t num_values);
 
 /* generate_random_u32_sequence
  *
@@ -46,13 +47,21 @@ permute_u32_sequence(u32 *values, u32 num_values);
  * and max inclusive.
  */
 void
-generate_random_u32_sequence(u32 min_value, u32 max_value, u32 *values, u32 num_values);
+generate_random_u32_sequence(
+    uint32_t  min_value,
+    uint32_t  max_value,
+    uint32_t *values,
+    uint32_t  num_values);
 
 /* generate_random_u32_sequence_unique
  *
  * Same as generate_random_u32_sequence(), but all values are unique.
  */
 void
-generate_random_u32_sequence_unique(u32 min_value, u32 max_value, u32 *values, u32 num_values);
+generate_random_u32_sequence_unique(
+    uint32_t  min_value,
+    uint32_t  max_value,
+    uint32_t *values,
+    uint32_t  num_values);
 
 #endif

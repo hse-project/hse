@@ -16,7 +16,6 @@ foreach t, params : tests
         c_args: params.get('c_args', []),
         include_directories: [
             hse_include_directories,
-            test_framework_includes,
             tools_includes,
             params.get('include_directories', []),
         ],
@@ -24,6 +23,7 @@ foreach t, params : tests
             hse_internal_dep,
             hse_dependencies,
             hse_fixtures_dep,
+            hse_test_framework_dep,
             params.get('dependencies', [])
         ],
     )

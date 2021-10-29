@@ -157,7 +157,7 @@ function emit_ku_header(name, set_name, prefix, args,
 function emit_header(name, set_name, ku, prefix, args)
 {
     if (++first_time_mock == 1) {
-        printf("#include <hse_test_support/mock_api.h>\n") > TARGET_FILE;
+        printf("#include <mock/api.h>\n") > TARGET_FILE;
     }
     if (ku == 0) {
         printf("\n\n/* %s\n */\n", name) > TARGET_FILE;

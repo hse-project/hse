@@ -1,11 +1,9 @@
 /* SPDX-License-Identifier: Apache-2.0 */
 /*
- * Copyright (C) 2015-2017 Micron Technology, Inc. All rights reserved.
+ * Copyright (C) 2015-2017,2021 Micron Technology, Inc. All rights reserved.
  */
-#ifndef HSE_MAPI_MALLOC_TESTER_H
-#define HSE_MAPI_MALLOC_TESTER_H
-
-#if HSE_MOCKING
+#ifndef MOCK_ALLOC_TESTER_H
+#define MOCK_ALLOC_TESTER_H
 
 struct mtf_test_info;
 
@@ -19,5 +17,4 @@ mapi_alloc_tester(
     mapi_alloc_tester_run_fn *  run,
     mapi_alloc_tester_clean_fn *clean);
 
-#endif
 #endif

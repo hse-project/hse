@@ -3,7 +3,7 @@
  * Copyright (C) 2015-2020 Micron Technology, Inc.  All rights reserved.
  */
 
-#include <hse_ut/framework.h>
+#include <mtf/framework.h>
 #include <hse_util/log2.h>
 
 MTF_BEGIN_UTEST_COLLECTION(log2);
