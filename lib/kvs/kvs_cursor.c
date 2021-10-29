@@ -1231,7 +1231,8 @@ kvs_cursor_seek(
     cursor->kci_need_seek = 0;
 
     if (cursor->kci_eof || ev(cursor->kci_err)) {
-        /* If this seek caused the cursor to land on eof, store this key so the cursor remains positionally stable
+        /* If this seek caused the cursor to land on eof, store this key so the cursor
+         * remains positionally stable.
          */
         if (cursor->kci_eof) {
             cursor->kci_last_klen = len;
@@ -1249,13 +1250,17 @@ kvs_cursor_seek(
 }
 
 void
-kvs_cursor_perfc_alloc(uint prio, const char *dbname, struct perfc_set *pcs_cc, struct perfc_set *pcs_cd)
+kvs_cursor_perfc_alloc(uint prio, const char *dbname, struct perfc_set *ccp, struct perfc_set *cdp)
 {
-    if (perfc_ctrseti_alloc(prio, dbname, kvs_cc_perfc_op, PERFC_EN_CC, "set", pcs_cc))
-        log_err("cannot alloc kvs perf counters");
+    merr_t err;
 
-    if (perfc_ctrseti_alloc(prio, dbname, kvs_cd_perfc_op, PERFC_EN_CD, "set", pcs_cd))
-        log_err("cannot alloc kvs perf counters");
+    err = perfc_ctrseti_alloc(prio, dbname, kvs_cc_perfc_op, PERFC_EN_CC, "set", ccp);
+    if (err)
+        log_errx("cannot alloc kvs perf counters: @@e", err);
+
+    err = perfc_ctrseti_alloc(prio, dbname, kvs_cd_perfc_op, PERFC_EN_CD, "set", cdp);
+    if (err)
+        log_errx("cannot alloc kvs perf counters: @@e", err);
 }
 
 void

@@ -81,22 +81,22 @@ kvs_destroy(struct ikvs *kvs);
 static void
 kvs_perfc_alloc(const char *kvdb_alias, const char *kvs_name, struct ikvs *kvs)
 {
-    char   dbname_buf[DT_PATH_MAX];
+    char   namebuf[DT_PATH_MAX];
     merr_t err;
     size_t n;
 
     INVARIANT(kvdb_alias);
     INVARIANT(kvs_name);
 
-    n = snprintf(dbname_buf, sizeof(dbname_buf), "%s/kvs/%s", kvdb_alias, kvs_name);
-    if (ev(n >= sizeof(dbname_buf)))
+    n = snprintf(namebuf, sizeof(namebuf), "kvdb/%s/kvs/%s", kvdb_alias, kvs_name);
+    if (ev(n >= sizeof(namebuf)))
         return;
 
-    kvs_cursor_perfc_alloc(kvs->ikv_rp.perfc_level, dbname_buf, &kvs->ikv_cc_pc, &kvs->ikv_cd_pc);
+    kvs_cursor_perfc_alloc(kvs->ikv_rp.perfc_level, namebuf, &kvs->ikv_cc_pc, &kvs->ikv_cd_pc);
 
     /* Measure Public KVS interface Latencies */
-    err = perfc_ctrseti_alloc(kvs->ikv_rp.perfc_level, dbname_buf,
-                              kvs_pkvsl_perfc_op, PERFC_EN_PKVSL, "set", &kvs->ikv_pkvsl_pc);
+    err = perfc_ctrseti_alloc(kvs->ikv_rp.perfc_level, namebuf, kvs_pkvsl_perfc_op,
+                              PERFC_EN_PKVSL, "set", &kvs->ikv_pkvsl_pc);
     if (err)
         log_errx("cannot alloc kvs perf counters: @@e", err);
 }

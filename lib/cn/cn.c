@@ -1060,9 +1060,9 @@ cn_perfc_alloc(struct cn *cn)
         { cn_perfc_mclass, PERFC_EN_CNMCLASS, "mclass", &cn->cn_pc_mclass },
     };
 
-    i = snprintf(name_buf, sizeof(name_buf), "%s/kvs/%s", cn->cn_kvdb_alias, cn->cn_kvsname);
+    i = snprintf(name_buf, sizeof(name_buf), "kvdb/%s/kvs/%s", cn->cn_kvdb_alias, cn->cn_kvsname);
 
-    if (i < 7 || i >= sizeof(name_buf)) {
+    if (i < 12 || i >= sizeof(name_buf)) {
         log_warn("cn perfc name buffer too small");
         return;
     }

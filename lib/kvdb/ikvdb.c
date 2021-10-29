@@ -222,15 +222,19 @@ ikvdb_kvdb_handle(struct ikvdb_impl *self)
 void
 ikvdb_perfc_alloc(struct ikvdb_impl *self)
 {
+    char namebuf[128];
     merr_t err;
+
+    snprintf(namebuf, sizeof(namebuf), "kvdb/%s", self->ikdb_alias);
 
     err = perfc_ctrseti_alloc(
         self->ikdb_rp.perfc_level,
-        self->ikdb_alias,
+        namebuf,
         ctxn_perfc_op,
         PERFC_EN_CTXNOP,
         "set",
         &self->ikdb_ctxn_op);
+
     if (err)
         log_warnx("cannot alloc ctxn op perf counters for %s: @@e", err, self->ikdb_home);
 }

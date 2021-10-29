@@ -2364,6 +2364,7 @@ sp3_create(
     struct kvdb_health * health,
     struct csched_ops ** handle)
 {
+    char namebuf[128];
     struct sp3 *sp;
     merr_t      err;
     size_t      name_sz, alloc_sz;
@@ -2439,7 +2440,9 @@ sp3_create(
     sp->ops.cs_tree_add = sp3_op_tree_add;
     sp->ops.cs_tree_remove = sp3_op_tree_remove;
 
-    err = perfc_ctrseti_alloc(sp->rp->perfc_level, sp->name, csched_sp3_perfc,
+    snprintf(namebuf, sizeof(namebuf), "kvdb/%s", sp->name);
+
+    err = perfc_ctrseti_alloc(sp->rp->perfc_level, namebuf, csched_sp3_perfc,
                               PERFC_EN_SP3, "sp3", &sp->sched_pc);
     if (err)
         log_errx("cannot alloc sp3 perf counters: @@e", err);

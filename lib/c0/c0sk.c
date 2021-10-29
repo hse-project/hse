@@ -39,23 +39,35 @@
 void
 c0sk_perfc_alloc(struct c0sk_impl *self)
 {
-    if (perfc_ctrseti_alloc(
-            self->c0sk_kvdb_rp->perfc_level,
-            self->c0sk_kvdb_alias,
-            c0sk_perfc_op,
-            PERFC_EN_C0SKOP,
-            "set",
-            &self->c0sk_pc_op))
-        log_err("cannot alloc c0sk op perf counters");
+    char namebuf[128];
+    merr_t err;
+    size_t n;
 
-    if (perfc_ctrseti_alloc(
-            self->c0sk_kvdb_rp->perfc_level,
-            self->c0sk_kvdb_alias,
-            c0sk_perfc_ingest,
-            PERFC_EN_C0SKING,
-            "set",
-            &self->c0sk_pc_ingest))
-        log_err("cannot alloc c0sk ingest perf counters");
+    n = snprintf(namebuf, sizeof(namebuf), "kvdb/%s", self->c0sk_kvdb_alias);
+    if (n >= sizeof(namebuf))
+        return;
+
+    err = perfc_ctrseti_alloc(
+        self->c0sk_kvdb_rp->perfc_level,
+        namebuf,
+        c0sk_perfc_op,
+        PERFC_EN_C0SKOP,
+        "set",
+        &self->c0sk_pc_op);
+
+    if (err)
+        log_errx("cannot alloc c0sk op perf counters: @@e", err);
+
+    err = perfc_ctrseti_alloc(
+        self->c0sk_kvdb_rp->perfc_level,
+        namebuf,
+        c0sk_perfc_ingest,
+        PERFC_EN_C0SKING,
+        "set",
+        &self->c0sk_pc_ingest);
+
+    if (err)
+        log_errx("cannot alloc c0sk ingest perf counters: @@e", err);
 }
 
 /**

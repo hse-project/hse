@@ -746,8 +746,8 @@ perfc_ctrseti_alloc(
         }
     }
 
-    sz = snprintf(path, sizeof(path), "%s/%s/%s/%s/%s",
-                  PERFC_ROOT_PATH, COMPNAME, name, family, ctrseti_name);
+    sz = snprintf(path, sizeof(path), "%s/%s/%s/%s",
+                  PERFC_ROOT_PATH, name, family, ctrseti_name);
     if (ev(sz >= sizeof(path)))
         return merr(EINVAL);
 

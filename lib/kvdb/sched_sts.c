@@ -375,13 +375,15 @@ sts_monitor(void *rock)
 static void
 sts_perfc_alloc_internal(struct sts *self)
 {
+    char namebuf[32], qnum_str[16];
     int  i;
-    char qnum_str[16];
+
+    snprintf(namebuf, sizeof(namebuf), "kvdb/%s", self->name);
 
     /* Iterate w/ <= to get shared worker stats */
     for (i = 0; i <= self->qc; i++) {
         snprintf(qnum_str, sizeof(qnum_str), "q%d", i);
-        sts_perfc_alloc(self->rp->perfc_level, self->name, qnum_str, &self->qv[i].qpc);
+        sts_perfc_alloc(self->rp->perfc_level, namebuf, qnum_str, &self->qv[i].qpc);
     }
 }
 
