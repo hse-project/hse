@@ -81,7 +81,6 @@ hse_sources = [
 ]
 
 hse_c_args = [
-    '-DCOMPNAME="kvdb"',
     '-DHSE_EXPERIMENTAL',
 ]
 

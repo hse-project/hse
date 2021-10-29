@@ -271,7 +271,6 @@ foreach c, tests : components
                 params.get('sources', []),
             ],
             c_args: [
-                '-DCOMPNAME="kvdb"',
                 params.get('c_args', []),
             ],
             include_directories: params.get('include_directories', []),

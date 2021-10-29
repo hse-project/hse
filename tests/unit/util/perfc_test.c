@@ -143,9 +143,8 @@ MTF_DEFINE_UTEST(perfc, perfc_basic_create_find_and_remove)
     n = snprintf(
         path,
         sizeof(path),
-        "%s/%s/%s/%s/%s",
+        "%s/%s/%s/%s",
         DT_PATH_PERFC,
-        COMPNAME,
         "batman_villains",
         "FAM",
         "joker");
@@ -194,9 +193,8 @@ MTF_DEFINE_UTEST(perfc, perfc_basic_set)
     n = snprintf(
         path,
         sizeof(path),
-        "%s/%s/%s/%s/%s",
+        "%s/%s/%s/%s",
         DT_PATH_PERFC,
-        COMPNAME,
         "batman_villains",
         "FAM",
         "poison_ivy");
@@ -272,7 +270,7 @@ MTF_DEFINE_UTEST(perfc, clear_counters)
 
     perfc_ctrseti_path(&set);
 
-    dsp.path = DT_PATH_PERFC "/" COMPNAME "/myset/FAM/alltypes";
+    dsp.path = DT_PATH_PERFC "/myset/FAM/alltypes";
     dsp.value = "1";
     dsp.value_len = strlen(dsp.value);
     dsp.field = DT_FIELD_CLEAR;
@@ -307,7 +305,7 @@ MTF_DEFINE_UTEST(perfc, enable_counters)
     perfc_test_ctrs(&set);
 
     path = perfc_ctrseti_path(&set);
-    ASSERT_EQ(0, strcmp(path, DT_PATH_PERFC "/" COMPNAME "/myset/FAM/basic"));
+    ASSERT_EQ(0, strcmp(path, DT_PATH_PERFC "/myset/FAM/basic"));
 
     dsp.path = path;
     dsp.value = "1";
@@ -401,7 +399,7 @@ MTF_DEFINE_UTEST(perfc, ctrset_path)
 
     err = perfc_ctrseti_alloc(1, "n", &ctrnames, 1, "s", &set);
     ASSERT_EQ(0, err);
-    ASSERT_EQ(0, strcmp(DT_PATH_PERFC "/" COMPNAME "/n/FAM/s", perfc_ctrseti_path(&set)));
+    ASSERT_EQ(0, strcmp(DT_PATH_PERFC "/n/FAM/s", perfc_ctrseti_path(&set)));
 
     perfc_ctrseti_free(&set);
 }
