@@ -9,7 +9,12 @@
 #include <hse/limits.h>
 
 #include <hse_util/arch.h>
+#include <hse_util/mutex.h>
+#include <hse_util/condvar.h>
+#include <hse_util/cds_list.h>
 #include <hse_util/perfc.h>
+
+#include <hse_ikvdb/kvdb_rparams.h>
 
 #include <mpool/mpool.h>
 

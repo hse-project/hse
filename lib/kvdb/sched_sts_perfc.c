@@ -11,7 +11,7 @@
 
 #include "sched_sts_perfc.h"
 
-static struct perfc_name sts_perfc[] = {
+static struct perfc_name sts_perfc[] _dt_section = {
 
     NE(PERFC_BA_STS_QDEPTH, 3, "Queue depth", "qdepth"),
 
@@ -25,9 +25,9 @@ static struct perfc_name sts_perfc[] = {
 NE_CHECK(sts_perfc, PERFC_EN_STS, "sts perfc table/enum mismatch");
 
 void
-sts_perfc_alloc(uint prio, const char *name, const char *ctrname, struct perfc_set *setp)
+sts_perfc_alloc(uint prio, const char *group, const char *name, struct perfc_set *setp)
 {
-    perfc_ctrseti_alloc(prio, name, sts_perfc, PERFC_EN_STS, ctrname, setp);
+    perfc_alloc(sts_perfc, group, name, prio, setp);
 }
 
 void

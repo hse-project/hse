@@ -904,8 +904,12 @@ perfc_sub(struct perfc_set *pcs, const u32 cidx, const u64 val)
 
 extern struct perfc_ivl *perfc_di_ivl;
 
+#define perfc_alloc(_ctrv, _group, _name, _prio, _setp)                 \
+    perfc_ctrseti_alloc((_prio), (_group), (_ctrv), NELEM((_ctrv)),     \
+                        (_name), __FILE__, __LINE__, (_setp))
+
 /*
- * perfc_ctrseti_alloc() - allocate a counter set instance
+ * perfc_ctrseti_alloc_impl() - allocate a counter set instance
  *      And insert it (leaf node) in the data tree.
  *      /data/perfc/<component>/<name>/<FAMILYNAME>/
  *      Typically:
@@ -948,10 +952,12 @@ extern struct perfc_ivl *perfc_di_ivl;
 merr_t
 perfc_ctrseti_alloc(
     uint                     prio,
-    const char *             name,
+    const char              *group,
     const struct perfc_name *ctrv,
-    u32                      ctrc,
-    const char *             ctrname,
+    size_t                   ctrc,
+    const char              *name,
+    const char              *file,
+    int                      line,
     struct perfc_set *       set);
 
 /**

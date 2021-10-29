@@ -10,16 +10,12 @@
 
 #include <mpool/mpool.h>
 
+#include "cn_internal.h"
 #include "cn_perfc_internal.h"
 
 #define STATIC
 
-/*
- * The NE() macro string-izes the enum.
- * perfc_ctrseti_alloc() parses this string to get the type(!).
- */
-
-struct perfc_name cn_perfc_get[] = {
+struct perfc_name cn_perfc_get[] _dt_section = {
     NE(PERFC_RA_CNGET_GET, 2, "Count of cN gets", "c_get(/s)"),
     NE(PERFC_RA_CNGET_MISS, 2, "Count of cN misses", "c_mis(/s)"),
 
@@ -38,7 +34,7 @@ struct perfc_name cn_perfc_get[] = {
     NE(PERFC_RA_CNGET_TOMB, 3, "Count of cN tombs", "c_tmb(/s)")
 };
 
-struct perfc_name cn_perfc_compact[] = {
+struct perfc_name cn_perfc_compact[] _dt_section = {
     NE(PERFC_LT_CNCOMP_TOTAL, 2, "comp latency", "l_comp"),
 
     NE(PERFC_BA_CNCOMP_START, 3, "started", "started"),
@@ -53,7 +49,7 @@ struct perfc_name cn_perfc_compact[] = {
     NE(PERFC_DI_CNCOMP_VGET, 3, "vget time", "vb_gettime(ns)"),
 };
 
-struct perfc_name cn_perfc_shape[] = {
+struct perfc_name cn_perfc_shape[] _dt_section = {
     NE(PERFC_BA_CNSHAPE_NODES, 2, "nodes", "nodes"),
     NE(PERFC_BA_CNSHAPE_AVGLEN, 2, "avglen", "avglen"),
     NE(PERFC_BA_CNSHAPE_AVGSIZE, 2, "avgsize", "avgsize"),
@@ -61,7 +57,7 @@ struct perfc_name cn_perfc_shape[] = {
     NE(PERFC_BA_CNSHAPE_MAXSIZE, 2, "maxsize", "maxsize"),
 };
 
-struct perfc_name cn_perfc_capped[] = {
+struct perfc_name cn_perfc_capped[] _dt_section = {
     NE(PERFC_BA_CNCAPPED_DEPTH, 2, "lag", "lag"),
     NE(PERFC_BA_CNCAPPED_ACTIVE, 3, "active iterators", "active"),
     NE(PERFC_BA_CNCAPPED_PTSEQ, 3, "seqno of ptombs", "ptseq"),
@@ -71,7 +67,7 @@ struct perfc_name cn_perfc_capped[] = {
 
 NE_CHECK(cn_perfc_capped, PERFC_EN_CNCAPPED, "cn_perfc_capped table/enum mismatch");
 
-struct perfc_name cn_perfc_mclass[] = {
+struct perfc_name cn_perfc_mclass[] _dt_section = {
     NE(PERFC_BA_CNMCLASS_ROOTK_STAGING, 3, "root_key_staging_alloc", "root_key_staging(b)"),
     NE(PERFC_BA_CNMCLASS_ROOTK_CAPACITY, 3, "root_key_capacity_alloc", "root_key_capacity(b)"),
     NE(PERFC_BA_CNMCLASS_ROOTV_STAGING, 3, "root_value_staging_alloc", "root_value_staging(b)"),
@@ -88,7 +84,7 @@ struct perfc_name cn_perfc_mclass[] = {
 
 NE_CHECK(cn_perfc_mclass, PERFC_EN_CNMCLASS, "cn_perfc_mclass table/enum mismatch");
 
-_Static_assert(
+static_assert(
     NELEM(cn_perfc_mclass) == HSE_MPOLICY_AGE_CNT * HSE_MPOLICY_DTYPE_CNT * HSE_MPOLICY_MEDIA_CNT,
     "cn_perfc_mclass entries mismatched");
 
@@ -130,6 +126,41 @@ cn_perfc_bkts_destroy(struct perfc_name *pcn)
         perfc_ivl_destroy(pcn->pcn_ivl);
         pcn->pcn_ivl = 0;
     }
+}
+
+void
+cn_perfc_alloc(struct cn *cn, uint prio)
+{
+    char group[128];
+
+    snprintf(group, sizeof(group), "kvdb/%s/kvs/%s", cn->cn_kvdb_alias, cn->cn_kvsname);
+
+    /* Not considered fatal if perfc fails */
+    perfc_alloc(cn_perfc_get, group, "cnget", prio, &cn->cn_pc_get);
+    perfc_alloc(cn_perfc_compact, group, "ingest", prio, &cn->cn_pc_ingest);
+    perfc_alloc(cn_perfc_compact, group, "spill", prio, &cn->cn_pc_spill);
+    perfc_alloc(cn_perfc_compact, group, "kcompact", prio, &cn->cn_pc_kcompact);
+    perfc_alloc(cn_perfc_compact, group, "kvcompact", prio, &cn->cn_pc_kvcompact);
+    perfc_alloc(cn_perfc_shape, group, "rnode", prio, &cn->cn_pc_shape_rnode);
+    perfc_alloc(cn_perfc_shape, group, "inode", prio, &cn->cn_pc_shape_inode);
+    perfc_alloc(cn_perfc_shape, group, "lnode", prio, &cn->cn_pc_shape_lnode);
+    perfc_alloc(cn_perfc_capped, group, "capped", prio, &cn->cn_pc_capped);
+    perfc_alloc(cn_perfc_mclass, group, "mclass", prio, &cn->cn_pc_mclass);
+}
+
+void
+cn_perfc_free(struct cn *cn)
+{
+    perfc_ctrseti_free(&cn->cn_pc_get);
+    perfc_ctrseti_free(&cn->cn_pc_ingest);
+    perfc_ctrseti_free(&cn->cn_pc_spill);
+    perfc_ctrseti_free(&cn->cn_pc_kcompact);
+    perfc_ctrseti_free(&cn->cn_pc_kvcompact);
+    perfc_ctrseti_free(&cn->cn_pc_shape_rnode);
+    perfc_ctrseti_free(&cn->cn_pc_shape_inode);
+    perfc_ctrseti_free(&cn->cn_pc_shape_lnode);
+    perfc_ctrseti_free(&cn->cn_pc_capped);
+    perfc_ctrseti_free(&cn->cn_pc_mclass);
 }
 
 /* NOTE: called once per KVDB, not once per CN */

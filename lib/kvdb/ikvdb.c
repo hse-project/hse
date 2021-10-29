@@ -37,7 +37,6 @@
 #include <hse_ikvdb/cn.h>
 #include <hse_ikvdb/cn_kvdb.h>
 #include <hse_ikvdb/cn_perfc.h>
-#include <hse_ikvdb/ctxn_perfc.h>
 #include <hse_ikvdb/kvdb_perfc.h>
 #include <hse_ikvdb/cndb.h>
 #include <hse_ikvdb/kvdb_ctxn.h>
@@ -81,17 +80,24 @@
 static_assert((sizeof(uintptr_t) == sizeof(u64)),
               "libhse relies on pointers being 64-bits in size");
 
+struct perfc_name ctxn_perfc_op[] _dt_section = {
+    NE(PERFC_BA_CTXNOP_ACTIVE,    1, "Count of active txns",       "c_ctxn_active"),
+    NE(PERFC_RA_CTXNOP_ALLOC,     1, "Rate of ctxn allocs",        "r_ctxn_alloc(/s)"),
+    NE(PERFC_RA_CTXNOP_BEGIN,     3, "Rate of ctxn begins",        "r_ctxn_begin(/s)"),
+    NE(PERFC_RA_CTXNOP_COMMIT,    3, "Rate of ctxn commits",       "r_ctxn_commit(/s)"),
+    NE(PERFC_LT_CTXNOP_COMMIT,    3, "Latency of ctxn commits",    "l_ctxn_commit(/s)", 7),
+    NE(PERFC_RA_CTXNOP_ABORT,     3, "Rate of ctxn aborts",        "r_ctxn_abort(/s)"),
+    NE(PERFC_RA_CTXNOP_LOCKFAIL,  2, "Rate of key lock failures",  "r_ctxn_lockfail(/s)"),
+    NE(PERFC_RA_CTXNOP_FREE,      1, "Rate of ctxn frees",         "r_ctxn_free(/s)"),
+};
+
+NE_CHECK(ctxn_perfc_op, PERFC_EN_CTXNOP, "ctxn_perfc_op table/enum mismatch");
+
 /* tls_vbuf[] is a thread-local buffer used as a compression output buffer by
  * ikvdb_kvs_put() and for small to medium direct reads by kvset_lookup_val().
  */
 thread_local char tls_vbuf[256 * 1024] HSE_ALIGNED(PAGE_SIZE);
 const size_t      tls_vbufsz = sizeof(tls_vbuf);
-
-struct perfc_set kvdb_pkvdbl_pc HSE_READ_MOSTLY;
-struct perfc_set kvdb_pc        HSE_READ_MOSTLY;
-
-struct perfc_set kvdb_metrics_pc HSE_READ_MOSTLY;
-struct perfc_set c0_metrics_pc   HSE_READ_MOSTLY;
 
 static atomic_t kvdb_alias = ATOMIC_INIT(0);
 
@@ -222,21 +228,12 @@ ikvdb_kvdb_handle(struct ikvdb_impl *self)
 void
 ikvdb_perfc_alloc(struct ikvdb_impl *self)
 {
-    char namebuf[128];
-    merr_t err;
+    char group[128];
 
-    snprintf(namebuf, sizeof(namebuf), "kvdb/%s", self->ikdb_alias);
+    snprintf(group, sizeof(group), "kvdb/%s", self->ikdb_alias);
 
-    err = perfc_ctrseti_alloc(
-        self->ikdb_rp.perfc_level,
-        namebuf,
-        ctxn_perfc_op,
-        PERFC_EN_CTXNOP,
-        "set",
-        &self->ikdb_ctxn_op);
-
-    if (err)
-        log_warnx("cannot alloc ctxn op perf counters for %s: @@e", err, self->ikdb_home);
+    perfc_alloc(ctxn_perfc_op, group, "set", self->ikdb_rp.perfc_level, &self->ikdb_ctxn_op);
+    kvdb_keylock_perfc_init(self->ikdb_keylock, &self->ikdb_ctxn_op);
 }
 
 static void
@@ -1343,7 +1340,6 @@ ikvdb_open(
     ikvdb_wal_install_callback(self);
 
     ikvdb_perfc_alloc(self);
-    kvdb_keylock_perfc_init(self->ikdb_keylock, &self->ikdb_ctxn_op);
 
     ikvdb_rest_register(self, &self->ikdb_handle);
 
@@ -3124,43 +3120,16 @@ ikvdb_wal_replay_size_reset(struct ikvdb_kvs_hdl *ikvsh)
 static void
 kvdb_perfc_initialize(void)
 {
-    uint prio = hse_gparams.gp_perfc_level;
-    merr_t err;
-
     kvdb_perfc_init();
     kvs_perfc_init();
     c0sk_perfc_init();
     cn_perfc_init();
     throttle_perfc_init();
-
-    err = perfc_ctrseti_alloc(prio, "global", kvdb_perfc_op, PERFC_EN_KVDBOP, "set", &kvdb_pc);
-    if (err)
-        log_warnx("cannot alloc kvdb op perf counters: @@e", err);
-
-    err = perfc_ctrseti_alloc(prio, "global", kvdb_perfc_pkvdbl_op,
-                              PERFC_EN_PKVDBL, "set", &kvdb_pkvdbl_pc);
-    if (err)
-        log_warnx("cannot alloc kvdb public op perf counters: @@e", err);
-
-    err = perfc_ctrseti_alloc(prio, "global", c0_metrics_perfc,
-                              PERFC_EN_C0METRICS, "set", &c0_metrics_pc);
-    if (err)
-        log_warnx("cannot alloc c0 metrics perf counters: @@e", err);
-
-    err = perfc_ctrseti_alloc(prio, "global", kvdb_metrics_perfc,
-                              PERFC_EN_KVDBMETRICS, "set", &kvdb_metrics_pc);
-    if (err)
-        log_warnx("cannot alloc kvdb metrics perf counters: @@e", err);
 }
 
 static void
 kvdb_perfc_finish(void)
 {
-    perfc_ctrseti_free(&kvdb_metrics_pc);
-    perfc_ctrseti_free(&c0_metrics_pc);
-    perfc_ctrseti_free(&kvdb_pkvdbl_pc);
-    perfc_ctrseti_free(&kvdb_pc);
-
     throttle_perfc_fini();
     cn_perfc_fini();
     c0sk_perfc_fini();

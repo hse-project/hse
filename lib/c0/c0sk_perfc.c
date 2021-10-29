@@ -6,18 +6,17 @@
 #include <hse_util/platform.h>
 #include <hse_util/hse_err.h>
 #include <hse_util/logging.h>
+#include <hse_util/perfc.h>
 
 #include <hse_ikvdb/c0sk_perfc.h>
+#include <hse_ikvdb/kvdb_perfc.h>
 #include <hse_ikvdb/ikvdb.h>
+
+#include "c0sk_internal.h"
 
 /* clang-format off */
 
-/*
- * The NE() macro string-izes the enum.
- * perfc_ctrseti_alloc() parses this string to get the type(!).
- */
-
-struct perfc_name c0sk_perfc_op[] = {
+struct perfc_name c0sk_perfc_op[] _dt_section = {
     NE(PERFC_LT_C0SKOP_GET, 3, "Latency of c0sk gets", "l_get(/s)", 7),
     NE(PERFC_RA_C0SKOP_GET, 3, "Count of c0sk gets",   "c_get(/s)"),
     NE(PERFC_RA_C0SKOP_PUT, 3, "Count of c0sk puts",   "c_put(/s)"),
@@ -26,7 +25,7 @@ struct perfc_name c0sk_perfc_op[] = {
     NE(PERFC_LT_C0SKOP_DEL, 3, "Latency of c0sk dels", "l_del(/s)", 7),
 };
 
-struct perfc_name c0sk_perfc_ingest[] = {
+struct perfc_name c0sk_perfc_ingest[] _dt_section = {
     NE(PERFC_BA_C0SKING_QLEN,  2, "Ingest queue length", "c_ing_qlen"),
     NE(PERFC_DI_C0SKING_PREP,  2, "Ingest prep time",    "d_ing_prep(ms)"),
     NE(PERFC_DI_C0SKING_FIN,   2, "Ingest finish time",  "d_ing_finish(ms)"),
@@ -72,4 +71,23 @@ c0sk_perfc_fini(void)
         c0sk_perfc_ingest[PERFC_DI_C0SKING_PREP].pcn_ivl = 0;
         perfc_ivl_destroy(ivl);
     }
+}
+
+void
+c0sk_perfc_alloc(struct c0sk_impl *self)
+{
+    struct kvdb_rparams *rp = self->c0sk_kvdb_rp;
+    char group[128];
+
+    snprintf(group, sizeof(group), "kvdb/%s", self->c0sk_kvdb_alias);
+
+    perfc_alloc(c0sk_perfc_op, group, "set", rp->perfc_level, &self->c0sk_pc_op);
+    perfc_alloc(c0sk_perfc_ingest, group, "set", rp->perfc_level, &self->c0sk_pc_ingest);
+}
+
+void
+c0sk_perfc_free(struct c0sk_impl *self)
+{
+    perfc_ctrseti_free(&self->c0sk_pc_op);
+    perfc_ctrseti_free(&self->c0sk_pc_ingest);
 }

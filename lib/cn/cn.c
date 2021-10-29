@@ -1027,85 +1027,6 @@ cn_kvset_mk(struct cn_kvsetmk_ctx *ctx, struct kvset_meta *km, u64 tag)
  * See kvs_perfc_fini() in kvs.c.
  */
 
-static void
-cn_perfc_alloc(struct cn *cn)
-{
-    char name_buf[DT_PATH_MAX];
-    int  i, warn;
-
-    struct {
-        struct perfc_name *schema;
-        uint               schema_len;
-        char *             instance_name;
-        struct perfc_set * instance;
-    } pc_sets[] = {
-        { cn_perfc_get, PERFC_EN_CNGET, "cnget", &cn->cn_pc_get },
-
-        { cn_perfc_compact, PERFC_EN_CNCOMP, "ingest", &cn->cn_pc_ingest },
-
-        { cn_perfc_compact, PERFC_EN_CNCOMP, "spill", &cn->cn_pc_spill },
-
-        { cn_perfc_compact, PERFC_EN_CNCOMP, "kcompact", &cn->cn_pc_kcompact },
-
-        { cn_perfc_compact, PERFC_EN_CNCOMP, "kvcompact", &cn->cn_pc_kvcompact },
-
-        { cn_perfc_shape, PERFC_EN_CNSHAPE, "rnode", &cn->cn_pc_shape_rnode },
-
-        { cn_perfc_shape, PERFC_EN_CNSHAPE, "inode", &cn->cn_pc_shape_inode },
-
-        { cn_perfc_shape, PERFC_EN_CNSHAPE, "lnode", &cn->cn_pc_shape_lnode },
-
-        { cn_perfc_capped, PERFC_EN_CNCAPPED, "capped", &cn->cn_pc_capped },
-
-        { cn_perfc_mclass, PERFC_EN_CNMCLASS, "mclass", &cn->cn_pc_mclass },
-    };
-
-    i = snprintf(name_buf, sizeof(name_buf), "kvdb/%s/kvs/%s", cn->cn_kvdb_alias, cn->cn_kvsname);
-
-    if (i < 12 || i >= sizeof(name_buf)) {
-        log_warn("cn perfc name buffer too small");
-        return;
-    }
-
-    /* Not considered fatal if perfc fails */
-    warn = 0;
-    for (i = 0; i < NELEM(pc_sets); i++) {
-
-        if (perfc_ctrseti_alloc(
-                cn->rp->perfc_level,
-                name_buf,
-                pc_sets[i].schema,
-                pc_sets[i].schema_len,
-                pc_sets[i].instance_name,
-                pc_sets[i].instance)) {
-
-            warn++;
-        }
-    }
-
-    if (warn)
-        log_warn("Failed to alloc %d of %lu cn perf counter sets", warn, NELEM(pc_sets));
-}
-
-/**
- * cn_perfc_free() - Free the perfc counter sets handles.
- * @cn:
- */
-static void
-cn_perfc_free(struct cn *cn)
-{
-    perfc_ctrseti_free(&cn->cn_pc_get);
-    perfc_ctrseti_free(&cn->cn_pc_ingest);
-    perfc_ctrseti_free(&cn->cn_pc_spill);
-    perfc_ctrseti_free(&cn->cn_pc_kcompact);
-    perfc_ctrseti_free(&cn->cn_pc_kvcompact);
-    perfc_ctrseti_free(&cn->cn_pc_shape_rnode);
-    perfc_ctrseti_free(&cn->cn_pc_shape_inode);
-    perfc_ctrseti_free(&cn->cn_pc_shape_lnode);
-    perfc_ctrseti_free(&cn->cn_pc_capped);
-    perfc_ctrseti_free(&cn->cn_pc_mclass);
-}
-
 /*----------------------------------------------------------------
  * SECTION: open/close
  */
@@ -1211,7 +1132,7 @@ cn_open(
 
     /* no perf counters in replay mode */
     if (!cn->cn_replay)
-        cn_perfc_alloc(cn);
+        cn_perfc_alloc(cn, rp->perfc_level);
 
     err = cn_tstate_create(cn);
     if (ev(err))

@@ -18,6 +18,7 @@
 #include <hse_ikvdb/c0sk.h>
 #include <hse_ikvdb/c0snr_set.h>
 #include <hse_ikvdb/c0sk_perfc.h>
+#include <hse_ikvdb/kvdb_perfc.h>
 #include <hse_ikvdb/lc.h>
 #include <hse_ikvdb/cn.h>
 #include <hse_ikvdb/cndb.h>

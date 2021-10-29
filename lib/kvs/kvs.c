@@ -41,7 +41,7 @@
  * Do not set any of these counters to a level less than three
  * otherwise it will defeat the optimization in kvs_perfc_pkvsl().
  */
-struct perfc_name kvs_pkvsl_perfc_op[] = {
+struct perfc_name kvs_pkvsl_perfc_op[] _dt_section = {
     NE(PERFC_LT_PKVSL_KVS_CURSOR_CREATE,  3, "cursor create latency",     "kvs_cursor_create_lat"),
     NE(PERFC_LT_PKVSL_KVS_CURSOR_UPDATE,  3, "cursor update latency",     "kvs_cursor_update_lat"),
     NE(PERFC_LT_PKVSL_KVS_CURSOR_DESTROY, 3, "cursor destroy latency",    "kvs_cursor_destroy_lat"),
@@ -81,24 +81,17 @@ kvs_destroy(struct ikvs *kvs);
 static void
 kvs_perfc_alloc(const char *kvdb_alias, const char *kvs_name, struct ikvs *kvs)
 {
-    char   namebuf[DT_PATH_MAX];
-    merr_t err;
-    size_t n;
+    char group[128];
 
     INVARIANT(kvdb_alias);
     INVARIANT(kvs_name);
 
-    n = snprintf(namebuf, sizeof(namebuf), "kvdb/%s/kvs/%s", kvdb_alias, kvs_name);
-    if (ev(n >= sizeof(namebuf)))
-        return;
+    snprintf(group, sizeof(group), "kvdb/%s/kvs/%s", kvdb_alias, kvs_name);
 
-    kvs_cursor_perfc_alloc(kvs->ikv_rp.perfc_level, namebuf, &kvs->ikv_cc_pc, &kvs->ikv_cd_pc);
+    kvs_cursor_perfc_alloc(kvs->ikv_rp.perfc_level, group, &kvs->ikv_cc_pc, &kvs->ikv_cd_pc);
 
     /* Measure Public KVS interface Latencies */
-    err = perfc_ctrseti_alloc(kvs->ikv_rp.perfc_level, namebuf, kvs_pkvsl_perfc_op,
-                              PERFC_EN_PKVSL, "set", &kvs->ikv_pkvsl_pc);
-    if (err)
-        log_errx("cannot alloc kvs perf counters: @@e", err);
+    perfc_alloc(kvs_pkvsl_perfc_op, group, "set", kvs->ikv_rp.perfc_level, &kvs->ikv_pkvsl_pc);
 }
 
 /**

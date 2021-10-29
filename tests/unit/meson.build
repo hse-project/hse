@@ -96,7 +96,6 @@ components = {
         'mock_test': {},
     },
     'kvdb': {
-        'ctxn_perfc_test': {},
         'ikvdb_test': {},
         'kvdb_cparams_test': {},
         'kvdb_ctxn_test': {},

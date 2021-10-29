@@ -268,6 +268,4 @@ enum kvdb_perfc_sidx_sts_queues {
     PERFC_EN_STS
 };
 
-extern struct perfc_set kvdb_metrics_pc;
-
 #endif /* HSE_KVDB_PERFC_API_H */

@@ -15,23 +15,15 @@
  *
  * There is one counter set per globally
  */
-
-extern struct perfc_name kvdb_perfc_op[];
-extern struct perfc_name kvdb_perfc_pkvdbl_op[];
-extern struct perfc_name csched_sp3_perfc[];
-
 extern struct perfc_set kvdb_pc;
 extern struct perfc_set kvdb_pkvdbl_pc; /* Public KVDB interface Latencies */
+extern struct perfc_set kvdb_metrics_pc;
 
 /*
  * c0 metrics performance counter family.
  *
  * There is one counter set per globally
  */
-
-extern struct perfc_name c0_metrics_perfc[];
-extern struct perfc_name kvdb_metrics_perfc[];
-
 extern struct perfc_set c0_metrics_pc;
 
 void
