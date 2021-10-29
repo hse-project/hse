@@ -268,6 +268,7 @@ if not get_option('tools').disabled() and (not HdrHistogram_c_dep.found()
         'HDR_HISTOGRAM_BUILD_SHARED': false,
         'HDR_HISTOGRAM_BUILD_PROGRAMS': false,
         'HDR_HISTOGRAM_BUILD_STATIC': true,
+        'HDR_HISTOGRAM_INSTALL_STATIC': false,
     })
     HdrHistogram_c_options.set_override_option('werror', 'false')
     HdrHistogram_c_options.set_override_option('warning_level', '0')
