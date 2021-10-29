@@ -59,7 +59,7 @@ ev_match_select_handler(struct dt_element *dte, char *field, char *value)
             if (!strcmp("hse_log", value))
                 return true;
         } else {
-            if (!strcmp("event_counter", value))
+            if (!strcmp("events", value))
                 return true;
         }
     } else if (!strcmp(field, "ev_pri")) {
@@ -144,7 +144,7 @@ ev_emit_handler(struct dt_element *dte, struct yaml_context *yc)
     if (ec->ev_flags & EV_FLAGS_HSE_LOG)
         yaml_element_field(yc, "source", "hse_log");
     else
-        yaml_element_field(yc, "source", "event_counter");
+        yaml_element_field(yc, "source", "events");
 
     yaml_end_element(yc);
 
@@ -200,10 +200,8 @@ event_counter(struct event_counter *ec)
     if (HSE_UNLIKELY(1 == atomic_inc_return(&ec->ev_odometer))) {
         struct dt_element *dte = &ec->ev_dte;
 
-        snprintf(dte->dte_path, sizeof(dte->dte_path),
-                 "%s/%s/%s/%s/%d",
-                 DT_PATH_EVENT, COMPNAME,
-                 basename(dte->dte_file), dte->dte_func, dte->dte_line);
+        snprintf(dte->dte_path, sizeof(dte->dte_path), "%s/%s/%s/%d",
+                 DT_PATH_EVENT, basename(dte->dte_file), dte->dte_func, dte->dte_line);
 
         dt_add(dte);
     }

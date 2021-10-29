@@ -16,14 +16,16 @@
 #include <hse_util/perfc.h>
 #include <hse_ikvdb/cn_perfc.h>
 
-extern struct perfc_name cn_perfc_get[];
-extern struct perfc_name cn_perfc_cmn[];
-extern struct perfc_name cn_perfc_compact[];
-extern struct perfc_name cn_perfc_shape[];
-extern struct perfc_name cn_perfc_capped[];
-extern struct perfc_name cn_perfc_mclass[];
+struct cn;
 
 uint
 cn_perfc_mclass_get_idx(uint agegroup, uint dtype, uint mclass);
+
+void
+cn_perfc_alloc(struct cn *cn, uint prio);
+
+void
+cn_perfc_free(struct cn *cn);
+
 
 #endif

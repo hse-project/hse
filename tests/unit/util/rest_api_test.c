@@ -75,13 +75,13 @@ MTF_DEFINE_UTEST_PREPOST(rest_api, get_handler_test, rest_start, rest_stop)
     err = rest_url_register(0, 0, rest_dt_get, rest_dt_put, "test_dt");
     ASSERT_EQ(0, err);
 
-    path = "/test_dt/event_counter";
+    path = "/test_dt/events";
     memset(buf, 0, sizeof(buf));
     err = curl_get(path, sock, buf, sizeof(buf));
     ASSERT_EQ(err, 0);
 
     /* Invalid(NULL) path */
-    path = "/test_dt/event_counter";
+    path = "/test_dt/events";
     memset(buf, 0, sizeof(buf));
     err = curl_get(0, sock, buf, sizeof(buf));
     ASSERT_EQ(merr_errno(err), EINVAL);
@@ -109,15 +109,16 @@ MTF_DEFINE_UTEST_PREPOST(rest_api, put_handler_test, rest_start, rest_stop)
     snprintf(
         full_path,
         sizeof(full_path),
-        "%s/%s/%s/%s/%d",
+        "%s/%s/%s/%d",
         DT_PATH_EVENT,
-        COMPNAME,
         basename(__FILE__),
         __func__,
         line);
 
     /* Get the dt element that the upcoming tests will attempt to modify */
     dte = dt_find(full_path, 1);
+    ASSERT_NE(NULL, dte);
+
     ec = dte->dte_data;
 
     /* Normal Working */
@@ -156,7 +157,7 @@ MTF_DEFINE_UTEST_PREPOST(rest_api, put_handler_test, rest_start, rest_stop)
     /* nonexistent dt path */
     const char *invalid_path = "Invalid path";
 
-    snprintf(path, sizeof(path), "%s/event_counter_no_really/%s?trip_od=1", DT_PATH_ROOT, COMPNAME);
+    snprintf(path, sizeof(path), "%s/event_counter_no_really?trip_od=1", DT_PATH_ROOT);
     err = curl_put(path, sock, 0, 0, buf, sizeof(buf));
     ASSERT_EQ(0, strncmp(invalid_path, buf, strlen(invalid_path)));
     ASSERT_EQ(0, err);

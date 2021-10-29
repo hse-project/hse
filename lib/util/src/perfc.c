@@ -367,8 +367,7 @@ perfc_emit_handler_ctrset(struct dt_element *dte, struct yaml_context *yc)
     yaml_element_field(yc, "name", seti->pcs_ctrseti_name);
 
     if (seti->pcs_handle) {
-        u64_to_string(value, sizeof(value), seti->pcs_handle->ps_bitmap == U64_MAX);
-        yaml_element_field(yc, "enabled", value);
+        yaml_field_fmt(yc, "enabled", "0x%lx", seti->pcs_handle->ps_bitmap);
     } else {
         yaml_element_field(yc, "enabled", "0");
     }
@@ -384,11 +383,8 @@ perfc_emit_handler_ctrset(struct dt_element *dte, struct yaml_context *yc)
         ctr_hdr = &seti->pcs_ctrv[cidx].hdr;
 
         yaml_start_element(yc, "name", seti->pcs_ctrnamev[cidx].pcn_name);
-
         yaml_element_field(yc, "header", seti->pcs_ctrnamev[cidx].pcn_hdr);
-
         yaml_element_field(yc, "description", seti->pcs_ctrnamev[cidx].pcn_desc);
-
         yaml_element_field(yc, "type", pc_type_names[ctr_hdr->pch_type]);
 
         u64_to_string(value, sizeof(value), ctr_hdr->pch_prio);
@@ -665,14 +661,16 @@ perfc_ctr_name2type(const char *ctr_name)
 merr_t
 perfc_ctrseti_alloc(
     uint                     prio,
-    const char *             name,
+    const char              *group,
     const struct perfc_name *ctrv,
-    u32                      ctrc,
-    const char *             ctrseti_name,
+    size_t                   ctrc,
+    const char              *ctrseti_name,
+    const char              *file,
+    int                      line,
     struct perfc_set *       setp)
 {
-    struct perfc_seti *seti;
-    struct dt_element *dte;
+    struct perfc_seti *seti = NULL;
+    struct dt_element *dte = NULL;
     char               path[DT_PATH_MAX];
     char               family[DT_PATH_ELEMENT_MAX] = "";
     merr_t             err = 0;
@@ -681,16 +679,14 @@ perfc_ctrseti_alloc(
     u32                n, i;
     int rc;
 
-    assert(setp);
+    if (!group || !ctrv || ctrc == 0 || !setp)
+        return merr(EINVAL);
 
     setp->ps_seti = NULL;
     setp->ps_bitmap = 0;
 
-    if (!name || ctrc == 0)
-        return merr(EINVAL);
-
-    if (strlen(name) >= sizeof(path))
-        return merr(ENAMETOOLONG);
+    if (!ctrseti_name)
+        ctrseti_name = "set";
 
     /*
      * Find out the number of counters in the set.
@@ -703,7 +699,6 @@ perfc_ctrseti_alloc(
      * <family name> is all caps and doesn't contain '_'
      * <meaning> describes the meaning of the counter. It can contain
      * '_' character.
-     *
      */
     for (i = 0; i < ctrc; i++) {
         const char *name = ctrv[i].pcn_name;
@@ -711,8 +706,10 @@ perfc_ctrseti_alloc(
         size_t famlen;
         char *meaning;
 
-        if (ev(perfc_ctr_name2type(name) == PERFC_TYPE_INVAL))
-            return merr(EINVAL);
+        if (perfc_ctr_name2type(name) == PERFC_TYPE_INVAL) {
+            err = merr(EINVAL);
+            goto errout;
+        }
 
         /* family name is after PERFC_XX_ */
         famptr = name + strlen(PERFC_CTR_IDX_END);
@@ -722,17 +719,23 @@ perfc_ctrseti_alloc(
          * name should be at least one character.
          */
         meaning = strchr(famptr, '_');
-        if (ev(meaning == NULL || meaning == famptr))
-            return merr(EINVAL);
+        if (meaning == NULL || meaning == famptr) {
+            err = merr(EINVAL);
+            goto errout;
+        }
 
         famlen = meaning - famptr;
-        if (famlen >= sizeof(family))
-            return merr(ENAMETOOLONG);
+        if (famlen >= sizeof(family)) {
+            err = merr(ENAMETOOLONG);
+            goto errout;
+        }
 
         /* It should be the counter meaning after <family name>_ */
         meaning++;
-        if (ev(strlen(meaning) == 0))
-            return merr(EINVAL);
+        if (strlen(meaning) == 0) {
+            err = merr(EINVAL);
+            goto errout;
+        }
 
         if (strlen(family) == 0) {
             strncpy(family, famptr, famlen);
@@ -741,15 +744,19 @@ perfc_ctrseti_alloc(
             /* Check that the family name is the same for all
              * the set counters
              */
-            if (ev(strncmp(family, famptr, strlen(family))))
-                return merr(EINVAL);
+            if (strncmp(family, famptr, strlen(family))) {
+                err = merr(EINVAL);
+                goto errout;
+            }
         }
     }
 
-    sz = snprintf(path, sizeof(path), "%s/%s/%s/%s/%s",
-                  PERFC_ROOT_PATH, COMPNAME, name, family, ctrseti_name);
-    if (ev(sz >= sizeof(path)))
-        return merr(EINVAL);
+    sz = snprintf(path, sizeof(path), "%s/%s/%s/%s",
+                  PERFC_ROOT_PATH, group, family, ctrseti_name);
+    if (sz >= sizeof(path)) {
+        err = merr(EINVAL);
+        goto errout;
+    }
 
     dte = dt_find(path, 1 /*exact*/);
     if (dte) {
@@ -764,8 +771,10 @@ perfc_ctrseti_alloc(
     }
 
     dte = aligned_alloc(alignof(*dte), sizeof(*dte));
-    if (ev(!dte))
-        return merr(ENOMEM);
+    if (ev(!dte)) {
+        err = merr(ENOMEM);
+        goto errout;
+    }
 
     memset(dte, 0, sizeof(*dte));
     dte->dte_type = DT_TYPE_PERFC;
@@ -792,9 +801,9 @@ perfc_ctrseti_alloc(
     valdatasz = sizeof(struct perfc_val) * PERFC_VALPERCNT * PERFC_VALPERCPU * n + 1;
 
     seti = alloc_aligned(sz + valdatasz, SMP_CACHE_BYTES * 2);
-    if (ev(!seti)) {
-        free(dte);
-        return merr(ENOMEM);
+    if (!seti) {
+        err = merr(ENOMEM);
+        goto errout;
     }
 
     memset(seti, 0, sz + valdatasz);
@@ -864,7 +873,10 @@ perfc_ctrseti_alloc(
             err = merr(rc);
     }
 
+  errout:
     if (err) {
+        log_warnx("unable to alloc perf counter %s/%s/%s from %s:%d: @@e",
+                  err, group, family, ctrseti_name, file, line);
         setp->ps_bitmap = 0;
         setp->ps_seti = NULL;
         free_aligned(seti);

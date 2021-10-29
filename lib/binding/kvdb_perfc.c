@@ -4,17 +4,14 @@
  */
 
 #include <hse_util/platform.h>
+#include <hse_util/perfc.h>
 
-#include <hse_ikvdb/c0sk_perfc.h>
+#include <hse_ikvdb/hse_gparams.h>
+#include <hse/kvdb_perfc.h>
 
 /* clang-format off */
 
-/*
- * The NE() macro string-izes the enum.
- * perfc_ctrseti_alloc() parses this string to get the type(!).
- */
-
-struct perfc_name kvdb_perfc_op[] = {
+struct perfc_name kvdb_perfc_op[] _dt_section = {
     NE(PERFC_RA_KVDBOP_KVS_GET,         1, "kvs_get rate",            "r_kvs_get(/s)"),
     NE(PERFC_RA_KVDBOP_KVS_GETB,        1, "kvs_get klen+vlen",       "r_kvs_get_bytes(/s)"),
     NE(PERFC_RA_KVDBOP_KVS_PUT,         1, "kvs_put rate",            "r_kvs_put(/s)"),
@@ -57,7 +54,7 @@ struct perfc_name kvdb_perfc_op[] = {
 NE_CHECK(kvdb_perfc_op, PERFC_EN_KVDBOP, "kvdb_perfc_op table/enum mismatch");
 
 /* Public kvdb interface latencies */
-struct perfc_name kvdb_perfc_pkvdbl_op[] = {
+struct perfc_name kvdb_perfc_pkvdbl_op[] _dt_section = {
     NE(PERFC_SL_PKVDBL_KVDB_SYNC,       1, "kvdb_sync latency",       "l_kvdb_sync"),
     NE(PERFC_LT_PKVDBL_KVDB_CREATE,     3, "kvdb_create latency",     "l_kvdb_create"),
     NE(PERFC_LT_PKVDBL_KVDB_DROP,       3, "kvdb_drop latency",       "l_kvdb_drop"),
@@ -70,13 +67,13 @@ struct perfc_name kvdb_perfc_pkvdbl_op[] = {
 
 NE_CHECK(kvdb_perfc_pkvdbl_op, PERFC_EN_PKVDBL, "kvdb_perfc_pkvdbl_op table/enum mismatch");
 
-struct perfc_name c0_metrics_perfc[] = {
+struct perfc_name c0_metrics_perfc[] _dt_section = {
     NE(PERFC_BA_C0METRICS_KVMS_CNT,     2, "c0_kvmultiset count",     "c_kvmultiset"),
 };
 
 NE_CHECK(c0_metrics_perfc, PERFC_EN_C0METRICS, "c0_metrics_perfc table/enum mismatch");
 
-struct perfc_name kvdb_metrics_perfc[] = {
+struct perfc_name kvdb_metrics_perfc[] _dt_section = {
     NE(PERFC_BA_KVDBMETRICS_CURCNT,     0, "Active cursor count",         "c_cur_active"),
     NE(PERFC_RA_KVDBMETRICS_CURRETIRED, 0, "Cached cursor retired rate",  "r_cur_retired(/s)"),
     NE(PERFC_RA_KVDBMETRICS_CUREVICTED, 0, "Cached cursor eviction rate", "r_cur_evicted(/s)"),
@@ -89,22 +86,16 @@ struct perfc_name kvdb_metrics_perfc[] = {
 
 NE_CHECK(kvdb_metrics_perfc, PERFC_EN_KVDBMETRICS, "kvdb_metrics_perfc table/enum mismatch");
 
-struct perfc_name csched_sp3_perfc[] = {
-    NE(PERFC_BA_SP3_SAMP,       2, "spaceamp",                 "c_sp3_samp"),
-    NE(PERFC_BA_SP3_REDUCE,     2, "reduce flag",              "c_sp3_reduce"),
+struct perfc_set kvdb_pkvdbl_pc HSE_READ_MOSTLY;
+struct perfc_set kvdb_pc        HSE_READ_MOSTLY;
 
-    NE(PERFC_BA_SP3_LGOOD_CURR, 3, "currrent leaf used size ", "c_sp3_lgood"),
-    NE(PERFC_BA_SP3_LGOOD_TARG, 3, "target leaf used size",    "t_sp3_lgood"),
-    NE(PERFC_BA_SP3_LSIZE_CURR, 3, "currrent leaf size",       "c_sp3_lsize"),
-    NE(PERFC_BA_SP3_LSIZE_TARG, 3, "target leaf size",         "t_sp3_lsize"),
-    NE(PERFC_BA_SP3_RSIZE_CURR, 3, "currrent non-leaf size",   "c_sp3_rsize"),
-    NE(PERFC_BA_SP3_RSIZE_TARG, 3, "target non-leaf size",     "t_sp3_rsize"),
-};
-NE_CHECK(csched_sp3_perfc, PERFC_EN_SP3, "csched_sp3_perfc table/enum mismatch");
+struct perfc_set kvdb_metrics_pc HSE_READ_MOSTLY;
+struct perfc_set c0_metrics_pc   HSE_READ_MOSTLY;
 
 void
 kvdb_perfc_init(void)
 {
+    uint prio = hse_gparams.gp_perfc_level;
     struct perfc_ivl * ivl;
     struct perfc_name *pcn;
     const u64          usecs = 1000;
@@ -130,12 +121,22 @@ kvdb_perfc_init(void)
         pcn->pcn_ivl = ivl;
         pcn->pcn_samplepct = 3;
     }
+
+    perfc_alloc(kvdb_perfc_op, "global", "set", prio, &kvdb_pc);
+    perfc_alloc(kvdb_perfc_pkvdbl_op, "global", "set", prio, &kvdb_pkvdbl_pc);
+    perfc_alloc(c0_metrics_perfc, "global", "set", prio, &c0_metrics_pc);
+    perfc_alloc(kvdb_metrics_perfc, "global", "set", prio, &kvdb_metrics_pc);
 }
 
 void
 kvdb_perfc_fini(void)
 {
     struct perfc_name *pcn;
+
+    perfc_ctrseti_free(&kvdb_metrics_pc);
+    perfc_ctrseti_free(&c0_metrics_pc);
+    perfc_ctrseti_free(&kvdb_pkvdbl_pc);
+    perfc_ctrseti_free(&kvdb_pc);
 
     pcn = &kvdb_metrics_perfc[PERFC_DI_KVDBMETRICS_THROTTLE];
     perfc_ivl_destroy(pcn->pcn_ivl);

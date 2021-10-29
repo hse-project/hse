@@ -28,6 +28,19 @@
 
 struct mpool;
 
+struct perfc_name csched_sp3_perfc[] _dt_section = {
+    NE(PERFC_BA_SP3_SAMP,       2, "spaceamp",                 "c_sp3_samp"),
+    NE(PERFC_BA_SP3_REDUCE,     2, "reduce flag",              "c_sp3_reduce"),
+
+    NE(PERFC_BA_SP3_LGOOD_CURR, 3, "currrent leaf used size ", "c_sp3_lgood"),
+    NE(PERFC_BA_SP3_LGOOD_TARG, 3, "target leaf used size",    "t_sp3_lgood"),
+    NE(PERFC_BA_SP3_LSIZE_CURR, 3, "currrent leaf size",       "c_sp3_lsize"),
+    NE(PERFC_BA_SP3_LSIZE_TARG, 3, "target leaf size",         "t_sp3_lsize"),
+    NE(PERFC_BA_SP3_RSIZE_CURR, 3, "currrent non-leaf size",   "c_sp3_rsize"),
+    NE(PERFC_BA_SP3_RSIZE_TARG, 3, "target non-leaf size",     "t_sp3_rsize"),
+};
+NE_CHECK(csched_sp3_perfc, PERFC_EN_SP3, "csched_sp3_perfc table/enum mismatch");
+
 /*
  * The scheduler monitors multiple cn trees to determine what compaction jobs
  * to run and when to run them.
@@ -2364,6 +2377,7 @@ sp3_create(
     struct kvdb_health * health,
     struct csched_ops ** handle)
 {
+    char group[128];
     struct sp3 *sp;
     merr_t      err;
     size_t      name_sz, alloc_sz;
@@ -2439,10 +2453,9 @@ sp3_create(
     sp->ops.cs_tree_add = sp3_op_tree_add;
     sp->ops.cs_tree_remove = sp3_op_tree_remove;
 
-    err = perfc_ctrseti_alloc(sp->rp->perfc_level, sp->name, csched_sp3_perfc,
-                              PERFC_EN_SP3, "sp3", &sp->sched_pc);
-    if (err)
-        log_errx("cannot alloc sp3 perf counters: @@e", err);
+    snprintf(group, sizeof(group), "kvdb/%s", sp->name);
+
+    perfc_alloc(csched_sp3_perfc, group, "sp3", rp->perfc_level, &sp->sched_pc);
 
     *handle = &sp->ops;
     return 0;

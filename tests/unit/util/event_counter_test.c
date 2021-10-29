@@ -84,14 +84,11 @@ MTF_DEFINE_UTEST(event_counter, ev_create_and_find)
     int                   line;
     struct event_counter *ev;
 
-    /* Normally, COMPNAME is set for the whole file, but for testing
-     * purposes, we'll be setting it with the individual functions.
-     */
     const char *phile = basename(__FILE__);
     char        fuzzy_path[DT_PATH_MAX];
     char        direct_path[DT_PATH_MAX];
 
-    snprintf(fuzzy_path, sizeof(fuzzy_path), "%s/%s/%s", DT_PATH_EVENT, COMPNAME, phile);
+    snprintf(fuzzy_path, sizeof(fuzzy_path), "%s/%s", DT_PATH_EVENT, phile);
 
     count_entry = dt_iterate_cmd(DT_OP_COUNT, fuzzy_path, NULL, NULL, NULL, NULL);
 
@@ -115,9 +112,8 @@ MTF_DEFINE_UTEST(event_counter, ev_create_and_find)
     snprintf(
         direct_path,
         sizeof(direct_path),
-        "%s/%s/%s/%s/%d",
+        "%s/%s/%s/%d",
         DT_PATH_EVENT,
-        COMPNAME,
         phile,
         __func__,
         line);
@@ -143,9 +139,8 @@ MTF_DEFINE_UTEST(event_counter, ev_create_and_find)
     snprintf(
         direct_path,
         sizeof(direct_path),
-        "%s/%s/%s/%s/%d",
+        "%s/%s/%s/%d",
         DT_PATH_EVENT,
-        COMPNAME,
         phile,
         __func__,
         line);
@@ -164,9 +159,8 @@ MTF_DEFINE_UTEST(event_counter, ev_create_and_find)
     snprintf(
         direct_path,
         sizeof(direct_path),
-        "%s/%s/%s/%s/%d",
+        "%s/%s/%s/%d",
         DT_PATH_EVENT,
-        COMPNAME,
         phile,
         __func__,
         line);
@@ -220,9 +214,8 @@ MTF_DEFINE_UTEST(event_counter, ev_odometer_timestamp)
     snprintf(
         direct_path,
         sizeof(direct_path),
-        "%s/%s/%s/%s/%d",
+        "%s/%s/%s/%d",
         DT_PATH_EVENT,
-        COMPNAME,
         phile,
         __func__,
         line);
@@ -267,9 +260,8 @@ MTF_DEFINE_UTEST(event_counter, ev_odometer_counter)
     snprintf(
         direct_path,
         sizeof(direct_path),
-        "%s/%s/%s/%s/%d",
+        "%s/%s/%s/%d",
         DT_PATH_EVENT,
-        COMPNAME,
         phile,
         __func__,
         line);
@@ -293,9 +285,8 @@ MTF_DEFINE_UTEST(event_counter, ev_odometer_counter)
     snprintf(
         direct_path,
         sizeof(direct_path),
-        "%s/%s/%s/%s/%d",
+        "%s/%s/%s/%d",
         DT_PATH_EVENT,
-        COMPNAME,
         phile,
         __func__,
         line);
@@ -340,9 +331,8 @@ MTF_DEFINE_UTEST(event_counter, ev_timestamp_advance)
         snprintf(
             direct_path,
             sizeof(direct_path),
-            "%s/%s/%s/%s/%d",
+            "%s/%s/%s/%d",
             DT_PATH_EVENT,
-            COMPNAME,
             phile,
             __func__,
             line);
@@ -387,9 +377,8 @@ MTF_DEFINE_UTEST(event_counter, ev_trip_odometer_timestamp)
     snprintf(
         direct_path,
         sizeof(direct_path),
-        "%s/%s/%s/%s/%d",
+        "%s/%s/%s/%d",
         DT_PATH_EVENT,
-        COMPNAME,
         phile,
         __func__,
         line);
@@ -464,9 +453,8 @@ MTF_DEFINE_UTEST(event_counter, ev_trip_odometer_counter)
         snprintf(
             direct_path,
             sizeof(direct_path),
-            "%s/%s/%s/%s/%d",
+            "%s/%s/%s/%d",
             DT_PATH_EVENT,
-            COMPNAME,
             phile,
             __func__,
             line);
@@ -502,7 +490,6 @@ int
 validate_buf(
     const char *          buf,
     size_t                bytes_in_buf,
-    const char *          component,
     const char *          phile,
     const char *          func,
     int                   line,
@@ -523,7 +510,7 @@ validate_buf(
     remaining = MY_BUF_SIZE - offset;
 
     offset += snprintf(my_buf + offset, remaining,
-                       "- path: %s/%s/%s/%s/%d\n", DT_PATH_EVENT, component, phile, func, line);
+                       "- path: %s/%s/%s/%d\n", DT_PATH_EVENT, phile, func, line);
     remaining = MY_BUF_SIZE - offset;
 
     offset += snprintf(my_buf + offset, remaining, "  level: INFO\n");
@@ -560,7 +547,7 @@ validate_buf(
         remaining = MY_BUF_SIZE - offset;
     }
 
-    offset += snprintf(my_buf + offset, remaining, "  source: event_counter\n");
+    offset += snprintf(my_buf + offset, remaining, "  source: events\n");
 
     i = 0;
     while (mb && b && *mb && *b && (*mb == *b)) {
@@ -616,9 +603,8 @@ MTF_DEFINE_UTEST(event_counter, ev_emit)
     snprintf(
         direct_path,
         sizeof(direct_path),
-        "%s/%s/%s/%s/%d",
+        "%s/%s/%s/%d",
         DT_PATH_EVENT,
-        COMPNAME,
         phile,
         __func__,
         line);
@@ -638,7 +624,7 @@ MTF_DEFINE_UTEST(event_counter, ev_emit)
     count = dt_iterate_cmd(DT_OP_EMIT, direct_path, &dip, NULL, NULL, NULL);
     ASSERT_EQ(count, 2);
 
-    ret = validate_buf(buf, yc.yaml_offset, COMPNAME, phile, __func__, line, ec);
+    ret = validate_buf(buf, yc.yaml_offset, phile, __func__, line, ec);
     ASSERT_EQ(ret, 0);
 
     free(buf);
@@ -654,8 +640,8 @@ MTF_DEFINE_UTEST(event_counter, ev_counts)
     char   fuzzy_path[DT_PATH_MAX];
     size_t count;
 
-    snprintf(fuzzy_path, sizeof(fuzzy_path), "%s/%s/%s/%s",
-             DT_PATH_EVENT, COMPNAME, basename(__FILE__), __func__);
+    snprintf(fuzzy_path, sizeof(fuzzy_path), "%s/%s/%s",
+             DT_PATH_EVENT, basename(__FILE__), __func__);
 
     /* Create an EC using the macro. */
     ev(1);
@@ -693,9 +679,8 @@ MTF_DEFINE_UTEST(event_counter, ev_delete_protect)
     snprintf(
         direct_path,
         sizeof(direct_path),
-        "%s/%s/%s/%s/%d",
+        "%s/%s/%s/%d",
         DT_PATH_EVENT,
-        COMPNAME,
         phile,
         __func__,
         line);
@@ -745,9 +730,8 @@ MTF_DEFINE_UTEST(event_counter, ev_emit_overflow)
     snprintf(
         direct_path,
         sizeof(direct_path),
-        "%s/%s/%s/%s/%d",
+        "%s/%s/%s/%d",
         DT_PATH_EVENT,
-        COMPNAME,
         phile,
         __func__,
         line);
@@ -813,9 +797,8 @@ MTF_DEFINE_UTEST(event_counter, ev_put_invalid_field)
     snprintf(
         direct_path,
         sizeof(direct_path),
-        "%s/%s/%s/%s/%d",
+        "%s/%s/%s/%d",
         DT_PATH_EVENT,
-        COMPNAME,
         phile,
         __func__,
         line);
@@ -935,7 +918,7 @@ MTF_DEFINE_UTEST(event_counter, ev_match_select_test)
     ASSERT_EQ(boolean, true);
 
     /* Should match with "event_counter" */
-    boolean = ev_match_select_handler(&dte, "source", "event_counter");
+    boolean = ev_match_select_handler(&dte, "source", "events");
     ASSERT_EQ(boolean, true);
 
     /* Should not match with random other string */

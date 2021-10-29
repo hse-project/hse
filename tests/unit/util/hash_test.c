@@ -3,9 +3,6 @@
  * Copyright (C) 2015-2021 Micron Technology, Inc.  All rights reserved.
  */
 
-#undef COMPNAME
-#define COMPNAME "test"
-
 #include <hse_ut/framework.h>
 
 #include <hse_util/hash.h>

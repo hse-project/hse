@@ -1,5 +1,4 @@
 kvdb_sources = files(
-    'ctxn_perfc.c',
     'ikvdb.c',
     'kvdb_cparams.c',
     'kvdb_ctxn.c',

@@ -12,17 +12,18 @@
 #ifndef C0SK_PERFC_H
 #define C0SK_PERFC_H
 
-#include <hse/kvdb_perfc.h>
-
-#include <hse_util/perfc.h>
-
-extern struct perfc_name c0sk_perfc_op[];
-extern struct perfc_name c0sk_perfc_ingest[];
+struct c0sk_impl;
 
 void
 c0sk_perfc_init(void);
 
 void
 c0sk_perfc_fini(void);
+
+void
+c0sk_perfc_alloc(struct c0sk_impl *self);
+
+void
+c0sk_perfc_free(struct c0sk_impl *self);
 
 #endif

@@ -70,7 +70,7 @@ Convert NF data tree from YAML to a more readable form.
 
 
 def get_error_counters(yml):
-    tag = "event_counter"
+    tag = "events"
     if tag not in yml:
         print("Cannot find '{}' element in yaml output".format(tag), file=sys.stderr)
         exit(1)
@@ -82,11 +82,11 @@ def get_error_counters(yml):
 
     entries = []
     for ev in yml[tag]:
-        m = re.match(r"/data/event_counter/(.*?)/(.*?)/(.*?)/(.*)$", ev["path"])
+        m = re.match(r"/data/events/(.*?)/(.*?)/(.*)$", ev["path"])
         if m:
-            module = m.group(1)
-            filename = m.group(2) + ":" + m.group(4)
-            func = m.group(3)
+            module = "kvdb"
+            filename = m.group(1) + ":" + m.group(3)
+            func = m.group(2)
         else:
             module = "unknown"
             filename = ev["path"]
@@ -278,7 +278,7 @@ def main():
     if op.perfc:
         url = "http://localhost/data/perfc"
     elif op.event:
-        url = "http://localhost/data/event_counter"
+        url = "http://localhost/data/events"
     elif op.config:
         url = "http://localhost/data/config"
 

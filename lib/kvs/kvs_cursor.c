@@ -21,6 +21,7 @@
 #include <hse_ikvdb/kvs.h>
 #include <hse_ikvdb/limits.h>
 #include <hse_ikvdb/kvdb_ctxn.h>
+#include <hse_ikvdb/kvdb_perfc.h>
 #include <hse_ikvdb/tuple.h>
 #include <hse_ikvdb/cursor.h>
 
@@ -33,7 +34,7 @@
  * Do not set any of these counters to a level less than three
  * otherwise it will defeat the optimization in ikvs_cursor_reset().
  */
-struct perfc_name kvs_cc_perfc_op[] = {
+struct perfc_name kvs_cc_perfc_op[] _dt_section = {
     NE(PERFC_RA_CC_HIT,             3, "Cursor cache hit/restore rate", "r_cc_hit(/s)"),
     NE(PERFC_RA_CC_MISS,            3, "Cursor cache miss/create rate", "r_cc_miss(/s)"),
     NE(PERFC_RA_CC_SAVEFAIL,        3, "Cursor cache save/fail rate",   "r_cc_savefail(/s)"),
@@ -51,7 +52,7 @@ struct perfc_name kvs_cc_perfc_op[] = {
 
 NE_CHECK(kvs_cc_perfc_op, PERFC_EN_CC, "cursor cache perfc ops table/enum mismatch");
 
-struct perfc_name kvs_cd_perfc_op[] = {
+struct perfc_name kvs_cd_perfc_op[] _dt_section = {
     NE(PERFC_LT_CD_SAVE,            4, "cursor cache save latency",     "l_cc_save(ns)",    7),
     NE(PERFC_LT_CD_RESTORE,         4, "cursor cache restore latency",  "l_cc_restore(ns)", 7),
 
@@ -1231,7 +1232,8 @@ kvs_cursor_seek(
     cursor->kci_need_seek = 0;
 
     if (cursor->kci_eof || ev(cursor->kci_err)) {
-        /* If this seek caused the cursor to land on eof, store this key so the cursor remains positionally stable
+        /* If this seek caused the cursor to land on eof, store this key so the cursor
+         * remains positionally stable.
          */
         if (cursor->kci_eof) {
             cursor->kci_last_klen = len;
@@ -1249,13 +1251,10 @@ kvs_cursor_seek(
 }
 
 void
-kvs_cursor_perfc_alloc(uint prio, const char *dbname, struct perfc_set *pcs_cc, struct perfc_set *pcs_cd)
+kvs_cursor_perfc_alloc(uint prio, const char *group, struct perfc_set *ccp, struct perfc_set *cdp)
 {
-    if (perfc_ctrseti_alloc(prio, dbname, kvs_cc_perfc_op, PERFC_EN_CC, "set", pcs_cc))
-        log_err("cannot alloc kvs perf counters");
-
-    if (perfc_ctrseti_alloc(prio, dbname, kvs_cd_perfc_op, PERFC_EN_CD, "set", pcs_cd))
-        log_err("cannot alloc kvs perf counters");
+    perfc_alloc(kvs_cc_perfc_op, group, "set", prio, ccp);
+    perfc_alloc(kvs_cd_perfc_op, group, "set", prio, cdp);
 }
 
 void
