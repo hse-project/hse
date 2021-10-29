@@ -266,7 +266,6 @@ foreach c, tests : components
                 params.get('sources', []),
             ],
             c_args: [
-                '-DHSE_MOCKING=1',
                 params.get('c_args', []),
             ],
             include_directories: params.get('include_directories', []),
