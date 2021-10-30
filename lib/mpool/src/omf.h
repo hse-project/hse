@@ -28,11 +28,11 @@ struct mblock_filehdr;
  * @lh_crc:   loghdr CRC
  */
 struct mdc_loghdr_omf {
-    __le32 lh_vers;
-    __le32 lh_magic;
-    __le64 lh_gen;
-    __le32 lh_rsvd;
-    __le32 lh_crc;
+    uint32_t lh_vers;
+    uint32_t lh_magic;
+    uint64_t lh_gen;
+    uint32_t lh_rsvd;
+    uint32_t lh_crc;
 } HSE_PACKED;
 
 /* Define set/get methods for mdc_loghdr_omf */
@@ -50,9 +50,9 @@ OMF_SETGET(struct mdc_loghdr_omf, lh_crc, 32);
  * @rh_size: record length
  */
 struct mdc_rechdr_omf {
-    __le32 rh_crc;
-    __le32 rh_rsvd;
-    __le64 rh_size;
+    uint32_t rh_crc;
+    uint32_t rh_rsvd;
+    uint64_t rh_size;
 } HSE_PACKED;
 
 /* Define set/get methods for mdc_rechdr_omf */
@@ -116,14 +116,14 @@ omf_mdc_rechdr_len(void);
  * @mh_mcbits:     no. of media class bits
  */
 struct mblock_metahdr_omf {
-    __le32 mh_vers;
-    __le32 mh_magic;
-    __le32 mh_fszmax_gb;
-    __le32 mh_mblksz_sec;
-    u8     mh_mcid;
-    u8     mh_fcnt;
-    u8     mh_blkbits;
-    u8     mh_mcbits;
+    uint32_t mh_vers;
+    uint32_t mh_magic;
+    uint32_t mh_fszmax_gb;
+    uint32_t mh_mblksz_sec;
+    u8       mh_mcid;
+    u8       mh_fcnt;
+    u8       mh_blkbits;
+    u8       mh_mcbits;
 } HSE_PACKED;
 
 /* Define set/get methods for mblock_metahdr_omf */
@@ -145,10 +145,10 @@ OMF_SETGET(struct mblock_metahdr_omf, mh_mcbits, 8);
  * @fh_rsvd2:  reserved 2
  */
 struct mblock_filehdr_omf {
-    __le32 fh_uniq;
-    u8     fh_fileid;
-    u8     fh_rsvd1;
-    __le16 fh_rsvd2;
+    uint32_t fh_uniq;
+    u8       fh_fileid;
+    u8       fh_rsvd1;
+    uint16_t fh_rsvd2;
 } HSE_PACKED;
 
 /* Define set/get methods for mblock_filehdr_omf */
@@ -166,10 +166,10 @@ OMF_SETGET(struct mblock_filehdr_omf, fh_rsvd2, 16);
  * @mblk_rsvd2: reserved 2
  */
 struct mblock_oid_omf {
-    __le64 mblk_id;
-    __le32 mblk_wlen;
-    __le32 mblk_rsvd1;
-    __le64 mblk_rsvd2;
+    uint64_t mblk_id;
+    uint32_t mblk_wlen;
+    uint32_t mblk_rsvd1;
+    uint64_t mblk_rsvd2;
 } HSE_PACKED;
 
 /* Define set/get methods for mblock_oid_omf */

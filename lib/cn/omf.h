@@ -26,46 +26,46 @@
 struct kblock_hdr_omf {
 
     /* integrity check, version and type */
-    __le32 kbh_magic;
-    __le32 kbh_version;
+    uint32_t kbh_magic;
+    uint32_t kbh_version;
 
     /* Hyperloglog data */
-    __le32 kbh_hlog_doff_pg;
-    __le32 kbh_hlog_dlen_pg;
+    uint32_t kbh_hlog_doff_pg;
+    uint32_t kbh_hlog_dlen_pg;
 
     /* metrics */
-    __le32 kbh_entries;
-    __le32 kbh_tombs;
-    __le32 kbh_key_bytes;
-    __le32 kbh_val_bytes;
+    uint32_t kbh_entries;
+    uint32_t kbh_tombs;
+    uint32_t kbh_key_bytes;
+    uint32_t kbh_val_bytes;
 
     /* easily accessible copies of min and max keys */
-    __le32 kbh_min_koff;
-    __le32 kbh_min_klen;
-    __le32 kbh_max_koff;
-    __le32 kbh_max_klen;
+    uint32_t kbh_min_koff;
+    uint32_t kbh_min_klen;
+    uint32_t kbh_max_koff;
+    uint32_t kbh_max_klen;
 
     /* WBT header */
-    __le32 kbh_wbt_hoff;
-    __le32 kbh_wbt_hlen;
-    __le32 kbh_wbt_doff_pg;
-    __le32 kbh_wbt_dlen_pg;
+    uint32_t kbh_wbt_hoff;
+    uint32_t kbh_wbt_hlen;
+    uint32_t kbh_wbt_doff_pg;
+    uint32_t kbh_wbt_dlen_pg;
 
     /* Bloom header and data */
-    __le32 kbh_blm_hoff;
-    __le32 kbh_blm_hlen;
-    __le32 kbh_blm_doff_pg;
-    __le32 kbh_blm_dlen_pg;
+    uint32_t kbh_blm_hoff;
+    uint32_t kbh_blm_hlen;
+    uint32_t kbh_blm_doff_pg;
+    uint32_t kbh_blm_dlen_pg;
 
     /* ptomb WBT header */
-    __le32 kbh_pt_hoff;
-    __le32 kbh_pt_hlen;
-    __le32 kbh_pt_doff_pg;
-    __le32 kbh_pt_dlen_pg;
+    uint32_t kbh_pt_hoff;
+    uint32_t kbh_pt_hlen;
+    uint32_t kbh_pt_doff_pg;
+    uint32_t kbh_pt_dlen_pg;
 
     /* min and max seqno */
-    __le64 kbh_min_seqno;
-    __le64 kbh_max_seqno;
+    uint64_t kbh_min_seqno;
+    uint64_t kbh_max_seqno;
 
 } HSE_PACKED;
 
@@ -121,16 +121,16 @@ OMF_SETGET(struct kblock_hdr_omf, kbh_max_seqno, 64)
  * @bh_modulus:         modulus used to convert first hash to bucket
  */
 struct bloom_hdr_omf {
-    __le32 bh_magic;
-    __le32 bh_version;
-    __le32 bh_bitmapsz;
-    __le32 bh_modulus;
-    __le32 bh_bktshift;
-    __le16 bh_rsvd1;
-    u8     bh_rotl;
-    u8     bh_n_hashes;
-    __le32 bh_rsvd2;
-    __le32 bh_rsvd3;
+    uint32_t bh_magic;
+    uint32_t bh_version;
+    uint32_t bh_bitmapsz;
+    uint32_t bh_modulus;
+    uint32_t bh_bktshift;
+    uint16_t bh_rsvd1;
+    uint8_t  bh_rotl;
+    uint8_t  bh_n_hashes;
+    uint32_t bh_rsvd2;
+    uint32_t bh_rsvd3;
 } HSE_PACKED;
 
 /* Define set/get methods for bloom_hdr_omf */
@@ -164,14 +164,14 @@ OMF_SETGET(struct bloom_hdr_omf, bh_n_hashes, 8)
 
 /* WBT header (OMF v4-v6) */
 struct wbt_hdr_omf {
-    __le32 wbt_magic;
-    __le32 wbt_version;
-    __le16 wbt_root;     /* index of wbtree root node */
-    __le16 wbt_leaf;     /* index of first wbtree leaf node */
-    __le16 wbt_leaf_cnt; /* number of wbtree leaf nodes */
-    __le16 wbt_kmd_pgc;  /* size of kmd region in pages */
-    __le32 wbt_reserved1;
-    __le32 wbt_reserved2;
+    uint32_t wbt_magic;
+    uint32_t wbt_version;
+    uint16_t wbt_root;     /* index of wbtree root node */
+    uint16_t wbt_leaf;     /* index of first wbtree leaf node */
+    uint16_t wbt_leaf_cnt; /* number of wbtree leaf nodes */
+    uint16_t wbt_kmd_pgc;  /* size of kmd region in pages */
+    uint32_t wbt_reserved1;
+    uint32_t wbt_reserved2;
 } HSE_PACKED;
 
 OMF_SETGET(struct wbt_hdr_omf, wbt_magic, 32)
@@ -192,11 +192,11 @@ wbt_hdr_version(void *omf)
 
 /* WBT node header (OMF v5-v6) */
 struct wbt_node_hdr_omf {
-    __le16 wbn_magic;    /* magic number, distinguishes INEs from LFEs */
-    __le16 wbn_num_keys; /* number of keys in node */
-    __le32 wbn_kmd;      /* offset in kmd region to this node's kmd */
-    __le16 wbn_pfx_len;  /* length of the longest common prefix */
-    __le16 wbn_padding;  /* unused padding */
+    uint16_t wbn_magic;    /* magic number, distinguishes INEs from LFEs */
+    uint16_t wbn_num_keys; /* number of keys in node */
+    uint32_t wbn_kmd;      /* offset in kmd region to this node's kmd */
+    uint16_t wbn_pfx_len;  /* length of the longest common prefix */
+    uint16_t wbn_padding;  /* unused padding */
 } HSE_PACKED;
 
 OMF_SETGET(struct wbt_node_hdr_omf, wbn_magic, 16)
@@ -206,9 +206,9 @@ OMF_SETGET(struct wbt_node_hdr_omf, wbn_pfx_len, 16)
 
 /* WBT node header (OMF v4) */
 struct wbt4_node_hdr_omf {
-    __le16 wbn4_magic;    /* node magic , distinguishes INEs from LFEs */
-    __le16 wbn4_num_keys; /* number of keys in node */
-    __le32 wbn4_kmd;      /* offset in kmd region to this node's kmd */
+    uint16_t wbn4_magic;    /* node magic , distinguishes INEs from LFEs */
+    uint16_t wbn4_num_keys; /* number of keys in node */
+    uint32_t wbn4_kmd;      /* offset in kmd region to this node's kmd */
 } HSE_PACKED;
 
 OMF_SETGET(struct wbt4_node_hdr_omf, wbn4_magic, 16)
@@ -217,8 +217,8 @@ OMF_SETGET(struct wbt4_node_hdr_omf, wbn4_kmd, 32)
 
 /* WBT internal node entry (OMF v4-v6) */
 struct wbt_ine_omf {
-    __le16 ine_koff;       /* byte offset from start of node to key */
-    __le16 ine_left_child; /* node number of left child */
+    uint16_t ine_koff;       /* byte offset from start of node to key */
+    uint16_t ine_left_child; /* node number of left child */
 } HSE_PACKED;
 
 OMF_SETGET(struct wbt_ine_omf, ine_koff, 16)
@@ -229,8 +229,8 @@ OMF_SETGET(struct wbt_ine_omf, ine_left_child, 16)
  * value at lfe_koff, and the actual key is stored at lfe_koff + 4.
  */
 struct wbt_lfe_omf {
-    __le16 lfe_koff;
-    __le16 lfe_kmd;
+    uint16_t lfe_koff;
+    uint16_t lfe_kmd;
 } HSE_PACKED;
 
 OMF_SETGET(struct wbt_lfe_omf, lfe_koff, 16)
@@ -242,14 +242,14 @@ OMF_SETGET(struct wbt_lfe_omf, lfe_kmd, 16)
 
 /* WB tree version 3 header */
 struct wbt3_hdr_omf {
-    __le32 wbt3_magic;
-    __le32 wbt3_version;
-    __le16 wbt3_root;     /* index of wbtree root node */
-    __le16 wbt3_leaf;     /* index of first wbtree leaf node */
-    __le16 wbt3_leaf_cnt; /* number of wbtree leaf nodes */
-    __le16 wbt3_kmd_pgc;  /* size of kmd region in pages */
-    __le32 wbt3_reserved1;
-    __le32 wbt3_reserved2;
+    uint32_t wbt3_magic;
+    uint32_t wbt3_version;
+    uint16_t wbt3_root;     /* index of wbtree root node */
+    uint16_t wbt3_leaf;     /* index of first wbtree leaf node */
+    uint16_t wbt3_leaf_cnt; /* number of wbtree leaf nodes */
+    uint16_t wbt3_kmd_pgc;  /* size of kmd region in pages */
+    uint32_t wbt3_reserved1;
+    uint32_t wbt3_reserved2;
 } HSE_PACKED;
 
 OMF_SETGET(struct wbt3_hdr_omf, wbt3_magic, 32)
@@ -262,9 +262,9 @@ OMF_SETGET(struct wbt3_hdr_omf, wbt3_kmd_pgc, 16);
 /* WB tree version 3 node header */
 
 struct wbt3_node_hdr_omf {
-    __le16 wbn3_magic;    /* magic number, distinguishes INEs from LFEs */
-    __le16 wbn3_num_keys; /* number of keys in node */
-    __le32 wbn3_kmd;      /* offset in kmd region to node's kmd data */
+    uint16_t wbn3_magic;    /* magic number, distinguishes INEs from LFEs */
+    uint16_t wbn3_num_keys; /* number of keys in node */
+    uint32_t wbn3_kmd;      /* offset in kmd region to node's kmd data */
 } HSE_PACKED;
 
 OMF_SETGET(struct wbt3_node_hdr_omf, wbn3_magic, 16)
@@ -273,8 +273,8 @@ OMF_SETGET(struct wbt3_node_hdr_omf, wbn3_kmd, 32)
 
 /* WB tree version 3 internal node entry (ine) */
 struct wbt3_ine_omf {
-    __le16 ine3_koff;       /* byte offset from start of node to key */
-    __le16 ine3_left_child; /* node number of left child */
+    uint16_t ine3_koff;       /* byte offset from start of node to key */
+    uint16_t ine3_left_child; /* node number of left child */
 } HSE_PACKED;
 
 OMF_SETGET(struct wbt3_ine_omf, ine3_koff, 16)
@@ -285,8 +285,8 @@ OMF_SETGET(struct wbt3_ine_omf, ine3_left_child, 16)
  * value at lfe_koff, and the actual key is stored at lfe_koff + 4.
  */
 struct wbt3_lfe_omf {
-    __le16 lfe3_koff;
-    __le16 lfe3_kmd;
+    uint16_t lfe3_koff;
+    uint16_t lfe3_kmd;
 } HSE_PACKED;
 
 OMF_SETGET(struct wbt3_lfe_omf, lfe3_koff, 16)
@@ -304,9 +304,9 @@ OMF_SETGET(struct wbt3_lfe_omf, lfe3_kmd, 16)
 
 /* Version 2 header */
 struct vblock_hdr_omf {
-    __le32 vbh_magic;
-    __le32 vbh_version;
-    __le64 vbh_vgroup;
+    uint32_t vbh_magic;
+    uint32_t vbh_version;
+    uint64_t vbh_vgroup;
 } HSE_PACKED;
 
 OMF_SETGET(struct vblock_hdr_omf, vbh_magic, 32)
@@ -315,11 +315,11 @@ OMF_SETGET(struct vblock_hdr_omf, vbh_vgroup, 64)
 
 /* Version 1 header */
 struct vblock_hdr1_omf {
-    __le32 vbh1_magic;
-    __le32 vbh1_version;
-    __le32 vbh1_entries;
-    __le32 vbh1_data_off; /* offset from start of vblock to values */
-    __le64 vbh1_data_len; /* length of value region */
+    uint32_t vbh1_magic;
+    uint32_t vbh1_version;
+    uint32_t vbh1_entries;
+    uint32_t vbh1_data_off; /* offset from start of vblock to values */
+    uint64_t vbh1_data_len; /* length of value region */
 } HSE_PACKED;
 
 /* cn dynamic state
@@ -328,14 +328,14 @@ struct vblock_hdr1_omf {
 #define CN_TSTATE_KHM_SZ (1024)
 
 struct cn_tstate_omf {
-    __le32 ts_magic;
-    __le32 ts_version;
+    uint32_t ts_magic;
+    uint32_t ts_version;
 
-    __le64 ts_rsvd[14];
+    uint64_t ts_rsvd[14];
 
-    __le32 ts_khm_gen;
-    __le32 ts_khm_rsvd;
-    u8     ts_khm_mapv[CN_TSTATE_KHM_SZ];
+    uint32_t ts_khm_gen;
+    uint32_t ts_khm_rsvd;
+    uint8_t  ts_khm_mapv[CN_TSTATE_KHM_SZ];
 } HSE_PACKED;
 
 OMF_SETGET(struct cn_tstate_omf, ts_magic, 32)

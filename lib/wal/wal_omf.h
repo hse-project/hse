@@ -51,8 +51,8 @@ enum wal_flags {
  */
 
 struct wal_mdchdr_omf {
-    __le32 mh_rtype;
-    __le32 mh_rsvd;
+    uint32_t mh_rtype;
+    uint32_t mh_rsvd;
 } HSE_PACKED;
 
 OMF_SETGET(struct wal_mdchdr_omf, mh_rtype, 32);
@@ -61,8 +61,8 @@ OMF_SETGET(struct wal_mdchdr_omf, mh_rsvd, 32);
 
 struct wal_version_omf {
     struct wal_mdchdr_omf ver_hdr;
-    __le32 ver_version;
-    __le32 ver_magic;
+    uint32_t ver_version;
+    uint32_t ver_magic;
 } HSE_PACKED;
 
 /* Define set/get methods for wal_version_omf */
@@ -74,8 +74,8 @@ struct wal_config_omf {
     struct wal_mdchdr_omf cfg_hdr;
     uint8_t cfg_mclass;
     uint8_t cfg_rsvd1;
-    __le16  cfg_rsvd2;
-    __le32  cfg_rsvd3;
+    uint16_t  cfg_rsvd2;
+    uint32_t  cfg_rsvd3;
 } HSE_PACKED;
 
 /* Define set/get methods for wal_config_omf */
@@ -95,18 +95,18 @@ struct wal_close_omf {
  */
 
 struct wal_filehdr_omf {
-    __le32 fh_cksum;
-    __le32 fh_magic;
-    __le32 fh_version;
-    __le32 fh_close;
-    __le64 fh_mingen;
-    __le64 fh_maxgen;
-    __le64 fh_minseqno;
-    __le64 fh_maxseqno;
-    __le64 fh_mintxid;
-    __le64 fh_maxtxid;
-    __le64 fh_startoff;
-    __le64 fh_endoff;
+    uint32_t fh_cksum;
+    uint32_t fh_magic;
+    uint32_t fh_version;
+    uint32_t fh_close;
+    uint64_t fh_mingen;
+    uint64_t fh_maxgen;
+    uint64_t fh_minseqno;
+    uint64_t fh_maxseqno;
+    uint64_t fh_mintxid;
+    uint64_t fh_maxtxid;
+    uint64_t fh_startoff;
+    uint64_t fh_endoff;
 } HSE_PACKED;
 
 /* Define set/get methods for wal_filehdr_omf */
@@ -125,14 +125,14 @@ OMF_SETGET(struct wal_filehdr_omf, fh_endoff, 64);
 
 
 struct wal_rechdr_omf {
-    __le64 rh_off;
-    __le32 rh_flags;
-    __le32 rh_cksum;
-    __le64 rh_rid;
-    __le64 rh_gen;
-    __le32 rh_type;
-    __le32 rh_len;
-    __le64 rh_rsvd;
+    uint64_t rh_off;
+    uint32_t rh_flags;
+    uint32_t rh_cksum;
+    uint64_t rh_rid;
+    uint64_t rh_gen;
+    uint32_t rh_type;
+    uint32_t rh_len;
+    uint64_t rh_rsvd;
 } __attribute__((packed,aligned(__alignof__(uint64_t))));
 
 /* Define set/get methods for wal_rechdr_omf */
@@ -148,12 +148,12 @@ OMF_SETGET(struct wal_rechdr_omf, rh_rsvd, 64);
 
 struct wal_rec_omf {
     struct wal_rechdr_omf r_hdr;
-    __le32                r_op;
-    __le32                r_klen;
-    __le64                r_cnid;
-    __le64                r_txid;
-    __le64                r_seqno;
-    __le64                r_vxlen;
+    uint32_t                r_op;
+    uint32_t                r_klen;
+    uint64_t                r_cnid;
+    uint64_t                r_txid;
+    uint64_t                r_seqno;
+    uint64_t                r_vxlen;
     uint8_t               r_data[0];
 } __attribute__((packed,aligned(__alignof__(uint64_t))));
 
@@ -168,9 +168,9 @@ OMF_SETGET(struct wal_rec_omf, r_vxlen, 64);
 
 struct wal_txnrec_omf {
     struct wal_rechdr_omf tr_hdr;
-    __le64                tr_txid;
-    __le64                tr_seqno;
-    __le64                tr_cid;
+    uint64_t              tr_txid;
+    uint64_t              tr_seqno;
+    uint64_t              tr_cid;
 } __attribute__((packed,aligned(__alignof__(uint64_t))));
 
 /* Define set/get methods for wal_txrec_omf */
