@@ -66,19 +66,19 @@ enum {
 _Static_assert(CNDB_CN_NAME_MAX == HSE_KVS_NAME_LEN_MAX, "kvs name len mismatch");
 
 struct cndb_oid_omf {
-    __le64 cndb_oid;
+    uint64_t cndb_oid;
 } HSE_PACKED;
 
 struct cndb_hdr_omf {
-    __le32 cnhdr_type;
-    __le32 cnhdr_len;
+    uint32_t cnhdr_type;
+    uint32_t cnhdr_len;
 } HSE_PACKED;
 
 struct cndb_ver_omf {
     struct cndb_hdr_omf hdr;
-    __le32              cnver_magic;
-    __le32              cnver_version;
-    __le64              cnver_captgt;
+    uint32_t            cnver_magic;
+    uint32_t            cnver_version;
+    uint64_t            cnver_captgt;
 } HSE_PACKED;
 
 /**
@@ -102,13 +102,13 @@ struct cndb_ver_omf {
 
 struct cndb_info_omf {
     struct cndb_hdr_omf hdr;
-    __le32              cninfo_fanout_bits;
-    __le32              cninfo_prefix_len;
-    __le32              cninfo_sfx_len;
-    __le32              cninfo_prefix_pivot;
-    __le32              cninfo_flags;
-    __le32              cninfo_metasz;
-    __le64              cninfo_cnid;
+    uint32_t            cninfo_fanout_bits;
+    uint32_t            cninfo_prefix_len;
+    uint32_t            cninfo_sfx_len;
+    uint32_t            cninfo_prefix_pivot;
+    uint32_t            cninfo_flags;
+    uint32_t            cninfo_metasz;
+    uint64_t            cninfo_cnid;
     char                cninfo_name[CNDB_CN_NAME_MAX];
     char                cninfo_meta[];
 } HSE_PACKED;
@@ -134,12 +134,12 @@ struct cndb_info_omf {
 
 struct cndb_info_omf_v8 {
     struct cndb_hdr_omf hdr;
-    __le32              cninfo_fanout_bits;
-    __le32              cninfo_prefix_len;
-    __le32              cninfo_prefix_pivot;
-    __le32              cninfo_flags;
-    __le32              cninfo_metasz;
-    __le64              cninfo_cnid;
+    uint32_t            cninfo_fanout_bits;
+    uint32_t            cninfo_prefix_len;
+    uint32_t            cninfo_prefix_pivot;
+    uint32_t            cninfo_flags;
+    uint32_t            cninfo_metasz;
+    uint64_t            cninfo_cnid;
     char                cninfo_name[CNDB_CN_NAME_MAX];
     char                cninfo_meta[];
 } HSE_PACKED;
@@ -171,11 +171,11 @@ OMF_GET_CHBUF_VER(struct cndb_info_omf_v8, cninfo_name, v8);
  */
 struct cndb_info_omf_v7 {
     struct cndb_hdr_omf hdr;
-    __le32              cninfo_fanout_bits;
-    __le32              cninfo_prefix_len;
-    __le32              cninfo_flags;
-    __le32              cninfo_metasz;
-    __le64              cninfo_cnid;
+    uint32_t            cninfo_fanout_bits;
+    uint32_t            cninfo_prefix_len;
+    uint32_t            cninfo_flags;
+    uint32_t            cninfo_metasz;
+    uint64_t            cninfo_cnid;
     char                cninfo_name[CNDB_CN_NAME_MAX];
     char                cninfo_meta[];
 } HSE_PACKED;
@@ -204,10 +204,10 @@ OMF_GET_CHBUF_VER(struct cndb_info_omf_v7, cninfo_name, v7);
 
 struct cndb_info_omf_v6 {
     struct cndb_hdr_omf hdr;
-    __le32              cninfo_fanout_bits;
-    __le32              cninfo_prefix_len;
-    __le32              cninfo_flags;
-    __le64              cninfo_cnid;
+    uint32_t            cninfo_fanout_bits;
+    uint32_t            cninfo_prefix_len;
+    uint32_t            cninfo_flags;
+    uint64_t            cninfo_cnid;
     char                cninfo_name[CNDB_CN_NAME_MAX];
 } HSE_PACKED;
 
@@ -233,9 +233,9 @@ OMF_GET_CHBUF_VER(struct cndb_info_omf_v6, cninfo_name, v6);
 
 struct cndb_info_omf_v4 {
     struct cndb_hdr_omf hdr;
-    __le32              cninfo_fanout_bits;
-    __le32              cninfo_prefix_len;
-    __le64              cninfo_cnid;
+    uint32_t            cninfo_fanout_bits;
+    uint32_t            cninfo_prefix_len;
+    uint64_t            cninfo_cnid;
     char                cninfo_name[CNDB_CN_NAME_MAX];
 } HSE_PACKED;
 
@@ -250,7 +250,7 @@ OMF_GET_CHBUF_VER(struct cndb_info_omf_v4, cninfo_name, v4);
  */
 struct cndb_meta_omf {
     struct cndb_hdr_omf hdr;
-    __le64              cnmeta_seqno_max;
+    uint64_t            cnmeta_seqno_max;
 } HSE_PACKED;
 
 /**
@@ -258,10 +258,10 @@ struct cndb_meta_omf {
  */
 struct cndb_tx_omf_v4 {
     struct cndb_hdr_omf hdr;
-    __le64              tx_id;
-    __le64              tx_seqno;
-    __le32              tx_nc;
-    __le32              tx_nd;
+    uint64_t            tx_id;
+    uint64_t            tx_seqno;
+    uint32_t            tx_nc;
+    uint32_t            tx_nd;
 } HSE_PACKED;
 
 OMF_GET_VER(struct cndb_tx_omf_v4, tx_id, 64, v4);
@@ -274,11 +274,11 @@ OMF_GET_VER(struct cndb_tx_omf_v4, tx_nd, 32, v4);
  */
 struct cndb_tx_omf_v5 {
     struct cndb_hdr_omf hdr;
-    __le64              tx_id;
-    __le64              tx_seqno;
-    __le64              tx_ingestid;
-    __le32              tx_nc;
-    __le32              tx_nd;
+    uint64_t            tx_id;
+    uint64_t            tx_seqno;
+    uint64_t            tx_ingestid;
+    uint32_t            tx_nc;
+    uint32_t            tx_nd;
 } HSE_PACKED;
 
 OMF_GET_VER(struct cndb_tx_omf_v5, tx_id, 64, v5);
@@ -317,12 +317,12 @@ OMF_GET_VER(struct cndb_tx_omf_v5, tx_nd, 32, v5);
  */
 struct cndb_tx_omf {
     struct cndb_hdr_omf hdr;
-    __le64              tx_id;
-    __le32              tx_nc;
-    __le32              tx_nd;
-    __le64              tx_seqno;
-    __le64              tx_ingestid;
-    __le64              tx_txhorizon;
+    uint64_t            tx_id;
+    uint32_t            tx_nc;
+    uint32_t            tx_nd;
+    uint64_t            tx_seqno;
+    uint64_t            tx_ingestid;
+    uint64_t            tx_txhorizon;
 } HSE_PACKED;
 
 #define CNDB_TXF_KEEPV 1 /* For field txc_flags in CNDB_VERSION4 */
@@ -353,13 +353,13 @@ struct cndb_tx_omf {
  */
 struct cndb_txc_omf_v4 {
     struct cndb_hdr_omf hdr;
-    __le64              txc_cnid;
-    __le64              txc_id;
-    __le64              txc_tag;
-    __le32              txc_flags;
-    __le32              txc_kcnt;
-    __le32              txc_vcnt;
-    __le32              txc_mcnt;
+    uint64_t            txc_cnid;
+    uint64_t            txc_id;
+    uint64_t            txc_tag;
+    uint32_t            txc_flags;
+    uint32_t            txc_kcnt;
+    uint32_t            txc_vcnt;
+    uint32_t            txc_mcnt;
 } HSE_PACKED;
 OMF_GET_VER(struct cndb_txc_omf_v4, txc_cnid, 64, v4);
 OMF_GET_VER(struct cndb_txc_omf_v4, txc_id, 64, v4);
@@ -398,13 +398,13 @@ OMF_GET_VER(struct cndb_txc_omf_v4, txc_mcnt, 32, v4);
  */
 struct cndb_txc_omf {
     struct cndb_hdr_omf hdr;
-    __le64              txc_cnid;
-    __le64              txc_id;
-    __le64              txc_tag;
-    __le32              txc_keepvbc;
-    __le32              txc_kcnt;
-    __le32              txc_vcnt;
-    __le32              txc_mcnt;
+    uint64_t            txc_cnid;
+    uint64_t            txc_id;
+    uint64_t            txc_tag;
+    uint32_t            txc_keepvbc;
+    uint32_t            txc_kcnt;
+    uint32_t            txc_vcnt;
+    uint32_t            txc_mcnt;
 } HSE_PACKED;
 
 /**
@@ -426,15 +426,15 @@ struct cndb_txc_omf {
  */
 struct cndb_txm_omf_v8 {
     struct cndb_hdr_omf hdr;
-    __le64              txm_cnid;
-    __le64              txm_id;
-    __le64              txm_tag;
-    __le32              txm_level;
-    __le32              txm_offset;
-    __le64              txm_dgen;
-    __le64              txm_vused;
-    __le32              txm_compc;
-    __le32              txm_unused;
+    uint64_t            txm_cnid;
+    uint64_t            txm_id;
+    uint64_t            txm_tag;
+    uint32_t            txm_level;
+    uint32_t            txm_offset;
+    uint64_t            txm_dgen;
+    uint64_t            txm_vused;
+    uint32_t            txm_compc;
+    uint32_t            txm_unused;
 } HSE_PACKED;
 
 OMF_GET_VER(struct cndb_txm_omf_v8, txm_cnid, 64, v8);
@@ -466,15 +466,15 @@ OMF_GET_VER(struct cndb_txm_omf_v8, txm_compc, 32, v8);
  */
 struct cndb_txm_omf {
     struct cndb_hdr_omf hdr;
-    __le64              txm_cnid;
-    __le64              txm_id;
-    __le64              txm_tag;
-    __le32              txm_level;
-    __le32              txm_offset;
-    __le64              txm_dgen;
-    __le64              txm_vused;
-    __le32              txm_compc;
-    __le32              txm_scatter;
+    uint64_t            txm_cnid;
+    uint64_t            txm_id;
+    uint64_t            txm_tag;
+    uint32_t            txm_level;
+    uint32_t            txm_offset;
+    uint64_t            txm_dgen;
+    uint64_t            txm_vused;
+    uint32_t            txm_compc;
+    uint32_t            txm_scatter;
 } HSE_PACKED;
 
 /*
@@ -495,11 +495,11 @@ struct cndb_txm_omf {
  */
 struct cndb_txd_omf {
     struct cndb_hdr_omf hdr;
-    __le64              txd_cnid;
-    __le64              txd_id;
-    __le64              txd_tag;
-    __le32              txd_n_oids;
-    __le32              pad_do_not_use;
+    uint64_t            txd_cnid;
+    uint64_t            txd_id;
+    uint64_t            txd_tag;
+    uint32_t            txd_n_oids;
+    uint32_t            pad_do_not_use;
     /* an array of txd_n_oids mblock OIDs appears here */
 } HSE_PACKED;
 
@@ -523,16 +523,16 @@ enum { CNDB_ACK_TYPE_C = 1, CNDB_ACK_TYPE_D = 2 };
  */
 struct cndb_ack_omf {
     struct cndb_hdr_omf hdr;
-    __le64              ack_txid;
-    __le64              ack_tag;
-    __le64              ack_cnid;
-    __le32              ack_type;
-    __le32              pad_do_not_use;
+    uint64_t            ack_txid;
+    uint64_t            ack_tag;
+    uint64_t            ack_cnid;
+    uint32_t            ack_type;
+    uint32_t            pad_do_not_use;
 } HSE_PACKED;
 
 struct cndb_nak_omf {
     struct cndb_hdr_omf hdr;
-    __le64              nak_txid;
+    uint64_t            nak_txid;
 } HSE_PACKED;
 
 OMF_SETGET(struct cndb_hdr_omf, cnhdr_type, 32);
