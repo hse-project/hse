@@ -92,9 +92,6 @@ components = {
         'hse_gparams_test': {},
         'param_test': {},
     },
-    'framework': {
-        'mock_test': {},
-    },
     'kvdb': {
         'ikvdb_test': {},
         'kvdb_cparams_test': {},
@@ -104,9 +101,9 @@ components = {
         'kvdb_home_test': {},
         'kvdb_meta_test': {
             'args': [
-			    meson.current_source_dir() / 'kvdb/kvdb-meta-files',
-			],
-		},
+                meson.current_source_dir() / 'kvdb/kvdb-meta-files',
+            ],
+        },
         'kvdb_rest_test': {},
         'kvdb_rparams_test': {},
         'mclass_policy_test': {},
@@ -265,7 +262,6 @@ foreach c, tests : components
         t_exe = executable(
             t,
             [
-                '../framework/src/fixtures.c',
                 c / '@0@.c'.format(t),
                 params.get('sources', []),
             ],
@@ -277,6 +273,7 @@ foreach c, tests : components
                 hse_mock_dep,
                 hse_mock_repository_dep,
                 hse_dependencies,
+                hse_test_framework_dep,
                 params.get('dependencies', []),
             ],
             gnu_symbol_visibility: 'hidden',

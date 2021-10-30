@@ -1,12 +1,12 @@
 /* SPDX-License-Identifier: Apache-2.0 */
 /*
- * Copyright (C) 2015-2020 Micron Technology, Inc.  All rights reserved.
+ * Copyright (C) 2015-2021 Micron Technology, Inc.  All rights reserved.
  */
 
-#ifndef HSE_KVS_CN_TEST_MOCK_MPOOL_H
-#define HSE_KVS_CN_TEST_MOCK_MPOOL_H
+#ifndef MOCKS_MOCK_MPOOL_H
+#define MOCKS_MOCK_MPOOL_H
 
-#include <hse_test_support/mock_api.h>
+#include <mock/api.h>
 
 #include <mpool/mpool.h>
 

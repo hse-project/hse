@@ -8,7 +8,7 @@
 #include <hse_util/logging.h>
 
 #include "multithreaded_tester.h"
-#include <hse_ut/framework.h>
+#include <mtf/framework.h>
 
 MTF_BEGIN_UTEST_COLLECTION(atomic_test);
 

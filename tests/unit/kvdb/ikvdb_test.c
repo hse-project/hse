@@ -9,9 +9,9 @@
 
 #include <hse/flags.h>
 
-#include <hse_ut/framework.h>
-#include <hse_test_support/mock_api.h>
-#include <hse_test_support/random_buffer.h>
+#include <mtf/framework.h>
+#include <mock/api.h>
+#include <support/random_buffer.h>
 
 #include <hse_util/hse_err.h>
 #include <hse_util/delay.h>
@@ -819,7 +819,6 @@ MTF_DEFINE_UTEST_PREPOST(ikvdb_test, cursor_1, test_pre_c0, test_post_c0)
     ASSERT_EQ(0, err);
 
     err = ikvdb_open(mpool, &params, &h);
-    printf("%s:%d\n", merr_file(err), merr_lineno(err));
     ASSERT_EQ(0, err);
     ASSERT_NE(NULL, h);
 

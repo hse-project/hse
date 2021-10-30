@@ -35,7 +35,7 @@ jobs:
 
     - name: Build setup with YCSB, tools and configs
       run: |
-        poetry run meson builddir -Dbuildtype=${{ matrix.build_type }} -Dycsb=true -Dwerror=true
+        poetry run meson builddir -Dbuildtype=${{ matrix.build_type }} --fatal-meson-warnings -Dycsb=true -Dwerror=true
 
     - name: Run tests
       run: |
@@ -75,7 +75,7 @@ jobs:
 
     - name: Build setup with YCSB, tools and configs
       run: |
-        poetry run meson builddir -Dbuildtype=${{ matrix.build_type }} -Dycsb=true -Dwerror=true
+        poetry run meson builddir -Dbuildtype=${{ matrix.build_type }} --fatal-meson-warnings -Dycsb=true -Dwerror=true
 
     - name: Run tests
       run: |

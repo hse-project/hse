@@ -347,18 +347,9 @@ if get_option('tests') or not get_option('tools').disabled()
     # need access to tools_includes for unit tests and tools
     subdir('tools/include')
 endif
-if get_option('tests')
-    # need to know about mocks, framework, test support sources before entering lib directory
-    subdir('tests/mocks')
-    subdir('tests/support')
-    subdir('tests/framework')
-endif
 subdir('lib')
 subdir('cli')
 subdir('samples')
-if get_option('ycsb')
-    subdir('hsejni')
-endif
 if get_option('docs')
     subdir('docs')
 endif
@@ -367,13 +358,7 @@ endif
 run_env = environment()
 
 if 'python' in bindings
-    hse_python = subproject(
-        'hse-python',
-        default_options: [
-            'experimental=@0@'.format(get_option('experimental')),
-            'tests=@0@'.format(get_option('tests')),
-        ],
-    )
+    hse_python = subproject('hse-python')
 
     hse_python_depends = [
         hse_python.get_variable('extension_modules'),
@@ -393,9 +378,18 @@ else
 endif
 
 if get_option('db_bench')
-    db_bench_proj = subproject('db_bench')
-    db_bench = db_bench_proj.get_variable('db_bench')
-    executable_paths += meson.project_build_root() / 'subprojects/db_bench'
+    if get_option('experimental')
+        db_bench_proj = subproject(
+            'db_bench',
+            default_options: [
+                'cpp_std=c++11',
+            ]
+        )
+        db_bench = db_bench_proj.get_variable('db_bench')
+        executable_paths += fs.parent(db_bench.full_path())
+    else
+        db_bench = disabler()
+    endif
 endif
 
 subdir('tools')
@@ -403,9 +397,11 @@ subdir('tools')
 run_env.prepend('PATH', executable_paths)
 
 if get_option('tests')
-    # now that we have libhse-mock, go into repository directory
-    subdir('tests/mocks/repository')
     subdir('tests')
+endif
+
+if get_option('ycsb')
+    subdir('hsejni')
 endif
 
 format = find_program('scripts/dev/format')

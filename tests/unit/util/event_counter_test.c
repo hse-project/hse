@@ -5,7 +5,7 @@
 
 #include <rbtree.h>
 
-#include <hse_ut/framework.h>
+#include <mtf/framework.h>
 
 #include <hse_util/slab.h>
 #include <hse_util/inttypes.h>

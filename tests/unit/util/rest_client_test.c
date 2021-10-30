@@ -5,7 +5,7 @@
 
 #include <unistd.h>
 
-#include <hse_ut/framework.h>
+#include <mtf/framework.h>
 
 #include <hse_util/inttypes.h>
 #include <hse_util/hse_err.h>
@@ -208,7 +208,6 @@ MTF_DEFINE_UTEST_PREPOST(rest_client, example2, rest_start, rest_stop)
 
     memset(buf, 0, sizeof(buf));
     err = curl_get(getpath, sock, buf, sizeof(buf));
-    printf("%s:%d\n", merr_file(err), merr_lineno(err));
     ASSERT_EQ(0, err);
     ASSERT_STREQ("text:slartibartfast,number:42", buf);
 

@@ -6,8 +6,8 @@
 #include <errno.h>
 #include <fcntl.h>
 
-#include <hse_ut/framework.h>
-#include <hse_test_support/mock_api.h>
+#include <mtf/framework.h>
+#include <mock/api.h>
 
 #include <mpool/mpool.h>
 #include <mpool_internal.h>

@@ -7,7 +7,7 @@
 #include <hse_ikvdb/argv.h>
 #include <hse_ikvdb/kvs_cparams.h>
 #include <hse_ikvdb/kvs_rparams.h>
-#include <hse_ut/framework.h>
+#include <mtf/framework.h>
 
 MTF_BEGIN_UTEST_COLLECTION(argv_test)
 

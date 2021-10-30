@@ -3,7 +3,7 @@
  * Copyright (C) 2016-2019,2021 Micron Technology, Inc.  All rights reserved.
  */
 
-#include <hse_ut/framework.h>
+#include <mtf/framework.h>
 
 #include <hsejni_internal.h>
 

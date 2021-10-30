@@ -3,8 +3,9 @@
  * Copyright (C) 2021 Micron Technology, Inc.  All rights reserved.
  */
 
-#include <hse_ut/framework.h>
-#include <hse_ut/fixtures.h>
+#include <mtf/framework.h>
+#include <fixtures/kvdb.h>
+#include <fixtures/kvs.h>
 
 /* Globals */
 struct hse_kvdb *kvdb_handle = NULL;
@@ -15,23 +16,21 @@ const char *     kvs_name = "kvs_cursor_test";
 int
 test_collection_setup(struct mtf_test_info *lcl_ti)
 {
-    int rc;
+    hse_err_t err;
 
-    rc = mtf_kvdb_setup(lcl_ti, &kvdb_handle, 0);
-    ASSERT_EQ_RET(rc, 0, -1);
+    err = fxt_kvdb_setup(home, 0, NULL, 0, NULL, &kvdb_handle);
 
-    return 0;
+    return hse_err_to_errno(err);
 }
 
 int
 test_collection_teardown(struct mtf_test_info *lcl_ti)
 {
-    int rc;
+    hse_err_t err;
 
-    rc = mtf_kvdb_teardown(lcl_ti);
-    ASSERT_EQ_RET(rc, 0, -1);
+    err = fxt_kvdb_teardown(home, kvdb_handle);
 
-    return 0;
+    return hse_err_to_errno(err);
 }
 
 int
@@ -39,13 +38,9 @@ open_kvs(struct mtf_test_info *lcl_ti)
 {
     hse_err_t err;
 
-    err = hse_kvdb_kvs_create(kvdb_handle, kvs_name, 0, NULL);
-    ASSERT_EQ_RET(err, 0, -1);
+    err = fxt_kvs_setup(kvdb_handle, kvs_name, 0, NULL, 0, NULL, &kvs_handle);
 
-    err = hse_kvdb_kvs_open(kvdb_handle, kvs_name, 0, NULL, &kvs_handle);
-    ASSERT_EQ_RET(err, 0, -1);
-
-    return 0;
+    return hse_err_to_errno(err);
 }
 
 int
@@ -76,16 +71,11 @@ populate_kvs(struct mtf_test_info *lcl_ti)
 int
 destroy_kvs(struct mtf_test_info *lcl_ti)
 {
-    int       rc;
     hse_err_t err;
 
-    err = hse_kvdb_kvs_close(kvs_handle);
-    ASSERT_EQ_RET(err, 0, -1);
+    err = fxt_kvs_teardown(kvdb_handle, kvs_name, kvs_handle);
 
-    rc = mtf_kvdb_kvs_drop_all(kvdb_handle);
-    ASSERT_EQ_RET(rc, 0, -1);
-
-    return 0;
+    return hse_err_to_errno(err);
 }
 
 MTF_BEGIN_UTEST_COLLECTION_PREPOST(

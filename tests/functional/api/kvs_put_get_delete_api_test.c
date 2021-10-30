@@ -5,11 +5,13 @@
 
 #include <hse/hse.h>
 
-#include <hse_ut/framework.h>
-#include <hse_ut/fixtures.h>
+#include <mtf/framework.h>
+#include <fixtures/kvdb.h>
+#include <fixtures/kvs.h>
 
 struct hse_kvdb *kvdb;
 struct hse_kvs * kvs;
+const char *     kvs_name = "kvs-put-get-delete-api-test";
 
 #define KEY_LEN_MAX 32
 #define VAL_LEN_MAX 32
@@ -41,33 +43,26 @@ int
 test_collection_setup(struct mtf_test_info *lcl_ti)
 {
     hse_err_t err;
-    int       rc;
 
-    rc = mtf_kvdb_setup(lcl_ti, &kvdb, 0);
-    ASSERT_EQ_RET(rc, 0, -1);
+    err = fxt_kvdb_setup(home, 0, NULL, 0, NULL, &kvdb);
+    ASSERT_EQ_RET(err, 0, hse_err_to_errno(err));
 
-    err = hse_kvdb_kvs_create(kvdb, "test", 0, NULL);
-    ASSERT_EQ_RET(err, 0, -1);
+    err = fxt_kvs_setup(kvdb, kvs_name, 0, NULL, 0, NULL, &kvs);
 
-    err = hse_kvdb_kvs_open(kvdb, "test", 0, NULL, &kvs);
-    ASSERT_EQ_RET(err, 0, -1);
-
-    return 0;
+    return hse_err_to_errno(err);
 }
 
 int
 test_collection_teardown(struct mtf_test_info *lcl_ti)
 {
     hse_err_t err;
-    int       rc;
 
-    err = hse_kvdb_kvs_close(kvs);
-    ASSERT_EQ_RET(err, 0, -1);
+    err = fxt_kvs_teardown(kvdb, kvs_name, kvs);
+    ASSERT_EQ_RET(err, 0, hse_err_to_errno(err));
 
-    rc = mtf_kvdb_teardown(lcl_ti);
-    ASSERT_EQ_RET(rc, 0, -1);
+    err = fxt_kvdb_teardown(home, kvdb);
 
-    return 0;
+    return hse_err_to_errno(err);
 }
 
 MTF_BEGIN_UTEST_COLLECTION_PREPOST(put_get_delete, test_collection_setup, test_collection_teardown);

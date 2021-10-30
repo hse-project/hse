@@ -3,9 +3,9 @@
  * Copyright (C) 2015-2021 Micron Technology, Inc.  All rights reserved.
  */
 
-#include <hse_ut/framework.h>
-#include <hse_test_support/mock_api.h>
-#include <hse_test_support/mapi_alloc_tester.h>
+#include <mtf/framework.h>
+#include <mock/api.h>
+#include <mock/alloc_tester.h>
 
 #include <kvdb/viewset.h>
 

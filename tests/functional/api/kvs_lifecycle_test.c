@@ -3,63 +3,54 @@
  * Copyright (C) 2021 Micron Technology, Inc.  All rights reserved.
  */
 
-#include <hse_ut/framework.h>
-#include <hse_ut/fixtures.h>
+#include <mtf/framework.h>
+#include <fixtures/kvdb.h>
+#include <fixtures/kvs.h>
 #include <errno.h>
 
 /* Globals */
 struct hse_kvdb *kvdb_handle = NULL;
 struct hse_kvs * kvs_handle = NULL;
+const char *     kvs_name = "kvs-lifecycle-test";
 
 int
 test_collection_setup(struct mtf_test_info *lcl_ti)
 {
-    int rc;
+    hse_err_t err;
 
-    rc = mtf_kvdb_setup(lcl_ti, &kvdb_handle, 0);
-    ASSERT_EQ_RET(rc, 0, -1);
+    err = fxt_kvdb_setup(home, 0, NULL, 0, NULL, &kvdb_handle);
 
-    return 0;
+    return hse_err_to_errno(err);
 }
 
 int
 test_collection_teardown(struct mtf_test_info *lcl_ti)
 {
-    int rc;
+    hse_err_t err;
 
-    rc = mtf_kvdb_teardown(lcl_ti);
-    ASSERT_EQ_RET(rc, 0, -1);
+    err = fxt_kvdb_teardown(home, kvdb_handle);
 
-    return 0;
+    return hse_err_to_errno(err);
 }
 
 int
-kvs_create(struct mtf_test_info *lcl_ti)
+kvs_setup(struct mtf_test_info *lcl_ti)
 {
     hse_err_t err;
 
-    err = hse_kvdb_kvs_create(kvdb_handle, "new_kvs", 0, NULL);
-    ASSERT_EQ_RET(err, 0, -1);
+    err = fxt_kvs_setup(kvdb_handle, kvs_name, 0, NULL, 0, NULL, &kvs_handle);
 
-    err = hse_kvdb_kvs_open(kvdb_handle, "new_kvs", 0, NULL, &kvs_handle);
-    ASSERT_EQ_RET(err, 0, -1);
-
-    return 0;
+    return hse_err_to_errno(err);
 }
 
 int
-kvs_destroy(struct mtf_test_info *lcl_ti)
+kvs_teardown(struct mtf_test_info *lcl_ti)
 {
-    int       rc;
     hse_err_t err;
 
-    err = hse_kvdb_kvs_close(kvs_handle);
-    ASSERT_EQ_RET(err, 0, -1);
+    err = fxt_kvs_teardown(kvdb_handle, kvs_name, kvs_handle);
 
-    rc = mtf_kvdb_kvs_drop_all(kvdb_handle);
-    ASSERT_EQ_RET(rc, 0, -1);
-
-    return 0;
+    return hse_err_to_errno(err);
 }
 
 MTF_BEGIN_UTEST_COLLECTION_PREPOST(kvs_api, test_collection_setup, test_collection_teardown);
@@ -79,13 +70,14 @@ MTF_DEFINE_UTEST(kvs_api, kvs_nonexisting)
     ASSERT_EQ(hse_err_to_errno(err), EINVAL);
 }
 
-MTF_DEFINE_UTEST_PREPOST(kvs_api, kvs_invalid, kvs_create, kvs_destroy)
+MTF_DEFINE_UTEST_PREPOST(kvs_api, kvs_invalid, kvs_setup, kvs_teardown)
 {
     hse_err_t err;
-    char      buf[16];
+    char      buf[32];
     char      bad_name[] = { 'k', 'v', 's', 1, 19, 0 };
     char      kvs_buf[HSE_KVS_NAME_LEN_MAX + 1];
     int       n;
+
     /* TC: A KVS cannot be created with special characters in the name */
     err = hse_kvdb_kvs_create(kvdb_handle, "kvdb/example", 0, NULL);
     ASSERT_EQ(hse_err_to_errno(err), EINVAL);
@@ -103,7 +95,6 @@ MTF_DEFINE_UTEST_PREPOST(kvs_api, kvs_invalid, kvs_create, kvs_destroy)
     ASSERT_EQ(hse_err_to_errno(err), EINVAL);
 
     /* TC: A KVS can be created with less than defined max length of 32 characters in the name */
-
     for (int i = 0; i < HSE_KVS_NAME_LEN_MAX - 1; i++) {
         kvs_buf[i] = 'a' + (i % 26);
     }
@@ -118,12 +109,12 @@ MTF_DEFINE_UTEST_PREPOST(kvs_api, kvs_invalid, kvs_create, kvs_destroy)
     ASSERT_EQ(hse_err_to_errno(err), ENAMETOOLONG);
 
     /* TC: Two KVS cannot have same name */
-    err = hse_kvdb_kvs_create(kvdb_handle, "new_kvs", 0, NULL);
+    err = hse_kvdb_kvs_create(kvdb_handle, kvs_name, 0, NULL);
     ASSERT_EQ(hse_err_to_errno(err), EEXIST);
 
     /* TC: KVDB cannot have more than 256 KVS */
     for (int i = 2; i <= HSE_KVS_COUNT_MAX; i++) {
-        n = snprintf(buf, sizeof(buf), "%s_%d", "new_kvs", i);
+        n = snprintf(buf, sizeof(buf), "%s_%d", kvs_name, i);
         ASSERT_LT(n, sizeof(buf));
         err = hse_kvdb_kvs_create(kvdb_handle, buf, 0, NULL);
         if (i < HSE_KVS_COUNT_MAX) {
@@ -134,7 +125,7 @@ MTF_DEFINE_UTEST_PREPOST(kvs_api, kvs_invalid, kvs_create, kvs_destroy)
     }
 }
 
-MTF_DEFINE_UTEST_PREPOST(kvs_api, kvs_valid_handle, kvs_create, kvs_destroy)
+MTF_DEFINE_UTEST_PREPOST(kvs_api, kvs_valid_handle, kvs_setup, kvs_teardown)
 {
     hse_err_t err;
     size_t    vlen;
@@ -142,7 +133,7 @@ MTF_DEFINE_UTEST_PREPOST(kvs_api, kvs_valid_handle, kvs_create, kvs_destroy)
     bool      found;
 
     /* TC: A handle cannot be reused until closed */
-    err = hse_kvdb_kvs_open(kvdb_handle, "new_kvs", 0, NULL, &kvs_handle);
+    err = hse_kvdb_kvs_open(kvdb_handle, kvs_name, 0, NULL, &kvs_handle);
     ASSERT_EQ(hse_err_to_errno(err), EBUSY);
 
     /* TC: A KVS cannot get a non-existing key value pair */

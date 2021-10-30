@@ -7,11 +7,11 @@
 #include <hse_util/cursor_heap.h>
 #include <hse_util/xrand.h>
 
-#include <hse_ut/conditions.h>
+#include <mtf/conditions.h>
 
 #include "cheap_testlib.h"
 
-#include <hse_test_support/random_buffer.h>
+#include <support/random_buffer.h>
 
 /*
  * cheap_fill_test

@@ -6,7 +6,7 @@
 #include <hse_util/parse_num.h>
 #include <hse_util/storage.h>
 
-#include <hse_ut/framework.h>
+#include <mtf/framework.h>
 
 #define HSE_SUCCESS 0
 

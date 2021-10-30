@@ -1,10 +1,10 @@
 /* SPDX-License-Identifier: Apache-2.0 */
 /*
- * Copyright (C) 2015-2020 Micron Technology, Inc.  All rights reserved.
+ * Copyright (C) 2015-2021 Micron Technology, Inc.  All rights reserved.
  */
 
-#include <hse_ut/framework.h>
-#include <hse_test_support/mock_api.h>
+#include <mtf/framework.h>
+#include <mock/api.h>
 
 #include <hse_util/hse_err.h>
 #include <hse_util/log2.h>

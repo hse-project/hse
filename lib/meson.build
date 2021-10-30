@@ -158,58 +158,10 @@ hse_internal_dep = declare_dependency(
     sources: [
         version_h,
     ],
-    include_directories: [
-        public_includes,
-    ],
+    include_directories: hse_include_directories,
     dependencies: hse_dependencies,
     variables: hse_variables
 )
-
-if get_option('tests')
-    hse_mock_c_args = ['-DHSE_MOCKING=1']
-
-    hse_mock_include_directories = [
-        test_framework_includes,
-        test_support_includes,
-        mock_includes,
-        tools_includes,
-    ]
-
-    hse_mock = static_library(
-        '@0@-mock'.format(lib_name),
-        [
-            hse_sources,
-            test_support_sources,
-            mock_sources,
-        ],
-        c_args: [
-            hse_c_args,
-            hse_mock_c_args,
-        ],
-        include_directories: [
-            hse_include_directories,
-            hse_mock_include_directories,
-        ],
-        dependencies: hse_dependencies,
-        gnu_symbol_visibility: 'hidden'
-    )
-
-    hse_mock_dep = declare_dependency(
-        link_with: hse_mock,
-        version: meson.project_version(),
-        compile_args: hse_mock_c_args,
-        sources: [
-            version_h,
-            mapi_idx_h,
-            mock_sources,
-        ],
-        include_directories: [
-            public_includes,
-            hse_include_directories,
-            hse_mock_include_directories,
-        ],
-    )
-endif
 
 pkg.generate(
     hse,

@@ -3,7 +3,7 @@
  * Copyright (C) 2015-2021 Micron Technology, Inc.  All rights reserved.
  */
 
-#include <hse_ut/framework.h>
+#include <mtf/framework.h>
 
 #include <hse_ikvdb/kvs.h>
 #include <hse_ikvdb/c0.h>

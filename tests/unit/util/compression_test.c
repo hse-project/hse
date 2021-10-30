@@ -7,7 +7,7 @@
 #include <hse_util/compression_lz4.h>
 #include <hse_util/logging.h>
 
-#include <hse_ut/framework.h>
+#include <mtf/framework.h>
 
 MTF_BEGIN_UTEST_COLLECTION(compression_test);
 

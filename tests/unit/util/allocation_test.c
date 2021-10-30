@@ -3,8 +3,8 @@
  * Copyright (C) 2015-2020 Micron Technology, Inc.  All rights reserved.
  */
 
-#include <hse_ut/framework.h>
-#include <hse_test_support/allocation.h>
+#include <mtf/framework.h>
+#include <mock/allocation.h>
 
 #include <hse_util/arch.h>
 #include <hse_util/inttypes.h>

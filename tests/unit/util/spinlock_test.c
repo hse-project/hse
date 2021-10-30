@@ -6,7 +6,7 @@
 #include <hse_util/logging.h>
 #include <hse_util/spinlock.h>
 
-#include <hse_ut/framework.h>
+#include <mtf/framework.h>
 
 #include "multithreaded_tester.h"
 #include "thread_tester.h"

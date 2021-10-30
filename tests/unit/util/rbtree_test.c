@@ -10,7 +10,7 @@
 #include <hse_util/inttypes.h>
 #include <hse_util/logging.h>
 
-#include <hse_ut/framework.h>
+#include <mtf/framework.h>
 
 int verbose = 0;
 

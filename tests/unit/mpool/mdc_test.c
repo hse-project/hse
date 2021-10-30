@@ -5,9 +5,9 @@
 
 #include <fcntl.h>
 
-#include <hse_ut/framework.h>
-#include <hse_test_support/mock_api.h>
-#include <hse_test_support/random_buffer.h>
+#include <mtf/framework.h>
+#include <mock/api.h>
+#include <support/random_buffer.h>
 
 #include <hse_util/hse_err.h>
 #include <hse_util/minmax.h>
