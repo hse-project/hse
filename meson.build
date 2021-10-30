@@ -358,13 +358,7 @@ endif
 run_env = environment()
 
 if 'python' in bindings
-    hse_python = subproject(
-        'hse-python',
-        default_options: [
-            'experimental=@0@'.format(get_option('experimental')),
-            'tests=@0@'.format(get_option('tests')),
-        ],
-    )
+    hse_python = subproject('hse-python')
 
     hse_python_depends = [
         hse_python.get_variable('extension_modules'),
