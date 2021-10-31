@@ -39,24 +39,17 @@
 #define PERFC_PCT_SCALE     (1u << 20)
 #define PERFC_CTRS_MAX      (64)
 
+/* If you perturb perfc_type in any way then be certain to update
+ * perfc_ctr_name2type() and perfc_ctr_type2name[] to match.
+ */
 enum perfc_type {
     PERFC_TYPE_INVAL,
     PERFC_TYPE_BA, /* Get the value of a variable */
     PERFC_TYPE_RA, /* Get the rate or gradient of a variable */
-    PERFC_TYPE_DI, /* Get the distribution of a variable */
     PERFC_TYPE_LT, /* Get the distribution of a latency */
+    PERFC_TYPE_DI, /* Get the distribution of a variable */
     PERFC_TYPE_SL, /* Simple latency, cumulative average */
 };
-
-
-#define PERFC_CTR_IDX_PREFIX  "PERFC_"
-#define PERFC_CTR_IDX_END     "PERFC_EN_"
-#define PERCF_CTR_TYPE_LEN    2
-#define PERFC_CTR_TYPE_BA     "BA"
-#define PERFC_CTR_TYPE_RA     "RA"
-#define PERFC_CTR_TYPE_DI     "DI"
-#define PERFC_CTR_TYPE_LT     "LT"
-#define PERFC_CTR_TYPE_SL     "SL"
 
 enum perfc_ctr_flags {
     PCC_FLAGS_ENABLED   = 0x1,
@@ -91,7 +84,7 @@ enum perfc_ctr_flags {
     EV_GET_NEMACRO(_0, ##__VA_ARGS__, NE1, NE0)(_name, _pri, _desc, _hdr, ##__VA_ARGS__)
 
 #define NE_CHECK(_arr, _max, _msg) \
-    _Static_assert((NELEM((_arr)) == (_max) && NELEM((_arr)) < PERFC_CTRS_MAX), _msg)
+    static_assert((NELEM((_arr)) == (_max) && NELEM((_arr)) < PERFC_CTRS_MAX), _msg)
 
 /* clang-format on */
 
@@ -194,6 +187,8 @@ perfc_ivl_destroy(const struct perfc_ivl *ivl);
  * To come back to the PD example, the user space can fetch at minimum
  * all the counters of a particular PD. It can't retrieve only a particular
  * counter of a particular PD.
+ * The downside of this approach is that you cannot use the REST path
+ * to select a specific counter.
  *
  * Synchronization
  * ===============
@@ -224,7 +219,7 @@ perfc_ivl_destroy(const struct perfc_ivl *ivl);
  *    family.
  *    The name must follow the syntax described later.
  *    In particular, a portion of the name decides the type of counter.
- *    The counter name is also the index in the counter set.
+ *    The counter name is also the index (i.e., the "cid") in the counter set.
  *
  * 3) In an application header file, define the enum used to index the
  *    counters in the set.
@@ -307,7 +302,6 @@ perfc_ivl_destroy(const struct perfc_ivl *ivl);
  *
  * 3) In the application code, calls one of the inline functions perfc_xxx()
  *    to update the counter as you whish. For example call perfc_inc().
- *
  */
 
 /*
@@ -334,14 +328,15 @@ perfc_ivl_destroy(const struct perfc_ivl *ivl);
  *      family is "MPOOL".
  */
 
-#define PERFC_ROOT_PATH "/data/perfc"
-
 /* The perfc "rollup" macros are similar to their namesakes with
  * the exception that they only update the specified counter(s)
- * once every _rumax calls (i.e., a rollup update).
+ * once every ru.cnt calls (i.e., a rollup update).
  * The purpose of this is to reduce (by orders of magnitude) the
  * impact to the system of maintaining a hot perf counter that
- * is accurate.
+ * is accurate.  The downside is that it often lags the true
+ * value since each thread that calls it could hits that are
+ * not currently reflected in the counter.  Additionally, if
+ * a thread exited with pending hits then they will be lost.
  */
 
 /* The rollup code is tested explicitly in perfc_test.c,
@@ -414,7 +409,7 @@ perfc_ivl_destroy(const struct perfc_ivl *ivl);
  * @ivl_map:    used to map ipow2(val) to the nearest bound[]
  * @il_bound:   vector of interval boundaries
  */
-    struct perfc_ivl {
+struct perfc_ivl {
     u8  ivl_cnt;
     u8  ivl_map[63];
     u64 ivl_bound[];
@@ -426,8 +421,8 @@ perfc_ivl_destroy(const struct perfc_ivl *ivl);
  * @pcn_desc:
  * @pcn_hdr:        column header for the counter
  * @pcn_flags:
- * @pcn_samplepct:  dis/lat counter sample record percentage
  * @pcn_prio:       counter priority level
+ * @pcn_samplepct:  dis/lat counter sample record percentage
  * @pcn_ivl:        dis/lat interval bounds
  *
  * %pcn_ivl is used only for distribution/latency counters, can be nil
@@ -437,9 +432,9 @@ struct perfc_name {
     const char *            pcn_name;
     const char *            pcn_desc;
     const char *            pcn_hdr;
-    u8                      pcn_flags;
-    u32                     pcn_samplepct;
-    u32                     pcn_prio;
+    uint8_t                 pcn_flags;
+    uint8_t                 pcn_prio;
+    uint32_t                pcn_samplepct;
     const struct perfc_ivl *pcn_ivl;
 };
 
@@ -630,7 +625,6 @@ void
 perfc_read(struct perfc_set *pcs, const u32 cidx, u64 *vadd, u64 *vsub);
 
 
-#define perfc_rec_lat perfc_lat_record
 #define perfc_rec_sample perfc_dis_record
 
 /* [HSE_REVISIT] Add unit tests for all these predicates...

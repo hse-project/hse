@@ -9,7 +9,6 @@
 #include <hse_util/alloc.h>
 #include <hse_util/slab.h>
 #include <hse_util/data_tree.h>
-#include <hse_util/list.h>
 #include <hse_util/minmax.h>
 #include <hse_util/parse_num.h>
 #include <hse_util/log2.h>
@@ -18,11 +17,8 @@
 #include <hse_util/xrand.h>
 #include <hse_util/perfc.h>
 
-#define PERFC_PRIO_MIN 1
-#define PERFC_PRIO_MAX 4
-
-static const char * const pc_type_names[] = {
-    "Invalid", "Basic", "Rate", "Distribution", "Latency", "SimpleLatency",
+static const char * const perfc_ctr_type2name[] = {
+    "Invalid", "Basic", "Rate", "Latency", "Distribution", "SimpleLatency",
 };
 
 struct perfc_ivl *perfc_di_ivl HSE_READ_MOSTLY;
@@ -122,13 +118,6 @@ perfc_set_handler_ctrset(struct dt_element *dte, struct dt_set_parameters *dsp)
     if (dsp->field == DT_FIELD_CLEAR) {
         perfc_ctrseti_clear(seti);
         return seti->pcs_ctrc;
-    }
-
-    /* [HSE_REVISIT] Can we remove this operation?
-     */
-    if (dsp->field == DT_FIELD_INVALIDATE_HANDLE) {
-        seti->pcs_handle = NULL;
-        return 1;
     }
 
     if (dsp->field == DT_FIELD_ENABLED) {
@@ -385,7 +374,7 @@ perfc_emit_handler_ctrset(struct dt_element *dte, struct yaml_context *yc)
         yaml_start_element(yc, "name", seti->pcs_ctrnamev[cidx].pcn_name);
         yaml_element_field(yc, "header", seti->pcs_ctrnamev[cidx].pcn_hdr);
         yaml_element_field(yc, "description", seti->pcs_ctrnamev[cidx].pcn_desc);
-        yaml_element_field(yc, "type", pc_type_names[ctr_hdr->pch_type]);
+        yaml_element_field(yc, "type", perfc_ctr_type2name[ctr_hdr->pch_type]);
 
         u64_to_string(value, sizeof(value), ctr_hdr->pch_prio);
         yaml_element_field(yc, "priority", value);
@@ -570,7 +559,7 @@ perfc_init(void)
 void
 perfc_fini(void)
 {
-    dt_remove_recursive(PERFC_ROOT_PATH);
+    dt_remove_recursive(DT_PATH_PERFC);
 
     perfc_ivl_destroy(perfc_di_ivl);
     perfc_di_ivl = NULL;
@@ -627,35 +616,21 @@ perfc_ivl_destroy(const struct perfc_ivl *ivl)
 }
 
 static enum perfc_type
-perfc_ctr_name2type(const char *ctr_name)
+perfc_ctr_name2type(const char *ctrname, char *type, char *family, char *mean)
 {
-    const char *type_name;
-    char *      fam_name;
+    static const char list[] = "BA,RA,LT,DI,SL"; /* must be in perfc_type order */
+    const char *pc;
+    int n;
 
-    if (ev(strncmp(ctr_name, PERFC_CTR_IDX_PREFIX, strlen(PERFC_CTR_IDX_PREFIX)) != 0))
-        return PERFC_TYPE_INVAL;
-    type_name = ctr_name + strlen(PERFC_CTR_IDX_PREFIX);
+    n = sscanf(ctrname, "PERFC_%[A-Z]_%[A-Z0-9]_%[_A-Z0-9]", type, family, mean);
 
-    /* After PERFC_EN_ we should have 2 letters for the counter
-     * type name before the next '_' and then the family name.
-     */
-    fam_name = strchr(type_name, '_');
-    if (ev((fam_name == NULL) || (type_name == fam_name) ||
-           (fam_name - type_name != PERCF_CTR_TYPE_LEN)))
-        return PERFC_TYPE_INVAL;
+    if (n == 3 && type[1]) {
+        pc = strstr(list, type);
+        if (pc)
+            return ((pc - list) / 3) + 1;
+    }
 
-    if (!strncmp(type_name, PERFC_CTR_TYPE_BA, PERCF_CTR_TYPE_LEN))
-        return PERFC_TYPE_BA;
-    else if (!strncmp(type_name, PERFC_CTR_TYPE_RA, PERCF_CTR_TYPE_LEN))
-        return PERFC_TYPE_RA;
-    else if (!strncmp(type_name, PERFC_CTR_TYPE_DI, PERCF_CTR_TYPE_LEN))
-        return PERFC_TYPE_DI;
-    else if (!strncmp(type_name, PERFC_CTR_TYPE_LT, PERCF_CTR_TYPE_LEN))
-        return PERFC_TYPE_LT;
-    else if (!strncmp(type_name, PERFC_CTR_TYPE_SL, PERCF_CTR_TYPE_LEN))
-        return PERFC_TYPE_SL;
-
-    return ev(PERFC_TYPE_INVAL);
+    return PERFC_TYPE_INVAL;
 }
 
 merr_t
@@ -669,17 +644,19 @@ perfc_ctrseti_alloc(
     int                      line,
     struct perfc_set *       setp)
 {
+    enum perfc_type typev[PERFC_CTRS_MAX];
+    char family[DT_PATH_ELEMENT_MAX];
     struct perfc_seti *seti = NULL;
     struct dt_element *dte = NULL;
-    char               path[DT_PATH_MAX];
-    char               family[DT_PATH_ELEMENT_MAX] = "";
-    merr_t             err = 0;
-    size_t             valdatasz, sz;
-    void              *valdata, *valcur;
-    u32                n, i;
+    char path[DT_PATH_MAX];
+    void *valdata, *valcur;
+    size_t valdatasz, sz;
+    size_t familylen;
+    merr_t err = 0;
+    u32 n, i;
     int rc;
 
-    if (!group || !ctrv || ctrc == 0 || !setp)
+    if (!group || !ctrv || ctrc < 1 || ctrc > PERFC_CTRS_MAX || !setp)
         return merr(EINVAL);
 
     setp->ps_seti = NULL;
@@ -688,71 +665,58 @@ perfc_ctrseti_alloc(
     if (!ctrseti_name)
         ctrseti_name = "set";
 
+    family[0] = '\000';
+    familylen = 0;
+
     /*
-     * Find out the number of counters in the set.
-     * And check the counter names syntax.
+     * Verify all the counter names in the set and determine their types.
      *
      * The counter name syntax is:
      *
-     * PERFC_<counter type>_<family name>_<meaning>
-     * <counter type> is one of "BA", "RA", "DI"
-     * <family name> is all caps and doesn't contain '_'
-     * <meaning> describes the meaning of the counter. It can contain
-     * '_' character.
+     * PERFC_<type>_<family>_<meaning>
+     *
+     * <type>     one of "BA", "RA", "LT", "DI", "SI"
+     * <family>   [A-Z0-9]+
+     * <meaning>  [_A-Z0-9]+
+     *
+     * where all counters in a set must have the same <family>, and then
+     * <meaning> distinguishes different counters of the same type (so
+     * hierarchically speaking <family> should come before <type> ...)
      */
     for (i = 0; i < ctrc; i++) {
-        const char *name = ctrv[i].pcn_name;
-        const char *famptr;
-        size_t famlen;
-        char *meaning;
+        const char *ctrname = ctrv[i].pcn_name;
+        char typebuf[64], fambuf[64], meanbuf[64];
 
-        if (perfc_ctr_name2type(name) == PERFC_TYPE_INVAL) {
-            err = merr(EINVAL);
-            goto errout;
-        }
-
-        /* family name is after PERFC_XX_ */
-        famptr = name + strlen(PERFC_CTR_IDX_END);
-
-        /*
-         * Should be a "-" after the family name and the family
-         * name should be at least one character.
-         */
-        meaning = strchr(famptr, '_');
-        if (meaning == NULL || meaning == famptr) {
-            err = merr(EINVAL);
-            goto errout;
-        }
-
-        famlen = meaning - famptr;
-        if (famlen >= sizeof(family)) {
+        if (strlen(ctrname) >= sizeof(typebuf)) {
             err = merr(ENAMETOOLONG);
             goto errout;
         }
 
-        /* It should be the counter meaning after <family name>_ */
-        meaning++;
-        if (strlen(meaning) == 0) {
+        typev[i] = perfc_ctr_name2type(ctrname, typebuf, fambuf, meanbuf);
+
+        if (typev[i] == PERFC_TYPE_INVAL) {
             err = merr(EINVAL);
             goto errout;
         }
 
-        if (strlen(family) == 0) {
-            strncpy(family, famptr, famlen);
-            family[famlen] = 0;
-        } else {
-            /* Check that the family name is the same for all
-             * the set counters
-             */
-            if (strncmp(family, famptr, strlen(family))) {
-                err = merr(EINVAL);
-                goto errout;
-            }
+        if (familylen == 0) {
+            familylen = strlcpy(family, fambuf, sizeof(family));
+            continue;
+        }
+
+        /* Check that the family name is the same for all
+         * the set counters
+         */
+        if (strcmp(family, fambuf)) {
+            err = merr(EINVAL);
+            goto errout;
         }
     }
 
+    assert(familylen > 0);
+
     sz = snprintf(path, sizeof(path), "%s/%s/%s/%s",
-                  PERFC_ROOT_PATH, group, family, ctrseti_name);
+                  DT_PATH_PERFC, group, family, ctrseti_name);
     if (sz >= sizeof(path)) {
         err = merr(EINVAL);
         goto errout;
@@ -787,10 +751,7 @@ perfc_ctrseti_alloc(
     sz = roundup(sz, SMP_CACHE_BYTES * 2);
 
     for (n = i = 0; i < ctrc; ++i) {
-        const struct perfc_name *entry = &ctrv[i];
-        enum perfc_type type;
-
-        type = perfc_ctr_name2type(entry->pcn_name);
+        enum perfc_type type = typev[i];
 
         if (!(type == PERFC_TYPE_DI || type == PERFC_TYPE_LT))
             ++n;
@@ -828,13 +789,13 @@ perfc_ctrseti_alloc(
         enum perfc_type type;
 
         ivl = entry->pcn_ivl ?: perfc_di_ivl;
-        type = perfc_ctr_name2type(entry->pcn_name);
+        type = typev[i];
 
         pch = &seti->pcs_ctrv[i].hdr;
         pch->pch_type = type;
         pch->pch_flags = entry->pcn_flags;
         pch->pch_prio = entry->pcn_prio;
-        clamp_t(typeof(pch->pch_prio), pch->pch_prio, PERFC_PRIO_MIN, PERFC_PRIO_MAX);
+        clamp_t(typeof(pch->pch_prio), pch->pch_prio, PERFC_LEVEL_MIN, PERFC_LEVEL_MAX);
 
         if (prio >= pch->pch_prio)
             setp->ps_bitmap |= (1ULL << i);
@@ -912,26 +873,6 @@ perfc_ctrseti_path(struct perfc_set *set)
     struct perfc_seti *seti = set->ps_seti;
 
     return seti ? seti->pcs_path : NULL;
-}
-
-void
-perfc_ctrseti_invalidate_handle(struct perfc_set *set)
-{
-    struct dt_set_parameters    dsp;
-    union dt_iterate_parameters dip = {.dsp = &dsp };
-    struct perfc_seti *         seti = set->ps_seti;
-    char                        path[DT_PATH_MAX];
-
-    if (seti == NULL)
-        return;
-
-    strlcpy(path, perfc_ctrseti_path(set), sizeof(path));
-    dsp.path = path;
-    dsp.value = NULL;
-    dsp.value_len = 0;
-    dsp.field = DT_FIELD_INVALIDATE_HANDLE;
-
-    dt_iterate_cmd(DT_OP_SET, dsp.path, &dip, 0, 0, 0);
 }
 
 static_assert(sizeof(struct perfc_val) >= sizeof(struct perfc_bkt), "sizeof perfc_bkt too large");

@@ -1241,9 +1241,9 @@ cn_tree_lookup(
     u32                      child;
     u32                      shift;
     uint                     pc_nkvset;
-    u64                      pc_start;
+    u64                      pc_start, pc_lvl_start;
     u64                      spill_hash = 0;
-    u16                      pc_lvl, pc_lvl_start, pc_depth;
+    uint                     pc_lvl, pc_depth;
     bool                     pfx_hashing, first;
     void *                   wbti;
 
@@ -1305,6 +1305,7 @@ cn_tree_lookup(
                     err = kvset_lookup(kvset, kt, &kdisc, seq, res, vbuf);
                     if (err || *res != NOT_FOUND) {
                         rmlock_runlock(lock);
+
                         if (pc_lvl < CNGET_LMAX)
                             perfc_lat_record(pc, pc_lvl, pc_lvl_start);
                         goto done;
@@ -1357,7 +1358,7 @@ cn_tree_lookup(
 
         __builtin_prefetch(node);
 
-        if (pc_lvl < CNGET_LMAX) {
+        if (pc_lvl_start && pc_lvl < CNGET_LMAX) {
             perfc_lat_record(pc, pc_lvl++, pc_lvl_start);
             pc_lvl_start = perfc_lat_start(pc);
         }
