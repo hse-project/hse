@@ -24,7 +24,6 @@
 #include <hse_util/parse_num.h>
 #include <hse_util/atomic.h>
 #include <hse_util/hlog.h>
-#include <hse_util/darray.h>
 #include <hse_util/table.h>
 #include <hse_util/keycmp.h>
 #include <hse_util/bin_heap.h>

@@ -193,7 +193,6 @@ components = {
             ],
         },
         'compression_test': {},
-        'darray_test': {},
         'data_tree_test': {
             'sources': [
                 files(

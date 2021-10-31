@@ -151,16 +151,16 @@ cn_perfc_alloc(struct cn *cn, uint prio)
 void
 cn_perfc_free(struct cn *cn)
 {
-    perfc_ctrseti_free(&cn->cn_pc_get);
-    perfc_ctrseti_free(&cn->cn_pc_ingest);
-    perfc_ctrseti_free(&cn->cn_pc_spill);
-    perfc_ctrseti_free(&cn->cn_pc_kcompact);
-    perfc_ctrseti_free(&cn->cn_pc_kvcompact);
-    perfc_ctrseti_free(&cn->cn_pc_shape_rnode);
-    perfc_ctrseti_free(&cn->cn_pc_shape_inode);
-    perfc_ctrseti_free(&cn->cn_pc_shape_lnode);
-    perfc_ctrseti_free(&cn->cn_pc_capped);
-    perfc_ctrseti_free(&cn->cn_pc_mclass);
+    perfc_free(&cn->cn_pc_get);
+    perfc_free(&cn->cn_pc_ingest);
+    perfc_free(&cn->cn_pc_spill);
+    perfc_free(&cn->cn_pc_kcompact);
+    perfc_free(&cn->cn_pc_kvcompact);
+    perfc_free(&cn->cn_pc_shape_rnode);
+    perfc_free(&cn->cn_pc_shape_inode);
+    perfc_free(&cn->cn_pc_shape_lnode);
+    perfc_free(&cn->cn_pc_capped);
+    perfc_free(&cn->cn_pc_mclass);
 }
 
 /* NOTE: called once per KVDB, not once per CN */

@@ -14,7 +14,6 @@
 #include <hse_util/string.h>
 #include <hse_util/page.h>
 #include <hse_util/seqno.h>
-#include <hse_util/darray.h>
 #include <hse_util/rest_api.h>
 #include <hse_util/log2.h>
 #include <hse_util/atomic.h>
@@ -239,7 +238,7 @@ ikvdb_perfc_alloc(struct ikvdb_impl *self)
 static void
 ikvdb_perfc_free(struct ikvdb_impl *self)
 {
-    perfc_ctrseti_free(&self->ikdb_ctxn_op);
+    perfc_free(&self->ikdb_ctxn_op);
 }
 
 merr_t

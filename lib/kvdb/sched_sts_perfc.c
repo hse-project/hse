@@ -1,6 +1,6 @@
 /* SPDX-License-Identifier: Apache-2.0 */
 /*
- * Copyright (C) 2015-2020 Micron Technology, Inc.  All rights reserved.
+ * Copyright (C) 2015-2021 Micron Technology, Inc.  All rights reserved.
  */
 
 #define MTF_MOCK_IMPL_sched_sts_perfc
@@ -33,5 +33,5 @@ sts_perfc_alloc(uint prio, const char *group, const char *name, struct perfc_set
 void
 sts_perfc_free(struct perfc_set *set)
 {
-    perfc_ctrseti_free(set);
+    perfc_free(set);
 }

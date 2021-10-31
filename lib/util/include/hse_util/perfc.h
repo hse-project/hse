@@ -255,7 +255,7 @@ perfc_ivl_destroy(const struct perfc_ivl *ivl);
  *
  *    To use this family of counters, one or several instances of its counter
  *    set must be created.
- *    This is done by calling perfc_ctrseti_alloc(). Each call creates
+ *    This is done by calling perfc_alloc(). Each call creates
  *    a counter set instance. A pointer on the instance is returned
  *    (parameter "set").
  *    Save this pointer in an application stucture. It will be used later
@@ -898,12 +898,12 @@ perfc_sub(struct perfc_set *pcs, const u32 cidx, const u64 val)
 
 extern struct perfc_ivl *perfc_di_ivl;
 
-#define perfc_alloc(_ctrv, _group, _name, _prio, _setp)                 \
-    perfc_ctrseti_alloc((_prio), (_group), (_ctrv), NELEM((_ctrv)),     \
-                        (_name), __FILE__, __LINE__, (_setp))
+#define perfc_alloc(_ctrv, _group, _name, _prio, _setp)              \
+    perfc_alloc_impl((_prio), (_group), (_ctrv), NELEM((_ctrv)),     \
+                     (_name), __FILE__, __LINE__, (_setp))
 
 /*
- * perfc_ctrseti_alloc_impl() - allocate a counter set instance
+ * perfc_alloc_impl() - allocate a counter set instance
  *      And insert it (leaf node) in the data tree.
  *      /data/perfc/<component>/<name>/<FAMILYNAME>/
  *      Typically:
@@ -914,7 +914,7 @@ extern struct perfc_ivl *perfc_di_ivl;
  * @ctrnames: name and description of each the counter in the set.
  *      This table should no be freed by the caller till the counter set
  *      instances are removed. Because this table will continue to be
- *      referenced after perfc_ctrseti_alloc() returns.
+ *      referenced after perfc_alloc() returns.
  * @nbctr: number of elements in ctrnames[].
  * @ctrseti_name: string that identifies the counter set instance.
  *      It must be unique for a given path /data/perfc/<component>/<name>
@@ -944,7 +944,7 @@ extern struct perfc_ivl *perfc_di_ivl;
  */
 /* MTF_MOCK */
 merr_t
-perfc_ctrseti_alloc(
+perfc_alloc_impl(
     uint                     prio,
     const char              *group,
     const struct perfc_name *ctrv,
@@ -955,42 +955,18 @@ perfc_ctrseti_alloc(
     struct perfc_set *       set);
 
 /**
- * perfc_ctrseti_free() - free a counter set instance.
+ * perfc_free() - free a counter set instance.
  * @set:
  */
 extern void
-perfc_ctrseti_free(struct perfc_set *set);
+perfc_free(struct perfc_set *set);
 
 /*
  * perfc_ctrseti_path() - return the path to this counter set
- * @set: the set returned by perfc_ctrseti_alloc()
+ * @set: the set returned by perfc_alloc()
  */
 extern char *
 perfc_ctrseti_path(struct perfc_set *set);
-
-/**
- * perfc_ctrseti_invalidate_handle() - invalidate the counter set handle.
- * @set: performance counter handle.
- *
- * After this function returns, perfc will not attempt to access memory
- * referenced by perfc_seti.pcs_handle.
- * This function must be called if the memory whose address is passed to
- * perfc_ctrseti_alloc() (via last parameter and stored in pcs_handle) is
- * freed before perfc_ctrseti_free() is called.
- *
- * Typically perfc_ctrseti_invalidate_handle() is used when a same counter set
- * is not freed but re-used in a different context:
- * perfc_ctrseti_alloc(,setp=context1) // pcs_handle = context1
- * Use counter set
- * perfc_ctrseti_invalidate_handle() // pcs_handle = NULL
- * Free context1
- * Counter set not used
- * perfc_ctrseti_alloc(,setp=context2) // pcs_handle = context2
- * Use counter set
- *
- */
-extern void
-perfc_ctrseti_invalidate_handle(struct perfc_set *set);
 
 #if HSE_MOCKING
 #include "perfc_ut.h"

@@ -634,7 +634,7 @@ perfc_ctr_name2type(const char *ctrname, char *type, char *family, char *mean)
 }
 
 merr_t
-perfc_ctrseti_alloc(
+perfc_alloc_impl(
     uint                     prio,
     const char              *group,
     const struct perfc_name *ctrv,
@@ -848,7 +848,7 @@ perfc_ctrseti_alloc(
 }
 
 void
-perfc_ctrseti_free(struct perfc_set *set)
+perfc_free(struct perfc_set *set)
 {
     struct perfc_seti *seti;
 

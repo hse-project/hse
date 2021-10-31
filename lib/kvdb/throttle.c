@@ -185,8 +185,8 @@ throttle_init_params(struct throttle *self, struct kvdb_rparams *rp)
 void
 throttle_fini(struct throttle *self)
 {
-    perfc_ctrseti_free(&self->thr_sleep_perfc);
-    perfc_ctrseti_free(&self->thr_sensor_perfc);
+    perfc_free(&self->thr_sleep_perfc);
+    perfc_free(&self->thr_sensor_perfc);
 }
 
 static void

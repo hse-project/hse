@@ -1260,8 +1260,8 @@ kvs_cursor_perfc_alloc(uint prio, const char *group, struct perfc_set *ccp, stru
 void
 kvs_cursor_perfc_free(struct perfc_set *pcs_cc, struct perfc_set *pcs_cd)
 {
-    perfc_ctrseti_free(pcs_cc);
-    perfc_ctrseti_free(pcs_cd);
+    perfc_free(pcs_cc);
+    perfc_free(pcs_cd);
 }
 
 void

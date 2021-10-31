@@ -15,7 +15,6 @@
 #include <hse_util/string.h>
 #include <hse_util/event_counter.h>
 #include <hse_util/perfc.h>
-#include <hse_util/darray.h>
 #include <hse_util/fmt.h>
 #include <hse_util/byteorder.h>
 #include <hse_util/slab.h>
@@ -109,7 +108,7 @@ static void
 kvs_perfc_free(struct ikvs *kvs)
 {
     kvs_cursor_perfc_free(&kvs->ikv_cc_pc, &kvs->ikv_cd_pc);
-    perfc_ctrseti_free(&kvs->ikv_pkvsl_pc);
+    perfc_free(&kvs->ikv_pkvsl_pc);
 }
 
 /*
