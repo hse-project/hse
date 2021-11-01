@@ -58,7 +58,7 @@ db_bench_sources = files(
     'util/testutil.cc',
 )
 
-executable(
+db_bench = executable(
     'db_bench',
     db_bench_sources,
     cpp_args: db_bench_cpp_args,

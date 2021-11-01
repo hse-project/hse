@@ -407,8 +407,13 @@ else
 endif
 
 if get_option('db_bench')
-    subproject('db_bench')
-    executable_paths += meson.project_build_root() / 'subprojects/db_bench'
+    if get_option('experimental')
+        db_bench_proj = subproject('db_bench')
+        db_bench = db_bench_proj.get_variable('db_bench')
+        executable_paths += fs.parent(db_bench.full_path())
+    else
+        db_bench = disabler()
+    endif
 endif
 
 subdir('tools')
