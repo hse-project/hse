@@ -275,6 +275,12 @@ c0_cursor_create(
 }
 
 void
+c0_cursor_prepare(struct c0_cursor *cur)
+{
+    c0sk_cursor_prepare(cur);
+}
+
+void
 c0_cursor_bind_txn(struct c0_cursor *c0cur, struct kvdb_ctxn *ctxn)
 {
     c0sk_cursor_bind_txn(c0cur, ctxn);

@@ -2447,10 +2447,6 @@ ikvdb_kvs_cursor_create(
     if (!txn)
         kvdb_ctxn_set_wait_commits(ikvdb->ikdb_ctxn_set, tseqno);
 
-    err = kvs_cursor_prepare(cur);
-    if (ev(err))
-        goto out;
-
     perfc_inc(&kvdb_metrics_pc, PERFC_BA_KVDBMETRICS_CURCNT);
     cur->kc_create_time = tstart;
 

@@ -194,6 +194,10 @@ c0_cursor_create(
     struct cursor_summary *summary,
     struct c0_cursor **    c0cur);
 
+/* MTF_MOCK */
+void
+c0_cursor_prepare(struct c0_cursor *cur);
+
 /**
  * c0_cursor_bind_txn() - Assign ctxn to c0 cursor
  * @c0cur:      Instance of struct c0_cursor

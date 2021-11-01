@@ -195,9 +195,6 @@ merr_t
 kvs_cursor_init(struct hse_kvs_cursor *cursor, struct kvdb_ctxn *ctxn);
 
 merr_t
-kvs_cursor_prepare(struct hse_kvs_cursor *cursor);
-
-merr_t
 kvs_cursor_bind_txn(struct hse_kvs_cursor *handle, struct kvdb_ctxn *ctxn);
 
 void

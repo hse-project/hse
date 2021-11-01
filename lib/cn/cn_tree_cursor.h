@@ -21,6 +21,10 @@ cn_tree_cursor_create(struct cn_cursor *cur, struct cn_tree *tree);
 
 /* MTF_MOCK */
 merr_t
+cn_tree_cursor_prepare(struct cn_cursor *cur);
+
+/* MTF_MOCK */
+merr_t
 cn_tree_cursor_update(struct cn_cursor *cur, struct cn_tree *tree);
 
 /* MTF_MOCK */

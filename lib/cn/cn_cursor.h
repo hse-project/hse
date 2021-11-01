@@ -94,6 +94,10 @@ cn_cursor_create(
 
 /* MTF_MOCK */
 merr_t
+cn_cursor_prepare(struct cn_cursor *cur);
+
+/* MTF_MOCK */
+merr_t
 cn_cursor_update(struct cn_cursor *cursor, u64 seqno, bool *updated);
 
 /* MTF_MOCK */

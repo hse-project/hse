@@ -304,6 +304,9 @@ c0kvms_cursor_seek(
     u32                          pfx_len,
     u32                          ct_pfx_len);
 
+void
+c0kvms_cursor_prepare(struct c0_kvmultiset_cursor *cur);
+
 /**
  * c0kvms_cursor_update() - update this cursor
  * @cursor:   Handle for c0kvms cursor

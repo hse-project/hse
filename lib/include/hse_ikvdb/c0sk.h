@@ -302,6 +302,9 @@ c0sk_cursor_update(
     u64                      seqno,
     u32 *                    flags_out);
 
+void
+c0sk_cursor_prepare(struct c0_cursor *cur);
+
 /**
  * c0sk_cursor_destroy() - destroy existing iterators over c0
  * @c0cur:      The existing cursor.

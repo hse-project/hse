@@ -893,12 +893,6 @@ c0sk_cursor_new_c0mc(
     return cur->c0cur_merr ? NULL : c0mc;
 }
 
-static inline void
-c0sk_cursor_prepare(struct c0_cursor *cur)
-{
-    bin_heap2_prepare(cur->c0cur_bh, cur->c0cur_cnt, cur->c0cur_esrcv);
-}
-
 static merr_t
 c0sk_cursor_discover(struct c0_cursor *cur)
 {
@@ -989,10 +983,20 @@ c0sk_cursor_discover(struct c0_cursor *cur)
         cur->c0cur_cnt++;
     }
 
-    c0sk_cursor_prepare(cur);
     free(kvmsv);
 
     return 0;
+}
+
+void
+c0sk_cursor_prepare(struct c0_cursor *cur)
+{
+    int i;
+
+    for (i = 0; i < cur->c0cur_cnt; i++)
+        c0kvms_cursor_prepare(cur->c0cur_curv[i]);
+
+    bin_heap2_prepare(cur->c0cur_bh, cur->c0cur_cnt, cur->c0cur_esrcv);
 }
 
 merr_t
@@ -1091,7 +1095,7 @@ c0sk_cursor_seek(struct c0_cursor *cur, const void *seek, size_t seeklen, struct
     for (i = 0; i < cur->c0cur_cnt; i++)
         c0kvms_cursor_seek(cur->c0cur_curv[i], seek, seeklen, cur->c0cur_ct_pfx_len);
 
-    c0sk_cursor_prepare(cur);
+    bin_heap2_prepare(cur->c0cur_bh, cur->c0cur_cnt, cur->c0cur_esrcv);
     return 0;
 }
 
@@ -1402,11 +1406,6 @@ c0sk_cursor_update(struct c0_cursor *cur, u64 seqno, u32 *flags_out)
             goto out;
         }
     }
-
-    /* We must (re)prepare the cursor (i.e., rebuild the binheap) if the binheap
-     * was re-created or the element sources have changed.
-     */
-    c0sk_cursor_prepare(cur);
 
 out:
     if (kvmsv != kvmsv_mem)

@@ -179,6 +179,11 @@ verify(struct mtf_test_info *lcl_ti, struct cn_cursor *cur, struct nkv_tab *vtab
         if (eof)
             break;
 
+        /* Ignore tombstones from cursor read.
+         */
+        if (HSE_CORE_IS_TOMB(kvt.kvt_value.vt_data))
+            continue;
+
         /* validate reading correct keys and values */
         ip = kvt.kvt_key.kt_data;
         ASSERT_EQ(ntohl(*ip), key);
@@ -221,6 +226,8 @@ verify_cursor(
     err = cn_cursor_create(cn, seqno, false, pfx, pfx_len, &sum, &cur);
     ASSERT_EQ(err, 0);
     ASSERT_NE(cur, NULL);
+
+    cn_cursor_prepare(cur);
 
     verify(lcl_ti, cur, vtab, vc, 0);
 }
@@ -269,6 +276,8 @@ verify_seek_eof(
     err = cn_cursor_create(cn, seqno, false, pfx, pfx_len, &sum, &cur);
     ASSERT_EQ(err, 0);
     ASSERT_NE(cur, NULL);
+
+    cn_cursor_prepare(cur);
 
     /* read through entire set */
     verify(lcl_ti, cur, vtab, vc, 1);
