@@ -43,7 +43,6 @@ PARSER.add_argument(
 )
 PARSER.add_argument("kvs", help="kvs name")
 
-
 def full_tree(ybuf: Optional[Dict[str, Any]], opt):
     if not ybuf or "info" not in ybuf:
         return
@@ -126,12 +125,20 @@ def main() -> int:
         content = json.load(pfh)
         sock: str = content["socket"]["path"]
 
-    url = f"http://localhost/kvdb/kvs/{opt.kvs}/cn/tree"
-
     if opt.refresh:
         sp.call("clear")
+        pass
+
+    # [HSE_REVISIT] We need a way to map opt.home to kvdb alias.
+    # For now we implement a crude scan, which will likely fail
+    # miserably if there is more than one active kvdb that have
+    # identical kvs names.
+    #
+    kvdbalias = 0
 
     while True:
+        url = f"http://localhost/kvdb/{kvdbalias}/kvs/{opt.kvs}/cn/tree"
+
         try:
             buf = sp.check_output(
                 [
@@ -146,6 +153,9 @@ def main() -> int:
                 ]
             )
         except sp.CalledProcessError:
+            if kvdbalias < 9:
+                kvdbalias = kvdbalias + 1
+                continue
             return -1
 
         if opt.yaml:

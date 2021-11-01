@@ -333,10 +333,11 @@ perfc_ivl_destroy(const struct perfc_ivl *ivl);
  * once every ru.cnt calls (i.e., a rollup update).
  * The purpose of this is to reduce (by orders of magnitude) the
  * impact to the system of maintaining a hot perf counter that
- * is accurate.  The downside is that it often lags the true
- * value since each thread that calls it could hits that are
- * not currently reflected in the counter.  Additionally, if
- * a thread exited with pending hits then they will be lost.
+ * is accurate.  The downside is that in a release buld it often
+ * lags the true value since each thread that calls it might have
+ * hits that are not currently reflected in the counter.
+ * Additionally, if a thread exited with pending hits then those
+ * hits will be forever lost.
  */
 
 /* The rollup code is tested explicitly in perfc_test.c,
@@ -905,9 +906,9 @@ extern struct perfc_ivl *perfc_di_ivl;
 /*
  * perfc_alloc_impl() - allocate a counter set instance
  *      And insert it (leaf node) in the data tree.
- *      /data/perfc/<component>/<name>/<FAMILYNAME>/
+ *        /data/perfc/<group>/<FAMILYNAME>/<ctrsetname>
  *      Typically:
- *      /data/perfc/mpool/<mpool uuid>/<FAMILYNAME>/
+ *        /data/perfc/kvdb/0/kvs/mykvs/<FAMILYNAME>/set
  *
  * @prio: the level at and above which the counter should be engaged
  * @name: typically the name of the mpool (its uuid).
