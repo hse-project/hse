@@ -9,7 +9,6 @@
 #include <hse_util/hse_err.h>
 #include <hse_util/inttypes.h>
 #include <hse_util/bin_heap.h>
-#include <hse_util/darray.h>
 
 #include <hse_ikvdb/cursor.h>
 

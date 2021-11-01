@@ -88,6 +88,6 @@ c0sk_perfc_alloc(struct c0sk_impl *self)
 void
 c0sk_perfc_free(struct c0sk_impl *self)
 {
-    perfc_ctrseti_free(&self->c0sk_pc_op);
-    perfc_ctrseti_free(&self->c0sk_pc_ingest);
+    perfc_free(&self->c0sk_pc_op);
+    perfc_free(&self->c0sk_pc_ingest);
 }

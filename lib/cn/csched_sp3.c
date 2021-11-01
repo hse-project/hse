@@ -2361,7 +2361,7 @@ sp3_op_destroy(struct csched_ops *handle)
 
     free(sp->wp);
 
-    perfc_ctrseti_free(&sp->sched_pc);
+    perfc_free(&sp->sched_pc);
 
     free_aligned(sp);
 }

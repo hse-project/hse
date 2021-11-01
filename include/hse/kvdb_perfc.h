@@ -98,21 +98,21 @@ enum kvdb_perfc_sidx_sp3 {
 };
 
 enum kvdb_perfc_sidx_cnget {
-    PERFC_RA_CNGET_GET = 0,
-    PERFC_LT_CNGET_GET = 1,
+    PERFC_RA_CNGET_GET,
+    PERFC_RA_CNGET_MISS,
+    PERFC_RA_CNGET_TOMB,
+    PERFC_LT_CNGET_GET,
     /* The enum values PERFC_LT_CNGET_GET_L0 to L5 must be sequential */
-    PERFC_LT_CNGET_GET_L0 = 2,
-    PERFC_LT_CNGET_GET_L1 = 3,
-    PERFC_LT_CNGET_GET_L2 = 4,
-    PERFC_LT_CNGET_GET_L3 = 5,
-    PERFC_LT_CNGET_GET_L4 = 6,
-    PERFC_LT_CNGET_GET_L5 = 7,
-    PERFC_LT_CNGET_PROBEPFX,
+    PERFC_LT_CNGET_GET_L0,
+    PERFC_LT_CNGET_GET_L1,
+    PERFC_LT_CNGET_GET_L2,
+    PERFC_LT_CNGET_GET_L3,
+    PERFC_LT_CNGET_GET_L4,
+    PERFC_LT_CNGET_GET_L5,
+    PERFC_LT_CNGET_PROBE_PFX,
     PERFC_DI_CNGET_DEPTH,
     PERFC_DI_CNGET_NKVSET,
-    PERFC_RA_CNGET_MISS,
     PERFC_LT_CNGET_MISS,
-    PERFC_RA_CNGET_TOMB,
     PERFC_EN_CNGET
 };
 
@@ -137,8 +137,6 @@ enum kvdb_perfc_sidx_api_throttle {
 };
 
 enum kvdb_perfc_sidx_throttle_sleep { PERFC_DI_THR_SVAL, PERFC_EN_THR_MAX };
-
-#define CNGET_LMAX PERFC_LT_CNGET_GET_L5
 
 enum kvdb_perfc_compact {
     PERFC_BA_CNCOMP_START,

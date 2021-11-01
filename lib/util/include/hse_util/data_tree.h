@@ -36,7 +36,6 @@ typedef enum {
     DT_FIELD_ENABLED,
     DT_FIELD_CLEAR,
     DT_FIELD_DATA,
-    DT_FIELD_INVALIDATE_HANDLE,
 } dt_field_t;
 
 /* Operations */

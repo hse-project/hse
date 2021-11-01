@@ -125,7 +125,7 @@ MTF_DEFINE_UTEST(perfc, perfc_basic_create_find_and_remove)
     ctrnames.pcn_flags = 0;
     ctrnames.pcn_prio = 1;
 
-    err = perfc_ctrseti_alloc(1, "villains", &ctrnames, 1, "joker", __FILE__, __LINE__, &set);
+    err = perfc_alloc_impl(1, "villains", &ctrnames, 1, "joker", __FILE__, __LINE__, &set);
     ASSERT_EQ(0, err);
 
     count = dt_iterate_cmd(DT_OP_COUNT, DT_PATH_PERFC, NULL, NULL, NULL, NULL);
@@ -185,7 +185,7 @@ MTF_DEFINE_UTEST(perfc, perfc_basic_set)
     ctrnames.pcn_flags = 0;
     ctrnames.pcn_prio = 1;
 
-    err = perfc_ctrseti_alloc(1, "villains", &ctrnames, 1, "poison_ivy", __FILE__, __LINE__, &set);
+    err = perfc_alloc_impl(1, "villains", &ctrnames, 1, "poison_ivy", __FILE__, __LINE__, &set);
     ASSERT_EQ(0, err);
 
     perfc_set(&set, 0, new_value);
@@ -263,7 +263,7 @@ MTF_DEFINE_UTEST(perfc, clear_counters)
     ctrnames[2].pcn_name = "PERFC_LT_FAM_TEST";
     ctrnames[3].pcn_name = "PERFC_SL_FAM_TEST";
 
-    err = perfc_ctrseti_alloc(1, "myset", ctrnames, ctrc, "alltypes", __FILE__, __LINE__, &set);
+    err = perfc_alloc_impl(1, "myset", ctrnames, ctrc, "alltypes", __FILE__, __LINE__, &set);
     ASSERT_EQ(0, err);
 
     perfc_test_ctrs(&set);
@@ -279,7 +279,7 @@ MTF_DEFINE_UTEST(perfc, clear_counters)
     count = dt_iterate_cmd(DT_OP_SET, dsp.path, &dip, NULL, NULL, NULL);
     ASSERT_EQ(ctrc, count);
 
-    perfc_ctrseti_free(&set);
+    perfc_free(&set);
     free(ctrnames);
 }
 
@@ -299,7 +299,7 @@ MTF_DEFINE_UTEST(perfc, enable_counters)
     ctrnames.pcn_prio = 3;
     ctrnames.pcn_name = "PERFC_BA_FAM_TEST";
 
-    err = perfc_ctrseti_alloc(1, "myset", &ctrnames, 1, "basic", __FILE__, __LINE__, &set);
+    err = perfc_alloc_impl(1, "myset", &ctrnames, 1, "basic", __FILE__, __LINE__, &set);
     ASSERT_EQ(0, err);
 
     perfc_test_ctrs(&set);
@@ -334,56 +334,44 @@ MTF_DEFINE_UTEST(perfc, enable_counters)
     count = dt_iterate_cmd(DT_OP_SET, dsp.path, &dip, NULL, NULL, NULL);
     ASSERT_EQ(1, count);
 
-    perfc_ctrseti_free(&set);
+    perfc_free(&set);
 }
 
-/* [HSE_TODO]: Data tree disabled during config refactor */
-#if 0
-MTF_DEFINE_UTEST(perfc, perfc_verbosity_set_test)
+MTF_DEFINE_UTEST(perfc, perfc_ctr_name2type_fail)
 {
-    struct perfc_name           ctrnames = { 0 };
-    struct perfc_set            set = { 0 };
-    merr_t                      err;
-    struct dt_set_parameters    dsp;
-    union dt_iterate_parameters dip;
-    int                         count;
-
-    struct yaml_context yc = {
-        .yaml_indent = 0, .yaml_offset = 0,
+    const char *namev[] = {
+        "PERFC_BASIC_FAM_TEST",
+        "PERFC_B_FAM_TEST",
+        "PERF_BA_FAM_TEST",
+        "PERFC_XX_FAM_TEST",
+        "PERFC_ra_FAM_TEST",
+        "PERFC__RA_FAM_TEST",
+        "PERFC_RA__FAM_TEST",
+        "PERFC_RA___TEST",
+        "PERFC_DI_fam_TEST",
+        "PERFC_LT_FAM_",
+        "PERFC_LT_FAM",
+        "PERFC_LT_",
+        "PERFC_LT",
+        "PERFC_",
+        "PERFC",
+        "",
     };
+    size_t i;
+    struct perfc_name ctrv[] = {
+        NE(0, 1, "mygroup", "set"),
+    };
+    struct perfc_set set;
+    merr_t err;
 
-    ctrnames.pcn_desc = "mycounter";
-    ctrnames.pcn_hdr = "mycounterhdr";
-    ctrnames.pcn_flags = 0;
-    ctrnames.pcn_prio = 3;
-    ctrnames.pcn_name = "PERFC_BA_FAM_TEST";
 
-    err = perfc_ctrseti_alloc(1, "myset", &ctrnames, 1, "basic", __FILE__, __LINE__, &set);
-    ASSERT_EQ(0, err);
-    perfc_add(&set, 0, 3);
+    for (i = 0; i < NELEM(namev); ++i) {
+        ctrv[0].pcn_name = namev[i];
 
-    dsp.path = "/data/config/kvdb/perfc/perfc_verbosity";
-    dsp.value = "4";
-    dsp.value_len = strlen(dsp.value);
-    dsp.field = DT_FIELD_ENABLED;
-    dip.dsp = &dsp;
-
-    count = dt_iterate_cmd(DT_OP_SET, dsp.path, &dip, NULL, NULL, NULL);
-    ASSERT_EQ(1, count);
-
-    perfc_add(&set, 0, 7);
-
-    /* Emit */
-    dip.yc = &yc;
-    yc.yaml_buf = yamlbuf;
-    yc.yaml_buf_sz = sizeof(yamlbuf);
-    yc.yaml_emit = NULL;
-    count = dt_iterate_cmd(DT_OP_EMIT, dsp.path, &dip, NULL, NULL, NULL);
-    ASSERT_NE(NULL, strstr(yamlbuf, "current: 0x4"));
-
-    perfc_ctrseti_free(&set);
+        err = perfc_alloc_impl(1, "mygroup", ctrv, 1, "set", __FILE__, __LINE__, &set);
+        ASSERT_NE(0, err);
+    }
 }
-#endif
 
 MTF_DEFINE_UTEST(perfc, ctrset_path)
 {
@@ -397,11 +385,11 @@ MTF_DEFINE_UTEST(perfc, ctrset_path)
     ctrnames.pcn_flags = 0;
     ctrnames.pcn_prio = 1;
 
-    err = perfc_ctrseti_alloc(1, "n", &ctrnames, 1, "s", __FILE__, __LINE__, &set);
+    err = perfc_alloc_impl(1, "n", &ctrnames, 1, "s", __FILE__, __LINE__, &set);
     ASSERT_EQ(0, err);
     ASSERT_EQ(0, strcmp(DT_PATH_PERFC "/n/FAM/s", perfc_ctrseti_path(&set)));
 
-    perfc_ctrseti_free(&set);
+    perfc_free(&set);
 }
 
 MTF_DEFINE_UTEST(perfc, perfc_rollup)
@@ -422,7 +410,7 @@ MTF_DEFINE_UTEST(perfc, perfc_rollup)
     uint64_t vadd, vsub, val, sum, i;
     merr_t err;
 
-    err = perfc_ctrseti_alloc(
+    err = perfc_alloc_impl(
         1, "rollup", perfc_rollup_op, PERFC_EN_RUTEST, "set", __FILE__, __LINE__, &perfc_rollup_pc);
     ASSERT_EQ(err, 0);
 
@@ -464,7 +452,7 @@ MTF_DEFINE_UTEST(perfc, perfc_rollup)
     ASSERT_GE(val, sum - i);
 #endif
 
-    perfc_ctrseti_free(&perfc_rollup_pc);
+    perfc_free(&perfc_rollup_pc);
 }
 
 MTF_END_UTEST_COLLECTION(perfc)

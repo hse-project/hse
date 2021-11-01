@@ -11,7 +11,6 @@ util_sources = files(
     'compression_lz4.c',
     'condvar.c',
     'cursor_heap.c',
-    'darray.c',
     'data_tree.c',
     'event_counter.c',
     'event_timer.c',

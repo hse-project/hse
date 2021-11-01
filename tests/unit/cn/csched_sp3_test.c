@@ -469,7 +469,7 @@ MTF_DEFINE_UTEST_PRE(test, t_sp3_create_nomem, pre_test)
 
     mapi_inject(mapi_idx_sts_perfc_alloc, 0);
     mapi_inject(mapi_idx_sts_perfc_free, 0);
-    mapi_inject(mapi_idx_perfc_ctrseti_alloc, 0);
+    mapi_inject(mapi_idx_perfc_alloc_impl, 0);
 
     void run(struct mtf_test_info * lcl_ti, uint i, uint j)
     {
@@ -495,6 +495,7 @@ MTF_DEFINE_UTEST_PRE(test, t_sp3_create_nomem, pre_test)
 
     mapi_inject_unset(mapi_idx_sts_perfc_alloc);
     mapi_inject_unset(mapi_idx_sts_perfc_free);
+    mapi_inject_unset(mapi_idx_perfc_alloc_impl);
 }
 
 MTF_DEFINE_UTEST_PRE(test, t_sp3_create_fail, pre_test)

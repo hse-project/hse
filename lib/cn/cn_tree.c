@@ -24,7 +24,6 @@
 #include <hse_util/parse_num.h>
 #include <hse_util/atomic.h>
 #include <hse_util/hlog.h>
-#include <hse_util/darray.h>
 #include <hse_util/table.h>
 #include <hse_util/keycmp.h>
 #include <hse_util/bin_heap.h>
@@ -1243,7 +1242,7 @@ cn_tree_lookup(
     uint                     pc_nkvset;
     u64                      pc_start;
     u64                      spill_hash = 0;
-    u16                      pc_lvl, pc_lvl_start, pc_depth;
+    uint                     pc_lvl, pc_depth;
     bool                     pfx_hashing, first;
     void *                   wbti;
 
@@ -1253,17 +1252,12 @@ cn_tree_lookup(
     *res = NOT_FOUND;
 
     pc_depth = pc_nkvset = 0;
-    pc_lvl = CNGET_LMAX;
-    pc_lvl_start = 0;
+    pc_lvl = PERFC_LT_CNGET_GET_L5 + 1;
 
-    pc_start = perfc_lat_start(pc);
+    pc_start = perfc_lat_startu(pc, PERFC_LT_CNGET_GET);
     if (pc_start > 0) {
-        if (perfc_ison(pc, PERFC_LT_CNGET_GET_L0)) {
+        if (perfc_ison(pc, PERFC_LT_CNGET_GET_L0))
             pc_lvl = PERFC_LT_CNGET_GET_L0;
-            pc_lvl_start = pc_start;
-        }
-    } else {
-        pc = NULL;
     }
 
     wbti = NULL;
@@ -1305,16 +1299,19 @@ cn_tree_lookup(
                     err = kvset_lookup(kvset, kt, &kdisc, seq, res, vbuf);
                     if (err || *res != NOT_FOUND) {
                         rmlock_runlock(lock);
-                        if (pc_lvl < CNGET_LMAX)
-                            perfc_lat_record(pc, pc_lvl, pc_lvl_start);
+
+                        if (pc_lvl < PERFC_LT_CNGET_GET_L5 + 1)
+                            perfc_lat_record(pc, pc_lvl, pc_start);
                         goto done;
                     }
                     break;
 
                 case QUERY_PROBE_PFX:
                     err = kvset_pfx_lookup(kvset, kt, &kdisc, seq, res, wbti, kbuf, vbuf, qctx);
-                    if (ev(err) || qctx->seen > 1 || *res == FOUND_PTMB) {
+                    if (err || qctx->seen > 1 || *res == FOUND_PTMB) {
                         rmlock_runlock(lock);
+
+                        ev(err);
                         goto done;
                     }
                     break;
@@ -1357,41 +1354,30 @@ cn_tree_lookup(
 
         __builtin_prefetch(node);
 
-        if (pc_lvl < CNGET_LMAX) {
-            perfc_lat_record(pc, pc_lvl++, pc_lvl_start);
-            pc_lvl_start = perfc_lat_start(pc);
-        }
-
         ++pc_depth;
+        ++pc_lvl;
     }
     rmlock_runlock(lock);
 
 done:
-    if (pc && !wbti) {
-        /* latencies first - close in time */
-        perfc_lat_record(pc, PERFC_LT_CNGET_GET, pc_start);
+    if (wbti) {
+        perfc_lat_record(pc, PERFC_LT_CNGET_PROBE_PFX, pc_start);
+        kvset_wbti_free(wbti);
+    } else {
+        uint pc_cidx_ra = (*res == NOT_FOUND) ? PERFC_RA_CNGET_MISS : PERFC_RA_CNGET_GET;
 
-        switch (*res) {
-            case NOT_FOUND:
-                perfc_lat_record(pc, PERFC_LT_CNGET_MISS, pc_start);
-                perfc_inc(pc, PERFC_RA_CNGET_MISS);
-                break;
-            case FOUND_TMB:
-                perfc_inc(pc, PERFC_RA_CNGET_TOMB);
-                break;
-            default:
-                break;
+        if (pc_start > 0) {
+            uint pc_cidx_lt = (*res == NOT_FOUND) ? PERFC_LT_CNGET_MISS : PERFC_LT_CNGET_GET;
+
+            perfc_lat_record(pc, pc_cidx_lt, pc_start);
+            perfc_rec_sample(pc, PERFC_DI_CNGET_DEPTH, pc_depth);
+            perfc_rec_sample(pc, PERFC_DI_CNGET_NKVSET, pc_nkvset);
         }
 
-        perfc_inc(pc, PERFC_RA_CNGET_GET);
-        perfc_rec_sample(pc, PERFC_DI_CNGET_DEPTH, pc_depth);
-        perfc_rec_sample(pc, PERFC_DI_CNGET_NKVSET, pc_nkvset);
-    }
+        if (*res == FOUND_TMB)
+            pc_cidx_ra = PERFC_RA_CNGET_TOMB;
 
-    if (wbti) {
-        kvset_wbti_free(wbti);
-        if (pc)
-            perfc_lat_record(pc, PERFC_LT_CNGET_PROBEPFX, pc_start);
+        perfc_inc(pc, pc_cidx_ra);
     }
 
     return err;

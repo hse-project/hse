@@ -579,24 +579,16 @@ dt_iterate_next(const char *path, struct dt_element *previous)
 }
 
 static struct field_name dt_field_names[] = {
-    { "od_timestamp", DT_FIELD_ODOMETER_TIMESTAMP },
     { "odometer_timestamp", DT_FIELD_ODOMETER_TIMESTAMP },
-    { "odt", DT_FIELD_ODOMETER_TIMESTAMP },
-    { "od", DT_FIELD_ODOMETER },
     { "odometer", DT_FIELD_ODOMETER },
-    { "trip_od_timestamp", DT_FIELD_TRIP_ODOMETER_TIMESTAMP },
     { "trip_odometer_timestamp", DT_FIELD_TRIP_ODOMETER_TIMESTAMP },
-    { "todt", DT_FIELD_TRIP_ODOMETER_TIMESTAMP },
-    { "trip_od", DT_FIELD_TRIP_ODOMETER },
     { "trip_odometer", DT_FIELD_TRIP_ODOMETER },
-    { "tod", DT_FIELD_TRIP_ODOMETER },
     { "priority", DT_FIELD_PRIORITY },
     { "pri", DT_FIELD_PRIORITY },
     { "flags", DT_FIELD_FLAGS },
     { "enabled", DT_FIELD_ENABLED },
     { "clear", DT_FIELD_CLEAR },
     { "data", DT_FIELD_DATA },
-    { "invalidate", DT_FIELD_INVALIDATE_HANDLE },
     { NULL, DT_FIELD_INVALID }
 };
 

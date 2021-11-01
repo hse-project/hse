@@ -133,10 +133,10 @@ kvdb_perfc_fini(void)
 {
     struct perfc_name *pcn;
 
-    perfc_ctrseti_free(&kvdb_metrics_pc);
-    perfc_ctrseti_free(&c0_metrics_pc);
-    perfc_ctrseti_free(&kvdb_pkvdbl_pc);
-    perfc_ctrseti_free(&kvdb_pc);
+    perfc_free(&kvdb_metrics_pc);
+    perfc_free(&c0_metrics_pc);
+    perfc_free(&kvdb_pkvdbl_pc);
+    perfc_free(&kvdb_pc);
 
     pcn = &kvdb_metrics_perfc[PERFC_DI_KVDBMETRICS_THROTTLE];
     perfc_ivl_destroy(pcn->pcn_ivl);

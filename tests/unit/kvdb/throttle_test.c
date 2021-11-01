@@ -61,7 +61,7 @@ MTF_DEFINE_UTEST_PRE(test, t_init, pre_test)
         kvdb_rp = kvdb_rparams_defaults();
 
         if (i == 1) {
-            mapi_inject(mapi_idx_perfc_ctrseti_alloc, -1);
+            mapi_inject(mapi_idx_perfc_alloc_impl, -1);
             mapi_inject(mapi_idx_perfc_ivl_create, -1);
         }
 
@@ -76,7 +76,7 @@ MTF_DEFINE_UTEST_PRE(test, t_init, pre_test)
         throttle_fini(&thr);
         throttle_perfc_fini();
 
-        mapi_inject_unset(mapi_idx_perfc_ctrseti_alloc);
+        mapi_inject_unset(mapi_idx_perfc_alloc_impl);
         mapi_inject_unset(mapi_idx_perfc_ivl_create);
     }
 
