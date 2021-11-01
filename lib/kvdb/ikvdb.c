@@ -1527,7 +1527,7 @@ kvdb_kvs_cnid(struct kvdb_kvs *kk)
     return kk->kk_cnid;
 }
 
-char *
+const char *
 kvdb_kvs_name(struct kvdb_kvs *kk)
 {
     return kk->kk_name;

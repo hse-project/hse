@@ -229,7 +229,7 @@ u64
 kvdb_kvs_cnid(struct kvdb_kvs *kk);
 
 /* MTF_MOCK */
-char *
+const char *
 kvdb_kvs_name(struct kvdb_kvs *kk);
 
 /* MTF_MOCK */
