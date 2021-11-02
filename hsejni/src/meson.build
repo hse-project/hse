@@ -3,14 +3,9 @@ hsejni_sources = files(
     'hsejni.c',
 )
 
-hsejni_c_args = [
-    '-DCOMPNAME="hsejni"',
-]
-
 hsejni = library(
     'hsejni',
     hsejni_sources,
-    c_args: hsejni_c_args,
     include_directories: [
         public_includes,
         util_includes,
