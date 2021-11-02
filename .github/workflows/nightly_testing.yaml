@@ -34,7 +34,7 @@ jobs:
         run: |
           sudo apt-get update
           sudo apt-get install build-essential libbsd-dev pkg-config openjdk-8-jdk libmicrohttpd-dev liburcu-dev libyaml-dev liblz4-dev libcurl4-openssl-dev libmongoc-1.0-0 libbson-1.0-0 libssl-dev libsasl2-dev
-          python3 -m pip install --user setuptools_rust wheel poetry
+          python3 -m pip install --user poetry
 
       - uses: actions/checkout@v2
         with:
