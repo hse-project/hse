@@ -12,12 +12,6 @@ from hse2 import hse
 from utility import lifecycle, cli
 
 
-def check_keys(cursor: hse.KvsCursor, expected: List[bytes]):
-    actual = [k for k, _ in cursor.items()]
-    assert len(actual) == len(expected)
-    for x, y in zip(expected, actual):
-        assert x == y
-
 def test_basic(kvdb: hse.Kvdb, kvs: hse.Kvs):
     kvs.put("a", "1")
     kvs.put("b", "2")
@@ -29,7 +23,10 @@ def test_basic(kvdb: hse.Kvdb, kvs: hse.Kvs):
     kvs.put("h", "8")
 
     cursor = kvs.cursor()
-    check_keys(cursor, ["a", "b", "c", "d", "e", "f", "g", "h"])
+    for e in ["a", "b", "c", "d", "e", "f", "g", "h"]:
+        k, _ = cursor.read()
+        assert k.decode() == e
+        assert cursor.eof == False
 
     kvs.delete("a")
     kvs.delete("b")
@@ -39,26 +36,26 @@ def test_basic(kvdb: hse.Kvdb, kvs: hse.Kvs):
 
     cursor.update_view()
     cursor.seek("a")
-    kv = cursor.read()
-    assert kv == ("f", "6")
+    k, _ = cursor.read()
+    assert k.decode() == "f"
     cursor.seek("a")
-    kv = cursor.read()
-    assert kv == ("f", "6")
+    k, _ = cursor.read()
+    assert k.decode() == "f"
 
     kvs.delete("f")
     cursor.update_view()
     cursor.seek("a")
-    kv = cursor.read()
-    assert kv == ("g", "7")
+    k, _ = cursor.read()
+    assert k.decode() == "g"
     cursor.seek("a")
-    kv = cursor.read()
-    assert kv == ("g", "7")
+    k, _ = cursor.read()
+    assert k.decode() == "g"
 
     kvs.put("c", "33")
     cursor.update_view()
     cursor.seek("a")
-    kv = cursor.read()
-    assert kv == ("c", "33")
+    k, _ = cursor.read()
+    assert k.decode() == "c"
 
     cursor.destroy()
 
@@ -83,9 +80,9 @@ def tombspan_test(kvdb: hse.Kvdb, kvs: hse.Kvs):
         key = f"ab{i:0>12}"
         kvs.put(key, "val")
 
-    k = "a"
+    k = "ab"
     for i in range(half):
-        with kvs.cursor(filt="a") as c:
+        with kvs.cursor(filt="ab") as c:
             c.seek(k)
             k, v = c.read()
             if not c.eof:
@@ -97,7 +94,7 @@ try:
     with ExitStack() as stack:
         kvdb_ctx = lifecycle.KvdbContext()
         kvdb = stack.enter_context(kvdb_ctx)
-        kvs_ctx = lifecycle.KvsContext(kvdb, "tmobspan")
+        kvs_ctx = lifecycle.KvsContext(kvdb, "tombspan")
 
         with kvs_ctx as kvs:
             test_basic(kvdb, kvs)

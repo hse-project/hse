@@ -336,10 +336,7 @@ c0_cursor_es_get(struct c0_cursor *c0cur)
 merr_t
 c0_cursor_update(struct c0_cursor *c0cur, u64 seqno, u32 *flags_out)
 {
-    merr_t err;
-
-    err = c0sk_cursor_update(c0cur, seqno, flags_out);
-    return ev(err);
+    return c0sk_cursor_update(c0cur, seqno, flags_out);
 }
 
 merr_t
