@@ -707,11 +707,10 @@ kvs_cursor_bh_create(struct hse_kvs_cursor *cursor)
     struct kvs_cursor_impl *cur = cursor_h2r(cursor);
     bin_heap2_compare_fn *  cmp;
     merr_t err;
-    int cnt = 0;
 
-    cur->kci_esrcv[cnt++] = c0_cursor_es_make(cur->kci_c0cur);
-    cur->kci_esrcv[cnt++] = lc_cursor_es_make(cur->kci_lccur);
-    cur->kci_esrcv[cnt++] = cn_cursor_es_make(cur->kci_cncur);
+    cur->kci_esrcv[0] = c0_cursor_es_make(cur->kci_c0cur);
+    cur->kci_esrcv[1] = lc_cursor_es_make(cur->kci_lccur);
+    cur->kci_esrcv[2] = cn_cursor_es_make(cur->kci_cncur);
 
     cmp = cur->kci_reverse ? kvs_cursor_cmp_rev : kvs_cursor_cmp;
     if (cur->kci_bh)

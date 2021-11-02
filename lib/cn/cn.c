@@ -1466,10 +1466,7 @@ cn_cursor_create(
 merr_t
 cn_cursor_prepare(struct cn_cursor *cur)
 {
-    merr_t err;
-
-    err = cn_tree_cursor_prepare(cur);
-    return ev(err);
+    return cn_tree_cursor_prepare(cur);
 }
 
 merr_t

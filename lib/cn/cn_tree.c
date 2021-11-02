@@ -2441,11 +2441,12 @@ cn_tree_cursor_read(struct cn_cursor *cur, struct kvs_cursor_element *elem, bool
         bin_heap2_pop(cur->bh, (void **)&popme);
 
         rc = cur_item_pfx_cmp(cur, &item);
-        assert(rc <= 0);
         if (rc < 0) {
             *eof = (cur->eof = 1);
             return 0;
         }
+
+        assert(rc <= 0);
 
         if (HSE_UNLIKELY(cur->filter && key_obj_cmp(&item.kobj, &filter_ko) > 0)) {
             *eof = (cur->eof = 1);
