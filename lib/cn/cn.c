@@ -1466,6 +1466,12 @@ cn_cursor_create(
 }
 
 merr_t
+cn_cursor_prepare(struct cn_cursor *cur)
+{
+    return cn_tree_cursor_prepare(cur);
+}
+
+merr_t
 cn_cursor_update(struct cn_cursor *cur, u64 seqno, bool *updated)
 {
     u64    dgen = atomic64_read(&cur->cn->cn_ingest_dgen);

@@ -2050,10 +2050,6 @@ cn_tree_cursor_create(struct cn_cursor *cur, struct cn_tree *tree)
     if (ev(err))
         goto errout;
 
-    err = bin_heap2_prepare(cur->bh, cur->iterc, cur->esrcv);
-    if (ev(err))
-        goto errout;
-
     cursor_summary_add_dgen(cur->summary, cur->dgen);
     cur->summary->n_kvset = cur->iterc;
 
@@ -2066,6 +2062,20 @@ errout:
     vtc_free(view);
 
     return err;
+}
+
+merr_t
+cn_tree_cursor_prepare(struct cn_cursor *cur)
+{
+    merr_t err;
+
+    if (!cur->bh) {
+        assert(cur->eof);
+        return 0;
+    }
+
+    err = bin_heap2_prepare(cur->bh, cur->iterc, cur->esrcv);
+    return ev(err);
 }
 
 static merr_t
@@ -2396,15 +2406,13 @@ cn_tree_cursor_read(struct cn_cursor *cur, struct kvs_cursor_element *elem, bool
 {
     struct cn_kv_item   item, *popme;
     u64                 seq;
-    bool                end;
-    bool                is_tomb;
+    bool                found;
     const void *        vdata;
     uint                vlen;
     uint                complen;
     int                 rc;
     struct kv_iterator *kv_iter = 0;
     struct key_obj      filter_ko = { 0 };
-    uint                nkeys_before_pfx_dbg HSE_MAYBE_UNUSED;
 
     if (ev(cur->merr))
         return cur->merr;
@@ -2417,104 +2425,84 @@ cn_tree_cursor_read(struct cn_cursor *cur, struct kvs_cursor_element *elem, bool
     if (HSE_UNLIKELY(cur->filter))
         key2kobj(&filter_ko, cur->filter->kcf_maxkey, cur->filter->kcf_maxklen);
 
-    nkeys_before_pfx_dbg = 0;
-
     do {
+        enum kmd_vtype vtype;
+        u32            vbidx;
+        u32            vboff;
 
         if (!bin_heap2_peek(cur->bh, (void **)&popme)) {
             *eof = (cur->eof = 1);
             return 0;
         }
 
-        /* copy out bh item before bin_heap2_pop() overwrites its
-         * element (*popme).
+        /* Copy out bh item before bin_heap2_pop() overwrites its element (*popme).
          */
         item = *popme;
-        is_tomb = item.vctx.is_ptomb;
-
         bin_heap2_pop(cur->bh, (void **)&popme);
 
         rc = cur_item_pfx_cmp(cur, &item);
-        if (rc > 0) {
-            /* [HSE_REVISIT] cursor seek should seek to max(cursor_pfx, seek_key) to avoid
-             * this code path.
-             */
-            ++nkeys_before_pfx_dbg;
-            end = true;
-            continue;
-        } else if (rc < 0) {
+        if (rc < 0) {
             *eof = (cur->eof = 1);
             return 0;
         }
 
-        if (HSE_UNLIKELY(cur->filter)) {
-            if (key_obj_cmp(&item.kobj, &filter_ko) > 0) {
-                *eof = (cur->eof = 1);
-                return 0;
-            }
+        assert(rc <= 0);
+
+        if (HSE_UNLIKELY(cur->filter && key_obj_cmp(&item.kobj, &filter_ko) > 0)) {
+            *eof = (cur->eof = 1);
+            return 0;
         }
 
         kv_iter = kvset_cursor_es_h2r(item.src);
-        end = false;
+        found = true;
 
         do {
-            enum kmd_vtype vtype;
-            u32            vbidx;
-            u32            vboff;
-
-            if (!kvset_iter_next_vref(
-                    kv_iter, &item.vctx, &seq, &vtype, &vbidx,
-                    &vboff, &vdata, &vlen, &complen)) {
-                end = true;
+            if (!kvset_iter_next_vref(kv_iter, &item.vctx, &seq, &vtype, &vbidx,
+                                      &vboff, &vdata, &vlen, &complen)) {
+                found = false; /* Exhausted all values. */
                 break;
             }
-
-            cur->merr =
-                kvset_iter_next_val(kv_iter, &item.vctx, vtype, vbidx,
-                    vboff, &vdata, &vlen, &complen);
-            if (ev(cur->merr))
-                return cur->merr;
-
         } while (seq > cur->seqno);
-        if (end)
-            continue;
 
-        if (HSE_CORE_IS_PTOMB(vdata) &&
-            (!cur->pt_set || key_obj_cmp(&cur->pt_kobj, &item.kobj) != 0)) {
-            /* only store ptomb w/ highest seqno (less than cur's seqno)
-             * i.e. first occurrence of this ptomb
-             */
-            assert(cur->ct_pfx_len > 0);
-            cur->pt_set = 1;
-            cur->pt_kobj = item.kobj;
-            cur->pt_seq = seq;
+        if (!found)
+            continue; /* Key doesn't have a value in the cursor's view. */
 
-            /* [HSE_REVISIT]
-             * if ptomb, move all srcs > item->src past pfx only if
-             * ptomb was NOT from the spread region.
-             */
-        }
-
-        /* A kvset can have a matching key and ptomb such that the key
-         * is newer than ptomb. So drop dups only if regular tomb.
-         */
-        is_tomb = HSE_CORE_IS_TOMB(vdata) && !HSE_CORE_IS_PTOMB(vdata);
-        if (is_tomb)
-            drop_dups(cur, &item);
+        cur->merr = kvset_iter_next_val(kv_iter, &item.vctx, vtype, vbidx,
+                                        vboff, &vdata, &vlen, &complen);
+        if (ev(cur->merr))
+            return cur->merr;
 
         if (cur->pt_set) {
             if (key_obj_cmp_prefix(&cur->pt_kobj, &item.kobj) == 0) {
-                if (HSE_CORE_IS_PTOMB(vdata) || seq < cur->pt_seq)
-                    end = true;
+                if (seq < cur->pt_seq)
+                    found = false; /* Key is hidden by a ptomb. */
             } else {
                 cur->pt_set = 0;
                 cur->pt_seq = 0;
             }
         }
 
-    } while (end || is_tomb);
+        /* Only store ptomb w/ highest seqno (less than cur's seqno) i.e. first occurrence of
+         * this ptomb.
+         */
+        if (vtype == vtype_ptomb && !cur->pt_set) {
+            assert(cur->ct_pfx_len > 0);
 
-    assert(!HSE_CORE_IS_TOMB(vdata));
+            cur->pt_kobj = item.kobj;
+            cur->pt_seq = seq;
+            cur->pt_set = 1;
+        }
+
+        /* A kvset can have a matching key and ptomb such that the key
+         * is newer than ptomb. So drop dups only if regular tomb.
+         */
+        if (vtype == vtype_tomb)
+            drop_dups(cur, &item);
+
+        if (vtype == vtype_ptomb)
+            found = false;
+
+    } while (!found);
 
     /* set output */
     elem->kce_kobj = item.kobj;
@@ -2564,6 +2552,17 @@ cn_tree_cursor_seek(
     if (cur->eof)
         cur->eof = 0;
 
+    if (cur->reverse) {
+        if (HSE_UNLIKELY(keycmp(key, len, cur->pfx, HSE_KVS_KEY_LEN_MAX) > 0)) {
+            key = cur->pfx;
+            len = HSE_KVS_KEY_LEN_MAX;
+        }
+    } else {
+        if (HSE_UNLIKELY(keycmp(key, len, cur->pfx, cur->pfx_len) < 0)) {
+            key = cur->pfx;
+            len = cur->pfx_len;
+        }
+    }
     /* [HSE_REVISIT]: this is parallelizable */
     first = -1; /* first kvset that is not at EOF */
     for (i = cur->iterc - 1; i >= 0; --i) {

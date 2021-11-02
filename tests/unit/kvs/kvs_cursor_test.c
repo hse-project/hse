@@ -109,9 +109,6 @@ create_cursor(
     err = kvs_cursor_init(cur, NULL);
     ASSERT_EQ(0, err);
 
-    err = kvs_cursor_prepare(cur);
-    ASSERT_EQ(0, err);
-
     *cur_out = cur;
 }
 

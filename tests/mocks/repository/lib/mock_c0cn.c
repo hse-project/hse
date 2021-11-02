@@ -661,6 +661,8 @@ static struct mapi_injection cn_inject_list[] = {
     { mapi_idx_cn_pc_mclass_get,     MAPI_RC_PTR, NULL },
     { mapi_idx_cn_get_ingest_perfc,  MAPI_RC_PTR, NULL },
 
+    { mapi_idx_cn_tree_cursor_prepare,  MAPI_RC_SCALAR, 0 },
+
     { -1 },
 };
 
@@ -725,6 +727,7 @@ mock_cn_unset()
 static struct mapi_injection c0_inject_list[] = {
     { mapi_idx_c0_cursor_update,    MAPI_RC_SCALAR, 0 },
     { mapi_idx_c0_cursor_bind_txn,  MAPI_RC_SCALAR, 0 },
+    { mapi_idx_c0_cursor_prepare,   MAPI_RC_SCALAR, 0 },
     { -1 },
 };
 

@@ -336,7 +336,7 @@ c0kvms_cursor_unget(struct element_source *es)
     return true;
 }
 
-static void
+void
 c0kvms_cursor_prepare(struct c0_kvmultiset_cursor *cur)
 {
     bin_heap2_prepare(cur->c0mc_bh, cur->c0mc_iterc, cur->c0mc_esrcv);
@@ -553,7 +553,6 @@ c0kvms_cursor_create(
         return err;
     }
 
-    c0kvms_cursor_prepare(cur);
     return 0;
 }
 
