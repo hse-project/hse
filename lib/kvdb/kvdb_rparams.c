@@ -22,6 +22,7 @@
 #include <hse_util/storage.h>
 #include <hse_util/compiler.h>
 #include <hse_util/string.h>
+#include <hse_util/invariant.h>
 #include <hse_ikvdb/csched.h>
 
 /**
@@ -406,21 +407,16 @@ dur_mclass_converter(
     const cJSON *const             node,
     void *const                    data)
 {
-    static const char *mclasses[MP_MED_COUNT] = {
-        MP_MED_NAME_CAPACITY, MP_MED_NAME_STAGING
-    };
-
-    assert(ps);
-    assert(node);
-    assert(data);
+    INVARIANT(ps);
+    INVARIANT(node);
+    INVARIANT(data);
 
     if (!cJSON_IsString(node))
         return false;
 
     const char *value = cJSON_GetStringValue(node);
-
-    for (size_t i = 0; i < NELEM(mclasses); i++) {
-        if (!strcmp(mclasses[i], value)) {
+    for (size_t i = 0; i < NELEM(mpool_mclass_to_string); i++) {
+        if (!strcmp(mpool_mclass_to_string[i], value)) {
             *(enum mpool_mclass *)data = i;
             return true;
         }

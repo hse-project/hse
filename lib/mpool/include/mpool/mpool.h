@@ -22,6 +22,8 @@ struct mpool_file;       /* opaque mpool file handle */
  * Mpool Administrative APIs...
  */
 
+extern const char *const mpool_mclass_to_string[MP_MED_COUNT];
+
 /**
  * mpool_create() - Create an mpool
  *

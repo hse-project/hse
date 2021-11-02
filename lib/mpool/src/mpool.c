@@ -32,6 +32,11 @@ struct mpool {
     const char          home[]; /* flexible array */
 };
 
+const char *const mpool_mclass_to_string[MP_MED_COUNT] = {
+    [MP_MED_CAPACITY] = MP_MED_NAME_CAPACITY,
+    [MP_MED_STAGING] = MP_MED_NAME_STAGING,
+};
+
 static merr_t
 mpool_to_mclass_params(
     enum mpool_mclass           mc,
