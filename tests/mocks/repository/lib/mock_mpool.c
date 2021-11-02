@@ -177,7 +177,6 @@ _mpool_mblock_delete(struct mpool *mp, uint64_t id)
 merr_t
 _mpool_props_get(struct mpool *mp, struct mpool_props *props)
 {
-    props->mp_vma_size_max = 30;
     props->mp_mblocksz[MP_MED_CAPACITY] = 32 << 20;
 
     return 0;

@@ -80,11 +80,9 @@ struct mpool_dparams {
 /**
  * struct mpool_props -
  *
- * @mp_vma_size_max:    max VMA map size (log2)
  * @mp_mblocksz:        mblock size by media class (MiB)
  */
 struct mpool_props {
-    uint32_t mp_vma_size_max;
     uint32_t mp_mblocksz[MP_MED_COUNT];
 };
 

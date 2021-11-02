@@ -60,6 +60,8 @@
 #include "bloom_reader.h"
 #include "cn_perfc.h"
 
+#define VMA_SIZE_MAX 30
+
 struct tbkt;
 struct mclass_policy;
 
@@ -1608,7 +1610,7 @@ cn_vma_mblock_max(struct cn *cn, enum mpool_mclass mclass)
 {
     u64 vma_size_max, mblocksz;
 
-    vma_size_max = 1ul << cn->cn_mpool_props.mp_vma_size_max;
+    vma_size_max = 1ul << VMA_SIZE_MAX;
     mblocksz = cn_mpool_dev_zone_alloc_unit_default(cn, mclass);
 
     assert(mblocksz > 0);
