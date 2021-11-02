@@ -88,8 +88,12 @@ argv_deserialize_to_params(
             free(buf);
 
             if (!node) {
-                CLOG_ERR("Failed to parse %s %s: %s", params_logging_context(params), ps->ps_name, param);
-                err = merr(EINVAL);
+                if (cJSON_GetErrorPtr()) {
+                    CLOG_ERR("Failed to parse %s %s: %s", params_logging_context(params), ps->ps_name, param);
+                    err = merr(EINVAL);
+                } else {
+                    err = merr(ENOMEM);
+                }
                 goto out;
             }
         }

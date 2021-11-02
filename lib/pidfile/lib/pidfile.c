@@ -133,7 +133,11 @@ pidfile_deserialize(const char *home, struct pidfile *content)
 
     root = cJSON_ParseWithLength(str, st.st_size);
     if (!root) {
-        rc = EINVAL;
+        if (cJSON_GetErrorPtr()) {
+            rc = EPROTO;
+        } else {
+            rc = ENOMEM;
+        }
         goto out;
     }
     pid = cJSON_GetObjectItemCaseSensitive(root, "pid");
