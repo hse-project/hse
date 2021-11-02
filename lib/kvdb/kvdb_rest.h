@@ -3,20 +3,11 @@
  * Copyright (C) 2015-2021 Micron Technology, Inc.  All rights reserved.
  */
 
-#include <hse_util/slab.h>
-#include <hse_util/logging.h>
 #include <hse_util/hse_err.h>
-#include <hse_util/event_counter.h>
-
-#include <hse_util/data_tree.h>
-#include <hse_util/rest_api.h>
-#include <hse_util/spinlock.h>
-#include <hse_util/string.h>
-
-#include <hse_ikvdb/kvset_view.h>
 
 struct ikvdb;
 struct kvdb_kvs;
+struct yaml_context;
 
 merr_t
 kvdb_rest_register(struct ikvdb *kvdb);
