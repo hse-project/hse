@@ -15,7 +15,7 @@ tests = {
         ],
     },
     'kbdump': {
-        'suites': ['smoke'],
+        'suites': ['smoke', 'nightly-small'],
         'depends': [
             tool_targets['simple_client'],
             tool_targets['cn_metrics'],
@@ -23,36 +23,36 @@ tests = {
         ],
     },
     'putget1': {
-        'suites': ['smoke'],
+        'suites': ['smoke', 'nightly-small'],
         'depends': [
             tool_targets['putgetdel'],
         ],
     },
     'lcp_test': {
-        'suites': ['smoke'],
+        'suites': ['smoke', 'nightly-small'],
         'depends': [
             tool_targets['pscan'],
         ],
     },
     'kvsdrop': {
-        'suites': ['smoke'],
+        'suites': ['smoke', 'nightly-small'],
         'depends': [
             tool_targets['putbin'],
             tool_targets['cndb_log'],
         ],
     },
     'paths': {
-        'suites': ['smoke'],
+        'suites': ['smoke', 'nightly-small'],
     },
     'longtestc0': {
-        'suites': ['smoke'],
+        'suites': ['smoke', 'nightly-small'],
         'depends': [
             tool_targets['longtest'],
             tool_targets['cn_metrics'],
         ],
     },
     'longtest-cursor': {
-        'suites': ['smoke'],
+        'suites': ['smoke', 'nightly-small'],
         'depends': [
             tool_targets['longtest'],
             tool_targets['cndb_log'],
@@ -60,7 +60,7 @@ tests = {
         ],
     },
     'samples': {
-        'suites': ['smoke'],
+        'suites': ['smoke', 'nightly-small'],
         'depends': [
             sample_targets['ex1_create'],
             sample_targets['ex2_simple_ops'],
@@ -72,14 +72,14 @@ tests = {
         ],
     },
     'droptomb1': {
-        'suites': ['smoke'],
+        'suites': ['smoke', 'nightly-small'],
         'depends': [
             tool_targets['putbin'],
             tool_targets['cn_metrics'],
         ],
     },
     'seqno_order': {
-        'suites': ['smoke'],
+        'suites': ['smoke', 'nightly-small'],
         'depends': [
             tool_targets['txput_flush'],
         ],
@@ -92,34 +92,34 @@ tests = {
         ],
     },
     'putget2': {
-        'suites': ['smoke'],
+        'suites': ['smoke', 'nightly-small'],
         'depends': [
             tool_targets['putgetdel'],
         ],
     },
     'longtestcn': {
-        'suites': ['smoke'],
+        'suites': ['smoke', 'nightly-small'],
         'depends': [
             tool_targets['longtest'],
             tool_targets['cn_metrics'],
         ],
     },
     'longtestcn2': {
-        'suites': ['smoke'],
+        'suites': ['smoke', 'nightly-small'],
         'depends': [
             tool_targets['longtest'],
             tool_targets['cn_metrics'],
         ],
     },
     'mdc-test': {
-        'suites': ['smoke'],
+        'suites': ['smoke', 'nightly-small'],
         'depends': [
             tool_targets['mdctest'],
             tool_targets['mdcperf'],
         ],
     },
     'key-imm-disc': {
-        'suites': ['smoke'],
+        'suites': ['smoke', 'nightly-small'],
         'depends': [
             tool_targets['kmt'],
         ],
@@ -131,13 +131,13 @@ tests = {
         ],
     },
     'txn1': {
-        'suites': ['smoke'],
+        'suites': ['smoke', 'nightly-small'],
         'depends': [
             tool_targets['ctxn_validation'],
         ],
     },
     'prefix-tree-shape1': {
-        'suites': ['smoke'],
+        'suites': ['smoke', 'nightly-small'],
         'depends': [
             tool_targets['kmt'],
             tool_targets['putbin'],
@@ -145,47 +145,47 @@ tests = {
         ],
     },
     'prefix-basic': {
-        'suites': ['smoke'],
+        'suites': ['smoke', 'nightly-small'],
         'depends': [
             tool_targets['kmt'],
             tool_targets['pscan'],
         ],
     },
     'longtestkvmax': {
-        'suites': ['smoke'],
+        'suites': ['smoke', 'nightly-small'],
         'depends': [
             tool_targets['longtest'],
             tool_targets['cn_metrics'],
         ],
     },
     'longtest-sync-cursor': {
-        'suites': ['smoke'],
+        'suites': ['smoke', 'nightly-small'],
         'depends': [
             tool_targets['longtest'],
             tool_targets['cn_metrics'],
         ],
     },
     'longtest-sync': {
-        'suites': ['smoke'],
+        'suites': ['smoke', 'nightly-small'],
         'depends': [
             tool_targets['longtest'],
             tool_targets['cn_metrics'],
         ],
     },
     'kvs-max': {
-        'suites': ['smoke'],
+        'suites': ['smoke', 'nightly-small'],
         'depends': [
             tool_targets['kmt'],
         ],
     },
     'omf_encoder_perf': {
-        'suites': ['smoke'],
+        'suites': ['smoke', 'nightly-small'],
         'depends': [
             tool_targets['omf_encoder_perf'],
         ],
     },
     'mcache-test': {
-        'suites': ['smoke'],
+        'suites': ['smoke', 'nightly-small'],
         'depends': [
             tool_targets['mpiotest'],
         ],
@@ -197,13 +197,13 @@ tests = {
         ],
     },
     'kmt1': {
-        'suites': ['smoke'],
+        'suites': ['smoke', 'nightly-small'],
         'depends': [
             tool_targets['kmt'],
         ],
     },
     'kmt-mpool': {
-        'suites': ['smoke'],
+        'suites': ['smoke', 'nightly-small'],
         'depends': [
             tool_targets['kmt'],
         ],
@@ -215,13 +215,13 @@ tests = {
         ],
     },
     'bonsai-insdel': {
-        'suites': ['smoke'],
+        'suites': ['smoke', 'nightly-small'],
         'depends': [
             tool_targets['bnt'],
         ],
     },
     'large-values1': {
-        'suites': ['smoke'],
+        'suites': ['smoke', 'nightly-small'],
         'depends': [
             tool_targets['kmt'],
             tool_targets['cn_metrics'],
@@ -236,7 +236,7 @@ tests = {
         ],
     },
     'probe-test': {
-        'suites': ['smoke'],
+        'suites': ['smoke', 'nightly-small'],
         'depends': [
             tool_targets['pfx_probe'],
         ],
@@ -277,7 +277,7 @@ foreach t, params : tests
             t,
         ],
         timeout: 1800,
-        is_parallel: true,
+        is_parallel: false,
         workdir: meson.current_source_dir(),
         suite: ['functional'] + params.get('suites', []),
         depends: [

@@ -1,0 +1,61 @@
+name: Nightly Testing
+
+on:
+  workflow_dispatch:
+    inputs:
+      branch:
+        description: "Branch to use"
+        required: true
+        default: "master"
+
+jobs:
+  nightly_ub:
+    runs-on: ${{ matrix.os }}
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [ubuntu-20.04]
+        build_type: [release, debugoptimized]
+
+    steps:
+      - name: Freeing up disk space on CI system
+        run: |
+          df -h
+          echo "Removing large packages"
+          sudo apt-get remove -y azure-cli google-cloud-sdk hhvm google-chrome-stable firefox powershell mono-devel
+          sudo apt-get autoremove -y
+          sudo apt-get clean
+          echo "Removing large directories"
+          # deleting 15GB
+          rm -rf /usr/share/dotnet/
+          df -h
+
+      - name: Install dependencies
+        run: |
+          sudo apt-get update
+          sudo apt-get install build-essential libbsd-dev pkg-config openjdk-8-jdk libmicrohttpd-dev liburcu-dev libyaml-dev liblz4-dev libcurl4-openssl-dev libmongoc-1.0-0 libbson-1.0-0 libssl-dev libsasl2-dev
+          python3 -m pip install --user poetry
+
+      - uses: actions/checkout@v2
+        with:
+          ref: ${{ github.event.inputs.branch }}
+
+      - name: Poetry setup
+        run: |
+          poetry install
+
+      - name: Meson setup
+        run: |
+          poetry run meson builddir -Dbuildtype=${{ matrix.build_type }} -Dycsb=true
+
+      - name: Run tests
+        run: |
+          poetry run meson test -C builddir --suite=nightly-small --print-errorlogs --no-stdsplit
+
+      - uses: actions/upload-artifact@v2
+        if: failure()
+        with:
+          name: build-artifact-ubuntu-${{ matrix.build_type }}
+          path: |
+            builddir/meson-logs/
+            /var/log/syslog
