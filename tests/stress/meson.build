@@ -108,7 +108,7 @@ programs = {
         },
         'nightly-tests': {
             'create_cursor_small': {
-                'args': '-b 64 -c 2500000 -d 1 -e 1000 -o 2 -v 256'.split(),
+                'args': '-b 64 -c 2000000 -d 1 -e 1000 -o 2 -v 256'.split(),
             },
             'cursor_with_sync_small': {
                 'args': '-b 64 -c 2500000 -d 5 -e 1000 -o 2 -v 512'.split(),
