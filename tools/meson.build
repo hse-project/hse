@@ -310,10 +310,7 @@ foreach t, params : tools
         target = executable(
             t,
             params['sources'],
-            c_args: [
-                '-DCOMPNAME="@0@"'.format(t),
-                params.get('c_args', []),
-            ],
+            c_args: params.get('c_args', []),
             include_directories: [
                 component_root_includes,
                 hse_include_directories,

@@ -4,9 +4,6 @@ subdir('lib')
 hse_mock_repository = static_library(
     '@0@-mock-repository'.format(meson.project_name()),
     hse_mock_repository_sources,
-    c_args: [
-        '-DCOMPNAME="kvdb"',
-    ],
     include_directories: [
         hse_include_directories,
         hse_mock_include_directories,
