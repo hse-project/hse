@@ -1,4 +1,4 @@
-name: Nightly builds
+name: Nightly Testing
 
 on:
   workflow_dispatch:
@@ -9,12 +9,12 @@ on:
         default: "master"
 
 jobs:
-  stress_ub:
+  nightly_ub:
     runs-on: ${{ matrix.os }}
     strategy:
       fail-fast: false
       matrix:
-        os: [ubuntu-18.04]
+        os: [ubuntu-20.04]
         build_type: [release, debugoptimized]
 
     steps:
@@ -33,20 +33,18 @@ jobs:
       - name: Install dependencies
         run: |
           sudo apt-get update
-          sudo apt-get install build-essential libbsd-dev pkg-config openjdk-8-jdk libmicrohttpd-dev liburcu-dev libyaml-dev liblz4-dev libcurl4-openssl-dev
-          sudo apt-get install libmongoc-1.0-0 libbson-1.0-0 libssl-dev libsasl2-dev
-          python3 -m pip install --user setuptools_rust wheel
-          python3 -m pip install --user poetry
+          sudo apt-get install build-essential libbsd-dev pkg-config openjdk-8-jdk libmicrohttpd-dev liburcu-dev libyaml-dev liblz4-dev libcurl4-openssl-dev libmongoc-1.0-0 libbson-1.0-0 libssl-dev libsasl2-dev
+          python3 -m pip install --user setuptools_rust wheel poetry
 
       - uses: actions/checkout@v2
         with:
           ref: ${{ github.event.inputs.branch }}
 
-      - name: Setup python environment to run branch
+      - name: Poetry setup
         run: |
           poetry install
 
-      - name: Build setup with YCSB, tools and configs
+      - name: Meson setup
         run: |
           poetry run meson builddir -Dbuildtype=${{ matrix.build_type }} -Dycsb=true
 

@@ -38,7 +38,7 @@ programs = {
                 'args': '-b 64 -c 5000000 -e 0 -i 1 -o 2 -r 1 -s 64 -t 4 -v 1024'.split(),
             },
         },
-        'gh_tests': {
+        'nightly-tests': {
             'noclose_small': {
                 'args': '-b 64 -c 3000000 -e 0 -i 0 -o 2 -r 0 -s 0 -t 0 -v 256'.split(),
             },
@@ -106,7 +106,7 @@ programs = {
                 'args': '-b 64 -c 100000 -d 6 -e 10000 -o 2 -s 10000 -v 1024'.split(),
             },
         },
-        'gh_tests': {
+        'nightly-tests': {
             'create_cursor_small': {
                 'args': '-b 64 -c 2500000 -d 1 -e 1000 -o 2 -v 256'.split(),
             },
@@ -132,7 +132,7 @@ programs = {
                 'args': '-b 64 -c 5000000 -d 2 -n 1 -o 2 -v 1024'.split(),
             },
         },
-        'gh_tests': {
+        'nightly-tests': {
             'reverse_cursor_committed_txn_small': {
                 'args': '-b 64 -c 1000000 -d 2 -n 0 -o 2 -v 256'.split(),
             },
@@ -155,7 +155,7 @@ programs = {
                 'args': '-a 1000 -b 64 -c 5000000 -d 2 -o 2 -v 1024'.split(),
             },
         },
-        'gh_tests': {
+        'nightly-tests': {
             'reverse_cursor_unlimited_txn_small': {
                 'args': '-a 1000 -b 64 -c 2500000 -d 2 -o 2 -v 256'.split(),
             },
@@ -200,7 +200,7 @@ foreach p, p_params: programs
         )
     endforeach
 
-    foreach t, t_params : p_params['gh_tests']
+    foreach t, t_params : p_params['nightly-tests']
         test(
             t,
             e,
