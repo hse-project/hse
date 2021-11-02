@@ -3,12 +3,13 @@
  * Copyright (C) 2015-2021 Micron Technology, Inc.  All rights reserved.
  */
 
+#include <bsd/string.h>
+
 #include <hse_util/platform.h>
 #include <hse_util/parse_num.h>
 #include <hse_util/hse_err.h>
 #include <hse_util/page.h>
 #include <hse_util/page.h>
-#include <hse_util/string.h>
 
 #include <hse/hse.h>
 

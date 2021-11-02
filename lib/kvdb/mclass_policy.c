@@ -4,7 +4,6 @@
  */
 
 #include <hse_util/assert.h>
-#include <hse_util/string.h>
 #include <hse_util/base.h>
 #include <hse_util/inttypes.h>
 

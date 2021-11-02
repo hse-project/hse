@@ -7,7 +7,6 @@
 #include <hse_util/slab.h>
 #include <hse_util/page.h>
 #include <hse_util/vlb.h>
-#include <hse_util/string.h>
 #include <hse_util/fmt.h>
 #include <hse_util/keycmp.h>
 #include <hse_util/logging.h>

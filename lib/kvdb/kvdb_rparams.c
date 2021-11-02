@@ -11,6 +11,8 @@
 #include <stdio.h>
 #include <string.h>
 
+#include <bsd/string.h>
+
 #include <mpool/mpool.h>
 #include <hse_ikvdb/mclass_policy.h>
 #include <hse_ikvdb/param.h>
@@ -21,7 +23,6 @@
 #include <hse_ikvdb/wal.h>
 #include <hse_util/storage.h>
 #include <hse_util/compiler.h>
-#include <hse_util/string.h>
 #include <hse_util/invariant.h>
 #include <hse_ikvdb/csched.h>
 

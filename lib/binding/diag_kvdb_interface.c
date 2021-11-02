@@ -22,9 +22,10 @@
 #include <hse_util/platform.h>
 #include <hse_util/rest_api.h>
 #include <hse_util/logging.h>
-#include <hse_util/string.h>
 
 #include <pidfile/pidfile.h>
+
+#include <bsd/string.h>
 
 merr_t
 diag_kvdb_open(

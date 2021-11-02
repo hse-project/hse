@@ -8,12 +8,13 @@
 #include <hse_util/slab.h>
 #include <hse_util/mutex.h>
 #include <hse_util/list.h>
-#include <hse_util/string.h>
 #include <hse_util/invariant.h>
 #include <hse_util/event_counter.h>
 #include <hse_util/data_tree.h>
 
 #include <rbtree.h>
+
+#include <bsd/string.h>
 
 /* clang-format off */
 

@@ -23,11 +23,12 @@
 
 #include <getopt.h>
 
+#include <bsd/string.h>
+
 #include <hse_util/hse_err.h>
 #include <hse_util/atomic.h>
 #include <hse_util/platform.h>
 #include <hse_util/parse_num.h>
-#include <hse_util/string.h>
 
 #include <hse/hse.h>
 #include <mpool/mpool.h>

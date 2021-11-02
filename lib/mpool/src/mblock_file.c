@@ -6,7 +6,6 @@
 #include <ftw.h>
 
 #include <hse_util/mutex.h>
-#include <hse_util/string.h>
 #include <hse_util/slab.h>
 #include <hse_util/logging.h>
 #include <hse_util/event_counter.h>

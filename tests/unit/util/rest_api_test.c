@@ -1,6 +1,6 @@
 /* SPDX-License-Identifier: Apache-2.0 */
 /*
- * Copyright (C) 2015-2020 Micron Technology, Inc.  All rights reserved.
+ * Copyright (C) 2015-2021 Micron Technology, Inc.  All rights reserved.
  */
 
 #include <mtf/framework.h>
@@ -11,7 +11,6 @@
 #include <hse_util/data_tree.h>
 #include <hse_util/rest_api.h>
 #include <hse_util/rest_client.h>
-#include <hse_util/string.h>
 
 #include <rbtree.h>
 #include <curl/curl.h>

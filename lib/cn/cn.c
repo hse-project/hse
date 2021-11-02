@@ -9,13 +9,13 @@
 #define MTF_MOCK_IMPL_cn_comp
 #define MTF_MOCK_IMPL_cn_internal
 
-#include <hse_util/string.h>
+#include <bsd/string.h>
+
 #include <hse_util/hse_err.h>
 #include <hse_util/event_counter.h>
 #include <hse_util/alloc.h>
 #include <hse_util/slab.h>
 #include <hse_util/log2.h>
-#include <hse_util/string.h>
 #include <hse_util/xrand.h>
 #include <hse_util/vlb.h>
 
