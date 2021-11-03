@@ -8,11 +8,8 @@
 
 #include <stdlib.h>
 
-#include <hse_util/compiler.h>
-
 #include "common.h"
 
-HSE_WEAK
 void
 mtf_test_failure(void);
 
