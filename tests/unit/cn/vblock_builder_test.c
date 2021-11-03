@@ -94,11 +94,11 @@ initial_setup(struct mtf_test_info *lcl_ti)
 
     for (i = 0; i < HSE_MPOLICY_AGE_CNT; i++)
         for (j = 0; j < HSE_MPOLICY_DTYPE_CNT; j++)
-            for (k = 0; k < HSE_MPOLICY_MEDIA_CNT; k++) {
+            for (k = 0; k < MP_MED_COUNT; k++) {
                 if (k == 0)
-                    mocked_mpolicy.mc_table[i][j][k] = HSE_MPOLICY_MEDIA_CAPACITY;
+                    mocked_mpolicy.mc_table[i][j][k] = MP_MED_CAPACITY;
                 else
-                    mocked_mpolicy.mc_table[i][j][k] = HSE_MPOLICY_MEDIA_INVALID;
+                    mocked_mpolicy.mc_table[i][j][k] = MP_MED_INVALID;
             }
 
     return 0;

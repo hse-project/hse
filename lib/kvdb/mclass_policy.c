@@ -40,19 +40,12 @@ static const struct mclass_policy_map dtypes[] = {
     { HSE_MPOLICY_DTYPE_VALUE, "values" },
 };
 
-static const struct mclass_policy_map mclasses[] = {
-    {
-        HSE_MPOLICY_MEDIA_STAGING,
-        "staging",
-    },
-    { HSE_MPOLICY_MEDIA_CAPACITY, "capacity" },
+static const struct mclass_policy_map *mclass_policy_fields[] = { agegroups, dtypes };
+
+static const unsigned int mclass_policy_nentries[] = {
+    NELEM(agegroups),
+    NELEM(dtypes),
 };
-
-static const struct mclass_policy_map *mclass_policy_fields[] = { agegroups, dtypes, mclasses };
-
-static const unsigned int mclass_policy_nentries[] = { NELEM(agegroups),
-                                                       NELEM(dtypes),
-                                                       NELEM(mclasses) };
 
 unsigned int
 mclass_policy_get_num_fields()
@@ -82,20 +75,14 @@ mclass_policy_get_num_map_entries(int index)
 enum mpool_mclass
 mclass_policy_get_type(struct mclass_policy *policy, u8 age, u8 dtype, u8 retries)
 {
-    enum hse_mclass_policy_media mtype = HSE_MPOLICY_MEDIA_INVALID;
+    enum mpool_mclass mtype = MP_MED_INVALID;
 
     assert(age < HSE_MPOLICY_AGE_CNT);
     assert(dtype < HSE_MPOLICY_DTYPE_CNT);
-    assert(retries < HSE_MPOLICY_MEDIA_CNT);
+    assert(retries < MP_MED_COUNT);
 
-    if (age < HSE_MPOLICY_AGE_CNT && dtype < HSE_MPOLICY_DTYPE_CNT &&
-        retries < HSE_MPOLICY_MEDIA_CNT)
+    if (age < HSE_MPOLICY_AGE_CNT && dtype < HSE_MPOLICY_DTYPE_CNT && retries < MP_MED_COUNT)
         mtype = policy->mc_table[age][dtype][retries];
 
-    if (mtype == HSE_MPOLICY_MEDIA_STAGING)
-        return MP_MED_STAGING;
-    else if (mtype == HSE_MPOLICY_MEDIA_CAPACITY)
-        return MP_MED_CAPACITY;
-
-    return MP_MED_INVALID;
+    return mtype;
 }

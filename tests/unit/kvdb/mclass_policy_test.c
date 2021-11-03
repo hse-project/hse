@@ -34,16 +34,16 @@ MTF_DEFINE_UTEST_PRE(mclass_policy_test, mclass_policy_default, general_pre)
     strcpy(dpolicies[0].mc_name, "capacity_only");
     for (i = 0; i < HSE_MPOLICY_AGE_CNT; i++)
         for (j = 0; j < HSE_MPOLICY_DTYPE_CNT; j++) {
-            dpolicies[0].mc_table[i][j][0] = HSE_MPOLICY_MEDIA_CAPACITY;
-            dpolicies[0].mc_table[i][j][1] = HSE_MPOLICY_MEDIA_INVALID;
+            dpolicies[0].mc_table[i][j][0] = MP_MED_CAPACITY;
+            dpolicies[0].mc_table[i][j][1] = MP_MED_INVALID;
         }
 
     /* Staging only media class policy, use staging for all combinations  */
     strcpy(dpolicies[1].mc_name, "staging_only");
     for (i = 0; i < HSE_MPOLICY_AGE_CNT; i++)
         for (j = 0; j < HSE_MPOLICY_DTYPE_CNT; j++) {
-            dpolicies[1].mc_table[i][j][0] = HSE_MPOLICY_MEDIA_STAGING;
-            dpolicies[1].mc_table[i][j][1] = HSE_MPOLICY_MEDIA_INVALID;
+            dpolicies[1].mc_table[i][j][0] = MP_MED_STAGING;
+            dpolicies[1].mc_table[i][j][1] = MP_MED_INVALID;
         }
 
     /*
@@ -52,13 +52,11 @@ MTF_DEFINE_UTEST_PRE(mclass_policy_test, mclass_policy_default, general_pre)
     strcpy(dpolicies[2].mc_name, "staging_max_capacity");
     for (i = 0; i < HSE_MPOLICY_AGE_CNT; i++)
         for (j = 0; j < HSE_MPOLICY_DTYPE_CNT; j++) {
-            dpolicies[2].mc_table[i][j][0] = HSE_MPOLICY_MEDIA_STAGING;
-            dpolicies[2].mc_table[i][j][1] = HSE_MPOLICY_MEDIA_INVALID;
+            dpolicies[2].mc_table[i][j][0] = MP_MED_STAGING;
+            dpolicies[2].mc_table[i][j][1] = MP_MED_INVALID;
         }
-    dpolicies[2].mc_table[HSE_MPOLICY_AGE_INTERNAL][HSE_MPOLICY_DTYPE_VALUE][0] =
-        HSE_MPOLICY_MEDIA_CAPACITY;
-    dpolicies[2].mc_table[HSE_MPOLICY_AGE_LEAF][HSE_MPOLICY_DTYPE_VALUE][0] =
-        HSE_MPOLICY_MEDIA_CAPACITY;
+    dpolicies[2].mc_table[HSE_MPOLICY_AGE_INTERNAL][HSE_MPOLICY_DTYPE_VALUE][0] = MP_MED_CAPACITY;
+    dpolicies[2].mc_table[HSE_MPOLICY_AGE_LEAF][HSE_MPOLICY_DTYPE_VALUE][0] = MP_MED_CAPACITY;
 
     /*
      * staging_min_capacity - only root nodes use staging.
@@ -66,14 +64,14 @@ MTF_DEFINE_UTEST_PRE(mclass_policy_test, mclass_policy_default, general_pre)
     strcpy(dpolicies[3].mc_name, "staging_min_capacity");
     for (i = 0; i < HSE_MPOLICY_AGE_INTERNAL; i++)
         for (j = 0; j < HSE_MPOLICY_DTYPE_CNT; j++) {
-            dpolicies[3].mc_table[i][j][0] = HSE_MPOLICY_MEDIA_STAGING;
-            dpolicies[3].mc_table[i][j][1] = HSE_MPOLICY_MEDIA_INVALID;
+            dpolicies[3].mc_table[i][j][0] = MP_MED_STAGING;
+            dpolicies[3].mc_table[i][j][1] = MP_MED_INVALID;
         }
 
     for (i = HSE_MPOLICY_AGE_INTERNAL; i < HSE_MPOLICY_AGE_CNT; i++)
         for (j = 0; j < HSE_MPOLICY_DTYPE_CNT; j++) {
-            dpolicies[3].mc_table[i][j][0] = HSE_MPOLICY_MEDIA_CAPACITY;
-            dpolicies[3].mc_table[i][j][1] = HSE_MPOLICY_MEDIA_INVALID;
+            dpolicies[3].mc_table[i][j][0] = MP_MED_CAPACITY;
+            dpolicies[3].mc_table[i][j][1] = MP_MED_INVALID;
         }
 
     err = argv_deserialize_to_kvdb_rparams(NELEM(paramv), paramv, &params);
@@ -82,9 +80,9 @@ MTF_DEFINE_UTEST_PRE(mclass_policy_test, mclass_policy_default, general_pre)
     /* Validate that the parsed policies match the hardcoded matrices for the default policies. */
     for (i = 0; i < HSE_MPOLICY_AGE_CNT; i++)
         for (j = 0; j < HSE_MPOLICY_DTYPE_CNT; j++)
-            for (k = 0; k < HSE_MPOLICY_MEDIA_CNT; k++)
+            for (k = 0; k < MP_MED_COUNT; k++)
                 for (l = 0; l < 4; l++) {
-                    enum hse_mclass_policy_media hse_mtype;
+                    enum mpool_mclass            hse_mtype;
                     enum mpool_mclass            mpool_mtype;
 
                     hse_mtype = params.mclass_policies[l].mc_table[i][j][k];
@@ -93,9 +91,9 @@ MTF_DEFINE_UTEST_PRE(mclass_policy_test, mclass_policy_default, general_pre)
                     ASSERT_EQ(strcmp(params.mclass_policies[l].mc_name, dpolicies[l].mc_name), 0);
 
                     mpool_mtype = mclass_policy_get_type(&params.mclass_policies[l], i, j, k);
-                    if (hse_mtype == HSE_MPOLICY_MEDIA_INVALID)
+                    if (hse_mtype == MP_MED_INVALID)
                         ASSERT_EQ(mpool_mtype, MP_MED_INVALID);
-                    else if (hse_mtype == HSE_MPOLICY_MEDIA_STAGING)
+                    else if (hse_mtype == MP_MED_STAGING)
                         ASSERT_EQ(mpool_mtype, MP_MED_STAGING);
                     else
                         ASSERT_EQ(mpool_mtype, MP_MED_CAPACITY);
@@ -112,8 +110,8 @@ MTF_DEFINE_UTEST_PRE(mclass_policy_test, mclass_policy_default, general_pre)
 
     for (i = 0; i < HSE_MPOLICY_AGE_CNT; i++)
         for (j = 0; j < HSE_MPOLICY_DTYPE_CNT; j++)
-            for (k = 0; k < HSE_MPOLICY_MEDIA_CNT; k++) {
-                enum hse_mclass_policy_media hse_mtype;
+            for (k = 0; k < MP_MED_COUNT; k++) {
+                enum mpool_mclass            hse_mtype;
                 enum mpool_mclass            mpool_mtype;
 
                 hse_mtype = params.mclass_policies[4].mc_table[i][j][k];
@@ -123,16 +121,16 @@ MTF_DEFINE_UTEST_PRE(mclass_policy_test, mclass_policy_default, general_pre)
                     ASSERT_EQ(hse_mtype, dpolicies[2].mc_table[i][j][k]);
                 } else if (k == 0) {
                     /* <internal, leaf> first preference is capacity */
-                    ASSERT_EQ(hse_mtype, HSE_MPOLICY_MEDIA_CAPACITY);
+                    ASSERT_EQ(hse_mtype, MP_MED_CAPACITY);
                 } else {
                     /* <internal, leaf> no second preference */
-                    ASSERT_EQ(hse_mtype, HSE_MPOLICY_MEDIA_INVALID);
+                    ASSERT_EQ(hse_mtype, MP_MED_INVALID);
                 }
 
                 mpool_mtype = mclass_policy_get_type(&params.mclass_policies[4], i, j, k);
-                if (hse_mtype == HSE_MPOLICY_MEDIA_INVALID)
+                if (hse_mtype == MP_MED_INVALID)
                     ASSERT_EQ(mpool_mtype, MP_MED_INVALID);
-                else if (hse_mtype == HSE_MPOLICY_MEDIA_STAGING)
+                else if (hse_mtype == MP_MED_STAGING)
                     ASSERT_EQ(mpool_mtype, MP_MED_STAGING);
                 else
                     ASSERT_EQ(mpool_mtype, MP_MED_CAPACITY);

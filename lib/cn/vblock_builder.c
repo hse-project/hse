@@ -70,7 +70,7 @@ _vblock_start(struct vblock_builder *bld)
         }
 
         err = mpool_mblock_alloc(bld->ds, mclass, &blkid, &mbprop);
-    } while (err && ++allocs < HSE_MPOLICY_MEDIA_CNT);
+    } while (err && ++allocs < MP_MED_COUNT);
 
     if (ev(err))
         return err;

@@ -6,6 +6,7 @@
 #ifndef HSE_MCLASS_POLICY_H
 #define HSE_MCLASS_POLICY_H
 
+#include <mpool/mpool.h>
 #include <hse_util/compiler.h>
 #include <hse_util/hse_err.h>
 
@@ -24,13 +25,6 @@ enum hse_mclass_policy_dtype {
     HSE_MPOLICY_DTYPE_CNT,
 };
 
-enum hse_mclass_policy_media {
-    HSE_MPOLICY_MEDIA_STAGING,
-    HSE_MPOLICY_MEDIA_CAPACITY,
-    HSE_MPOLICY_MEDIA_CNT,
-    HSE_MPOLICY_MEDIA_INVALID = HSE_MPOLICY_MEDIA_CNT,
-};
-
 /* Max mclass policy name length */
 #define HSE_MPOLICY_NAME_LEN_MAX 32
 
@@ -39,7 +33,7 @@ enum hse_mclass_policy_media {
 
 struct mclass_policy {
     char mc_name[HSE_MPOLICY_NAME_LEN_MAX];
-    u8   mc_table[HSE_MPOLICY_AGE_CNT][HSE_MPOLICY_DTYPE_CNT][HSE_MPOLICY_MEDIA_CNT];
+    u8   mc_table[HSE_MPOLICY_AGE_CNT][HSE_MPOLICY_DTYPE_CNT][MP_MED_COUNT];
 };
 
 /**

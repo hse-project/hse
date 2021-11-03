@@ -965,7 +965,7 @@ kblock_finish(struct kblock_builder *bld, struct wbb *ptree)
         }
 
         err = mpool_mblock_alloc(bld->ds, mclass, &blkid, &mbprop);
-    } while (err && ++allocs < HSE_MPOLICY_MEDIA_CNT);
+    } while (err && ++allocs < MP_MED_COUNT);
 
     if (ev(err))
         goto errout;
