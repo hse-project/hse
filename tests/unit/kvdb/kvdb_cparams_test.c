@@ -85,6 +85,8 @@ MTF_DEFINE_UTEST_PRE(kvdb_cparams_test, storage_capacity_file_max_size, test_pre
 	ASSERT_NE(NULL, ps->ps_description);
 	ASSERT_EQ(PARAM_FLAG_EXPERIMENTAL, ps->ps_flags);
 	ASSERT_EQ(PARAM_TYPE_U64, ps->ps_type);
+	ASSERT_EQ(offsetof(struct kvdb_cparams, storage.mclass[MP_MED_CAPACITY].fmaxsz), ps->ps_offset);
+	ASSERT_EQ(sizeof(uint64_t), ps->ps_size);
 	ASSERT_EQ((uintptr_t)ps->ps_convert, (uintptr_t)param_convert_to_bytes_from_GB);
 	ASSERT_EQ((uintptr_t)ps->ps_validate, (uintptr_t)param_default_validator);
 	ASSERT_EQ(MPOOL_MBLOCK_FILESZ_DEFAULT, params.storage.mclass[MP_MED_CAPACITY].fmaxsz);
@@ -105,6 +107,8 @@ MTF_DEFINE_UTEST_PRE(kvdb_cparams_test, storage_capacity_mblock_size, test_pre)
 	ASSERT_NE(NULL, ps->ps_description);
 	ASSERT_EQ(PARAM_FLAG_EXPERIMENTAL, ps->ps_flags);
 	ASSERT_EQ(PARAM_TYPE_U32, ps->ps_type);
+	ASSERT_EQ(offsetof(struct kvdb_cparams, storage.mclass[MP_MED_CAPACITY].mblocksz), ps->ps_offset);
+	ASSERT_EQ(sizeof(uint32_t), ps->ps_size);
 	ASSERT_EQ((uintptr_t)ps->ps_convert, (uintptr_t)param_convert_to_bytes_from_MB);
 	ASSERT_EQ((uintptr_t)ps->ps_validate, (uintptr_t)param_default_validator);
 	ASSERT_EQ(MPOOL_MBLOCK_SIZE_DEFAULT, params.storage.mclass[MP_MED_CAPACITY].mblocksz);
@@ -124,6 +128,8 @@ MTF_DEFINE_UTEST_PRE(kvdb_cparams_test, storage_capacity_file_count, test_pre)
 	ASSERT_NE(NULL, ps->ps_description);
 	ASSERT_EQ(PARAM_FLAG_EXPERIMENTAL, ps->ps_flags);
 	ASSERT_EQ(PARAM_TYPE_U8, ps->ps_type);
+	ASSERT_EQ(offsetof(struct kvdb_cparams, storage.mclass[MP_MED_CAPACITY].filecnt), ps->ps_offset);
+	ASSERT_EQ(sizeof(uint8_t), ps->ps_size);
 	ASSERT_EQ((uintptr_t)ps->ps_convert, (uintptr_t)param_default_converter);
 	ASSERT_EQ((uintptr_t)ps->ps_validate, (uintptr_t)param_default_validator);
 	ASSERT_EQ(MPOOL_MBLOCK_FILECNT_DEFAULT, params.storage.mclass[MP_MED_CAPACITY].filecnt);
@@ -139,6 +145,8 @@ MTF_DEFINE_UTEST_PRE(kvdb_cparams_test, storage_capacity_path, test_pre)
 	ASSERT_NE(NULL, ps->ps_description);
 	ASSERT_EQ(0, ps->ps_flags);
 	ASSERT_EQ(PARAM_TYPE_STRING, ps->ps_type);
+	ASSERT_EQ(offsetof(struct kvdb_cparams, storage.mclass[MP_MED_CAPACITY].path), ps->ps_offset);
+	ASSERT_EQ(PATH_MAX, ps->ps_size);
 	ASSERT_EQ((uintptr_t)ps->ps_convert, (uintptr_t)param_default_converter);
 	ASSERT_EQ((uintptr_t)ps->ps_validate, (uintptr_t)param_default_validator);
 	ASSERT_STREQ(MPOOL_CAPACITY_MCLASS_DEFAULT_PATH, params.storage.mclass[MP_MED_CAPACITY].path);
@@ -154,6 +162,8 @@ MTF_DEFINE_UTEST_PRE(kvdb_cparams_test, storage_staging_file_max_size, test_pre)
 	ASSERT_NE(NULL, ps->ps_description);
 	ASSERT_EQ(PARAM_FLAG_EXPERIMENTAL, ps->ps_flags);
 	ASSERT_EQ(PARAM_TYPE_U64, ps->ps_type);
+	ASSERT_EQ(offsetof(struct kvdb_cparams, storage.mclass[MP_MED_STAGING].fmaxsz), ps->ps_offset);
+	ASSERT_EQ(sizeof(uint64_t), ps->ps_size);
 	ASSERT_EQ((uintptr_t)ps->ps_convert, (uintptr_t)param_convert_to_bytes_from_GB);
 	ASSERT_EQ((uintptr_t)ps->ps_validate, (uintptr_t)param_default_validator);
 	ASSERT_EQ(MPOOL_MBLOCK_FILESZ_DEFAULT, params.storage.mclass[MP_MED_STAGING].fmaxsz);
@@ -174,6 +184,8 @@ MTF_DEFINE_UTEST_PRE(kvdb_cparams_test, storage_staging_mblock_size, test_pre)
 	ASSERT_NE(NULL, ps->ps_description);
 	ASSERT_EQ(PARAM_FLAG_EXPERIMENTAL, ps->ps_flags);
 	ASSERT_EQ(PARAM_TYPE_U32, ps->ps_type);
+	ASSERT_EQ(offsetof(struct kvdb_cparams, storage.mclass[MP_MED_STAGING].mblocksz), ps->ps_offset);
+	ASSERT_EQ(sizeof(uint32_t), ps->ps_size);
 	ASSERT_EQ((uintptr_t)ps->ps_convert, (uintptr_t)param_convert_to_bytes_from_MB);
 	ASSERT_EQ((uintptr_t)ps->ps_validate, (uintptr_t)param_default_validator);
 	ASSERT_EQ(MPOOL_MBLOCK_SIZE_DEFAULT, params.storage.mclass[MP_MED_STAGING].mblocksz);
@@ -193,6 +205,8 @@ MTF_DEFINE_UTEST_PRE(kvdb_cparams_test, storage_staging_file_count, test_pre)
 	ASSERT_NE(NULL, ps->ps_description);
 	ASSERT_EQ(PARAM_FLAG_EXPERIMENTAL, ps->ps_flags);
 	ASSERT_EQ(PARAM_TYPE_U8, ps->ps_type);
+	ASSERT_EQ(offsetof(struct kvdb_cparams, storage.mclass[MP_MED_STAGING].filecnt), ps->ps_offset);
+	ASSERT_EQ(sizeof(uint8_t), ps->ps_size);
 	ASSERT_EQ((uintptr_t)ps->ps_convert, (uintptr_t)param_default_converter);
 	ASSERT_EQ((uintptr_t)ps->ps_validate, (uintptr_t)param_default_validator);
 	ASSERT_EQ(MPOOL_MBLOCK_FILECNT_DEFAULT, params.storage.mclass[MP_MED_STAGING].filecnt);
@@ -208,6 +222,8 @@ MTF_DEFINE_UTEST_PRE(kvdb_cparams_test, storage_staging_path, test_pre)
 	ASSERT_NE(NULL, ps->ps_description);
 	ASSERT_EQ(PARAM_FLAG_NULLABLE, ps->ps_flags);
 	ASSERT_EQ(PARAM_TYPE_STRING, ps->ps_type);
+	ASSERT_EQ(offsetof(struct kvdb_cparams, storage.mclass[MP_MED_STAGING].path), ps->ps_offset);
+	ASSERT_EQ(PATH_MAX, ps->ps_size);
 	ASSERT_EQ((uintptr_t)ps->ps_convert, (uintptr_t)param_default_converter);
 	ASSERT_EQ((uintptr_t)ps->ps_validate, (uintptr_t)param_default_validator);
 	ASSERT_EQ('\0', params.storage.mclass[MP_MED_STAGING].path[0]);

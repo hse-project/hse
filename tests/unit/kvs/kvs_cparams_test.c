@@ -47,6 +47,8 @@ MTF_DEFINE_UTEST_PRE(kvs_cparams_test, fanout, test_pre)
 	ASSERT_NE(NULL, ps->ps_description);
 	ASSERT_EQ(PARAM_FLAG_EXPERIMENTAL, ps->ps_flags);
 	ASSERT_EQ(PARAM_TYPE_U32, ps->ps_type);
+	ASSERT_EQ(offsetof(struct kvs_cparams, fanout), ps->ps_offset);
+	ASSERT_EQ(sizeof(uint32_t), ps->ps_size);
 	ASSERT_EQ((uintptr_t)ps->ps_convert, (uintptr_t)param_default_converter);
 	ASSERT_EQ((uintptr_t)ps->ps_validate, (uintptr_t)param_default_validator);
 	ASSERT_EQ(CN_FANOUT_MAX, params.fanout);
@@ -62,6 +64,8 @@ MTF_DEFINE_UTEST_PRE(kvs_cparams_test, prefix_length, test_pre)
 	ASSERT_NE(NULL, ps->ps_description);
 	ASSERT_EQ(0, ps->ps_flags);
 	ASSERT_EQ(PARAM_TYPE_U32, ps->ps_type);
+	ASSERT_EQ(offsetof(struct kvs_cparams, pfx_len), ps->ps_offset);
+	ASSERT_EQ(sizeof(uint32_t), ps->ps_size);
 	ASSERT_EQ((uintptr_t)ps->ps_convert, (uintptr_t)param_default_converter);
 	ASSERT_EQ((uintptr_t)ps->ps_validate, (uintptr_t)param_default_validator);
 	ASSERT_EQ(0, params.pfx_len);
@@ -77,6 +81,8 @@ MTF_DEFINE_UTEST_PRE(kvs_cparams_test, prefix_pivot, test_pre)
 	ASSERT_NE(NULL, ps->ps_description);
 	ASSERT_EQ(PARAM_FLAG_EXPERIMENTAL, ps->ps_flags);
 	ASSERT_EQ(PARAM_TYPE_U32, ps->ps_type);
+	ASSERT_EQ(offsetof(struct kvs_cparams, pfx_pivot), ps->ps_offset);
+	ASSERT_EQ(sizeof(uint32_t), ps->ps_size);
 	ASSERT_EQ((uintptr_t)ps->ps_convert, (uintptr_t)param_default_converter);
 	ASSERT_EQ((uintptr_t)ps->ps_validate, (uintptr_t)param_default_validator);
 	ASSERT_EQ(2, params.pfx_pivot);
@@ -92,6 +98,8 @@ MTF_DEFINE_UTEST_PRE(kvs_cparams_test, kvs_ext01, test_pre)
 	ASSERT_NE(NULL, ps->ps_description);
 	ASSERT_EQ(PARAM_FLAG_EXPERIMENTAL, ps->ps_flags);
 	ASSERT_EQ(PARAM_TYPE_U32, ps->ps_type);
+	ASSERT_EQ(offsetof(struct kvs_cparams, kvs_ext01), ps->ps_offset);
+	ASSERT_EQ(sizeof(uint32_t), ps->ps_size);
 	ASSERT_EQ((uintptr_t)ps->ps_convert, (uintptr_t)param_default_converter);
 	ASSERT_EQ((uintptr_t)ps->ps_validate, (uintptr_t)param_default_validator);
 	ASSERT_EQ(0, params.kvs_ext01);
@@ -107,6 +115,8 @@ MTF_DEFINE_UTEST_PRE(kvs_cparams_test, suffix_length, test_pre)
 	ASSERT_NE(NULL, ps->ps_description);
 	ASSERT_EQ(PARAM_FLAG_EXPERIMENTAL, ps->ps_flags);
 	ASSERT_EQ(PARAM_TYPE_U32, ps->ps_type);
+	ASSERT_EQ(offsetof(struct kvs_cparams, sfx_len), ps->ps_offset);
+	ASSERT_EQ(sizeof(uint32_t), ps->ps_size);
 	ASSERT_EQ((uintptr_t)ps->ps_convert, (uintptr_t)param_default_converter);
 	ASSERT_EQ((uintptr_t)ps->ps_validate, (uintptr_t)param_default_validator);
 	ASSERT_EQ(0, params.sfx_len);
