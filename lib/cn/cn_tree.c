@@ -1233,31 +1233,29 @@ cn_tree_lookup(
 {
     struct cn_tree_node *    node;
     struct cn_khashmap *     khashmap;
-    struct kvset_list_entry *le;
     struct key_disc          kdisc;
     void *                   lock;
     merr_t                   err;
-    u32                      child;
     u32                      shift;
     uint                     pc_nkvset;
+    uint                     pc_depth;
+    enum kvdb_perfc_sidx_cnget pc_cidx;
     u64                      pc_start;
     u64                      spill_hash = 0;
-    uint                     pc_lvl, pc_depth;
     bool                     pfx_hashing, first;
     void *                   wbti;
 
     __builtin_prefetch(tree);
 
-    err = 0;
     *res = NOT_FOUND;
 
+    pc_cidx = PERFC_LT_CNGET_GET_L5 + 1;
     pc_depth = pc_nkvset = 0;
-    pc_lvl = PERFC_LT_CNGET_GET_L5 + 1;
 
     pc_start = perfc_lat_startu(pc, PERFC_LT_CNGET_GET);
     if (pc_start > 0) {
         if (perfc_ison(pc, PERFC_LT_CNGET_GET_L0))
-            pc_lvl = PERFC_LT_CNGET_GET_L0;
+            pc_cidx = PERFC_LT_CNGET_GET_L0;
     }
 
     wbti = NULL;
@@ -1279,10 +1277,13 @@ cn_tree_lookup(
 
     pfx_hashing = kt->kt_len > tree->ct_pfx_len && node->tn_pfx_spill;
     first = true;
+    err = 0;
 
     rmlock_rlock(&tree->ct_lock, &lock);
     while (node) {
+		struct kvset_list_entry *le;
         bool yield = false;
+		u32 child;
 
         /* Search kvsets from newest to oldest (head to tail).
          * If an error occurs or a key is found, return immediately.
@@ -1300,8 +1301,8 @@ cn_tree_lookup(
                     if (err || *res != NOT_FOUND) {
                         rmlock_runlock(lock);
 
-                        if (pc_lvl < PERFC_LT_CNGET_GET_L5 + 1)
-                            perfc_lat_record(pc, pc_lvl, pc_start);
+                        if (pc_cidx < PERFC_LT_CNGET_GET_L5 + 1)
+                            perfc_lat_record(pc, pc_cidx, pc_start);
                         goto done;
                     }
                     break;
@@ -1355,7 +1356,7 @@ cn_tree_lookup(
         __builtin_prefetch(node);
 
         ++pc_depth;
-        ++pc_lvl;
+        ++pc_cidx;
     }
     rmlock_runlock(lock);
 
@@ -1364,21 +1365,16 @@ done:
         perfc_lat_record(pc, PERFC_LT_CNGET_PROBE_PFX, pc_start);
         kvset_wbti_free(wbti);
     } else {
-        uint pc_cidx_ra = (*res == NOT_FOUND) ? PERFC_RA_CNGET_MISS : PERFC_RA_CNGET_GET;
+		if (pc_start > 0) {
+			uint pc_cidx_lt = (*res == NOT_FOUND) ? PERFC_LT_CNGET_MISS : PERFC_LT_CNGET_GET;
 
-        if (pc_start > 0) {
-            uint pc_cidx_lt = (*res == NOT_FOUND) ? PERFC_LT_CNGET_MISS : PERFC_LT_CNGET_GET;
-
-            perfc_lat_record(pc, pc_cidx_lt, pc_start);
-            perfc_rec_sample(pc, PERFC_DI_CNGET_DEPTH, pc_depth);
-            perfc_rec_sample(pc, PERFC_DI_CNGET_NKVSET, pc_nkvset);
-        }
-
-        if (*res == FOUND_TMB)
-            pc_cidx_ra = PERFC_RA_CNGET_TOMB;
-
-        perfc_inc(pc, pc_cidx_ra);
+			perfc_lat_record(pc, pc_cidx_lt, pc_start);
+			perfc_rec_sample(pc, PERFC_DI_CNGET_DEPTH, pc_depth);
+			perfc_rec_sample(pc, PERFC_DI_CNGET_NKVSET, pc_nkvset);
+		}
     }
+
+	perfc_inc(pc, *res);
 
     return err;
 }
