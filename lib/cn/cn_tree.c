@@ -1281,9 +1281,9 @@ cn_tree_lookup(
 
     rmlock_rlock(&tree->ct_lock, &lock);
     while (node) {
-		struct kvset_list_entry *le;
+        struct kvset_list_entry *le;
         bool yield = false;
-		u32 child;
+        u32 child;
 
         /* Search kvsets from newest to oldest (head to tail).
          * If an error occurs or a key is found, return immediately.
@@ -1365,16 +1365,16 @@ done:
         perfc_lat_record(pc, PERFC_LT_CNGET_PROBE_PFX, pc_start);
         kvset_wbti_free(wbti);
     } else {
-		if (pc_start > 0) {
-			uint pc_cidx_lt = (*res == NOT_FOUND) ? PERFC_LT_CNGET_MISS : PERFC_LT_CNGET_GET;
+        if (pc_start > 0) {
+            uint pc_cidx_lt = (*res == NOT_FOUND) ? PERFC_LT_CNGET_MISS : PERFC_LT_CNGET_GET;
 
-			perfc_lat_record(pc, pc_cidx_lt, pc_start);
-			perfc_rec_sample(pc, PERFC_DI_CNGET_DEPTH, pc_depth);
-			perfc_rec_sample(pc, PERFC_DI_CNGET_NKVSET, pc_nkvset);
-		}
+            perfc_lat_record(pc, pc_cidx_lt, pc_start);
+            perfc_rec_sample(pc, PERFC_DI_CNGET_DEPTH, pc_depth);
+            perfc_rec_sample(pc, PERFC_DI_CNGET_NKVSET, pc_nkvset);
+        }
     }
 
-	perfc_inc(pc, *res);
+    perfc_inc(pc, *res);
 
     return err;
 }

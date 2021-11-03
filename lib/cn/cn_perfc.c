@@ -100,15 +100,15 @@ static_assert(
     "cn_perfc_mclass entries mismatched");
 
 static_assert(PERFC_RA_CNGET_MISS == 1 && NOT_FOUND == 1,
-			  "PERFC_RA_CNGET_MISS out of sync with enum key_lookup_res");
+              "PERFC_RA_CNGET_MISS out of sync with enum key_lookup_res");
 static_assert(PERFC_RA_CNGET_GET == 2 && FOUND_VAL == 2,
-			  "PERFC_RA_CNGET_GET out of sync with enum key_lookup_res");
+              "PERFC_RA_CNGET_GET out of sync with enum key_lookup_res");
 static_assert(PERFC_RA_CNGET_TOMB == 3 && FOUND_TMB == 3,
-			  "PERFC_RA_CNGET_TOMB out of sync with enum key_lookup_res");
+              "PERFC_RA_CNGET_TOMB out of sync with enum key_lookup_res");
 static_assert(PERFC_RA_CNGET_PTOMB == 4 && FOUND_PTMB == 4,
-			  "PERFC_RA_CNGET_PTOMB out of sync with enum key_lookup_res");
+              "PERFC_RA_CNGET_PTOMB out of sync with enum key_lookup_res");
 static_assert(PERFC_RA_CNGET_MULTIPLE == 5 && FOUND_MULTIPLE == 5,
-			  "PERFC_RA_CNGET_FMULT out of sync with enum key_lookup_res");
+              "PERFC_RA_CNGET_FMULT out of sync with enum key_lookup_res");
 
 /* clang-format on */
 
