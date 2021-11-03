@@ -172,9 +172,22 @@ hse_kvdb_create(const char *kvdb_home, size_t paramc, const char *const *const p
     char                pidfile_path[PATH_MAX];
     struct pidfh *      pfh = NULL;
     struct pidfile      content = {};
+    size_t              n;
 
     if (HSE_UNLIKELY(!kvdb_home)) {
         log_err("A KVDB home must be provided");
+        return merr_to_hse_err(EINVAL);
+    }
+
+    n = strnlen(kvdb_home, PATH_MAX);
+
+    if (HSE_UNLIKELY(n == PATH_MAX)) {
+        log_err("KVDB home path length cannot be longer than PATH_MAX");
+        return merr_to_hse_err(ENAMETOOLONG);
+    }
+
+    if (HSE_UNLIKELY(n == 0)) {
+        log_err("KVDB home must be a non-zero length path");
         return merr_to_hse_err(EINVAL);
     }
 
@@ -234,9 +247,22 @@ hse_kvdb_drop(const char *kvdb_home)
     char          pidfile_path[PATH_MAX];
     struct pidfh *pfh = NULL;
     merr_t        err;
+    size_t        n;
 
     if (HSE_UNLIKELY(!kvdb_home)) {
         log_err("A KVDB home must be provided");
+        return merr_to_hse_err(EINVAL);
+    }
+
+    n = strnlen(kvdb_home, PATH_MAX);
+
+    if (HSE_UNLIKELY(n == PATH_MAX)) {
+        log_err("KVDB home path length cannot be longer than PATH_MAX");
+        return merr_to_hse_err(ENAMETOOLONG);
+    }
+
+    if (HSE_UNLIKELY(n == 0)) {
+        log_err("KVDB home must be a non-zero length path");
         return merr_to_hse_err(EINVAL);
     }
 
@@ -273,15 +299,15 @@ hse_kvdb_open(
     const char *const *const paramv,
     struct hse_kvdb **       handle)
 {
-    merr_t                  err;
-    struct ikvdb *          ikvdb = NULL;
-    struct kvdb_rparams     params = kvdb_rparams_defaults();
-    u64                     tstart;
-    char                    pidfile_path[PATH_MAX];
-    struct config *         conf = NULL;
-    struct pidfh *          pfh = NULL;
-    struct pidfile          content = {};
-    size_t HSE_MAYBE_UNUSED n;
+    merr_t              err;
+    struct ikvdb *      ikvdb = NULL;
+    struct kvdb_rparams params = kvdb_rparams_defaults();
+    u64                 tstart;
+    char                pidfile_path[PATH_MAX];
+    struct config *     conf = NULL;
+    struct pidfh *      pfh = NULL;
+    struct pidfile      content = {};
+    size_t              n;
 
     if (HSE_UNLIKELY(!kvdb_home)) {
         log_err("A KVDB home must be provided");
@@ -290,6 +316,18 @@ hse_kvdb_open(
 
     if (HSE_UNLIKELY(!handle))
         return merr_to_hse_err(merr(EINVAL));
+
+    n = strnlen(kvdb_home, PATH_MAX);
+
+    if (HSE_UNLIKELY(n == PATH_MAX)) {
+        log_err("KVDB home path length cannot be longer than PATH_MAX");
+        return merr_to_hse_err(ENAMETOOLONG);
+    }
+
+    if (HSE_UNLIKELY(n == 0)) {
+        log_err("KVDB home must be a non-zero length path");
+        return merr_to_hse_err(EINVAL);
+    }
 
     tstart = perfc_lat_start(&kvdb_pkvdbl_pc);
     perfc_inc(&kvdb_pc, PERFC_RA_KVDBOP_KVDB_OPEN);
