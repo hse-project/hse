@@ -98,11 +98,16 @@ enum kvdb_perfc_sidx_sp3 {
 };
 
 enum kvdb_perfc_sidx_cnget {
-    PERFC_RA_CNGET_GET,
-    PERFC_RA_CNGET_MISS,
-    PERFC_RA_CNGET_TOMB,
     PERFC_LT_CNGET_GET,
-    /* The enum values PERFC_LT_CNGET_GET_L0 to L5 must be sequential */
+
+    /* The following five enumerators must match enum key_lookup_res */
+    PERFC_RA_CNGET_MISS,
+    PERFC_RA_CNGET_GET,
+    PERFC_RA_CNGET_TOMB,
+    PERFC_RA_CNGET_PTOMB,
+    PERFC_RA_CNGET_MULTIPLE,
+
+    /* The enumerators PERFC_LT_CNGET_GET_L0 to L5 must be sequential */
     PERFC_LT_CNGET_GET_L0,
     PERFC_LT_CNGET_GET_L1,
     PERFC_LT_CNGET_GET_L2,

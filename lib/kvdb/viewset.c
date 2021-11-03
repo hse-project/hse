@@ -486,7 +486,7 @@ viewset_remove(
             break;
         }
 
-        pthread_yield();
+        sched_yield();
     }
 
     atomic_dec(&bkt->vsb_active);

@@ -6,6 +6,7 @@
 #include <hse_util/platform.h>
 #include <hse_util/logging.h>
 
+#include <hse_ikvdb/tuple.h>
 #include <hse_ikvdb/mclass_policy.h>
 
 #include <mpool/mpool.h>
@@ -18,26 +19,28 @@
 /* clang-format off */
 
 struct perfc_name cn_perfc_get[] _dt_section = {
-    NE(PERFC_RA_CNGET_GET,       2, "Count of cN lookup attempts",   "c_get(/s)"),
-    NE(PERFC_RA_CNGET_MISS,      2, "Count of cN lookup misses",     "c_mis(/s)"),
-    NE(PERFC_RA_CNGET_TOMB,      2, "Num lookups that found tombs",  "c_tmb(/s)"),
+    NE(PERFC_RA_CNGET_MISS,      2, "cN lookup miss rate",           "c_mis(/s)"),
+    NE(PERFC_RA_CNGET_GET,       2, "cN lookup hit rate",            "c_get(/s)"),
+    NE(PERFC_RA_CNGET_TOMB,      2, "cN lookup tomb hit rate",       "c_tmb(/s)"),
+    NE(PERFC_RA_CNGET_PTOMB,     2, "cN lookup ptomb hit rate",      "r_cnget_ptmb(/s)"),
+    NE(PERFC_RA_CNGET_MULTIPLE,  2, "cN lookup multiple hit rate",   "r_cnget_multiple(/s)"),
 
     /* L0 must be active for any of L1-L5 to record.
      */
-    NE(PERFC_LT_CNGET_GET_L0,    3, "cN level 0 hit latency",        "l_get_l0(ns)"),
-    NE(PERFC_LT_CNGET_GET_L1,    3, "cN level 1 hit latency",        "l_get_l1(ns)"),
-    NE(PERFC_LT_CNGET_GET_L2,    3, "cN level 2 hit latency",        "l_get_l2(ns)"),
-    NE(PERFC_LT_CNGET_GET_L3,    3, "cN level 3 hit latency",        "l_get_l3(ns)"),
-    NE(PERFC_LT_CNGET_GET_L4,    3, "cN level 4 hit latency",        "l_get_l4(ns)"),
-    NE(PERFC_LT_CNGET_GET_L5,    3, "cN level 5 hit latency",        "l_get_l5(ns)"),
+    NE(PERFC_LT_CNGET_GET_L0,    3, "cN level 0 hit latency",        "l_get_l0(ns)", 13),
+    NE(PERFC_LT_CNGET_GET_L1,    3, "cN level 1 hit latency",        "l_get_l1(ns)", 17),
+    NE(PERFC_LT_CNGET_GET_L2,    3, "cN level 2 hit latency",        "l_get_l2(ns)", 19),
+    NE(PERFC_LT_CNGET_GET_L3,    3, "cN level 3 hit latency",        "l_get_l3(ns)", 23),
+    NE(PERFC_LT_CNGET_GET_L4,    3, "cN level 4 hit latency",        "l_get_l4(ns)", 23),
+    NE(PERFC_LT_CNGET_GET_L5,    3, "cN level 5 hit latency",        "l_get_l5(ns)", 23),
 
-    /* GET must be active for any of PROBEPFX, MISS, TOMB, DEPTH, and NKVSET to record.
+    /* LT_CNGET_GET must be active for any of MISS, DEPTH, NKVSET, and PROBE_PFX to record.
      */
     NE(PERFC_LT_CNGET_GET,       3, "cN avg hit latency",            "l_get(ns)", 7),
-    NE(PERFC_LT_CNGET_MISS,      3, "cN avg miss latency",           "l_mis(ns)"),
+    NE(PERFC_LT_CNGET_MISS,      3, "cN avg miss latency",           "l_mis(ns)", 7),
     NE(PERFC_DI_CNGET_DEPTH,     3, "Dist of cN levels examined",    "d_lvl", 7),
     NE(PERFC_DI_CNGET_NKVSET,    3, "Dist of cN kvsets examined",    "d_kvs", 7),
-    NE(PERFC_LT_CNGET_PROBE_PFX, 3, "Latency of cN pfx probe",       "l_pprobe(ns)"),
+    NE(PERFC_LT_CNGET_PROBE_PFX, 3, "Latency of cN pfx probe",       "l_pprobe(ns)", 7),
 };
 
 struct perfc_name cn_perfc_compact[] _dt_section = {
@@ -95,6 +98,17 @@ NE_CHECK(cn_perfc_mclass, PERFC_EN_CNMCLASS, "cn_perfc_mclass table/enum mismatc
 static_assert(
     NELEM(cn_perfc_mclass) == HSE_MPOLICY_AGE_CNT * HSE_MPOLICY_DTYPE_CNT * MP_MED_COUNT,
     "cn_perfc_mclass entries mismatched");
+
+static_assert(PERFC_RA_CNGET_MISS == 1 && NOT_FOUND == 1,
+              "PERFC_RA_CNGET_MISS out of sync with enum key_lookup_res");
+static_assert(PERFC_RA_CNGET_GET == 2 && FOUND_VAL == 2,
+              "PERFC_RA_CNGET_GET out of sync with enum key_lookup_res");
+static_assert(PERFC_RA_CNGET_TOMB == 3 && FOUND_TMB == 3,
+              "PERFC_RA_CNGET_TOMB out of sync with enum key_lookup_res");
+static_assert(PERFC_RA_CNGET_PTOMB == 4 && FOUND_PTMB == 4,
+              "PERFC_RA_CNGET_PTOMB out of sync with enum key_lookup_res");
+static_assert(PERFC_RA_CNGET_MULTIPLE == 5 && FOUND_MULTIPLE == 5,
+              "PERFC_RA_CNGET_FMULT out of sync with enum key_lookup_res");
 
 /* clang-format on */
 
