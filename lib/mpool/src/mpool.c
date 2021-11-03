@@ -7,9 +7,10 @@
 
 #include <limits.h>
 
+#include <bsd/string.h>
+
 #include <hse_util/logging.h>
 #include <hse_util/hse_err.h>
-#include <hse_util/string.h>
 #include <hse_util/workqueue.h>
 
 #include <mpool/mpool.h>

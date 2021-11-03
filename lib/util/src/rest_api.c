@@ -1,6 +1,6 @@
 /* SPDX-License-Identifier: Apache-2.0 */
 /*
- * Copyright (C) 2015-2020 Micron Technology, Inc.  All rights reserved.
+ * Copyright (C) 2015-2021 Micron Technology, Inc.  All rights reserved.
  */
 
 #include <hse_util/platform.h>
@@ -14,7 +14,6 @@
 #include <hse_util/rest_api.h>
 #include <hse_util/spinlock.h>
 #include <hse_util/mutex.h>
-#include <hse_util/string.h>
 #include <hse_util/table.h>
 
 #include <hse/version.h>
@@ -24,6 +23,8 @@
 #include <signal.h>
 #include <sys/select.h>
 #include <poll.h>
+
+#include <bsd/string.h>
 
 #define SESSIONS_PER_THREAD 5
 #define NUM_THREADS 3

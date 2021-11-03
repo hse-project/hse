@@ -4,7 +4,8 @@
  */
 
 #include <crc32c.h>
-#include <hse_util/string.h>
+#include <bsd/string.h>
+
 #include <hse_util/logging.h>
 #include <hse_util/event_counter.h>
 #include <hse_util/page.h>

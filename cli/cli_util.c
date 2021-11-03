@@ -14,7 +14,6 @@
 #include <hse_util/rest_api.h>
 #include <hse_util/arch.h>
 #include <hse_util/parse_num.h>
-#include <hse_util/string.h>
 
 #ifndef HSE_EXPERIMENTAL
 #define HSE_EXPERIMENTAL

@@ -5,13 +5,14 @@
 
 #include <hse_util/page.h>
 #include <hse_util/minmax.h>
-#include <hse_util/string.h>
 #include <hse_util/hse_err.h>
 
 #include <mpool/mpool.h>
 
 #include <assert.h>
 #include <ctype.h>
+
+#include <bsd/string.h>
 
 char hse_merr_bug0[] _merr_attributes = "hse_merr_bug0u";
 char hse_merr_bug1[] _merr_attributes = "hse_merr_bug1u";

@@ -16,12 +16,13 @@
 
 #include <sys/types.h>
 
+#include <bsd/string.h>
+
 #include <hse/hse.h>
 #include <hse/version.h>
 
 #include <hse_util/parse_num.h>
 #include <hse_util/yaml.h>
-#include <hse_util/string.h>
 #include <cli/param.h>
 
 #include "cli_util.h"

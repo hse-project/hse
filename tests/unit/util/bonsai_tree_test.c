@@ -4,7 +4,6 @@
  */
 
 #include <hse_util/compiler.h>
-#include <hse_util/string.h>
 #include <hse_util/hse_err.h>
 #include <hse_util/cursor_heap.h>
 #include <hse_util/atomic.h>

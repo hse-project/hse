@@ -11,7 +11,6 @@
 #include <hse_util/condvar.h>
 #include <hse_util/bin_heap.h>
 #include <hse_util/table.h>
-#include <hse_util/string.h>
 #include <hse_util/fmt.h>
 #include <hse_util/keycmp.h>
 

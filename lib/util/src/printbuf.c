@@ -1,11 +1,12 @@
 /* SPDX-License-Identifier: Apache-2.0 */
 /*
- * Copyright (C) 2015-2020 Micron Technology, Inc.  All rights reserved.
+ * Copyright (C) 2015-2021 Micron Technology, Inc.  All rights reserved.
  */
 
 #include <hse_util/platform.h>
 #include <hse_util/compiler.h>
-#include <hse_util/string.h>
+
+#include <bsd/string.h>
 
 int
 vsnprintf_append(char *buf, size_t buf_sz, size_t *offset, const char *format, va_list args)

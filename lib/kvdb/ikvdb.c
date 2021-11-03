@@ -11,7 +11,6 @@
 #include <hse_util/hse_err.h>
 #include <hse_util/invariant.h>
 #include <hse_util/event_counter.h>
-#include <hse_util/string.h>
 #include <hse_util/page.h>
 #include <hse_util/seqno.h>
 #include <hse_util/rest_api.h>
@@ -71,6 +70,7 @@
 #include <xxhash.h>
 #include <cjson/cJSON.h>
 #include <bsd/libutil.h>
+#include <bsd/string.h>
 
 #include "kvdb_rest.h"
 

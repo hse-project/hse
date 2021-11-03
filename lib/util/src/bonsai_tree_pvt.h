@@ -11,7 +11,6 @@
 #include <hse_util/slab.h>
 #include <hse_util/bonsai_tree.h>
 #include <hse_util/assert.h>
-#include <hse_util/string.h>
 
 enum bonsai_match_type {
     B_MATCH_EQ = 0,

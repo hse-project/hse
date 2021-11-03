@@ -26,6 +26,8 @@
  * are then allocated directly from slabs (e.g., via kmem_cache_alloc()).
  */
 
+#include <bsd/string.h>
+
 #include <hse_util/platform.h>
 #include <hse_util/alloc.h>
 #include <hse_util/vlb.h>
@@ -37,7 +39,6 @@
 #include <hse_util/mutex.h>
 #include <hse_util/spinlock.h>
 #include <hse_util/minmax.h>
-#include <hse_util/string.h>
 #include <hse_util/workqueue.h>
 #include <hse_util/rest_api.h>
 #include <hse_util/page.h>

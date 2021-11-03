@@ -26,10 +26,10 @@
 #include <hse_util/platform.h>
 #include <hse_util/rest_api.h>
 #include <hse_util/logging.h>
-#include <hse_util/string.h>
 #include <hse_util/vlb.h>
 
 #include <bsd/libutil.h>
+#include <bsd/string.h>
 #include <pidfile/pidfile.h>
 
 /* clang-format off */

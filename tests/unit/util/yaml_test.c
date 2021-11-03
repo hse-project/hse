@@ -1,6 +1,6 @@
 /* SPDX-License-Identifier: Apache-2.0 */
 /*
- * Copyright (C) 2015-2020 Micron Technology, Inc.  All rights reserved.
+ * Copyright (C) 2015-2021 Micron Technology, Inc.  All rights reserved.
  */
 
 #include <mtf/framework.h>
@@ -9,7 +9,6 @@
 #include <hse_util/hse_err.h>
 
 #include <hse_util/yaml.h>
-#include <hse_util/string.h>
 
 MTF_MODULE_UNDER_TEST(hse_platform);
 
