@@ -32,7 +32,6 @@ struct ikvdb;
 struct ikvdb_impl;
 struct mpool;
 struct kvs_cparams;
-struct kvs_rparams;
 struct lc;
 struct cn;
 struct cn_kvdb;
