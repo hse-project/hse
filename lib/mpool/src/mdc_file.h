@@ -125,6 +125,7 @@ mdc_file_commit(int dirfd, const char *name);
  * @dirfd:  directory fd
  * @name:   MDC file name
  * @logid:  MDC file id
+ * @rdonly: read-only open
  * @gen:    MDC file gen (output)
  * @handle: MDC file handle (output)
  */
@@ -134,6 +135,7 @@ mdc_file_open(
     int               dirfd,
     const char       *name,
     uint64_t          logid,
+    bool              rdonly,
     uint64_t         *gen,
     struct mdc_file **handle);
 

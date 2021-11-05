@@ -90,8 +90,8 @@ MTF_DEFINE_UTEST_PREPOST(mdc_test, mdc_abc, mpool_test_pre, mpool_test_post)
     err = mpool_mdc_commit(mp, logid1, logid2 + 1);
     ASSERT_EQ(EINVAL, merr_errno(err));
 
-    err = mpool_mdc_open(mp, logid1, logid2, &mdc);
-    ASSERT_EQ(EBADMSG, merr_errno(err));
+    err = mpool_mdc_open(mp, logid1, logid2, false, &mdc);
+    ASSERT_EQ(ENODATA, merr_errno(err));
 
     err = mpool_mdc_commit(mp, logid1, logid2);
     ASSERT_EQ(0, err);
@@ -108,13 +108,13 @@ MTF_DEFINE_UTEST_PREPOST(mdc_test, mdc_abc, mpool_test_pre, mpool_test_post)
     err = mpool_mdc_delete(mp, logid1, logid2 + 1);
     ASSERT_EQ(EINVAL, merr_errno(err));
 
-    err = mpool_mdc_open(mp, logid1, logid1, &mdc);
+    err = mpool_mdc_open(mp, logid1, logid1, false, &mdc);
     ASSERT_EQ(EINVAL, merr_errno(err));
 
-    err = mpool_mdc_open(mp, logid1, logid2 + 1, &mdc);
+    err = mpool_mdc_open(mp, logid1, logid2 + 1, false, &mdc);
     ASSERT_EQ(EINVAL, merr_errno(err));
 
-    err = mpool_mdc_open(mp, logid1, logid2, &mdc);
+    err = mpool_mdc_open(mp, logid1, logid2, false, &mdc);
     ASSERT_EQ(0, err);
 
     err = mpool_mdc_cstart(NULL);
@@ -135,7 +135,7 @@ MTF_DEFINE_UTEST_PREPOST(mdc_test, mdc_abc, mpool_test_pre, mpool_test_post)
     err = mpool_mdc_close(mdc);
     ASSERT_EQ(0, err);
 
-    err = mpool_mdc_open(mp, logid1, logid2, &mdc);
+    err = mpool_mdc_open(mp, logid1, logid2, false, &mdc);
     ASSERT_EQ(0, err);
 
     err = mpool_mdc_usage(NULL, NULL, &usage);
@@ -228,7 +228,7 @@ MTF_DEFINE_UTEST_PREPOST(mdc_test, mdc_io_basic, mpool_test_pre, mpool_test_post
     rdbuf = calloc(1, bufsz);
     ASSERT_NE(NULL, rdbuf);
 
-    err = mpool_mdc_open(mp, logid1, logid2, &mdc);
+    err = mpool_mdc_open(mp, logid1, logid2, false, &mdc);
     ASSERT_EQ(0, err);
 
     err = mpool_mdc_append(mdc, NULL, bufsz, true);
@@ -342,7 +342,7 @@ mdc_rw_test(
 
     randomize_buffer(buf, bufsz, bufsz + 17);
 
-    ASSERT_EQ(0, mpool_mdc_open(mp, logid1, logid2, &mdc));
+    ASSERT_EQ(0, mpool_mdc_open(mp, logid1, logid2, false, &mdc));
 
     rectot = 0;
     while (rectot < bufsz / reclen) {
@@ -351,7 +351,7 @@ mdc_rw_test(
         if (rectot == reopen_freq) {
             ASSERT_EQ(0, mpool_mdc_close(mdc));
 
-            ASSERT_EQ(0, mpool_mdc_open(mp, logid1, logid2, &mdc));
+            ASSERT_EQ(0, mpool_mdc_open(mp, logid1, logid2, false, &mdc));
         }
 
         if (rectot % sync_freq == 0)
@@ -485,7 +485,7 @@ MTF_DEFINE_UTEST_PREPOST(mdc_test, mdc_io_overlap, mpool_test_pre, mpool_test_po
     ASSERT_NE(NULL, buf);
     randomize_buffer(buf, bufsz, bufsz + 17);
 
-    ASSERT_EQ(0, mpool_mdc_open(mp, logid1, logid2, &mdc));
+    ASSERT_EQ(0, mpool_mdc_open(mp, logid1, logid2, false, &mdc));
 
     wdlen = bufsz / 2;
     wdcnt = 0;
@@ -529,7 +529,7 @@ MTF_DEFINE_UTEST_PREPOST(mdc_test, mdc_io_overlap, mpool_test_pre, mpool_test_po
     ASSERT_EQ(0, mpool_mdc_close(mdc));
     ASSERT_EQ(0, err);
 
-    ASSERT_EQ(0, mpool_mdc_open(mp, logid1, logid2, &mdc));
+    ASSERT_EQ(0, mpool_mdc_open(mp, logid1, logid2, false, &mdc));
     ASSERT_EQ(0, err);
 
     ASSERT_EQ(0, mpool_mdc_close(mdc));
@@ -573,7 +573,7 @@ MTF_DEFINE_UTEST_PREPOST(mdc_test, mdc_io_reopen, mpool_test_pre, mpool_test_pos
     ASSERT_NE(NULL, buf);
     randomize_buffer(buf, bufsz, bufsz + 17);
 
-    ASSERT_EQ(0, mpool_mdc_open(mp, logid1, logid2, &mdc));
+    ASSERT_EQ(0, mpool_mdc_open(mp, logid1, logid2, false, &mdc));
 
     wdlen = bufsz / 2;
     wdcnt = 0;
@@ -598,7 +598,7 @@ MTF_DEFINE_UTEST_PREPOST(mdc_test, mdc_io_reopen, mpool_test_pre, mpool_test_pos
             ASSERT_EQ(0, mpool_mdc_close(mdc));
             ASSERT_EQ(0, err);
 
-            ASSERT_EQ(0, mpool_mdc_open(mp, logid1, logid2, &mdc));
+            ASSERT_EQ(0, mpool_mdc_open(mp, logid1, logid2, false, &mdc));
             ASSERT_EQ(0, err);
 
             rdcnt = 0;
@@ -623,7 +623,7 @@ MTF_DEFINE_UTEST_PREPOST(mdc_test, mdc_io_reopen, mpool_test_pre, mpool_test_pos
     ASSERT_EQ(0, mpool_mdc_close(mdc));
     ASSERT_EQ(0, err);
 
-    ASSERT_EQ(0, mpool_mdc_open(mp, logid1, logid2, &mdc));
+    ASSERT_EQ(0, mpool_mdc_open(mp, logid1, logid2, false, &mdc));
     ASSERT_EQ(0, err);
 
     ASSERT_EQ(0, mpool_mdc_close(mdc));

@@ -10,6 +10,8 @@
 #include <hse_util/minmax.h>
 #include <hse_util/page.h>
 
+#include <hse_ikvdb/omf_version.h>
+
 #include <mpool/mpool.h>
 #include <mblock_file.h>
 #include <mblock_fset.h>
@@ -516,10 +518,8 @@ MTF_DEFINE_UTEST_PREPOST(mblock_test, mblock_invalid_args, mpool_test_pre, mpool
     struct mblock_file_params *params = (struct mblock_file_params *)0x1234;
     struct mblock_file        *mbfp = (struct mblock_file *)0x1234;
     struct mblock_file_stats   mbstats = {};
-    struct kmem_cache         *rmcache = (struct kmem_cache *)0x1234;
     struct iovec              *iov = (struct iovec *)0x1234;
 
-    char    *addr = (char *)0x1234;
     uint64_t mbid, bad_mbid = 0xffffffff;
     merr_t   err;
 
@@ -620,22 +620,16 @@ MTF_DEFINE_UTEST_PREPOST(mblock_test, mblock_invalid_args, mpool_test_pre, mpool
     ASSERT_EQ(EINVAL, merr_errno(err));
 
     /* mblock_file.c */
-    err = mblock_file_open(NULL, mc, params, 0, addr, rmcache, &mbfp);
+    err = mblock_file_open(NULL, mc, params, 0, MBLOCK_METAHDR_VERSION, &mbfp);
     ASSERT_EQ(EINVAL, merr_errno(err));
 
-    err = mblock_file_open(mbfsp, NULL, params, 0, addr, rmcache, &mbfp);
+    err = mblock_file_open(mbfsp, NULL, params, 0, MBLOCK_METAHDR_VERSION, &mbfp);
     ASSERT_EQ(EINVAL, merr_errno(err));
 
-    err = mblock_file_open(mbfsp, mc, NULL, 0, addr, rmcache, &mbfp);
+    err = mblock_file_open(mbfsp, mc, NULL, 0, MBLOCK_METAHDR_VERSION, &mbfp);
     ASSERT_EQ(EINVAL, merr_errno(err));
 
-    err = mblock_file_open(mbfsp, mc, params, 0, NULL, rmcache, &mbfp);
-    ASSERT_EQ(EINVAL, merr_errno(err));
-
-    err = mblock_file_open(mbfsp, mc, params, 0, addr, NULL, &mbfp);
-    ASSERT_EQ(EINVAL, merr_errno(err));
-
-    err = mblock_file_open(mbfsp, mc, params, 0, addr, rmcache, NULL);
+    err = mblock_file_open(mbfsp, mc, params, 0, MBLOCK_METAHDR_VERSION, NULL);
     ASSERT_EQ(EINVAL, merr_errno(err));
 
     mblock_file_close(NULL);

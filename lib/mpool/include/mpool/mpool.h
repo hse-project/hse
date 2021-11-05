@@ -234,11 +234,17 @@ mpool_mdc_delete(struct mpool *mp, uint64_t logid1, uint64_t logid2);
  * @mp:     mpool handle
  * @logid1: logid 1
  * @logid2: logid 2
+ * @rdonly: read-only open
  * @handle: MDC handle (output)
  */
 /* MTF_MOCK */
 merr_t
-mpool_mdc_open(struct mpool *mp, uint64_t logid1, uint64_t logid2, struct mpool_mdc **handle);
+mpool_mdc_open(
+    struct mpool      *mp,
+    uint64_t           logid1,
+    uint64_t           logid2,
+    bool               rdonly,
+    struct mpool_mdc **handle);
 
 /**
  * mpool_mdc_close() - Close MDC

@@ -47,6 +47,8 @@ MTF_DEFINE_UTEST_POST(kvdb_meta_test, serde, destroy_post)
     struct kvdb_meta meta;
     merr_t           err;
 
+    meta.km_version = KVDB_META_VERSION;
+    meta.km_omf_version = GLOBAL_OMF_VERSION;
     meta.km_cndb.oid1 = 1;
     meta.km_cndb.oid2 = 2;
     meta.km_wal.oid1 = 3;
@@ -94,6 +96,9 @@ MTF_DEFINE_UTEST_POST(kvdb_meta_test, null_storage_paths, destroy_post)
 
     err = kvdb_meta_create(home);
     ASSERT_EQ(0, err);
+
+    meta.km_version = KVDB_META_VERSION;
+    meta.km_omf_version = GLOBAL_OMF_VERSION;
 
     err = kvdb_meta_serialize(&meta, home);
     ASSERT_EQ(0, err);
@@ -629,6 +634,7 @@ MTF_DEFINE_UTEST_PRE(kvdb_meta_test, meta_storage_add_absolute, test_pre)
 {
     struct mpool_cparams params;
     struct kvdb_meta     meta = {
+        .km_version = KVDB_META_VERSION,
         .km_omf_version = GLOBAL_OMF_VERSION,
 		.km_cndb = {
 			.oid1 = 1,
@@ -676,6 +682,7 @@ MTF_DEFINE_UTEST_PRE(kvdb_meta_test, meta_storage_add_relative, test_pre)
 {
     struct mpool_cparams params;
     struct kvdb_meta     meta = {
+        .km_version = KVDB_META_VERSION,
         .km_omf_version = GLOBAL_OMF_VERSION,
 		.km_cndb = {
 			.oid1 = 1,

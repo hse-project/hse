@@ -813,6 +813,7 @@ _kvdb_meta_deserialize(struct kvdb_meta *meta, const char *kvdb_home)
     assert(meta);
     assert(kvdb_home);
 
+    meta->km_version = KVDB_META_VERSION;
     meta->km_omf_version = GLOBAL_OMF_VERSION;
     meta->km_cndb.oid1 = 1;
     meta->km_cndb.oid2 = 2;

@@ -68,7 +68,7 @@ eopen_mdc(struct mpool *const mp, const struct kvdb_meta *const meta, struct mpo
     assert(mp);
     assert(mdc);
 
-    err = mpool_mdc_open(mp, meta->km_cndb.oid1, meta->km_cndb.oid2, mdc);
+    err = mpool_mdc_open(mp, meta->km_cndb.oid1, meta->km_cndb.oid2, false, mdc);
     if (err)
         fatal("mpool_mdc_open", err);
 

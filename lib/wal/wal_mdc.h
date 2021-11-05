@@ -23,7 +23,12 @@ void
 wal_mdc_destroy(struct mpool *mp, uint64_t mdcid1, uint64_t mdcid2);
 
 merr_t
-wal_mdc_open(struct mpool *mp, uint64_t mdcid1, uint64_t mdcid2, struct wal_mdc **handle);
+wal_mdc_open(
+    struct mpool    *mp,
+    uint64_t         mdcid1,
+    uint64_t         mdcid2,
+    bool             rdonly,
+    struct wal_mdc **handle);
 
 merr_t
 wal_mdc_close(struct wal_mdc *mdc);

@@ -115,11 +115,11 @@ kvdb_meta_serialize(const struct kvdb_meta *const meta, const char *const kvdb_h
         goto out;
     }
 
-    if (!cJSON_AddNumberToObject(root, "version", KVDB_META_VERSION)) {
+    if (!cJSON_AddNumberToObject(root, "version", meta->km_version)) {
         err = merr(ENOMEM);
         goto out;
     }
-    if (!cJSON_AddNumberToObject(root, "omf_version", GLOBAL_OMF_VERSION)) {
+    if (!cJSON_AddNumberToObject(root, "omf_version", meta->km_omf_version)) {
         err = merr(ENOMEM);
         goto out;
     }
@@ -496,8 +496,9 @@ kvdb_meta_deserialize(struct kvdb_meta *const meta, const char *const kvdb_home)
         err = merr(EPROTO);
         goto out;
     }
+    meta->km_version = (unsigned int)version_val;
 
-    switch ((unsigned int)version_val) {
+    switch (meta->km_version) {
         case KVDB_META_VERSION1:
             err = parse_v1(root, meta, kvdb_home);
             break;
@@ -546,6 +547,55 @@ out:
         err = merr(errno);
 
     return err;
+}
+
+merr_t
+kvdb_meta_version_check(const struct kvdb_meta *const meta)
+{
+    INVARIANT(meta);
+
+    if (meta->km_version == KVDB_META_VERSION && meta->km_omf_version == GLOBAL_OMF_VERSION)
+        return 0; /* Nothing to do */
+
+    if (meta->km_omf_version > GLOBAL_OMF_VERSION) {
+        log_err("Unknown on-media version %u, please upgrade HSE", meta->km_omf_version);
+        return merr(EPROTO);
+    }
+
+    if (meta->km_version != KVDB_META_VERSION) {
+        log_err("Mismatched KVDB meta version %u != %u", meta->km_version, KVDB_META_VERSION);
+        return merr(EPROTO);
+    }
+
+    return merr(EUCLEAN);
+}
+
+merr_t
+kvdb_meta_upgrade(struct kvdb_meta *const meta, const char *const kvdb_home)
+{
+    unsigned int omvers;
+    merr_t err;
+
+    INVARIANT(meta && kvdb_home);
+
+    err = kvdb_meta_version_check(meta);
+    if (!err || (merr_errno(err) != EUCLEAN))
+        return err;
+
+    omvers = meta->km_omf_version;
+    meta->km_omf_version = GLOBAL_OMF_VERSION;
+
+    err = kvdb_meta_serialize(meta, kvdb_home);
+    if (err) {
+        log_err("Failed to upgrade KVDB global on-media version from %u to %u",
+                omvers, meta->km_omf_version);
+        return merr(EPROTO);
+    }
+
+    log_info("Successfully upgraded KVDB global on-media version from %u to %u",
+             omvers, meta->km_omf_version);
+
+    return 0;
 }
 
 static_assert(
@@ -655,7 +705,19 @@ kvdb_meta_storage_add(
         }
     }
 
-    return added ? kvdb_meta_serialize(meta, kvdb_home) : 0;
+    if (added) {
+        merr_t err;
+
+        err = kvdb_meta_version_check(meta);
+        if (err)
+            return err;
+
+        meta->km_omf_version = GLOBAL_OMF_VERSION;
+
+        return kvdb_meta_serialize(meta, kvdb_home);
+    }
+
+    return 0;
 }
 
 #if HSE_MOCKING

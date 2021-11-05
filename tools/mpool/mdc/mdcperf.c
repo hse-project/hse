@@ -310,7 +310,7 @@ ml_writer(void *arg)
         return resp;
     }
 
-    err = mpool_mdc_open(args->mp, oid1, oid2, &mdc);
+    err = mpool_mdc_open(args->mp, oid1, oid2, false, &mdc);
     if (err) {
         fprintf(
             stderr,
@@ -447,7 +447,7 @@ ml_reader(void *arg)
         return resp;
     }
 
-    err = mpool_mdc_open(args->mp, oid1, oid2, &mdc);
+    err = mpool_mdc_open(args->mp, oid1, oid2, false, &mdc);
     if (err) {
         fprintf(
             stderr,
@@ -574,7 +574,7 @@ ml_verify(void *arg)
         return resp;
     }
 
-    err = mpool_mdc_open(args->mp, oid1, oid2, &mdc);
+    err = mpool_mdc_open(args->mp, oid1, oid2, false, &mdc);
     if (err) {
         fprintf(
             stderr,

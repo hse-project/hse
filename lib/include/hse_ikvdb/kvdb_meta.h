@@ -17,8 +17,8 @@
 #include <hse_util/hse_err.h>
 
 struct kvdb_meta {
-    /* global OMF version that must be incremented when other OMF versions change */
-    unsigned int km_omf_version;
+    unsigned int km_version;
+    unsigned int km_omf_version; /* global OMF version */
     struct {
         uint64_t oid1;
         uint64_t oid2;
@@ -88,6 +88,31 @@ kvdb_meta_deserialize(struct kvdb_meta *meta, const char *kvdb_home);
 /* MTF_MOCK */
 merr_t
 kvdb_meta_usage(const char *kvdb_home, uint64_t *size);
+
+/**
+ * Check KVDB meta version
+ *
+ * @param meta: KVDB metadata
+ * @returns Error status
+ * @retval 0 on succes
+ * @retval !0 on error
+ */
+/* MTF_MOCK */
+merr_t
+kvdb_meta_version_check(const struct kvdb_meta *const meta);
+
+/**
+ * Upgrade KVDB meta
+ *
+ * @param meta: KVDB metadata
+ * @param kvdb_home: KVDB home
+ * @returns Error status
+ * @retval 0 on succes
+ * @retval !0 on error
+ */
+/* MTF_MOCK */
+merr_t
+kvdb_meta_upgrade(struct kvdb_meta *const meta, const char *const kvdb_home);
 
 /**
  * Add new mclass storage paths to the kvdb.meta file

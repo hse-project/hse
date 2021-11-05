@@ -312,6 +312,7 @@ ikvdb_create(const char *kvdb_home, struct kvdb_cparams *params)
             goto mpool_cleanup;
     }
 
+    meta.km_version = KVDB_META_VERSION;
     meta.km_omf_version = GLOBAL_OMF_VERSION;
 
     cndb_captgt = 0;
@@ -382,9 +383,8 @@ ikvdb_storage_add(const char *kvdb_home, struct kvdb_cparams *params)
     if (err)
         return err;
 
-    if (meta.km_omf_version != GLOBAL_OMF_VERSION) {
-        log_err("Mismatched global OMF version: %u != %u", meta.km_omf_version, GLOBAL_OMF_VERSION);
-        err = merr(EPROTO);
+    if (err) {
+        log_errx("cannot upgrade %s/kvdb.meta: @@e", err, kvdb_home);
         return err;
     }
 
@@ -781,11 +781,9 @@ ikvdb_diag_open(
     if (ev(err))
         goto self_cleanup;
 
-    if (meta.km_omf_version != GLOBAL_OMF_VERSION) {
-        log_err("Mismatched global OMF version: %u != %u", meta.km_omf_version, GLOBAL_OMF_VERSION);
-        err = merr(EPROTO);
+    err = kvdb_meta_version_check(&meta);
+    if (err && merr_errno(err) != EUCLEAN)
         goto self_cleanup;
-    }
 
     err = kvdb_meta_to_mpool_rparams(&meta, kvdb_home, &mparams);
     if (ev(err))
@@ -826,12 +824,18 @@ ikvdb_diag_open(
         &self->ikdb_health,
         &self->ikdb_rp,
         &self->ikdb_cndb);
+    if (err)
+        goto kvdb_pfxlock_cleanup;
 
-    if (!ev(err)) {
+    if (!params->read_only)
+        err = kvdb_meta_upgrade(&meta, kvdb_home);
+
+    if (!err) {
         *handle = &self->ikdb_handle;
         return 0;
     }
 
+kvdb_pfxlock_cleanup:
     kvdb_pfxlock_destroy(self->ikdb_pfxlock);
 kvdb_keylock_cleanup:
     kvdb_keylock_destroy(self->ikdb_keylock);
@@ -1162,9 +1166,9 @@ ikvdb_open(
         goto out;
     }
 
-    if (meta.km_omf_version != GLOBAL_OMF_VERSION) {
-        log_err("Mismatched global OMF version: %u != %u", meta.km_omf_version, GLOBAL_OMF_VERSION);
-        err = merr(EPROTO);
+    err = kvdb_meta_version_check(&meta);
+    if (err && merr_errno(err) != EUCLEAN) {
+        log_errx("cannot parse %s/kvdb.meta: @@e", err, kvdb_home);
         goto out;
     }
 
@@ -1343,6 +1347,14 @@ ikvdb_open(
     ikvdb_rest_register(self, &self->ikdb_handle);
 
     ikvdb_init_throttle_params(self);
+
+    if (!params->read_only) {
+        err = kvdb_meta_upgrade(&meta, kvdb_home);
+        if (err) {
+            log_errx("cannot upgrade %s/kvdb.meta: @@e", err, kvdb_home);
+            goto out;
+        }
+    }
 
     *handle = &self->ikdb_handle;
 

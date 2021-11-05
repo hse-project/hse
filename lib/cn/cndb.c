@@ -176,7 +176,7 @@ cndb_create(struct mpool *ds, u64 captgt, u64 oid1, u64 oid2)
         return err;
     }
 
-    err = mpool_mdc_open(ds, oid1, oid2, &mdc);
+    err = mpool_mdc_open(ds, oid1, oid2, false, &mdc);
     if (err) {
         log_errx("cannot open cNDB MDC: @@e", err);
         return err;
@@ -322,7 +322,7 @@ cndb_open(
         goto errout;
     }
 
-    err = mpool_mdc_open(ds, oid1, oid2, &cndb->cndb_mdc);
+    err = mpool_mdc_open(ds, oid1, oid2, rdonly, &cndb->cndb_mdc);
     if (err) {
         CNDB_LOG_ERR(err, cndb, " mdc open failed");
         goto errout;

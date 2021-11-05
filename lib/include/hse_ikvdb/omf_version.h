@@ -10,6 +10,7 @@
 
 enum {
     GLOBAL_OMF_VERSION1 = 1,
+    GLOBAL_OMF_VERSION2 = 2,
 };
 
 enum {
@@ -54,10 +55,12 @@ enum {
 
 enum {
     MBLOCK_METAHDR_VERSION1 = 1,
+    MBLOCK_METAHDR_VERSION2 = 2,
 };
 
 enum {
     MDC_LOGHDR_VERSION1 = 1,
+    MDC_LOGHDR_VERSION2 = 2,
 };
 
 enum {
@@ -68,7 +71,7 @@ enum {
     KVDB_META_VERSION1 = 1,
 };
 
-#define GLOBAL_OMF_VERSION GLOBAL_OMF_VERSION1
+#define GLOBAL_OMF_VERSION GLOBAL_OMF_VERSION2
 
 /* In the event one of the following versions in incremented, increment the
  * global OMF version.
@@ -80,8 +83,8 @@ enum {
 #define BLOOM_OMF_VERSION      BLOOM_OMF_VERSION5
 #define WBT_TREE_VERSION       WBT_TREE_VERSION6
 #define CN_TSTATE_VERSION      CN_TSTATE_VERSION1
-#define MBLOCK_METAHDR_VERSION MBLOCK_METAHDR_VERSION1
-#define MDC_LOGHDR_VERSION     MDC_LOGHDR_VERSION1
+#define MBLOCK_METAHDR_VERSION MBLOCK_METAHDR_VERSION2
+#define MDC_LOGHDR_VERSION     MDC_LOGHDR_VERSION2
 #define WAL_VERSION            WAL_VERSION1
 #define KVDB_META_VERSION      KVDB_META_VERSION1
 
