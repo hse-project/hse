@@ -78,9 +78,9 @@ struct opts {
 
 static volatile bool stopthreads HSE_ALIGNED(SMP_CACHE_BYTES * 2);
 
-atomic64_t n_write HSE_ALIGNED(SMP_CACHE_BYTES * 2) = ATOMIC64_INIT(0);
-atomic64_t n_cursor HSE_ALIGNED(SMP_CACHE_BYTES * 2) = ATOMIC64_INIT(0);
-atomic64_t n_read HSE_ALIGNED(SMP_CACHE_BYTES * 2) = ATOMIC64_INIT(0);
+atomic64_t n_write HSE_ALIGNED(SMP_CACHE_BYTES * 2);
+atomic64_t n_cursor HSE_ALIGNED(SMP_CACHE_BYTES * 2);
+atomic64_t n_read HSE_ALIGNED(SMP_CACHE_BYTES * 2);
 
 
 u64 gtod_usec(void)
@@ -160,11 +160,11 @@ loader(void *arg)
                 fatal(rc, "Put failed");
 
             if (++nwrite % 1024 == 0)
-                atomic64_add(1024, &n_write);
+                atomic_add(&n_write, 1024);
         }
     }
 
-    atomic64_add(nwrite & 1023, &n_write);
+    atomic_add(&n_write, nwrite & 1023);
     free(val);
 }
 
@@ -222,7 +222,7 @@ point_get(
                 fatal(ENOKEY, "Key not found\n");
 
             if (++nread % 1024 == 0)
-                atomic64_add(1024, &n_read);
+                atomic_add(&n_read, 1024);
         }
         end = get_time_ns();
 
@@ -230,11 +230,11 @@ point_get(
             dt->dt[dt_idx++] = end - start;
 
         if (++ncursor % 128 == 0)
-            atomic64_add(128, &n_cursor);
+            atomic_add(&n_cursor, 128);
         opcnt++;
     }
-    atomic64_add(nread & 1023, &n_read);
-    atomic64_add(ncursor & 127, &n_cursor);
+    atomic_add(&n_read, nread & 1023);
+    atomic_add(&n_cursor, ncursor & 127);
 
     if (dt)
         dt->dt_cnt = dt_idx;
@@ -291,7 +291,7 @@ cursor(
                 break;
 
             if (++nread % 1024 == 0)
-                atomic64_add(1024, &n_read);
+                atomic_add(&n_read, 1024);
 
             if (!opts.verify)
                 continue;
@@ -312,10 +312,10 @@ cursor(
             dt->dt[dt_idx++] = get_time_ns() - start;
 
         if (++ncursor % 128 == 0)
-            atomic64_add(128, &n_cursor);
+            atomic_add(&n_cursor, 128);
     }
-    atomic64_add(nread & 1023, &n_read);
-    atomic64_add(ncursor & 127, &n_cursor);
+    atomic_add(&n_read, nread & 1023);
+    atomic_add(&n_cursor, ncursor & 127);
 
     if (dt)
         dt->dt_cnt = dt_idx;
@@ -352,9 +352,9 @@ print_stats(
     while (!stopthreads) {
         usleep(999 * 1000);
 
-        nw = atomic64_read(&n_write);
-        nr = atomic64_read(&n_read);
-        nc = atomic64_read(&n_cursor);
+        nw = atomic_read(&n_write);
+        nr = atomic_read(&n_read);
+        nc = atomic_read(&n_cursor);
 
         fprintf(logfd, "%lu%s%u%s%lu%s%lu%s%lu%s%lu%s%lu%s%lu\n",
                 gtod_usec(), opts.vsep,
@@ -616,7 +616,7 @@ main(
         for (i = 0; i < opts.threads; i++)
             kh_register_kvs(kvs, KH_FLAG_DETACH, &kvs_cparms, &kvs_oparms, &loader, &ti[i]);
 
-        while (!stopthreads && atomic64_read(&n_write) < tot_keys)
+        while (!stopthreads && atomic_read(&n_write) < tot_keys)
             sleep(5);
     }
 
@@ -639,8 +639,8 @@ main(
         /* 1. Warm up mcache using point gets */
         printf("Warming up cache\n");
         opts.range=1;
-        atomic64_set(&n_cursor, 0);
-        atomic64_set(&n_read, 0);
+        atomic_set(&n_cursor, 0);
+        atomic_set(&n_read, 0);
 
         snprintf(logfile, sizeof(logfile), "rr_warmup.log");
         kh_register(0, &print_stats, logfile);
@@ -648,7 +648,7 @@ main(
         for (i = 0; i < opts.warmup_threads; i++)
             kh_register_kvs(kvs, 0, &kvs_cparms, &kvs_oparms, &point_get, 0);
 
-        while (!stopthreads && atomic64_read(&n_read) < warmup_nkeys)
+        while (!stopthreads && atomic_read(&n_read) < warmup_nkeys)
             sleep(5);
 
         stopthreads = true;
@@ -690,8 +690,8 @@ main(
                 if (!strcasestr(opts.tests, op[j].opname))
                     continue;
 
-                atomic64_set(&n_cursor, 0);
-                atomic64_set(&n_read, 0);
+                atomic_set(&n_cursor, 0);
+                atomic_set(&n_read, 0);
                 stopthreads = false;
 
                 snprintf(logfile, sizeof(logfile), "rr_%s_%s_out.log", op[j].opname, s);

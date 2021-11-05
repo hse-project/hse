@@ -18,7 +18,7 @@ wal_rechdr_pack(enum wal_rec_type rtype, uint64_t rid, size_t tlen, uint64_t gen
 {
     struct wal_rechdr_omf *rhomf = outbuf;
 
-    atomic64_set((atomic64_t *)&rhomf->rh_off, 0);
+    atomic_set((atomic64_t *)&rhomf->rh_off, 0);
     omf_set_rh_flags(rhomf, WAL_FLAGS_MORG);
     omf_set_rh_gen(rhomf, gen);
     omf_set_rh_type(rhomf, rtype);
@@ -80,7 +80,7 @@ wal_rec_finish(struct wal_record *rec, uint64_t seqno, uint64_t gen)
     omf_set_r_seqno(romf, seqno);
     wal_rechdr_crc_pack(recbuf, rec->len);
 
-    atomic64_set((atomic64_t *)&rhomf->rh_off, cpu_to_omf64(rec->offset));
+    atomic_set((atomic64_t *)&rhomf->rh_off, cpu_to_omf64(rec->offset));
 }
 
 /* Record unpack routines */
@@ -305,7 +305,7 @@ wal_txn_rechdr_finish(void *recbuf, size_t len, uint64_t offset)
     struct wal_rechdr_omf *rhomf = recbuf;
 
     wal_rechdr_crc_pack(recbuf, len);
-    atomic64_set((atomic64_t *)&rhomf->rh_off, cpu_to_omf64(offset));
+    atomic_set((atomic64_t *)&rhomf->rh_off, cpu_to_omf64(offset));
 }
 
 void

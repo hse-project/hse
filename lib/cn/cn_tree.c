@@ -1407,16 +1407,16 @@ cn_tree_is_capped(const struct cn_tree *tree)
 bool
 cn_node_comp_token_get(struct cn_tree_node *tn)
 {
-    return atomic_cmpxchg(&tn->tn_compacting, 0, 1) == 0;
+    return atomic_cas(&tn->tn_compacting, 0, 1);
 }
 
 void
 cn_node_comp_token_put(struct cn_tree_node *tn)
 {
-    HSE_MAYBE_UNUSED int oldval;
+    bool b HSE_MAYBE_UNUSED;
 
-    oldval = atomic_cmpxchg(&tn->tn_compacting, 1, 0);
-    assert(oldval == 1);
+    b = atomic_cas(&tn->tn_compacting, 1, 0);
+    assert(b);
 }
 
 static void

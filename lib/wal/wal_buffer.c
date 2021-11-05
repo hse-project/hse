@@ -83,13 +83,13 @@ wal_buffer_flush_worker(struct work_struct *work)
 
     wb = container_of(work, struct wal_buffer, wb_fwork);
 
-    coff = atomic64_read(&wb->wb_offset_head);
+    coff = atomic_read(&wb->wb_offset_head);
     rhlen = wal_rechdr_len();
     bufsz = wb->wb_bs->wbs_buf_sz;
     bufasz = wb->wb_bs->wbs_buf_allocsz;
 
 restart:
-    foff = atomic64_read(&wb->wb_foff);
+    foff = atomic_read(&wb->wb_foff);
     info.min_seqno = info.min_gen = info.min_txid = UINT64_MAX;
     info.max_seqno = info.max_gen = info.max_txid = 0;
     wrap = false;
@@ -110,7 +110,7 @@ restart:
         buf = wb->wb_buf + (foff % bufsz);
         rhdr = (void *)buf;
 
-        while ((recoff = omf64_to_cpu(atomic64_read((atomic64_t *)&rhdr->rh_off))) != foff) {
+        while ((recoff = omf64_to_cpu(atomic_read((atomic64_t *)&rhdr->rh_off))) != foff) {
             if (recoff >= WAL_ROFF_RECOV_ERR) {
                 if (recoff == WAL_ROFF_RECOV_ERR) {
                     skiprec = true;
@@ -173,7 +173,7 @@ restart:
 
     /* Set flush offset to the next record */
     foff = prev_foff + (rhlen + omf_rh_len(rhdr));
-    atomic64_set(&wb->wb_foff, foff);
+    atomic_set(&wb->wb_foff, foff);
     assert(foff > start_foff);
 
     buf = wb->wb_buf + (start_foff % bufsz);
@@ -199,16 +199,16 @@ restart:
     assert(foff == coff);
 
 #ifndef NDEBUG
-    if (atomic64_inc_return(&wb->wb_flushc) % 1536 == 0)
+    if (atomic_inc_return(&wb->wb_flushc) % 1536 == 0)
         log_debug("Flush stats: coff %lu,%lu foff %lu doff %lu igen %lu",
-                  atomic64_read(&wb->wb_offset_head), atomic64_read(&wb->wb_offset_tail),
-                  foff, atomic64_read(&wb->wb_doff), atomic64_read(wb->wb_bs->wbs_ingestgen));
+                  atomic_read(&wb->wb_offset_head), atomic_read(&wb->wb_offset_tail),
+                  foff, atomic_read(&wb->wb_doff), atomic_read(wb->wb_bs->wbs_ingestgen));
 #endif
 
 exit:
     if (err)
-        atomic64_set(&wb->wb_bs->wbs_err, err);
-    atomic64_set(&wb->wb_flushb, flushb);
+        atomic_set(&wb->wb_bs->wbs_err, err);
+    atomic_set(&wb->wb_flushb, flushb);
     atomic_set(&wb->wb_flushing, 0);
 }
 
@@ -236,7 +236,7 @@ wal_bufset_open(
         return NULL;
 
     memset(wbs, 0, sz);
-    atomic64_set(&wbs->wbs_err, 0);
+    atomic_set(&wbs->wbs_err, 0);
     wbs->wbs_ingestgen = ingestgen;
 
     wbs->wbs_buf_sz = bufsz;
@@ -252,18 +252,18 @@ wal_bufset_open(
             continue;
 
         for (j = 0; j < WAL_BPN_MAX; ++j, ++wb) {
-            atomic64_set(&wb->wb_offset_head, PAGE_SIZE);
-            atomic64_set(&wb->wb_offset_tail, PAGE_SIZE);
-            atomic64_set(&wb->wb_doff, PAGE_SIZE);
-            atomic64_set(&wb->wb_foff, PAGE_SIZE);
-            atomic64_set(&wb->wb_curgen, 0);
-            atomic64_set(&wb->wb_flushc, 0);
+            atomic_set(&wb->wb_offset_head, PAGE_SIZE);
+            atomic_set(&wb->wb_offset_tail, PAGE_SIZE);
+            atomic_set(&wb->wb_doff, PAGE_SIZE);
+            atomic_set(&wb->wb_foff, PAGE_SIZE);
+            atomic_set(&wb->wb_curgen, 0);
+            atomic_set(&wb->wb_flushc, 0);
             atomic_set(&wb->wb_flushing, 0);
             atomic_set(&wb->wb_wrap, 0);
 
             for (k = 0; k < NELEM(wb->wb_genlenv); ++k) {
-                atomic64_set(&wb->wb_genlenv[k], 0);
-                atomic64_set(&wb->wb_genoffv[k], 0);
+                atomic_set(&wb->wb_genlenv[k], 0);
+                atomic_set(&wb->wb_genoffv[k], 0);
             }
 
             wb->wb_index = index + j;
@@ -311,8 +311,8 @@ wal_bufset_stats_dump(struct wal_bufset *wbs)
         struct wal_buffer *wb = wbs->wbs_bufv + i;
 
         log_debug("WAL closing - Offsets (%d - %lu, %lu : %lu : %lu)",
-                  i, atomic64_read(&wb->wb_offset_head), atomic64_read(&wb->wb_offset_tail),
-                  atomic64_read(&wb->wb_foff), atomic64_read(&wb->wb_doff));
+                  i, atomic_read(&wb->wb_offset_head), atomic_read(&wb->wb_offset_tail),
+                  atomic_read(&wb->wb_foff), atomic_read(&wb->wb_doff));
     }
 }
 #endif
@@ -365,13 +365,13 @@ wal_bufset_alloc(
 
     wb = wbs->wbs_bufv + slot;
 
-    offset = atomic64_fetch_add(len, &wb->wb_offset_head);
+    offset = atomic_fetch_add(&wb->wb_offset_head, len);
 
     while (1) {
-        uint64_t tail = atomic64_read(&wb->wb_offset_tail);
+        uint64_t tail = atomic_read(&wb->wb_offset_tail);
 
         if (tail >= offset || offset - tail < hwm) {
-            doff = atomic64_read(&wb->wb_doff);
+            doff = atomic_read(&wb->wb_doff);
             if (offset < doff)
                 return NULL;
 
@@ -382,7 +382,7 @@ wal_bufset_alloc(
         /* An excessive number of txn put+abort calls can fill up our buffer
          * without an associated ingest to clean it up.
          */
-        if (atomic64_read(wbs->wbs_ingestgen) + 1 >= atomic64_read(&wb->wb_curgen)) {
+        if (atomic_read(wbs->wbs_ingestgen) + 1 >= atomic_read(&wb->wb_curgen)) {
             /* HSE_REVISIT: Force a c0kvms ingest... */
             ev(1);
         }
@@ -413,19 +413,19 @@ wal_bufset_finish(struct wal_bufset *wbs, uint32_t wbidx, size_t len, uint64_t g
      * The ingest thread calls wal_cond_sync() on the ingesting gen (before starting ingest)
      * and waits for the offset recorded in wb_genoffv to become durable.
      */
-    if (gen > atomic64_read(&wb->wb_curgen) || (gen + 1 == atomic64_read(&wb->wb_curgen))) {
-        uint64_t off = atomic64_read(&wb->wb_genoffv[slot]);
+    if (gen > atomic_read(&wb->wb_curgen) || (gen + 1 == atomic_read(&wb->wb_curgen))) {
+        uint64_t off = atomic_read(&wb->wb_genoffv[slot]);
 
-        while (endoff > off && !atomic64_cas(&wb->wb_genoffv[slot], off, endoff))
-            off = atomic64_read(&wb->wb_genoffv[slot]);
+        while (endoff > off && !atomic_cas(&wb->wb_genoffv[slot], off, endoff))
+            off = atomic_read(&wb->wb_genoffv[slot]);
     }
 
-    while (gen > atomic64_read(&wb->wb_curgen) &&
-           !atomic64_cas(&wb->wb_curgen, atomic64_read(&wb->wb_curgen), gen))
+    while (gen > atomic_read(&wb->wb_curgen) &&
+           !atomic_cas(&wb->wb_curgen, atomic_read(&wb->wb_curgen), gen))
         ; /* do nothing */
 
     assert(sizeof(wb->wb_genlenv) == sizeof(wb->wb_genoffv));
-    atomic64_add(len, &wb->wb_genlenv[slot]);
+    atomic_add(&wb->wb_genlenv[slot], len);
 }
 
 void
@@ -442,9 +442,9 @@ wal_bufset_reclaim(struct wal_bufset *wbs, uint64_t gen)
         if (!wb)
             continue;
 
-        n = atomic64_read(&wb->wb_genlenv[gen]);
-        atomic64_sub(n, &wb->wb_genlenv[gen]);
-        atomic64_add(n, &wb->wb_offset_tail);
+        n = atomic_read(&wb->wb_genlenv[gen]);
+        atomic_sub(&wb->wb_genlenv[gen], n);
+        atomic_add(&wb->wb_offset_tail, n);
     }
 }
 
@@ -463,14 +463,14 @@ wal_bufset_flush(struct wal_bufset *wbs, uint64_t *flushb, uint64_t *bufszp, uin
     for (i = 0; i < wbs->wbs_bufc; ++i) {
         struct wal_buffer *wb = wbs->wbs_bufv + i;
 
-        if (wb->wb_buf && atomic_cmpxchg(&wb->wb_flushing, 0, 1) == 0) {
-            atomic64_set(&wb->wb_flushb, 0);
+        if (wb->wb_buf && atomic_cas(&wb->wb_flushing, 0, 1)) {
+            atomic_set(&wb->wb_flushb, 0);
             queue_work(wq, &wb->wb_fwork);
         }
     }
     flush_workqueue(wq);
 
-    if ((err = atomic64_read(&wbs->wbs_err)))
+    if ((err = atomic_read(&wbs->wbs_err)))
         return err;
 
     *bufszp = wbs->wbs_buf_sz;
@@ -481,10 +481,10 @@ wal_bufset_flush(struct wal_bufset *wbs, uint64_t *flushb, uint64_t *bufszp, uin
         struct wal_buffer *wb = wbs->wbs_bufv + i;
         uint64_t head, tail;
 
-        *flushb += atomic64_read(&wb->wb_flushb);
+        *flushb += atomic_read(&wb->wb_flushb);
 
-        tail = atomic64_read_acq(&wb->wb_offset_tail);
-        head = atomic64_read(&wb->wb_offset_head);
+        tail = atomic_read_acq(&wb->wb_offset_tail);
+        head = atomic_read(&wb->wb_offset_head);
         if (head - tail > *buflenp)
             *buflenp = head - tail;
     }
@@ -503,7 +503,7 @@ wal_bufset_curoff(struct wal_bufset *wbs, int offc, uint64_t *offv)
     for (int i = 0; i < wbs->wbs_bufc; ++i) {
         struct wal_buffer *wb = wbs->wbs_bufv + i;
 
-        offv[i] = atomic64_read(&wb->wb_offset_head);
+        offv[i] = atomic_read(&wb->wb_offset_head);
     }
 
     return wbs->wbs_bufc;
@@ -522,7 +522,7 @@ wal_bufset_genoff(struct wal_bufset *wbs, uint64_t gen, int offc, uint64_t *offv
 
         gen %= NELEM(wb->wb_genlenv);
 
-        offv[i] = atomic64_read(&wb->wb_genoffv[gen]);
+        offv[i] = atomic_read(&wb->wb_genoffv[gen]);
     }
 
     return wbs->wbs_bufc;
@@ -540,7 +540,7 @@ wal_bufset_durcnt(struct wal_bufset *wbs, int offc, uint64_t *offv)
     for (int i = 0; i < wbs->wbs_bufc; ++i) {
         struct wal_buffer *wb = wbs->wbs_bufv + i;
 
-        if (atomic64_read(&wb->wb_doff) >= offv[i])
+        if (atomic_read(&wb->wb_doff) >= offv[i])
             reached++;
     }
 

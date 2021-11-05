@@ -760,8 +760,8 @@ perfc_sl_record(struct perfc_set *pcs, const u32 cidx, const u64 start)
     i = hse_getcpu(NULL) % PERFC_VALPERCNT;
     i *= PERFC_VALPERCPU;
 
-    atomic64_add(val, &hdr->pch_val[i].pcv_vadd); /* sum */
-    atomic64_inc(&hdr->pch_val[i].pcv_vsub);      /* hitcnt */
+    atomic_add(&hdr->pch_val[i].pcv_vadd, val); /* sum */
+    atomic_inc(&hdr->pch_val[i].pcv_vsub);      /* hitcnt */
 }
 
 /**
@@ -798,8 +798,8 @@ perfc_set(struct perfc_set *pcs, const u32 cidx, const u64 val)
     if (!pcsi)
         return;
 
-    atomic64_set(&pcsi->pcs_ctrv[cidx].hdr.pch_val[0].pcv_vadd, val);
-    atomic64_set(&pcsi->pcs_ctrv[cidx].hdr.pch_val[0].pcv_vsub, 0);
+    atomic_set(&pcsi->pcs_ctrv[cidx].hdr.pch_val[0].pcv_vadd, val);
+    atomic_set(&pcsi->pcs_ctrv[cidx].hdr.pch_val[0].pcv_vsub, 0);
 }
 
 /* Increment a performance counter.
@@ -817,7 +817,7 @@ perfc_inc(struct perfc_set *pcs, const u32 cidx)
     i = hse_getcpu(NULL) % PERFC_VALPERCNT;
     i *= PERFC_VALPERCPU;
 
-    atomic64_add(1, &pcsi->pcs_ctrv[cidx].hdr.pch_val[i].pcv_vadd);
+    atomic_add(&pcsi->pcs_ctrv[cidx].hdr.pch_val[i].pcv_vadd, 1);
 }
 
 /* Decrement a performance counter.
@@ -835,7 +835,7 @@ perfc_dec(struct perfc_set *pcs, const u32 cidx)
     i = hse_getcpu(NULL) % PERFC_VALPERCNT;
     i *= PERFC_VALPERCPU;
 
-    atomic64_add(1, &pcsi->pcs_ctrv[cidx].hdr.pch_val[i].pcv_vsub);
+    atomic_add(&pcsi->pcs_ctrv[cidx].hdr.pch_val[i].pcv_vsub, 1);
 }
 
 /* Add a value to a performance counter.
@@ -853,7 +853,7 @@ perfc_add(struct perfc_set *pcs, const u32 cidx, const u64 val)
     i = hse_getcpu(NULL) % PERFC_VALPERCNT;
     i *= PERFC_VALPERCPU;
 
-    atomic64_add(val, &pcsi->pcs_ctrv[cidx].hdr.pch_val[i].pcv_vadd);
+    atomic_add(&pcsi->pcs_ctrv[cidx].hdr.pch_val[i].pcv_vadd, val);
 }
 
 /* Add values to two performance counters from the same family.
@@ -871,10 +871,10 @@ perfc_add2(struct perfc_set *pcs, const u32 cidx1, const u64 val1, const u32 cid
     i = hse_getcpu(NULL) % PERFC_VALPERCNT;
     i *= PERFC_VALPERCPU;
 
-    atomic64_add(val1, &pcsi->pcs_ctrv[cidx1].hdr.pch_val[i].pcv_vadd);
+    atomic_add(&pcsi->pcs_ctrv[cidx1].hdr.pch_val[i].pcv_vadd, val1);
 
     if (pcs->ps_bitmap & (1ull << cidx2))
-        atomic64_add(val2, &pcsi->pcs_ctrv[cidx2].hdr.pch_val[i].pcv_vadd);
+        atomic_add(&pcsi->pcs_ctrv[cidx2].hdr.pch_val[i].pcv_vadd, val2);
 }
 
 /* Subtract a value from a performance counter.
@@ -892,7 +892,7 @@ perfc_sub(struct perfc_set *pcs, const u32 cidx, const u64 val)
     i = hse_getcpu(NULL) % PERFC_VALPERCNT;
     i *= PERFC_VALPERCPU;
 
-    atomic64_add(val, &pcsi->pcs_ctrv[cidx].hdr.pch_val[i].pcv_vsub);
+    atomic_add(&pcsi->pcs_ctrv[cidx].hdr.pch_val[i].pcv_vsub, val);
 }
 
 /* GCOV_EXCL_STOP */

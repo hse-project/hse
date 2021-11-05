@@ -388,7 +388,7 @@ mblock_fset_open(
             goto errout;
     }
 
-    atomic64_set(&mbfsp->fidx, 0);
+    atomic_set(&mbfsp->fidx, 0);
 
     /*
      * Write the mblock metadata header at the end of fset create. This is to
@@ -471,7 +471,7 @@ mblock_fset_alloc(struct mblock_fset *mbfsp, int mbidc, uint64_t *mbidv)
     retries = mbfsp->fcnt - 1;
 
     do {
-        fidx = atomic64_fetch_add(1, &mbfsp->fidx) % mbfsp->fcnt;
+        fidx = atomic_fetch_add(&mbfsp->fidx, 1) % mbfsp->fcnt;
 
         mbfp = mbfsp->filev[fidx];
         assert(mbfp);

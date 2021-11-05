@@ -135,13 +135,13 @@ cn_fini(void)
 u64
 cn_get_ingest_dgen(const struct cn *cn)
 {
-    return atomic64_read(&cn->cn_ingest_dgen);
+    return atomic_read(&cn->cn_ingest_dgen);
 }
 
 void
 cn_inc_ingest_dgen(struct cn *cn)
 {
-    atomic64_inc(&cn->cn_ingest_dgen);
+    atomic_inc(&cn->cn_ingest_dgen);
 }
 
 struct kvs_rparams *
@@ -599,7 +599,7 @@ cn_ingest_prep(
     if (ev(!mblocks))
         return merr(EINVAL);
 
-    dgen = atomic64_read(&cn->cn_ingest_dgen) + 1;
+    dgen = atomic_read(&cn->cn_ingest_dgen) + 1;
 
     /* Note: cn_mblocks_commit() creates "C" records in CNDB */
     err = cn_mblocks_commit(
@@ -1154,10 +1154,10 @@ cn_open(
     kszsuf = vszsuf = "bkmgtp";
 
     if (cn_kvdb) {
-        ksz = atomic64_read(&cn_kvdb->cnd_kblk_size);
-        kcnt = atomic64_read(&cn_kvdb->cnd_kblk_cnt);
-        vsz = atomic64_read(&cn_kvdb->cnd_vblk_size);
-        vcnt = atomic64_read(&cn_kvdb->cnd_vblk_cnt);
+        ksz = atomic_read(&cn_kvdb->cnd_kblk_size);
+        kcnt = atomic_read(&cn_kvdb->cnd_kblk_cnt);
+        vsz = atomic_read(&cn_kvdb->cnd_vblk_size);
+        vcnt = atomic_read(&cn_kvdb->cnd_vblk_cnt);
     }
 
     err = cndb_cn_instantiate(cndb, cnid, &ctx, (void *)cn_kvset_mk);
@@ -1166,10 +1166,10 @@ cn_open(
 
     if (cn_kvdb) {
         /* [HSE_REVISIT]: This approach is not thread-safe */
-        ksz = atomic64_read(&cn_kvdb->cnd_kblk_size) - ksz;
-        kcnt = atomic64_read(&cn_kvdb->cnd_kblk_cnt) - kcnt;
-        vsz = atomic64_read(&cn_kvdb->cnd_vblk_size) - vsz;
-        vcnt = atomic64_read(&cn_kvdb->cnd_vblk_cnt) - vcnt;
+        ksz = atomic_read(&cn_kvdb->cnd_kblk_size) - ksz;
+        kcnt = atomic_read(&cn_kvdb->cnd_kblk_cnt) - kcnt;
+        vsz = atomic_read(&cn_kvdb->cnd_vblk_size) - vsz;
+        vcnt = atomic_read(&cn_kvdb->cnd_vblk_cnt) - vcnt;
 
         kshift = ilog2(ksz | 1) / 10;
         vshift = ilog2(vsz | 1) / 10;
@@ -1182,7 +1182,7 @@ cn_open(
 
     cn_tree_samp_init(cn->cn_tree);
 
-    atomic64_set(&cn->cn_ingest_dgen, cn_tree_initial_dgen(cn->cn_tree));
+    atomic_set(&cn->cn_ingest_dgen, cn_tree_initial_dgen(cn->cn_tree));
 
     log_info(
         "%s/%s replay %d fanout %u pfx_len %u pfx_pivot %u cnid %lu depth %u/%u %s "
@@ -1474,7 +1474,7 @@ cn_cursor_prepare(struct cn_cursor *cur)
 merr_t
 cn_cursor_update(struct cn_cursor *cur, u64 seqno, bool *updated)
 {
-    u64    dgen = atomic64_read(&cur->cn->cn_ingest_dgen);
+    u64    dgen = atomic_read(&cur->cn->cn_ingest_dgen);
     merr_t err;
 
     if (updated)

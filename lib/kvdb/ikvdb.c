@@ -98,7 +98,7 @@ NE_CHECK(ctxn_perfc_op, PERFC_EN_CTXNOP, "ctxn_perfc_op table/enum mismatch");
 thread_local char tls_vbuf[256 * 1024] HSE_ALIGNED(PAGE_SIZE);
 const size_t      tls_vbufsz = sizeof(tls_vbuf);
 
-static atomic_t kvdb_alias = ATOMIC_INIT(0);
+static atomic_t kvdb_alias = 0;
 
 #define ikvdb_h2r(_ikvdb_handle) \
     container_of(_ikvdb_handle, struct ikvdb_impl, ikdb_handle)
@@ -513,9 +513,9 @@ ikvdb_rate_limit_set(struct ikvdb_impl *self, u64 rate)
         if (now > self->ikdb_tb_dbg_next) {
 
             /* periodic debug output */
-            long dbg_ops = atomic64_read(&self->ikdb_tb_dbg_ops);
-            long dbg_bytes = atomic64_read(&self->ikdb_tb_dbg_bytes);
-            long dbg_sleep_ns = atomic64_read(&self->ikdb_tb_dbg_sleep_ns);
+            long dbg_ops = atomic_read(&self->ikdb_tb_dbg_ops);
+            long dbg_bytes = atomic_read(&self->ikdb_tb_dbg_bytes);
+            long dbg_sleep_ns = atomic_read(&self->ikdb_tb_dbg_sleep_ns);
 
             log_info(
                 "tbkt_debug: manual %d shunt %d ops %8ld  bytes %10ld"
@@ -529,9 +529,9 @@ ikvdb_rate_limit_set(struct ikvdb_impl *self, u64 rate)
                 self->ikdb_tb_rate,
                 throttle_delay(&self->ikdb_throttle));
 
-            atomic64_sub(dbg_ops, &self->ikdb_tb_dbg_ops);
-            atomic64_sub(dbg_bytes, &self->ikdb_tb_dbg_bytes);
-            atomic64_sub(dbg_sleep_ns, &self->ikdb_tb_dbg_sleep_ns);
+            atomic_sub(&self->ikdb_tb_dbg_ops, dbg_ops);
+            atomic_sub(&self->ikdb_tb_dbg_bytes, dbg_bytes);
+            atomic_sub(&self->ikdb_tb_dbg_sleep_ns, dbg_sleep_ns);
 
             self->ikdb_tb_dbg_next = now + NSEC_PER_SEC;
         }
@@ -764,7 +764,7 @@ ikvdb_diag_open(
     struct kvdb_rparams *params,
     struct ikvdb **      handle)
 {
-    static atomic64_t    tseqno = ATOMIC_INIT(0);
+    static atomic64_t    tseqno = 0;
     struct ikvdb_impl   *self = NULL;
     merr_t               err;
     struct kvdb_meta     meta;
@@ -1147,7 +1147,7 @@ ikvdb_open(
     ikvdb_txn_init(self);
 
     n = snprintf(
-        self->ikdb_alias, sizeof(self->ikdb_alias), "%d", atomic_fetch_add(1, &kvdb_alias));
+        self->ikdb_alias, sizeof(self->ikdb_alias), "%d", atomic_fetch_add(&kvdb_alias, 1));
     if (n < 0) {
         err = merr(EBADMSG);
         goto out;
@@ -1226,7 +1226,7 @@ ikvdb_open(
     self->ikdb_curcnt_max = sz / HSE_CURSOR_SZ_MIN;
 
     atomic_set(&self->ikdb_curcnt, 0);
-    atomic64_set(&self->ikdb_seqno, 1);
+    atomic_set(&self->ikdb_seqno, 1);
 
     err = kvdb_ctxn_set_create(
         &self->ikdb_ctxn_set, self->ikdb_rp.txn_timeout, self->ikdb_rp.txn_wkth_delay);
@@ -1268,7 +1268,7 @@ ikvdb_open(
         goto out;
     }
 
-    atomic64_set(&self->ikdb_seqno, seqno);
+    atomic_set(&self->ikdb_seqno, seqno);
 
     kvdb_ctxn_set_tseqno_init(self->ikdb_ctxn_set, seqno);
 
@@ -1322,7 +1322,7 @@ ikvdb_open(
         goto out;
     }
 
-    seqno = atomic64_read(&self->ikdb_seqno);
+    seqno = atomic_read(&self->ikdb_seqno);
     lc_ingest_seqno_set(self->ikdb_lc, seqno);
     c0sk_min_seqno_set(self->ikdb_c0sk, seqno);
 
@@ -1844,7 +1844,7 @@ ikvdb_kvs_close(struct hse_kvs *handle)
      * Set it to 0 and proceed
      * if not, keep spinning
      */
-    while (atomic_cmpxchg(&kk->kk_refcnt, 1, 0) > 1)
+    while (!atomic_cas(&kk->kk_refcnt, 1, 0))
         usleep(333);
 
     err = kvs_close(ikvs);
@@ -2030,9 +2030,9 @@ ikvdb_throttle(struct ikvdb_impl *self, u64 bytes, u64 tstart)
         }
 
         if (HSE_UNLIKELY(self->ikdb_tb_dbg)) {
-            atomic64_inc(&self->ikdb_tb_dbg_ops);
-            atomic64_add(bytes, &self->ikdb_tb_dbg_bytes);
-            atomic64_add(sleep_ns, &self->ikdb_tb_dbg_sleep_ns);
+            atomic_inc(&self->ikdb_tb_dbg_ops);
+            atomic_add(&self->ikdb_tb_dbg_bytes, bytes);
+            atomic_add(&self->ikdb_tb_dbg_sleep_ns, sleep_ns);
         }
     }
 }
@@ -2161,7 +2161,7 @@ ikvdb_kvs_pfx_probe(
         view_seqno = 0;
     } else {
         /* Establish our view before waiting on ongoing commits. */
-        view_seqno = atomic64_read(&p->ikdb_seqno);
+        view_seqno = atomic_read(&p->ikdb_seqno);
         kvdb_ctxn_set_wait_commits(p->ikdb_ctxn_set, 0);
     }
 
@@ -2197,7 +2197,7 @@ ikvdb_kvs_get(
         view_seqno = 0;
     } else {
         /* Establish our view before waiting on ongoing commits. */
-        view_seqno = atomic64_read(&p->ikdb_seqno);
+        view_seqno = atomic_read(&p->ikdb_seqno);
         kvdb_ctxn_set_wait_commits(p->ikdb_ctxn_set, 0);
     }
 
@@ -2518,7 +2518,7 @@ cursor_refresh(struct hse_kvs_cursor *cur)
             return err;
         ++up;
 
-    } else if (atomic64_read(&bind->b_gen) != cur->kc_gen) {
+    } else if (atomic_read(&bind->b_gen) != cur->kc_gen) {
         /* stale or canceled: txn was updated since last look */
         ++up;
     }
@@ -2687,9 +2687,9 @@ ikvdb_horizon(struct ikvdb *handle)
         u64 a;
 
         /* Must read a after b and c to test assertions. */
-        __atomic_thread_fence(__ATOMIC_RELEASE);
+        atomic_thread_fence(memory_order_release);
 
-        a = atomic64_read(&self->ikdb_seqno);
+        a = atomic_read(&self->ikdb_seqno);
         assert(b == U64_MAX || a >= b);
         assert(a >= c);
 
@@ -3013,8 +3013,8 @@ ikvdb_wal_replay_seqno_set(struct ikvdb *ikvdb, uint64_t seqno)
     self = ikvdb_h2r(ikvdb);
 
     /* This is called only in a single-threaded replay context */
-    if (seqno > atomic64_read(&self->ikdb_seqno))
-        atomic64_set(&self->ikdb_seqno, seqno);
+    if (seqno > atomic_read(&self->ikdb_seqno))
+        atomic_set(&self->ikdb_seqno, seqno);
 }
 
 void

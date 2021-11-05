@@ -155,10 +155,10 @@ jhandler(struct sts_job *sj)
         if (job->debug)
             log_info("%lu: job %p: continue on queue %u", get_time_ns(), sj, sj->sj_qnum);
         if (add_var)
-            atomic_add(add_value, add_var);
+            atomic_add(add_var, add_value);
         sts_job_submit(sj->sj_sts, sj);
     } else {
-        atomic_add(add_value, add_var);
+        atomic_add(add_var, add_value);
     }
 }
 

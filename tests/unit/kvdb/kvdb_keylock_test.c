@@ -250,10 +250,15 @@ parallel_lock_helper(void *arg)
         err = kvdb_keylock_lock(klock_handle, locks_handle, hash | i, 0);
 
         if (err == 0) {
+            int old = 0;
+            bool b;
+
             /* Only one transaction can successfully lock a key.
              * Note the owner thread.
              */
-            VERIFY_EQ_RET(atomic_cmpxchg(owner_thread + i, 0, num), 0, 0);
+            b = atomic_cmpxchg(owner_thread + i, &old, num);
+
+            VERIFY_TRUE_RET(b, 0);
         } else {
             VERIFY_EQ_RET(merr_errno(err), ECANCELED, 0);
         }
@@ -323,14 +328,15 @@ MTF_DEFINE_UTEST_PREPOST(kvdb_keylock_test, keylock_lock_multiple_ctxn, mapi_pre
 void
 begin_ctxn(u64 *view_seqno)
 {
-    *view_seqno = atomic64_fetch_add(1, &kvdb_seq);
+    *view_seqno = atomic_fetch_add(&kvdb_seq, 1);
 }
 
 void
 end_ctxn(bool commit, u64 *end_seqno)
 {
     u64 inc = commit ? 2 : 1;
-    *end_seqno = atomic64_fetch_add(inc, &kvdb_seq);
+
+    *end_seqno = atomic_fetch_add(&kvdb_seq, inc);
 }
 
 struct parallel_ctxn_arg {
@@ -396,7 +402,7 @@ MTF_DEFINE_UTEST_PREPOST(kvdb_keylock_test, multiple_ctxn_end, mapi_pre, mapi_po
     merr_t                   err;
     int                      i, rc;
 
-    atomic64_set(&kvdb_seq, 3234UL);
+    atomic_set(&kvdb_seq, 3234UL);
 
     err = kvdb_keylock_create(&klock_handle, 16);
     ASSERT_EQ(0, err);

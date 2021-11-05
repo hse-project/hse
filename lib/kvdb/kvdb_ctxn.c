@@ -75,7 +75,7 @@ struct kvdb_ctxn_set_impl {
 static inline void
 kvdb_ctxn_bind_putref(struct kvdb_ctxn_bind *bind)
 {
-    if (atomic64_dec_and_test(&bind->b_ref)) {
+    if (atomic_dec_return(&bind->b_ref) == 0) {
         if (bind->b_ctxn)
             kvdb_ctxn_h2r(bind->b_ctxn)->ctxn_bind = 0;
         free(bind);
@@ -85,13 +85,13 @@ kvdb_ctxn_bind_putref(struct kvdb_ctxn_bind *bind)
 static inline void
 kvdb_ctxn_bind_getref(struct kvdb_ctxn_bind *bind)
 {
-    atomic64_inc(&bind->b_ref);
+    atomic_inc(&bind->b_ref);
 }
 
 static inline void
 kvdb_ctxn_bind_invalidate(struct kvdb_ctxn_bind *bind)
 {
-    atomic64_inc(&bind->b_gen);
+    atomic_inc(&bind->b_gen);
 }
 
 static inline void
@@ -271,9 +271,9 @@ kvdb_ctxn_set_wait_commits(struct kvdb_ctxn_set *handle, u64 head)
     struct kvdb_ctxn_set_impl *self = kvdb_ctxn_set_h2r(handle);
 
     if (!head)
-        head = atomic64_read_acq(&self->ktn_tseqno_head);
+        head = atomic_read_acq(&self->ktn_tseqno_head);
 
-    while (atomic64_read(&self->ktn_tseqno_tail) < head)
+    while (atomic_read(&self->ktn_tseqno_tail) < head)
         cpu_relax();
 }
 
@@ -434,7 +434,7 @@ kvdb_ctxn_abort_inner(struct kvdb_ctxn_impl *ctxn)
             u64 end_seq;
 
             kvdb_keylock_list_lock(keylock, &cookie);
-            end_seq = atomic64_fetch_add(1, ctxn->ctxn_kvdb_seq_addr);
+            end_seq = atomic_fetch_add(ctxn->ctxn_kvdb_seq_addr, 1);
             kvdb_keylock_enqueue_locks(locks, end_seq, cookie);
             kvdb_keylock_list_unlock(cookie);
 
@@ -563,12 +563,12 @@ kvdb_ctxn_commit(struct kvdb_ctxn *handle)
      * kvdb_ctxn_set_wait_commit() to ensure visibility of a view seqno
      * obtained asynchronously with respect to this critical section.
      */
-    head = atomic64_fetch_add(1, &kcs->ktn_tseqno_head); /* acquire next ticket */
+    head = atomic_fetch_add(&kcs->ktn_tseqno_head, 1); /* acquire next ticket */
 
-    while (atomic64_read_acq(&kcs->ktn_tseqno_tail) < head)
+    while (atomic_read(&kcs->ktn_tseqno_tail) < head)
         cpu_relax(); /* wait for our ticket to be served */
 
-    commit_sn = 1 + atomic64_fetch_add(2, ctxn->ctxn_kvdb_seq_addr);
+    commit_sn = 1 + atomic_fetch_add(ctxn->ctxn_kvdb_seq_addr, 2);
 
     /* The assignment through *priv gives all the values associated
      * with this transaction an ordinal sequence number. Each of
@@ -577,7 +577,7 @@ kvdb_ctxn_commit(struct kvdb_ctxn *handle)
     ref = HSE_ORDNL_TO_SQNREF(commit_sn);
     *priv = ref;
 
-    atomic64_inc_rel(&kcs->ktn_tseqno_tail); /* release ticket lock */
+    atomic_inc_rel(&kcs->ktn_tseqno_tail); /* release ticket lock */
 
     /* Once the indirect assignment has been performed the
      * transaction itself no longer needs to see the shared value
@@ -702,8 +702,8 @@ kvdb_ctxn_set_create(struct kvdb_ctxn_set **handle_out, u64 txn_timeout_ms, u64 
         return merr(ENOMEM);
     }
 
-    atomic64_set(&ktn->ktn_tseqno_head, 0);
-    atomic64_set(&ktn->ktn_tseqno_tail, 0);
+    atomic_set(&ktn->ktn_tseqno_head, 0);
+    atomic_set(&ktn->ktn_tseqno_tail, 0);
     atomic_set(&ktn->ktn_reading, 0);
     ktn->ktn_queued = false;
     ktn->ktn_txn_timeout = txn_timeout_ms;
@@ -764,8 +764,8 @@ kvdb_ctxn_set_tseqno_init(struct kvdb_ctxn_set *handle, uint64_t kvdb_seqno)
 {
     struct kvdb_ctxn_set_impl *kcs = kvdb_ctxn_set_h2r(handle);
 
-    atomic64_set(&kcs->ktn_tseqno_head, kvdb_seqno);
-    atomic64_set(&kcs->ktn_tseqno_tail, kvdb_seqno);
+    atomic_set(&kcs->ktn_tseqno_head, kvdb_seqno);
+    atomic_set(&kcs->ktn_tseqno_tail, kvdb_seqno);
 }
 
 struct kvdb_ctxn_bind *
@@ -778,7 +778,7 @@ kvdb_ctxn_cursor_bind(struct kvdb_ctxn *handle)
         return 0;
 
     if (!bind) {
-        struct kvdb_ctxn_bind *old = 0;
+        struct kvdb_ctxn_bind *old = NULL;
 
         /* HSE_REVISIT Consider using a cache for this */
         bind = calloc(1, sizeof(*bind));
@@ -786,7 +786,7 @@ kvdb_ctxn_cursor_bind(struct kvdb_ctxn *handle)
             return 0;
         bind->b_ctxn = handle;
 
-        if (bind != atomic_ptr_cmpxchg((void **)&ctxn->ctxn_bind, old, bind)) {
+        if (!atomic_cmpxchg(&ctxn->ctxn_bind, &old, bind)) {
             free(bind);
             bind = ctxn->ctxn_bind;
         }

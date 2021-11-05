@@ -111,7 +111,7 @@ loader(void *arg)
 			if (rc)
 				fatal(rc, "put failure");
 
-			atomic64_inc(&completed_puts);
+			atomic_inc(&completed_puts);
 		}
 	}
 }
@@ -202,8 +202,8 @@ done:
 
 	dt = get_time_ns() - start;
 
-	atomic64_inc(&rd_count);
-	atomic64_add(dt, &rd_time);
+	atomic_inc(&rd_count);
+	atomic_add(&rd_time, dt);
 
 	return pc;
 }
@@ -276,8 +276,8 @@ print_stats(void *arg)
 	usleep(999 * 1000);
 
 	while (!killthreads) {
-		uint64_t dt = atomic64_read(&rd_time);
-		uint64_t cnt = atomic64_read(&rd_count) ?: 1;
+		uint64_t dt = atomic_read(&rd_time);
+		uint64_t cnt = atomic_read(&rd_count) ?: 1;
 		uint64_t load_pct = 100;
 
 		if (second % 20 == 0)
@@ -286,7 +286,7 @@ print_stats(void *arg)
 
 		++second;
 		if (phase == LOAD_PHASE) {
-			load_pct = atomic64_read(&completed_puts) * 100;
+			load_pct = atomic_read(&completed_puts) * 100;
 			load_pct /= total_puts ?: 1;
 		}
 

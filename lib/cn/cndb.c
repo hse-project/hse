@@ -287,7 +287,7 @@ cndb_init(
     cndb->cndb_kvdb_health = health;
 
     /* First txid is 1 */
-    atomic64_set(&cndb->cndb_txid, 1);
+    atomic_set(&cndb->cndb_txid, 1);
     mutex_init(&cndb->cndb_lock);
     mutex_init(&cndb->cndb_cnv_lock);
 
@@ -2001,7 +2001,7 @@ cndb_ikvdb_seqno_get(struct cndb *cndb)
 {
     atomic64_t *p = cndb->cndb_ikvdb_seqno;
 
-    return p ? atomic64_read(p) : 0;
+    return p ? atomic_read(p) : 0;
 }
 
 merr_t
@@ -2021,7 +2021,7 @@ cndb_replay(struct cndb *cndb, u64 *seqno, u64 *ingestid, u64 *txhorizon)
     *txhorizon = CNDB_INVAL_HORIZON;
 
     /* First txid is 1 */
-    atomic64_set(&cndb->cndb_txid, 1);
+    atomic_set(&cndb->cndb_txid, 1);
 
     cndb->cndb_keepc = 0;
     cndb->cndb_workc = 0;
@@ -2157,7 +2157,7 @@ cndb_replay(struct cndb *cndb, u64 *seqno, u64 *ingestid, u64 *txhorizon)
     /* the next txid must always be greater than the highest tag */
     if (otag > otxid)
         otxid = otag;
-    atomic64_set(&cndb->cndb_txid, otxid + 1);
+    atomic_set(&cndb->cndb_txid, otxid + 1);
 
     if (err) {
         kvdb_health_error(cndb->cndb_kvdb_health, err);
@@ -3055,7 +3055,7 @@ done:
 static u64
 cndb_txn_nextid(struct cndb *cndb, int nc)
 {
-    return atomic64_fetch_add(nc, &cndb->cndb_txid);
+    return atomic_fetch_add(&cndb->cndb_txid, nc);
 }
 
 merr_t

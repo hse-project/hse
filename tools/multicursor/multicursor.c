@@ -103,7 +103,7 @@ do_things(void *arg)
 			if (err)
 				fatal(err, "Failed to create cursor");
 
-			atomic64_inc(&ti->cursors);
+			atomic_inc(&ti->cursors);
 		}
 	}
 
@@ -118,7 +118,7 @@ do_things(void *arg)
 			if (err)
 				fatal(err, "Put failed");
 
-			atomic64_inc(&ti->puts);
+			atomic_inc(&ti->puts);
 		}
 		hse_kvdb_txn_commit(targ->kvdb, txn);
 		hse_kvdb_txn_free(targ->kvdb, txn);
@@ -188,7 +188,7 @@ do_things(void *arg)
 				}
 
 				count++;
-				atomic64_inc(&ti->reads);
+				atomic_inc(&ti->reads);
 			}
 
 			if (err)
@@ -218,9 +218,9 @@ print_stats(void *arg)
 		uint tot_cursors = 0;
 
 		for (i = 0; i < opts.threads; i++) {
-			tot_puts += atomic64_read(&g_ti[i].puts);
-			tot_reads += atomic64_read(&g_ti[i].reads);
-			tot_cursors += atomic64_read(&g_ti[i].cursors);
+			tot_puts += atomic_read(&g_ti[i].puts);
+			tot_reads += atomic_read(&g_ti[i].reads);
+			tot_cursors += atomic_read(&g_ti[i].cursors);
 		}
 
 		printf("seconds %u cursors %u puts %u reads %u\n",
@@ -384,7 +384,7 @@ main(int argc, char **argv)
 	for (i = 0; i < opts.threads; i++) {
 		g_ti[i].start = i * stride;
 		g_ti[i].end   = g_ti[i].start + stride;
-		atomic64_set(&g_ti[i].puts, 0);
+		atomic_set(&g_ti[i].puts, 0);
 		g_ti[i].num_cursors  = cur_per_thread;
 		kh_register_kvs(kvs, 0, &kvs_cparms, &kvs_oparms, &do_things, &g_ti[i]);
 	}

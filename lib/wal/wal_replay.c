@@ -134,7 +134,7 @@ wal_replay_open(struct wal *wal, struct wal_replay_info *rinfo, struct wal_repla
 
     atomic_set(&rep->r_leader, 0);
     atomic_set(&rep->r_vdone, 0);
-    atomic64_set(&rep->r_verr, 0);
+    atomic_set(&rep->r_verr, 0);
 
     *rep_out = rep;
 
@@ -436,7 +436,7 @@ wal_recs_validate(struct wal_replay_work *rw)
 exit:
     atomic_inc(&rep->r_vdone);
     if (err)
-        atomic64_set(&rep->r_verr, err);
+        atomic_set(&rep->r_verr, err);
 
     return err;
 }
@@ -846,12 +846,12 @@ wal_replay_worker(struct work_struct *work)
     /* Do not proceed further if there's a failed record validation. Add a force flag
      * later which can replay mutations until the corrupted record.
      */
-    rw->rw_err = atomic64_read(&rep->r_verr);
+    rw->rw_err = atomic_read(&rep->r_verr);
     if (rw->rw_err)
         return;
 
     /* Elect a leader thread to do replay stats consolidation and fix target gen */
-    if (atomic_inc_acq(&rep->r_leader) == 1) {
+    if (atomic_inc_acq_return(&rep->r_leader) == 1) {
         err = wal_replay_consolidate(rep);
         if (HSE_LIKELY(!err)) {
             /*
@@ -863,7 +863,7 @@ wal_replay_worker(struct work_struct *work)
         }
 
         if (err)
-            atomic64_set(&rep->r_verr, err);
+            atomic_set(&rep->r_verr, err);
 
         while (atomic_read(&rep->r_leader) < rep->r_cnt)
             cpu_relax();
@@ -874,7 +874,7 @@ wal_replay_worker(struct work_struct *work)
     while (atomic_read(&rep->r_leader) > 0)
         usleep(333);
 
-    rw->rw_err = atomic64_read(&rep->r_verr);
+    rw->rw_err = atomic_read(&rep->r_verr);
     if (rw->rw_err)
         return;
 

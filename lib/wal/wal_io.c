@@ -64,10 +64,10 @@ wal_io_submit(struct wal_io_work *iow)
     io = iow->iow_io;
     buflen = iow->iow_len;
 
-    cgen = atomic64_read(&io->io_gen);
+    cgen = atomic_read(&io->io_gen);
     gen = iow->iow_gen;
     if (gen > cgen) {
-        atomic64_set(&io->io_gen, gen);
+        atomic_set(&io->io_gen, gen);
         if (io->io_wfile) {
             err = wal_file_complete(io->io_wfset, io->io_wfile);
             if (err)
@@ -100,7 +100,7 @@ wal_io_submit(struct wal_io_work *iow)
     }
 
     wal_file_minmax_update(io->io_wfile, &iow->iow_info);
-    atomic64_add(buflen, io->io_doff);
+    atomic_add(io->io_doff, buflen);
     io->io_cb->iocb(io->io_cb->cbarg, 0);
 
     wal_file_put(io->io_wfile);
@@ -137,18 +137,18 @@ wal_io_worker(struct work_struct *work)
         mutex_unlock(&io->io_lock);
 
         list_for_each_entry_safe(iow, next, &active, iow_list) {
-            if (atomic64_read(&io->io_err) == 0) {
+            if (atomic_read(&io->io_err) == 0) {
                 merr_t err;
 
                 assert(iow->iow_index == io->io_index);
 
                 err = wal_io_submit(iow);
                 if (err) {
-                    atomic64_set(&io->io_err, err);
+                    atomic_set(&io->io_err, err);
                     io->io_cb->iocb(io->io_cb->cbarg, err); /* Notify sync waiters */
                 }
 
-                atomic64_inc(&io->io_comp);
+                atomic_inc(&io->io_comp);
             }
 
             list_del(&iow->iow_list);
@@ -169,7 +169,7 @@ wal_io_enqueue(
     struct wal_io_work *iow;
     merr_t err;
 
-    if ((err = atomic64_read(&io->io_err)))
+    if ((err = atomic_read(&io->io_err)))
         return err;
 
     iow = kmem_cache_alloc(iowcache);
@@ -188,14 +188,14 @@ wal_io_enqueue(
 
     mutex_lock(&io->io_lock);
     list_add_tail(&iow->iow_list, &io->io_active);
-    atomic64_inc(&io->io_pend);
+    atomic_inc(&io->io_pend);
     cv_signal(&io->io_cv);
     mutex_unlock(&io->io_lock);
 
 #ifndef NDEBUG
-    if (atomic64_read(&io->io_pend) % 1536 == 0)
+    if (atomic_read(&io->io_pend) % 1536 == 0)
         log_debug("IO stats: pend %lu comp %lu",
-                  atomic64_read(&io->io_pend), atomic64_read(&io->io_comp));
+                  atomic_read(&io->io_pend), atomic_read(&io->io_comp));
 #endif
 
     return 0;
@@ -222,8 +222,8 @@ wal_io_create(
     cv_init(&io->io_cv, "wal_wcv");
     io->io_stop = false;
 
-    atomic64_set(&io->io_err, 0);
-    atomic64_set(&io->io_gen, 0);
+    atomic_set(&io->io_err, 0);
+    atomic_set(&io->io_gen, 0);
     atomic_set(&io->io_stopped, 0);
 
     io->io_doff = doff;

@@ -101,7 +101,7 @@ wal_timer(void *rock)
 
     dur_ns = MSEC_TO_NSEC(wal->dur_ms) - (long)timer_slack;
 
-    while (!closing && !atomic64_read(&wal->error)) {
+    while (!closing && !atomic_read(&wal->error)) {
         uint64_t tstart, rid, lag, sleep_ns, flushb, bufsz, buflen;
 
         closing = !!atomic_read(&wal->closing);
@@ -109,13 +109,13 @@ wal_timer(void *rock)
         tstart = get_time_ns();
         sleep_ns = dur_ns;
 
-        rid = atomic64_read(&wal->wal_rid);
+        rid = atomic_read(&wal->wal_rid);
         if (rid != rid_last || closing) {
             rid_last = rid;
 
             err = wal_bufset_flush(wal->wbs, &flushb, &bufsz, &buflen);
             if (err) {
-                atomic64_set(&wal->error, err);
+                atomic_set(&wal->error, err);
                 wal_ionotify_cb(wal, err); /* Notify sync waiters on flush error */
                 continue;
             }
@@ -152,7 +152,7 @@ wal_timer(void *rock)
         mutex_unlock(&wal->timer_mutex);
     }
 
-    err = atomic64_read(&wal->error);
+    err = atomic_read(&wal->error);
     if (err)
         kvdb_health_error(wal->health, err);
 
@@ -172,7 +172,7 @@ wal_sync_notifier(void *rock)
         struct wal_sync_waiter *swait;
 
         mutex_lock(&wal->sync_mutex);
-        err = atomic64_read(&wal->error);
+        err = atomic_read(&wal->error);
         closing = !!atomic_read(&wal->closing);
 
         list_for_each_entry(swait, &wal->sync_waiters, ws_link) {
@@ -189,7 +189,7 @@ wal_sync_notifier(void *rock)
         mutex_unlock(&wal->sync_mutex);
     }
 
-    err = atomic64_read(&wal->error);
+    err = atomic_read(&wal->error);
     if (err)
         kvdb_health_error(wal->health, err);
 
@@ -202,7 +202,7 @@ wal_ionotify_cb(void *cbarg, merr_t err)
     struct wal *wal = cbarg;
 
     if (err)
-        atomic64_set(&wal->error, err);
+        atomic_set(&wal->error, err);
 
     mutex_lock(&wal->sync_mutex);
     cv_signal(&wal->sync_cv);
@@ -319,7 +319,7 @@ wal_put(
     recout->recbuf = rec;
     recout->len = len;
 
-    rid = atomic64_inc_return(&wal->wal_rid);
+    rid = atomic_inc_return(&wal->wal_rid);
     rtype = (txid > 0) ? WAL_RT_TX : WAL_RT_NONTX;
     wal_rechdr_pack(rtype, rid, len, 0, rec);
 
@@ -374,7 +374,7 @@ wal_del_impl(
     recout->recbuf = rec;
     recout->len = len;
 
-    rid = atomic64_inc_return(&wal->wal_rid);
+    rid = atomic_inc_return(&wal->wal_rid);
     rtype = (txid > 0) ? WAL_RT_TX : WAL_RT_NONTX;
     wal_rechdr_pack(rtype, rid, len, 0, rec);
 
@@ -436,7 +436,7 @@ wal_txn(
         return err;
     }
 
-    rid = atomic64_inc_return(&wal->wal_rid);
+    rid = atomic_inc_return(&wal->wal_rid);
     gen = c0sk_gen_current();
     wal_rechdr_pack(rtype, rid, rlen, gen, rec);
 
@@ -670,8 +670,8 @@ wal_close(struct wal *wal)
     }
 
     wal_bufset_close(wal->wbs);
-    wal_fileset_close(wal->wfset, atomic64_read(&wal->wal_ingestseq),
-                      atomic64_read(&wal->wal_ingestgen), atomic64_read(&wal->wal_txhorizon));
+    wal_fileset_close(wal->wfset, atomic_read(&wal->wal_ingestseq),
+                      atomic_read(&wal->wal_ingestgen), atomic_read(&wal->wal_txhorizon));
 
     /* Ensure that the notify thread exits after all pending IOs are drained */
     if (wal->sync_notify_tid_valid) {
@@ -695,9 +695,9 @@ wal_close(struct wal *wal)
 static void
 wal_reclaim(struct wal *wal, uint64_t seqno, uint64_t gen, uint64_t txhorizon)
 {
-    atomic64_set(&wal->wal_ingestseq, seqno);
-    atomic64_set(&wal->wal_ingestgen, gen);
-    atomic64_set(&wal->wal_txhorizon, txhorizon);
+    atomic_set(&wal->wal_ingestseq, seqno);
+    atomic_set(&wal->wal_ingestgen, gen);
+    atomic_set(&wal->wal_txhorizon, txhorizon);
 
     if (!wal->buf_managed)
         wal_bufset_reclaim(wal->wbs, gen);

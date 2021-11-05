@@ -30,10 +30,10 @@ cn_kvdb_create(struct cn_kvdb **out)
     if (ev(!self))
         return merr(ENOMEM);
 
-    atomic64_set(&self->h.cnd_kblk_cnt, 0);
-    atomic64_set(&self->h.cnd_vblk_cnt, 0);
-    atomic64_set(&self->h.cnd_kblk_size, 0);
-    atomic64_set(&self->h.cnd_vblk_size, 0);
+    atomic_set(&self->h.cnd_kblk_cnt, 0);
+    atomic_set(&self->h.cnd_vblk_cnt, 0);
+    atomic_set(&self->h.cnd_kblk_size, 0);
+    atomic_set(&self->h.cnd_vblk_size, 0);
 
     *out = &self->h;
 

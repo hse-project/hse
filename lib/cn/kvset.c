@@ -729,12 +729,14 @@ kvset_create2(
     kvset_get_ref(ks);
     ks->ks_deleted = DEL_NONE;
 
-    kvdb_kalen = atomic64_add_return(ks->ks_st.kst_kalen, &cn_kvdb->cnd_kblk_size);
+    kvdb_kalen = atomic_fetch_add(&cn_kvdb->cnd_kblk_size, ks->ks_st.kst_kalen);
+    kvdb_kalen += ks->ks_st.kst_kalen;
 
-    kvdb_valen = atomic64_add_return(ks->ks_st.kst_valen, &cn_kvdb->cnd_vblk_size);
+    kvdb_valen = atomic_fetch_add(&cn_kvdb->cnd_vblk_size, ks->ks_st.kst_valen);
+    kvdb_valen += ks->ks_st.kst_valen;
 
-    atomic64_add(ks->ks_st.kst_kblks, &cn_kvdb->cnd_kblk_cnt);
-    atomic64_add(ks->ks_st.kst_vblks, &cn_kvdb->cnd_vblk_cnt);
+    atomic_add(&cn_kvdb->cnd_kblk_cnt, ks->ks_st.kst_kblks);
+    atomic_add(&cn_kvdb->cnd_vblk_cnt, ks->ks_st.kst_vblks);
 
     if (cn_tree_is_replay(tree))
         goto done;
@@ -999,11 +1001,11 @@ _kvset_destroy(struct kvset *ks)
     if (ks->ks_cn_kvdb) {
         struct cn_kvdb *cnd = ks->ks_cn_kvdb;
 
-        atomic64_sub(ks->ks_st.kst_kblks, &cnd->cnd_kblk_cnt);
-        atomic64_sub(ks->ks_st.kst_vblks, &cnd->cnd_vblk_cnt);
+        atomic_sub(&cnd->cnd_kblk_cnt, ks->ks_st.kst_kblks);
+        atomic_sub(&cnd->cnd_vblk_cnt, ks->ks_st.kst_vblks);
 
-        atomic64_sub(ks->ks_st.kst_kalen, &cnd->cnd_kblk_size);
-        atomic64_sub(ks->ks_st.kst_valen, &cnd->cnd_vblk_size);
+        atomic_sub(&cnd->cnd_kblk_size, ks->ks_st.kst_kalen);
+        atomic_sub(&cnd->cnd_vblk_size, ks->ks_st.kst_valen);
     }
 
     for (i = 0; i < ks->ks_st.kst_kblks; i++) {

@@ -83,7 +83,7 @@
 #define log_pri(_pri, _fmt, _async, _argv, ...)                         \
     do {                                                                \
         static struct event_counter hse_ev_log _dt_section = {          \
-            .ev_odometer = ATOMIC_INIT(0),                              \
+            .ev_odometer = 0,                                           \
             .ev_pri = (_pri),                                           \
             .ev_flags = EV_FLAGS_HSE_LOG,                               \
             .ev_file = __FILE__,                                        \
