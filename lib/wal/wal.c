@@ -292,7 +292,7 @@ wal_put(
     uint64_t txid,
     struct wal_record *recout)
 {
-    const size_t kvalign = alignof(uint64_t);
+    const size_t kvalign = sizeof(uint64_t);
     struct wal_rec_omf *rec;
     uint64_t rid;
     size_t klen, vlen, rlen, kvlen, len;
@@ -348,7 +348,7 @@ wal_del_impl(
     struct wal_record *recout,
     bool prefix)
 {
-    const size_t kalign = alignof(uint64_t);
+    const size_t kalign = sizeof(uint64_t);
     struct wal_rec_omf *rec;
     uint64_t rid;
     size_t klen, rlen, kalen, len;

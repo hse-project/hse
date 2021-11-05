@@ -112,6 +112,7 @@ omf_mblock_metahdr_pack(struct mblock_metahdr *mh, char *outbuf)
     omf_set_mh_rsvd(mhomf, 0);
 
     omf_set_mh_crc(mhomf, omf_mblock_metahdr_crc_get(mhomf));
+    omf_set_mh_gclose(mhomf, 1);
 }
 
 void

@@ -383,8 +383,10 @@ ikvdb_storage_add(const char *kvdb_home, struct kvdb_cparams *params)
     if (err)
         return err;
 
-    if (err) {
-        log_errx("cannot upgrade %s/kvdb.meta: @@e", err, kvdb_home);
+    if (meta.km_version != KVDB_META_VERSION || meta.km_omf_version != GLOBAL_OMF_VERSION) {
+        err = merr(EPROTO);
+        log_errx("cannot add storage to kvdb %s, out-of-date meta/on-media versions %u/%u: @@e",
+                 err, kvdb_home, meta.km_version, meta.km_omf_version);
         return err;
     }
 
@@ -781,10 +783,6 @@ ikvdb_diag_open(
     if (ev(err))
         goto self_cleanup;
 
-    err = kvdb_meta_version_check(&meta);
-    if (err && merr_errno(err) != EUCLEAN)
-        goto self_cleanup;
-
     err = kvdb_meta_to_mpool_rparams(&meta, kvdb_home, &mparams);
     if (ev(err))
         goto self_cleanup;
@@ -1163,12 +1161,6 @@ ikvdb_open(
     err = kvdb_meta_deserialize(&meta, kvdb_home);
     if (ev(err)) {
         log_errx("cannot open %s: @@e", err, kvdb_home);
-        goto out;
-    }
-
-    err = kvdb_meta_version_check(&meta);
-    if (err && merr_errno(err) != EUCLEAN) {
-        log_errx("cannot parse %s/kvdb.meta: @@e", err, kvdb_home);
         goto out;
     }
 

@@ -503,9 +503,17 @@ kvdb_meta_deserialize(struct kvdb_meta *const meta, const char *const kvdb_home)
             err = parse_v1(root, meta, kvdb_home);
             break;
         default:
-            log_err("Unknown 'version' in %s/kvdb.meta", kvdb_home);
+            log_err("Unknown 'version' in %s/kvdb.meta, %u != %u", kvdb_home, meta->km_version,
+                    KVDB_META_VERSION);
             err = merr(EPROTO);
             goto out;
+    }
+
+    if (!err && meta->km_omf_version > GLOBAL_OMF_VERSION) {
+        log_err("Unknown 'omf_version' in %s/kvdb.meta, %u != %u, please upgrade HSE",
+                kvdb_home, meta->km_omf_version, GLOBAL_OMF_VERSION);
+        err = merr(EPROTO);
+        goto out;
     }
 
 out:
@@ -550,37 +558,16 @@ out:
 }
 
 merr_t
-kvdb_meta_version_check(const struct kvdb_meta *const meta)
-{
-    INVARIANT(meta);
-
-    if (meta->km_version == KVDB_META_VERSION && meta->km_omf_version == GLOBAL_OMF_VERSION)
-        return 0; /* Nothing to do */
-
-    if (meta->km_omf_version > GLOBAL_OMF_VERSION) {
-        log_err("Unknown on-media version %u, please upgrade HSE", meta->km_omf_version);
-        return merr(EPROTO);
-    }
-
-    if (meta->km_version != KVDB_META_VERSION) {
-        log_err("Mismatched KVDB meta version %u != %u", meta->km_version, KVDB_META_VERSION);
-        return merr(EPROTO);
-    }
-
-    return merr(EUCLEAN);
-}
-
-merr_t
 kvdb_meta_upgrade(struct kvdb_meta *const meta, const char *const kvdb_home)
 {
     unsigned int omvers;
     merr_t err;
 
-    INVARIANT(meta && kvdb_home);
+    INVARIANT(meta);
+    INVARIANT(kvdb_home);
 
-    err = kvdb_meta_version_check(meta);
-    if (!err || (merr_errno(err) != EUCLEAN))
-        return err;
+    if (meta->km_version == KVDB_META_VERSION && meta->km_omf_version == GLOBAL_OMF_VERSION)
+        return 0; /* Nothing to do */
 
     omvers = meta->km_omf_version;
     meta->km_omf_version = GLOBAL_OMF_VERSION;
@@ -705,19 +692,7 @@ kvdb_meta_storage_add(
         }
     }
 
-    if (added) {
-        merr_t err;
-
-        err = kvdb_meta_version_check(meta);
-        if (err)
-            return err;
-
-        meta->km_omf_version = GLOBAL_OMF_VERSION;
-
-        return kvdb_meta_serialize(meta, kvdb_home);
-    }
-
-    return 0;
+    return added ? kvdb_meta_serialize(meta, kvdb_home) : 0;
 }
 
 #if HSE_MOCKING

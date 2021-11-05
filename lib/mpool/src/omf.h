@@ -58,7 +58,7 @@ struct mdc_rechdr_omf {
     uint32_t rh_rsvd;
     uint64_t rh_size;
     uint8_t  rh_data[0];
-} __attribute__((packed,aligned(__alignof__(uint64_t))));
+} __attribute__((packed,aligned(sizeof(uint64_t))));
 
 /* Define set/get methods for mdc_rechdr_omf */
 OMF_SETGET(struct mdc_rechdr_omf, rh_crc, 32);
@@ -116,10 +116,10 @@ struct mblock_metahdr_omf_v1 {
     uint32_t mh_magic;
     uint32_t mh_fszmax_gb;
     uint32_t mh_mblksz_sec;
-    u8       mh_mcid;
-    u8       mh_fcnt;
-    u8       mh_blkbits;
-    u8       mh_mcbits;
+    uint8_t  mh_mcid;
+    uint8_t  mh_fcnt;
+    uint8_t  mh_blkbits;
+    uint8_t  mh_mcbits;
 } HSE_PACKED;
 
 /* Define set/get methods for mblock_metahdr_omf_v1 */
@@ -145,18 +145,20 @@ OMF_GET_VER(struct mblock_metahdr_omf_v1, mh_mcbits, 8, v1);
  * @mh_mcbits:     no. of media class bits
  * @mh_rsvd:       reserved
  * @mh_crc:        meta header crc
+ * @mh_gclose:     records whether the previous open of this mclass was gracefully closed
  */
 struct mblock_metahdr_omf {
     uint32_t mh_vers;
     uint32_t mh_magic;
     uint32_t mh_fszmax_gb;
     uint32_t mh_mblksz_sec;
-    u8       mh_mcid;
-    u8       mh_fcnt;
-    u8       mh_blkbits;
-    u8       mh_mcbits;
+    uint8_t  mh_mcid;
+    uint8_t  mh_fcnt;
+    uint8_t  mh_blkbits;
+    uint8_t  mh_mcbits;
     uint32_t mh_rsvd;
     uint32_t mh_crc;
+    uint32_t mh_gclose;
 } HSE_PACKED;
 
 /* Define set/get methods for mblock_metahdr_omf */
@@ -170,14 +172,15 @@ OMF_SETGET(struct mblock_metahdr_omf, mh_blkbits, 8);
 OMF_SETGET(struct mblock_metahdr_omf, mh_mcbits, 8);
 OMF_SETGET(struct mblock_metahdr_omf, mh_rsvd, 32);
 OMF_SETGET(struct mblock_metahdr_omf, mh_crc, 32);
+OMF_SETGET(struct mblock_metahdr_omf, mh_gclose, 32);
 
 /**
  * struct mblock_filehdr_omf_v1 - mblock file meta header (version 1)
  */
 struct mblock_filehdr_omf_v1 {
     uint32_t fh_uniq;
-    u8       fh_fileid;
-    u8       fh_rsvd1;
+    uint8_t  fh_fileid;
+    uint8_t  fh_rsvd1;
     uint16_t fh_rsvd2;
 } HSE_PACKED;
 
@@ -198,8 +201,8 @@ OMF_GET_VER(struct mblock_filehdr_omf_v1, fh_rsvd2, 16, v1);
  */
 struct mblock_filehdr_omf {
     uint32_t fh_uniq;
-    u8       fh_fileid;
-    u8       fh_rsvd1;
+    uint8_t  fh_fileid;
+    uint8_t  fh_rsvd1;
     uint16_t fh_rsvd2;
     uint32_t fh_crc;
 } HSE_PACKED;
@@ -263,7 +266,7 @@ omf_mblock_oid_len(uint32_t version)
         return MBLOCK_FILE_META_OIDLEN;
 
     default:
-        return 0;
+        abort();
     }
 }
 

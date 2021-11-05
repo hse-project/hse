@@ -192,7 +192,7 @@ mpool_mdc_open(
     }
 
     if (err || (!err && gen1 && gen1 == gen2)) {
-        err = err ? : merr(EINVAL);
+        err = err ?: merr(EINVAL);
         log_err("MDC (%lu:%lu) corrupt: bad pair err (%d, %d) gen (%lu, %lu)",
                 logid1, logid2, merr_errno(err1), merr_errno(err2), gen1, gen2);
     } else {

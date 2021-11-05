@@ -322,7 +322,7 @@ mdc_file_validate(struct mdc_file *mfp, uint64_t *gen)
 
             switch (mfp->lh.vers) {
             case MDC_LOGHDR_VERSION:
-                addr += (rhlen + ALIGN(recsz, alignof(uint64_t)));
+                addr += (rhlen + ALIGN(recsz, sizeof(uint64_t)));
                 break;
 
             case MDC_LOGHDR_VERSION1:
@@ -654,7 +654,7 @@ mdc_file_read(struct mdc_file *mfp, void *data, size_t len, bool verify, size_t 
 
     switch (mfp->lh.vers) {
     case MDC_LOGHDR_VERSION:
-        mfp->roff += (rhlen + ALIGN(rh.size, alignof(uint64_t)));
+        mfp->roff += (rhlen + ALIGN(rh.size, sizeof(uint64_t)));
         break;
 
     case MDC_LOGHDR_VERSION1:
@@ -741,7 +741,7 @@ mdc_file_append_mem(struct mdc_file *mfp, void *data, size_t len)
     uint8_t hdrlen;
 
     addr = mfp->addr + mfp->woff;
-    assert(IS_ALIGNED((unsigned long)addr, alignof(uint64_t)));
+    assert(IS_ALIGNED((unsigned long)addr, sizeof(uint64_t)));
 
     rhomf = (struct mdc_rechdr_omf *)addr;
     omf_set_rh_rsvd(rhomf, 0);
@@ -765,7 +765,7 @@ mdc_file_append(struct mdc_file *mfp, void *data, size_t len, bool sync)
     if (!mfp || !data)
         return merr(EINVAL);
 
-    tlen = omf_mdc_rechdr_len() + ALIGN(len, alignof(uint64_t));
+    tlen = omf_mdc_rechdr_len() + ALIGN(len, sizeof(uint64_t));
 
     /* Extend file if the usage exceeds 75% of current size. */
     if (mfp->woff + tlen > ((3 * mfp->size) / 4)) {
@@ -777,7 +777,7 @@ mdc_file_append(struct mdc_file *mfp, void *data, size_t len, bool sync)
     if ((mfp->woff + tlen) > mfp->size)
         return merr(EFBIG);
 
-    assert(IS_ALIGNED(mfp->woff, alignof(uint64_t)));
+    assert(IS_ALIGNED(mfp->woff, sizeof(uint64_t)));
 
     if (len >= 2 * PAGE_SIZE)
         err = mdc_file_append_sys(mfp, data, len);

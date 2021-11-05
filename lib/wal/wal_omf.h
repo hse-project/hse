@@ -133,7 +133,7 @@ struct wal_rechdr_omf {
     uint32_t rh_type;
     uint32_t rh_len;
     uint64_t rh_rsvd;
-} __attribute__((packed,aligned(__alignof__(uint64_t))));
+} __attribute__((packed,aligned(sizeof(uint64_t))));
 
 /* Define set/get methods for wal_rechdr_omf */
 OMF_SETGET(struct wal_rechdr_omf, rh_off, 64);
@@ -155,7 +155,7 @@ struct wal_rec_omf {
     uint64_t                r_seqno;
     uint64_t                r_vxlen;
     uint8_t               r_data[0];
-} __attribute__((packed,aligned(__alignof__(uint64_t))));
+} __attribute__((packed,aligned(sizeof(uint64_t))));
 
 /* Define set/get methods for wal_oprec_omf */
 OMF_SETGET(struct wal_rec_omf, r_op, 32);

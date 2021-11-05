@@ -456,7 +456,7 @@ mblock_file_meta_load(struct mblock_file *mbfp, uint32_t version)
 
     err = omf_mblock_filehdr_unpack(addr, version, &fh);
     if ((err && merr_errno(err) != ENOMSG) || (fh.fileid != mbfp->fileid))
-        return err ? : merr(EBADMSG);
+        return err ?: merr(EBADMSG);
 
     /*
      * Likely crash while updating file header during mblock allocation.
@@ -560,7 +560,7 @@ mblock_file_meta_log(struct mblock_file *mbfp, uint64_t *mbidv, int mbidc, bool 
 
     if (err || !mblock_oid_isvalid(*mbidv, mbinfo.mb_oid, wlen, mbinfo.mb_wlen, delete)) {
         mutex_unlock(&mbfp->meta_lock);
-        return err ? : merr(EINVAL);
+        return err ?: merr(EINVAL);
     }
 
     mbinfo.mb_oid = delete ? 0 : *mbidv;
