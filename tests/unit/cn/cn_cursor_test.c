@@ -1040,7 +1040,7 @@ MTF_DEFINE_UTEST_PREPOST(cn_cursor, capped_update, pre, post)
     bool updated = false;
 
     tree->ct_root->tn_ns.ns_kst.kst_kvsets = NELEM(make);
-    atomic64_set(&cn->cn_ingest_dgen, 5);
+    atomic_set(&cn->cn_ingest_dgen, 5);
     err = cn_cursor_update(cur, seqno, &updated);
     ASSERT_EQ(0, err);
     ASSERT_EQ(true, updated);
@@ -1189,7 +1189,7 @@ MTF_DEFINE_UTEST_PREPOST(cn_cursor, capped_update_errors, pre, post)
     bool updated = false;
 
     tree->ct_root->tn_ns.ns_kst.kst_kvsets = NELEM(make);
-    atomic64_set(&cn->cn_ingest_dgen, 5);
+    atomic_set(&cn->cn_ingest_dgen, 5);
     mapi_inject(mapi_idx_kvset_iter_create, merr(EBUG));
     err = cn_cursor_update(cur, seqno, &updated);
     ASSERT_EQ(EBUG, merr_errno(err));

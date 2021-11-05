@@ -51,12 +51,12 @@ perfc_ctrseti_clear(struct perfc_seti *seti)
             vadd = vsub = 0;
 
             for (i = 0; i < PERFC_VALPERCNT; ++i) {
-                vtmp = atomic64_read(&val->pcv_vsub);
-                atomic64_sub(vtmp, &val->pcv_vsub);
+                vtmp = atomic_read(&val->pcv_vsub);
+                atomic_sub(&val->pcv_vsub, vtmp);
                 vsub += vtmp;
 
-                vtmp = atomic64_read(&val->pcv_vadd);
-                atomic64_sub(vtmp, &val->pcv_vadd);
+                vtmp = atomic_read(&val->pcv_vadd);
+                atomic_sub(&val->pcv_vadd, vtmp);
                 vadd += vtmp;
 
                 val += PERFC_VALPERCPU;
@@ -86,11 +86,11 @@ perfc_ctrseti_clear(struct perfc_seti *seti)
                 bkt = dis->pdi_hdr.pch_bktv + (PERFC_IVL_MAX + 1) * j;
 
                 for (i = 0; i < ivl->ivl_cnt + 1; ++i, ++bkt) {
-                    vtmp = atomic64_read(&bkt->pcb_vadd);
-                    atomic64_sub(vtmp, &bkt->pcb_vadd);
+                    vtmp = atomic_read(&bkt->pcb_vadd);
+                    atomic_sub(&bkt->pcb_vadd, vtmp);
 
-                    vtmp = atomic64_read(&bkt->pcb_hits);
-                    atomic64_sub(vtmp, &bkt->pcb_hits);
+                    vtmp = atomic_read(&bkt->pcb_hits);
+                    atomic_sub(&bkt->pcb_hits, vtmp);
                 }
             }
             break;
@@ -100,11 +100,11 @@ perfc_ctrseti_clear(struct perfc_seti *seti)
         default:
             val = hdr->pch_val;
 
-            vtmp = atomic64_read(&val->pcv_vsub);
-            atomic64_sub(vtmp, &val->pcv_vsub);
+            vtmp = atomic_read(&val->pcv_vsub);
+            atomic_sub(&val->pcv_vsub, vtmp);
 
-            vtmp = atomic64_read(&val->pcv_vadd);
-            atomic64_sub(vtmp, &val->pcv_vadd);
+            vtmp = atomic_read(&val->pcv_vadd);
+            atomic_sub(&val->pcv_vadd, vtmp);
             break;
         }
     }
@@ -196,8 +196,8 @@ perfc_ra_emit(struct perfc_rate *rate, struct yaml_context *yc)
     vadd = vsub = curr = 0;
 
     for (i = 0; i < PERFC_VALPERCNT; ++i) {
-        vadd += atomic64_read(&val->pcv_vadd);
-        vsub += atomic64_read(&val->pcv_vsub);
+        vadd += atomic_read(&val->pcv_vadd);
+        vsub += atomic_read(&val->pcv_vsub);
         val += PERFC_VALPERCPU;
     }
 
@@ -256,8 +256,8 @@ perfc_di_emit(struct perfc_dis *dis, struct yaml_context *yc)
         hits = val = 0;
 
         for (j = 0; j < PERFC_GRP_MAX; ++j) {
-            val += atomic64_read(&bkt->pcb_vadd);
-            hits += atomic64_read(&bkt->pcb_hits);
+            val += atomic_read(&bkt->pcb_vadd);
+            hits += atomic_read(&bkt->pcb_hits);
             bkt += PERFC_IVL_MAX + 1;
         }
 
@@ -329,8 +329,8 @@ perfc_read_hdr(struct perfc_ctr_hdr *hdr, u64 *vadd, u64 *vsub)
      * summing over val[i].pcv_vadd would go horribly awry...
      */
     for (i = 0; i < PERFC_VALPERCNT; ++i) {
-        *vadd += atomic64_read(&val->pcv_vadd);
-        *vsub += atomic64_read(&val->pcv_vsub);
+        *vadd += atomic_read(&val->pcv_vadd);
+        *vsub += atomic_read(&val->pcv_vsub);
         val += PERFC_VALPERCPU;
     }
 }
@@ -907,8 +907,8 @@ perfc_latdis_record(struct perfc_dis *dis, u64 sample)
         bkt += i;
     }
 
-    atomic64_add(sample, &bkt->pcb_vadd);
-    atomic64_add(1, &bkt->pcb_hits);
+    atomic_add(&bkt->pcb_vadd, sample);
+    atomic_add(&bkt->pcb_hits, 1);
 }
 
 void

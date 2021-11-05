@@ -269,7 +269,7 @@ MTF_DEFINE_UTEST_PRE(cn_ingest_test, worker, test_pre)
     rp = kvs_rparams_defaults();
     cn.rp = &rp;
     cn.cn_dataset = mock_ds;
-    atomic64_set(&cn.cn_ingest_dgen, 41);
+    atomic_set(&cn.cn_ingest_dgen, 41);
 
     cp.fanout = 4;
     cp.pfx_len = 0;
@@ -303,7 +303,7 @@ MTF_DEFINE_UTEST_PRE(cn_ingest_test, fail_cleanup, test_pre)
     rp = kvs_rparams_defaults();
     cn.rp = &rp;
     cn.cn_dataset = mock_ds;
-    atomic64_set(&cn.cn_ingest_dgen, 41);
+    atomic_set(&cn.cn_ingest_dgen, 41);
 
     cp.fanout = 4;
     cp.pfx_len = 0;

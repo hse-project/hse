@@ -550,7 +550,7 @@ add_error(const char *fmt, ...)
     char msg[256];
     va_list ap;
 
-    atomic64_inc(&errors);
+    atomic_inc(&errors);
 
     va_start(ap, fmt);
     vsnprintf(msg, sizeof(msg), fmt, ap);
@@ -787,7 +787,7 @@ test_put(struct thread_info *ti, uint salt, bool istxn)
         if (err)
             merr_quit("kvdb_put failed", err);
 
-        atomic64_inc(&put_cnt);
+        atomic_inc(&put_cnt);
 
         /* If txn mode, PUT two more keys. */
         while (istxn && nkeys++ < 2) {
@@ -808,7 +808,7 @@ test_put(struct thread_info *ti, uint salt, bool istxn)
             if (err)
                 merr_quit("kvdb_put failed", err);
 
-            atomic64_inc(&put_cnt);
+            atomic_inc(&put_cnt);
         }
 
         if (istxn)
@@ -859,7 +859,7 @@ test_delete(
                 merr_quit("kvs_prefix_del failed", err);
         }
 
-        atomic64_inc(&del_cnt);
+        atomic_inc(&del_cnt);
 
         if (istxn)
             hse_kvdb_txn_commit(ti->kvdb, txn);
@@ -889,7 +889,7 @@ test_put_verify(struct thread_info *ti, uint salt, bool istxn)
         uint *txkeyp = NULL, nkeys = 0;
         char *txkey = NULL;
 
-        if (atomic64_read(&errors) >= opt.errcnt)
+        if (atomic_read(&errors) >= opt.errcnt)
             break;
 
         const char *key = (char *)ti->ref_key;
@@ -984,11 +984,11 @@ test_put_verify(struct thread_info *ti, uint salt, bool istxn)
 
             if (nkeys == 2) {
                 free(txkey);
-                atomic64_add(nkeys, &put_verify_cnt);
+                atomic_add(&put_verify_cnt, nkeys);
             }
         }
     }
-    atomic64_add(i - atomic64_read(&errors), &put_verify_cnt);
+    atomic_add(&put_verify_cnt, i - atomic_read(&errors));
 
     test_end_phase(ti, false);
 }
@@ -1013,7 +1013,7 @@ test_delete_verify(
         hse_err_t err;
         bool found = false;
 
-        if (atomic64_read(&errors) >= opt.errcnt)
+        if (atomic_read(&errors) >= opt.errcnt)
             break;
 
         set_kv(ti, i, salt);
@@ -1038,7 +1038,7 @@ test_delete_verify(
         }
     }
 
-    atomic64_add(i - atomic64_read(&errors), &del_verify_cnt);
+    atomic_add(&del_verify_cnt, i - atomic_read(&errors));
 
     test_end_phase(ti, false);
 }
@@ -1054,28 +1054,28 @@ thread_main(void *arg)
     if (opt.do_all || opt.do_put)
         test_put(ti, salt, opt.do_txn);
 
-    if (atomic64_read(&errors) < opt.errcnt && opt.do_vput)
+    if (atomic_read(&errors) < opt.errcnt && opt.do_vput)
         test_put_verify(ti, salt, opt.do_txn);
 
     salt = 1;
 
-    if (atomic64_read(&errors) < opt.errcnt &&
+    if (atomic_read(&errors) < opt.errcnt &&
         (opt.do_all || opt.do_up))
         test_put(ti, salt, opt.do_txn);
 
-    if (atomic64_read(&errors) < opt.errcnt && opt.do_vup)
+    if (atomic_read(&errors) < opt.errcnt && opt.do_vup)
         test_put_verify(ti, salt, opt.do_txn);
 
-    if (atomic64_read(&errors) < opt.errcnt &&
+    if (atomic_read(&errors) < opt.errcnt &&
         (opt.do_all || opt.do_del))
         test_delete(ti, false, opt.do_txn);
-    if (atomic64_read(&errors) < opt.errcnt && opt.do_vdel)
+    if (atomic_read(&errors) < opt.errcnt && opt.do_vdel)
         test_delete_verify(ti);
 
-    if (atomic64_read(&errors) < opt.errcnt && opt.do_pdel)
+    if (atomic_read(&errors) < opt.errcnt && opt.do_pdel)
         test_delete(ti, true, opt.do_txn);
 
-    if (atomic64_read(&errors) < opt.errcnt && opt.do_vpdel)
+    if (atomic_read(&errors) < opt.errcnt && opt.do_vpdel)
         test_delete_verify(ti);
 
     test_end_phase(ti, true);
@@ -1087,25 +1087,25 @@ thread_main(void *arg)
 void
 print_result(void)
 {
-    if (atomic64_read(&put_cnt))
+    if (atomic_read(&put_cnt))
         printf("waltest : No. of successful puts %ld\n",
-               atomic64_read(&put_cnt));
+               atomic_read(&put_cnt));
 
-    if (atomic64_read(&put_verify_cnt))
+    if (atomic_read(&put_verify_cnt))
         printf("waltest : No. of successful verified puts %ld\n",
-               atomic64_read(&put_verify_cnt));
+               atomic_read(&put_verify_cnt));
 
-    if (atomic64_read(&del_cnt))
+    if (atomic_read(&del_cnt))
         printf("waltest : No. of successful deletes %ld\n",
-               atomic64_read(&del_cnt));
+               atomic_read(&del_cnt));
 
-    if (atomic64_read(&del_verify_cnt))
+    if (atomic_read(&del_verify_cnt))
         printf("waltest : No. of successful verified deletes %ld\n",
-               atomic64_read(&del_verify_cnt));
+               atomic_read(&del_verify_cnt));
 
-    if (atomic64_read(&errors) >= opt.errcnt)
+    if (atomic_read(&errors) >= opt.errcnt)
         quit("Exiting, because %lu error(s) were encountered\n",
-             atomic64_read(&errors));
+             atomic_read(&errors));
 
     announce("Successful");
 }
@@ -1332,7 +1332,7 @@ waltest_run(int argc, char **argv)
 
     destroy_key_generator(key_gen);
 
-    return atomic64_read(&errors) == 0 ? 0 : -1;
+    return atomic_read(&errors) == 0 ? 0 : -1;
 }
 
 int

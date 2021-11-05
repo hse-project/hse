@@ -1035,7 +1035,7 @@ MTF_DEFINE_UTEST(cndb_test, cndb_compaction_test)
     ASSERT_EQ(0, err);
 
     cndb->cndb_high_water = 1000;
-    atomic64_set(&cndb->cndb_txid, 10);
+    atomic_set(&cndb->cndb_txid, 10);
 
     kb.bk_blkid = 11;
     vb.bk_blkid = 11;
@@ -1071,7 +1071,7 @@ MTF_DEFINE_UTEST(cndb_test, cndb_compaction_test)
 
     /* txn2: Deletes a kvset from the previous incomplete txn
      */
-    atomic64_set(&cndb->cndb_txid, 20);
+    atomic_set(&cndb->cndb_txid, 20);
     err = cndb_txn_start(cndb, &txid, 2, 1, 0, 0, 0);
     ASSERT_EQ(0, err);
 

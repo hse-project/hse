@@ -172,7 +172,7 @@ lc_ingest_seqno_set(struct lc *handle, u64 seq)
     self = lc_h2r(handle);
 
     ib->ib_seqno = seq;
-    atomic64_set(&ib->ib_refcnt, 0);
+    atomic_set(&ib->ib_refcnt, 0);
 
     /* Install ib as the new head */
     rmlock_wlock(&self->lc_ib_rmlock);
@@ -233,7 +233,7 @@ lc_horizon_register(struct lc_impl *self, void **cookie)
     rmlock_rlock(&self->lc_ib_rmlock, &lock);
     first = self->lc_ib_head;
     assert(first);
-    atomic64_inc(&first->ib_refcnt);
+    atomic_inc(&first->ib_refcnt);
     rmlock_runlock(lock);
 
     *cookie = first;
@@ -245,7 +245,7 @@ lc_horizon_deregister(void *cookie)
 {
     struct ingest_batch *ib = cookie;
 
-    atomic64_dec(&ib->ib_refcnt);
+    atomic_dec(&ib->ib_refcnt);
 }
 
 /* [HSE_REVISIT] This is almost identical to c0kvs_ior_cb(). Consider unifying the two.
@@ -1161,7 +1161,7 @@ lc_gc_horizon(struct lc_impl *self)
     for (ib = ib_list; ib; ib = next) {
         next = ib->ib_next;
 
-        if (!atomic64_read(&ib->ib_refcnt)) {
+        if (!atomic_read(&ib->ib_refcnt)) {
             assert(!horizon || horizon > ib->ib_seqno);
             horizon = horizon ?: ib->ib_seqno;
             *prevp = next;

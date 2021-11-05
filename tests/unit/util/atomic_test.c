@@ -22,21 +22,17 @@ MTF_BEGIN_UTEST_COLLECTION(atomic_test);
 
 MTF_DEFINE_UTEST(atomic_test, basic)
 {
-
+    int old_val, new_val;
     atomic_t v;
-    int      old_val, new_val;
+    bool b;
 
-    atomic_set(&v, 19);
-    ASSERT_EQ(atomic_read(&v), 19);
+    atomic_set(&v, 23);
+    ASSERT_EQ(atomic_read(&v), 23);
 
-    ASSERT_EQ(atomic_add_return(10, &v), 29);
-
-    ASSERT_EQ(atomic_sub_return(6, &v), 23);
-
-    atomic_add(2, &v);
+    atomic_add(&v, 2);
     ASSERT_EQ(atomic_read(&v), 25);
 
-    atomic_sub(3, &v);
+    atomic_sub(&v, 3);
     ASSERT_EQ(atomic_read(&v), 22);
 
     atomic_inc(&v);
@@ -45,39 +41,23 @@ MTF_DEFINE_UTEST(atomic_test, basic)
     atomic_dec(&v);
     ASSERT_EQ(atomic_read(&v), 22);
 
-    ASSERT_EQ(atomic_add_negative(-21, &v), 0);
-    ASSERT_EQ(atomic_add_negative(-1, &v), 0);
-    ASSERT_EQ(atomic_add_negative(-1, &v), 1);
-    ASSERT_EQ(atomic_read(&v), -1);
-
     atomic_set(&v, 10);
     ASSERT_EQ(atomic_read(&v), 10);
 
     ASSERT_EQ(atomic_inc_return(&v), 11);
     ASSERT_EQ(atomic_dec_return(&v), 10);
 
-    ASSERT_EQ(atomic_sub_and_test(1, &v), 0);
-    ASSERT_EQ(atomic_dec_and_test(&v), 0);
-    ASSERT_EQ(atomic_inc_and_test(&v), 0);
-
-    ASSERT_EQ(atomic_sub_and_test(9, &v), 1);
-    ASSERT_EQ(atomic_sub_and_test(0, &v), 1);
-
-    atomic_inc(&v);
-    ASSERT_EQ(atomic_dec_and_test(&v), 1);
-
-    atomic_dec(&v);
-    ASSERT_EQ(atomic_inc_and_test(&v), 1);
-
     atomic_set(&v, 32);
     old_val = 32;
     new_val = 50;
-    ASSERT_EQ(atomic_cmpxchg(&v, old_val, new_val), old_val);
+    b = atomic_cmpxchg(&v, &old_val, new_val);
+    ASSERT_TRUE(b);
     ASSERT_EQ(atomic_read(&v), new_val);
 
     old_val = 49;
     new_val = 32;
-    ASSERT_EQ(atomic_cmpxchg(&v, old_val, new_val), 50);
+    b = atomic_cmpxchg(&v, &old_val, new_val);
+    ASSERT_FALSE(b);
     ASSERT_EQ(atomic_read(&v), 50);
 }
 
@@ -88,80 +68,75 @@ MTF_DEFINE_UTEST(atomic_test, basic64)
     u64        s;
 
     ASSERT_EQ(sizeof(i), 8);
-    ASSERT_EQ(sizeof(v.counter), 8);
+    ASSERT_EQ(sizeof(v), 8);
 
-    atomic64_set(&v, ~1L);
-    ASSERT_EQ(atomic64_read(&v), ~1L);
+    atomic_set(&v, ~1L);
+    ASSERT_EQ(atomic_read(&v), ~1L);
 
-    atomic64_set(&v, 3);
-    ASSERT_EQ(atomic64_read(&v), 3L);
+    atomic_set(&v, 3);
+    ASSERT_EQ(atomic_read(&v), 3L);
 
-    ASSERT_EQ(atomic64_add_return(0x100000000L, &v), 0x100000003L);
-    ASSERT_EQ(atomic64_sub_return(0x100000000L, &v), 3L);
+    atomic_add(&v, 0x100000000L);
+    ASSERT_EQ(atomic_read(&v), 0x100000003L);
+    atomic_sub(&v, 3);
+    ASSERT_EQ(atomic_read(&v), 0x100000000L);
 
-    atomic64_add(0x100000000L, &v);
-    ASSERT_EQ(atomic64_read(&v), 0x100000003L);
-    ASSERT_EQ(atomic64_sub_return(3L, &v), 0x100000000L);
+    atomic_add(&v, 5L);
+    ASSERT_EQ(atomic_read(&v), 0x100000005L);
 
-    atomic64_add(5L, &v);
-    ASSERT_EQ(atomic64_read(&v), 0x100000005L);
+    atomic_sub(&v, 5L);
+    ASSERT_EQ(atomic_read(&v), 0x100000000L);
 
-    atomic64_sub(5L, &v);
-    ASSERT_EQ(atomic64_read(&v), 0x100000000L);
+    atomic_set(&v, 0xFFFFFFFFL);
+    atomic_inc(&v);
+    ASSERT_EQ(atomic_read(&v), 0x100000000L);
 
-    atomic64_set(&v, 0xFFFFFFFFL);
-    atomic64_inc(&v);
-    ASSERT_EQ(atomic64_read(&v), 0x100000000L);
+    atomic_inc(&v);
+    ASSERT_EQ(atomic_read(&v), 0x100000001L);
 
-    atomic64_inc(&v);
-    ASSERT_EQ(atomic64_read(&v), 0x100000001L);
+    atomic_dec(&v);
+    ASSERT_EQ(atomic_read(&v), 0x100000000L);
 
-    atomic64_dec(&v);
-    ASSERT_EQ(atomic64_read(&v), 0x100000000L);
+    atomic_dec(&v);
+    ASSERT_EQ(atomic_read(&v), 0xFFFFFFFFL);
 
-    atomic64_dec(&v);
-    ASSERT_EQ(atomic64_read(&v), 0xFFFFFFFFL);
+    atomic_inc(&v);
+    ASSERT_EQ(atomic_read(&v), 0x100000000L);
 
-    atomic64_inc(&v);
-    ASSERT_EQ(atomic64_read(&v), 0x100000000L);
+    atomic_set(&v, 0xFFFFFFFFL);
+    ASSERT_EQ(atomic_read(&v), 0xFFFFFFFFL);
+    ASSERT_EQ(atomic_inc_return(&v), 0x100000000L);
+    ASSERT_EQ(atomic_inc_return(&v), 0x100000001L);
+    ASSERT_EQ(atomic_dec_return(&v), 0x100000000L);
 
-    ASSERT_EQ(atomic64_add_negative(-0x100000000L, &v), 0);
-    ASSERT_EQ(atomic64_add_negative(-1L, &v), 1);
-    ASSERT_EQ(atomic64_read(&v), -1L);
-
-    atomic64_set(&v, 0xFFFFFFFFL);
-    ASSERT_EQ(atomic64_read(&v), 0xFFFFFFFFL);
-    ASSERT_EQ(atomic64_inc_return(&v), 0x100000000L);
-    ASSERT_EQ(atomic64_inc_return(&v), 0x100000001L);
-    ASSERT_EQ(atomic64_dec_return(&v), 0x100000000L);
-
-    ASSERT_EQ(atomic64_sub_and_test(0x100000000L, &v), 1);
-    ASSERT_EQ(atomic64_sub_and_test(1, &v), 0);
-    ASSERT_EQ(atomic64_inc_and_test(&v), 1);
-    ASSERT_EQ(atomic64_inc_and_test(&v), 0);
-    ASSERT_EQ(atomic64_dec_and_test(&v), 1);
-    ASSERT_EQ(atomic64_dec_and_test(&v), 0);
-
-    atomic64_set(&v, 0xFFFFFFFFL);
-    s = atomic64_fetch_add(1, &v);
+    atomic_set(&v, 0xFFFFFFFFL);
+    s = atomic_fetch_add(&v, 1);
     ASSERT_EQ(s, 0xFFFFFFFFUL);
-    s = atomic64_read(&v);
+
+    s = atomic_read(&v);
     ASSERT_EQ(s, 0x100000000UL);
-    s = atomic64_fetch_add(2, &v);
+
+    s = atomic_fetch_add(&v, 2);
     ASSERT_EQ(s, 0x100000000UL);
-    s = atomic64_read(&v);
+
+    s = atomic_read(&v);
     ASSERT_EQ(s, 0x100000002UL);
-    atomic64_set(&v, 2L);
-    s = atomic64_fetch_add(0xFFFFFFFF, &v);
+
+    atomic_set(&v, 2L);
+    s = atomic_fetch_add(&v, 0xFFFFFFFF);
     ASSERT_EQ(s, 2UL);
-    s = atomic64_fetch_add(1, &v);
+
+    s = atomic_fetch_add(&v, 1);
     ASSERT_EQ(s, 0x100000001UL);
-    atomic64_set(&v, ~1L);
-    s = atomic64_fetch_add(1, &v);
+
+    atomic_set(&v, ~1L);
+    s = atomic_fetch_add(&v, 1);
     ASSERT_EQ(s, ~1UL);
-    s = atomic64_fetch_add(1, &v);
+
+    s = atomic_fetch_add(&v, 1);
     ASSERT_EQ(s, ~0UL);
-    s = atomic64_fetch_add(2, &v);
+
+    s = atomic_fetch_add(&v, 2);
     ASSERT_EQ(s, 0UL);
 }
 
@@ -257,7 +232,7 @@ test_thread(void *context, int tnum)
         case TC_INC:
             if (t->p.width == 64) {
                 for (i = 0; i < t->p.iters; i++)
-                    atomic64_inc(t->av64);
+                    atomic_inc(t->av64);
                 for (i = 0; i < t->p.iters; i++)
                     UPDATE64(1);
             } else {
@@ -271,7 +246,7 @@ test_thread(void *context, int tnum)
         case TC_DEC:
             if (t->p.width == 64) {
                 for (i = 0; i < t->p.iters; i++)
-                    atomic64_dec(t->av64);
+                    atomic_dec(t->av64);
                 for (i = 0; i < t->p.iters; i++)
                     UPDATE64(-1);
             } else {
@@ -285,12 +260,12 @@ test_thread(void *context, int tnum)
         case TC_ADD:
             if (t->p.width == 64) {
                 for (i = 0; i < t->p.iters; i++)
-                    atomic64_add(4, t->av64);
+                    atomic_add(t->av64, 4);
                 for (i = 0; i < t->p.iters; i++)
                     UPDATE64(4);
             } else {
                 for (i = 0; i < t->p.iters; i++)
-                    atomic_add(4, t->av32);
+                    atomic_add(t->av32, 4);
                 for (i = 0; i < t->p.iters; i++)
                     UPDATE32(4);
             }
@@ -299,12 +274,12 @@ test_thread(void *context, int tnum)
         case TC_SUB:
             if (t->p.width == 64) {
                 for (i = 0; i < t->p.iters; i++)
-                    atomic64_sub(4, t->av64);
+                    atomic_sub(t->av64, 4);
                 for (i = 0; i < t->p.iters; i++)
                     UPDATE64(-4);
             } else {
                 for (i = 0; i < t->p.iters; i++)
-                    atomic_sub(4, t->av32);
+                    atomic_sub(t->av32, 4);
                 for (i = 0; i < t->p.iters; i++)
                     UPDATE32(-4);
             }
@@ -313,18 +288,18 @@ test_thread(void *context, int tnum)
         case TC_UPDOWN:
             if (t->p.width == 64) {
                 for (i = 0; i < t->p.iters; i++)
-                    atomic64_add(i, t->av64);
+                    atomic_add(t->av64, i);
                 for (i = 0; i < t->p.iters; i++)
-                    atomic64_sub(i, t->av64);
+                    atomic_sub(t->av64, i);
                 for (i = 0; i < t->p.iters; i++)
                     UPDATE64(i);
                 for (i = 0; i < t->p.iters; i++)
                     UPDATE64(-i);
             } else {
                 for (i = 0; i < t->p.iters; i++)
-                    atomic_add(i, t->av32);
+                    atomic_add(t->av32, i);
                 for (i = 0; i < t->p.iters; i++)
-                    atomic_sub(i, t->av32);
+                    atomic_sub(t->av32, i);
                 for (i = 0; i < t->p.iters; i++)
                     UPDATE32(i);
                 for (i = 0; i < t->p.iters; i++)
@@ -335,42 +310,42 @@ test_thread(void *context, int tnum)
         case TC_MIXED:
             for (i = 0; i < t->p.iters; i++) {
                 if (t->p.width == 64) {
-                    atomic64_inc(t->av64);
+                    atomic_inc(t->av64);
                     UPDATE64(1);
-                    atomic64_inc(t->av64);
+                    atomic_inc(t->av64);
                     UPDATE64(1);
-                    atomic64_add(10, t->av64);
+                    atomic_add(t->av64, 10);
                     UPDATE64(10);
-                    atomic64_sub(2, t->av64);
+                    atomic_sub(t->av64, 2);
                     UPDATE64(-2);
-                    atomic64_dec(t->av64);
+                    atomic_dec(t->av64);
                     UPDATE64(-1);
-                    atomic64_dec(t->av64);
+                    atomic_dec(t->av64);
                     UPDATE64(-1);
-                    atomic64_add(tnum, t->av64);
+                    atomic_add(t->av64, tnum);
                     UPDATE64(tnum);
-                    atomic64_add(i + 20, t->av64);
+                    atomic_add(t->av64, i + 20);
                     UPDATE64(i + 20);
-                    atomic64_sub(i + 10, t->av64);
+                    atomic_sub(t->av64, i + 10);
                     UPDATE64(-(i + 10));
                 } else {
                     atomic_inc(t->av32);
                     UPDATE32(1);
                     atomic_inc(t->av32);
                     UPDATE32(1);
-                    atomic_add(10, t->av32);
+                    atomic_add(t->av32, 10);
                     UPDATE32(10);
-                    atomic_sub(2, t->av32);
+                    atomic_sub(t->av32, 2);
                     UPDATE32(-2);
                     atomic_dec(t->av32);
                     UPDATE32(-1);
                     atomic_dec(t->av32);
                     UPDATE32(-1);
-                    atomic_add(tnum, t->av32);
+                    atomic_add(t->av32, tnum);
                     UPDATE32(tnum);
-                    atomic_add(i + 20, t->av32);
+                    atomic_add(t->av32, i + 20);
                     UPDATE32(i + 20);
-                    atomic_sub(i + 10, t->av32);
+                    atomic_sub(t->av32, i + 10);
                     UPDATE32(-(i + 10));
                 }
             }
@@ -395,9 +370,9 @@ test_report(void *context, double elapsed_time)
             " non_atomic = %12ld\n",
             tc_str(t->p.tc),
             ev64,
-            atomic64_read(t->av64),
+            atomic_read(t->av64),
             *t->nav64);
-        ASSERT_EQ(atomic64_read(t->av64), ev64);
+        ASSERT_EQ(atomic_read(t->av64), ev64);
     } else {
         int ev32 = 0;
 
@@ -448,7 +423,7 @@ test_init(struct test *t, struct test_params *params, struct mtf_test_info *lcl_
     *t->nav32 = 0;
     *t->nav64 = 0L;
     atomic_set(t->av32, 0);
-    atomic64_set(t->av64, 0);
+    atomic_set(t->av64, 0);
 
     t->mtest = mtest_create(t->p.threads, test_thread, test_report, t);
     ASSERT_TRUE(t->mtest);

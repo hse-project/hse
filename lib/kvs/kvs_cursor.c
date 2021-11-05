@@ -915,7 +915,7 @@ kvs_cursor_update(struct hse_kvs_cursor *handle, struct kvdb_ctxn *ctxn, u64 seq
 #endif
 
     if (bind)
-        handle->kc_gen = atomic64_read(&bind->b_gen);
+        handle->kc_gen = atomic_read(&bind->b_gen);
 
     /* Copy out last key that was read */
     if (cursor->kci_last) {

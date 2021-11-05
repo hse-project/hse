@@ -54,14 +54,9 @@
 
 #include "kvs_helper.h"
 
-HSE_ALIGNED(SMP_CACHE_BYTES)
-    static atomic64_t  pfx = ATOMIC64_INIT(1);
-
-HSE_ALIGNED(SMP_CACHE_BYTES)
-    static atomic64_t  sfx = ATOMIC64_INIT(1);
-
-HSE_ALIGNED(SMP_CACHE_BYTES)
-    static uint64_t    last_del;
+static atomic64_t  pfx HSE_ALIGNED(SMP_CACHE_BYTES);
+static atomic64_t  sfx HSE_ALIGNED(SMP_CACHE_BYTES);
+static uint64_t    last_del HSE_ALIGNED(SMP_CACHE_BYTES);
 
 pthread_barrier_t   put_barrier1;
 pthread_barrier_t   put_barrier2;
@@ -122,7 +117,7 @@ pdel(void *arg)
         uint64_t *p;
 
         /* Compute how many entries is it safe to delete */
-        curr = atomic64_read(&pfx);
+        curr = atomic_read(&pfx);
         curr_safe = curr > opts.cap ? curr - opts.cap : 0;
         if (last_del >= curr_safe) {
             usleep(333);
@@ -194,8 +189,8 @@ txput(void *arg)
 
     added = 0;
     while (!exit_puts) {
-        *p = htobe64(atomic64_read(&pfx));       /* prefix */
-        *s = htobe64(atomic64_inc_return(&sfx)); /* suffix */
+        *p = htobe64(atomic_read(&pfx));       /* prefix */
+        *s = htobe64(atomic_inc_return(&sfx)); /* suffix */
 
         ti->state = 'b';
         err = hse_kvdb_txn_begin(targ->kvdb, txn);
@@ -218,7 +213,7 @@ txput(void *arg)
             fatal(err, "Failed to put key");
         }
 
-        atomic64_inc(&ti->ops);
+        atomic_inc(&ti->ops);
         if (!err) {
             ti->state = 'c';
             err = hse_kvdb_txn_commit(targ->kvdb, txn);
@@ -242,7 +237,7 @@ txput(void *arg)
                 fatal(rc, "Failed to barrier wait");
 
             if (leader) {
-                atomic64_inc(&pfx);
+                atomic_inc(&pfx);
                 if (killthreads)
                     exit_puts = true;
             }
@@ -299,13 +294,13 @@ print_stats(void *arg)
 
         puts = reads = 0;
         for (i = 0; i < opts.put_threads; i++) {
-            puts += atomic64_read(&t->ops);
+            puts += atomic_read(&t->ops);
             statev[i] = t->state;
             ++t;
         }
 
         for (i = 0; i < opts.cur_threads; i++) {
-            reads += atomic64_read(&t->ops);
+            reads += atomic_read(&t->ops);
             statev[i + opts.put_threads] = t->state;
             ++t;
         }
@@ -333,7 +328,7 @@ print_stats(void *arg)
 
         printf("%8lu %8lu %8lu %10lu %10lu %8.2lf %8u %8lu %8lu %8ld %8ld %s\n",
                dt / NSEC_PER_SEC,
-               atomic64_read(&pfx), last_del,
+               atomic_read(&pfx), last_del,
                puts, reads, lag, pfx_lag,
                puts - puts_last, reads - reads_last,
                rusage.ru_majflt - majflt,
@@ -369,7 +364,7 @@ reader(void *arg)
     txn = hse_kvdb_txn_alloc(targ->kvdb);
 
     while (!killthreads) {
-        uint64_t last_safe_pfx = atomic64_read(&pfx) - 1;
+        uint64_t last_safe_pfx = atomic_read(&pfx) - 1;
 
         ti->state = 'b';
         err = hse_kvdb_txn_begin(targ->kvdb, txn);
@@ -442,7 +437,7 @@ reader(void *arg)
             klast[1] = key64[1];
 
             if (++cnt % 1024 == 0) {
-                atomic64_add(1024, &ti->ops);
+                atomic_add(&ti->ops, 1024);
                 if (killthreads)
                     break;
             }
@@ -454,7 +449,7 @@ reader(void *arg)
         if (err)
             fatal(err, "Failed to abort txn");
 
-        atomic64_add(cnt % 1024, &ti->ops);
+        atomic_add(&ti->ops, cnt % 1024);
 
         ti->state = 'd';
         hse_kvs_cursor_destroy(c);
@@ -640,7 +635,7 @@ main(int argc, char **argv)
 
     for (i = 0; i < opts.put_threads; i++) {
         g_ti[i].idx = i;
-        atomic64_set(&g_ti[i].ops, 0);
+        atomic_set(&g_ti[i].ops, 0);
         g_ti[i].state = 'i';
         kh_register_kvs(kvs, 0, &kvs_cparms, &kvs_oparms, &txput, &g_ti[i]);
     }
@@ -654,7 +649,7 @@ main(int argc, char **argv)
         int j = i + opts.put_threads;
 
         g_ti[j].idx = i;
-        atomic64_set(&g_ti[j].ops, 0);
+        atomic_set(&g_ti[j].ops, 0);
         g_ti[j].state = 'i';
         kh_register_kvs(kvs, 0, &kvs_cparms, &kvs_oparms, &reader, &g_ti[j]);
     }

@@ -76,7 +76,7 @@ add_event_counter_stats(struct hse_log_fmt_state *state, void *obj)
     snprintf(v_trip_odometer, sizeof(v_trip_odometer), "%d", ev->ev_trip_odometer);
     snprintf(v_flags, sizeof(v_flags), "0x%x", ev->ev_flags);
 
-    ts = atomic64_read(&ev->ev_odometer_timestamp);
+    ts = atomic_read(&ev->ev_odometer_timestamp);
     show_timestamp_nsec(v_timestamp, sizeof(v_timestamp), &ts);
 
     res =

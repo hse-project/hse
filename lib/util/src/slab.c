@@ -333,8 +333,8 @@ kmc_chunk_create(uint cpuid, bool tryhuge)
 
     if (tryhuge && IS_ALIGNED(chunksz, hugesz)) {
         hugecnt = chunksz / hugesz;
-        if (atomic_add_return(hugecnt, &kmc.kmc_huge_used) > kmc.kmc_huge_max) {
-            atomic_sub(hugecnt, &kmc.kmc_huge_used);
+        if (atomic_fetch_add(&kmc.kmc_huge_used, hugecnt) > kmc.kmc_huge_max - hugecnt) {
+            atomic_fetch_sub(&kmc.kmc_huge_used, hugecnt);
             hugecnt = 0;
         }
     }
@@ -350,7 +350,7 @@ kmc_chunk_create(uint cpuid, bool tryhuge)
             munmap(base, chunksz);
         }
 
-        atomic_sub(hugecnt, &kmc.kmc_huge_used);
+        atomic_sub(&kmc.kmc_huge_used, hugecnt);
         hugecnt = 0;
     }
 
@@ -437,7 +437,7 @@ kmc_chunk_destroy(struct kmc_chunk *chunk)
 
     munmap(chunk->ch_base, chunk->ch_basesz);
 
-    atomic_sub(hugecnt, &kmc.kmc_huge_used);
+    atomic_sub(&kmc.kmc_huge_used, hugecnt);
 }
 
 struct kmc_slab *

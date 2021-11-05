@@ -149,10 +149,10 @@ wal_fileset_reclaim(
 #endif
 
         list_del(&cur->link);
-        assert(atomic64_read(&cur->ref) == 1);
+        assert(atomic_read(&cur->ref) == 1);
         wal_file_put(cur);
         wal_file_destroy(wfset, gen, fileid);
-        atomic64_inc(&wfset->reclaimc);
+        atomic_inc(&wfset->reclaimc);
     }
 
     return 0;
@@ -182,9 +182,9 @@ wal_fileset_open(
     INIT_LIST_HEAD(&wfset->active);
     INIT_LIST_HEAD(&wfset->complete);
     INIT_LIST_HEAD(&wfset->replay);
-    atomic64_set(&wfset->activec, 0);
-    atomic64_set(&wfset->compc, 0);
-    atomic64_set(&wfset->reclaimc, 0);
+    atomic_set(&wfset->activec, 0);
+    atomic_set(&wfset->compc, 0);
+    atomic_set(&wfset->reclaimc, 0);
 
     wfset->mp = mp;
     wfset->mclass = mclass;
@@ -257,7 +257,7 @@ wal_file_open(
     wfile->woff = 0;
     wfile->soff = 0;
     wfile->close = false;
-    atomic64_set(&wfile->ref, 1);
+    atomic_set(&wfile->ref, 1);
 
     INIT_LIST_HEAD(&wfile->link);
 
@@ -272,7 +272,7 @@ wal_file_open(
         list_add_tail(&wfile->link, &wfset->active);
     mutex_unlock(&wfset->lock);
 
-    atomic64_inc(&wfset->activec);
+    atomic_inc(&wfset->activec);
 
     *handle = wfile;
 
@@ -333,7 +333,7 @@ wal_file_complete(struct wal_fileset *wfset, struct wal_file *wfile)
     if (!cur)
         list_add_tail(&wfile->link, &wfset->complete);
     mutex_unlock(&wfset->lock);
-    atomic64_inc(&wfset->compc);
+    atomic_inc(&wfset->compc);
 
     return 0;
 }
@@ -346,7 +346,7 @@ wal_file_get(struct wal_file *wfile)
         return merr(EBUG);
     }
 
-    atomic64_inc(&wfile->ref);
+    atomic_inc(&wfile->ref);
 
     return 0;
 }
@@ -356,7 +356,7 @@ wal_file_put(struct wal_file *wfile)
 {
     assert(wfile);
 
-    if (wfile && atomic64_dec_return(&wfile->ref) == 0)
+    if (wfile && atomic_dec_return(&wfile->ref) == 0)
         wal_file_close(wfile);
 }
 

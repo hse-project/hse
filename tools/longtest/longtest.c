@@ -1266,7 +1266,7 @@ do_error(
 	int               verify_delete,
 	int               found)
 {
-	int errors = atomic_add_return(1, &test.errors);
+	int errors = atomic_fetch_add(&test.errors, 1) + 1;
 
 	fprintf(stderr, "Error #%d: T%03d I%lu: verify %s: %s\n",
 		errors, ts->id, ts->iter_cnt, key_range_name, errmsg);

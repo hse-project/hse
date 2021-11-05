@@ -711,17 +711,15 @@ struct bkt {
 static __always_inline bool
 atomic_cas_acq(int *p, int oldv, int newv)
 {
-    int retv = oldv;
-
-    return __atomic_compare_exchange_n(p, &retv, newv, true, __ATOMIC_ACQUIRE, __ATOMIC_RELAXED);
+    return atomic_compare_exchange_weak_explicit(p, &oldv, newv,
+                                                 memory_order_acquire, memory_order_relaxed);
 }
 
 static __always_inline bool
 atomic_cas_rel(int *p, int oldv, int newv)
 {
-    int retv = oldv;
-
-    return __atomic_compare_exchange_n(p, &retv, newv, false, __ATOMIC_RELEASE, __ATOMIC_RELAXED);
+    return atomic_compare_exchange_strong_explicit(p, &oldv, newv,
+                                                   memory_order_acquire, memory_order_relaxed);
 }
 
 static __always_inline int
@@ -761,7 +759,7 @@ struct {
 
     struct bktlock *bktlock;
     size_t          bktlocksz;
-}g HSE_ALIGNED(SMP_CACHE_BYTES * 2);
+} g HSE_ALIGNED(SMP_CACHE_BYTES * 2);
 
 void
 bkt_init(void)
@@ -916,9 +914,9 @@ km_op_latency_record(struct km_inst *inst, enum km_op op, u64 ns)
          * be discarded. A counter is used to record such instances.
          */
         if (hdr_record_value_atomic(lat->km_histogram, ns / 1000))
-            atomic64_inc(&lat->km_samples);
+            atomic_inc(&lat->km_samples);
         else
-            atomic64_inc(&lat->km_samples_err);
+            atomic_inc(&lat->km_samples_err);
     }
 }
 
@@ -2668,7 +2666,7 @@ td_range(struct km_inst *inst, uint64_t *startp, uint64_t *stopp)
     struct km_impl *impl = inst->impl;
 
     if (keydist > 0) {
-        *stopp = atomic64_add_return(keydist, &impl->keydistchunk);
+        *stopp = atomic_fetch_add(&impl->keydistchunk, keydist) + keydist;
         *startp = *stopp - keydist;
     } else {
         uint64_t chunk;
@@ -3153,10 +3151,10 @@ status(
     if (verbosity > 1)
         width_td = 8;
 
-    const long iters = atomic64_read(&impl->km_sync_latency.km_sync_iterations);
+    const long iters = atomic_read(&impl->km_sync_latency.km_sync_iterations);
     if (iters != 0) {
         avg_sync_latency_us =
-            atomic64_read(&impl->km_sync_latency.km_total_sync_latency_us) / iters;
+            atomic_read(&impl->km_sync_latency.km_total_sync_latency_us) / iters;
     }
 
     width_sync_us = snprintf(NULL, 0, "%*ld", syncus_header_width, avg_sync_latency_us);
@@ -3326,8 +3324,8 @@ latency_init(struct km_latency *lat, int count)
      */
     for (i = 0; i < KMT_LAT_REC_CNT; i++) {
         hdr_init(1, 10UL * 1000 * 1000 * 1000, 3, &lat[i].km_histogram);
-        atomic64_set(&lat[i].km_samples, 0);
-        atomic64_set(&lat[i].km_samples_err, 0);
+        atomic_set(&lat[i].km_samples, 0);
+        atomic_set(&lat[i].km_samples_err, 0);
     }
 }
 
@@ -3352,8 +3350,8 @@ latency_aggregate(struct km_latency *to, struct km_latency *from, int count)
             hdr_add(to[i].km_histogram, from[i].km_histogram);
             td_unlock();
         }
-        atomic64_add(atomic64_read(&from[i].km_samples), &to[i].km_samples);
-        atomic64_add(atomic64_read(&from[i].km_samples_err), &to[i].km_samples_err);
+        atomic_add(&to[i].km_samples, atomic_read(&from[i].km_samples));
+        atomic_add(&to[i].km_samples_err, atomic_read(&from[i].km_samples_err));
     }
 }
 
@@ -3489,8 +3487,8 @@ print_latency(struct km_impl *impl, const char *mode)
 
         printf("%-9s %8s %8s %10ld %10ld %10ld %10ld %10ld %10ld %10ld %10ld %10ld %10ld\n",
                "slatency", mode, op2txt[OP_KVS_GET + i],
-               atomic64_read(&impl->km_latency[i].km_samples),
-               atomic64_read(&impl->km_latency[i].km_samples_err),
+               atomic_read(&impl->km_latency[i].km_samples),
+               atomic_read(&impl->km_latency[i].km_samples_err),
                min, max, avg,
                lt90, lt95, lt99, lt999, lt9999);
     }
@@ -3533,8 +3531,8 @@ periodic_sync(void *arg)
             continue;
         }
 
-        atomic64_inc(&impl->km_sync_latency.km_sync_iterations);
-        atomic64_add(ns / 1000, &impl->km_sync_latency.km_total_sync_latency_us);
+        atomic_inc(&impl->km_sync_latency.km_sync_iterations);
+        atomic_add(&impl->km_sync_latency.km_total_sync_latency_us, ns / 1000);
     }
 
     pthread_exit(NULL);
@@ -3612,7 +3610,7 @@ spawn(struct km_impl *impl, void (*run)(struct km_inst *), uint runmax, time_t m
 
     setpriority(PRIO_PROCESS, 0, 0);
 
-    atomic64_set(&impl->keydistchunk, 0);
+    atomic_set(&impl->keydistchunk, 0);
 
     /* Spawn all worker threads...
      */

@@ -203,12 +203,12 @@ c0kvs_seqno_set(struct c0_kvset_impl *c0kvs, struct bonsai_val *bv)
      * have changed.
      */
 
-    seq = HSE_CORE_IS_PTOMB(bv->bv_value) ? atomic64_inc_return(sref) : atomic64_read(sref);
+    seq = HSE_CORE_IS_PTOMB(bv->bv_value) ? atomic_inc_return(sref) : atomic_read(sref);
 
     /* If KVMS seqno is valid, use it. */
-    if (HSE_UNLIKELY(atomic64_read(c0kvs->c0s_kvms_seqno) != HSE_SQNREF_INVALID)) {
+    if (HSE_UNLIKELY(atomic_read(c0kvs->c0s_kvms_seqno) != HSE_SQNREF_INVALID)) {
         sref = c0kvs->c0s_kvms_seqno;
-        seq = HSE_CORE_IS_PTOMB(bv->bv_value) ? atomic64_inc_return(sref) : atomic64_read(sref);
+        seq = HSE_CORE_IS_PTOMB(bv->bv_value) ? atomic_inc_return(sref) : atomic_read(sref);
     }
 
     bv->bv_seqnoref = HSE_ORDNL_TO_SQNREF(seq);

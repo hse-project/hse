@@ -167,7 +167,7 @@ MTF_BEGIN_UTEST_COLLECTION_PREPOST(
 MTF_DEFINE_UTEST(structured_logging_test, test_ev)
 {
     static struct event_counter ev = {
-        .ev_odometer = ATOMIC_INIT(0),
+        .ev_odometer = 0,
         .ev_pri = HSE_LOGPRI_DEBUG,
         .ev_flags = EV_FLAGS_HSE_LOG,
         .ev_file = __FILE__,

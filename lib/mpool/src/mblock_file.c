@@ -469,7 +469,7 @@ mblock_file_meta_load(struct mblock_file *mbfp)
 
             atomic_set(mbfp->wlenv + block_id(mbid), wlen);
             atomic_inc(&mbfp->mbcnt);
-            atomic64_add(wlen, &mbfp->wlen);
+            atomic_add(&mbfp->wlen, wlen);
 
             if (HSE_UNLIKELY(fh.uniq == 0))
                 mbfp->uniq = max_t(uint32_t, mbfp->uniq, uniquifier(mbid) + 1);
@@ -843,7 +843,7 @@ mblock_file_commit(struct mblock_file *mbfp, uint64_t *mbidv, int mbidc)
     if (err)
         return err;
 
-    atomic64_add(atomic_read(mbfp->wlenv + block), &mbfp->wlen);
+    atomic_add(&mbfp->wlen, atomic_read(mbfp->wlenv + block));
 
     return 0;
 }
@@ -917,7 +917,7 @@ mblock_file_delete(struct mblock_file *mbfp, uint64_t *mbidv, int mbidc)
     if (err)
         return err;
 
-    atomic64_sub(atomic_read(mbfp->wlenv + block), &mbfp->wlen);
+    atomic_sub(&mbfp->wlen, atomic_read(mbfp->wlenv + block));
     atomic_set(mbfp->wlenv + block, 0);
     atomic_dec(&mbfp->mbcnt);
 
@@ -1028,7 +1028,7 @@ mblock_file_write(struct mblock_file *mbfp, uint64_t mbid, const struct iovec *i
 
     err = mbfp->io.write(mbfp->fd, woff, iov, iovc, 0, NULL);
     if (!err)
-        atomic_add(len, wlenp);
+        atomic_add(wlenp, len);
 
     return err;
 }
@@ -1209,7 +1209,7 @@ mblock_file_stats_get(struct mblock_file *mbfp, struct mblock_file_stats *stats)
         return merr(errno);
     stats->allocated = 512 * sbuf.st_blocks;
 
-    stats->used = atomic64_read(&mbfp->wlen);
+    stats->used = atomic_read(&mbfp->wlen);
     stats->mbcnt = atomic_read(&mbfp->mbcnt);
 
     return 0;

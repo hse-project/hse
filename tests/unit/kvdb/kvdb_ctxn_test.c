@@ -75,8 +75,8 @@ MTF_DEFINE_UTEST_PREPOST(kvdb_ctxn_test, alloc, mapi_pre, mapi_post)
     merr_t                  err;
     atomic64_t              kvdb_seq, tseqno;
 
-    atomic64_set(&kvdb_seq, 1);
-    atomic64_set(&tseqno, 0);
+    atomic_set(&kvdb_seq, 1);
+    atomic_set(&tseqno, 0);
 
     err = viewset_create(&vs, &kvdb_seq, &tseqno);
     ASSERT_TRUE(err == 0);
@@ -125,8 +125,8 @@ MTF_DEFINE_UTEST_PREPOST(kvdb_ctxn_test, alloc_fail, mapi_pre, mapi_post)
     merr_t              err;
     atomic64_t          kvdb_seq, tseqno;
 
-    atomic64_set(&kvdb_seq, 1);
-    atomic64_set(&tseqno, 0);
+    atomic_set(&kvdb_seq, 1);
+    atomic_set(&tseqno, 0);
 
     err = viewset_create(&vs, &kvdb_seq, &tseqno);
     ASSERT_TRUE(err == 0);
@@ -165,8 +165,8 @@ MTF_DEFINE_UTEST_PREPOST(kvdb_ctxn_test, begin, mapi_pre, mapi_post)
     uintptr_t               tmp_seqnoref;
     struct c0              *c0 = NULL; /* c0 is mocked */
 
-    atomic64_set(&kvdb_seq, initial_seq);
-    atomic64_set(&tseqno, 0);
+    atomic_set(&kvdb_seq, initial_seq);
+    atomic_set(&tseqno, 0);
 
     err = kvdb_ctxn_set_create(&kvdb_ctxn_set, tn_timeout, tn_delay);
     ASSERT_EQ(err, 0);
@@ -208,8 +208,8 @@ MTF_DEFINE_UTEST_PREPOST(kvdb_ctxn_test, begin, mapi_pre, mapi_post)
 //    err = kvdb_ctxn_put(handle, c0, &kt, &vt);
 //    ASSERT_EQ(0, err);
 
-    ASSERT_EQ(initial_seq + 2, atomic64_read(&kvdb_seq));
-    ASSERT_EQ(atomic64_read(&kvdb_seq) - 1, ctxn->ctxn_view_seqno);
+    ASSERT_EQ(initial_seq + 2, atomic_read(&kvdb_seq));
+    ASSERT_EQ(atomic_read(&kvdb_seq) - 1, ctxn->ctxn_view_seqno);
     ASSERT_LE(viewset_horizon(vs), initial_seq + 4);
     ASSERT_TRUE(HSE_SQNREF_INDIRECT_P(ctxn->ctxn_seqref));
     tmp_seqnoref = HSE_SQNREF_TO_SQNREF(ctxn->ctxn_seqref);
@@ -251,8 +251,8 @@ MTF_DEFINE_UTEST_PREPOST(kvdb_ctxn_test, basic_commit, mapi_pre, mapi_post)
     kvs_ktuple_init(&kt, kbuf, 1 + strlen(kbuf));
     kvs_vtuple_init(&vt, vbuf, sizeof(vbuf));
 
-    atomic64_set(&kvdb_seq, initial_seq);
-    atomic64_set(&tseqno, 0);
+    atomic_set(&kvdb_seq, initial_seq);
+    atomic_set(&tseqno, 0);
 
     err = viewset_create(&vs, &kvdb_seq, &tseqno);
     ASSERT_TRUE(err == 0);
@@ -292,7 +292,7 @@ MTF_DEFINE_UTEST_PREPOST(kvdb_ctxn_test, basic_commit, mapi_pre, mapi_post)
 
     ASSERT_EQ(initial_seq, ctxn->ctxn_view_seqno);
     ASSERT_EQ(initial_seq + 2, HSE_SQNREF_TO_ORDNL(ctxn->ctxn_seqref));
-    ASSERT_EQ(initial_seq + 3, atomic64_read(&kvdb_seq));
+    ASSERT_EQ(initial_seq + 3, atomic_read(&kvdb_seq));
 
     kvdb_ctxn_free(handle);
     kvdb_ctxn_set_destroy(kvdb_ctxn_set);
@@ -321,8 +321,8 @@ MTF_DEFINE_UTEST_PREPOST(kvdb_ctxn_test, basic_commit_twice, mapi_pre, mapi_post
     ASSERT_EQ(0, err);
     ASSERT_NE(0, klock);
 
-    atomic64_set(&kvdb_seq, initial_seq);
-    atomic64_set(&tseqno, 0);
+    atomic_set(&kvdb_seq, initial_seq);
+    atomic_set(&tseqno, 0);
 
     err = viewset_create(&vs, &kvdb_seq, &tseqno);
     ASSERT_TRUE(err == 0);
@@ -377,8 +377,8 @@ MTF_DEFINE_UTEST_PREPOST(kvdb_ctxn_test, basic_commit_proto, mapi_pre, mapi_post
     ASSERT_EQ(0, err);
     ASSERT_NE(0, klock);
 
-    atomic64_set(&kvdb_seq, initial_seq);
-    atomic64_set(&tseqno, 0);
+    atomic_set(&kvdb_seq, initial_seq);
+    atomic_set(&tseqno, 0);
 
     err = viewset_create(&vs, &kvdb_seq, &tseqno);
     ASSERT_TRUE(err == 0);
@@ -439,8 +439,8 @@ MTF_DEFINE_UTEST_PREPOST(kvdb_ctxn_test, basic_commit_seqno, mapi_pre, mapi_post
     kvs_ktuple_init(&kt, kbuf, 1 + strlen(kbuf));
     kvs_vtuple_init(&vt, vbuf, sizeof(vbuf));
 
-    atomic64_set(&kvdb_seq, initial_seq);
-    atomic64_set(&tseqno, 0);
+    atomic_set(&kvdb_seq, initial_seq);
+    atomic_set(&tseqno, 0);
 
     err = viewset_create(&vs, &kvdb_seq, &tseqno);
     ASSERT_TRUE(err == 0);
@@ -489,8 +489,8 @@ MTF_DEFINE_UTEST_PREPOST(kvdb_ctxn_test, basic_abort, mapi_pre, mapi_post)
     atomic64_t              kvdb_seq, tseqno;
     const u64               initial_seq = 117UL;
 
-    atomic64_set(&kvdb_seq, initial_seq);
-    atomic64_set(&tseqno, 0);
+    atomic_set(&kvdb_seq, initial_seq);
+    atomic_set(&tseqno, 0);
 
     err = viewset_create(&vs, &kvdb_seq, &tseqno);
     ASSERT_TRUE(err == 0);
@@ -520,7 +520,7 @@ MTF_DEFINE_UTEST_PREPOST(kvdb_ctxn_test, basic_abort, mapi_pre, mapi_post)
     ASSERT_FALSE(HSE_SQNREF_UNDEF_P(ctxn->ctxn_seqref));
     ASSERT_FALSE(HSE_SQNREF_ORDNL_P(ctxn->ctxn_seqref));
     ASSERT_TRUE(HSE_SQNREF_ABORTED_P(ctxn->ctxn_seqref));
-    ASSERT_EQ(initial_seq + 1, atomic64_read(&kvdb_seq));
+    ASSERT_EQ(initial_seq + 1, atomic_read(&kvdb_seq));
 
     kvdb_ctxn_free(handle);
     kvdb_ctxn_set_destroy(kvdb_ctxn_set);
@@ -541,8 +541,8 @@ MTF_DEFINE_UTEST_PREPOST(kvdb_ctxn_test, basic_abort_twice, mapi_pre, mapi_post)
     const u64           initial_seq = 117UL;
     atomic64_t          kvdb_seq, tseqno;
 
-    atomic64_set(&kvdb_seq, initial_seq);
-    atomic64_set(&tseqno, 0);
+    atomic_set(&kvdb_seq, initial_seq);
+    atomic_set(&tseqno, 0);
 
     err = viewset_create(&vs, &kvdb_seq, &tseqno);
     ASSERT_TRUE(err == 0);
@@ -597,8 +597,8 @@ MTF_DEFINE_UTEST_PREPOST(kvdb_ctxn_test, get_view_seqno, mapi_pre, mapi_post)
     ASSERT_EQ(0, err);
     ASSERT_NE(0, klock);
 
-    atomic64_set(&kvdb_seq, initial_seq);
-    atomic64_set(&tseqno, 0);
+    atomic_set(&kvdb_seq, initial_seq);
+    atomic_set(&tseqno, 0);
 
     err = viewset_create(&vs, &kvdb_seq, &tseqno);
     ASSERT_TRUE(err == 0);
@@ -659,8 +659,8 @@ MTF_DEFINE_UTEST_PREPOST(kvdb_ctxn_test, get_state, mapi_pre, mapi_post)
     ASSERT_EQ(0, err);
     ASSERT_NE(0, klock);
 
-    atomic64_set(&kvdb_seq, initial_seq);
-    atomic64_set(&tseqno, 0);
+    atomic_set(&kvdb_seq, initial_seq);
+    atomic_set(&tseqno, 0);
 
     err = viewset_create(&vs, &kvdb_seq, &tseqno);
     ASSERT_TRUE(err == 0);
@@ -739,8 +739,8 @@ MTF_DEFINE_UTEST_PREPOST(kvdb_ctxn_test, put_get_del, mapi_pre, mapi_post)
     kvs_ktuple_init(&kt, &key, sizeof(key));
     kvs_vtuple_init(&vt, &val, sizeof(val));
 
-    atomic64_set(&kvdb_seq, initial_value);
-    atomic64_set(&tseqno, 0);
+    atomic_set(&kvdb_seq, initial_value);
+    atomic_set(&tseqno, 0);
 
     err = viewset_create(&vs, &kvdb_seq, &tseqno);
     ASSERT_TRUE(err == 0);
@@ -864,8 +864,8 @@ MTF_DEFINE_UTEST_PREPOST(kvdb_ctxn_test, put_get_pdel, mapi_pre, mapi_post)
     kvs_ktuple_init(&pkt, &key[0], sizeof(key[0]));
     kvs_vtuple_init(&vt, &val, sizeof(val));
 
-    atomic64_set(&kvdb_seq, initial_value);
-    atomic64_set(&tsqno, 0);
+    atomic_set(&kvdb_seq, initial_value);
+    atomic_set(&tsqno, 0);
 
     err = viewset_create(&vs, &kvdb_seq, &tseqno);
     ASSERT_TRUE(err == 0);
@@ -957,8 +957,8 @@ MTF_DEFINE_UTEST_PREPOST(kvdb_ctxn_test, txn_timeout, mapi_pre, mapi_post)
 
     kvs_vtuple_init(&vt, vbuf, sizeof(vbuf));
 
-    atomic64_set(&kvdb_seq, initial_value);
-    atomic64_set(&tseqno, 0);
+    atomic_set(&kvdb_seq, initial_value);
+    atomic_set(&tseqno, 0);
 
     err = viewset_create(&vs, &kvdb_seq, &tseqno);
     ASSERT_TRUE(err == 0);
@@ -1040,8 +1040,8 @@ MTF_DEFINE_UTEST_PREPOST(kvdb_ctxn_test, txn_cleanup, mapi_pre, mapi_post)
     kvs_ktuple_init(&kt, kbuf, 1 + strlen(kbuf));
     kvs_vtuple_init(&vt, vbuf, sizeof(vbuf));
 
-    atomic64_set(&kvdb_seq, initial_value);
-    atomic64_set(&tseqno, 0);
+    atomic_set(&kvdb_seq, initial_value);
+    atomic_set(&tseqno, 0);
 
     err = viewset_create(&vs, &kvdb_seq, &tseqno);
     ASSERT_TRUE(err == 0);
@@ -1101,8 +1101,8 @@ MTF_DEFINE_UTEST_PREPOST(kvdb_ctxn_test, txn_hash, mapi_pre, mapi_post)
     ASSERT_EQ(0, err);
     ASSERT_NE(0, klock);
 
-    atomic64_set(&kvdb_seq, time(NULL));
-    atomic64_set(&tseqno, 0);
+    atomic_set(&kvdb_seq, time(NULL));
+    atomic_set(&tseqno, 0);
 
     err = viewset_create(&vs, &kvdb_seq, &tseqno);
     ASSERT_TRUE(err == 0);
@@ -1194,8 +1194,8 @@ MTF_DEFINE_UTEST_PREPOST(kvdb_ctxn_test, txn_independence, mapi_pre, mapi_post)
     ASSERT_EQ(0, err);
     ASSERT_NE(0, klock);
 
-    atomic64_set(&kvdb_seq, time(NULL));
-    atomic64_set(&tseqno, 0);
+    atomic_set(&kvdb_seq, time(NULL));
+    atomic_set(&tseqno, 0);
 
     err = viewset_create(&vs, &kvdb_seq, &tseqno);
     ASSERT_TRUE(err == 0);
@@ -1297,8 +1297,8 @@ MTF_DEFINE_UTEST_PREPOST(kvdb_ctxn_test, txn_seq, mapi_pre, mapi_post)
     kvs_ktuple_init(&kt, kbuf, 1 + strlen(kbuf));
     kvs_vtuple_init(&vt, vbuf, sizeof(vbuf));
 
-    atomic64_set(&kvdb_seq, initial_value);
-    atomic64_set(&tseqno, 0);
+    atomic_set(&kvdb_seq, initial_value);
+    atomic_set(&tseqno, 0);
 
     err = viewset_create(&vs, &kvdb_seq, &tseqno);
     ASSERT_TRUE(err == 0);
@@ -1338,7 +1338,7 @@ MTF_DEFINE_UTEST_PREPOST(kvdb_ctxn_test, txn_seq, mapi_pre, mapi_post)
 
         curr_seq = viewset_horizon(vs);
         ASSERT_LE(horizon, curr_seq);
-        ASSERT_LE(curr_seq, atomic64_read(&kvdb_seq));
+        ASSERT_LE(curr_seq, atomic_read(&kvdb_seq));
 
         horizon = curr_seq;
     }
@@ -1347,7 +1347,7 @@ MTF_DEFINE_UTEST_PREPOST(kvdb_ctxn_test, txn_seq, mapi_pre, mapi_post)
         kvdb_ctxn_free(handles[i]);
 
     horizon = viewset_horizon(vs);
-    ASSERT_EQ(horizon, atomic64_read(&kvdb_seq));
+    ASSERT_EQ(horizon, atomic_read(&kvdb_seq));
 
     kvdb_ctxn_set_destroy(kvdb_ctxn_set);
     c0snr_set_destroy(css);
@@ -1400,7 +1400,12 @@ parallel_ctxn_helper(void *arg)
     /* A transaction can be committed successfully at most once. */
     err = kvdb_ctxn_commit(ctxn);
     if (err == 0) {
-        VERIFY_EQ_RET(atomic_cmpxchg(owner_thread + txn_num, 0, thrd_num), 0, 0);
+        int old = 0;
+        bool b;
+
+        b = atomic_cmpxchg(owner_thread + txn_num, &old, thrd_num);
+
+        VERIFY_TRUE_RET(b, 0);
     }
 
     VERIFY_EQ_RET(atomic_read(owner_thread + txn_num) == thrd_num, err == 0, 0);
@@ -1434,8 +1439,8 @@ MTF_DEFINE_UTEST_PREPOST(kvdb_ctxn_test, multiple_ctxn_commit, mapi_pre, mapi_po
 
     mapi_inject(mapi_idx_c0_get_pfx_len, sizeof(u64));
 
-    atomic64_set(&kvdb_seq, initial_value);
-    atomic64_set(&tseqno, 0);
+    atomic_set(&kvdb_seq, initial_value);
+    atomic_set(&tseqno, 0);
 
     err = viewset_create(&vs, &kvdb_seq, &tseqno);
     ASSERT_TRUE(err == 0);

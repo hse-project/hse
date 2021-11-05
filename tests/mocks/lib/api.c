@@ -122,7 +122,7 @@ mapi_safe_free(void *mem)
 u64
 mapi_calls(u32 api)
 {
-    return valid_api(api) ? atomic64_read(&mock_ptrs[api]->calls) : 0;
+    return valid_api(api) ? atomic_read(&mock_ptrs[api]->calls) : 0;
 }
 
 u64
@@ -133,8 +133,8 @@ mapi_calls_clear(u32 api)
     if (!valid_api(api))
         return 0;
 
-    count = atomic64_read(&mock_ptrs[api]->calls);
-    atomic64_set(&mock_ptrs[api]->calls, 0);
+    count = atomic_read(&mock_ptrs[api]->calls);
+    atomic_set(&mock_ptrs[api]->calls, 0);
 
     return count;
 }
@@ -154,7 +154,7 @@ mapi_inject_set(u32 api, u32 start1, u32 stop1, u64 rc1, u32 start2, u32 stop2, 
     m->start2 = start2;
     m->stop2 = stop2;
     m->rc2.i = rc2;
-    atomic64_set_rel(&m->calls, 0);
+    atomic_set_rel(&m->calls, 0);
 }
 
 void
@@ -172,7 +172,7 @@ mapi_inject_set_ptr(u32 api, u32 start1, u32 stop1, void *rc1, u32 start2, u32 s
     m->start2 = start2;
     m->stop2 = stop2;
     m->rc2.ptr = rc2;
-    atomic64_set_rel(&m->calls, 0);
+    atomic_set_rel(&m->calls, 0);
 }
 
 void
@@ -183,7 +183,7 @@ mapi_inject_unset(u32 api)
     if (valid_api(api)) {
         m = mock_ptrs[api];
         m->start1 = m->start2 = 0;
-        atomic64_set_rel(&m->calls, 0);
+        atomic_set_rel(&m->calls, 0);
     }
 }
 
@@ -215,7 +215,7 @@ inject_check(u32 api, union rc *urc)
         return false;
 
     m = mock_ptrs[api];
-    calls = atomic64_inc_return(&m->calls);
+    calls = atomic_inc_return(&m->calls);
 
     if (m->start1 && m->start1 <= calls && (calls <= m->stop1 || m->stop1 == 0)) {
         *urc = m->rc1;

@@ -88,7 +88,7 @@ struct c0_kvmultiset_impl {
 };
 
 static struct kmem_cache *c0kvms_cache HSE_READ_MOSTLY;
-static atomic64_t         c0kvms_gen = ATOMIC_INIT(0);
+static atomic64_t         c0kvms_gen;
 
 /* clang-format on */
 
@@ -697,7 +697,7 @@ c0kvms_txhorizon_set(struct c0_kvmultiset *handle, uint64_t txhorizon)
 {
     struct c0_kvmultiset_impl *self = c0_kvmultiset_h2r(handle);
 
-    atomic64_set(&self->c0ms_txhorizon, txhorizon);
+    atomic_set(&self->c0ms_txhorizon, txhorizon);
 }
 
 uint64_t
@@ -705,7 +705,7 @@ c0kvms_txhorizon_get(struct c0_kvmultiset *handle)
 {
     struct c0_kvmultiset_impl *self = c0_kvmultiset_h2r(handle);
 
-    return atomic64_read(&self->c0ms_txhorizon);
+    return atomic_read(&self->c0ms_txhorizon);
 }
 
 void
@@ -713,7 +713,7 @@ c0kvms_seqno_set(struct c0_kvmultiset *handle, uint64_t kvdb_seq)
 {
     struct c0_kvmultiset_impl *self = c0_kvmultiset_h2r(handle);
 
-    atomic64_set(&self->c0ms_seqno, kvdb_seq);
+    atomic_set(&self->c0ms_seqno, kvdb_seq);
 }
 
 u64
@@ -721,7 +721,7 @@ c0kvms_seqno_get(struct c0_kvmultiset *handle)
 {
     struct c0_kvmultiset_impl *self = c0_kvmultiset_h2r(handle);
 
-    return atomic64_read(&self->c0ms_seqno);
+    return atomic_read(&self->c0ms_seqno);
 }
 
 merr_t
@@ -741,7 +741,7 @@ c0kvms_create(u32 num_sets, atomic64_t *kvdb_seq, void **stashp, struct c0_kvmul
     /* Check the caller's stash for a recently freed kvms and use
      * it (if possible) rather than create a new one.
      */
-    if (kvms && atomic_ptr_cas(stashp, kvms, NULL)) {
+    if (kvms && atomic_cas(stashp, kvms, NULL)) {
         if (kvms->c0ms_num_sets != num_sets ||
             kvms->c0ms_kvdb_seq != kvdb_seq) {
 
@@ -766,9 +766,9 @@ c0kvms_create(u32 num_sets, atomic64_t *kvdb_seq, void **stashp, struct c0_kvmul
     kvms->c0ms_gen = 0;
 
     /* mark this seqno 'not in use'. */
-    atomic64_set(&kvms->c0ms_seqno, HSE_SQNREF_INVALID);
+    atomic_set(&kvms->c0ms_seqno, HSE_SQNREF_INVALID);
     kvms->c0ms_rsvd_sn = HSE_SQNREF_INVALID;
-    atomic64_set(&kvms->c0ms_txhorizon, U64_MAX);
+    atomic_set(&kvms->c0ms_txhorizon, U64_MAX);
     kvms->c0ms_used = 0;
     kvms->c0ms_kvdb_seq = kvdb_seq;
     kvms->c0ms_stashp = stashp;
@@ -780,7 +780,7 @@ c0kvms_create(u32 num_sets, atomic64_t *kvdb_seq, void **stashp, struct c0_kvmul
 
     atomic_set(&kvms->c0ms_refcnt, 1); /* birth reference */
 
-    atomic64_set(&kvms->c0ms_c0snr_cur, 0);
+    atomic_set(&kvms->c0ms_c0snr_cur, 0);
     kvms->c0ms_c0snr_max = HSE_C0KVMS_C0SNR_MAX;
 
     /* The first kvset is reserved for ptombs and needn't be as large
@@ -854,7 +854,7 @@ c0kvms_destroy_cache(void **stashp)
     struct c0_kvmultiset_impl *kvms = stashp ? *stashp : NULL;
     int i;
 
-    if (kvms && atomic_ptr_cas(kvms->c0ms_stashp, kvms, NULL)) {
+    if (kvms && atomic_cas(kvms->c0ms_stashp, kvms, NULL)) {
         for (i = 0; i < kvms->c0ms_num_sets; ++i)
             c0kvs_destroy(kvms->c0ms_sets[i]);
 
@@ -889,7 +889,7 @@ c0kvms_destroy(struct c0_kvmultiset_impl *mset)
 
     c0_ingest_work_fini(mset->c0ms_ingest_work);
 
-    c0snr_cnt = atomic64_read(&mset->c0ms_c0snr_cur);
+    c0snr_cnt = atomic_read(&mset->c0ms_c0snr_cur);
     if (c0snr_cnt > mset->c0ms_c0snr_max)
         c0snr_cnt = mset->c0ms_c0snr_max;
 
@@ -906,7 +906,7 @@ c0kvms_destroy(struct c0_kvmultiset_impl *mset)
         for (i = 1; i < mset->c0ms_num_sets; ++i)
             c0kvs_reset(mset->c0ms_sets[i], 0);
 
-        if (atomic_ptr_cas(mset->c0ms_stashp, NULL, mset))
+        if (atomic_cas(mset->c0ms_stashp, NULL, mset))
             mset = NULL;
     }
 
@@ -980,7 +980,7 @@ c0kvms_gen_update(struct c0_kvmultiset *handle)
 {
     struct c0_kvmultiset_impl *self = c0_kvmultiset_h2r(handle);
 
-    self->c0ms_gen = atomic64_inc_return(&c0kvms_gen);
+    self->c0ms_gen = atomic_inc_return(&c0kvms_gen);
 
     return self->c0ms_gen;
 }
@@ -988,7 +988,7 @@ c0kvms_gen_update(struct c0_kvmultiset *handle)
 void
 c0kvms_gen_init(u64 gen)
 {
-    atomic64_set(&c0kvms_gen, gen);
+    atomic_set(&c0kvms_gen, gen);
 }
 
 u64
@@ -1002,7 +1002,7 @@ c0kvms_gen_read(struct c0_kvmultiset *handle)
 uint64_t
 c0kvms_gen_current(void)
 {
-    return atomic64_read(&c0kvms_gen);
+    return atomic_read(&c0kvms_gen);
 }
 
 void
@@ -1020,7 +1020,7 @@ c0kvms_c0snr_alloc(struct c0_kvmultiset *handle)
     uint                       cur;
     uintptr_t *                entry;
 
-    cur = atomic64_fetch_add(1, &self->c0ms_c0snr_cur);
+    cur = atomic_fetch_add(&self->c0ms_c0snr_cur, 1);
 
     if (ev(cur >= self->c0ms_c0snr_max))
         return NULL;

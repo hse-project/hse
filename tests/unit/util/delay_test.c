@@ -26,8 +26,8 @@ MTF_DEFINE_UTEST(delay, delay_small_duration)
     msleep(200);
     ev_get_timestamp(&after);
 
-    b = atomic64_read(&before);
-    a = atomic64_read(&after);
+    b = atomic_read(&before);
+    a = atomic_read(&after);
 
     ASSERT_LE(b + (200 * 1000), a);
 }
@@ -45,8 +45,8 @@ MTF_DEFINE_UTEST(delay, delay_larger_duration)
     msleep(500);
     ev_get_timestamp(&after);
 
-    b = atomic64_read(&before);
-    a = atomic64_read(&after);
+    b = atomic_read(&before);
+    a = atomic_read(&after);
 
     ASSERT_LE(b + (500 * 1000), a);
 }

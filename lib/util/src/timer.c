@@ -69,8 +69,8 @@ timer_jclock_cb(struct work_struct *work)
         now = ts.tv_sec * NSEC_PER_SEC + ts.tv_nsec;
 
         jnow = nsecs_to_jiffies(now);
-        atomic64_set(&timer_jclock.jc_jiffies, jnow);
-        atomic64_set(&timer_jclock.jc_jclock_ns, now);
+        atomic_set(&timer_jclock.jc_jiffies, jnow);
+        atomic_set(&timer_jclock.jc_jclock_ns, now);
 
         timer_lock();
         first = timer_first();

@@ -106,7 +106,7 @@ c0sk_rsvd_sn_set(struct c0sk_impl *c0sk, struct c0_kvmultiset *kvms)
 
     /* flush from txcommit context; reverve seqno for txn. */
 
-    res = (inc - 1) + atomic64_fetch_add_rel(inc, c0sk->c0sk_kvdb_seq);
+    res = (inc - 1) + atomic_fetch_add(c0sk->c0sk_kvdb_seq, inc);
 
     c0kvms_rsvd_sn_set(kvms, res);
 }
@@ -126,7 +126,7 @@ c0sk_install_c0kvms(struct c0sk_impl *self, struct c0_kvmultiset *old, struct c0
         c0kvms_txhorizon_set(old, c0sk_txhorizon_get(self));
 
         seqno = (HSE_UNLIKELY(atomic_read(&self->c0sk_replaying) > 0)) ?
-            atomic64_read(self->c0sk_kvdb_seq) : atomic64_inc_acq(self->c0sk_kvdb_seq);
+            atomic_read(self->c0sk_kvdb_seq) : atomic_inc_acq_return(self->c0sk_kvdb_seq);
         c0kvms_seqno_set(old, seqno);
     }
 
@@ -498,7 +498,7 @@ c0sk_ingest_serialize_wait(struct c0_ingest_work *ingest)
     mutex_lock(&c0sk->c0sk_kvms_mutex);
     while (1) {
         u64 me = ingest->c0iw_ingest_order;
-        u64 next = atomic64_read_acq(&c0sk->c0sk_ingest_order_next);
+        u64 next = atomic_read_acq(&c0sk->c0sk_ingest_order_next);
 
         if (me == next)
             break;
@@ -639,7 +639,7 @@ c0sk_ingest_worker(struct work_struct *work)
     if (ev(err))
         goto health_err;
 
-    atomic64_inc_acq(&c0sk->c0sk_ingest_order_next); /* Move the ingest order forward */
+    atomic_inc_acq(&c0sk->c0sk_ingest_order_next); /* Move the ingest order forward */
 
     mutex_lock(&c0sk->c0sk_kvms_mutex);
     cv_broadcast(&c0sk->c0sk_kvms_cv); /* Wake up newer ingest threads */
@@ -670,7 +670,7 @@ health_err:
 
 exit_err:
     if (!released) {
-        atomic64_inc_acq(&c0sk->c0sk_ingest_order_next); /* Move the ingest order forward */
+        atomic_inc_acq(&c0sk->c0sk_ingest_order_next); /* Move the ingest order forward */
 
         mutex_lock(&c0sk->c0sk_kvms_mutex);
         cv_broadcast(&c0sk->c0sk_kvms_cv); /* Wake up newer ingest threads */
@@ -1019,7 +1019,7 @@ c0sk_queue_ingest(struct c0sk_impl *self, struct c0_kvmultiset *old)
     while (1) {
         const struct timespec req = { .tv_nsec = 1000 };
 
-        if (c0kvms_gen_read(old) < atomic64_read(&self->c0sk_ingest_gen))
+        if (c0kvms_gen_read(old) < atomic_read(&self->c0sk_ingest_gen))
             return 0;
 
         if (atomic_inc_return(&self->c0sk_ingest_ldrcnt) == 1)
@@ -1030,7 +1030,7 @@ c0sk_queue_ingest(struct c0sk_impl *self, struct c0_kvmultiset *old)
 
     err = 0;
 
-    if (c0kvms_gen_read(old) < atomic64_read(&self->c0sk_ingest_gen))
+    if (c0kvms_gen_read(old) < atomic_read(&self->c0sk_ingest_gen))
         goto resign;
 
     c0sk_ingest_tune(self);
@@ -1049,7 +1049,7 @@ c0sk_queue_ingest(struct c0sk_impl *self, struct c0_kvmultiset *old)
         c0sk_ingestref_wait(self);
 
         if (c0sk_install_c0kvms(self, old, new)) {
-            atomic64_set(&self->c0sk_ingest_gen, c0kvms_gen_read(new));
+            atomic_set(&self->c0sk_ingest_gen, c0kvms_gen_read(new));
             c0sk_rcu_sync(self, old, true);
         } else {
             c0kvms_putref(new);

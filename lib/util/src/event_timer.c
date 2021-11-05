@@ -25,9 +25,8 @@ event_sample_ts(struct event_timer *t, unsigned long t1, unsigned long t2)
 
     /* non-deterministic in tests -- do not count for coverage */
     /* GCOV_EXCL_START */
-        /* prevent simultaneous updates */
-        while (atomic64_cmpxchg(&t->busy, 0, 1))
-    {
+    /* prevent simultaneous updates */
+    while (!atomic_cas(&t->busy, 0, 1)) {
         cpu_relax();
         ++t->t1;
         if (++loop > 1000)
@@ -35,14 +34,12 @@ event_sample_ts(struct event_timer *t, unsigned long t1, unsigned long t2)
     }
 
     if (t2 < t1) {
-        /* cmpxchg is cheaper from a barrier standpoint than atomic_set
-         * on older __sync builtins, and the same on newer */
-        atomic64_cmpxchg(&t->busy, 1, 0);
+        atomic_cas(&t->busy, 1, 0);
         return;
     }
     /* GCOV_EXCL_STOP */
 
-        ++ t->n;
+    ++t->n;
     d = t2 - t1;
     t->min = d < t->min ? d : t->min;
     t->max = d > t->max ? d : t->max;
@@ -72,7 +69,7 @@ event_sample_ts(struct event_timer *t, unsigned long t1, unsigned long t2)
         t->os = t->s;
     }
 
-    atomic64_cmpxchg(&t->busy, 1, 0);
+    atomic_cas(&t->busy, 1, 0);
 }
 
 /* https://en.wikipedia.org/wiki/Fast_inverse_square_root */

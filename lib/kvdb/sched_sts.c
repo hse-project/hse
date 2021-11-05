@@ -248,7 +248,7 @@ add_worker(struct sts *self, uint qnum)
     w->wqnum = qnum;
     w->sts = self;
 
-    wnum = atomic_add_return(1, &self->worker_id_counter) - 1;
+    wnum = atomic_fetch_add(&self->worker_id_counter, 1);
     if (qnum == self->qc)
         snprintf(w->wname, sizeof(w->wname), "sts_w%u_qs", wnum);
     else

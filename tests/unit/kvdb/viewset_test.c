@@ -71,7 +71,7 @@ MTF_DEFINE_UTEST(viewset_test, t_viewset_insert)
     u64            *views, tseqno;
 
     start_seqno = 1234;
-    atomic64_set(&vs_seqno, start_seqno);
+    atomic_set(&vs_seqno, start_seqno);
 
     show = 10;
     inserted = 0;

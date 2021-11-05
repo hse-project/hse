@@ -20,37 +20,43 @@ get_atomics(
     atomic64_t **       epp)
 {
     switch (event) {
-        case KVDB_HEALTH_FLAG_NOMEM:
-            *tpp = &health->krx_nomem.khs_tripped;
-            *opp = &health->krx_nomem.khs_odometer;
-            *epp = &health->krx_nomem.khs_err;
-            break;
-        case KVDB_HEALTH_FLAG_NOSPACE:
-            *tpp = &health->krx_nospace.khs_tripped;
-            *opp = &health->krx_nospace.khs_odometer;
-            *epp = &health->krx_nospace.khs_err;
-            break;
-        case KVDB_HEALTH_FLAG_DELBLKFAIL:
-            *tpp = &health->krx_delblkfail.khs_tripped;
-            *opp = &health->krx_delblkfail.khs_odometer;
-            *epp = &health->krx_delblkfail.khs_err;
-            break;
-        case KVDB_HEALTH_FLAG_CNDBFAIL:
-            *tpp = &health->krx_cndbfail.khs_tripped;
-            *opp = &health->krx_cndbfail.khs_odometer;
-            *epp = &health->krx_cndbfail.khs_err;
-            break;
-        case KVDB_HEALTH_FLAG_IO:
-            *tpp = &health->krx_io.khs_tripped;
-            *opp = &health->krx_io.khs_odometer;
-            *epp = &health->krx_io.khs_err;
-            break;
-        default:
-            *tpp = NULL;
-            *opp = NULL;
-            *epp = NULL;
-            return false;
+    case KVDB_HEALTH_FLAG_NOMEM:
+        *tpp = &health->krx_nomem.khs_tripped;
+        *opp = &health->krx_nomem.khs_odometer;
+        *epp = &health->krx_nomem.khs_err;
+        break;
+
+    case KVDB_HEALTH_FLAG_NOSPACE:
+        *tpp = &health->krx_nospace.khs_tripped;
+        *opp = &health->krx_nospace.khs_odometer;
+        *epp = &health->krx_nospace.khs_err;
+        break;
+
+    case KVDB_HEALTH_FLAG_DELBLKFAIL:
+        *tpp = &health->krx_delblkfail.khs_tripped;
+        *opp = &health->krx_delblkfail.khs_odometer;
+        *epp = &health->krx_delblkfail.khs_err;
+        break;
+
+    case KVDB_HEALTH_FLAG_CNDBFAIL:
+        *tpp = &health->krx_cndbfail.khs_tripped;
+        *opp = &health->krx_cndbfail.khs_odometer;
+        *epp = &health->krx_cndbfail.khs_err;
+        break;
+
+    case KVDB_HEALTH_FLAG_IO:
+        *tpp = &health->krx_io.khs_tripped;
+        *opp = &health->krx_io.khs_odometer;
+        *epp = &health->krx_io.khs_err;
+        break;
+
+    default:
+        *tpp = NULL;
+        *opp = NULL;
+        *epp = NULL;
+        return false;
     }
+
     return true;
 }
 
@@ -60,19 +66,25 @@ merr_to_event(merr_t err)
     int e = merr_errno(err);
 
     switch (e) {
-        case 0:
-            return KVDB_HEALTH_FLAG_NONE;
-        case ENOMEM:
-            return KVDB_HEALTH_FLAG_NOMEM;
-        case ENOSPC:
-            return KVDB_HEALTH_FLAG_NOSPACE;
-        case EROFS:
-        case EFBIG:
-        case EMLINK:
-            return KVDB_HEALTH_FLAG_CNDBFAIL;
-        default:
-            return KVDB_HEALTH_FLAG_IO;
+    case 0:
+        return KVDB_HEALTH_FLAG_NONE;
+
+    case ENOMEM:
+        return KVDB_HEALTH_FLAG_NOMEM;
+
+    case ENOSPC:
+        return KVDB_HEALTH_FLAG_NOSPACE;
+
+    case EROFS:
+    case EFBIG:
+    case EMLINK:
+        return KVDB_HEALTH_FLAG_CNDBFAIL;
+
+    default:
+        return KVDB_HEALTH_FLAG_IO;
     }
+
+    return KVDB_HEALTH_FLAG_IO;
 }
 
 merr_t
@@ -86,14 +98,14 @@ kvdb_health_event(struct kvdb_health *health, uint event, merr_t healtherr)
 
     valid = get_atomics(health, event, &tp, &op, &ep);
 
-    if (!valid)
-        return merr(ev(EINVAL));
+    if (ev(!valid))
+        return merr(EINVAL);
 
-    atomic_or_fetch_rel(&health->krx_tripped_mask, event);
-    atomic64_cmpxchg(ep, 0, healtherr);
+    atomic_or_rel(&health->krx_tripped_mask, event);
+    atomic_cas(ep, 0, healtherr);
 
-    atomic64_set(tp, 1);
-    atomic64_inc(op);
+    atomic_set(tp, 1);
+    atomic_inc(op);
 
     return 0;
 }
@@ -120,7 +132,7 @@ kvdb_health_check(struct kvdb_health *health, uint mask)
         if (mask & event) {
             (void)get_atomics(health, event, &tp, &op, &ep);
 
-            return atomic64_read(ep);
+            return atomic_read(ep);
 
             mask &= ~event;
         }
@@ -137,13 +149,13 @@ kvdb_health_clear(struct kvdb_health *health, uint event)
 
     valid = get_atomics(health, event, &tp, &op, &ep);
 
-    if (!valid)
-        return merr(ev(EINVAL));
+    if (ev(!valid))
+        return merr(EINVAL);
 
-    atomic_and_fetch_rel(&health->krx_tripped_mask, ~event);
+    atomic_and_rel(&health->krx_tripped_mask, ~event);
 
-    atomic64_set(tp, 0);
-    atomic64_set(ep, 0);
+    atomic_set(tp, 0);
+    atomic_set(ep, 0);
 
     return 0;
 }

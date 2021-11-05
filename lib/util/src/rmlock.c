@@ -1,6 +1,6 @@
 /* SPDX-License-Identifier: Apache-2.0 */
 /*
- * Copyright (C) 2015-2020 Micron Technology, Inc.  All rights reserved.
+ * Copyright (C) 2015-2021 Micron Technology, Inc.  All rights reserved.
  */
 
 #include <hse_util/platform.h>
@@ -11,7 +11,7 @@
 #define RMLOCK_MAX      (128)
 
 #define rmlock_cmpxchg(_ptr, _oldp, _new) \
-    __atomic_compare_exchange_n((_ptr), (_oldp), (_new), false, __ATOMIC_SEQ_CST, __ATOMIC_SEQ_CST)
+    atomic_cmpxchg((_ptr), (_oldp), (_new))
 
 
 static HSE_ALWAYS_INLINE uint

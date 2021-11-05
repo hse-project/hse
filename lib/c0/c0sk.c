@@ -467,7 +467,7 @@ c0sk_open(
     c0sk->c0sk_rcu_active = false;
 
     atomic_set(&c0sk->c0sk_replaying, 0);
-    atomic64_set(&c0sk->c0sk_ingest_gen, 0);
+    atomic_set(&c0sk->c0sk_ingest_gen, 0);
     atomic_set(&c0sk->c0sk_ingest_ldrcnt, 0);
     atomic_set(&c0sk->c0sk_ingest_finlat, 30000);
     mutex_init_adaptive(&c0sk->c0sk_kvms_mutex);
@@ -517,8 +517,8 @@ c0sk_open(
         goto errout;
     }
 
-    atomic64_set(&c0sk->c0sk_ingest_order_curr, 0);
-    atomic64_set(&c0sk->c0sk_ingest_order_next, 0);
+    atomic_set(&c0sk->c0sk_ingest_order_curr, 0);
+    atomic_set(&c0sk->c0sk_ingest_order_next, 0);
 
     c0sk_perfc_alloc(c0sk);
 
@@ -622,14 +622,14 @@ c0sk_lc_get(struct c0sk *handle)
 void
 c0sk_min_seqno_set(struct c0sk *handle, u64 seq)
 {
-    atomic64_set(&c0sk_h2r(handle)->c0sk_ingest_min, seq);
+    atomic_set(&c0sk_h2r(handle)->c0sk_ingest_min, seq);
 }
 
 u64
 c0sk_min_seqno_get(struct c0sk *handle)
 {
     assert(handle);
-    return atomic64_read(&c0sk_h2r(handle)->c0sk_ingest_min);
+    return atomic_read(&c0sk_h2r(handle)->c0sk_ingest_min);
 }
 
 u64
@@ -640,7 +640,7 @@ c0sk_ingest_order_register(struct c0sk *handle)
     assert(handle);
     self = c0sk_h2r(handle);
 
-    return atomic64_fetch_add(1, &self->c0sk_ingest_order_curr);
+    return atomic_fetch_add(&self->c0sk_ingest_order_curr, 1);
 }
 
 /* In order to adjust the throttle accurately, c0sk need to measure a few ingests
@@ -684,7 +684,7 @@ static void
 c0sk_sync_debug(struct c0sk_impl *self, u64 waiter_gen)
 {
     log_warn("ingest %lu waiter %lu release %lu cnt %d",
-             (ulong)atomic64_read(&self->c0sk_ingest_gen),
+             (ulong)atomic_read(&self->c0sk_ingest_gen),
              (ulong)waiter_gen,
              (ulong)self->c0sk_release_gen,
              self->c0sk_kvmultisets_cnt);

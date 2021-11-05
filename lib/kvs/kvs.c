@@ -615,7 +615,7 @@ kvs_create(struct ikvs **ikvs_out, struct kvs_rparams *rp)
         return merr(ENOMEM);
 
     memset(ikvs, 0, sizeof(*ikvs));
-    ikvs->ikv_gen = atomic64_inc_return(&g_ikv_gen);
+    ikvs->ikv_gen = atomic_inc_return(&g_ikv_gen);
     ikvs->ikv_rp = *rp;
 
     *ikvs_out = ikvs;

@@ -33,8 +33,8 @@ struct timer_list {
  */
 extern struct timer_jclock timer_jclock;
 
-#define jclock_ns   atomic64_read(&timer_jclock.jc_jclock_ns)
-#define jiffies     atomic64_read(&timer_jclock.jc_jiffies)
+#define jclock_ns   atomic_read(&timer_jclock.jc_jclock_ns)
+#define jiffies     atomic_read(&timer_jclock.jc_jiffies)
 
 extern unsigned long timer_slack;
 

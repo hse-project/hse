@@ -177,8 +177,8 @@ MTF_DEFINE_UTEST(event_counter, ev_create_and_find)
 int
 timestamp_compare(atomic64_t *o, atomic64_t *t)
 {
-    u64 one = atomic64_read(o);
-    u64 two = atomic64_read(t);
+    u64 one = atomic_read(o);
+    u64 two = atomic_read(t);
 
     if (one > two)
         return 1;

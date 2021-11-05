@@ -16,7 +16,7 @@ ev_get_timestamp(atomic64_t *timestamp)
 
     gettimeofday(&tv, NULL);
 
-    atomic64_set(timestamp, (tv.tv_sec * USEC_PER_SEC) + tv.tv_usec);
+    atomic_set(timestamp, (tv.tv_sec * USEC_PER_SEC) + tv.tv_usec);
 }
 
 size_t
@@ -24,7 +24,7 @@ snprintf_timestamp(char *buf, size_t buf_sz, atomic64_t *timestamp)
 {
     struct timeval tv;
     size_t         ret;
-    u64            t = atomic64_read(timestamp);
+    u64            t = atomic_read(timestamp);
     struct tm      tm;
 
     tv.tv_sec = t / USEC_PER_SEC;

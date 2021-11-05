@@ -201,8 +201,8 @@ viewset_create(struct viewset **handle, atomic64_t *kvdb_seqno_addr, atomic64_t 
 
     self->vs_seqno_addr = kvdb_seqno_addr;
     self->vs_tseqnop = tseqnop;
-    self->vs_min_view_sn = atomic64_read(kvdb_seqno_addr);
-    atomic64_set(&self->vs_horizon, self->vs_min_view_sn);
+    self->vs_min_view_sn = atomic_read(kvdb_seqno_addr);
+    atomic_set(&self->vs_horizon, self->vs_min_view_sn);
     self->vs_min_view_bkt = NULL;
     for (i = 0; i < NELEM(self->vs_nodev); ++i) {
         sem_init(&self->vs_nodev[i].vs_sema, 0, 3);
@@ -250,12 +250,12 @@ viewset_horizon(struct viewset *handle)
 {
     struct viewset_impl *self = viewset_h2r(handle);
 
-    u64 newh = atomic64_read(self->vs_seqno_addr);
-    u64 oldh = atomic64_read(&self->vs_horizon);
+    u64 newh = atomic_read(self->vs_seqno_addr);
+    u64 oldh = atomic_read(&self->vs_horizon);
     int i;
 
     /* Read old horizon and KVDB seqno before checking active txn cnt */
-    __atomic_thread_fence(__ATOMIC_ACQ_REL);
+    atomic_thread_fence(memory_order_acq_rel);
 
     /* Any transaction that began but wasn't reflected in vsb_active
      * will have a view seqno that is larger than newh.
@@ -271,10 +271,10 @@ viewset_horizon(struct viewset *handle)
      * lagging behind a previously returned horizon.
      */
     while (newh > oldh) {
-        if (atomic64_cmpxchg(&self->vs_horizon, oldh, newh) == oldh)
+        if (atomic_cmpxchg(&self->vs_horizon, &oldh, newh))
             return newh;
 
-        oldh = atomic64_read(&self->vs_horizon);
+        oldh = atomic_read(&self->vs_horizon);
     }
 
     assert(oldh >= newh);
@@ -368,7 +368,7 @@ viewset_insert(struct viewset *handle, u64 *viewp, u64 *tseqnop, void **cookiep)
     if (changed)
         atomic_inc_acq(&self->vs_changing);
 
-    entry->vse_view_sn = atomic64_fetch_add(1, self->vs_seqno_addr);
+    entry->vse_view_sn = atomic_fetch_add(self->vs_seqno_addr, 1);
     entry->vse_bkt = bkt;
     list_add_tail(&entry->vse_link, &tree->vst_head);
 
@@ -378,7 +378,7 @@ viewset_insert(struct viewset *handle, u64 *viewp, u64 *tseqnop, void **cookiep)
     }
     treelock_unlock(tree);
 
-    *tseqnop = atomic64_read(self->vs_tseqnop);
+    *tseqnop = atomic_read(self->vs_tseqnop);
 
     if (changed) {
         bool updated = false;
@@ -406,7 +406,7 @@ viewset_insert(struct viewset *handle, u64 *viewp, u64 *tseqnop, void **cookiep)
          * of atomic operations on vs_changing.
          */
         if (atomic_read(&self->vs_changing) - ++self->vs_chgaccum == 0) {
-            atomic_sub_rel(self->vs_chgaccum, &self->vs_changing);
+            atomic_sub_rel(&self->vs_changing, self->vs_chgaccum);
             self->vs_chgaccum = 0;
             updated = viewset_update(self, 0);
         }
@@ -478,7 +478,7 @@ viewset_remove(
 
         if (viewlock_trylock(self)) {
             if (entry_sn >= self->vs_min_view_sn) {
-                u64 seq = atomic64_read(self->vs_seqno_addr);
+                u64 seq = atomic_read(self->vs_seqno_addr);
 
                 viewset_update(self, seq);
             }

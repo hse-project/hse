@@ -1174,7 +1174,7 @@ sp3_process_workitem(struct sp3 *sp, struct cn_compaction_work *w)
          */
         dt = w->cw_t3_build - w->cw_t2_prep;
         sp->rspill_dt_prev = (dt + sp->rspill_dt_prev) / 2;
-        atomic64_set(&sp->rspill_dt, sp->rspill_dt_prev);
+        atomic_set(&sp->rspill_dt, sp->rspill_dt_prev);
     }
 
     free(w);
@@ -1199,17 +1199,17 @@ sp3_process_ingest(struct sp3 *sp)
         long             wlen;
 
         v = atomic_read(&spt->spt_ingest_count);
-        atomic_sub(v, &spt->spt_ingest_count);
+        atomic_sub(&spt->spt_ingest_count, v);
 
-        alen = atomic64_read(&spt->spt_ingest_alen);
-        wlen = atomic64_read(&spt->spt_ingest_wlen);
+        alen = atomic_read(&spt->spt_ingest_alen);
+        wlen = atomic_read(&spt->spt_ingest_wlen);
         if (alen) {
 
-            atomic64_sub(alen, &spt->spt_ingest_alen);
+            atomic_sub(&spt->spt_ingest_alen, alen);
             sp->samp.i_alen += alen;
             sp->samp.r_alen += alen;
 
-            atomic64_sub(wlen, &spt->spt_ingest_wlen);
+            atomic_sub(&spt->spt_ingest_wlen, wlen);
             sp->samp.r_wlen += wlen;
 
             sp3_dirty_node(sp, tree->ct_root);
@@ -1881,7 +1881,7 @@ sp3_qos_check(struct sp3 *sp)
     if (rootlen > 4) {
         u64 K;
         u64 r = (rootlen - 4) * 100;
-        u64 nsec = atomic64_read(&sp->rspill_dt) / NSEC_PER_SEC;
+        u64 nsec = atomic_read(&sp->rspill_dt) / NSEC_PER_SEC;
         u64 min_lat = 16, max_lat = 80;
 
         /* Since, the throttling system's sensitivty to sensor values over 1000 is non-linear, the
@@ -2261,8 +2261,8 @@ sp3_op_notify_ingest(struct csched_ops *handle, struct cn_tree *tree, size_t ale
     struct sp3 *     sp = h2sp(handle);
     struct sp3_tree *spt = tree2spt(tree);
 
-    atomic64_add(alen, &spt->spt_ingest_alen);
-    atomic64_add(wlen, &spt->spt_ingest_wlen);
+    atomic_add(&spt->spt_ingest_alen, alen);
+    atomic_add(&spt->spt_ingest_wlen, wlen);
     atomic_inc(&spt->spt_ingest_count);
 
     sp3_monitor_wake(sp);
