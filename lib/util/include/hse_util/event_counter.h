@@ -18,12 +18,12 @@
 #define EV_FLAGS_NOTIME     (0x02u)
 
 struct event_counter {
-    atomic_t           ev_odometer;
-    int                ev_pri;
-    atomic64_t         ev_odometer_timestamp;
-    atomic64_t         ev_trip_odometer_timestamp;
-    int                ev_trip_odometer;
+    atomic_ulong       ev_odometer;
     u32                ev_flags;
+    int                ev_pri;
+    atomic_ulong       ev_odometer_timestamp;
+    atomic_ulong       ev_trip_odometer_timestamp;
+    ulong              ev_trip_odometer;
     u64                ev_priv;
     const char        *ev_file;
     int                ev_line;
@@ -75,10 +75,10 @@ extern struct dt_element_ops event_counter_ops;
 
 /* NON-API Functions */
 void
-ev_get_timestamp(atomic64_t *timestamp);
+ev_get_timestamp(atomic_ulong *timestamp);
 
 size_t
-snprintf_timestamp(char *buf, size_t buf_sz, atomic64_t *timestamp);
+snprintf_timestamp(char *buf, size_t buf_sz, atomic_ulong *timestamp);
 
 /* API Functions */
 /**

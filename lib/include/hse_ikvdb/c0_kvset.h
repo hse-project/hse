@@ -74,8 +74,8 @@ c0kvs_fini(void);
  */
 merr_t
 c0kvs_create(
-    atomic64_t *      kvdb_seq,
-    atomic64_t *      kvms_seq,
+    atomic_ulong     *kvdb_seq,
+    atomic_ulong     *kvms_seq,
     struct c0_kvset **handlep);
 
 /**

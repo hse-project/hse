@@ -181,17 +181,17 @@ struct ikvdb_impl {
 
     struct kvdb_ctxn_bkt    ikdb_ctxn_cache[KVDB_CTXN_BKT_MAX];
 
-    atomic_t                ikdb_curcnt HSE_ALIGNED(SMP_CACHE_BYTES * 2);
+    atomic_int              ikdb_curcnt HSE_ALIGNED(SMP_CACHE_BYTES * 2);
     u32                     ikdb_curcnt_max;
 
-    atomic64_t              ikdb_tb_dbg_ops HSE_ALIGNED(SMP_CACHE_BYTES);
-    atomic64_t              ikdb_tb_dbg_bytes;
-    atomic64_t              ikdb_tb_dbg_sleep_ns;
+    atomic_ulong            ikdb_tb_dbg_ops HSE_ALIGNED(SMP_CACHE_BYTES);
+    atomic_ulong            ikdb_tb_dbg_bytes;
+    atomic_ulong            ikdb_tb_dbg_sleep_ns;
     u64                     ikdb_tb_dbg_next;
     u64                     ikdb_tb_burst;
     u64                     ikdb_tb_rate;
 
-    atomic64_t              ikdb_seqno HSE_ALIGNED(SMP_CACHE_BYTES * 2);
+    atomic_ulong            ikdb_seqno HSE_ALIGNED(SMP_CACHE_BYTES * 2);
     struct work_struct      ikdb_throttle_work;
     struct work_struct      ikdb_maint_work;
 
@@ -764,7 +764,7 @@ ikvdb_diag_open(
     struct kvdb_rparams *params,
     struct ikvdb **      handle)
 {
-    static atomic64_t    tseqno = 0;
+    static atomic_ulong  tseqno = 0;
     struct ikvdb_impl   *self = NULL;
     merr_t               err;
     struct kvdb_meta     meta;
@@ -1120,7 +1120,7 @@ ikvdb_open(
 {
     merr_t                 err;
     struct ikvdb_impl *    self = NULL;
-    atomic64_t *           tseqnop;
+    atomic_ulong          *tseqnop;
     u64                    seqno = 0; /* required by unit test */
     ulong                  mavail;
     size_t                 sz;
@@ -1771,7 +1771,6 @@ ikvdb_kvs_open(
     }
 
     kvs->kk_parent = self;
-    kvs->kk_seqno = &self->ikdb_seqno;
     kvs->kk_viewset = self->ikdb_cur_viewset;
 
     kvs->kk_vcompmin = UINT_MAX;

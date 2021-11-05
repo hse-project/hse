@@ -46,8 +46,8 @@ struct c0_kvset_impl {
     struct c0_kvset_impl *c0s_next;
 
     /* these apply only to non-txn operations. */
-    atomic64_t *c0s_kvdb_seqno;
-    atomic64_t *c0s_kvms_seqno;
+    atomic_ulong *c0s_kvdb_seqno;
+    atomic_ulong *c0s_kvms_seqno;
 
     struct mutex c0s_mutex HSE_ALIGNED(SMP_CACHE_BYTES * 2);
 

@@ -175,7 +175,7 @@ MTF_DEFINE_UTEST(event_counter, ev_create_and_find)
  * timestamp_compare returns -1 if one < two, 0 if one == two, 1 if one > two
  */
 int
-timestamp_compare(atomic64_t *o, atomic64_t *t)
+timestamp_compare(atomic_ulong *o, atomic_ulong *t)
 {
     u64 one = atomic_read(o);
     u64 two = atomic_read(t);
@@ -194,7 +194,7 @@ MTF_DEFINE_UTEST(event_counter, ev_odometer_timestamp)
     char                  direct_path[DT_PATH_MAX];
     struct event_counter *ec;
     struct dt_element *   direct;
-    atomic64_t            before, after;
+    atomic_ulong          before, after;
     const char *          phile = basename(__FILE__);
     int                   line;
     int                   ret;
@@ -308,7 +308,7 @@ MTF_DEFINE_UTEST(event_counter, ev_timestamp_advance)
     struct event_counter *ec;
     struct dt_element *   direct;
     const char *          phile = basename(__FILE__);
-    atomic64_t            prev;
+    atomic_ulong          prev;
     int                   line;
     int                   ret;
     int                   i;
@@ -360,7 +360,7 @@ MTF_DEFINE_UTEST(event_counter, ev_trip_odometer_timestamp)
     char                        direct_path[DT_PATH_MAX];
     struct event_counter *      ec;
     struct dt_element *         direct;
-    atomic64_t                  before, after;
+    atomic_ulong                before, after;
     const char *                phile = basename(__FILE__);
     size_t                      count;
     int                         line;
@@ -517,7 +517,7 @@ validate_buf(
     remaining = MY_BUF_SIZE - offset;
 
     offset +=
-        snprintf(my_buf + offset, remaining, "  odometer: %d\n", atomic_read(&ec->ev_odometer));
+        snprintf(my_buf + offset, remaining, "  odometer: %lu\n", atomic_read(&ec->ev_odometer));
     remaining = MY_BUF_SIZE - offset;
 
     offset += snprintf(my_buf + offset, remaining, "  odometer timestamp: ");
@@ -533,7 +533,7 @@ validate_buf(
         offset += snprintf(
             my_buf + offset,
             remaining,
-            "  trip odometer: %d\n",
+            "  trip odometer: %lu\n",
             atomic_read(&ec->ev_odometer) - ec->ev_trip_odometer);
         remaining = MY_BUF_SIZE - offset;
 

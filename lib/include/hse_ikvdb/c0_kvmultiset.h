@@ -59,7 +59,7 @@ struct c0_kvmultiset {
 merr_t
 c0kvms_create(
     u32                    num_sets,
-    atomic64_t *           kvdb_seq,
+    atomic_ulong          *kvdb_seq,
     void                 **stash,
     struct c0_kvmultiset **multiset);
 

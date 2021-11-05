@@ -68,14 +68,14 @@ struct viewset_bkt {
  */
 struct viewset_impl {
     struct viewset      vs_handle;
-    atomic64_t         *vs_seqno_addr;
-    atomic64_t         *vs_tseqnop;
+    atomic_ulong       *vs_seqno_addr;
+    atomic_ulong       *vs_tseqnop;
     struct viewset_bkt *vs_bkt_first;
     struct viewset_bkt *vs_bkt_last;
 
     volatile u64   vs_min_view_sn HSE_ALIGNED(SMP_CACHE_BYTES * 2);
     volatile void *vs_min_view_bkt;
-    atomic64_t     vs_horizon;
+    atomic_ulong   vs_horizon;
 
     struct {
         sem_t  vs_sema  HSE_ALIGNED(SMP_CACHE_BYTES * 2);
@@ -173,7 +173,7 @@ viewset_entry_free(struct viewset_tree *tree, struct viewset_entry *entry)
 }
 
 merr_t
-viewset_create(struct viewset **handle, atomic64_t *kvdb_seqno_addr, atomic64_t *tseqnop)
+viewset_create(struct viewset **handle, atomic_ulong *kvdb_seqno_addr, atomic_ulong *tseqnop)
 {
     struct viewset_impl *self;
     merr_t err = 0;

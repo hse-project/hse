@@ -61,11 +61,11 @@
 struct c0_kvmultiset_impl {
     struct c0_kvmultiset  c0ms_handle;
     u64                   c0ms_gen;
-    atomic64_t            c0ms_seqno;
+    atomic_ulong          c0ms_seqno;
     u64                   c0ms_rsvd_sn;
-    atomic64_t            c0ms_txhorizon;
+    atomic_ulong          c0ms_txhorizon;
     size_t                c0ms_used;
-    atomic64_t           *c0ms_kvdb_seq;
+    atomic_ulong         *c0ms_kvdb_seq;
     void                **c0ms_stashp;
     struct kvdb_callback *c0ms_cb;
 
@@ -78,9 +78,9 @@ struct c0_kvmultiset_impl {
 
     atomic_t   c0ms_refcnt HSE_ALIGNED(SMP_CACHE_BYTES);
 
-    atomic64_t c0ms_c0snr_cur HSE_ALIGNED(SMP_CACHE_BYTES * 2);
-    size_t     c0ms_c0snr_max HSE_ALIGNED(SMP_CACHE_BYTES);
-    uintptr_t *c0ms_c0snr_base;
+    atomic_ulong c0ms_c0snr_cur HSE_ALIGNED(SMP_CACHE_BYTES * 2);
+    size_t       c0ms_c0snr_max HSE_ALIGNED(SMP_CACHE_BYTES);
+    uintptr_t   *c0ms_c0snr_base;
 
     u32              c0ms_num_sets;
     u32              c0ms_ptreset_sz;
@@ -725,7 +725,7 @@ c0kvms_seqno_get(struct c0_kvmultiset *handle)
 }
 
 merr_t
-c0kvms_create(u32 num_sets, atomic64_t *kvdb_seq, void **stashp, struct c0_kvmultiset **multiset)
+c0kvms_create(u32 num_sets, atomic_ulong *kvdb_seq, void **stashp, struct c0_kvmultiset **multiset)
 {
     struct c0_kvmultiset_impl *kvms;
     merr_t                     err;

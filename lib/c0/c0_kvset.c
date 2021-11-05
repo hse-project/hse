@@ -185,8 +185,8 @@ c0kvs_ior_stats(
 static u64
 c0kvs_seqno_set(struct c0_kvset_impl *c0kvs, struct bonsai_val *bv)
 {
-    u64         seq;
-    atomic64_t *sref = c0kvs->c0s_kvdb_seqno;
+    atomic_ulong *sref = c0kvs->c0s_kvdb_seqno;
+    u64 seq;
 
     /* [HSE_REVISIT]
      * If an operation (such as txBegin or cursorCreate) obtains a view
@@ -433,8 +433,8 @@ c0kvs_findval(struct bonsai_kv *kv, u64 view_seqno, uintptr_t seqnoref)
 
 merr_t
 c0kvs_create(
-    atomic64_t *      kvdb_seqno,
-    atomic64_t *      kvms_seqno,
+    atomic_ulong     *kvdb_seqno,
+    atomic_ulong     *kvms_seqno,
     struct c0_kvset **handlep)
 {
     struct c0_kvset_impl *set;

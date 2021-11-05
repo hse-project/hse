@@ -229,7 +229,7 @@ cndb_init(
     struct cndb *       cndb,
     struct mpool *      ds,
     bool                rdonly,
-    atomic64_t *        ikvdb_seqno,
+    atomic_ulong       *ikvdb_seqno,
     size_t              cndb_entries,
     u64                 oid1,
     u64                 oid2,
@@ -298,7 +298,7 @@ merr_t
 cndb_open(
     struct mpool *      ds,
     bool                rdonly,
-    atomic64_t *        ikvdb_seqno,
+    atomic_ulong       *ikvdb_seqno,
     size_t              cndb_entries,
     u64                 oid1,
     u64                 oid2,
@@ -1999,7 +1999,7 @@ cndb_read(struct cndb *cndb, size_t *len)
 static u64
 cndb_ikvdb_seqno_get(struct cndb *cndb)
 {
-    atomic64_t *p = cndb->cndb_ikvdb_seqno;
+    atomic_ulong *p = cndb->cndb_ikvdb_seqno;
 
     return p ? atomic_read(p) : 0;
 }

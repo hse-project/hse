@@ -450,8 +450,8 @@ struct perfc_name {
  * that is otherwise wasted by basic and rate counters.
  */
 struct perfc_val {
-    atomic64_t pcv_vadd;
-    atomic64_t pcv_vsub;
+    atomic_ulong pcv_vadd;
+    atomic_ulong pcv_vsub;
 };
 
 /**
@@ -466,8 +466,8 @@ struct perfc_val {
  * cacheline thrashing between cpus.
  */
 struct perfc_bkt {
-    atomic64_t pcb_vadd;
-    atomic64_t pcb_hits;
+    atomic_ulong pcb_vadd;
+    atomic_ulong pcb_hits;
 };
 
 /**

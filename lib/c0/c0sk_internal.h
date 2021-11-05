@@ -78,7 +78,7 @@ struct c0sk_impl {
     struct throttle_sensor  *c0sk_sensor;
     struct lc               *c0sk_lc;
     struct kvdb_ctxn_set    *c0sk_ctxn_set;
-    atomic64_t              *c0sk_kvdb_seq;
+    atomic_ulong            *c0sk_kvdb_seq;
     bool                     c0sk_closing;
     bool                     c0sk_syncing;
     atomic_t                 c0sk_replaying;

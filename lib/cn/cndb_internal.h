@@ -172,7 +172,7 @@ struct cndb {
     struct mpool_mdc *        cndb_mdc;
     struct mpool *            cndb_ds;
     struct kvdb_health *      cndb_kvdb_health;
-    atomic64_t *              cndb_ikvdb_seqno;
+    atomic_ulong             *cndb_ikvdb_seqno;
     u64                       cndb_seqno;
     u16                       cndb_version;
     bool                      cndb_read_only;
@@ -635,7 +635,7 @@ cndb_init(
     struct cndb *       cndb,
     struct mpool *      ds,
     bool                rdonly,
-    atomic64_t *        ikvdb_seqno,
+    atomic_ulong       *ikvdb_seqno,
     size_t              cndb_entries,
     u64                 oid1,
     u64                 oid2,
