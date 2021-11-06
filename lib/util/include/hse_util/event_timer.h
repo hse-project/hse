@@ -47,7 +47,7 @@ struct event_timer {
     unsigned long min, max;
     unsigned long mode, mcnt;
     unsigned long n;
-    atomic64_t    busy;
+    atomic_int    busy;
     double        om, m, os, s;
     char          buf[128];
 };

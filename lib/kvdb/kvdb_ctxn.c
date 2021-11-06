@@ -60,14 +60,15 @@ struct kvdb_ctxn_set_impl {
     u64                      ktn_txn_timeout;
     struct delayed_work      ktn_dwork;
 
-    atomic_ulong ktn_tseqno_head HSE_ALIGNED(SMP_CACHE_BYTES * 2);
-    atomic_ulong ktn_tseqno_tail HSE_ALIGNED(SMP_CACHE_BYTES * 2);
+    atomic_ulong             ktn_tseqno_head HSE_ALIGNED(SMP_CACHE_BYTES * 2);
+    atomic_ulong             ktn_tseqno_tail HSE_ALIGNED(SMP_CACHE_BYTES * 2);
 
-    struct mutex         ktn_list_mutex HSE_ALIGNED(SMP_CACHE_BYTES * 2);
-    struct cds_list_head ktn_alloc_list HSE_ALIGNED(SMP_CACHE_BYTES);
-    struct list_head     ktn_pending;
-    atomic_t             ktn_reading;
-    bool                 ktn_queued;
+    struct mutex             ktn_list_mutex HSE_ALIGNED(SMP_CACHE_BYTES * 2);
+    struct list_head         ktn_pending;
+    atomic_t                 ktn_reading;
+    bool                     ktn_queued;
+
+    struct cds_list_head     ktn_alloc_list HSE_ALIGNED(CAA_CACHE_LINE_SIZE);
 };
 
 /* clang-format on */

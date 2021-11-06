@@ -108,7 +108,7 @@ rmlock_runlock(void *cookie)
     }
 
     while (!rmlock_cmpxchg(&bkt->rm_rwcnt, &val, val - 1))
-        ;
+        continue;
 }
 
 void

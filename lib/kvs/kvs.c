@@ -605,8 +605,8 @@ exit:
 static merr_t
 kvs_create(struct ikvs **ikvs_out, struct kvs_rparams *rp)
 {
-    static atomic64_t g_ikv_gen;
-    struct ikvs *     ikvs;
+    static atomic_ulong g_ikv_gen;
+    struct ikvs *ikvs;
 
     *ikvs_out = NULL;
 

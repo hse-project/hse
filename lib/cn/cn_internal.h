@@ -34,7 +34,7 @@ struct cn {
     struct tbkt *     cn_tbkt_maint;
     u64               cn_cnid;
 
-    HSE_ALIGNED(SMP_CACHE_BYTES) atomic64_t cn_ingest_dgen;
+    atomic_ulong cn_ingest_dgen;
 
     atomic_t cn_refcnt;
     bool     cn_closing;

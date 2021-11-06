@@ -1479,7 +1479,7 @@ again:
     for (i = 0; i < 10000; ++i) {
         struct kvs_ktuple kt;
         struct kvs_vtuple vt;
-        char              buf[32];
+        char              buf[64];
         int               n;
 
         n = snprintf(buf, sizeof(buf), keyfmt, i % pfxmod, i);

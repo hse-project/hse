@@ -174,10 +174,11 @@ wal_fileset_open(
 {
     struct wal_fileset *wfset;
 
-    wfset = calloc(1, sizeof(*wfset));
+    wfset = aligned_alloc(alignof(*wfset), sizeof(*wfset));
     if (!wfset)
         return NULL;
 
+    memset(wfset, 0, sizeof(*wfset));
     mutex_init(&wfset->lock);
     INIT_LIST_HEAD(&wfset->active);
     INIT_LIST_HEAD(&wfset->complete);
@@ -246,6 +247,7 @@ wal_file_open(
         return merr(ENOMEM);
     }
 
+    memset(wfile, 0, sizeof(*wfile));
     wfile->mpf = mpf;
     wfile->wfset = wfset;
     wfile->gen = gen;

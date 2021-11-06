@@ -1873,7 +1873,7 @@ MTF_DEFINE_UTEST_PREPOST(c0sk_test, c0_cursor_robust, no_fail_pre, no_fail_post)
     struct c0sk_impl *    self;
     struct c0_cursor *    cur[5];
     u16                   skidx;
-    char                  kbuf[10], vbuf[10], seek[10];
+    char                  kbuf[64], vbuf[64], seek[64];
     int                   seeklen;
     merr_t                err;
     bool                  eof;
@@ -2112,7 +2112,7 @@ MTF_DEFINE_UTEST_PREPOST(c0sk_test, c0_cursor_eagain, no_fail_pre, no_fail_post)
     struct c0_cursor *    cur;
     struct c0sk_impl *    self;
     u16                   skidx;
-    char                  kbuf[10], vbuf[10];
+    char                  kbuf[64], vbuf[64];
     merr_t                err;
     int                   i;
     atomic_ulong          seqno;
@@ -2204,7 +2204,7 @@ MTF_DEFINE_UTEST_PREPOST(c0sk_test, c0_rcursor_robust, no_fail_pre, no_fail_post
     struct c0sk_impl *    self;
     struct c0_cursor *    cur[5];
     u16                   skidx;
-    char                  kbuf[10], vbuf[10], seek[10];
+    char                  kbuf[64], vbuf[64], seek[64];
     int                   seeklen;
     merr_t                err;
     bool                  eof;

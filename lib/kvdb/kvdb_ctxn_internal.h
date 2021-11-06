@@ -57,10 +57,10 @@ struct kvdb_ctxn_impl {
     struct viewset         *ctxn_viewset;
     void                   *ctxn_viewset_cookie;
 
-    u64                     ctxn_begin_ts HSE_ALIGNED(SMP_CACHE_BYTES);
-    struct cds_list_head    ctxn_alloc_link;
+    struct cds_list_head    ctxn_alloc_link HSE_ALIGNED(CAA_CACHE_LINE_SIZE);
     struct list_head        ctxn_free_link;
     struct list_head        ctxn_abort_link;
+    u64                     ctxn_begin_ts;
 };
 
 /* clang-format on */
