@@ -7,7 +7,8 @@
 #define HSE_RMLOCK_H
 
 #include <hse_util/atomic.h>
-#include <hse_util/rwsem.h>
+
+#include <pthread.h>
 
 /* clang-format off */
 
@@ -26,7 +27,7 @@ struct rmlock {
     u32                 rm_bktmax;
 
     atomic_int          rm_writer HSE_ALIGNED(64);
-    struct rw_semaphore rm_sema;
+    pthread_rwlock_t    rm_rwlock;
 
     struct rmlock_bkt   rm_bkt;
 };

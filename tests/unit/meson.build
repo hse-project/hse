@@ -229,13 +229,6 @@ components = {
         'rbtree_test': {},
         'rest_api_test': {},
         'rest_client_test': {},
-        'rwsem_test': {
-            'sources': [
-                files(
-                    'util/multithreaded_tester.c',
-                ),
-            ],
-        },
         'seqno_test': {},
         'spinlock_test': {
             'sources': [

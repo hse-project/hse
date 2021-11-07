@@ -199,7 +199,7 @@ MTF_BEGIN_UTEST_COLLECTION_PREPOST(ikvdb_test, collection_pre, collection_post);
 
 MTF_DEFINE_UTEST_PREPOST(ikvdb_test, init, test_pre, test_post)
 {
-    const char *        mpool = "mpool_alpha";
+    const char *        mpool = __func__;
     struct ikvdb *      store = NULL;
     merr_t              err;
     const char *const   paramv[] = { "c0_diag_mode=true" };
@@ -218,7 +218,7 @@ MTF_DEFINE_UTEST_PREPOST(ikvdb_test, init, test_pre, test_post)
 
 MTF_DEFINE_UTEST_PREPOST(ikvdb_test, init_fail, test_pre, test_post)
 {
-    const char *        mpool = "mpool_alpha";
+    const char *        mpool = __func__;
     struct ikvdb *      store;
     merr_t              err;
     const char *const   paramv[] = { "c0_diag_mode=true" };
@@ -235,7 +235,7 @@ MTF_DEFINE_UTEST_PREPOST(ikvdb_test, init_fail, test_pre, test_post)
 
 MTF_DEFINE_UTEST_PREPOST(ikvdb_test, basic_txn_alloc, test_pre, test_post)
 {
-    const char *         mpool = "mpool_alpha";
+    const char *         mpool = __func__;
     struct ikvdb *       store;
     struct hse_kvdb_txn *txn1, *txn2;
     merr_t               err;
@@ -265,7 +265,7 @@ MTF_DEFINE_UTEST_PREPOST(ikvdb_test, basic_txn_alloc, test_pre, test_post)
 
 MTF_DEFINE_UTEST_PREPOST(ikvdb_test, basic_lifecycle, test_pre, test_post)
 {
-    const char *         mpool = "mpool_alpha";
+    const char *         mpool = __func__;
     struct ikvdb *       store;
     struct hse_kvdb_txn *txn1, *txn2;
     const char *const    paramv[] = { "c0_diag_mode=true" };
@@ -357,7 +357,7 @@ MTF_DEFINE_UTEST_PREPOST(ikvdb_test, ikvdb_kvs_open_test, test_pre, test_post)
 {
     struct ikvdb *      hdl = NULL;
     struct hse_kvs *    h = NULL;
-    const char *        mpool = "mpool_alpha";
+    const char *        mpool = __func__;
     const char *        kvs = "kvs_gamma";
     const char *const   paramv[] = { "c0_diag_mode=true" };
     merr_t              err;
@@ -402,7 +402,7 @@ MTF_DEFINE_UTEST_PREPOST(ikvdb_test, ikvdb_kvs_open_test, test_pre, test_post)
 MTF_DEFINE_UTEST_PREPOST(ikvdb_test, ikvdb_kvs_create_test, test_pre, test_post)
 {
     struct ikvdb *      hdl = NULL;
-    const char *        mpool = "mpool_alpha";
+    const char *        mpool = __func__;
     const char *        kvs = "kvs_gamma";
     merr_t              err;
     const char *const   paramv[] = { "c0_diag_mode=true" };
@@ -448,7 +448,7 @@ MTF_DEFINE_UTEST_PREPOST(ikvdb_test, ikvdb_kvs_create_test, test_pre, test_post)
 MTF_DEFINE_UTEST_PREPOST(ikvdb_test, ikvdb_kvs_destroy_test, test_pre, test_post)
 {
     struct ikvdb *      hdl = NULL;
-    const char *        mpool = "mpool_alpha";
+    const char *        mpool = __func__;
     const char *        kvs = "kvs_gamma";
     merr_t              err;
     unsigned int        cnt;
@@ -485,7 +485,7 @@ MTF_DEFINE_UTEST_PREPOST(ikvdb_test, txn_del_test, test_pre, test_post)
 {
     struct ikvdb *       h = NULL;
     struct hse_kvs *     kvs_h = NULL;
-    const char *         mpool = "mpool";
+    const char *         mpool = __func__;
     const char *         kvs = "kvs";
     const char *const    kvdb_open_paramv[] = { "c0_diag_mode=true" };
     const char *const    kvs_open_paramv[] = { "transactions.enabled=true" };
@@ -615,7 +615,7 @@ MTF_DEFINE_UTEST_PREPOST(ikvdb_test, txn_put_test, test_pre, test_post)
 {
     struct ikvdb *      h = NULL;
     struct hse_kvs *    kvs_h = NULL;
-    const char *        mpool = "mpool";
+    const char *        mpool = __func__;
     const char *        kvs = "kvs";
     const char *const   kvdb_open_paramv[] = { "c0_debug=16" };
     const char *const   kvs_open_paramv[] = { "transactions.enabled=true" };
@@ -673,7 +673,7 @@ MTF_DEFINE_UTEST_PREPOST(ikvdb_test, aborted_txn_bind, test_pre, test_post)
 {
     struct ikvdb *         kvdb_h = NULL;
     struct hse_kvs *       kvs_h = NULL;
-    const char *           mpool = "mpool";
+    const char *           mpool = __func__;
     const char *           kvs = "kvs";
     const char *const      kvdb_open_paramv[] = { "c0_debug=16", "c0_diag_mode=true" };
     const char *const      kvs_open_paramv[] = { "transactions.enabled=true" };
@@ -727,7 +727,7 @@ MTF_DEFINE_UTEST_PREPOST(ikvdb_test, cursor_0, test_pre, test_post)
 {
     struct ikvdb *         h = NULL;
     struct hse_kvs *       kvs_h = NULL;
-    const char *           mpool = "mpool";
+    const char *           mpool = __func__;
     const char *           kvs = "kvs";
     const char *const      paramv[] = { "c0_debug=16", "c0_diag_mode=true" };
     merr_t                 err;
@@ -786,7 +786,7 @@ MTF_DEFINE_UTEST_PREPOST(ikvdb_test, cursor_1, test_pre_c0, test_post_c0)
 {
     struct ikvdb *         h = NULL;
     struct hse_kvs *       kvs_h = NULL;
-    const char *           mpool = "mpool";
+    const char *           mpool = __func__;
     const char *           kvs = "kvs";
     const char *const      paramv[] = { "c0_diag_mode=true" };
     struct hse_kvdb_txn *  txn = NULL;
@@ -941,7 +941,7 @@ MTF_DEFINE_UTEST_PREPOST(ikvdb_test, cursor_tx, test_pre_c0, test_post_c0)
 {
     struct ikvdb *         h = NULL;
     struct hse_kvs *       kvs_h = NULL;
-    const char *           mpool = "mpool";
+    const char *           mpool = __func__;
     const char *           kvs = "kvs";
     struct mpool *         ds = (struct mpool *)-1;
     const char *const      kvdb_open_paramv[] = { "c0_diag_mode=true" };
@@ -1196,7 +1196,7 @@ MTF_DEFINE_UTEST_PREPOST(ikvdb_test, cursor_tombspan, test_pre_c0, test_post_c0)
     struct c0sk *          c0sk;
     struct ikvdb *         h = NULL;
     struct hse_kvs *       kvs_h = NULL;
-    const char *           mpool = "mpool";
+    const char *           mpool = __func__;
     const char *           kvs = "kvs";
     struct mpool *         ds = (struct mpool *)-1;
     struct hse_params *    params;
@@ -1399,6 +1399,12 @@ parallel_cursors(void *info)
         sprintf(buf, ci->keyfmt, r % ci->pfxmod, r);
 
         err = ikvdb_kvs_cursor_create(ci->kvs, 0, NULL, buf, 3, &c);
+        if (err && merr_errno(err) == ENOMEM) {
+            usleep(333);
+            --i;
+            continue;
+        }
+
         VERIFY_EQ_RET(err, 0, 0);
 
         klen = strlen(buf);
@@ -1433,7 +1439,7 @@ MTF_DEFINE_UTEST_PREPOST(ikvdb_test, cursor_cache, test_pre_c0, test_post_c0)
 {
     struct ikvdb *      h = NULL;
     struct hse_kvs *    kvs_h[3];
-    const char *        mpool = "mpool";
+    const char *        mpool = __func__;
     const char *const   paramv[] = { "c0_diag_mode=true" };
     const int           num_threads = get_nprocs() * 3;
     struct cursor_info  info[num_threads];
@@ -1503,6 +1509,14 @@ again:
             info[i].ttl += NSEC_PER_SEC * (23 + (i % 8));
 
         rc = pthread_create(&info[i].td, 0, parallel_cursors, &info[i]);
+        if (rc) {
+            if (rc == EAGAIN || rc == ENOMEM) {
+                usleep(333);
+                --i;
+                continue;
+            }
+        }
+
         ASSERT_EQ(0, rc);
     }
 
@@ -1533,7 +1547,7 @@ MTF_DEFINE_UTEST_PREPOST(ikvdb_test, cursor_2, test_pre_c0, test_post_c0)
     struct ikvdb          *h = NULL;
     struct hse_kvs        *kvs[4] = { };
     char *                 names[4] = { "k1", "k2", "k3", "k4" };
-    const char *           mpool = "mpool";
+    const char *           mpool = __func__;
     struct mpool *         ds  = (struct mpool *)-1;
     struct hse_params *    params;
     struct hse_kvdb_opspec opspec;
@@ -1589,7 +1603,7 @@ MTF_DEFINE_UTEST_PREPOST(ikvdb_test, cursor_2, test_pre_c0, test_post_c0)
 MTF_DEFINE_UTEST_PREPOST(ikvdb_test, kvdb_sync_test, test_pre, test_post)
 {
     struct ikvdb *      h = NULL;
-    const char *        mpool = "mpool";
+    const char *        mpool = __func__;
     const char *        kvs_base = "kvs";
     const char *const   paramv[] = { "c0_diag_mode=true" };
     u8                  kvs_cnt = 5;
@@ -1675,7 +1689,7 @@ MTF_DEFINE_UTEST_PREPOST(ikvdb_test, kvdb_parallel_kvs_opens, test_pre, test_pos
     merr_t              err;
     struct ikvdb *      h;
     struct thread_info  infov[num_threads];
-    const char *        mpool = "mpool";
+    const char *        mpool = __func__;
     const char *const   paramv[] = { "c0_diag_mode=true" };
     int                 rc;
     struct kvdb_rparams params = kvdb_rparams_defaults();
@@ -1738,7 +1752,7 @@ MTF_DEFINE_UTEST_PREPOST(ikvdb_test, kvdb_parallel_kvs_makes, test_pre, test_pos
     merr_t              err;
     pthread_t           t[num_threads];
     struct thread_info  info = { 0 };
-    char *              mpool = "mpool";
+    const char         *mpool = __func__;
     const char *const   paramv[] = { "c0_diag_mode=true" };
     int                 rc;
     unsigned int        kvs_cnt;
@@ -1785,7 +1799,7 @@ MTF_DEFINE_UTEST_PREPOST(ikvdb_test, prefix_delete_test, test_pre, test_post)
     err = argv_deserialize_to_kvs_cparams(NELEM(kvs_make_paramv), kvs_make_paramv, &g_kvs_cp);
     ASSERT_EQ(0, err);
 
-    err = ikvdb_open("mpool", &kvdb_rp, &kvdb);
+    err = ikvdb_open(__func__, &kvdb_rp, &kvdb);
     ASSERT_EQ(0, err);
     ASSERT_NE(NULL, kvdb);
 
@@ -1853,7 +1867,7 @@ MTF_DEFINE_UTEST(ikvdb_test, ikvdb_hash_test)
 
 MTF_DEFINE_UTEST_PREPOST(ikvdb_test, ikvdb_mclass_policies_test, test_pre, test_post)
 {
-    const char *          mpool = "mpool_alpha";
+    const char *          mpool = __func__;
     struct ikvdb *        store = NULL;
     merr_t                err;
     struct mclass_policy *policy = NULL;

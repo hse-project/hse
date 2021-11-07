@@ -20,7 +20,6 @@
 #include <hse_util/mutex.h>
 #include <hse_util/logging.h>
 #include <hse_util/assert.h>
-#include <hse_util/rwsem.h>
 #include <hse_util/parse_num.h>
 #include <hse_util/atomic.h>
 #include <hse_util/hlog.h>

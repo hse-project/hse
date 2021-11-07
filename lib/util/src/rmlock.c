@@ -24,7 +24,7 @@ merr_t
 rmlock_init(struct rmlock *lock)
 {
     size_t sz;
-    int i;
+    int rc, i;
 
     if (!lock)
         return merr(EINVAL);
@@ -41,23 +41,25 @@ rmlock_init(struct rmlock *lock)
     if (!lock->rm_bktv)
         return merr(ENOMEM);
 
-    /* Note:  Unlike pthread r/w locks, linux rw_semaphore prefers
-     * writers to readers.
-     */
     for (i = 0; i < RMLOCK_MAX; ++i) {
         lock->rm_bktv[i].rm_rwcnt = 0;
         lock->rm_bktv[i].rm_lockp = lock;
     }
 
-    /* rm_sema is used to serialize writers.  Readers acquire it only if
+    /* rm_rwlock is used to serialize writers.  Readers acquire it only if
      * a writer is active.  By making it prefer readers, we ensure that
      * all readers waiting on an active writer will be allowed to proceed
      * without interruption by a waiting writer.
-     * Note that this will not starve writers, as the next writer will
-     * be permitted to acquire the write only after all readers waiting
-     * on rm_sema have released their read locks.
+     * Note that this will not starve writers, as the next writer will be
+     * permitted to acquire the write lock only after all readers waiting
+     * on rm_rwlock have released their read locks.
      */
-    init_rwsem_reader(&lock->rm_sema);
+    rc = pthread_rwlock_init(&lock->rm_rwlock, NULL);
+    if (rc) {
+        free(lock->rm_bktv);
+        return merr(rc);
+    }
+
     lock->rm_bkt.rm_rwcnt = U64_MAX;
     lock->rm_bkt.rm_lockp = lock;
 
@@ -67,15 +69,24 @@ rmlock_init(struct rmlock *lock)
 void
 rmlock_destroy(struct rmlock *lock)
 {
-    if (lock)
-        free(lock->rm_bktv);
+    int rc;
+
+    if (!lock)
+        return;
+
+    rc = pthread_rwlock_destroy(&lock->rm_rwlock);
+    if (rc)
+        abort();
+
+    free(lock->rm_bktv);
 }
 
 void
 rmlock_rlock(struct rmlock *lock, void **cookiep)
 {
     struct rmlock_bkt *bkt;
-    u64                val;
+    u64 val;
+    int rc;
 
     bkt = lock->rm_bktv + rmlock_bktidx(lock);
     val = bkt->rm_rwcnt & ~(1ul << 63);
@@ -83,7 +94,10 @@ rmlock_rlock(struct rmlock *lock, void **cookiep)
     while (!rmlock_cmpxchg(&bkt->rm_rwcnt, &val, val + 1)) {
         if (val & (1ul << 63)) {
             bkt = &lock->rm_bkt;
-            down_read(&lock->rm_sema);
+
+            rc = pthread_rwlock_rdlock(&lock->rm_rwlock);
+            if (rc)
+                abort();
             break;
         }
 
@@ -98,12 +112,15 @@ void
 rmlock_runlock(void *cookie)
 {
     struct rmlock_bkt *bkt = cookie;
-    u64                val;
+    u64 val;
+    int rc;
 
     val = bkt->rm_rwcnt;
 
     if (val == U64_MAX) {
-        up_read(&bkt->rm_lockp->rm_sema);
+        rc = pthread_rwlock_unlock(&bkt->rm_lockp->rm_rwlock);
+        if (rc)
+            abort();
         return;
     }
 
@@ -115,13 +132,16 @@ void
 rmlock_yield(struct rmlock *lock, void **cookiep)
 {
     struct rmlock_bkt *bkt;
+    int rc;
 
     if (atomic_read(&lock->rm_writer)) {
         rmlock_runlock(*cookiep);
 
-        bkt = &lock->rm_bkt;
+        rc = pthread_rwlock_rdlock(&lock->rm_rwlock);
+        if (rc)
+            abort();
 
-        down_read(&lock->rm_sema);
+        bkt = &lock->rm_bkt;
         *cookiep = bkt;
     }
 }
@@ -134,13 +154,17 @@ rmlock_wlock(struct rmlock *lock)
     u8   busy[RMLOCK_MAX];
     uint i, n, x;
     u64  val;
+    int rc;
 
-    /* Serialize all writers on rm_sema, then set the write bit in
+    /* Serialize all writers on rm_rwlock, then set the write bit in
      * each reader lock to prevent new readers getting in.  Finally,
      * repeatedly check all the reader locks until all the readers
      * have either left or yielded.
      */
-    down_write(&lock->rm_sema);
+    rc = pthread_rwlock_wrlock(&lock->rm_rwlock);
+    if (rc)
+        abort();
+
     atomic_set(&lock->rm_writer, 1);
     bkt = lock->rm_bktv;
 
@@ -174,8 +198,8 @@ void
 rmlock_wunlock(struct rmlock *lock)
 {
     struct rmlock_bkt *bkt = lock->rm_bktv;
-    u64                val;
-    int                i;
+    u64 val;
+    int rc, i;
 
     for (i = 0; i < lock->rm_bktmax; ++i, ++bkt) {
         val = 1ul << 63;
@@ -187,5 +211,8 @@ rmlock_wunlock(struct rmlock *lock)
     }
 
     atomic_set(&lock->rm_writer, 0);
-    up_write(&lock->rm_sema);
+
+    rc = pthread_rwlock_unlock(&lock->rm_rwlock);
+    if (rc)
+        abort();
 }
