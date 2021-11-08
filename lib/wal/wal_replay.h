@@ -13,11 +13,11 @@ struct wal;
 struct wal_replay_info;
 
 struct wal_replay_gen_info {
-    spinlock_t     txm_lock HSE_ALIGNED(SMP_CACHE_BYTES);
+    spinlock_t     txm_lock HSE_ACP_ALIGNED;
     struct rb_root txm_root;
     struct rb_root txcid_root;
 
-    struct wal_minmax_info info HSE_ALIGNED(SMP_CACHE_BYTES);
+    struct wal_minmax_info info HSE_L1D_ALIGNED;
     char *buf;
     uint64_t gen;
     off_t soff;

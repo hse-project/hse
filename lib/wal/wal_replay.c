@@ -22,12 +22,11 @@
 
 
 struct wal_replay_gen {
-    struct list_head       rg_link HSE_ALIGNED(SMP_CACHE_BYTES);
-
-    struct mutex           rg_lock;
+    struct mutex           rg_lock HSE_ACP_ALIGNED;
     struct rb_root         rg_root;
+    struct list_head       rg_link;
 
-    struct wal_minmax_info rg_info HSE_ALIGNED(SMP_CACHE_BYTES);
+    struct wal_minmax_info rg_info HSE_L1D_ALIGNED;
     uint64_t               rg_gen;
 
     uint64_t               rg_krcnt;
@@ -43,7 +42,7 @@ struct wal_replay_work {
 };
 
 struct wal_replay {
-    struct list_head            r_head HSE_ALIGNED(SMP_CACHE_BYTES);
+    struct list_head            r_head HSE_ACP_ALIGNED;
     struct kmem_cache          *r_cache;
 
     struct kmem_cache          *r_txm_cache;
@@ -55,7 +54,7 @@ struct wal_replay {
     atomic_t                    r_vdone;
     atomic64_t                  r_verr;
 
-    struct wal                 *r_wal HSE_ALIGNED(SMP_CACHE_BYTES);
+    struct wal                 *r_wal HSE_L1D_ALIGNED;
     struct ikvdb_kvs_hdl       *r_ikvsh;
     struct workqueue_struct    *r_wq;
 
@@ -63,7 +62,7 @@ struct wal_replay {
     struct wal_replay_gen_info *r_ginfo;
     uint32_t                    r_cnt;
 
-    struct rmlock               r_txm_lock HSE_ALIGNED(SMP_CACHE_BYTES);
+    struct rmlock               r_txm_lock HSE_L1D_ALIGNED;
 };
 
 struct wal_rec_iter {

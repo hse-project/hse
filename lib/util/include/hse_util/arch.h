@@ -15,14 +15,10 @@
  */
 #define HSE_RA_PAGES_MAX        ((128 * 1024) / PAGE_SIZE)
 
-/* SMP_CACHE_BYTES is deprecated in favor of HSE_L1D_LINESIZE.
- */
 #if (LEVEL1_DCACHE_LINESIZE > 64)
 #define HSE_L1D_LINESIZE        (LEVEL1_DCACHE_LINESIZE)
-#define SMP_CACHE_BYTES         (LEVEL1_DCACHE_LINESIZE)
 #else
 #define HSE_L1D_LINESIZE        (64)
-#define SMP_CACHE_BYTES         (64)
 #endif
 
 /* GCOV_EXCL_START */

@@ -20,10 +20,10 @@
 /* clang-format off */
 
 struct wal_buffer {
-    atomic64_t wb_offset_head HSE_ALIGNED(SMP_CACHE_BYTES * 2);
-    atomic64_t wb_offset_tail;
+    atomic64_t wb_offset_head HSE_ACP_ALIGNED;
+    atomic64_t wb_offset_tail HSE_L1D_ALIGNED;
 
-    atomic64_t wb_doff HSE_ALIGNED(SMP_CACHE_BYTES);
+    atomic64_t wb_doff HSE_L1D_ALIGNED;
     atomic64_t wb_foff;
     char      *wb_buf;
     atomic64_t wb_curgen;
@@ -32,7 +32,7 @@ struct wal_buffer {
     atomic64_t wb_flushb;
     atomic64_t wb_flushc;
 
-    struct work_struct  wb_fwork HSE_ALIGNED(SMP_CACHE_BYTES);
+    struct work_struct  wb_fwork HSE_L1D_ALIGNED;
     struct wal_bufset  *wb_bs;
     struct wal_io      *wb_io;
     uint32_t            wb_index;
@@ -40,7 +40,7 @@ struct wal_buffer {
     /* TODO: Need to ensure there can never be more c0kvms
      * inflight than we can track...
      */
-    atomic64_t wb_genlenv[32] HSE_ALIGNED(SMP_CACHE_BYTES);
+    atomic64_t wb_genlenv[32] HSE_L1D_ALIGNED;
     atomic64_t wb_genoffv[32];
 };
 

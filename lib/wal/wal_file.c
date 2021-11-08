@@ -24,7 +24,7 @@
 
 
 struct wal_fileset {
-    struct mutex lock HSE_ALIGNED(SMP_CACHE_BYTES);
+    struct mutex lock HSE_ACP_ALIGNED;
     struct list_head active;
     struct list_head complete;
     struct list_head replay;
@@ -33,7 +33,7 @@ struct wal_fileset {
     atomic64_t compc;
     atomic64_t reclaimc;
 
-    struct mpool *mp HSE_ALIGNED(SMP_CACHE_BYTES);
+    struct mpool *mp HSE_L1D_ALIGNED;
     enum mpool_mclass mclass;
     size_t   capacity;
     uint32_t magic;
@@ -43,7 +43,7 @@ struct wal_fileset {
 };
 
 struct wal_file {
-    struct list_head link;
+    struct list_head link HSE_ACP_ALIGNED;
 
     struct wal_minmax_info info;
     off_t roff;
@@ -51,7 +51,7 @@ struct wal_file {
     off_t soff;
     atomic64_t ref;
 
-    struct mpool_file *mpf HSE_ALIGNED(SMP_CACHE_BYTES);
+    struct mpool_file *mpf HSE_L1D_ALIGNED;
     struct wal_fileset *wfset;
     uint64_t gen;
     char    *addr;
