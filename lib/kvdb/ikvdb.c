@@ -113,9 +113,9 @@ struct ikvdb {
 /* Simple fixed-size stack for caching ctxn objects.
  */
 struct kvdb_ctxn_bkt {
-    spinlock_t        kcb_lock HSE_ALIGNED(SMP_CACHE_BYTES);
+    spinlock_t        kcb_lock HSE_ACP_ALIGNED;
     uint              kcb_ctxnc;
-    struct kvdb_ctxn *kcb_ctxnv[7];
+    struct kvdb_ctxn *kcb_ctxnv[(HSE_ACP_LINESIZE / 8) - 1];
 };
 
 static thread_local uint     tls_txn_idx;
@@ -181,17 +181,17 @@ struct ikvdb_impl {
 
     struct kvdb_ctxn_bkt    ikdb_ctxn_cache[KVDB_CTXN_BKT_MAX];
 
-    atomic_int              ikdb_curcnt HSE_ALIGNED(SMP_CACHE_BYTES * 2);
+    atomic_int              ikdb_curcnt HSE_ACP_ALIGNED;
     u32                     ikdb_curcnt_max;
 
-    atomic_ulong            ikdb_tb_dbg_ops HSE_ALIGNED(SMP_CACHE_BYTES);
+    atomic_ulong            ikdb_tb_dbg_ops HSE_L1X_ALIGNED;
     atomic_ulong            ikdb_tb_dbg_bytes;
     atomic_ulong            ikdb_tb_dbg_sleep_ns;
     u64                     ikdb_tb_dbg_next;
     u64                     ikdb_tb_burst;
     u64                     ikdb_tb_rate;
 
-    atomic_ulong            ikdb_seqno HSE_ALIGNED(SMP_CACHE_BYTES * 2);
+    atomic_ulong            ikdb_seqno HSE_ACP_ALIGNED;
     struct work_struct      ikdb_throttle_work;
     struct work_struct      ikdb_maint_work;
 
@@ -200,7 +200,7 @@ struct ikvdb_impl {
     u64                     ikdb_wal_oid1;
     u64                     ikdb_wal_oid2;
 
-    struct kvdb_rparams     ikdb_rp HSE_ALIGNED(SMP_CACHE_BYTES * 2);
+    struct kvdb_rparams     ikdb_rp HSE_ACP_ALIGNED;
     struct mclass_policy    ikdb_mpolicies[HSE_MPOLICY_COUNT];
 
     struct workqueue_struct *ikdb_workqueue;

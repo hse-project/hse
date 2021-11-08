@@ -311,7 +311,7 @@ bin_heap2_create(u32 max_width, bin_heap2_compare_fn *cmp, struct bin_heap2 **bh
 
     sz = BIN_HEAP2_SZ(max_width);
 
-    bh = alloc_aligned(sz, SMP_CACHE_BYTES);
+    bh = alloc_aligned(sz, HSE_ACP_LINESIZE);
     if (!bh)
         return merr(ENOMEM);
 

@@ -18,7 +18,7 @@ union rc {
 };
 
 struct mocked_api {
-    u64 start1 HSE_ALIGNED(SMP_CACHE_BYTES * 2);
+    u64 start1 HSE_ACP_ALIGNED;
     u64        stop1;
     union rc   rc1;
 
@@ -26,7 +26,7 @@ struct mocked_api {
     u64      stop2;
     union rc rc2;
 
-    atomic64_t calls HSE_ALIGNED(SMP_CACHE_BYTES);
+    atomic64_t calls HSE_L1D_ALIGNED;
 };
 
 /*

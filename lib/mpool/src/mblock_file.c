@@ -31,10 +31,10 @@
  * @rm_root: root of the region map rbtree
  */
 struct mblock_rgnmap {
-    struct mutex   rm_lock;
+    struct mutex   rm_lock HSE_ACP_ALIGNED;
     struct rb_root rm_root;
 
-    struct kmem_cache *rm_cache HSE_ALIGNED(SMP_CACHE_BYTES);
+    struct kmem_cache *rm_cache HSE_L1D_ALIGNED;
 };
 
 /**
@@ -44,8 +44,8 @@ struct mblock_rgnmap {
  * @ref:  ref. count on the mapped chunk
  */
 struct mblock_mmap {
-    char   *addr;
-    int64_t ref HSE_ALIGNED(SMP_CACHE_BYTES);
+    char   *addr HSE_ACP_ALIGNED;
+    int64_t ref HSE_L1D_ALIGNED;
 };
 
 /**
@@ -91,18 +91,18 @@ struct mblock_file {
 
     atomic_t *wlenv;
 
-    struct mutex uniq_lock HSE_ALIGNED(SMP_CACHE_BYTES);
+    struct mutex uniq_lock HSE_L1D_ALIGNED;
     uint32_t     uniq;
 
-    struct mutex meta_lock HSE_ALIGNED(SMP_CACHE_BYTES);
+    struct mutex meta_lock HSE_L1D_ALIGNED;
     char        *meta_addr;
     char        *meta_ugaddr;
 
-    struct mutex        mmap_lock HSE_ALIGNED(SMP_CACHE_BYTES);
+    struct mutex        mmap_lock HSE_L1D_ALIGNED;
     int                 mmapc;
     struct mblock_mmap *mmapv;
 
-    atomic64_t wlen HSE_ALIGNED(SMP_CACHE_BYTES);
+    atomic64_t wlen HSE_L1D_ALIGNED;
     atomic_t   mbcnt;
 };
 

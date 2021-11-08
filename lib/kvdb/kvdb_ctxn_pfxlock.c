@@ -194,19 +194,21 @@ kvdb_ctxn_pfxlock_seqno_pub(struct kvdb_ctxn_pfxlock *ktp, u64 end_seqno)
     }
 }
 
-HSE_COLD merr_t
+merr_t
 kvdb_ctxn_pfxlock_init(void)
 {
+    size_t sz;
+
     if (ctxn_pfxlock_cache && ctxn_pfxlock_entry_cache)
         return 0;
 
     ctxn_pfxlock_cache = kmem_cache_create("ctxn_pfxlock",
                                            sizeof(struct kvdb_ctxn_pfxlock),
-                                           2 * SMP_CACHE_BYTES, 0, NULL);
+                                           HSE_ACP_LINESIZE, 0, NULL);
 
-    ctxn_pfxlock_entry_cache = kmem_cache_create("ctxn_pfxlock_entry",
-                                                 sizeof(struct kvdb_ctxn_pfxlock_entry),
-                                                 2 * SMP_CACHE_BYTES, 0, NULL);
+    sz = roundup(sizeof(struct kvdb_ctxn_pfxlock_entry), 64);
+
+    ctxn_pfxlock_entry_cache = kmem_cache_create("ctxn_pfxlock_entry", sz, 0, 0, NULL);
 
     if (!ctxn_pfxlock_cache || !ctxn_pfxlock_entry_cache) {
         kvdb_ctxn_pfxlock_fini();
@@ -216,7 +218,7 @@ kvdb_ctxn_pfxlock_init(void)
     return 0;
 }
 
-HSE_COLD void
+void
 kvdb_ctxn_pfxlock_fini(void)
 {
     kmem_cache_destroy(ctxn_pfxlock_entry_cache);

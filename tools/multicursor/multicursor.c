@@ -54,8 +54,7 @@ struct opts {
 };
 
 struct thread_info {
-	HSE_ALIGNED(SMP_CACHE_BYTES)
-	int           start;
+	int           start HSE_ACP_ALIGNED;
 	int           end;
 	int           num_cursors;
 	atomic64_t    puts;
@@ -366,7 +365,7 @@ main(int argc, char **argv)
 	/* Load phase */
 	sz = (opts.threads) * sizeof(*g_ti);
 
-	g_ti = aligned_alloc(SMP_CACHE_BYTES, sz);
+	g_ti = aligned_alloc(alignof(*g_ti), sz);
 	if (!g_ti) {
 		pg_destroy(pg);
 		fatal(ENOMEM, "Allocation failed");

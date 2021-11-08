@@ -52,7 +52,7 @@ struct kvdb_ctxn_impl {
     atomic_ulong           *ctxn_kvdb_seq_addr;
     struct c0snr_set       *ctxn_c0snr_set;
 
-    struct wal             *ctxn_wal HSE_ALIGNED(SMP_CACHE_BYTES * 2);
+    struct wal             *ctxn_wal HSE_ACP_ALIGNED;
     int64_t                 ctxn_wal_cookie;
     struct viewset         *ctxn_viewset;
     void                   *ctxn_viewset_cookie;

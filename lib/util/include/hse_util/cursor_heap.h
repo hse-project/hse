@@ -22,7 +22,7 @@
 #ifdef HSE_BUILD_RELEASE
 #define CHEAP_POISON_SZ 0
 #else
-#define CHEAP_POISON_SZ (SMP_CACHE_BYTES * 2)
+#define CHEAP_POISON_SZ (HSE_ACP_LINESIZE)
 #endif
 
 /* Everything in this structure is opaque to callers (but not really,

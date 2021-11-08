@@ -29,16 +29,16 @@ struct wal_io_work {
     uint64_t    iow_gen;
     uint32_t    iow_index;
     bool        iow_bufwrap;
-} HSE_ALIGNED(SMP_CACHE_BYTES);
+} HSE_L1D_ALIGNED;
 
 
 struct wal_io {
-    struct list_head io_active HSE_ALIGNED(SMP_CACHE_BYTES);
-    struct mutex     io_lock;
-    struct cv        io_cv;
+    struct mutex     io_lock HSE_ACP_ALIGNED;
+    struct list_head io_active;
     bool             io_stop;
+    struct cv        io_cv;
 
-    atomic64_t          io_pend HSE_ALIGNED(SMP_CACHE_BYTES);
+    atomic64_t          io_pend HSE_L1D_ALIGNED;
     atomic64_t          io_comp;
     atomic64_t          io_gen;
     atomic64_t         *io_doff;

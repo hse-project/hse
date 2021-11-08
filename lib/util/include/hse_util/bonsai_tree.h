@@ -289,7 +289,7 @@ struct bonsai_slab {
  * @bsi_freeq:      list of slabs that have reclaimed nodes
  */
 struct bonsai_slabinfo {
-    struct bonsai_slab *bsi_slab HSE_ALIGNED(SMP_CACHE_BYTES * 2);
+    struct bonsai_slab *bsi_slab HSE_ACP_ALIGNED;
     ulong               bsi_rnodec;
     ulong               bsi_nodec;
     uint                bsi_slabc;
@@ -346,7 +346,7 @@ typedef void bonsai_ior_cb(
  * @br_data:            storage for embedded slabs
  */
 struct bonsai_root {
-    atomic_t                br_bounds HSE_ALIGNED(SMP_CACHE_BYTES * 2);
+    atomic_int              br_bounds HSE_ACP_ALIGNED;
     uint                    br_magic;
     struct bonsai_node     *br_root;
     struct cheap           *br_cheap;
@@ -359,24 +359,24 @@ struct bonsai_root {
     /* Everything from here to the end of the structure is bzero'd
      * by bn_reset().
      */
-    int                     br_height HSE_ALIGNED(SMP_CACHE_BYTES);
+    int                     br_height HSE_L1D_ALIGNED;
     ulong                   br_key_alloc;
     ulong                   br_val_alloc;
     struct bonsai_kv       *br_vfkeys;
     struct bonsai_kv       *br_rfkeys;
 
-    spinlock_t              br_gc_lock HSE_ALIGNED(SMP_CACHE_BYTES);
+    spinlock_t              br_gc_lock HSE_L1D_ALIGNED;
     struct bonsai_slab     *br_gc_waitq;
     struct bonsai_slab     *br_gc_readyq;
 
-    atomic_t                br_gc_rcugen_start HSE_ALIGNED(SMP_CACHE_BYTES);
+    atomic_int              br_gc_rcugen_start HSE_L1D_ALIGNED;
     struct bonsai_kv       *br_gc_vfkeys;
     struct list_head        br_gc_holdq;
     int                     br_gc_holdqc;
 
-    atomic_t                br_gc_rcugen_done HSE_ALIGNED(SMP_CACHE_BYTES);
+    atomic_int              br_gc_rcugen_done HSE_L1D_ALIGNED;
 
-    uint64_t                br_gc_latstart  HSE_ALIGNED(SMP_CACHE_BYTES);
+    uint64_t                br_gc_latstart  HSE_L1D_ALIGNED;
     uint64_t                br_gc_latsum_gp;
     uint64_t                br_gc_latsum_gc;
     struct rcu_head         br_gc_sched_rcu;

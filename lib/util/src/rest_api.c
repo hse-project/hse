@@ -101,10 +101,10 @@ struct rest {
     spinlock_t      sessions_lock;
     struct session *sessions[MAX_SESSIONS];
 
-    HSE_ALIGNED(SMP_CACHE_BYTES) struct mutex url_tab_lock;
+    struct mutex url_tab_lock HSE_L1D_ALIGNED;
     struct table *url_tab; /* table of rest URLs */
 
-    HSE_ALIGNED(SMP_CACHE_BYTES) struct workqueue_struct *url_hdlr_wq;
+    struct workqueue_struct *url_hdlr_wq HSE_L1D_ALIGNED;
     struct MHD_Daemon *monitor_daemon;
 
     int  sockfd;

@@ -783,7 +783,7 @@ c0sk_cursor_get_free(struct c0_cursor *cur)
         return p;
     }
 
-    return alloc_aligned(sizeof(*p), SMP_CACHE_BYTES);
+    return aligned_alloc(HSE_ACP_LINESIZE, roundup(sizeof(*p), HSE_ACP_LINESIZE));
 }
 
 static void
@@ -810,7 +810,7 @@ c0sk_cursor_release(struct c0_cursor *cur)
 
     for (p = cur->c0cur_free; p; p = next) {
         next = p->c0mc_next;
-        free_aligned(p);
+        free(p);
     }
 
     free(cur->c0cur_curv);

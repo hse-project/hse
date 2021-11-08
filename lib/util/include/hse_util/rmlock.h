@@ -18,7 +18,7 @@
 struct rmlock;
 
 struct rmlock_bkt {
-    u64            rm_rwcnt HSE_ALIGNED(128);
+    u64            rm_rwcnt HSE_ACP_ALIGNED;
     struct rmlock *rm_lockp;
 };
 

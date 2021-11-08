@@ -13,10 +13,10 @@
 #define VLB_BPN_MAX         (4) /* max per-cpu buckets per node */
 
 struct vlb_cache {
-    spinlock_t  lock;
+    spinlock_t  lock HSE_ACP_ALIGNED;
     int         cnt;
     void       *head;
-} HSE_ALIGNED(SMP_CACHE_BYTES * 2);
+};
 
 static struct vlb_cache vlbcv[VLB_NODES_MAX * VLB_BPN_MAX];
 

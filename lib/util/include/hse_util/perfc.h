@@ -30,11 +30,11 @@
  * PERFC_PCT_SCALE          power-of-two scaling factor for pdi_pct
  */
 #define PERFC_VALPERCNT     (128)
-#define PERFC_VALPERCPU     ((SMP_CACHE_BYTES * 2) / sizeof(struct perfc_val))
+#define PERFC_VALPERCPU     (HSE_ACP_LINESIZE / sizeof(struct perfc_val))
 #define PERFC_VAL_MAX       (PERFC_VALPERCNT * PERFC_VALPERCPU)
 #define PERFC_IVL_MAX       (32 - 1)
 #define PERFC_GRP_MAX \
-  ((PERFC_VALPERCNT * SMP_CACHE_BYTES * 2) / ((PERFC_IVL_MAX + 1) * sizeof(struct perfc_bkt)))
+    ((PERFC_VALPERCNT * HSE_ACP_LINESIZE) / ((PERFC_IVL_MAX + 1) * sizeof(struct perfc_bkt)))
 
 #define PERFC_PCT_SCALE     (1u << 20)
 #define PERFC_CTRS_MAX      (64)
@@ -541,7 +541,7 @@ union perfc_ctru {
     struct perfc_basic   basic;
     struct perfc_rate    rate;
     struct perfc_dis     dis;
-} HSE_ALIGNED(SMP_CACHE_BYTES);
+} HSE_L1D_ALIGNED;
 
 /**
  * struct perfc_set - (struct perfc_set *) is a counter set instance handle.

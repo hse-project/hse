@@ -29,7 +29,7 @@ const char *progname;
 struct thread_info {
     uint64_t    sfx_start;
     uint64_t    sfx_end;
-} HSE_ALIGNED(SMP_CACHE_BYTES);
+} HSE_ACP_ALIGNED;
 
 #define DT_CNT 10 * 1000 * 1000
 
@@ -37,7 +37,7 @@ struct delta_time {
     u64 *dt;
     uint dt_cnt;
     uint dt_skip;
-} HSE_ALIGNED(SMP_CACHE_BYTES);
+} HSE_ACP_ALIGNED;
 
 enum phase {
     NONE = 0,
@@ -76,11 +76,11 @@ struct opts {
     .tests = "cursor,get",
 };
 
-static volatile bool stopthreads HSE_ALIGNED(SMP_CACHE_BYTES * 2);
+static volatile bool stopthreads HSE_ACP_ALIGNED;
 
-atomic64_t n_write HSE_ALIGNED(SMP_CACHE_BYTES * 2);
-atomic64_t n_cursor HSE_ALIGNED(SMP_CACHE_BYTES * 2);
-atomic64_t n_read HSE_ALIGNED(SMP_CACHE_BYTES * 2);
+atomic64_t n_write HSE_ACP_ALIGNED;
+atomic64_t n_cursor HSE_ACP_ALIGNED;
+atomic64_t n_read HSE_ACP_ALIGNED;
 
 
 u64 gtod_usec(void)
@@ -663,7 +663,7 @@ main(
             fatal(ENOMEM, "Failed to allocate memory for latencies");
 
         for (i = 0; i < opts.threads; i++) {
-            rc = posix_memalign((void **)&dt[i].dt, SMP_CACHE_BYTES, sizeof(*dt[i].dt) * DT_CNT);
+            rc = posix_memalign((void **)&dt[i].dt, alignof(*dt[i].dt), sizeof(*dt[i].dt) * DT_CNT);
             if (rc)
                 fatal(rc, "Failed to allocate memory for latency buffers");
         }

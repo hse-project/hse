@@ -33,13 +33,14 @@
 /* clang-format off */
 
 #define KVDB_DLOCK_MAX              (4) /* Must be power-of-2 */
-#define CTXN_LOCKS_IMPL_CACHE_SZ    (1024 + SMP_CACHE_BYTES * 2)
-#define CTXN_LOCKS_SLAB_CACHE_SZ    (16 * 1024 - SMP_CACHE_BYTES * 2)
+#define CTXN_LOCKS_IMPL_CACHE_SZ    (1024 + HSE_ACP_LINESIZE)
+#define CTXN_LOCKS_SLAB_CACHE_SZ    (16 * 1024 - HSE_ACP_LINESIZE)
 
 struct kvdb_keylock {
 };
 
-#define kvdb_keylock_h2r(handle) container_of(handle, struct kvdb_keylock_impl, kl_handle)
+#define kvdb_keylock_h2r(handle) \
+    container_of(handle, struct kvdb_keylock_impl, kl_handle)
 
 /**
  * struct kvdb_dlock - per-cpu deferred lock list head
@@ -48,9 +49,9 @@ struct kvdb_keylock {
  * @kd_mvs:     most recently expired minimum view seqno
  */
 struct kvdb_dlock {
-    struct mutex     kd_lock  HSE_ALIGNED(SMP_CACHE_BYTES * 2);
+    struct mutex     kd_lock  HSE_ACP_ALIGNED;
     struct list_head kd_list;
-    volatile u64     kd_mvs   HSE_ALIGNED(SMP_CACHE_BYTES);
+    volatile u64     kd_mvs   HSE_L1D_ALIGNED;
 };
 
 /**
@@ -660,7 +661,7 @@ kvdb_ctxn_locks_end_seqno(uint32_t desc)
     return impl->ctxn_locks_end_seqno;
 }
 
-HSE_COLD merr_t
+merr_t
 kvdb_ctxn_locks_init(void)
 {
     struct kmem_cache *zone;
@@ -679,7 +680,7 @@ kvdb_ctxn_locks_init(void)
     return 0;
 }
 
-HSE_COLD void
+void
 kvdb_ctxn_locks_fini(void)
 {
     kmem_cache_destroy(ctxn_locks_impl_cache);

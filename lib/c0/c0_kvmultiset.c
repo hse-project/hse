@@ -70,17 +70,17 @@ struct c0_kvmultiset_impl {
     void                **c0ms_stashp;
     struct kvdb_callback *c0ms_cb;
 
-    atomic_int               c0ms_ingesting HSE_ALIGNED(SMP_CACHE_BYTES);
+    atomic_int               c0ms_ingesting HSE_L1D_ALIGNED;
     bool                     c0ms_ingested;
     bool                     c0ms_finalized;
     struct c0_ingest_work   *c0ms_ingest_work;
     struct workqueue_struct *c0ms_wq;
     struct work_struct       c0ms_destroy_work;
 
-    atomic_int   c0ms_refcnt HSE_ALIGNED(SMP_CACHE_BYTES);
+    atomic_int   c0ms_refcnt HSE_L1D_ALIGNED;
 
-    atomic_ulong c0ms_c0snr_cur HSE_ALIGNED(SMP_CACHE_BYTES * 2);
-    size_t       c0ms_c0snr_max HSE_ALIGNED(SMP_CACHE_BYTES);
+    atomic_ulong c0ms_c0snr_cur HSE_ACP_ALIGNED;
+    size_t       c0ms_c0snr_max HSE_L1D_ALIGNED;
     uintptr_t   *c0ms_c0snr_base;
 
     u32              c0ms_num_sets;
@@ -818,7 +818,7 @@ c0kvms_create(u32 num_sets, atomic_ulong *kvdb_seq, void **stashp, struct c0_kvm
     /* Allocate the c0snr buffer from the ptomb c0kvset,
      * this should never fail.
      */
-    kvms->c0ms_c0snr_base = c0kvs_alloc(kvms->c0ms_sets[0], SMP_CACHE_BYTES * 2, c0snr_sz);
+    kvms->c0ms_c0snr_base = c0kvs_alloc(kvms->c0ms_sets[0], HSE_ACP_LINESIZE, c0snr_sz);
     if (!kvms->c0ms_c0snr_base) {
         assert(kvms->c0ms_c0snr_base);
         c0kvms_putref(&kvms->c0ms_handle);
@@ -828,7 +828,7 @@ c0kvms_create(u32 num_sets, atomic_ulong *kvdb_seq, void **stashp, struct c0_kvm
     /* Allocate the ingest work buffer from the ptomb c0kvset,
      * this should never fail.
      */
-    kvms->c0ms_ingest_work = c0kvs_alloc(kvms->c0ms_sets[0], SMP_CACHE_BYTES * 2, iw_sz);
+    kvms->c0ms_ingest_work = c0kvs_alloc(kvms->c0ms_sets[0], HSE_ACP_LINESIZE, iw_sz);
     if (!kvms->c0ms_ingest_work) {
         assert(kvms->c0ms_ingest_work);
         c0kvms_putref(&kvms->c0ms_handle);

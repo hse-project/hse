@@ -31,7 +31,7 @@
 /* clang-format off */
 
 struct wal {
-    struct mpool           *mp HSE_ALIGNED(SMP_CACHE_BYTES * 2);
+    struct mpool           *mp HSE_ACP_ALIGNED;
     struct wal_bufset      *wbs;
     struct wal_fileset     *wfset;
     struct wal_mdc         *mdc;
@@ -39,20 +39,20 @@ struct wal {
     uint8_t                 wal_thr_hwm;
     uint8_t                 wal_thr_lwm;
 
-    atomic64_t              wal_rid HSE_ALIGNED(SMP_CACHE_BYTES);
+    atomic64_t              wal_rid HSE_L1D_ALIGNED;
     atomic64_t              wal_ingestseq;
     atomic64_t              wal_ingestgen;
     atomic64_t              wal_txhorizon;
 
-    struct mutex     sync_mutex HSE_ALIGNED(SMP_CACHE_BYTES);
+    struct mutex     sync_mutex HSE_L1D_ALIGNED;
     struct list_head sync_waiters;
     struct cv        sync_cv;
 
-    struct mutex timer_mutex HSE_ALIGNED(SMP_CACHE_BYTES);
+    struct mutex timer_mutex HSE_L1D_ALIGNED;
     bool         sync_pending;
     struct cv    timer_cv;
 
-    atomic64_t error HSE_ALIGNED(SMP_CACHE_BYTES);
+    atomic64_t error HSE_L1D_ALIGNED;
     atomic_t   closing;
     bool       clean;
     bool       read_only;

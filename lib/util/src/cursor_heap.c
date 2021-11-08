@@ -36,9 +36,9 @@ cheap_create(size_t alignment, size_t size)
     mem = mmap(NULL, size, PROT_READ | PROT_WRITE, MAP_ANON | MAP_PRIVATE, -1, 0);
 
     if (mem != MAP_FAILED) {
-        size_t halign = ALIGN(sizeof(*h), SMP_CACHE_BYTES);
-        size_t color = xrand64_tls() % (PAGE_SIZE / (SMP_CACHE_BYTES * 2) - 1);
-        size_t offset = SMP_CACHE_BYTES * color;
+        size_t halign = ALIGN(sizeof(*h), HSE_L1D_LINESIZE);
+        size_t color = xrand64_tls() % (PAGE_SIZE / HSE_ACP_LINESIZE - 1);
+        size_t offset = HSE_ACP_LINESIZE * color;
 
         /* Offset the base of the cheap by a random number of cache lines
          * in effort to ameliorate cache conflict misses.  However, do not

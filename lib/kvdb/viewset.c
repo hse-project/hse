@@ -49,7 +49,7 @@ struct viewset {
 struct viewset_bkt {
     struct viewset_tree *vsb_tree;
     volatile u64         vsb_min_view_sns;
-    atomic_int           vsb_active HSE_ALIGNED(SMP_CACHE_BYTES * 2);
+    atomic_int           vsb_active HSE_ACP_ALIGNED;
 };
 
 /**
@@ -73,17 +73,17 @@ struct viewset_impl {
     struct viewset_bkt *vs_bkt_first;
     struct viewset_bkt *vs_bkt_last;
 
-    volatile u64   vs_min_view_sn HSE_ALIGNED(SMP_CACHE_BYTES * 2);
+    volatile u64   vs_min_view_sn HSE_ACP_ALIGNED;
     volatile void *vs_min_view_bkt;
     atomic_ulong   vs_horizon;
 
     struct {
-        sem_t  vs_sema  HSE_ALIGNED(SMP_CACHE_BYTES * 2);
+        sem_t  vs_sema HSE_ACP_ALIGNED;
     } vs_nodev[2];
 
-    viewlock_t vs_lock      HSE_ALIGNED(SMP_CACHE_BYTES * 2);
-    uint       vs_chgaccum  HSE_ALIGNED(SMP_CACHE_BYTES);
-    atomic_int vs_changing  HSE_ALIGNED(SMP_CACHE_BYTES * 2);
+    viewlock_t vs_lock     HSE_ACP_ALIGNED;
+    uint       vs_chgaccum HSE_L1X_ALIGNED;
+    atomic_int vs_changing HSE_ACP_ALIGNED;
 
     struct viewset_bkt vs_bktv[VIEWSET_BKT_MAX];
 };
@@ -93,7 +93,7 @@ struct viewset_impl {
 struct viewset_tree;
 
 struct viewset_entry {
-    struct list_head    vse_link HSE_ALIGNED(SMP_CACHE_BYTES);
+    struct list_head    vse_link HSE_L1D_ALIGNED;
     struct viewset_bkt *vse_bkt;
     union {
         u64   vse_view_sn;
@@ -109,8 +109,8 @@ struct viewset_entry {
  * @vst_entryv: fixed-size cache of entry objects
  */
 struct viewset_tree {
-    treelock_t            vst_lock  HSE_ALIGNED(SMP_CACHE_BYTES * 2);
-    struct list_head      vst_head  HSE_ALIGNED(SMP_CACHE_BYTES);
+    treelock_t            vst_lock  HSE_ACP_ALIGNED;
+    struct list_head      vst_head  HSE_L1X_ALIGNED;
     struct viewset_entry *vst_cache;
     uint                  vst_entryc;
     uint                  vst_entrymax;

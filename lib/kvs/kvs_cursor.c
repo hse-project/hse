@@ -125,15 +125,15 @@ struct curcache_entry {
  * @cb_entryv:    vector of curcache entries
  */
 struct curcache_bucket {
-    struct mutex            cb_lock HSE_ALIGNED(SMP_CACHE_BYTES * 2);
+    struct mutex            cb_lock HSE_ACP_ALIGNED;
     uint                    cb_entryc;
 
-    struct rb_root          cb_root HSE_ALIGNED(SMP_CACHE_BYTES);
+    struct rb_root          cb_root HSE_L1X_ALIGNED;
     struct kvs_cursor_impl *cb_evicted;
     struct curcache_entry  *cb_free;
     uint                    cb_active;
     uint                    cb_entrymax;
-    struct curcache_entry   cb_entryv[] HSE_ALIGNED(SMP_CACHE_BYTES);
+    struct curcache_entry   cb_entryv[] HSE_ACP_ALIGNED;
 };
 
 #define KVS_CURSOR_SOURCES_CNT 3
@@ -177,7 +177,7 @@ struct kvs_cursor_impl {
 
     u8  *kci_prefix;
     u8   kci_buf[];
-} HSE_ALIGNED(SMP_CACHE_BYTES);
+} HSE_L1D_ALIGNED;
 
 static size_t kvs_cursor_impl_alloc_sz HSE_READ_MOSTLY;
 
