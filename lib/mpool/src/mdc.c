@@ -147,7 +147,12 @@ mpool_mdc_abort(struct mpool *mp, uint64_t logid1, uint64_t logid2)
 }
 
 merr_t
-mpool_mdc_open(struct mpool *mp, uint64_t logid1, uint64_t logid2, struct mpool_mdc **handle)
+mpool_mdc_open(
+    struct mpool       *mp,
+    uint64_t           logid1,
+    uint64_t           logid2,
+    bool               rdonly,
+    struct mpool_mdc **handle)
 {
     struct mdc_file  *mfp[2] = {};
     struct mpool_mdc *mdc;
@@ -170,15 +175,24 @@ mpool_mdc_open(struct mpool *mp, uint64_t logid1, uint64_t logid2, struct mpool_
         return merr(ENOMEM);
 
     mdc_filename_gen(name[0], sizeof(name[0]), logid1);
-    err1 = mdc_file_open(mdc, dirfd, name[0], logid1, &gen1, &mfp[0]);
+    err1 = mdc_file_open(mdc, dirfd, name[0], logid1, rdonly, &gen1, &mfp[0]);
 
     mdc_filename_gen(name[1], sizeof(name[1]), logid2);
-    err2 = mdc_file_open(mdc, dirfd, name[1], logid2, &gen2, &mfp[1]);
+    err2 = mdc_file_open(mdc, dirfd, name[1], logid2, rdonly, &gen2, &mfp[1]);
 
     err = err1 ? err1 : err2;
 
+    /* Handle incomplete log header from a crash during mdc file erase */
+    if ((merr_errno(err1) == ENOMSG && !err2) || (!err1 && merr_errno(err2) == ENOMSG)) {
+        err = 0;
+        if (!err1)
+            gen2 = gen1 + 1;
+        else
+            gen1 = gen2 + 1;
+    }
+
     if (err || (!err && gen1 && gen1 == gen2)) {
-        err = err ? : merr(EINVAL);
+        err = err ?: merr(EINVAL);
         log_err("MDC (%lu:%lu) corrupt: bad pair err (%d, %d) gen (%lu, %lu)",
                 logid1, logid2, merr_errno(err1), merr_errno(err2), gen1, gen2);
     } else {
@@ -193,17 +207,21 @@ mpool_mdc_open(struct mpool *mp, uint64_t logid1, uint64_t logid2, struct mpool_
              * 2. Crash after gen update and during passive log erase
              * 3. Crash after passive log erase
              */
-            err = mdc_file_erase(mfp[0], gen2 + 1);
-            if (err)
-                log_errx("mdc file1 logid %lu erase failed, gen (%lu, %lu): @@e",
-                         err, logid1, gen1, gen2);
+            if (!rdonly) {
+                err = mdc_file_erase(mfp[0], gen2 + 1);
+                if (err)
+                    log_errx("mdc file1 logid %lu erase failed, gen (%lu, %lu): @@e",
+                             err, logid1, gen1, gen2);
+            }
         } else {
             mdc->mfpa = mfp[0];
 
-            err = mdc_file_erase(mfp[1], gen1 + 1);
-            if (err)
-                log_errx("mdc file2 logid %lu erase failed, gen (%lu, %lu): @@e",
-                         err, logid2, gen1, gen2);
+            if (!rdonly) {
+                err = mdc_file_erase(mfp[1], gen1 + 1);
+                if (err)
+                    log_errx("mdc file2 logid %lu erase failed, gen (%lu, %lu): @@e",
+                             err, logid2, gen1, gen2);
+            }
         }
     }
 
@@ -389,11 +407,11 @@ mpool_mdc_usage(struct mpool_mdc *mdc, uint64_t *allocated, uint64_t *used)
 
     mutex_lock(&mdc->lock);
 
-    err =
-        mdc_file_stats(mdc->mfp1, allocated ? &alloc1 : NULL, mdc->mfp1 == mdc->mfpa ? used : NULL);
+    err = mdc_file_stats(mdc->mfp1, allocated ? &alloc1 : NULL,
+                         mdc->mfp1 == mdc->mfpa ? used : NULL);
     if (!err) {
-        err = mdc_file_stats(
-            mdc->mfp2, allocated ? &alloc2 : NULL, mdc->mfp2 == mdc->mfpa ? used : NULL);
+        err = mdc_file_stats(mdc->mfp2, allocated ? &alloc2 : NULL,
+                             mdc->mfp2 == mdc->mfpa ? used : NULL);
     }
 
     mutex_unlock(&mdc->lock);

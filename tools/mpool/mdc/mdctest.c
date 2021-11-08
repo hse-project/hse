@@ -100,7 +100,7 @@ mdc_correctness_simple(const char *path)
     }
 
     /* 4. Open the MDC */
-    err = mpool_mdc_open(mp, oid[0], oid[1], &mdc);
+    err = mpool_mdc_open(mp, oid[0], oid[1], false, &mdc);
     if (err) {
         original_err = err;
         merr_strinfo(err, errbuf, ERROR_BUFFER_SIZE, NULL);
@@ -222,7 +222,7 @@ mdc_correctness_mp_release(const char *path)
     }
 
     /* 4. Open the MDC */
-    err = mpool_mdc_open(mp, oid[0], oid[1], &mdc);
+    err = mpool_mdc_open(mp, oid[0], oid[1], false, &mdc);
     if (err) {
         original_err = err;
         merr_strinfo(err, errbuf, ERROR_BUFFER_SIZE, NULL);
@@ -259,7 +259,7 @@ mdc_correctness_mp_release(const char *path)
     }
 
     /* 8. Open the MDC */
-    err = mpool_mdc_open(mp, oid[0], oid[1], &mdc);
+    err = mpool_mdc_open(mp, oid[0], oid[1], false, &mdc);
     if (err) {
         original_err = err;
         merr_strinfo(err, errbuf, ERROR_BUFFER_SIZE, NULL);
@@ -389,7 +389,7 @@ mdc_correctness_multi_reader_single_app(const char *path)
     }
 
     /* 4. Open MDC */
-    err = mpool_mdc_open(mp, oid[0], oid[1], &mdc[0]);
+    err = mpool_mdc_open(mp, oid[0], oid[1], false, &mdc[0]);
     if (err) {
         original_err = err;
         merr_strinfo(err, errbuf, ERROR_BUFFER_SIZE, NULL);
@@ -473,7 +473,7 @@ mdc_correctness_multi_reader_single_app(const char *path)
     }
 
     /* 7. Open MDC (handle: mdc[0]) */
-    err = mpool_mdc_open(mp, oid[0], oid[1], &mdc[0]);
+    err = mpool_mdc_open(mp, oid[0], oid[1], false, &mdc[0]);
     if (err) {
         original_err = err;
         merr_strinfo(err, errbuf, ERROR_BUFFER_SIZE, NULL);
@@ -539,7 +539,7 @@ mdc_correctness_multi_reader_single_app(const char *path)
     }
 
     /* 11. Open the same MDC (handle: mdc[1], like a reopen */
-    err = mpool_mdc_open(mp, oid[0], oid[1], &mdc[1]);
+    err = mpool_mdc_open(mp, oid[0], oid[1], false, &mdc[1]);
     if (err) {
         original_err = err;
         merr_strinfo(err, errbuf, ERROR_BUFFER_SIZE, NULL);
@@ -692,7 +692,7 @@ mdc_correctness_reader_then_writer(const char *path)
     }
 
     /* 4. Open MDC */
-    err = mpool_mdc_open(mp, oid[0], oid[1], &mdc);
+    err = mpool_mdc_open(mp, oid[0], oid[1], false, &mdc);
     if (err) {
         original_err = err;
         merr_strinfo(err, errbuf, ERROR_BUFFER_SIZE, NULL);
@@ -776,7 +776,7 @@ mdc_correctness_reader_then_writer(const char *path)
     }
 
     /* 7. Open MDC (handle: mdc) */
-    err = mpool_mdc_open(mp, oid[0], oid[1], &mdc);
+    err = mpool_mdc_open(mp, oid[0], oid[1], false, &mdc);
     if (err) {
         original_err = err;
         merr_strinfo(err, errbuf, ERROR_BUFFER_SIZE, NULL);
@@ -930,7 +930,7 @@ mdc_correctness_writer_then_reader(const char *path)
     }
 
     /* 4. Open MDC */
-    err = mpool_mdc_open(mp, oid[0], oid[1], &mdc[0]);
+    err = mpool_mdc_open(mp, oid[0], oid[1], false, &mdc[0]);
     if (err) {
         original_err = err;
         merr_strinfo(err, errbuf, ERROR_BUFFER_SIZE, NULL);
@@ -973,7 +973,7 @@ mdc_correctness_writer_then_reader(const char *path)
     mdc[0] = NULL;
 
     /* 7. Open MDC (handle: mdc[1]), should succeed */
-    err = mpool_mdc_open(mp, oid[0], oid[1], &mdc[1]);
+    err = mpool_mdc_open(mp, oid[0], oid[1], false, &mdc[1]);
     if (err) {
         original_err = err;
         merr_strinfo(err, errbuf, ERROR_BUFFER_SIZE, NULL);
@@ -1132,7 +1132,7 @@ mdc_correctness_multi_mdc(const char *path)
 
     /* 4. Open all <mdc_cnt> MDCs */
     for (i = 0; i < mdc_cnt; i++) {
-        err = mpool_mdc_open(mp, oid[i].oid[0], oid[i].oid[1], &mdc[i]);
+        err = mpool_mdc_open(mp, oid[i].oid[0], oid[i].oid[1], false, &mdc[i]);
         if (err) {
             original_err = err;
             merr_strinfo(err, errbuf, ERROR_BUFFER_SIZE, NULL);
@@ -1175,7 +1175,7 @@ mdc_correctness_multi_mdc(const char *path)
 
     /* 7. Open all MDCs (handles: mdc[0..<mdc_cnt>]) */
     for (i = 0; i < mdc_cnt; i++) {
-        err = mpool_mdc_open(mp, oid[i].oid[0], oid[i].oid[1], &mdc[i]);
+        err = mpool_mdc_open(mp, oid[i].oid[0], oid[i].oid[1], false, &mdc[i]);
         if (err) {
             original_err = err;
             merr_strinfo(err, errbuf, ERROR_BUFFER_SIZE, NULL);

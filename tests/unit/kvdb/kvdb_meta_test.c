@@ -47,6 +47,8 @@ MTF_DEFINE_UTEST_POST(kvdb_meta_test, serde, destroy_post)
     struct kvdb_meta meta;
     merr_t           err;
 
+    meta.km_version = KVDB_META_VERSION;
+    meta.km_omf_version = GLOBAL_OMF_VERSION;
     meta.km_cndb.oid1 = 1;
     meta.km_cndb.oid2 = 2;
     meta.km_wal.oid1 = 3;
@@ -94,6 +96,9 @@ MTF_DEFINE_UTEST_POST(kvdb_meta_test, null_storage_paths, destroy_post)
 
     err = kvdb_meta_create(home);
     ASSERT_EQ(0, err);
+
+    meta.km_version = KVDB_META_VERSION;
+    meta.km_omf_version = GLOBAL_OMF_VERSION;
 
     err = kvdb_meta_serialize(&meta, home);
     ASSERT_EQ(0, err);
@@ -629,19 +634,20 @@ MTF_DEFINE_UTEST_PRE(kvdb_meta_test, meta_storage_add_absolute, test_pre)
 {
     struct mpool_cparams params;
     struct kvdb_meta     meta = {
+        .km_version = KVDB_META_VERSION,
         .km_omf_version = GLOBAL_OMF_VERSION,
-		.km_cndb = {
-			.oid1 = 1,
-			.oid2 = 2,
-		},
-		.km_wal = {
-			.oid1 = 3,
-			.oid2 = 4,
-		},
-		.km_storage = {
-			{ .path = "/home/my_capacity" },
-		},
-	};
+        .km_cndb = {
+            .oid1 = 1,
+            .oid2 = 2,
+        },
+        .km_wal = {
+            .oid1 = 3,
+            .oid2 = 4,
+        },
+        .km_storage = {
+            { .path = "/home/my_capacity" },
+        },
+    };
     merr_t err;
     const char *stgpath = "/home/my_staging";
 
@@ -676,19 +682,20 @@ MTF_DEFINE_UTEST_PRE(kvdb_meta_test, meta_storage_add_relative, test_pre)
 {
     struct mpool_cparams params;
     struct kvdb_meta     meta = {
+        .km_version = KVDB_META_VERSION,
         .km_omf_version = GLOBAL_OMF_VERSION,
-		.km_cndb = {
-			.oid1 = 1,
-			.oid2 = 2,
-		},
-		.km_wal = {
-			.oid1 = 3,
-			.oid2 = 4,
-		},
-		.km_storage = {
-			{ .path = "my_capacity" },
-		},
-	};
+        .km_cndb = {
+            .oid1 = 1,
+            .oid2 = 2,
+        },
+        .km_wal = {
+            .oid1 = 3,
+            .oid2 = 4,
+        },
+        .km_storage = {
+            { .path = "my_capacity" },
+        },
+    };
     merr_t err;
     const char *stgpath = "1/2/my_staging";
     char *homedup;
@@ -731,11 +738,11 @@ MTF_DEFINE_UTEST_PRE(kvdb_meta_test, to_mpool_rparams_relative, test_pre)
     merr_t               err;
     struct mpool_rparams params;
     struct kvdb_meta     meta = {
-		.km_storage = {
-			{ .path = "my_capacity" },
-			{ .path = "my_staging" },
-		},
-	};
+        .km_storage = {
+            { .path = "my_capacity" },
+            { .path = "my_staging" },
+        },
+    };
     char capacity[2 * PATH_MAX];
     char staging[2 * PATH_MAX];
 
@@ -753,11 +760,11 @@ MTF_DEFINE_UTEST_PRE(kvdb_meta_test, to_mpool_rparams_absolute, test_pre)
 	merr_t               err;
     struct mpool_rparams params;
     struct kvdb_meta     meta = {
-		.km_storage = {
-			{ .path = "/my_capacity" },
-			{ .path = "/my_staging" },
-		},
-	};
+        .km_storage = {
+            { .path = "/my_capacity" },
+            { .path = "/my_staging" },
+        },
+    };
 
     err = kvdb_meta_to_mpool_rparams(&meta, test_home, &params);
     ASSERT_EQ(0, err);
@@ -770,11 +777,11 @@ MTF_DEFINE_UTEST_PRE(kvdb_meta_test, to_mpool_rparams_null, test_pre)
 	merr_t               err;
     struct mpool_rparams params;
     struct kvdb_meta     meta = {
-		.km_storage = {
-			{ .path = "/my_capacity" },
-			{ .path = { 0 } },
-		},
-	};
+        .km_storage = {
+            { .path = "/my_capacity" },
+            { .path = { 0 } },
+        },
+    };
 
     const char null[sizeof(params.mclass[MP_MED_BASE].path)] = {};
 
@@ -789,11 +796,11 @@ MTF_DEFINE_UTEST_PRE(kvdb_meta_test, to_mpool_dparams_relative, test_pre)
     merr_t               err;
     struct mpool_dparams params;
     struct kvdb_meta     meta = {
-		.km_storage = {
-			{ .path = "my_capacity" },
-			{ .path = "my_staging" },
-		},
-	};
+        .km_storage = {
+            { .path = "my_capacity" },
+            { .path = "my_staging" },
+        },
+    };
     char capacity[2 * PATH_MAX];
     char staging[2 * PATH_MAX];
 
@@ -811,11 +818,11 @@ MTF_DEFINE_UTEST_PRE(kvdb_meta_test, to_mpool_dparams_absolute, test_pre)
 	merr_t               err;
     struct mpool_dparams params;
     struct kvdb_meta     meta = {
-		.km_storage = {
-			{ .path = "/my_capacity" },
-			{ .path = "/my_staging" },
-		},
-	};
+        .km_storage = {
+            { .path = "/my_capacity" },
+            { .path = "/my_staging" },
+        },
+    };
 
     err = kvdb_meta_to_mpool_dparams(&meta, test_home, &params);
     ASSERT_EQ(0, err);
@@ -828,11 +835,11 @@ MTF_DEFINE_UTEST_PRE(kvdb_meta_test, to_mpool_dparams_null, test_pre)
 	merr_t               err;
     struct mpool_dparams params;
     struct kvdb_meta     meta = {
-		.km_storage = {
-			{ .path = "/my_capacity" },
-			{ .path = { 0 } },
-		},
-	};
+        .km_storage = {
+            { .path = "/my_capacity" },
+            { .path = { 0 } },
+        },
+    };
 
     const char null[sizeof(params.mclass[MP_MED_BASE].path)] = {};
 

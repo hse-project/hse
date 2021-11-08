@@ -221,7 +221,7 @@ wal_rec_is_valid(
         return false;
 
     len = omf_rh_len(rhomf);
-    if (len > (wal_reclen() + HSE_KVS_KEY_LEN_MAX + HSE_KVS_VALUE_LEN_MAX + 2 * alignof(uint64_t)))
+    if (len > (wal_reclen() + HSE_KVS_KEY_LEN_MAX + HSE_KVS_VALUE_LEN_MAX + 2 * sizeof(uint64_t)))
         return false;
 
     if (fbytes_left < wal_rechdr_len() + len)
@@ -276,7 +276,7 @@ wal_rec_unpack(const char *inbuf, struct wal_rec *rec)
 {
     const struct wal_rec_omf *romf = (const void *)inbuf;
     size_t rlen = wal_reclen();
-    size_t kvalign = alignof(uint64_t);
+    size_t kvalign = sizeof(uint64_t);
     size_t klen, vxlen;
     const void *kdata;
     void *vdata = NULL;

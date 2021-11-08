@@ -433,7 +433,7 @@ mpm_getlen_default(void *buf, size_t len)
 }
 
 static merr_t
-_mpool_mdc_open(struct mpool *mp, uint64_t oid1, uint64_t oid2, struct mpool_mdc **mdc)
+_mpool_mdc_open(struct mpool *mp, uint64_t oid1, uint64_t oid2, bool rdonly, struct mpool_mdc **mdc)
 {
     struct mocked_mblock *mb = 0;
     struct mocked_mdc *   m;

@@ -292,7 +292,7 @@ wal_put(
     uint64_t txid,
     struct wal_record *recout)
 {
-    const size_t kvalign = alignof(uint64_t);
+    const size_t kvalign = sizeof(uint64_t);
     struct wal_rec_omf *rec;
     uint64_t rid;
     size_t klen, vlen, rlen, kvlen, len;
@@ -348,7 +348,7 @@ wal_del_impl(
     struct wal_record *recout,
     bool prefix)
 {
-    const size_t kalign = alignof(uint64_t);
+    const size_t kalign = sizeof(uint64_t);
     struct wal_rec_omf *rec;
     uint64_t rid;
     size_t klen, rlen, kalen, len;
@@ -505,7 +505,7 @@ wal_create(struct mpool *mp, uint64_t *mdcid1, uint64_t *mdcid2)
     if (err)
         return err;
 
-    err = wal_mdc_open(mp, *mdcid1, *mdcid2, &mdc);
+    err = wal_mdc_open(mp, *mdcid1, *mdcid2, false, &mdc);
     if (err) {
         wal_mdc_destroy(mp, *mdcid1, *mdcid2);
         return err;
@@ -563,7 +563,7 @@ wal_open(
     wal->dur_bufsz = HSE_WAL_DUR_BUFSZ_MB_DFLT << MB_SHIFT;
     wal->dur_mclass = MP_MED_CAPACITY;
 
-    err = wal_mdc_open(mp, rinfo->mdcid1, rinfo->mdcid2, &wal->mdc);
+    err = wal_mdc_open(mp, rinfo->mdcid1, rinfo->mdcid2, wal->read_only, &wal->mdc);
     if (err)
         goto errout;
 
@@ -685,7 +685,8 @@ wal_close(struct wal *wal)
     }
 
     /* Write a close record to indicate graceful shutdown */
-    wal_mdc_close_write(wal->mdc);
+    if (!wal->read_only)
+        wal_mdc_close_write(wal->mdc);
     wal_mdc_close(wal->mdc);
 
     free(wal);

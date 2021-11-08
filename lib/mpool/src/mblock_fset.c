@@ -9,7 +9,7 @@
 #include <hse_util/logging.h>
 #include <hse_util/page.h>
 #include <hse_util/slab.h>
-#include <hse_ikvdb/omf_version.h>
+#include <hse_util/invariant.h>
 
 #include "omf.h"
 #include "mclass.h"
@@ -35,11 +35,17 @@
  * @filev:     vector of mblock file handles
  * @fcnt:      mblock file count
  *
- * @maddr:     mapped addr of the mblock metadata file
- * @metasz:    size of the per-class mblock metadata file
- * @metafd:    fd of the mblock fileset meta file
- * @mlock:     whether the mlock the mapped meta file
- * @meta_name: mblock fileset meta file name
+ * @ug_maddr:   upgrade target mapped addr
+ * @ug_mname:   upgrade target meta file name
+ * @ug_metafd:  upgrade target meta file fd
+ * @ug_metalen: upgrade target meta file length
+ * @ug_mlock:   upgrade target meta mlock
+ *
+ * @maddr:   mapped addr of the mblock metadata file
+ * @metalen: mblock metadata file length
+ * @metafd:  fd of the mblock fileset meta file
+ * @mlock:   whether the mlock the mapped meta file
+ * @mname:   mblock fileset meta file name
  */
 struct mblock_fset {
     struct media_class  *mc;
@@ -49,9 +55,16 @@ struct mblock_fset {
     size_t               fszmax;
     struct mblock_file **filev;
     int                  fcnt;
+    uint32_t             version;
+
+    char  *ug_maddr;
+    char  *ug_mname;
+    int    ug_metafd;
+    size_t ug_metalen;
+    bool   ug_mlock;
 
     char  *maddr;
-    size_t metasz;
+    size_t metalen;
     int    metafd;
     bool   mlock;
     char   mname[MBLOCK_FSET_NAME_LEN];
@@ -73,22 +86,7 @@ mblock_metahdr_init(struct mblock_fset *mbfsp, struct mblock_metahdr *mh)
 static merr_t
 mblock_metahdr_validate(struct mblock_fset *mbfsp, struct mblock_metahdr *mh)
 {
-	if (mh->magic != MBLOCK_METAHDR_MAGIC) {
-		bool big = (HSE_OMF_BYTE_ORDER == __ORDER_BIG_ENDIAN__);
-
-		if (mh->magic != bswap_32(MBLOCK_METAHDR_MAGIC))
-			return merr(EBADMSG);
-
-		log_err("MDC format is %s endian, but libhse is configured to use %s endian,"
-                        "try reconfiguring with -Domf-byte-order=%s",
-                        big ? "little" : "big",
-                        big ? "big" : "little",
-                        big ? "little" : "big");
-
-		return merr(EPROTO);
-	}
-
-    if (mh->vers != MBLOCK_METAHDR_VERSION)
+    if (mh->vers > MBLOCK_METAHDR_VERSION)
         return merr(EPROTO);
 
     if ((mh->mcid != mclass_id(mbfsp->mc)) ||
@@ -98,96 +96,79 @@ mblock_metahdr_validate(struct mblock_fset *mbfsp, struct mblock_metahdr *mh)
     return 0;
 }
 
-static void
-mblock_fset_meta_get(struct mblock_fset *mbfsp, int fidx, char **maddr)
+static off_t
+mblock_fset_metaoff_get(struct mblock_fset *mbfsp, int fidx, uint32_t version)
 {
-    off_t off;
+    size_t metalen = mblock_file_meta_len(mbfsp->fszmax, mclass_mblocksz_get(mbfsp->mc), version);
 
-    off = MBLOCK_FSET_HDR_LEN +
-          (fidx * mblock_file_meta_len(mbfsp->fszmax, mclass_mblocksz_get(mbfsp->mc)));
-
-    *maddr = mbfsp->maddr + off;
+    return MBLOCK_FSET_HDR_LEN + (fidx * metalen);
 }
 
 static merr_t
-mblock_fset_meta_mmap(struct mblock_fset *mbfsp, int fd, size_t sz, int flags, bool mlock)
+mblock_fset_meta_mmap(int metafd, size_t metalen, int flags, char **addrout)
 {
     int   prot, mode;
     char *addr;
+
+    *addrout = NULL;
 
     mode = (flags & O_ACCMODE);
     prot = (mode == O_RDWR ? (PROT_READ | PROT_WRITE) : 0);
     prot |= (mode == O_RDONLY ? PROT_READ : 0);
     prot |= (mode == O_WRONLY ? PROT_WRITE : 0);
 
-    addr = mmap(NULL, sz, prot, MAP_SHARED, fd, 0);
+    addr = mmap(NULL, metalen, prot, MAP_SHARED, metafd, 0);
     if (addr == MAP_FAILED)
         return merr(errno);
 
-    mbfsp->maddr = addr;
-    mbfsp->mlock = false;
-
-    if (mlock) {
-        int rc;
-
-        rc = mlock2(addr, sz, MLOCK_ONFAULT);
-        if (!rc)
-            mbfsp->mlock = true;
-        else
-            ev(1);
-    }
+    *addrout = addr;
 
     return 0;
 }
 
 static void
-mblock_fset_meta_unmap(struct mblock_fset *mbfsp, size_t sz)
+mblock_fset_meta_unmap(char *addr, size_t len)
 {
-    char *addr = mbfsp->maddr;
+    munmap(addr, len);
+}
 
-    if (addr) {
-        if (mbfsp->mlock) {
-            munlock(addr, sz);
-            mbfsp->mlock = false;
-        }
-        munmap(addr, sz);
-    }
+static bool
+mblock_fset_meta_mlock(const char *addr, size_t len)
+{
+    if (mlock2(addr, len, MLOCK_ONFAULT) == 0)
+        return true;
 
-    mbfsp->maddr = NULL;
+    ev_info(1);
+
+    return false;
+}
+
+static void
+mblock_fset_meta_munlock(const char *addr, size_t len)
+{
+    munlock(addr, len);
 }
 
 static merr_t
-mblock_fset_meta_format(struct mblock_fset *mbfsp, int flags)
+mblock_fset_meta_format(struct mblock_fset *mbfsp, char *addr, int metafd, int flags)
 {
     struct mblock_metahdr mh = {};
-    char  *addr;
-    int    rc, len = MBLOCK_FSET_HDR_LEN;
+    int    rc;
+    size_t len = MBLOCK_FSET_HDR_LEN;
     merr_t err = 0;
-    bool   unmap = false;
 
-    addr = mbfsp->maddr;
-    if (!addr) {
-        err = mblock_fset_meta_mmap(mbfsp, mbfsp->metafd, len, flags, false);
-        if (err)
-            return err;
-
-        addr = mbfsp->maddr;
-        unmap = true;
-    }
+    INVARIANT(mbfsp && addr);
 
     mblock_metahdr_init(mbfsp, &mh);
-    omf_mblock_metahdr_pack_htole(&mh, addr);
+    omf_mblock_metahdr_pack(&mh, addr);
 
     rc = msync(addr, len, MS_SYNC);
     if (rc == -1)
         err = merr(errno);
 
-    rc = fsync(mbfsp->metafd);
+    rc = fdatasync(metafd);
     if (rc == -1)
         err = merr(errno);
-
-    if (unmap)
-        mblock_fset_meta_unmap(mbfsp, len);
 
     return err;
 }
@@ -196,32 +177,34 @@ static merr_t
 mblock_fset_meta_load(struct mblock_fset *mbfsp, int flags)
 {
     struct mblock_metahdr mh = {};
-    bool   unmap = false;
     char  *addr;
     merr_t err = 0;
-    int    len = MBLOCK_FSET_HDR_LEN;
+    size_t len = MBLOCK_FSET_HDR_LEN;
 
-    addr = mbfsp->maddr;
-    if (!addr) {
-        err = mblock_fset_meta_mmap(mbfsp, mbfsp->metafd, len, flags, false);
-        if (err)
-            return err;
+    err = mblock_fset_meta_mmap(mbfsp->metafd, len, flags, &addr);
+    if (err)
+        return err;
 
-        addr = mbfsp->maddr;
-        unmap = true;
-    }
-
-    omf_mblock_metahdr_unpack_letoh(addr, &mh);
-
-    err = mblock_metahdr_validate(mbfsp, &mh);
+    err = omf_mblock_metahdr_unpack(addr, &mh);
     if (!err) {
-        mbfsp->fcnt = mh.fcnt;
-        mbfsp->fszmax = (uint64_t)mh.fszmax_gb << GB_SHIFT;
-        mclass_mblocksz_set(mbfsp->mc, (size_t)mh.mblksz_sec << SECTOR_SHIFT);
+        err = mblock_metahdr_validate(mbfsp, &mh);
+        if (!err) {
+            size_t mbsz, metalen;
+
+            mbfsp->version = mh.vers;
+            mbfsp->fcnt = mh.fcnt;
+            mbfsp->fszmax = (uint64_t)mh.fszmax_gb << GB_SHIFT;
+
+            mbsz = (size_t)mh.mblksz_sec << SECTOR_SHIFT;
+            mclass_mblocksz_set(mbfsp->mc, mbsz);
+
+            assert(mbfsp->fcnt != 0);
+            metalen = mblock_file_meta_len(mbfsp->fszmax, mbsz, mbfsp->version);
+            mbfsp->metalen = MBLOCK_FSET_HDR_LEN + (mbfsp->fcnt * metalen);
+        }
     }
 
-    if (unmap)
-        mblock_fset_meta_unmap(mbfsp, len);
+    mblock_fset_meta_unmap(addr, len);
 
     return err;
 }
@@ -230,8 +213,13 @@ static void
 mblock_fset_meta_close(struct mblock_fset *mbfsp)
 {
     if (mbfsp->maddr) {
-        msync(mbfsp->maddr, mbfsp->metasz, MS_SYNC);
-        mblock_fset_meta_unmap(mbfsp, mbfsp->metasz);
+        msync(mbfsp->maddr, mbfsp->metalen, MS_SYNC);
+        if (mbfsp->mlock) {
+            mblock_fset_meta_munlock(mbfsp->maddr, mbfsp->metalen);
+            mbfsp->mlock = false;
+        }
+        mblock_fset_meta_unmap(mbfsp->maddr, mbfsp->metalen);
+        mbfsp->maddr = NULL;
     }
 
     if (mbfsp->metafd != -1) {
@@ -278,20 +266,23 @@ mblock_fset_meta_open(struct mblock_fset *mbfsp, int flags)
 
     /* Preallocate metadata file. */
     if (create) {
-        size_t sz;
+        size_t metalen;
 
         assert(mbfsp->fcnt != 0);
-        sz = MBLOCK_FSET_HDR_LEN +
-             (mbfsp->fcnt * mblock_file_meta_len(mbfsp->fszmax, mclass_mblocksz_get(mbfsp->mc)));
+        metalen = mblock_file_meta_len(mbfsp->fszmax, mclass_mblocksz_get(mbfsp->mc),
+                                   MBLOCK_METAHDR_VERSION);
+        mbfsp->metalen = MBLOCK_FSET_HDR_LEN + (mbfsp->fcnt * metalen);
 
-        rc = posix_fallocate(fd, 0, sz);
+        rc = posix_fallocate(fd, 0, mbfsp->metalen);
         if (ev(rc)) {
-            rc = ftruncate(fd, sz);
+            rc = ftruncate(fd, mbfsp->metalen);
             if (rc == -1) {
                 err = merr(errno);
                 goto errout;
             }
         }
+
+        mbfsp->version = MBLOCK_METAHDR_VERSION;
     } else {
         err = mblock_fset_meta_load(mbfsp, flags);
         if (err)
@@ -306,6 +297,143 @@ errout:
     return err;
 }
 
+static void
+mblock_fset_upgrade_cleanup(struct mblock_fset *mbfsp)
+{
+    INVARIANT(mbfsp);
+
+    if (mbfsp->ug_maddr) {
+        if (mbfsp->ug_mlock) {
+            mblock_fset_meta_munlock(mbfsp->ug_maddr, mbfsp->ug_metalen);
+            mbfsp->ug_mlock = false;
+        }
+        mblock_fset_meta_unmap(mbfsp->ug_maddr, mbfsp->ug_metalen);
+        mbfsp->ug_maddr = NULL;
+    }
+
+    if (mbfsp->ug_metafd > 0) {
+        close(mbfsp->ug_metafd);
+        unlinkat(mclass_dirfd(mbfsp->mc), mbfsp->ug_mname, 0);
+        mbfsp->ug_metafd = -1;
+    }
+
+    free(mbfsp->ug_mname);
+}
+
+static merr_t
+mblock_fset_upgrade_prepare(struct mblock_fset *mbfsp, int flags)
+{
+    merr_t err;
+    size_t sz, metalen;
+    int dirfd, fd, rc;
+
+    INVARIANT(mbfsp);
+
+    if (mbfsp->version > MBLOCK_METAHDR_VERSION)
+        return merr(EPROTO);
+
+    if (mbfsp->version == MBLOCK_METAHDR_VERSION || (flags & O_CREAT) ||
+        ((flags & O_ACCMODE) == O_RDONLY))
+        return 0; /* Nothing to do */
+
+    sz = strlen(mbfsp->mname) + 2; /* +1 for . and +1 for \0 */
+    mbfsp->ug_mname = malloc(sz);
+    if (!mbfsp->ug_mname)
+        return merr(ENOMEM);
+
+    snprintf(mbfsp->ug_mname, sz, "%s%s", ".", mbfsp->mname);
+
+    dirfd = mclass_dirfd(mbfsp->mc);
+    fd = openat(dirfd, mbfsp->ug_mname, O_CREAT | O_TRUNC | O_RDWR, S_IRUSR | S_IWUSR);
+    if (fd < 0) {
+        err = merr(errno);
+        free(mbfsp->ug_mname);
+        return err;
+    }
+    mbfsp->ug_metafd = fd;
+
+    metalen = mblock_file_meta_len(mbfsp->fszmax, mclass_mblocksz_get(mbfsp->mc),
+                                   MBLOCK_METAHDR_VERSION);
+    mbfsp->ug_metalen = MBLOCK_FSET_HDR_LEN + (mbfsp->fcnt * metalen);
+
+    rc = posix_fallocate(fd, 0, mbfsp->ug_metalen);
+    if (ev(rc)) {
+        rc = ftruncate(fd, mbfsp->ug_metalen);
+        if (rc == -1) {
+            err = merr(errno);
+            goto errout;
+        }
+    }
+
+    err = mblock_fset_meta_mmap(fd, mbfsp->ug_metalen, O_RDWR, &mbfsp->ug_maddr);
+    if (err)
+        goto errout;
+
+    mbfsp->ug_mlock = mblock_fset_meta_mlock(mbfsp->ug_maddr, mbfsp->ug_metalen);
+
+    return 0;
+
+errout:
+    mblock_fset_upgrade_cleanup(mbfsp);
+
+    return err;
+}
+
+static merr_t
+mblock_fset_upgrade_commit(struct mblock_fset *mbfsp)
+{
+    merr_t err = 0;
+    int rc, dirfd;
+    int flags = O_RDWR;
+
+    INVARIANT(mbfsp);
+
+    if (mbfsp->version == MBLOCK_METAHDR_VERSION || !mbfsp->ug_maddr)
+        return 0; /* Nothing to do */
+
+    rc = msync(mbfsp->ug_maddr, mbfsp->ug_metalen, MS_SYNC);
+    if (rc == -1) {
+        err = merr(errno);
+        goto errout;
+    }
+
+    err = mblock_fset_meta_format(mbfsp, mbfsp->ug_maddr, mbfsp->ug_metafd, flags);
+    if (err)
+        goto errout;
+
+    rc = fsync(mbfsp->ug_metafd);
+    if (rc == -1) {
+        err = merr(errno);
+        goto errout;
+    }
+
+    mblock_fset_meta_close(mbfsp);
+
+    dirfd = mclass_dirfd(mbfsp->mc);
+    rc = renameat(dirfd, mbfsp->ug_mname, dirfd, mbfsp->mname);
+    if (rc == -1) {
+        err = merr(errno);
+        goto errout;
+    }
+
+    mbfsp->maddr = mbfsp->ug_maddr;
+    mbfsp->metalen = mbfsp->ug_metalen;
+    mbfsp->metafd = mbfsp->ug_metafd;
+    mbfsp->mlock = mbfsp->ug_mlock;
+
+    free(mbfsp->ug_mname);
+    mbfsp->ug_mname = mbfsp->ug_maddr = NULL;
+    mbfsp->ug_metafd = -1;
+    mbfsp->ug_mlock = false;
+
+    return 0;
+
+errout:
+    mblock_fset_upgrade_cleanup(mbfsp);
+
+    return err;
+}
+
 merr_t
 mblock_fset_open(
     struct media_class  *mc,
@@ -315,7 +443,7 @@ mblock_fset_open(
     struct mblock_fset **handle)
 {
     struct mblock_fset       *mbfsp;
-    struct mblock_file_params fparams;
+    struct mblock_file_params fparams = { 0 };
     size_t sz, mblocksz;
     merr_t err;
     int    i;
@@ -349,13 +477,6 @@ mblock_fset_open(
         goto errout;
     }
 
-    mbfsp->metasz =
-        MBLOCK_FSET_HDR_LEN + (mbfsp->fcnt * mblock_file_meta_len(mbfsp->fszmax, mblocksz));
-
-    err = mblock_fset_meta_mmap(mbfsp, mbfsp->metafd, mbfsp->metasz, flags, true);
-    if (err)
-        goto errout;
-
     sz = mbfsp->fcnt * sizeof(*mbfsp->filev);
     mbfsp->filev = calloc(1, sz);
     if (!mbfsp->filev) {
@@ -376,17 +497,38 @@ mblock_fset_open(
             goto errout;
     }
 
-    for (i = 0; i < mbfsp->fcnt; i++) {
-        char *addr;
+    err = mblock_fset_meta_mmap(mbfsp->metafd, mbfsp->metalen, flags, &mbfsp->maddr);
+    if (err)
+        goto errout;
 
-        mblock_fset_meta_get(mbfsp, i, &addr);
+    mbfsp->mlock = mblock_fset_meta_mlock(mbfsp->maddr, mbfsp->metalen);
+
+    err = mblock_fset_upgrade_prepare(mbfsp, flags);
+    if (err)
+        goto errout;
+
+    for (i = 0; i < mbfsp->fcnt; i++) {
+        off_t off;
 
         fparams.fileid = i + 1;
-        err = mblock_file_open(mbfsp, mc, &fparams, flags, addr,
-                               mbfsp->rmcache[i % MBLOCK_FSET_RMCACHE_CNT], &mbfsp->filev[i]);
+        fparams.rmcache = mbfsp->rmcache[i % MBLOCK_FSET_RMCACHE_CNT];
+
+        off = mblock_fset_metaoff_get(mbfsp, i, mbfsp->version);
+        fparams.meta_addr = mbfsp->maddr + off;
+
+        if (mbfsp->ug_maddr) {
+            off = mblock_fset_metaoff_get(mbfsp, i, MBLOCK_METAHDR_VERSION);
+            fparams.meta_ugaddr = mbfsp->ug_maddr + off;
+        }
+
+        err = mblock_file_open(mbfsp, mc, &fparams, flags, mbfsp->version, &mbfsp->filev[i]);
         if (err)
             goto errout;
     }
+
+    err = mblock_fset_upgrade_commit(mbfsp);
+    if (err)
+        goto errout;
 
     atomic_set(&mbfsp->fidx, 0);
 
@@ -395,10 +537,21 @@ mblock_fset_open(
      * detect partial fset create during reopen.
      */
     if (flags & O_CREAT) {
-        err = mblock_fset_meta_format(mbfsp, flags);
+        int dirfd, rc;
+
+        err = mblock_fset_meta_format(mbfsp, mbfsp->maddr, mbfsp->metafd, flags);
         if (err)
             goto errout;
+
+        dirfd = mclass_dirfd(mc);
+        rc = fsync(dirfd);
+        if (rc == -1) {
+            err = merr(errno);
+            goto errout;
+        }
     }
+
+    mbfsp->version = MBLOCK_METAHDR_VERSION;
 
     *handle = mbfsp;
 
@@ -503,7 +656,7 @@ mblock_fset_commit(struct mblock_fset *mbfsp, uint64_t *mbidv, int mbidc)
     if (err)
         return err;
 
-    rc = fsync(mbfsp->metafd);
+    rc = fdatasync(mbfsp->metafd);
     if (rc == -1)
         return merr(errno);
 
@@ -545,7 +698,7 @@ mblock_fset_delete(struct mblock_fset *mbfsp, uint64_t *mbidv, int mbidc)
     if (err)
         return err;
 
-    rc = fsync(mbfsp->metafd);
+    rc = fdatasync(mbfsp->metafd);
     if (rc == -1)
         return merr(errno);
 

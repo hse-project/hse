@@ -70,11 +70,17 @@ struct mblock_filehdr {
 /**
  * struct mblock_file_params - mblock file params
  *
- * @fszmax:   max file size
- * @mblocksz: mblock size
- * @fileid:   file identifier
+ * @rmcache:     region map cache
+ * @meta_addr:   start of memory-mapped region in the metadata file
+ * @meta_ugaddr: start of memory-mapped region in the target metadata file (for upgrade)
+ * @fszmax:      max file size
+ * @mblocksz:    mblock size
+ * @fileid:      file identifier
  */
 struct mblock_file_params {
+    struct kmem_cache *rmcache;
+    char  *meta_addr;
+    char  *meta_ugaddr;
     size_t fszmax;
     size_t mblocksz;
     int    fileid;
@@ -95,6 +101,7 @@ struct mblock_file_stats {
 
 /**
  * struct mblock_rgn -
+ *
  * @rgn_node:  rb-tree linkage
  * @rgn_start: first available key
  * @rgn_end:   last available key (not inclusive)
@@ -103,6 +110,17 @@ struct mblock_rgn {
     struct rb_node rgn_node;
     uint32_t       rgn_start;
     uint32_t       rgn_end;
+};
+
+/**
+ * struct mblock_oid_info -
+ *
+ * @mb_oid:  mblock OID
+ * @mb_wlen: mblock write length
+ */
+struct mblock_oid_info {
+    uint64_t mb_oid;
+    uint32_t mb_wlen;
 };
 
 static HSE_ALWAYS_INLINE int
@@ -130,8 +148,7 @@ mclassid(uint64_t mbid)
  * @mc:        media class handle
  * @params:    mblock file params
  * @flags:     open flags
- * @meta_addr: mapped region in the mclass metadata file for this file
- * @rmcache:   region map kmem cache
+ * @version:   on-media mblock meta header version
  * @handle:    mblock file handle (output)
  *
  */
@@ -141,8 +158,7 @@ mblock_file_open(
     struct media_class        *mc,
     struct mblock_file_params *params,
     int                        flags,
-    char                      *meta_addr,
-    struct kmem_cache         *rmcache,
+    uint32_t                   version,
     struct mblock_file       **handle);
 
 /**
@@ -237,9 +253,10 @@ mblock_file_find(struct mblock_file *mbfp, uint64_t *mbidv, int mbidc, uint32_t 
  *
  * @fszmax:   max file size
  * @mblocksz: mblock size
+ * @version:  mblock meta header version
  */
 size_t
-mblock_file_meta_len(size_t fszmax, size_t mblocksz);
+mblock_file_meta_len(size_t fszmax, size_t mblocksz, uint32_t version);
 
 /**
  * mblock_file_map_getbase() - get the mapped address and wlen for the specified mblock
