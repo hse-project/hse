@@ -39,8 +39,7 @@ struct opts {
 };
 
 struct thread_info {
-	HSE_ALIGNED(SMP_CACHE_BYTES)
-	uint64_t start;
+	uint64_t start HSE_ACP_ALIGNED;
 	uint64_t end;
 } *g_ti;
 

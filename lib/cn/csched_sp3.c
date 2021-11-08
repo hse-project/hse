@@ -276,21 +276,21 @@ struct sp3 {
     struct perfc_set     sched_pc;
 
     /* Accessed by monitor and infrequently by open/close threads */
-    struct mutex new_tlist_lock HSE_ALIGNED(SMP_CACHE_BYTES);
-    struct list_head            new_tlist;
-    atomic_t                    destruct;
+    struct mutex     new_tlist_lock HSE_L1D_ALIGNED;
+    struct list_head new_tlist;
+    atomic_t         destruct;
 
     /* Accessed by monitor, open/close, ingest and jobs threads */
-    struct mutex mutex HSE_ALIGNED(SMP_CACHE_BYTES);
-    struct cv          cv;
+    struct mutex     mutex HSE_L1D_ALIGNED;
+    struct cv        cv;
 
     /* Accessed monitor and infrequently by job threads */
-    struct mutex work_list_lock HSE_ALIGNED(SMP_CACHE_BYTES);
-    struct list_head            work_list;
+    struct mutex     work_list_lock HSE_L1D_ALIGNED;
+    struct list_head work_list;
 
-    u64 ucomp_prev_report_ns HSE_ALIGNED(SMP_CACHE_BYTES);
-    bool                     ucomp_active;
-    bool                     ucomp_canceled;
+    u64  ucomp_prev_report_ns HSE_L1D_ALIGNED;
+    bool ucomp_active;
+    bool ucomp_canceled;
 };
 
 /* external to internal handle */
@@ -2364,7 +2364,7 @@ sp3_op_destroy(struct csched_ops *handle)
 
     perfc_free(&sp->sched_pc);
 
-    free_aligned(sp);
+    free(sp);
 }
 
 /**
@@ -2404,7 +2404,10 @@ sp3_create(
     /* Allocate cache aligned space for struct csched + sp->name */
     name_sz = strlen(kvdb_alias) + 1;
     alloc_sz = sizeof(*sp) + name_sz;
-    sp = alloc_aligned(alloc_sz, SMP_CACHE_BYTES);
+    alloc_sz = roundup(alloc_sz, HSE_ACP_LINESIZE);
+    assert(HSE_ACP_LINESIZE >= alignof(*sp));
+
+    sp = aligned_alloc(HSE_ACP_LINESIZE, alloc_sz);
     if (ev(!sp))
         return merr(ENOMEM);
 
@@ -2470,7 +2473,7 @@ err_exit:
     mutex_destroy(&sp->new_tlist_lock);
     mutex_destroy(&sp->mutex);
 
-    free_aligned(sp);
+    free(sp);
 
     return err;
 }

@@ -49,9 +49,9 @@ struct c0_kvset_impl {
     atomic_ulong *c0s_kvdb_seqno;
     atomic_ulong *c0s_kvms_seqno;
 
-    struct mutex c0s_mutex HSE_ALIGNED(SMP_CACHE_BYTES * 2);
+    struct mutex c0s_mutex HSE_ACP_ALIGNED;
 
-    u32 c0s_num_entries HSE_ALIGNED(SMP_CACHE_BYTES);
+    u32 c0s_num_entries HSE_L1D_ALIGNED;
     u32 c0s_num_tombstones;
     u32 c0s_keyb;
     u32 c0s_valb;

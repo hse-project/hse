@@ -42,10 +42,10 @@ kvdb_keylock_lock(
     u64                     start_seq);
 
 merr_t
-kvdb_ctxn_locks_init(void);
+kvdb_ctxn_locks_init(void) HSE_COLD;
 
 void
-kvdb_ctxn_locks_fini(void);
+kvdb_ctxn_locks_fini(void) HSE_COLD;
 
 /* MTF_MOCK */
 u64

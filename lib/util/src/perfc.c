@@ -581,7 +581,7 @@ perfc_ivl_create(int boundc, const u64 *boundv, struct perfc_ivl **ivlp)
     sz = sizeof(*ivl);
     sz += sizeof(ivl->ivl_bound[0]) * boundc;
 
-    ivl = alloc_aligned(sz, SMP_CACHE_BYTES);
+    ivl = alloc_aligned(sz, HSE_ACP_LINESIZE);
     if (ev(!ivl))
         return merr(ENOMEM);
 
@@ -749,7 +749,7 @@ perfc_alloc_impl(
     /* Allocate the counter set instance in one big chunk.
      */
     sz = sizeof(*seti) + sizeof(seti->pcs_ctrv[0]) * ctrc;
-    sz = roundup(sz, SMP_CACHE_BYTES * 2);
+    sz = roundup(sz, HSE_ACP_LINESIZE);
 
     for (n = i = 0; i < ctrc; ++i) {
         enum perfc_type type = typev[i];
@@ -762,7 +762,7 @@ perfc_alloc_impl(
 
     valdatasz = sizeof(struct perfc_val) * PERFC_VALPERCNT * PERFC_VALPERCPU * n + 1;
 
-    seti = alloc_aligned(sz + valdatasz, SMP_CACHE_BYTES * 2);
+    seti = alloc_aligned(sz + valdatasz, HSE_ACP_LINESIZE);
     if (!seti) {
         err = merr(ENOMEM);
         goto errout;

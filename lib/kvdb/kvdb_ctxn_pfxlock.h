@@ -14,10 +14,10 @@ struct kvdb_ctxn_pfxlock;
 struct kvdb_pfxlock;
 
 merr_t
-kvdb_ctxn_pfxlock_init(void);
+kvdb_ctxn_pfxlock_init(void) HSE_COLD;
 
 void
-kvdb_ctxn_pfxlock_fini(void);
+kvdb_ctxn_pfxlock_fini(void) HSE_COLD;
 
 merr_t
 kvdb_ctxn_pfxlock_create(

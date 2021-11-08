@@ -73,8 +73,6 @@ struct mutex {
 
 #define DEFINE_MUTEX(mutexname) struct mutex mutexname = { .pth_mutex = PTHREAD_MUTEX_INITIALIZER }
 
-#define mutex_lock_nested(lock, subclass) mutex_lock((lock))
-
 /* GCOV_EXCL_START */
 
 static inline void

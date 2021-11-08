@@ -969,7 +969,7 @@ cn_tree_insert_kvset(struct cn_tree *tree, struct kvset *kvset, uint level, uint
  * grow operations during tree traversal.
  */
 struct vtc_bkt {
-    HSE_ALIGNED(SMP_CACHE_BYTES) spinlock_t lock;
+    spinlock_t    lock HSE_ACP_ALIGNED;
     uint          cnt;
     uint          max;
     struct table *head;
@@ -3472,7 +3472,9 @@ cn_tree_init(void)
         bkt->max = 8;
     }
 
-    cache = kmem_cache_create("cntreenode", cn_node_size(), SMP_CACHE_BYTES, SLAB_PACKED, NULL);
+    assert(HSE_ACP_LINESIZE >= alignof(struct cn_tree_node));
+
+    cache = kmem_cache_create("cntreenode", cn_node_size(), HSE_ACP_LINESIZE, SLAB_PACKED, NULL);
     if (ev(!cache)) {
         atomic_dec(&cn_tree_init_ref);
         return merr(ENOMEM);

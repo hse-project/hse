@@ -48,7 +48,7 @@ struct sts_worker {
     atomic_t    initializing;
     uint        wqnum;
     char        wname[16];
-} HSE_ALIGNED(SMP_CACHE_BYTES);
+} HSE_L1D_ALIGNED;
 
 static void *
 sts_worker_main(void *rock);
@@ -59,7 +59,7 @@ struct sts_queue {
     atomic_t         idle_workers;
     struct perfc_set qpc;
     struct sts *     sts;
-} HSE_ALIGNED(SMP_CACHE_BYTES);
+} HSE_L1D_ALIGNED;
 
 /**
  * struct sts - HSE scheduler used for cn tree ingest and compaction operations
@@ -236,7 +236,7 @@ add_worker(struct sts *self, uint qnum)
     if (ev(qnum > self->qc))
         return merr(EINVAL);
 
-    w = alloc_aligned(sizeof(*w), SMP_CACHE_BYTES);
+    w = alloc_aligned(sizeof(*w), alignof(*w));
     if (ev(!w))
         return merr(ENOMEM);
 
@@ -412,7 +412,7 @@ sts_create(struct kvdb_rparams *rp, const char *name, uint nq, struct sts **hand
     if (ev(nq > STS_QUEUES_MAX))
         return merr(EINVAL);
 
-    self = alloc_aligned(sizeof(*self), SMP_CACHE_BYTES);
+    self = alloc_aligned(sizeof(*self), HSE_L1D_LINESIZE);
     if (ev(!self))
         return merr(ENOMEM);
 
@@ -427,7 +427,7 @@ sts_create(struct kvdb_rparams *rp, const char *name, uint nq, struct sts **hand
 
     /* Allocate cache aligned queue structs */
     len = sizeof(self->qv[0]) * (nq + 1);
-    self->qv = alloc_aligned(len, SMP_CACHE_BYTES);
+    self->qv = alloc_aligned(len, alignof(*self->qv));
     if (ev(!self->qv)) {
         free_aligned(self);
         return merr(ENOMEM);

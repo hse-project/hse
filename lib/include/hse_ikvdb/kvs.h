@@ -59,7 +59,7 @@ struct hse_kvs_cursor {
 };
 
 struct ikvs {
-    uint64_t ikv_gen HSE_ALIGNED(SMP_CACHE_BYTES * 2);
+    uint64_t ikv_gen HSE_ACP_ALIGNED;
     uint64_t         ikv_cnid;
     uint             ikv_sfx_len;
     uint             ikv_pfx_len;

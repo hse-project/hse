@@ -19,13 +19,13 @@
 /* clang-format off */
 
 struct dt_tree {
-    struct mutex        dt_lock HSE_ALIGNED(SMP_CACHE_BYTES * 2);
+    struct mutex        dt_lock HSE_ACP_ALIGNED;
     struct rb_root      dt_root;
 
-    struct mutex        dt_pending_lock HSE_ALIGNED(SMP_CACHE_BYTES);
+    struct mutex        dt_pending_lock HSE_L1X_ALIGNED;
     struct list_head    dt_pending_list;
 
-    struct dt_element   dt_element HSE_ALIGNED(SMP_CACHE_BYTES);
+    struct dt_element   dt_element HSE_L1D_ALIGNED;
 };
 
 /**

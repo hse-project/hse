@@ -372,7 +372,7 @@ struct km_stats {
      * worker thread modifies the fields above, while the status
      * thread modifies the fields below (both non-atomically).
      */
-    ulong oget, ogetbytes HSE_ALIGNED(SMP_CACHE_BYTES * 2);
+    ulong oget, ogetbytes HSE_ACP_ALIGNED;
     ulong oput, oputbytes;
     ulong odel;
     ulong oswap;
@@ -512,9 +512,9 @@ struct km_impl {
     mongoc_uri_t *        active_uri;
     mongoc_client_pool_t *client_pool;
 
-    atomic64_t keydistchunk HSE_ALIGNED(SMP_CACHE_BYTES * 2);
+    atomic64_t keydistchunk HSE_ACP_ALIGNED;
 
-    struct km_latency      km_latency[KMT_LAT_REC_CNT] HSE_ALIGNED(SMP_CACHE_BYTES * 2);
+    struct km_latency      km_latency[KMT_LAT_REC_CNT] HSE_ACP_ALIGNED;
     struct km_sync_latency km_sync_latency;
 };
 
@@ -545,7 +545,7 @@ struct km_inst {
     struct km_inst * next;
     struct km_stats  stats;
 
-    struct km_latency latency[KMT_LAT_REC_CNT] HSE_ALIGNED(SMP_CACHE_BYTES * 2);
+    struct km_latency latency[KMT_LAT_REC_CNT] HSE_ACP_ALIGNED;
 };
 
 #define km_open(_impl)  ((_impl)->km_open((_impl)))
@@ -588,7 +588,7 @@ struct kvnode {
     uint     datalen;
     char    *key;
     char    *data;
-} HSE_ALIGNED(SMP_CACHE_BYTES);
+} HSE_L1D_ALIGNED;
 
 static inline int
 node_cmp(struct kvnode *lhs, struct kvnode *rhs)
@@ -684,7 +684,7 @@ struct bktlock {
         pthread_rwlock_t   rwlock;
         int spinlock;
     };
-} HSE_ALIGNED(SMP_CACHE_BYTES * 2);
+} HSE_ACP_ALIGNED;
 
 struct bkt {
 #ifdef XKMT
@@ -759,7 +759,7 @@ struct {
 
     struct bktlock *bktlock;
     size_t          bktlocksz;
-} g HSE_ALIGNED(SMP_CACHE_BYTES * 2);
+} g HSE_ACP_ALIGNED;
 
 void
 bkt_init(void)

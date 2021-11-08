@@ -15,7 +15,7 @@
 struct timer_jclock {
     atomic_ulong jc_jclock_ns;
     atomic_ulong jc_jiffies;
-} HSE_ALIGNED(SMP_CACHE_BYTES);
+} HSE_ACP_ALIGNED;
 
 struct timer_list {
     struct list_head entry;

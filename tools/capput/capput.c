@@ -54,9 +54,9 @@
 
 #include "kvs_helper.h"
 
-static atomic64_t  pfx HSE_ALIGNED(SMP_CACHE_BYTES);
-static atomic64_t  sfx HSE_ALIGNED(SMP_CACHE_BYTES);
-static uint64_t    last_del HSE_ALIGNED(SMP_CACHE_BYTES);
+static atomic64_t  pfx HSE_L1D_ALIGNED;
+static atomic64_t  sfx HSE_L1D_ALIGNED;
+static uint64_t    last_del HSE_L1D_ALIGNED;
 
 pthread_barrier_t   put_barrier1;
 pthread_barrier_t   put_barrier2;
@@ -91,7 +91,7 @@ struct opts {
 
 struct thread_info {
     int           idx;
-    atomic64_t    ops HSE_ALIGNED(SMP_CACHE_BYTES);
+    atomic64_t    ops HSE_L1D_ALIGNED;
     volatile int  state;
 };
 
@@ -626,7 +626,7 @@ main(int argc, char **argv)
 
     sz = (opts.put_threads + opts.cur_threads) * sizeof(*g_ti);
 
-    g_ti = aligned_alloc(SMP_CACHE_BYTES * 2, roundup(sz, SMP_CACHE_BYTES * 2));
+    g_ti = aligned_alloc(alignof(*g_ti), roundup(sz, alignof(*g_ti)));
     if (!g_ti) {
         fatal(ENOMEM, "Allocation failed");
     }

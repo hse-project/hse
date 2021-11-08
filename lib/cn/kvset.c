@@ -3759,8 +3759,9 @@ kvset_init(void)
         return 0;
 
     sz = sizeof(struct kvset_iterator);
+    assert(HSE_ACP_LINESIZE >= alignof(struct kvset_iterator));
 
-    cache = kmem_cache_create("kvsiter", sz, SMP_CACHE_BYTES, 0, NULL);
+    cache = kmem_cache_create("kvsiter", sz, HSE_ACP_LINESIZE, 0, NULL);
     if (ev(!cache)) {
         atomic_dec(&kvset_init_ref);
         return merr(ENOMEM);

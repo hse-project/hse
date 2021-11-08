@@ -125,14 +125,14 @@ struct kmc_zone;
  * until the last item is freed.
  */
 struct kmc_slab {
-    struct list_head  slab_entry  HSE_ALIGNED(SMP_CACHE_BYTES * 2);
+    struct list_head  slab_entry HSE_ACP_ALIGNED;
     struct list_head  slab_zentry;
     struct kmc_chunk *slab_chunk;
     struct kmc_pcpu  *slab_pcpu;
     void             *slab_base;
     void             *slab_end;
 
-    void             *slab_cache0  HSE_ALIGNED(SMP_CACHE_BYTES);
+    void             *slab_cache0 HSE_L1D_ALIGNED;
     void             *slab_cache1;
     uint              slab_icur;
     uint              slab_iused;
@@ -157,8 +157,8 @@ struct kmc_slab {
  * In practice, NUMA-node affinity is not guaranteed.
  */
 struct kmc_node {
-    struct mutex     node_lock     HSE_ALIGNED(SMP_CACHE_BYTES * 2);
-    struct list_head node_partial  HSE_ALIGNED(SMP_CACHE_BYTES);
+    struct mutex     node_lock     HSE_ACP_ALIGNED;
+    struct list_head node_partial  HSE_L1X_ALIGNED;
     struct list_head node_full;
     uint             node_nchunks;
     uint             node_nhuge;
@@ -190,7 +190,7 @@ struct kmc_chunk {
     size_t            ch_basesz;
     void             *ch_magic;
 
-    struct list_head  ch_slabs HSE_ALIGNED(SMP_CACHE_BYTES);
+    struct list_head  ch_slabs HSE_L1D_ALIGNED;
     int               ch_hugecnt;
     int               ch_used;
     struct list_head  ch_entry;
@@ -211,8 +211,8 @@ struct kmc_chunk {
  * the reaper.
  */
 struct kmc_pcpu {
-    spinlock_t        pcpu_lock     HSE_ALIGNED(SMP_CACHE_BYTES * 2);
-    struct list_head  pcpu_partial  HSE_ALIGNED(SMP_CACHE_BYTES);
+    spinlock_t        pcpu_lock    HSE_ACP_ALIGNED;
+    struct list_head  pcpu_partial HSE_L1X_ALIGNED;
     struct list_head  pcpu_empty;
     struct list_head  pcpu_full;
 };
@@ -256,10 +256,10 @@ struct kmem_cache {
     ulong               zone_flags;
     struct delayed_work zone_dwork;
 
-    spinlock_t          zone_lock  HSE_ALIGNED(SMP_CACHE_BYTES * 2);
+    spinlock_t          zone_lock HSE_ACP_ALIGNED;
     char                zone_name[24];
 
-    struct list_head    zone_slabs  HSE_ALIGNED(SMP_CACHE_BYTES);
+    struct list_head    zone_slabs HSE_L1D_ALIGNED;
     uint                zone_nslabs;
     uint                zone_descmax;
     uint                zone_descidx;
@@ -285,7 +285,7 @@ static struct {
     atomic_t                 kmc_huge_used;
     uint                     kmc_huge_max;
 
-    struct mutex     kmc_lock  HSE_ALIGNED(SMP_CACHE_BYTES);
+    struct mutex     kmc_lock HSE_L1D_ALIGNED;
     struct list_head kmc_zones;
     int              kmc_nzones;
     struct kmc_node  kmc_nodev[KMC_NODES_MAX * 2];
@@ -909,7 +909,7 @@ kmem_cache_create(const char *name, size_t size, size_t align, ulong flags, void
     align = max_t(size_t, align, _Alignof(max_align_t));
 
     if (flags & SLAB_HWCACHE_ALIGN)
-        align = ALIGN(align, SMP_CACHE_BYTES);
+        align = ALIGN(align, HSE_L1D_LINESIZE);
 
     iasz = max_t(uint, align, ALIGN(size, align)); /* in case size == 0 */
 

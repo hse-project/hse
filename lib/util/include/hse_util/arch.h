@@ -15,10 +15,14 @@
  */
 #define HSE_RA_PAGES_MAX        ((128 * 1024) / PAGE_SIZE)
 
+/* SMP_CACHE_BYTES is deprecated in favor of HSE_L1D_LINESIZE.
+ */
 #if (LEVEL1_DCACHE_LINESIZE > 64)
+#define HSE_L1D_LINESIZE        (LEVEL1_DCACHE_LINESIZE)
 #define SMP_CACHE_BYTES         (LEVEL1_DCACHE_LINESIZE)
 #else
-#define SMP_CACHE_BYTES         (64u)
+#define HSE_L1D_LINESIZE        (64)
+#define SMP_CACHE_BYTES         (64)
 #endif
 
 /* GCOV_EXCL_START */
@@ -27,6 +31,12 @@
 
 #include <immintrin.h>
 #include <x86intrin.h>
+
+/* Adjacent Cacheline Prefetch is enabled by default on most amd64
+ * systems that support it.
+ */
+#define HSE_ACP_LINESIZE        (HSE_L1D_LINESIZE * 2)
+#define HSE_L1X_LINESIZE        (HSE_L1D_LINESIZE)
 
 /* The Linux kernel stuffs the vCPU ID into the lower twelve
  * bits of the TSC AUX register, and the NUMA node ID into the
@@ -74,6 +84,11 @@ cpu_relax(void)
 }
 
 #else
+
+/* [HSE_REVISIT] Are there any other architectures that support
+ * Adjacent Cacheline Prefetch?  Assume no for now...
+ */
+#define HSE_ACP_LINESIZE        (HSE_L1D_LINESIZE)
 
 #if __s390x__
 struct hse_s390x_todclk {
@@ -123,7 +138,6 @@ cpu_relax(void)
 
 #endif
 
-
 #if !__s390x__
 static HSE_ALWAYS_INLINE uint64_t
 get_time_ns(void)
@@ -136,6 +150,25 @@ get_time_ns(void)
 }
 #endif
 
+/* HSE_L1D_ALIGNED - Used to separate non-related fields in a structure
+ * by one cacheline to avoid false sharing.
+ *
+ * HSE_ACP_ALIGNED - Used to separate non-related fields in a structure
+ * by one or more cachelines to avoid false sharing due to Adjacent
+ * Cacheline Prefetch (e.g., two cache lines on amd64, otherwise one).
+ *
+ * HSE_L1X_ALIGNED - Used to align to the next cacheline when Adjacent
+ * Cacheline Prefetch is available, otherwise has no effect.  Use of
+ * HSE_L1X_ALIGNED should always be paired with HSE_ACP_ALIGNED.
+ */
+#define HSE_L1D_ALIGNED         HSE_ALIGNED(HSE_L1D_LINESIZE)
+#define HSE_ACP_ALIGNED         HSE_ALIGNED(HSE_ACP_LINESIZE)
+
+#if (HSE_L1X_LINESIZE > 0)
+#define HSE_L1X_ALIGNED         HSE_ALIGNED(HSE_L1X_LINESIZE)
+#else
+#define HSE_L1X_ALIGNED
+#endif
 
 size_t memlcp(const void *s1, const void *s2, size_t len);
 size_t memlcpq(const void *s1, const void *s2, size_t len);

@@ -53,12 +53,12 @@ struct kvdb_pfxlock_entry {
     bool           kple_stale;
     u64            kple_end_seqno;
     u64            kple_end_seqno_excl;
-} HSE_ALIGNED(SMP_CACHE_BYTES);
+} HSE_ALIGNED(64);
 
 struct kvdb_pfxlock_tree {
-    struct mutex               kplt_lock HSE_ALIGNED(SMP_CACHE_BYTES * 2);
+    struct mutex               kplt_lock HSE_ACP_ALIGNED;
 
-    struct rb_root             kplt_root HSE_ALIGNED(SMP_CACHE_BYTES);
+    struct rb_root             kplt_root HSE_L1X_ALIGNED;
     struct kvdb_pfxlock_entry *kplt_ecache;
     volatile uint              kplt_entry_cnt;
     uint                       kplt_mcache_cnt;

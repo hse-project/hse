@@ -88,7 +88,7 @@ enum {
  */
 struct throttle_sensor {
     atomic_t ts_sensor;
-} HSE_ALIGNED(SMP_CACHE_BYTES);
+} HSE_L1D_ALIGNED;
 
 static inline void
 throttle_sensor_set(struct throttle_sensor *ts, int value)
@@ -159,8 +159,7 @@ struct throttle {
     uint                 thr_delay;
     spinlock_t           thr_lock;
 
-    HSE_ALIGNED(SMP_CACHE_BYTES)
-    struct throttle_mavg thr_mavg;
+    struct throttle_mavg thr_mavg HSE_L1D_ALIGNED;
     ulong                thr_reduce_sum;
     uint                 thr_delay_min;
     uint                 thr_lmin_cycles;
@@ -185,7 +184,7 @@ struct throttle {
     struct perfc_set     thr_sensor_perfc;
     struct perfc_set     thr_sleep_perfc;
 
-    HSE_ALIGNED(SMP_CACHE_BYTES) atomic64_t thr_data;
+    atomic64_t thr_data HSE_L1D_ALIGNED;
 
     struct throttle_sensor thr_sensorv[THROTTLE_SENSOR_CNT];
 };

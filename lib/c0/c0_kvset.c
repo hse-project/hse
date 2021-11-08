@@ -38,7 +38,7 @@ static_assert(HSE_C0_CHEAP_SZ_MAX >= HSE_C0_CHEAP_SZ_DFLT, "C0_CHEAP_SZ_MAX too 
  * so we keep a small cache of them ready for immediate use.
  */
 struct c0kvs_ccache {
-    spinlock_t  cc_lock HSE_ALIGNED(SMP_CACHE_BYTES * 2);
+    spinlock_t  cc_lock HSE_ACP_ALIGNED;
     void       *cc_head;
     size_t      cc_size;
     bool        cc_init;

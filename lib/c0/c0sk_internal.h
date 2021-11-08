@@ -83,7 +83,7 @@ struct c0sk_impl {
     struct perfc_set         c0sk_pc_op;
     struct perfc_set         c0sk_pc_ingest;
 
-    struct mutex         c0sk_kvms_mutex HSE_ALIGNED(SMP_CACHE_BYTES * 2);
+    struct mutex         c0sk_kvms_mutex HSE_ACP_ALIGNED;
     struct cds_list_head c0sk_kvmultisets;
     u64                  c0sk_release_gen;
     s32                  c0sk_kvmultisets_cnt;
@@ -97,25 +97,25 @@ struct c0sk_impl {
     bool                 c0sk_rcu_active;
     struct work_struct   c0sk_rcu_work;
 
-    struct mutex       c0sk_sync_mutex HSE_ALIGNED(SMP_CACHE_BYTES);
+    struct mutex       c0sk_sync_mutex HSE_L1D_ALIGNED;
     struct list_head   c0sk_sync_waiters;
 
-    atomic_ulong c0sk_ingest_gen HSE_ALIGNED(SMP_CACHE_BYTES);
+    atomic_ulong c0sk_ingest_gen HSE_L1D_ALIGNED;
     atomic_int   c0sk_ingest_ldrcnt;
     sem_t        c0sk_sync_sema;
 
-    u32        c0sk_ingest_width HSE_ALIGNED(SMP_CACHE_BYTES);
+    u32        c0sk_ingest_width HSE_L1D_ALIGNED;
     int        c0sk_boost;
     char      *c0sk_kvdb_alias;
     void      *c0sk_stash;
 
     struct {
-        atomic_int refcnt HSE_ALIGNED(SMP_CACHE_BYTES * 2);
+        atomic_int refcnt HSE_ACP_ALIGNED;
     } c0sk_ingest_refv[32];
 
     /* HSE_REVISIT: must track ALL c0sk cursors, so can invalidate them */
 
-    struct cn *c0sk_cnv[HSE_KVS_COUNT_MAX] HSE_ALIGNED(SMP_CACHE_BYTES);
+    struct cn *c0sk_cnv[HSE_KVS_COUNT_MAX] HSE_L1D_ALIGNED;
 };
 
 /**

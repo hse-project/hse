@@ -32,12 +32,12 @@ struct keylock_entry {
 };
 
 struct keylock_impl {
-    struct keylock kli_handle HSE_ALIGNED(SMP_CACHE_BYTES * 2);
+    struct keylock kli_handle HSE_ACP_ALIGNED;
     uint           kli_fullhwm;
     keylock_cb_fn *kli_cb_func;
     void          *kli_mem;
 
-    struct mutex   kli_kmutex HSE_ALIGNED(SMP_CACHE_BYTES);
+    struct mutex   kli_kmutex HSE_L1D_ALIGNED;
     uint           kli_num_occupied;
     uint           kli_max_occupied;
     uint           kli_max_psl;

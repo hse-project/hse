@@ -47,7 +47,7 @@ struct c0snr_set_bkt {
 struct c0snr_set_impl {
     struct c0snr_set     css_handle;
     struct c0snr_set_bkt css_bktv[16];
-} HSE_ALIGNED(SMP_CACHE_BYTES * 2);
+} HSE_ACP_ALIGNED;
 
 struct c0snr_set_entry;
 
@@ -69,8 +69,6 @@ struct c0snr_set_entry {
     };
 };
 
-/* clang-format on */
-
 /**
  * struct c0snr_set_list - c0 sequence number reference set list
  * @act_lock:      lock protecting the list
@@ -83,17 +81,19 @@ struct c0snr_set_entry {
  * @act_entryv:    fixed-size cache of entry objects
  */
 struct c0snr_set_list {
-    spinlock_t            act_lock;
-    size_t                act_vlbsz;
-    void *                act_vlb;
+    spinlock_t              act_lock;
+    size_t                  act_vlbsz;
+    void                   *act_vlb;
 
-    uint act_index          HSE_ALIGNED(SMP_CACHE_BYTES * 2);
+    uint                    act_index HSE_L1D_ALIGNED;
     struct c0snr_set_entry *act_cache;
     uint                    act_entryc;
     uint                    act_entrymax;
 
-    struct c0snr_set_entry act_entryv[] HSE_ALIGNED(SMP_CACHE_BYTES * 2);
+    struct c0snr_set_entry  act_entryv[] HSE_ACP_ALIGNED;
 };
+
+/* clang-format on */
 
 /* c0snr_set_entry_alloc() performs a one-time initialization
  * of the entry the first time it is allocated.  Subsequent
