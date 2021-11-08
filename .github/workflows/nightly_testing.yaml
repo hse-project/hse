@@ -14,7 +14,7 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        os: [ubuntu-20.04]
+        os: [ubuntu-latest]
         build_type: [release, debugoptimized]
 
     steps:
@@ -59,3 +59,4 @@ jobs:
           path: |
             builddir/meson-logs/
             /var/log/syslog
+            /var/log/kern.log
