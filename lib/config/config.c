@@ -21,6 +21,7 @@
 #include <hse_util/invariant.h>
 #include <hse_ikvdb/config.h>
 #include <hse_ikvdb/param.h>
+#include <hse_ikvdb/hse_gparams.h>
 #include <hse_ikvdb/kvdb_rparams.h>
 #include <hse_ikvdb/kvs_rparams.h>
 

@@ -12,7 +12,6 @@
 #include <hse_util/data_tree.h>
 #include <hse_util/event_counter.h>
 #include <hse_util/logging_types.h>
-#include <hse_ikvdb/hse_gparams.h>
 
 #include <syslog.h>
 

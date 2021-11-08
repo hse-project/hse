@@ -11,6 +11,8 @@
 #include <stddef.h>
 #include <stdint.h>
 
+#include <cjson/cJSON.h>
+
 #include <hse_ikvdb/mclass_policy.h>
 #include <hse_ikvdb/throttle.h>
 #include <hse_util/hse_err.h>
