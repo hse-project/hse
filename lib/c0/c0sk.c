@@ -498,8 +498,7 @@ c0sk_open(
         goto errout;
     }
 
-    c0sk->c0sk_ingest_width_max = kvdb_rp->c0_ingest_width;
-    c0sk->c0sk_ingest_width = c0sk->c0sk_ingest_width_max;
+    c0sk->c0sk_ingest_width = kvdb_rp->c0_ingest_width;
 
     if (gen > 0)
         c0kvms_gen_init(gen);

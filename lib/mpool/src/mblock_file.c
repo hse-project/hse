@@ -583,11 +583,11 @@ mblock_file_open(
     wlenc = fszmax >> ilog2(mblocksz);
 
     sz = sizeof(*mbfp);
-    sz += roundup(wlenc * sizeof(*mbfp->wlenv), alignof(mbfp->mmapv));
+    sz += roundup(wlenc * sizeof(*mbfp->wlenv), alignof(*mbfp->mmapv));
     sz += mmapc * sizeof(*mbfp->mmapv);
     sz = roundup(sz, alignof(*mbfp));
 
-    assert(alignof(*mbfp) >= alignof(mbfp->mmapv));
+    assert(alignof(*mbfp) >= alignof(*mbfp->mmapv));
 
     mbfp = aligned_alloc(alignof(*mbfp), sz);
     if (!mbfp)

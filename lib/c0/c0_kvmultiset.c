@@ -34,7 +34,8 @@
 #define c0_kvmultiset_cursor_es_h2r(handle) \
     container_of(handle, struct c0_kvmultiset_cursor, c0mc_es)
 
-#define c0_kvmultiset_h2r(handle) container_of(handle, struct c0_kvmultiset_impl, c0ms_handle)
+#define c0_kvmultiset_h2r(handle) \
+    container_of(handle, struct c0_kvmultiset_impl, c0ms_handle)
 
 /**
  * struct c0_kvmultiset_impl - managed collection of c0 kvsets
@@ -69,14 +70,14 @@ struct c0_kvmultiset_impl {
     void                **c0ms_stashp;
     struct kvdb_callback *c0ms_cb;
 
-    atomic_t                 c0ms_ingesting HSE_ALIGNED(SMP_CACHE_BYTES);
+    atomic_int               c0ms_ingesting HSE_ALIGNED(SMP_CACHE_BYTES);
     bool                     c0ms_ingested;
     bool                     c0ms_finalized;
     struct c0_ingest_work   *c0ms_ingest_work;
     struct workqueue_struct *c0ms_wq;
     struct work_struct       c0ms_destroy_work;
 
-    atomic_t   c0ms_refcnt HSE_ALIGNED(SMP_CACHE_BYTES);
+    atomic_int   c0ms_refcnt HSE_ALIGNED(SMP_CACHE_BYTES);
 
     atomic_ulong c0ms_c0snr_cur HSE_ALIGNED(SMP_CACHE_BYTES * 2);
     size_t       c0ms_c0snr_max HSE_ALIGNED(SMP_CACHE_BYTES);
@@ -88,7 +89,7 @@ struct c0_kvmultiset_impl {
 };
 
 static struct kmem_cache *c0kvms_cache HSE_READ_MOSTLY;
-static atomic64_t         c0kvms_gen;
+static atomic_ulong       c0kvms_gen;
 
 /* clang-format on */
 
@@ -1031,7 +1032,7 @@ c0kvms_c0snr_alloc(struct c0_kvmultiset *handle)
     return entry;
 }
 
-HSE_COLD merr_t
+merr_t
 c0kvms_init(void)
 {
     struct c0_kvmultiset_impl *kvmsv[8];
@@ -1054,7 +1055,7 @@ c0kvms_init(void)
     return 0;
 }
 
-HSE_COLD void
+void
 c0kvms_fini(void)
 {
     kmem_cache_destroy(c0kvms_cache);

@@ -13,8 +13,8 @@
 #include <hse_util/list.h>
 
 struct timer_jclock {
-    atomic64_t  jc_jclock_ns;
-    atomic64_t  jc_jiffies;
+    atomic_ulong jc_jclock_ns;
+    atomic_ulong jc_jiffies;
 } HSE_ALIGNED(SMP_CACHE_BYTES);
 
 struct timer_list {
@@ -87,7 +87,7 @@ add_timer(struct timer_list *timer);
 int
 del_timer(struct timer_list *timer);
 
-merr_t hse_timer_init(void);
-void hse_timer_fini(void);
+merr_t hse_timer_init(void) HSE_COLD;
+void hse_timer_fini(void) HSE_COLD;
 
 #endif /* HSE_PLATFORM_TIMER_H */

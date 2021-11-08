@@ -63,8 +63,6 @@ struct c0sk {
  * @c0sk_kvdb_alias:      kvdb alias
  * @c0sk_stash:           storage for caching a recently freed c0kvms
  * @c0sk_ingest_refv:     vector of ingest synchronization ref counts
- *
- * [HSE_REVISIT]
  */
 struct c0sk_impl {
     struct c0sk              c0sk_handle;
@@ -81,7 +79,7 @@ struct c0sk_impl {
     atomic_ulong            *c0sk_kvdb_seq;
     bool                     c0sk_closing;
     bool                     c0sk_syncing;
-    atomic_t                 c0sk_replaying;
+    atomic_int               c0sk_replaying;
     struct perfc_set         c0sk_pc_op;
     struct perfc_set         c0sk_pc_ingest;
 
@@ -89,11 +87,11 @@ struct c0sk_impl {
     struct cds_list_head c0sk_kvmultisets;
     u64                  c0sk_release_gen;
     s32                  c0sk_kvmultisets_cnt;
-    atomic_t             c0sk_ingest_finlat;
-    atomic_t             c0sk_ingest_serialized_cnt;
-    atomic64_t           c0sk_ingest_order_curr;
-    atomic64_t           c0sk_ingest_order_next;
-    atomic64_t           c0sk_ingest_min;
+    atomic_int           c0sk_ingest_finlat;
+    atomic_int           c0sk_ingest_serialized_cnt;
+    atomic_ulong         c0sk_ingest_order_curr;
+    atomic_ulong         c0sk_ingest_order_next;
+    atomic_ulong         c0sk_ingest_min;
     struct cv            c0sk_kvms_cv;
     struct list_head     c0sk_rcu_pending;
     bool                 c0sk_rcu_active;
@@ -102,19 +100,18 @@ struct c0sk_impl {
     struct mutex       c0sk_sync_mutex HSE_ALIGNED(SMP_CACHE_BYTES);
     struct list_head   c0sk_sync_waiters;
 
-    atomic64_t c0sk_ingest_gen HSE_ALIGNED(SMP_CACHE_BYTES);
-    atomic_t   c0sk_ingest_ldrcnt;
-    sem_t      c0sk_sync_sema;
+    atomic_ulong c0sk_ingest_gen HSE_ALIGNED(SMP_CACHE_BYTES);
+    atomic_int   c0sk_ingest_ldrcnt;
+    sem_t        c0sk_sync_sema;
 
-    u32        c0sk_ingest_width_max HSE_ALIGNED(SMP_CACHE_BYTES);
-    u32        c0sk_ingest_width;
+    u32        c0sk_ingest_width HSE_ALIGNED(SMP_CACHE_BYTES);
     int        c0sk_boost;
     char      *c0sk_kvdb_alias;
     void      *c0sk_stash;
 
     struct {
-        atomic_t refcnt HSE_ALIGNED(SMP_CACHE_BYTES * 2);
-    } c0sk_ingest_refv[16];
+        atomic_int refcnt HSE_ALIGNED(SMP_CACHE_BYTES * 2);
+    } c0sk_ingest_refv[32];
 
     /* HSE_REVISIT: must track ALL c0sk cursors, so can invalidate them */
 

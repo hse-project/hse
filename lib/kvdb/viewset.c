@@ -49,7 +49,7 @@ struct viewset {
 struct viewset_bkt {
     struct viewset_tree *vsb_tree;
     volatile u64         vsb_min_view_sns;
-    atomic_t             vsb_active HSE_ALIGNED(SMP_CACHE_BYTES * 2);
+    atomic_int           vsb_active HSE_ALIGNED(SMP_CACHE_BYTES * 2);
 };
 
 /**
@@ -83,7 +83,7 @@ struct viewset_impl {
 
     viewlock_t vs_lock      HSE_ALIGNED(SMP_CACHE_BYTES * 2);
     uint       vs_chgaccum  HSE_ALIGNED(SMP_CACHE_BYTES);
-    atomic_t   vs_changing  HSE_ALIGNED(SMP_CACHE_BYTES * 2);
+    atomic_int vs_changing  HSE_ALIGNED(SMP_CACHE_BYTES * 2);
 
     struct viewset_bkt vs_bktv[VIEWSET_BKT_MAX];
 };
@@ -352,7 +352,7 @@ viewset_insert(struct viewset *handle, u64 *viewp, u64 *tseqnop, void **cookiep)
     else
         bkt -= ((cpu / 2) % (VIEWSET_BKT_MAX / 2)) + 1;
 
-    atomic_inc(&bkt->vsb_active);
+    atomic_inc_acq(&bkt->vsb_active);
 
     tree = bkt->vsb_tree;
 
@@ -489,7 +489,7 @@ viewset_remove(
         sched_yield();
     }
 
-    atomic_dec(&bkt->vsb_active);
+    atomic_dec_rel(&bkt->vsb_active);
 
     *min_view_sn = self->vs_min_view_sn;
     *min_changed = *min_view_sn > entry_sn;

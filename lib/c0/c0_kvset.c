@@ -1097,7 +1097,7 @@ c0kvs_cheap_sz_get(void)
     return c0kvs_cheap_sz;
 }
 
-HSE_COLD void
+void
 c0kvs_init(size_t ccache_sz, size_t cheap_sz)
 {
     struct c0kvs_ccache *cc = &c0kvs_ccache;
@@ -1109,7 +1109,7 @@ c0kvs_init(size_t ccache_sz, size_t cheap_sz)
     cc->cc_init = true;
 }
 
-HSE_COLD void
+void
 c0kvs_fini(void)
 {
     c0kvs_reinit(0, c0kvs_cheap_sz);
