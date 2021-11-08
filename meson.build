@@ -140,13 +140,6 @@ add_project_arguments(
     language: 'c',
 )
 
-build_number_result = run_command(
-    'sh',
-    '-c',
-    '[ -n "$BUILD_NUMBER" ]'
-)
-in_ci = build_number_result.returncode() == 0
-
 libcurl_dep = dependency(
     'libcurl',
     version: '>=7.58.0',
