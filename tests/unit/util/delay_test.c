@@ -18,8 +18,8 @@ MTF_BEGIN_UTEST_COLLECTION(delay);
  */
 MTF_DEFINE_UTEST(delay, delay_small_duration)
 {
-    atomic64_t before, after;
-    u64        b, a;
+    atomic_ulong before, after;
+    u64 b, a;
 
     /* Take a "before" time reading. */
     ev_get_timestamp(&before);
@@ -37,8 +37,8 @@ MTF_DEFINE_UTEST(delay, delay_small_duration)
  */
 MTF_DEFINE_UTEST(delay, delay_larger_duration)
 {
-    atomic64_t before, after;
-    u64        b, a;
+    atomic_ulong before, after;
+    u64 b, a;
 
     /* Take a "before" time reading. */
     ev_get_timestamp(&before);

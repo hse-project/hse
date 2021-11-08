@@ -365,10 +365,11 @@ lc_create(struct lc **handle, struct kvdb_health *health)
     merr_t          err;
     int             i;
 
-    self = calloc(1, sizeof(*self));
+    self = aligned_alloc(alignof(*self), sizeof(*self));
     if (ev(!self))
         return merr(ENOMEM);
 
+    memset(self, 0, sizeof(*self));
     gc = &self->lc_gc;
     self->lc_nsrc = 2;
     assert(self->lc_nsrc <= LC_SOURCE_CNT_MAX);

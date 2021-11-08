@@ -427,7 +427,7 @@ c0sk_open(
     const char *         kvdb_alias,
     struct kvdb_health * health,
     struct csched *      csched,
-    atomic64_t *         kvdb_seq,
+    atomic_ulong        *kvdb_seq,
     u64                  gen,
     struct c0sk **       c0skp)
 {
@@ -498,8 +498,7 @@ c0sk_open(
         goto errout;
     }
 
-    c0sk->c0sk_ingest_width_max = kvdb_rp->c0_ingest_width;
-    c0sk->c0sk_ingest_width = c0sk->c0sk_ingest_width_max;
+    c0sk->c0sk_ingest_width = kvdb_rp->c0_ingest_width;
 
     if (gen > 0)
         c0kvms_gen_init(gen);

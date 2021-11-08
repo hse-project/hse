@@ -582,11 +582,18 @@ mblock_file_open(
     mmapc = fszmax >> mblock_mmap_cshift(mblocksz);
     wlenc = fszmax >> ilog2(mblocksz);
 
-    sz = sizeof(*mbfp) + mmapc * sizeof(*mbfp->mmapv) + wlenc * sizeof(*mbfp->wlenv);
-    mbfp = calloc(1, sz);
+    sz = sizeof(*mbfp);
+    sz += roundup(wlenc * sizeof(*mbfp->wlenv), alignof(*mbfp->mmapv));
+    sz += mmapc * sizeof(*mbfp->mmapv);
+    sz = roundup(sz, alignof(*mbfp));
+
+    assert(alignof(*mbfp) >= alignof(*mbfp->mmapv));
+
+    mbfp = aligned_alloc(alignof(*mbfp), sz);
     if (!mbfp)
         return merr(ENOMEM);
 
+    memset(mbfp, 0, sz);
     mbfp->fd = -1;
     mbfp->mbfsp = mbfsp;
     mbfp->meta_addr = meta_addr;
@@ -637,7 +644,7 @@ mblock_file_open(
 
     mutex_init(&mbfp->mmap_lock);
     mbfp->mmapc = mmapc;
-    mbfp->mmapv = (void *)(mbfp->wlenv + wlenc);
+    mbfp->mmapv = (void *)roundup((uintptr_t)(mbfp->wlenv + wlenc), alignof(*mbfp->mmapv));
 
     *handle = mbfp;
 

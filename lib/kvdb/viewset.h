@@ -1,6 +1,6 @@
 /* SPDX-License-Identifier: Apache-2.0 */
 /*
- * Copyright (C) 2015-2020 Micron Technology, Inc.  All rights reserved.
+ * Copyright (C) 2015-2021 Micron Technology, Inc.  All rights reserved.
  */
 
 #ifndef HSE_KVDB_VIEWSET_H
@@ -15,7 +15,7 @@ struct viewset;
 /* MTF_MOCK_DECL(viewset) */
 
 /* MTF_MOCK */
-merr_t viewset_create(struct viewset **handle, atomic64_t *kvdb_seqno_addr, atomic64_t *tseqnop);
+merr_t viewset_create(struct viewset **handle, atomic_ulong *kvdb_seqno_addr, atomic_ulong *tseqnop);
 
 /* MTF_MOCK */
 void viewset_destroy(struct viewset *handle);

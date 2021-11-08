@@ -189,7 +189,7 @@ MTF_DEFINE_UTEST_PREPOST(c0sk_test, basic, no_fail_pre, no_fail_post)
     merr_t              err;
     struct kvdb_rparams kvdb_rp;
     struct mock_kvdb    mkvdb;
-    atomic64_t          seqno;
+    atomic_ulong        seqno;
 
     kvdb_rp = kvdb_rparams_defaults();
 
@@ -215,7 +215,7 @@ MTF_DEFINE_UTEST_PREPOST(c0sk_test, ingest, no_fail_pre, no_fail_post)
     struct c0_kvmultiset *kvms;
     struct mock_kvdb      mkvdb;
     struct cn *           mock_cn;
-    atomic64_t            seqno;
+    atomic_ulong          seqno;
     u16                   skidx = 0;
 
     kvdb_rp = kvdb_rparams_defaults();
@@ -281,7 +281,7 @@ MTF_DEFINE_UTEST_PREPOST(c0sk_test, ingest_debug, no_fail_pre, no_fail_post)
     struct mock_kvdb      mkvdb;
     struct cn *           mock_cn;
     const int             pfx_len = 20;
-    atomic64_t            seqno;
+    atomic_ulong          seqno;
     u16                   skidx;
 
     kvdb_rp = kvdb_rparams_defaults();
@@ -405,7 +405,7 @@ MTF_DEFINE_UTEST_PREPOST(c0sk_test, t_sync, no_fail_pre, no_fail_post)
     struct mock_kvdb      mkvdb;
     struct cn *           mock_cn;
     struct c0sk_impl *    self;
-    atomic64_t            seqno;
+    atomic_ulong          seqno;
     u16                   skidx = 0;
 
     kvdb_rp = kvdb_rparams_defaults();
@@ -461,7 +461,7 @@ MTF_DEFINE_UTEST_PREPOST(c0sk_test, various, no_fail_pre, no_fail_post)
     merr_t              err;
     struct mock_kvdb    mkvdb;
     struct cn *         mock_cn;
-    atomic64_t          seqno;
+    atomic_ulong        seqno;
     u16                 skidx = 0;
 
     kvdb_rp = kvdb_rparams_defaults();
@@ -507,7 +507,7 @@ MTF_DEFINE_UTEST_PREPOST(c0sk_test, throttling, no_fail_pre, no_fail_post)
     size_t              hwm_max;
     int                 c0sk_kvmultisets_cnt_saved;
     size_t              c0sk_kvmultisets_sz_saved;
-    atomic64_t          seqno;
+    atomic_ulong        seqno;
     int                 i;
     u16                 skidx = 0;
     /* static because kvdb_fini uses this to log dt */
@@ -605,7 +605,7 @@ MTF_DEFINE_UTEST_PREPOST(c0sk_test, ingest_fail, no_fail_pre, no_fail_post)
     struct c0sk_impl *    self;
     struct mock_kvdb      mkvdb;
     struct cn *           mock_cn;
-    atomic64_t            seqno;
+    atomic_ulong          seqno;
     u16                   skidx = 0;
 
     kvdb_rp = kvdb_rparams_defaults();
@@ -663,7 +663,7 @@ MTF_DEFINE_UTEST_PREPOST(c0sk_test, open_test, no_fail_pre, no_fail_post)
     struct mock_kvdb      mkvdb;
     struct cn *           mock_cn;
     merr_t                err;
-    atomic64_t            seqno;
+    atomic_ulong          seqno;
     u16                   skidx = 0;
 
     kvdb_rp = kvdb_rparams_defaults();
@@ -727,7 +727,7 @@ MTF_DEFINE_UTEST_PREPOST(c0sk_test, serial_put1, no_fail_pre, no_fail_post)
     int                   i, j;
     struct mock_kvdb      mkvdb;
     struct cn *           mock_cn;
-    atomic64_t            seqno;
+    atomic_ulong          seqno;
     u16                   skidx[num_kvs];
 
     kvdb_rp = kvdb_rparams_defaults();
@@ -812,7 +812,7 @@ MTF_DEFINE_UTEST_PREPOST(c0sk_test, serial_put2, no_fail_pre, no_fail_post)
     struct mock_kvdb      mkvdb;
     struct cn *           mock_cn;
     struct c0sk_impl *    self;
-    atomic64_t            seqno;
+    atomic_ulong          seqno;
     u16                   skidx[num_kvs];
 
     kvdb_rp = kvdb_rparams_defaults();
@@ -945,7 +945,7 @@ MTF_DEFINE_UTEST_PREPOST(c0sk_test, ctxn_put, no_fail_ctxn_pre, no_fail_post)
     struct mock_kvdb        mkvdb;
     struct cn              *mock_cn;
     struct c0sk_impl       *self;
-    atomic64_t              seqno;
+    atomic_ulong            seqno;
     u16                     skidx = 0;
     uintptr_t               priv, iseqnoref;
 
@@ -1152,7 +1152,7 @@ MTF_DEFINE_UTEST_PREPOST(c0sk_test, parallel_put1, no_fail_pre, no_fail_post)
     struct mock_kvdb         mkvdb;
     struct cn *              mock_cn;
     struct c0sk_impl *       self;
-    atomic64_t               seqno;
+    atomic_ulong             seqno;
     u16                      skidx[num_kvs];
 
     kvdb_rp = kvdb_rparams_defaults();
@@ -1239,7 +1239,7 @@ MTF_DEFINE_UTEST_PREPOST(c0sk_test, parallel_put2, no_fail_pre, no_fail_post)
     struct mock_kvdb         mkvdb;
     struct cn *              mock_cn;
     struct c0sk_impl *       self;
-    atomic64_t               seqno;
+    atomic_ulong             seqno;
     u16                      skidx[num_kvs];
 
     kvdb_rp = kvdb_rparams_defaults();
@@ -1326,7 +1326,7 @@ MTF_DEFINE_UTEST_PREPOST(c0sk_test, parallel_put3, no_fail_pre, no_fail_post)
     struct mock_kvdb         mkvdb;
     struct cn *              mock_cn;
     struct c0sk_impl *       self;
-    atomic64_t               seqno;
+    atomic_ulong             seqno;
     u16                      skidx[num_kvs];
 
     kvdb_rp = kvdb_rparams_defaults();
@@ -1414,7 +1414,7 @@ MTF_DEFINE_UTEST_PREPOST(c0sk_test, parallel_ctxn_put, no_fail_ctxn_pre, no_fail
     struct mock_kvdb         mkvdb;
     struct cn *              mock_cn;
     struct c0sk_impl *       self;
-    atomic64_t               seqno;
+    atomic_ulong             seqno;
     u16                      skidx[num_kvs];
 
     kvdb_rp = kvdb_rparams_defaults();
@@ -1531,7 +1531,7 @@ MTF_DEFINE_UTEST_PREPOST(c0sk_test, parallel_put_cheap, no_fail_pre, no_fail_pos
     struct mock_kvdb         mkvdb;
     struct cn *              mock_cn;
     struct c0sk_impl *       self;
-    atomic64_t               seqno;
+    atomic_ulong             seqno;
     u16                      skidx[num_kvs];
 
     kvdb_rp = kvdb_rparams_defaults();
@@ -1666,7 +1666,7 @@ MTF_DEFINE_UTEST_PREPOST(c0sk_test, parallel_get_put, no_fail_pre, no_fail_post)
     struct mock_kvdb         mkvdb;
     struct cn *              mock_cn;
     struct c0sk_impl *       self;
-    atomic64_t               seqno;
+    atomic_ulong             seqno;
     u16                      skidx[num_kvs];
     const u32                pfx_len = 0;
 
@@ -1763,7 +1763,7 @@ MTF_DEFINE_UTEST_PREPOST(c0sk_test, c0sk_get_test, no_fail_pre, no_fail_post)
     struct mock_kvdb      mkvdb;
     struct cn *           mock_cn;
     struct c0sk_impl *    self;
-    atomic64_t            seqno;
+    atomic_ulong          seqno;
     u16                   skidx = 0;
     const u32             pfx_len = 0;
     char *                str;
@@ -1873,11 +1873,11 @@ MTF_DEFINE_UTEST_PREPOST(c0sk_test, c0_cursor_robust, no_fail_pre, no_fail_post)
     struct c0sk_impl *    self;
     struct c0_cursor *    cur[5];
     u16                   skidx;
-    char                  kbuf[10], vbuf[10], seek[10];
+    char                  kbuf[64], vbuf[64], seek[64];
     int                   seeklen;
     merr_t                err;
     bool                  eof;
-    atomic64_t            seqno;
+    atomic_ulong          seqno;
 
 #define nkeys (100 * 1000)
 
@@ -2112,10 +2112,10 @@ MTF_DEFINE_UTEST_PREPOST(c0sk_test, c0_cursor_eagain, no_fail_pre, no_fail_post)
     struct c0_cursor *    cur;
     struct c0sk_impl *    self;
     u16                   skidx;
-    char                  kbuf[10], vbuf[10];
+    char                  kbuf[64], vbuf[64];
     merr_t                err;
     int                   i;
-    atomic64_t            seqno;
+    atomic_ulong          seqno;
 
     kvdb_rp = kvdb_rparams_defaults();
     kvs_rp = kvs_rparams_defaults();
@@ -2204,11 +2204,11 @@ MTF_DEFINE_UTEST_PREPOST(c0sk_test, c0_rcursor_robust, no_fail_pre, no_fail_post
     struct c0sk_impl *    self;
     struct c0_cursor *    cur[5];
     u16                   skidx;
-    char                  kbuf[10], vbuf[10], seek[10];
+    char                  kbuf[64], vbuf[64], seek[64];
     int                   seeklen;
     merr_t                err;
     bool                  eof;
-    atomic64_t            seqno;
+    atomic_ulong          seqno;
     u8                    pfx[HSE_KVS_KEY_LEN_MAX];
 
     struct kvs_cursor_element elem;
@@ -2444,7 +2444,7 @@ MTF_DEFINE_UTEST_PREPOST(c0sk_test, c0_register, no_fail_pre, no_fail_post)
     u16                 skidx;
     u16                 skidxv[HSE_KVS_COUNT_MAX];
     merr_t              err;
-    atomic64_t          seqno;
+    atomic_ulong        seqno;
 
     kvdb_rp = kvdb_rparams_defaults();
     kvs_rp = kvs_rparams_defaults();
@@ -2508,7 +2508,7 @@ MTF_DEFINE_UTEST_PREPOST(c0sk_test, c0_cursor_ptombs, no_fail_pre, no_fail_post)
     bool                  eof;
     uint                  cnt, expcnt;
     int                   i;
-    atomic64_t            seqno;
+    atomic_ulong          seqno;
 
     struct kvs_cursor_element elem;
 
@@ -2686,7 +2686,7 @@ MTF_DEFINE_UTEST_PREPOST(c0sk_test, c0_deregister, no_fail_pre, no_fail_post)
     struct cn *         mock_cn;
     u16                 skidx;
     merr_t              err;
-    atomic64_t          seqno;
+    atomic_ulong        seqno;
 
     kvdb_rp = kvdb_rparams_defaults();
     kvs_rp = kvs_rparams_defaults();

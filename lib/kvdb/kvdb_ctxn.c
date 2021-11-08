@@ -60,14 +60,15 @@ struct kvdb_ctxn_set_impl {
     u64                      ktn_txn_timeout;
     struct delayed_work      ktn_dwork;
 
-    atomic64_t ktn_tseqno_head HSE_ALIGNED(SMP_CACHE_BYTES * 2);
-    atomic64_t ktn_tseqno_tail HSE_ALIGNED(SMP_CACHE_BYTES * 2);
+    atomic_ulong             ktn_tseqno_head HSE_ALIGNED(SMP_CACHE_BYTES * 2);
+    atomic_ulong             ktn_tseqno_tail HSE_ALIGNED(SMP_CACHE_BYTES * 2);
 
-    struct mutex         ktn_list_mutex HSE_ALIGNED(SMP_CACHE_BYTES * 2);
-    struct cds_list_head ktn_alloc_list HSE_ALIGNED(SMP_CACHE_BYTES);
-    struct list_head     ktn_pending;
-    atomic_t             ktn_reading;
-    bool                 ktn_queued;
+    struct mutex             ktn_list_mutex HSE_ALIGNED(SMP_CACHE_BYTES * 2);
+    struct list_head         ktn_pending;
+    atomic_t                 ktn_reading;
+    bool                     ktn_queued;
+
+    struct cds_list_head     ktn_alloc_list HSE_ALIGNED(CAA_CACHE_LINE_SIZE);
 };
 
 /* clang-format on */
@@ -188,7 +189,7 @@ struct kvdb_ctxn *
 kvdb_ctxn_alloc(
     struct kvdb_keylock * kvdb_keylock,
     struct kvdb_pfxlock * kvdb_pfxlock,
-    atomic64_t *          kvdb_seqno_addr,
+    atomic_ulong         *kvdb_seqno_addr,
     struct kvdb_ctxn_set *kcs_handle,
     struct viewset *      viewset,
     struct c0snr_set *    c0snrset,
@@ -751,7 +752,7 @@ kvdb_ctxn_set_destroy(struct kvdb_ctxn_set *handle)
     free_aligned(ktn);
 }
 
-atomic64_t *
+atomic_ulong *
 kvdb_ctxn_set_tseqnop_get(struct kvdb_ctxn_set *handle)
 {
     struct kvdb_ctxn_set_impl *kcs = kvdb_ctxn_set_h2r(handle);

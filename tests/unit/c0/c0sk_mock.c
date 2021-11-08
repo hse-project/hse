@@ -17,7 +17,7 @@ _c0sk_open(
     const char *         mp_name,
     struct kvdb_health * health,
     struct csched *      csched,
-    atomic64_t *         kvdb_seq,
+    atomic_ulong        *kvdb_seq,
     u64                  gen,
     struct c0sk **       c0sk)
 {

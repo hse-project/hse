@@ -6,6 +6,7 @@
 #include <mtf/framework.h>
 
 #include <hse_util/hse_err.h>
+#include <hse_util/logging.h>
 
 #include <hse/limits.h>
 

@@ -10,7 +10,7 @@
 #include <hse_util/event_counter.h>
 
 void
-ev_get_timestamp(atomic64_t *timestamp)
+ev_get_timestamp(atomic_ulong *timestamp)
 {
     struct timeval tv;
 
@@ -20,7 +20,7 @@ ev_get_timestamp(atomic64_t *timestamp)
 }
 
 size_t
-snprintf_timestamp(char *buf, size_t buf_sz, atomic64_t *timestamp)
+snprintf_timestamp(char *buf, size_t buf_sz, atomic_ulong *timestamp)
 {
     struct timeval tv;
     size_t         ret;
@@ -120,21 +120,22 @@ ev_emit_handler(struct dt_element *dte, struct yaml_context *yc)
 {
     struct event_counter *ec = dte->dte_data;
     char                  value[128];
-    int                   odometer_val = atomic_read(&ec->ev_odometer);
+    ulong                 odometer;
 
     yaml_start_element(yc, "path", dte->dte_path);
 
     snprintf(value, sizeof(value), "%s", hse_logpri_val_to_name(ec->ev_pri));
     yaml_element_field(yc, "level", value);
 
-    snprintf(value, sizeof(value), "%d", odometer_val);
+    odometer = atomic_read(&ec->ev_odometer);
+    u64_to_string(value, sizeof(value), odometer);
     yaml_element_field(yc, "odometer", value);
 
     snprintf_timestamp(value, sizeof(value), &ec->ev_odometer_timestamp);
     yaml_element_field(yc, "odometer timestamp", value);
 
     if (ec->ev_trip_odometer != 0) {
-        snprintf(value, sizeof(value), "%d", odometer_val - ec->ev_trip_odometer);
+        u64_to_string(value, sizeof(value), odometer - ec->ev_trip_odometer);
         yaml_element_field(yc, "trip odometer", value);
 
         snprintf_timestamp(value, sizeof(value), &ec->ev_trip_odometer_timestamp);

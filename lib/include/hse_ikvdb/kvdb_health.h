@@ -10,13 +10,13 @@
 #include <hse_util/hse_err.h>
 
 struct kvdb_health_stat {
-    atomic64_t khs_odometer;
-    atomic64_t khs_tripped;
-    atomic64_t khs_err; /* first merr since last clear */
+    atomic_ulong khs_odometer;
+    atomic_ulong khs_tripped;
+    atomic_long  khs_err; /* first merr since last clear */
 };
 
 struct kvdb_health {
-    atomic_t                krx_tripped_mask;
+    atomic_uint             krx_tripped_mask;
     struct kvdb_health_stat krx_nomem;
     struct kvdb_health_stat krx_nospace;
     struct kvdb_health_stat krx_delblkfail;

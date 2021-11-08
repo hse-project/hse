@@ -21,8 +21,8 @@ MTF_DEFINE_UTEST(viewset_test, t_viewset_create)
 {
     struct viewset *vs;
     merr_t         err;
-    atomic64_t     seqno;
-    atomic64_t     tseqno;
+    atomic_ulong   seqno;
+    atomic_ulong   tseqno;
 
     err = viewset_create(&vs, &seqno, &tseqno);
     ASSERT_EQ(err, 0);
@@ -34,8 +34,8 @@ MTF_DEFINE_UTEST(viewset_test, t_viewset_create_enomem)
 {
     struct viewset *vs;
     merr_t          err;
-    atomic64_t      seqno;
-    atomic64_t      tseqno;
+    atomic_ulong    seqno;
+    atomic_ulong    tseqno;
     int             rc;
 
     void run(struct mtf_test_info * lcl_ti, uint i, uint j)
@@ -60,8 +60,8 @@ MTF_DEFINE_UTEST(viewset_test, t_viewset_create_enomem)
 MTF_DEFINE_UTEST(viewset_test, t_viewset_insert)
 {
     struct viewset *vs;
-    atomic64_t      vs_seqno;
-    atomic64_t      vs_tseqno;
+    atomic_ulong    vs_seqno;
+    atomic_ulong    vs_tseqno;
     long            start_seqno;
     merr_t          err;
     int             show;

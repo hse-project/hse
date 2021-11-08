@@ -48,7 +48,7 @@ c0kvs_reinit_force(size_t c0kvs_ccache_sz, size_t c0kvs_cheap_sz);
  * calls are idempotent.
  */
 void
-c0kvs_init(size_t c0kvs_ccache_sz, size_t c0kvs_cheap_sz);
+c0kvs_init(size_t c0kvs_ccache_sz, size_t c0kvs_cheap_sz) HSE_COLD;
 
 /**
  * c0kvs_fini() - clean up global c0kvs state
@@ -57,7 +57,7 @@ c0kvs_init(size_t c0kvs_ccache_sz, size_t c0kvs_cheap_sz);
  * Subsequent calls are idempotent.
  */
 void
-c0kvs_fini(void);
+c0kvs_fini(void) HSE_COLD;
 
 /**
  * c0kvs_create() - allocate/initialize a struct c0_kvset
@@ -74,8 +74,8 @@ c0kvs_fini(void);
  */
 merr_t
 c0kvs_create(
-    atomic64_t *      kvdb_seq,
-    atomic64_t *      kvms_seq,
+    atomic_ulong     *kvdb_seq,
+    atomic_ulong     *kvms_seq,
     struct c0_kvset **handlep);
 
 /**

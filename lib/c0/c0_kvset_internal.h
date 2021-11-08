@@ -42,12 +42,12 @@ struct c0_kvset_impl {
     u32                   c0s_alloc_sz;
     u32                   c0s_ccache_sz;
     u32                   c0s_reset_sz;
-    atomic_t              c0s_finalized;
+    atomic_int            c0s_finalized;
     struct c0_kvset_impl *c0s_next;
 
     /* these apply only to non-txn operations. */
-    atomic64_t *c0s_kvdb_seqno;
-    atomic64_t *c0s_kvms_seqno;
+    atomic_ulong *c0s_kvdb_seqno;
+    atomic_ulong *c0s_kvms_seqno;
 
     struct mutex c0s_mutex HSE_ALIGNED(SMP_CACHE_BYTES * 2);
 

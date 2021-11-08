@@ -60,14 +60,14 @@ struct kvdb_ctxn_bind {
 /* MTF_MOCK */
 struct kvdb_ctxn *
 kvdb_ctxn_alloc(
-    struct kvdb_keylock *   kvdb_keylock,
-    struct kvdb_pfxlock *   kvdb_pfxlock,
-    atomic64_t *            kvdb_seqno_addr,
-    struct kvdb_ctxn_set *  kvdb_ctxn_set,
-    struct viewset         *active_txn_set,
-    struct c0snr_set       *c0snrset,
-    struct c0sk *           c0sk,
-    struct wal             *wal);
+    struct kvdb_keylock  *kvdb_keylock,
+    struct kvdb_pfxlock  *kvdb_pfxlock,
+    atomic_ulong         *kvdb_seqno_addr,
+    struct kvdb_ctxn_set *kvdb_ctxn_set,
+    struct viewset       *active_txn_set,
+    struct c0snr_set     *c0snrset,
+    struct c0sk *         c0sk,
+    struct wal           *wal);
 
 /* MTF_MOCK */
 void
@@ -154,7 +154,7 @@ void
 kvdb_ctxn_set_destroy(struct kvdb_ctxn_set *handle);
 
 /* MTF_MOCK */
-atomic64_t *
+atomic_ulong *
 kvdb_ctxn_set_tseqnop_get(struct kvdb_ctxn_set *handle);
 
 /* MTF_MOCK */

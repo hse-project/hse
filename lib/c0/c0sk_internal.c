@@ -966,19 +966,19 @@ c0sk_ingest_tune(struct c0sk_impl *self)
 static HSE_ALWAYS_INLINE void
 c0sk_ingestref_get(struct c0sk_impl *self, bool is_txn, void **cookiep)
 {
-    atomic_t *ptr = NULL;
+    atomic_int *ptr = NULL;
 
     if (!is_txn) {
         uint cpu, node, idx;
 
         cpu = hse_getcpu(&node);
 
-        idx = node % (NELEM(self->c0sk_ingest_refv) / 2);
-        idx += (cpu / 2) % (NELEM(self->c0sk_ingest_refv) / 2);
+        idx = (node % 2) * (NELEM(self->c0sk_ingest_refv) / 2);
+        idx += cpu % (NELEM(self->c0sk_ingest_refv) / 2);
 
         ptr = &self->c0sk_ingest_refv[idx].refcnt;
 
-        atomic_inc(ptr);
+        atomic_inc_acq(ptr);
     }
 
     *cookiep = ptr;
@@ -988,13 +988,14 @@ static HSE_ALWAYS_INLINE void
 c0sk_ingestref_put(struct c0sk_impl *self, void *cookie)
 {
     if (cookie)
-        atomic_dec((atomic_t *)cookie);
+        atomic_dec_rel((atomic_int *)cookie);
 }
 
 static HSE_ALWAYS_INLINE void
 c0sk_ingestref_wait(struct c0sk_impl *self)
 {
     while (1) {
+        const struct timespec req = { .tv_nsec = 1000 };
         uint bits = 0, i;
 
         for (i = 0; i < NELEM(self->c0sk_ingest_refv); ++i)
@@ -1003,7 +1004,7 @@ c0sk_ingestref_wait(struct c0sk_impl *self)
         if (bits == 0)
             return;
 
-        cpu_relax();
+        nanosleep(&req, NULL);
     }
 }
 

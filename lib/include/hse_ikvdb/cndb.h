@@ -88,7 +88,7 @@ merr_t
 cndb_open(
     struct mpool *      ds,
     bool                read_only,
-    atomic64_t *        ikvdb_seqno,
+    atomic_ulong       *ikvdb_seqno,
     size_t              cndb_entries,
     u64                 oid1,
     u64                 oid2,

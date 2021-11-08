@@ -1,13 +1,16 @@
 /* SPDX-License-Identifier: Apache-2.0 */
 /*
- * Copyright (C) 2015-2020 Micron Technology, Inc.  All rights reserved.
+ * Copyright (C) 2015-2021 Micron Technology, Inc.  All rights reserved.
  */
 
 #ifndef HSE_RMLOCK_H
 #define HSE_RMLOCK_H
 
 #include <hse_util/atomic.h>
-#include <hse_util/rwsem.h>
+
+#include <pthread.h>
+
+/* clang-format off */
 
 /**
  * A "read-mostly" lock.
@@ -15,16 +18,18 @@
 struct rmlock;
 
 struct rmlock_bkt {
-    u64            rm_rwcnt;
+    u64            rm_rwcnt HSE_ALIGNED(128);
     struct rmlock *rm_lockp;
-} HSE_ALIGNED(SMP_CACHE_BYTES * 2);
+};
 
 struct rmlock {
-    atomic_t rm_writer;
-    u32      rm_bktmax;
-    struct rw_semaphore rm_sema;
-    struct rmlock_bkt  rm_bkt;
-    struct rmlock_bkt *rm_bktv;
+    struct rmlock_bkt  *rm_bktv;
+    u32                 rm_bktmax;
+
+    atomic_int          rm_writer HSE_ALIGNED(64);
+    pthread_rwlock_t    rm_rwlock;
+
+    struct rmlock_bkt   rm_bkt;
 };
 
 merr_t rmlock_init(struct rmlock *lock) HSE_COLD;
@@ -34,5 +39,7 @@ void rmlock_runlock(void *cookie);
 void rmlock_yield(struct rmlock *lock, void **cookiep);
 void rmlock_wlock(struct rmlock *lock);
 void rmlock_wunlock(struct rmlock *lock);
+
+/* clang-format on */
 
 #endif

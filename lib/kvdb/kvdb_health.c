@@ -15,9 +15,9 @@ static bool
 get_atomics(
     struct kvdb_health *health,
     uint                event,
-    atomic64_t **       tpp,
-    atomic64_t **       opp,
-    atomic64_t **       epp)
+    atomic_ulong      **tpp,
+    atomic_ulong      **opp,
+    atomic_long       **epp)
 {
     switch (event) {
     case KVDB_HEALTH_FLAG_NOMEM:
@@ -90,8 +90,9 @@ merr_to_event(merr_t err)
 merr_t
 kvdb_health_event(struct kvdb_health *health, uint event, merr_t healtherr)
 {
-    atomic64_t *tp, *op, *ep;
-    bool        valid;
+    atomic_ulong *tp, *op;
+    atomic_long *ep;
+    bool valid;
 
     if (event == KVDB_HEALTH_FLAG_NONE)
         return 0;
@@ -121,8 +122,9 @@ kvdb_health_error(struct kvdb_health *health, merr_t healtherr)
 merr_t
 kvdb_health_check(struct kvdb_health *health, uint mask)
 {
-    atomic64_t *tp, *op, *ep;
-    uint        event;
+    atomic_ulong *tp, *op;
+    atomic_long *ep;
+    uint event;
 
     assert(!(mask & ~KVDB_HEALTH_FLAG_ALL));
 
@@ -144,8 +146,9 @@ kvdb_health_check(struct kvdb_health *health, uint mask)
 merr_t
 kvdb_health_clear(struct kvdb_health *health, uint event)
 {
-    atomic64_t *tp, *op, *ep;
-    bool        valid;
+    atomic_ulong *tp, *op;
+    atomic_long *ep;
+    bool valid;
 
     valid = get_atomics(health, event, &tp, &op, &ep);
 

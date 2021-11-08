@@ -49,7 +49,7 @@ struct kvdb_ctxn_impl {
     struct kvdb_ctxn_bind  *ctxn_bind;
     struct c0sk            *ctxn_c0sk;
     struct kvdb_ctxn_set   *ctxn_kvdb_ctxn_set;
-    atomic64_t             *ctxn_kvdb_seq_addr;
+    atomic_ulong           *ctxn_kvdb_seq_addr;
     struct c0snr_set       *ctxn_c0snr_set;
 
     struct wal             *ctxn_wal HSE_ALIGNED(SMP_CACHE_BYTES * 2);
@@ -57,10 +57,10 @@ struct kvdb_ctxn_impl {
     struct viewset         *ctxn_viewset;
     void                   *ctxn_viewset_cookie;
 
-    u64                     ctxn_begin_ts HSE_ALIGNED(SMP_CACHE_BYTES);
-    struct cds_list_head    ctxn_alloc_link;
+    struct cds_list_head    ctxn_alloc_link HSE_ALIGNED(CAA_CACHE_LINE_SIZE);
     struct list_head        ctxn_free_link;
     struct list_head        ctxn_abort_link;
+    u64                     ctxn_begin_ts;
 };
 
 /* clang-format on */
