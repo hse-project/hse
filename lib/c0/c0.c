@@ -10,6 +10,7 @@
 #include <hse_util/slab.h>
 #include <hse_util/condvar.h>
 #include <hse_util/rcu.h>
+#include <hse_util/logging.h>
 
 #define MTF_MOCK_IMPL_c0
 

@@ -11,6 +11,7 @@
 #include <hse_util/data_tree.h>
 #include <hse_util/atomic.h>
 #include <hse_util/time.h>
+#include <hse_util/logging_types.h>
 
 /* clang-format off */
 
@@ -58,8 +59,6 @@ extern struct dt_element_ops event_counter_ops;
                                                                 \
         _tmp;                                                   \
     })
-
-#include <hse_util/logging.h>
 
 /* Use ev_info() for run-of-the-mill events and low overhead event
  * counting of hot paths.  It's about 10x faster than the other

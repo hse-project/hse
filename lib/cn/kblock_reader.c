@@ -1,6 +1,6 @@
 /* SPDX-License-Identifier: Apache-2.0 */
 /*
- * Copyright (C) 2015-2020 Micron Technology, Inc.  All rights reserved.
+ * Copyright (C) 2015-2021 Micron Technology, Inc.  All rights reserved.
  */
 
 #include <hse_util/hse_err.h>
@@ -12,6 +12,7 @@
 #include <hse_util/compiler.h>
 #include <hse_util/arch.h>
 #include <hse_util/bloom_filter.h>
+#include <hse_util/logging.h>
 
 #include <hse_ikvdb/kvs_rparams.h>
 #include <hse_ikvdb/tuple.h>

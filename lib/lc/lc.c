@@ -86,6 +86,7 @@
 #include <hse_util/rmlock.h>
 #include <hse_util/bin_heap.h>
 #include <hse_util/bkv_collection.h>
+#include <hse_util/logging.h>
 
 #include <c0/c0_kvset_internal.h>
 

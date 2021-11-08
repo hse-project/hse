@@ -23,6 +23,7 @@
 #include <hse_util/timer.h>
 #include <hse_util/mutex.h>
 #include <hse_util/slab.h>
+#include <hse_util/logging.h>
 
 #include <rbtree.h>
 

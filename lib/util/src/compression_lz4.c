@@ -1,11 +1,12 @@
 /* SPDX-License-Identifier: Apache-2.0 */
 /*
- * Copyright (C) 2020 Micron Technology, Inc.  All rights reserved.
+ * Copyright (C) 2021 Micron Technology, Inc.  All rights reserved.
  */
 
 #include <hse_util/assert.h>
 #include <hse_util/event_counter.h>
 #include <hse_util/compression_lz4.h>
+#include <hse_util/logging.h>
 
 #if LZ4_VERSION_NUMBER < (10000 + 900 + 2)
 #error "Need LZ4 1.9.2 or higher"

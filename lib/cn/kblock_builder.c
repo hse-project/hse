@@ -26,6 +26,7 @@
 #include <hse_util/hlog.h>
 #include <hse_util/log2.h>
 #include <hse_util/vlb.h>
+#include <hse_util/logging.h>
 
 #include "omf.h"
 #include "blk_list.h"
