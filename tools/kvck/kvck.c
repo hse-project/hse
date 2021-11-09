@@ -80,7 +80,7 @@ verify_kvset(void *ctx, struct kvset_meta *km, u64 tag)
             return 0; /* skip kvset */
     }
 
-    err = merr_to_hse_err(kc_kvset_check(info->ds, info->cp, km, khmapv));
+    err = kc_kvset_check(info->ds, info->cp, km, khmapv);
     if (err)
         info->errors = true;
 
@@ -104,7 +104,7 @@ _verify_kvs(struct cndb *cndb, int cndb_idx, struct entity *ent)
     size_t    sz = 0;
     hse_err_t err;
 
-    err = merr_to_hse_err(cndb_cn_blob_get(cndb, cn->cn_cnid, &sz, &ptr));
+    err = cndb_cn_blob_get(cndb, cn->cn_cnid, &sz, &ptr);
     if (ev(err)) {
         log_err("Failed to retrieve key hashmap blob from cndb");
         return EBUG;
@@ -386,7 +386,7 @@ main(int argc, char **argv)
             "failed to initialize kvdb: %s", errbuf);
     }
 
-    rc = merr_to_hse_err(diag_kvdb_open(mpool, db_oparm.strc, db_oparm.strv, &kvdbh));
+    rc = diag_kvdb_open(mpool, db_oparm.strc, db_oparm.strv, &kvdbh);
     if (rc) {
         hse_strerror(rc, errbuf, sizeof(errbuf));
         fatal("cannot open kvdb %s: %s", mpool, errbuf);
@@ -395,7 +395,7 @@ main(int argc, char **argv)
     if (optind < argc && !(argv[optind][0] == '0' && argv[optind][1] == 'x'))
         kvs = argv[optind++];
 
-    rc = merr_to_hse_err(diag_kvdb_get_cndb(kvdbh, &cndb));
+    rc = diag_kvdb_get_cndb(kvdbh, &cndb);
     if (rc || !cndb)
         fatal("cannot open cndb");
 
@@ -406,13 +406,13 @@ main(int argc, char **argv)
         goto out;
     }
 
-    err = merr_to_hse_err(cndb_replay(cndb, &seqno, &ingestid, &txhorizon));
+    err = cndb_replay(cndb, &seqno, &ingestid, &txhorizon);
     if (err) {
         hse_strerror(err, errbuf, sizeof(errbuf));
         fatal("cannot replay cndb: %s", errbuf);
     }
 
-    err = merr_to_hse_err(diag_kvdb_kvslist(kvdbh, kvs_tab, NELEM(kvs_tab), &kvscnt));
+    err = diag_kvdb_kvslist(kvdbh, kvs_tab, NELEM(kvs_tab), &kvscnt);
     if (err)
         fatal("cannot list kvses");
 

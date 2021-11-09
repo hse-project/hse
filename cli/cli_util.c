@@ -48,7 +48,7 @@ rest_kvs_list(const char *socket_path, const char *alias, struct yaml_context *y
     if (!buf)
         return -ENOMEM;
 
-    err = merr_to_hse_err(curl_get(url, socket_path, buf, bufsz));
+    err = curl_get(url, socket_path, buf, bufsz);
     if (err) {
         free(buf);
         return hse_err_to_errno(err);
@@ -390,7 +390,7 @@ rest_kvdb_comp(const char *socket_path, const char *alias, const char *policy)
     if (!buf)
         return ENOMEM;
 
-    err = merr_to_hse_err(curl_put(url, socket_path, 0, 0, buf, bufsz));
+    err = curl_put(url, socket_path, 0, 0, buf, bufsz);
     free(buf);
 
     return err;
@@ -410,7 +410,7 @@ rest_kvdb_status(const char *socket_path, const char *alias, size_t bufsz, char 
         return ENAMETOOLONG;
     }
 
-    err = merr_to_hse_err(curl_get(url, socket_path, buf, bufsz));
+    err = curl_get(url, socket_path, buf, bufsz);
     if (err)
         return err;
 
@@ -425,7 +425,7 @@ rest_kvdb_params(const char *socket_path, size_t bufsz, char *buf)
 
     snprintf(url, sizeof(url), "data/config/kvdb");
 
-    err = merr_to_hse_err(curl_get(url, socket_path, buf, bufsz));
+    err = curl_get(url, socket_path, buf, bufsz);
     if (err)
         return err;
 
@@ -487,7 +487,7 @@ rest_status_parse(const char *buf, struct hse_kvdb_compact_status *status)
         p += strspn(p, " ");
 
         /* parse an integer */
-        err = merr_to_hse_err(parse_u64_range(p, &end, 0, UINT_MAX, &v));
+        err = parse_u64_range(p, &end, 0, UINT_MAX, &v);
         if (err)
             return -3;
         if (*end != '\0' && *end != '\n')

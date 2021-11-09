@@ -311,7 +311,7 @@ read_rec(struct tool_info *ti, size_t *len)
      * read from file
      */
     if (!ti->rpath) {
-        err = merr_to_hse_err(mpool_mdc_read(ti->cndb->cndb_mdc, ti->buf, ti->bufsz, len));
+        err = mpool_mdc_read(ti->cndb->cndb_mdc, ti->buf, ti->bufsz, len);
         if (hse_err_to_errno(err) == EOVERFLOW) {
             log_info("bufsz:%lu, reclen:%lu\n", ti->bufsz, *len);
             ti->bufsz = *len;
@@ -320,7 +320,7 @@ read_rec(struct tool_info *ti, size_t *len)
                 return ENOMEM;
 
             memset(ti->buf, 0, ti->bufsz);
-            err = merr_to_hse_err(mpool_mdc_read(ti->cndb->cndb_mdc, ti->buf, ti->bufsz, len));
+            err = mpool_mdc_read(ti->cndb->cndb_mdc, ti->buf, ti->bufsz, len);
         }
         return err;
     }
@@ -351,7 +351,7 @@ printbuf(struct tool_info *ti, u32 cndb_version, struct cndb_hdr_omf *hdr)
     u32             type;
 
     type = omf_cnhdr_type(hdr);
-    err = merr_to_hse_err(cndb_record_unpack(cndb_version, hdr, &mtu));
+    err = cndb_record_unpack(cndb_version, hdr, &mtu);
     if (err) {
         char errbuf[300];
 
@@ -475,7 +475,7 @@ replay_log(struct tool_info *ti)
     ti->cndb->cndb_read_only = true;
 
     /* read the version record, then rewind. */
-    err = merr_to_hse_err(mpool_mdc_read(ti->cndb->cndb_mdc, ti->cndb->cndb_cbuf, ti->cndb->cndb_cbufsz, &len));
+    err = mpool_mdc_read(ti->cndb->cndb_mdc, ti->cndb->cndb_cbuf, ti->cndb->cndb_cbufsz, &len);
     if (ev(err))
         return err;
 
@@ -483,14 +483,14 @@ replay_log(struct tool_info *ti)
     if (cndb_version > CNDB_VERSION)
         return ev(EPROTO);
 
-    err = merr_to_hse_err(mpool_mdc_rewind(ti->cndb->cndb_mdc));
+    err = mpool_mdc_rewind(ti->cndb->cndb_mdc);
     if (ev(err))
         return err;
 
-    err = merr_to_hse_err(ev(cndb_replay(ti->cndb, &seqno, &ingestid, &txhorizon)));
+    err = ev(cndb_replay(ti->cndb, &seqno, &ingestid, &txhorizon));
 
     fileoff = 0;
-    err = merr_to_hse_err(cndb_record_unpack(cndb_version, ti->cndb->cndb_cbuf, &mtu));
+    err = cndb_record_unpack(cndb_version, ti->cndb->cndb_cbuf, &mtu);
     if (err) {
         printf("error unpacking version record %d\n", hse_err_to_errno(err));
         free(mtu);
@@ -522,7 +522,7 @@ replay_log(struct tool_info *ti)
 
         omf_set_cninfo_metasz(inf, sz);
 
-        err = merr_to_hse_err(cndb_record_unpack(CNDB_VERSION, &inf->hdr, &mtu));
+        err = cndb_record_unpack(CNDB_VERSION, &inf->hdr, &mtu);
         if (err) {
             printf("error unpacking info record %d\n", hse_err_to_errno(err));
             free(mtu);
@@ -537,7 +537,7 @@ replay_log(struct tool_info *ti)
     }
 
     for (i = 0; i < ti->cndb->cndb_keepc; i++) {
-        err = merr_to_hse_err(mtx2omf(ti->cndb, hdr, ti->cndb->cndb_keepv[i]));
+        err = mtx2omf(ti->cndb, hdr, ti->cndb->cndb_keepv[i]);
         if (ev(err))
             break;
 
@@ -553,7 +553,7 @@ replay_log(struct tool_info *ti)
             printf("work item %d/%lu is NULL!\n", i, (ulong)ti->cndb->cndb_workc);
             continue;
         }
-        err = merr_to_hse_err(mtx2omf(ti->cndb, hdr, ti->cndb->cndb_workv[i]));
+        err = mtx2omf(ti->cndb, hdr, ti->cndb->cndb_workv[i]);
         if (ev(err))
             break;
 

@@ -102,27 +102,27 @@ hse_init(const char *const config, const size_t paramc, const char *const *const
     err = argv_deserialize_to_hse_gparams(paramc, paramv, &hse_gparams);
     if (err) {
         fprintf(stderr, "Failed to deserialize paramv for HSE gparams\n");
-        return merr_to_hse_err(err);
+        return err;
     }
 
     err = config_from_hse_conf(config, &conf);
     if (err) {
         fprintf(stderr, "Failed to read HSE config file (%s)\n", config);
-        return merr_to_hse_err(err);
+        return err;
     }
 
     err = config_deserialize_to_hse_gparams(conf, &hse_gparams);
     config_destroy(conf);
     if (err) {
         fprintf(stderr, "Failed to deserialize config file (%s) for HSE gparams\n", config);
-        return merr_to_hse_err(err);
+        return err;
     }
 
     hse_lowmem_adjust(&memgb);
 
     err = hse_platform_init();
     if (err)
-        return merr_to_hse_err(err);
+        return err;
 
     log_info("Memory available: %lu GiB", memgb);
 
@@ -130,7 +130,7 @@ hse_init(const char *const config, const size_t paramc, const char *const *const
     if (err) {
         hse_platform_fini();
 
-        return merr_to_hse_err(err);
+        return err;
     }
 
     if (hse_gparams.gp_socket.enabled) {
@@ -176,19 +176,19 @@ hse_kvdb_create(const char *kvdb_home, size_t paramc, const char *const *const p
 
     if (HSE_UNLIKELY(!kvdb_home)) {
         log_err("A KVDB home must be provided");
-        return merr_to_hse_err(EINVAL);
+        return merr(EINVAL);
     }
 
     n = strnlen(kvdb_home, PATH_MAX);
 
     if (HSE_UNLIKELY(n == PATH_MAX)) {
         log_err("KVDB home path length cannot be longer than PATH_MAX");
-        return merr_to_hse_err(ENAMETOOLONG);
+        return merr(ENAMETOOLONG);
     }
 
     if (HSE_UNLIKELY(n == 0)) {
         log_err("KVDB home must be a non-zero length path");
-        return merr_to_hse_err(EINVAL);
+        return merr(EINVAL);
     }
 
     tstart = perfc_lat_start(&kvdb_pkvdbl_pc);
@@ -197,7 +197,7 @@ hse_kvdb_create(const char *kvdb_home, size_t paramc, const char *const *const p
     err = argv_deserialize_to_kvdb_cparams(paramc, paramv, &dbparams);
     if (ev(err)) {
         log_errx("Failed to deserialize paramv for KVDB (%s) cparams: @@e", err, kvdb_home);
-        return merr_to_hse_err(err);
+        return err;
     }
 
     err = kvdb_cparams_resolve(&dbparams, kvdb_home);
@@ -238,7 +238,7 @@ out:
         err = merr(errno);
     pfh = NULL;
 
-    return merr_to_hse_err(err);
+    return err;
 }
 
 hse_err_t
@@ -251,19 +251,19 @@ hse_kvdb_drop(const char *kvdb_home)
 
     if (HSE_UNLIKELY(!kvdb_home)) {
         log_err("A KVDB home must be provided");
-        return merr_to_hse_err(EINVAL);
+        return merr(EINVAL);
     }
 
     n = strnlen(kvdb_home, PATH_MAX);
 
     if (HSE_UNLIKELY(n == PATH_MAX)) {
         log_err("KVDB home path length cannot be longer than PATH_MAX");
-        return merr_to_hse_err(ENAMETOOLONG);
+        return merr(ENAMETOOLONG);
     }
 
     if (HSE_UNLIKELY(n == 0)) {
         log_err("KVDB home must be a non-zero length path");
-        return merr_to_hse_err(EINVAL);
+        return merr(EINVAL);
     }
 
     err = kvdb_home_pidfile_path_get(kvdb_home, pidfile_path, sizeof(pidfile_path));
@@ -289,7 +289,7 @@ out:
     if (pfh)
         pidfile_remove(pfh);
 
-    return merr_to_hse_err(err);
+    return err;
 }
 
 hse_err_t
@@ -311,22 +311,22 @@ hse_kvdb_open(
 
     if (HSE_UNLIKELY(!kvdb_home)) {
         log_err("A KVDB home must be provided");
-        return merr_to_hse_err(EINVAL);
+        return merr(EINVAL);
     }
 
     if (HSE_UNLIKELY(!handle))
-        return merr_to_hse_err(merr(EINVAL));
+        return merr(EINVAL);
 
     n = strnlen(kvdb_home, PATH_MAX);
 
     if (HSE_UNLIKELY(n == PATH_MAX)) {
         log_err("KVDB home path length cannot be longer than PATH_MAX");
-        return merr_to_hse_err(ENAMETOOLONG);
+        return merr(ENAMETOOLONG);
     }
 
     if (HSE_UNLIKELY(n == 0)) {
         log_err("KVDB home must be a non-zero length path");
-        return merr_to_hse_err(EINVAL);
+        return merr(EINVAL);
     }
 
     tstart = perfc_lat_start(&kvdb_pkvdbl_pc);
@@ -407,7 +407,7 @@ out:
         ikvdb_close(ikvdb);
     }
 
-    return merr_to_hse_err(err);
+    return err;
 }
 
 hse_err_t
@@ -418,7 +418,7 @@ hse_kvdb_close(struct hse_kvdb *handle)
     struct config *conf;
 
     if (HSE_UNLIKELY(!handle))
-        return merr_to_hse_err(merr(EINVAL));
+        return merr(EINVAL);
 
     perfc_inc(&kvdb_pc, PERFC_RA_KVDBOP_KVDB_CLOSE);
 
@@ -434,7 +434,7 @@ hse_kvdb_close(struct hse_kvdb *handle)
 
     config_destroy(conf);
 
-    return merr_to_hse_err(err);
+    return err;
 }
 
 hse_err_t
@@ -443,14 +443,14 @@ hse_kvdb_kvs_names_get(struct hse_kvdb *handle, size_t *namec, char ***namev)
     merr_t err;
 
     if (HSE_UNLIKELY(!handle || !namev))
-        return merr_to_hse_err(merr(EINVAL));
+        return merr(EINVAL);
 
     perfc_inc(&kvdb_pc, PERFC_RA_KVDBOP_KVDB_KVS_NAMES_GET);
 
     err = ikvdb_kvs_names_get((struct ikvdb *)handle, namec, namev);
     ev(err);
 
-    return merr_to_hse_err(err);
+    return err;
 }
 
 void
@@ -472,26 +472,26 @@ hse_kvdb_kvs_create(
     merr_t             err;
 
     if (HSE_UNLIKELY(!handle))
-        return merr_to_hse_err(merr(EINVAL));
+        return merr(EINVAL);
 
     perfc_inc(&kvdb_pc, PERFC_RA_KVDBOP_KVDB_KVS_CREATE);
 
     err = validate_kvs_name(kvs_name);
     if (ev(err)) {
         log_errx("Invalid KVS name: %s, must match the regex [-_A-Za-z0-9]: @@e", err, kvs_name);
-        return merr_to_hse_err(err);
+        return err;
     }
 
     err = argv_deserialize_to_kvs_cparams(paramc, paramv, &params);
     if (ev(err)) {
         log_errx("Failed to deserialize paramv for KVS (%s) cparams: @@e", err, kvs_name);
-        return merr_to_hse_err(err);
+        return err;
     }
 
     err = ikvdb_kvs_create((struct ikvdb *)handle, kvs_name, &params);
     ev(err);
 
-    return merr_to_hse_err(err);
+    return err;
 }
 
 hse_err_t
@@ -500,14 +500,14 @@ hse_kvdb_kvs_drop(struct hse_kvdb *handle, const char *const kvs_name)
     merr_t err;
 
     if (HSE_UNLIKELY(!handle || !kvs_name))
-        return merr_to_hse_err(merr(EINVAL));
+        return merr(EINVAL);
 
     perfc_inc(&kvdb_pc, PERFC_RA_KVDBOP_KVDB_KVS_DROP);
 
     err = ikvdb_kvs_drop((struct ikvdb *)handle, kvs_name);
     ev(err);
 
-    return merr_to_hse_err(err);
+    return err;
 }
 
 hse_err_t
@@ -523,7 +523,7 @@ hse_kvdb_kvs_open(
     u64                tstart;
 
     if (HSE_UNLIKELY(!handle || !kvs_name || !kvs_out))
-        return merr_to_hse_err(merr(EINVAL));
+        return merr(EINVAL);
 
     tstart = perfc_lat_start(&kvdb_pkvdbl_pc);
     perfc_inc(&kvdb_pc, PERFC_RA_KVDBOP_KVDB_KVS_OPEN);
@@ -531,7 +531,7 @@ hse_kvdb_kvs_open(
     err = argv_deserialize_to_kvs_rparams(paramc, paramv, &params);
     if (ev(err)) {
         log_errx("Failed to deserialize paramv for KVS (%s) rparams: @@e", err, kvs_name);
-        return merr_to_hse_err(err);
+        return err;
     }
 
     err = ikvdb_kvs_open((struct ikvdb *)handle, kvs_name, &params, IKVS_OFLAG_NONE, kvs_out);
@@ -539,7 +539,7 @@ hse_kvdb_kvs_open(
 
     perfc_lat_record(&kvdb_pkvdbl_pc, PERFC_LT_PKVDBL_KVS_OPEN, tstart);
 
-    return merr_to_hse_err(err);
+    return err;
 }
 
 hse_err_t
@@ -548,25 +548,25 @@ hse_kvdb_kvs_close(struct hse_kvs *handle)
     merr_t err;
 
     if (HSE_UNLIKELY(!handle))
-        return merr_to_hse_err(merr(EINVAL));
+        return merr(EINVAL);
 
     perfc_inc(&kvdb_pc, PERFC_RA_KVDBOP_KVDB_KVS_CLOSE);
 
     err = ikvdb_kvs_close((struct hse_kvs *)handle);
     ev(err);
 
-    return merr_to_hse_err(err);
+    return err;
 }
 
 hse_err_t
 hse_kvdb_storage_info_get(struct hse_kvdb *kvdb, struct hse_kvdb_storage_info *info)
 {
     if (HSE_UNLIKELY(!kvdb || !info))
-        return merr_to_hse_err(merr(EINVAL));
+        return merr(EINVAL);
 
     memset(info, 0, sizeof(*info));
 
-    return merr_to_hse_err(ikvdb_storage_info_get((struct ikvdb *)kvdb, info));
+    return ikvdb_storage_info_get((struct ikvdb *)kvdb, info);
 }
 
 hse_err_t
@@ -580,12 +580,12 @@ hse_kvdb_storage_add(const char *kvdb_home, size_t paramc, const char *const *co
 
     if (HSE_UNLIKELY(!kvdb_home)) {
         log_err("A KVDB home must be provided");
-        return merr_to_hse_err(EINVAL);
+        return merr(EINVAL);
     }
 
     if (HSE_UNLIKELY(!paramv || paramc == 0)) {
         log_err("Cannot add storage to the the KVDB (%s) if paramv is empty", kvdb_home);
-        return merr_to_hse_err(merr(EINVAL));
+        return merr(EINVAL);
     }
 
     /* Make the default capacity path an empty string. This is to catch the usage
@@ -596,13 +596,13 @@ hse_kvdb_storage_add(const char *kvdb_home, size_t paramc, const char *const *co
     err = argv_deserialize_to_kvdb_cparams(paramc, paramv, &cparams);
     if (err) {
         log_errx("Failed to deserialize paramv for KVDB (%s) cparams: @@e", err, kvdb_home);
-        return merr_to_hse_err(err);
+        return err;
     }
 
     err = kvdb_cparams_resolve(&cparams, kvdb_home);
     if (err) {
         log_errx("Failed to resolve KVDB (%s) cparams: @@e", err, kvdb_home);
-        return merr_to_hse_err(err);
+        return err;
     }
 
     if (cparams.storage.mclass[MP_MED_CAPACITY].path[0] != '\0') {
@@ -610,13 +610,13 @@ hse_kvdb_storage_add(const char *kvdb_home, size_t paramc, const char *const *co
             "Cannot add %s to %s: capacity media class path must be provided only at KVDB create",
             cparams.storage.mclass[MP_MED_CAPACITY].path,
             kvdb_home);
-        return merr_to_hse_err(merr(EINVAL));
+        return merr(EINVAL);
     }
 
     err = kvdb_home_pidfile_path_get(kvdb_home, pidfile_path, sizeof(pidfile_path));
     if (err) {
         log_errx("Failed to create KVDB pidfile path (%s)/kvdb.pid: @@e", err, kvdb_home);
-        return merr_to_hse_err(err);
+        return err;
     }
 
     pfh = pidfile_open(pidfile_path, S_IRUSR | S_IWUSR, NULL);
@@ -640,7 +640,7 @@ out:
     if (pidfile_remove(pfh) == -1 && !err)
         err = merr(errno);
 
-    return merr_to_hse_err(err);
+    return err;
 }
 
 hse_err_t
@@ -658,16 +658,16 @@ hse_kvs_put(
     merr_t            err;
 
     if (HSE_UNLIKELY(!handle || !key || (val_len > 0 && !val) || flags & ~HSE_KVS_PUT_MASK))
-        return merr_to_hse_err(merr(EINVAL));
+        return merr(EINVAL);
 
     if (HSE_UNLIKELY(key_len > HSE_KVS_KEY_LEN_MAX))
-        return merr_to_hse_err(merr(ENAMETOOLONG));
+        return merr(ENAMETOOLONG);
 
     if (HSE_UNLIKELY(key_len == 0))
-        return merr_to_hse_err(merr(ENOENT));
+        return merr(ENOENT);
 
     if (HSE_UNLIKELY(val_len > HSE_KVS_VALUE_LEN_MAX))
-        return merr_to_hse_err(merr(EMSGSIZE));
+        return merr(EMSGSIZE);
 
     kvs_ktuple_init_nohash(&kt, key, key_len);
     kvs_vtuple_init(&vt, (void *)val, val_len);
@@ -679,7 +679,7 @@ hse_kvs_put(
         PERFC_INCADD_RU(
             &kvdb_pc, PERFC_RA_KVDBOP_KVS_PUT, PERFC_RA_KVDBOP_KVS_PUTB, key_len + val_len);
 
-    return merr_to_hse_err(err);
+    return err;
 }
 
 hse_err_t
@@ -700,16 +700,16 @@ hse_kvs_get(
     merr_t              err;
 
     if (HSE_UNLIKELY(!handle || !key || !found || !val_len || flags != 0))
-        return merr_to_hse_err(merr(EINVAL));
+        return merr(EINVAL);
 
     if (HSE_UNLIKELY(!valbuf && valbuf_sz > 0))
-        return merr_to_hse_err(merr(EINVAL));
+        return merr(EINVAL);
 
     if (HSE_UNLIKELY(key_len > HSE_KVS_KEY_LEN_MAX))
-        return merr_to_hse_err(merr(ENAMETOOLONG));
+        return merr(ENAMETOOLONG);
 
     if (HSE_UNLIKELY(key_len == 0))
-        return merr_to_hse_err(merr(ENOENT));
+        return merr(ENOENT);
 
     /* If valbuf is NULL and valbuf_sz is zero, this call is meant as a
      * probe for the existence of the key and length of its value. To
@@ -724,7 +724,7 @@ hse_kvs_get(
 
     err = ikvdb_kvs_get(handle, flags, txn, &kt, &res, &vbuf);
     if (ev(err))
-        return merr_to_hse_err(err);
+        return err;
 
     /* If the key is found then vbuf.b_len contains the length of the value
      * stored in the kvs.  We expect it to fit into output buffer.
@@ -733,7 +733,7 @@ hse_kvs_get(
     *val_len = vbuf.b_len;
 
     if (ev(res == FOUND_MULTIPLE))
-        return merr_to_hse_err(merr(EPROTO));
+        return merr(EPROTO);
 
     PERFC_INCADD_RU(
         &kvdb_pc, PERFC_RA_KVDBOP_KVS_GET, PERFC_RA_KVDBOP_KVS_GETB, *found ? *val_len : 0);
@@ -756,13 +756,13 @@ hse_kvs_delete(
     struct kvs_ktuple kt;
 
     if (HSE_UNLIKELY(!handle || !key || flags != 0))
-        return merr_to_hse_err(merr(EINVAL));
+        return merr(EINVAL);
 
     if (HSE_UNLIKELY(key_len > HSE_KVS_KEY_LEN_MAX))
-        return merr_to_hse_err(merr(ENAMETOOLONG));
+        return merr(ENAMETOOLONG);
 
     if (HSE_UNLIKELY(key_len == 0))
-        return merr_to_hse_err(merr(ENOENT));
+        return merr(ENOENT);
 
     kvs_ktuple_init_nohash(&kt, key, key_len);
 
@@ -772,7 +772,7 @@ hse_kvs_delete(
     if (!err)
         PERFC_INCADD_RU(&kvdb_pc, PERFC_RA_KVDBOP_KVS_DEL, PERFC_RA_KVDBOP_KVS_DELB, key_len);
 
-    return merr_to_hse_err(err);
+    return err;
 }
 
 hse_err_t
@@ -787,10 +787,10 @@ hse_kvs_prefix_delete(
     struct kvs_ktuple kt;
 
     if (HSE_UNLIKELY(!handle || flags != 0))
-        return merr_to_hse_err(merr(EINVAL));
+        return merr(EINVAL);
 
     if (HSE_UNLIKELY(pfx_len > HSE_KVS_PFX_LEN_MAX))
-        return merr_to_hse_err(merr(ENAMETOOLONG));
+        return merr(ENAMETOOLONG);
 
     kvs_ktuple_init(&kt, pfx, pfx_len);
 
@@ -801,7 +801,7 @@ hse_kvs_prefix_delete(
         PERFC_INCADD_RU(
             &kvdb_pc, PERFC_RA_KVDBOP_KVS_PFX_DEL, PERFC_RA_KVDBOP_KVS_PFX_DELB, pfx_len);
 
-    return merr_to_hse_err(err);
+    return err;
 }
 
 hse_err_t
@@ -811,7 +811,7 @@ hse_kvdb_sync(struct hse_kvdb *handle, const unsigned int flags)
     u64    tstart;
 
     if (HSE_UNLIKELY(!handle || flags & ~HSE_KVDB_SYNC_MASK))
-        return merr_to_hse_err(merr(EINVAL));
+        return merr(EINVAL);
 
     tstart = perfc_lat_startl(&kvdb_pkvdbl_pc, PERFC_SL_PKVDBL_KVDB_SYNC);
     perfc_inc(&kvdb_pc, PERFC_RA_KVDBOP_KVDB_SYNC);
@@ -821,7 +821,7 @@ hse_kvdb_sync(struct hse_kvdb *handle, const unsigned int flags)
 
     perfc_sl_record(&kvdb_pkvdbl_pc, PERFC_SL_PKVDBL_KVDB_SYNC, tstart);
 
-    return merr_to_hse_err(err);
+    return err;
 }
 
 struct hse_kvdb_txn *
@@ -853,7 +853,7 @@ hse_kvdb_txn_begin(struct hse_kvdb *handle, struct hse_kvdb_txn *txn)
     u64    tstart;
 
     if (HSE_UNLIKELY(!handle || !txn))
-        return merr_to_hse_err(merr(EINVAL));
+        return merr(EINVAL);
 
     tstart = kvdb_lat_startu(PERFC_LT_PKVDBL_KVDB_TXN_BEGIN);
     PERFC_INC_RU(&kvdb_pc, PERFC_RA_KVDBOP_KVDB_TXN_BEGIN);
@@ -863,7 +863,7 @@ hse_kvdb_txn_begin(struct hse_kvdb *handle, struct hse_kvdb_txn *txn)
 
     kvdb_lat_record(PERFC_LT_PKVDBL_KVDB_TXN_BEGIN, tstart);
 
-    return merr_to_hse_err(err);
+    return err;
 }
 
 hse_err_t
@@ -873,7 +873,7 @@ hse_kvdb_txn_commit(struct hse_kvdb *handle, struct hse_kvdb_txn *txn)
     u64    tstart;
 
     if (HSE_UNLIKELY(!handle || !txn))
-        return merr_to_hse_err(merr(EINVAL));
+        return merr(EINVAL);
 
     tstart = kvdb_lat_startu(PERFC_LT_PKVDBL_KVDB_TXN_COMMIT);
     PERFC_INC_RU(&kvdb_pc, PERFC_RA_KVDBOP_KVDB_TXN_COMMIT);
@@ -883,7 +883,7 @@ hse_kvdb_txn_commit(struct hse_kvdb *handle, struct hse_kvdb_txn *txn)
 
     kvdb_lat_record(PERFC_LT_PKVDBL_KVDB_TXN_COMMIT, tstart);
 
-    return merr_to_hse_err(err);
+    return err;
 }
 
 hse_err_t
@@ -893,7 +893,7 @@ hse_kvdb_txn_abort(struct hse_kvdb *handle, struct hse_kvdb_txn *txn)
     u64    tstart;
 
     if (HSE_UNLIKELY(!handle || !txn))
-        return merr_to_hse_err(merr(EINVAL));
+        return merr(EINVAL);
 
     tstart = kvdb_lat_startu(PERFC_LT_PKVDBL_KVDB_TXN_ABORT);
     PERFC_INC_RU(&kvdb_pc, PERFC_RA_KVDBOP_KVDB_TXN_ABORT);
@@ -903,7 +903,7 @@ hse_kvdb_txn_abort(struct hse_kvdb *handle, struct hse_kvdb_txn *txn)
 
     kvdb_lat_record(PERFC_LT_PKVDBL_KVDB_TXN_ABORT, tstart);
 
-    return merr_to_hse_err(err);
+    return err;
 }
 
 enum hse_kvdb_txn_state
@@ -958,7 +958,7 @@ hse_kvs_cursor_create(
     u64    t_cur;
 
     if (HSE_UNLIKELY(!handle || !cursor || (pfx_len && !prefix) || flags & ~HSE_CURSOR_CREATE_MASK))
-        return merr_to_hse_err(merr(EINVAL));
+        return merr(EINVAL);
 
     PERFC_INC_RU(&kvdb_pc, PERFC_RA_KVDBOP_KVS_CURSOR_CREATE);
 
@@ -970,7 +970,7 @@ hse_kvs_cursor_create(
     if (t_cur > MAX_CUR_TIME)
         log_errx("cursor create taking too long: %lus: @@e", err, t_cur / NSEC_PER_SEC);
 
-    return merr_to_hse_err(err);
+    return err;
 }
 
 hse_err_t
@@ -979,14 +979,14 @@ hse_kvs_cursor_update_view(struct hse_kvs_cursor *cursor, const unsigned int fla
     merr_t err;
 
     if (HSE_UNLIKELY(!cursor || flags != 0))
-        return merr_to_hse_err(merr(EINVAL));
+        return merr(EINVAL);
 
     PERFC_INC_RU(&kvdb_pc, PERFC_RA_KVDBOP_KVS_CURSOR_UPDATE);
 
     err = ikvdb_kvs_cursor_update_view(cursor, flags);
     ev(err);
 
-    return merr_to_hse_err(err);
+    return err;
 }
 
 hse_err_t
@@ -1002,7 +1002,7 @@ hse_kvs_cursor_seek(
     merr_t            err;
 
     if (HSE_UNLIKELY(!cursor || flags != 0))
-        return merr_to_hse_err(merr(EINVAL));
+        return merr(EINVAL);
 
     PERFC_INC_RU(&kvdb_pc, PERFC_RA_KVDBOP_KVS_CURSOR_SEEK);
 
@@ -1015,7 +1015,7 @@ hse_kvs_cursor_seek(
         *flen = kt.kt_len;
     }
 
-    return merr_to_hse_err(err);
+    return err;
 }
 
 hse_err_t
@@ -1033,7 +1033,7 @@ hse_kvs_cursor_seek_range(
     merr_t            err;
 
     if (HSE_UNLIKELY(!cursor || flags != 0))
-        return merr_to_hse_err(merr(EINVAL));
+        return merr(EINVAL);
 
     PERFC_INC_RU(&kvdb_pc, PERFC_RA_KVDBOP_KVS_CURSOR_SEEK);
 
@@ -1046,7 +1046,7 @@ hse_kvs_cursor_seek_range(
         *flen = kt.kt_len;
     }
 
-    return merr_to_hse_err(err);
+    return err;
 }
 
 hse_err_t
@@ -1062,7 +1062,7 @@ hse_kvs_cursor_read(
     merr_t err;
 
     if (HSE_UNLIKELY(!cursor || !key || !klen || !val || !vlen || !eof || flags != 0))
-        return merr_to_hse_err(merr(EINVAL));
+        return merr(EINVAL);
 
     err = ikvdb_kvs_cursor_read(cursor, flags, key, klen, val, vlen, eof);
     ev(err);
@@ -1072,7 +1072,7 @@ hse_kvs_cursor_read(
             &kvdb_pc, PERFC_RA_KVDBOP_KVS_CURSOR_READ, PERFC_RA_KVDBOP_KVS_GETB, *klen + *vlen);
     }
 
-    return merr_to_hse_err(err);
+    return err;
 }
 
 hse_err_t
@@ -1081,21 +1081,21 @@ hse_kvs_cursor_destroy(struct hse_kvs_cursor *cursor)
     merr_t err;
 
     if (HSE_UNLIKELY(!cursor))
-        return merr_to_hse_err(merr(EINVAL));
+        return merr(EINVAL);
 
     PERFC_INC_RU(&kvdb_pc, PERFC_RA_KVDBOP_KVS_CURSOR_DESTROY);
 
     err = ikvdb_kvs_cursor_destroy(cursor);
     ev(err);
 
-    return merr_to_hse_err(err);
+    return err;
 }
 
 hse_err_t
 hse_kvdb_compact(struct hse_kvdb *handle, unsigned int flags)
 {
     if (HSE_UNLIKELY(!handle))
-        return merr_to_hse_err(merr(EINVAL));
+        return merr(EINVAL);
 
     ikvdb_compact((struct ikvdb *)handle, flags);
 
@@ -1106,7 +1106,7 @@ hse_err_t
 hse_kvdb_compact_status_get(struct hse_kvdb *handle, struct hse_kvdb_compact_status *status)
 {
     if (HSE_UNLIKELY(!handle || !status))
-        return merr_to_hse_err(merr(EINVAL));
+        return merr(EINVAL);
 
     memset(status, 0, sizeof(*status));
     ikvdb_compact_status_get((struct ikvdb *)handle, status);
@@ -1130,7 +1130,7 @@ hse_err_to_errno(hse_err_t err)
     return merr_errno(err);
 }
 
-uint16_t
+enum hse_err_ctx
 hse_err_to_ctx(const hse_err_t err)
 {
     return merr_ctx(err);
