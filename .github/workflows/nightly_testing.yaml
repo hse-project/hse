@@ -8,6 +8,9 @@ on:
         required: true
         default: "master"
 
+env:
+  MESON_TESTTHREADS: 1
+
 jobs:
   nightly_ub:
     runs-on: ${{ matrix.os }}
@@ -50,7 +53,7 @@ jobs:
 
       - name: Run tests
         run: |
-          poetry run meson test -C builddir --suite=nightly-small --num-processes=1 --print-errorlogs --no-stdsplit
+          poetry run meson test -C builddir --suite=nightly-small --print-errorlogs --no-stdsplit
 
       - uses: actions/upload-artifact@v2
         if: failure()
