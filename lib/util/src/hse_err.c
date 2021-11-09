@@ -35,7 +35,7 @@ merr_pack(int errno_value, const enum hse_err_ctx ctx, const char *file, int lin
     INVARIANT(file);
     INVARIANT(line > 0);
 
-    if (errnum == 0)
+    if (errno_value == 0)
         return 0;
 
     if (!file)
@@ -104,15 +104,15 @@ size_t
 merr_strerror(merr_t err, char *buf, size_t buf_sz)
 {
     char errbuf[1024], *errmsg;
-    int errnum = merr_errno(err);
+    int errno_value = merr_errno(err);
 
-    if (errnum == EBUG)
+    if (errno_value == EBUG)
         return strlcpy(buf, "HSE software bug", buf_sz);
 
-    /* GNU strerror only modifies errbuf if errnum is invalid.
+    /* GNU strerror only modifies errbuf if errno_value is invalid.
      * It will only return NULL if errbuf is NULL.
      */
-    errmsg = strerror_r(errnum, errbuf, sizeof(errbuf));
+    errmsg = strerror_r(errno_value, errbuf, sizeof(errbuf));
 
     return strlcpy(buf, errmsg, buf_sz);
 }
