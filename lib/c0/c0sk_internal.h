@@ -13,6 +13,7 @@
 #include <hse_util/condvar.h>
 #include <hse_util/cds_list.h>
 #include <hse_util/perfc.h>
+#include <hse_util/workqueue.h>
 
 #include <hse_ikvdb/kvdb_rparams.h>
 
@@ -27,6 +28,8 @@
 struct rcu_head;
 struct c0_kvmultiset;
 struct csched;
+struct kvs_ktuple;
+struct kvs_vtuple;
 
 #define TOMBSPAN_INVALIDATE_COUNT 256
 #define c0sk_h2r(handle)          container_of(handle, struct c0sk_impl, c0sk_handle)
