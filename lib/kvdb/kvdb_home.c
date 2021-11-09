@@ -36,7 +36,7 @@ path_copy(const char *home, const char *path, char *buf, const size_t buf_sz)
         return 0;
     }
 
-    n = snprintf(buf, buf_sz, "%s/%s", home, path);
+    n = snprintf(buf, buf_sz, "%s%s%s", home, home[strlen(home)] == '/' ? "" : "/", path);
     if (n >= buf_sz)
         return merr(ENAMETOOLONG);
     if (n < 0)
