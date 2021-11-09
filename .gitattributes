@@ -1,0 +1,7 @@
+* text=auto
+
+# https://github.com/github/linguist/blob/master/docs/overrides.md
+
+hse.pid   linguist-language=JSON
+hse.conf  linguist-language=JSON
+kvdb.conf linguist-language=JSON
