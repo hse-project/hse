@@ -6,7 +6,6 @@
 #ifndef MPOOL_H
 #define MPOOL_H
 
-#include "hse_util/compiler.h"
 #include <mpool/mpool_structs.h>
 
 #include <hse_util/hse_err.h>

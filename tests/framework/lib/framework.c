@@ -5,6 +5,7 @@
 
 #include <mtf/framework.h>
 
+#include <hse_util/base.h>
 #include <hse_ikvdb/hse_gparams.h>
 
 #include <getopt.h>

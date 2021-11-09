@@ -10,6 +10,7 @@
 #include <hse_ikvdb/limits.h>
 #include <hse_ikvdb/param.h>
 #include <hse_ikvdb/kvs_cparams.h>
+#include <hse_util/base.h>
 
 static const struct param_spec pspecs[] = {
     {

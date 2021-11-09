@@ -305,7 +305,7 @@ large_buf_get(
     memset(str, 'x', LONG_STR_SIZE);
     ret = rest_write_safe(info->resp_fd, str, LONG_STR_SIZE);
     if (ev(ret < 0))
-        return merr(-ret);
+        return merr(ret);
 
     free(str);
     return 0;

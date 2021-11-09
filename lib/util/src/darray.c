@@ -15,7 +15,7 @@ darray_init(struct darray *da, int cap)
     da->cur = 0;
     da->cap = cap;
     da->arr = calloc(cap, sizeof(void *));
-    return da->arr ? 0 : -ENOMEM;
+    return da->arr ? 0 : ENOMEM;
 }
 
 void
@@ -54,7 +54,7 @@ darray_reserve(struct darray *da, int n)
         n *= quantum;
         na = calloc(n, sizeof(void *));
         if (ev(!na))
-            return -ENOMEM;
+            return ENOMEM;
         if (da->arr) {
             memcpy(na, da->arr, da->cur * sizeof(void *));
             free(da->arr);

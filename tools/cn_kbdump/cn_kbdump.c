@@ -713,7 +713,7 @@ eread_mblock(struct mpool *ds, struct blk *blk)
     u32                 len;
 
     id = strtoull(blk->id, 0, 0);
-    err = merr_to_hse_err(mpool_mblock_props_get(ds, id, &props));
+    err = mpool_mblock_props_get(ds, id, &props);
     if (err)
         fatal(err, "mblookup 0x%lx", id);
 
@@ -734,7 +734,7 @@ eread_mblock(struct mpool *ds, struct blk *blk)
     for (i = 0; i < nmegs; ++i) {
         iov.iov_base = mem + i * meg;
         iov.iov_len = meg;
-        err = merr_to_hse_err(mpool_mblock_read(ds, id, &iov, 1, i * meg));
+        err = mpool_mblock_read(ds, id, &iov, 1, i * meg);
         if (err)
             fatal(err, "mblkread 0x%lx, meg %d", id, i);
     }
@@ -743,7 +743,7 @@ eread_mblock(struct mpool *ds, struct blk *blk)
     if (nmegs * meg < len) {
         iov.iov_base = mem + i * meg;
         iov.iov_len = len - nmegs * meg;
-        err = merr_to_hse_err(mpool_mblock_read(ds, id, &iov, 1, i * meg));
+        err = mpool_mblock_read(ds, id, &iov, 1, i * meg);
         if (err)
             fatal(err, "mblkread 0x%lx, meg %d", id, i);
     }
@@ -797,7 +797,7 @@ eread_ds(int argc, char **argv)
     strlcpy(params.mclass[MP_MED_CAPACITY].path, opt.storage_path,
             sizeof(params.mclass[MP_MED_CAPACITY].path));
 
-    err = merr_to_hse_err(mpool_open(mpname, &params, O_RDONLY, &ds));
+    err = mpool_open(mpname, &params, O_RDONLY, &ds);
     if (err)
         fatal(err, "mpool_open");
 

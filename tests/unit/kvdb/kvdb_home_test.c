@@ -5,6 +5,7 @@
 
 #include <limits.h>
 #include <string.h>
+#include <sys/stat.h>
 
 #include <hse_util/hse_err.h>
 #include <hse_ikvdb/kvdb_home.h>

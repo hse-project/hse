@@ -40,7 +40,7 @@ struct udata {
 /*
  * Mock mpool interfaces used by mbset.
  */
-static int64_t
+static merr_t
 _mpool_mblock_props_get(struct mpool *dsp, uint64_t objid, struct mblock_props *props)
 {
     memset(props, 0, sizeof(*props));
@@ -51,7 +51,7 @@ _mpool_mblock_props_get(struct mpool *dsp, uint64_t objid, struct mblock_props *
     return 0;
 }
 
-static int64_t
+static merr_t
 _mpool_mcache_mmap(
     struct mpool *            dsp,
     size_t                    idc,
@@ -81,7 +81,7 @@ _mpool_mcache_munmap(struct mpool_mcache_map *map)
     mapi_safe_free(map);
 }
 
-static int64_t
+static merr_t
 _mpool_mcache_mincore(
     struct mpool_mcache_map *map,
     const struct mpool *     dset,

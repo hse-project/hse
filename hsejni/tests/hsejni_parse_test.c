@@ -5,6 +5,8 @@
 
 #include <mtf/framework.h>
 
+#include <hse_util/base.h>
+
 #include <hsejni_internal.h>
 
 MTF_BEGIN_UTEST_COLLECTION(hsejni_parse_test)

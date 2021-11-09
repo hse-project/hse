@@ -1875,7 +1875,7 @@ km_rec_get_ds(struct km_inst *inst, struct km_rec *r, uint64_t rid)
 
     mbid = impl->chk[rid].mbid;
 
-    err = merr_to_hse_err(mpool_mblock_read(impl->ds, mbid, iov, 1, 0));
+    err = mpool_mblock_read(impl->ds, mbid, iov, 1, 0);
     if (err) {
         eprint("%s: mpool_mblock_read(0x%lx): rid=%lu mbid=%lx err=%lx\n",
                __func__, mbid, (ulong)rid, (ulong)mbid, err);
@@ -1925,7 +1925,7 @@ km_rec_put_ds(struct km_inst *inst, struct km_rec *r)
     inst->stats.op = OP_MB_ALLOC;
     inst->stats.alloc++;
 
-    err = merr_to_hse_err(mpool_mblock_alloc(impl->ds, mclass, &nmbid, &props));
+    err = mpool_mblock_alloc(impl->ds, mclass, &nmbid, &props);
     if (err)
         return err;
 
@@ -1936,7 +1936,7 @@ km_rec_put_ds(struct km_inst *inst, struct km_rec *r)
         inst->stats.op = OP_MB_DELETE;
         inst->stats.del++;
 
-        err = merr_to_hse_err(mpool_mblock_delete(impl->ds, ombid));
+        err = mpool_mblock_delete(impl->ds, ombid);
         if (err) {
             eprint("%s: mbdelete %lx failed: %lx\n", __func__, ombid, err);
         }
@@ -1952,7 +1952,7 @@ km_rec_put_ds(struct km_inst *inst, struct km_rec *r)
     inst->stats.put++;
     inst->stats.putbytes += secsz;
 
-    err = merr_to_hse_err(mpool_mblock_write(impl->ds, nmbid, iov, 1));
+    err = mpool_mblock_write(impl->ds, nmbid, iov, 1);
     if (err) {
         eprint("%s: mbwrite %lx failed: %lx\n", __func__, r->mbid, err);
         return err;
@@ -1964,7 +1964,7 @@ km_rec_put_ds(struct km_inst *inst, struct km_rec *r)
     inst->stats.op = OP_MB_COMMIT;
     inst->stats.commit++;
 
-    err = merr_to_hse_err(mpool_mblock_commit(impl->ds, nmbid));
+    err = mpool_mblock_commit(impl->ds, nmbid);
     if (err) {
         eprint("%s: mbcommit %lx failed: %lx\n", __func__, nmbid, err);
         return err;
@@ -1995,7 +1995,7 @@ km_rec_del_ds(struct km_inst *inst, uint64_t rid)
     if (mbid == 0)
         return EINVAL;
 
-    err = merr_to_hse_err(mpool_mblock_delete(impl->ds, mbid));
+    err = mpool_mblock_delete(impl->ds, mbid);
 
     km_op_latency_record(inst, OP_KVS_DEL, ns);
 
@@ -2418,7 +2418,7 @@ km_open_ds(struct km_impl *impl)
 
     err = mpool_open(impl->mpname, &params, O_RDWR, &ds);
     if (err)
-        return merr_to_hse_err(err);
+        return err;
 
     impl->ds = ds;
 
@@ -2439,7 +2439,7 @@ km_close_ds(struct km_impl *impl)
 
     err = mpool_close(ds);
     if (err)
-        return merr_to_hse_err(err);
+        return err;
 
     return 0;
 }
