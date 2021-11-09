@@ -23,6 +23,7 @@
 #include <sysexits.h>
 #include <getopt.h>
 #include <errno.h>
+#include <stdint.h>
 
 extern int         mtf_verify_flag;
 extern int         mtf_verify_line;
@@ -47,7 +48,7 @@ extern char home[PATH_MAX];
                                                     .tci_res_rd_index = 0,            \
                                                     .tci_out_rd_state = RD_READY,     \
                                                     .tci_rock = 0 };                  \
-    static u16 __mtf_tci_testidx HSE_MAYBE_UNUSED = 0;
+    static uint16_t __mtf_tci_testidx HSE_MAYBE_UNUSED = 0;
 
 #define ___MTF_INNER_BEGIN_UTEST_COLLECTION(name, pre_hook, post_hook)            \
     ___MTF_INNER_BEGIN_UTEST_COLLECTION_SHARED(name, pre_hook, post_hook)         \

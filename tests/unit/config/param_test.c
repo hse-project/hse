@@ -6,6 +6,7 @@
 #include <mtf/framework.h>
 
 #include <hse_ikvdb/param.h>
+#include <hse_util/base.h>
 #include <hse_util/storage.h>
 
 struct test_arr_type {

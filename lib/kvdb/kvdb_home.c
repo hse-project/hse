@@ -5,6 +5,8 @@
 
 #include <assert.h>
 #include <errno.h>
+#include <limits.h>
+#include <stdbool.h>
 #include <stddef.h>
 #include <stdlib.h>
 #include <unistd.h>

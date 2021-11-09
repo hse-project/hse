@@ -1,17 +1,15 @@
 /* SPDX-License-Identifier: Apache-2.0 */
 /*
- * Copyright (C) 2015-2020 Micron Technology, Inc.  All rights reserved.
+ * Copyright (C) 2015-2021 Micron Technology, Inc.  All rights reserved.
  */
 
 #include <hse_util/page.h>
-#include <hse_util/minmax.h>
 #include <hse_util/hse_err.h>
 #include <hse_util/invariant.h>
 
-#include <mpool/mpool.h>
-
 #include <assert.h>
 #include <ctype.h>
+#include <stdint.h>
 
 #include <bsd/string.h>
 
@@ -27,8 +25,8 @@ extern uint8_t __stop_hse_merr;
 merr_t
 merr_pack(int errno_value, const enum hse_err_ctx ctx, const char *file, int line)
 {
-    merr_t err = 0;
-    s64    off;
+    merr_t   err = 0;
+    uint64_t off;
 
     INVARIANT(errno_value >= 0 && errno_value <= INT16_MAX);
     INVARIANT(ctx >= 0 && ctx < HSE_ERR_CTX_MAX);
@@ -53,8 +51,8 @@ merr_pack(int errno_value, const enum hse_err_ctx ctx, const char *file, int lin
 
     off = (file - hse_merr_base) / MERR_ALIGN;
 
-    if (((s64)((u64)off << MERR_FILE_SHIFT) >> MERR_FILE_SHIFT) == off)
-        err = (u64)off << MERR_FILE_SHIFT;
+    if (((off << MERR_FILE_SHIFT) >> MERR_FILE_SHIFT) == off)
+        err = off << MERR_FILE_SHIFT;
 
   finish:
     err |= ((uint64_t)line << MERR_LINE_SHIFT) & MERR_LINE_MASK;
@@ -68,12 +66,12 @@ const char *
 merr_file(merr_t err)
 {
     const char *file;
-    s32         off;
+    uint32_t    off;
 
     if (err == 0 || err == -1)
         return NULL;
 
-    off = (s64)(err & MERR_FILE_MASK) >> MERR_FILE_SHIFT;
+    off = (err & MERR_FILE_MASK) >> MERR_FILE_SHIFT;
     if (off == 0)
         return NULL;
 

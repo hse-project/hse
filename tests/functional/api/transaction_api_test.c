@@ -7,6 +7,8 @@
 #include <fixtures/kvdb.h>
 #include <fixtures/kvs.h>
 
+#include <hse_util/base.h>
+
 /* Globals */
 struct hse_kvdb *kvdb_handle = NULL;
 struct hse_kvs * kvs_handle = NULL;

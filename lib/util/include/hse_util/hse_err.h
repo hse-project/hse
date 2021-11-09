@@ -51,9 +51,7 @@
 
 #include <hse/types.h>
 
-#include <hse_util/base.h>
 #include <hse_util/compiler.h>
-#include <hse_util/inttypes.h>
 
 #define EBUG (991)
 
@@ -91,13 +89,7 @@ extern char hse_merr_bug2[];
 #define MERR_CTX_MASK   (0x00000000ffff0000ul)
 #define MERR_ERRNO_MASK (0x000000000000fffful)
 
-typedef s64 merr_t;
-
-static HSE_ALWAYS_INLINE uint64_t
-merr_to_hse_err(merr_t merr)
-{
-    return (uint64_t)merr;
-}
+typedef hse_err_t merr_t;
 
 struct merr_info {
     char buf[MERR_INFO_SZ];

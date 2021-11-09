@@ -8,6 +8,8 @@
 
 /* MTF_MOCK_DECL(slab) */
 
+#include <stdlib.h>
+
 #include <hse_util/hse_err.h>
 
 /* clang-format off */
@@ -83,13 +85,6 @@ kmem_cache_free(struct kmem_cache *cache, void *mem);
 void *
 kmem_cache_zalloc(struct kmem_cache *cache);
 
-#pragma GCC visibility push(default)
-
-/* The following hse_page_* interfaces must be visible to libmpool.
- *
- * Note: these #pragma directives should be removed when libmpool moves into the
- * hse tree.
- */
 void *
 hse_page_alloc(void);
 
@@ -104,8 +99,6 @@ kmem_cache_desc2addr(struct kmem_cache *zone, uint32_t desc);
 
 uint32_t
 kmem_cache_addr2desc(struct kmem_cache *zone, void *mem);
-
-#pragma GCC visibility pop
 
 #if HSE_MOCKING
 #include "slab_ut.h"

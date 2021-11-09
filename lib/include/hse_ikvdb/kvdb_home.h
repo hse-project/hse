@@ -6,6 +6,8 @@
 #ifndef HSE_KVDB_HOME_H
 #define HSE_KVDB_HOME_H
 
+#include <limits.h>
+#include <stdbool.h>
 #include <stddef.h>
 
 #include <hse_util/hse_err.h>

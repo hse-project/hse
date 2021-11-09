@@ -8,6 +8,9 @@
 
 /* MTF_MOCK_DECL(keylock) */
 
+#include <stdbool.h>
+#include <stdint.h>
+
 #include <hse_util/hse_err.h>
 
 /* clang-format off */
@@ -57,7 +60,7 @@ keylock_unlock(struct keylock *handle, uint64_t hash, uint32_t owner);
 
 #if HSE_MOCKING
 void
-keylock_search(struct keylock *handle, uint64_t hash, uint *index);
+keylock_search(struct keylock *handle, uint64_t hash, unsigned int *index);
 
 #include "keylock_ut.h"
 #endif
