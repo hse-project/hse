@@ -8,6 +8,9 @@ on:
         required: true
         default: "master"
 
+env:
+  MESON_TESTTHREADS: 1
+
 jobs:
   nightly_ub:
     runs-on: ${{ matrix.os }}

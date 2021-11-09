@@ -108,10 +108,10 @@ programs = {
         },
         'nightly-tests': {
             'create_cursor_small': {
-                'args': '-b 64 -c 1500000 -d 1 -e 1000 -o 2 -v 256'.split(),
+                'args': '-b 64 -c 1000000 -d 1 -e 1000 -o 2 -v 256'.split(),
             },
             'cursor_with_sync_small': {
-                'args': '-b 64 -c 1500000 -d 5 -e 1000 -o 2 -v 512'.split(),
+                'args': '-b 64 -c 1000000 -d 5 -e 1000 -o 2 -v 512'.split(),
             },
             'cursor_with_transactions_small': {
                 'args': '-b 64 -c 1000000 -d 6 -e 1000 -o 2 -s 1000 -v 256'.split(),
