@@ -9,6 +9,7 @@
 #include <hse_util/slab.h>
 #include <hse_util/bonsai_tree.h>
 #include <hse_util/rmlock.h>
+#include <hse_util/logging.h>
 
 #include <rbtree.h>
 

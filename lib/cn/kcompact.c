@@ -5,6 +5,7 @@
 
 #include <hse_util/platform.h>
 #include <hse_util/event_counter.h>
+#include <hse_util/logging.h>
 
 #include <hse_ikvdb/kvs_rparams.h>
 #include <hse_ikvdb/limits.h>

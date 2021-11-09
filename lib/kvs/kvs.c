@@ -1,6 +1,6 @@
 /* SPDX-License-Identifier: Apache-2.0 */
 /*
- * Copyright (C) 2015-2020 Micron Technology, Inc.  All rights reserved.
+ * Copyright (C) 2015-2021 Micron Technology, Inc.  All rights reserved.
  */
 
 /*
@@ -19,6 +19,7 @@
 #include <hse_util/slab.h>
 #include <hse_util/table.h>
 #include <hse_util/invariant.h>
+#include <hse_util/logging.h>
 
 #include <hse_ikvdb/c0.h>
 #include <hse_ikvdb/lc.h>

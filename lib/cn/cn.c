@@ -18,6 +18,7 @@
 #include <hse_util/log2.h>
 #include <hse_util/xrand.h>
 #include <hse_util/vlb.h>
+#include <hse_util/logging.h>
 
 #include <hse_util/perfc.h>
 
