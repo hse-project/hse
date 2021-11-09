@@ -174,3 +174,25 @@ setup_mclass(const enum mpool_mclass mc)
     strlcpy(trparams.mclass[mc].path, path, sizeof(trparams.mclass[mc].path));
     strlcpy(tdparams.mclass[mc].path, path, sizeof(tdparams.mclass[mc].path));
 }
+
+uint64_t
+allocated_bytes_summation(const struct mpool_info *const info)
+{
+    uint64_t sum = 0;
+
+    for (int i = MP_MED_BASE; i < MP_MED_MAX; i++)
+        sum += info->mclass[i].mi_allocated_bytes;
+
+    return sum;
+}
+
+uint64_t
+used_bytes_summation(const struct mpool_info *const info)
+{
+    uint64_t sum = 0;
+
+    for (int i = MP_MED_BASE; i < MP_MED_MAX; i++)
+        sum += info->mclass[i].mi_used_bytes;
+
+    return sum;
+}

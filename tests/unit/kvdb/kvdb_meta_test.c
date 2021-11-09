@@ -388,16 +388,6 @@ MTF_DEFINE_UTEST_PRE(kvdb_meta_test, does_not_exist, test_pre)
     ASSERT_NE(0, err);
 }
 
-MTF_DEFINE_UTEST_PRE(kvdb_meta_test, usage, test_pre)
-{
-    uint64_t bytes;
-    merr_t   err;
-
-    err = kvdb_meta_usage(test_home, &bytes);
-    ASSERT_EQ(0, err);
-    ASSERT_TRUE(bytes > 0);
-}
-
 MTF_DEFINE_UTEST_PRE(kvdb_meta_test, invalid_cndb_oid1_nonwhole, test_pre)
 {
     struct kvdb_meta meta;

@@ -79,22 +79,12 @@ struct mpool_dparams {
 };
 
 /**
- * struct mpool_stats - aggregated mpool stats across all configured media classes
+ * struct mpool_info - aggregated mpool stats across all configured media classes
  *
- * @mps_total:     total space in the filesystem(s) containing mclass data directories
- * @mps_available: available space in the filesystem(s) containing mclass data directories
- * @mps_allocated: allocated capacity
- * @mps_used:      used capacity
- * @mps_mblock_cnt: number of active mblocks
- * @mps_path:       storage path
+ * @mclass: Array of media class info objects.
  */
-struct mpool_stats {
-    uint64_t mps_total;
-    uint64_t mps_available;
-    uint64_t mps_allocated;
-    uint64_t mps_used;
-    uint32_t mps_mblock_cnt;
-    char     mps_path[MP_MED_COUNT][PATH_MAX];
+struct mpool_info {
+    struct hse_mclass_info mclass[MP_MED_COUNT];
 };
 
 /**
@@ -118,27 +108,6 @@ struct mpool_props {
     struct mpool_mclass_props mclass[MP_MED_COUNT];
 };
 
-/**
- * struct mpool_mclass_stats - stats for a specific media class
- *
- * @mcs_total:      total space in the filesystem containing this mclass data directory
- * @mcs_available:  available space in the filesystem containing this mclass data directory
- * @mcs_allocated:  allocated capacity
- * @mcs_used:       used capacity
- * @mcs_fsid:       fsid of the FS hosting this data directory
- * @mcs_mblock_cnt: number of active mblocks
- * @mcs_path:       media class storage path
- */
-struct mpool_mclass_stats {
-    uint64_t mcs_total;
-    uint64_t mcs_available;
-    uint64_t mcs_allocated;
-    uint64_t mcs_used;
-    uint64_t mcs_fsid;
-    uint32_t mcs_mblock_cnt;
-    char     mcs_path[PATH_MAX];
-};
-
 /*
  * struct mblock_props -
  *
@@ -155,7 +124,6 @@ struct mblock_props {
     uint32_t mpr_optimal_wrsz;
     uint32_t mpr_mclass;
 };
-
 
 struct mpool_file_cb {
     void *cbarg;

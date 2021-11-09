@@ -574,6 +574,22 @@ ikvdb_drop(const char *const kvdb_home)
     return err;
 }
 
+merr_t
+ikvdb_mclass_info_get(
+    struct ikvdb *const           kvdb,
+    const enum mpool_mclass       mclass,
+    struct hse_mclass_info *const info)
+{
+    struct ikvdb_impl *self;
+
+    INVARIANT(kvdb);
+    INVARIANT(info);
+
+    self = ikvdb_h2r(kvdb);
+
+    return mpool_mclass_info_get(self->ikdb_mp, mclass, info);
+}
+
 static inline void
 ikvdb_tb_configure(struct ikvdb_impl *self, u64 burst, u64 rate, bool initialize)
 {
@@ -2064,46 +2080,6 @@ ikvdb_kvs_close(struct hse_kvs *handle)
     err = kvs_close(ikvs);
 
     return err;
-}
-
-merr_t
-ikvdb_storage_info_get(
-    struct ikvdb *                handle,
-    struct hse_kvdb_storage_info *info)
-{
-    struct ikvdb_impl *self = ikvdb_h2r(handle);
-    struct mpool *     mp;
-    struct mpool_stats stats = {};
-    merr_t             err;
-    uint64_t           allocated, used;
-
-    mp = ikvdb_mpool_get(handle);
-    err = mpool_stats_get(mp, &stats);
-    if (ev(err))
-        return err;
-
-    info->total_bytes = stats.mps_total;
-    info->available_bytes = stats.mps_available;
-
-    info->allocated_bytes = stats.mps_allocated;
-    info->used_bytes = stats.mps_used;
-
-    /* Get allocated and used space for kvdb metadata. Allocated and used are
-     * the same.
-     */
-    err = kvdb_meta_usage(self->ikdb_home, &used);
-    if (ev(err))
-        return err;
-    info->allocated_bytes += used;
-    info->used_bytes += used;
-
-    err = cndb_usage(self->ikdb_cndb, &allocated, &used);
-    if (ev(err))
-        return err;
-    info->allocated_bytes += allocated;
-    info->used_bytes += used;
-
-    return 0;
 }
 
 /* PRIVATE */

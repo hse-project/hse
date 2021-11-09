@@ -17,6 +17,7 @@
 #include <hse_util/table.h>
 
 #include <hse_ikvdb/param.h>
+#include <hse_ikvdb/hse_gparams.h>
 
 #include <hse/version.h>
 

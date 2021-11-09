@@ -294,6 +294,69 @@ rest_kvs_param_put(
 }
 
 static merr_t
+rest_kvdb_mclass_info_get(
+    const char *      path,
+    struct conn_info *info,
+    const char *      url,
+    struct kv_iter *  iter,
+    void *            context)
+{
+    merr_t                 err = 0;
+    enum mpool_mclass      mclass = MP_MED_INVALID;
+    struct hse_mclass_info mc_info;
+    cJSON *                root;
+    char *                 str;
+
+    for (int i = MP_MED_BASE; i < MP_MED_COUNT; i++) {
+        if (strstr(path, mpool_mclass_to_string[i])) {
+            mclass = (enum mpool_mclass)i;
+            break;
+        }
+    }
+
+    assert(mclass != MP_MED_INVALID);
+
+    err = ikvdb_mclass_info_get((struct ikvdb *)context, mclass, &mc_info);
+    if (err)
+        return err;
+
+    root = cJSON_CreateObject();
+    if (!root)
+        return merr(ENOMEM);
+
+    if (!cJSON_AddNumberToObject(root, "allocated_bytes", mc_info.mi_allocated_bytes)) {
+        err = merr(ENOMEM);
+        goto out;
+    }
+
+    if (!cJSON_AddNumberToObject(root, "used_bytes", mc_info.mi_used_bytes)) {
+        err = merr(ENOMEM);
+        goto out;
+    }
+
+    if (!cJSON_AddStringToObject(root, "path", mc_info.mi_path)) {
+        err = merr(ENOMEM);
+        goto out;
+    }
+
+    str = cJSON_PrintUnformatted(root);
+    if (!str) {
+        err = merr(ENOMEM);
+        goto out;
+    }
+
+    if (!err && write(info->resp_fd, str, strlen(str)) == -1)
+        err = merr(errno);
+
+    cJSON_free(str);
+
+out:
+    cJSON_Delete(root);
+
+    return err;
+}
+
+static merr_t
 rest_kvdb_compact_request(
     const char *      path,
     struct conn_info *info,
@@ -373,37 +436,6 @@ rest_kvdb_compact_status_get(
     return 0;
 }
 
-static merr_t
-rest_kvdb_storage_stats_get(
-    const char *      path,
-    struct conn_info *info,
-    const char *      url,
-    struct kv_iter *  iter,
-    void *            context)
-{
-    struct ikvdb *               ikvdb = context;
-    struct hse_kvdb_storage_info stinfo = {};
-    size_t                       b, bufoff;
-    char *                       buf = info->buf;
-    size_t                       bufsz = info->buf_sz;
-    merr_t                       err;
-
-    err = ikvdb_storage_info_get(ikvdb, &stinfo);
-    if (err)
-        return err;
-
-    bufoff = 0;
-    b = snprintf_append(buf, bufsz, &bufoff, "total: %lu\n", stinfo.total_bytes);
-    b += snprintf_append(buf, bufsz, &bufoff, "available: %lu\n", stinfo.available_bytes);
-    b += snprintf_append(buf, bufsz, &bufoff, "allocated: %lu\n", stinfo.allocated_bytes);
-    b += snprintf_append(buf, bufsz, &bufoff, "used: %lu\n", stinfo.used_bytes);
-
-    if (write(info->resp_fd, buf, b) != b)
-        return merr(EIO);
-
-    return 0;
-}
-
 merr_t
 kvdb_rest_register(struct ikvdb *kvdb)
 {
@@ -418,7 +450,7 @@ kvdb_rest_register(struct ikvdb *kvdb)
         err = status;
 
     status = rest_url_register(
-        kvdb, URL_FLAG_EXACT, rest_kvdb_home_get, NULL, "kvdb/%d/home", ikvdb_alias(kvdb));
+        kvdb, URL_FLAG_EXACT, rest_kvdb_home_get, NULL, "kvdb/%s/home", ikvdb_alias(kvdb));
     if (ev(status) && !err)
         err = status;
 
@@ -427,15 +459,12 @@ kvdb_rest_register(struct ikvdb *kvdb)
     if (ev(status) && !err)
         err = status;
 
-    status = rest_url_register(
-        kvdb,
-        URL_FLAG_EXACT,
-        rest_kvdb_storage_stats_get,
-        NULL,
-        "kvdb/%d/storage_stats",
-        ikvdb_alias(kvdb));
-    if (ev(status) && !err)
-        err = status;
+    for (size_t i = 0; i < NELEM(mpool_mclass_to_string); i++) {
+        status = rest_url_register(kvdb, URL_FLAG_EXACT, rest_kvdb_mclass_info_get, NULL,
+            "kvdb/%s/mclass/%s/info", ikvdb_alias(kvdb), mpool_mclass_to_string[i]);
+        if (ev(status) && !err)
+            err = status;
+    }
 
     status = rest_url_register(
         kvdb,

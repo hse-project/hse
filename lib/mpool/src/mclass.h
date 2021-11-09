@@ -168,13 +168,13 @@ bool
 mclass_gclose_get(struct media_class *mc);
 
 /**
- * mclass_stats_get() - get media class stats
+ * mclass_info_get() - get media class info
  *
- * @mc:    mclass handle
- * @stats: mclass stats (output)
+ * @mc: mclass handle
+ * @info: mclass info (output)
  */
 merr_t
-mclass_stats_get(struct media_class *mc, struct mpool_mclass_stats *stats);
+mclass_info_get(struct media_class *mc, struct hse_mclass_info *info);
 
 /**
  * mclass_ftw() - walk mclass files matching prefix and invoke callback for each file

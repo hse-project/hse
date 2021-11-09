@@ -46,14 +46,6 @@ struct hse_kvdb_compact_status {
     unsigned int kvcs_canceled;  /**< was an externally requested compaction canceled. */
 };
 
-/** @brief Storage information for a KVDB. */
-struct hse_kvdb_storage_info {
-    uint64_t total_bytes;     /**< total space in the file-system containing this kvdb */
-    uint64_t available_bytes; /**< available space in the file-system containing this kvdb */
-    uint64_t allocated_bytes; /**< allocated storage space for a kvdb */
-    uint64_t used_bytes;      /**< used storage space for a kvdb */
-};
-
 /** @brief Request a data compaction operation.
  *
  * In managing the data within an HSE KVDB, there are maintenance activities
@@ -97,23 +89,6 @@ hse_kvdb_compact(struct hse_kvdb *kvdb, unsigned int flags);
  */
 hse_err_t
 hse_kvdb_compact_status_get(struct hse_kvdb *kvdb, struct hse_kvdb_compact_status *status);
-
-/** @brief Get KVDB storage stats.
- *
- * Obtain the space usage statistics for a specified kvdb.
- *
- * @note This function is thread safe.
- *
- * @param kvdb: KVDB handle from hse_kvdb_open().
- * @param[out] info: KVDB storage config and stats.
- *
- * @remark @p kvdb must not be NULL.
- * @remark @p info must not be NULL.
- *
- * @returns Error status.
- */
-hse_err_t
-hse_kvdb_storage_info_get(struct hse_kvdb *kvdb, struct hse_kvdb_storage_info *info);
 
 /**@} KVDB */
 

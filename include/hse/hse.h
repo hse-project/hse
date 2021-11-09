@@ -277,6 +277,24 @@ hse_kvdb_kvs_names_get(struct hse_kvdb *kvdb, size_t *namec, char ***namev);
 void
 hse_kvdb_kvs_names_free(struct hse_kvdb *kvdb, char **namev);
 
+/** @brief Get media class information from a KVDB.
+ *
+ * @note This function is thread safe.
+ *
+ * @param kvdb: KVDB handle from hse_kvdb_open().
+ * @param mclass: Media class to query for.
+ * @param[out] info: Media class information object.
+ *
+ * @remark @p kvdb must not be NULL.
+ * @remark @p mclass must not be NULL.
+ * @remark @p mclass must be a valid media class.
+ * @remark @p info must not be NULL.
+ *
+ * @returns Error status.
+ */
+hse_err_t
+hse_kvdb_mclass_info_get(struct hse_kvdb *kvdb, const char *mclass, struct hse_mclass_info *info);
+
 /** @brief Open a KVDB.
  *
  * @note This function is not thread safe.

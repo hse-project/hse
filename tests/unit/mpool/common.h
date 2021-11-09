@@ -50,3 +50,9 @@ unset_mclass(const enum mpool_mclass mclass);
 
 void
 setup_mclass(const enum mpool_mclass mclass);
+
+uint64_t
+allocated_bytes_summation(const struct mpool_info *const info);
+
+uint64_t
+used_bytes_summation(const struct mpool_info *const info);

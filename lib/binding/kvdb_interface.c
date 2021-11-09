@@ -490,6 +490,32 @@ hse_kvdb_kvs_names_free(struct hse_kvdb *handle, char **namev)
 }
 
 hse_err_t
+hse_kvdb_mclass_info_get(
+    struct hse_kvdb *const        handle,
+    const char *const             mclass,
+    struct hse_mclass_info *const info)
+{
+    enum mpool_mclass mc = MP_MED_INVALID;
+
+    if (HSE_UNLIKELY(!handle || !info))
+        return merr(EINVAL);
+
+    for (size_t i = 0; i < NELEM(mpool_mclass_to_string); i++) {
+        if (!strcmp(mclass, mpool_mclass_to_string[i])) {
+            mc = i;
+            break;
+        }
+    }
+
+    if (mc == MP_MED_INVALID)
+        return merr(EINVAL);
+
+    memset(info, 0, sizeof(*info));
+
+    return ikvdb_mclass_info_get((struct ikvdb *)handle, mc, info);
+}
+
+hse_err_t
 hse_kvdb_kvs_create(
     struct hse_kvdb *        handle,
     const char *             kvs_name,
@@ -616,17 +642,6 @@ hse_kvs_param_get(
         return merr(EINVAL);
 
     return ikvdb_kvs_param_get(handle, param, buf, buf_sz, needed_sz);
-}
-
-hse_err_t
-hse_kvdb_storage_info_get(struct hse_kvdb *kvdb, struct hse_kvdb_storage_info *info)
-{
-    if (HSE_UNLIKELY(!kvdb || !info))
-        return merr(EINVAL);
-
-    memset(info, 0, sizeof(*info));
-
-    return ikvdb_storage_info_get((struct ikvdb *)kvdb, info);
 }
 
 hse_err_t

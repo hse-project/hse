@@ -32,11 +32,11 @@ MTF_BEGIN_UTEST_COLLECTION_PRE(mblock_test, mpool_collection_pre)
 
 MTF_DEFINE_UTEST_PREPOST(mblock_test, mblock_abc, mpool_test_pre, mpool_test_post)
 {
-    struct mpool       *mp;
+    struct mpool *      mp;
     struct mblock_props props = {};
-    struct mpool_stats  stats = {};
-    uint64_t      mbid, mbid1;
-    merr_t        err;
+    struct mpool_info   info = {};
+    uint64_t            mbid, mbid1;
+    merr_t              err;
 
     err = mpool_create(home, &tcparams);
     ASSERT_EQ(0, err);
@@ -86,12 +86,12 @@ MTF_DEFINE_UTEST_PREPOST(mblock_test, mblock_abc, mpool_test_pre, mpool_test_pos
     ASSERT_EQ(props.mpr_mclass, MP_MED_CAPACITY);
     ASSERT_EQ(props.mpr_write_len, 0);
 
-    err = mpool_stats_get(mp, &stats);
+    err = mpool_info_get(mp, &info);
     ASSERT_EQ(0, err);
-    ASSERT_LT(stats.mps_allocated, 64 << 20);
-    ASSERT_LT(stats.mps_used, 64 << 20);
-    ASSERT_EQ(1, stats.mps_mblock_cnt);
-    ASSERT_EQ(0, strncmp(capacity_path, stats.mps_path[MP_MED_CAPACITY], sizeof(capacity_path)));
+    ASSERT_LT(allocated_bytes_summation(&info), 64 << 20);
+    ASSERT_LT(used_bytes_summation(&info), 64 << 20);
+    ASSERT_EQ(
+        0, strncmp(capacity_path, info.mclass[MP_MED_CAPACITY].mi_path, sizeof(capacity_path)));
 
     err = mpool_mblock_commit(NULL, mbid);
     ASSERT_EQ(EINVAL, merr_errno(err));
@@ -122,12 +122,12 @@ MTF_DEFINE_UTEST_PREPOST(mblock_test, mblock_abc, mpool_test_pre, mpool_test_pos
     ASSERT_EQ(props.mpr_mclass, MP_MED_CAPACITY);
     ASSERT_EQ(props.mpr_write_len, 0);
 
-    err = mpool_stats_get(mp, &stats);
+    err = mpool_info_get(mp, &info);
     ASSERT_EQ(0, err);
-    ASSERT_LT(stats.mps_allocated, 64 << 20);
-    ASSERT_LT(stats.mps_used, 64 << 20);
-    ASSERT_EQ(1, stats.mps_mblock_cnt);
-    ASSERT_EQ(0, strncmp(capacity_path, stats.mps_path[MP_MED_CAPACITY], sizeof(capacity_path)));
+    ASSERT_LT(allocated_bytes_summation(&info), 64 << 20);
+    ASSERT_LT(used_bytes_summation(&info), 64 << 20);
+    ASSERT_EQ(
+        0, strncmp(capacity_path, info.mclass[MP_MED_CAPACITY].mi_path, sizeof(capacity_path)));
 
     err = mpool_mblock_delete(NULL, mbid);
     ASSERT_EQ(EINVAL, merr_errno(err));
@@ -257,13 +257,13 @@ MTF_DEFINE_UTEST_PREPOST(mblock_test, mblock_abc, mpool_test_pre, mpool_test_pos
     ASSERT_EQ(0, err);
     ASSERT_EQ(MP_MED_STAGING, props.mpr_mclass);
 
-    err = mpool_stats_get(mp, &stats);
+    err = mpool_info_get(mp, &info);
     ASSERT_EQ(0, err);
-    ASSERT_LT(stats.mps_allocated, 100 << 20);
-    ASSERT_LT(stats.mps_used, 100 << 20);
-    ASSERT_EQ(1, stats.mps_mblock_cnt);
-    ASSERT_EQ(0, strncmp(capacity_path, stats.mps_path[MP_MED_CAPACITY], sizeof(capacity_path)));
-    ASSERT_EQ(0, strncmp(staging_path, stats.mps_path[MP_MED_STAGING], sizeof(staging_path)));
+    ASSERT_LT(allocated_bytes_summation(&info), 100 << 20);
+    ASSERT_LT(used_bytes_summation(&info), 100 << 20);
+    ASSERT_EQ(
+        0, strncmp(capacity_path, info.mclass[MP_MED_CAPACITY].mi_path, sizeof(capacity_path)));
+    ASSERT_EQ(0, strncmp(staging_path, info.mclass[MP_MED_STAGING].mi_path, sizeof(staging_path)));
 
     err = mpool_mblock_delete(mp, mbid1);
     ASSERT_EQ(0, err);
@@ -368,7 +368,7 @@ MTF_DEFINE_UTEST_PREPOST(mblock_test, mblock_io, mpool_test_pre, mpool_test_post
 {
     struct mpool       *mp;
     struct mblock_props props = {};
-    struct mpool_stats  stats = {};
+    struct mpool_info   info = {};
 
     uint64_t mbid;
     merr_t   err;
@@ -429,12 +429,12 @@ MTF_DEFINE_UTEST_PREPOST(mblock_test, mblock_io, mpool_test_pre, mpool_test_post
     err = mblock_rw(mp, mbid, buf, 0, 0, write);
     ASSERT_EQ(0, err);
 
-    err = mpool_stats_get(mp, &stats);
+    err = mpool_info_get(mp, &info);
     ASSERT_EQ(0, err);
-    ASSERT_LT(stats.mps_allocated, 64 << 20);
-    ASSERT_LT(stats.mps_used, 64 << 20);
-    ASSERT_EQ(1, stats.mps_mblock_cnt);
-    ASSERT_EQ(0, strncmp(capacity_path, stats.mps_path[MP_MED_CAPACITY], sizeof(capacity_path)));
+    ASSERT_LT(allocated_bytes_summation(&info), 64 << 20);
+    ASSERT_LT(used_bytes_summation(&info), 64 << 20);
+    ASSERT_EQ(
+        0, strncmp(capacity_path, info.mclass[MP_MED_CAPACITY].mi_path, sizeof(capacity_path)));
 
     /* Reading from an uncommitted mblock is allowed. */
     err = mblock_rw(mp, mbid, buf, wlen, 0, !write);
@@ -521,13 +521,11 @@ MTF_DEFINE_UTEST_PREPOST(mblock_test, mblock_io, mpool_test_pre, mpool_test_post
 
 MTF_DEFINE_UTEST_PREPOST(mblock_test, mblock_invalid_args, mpool_test_pre, mpool_test_post)
 {
-    struct mpool              *mp;
-    struct mpool_mclass_stats  stats = {};
+    struct mpool *             mp;
     struct mblock_fset        *mbfsp;
     struct media_class        *mc;
     struct mblock_file_params *params = (struct mblock_file_params *)0x1234;
-    struct mblock_file        *mbfp = (struct mblock_file *)0x1234;
-    struct mblock_file_stats   mbstats = {};
+    struct mblock_file *       mbfp = (struct mblock_file *)0x1234;
     struct iovec              *iov = (struct iovec *)0x1234;
 
     uint64_t mbid, bad_mbid = 0xffffffff;
@@ -623,12 +621,6 @@ MTF_DEFINE_UTEST_PREPOST(mblock_test, mblock_invalid_args, mpool_test_pre, mpool
     err = mblock_fset_write(NULL, bad_mbid, iov, 1);
     ASSERT_EQ(EINVAL, merr_errno(err));
 
-    err = mblock_fset_stats_get(NULL, &stats);
-    ASSERT_EQ(EINVAL, merr_errno(err));
-
-    err = mblock_fset_stats_get(mbfsp, NULL);
-    ASSERT_EQ(EINVAL, merr_errno(err));
-
     /* mblock_file.c */
     err = mblock_file_open(NULL, mc, params, 0, MBLOCK_METAHDR_VERSION, &mbfp);
     ASSERT_EQ(EINVAL, merr_errno(err));
@@ -699,12 +691,6 @@ MTF_DEFINE_UTEST_PREPOST(mblock_test, mblock_invalid_args, mpool_test_pre, mpool
     ASSERT_EQ(EINVAL, merr_errno(err));
 
     err = mblock_file_write(mbfp, mbid, NULL, 1);
-    ASSERT_EQ(EINVAL, merr_errno(err));
-
-    err = mblock_file_stats_get(NULL, &mbstats);
-    ASSERT_EQ(EINVAL, merr_errno(err));
-
-    err = mblock_file_stats_get(mbfp, NULL);
     ASSERT_EQ(EINVAL, merr_errno(err));
 
     err = mpool_mblock_abort(mp, mbid);

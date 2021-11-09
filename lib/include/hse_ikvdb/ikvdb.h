@@ -41,7 +41,7 @@ struct cndb;
 struct kvdb_diag_kvs_list;
 struct kvs;
 struct ikvdb_kvs_hdl;
-struct hse_kvdb_storage_info;
+enum mpool_mclass;
 
 struct hse_kvdb_txn {
 };
@@ -89,6 +89,17 @@ ikvdb_create(const char *kvdb_home, struct kvdb_cparams *params, bool pmem_only)
  */
 merr_t
 ikvdb_drop(const char *kvdb_home);
+
+/** @brief Get media class information from a KVDB.
+ *
+ * @param kvdb: KVDB handle.
+ * @param mclass: Media class.
+ * @param info: Media class information object.
+ *
+ * @returns Error status.
+ */
+merr_t
+ikvdb_mclass_info_get(struct ikvdb *kvdb, enum mpool_mclass mclass, struct hse_mclass_info *info);
 
 /**
  * Add media class to a KVDB
@@ -271,11 +282,6 @@ ikvdb_get_csched(struct ikvdb *handle);
 /* MTF_MOCK */
 struct mclass_policy *
 ikvdb_get_mclass_policy(struct ikvdb *handle, const char *name);
-
-merr_t
-ikvdb_storage_info_get(
-    struct ikvdb *                handle,
-    struct hse_kvdb_storage_info *info);
 
 /**
  * ikvdb_kvs_get_cn() - retrieve a pointer to the cn

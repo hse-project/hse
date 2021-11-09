@@ -244,16 +244,6 @@ merr_t
 cndb_close(struct cndb *cndb);
 
 /**
- * cndb_usage() - Get cndb space usage
- *
- * @cndb:      cndb handle
- * @allocated: allocated space
- * @used:      used space
- */
-merr_t
-cndb_usage(struct cndb *cndb, uint64_t *allocated, uint64_t *used);
-
-/**
  * cndb_cn_create() - add a cn KVS to a cndb.
  * @cndb:     admin mode cndb handle
  * @cparams:  cn kvs create parameters

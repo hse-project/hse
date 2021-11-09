@@ -414,27 +414,23 @@ mpool_mclass_props_get(struct mpool *mp, enum mpool_mclass mclass, struct mpool_
 }
 
 merr_t
-mpool_mclass_stats_get(struct mpool *mp, enum mpool_mclass mclass, struct mpool_mclass_stats *stats)
+mpool_mclass_info_get(
+    struct mpool *          mp,
+    const enum mpool_mclass mclass,
+    struct hse_mclass_info *info)
 {
     struct media_class *mc;
 
-    if (!mp || mclass >= MP_MED_COUNT)
+    if (!mp || mclass >= MP_MED_COUNT || !info)
         return merr(EINVAL);
 
     mc = mp->mc[mclass];
     if (!mc)
         return merr(ENOENT);
 
-    if (stats) {
-        merr_t err;
+    memset(info, 0, sizeof(*info));
 
-        memset(stats, 0, sizeof(*stats));
-        err = mclass_stats_get(mc, stats);
-        if (err)
-            return err;
-    }
-
-    return 0;
+    return mclass_info_get(mc, info);
 }
 
 merr_t
@@ -462,45 +458,21 @@ mpool_props_get(struct mpool *mp, struct mpool_props *props)
 }
 
 merr_t
-mpool_stats_get(struct mpool *mp, struct mpool_stats *stats)
+mpool_info_get(struct mpool *mp, struct mpool_info *info)
 {
-    uint64_t fsid[MP_MED_COUNT] = {};
-
-    if (!mp || !stats)
+    if (!mp || !info)
         return merr(EINVAL);
 
-    memset(stats, 0, sizeof(*stats));
+    memset(info, 0, sizeof(*info));
 
     for (int i = MP_MED_BASE; i < MP_MED_COUNT; i++) {
-        struct mpool_mclass_stats mcs = {};
-        merr_t                    err;
-        bool                      uniqfs = true;
+        merr_t err;
 
-        err = mpool_mclass_stats_get(mp, i, &mcs);
+        err = mpool_mclass_info_get(mp, i, &info->mclass[i]);
         if (err) {
             if (merr_errno(err) == ENOENT)
                 continue;
             return err;
-        }
-
-        stats->mps_allocated += mcs.mcs_allocated;
-        stats->mps_used += mcs.mcs_used;
-        stats->mps_mblock_cnt += mcs.mcs_mblock_cnt;
-
-        strlcpy(stats->mps_path[i], mcs.mcs_path, sizeof(stats->mps_path[i]));
-
-        fsid[i] = mcs.mcs_fsid;
-
-        for (int j = i; j >= MP_MED_BASE; j--) {
-            if (j > MP_MED_BASE && fsid[j - 1] == mcs.mcs_fsid) {
-                uniqfs = false;
-                break;
-            }
-        }
-
-        if (uniqfs) {
-            stats->mps_total += mcs.mcs_total;
-            stats->mps_available += mcs.mcs_available;
         }
     }
 

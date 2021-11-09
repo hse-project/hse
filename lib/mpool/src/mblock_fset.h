@@ -171,13 +171,13 @@ merr_t
 mblock_fset_unmap(struct mblock_fset *mbfsp, uint64_t mbid);
 
 /**
- * mblock_fset_stats_get() - retrieve stats of an mblock fileset
+ * mblock_fset_info_get() - retrieve info of an mblock fileset
  *
  * @mbfsp: mblock fileset handle
- * @stats: stats (output)
+ * @info: info (output)
  */
 merr_t
-mblock_fset_stats_get(struct mblock_fset *mbfsp, struct mpool_mclass_stats *stats);
+mblock_fset_info_get(struct mblock_fset *mbfsp, struct hse_mclass_info *info);
 
 /** @brief Get file count.
  *

@@ -595,37 +595,6 @@ out:
 }
 
 merr_t
-kvdb_meta_usage(const char *kvdb_home, uint64_t *const size)
-{
-    int         meta_fd;
-    struct stat st;
-    FILE *      meta_file = NULL;
-    merr_t      err;
-
-    assert(kvdb_home);
-    assert(size);
-
-    err = kvdb_meta_open(kvdb_home, &meta_file);
-    if (err)
-        goto out;
-
-    meta_fd = fileno(meta_file);
-    if (meta_fd == -1)
-        return merr(errno);
-
-    if (fstat(meta_fd, &st) == -1)
-        return merr(errno);
-
-    *size = st.st_size;
-
-out:
-    if (meta_file && fclose(meta_file) == EOF && !err)
-        err = merr(errno);
-
-    return err;
-}
-
-merr_t
 kvdb_meta_upgrade(struct kvdb_meta *const meta, const char *const kvdb_home)
 {
     unsigned int omvers;

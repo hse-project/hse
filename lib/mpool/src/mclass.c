@@ -384,18 +384,21 @@ mcid_to_mclass(enum mclass_id mcid)
 }
 
 merr_t
-mclass_stats_get(struct media_class *mc, struct mpool_mclass_stats *stats)
+mclass_info_get(struct media_class *mc, struct hse_mclass_info *info)
 {
+    size_t n;
     merr_t err;
 
     assert(mc);
-    assert(stats);
+    assert(info);
 
-    err = mblock_fset_stats_get(mc->mbfsp, stats);
+    err = mblock_fset_info_get(mc->mbfsp, info);
     if (err)
         return err;
 
-    strlcpy(stats->mcs_path, mclass_dpath(mc), sizeof(stats->mcs_path));
+    n = strlcpy(info->mi_path, mc->upath, sizeof(info->mi_path));
+    if (n >= sizeof(info->mi_path))
+        return merr(ENAMETOOLONG);
 
     return 0;
 }
@@ -405,6 +408,9 @@ mclass_ftw(struct media_class *mc, const char *prefix, struct mpool_file_cb *cb)
 {
     assert(mc);
 
+    /* [HSE_REVISIT]: No nested functions please :). GCC only and my editor
+     * hates it.
+     */
     int
     mclass_file_cb(const char *path, const struct stat *sb, int typeflag, struct FTW *ftwbuf)
     {

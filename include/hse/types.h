@@ -11,6 +11,7 @@ extern "C" {
 #endif
 
 #include <inttypes.h>
+#include <limits.h>
 
 /** @defgroup ERRORS Errors
  * @{
@@ -77,6 +78,16 @@ struct hse_kvdb;
 #define HSE_MCLASS_CAPACITY_NAME "capacity" /**< Capacity media class name. */
 #define HSE_MCLASS_STAGING_NAME  "staging"  /**< Staging media class name. */
 #define HSE_MCLASS_PMEM_NAME     "pmem"     /**< PMEM media class name. */
+
+/** @struct hse_mclass_info
+ * @brief Media class information.
+ */
+struct hse_mclass_info {
+    uint64_t mi_allocated_bytes; /**< Allocated storage space for a media class. */
+    uint64_t mi_used_bytes;      /**< Used storage space for a media class. */
+    uint64_t mi_reserved[8];     /**< Reserved space for future expansion. */
+    char     mi_path[PATH_MAX];  /**< Path to the media class. */
+};
 
 /**@} KVDB */
 

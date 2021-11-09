@@ -77,19 +77,6 @@ merr_t
 kvdb_meta_deserialize(struct kvdb_meta *meta, const char *kvdb_home);
 
 /**
- * Gets the size of the kvdb.meta file in bytes
- *
- * @param kvdb_home: KVDB home
- * @param[out] size: Size of kvdb.meta file in bytes
- * @returns Error status
- * @retval 0 on succes
- * @retval !0 on error
- */
-/* MTF_MOCK */
-merr_t
-kvdb_meta_usage(const char *kvdb_home, uint64_t *size);
-
-/**
  * Upgrade KVDB meta
  *
  * @param meta: KVDB metadata

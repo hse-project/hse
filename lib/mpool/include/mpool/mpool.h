@@ -119,21 +119,18 @@ mpool_mclass_props_get(
     struct mpool_mclass_props *props);
 
 /**
- * mpool_mclass_stats_get() - get storage stats of the specified media class
+ * mpool_mclass_info_get() - get info of the specified media class
  *
- * @mp:     mpool descriptor
+ * @mp: mpool descriptor
  * @mclass: input media mclass
- * @stats:  media class storage stats (output)
+ * @info: media class info (output)
  *
  * Returns: 0 for success
  *          non-zero(err): merr_errno(err) == ENOENT if the specified mclass is not present
  */
 /* MTF_MOCK */
 merr_t
-mpool_mclass_stats_get(
-    struct mpool *             mp,
-    enum mpool_mclass          mclass,
-    struct mpool_mclass_stats *stats);
+mpool_mclass_info_get(struct mpool *mp, enum mpool_mclass mclass, struct hse_mclass_info *info);
 
 /**
  * mpool_mclass_ftw() - walk files in 'mclass' and invoke cb for each file matching 'prefix'
@@ -161,13 +158,13 @@ merr_t
 mpool_props_get(struct mpool *mp, struct mpool_props *props);
 
 /**
- * mpool_stats_get() - Get mpool storage stats
+ * mpool_info_get() - Get mpool information.
  *
- * @mp:    mpool handle
- * @stats: mpool stats (output)
+ * @mp: mpool handle
+ * @stats: mpool info (output)
  */
 merr_t
-mpool_stats_get(struct mpool *mp, struct mpool_stats *stats);
+mpool_info_get(struct mpool *mp, struct mpool_info *stats);
 
 /*
  * Mpool Data Manager APIs
