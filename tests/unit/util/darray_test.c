@@ -189,7 +189,7 @@ MTF_DEFINE_UTEST(darray, alloc_failure)
 
     mapi_inject(mapi_idx_malloc, 0);
     rc = darray_init(&da, 10);
-    ASSERT_EQ(-ENOMEM, rc);
+    ASSERT_EQ(ENOMEM, rc);
     mapi_inject_unset(mapi_idx_malloc);
 
     rc = darray_init(&da, 10);
@@ -201,7 +201,7 @@ MTF_DEFINE_UTEST(darray, alloc_failure)
         if (i < 9)
             ASSERT_EQ(0, rc);
         else
-            ASSERT_EQ(-ENOMEM, rc);
+            ASSERT_EQ(ENOMEM, rc);
     }
     mapi_inject_unset(mapi_idx_malloc);
 

@@ -46,7 +46,7 @@ rest_kvs_list(const char *socket_path, const char *alias, struct yaml_context *y
 
     buf = calloc(1, bufsz);
     if (!buf)
-        return -ENOMEM;
+        return ENOMEM;
 
     err = curl_get(url, socket_path, buf, bufsz);
     if (err) {
@@ -754,7 +754,7 @@ hse_kvdb_params(const char *kvdb_home, bool get)
 
     buf = calloc(1, bufsz);
     if (!buf)
-        return -ENOMEM;
+        return ENOMEM;
 
     err = pidfile_deserialize(kvdb_home, &content);
     if (err) {

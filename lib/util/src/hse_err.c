@@ -25,11 +25,11 @@ extern uint8_t __stop_hse_merr;
 merr_t
 merr_pack(int errno_value, const enum hse_err_ctx ctx, const char *file, int line)
 {
-    merr_t   err = 0;
-    uint64_t off;
+    merr_t  err = 0;
+    int64_t off;
 
     INVARIANT(errno_value >= 0 && errno_value <= INT16_MAX);
-    INVARIANT(ctx >= 0 && ctx < HSE_ERR_CTX_MAX);
+    INVARIANT(ctx >= 0 && ctx <= HSE_ERR_CTX_MAX);
     INVARIANT(file);
     INVARIANT(line > 0);
 
@@ -39,20 +39,20 @@ merr_pack(int errno_value, const enum hse_err_ctx ctx, const char *file, int lin
     if (!file)
         goto finish;
 
-    if (!IS_ALIGNED((ulong)file, sizeof(file)))
+    if (!IS_ALIGNED((uintptr_t)file, sizeof(file)))
         file = hse_merr_bug0; /* invalid file */
 
     if (!(file > (char *)&__start_hse_merr ||
           file < (char *)&__stop_hse_merr))
         goto finish; /* file outside libhse */
 
-    if (!IS_ALIGNED((ulong)file, MERR_ALIGN))
+    if (!IS_ALIGNED((uintptr_t)file, MERR_ALIGN))
         file = hse_merr_bug1;
 
     off = (file - hse_merr_base) / MERR_ALIGN;
 
-    if (((off << MERR_FILE_SHIFT) >> MERR_FILE_SHIFT) == off)
-        err = off << MERR_FILE_SHIFT;
+    if (((int64_t)((uint64_t)off << MERR_FILE_SHIFT) >> MERR_FILE_SHIFT) == off)
+        err = (uint64_t)off << MERR_FILE_SHIFT;
 
   finish:
     err |= ((uint64_t)line << MERR_LINE_SHIFT) & MERR_LINE_MASK;
@@ -66,12 +66,12 @@ const char *
 merr_file(merr_t err)
 {
     const char *file;
-    uint32_t    off;
+    int32_t     off;
 
     if (err == 0 || err == -1)
         return NULL;
 
-    off = (err & MERR_FILE_MASK) >> MERR_FILE_SHIFT;
+    off = (int64_t)(err & MERR_FILE_MASK) >> MERR_FILE_SHIFT;
     if (off == 0)
         return NULL;
 

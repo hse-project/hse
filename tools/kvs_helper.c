@@ -255,7 +255,7 @@ kh_register_multiple(
 	 * in a round-robin fashion (maybe other variations can be added later;
 	 * see longtest)
 	 */
-	return -ENOTSUP;
+	return ENOTSUP;
 }
 
 /* cursor helper functions */

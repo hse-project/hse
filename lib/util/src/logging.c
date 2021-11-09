@@ -1235,7 +1235,7 @@ hse_slog_create(hse_logpri_t priority, struct slog **sl, const char *type)
     struct json_context *jc;
 
     if (!sl || !type)
-        return -EINVAL;
+        return EINVAL;
 
     if (priority > hse_gparams.gp_logging.level || !hse_gparams.gp_logging.enabled) {
         *sl = NULL;
@@ -1266,7 +1266,7 @@ err1:
     free(*sl);
 err2:
     *sl = NULL;
-    return -ENOMEM;
+    return ENOMEM;
 }
 
 int
@@ -1301,7 +1301,7 @@ hse_slog_append_internal(struct slog *sl, ...)
 err:
     free(jc->json_buf);
     free(sl);
-    return -ENOMEM;
+    return ENOMEM;
 }
 
 int

@@ -49,7 +49,7 @@ MTF_DEFINE_UTEST(hse_err_test, merr_test_1)
     (void)merr_strinfo(err, errinfo, sizeof(errinfo), 0);
     ASSERT_EQ(0, strcmp(errinfo, "success"));
 
-    rval = -EINVAL;
+    rval = EINVAL;
     err = merr(rval);
     ASSERT_EQ(__LINE__ - 1, merr_lineno(err)); /* Hardcoded __LINE__-1 */
     ASSERT_EQ(EINVAL, merr_errno(err));
@@ -58,15 +58,6 @@ MTF_DEFINE_UTEST(hse_err_test, merr_test_1)
     (void)merr_strinfo(err, errinfo, sizeof(errinfo), 0);
     errmsg = strerror_r(merr_errno(err), errbuf, sizeof(errbuf));
     ASSERT_EQ(0, strcmp(strstr(errinfo, "I"), errmsg));
-
-    /* merr_pack() should only be called via merr(), but check
-     * to see that it returns the correct diagnostic information
-     * given invalid arguments.
-     */
-    err = merr_pack(EBUG, 0, NULL, 123);
-    ASSERT_EQ(EBUG, merr_errno(err));
-    ASSERT_EQ(123, merr_lineno(err));
-    ASSERT_EQ(NULL, merr_file(err));
 
     file = hse_merr_base;
     err = merr_pack(EAGAIN, 0, file, 456);
@@ -109,8 +100,8 @@ MTF_DEFINE_UTEST(hse_err_test, ctx)
     err = merr(EUSERS);
     ASSERT_EQ(0, merr_ctx(err));
 
-    err = merrx(ERESTART, 16);
-    ASSERT_EQ(16, merr_ctx(err));
+    err = merrx(ERESTART, HSE_ERR_CTX_MAX);
+    ASSERT_EQ(HSE_ERR_CTX_MAX, merr_ctx(err));
 }
 
 MTF_END_UTEST_COLLECTION(hse_err_test)

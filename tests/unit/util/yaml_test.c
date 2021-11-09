@@ -107,7 +107,7 @@ validate_buf(char *buf, size_t buf_sz, struct test_mix *list)
         /* Really should be an ASSERT of some sort here.
          * But it will be caught at the next level up.
          */
-        return -ENOMEM;
+        return ENOMEM;
     }
 
     /* Iterate through the list, composing and then comparing one
