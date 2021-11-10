@@ -27,7 +27,7 @@ params_logging_context(const struct params *const p)
             /* This should really be an assert(false), but for testing purposes... */
             return "(null) param";
         default:
-            assert(false);
+            abort();
     }
 
     return NULL;
