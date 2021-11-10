@@ -38,16 +38,16 @@ struct wal_io {
     bool             io_stop;
     struct cv        io_cv;
 
-    atomic64_t          io_pend HSE_L1D_ALIGNED;
-    atomic64_t          io_comp;
-    atomic64_t          io_gen;
-    atomic64_t         *io_doff;
-    atomic_t            io_stopped;
+    atomic_long         io_pend HSE_L1D_ALIGNED;
+    atomic_long         io_comp;
+    atomic_ulong        io_gen;
+    atomic_ulong       *io_doff;
+    atomic_int          io_stopped;
 
     struct wal_fileset *io_wfset;
     struct wal_file    *io_wfile;
     struct wal_iocb    *io_cb;
-    atomic64_t          io_err;
+    atomic_long         io_err;
     uint32_t            io_index;
     struct work_struct  io_work;
 };
@@ -205,7 +205,7 @@ struct wal_io *
 wal_io_create(
     struct wal_fileset *wfset,
     uint32_t            index,
-    atomic64_t         *doff,
+    atomic_ulong       *doff,
     struct wal_iocb    *iocb)
 {
     struct wal_io *io;

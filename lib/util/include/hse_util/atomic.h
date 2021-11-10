@@ -10,15 +10,6 @@
 
 /* clang-format off */
 
-/* The following typedefs are remnants of a legacy implementation of this
- * API and are deprecated. New code should use one of the atomic types
- * from stdatomic.h, and existing code should be updated to use the
- * correct atomic type.
- */
-typedef atomic_int      atomic_t;
-typedef atomic_long     atomic64_t;
-
-
 /* Relaxed semantics:
  *
  * No synchronization nor ordering guarantees.

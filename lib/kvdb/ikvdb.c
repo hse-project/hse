@@ -76,8 +76,11 @@
 
 /* clang-format off */
 
-static_assert((sizeof(uintptr_t) == sizeof(u64)),
+static_assert((sizeof(uintptr_t) == sizeof(uint64_t)),
               "libhse relies on pointers being 64-bits in size");
+
+static_assert((sizeof(atomic_ulong) == sizeof(uint64_t)),
+              "libhse require atomic_ulong to be exactly 64-bits");
 
 struct perfc_name ctxn_perfc_op[] _dt_section = {
     NE(PERFC_BA_CTXNOP_ACTIVE,    1, "Count of active txns",       "c_ctxn_active"),

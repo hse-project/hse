@@ -39,10 +39,10 @@ struct wal {
     uint8_t                 wal_thr_hwm;
     uint8_t                 wal_thr_lwm;
 
-    atomic64_t              wal_rid HSE_L1D_ALIGNED;
-    atomic64_t              wal_ingestseq;
-    atomic64_t              wal_ingestgen;
-    atomic64_t              wal_txhorizon;
+    atomic_ulong            wal_rid HSE_L1D_ALIGNED;
+    atomic_ulong            wal_ingestseq;
+    atomic_ulong            wal_ingestgen;
+    atomic_ulong            wal_txhorizon;
 
     struct mutex     sync_mutex HSE_L1D_ALIGNED;
     struct list_head sync_waiters;
@@ -52,8 +52,8 @@ struct wal {
     bool         sync_pending;
     struct cv    timer_cv;
 
-    atomic64_t error HSE_L1D_ALIGNED;
-    atomic_t   closing;
+    atomic_long error HSE_L1D_ALIGNED;
+    atomic_int closing;
     bool       clean;
     bool       read_only;
     bool       timer_tid_valid;

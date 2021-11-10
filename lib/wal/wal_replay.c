@@ -51,9 +51,9 @@ struct wal_replay {
     struct rb_root              r_txcid_root;
     uint64_t                    r_maxcid;
 
-    atomic_t                    r_leader;
-    atomic_t                    r_vdone;
-    atomic64_t                  r_verr;
+    atomic_int                  r_leader;
+    atomic_int                  r_vdone;
+    atomic_long                 r_verr;
 
     struct wal                 *r_wal HSE_L1D_ALIGNED;
     struct ikvdb_kvs_hdl       *r_ikvsh;
