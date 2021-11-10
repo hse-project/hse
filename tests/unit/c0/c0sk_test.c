@@ -36,7 +36,7 @@ struct csched *              csched;
 
 #define MAX_TXNS (32)
 
-atomic_t ctxn_locks[MAX_TXNS];
+atomic_int ctxn_locks[MAX_TXNS];
 uintptr_t c0snr[MAX_TXNS];
 
 struct kvdb_rparams kvdb_rp;

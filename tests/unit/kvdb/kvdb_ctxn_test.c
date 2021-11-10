@@ -1361,7 +1361,7 @@ struct parallel_ctxn_arg {
     struct kvdb_ctxn *ctxn;
     int               thrd_num;
     int               txn_num;
-    atomic_t *        owner_thread;
+    atomic_int       *owner_thread;
 };
 
 #if 0
@@ -1372,7 +1372,7 @@ parallel_ctxn_helper(void *arg)
     struct kvdb_ctxn *        ctxn = p->ctxn;
     int                       thrd_num = p->thrd_num;
     int                       txn_num = p->txn_num;
-    atomic_t *                owner_thread = p->owner_thread;
+    atomic_int               *owner_thread = p->owner_thread;
     merr_t                    err = 0;
 //    int                       i;
 //    struct kvs_ktuple         kt;
@@ -1429,7 +1429,7 @@ MTF_DEFINE_UTEST_PREPOST(kvdb_ctxn_test, multiple_ctxn_commit, mapi_pre, mapi_po
     struct kvdb_keylock    *klock;
     struct c0              *c0 = NULL; /* c0 is mocked */
     struct kvdb_ctxn       *handles[num_txns];
-    atomic_t                owner_thread[32] = {};
+    atomic_int             *owner_thread[32] = {};
     const u64               initial_value = 117UL;
     atomic_ulong            kvdb_seq, tseqno;
 

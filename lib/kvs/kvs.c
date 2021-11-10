@@ -69,8 +69,6 @@ struct mpool;
 
 /*-  Key Value Store  -------------------------------------------------------*/
 
-static atomic_t kvs_init_ref;
-
 static merr_t
 kvs_create(struct ikvs **kvs, struct kvs_rparams *rp);
 
@@ -651,23 +649,11 @@ kvs_perfc_fini(void)
 merr_t
 kvs_init(void)
 {
-    merr_t err;
-
-    if (atomic_inc_return(&kvs_init_ref) > 1)
-        return 0;
-
-    err = kvs_curcache_init();
-    if (ev(err))
-        atomic_dec(&kvs_init_ref);
-
-    return err;
+    return kvs_curcache_init();
 }
 
 void
 kvs_fini(void)
 {
-    if (atomic_dec_return(&kvs_init_ref) > 0)
-        return;
-
     kvs_curcache_fini();
 }

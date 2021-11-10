@@ -18,11 +18,10 @@
  */
 
 #include <hse_util/atomic.h>
-#include <hse_util/delay.h>
 
 struct rcu_barrier_data {
     struct rcu_head rbd_rcu;
-    atomic_t        rbd_count;
+    atomic_int      rbd_count;
 };
 
 static void
@@ -32,7 +31,7 @@ rcu_barrier_cb(struct rcu_head *rh)
 
     rbd = caa_container_of(rh, struct rcu_barrier_data, rbd_rcu);
 
-    atomic_inc(&rbd->rbd_count);
+    atomic_inc_rel(&rbd->rbd_count);
 }
 
 __attribute__((__weak__)) void
@@ -44,8 +43,8 @@ rcu_barrier_bp(void)
 
     rcu_defer_barrier();
 
-    while (atomic_read(&rbd.rbd_count) == 0)
-        msleep(100);
+    while (atomic_read_acq(&rbd.rbd_count) == 0)
+        usleep(1000);
 
     synchronize_rcu();
 }

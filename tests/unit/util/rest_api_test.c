@@ -192,7 +192,7 @@ parallel_test_get(
     struct kv_iter *  iter,
     void *            context)
 {
-    atomic_inc((atomic_t *)context);
+    atomic_inc((atomic_int *)context);
 
     return 0;
 }
@@ -206,20 +206,20 @@ parallel_rest_req(void *info)
 
     err = curl_get(path, sock, buf, sizeof(buf));
     if (err)
-        atomic_inc((atomic_t *)info);
+        atomic_inc((atomic_int *)info);
 
     return 0;
 }
 
 MTF_DEFINE_UTEST_PREPOST(rest_api, multisession_test, rest_start, rest_stop)
 {
-    char *    path = "parallel/rest/req";
-    merr_t    err;
-    atomic_t  calls;
-    atomic_t  failures;
-    const int num_threads = 5;
-    pthread_t t[num_threads];
-    int       i, rc;
+    char      *path = "parallel/rest/req";
+    merr_t     err;
+    atomic_int calls;
+    atomic_int failures;
+    const int  num_threads = 5;
+    pthread_t  t[num_threads];
+    int        i, rc;
 
     rest_init();
     atomic_set(&calls, 0);

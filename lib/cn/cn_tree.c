@@ -68,8 +68,7 @@
 #include "kblock_builder.h"
 #include "vblock_builder.h"
 
-static struct kmem_cache *cn_node_cache;
-static atomic_t           cn_tree_init_ref;
+static struct kmem_cache *cn_node_cache HSE_READ_MOSTLY;
 
 /* A struct kvstarts is-a struct kvset_view.
  */
@@ -300,7 +299,7 @@ cn_node_free(struct cn_tree_node *tn)
 struct cn_node_destroy_work {
     struct work_struct   dw_work;
     struct cn_tree_node *dw_node;
-    atomic_t *           dw_inflight;
+    atomic_int          *dw_inflight;
 };
 
 static void
@@ -427,7 +426,7 @@ cn_tree_destroy(struct cn_tree *tree)
     struct workqueue_struct *wq;
     struct cn_tree_node *    node;
     struct tree_iter         iter;
-    atomic_t                 inflight;
+    atomic_int               inflight;
     ulong                    nodecnt;
     ulong                    tstart;
 
@@ -3460,9 +3459,6 @@ cn_tree_init(void)
     struct kmem_cache *cache;
     int                i;
 
-    if (atomic_inc_return(&cn_tree_init_ref) > 1)
-        return 0;
-
     /* Initialize the view table cache.
      */
     for (i = 0; i < NELEM(vtc); ++i) {
@@ -3476,7 +3472,6 @@ cn_tree_init(void)
 
     cache = kmem_cache_create("cntreenode", cn_node_size(), HSE_ACP_LINESIZE, SLAB_PACKED, NULL);
     if (ev(!cache)) {
-        atomic_dec(&cn_tree_init_ref);
         return merr(ENOMEM);
     }
 
@@ -3489,9 +3484,6 @@ void
 cn_tree_fini(void)
 {
     int i;
-
-    if (atomic_dec_return(&cn_tree_init_ref) > 0)
-        return;
 
     kmem_cache_destroy(cn_node_cache);
     cn_node_cache = NULL;

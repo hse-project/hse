@@ -107,13 +107,13 @@ struct mock_cn {
     char            tripwire[PAGE_SIZE * 7]; /* must be first field */
     struct c0_data *data;
     struct cndb *   cndb;
-    atomic_t        refcnt;
+    atomic_int      refcnt;
 
     spinlock_t             cc_lock;
     struct mock_cn_cursor *cc_head;
 } HSE_ALIGNED(PAGE_SIZE);
 
-static atomic_t mocked_c0_open_count;
+static atomic_int mocked_c0_open_count;
 static struct kvs_rparams mocked_kvs_rparams;
 static struct kvs_cparams mocked_kvs_cparams;
 

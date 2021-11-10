@@ -177,7 +177,7 @@ struct cndb {
     u16                       cndb_version;
     bool                      cndb_read_only;
     bool                      cndb_compacted;
-    atomic64_t                cndb_txid;
+    atomic_ulong              cndb_txid;
     u64                       cndb_captgt;
     u64                       cndb_high_water;
     u64                       cndb_oid1;

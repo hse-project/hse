@@ -117,7 +117,7 @@ hse_getcpu(uint *node)
     }
 #else
     if (hse_getcpu_tls.cnt++ % 1024 == 0) {
-        static atomic_t hse_getcpu_gvcpu;
+        static atomic_uint hse_getcpu_gvcpu;
 
         /* Generate periodically changing fake vCPU and node IDs for architectures
          * not known to support a vDSO based getcpu().

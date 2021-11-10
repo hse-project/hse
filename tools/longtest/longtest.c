@@ -291,9 +291,9 @@ struct test {
 	u32                 stat_rows_no_hdr;
 	u32                 running_threads;
 	pthread_barrier_t   bar_sync;
-	atomic_t            errors;
-	atomic_t            test_complete;
-	atomic_t            hard_stop;
+	atomic_int          errors;
+	atomic_int          test_complete;
+	atomic_int          hard_stop;
 	u8                 *seqnum_pfx_key;
 	struct test_stats   tot;
 	struct test_stats   stats[MAX_THREADS];

@@ -69,7 +69,7 @@ init_work(
     bool *                     drop_tomb,
     uint                       kvset_cnt,
     struct kv_iterator **      inputv,
-    atomic_t *                 cancel,
+    atomic_int                *cancel,
     struct kvset_mblocks *     outv,
     struct kvset_vblk_map *    vbmap)
 {
@@ -255,7 +255,7 @@ MTF_DEFINE_UTEST_PRE(kcompact_test, four_into_one, pre)
     struct kvset_vblk_map     vbm = { 0 };
     struct nkv_tab            nkv;
     bool                      drop_tombv[1] = { false };
-    atomic_t                  c;
+    atomic_int                c;
     u64                       dgen = 0;
     int                       i;
     merr_t                    err;
@@ -316,7 +316,7 @@ MTF_DEFINE_UTEST_PRE(kcompact_test, all_gone, pre)
     struct kv_iterator *      itv[5] = { 0 };
     struct nkv_tab            nkv;
     bool                      drop_tombv[1] = { false };
-    atomic_t                  c;
+    atomic_int                c;
     u64                       dgen = 0;
     int                       i;
     merr_t                    err;
@@ -381,7 +381,7 @@ MTF_DEFINE_UTEST_PREPOST(kcompact_test, all_gone_mixed, mixed_pre, mixed_post)
     struct kv_iterator *      itv[5] = { 0 };
     struct nkv_tab            nkv;
     bool                      drop_tombv[1] = { false };
-    atomic_t                  c;
+    atomic_int                c;
     u64                       dgen = 0;
     int                       i;
     merr_t                    err;
@@ -446,7 +446,7 @@ MTF_DEFINE_UTEST_PREPOST(kcompact_test, four_into_one_mixed, mixed_pre, mixed_po
     struct kvset_vblk_map     vbm = { 0 };
     struct nkv_tab            nkv;
     bool                      drop_tombv[1] = { false };
-    atomic_t                  c;
+    atomic_int                c;
     u64                       dgen = 0;
     int                       i;
     merr_t                    err;
@@ -504,7 +504,7 @@ run_kcompact(struct mtf_test_info *lcl_ti, int expect)
     struct kv_iterator *      itv[5] = { 0 };
     struct nkv_tab            nkv;
     bool                      drop_tombv[1] = { false };
-    atomic_t                  c;
+    atomic_int                c;
     u64                       dgen = 0;
     int                       i;
     merr_t                    err;

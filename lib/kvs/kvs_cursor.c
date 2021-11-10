@@ -187,7 +187,7 @@ static uint                 ikvs_curcachec    HSE_READ_MOSTLY;
 static uint                 ikvs_colormax     HSE_READ_MOSTLY;
 
 struct timer_list           ikvs_curcache_timer;
-atomic_t                    ikvs_curcache_pruning;
+atomic_int                  ikvs_curcache_pruning;
 
 /*-  Cursor Support  --------------------------------------------------*/
 
@@ -273,7 +273,7 @@ ikvs_curcache_td2bkt(void)
     static thread_local size_t tls_offset;
 
     if (HSE_UNLIKELY(!tls_offset)) {
-        static atomic_t g_cc_idx;
+        static atomic_uint g_cc_idx;
 
         tls_offset = ikvs_curcache_idx2bktoff(atomic_inc_return(&g_cc_idx));
     }

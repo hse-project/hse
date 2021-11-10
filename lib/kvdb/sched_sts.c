@@ -45,7 +45,7 @@
 /* A worker thread */
 struct sts_worker {
     struct sts *sts;
-    atomic_t    initializing;
+    atomic_int  initializing;
     uint        wqnum;
     char        wname[16];
 } HSE_L1D_ALIGNED;
@@ -56,7 +56,7 @@ sts_worker_main(void *rock);
 /* Scheduler queue */
 struct sts_queue {
     struct list_head jobs;
-    atomic_t         idle_workers;
+    atomic_int       idle_workers;
     struct perfc_set qpc;
     struct sts *     sts;
 } HSE_L1D_ALIGNED;
@@ -71,16 +71,16 @@ struct sts {
     struct kvdb_rparams *rp;
     const char *         name;
     uint                 qc;
-    atomic_t             state;
-    atomic_t             worker_id_counter;
-    atomic_t             spawned_workers;
-    atomic_t             ready_workers;
+    atomic_int           state;
+    atomic_int           worker_id_counter;
+    atomic_int           spawned_workers;
+    atomic_int           ready_workers;
 
     /* Current number of workers.
      * Index self->qc is for shared workers.
      * Index i, i < self->qc, is for workers dedicated to queue i.
      */
-    atomic_t wcnt_current[STS_QUEUES_MAX + 1];
+    atomic_int wcnt_current[STS_QUEUES_MAX + 1];
 
     uint rr_next;
 
@@ -582,7 +582,7 @@ sts_worker_main(void *rock)
     pthread_t          tid;
     int                state;
     bool               idle;
-    atomic_t *         idle_count;
+    atomic_int        *idle_count;
 
     tid = pthread_self();
     idle = false;

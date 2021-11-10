@@ -101,15 +101,15 @@ struct kvset {
     u16         ks_maxklen; /* length of largest key */
     u16         ks_minklen; /* length of smallest key */
 
-    atomic_t ks_ref HSE_L1D_ALIGNED; /* reference count */
-    u32      ks_deleted;             /* DEL_NONE, DEL_KEEPV, DEL_ALL */
-    atomic_t ks_delete_error;
-    atomic_t ks_mbset_callbacks;
-    bool     ks_mbset_cb_pending;
-    u64      ks_seqno_min;
-    size_t   ks_kvset_sz;
-    u64      ks_ctime;
-    u64      ks_tag;
+    atomic_int ks_ref HSE_L1D_ALIGNED; /* reference count */
+    u32        ks_deleted;             /* DEL_NONE, DEL_KEEPV, DEL_ALL */
+    atomic_int ks_delete_error;
+    atomic_int ks_mbset_callbacks;
+    bool       ks_mbset_cb_pending;
+    u64        ks_seqno_min;
+    size_t     ks_kvset_sz;
+    u64        ks_ctime;
+    u64        ks_tag;
 
     struct kvset_kblk ks_kblks[] HSE_L1D_ALIGNED;
 };

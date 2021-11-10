@@ -77,7 +77,7 @@ struct job {
     struct sts_job sts_job;
     int            debug;
     pthread_t      tid;
-    atomic_t *     var;
+    atomic_int    *var;
     int            var_wait;
     int            var_add;
     uint           delay_msec;
@@ -92,7 +92,7 @@ struct job {
 #define REPEAT_FOREVER ((u64)-1)
 
 static merr_t
-atomic_read_timeout(atomic_t *var, int value, u64 timeout_usec)
+atomic_read_timeout(atomic_int *var, int value, u64 timeout_usec)
 {
     u64 stop = get_time_ns() + timeout_usec * 1000;
 
@@ -110,7 +110,7 @@ jhandler(struct sts_job *sj)
     struct job *job = container_of(sj, struct job, sts_job);
     u64         count = 0;
     u64         t0 = 0, t1 = 0;
-    atomic_t *  add_var = 0;
+    atomic_int *add_var = NULL;
     int         add_value = 0;
 
     if (job->debug)
@@ -163,7 +163,7 @@ jhandler(struct sts_job *sj)
 }
 
 static struct job *
-jinit(struct job *job, uint qnum, uint delay_msec, atomic_t *var, int var_wait, int var_add)
+jinit(struct job *job, uint qnum, uint delay_msec, atomic_int *var, int var_wait, int var_add)
 {
     memset(job, 0, sizeof(*job));
 
@@ -199,7 +199,7 @@ static merr_t
 job_ping(struct sts *s, uint qnum, uint wait_usec, u64 *time_nsec)
 {
     struct job *job;
-    atomic_t    var;
+    atomic_int  var;
     u64         t0, t1;
 
     job = mapi_safe_malloc(sizeof(*job));
@@ -421,7 +421,7 @@ MTF_DEFINE_UTEST_PRE(test, t_ping, pre_test)
 MTF_DEFINE_UTEST_PRE(test, t_workers_concurrent, pre_test)
 {
     merr_t      err;
-    atomic_t    var;
+    atomic_int  var;
     int         v;
     struct sts *s;
     struct job  job1, job2;
@@ -456,7 +456,7 @@ MTF_DEFINE_UTEST_PRE(test, t_workers_concurrent, pre_test)
 MTF_DEFINE_UTEST_PRE(test, t_sts_pause, pre_test)
 {
     merr_t      err;
-    atomic_t    var;
+    atomic_int  var;
     int         v1, v2;
     uint        i, q;
     uint        nq = 3;

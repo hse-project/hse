@@ -19,10 +19,10 @@
  * @cnd_vblk_size: sum of on-media sizes of all cn vblocks in kvdb (bytes)
  */
 struct cn_kvdb {
-    atomic64_t cnd_kblk_cnt;
-    atomic64_t cnd_vblk_cnt;
-    atomic64_t cnd_kblk_size;
-    atomic64_t cnd_vblk_size;
+    atomic_ulong cnd_kblk_cnt;
+    atomic_ulong cnd_vblk_cnt;
+    atomic_ulong cnd_kblk_size;
+    atomic_ulong cnd_vblk_size;
 };
 
 /* MTF_MOCK */

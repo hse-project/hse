@@ -23,7 +23,7 @@ MTF_BEGIN_UTEST_COLLECTION(atomic_test);
 MTF_DEFINE_UTEST(atomic_test, basic)
 {
     int old_val, new_val;
-    atomic_t v;
+    atomic_int v;
     bool b;
 
     atomic_set(&v, 23);
@@ -63,9 +63,9 @@ MTF_DEFINE_UTEST(atomic_test, basic)
 
 MTF_DEFINE_UTEST(atomic_test, basic64)
 {
-    atomic64_t v;
-    long       i;
-    u64        s;
+    atomic_long v;
+    long        i;
+    u64         s;
 
     ASSERT_EQ(sizeof(i), 8);
     ASSERT_EQ(sizeof(v), 8);
@@ -179,10 +179,10 @@ struct test {
     /* global/shared state
      * - ptrs to shared vars
      */
-    int *       nav32; /* 32-bit non-atomic */
-    atomic_t *  av32;  /* 32-bit atomic */
-    long *      nav64; /* 64-bit non-atomic */
-    atomic64_t *av64;  /* 64-bit atomic */
+    int *        nav32; /* 32-bit non-atomic */
+    atomic_int  *av32;  /* 32-bit atomic */
+    long *       nav64; /* 64-bit non-atomic */
+    atomic_long *av64;  /* 64-bit atomic */
 
     /* per-worker state */
     struct worker_state **wstate;
@@ -416,8 +416,8 @@ test_init(struct test *t, struct test_params *params, struct mtf_test_info *lcl_
     /* allocate shared vars on separate cache lines */
     t->nav32 = (int *)mtest_alloc(sizeof(*t->nav32));
     t->nav64 = (long *)mtest_alloc(sizeof(*t->nav64));
-    t->av32 = (atomic_t *)mtest_alloc(sizeof(*t->av32));
-    t->av64 = (atomic64_t *)mtest_alloc(sizeof(*t->av64));
+    t->av32 = (atomic_int *)mtest_alloc(sizeof(*t->av32));
+    t->av64 = (atomic_long *)mtest_alloc(sizeof(*t->av64));
 
     /* intialize shared vars */
     *t->nav32 = 0;

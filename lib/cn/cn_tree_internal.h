@@ -1,6 +1,6 @@
 /* SPDX-License-Identifier: Apache-2.0 */
 /*
- * Copyright (C) 2015-2020 Micron Technology, Inc.  All rights reserved.
+ * Copyright (C) 2015-2021 Micron Technology, Inc.  All rights reserved.
  */
 
 #ifndef HSE_KVDB_CN_CN_TREE_INTERNAL_H
@@ -176,7 +176,7 @@ struct cn_tree_node {
     u64              tn_biggest_kvset; /* key count */
     bool             tn_rspills_wedged;
     u8               tn_childc;
-    atomic_t         tn_compacting;
+    atomic_int       tn_compacting;
 
     union {
         struct sp3_node sp3n;

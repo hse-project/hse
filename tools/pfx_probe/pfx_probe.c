@@ -62,7 +62,7 @@ enum phase {
 };
 enum phase phase;
 uint64_t total_puts;
-atomic64_t completed_puts;
+atomic_ulong completed_puts;
 
 int err;
 
@@ -110,16 +110,16 @@ loader(void *arg)
 				     val, sizeof(val));
 			if (rc)
 				fatal(rc, "put failure");
-
-			atomic_inc(&completed_puts);
 		}
+
+        atomic_fetch_add(&completed_puts, ti->sfx);
 	}
 }
 
 bool killthreads = false;
 
-atomic64_t rd_count;
-atomic64_t rd_time;
+atomic_ulong rd_count;
+atomic_ulong rd_time;
 
 enum hse_kvs_pfx_probe_cnt
 _pfx_probe(

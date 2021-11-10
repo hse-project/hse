@@ -57,9 +57,9 @@ struct thread_info {
 	int           start HSE_ACP_ALIGNED;
 	int           end;
 	int           num_cursors;
-	atomic64_t    puts;
-	atomic64_t    reads;
-	atomic64_t    cursors;
+	atomic_ulong  puts;
+	atomic_ulong  reads;
+	atomic_ulong  cursors;
 };
 
 struct thread_info *g_ti;

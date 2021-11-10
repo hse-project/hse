@@ -18,7 +18,7 @@
 
 #define MOCK_SET(group, func) mtfm_##group##func##_set(func)
 
-atomic64_t kvdb_seq;
+atomic_ulong kvdb_seq;
 
 int
 mapi_pre(struct mtf_test_info *ti)
@@ -228,7 +228,7 @@ struct parallel_lock_arg {
     struct kvdb_ctxn_locks *locks_handle;
     pthread_barrier_t *     lock_barrier;
     int                     num_hash;
-    atomic_t *              owner_thread;
+    atomic_int             *owner_thread;
     int                     num;
 };
 
@@ -241,7 +241,7 @@ parallel_lock_helper(void *arg)
     pthread_barrier_t *       barrier = p->lock_barrier;
     int                       num_hash = p->num_hash;
     int                       num = p->num;
-    atomic_t *                owner_thread = p->owner_thread;
+    atomic_int               *owner_thread = p->owner_thread;
     merr_t                    err = 0;
     int                       i;
     u64                       hash = 0x12345678UL << 32;
@@ -291,7 +291,7 @@ MTF_DEFINE_UTEST_PREPOST(kvdb_keylock_test, keylock_lock_multiple_ctxn, mapi_pre
     struct parallel_lock_arg argstruct[num_threads];
     struct kvdb_keylock *    klock_handle;
     struct kvdb_ctxn_locks * locks_handle[num_threads];
-    atomic_t                 owner_thread[10000] = {};
+    atomic_int               owner_thread[10000] = {};
     merr_t                   err;
     int                      i, rc;
 

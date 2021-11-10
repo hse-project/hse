@@ -102,7 +102,6 @@ struct kvset_cache {
 
 static struct kvset_cache kvset_cache[4] HSE_READ_MOSTLY;
 static struct kmem_cache *kvset_iter_cache HSE_READ_MOSTLY;
-static atomic_t           kvset_init_ref;
 
 /* A kvset contains a logical array of vblocks and kblocks reference vblocks by
  * an index into this logical array.  However, data about vblocks are stored
@@ -3755,15 +3754,11 @@ kvset_init(void)
     size_t             sz;
     int                i;
 
-    if (atomic_inc_return(&kvset_init_ref) > 1)
-        return 0;
-
     sz = sizeof(struct kvset_iterator);
     assert(HSE_ACP_LINESIZE >= alignof(struct kvset_iterator));
 
     cache = kmem_cache_create("kvsiter", sz, HSE_ACP_LINESIZE, 0, NULL);
     if (ev(!cache)) {
-        atomic_dec(&kvset_init_ref);
         return merr(ENOMEM);
     }
 
@@ -3792,9 +3787,6 @@ void
 kvset_fini(void)
 {
     int i;
-
-    if (atomic_dec_return(&kvset_init_ref) > 0)
-        return;
 
     for (i = 0; i < NELEM(kvset_cache); ++i) {
         kmem_cache_destroy(kvset_cache[i].cache);

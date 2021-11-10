@@ -1661,7 +1661,7 @@ MTF_DEFINE_UTEST_PREPOST(ikvdb_test, kvdb_sync_test, test_pre, test_post)
 
 struct thread_info {
     struct ikvdb *  h;
-    atomic_t *      num_opens;
+    atomic_int     *num_opens;
     struct hse_kvs *kvs_h;
     pthread_t       tid;
 };
@@ -1684,7 +1684,7 @@ parallel_kvs_open(void *arg)
 MTF_DEFINE_UTEST_PREPOST(ikvdb_test, kvdb_parallel_kvs_opens, test_pre, test_post)
 {
     const int           num_threads = get_nprocs() * 2;
-    atomic_t            num_opens;
+    atomic_int          num_opens;
     int                 i;
     merr_t              err;
     struct ikvdb *      h;
@@ -1827,7 +1827,6 @@ MTF_DEFINE_UTEST_PREPOST(ikvdb_test, ikvdb_test_various, test_pre, test_post)
 {
     char   invalid[HSE_KVS_NAME_LEN_MAX * 2];
     merr_t err;
-    int    i;
 
     err = validate_kvs_name("foo");
     ASSERT_EQ(err, 0);
@@ -1843,12 +1842,6 @@ MTF_DEFINE_UTEST_PREPOST(ikvdb_test, ikvdb_test_various, test_pre, test_post)
     snprintf(invalid, sizeof(invalid), "%*c", (int)sizeof(invalid) - 1, 'x');
     err = validate_kvs_name(invalid);
     ASSERT_NE(err, 0);
-
-    for (i = 0; i < 1000; ++i)
-        kvs_init();
-
-    for (i = 0; i < 1000; ++i)
-        kvs_fini();
 }
 
 MTF_DEFINE_UTEST(ikvdb_test, ikvdb_hash_test)

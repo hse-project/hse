@@ -1092,7 +1092,7 @@ init_work(
     uint                       shift,
     uint                       pfx_len,
     struct perfc_set *         pc,
-    atomic_t *                 cancel,
+    atomic_int                *cancel,
     uint                       num_outputs,
     bool *                     drop_tomb,
     struct kvset_mblocks *     outputs,
@@ -1178,7 +1178,7 @@ run_testcase(struct mtf_test_info *lcl_ti, int mode, const char *info)
     u32                       iterc;
     struct kv_iterator **     iterv;
     u32                       i;
-    atomic_t                  cancel;
+    atomic_int                cancel;
     struct cn_compaction_work w;
 
     if (tp.verbose >= VERBOSE_PER_FILE2)

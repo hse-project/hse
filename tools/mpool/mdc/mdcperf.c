@@ -146,7 +146,7 @@ struct thread_args {
     int              instance;
     pthread_mutex_t *start_mutex;
     pthread_cond_t  *start_line;
-    atomic_t        *start_cnt;
+    atomic_int      *start_cnt;
     void            *arg;
 };
 
@@ -205,7 +205,7 @@ thread_create(
     pthread_attr_t *attr;
     pthread_cond_t  start_line = PTHREAD_COND_INITIALIZER;
     pthread_mutex_t start_mutex = PTHREAD_MUTEX_INITIALIZER;
-    atomic_t        start_cnt;
+    atomic_int      start_cnt;
     int             still_to_start;
     int             i, rc;
 

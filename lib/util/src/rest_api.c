@@ -59,7 +59,7 @@ struct url_desc {
     rest_get_t *        get_handler;
     rest_put_t *        put_handler;
     enum rest_url_flags url_flags;
-    atomic_t            refcnt;
+    atomic_int          refcnt;
 };
 
 struct thread_arg {
@@ -69,7 +69,7 @@ struct thread_arg {
     struct kv_iter     iter;
     struct conn_info * ci;
     int                op;
-    atomic_t           busy;
+    atomic_int         busy;
 };
 
 /**
@@ -91,7 +91,7 @@ struct session {
     struct thread_arg    targ;
     int                  enqueued;
     struct conn_info     ci;
-    atomic_t             refcnt;
+    atomic_int           refcnt;
     struct session **    slot;
     void *               magic;
     char                 buf[4096];

@@ -87,7 +87,7 @@ enum {
  * implementation of 'struct throttle'.
  */
 struct throttle_sensor {
-    atomic_t ts_sensor;
+    atomic_int ts_sensor;
 } HSE_L1D_ALIGNED;
 
 static inline void
@@ -150,12 +150,11 @@ struct throttle_mavg {
  * @thr_max_tries:      max number of trials
  * @thr_rp:
  * @thr_perfc:
- * @thr_data:           raw nanosleep performance metrics
  * @thr_sensorv:        vector of throttle sensors
  */
 struct throttle {
-    atomic_t             thr_pct;
-    atomic64_t           thr_next;
+    atomic_int           thr_pct;
+    atomic_ulong         thr_next;
     uint                 thr_delay;
     spinlock_t           thr_lock;
 
@@ -183,8 +182,6 @@ struct throttle {
     struct kvdb_rparams *thr_rp;
     struct perfc_set     thr_sensor_perfc;
     struct perfc_set     thr_sleep_perfc;
-
-    atomic64_t thr_data HSE_L1D_ALIGNED;
 
     struct throttle_sensor thr_sensorv[THROTTLE_SENSOR_CNT];
 };
