@@ -87,6 +87,44 @@ jobs:
         name: build-artifact-fedora-latest-${{ matrix.build_type }}
         path: builddir/meson-logs/
 
+  build_sanitize:
+    runs-on: ${{ matrix.os }}
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [ubuntu-18.04]
+        build_type: [release, debugoptimized]
+
+    steps:
+    - name: Install dependencies
+      run: |
+        echo "$HOME/.local/bin" >> $GITHUB_PATH
+        sudo apt-get update
+        sudo apt-get install build-essential libbsd-dev pkg-config openjdk-8-jdk libmicrohttpd-dev liburcu-dev libyaml-dev liblz4-dev libcurl4-openssl-dev
+        sudo apt-get install libmongoc-1.0-0 libbson-1.0-0 libssl-dev libsasl2-dev
+        python3 -m pip install --user setuptools_rust wheel
+        python3 -m pip install --user poetry
+
+    - uses: actions/checkout@v2
+
+    - name: Setup python environment to run branch
+      run: |
+        poetry install
+
+    - name: Build setup with YCSB, tools and configs
+      run: |
+        poetry run meson builddir -Dbuildtype=${{ matrix.build_type }} --fatal-meson-warnings -Dycsb=true -Db_sanitize=address,undefined
+
+    - name: Run tests
+      run: |
+        poetry run meson test -C builddir --setup=ci --print-errorlogs --no-stdsplit
+
+    - uses: actions/upload-artifact@v2
+      if: failure()
+      with:
+        name: build-artifact-ubuntu18-${{ matrix.build_type }}
+        path: builddir/meson-logs/
+
   checkoss:
     runs-on: ubuntu-latest
 
