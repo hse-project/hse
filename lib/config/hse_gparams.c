@@ -26,7 +26,8 @@
 
 struct hse_gparams hse_gparams;
 
-bool HSE_NONNULL(1, 2, 3) logging_destination_converter(
+static bool HSE_NONNULL(1, 2, 3)
+logging_destination_converter(
     const struct param_spec *const ps,
     const cJSON *const             node,
     void *const                    data)
