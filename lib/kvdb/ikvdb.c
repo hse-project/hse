@@ -2001,7 +2001,7 @@ ikvdb_throttle(struct ikvdb_impl *self, u64 bytes, u64 tstart)
             if (sleep_ns - dly > timer_slack / 2) {
                 tbkt_delay(sleep_ns - dly);
             } else {
-                pthread_yield();
+                sched_yield();
             }
         }
 
