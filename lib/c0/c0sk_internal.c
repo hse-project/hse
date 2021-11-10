@@ -994,17 +994,25 @@ c0sk_ingestref_put(struct c0sk_impl *self, void *cookie)
 static HSE_ALWAYS_INLINE void
 c0sk_ingestref_wait(struct c0sk_impl *self)
 {
-    while (1) {
-        const struct timespec req = { .tv_nsec = 1000 };
-        uint bits = 0, i;
+    uint8_t busyv[NELEM(self->c0sk_ingest_refv)];
+    size_t i, n, x;
 
-        for (i = 0; i < NELEM(self->c0sk_ingest_refv); ++i)
-            bits |= atomic_read(&self->c0sk_ingest_refv[i].refcnt);
+    for (i = n = 0; i < NELEM(busyv); ++i) {
+        if (atomic_read(&self->c0sk_ingest_refv[i].refcnt) > 0) {
+            busyv[n++] = i;
+        }
+    }
 
-        if (bits == 0)
-            return;
+    while (n > 0) {
+        sched_yield();
 
-        nanosleep(&req, NULL);
+        for (i = x = 0; i < n; ++i) {
+            if (atomic_read(&self->c0sk_ingest_refv[ busyv[i] ].refcnt) > 0)  {
+                busyv[x++] = busyv[i];
+            }
+        }
+
+        n = x;
     }
 }
 

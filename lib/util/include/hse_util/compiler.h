@@ -25,7 +25,7 @@
 
 /* Optimization barrier */
 /* The "volatile" is due to gcc bugs */
-#define barrier()               asm volatile("" : : : "memory")
+#define barrier()               __asm__ __volatile__("" : : : "memory")
 
 #define HSE_LIKELY(_expr)       __builtin_expect(!!(_expr), 1)
 #define HSE_UNLIKELY(_expr)     __builtin_expect(!!(_expr), 0)

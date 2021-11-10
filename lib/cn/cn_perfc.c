@@ -14,8 +14,6 @@
 #include "cn_internal.h"
 #include "cn_perfc_internal.h"
 
-#define STATIC
-
 /* clang-format off */
 
 struct perfc_name cn_perfc_get[] _dt_section = {
@@ -120,7 +118,6 @@ cn_perfc_mclass_get_idx(uint agegroup, uint dtype, uint mclass)
 }
 
 
-STATIC
 void
 cn_perfc_bkts_create(struct perfc_name *pcn, int edgec, u64 *edgev, uint sample_pct)
 {
@@ -137,7 +134,6 @@ cn_perfc_bkts_create(struct perfc_name *pcn, int edgec, u64 *edgev, uint sample_
     pcn->pcn_ivl = ivl;
 }
 
-STATIC
 void
 cn_perfc_bkts_destroy(struct perfc_name *pcn)
 {

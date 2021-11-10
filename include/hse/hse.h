@@ -57,7 +57,7 @@ extern "C" {
 
 #ifdef __has_attribute
 #  if __has_attribute(visibility)
-#    define HSE_EXPORT __attribute__((visibility("default")))
+#    define HSE_EXPORT __attribute__((__visibility__("default")))
 #  else
 #    define HSE_EXPORT
 #  endif
