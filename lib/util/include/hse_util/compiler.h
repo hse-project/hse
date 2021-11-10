@@ -104,7 +104,7 @@
 #endif
 
 #ifdef SUPPORTS_ATTR_NONNULL
-/* HSE_NONNULL(...) cannot go at the end of the function declaration */
+/* HSE_NONNULL(...) cannot go at the end of the function definition */
 #define HSE_NONNULL(...)        __attribute__((__nonnull__(__VA_ARGS__)))
 #else
 #define HSE_NONNULL(...)
