@@ -160,8 +160,7 @@ param_default_populate(
             case PARAM_TYPE_ARRAY:
             case PARAM_TYPE_OBJECT:
             default:
-                assert(false);
-                break;
+                abort();
         }
     }
 
@@ -410,8 +409,7 @@ param_default_converter(const struct param_spec *ps, const cJSON *node, void *va
         case PARAM_TYPE_ARRAY:
         case PARAM_TYPE_OBJECT:
         default:
-            assert(false);
-            break;
+            abort();
     }
 
     return true;
@@ -472,7 +470,7 @@ param_default_stringify(
         case PARAM_TYPE_ARRAY:
         case PARAM_TYPE_OBJECT:
         default:
-            assert(false);
+            abort();
     }
 
     if (n < 0)
@@ -515,8 +513,7 @@ param_default_jsonify(const struct param_spec *const ps, const void *const value
         case PARAM_TYPE_ARRAY:
         case PARAM_TYPE_OBJECT:
         default:
-            assert(false);
-            return NULL;
+            abort();
     }
 }
 
@@ -546,7 +543,7 @@ param_roundup_pow2(const struct param_spec *ps, const cJSON *node, void *value)
             *(uint32_t *)value = roundup_pow_of_two((unsigned long)to_conv);
             break;
         default:
-            return false;
+            abort();
     }
 
     return true;
@@ -675,8 +672,7 @@ param_default_validator(const struct param_spec *ps, const void *value)
         case PARAM_TYPE_ARRAY:
         case PARAM_TYPE_OBJECT:
         default:
-            assert(false);
-            break;
+            abort();
     }
 
     return false;
@@ -793,8 +789,7 @@ param_default_validator(const struct param_spec *ps, const void *value)
                 *(int64_t *)value = (uint64_t)tmp;                                                \
                 break;                                                                            \
             default:                                                                              \
-                assert(false);                                                                    \
-                return false;                                                                     \
+                abort();                                                                          \
         }                                                                                         \
                                                                                                   \
         return true;                                                                              \
@@ -843,7 +838,7 @@ STORAGE_CONVERTER(TB)
                 n = snprintf(buf, buf_sz, "%lu", *(uint64_t *)value / (uint64_t)X); \
                 break;                                                              \
             default:                                                                \
-                assert(false);                                                      \
+                abort();                                                            \
         }                                                                           \
                                                                                     \
         if (n < 0)                                                                  \
@@ -882,8 +877,7 @@ STORAGE_STRINGIFY(TB)
             case PARAM_TYPE_U64:                                                                  \
                 return cJSON_CreateNumber(*(uint64_t *)value / (double)X);                        \
             default:                                                                              \
-                assert(false);                                                                    \
-                return NULL;                                                                      \
+                abort();                                                                          \
         }                                                                                         \
     }
 
