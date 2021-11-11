@@ -55,22 +55,7 @@
 extern "C" {
 #endif
 
-#ifdef __has_attribute
-#  if __has_attribute(visibility)
-#    define HSE_EXPORT __attribute__((__visibility__("default")))
-#  else
-#    define HSE_EXPORT
-#  endif
-#else
-#  define HSE_EXPORT
-#endif
-
-#ifdef HSE_EXPORT_EXPERIMENTAL
-#undef HSE_EXPORT_EXPERIMENTAL
-#define HSE_EXPORT_EXPERIMENTAL HSE_EXPORT
-#else
-#define HSE_EXPORT_EXPERIMENTAL
-#endif
+#pragma GCC visibility push(default)
 
 /** @addtogroup ERRORS
  * @{
@@ -87,7 +72,7 @@ extern "C" {
  *
  * @returns Error's errno equivalent.
  */
-HSE_EXPORT int
+int
 hse_err_to_errno(hse_err_t err);
 
 /** @brief Return an hse_err_t value's string representation.
@@ -107,7 +92,7 @@ hse_err_to_errno(hse_err_t err);
  * would have been written to the final string if enough space had been
  * available.
  */
-HSE_EXPORT size_t
+size_t
 hse_strerror(hse_err_t err, char *buf, size_t buf_len);
 
 /** @brief Return an hse_err_t value's error context.
@@ -120,7 +105,7 @@ hse_strerror(hse_err_t err, char *buf, size_t buf_len);
  *
  * @returns The error's context.
  */
-HSE_EXPORT enum hse_err_ctx
+enum hse_err_ctx
 hse_err_to_ctx(hse_err_t err);
 
 /**@} ERRORS */
@@ -142,7 +127,7 @@ hse_err_to_ctx(hse_err_t err);
  *
  * @returns Error status.
  */
-HSE_EXPORT hse_err_t
+hse_err_t
 hse_init(const char *config, size_t paramc, const char *const *paramv);
 
 /** @brief Shutdown the HSE subsystem.
@@ -155,7 +140,7 @@ hse_init(const char *config, size_t paramc, const char *const *paramv);
  *
  * @note This function is not thread safe.
  */
-HSE_EXPORT void
+void
 hse_fini(void);
 
 /** @} SUBSYS */
@@ -178,7 +163,7 @@ hse_fini(void);
  * @returns Error status.
  */
 /* MTF_MOCK */
-HSE_EXPORT hse_err_t
+hse_err_t
 hse_kvdb_close(struct hse_kvdb *kvdb);
 
 #ifdef HSE_EXPERIMENTAL
@@ -206,7 +191,7 @@ hse_kvdb_close(struct hse_kvdb *kvdb);
  *
  * @returns Error status.
  */
-HSE_EXPORT_EXPERIMENTAL hse_err_t
+hse_err_t
 hse_kvdb_compact(struct hse_kvdb *kvdb, unsigned int flags);
 
 /** @brief Get status of an ongoing compaction activity.
@@ -224,7 +209,7 @@ hse_kvdb_compact(struct hse_kvdb *kvdb, unsigned int flags);
  *
  * @returns Error status.
  */
-HSE_EXPORT_EXPERIMENTAL hse_err_t
+hse_err_t
 hse_kvdb_compact_status_get(struct hse_kvdb *kvdb, struct hse_kvdb_compact_status *status);
 
 #endif
@@ -242,7 +227,7 @@ hse_kvdb_compact_status_get(struct hse_kvdb *kvdb, struct hse_kvdb_compact_statu
  * @returns Error status.
  */
 /* MTF_MOCK */
-HSE_EXPORT hse_err_t
+hse_err_t
 hse_kvdb_create(const char *kvdb_home, size_t paramc, const char *const *paramv);
 
 /** @brief Drop a KVDB.
@@ -257,7 +242,7 @@ hse_kvdb_create(const char *kvdb_home, size_t paramc, const char *const *paramv)
  *
  * @returns Error status.
  */
-HSE_EXPORT hse_err_t
+hse_err_t
 hse_kvdb_drop(const char *kvdb_home);
 
 /** @brief Get the names of the KVSs within the given KVDB.
@@ -293,7 +278,7 @@ hse_kvdb_drop(const char *kvdb_home);
  * @returns Error status.
  */
 /* MTF_MOCK */
-HSE_EXPORT hse_err_t
+hse_err_t
 hse_kvdb_kvs_names_get(struct hse_kvdb *kvdb, size_t *namec, char ***namev);
 
 /** @brief Free the names collection obtained through hse_kvdb_kvs_names_get().
@@ -303,7 +288,7 @@ hse_kvdb_kvs_names_get(struct hse_kvdb *kvdb, size_t *namec, char ***namev);
  * @param kvdb: KVDB handle from hse_kvdb_open().
  * @param namev: Vector of KVS names that hse_kvdb_kvs_names_get() output.
  */
-HSE_EXPORT void
+void
 hse_kvdb_kvs_names_free(struct hse_kvdb *kvdb, char **namev);
 
 /** @brief Open a KVDB.
@@ -322,7 +307,7 @@ hse_kvdb_kvs_names_free(struct hse_kvdb *kvdb, char **namev);
  * @returns Error status.
  */
 /* MTF_MOCK */
-HSE_EXPORT hse_err_t
+hse_err_t
 hse_kvdb_open(
     const char *       kvdb_home,
     size_t             paramc,
@@ -343,7 +328,7 @@ hse_kvdb_open(
  *
  * @returns Error status.
  */
-HSE_EXPORT hse_err_t
+hse_err_t
 hse_kvdb_storage_add(const char *kvdb_home, size_t paramc, const char *const *paramv);
 
 #ifdef HSE_EXPERIMENTAL
@@ -362,7 +347,7 @@ hse_kvdb_storage_add(const char *kvdb_home, size_t paramc, const char *const *pa
  *
  * @returns Error status.
  */
-HSE_EXPORT_EXPERIMENTAL hse_err_t
+hse_err_t
 hse_kvdb_storage_info_get(struct hse_kvdb *kvdb, struct hse_kvdb_storage_info *info);
 
 #endif
@@ -383,7 +368,7 @@ hse_kvdb_storage_info_get(struct hse_kvdb *kvdb, struct hse_kvdb_storage_info *i
  * @returns Error status.
  */
 /* MTF_MOCK */
-HSE_EXPORT hse_err_t
+hse_err_t
 hse_kvdb_sync(struct hse_kvdb *kvdb, unsigned int flags);
 
 /**@} KVDB */
@@ -403,7 +388,7 @@ hse_kvdb_sync(struct hse_kvdb *kvdb, unsigned int flags);
  *
  * @returns Error status.
  */
-HSE_EXPORT hse_err_t
+hse_err_t
 hse_kvdb_kvs_close(struct hse_kvs *kvs);
 
 /** @brief Create a KVS within the referenced KVDB.
@@ -425,7 +410,7 @@ hse_kvdb_kvs_close(struct hse_kvs *kvs);
  * @returns Error status.
  */
 /* MTF_MOCK */
-HSE_EXPORT hse_err_t
+hse_err_t
 hse_kvdb_kvs_create(
     struct hse_kvdb *  kvdb,
     const char *       kvs_name,
@@ -447,7 +432,7 @@ hse_kvdb_kvs_create(
  *
  * @returns Error status.
  */
-HSE_EXPORT hse_err_t
+hse_err_t
 hse_kvdb_kvs_drop(struct hse_kvdb *kvdb, const char *kvs_name);
 
 /** @brief Open a KVS in a KVDB.
@@ -467,7 +452,7 @@ hse_kvdb_kvs_drop(struct hse_kvdb *kvdb, const char *kvs_name);
  *
  * @returns Error status.
  */
-HSE_EXPORT hse_err_t
+hse_err_t
 hse_kvdb_kvs_open(
     struct hse_kvdb *  handle,
     const char *       kvs_name,
@@ -498,7 +483,7 @@ hse_kvdb_kvs_open(
  * @returns Error status.
  */
 /* MTF_MOCK */
-HSE_EXPORT hse_err_t
+hse_err_t
 hse_kvs_delete(
     struct hse_kvs *     kvs,
     unsigned int         flags,
@@ -538,7 +523,7 @@ hse_kvs_delete(
  * @returns Error status.
  */
 /* MTF_MOCK */
-HSE_EXPORT hse_err_t
+hse_err_t
 hse_kvs_get(
     struct hse_kvs *     kvs,
     unsigned int         flags,
@@ -583,7 +568,7 @@ hse_kvs_get(
  * @returns Error status.
  */
 /* MTF_MOCK */
-HSE_EXPORT hse_err_t
+hse_err_t
 hse_kvs_prefix_delete(
     struct hse_kvs *     kvs,
     unsigned int         flags,
@@ -627,7 +612,7 @@ hse_kvs_prefix_delete(
  *
  * @returns Error status.
  */
-HSE_EXPORT_EXPERIMENTAL hse_err_t
+hse_err_t
 hse_kvs_prefix_probe(
     struct hse_kvs *            kvs,
     unsigned int                flags,
@@ -686,7 +671,7 @@ hse_kvs_prefix_probe(
  * @returns Error status
  */
 /* MTF_MOCK */
-HSE_EXPORT hse_err_t
+hse_err_t
 hse_kvs_put(
     struct hse_kvs *     kvs,
     unsigned int         flags,
@@ -770,7 +755,7 @@ hse_kvs_put(
  * @returns Error status.
  */
 /* MTF_MOCK */
-HSE_EXPORT hse_err_t
+hse_err_t
 hse_kvdb_txn_abort(struct hse_kvdb *kvdb, struct hse_kvdb_txn *txn);
 
 /** @brief Allocate transaction object.
@@ -787,7 +772,7 @@ hse_kvdb_txn_abort(struct hse_kvdb *kvdb, struct hse_kvdb_txn *txn);
  * @returns The allocated transaction structure.
  */
 /* MTF_MOCK */
-HSE_EXPORT struct hse_kvdb_txn *
+struct hse_kvdb_txn *
 hse_kvdb_txn_alloc(struct hse_kvdb *kvdb);
 
 /** @brief Initiate transaction.
@@ -806,7 +791,7 @@ hse_kvdb_txn_alloc(struct hse_kvdb *kvdb);
  * @returns Error status.
  */
 /* MTF_MOCK */
-HSE_EXPORT hse_err_t
+hse_err_t
 hse_kvdb_txn_begin(struct hse_kvdb *kvdb, struct hse_kvdb_txn *txn);
 
 /** @brief Commit all the mutations of the referenced transaction.
@@ -825,7 +810,7 @@ hse_kvdb_txn_begin(struct hse_kvdb *kvdb, struct hse_kvdb_txn *txn);
  * @returns Error status
  */
 /* MTF_MOCK */
-HSE_EXPORT hse_err_t
+hse_err_t
 hse_kvdb_txn_commit(struct hse_kvdb *kvdb, struct hse_kvdb_txn *txn);
 
 /** @brief Free transaction object.
@@ -845,7 +830,7 @@ hse_kvdb_txn_commit(struct hse_kvdb *kvdb, struct hse_kvdb_txn *txn);
  * @remark @p txn must not be NULL.
  */
 /* MTF_MOCK */
-HSE_EXPORT void
+void
 hse_kvdb_txn_free(struct hse_kvdb *kvdb, struct hse_kvdb_txn *txn);
 
 /** @brief Retrieve the state of the referenced transaction.
@@ -861,7 +846,7 @@ hse_kvdb_txn_free(struct hse_kvdb *kvdb, struct hse_kvdb_txn *txn);
  * @returns Transaction's state.
  */
 /* MTF_MOCK */
-HSE_EXPORT enum hse_kvdb_txn_state
+enum hse_kvdb_txn_state
 hse_kvdb_txn_state_get(struct hse_kvdb *kvdb, struct hse_kvdb_txn *txn);
 
 /**@} TRANSACTIONS */
@@ -934,7 +919,7 @@ hse_kvdb_txn_state_get(struct hse_kvdb *kvdb, struct hse_kvdb_txn *txn);
  * @returns Error status
  */
 /* MTF_MOCK */
-HSE_EXPORT hse_err_t
+hse_err_t
 hse_kvs_cursor_create(
     struct hse_kvs *        kvs,
     unsigned int            flags,
@@ -957,7 +942,7 @@ hse_kvs_cursor_create(
  * @returns Error status.
  */
 /* MTF_MOCK */
-HSE_EXPORT hse_err_t
+hse_err_t
 hse_kvs_cursor_destroy(struct hse_kvs_cursor *cursor);
 
 /** @brief Iteratively access the elements pointed to by the cursor.
@@ -990,7 +975,7 @@ hse_kvs_cursor_destroy(struct hse_kvs_cursor *cursor);
  * @returns Error status
  */
 /* MTF_MOCK */
-HSE_EXPORT hse_err_t
+hse_err_t
 hse_kvs_cursor_read(
     struct hse_kvs_cursor *cursor,
     unsigned int           flags,
@@ -1025,7 +1010,7 @@ hse_kvs_cursor_read(
  * @returns Error status.
  */
 /* MTF_MOCK */
-HSE_EXPORT hse_err_t
+hse_err_t
 hse_kvs_cursor_seek(
     struct hse_kvs_cursor *cursor,
     unsigned int           flags,
@@ -1065,7 +1050,7 @@ hse_kvs_cursor_seek(
  * @returns Error status.
  */
 /* MTF_MOCK */
-HSE_EXPORT hse_err_t
+hse_err_t
 hse_kvs_cursor_seek_range(
     struct hse_kvs_cursor *cursor,
     unsigned int           flags,
@@ -1094,24 +1079,15 @@ hse_kvs_cursor_seek_range(
  * @returns Error status.
  */
 /* MTF_MOCK */
-HSE_EXPORT hse_err_t
+hse_err_t
 hse_kvs_cursor_update_view(struct hse_kvs_cursor *cursor, unsigned int flags);
 
 /**@} CURSORS */
 
-#undef HSE_EXPORT_EXPERIMENTAL
-#undef HSE_EXPORT
+#pragma GCC visibility pop
 
 #if HSE_MOCKING
-/* This is a complete hack because of the way mocks are generated. HSE_EXPORT
- * gets pulled as part of the function declaration when creating the function
- * pointers types for each mocked function.
- */
-#define HSE_EXPORT
-#define HSE_EXPORT_EXPERIMENTAL
 #include "hse_ut.h"
-#undef HSE_EXPORT_EXPERIMENTAL
-#undef HSE_EXPORT
 #endif /* HSE_MOCKING */
 
 #ifdef __cplusplus
