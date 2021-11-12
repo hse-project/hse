@@ -73,7 +73,7 @@ insert_key(struct mtf_test_info *lcl_ti, char *key)
 }
 
 char *
-construct_key(char *buf, uint buf_sz, char *pfx, int idx)
+construct_key(char *buf, uint buf_sz, const char *pfx, int idx)
 {
     snprintf(buf, buf_sz, "%s-%02d", pfx, idx);
     return buf;
@@ -93,100 +93,97 @@ insert_key_multiple(struct mtf_test_info *lcl_ti, char *pfx, uint nkeys)
 }
 
 void
-create_cursor(
-    struct mtf_test_info *  lcl_ti,
-    char *                  pfx,
-    uint                    nkeys,
-    bool                    reverse,
-    struct hse_kvs_cursor **cur_out)
+expect_key(struct mtf_test_info *lcl_ti, const void *key, size_t klen, const char *expected)
 {
-    struct hse_kvs_cursor *cur;
-    merr_t                 err;
+    int rc;
 
-    cur = kvs_cursor_alloc(kvs, pfx, strlen(pfx), reverse);
+    ASSERT_TRUE(strlen(expected) == klen);
+
+    rc = strncmp(key, expected, klen);
+    ASSERT_EQ(0, rc);
+}
+
+void
+expect_pfx(struct mtf_test_info *lcl_ti, const void *key, size_t klen, const char *pfx)
+{
+    int rc;
+
+    ASSERT_TRUE(strlen(pfx) <= klen);
+
+    rc = strncmp(pfx, key, strlen(pfx));
+    ASSERT_EQ(0, rc);
+}
+
+void verify_range(struct mtf_test_info *lcl_ti, const char *pfx, int start, int cnt)
+{
+    int i;
+    int c = 0;
+    char buf[20];
+    merr_t err;
+
+    struct hse_kvs_cursor *cur;
+    struct kvs_ktuple kt;
+
+    cur = kvs_cursor_alloc(kvs, pfx, strlen(pfx), false);
     ASSERT_NE(NULL, cur);
 
     err = kvs_cursor_init(cur, NULL);
     ASSERT_EQ(0, err);
 
-    *cur_out = cur;
-}
+    if (start) {
+        construct_key(buf, sizeof(buf), pfx, start);
+        err = kvs_cursor_seek(cur, buf, strlen(buf), NULL, 0, &kt);
+        ASSERT_EQ(0, err);
 
-void
-expect_key(struct mtf_test_info *lcl_ti, struct kvs_ktuple *kt_found, char *expected)
-{
-    int rc;
+        expect_pfx(lcl_ti, kt.kt_data, kt.kt_len, pfx);
+        expect_key(lcl_ti, kt.kt_data, kt.kt_len, buf);
+    }
 
-    rc = strcmp(kt_found->kt_data, expected);
-    ASSERT_EQ(0, rc);
-}
+    for (i = start;; i++) {
+        const void  *key;
+        char keybuf[32];
+        size_t key_len;
+        bool eof;
 
-void
-expect_pfx(struct mtf_test_info *lcl_ti, struct kvs_ktuple *kt_found, char *pfx)
-{
-    int rc;
+        err = kvs_cursor_read(cur, 0, &eof);
+        ASSERT_EQ(0, err);
+        if (eof)
+            break;
 
-    rc = strncmp(pfx, kt_found->kt_data, strlen(pfx));
-    ASSERT_EQ(0, rc);
+        key = kvs_cursor_key_copy(cur, NULL, 0, &key_len);
+
+        expect_pfx(lcl_ti, key, key_len, pfx);
+
+        construct_key(buf, sizeof(buf), pfx, i);
+        expect_key(lcl_ti, key, key_len, buf);
+
+        key_len = 0;
+        key = kvs_cursor_key_copy(cur, (const char *)keybuf, sizeof(keybuf), &key_len);
+        expect_key(lcl_ti, key, key_len, buf);
+
+        ++c;
+    }
+
+    ASSERT_EQ(cnt, c);
+    kvs_cursor_destroy(cur);
 }
 
 MTF_BEGIN_UTEST_COLLECTION(kvs_cursor_test);
 
 MTF_DEFINE_UTEST_PREPOST(kvs_cursor_test, basic_test, test_pre, test_post)
 {
-    merr_t err;
-
     /* Insert phase */
     insert_key_multiple(lcl_ti, "ab", 10);
     insert_key_multiple(lcl_ti, "pq", 10);
     insert_key(lcl_ti, "this is a key");
 
     /* Verify phase */
-    struct hse_kvs_cursor *cur;
 
-    create_cursor(lcl_ti, "pq", 2, false, &cur);
+    /* Verify 10 keys starting at key 0 */
+    verify_range(lcl_ti, "pq", 0, 10);
 
-    void check_keys(int start, int cnt)
-    {
-        int i;
-        int c = 0;
-
-        for (i = start;; i++) {
-            struct kvs_kvtuple kvt;
-            char               buf[20];
-            bool               eof;
-            merr_t             err;
-
-            err = kvs_cursor_read(cur, &kvt, &eof);
-            ASSERT_EQ(0, err);
-            if (eof)
-                break;
-
-            snprintf(buf, sizeof(buf), "%s-%02d", "pq", i);
-            expect_pfx(lcl_ti, &kvt.kvt_key, "pq");
-            expect_key(lcl_ti, &kvt.kvt_key, buf);
-
-            ++c;
-        }
-
-        ASSERT_EQ(cnt, c);
-    }
-
-    check_keys(0, 10);
-
-    char      buf[20];
-    const int start = 3;
-    construct_key(buf, sizeof(buf), "pq", start);
-    struct kvs_ktuple kt;
-
-    err = kvs_cursor_seek(cur, buf, strlen(buf), NULL, 0, &kt);
-    ASSERT_EQ(0, err);
-
-    expect_pfx(lcl_ti, &kt, "pq");
-    expect_key(lcl_ti, &kt, buf);
-    check_keys(start, 10 - start);
-
-    kvs_cursor_destroy(cur);
+    /* Verify 7 keys starting at key 3 */
+    verify_range(lcl_ti, "pq", 3, 7);
 }
 
 MTF_END_UTEST_COLLECTION(kvs_cursor_test);

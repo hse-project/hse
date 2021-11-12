@@ -1125,12 +1125,16 @@ hse_kvs_cursor_read(
     bool *                 eof)
 {
     merr_t err;
+    size_t vlen_dummy;
 
-    if (HSE_UNLIKELY(!cursor || !key || !klen || !val || !vlen || !eof || flags != 0))
+    if (HSE_UNLIKELY(!cursor || !key || !klen || !eof || flags != 0))
         return merr(EINVAL);
 
     err = ikvdb_kvs_cursor_read(cursor, flags, key, klen, val, vlen, eof);
     ev(err);
+
+    if (!vlen)
+        vlen = &vlen_dummy;
 
     if (!err && !*eof) {
         PERFC_INCADD_RU(
@@ -1139,6 +1143,40 @@ hse_kvs_cursor_read(
 
     return err;
 }
+
+hse_err_t
+hse_kvs_cursor_read_copy(
+    struct hse_kvs_cursor *cursor,
+    const unsigned int     flags,
+    const void *           keybuf,
+    size_t                 keybuf_sz,
+    size_t *               key_len,
+    const void *           valbuf,
+    size_t                 valbuf_sz,
+    size_t *               val_len,
+    bool *                 eof)
+{
+    merr_t err;
+    size_t vlen_dummy;
+
+    if (HSE_UNLIKELY(!cursor || !keybuf || !key_len || !eof))
+        return merr(EINVAL);
+
+    if (!val_len)
+        val_len = &vlen_dummy;
+
+    err = ikvdb_kvs_cursor_read_copy(cursor, flags, keybuf, keybuf_sz, key_len,
+                                valbuf, valbuf_sz, val_len, eof);
+    ev(err);
+
+    if (!err && !*eof) {
+        PERFC_INCADD_RU(
+            &kvdb_pc, PERFC_RA_KVDBOP_KVS_CURSOR_READ, PERFC_RA_KVDBOP_KVS_GETB, *key_len + *val_len);
+    }
+
+    return err;
+}
+
 
 hse_err_t
 hse_kvs_cursor_destroy(struct hse_kvs_cursor *cursor)

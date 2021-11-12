@@ -2708,7 +2708,6 @@ ikvdb_kvs_cursor_read(
     size_t *               val_len,
     bool *                 eof)
 {
-    struct kvs_kvtuple kvt;
     merr_t             err;
     u64                tstart;
 
@@ -2723,17 +2722,68 @@ ikvdb_kvs_cursor_read(
             return cur->kc_err;
     }
 
-    err = kvs_cursor_read(cur, &kvt, eof);
+    err = kvs_cursor_read(cur, flags, eof);
     if (ev(err))
         return err;
     if (*eof)
         return 0;
 
-    *key = kvt.kvt_key.kt_data;
-    *key_len = kvt.kvt_key.kt_len;
+    *key = kvs_cursor_key_copy(cur, NULL, 0, key_len);
+    if (val) {
+        *val = kvs_cursor_val_copy(cur, NULL, 0, val_len);
+        if (ev(!val))
+            return merr(EBUG);
+    }
 
-    *val = kvt.kvt_value.vt_data;
-    *val_len = kvs_vtuple_vlen(&kvt.kvt_value);
+    perfc_lat_record(
+        cur->kc_pkvsl_pc,
+        cur->kc_flags & HSE_CURSOR_CREATE_REV ? PERFC_LT_PKVSL_KVS_CURSOR_READREV
+                                                : PERFC_LT_PKVSL_KVS_CURSOR_READFWD,
+        tstart);
+
+    return 0;
+}
+
+merr_t
+ikvdb_kvs_cursor_read_copy(
+    struct hse_kvs_cursor *cur,
+    const unsigned int     flags,
+    const void *           keybuf,
+    size_t                 keybuf_sz,
+    size_t *               key_len,
+    const void *           valbuf,
+    size_t                 valbuf_sz,
+    size_t *               val_len,
+    bool *                 eof)
+{
+    merr_t             err;
+    u64                tstart;
+
+    tstart = perfc_lat_start(cur->kc_pkvsl_pc);
+
+    if (ev(cur->kc_err))
+        return cur->kc_err;
+
+    if (cur->kc_bind) {
+        cur->kc_err = cursor_refresh(cur);
+        if (ev(cur->kc_err))
+            return cur->kc_err;
+    }
+
+    err = kvs_cursor_read(cur, flags, eof);
+    if (ev(err))
+        return err;
+    if (*eof)
+        return 0;
+
+    kvs_cursor_key_copy(cur, keybuf, keybuf_sz, key_len);
+    if (valbuf) {
+        const void *v;
+
+        v = kvs_cursor_val_copy(cur, valbuf, valbuf_sz, val_len);
+        if (ev(!v))
+            return merr(EBUG);
+    }
 
     perfc_lat_record(
         cur->kc_pkvsl_pc,

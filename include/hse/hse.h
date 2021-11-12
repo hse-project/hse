@@ -826,7 +826,7 @@ hse_kvs_cursor_destroy(struct hse_kvs_cursor *cursor);
 /** @brief Iteratively access the elements pointed to by the cursor.
  *
  * Read a key-value pair from the cursor, advancing the cursor past its current
- * location.
+ * location. If the argument @p val is NULL, only the key is read.
  *
  * @note If the cursor is at EOF, attempts to read from it will not change the
  * state of the cursor.
@@ -860,6 +860,50 @@ hse_kvs_cursor_read(
     const void **          key,
     size_t *               key_len,
     const void **          val,
+    size_t *               val_len,
+    bool *                 eof);
+
+/** @brief Iteratively access the elements pointed to by the cursor.
+ *
+ * Read a key-value pair from the cursor, advancing the cursor past its current
+ * location. The key-value pair will be copied into the user's buffer(s). If the
+ * argument @p valbuf is NULL, only the key is read.
+ *
+ * @note If the cursor is at EOF, attempts to read from it will not change the
+ * state of the cursor.
+ * @note This function is thread safe across disparate cursors.
+ *
+ * <b>Flags:</b>
+ * @arg 0 - Reserved for future use.
+ *
+ * @param cursor: Cursor handle from hse_kvs_cursor_create().
+ * @param flags: Flags for operation specialization.
+ * @param keybuf[in,out]: Buffer into which the next key will be copied.
+ * @param keybuf_sz: Size of @p keybuf.
+ * @param[out] key_len: Length of the key.
+ * @param valbuf[in,out]: Buffer into which the next key's value will be copied.
+ * @param valbuf_sz: Size of @p valbuf
+ * @param[out] val_len: Length of @p val.
+ * @param[out] eof: If true, no more key-value pairs in sequence.
+ *
+ * @remark @p cursor must not be NULL.
+ * @remark @p key must not be NULL.
+ * @remark @p key_len must not be NULL.
+ * @remark @p val must not be NULL.
+ * @remark @p val_len must not be NULL.
+ * @remark @p eof must not be NULL.
+ *
+ * @returns Error status
+ */
+hse_err_t
+hse_kvs_cursor_read_copy(
+    struct hse_kvs_cursor *cur,
+    const unsigned int     flags,
+    const void *           keybuf,
+    size_t                 keybuf_sz,
+    size_t *               key_len,
+    const void *           valbuf,
+    size_t                 valbuf_sz,
     size_t *               val_len,
     bool *                 eof);
 

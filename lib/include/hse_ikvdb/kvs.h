@@ -125,7 +125,13 @@ kvs_cursor_seek(
     struct kvs_ktuple *    kt);
 
 merr_t
-kvs_cursor_read(struct hse_kvs_cursor *cursor, struct kvs_kvtuple *kvt, bool *eof);
+kvs_cursor_read(struct hse_kvs_cursor *cursor, unsigned int flags, bool *eof);
+
+const void *
+kvs_cursor_key_copy(struct hse_kvs_cursor *cursor, const void *kbuf, size_t kbufsz, size_t *klen);
+
+const void *
+kvs_cursor_val_copy(struct hse_kvs_cursor *cursor, const void *vbuf, size_t vbufsz, size_t *vlen);
 
 void
 kvs_cursor_perfc_alloc(uint prio, const char *dbname, struct perfc_set *pcs_cc, struct perfc_set *pcs_cd);
