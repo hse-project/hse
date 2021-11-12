@@ -1138,9 +1138,5 @@ hse_err_to_ctx(const hse_err_t err)
 
 /* Includes necessary files for mocking */
 #if HSE_MOCKING
-#define HSE_EXPORT
-#define HSE_EXPORT_EXPERIMENTAL
 #include "hse_ut_impl.i"
-#undef HSE_EXPORT_EXPERIMENTAL
-#undef HSE_EXPORT
 #endif /* HSE_MOCKING */

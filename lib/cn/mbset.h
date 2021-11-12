@@ -57,7 +57,7 @@ struct mbset {
     uint                      mbs_mapc;
     uint                      mbs_idc;
     struct mpool *            mbs_ds;
-    atomic_t                  mbs_ref;
+    atomic_int                mbs_ref;
     mbset_callback *          mbs_callback;
     void *                    mbs_callback_rock;
     void *                    mbs_udata;

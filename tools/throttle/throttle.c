@@ -564,7 +564,7 @@ fmt_key(
     int len,
     unsigned long num)
 {
-    static atomic_t u;
+    static atomic_int u;
     unsigned char *str = ti->ref_key;
     uint v;
 

@@ -54,9 +54,9 @@
 
 #include "kvs_helper.h"
 
-static atomic64_t  pfx HSE_L1D_ALIGNED;
-static atomic64_t  sfx HSE_L1D_ALIGNED;
-static uint64_t    last_del HSE_L1D_ALIGNED;
+static atomic_ulong pfx HSE_ACP_ALIGNED;
+static atomic_ulong sfx HSE_ACP_ALIGNED;
+static uint64_t last_del HSE_ACP_ALIGNED;
 
 pthread_barrier_t   put_barrier1;
 pthread_barrier_t   put_barrier2;
@@ -91,7 +91,7 @@ struct opts {
 
 struct thread_info {
     int           idx;
-    atomic64_t    ops HSE_L1D_ALIGNED;
+    atomic_ulong  ops HSE_L1D_ALIGNED;
     volatile int  state;
 };
 

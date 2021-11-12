@@ -26,7 +26,7 @@ struct mocked_api {
     u64      stop2;
     union rc rc2;
 
-    atomic64_t calls HSE_L1D_ALIGNED;
+    atomic_ulong calls HSE_L1D_ALIGNED;
 };
 
 /*

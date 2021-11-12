@@ -89,7 +89,7 @@ struct mblock_file {
     int            fileid;
     int            fd;
 
-    atomic_t *wlenv;
+    atomic_int *wlenv;
 
     struct mutex uniq_lock HSE_L1D_ALIGNED;
     uint32_t     uniq;
@@ -102,8 +102,8 @@ struct mblock_file {
     int                 mmapc;
     struct mblock_mmap *mmapv;
 
-    atomic64_t wlen HSE_L1D_ALIGNED;
-    atomic_t   mbcnt;
+    atomic_long wlen HSE_L1D_ALIGNED;
+    atomic_int  mbcnt;
 };
 
 /* clang-format on */
@@ -1002,7 +1002,7 @@ mblock_file_read(
     off_t     roff, eoff;
     size_t    len = 0, mblocksz, wlen;
     merr_t    err;
-    atomic_t *wlenp;
+    atomic_int *wlenp;
 
     if (!mbfp || !iov)
         return merr(EINVAL);
@@ -1046,7 +1046,7 @@ mblock_file_write(struct mblock_file *mbfp, uint64_t mbid, const struct iovec *i
     size_t    len = 0, mblocksz;
     off_t     woff, eoff, off;
     merr_t    err;
-    atomic_t *wlenp;
+    atomic_int *wlenp;
 
     if (!mbfp || !iov)
         return merr(EINVAL);

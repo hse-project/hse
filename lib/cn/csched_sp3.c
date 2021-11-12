@@ -259,8 +259,8 @@ struct sp3 {
     uint lpct_throttle;
 
     /* Throttle sensors */
-    u64        rspill_dt_prev;
-    atomic64_t rspill_dt;
+    u64         rspill_dt_prev;
+    atomic_long rspill_dt;
 
 
     u64 qos_prv_log;
@@ -278,7 +278,7 @@ struct sp3 {
     /* Accessed by monitor and infrequently by open/close threads */
     struct mutex     new_tlist_lock HSE_L1D_ALIGNED;
     struct list_head new_tlist;
-    atomic_t         destruct;
+    atomic_int       destruct;
 
     /* Accessed by monitor, open/close, ingest and jobs threads */
     struct mutex     mutex HSE_L1D_ALIGNED;

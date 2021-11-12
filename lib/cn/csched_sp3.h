@@ -46,10 +46,10 @@ struct sp3_node {
 struct sp3_tree {
     struct list_head spt_tlink;
     uint             spt_job_cnt;
-    atomic_t         spt_enabled;
-    atomic_t         spt_ingest_count;
-    atomic64_t       spt_ingest_alen;
-    atomic64_t       spt_ingest_wlen;
+    atomic_int       spt_enabled;
+    atomic_int       spt_ingest_count;
+    atomic_ulong     spt_ingest_alen;
+    atomic_ulong     spt_ingest_wlen;
 };
 
 #if HSE_MOCKING

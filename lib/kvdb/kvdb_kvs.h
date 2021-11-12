@@ -42,7 +42,7 @@ struct kvdb_kvs {
     u64                     kk_cnid;
     struct kvs_cparams     *kk_cparams;
     u32                     kk_flags;
-    atomic_t                kk_refcnt;
+    atomic_int              kk_refcnt;
 
     char kk_name[HSE_KVS_NAME_LEN_MAX];
 };

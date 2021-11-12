@@ -474,13 +474,13 @@ struct km_lor km_lor = {
 
 struct km_latency {
     struct hdr_histogram *km_histogram;
-    atomic64_t            km_samples;
-    atomic64_t            km_samples_err;
+    atomic_ulong          km_samples;
+    atomic_ulong          km_samples_err;
 };
 
 struct km_sync_latency {
-    atomic64_t km_sync_iterations;
-    atomic64_t km_total_sync_latency_us;
+    atomic_ulong km_sync_iterations;
+    atomic_ulong km_total_sync_latency_us;
 };
 
 /* The implementation object maintains both the methods and data
@@ -512,7 +512,7 @@ struct km_impl {
     mongoc_uri_t *        active_uri;
     mongoc_client_pool_t *client_pool;
 
-    atomic64_t keydistchunk HSE_ACP_ALIGNED;
+    atomic_ulong keydistchunk HSE_ACP_ALIGNED;
 
     struct km_latency      km_latency[KMT_LAT_REC_CNT] HSE_ACP_ALIGNED;
     struct km_sync_latency km_sync_latency;
@@ -3358,7 +3358,7 @@ latency_aggregate(struct km_latency *to, struct km_latency *from, int count)
 void *
 spawn_main(void *arg)
 {
-    static atomic_t workers;
+    static atomic_int workers;
     struct km_inst *inst = arg;
     char            collname[16];
     int             i;

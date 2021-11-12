@@ -23,7 +23,7 @@ struct wal_io *
 wal_io_create(
     struct wal_fileset *wfset,
     uint32_t            index,
-    atomic64_t         *doff,
+    atomic_ulong       *doff,
     struct wal_iocb    *iocb);
 
 void

@@ -105,7 +105,7 @@ static struct kmem_cache *lc_cursor_cache;
  */
 struct ingest_batch {
     u64                  ib_seqno;
-    atomic64_t           ib_refcnt;
+    atomic_int           ib_refcnt;
     struct ingest_batch *ib_next;
 };
 
@@ -139,7 +139,7 @@ struct lc_impl {
     struct lc    lc_handle;
     struct mutex lc_mutex;
     uint         lc_nsrc;
-    atomic_t     lc_closing;
+    atomic_int   lc_closing;
 
     struct bonsai_root *     lc_broot[LC_SOURCE_CNT_MAX];
     struct lc_gc             lc_gc;
@@ -151,7 +151,7 @@ struct lc_impl {
 
     struct rmlock        lc_ib_rmlock;
     struct ingest_batch *lc_ib_head;
-    atomic_t             lc_ib_len;
+    atomic_int           lc_ib_len;
 };
 
 #define lc_h2r(HANDLE) container_of(HANDLE, struct lc_impl, lc_handle)

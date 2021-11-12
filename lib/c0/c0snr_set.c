@@ -58,7 +58,7 @@ struct c0snr_set_entry;
  * @cse_kvms_gen:       last active kvms gen to use this c0snr
  */
 struct c0snr_set_entry {
-    atomic_t               cse_refcnt;
+    atomic_int             cse_refcnt;
     volatile bool          cse_ctxn;
     struct c0snr_set_list *cse_list;
     u64                    cse_kvms_gen;

@@ -27,7 +27,7 @@
 #define SP3_BONUS_MAX_IDLE 1
 #define SP3_BONUS_MAX_SCAT 2
 
-static atomic_t sp3_bonus;
+static atomic_int sp3_bonus;
 
 static bool
 sp3_node_is_idle(struct cn_tree_node *tn)
@@ -369,7 +369,7 @@ sp3_work_leaf_len(
     struct kvset_list_entry **mark,
     enum cn_action *          action,
     enum cn_comp_rule *       rule,
-    atomic_t **               bonusp)
+    atomic_int              **bonusp)
 {
     struct cn_tree_node *    tn;
     struct list_head *       head;
@@ -542,7 +542,7 @@ sp3_work_leaf_scatter(
     struct kvset_list_entry **mark,
     enum cn_action *          action,
     enum cn_comp_rule *       rule,
-    atomic_t **               bonusp)
+    atomic_int              **bonusp)
 {
     struct list_head *       head;
     struct cn_tree_node *    tn;
@@ -656,7 +656,7 @@ sp3_work(
     enum cn_action           action = CN_ACTION_NONE;
     enum cn_comp_rule        rule = CN_CR_NONE;
     struct kvset_list_entry *mark = NULL;
-    atomic_t *               bonus = NULL;
+    atomic_int              *bonus = NULL;
 
     *qnum_out = 0;
     tn = spn2tn(spn);

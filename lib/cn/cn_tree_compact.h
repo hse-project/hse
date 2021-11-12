@@ -180,7 +180,7 @@ struct cn_compaction_work {
     merr_t                   cw_err;
     struct workqueue_struct *cw_io_workq;
     struct perfc_set *       cw_pc;
-    atomic_t *               cw_cancel_request;
+    atomic_int              *cw_cancel_request;
     struct mpool *           cw_ds;
     struct kvs_rparams *     cw_rp;
     struct kvs_cparams *     cw_cp;
@@ -200,11 +200,11 @@ struct cn_compaction_work {
     bool                     cw_have_token;
     bool                     cw_rspill_conc;
     struct list_head         cw_rspill_link;
-    atomic_t                 cw_rspill_done;
-    atomic_t                 cw_rspill_commit_in_progress;
+    atomic_int               cw_rspill_done;
+    atomic_int               cw_rspill_commit_in_progress;
     u64                      cw_dgen_hi;
     u64                      cw_dgen_lo;
-    atomic_t *               cw_bonus;
+    atomic_int              *cw_bonus;
 
     /* For scheduler */
     struct sts_job        cw_job;

@@ -16,9 +16,9 @@ build_config_h_data = configuration_data({
     'SUPPORTS_ATTR_ALIGNED': cc.has_function_attribute('aligned'),
     'SUPPORTS_ATTR_SECTION': cc.compiles(
         '''
-        int x __attribute__((section(".read_mostly"))) = 0;
+        int x __attribute__((__section__(".read_mostly"))) = 0;
         ''',
-        name: '__attribute__((section(".read_mostly")))',
+        name: '__attribute__((__section__(".read_mostly")))',
     ),
     'SUPPORTS_ATTR_UNUSED': cc.has_function_attribute('unused'),
     'SUPPORTS_ATTR_USED': cc.has_function_attribute('used'),
@@ -29,13 +29,13 @@ build_config_h_data = configuration_data({
     'SUPPORTS_ATTR_WEAK': cc.has_function_attribute('weak'),
     'SUPPORTS_ATTR_SENTINEL': cc.compiles(
         '''
-        int __attribute__((sentinel))
+        int __attribute__((__sentinel__))
         test_func(const char *fmt, ...)
         {
             return 0;
         }
         ''',
-        name: '__attribute__((sentinel))',
+        name: '__attribute__((__sentinel__))',
     ),
     'SUPPORTS_ATTR_NONNULL': cc.has_function_attribute('nonnull'),
     'WITH_COVERAGE': get_option('b_coverage'),

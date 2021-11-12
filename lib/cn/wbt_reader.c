@@ -1,6 +1,6 @@
 /* SPDX-License-Identifier: Apache-2.0 */
 /*
- * Copyright (C) 2015-2020 Micron Technology, Inc.  All rights reserved.
+ * Copyright (C) 2015-2021 Micron Technology, Inc.  All rights reserved.
  */
 
 #include <hse_util/platform.h>
@@ -30,8 +30,7 @@
  * This file should contain no wbt omf specific code.
  */
 
-static struct kmem_cache *wbti_cache;
-static atomic_t           wbti_init_ref;
+static struct kmem_cache *wbti_cache HSE_READ_MOSTLY;
 
 void
 wbt_read_kmd_vref(const void *kmd, size_t *off, u64 *seq, struct kvs_vtuple_ref *vref)
@@ -220,14 +219,9 @@ wbti_init(void)
 {
     struct kmem_cache *zone;
 
-    if (atomic_inc_return(&wbti_init_ref) > 1)
-        return 0;
-
     zone = kmem_cache_create("wbti", sizeof(struct wbti), 0, SLAB_HWCACHE_ALIGN, NULL);
-    if (ev(!zone)) {
-        atomic_dec(&wbti_init_ref);
+    if (ev(!zone))
         return merr(ENOMEM);
-    }
 
     wbti_cache = zone;
 
@@ -237,9 +231,6 @@ wbti_init(void)
 void
 wbti_fini(void)
 {
-    if (atomic_dec_return(&wbti_init_ref) > 0)
-        return;
-
     kmem_cache_destroy(wbti_cache);
     wbti_cache = NULL;
 }

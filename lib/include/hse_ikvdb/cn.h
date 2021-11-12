@@ -186,7 +186,7 @@ struct csched *
 cn_get_sched(struct cn *cn);
 
 /* MTF_MOCK */
-atomic_t *
+atomic_int *
 cn_get_cancel(struct cn *cn);
 
 /* MTF_MOCK */

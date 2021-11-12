@@ -50,8 +50,8 @@ MTF_DEFINE_UTEST(workqueue_test, create)
     destroy_workqueue(q);
 }
 
-atomic_t counter;
-atomic_t counter2;
+atomic_int counter;
+atomic_int counter2;
 
 void
 simple_worker(struct work_struct *wstruct)

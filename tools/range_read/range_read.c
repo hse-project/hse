@@ -78,9 +78,9 @@ struct opts {
 
 static volatile bool stopthreads HSE_ACP_ALIGNED;
 
-atomic64_t n_write HSE_ACP_ALIGNED;
-atomic64_t n_cursor HSE_ACP_ALIGNED;
-atomic64_t n_read HSE_ACP_ALIGNED;
+atomic_ulong n_write HSE_ACP_ALIGNED;
+atomic_ulong n_cursor HSE_ACP_ALIGNED;
+atomic_ulong n_read HSE_ACP_ALIGNED;
 
 
 u64 gtod_usec(void)

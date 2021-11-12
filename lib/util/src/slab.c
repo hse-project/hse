@@ -283,7 +283,7 @@ struct kmem_cache {
 static struct {
     struct kmem_cache       *kmc_pagecache;
     struct workqueue_struct *kmc_wq;
-    atomic_t                 kmc_huge_used;
+    atomic_int               kmc_huge_used;
     uint                     kmc_huge_max;
 
     struct mutex     kmc_lock HSE_L1D_ALIGNED;

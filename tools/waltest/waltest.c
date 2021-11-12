@@ -78,7 +78,7 @@ const char *mode = "";
 const char *progname = NULL;
 struct timeval tv_start;
 int verbose = 0;
-atomic64_t errors;
+atomic_ulong errors;
 static bool ingest_mode;
 static u32 sync_time;
 
@@ -87,10 +87,10 @@ static const long key_space_size = 4000000000UL;
 static bool single_kvs;
 
 struct hse_kvdb *kvdb;
-atomic64_t put_cnt;
-atomic64_t del_cnt;
-atomic64_t put_verify_cnt;
-atomic64_t del_verify_cnt;
+atomic_long put_cnt;
+atomic_long del_cnt;
+atomic_long put_verify_cnt;
+atomic_long del_verify_cnt;
 
 struct thread_info {
     struct hse_kvdb        *kvdb;
@@ -664,7 +664,7 @@ fmt_key(
     int len,
     unsigned long num)
 {
-    static atomic_t u;
+    static atomic_int u;
     unsigned char *str = ti->ref_key;
 
     if (len < 3) {

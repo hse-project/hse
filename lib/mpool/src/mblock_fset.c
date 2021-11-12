@@ -51,7 +51,7 @@ struct mblock_fset {
     struct media_class  *mc;
     struct kmem_cache   *rmcache[MBLOCK_FSET_RMCACHE_CNT];
 
-    atomic64_t           fidx;
+    atomic_ulong         fidx;
     size_t               fszmax;
     struct mblock_file **filev;
     int                  fcnt;

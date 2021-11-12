@@ -15,7 +15,7 @@ struct wal_bufset *
 wal_bufset_open(
     struct wal_fileset *wfset,
     size_t              bufsz,
-    atomic64_t         *ingestgen,
+    atomic_ulong       *ingestgen,
     struct wal_iocb    *iocb);
 
 void

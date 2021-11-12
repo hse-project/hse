@@ -29,10 +29,6 @@ struct wal_fileset {
     struct list_head complete;
     struct list_head replay;
 
-    atomic64_t activec;
-    atomic64_t compc;
-    atomic64_t reclaimc;
-
     struct mpool *mp HSE_L1D_ALIGNED;
     enum mpool_mclass mclass;
     size_t   capacity;
@@ -49,7 +45,7 @@ struct wal_file {
     off_t roff;
     off_t woff;
     off_t soff;
-    atomic64_t ref;
+    atomic_long ref;
 
     struct mpool_file *mpf HSE_L1D_ALIGNED;
     struct wal_fileset *wfset;
@@ -152,7 +148,6 @@ wal_fileset_reclaim(
         assert(atomic_read(&cur->ref) == 1);
         wal_file_put(cur);
         wal_file_destroy(wfset, gen, fileid);
-        atomic_inc(&wfset->reclaimc);
     }
 
     return 0;
@@ -183,9 +178,6 @@ wal_fileset_open(
     INIT_LIST_HEAD(&wfset->active);
     INIT_LIST_HEAD(&wfset->complete);
     INIT_LIST_HEAD(&wfset->replay);
-    atomic_set(&wfset->activec, 0);
-    atomic_set(&wfset->compc, 0);
-    atomic_set(&wfset->reclaimc, 0);
 
     wfset->mp = mp;
     wfset->mclass = mclass;
@@ -274,8 +266,6 @@ wal_file_open(
         list_add_tail(&wfile->link, &wfset->active);
     mutex_unlock(&wfset->lock);
 
-    atomic_inc(&wfset->activec);
-
     *handle = wfile;
 
     return 0;
@@ -335,7 +325,6 @@ wal_file_complete(struct wal_fileset *wfset, struct wal_file *wfile)
     if (!cur)
         list_add_tail(&wfile->link, &wfset->complete);
     mutex_unlock(&wfset->lock);
-    atomic_inc(&wfset->compc);
 
     return 0;
 }

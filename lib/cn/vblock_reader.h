@@ -56,8 +56,8 @@ struct vblock_desc {
     u32                  vbd_off;      /* byte offset of vblock data */
     u32                  vbd_len;      /* byte length of vblock data */
     u64                  vbd_vgroup;   /* vblock group ID (dgen_hi) */
-    atomic_t             vbd_vgidx;    /* vblock group index */
-    atomic_t             vbd_refcnt;   /* vbr_madvise_async() refcnt */
+    atomic_int           vbd_vgidx;    /* vblock group index */
+    atomic_int           vbd_refcnt;   /* vbr_madvise_async() refcnt */
 };
 
 /**

@@ -76,8 +76,11 @@
 
 /* clang-format off */
 
-static_assert((sizeof(uintptr_t) == sizeof(u64)),
+static_assert((sizeof(uintptr_t) == sizeof(uint64_t)),
               "libhse relies on pointers being 64-bits in size");
+
+static_assert((sizeof(atomic_ulong) == sizeof(uint64_t)),
+              "libhse require atomic_ulong to be exactly 64-bits");
 
 struct perfc_name ctxn_perfc_op[] _dt_section = {
     NE(PERFC_BA_CTXNOP_ACTIVE,    1, "Count of active txns",       "c_ctxn_active"),
@@ -98,7 +101,7 @@ NE_CHECK(ctxn_perfc_op, PERFC_EN_CTXNOP, "ctxn_perfc_op table/enum mismatch");
 thread_local char tls_vbuf[256 * 1024] HSE_ALIGNED(PAGE_SIZE);
 const size_t      tls_vbufsz = sizeof(tls_vbuf);
 
-static atomic_t kvdb_alias = 0;
+static atomic_int kvdb_alias;
 
 #define ikvdb_h2r(_ikvdb_handle) \
     container_of(_ikvdb_handle, struct ikvdb_impl, ikdb_handle)
@@ -118,8 +121,8 @@ struct kvdb_ctxn_bkt {
     struct kvdb_ctxn *kcb_ctxnv[(HSE_ACP_LINESIZE / 8) - 1];
 };
 
-static thread_local uint     tls_txn_idx;
-static              atomic_t ikvdb_txn_idx;
+static thread_local uint tls_txn_idx;
+static atomic_uint ikvdb_txn_idx;
 
 /**
  * struct ikvdb_impl - private representation of a kvdb

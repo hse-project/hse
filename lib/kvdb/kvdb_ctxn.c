@@ -65,7 +65,7 @@ struct kvdb_ctxn_set_impl {
 
     struct mutex             ktn_list_mutex HSE_ACP_ALIGNED;
     struct list_head         ktn_pending;
-    atomic_t                 ktn_reading;
+    atomic_int               ktn_reading;
     bool                     ktn_queued;
 
     struct cds_list_head     ktn_alloc_list HSE_ALIGNED(CAA_CACHE_LINE_SIZE);
@@ -141,7 +141,7 @@ kvdb_ctxn_set_thread(struct work_struct *work)
 
     ktn = container_of(work, struct kvdb_ctxn_set_impl, ktn_dwork.work);
 
-    atomic_set(&ktn->ktn_reading, 1);
+    atomic_store(&ktn->ktn_reading, 1);
 
     /* Abort all active transactions that have expired. */
     now = get_time_ns();
@@ -160,7 +160,7 @@ kvdb_ctxn_set_thread(struct work_struct *work)
     list_for_each_entry(ctxn, &alist, ctxn_abort_link)
         kvdb_ctxn_abort(&ctxn->ctxn_inner_handle);
 
-    atomic_set(&ktn->ktn_reading, 0);
+    atomic_store(&ktn->ktn_reading, 0);
 
     INIT_LIST_HEAD(&freelist);
 

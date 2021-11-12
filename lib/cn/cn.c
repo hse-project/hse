@@ -205,7 +205,7 @@ cn_get_sched(struct cn *cn)
     return cn->csched;
 }
 
-atomic_t *
+atomic_int *
 cn_get_cancel(struct cn *cn)
 {
     return &cn->cn_maint_cancel;

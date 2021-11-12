@@ -100,27 +100,22 @@ struct intern_builder {
 /* If you increase the size of IB_ESBUFSZ_MAX or HSE_KVS_KEY_LEN_MAX then
  * you probably need to increase the buffer grow size in ib_sbuf_key_add().
  */
-_Static_assert(IB_ESBUFSZ_MAX < 4096, "adjust grow size in ib_sbuf_key_add()");
-_Static_assert(HSE_KVS_KEY_LEN_MAX < 4096, "adjust grow size in ib_sbuf_key_add()");
+static_assert(IB_ESBUFSZ_MAX < 4096, "adjust grow size in ib_sbuf_key_add()");
+static_assert(HSE_KVS_KEY_LEN_MAX < 4096, "adjust grow size in ib_sbuf_key_add()");
 
 
 static struct kmem_cache *ib_node_cache HSE_READ_MOSTLY;
 static struct kmem_cache *ib_cache HSE_READ_MOSTLY;
-static atomic_t           ib_init_ref;
 
 merr_t
 ib_init(void)
 {
     size_t sz;
 
-    if (atomic_inc_return(&ib_init_ref) > 1)
-        return 0;
-
     sz = sizeof(struct intern_node);
 
     ib_node_cache = kmem_cache_create("ibnode", sz, 0, 0, NULL);
     if (ev(!ib_node_cache)) {
-        atomic_dec(&ib_init_ref);
         return merr(ENOMEM);
     }
 
@@ -131,7 +126,6 @@ ib_init(void)
     if (ev(!ib_cache)) {
         kmem_cache_destroy(ib_node_cache);
         ib_node_cache = NULL;
-        atomic_dec(&ib_init_ref);
         return merr(ENOMEM);
     }
 
@@ -141,9 +135,6 @@ ib_init(void)
 void
 ib_fini(void)
 {
-    if (atomic_dec_return(&ib_init_ref) > 0)
-        return;
-
     kmem_cache_destroy(ib_node_cache);
     ib_node_cache = NULL;
 }

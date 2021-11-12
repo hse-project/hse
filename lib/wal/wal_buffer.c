@@ -20,17 +20,17 @@
 /* clang-format off */
 
 struct wal_buffer {
-    atomic64_t wb_offset_head HSE_ACP_ALIGNED;
-    atomic64_t wb_offset_tail HSE_L1D_ALIGNED;
+    atomic_ulong  wb_offset_head HSE_ACP_ALIGNED;
+    atomic_ulong  wb_offset_tail HSE_L1D_ALIGNED;
 
-    atomic64_t wb_doff HSE_L1D_ALIGNED;
-    atomic64_t wb_foff;
-    char      *wb_buf;
-    atomic64_t wb_curgen;
-    atomic_t   wb_flushing;
-    atomic_t   wb_wrap;
-    atomic64_t wb_flushb;
-    atomic64_t wb_flushc;
+    atomic_ulong  wb_doff HSE_L1D_ALIGNED;
+    atomic_ulong  wb_foff;
+    char         *wb_buf;
+    atomic_ulong  wb_curgen;
+    atomic_int    wb_flushing;
+    atomic_int    wb_wrap;
+    atomic_ulong  wb_flushb;
+    atomic_ulong  wb_flushc;
 
     struct work_struct  wb_fwork HSE_L1D_ALIGNED;
     struct wal_bufset  *wb_bs;
@@ -40,8 +40,8 @@ struct wal_buffer {
     /* TODO: Need to ensure there can never be more c0kvms
      * inflight than we can track...
      */
-    atomic64_t wb_genlenv[32] HSE_L1D_ALIGNED;
-    atomic64_t wb_genoffv[32];
+    atomic_ulong wb_genlenv[32] HSE_L1D_ALIGNED;
+    atomic_ulong wb_genoffv[32];
 };
 
 struct wal_bufset {
@@ -50,8 +50,8 @@ struct wal_bufset {
     size_t      wbs_buf_sz;
     size_t      wbs_buf_allocsz;
 
-    atomic64_t *wbs_ingestgen;
-    atomic64_t  wbs_err;
+    atomic_ulong *wbs_ingestgen;
+    atomic_long   wbs_err;
 
     uint32_t          wbs_bufc;
     struct wal_buffer wbs_bufv[];
@@ -110,7 +110,7 @@ restart:
         buf = wb->wb_buf + (foff % bufsz);
         rhdr = (void *)buf;
 
-        while ((recoff = omf64_to_cpu(atomic_read((atomic64_t *)&rhdr->rh_off))) != foff) {
+        while ((recoff = omf64_to_cpu(atomic_read((atomic_ulong *)&rhdr->rh_off))) != foff) {
             if (recoff >= WAL_ROFF_RECOV_ERR) {
                 if (recoff == WAL_ROFF_RECOV_ERR) {
                     skiprec = true;
@@ -220,7 +220,7 @@ struct wal_bufset *
 wal_bufset_open(
     struct wal_fileset *wfset,
     size_t              bufsz,
-    atomic64_t         *ingestgen,
+    atomic_ulong       *ingestgen,
     struct wal_iocb    *iocb)
 {
     struct wal_bufset *wbs;
