@@ -196,7 +196,7 @@ foreach p, p_params: programs
             args: t_params['args'],
             is_parallel: false,
             suite: ['stress-large'],
-            timeout: params.get('timeout', 3600),
+            timeout: params.get('timeout', 7200),
         )
     endforeach
 
