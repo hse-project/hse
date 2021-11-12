@@ -26,6 +26,7 @@
  * @mbfsp:    mblock fileset handle
  * @mblocksz: mblock size configured for this mclass
  * @mcid:     mclass ID (persisted in mblock/mdc metadata)
+ * @gclose:   was mclass closed gracefully in prior instance
  * @dpath:    mclass directory path
  */
 struct media_class {
@@ -33,6 +34,7 @@ struct media_class {
     struct mblock_fset *mbfsp;
     size_t              mblocksz;
     enum mclass_id      mcid;
+    bool                gclose;
     char *              dpath;
 };
 
@@ -313,18 +315,33 @@ mclass_mblocksz_set(struct media_class *mc, size_t mblocksz)
     mc->mblocksz = mblocksz;
 }
 
+void
+mclass_gclose_set(struct media_class *mc)
+{
+    if (ev(!mc))
+        return;
+
+    mc->gclose = true;
+}
+
+bool
+mclass_gclose_get(struct media_class *mc)
+{
+    return mc ? mc->gclose : false;
+}
+
 enum mclass_id
 mclass_to_mcid(enum mpool_mclass mclass)
 {
     switch (mclass) {
-        case MP_MED_CAPACITY:
-            return MCID_CAPACITY;
+    case MP_MED_CAPACITY:
+        return MCID_CAPACITY;
 
-        case MP_MED_STAGING:
-            return MCID_STAGING;
+    case MP_MED_STAGING:
+        return MCID_STAGING;
 
-        default:
-            break;
+    case MP_MED_PMEM:
+        return MCID_PMEM;
     }
 
     return MCID_INVALID;
@@ -334,14 +351,17 @@ enum mpool_mclass
 mcid_to_mclass(enum mclass_id mcid)
 {
     switch (mcid) {
-        case MCID_CAPACITY:
-            return MP_MED_CAPACITY;
+    case MCID_INVALID:
+        return MP_MED_INVALID;
 
-        case MCID_STAGING:
-            return MP_MED_STAGING;
+    case MCID_CAPACITY:
+        return MP_MED_CAPACITY;
 
-        default:
-            break;
+    case MCID_STAGING:
+        return MP_MED_STAGING;
+
+    case MCID_PMEM:
+        return MP_MED_PMEM;
     }
 
     return MP_MED_INVALID;

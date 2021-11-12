@@ -24,24 +24,26 @@ struct mblock_fset;
  * struct mblock_metahdr - mblock meta header
  * stored at offset 0 in the metadata file which is one per media class
  *
- * @vers:       header version
- * @magic:      header magic
- * @fszmax_gb:  max file size in GB
- * @mblksz_sec: mblock size in 512B sectors
- * @mcid:       mclass ID
- * @fcnt:       no. of data files per mclass
- * @blkbits:    no. of bits to track blocks allocated per file
- * @mcbits:     no. of bits to track media class
+ * @vers:    header version
+ * @magic:   header magic
+ * @fszmax:  max file size in bytes
+ * @mblksz:  mblock size in bytes
+ * @mcid:    mclass ID
+ * @fcnt:    no. of data files per mclass
+ * @blkbits: no. of bits to track blocks allocated per file
+ * @mcbits:  no. of bits to track media class
+ * @gclose:  was mpool closed gracefully in the previous instantiation
  */
 struct mblock_metahdr {
     uint32_t vers;
     uint32_t magic;
-    uint32_t fszmax_gb;
-    uint32_t mblksz_sec;
+    uint64_t fszmax;
+    uint64_t mblksz;
     uint8_t  mcid;
     uint8_t  fcnt;
     uint8_t  blkbits;
     uint8_t  mcbits;
+    bool     gclose;
 };
 
 /**

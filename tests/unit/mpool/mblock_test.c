@@ -271,12 +271,22 @@ MTF_DEFINE_UTEST_PREPOST(mblock_test, mblock_abc, mpool_test_pre, mpool_test_pos
     err = mpool_close(mp);
     ASSERT_EQ(0, err);
 
+    setup_mclass(MP_MED_PMEM);
+
+    err = mpool_mclass_add(MP_MED_PMEM, &tcparams);
+    if (err)
+        ASSERT_EQ(ENOTSUP, merr_errno(err));
+
     unset_mclass(MP_MED_STAGING);
+    unset_mclass(MP_MED_PMEM);
 
     err = mpool_open(home, &trparams, O_RDWR, &mp);
     ASSERT_EQ(0, merr_errno(err));
 
     err = mpool_mblock_alloc(mp, MP_MED_STAGING, &mbid, &props);
+    ASSERT_EQ(ENOENT, merr_errno(err));
+
+    err = mpool_mblock_alloc(mp, MP_MED_PMEM, &mbid, &props);
     ASSERT_EQ(ENOENT, merr_errno(err));
 
     err = mpool_close(mp);

@@ -6,6 +6,7 @@
 #include <crc32c.h>
 #include <hse_util/hse_err.h>
 #include <hse_util/logging.h>
+#include <hse_util/page.h>
 
 #include "omf.h"
 #include "mblock_file.h"
@@ -40,7 +41,7 @@ omf_mdc_loghdr_pack(struct mdc_loghdr *lh, char *outbuf)
 }
 
 merr_t
-omf_mdc_loghdr_unpack(const char *inbuf, struct mdc_loghdr *lh)
+omf_mdc_loghdr_unpack(const char *inbuf, bool gclose, struct mdc_loghdr *lh)
 {
     struct mdc_loghdr_omf *lhomf;
     uint32_t               crc;
@@ -57,7 +58,8 @@ omf_mdc_loghdr_unpack(const char *inbuf, struct mdc_loghdr *lh)
     if (crc != lh->crc) {
         const struct mdc_loghdr_omf ref = { 0 };
 
-        return ((memcmp(lhomf, &ref, sizeof(*lhomf)) == 0) ? merr(ENODATA) : merr(ENOMSG));
+        return ((memcmp(lhomf, &ref, sizeof(*lhomf)) == 0) ? merr(ENODATA) :
+                (gclose ? merr(EBADMSG) : merr(ENOMSG)));
     }
 
     return 0;
@@ -103,16 +105,25 @@ omf_mblock_metahdr_pack(struct mblock_metahdr *mh, char *outbuf)
 
     omf_set_mh_vers(mhomf, mh->vers);
     omf_set_mh_magic(mhomf, mh->magic);
-    omf_set_mh_fszmax_gb(mhomf, mh->fszmax_gb);
-    omf_set_mh_mblksz_sec(mhomf, mh->mblksz_sec);
+    omf_set_mh_fszmax_gb(mhomf, mh->fszmax >> GB_SHIFT);
+    omf_set_mh_mblksz_sec(mhomf, mh->mblksz >> SECTOR_SHIFT);
     omf_set_mh_mcid(mhomf, mh->mcid);
     omf_set_mh_fcnt(mhomf, mh->fcnt);
     omf_set_mh_blkbits(mhomf, mh->blkbits);
     omf_set_mh_mcbits(mhomf, mh->mcbits);
     omf_set_mh_rsvd(mhomf, 0);
-
     omf_set_mh_crc(mhomf, omf_mblock_metahdr_crc_get(mhomf));
-    omf_set_mh_gclose(mhomf, 1);
+    omf_set_mh_gclose(mhomf, mh->gclose ? 1 : 0);
+}
+
+void
+omf_mblock_metahdr_gclose_set(char *outbuf, bool gclose)
+{
+    struct mblock_metahdr_omf *mhomf;
+
+    mhomf = (struct mblock_metahdr_omf *)outbuf;
+
+    omf_set_mh_gclose(mhomf, gclose ? 1 : 0);
 }
 
 void
@@ -122,8 +133,8 @@ omf_mblock_metahdr_unpack_v1(const char *inbuf, struct mblock_metahdr *mh)
 
     mhomf = (struct mblock_metahdr_omf_v1 *)inbuf;
 
-    mh->fszmax_gb = omf_mh_fszmax_gb_v1(mhomf);
-    mh->mblksz_sec = omf_mh_mblksz_sec_v1(mhomf);
+    mh->fszmax = ((uint64_t)omf_mh_fszmax_gb_v1(mhomf)) << GB_SHIFT;
+    mh->mblksz = ((uint64_t)omf_mh_mblksz_sec_v1(mhomf)) << SECTOR_SHIFT;
     mh->mcid = omf_mh_mcid_v1(mhomf);
     mh->fcnt = omf_mh_fcnt_v1(mhomf);
     mh->blkbits = omf_mh_blkbits_v1(mhomf);
@@ -138,18 +149,20 @@ omf_mblock_metahdr_unpack_latest(const char *inbuf, struct mblock_metahdr *mh)
 
     mhomf = (struct mblock_metahdr_omf *)inbuf;
 
-    mh->fszmax_gb = omf_mh_fszmax_gb(mhomf);
-    mh->mblksz_sec = omf_mh_mblksz_sec(mhomf);
+    mh->fszmax = ((uint64_t)omf_mh_fszmax_gb(mhomf)) << GB_SHIFT;
+    mh->mblksz = ((uint64_t)omf_mh_mblksz_sec(mhomf)) << SECTOR_SHIFT;
     mh->mcid = omf_mh_mcid(mhomf);
     mh->fcnt = omf_mh_fcnt(mhomf);
     mh->blkbits = omf_mh_blkbits(mhomf);
     mh->mcbits = omf_mh_mcbits(mhomf);
+    mh->gclose = (omf_mh_gclose(mhomf) == 1);
 
     crc = omf_mblock_metahdr_crc_get(mhomf);
     if (crc != omf_mh_crc(mhomf)) {
         const struct mblock_metahdr_omf ref = { 0 };
 
-        return ((memcmp(mhomf, &ref, sizeof(*mhomf)) == 0) ? merr(ENODATA) : merr(ENOMSG));
+        return ((memcmp(mhomf, &ref, sizeof(*mhomf)) == 0) ? merr(ENODATA) :
+                (mh->gclose ? merr(EBADMSG) : merr(ENOMSG)));
     }
 
     return 0;
@@ -231,7 +244,7 @@ omf_mblock_filehdr_unpack_v1(const char *inbuf, struct mblock_filehdr *fh)
 }
 
 static merr_t
-omf_mblock_filehdr_unpack_latest(const char *inbuf, struct mblock_filehdr *fh)
+omf_mblock_filehdr_unpack_latest(const char *inbuf, bool gclose, struct mblock_filehdr *fh)
 {
     struct mblock_filehdr_omf *fhomf;
     uint32_t crc;
@@ -247,14 +260,19 @@ omf_mblock_filehdr_unpack_latest(const char *inbuf, struct mblock_filehdr *fh)
     if (crc != omf_fh_crc(fhomf)) {
         const struct mblock_filehdr_omf ref = { 0 };
 
-        return ((memcmp(fhomf, &ref, sizeof(*fhomf)) == 0) ? merr(ENODATA) : merr(ENOMSG));
+        return ((memcmp(fhomf, &ref, sizeof(*fhomf)) == 0) ? merr(ENODATA) :
+                (gclose ? merr(EBADMSG) : merr(ENOMSG)));
     }
 
     return 0;
 }
 
 merr_t
-omf_mblock_filehdr_unpack(const char *inbuf, uint32_t version, struct mblock_filehdr *fh)
+omf_mblock_filehdr_unpack(
+    const char            *inbuf,
+    uint32_t               version,
+    bool                   gclose,
+    struct mblock_filehdr *fh)
 {
     merr_t err = 0;
 
@@ -264,7 +282,7 @@ omf_mblock_filehdr_unpack(const char *inbuf, uint32_t version, struct mblock_fil
         break;
 
     case MBLOCK_METAHDR_VERSION:
-        err = omf_mblock_filehdr_unpack_latest(inbuf, fh);
+        err = omf_mblock_filehdr_unpack_latest(inbuf, gclose, fh);
         break;
 
     default:
@@ -298,6 +316,19 @@ omf_mblock_oid_pack(struct mblock_oid_info *mbinfo, char *outbuf)
         omf_set_mblk_crc(mbomf, 0);
 }
 
+void
+omf_mblock_oid_pack_zero(char *outbuf)
+{
+    struct mblock_oid_omf *mbomf;
+
+    mbomf = (struct mblock_oid_omf *)outbuf;
+
+    omf_set_mblk_id(mbomf, 0);
+    omf_set_mblk_rsvd(mbomf, 0);
+    omf_set_mblk_wlen(mbomf, 0);
+    omf_set_mblk_crc(mbomf, 0);
+}
+
 static void
 omf_mblock_oid_unpack_v1(const char *inbuf, struct mblock_oid_info *mbinfo)
 {
@@ -310,7 +341,7 @@ omf_mblock_oid_unpack_v1(const char *inbuf, struct mblock_oid_info *mbinfo)
 }
 
 static merr_t
-omf_mblock_oid_unpack_latest(const char *inbuf, struct mblock_oid_info *mbinfo)
+omf_mblock_oid_unpack_latest(const char *inbuf, bool gclose, struct mblock_oid_info *mbinfo)
 {
     struct mblock_oid_omf *mbomf;
     uint32_t crc;
@@ -322,13 +353,17 @@ omf_mblock_oid_unpack_latest(const char *inbuf, struct mblock_oid_info *mbinfo)
 
     crc = omf_mblk_crc(mbomf);
     if (crc != 0 && (crc != omf_mblock_oid_crc_get(mbomf)))
-        return merr(ENOMSG);
+        return gclose ? merr(EBADMSG) : merr(ENOMSG);
 
     return 0;
 }
 
 merr_t
-omf_mblock_oid_unpack(const char *inbuf, uint32_t version, struct mblock_oid_info *mbinfo)
+omf_mblock_oid_unpack(
+    const char             *inbuf,
+    uint32_t                version,
+    bool                    gclose,
+    struct mblock_oid_info *mbinfo)
 {
     merr_t err = 0;
 
@@ -338,7 +373,7 @@ omf_mblock_oid_unpack(const char *inbuf, uint32_t version, struct mblock_oid_inf
         break;
 
     case MBLOCK_METAHDR_VERSION:
-        err = omf_mblock_oid_unpack_latest(inbuf, mbinfo);
+        err = omf_mblock_oid_unpack_latest(inbuf, gclose, mbinfo);
         break;
 
     default:

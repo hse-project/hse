@@ -33,7 +33,7 @@ enum hse_mclass_policy_dtype {
 
 struct mclass_policy {
     char mc_name[HSE_MPOLICY_NAME_LEN_MAX];
-    u8   mc_table[HSE_MPOLICY_AGE_CNT][HSE_MPOLICY_DTYPE_CNT][MP_MED_COUNT];
+    u8   mc_table[HSE_MPOLICY_AGE_CNT][HSE_MPOLICY_DTYPE_CNT];
 };
 
 /**
@@ -53,10 +53,9 @@ mclass_policy_get_num_default_policies();
  *                            <agegroup,datatype,trial#>
  * @agegroup: age group (see hse_mclass_policy_age)
  * @datatype: data type (see hse_mclass_policy_dtype)
- * @iteration: number of tries. Retries happen on alloc failures.
  */
 enum mpool_mclass
-mclass_policy_get_type(struct mclass_policy *policy, u8 agegroup, u8 datatype, u8 iteration);
+mclass_policy_get_type(struct mclass_policy *policy, u8 agegroup, u8 datatype);
 
 /*
  * The following are used by the YAML parser to validate the media

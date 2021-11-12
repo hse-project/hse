@@ -162,6 +162,7 @@ struct ikvdb_impl {
     bool                    ikdb_read_only;
     bool                    ikdb_work_stop;
     u32                     ikdb_tb_dbg;
+    bool                    ikdb_pmem_only;
     struct kvdb_ctxn_set   *ikdb_ctxn_set;
     struct c0snr_set       *ikdb_c0snr_set;
     struct perfc_set        ikdb_ctxn_op;
@@ -274,7 +275,44 @@ validate_kvs_name(const char *name)
 }
 
 merr_t
-ikvdb_create(const char *kvdb_home, struct kvdb_cparams *params)
+ikvdb_pmem_only_from_cparams(
+    const char                *kvdb_home,
+    const struct kvdb_cparams *cparams,
+    bool                      *pmem_only)
+{
+    merr_t err;
+    int    i;
+    bool   daxhome = false;
+
+    INVARIANT(kvdb_home);
+    INVARIANT(cparams);
+    INVARIANT(pmem_only);
+
+    *pmem_only = false;
+
+    err = kvdb_home_is_fsdax(kvdb_home, &daxhome);
+    if (err) {
+         log_err("Cannot determinte if %s is on a DAX filesystem", kvdb_home);
+         return err;
+    }
+    *pmem_only = daxhome;
+
+    for (i = MP_MED_BASE; *pmem_only && i < MP_MED_COUNT; i++) {
+        if (i != MP_MED_PMEM)
+            *pmem_only = (cparams->storage.mclass[i].path[0] == '\0');
+    }
+
+    if (daxhome && !(*pmem_only) && cparams->storage.mclass[MP_MED_CAPACITY].path[0] == '\0') {
+        log_err("Mandatory capacity mclass path not provided for KVDB (%s), "
+                "unable to use the default path", kvdb_home);
+        return merr(EINVAL);
+    }
+
+    return 0;
+}
+
+merr_t
+ikvdb_create(const char *kvdb_home, struct kvdb_cparams *params, bool pmem_only)
 {
     assert(kvdb_home);
     assert(params);
@@ -372,12 +410,43 @@ out:
     return err;
 }
 
+static merr_t
+ikvdb_pmem_only_from_meta(const char *kvdb_home, const struct kvdb_meta *meta, bool *pmem_only)
+{
+    merr_t err;
+    int    i;
+
+    INVARIANT(kvdb_home);
+    INVARIANT(meta);
+    INVARIANT(pmem_only);
+
+    *pmem_only = false;
+
+    err = kvdb_home_is_fsdax(kvdb_home, pmem_only);
+    if (err) {
+         log_err("Cannot determine if %s is on a DAX filesystem", kvdb_home);
+         return err;
+    }
+
+    for (i = MP_MED_BASE; *pmem_only && i < MP_MED_COUNT; i++) {
+        *pmem_only = ((i != MP_MED_PMEM) ? (meta->km_storage[i].path[0] == '\0') :
+            (meta->km_storage[i].path[0] != '\0'));
+    }
+
+    if (!(*pmem_only) && meta->km_storage[MP_MED_CAPACITY].path[0] == '\0') {
+        log_err("Mandatory capacity mclass path not set for a standard KVDB (%s)", kvdb_home);
+        return merr(EINVAL);
+    }
+
+    return 0;
+}
+
 merr_t
 ikvdb_storage_add(const char *kvdb_home, struct kvdb_cparams *params)
 {
     struct kvdb_meta  meta;
     merr_t            err;
-    bool              mc_present[MP_MED_COUNT] = {0};
+    bool              mc_present[MP_MED_COUNT] = {0}, pmem_only;
     int               i;
 
     assert(kvdb_home);
@@ -389,19 +458,41 @@ ikvdb_storage_add(const char *kvdb_home, struct kvdb_cparams *params)
 
     if (meta.km_version != KVDB_META_VERSION || meta.km_omf_version != GLOBAL_OMF_VERSION) {
         err = merr(EPROTO);
-        log_errx("cannot add storage to kvdb %s, out-of-date meta/on-media versions %u/%u: @@e",
+        log_errx("cannot add storage to kvdb (%s), out-of-date meta/on-media versions %u/%u: @@e",
                  err, kvdb_home, meta.km_version, meta.km_omf_version);
         return err;
     }
 
+    err = ikvdb_pmem_only_from_meta(kvdb_home, &meta, &pmem_only);
+    if (err)
+        return err;
+
+    if (pmem_only != (params->storage.mclass[MP_MED_CAPACITY].path[0] != '\0')) {
+        log_err("Cannot add storage to a %s KVDB (%s): capacity mclass must be %s",
+                pmem_only ? "pmem-only" : "standard", kvdb_home,
+                pmem_only ? "added before other media classes" : "provided at create time");
+        return merr(EINVAL);
+    }
+
     for (i = MP_MED_BASE; i < MP_MED_COUNT; i++) {
-        if (i != MP_MED_CAPACITY && params->storage.mclass[i].path[0] != '\0') {
+        if (params->storage.mclass[i].path[0] != '\0') {
+            char buf[PATH_MAX];
             int j;
 
             if (meta.km_storage[i].path[0] != '\0') {
                 err = merr(EEXIST);
                 goto errout;
             }
+
+            static_assert(sizeof(buf) == sizeof(params->storage.mclass[MP_MED_BASE].path),
+                          "mismatched buffer sizes");
+
+            err = kvdb_home_storage_path_get(kvdb_home, params->storage.mclass[i].path,
+                                             buf, sizeof(buf));
+            if (err)
+                goto errout;
+
+            strlcpy(params->storage.mclass[i].path, buf, sizeof(params->storage.mclass[i].path));
 
             for (j = i - 1; j >= MP_MED_BASE; j--) {
                 if (meta.km_storage[j].path[0] != '\0') {
@@ -787,6 +878,12 @@ ikvdb_diag_open(
     if (ev(err))
         goto self_cleanup;
 
+    err = ikvdb_pmem_only_from_meta(kvdb_home, &meta, &self->ikdb_pmem_only);
+    if (err) {
+        log_errx("cannot open %s: @@e", err, kvdb_home);
+        goto self_cleanup;
+    }
+
     err = kvdb_meta_to_mpool_rparams(&meta, kvdb_home, &mparams);
     if (ev(err))
         goto self_cleanup;
@@ -1168,6 +1265,12 @@ ikvdb_open(
         goto out;
     }
 
+    err = ikvdb_pmem_only_from_meta(kvdb_home, &meta, &self->ikdb_pmem_only);
+    if (err) {
+        log_errx("cannot open %s: @@e", err, kvdb_home);
+        goto out;
+    }
+
     err = kvdb_meta_to_mpool_rparams(&meta, kvdb_home, &mparams);
     if (ev(err))
         goto out;
@@ -1314,6 +1417,12 @@ ikvdb_open(
     self->ikdb_wal_oid2 = meta.km_wal.oid2;
 
     ikvdb_wal_replay_info_init(self, seqno, gen, txhorizon, &rinfo);
+
+    if (self->ikdb_pmem_only) {
+        log_info("KVDB (%s) is pmem-only, setting the durability.mclass policy to \"pmem_only\"",
+                 kvdb_home);
+        self->ikdb_rp.dur_mclass = MP_MED_PMEM;
+    }
 
     err = wal_open(self->ikdb_mp, &self->ikdb_rp, &rinfo, &self->ikdb_handle, &self->ikdb_health,
                    &self->ikdb_wal);
@@ -1747,7 +1856,7 @@ ikvdb_kvs_open(
     const struct compress_ops *cops;
     struct ikvdb_impl *        self;
     struct kvdb_kvs *          kvs;
-    int                        idx;
+    int                        idx, i;
     merr_t                     err;
 
     assert(handle);
@@ -1763,7 +1872,25 @@ ikvdb_kvs_open(
 
     params->read_only = self->ikdb_rp.read_only; /* inherit from kvdb */
 
+    for (i = MP_MED_BASE; i < MP_MED_COUNT; i++) {
+        if (strstr(params->mclass_policy, mpool_mclass_to_string[i])) {
+            err = mpool_mclass_props_get(self->ikdb_mp, i, NULL);
+            if (err) {
+                if (merr_errno(err) == ENOENT)
+                    log_err("%s media not configured, cannot use \"%s\" mclass policy for KVS %s",
+                            mpool_mclass_to_string[i], params->mclass_policy, kvs_name);
+                return err;
+            }
+        }
+    }
+
     mutex_lock(&self->ikdb_lock);
+
+    if (self->ikdb_pmem_only && strcmp(params->mclass_policy, "pmem_only")) {
+        log_info("KVDB is pmem-only, changing the mclass policy to \"pmem_only\" for the KVS %s",
+                 kvs_name);
+        strlcpy(params->mclass_policy, "pmem_only", HSE_MPOLICY_NAME_LEN_MAX);
+    }
 
     idx = get_kvs_index(self->ikdb_kvs_vec, kvs_name, NULL);
     if (idx < 0) {

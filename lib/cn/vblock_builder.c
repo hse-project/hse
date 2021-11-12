@@ -52,26 +52,18 @@ _vblock_start(struct vblock_builder *bld)
     struct mblock_props    mbprop;
     u64                    blkid;
     u64                    tstart;
-    uint                   allocs = 0;
     struct cn_merge_stats *stats = bld->mstats;
     struct kvs_rparams *   rp;
     enum mpool_mclass      mclass;
     struct mclass_policy * mpolicy = cn_get_mclass_policy(bld->cn);
-    struct perfc_set *     mclass_pc = cn_pc_mclass_get(bld->cn);
 
     tstart = get_time_ns();
 
-    do {
-        mclass = mclass_policy_get_type(mpolicy, bld->agegroup, HSE_MPOLICY_DTYPE_VALUE, allocs);
-        if (mclass == MP_MED_INVALID) {
-            if (!err)
-                err = merr(ev(EINVAL));
-            return err;
-        }
+    mclass = mclass_policy_get_type(mpolicy, bld->agegroup, HSE_MPOLICY_DTYPE_VALUE);
+    if (ev(mclass == MP_MED_INVALID))
+        return merr(EINVAL);
 
-        err = mpool_mblock_alloc(bld->ds, mclass, &blkid, &mbprop);
-    } while (err && ++allocs < MP_MED_COUNT);
-
+    err = mpool_mblock_alloc(bld->ds, mclass, &blkid, &mbprop);
     if (ev(err))
         return err;
 
@@ -106,13 +98,6 @@ _vblock_start(struct vblock_builder *bld)
     omf_set_vbh_magic(bld->wbuf, VBLOCK_HDR_MAGIC);
     omf_set_vbh_version(bld->wbuf, VBLOCK_HDR_VERSION2);
     omf_set_vbh_vgroup(bld->wbuf, bld->vgroup);
-
-    if (mclass_pc && PERFC_ISON(mclass_pc)) {
-        perfc_add(
-            mclass_pc,
-            cn_perfc_mclass_get_idx(bld->agegroup, HSE_MPOLICY_DTYPE_VALUE, mclass),
-            mbprop.mpr_alloc_cap);
-    }
 
     return 0;
 }

@@ -56,7 +56,15 @@ merr_t
 kvdb_home_pidfile_path_get(
 	const char *home,
 	char *buf,
-	const size_t buf_sz
-);
+	const size_t buf_sz);
+
+/**
+ * Checks whether KVDB home is on a DAX filesystem
+ *
+ * @param home:  home directory
+ * @param isdax: set to true if home is on a DAX fs (output)
+ */
+merr_t
+kvdb_home_is_fsdax(const char *home, bool *isdax);
 
 #endif

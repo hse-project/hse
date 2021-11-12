@@ -23,6 +23,6 @@ struct kvdb_cparams
 kvdb_cparams_defaults() HSE_CONST;
 
 merr_t
-kvdb_cparams_resolve(struct kvdb_cparams *params, const char *home);
+kvdb_cparams_resolve(struct kvdb_cparams *params, const char *home, bool pmem_only);
 
 #endif

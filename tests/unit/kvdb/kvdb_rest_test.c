@@ -206,6 +206,7 @@ test_pre(struct mtf_test_info *lcl_ti)
     ASSERT_EQ_RET(0, err, merr_errno(err));
     err = ikvdb_kvs_create(store, KVS3, &kvs_cp);
 
+    mapi_inject(mapi_idx_mpool_mclass_props_get, 0);
     err = ikvdb_kvs_open(store, KVS1, &kvs_rp, 0, &kvs1);
     ASSERT_EQ_RET(0, err, merr_errno(err));
 
@@ -228,6 +229,7 @@ test_post(struct mtf_test_info *ti)
     store = 0;
 
     MOCK_UNSET(platform, _hse_meminfo);
+    mapi_inject_unset(mapi_idx_mpool_mclass_props_get);
 
     mock_kvdb_meta_unset();
 

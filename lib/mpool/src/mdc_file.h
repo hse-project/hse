@@ -136,6 +136,7 @@ mdc_file_open(
     const char       *name,
     uint64_t          logid,
     bool              rdonly,
+    bool              gclose,
     uint64_t         *gen,
     struct mdc_file **handle);
 

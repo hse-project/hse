@@ -1,6 +1,6 @@
 /* SPDX-License-Identifier: Apache-2.0 */
 /*
- * Copyright (C) 2015-2020 Micron Technology, Inc.  All rights reserved.
+ * Copyright (C) 2015-2021 Micron Technology, Inc.  All rights reserved.
  */
 
 /*
@@ -18,14 +18,10 @@
 
 struct cn;
 
-uint
-cn_perfc_mclass_get_idx(uint agegroup, uint dtype, uint mclass);
-
 void
 cn_perfc_alloc(struct cn *cn, uint prio);
 
 void
 cn_perfc_free(struct cn *cn);
-
 
 #endif

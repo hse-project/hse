@@ -71,7 +71,6 @@ test_setup(struct mtf_test_info *lcl_ti)
     mapi_inject(mapi_idx_cn_get_cnid, 1001);
     mapi_inject(mapi_idx_cn_get_dataset, 0);
     mapi_inject(mapi_idx_cn_get_flags, 0);
-    mapi_inject(mapi_idx_cn_pc_mclass_get, 0);
 
     return 0;
 }
@@ -82,7 +81,7 @@ test_setup(struct mtf_test_info *lcl_ti)
 int
 initial_setup(struct mtf_test_info *lcl_ti)
 {
-    u32 i, j, k;
+    u32 i, j;
 
     workbuf = mapi_safe_malloc(WORKBUF_SIZE);
     ASSERT_TRUE_RET(workbuf, -1);
@@ -94,12 +93,7 @@ initial_setup(struct mtf_test_info *lcl_ti)
 
     for (i = 0; i < HSE_MPOLICY_AGE_CNT; i++)
         for (j = 0; j < HSE_MPOLICY_DTYPE_CNT; j++)
-            for (k = 0; k < MP_MED_COUNT; k++) {
-                if (k == 0)
-                    mocked_mpolicy.mc_table[i][j][k] = MP_MED_CAPACITY;
-                else
-                    mocked_mpolicy.mc_table[i][j][k] = MP_MED_INVALID;
-            }
+            mocked_mpolicy.mc_table[i][j] = MP_MED_CAPACITY;
 
     return 0;
 }

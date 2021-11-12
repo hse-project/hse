@@ -47,6 +47,7 @@ mocked_headers = [
     meson.project_source_root() / 'lib/lc/bonsai_iter.h',
     meson.project_source_root() / 'lib/mpool/include/mpool/mpool.h',
     meson.project_source_root() / 'lib/util/include/hse_util/alloc.h',
+    meson.project_source_root() / 'lib/util/include/hse_util/dax.h',
     meson.project_source_root() / 'lib/util/include/hse_util/hlog.h',
     meson.project_source_root() / 'lib/util/include/hse_util/keylock.h',
     meson.project_source_root() / 'lib/util/include/hse_util/perfc.h',

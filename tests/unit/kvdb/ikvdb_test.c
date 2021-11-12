@@ -15,6 +15,7 @@
 
 #include <hse_util/hse_err.h>
 #include <hse_util/delay.h>
+#include <hse_util/dax.h>
 
 #include <hse_ikvdb/kvs.h>
 #include <hse_ikvdb/ikvdb.h>
@@ -73,6 +74,7 @@ test_pre(struct mtf_test_info *ti)
     mapi_inject(mapi_idx_mpool_mclass_props_get, ENOENT);
     mapi_inject(mapi_idx_mpool_open, 0);
     mapi_inject(mapi_idx_mpool_close, 0);
+    mapi_inject(mapi_idx_dax_path_is_fsdax, 0);
 
     return 0;
 }
@@ -91,9 +93,10 @@ test_post(struct mtf_test_info *ti)
 
     mapi_inject(mapi_idx_cndb_cn_drop, 0);
     mapi_inject_unset(mapi_idx_c0_get_pfx_len);
-    mapi_inject(mapi_idx_mpool_mclass_props_get, ENOENT);
+    mapi_inject_unset(mapi_idx_mpool_mclass_props_get);
     mapi_inject_unset(mapi_idx_mpool_open);
     mapi_inject_unset(mapi_idx_mpool_close);
+    mapi_inject_unset(mapi_idx_dax_path_is_fsdax);
 
     return 0;
 }
@@ -115,6 +118,8 @@ test_pre_c0(struct mtf_test_info *ti)
     mapi_inject(mapi_idx_cndb_cn_drop, 0);
     mapi_inject(mapi_idx_mpool_open, 0);
     mapi_inject(mapi_idx_mpool_close, 0);
+    mapi_inject(mapi_idx_mpool_mclass_props_get, ENOENT);
+    mapi_inject(mapi_idx_dax_path_is_fsdax, 0);
 
     return 0;
 }
@@ -127,9 +132,11 @@ test_post_c0(struct mtf_test_info *ti)
     mock_wal_unset();
 
     mapi_inject_unset(mapi_idx_cn_get_ingest_perfc);
-    mapi_inject(mapi_idx_cndb_cn_drop, 0);
-    mapi_inject(mapi_idx_mpool_open, 0);
-    mapi_inject(mapi_idx_mpool_close, 0);
+    mapi_inject_unset(mapi_idx_cndb_cn_drop);
+    mapi_inject_unset(mapi_idx_mpool_open);
+    mapi_inject_unset(mapi_idx_mpool_close);
+    mapi_inject_unset(mapi_idx_mpool_mclass_props_get);
+    mapi_inject_unset(mapi_idx_dax_path_is_fsdax);
 
     return 0;
 }
@@ -376,6 +383,7 @@ MTF_DEFINE_UTEST_PREPOST(ikvdb_test, ikvdb_kvs_open_test, test_pre, test_post)
     ASSERT_EQ(0, err);
 
     mapi_inject_ptr(mapi_idx_malloc, 0);
+    mapi_inject(mapi_idx_mpool_mclass_props_get, 0);
     err = ikvdb_kvs_open(hdl, kvs, &kvs_rp, 0, &h);
     ASSERT_EQ(NULL, h);
     ASSERT_EQ(ENOMEM, merr_errno(err));
@@ -517,6 +525,7 @@ MTF_DEFINE_UTEST_PREPOST(ikvdb_test, txn_del_test, test_pre, test_post)
     err = ikvdb_kvs_create(h, kvs, &kvs_cp);
     ASSERT_EQ(0, err);
 
+    mapi_inject(mapi_idx_mpool_mclass_props_get, 0);
     err = ikvdb_kvs_open(h, kvs, &kvs_rp, 0, &kvs_h);
     ASSERT_EQ(0, err);
     ASSERT_NE(NULL, kvs_h);
@@ -644,6 +653,7 @@ MTF_DEFINE_UTEST_PREPOST(ikvdb_test, txn_put_test, test_pre, test_post)
     err = ikvdb_kvs_create(h, kvs, &kvs_cp);
     ASSERT_EQ(0, err);
 
+    mapi_inject(mapi_idx_mpool_mclass_props_get, 0);
     err = ikvdb_kvs_open(h, kvs, &kvs_rp, 0, &kvs_h);
     ASSERT_EQ(0, err);
     ASSERT_NE(NULL, kvs_h);
@@ -697,6 +707,7 @@ MTF_DEFINE_UTEST_PREPOST(ikvdb_test, aborted_txn_bind, test_pre, test_post)
     err = ikvdb_kvs_create(kvdb_h, kvs, &kvs_cp);
     ASSERT_EQ(0, err);
 
+    mapi_inject(mapi_idx_mpool_mclass_props_get, 0);
     err = ikvdb_kvs_open(kvdb_h, kvs, &kvs_rp, 0, &kvs_h);
     ASSERT_EQ(0, err);
     ASSERT_NE(NULL, kvs_h);
@@ -750,6 +761,7 @@ MTF_DEFINE_UTEST_PREPOST(ikvdb_test, cursor_0, test_pre, test_post)
     err = ikvdb_kvs_create(h, kvs, &kvs_cp);
     ASSERT_EQ(0, err);
 
+    mapi_inject(mapi_idx_mpool_mclass_props_get, 0);
     err = ikvdb_kvs_open(h, kvs, &kvs_rp, 0, &kvs_h);
     ASSERT_EQ(0, err);
     ASSERT_NE(NULL, kvs_h);
@@ -825,6 +837,7 @@ MTF_DEFINE_UTEST_PREPOST(ikvdb_test, cursor_1, test_pre_c0, test_post_c0)
     err = ikvdb_kvs_create(h, kvs, &kvs_cp);
     ASSERT_EQ(0, err);
 
+    mapi_inject(mapi_idx_mpool_mclass_props_get, 0);
     err = ikvdb_kvs_open(h, kvs, &kvs_rp, 0, &kvs_h);
     ASSERT_EQ(0, err);
 
@@ -1469,6 +1482,7 @@ MTF_DEFINE_UTEST_PREPOST(ikvdb_test, cursor_cache, test_pre_c0, test_post_c0)
     kvs_rp.perfc_level = PERFC_LEVEL_MIN;
 
 again:
+    mapi_inject(mapi_idx_mpool_mclass_props_get, 0);
     for (i = 0; i < NELEM(kvs_h); ++i) {
         err = ikvdb_kvs_open(h, namebuf[i], &kvs_rp, 0, &kvs_h[i]);
         ASSERT_EQ(0, err);
@@ -1622,6 +1636,7 @@ MTF_DEFINE_UTEST_PREPOST(ikvdb_test, kvdb_sync_test, test_pre, test_post)
     ASSERT_EQ(0, err);
     ASSERT_NE(NULL, h);
 
+    mapi_inject(mapi_idx_mpool_mclass_props_get, 0);
     for (i = 0; i < kvs_cnt; i++) {
         char kvs[HSE_KVS_NAME_LEN_MAX];
 
@@ -1705,6 +1720,7 @@ MTF_DEFINE_UTEST_PREPOST(ikvdb_test, kvdb_parallel_kvs_opens, test_pre, test_pos
     err = ikvdb_kvs_create(h, "same_kvs", &kvs_cp);
     ASSERT_EQ(0, err);
 
+    mapi_inject(mapi_idx_mpool_mclass_props_get, 0);
     atomic_set(&num_opens, 0);
 
     for (i = 0; i < num_threads; ++i) {
@@ -1806,6 +1822,7 @@ MTF_DEFINE_UTEST_PREPOST(ikvdb_test, prefix_delete_test, test_pre, test_post)
     err = ikvdb_kvs_create(kvdb, "kvs", &g_kvs_cp);
     ASSERT_EQ(0, err);
 
+    mapi_inject(mapi_idx_mpool_mclass_props_get, 0);
     err = ikvdb_kvs_open(kvdb, "kvs", &kvs_rp, 0, &kvs);
     ASSERT_EQ(0, err);
     ASSERT_NE(NULL, kvs);

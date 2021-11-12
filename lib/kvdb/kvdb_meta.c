@@ -16,6 +16,9 @@
 #include <hse_ikvdb/omf_version.h>
 #include <hse_util/logging.h>
 #include <hse_util/invariant.h>
+
+#include <mpool/mpool.h>
+
 #include <float.h>
 
 #define KVDB_META       "kvdb.meta"
@@ -100,11 +103,12 @@ merr_t
 kvdb_meta_serialize(const struct kvdb_meta *const meta, const char *const kvdb_home)
 {
     merr_t err = 0;
-    cJSON *root, *wal, *cndb, *storage, *capacity, *staging;
+    cJSON *root, *wal, *cndb, *storage, *mclass[MP_MED_COUNT];
     char * str = NULL;
     size_t str_sz;
     size_t written;
     FILE * meta_file = NULL;
+    int i;
 
     assert(kvdb_home);
     assert(meta);
@@ -157,31 +161,23 @@ kvdb_meta_serialize(const struct kvdb_meta *const meta, const char *const kvdb_h
         goto out;
     }
 
-    capacity = cJSON_AddObjectToObject(storage, "capacity");
-    if (!capacity) {
-        err = merr(ENOMEM);
-        goto out;
-    }
-    assert(meta->km_storage[MP_MED_CAPACITY].path[0] != '\0');
-    if (!cJSON_AddStringToObject(capacity, "path", meta->km_storage[MP_MED_CAPACITY].path)) {
-        err = merr(ENOMEM);
-        goto out;
-    }
-
-    staging = cJSON_AddObjectToObject(storage, "staging");
-    if (!staging) {
-        err = merr(ENOMEM);
-        goto out;
-    }
-    if (meta->km_storage[MP_MED_STAGING].path[0] == '\0') {
-        if (!cJSON_AddNullToObject(staging, "path")) {
+    for (i = MP_MED_BASE; i < MP_MED_COUNT; i++) {
+        mclass[i] = cJSON_AddObjectToObject(storage, mpool_mclass_to_string[i]);
+        if (!mclass[i]) {
             err = merr(ENOMEM);
             goto out;
         }
-    } else {
-        if (!cJSON_AddStringToObject(staging, "path", meta->km_storage[MP_MED_STAGING].path)) {
-            err = merr(ENOMEM);
-            goto out;
+
+        if (meta->km_storage[i].path[0] != '\0') {
+            if (!cJSON_AddStringToObject(mclass[i], "path", meta->km_storage[i].path)) {
+                err = merr(ENOMEM);
+                goto out;
+            }
+        } else {
+            if (!cJSON_AddNullToObject(mclass[i], "path")) {
+                err = merr(ENOMEM);
+                goto out;
+            }
         }
     }
 
@@ -267,11 +263,9 @@ check_wal_keys(const cJSON *const node)
 static bool
 check_storage_keys(const cJSON *const node)
 {
-    static const char *keys[] = { "capacity", "staging" };
-
     assert(node);
 
-    return check_keys(node, NELEM(keys), keys);
+    return check_keys(node, NELEM(mpool_mclass_to_string), mpool_mclass_to_string);
 }
 
 static bool
@@ -288,77 +282,58 @@ static merr_t
 parse_v1(const cJSON *const root, struct kvdb_meta *const meta, const char *const kvdb_home)
 {
     size_t n;
-    merr_t err = 0;
     double omf_version_val, cndb_oid1_val, cndb_oid2_val, wal_oid1_val, wal_oid2_val;
-    cJSON *omf_version, *wal, *wal_oid1, *wal_oid2, *cndb, *cndb_oid1, *cndb_oid2, *storage,
-        *storage_capacity, *storage_capacity_path, *storage_staging, *storage_staging_path;
+    cJSON *omf_version, *wal, *wal_oid1, *wal_oid2, *cndb, *cndb_oid1, *cndb_oid2, *storage;
+    cJSON *mclass[MP_MED_COUNT], *mclass_path[MP_MED_COUNT];
+    int i;
 
     INVARIANT(root);
     INVARIANT(meta);
 
     omf_version = cJSON_GetObjectItemCaseSensitive(root, "omf_version");
-    cndb = cJSON_GetObjectItemCaseSensitive(root, "cndb");
-    wal = cJSON_GetObjectItemCaseSensitive(root, "wal");
-    storage = cJSON_GetObjectItemCaseSensitive(root, "storage");
-    storage_capacity = cJSON_GetObjectItemCaseSensitive(storage, "capacity");
-    storage_staging = cJSON_GetObjectItemCaseSensitive(storage, "staging");
+    if (!cJSON_IsNumber(omf_version))
+        return merr(EPROTO);
 
-    if (!cJSON_IsNumber(omf_version)) {
-        err = merr(EPROTO);
-        return err;
-    }
-    if (!cJSON_IsObject(cndb) || !check_cndb_keys(cndb)) {
-        err = merr(EPROTO);
-        return err;
-    }
-    if (!cJSON_IsObject(wal) || !check_wal_keys(wal)) {
-        err = merr(EPROTO);
-        return err;
-    }
-    if (!cJSON_IsObject(storage) || !check_storage_keys(storage)) {
-        err = merr(EPROTO);
-        return err;
-    }
-    if (!cJSON_IsObject(storage_capacity) || !check_media_class_keys(storage_capacity)) {
-        err = merr(EPROTO);
-        return err;
-    }
-    if (!cJSON_IsObject(storage_staging) || !check_media_class_keys(storage_staging)) {
-        err = merr(EPROTO);
-        return err;
+    cndb = cJSON_GetObjectItemCaseSensitive(root, "cndb");
+    if (!cJSON_IsObject(cndb) || !check_cndb_keys(cndb))
+        return merr(EPROTO);
+
+    wal = cJSON_GetObjectItemCaseSensitive(root, "wal");
+    if (!cJSON_IsObject(wal) || !check_wal_keys(wal))
+        return merr(EPROTO);
+
+    storage = cJSON_GetObjectItemCaseSensitive(root, "storage");
+    if (!cJSON_IsObject(storage) || !check_storage_keys(storage))
+        return merr(EPROTO);
+
+    for (i = MP_MED_BASE; i < MP_MED_COUNT; i++) {
+        if (i != MP_MED_PMEM) {
+            mclass[i] = cJSON_GetObjectItemCaseSensitive(storage, mpool_mclass_to_string[i]);
+            if (!cJSON_IsObject(mclass[i]) || !check_media_class_keys(mclass[i]))
+                return merr(EPROTO);
+        }
     }
 
     cndb_oid1 = cJSON_GetObjectItemCaseSensitive(cndb, "oid1");
     cndb_oid2 = cJSON_GetObjectItemCaseSensitive(cndb, "oid2");
+    if (!cJSON_IsNumber(cndb_oid1) || !cJSON_IsNumber(cndb_oid2))
+        return merr(EPROTO);
+
     wal_oid1 = cJSON_GetObjectItemCaseSensitive(wal, "oid1");
     wal_oid2 = cJSON_GetObjectItemCaseSensitive(wal, "oid2");
-    storage_capacity_path = cJSON_GetObjectItemCaseSensitive(storage_capacity, "path");
-    storage_staging_path = cJSON_GetObjectItemCaseSensitive(storage_staging, "path");
+    if (!cJSON_IsNumber(wal_oid1) || !cJSON_IsNumber(wal_oid2))
+        return merr(EPROTO);
 
-    if (!cJSON_IsNumber(cndb_oid1)) {
-        err = merr(EPROTO);
-        return err;
-    }
-    if (!cJSON_IsNumber(cndb_oid2)) {
-        err = merr(EPROTO);
-        return err;
-    }
-    if (!cJSON_IsNumber(wal_oid1)) {
-        err = merr(EPROTO);
-        return err;
-    }
-    if (!cJSON_IsNumber(wal_oid2)) {
-        err = merr(EPROTO);
-        return err;
-    }
-    /* capacity will never be a NULL path */
-    if (!cJSON_IsString(storage_capacity_path)) {
-        err = merr(EPROTO);
-        return err;
-    }
-    if (!(cJSON_IsString(storage_staging_path) || cJSON_IsNull(storage_staging_path))) {
-        err = merr(EPROTO);
-        return err;
+    for (i = MP_MED_BASE; i < MP_MED_COUNT; i++) {
+        if (i != MP_MED_PMEM) {
+            mclass_path[i] = cJSON_GetObjectItemCaseSensitive(mclass[i], "path");
+
+            if (i == MP_MED_CAPACITY && !cJSON_IsString(mclass_path[i]))
+                return merr(EPROTO);
+
+            if (!(cJSON_IsString(mclass_path[i]) || cJSON_IsNull(mclass_path[i])))
+                return merr(EPROTO);
+        }
     }
 
     omf_version_val = cJSON_GetNumberValue(omf_version);
@@ -366,63 +341,153 @@ parse_v1(const cJSON *const root, struct kvdb_meta *const meta, const char *cons
         omf_version_val > UINT_MAX) {
         log_err("'omf_version' key in %s/kvdb.meta must be a whole number greater than 0 and "
                 "less than or equal to %d, found %f",
-                kvdb_home,
-                UINT_MAX,
-                omf_version_val);
-        err = merr(EPROTO);
-        return err;
+                kvdb_home, UINT_MAX, omf_version_val);
+        return merr(EPROTO);
     }
+
     cndb_oid1_val = cJSON_GetNumberValue(cndb_oid1);
-    if (round(cndb_oid1_val) != cndb_oid1_val || cndb_oid1_val > (double)UINT64_MAX || cndb_oid1_val < 0) {
-        err = merr(EPROTO);
-        return err;
-    }
+    if (round(cndb_oid1_val) != cndb_oid1_val || cndb_oid1_val > (double)UINT64_MAX ||
+        cndb_oid1_val < 0)
+        return merr(EPROTO);
+
     cndb_oid2_val = cJSON_GetNumberValue(cndb_oid2);
-    if (round(cndb_oid2_val) != cndb_oid2_val || cndb_oid2_val > (double)UINT64_MAX || cndb_oid2_val < 0) {
-        err = merr(EPROTO);
-        return err;
-    }
+    if (round(cndb_oid2_val) != cndb_oid2_val || cndb_oid2_val > (double)UINT64_MAX ||
+        cndb_oid2_val < 0)
+        return merr(EPROTO);
+
     wal_oid1_val = cJSON_GetNumberValue(wal_oid1);
-    if (round(wal_oid1_val) != wal_oid1_val || wal_oid1_val > (double)UINT64_MAX || wal_oid1_val < 0) {
-        err = merr(EPROTO);
-        return err;
-    }
+    if (round(wal_oid1_val) != wal_oid1_val || wal_oid1_val > (double)UINT64_MAX ||
+        wal_oid1_val < 0)
+        return merr(EPROTO);
+
     wal_oid2_val = cJSON_GetNumberValue(wal_oid2);
-    if (round(wal_oid2_val) != wal_oid2_val || wal_oid2_val > (double)UINT64_MAX || wal_oid2_val < 0) {
-        err = merr(EPROTO);
-        return err;
-    }
+    if (round(wal_oid2_val) != wal_oid2_val || wal_oid2_val > (double)UINT64_MAX ||
+        wal_oid2_val < 0)
+        return merr(EPROTO);
 
     meta->km_omf_version = omf_version_val;
     meta->km_cndb.oid1 = cndb_oid1_val;
     meta->km_cndb.oid2 = cndb_oid2_val;
     meta->km_wal.oid1 = wal_oid1_val;
     meta->km_wal.oid2 = wal_oid2_val;
-    n = strlcpy(
-        meta->km_storage[MP_MED_CAPACITY].path,
-        cJSON_GetStringValue(storage_capacity_path),
-        sizeof(meta->km_storage[MP_MED_CAPACITY].path));
-    if (n >= sizeof(meta->km_storage[MP_MED_CAPACITY].path)) {
-        err = merr(ENAMETOOLONG);
-        return err;
-    }
-    if (cJSON_IsNull(storage_staging_path)) {
-        memset(
-            meta->km_storage[MP_MED_STAGING].path,
-            0,
-            sizeof(meta->km_storage[MP_MED_STAGING].path));
-    } else {
-        n = strlcpy(
-            meta->km_storage[MP_MED_STAGING].path,
-            cJSON_GetStringValue(storage_staging_path),
-            sizeof(meta->km_storage[MP_MED_STAGING].path));
-        if (n >= sizeof(meta->km_storage[MP_MED_STAGING].path)) {
-            err = merr(ENAMETOOLONG);
-            return err;
+
+    for (i = MP_MED_BASE; i < MP_MED_COUNT; i++) {
+        if (i == MP_MED_PMEM) {
+            memset(meta->km_storage[i].path, 0, sizeof(meta->km_storage[i].path));
+        } else {
+            if (cJSON_IsNull(mclass_path[i])) {
+                assert(i != MP_MED_CAPACITY);
+                memset(meta->km_storage[i].path, 0, sizeof(meta->km_storage[i].path));
+            } else {
+                n = strlcpy(meta->km_storage[i].path, cJSON_GetStringValue(mclass_path[i]),
+                            sizeof(meta->km_storage[i].path));
+                if (n >= sizeof(meta->km_storage[i].path))
+                    return merr(ENAMETOOLONG);
+            }
         }
     }
 
-    return err;
+    return 0;
+}
+
+static merr_t
+parse_v2(const cJSON *const root, struct kvdb_meta *const meta, const char *const kvdb_home)
+{
+    size_t n;
+    double omf_version_val, cndb_oid1_val, cndb_oid2_val, wal_oid1_val, wal_oid2_val;
+    cJSON *omf_version, *wal, *wal_oid1, *wal_oid2, *cndb, *cndb_oid1, *cndb_oid2, *storage;
+    cJSON *mclass[MP_MED_COUNT], *mclass_path[MP_MED_COUNT];
+    int i;
+
+    INVARIANT(root);
+    INVARIANT(meta);
+
+    omf_version = cJSON_GetObjectItemCaseSensitive(root, "omf_version");
+    if (!cJSON_IsNumber(omf_version))
+        return merr(EPROTO);
+
+    cndb = cJSON_GetObjectItemCaseSensitive(root, "cndb");
+    if (!cJSON_IsObject(cndb) || !check_cndb_keys(cndb))
+        return merr(EPROTO);
+
+    wal = cJSON_GetObjectItemCaseSensitive(root, "wal");
+    if (!cJSON_IsObject(wal) || !check_wal_keys(wal))
+        return merr(EPROTO);
+
+    storage = cJSON_GetObjectItemCaseSensitive(root, "storage");
+    if (!cJSON_IsObject(storage) || !check_storage_keys(storage))
+        return merr(EPROTO);
+
+    for (i = MP_MED_BASE; i < MP_MED_COUNT; i++) {
+        mclass[i] = cJSON_GetObjectItemCaseSensitive(storage, mpool_mclass_to_string[i]);
+        if (!cJSON_IsObject(mclass[i]) || !check_media_class_keys(mclass[i]))
+            return merr(EPROTO);
+    }
+
+    cndb_oid1 = cJSON_GetObjectItemCaseSensitive(cndb, "oid1");
+    cndb_oid2 = cJSON_GetObjectItemCaseSensitive(cndb, "oid2");
+    if (!cJSON_IsNumber(cndb_oid1) || !cJSON_IsNumber(cndb_oid2))
+        return merr(EPROTO);
+
+    wal_oid1 = cJSON_GetObjectItemCaseSensitive(wal, "oid1");
+    wal_oid2 = cJSON_GetObjectItemCaseSensitive(wal, "oid2");
+    if (!cJSON_IsNumber(wal_oid1) || !cJSON_IsNumber(wal_oid2))
+        return merr(EPROTO);
+
+    for (i = MP_MED_BASE; i < MP_MED_COUNT; i++) {
+        mclass_path[i] = cJSON_GetObjectItemCaseSensitive(mclass[i], "path");
+
+        if (!(cJSON_IsString(mclass_path[i]) || cJSON_IsNull(mclass_path[i])))
+            return merr(EPROTO);
+    }
+
+    omf_version_val = cJSON_GetNumberValue(omf_version);
+    if (round(omf_version_val) != omf_version_val || omf_version_val <= 0.0 ||
+        omf_version_val > UINT_MAX) {
+        log_err("'omf_version' key in %s/kvdb.meta must be a whole number greater than 0 and "
+                "less than or equal to %d, found %f",
+                kvdb_home, UINT_MAX, omf_version_val);
+        return merr(EPROTO);
+    }
+
+    cndb_oid1_val = cJSON_GetNumberValue(cndb_oid1);
+    if (round(cndb_oid1_val) != cndb_oid1_val || cndb_oid1_val > (double)UINT64_MAX ||
+        cndb_oid1_val < 0)
+        return merr(EPROTO);
+
+    cndb_oid2_val = cJSON_GetNumberValue(cndb_oid2);
+    if (round(cndb_oid2_val) != cndb_oid2_val || cndb_oid2_val > (double)UINT64_MAX ||
+        cndb_oid2_val < 0)
+        return merr(EPROTO);
+
+    wal_oid1_val = cJSON_GetNumberValue(wal_oid1);
+    if (round(wal_oid1_val) != wal_oid1_val || wal_oid1_val > (double)UINT64_MAX ||
+        wal_oid1_val < 0)
+        return merr(EPROTO);
+
+    wal_oid2_val = cJSON_GetNumberValue(wal_oid2);
+    if (round(wal_oid2_val) != wal_oid2_val || wal_oid2_val > (double)UINT64_MAX ||
+        wal_oid2_val < 0)
+        return merr(EPROTO);
+
+    meta->km_omf_version = omf_version_val;
+    meta->km_cndb.oid1 = cndb_oid1_val;
+    meta->km_cndb.oid2 = cndb_oid2_val;
+    meta->km_wal.oid1 = wal_oid1_val;
+    meta->km_wal.oid2 = wal_oid2_val;
+
+    for (i = MP_MED_BASE; i < MP_MED_COUNT; i++) {
+        if (cJSON_IsNull(mclass_path[i])) {
+            memset(meta->km_storage[i].path, 0, sizeof(meta->km_storage[i].path));
+        } else {
+            n = strlcpy(meta->km_storage[i].path, cJSON_GetStringValue(mclass_path[i]),
+                        sizeof(meta->km_storage[i].path));
+            if (n >= sizeof(meta->km_storage[i].path))
+                return merr(ENAMETOOLONG);
+        }
+    }
+
+    return 0;
 }
 
 merr_t
@@ -499,14 +564,17 @@ kvdb_meta_deserialize(struct kvdb_meta *const meta, const char *const kvdb_home)
     meta->km_version = (unsigned int)version_val;
 
     switch (meta->km_version) {
-        case KVDB_META_VERSION1:
-            err = parse_v1(root, meta, kvdb_home);
-            break;
-        default:
-            log_err("Unknown 'version' in %s/kvdb.meta, %u != %u", kvdb_home, meta->km_version,
-                    KVDB_META_VERSION);
-            err = merr(EPROTO);
-            goto out;
+    case KVDB_META_VERSION1:
+        err = parse_v1(root, meta, kvdb_home);
+        break;
+    case KVDB_META_VERSION2:
+        err = parse_v2(root, meta, kvdb_home);
+        break;
+    default:
+        log_err("Unknown 'version' in %s/kvdb.meta, %u != %u", kvdb_home, meta->km_version,
+                KVDB_META_VERSION);
+        err = merr(EPROTO);
+        goto out;
     }
 
     if (!err && meta->km_omf_version > GLOBAL_OMF_VERSION) {
@@ -571,6 +639,7 @@ kvdb_meta_upgrade(struct kvdb_meta *const meta, const char *const kvdb_home)
 
     omvers = meta->km_omf_version;
     meta->km_omf_version = GLOBAL_OMF_VERSION;
+    meta->km_version = KVDB_META_VERSION;
 
     err = kvdb_meta_serialize(meta, kvdb_home);
     if (err) {
@@ -681,7 +750,7 @@ kvdb_meta_storage_add(
     for (i = MP_MED_BASE; i < MP_MED_COUNT; i++) {
         const char *path = cparams->mclass[i].path;
 
-        if (i != MP_MED_CAPACITY && path[0] != '\0') {
+        if (path[0] != '\0') {
             assert(meta->km_storage[i].path[0] == '\0');
 
             strlcpy(meta->km_storage[i].path,

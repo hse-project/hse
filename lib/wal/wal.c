@@ -500,8 +500,19 @@ wal_create(struct mpool *mp, uint64_t *mdcid1, uint64_t *mdcid2)
 {
     struct wal_mdc *mdc;
     merr_t err;
+    int    i;
 
-    err = wal_mdc_create(mp, MP_MED_CAPACITY, WAL_MDC_CAPACITY, mdcid1, mdcid2);
+    for (i = MP_MED_COUNT - 1; i >= MP_MED_BASE; i--) {
+        err = mpool_mclass_props_get(mp, i, NULL);
+        if (!err)
+            break;
+    }
+    assert(i >= MP_MED_BASE);
+
+    if (i < MP_MED_BASE)
+        return merr(ENOENT);
+
+    err = wal_mdc_create(mp, i, WAL_MDC_CAPACITY, mdcid1, mdcid2);
     if (err)
         return err;
 

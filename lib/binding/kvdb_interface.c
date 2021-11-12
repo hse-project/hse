@@ -174,6 +174,7 @@ hse_kvdb_create(const char *kvdb_home, size_t paramc, const char *const *const p
     struct pidfh *      pfh = NULL;
     struct pidfile      content = {};
     size_t              n;
+    bool                pmem_only;
 
     if (HSE_UNLIKELY(!kvdb_home)) {
         log_err("A KVDB home must be provided");
@@ -201,10 +202,14 @@ hse_kvdb_create(const char *kvdb_home, size_t paramc, const char *const *const p
         return err;
     }
 
-    err = kvdb_cparams_resolve(&dbparams, kvdb_home);
+    err = ikvdb_pmem_only_from_cparams(kvdb_home, &dbparams, &pmem_only);
+    if (err)
+        return err;
+
+    err = kvdb_cparams_resolve(&dbparams, kvdb_home, pmem_only);
     if (ev(err)) {
         log_errx("Failed to resolve KVDB (%s) cparams: @@e", err, kvdb_home);
-        goto out;
+        return err;
     }
 
     err = kvdb_home_pidfile_path_get(kvdb_home, pidfile_path, sizeof(pidfile_path));
@@ -228,7 +233,7 @@ hse_kvdb_create(const char *kvdb_home, size_t paramc, const char *const *const p
         goto out;
     }
 
-    err = ikvdb_create(kvdb_home, &dbparams);
+    err = ikvdb_create(kvdb_home, &dbparams, pmem_only);
     if (ev(err))
         goto out;
 
@@ -589,29 +594,10 @@ hse_kvdb_storage_add(const char *kvdb_home, size_t paramc, const char *const *co
         return merr(EINVAL);
     }
 
-    /* Make the default capacity path an empty string. This is to catch the usage
-     * error of attempting to add a capacity media class dynamically.
-     */
-    cparams.storage.mclass[MP_MED_CAPACITY].path[0] = '\0';
-
     err = argv_deserialize_to_kvdb_cparams(paramc, paramv, &cparams);
     if (err) {
         log_errx("Failed to deserialize paramv for KVDB (%s) cparams: @@e", err, kvdb_home);
         return err;
-    }
-
-    err = kvdb_cparams_resolve(&cparams, kvdb_home);
-    if (err) {
-        log_errx("Failed to resolve KVDB (%s) cparams: @@e", err, kvdb_home);
-        return err;
-    }
-
-    if (cparams.storage.mclass[MP_MED_CAPACITY].path[0] != '\0') {
-        log_err(
-            "Cannot add %s to %s: capacity media class path must be provided only at KVDB create",
-            cparams.storage.mclass[MP_MED_CAPACITY].path,
-            kvdb_home);
-        return merr(EINVAL);
     }
 
     err = kvdb_home_pidfile_path_get(kvdb_home, pidfile_path, sizeof(pidfile_path));

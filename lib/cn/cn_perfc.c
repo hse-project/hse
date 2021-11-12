@@ -72,30 +72,10 @@ struct perfc_name cn_perfc_capped[] _dt_section = {
     NE(PERFC_BA_CNCAPPED_OLD,    3, "cN capped old (valid) kvsets",  "c_cncap_old"),
 };
 
-struct perfc_name cn_perfc_mclass[] _dt_section = {
-    NE(PERFC_BA_CNMCLASS_ROOTK_STAGING,  3, "root_key_staging_alloc",    "root_key_staging(b)"),
-    NE(PERFC_BA_CNMCLASS_ROOTK_CAPACITY, 3, "root_key_capacity_alloc",   "root_key_capacity(b)"),
-    NE(PERFC_BA_CNMCLASS_ROOTV_STAGING,  3, "root_value_staging_alloc",  "root_value_staging(b)"),
-    NE(PERFC_BA_CNMCLASS_ROOTV_CAPACITY, 3, "root_value_capacity_alloc", "root_value_capacity(b)"),
-    NE(PERFC_BA_CNMCLASS_INTK_STAGING,   3, "int_key_staging_alloc",     "int_key_staging(b)"),
-    NE(PERFC_BA_CNMCLASS_INTK_CAPACITY,  3, "int_key_capacity_alloc",    "int_key_capacity(b)"),
-    NE(PERFC_BA_CNMCLASS_INTV_STAGING,   3, "int_value_staging_alloc",   "int_value_staging(b)"),
-    NE(PERFC_BA_CNMCLASS_INTV_CAPACITY,  3, "int_value_capacity_alloc",  "int_value_capacity(b)"),
-    NE(PERFC_BA_CNMCLASS_LEAFK_STAGING,  3, "leaf_key_staging_alloc",    "leaf_key_staging(b)"),
-    NE(PERFC_BA_CNMCLASS_LEAFK_CAPACITY, 3, "leaf_key_capacity_alloc",   "leaf_key_capacity(b)"),
-    NE(PERFC_BA_CNMCLASS_LEAFV_STAGING,  3, "leaf_value_staging_alloc",  "leaf_value_staging(b)"),
-    NE(PERFC_BA_CNMCLASS_LEAFV_CAPACITY, 3, "leaf_value_capacity_alloc", "leaf_value_capacity(b)"),
-};
-
 NE_CHECK(cn_perfc_get, PERFC_EN_CNGET, "cn_perfc_get table/enum mismatch");
 NE_CHECK(cn_perfc_compact, PERFC_EN_CNCOMP, "cn_perfc_compact table/enum mismatch");
 NE_CHECK(cn_perfc_shape, PERFC_EN_CNSHAPE, "cn_perfc_shape table/enum mismatch");
 NE_CHECK(cn_perfc_capped, PERFC_EN_CNCAPPED, "cn_perfc_capped table/enum mismatch");
-NE_CHECK(cn_perfc_mclass, PERFC_EN_CNMCLASS, "cn_perfc_mclass table/enum mismatch");
-
-static_assert(
-    NELEM(cn_perfc_mclass) == HSE_MPOLICY_AGE_CNT * HSE_MPOLICY_DTYPE_CNT * MP_MED_COUNT,
-    "cn_perfc_mclass entries mismatched");
 
 static_assert(PERFC_RA_CNGET_MISS == 1 && NOT_FOUND == 1,
               "PERFC_RA_CNGET_MISS out of sync with enum key_lookup_res");
@@ -109,14 +89,6 @@ static_assert(PERFC_RA_CNGET_MULTIPLE == 5 && FOUND_MULTIPLE == 5,
               "PERFC_RA_CNGET_FMULT out of sync with enum key_lookup_res");
 
 /* clang-format on */
-
-uint
-cn_perfc_mclass_get_idx(uint agegroup, uint dtype, uint mclass)
-{
-    return PERFC_BA_CNMCLASS_ROOTK_STAGING + agegroup * HSE_MPOLICY_AGE_CNT +
-           dtype * HSE_MPOLICY_DTYPE_CNT + ((mclass == MP_MED_CAPACITY) ? 1 : 0);
-}
-
 
 void
 cn_perfc_bkts_create(struct perfc_name *pcn, int edgec, u64 *edgev, uint sample_pct)
@@ -160,7 +132,6 @@ cn_perfc_alloc(struct cn *cn, uint prio)
     perfc_alloc(cn_perfc_shape, group, "inode", prio, &cn->cn_pc_shape_inode);
     perfc_alloc(cn_perfc_shape, group, "lnode", prio, &cn->cn_pc_shape_lnode);
     perfc_alloc(cn_perfc_capped, group, "capped", prio, &cn->cn_pc_capped);
-    perfc_alloc(cn_perfc_mclass, group, "mclass", prio, &cn->cn_pc_mclass);
 }
 
 void
@@ -175,7 +146,6 @@ cn_perfc_free(struct cn *cn)
     perfc_free(&cn->cn_pc_shape_inode);
     perfc_free(&cn->cn_pc_shape_lnode);
     perfc_free(&cn->cn_pc_capped);
-    perfc_free(&cn->cn_pc_mclass);
 }
 
 /* NOTE: called once per KVDB, not once per CN */

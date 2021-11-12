@@ -28,6 +28,7 @@ struct config;
 struct ikvdb;
 struct ikvdb_impl;
 struct kvdb_txn;
+struct kvdb_meta;
 struct kvdb_rparams;
 struct kvdb_cparams;
 struct kvs_rparams;
@@ -74,9 +75,10 @@ kvdb_perfc_register(void *pc);
  * @kvdb_home: KVDB home
  * @params:    fixed configuration parameters
  * @captgt:    captgt of the mdc
+ * @pmem_only: is it a pmem-only KVDB
  */
 merr_t
-ikvdb_create(const char *kvdb_home, struct kvdb_cparams *params);
+ikvdb_create(const char *kvdb_home, struct kvdb_cparams *params, bool pmem_only);
 
 /**
  * Drop a KVDB
@@ -538,6 +540,13 @@ ikvdb_kvs_query_tree(struct hse_kvs *kvs, struct yaml_context *yc, int fd, bool 
 
 uint32_t
 ikvdb_lowmem_scale(uint32_t memgb);
+
+merr_t
+ikvdb_pmem_only_from_cparams(
+    const char                *kvdb_home,
+    const struct kvdb_cparams *cparams,
+    bool                      *pmem_only);
+
 
 /*
  * [HSE_REVISIT] - This whole callback setup up needs to be reworked.

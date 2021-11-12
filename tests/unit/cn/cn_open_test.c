@@ -60,7 +60,7 @@ struct mapi_injection inject_list[] = {
     { mapi_idx_kvdb_kvs_cparams, MAPI_RC_PTR, &cp },
 
     { mapi_idx_mpool_props_get, MAPI_RC_SCALAR, 0 },
-    { mapi_idx_mpool_mclass_props_get, MAPI_RC_SCALAR, ENOENT },
+    { mapi_idx_mpool_mclass_props_get, MAPI_RC_SCALAR, 0 },
 
     { mapi_idx_kvdb_kvs_flags, MAPI_RC_SCALAR, 0 },
 
@@ -167,7 +167,7 @@ MTF_DEFINE_UTEST_PREPOST(cn_open_test, cn_open_enomem, pre, post)
     /* cn_open requires `num_allocs` memory allocations. Expose each one
      * and verify we tested them all.
      */
-    num_allocs = 7 + 20; /* 10 perfc set * 2 allocations per set. */
+    num_allocs = 7 + 18; /* 10 perfc set * 2 allocations per set. */
 
     for (i = 0; i <= num_allocs; i++) {
 
@@ -175,7 +175,7 @@ MTF_DEFINE_UTEST_PREPOST(cn_open_test, cn_open_enomem, pre, post)
 
         err = cn_open(CN_OPEN_ARGS, &cn);
 
-        if (i == num_allocs || (i > 0 && i < 21)) {
+        if (i == num_allocs || (i > 0 && i < 19)) {
             ASSERT_EQ(err, 0);
             cn_close(cn);
         } else {
