@@ -1,0 +1,19 @@
+name: Cancel
+
+on:
+  pull_request:
+    types: [closed]
+  workflow_run:
+    workflows: [CI]
+    types:
+      - requested
+
+jobs:
+  cancel:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: styfle/cancel-workflow-action@0.9.1
+        with:
+          all_but_latest: true
+          ignore_sha: true
+          workflow_id: ${{ github.event.workflow.id }}
