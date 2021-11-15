@@ -18,7 +18,9 @@ jobs:
         build_type: [release, debugoptimized]
 
     steps:
-    - name: Setup system
+    - uses: actions/checkout@v2
+
+    - name: Initialize
       run: |
         echo "$HOME/.local/bin" >> $GITHUB_PATH
         sudo apt-get update
@@ -26,16 +28,15 @@ jobs:
         sudo apt-get install libmongoc-1.0-0 libbson-1.0-0 libssl-dev libsasl2-dev
         python3 -m pip install --user setuptools_rust
         python3 -m pip install --user poetry
-
-    - uses: actions/checkout@v2
-
-    - name: Setup Python environment
-      run: |
         poetry install
+
+    - name: Setup
+      run: |
+        poetry run meson builddir -Dbuildtype=${{ matrix.build_type }} --fatal-meson-warnings -Dycsb=true -Dwerror=true
 
     - name: Build
       run: |
-        poetry run meson builddir -Dbuildtype=${{ matrix.build_type }} --fatal-meson-warnings -Dycsb=true -Dwerror=true
+        poetry run ninja -C builddir
 
     - name: Test
       run: |
@@ -44,7 +45,7 @@ jobs:
     - uses: actions/upload-artifact@v2
       if: failure()
       with:
-        name: build-artifact-ubuntu-18.04-${{ matrix.build_type }}
+        name: build-artifact-${{ matrix.os }}-${{ matrix.build_type }}
         path: builddir/meson-logs/
 
   fedora:
@@ -58,23 +59,23 @@ jobs:
         build_type: [release, debugoptimized]
 
     steps:
-    - name: Setup system
-      run: |
-        echo "$HOME/.local/bin" >> $GITHUB_PATH
-        sudo dnf install -y which git pkg-config java-1.8.0-openjdk-devel libmicrohttpd-devel userspace-rcu-devel libyaml-devel lz4-devel libbsd-devel libcurl-devel
-        sudo dnf install -y xz mongo-c-driver libbson openssl-devel cyrus-sasl-devel ncurses-devel cmake make automake gcc gcc-c++ kernel-devel
-        sudo dnf install -y python-pip python-wheel python3-devel libxml2-devel libxslt-devel
-        python3 -m pip install --user poetry
-
     - uses: actions/checkout@v2
 
-    - name: Setup Python environment
+    - name: Initialize
       run: |
+        echo "$HOME/.local/bin" >> $GITHUB_PATH
+        sudo dnf install -y which git poetry python-unversioned-command pkg-config java-1.8.0-openjdk-devel libmicrohttpd-devel userspace-rcu-devel libyaml-devel lz4-devel libbsd-devel libcurl-devel
+        sudo dnf install -y xz mongo-c-driver libbson openssl-devel cyrus-sasl-devel ncurses-devel cmake make automake gcc gcc-c++ kernel-devel
+        sudo dnf install -y python-pip python-wheel python3-devel libxml2-devel libxslt-devel
         poetry install
+
+    - name: Setup
+      run: |
+        poetry run meson builddir -Dbuildtype=${{ matrix.build_type }} --fatal-meson-warnings -Dycsb=true -Dwerror=true
 
     - name: Build
       run: |
-        poetry run meson builddir -Dbuildtype=${{ matrix.build_type }} --fatal-meson-warnings -Dycsb=true -Dwerror=true
+        poetry run ninja -C builddir
 
     - name: Test
       run: |
@@ -88,8 +89,6 @@ jobs:
 
   docs:
     runs-on: ubuntu-latest
-    strategy:
-      fail-fast: false
     container:
       image: fedora:latest
       options: --privileged  -v /usr/src:/usr/src -v /lib/modules:/lib/modules
@@ -103,10 +102,10 @@ jobs:
         sudo dnf install -y which git poetry python-unversioned-command pkg-config java-1.8.0-openjdk-devel libmicrohttpd-devel userspace-rcu-devel libyaml-devel lz4-devel libbsd-devel libcurl-devel doxygen
         sudo dnf install -y xz mongo-c-driver libbson openssl-devel cyrus-sasl-devel ncurses-devel cmake make automake gcc gcc-c++ kernel-devel
         sudo dnf install -y python-pip python-wheel python3-devel libxml2-devel libxslt-devel
+        poetry install
 
     - name: Setup
       run: |
-        poetry install
         poetry run meson builddir --fatal-meson-warnings -Dwerror=true -Ddocs=true
 
     - name: Build
@@ -124,24 +123,24 @@ jobs:
         build_type: [release, debugoptimized]
 
     steps:
-    - name: Setup system
+    - uses: actions/checkout@v2
+
+    - name: Initialize
       run: |
         echo "$HOME/.local/bin" >> $GITHUB_PATH
-        sudo dnf install -y which git pkg-config java-1.8.0-openjdk-devel libmicrohttpd-devel userspace-rcu-devel libyaml-devel lz4-devel libbsd-devel libcurl-devel
+        sudo dnf install -y which git poetry python-unversioned-command pkg-config java-1.8.0-openjdk-devel libmicrohttpd-devel userspace-rcu-devel libyaml-devel lz4-devel libbsd-devel libcurl-devel
         sudo dnf install -y xz mongo-c-driver libbson openssl-devel cyrus-sasl-devel ncurses-devel cmake make automake gcc gcc-c++ kernel-devel
         sudo dnf install -y python-pip python-wheel python3-devel libxml2-devel libxslt-devel
         sudo dnf install -y libasan libubsan
-        python3 -m pip install --user poetry
-
-    - uses: actions/checkout@v2
-
-    - name: Setup Python environment
-      run: |
         poetry install
+
+    - name: Setup
+      run: |
+        poetry run meson builddir -Dbuildtype=${{ matrix.build_type }} --fatal-meson-warnings -Dycsb=true -Db_sanitize=address,undefined
 
     - name: Build
       run: |
-        poetry run meson builddir -Dbuildtype=${{ matrix.build_type }} --fatal-meson-warnings -Dycsb=true -Db_sanitize=address,undefined
+        poetry run ninja -C builddir
 
     - name: Test
       run: |
