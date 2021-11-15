@@ -87,6 +87,34 @@ jobs:
         name: build-artifact-fedora-latest-${{ matrix.build_type }}
         path: builddir/meson-logs/
 
+  non-experimental:
+    runs-on: ubuntu-latest
+
+    steps:
+    - name: Setup system
+      run: |
+        echo "$HOME/.local/bin" >> $GITHUB_PATH
+        sudo apt-get update
+        sudo apt-get install build-essential libbsd-dev pkg-config openjdk-8-jdk libmicrohttpd-dev liburcu-dev libyaml-dev liblz4-dev libcurl4-openssl-dev python3-setuptools
+        sudo apt-get install libmongoc-1.0-0 libbson-1.0-0 libssl-dev libsasl2-dev
+        python3 -m pip install --user setuptools_rust
+        python3 -m pip install --user poetry
+        poetry install
+
+    - uses: actions/checkout@v2
+
+    - name: Setup
+      run: |
+        poetry run meson builddir --fatal-meson-warnings -Dycsb=true -Dwerror=true -Dexperimental=false
+
+    - name: Build
+      run: |
+        poetry run ninja -C builddir
+
+    - name: Test
+      run: |
+        poetry run meson test -C builddir --setup=ci --print-errorlogs --no-stdsplit
+
   docs:
     runs-on: ubuntu-latest
     container:
@@ -149,7 +177,7 @@ jobs:
     - uses: actions/upload-artifact@v2
       if: failure()
       with:
-        name: build-artifact-fedora-latest-${{ matrix.build_type }}
+        name: build-artifact-asan-ubsan-${{ matrix.build_type }}
         path: builddir/meson-logs/
 
   checkoss:
