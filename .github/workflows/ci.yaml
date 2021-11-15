@@ -102,7 +102,6 @@ jobs:
 
     - name: Initialize
       run: |
-
         echo "$HOME/.poetry/bin" >> $GITHUB_PATH
         dnf install -y sudo dnf-plugins-core epel-release
         dnf config-manager --set-enabled powertools
