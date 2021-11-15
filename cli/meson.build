@@ -15,11 +15,8 @@ hse_cli_sources = files(
     'storage_profile.c',
 )
 
-hse_cli_c_args = []
-
-if get_option('experimental')
-    hse_cli_c_args += '-DHSE_EXPERIMENTAL'
-endif
+hse_cli_c_args = [
+]
 
 hse_cli_dependencies = [
     hse_dep,

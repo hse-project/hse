@@ -23,12 +23,6 @@ extern "C" {
 /* hse_kvs_cursor_create() flags */
 #define HSE_CURSOR_CREATE_REV (1u << 0)
 
-#ifdef HSE_EXPERIMENTAL
-/* hse_kvdb_compact() flags */
-#define HSE_KVDB_COMPACT_CANCEL   (1u << 0)
-#define HSE_KVDB_COMPACT_SAMP_LWM (1u << 1)
-#endif
-
 #ifdef __cplusplus
 }
 #endif

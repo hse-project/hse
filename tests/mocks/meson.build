@@ -171,7 +171,6 @@ hse_mock = static_library(
         mocked_sources,
     ],
     c_args: [
-        hse_c_args,
         hse_mock_c_args,
     ],
     include_directories: [

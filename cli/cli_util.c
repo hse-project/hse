@@ -15,13 +15,8 @@
 #include <hse_util/arch.h>
 #include <hse_util/parse_num.h>
 
-#ifndef HSE_EXPERIMENTAL
-#define HSE_EXPERIMENTAL
 #include <hse/hse.h>
-#undef HSE_EXPERIMENTAL
-#else
-#include <hse/hse.h>
-#endif
+#include <hse/experimental.h>
 
 #include <pidfile/pidfile.h>
 
@@ -75,7 +70,6 @@ rest_kvs_list(const char *socket_path, const char *alias, struct yaml_context *y
     return 0;
 }
 
-#ifdef HSE_EXPERIMENTAL
 static int
 rest_storage_stats_list(
     struct yaml_context *         yc,
@@ -193,7 +187,6 @@ emit_storage_info(
     snprintf(value, sizeof(value), "%lu", info->used_bytes);
     yaml_element_field(yc, "used_space_bytes", value);
 }
-#endif
 
 static hse_err_t
 kvdb_info_props(
@@ -265,7 +258,6 @@ exit:
     return err;
 }
 
-#ifdef HSE_EXPERIMENTAL
 static hse_err_t
 kvdb_storage_info_props(
     const char          *kvdb_home,
@@ -326,7 +318,6 @@ exit:
 
     return err;
 }
-#endif
 
 bool
 kvdb_info_print(
@@ -351,7 +342,6 @@ kvdb_info_print(
     return true;
 }
 
-#ifdef HSE_EXPERIMENTAL
 bool
 kvdb_storage_info_print(
     const char *         kvdb_home,
@@ -374,7 +364,6 @@ kvdb_storage_info_print(
 
     return true;
 }
-#endif
 
 static hse_err_t
 rest_kvdb_comp(const char *socket_path, const char *alias, const char *policy)

@@ -164,15 +164,11 @@ struct cli_cmd        cli_hse_kvs_commands[] = {
  *    hse storage profile
  */
 static cli_cmd_func_t cli_hse_storage_add;
-#ifdef HSE_EXPERIMENTAL
 static cli_cmd_func_t cli_hse_storage_info;
-#endif
 static cli_cmd_func_t cli_hse_storage_profile;
 struct cli_cmd        cli_hse_storage_commands[] = {
     { "add", "Add a new media class storage to an existing offline KVDB", cli_hse_storage_add, 0 },
-#ifdef HSE_EXPERIMENTAL
     { "info", "Display storage stats for a KVDB", cli_hse_storage_info, 0 },
-#endif
     { "profile", "Profile storage path to determine throttle policy", cli_hse_storage_profile, 0 },
     { 0 },
 };
@@ -1100,7 +1096,6 @@ cli_hse_kvdb_compact(struct cli_cmd *self, struct cli *cli)
 //     return cli_hse_kvdb_params_impl(cli, kvdb_home);
 // }
 
-#ifdef HSE_EXPERIMENTAL
 static int
 cli_hse_storage_info_impl(struct cli *cli, const char *const kvdb_home)
 {
@@ -1187,7 +1182,6 @@ cli_hse_storage_info(struct cli_cmd *self, struct cli *cli)
 
     return cli_hse_storage_info_impl(cli, kvdb_home);
 }
-#endif
 
 static int
 cli_hse_storage_add_impl(struct cli *cli, const char *const kvdb_home)

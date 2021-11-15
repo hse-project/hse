@@ -14,6 +14,7 @@
 #include <sysexits.h>
 
 #include <hse/hse.h>
+#include <hse/experimental.h>
 
 #include <hse_util/arch.h>
 #include <hse_util/atomic.h>
