@@ -3,10 +3,12 @@
  * Copyright (C) 2015-2021 Micron Technology, Inc.  All rights reserved.
  */
 
-/* The interfaces defined in this file are for internal use only.  The are not
- * part of the HSE library public API and hence may change in name, arguments,
- * and/or semantics without notice.
+/* The interfaces defined in this file are provided only for use by
+ * internal components of the HSE library.  They are not part of the
+ * HSE library public API and hence are subject to change (e.g.,
+ * presence, stability, name, arguments, semantics) without notice.
  */
+
 #ifndef HSE_EXPERIMENTAL_H
 #define HSE_EXPERIMENTAL_H
 
@@ -31,7 +33,7 @@ extern "C" {
 #define HSE_KVDB_COMPACT_CANCEL   (1u << 0)
 #define HSE_KVDB_COMPACT_SAMP_LWM (1u << 1)
 
-/** @addtogroup KVDB
+/** @addtogroup KVDB Key-Value Database (KVDB)
  * @{
  */
 
@@ -51,25 +53,6 @@ struct hse_kvdb_storage_info {
     uint64_t allocated_bytes; /**< allocated storage space for a kvdb */
     uint64_t used_bytes;      /**< used storage space for a kvdb */
 };
-
-/**@} KVDB */
-
-/** @addtogroup KVS
- * @{
- */
-
-/** @brief Number of keys found from a prefix probe operation. */
-enum hse_kvs_pfx_probe_cnt {
-    HSE_KVS_PFX_FOUND_ZERO = 0, /**< Zero keys found with prefix. */
-    HSE_KVS_PFX_FOUND_ONE,      /**< One key found with prefix. */
-    HSE_KVS_PFX_FOUND_MUL,      /**< Multiple keys found with prefix. */
-};
-
-/**@} KVS */
-
-/** @addtogroup KVDB Key-Value Database (KVDB)
- * @{
- */
 
 /** @brief Request a data compaction operation.
  *
@@ -137,6 +120,13 @@ hse_kvdb_storage_info_get(struct hse_kvdb *kvdb, struct hse_kvdb_storage_info *i
 /** @addtogroup KVS Key-Value Store (KVS)
  * @{
  */
+
+/** @brief Number of keys found from a prefix probe operation. */
+enum hse_kvs_pfx_probe_cnt {
+    HSE_KVS_PFX_FOUND_ZERO = 0, /**< Zero keys found with prefix. */
+    HSE_KVS_PFX_FOUND_ONE,      /**< One key found with prefix. */
+    HSE_KVS_PFX_FOUND_MUL,      /**< Multiple keys found with prefix. */
+};
 
 /** @brief Probe for a prefix.
  *
