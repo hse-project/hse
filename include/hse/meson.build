@@ -19,3 +19,10 @@ install_headers(
     'types.h',
     subdir: include_subdir,
 )
+
+if get_option('experimental')
+    install_headers(
+        'experimental.h',
+        subdir: include_subdir,
+    )
+endif

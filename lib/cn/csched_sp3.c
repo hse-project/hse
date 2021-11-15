@@ -7,6 +7,8 @@
 
 #include <bsd/string.h>
 
+#include <hse/experimental.h>
+
 #include <hse_util/platform.h>
 #include <hse_util/alloc.h>
 #include <hse_util/slab.h>

@@ -4,6 +4,7 @@
  */
 
 #include <hse/flags.h>
+#include <hse/experimental.h>
 
 #include <hse_util/logging.h>
 #include <hse_util/hse_err.h>

@@ -7,6 +7,9 @@
 #include <mock/api.h>
 #include <mock/alloc_tester.h>
 
+#include <hse/flags.h>
+#include <hse/experimental.h>
+
 #include <hse_util/hse_err.h>
 
 #include <hse_ikvdb/kvdb_rparams.h>

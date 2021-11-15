@@ -190,9 +190,6 @@ tools = {
             'kvs_helper.c',
             'parm_groups.c',
         ),
-        'c_args': [
-            '-DHSE_EXPERIMENTAL',
-        ],
     },
     'pgd': {
         'sources': files(

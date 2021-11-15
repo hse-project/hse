@@ -17,6 +17,8 @@
 #include <time.h>
 #include <unistd.h>
 
+#include <hse/experimental.h>
+
 int DEBUG = 0;
 
 static const char *       level_names[] = { "DEBUG", "INFO", "WARN", "ERROR", "FATAL" };

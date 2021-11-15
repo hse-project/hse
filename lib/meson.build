@@ -80,14 +80,6 @@ hse_sources = [
     util_sources,
 ]
 
-hse_c_args = [
-    '-DHSE_EXPERIMENTAL',
-]
-
-if get_option('experimental')
-    hse_c_args += '-DHSE_EXPORT_EXPERIMENTAL'
-endif
-
 hse_include_directories = [
     ikvdb_includes,
     component_root_includes,
@@ -120,7 +112,6 @@ hse_dependencies = [
 hse = library(
     lib_name,
     hse_sources,
-    c_args: hse_c_args,
     include_directories: hse_include_directories,
     dependencies: hse_dependencies,
     version: meson.project_version(),

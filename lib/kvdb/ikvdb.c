@@ -7,6 +7,7 @@
 #define MTF_MOCK_IMPL_kvs
 
 #include <hse/flags.h>
+#include <hse/experimental.h>
 
 #include <hse_util/hse_err.h>
 #include <hse_util/invariant.h>
