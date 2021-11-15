@@ -398,7 +398,7 @@ dur_mclass_converter(
         return false;
 
     const char *value = cJSON_GetStringValue(node);
-    for (size_t i = 0; i < NELEM(mpool_mclass_to_string); i++) {
+    for (int i = MP_MED_BASE; i < MP_MED_COUNT; i++) {
         if (!strcmp(mpool_mclass_to_string[i], value)) {
             *(enum mpool_mclass *)data = i;
             return true;
