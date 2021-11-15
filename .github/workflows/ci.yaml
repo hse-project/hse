@@ -87,6 +87,50 @@ jobs:
         name: build-artifact-fedora-latest-${{ matrix.build_type }}
         path: builddir/meson-logs/
 
+  almalinux:
+    runs-on: ubuntu-latest
+    container:
+      image: almalinux:latest
+      options: --privileged  -v /usr/src:/usr/src -v /lib/modules:/lib/modules
+    strategy:
+      fail-fast: false
+      matrix:
+        build_type: [release, debugoptimized]
+
+    steps:
+    - uses: actions/checkout@v2
+
+    - name: Initialize
+      run: |
+
+        echo "$HOME/.poetry/bin" >> $GITHUB_PATH
+        dnf install -y sudo dnf-plugins-core epel-release
+        dnf config-manager --set-enabled powertools
+        dnf install -y which git pkg-config java-1.8.0-openjdk-devel libmicrohttpd-devel userspace-rcu-devel libyaml-devel lz4-devel libbsd-devel libcurl-devel
+        dnf install -y xz mongo-c-driver libbson openssl-devel cyrus-sasl-devel ncurses-devel cmake make automake gcc gcc-c++ kernel-devel
+        dnf install -y python36 python3-devel libxml2 libxslt
+        curl -sSL https://raw.githubusercontent.com/python-poetry/poetry/master/get-poetry.py | python3
+        source $HOME/.poetry/env
+        poetry install
+
+    - name: Setup
+      run: |
+        poetry run meson builddir -Dbuildtype=${{ matrix.build_type }} --fatal-meson-warnings -Dycsb=true -Dwerror=true
+
+    - name: Build
+      run: |
+        poetry run ninja -C builddir
+
+    - name: Test
+      run: |
+        poetry run meson test -C builddir --setup=ci --print-errorlogs --no-stdsplit
+
+    - uses: actions/upload-artifact@v2
+      if: failure()
+      with:
+        name: build-artifact-almalinux-latest-${{ matrix.build_type }}
+        path: builddir/meson-logs/
+
   docs:
     runs-on: ubuntu-latest
     container:
