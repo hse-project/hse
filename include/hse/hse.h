@@ -878,10 +878,10 @@ hse_kvs_cursor_read(
  *
  * @param cursor: Cursor handle from hse_kvs_cursor_create().
  * @param flags: Flags for operation specialization.
- * @param keybuf[in,out]: Buffer into which the next key will be copied.
+ * @param[in,out] keybuf: Buffer into which the next key will be copied.
  * @param keybuf_sz: Size of @p keybuf.
  * @param[out] key_len: Length of the key.
- * @param valbuf[in,out]: Buffer into which the next key's value will be copied.
+ * @param[in,out] valbuf: Buffer into which the next key's value will be copied.
  * @param valbuf_sz: Size of @p valbuf
  * @param[out] val_len: Length of @p val.
  * @param[out] eof: If true, no more key-value pairs in sequence.
@@ -897,7 +897,7 @@ hse_kvs_cursor_read(
  */
 hse_err_t
 hse_kvs_cursor_read_copy(
-    struct hse_kvs_cursor *cur,
+    struct hse_kvs_cursor *cursor,
     const unsigned int     flags,
     const void *           keybuf,
     size_t                 keybuf_sz,
