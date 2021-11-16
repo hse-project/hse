@@ -1,9 +1,9 @@
-HSE := $(shell which hse)
-INJECT := $(shell which cndb_txn_inject)
-KVSDROP := $(shell which cndb_simpledrop_inject)
-KVSDROP_RECOVERY := $(shell which cndb_simpledrop_recovery_inject)
-CNDB_LOG := $(shell which cndb_log)
-MDC_TOOL := $(shell which mdc_tool)
+HSE := $(shell command -v hse)
+INJECT := $(shell command -v cndb_txn_inject)
+KVSDROP := $(shell command -v cndb_simpledrop_inject)
+KVSDROP_RECOVERY := $(shell command -v cndb_simpledrop_recovery_inject)
+CNDB_LOG := $(shell command -v cndb_log)
+MDC_TOOL := $(shell command -v mdc_tool)
 KVDBDIR ?= kvdbs
 CTARGETS := simpledrop.c simpledrop_recovery.c
 
