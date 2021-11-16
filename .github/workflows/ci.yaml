@@ -64,7 +64,7 @@ jobs:
     - name: Initialize
       run: |
         echo "$HOME/.local/bin" >> $GITHUB_PATH
-        sudo dnf install -y which git poetry python-unversioned-command pkg-config java-1.8.0-openjdk-devel libmicrohttpd-devel userspace-rcu-devel libyaml-devel lz4-devel libbsd-devel libcurl-devel
+        sudo dnf install -y git poetry python-unversioned-command pkg-config java-1.8.0-openjdk-devel libmicrohttpd-devel userspace-rcu-devel libyaml-devel lz4-devel libbsd-devel libcurl-devel
         sudo dnf install -y xz mongo-c-driver libbson openssl-devel cyrus-sasl-devel ncurses-devel cmake make automake gcc gcc-c++ kernel-devel
         sudo dnf install -y python-pip python-wheel python3-devel libxml2-devel libxslt-devel
         poetry install
@@ -105,7 +105,7 @@ jobs:
         echo "$HOME/.poetry/bin" >> $GITHUB_PATH
         dnf install -y sudo dnf-plugins-core epel-release
         dnf config-manager --set-enabled powertools
-        dnf install -y which git pkg-config java-1.8.0-openjdk-devel libmicrohttpd-devel userspace-rcu-devel libyaml-devel lz4-devel libbsd-devel libcurl-devel
+        dnf install -y git pkg-config java-1.8.0-openjdk-devel libmicrohttpd-devel userspace-rcu-devel libyaml-devel lz4-devel libbsd-devel libcurl-devel
         dnf install -y xz mongo-c-driver libbson openssl-devel cyrus-sasl-devel ncurses-devel cmake make automake gcc gcc-c++ kernel-devel
         dnf install -y python36 python3-devel libxml2 libxslt
         curl -sSL https://raw.githubusercontent.com/python-poetry/poetry/master/get-poetry.py | python3
@@ -142,7 +142,7 @@ jobs:
     - name: Initialize
       run: |
         echo "$HOME/.local/bin" >> $GITHUB_PATH
-        sudo dnf install -y which git poetry python-unversioned-command pkg-config java-1.8.0-openjdk-devel libmicrohttpd-devel userspace-rcu-devel libyaml-devel lz4-devel libbsd-devel libcurl-devel doxygen
+        sudo dnf install -y git poetry python-unversioned-command pkg-config java-1.8.0-openjdk-devel libmicrohttpd-devel userspace-rcu-devel libyaml-devel lz4-devel libbsd-devel libcurl-devel doxygen
         sudo dnf install -y xz mongo-c-driver libbson openssl-devel cyrus-sasl-devel ncurses-devel cmake make automake gcc gcc-c++ kernel-devel
         sudo dnf install -y python-pip python-wheel python3-devel libxml2-devel libxslt-devel
         poetry install
@@ -171,7 +171,7 @@ jobs:
     - name: Initialize
       run: |
         echo "$HOME/.local/bin" >> $GITHUB_PATH
-        sudo dnf install -y which git poetry python-unversioned-command pkg-config java-1.8.0-openjdk-devel libmicrohttpd-devel userspace-rcu-devel libyaml-devel lz4-devel libbsd-devel libcurl-devel
+        sudo dnf install -y git poetry python-unversioned-command pkg-config java-1.8.0-openjdk-devel libmicrohttpd-devel userspace-rcu-devel libyaml-devel lz4-devel libbsd-devel libcurl-devel
         sudo dnf install -y xz mongo-c-driver libbson openssl-devel cyrus-sasl-devel ncurses-devel cmake make automake gcc gcc-c++ kernel-devel
         sudo dnf install -y python-pip python-wheel python3-devel libxml2-devel libxslt-devel
         sudo dnf install -y libasan libubsan
