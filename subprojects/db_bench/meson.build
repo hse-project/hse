@@ -28,7 +28,6 @@ db_bench = executable(
         'util/testutil.cc',
     ),
     cpp_args: [
-        '-DHSE_EXPERIMENTAL',
         '-DHAVE_FREAD',
         '-DHAVE_FWRITE',
         '-DHAVE_FFLUSH',

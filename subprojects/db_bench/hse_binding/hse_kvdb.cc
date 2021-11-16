@@ -12,6 +12,7 @@
 
 #include <hse/hse.h>
 #include <hse/version.h>
+#include <hse/experimental.h>
 
 #include "hse_binding/hse_kvdb.h"
 #include "hse_binding/hse_kvs.h"

@@ -972,11 +972,4 @@ hse_kvs_cursor_update_view(struct hse_kvs_cursor *cursor, unsigned int flags);
 }
 #endif
 
-/* [HSE_REVISIT] The following inclusion will be removed after the db_bench
- * hse-python repos are fixed to include hse_experimental.h directly.
- */
-#ifdef HSE_EXPERIMENTAL
-#include <hse/experimental.h>
-#endif
-
 #endif
