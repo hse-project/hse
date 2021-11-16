@@ -51,11 +51,12 @@ jobs:
   fedora:
     runs-on: ubuntu-latest
     container:
-      image: fedora:latest
+      image: fedora:${{ matrix.image-tag }}
       options: --privileged  -v /usr/src:/usr/src -v /lib/modules:/lib/modules
     strategy:
       fail-fast: false
       matrix:
+        image-tag: [34, 35]
         build_type: [release, debugoptimized]
 
     steps:
@@ -84,17 +85,18 @@ jobs:
     - uses: actions/upload-artifact@v2
       if: failure()
       with:
-        name: build-artifact-fedora-latest-${{ matrix.build_type }}
+        name: build-artifact-fedora-${{ matrix.image-tag }}-${{ matrix.build_type }}
         path: builddir/meson-logs/
 
   almalinux:
     runs-on: ubuntu-latest
     container:
-      image: almalinux:latest
+      image: almalinux:${{ matrix.image-tag }}
       options: --privileged  -v /usr/src:/usr/src -v /lib/modules:/lib/modules
     strategy:
       fail-fast: false
       matrix:
+        image-tag: [8]
         build_type: [release, debugoptimized]
 
     steps:
@@ -127,7 +129,7 @@ jobs:
     - uses: actions/upload-artifact@v2
       if: failure()
       with:
-        name: build-artifact-almalinux-latest-${{ matrix.build_type }}
+        name: build-artifact-almalinux-${{ matrix.image-tag }}-${{ matrix.build_type }}
         path: builddir/meson-logs/
 
   docs:
