@@ -174,6 +174,16 @@ struct cli_cmd        cli_hse_storage_commands[] = {
 };
 
 /*****************************************************************
+ * HSE Utils commands:
+ *    hse utils strerror
+ */
+static cli_cmd_func_t cli_hse_utils_strerror;
+struct cli_cmd        cli_hse_utils_commands[] = {
+    { "strerror", "HSE error decoder", cli_hse_utils_strerror, 0 },
+    { 0 },
+};
+
+/*****************************************************************
  * HSE commands:
  *    hse version
  *    hse kvdb
@@ -182,10 +192,12 @@ struct cli_cmd        cli_hse_storage_commands[] = {
 static cli_cmd_func_t cli_hse_kvdb;
 static cli_cmd_func_t cli_hse_kvs;
 static cli_cmd_func_t cli_hse_storage;
+static cli_cmd_func_t cli_hse_utils;
 struct cli_cmd        cli_hse_commands[] = {
     { "kvdb", "KVDB commands", cli_hse_kvdb, cli_hse_kvdb_commands },
     { "kvs", "KVS commands", cli_hse_kvs, cli_hse_kvs_commands },
     { "storage", "KVDB storage commands", cli_hse_storage, cli_hse_storage_commands },
+    { "utils", "HSE utilities", cli_hse_utils, cli_hse_utils_commands },
     { 0 },
 };
 
@@ -1445,6 +1457,146 @@ cli_hse_storage(struct cli_cmd *self, struct cli *cli)
     }
 
     return sub_cmd->cmd_main(sub_cmd, cli);
+}
+
+static int
+cli_hse_utils(struct cli_cmd *self, struct cli *cli)
+{
+    const struct cmd_spec spec = {
+        .usagev =
+            {
+                "[options] <command> ...",
+                NULL,
+            },
+        .optionv =
+            {
+                OPTION_HELP,
+                { NULL },
+            },
+        .longoptv =
+            {
+                { "help", no_argument, 0, 'h' },
+                { NULL },
+            },
+        .configv =
+            {
+                { NULL },
+            },
+    };
+
+    const char *    sub_name;
+    struct cli_cmd *sub_cmd;
+    int             c;
+    bool            help = false;
+
+    if (cli_hook(cli, self, &spec))
+        return 0;
+
+    while (-1 != (c = cli_getopt(cli))) {
+        switch (c) {
+            case 'h':
+                help = true;
+                break;
+            default:
+                return EX_USAGE;
+        }
+    }
+
+    sub_name = cli_next_arg(cli);
+    if (!sub_name || help) {
+        cmd_print_help(self, help ? stdout : stderr);
+        return help ? 0 : EX_USAGE;
+    }
+
+    sub_cmd = cli_cmd_lookup(self->cmd_subcommandv, sub_name);
+    if (!sub_cmd) {
+        fprintf(stderr, "%s: invalid command '%s', use -h for help\n", self->cmd_path, sub_name);
+        return EX_USAGE;
+    }
+
+    return sub_cmd->cmd_main(sub_cmd, cli);
+}
+
+static int
+cli_hse_utils_strerror(struct cli_cmd *self, struct cli *cli)
+{
+    const struct cmd_spec spec = {
+        .usagev =
+            {
+                "[options] [--] <errorcode>",
+                NULL,
+            },
+        .optionv =
+            {
+                OPTION_HELP,
+                { "-v, --verbose", "Verbose output" },
+                { NULL },
+            },
+        .longoptv =
+            {
+                { "help", no_argument, 0, 'h' },
+                { "verbose", no_argument, 0, 'v' },
+                { NULL },
+            },
+        .configv =
+            {
+                { NULL },
+            },
+    };
+
+    const char *error_code_str;
+    bool        help = false;
+    bool        verbose = false;
+    int         c;
+    char        buf[1024];
+    int64_t     s_err;
+    char       *errmsg;
+
+    if (cli_hook(cli, self, &spec))
+        return 0;
+
+    while (-1 != (c = cli_getopt(cli))) {
+        switch (c) {
+            case 'h':
+                help = true;
+                break;
+            case 'v':
+                verbose = true;
+                break;
+            default:
+                return EX_USAGE;
+        }
+    }
+
+    error_code_str = cli_next_arg(cli);
+
+    if (!error_code_str || help) {
+        int rc = help ? 0 : EX_USAGE;
+
+        cmd_print_help(self, help ? stdout : stderr);
+
+        if (!verbose) {
+            printf("\nUse -hv for more detail\n\n");
+            return rc;
+        }
+
+        printf("\nNote that if a file name is shown in the verbose output, it is reliable only\n");
+        printf("when the input error code was generated on the same build.\n");
+
+        return rc;
+    }
+
+    if (parse_s64(error_code_str, &s_err)) {
+        fprintf(stderr,
+            "%s: unable to parse '%s' as a signed 64-bit scalar value\n",
+            self->cmd_path, error_code_str);
+        return EX_USAGE;
+    }
+
+    errmsg = strerror_r(hse_err_to_errno((hse_err_t)s_err), buf, sizeof(buf));
+    fprintf(stdout, "%s\n", errmsg);
+
+    return 0;
 }
 
 static int
