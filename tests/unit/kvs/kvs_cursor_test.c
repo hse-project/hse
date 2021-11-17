@@ -150,7 +150,7 @@ void verify_range(struct mtf_test_info *lcl_ti, const char *pfx, int start, int 
         if (eof)
             break;
 
-        key = kvs_cursor_key_copy(cur, NULL, 0, &key_len);
+        kvs_cursor_key_copy(cur, NULL, 0, &key, &key_len);
 
         expect_pfx(lcl_ti, key, key_len, pfx);
 
@@ -158,7 +158,7 @@ void verify_range(struct mtf_test_info *lcl_ti, const char *pfx, int start, int 
         expect_key(lcl_ti, key, key_len, buf);
 
         key_len = 0;
-        key = kvs_cursor_key_copy(cur, (const char *)keybuf, sizeof(keybuf), &key_len);
+        kvs_cursor_key_copy(cur, (const char *)keybuf, sizeof(keybuf), &key, &key_len);
         expect_key(lcl_ti, key, key_len, buf);
 
         ++c;

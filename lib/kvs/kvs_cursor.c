@@ -1100,8 +1100,8 @@ out:
     return err;
 }
 
-const void *
-kvs_cursor_key_copy(struct hse_kvs_cursor *cursor, const void *kbuf, size_t kbufsz, size_t *klen)
+void
+kvs_cursor_key_copy(struct hse_kvs_cursor *cursor, const void *kbuf, size_t kbufsz, const void **key_out, size_t *klen_out)
 {
     struct kvs_cursor_impl *cur = cursor_h2r(cursor);
     void                   *buf = (void *)kbuf;
@@ -1115,13 +1115,14 @@ kvs_cursor_key_copy(struct hse_kvs_cursor *cursor, const void *kbuf, size_t kbuf
     }
 
     key = key_obj_copy(buf, bufsz, &keylen, cur->kci_last);
-    *klen = keylen;
+    *klen_out = keylen;
 
-    return key;
+    if (key_out)
+        *key_out = key;
 }
 
-const void *
-kvs_cursor_val_copy(struct hse_kvs_cursor *cursor, const void *vbuf, size_t vbufsz, size_t *vlen)
+merr_t
+kvs_cursor_val_copy(struct hse_kvs_cursor *cursor, const void *vbuf, size_t vbufsz, const void **val_out, size_t *vlen_out)
 {
     struct kvs_cursor_impl *cur = cursor_h2r(cursor);
 
@@ -1136,22 +1137,26 @@ kvs_cursor_val_copy(struct hse_kvs_cursor *cursor, const void *vbuf, size_t vbuf
         bufsz = HSE_KVS_VALUE_LEN_MAX;
     }
 
-    *vlen = vt->vt_xlen;
+    if (vlen_out)
+        *vlen_out = vt->vt_xlen;
 
     if (clen) {
         uint outlen;
 
         err = compress_lz4_ops.cop_decompress(vt->vt_data, clen, buf, bufsz, &outlen);
         if (ev(err))
-            return NULL;
+            return err;
 
         if (ev(outlen != min_t(u64, vt->vt_xlen, bufsz)))
-            return NULL;
+            return EBUG;
     } else {
         memcpy(buf, vt->vt_data, min_t(u64, vt->vt_xlen, bufsz));
     }
 
-    return buf;
+    if (val_out)
+        *val_out = buf;
+
+    return 0;
 }
 
 static merr_t

@@ -2728,11 +2728,11 @@ ikvdb_kvs_cursor_read(
     if (*eof)
         return 0;
 
-    *key = kvs_cursor_key_copy(cur, NULL, 0, key_len);
+    kvs_cursor_key_copy(cur, NULL, 0, key, key_len);
     if (val) {
-        *val = kvs_cursor_val_copy(cur, NULL, 0, val_len);
-        if (ev(!val))
-            return merr(EBUG);
+        err = kvs_cursor_val_copy(cur, NULL, 0, val, val_len);
+        if (ev(err))
+            return err;
     }
 
     perfc_lat_record(
@@ -2776,13 +2776,11 @@ ikvdb_kvs_cursor_read_copy(
     if (*eof)
         return 0;
 
-    kvs_cursor_key_copy(cur, keybuf, keybuf_sz, key_len);
+    kvs_cursor_key_copy(cur, keybuf, keybuf_sz, NULL, key_len);
     if (valbuf) {
-        const void *v;
-
-        v = kvs_cursor_val_copy(cur, valbuf, valbuf_sz, val_len);
-        if (ev(!v))
-            return merr(EBUG);
+        err = kvs_cursor_val_copy(cur, valbuf, valbuf_sz, NULL, val_len);
+        if (ev(err))
+            return err;
     }
 
     perfc_lat_record(
