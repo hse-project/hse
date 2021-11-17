@@ -46,9 +46,11 @@ foreach t, params : tests
         args: [
             path,
         ],
-        env: run_env,
         depends: [hse_python_depends, params.get('depends', [])],
         suite: params.get('suite', ''),
         timeout: params.get('timeout', 60),
+        env: environment({
+            'HSE_TEST_RUNNER_RUNNER': 'python',
+        })
     )
 endforeach
