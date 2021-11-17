@@ -263,6 +263,7 @@ if not get_option('tools').disabled() and (not HdrHistogram_c_dep.found()
         'HDR_HISTOGRAM_BUILD_SHARED': false,
         'HDR_HISTOGRAM_BUILD_PROGRAMS': false,
         'HDR_HISTOGRAM_BUILD_STATIC': true,
+        'HDR_LOG_REQUIRED': false,
     })
     HdrHistogram_c_options.set_override_option('werror', 'false')
     HdrHistogram_c_options.set_override_option('warning_level', '0')
@@ -281,6 +282,8 @@ if not get_option('tools').disabled() and (not libmongoc_dep.found()
     mongo_c_driver_options.add_cmake_defines({
         'ENABLE_TESTS': false,
         'ENABLE_EXAMPLES': false,
+        'ENABLE_SSL': 'OFF',
+        'ENABLE_MONGODB_AWS_AUTH': 'OFF',
         'ENABLE_MONGOC': not libmongoc_dep.found() or mongo_c_driver_force_fallback ? 'ON' : 'OFF',
         'ENABLE_BSON': not libbson_dep.found() or mongo_c_driver_force_fallback ? 'ON' : 'OFF',
         'ENABLE_STATIC': 'ON',

@@ -25,7 +25,8 @@ jobs:
         run: |
           df -h
           echo "Removing large packages"
-          sudo apt-get remove -y azure-cli google-cloud-sdk hhvm google-chrome-stable firefox powershell mono-devel
+          sudo apt-get remove -y azure-cli google-cloud-sdk hhvm \
+            google-chrome-stable firefox powershell mono-devel
           sudo apt-get autoremove -y
           sudo apt-get clean
           echo "Removing large directories"

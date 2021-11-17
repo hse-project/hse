@@ -1,4 +1,4 @@
-add_languages('java', native: false)
+add_languages('java', native: true)
 
 jdk_dep = dependency('jdk', version : '>=1.8.0')
 
