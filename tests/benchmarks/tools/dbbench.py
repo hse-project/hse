@@ -27,7 +27,7 @@ class DBbenchTest(BaseTest):
         super().__init__(name, "dbbench")
 
         self.compact = compact
-        self.compact_args = [config.HSE_EXECUTABLE, "kvdb", "compact", config.KVDB_NAME]
+        self.compact_args = [config.HSE_EXECUTABLE, "kvdb", "compact", config.KVDB_HOME]
         self.dbbench_executable_path = shutil.which("db_bench")
         self.cwd = os.path.dirname(self.dbbench_executable_path)
 
@@ -48,9 +48,11 @@ class DBbenchTest(BaseTest):
         return command_info_list
 
     def __preprocess_dbbench_args(self, args: List[str]):
-        kvs_param = "--db={}/{}".format(config.KVDB_NAME, config.KVS_NAME)
+        db_param = "--db={}".format(config.KVDB_HOME)
+        kvs_param = "--kvs={}".format(config.KVS_NAME)
         new_args = [
             self.dbbench_executable_path,
+            db_param,
             kvs_param,
         ]
         new_args += list(args)

@@ -10,7 +10,7 @@ from tools import config
 
 
 def save_kvdb_info(dest_dir, tag: str):
-    args = ["hse2", "-C", config.KVDB_HOME, "kvdb", "info"]
+    args = ["hse2", "kvdb", "info", config.KVDB_HOME]
     out = os.path.join(dest_dir, f"kvdb_info.{tag}.out")
     with open(out, "w") as fd:
         subprocess.run(args, stdout=fd, stderr=subprocess.STDOUT, check=True)

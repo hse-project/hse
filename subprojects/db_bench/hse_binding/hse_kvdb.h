@@ -21,7 +21,7 @@ class HseKvdb {
   static Status Open(const std::string& kvdb_home, HseKvdb** kvdbptr);
 
   static void FiniLibrary();
-  static void InitLibrary(const std::string &config);
+  static void InitLibrary(const char* config);
   static std::string VersionString();
 
   HseKvdb(const HseKvdb&) = delete;
