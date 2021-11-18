@@ -4,7 +4,8 @@ on:
   pull_request:
     types: [opened, synchronize, reopened, edited]
     paths:
-    - 'docs/**'
+      - 'docs/**'
+      - 'include/**/*.h'
 
 jobs:
   docs:
@@ -14,21 +15,20 @@ jobs:
       options: --privileged  -v /usr/src:/usr/src -v /lib/modules:/lib/modules
 
     steps:
-    - uses: actions/checkout@v2
+      - uses: actions/checkout@v2
 
-    - name: Initialize
-      run: |
-        echo "$HOME/.local/bin" >> $GITHUB_PATH
-        sudo dnf install -y git poetry python-unversioned-command pkg-config java-1.8.0-openjdk-devel libmicrohttpd-devel userspace-rcu-devel libyaml-devel lz4-devel libbsd-devel libcurl-devel doxygen
-        sudo dnf install -y xz mongo-c-driver libbson openssl-devel cyrus-sasl-devel ncurses-devel cmake make automake gcc gcc-c++ kernel-devel
-        sudo dnf install -y python-pip python-wheel python3-devel libxml2-devel libxslt-devel
-        poetry install
+      - name: Initialize
+        run: |
+          echo "$HOME/.local/bin" >> $GITHUB_PATH
+          sudo dnf install -y git poetry python-unversioned-command pkg-config libmicrohttpd-devel userspace-rcu-devel libyaml-devel lz4-devel libbsd-devel libcurl-devel doxygen
+          sudo dnf install -y xz mongo-c-driver libbson openssl-devel cyrus-sasl-devel ncurses-devel cmake make automake gcc gcc-c++ kernel-devel
+          sudo dnf install -y python-pip python-wheel python3-devel libxml2-devel libxslt-devel
+          poetry install
 
-    - name: Setup
-      run: |
-        poetry run meson builddir --fatal-meson-warnings -Dwerror=true -Ddocs=true
+      - name: Setup
+        run: |
+          poetry run meson builddir --fatal-meson-warnings -Dwerror=true -Ddocs=true -Dtests=false -Dtools=disabled -Dbindings=none -Dcli=false -Dsamples=false
 
-    - name: Build
-      run: |
-        poetry run ninja -C builddir docs/doxygen/api
-
+      - name: Build
+        run: |
+          poetry run ninja -C builddir docs/doxygen/api
