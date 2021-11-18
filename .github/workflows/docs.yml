@@ -27,7 +27,7 @@ jobs:
 
       - name: Setup
         run: |
-          poetry run meson builddir --fatal-meson-warnings -Dwerror=true -Ddocs=true -Dtests=false -Dtools=disabled -Dbindings=none -Dcli=false -Dsamples=false
+          poetry run meson builddir --fatal-meson-warnings -Dwerror=true -Ddocs=true -Dtests=false -Dtools=disabled -Dbindings=none -Dcli=false -Dsamples=false -Ddb_bench=false
 
       - name: Build
         run: |
