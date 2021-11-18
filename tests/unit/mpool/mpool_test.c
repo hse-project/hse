@@ -88,12 +88,6 @@ MTF_DEFINE_UTEST_PREPOST(mpool_test, mpool_ocd_test, mpool_test_pre, mpool_test_
     exists = mclass_files_exist(tcparams.mclass[MP_MED_CAPACITY].path);
     ASSERT_EQ(false, exists);
 
-    unset_mclass(MP_MED_CAPACITY);
-
-    err = mpool_open(home, &trparams, O_RDWR, &mp);
-    ASSERT_EQ(EINVAL, merr_errno(err));
-
-    setup_mclass(MP_MED_CAPACITY);
     setup_mclass(MP_MED_STAGING);
 
     err = mpool_create(home, &tcparams);
