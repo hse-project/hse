@@ -111,7 +111,7 @@ struct cndb_ingest_replay {
  *      - assignment of cndb_buf
  *      - update to cndb->cndb_read_only
  * @cndb_mdc:
- * @cndb_ds:
+ * @cndb_mp:
  * @cndb_kvdb_health:
  * @cndb_seqno:
  * @cndb_version: version of the cndb mdc content when it was read.
@@ -170,7 +170,7 @@ struct cndb_ingest_replay {
 struct cndb {
     struct mutex              cndb_lock;
     struct mpool_mdc *        cndb_mdc;
-    struct mpool *            cndb_ds;
+    struct mpool *            cndb_mp;
     struct kvdb_health *      cndb_kvdb_health;
     atomic_ulong             *cndb_ikvdb_seqno;
     u64                       cndb_seqno;

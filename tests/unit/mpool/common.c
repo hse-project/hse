@@ -23,6 +23,7 @@ extern char home[PATH_MAX];
 
 char capacity_path[PATH_MAX];
 char staging_path[PATH_MAX];
+char pmem_path[PATH_MAX];
 
 struct mpool_cparams tcparams;
 struct mpool_rparams trparams;
@@ -59,8 +60,14 @@ mpool_test_post(struct mtf_test_info *ti)
         return errno;
     }
 
+    rc = nftw(pmem_path, remove_cb, 4, FTW_DEPTH | FTW_PHYS);
+    if (rc && errno != ENOENT) {
+        return errno;
+    }
+
     unset_mclass(MP_MED_CAPACITY);
     unset_mclass(MP_MED_STAGING);
+    unset_mclass(MP_MED_PMEM);
 
     return 0;
 }
@@ -77,6 +84,9 @@ mpool_collection_pre(struct mtf_test_info *ti)
     n = snprintf(staging_path, sizeof(staging_path), "%s/staging", home);
     if (n >= sizeof(staging_path))
         return ENAMETOOLONG;
+    n = snprintf(pmem_path, sizeof(pmem_path), "%s/pmem", home);
+    if (n >= sizeof(pmem_path))
+        return ENAMETOOLONG;
 
     rc = nftw(capacity_path, remove_cb, 4, FTW_DEPTH | FTW_PHYS);
     if (rc && errno != ENOENT) {
@@ -84,6 +94,11 @@ mpool_collection_pre(struct mtf_test_info *ti)
     }
 
     rc = nftw(staging_path, remove_cb, 4, FTW_DEPTH | FTW_PHYS);
+    if (rc && errno != ENOENT) {
+        return errno;
+    }
+
+    rc = nftw(pmem_path, remove_cb, 4, FTW_DEPTH | FTW_PHYS);
     if (rc && errno != ENOENT) {
         return errno;
     }
@@ -96,15 +111,13 @@ mpool_collection_pre(struct mtf_test_info *ti)
     if (rc == -1)
         return errno;
 
+    rc = make_pmem_path();
+    if (rc == -1)
+        return errno;
+
     mpool_cparams_defaults(&tcparams);
 
     return 0;
-}
-
-int
-make_staging_path(void)
-{
-    return mkdir(staging_path, S_IRWXU | S_IRWXG | S_IROTH | S_IWOTH);
 }
 
 int
@@ -114,15 +127,33 @@ make_capacity_path(void)
 }
 
 int
-remove_staging_path(void)
+make_staging_path(void)
 {
-    return nftw(staging_path, remove_cb, 4, FTW_DEPTH | FTW_PHYS);
+    return mkdir(staging_path, S_IRWXU | S_IRWXG | S_IROTH | S_IWOTH);
+}
+
+int
+make_pmem_path(void)
+{
+    return mkdir(pmem_path, S_IRWXU | S_IRWXG | S_IROTH | S_IWOTH);
 }
 
 int
 remove_capacity_path(void)
 {
     return nftw(capacity_path, remove_cb, 4, FTW_DEPTH | FTW_PHYS);
+}
+
+int
+remove_staging_path(void)
+{
+    return nftw(staging_path, remove_cb, 4, FTW_DEPTH | FTW_PHYS);
+}
+
+int
+remove_pmem_path(void)
+{
+    return nftw(pmem_path, remove_cb, 4, FTW_DEPTH | FTW_PHYS);
 }
 
 void
@@ -136,7 +167,8 @@ unset_mclass(const enum mpool_mclass mc)
 void
 setup_mclass(const enum mpool_mclass mc)
 {
-    const char *path = mc == MP_MED_CAPACITY ? capacity_path : staging_path;
+    const char *path = (mc == MP_MED_CAPACITY) ? capacity_path :
+        (mc == MP_MED_STAGING ? staging_path : pmem_path);
 
     strlcpy(tcparams.mclass[mc].path, path, sizeof(tcparams.mclass[mc].path));
     strlcpy(trparams.mclass[mc].path, path, sizeof(trparams.mclass[mc].path));

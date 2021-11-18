@@ -6,12 +6,14 @@
 #define MTF_MOCK_IMPL_mpool
 
 #include <limits.h>
-
 #include <bsd/string.h>
 
 #include <hse_util/logging.h>
 #include <hse_util/hse_err.h>
 #include <hse_util/workqueue.h>
+#include <hse_util/invariant.h>
+#include <hse_util/page.h>
+#include <hse_util/dax.h>
 
 #include <mpool/mpool.h>
 #include <mpool/mpool_structs.h>
@@ -36,6 +38,7 @@ struct mpool {
 const char *const mpool_mclass_to_string[MP_MED_COUNT] = {
     [MP_MED_CAPACITY] = MP_MED_NAME_CAPACITY,
     [MP_MED_STAGING] = MP_MED_NAME_STAGING,
+    [MP_MED_PMEM] = MP_MED_NAME_PMEM,
 };
 
 static merr_t
@@ -84,6 +87,29 @@ mclass_params_init(
 }
 
 static merr_t
+mclass_path_check(enum mpool_mclass mclass, const char *path)
+{
+    merr_t err;
+    bool isdax;
+
+    if (path[0] == '\0')
+        return 0;
+
+    err = dax_path_is_fsdax(path, &isdax);
+    if (err)
+        return err;
+
+    if (isdax != (mclass == MP_MED_PMEM)) {
+        log_err("%s mclass path (%s) %s reside on a DAX filesystem",
+                mpool_mclass_to_string[mclass], path,
+                isdax ? "must not" : "must");
+        return merr(ENOTSUP);
+    }
+
+    return 0;
+}
+
+static merr_t
 mpool_mclass_open(
     struct mpool               *mp,
     enum mpool_mclass           mclass,
@@ -97,13 +123,8 @@ mpool_mclass_open(
     if (!mp || !mcp || !mc)
         return merr(EINVAL);
 
-    if (mcp->path[0] == '\0') {
-        if (mclass == MP_MED_CAPACITY) {
-            log_err("capacity storage path not set for %s", mp->home);
-            return merr(EINVAL);
-        }
+    if (mcp->path[0] == '\0')
         return 0;
-    }
 
     path = realpath(mcp->path, NULL);
     if (!path)
@@ -143,15 +164,18 @@ mpool_mclass_add(enum mpool_mclass mclass, const struct mpool_cparams *cparams)
     merr_t              err = 0;
     int                 flags = 0;
 
-    if (!cparams || mclass == MP_MED_CAPACITY || cparams->mclass[mclass].path[0] == '\0')
+    if (!cparams || cparams->mclass[mclass].path[0] == '\0')
         return merr(EINVAL);
 
     err = mpool_to_mclass_params(mclass, cparams, &mcp);
     if (err)
         return err;
 
-    flags |= (O_CREAT | O_RDWR);
+    err = mclass_path_check(mclass, mcp.path);
+    if (err)
+        return err;
 
+    flags |= (O_CREAT | O_RDWR);
     err = mclass_open(mclass, &mcp, flags, &mc);
     if (!err)
         mclass_close(mc);
@@ -179,7 +203,7 @@ mpool_create(const char *home, const struct mpool_cparams *cparams)
     merr_t        err;
     int           i, flags = 0;
     size_t        sz;
-    bool          rmcapdir = false;
+    bool          rmdefault[MP_MED_COUNT] = { 0 };
 
     if (!home || !cparams)
         return merr(EINVAL);
@@ -195,12 +219,14 @@ mpool_create(const char *home, const struct mpool_cparams *cparams)
     for (i = MP_MED_BASE; i < MP_MED_COUNT; i++) {
         struct mclass_params mcp = {0};
 
-        /* If capacity path is the default, automatically create it */
-        if (i == MP_MED_CAPACITY) {
+        /* If the capacity/pmem path is the default, automatically create it */
+        if (i == MP_MED_CAPACITY || i == MP_MED_PMEM) {
             char   path[PATH_MAX];
             size_t n;
 
-            n = snprintf(path, sizeof(path), "%s/%s", home, MPOOL_CAPACITY_MCLASS_DEFAULT_PATH);
+            n = snprintf(path, sizeof(path), "%s/%s", home,
+                         (i == MP_MED_CAPACITY) ? MPOOL_CAPACITY_MCLASS_DEFAULT_PATH :
+                         MPOOL_PMEM_MCLASS_DEFAULT_PATH);
             if (n >= sizeof(path)) {
                 err = merr(ENAMETOOLONG);
                 goto errout;
@@ -218,7 +244,7 @@ mpool_create(const char *home, const struct mpool_cparams *cparams)
                         err = merr(errno);
                         goto errout;
                     }
-                    rmcapdir = true;
+                    rmdefault[i] = true;
                 } else {
                     err = merr(errno);
                     goto errout;
@@ -227,6 +253,10 @@ mpool_create(const char *home, const struct mpool_cparams *cparams)
         }
 
         err = mpool_to_mclass_params(i, cparams, &mcp);
+        if (err)
+            goto errout;
+
+        err = mclass_path_check(i, mcp.path);
         if (err)
             goto errout;
 
@@ -240,11 +270,14 @@ mpool_create(const char *home, const struct mpool_cparams *cparams)
     return 0;
 
 errout:
+    if (rmdefault[i])
+        remove(cparams->mclass[i].path);
+
     while (i-- > MP_MED_BASE) {
         mclass_close(mp->mc[i]);
         mclass_destroy(cparams->mclass[i].path, NULL);
 
-        if (i == MP_MED_CAPACITY && rmcapdir)
+        if (rmdefault[i])
             remove(cparams->mclass[i].path);
     }
 
@@ -347,6 +380,10 @@ mpool_destroy(const char *home, const struct mpool_dparams *dparams)
 
     snprintf(path, sizeof(path), "%s/%s", home, MPOOL_CAPACITY_MCLASS_DEFAULT_PATH);
     if (!strcmp(path, dparams->mclass[MP_MED_CAPACITY].path) && !remove(path))
+        filecnt++;
+
+    snprintf(path, sizeof(path), "%s/%s", home, MPOOL_PMEM_MCLASS_DEFAULT_PATH);
+    if (!strcmp(path, dparams->mclass[MP_MED_PMEM].path) && !remove(path))
         filecnt++;
 
     return filecnt > 0 ? 0 : merr(ENOENT);

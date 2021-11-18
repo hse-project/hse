@@ -239,12 +239,6 @@ cn_pc_capped_get(struct cn *cn)
     return &cn->cn_pc_capped;
 }
 
-struct perfc_set *
-cn_pc_mclass_get(struct cn *cn)
-{
-    return &cn->cn_pc_mclass;
-}
-
 /**
  * cn_get_ref() - increment a cn reference counter
  *
@@ -1037,7 +1031,7 @@ cn_kvset_mk(struct cn_kvsetmk_ctx *ctx, struct kvset_meta *km, u64 tag)
 merr_t
 cn_open(
     struct cn_kvdb *    cn_kvdb,
-    struct mpool *      ds,
+    struct mpool *      mp,
     struct kvdb_kvs *   kvs,
     struct cndb *       cndb,
     u64                 cnid,
@@ -1055,13 +1049,13 @@ cn_open(
     size_t      sz;
     u64         dgen = 0;
     bool        maint;
-    uint64_t    mperr, staging_absent;
+    uint64_t    mperr;
 
     struct cn_kvsetmk_ctx ctx = { 0 };
     struct mpool_props    mpprops;
     struct merr_info      ei;
 
-    assert(ds);
+    assert(mp);
     assert(kvs);
     assert(cndb);
     assert(kvdb_alias);
@@ -1069,7 +1063,7 @@ cn_open(
     assert(health);
     assert(cn_out);
 
-    mperr = mpool_props_get(ds, &mpprops);
+    mperr = mpool_props_get(mp, &mpprops);
     if (mperr) {
         log_err("mpool_props_get failed: %s\n", merr_info(mperr, &ei));
         return merr_errno(mperr);
@@ -1099,19 +1093,11 @@ cn_open(
     cn->cp = kvdb_kvs_cparams(kvs);
     cn->cn_cndb = cndb;
     cn->ikvdb = ikvdb_kvdb_handle(kvdb_kvs_parent(kvs));
-    cn->cn_dataset = ds;
+    cn->cn_dataset = mp;
     cn->cn_cnid = cnid;
     cn->cn_cflags = kvdb_kvs_flags(kvs);
     cn->cn_kvdb_health = health;
     cn->cn_mpool_props = mpprops;
-
-    staging_absent = mpool_mclass_props_get(ds, MP_MED_STAGING, NULL);
-    if (staging_absent) {
-        if (strcmp(rp->mclass_policy, "capacity_only")) {
-            log_warn("Staging media not configured, using capacity_only media class policy");
-            strlcpy(rp->mclass_policy, "capacity_only", HSE_MPOLICY_NAME_LEN_MAX);
-        }
-    }
 
     if (cn_is_capped(cn))
         rp->kvs_cursor_ttl = rp->cn_capped_ttl;
@@ -1145,7 +1131,7 @@ cn_open(
     if (ev(err))
         goto err_exit;
 
-    cn_tree_setup(cn->cn_tree, ds, cn, rp, cndb, cnid, cn->cn_kvdb);
+    cn_tree_setup(cn->cn_tree, mp, cn, rp, cndb, cnid, cn->cn_kvdb);
 
     ctx.ckmk_cn = cn;
     ctx.ckmk_dgen = &dgen;

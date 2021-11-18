@@ -112,14 +112,14 @@ loghdr_update(struct mdc_file *mfp, struct mdc_loghdr *lh, uint64_t gen)
 }
 
 static merr_t
-loghdr_validate(struct mdc_file *mfp, uint64_t *gen)
+loghdr_validate(struct mdc_file *mfp, bool gclose, uint64_t *gen)
 {
     struct mdc_loghdr *lh;
     merr_t             err;
 
     lh = &mfp->lh;
 
-    err = omf_mdc_loghdr_unpack((const char *)mfp->addr, lh);
+    err = omf_mdc_loghdr_unpack((const char *)mfp->addr, gclose, lh);
     if (err)
         return err;
 
@@ -146,7 +146,7 @@ logrec_crc_get(const uint8_t *data1, size_t len1, const uint8_t *data2, size_t l
 }
 
 static merr_t
-logrec_validate(struct mdc_file *mfp, char *addr, size_t *recsz)
+logrec_validate(struct mdc_file *mfp, char *addr, bool gclose, size_t *recsz)
 {
     struct mdc_rechdr      rh;
     struct mdc_rechdr_omf *rhomf;
@@ -167,8 +167,8 @@ logrec_validate(struct mdc_file *mfp, char *addr, size_t *recsz)
 
     hdrlen = sizeof(rhomf->rh_size);
     crc = logrec_crc_get((const uint8_t *)&rhomf->rh_size, hdrlen, (const uint8_t *)addr, rh.size);
-    if (crc != rh.crc)
-        return merr(ENOMSG); /* Likely crashed while writing record, mark end-of-log */
+    if (crc != rh.crc) /* Likely crashed while writing record, mark end-of-log */
+        return gclose ? merr(EBADMSG) : merr(ENOMSG);
 
     *recsz = rh.size;
 
@@ -281,7 +281,7 @@ mdc_file_unmap(struct mdc_file *mfp)
 }
 
 static merr_t
-mdc_file_validate(struct mdc_file *mfp, uint64_t *gen)
+mdc_file_validate(struct mdc_file *mfp, bool gclose, uint64_t *gen)
 {
     char  *addr;
     merr_t err;
@@ -298,7 +298,7 @@ mdc_file_validate(struct mdc_file *mfp, uint64_t *gen)
     ev(rc == -1);
 
     /* Step 1: validate log header */
-    err = loghdr_validate(mfp, gen);
+    err = loghdr_validate(mfp, gclose, gen);
     if (err)
         goto errout;
 
@@ -310,7 +310,7 @@ mdc_file_validate(struct mdc_file *mfp, uint64_t *gen)
         do {
             size_t recsz;
 
-            err = logrec_validate(mfp, addr, &recsz);
+            err = logrec_validate(mfp, addr, gclose, &recsz);
             if (err) {
                 if (merr_errno(err) == ENODATA || merr_errno(err) == ENOMSG) { /* End of log */
                     err = 0;
@@ -364,6 +364,7 @@ mdc_file_open(
     const char       *name,
     uint64_t          logid,
     bool              rdonly,
+    bool              gclose,
     uint64_t         *gen,
     struct mdc_file **handle)
 {
@@ -406,7 +407,7 @@ mdc_file_open(
     if (err)
         goto err_exit1;
 
-    err = mdc_file_validate(mfp, gen);
+    err = mdc_file_validate(mfp, gclose, gen);
     if (err) {
         mdc_file_unmap(mfp);
         goto err_exit1;

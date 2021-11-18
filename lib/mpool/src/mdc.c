@@ -160,6 +160,7 @@ mpool_mdc_open(
     merr_t   err, err1, err2;
     int      dirfd;
     uint64_t gen1, gen2;
+    bool     gclose;
     char     name[2][MDC_NAME_LENGTH_MAX];
 
     if (!mp || !handle || !logids_valid(logid1, logid2))
@@ -174,11 +175,13 @@ mpool_mdc_open(
     if (!mdc)
         return merr(ENOMEM);
 
+    gclose = mclass_gclose_get(mpool_mclass_handle(mp, mcid_to_mclass(mcid)));
+
     mdc_filename_gen(name[0], sizeof(name[0]), logid1);
-    err1 = mdc_file_open(mdc, dirfd, name[0], logid1, rdonly, &gen1, &mfp[0]);
+    err1 = mdc_file_open(mdc, dirfd, name[0], logid1, rdonly, gclose, &gen1, &mfp[0]);
 
     mdc_filename_gen(name[1], sizeof(name[1]), logid2);
-    err2 = mdc_file_open(mdc, dirfd, name[1], logid2, rdonly, &gen2, &mfp[1]);
+    err2 = mdc_file_open(mdc, dirfd, name[1], logid2, rdonly, gclose, &gen2, &mfp[1]);
 
     err = err1 ? err1 : err2;
 

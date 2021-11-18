@@ -17,21 +17,25 @@
  *
  * @MP_MED_CAPACITY: Primary data storage, cold data, or similar.
  * @MP_MED_STAGING:  Initial data ingest, hot data storage, or similar.
+ * @MP_MED_PMEM:     WAL, Initial data ingest, hot data storage, or similar.
  */
 enum mpool_mclass {
     MP_MED_CAPACITY = 0,
-    MP_MED_STAGING = 1,
+    MP_MED_STAGING  = 1,
+    MP_MED_PMEM     = 2,
 };
 
 #define MP_MED_BASE            MP_MED_CAPACITY
-#define MP_MED_MAX             MP_MED_STAGING
+#define MP_MED_MAX             MP_MED_PMEM
 #define MP_MED_COUNT           (MP_MED_MAX + 1)
 #define MP_MED_INVALID         U8_MAX
 
 #define MP_MED_NAME_CAPACITY   "capacity"
 #define MP_MED_NAME_STAGING    "staging"
+#define MP_MED_NAME_PMEM       "pmem"
 
 #define MPOOL_CAPACITY_MCLASS_DEFAULT_PATH "capacity"
+#define MPOOL_PMEM_MCLASS_DEFAULT_PATH     "pmem"
 
 #define MPOOL_MBLOCK_SIZE_DEFAULT      (32ul << MB_SHIFT)
 #define MPOOL_MBLOCK_FILECNT_DEFAULT   (32)
@@ -41,10 +45,10 @@ enum mpool_mclass {
 /**
  * struct mpool_cparams - mpool create params
  *
- * @fmaxsz:   max file size
- * @mblocksz: mblock size
- * @filecnt:  number of files in an mclass fileset
- * @path:     storage path
+ * @fmaxsz:    max file size
+ * @mblocksz:  mblock size
+ * @filecnt:   number of files in an mclass fileset
+ * @path:      storage path
  */
 struct mpool_cparams {
     struct {
@@ -58,7 +62,7 @@ struct mpool_cparams {
 /**
  * struct mpool_rparams - mpool run params
  *
- * @path: storage path
+ * @path:      storage path
  */
 struct mpool_rparams {
     struct {

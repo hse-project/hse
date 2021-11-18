@@ -658,7 +658,6 @@ static struct mapi_injection cn_inject_list[] = {
     { mapi_idx_cn_get_cparams,       MAPI_RC_PTR, &mocked_kvs_cparams },
     { mapi_idx_cn_get_dataset,       MAPI_RC_PTR, NULL },
     { mapi_idx_cn_get_mclass_policy, MAPI_RC_PTR, NULL },
-    { mapi_idx_cn_pc_mclass_get,     MAPI_RC_PTR, NULL },
     { mapi_idx_cn_get_ingest_perfc,  MAPI_RC_PTR, NULL },
 
     { mapi_idx_cn_tree_cursor_prepare,  MAPI_RC_SCALAR, 0 },
@@ -810,6 +809,8 @@ static struct mapi_injection kvdb_meta_inject_list[] = {
 static merr_t
 _kvdb_meta_deserialize(struct kvdb_meta *meta, const char *kvdb_home)
 {
+    int i;
+
     assert(meta);
     assert(kvdb_home);
 
@@ -819,8 +820,10 @@ _kvdb_meta_deserialize(struct kvdb_meta *meta, const char *kvdb_home)
     meta->km_cndb.oid2 = 2;
     meta->km_wal.oid1 = 3;
     meta->km_wal.oid2 = 4;
-    strlcpy(meta->km_storage[MP_MED_CAPACITY].path, "capacity", sizeof(meta->km_storage[MP_MED_CAPACITY].path));
-    strlcpy(meta->km_storage[MP_MED_STAGING].path, "staging", sizeof(meta->km_storage[MP_MED_STAGING].path));
+
+    for (i = MP_MED_BASE; i < MP_MED_COUNT; i++)
+        strlcpy(meta->km_storage[i].path, mpool_mclass_to_string[i],
+                sizeof(meta->km_storage[i].path));
 
     return 0;
 }
@@ -868,7 +871,7 @@ _cndb_cn_create(struct cndb *cndb, const struct kvs_cparams *cp, u64 *cnid, char
  * changes).
  */
 static struct mapi_injection cndb_inject_list[] = {
-    { mapi_idx_cndb_create,         MAPI_RC_SCALAR, 0 },
+    { mapi_idx_cndb_create,       MAPI_RC_SCALAR, 0 },
     { mapi_idx_cndb_replay,       MAPI_RC_SCALAR, 0 },
     { mapi_idx_cndb_cnv_get,      MAPI_RC_SCALAR, 0 },
     { mapi_idx_cndb_cn_info_idx,  MAPI_RC_SCALAR, 0 },

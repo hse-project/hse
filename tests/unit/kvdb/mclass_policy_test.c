@@ -23,81 +23,98 @@ MTF_BEGIN_UTEST_COLLECTION(mclass_policy_test)
 
 MTF_DEFINE_UTEST_PRE(mclass_policy_test, mclass_policy_default, general_pre)
 {
-    int                  i, j, k, l;
+    int                  i, j, l;
     merr_t               err;
     struct kvdb_rparams  params = kvdb_rparams_defaults();
-    struct mclass_policy dpolicies[4];
+    struct mclass_policy dpolicies[8];
     const char * const   paramv[] = { "mclass_policies=[{\"name\": \"test_only\", \"config\": "
-                       "{\"internal\": {\"values\": [\"capacity\"]}}}]" };
+                       "{\"internal\": {\"values\": \"capacity\"}}}]" };
 
     /* Capacity only media class policy, use capacity for all combinations */
     strcpy(dpolicies[0].mc_name, "capacity_only");
     for (i = 0; i < HSE_MPOLICY_AGE_CNT; i++)
-        for (j = 0; j < HSE_MPOLICY_DTYPE_CNT; j++) {
-            dpolicies[0].mc_table[i][j][0] = MP_MED_CAPACITY;
-            dpolicies[0].mc_table[i][j][1] = MP_MED_INVALID;
-        }
+        for (j = 0; j < HSE_MPOLICY_DTYPE_CNT; j++)
+            dpolicies[0].mc_table[i][j] = MP_MED_CAPACITY;
 
     /* Staging only media class policy, use staging for all combinations  */
     strcpy(dpolicies[1].mc_name, "staging_only");
     for (i = 0; i < HSE_MPOLICY_AGE_CNT; i++)
-        for (j = 0; j < HSE_MPOLICY_DTYPE_CNT; j++) {
-            dpolicies[1].mc_table[i][j][0] = MP_MED_STAGING;
-            dpolicies[1].mc_table[i][j][1] = MP_MED_INVALID;
-        }
+        for (j = 0; j < HSE_MPOLICY_DTYPE_CNT; j++)
+            dpolicies[1].mc_table[i][j] = MP_MED_STAGING;
 
     /*
      * staging_max_capacity - only internal and leaf values use capacity.
      */
     strcpy(dpolicies[2].mc_name, "staging_max_capacity");
     for (i = 0; i < HSE_MPOLICY_AGE_CNT; i++)
-        for (j = 0; j < HSE_MPOLICY_DTYPE_CNT; j++) {
-            dpolicies[2].mc_table[i][j][0] = MP_MED_STAGING;
-            dpolicies[2].mc_table[i][j][1] = MP_MED_INVALID;
-        }
-    dpolicies[2].mc_table[HSE_MPOLICY_AGE_INTERNAL][HSE_MPOLICY_DTYPE_VALUE][0] = MP_MED_CAPACITY;
-    dpolicies[2].mc_table[HSE_MPOLICY_AGE_LEAF][HSE_MPOLICY_DTYPE_VALUE][0] = MP_MED_CAPACITY;
+        for (j = 0; j < HSE_MPOLICY_DTYPE_CNT; j++)
+            dpolicies[2].mc_table[i][j] = MP_MED_STAGING;
+    dpolicies[2].mc_table[HSE_MPOLICY_AGE_INTERNAL][HSE_MPOLICY_DTYPE_VALUE] = MP_MED_CAPACITY;
+    dpolicies[2].mc_table[HSE_MPOLICY_AGE_LEAF][HSE_MPOLICY_DTYPE_VALUE] = MP_MED_CAPACITY;
 
     /*
      * staging_min_capacity - only root nodes use staging.
      */
     strcpy(dpolicies[3].mc_name, "staging_min_capacity");
     for (i = 0; i < HSE_MPOLICY_AGE_INTERNAL; i++)
-        for (j = 0; j < HSE_MPOLICY_DTYPE_CNT; j++) {
-            dpolicies[3].mc_table[i][j][0] = MP_MED_STAGING;
-            dpolicies[3].mc_table[i][j][1] = MP_MED_INVALID;
-        }
+        for (j = 0; j < HSE_MPOLICY_DTYPE_CNT; j++)
+            dpolicies[3].mc_table[i][j] = MP_MED_STAGING;
 
     for (i = HSE_MPOLICY_AGE_INTERNAL; i < HSE_MPOLICY_AGE_CNT; i++)
-        for (j = 0; j < HSE_MPOLICY_DTYPE_CNT; j++) {
-            dpolicies[3].mc_table[i][j][0] = MP_MED_CAPACITY;
-            dpolicies[3].mc_table[i][j][1] = MP_MED_INVALID;
-        }
+        for (j = 0; j < HSE_MPOLICY_DTYPE_CNT; j++)
+            dpolicies[3].mc_table[i][j] = MP_MED_CAPACITY;
+
+    /* pmem only media class policy, use pmem for all combinations  */
+    strcpy(dpolicies[4].mc_name, "pmem_only");
+    for (i = 0; i < HSE_MPOLICY_AGE_CNT; i++)
+        for (j = 0; j < HSE_MPOLICY_DTYPE_CNT; j++)
+            dpolicies[4].mc_table[i][j] = MP_MED_PMEM;
+
+    /* pmem_staging */
+    strcpy(dpolicies[5].mc_name, "pmem_staging");
+    for (i = 0; i < HSE_MPOLICY_AGE_CNT; i++)
+        for (j = 0; j < HSE_MPOLICY_DTYPE_CNT; j++)
+            dpolicies[5].mc_table[i][j] = MP_MED_PMEM;
+    dpolicies[5].mc_table[HSE_MPOLICY_AGE_INTERNAL][HSE_MPOLICY_DTYPE_VALUE] = MP_MED_STAGING;
+    dpolicies[5].mc_table[HSE_MPOLICY_AGE_LEAF][HSE_MPOLICY_DTYPE_VALUE] = MP_MED_STAGING;
+
+    /* pmem_capacity */
+    strcpy(dpolicies[6].mc_name, "pmem_capacity");
+    for (i = 0; i < HSE_MPOLICY_AGE_CNT; i++)
+        for (j = 0; j < HSE_MPOLICY_DTYPE_CNT; j++)
+            dpolicies[6].mc_table[i][j] = MP_MED_PMEM;
+    dpolicies[6].mc_table[HSE_MPOLICY_AGE_INTERNAL][HSE_MPOLICY_DTYPE_VALUE] = MP_MED_CAPACITY;
+    dpolicies[6].mc_table[HSE_MPOLICY_AGE_LEAF][HSE_MPOLICY_DTYPE_VALUE] = MP_MED_CAPACITY;
+
+    /* pmem_staging_capacity */
+    strcpy(dpolicies[7].mc_name, "pmem_staging_capacity");
+    dpolicies[7].mc_table[HSE_MPOLICY_AGE_ROOT][HSE_MPOLICY_DTYPE_KEY] = MP_MED_PMEM;
+    dpolicies[7].mc_table[HSE_MPOLICY_AGE_ROOT][HSE_MPOLICY_DTYPE_VALUE] = MP_MED_PMEM;
+    dpolicies[7].mc_table[HSE_MPOLICY_AGE_INTERNAL][HSE_MPOLICY_DTYPE_KEY] = MP_MED_STAGING;
+    dpolicies[7].mc_table[HSE_MPOLICY_AGE_INTERNAL][HSE_MPOLICY_DTYPE_VALUE] = MP_MED_STAGING;
+    dpolicies[7].mc_table[HSE_MPOLICY_AGE_LEAF][HSE_MPOLICY_DTYPE_KEY] = MP_MED_STAGING;
+    dpolicies[7].mc_table[HSE_MPOLICY_AGE_LEAF][HSE_MPOLICY_DTYPE_VALUE] = MP_MED_CAPACITY;
 
     err = argv_deserialize_to_kvdb_rparams(NELEM(paramv), paramv, &params);
     ASSERT_EQ(0, err);
 
     /* Validate that the parsed policies match the hardcoded matrices for the default policies. */
-    for (i = 0; i < HSE_MPOLICY_AGE_CNT; i++)
-        for (j = 0; j < HSE_MPOLICY_DTYPE_CNT; j++)
-            for (k = 0; k < MP_MED_COUNT; k++)
-                for (l = 0; l < 4; l++) {
+    for (i = 0; i < HSE_MPOLICY_AGE_CNT; i++) {
+        for (j = 0; j < HSE_MPOLICY_DTYPE_CNT; j++) {
+                for (l = 0; l < 8; l++) {
                     enum mpool_mclass            hse_mtype;
                     enum mpool_mclass            mpool_mtype;
 
-                    hse_mtype = params.mclass_policies[l].mc_table[i][j][k];
+                    hse_mtype = params.mclass_policies[l].mc_table[i][j];
 
-                    ASSERT_EQ(hse_mtype, dpolicies[l].mc_table[i][j][k]);
+                    ASSERT_EQ(hse_mtype, dpolicies[l].mc_table[i][j]);
                     ASSERT_EQ(strcmp(params.mclass_policies[l].mc_name, dpolicies[l].mc_name), 0);
 
-                    mpool_mtype = mclass_policy_get_type(&params.mclass_policies[l], i, j, k);
-                    if (hse_mtype == MP_MED_INVALID)
-                        ASSERT_EQ(mpool_mtype, MP_MED_INVALID);
-                    else if (hse_mtype == MP_MED_STAGING)
-                        ASSERT_EQ(mpool_mtype, MP_MED_STAGING);
-                    else
-                        ASSERT_EQ(mpool_mtype, MP_MED_CAPACITY);
+                    mpool_mtype = mclass_policy_get_type(&params.mclass_policies[l], i, j);
+                    ASSERT_EQ(mpool_mtype, hse_mtype);
                 }
+        }
+    }
 
     /*
      * Initialize hse params from a test policy that specifies only <internal, leaf>
@@ -106,41 +123,30 @@ MTF_DEFINE_UTEST_PRE(mclass_policy_test, mclass_policy_default, general_pre)
      */
     err = argv_deserialize_to_kvdb_rparams(NELEM(paramv), paramv, &params);
     ASSERT_EQ(err, 0);
-    ASSERT_EQ(strcmp(params.mclass_policies[4].mc_name, "test_only"), 0);
+    ASSERT_EQ(strcmp(params.mclass_policies[8].mc_name, "test_only"), 0);
 
-    for (i = 0; i < HSE_MPOLICY_AGE_CNT; i++)
-        for (j = 0; j < HSE_MPOLICY_DTYPE_CNT; j++)
-            for (k = 0; k < MP_MED_COUNT; k++) {
+    for (i = 0; i < HSE_MPOLICY_AGE_CNT; i++) {
+        for (j = 0; j < HSE_MPOLICY_DTYPE_CNT; j++) {
                 enum mpool_mclass            hse_mtype;
                 enum mpool_mclass            mpool_mtype;
 
-                hse_mtype = params.mclass_policies[4].mc_table[i][j][k];
+                hse_mtype = params.mclass_policies[8].mc_table[i][j];
 
-                if (!((i == HSE_MPOLICY_AGE_INTERNAL) && (j == HSE_MPOLICY_DTYPE_VALUE))) {
-                    /* Media type should match staging_capacity_nofallback */
-                    ASSERT_EQ(hse_mtype, dpolicies[2].mc_table[i][j][k]);
-                } else if (k == 0) {
-                    /* <internal, leaf> first preference is capacity */
-                    ASSERT_EQ(hse_mtype, MP_MED_CAPACITY);
-                } else {
-                    /* <internal, leaf> no second preference */
-                    ASSERT_EQ(hse_mtype, MP_MED_INVALID);
-                }
-
-                mpool_mtype = mclass_policy_get_type(&params.mclass_policies[4], i, j, k);
-                if (hse_mtype == MP_MED_INVALID)
-                    ASSERT_EQ(mpool_mtype, MP_MED_INVALID);
-                else if (hse_mtype == MP_MED_STAGING)
-                    ASSERT_EQ(mpool_mtype, MP_MED_STAGING);
+                if (!((i == HSE_MPOLICY_AGE_INTERNAL) && (j == HSE_MPOLICY_DTYPE_VALUE)))
+                    ASSERT_EQ(hse_mtype, dpolicies[2].mc_table[i][j]);
                 else
-                    ASSERT_EQ(mpool_mtype, MP_MED_CAPACITY);
-            }
+                    ASSERT_EQ(hse_mtype, MP_MED_CAPACITY);
+
+                mpool_mtype = mclass_policy_get_type(&params.mclass_policies[8], i, j);
+                ASSERT_EQ(mpool_mtype, hse_mtype);
+        }
+    }
 }
 
 MTF_DEFINE_UTEST(mclass_policy_test, overwrite_default_policy)
 {
     const char *  const paramv[] = { "mclass_policies=[{\"name\": \"staging_only\", \"config\": "
-                       "{\"internal\": {\"values\": [\"capacity\"]}}}]" };
+                       "{\"internal\": {\"values\": \"capacity\"}}}]" };
     struct kvdb_rparams params = kvdb_rparams_defaults();
     merr_t              err;
 
@@ -155,15 +161,15 @@ MTF_DEFINE_UTEST(mclass_policy_test, incorrect_schema)
 
     const char * const paramv_policy_unknown_key[] = {
         "mclass_policies=[{\"name\": \"staging_only\", \"hello\": \"world\", \"config\": "
-        "{\"internal\": {\"values\": [\"capacity\"]}}}]"
+        "{\"internal\": {\"values\": \"capacity\"}}}]"
     };
     const char * const paramv_age_unknown_key[] = {
         "mclass_policies=[{\"name\": \"staging_only\", \"config\": {\"hello\": \"world\", "
-        "\"internal\": {\"values\": [\"capacity\"]}}}]"
+        "\"internal\": {\"values\": \"capacity\"}}}]"
     };
     const char * const paramv_dtype_unknown_key[] = {
         "mclass_policies=[{\"name\": \"staging_only\", \"config\": {\"internal\": {\"hello\": "
-        "\"world\", \"values\": [\"capacity\"]}}}]"
+        "\"world\", \"values\": \"capacity\"}}}]"
     };
 
     err = argv_deserialize_to_kvdb_rparams(
@@ -178,24 +184,24 @@ MTF_DEFINE_UTEST(mclass_policy_test, incorrect_schema)
 
     const char * const paramv_mclass_policies_schema[] = { "mclass_policies={}" };
     const char * const paramv_policy_name_schema[] = {
-        "mclass_policies=[{\"name\": [], \"config\": {\"internal\": {\"values\": [\"capacity\"]}}}]"
+        "mclass_policies=[{\"name\": [], \"config\": {\"internal\": {\"values\": \"capacity\"}}}]"
     };
     const char * const paramv_policy_config_schema[] = {
         "mclass_policies=[{\"name\": \"test_only\", \"config\": []}]"
     };
     const char * const paramv_age_schema[] = {
-        "mclass_policies=[{\"name\": \"test_only\", \"config\": {\"internal\": []}}]"
+        "mclass_policies=[{\"name\": \"test_only\", \"config\": {\"internal\": \"\"}}]"
     };
     const char * const paramv_dtype_schema1[] = {
         "mclass_policies=[{\"name\": \"test_only\", \"config\": {\"internal\": {\"values\": {}}}}]"
     };
     const char * const paramv_dtype_schema2[] = { "mclass_policies=[{\"name\": \"test_only\", \"config\": "
-                                     "{\"internal\": {\"values\": [2, 1]}}}]" };
+                                     "{\"internal\": {\"values\": 2}}}]" };
     const char * const paramv_dtype_schema3[] = {
-        "mclass_policies[{\"name\": \"test_only\", \"config\": {\"internal\": {\"values\": []}}}]"
+        "mclass_policies[{\"name\": \"test_only\", \"config\": {\"internal\": {\"values\": \"\"}}}]"
     };
     const char * const paramv_dtype_schema4[] = { "mclass_policies=[{\"name\": \"test_only\", \"config\": "
-                                     "{\"internal\": {\"values\": [\"test\"]}}}]" };
+                                     "{\"internal\": {\"values\": \"test\"}}}]" };
 
     err = argv_deserialize_to_kvdb_rparams(
         NELEM(paramv_mclass_policies_schema), paramv_mclass_policies_schema, &params);

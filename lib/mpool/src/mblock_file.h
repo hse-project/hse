@@ -76,6 +76,7 @@ struct mblock_filehdr {
  * @fszmax:      max file size
  * @mblocksz:    mblock size
  * @fileid:      file identifier
+ * @gclose:      was mpool gracefully closed in the prior instance
  */
 struct mblock_file_params {
     struct kmem_cache *rmcache;
@@ -84,6 +85,7 @@ struct mblock_file_params {
     size_t fszmax;
     size_t mblocksz;
     int    fileid;
+    bool   gclose;
 };
 
 /**

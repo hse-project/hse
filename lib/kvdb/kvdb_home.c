@@ -14,11 +14,15 @@
 #include <bsd/string.h>
 
 #include <hse_util/hse_err.h>
+#include <hse_util/invariant.h>
+#include <hse_util/inttypes.h>
+#include <hse_util/dax.h>
+
 #include <hse_ikvdb/kvdb_home.h>
 #include <pidfile/pidfile.h>
 
 static merr_t
-path_copy(const char *home, const char *path, char *buf, const size_t buf_sz)
+path_join(const char *home, const char *path, char *buf, const size_t buf_sz)
 {
     assert(home);
     assert(path);
@@ -59,7 +63,7 @@ kvdb_home_storage_path_get(
     assert(buf);
     assert(buf_sz > 0);
 
-    return path_copy(home, path, buf, buf_sz);
+    return path_join(home, path, buf, buf_sz);
 }
 
 merr_t
@@ -83,7 +87,7 @@ kvdb_home_storage_realpath_get(
         if (strlcpy(buf, path, PATH_MAX) >= PATH_MAX)
             err = merr(ENAMETOOLONG);
     } else {
-        err = path_copy(home, path, buf, PATH_MAX);
+        err = path_join(home, path, buf, PATH_MAX);
     }
 
     if (!err) {
@@ -117,4 +121,13 @@ kvdb_home_pidfile_path_get(const char *home, char *buf, const size_t buf_sz)
         return merr(EBADMSG);
 
     return 0;
+}
+
+merr_t
+kvdb_home_is_fsdax(const char *home, bool *isdax)
+{
+    INVARIANT(home);
+    INVARIANT(isdax);
+
+    return dax_path_is_fsdax(home, isdax);
 }

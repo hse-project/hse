@@ -26,8 +26,8 @@ extern const char *const mpool_mclass_to_string[MP_MED_COUNT];
 /**
  * mpool_create() - Create an mpool
  *
- * @home:    kvdb home
- * @cparams: mpool cparams
+ * @home:      kvdb home
+ * @cparams:   mpool cparams
  */
 /* MTF_MOCK */
 merr_t
@@ -643,6 +643,16 @@ mpool_file_mmap(struct mpool_file *file, bool read_only, int advice, char **addr
  */
 size_t
 mpool_file_size(struct mpool_file *file);
+
+/**
+ * mpool_mcpath_is_fsdax() - is the mclass path on a DAX filesystem
+ *
+ * @dpath: media class path
+ * @isdax: return true if dax (output)
+ */
+merr_t
+mpool_mcpath_is_fsdax(const char *path, bool *isdax);
+
 
 #if HSE_MOCKING
 #include "mpool_ut.h"

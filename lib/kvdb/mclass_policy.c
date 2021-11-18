@@ -14,7 +14,11 @@
 const char *mclass_policy_names[] = { "capacity_only",
                                       "staging_only",
                                       "staging_max_capacity",
-                                      "staging_min_capacity" };
+                                      "staging_min_capacity",
+                                      "pmem_only",
+                                      "pmem_staging",
+                                      "pmem_capacity",
+                                      "pmem_staging_capacity"};
 
 const char **
 mclass_policy_get_default_policy_names()
@@ -72,16 +76,15 @@ mclass_policy_get_num_map_entries(int index)
 }
 
 enum mpool_mclass
-mclass_policy_get_type(struct mclass_policy *policy, u8 age, u8 dtype, u8 retries)
+mclass_policy_get_type(struct mclass_policy *policy, u8 age, u8 dtype)
 {
     enum mpool_mclass mtype = MP_MED_INVALID;
 
     assert(age < HSE_MPOLICY_AGE_CNT);
     assert(dtype < HSE_MPOLICY_DTYPE_CNT);
-    assert(retries < MP_MED_COUNT);
 
-    if (age < HSE_MPOLICY_AGE_CNT && dtype < HSE_MPOLICY_DTYPE_CNT && retries < MP_MED_COUNT)
-        mtype = policy->mc_table[age][dtype][retries];
+    if (age < HSE_MPOLICY_AGE_CNT && dtype < HSE_MPOLICY_DTYPE_CNT)
+        mtype = policy->mc_table[age][dtype];
 
     return mtype;
 }

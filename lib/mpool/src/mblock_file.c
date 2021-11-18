@@ -443,18 +443,18 @@ mblock_file_upgrade_log(char *ugaddr, uint64_t mbid, uint32_t wlen)
 }
 
 static merr_t
-mblock_file_meta_load(struct mblock_file *mbfp, uint32_t version)
+mblock_file_meta_load(struct mblock_file *mbfp, uint32_t version, bool gclose, bool rdonly)
 {
     struct mblock_filehdr fh = {};
     char                 *addr, *end;
     size_t                mblkc = 0;
     merr_t                err;
-    bool                  upgrade = !!mbfp->meta_ugaddr;
+    bool                  upgrade = (!!mbfp->meta_ugaddr && !rdonly);
 
     addr = mbfp->meta_addr;
     mbfp->uniq = 0;
 
-    err = omf_mblock_filehdr_unpack(addr, version, &fh);
+    err = omf_mblock_filehdr_unpack(addr, version, gclose, &fh);
     if ((err && merr_errno(err) != ENOMSG) || (fh.fileid != mbfp->fileid))
         return err ?: merr(EBADMSG);
 
@@ -481,7 +481,7 @@ mblock_file_meta_load(struct mblock_file *mbfp, uint32_t version)
         merr_t                 err;
 
         /* ENOMSG return indicates a likely crash while logging mblock commit/delete op */
-        err = omf_mblock_oid_unpack(addr, version, &mbinfo);
+        err = omf_mblock_oid_unpack(addr, version, gclose, &mbinfo);
         if (err && merr_errno(err) != ENOMSG)
             return err;
 
@@ -501,6 +501,10 @@ mblock_file_meta_load(struct mblock_file *mbfp, uint32_t version)
 
             if (upgrade)
                 mblock_file_upgrade_log(mbfp->meta_ugaddr, mbinfo.mb_oid, mbinfo.mb_wlen);
+        } else if (err && !rdonly) {
+            assert(merr_errno(err) == ENOMSG);
+            omf_mblock_oid_pack_zero(addr);
+            msync((void *)((uintptr_t)addr & PAGE_MASK), PAGE_SIZE, MS_SYNC);
         }
 
         addr += omf_mblock_oid_len(version);
@@ -556,7 +560,7 @@ mblock_file_meta_log(struct mblock_file *mbfp, uint64_t *mbidv, int mbidc, bool 
 
     mutex_lock(&mbfp->meta_lock);
 
-    err = omf_mblock_oid_unpack(addr, MBLOCK_METAHDR_VERSION, &mbinfo);
+    err = omf_mblock_oid_unpack(addr, MBLOCK_METAHDR_VERSION, true, &mbinfo);
 
     if (err || !mblock_oid_isvalid(*mbidv, mbinfo.mb_oid, wlen, mbinfo.mb_wlen, delete)) {
         mutex_unlock(&mbfp->meta_lock);
@@ -593,16 +597,13 @@ mblock_file_open(
     int    fd, rc, dirfd, mmapc, wlenc, fileid;
     merr_t err = 0;
     char   name[32];
-    bool   create = false;
+    bool   create = (flags & O_CREAT), rdonly = ((flags & O_ACCMODE) == O_RDONLY);
     size_t sz, mblocksz, fszmax;
 
     if (!mbfsp || !mc || !handle || !params)
         return merr(EINVAL);
 
     INVARIANT(params->rmcache && params->meta_addr);
-
-    if (flags & O_CREAT)
-        create = true;
 
     mblocksz = params->mblocksz;
     fszmax = params->fszmax;
@@ -656,7 +657,7 @@ mblock_file_open(
         err = mblock_file_meta_format(mbfp->meta_addr, &fh);
     } else {
         mbfp->meta_ugaddr = params->meta_ugaddr;
-        err = mblock_file_meta_load(mbfp, version);
+        err = mblock_file_meta_load(mbfp, version, params->gclose, rdonly);
         if (!err && mbfp->meta_ugaddr)
             mbfp->meta_addr = mbfp->meta_ugaddr;
     }
@@ -671,7 +672,7 @@ mblock_file_open(
     mbfp->fd = fd;
 
     /* ftruncate to the maximum size to make it a sparse file */
-    if ((flags & O_ACCMODE) != O_RDONLY) {
+    if (!rdonly) {
         rc = ftruncate(fd, mbfp->fszmax);
         if (rc == -1) {
             err = merr(errno);
@@ -825,7 +826,7 @@ mblock_file_meta_validate(struct mblock_file *mbfp, uint64_t *mbidv, int mbidc, 
     addr += MBLOCK_FILE_META_HDRLEN;
     addr += (block * omf_mblock_oid_len(MBLOCK_METAHDR_VERSION));
 
-    err = omf_mblock_oid_unpack(addr, MBLOCK_METAHDR_VERSION, &mbinfo);
+    err = omf_mblock_oid_unpack(addr, MBLOCK_METAHDR_VERSION, true, &mbinfo);
 
     if (!err && !mblock_oid_isvalid(*mbidv, mbinfo.mb_oid, wlen, mbinfo.mb_wlen, exists)) {
         if (exists && *mbidv != mbinfo.mb_oid)

@@ -10,6 +10,7 @@
 
 extern char capacity_path[PATH_MAX];
 extern char staging_path[PATH_MAX];
+extern char pmem_path[PATH_MAX];
 
 extern struct mpool_cparams tcparams;
 extern struct mpool_rparams trparams;
@@ -27,16 +28,22 @@ int
 mpool_collection_pre(struct mtf_test_info *info);
 
 int
+make_capacity_path(void);
+
+int
 make_staging_path(void);
 
 int
-make_capacity_path(void);
+make_pmem_path(void);
+
+int
+remove_capacity_path(void);
 
 int
 remove_staging_path(void);
 
 int
-remove_capacity_path(void);
+remove_pmem_path(void);
 
 void
 unset_mclass(const enum mpool_mclass mclass);

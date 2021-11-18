@@ -849,12 +849,11 @@ kblock_finish(struct kblock_builder *bld, struct wbb *ptree)
     struct curr_kblock *   kblk = &bld->curr;
     struct cn_merge_stats *stats = bld->mstats;
     struct mclass_policy * mpolicy = cn_get_mclass_policy(bld->cn);
-    struct perfc_set *     mclass_pc = cn_pc_mclass_get(bld->cn);
 
     struct iovec *iov = NULL;
     uint          iov_cnt = 0;
     uint          iov_max;
-    uint          i, chunk, allocs = 0;
+    uint          i, chunk;
     size_t        wlen;
 
     merr_t err;
@@ -957,17 +956,13 @@ kblock_finish(struct kblock_builder *bld, struct wbb *ptree)
     if (stats)
         tstart = get_time_ns();
 
-    do {
-        mclass = mclass_policy_get_type(mpolicy, bld->agegroup, HSE_MPOLICY_DTYPE_KEY, allocs);
-        if (mclass == MP_MED_INVALID) {
-            if (!err)
-                err = merr(ev(EINVAL));
-            break;
-        }
+    mclass = mclass_policy_get_type(mpolicy, bld->agegroup, HSE_MPOLICY_DTYPE_KEY);
+    if (ev(mclass == MP_MED_INVALID)) {
+        err = merr(EINVAL);
+        goto errout;
+    }
 
-        err = mpool_mblock_alloc(bld->ds, mclass, &blkid, &mbprop);
-    } while (err && ++allocs < MP_MED_COUNT);
-
+    err = mpool_mblock_alloc(bld->ds, mclass, &blkid, &mbprop);
     if (ev(err))
         goto errout;
 
@@ -992,13 +987,6 @@ kblock_finish(struct kblock_builder *bld, struct wbb *ptree)
     err = blk_list_append(&bld->finished_kblks, blkid);
     if (ev(err))
         goto errout;
-
-    if (mclass_pc && PERFC_ISON(mclass_pc)) {
-        perfc_add(
-            mclass_pc,
-            cn_perfc_mclass_get_idx(bld->agegroup, HSE_MPOLICY_DTYPE_KEY, mclass),
-            kblocksz);
-    }
 
     /* unconditional reset */
     kblock_reset(kblk);

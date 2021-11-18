@@ -40,7 +40,7 @@ struct entity {
 };
 
 struct callback_info {
-    struct mpool *       ds;
+    struct mpool *       mp;
     struct kvs_cparams * cp;
     struct entity *      ent;
     struct cn_tstate_omf omf;
@@ -80,7 +80,7 @@ verify_kvset(void *ctx, struct kvset_meta *km, u64 tag)
             return 0; /* skip kvset */
     }
 
-    err = kc_kvset_check(info->ds, info->cp, km, khmapv);
+    err = kc_kvset_check(info->mp, info->cp, km, khmapv);
     if (err)
         info->errors = true;
 
@@ -95,7 +95,7 @@ _verify_kvs(struct cndb *cndb, int cndb_idx, struct entity *ent)
     struct cndb_cn **    cnv = cndb->cndb_cnv;
     struct cndb_cn *     cn = cnv[cndb_idx];
     struct callback_info info = {
-        .ds = cndb->cndb_ds,
+        .mp = cndb->cndb_mp,
         .cp = &cn->cn_cp,
         .errors = false,
         .ent = ent,
@@ -236,7 +236,7 @@ print_line(char *fmt, ...)
 }
 
 static int
-check_blklist(struct mpool *ds, int argc, char **argv)
+check_blklist(struct mpool *mp, int argc, char **argv)
 {
     int              rc = 0;
     int              i, j = -1;
@@ -284,10 +284,10 @@ check_blklist(struct mpool *ds, int argc, char **argv)
 
     /* if there's atleast one vblock, get vb_meta */
     if (j > 0)
-        vb_meta = kc_vblock_meta(ds, &vblk_list);
+        vb_meta = kc_vblock_meta(mp, &vblk_list);
 
     for (i = 0; i < kblk_list.n_blks; i++)
-        kc_kblock_check(ds, kblk_list.blks[i].bk_blkid, vb_meta);
+        kc_kblock_check(mp, kblk_list.blks[i].bk_blkid, vb_meta);
 out:
     blk_list_free(&vblk_list);
     blk_list_free(&kblk_list);
@@ -302,7 +302,7 @@ main(int argc, char **argv)
     const char *        config = NULL;
     char *              mpool, *kvs = 0;
     char *              loc_buf, *loc;
-    struct mpool *      ds;
+    struct mpool *      mp;
     struct cndb *       cndb;
     struct entity       ent;
     struct hse_kvdb *   kvdbh;
@@ -399,10 +399,10 @@ main(int argc, char **argv)
     if (rc || !cndb)
         fatal("cannot open cndb");
 
-    ds = cndb->cndb_ds;
+    mp = cndb->cndb_mp;
 
     if (optind < argc) {
-        rc = check_blklist(ds, argc - optind, &argv[optind]);
+        rc = check_blklist(mp, argc - optind, &argv[optind]);
         goto out;
     }
 

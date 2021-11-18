@@ -77,11 +77,12 @@ omf_mdc_loghdr_pack(struct mdc_loghdr *lh, char *outbuf);
 /**
  * omf_mdc_loghdr_unpack - Unpack inbuf into lh
  *
- * @inbuf: packed log header
- * @lh:    unpacked in-memory log header (output)
+ * @inbuf:  packed log header
+ * @gclose: graceful close
+ * @lh :    unpacked in-memory log header (output)
  */
 merr_t
-omf_mdc_loghdr_unpack(const char *inbuf, struct mdc_loghdr *lh);
+omf_mdc_loghdr_unpack(const char *inbuf, bool gclose, struct mdc_loghdr *lh);
 
 /**
  * omf_mdc_loghdr_len - return log header length
@@ -280,6 +281,15 @@ void
 omf_mblock_metahdr_pack(struct mblock_metahdr *mh, char *outbuf);
 
 /**
+ * omf_mblock_metahdr_gclose_set -
+ *
+ * @outbuf: set gclose field in meta header
+ * @gclose: gclose value
+ */
+void
+omf_mblock_metahdr_gclose_set(char *outbuf, bool gclose);
+
+/**
  * omf_mblock_metahdr_unpack -
  *
  * @inbuf: packed mblock meta header
@@ -302,10 +312,15 @@ omf_mblock_filehdr_pack(struct mblock_filehdr *fh, char *outbuf);
  *
  * @inbuf:   packed mblock file meta header
  * @version: mblock meta header on-media version
+ * @gclose:  graceful close in the previous instance
  * @mh:      unpacked mblock file meta header (output)
  */
 merr_t
-omf_mblock_filehdr_unpack(const char *inbuf, uint32_t version, struct mblock_filehdr *fh);
+omf_mblock_filehdr_unpack(
+    const char            *inbuf,
+    uint32_t               version,
+    bool                   gclose,
+    struct mblock_filehdr *fh);
 
 /**
  * omf_mblock_oid_pack -
@@ -317,13 +332,26 @@ void
 omf_mblock_oid_pack(struct mblock_oid_info *mbinfo, char *outbuf);
 
 /**
+ * omf_mblock_oid_pack_zero -
+ *
+ * @outbuf: packed mblock oid meta (output)
+ */
+void
+omf_mblock_oid_pack_zero(char *outbuf);
+
+/**
  * omf_mblock_oid_unpack -
  *
  * @inbuf:   packed mblock oid meta
  * @version: mblock meta header on-media version
+ * @gclose:  graceful close in the previous instance
  * @mbinfo:  unpacked mblock oid info (output)
  */
 merr_t
-omf_mblock_oid_unpack(const char *inbuf, uint32_t version, struct mblock_oid_info *mbinfo);
+omf_mblock_oid_unpack(
+    const char             *inbuf,
+    uint32_t                version,
+    bool                    gclose,
+    struct mblock_oid_info *mbinfo);
 
 #endif /* MPOOL_OMF_H */

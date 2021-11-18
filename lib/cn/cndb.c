@@ -132,22 +132,28 @@ cndb_info2omf(int hdr_type, const struct cndb_cn *cn, struct cndb_info_omf *inf)
 }
 
 merr_t
-cndb_alloc(struct mpool *ds, u64 *captgt, u64 *oid1_out, u64 *oid2_out)
+cndb_alloc(struct mpool *mp, u64 *captgt, u64 *oid1_out, u64 *oid2_out)
 {
-    merr_t            err;
-    enum mpool_mclass mclass;
-    size_t            capacity;
+    merr_t err;
+    size_t capacity;
+    int    i;
 
     if (captgt && *captgt)
         capacity = *captgt;
     else
         capacity = CNDB_CAPTGT_DEFAULT;
 
-    mclass = MP_MED_STAGING;
-    if (mpool_mclass_props_get(ds, mclass, NULL))
-        mclass = MP_MED_CAPACITY;
+    for (i = MP_MED_COUNT - 1; i >= MP_MED_BASE; i--) {
+        err = mpool_mclass_props_get(mp, i, NULL);
+        if (!err)
+            break;
+    }
+    assert(i >= MP_MED_BASE);
 
-    err = mpool_mdc_alloc(ds, CNDB_MAGIC, capacity, mclass, oid1_out, oid2_out);
+    if (i < MP_MED_BASE)
+        return merr(ENOENT);
+
+    err = mpool_mdc_alloc(mp, CNDB_MAGIC, capacity, i, oid1_out, oid2_out);
     if (ev(err)) {
         log_errx("cannot allocate cNDB MDC (%zu): @@e", err, capacity);
         return err;
@@ -160,7 +166,7 @@ cndb_alloc(struct mpool *ds, u64 *captgt, u64 *oid1_out, u64 *oid2_out)
 }
 
 merr_t
-cndb_create(struct mpool *ds, u64 captgt, u64 oid1, u64 oid2)
+cndb_create(struct mpool *mp, u64 captgt, u64 oid1, u64 oid2)
 {
     merr_t err, err2;
 
@@ -170,13 +176,13 @@ cndb_create(struct mpool *ds, u64 captgt, u64 oid1, u64 oid2)
 
     captgt = captgt ?: CNDB_CAPTGT_DEFAULT;
 
-    err = mpool_mdc_commit(ds, oid1, oid2);
+    err = mpool_mdc_commit(mp, oid1, oid2);
     if (err) {
         log_errx("cannot commit cNDB MDC (%lld): @@e", err, (long long int)captgt);
         return err;
     }
 
-    err = mpool_mdc_open(ds, oid1, oid2, false, &mdc);
+    err = mpool_mdc_open(mp, oid1, oid2, false, &mdc);
     if (err) {
         log_errx("cannot open cNDB MDC: @@e", err);
         return err;
@@ -210,7 +216,7 @@ cndb_create(struct mpool *ds, u64 captgt, u64 oid1, u64 oid2)
 errout:
     log_errx("MDC append (%lx, %lx) failed: @@e", err, (ulong)oid1, (ulong)oid2);
 
-    err2 = mpool_mdc_delete(ds, oid1, oid2);
+    err2 = mpool_mdc_delete(mp, oid1, oid2);
     if (err2)
         log_errx("destroy (%lx,%lx) failed: @@e", err2, (ulong)oid1, (ulong)oid2);
 
@@ -227,7 +233,7 @@ cndb_drop(struct mpool *mp, u64 oid1, u64 oid2)
 merr_t
 cndb_init(
     struct cndb *       cndb,
-    struct mpool *      ds,
+    struct mpool *      mp,
     bool                rdonly,
     atomic_ulong       *ikvdb_seqno,
     size_t              cndb_entries,
@@ -282,7 +288,7 @@ cndb_init(
     cndb->cndb_entries = entries;
     cndb->cndb_entries_high_water = (entries / 4) * 3;
     cndb->cndb_workc_margin = CNDB_WORKC_MARGIN_DEFAULT;
-    cndb->cndb_ds = ds;
+    cndb->cndb_mp = mp;
     cndb->cndb_read_only = rdonly;
     cndb->cndb_kvdb_health = health;
 
@@ -296,7 +302,7 @@ cndb_init(
 
 merr_t
 cndb_open(
-    struct mpool *      ds,
+    struct mpool *      mp,
     bool                rdonly,
     atomic_ulong       *ikvdb_seqno,
     size_t              cndb_entries,
@@ -316,13 +322,13 @@ cndb_open(
         return err;
     }
 
-    err = cndb_init(cndb, ds, rdonly, ikvdb_seqno, cndb_entries, oid1, oid2, health, rp);
+    err = cndb_init(cndb, mp, rdonly, ikvdb_seqno, cndb_entries, oid1, oid2, health, rp);
     if (err) {
         CNDB_LOG_ERR(err, cndb, " initialization failed");
         goto errout;
     }
 
-    err = mpool_mdc_open(ds, oid1, oid2, rdonly, &cndb->cndb_mdc);
+    err = mpool_mdc_open(mp, oid1, oid2, rdonly, &cndb->cndb_mdc);
     if (err) {
         CNDB_LOG_ERR(err, cndb, " mdc open failed");
         goto errout;
@@ -1144,7 +1150,7 @@ cndb_blkdel(struct cndb *cndb, union cndb_mtu *mtu, u64 txid)
     }
 
     for (bx = 0; !err && bx < blks.n_blks; ++bx) {
-        err = mpool_mblock_props_get(cndb->cndb_ds, blks.blks[bx].bk_blkid, NULL);
+        err = mpool_mblock_props_get(cndb->cndb_mp, blks.blks[bx].bk_blkid, NULL);
         if (err) {
             if (merr_errno(err) != ENOENT) {
                 CNDB_LOGTX_ERR(
@@ -1164,7 +1170,7 @@ cndb_blkdel(struct cndb *cndb, union cndb_mtu *mtu, u64 txid)
 
         CNDB_LOGTX_INFO(0, cndb, txid, " delete block %lx", (ulong)blks.blks[bx].bk_blkid);
 
-        err = delete_mblock(cndb->cndb_ds, &blks.blks[bx]);
+        err = delete_mblock(cndb->cndb_mp, &blks.blks[bx]);
         if (err) {
             CNDB_LOGTX_ERR(
                 err, cndb, txid, "block %lx delete failed", (ulong)blks.blks[bx].bk_blkid);
@@ -2974,7 +2980,7 @@ cndb_cn_create(struct cndb *cndb, const struct kvs_cparams *cparams, u64 *cnid_o
         return err;
     }
 
-    err = cn_make(cndb->cndb_ds, cparams, cndb->cndb_kvdb_health);
+    err = cn_make(cndb->cndb_mp, cparams, cndb->cndb_kvdb_health);
     if (err) {
         CNDB_LOG_ERR(err, cndb, " cn %s creation failed", name);
         return err;

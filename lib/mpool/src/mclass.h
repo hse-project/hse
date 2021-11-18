@@ -27,6 +27,7 @@ enum mclass_id {
     MCID_INVALID = 0,
     MCID_CAPACITY = 1,
     MCID_STAGING = 2,
+    MCID_PMEM = 3,
 };
 
 /**
@@ -140,6 +141,22 @@ mclass_mblocksz_get(struct media_class *mc);
  */
 void
 mclass_mblocksz_set(struct media_class *mc, size_t mblocksz);
+
+/**
+ * mclass_gclose_set() - set graceful close
+ *
+ * @mc:       mclass handle
+ */
+void
+mclass_gclose_set(struct media_class *mc);
+
+/**
+ * mclass_gclose_get() - get graceful close value
+ *
+ * @mc:       mclass handle
+ */
+bool
+mclass_gclose_get(struct media_class *mc);
 
 /**
  * mclass_stats_get() - get media class stats
