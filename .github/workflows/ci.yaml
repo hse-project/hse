@@ -2,6 +2,9 @@ name: CI
 
 on:
   push:
+    branches:
+      - master
+      - v2.*
   pull_request:
     types: [opened, synchronize, reopened, edited]
 
@@ -18,35 +21,35 @@ jobs:
         build_type: [release, debugoptimized]
 
     steps:
-    - uses: actions/checkout@v2
+      - uses: actions/checkout@v2
 
-    - name: Initialize
-      run: |
-        echo "$HOME/.local/bin" >> $GITHUB_PATH
-        sudo apt-get update
-        sudo apt-get install build-essential libbsd-dev pkg-config openjdk-8-jdk libmicrohttpd-dev liburcu-dev libyaml-dev liblz4-dev libcurl4-openssl-dev python3-setuptools
-        sudo apt-get install libmongoc-1.0-0 libbson-1.0-0 libssl-dev libsasl2-dev
-        python3 -m pip install --user setuptools_rust
-        python3 -m pip install --user poetry
-        poetry install
+      - name: Initialize
+        run: |
+          echo "$HOME/.local/bin" >> $GITHUB_PATH
+          sudo apt-get update
+          sudo apt-get install build-essential libbsd-dev pkg-config openjdk-8-jdk libmicrohttpd-dev liburcu-dev libyaml-dev liblz4-dev libcurl4-openssl-dev python3-setuptools
+          sudo apt-get install libmongoc-1.0-0 libbson-1.0-0 libssl-dev libsasl2-dev
+          python3 -m pip install --user setuptools_rust
+          python3 -m pip install --user poetry
+          poetry install
 
-    - name: Setup
-      run: |
-        poetry run meson builddir -Dbuildtype=${{ matrix.build_type }} --fatal-meson-warnings -Dycsb=true -Dwerror=true
+      - name: Setup
+        run: |
+          poetry run meson builddir -Dbuildtype=${{ matrix.build_type }} --fatal-meson-warnings -Dycsb=true -Dwerror=true
 
-    - name: Build
-      run: |
-        poetry run ninja -C builddir
+      - name: Build
+        run: |
+          poetry run ninja -C builddir
 
-    - name: Test
-      run: |
-        poetry run meson test -C builddir --setup=ci --print-errorlogs --no-stdsplit
+      - name: Test
+        run: |
+          poetry run meson test -C builddir --setup=ci --print-errorlogs --no-stdsplit
 
-    - uses: actions/upload-artifact@v2
-      if: failure()
-      with:
-        name: build-artifact-${{ matrix.os }}-${{ matrix.build_type }}
-        path: builddir/meson-logs/
+      - uses: actions/upload-artifact@v2
+        if: failure()
+        with:
+          name: build-artifact-${{ matrix.os }}-${{ matrix.build_type }}
+          path: builddir/meson-logs/
 
   fedora:
     runs-on: ubuntu-latest
@@ -60,33 +63,33 @@ jobs:
         build_type: [release, debugoptimized]
 
     steps:
-    - uses: actions/checkout@v2
+      - uses: actions/checkout@v2
 
-    - name: Initialize
-      run: |
-        echo "$HOME/.local/bin" >> $GITHUB_PATH
-        sudo dnf install -y git poetry python-unversioned-command pkg-config java-1.8.0-openjdk-devel libmicrohttpd-devel userspace-rcu-devel libyaml-devel lz4-devel libbsd-devel libcurl-devel
-        sudo dnf install -y xz mongo-c-driver libbson openssl-devel cyrus-sasl-devel ncurses-devel cmake make automake gcc gcc-c++ kernel-devel
-        sudo dnf install -y python-pip python-wheel python3-devel libxml2-devel libxslt-devel
-        poetry install
+      - name: Initialize
+        run: |
+          echo "$HOME/.local/bin" >> $GITHUB_PATH
+          sudo dnf install -y git poetry python-unversioned-command pkg-config java-1.8.0-openjdk-devel libmicrohttpd-devel userspace-rcu-devel libyaml-devel lz4-devel libbsd-devel libcurl-devel
+          sudo dnf install -y xz mongo-c-driver libbson openssl-devel cyrus-sasl-devel ncurses-devel cmake make automake gcc gcc-c++ kernel-devel
+          sudo dnf install -y python-pip python-wheel python3-devel libxml2-devel libxslt-devel
+          poetry install
 
-    - name: Setup
-      run: |
-        poetry run meson builddir -Dbuildtype=${{ matrix.build_type }} --fatal-meson-warnings -Dycsb=true -Dwerror=true
+      - name: Setup
+        run: |
+          poetry run meson builddir -Dbuildtype=${{ matrix.build_type }} --fatal-meson-warnings -Dycsb=true -Dwerror=true
 
-    - name: Build
-      run: |
-        poetry run ninja -C builddir
+      - name: Build
+        run: |
+          poetry run ninja -C builddir
 
-    - name: Test
-      run: |
-        poetry run meson test -C builddir --setup=ci --print-errorlogs --no-stdsplit
+      - name: Test
+        run: |
+          poetry run meson test -C builddir --setup=ci --print-errorlogs --no-stdsplit
 
-    - uses: actions/upload-artifact@v2
-      if: failure()
-      with:
-        name: build-artifact-fedora-${{ matrix.image-tag }}-${{ matrix.build_type }}
-        path: builddir/meson-logs/
+      - uses: actions/upload-artifact@v2
+        if: failure()
+        with:
+          name: build-artifact-fedora-${{ matrix.image-tag }}-${{ matrix.build_type }}
+          path: builddir/meson-logs/
 
   almalinux:
     runs-on: ubuntu-latest
@@ -100,62 +103,37 @@ jobs:
         build_type: [release, debugoptimized]
 
     steps:
-    - uses: actions/checkout@v2
+      - uses: actions/checkout@v2
 
-    - name: Initialize
-      run: |
-        echo "$HOME/.poetry/bin" >> $GITHUB_PATH
-        dnf install -y sudo dnf-plugins-core epel-release
-        dnf config-manager --set-enabled powertools
-        dnf install -y git pkg-config java-1.8.0-openjdk-devel libmicrohttpd-devel userspace-rcu-devel libyaml-devel lz4-devel libbsd-devel libcurl-devel
-        dnf install -y xz mongo-c-driver libbson openssl-devel cyrus-sasl-devel ncurses-devel cmake make automake gcc gcc-c++ kernel-devel
-        dnf install -y python36 python3-devel libxml2 libxslt
-        curl -sSL https://raw.githubusercontent.com/python-poetry/poetry/master/get-poetry.py | python3
-        source $HOME/.poetry/env
-        poetry install
+      - name: Initialize
+        run: |
+          echo "$HOME/.poetry/bin" >> $GITHUB_PATH
+          dnf install -y sudo dnf-plugins-core epel-release
+          dnf config-manager --set-enabled powertools
+          dnf install -y git pkg-config java-1.8.0-openjdk-devel libmicrohttpd-devel userspace-rcu-devel libyaml-devel lz4-devel libbsd-devel libcurl-devel
+          dnf install -y xz mongo-c-driver libbson openssl-devel cyrus-sasl-devel ncurses-devel cmake make automake gcc gcc-c++ kernel-devel
+          dnf install -y python36 python3-devel libxml2 libxslt
+          curl -sSL https://raw.githubusercontent.com/python-poetry/poetry/master/get-poetry.py | python3
+          source $HOME/.poetry/env
+          poetry install
 
-    - name: Setup
-      run: |
-        poetry run meson builddir -Dbuildtype=${{ matrix.build_type }} --fatal-meson-warnings -Dycsb=true -Dwerror=true
+      - name: Setup
+        run: |
+          poetry run meson builddir -Dbuildtype=${{ matrix.build_type }} --fatal-meson-warnings -Dycsb=true -Dwerror=true
 
-    - name: Build
-      run: |
-        poetry run ninja -C builddir
+      - name: Build
+        run: |
+          poetry run ninja -C builddir
 
-    - name: Test
-      run: |
-        poetry run meson test -C builddir --setup=ci --print-errorlogs --no-stdsplit
+      - name: Test
+        run: |
+          poetry run meson test -C builddir --setup=ci --print-errorlogs --no-stdsplit
 
-    - uses: actions/upload-artifact@v2
-      if: failure()
-      with:
-        name: build-artifact-almalinux-${{ matrix.image-tag }}-${{ matrix.build_type }}
-        path: builddir/meson-logs/
-
-  docs:
-    runs-on: ubuntu-latest
-    container:
-      image: fedora:latest
-      options: --privileged  -v /usr/src:/usr/src -v /lib/modules:/lib/modules
-
-    steps:
-    - uses: actions/checkout@v2
-
-    - name: Initialize
-      run: |
-        echo "$HOME/.local/bin" >> $GITHUB_PATH
-        sudo dnf install -y git poetry python-unversioned-command pkg-config java-1.8.0-openjdk-devel libmicrohttpd-devel userspace-rcu-devel libyaml-devel lz4-devel libbsd-devel libcurl-devel doxygen
-        sudo dnf install -y xz mongo-c-driver libbson openssl-devel cyrus-sasl-devel ncurses-devel cmake make automake gcc gcc-c++ kernel-devel
-        sudo dnf install -y python-pip python-wheel python3-devel libxml2-devel libxslt-devel
-        poetry install
-
-    - name: Setup
-      run: |
-        poetry run meson builddir --fatal-meson-warnings -Dwerror=true -Ddocs=true
-
-    - name: Build
-      run: |
-        poetry run ninja -C builddir docs/doxygen/api
+      - uses: actions/upload-artifact@v2
+        if: failure()
+        with:
+          name: build-artifact-almalinux-${{ matrix.image-tag }}-${{ matrix.build_type }}
+          path: builddir/meson-logs/
 
   asan-ubsan:
     runs-on: ubuntu-latest
@@ -168,41 +146,41 @@ jobs:
         build_type: [release, debugoptimized]
 
     steps:
-    - uses: actions/checkout@v2
+      - uses: actions/checkout@v2
 
-    - name: Initialize
-      run: |
-        echo "$HOME/.local/bin" >> $GITHUB_PATH
-        sudo dnf install -y git poetry python-unversioned-command pkg-config java-1.8.0-openjdk-devel libmicrohttpd-devel userspace-rcu-devel libyaml-devel lz4-devel libbsd-devel libcurl-devel
-        sudo dnf install -y xz mongo-c-driver libbson openssl-devel cyrus-sasl-devel ncurses-devel cmake make automake gcc gcc-c++ kernel-devel
-        sudo dnf install -y python-pip python-wheel python3-devel libxml2-devel libxslt-devel
-        sudo dnf install -y libasan libubsan
-        poetry install
+      - name: Initialize
+        run: |
+          echo "$HOME/.local/bin" >> $GITHUB_PATH
+          sudo dnf install -y git poetry python-unversioned-command pkg-config java-1.8.0-openjdk-devel libmicrohttpd-devel userspace-rcu-devel libyaml-devel lz4-devel libbsd-devel libcurl-devel
+          sudo dnf install -y xz mongo-c-driver libbson openssl-devel cyrus-sasl-devel ncurses-devel cmake make automake gcc gcc-c++ kernel-devel
+          sudo dnf install -y python-pip python-wheel python3-devel libxml2-devel libxslt-devel
+          sudo dnf install -y libasan libubsan
+          poetry install
 
-    - name: Setup
-      run: |
-        poetry run meson builddir -Dbuildtype=${{ matrix.build_type }} --fatal-meson-warnings -Dycsb=true -Db_sanitize=address,undefined
+      - name: Setup
+        run: |
+          poetry run meson builddir -Dbuildtype=${{ matrix.build_type }} --fatal-meson-warnings -Dycsb=true -Db_sanitize=address,undefined
 
-    - name: Build
-      run: |
-        poetry run ninja -C builddir
+      - name: Build
+        run: |
+          poetry run ninja -C builddir
 
-    - name: Test
-      run: |
-        poetry run meson test -C builddir --setup=ci --print-errorlogs --no-stdsplit
+      - name: Test
+        run: |
+          poetry run meson test -C builddir --setup=ci --print-errorlogs --no-stdsplit
 
-    - uses: actions/upload-artifact@v2
-      if: failure()
-      with:
-        name: build-artifact-fedora-latest-${{ matrix.build_type }}
-        path: builddir/meson-logs/
+      - uses: actions/upload-artifact@v2
+        if: failure()
+        with:
+          name: build-artifact-fedora-latest-${{ matrix.build_type }}
+          path: builddir/meson-logs/
 
   checkoss:
     runs-on: ubuntu-latest
 
     steps:
-    - uses: actions/checkout@v2
+      - uses: actions/checkout@v2
 
-    - name: checkoss
-      run: |
-        scripts/dev/checkoss
+      - name: checkoss
+        run: |
+          scripts/dev/checkoss
