@@ -732,9 +732,9 @@ MTF_DEFINE_UTEST_PRE(kvdb_rparams_test, cn_maint_threads, test_pre)
     ASSERT_NE(NULL, ps);
     ASSERT_NE(NULL, ps->ps_description);
     ASSERT_EQ(PARAM_FLAG_EXPERIMENTAL, ps->ps_flags);
-    ASSERT_EQ(PARAM_TYPE_U32, ps->ps_type);
+    ASSERT_EQ(PARAM_TYPE_U16, ps->ps_type);
     ASSERT_EQ(offsetof(struct kvdb_rparams, cn_maint_threads), ps->ps_offset);
-    ASSERT_EQ(sizeof(uint32_t), ps->ps_size);
+    ASSERT_EQ(sizeof(uint16_t), ps->ps_size);
     ASSERT_EQ((uintptr_t)ps->ps_convert, (uintptr_t)param_default_converter);
     ASSERT_EQ((uintptr_t)ps->ps_validate, (uintptr_t)param_default_validator);
     ASSERT_EQ(17, params.cn_maint_threads);
@@ -749,9 +749,9 @@ MTF_DEFINE_UTEST_PRE(kvdb_rparams_test, cn_io_threads, test_pre)
     ASSERT_NE(NULL, ps);
     ASSERT_NE(NULL, ps->ps_description);
     ASSERT_EQ(PARAM_FLAG_EXPERIMENTAL, ps->ps_flags);
-    ASSERT_EQ(PARAM_TYPE_U32, ps->ps_type);
+    ASSERT_EQ(PARAM_TYPE_U16, ps->ps_type);
     ASSERT_EQ(offsetof(struct kvdb_rparams, cn_io_threads), ps->ps_offset);
-    ASSERT_EQ(sizeof(uint32_t), ps->ps_size);
+    ASSERT_EQ(sizeof(uint16_t), ps->ps_size);
     ASSERT_EQ((uintptr_t)ps->ps_convert, (uintptr_t)param_default_converter);
     ASSERT_EQ((uintptr_t)ps->ps_validate, (uintptr_t)param_default_validator);
     ASSERT_EQ(13, params.cn_io_threads);

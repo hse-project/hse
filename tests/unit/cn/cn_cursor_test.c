@@ -60,10 +60,8 @@ test_collection_setup(struct mtf_test_info *info)
     mock_kvset_set();
 
     err = cn_kvdb_create(4, 4, &cn_kvdb);
-    if (err)
-        abort();
 
-    return 0;
+    return merr_errno(err);
 }
 
 int

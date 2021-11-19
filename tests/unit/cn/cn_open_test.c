@@ -32,6 +32,7 @@ fini(struct mtf_test_info *lcl_ti)
 }
 
 /* cn_open params */
+struct cn_kvdb    *cn_kvdb;
 struct mpool *     ds;
 struct kvdb_kvs *  kk;
 struct cndb *      cndb;
@@ -88,18 +89,12 @@ setup_mocks(void)
     mapi_inject_list_set(inject_list);
 }
 
-struct cn_kvdb *cn_kvdb;
-
 static int
 pre(struct mtf_test_info *lcl_ti)
 {
     merr_t err;
 
     setup_mocks();
-
-    err = cn_kvdb_create(4, 4, &cn_kvdb);
-    if (err)
-        abort();
 
     ds = (void *)-1;
     kk = (void *)-1;
@@ -113,7 +108,9 @@ pre(struct mtf_test_info *lcl_ti)
     h = &health;
     flags = 0;
 
-    return 0;
+    err = cn_kvdb_create(4, 4, &cn_kvdb);
+
+    return merr_errno(err);
 }
 
 static int
