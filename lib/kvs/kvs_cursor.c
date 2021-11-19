@@ -1101,44 +1101,49 @@ out:
 }
 
 void
-kvs_cursor_key_copy(struct hse_kvs_cursor *cursor, const void *kbuf, size_t kbufsz, const void **key_out, size_t *klen_out)
+kvs_cursor_key_copy(
+    struct hse_kvs_cursor  *cursor,
+    void                   *buf,
+    size_t                  bufsz,
+    const void            **key_out,
+    size_t                 *klen_out)
 {
     struct kvs_cursor_impl *cur = cursor_h2r(cursor);
-    void                   *buf = (void *)kbuf;
-    size_t                  bufsz = kbufsz;
-    uint                    keylen;
-    const void             *key;
+    uint                    klen;
+    void                   *key;
 
     if (!buf) {
-        buf = (void *)cur->kci_buf;
+        buf = cur->kci_buf;
         bufsz = HSE_KVS_KEY_LEN_MAX;
     }
 
-    key = key_obj_copy(buf, bufsz, &keylen, cur->kci_last);
-    *klen_out = keylen;
+    key = key_obj_copy(buf, bufsz, &klen, cur->kci_last);
+
+    if (klen_out)
+        *klen_out = klen;
 
     if (key_out)
         *key_out = key;
 }
 
 merr_t
-kvs_cursor_val_copy(struct hse_kvs_cursor *cursor, const void *vbuf, size_t vbufsz, const void **val_out, size_t *vlen_out)
+kvs_cursor_val_copy(
+    struct hse_kvs_cursor  *cursor,
+    void                   *buf,
+    size_t                  bufsz,
+    const void            **val_out,
+    size_t                 *vlen_out)
 {
     struct kvs_cursor_impl *cur = cursor_h2r(cursor);
 
     struct kvs_vtuple *vt = &cur->kci_elem_last.kce_vt;
     uint               clen = cur->kci_elem_last.kce_complen;
-    void              *buf = (void *)vbuf;
-    size_t             bufsz = vbufsz;
     merr_t             err = 0;
 
     if (!buf) {
         buf = cur->kci_buf + HSE_KVS_KEY_LEN_MAX;
         bufsz = HSE_KVS_VALUE_LEN_MAX;
     }
-
-    if (vlen_out)
-        *vlen_out = vt->vt_xlen;
 
     if (clen) {
         uint outlen;
@@ -1149,9 +1154,13 @@ kvs_cursor_val_copy(struct hse_kvs_cursor *cursor, const void *vbuf, size_t vbuf
 
         if (ev(outlen != min_t(u64, vt->vt_xlen, bufsz)))
             return EBUG;
+
     } else {
         memcpy(buf, vt->vt_data, min_t(u64, vt->vt_xlen, bufsz));
     }
+
+    if (vlen_out)
+        *vlen_out = vt->vt_xlen;
 
     if (val_out)
         *val_out = buf;

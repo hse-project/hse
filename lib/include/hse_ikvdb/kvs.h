@@ -128,13 +128,27 @@ merr_t
 kvs_cursor_read(struct hse_kvs_cursor *cursor, unsigned int flags, bool *eof);
 
 void
-kvs_cursor_key_copy(struct hse_kvs_cursor *cursor, const void *kbuf, size_t kbufsz, const void **key_out, size_t *klen_out);
+kvs_cursor_key_copy(
+    struct hse_kvs_cursor  *cursor,
+    void                   *buf,
+    size_t                  bufsz,
+    const void            **key_out,
+    size_t                 *klen_out);
 
 merr_t
-kvs_cursor_val_copy(struct hse_kvs_cursor *cursor, const void *vbuf, size_t vbufsz, const void **val_out, size_t *vlen_out);
+kvs_cursor_val_copy(
+    struct hse_kvs_cursor  *cursor,
+    void                   *buf,
+    size_t                  bufsz,
+    const void            **val_out,
+    size_t                 *vlen_out);
 
 void
-kvs_cursor_perfc_alloc(uint prio, const char *dbname, struct perfc_set *pcs_cc, struct perfc_set *pcs_cd);
+kvs_cursor_perfc_alloc(
+    uint                prio,
+    const char         *dbname,
+    struct perfc_set   *pcs_cc,
+    struct perfc_set   *pcs_cd);
 
 void
 kvs_cursor_perfc_free(struct perfc_set *pcs_cc, struct perfc_set *pcs_cd);

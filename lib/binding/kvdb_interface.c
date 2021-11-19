@@ -1117,7 +1117,7 @@ hse_kvs_cursor_seek_range(
 hse_err_t
 hse_kvs_cursor_read(
     struct hse_kvs_cursor *cursor,
-    const unsigned int     flags,
+    unsigned int           flags,
     const void **          key,
     size_t *               klen,
     const void **          val,
@@ -1150,11 +1150,11 @@ hse_kvs_cursor_read(
 hse_err_t
 hse_kvs_cursor_read_copy(
     struct hse_kvs_cursor *cursor,
-    const unsigned int     flags,
-    const void *           keybuf,
+    unsigned int           flags,
+    void *                 keybuf,
     size_t                 keybuf_sz,
     size_t *               key_len,
-    const void *           valbuf,
+    void *                 valbuf,
     size_t                 valbuf_sz,
     size_t *               val_len,
     bool *                 eof)
