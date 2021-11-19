@@ -1107,6 +1107,44 @@ static const struct param_spec pspecs[] = {
         },
     },
     {
+        .ps_name = "cn_maint_threads",
+        .ps_description = "max number of cn maintenance threads",
+        .ps_flags = PARAM_FLAG_EXPERIMENTAL,
+        .ps_type = PARAM_TYPE_U32,
+        .ps_offset = offsetof(struct kvdb_rparams, cn_maint_threads),
+        .ps_size = PARAM_SZ(struct kvdb_rparams, cn_maint_threads),
+        .ps_convert = param_default_converter,
+        .ps_validate = param_default_validator,
+        .ps_default_value = {
+            .as_uscalar = 17,
+        },
+        .ps_bounds = {
+            .as_uscalar = {
+                .ps_min = 1,
+                .ps_max = 256,
+            },
+        },
+    },
+    {
+        .ps_name = "cn_io_threads",
+        .ps_description = "max number of cn mblock i/o threads",
+        .ps_flags = PARAM_FLAG_EXPERIMENTAL,
+        .ps_type = PARAM_TYPE_U32,
+        .ps_offset = offsetof(struct kvdb_rparams, cn_io_threads),
+        .ps_size = PARAM_SZ(struct kvdb_rparams, cn_io_threads),
+        .ps_convert = param_default_converter,
+        .ps_validate = param_default_validator,
+        .ps_default_value = {
+            .as_uscalar = 13,
+        },
+        .ps_bounds = {
+            .as_uscalar = {
+                .ps_min = 1,
+                .ps_max = 256,
+            },
+        },
+    },
+    {
         .ps_name = "keylock_tables",
         .ps_description = "number of keylock tables",
         .ps_flags = PARAM_FLAG_EXPERIMENTAL,

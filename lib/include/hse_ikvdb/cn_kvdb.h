@@ -1,6 +1,6 @@
 /* SPDX-License-Identifier: Apache-2.0 */
 /*
- * Copyright (C) 2015-2020 Micron Technology, Inc.  All rights reserved.
+ * Copyright (C) 2015-2021 Micron Technology, Inc.  All rights reserved.
  */
 
 #ifndef HSE_IKVS_CN_KVDB_H
@@ -8,6 +8,7 @@
 
 #include <hse_util/atomic.h>
 #include <hse_util/hse_err.h>
+#include <hse_util/workqueue.h>
 
 /* MTF_MOCK_DECL(cn_kvdb) */
 
@@ -23,11 +24,14 @@ struct cn_kvdb {
     atomic_ulong cnd_vblk_cnt;
     atomic_ulong cnd_kblk_size;
     atomic_ulong cnd_vblk_size;
+
+    struct workqueue_struct *cn_maint_wq;
+    struct workqueue_struct *cn_io_wq;
 };
 
 /* MTF_MOCK */
 merr_t
-cn_kvdb_create(struct cn_kvdb **h);
+cn_kvdb_create(uint cn_maint_threads, uint cn_io_threads, struct cn_kvdb **h);
 
 /* MTF_MOCK */
 void

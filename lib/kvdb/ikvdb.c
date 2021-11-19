@@ -1015,7 +1015,7 @@ ikvdb_maint_start(struct ikvdb_impl *self)
     merr_t err;
 
     self->ikdb_work_stop = false;
-    self->ikdb_workqueue = alloc_workqueue("kvdb_maint", 0, 3);
+    self->ikdb_workqueue = alloc_workqueue("kvdb_maint", 0, 2);
     if (!self->ikdb_workqueue) {
         err = merr(ENOMEM);
         log_errx("%s cannot start kvdb maintenance", err, self->ikdb_home);
@@ -1381,7 +1381,8 @@ ikvdb_open(
         goto out;
     }
 
-    err = cn_kvdb_create(&self->ikdb_cn_kvdb);
+    err = cn_kvdb_create(self->ikdb_rp.cn_maint_threads, self->ikdb_rp.cn_io_threads,
+                         &self->ikdb_cn_kvdb);
     if (err) {
         log_errx("cannot open %s: @@e", err, kvdb_home);
         goto out;

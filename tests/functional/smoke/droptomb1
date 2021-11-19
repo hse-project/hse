@@ -25,7 +25,7 @@ done
 
 # Let compaction run, which should spill all keys into level 1, then verify
 # no kvsets in level 0
-cmd putbin -n 1000 "$home" $kvs kvs-oparms cn_close_wait=1 $kvdb_oparms
+cmd putbin -n 1000 "$home" $kvs kvs-oparms cn_close_wait=true $kvdb_oparms
 cmd cn_metrics "$home" $kvs | cmd -e grep -P "^k${sp}+0,0,0${sp}"
 
 # Validate keys found in level 1, w/ maint disabled.

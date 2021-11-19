@@ -27,6 +27,7 @@
 
 #include <hse_ikvdb/kvs.h>
 #include <hse_ikvdb/cn.h>
+#include <hse_ikvdb/cn_kvdb.h>
 #include <hse_ikvdb/cursor.h>
 #include <hse_ikvdb/kvdb_health.h>
 #include <mpool/mpool.h>
@@ -45,6 +46,7 @@
 
 static struct kvs_rparams rp;
 static struct kvdb_health health;
+static struct cn_kvdb *cn_kvdb;
 
 /* use a number that will never filter by seqno */
 static u64 seqno = -4;
@@ -52,8 +54,14 @@ static u64 seqno = -4;
 int
 test_collection_setup(struct mtf_test_info *info)
 {
+    merr_t err;
+
     mock_mpool_set();
     mock_kvset_set();
+
+    err = cn_kvdb_create(4, 4, &cn_kvdb);
+    if (err)
+        abort();
 
     return 0;
 }
@@ -61,6 +69,7 @@ test_collection_setup(struct mtf_test_info *info)
 int
 test_collection_teardown(struct mtf_test_info *info)
 {
+    cn_kvdb_destroy(cn_kvdb);
     mock_mpool_unset();
     mock_kvset_unset();
     return 0;
@@ -314,7 +323,7 @@ MTF_DEFINE_UTEST_PREPOST(cn_cursor, create_prefix, pre, post)
     kk.kk_cparams = &cp;
     kk.kk_cparams->fanout = 1 << 3;
 
-    err = cn_open(0, ds, &kk, &cndb, 0, &rp, "mp", "kvs", &health, 0, &cn);
+    err = cn_open(cn_kvdb, ds, &kk, &cndb, 0, &rp, "mp", "kvs", &health, 0, &cn);
     ASSERT_EQ(err, 0);
     ASSERT_NE(cn, NULL);
 
@@ -354,7 +363,7 @@ MTF_DEFINE_UTEST_PREPOST(cn_cursor, create_noprefix, pre, post)
     kk.kk_cparams = &cp;
     kk.kk_cparams->fanout = 1 << 3;
 
-    err = cn_open(0, ds, &kk, &cndb, 0, &rp, "mp", "kvs", &health, 0, &cn);
+    err = cn_open(cn_kvdb, ds, &kk, &cndb, 0, &rp, "mp", "kvs", &health, 0, &cn);
     ASSERT_EQ(err, 0);
     ASSERT_NE(cn, NULL);
 
@@ -408,7 +417,7 @@ MTF_DEFINE_UTEST_PREPOST(cn_cursor, repeat_update, pre, post)
     kk.kk_cparams = &cp;
     kk.kk_cparams->fanout = 1 << 3;
 
-    err = cn_open(0, ds, &kk, &cndb, 0, &rp, "mp", "kvs", &health, 0, &cn);
+    err = cn_open(cn_kvdb, ds, &kk, &cndb, 0, &rp, "mp", "kvs", &health, 0, &cn);
     ASSERT_EQ(err, 0);
 
     tree = cn_get_tree(cn);
@@ -495,7 +504,7 @@ MTF_DEFINE_UTEST_PREPOST(cn_cursor, root_1kvset, pre, post)
     kk.kk_cparams = &cp;
     kk.kk_cparams->fanout = 1 << 3;
 
-    err = cn_open(0, ds, &kk, &cndb, 0, &rp, "mp", "kvs", &health, 0, &cn);
+    err = cn_open(cn_kvdb, ds, &kk, &cndb, 0, &rp, "mp", "kvs", &health, 0, &cn);
     ASSERT_EQ(err, 0);
 
     tree = cn_get_tree(cn);
@@ -588,7 +597,7 @@ MTF_DEFINE_UTEST_PREPOST(cn_cursor, root_4kvsets, pre, post)
     kk.kk_cparams = &cp;
     kk.kk_cparams->fanout = 1 << 3;
 
-    err = cn_open(0, ds, &kk, &cndb, 0, &rp, "mp", "kvs", &health, 0, &cn);
+    err = cn_open(cn_kvdb, ds, &kk, &cndb, 0, &rp, "mp", "kvs", &health, 0, &cn);
     ASSERT_EQ(err, 0);
 
     /*
@@ -739,7 +748,7 @@ MTF_DEFINE_UTEST_PREPOST(cn_cursor, prefix_tree, pre, post)
     kk.kk_cparams = &cp;
     kk.kk_cparams->fanout = 1 << 2;
 
-    err = cn_open(0, ds, &kk, &cndb, 0, &rp, "mp", "kvs", &health, 0, &cn);
+    err = cn_open(cn_kvdb, ds, &kk, &cndb, 0, &rp, "mp", "kvs", &health, 0, &cn);
     ASSERT_EQ(err, 0);
 
     /*
@@ -894,7 +903,7 @@ MTF_DEFINE_UTEST_PREPOST(cn_cursor, cursor_seek, pre, post)
     kk.kk_cparams = &cp;
     kk.kk_cparams->fanout = 1 << 2;
 
-    err = cn_open(0, ds, &kk, &cndb, 0, &rp, "mp", "kvs", &health, 0, &cn);
+    err = cn_open(cn_kvdb, ds, &kk, &cndb, 0, &rp, "mp", "kvs", &health, 0, &cn);
     ASSERT_EQ(err, 0);
 
     /*
@@ -1017,7 +1026,7 @@ MTF_DEFINE_UTEST_PREPOST(cn_cursor, capped_update, pre, post)
     kk.kk_cparams->kvs_ext01 = 1;
     kk.kk_flags = CN_CFLAG_CAPPED;
 
-    err = cn_open(0, ds, &kk, &cndb, 0, &rp, "mp", "kvs", &health, 0, &cn);
+    err = cn_open(cn_kvdb, ds, &kk, &cndb, 0, &rp, "mp", "kvs", &health, 0, &cn);
     ASSERT_EQ(err, 0);
 
     tree = cn_get_tree(cn);
@@ -1167,7 +1176,7 @@ MTF_DEFINE_UTEST_PREPOST(cn_cursor, capped_update_errors, pre, post)
     kk.kk_cparams->kvs_ext01 = 1;
     kk.kk_flags = CN_CFLAG_CAPPED;
 
-    err = cn_open(0, ds, &kk, &cndb, 0, &rp, "mp", "kvs", &health, 0, &cn);
+    err = cn_open(cn_kvdb, ds, &kk, &cndb, 0, &rp, "mp", "kvs", &health, 0, &cn);
     ASSERT_EQ(err, 0);
 
     tree = cn_get_tree(cn);

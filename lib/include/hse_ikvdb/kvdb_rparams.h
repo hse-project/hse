@@ -97,6 +97,8 @@ struct kvdb_rparams {
     bool     cndb_debug;
     uint32_t c0_maint_threads;
     uint32_t c0_ingest_threads;
+    uint32_t cn_maint_threads;
+    uint32_t cn_io_threads;
 
     uint32_t keylock_tables;
 

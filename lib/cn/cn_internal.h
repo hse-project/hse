@@ -57,9 +57,8 @@ struct cn {
 
     /* for maintenance work */
     struct workqueue_struct *cn_maint_wq;
-    struct work_struct       cn_maintenance_work;
+    struct delayed_work      cn_maint_dwork;
     atomic_int               cn_maint_cancel;
-    bool                     cn_maintenance_stop;
 
     struct kvs_rparams *  rp;
     struct kvs_cparams *  cp;

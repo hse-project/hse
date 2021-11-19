@@ -6,6 +6,7 @@
 #include <mtf/framework.h>
 #include <hse_ikvdb/kvs.h>
 #include <hse_ikvdb/cn.h>
+#include <hse_ikvdb/cn_kvdb.h>
 #include <hse_ikvdb/kvdb_health.h>
 #include <mpool/mpool.h>
 
@@ -40,6 +41,7 @@ MTF_DEFINE_UTEST_PRE(cn_api, basic, pre)
     struct cn *        cn;
     struct cndb        cndb;
     struct cndb_cn     cndbcn = cndb_cn_initializer(2, 0, 0);
+    struct cn_kvdb    *cn_kvdb;
     struct kvs_buf     vbuf;
     struct kvdb_kvs    kk = { 0 };
     u64                dummy_ikvdb[32] = { 0 };
@@ -77,7 +79,10 @@ MTF_DEFINE_UTEST_PRE(cn_api, basic, pre)
     mapi_inject(mapi_idx_mpool_props_get, 0);
     mapi_inject(mapi_idx_mpool_mclass_props_get, ENOENT);
 
-    err = cn_open(0, ds, &kk, &cndb, 0, &rp, "mp", "kvs", &mock_health, 0, &cn);
+    err = cn_kvdb_create(4, 4, &cn_kvdb);
+    ASSERT_EQ(0, err);
+
+    err = cn_open(cn_kvdb, ds, &kk, &cndb, 0, &rp, "mp", "kvs", &mock_health, 0, &cn);
     ASSERT_EQ(err, 0);
     ASSERT_NE(cn, NULL);
 
@@ -120,6 +125,7 @@ MTF_DEFINE_UTEST_PRE(cn_api, basic, pre)
     err = cn_close(cn);
     ASSERT_EQ(err, 0);
 
+    cn_kvdb_destroy(cn_kvdb);
     free(cndb.cndb_workv);
     free(cndb.cndb_keepv);
     free(cndb.cndb_tagv);

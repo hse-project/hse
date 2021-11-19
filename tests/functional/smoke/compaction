@@ -65,7 +65,7 @@ verify_shape_after_k_compact () {
 # spill
 setup
 verify_shape_before
-cmd putbin "$home" $kvs -n 100 kvs-oparms cn_close_wait=1 cn_compaction_debug=-1
+cmd putbin "$home" $kvs -n 100 kvs-oparms cn_close_wait=true cn_compaction_debug=-1
 verify_shape_after_spill
 
 # we can't test k_compact or kv_compact easily because the root node is hard-coded to spill
@@ -74,14 +74,14 @@ exit 0
 # k_compact
 setup
 verify_shape_before
-cmd putbin "$home" $kvs -n 100 kvs-oparms cn_close_wait=1 cn_compaction_debug=-1 \
+cmd putbin "$home" $kvs -n 100 kvs-oparms cn_close_wait=true cn_compaction_debug=-1 \
     cn_compact_limit=100 cn_compact_spill=100 cn_compact_only=2
 verify_shape_after_k_compact
 
 # kv_compact
 setup
 verify_shape_before
-cmd putbin "$home" $kvs -n 100 kvs-oparms cn_close_wait=1 cn_compaction_debug=-1 \
+cmd putbin "$home" $kvs -n 100 kvs-oparms cn_close_wait=true cn_compaction_debug=-1 \
     cn_compact_limit=100 cn_compact_spill=100 cn_compact_only=2 \
     cn_compact_waste=0
 verify_shape_after_kv_compact

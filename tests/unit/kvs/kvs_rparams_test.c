@@ -557,31 +557,14 @@ MTF_DEFINE_UTEST_PRE(kvs_rparams_test, cn_maint_delay, test_pre)
     ASSERT_NE(NULL, ps);
     ASSERT_NE(NULL, ps->ps_description);
     ASSERT_EQ(PARAM_FLAG_EXPERIMENTAL, ps->ps_flags);
-    ASSERT_EQ(PARAM_TYPE_U64, ps->ps_type);
+    ASSERT_EQ(PARAM_TYPE_U32, ps->ps_type);
     ASSERT_EQ(offsetof(struct kvs_rparams, cn_maint_delay), ps->ps_offset);
-    ASSERT_EQ(sizeof(uint64_t), ps->ps_size);
+    ASSERT_EQ(sizeof(uint32_t), ps->ps_size);
     ASSERT_EQ((uintptr_t)ps->ps_convert, (uintptr_t)param_default_converter);
     ASSERT_EQ((uintptr_t)ps->ps_validate, (uintptr_t)param_default_validator);
-    ASSERT_EQ(100, params.cn_maint_delay);
+    ASSERT_EQ(1000, params.cn_maint_delay);
     ASSERT_EQ(20, ps->ps_bounds.as_uscalar.ps_min);
-    ASSERT_EQ(UINT64_MAX, ps->ps_bounds.as_uscalar.ps_max);
-}
-
-MTF_DEFINE_UTEST_PRE(kvs_rparams_test, cn_io_threads, test_pre)
-{
-    const struct param_spec *ps = ps_get("cn_io_threads");
-
-    ASSERT_NE(NULL, ps);
-    ASSERT_NE(NULL, ps->ps_description);
-    ASSERT_EQ(PARAM_FLAG_EXPERIMENTAL, ps->ps_flags);
-    ASSERT_EQ(PARAM_TYPE_U64, ps->ps_type);
-    ASSERT_EQ(offsetof(struct kvs_rparams, cn_io_threads), ps->ps_offset);
-    ASSERT_EQ(sizeof(uint64_t), ps->ps_size);
-    ASSERT_EQ((uintptr_t)ps->ps_convert, (uintptr_t)param_default_converter);
-    ASSERT_EQ((uintptr_t)ps->ps_validate, (uintptr_t)param_default_validator);
-    ASSERT_EQ(13, params.cn_io_threads);
-    ASSERT_EQ(0, ps->ps_bounds.as_uscalar.ps_min);
-    ASSERT_EQ(UINT64_MAX, ps->ps_bounds.as_uscalar.ps_max);
+    ASSERT_EQ(1000 * 60, ps->ps_bounds.as_uscalar.ps_max);
 }
 
 MTF_DEFINE_UTEST_PRE(kvs_rparams_test, cn_close_wait, test_pre)
@@ -591,14 +574,12 @@ MTF_DEFINE_UTEST_PRE(kvs_rparams_test, cn_close_wait, test_pre)
     ASSERT_NE(NULL, ps);
     ASSERT_NE(NULL, ps->ps_description);
     ASSERT_EQ(PARAM_FLAG_EXPERIMENTAL, ps->ps_flags);
-    ASSERT_EQ(PARAM_TYPE_U64, ps->ps_type);
+    ASSERT_EQ(PARAM_TYPE_BOOL, ps->ps_type);
     ASSERT_EQ(offsetof(struct kvs_rparams, cn_close_wait), ps->ps_offset);
-    ASSERT_EQ(sizeof(uint64_t), ps->ps_size);
+    ASSERT_EQ(sizeof(bool), ps->ps_size);
     ASSERT_EQ((uintptr_t)ps->ps_convert, (uintptr_t)param_default_converter);
     ASSERT_EQ((uintptr_t)ps->ps_validate, (uintptr_t)param_default_validator);
-    ASSERT_EQ(0, params.cn_close_wait);
-    ASSERT_EQ(0, ps->ps_bounds.as_uscalar.ps_min);
-    ASSERT_EQ(UINT64_MAX, ps->ps_bounds.as_uscalar.ps_max);
+    ASSERT_EQ(false, params.cn_close_wait);
 }
 
 MTF_DEFINE_UTEST_PRE(kvs_rparams_test, cn_verify, test_pre)

@@ -110,7 +110,7 @@ MTF_DEFINE_UTEST(config_test, deserialize_kvs_default_override)
     err = config_deserialize_to_kvs_rparams(conf, "named", &kvs_params);
     config_destroy(conf);
     ASSERT_EQ(0, err);
-    ASSERT_EQ(88, kvs_params.cn_io_threads);
+    ASSERT_EQ(88, kvs_params.cn_maint_delay);
 }
 
 MTF_DEFINE_UTEST(config_test, deserialize_invalid_key)
