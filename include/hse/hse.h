@@ -778,7 +778,7 @@ hse_kvdb_txn_state_get(struct hse_kvdb *kvdb, struct hse_kvdb_txn *txn);
  * doesn't create a prefix cursor -- it must meet the two conditions listed
  * above.
  *
- * @note This function is thread safe across disparate cursors.
+ * @note This function is thread safe.
  *
  * <b>Flags:</b>
  * @arg HSE_CURSOR_CREATE_REV - Iterate in reverse lexicographical order.
@@ -811,7 +811,7 @@ hse_kvs_cursor_create(
  * @warning After invoking this function, calling any other cursor functions
  * with this handle will result in undefined behavior.
  *
- * @note This function is thread safe.
+ * @note Cursor objects are not thread safe.
  *
  * @param cursor: Cursor handle from hse_kvs_cursor_create().
  *
@@ -830,7 +830,7 @@ hse_kvs_cursor_destroy(struct hse_kvs_cursor *cursor);
  *
  * @note If the cursor is at EOF, attempts to read from it will not change the
  * state of the cursor.
- * @note This function is thread safe across disparate cursors.
+ * @note Cursor objects are not thread safe.
  *
  * <b>Flags:</b>
  * @arg 0 - Reserved for future use.
@@ -871,7 +871,7 @@ hse_kvs_cursor_read(
  *
  * @note If the cursor is at EOF, attempts to read from it will not change the
  * state of the cursor.
- * @note This function is thread safe across disparate cursors.
+ * @note Cursor objects are not thread safe.
  *
  * <b>Flags:</b>
  * @arg 0 - Reserved for future use.
@@ -913,7 +913,7 @@ hse_kvs_cursor_read_copy(
  * The next hse_kvs_cursor_read() will start at this point. Both @p found and @p
  * found_len must be non-NULL for that functionality to work.
  *
- * @note This function is thread safe across disparate cursors.
+ * @note Cursor objects are not thread safe.
  *
  * <b>Flags:</b>
  * @arg 0 - Reserved for future use.
@@ -951,7 +951,7 @@ hse_kvs_cursor_seek(
  * found_len must be non-NULL for that functionality to work.
  *
  * @note This is only supported for forward cursors.
- * @note This function is thread safe across disparate cursors.
+ * @note Cursor objects are not thread safe.
  *
  * <b>Flags:</b>
  * @arg 0 - Reserved for future use.
@@ -988,7 +988,7 @@ hse_kvs_cursor_seek_range(
  * This operation updates the snapshot view of a non-transaction cursor. It is a
  * no-op on transaction cursors.
  *
- * @note This function is thread safe across disparate cursors.
+ * @note Cursor objects are not thread safe.
  *
  * <b>Flags:</b>
  * @arg 0 - Reserved for future use.
