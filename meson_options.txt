@@ -20,3 +20,5 @@ option('omf-byte-order', type: 'combo', choices: ['native', 'big', 'little'],
     value: 'native', description: 'On-media-format byte order')
 option('rpath', type: 'boolean', value: false,
     description: 'Add an RPATH to executables upon install')
+option('pmem', type: 'feature', value: 'auto',
+    description: 'Include PMEM support')

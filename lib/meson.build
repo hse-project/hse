@@ -38,6 +38,7 @@ build_config_h_data = configuration_data({
         name: '__attribute__((__sentinel__))',
     ),
     'SUPPORTS_ATTR_NONNULL': cc.has_function_attribute('nonnull'),
+    'HAVE_PMEM': libpmem_dep.found(),
     'WITH_COVERAGE': get_option('b_coverage'),
     'WITH_UBSAN': get_option('b_sanitize').contains('undefined'),
 })
@@ -107,6 +108,7 @@ hse_dependencies = [
     rbtree_dep,
     crc32c_dep,
     xoroshiro_dep,
+    libpmem_dep,
 ]
 
 hse = library(
