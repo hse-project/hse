@@ -13,11 +13,10 @@
 
 #include <bsd/string.h>
 
-char hse_merr_bug0[] _merr_attributes = "hse_merr_bug0u";
-char hse_merr_bug1[] _merr_attributes = "hse_merr_bug1u";
-char hse_merr_bug2[] _merr_attributes = "hse_merr_bug2u";
-char hse_merr_bug3[] _merr_attributes = "hse_merr_bug3u";
-char hse_merr_base[] _merr_attributes = "hse_merr_baseu";
+char hse_merr_bug0[] _merr_attributes = "hse_merr_bug0";
+char hse_merr_bug1[] _merr_attributes = "hse_merr_bug1";
+char hse_merr_bug2[] _merr_attributes = "hse_merr_bug2";
+char hse_merr_base[] _merr_attributes = "hse_merr_base";
 
 extern uint8_t __start_hse_merr;
 extern uint8_t __stop_hse_merr;
@@ -36,25 +35,18 @@ merr_pack(int errno_value, const enum hse_err_ctx ctx, const char *file, int lin
     if (errno_value == 0)
         return 0;
 
-    if (!file)
-        goto finish;
-
-    if (!IS_ALIGNED((uintptr_t)file, sizeof(file)))
-        file = hse_merr_bug0; /* invalid file */
-
-    if (!(file > (char *)&__start_hse_merr ||
-          file < (char *)&__stop_hse_merr))
-        goto finish; /* file outside libhse */
-
-    if (!IS_ALIGNED((uintptr_t)file, MERR_ALIGN))
+    if (file < (char *)&__start_hse_merr ||
+        file >= (char *)&__stop_hse_merr) {
+        file = hse_merr_bug0;
+    } else if (!IS_ALIGNED((uintptr_t)file, MERR_ALIGN)) {
         file = hse_merr_bug1;
+    }
 
     off = (file - hse_merr_base) / MERR_ALIGN;
 
     if (((int64_t)((uint64_t)off << MERR_FILE_SHIFT) >> MERR_FILE_SHIFT) == off)
         err = (uint64_t)off << MERR_FILE_SHIFT;
 
-  finish:
     err |= ((uint64_t)line << MERR_LINE_SHIFT) & MERR_LINE_MASK;
     err |= (ctx << MERR_CTX_SHIFT) & MERR_CTX_MASK;
     err |= errno_value & MERR_ERRNO_MASK;
@@ -77,15 +69,14 @@ merr_file(merr_t err)
 
     file = hse_merr_base + (off * MERR_ALIGN);
 
-    if (!(file > (char *)&__start_hse_merr ||
-          file < (char *)&__stop_hse_merr))
-        return hse_merr_bug3;
+    if (file < (char *)&__start_hse_merr ||
+          file >= (char *)&__stop_hse_merr)
+        return hse_merr_bug2;
 
 #ifdef HSE_REL_SRC_DIR
     if ((uintptr_t)file == (uintptr_t)hse_merr_bug0 ||
         (uintptr_t)file == (uintptr_t)hse_merr_bug1 ||
-        (uintptr_t)file == (uintptr_t)hse_merr_bug2 ||
-        (uintptr_t)file == (uintptr_t)hse_merr_bug3) {
+        (uintptr_t)file == (uintptr_t)hse_merr_bug2) {
         return file;
     }
 
@@ -118,27 +109,44 @@ merr_strerror(merr_t err, char *buf, size_t buf_sz)
 char *
 merr_strinfo(merr_t err, char *buf, size_t buf_sz, size_t *need_sz)
 {
-    ssize_t     sz = 0;
+    ssize_t     sz = 0, ret = 0;
     const char *file = NULL;
 
     if (err) {
         file = merr_file(err);
+
         if (file)
-            sz = snprintf(buf, buf_sz, "%s:%d: ", file, merr_lineno(err));
-        if (sz < 0) {
+            ret = snprintf(buf, buf_sz, "%s:%d: ", file, merr_lineno(err));
+
+        if (ret < 0) {
             sz = strlcpy(buf, "<failed to format error message>", buf_sz);
             goto out;
         }
+
+        sz += ret;
         if (sz >= buf_sz)
             goto out;
 
         sz += merr_strerror(err, buf + sz, buf_sz - sz);
+        if (sz >= buf_sz)
+            goto out;
+
+        ret = snprintf(buf + sz, buf_sz - sz, " (%d)", merr_errno(err));
+        if (ret < 0) {
+            /* Try to just return what we already have. */
+            buf[sz] = '\000';
+            goto out;
+        }
+
+        sz += ret;
+
     } else {
         sz = strlcpy(buf, "success", buf_sz);
     }
 
 out:
     if (need_sz)
-        *need_sz = sz < 0 ? 0 : (size_t)sz;
+        *need_sz = sz;
+    
     return buf;
 }

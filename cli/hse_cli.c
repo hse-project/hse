@@ -1550,7 +1550,6 @@ cli_hse_utils_strerror(struct cli_cmd *self, struct cli *cli)
     int         c;
     char        buf[1024];
     int64_t     s_err;
-    char       *errmsg;
 
     if (cli_hook(cli, self, &spec))
         return 0;
@@ -1593,8 +1592,8 @@ cli_hse_utils_strerror(struct cli_cmd *self, struct cli *cli)
         return EX_USAGE;
     }
 
-    errmsg = strerror_r(hse_err_to_errno((hse_err_t)s_err), buf, sizeof(buf));
-    fprintf(stdout, "%s\n", errmsg);
+    hse_strerror((hse_err_t)s_err, buf, sizeof(buf));
+    fprintf(stdout, "%s\n", buf);
 
     return 0;
 }
