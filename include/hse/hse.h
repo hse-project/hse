@@ -778,7 +778,7 @@ hse_kvdb_txn_state_get(struct hse_kvdb *kvdb, struct hse_kvdb_txn *txn);
  * doesn't create a prefix cursor -- it must meet the two conditions listed
  * above.
  *
- * @note This function is thread safe across disparate cursors.
+ * @note This function is thread safe.
  *
  * <b>Flags:</b>
  * @arg HSE_CURSOR_CREATE_REV - Iterate in reverse lexicographical order.
@@ -811,7 +811,7 @@ hse_kvs_cursor_create(
  * @warning After invoking this function, calling any other cursor functions
  * with this handle will result in undefined behavior.
  *
- * @note This function is thread safe.
+ * @note Cursor objects are not thread safe.
  *
  * @param cursor: Cursor handle from hse_kvs_cursor_create().
  *
@@ -826,11 +826,11 @@ hse_kvs_cursor_destroy(struct hse_kvs_cursor *cursor);
 /** @brief Iteratively access the elements pointed to by the cursor.
  *
  * Read a key-value pair from the cursor, advancing the cursor past its current
- * location.
+ * location. If the argument @p val is NULL, only the key is read.
  *
  * @note If the cursor is at EOF, attempts to read from it will not change the
  * state of the cursor.
- * @note This function is thread safe across disparate cursors.
+ * @note Cursor objects are not thread safe.
  *
  * <b>Flags:</b>
  * @arg 0 - Reserved for future use.
@@ -863,13 +863,57 @@ hse_kvs_cursor_read(
     size_t *               val_len,
     bool *                 eof);
 
+/** @brief Iteratively access the elements pointed to by the cursor.
+ *
+ * Read a key-value pair from the cursor, advancing the cursor past its current
+ * location. The key-value pair will be copied into the user's buffer(s). If the
+ * argument @p valbuf is NULL, only the key is read.
+ *
+ * @note If the cursor is at EOF, attempts to read from it will not change the
+ * state of the cursor.
+ * @note Cursor objects are not thread safe.
+ *
+ * <b>Flags:</b>
+ * @arg 0 - Reserved for future use.
+ *
+ * @param cursor: Cursor handle from hse_kvs_cursor_create().
+ * @param flags: Flags for operation specialization.
+ * @param[in,out] keybuf: Buffer into which the next key will be copied.
+ * @param keybuf_sz: Size of @p keybuf.
+ * @param[out] key_len: Length of the key.
+ * @param[in,out] valbuf: Buffer into which the next key's value will be copied.
+ * @param valbuf_sz: Size of @p valbuf
+ * @param[out] val_len: Length of @p val.
+ * @param[out] eof: If true, no more key-value pairs in sequence.
+ *
+ * @remark @p cursor must not be NULL.
+ * @remark @p key must not be NULL.
+ * @remark @p key_len must not be NULL.
+ * @remark @p val must not be NULL.
+ * @remark @p val_len must not be NULL.
+ * @remark @p eof must not be NULL.
+ *
+ * @returns Error status
+ */
+hse_err_t
+hse_kvs_cursor_read_copy(
+    struct hse_kvs_cursor *cursor,
+    unsigned int           flags,
+    void *                 keybuf,
+    size_t                 keybuf_sz,
+    size_t *               key_len,
+    void *                 valbuf,
+    size_t                 valbuf_sz,
+    size_t *               val_len,
+    bool *                 eof);
+
 /** @brief Move the cursor to point at the key-value pair at or closest to @p
  * key.
  *
  * The next hse_kvs_cursor_read() will start at this point. Both @p found and @p
  * found_len must be non-NULL for that functionality to work.
  *
- * @note This function is thread safe across disparate cursors.
+ * @note Cursor objects are not thread safe.
  *
  * <b>Flags:</b>
  * @arg 0 - Reserved for future use.
@@ -907,7 +951,7 @@ hse_kvs_cursor_seek(
  * found_len must be non-NULL for that functionality to work.
  *
  * @note This is only supported for forward cursors.
- * @note This function is thread safe across disparate cursors.
+ * @note Cursor objects are not thread safe.
  *
  * <b>Flags:</b>
  * @arg 0 - Reserved for future use.
@@ -944,7 +988,7 @@ hse_kvs_cursor_seek_range(
  * This operation updates the snapshot view of a non-transaction cursor. It is a
  * no-op on transaction cursors.
  *
- * @note This function is thread safe across disparate cursors.
+ * @note Cursor objects are not thread safe.
  *
  * <b>Flags:</b>
  * @arg 0 - Reserved for future use.

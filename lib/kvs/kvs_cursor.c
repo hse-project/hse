@@ -1100,32 +1100,72 @@ out:
     return err;
 }
 
-static merr_t
-ikvs_cursor_kv_copy(struct kvs_cursor_impl *cursor, struct kvs_kvtuple *kvt)
+void
+kvs_cursor_key_copy(
+    struct hse_kvs_cursor  *cursor,
+    void                   *buf,
+    size_t                  bufsz,
+    const void            **key_out,
+    size_t                 *klen_out)
 {
-    struct kvs_vtuple *vt = &cursor->kci_elem_last.kce_vt;
-    uint               clen = cursor->kci_elem_last.kce_complen;
-    void *             vbuf = cursor->kci_buf + HSE_KVS_KEY_LEN_MAX;
+    struct kvs_cursor_impl *cur = cursor_h2r(cursor);
+    uint                    klen;
+    void                   *key;
+
+    if (!buf) {
+        buf = cur->kci_buf;
+        bufsz = HSE_KVS_KEY_LEN_MAX;
+    }
+
+    key = key_obj_copy(buf, bufsz, &klen, cur->kci_last);
+
+    if (klen_out)
+        *klen_out = klen;
+
+    if (key_out)
+        *key_out = key;
+}
+
+merr_t
+kvs_cursor_val_copy(
+    struct hse_kvs_cursor  *cursor,
+    void                   *buf,
+    size_t                  bufsz,
+    const void            **val_out,
+    size_t                 *vlen_out)
+{
+    struct kvs_cursor_impl *cur = cursor_h2r(cursor);
+
+    struct kvs_vtuple *vt = &cur->kci_elem_last.kce_vt;
+    uint               clen = cur->kci_elem_last.kce_complen;
     merr_t             err = 0;
 
-    kvt->kvt_key.kt_data = key_obj_copy(
-        cursor->kci_buf, HSE_KVS_KEY_LEN_MAX, (uint *)&kvt->kvt_key.kt_len, cursor->kci_last);
+    if (!buf) {
+        buf = cur->kci_buf + HSE_KVS_KEY_LEN_MAX;
+        bufsz = HSE_KVS_VALUE_LEN_MAX;
+    }
 
     if (clen) {
         uint outlen;
 
-        err = compress_lz4_ops.cop_decompress(vt->vt_data, clen, vbuf, HSE_KVS_VALUE_LEN_MAX, &outlen);
+        err = compress_lz4_ops.cop_decompress(vt->vt_data, clen, buf, bufsz, &outlen);
         if (ev(err))
             return err;
 
-        if (ev(outlen != vt->vt_xlen))
-            return merr(EBUG);
+        if (ev(outlen != min_t(u64, vt->vt_xlen, bufsz)))
+            return EBUG;
+
     } else {
-        memcpy(vbuf, vt->vt_data, vt->vt_xlen);
+        memcpy(buf, vt->vt_data, min_t(u64, vt->vt_xlen, bufsz));
     }
 
-    kvs_vtuple_init(&kvt->kvt_value, vbuf, vt->vt_xlen);
-    return err;
+    if (vlen_out)
+        *vlen_out = vt->vt_xlen;
+
+    if (val_out)
+        *val_out = buf;
+
+    return 0;
 }
 
 static merr_t
@@ -1143,7 +1183,7 @@ kvs_cursor_prepare(struct hse_kvs_cursor *cursor)
 }
 
 merr_t
-kvs_cursor_read(struct hse_kvs_cursor *handle, struct kvs_kvtuple *kvt, bool *eofp)
+kvs_cursor_read(struct hse_kvs_cursor *handle, unsigned int flags, bool *eofp)
 {
     struct kvs_cursor_impl *cursor = (void *)handle;
 
@@ -1205,7 +1245,6 @@ kvs_cursor_read(struct hse_kvs_cursor *handle, struct kvs_kvtuple *kvt, bool *eo
     if (*eofp)
         return 0;
 
-    cursor->kci_err = ikvs_cursor_kv_copy(cursor, kvt);
     return cursor->kci_err;
 }
 

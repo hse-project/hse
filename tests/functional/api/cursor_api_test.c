@@ -320,4 +320,203 @@ MTF_DEFINE_UTEST_PREPOST(cursor_api_test, cursor_multiple_testcase, populate_kvs
     ASSERT_EQ(err, 0);
 }
 
+MTF_DEFINE_UTEST_PREPOST(cursor_api_test, cursor_read_copy_basic, populate_kvs, destroy_kvs)
+{
+    bool eof;
+    merr_t err;
+
+    struct hse_kvs_cursor *cursor1, *cursor2;
+
+    err = hse_kvs_cursor_create(kvs_handle, 0, NULL, NULL, 0, &cursor1);
+    ASSERT_EQ(err, 0);
+    err = hse_kvs_cursor_create(kvs_handle, 0, NULL, NULL, 0, &cursor2);
+    ASSERT_EQ(err, 0);
+
+    for (eof = false; !eof;) {
+        char keybuf[32];
+        size_t keylen;
+        char valbuf[32];
+        size_t vallen;
+
+        const void *key;
+        size_t klen;
+        const void *val;
+        size_t vlen;
+
+        bool eof1, eof2;
+
+        err = hse_kvs_cursor_read(cursor1, 0, &key, &klen, &val, &vlen, &eof1);
+        ASSERT_EQ(0, err);
+
+        err = hse_kvs_cursor_read_copy(cursor2, 0, keybuf, sizeof(keybuf), &keylen,
+                                       valbuf, sizeof(valbuf), &vallen, &eof2);
+        ASSERT_EQ(0, err);
+
+        ASSERT_TRUE(eof1 == eof2);
+        eof = eof1;
+
+        if (eof)
+            break;
+
+        ASSERT_TRUE(keylen <= sizeof(keybuf));
+        ASSERT_TRUE(vallen <= sizeof(valbuf));
+        ASSERT_TRUE(klen == keylen);
+        ASSERT_EQ(0, memcmp(key, keybuf, klen));
+        ASSERT_TRUE(vlen == vallen);
+        ASSERT_EQ(0, memcmp(val, valbuf, vlen));
+    }
+
+    err = hse_kvs_cursor_destroy(cursor1);
+    ASSERT_EQ(err, 0);
+    err = hse_kvs_cursor_destroy(cursor2);
+    ASSERT_EQ(err, 0);
+}
+
+MTF_DEFINE_UTEST_PREPOST(cursor_api_test, cursor_read_copy_only_keys, populate_kvs, destroy_kvs)
+{
+    bool eof;
+    merr_t err;
+
+    struct hse_kvs_cursor *cursor1, *cursor2;
+
+    err = hse_kvs_cursor_create(kvs_handle, 0, NULL, NULL, 0, &cursor1);
+    ASSERT_EQ(err, 0);
+    err = hse_kvs_cursor_create(kvs_handle, 0, NULL, NULL, 0, &cursor2);
+    ASSERT_EQ(err, 0);
+
+    for (eof = false; !eof;) {
+        char keybuf[32];
+        size_t keylen;
+
+        const void *key;
+        size_t klen;
+
+        bool eof1, eof2;
+
+        err = hse_kvs_cursor_read(cursor1, 0, &key, &klen, NULL, NULL,  &eof1);
+        ASSERT_EQ(0, err);
+
+        err = hse_kvs_cursor_read_copy(cursor2, 0, keybuf, sizeof(keybuf), &keylen,
+                                       NULL, 0,  NULL, &eof2);
+        ASSERT_EQ(0, err);
+
+        ASSERT_TRUE(eof1 == eof2);
+        eof = eof1;
+
+        if (eof)
+            break;
+
+        ASSERT_TRUE(keylen <= sizeof(keybuf));
+        ASSERT_TRUE(klen == keylen);
+        ASSERT_EQ(0, memcmp(key, keybuf, klen));
+    }
+
+    err = hse_kvs_cursor_destroy(cursor1);
+    ASSERT_EQ(err, 0);
+    err = hse_kvs_cursor_destroy(cursor2);
+    ASSERT_EQ(err, 0);
+}
+
+MTF_DEFINE_UTEST(cursor_api_test, cursor_read_copy_with_compression)
+{
+    bool eof;
+    hse_err_t err;
+
+    struct hse_kvs_cursor *cursor1, *cursor2, *cursor3;
+
+    /* Populate kvs */
+    const char *rpv = "compression.value.algorithm=lz4";
+
+    err = fxt_kvs_setup(kvdb_handle, kvs_name, 1, &rpv, 0, NULL, &kvs_handle);
+    ASSERT_EQ(0, err);
+
+    {
+        char      key[32], val[128];
+        hse_err_t err;
+
+        ASSERT_LT(key_value_pairs, 100);
+
+        for (int i = 0; i < key_value_pairs; i++) {
+            int n;
+
+            n = snprintf(key, sizeof(key), "test_key_%02d", i);
+            ASSERT_LT(n, sizeof(key));
+
+            n = snprintf(val, sizeof(val), "test_value_%032d", i);
+            ASSERT_LT(n, sizeof(val));
+
+            err = hse_kvs_put(kvs_handle, 0, NULL, key, strlen(key), val, strlen(val));
+            ASSERT_EQ(err, 0);
+        }
+    }
+
+    /* Begin test */
+    err = hse_kvs_cursor_create(kvs_handle, 0, NULL, NULL, 0, &cursor1);
+    ASSERT_EQ(err, 0);
+    err = hse_kvs_cursor_create(kvs_handle, 0, NULL, NULL, 0, &cursor2);
+    ASSERT_EQ(err, 0);
+    err = hse_kvs_cursor_create(kvs_handle, 0, NULL, NULL, 0, &cursor3);
+    ASSERT_EQ(err, 0);
+
+    for (eof = false; !eof;) {
+        char keybuf[32];
+        size_t keylen;
+        char valbuf[128];
+        size_t vallen;
+
+        const void *key;
+        size_t klen;
+        const void *val;
+        size_t vlen;
+
+        bool eof1, eof2, eof3;
+
+        err = hse_kvs_cursor_read(cursor1, 0, &key, &klen, &val, &vlen, &eof1);
+        ASSERT_EQ(0, err);
+
+        /* TC: Read full values */
+        err = hse_kvs_cursor_read_copy(cursor2, 0, keybuf, sizeof(keybuf), &keylen,
+                                       valbuf, sizeof(valbuf), &vallen, &eof2);
+        ASSERT_EQ(0, err);
+
+        ASSERT_TRUE(eof1 == eof2);
+        eof = eof1;
+
+        /* TC: Small buffer test - set buffer size to 4 bytes. */
+        char smallvbuf[4];
+        size_t smallvlen;
+
+        err = hse_kvs_cursor_read_copy(cursor3, 0, keybuf, sizeof(keybuf), &keylen,
+                                       smallvbuf, sizeof(smallvbuf), &smallvlen, &eof3);
+        ASSERT_EQ(0, err);
+
+        if (eof)
+            break;
+
+        /* Asserts for full values */
+        ASSERT_TRUE(keylen <= sizeof(keybuf));
+        ASSERT_TRUE(vallen <= sizeof(valbuf));
+        ASSERT_TRUE(klen == keylen);
+        ASSERT_EQ(0, memcmp(key, keybuf, klen));
+        ASSERT_TRUE(vlen == vallen);
+        ASSERT_EQ(0, memcmp(val, valbuf, vlen));
+
+        /* Asserts for the small buffer */
+        ASSERT_TRUE(eof1 == eof3);
+        ASSERT_TRUE(klen == keylen);
+        ASSERT_TRUE(vlen == smallvlen);
+        ASSERT_EQ(0, memcmp(key, keybuf, keylen));
+        ASSERT_EQ(0, memcmp(val, smallvbuf, sizeof(smallvbuf)));
+    }
+
+    err = hse_kvs_cursor_destroy(cursor1);
+    ASSERT_EQ(err, 0);
+    err = hse_kvs_cursor_destroy(cursor2);
+    ASSERT_EQ(err, 0);
+    err = hse_kvs_cursor_destroy(cursor3);
+    ASSERT_EQ(err, 0);
+
+    destroy_kvs(lcl_ti);
+}
+
 MTF_END_UTEST_COLLECTION(cursor_api_test)

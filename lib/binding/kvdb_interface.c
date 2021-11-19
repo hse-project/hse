@@ -1117,7 +1117,7 @@ hse_kvs_cursor_seek_range(
 hse_err_t
 hse_kvs_cursor_read(
     struct hse_kvs_cursor *cursor,
-    const unsigned int     flags,
+    unsigned int           flags,
     const void **          key,
     size_t *               klen,
     const void **          val,
@@ -1126,19 +1126,66 @@ hse_kvs_cursor_read(
 {
     merr_t err;
 
-    if (HSE_UNLIKELY(!cursor || !key || !klen || !val || !vlen || !eof || flags != 0))
+    if (HSE_UNLIKELY(!cursor || !key || !klen || !eof || flags != 0))
+        return merr(EINVAL);
+
+    if (HSE_UNLIKELY(!!val ^ !!vlen))
         return merr(EINVAL);
 
     err = ikvdb_kvs_cursor_read(cursor, flags, key, klen, val, vlen, eof);
     ev(err);
 
     if (!err && !*eof) {
-        PERFC_INCADD_RU(
-            &kvdb_pc, PERFC_RA_KVDBOP_KVS_CURSOR_READ, PERFC_RA_KVDBOP_KVS_GETB, *klen + *vlen);
+        size_t len = *klen;
+
+        if (vlen)
+            len += *vlen;
+
+        PERFC_INCADD_RU(&kvdb_pc, PERFC_RA_KVDBOP_KVS_CURSOR_READ, PERFC_RA_KVDBOP_KVS_GETB, len);
     }
 
     return err;
 }
+
+hse_err_t
+hse_kvs_cursor_read_copy(
+    struct hse_kvs_cursor *cursor,
+    unsigned int           flags,
+    void *                 keybuf,
+    size_t                 keybuf_sz,
+    size_t *               key_len,
+    void *                 valbuf,
+    size_t                 valbuf_sz,
+    size_t *               val_len,
+    bool *                 eof)
+{
+    merr_t err;
+
+    if (HSE_UNLIKELY(!cursor || !keybuf || !key_len || !eof))
+        return merr(EINVAL);
+
+    if (HSE_UNLIKELY(!valbuf && valbuf_sz > 0))
+        return merr(EINVAL);
+
+    if (HSE_UNLIKELY(!!valbuf ^ !!val_len))
+        return merr(EINVAL);
+
+    err = ikvdb_kvs_cursor_read_copy(cursor, flags, keybuf, keybuf_sz, key_len,
+                                valbuf, valbuf_sz, val_len, eof);
+    ev(err);
+
+    if (!err && !*eof) {
+        size_t len = *key_len;
+
+        if (val_len)
+            len += *val_len;
+
+        PERFC_INCADD_RU(&kvdb_pc, PERFC_RA_KVDBOP_KVS_CURSOR_READ, PERFC_RA_KVDBOP_KVS_GETB, len);
+    }
+
+    return err;
+}
+
 
 hse_err_t
 hse_kvs_cursor_destroy(struct hse_kvs_cursor *cursor)

@@ -402,7 +402,10 @@ main(int argc, char **argv)
         if (stats)
             EVENT_START(tr);
 
-        err = hse_kvs_cursor_read(cursor, 0, &key, &klen, &val, &vlen, &eof);
+        if (countem && !cksum)
+            err = hse_kvs_cursor_read(cursor, 0, &key, &klen, NULL, NULL, &eof);
+        else
+            err = hse_kvs_cursor_read(cursor, 0, &key, &klen, &val, &vlen, &eof);
 
         if (stats)
             EVENT_SAMPLE(tr);

@@ -503,6 +503,18 @@ ikvdb_kvs_cursor_read(
     size_t *               val_len,
     bool *                 eof);
 
+merr_t
+ikvdb_kvs_cursor_read_copy(
+    struct hse_kvs_cursor *cur,
+    unsigned int           flags,
+    void *                 keybuf,
+    size_t                 keybuf_sz,
+    size_t *               key_len,
+    void *                 valbuf,
+    size_t                 valbuf_sz,
+    size_t *               val_len,
+    bool *                 eof);
+
 /**
  * ikvdb_kvs_cursor_destroy() - allow the caller to indicate that is is done
  * with the scan and release the associated cursor
