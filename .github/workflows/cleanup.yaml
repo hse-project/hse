@@ -1,0 +1,15 @@
+name: Cleanup
+
+on:
+  pull_request:
+    types: [closed]
+
+jobs:
+  cleanup:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Cancel jobs
+        uses: styfle/cancel-workflow-action@0.9.1
+        with:
+          ignore_sha: true
+          workflow_id: ci.yaml
