@@ -47,15 +47,15 @@ relative_dir = run_command(
 # Strip relative path prefixes from the code if possible, otherwise hide them.
 # The following snippet is attributed to the SwayWM Project under the MIT license.
 if cc.has_argument('-fmacro-prefix-map=/prefix/to/hide=')
-	add_project_arguments(
-		'-fmacro-prefix-map=@0@='.format(relative_dir),
-		language: 'c'
-	)
-else
-	add_project_arguments(
-		'-DHSE_REL_SRC_DIR="@0@"'.format(relative_dir),
-		language: 'c'
-	)
+    add_project_arguments(
+        '-fmacro-prefix-map=@0@='.format(relative_dir),
+        language: 'c'
+    )
+    else
+    add_project_arguments(
+        '-DHSE_REL_SRC_DIR="@0@"'.format(relative_dir),
+        language: 'c'
+    )
 endif
 
 if get_option('b_sanitize').contains('undefined')
@@ -223,6 +223,7 @@ libmicrohttpd_dep = dependency(
         'werror=false',
     ],
 )
+libpmem_dep = dependency('libpmem', version: '>= 1.4.0', required: get_option('pmem'))
 m_dep = cc.find_library('m')
 crc32c_proj = subproject(
     'crc32c',
