@@ -23,7 +23,7 @@ rparams=(
     csched_leaf_pct=99
 
     kvs-oparms
-    cn_close_wait=1
+    cn_close_wait=true
     cn_node_size_lo=$node_size
     cn_node_size_hi=$node_size
 )
@@ -40,7 +40,7 @@ for pivot in 0 1 2 3 4; do
     cmd kmt "$home" $kvs -s1 -j32 -f "${prefix}%023lx" -i$keys -l$vlen ${rparams[@]}
 
     # Run this a few times to finish off compaction.  Calling repeatedly with
-    # cn_close_wait=1 is better than calling once with a longer wait b/c each
+    # cn_close_wait=true is better than calling once with a longer wait b/c each
     # call will spill to the next level regardless of how long it takes.
     for (( i = 0; i < 5; i++ )); do
         cmd putbin "$home" $kvs -n 1000 ${rparams[@]}

@@ -583,37 +583,18 @@ static const struct param_spec pspecs[] = {
         .ps_name = "cn_maint_delay",
         .ps_description = "ms of delay between checks when idle",
         .ps_flags = PARAM_FLAG_EXPERIMENTAL,
-        .ps_type = PARAM_TYPE_U64,
+        .ps_type = PARAM_TYPE_U32,
         .ps_offset = offsetof(struct kvs_rparams, cn_maint_delay),
         .ps_size = PARAM_SZ(struct kvs_rparams, cn_maint_delay),
         .ps_convert = param_default_converter,
         .ps_validate = param_default_validator,
         .ps_default_value = {
-            .as_uscalar = 100,
+            .as_uscalar = 1000,
         },
         .ps_bounds = {
             .as_uscalar = {
                 .ps_min = 20,
-                .ps_max = UINT64_MAX,
-            },
-        },
-    },
-    {
-        .ps_name = "cn_io_threads",
-        .ps_description = "number of cn mblock i/o threads",
-        .ps_flags = PARAM_FLAG_EXPERIMENTAL,
-        .ps_type = PARAM_TYPE_U64,
-        .ps_offset = offsetof(struct kvs_rparams, cn_io_threads),
-        .ps_size = PARAM_SZ(struct kvs_rparams, cn_io_threads),
-        .ps_convert = param_default_converter,
-        .ps_validate = param_default_validator,
-        .ps_default_value = {
-            .as_uscalar = 13,
-        },
-        .ps_bounds = {
-            .as_uscalar = {
-                .ps_min = 0,
-                .ps_max = UINT64_MAX,
+                .ps_max = 1000 * 60,
             },
         },
     },
@@ -621,19 +602,13 @@ static const struct param_spec pspecs[] = {
         .ps_name = "cn_close_wait",
         .ps_description = "force close to wait until all active compactions have completed",
         .ps_flags = PARAM_FLAG_EXPERIMENTAL,
-        .ps_type = PARAM_TYPE_U64,
+        .ps_type = PARAM_TYPE_BOOL,
         .ps_offset = offsetof(struct kvs_rparams, cn_close_wait),
         .ps_size = PARAM_SZ(struct kvs_rparams, cn_close_wait),
         .ps_convert = param_default_converter,
         .ps_validate = param_default_validator,
         .ps_default_value = {
-            .as_uscalar = 0,
-        },
-        .ps_bounds = {
-            .as_uscalar = {
-                .ps_min = 0,
-                .ps_max = UINT64_MAX,
-            },
+            .as_uscalar = false,
         },
     },
     {

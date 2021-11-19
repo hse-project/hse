@@ -53,6 +53,7 @@ struct kvdb_rparams {
     uint8_t perfc_enable;
     bool    c0_diag_mode;
     uint8_t c0_debug;
+    bool    cndb_debug;
 
     uint32_t c0_ingest_width;
 
@@ -94,9 +95,10 @@ struct kvdb_rparams {
      */
     uint64_t txn_wkth_delay;
     uint32_t cndb_entries;
-    bool     cndb_debug;
     uint32_t c0_maint_threads;
     uint32_t c0_ingest_threads;
+    uint16_t cn_maint_threads;
+    uint16_t cn_io_threads;
 
     uint32_t keylock_tables;
 

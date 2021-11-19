@@ -41,7 +41,7 @@ cmd cn_metrics "$home" $kvs | cmd -e grep -q n.1,
 cmd kmt "$home" $kvs -s1 $VLEN -c  ${kvdb_oparams} ${kvs_oparams}
 
 # spill
-cmd putbin "$home" $kvs -n 1000 kvs-oparms cn_close_wait=1
+cmd putbin "$home" $kvs -n 1000 kvs-oparms cn_close_wait=true
 
 # verify spill has occurred
 cmd cn_metrics "$home" $kvs | cmd grep -q n.1,

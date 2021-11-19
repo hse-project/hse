@@ -808,25 +808,17 @@ done:
 }
 
 static void
-cn_maintenance_task(struct work_struct *context)
+cn_maint_task(struct work_struct *work)
 {
-    struct cn *cn;
+    struct cn *cn = container_of(work, struct cn, cn_maint_dwork.work);
 
-    cn = container_of(context, struct cn, cn_maintenance_work);
+    if (kvdb_health_check(cn->cn_kvdb_health, KVDB_HEALTH_FLAG_ALL))
+        cn->rp->cn_maint_disable = true;
+    else if (cn_is_capped(cn))
+        cn_tree_capped_compact(cn->cn_tree);
 
-    assert(cn->cn_kvdb_health);
-    assert(cn_is_capped(cn));
-
-    while (!cn->cn_maintenance_stop) {
-
-        if (kvdb_health_check(cn->cn_kvdb_health, KVDB_HEALTH_FLAG_ALL))
-            cn->rp->cn_maint_disable = true;
-
-        if (!cn->rp->cn_maint_disable)
-            cn_tree_capped_compact(cn->cn_tree);
-
-        usleep(USEC_PER_SEC);
-    }
+    queue_delayed_work(cn->cn_maint_wq, &cn->cn_maint_dwork,
+                       msecs_to_jiffies(cn->rp->cn_maint_delay));
 }
 
 struct cn_tstate_impl {
@@ -1055,6 +1047,7 @@ cn_open(
     struct mpool_props    mpprops;
     struct merr_info      ei;
 
+    assert(cn_kvdb);
     assert(mp);
     assert(kvs);
     assert(cndb);
@@ -1194,31 +1187,19 @@ cn_open(
     if (!maint)
         goto done;
 
-    /* [HSE_REVISIT]: move the io_wq to csched so we have one set of
-     * shared io workers per kvdb instead of one set per cn tree.
+    /* Work queue for offloading kvset destroy from client queries,
+     * and running vblock readahead operations.
      */
-    cn->cn_io_wq = alloc_workqueue("cn_io", 0, cn->rp->cn_io_threads ?: 4);
-    if (ev(!cn->cn_io_wq)) {
-        err = merr(ENOMEM);
-        goto err_exit;
-    }
-
-    /* Work queue for other work such as managing "capped" trees,
-     * offloading kvset destroy from client queries, and running
-     * vblock readahead operations.
-     */
-    cn->cn_maint_wq = alloc_workqueue("cn_maint", 0, 32);
-    if (ev(!cn->cn_maint_wq)) {
-        err = merr(ENOMEM);
-        goto err_exit;
-    }
+    cn->cn_maint_wq = cn_kvdb->cn_maint_wq;
+    cn->cn_io_wq = cn_kvdb->cn_io_wq;
 
     if (cn->csched && !cn_is_capped(cn))
         csched_tree_add(cn->csched, cn->cn_tree);
 
     if (cn_is_capped(cn)) {
-        INIT_WORK(&cn->cn_maintenance_work, cn_maintenance_task);
-        queue_work(cn->cn_maint_wq, &cn->cn_maintenance_work);
+        INIT_DELAYED_WORK(&cn->cn_maint_dwork, cn_maint_task);
+        queue_delayed_work(cn->cn_maint_wq, &cn->cn_maint_dwork,
+                           msecs_to_jiffies(rp->cn_maint_delay));
     }
 
     /* If capped bloom probability is zero then disable bloom creation.
@@ -1238,8 +1219,8 @@ done:
     return 0;
 
 err_exit:
-    destroy_workqueue(cn->cn_maint_wq);
-    destroy_workqueue(cn->cn_io_wq);
+    flush_workqueue(cn->cn_maint_wq);
+    flush_workqueue(cn->cn_io_wq);
     cn_tree_destroy(cn->cn_tree);
     cn_tstate_destroy(cn->cn_tstate);
     if (!cn->cn_replay)
@@ -1253,13 +1234,10 @@ merr_t
 cn_close(struct cn *cn)
 {
     u64        report_ns = 5 * NSEC_PER_SEC;
-    void *     maint_wq = cn->cn_maint_wq;
-    void *     io_wq = cn->cn_io_wq;
     u64        next_report;
     useconds_t dlymax, dly;
     bool       cancel;
 
-    cn->cn_maintenance_stop = true;
     cn->cn_closing = true;
 
     cancel = !cn->rp->cn_close_wait;
@@ -1269,7 +1247,10 @@ cn_close(struct cn *cn)
     /* Wait for the cn maint thread to exit.  Any async kvset destroys
      * that may have started will be waited on by the cn_refcnt loop.
      */
-    flush_workqueue(maint_wq);
+    if (cn->cn_maint_wq && cn_is_capped(cn)) {
+        while (!cancel_delayed_work(&cn->cn_maint_dwork))
+            usleep(1000);
+    }
 
     if (cn->csched && !cn->cn_replay)
         csched_tree_remove(cn->csched, cn->cn_tree, cancel);
@@ -1297,10 +1278,12 @@ cn_close(struct cn *cn)
 
     /* The maint and I/O workqueues should be idle at this point...
      */
-    flush_workqueue(maint_wq);
-    flush_workqueue(io_wq);
-    cn->cn_maint_wq = NULL;
-    cn->cn_io_wq = NULL;
+    if (cn->cn_maint_wq) {
+        flush_workqueue(cn->cn_maint_wq);
+        flush_workqueue(cn->cn_io_wq);
+        cn->cn_maint_wq = NULL;
+        cn->cn_io_wq = NULL;
+    }
 
     cndb_cn_close(cn->cn_cndb, cn->cn_cnid);
     cndb_putref(cn->cn_cndb);
@@ -1308,10 +1291,7 @@ cn_close(struct cn *cn)
     cn_tree_destroy(cn->cn_tree);
     cn_tstate_destroy(cn->cn_tstate);
 
-    destroy_workqueue(maint_wq);
-    destroy_workqueue(io_wq);
     cn_perfc_free(cn);
-
     free_aligned(cn);
 
     return 0;
@@ -1320,6 +1300,9 @@ cn_close(struct cn *cn)
 void
 cn_periodic(struct cn *cn, u64 now)
 {
+    if (kvdb_health_check(cn->cn_kvdb_health, KVDB_HEALTH_FLAG_ALL))
+        cn->rp->cn_maint_disable = true;
+
     if (!PERFC_ISON(&cn->cn_pc_shape_rnode))
         return;
 

@@ -55,7 +55,7 @@ oparms=(
     csched_leaf_comp_params=0x0001ff
     csched_qthreads=0x080808
     kvs-oparms
-    cn_close_wait=1
+    cn_close_wait=true
     cn_node_size_lo=32
     cn_node_size_hi=32)
 

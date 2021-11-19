@@ -33,11 +33,13 @@
 struct kvs_rparams {
     uint64_t kvs_cursor_ttl;
     bool     transactions_enable;
-    uint8_t  perfc_level;
-
     bool     cn_maint_disable;
-    uint64_t cn_maint_delay;
-    uint64_t cn_maint_threads;
+    bool     cn_close_wait;
+    bool     cn_diag_mode;
+    bool     cn_verify;
+    bool     read_only;
+    uint8_t  perfc_level;
+    uint32_t cn_maint_delay;
     uint64_t cn_compaction_debug; /* 1=compact, 2=ingest */
 
     uint64_t cn_compact_kblk_ra;
@@ -73,13 +75,6 @@ struct kvs_rparams {
     uint64_t vblock_size;
 
     uint64_t capped_evict_ttl;
-
-    uint64_t cn_io_threads;
-    uint64_t cn_close_wait;
-    bool     cn_diag_mode;
-    bool     cn_verify;
-
-    bool read_only;
 
     char mclass_policy[HSE_MPOLICY_NAME_LEN_MAX];
 

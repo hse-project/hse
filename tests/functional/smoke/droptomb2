@@ -16,7 +16,7 @@ kvs=$(kvs_create smoke-0) || $?
 
 sp='[[:space:]]'
 
-parms='kvdb-oparms csched_debug_mask=0xffffffff kvs-oparms cn_close_wait=1'
+parms='kvdb-oparms csched_debug_mask=0xffffffff kvs-oparms cn_close_wait=true'
 
 # Generate 8 kvsets in root node, with distinct keys
 for ((i = 0; i < 8; i++)); do
@@ -25,7 +25,7 @@ done
 
 # Let compaction run, which should spill all keys into level 1, then verify
 # no kvsets in level 0
-cmd putbin -n 1000 "$home" $kvs kvs-oparms cn_close_wait=1 $parms
+cmd putbin -n 1000 "$home" $kvs kvs-oparms cn_close_wait=true $parms
 cmd cn_metrics "$home" $kvs | cmd -e grep -P "^k${sp}+0,0,0${sp}"
 
 # Repeat putbin, but with -D to add tombstones

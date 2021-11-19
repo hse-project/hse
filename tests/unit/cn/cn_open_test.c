@@ -11,6 +11,7 @@
 
 #include <hse_ikvdb/kvs_cparams.h>
 #include <hse_ikvdb/cn.h>
+#include <hse_ikvdb/cn_kvdb.h>
 #include <hse_ikvdb/kvdb_health.h>
 
 #include <cn/cn_tree.h>
@@ -31,6 +32,7 @@ fini(struct mtf_test_info *lcl_ti)
 }
 
 /* cn_open params */
+struct cn_kvdb    *cn_kvdb;
 struct mpool *     ds;
 struct kvdb_kvs *  kk;
 struct cndb *      cndb;
@@ -44,7 +46,7 @@ struct kvs_cparams cp = {
     .fanout = 16,
 };
 
-#define CN_OPEN_ARGS 0, ds, kk, cndb, cnid, rp, mp, kvs, h, flags
+#define CN_OPEN_ARGS cn_kvdb, ds, kk, cndb, cnid, rp, mp, kvs, h, flags
 
 /* Prefer the mapi_inject_list method for mocking functions over the
  * MOCK_SET/MOCK_UNSET macros if the mock simply needs to return a
@@ -90,6 +92,8 @@ setup_mocks(void)
 static int
 pre(struct mtf_test_info *lcl_ti)
 {
+    merr_t err;
+
     setup_mocks();
 
     ds = (void *)-1;
@@ -104,12 +108,15 @@ pre(struct mtf_test_info *lcl_ti)
     h = &health;
     flags = 0;
 
-    return 0;
+    err = cn_kvdb_create(4, 4, &cn_kvdb);
+
+    return merr_errno(err);
 }
 
 static int
 post(struct mtf_test_info *lcl_ti)
 {
+    cn_kvdb_destroy(cn_kvdb);
     return 0;
 }
 
