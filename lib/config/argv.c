@@ -20,7 +20,7 @@
 
 #include "logging.h"
 
-hse_static merr_t
+MTF_STATIC merr_t
 argv_deserialize_to_params(
     const size_t                   paramc,
     const char *const *const       paramv,

@@ -354,7 +354,7 @@ if 'python' in bindings
     hse_python = subproject(
         'hse-python',
         default_options: [
-            'tests=false',
+            'tests=@0@'.format(get_option('tests')),
         ]
     )
 

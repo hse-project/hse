@@ -111,9 +111,9 @@
 #endif
 
 #if HSE_MOCKING
-#define hse_static              HSE_WEAK
+#define MTF_STATIC              HSE_WEAK
 #else
-#define hse_static              static
+#define MTF_STATIC              static
 #endif
 
 /* clang-format on */

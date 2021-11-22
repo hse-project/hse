@@ -7,38 +7,34 @@
 
 #include <bsd/string.h>
 #include <cjson/cJSON.h>
-#include <yaml.h>
+
+#include <cli/tprint.h>
 
 #include <hse/hse.h>
+#include <hse_util/base.h>
 #include <hse_util/invariant.h>
 #include <hse_util/rest_client.h>
 
 #include <pidfile/pidfile.h>
 
-#define MEDIA_CLASS_KEY     "media_class"
-#define PATH_KEY            "path"
-#define USED_BYTES_KEY      "used_bytes"
-#define ALLOCATED_BYTES_KEY "allocated_bytes"
-
 static const char *const media_classes[] = {
-    HSE_MCLASS_CAPACITY_NAME, HSE_MCLASS_STAGING_NAME
+    HSE_MCLASS_CAPACITY_NAME, HSE_MCLASS_STAGING_NAME, HSE_MCLASS_PMEM_NAME
 };
-
-#define NUM_MCLASSES (sizeof(media_classes) / sizeof(media_classes[0]))
 
 int
 hse_storage_info(const char *const kvdb_home)
 {
-    hse_err_t               err;
+    static const char *const headers[] = { "MEDIA_CLASS", "ALLOCATED_BYTES", "USED_BYTES", "PATH" };
+
+    hse_err_t               err = 0;
     struct hse_kvdb *       kvdb = NULL;
-    struct hse_mclass_info  info[NUM_MCLASSES];
-    yaml_emitter_t          emitter = {};
-    yaml_event_t            event;
+    struct hse_mclass_info  info[NELEM(media_classes)];
     int                     rc = 0;
     struct pidfile          content;
     char                    url[128];
     char                    buf[1024];
-    bool                    configured[NUM_MCLASSES] = {};
+    char                    nums[NELEM(media_classes)][2][21];
+    const char *            values[NELEM(headers) * NELEM(media_classes)];
     cJSON *                 root;
     HSE_MAYBE_UNUSED size_t n;
 
@@ -47,23 +43,23 @@ hse_storage_info(const char *const kvdb_home)
 
     err = hse_kvdb_open(kvdb_home, 0, NULL, &kvdb);
     if (!err) {
-        for (size_t i = 0; i < NUM_MCLASSES; i++) {
+        for (size_t i = 0; i < NELEM(media_classes); i++) {
             err = hse_kvdb_mclass_info_get(kvdb, media_classes[i], &info[i]);
             if (err) {
-                if (hse_err_to_errno(err) == ENOENT)
+                if (hse_err_to_errno(err) == ENOENT) {
+                    err = 0;
                     continue;
+                }
 
                 goto out;
             }
-
-            configured[i] = true;
         }
     } else if (err && hse_err_to_errno(err) == EBUSY) {
         rc = pidfile_deserialize(kvdb_home, &content);
         if (rc)
             goto out;
 
-        for (size_t i = 0; i < NUM_MCLASSES; i++) {
+        for (size_t i = 0; i < NELEM(media_classes); i++) {
             struct hse_mclass_info *data = &info[i];
 
             rc = snprintf(
@@ -97,8 +93,6 @@ hse_storage_info(const char *const kvdb_home)
                 }
             }
 
-            configured[i] = true;
-
             n = strlcpy(
                 data->mi_path, cJSON_GetStringValue(cJSON_GetObjectItemCaseSensitive(root, "path")),
                 sizeof(data->mi_path));
@@ -112,199 +106,41 @@ hse_storage_info(const char *const kvdb_home)
         return hse_err_to_errno(err);
     }
 
-    if (!yaml_emitter_initialize(&emitter)) {
-        rc = EIO;
-        goto out;
-    }
+    for (size_t i = 0; i < NELEM(media_classes); i++) {
+        const int base = i * NELEM(headers);
+        values[base] = media_classes[i];
 
-    yaml_emitter_set_output_file(&emitter, stdout);
-
-    yaml_stream_start_event_initialize(&event, YAML_UTF8_ENCODING);
-    if (!yaml_emitter_emit(&emitter, &event)) {
-        rc = EIO;
-        goto out;
-    }
-
-    yaml_document_start_event_initialize(&event, NULL, NULL, NULL, 0);
-    if (!yaml_emitter_emit(&emitter, &event)) {
-        rc = EIO;
-        goto out;
-    }
-
-    yaml_sequence_start_event_initialize(
-        &event, NULL, (yaml_char_t *)YAML_SEQ_TAG, 1, YAML_ANY_SEQUENCE_STYLE);
-    if (!yaml_emitter_emit(&emitter, &event)) {
-        rc = EIO;
-        goto out;
-    }
-
-    for (size_t i = 0; i < NUM_MCLASSES; i++) {
-        if (!configured[i])
-            continue;
-
-        yaml_mapping_start_event_initialize(
-            &event, NULL, (yaml_char_t *)YAML_MAP_TAG, 1, YAML_ANY_MAPPING_STYLE);
-        if (!yaml_emitter_emit(&emitter, &event)) {
-            rc = EIO;
-            goto out;
-        }
-
-        yaml_scalar_event_initialize(
-            &event,
-            NULL,
-            (yaml_char_t *)YAML_STR_TAG,
-            (yaml_char_t *)MEDIA_CLASS_KEY,
-            sizeof(MEDIA_CLASS_KEY) - 1,
-            1,
-            0,
-            YAML_PLAIN_SCALAR_STYLE);
-        if (!yaml_emitter_emit(&emitter, &event)) {
-            rc = EIO;
-            goto out;
-        }
-
-        yaml_scalar_event_initialize(
-            &event,
-            NULL,
-            (yaml_char_t *)YAML_STR_TAG,
-            (yaml_char_t *)media_classes[i],
-            strlen(media_classes[i]),
-            1,
-            0,
-            YAML_PLAIN_SCALAR_STYLE);
-        if (!yaml_emitter_emit(&emitter, &event)) {
-            rc = EIO;
-            goto out;
-        }
-
-        yaml_scalar_event_initialize(
-            &event,
-            NULL,
-            (yaml_char_t *)YAML_STR_TAG,
-            (yaml_char_t *)PATH_KEY,
-            sizeof(PATH_KEY) - 1,
-            1,
-            0,
-            YAML_PLAIN_SCALAR_STYLE);
-        if (!yaml_emitter_emit(&emitter, &event)) {
-            rc = EIO;
-            goto out;
-        }
-
-        yaml_scalar_event_initialize(
-            &event,
-            NULL,
-            (yaml_char_t *)YAML_STR_TAG,
-            (yaml_char_t *)info[i].mi_path,
-            strnlen(info[i].mi_path, sizeof(info[i].mi_path)),
-            1,
-            0,
-            YAML_PLAIN_SCALAR_STYLE);
-        if (!yaml_emitter_emit(&emitter, &event)) {
-            rc = EIO;
-            goto out;
-        }
-
-        yaml_scalar_event_initialize(
-            &event,
-            NULL,
-            (yaml_char_t *)YAML_STR_TAG,
-            (yaml_char_t *)ALLOCATED_BYTES_KEY,
-            sizeof(ALLOCATED_BYTES_KEY) - 1,
-            1,
-            0,
-            YAML_PLAIN_SCALAR_STYLE);
-        if (!yaml_emitter_emit(&emitter, &event)) {
-            rc = EIO;
-            goto out;
-        }
-
-        rc = snprintf(buf, sizeof(buf), "%lu", info[i].mi_allocated_bytes);
-        if (rc < 0) {
-            return EBADMSG;
-        } else if (rc >= sizeof(buf)) {
-            return EMSGSIZE;
-        }
-
-        yaml_scalar_event_initialize(
-            &event,
-            NULL,
-            (yaml_char_t *)YAML_STR_TAG,
-            (yaml_char_t *)buf,
-            strnlen(buf, sizeof(buf)),
-            1,
-            0,
-            YAML_PLAIN_SCALAR_STYLE);
-        if (!yaml_emitter_emit(&emitter, &event)) {
-            rc = EIO;
-            goto out;
-        }
-
-        yaml_scalar_event_initialize(
-            &event,
-            NULL,
-            (yaml_char_t *)YAML_STR_TAG,
-            (yaml_char_t *)USED_BYTES_KEY,
-            sizeof(USED_BYTES_KEY) - 1,
-            1,
-            0,
-            YAML_PLAIN_SCALAR_STYLE);
-        if (!yaml_emitter_emit(&emitter, &event)) {
-            rc = EIO;
-            goto out;
-        }
-
-        rc = snprintf(buf, sizeof(buf), "%lu", info[i].mi_used_bytes);
+        rc = snprintf(nums[i][0], sizeof(nums[i][0]), "%lu", info[i].mi_allocated_bytes);
         if (rc < 0) {
             rc = EBADMSG;
             goto out;
-        } else if (rc >= sizeof(buf)) {
+        } else if (rc >= sizeof(nums[i][0])) {
             rc = EMSGSIZE;
             goto out;
+        } else {
+            rc = 0;
         }
+        values[base + 1] = nums[i][0];
 
-        yaml_scalar_event_initialize(
-            &event,
-            NULL,
-            (yaml_char_t *)YAML_STR_TAG,
-            (yaml_char_t *)buf,
-            strnlen(buf, sizeof(buf)),
-            1,
-            0,
-            YAML_PLAIN_SCALAR_STYLE);
-        if (!yaml_emitter_emit(&emitter, &event)) {
-            rc = EIO;
+        rc = snprintf(nums[i][1], sizeof(nums[i][1]), "%lu", info[i].mi_used_bytes);
+        if (rc < 0) {
+            rc = EBADMSG;
             goto out;
-        }
-
-        yaml_mapping_end_event_initialize(&event);
-        if (!yaml_emitter_emit(&emitter, &event)) {
-            rc = EIO;
+        } else if (rc >= sizeof(nums[i][0])) {
+            rc = EMSGSIZE;
             goto out;
+        } else {
+            rc = 0;
         }
+        values[base + 2] = nums[i][1];
+
+        values[base + 3] = info[i].mi_path;
     }
 
-    yaml_sequence_end_event_initialize(&event);
-    if (!yaml_emitter_emit(&emitter, &event)) {
-        rc = EIO;
-        goto out;
-    }
-
-    yaml_document_end_event_initialize(&event, 0);
-    if (!yaml_emitter_emit(&emitter, &event)) {
-        rc = EIO;
-        goto out;
-    }
-
-    yaml_stream_end_event_initialize(&event);
-    if (!yaml_emitter_emit(&emitter, &event)) {
-        rc = EIO;
-        goto out;
-    }
+    tprint(stdout, NELEM(media_classes), NELEM(headers), headers,
+        values, NULL);
 
 out:
-    yaml_emitter_delete(&emitter);
-
     if (kvdb)
         hse_kvdb_close(kvdb);
 

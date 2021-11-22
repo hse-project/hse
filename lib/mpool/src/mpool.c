@@ -403,12 +403,7 @@ mpool_mclass_props_get(struct mpool *mp, enum mpool_mclass mclass, struct mpool_
     if (!mc)
         return merr(ENOENT);
 
-    const struct mblock_fset *mbfsp = mclass_fset(mc);
-
-    props->mc_fmaxsz = mblock_fset_fmaxsz_get(mbfsp);
-    props->mc_mblocksz = mclass_mblocksz_get(mc) >> MB_SHIFT;
-    props->mc_filecnt = mblock_fset_filecnt_get(mbfsp);
-    strlcpy(props->mc_path, mclass_upath(mc), sizeof(props->mc_path));
+    mclass_props_get(mc, props);
 
     return 0;
 }

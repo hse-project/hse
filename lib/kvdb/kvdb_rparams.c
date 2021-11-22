@@ -418,14 +418,16 @@ dur_mclass_stringify(
     const size_t                   buf_sz,
     size_t *const                  needed_sz)
 {
-    int         n;
-    const char *param;
+    int                     n;
+    const char *            param;
+    const enum mpool_mclass mc = *(const enum mpool_mclass *)value;
 
     INVARIANT(ps);
     INVARIANT(value);
+    INVARIANT(mc < MD_MED_COUNT && mc >= MP_MED_BASE);
     INVARIANT(buf);
 
-    param = mpool_mclass_to_string[*(enum mpool_mclass *)value];
+    param = mpool_mclass_to_string[mc];
 
     n = snprintf(buf, buf_sz, "\"%s\"", param);
     if (n < 0)

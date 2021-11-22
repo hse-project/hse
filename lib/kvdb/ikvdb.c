@@ -1970,7 +1970,8 @@ ikvdb_kvs_open(
 
     for (i = MP_MED_BASE; i < MP_MED_COUNT; i++) {
         if (strstr(params->mclass_policy, mpool_mclass_to_string[i])) {
-            err = mpool_mclass_props_get(self->ikdb_mp, i, NULL);
+            struct mpool_mclass_props props;
+            err = mpool_mclass_props_get(self->ikdb_mp, i, &props);
             if (err) {
                 if (merr_errno(err) == ENOENT)
                     log_err("%s media not configured, cannot use \"%s\" mclass policy for KVS %s",

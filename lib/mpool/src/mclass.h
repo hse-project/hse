@@ -176,6 +176,14 @@ mclass_gclose_get(struct media_class *mc);
 merr_t
 mclass_info_get(struct media_class *mc, struct hse_mclass_info *info);
 
+/** @brief Get properties of a media class.
+ *
+ * @param mc: Media class.
+ * @param props: Media class properties.
+ */
+void
+mclass_props_get(struct media_class *mc, struct mpool_mclass_props *props);
+
 /**
  * mclass_ftw() - walk mclass files matching prefix and invoke callback for each file
  *

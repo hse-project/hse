@@ -1964,9 +1964,11 @@ MTF_DEFINE_UTEST_PREPOST(ikvdb_test, get_kvs_param, test_pre, test_post)
     err = ikvdb_kvs_create(kvdb, "kvs", &kvs_cp);
     ASSERT_EQ(0, err);
 
+    mapi_inject(mapi_idx_mpool_mclass_props_get, 0);
     err = ikvdb_kvs_open(kvdb, "kvs", &kvs_rp, 0, &kvs);
     ASSERT_EQ(0, err);
     ASSERT_NE(NULL, kvs);
+    mapi_inject_unset(mapi_idx_mpool_mclass_props_get);
 
     err = ikvdb_kvs_param_get(kvs, "compression.value.algorithm", buf, sizeof(buf), &needed_sz);
     ASSERT_EQ(0, merr_errno(err));

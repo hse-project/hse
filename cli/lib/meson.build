@@ -1,6 +1,7 @@
 cli_sources = [
     files(
         'param.c',
+        'tprint.c'
     ),
 ]
 

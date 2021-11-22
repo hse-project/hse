@@ -403,6 +403,15 @@ mclass_info_get(struct media_class *mc, struct hse_mclass_info *info)
     return 0;
 }
 
+void
+mclass_props_get(struct media_class *const mc, struct mpool_mclass_props *const props)
+{
+    props->mc_fmaxsz = mblock_fset_fmaxsz_get(mc->mbfsp);
+    props->mc_mblocksz = mc->mblocksz >> MB_SHIFT;
+    props->mc_filecnt = mblock_fset_filecnt_get(mc->mbfsp);
+    strlcpy(props->mc_path, mc->upath, sizeof(props->mc_path));
+}
+
 merr_t
 mclass_ftw(struct media_class *mc, const char *prefix, struct mpool_file_cb *cb)
 {

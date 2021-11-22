@@ -913,7 +913,7 @@ param_get(
         ps, (char *)params->p_params.as_generic + ps->ps_offset, buf, buf_sz, needed_sz);
 }
 
-hse_static size_t
+MTF_STATIC size_t
 params_size(const struct params *const params)
 {
     switch (params->p_type) {
@@ -1019,6 +1019,14 @@ param_set(
 
     rc = pthread_mutex_lock(&lock);
     assert(!rc);
+
+    /* [HSE_REVISIT]: This is a race condition. The way params are currently
+     * designed doesn't allow for mutexes to be a part of the equation easily.
+     * So when we do this memcpy(), there is a chance someone somewhere could be
+     * reading the exact same value we are changing. I think one solution we
+     * could follow-up with is a registration system, where components register
+     * to be notified when values change.
+     */
 
     assert(ps->ps_size > 0);
     memcpy((char *)params->p_params.as_generic + ps->ps_offset, data, ps->ps_size);

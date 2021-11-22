@@ -498,12 +498,13 @@ wal_op_finish(struct wal *wal, struct wal_record *rec, uint64_t seqno, uint64_t 
 merr_t
 wal_create(struct mpool *mp, uint64_t *mdcid1, uint64_t *mdcid2)
 {
-    struct wal_mdc *mdc;
-    merr_t err;
-    int    i;
+    struct wal_mdc *          mdc;
+    merr_t                    err;
+    int                       i;
+    struct mpool_mclass_props props;
 
     for (i = MP_MED_COUNT - 1; i >= MP_MED_BASE; i--) {
-        err = mpool_mclass_props_get(mp, i, NULL);
+        err = mpool_mclass_props_get(mp, i, &props);
         if (!err)
             break;
     }

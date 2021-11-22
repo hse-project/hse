@@ -1164,19 +1164,17 @@ cli_hse_storage_info(struct cli_cmd *self, struct cli *cli)
     const struct cmd_spec spec = {
         .usagev =
             {
-                "[options] <kvdb_home> <media_class> ...",
+                "[options] <kvdb_home>",
                 NULL,
             },
         .optionv =
             {
                 OPTION_HELP,
-                { "-v, --verbose", "Verbose output" },
                 { NULL },
             },
         .longoptv =
             {
                 { "help", no_argument, 0, 'h' },
-                { "verbose", no_argument, 0, 'v' },
                 { NULL },
             },
         .configv =

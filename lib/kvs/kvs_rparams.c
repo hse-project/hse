@@ -104,7 +104,7 @@ compression_value_algorithm_stringify(
     size_t *const                  needed_sz)
 {
     int         n;
-    const char *param;
+    const char *param = NULL;
 
     INVARIANT(ps);
     INVARIANT(value);
@@ -119,9 +119,9 @@ compression_value_algorithm_stringify(
         case VCOMP_ALGO_LZ4:
             param = VCOMP_PARAM_LZ4;
             break;
-        default:
-            abort();
     }
+
+    assert(param);
 
     n = snprintf(buf, buf_sz, "\"%s\"", param);
     if (n < 0)
@@ -146,9 +146,9 @@ compression_value_jsonify(const struct param_spec *const ps, const void *const v
             return cJSON_CreateString(VCOMP_PARAM_NONE);
         case VCOMP_ALGO_LZ4:
             return cJSON_CreateString(VCOMP_PARAM_LZ4);
-        default:
-            abort();
     }
+
+    abort();
 }
 
 static const struct param_spec pspecs[] = {
