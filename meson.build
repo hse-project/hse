@@ -441,7 +441,7 @@ if gcovr.found() and get_option('b_coverage') and get_option('tests')
     reports = {
         'text': [ '-o' ],
         'html': [ '--html', '--html-details', '-o' ],
-        'json': [ '--json-pretty', '-o' ],
+        'json': [ '--json-summary-pretty', '-o' ],
         'xml': [ '--sonarqube' ],
     }
 
