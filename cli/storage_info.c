@@ -17,10 +17,6 @@
 
 #include <pidfile/pidfile.h>
 
-static const char *const media_classes[] = {
-    HSE_MCLASS_CAPACITY_NAME, HSE_MCLASS_STAGING_NAME, HSE_MCLASS_PMEM_NAME
-};
-
 int
 hse_storage_info(const char *const kvdb_home)
 {
@@ -28,13 +24,13 @@ hse_storage_info(const char *const kvdb_home)
 
     hse_err_t               err = 0;
     struct hse_kvdb *       kvdb = NULL;
-    struct hse_mclass_info  info[NELEM(media_classes)];
+    struct hse_mclass_info  info[HSE_MCLASS_COUNT];
     int                     rc = 0;
     struct pidfile          content;
     char                    url[128];
     char                    buf[1024];
-    char                    nums[NELEM(media_classes)][2][21];
-    const char *            values[NELEM(headers) * NELEM(media_classes)];
+    char                    nums[HSE_MCLASS_COUNT][2][21];
+    const char *            values[NELEM(headers) * HSE_MCLASS_COUNT];
     cJSON *                 root;
     HSE_MAYBE_UNUSED size_t n;
 
@@ -43,8 +39,8 @@ hse_storage_info(const char *const kvdb_home)
 
     err = hse_kvdb_open(kvdb_home, 0, NULL, &kvdb);
     if (!err) {
-        for (size_t i = 0; i < NELEM(media_classes); i++) {
-            err = hse_kvdb_mclass_info_get(kvdb, media_classes[i], &info[i]);
+        for (size_t i = HSE_MCLASS_BASE; i < HSE_MCLASS_COUNT; i++) {
+            err = hse_kvdb_mclass_info_get(kvdb, i, &info[i]);
             if (err) {
                 if (hse_err_to_errno(err) == ENOENT) {
                     err = 0;
@@ -59,11 +55,11 @@ hse_storage_info(const char *const kvdb_home)
         if (rc)
             goto out;
 
-        for (size_t i = 0; i < NELEM(media_classes); i++) {
+        for (int i = HSE_MCLASS_BASE; i < HSE_MCLASS_COUNT; i++) {
             struct hse_mclass_info *data = &info[i];
 
             rc = snprintf(
-                url, sizeof(url), "kvdb/%s/mclass/%s/info", content.alias, media_classes[i]);
+                url, sizeof(url), "kvdb/%s/mclass/%s/info", content.alias, hse_mclass_name_get(i));
             if (rc < 0) {
                 rc = EBADMSG;
                 goto out;
@@ -106,9 +102,9 @@ hse_storage_info(const char *const kvdb_home)
         return hse_err_to_errno(err);
     }
 
-    for (size_t i = 0; i < NELEM(media_classes); i++) {
+    for (int i = HSE_MCLASS_BASE; i < HSE_MCLASS_COUNT; i++) {
         const int base = i * NELEM(headers);
-        values[base] = media_classes[i];
+        values[base] = hse_mclass_name_get(i);
 
         rc = snprintf(nums[i][0], sizeof(nums[i][0]), "%lu", info[i].mi_allocated_bytes);
         if (rc < 0) {
@@ -137,7 +133,7 @@ hse_storage_info(const char *const kvdb_home)
         values[base + 3] = info[i].mi_path;
     }
 
-    tprint(stdout, NELEM(media_classes), NELEM(headers), headers,
+    tprint(stdout, HSE_MCLASS_COUNT, NELEM(headers), headers,
         values, NULL);
 
 out:

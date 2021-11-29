@@ -99,7 +99,7 @@ ikvdb_drop(const char *kvdb_home);
  * @returns Error status.
  */
 merr_t
-ikvdb_mclass_info_get(struct ikvdb *kvdb, enum mpool_mclass mclass, struct hse_mclass_info *info);
+ikvdb_mclass_info_get(struct ikvdb *kvdb, enum hse_mclass mclass, struct hse_mclass_info *info);
 
 /**
  * Add media class to a KVDB

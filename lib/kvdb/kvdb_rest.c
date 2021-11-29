@@ -302,14 +302,14 @@ rest_kvdb_mclass_info_get(
     void *            context)
 {
     merr_t                 err = 0;
-    enum mpool_mclass      mclass = MP_MED_INVALID;
+    enum hse_mclass        mclass = MP_MED_INVALID;
     struct hse_mclass_info mc_info;
     cJSON *                root;
     char *                 str;
 
-    for (int i = MP_MED_BASE; i < MP_MED_COUNT; i++) {
+    for (int i = HSE_MCLASS_BASE; i < HSE_MCLASS_COUNT; i++) {
         if (strstr(path, mpool_mclass_to_string[i])) {
-            mclass = (enum mpool_mclass)i;
+            mclass = (enum hse_mclass)i;
             break;
         }
     }

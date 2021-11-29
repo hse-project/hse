@@ -22,14 +22,14 @@
  * @MP_MED_PMEM:     WAL, Initial data ingest, hot data storage, or similar.
  */
 enum mpool_mclass {
-    MP_MED_CAPACITY = 0,
-    MP_MED_STAGING  = 1,
-    MP_MED_PMEM     = 2,
+    MP_MED_CAPACITY = HSE_MCLASS_CAPACITY,
+    MP_MED_STAGING  = HSE_MCLASS_STAGING,
+    MP_MED_PMEM     = HSE_MCLASS_PMEM,
 };
 
-#define MP_MED_BASE            MP_MED_CAPACITY
-#define MP_MED_MAX             MP_MED_PMEM
-#define MP_MED_COUNT           (MP_MED_MAX + 1)
+#define MP_MED_BASE            HSE_MCLASS_BASE
+#define MP_MED_MAX             HSE_MCLASS_MAX
+#define MP_MED_COUNT           HSE_MCLASS_COUNT
 #define MP_MED_INVALID         U8_MAX
 
 #define MPOOL_CAPACITY_MCLASS_DEFAULT_PATH "capacity"

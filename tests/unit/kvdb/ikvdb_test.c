@@ -1948,12 +1948,12 @@ MTF_DEFINE_UTEST_PREPOST(ikvdb_test, get_param, test_pre, test_post)
 MTF_DEFINE_UTEST_PREPOST(ikvdb_test, get_kvs_param, test_pre, test_post)
 {
     merr_t          err;
-	char            buf[128];
-	size_t          needed_sz;
+    char            buf[128];
+    size_t          needed_sz;
     struct ikvdb *  kvdb;
     struct hse_kvs *kvs;
 
-	struct kvdb_rparams kvdb_rp = kvdb_rparams_defaults();
+    struct kvdb_rparams kvdb_rp = kvdb_rparams_defaults();
     struct kvs_rparams  kvs_rp = kvs_rparams_defaults();
     struct kvs_cparams  kvs_cp = kvs_cparams_defaults();
 

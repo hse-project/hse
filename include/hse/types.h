@@ -75,6 +75,19 @@ enum hse_err_ctx {
  */
 struct hse_kvdb;
 
+/** @enum hse_mclass
+ * @brief Media classes.
+ */
+enum hse_mclass {
+    HSE_MCLASS_CAPACITY = 0,
+    HSE_MCLASS_STAGING = 1,
+    HSE_MCLASS_PMEM = 2,
+};
+
+#define HSE_MCLASS_BASE  HSE_MCLASS_CAPACITY  /**< Capacity media class. */
+#define HSE_MCLASS_MAX   HSE_MCLASS_PMEM      /**< Staging media class. */
+#define HSE_MCLASS_COUNT (HSE_MCLASS_MAX + 1) /**< PMEM media class. */
+
 #define HSE_MCLASS_CAPACITY_NAME "capacity" /**< Capacity media class name. */
 #define HSE_MCLASS_STAGING_NAME  "staging"  /**< Staging media class name. */
 #define HSE_MCLASS_PMEM_NAME     "pmem"     /**< PMEM media class name. */

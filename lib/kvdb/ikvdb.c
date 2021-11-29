@@ -577,7 +577,7 @@ ikvdb_drop(const char *const kvdb_home)
 merr_t
 ikvdb_mclass_info_get(
     struct ikvdb *const           kvdb,
-    const enum mpool_mclass       mclass,
+    const enum hse_mclass         mclass,
     struct hse_mclass_info *const info)
 {
     struct ikvdb_impl *self;
@@ -587,7 +587,7 @@ ikvdb_mclass_info_get(
 
     self = ikvdb_h2r(kvdb);
 
-    return mpool_mclass_info_get(self->ikdb_mp, mclass, info);
+    return mpool_mclass_info_get(self->ikdb_mp, (enum mpool_mclass)mclass, info);
 }
 
 static inline void

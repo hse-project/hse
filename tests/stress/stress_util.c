@@ -281,22 +281,15 @@ print_storage_info(struct hse_kvdb *kvdb)
     struct hse_mclass_info info;
     char                   buf[256];
 
-    err = hse_kvdb_mclass_info_get(kvdb, HSE_MCLASS_CAPACITY_NAME, &info);
-    if (err) {
-        hse_strerror(err, buf, sizeof(buf));
-        log_error("hse_kvdb_storage_info_get: errno=%d msg=\"%s\"", hse_err_to_errno(err), buf);
-    } else {
-        log_info("capacity: allocated_bytes=%ld used_bytes=%ld",
-            info.mi_allocated_bytes, info.mi_used_bytes);
-    }
-
-    err = hse_kvdb_mclass_info_get(kvdb, HSE_MCLASS_STAGING_NAME, &info);
-    if (err) {
-        hse_strerror(err, buf, sizeof(buf));
-        log_error("hse_kvdb_storage_info_get: errno=%d msg=\"%s\"", hse_err_to_errno(err), buf);
-    } else {
-        log_info("staging: allocated_bytes=%ld used_bytes=%ld",
-            info.mi_allocated_bytes, info.mi_used_bytes);
+    for (int i = HSE_MCLASS_BASE; i < HSE_MCLASS_COUNT; i++) {
+        err = hse_kvdb_mclass_info_get(kvdb, i, &info);
+        if (err) {
+            hse_strerror(err, buf, sizeof(buf));
+            log_error("hse_kvdb_storage_info_get: errno=%d msg=\"%s\"", hse_err_to_errno(err), buf);
+        } else {
+            log_info("%s: allocated_bytes=%ld used_bytes=%ld", hse_mclass_name_get(i),
+                info.mi_allocated_bytes, info.mi_used_bytes);
+        }
     }
 }
 

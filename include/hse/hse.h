@@ -286,14 +286,12 @@ hse_kvdb_kvs_names_free(struct hse_kvdb *kvdb, char **namev);
  * @param[out] info: Media class information object.
  *
  * @remark @p kvdb must not be NULL.
- * @remark @p mclass must not be NULL.
- * @remark @p mclass must be a valid media class.
  * @remark @p info must not be NULL.
  *
  * @returns Error status.
  */
 hse_err_t
-hse_kvdb_mclass_info_get(struct hse_kvdb *kvdb, const char *mclass, struct hse_mclass_info *info);
+hse_kvdb_mclass_info_get(struct hse_kvdb *kvdb, enum hse_mclass mclass, struct hse_mclass_info *info);
 
 /** @brief Open a KVDB.
  *
@@ -380,6 +378,16 @@ hse_kvdb_storage_add(const char *kvdb_home, size_t paramc, const char *const *pa
 /* MTF_MOCK */
 hse_err_t
 hse_kvdb_sync(struct hse_kvdb *kvdb, unsigned int flags);
+
+/** @brief Get the name of a media class.
+ *
+ * @note This function is thread safe.
+ *
+ * @param mclass: Media class.
+ *
+ * @returns Name of media class.
+ */
+const char *hse_mclass_name_get(enum hse_mclass mclass);
 
 /**@} KVDB */
 

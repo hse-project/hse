@@ -492,27 +492,15 @@ hse_kvdb_kvs_names_free(struct hse_kvdb *handle, char **namev)
 hse_err_t
 hse_kvdb_mclass_info_get(
     struct hse_kvdb *const        handle,
-    const char *const             mclass,
+    const enum hse_mclass         mclass,
     struct hse_mclass_info *const info)
 {
-    enum mpool_mclass mc = MP_MED_INVALID;
-
     if (HSE_UNLIKELY(!handle || !info))
-        return merr(EINVAL);
-
-    for (size_t i = 0; i < NELEM(mpool_mclass_to_string); i++) {
-        if (!strcmp(mclass, mpool_mclass_to_string[i])) {
-            mc = i;
-            break;
-        }
-    }
-
-    if (mc == MP_MED_INVALID)
         return merr(EINVAL);
 
     memset(info, 0, sizeof(*info));
 
-    return ikvdb_mclass_info_get((struct ikvdb *)handle, mc, info);
+    return ikvdb_mclass_info_get((struct ikvdb *)handle, mclass, info);
 }
 
 hse_err_t
@@ -956,6 +944,21 @@ hse_kvdb_sync(struct hse_kvdb *handle, const unsigned int flags)
     perfc_sl_record(&kvdb_pkvdbl_pc, PERFC_SL_PKVDBL_KVDB_SYNC, tstart);
 
     return err;
+}
+
+const char *
+hse_mclass_name_get(const enum hse_mclass mclass)
+{
+    switch (mclass) {
+    case HSE_MCLASS_CAPACITY:
+        return HSE_MCLASS_CAPACITY_NAME;
+    case HSE_MCLASS_STAGING:
+        return HSE_MCLASS_STAGING_NAME;
+    case HSE_MCLASS_PMEM:
+        return HSE_MCLASS_PMEM_NAME;
+    }
+
+    return NULL;
 }
 
 struct hse_kvdb_txn *
