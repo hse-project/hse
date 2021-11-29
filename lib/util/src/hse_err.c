@@ -3,9 +3,9 @@
  * Copyright (C) 2015-2021 Micron Technology, Inc.  All rights reserved.
  */
 
+#include <hse_util/assert.h>
 #include <hse_util/page.h>
 #include <hse_util/hse_err.h>
-#include <hse_util/invariant.h>
 
 #include <assert.h>
 #include <ctype.h>

@@ -21,9 +21,9 @@
 #include <hse_ikvdb/limits.h>
 #include <hse_ikvdb/kvdb_home.h>
 #include <hse_ikvdb/wal.h>
+#include <hse_util/assert.h>
 #include <hse_util/storage.h>
 #include <hse_util/compiler.h>
-#include <hse_util/invariant.h>
 #include <hse_ikvdb/csched.h>
 
 static void
@@ -309,7 +309,6 @@ mclass_policies_stringify(
 
     INVARIANT(ps);
     INVARIANT(value);
-    INVARIANT(buf);
 
     arr = ps->ps_jsonify(ps, value);
     if (!arr)
@@ -424,8 +423,7 @@ dur_mclass_stringify(
 
     INVARIANT(ps);
     INVARIANT(value);
-    INVARIANT(mc < MD_MED_COUNT && mc >= HSE_MCLASS_BASE);
-    INVARIANT(buf);
+    INVARIANT(mc < HSE_MCLASS_COUNT && mc >= HSE_MCLASS_BASE);
 
     param = mpool_mclass_to_string[mc];
 
@@ -489,7 +487,6 @@ throttle_init_policy_stringify(
 
     INVARIANT(ps);
     INVARIANT(value);
-    INVARIANT(buf);
 
     switch (*(uint *)value) {
         case THROTTLE_DELAY_START_DEFAULT:

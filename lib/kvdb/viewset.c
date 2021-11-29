@@ -3,13 +3,13 @@
  * Copyright (C) 2015-2021 Micron Technology, Inc.  All rights reserved.
  */
 
+#include <hse_util/assert.h>
 #include <hse_util/platform.h>
 #include <hse_util/alloc.h>
 #include <hse_util/slab.h>
 #include <hse_util/minmax.h>
 #include <hse_util/spinlock.h>
 #include <hse_util/mutex.h>
-#include <hse_util/invariant.h>
 #include <hse_util/log2.h>
 #include <hse_util/page.h>
 #include <hse_util/hse_err.h>

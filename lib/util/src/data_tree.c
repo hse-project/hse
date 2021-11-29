@@ -3,12 +3,12 @@
  * Copyright (C) 2015-2021 Micron Technology, Inc.  All rights reserved.
  */
 
+#include <hse_util/assert.h>
 #include <hse_util/platform.h>
 #include <hse_util/alloc.h>
 #include <hse_util/slab.h>
 #include <hse_util/mutex.h>
 #include <hse_util/list.h>
-#include <hse_util/invariant.h>
 #include <hse_util/event_counter.h>
 #include <hse_util/data_tree.h>
 

@@ -5,12 +5,11 @@
 
 #include <sys/statvfs.h>
 
+#include <hse_util/assert.h>
 #include <hse_util/event_counter.h>
-#include <hse_util/invariant.h>
 #include <hse_util/logging.h>
 #include <hse_util/page.h>
 #include <hse_util/slab.h>
-#include <hse_util/invariant.h>
 
 #include "omf.h"
 #include "mclass.h"

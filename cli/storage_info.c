@@ -11,8 +11,8 @@
 #include <cli/tprint.h>
 
 #include <hse/hse.h>
+#include <hse_util/assert.h>
 #include <hse_util/base.h>
-#include <hse_util/invariant.h>
 #include <hse_util/rest_client.h>
 
 #include <pidfile/pidfile.h>
@@ -35,7 +35,6 @@ hse_storage_info(const char *const kvdb_home)
     HSE_MAYBE_UNUSED size_t n;
 
     INVARIANT(kvdb_home);
-    INVARIANT(media_class);
 
     err = hse_kvdb_open(kvdb_home, 0, NULL, &kvdb);
     if (!err) {

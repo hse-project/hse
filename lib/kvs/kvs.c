@@ -9,6 +9,7 @@
 
 #include <hse/kvdb_perfc.h>
 
+#include <hse_util/assert.h>
 #include <hse_util/platform.h>
 #include <hse_util/alloc.h>
 #include <hse_util/slab.h>
@@ -18,7 +19,6 @@
 #include <hse_util/byteorder.h>
 #include <hse_util/slab.h>
 #include <hse_util/table.h>
-#include <hse_util/invariant.h>
 #include <hse_util/logging.h>
 
 #include <hse_ikvdb/c0.h>

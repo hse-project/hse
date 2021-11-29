@@ -88,7 +88,6 @@ if get_option('debug')
 
     if get_option('buildtype') == 'debug'
         add_project_arguments(
-            '-DWITH_INVARIANTS',
             '-DDEBUG_RCU',
             '-fstack-protector-all',
             language: 'c',

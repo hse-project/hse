@@ -20,9 +20,9 @@
 #include <hse_ikvdb/kvs_cparams.h>
 #include <hse_ikvdb/kvs_rparams.h>
 
+#include <hse_util/assert.h>
 #include <hse_util/storage.h>
 #include <hse_util/log2.h>
-#include <hse_util/invariant.h>
 
 #include "logging.h"
 
@@ -423,10 +423,9 @@ param_default_stringify(
     const size_t                   buf_sz,
     size_t *                       needed_sz)
 {
-    int n;
+    int n = 0;
 
     INVARIANT(ps);
-    INVARIANT(buf);
     INVARIANT(value);
 
     switch (ps->ps_type) {
@@ -469,7 +468,6 @@ param_default_stringify(
             break;
         case PARAM_TYPE_ARRAY:
         case PARAM_TYPE_OBJECT:
-        default:
             abort();
     }
 
@@ -484,8 +482,8 @@ param_default_stringify(
 cJSON *
 param_default_jsonify(const struct param_spec *const ps, const void *const value)
 {
-    assert(ps);
-    assert(value);
+    INVARIANT(ps);
+    INVARIANT(value);
 
     switch (ps->ps_type) {
         case PARAM_TYPE_BOOL:
@@ -512,9 +510,10 @@ param_default_jsonify(const struct param_spec *const ps, const void *const value
             return cJSON_CreateString(value);
         case PARAM_TYPE_ARRAY:
         case PARAM_TYPE_OBJECT:
-        default:
             abort();
     }
+
+    return NULL;
 }
 
 bool
@@ -671,7 +670,6 @@ param_default_validator(const struct param_spec *ps, const void *value)
         /* No default validator for array types */
         case PARAM_TYPE_ARRAY:
         case PARAM_TYPE_OBJECT:
-        default:
             abort();
     }
 
