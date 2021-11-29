@@ -15,6 +15,10 @@ tests = {
         'suites': ['python', 'short'],
         'depends': hse_python_depends,
     },
+    'kvs_many_pfx': {
+        'suites': ['python', 'long'],
+        'depends': hse_python_depends,
+    },
     # [HSE_TODO]: Invalid tests; I think this is because of compaction not being
     # synchonous.
     # 'kvs_compressed_values_take_less_space': {
