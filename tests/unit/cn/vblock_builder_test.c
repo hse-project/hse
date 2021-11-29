@@ -93,7 +93,7 @@ initial_setup(struct mtf_test_info *lcl_ti)
 
     for (i = 0; i < HSE_MPOLICY_AGE_CNT; i++)
         for (j = 0; j < HSE_MPOLICY_DTYPE_CNT; j++)
-            mocked_mpolicy.mc_table[i][j] = MP_MED_CAPACITY;
+            mocked_mpolicy.mc_table[i][j] = HSE_MCLASS_CAPACITY;
 
     return 0;
 }

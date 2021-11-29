@@ -29,7 +29,7 @@ mpool_file_unmap(struct mpool_file *file);
 merr_t
 mpool_file_open(
     struct mpool       *mp,
-    enum mpool_mclass   mclass,
+    enum hse_mclass   mclass,
     const char         *name,
     int                 flags,
     size_t              capacity,
@@ -43,7 +43,7 @@ mpool_file_open(
     bool create = false;
     size_t sz;
 
-    if (!mp || !name || mclass > MP_MED_COUNT)
+    if (!mp || !name || mclass > HSE_MCLASS_COUNT)
         return merr(EINVAL);
 
     mc = mpool_mclass_handle(mp, mclass);
@@ -122,12 +122,12 @@ mpool_file_close(struct mpool_file *file)
 }
 
 merr_t
-mpool_file_destroy(struct mpool *mp, enum mpool_mclass mclass, const char *name)
+mpool_file_destroy(struct mpool *mp, enum hse_mclass mclass, const char *name)
 {
     struct media_class *mc;
     int  dirfd, rc;
 
-    if (!mp || !name || mclass > MP_MED_COUNT)
+    if (!mp || !name || mclass > HSE_MCLASS_COUNT)
         return merr(EINVAL);
 
     mc = mpool_mclass_handle(mp, mclass);

@@ -55,7 +55,7 @@ mpool_mcache_mmap(struct mpool *mp, size_t mbidc, uint64_t *mbidv, struct mpool_
     map->wlenv = (void *)(map->mbidv + mbidc);
 
     for (i = 0; i < mbidc; i++) {
-        enum mpool_mclass mclass;
+        enum hse_mclass mclass;
         char             *addr;
         uint32_t          wlen;
 
@@ -96,7 +96,7 @@ mpool_mcache_munmap(struct mpool_mcache_map *map)
         return;
 
     for (i = 0; i < map->mbidc; i++) {
-        enum mpool_mclass mclass;
+        enum hse_mclass mclass;
         uint64_t          mbid;
         merr_t            err;
 

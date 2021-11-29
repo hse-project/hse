@@ -34,13 +34,13 @@ MTF_DEFINE_UTEST_PRE(mclass_policy_test, mclass_policy_default, general_pre)
     strcpy(dpolicies[0].mc_name, "capacity_only");
     for (i = 0; i < HSE_MPOLICY_AGE_CNT; i++)
         for (j = 0; j < HSE_MPOLICY_DTYPE_CNT; j++)
-            dpolicies[0].mc_table[i][j] = MP_MED_CAPACITY;
+            dpolicies[0].mc_table[i][j] = HSE_MCLASS_CAPACITY;
 
     /* Staging only media class policy, use staging for all combinations  */
     strcpy(dpolicies[1].mc_name, "staging_only");
     for (i = 0; i < HSE_MPOLICY_AGE_CNT; i++)
         for (j = 0; j < HSE_MPOLICY_DTYPE_CNT; j++)
-            dpolicies[1].mc_table[i][j] = MP_MED_STAGING;
+            dpolicies[1].mc_table[i][j] = HSE_MCLASS_STAGING;
 
     /*
      * staging_max_capacity - only internal and leaf values use capacity.
@@ -48,9 +48,9 @@ MTF_DEFINE_UTEST_PRE(mclass_policy_test, mclass_policy_default, general_pre)
     strcpy(dpolicies[2].mc_name, "staging_max_capacity");
     for (i = 0; i < HSE_MPOLICY_AGE_CNT; i++)
         for (j = 0; j < HSE_MPOLICY_DTYPE_CNT; j++)
-            dpolicies[2].mc_table[i][j] = MP_MED_STAGING;
-    dpolicies[2].mc_table[HSE_MPOLICY_AGE_INTERNAL][HSE_MPOLICY_DTYPE_VALUE] = MP_MED_CAPACITY;
-    dpolicies[2].mc_table[HSE_MPOLICY_AGE_LEAF][HSE_MPOLICY_DTYPE_VALUE] = MP_MED_CAPACITY;
+            dpolicies[2].mc_table[i][j] = HSE_MCLASS_STAGING;
+    dpolicies[2].mc_table[HSE_MPOLICY_AGE_INTERNAL][HSE_MPOLICY_DTYPE_VALUE] = HSE_MCLASS_CAPACITY;
+    dpolicies[2].mc_table[HSE_MPOLICY_AGE_LEAF][HSE_MPOLICY_DTYPE_VALUE] = HSE_MCLASS_CAPACITY;
 
     /*
      * staging_min_capacity - only root nodes use staging.
@@ -58,42 +58,42 @@ MTF_DEFINE_UTEST_PRE(mclass_policy_test, mclass_policy_default, general_pre)
     strcpy(dpolicies[3].mc_name, "staging_min_capacity");
     for (i = 0; i < HSE_MPOLICY_AGE_INTERNAL; i++)
         for (j = 0; j < HSE_MPOLICY_DTYPE_CNT; j++)
-            dpolicies[3].mc_table[i][j] = MP_MED_STAGING;
+            dpolicies[3].mc_table[i][j] = HSE_MCLASS_STAGING;
 
     for (i = HSE_MPOLICY_AGE_INTERNAL; i < HSE_MPOLICY_AGE_CNT; i++)
         for (j = 0; j < HSE_MPOLICY_DTYPE_CNT; j++)
-            dpolicies[3].mc_table[i][j] = MP_MED_CAPACITY;
+            dpolicies[3].mc_table[i][j] = HSE_MCLASS_CAPACITY;
 
     /* pmem only media class policy, use pmem for all combinations  */
     strcpy(dpolicies[4].mc_name, "pmem_only");
     for (i = 0; i < HSE_MPOLICY_AGE_CNT; i++)
         for (j = 0; j < HSE_MPOLICY_DTYPE_CNT; j++)
-            dpolicies[4].mc_table[i][j] = MP_MED_PMEM;
+            dpolicies[4].mc_table[i][j] = HSE_MCLASS_PMEM;
 
     /* pmem_staging */
     strcpy(dpolicies[5].mc_name, "pmem_staging");
     for (i = 0; i < HSE_MPOLICY_AGE_CNT; i++)
         for (j = 0; j < HSE_MPOLICY_DTYPE_CNT; j++)
-            dpolicies[5].mc_table[i][j] = MP_MED_PMEM;
-    dpolicies[5].mc_table[HSE_MPOLICY_AGE_INTERNAL][HSE_MPOLICY_DTYPE_VALUE] = MP_MED_STAGING;
-    dpolicies[5].mc_table[HSE_MPOLICY_AGE_LEAF][HSE_MPOLICY_DTYPE_VALUE] = MP_MED_STAGING;
+            dpolicies[5].mc_table[i][j] = HSE_MCLASS_PMEM;
+    dpolicies[5].mc_table[HSE_MPOLICY_AGE_INTERNAL][HSE_MPOLICY_DTYPE_VALUE] = HSE_MCLASS_STAGING;
+    dpolicies[5].mc_table[HSE_MPOLICY_AGE_LEAF][HSE_MPOLICY_DTYPE_VALUE] = HSE_MCLASS_STAGING;
 
     /* pmem_capacity */
     strcpy(dpolicies[6].mc_name, "pmem_capacity");
     for (i = 0; i < HSE_MPOLICY_AGE_CNT; i++)
         for (j = 0; j < HSE_MPOLICY_DTYPE_CNT; j++)
-            dpolicies[6].mc_table[i][j] = MP_MED_PMEM;
-    dpolicies[6].mc_table[HSE_MPOLICY_AGE_INTERNAL][HSE_MPOLICY_DTYPE_VALUE] = MP_MED_CAPACITY;
-    dpolicies[6].mc_table[HSE_MPOLICY_AGE_LEAF][HSE_MPOLICY_DTYPE_VALUE] = MP_MED_CAPACITY;
+            dpolicies[6].mc_table[i][j] = HSE_MCLASS_PMEM;
+    dpolicies[6].mc_table[HSE_MPOLICY_AGE_INTERNAL][HSE_MPOLICY_DTYPE_VALUE] = HSE_MCLASS_CAPACITY;
+    dpolicies[6].mc_table[HSE_MPOLICY_AGE_LEAF][HSE_MPOLICY_DTYPE_VALUE] = HSE_MCLASS_CAPACITY;
 
     /* pmem_staging_capacity */
     strcpy(dpolicies[7].mc_name, "pmem_staging_capacity");
-    dpolicies[7].mc_table[HSE_MPOLICY_AGE_ROOT][HSE_MPOLICY_DTYPE_KEY] = MP_MED_PMEM;
-    dpolicies[7].mc_table[HSE_MPOLICY_AGE_ROOT][HSE_MPOLICY_DTYPE_VALUE] = MP_MED_PMEM;
-    dpolicies[7].mc_table[HSE_MPOLICY_AGE_INTERNAL][HSE_MPOLICY_DTYPE_KEY] = MP_MED_STAGING;
-    dpolicies[7].mc_table[HSE_MPOLICY_AGE_INTERNAL][HSE_MPOLICY_DTYPE_VALUE] = MP_MED_STAGING;
-    dpolicies[7].mc_table[HSE_MPOLICY_AGE_LEAF][HSE_MPOLICY_DTYPE_KEY] = MP_MED_STAGING;
-    dpolicies[7].mc_table[HSE_MPOLICY_AGE_LEAF][HSE_MPOLICY_DTYPE_VALUE] = MP_MED_CAPACITY;
+    dpolicies[7].mc_table[HSE_MPOLICY_AGE_ROOT][HSE_MPOLICY_DTYPE_KEY] = HSE_MCLASS_PMEM;
+    dpolicies[7].mc_table[HSE_MPOLICY_AGE_ROOT][HSE_MPOLICY_DTYPE_VALUE] = HSE_MCLASS_PMEM;
+    dpolicies[7].mc_table[HSE_MPOLICY_AGE_INTERNAL][HSE_MPOLICY_DTYPE_KEY] = HSE_MCLASS_STAGING;
+    dpolicies[7].mc_table[HSE_MPOLICY_AGE_INTERNAL][HSE_MPOLICY_DTYPE_VALUE] = HSE_MCLASS_STAGING;
+    dpolicies[7].mc_table[HSE_MPOLICY_AGE_LEAF][HSE_MPOLICY_DTYPE_KEY] = HSE_MCLASS_STAGING;
+    dpolicies[7].mc_table[HSE_MPOLICY_AGE_LEAF][HSE_MPOLICY_DTYPE_VALUE] = HSE_MCLASS_CAPACITY;
 
     err = argv_deserialize_to_kvdb_rparams(NELEM(paramv), paramv, &params);
     ASSERT_EQ(0, err);
@@ -102,8 +102,8 @@ MTF_DEFINE_UTEST_PRE(mclass_policy_test, mclass_policy_default, general_pre)
     for (i = 0; i < HSE_MPOLICY_AGE_CNT; i++) {
         for (j = 0; j < HSE_MPOLICY_DTYPE_CNT; j++) {
                 for (l = 0; l < 8; l++) {
-                    enum mpool_mclass            hse_mtype;
-                    enum mpool_mclass            mpool_mtype;
+                    enum hse_mclass            hse_mtype;
+                    enum hse_mclass            mpool_mtype;
 
                     hse_mtype = params.mclass_policies[l].mc_table[i][j];
 
@@ -127,15 +127,15 @@ MTF_DEFINE_UTEST_PRE(mclass_policy_test, mclass_policy_default, general_pre)
 
     for (i = 0; i < HSE_MPOLICY_AGE_CNT; i++) {
         for (j = 0; j < HSE_MPOLICY_DTYPE_CNT; j++) {
-                enum mpool_mclass            hse_mtype;
-                enum mpool_mclass            mpool_mtype;
+                enum hse_mclass            hse_mtype;
+                enum hse_mclass            mpool_mtype;
 
                 hse_mtype = params.mclass_policies[8].mc_table[i][j];
 
                 if (!((i == HSE_MPOLICY_AGE_INTERNAL) && (j == HSE_MPOLICY_DTYPE_VALUE)))
                     ASSERT_EQ(hse_mtype, dpolicies[2].mc_table[i][j]);
                 else
-                    ASSERT_EQ(hse_mtype, MP_MED_CAPACITY);
+                    ASSERT_EQ(hse_mtype, HSE_MCLASS_CAPACITY);
 
                 mpool_mtype = mclass_policy_get_type(&params.mclass_policies[8], i, j);
                 ASSERT_EQ(mpool_mtype, hse_mtype);

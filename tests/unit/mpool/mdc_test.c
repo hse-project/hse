@@ -37,25 +37,25 @@ MTF_DEFINE_UTEST_PREPOST(mdc_test, mdc_abc, mpool_test_pre, mpool_test_post)
     err = mpool_open(home, &trparams, O_RDWR, &mp);
     ASSERT_EQ(0, err);
 
-    err = mpool_mdc_alloc(NULL, MDC_TEST_MAGIC, MDC_TEST_CAP, MP_MED_CAPACITY, &logid1, &logid2);
+    err = mpool_mdc_alloc(NULL, MDC_TEST_MAGIC, MDC_TEST_CAP, HSE_MCLASS_CAPACITY, &logid1, &logid2);
     ASSERT_EQ(EINVAL, merr_errno(err));
 
-    err = mpool_mdc_alloc(mp, MDC_TEST_MAGIC, 1024, MP_MED_CAPACITY, &logid1, &logid2);
+    err = mpool_mdc_alloc(mp, MDC_TEST_MAGIC, 1024, HSE_MCLASS_CAPACITY, &logid1, &logid2);
     ASSERT_EQ(EINVAL, merr_errno(err));
 
-    err = mpool_mdc_alloc(mp, MDC_TEST_MAGIC, MDC_TEST_CAP, MP_MED_COUNT, &logid1, &logid2);
+    err = mpool_mdc_alloc(mp, MDC_TEST_MAGIC, MDC_TEST_CAP, HSE_MCLASS_COUNT, &logid1, &logid2);
     ASSERT_EQ(EINVAL, merr_errno(err));
 
-    err = mpool_mdc_alloc(mp, MDC_TEST_MAGIC, MDC_TEST_CAP, MP_MED_COUNT, NULL, &logid2);
+    err = mpool_mdc_alloc(mp, MDC_TEST_MAGIC, MDC_TEST_CAP, HSE_MCLASS_COUNT, NULL, &logid2);
     ASSERT_EQ(EINVAL, merr_errno(err));
 
-    err = mpool_mdc_alloc(mp, MDC_TEST_MAGIC, MDC_TEST_CAP, MP_MED_COUNT, &logid1, NULL);
+    err = mpool_mdc_alloc(mp, MDC_TEST_MAGIC, MDC_TEST_CAP, HSE_MCLASS_COUNT, &logid1, NULL);
     ASSERT_EQ(EINVAL, merr_errno(err));
 
-    err = mpool_mdc_alloc(mp, MDC_TEST_MAGIC, MDC_TEST_CAP, MP_MED_CAPACITY, &logid1, &logid2);
+    err = mpool_mdc_alloc(mp, MDC_TEST_MAGIC, MDC_TEST_CAP, HSE_MCLASS_CAPACITY, &logid1, &logid2);
     ASSERT_EQ(0, err);
 
-    err = mpool_mdc_alloc(mp, MDC_TEST_MAGIC, MDC_TEST_CAP, MP_MED_CAPACITY, &logid1, &logid2);
+    err = mpool_mdc_alloc(mp, MDC_TEST_MAGIC, MDC_TEST_CAP, HSE_MCLASS_CAPACITY, &logid1, &logid2);
     ASSERT_EQ(EEXIST, merr_errno(err));
 
     err = mpool_mdc_abort(NULL, logid1, logid2);
@@ -73,10 +73,10 @@ MTF_DEFINE_UTEST_PREPOST(mdc_test, mdc_abc, mpool_test_pre, mpool_test_post)
     err = mpool_mdc_abort(mp, logid1, logid2);
     ASSERT_EQ(ENOENT, merr_errno(err));
 
-    err = mpool_mdc_alloc(mp, MDC_TEST_MAGIC, MDC_TEST_CAP, MP_MED_STAGING, &logid3, &logid4);
+    err = mpool_mdc_alloc(mp, MDC_TEST_MAGIC, MDC_TEST_CAP, HSE_MCLASS_STAGING, &logid3, &logid4);
     ASSERT_EQ(ENOENT, merr_errno(err));
 
-    err = mpool_mdc_alloc(mp, MDC_TEST_MAGIC, MDC_TEST_CAP, MP_MED_CAPACITY, &logid1, &logid2);
+    err = mpool_mdc_alloc(mp, MDC_TEST_MAGIC, MDC_TEST_CAP, HSE_MCLASS_CAPACITY, &logid1, &logid2);
     ASSERT_EQ(0, err);
     ASSERT_NE(0, logid1);
     ASSERT_NE(0, logid2);
@@ -160,20 +160,20 @@ MTF_DEFINE_UTEST_PREPOST(mdc_test, mdc_abc, mpool_test_pre, mpool_test_post)
     err = mpool_close(mp);
     ASSERT_EQ(0, err);
 
-    setup_mclass(MP_MED_STAGING);
+    setup_mclass(HSE_MCLASS_STAGING);
 
-    err = mpool_mclass_add(MP_MED_STAGING, &tcparams);
+    err = mpool_mclass_add(HSE_MCLASS_STAGING, &tcparams);
     ASSERT_EQ(0, merr_errno(err));
 
     err = mpool_open(home, &trparams, O_RDWR, &mp);
     ASSERT_EQ(0, merr_errno(err));
 
-    err = mpool_mdc_alloc(mp, MDC_TEST_MAGIC, MDC_TEST_CAP, MP_MED_CAPACITY, &logid1, &logid2);
+    err = mpool_mdc_alloc(mp, MDC_TEST_MAGIC, MDC_TEST_CAP, HSE_MCLASS_CAPACITY, &logid1, &logid2);
     ASSERT_EQ(0, err);
     ASSERT_NE(0, logid1);
     ASSERT_NE(0, logid2);
 
-    err = mpool_mdc_alloc(mp, MDC_TEST_MAGIC, MDC_TEST_CAP, MP_MED_STAGING, &logid3, &logid4);
+    err = mpool_mdc_alloc(mp, MDC_TEST_MAGIC, MDC_TEST_CAP, HSE_MCLASS_STAGING, &logid3, &logid4);
     ASSERT_EQ(0, err);
     ASSERT_NE(0, logid3);
     ASSERT_NE(0, logid4);
@@ -215,7 +215,7 @@ MTF_DEFINE_UTEST_PREPOST(mdc_test, mdc_io_basic, mpool_test_pre, mpool_test_post
     err = mpool_open(home, &trparams, O_RDWR, &mp);
     ASSERT_EQ(0, err);
 
-    err = mpool_mdc_alloc(mp, MDC_TEST_MAGIC, MDC_TEST_CAP, MP_MED_CAPACITY, &logid1, &logid2);
+    err = mpool_mdc_alloc(mp, MDC_TEST_MAGIC, MDC_TEST_CAP, HSE_MCLASS_CAPACITY, &logid1, &logid2);
     ASSERT_EQ(0, err);
 
     err = mpool_mdc_commit(mp, logid1, logid2);
@@ -426,7 +426,7 @@ MTF_DEFINE_UTEST_PREPOST(mdc_test, mdc_io_advanced, mpool_test_pre, mpool_test_p
     err = mpool_open(home, &trparams, O_RDWR, &mp);
     ASSERT_EQ(0, err);
 
-    err = mpool_mdc_alloc(mp, MDC_TEST_MAGIC, 16 * 1024, MP_MED_CAPACITY, &logid1, &logid2);
+    err = mpool_mdc_alloc(mp, MDC_TEST_MAGIC, 16 * 1024, HSE_MCLASS_CAPACITY, &logid1, &logid2);
     ASSERT_EQ(0, err);
 
     err = mpool_mdc_commit(mp, logid1, logid2);
@@ -440,7 +440,7 @@ MTF_DEFINE_UTEST_PREPOST(mdc_test, mdc_io_advanced, mpool_test_pre, mpool_test_p
     err = mpool_mdc_delete(mp, logid1, logid2);
     ASSERT_EQ(0, err);
 
-    err = mpool_mdc_alloc(mp, MDC_TEST_MAGIC, 16 * 1024, MP_MED_CAPACITY, &logid1, &logid2);
+    err = mpool_mdc_alloc(mp, MDC_TEST_MAGIC, 16 * 1024, HSE_MCLASS_CAPACITY, &logid1, &logid2);
     ASSERT_EQ(0, err);
 
     err = mpool_mdc_commit(mp, logid1, logid2);
@@ -475,7 +475,7 @@ MTF_DEFINE_UTEST_PREPOST(mdc_test, mdc_io_overlap, mpool_test_pre, mpool_test_po
     err = mpool_open(home, &trparams, O_RDWR, &mp);
     ASSERT_EQ(0, err);
 
-    err = mpool_mdc_alloc(mp, MDC_TEST_MAGIC, 16 * 1024, MP_MED_CAPACITY, &logid1, &logid2);
+    err = mpool_mdc_alloc(mp, MDC_TEST_MAGIC, 16 * 1024, HSE_MCLASS_CAPACITY, &logid1, &logid2);
     ASSERT_EQ(0, err);
 
     err = mpool_mdc_commit(mp, logid1, logid2);
@@ -563,7 +563,7 @@ MTF_DEFINE_UTEST_PREPOST(mdc_test, mdc_io_reopen, mpool_test_pre, mpool_test_pos
     err = mpool_open(home, &trparams, O_RDWR, &mp);
     ASSERT_EQ(0, err);
 
-    err = mpool_mdc_alloc(mp, MDC_TEST_MAGIC, 16 * 1024, MP_MED_CAPACITY, &logid1, &logid2);
+    err = mpool_mdc_alloc(mp, MDC_TEST_MAGIC, 16 * 1024, HSE_MCLASS_CAPACITY, &logid1, &logid2);
     ASSERT_EQ(0, err);
 
     err = mpool_mdc_commit(mp, logid1, logid2);

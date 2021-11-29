@@ -448,7 +448,7 @@ kvset_create2(
     assert(n_kblks);
     last_kb = n_kblks - 1;
 
-    mblock_max = cn_vma_mblock_max(tree->cn, MP_MED_CAPACITY);
+    mblock_max = cn_vma_mblock_max(tree->cn, HSE_MCLASS_CAPACITY);
 
     /* number of mcache maps needed */
     kmapc = (n_kblks + mblock_max - 1) / mblock_max;
@@ -833,7 +833,7 @@ kvset_create(struct cn_tree *tree, u64 tag, struct kvset_meta *km, struct kvset 
             sizeof(struct vblock_desc),
             vblock_udata_init,
             flags,
-            cn_vma_mblock_max(tree->cn, MP_MED_CAPACITY),
+            cn_vma_mblock_max(tree->cn, HSE_MCLASS_CAPACITY),
             &vbset);
 
         if (idv != bufv)
@@ -964,7 +964,7 @@ cleanup_kblocks(struct kvset *ks)
     uint   i, mapc;
     u64    mblock_max;
 
-    mblock_max = cn_vma_mblock_max(ks->ks_tree->cn, MP_MED_CAPACITY);
+    mblock_max = cn_vma_mblock_max(ks->ks_tree->cn, HSE_MCLASS_CAPACITY);
     /* unmap */
     mapc = (ks->ks_st.kst_kblks + mblock_max - 1) / mblock_max;
     for (i = 0; i < mapc; i++) {
@@ -2808,7 +2808,7 @@ kvset_madvise_kmaps(struct kvset *ks, int advice)
 
     assert(advice == MADV_DONTNEED || advice == MADV_RANDOM);
 
-    mblock_max = cn_vma_mblock_max(ks->ks_tree->cn, MP_MED_CAPACITY);
+    mblock_max = cn_vma_mblock_max(ks->ks_tree->cn, HSE_MCLASS_CAPACITY);
 
     mapc = (ks->ks_st.kst_kblks + mblock_max - 1) / mblock_max;
 
@@ -2825,7 +2825,7 @@ kvset_purge_kmaps(struct kvset *ks)
     merr_t err;
     u64    mblock_max;
 
-    mblock_max = cn_vma_mblock_max(ks->ks_tree->cn, MP_MED_CAPACITY);
+    mblock_max = cn_vma_mblock_max(ks->ks_tree->cn, HSE_MCLASS_CAPACITY);
     mapc = (ks->ks_st.kst_kblks + mblock_max - 1) / mblock_max;
 
     for (i = 0; i < mapc; ++i) {

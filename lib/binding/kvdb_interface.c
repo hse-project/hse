@@ -21,6 +21,7 @@
 #include <hse_ikvdb/kvdb_cparams.h>
 #include <hse_ikvdb/hse_gparams.h>
 #include <hse_ikvdb/kvdb_home.h>
+#include <hse_ikvdb/kvs.h>
 
 #include <hse/version.h>
 
@@ -162,6 +163,19 @@ hse_fini(void)
     ikvdb_fini();
     hse_platform_fini();
     hse_initialized = false;
+}
+
+hse_err_t
+hse_param_get(
+    const char *const param,
+    char *const       buf,
+    const size_t      buf_sz,
+    size_t *const     needed_sz)
+{
+    if (HSE_UNLIKELY(!param))
+        return merr(EINVAL);
+
+    return hse_gparams_get(&hse_gparams, param, buf, buf_sz, needed_sz);
 }
 
 hse_err_t
@@ -356,12 +370,6 @@ hse_kvdb_open(
         goto out;
     }
 
-    err = kvdb_rparams_resolve(&params, kvdb_home);
-    if (ev(err)) {
-        log_errx("Failed to resolve KVDB (%s) rparams: @@e", err, kvdb_home);
-        goto out;
-    }
-
     err = kvdb_home_pidfile_path_get(kvdb_home, pidfile_path, sizeof(pidfile_path));
     if (err) {
         log_errx("Failed to create KVDB pidfile path (%s)/kvdb.pid: @@e", err, kvdb_home);
@@ -444,6 +452,20 @@ hse_kvdb_close(struct hse_kvdb *handle)
 }
 
 hse_err_t
+hse_kvdb_param_get(
+    struct hse_kvdb *const handle,
+    const char *const      param,
+    char *const            buf,
+    const size_t           buf_sz,
+    size_t *const          needed_sz)
+{
+    if (HSE_UNLIKELY(!handle || !param))
+        return merr(EINVAL);
+
+    return ikvdb_param_get((struct ikvdb *)handle, param, buf, buf_sz, needed_sz);
+}
+
+hse_err_t
 hse_kvdb_kvs_names_get(struct hse_kvdb *handle, size_t *namec, char ***namev)
 {
     merr_t err;
@@ -465,6 +487,20 @@ hse_kvdb_kvs_names_free(struct hse_kvdb *handle, char **namev)
     perfc_inc(&kvdb_pc, PERFC_RA_KVDBOP_KVDB_KVS_NAMES_FREE);
 
     ikvdb_kvs_names_free((struct ikvdb *)handle, namev);
+}
+
+hse_err_t
+hse_kvdb_mclass_info_get(
+    struct hse_kvdb *const        handle,
+    const enum hse_mclass         mclass,
+    struct hse_mclass_info *const info)
+{
+    if (HSE_UNLIKELY(!handle || !info))
+        return merr(EINVAL);
+
+    memset(info, 0, sizeof(*info));
+
+    return ikvdb_mclass_info_get((struct ikvdb *)handle, mclass, info);
 }
 
 hse_err_t
@@ -564,15 +600,36 @@ hse_kvdb_kvs_close(struct hse_kvs *handle)
     return err;
 }
 
-hse_err_t
-hse_kvdb_storage_info_get(struct hse_kvdb *kvdb, struct hse_kvdb_storage_info *info)
+const char *
+hse_kvdb_home_get(struct hse_kvdb *const handle)
 {
-    if (HSE_UNLIKELY(!kvdb || !info))
+    if (HSE_UNLIKELY(!handle))
+        return NULL;
+
+    return ikvdb_home((struct ikvdb *)handle);
+}
+
+const char *
+hse_kvs_name_get(struct hse_kvs *const handle)
+{
+    if (HSE_UNLIKELY(!handle))
+        return NULL;
+
+    return kvdb_kvs_name((struct kvdb_kvs *)handle);
+}
+
+hse_err_t
+hse_kvs_param_get(
+    struct hse_kvs *const handle,
+    const char *const     param,
+    char *const           buf,
+    const size_t          buf_sz,
+    size_t *const         needed_sz)
+{
+    if (HSE_UNLIKELY(!handle || !param))
         return merr(EINVAL);
 
-    memset(info, 0, sizeof(*info));
-
-    return ikvdb_storage_info_get((struct ikvdb *)kvdb, info);
+    return ikvdb_kvs_param_get(handle, param, buf, buf_sz, needed_sz);
 }
 
 hse_err_t
@@ -887,6 +944,21 @@ hse_kvdb_sync(struct hse_kvdb *handle, const unsigned int flags)
     perfc_sl_record(&kvdb_pkvdbl_pc, PERFC_SL_PKVDBL_KVDB_SYNC, tstart);
 
     return err;
+}
+
+const char *
+hse_mclass_name_get(const enum hse_mclass mclass)
+{
+    switch (mclass) {
+    case HSE_MCLASS_CAPACITY:
+        return HSE_MCLASS_CAPACITY_NAME;
+    case HSE_MCLASS_STAGING:
+        return HSE_MCLASS_STAGING_NAME;
+    case HSE_MCLASS_PMEM:
+        return HSE_MCLASS_PMEM_NAME;
+    }
+
+    return NULL;
 }
 
 struct hse_kvdb_txn *

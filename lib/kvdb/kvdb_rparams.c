@@ -37,82 +37,82 @@ mclass_policies_default_builder(const struct param_spec *ps, void *data)
     /* Setup capacity_only */
     policy = &mclass_policies[0];
     strlcpy(policy->mc_name, "capacity_only", sizeof("capacity_only"));
-    policy->mc_table[HSE_MPOLICY_AGE_ROOT][HSE_MPOLICY_DTYPE_KEY] = MP_MED_CAPACITY;
-    policy->mc_table[HSE_MPOLICY_AGE_ROOT][HSE_MPOLICY_DTYPE_VALUE] = MP_MED_CAPACITY;
-    policy->mc_table[HSE_MPOLICY_AGE_INTERNAL][HSE_MPOLICY_DTYPE_KEY] = MP_MED_CAPACITY;
-    policy->mc_table[HSE_MPOLICY_AGE_INTERNAL][HSE_MPOLICY_DTYPE_VALUE] = MP_MED_CAPACITY;
-    policy->mc_table[HSE_MPOLICY_AGE_LEAF][HSE_MPOLICY_DTYPE_KEY] = MP_MED_CAPACITY;
-    policy->mc_table[HSE_MPOLICY_AGE_LEAF][HSE_MPOLICY_DTYPE_VALUE] = MP_MED_CAPACITY;
+    policy->mc_table[HSE_MPOLICY_AGE_ROOT][HSE_MPOLICY_DTYPE_KEY] = HSE_MCLASS_CAPACITY;
+    policy->mc_table[HSE_MPOLICY_AGE_ROOT][HSE_MPOLICY_DTYPE_VALUE] = HSE_MCLASS_CAPACITY;
+    policy->mc_table[HSE_MPOLICY_AGE_INTERNAL][HSE_MPOLICY_DTYPE_KEY] = HSE_MCLASS_CAPACITY;
+    policy->mc_table[HSE_MPOLICY_AGE_INTERNAL][HSE_MPOLICY_DTYPE_VALUE] = HSE_MCLASS_CAPACITY;
+    policy->mc_table[HSE_MPOLICY_AGE_LEAF][HSE_MPOLICY_DTYPE_KEY] = HSE_MCLASS_CAPACITY;
+    policy->mc_table[HSE_MPOLICY_AGE_LEAF][HSE_MPOLICY_DTYPE_VALUE] = HSE_MCLASS_CAPACITY;
 
     /* Setup staging_only */
     policy = &mclass_policies[1];
     strlcpy(policy->mc_name, "staging_only", sizeof("staging_only"));
-    policy->mc_table[HSE_MPOLICY_AGE_ROOT][HSE_MPOLICY_DTYPE_KEY] = MP_MED_STAGING;
-    policy->mc_table[HSE_MPOLICY_AGE_ROOT][HSE_MPOLICY_DTYPE_VALUE] = MP_MED_STAGING;
-    policy->mc_table[HSE_MPOLICY_AGE_INTERNAL][HSE_MPOLICY_DTYPE_KEY] = MP_MED_STAGING;
-    policy->mc_table[HSE_MPOLICY_AGE_INTERNAL][HSE_MPOLICY_DTYPE_VALUE] = MP_MED_STAGING;
-    policy->mc_table[HSE_MPOLICY_AGE_LEAF][HSE_MPOLICY_DTYPE_KEY] = MP_MED_STAGING;
-    policy->mc_table[HSE_MPOLICY_AGE_LEAF][HSE_MPOLICY_DTYPE_VALUE] = MP_MED_STAGING;
+    policy->mc_table[HSE_MPOLICY_AGE_ROOT][HSE_MPOLICY_DTYPE_KEY] = HSE_MCLASS_STAGING;
+    policy->mc_table[HSE_MPOLICY_AGE_ROOT][HSE_MPOLICY_DTYPE_VALUE] = HSE_MCLASS_STAGING;
+    policy->mc_table[HSE_MPOLICY_AGE_INTERNAL][HSE_MPOLICY_DTYPE_KEY] = HSE_MCLASS_STAGING;
+    policy->mc_table[HSE_MPOLICY_AGE_INTERNAL][HSE_MPOLICY_DTYPE_VALUE] = HSE_MCLASS_STAGING;
+    policy->mc_table[HSE_MPOLICY_AGE_LEAF][HSE_MPOLICY_DTYPE_KEY] = HSE_MCLASS_STAGING;
+    policy->mc_table[HSE_MPOLICY_AGE_LEAF][HSE_MPOLICY_DTYPE_VALUE] = HSE_MCLASS_STAGING;
 
     /* Setup staging_max_capacity */
     policy = &mclass_policies[2];
     strlcpy(policy->mc_name, "staging_max_capacity", sizeof("staging_max_capacity"));
-    policy->mc_table[HSE_MPOLICY_AGE_ROOT][HSE_MPOLICY_DTYPE_KEY] = MP_MED_STAGING;
-    policy->mc_table[HSE_MPOLICY_AGE_ROOT][HSE_MPOLICY_DTYPE_VALUE] = MP_MED_STAGING;
-    policy->mc_table[HSE_MPOLICY_AGE_INTERNAL][HSE_MPOLICY_DTYPE_KEY] = MP_MED_STAGING;
-    policy->mc_table[HSE_MPOLICY_AGE_INTERNAL][HSE_MPOLICY_DTYPE_VALUE] = MP_MED_CAPACITY;
-    policy->mc_table[HSE_MPOLICY_AGE_LEAF][HSE_MPOLICY_DTYPE_KEY] = MP_MED_STAGING;
-    policy->mc_table[HSE_MPOLICY_AGE_LEAF][HSE_MPOLICY_DTYPE_VALUE] = MP_MED_CAPACITY;
+    policy->mc_table[HSE_MPOLICY_AGE_ROOT][HSE_MPOLICY_DTYPE_KEY] = HSE_MCLASS_STAGING;
+    policy->mc_table[HSE_MPOLICY_AGE_ROOT][HSE_MPOLICY_DTYPE_VALUE] = HSE_MCLASS_STAGING;
+    policy->mc_table[HSE_MPOLICY_AGE_INTERNAL][HSE_MPOLICY_DTYPE_KEY] = HSE_MCLASS_STAGING;
+    policy->mc_table[HSE_MPOLICY_AGE_INTERNAL][HSE_MPOLICY_DTYPE_VALUE] = HSE_MCLASS_CAPACITY;
+    policy->mc_table[HSE_MPOLICY_AGE_LEAF][HSE_MPOLICY_DTYPE_KEY] = HSE_MCLASS_STAGING;
+    policy->mc_table[HSE_MPOLICY_AGE_LEAF][HSE_MPOLICY_DTYPE_VALUE] = HSE_MCLASS_CAPACITY;
 
     /* Setup staging_min_capacity */
     policy = &mclass_policies[3];
     strlcpy(policy->mc_name, "staging_min_capacity", sizeof("staging_min_capacity"));
-    policy->mc_table[HSE_MPOLICY_AGE_ROOT][HSE_MPOLICY_DTYPE_KEY] = MP_MED_STAGING;
-    policy->mc_table[HSE_MPOLICY_AGE_ROOT][HSE_MPOLICY_DTYPE_VALUE] = MP_MED_STAGING;
-    policy->mc_table[HSE_MPOLICY_AGE_INTERNAL][HSE_MPOLICY_DTYPE_KEY] = MP_MED_CAPACITY;
-    policy->mc_table[HSE_MPOLICY_AGE_INTERNAL][HSE_MPOLICY_DTYPE_VALUE] = MP_MED_CAPACITY;
-    policy->mc_table[HSE_MPOLICY_AGE_LEAF][HSE_MPOLICY_DTYPE_KEY] = MP_MED_CAPACITY;
-    policy->mc_table[HSE_MPOLICY_AGE_LEAF][HSE_MPOLICY_DTYPE_VALUE] = MP_MED_CAPACITY;
+    policy->mc_table[HSE_MPOLICY_AGE_ROOT][HSE_MPOLICY_DTYPE_KEY] = HSE_MCLASS_STAGING;
+    policy->mc_table[HSE_MPOLICY_AGE_ROOT][HSE_MPOLICY_DTYPE_VALUE] = HSE_MCLASS_STAGING;
+    policy->mc_table[HSE_MPOLICY_AGE_INTERNAL][HSE_MPOLICY_DTYPE_KEY] = HSE_MCLASS_CAPACITY;
+    policy->mc_table[HSE_MPOLICY_AGE_INTERNAL][HSE_MPOLICY_DTYPE_VALUE] = HSE_MCLASS_CAPACITY;
+    policy->mc_table[HSE_MPOLICY_AGE_LEAF][HSE_MPOLICY_DTYPE_KEY] = HSE_MCLASS_CAPACITY;
+    policy->mc_table[HSE_MPOLICY_AGE_LEAF][HSE_MPOLICY_DTYPE_VALUE] = HSE_MCLASS_CAPACITY;
 
     /* Setup pmem_only */
     policy = &mclass_policies[4];
     strlcpy(policy->mc_name, "pmem_only", sizeof("pmem_only"));
-    policy->mc_table[HSE_MPOLICY_AGE_ROOT][HSE_MPOLICY_DTYPE_KEY] = MP_MED_PMEM;
-    policy->mc_table[HSE_MPOLICY_AGE_ROOT][HSE_MPOLICY_DTYPE_VALUE] = MP_MED_PMEM;
-    policy->mc_table[HSE_MPOLICY_AGE_INTERNAL][HSE_MPOLICY_DTYPE_KEY] = MP_MED_PMEM;
-    policy->mc_table[HSE_MPOLICY_AGE_INTERNAL][HSE_MPOLICY_DTYPE_VALUE] = MP_MED_PMEM;
-    policy->mc_table[HSE_MPOLICY_AGE_LEAF][HSE_MPOLICY_DTYPE_KEY] = MP_MED_PMEM;
-    policy->mc_table[HSE_MPOLICY_AGE_LEAF][HSE_MPOLICY_DTYPE_VALUE] = MP_MED_PMEM;
+    policy->mc_table[HSE_MPOLICY_AGE_ROOT][HSE_MPOLICY_DTYPE_KEY] = HSE_MCLASS_PMEM;
+    policy->mc_table[HSE_MPOLICY_AGE_ROOT][HSE_MPOLICY_DTYPE_VALUE] = HSE_MCLASS_PMEM;
+    policy->mc_table[HSE_MPOLICY_AGE_INTERNAL][HSE_MPOLICY_DTYPE_KEY] = HSE_MCLASS_PMEM;
+    policy->mc_table[HSE_MPOLICY_AGE_INTERNAL][HSE_MPOLICY_DTYPE_VALUE] = HSE_MCLASS_PMEM;
+    policy->mc_table[HSE_MPOLICY_AGE_LEAF][HSE_MPOLICY_DTYPE_KEY] = HSE_MCLASS_PMEM;
+    policy->mc_table[HSE_MPOLICY_AGE_LEAF][HSE_MPOLICY_DTYPE_VALUE] = HSE_MCLASS_PMEM;
 
     /* Setup pmem_staging */
     policy = &mclass_policies[5];
     strlcpy(policy->mc_name, "pmem_staging", sizeof("pmem_staging"));
-    policy->mc_table[HSE_MPOLICY_AGE_ROOT][HSE_MPOLICY_DTYPE_KEY] = MP_MED_PMEM;
-    policy->mc_table[HSE_MPOLICY_AGE_ROOT][HSE_MPOLICY_DTYPE_VALUE] = MP_MED_PMEM;
-    policy->mc_table[HSE_MPOLICY_AGE_INTERNAL][HSE_MPOLICY_DTYPE_KEY] = MP_MED_PMEM;
-    policy->mc_table[HSE_MPOLICY_AGE_INTERNAL][HSE_MPOLICY_DTYPE_VALUE] = MP_MED_STAGING;
-    policy->mc_table[HSE_MPOLICY_AGE_LEAF][HSE_MPOLICY_DTYPE_KEY] = MP_MED_PMEM;
-    policy->mc_table[HSE_MPOLICY_AGE_LEAF][HSE_MPOLICY_DTYPE_VALUE] = MP_MED_STAGING;
+    policy->mc_table[HSE_MPOLICY_AGE_ROOT][HSE_MPOLICY_DTYPE_KEY] = HSE_MCLASS_PMEM;
+    policy->mc_table[HSE_MPOLICY_AGE_ROOT][HSE_MPOLICY_DTYPE_VALUE] = HSE_MCLASS_PMEM;
+    policy->mc_table[HSE_MPOLICY_AGE_INTERNAL][HSE_MPOLICY_DTYPE_KEY] = HSE_MCLASS_PMEM;
+    policy->mc_table[HSE_MPOLICY_AGE_INTERNAL][HSE_MPOLICY_DTYPE_VALUE] = HSE_MCLASS_STAGING;
+    policy->mc_table[HSE_MPOLICY_AGE_LEAF][HSE_MPOLICY_DTYPE_KEY] = HSE_MCLASS_PMEM;
+    policy->mc_table[HSE_MPOLICY_AGE_LEAF][HSE_MPOLICY_DTYPE_VALUE] = HSE_MCLASS_STAGING;
 
     /* Setup pmem_capacity */
     policy = &mclass_policies[6];
     strlcpy(policy->mc_name, "pmem_capacity", sizeof("pmem_capacity"));
-    policy->mc_table[HSE_MPOLICY_AGE_ROOT][HSE_MPOLICY_DTYPE_KEY] = MP_MED_PMEM;
-    policy->mc_table[HSE_MPOLICY_AGE_ROOT][HSE_MPOLICY_DTYPE_VALUE] = MP_MED_PMEM;
-    policy->mc_table[HSE_MPOLICY_AGE_INTERNAL][HSE_MPOLICY_DTYPE_KEY] = MP_MED_PMEM;
-    policy->mc_table[HSE_MPOLICY_AGE_INTERNAL][HSE_MPOLICY_DTYPE_VALUE] = MP_MED_CAPACITY;
-    policy->mc_table[HSE_MPOLICY_AGE_LEAF][HSE_MPOLICY_DTYPE_KEY] = MP_MED_PMEM;
-    policy->mc_table[HSE_MPOLICY_AGE_LEAF][HSE_MPOLICY_DTYPE_VALUE] = MP_MED_CAPACITY;
+    policy->mc_table[HSE_MPOLICY_AGE_ROOT][HSE_MPOLICY_DTYPE_KEY] = HSE_MCLASS_PMEM;
+    policy->mc_table[HSE_MPOLICY_AGE_ROOT][HSE_MPOLICY_DTYPE_VALUE] = HSE_MCLASS_PMEM;
+    policy->mc_table[HSE_MPOLICY_AGE_INTERNAL][HSE_MPOLICY_DTYPE_KEY] = HSE_MCLASS_PMEM;
+    policy->mc_table[HSE_MPOLICY_AGE_INTERNAL][HSE_MPOLICY_DTYPE_VALUE] = HSE_MCLASS_CAPACITY;
+    policy->mc_table[HSE_MPOLICY_AGE_LEAF][HSE_MPOLICY_DTYPE_KEY] = HSE_MCLASS_PMEM;
+    policy->mc_table[HSE_MPOLICY_AGE_LEAF][HSE_MPOLICY_DTYPE_VALUE] = HSE_MCLASS_CAPACITY;
 
     /* Setup pmem_staging_capacity */
     policy = &mclass_policies[7];
     strlcpy(policy->mc_name, "pmem_staging_capacity", sizeof("pmem_staging_capacity"));
-    policy->mc_table[HSE_MPOLICY_AGE_ROOT][HSE_MPOLICY_DTYPE_KEY] = MP_MED_PMEM;
-    policy->mc_table[HSE_MPOLICY_AGE_ROOT][HSE_MPOLICY_DTYPE_VALUE] = MP_MED_PMEM;
-    policy->mc_table[HSE_MPOLICY_AGE_INTERNAL][HSE_MPOLICY_DTYPE_KEY] = MP_MED_STAGING;
-    policy->mc_table[HSE_MPOLICY_AGE_INTERNAL][HSE_MPOLICY_DTYPE_VALUE] = MP_MED_STAGING;
-    policy->mc_table[HSE_MPOLICY_AGE_LEAF][HSE_MPOLICY_DTYPE_KEY] = MP_MED_STAGING;
-    policy->mc_table[HSE_MPOLICY_AGE_LEAF][HSE_MPOLICY_DTYPE_VALUE] = MP_MED_CAPACITY;
+    policy->mc_table[HSE_MPOLICY_AGE_ROOT][HSE_MPOLICY_DTYPE_KEY] = HSE_MCLASS_PMEM;
+    policy->mc_table[HSE_MPOLICY_AGE_ROOT][HSE_MPOLICY_DTYPE_VALUE] = HSE_MCLASS_PMEM;
+    policy->mc_table[HSE_MPOLICY_AGE_INTERNAL][HSE_MPOLICY_DTYPE_KEY] = HSE_MCLASS_STAGING;
+    policy->mc_table[HSE_MPOLICY_AGE_INTERNAL][HSE_MPOLICY_DTYPE_VALUE] = HSE_MCLASS_STAGING;
+    policy->mc_table[HSE_MPOLICY_AGE_LEAF][HSE_MPOLICY_DTYPE_KEY] = HSE_MCLASS_STAGING;
+    policy->mc_table[HSE_MPOLICY_AGE_LEAF][HSE_MPOLICY_DTYPE_VALUE] = HSE_MCLASS_CAPACITY;
 
     for (int i = mclass_policy_get_num_default_policies(); i < ps->ps_bounds.as_array.ps_max_len;
          i++) {
@@ -124,9 +124,9 @@ mclass_policies_default_builder(const struct param_spec *ps, void *data)
         for (int age = 0; age < (int)HSE_MPOLICY_AGE_CNT; age++) {
             for (int dtype = 0; dtype < (int)HSE_MPOLICY_DTYPE_CNT; dtype++) {
                 if (age != (int)HSE_MPOLICY_AGE_ROOT && dtype == (int)HSE_MPOLICY_DTYPE_VALUE)
-                    mclass_policies[i].mc_table[age][dtype] = MP_MED_CAPACITY;
+                    mclass_policies[i].mc_table[age][dtype] = HSE_MCLASS_CAPACITY;
                 else
-                    mclass_policies[i].mc_table[age][dtype] = MP_MED_STAGING;
+                    mclass_policies[i].mc_table[age][dtype] = HSE_MCLASS_STAGING;
             }
         }
     }
@@ -242,15 +242,15 @@ mclass_policies_converter(const struct param_spec *ps, const cJSON *node, void *
                     return false;
                 }
 
-                enum mpool_mclass media = MP_MED_INVALID;
+                enum hse_mclass media = HSE_MCLASS_INVALID;
                 for (int k = 0; k < NELEM(mpool_mclass_to_string); k++) {
                     ctx = cJSON_GetStringValue(dtype_json);
                     if (!strcmp(ctx, mpool_mclass_to_string[k])) {
-                        media = (enum mpool_mclass)k;
+                        media = (enum hse_mclass)k;
                         break;
                     }
                 }
-                if (media == MP_MED_INVALID) {
+                if (media == HSE_MCLASS_INVALID) {
                     log_err(
                         "Unknown media class in media class policy: %s, "
                         "must be one of capacity or staging or pmem", ctx);
@@ -295,6 +295,95 @@ mclass_policies_validator(const struct param_spec *ps, const void *data)
     return true;
 }
 
+static merr_t
+mclass_policies_stringify(
+    const struct param_spec *const ps,
+    const void *const              value,
+    char *const                    buf,
+    const size_t                   buf_sz,
+    size_t *const                  needed_sz)
+{
+    cJSON *arr;
+    char * data;
+    size_t n;
+
+    INVARIANT(ps);
+    INVARIANT(value);
+    INVARIANT(buf);
+
+    arr = ps->ps_jsonify(ps, value);
+    if (!arr)
+        return merr(ENOMEM);
+
+    /* Ideally this would be cJSON_PrintPreallocated(), but cJSON doesn't tell
+     * you about truncation via a needed size like snprintf() or strlcpy().
+     * C-string based APIs rock...not :).
+     */
+    data = cJSON_PrintUnformatted(arr);
+    n = strlcpy(buf, data, buf_sz);
+    cJSON_free(data);
+
+    if (needed_sz)
+        *needed_sz = n;
+
+    cJSON_Delete(arr);
+
+    return 0;
+}
+
+static cJSON * HSE_NONNULL(1, 2)
+mclass_policies_jsonify(const struct param_spec *const ps, const void *const value)
+{
+    cJSON *arr;
+
+    INVARIANT(ps);
+    INVARIANT(value);
+
+    const struct mclass_policy *policies = (struct mclass_policy *)value;
+    arr = cJSON_CreateArray();
+    if (!arr)
+        return NULL;
+
+    for (size_t i = mclass_policy_get_num_default_policies(); i < ps->ps_bounds.as_array.ps_max_len; i++) {
+        if (!strcmp(policies[i].mc_name, HSE_MPOLICY_DEFAULT_NAME))
+            return arr;
+
+        cJSON *policy = cJSON_CreateObject();
+        cJSON *name = cJSON_AddStringToObject(policy, "name", policies[i].mc_name);
+        cJSON *config = cJSON_AddObjectToObject(policy, "config");
+        cJSON *internal = cJSON_AddObjectToObject(config, "internal");
+        cJSON *internal_k = cJSON_AddStringToObject(internal, "keys",
+            mpool_mclass_to_string[policies[i].mc_table[HSE_MPOLICY_AGE_INTERNAL][HSE_MPOLICY_DTYPE_KEY]]);
+        cJSON *internal_v = cJSON_AddStringToObject(internal, "values",
+            mpool_mclass_to_string[policies[i].mc_table[HSE_MPOLICY_AGE_INTERNAL][HSE_MPOLICY_DTYPE_VALUE]]);
+        cJSON *leaf = cJSON_AddObjectToObject(config, "leaf");
+        cJSON *leaf_k = cJSON_AddStringToObject(leaf, "keys",
+            mpool_mclass_to_string[policies[i].mc_table[HSE_MPOLICY_AGE_LEAF][HSE_MPOLICY_DTYPE_KEY]]);
+        cJSON *leaf_v = cJSON_AddStringToObject(leaf, "values",
+            mpool_mclass_to_string[policies[i].mc_table[HSE_MPOLICY_AGE_LEAF][HSE_MPOLICY_DTYPE_VALUE]]);
+        cJSON *root = cJSON_AddObjectToObject(config, "root");
+        cJSON *root_k = cJSON_AddStringToObject(root, "keys",
+            mpool_mclass_to_string[policies[i].mc_table[HSE_MPOLICY_AGE_ROOT][HSE_MPOLICY_DTYPE_KEY]]);
+        cJSON *root_v = cJSON_AddStringToObject(root, "values",
+            mpool_mclass_to_string[policies[i].mc_table[HSE_MPOLICY_AGE_ROOT][HSE_MPOLICY_DTYPE_VALUE]]);
+
+        if (!policy || !name || !config || !internal || !internal_k || !internal_v || !leaf ||
+            !leaf_k || !leaf_v || !root || !root_k || !root_v) {
+            cJSON_Delete(policy);
+            goto out;
+        }
+
+        cJSON_AddItemToArray(arr, policy);
+    }
+
+    return arr;
+
+out:
+    cJSON_Delete(arr);
+
+    return NULL;
+}
+
 static bool HSE_NONNULL(1, 2, 3)
 dur_mclass_converter(
     const struct param_spec *const ps,
@@ -309,9 +398,9 @@ dur_mclass_converter(
         return false;
 
     const char *value = cJSON_GetStringValue(node);
-    for (size_t i = 0; i < NELEM(mpool_mclass_to_string); i++) {
+    for (int i = HSE_MCLASS_BASE; i < HSE_MCLASS_COUNT; i++) {
         if (!strcmp(mpool_mclass_to_string[i], value)) {
-            *(enum mpool_mclass *)data = i;
+            *(enum hse_mclass *)data = i;
             return true;
         }
     }
@@ -319,6 +408,44 @@ dur_mclass_converter(
     log_err("Invalid value: %s, must be one of capacity or staging", value);
 
     return false;
+}
+
+static merr_t
+dur_mclass_stringify(
+    const struct param_spec *const ps,
+    const void *const              value,
+    char *const                    buf,
+    const size_t                   buf_sz,
+    size_t *const                  needed_sz)
+{
+    int                     n;
+    const char *            param;
+    const enum hse_mclass mc = *(const enum hse_mclass *)value;
+
+    INVARIANT(ps);
+    INVARIANT(value);
+    INVARIANT(mc < MD_MED_COUNT && mc >= HSE_MCLASS_BASE);
+    INVARIANT(buf);
+
+    param = mpool_mclass_to_string[mc];
+
+    n = snprintf(buf, buf_sz, "\"%s\"", param);
+    if (n < 0)
+        return merr(EBADMSG);
+
+    if (needed_sz)
+        *needed_sz = n;
+
+    return 0;
+}
+
+static cJSON * HSE_NONNULL(1, 2)
+dur_mclass_jsonify(const struct param_spec *const ps, const void *const value)
+{
+    INVARIANT(ps);
+    INVARIANT(value);
+
+    return cJSON_CreateString(mpool_mclass_to_string[*(enum hse_mclass *)value]);
 }
 
 static bool HSE_NONNULL(1, 2, 3)
@@ -349,6 +476,61 @@ throttle_init_policy_converter(
     return true;
 }
 
+static merr_t
+throttle_init_policy_stringify(
+    const struct param_spec *const ps,
+    const void *const              value,
+    char *const                    buf,
+    const size_t                   buf_sz,
+    size_t *const                  needed_sz)
+{
+    size_t      n;
+    const char *param;
+
+    INVARIANT(ps);
+    INVARIANT(value);
+    INVARIANT(buf);
+
+    switch (*(uint *)value) {
+        case THROTTLE_DELAY_START_DEFAULT:
+            param = "\"default\"";
+            break;
+        case THROTTLE_DELAY_START_LIGHT:
+            param = "\"light\"";
+            break;
+        case THROTTLE_DELAY_START_MEDIUM:
+            param = "\"medium\"";
+            break;
+        default:
+            abort();
+    }
+
+    n = strlcpy(buf, param, buf_sz);
+
+    if (needed_sz)
+        *needed_sz = n;
+
+    return 0;
+}
+
+static cJSON * HSE_NONNULL(1, 2)
+throttle_init_policy_jsonify(const struct param_spec *const ps, const void *const value)
+{
+    INVARIANT(ps);
+    INVARIANT(value);
+
+    switch (*(uint *)value) {
+        case THROTTLE_DELAY_START_DEFAULT:
+            return cJSON_CreateString("default");
+        case THROTTLE_DELAY_START_LIGHT:
+            return cJSON_CreateString("light");
+        case THROTTLE_DELAY_START_MEDIUM:
+            return cJSON_CreateString("medium");
+        default:
+            abort();
+    }
+}
+
 static bool HSE_NONNULL(1, 2)
 csched_policy_validator(const struct param_spec *const ps, const void *const data)
 {
@@ -371,6 +553,8 @@ static const struct param_spec pspecs[] = {
         .ps_size = PARAM_SZ(struct kvdb_rparams, read_only),
         .ps_convert = param_default_converter,
         .ps_validate = param_default_validator,
+        .ps_stringify = param_default_stringify,
+        .ps_jsonify = param_default_jsonify,
         .ps_default_value = {
             .as_bool = false,
         },
@@ -384,6 +568,8 @@ static const struct param_spec pspecs[] = {
         .ps_size = PARAM_SZ(struct kvdb_rparams, perfc_level),
         .ps_convert = param_default_converter,
         .ps_validate = param_default_validator,
+        .ps_stringify = param_default_stringify,
+        .ps_jsonify = param_default_jsonify,
         .ps_default_value = {
             .as_uscalar = PERFC_LEVEL_DEFAULT,
         },
@@ -403,6 +589,8 @@ static const struct param_spec pspecs[] = {
         .ps_size = PARAM_SZ(struct kvdb_rparams, perfc_level),
         .ps_convert = param_default_converter,
         .ps_validate = param_default_validator,
+        .ps_stringify = param_default_stringify,
+        .ps_jsonify = param_default_jsonify,
         .ps_default_value = {
             .as_uscalar = 2,
         },
@@ -422,6 +610,8 @@ static const struct param_spec pspecs[] = {
         .ps_size = PARAM_SZ(struct kvdb_rparams, c0_debug),
         .ps_convert = param_default_converter,
         .ps_validate = param_default_validator,
+        .ps_stringify = param_default_stringify,
+        .ps_jsonify = param_default_jsonify,
         .ps_default_value = {
             .as_uscalar = 0,
         },
@@ -441,6 +631,8 @@ static const struct param_spec pspecs[] = {
         .ps_size = PARAM_SZ(struct kvdb_rparams, c0_diag_mode),
         .ps_convert = param_default_converter,
         .ps_validate = param_default_validator,
+        .ps_stringify = param_default_stringify,
+        .ps_jsonify = param_default_jsonify,
         .ps_default_value = {
             .as_uscalar = false,
         },
@@ -454,6 +646,8 @@ static const struct param_spec pspecs[] = {
         .ps_size = PARAM_SZ(struct kvdb_rparams, c0_ingest_width),
         .ps_convert = param_default_converter,
         .ps_validate = param_default_validator,
+        .ps_stringify = param_default_stringify,
+        .ps_jsonify = param_default_jsonify,
         .ps_default_value = {
             .as_uscalar = HSE_C0_INGEST_WIDTH_DFLT,
         },
@@ -473,6 +667,8 @@ static const struct param_spec pspecs[] = {
         .ps_size = PARAM_SZ(struct kvdb_rparams, txn_timeout),
         .ps_convert = param_default_converter,
         .ps_validate = param_default_validator,
+        .ps_stringify = param_default_stringify,
+        .ps_jsonify = param_default_jsonify,
         .ps_default_value = {
             .as_uscalar = 1000 * 60 * 5,
         },
@@ -493,6 +689,8 @@ static const struct param_spec pspecs[] = {
         .ps_size = PARAM_SZ(struct kvdb_rparams, csched_policy),
         .ps_convert = param_default_converter,
         .ps_validate = csched_policy_validator,
+        .ps_stringify = param_default_stringify,
+        .ps_jsonify = param_default_jsonify,
         .ps_default_value = {
             .as_uscalar = csched_policy_sp3,
         },
@@ -512,6 +710,8 @@ static const struct param_spec pspecs[] = {
         .ps_size = PARAM_SZ(struct kvdb_rparams, csched_debug_mask),
         .ps_convert = param_default_converter,
         .ps_validate = param_default_validator,
+        .ps_stringify = param_default_stringify,
+        .ps_jsonify = param_default_jsonify,
         .ps_default_value = {
             .as_uscalar = 0,
         },
@@ -531,6 +731,8 @@ static const struct param_spec pspecs[] = {
         .ps_size = PARAM_SZ(struct kvdb_rparams, csched_samp_max),
         .ps_convert = param_default_converter,
         .ps_validate = param_default_validator,
+        .ps_stringify = param_default_stringify,
+        .ps_jsonify = param_default_jsonify,
         .ps_default_value = {
             .as_uscalar = 150,
         },
@@ -550,6 +752,8 @@ static const struct param_spec pspecs[] = {
         .ps_size = PARAM_SZ(struct kvdb_rparams, csched_lo_th_pct),
         .ps_convert = param_default_converter,
         .ps_validate = param_default_validator,
+        .ps_stringify = param_default_stringify,
+        .ps_jsonify = param_default_jsonify,
         .ps_default_value = {
             .as_uscalar = 25,
         },
@@ -569,6 +773,8 @@ static const struct param_spec pspecs[] = {
         .ps_size = PARAM_SZ(struct kvdb_rparams, csched_hi_th_pct),
         .ps_convert = param_default_converter,
         .ps_validate = param_default_validator,
+        .ps_stringify = param_default_stringify,
+        .ps_jsonify = param_default_jsonify,
         .ps_default_value = {
             .as_uscalar = 75,
         },
@@ -588,6 +794,8 @@ static const struct param_spec pspecs[] = {
         .ps_size = PARAM_SZ(struct kvdb_rparams, csched_leaf_pct),
         .ps_convert = param_default_converter,
         .ps_validate = param_default_validator,
+        .ps_stringify = param_default_stringify,
+        .ps_jsonify = param_default_jsonify,
         .ps_default_value = {
             .as_uscalar = 90,
         },
@@ -607,6 +815,8 @@ static const struct param_spec pspecs[] = {
         .ps_size = PARAM_SZ(struct kvdb_rparams, csched_vb_scatter_pct),
         .ps_convert = param_default_converter,
         .ps_validate = param_default_validator,
+        .ps_stringify = param_default_stringify,
+        .ps_jsonify = param_default_jsonify,
         .ps_default_value = {
             .as_uscalar = 100,
         },
@@ -626,6 +836,8 @@ static const struct param_spec pspecs[] = {
         .ps_size = PARAM_SZ(struct kvdb_rparams, csched_qthreads),
         .ps_convert = param_default_converter,
         .ps_validate = param_default_validator,
+        .ps_stringify = param_default_stringify,
+        .ps_jsonify = param_default_jsonify,
         .ps_default_value = {
             .as_uscalar = 0,
         },
@@ -645,6 +857,8 @@ static const struct param_spec pspecs[] = {
         .ps_size = PARAM_SZ(struct kvdb_rparams, csched_node_len_max),
         .ps_convert = param_default_converter,
         .ps_validate = param_default_validator,
+        .ps_stringify = param_default_stringify,
+        .ps_jsonify = param_default_jsonify,
         .ps_default_value = {
             .as_uscalar = 0,
         },
@@ -664,6 +878,8 @@ static const struct param_spec pspecs[] = {
         .ps_size = PARAM_SZ(struct kvdb_rparams, csched_rspill_params),
         .ps_convert = param_default_converter,
         .ps_validate = param_default_validator,
+        .ps_stringify = param_default_stringify,
+        .ps_jsonify = param_default_jsonify,
         .ps_default_value = {
             .as_uscalar = 0,
         },
@@ -683,6 +899,8 @@ static const struct param_spec pspecs[] = {
         .ps_size = PARAM_SZ(struct kvdb_rparams, csched_ispill_params),
         .ps_convert = param_default_converter,
         .ps_validate = param_default_validator,
+        .ps_stringify = param_default_stringify,
+        .ps_jsonify = param_default_jsonify,
         .ps_default_value = {
             .as_uscalar = 0,
         },
@@ -702,6 +920,8 @@ static const struct param_spec pspecs[] = {
         .ps_size = PARAM_SZ(struct kvdb_rparams, csched_leaf_comp_params),
         .ps_convert = param_default_converter,
         .ps_validate = param_default_validator,
+        .ps_stringify = param_default_stringify,
+        .ps_jsonify = param_default_jsonify,
         .ps_default_value = {
             .as_uscalar = 0,
         },
@@ -721,6 +941,8 @@ static const struct param_spec pspecs[] = {
         .ps_size = PARAM_SZ(struct kvdb_rparams, csched_leaf_len_params),
         .ps_convert = param_default_converter,
         .ps_validate = param_default_validator,
+        .ps_stringify = param_default_stringify,
+        .ps_jsonify = param_default_jsonify,
         .ps_default_value = {
             .as_uscalar = 0,
         },
@@ -740,6 +962,8 @@ static const struct param_spec pspecs[] = {
         .ps_size = PARAM_SZ(struct kvdb_rparams, csched_node_min_ttl),
         .ps_convert = param_default_converter,
         .ps_validate = param_default_validator,
+        .ps_stringify = param_default_stringify,
+        .ps_jsonify = param_default_jsonify,
         .ps_default_value = {
             .as_uscalar = 17,
         },
@@ -759,6 +983,8 @@ static const struct param_spec pspecs[] = {
         .ps_size = PARAM_SZ(struct kvdb_rparams, dur_enable),
         .ps_convert = param_default_converter,
         .ps_validate = param_default_validator,
+        .ps_stringify = param_default_stringify,
+        .ps_jsonify = param_default_jsonify,
         .ps_default_value = {
             .as_bool = true,
         },
@@ -772,6 +998,8 @@ static const struct param_spec pspecs[] = {
         .ps_size = PARAM_SZ(struct kvdb_rparams, dur_intvl_ms),
         .ps_convert = param_default_converter,
         .ps_validate = param_default_validator,
+        .ps_stringify = param_default_stringify,
+        .ps_jsonify = param_default_jsonify,
         .ps_default_value = {
             .as_uscalar = HSE_WAL_DUR_MS_DFLT,
         },
@@ -791,6 +1019,8 @@ static const struct param_spec pspecs[] = {
         .ps_size = PARAM_SZ(struct kvdb_rparams, dur_bufsz_mb),
         .ps_convert = param_roundup_pow2,
         .ps_validate = param_default_validator,
+        .ps_stringify = param_default_stringify,
+        .ps_jsonify = param_default_jsonify,
         .ps_default_value = {
             .as_uscalar = HSE_WAL_DUR_BUFSZ_MB_DFLT,
         },
@@ -810,6 +1040,8 @@ static const struct param_spec pspecs[] = {
         .ps_size = PARAM_SZ(struct kvdb_rparams, dur_throttle_lo_th),
         .ps_convert = param_default_converter,
         .ps_validate = param_default_validator,
+        .ps_stringify = param_default_stringify,
+        .ps_jsonify = param_default_jsonify,
         .ps_default_value = {
             .as_uscalar = 13,
         },
@@ -829,6 +1061,8 @@ static const struct param_spec pspecs[] = {
         .ps_size = PARAM_SZ(struct kvdb_rparams, dur_throttle_hi_th),
         .ps_convert = param_default_converter,
         .ps_validate = param_default_validator,
+        .ps_stringify = param_default_stringify,
+        .ps_jsonify = param_default_jsonify,
         .ps_default_value = {
             .as_uscalar = 87,
         },
@@ -848,6 +1082,8 @@ static const struct param_spec pspecs[] = {
         .ps_size = PARAM_SZ(struct kvdb_rparams, dur_buf_managed),
         .ps_convert = param_default_converter,
         .ps_validate = param_default_validator,
+        .ps_stringify = param_default_stringify,
+        .ps_jsonify = param_default_jsonify,
         .ps_default_value = {
             .as_bool = false,
         },
@@ -861,13 +1097,15 @@ static const struct param_spec pspecs[] = {
         .ps_size = PARAM_SZ(struct kvdb_rparams, dur_mclass),
         .ps_convert = dur_mclass_converter,
         .ps_validate = param_default_validator,
+        .ps_stringify = dur_mclass_stringify,
+        .ps_jsonify = dur_mclass_jsonify,
         .ps_default_value = {
-            .as_enum = MP_MED_CAPACITY,
+            .as_enum = HSE_MCLASS_CAPACITY,
         },
         .ps_bounds = {
             .as_enum = {
-                .ps_min = MP_MED_BASE,
-                .ps_max = MP_MED_MAX,
+                .ps_min = HSE_MCLASS_BASE,
+                .ps_max = HSE_MCLASS_MAX,
             },
         },
     },
@@ -880,6 +1118,8 @@ static const struct param_spec pspecs[] = {
         .ps_size = PARAM_SZ(struct kvdb_rparams, throttle_disable),
         .ps_convert = param_default_converter,
         .ps_validate = param_default_validator,
+        .ps_stringify = param_default_stringify,
+        .ps_jsonify = param_default_jsonify,
         .ps_default_value = {
             .as_uscalar = false,
         },
@@ -893,6 +1133,8 @@ static const struct param_spec pspecs[] = {
         .ps_size = PARAM_SZ(struct kvdb_rparams, throttle_update_ns),
         .ps_convert = param_default_converter,
         .ps_validate = param_default_validator,
+        .ps_stringify = param_default_stringify,
+        .ps_jsonify = param_default_jsonify,
         .ps_default_value = {
             .as_uscalar = 25 * 1000 * 1000,
         },
@@ -912,6 +1154,8 @@ static const struct param_spec pspecs[] = {
         .ps_size = PARAM_SZ(struct kvdb_rparams, throttle_debug),
         .ps_convert = param_default_converter,
         .ps_validate = param_default_validator,
+        .ps_stringify = param_default_stringify,
+        .ps_jsonify = param_default_jsonify,
         .ps_default_value = {
             .as_uscalar = 0,
         },
@@ -931,6 +1175,8 @@ static const struct param_spec pspecs[] = {
         .ps_size = PARAM_SZ(struct kvdb_rparams, throttle_debug_intvl_s),
         .ps_convert = param_default_converter,
         .ps_validate = param_default_validator,
+        .ps_stringify = param_default_stringify,
+        .ps_jsonify = param_default_jsonify,
         .ps_default_value = {
             .as_uscalar = 300,
         },
@@ -950,6 +1196,8 @@ static const struct param_spec pspecs[] = {
         .ps_size = PARAM_SZ(struct kvdb_rparams, throttle_c0_hi_th),
         .ps_convert = param_default_converter,
         .ps_validate = param_default_validator,
+        .ps_stringify = param_default_stringify,
+        .ps_jsonify = param_default_jsonify,
         .ps_default_value = {
             .as_uscalar = 35,
         },
@@ -969,6 +1217,8 @@ static const struct param_spec pspecs[] = {
         .ps_size = PARAM_SZ(struct kvdb_rparams, throttle_init_policy),
         .ps_convert = throttle_init_policy_converter,
         .ps_validate = param_default_validator,
+        .ps_stringify = throttle_init_policy_stringify,
+        .ps_jsonify = throttle_init_policy_jsonify,
         .ps_default_value = {
             .as_enum = THROTTLE_DELAY_START_DEFAULT,
         },
@@ -988,6 +1238,8 @@ static const struct param_spec pspecs[] = {
         .ps_size = PARAM_SZ(struct kvdb_rparams, throttle_burst),
         .ps_convert = param_default_converter,
         .ps_validate = param_default_validator,
+        .ps_stringify = param_default_stringify,
+        .ps_jsonify = param_default_jsonify,
         .ps_default_value = {
             .as_uscalar = 1ul << 20,
         },
@@ -1007,6 +1259,8 @@ static const struct param_spec pspecs[] = {
         .ps_size = PARAM_SZ(struct kvdb_rparams, throttle_rate),
         .ps_convert = param_default_converter,
         .ps_validate = param_default_validator,
+        .ps_stringify = param_default_stringify,
+        .ps_jsonify = param_default_jsonify,
         .ps_default_value = {
             .as_uscalar = 10ul << 20,
         },
@@ -1026,6 +1280,8 @@ static const struct param_spec pspecs[] = {
         .ps_size = PARAM_SZ(struct kvdb_rparams, txn_wkth_delay),
         .ps_convert = param_default_converter,
         .ps_validate = param_default_validator,
+        .ps_stringify = param_default_stringify,
+        .ps_jsonify = param_default_jsonify,
         .ps_default_value = {
             .as_uscalar = 1000 * 60,
         },
@@ -1045,6 +1301,8 @@ static const struct param_spec pspecs[] = {
         .ps_size = PARAM_SZ(struct kvdb_rparams, cndb_entries),
         .ps_convert = param_default_converter,
         .ps_validate = param_default_validator,
+        .ps_stringify = param_default_stringify,
+        .ps_jsonify = param_default_jsonify,
         .ps_default_value = {
             .as_uscalar = 0,
         },
@@ -1064,6 +1322,8 @@ static const struct param_spec pspecs[] = {
         .ps_size = PARAM_SZ(struct kvdb_rparams, cndb_debug),
         .ps_convert = param_default_converter,
         .ps_validate = param_default_validator,
+        .ps_stringify = param_default_stringify,
+        .ps_jsonify = param_default_jsonify,
         .ps_default_value = {
             .as_bool = false,
         },
@@ -1077,6 +1337,8 @@ static const struct param_spec pspecs[] = {
         .ps_size = PARAM_SZ(struct kvdb_rparams, c0_maint_threads),
         .ps_convert = param_default_converter,
         .ps_validate = param_default_validator,
+        .ps_stringify = param_default_stringify,
+        .ps_jsonify = param_default_jsonify,
         .ps_default_value = {
             .as_uscalar = HSE_C0_MAINT_THREADS_DFLT,
         },
@@ -1096,6 +1358,8 @@ static const struct param_spec pspecs[] = {
         .ps_size = PARAM_SZ(struct kvdb_rparams, c0_ingest_threads),
         .ps_convert = param_default_converter,
         .ps_validate = param_default_validator,
+        .ps_stringify = param_default_stringify,
+        .ps_jsonify = param_default_jsonify,
         .ps_default_value = {
             .as_uscalar = HSE_C0_INGEST_THREADS_DFLT,
         },
@@ -1115,6 +1379,8 @@ static const struct param_spec pspecs[] = {
         .ps_size = PARAM_SZ(struct kvdb_rparams, cn_maint_threads),
         .ps_convert = param_default_converter,
         .ps_validate = param_default_validator,
+        .ps_stringify = param_default_stringify,
+        .ps_jsonify = param_default_jsonify,
         .ps_default_value = {
             .as_uscalar = 17,
         },
@@ -1134,6 +1400,8 @@ static const struct param_spec pspecs[] = {
         .ps_size = PARAM_SZ(struct kvdb_rparams, cn_io_threads),
         .ps_convert = param_default_converter,
         .ps_validate = param_default_validator,
+        .ps_stringify = param_default_stringify,
+        .ps_jsonify = param_default_jsonify,
         .ps_default_value = {
             .as_uscalar = 13,
         },
@@ -1153,6 +1421,8 @@ static const struct param_spec pspecs[] = {
         .ps_size = PARAM_SZ(struct kvdb_rparams, keylock_tables),
         .ps_convert = param_default_converter,
         .ps_validate = param_default_validator,
+        .ps_stringify = param_default_stringify,
+        .ps_jsonify = param_default_jsonify,
         .ps_default_value = {
             .as_uscalar = 761,
         },
@@ -1172,6 +1442,8 @@ static const struct param_spec pspecs[] = {
         .ps_size = PARAM_SZ(struct kvdb_rparams, mclass_policies),
         .ps_convert = mclass_policies_converter,
         .ps_validate = mclass_policies_validator,
+        .ps_stringify = mclass_policies_stringify,
+        .ps_jsonify = mclass_policies_jsonify,
         .ps_default_value = {
             .as_builder = mclass_policies_default_builder,
         },
@@ -1202,10 +1474,39 @@ kvdb_rparams_defaults()
 }
 
 merr_t
-kvdb_rparams_resolve(struct kvdb_rparams *params, const char *home)
+kvdb_rparams_get(
+    const struct kvdb_rparams *const params,
+    const char *const                param,
+    char *const                      buf,
+    const size_t                     buf_sz,
+    size_t *const                    needed_sz)
 {
-    assert(params);
-    assert(home);
+    const struct params p = { .p_params = { .as_kvdb_rp = params }, .p_type = PARAMS_KVDB_RP };
 
-    return 0;
+    return param_get(&p, pspecs, NELEM(pspecs), param, buf, buf_sz, needed_sz);
+}
+
+merr_t
+kvdb_rparams_set(
+    const struct kvdb_rparams *const params,
+    const char *const                param,
+    const char *const                value)
+{
+    if (!params || !param || !value)
+        return merr(EINVAL);
+
+    const struct params p = { .p_params = { .as_kvdb_rp = params }, .p_type = PARAMS_KVDB_RP };
+
+    return param_set(&p, pspecs, NELEM(pspecs), param, value);
+}
+
+cJSON *
+kvdb_rparams_to_json(const struct kvdb_rparams *const params)
+{
+    if (!params)
+        return NULL;
+
+    const struct params p = { .p_params = { .as_kvdb_rp = params }, .p_type = PARAMS_KVDB_RP };
+
+    return param_to_json(&p, pspecs, NELEM(pspecs));
 }

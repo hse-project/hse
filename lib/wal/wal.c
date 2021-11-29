@@ -62,7 +62,7 @@ struct wal {
     pthread_t  sync_notify_tid;
     uint32_t   dur_ms;
     size_t     dur_bufsz;
-    enum mpool_mclass dur_mclass;
+    enum hse_mclass dur_mclass;
     uint32_t   version;
     bool       buf_managed;
     uint32_t   buf_flags;
@@ -498,18 +498,19 @@ wal_op_finish(struct wal *wal, struct wal_record *rec, uint64_t seqno, uint64_t 
 merr_t
 wal_create(struct mpool *mp, uint64_t *mdcid1, uint64_t *mdcid2)
 {
-    struct wal_mdc *mdc;
-    merr_t err;
-    int    i;
+    struct wal_mdc *          mdc;
+    merr_t                    err;
+    int                       i;
+    struct mpool_mclass_props props;
 
-    for (i = MP_MED_COUNT - 1; i >= MP_MED_BASE; i--) {
-        err = mpool_mclass_props_get(mp, i, NULL);
+    for (i = HSE_MCLASS_COUNT - 1; i >= HSE_MCLASS_BASE; i--) {
+        err = mpool_mclass_props_get(mp, i, &props);
         if (!err)
             break;
     }
-    assert(i >= MP_MED_BASE);
+    assert(i >= HSE_MCLASS_BASE);
 
-    if (i < MP_MED_BASE)
+    if (i < HSE_MCLASS_BASE)
         return merr(ENOENT);
 
     err = wal_mdc_create(mp, i, WAL_MDC_CAPACITY, mdcid1, mdcid2);
@@ -548,7 +549,7 @@ wal_open(
     struct wal            **wal_out)
 {
     struct wal *wal;
-    enum mpool_mclass mclass;
+    enum hse_mclass mclass;
     merr_t err;
     int rc;
 
@@ -572,7 +573,7 @@ wal_open(
 
     wal->dur_ms = HSE_WAL_DUR_MS_DFLT;
     wal->dur_bufsz = HSE_WAL_DUR_BUFSZ_MB_DFLT << MB_SHIFT;
-    wal->dur_mclass = MP_MED_CAPACITY;
+    wal->dur_mclass = HSE_MCLASS_CAPACITY;
 
     err = wal_mdc_open(mp, rinfo->mdcid1, rinfo->mdcid2, wal->read_only, &wal->mdc);
     if (err)
@@ -610,7 +611,7 @@ wal_open(
 
     mclass = rp->dur_mclass;
     if (mclass != wal->dur_mclass) {
-        assert(mclass < MP_MED_COUNT);
+        assert(mclass < HSE_MCLASS_COUNT);
         wal->dur_mclass = mclass;
         wal_fileset_mclass_update(wal->wfset, wal->dur_mclass);
     }
@@ -742,14 +743,14 @@ wal_throttle_sensor(struct wal *wal, struct throttle_sensor *sensor)
 /*
  * get/set interfaces for struct wal fields
  */
-enum mpool_mclass
+enum hse_mclass
 wal_dur_mclass_get(struct wal *wal)
 {
     return wal->dur_mclass;
 }
 
 void
-wal_dur_mclass_set(struct wal *wal, enum mpool_mclass mclass)
+wal_dur_mclass_set(struct wal *wal, enum hse_mclass mclass)
 {
     wal->dur_mclass = mclass;
 }

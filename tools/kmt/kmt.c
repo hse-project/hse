@@ -283,7 +283,7 @@ uint           c0putval = UINT_MAX;
 bool           kvdb_mode = false;
 bool           latency = false;
 long           sync_timeout_ms = 0;
-int            mclass = MP_MED_CAPACITY;
+int            mclass = HSE_MCLASS_CAPACITY;
 
 struct parm_groups *pg;
 struct svec         hse_gparms = { 0 };
@@ -2409,7 +2409,7 @@ km_open_ds(struct km_impl *impl)
         return EINVAL;
     }
 
-    for (int i = 0; i < MP_MED_COUNT; i++) {
+    for (int i = 0; i < HSE_MCLASS_COUNT; i++) {
         if (mclass == i) {
             strlcpy(params.mclass[i].path, impl->mpname, sizeof(params.mclass[i].path));
             break;
@@ -3996,7 +3996,7 @@ prop_decode(const char *list, const char *sep, const char *valid)
             wcmajprob = strtod(value, &end);
         } else if (0 == strcmp(name, "mclass")) {
             mclass = strtoul(value, &end, 0);
-            mclass = mclass == 1 ? MP_MED_STAGING : MP_MED_CAPACITY;
+            mclass = mclass == 1 ? HSE_MCLASS_STAGING : HSE_MCLASS_CAPACITY;
         } else {
             eprint("%s property '%s' ignored\n", valid ? "unhandled" : "invalid", name);
             continue;

@@ -36,7 +36,7 @@
 #include "vblock_builder_internal.h"
 
 size_t
-vbb_estimate_alen(struct cn *cn, size_t wlen, enum mpool_mclass mclass)
+vbb_estimate_alen(struct cn *cn, size_t wlen, enum hse_mclass mclass)
 {
     u64 zonealloc_unit;
 
@@ -54,13 +54,13 @@ _vblock_start(struct vblock_builder *bld)
     u64                    tstart;
     struct cn_merge_stats *stats = bld->mstats;
     struct kvs_rparams *   rp;
-    enum mpool_mclass      mclass;
+    enum hse_mclass      mclass;
     struct mclass_policy * mpolicy = cn_get_mclass_policy(bld->cn);
 
     tstart = get_time_ns();
 
     mclass = mclass_policy_get_type(mpolicy, bld->agegroup, HSE_MPOLICY_DTYPE_VALUE);
-    if (ev(mclass == MP_MED_INVALID))
+    if (ev(mclass == HSE_MCLASS_INVALID))
         return merr(EINVAL);
 
     err = mpool_mblock_alloc(bld->ds, mclass, &blkid, &mbprop);

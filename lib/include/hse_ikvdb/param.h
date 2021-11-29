@@ -43,12 +43,12 @@ struct params {
     } p_type;
     union {
         /* Do not assign to as_generic, for internal use only */
-        void *const                as_generic;
-        struct kvdb_cparams *const as_kvdb_cp;
-        struct kvdb_rparams *const as_kvdb_rp;
-        struct kvs_cparams *const  as_kvs_cp;
-        struct kvs_rparams *const  as_kvs_rp;
-        struct hse_gparams *const  as_hse_gp;
+        const void *               as_generic;
+        const struct kvdb_cparams *as_kvdb_cp;
+        const struct kvdb_rparams *as_kvdb_rp;
+        const struct kvs_cparams * as_kvs_cp;
+        const struct kvs_rparams * as_kvs_rp;
+        const struct hse_gparams * as_hse_gp;
     } p_params;
 };
 
@@ -58,6 +58,9 @@ typedef bool (*param_converter_t)(const struct param_spec *, const cJSON *, void
 typedef bool (*param_validator_t)(const struct param_spec *, const void *);
 typedef bool (*param_relation_validator_t)(const struct param_spec *, const struct params *);
 typedef void (*param_default_builder_t)(const struct param_spec *, void *);
+typedef merr_t (
+    *param_stringify_t)(const struct param_spec *, const void *, char *, size_t, size_t *);
+typedef cJSON *(*param_jsonify_t)(const struct param_spec *, const void *);
 
 enum param_type {
     PARAM_TYPE_BOOL,
@@ -88,6 +91,10 @@ struct param_spec {
     param_validator_t ps_validate;
     /* Validates relations after conversion, validation, and updating of all data */
     param_relation_validator_t ps_validate_relations;
+    /* Returns a JSON string representation of the value */
+    param_stringify_t ps_stringify;
+    /* Returns a JSON representation of the parameter */
+    param_jsonify_t ps_jsonify;
     union {
         bool     as_bool;
         uint64_t as_uscalar;
@@ -119,6 +126,9 @@ struct param_spec {
     } ps_bounds;
 };
 
+cJSON *
+param_to_json(const struct params *params, const struct param_spec *pspecs, size_t pspecs_sz);
+
 void
 param_default_populate(
     const struct param_spec *pspecs,
@@ -130,6 +140,17 @@ param_default_converter(const struct param_spec *ps, const cJSON *node, void *va
 
 bool
 param_default_validator(const struct param_spec *ps, const void *value);
+
+merr_t
+param_default_stringify(
+    const struct param_spec *ps,
+    const void *             value,
+    char *                   buf,
+    size_t                   buf_sz,
+    size_t *                 needed_sz);
+
+cJSON *
+param_default_jsonify(const struct param_spec *ps, const void *value);
 
 bool
 param_roundup_pow2(const struct param_spec *ps, const cJSON *node, void *value);
@@ -145,5 +166,67 @@ param_convert_to_bytes_from_GB(const struct param_spec *ps, const cJSON *node, v
 
 bool
 param_convert_to_bytes_from_TB(const struct param_spec *ps, const cJSON *node, void *value);
+
+merr_t
+param_stringify_bytes_to_KB(
+    const struct param_spec *ps,
+    const void *             value,
+    char *                   buf,
+    size_t                   buf_sz,
+    size_t *                 needed_sz);
+
+merr_t
+param_stringify_bytes_to_MB(
+    const struct param_spec *ps,
+    const void *             value,
+    char *                   buf,
+    size_t                   buf_sz,
+    size_t *                 needed_sz);
+
+merr_t
+param_stringify_bytes_to_GB(
+    const struct param_spec *ps,
+    const void *             value,
+    char *                   buf,
+    size_t                   buf_sz,
+    size_t *                 needed_sz);
+
+merr_t
+param_stringify_bytes_to_TB(
+    const struct param_spec *ps,
+    const void *             value,
+    char *                   buf,
+    size_t                   buf_sz,
+    size_t *                 needed_sz);
+
+cJSON *
+param_jsonify_bytes_to_KB(const struct param_spec *ps, const void *value);
+
+cJSON *
+param_jsonify_bytes_to_MB(const struct param_spec *ps, const void *value);
+
+cJSON *
+param_jsonify_bytes_to_GB(const struct param_spec *ps, const void *value);
+
+cJSON *
+param_jsonify_bytes_to_TB(const struct param_spec *ps, const void *value);
+
+merr_t
+param_get(
+    const struct params *    params,
+    const struct param_spec *pspecs,
+    size_t                   pspecs_sz,
+    const char *             param,
+    char *                   buf,
+    size_t                   buf_sz,
+    size_t *                 needed_sz);
+
+merr_t
+param_set(
+    const struct params *    params,
+    const struct param_spec *pspecs,
+    size_t                   pspecs_sz,
+    const char *             param,
+    const char *             value);
 
 #endif /* HSE_PARAM_H */

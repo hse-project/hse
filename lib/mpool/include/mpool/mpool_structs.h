@@ -6,33 +6,20 @@
 #ifndef MPOOL_STRUCTS_H
 #define MPOOL_STRUCTS_H
 
-#include <hse_util/inttypes.h>
+#include <stdint.h>
+
+#include <hse/types.h>
+
 #include <hse_util/storage.h>
 
 #define WAL_FILE_PFX           "wal"
 #define WAL_FILE_PFX_LEN       (sizeof(WAL_FILE_PFX) - 1)
 
-/**
- * mpool_mclass = Media classes
- *
- * @MP_MED_CAPACITY: Primary data storage, cold data, or similar.
- * @MP_MED_STAGING:  Initial data ingest, hot data storage, or similar.
- * @MP_MED_PMEM:     WAL, Initial data ingest, hot data storage, or similar.
+/* [HSE_REVISIT]: The fact that this is necessary at all seems like a code
+ * smell. Ideally, I think we remove this and properly propogate errors up the
+ * stack, assert(), or abort(). This is a holdover from MP_MED_INVALID.
  */
-enum mpool_mclass {
-    MP_MED_CAPACITY = 0,
-    MP_MED_STAGING  = 1,
-    MP_MED_PMEM     = 2,
-};
-
-#define MP_MED_BASE            MP_MED_CAPACITY
-#define MP_MED_MAX             MP_MED_PMEM
-#define MP_MED_COUNT           (MP_MED_MAX + 1)
-#define MP_MED_INVALID         U8_MAX
-
-#define MP_MED_NAME_CAPACITY   "capacity"
-#define MP_MED_NAME_STAGING    "staging"
-#define MP_MED_NAME_PMEM       "pmem"
+#define HSE_MCLASS_INVALID UINT8_MAX
 
 #define MPOOL_CAPACITY_MCLASS_DEFAULT_PATH "capacity"
 #define MPOOL_PMEM_MCLASS_DEFAULT_PATH     "pmem"
@@ -40,7 +27,6 @@ enum mpool_mclass {
 #define MPOOL_MBLOCK_SIZE_DEFAULT      (32ul << MB_SHIFT)
 #define MPOOL_MBLOCK_FILECNT_DEFAULT   (32)
 #define MPOOL_MBLOCK_FILESZ_DEFAULT    (2048ull << GB_SHIFT)
-
 
 /**
  * struct mpool_cparams - mpool create params
@@ -56,7 +42,7 @@ struct mpool_cparams {
         uint32_t mblocksz;
         uint8_t  filecnt;
         char     path[PATH_MAX];
-    } mclass[MP_MED_COUNT];
+    } mclass[HSE_MCLASS_COUNT];
 };
 
 /**
@@ -67,7 +53,7 @@ struct mpool_cparams {
 struct mpool_rparams {
     struct {
         char path[PATH_MAX];
-    } mclass[MP_MED_COUNT];
+    } mclass[HSE_MCLASS_COUNT];
 };
 
 /**
@@ -78,35 +64,16 @@ struct mpool_rparams {
 struct mpool_dparams {
     struct {
         char path[PATH_MAX];
-    } mclass[MP_MED_COUNT];
+    } mclass[HSE_MCLASS_COUNT];
 };
 
 /**
- * struct mpool_props -
+ * struct mpool_info - aggregated mpool stats across all configured media classes
  *
- * @mp_mblocksz:        mblock size by media class (MiB)
+ * @mclass: Array of media class info objects.
  */
-struct mpool_props {
-    uint32_t mp_mblocksz[MP_MED_COUNT];
-};
-
-/**
- * struct mpool_stats - aggregated mpool stats across all configured media classes
- *
- * @mps_total:     total space in the filesystem(s) containing mclass data directories
- * @mps_available: available space in the filesystem(s) containing mclass data directories
- * @mps_allocated: allocated capacity
- * @mps_used:      used capacity
- * @mps_mblock_cnt: number of active mblocks
- * @mps_path:       storage path
- */
-struct mpool_stats {
-    uint64_t mps_total;
-    uint64_t mps_available;
-    uint64_t mps_allocated;
-    uint64_t mps_used;
-    uint32_t mps_mblock_cnt;
-    char     mps_path[MP_MED_COUNT][PATH_MAX];
+struct mpool_info {
+    struct hse_mclass_info mclass[HSE_MCLASS_COUNT];
 };
 
 /**
@@ -115,28 +82,19 @@ struct mpool_stats {
  * @mc_mblocksz: mblock size in MiB
  */
 struct mpool_mclass_props {
+    uint64_t mc_fmaxsz;
     uint32_t mc_mblocksz;
+    uint8_t  mc_filecnt;
+    char     mc_path[PATH_MAX];
 };
 
 /**
- * struct mpool_mclass_stats - stats for a specific media class
+ * struct mpool_props -
  *
- * @mcs_total:      total space in the filesystem containing this mclass data directory
- * @mcs_available:  available space in the filesystem containing this mclass data directory
- * @mcs_allocated:  allocated capacity
- * @mcs_used:       used capacity
- * @mcs_fsid:       fsid of the FS hosting this data directory
- * @mcs_mblock_cnt: number of active mblocks
- * @mcs_path:       media class storage path
+ * @mclass: Array of media class properties.
  */
-struct mpool_mclass_stats {
-    uint64_t mcs_total;
-    uint64_t mcs_available;
-    uint64_t mcs_allocated;
-    uint64_t mcs_used;
-    uint64_t mcs_fsid;
-    uint32_t mcs_mblock_cnt;
-    char     mcs_path[PATH_MAX];
+struct mpool_props {
+    struct mpool_mclass_props mclass[HSE_MCLASS_COUNT];
 };
 
 /*
@@ -155,7 +113,6 @@ struct mblock_props {
     uint32_t mpr_optimal_wrsz;
     uint32_t mpr_mclass;
 };
-
 
 struct mpool_file_cb {
     void *cbarg;

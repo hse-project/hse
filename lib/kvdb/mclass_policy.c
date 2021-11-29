@@ -75,10 +75,10 @@ mclass_policy_get_num_map_entries(int index)
     return 0;
 }
 
-enum mpool_mclass
+enum hse_mclass
 mclass_policy_get_type(struct mclass_policy *policy, u8 age, u8 dtype)
 {
-    enum mpool_mclass mtype = MP_MED_INVALID;
+    enum hse_mclass mtype = HSE_MCLASS_INVALID;
 
     assert(age < HSE_MPOLICY_AGE_CNT);
     assert(dtype < HSE_MPOLICY_DTYPE_CNT);

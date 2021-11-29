@@ -55,7 +55,7 @@ struct mclass_params {
  */
 merr_t
 mclass_open(
-    enum mpool_mclass           mclass,
+    enum hse_mclass           mclass,
     const struct mclass_params *params,
     int                         flags,
     struct media_class **       handle);
@@ -93,6 +93,15 @@ mclass_id(struct media_class *mc);
 const char *
 mclass_dpath(struct media_class *mc);
 
+/** @brief Get the user-given path.
+ *
+ * @param mc: Media class handle.
+ *
+ * @returns User-given path (pre-realpath(3)).
+ */
+const char *
+mclass_upath(const struct media_class *mc);
+
 /**
  * mclass_dirfd() - get mclass directory fd
  *
@@ -115,14 +124,14 @@ mclass_fset(struct media_class *mc);
  * @mclass: media class
  */
 enum mclass_id
-mclass_to_mcid(enum mpool_mclass mclass);
+mclass_to_mcid(enum hse_mclass mclass);
 
 /**
  * mcid_to_mclass() - convert mclass ID to mclass
  *
  * @mcid: media class ID
  */
-enum mpool_mclass
+enum hse_mclass
 mcid_to_mclass(enum mclass_id mcid);
 
 /**
@@ -159,13 +168,21 @@ bool
 mclass_gclose_get(struct media_class *mc);
 
 /**
- * mclass_stats_get() - get media class stats
+ * mclass_info_get() - get media class info
  *
- * @mc:    mclass handle
- * @stats: mclass stats (output)
+ * @mc: mclass handle
+ * @info: mclass info (output)
  */
 merr_t
-mclass_stats_get(struct media_class *mc, struct mpool_mclass_stats *stats);
+mclass_info_get(struct media_class *mc, struct hse_mclass_info *info);
+
+/** @brief Get properties of a media class.
+ *
+ * @param mc: Media class.
+ * @param props: Media class properties.
+ */
+void
+mclass_props_get(struct media_class *mc, struct mpool_mclass_props *props);
 
 /**
  * mclass_ftw() - walk mclass files matching prefix and invoke callback for each file

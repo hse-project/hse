@@ -16,7 +16,7 @@ merr_t
 kvdb_rest_deregister(struct ikvdb *kvdb);
 
 merr_t
-kvs_rest_register(struct ikvdb *kvdb, const char *kvs_name, void *kvs);
+kvs_rest_register(struct ikvdb *kvdb, const char *kvs_name, struct kvdb_kvs *kvs);
 
 merr_t
 kvs_rest_deregister(struct ikvdb *kvdb, const char *kvs_name);

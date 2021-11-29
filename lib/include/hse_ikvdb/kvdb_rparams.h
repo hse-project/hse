@@ -80,7 +80,7 @@ struct kvdb_rparams {
     uint8_t           dur_throttle_hi_th;
     bool              dur_enable;
     bool              dur_buf_managed;
-    enum mpool_mclass dur_mclass;
+    enum hse_mclass dur_mclass;
 
     uint64_t throttle_update_ns;
     uint     throttle_init_policy; /* [HSE_REVISIT]: Make this a fixed width type */
@@ -112,6 +112,20 @@ struct kvdb_rparams
 kvdb_rparams_defaults(void) HSE_CONST;
 
 merr_t
-kvdb_rparams_resolve(struct kvdb_rparams *params, const char *home);
+kvdb_rparams_get(
+    const struct kvdb_rparams *params,
+    const char *               param,
+    char *                     buf,
+    size_t                     buf_sz,
+    size_t *                   needed_sz);
+
+merr_t
+kvdb_rparams_set(
+    const struct kvdb_rparams *params,
+    const char *               param,
+    const char *               value);
+
+cJSON *
+kvdb_rparams_to_json(const struct kvdb_rparams *params);
 
 #endif /* HSE_KVDB_PARAMS_H */

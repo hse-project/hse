@@ -783,7 +783,7 @@ tn_samp_update_finish(struct cn_tree_node *tn)
     {
         u64 cur_alen = s->ns_kst.kst_kalen;
         u64 new_wlen = s->ns_kst.kst_kwlen * pct / pct_scale;
-        u64 new_clen = kbb_estimate_alen(tn->tn_tree->cn, new_wlen, MP_MED_CAPACITY);
+        u64 new_clen = kbb_estimate_alen(tn->tn_tree->cn, new_wlen, HSE_MCLASS_CAPACITY);
 
         s->ns_kclen = min(new_clen, cur_alen);
     }
@@ -791,7 +791,7 @@ tn_samp_update_finish(struct cn_tree_node *tn)
     {
         u64 cur_alen = s->ns_kst.kst_valen;
         u64 cur_wlen = s->ns_kst.kst_vulen * pct / pct_scale;
-        u64 new_clen = vbb_estimate_alen(tn->tn_tree->cn, cur_wlen, MP_MED_CAPACITY);
+        u64 new_clen = vbb_estimate_alen(tn->tn_tree->cn, cur_wlen, HSE_MCLASS_CAPACITY);
 
         s->ns_vclen = min(new_clen, cur_alen);
     }

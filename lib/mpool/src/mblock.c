@@ -16,7 +16,7 @@ struct mpool;
 merr_t
 mpool_mblock_alloc(
     struct mpool        *mp,
-    enum mpool_mclass    mclass,
+    enum hse_mclass    mclass,
     uint64_t            *mbid,
     struct mblock_props *props)
 {
@@ -24,7 +24,7 @@ mpool_mblock_alloc(
 
     merr_t err;
 
-    if (!mp || !mbid || mclass >= MP_MED_COUNT)
+    if (!mp || !mbid || mclass >= HSE_MCLASS_COUNT)
         return merr(EINVAL);
 
     mc = mpool_mclass_handle(mp, mclass);
@@ -48,7 +48,7 @@ merr_t
 mpool_mblock_commit(struct mpool *mp, uint64_t mbid)
 {
     struct media_class *mc;
-    enum mpool_mclass   mclass;
+    enum hse_mclass   mclass;
 
     if (!mp)
         return merr(EINVAL);
@@ -65,7 +65,7 @@ merr_t
 mpool_mblock_abort(struct mpool *mp, uint64_t mbid)
 {
     struct media_class *mc;
-    enum mpool_mclass   mclass;
+    enum hse_mclass   mclass;
 
     if (!mp)
         return merr(EINVAL);
@@ -82,7 +82,7 @@ merr_t
 mpool_mblock_delete(struct mpool *mp, uint64_t mbid)
 {
     struct media_class *mc;
-    enum mpool_mclass   mclass;
+    enum hse_mclass   mclass;
 
     if (!mp)
         return merr(EINVAL);
@@ -99,7 +99,7 @@ merr_t
 mpool_mblock_props_get(struct mpool *mp, uint64_t mbid, struct mblock_props *props)
 {
     struct media_class *mc;
-    enum mpool_mclass   mclass;
+    enum hse_mclass   mclass;
     uint32_t wlen;
     merr_t   err;
 
@@ -127,7 +127,7 @@ merr_t
 mpool_mblock_write(struct mpool *mp, uint64_t mbid, const struct iovec *iov, int iovc)
 {
     struct media_class *mc;
-    enum mpool_mclass   mclass;
+    enum hse_mclass   mclass;
 
     if (!mp || !iov)
         return merr(EINVAL);
@@ -144,7 +144,7 @@ merr_t
 mpool_mblock_read(struct mpool *mp, uint64_t mbid, const struct iovec *iov, int iovc, off_t off)
 {
     struct media_class *mc;
-    enum mpool_mclass   mclass;
+    enum hse_mclass   mclass;
 
     if (!mp || !iov)
         return merr(EINVAL);

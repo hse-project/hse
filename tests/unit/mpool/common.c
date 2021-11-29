@@ -40,7 +40,7 @@ mpool_test_pre(struct mtf_test_info *ti)
 {
     int rc = 0;
 
-    setup_mclass(MP_MED_CAPACITY);
+    setup_mclass(HSE_MCLASS_CAPACITY);
 
     return rc;
 }
@@ -65,9 +65,9 @@ mpool_test_post(struct mtf_test_info *ti)
         return errno;
     }
 
-    unset_mclass(MP_MED_CAPACITY);
-    unset_mclass(MP_MED_STAGING);
-    unset_mclass(MP_MED_PMEM);
+    unset_mclass(HSE_MCLASS_CAPACITY);
+    unset_mclass(HSE_MCLASS_STAGING);
+    unset_mclass(HSE_MCLASS_PMEM);
 
     return 0;
 }
@@ -157,7 +157,7 @@ remove_pmem_path(void)
 }
 
 void
-unset_mclass(const enum mpool_mclass mc)
+unset_mclass(const enum hse_mclass mc)
 {
     memset(tcparams.mclass[mc].path, 0, sizeof(tcparams.mclass[mc].path));
     memset(trparams.mclass[mc].path, 0, sizeof(tcparams.mclass[mc].path));
@@ -165,12 +165,34 @@ unset_mclass(const enum mpool_mclass mc)
 }
 
 void
-setup_mclass(const enum mpool_mclass mc)
+setup_mclass(const enum hse_mclass mc)
 {
-    const char *path = (mc == MP_MED_CAPACITY) ? capacity_path :
-        (mc == MP_MED_STAGING ? staging_path : pmem_path);
+    const char *path = (mc == HSE_MCLASS_CAPACITY) ? capacity_path :
+        (mc == HSE_MCLASS_STAGING ? staging_path : pmem_path);
 
     strlcpy(tcparams.mclass[mc].path, path, sizeof(tcparams.mclass[mc].path));
     strlcpy(trparams.mclass[mc].path, path, sizeof(trparams.mclass[mc].path));
     strlcpy(tdparams.mclass[mc].path, path, sizeof(tdparams.mclass[mc].path));
+}
+
+uint64_t
+allocated_bytes_summation(const struct mpool_info *const info)
+{
+    uint64_t sum = 0;
+
+    for (int i = HSE_MCLASS_BASE; i < HSE_MCLASS_COUNT; i++)
+        sum += info->mclass[i].mi_allocated_bytes;
+
+    return sum;
+}
+
+uint64_t
+used_bytes_summation(const struct mpool_info *const info)
+{
+    uint64_t sum = 0;
+
+    for (int i = HSE_MCLASS_BASE; i < HSE_MCLASS_COUNT; i++)
+        sum += info->mclass[i].mi_used_bytes;
+
+    return sum;
 }

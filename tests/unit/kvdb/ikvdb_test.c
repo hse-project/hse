@@ -3,7 +3,6 @@
  * Copyright (C) 2015-2021 Micron Technology, Inc.  All rights reserved.
  */
 
-#include "mapi_idx.h"
 #include <ftw.h>
 #include <dirent.h>
 
@@ -1902,6 +1901,103 @@ MTF_DEFINE_UTEST_PREPOST(ikvdb_test, ikvdb_mclass_policies_test, test_pre, test_
     ASSERT_EQ(policy, NULL);
 
     err = ikvdb_close(store);
+    ASSERT_EQ(0, err);
+}
+
+MTF_DEFINE_UTEST_PREPOST(ikvdb_test, get_param, test_pre, test_post)
+{
+    merr_t        err;
+    char          buf[128];
+    size_t        needed_sz;
+    struct ikvdb *kvdb;
+
+    struct kvdb_rparams kvdb_rp = kvdb_rparams_defaults();
+
+    err = ikvdb_open("mpool", &kvdb_rp, &kvdb);
+    ASSERT_EQ(0, err);
+    ASSERT_NE(NULL, kvdb);
+
+    err = ikvdb_param_get(kvdb, "read_only", buf, sizeof(buf), &needed_sz);
+    ASSERT_EQ(0, merr_errno(err));
+    ASSERT_STREQ("false", buf);
+    ASSERT_EQ(5, needed_sz);
+
+    err = ikvdb_param_get(kvdb, "storage.capacity.path", buf, sizeof(buf), &needed_sz);
+    ASSERT_EQ(0, merr_errno(err));
+    ASSERT_STREQ("\"capacity\"", buf);
+    ASSERT_EQ(10, needed_sz);
+
+    err = ikvdb_param_get(kvdb, "read_only", buf, sizeof(buf), NULL);
+    ASSERT_EQ(0, merr_errno(err));
+    ASSERT_STREQ("false", buf);
+
+    err = ikvdb_param_get(kvdb, "does.not.exist", buf, sizeof(buf), NULL);
+    ASSERT_EQ(EINVAL, merr_errno(err));
+
+    err = ikvdb_param_get(kvdb, NULL, buf, sizeof(buf), NULL);
+    ASSERT_EQ(EINVAL, merr_errno(err));
+
+    err = ikvdb_param_get(kvdb, "read_only", NULL, 0, &needed_sz);
+    ASSERT_EQ(0, merr_errno(err));
+    ASSERT_EQ(5, needed_sz);
+
+    err = ikvdb_close(kvdb);
+    ASSERT_EQ(0, err);
+}
+
+MTF_DEFINE_UTEST_PREPOST(ikvdb_test, get_kvs_param, test_pre, test_post)
+{
+    merr_t          err;
+    char            buf[128];
+    size_t          needed_sz;
+    struct ikvdb *  kvdb;
+    struct hse_kvs *kvs;
+
+    struct kvdb_rparams kvdb_rp = kvdb_rparams_defaults();
+    struct kvs_rparams  kvs_rp = kvs_rparams_defaults();
+    struct kvs_cparams  kvs_cp = kvs_cparams_defaults();
+
+    err = ikvdb_open("mpool", &kvdb_rp, &kvdb);
+    ASSERT_EQ(0, err);
+    ASSERT_NE(NULL, kvdb);
+
+    err = ikvdb_kvs_create(kvdb, "kvs", &kvs_cp);
+    ASSERT_EQ(0, err);
+
+    mapi_inject(mapi_idx_mpool_mclass_props_get, 0);
+    err = ikvdb_kvs_open(kvdb, "kvs", &kvs_rp, 0, &kvs);
+    ASSERT_EQ(0, err);
+    ASSERT_NE(NULL, kvs);
+    mapi_inject_unset(mapi_idx_mpool_mclass_props_get);
+
+    err = ikvdb_kvs_param_get(kvs, "compression.value.algorithm", buf, sizeof(buf), &needed_sz);
+    ASSERT_EQ(0, merr_errno(err));
+    ASSERT_STREQ("\"none\"", buf);
+    ASSERT_EQ(6, needed_sz);
+
+    err = ikvdb_kvs_param_get(kvs, "prefix.length", buf, sizeof(buf), &needed_sz);
+    ASSERT_EQ(0, merr_errno(err));
+    ASSERT_STREQ("0", buf);
+    ASSERT_EQ(1, needed_sz);
+
+    err = ikvdb_kvs_param_get(kvs, "prefix.length", buf, sizeof(buf), NULL);
+    ASSERT_EQ(0, merr_errno(err));
+    ASSERT_STREQ("0", buf);
+
+    err = ikvdb_kvs_param_get(kvs, "does.not.exist", buf, sizeof(buf), NULL);
+    ASSERT_EQ(EINVAL, merr_errno(err));
+
+    err = ikvdb_kvs_param_get(kvs, NULL, buf, sizeof(buf), NULL);
+    ASSERT_EQ(EINVAL, merr_errno(err));
+
+    err = ikvdb_kvs_param_get(kvs, "prefix.length", NULL, 0, &needed_sz);
+    ASSERT_EQ(0, merr_errno(err));
+    ASSERT_EQ(1, needed_sz);
+
+    err = ikvdb_kvs_close(kvs);
+    ASSERT_EQ(0, err);
+
+    err = ikvdb_close(kvdb);
     ASSERT_EQ(0, err);
 }
 

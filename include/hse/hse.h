@@ -143,6 +143,26 @@ hse_init(const char *config, size_t paramc, const char *const *paramv);
 void
 hse_fini(void);
 
+/** @brief Get HSE global parameter.
+ *
+ * Puts the stringified version of the parameter value into @p buf. If @p buf_sz
+ * is NULL, then @p needed_sz will still be populated.
+ *
+ * @note This function is thread safe.
+ *
+ * @param param: Parameter name.
+ * @param[in,out] buf: Buffer for writing stringified value of parameter.
+ * @param buf_sz: Size of @p buf.
+ * @param[out] needed_sz: Needed size of @p buf.
+ *
+ * @remark @p param must not be NULL.
+ * @remark @p param must be a valid parameter.
+ *
+ * @returns Error status.
+ */
+hse_err_t
+hse_param_get(const char *param, char *buf, size_t buf_sz, size_t *needed_sz);
+
 /** @} SUBSYS */
 
 /** @defgroup KVDB Key-Value Database (KVDB)
@@ -197,6 +217,20 @@ hse_kvdb_create(const char *kvdb_home, size_t paramc, const char *const *paramv)
 hse_err_t
 hse_kvdb_drop(const char *kvdb_home);
 
+/** @brief Get the KVDB home.
+ *
+ * @note This function is thread safe.
+ *
+ * @param kvdb: KVDB handle from hse_kvdb_open().
+ *
+ * @remark @p kvdb must not be NULL.
+ *
+ * @returns KVDB home.
+ * @retval NULL if given an invalid KVDB handle.
+ */
+const char *
+hse_kvdb_home_get(struct hse_kvdb *kvdb);
+
 /** @brief Get the names of the KVSs within the given KVDB.
  *
  * Key-value stores (KVSs) are opened by name. This function allocates a vector
@@ -243,6 +277,22 @@ hse_kvdb_kvs_names_get(struct hse_kvdb *kvdb, size_t *namec, char ***namev);
 void
 hse_kvdb_kvs_names_free(struct hse_kvdb *kvdb, char **namev);
 
+/** @brief Get media class information from a KVDB.
+ *
+ * @note This function is thread safe.
+ *
+ * @param kvdb: KVDB handle from hse_kvdb_open().
+ * @param mclass: Media class to query for.
+ * @param[out] info: Media class information object.
+ *
+ * @remark @p kvdb must not be NULL.
+ * @remark @p info must not be NULL.
+ *
+ * @returns Error status.
+ */
+hse_err_t
+hse_kvdb_mclass_info_get(struct hse_kvdb *kvdb, enum hse_mclass mclass, struct hse_mclass_info *info);
+
 /** @brief Open a KVDB.
  *
  * @note This function is not thread safe.
@@ -265,6 +315,33 @@ hse_kvdb_open(
     size_t             paramc,
     const char *const *paramv,
     struct hse_kvdb ** kvdb);
+
+/** @brief Get KVDB parameter.
+ *
+ * Puts the stringified version of the parameter value into @p buf. If @p buf_sz
+ * is NULL, then @p needed_sz will still be populated.
+ *
+ * @note This function is thread safe.
+ *
+ * @param kvdb: KVDB handle from hse_kvdb_open().
+ * @param param: Parameter name.
+ * @param[in,out] buf: Buffer for writing stringified value of parameter.
+ * @param buf_sz: Size of @p buf.
+ * @param[out] needed_sz: Needed size of @p buf.
+ *
+ * @remark @p kvdb must not be NULL.
+ * @remark @p param must not be NULL.
+ * @remark @p param must be a valid parameter.
+ *
+ * @returns Error status.
+ */
+hse_err_t
+hse_kvdb_param_get(
+    struct hse_kvdb *kvdb,
+    const char *     param,
+    char *           buf,
+    size_t           buf_sz,
+    size_t *         needed_sz);
 
 /** @brief Add new media class storage to an existing offline KVDB.
  *
@@ -301,6 +378,16 @@ hse_kvdb_storage_add(const char *kvdb_home, size_t paramc, const char *const *pa
 /* MTF_MOCK */
 hse_err_t
 hse_kvdb_sync(struct hse_kvdb *kvdb, unsigned int flags);
+
+/** @brief Get the name of a media class.
+ *
+ * @note This function is thread safe.
+ *
+ * @param mclass: Media class.
+ *
+ * @returns Name of media class.
+ */
+const char *hse_mclass_name_get(enum hse_mclass mclass);
 
 /**@} KVDB */
 
@@ -465,6 +552,47 @@ hse_kvs_get(
     void *               buf,
     size_t               buf_len,
     size_t *             val_len);
+
+/** @brief Get the name of a KVS.
+ *
+ * @note This function is thread safe.
+ *
+ * @param kvs: KVS handle from hse_kvdb_kvs_open()
+ *
+ * @remark @p kvs must not be NULL.
+ *
+ * @returns KVS name.
+ * @retval NULL if given an invalid KVS handle.
+ */
+const char *
+hse_kvs_name_get(struct hse_kvs *kvs);
+
+/** @brief Get KVS parameter.
+ *
+ * Puts the stringified version of the parameter value into @p buf. If @p buf_sz
+ * is NULL, then @p needed_sz will still be populated.
+ *
+ * @note This function is thread safe.
+ *
+ * @param kvs: KVS handle from hse_kvdb_kvs_open().
+ * @param param: Parameter name.
+ * @param[in,out] buf: Buffer for writing stringified value of parameter.
+ * @param buf_sz: Size of @p buf.
+ * @param[out] needed_sz: Needed size of @p buf.
+ *
+ * @remark @p kvs must not be NULL.
+ * @remark @p param must not be NULL.
+ * @remark @p param must be a valid parameter.
+ *
+ * @returns Error status.
+ */
+hse_err_t
+hse_kvs_param_get(
+    struct hse_kvs *kvs,
+    const char *    param,
+    char *          buf,
+    size_t          buf_sz,
+    size_t *        needed_sz);
 
 /** @brief Delete all key-value pairs matching the key prefix from a KVS storing
  * segmented keys.

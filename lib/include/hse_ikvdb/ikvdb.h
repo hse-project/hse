@@ -41,7 +41,7 @@ struct cndb;
 struct kvdb_diag_kvs_list;
 struct kvs;
 struct ikvdb_kvs_hdl;
-struct hse_kvdb_storage_info;
+enum hse_mclass;
 
 struct hse_kvdb_txn {
 };
@@ -89,6 +89,17 @@ ikvdb_create(const char *kvdb_home, struct kvdb_cparams *params, bool pmem_only)
  */
 merr_t
 ikvdb_drop(const char *kvdb_home);
+
+/** @brief Get media class information from a KVDB.
+ *
+ * @param kvdb: KVDB handle.
+ * @param mclass: Media class.
+ * @param info: Media class information object.
+ *
+ * @returns Error status.
+ */
+merr_t
+ikvdb_mclass_info_get(struct ikvdb *kvdb, enum hse_mclass mclass, struct hse_mclass_info *info);
 
 /**
  * Add media class to a KVDB
@@ -217,6 +228,15 @@ ikvdb_alias(struct ikvdb *kvdb);
 struct config *
 ikvdb_config(struct ikvdb *kvdb);
 
+/** @brief Get KVDB rparams.
+ *
+ * @param kvdb: KVDB handle.
+ *
+ * @returns KVDB rparams.
+ */
+const struct kvdb_rparams * HSE_RETURNS_NONNULL
+ikvdb_rparams(struct ikvdb *kvdb);
+
 /**
  * Attach a config object to the lifetime of the KVDB
  *
@@ -263,17 +283,20 @@ ikvdb_get_csched(struct ikvdb *handle);
 struct mclass_policy *
 ikvdb_get_mclass_policy(struct ikvdb *handle, const char *name);
 
-merr_t
-ikvdb_storage_info_get(
-    struct ikvdb *                handle,
-    struct hse_kvdb_storage_info *info);
-
 /**
  * ikvdb_kvs_get_cn() - retrieve a pointer to the cn
  * @kvs:     kvs handle
  */
 struct cn *
 ikvdb_kvs_get_cn(struct hse_kvs *kvs);
+
+merr_t
+ikvdb_param_get(
+    struct ikvdb *kvdb,
+    const char *  param,
+    char *        buf,
+    size_t        buf_sz,
+    size_t *      needed_sz);
 
 /**
  * ikvdb_kvs_names_get() -
@@ -393,6 +416,14 @@ ikvdb_kvs_prefix_delete(
     unsigned int         flags,
     struct hse_kvdb_txn *txn,
     struct kvs_ktuple *  kt);
+
+merr_t
+ikvdb_kvs_param_get(
+    struct hse_kvs *kvs,
+    const char *    param,
+    char *          buf,
+    size_t          buf_sz,
+    size_t *        needed_sz);
 
 /**
  * ikvdb_sync() - sync data in all of the KVSes to stable media.

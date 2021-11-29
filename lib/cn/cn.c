@@ -1576,13 +1576,13 @@ cn_make(struct mpool *ds, const struct kvs_cparams *cp, struct kvdb_health *heal
 }
 
 u64
-cn_mpool_dev_zone_alloc_unit_default(struct cn *cn, enum mpool_mclass mclass)
+cn_mpool_dev_zone_alloc_unit_default(struct cn *cn, enum hse_mclass mclass)
 {
-    return cn->cn_mpool_props.mp_mblocksz[mclass] << 20;
+    return cn->cn_mpool_props.mclass[mclass].mc_mblocksz << 20;
 }
 
 u64
-cn_vma_mblock_max(struct cn *cn, enum mpool_mclass mclass)
+cn_vma_mblock_max(struct cn *cn, enum hse_mclass mclass)
 {
     u64 vma_size_max, mblocksz;
 

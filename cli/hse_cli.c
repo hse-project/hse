@@ -27,6 +27,7 @@
 
 #include "cli_util.h"
 #include "storage_profile.h"
+#include "storage_info.h"
 
 #define OPTION_HELP                 \
     {                               \
@@ -168,7 +169,7 @@ static cli_cmd_func_t cli_hse_storage_info;
 static cli_cmd_func_t cli_hse_storage_profile;
 struct cli_cmd        cli_hse_storage_commands[] = {
     { "add", "Add a new media class storage to an existing offline KVDB", cli_hse_storage_add, 0 },
-    { "info", "Display storage stats for a KVDB", cli_hse_storage_info, 0 },
+    { "info", "Display storage information about a KVDB", cli_hse_storage_info, 0 },
     { "profile", "Profile storage path to determine throttle policy", cli_hse_storage_profile, 0 },
     { 0 },
 };
@@ -1029,172 +1030,6 @@ cli_hse_kvdb_compact(struct cli_cmd *self, struct cli *cli)
     return cli_hse_kvdb_compact_impl(cli, kvdb_home, status, cancel, timeout_secs);
 }
 
-// static int
-// cli_hse_kvdb_params_impl(struct cli *cli, const char *home)
-// {
-//     const char *extra_arg;
-
-//     if (cli_hse_init(cli))
-//         return -1;
-
-//     /* This command hits the REST interface, so we don't need or
-//      * support config files or command line hse param settings.
-//      */
-//     extra_arg = cli_next_arg(cli);
-//     if (extra_arg) {
-//         fprintf(
-//             stderr,
-//             "%s: unexpected parameter: '%s', use -h for help.\n",
-//             cli->cmd->cmd_path,
-//             extra_arg);
-//         return EX_USAGE;
-//     }
-
-//     return hse_kvdb_params(home, true);
-// }
-
-// static int
-// cli_hse_kvdb_params(struct cli_cmd *self, struct cli *cli)
-// {
-//     const struct cmd_spec spec = {
-//         .usagev =
-//             {
-//                 "[options]",
-//                 NULL,
-//             },
-//         .optionv =
-//             {
-//                 OPTION_HELP,
-//                 { NULL },
-//             },
-//         .longoptv =
-//             {
-//                 { "help", no_argument, 0, 'h' },
-//                 { NULL },
-//             },
-//         .configv =
-//             {
-//                 { NULL },
-//             },
-//         .extra_help = {
-//             "Only operates on KVDBs that are currently open by another application.",
-//             "Shows configuration parameter settings for the KVDB and for all KVSes",
-//             "that the application has open.",
-//             NULL,
-//         },
-//     };
-
-//     bool help = false;
-//     int  c;
-
-//     if (cli_hook(cli, self, &spec))
-//         return 0;
-
-//     while (-1 != (c = cli_getopt(cli))) {
-//         switch (c) {
-//             case 'h':
-//                 help = true;
-//                 break;
-//             default:
-//                 return EX_USAGE;
-//         }
-//     }
-
-//     if (help) {
-//         cmd_print_help(self, stdout);
-//         return 0;
-//     }
-
-//     return cli_hse_kvdb_params_impl(cli, kvdb_home);
-// }
-
-static int
-cli_hse_storage_info_impl(struct cli *cli, const char *const kvdb_home)
-{
-    const char *paramv[] = { "read_only=true" };
-    char        buf[YAML_BUF_SIZE];
-    int         rc = 0;
-    bool        exists;
-
-    struct yaml_context yc = {
-        .yaml_buf = buf,
-        .yaml_buf_sz = sizeof(buf),
-        .yaml_indent = 0,
-        .yaml_offset = 0,
-        .yaml_emit = yaml_print_and_rewind,
-    };
-
-    if (cli_hse_init_rest(cli))
-        return -1;
-
-    if (cli->optind != cli->argc) {
-        fprintf(stderr, "Too many arguments passed on the command line\n");
-        return EINVAL;
-    }
-
-    exists = kvdb_storage_info_print(kvdb_home, NELEM(paramv), paramv, &yc);
-    if (!exists) {
-        fprintf(stderr, "No such KVDB (%s)\n", kvdb_home);
-        rc = -1;
-    }
-
-    printf("%s", buf);
-
-    return rc;
-}
-
-static int
-cli_hse_storage_info(struct cli_cmd *self, struct cli *cli)
-{
-    const struct cmd_spec spec = {
-        .usagev =
-            {
-                "[options] <kvdb_home>",
-                NULL,
-            },
-        .optionv =
-            {
-                OPTION_HELP,
-                { NULL },
-            },
-        .longoptv =
-            {
-                { "help", no_argument, 0, 'h' },
-                { NULL },
-            },
-        .configv =
-            {
-                { NULL },
-            },
-    };
-
-    const char *kvdb_home = NULL;
-    bool        help = false;
-    int         c;
-
-    if (cli_hook(cli, self, &spec))
-        return 0;
-
-    while (-1 != (c = cli_getopt(cli))) {
-        switch (c) {
-            case 'h':
-                help = true;
-                break;
-            default:
-                return EX_USAGE;
-        }
-    }
-
-    kvdb_home = cli_next_arg(cli);
-
-    if (!kvdb_home || help) {
-        cmd_print_help(self, help ? stdout : stderr);
-        return help ? 0 : EX_USAGE;
-    }
-
-    return cli_hse_storage_info_impl(cli, kvdb_home);
-}
-
 static int
 cli_hse_storage_add_impl(struct cli *cli, const char *const kvdb_home)
 {
@@ -1307,6 +1142,72 @@ cli_hse_storage_add(struct cli_cmd *self, struct cli *cli)
     }
 
     return cli_hse_storage_add_impl(cli, kvdb_home);
+}
+
+static int
+cli_hse_storage_info_impl(struct cli *cli, const char *kvdb_home)
+{
+    if (cli_hse_init(cli))
+        return -1;
+
+    if (cli->optind != cli->argc) {
+        fprintf(stderr, "Too many arguments passed on the command line\n");
+        return EINVAL;
+    }
+
+    return hse_storage_info(kvdb_home);
+}
+
+static int
+cli_hse_storage_info(struct cli_cmd *self, struct cli *cli)
+{
+    const struct cmd_spec spec = {
+        .usagev =
+            {
+                "[options] <kvdb_home>",
+                NULL,
+            },
+        .optionv =
+            {
+                OPTION_HELP,
+                { NULL },
+            },
+        .longoptv =
+            {
+                { "help", no_argument, 0, 'h' },
+                { NULL },
+            },
+        .configv =
+            {
+                { NULL },
+            },
+    };
+
+    int         c;
+    bool        help = false;
+    const char *kvdb_home;
+
+    if (cli_hook(cli, self, &spec))
+        return 0;
+
+    while (-1 != (c = cli_getopt(cli))) {
+        switch (c) {
+            case 'h':
+                help = true;
+                break;
+            default:
+                return EX_USAGE;
+        }
+    }
+
+    kvdb_home = cli_next_arg(cli);
+
+    if (!kvdb_home) {
+        cmd_print_help(self, help ? stdout : stderr);
+        return help ? 0 : EX_USAGE;
+    }
+
+    return cli_hse_storage_info_impl(cli, kvdb_home);
 }
 
 static int

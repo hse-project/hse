@@ -171,7 +171,7 @@ main(int argc, char **argv)
     if (err)
         fatal("kvdb_meta_deserialize", err);
 
-    for (int i = MP_MED_BASE; i < MP_MED_CAPACITY; i++)
+    for (int i = HSE_MCLASS_BASE; i < HSE_MCLASS_CAPACITY; i++)
         strlcpy(params.mclass[i].path, meta.km_storage[i].path, sizeof(params.mclass[i].path));
 
     err = mpool_open(home, &params, O_RDWR, &mp);

@@ -24,10 +24,12 @@ static const struct param_spec pspecs[] = {
         .ps_description = "file size in capacity mclass (GiB)",
         .ps_flags = PARAM_FLAG_EXPERIMENTAL,
         .ps_type = PARAM_TYPE_U64,
-        .ps_offset = offsetof(struct kvdb_cparams, storage.mclass[MP_MED_CAPACITY].fmaxsz),
-        .ps_size = PARAM_SZ(struct kvdb_cparams, storage.mclass[MP_MED_CAPACITY].fmaxsz),
+        .ps_offset = offsetof(struct kvdb_cparams, storage.mclass[HSE_MCLASS_CAPACITY].fmaxsz),
+        .ps_size = PARAM_SZ(struct kvdb_cparams, storage.mclass[HSE_MCLASS_CAPACITY].fmaxsz),
         .ps_convert = param_convert_to_bytes_from_GB,
         .ps_validate = param_default_validator,
+        .ps_stringify = param_stringify_bytes_to_GB,
+        .ps_jsonify = param_jsonify_bytes_to_GB,
         .ps_default_value = {
             .as_uscalar = MPOOL_MBLOCK_FILESZ_DEFAULT,
         },
@@ -43,10 +45,12 @@ static const struct param_spec pspecs[] = {
         .ps_description = "object size in capacity mclass (MiB)",
         .ps_flags = PARAM_FLAG_EXPERIMENTAL,
         .ps_type = PARAM_TYPE_U32,
-        .ps_offset = offsetof(struct kvdb_cparams, storage.mclass[MP_MED_CAPACITY].mblocksz),
-        .ps_size = PARAM_SZ(struct kvdb_cparams, storage.mclass[MP_MED_CAPACITY].mblocksz),
+        .ps_offset = offsetof(struct kvdb_cparams, storage.mclass[HSE_MCLASS_CAPACITY].mblocksz),
+        .ps_size = PARAM_SZ(struct kvdb_cparams, storage.mclass[HSE_MCLASS_CAPACITY].mblocksz),
         .ps_convert = param_convert_to_bytes_from_MB,
         .ps_validate = param_default_validator,
+        .ps_stringify = param_stringify_bytes_to_MB,
+        .ps_jsonify = param_jsonify_bytes_to_MB,
         .ps_default_value = {
             .as_uscalar = MPOOL_MBLOCK_SIZE_DEFAULT,
         },
@@ -62,10 +66,12 @@ static const struct param_spec pspecs[] = {
         .ps_description = "file count in capacity mclass",
         .ps_flags = PARAM_FLAG_EXPERIMENTAL,
         .ps_type = PARAM_TYPE_U8,
-        .ps_offset = offsetof(struct kvdb_cparams, storage.mclass[MP_MED_CAPACITY].filecnt),
-        .ps_size = PARAM_SZ(struct kvdb_cparams, storage.mclass[MP_MED_CAPACITY].filecnt),
+        .ps_offset = offsetof(struct kvdb_cparams, storage.mclass[HSE_MCLASS_CAPACITY].filecnt),
+        .ps_size = PARAM_SZ(struct kvdb_cparams, storage.mclass[HSE_MCLASS_CAPACITY].filecnt),
         .ps_convert = param_default_converter,
         .ps_validate = param_default_validator,
+        .ps_stringify = param_default_stringify,
+        .ps_jsonify = param_default_jsonify,
         .ps_default_value = {
             .as_uscalar = MPOOL_MBLOCK_FILECNT_DEFAULT,
         },
@@ -81,16 +87,18 @@ static const struct param_spec pspecs[] = {
         .ps_description = "Storage path for capacity mclass",
         .ps_flags = PARAM_FLAG_NULLABLE,
         .ps_type = PARAM_TYPE_STRING,
-        .ps_offset = offsetof(struct kvdb_cparams, storage.mclass[MP_MED_CAPACITY].path),
-        .ps_size = PARAM_SZ(struct kvdb_cparams, storage.mclass[MP_MED_CAPACITY].path),
+        .ps_offset = offsetof(struct kvdb_cparams, storage.mclass[HSE_MCLASS_CAPACITY].path),
+        .ps_size = PARAM_SZ(struct kvdb_cparams, storage.mclass[HSE_MCLASS_CAPACITY].path),
         .ps_convert = param_default_converter,
         .ps_validate = param_default_validator,
+        .ps_stringify = param_default_stringify,
+        .ps_jsonify = param_default_jsonify,
         .ps_default_value = {
             .as_string = NULL,
         },
         .ps_bounds = {
             .as_string = {
-                .ps_max_len = sizeof(((struct mpool_cparams *)0)->mclass[MP_MED_CAPACITY].path),
+                .ps_max_len = sizeof(((struct mpool_cparams *)0)->mclass[HSE_MCLASS_CAPACITY].path),
             },
         },
     },
@@ -99,10 +107,12 @@ static const struct param_spec pspecs[] = {
         .ps_description = "file size in staging mclass (GiB)",
         .ps_flags = PARAM_FLAG_EXPERIMENTAL,
         .ps_type = PARAM_TYPE_U64,
-        .ps_offset = offsetof(struct kvdb_cparams, storage.mclass[MP_MED_STAGING].fmaxsz),
-        .ps_size = PARAM_SZ(struct kvdb_cparams, storage.mclass[MP_MED_STAGING].fmaxsz),
+        .ps_offset = offsetof(struct kvdb_cparams, storage.mclass[HSE_MCLASS_STAGING].fmaxsz),
+        .ps_size = PARAM_SZ(struct kvdb_cparams, storage.mclass[HSE_MCLASS_STAGING].fmaxsz),
         .ps_convert = param_convert_to_bytes_from_GB,
         .ps_validate = param_default_validator,
+        .ps_stringify = param_stringify_bytes_to_GB,
+        .ps_jsonify = param_jsonify_bytes_to_GB,
         .ps_default_value = {
             .as_uscalar = MPOOL_MBLOCK_FILESZ_DEFAULT,
         },
@@ -118,10 +128,12 @@ static const struct param_spec pspecs[] = {
         .ps_description = "object size in staging mclass (MiB)",
         .ps_flags = PARAM_FLAG_EXPERIMENTAL,
         .ps_type = PARAM_TYPE_U32,
-        .ps_offset = offsetof(struct kvdb_cparams, storage.mclass[MP_MED_STAGING].mblocksz),
-        .ps_size = PARAM_SZ(struct kvdb_cparams, storage.mclass[MP_MED_STAGING].mblocksz),
+        .ps_offset = offsetof(struct kvdb_cparams, storage.mclass[HSE_MCLASS_STAGING].mblocksz),
+        .ps_size = PARAM_SZ(struct kvdb_cparams, storage.mclass[HSE_MCLASS_STAGING].mblocksz),
         .ps_convert = param_convert_to_bytes_from_MB,
         .ps_validate = param_default_validator,
+        .ps_stringify = param_stringify_bytes_to_MB,
+        .ps_jsonify = param_jsonify_bytes_to_MB,
         .ps_default_value = {
             .as_uscalar = MPOOL_MBLOCK_SIZE_DEFAULT,
         },
@@ -137,10 +149,12 @@ static const struct param_spec pspecs[] = {
         .ps_description = "file count in staging mclass",
         .ps_flags = PARAM_FLAG_EXPERIMENTAL,
         .ps_type = PARAM_TYPE_U8,
-        .ps_offset = offsetof(struct kvdb_cparams, storage.mclass[MP_MED_STAGING].filecnt),
-        .ps_size = PARAM_SZ(struct kvdb_cparams, storage.mclass[MP_MED_STAGING].filecnt),
+        .ps_offset = offsetof(struct kvdb_cparams, storage.mclass[HSE_MCLASS_STAGING].filecnt),
+        .ps_size = PARAM_SZ(struct kvdb_cparams, storage.mclass[HSE_MCLASS_STAGING].filecnt),
         .ps_convert = param_default_converter,
         .ps_validate = param_default_validator,
+        .ps_stringify = param_default_stringify,
+        .ps_jsonify = param_default_jsonify,
         .ps_default_value = {
             .as_uscalar = MPOOL_MBLOCK_FILECNT_DEFAULT,
         },
@@ -156,16 +170,18 @@ static const struct param_spec pspecs[] = {
         .ps_description = "Storage path for staging mclass",
         .ps_flags = PARAM_FLAG_NULLABLE,
         .ps_type = PARAM_TYPE_STRING,
-        .ps_offset = offsetof(struct kvdb_cparams, storage.mclass[MP_MED_STAGING].path),
-        .ps_size = PARAM_SZ(struct kvdb_cparams, storage.mclass[MP_MED_STAGING].path),
+        .ps_offset = offsetof(struct kvdb_cparams, storage.mclass[HSE_MCLASS_STAGING].path),
+        .ps_size = PARAM_SZ(struct kvdb_cparams, storage.mclass[HSE_MCLASS_STAGING].path),
         .ps_convert = param_default_converter,
         .ps_validate = param_default_validator,
+        .ps_stringify = param_default_stringify,
+        .ps_jsonify = param_default_jsonify,
         .ps_default_value = {
             .as_string = NULL,
         },
         .ps_bounds = {
             .as_string = {
-                .ps_max_len = sizeof(((struct mpool_cparams *)0)->mclass[MP_MED_STAGING].path),
+                .ps_max_len = sizeof(((struct mpool_cparams *)0)->mclass[HSE_MCLASS_STAGING].path),
             },
         },
     },
@@ -174,10 +190,12 @@ static const struct param_spec pspecs[] = {
         .ps_description = "file size in pmem mclass (GiB)",
         .ps_flags = PARAM_FLAG_EXPERIMENTAL,
         .ps_type = PARAM_TYPE_U64,
-        .ps_offset = offsetof(struct kvdb_cparams, storage.mclass[MP_MED_PMEM].fmaxsz),
-        .ps_size = PARAM_SZ(struct kvdb_cparams, storage.mclass[MP_MED_PMEM].fmaxsz),
+        .ps_offset = offsetof(struct kvdb_cparams, storage.mclass[HSE_MCLASS_PMEM].fmaxsz),
+        .ps_size = PARAM_SZ(struct kvdb_cparams, storage.mclass[HSE_MCLASS_PMEM].fmaxsz),
         .ps_convert = param_convert_to_bytes_from_GB,
         .ps_validate = param_default_validator,
+        .ps_stringify = param_stringify_bytes_to_GB,
+        .ps_jsonify = param_jsonify_bytes_to_GB,
         .ps_default_value = {
             .as_uscalar = MPOOL_MBLOCK_FILESZ_DEFAULT,
         },
@@ -193,10 +211,12 @@ static const struct param_spec pspecs[] = {
         .ps_description = "object size in pmem mclass (MiB)",
         .ps_flags = PARAM_FLAG_EXPERIMENTAL,
         .ps_type = PARAM_TYPE_U32,
-        .ps_offset = offsetof(struct kvdb_cparams, storage.mclass[MP_MED_PMEM].mblocksz),
-        .ps_size = PARAM_SZ(struct kvdb_cparams, storage.mclass[MP_MED_PMEM].mblocksz),
+        .ps_offset = offsetof(struct kvdb_cparams, storage.mclass[HSE_MCLASS_PMEM].mblocksz),
+        .ps_size = PARAM_SZ(struct kvdb_cparams, storage.mclass[HSE_MCLASS_PMEM].mblocksz),
         .ps_convert = param_convert_to_bytes_from_MB,
         .ps_validate = param_default_validator,
+        .ps_stringify = param_stringify_bytes_to_MB,
+        .ps_jsonify = param_jsonify_bytes_to_MB,
         .ps_default_value = {
             .as_uscalar = MPOOL_MBLOCK_SIZE_DEFAULT,
         },
@@ -212,10 +232,12 @@ static const struct param_spec pspecs[] = {
         .ps_description = "file count in pmem mclass",
         .ps_flags = PARAM_FLAG_EXPERIMENTAL,
         .ps_type = PARAM_TYPE_U8,
-        .ps_offset = offsetof(struct kvdb_cparams, storage.mclass[MP_MED_PMEM].filecnt),
-        .ps_size = PARAM_SZ(struct kvdb_cparams, storage.mclass[MP_MED_PMEM].filecnt),
+        .ps_offset = offsetof(struct kvdb_cparams, storage.mclass[HSE_MCLASS_PMEM].filecnt),
+        .ps_size = PARAM_SZ(struct kvdb_cparams, storage.mclass[HSE_MCLASS_PMEM].filecnt),
         .ps_convert = param_default_converter,
         .ps_validate = param_default_validator,
+        .ps_stringify = param_default_stringify,
+        .ps_jsonify = param_default_jsonify,
         .ps_default_value = {
             .as_uscalar = MPOOL_MBLOCK_FILECNT_DEFAULT,
         },
@@ -231,16 +253,18 @@ static const struct param_spec pspecs[] = {
         .ps_description = "Storage path for pmem mclass",
         .ps_flags = PARAM_FLAG_NULLABLE,
         .ps_type = PARAM_TYPE_STRING,
-        .ps_offset = offsetof(struct kvdb_cparams, storage.mclass[MP_MED_PMEM].path),
-        .ps_size = PARAM_SZ(struct kvdb_cparams, storage.mclass[MP_MED_PMEM].path),
+        .ps_offset = offsetof(struct kvdb_cparams, storage.mclass[HSE_MCLASS_PMEM].path),
+        .ps_size = PARAM_SZ(struct kvdb_cparams, storage.mclass[HSE_MCLASS_PMEM].path),
         .ps_convert = param_default_converter,
         .ps_validate = param_default_validator,
+        .ps_stringify = param_default_stringify,
+        .ps_jsonify = param_default_jsonify,
         .ps_default_value = {
             .as_string = NULL,
         },
         .ps_bounds = {
             .as_string = {
-                .ps_max_len = sizeof(((struct mpool_cparams *)0)->mclass[MP_MED_PMEM].path),
+                .ps_max_len = sizeof(((struct mpool_cparams *)0)->mclass[HSE_MCLASS_PMEM].path),
             },
         },
     },
@@ -268,13 +292,13 @@ static HSE_ALWAYS_INLINE void
 kvdb_storage_defaults_set(struct kvdb_cparams *params, bool pmem_only)
 {
     if (pmem_only) {
-        if (params->storage.mclass[MP_MED_PMEM].path[0] == '\0')
-            strlcpy(params->storage.mclass[MP_MED_PMEM].path, MPOOL_PMEM_MCLASS_DEFAULT_PATH,
-                    sizeof(params->storage.mclass[MP_MED_PMEM].path));
+        if (params->storage.mclass[HSE_MCLASS_PMEM].path[0] == '\0')
+            strlcpy(params->storage.mclass[HSE_MCLASS_PMEM].path, MPOOL_PMEM_MCLASS_DEFAULT_PATH,
+                    sizeof(params->storage.mclass[HSE_MCLASS_PMEM].path));
     } else {
-        if (params->storage.mclass[MP_MED_CAPACITY].path[0] == '\0')
-            strlcpy(params->storage.mclass[MP_MED_CAPACITY].path, MPOOL_CAPACITY_MCLASS_DEFAULT_PATH,
-                    sizeof(params->storage.mclass[MP_MED_CAPACITY].path));
+        if (params->storage.mclass[HSE_MCLASS_CAPACITY].path[0] == '\0')
+            strlcpy(params->storage.mclass[HSE_MCLASS_CAPACITY].path, MPOOL_CAPACITY_MCLASS_DEFAULT_PATH,
+                    sizeof(params->storage.mclass[HSE_MCLASS_CAPACITY].path));
     }
 }
 
@@ -290,11 +314,11 @@ kvdb_cparams_resolve(struct kvdb_cparams *params, const char *home, bool pmem_on
     merr_t err;
 
     static_assert(
-        sizeof(buf) == sizeof(params->storage.mclass[MP_MED_BASE].path), "mismatched buffer sizes");
+        sizeof(buf) == sizeof(params->storage.mclass[HSE_MCLASS_BASE].path), "mismatched buffer sizes");
 
     kvdb_storage_defaults_set(params, pmem_only);
 
-    for (i = MP_MED_BASE; i < MP_MED_COUNT; i++) {
+    for (i = HSE_MCLASS_BASE; i < HSE_MCLASS_COUNT; i++) {
         err = kvdb_home_storage_path_get(home, params->storage.mclass[i].path, buf, sizeof(buf));
         if (err)
             return err;
@@ -303,4 +327,28 @@ kvdb_cparams_resolve(struct kvdb_cparams *params, const char *home, bool pmem_on
     }
 
     return 0;
+}
+
+merr_t
+kvdb_cparams_get(
+    const struct kvdb_cparams *const params,
+    const char *const                param,
+    char *const                      buf,
+    const size_t                     buf_sz,
+    size_t *const                    needed_sz)
+{
+    const struct params p = { .p_params = { .as_kvdb_cp = params }, .p_type = PARAMS_KVDB_CP };
+
+    return param_get(&p, pspecs, NELEM(pspecs), param, buf, buf_sz, needed_sz);
+}
+
+cJSON *
+kvdb_cparams_to_json(const struct kvdb_cparams *const params)
+{
+    if (!params)
+        return NULL;
+
+    const struct params p = { .p_params = { .as_kvdb_cp = params }, .p_type = PARAMS_KVDB_CP };
+
+    return param_to_json(&p, pspecs, NELEM(pspecs));
 }

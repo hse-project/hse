@@ -794,8 +794,8 @@ eread_ds(int argc, char **argv)
         vbids = argv + 1;
     }
 
-    strlcpy(params.mclass[MP_MED_CAPACITY].path, opt.storage_path,
-            sizeof(params.mclass[MP_MED_CAPACITY].path));
+    strlcpy(params.mclass[HSE_MCLASS_CAPACITY].path, opt.storage_path,
+            sizeof(params.mclass[HSE_MCLASS_CAPACITY].path));
 
     err = mpool_open(mpname, &params, O_RDONLY, &ds);
     if (err)

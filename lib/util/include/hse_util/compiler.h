@@ -17,12 +17,6 @@
 #include <threads.h>
 #endif
 
-#if HSE_MOCKING
-#define hse_static
-#else
-#define hse_static              static
-#endif
-
 /* Optimization barrier */
 /* The "volatile" is due to gcc bugs */
 #define barrier()               __asm__ __volatile__("" : : : "memory")
@@ -110,10 +104,16 @@
 #endif
 
 #ifdef SUPPORTS_ATTR_NONNULL
-/* HSE_NONNULL(...) cannot go at the end of the function declaration */
+/* HSE_NONNULL(...) cannot go at the end of the function definition */
 #define HSE_NONNULL(...)        __attribute__((__nonnull__(__VA_ARGS__)))
 #else
 #define HSE_NONNULL(...)
+#endif
+
+#if HSE_MOCKING
+#define MTF_STATIC              HSE_WEAK
+#else
+#define MTF_STATIC              static
 #endif
 
 /* clang-format on */

@@ -1,0 +1,1697 @@
+ninja: Entering directory `build/'
+[1/215] Compiling C object tests/unit/list_test.p/util_list_test.c.o
+[2/215] Compiling C object tests/unit/keycmp_test.p/util_keycmp_test.c.o
+[3/215] Compiling C object tests/unit/log2_test.p/util_log2_test.c.o
+[4/215] Compiling C object tests/unit/kvdb_meta_test.p/kvdb_kvdb_meta_test.c.o
+FAILED: tests/unit/kvdb_meta_test.p/kvdb_kvdb_meta_test.c.o 
+cc -Itests/unit/kvdb_meta_test.p -Itests/unit -I../tests/unit -Iinclude -I../include -Ilib/include -I../lib/include -Ilib -I../lib -Ilib/util/include -I../lib/util/include -Ilib/mpool/include -I../lib/mpool/include -Itests/mocks/include -I../tests/mocks/include -Itests/mocks -I../tests/mocks -Itests/support/include -I../tests/support/include -Itools/include -I../tools/include -Itests/mocks/repository/include -I../tests/mocks/repository/include -Isubprojects/xxHash-0.8.0 -I../subprojects/xxHash-0.8.0 -Isubprojects/lz4-1.9.2/lib -I../subprojects/lz4-1.9.2/lib -Isubprojects/cJSON-1.7.15/include-workaround-meson -I../subprojects/cJSON-1.7.15/include-workaround-meson -Isubprojects/hyperloglog -I../subprojects/hyperloglog -Ilib/pidfile/include -I../lib/pidfile/include -Isubprojects/rbtree -I../subprojects/rbtree -Isubprojects/crc32c -I../subprojects/crc32c -Isubprojects/xoroshiro -I../subprojects/xoroshiro -Itests/framework/include -I../tests/framework/include -I/usr/include/p11-kit-1 -fvisibility=hidden -fdiagnostics-color=always -D_FILE_OFFSET_BITS=64 -Wall -Winvalid-pch -Wextra -std=gnu11 -O2 -g -fmacro-prefix-map=../= -DHSE_BUILD_DEBUG -D_GNU_SOURCE -D_LGPL_SOURCE -Wlogical-op -Wno-missing-field-initializers -Wmaybe-uninitialized -Wno-sign-compare -Wno-unused-parameter -Wno-clobbered -DHSE_LOGPRI_DEFAULT=7 -DLEVEL1_DCACHE_LINESIZE=64 -pthread -DXXH_INLINE_ALL -DXXH_INLINE_HINTS -DXXH_STATIC_LINKING_ONLY -DHSE_MOCKING=1 -MD -MQ tests/unit/kvdb_meta_test.p/kvdb_kvdb_meta_test.c.o -MF tests/unit/kvdb_meta_test.p/kvdb_kvdb_meta_test.c.o.d -o tests/unit/kvdb_meta_test.p/kvdb_kvdb_meta_test.c.o -c ../tests/unit/kvdb/kvdb_meta_test.c
+In file included from ../lib/include/hse_ikvdb/kvdb_meta.h:161,
+                 from ../tests/unit/kvdb/kvdb_meta_test.c:9:
+../tests/unit/kvdb/kvdb_meta_test.c: In function ‘collection_pre’:
+tests/mocks/kvdb_meta_ut.h:132:9: error: unknown type name ‘u64’
+  132 |         u64 rc = 0; \
+      |         ^~~
+../tests/unit/kvdb/kvdb_meta_test.c:25:5: note: in expansion of macro ‘kvdb_meta_destroy’
+   25 |     kvdb_meta_destroy(home);
+      |     ^~~~~~~~~~~~~~~~~
+tests/mocks/kvdb_meta_ut.h:133:77: warning: passing argument 2 of ‘mapi_inject_check’ from incompatible pointer type [-Wincompatible-pointer-types]
+  133 |         if (!mapi_enabled || !mapi_inject_check(mapi_idx_kvdb_meta_destroy, &rc)) \
+      |                                                                             ^~~
+      |                                                                             |
+      |                                                                             int *
+../tests/unit/kvdb/kvdb_meta_test.c:25:5: note: in expansion of macro ‘kvdb_meta_destroy’
+   25 |     kvdb_meta_destroy(home);
+      |     ^~~~~~~~~~~~~~~~~
+In file included from tests/mocks/hse_ut.h:7,
+                 from ../include/hse/hse.h:1140,
+                 from ../tests/framework/include/mtf/framework.h:8,
+                 from ../tests/unit/kvdb/kvdb_meta_test.c:7:
+../tests/mocks/include/mock/api.h:165:43: note: expected ‘uint64_t *’ {aka ‘long unsigned int *’} but argument is of type ‘int *’
+  165 | mapi_inject_check(uint32_t api, uint64_t *rc);
+      |                                 ~~~~~~~~~~^~
+In file included from ../lib/include/hse_ikvdb/kvdb_meta.h:161,
+                 from ../tests/unit/kvdb/kvdb_meta_test.c:9:
+../tests/unit/kvdb/kvdb_meta_test.c: In function ‘destroy_post’:
+tests/mocks/kvdb_meta_ut.h:132:9: error: unknown type name ‘u64’
+  132 |         u64 rc = 0; \
+      |         ^~~
+../tests/unit/kvdb/kvdb_meta_test.c:39:5: note: in expansion of macro ‘kvdb_meta_destroy’
+   39 |     kvdb_meta_destroy(home);
+      |     ^~~~~~~~~~~~~~~~~
+tests/mocks/kvdb_meta_ut.h:133:77: warning: passing argument 2 of ‘mapi_inject_check’ from incompatible pointer type [-Wincompatible-pointer-types]
+  133 |         if (!mapi_enabled || !mapi_inject_check(mapi_idx_kvdb_meta_destroy, &rc)) \
+      |                                                                             ^~~
+      |                                                                             |
+      |                                                                             int *
+../tests/unit/kvdb/kvdb_meta_test.c:39:5: note: in expansion of macro ‘kvdb_meta_destroy’
+   39 |     kvdb_meta_destroy(home);
+      |     ^~~~~~~~~~~~~~~~~
+In file included from tests/mocks/hse_ut.h:7,
+                 from ../include/hse/hse.h:1140,
+                 from ../tests/framework/include/mtf/framework.h:8,
+                 from ../tests/unit/kvdb/kvdb_meta_test.c:7:
+../tests/mocks/include/mock/api.h:165:43: note: expected ‘uint64_t *’ {aka ‘long unsigned int *’} but argument is of type ‘int *’
+  165 | mapi_inject_check(uint32_t api, uint64_t *rc);
+      |                                 ~~~~~~~~~~^~
+In file included from ../lib/include/hse_ikvdb/kvdb_meta.h:161,
+                 from ../tests/unit/kvdb/kvdb_meta_test.c:9:
+../tests/unit/kvdb/kvdb_meta_test.c: In function ‘serde’:
+tests/mocks/kvdb_meta_ut.h:94:9: error: unknown type name ‘u64’
+   94 |         u64 rc = 0; \
+      |         ^~~
+../tests/unit/kvdb/kvdb_meta_test.c:62:11: note: in expansion of macro ‘kvdb_meta_create’
+   62 |     err = kvdb_meta_create(home);
+      |           ^~~~~~~~~~~~~~~~
+tests/mocks/kvdb_meta_ut.h:95:76: warning: passing argument 2 of ‘mapi_inject_check’ from incompatible pointer type [-Wincompatible-pointer-types]
+   95 |         if (!mapi_enabled || !mapi_inject_check(mapi_idx_kvdb_meta_create, &rc)) \
+      |                                                                            ^~~
+      |                                                                            |
+      |                                                                            int *
+../tests/unit/kvdb/kvdb_meta_test.c:62:11: note: in expansion of macro ‘kvdb_meta_create’
+   62 |     err = kvdb_meta_create(home);
+      |           ^~~~~~~~~~~~~~~~
+In file included from tests/mocks/hse_ut.h:7,
+                 from ../include/hse/hse.h:1140,
+                 from ../tests/framework/include/mtf/framework.h:8,
+                 from ../tests/unit/kvdb/kvdb_meta_test.c:7:
+../tests/mocks/include/mock/api.h:165:43: note: expected ‘uint64_t *’ {aka ‘long unsigned int *’} but argument is of type ‘int *’
+  165 | mapi_inject_check(uint32_t api, uint64_t *rc);
+      |                                 ~~~~~~~~~~^~
+In file included from ../lib/include/hse_ikvdb/kvdb_meta.h:161,
+                 from ../tests/unit/kvdb/kvdb_meta_test.c:9:
+tests/mocks/kvdb_meta_ut.h:75:9: error: unknown type name ‘u64’
+   75 |         u64 rc = 0; \
+      |         ^~~
+../tests/unit/kvdb/kvdb_meta_test.c:65:11: note: in expansion of macro ‘kvdb_meta_serialize’
+   65 |     err = kvdb_meta_serialize(&meta, home);
+      |           ^~~~~~~~~~~~~~~~~~~
+tests/mocks/kvdb_meta_ut.h:76:79: warning: passing argument 2 of ‘mapi_inject_check’ from incompatible pointer type [-Wincompatible-pointer-types]
+   76 |         if (!mapi_enabled || !mapi_inject_check(mapi_idx_kvdb_meta_serialize, &rc)) \
+      |                                                                               ^~~
+      |                                                                               |
+      |                                                                               int *
+../tests/unit/kvdb/kvdb_meta_test.c:65:11: note: in expansion of macro ‘kvdb_meta_serialize’
+   65 |     err = kvdb_meta_serialize(&meta, home);
+      |           ^~~~~~~~~~~~~~~~~~~
+In file included from tests/mocks/hse_ut.h:7,
+                 from ../include/hse/hse.h:1140,
+                 from ../tests/framework/include/mtf/framework.h:8,
+                 from ../tests/unit/kvdb/kvdb_meta_test.c:7:
+../tests/mocks/include/mock/api.h:165:43: note: expected ‘uint64_t *’ {aka ‘long unsigned int *’} but argument is of type ‘int *’
+  165 | mapi_inject_check(uint32_t api, uint64_t *rc);
+      |                                 ~~~~~~~~~~^~
+In file included from ../lib/include/hse_ikvdb/kvdb_meta.h:161,
+                 from ../tests/unit/kvdb/kvdb_meta_test.c:9:
+tests/mocks/kvdb_meta_ut.h:151:9: error: unknown type name ‘u64’
+  151 |         u64 rc = 0; \
+      |         ^~~
+../tests/unit/kvdb/kvdb_meta_test.c:70:11: note: in expansion of macro ‘kvdb_meta_deserialize’
+   70 |     err = kvdb_meta_deserialize(&meta, home);
+      |           ^~~~~~~~~~~~~~~~~~~~~
+tests/mocks/kvdb_meta_ut.h:152:81: warning: passing argument 2 of ‘mapi_inject_check’ from incompatible pointer type [-Wincompatible-pointer-types]
+  152 |         if (!mapi_enabled || !mapi_inject_check(mapi_idx_kvdb_meta_deserialize, &rc)) \
+      |                                                                                 ^~~
+      |                                                                                 |
+      |                                                                                 int *
+../tests/unit/kvdb/kvdb_meta_test.c:70:11: note: in expansion of macro ‘kvdb_meta_deserialize’
+   70 |     err = kvdb_meta_deserialize(&meta, home);
+      |           ^~~~~~~~~~~~~~~~~~~~~
+In file included from tests/mocks/hse_ut.h:7,
+                 from ../include/hse/hse.h:1140,
+                 from ../tests/framework/include/mtf/framework.h:8,
+                 from ../tests/unit/kvdb/kvdb_meta_test.c:7:
+../tests/mocks/include/mock/api.h:165:43: note: expected ‘uint64_t *’ {aka ‘long unsigned int *’} but argument is of type ‘int *’
+  165 | mapi_inject_check(uint32_t api, uint64_t *rc);
+      |                                 ~~~~~~~~~~^~
+In file included from ../lib/include/hse_ikvdb/kvdb_meta.h:161,
+                 from ../tests/unit/kvdb/kvdb_meta_test.c:9:
+../tests/unit/kvdb/kvdb_meta_test.c: In function ‘null_storage_paths’:
+tests/mocks/kvdb_meta_ut.h:94:9: error: unknown type name ‘u64’
+   94 |         u64 rc = 0; \
+      |         ^~~
+../tests/unit/kvdb/kvdb_meta_test.c:93:11: note: in expansion of macro ‘kvdb_meta_create’
+   93 |     err = kvdb_meta_create(home);
+      |           ^~~~~~~~~~~~~~~~
+tests/mocks/kvdb_meta_ut.h:95:76: warning: passing argument 2 of ‘mapi_inject_check’ from incompatible pointer type [-Wincompatible-pointer-types]
+   95 |         if (!mapi_enabled || !mapi_inject_check(mapi_idx_kvdb_meta_create, &rc)) \
+      |                                                                            ^~~
+      |                                                                            |
+      |                                                                            int *
+../tests/unit/kvdb/kvdb_meta_test.c:93:11: note: in expansion of macro ‘kvdb_meta_create’
+   93 |     err = kvdb_meta_create(home);
+      |           ^~~~~~~~~~~~~~~~
+In file included from tests/mocks/hse_ut.h:7,
+                 from ../include/hse/hse.h:1140,
+                 from ../tests/framework/include/mtf/framework.h:8,
+                 from ../tests/unit/kvdb/kvdb_meta_test.c:7:
+../tests/mocks/include/mock/api.h:165:43: note: expected ‘uint64_t *’ {aka ‘long unsigned int *’} but argument is of type ‘int *’
+  165 | mapi_inject_check(uint32_t api, uint64_t *rc);
+      |                                 ~~~~~~~~~~^~
+In file included from ../lib/include/hse_ikvdb/kvdb_meta.h:161,
+                 from ../tests/unit/kvdb/kvdb_meta_test.c:9:
+tests/mocks/kvdb_meta_ut.h:75:9: error: unknown type name ‘u64’
+   75 |         u64 rc = 0; \
+      |         ^~~
+../tests/unit/kvdb/kvdb_meta_test.c:99:11: note: in expansion of macro ‘kvdb_meta_serialize’
+   99 |     err = kvdb_meta_serialize(&meta, home);
+      |           ^~~~~~~~~~~~~~~~~~~
+tests/mocks/kvdb_meta_ut.h:76:79: warning: passing argument 2 of ‘mapi_inject_check’ from incompatible pointer type [-Wincompatible-pointer-types]
+   76 |         if (!mapi_enabled || !mapi_inject_check(mapi_idx_kvdb_meta_serialize, &rc)) \
+      |                                                                               ^~~
+      |                                                                               |
+      |                                                                               int *
+../tests/unit/kvdb/kvdb_meta_test.c:99:11: note: in expansion of macro ‘kvdb_meta_serialize’
+   99 |     err = kvdb_meta_serialize(&meta, home);
+      |           ^~~~~~~~~~~~~~~~~~~
+In file included from tests/mocks/hse_ut.h:7,
+                 from ../include/hse/hse.h:1140,
+                 from ../tests/framework/include/mtf/framework.h:8,
+                 from ../tests/unit/kvdb/kvdb_meta_test.c:7:
+../tests/mocks/include/mock/api.h:165:43: note: expected ‘uint64_t *’ {aka ‘long unsigned int *’} but argument is of type ‘int *’
+  165 | mapi_inject_check(uint32_t api, uint64_t *rc);
+      |                                 ~~~~~~~~~~^~
+In file included from ../lib/include/hse_ikvdb/kvdb_meta.h:161,
+                 from ../tests/unit/kvdb/kvdb_meta_test.c:9:
+tests/mocks/kvdb_meta_ut.h:151:9: error: unknown type name ‘u64’
+  151 |         u64 rc = 0; \
+      |         ^~~
+../tests/unit/kvdb/kvdb_meta_test.c:104:11: note: in expansion of macro ‘kvdb_meta_deserialize’
+  104 |     err = kvdb_meta_deserialize(&meta, home);
+      |           ^~~~~~~~~~~~~~~~~~~~~
+tests/mocks/kvdb_meta_ut.h:152:81: warning: passing argument 2 of ‘mapi_inject_check’ from incompatible pointer type [-Wincompatible-pointer-types]
+  152 |         if (!mapi_enabled || !mapi_inject_check(mapi_idx_kvdb_meta_deserialize, &rc)) \
+      |                                                                                 ^~~
+      |                                                                                 |
+      |                                                                                 int *
+../tests/unit/kvdb/kvdb_meta_test.c:104:11: note: in expansion of macro ‘kvdb_meta_deserialize’
+  104 |     err = kvdb_meta_deserialize(&meta, home);
+      |           ^~~~~~~~~~~~~~~~~~~~~
+In file included from tests/mocks/hse_ut.h:7,
+                 from ../include/hse/hse.h:1140,
+                 from ../tests/framework/include/mtf/framework.h:8,
+                 from ../tests/unit/kvdb/kvdb_meta_test.c:7:
+../tests/mocks/include/mock/api.h:165:43: note: expected ‘uint64_t *’ {aka ‘long unsigned int *’} but argument is of type ‘int *’
+  165 | mapi_inject_check(uint32_t api, uint64_t *rc);
+      |                                 ~~~~~~~~~~^~
+In file included from ../lib/include/hse_ikvdb/kvdb_meta.h:161,
+                 from ../tests/unit/kvdb/kvdb_meta_test.c:9:
+../tests/unit/kvdb/kvdb_meta_test.c: In function ‘incorrect_root_type’:
+tests/mocks/kvdb_meta_ut.h:151:9: error: unknown type name ‘u64’
+  151 |         u64 rc = 0; \
+      |         ^~~
+../tests/unit/kvdb/kvdb_meta_test.c:116:11: note: in expansion of macro ‘kvdb_meta_deserialize’
+  116 |     err = kvdb_meta_deserialize(&meta, test_home);
+      |           ^~~~~~~~~~~~~~~~~~~~~
+tests/mocks/kvdb_meta_ut.h:152:81: warning: passing argument 2 of ‘mapi_inject_check’ from incompatible pointer type [-Wincompatible-pointer-types]
+  152 |         if (!mapi_enabled || !mapi_inject_check(mapi_idx_kvdb_meta_deserialize, &rc)) \
+      |                                                                                 ^~~
+      |                                                                                 |
+      |                                                                                 int *
+../tests/unit/kvdb/kvdb_meta_test.c:116:11: note: in expansion of macro ‘kvdb_meta_deserialize’
+  116 |     err = kvdb_meta_deserialize(&meta, test_home);
+      |           ^~~~~~~~~~~~~~~~~~~~~
+In file included from tests/mocks/hse_ut.h:7,
+                 from ../include/hse/hse.h:1140,
+                 from ../tests/framework/include/mtf/framework.h:8,
+                 from ../tests/unit/kvdb/kvdb_meta_test.c:7:
+../tests/mocks/include/mock/api.h:165:43: note: expected ‘uint64_t *’ {aka ‘long unsigned int *’} but argument is of type ‘int *’
+  165 | mapi_inject_check(uint32_t api, uint64_t *rc);
+      |                                 ~~~~~~~~~~^~
+In file included from ../lib/include/hse_ikvdb/kvdb_meta.h:161,
+                 from ../tests/unit/kvdb/kvdb_meta_test.c:9:
+../tests/unit/kvdb/kvdb_meta_test.c: In function ‘incorrect_cndb_type’:
+tests/mocks/kvdb_meta_ut.h:151:9: error: unknown type name ‘u64’
+  151 |         u64 rc = 0; \
+      |         ^~~
+../tests/unit/kvdb/kvdb_meta_test.c:125:11: note: in expansion of macro ‘kvdb_meta_deserialize’
+  125 |     err = kvdb_meta_deserialize(&meta, test_home);
+      |           ^~~~~~~~~~~~~~~~~~~~~
+tests/mocks/kvdb_meta_ut.h:152:81: warning: passing argument 2 of ‘mapi_inject_check’ from incompatible pointer type [-Wincompatible-pointer-types]
+  152 |         if (!mapi_enabled || !mapi_inject_check(mapi_idx_kvdb_meta_deserialize, &rc)) \
+      |                                                                                 ^~~
+      |                                                                                 |
+      |                                                                                 int *
+../tests/unit/kvdb/kvdb_meta_test.c:125:11: note: in expansion of macro ‘kvdb_meta_deserialize’
+  125 |     err = kvdb_meta_deserialize(&meta, test_home);
+      |           ^~~~~~~~~~~~~~~~~~~~~
+In file included from tests/mocks/hse_ut.h:7,
+                 from ../include/hse/hse.h:1140,
+                 from ../tests/framework/include/mtf/framework.h:8,
+                 from ../tests/unit/kvdb/kvdb_meta_test.c:7:
+../tests/mocks/include/mock/api.h:165:43: note: expected ‘uint64_t *’ {aka ‘long unsigned int *’} but argument is of type ‘int *’
+  165 | mapi_inject_check(uint32_t api, uint64_t *rc);
+      |                                 ~~~~~~~~~~^~
+In file included from ../lib/include/hse_ikvdb/kvdb_meta.h:161,
+                 from ../tests/unit/kvdb/kvdb_meta_test.c:9:
+../tests/unit/kvdb/kvdb_meta_test.c: In function ‘incorrect_cndb_oid1_type’:
+tests/mocks/kvdb_meta_ut.h:151:9: error: unknown type name ‘u64’
+  151 |         u64 rc = 0; \
+      |         ^~~
+../tests/unit/kvdb/kvdb_meta_test.c:134:11: note: in expansion of macro ‘kvdb_meta_deserialize’
+  134 |     err = kvdb_meta_deserialize(&meta, test_home);
+      |           ^~~~~~~~~~~~~~~~~~~~~
+tests/mocks/kvdb_meta_ut.h:152:81: warning: passing argument 2 of ‘mapi_inject_check’ from incompatible pointer type [-Wincompatible-pointer-types]
+  152 |         if (!mapi_enabled || !mapi_inject_check(mapi_idx_kvdb_meta_deserialize, &rc)) \
+      |                                                                                 ^~~
+      |                                                                                 |
+      |                                                                                 int *
+../tests/unit/kvdb/kvdb_meta_test.c:134:11: note: in expansion of macro ‘kvdb_meta_deserialize’
+  134 |     err = kvdb_meta_deserialize(&meta, test_home);
+      |           ^~~~~~~~~~~~~~~~~~~~~
+In file included from tests/mocks/hse_ut.h:7,
+                 from ../include/hse/hse.h:1140,
+                 from ../tests/framework/include/mtf/framework.h:8,
+                 from ../tests/unit/kvdb/kvdb_meta_test.c:7:
+../tests/mocks/include/mock/api.h:165:43: note: expected ‘uint64_t *’ {aka ‘long unsigned int *’} but argument is of type ‘int *’
+  165 | mapi_inject_check(uint32_t api, uint64_t *rc);
+      |                                 ~~~~~~~~~~^~
+In file included from ../lib/include/hse_ikvdb/kvdb_meta.h:161,
+                 from ../tests/unit/kvdb/kvdb_meta_test.c:9:
+../tests/unit/kvdb/kvdb_meta_test.c: In function ‘incorrect_cndb_oid2_type’:
+tests/mocks/kvdb_meta_ut.h:151:9: error: unknown type name ‘u64’
+  151 |         u64 rc = 0; \
+      |         ^~~
+../tests/unit/kvdb/kvdb_meta_test.c:143:11: note: in expansion of macro ‘kvdb_meta_deserialize’
+  143 |     err = kvdb_meta_deserialize(&meta, test_home);
+      |           ^~~~~~~~~~~~~~~~~~~~~
+tests/mocks/kvdb_meta_ut.h:152:81: warning: passing argument 2 of ‘mapi_inject_check’ from incompatible pointer type [-Wincompatible-pointer-types]
+  152 |         if (!mapi_enabled || !mapi_inject_check(mapi_idx_kvdb_meta_deserialize, &rc)) \
+      |                                                                                 ^~~
+      |                                                                                 |
+      |                                                                                 int *
+../tests/unit/kvdb/kvdb_meta_test.c:143:11: note: in expansion of macro ‘kvdb_meta_deserialize’
+  143 |     err = kvdb_meta_deserialize(&meta, test_home);
+      |           ^~~~~~~~~~~~~~~~~~~~~
+In file included from tests/mocks/hse_ut.h:7,
+                 from ../include/hse/hse.h:1140,
+                 from ../tests/framework/include/mtf/framework.h:8,
+                 from ../tests/unit/kvdb/kvdb_meta_test.c:7:
+../tests/mocks/include/mock/api.h:165:43: note: expected ‘uint64_t *’ {aka ‘long unsigned int *’} but argument is of type ‘int *’
+  165 | mapi_inject_check(uint32_t api, uint64_t *rc);
+      |                                 ~~~~~~~~~~^~
+In file included from ../lib/include/hse_ikvdb/kvdb_meta.h:161,
+                 from ../tests/unit/kvdb/kvdb_meta_test.c:9:
+../tests/unit/kvdb/kvdb_meta_test.c: In function ‘incorrect_wal_type’:
+tests/mocks/kvdb_meta_ut.h:151:9: error: unknown type name ‘u64’
+  151 |         u64 rc = 0; \
+      |         ^~~
+../tests/unit/kvdb/kvdb_meta_test.c:152:11: note: in expansion of macro ‘kvdb_meta_deserialize’
+  152 |     err = kvdb_meta_deserialize(&meta, test_home);
+      |           ^~~~~~~~~~~~~~~~~~~~~
+tests/mocks/kvdb_meta_ut.h:152:81: warning: passing argument 2 of ‘mapi_inject_check’ from incompatible pointer type [-Wincompatible-pointer-types]
+  152 |         if (!mapi_enabled || !mapi_inject_check(mapi_idx_kvdb_meta_deserialize, &rc)) \
+      |                                                                                 ^~~
+      |                                                                                 |
+      |                                                                                 int *
+../tests/unit/kvdb/kvdb_meta_test.c:152:11: note: in expansion of macro ‘kvdb_meta_deserialize’
+  152 |     err = kvdb_meta_deserialize(&meta, test_home);
+      |           ^~~~~~~~~~~~~~~~~~~~~
+In file included from tests/mocks/hse_ut.h:7,
+                 from ../include/hse/hse.h:1140,
+                 from ../tests/framework/include/mtf/framework.h:8,
+                 from ../tests/unit/kvdb/kvdb_meta_test.c:7:
+../tests/mocks/include/mock/api.h:165:43: note: expected ‘uint64_t *’ {aka ‘long unsigned int *’} but argument is of type ‘int *’
+  165 | mapi_inject_check(uint32_t api, uint64_t *rc);
+      |                                 ~~~~~~~~~~^~
+In file included from ../lib/include/hse_ikvdb/kvdb_meta.h:161,
+                 from ../tests/unit/kvdb/kvdb_meta_test.c:9:
+../tests/unit/kvdb/kvdb_meta_test.c: In function ‘incorrect_wal_oid1_type’:
+tests/mocks/kvdb_meta_ut.h:151:9: error: unknown type name ‘u64’
+  151 |         u64 rc = 0; \
+      |         ^~~
+../tests/unit/kvdb/kvdb_meta_test.c:161:11: note: in expansion of macro ‘kvdb_meta_deserialize’
+  161 |     err = kvdb_meta_deserialize(&meta, test_home);
+      |           ^~~~~~~~~~~~~~~~~~~~~
+tests/mocks/kvdb_meta_ut.h:152:81: warning: passing argument 2 of ‘mapi_inject_check’ from incompatible pointer type [-Wincompatible-pointer-types]
+  152 |         if (!mapi_enabled || !mapi_inject_check(mapi_idx_kvdb_meta_deserialize, &rc)) \
+      |                                                                                 ^~~
+      |                                                                                 |
+      |                                                                                 int *
+../tests/unit/kvdb/kvdb_meta_test.c:161:11: note: in expansion of macro ‘kvdb_meta_deserialize’
+  161 |     err = kvdb_meta_deserialize(&meta, test_home);
+      |           ^~~~~~~~~~~~~~~~~~~~~
+In file included from tests/mocks/hse_ut.h:7,
+                 from ../include/hse/hse.h:1140,
+                 from ../tests/framework/include/mtf/framework.h:8,
+                 from ../tests/unit/kvdb/kvdb_meta_test.c:7:
+../tests/mocks/include/mock/api.h:165:43: note: expected ‘uint64_t *’ {aka ‘long unsigned int *’} but argument is of type ‘int *’
+  165 | mapi_inject_check(uint32_t api, uint64_t *rc);
+      |                                 ~~~~~~~~~~^~
+In file included from ../lib/include/hse_ikvdb/kvdb_meta.h:161,
+                 from ../tests/unit/kvdb/kvdb_meta_test.c:9:
+../tests/unit/kvdb/kvdb_meta_test.c: In function ‘incorrect_wal_oid2_type’:
+tests/mocks/kvdb_meta_ut.h:151:9: error: unknown type name ‘u64’
+  151 |         u64 rc = 0; \
+      |         ^~~
+../tests/unit/kvdb/kvdb_meta_test.c:170:11: note: in expansion of macro ‘kvdb_meta_deserialize’
+  170 |     err = kvdb_meta_deserialize(&meta, test_home);
+      |           ^~~~~~~~~~~~~~~~~~~~~
+tests/mocks/kvdb_meta_ut.h:152:81: warning: passing argument 2 of ‘mapi_inject_check’ from incompatible pointer type [-Wincompatible-pointer-types]
+  152 |         if (!mapi_enabled || !mapi_inject_check(mapi_idx_kvdb_meta_deserialize, &rc)) \
+      |                                                                                 ^~~
+      |                                                                                 |
+      |                                                                                 int *
+../tests/unit/kvdb/kvdb_meta_test.c:170:11: note: in expansion of macro ‘kvdb_meta_deserialize’
+  170 |     err = kvdb_meta_deserialize(&meta, test_home);
+      |           ^~~~~~~~~~~~~~~~~~~~~
+In file included from tests/mocks/hse_ut.h:7,
+                 from ../include/hse/hse.h:1140,
+                 from ../tests/framework/include/mtf/framework.h:8,
+                 from ../tests/unit/kvdb/kvdb_meta_test.c:7:
+../tests/mocks/include/mock/api.h:165:43: note: expected ‘uint64_t *’ {aka ‘long unsigned int *’} but argument is of type ‘int *’
+  165 | mapi_inject_check(uint32_t api, uint64_t *rc);
+      |                                 ~~~~~~~~~~^~
+In file included from ../lib/include/hse_ikvdb/kvdb_meta.h:161,
+                 from ../tests/unit/kvdb/kvdb_meta_test.c:9:
+../tests/unit/kvdb/kvdb_meta_test.c: In function ‘incorrect_storage_type’:
+tests/mocks/kvdb_meta_ut.h:151:9: error: unknown type name ‘u64’
+  151 |         u64 rc = 0; \
+      |         ^~~
+../tests/unit/kvdb/kvdb_meta_test.c:179:11: note: in expansion of macro ‘kvdb_meta_deserialize’
+  179 |     err = kvdb_meta_deserialize(&meta, test_home);
+      |           ^~~~~~~~~~~~~~~~~~~~~
+tests/mocks/kvdb_meta_ut.h:152:81: warning: passing argument 2 of ‘mapi_inject_check’ from incompatible pointer type [-Wincompatible-pointer-types]
+  152 |         if (!mapi_enabled || !mapi_inject_check(mapi_idx_kvdb_meta_deserialize, &rc)) \
+      |                                                                                 ^~~
+      |                                                                                 |
+      |                                                                                 int *
+../tests/unit/kvdb/kvdb_meta_test.c:179:11: note: in expansion of macro ‘kvdb_meta_deserialize’
+  179 |     err = kvdb_meta_deserialize(&meta, test_home);
+      |           ^~~~~~~~~~~~~~~~~~~~~
+In file included from tests/mocks/hse_ut.h:7,
+                 from ../include/hse/hse.h:1140,
+                 from ../tests/framework/include/mtf/framework.h:8,
+                 from ../tests/unit/kvdb/kvdb_meta_test.c:7:
+../tests/mocks/include/mock/api.h:165:43: note: expected ‘uint64_t *’ {aka ‘long unsigned int *’} but argument is of type ‘int *’
+  165 | mapi_inject_check(uint32_t api, uint64_t *rc);
+      |                                 ~~~~~~~~~~^~
+In file included from ../lib/include/hse_ikvdb/kvdb_meta.h:161,
+                 from ../tests/unit/kvdb/kvdb_meta_test.c:9:
+../tests/unit/kvdb/kvdb_meta_test.c: In function ‘incorrect_storage_capacity_type’:
+tests/mocks/kvdb_meta_ut.h:151:9: error: unknown type name ‘u64’
+  151 |         u64 rc = 0; \
+      |         ^~~
+../tests/unit/kvdb/kvdb_meta_test.c:188:11: note: in expansion of macro ‘kvdb_meta_deserialize’
+  188 |     err = kvdb_meta_deserialize(&meta, test_home);
+      |           ^~~~~~~~~~~~~~~~~~~~~
+tests/mocks/kvdb_meta_ut.h:152:81: warning: passing argument 2 of ‘mapi_inject_check’ from incompatible pointer type [-Wincompatible-pointer-types]
+  152 |         if (!mapi_enabled || !mapi_inject_check(mapi_idx_kvdb_meta_deserialize, &rc)) \
+      |                                                                                 ^~~
+      |                                                                                 |
+      |                                                                                 int *
+../tests/unit/kvdb/kvdb_meta_test.c:188:11: note: in expansion of macro ‘kvdb_meta_deserialize’
+  188 |     err = kvdb_meta_deserialize(&meta, test_home);
+      |           ^~~~~~~~~~~~~~~~~~~~~
+In file included from tests/mocks/hse_ut.h:7,
+                 from ../include/hse/hse.h:1140,
+                 from ../tests/framework/include/mtf/framework.h:8,
+                 from ../tests/unit/kvdb/kvdb_meta_test.c:7:
+../tests/mocks/include/mock/api.h:165:43: note: expected ‘uint64_t *’ {aka ‘long unsigned int *’} but argument is of type ‘int *’
+  165 | mapi_inject_check(uint32_t api, uint64_t *rc);
+      |                                 ~~~~~~~~~~^~
+In file included from ../lib/include/hse_ikvdb/kvdb_meta.h:161,
+                 from ../tests/unit/kvdb/kvdb_meta_test.c:9:
+../tests/unit/kvdb/kvdb_meta_test.c: In function ‘incorrect_storage_capacity_path_type’:
+tests/mocks/kvdb_meta_ut.h:151:9: error: unknown type name ‘u64’
+  151 |         u64 rc = 0; \
+      |         ^~~
+../tests/unit/kvdb/kvdb_meta_test.c:197:11: note: in expansion of macro ‘kvdb_meta_deserialize’
+  197 |     err = kvdb_meta_deserialize(&meta, test_home);
+      |           ^~~~~~~~~~~~~~~~~~~~~
+tests/mocks/kvdb_meta_ut.h:152:81: warning: passing argument 2 of ‘mapi_inject_check’ from incompatible pointer type [-Wincompatible-pointer-types]
+  152 |         if (!mapi_enabled || !mapi_inject_check(mapi_idx_kvdb_meta_deserialize, &rc)) \
+      |                                                                                 ^~~
+      |                                                                                 |
+      |                                                                                 int *
+../tests/unit/kvdb/kvdb_meta_test.c:197:11: note: in expansion of macro ‘kvdb_meta_deserialize’
+  197 |     err = kvdb_meta_deserialize(&meta, test_home);
+      |           ^~~~~~~~~~~~~~~~~~~~~
+In file included from tests/mocks/hse_ut.h:7,
+                 from ../include/hse/hse.h:1140,
+                 from ../tests/framework/include/mtf/framework.h:8,
+                 from ../tests/unit/kvdb/kvdb_meta_test.c:7:
+../tests/mocks/include/mock/api.h:165:43: note: expected ‘uint64_t *’ {aka ‘long unsigned int *’} but argument is of type ‘int *’
+  165 | mapi_inject_check(uint32_t api, uint64_t *rc);
+      |                                 ~~~~~~~~~~^~
+In file included from ../lib/include/hse_ikvdb/kvdb_meta.h:161,
+                 from ../tests/unit/kvdb/kvdb_meta_test.c:9:
+../tests/unit/kvdb/kvdb_meta_test.c: In function ‘incorrect_storage_staging_type’:
+tests/mocks/kvdb_meta_ut.h:151:9: error: unknown type name ‘u64’
+  151 |         u64 rc = 0; \
+      |         ^~~
+../tests/unit/kvdb/kvdb_meta_test.c:206:11: note: in expansion of macro ‘kvdb_meta_deserialize’
+  206 |     err = kvdb_meta_deserialize(&meta, test_home);
+      |           ^~~~~~~~~~~~~~~~~~~~~
+tests/mocks/kvdb_meta_ut.h:152:81: warning: passing argument 2 of ‘mapi_inject_check’ from incompatible pointer type [-Wincompatible-pointer-types]
+  152 |         if (!mapi_enabled || !mapi_inject_check(mapi_idx_kvdb_meta_deserialize, &rc)) \
+      |                                                                                 ^~~
+      |                                                                                 |
+      |                                                                                 int *
+../tests/unit/kvdb/kvdb_meta_test.c:206:11: note: in expansion of macro ‘kvdb_meta_deserialize’
+  206 |     err = kvdb_meta_deserialize(&meta, test_home);
+      |           ^~~~~~~~~~~~~~~~~~~~~
+In file included from tests/mocks/hse_ut.h:7,
+                 from ../include/hse/hse.h:1140,
+                 from ../tests/framework/include/mtf/framework.h:8,
+                 from ../tests/unit/kvdb/kvdb_meta_test.c:7:
+../tests/mocks/include/mock/api.h:165:43: note: expected ‘uint64_t *’ {aka ‘long unsigned int *’} but argument is of type ‘int *’
+  165 | mapi_inject_check(uint32_t api, uint64_t *rc);
+      |                                 ~~~~~~~~~~^~
+In file included from ../lib/include/hse_ikvdb/kvdb_meta.h:161,
+                 from ../tests/unit/kvdb/kvdb_meta_test.c:9:
+../tests/unit/kvdb/kvdb_meta_test.c: In function ‘incorrect_storage_staging_path_type’:
+tests/mocks/kvdb_meta_ut.h:151:9: error: unknown type name ‘u64’
+  151 |         u64 rc = 0; \
+      |         ^~~
+../tests/unit/kvdb/kvdb_meta_test.c:215:11: note: in expansion of macro ‘kvdb_meta_deserialize’
+  215 |     err = kvdb_meta_deserialize(&meta, test_home);
+      |           ^~~~~~~~~~~~~~~~~~~~~
+tests/mocks/kvdb_meta_ut.h:152:81: warning: passing argument 2 of ‘mapi_inject_check’ from incompatible pointer type [-Wincompatible-pointer-types]
+  152 |         if (!mapi_enabled || !mapi_inject_check(mapi_idx_kvdb_meta_deserialize, &rc)) \
+      |                                                                                 ^~~
+      |                                                                                 |
+      |                                                                                 int *
+../tests/unit/kvdb/kvdb_meta_test.c:215:11: note: in expansion of macro ‘kvdb_meta_deserialize’
+  215 |     err = kvdb_meta_deserialize(&meta, test_home);
+      |           ^~~~~~~~~~~~~~~~~~~~~
+In file included from tests/mocks/hse_ut.h:7,
+                 from ../include/hse/hse.h:1140,
+                 from ../tests/framework/include/mtf/framework.h:8,
+                 from ../tests/unit/kvdb/kvdb_meta_test.c:7:
+../tests/mocks/include/mock/api.h:165:43: note: expected ‘uint64_t *’ {aka ‘long unsigned int *’} but argument is of type ‘int *’
+  165 | mapi_inject_check(uint32_t api, uint64_t *rc);
+      |                                 ~~~~~~~~~~^~
+In file included from ../lib/include/hse_ikvdb/kvdb_meta.h:161,
+                 from ../tests/unit/kvdb/kvdb_meta_test.c:9:
+../tests/unit/kvdb/kvdb_meta_test.c: In function ‘missing_cndb’:
+tests/mocks/kvdb_meta_ut.h:151:9: error: unknown type name ‘u64’
+  151 |         u64 rc = 0; \
+      |         ^~~
+../tests/unit/kvdb/kvdb_meta_test.c:224:11: note: in expansion of macro ‘kvdb_meta_deserialize’
+  224 |     err = kvdb_meta_deserialize(&meta, test_home);
+      |           ^~~~~~~~~~~~~~~~~~~~~
+tests/mocks/kvdb_meta_ut.h:152:81: warning: passing argument 2 of ‘mapi_inject_check’ from incompatible pointer type [-Wincompatible-pointer-types]
+  152 |         if (!mapi_enabled || !mapi_inject_check(mapi_idx_kvdb_meta_deserialize, &rc)) \
+      |                                                                                 ^~~
+      |                                                                                 |
+      |                                                                                 int *
+../tests/unit/kvdb/kvdb_meta_test.c:224:11: note: in expansion of macro ‘kvdb_meta_deserialize’
+  224 |     err = kvdb_meta_deserialize(&meta, test_home);
+      |           ^~~~~~~~~~~~~~~~~~~~~
+In file included from tests/mocks/hse_ut.h:7,
+                 from ../include/hse/hse.h:1140,
+                 from ../tests/framework/include/mtf/framework.h:8,
+                 from ../tests/unit/kvdb/kvdb_meta_test.c:7:
+../tests/mocks/include/mock/api.h:165:43: note: expected ‘uint64_t *’ {aka ‘long unsigned int *’} but argument is of type ‘int *’
+  165 | mapi_inject_check(uint32_t api, uint64_t *rc);
+      |                                 ~~~~~~~~~~^~
+In file included from ../lib/include/hse_ikvdb/kvdb_meta.h:161,
+                 from ../tests/unit/kvdb/kvdb_meta_test.c:9:
+../tests/unit/kvdb/kvdb_meta_test.c: In function ‘missing_cndb_oid1’:
+tests/mocks/kvdb_meta_ut.h:151:9: error: unknown type name ‘u64’
+  151 |         u64 rc = 0; \
+      |         ^~~
+../tests/unit/kvdb/kvdb_meta_test.c:233:11: note: in expansion of macro ‘kvdb_meta_deserialize’
+  233 |     err = kvdb_meta_deserialize(&meta, test_home);
+      |           ^~~~~~~~~~~~~~~~~~~~~
+tests/mocks/kvdb_meta_ut.h:152:81: warning: passing argument 2 of ‘mapi_inject_check’ from incompatible pointer type [-Wincompatible-pointer-types]
+  152 |         if (!mapi_enabled || !mapi_inject_check(mapi_idx_kvdb_meta_deserialize, &rc)) \
+      |                                                                                 ^~~
+      |                                                                                 |
+      |                                                                                 int *
+../tests/unit/kvdb/kvdb_meta_test.c:233:11: note: in expansion of macro ‘kvdb_meta_deserialize’
+  233 |     err = kvdb_meta_deserialize(&meta, test_home);
+      |           ^~~~~~~~~~~~~~~~~~~~~
+In file included from tests/mocks/hse_ut.h:7,
+                 from ../include/hse/hse.h:1140,
+                 from ../tests/framework/include/mtf/framework.h:8,
+                 from ../tests/unit/kvdb/kvdb_meta_test.c:7:
+../tests/mocks/include/mock/api.h:165:43: note: expected ‘uint64_t *’ {aka ‘long unsigned int *’} but argument is of type ‘int *’
+  165 | mapi_inject_check(uint32_t api, uint64_t *rc);
+      |                                 ~~~~~~~~~~^~
+In file included from ../lib/include/hse_ikvdb/kvdb_meta.h:161,
+                 from ../tests/unit/kvdb/kvdb_meta_test.c:9:
+../tests/unit/kvdb/kvdb_meta_test.c: In function ‘missing_cndb_oid2’:
+tests/mocks/kvdb_meta_ut.h:151:9: error: unknown type name ‘u64’
+  151 |         u64 rc = 0; \
+      |         ^~~
+../tests/unit/kvdb/kvdb_meta_test.c:242:11: note: in expansion of macro ‘kvdb_meta_deserialize’
+  242 |     err = kvdb_meta_deserialize(&meta, test_home);
+      |           ^~~~~~~~~~~~~~~~~~~~~
+tests/mocks/kvdb_meta_ut.h:152:81: warning: passing argument 2 of ‘mapi_inject_check’ from incompatible pointer type [-Wincompatible-pointer-types]
+  152 |         if (!mapi_enabled || !mapi_inject_check(mapi_idx_kvdb_meta_deserialize, &rc)) \
+      |                                                                                 ^~~
+      |                                                                                 |
+      |                                                                                 int *
+../tests/unit/kvdb/kvdb_meta_test.c:242:11: note: in expansion of macro ‘kvdb_meta_deserialize’
+  242 |     err = kvdb_meta_deserialize(&meta, test_home);
+      |           ^~~~~~~~~~~~~~~~~~~~~
+In file included from tests/mocks/hse_ut.h:7,
+                 from ../include/hse/hse.h:1140,
+                 from ../tests/framework/include/mtf/framework.h:8,
+                 from ../tests/unit/kvdb/kvdb_meta_test.c:7:
+../tests/mocks/include/mock/api.h:165:43: note: expected ‘uint64_t *’ {aka ‘long unsigned int *’} but argument is of type ‘int *’
+  165 | mapi_inject_check(uint32_t api, uint64_t *rc);
+      |                                 ~~~~~~~~~~^~
+In file included from ../lib/include/hse_ikvdb/kvdb_meta.h:161,
+                 from ../tests/unit/kvdb/kvdb_meta_test.c:9:
+../tests/unit/kvdb/kvdb_meta_test.c: In function ‘missing_wal’:
+tests/mocks/kvdb_meta_ut.h:151:9: error: unknown type name ‘u64’
+  151 |         u64 rc = 0; \
+      |         ^~~
+../tests/unit/kvdb/kvdb_meta_test.c:251:11: note: in expansion of macro ‘kvdb_meta_deserialize’
+  251 |     err = kvdb_meta_deserialize(&meta, test_home);
+      |           ^~~~~~~~~~~~~~~~~~~~~
+tests/mocks/kvdb_meta_ut.h:152:81: warning: passing argument 2 of ‘mapi_inject_check’ from incompatible pointer type [-Wincompatible-pointer-types]
+  152 |         if (!mapi_enabled || !mapi_inject_check(mapi_idx_kvdb_meta_deserialize, &rc)) \
+      |                                                                                 ^~~
+      |                                                                                 |
+      |                                                                                 int *
+../tests/unit/kvdb/kvdb_meta_test.c:251:11: note: in expansion of macro ‘kvdb_meta_deserialize’
+  251 |     err = kvdb_meta_deserialize(&meta, test_home);
+      |           ^~~~~~~~~~~~~~~~~~~~~
+In file included from tests/mocks/hse_ut.h:7,
+                 from ../include/hse/hse.h:1140,
+                 from ../tests/framework/include/mtf/framework.h:8,
+                 from ../tests/unit/kvdb/kvdb_meta_test.c:7:
+../tests/mocks/include/mock/api.h:165:43: note: expected ‘uint64_t *’ {aka ‘long unsigned int *’} but argument is of type ‘int *’
+  165 | mapi_inject_check(uint32_t api, uint64_t *rc);
+      |                                 ~~~~~~~~~~^~
+In file included from ../lib/include/hse_ikvdb/kvdb_meta.h:161,
+                 from ../tests/unit/kvdb/kvdb_meta_test.c:9:
+../tests/unit/kvdb/kvdb_meta_test.c: In function ‘missing_wal_oid1’:
+tests/mocks/kvdb_meta_ut.h:151:9: error: unknown type name ‘u64’
+  151 |         u64 rc = 0; \
+      |         ^~~
+../tests/unit/kvdb/kvdb_meta_test.c:260:11: note: in expansion of macro ‘kvdb_meta_deserialize’
+  260 |     err = kvdb_meta_deserialize(&meta, test_home);
+      |           ^~~~~~~~~~~~~~~~~~~~~
+tests/mocks/kvdb_meta_ut.h:152:81: warning: passing argument 2 of ‘mapi_inject_check’ from incompatible pointer type [-Wincompatible-pointer-types]
+  152 |         if (!mapi_enabled || !mapi_inject_check(mapi_idx_kvdb_meta_deserialize, &rc)) \
+      |                                                                                 ^~~
+      |                                                                                 |
+      |                                                                                 int *
+../tests/unit/kvdb/kvdb_meta_test.c:260:11: note: in expansion of macro ‘kvdb_meta_deserialize’
+  260 |     err = kvdb_meta_deserialize(&meta, test_home);
+      |           ^~~~~~~~~~~~~~~~~~~~~
+In file included from tests/mocks/hse_ut.h:7,
+                 from ../include/hse/hse.h:1140,
+                 from ../tests/framework/include/mtf/framework.h:8,
+                 from ../tests/unit/kvdb/kvdb_meta_test.c:7:
+../tests/mocks/include/mock/api.h:165:43: note: expected ‘uint64_t *’ {aka ‘long unsigned int *’} but argument is of type ‘int *’
+  165 | mapi_inject_check(uint32_t api, uint64_t *rc);
+      |                                 ~~~~~~~~~~^~
+In file included from ../lib/include/hse_ikvdb/kvdb_meta.h:161,
+                 from ../tests/unit/kvdb/kvdb_meta_test.c:9:
+../tests/unit/kvdb/kvdb_meta_test.c: In function ‘missing_wal_oid2’:
+tests/mocks/kvdb_meta_ut.h:151:9: error: unknown type name ‘u64’
+  151 |         u64 rc = 0; \
+      |         ^~~
+../tests/unit/kvdb/kvdb_meta_test.c:269:11: note: in expansion of macro ‘kvdb_meta_deserialize’
+  269 |     err = kvdb_meta_deserialize(&meta, test_home);
+      |           ^~~~~~~~~~~~~~~~~~~~~
+tests/mocks/kvdb_meta_ut.h:152:81: warning: passing argument 2 of ‘mapi_inject_check’ from incompatible pointer type [-Wincompatible-pointer-types]
+  152 |         if (!mapi_enabled || !mapi_inject_check(mapi_idx_kvdb_meta_deserialize, &rc)) \
+      |                                                                                 ^~~
+      |                                                                                 |
+      |                                                                                 int *
+../tests/unit/kvdb/kvdb_meta_test.c:269:11: note: in expansion of macro ‘kvdb_meta_deserialize’
+  269 |     err = kvdb_meta_deserialize(&meta, test_home);
+      |           ^~~~~~~~~~~~~~~~~~~~~
+In file included from tests/mocks/hse_ut.h:7,
+                 from ../include/hse/hse.h:1140,
+                 from ../tests/framework/include/mtf/framework.h:8,
+                 from ../tests/unit/kvdb/kvdb_meta_test.c:7:
+../tests/mocks/include/mock/api.h:165:43: note: expected ‘uint64_t *’ {aka ‘long unsigned int *’} but argument is of type ‘int *’
+  165 | mapi_inject_check(uint32_t api, uint64_t *rc);
+      |                                 ~~~~~~~~~~^~
+In file included from ../lib/include/hse_ikvdb/kvdb_meta.h:161,
+                 from ../tests/unit/kvdb/kvdb_meta_test.c:9:
+../tests/unit/kvdb/kvdb_meta_test.c: In function ‘missing_storage’:
+tests/mocks/kvdb_meta_ut.h:151:9: error: unknown type name ‘u64’
+  151 |         u64 rc = 0; \
+      |         ^~~
+../tests/unit/kvdb/kvdb_meta_test.c:278:11: note: in expansion of macro ‘kvdb_meta_deserialize’
+  278 |     err = kvdb_meta_deserialize(&meta, test_home);
+      |           ^~~~~~~~~~~~~~~~~~~~~
+tests/mocks/kvdb_meta_ut.h:152:81: warning: passing argument 2 of ‘mapi_inject_check’ from incompatible pointer type [-Wincompatible-pointer-types]
+  152 |         if (!mapi_enabled || !mapi_inject_check(mapi_idx_kvdb_meta_deserialize, &rc)) \
+      |                                                                                 ^~~
+      |                                                                                 |
+      |                                                                                 int *
+../tests/unit/kvdb/kvdb_meta_test.c:278:11: note: in expansion of macro ‘kvdb_meta_deserialize’
+  278 |     err = kvdb_meta_deserialize(&meta, test_home);
+      |           ^~~~~~~~~~~~~~~~~~~~~
+In file included from tests/mocks/hse_ut.h:7,
+                 from ../include/hse/hse.h:1140,
+                 from ../tests/framework/include/mtf/framework.h:8,
+                 from ../tests/unit/kvdb/kvdb_meta_test.c:7:
+../tests/mocks/include/mock/api.h:165:43: note: expected ‘uint64_t *’ {aka ‘long unsigned int *’} but argument is of type ‘int *’
+  165 | mapi_inject_check(uint32_t api, uint64_t *rc);
+      |                                 ~~~~~~~~~~^~
+In file included from ../lib/include/hse_ikvdb/kvdb_meta.h:161,
+                 from ../tests/unit/kvdb/kvdb_meta_test.c:9:
+../tests/unit/kvdb/kvdb_meta_test.c: In function ‘missing_storage_capacity’:
+tests/mocks/kvdb_meta_ut.h:151:9: error: unknown type name ‘u64’
+  151 |         u64 rc = 0; \
+      |         ^~~
+../tests/unit/kvdb/kvdb_meta_test.c:287:11: note: in expansion of macro ‘kvdb_meta_deserialize’
+  287 |     err = kvdb_meta_deserialize(&meta, test_home);
+      |           ^~~~~~~~~~~~~~~~~~~~~
+tests/mocks/kvdb_meta_ut.h:152:81: warning: passing argument 2 of ‘mapi_inject_check’ from incompatible pointer type [-Wincompatible-pointer-types]
+  152 |         if (!mapi_enabled || !mapi_inject_check(mapi_idx_kvdb_meta_deserialize, &rc)) \
+      |                                                                                 ^~~
+      |                                                                                 |
+      |                                                                                 int *
+../tests/unit/kvdb/kvdb_meta_test.c:287:11: note: in expansion of macro ‘kvdb_meta_deserialize’
+  287 |     err = kvdb_meta_deserialize(&meta, test_home);
+      |           ^~~~~~~~~~~~~~~~~~~~~
+In file included from tests/mocks/hse_ut.h:7,
+                 from ../include/hse/hse.h:1140,
+                 from ../tests/framework/include/mtf/framework.h:8,
+                 from ../tests/unit/kvdb/kvdb_meta_test.c:7:
+../tests/mocks/include/mock/api.h:165:43: note: expected ‘uint64_t *’ {aka ‘long unsigned int *’} but argument is of type ‘int *’
+  165 | mapi_inject_check(uint32_t api, uint64_t *rc);
+      |                                 ~~~~~~~~~~^~
+In file included from ../lib/include/hse_ikvdb/kvdb_meta.h:161,
+                 from ../tests/unit/kvdb/kvdb_meta_test.c:9:
+../tests/unit/kvdb/kvdb_meta_test.c: In function ‘missing_storage_capacity_path’:
+tests/mocks/kvdb_meta_ut.h:151:9: error: unknown type name ‘u64’
+  151 |         u64 rc = 0; \
+      |         ^~~
+../tests/unit/kvdb/kvdb_meta_test.c:296:11: note: in expansion of macro ‘kvdb_meta_deserialize’
+  296 |     err = kvdb_meta_deserialize(&meta, test_home);
+      |           ^~~~~~~~~~~~~~~~~~~~~
+tests/mocks/kvdb_meta_ut.h:152:81: warning: passing argument 2 of ‘mapi_inject_check’ from incompatible pointer type [-Wincompatible-pointer-types]
+  152 |         if (!mapi_enabled || !mapi_inject_check(mapi_idx_kvdb_meta_deserialize, &rc)) \
+      |                                                                                 ^~~
+      |                                                                                 |
+      |                                                                                 int *
+../tests/unit/kvdb/kvdb_meta_test.c:296:11: note: in expansion of macro ‘kvdb_meta_deserialize’
+  296 |     err = kvdb_meta_deserialize(&meta, test_home);
+      |           ^~~~~~~~~~~~~~~~~~~~~
+In file included from tests/mocks/hse_ut.h:7,
+                 from ../include/hse/hse.h:1140,
+                 from ../tests/framework/include/mtf/framework.h:8,
+                 from ../tests/unit/kvdb/kvdb_meta_test.c:7:
+../tests/mocks/include/mock/api.h:165:43: note: expected ‘uint64_t *’ {aka ‘long unsigned int *’} but argument is of type ‘int *’
+  165 | mapi_inject_check(uint32_t api, uint64_t *rc);
+      |                                 ~~~~~~~~~~^~
+In file included from ../lib/include/hse_ikvdb/kvdb_meta.h:161,
+                 from ../tests/unit/kvdb/kvdb_meta_test.c:9:
+../tests/unit/kvdb/kvdb_meta_test.c: In function ‘missing_storage_staging’:
+tests/mocks/kvdb_meta_ut.h:151:9: error: unknown type name ‘u64’
+  151 |         u64 rc = 0; \
+      |         ^~~
+../tests/unit/kvdb/kvdb_meta_test.c:305:11: note: in expansion of macro ‘kvdb_meta_deserialize’
+  305 |     err = kvdb_meta_deserialize(&meta, test_home);
+      |           ^~~~~~~~~~~~~~~~~~~~~
+tests/mocks/kvdb_meta_ut.h:152:81: warning: passing argument 2 of ‘mapi_inject_check’ from incompatible pointer type [-Wincompatible-pointer-types]
+  152 |         if (!mapi_enabled || !mapi_inject_check(mapi_idx_kvdb_meta_deserialize, &rc)) \
+      |                                                                                 ^~~
+      |                                                                                 |
+      |                                                                                 int *
+../tests/unit/kvdb/kvdb_meta_test.c:305:11: note: in expansion of macro ‘kvdb_meta_deserialize’
+  305 |     err = kvdb_meta_deserialize(&meta, test_home);
+      |           ^~~~~~~~~~~~~~~~~~~~~
+In file included from tests/mocks/hse_ut.h:7,
+                 from ../include/hse/hse.h:1140,
+                 from ../tests/framework/include/mtf/framework.h:8,
+                 from ../tests/unit/kvdb/kvdb_meta_test.c:7:
+../tests/mocks/include/mock/api.h:165:43: note: expected ‘uint64_t *’ {aka ‘long unsigned int *’} but argument is of type ‘int *’
+  165 | mapi_inject_check(uint32_t api, uint64_t *rc);
+      |                                 ~~~~~~~~~~^~
+In file included from ../lib/include/hse_ikvdb/kvdb_meta.h:161,
+                 from ../tests/unit/kvdb/kvdb_meta_test.c:9:
+../tests/unit/kvdb/kvdb_meta_test.c: In function ‘missing_storage_staging_path’:
+tests/mocks/kvdb_meta_ut.h:151:9: error: unknown type name ‘u64’
+  151 |         u64 rc = 0; \
+      |         ^~~
+../tests/unit/kvdb/kvdb_meta_test.c:315:11: note: in expansion of macro ‘kvdb_meta_deserialize’
+  315 |     err = kvdb_meta_deserialize(&meta, test_home);
+      |           ^~~~~~~~~~~~~~~~~~~~~
+tests/mocks/kvdb_meta_ut.h:152:81: warning: passing argument 2 of ‘mapi_inject_check’ from incompatible pointer type [-Wincompatible-pointer-types]
+  152 |         if (!mapi_enabled || !mapi_inject_check(mapi_idx_kvdb_meta_deserialize, &rc)) \
+      |                                                                                 ^~~
+      |                                                                                 |
+      |                                                                                 int *
+../tests/unit/kvdb/kvdb_meta_test.c:315:11: note: in expansion of macro ‘kvdb_meta_deserialize’
+  315 |     err = kvdb_meta_deserialize(&meta, test_home);
+      |           ^~~~~~~~~~~~~~~~~~~~~
+In file included from tests/mocks/hse_ut.h:7,
+                 from ../include/hse/hse.h:1140,
+                 from ../tests/framework/include/mtf/framework.h:8,
+                 from ../tests/unit/kvdb/kvdb_meta_test.c:7:
+../tests/mocks/include/mock/api.h:165:43: note: expected ‘uint64_t *’ {aka ‘long unsigned int *’} but argument is of type ‘int *’
+  165 | mapi_inject_check(uint32_t api, uint64_t *rc);
+      |                                 ~~~~~~~~~~^~
+In file included from ../lib/include/hse_ikvdb/kvdb_meta.h:161,
+                 from ../tests/unit/kvdb/kvdb_meta_test.c:9:
+../tests/unit/kvdb/kvdb_meta_test.c: In function ‘root_unknown_key’:
+tests/mocks/kvdb_meta_ut.h:151:9: error: unknown type name ‘u64’
+  151 |         u64 rc = 0; \
+      |         ^~~
+../tests/unit/kvdb/kvdb_meta_test.c:324:11: note: in expansion of macro ‘kvdb_meta_deserialize’
+  324 |     err = kvdb_meta_deserialize(&meta, test_home);
+      |           ^~~~~~~~~~~~~~~~~~~~~
+tests/mocks/kvdb_meta_ut.h:152:81: warning: passing argument 2 of ‘mapi_inject_check’ from incompatible pointer type [-Wincompatible-pointer-types]
+  152 |         if (!mapi_enabled || !mapi_inject_check(mapi_idx_kvdb_meta_deserialize, &rc)) \
+      |                                                                                 ^~~
+      |                                                                                 |
+      |                                                                                 int *
+../tests/unit/kvdb/kvdb_meta_test.c:324:11: note: in expansion of macro ‘kvdb_meta_deserialize’
+  324 |     err = kvdb_meta_deserialize(&meta, test_home);
+      |           ^~~~~~~~~~~~~~~~~~~~~
+In file included from tests/mocks/hse_ut.h:7,
+                 from ../include/hse/hse.h:1140,
+                 from ../tests/framework/include/mtf/framework.h:8,
+                 from ../tests/unit/kvdb/kvdb_meta_test.c:7:
+../tests/mocks/include/mock/api.h:165:43: note: expected ‘uint64_t *’ {aka ‘long unsigned int *’} but argument is of type ‘int *’
+  165 | mapi_inject_check(uint32_t api, uint64_t *rc);
+      |                                 ~~~~~~~~~~^~
+In file included from ../lib/include/hse_ikvdb/kvdb_meta.h:161,
+                 from ../tests/unit/kvdb/kvdb_meta_test.c:9:
+../tests/unit/kvdb/kvdb_meta_test.c: In function ‘cndb_unknown_key’:
+tests/mocks/kvdb_meta_ut.h:151:9: error: unknown type name ‘u64’
+  151 |         u64 rc = 0; \
+      |         ^~~
+../tests/unit/kvdb/kvdb_meta_test.c:333:11: note: in expansion of macro ‘kvdb_meta_deserialize’
+  333 |     err = kvdb_meta_deserialize(&meta, test_home);
+      |           ^~~~~~~~~~~~~~~~~~~~~
+tests/mocks/kvdb_meta_ut.h:152:81: warning: passing argument 2 of ‘mapi_inject_check’ from incompatible pointer type [-Wincompatible-pointer-types]
+  152 |         if (!mapi_enabled || !mapi_inject_check(mapi_idx_kvdb_meta_deserialize, &rc)) \
+      |                                                                                 ^~~
+      |                                                                                 |
+      |                                                                                 int *
+../tests/unit/kvdb/kvdb_meta_test.c:333:11: note: in expansion of macro ‘kvdb_meta_deserialize’
+  333 |     err = kvdb_meta_deserialize(&meta, test_home);
+      |           ^~~~~~~~~~~~~~~~~~~~~
+In file included from tests/mocks/hse_ut.h:7,
+                 from ../include/hse/hse.h:1140,
+                 from ../tests/framework/include/mtf/framework.h:8,
+                 from ../tests/unit/kvdb/kvdb_meta_test.c:7:
+../tests/mocks/include/mock/api.h:165:43: note: expected ‘uint64_t *’ {aka ‘long unsigned int *’} but argument is of type ‘int *’
+  165 | mapi_inject_check(uint32_t api, uint64_t *rc);
+      |                                 ~~~~~~~~~~^~
+In file included from ../lib/include/hse_ikvdb/kvdb_meta.h:161,
+                 from ../tests/unit/kvdb/kvdb_meta_test.c:9:
+../tests/unit/kvdb/kvdb_meta_test.c: In function ‘wal_unknown_key’:
+tests/mocks/kvdb_meta_ut.h:151:9: error: unknown type name ‘u64’
+  151 |         u64 rc = 0; \
+      |         ^~~
+../tests/unit/kvdb/kvdb_meta_test.c:342:11: note: in expansion of macro ‘kvdb_meta_deserialize’
+  342 |     err = kvdb_meta_deserialize(&meta, test_home);
+      |           ^~~~~~~~~~~~~~~~~~~~~
+tests/mocks/kvdb_meta_ut.h:152:81: warning: passing argument 2 of ‘mapi_inject_check’ from incompatible pointer type [-Wincompatible-pointer-types]
+  152 |         if (!mapi_enabled || !mapi_inject_check(mapi_idx_kvdb_meta_deserialize, &rc)) \
+      |                                                                                 ^~~
+      |                                                                                 |
+      |                                                                                 int *
+../tests/unit/kvdb/kvdb_meta_test.c:342:11: note: in expansion of macro ‘kvdb_meta_deserialize’
+  342 |     err = kvdb_meta_deserialize(&meta, test_home);
+      |           ^~~~~~~~~~~~~~~~~~~~~
+In file included from tests/mocks/hse_ut.h:7,
+                 from ../include/hse/hse.h:1140,
+                 from ../tests/framework/include/mtf/framework.h:8,
+                 from ../tests/unit/kvdb/kvdb_meta_test.c:7:
+../tests/mocks/include/mock/api.h:165:43: note: expected ‘uint64_t *’ {aka ‘long unsigned int *’} but argument is of type ‘int *’
+  165 | mapi_inject_check(uint32_t api, uint64_t *rc);
+      |                                 ~~~~~~~~~~^~
+In file included from ../lib/include/hse_ikvdb/kvdb_meta.h:161,
+                 from ../tests/unit/kvdb/kvdb_meta_test.c:9:
+../tests/unit/kvdb/kvdb_meta_test.c: In function ‘storage_unknown_key’:
+tests/mocks/kvdb_meta_ut.h:151:9: error: unknown type name ‘u64’
+  151 |         u64 rc = 0; \
+      |         ^~~
+../tests/unit/kvdb/kvdb_meta_test.c:351:11: note: in expansion of macro ‘kvdb_meta_deserialize’
+  351 |     err = kvdb_meta_deserialize(&meta, test_home);
+      |           ^~~~~~~~~~~~~~~~~~~~~
+tests/mocks/kvdb_meta_ut.h:152:81: warning: passing argument 2 of ‘mapi_inject_check’ from incompatible pointer type [-Wincompatible-pointer-types]
+  152 |         if (!mapi_enabled || !mapi_inject_check(mapi_idx_kvdb_meta_deserialize, &rc)) \
+      |                                                                                 ^~~
+      |                                                                                 |
+      |                                                                                 int *
+../tests/unit/kvdb/kvdb_meta_test.c:351:11: note: in expansion of macro ‘kvdb_meta_deserialize’
+  351 |     err = kvdb_meta_deserialize(&meta, test_home);
+      |           ^~~~~~~~~~~~~~~~~~~~~
+In file included from tests/mocks/hse_ut.h:7,
+                 from ../include/hse/hse.h:1140,
+                 from ../tests/framework/include/mtf/framework.h:8,
+                 from ../tests/unit/kvdb/kvdb_meta_test.c:7:
+../tests/mocks/include/mock/api.h:165:43: note: expected ‘uint64_t *’ {aka ‘long unsigned int *’} but argument is of type ‘int *’
+  165 | mapi_inject_check(uint32_t api, uint64_t *rc);
+      |                                 ~~~~~~~~~~^~
+In file included from ../lib/include/hse_ikvdb/kvdb_meta.h:161,
+                 from ../tests/unit/kvdb/kvdb_meta_test.c:9:
+../tests/unit/kvdb/kvdb_meta_test.c: In function ‘storage_capacity_unknown_key’:
+tests/mocks/kvdb_meta_ut.h:151:9: error: unknown type name ‘u64’
+  151 |         u64 rc = 0; \
+      |         ^~~
+../tests/unit/kvdb/kvdb_meta_test.c:360:11: note: in expansion of macro ‘kvdb_meta_deserialize’
+  360 |     err = kvdb_meta_deserialize(&meta, test_home);
+      |           ^~~~~~~~~~~~~~~~~~~~~
+tests/mocks/kvdb_meta_ut.h:152:81: warning: passing argument 2 of ‘mapi_inject_check’ from incompatible pointer type [-Wincompatible-pointer-types]
+  152 |         if (!mapi_enabled || !mapi_inject_check(mapi_idx_kvdb_meta_deserialize, &rc)) \
+      |                                                                                 ^~~
+      |                                                                                 |
+      |                                                                                 int *
+../tests/unit/kvdb/kvdb_meta_test.c:360:11: note: in expansion of macro ‘kvdb_meta_deserialize’
+  360 |     err = kvdb_meta_deserialize(&meta, test_home);
+      |           ^~~~~~~~~~~~~~~~~~~~~
+In file included from tests/mocks/hse_ut.h:7,
+                 from ../include/hse/hse.h:1140,
+                 from ../tests/framework/include/mtf/framework.h:8,
+                 from ../tests/unit/kvdb/kvdb_meta_test.c:7:
+../tests/mocks/include/mock/api.h:165:43: note: expected ‘uint64_t *’ {aka ‘long unsigned int *’} but argument is of type ‘int *’
+  165 | mapi_inject_check(uint32_t api, uint64_t *rc);
+      |                                 ~~~~~~~~~~^~
+In file included from ../lib/include/hse_ikvdb/kvdb_meta.h:161,
+                 from ../tests/unit/kvdb/kvdb_meta_test.c:9:
+../tests/unit/kvdb/kvdb_meta_test.c: In function ‘storage_staging_unknown_key’:
+tests/mocks/kvdb_meta_ut.h:151:9: error: unknown type name ‘u64’
+  151 |         u64 rc = 0; \
+      |         ^~~
+../tests/unit/kvdb/kvdb_meta_test.c:369:11: note: in expansion of macro ‘kvdb_meta_deserialize’
+  369 |     err = kvdb_meta_deserialize(&meta, test_home);
+      |           ^~~~~~~~~~~~~~~~~~~~~
+tests/mocks/kvdb_meta_ut.h:152:81: warning: passing argument 2 of ‘mapi_inject_check’ from incompatible pointer type [-Wincompatible-pointer-types]
+  152 |         if (!mapi_enabled || !mapi_inject_check(mapi_idx_kvdb_meta_deserialize, &rc)) \
+      |                                                                                 ^~~
+      |                                                                                 |
+      |                                                                                 int *
+../tests/unit/kvdb/kvdb_meta_test.c:369:11: note: in expansion of macro ‘kvdb_meta_deserialize’
+  369 |     err = kvdb_meta_deserialize(&meta, test_home);
+      |           ^~~~~~~~~~~~~~~~~~~~~
+In file included from tests/mocks/hse_ut.h:7,
+                 from ../include/hse/hse.h:1140,
+                 from ../tests/framework/include/mtf/framework.h:8,
+                 from ../tests/unit/kvdb/kvdb_meta_test.c:7:
+../tests/mocks/include/mock/api.h:165:43: note: expected ‘uint64_t *’ {aka ‘long unsigned int *’} but argument is of type ‘int *’
+  165 | mapi_inject_check(uint32_t api, uint64_t *rc);
+      |                                 ~~~~~~~~~~^~
+In file included from ../lib/include/hse_ikvdb/kvdb_meta.h:161,
+                 from ../tests/unit/kvdb/kvdb_meta_test.c:9:
+../tests/unit/kvdb/kvdb_meta_test.c: In function ‘bad_format’:
+tests/mocks/kvdb_meta_ut.h:151:9: error: unknown type name ‘u64’
+  151 |         u64 rc = 0; \
+      |         ^~~
+../tests/unit/kvdb/kvdb_meta_test.c:378:11: note: in expansion of macro ‘kvdb_meta_deserialize’
+  378 |     err = kvdb_meta_deserialize(&meta, test_home);
+      |           ^~~~~~~~~~~~~~~~~~~~~
+tests/mocks/kvdb_meta_ut.h:152:81: warning: passing argument 2 of ‘mapi_inject_check’ from incompatible pointer type [-Wincompatible-pointer-types]
+  152 |         if (!mapi_enabled || !mapi_inject_check(mapi_idx_kvdb_meta_deserialize, &rc)) \
+      |                                                                                 ^~~
+      |                                                                                 |
+      |                                                                                 int *
+../tests/unit/kvdb/kvdb_meta_test.c:378:11: note: in expansion of macro ‘kvdb_meta_deserialize’
+  378 |     err = kvdb_meta_deserialize(&meta, test_home);
+      |           ^~~~~~~~~~~~~~~~~~~~~
+In file included from tests/mocks/hse_ut.h:7,
+                 from ../include/hse/hse.h:1140,
+                 from ../tests/framework/include/mtf/framework.h:8,
+                 from ../tests/unit/kvdb/kvdb_meta_test.c:7:
+../tests/mocks/include/mock/api.h:165:43: note: expected ‘uint64_t *’ {aka ‘long unsigned int *’} but argument is of type ‘int *’
+  165 | mapi_inject_check(uint32_t api, uint64_t *rc);
+      |                                 ~~~~~~~~~~^~
+In file included from ../lib/include/hse_ikvdb/kvdb_meta.h:161,
+                 from ../tests/unit/kvdb/kvdb_meta_test.c:9:
+../tests/unit/kvdb/kvdb_meta_test.c: In function ‘does_not_exist’:
+tests/mocks/kvdb_meta_ut.h:151:9: error: unknown type name ‘u64’
+  151 |         u64 rc = 0; \
+      |         ^~~
+../tests/unit/kvdb/kvdb_meta_test.c:387:11: note: in expansion of macro ‘kvdb_meta_deserialize’
+  387 |     err = kvdb_meta_deserialize(&meta, test_home);
+      |           ^~~~~~~~~~~~~~~~~~~~~
+tests/mocks/kvdb_meta_ut.h:152:81: warning: passing argument 2 of ‘mapi_inject_check’ from incompatible pointer type [-Wincompatible-pointer-types]
+  152 |         if (!mapi_enabled || !mapi_inject_check(mapi_idx_kvdb_meta_deserialize, &rc)) \
+      |                                                                                 ^~~
+      |                                                                                 |
+      |                                                                                 int *
+../tests/unit/kvdb/kvdb_meta_test.c:387:11: note: in expansion of macro ‘kvdb_meta_deserialize’
+  387 |     err = kvdb_meta_deserialize(&meta, test_home);
+      |           ^~~~~~~~~~~~~~~~~~~~~
+In file included from tests/mocks/hse_ut.h:7,
+                 from ../include/hse/hse.h:1140,
+                 from ../tests/framework/include/mtf/framework.h:8,
+                 from ../tests/unit/kvdb/kvdb_meta_test.c:7:
+../tests/mocks/include/mock/api.h:165:43: note: expected ‘uint64_t *’ {aka ‘long unsigned int *’} but argument is of type ‘int *’
+  165 | mapi_inject_check(uint32_t api, uint64_t *rc);
+      |                                 ~~~~~~~~~~^~
+In file included from ../lib/include/hse_ikvdb/kvdb_meta.h:161,
+                 from ../tests/unit/kvdb/kvdb_meta_test.c:9:
+../tests/unit/kvdb/kvdb_meta_test.c: In function ‘invalid_cndb_oid1_nonwhole’:
+tests/mocks/kvdb_meta_ut.h:151:9: error: unknown type name ‘u64’
+  151 |         u64 rc = 0; \
+      |         ^~~
+../tests/unit/kvdb/kvdb_meta_test.c:396:11: note: in expansion of macro ‘kvdb_meta_deserialize’
+  396 |     err = kvdb_meta_deserialize(&meta, test_home);
+      |           ^~~~~~~~~~~~~~~~~~~~~
+tests/mocks/kvdb_meta_ut.h:152:81: warning: passing argument 2 of ‘mapi_inject_check’ from incompatible pointer type [-Wincompatible-pointer-types]
+  152 |         if (!mapi_enabled || !mapi_inject_check(mapi_idx_kvdb_meta_deserialize, &rc)) \
+      |                                                                                 ^~~
+      |                                                                                 |
+      |                                                                                 int *
+../tests/unit/kvdb/kvdb_meta_test.c:396:11: note: in expansion of macro ‘kvdb_meta_deserialize’
+  396 |     err = kvdb_meta_deserialize(&meta, test_home);
+      |           ^~~~~~~~~~~~~~~~~~~~~
+In file included from tests/mocks/hse_ut.h:7,
+                 from ../include/hse/hse.h:1140,
+                 from ../tests/framework/include/mtf/framework.h:8,
+                 from ../tests/unit/kvdb/kvdb_meta_test.c:7:
+../tests/mocks/include/mock/api.h:165:43: note: expected ‘uint64_t *’ {aka ‘long unsigned int *’} but argument is of type ‘int *’
+  165 | mapi_inject_check(uint32_t api, uint64_t *rc);
+      |                                 ~~~~~~~~~~^~
+In file included from ../lib/include/hse_ikvdb/kvdb_meta.h:161,
+                 from ../tests/unit/kvdb/kvdb_meta_test.c:9:
+../tests/unit/kvdb/kvdb_meta_test.c: In function ‘invalid_cndb_oid1_underflow’:
+tests/mocks/kvdb_meta_ut.h:151:9: error: unknown type name ‘u64’
+  151 |         u64 rc = 0; \
+      |         ^~~
+../tests/unit/kvdb/kvdb_meta_test.c:416:11: note: in expansion of macro ‘kvdb_meta_deserialize’
+  416 |     err = kvdb_meta_deserialize(&meta, test_home);
+      |           ^~~~~~~~~~~~~~~~~~~~~
+tests/mocks/kvdb_meta_ut.h:152:81: warning: passing argument 2 of ‘mapi_inject_check’ from incompatible pointer type [-Wincompatible-pointer-types]
+  152 |         if (!mapi_enabled || !mapi_inject_check(mapi_idx_kvdb_meta_deserialize, &rc)) \
+      |                                                                                 ^~~
+      |                                                                                 |
+      |                                                                                 int *
+../tests/unit/kvdb/kvdb_meta_test.c:416:11: note: in expansion of macro ‘kvdb_meta_deserialize’
+  416 |     err = kvdb_meta_deserialize(&meta, test_home);
+      |           ^~~~~~~~~~~~~~~~~~~~~
+In file included from tests/mocks/hse_ut.h:7,
+                 from ../include/hse/hse.h:1140,
+                 from ../tests/framework/include/mtf/framework.h:8,
+                 from ../tests/unit/kvdb/kvdb_meta_test.c:7:
+../tests/mocks/include/mock/api.h:165:43: note: expected ‘uint64_t *’ {aka ‘long unsigned int *’} but argument is of type ‘int *’
+  165 | mapi_inject_check(uint32_t api, uint64_t *rc);
+      |                                 ~~~~~~~~~~^~
+In file included from ../lib/include/hse_ikvdb/kvdb_meta.h:161,
+                 from ../tests/unit/kvdb/kvdb_meta_test.c:9:
+../tests/unit/kvdb/kvdb_meta_test.c: In function ‘invalid_cndb_oid2_nonwhole’:
+tests/mocks/kvdb_meta_ut.h:151:9: error: unknown type name ‘u64’
+  151 |         u64 rc = 0; \
+      |         ^~~
+../tests/unit/kvdb/kvdb_meta_test.c:425:11: note: in expansion of macro ‘kvdb_meta_deserialize’
+  425 |     err = kvdb_meta_deserialize(&meta, test_home);
+      |           ^~~~~~~~~~~~~~~~~~~~~
+tests/mocks/kvdb_meta_ut.h:152:81: warning: passing argument 2 of ‘mapi_inject_check’ from incompatible pointer type [-Wincompatible-pointer-types]
+  152 |         if (!mapi_enabled || !mapi_inject_check(mapi_idx_kvdb_meta_deserialize, &rc)) \
+      |                                                                                 ^~~
+      |                                                                                 |
+      |                                                                                 int *
+../tests/unit/kvdb/kvdb_meta_test.c:425:11: note: in expansion of macro ‘kvdb_meta_deserialize’
+  425 |     err = kvdb_meta_deserialize(&meta, test_home);
+      |           ^~~~~~~~~~~~~~~~~~~~~
+In file included from tests/mocks/hse_ut.h:7,
+                 from ../include/hse/hse.h:1140,
+                 from ../tests/framework/include/mtf/framework.h:8,
+                 from ../tests/unit/kvdb/kvdb_meta_test.c:7:
+../tests/mocks/include/mock/api.h:165:43: note: expected ‘uint64_t *’ {aka ‘long unsigned int *’} but argument is of type ‘int *’
+  165 | mapi_inject_check(uint32_t api, uint64_t *rc);
+      |                                 ~~~~~~~~~~^~
+In file included from ../lib/include/hse_ikvdb/kvdb_meta.h:161,
+                 from ../tests/unit/kvdb/kvdb_meta_test.c:9:
+../tests/unit/kvdb/kvdb_meta_test.c: In function ‘invalid_cndb_oid2_underflow’:
+tests/mocks/kvdb_meta_ut.h:151:9: error: unknown type name ‘u64’
+  151 |         u64 rc = 0; \
+      |         ^~~
+../tests/unit/kvdb/kvdb_meta_test.c:445:11: note: in expansion of macro ‘kvdb_meta_deserialize’
+  445 |     err = kvdb_meta_deserialize(&meta, test_home);
+      |           ^~~~~~~~~~~~~~~~~~~~~
+tests/mocks/kvdb_meta_ut.h:152:81: warning: passing argument 2 of ‘mapi_inject_check’ from incompatible pointer type [-Wincompatible-pointer-types]
+  152 |         if (!mapi_enabled || !mapi_inject_check(mapi_idx_kvdb_meta_deserialize, &rc)) \
+      |                                                                                 ^~~
+      |                                                                                 |
+      |                                                                                 int *
+../tests/unit/kvdb/kvdb_meta_test.c:445:11: note: in expansion of macro ‘kvdb_meta_deserialize’
+  445 |     err = kvdb_meta_deserialize(&meta, test_home);
+      |           ^~~~~~~~~~~~~~~~~~~~~
+In file included from tests/mocks/hse_ut.h:7,
+                 from ../include/hse/hse.h:1140,
+                 from ../tests/framework/include/mtf/framework.h:8,
+                 from ../tests/unit/kvdb/kvdb_meta_test.c:7:
+../tests/mocks/include/mock/api.h:165:43: note: expected ‘uint64_t *’ {aka ‘long unsigned int *’} but argument is of type ‘int *’
+  165 | mapi_inject_check(uint32_t api, uint64_t *rc);
+      |                                 ~~~~~~~~~~^~
+In file included from ../lib/include/hse_ikvdb/kvdb_meta.h:161,
+                 from ../tests/unit/kvdb/kvdb_meta_test.c:9:
+../tests/unit/kvdb/kvdb_meta_test.c: In function ‘invalid_version_nonwhole’:
+tests/mocks/kvdb_meta_ut.h:151:9: error: unknown type name ‘u64’
+  151 |         u64 rc = 0; \
+      |         ^~~
+../tests/unit/kvdb/kvdb_meta_test.c:454:11: note: in expansion of macro ‘kvdb_meta_deserialize’
+  454 |     err = kvdb_meta_deserialize(&meta, test_home);
+      |           ^~~~~~~~~~~~~~~~~~~~~
+tests/mocks/kvdb_meta_ut.h:152:81: warning: passing argument 2 of ‘mapi_inject_check’ from incompatible pointer type [-Wincompatible-pointer-types]
+  152 |         if (!mapi_enabled || !mapi_inject_check(mapi_idx_kvdb_meta_deserialize, &rc)) \
+      |                                                                                 ^~~
+      |                                                                                 |
+      |                                                                                 int *
+../tests/unit/kvdb/kvdb_meta_test.c:454:11: note: in expansion of macro ‘kvdb_meta_deserialize’
+  454 |     err = kvdb_meta_deserialize(&meta, test_home);
+      |           ^~~~~~~~~~~~~~~~~~~~~
+In file included from tests/mocks/hse_ut.h:7,
+                 from ../include/hse/hse.h:1140,
+                 from ../tests/framework/include/mtf/framework.h:8,
+                 from ../tests/unit/kvdb/kvdb_meta_test.c:7:
+../tests/mocks/include/mock/api.h:165:43: note: expected ‘uint64_t *’ {aka ‘long unsigned int *’} but argument is of type ‘int *’
+  165 | mapi_inject_check(uint32_t api, uint64_t *rc);
+      |                                 ~~~~~~~~~~^~
+In file included from ../lib/include/hse_ikvdb/kvdb_meta.h:161,
+                 from ../tests/unit/kvdb/kvdb_meta_test.c:9:
+../tests/unit/kvdb/kvdb_meta_test.c: In function ‘invalid_version_underflow’:
+tests/mocks/kvdb_meta_ut.h:151:9: error: unknown type name ‘u64’
+  151 |         u64 rc = 0; \
+      |         ^~~
+../tests/unit/kvdb/kvdb_meta_test.c:463:11: note: in expansion of macro ‘kvdb_meta_deserialize’
+  463 |     err = kvdb_meta_deserialize(&meta, test_home);
+      |           ^~~~~~~~~~~~~~~~~~~~~
+tests/mocks/kvdb_meta_ut.h:152:81: warning: passing argument 2 of ‘mapi_inject_check’ from incompatible pointer type [-Wincompatible-pointer-types]
+  152 |         if (!mapi_enabled || !mapi_inject_check(mapi_idx_kvdb_meta_deserialize, &rc)) \
+      |                                                                                 ^~~
+      |                                                                                 |
+      |                                                                                 int *
+../tests/unit/kvdb/kvdb_meta_test.c:463:11: note: in expansion of macro ‘kvdb_meta_deserialize’
+  463 |     err = kvdb_meta_deserialize(&meta, test_home);
+      |           ^~~~~~~~~~~~~~~~~~~~~
+In file included from tests/mocks/hse_ut.h:7,
+                 from ../include/hse/hse.h:1140,
+                 from ../tests/framework/include/mtf/framework.h:8,
+                 from ../tests/unit/kvdb/kvdb_meta_test.c:7:
+../tests/mocks/include/mock/api.h:165:43: note: expected ‘uint64_t *’ {aka ‘long unsigned int *’} but argument is of type ‘int *’
+  165 | mapi_inject_check(uint32_t api, uint64_t *rc);
+      |                                 ~~~~~~~~~~^~
+In file included from ../lib/include/hse_ikvdb/kvdb_meta.h:161,
+                 from ../tests/unit/kvdb/kvdb_meta_test.c:9:
+../tests/unit/kvdb/kvdb_meta_test.c: In function ‘invalid_version_overflow’:
+tests/mocks/kvdb_meta_ut.h:151:9: error: unknown type name ‘u64’
+  151 |         u64 rc = 0; \
+      |         ^~~
+../tests/unit/kvdb/kvdb_meta_test.c:472:11: note: in expansion of macro ‘kvdb_meta_deserialize’
+  472 |     err = kvdb_meta_deserialize(&meta, test_home);
+      |           ^~~~~~~~~~~~~~~~~~~~~
+tests/mocks/kvdb_meta_ut.h:152:81: warning: passing argument 2 of ‘mapi_inject_check’ from incompatible pointer type [-Wincompatible-pointer-types]
+  152 |         if (!mapi_enabled || !mapi_inject_check(mapi_idx_kvdb_meta_deserialize, &rc)) \
+      |                                                                                 ^~~
+      |                                                                                 |
+      |                                                                                 int *
+../tests/unit/kvdb/kvdb_meta_test.c:472:11: note: in expansion of macro ‘kvdb_meta_deserialize’
+  472 |     err = kvdb_meta_deserialize(&meta, test_home);
+      |           ^~~~~~~~~~~~~~~~~~~~~
+In file included from tests/mocks/hse_ut.h:7,
+                 from ../include/hse/hse.h:1140,
+                 from ../tests/framework/include/mtf/framework.h:8,
+                 from ../tests/unit/kvdb/kvdb_meta_test.c:7:
+../tests/mocks/include/mock/api.h:165:43: note: expected ‘uint64_t *’ {aka ‘long unsigned int *’} but argument is of type ‘int *’
+  165 | mapi_inject_check(uint32_t api, uint64_t *rc);
+      |                                 ~~~~~~~~~~^~
+In file included from ../lib/include/hse_ikvdb/kvdb_meta.h:161,
+                 from ../tests/unit/kvdb/kvdb_meta_test.c:9:
+../tests/unit/kvdb/kvdb_meta_test.c: In function ‘invalid_omf_version_nonwhole’:
+tests/mocks/kvdb_meta_ut.h:151:9: error: unknown type name ‘u64’
+  151 |         u64 rc = 0; \
+      |         ^~~
+../tests/unit/kvdb/kvdb_meta_test.c:481:11: note: in expansion of macro ‘kvdb_meta_deserialize’
+  481 |     err = kvdb_meta_deserialize(&meta, test_home);
+      |           ^~~~~~~~~~~~~~~~~~~~~
+tests/mocks/kvdb_meta_ut.h:152:81: warning: passing argument 2 of ‘mapi_inject_check’ from incompatible pointer type [-Wincompatible-pointer-types]
+  152 |         if (!mapi_enabled || !mapi_inject_check(mapi_idx_kvdb_meta_deserialize, &rc)) \
+      |                                                                                 ^~~
+      |                                                                                 |
+      |                                                                                 int *
+../tests/unit/kvdb/kvdb_meta_test.c:481:11: note: in expansion of macro ‘kvdb_meta_deserialize’
+  481 |     err = kvdb_meta_deserialize(&meta, test_home);
+      |           ^~~~~~~~~~~~~~~~~~~~~
+In file included from tests/mocks/hse_ut.h:7,
+                 from ../include/hse/hse.h:1140,
+                 from ../tests/framework/include/mtf/framework.h:8,
+                 from ../tests/unit/kvdb/kvdb_meta_test.c:7:
+../tests/mocks/include/mock/api.h:165:43: note: expected ‘uint64_t *’ {aka ‘long unsigned int *’} but argument is of type ‘int *’
+  165 | mapi_inject_check(uint32_t api, uint64_t *rc);
+      |                                 ~~~~~~~~~~^~
+In file included from ../lib/include/hse_ikvdb/kvdb_meta.h:161,
+                 from ../tests/unit/kvdb/kvdb_meta_test.c:9:
+../tests/unit/kvdb/kvdb_meta_test.c: In function ‘invalid_omf_version_underflow’:
+tests/mocks/kvdb_meta_ut.h:151:9: error: unknown type name ‘u64’
+  151 |         u64 rc = 0; \
+      |         ^~~
+../tests/unit/kvdb/kvdb_meta_test.c:490:11: note: in expansion of macro ‘kvdb_meta_deserialize’
+  490 |     err = kvdb_meta_deserialize(&meta, test_home);
+      |           ^~~~~~~~~~~~~~~~~~~~~
+tests/mocks/kvdb_meta_ut.h:152:81: warning: passing argument 2 of ‘mapi_inject_check’ from incompatible pointer type [-Wincompatible-pointer-types]
+  152 |         if (!mapi_enabled || !mapi_inject_check(mapi_idx_kvdb_meta_deserialize, &rc)) \
+      |                                                                                 ^~~
+      |                                                                                 |
+      |                                                                                 int *
+../tests/unit/kvdb/kvdb_meta_test.c:490:11: note: in expansion of macro ‘kvdb_meta_deserialize’
+  490 |     err = kvdb_meta_deserialize(&meta, test_home);
+      |           ^~~~~~~~~~~~~~~~~~~~~
+In file included from tests/mocks/hse_ut.h:7,
+                 from ../include/hse/hse.h:1140,
+                 from ../tests/framework/include/mtf/framework.h:8,
+                 from ../tests/unit/kvdb/kvdb_meta_test.c:7:
+../tests/mocks/include/mock/api.h:165:43: note: expected ‘uint64_t *’ {aka ‘long unsigned int *’} but argument is of type ‘int *’
+  165 | mapi_inject_check(uint32_t api, uint64_t *rc);
+      |                                 ~~~~~~~~~~^~
+In file included from ../lib/include/hse_ikvdb/kvdb_meta.h:161,
+                 from ../tests/unit/kvdb/kvdb_meta_test.c:9:
+../tests/unit/kvdb/kvdb_meta_test.c: In function ‘invalid_omf_version_overflow’:
+tests/mocks/kvdb_meta_ut.h:151:9: error: unknown type name ‘u64’
+  151 |         u64 rc = 0; \
+      |         ^~~
+../tests/unit/kvdb/kvdb_meta_test.c:499:11: note: in expansion of macro ‘kvdb_meta_deserialize’
+  499 |     err = kvdb_meta_deserialize(&meta, test_home);
+      |           ^~~~~~~~~~~~~~~~~~~~~
+tests/mocks/kvdb_meta_ut.h:152:81: warning: passing argument 2 of ‘mapi_inject_check’ from incompatible pointer type [-Wincompatible-pointer-types]
+  152 |         if (!mapi_enabled || !mapi_inject_check(mapi_idx_kvdb_meta_deserialize, &rc)) \
+      |                                                                                 ^~~
+      |                                                                                 |
+      |                                                                                 int *
+../tests/unit/kvdb/kvdb_meta_test.c:499:11: note: in expansion of macro ‘kvdb_meta_deserialize’
+  499 |     err = kvdb_meta_deserialize(&meta, test_home);
+      |           ^~~~~~~~~~~~~~~~~~~~~
+In file included from tests/mocks/hse_ut.h:7,
+                 from ../include/hse/hse.h:1140,
+                 from ../tests/framework/include/mtf/framework.h:8,
+                 from ../tests/unit/kvdb/kvdb_meta_test.c:7:
+../tests/mocks/include/mock/api.h:165:43: note: expected ‘uint64_t *’ {aka ‘long unsigned int *’} but argument is of type ‘int *’
+  165 | mapi_inject_check(uint32_t api, uint64_t *rc);
+      |                                 ~~~~~~~~~~^~
+In file included from ../lib/include/hse_ikvdb/kvdb_meta.h:161,
+                 from ../tests/unit/kvdb/kvdb_meta_test.c:9:
+../tests/unit/kvdb/kvdb_meta_test.c: In function ‘invalid_wal_oid1_nonwhole’:
+tests/mocks/kvdb_meta_ut.h:151:9: error: unknown type name ‘u64’
+  151 |         u64 rc = 0; \
+      |         ^~~
+../tests/unit/kvdb/kvdb_meta_test.c:508:11: note: in expansion of macro ‘kvdb_meta_deserialize’
+  508 |     err = kvdb_meta_deserialize(&meta, test_home);
+      |           ^~~~~~~~~~~~~~~~~~~~~
+tests/mocks/kvdb_meta_ut.h:152:81: warning: passing argument 2 of ‘mapi_inject_check’ from incompatible pointer type [-Wincompatible-pointer-types]
+  152 |         if (!mapi_enabled || !mapi_inject_check(mapi_idx_kvdb_meta_deserialize, &rc)) \
+      |                                                                                 ^~~
+      |                                                                                 |
+      |                                                                                 int *
+../tests/unit/kvdb/kvdb_meta_test.c:508:11: note: in expansion of macro ‘kvdb_meta_deserialize’
+  508 |     err = kvdb_meta_deserialize(&meta, test_home);
+      |           ^~~~~~~~~~~~~~~~~~~~~
+In file included from tests/mocks/hse_ut.h:7,
+                 from ../include/hse/hse.h:1140,
+                 from ../tests/framework/include/mtf/framework.h:8,
+                 from ../tests/unit/kvdb/kvdb_meta_test.c:7:
+../tests/mocks/include/mock/api.h:165:43: note: expected ‘uint64_t *’ {aka ‘long unsigned int *’} but argument is of type ‘int *’
+  165 | mapi_inject_check(uint32_t api, uint64_t *rc);
+      |                                 ~~~~~~~~~~^~
+In file included from ../lib/include/hse_ikvdb/kvdb_meta.h:161,
+                 from ../tests/unit/kvdb/kvdb_meta_test.c:9:
+../tests/unit/kvdb/kvdb_meta_test.c: In function ‘invalid_wal_oid1_underflow’:
+tests/mocks/kvdb_meta_ut.h:151:9: error: unknown type name ‘u64’
+  151 |         u64 rc = 0; \
+      |         ^~~
+../tests/unit/kvdb/kvdb_meta_test.c:528:11: note: in expansion of macro ‘kvdb_meta_deserialize’
+  528 |     err = kvdb_meta_deserialize(&meta, test_home);
+      |           ^~~~~~~~~~~~~~~~~~~~~
+tests/mocks/kvdb_meta_ut.h:152:81: warning: passing argument 2 of ‘mapi_inject_check’ from incompatible pointer type [-Wincompatible-pointer-types]
+  152 |         if (!mapi_enabled || !mapi_inject_check(mapi_idx_kvdb_meta_deserialize, &rc)) \
+      |                                                                                 ^~~
+      |                                                                                 |
+      |                                                                                 int *
+../tests/unit/kvdb/kvdb_meta_test.c:528:11: note: in expansion of macro ‘kvdb_meta_deserialize’
+  528 |     err = kvdb_meta_deserialize(&meta, test_home);
+      |           ^~~~~~~~~~~~~~~~~~~~~
+In file included from tests/mocks/hse_ut.h:7,
+                 from ../include/hse/hse.h:1140,
+                 from ../tests/framework/include/mtf/framework.h:8,
+                 from ../tests/unit/kvdb/kvdb_meta_test.c:7:
+../tests/mocks/include/mock/api.h:165:43: note: expected ‘uint64_t *’ {aka ‘long unsigned int *’} but argument is of type ‘int *’
+  165 | mapi_inject_check(uint32_t api, uint64_t *rc);
+      |                                 ~~~~~~~~~~^~
+In file included from ../lib/include/hse_ikvdb/kvdb_meta.h:161,
+                 from ../tests/unit/kvdb/kvdb_meta_test.c:9:
+../tests/unit/kvdb/kvdb_meta_test.c: In function ‘invalid_wal_oid2_nonwhole’:
+tests/mocks/kvdb_meta_ut.h:151:9: error: unknown type name ‘u64’
+  151 |         u64 rc = 0; \
+      |         ^~~
+../tests/unit/kvdb/kvdb_meta_test.c:537:11: note: in expansion of macro ‘kvdb_meta_deserialize’
+  537 |     err = kvdb_meta_deserialize(&meta, test_home);
+      |           ^~~~~~~~~~~~~~~~~~~~~
+tests/mocks/kvdb_meta_ut.h:152:81: warning: passing argument 2 of ‘mapi_inject_check’ from incompatible pointer type [-Wincompatible-pointer-types]
+  152 |         if (!mapi_enabled || !mapi_inject_check(mapi_idx_kvdb_meta_deserialize, &rc)) \
+      |                                                                                 ^~~
+      |                                                                                 |
+      |                                                                                 int *
+../tests/unit/kvdb/kvdb_meta_test.c:537:11: note: in expansion of macro ‘kvdb_meta_deserialize’
+  537 |     err = kvdb_meta_deserialize(&meta, test_home);
+      |           ^~~~~~~~~~~~~~~~~~~~~
+In file included from tests/mocks/hse_ut.h:7,
+                 from ../include/hse/hse.h:1140,
+                 from ../tests/framework/include/mtf/framework.h:8,
+                 from ../tests/unit/kvdb/kvdb_meta_test.c:7:
+../tests/mocks/include/mock/api.h:165:43: note: expected ‘uint64_t *’ {aka ‘long unsigned int *’} but argument is of type ‘int *’
+  165 | mapi_inject_check(uint32_t api, uint64_t *rc);
+      |                                 ~~~~~~~~~~^~
+In file included from ../lib/include/hse_ikvdb/kvdb_meta.h:161,
+                 from ../tests/unit/kvdb/kvdb_meta_test.c:9:
+../tests/unit/kvdb/kvdb_meta_test.c: In function ‘invalid_wal_oid2_underflow’:
+tests/mocks/kvdb_meta_ut.h:151:9: error: unknown type name ‘u64’
+  151 |         u64 rc = 0; \
+      |         ^~~
+../tests/unit/kvdb/kvdb_meta_test.c:557:11: note: in expansion of macro ‘kvdb_meta_deserialize’
+  557 |     err = kvdb_meta_deserialize(&meta, test_home);
+      |           ^~~~~~~~~~~~~~~~~~~~~
+tests/mocks/kvdb_meta_ut.h:152:81: warning: passing argument 2 of ‘mapi_inject_check’ from incompatible pointer type [-Wincompatible-pointer-types]
+  152 |         if (!mapi_enabled || !mapi_inject_check(mapi_idx_kvdb_meta_deserialize, &rc)) \
+      |                                                                                 ^~~
+      |                                                                                 |
+      |                                                                                 int *
+../tests/unit/kvdb/kvdb_meta_test.c:557:11: note: in expansion of macro ‘kvdb_meta_deserialize’
+  557 |     err = kvdb_meta_deserialize(&meta, test_home);
+      |           ^~~~~~~~~~~~~~~~~~~~~
+In file included from tests/mocks/hse_ut.h:7,
+                 from ../include/hse/hse.h:1140,
+                 from ../tests/framework/include/mtf/framework.h:8,
+                 from ../tests/unit/kvdb/kvdb_meta_test.c:7:
+../tests/mocks/include/mock/api.h:165:43: note: expected ‘uint64_t *’ {aka ‘long unsigned int *’} but argument is of type ‘int *’
+  165 | mapi_inject_check(uint32_t api, uint64_t *rc);
+      |                                 ~~~~~~~~~~^~
+In file included from ../lib/include/hse_ikvdb/kvdb_meta.h:161,
+                 from ../tests/unit/kvdb/kvdb_meta_test.c:9:
+../tests/unit/kvdb/kvdb_meta_test.c: In function ‘meta_storage_add_absolute’:
+tests/mocks/kvdb_meta_ut.h:94:9: error: unknown type name ‘u64’
+   94 |         u64 rc = 0; \
+      |         ^~~
+../tests/unit/kvdb/kvdb_meta_test.c:631:11: note: in expansion of macro ‘kvdb_meta_create’
+  631 |     err = kvdb_meta_create(home);
+      |           ^~~~~~~~~~~~~~~~
+tests/mocks/kvdb_meta_ut.h:95:76: warning: passing argument 2 of ‘mapi_inject_check’ from incompatible pointer type [-Wincompatible-pointer-types]
+   95 |         if (!mapi_enabled || !mapi_inject_check(mapi_idx_kvdb_meta_create, &rc)) \
+      |                                                                            ^~~
+      |                                                                            |
+      |                                                                            int *
+../tests/unit/kvdb/kvdb_meta_test.c:631:11: note: in expansion of macro ‘kvdb_meta_create’
+  631 |     err = kvdb_meta_create(home);
+      |           ^~~~~~~~~~~~~~~~
+In file included from tests/mocks/hse_ut.h:7,
+                 from ../include/hse/hse.h:1140,
+                 from ../tests/framework/include/mtf/framework.h:8,
+                 from ../tests/unit/kvdb/kvdb_meta_test.c:7:
+../tests/mocks/include/mock/api.h:165:43: note: expected ‘uint64_t *’ {aka ‘long unsigned int *’} but argument is of type ‘int *’
+  165 | mapi_inject_check(uint32_t api, uint64_t *rc);
+      |                                 ~~~~~~~~~~^~
+In file included from ../lib/include/hse_ikvdb/kvdb_meta.h:161,
+                 from ../tests/unit/kvdb/kvdb_meta_test.c:9:
+tests/mocks/kvdb_meta_ut.h:75:9: error: unknown type name ‘u64’
+   75 |         u64 rc = 0; \
+      |         ^~~
+../tests/unit/kvdb/kvdb_meta_test.c:634:11: note: in expansion of macro ‘kvdb_meta_serialize’
+  634 |     err = kvdb_meta_serialize(&meta, home);
+      |           ^~~~~~~~~~~~~~~~~~~
+tests/mocks/kvdb_meta_ut.h:76:79: warning: passing argument 2 of ‘mapi_inject_check’ from incompatible pointer type [-Wincompatible-pointer-types]
+   76 |         if (!mapi_enabled || !mapi_inject_check(mapi_idx_kvdb_meta_serialize, &rc)) \
+      |                                                                               ^~~
+      |                                                                               |
+      |                                                                               int *
+../tests/unit/kvdb/kvdb_meta_test.c:634:11: note: in expansion of macro ‘kvdb_meta_serialize’
+  634 |     err = kvdb_meta_serialize(&meta, home);
+      |           ^~~~~~~~~~~~~~~~~~~
+In file included from tests/mocks/hse_ut.h:7,
+                 from ../include/hse/hse.h:1140,
+                 from ../tests/framework/include/mtf/framework.h:8,
+                 from ../tests/unit/kvdb/kvdb_meta_test.c:7:
+../tests/mocks/include/mock/api.h:165:43: note: expected ‘uint64_t *’ {aka ‘long unsigned int *’} but argument is of type ‘int *’
+  165 | mapi_inject_check(uint32_t api, uint64_t *rc);
+      |                                 ~~~~~~~~~~^~
+In file included from ../lib/include/hse_ikvdb/kvdb_meta.h:161,
+                 from ../tests/unit/kvdb/kvdb_meta_test.c:9:
+tests/mocks/kvdb_meta_ut.h:151:9: error: unknown type name ‘u64’
+  151 |         u64 rc = 0; \
+      |         ^~~
+../tests/unit/kvdb/kvdb_meta_test.c:639:11: note: in expansion of macro ‘kvdb_meta_deserialize’
+  639 |     err = kvdb_meta_deserialize(&meta, home);
+      |           ^~~~~~~~~~~~~~~~~~~~~
+tests/mocks/kvdb_meta_ut.h:152:81: warning: passing argument 2 of ‘mapi_inject_check’ from incompatible pointer type [-Wincompatible-pointer-types]
+  152 |         if (!mapi_enabled || !mapi_inject_check(mapi_idx_kvdb_meta_deserialize, &rc)) \
+      |                                                                                 ^~~
+      |                                                                                 |
+      |                                                                                 int *
+../tests/unit/kvdb/kvdb_meta_test.c:639:11: note: in expansion of macro ‘kvdb_meta_deserialize’
+  639 |     err = kvdb_meta_deserialize(&meta, home);
+      |           ^~~~~~~~~~~~~~~~~~~~~
+In file included from tests/mocks/hse_ut.h:7,
+                 from ../include/hse/hse.h:1140,
+                 from ../tests/framework/include/mtf/framework.h:8,
+                 from ../tests/unit/kvdb/kvdb_meta_test.c:7:
+../tests/mocks/include/mock/api.h:165:43: note: expected ‘uint64_t *’ {aka ‘long unsigned int *’} but argument is of type ‘int *’
+  165 | mapi_inject_check(uint32_t api, uint64_t *rc);
+      |                                 ~~~~~~~~~~^~
+In file included from ../lib/include/hse_ikvdb/kvdb_meta.h:161,
+                 from ../tests/unit/kvdb/kvdb_meta_test.c:9:
+tests/mocks/kvdb_meta_ut.h:19:9: error: unknown type name ‘u64’
+   19 |         u64 rc = 0; \
+      |         ^~~
+../tests/unit/kvdb/kvdb_meta_test.c:646:11: note: in expansion of macro ‘kvdb_meta_storage_add’
+  646 |     err = kvdb_meta_storage_add(&meta, home, &params);
+      |           ^~~~~~~~~~~~~~~~~~~~~
+tests/mocks/kvdb_meta_ut.h:20:81: warning: passing argument 2 of ‘mapi_inject_check’ from incompatible pointer type [-Wincompatible-pointer-types]
+   20 |         if (!mapi_enabled || !mapi_inject_check(mapi_idx_kvdb_meta_storage_add, &rc)) \
+      |                                                                                 ^~~
+      |                                                                                 |
+      |                                                                                 int *
+../tests/unit/kvdb/kvdb_meta_test.c:646:11: note: in expansion of macro ‘kvdb_meta_storage_add’
+  646 |     err = kvdb_meta_storage_add(&meta, home, &params);
+      |           ^~~~~~~~~~~~~~~~~~~~~
+In file included from tests/mocks/hse_ut.h:7,
+                 from ../include/hse/hse.h:1140,
+                 from ../tests/framework/include/mtf/framework.h:8,
+                 from ../tests/unit/kvdb/kvdb_meta_test.c:7:
+../tests/mocks/include/mock/api.h:165:43: note: expected ‘uint64_t *’ {aka ‘long unsigned int *’} but argument is of type ‘int *’
+  165 | mapi_inject_check(uint32_t api, uint64_t *rc);
+      |                                 ~~~~~~~~~~^~
+In file included from ../lib/include/hse_ikvdb/kvdb_meta.h:161,
+                 from ../tests/unit/kvdb/kvdb_meta_test.c:9:
+tests/mocks/kvdb_meta_ut.h:151:9: error: unknown type name ‘u64’
+  151 |         u64 rc = 0; \
+      |         ^~~
+../tests/unit/kvdb/kvdb_meta_test.c:651:11: note: in expansion of macro ‘kvdb_meta_deserialize’
+  651 |     err = kvdb_meta_deserialize(&meta, home);
+      |           ^~~~~~~~~~~~~~~~~~~~~
+tests/mocks/kvdb_meta_ut.h:152:81: warning: passing argument 2 of ‘mapi_inject_check’ from incompatible pointer type [-Wincompatible-pointer-types]
+  152 |         if (!mapi_enabled || !mapi_inject_check(mapi_idx_kvdb_meta_deserialize, &rc)) \
+      |                                                                                 ^~~
+      |                                                                                 |
+      |                                                                                 int *
+../tests/unit/kvdb/kvdb_meta_test.c:651:11: note: in expansion of macro ‘kvdb_meta_deserialize’
+  651 |     err = kvdb_meta_deserialize(&meta, home);
+      |           ^~~~~~~~~~~~~~~~~~~~~
+In file included from tests/mocks/hse_ut.h:7,
+                 from ../include/hse/hse.h:1140,
+                 from ../tests/framework/include/mtf/framework.h:8,
+                 from ../tests/unit/kvdb/kvdb_meta_test.c:7:
+../tests/mocks/include/mock/api.h:165:43: note: expected ‘uint64_t *’ {aka ‘long unsigned int *’} but argument is of type ‘int *’
+  165 | mapi_inject_check(uint32_t api, uint64_t *rc);
+      |                                 ~~~~~~~~~~^~
+In file included from ../lib/include/hse_ikvdb/kvdb_meta.h:161,
+                 from ../tests/unit/kvdb/kvdb_meta_test.c:9:
+../tests/unit/kvdb/kvdb_meta_test.c: In function ‘meta_storage_add_relative’:
+tests/mocks/kvdb_meta_ut.h:94:9: error: unknown type name ‘u64’
+   94 |         u64 rc = 0; \
+      |         ^~~
+../tests/unit/kvdb/kvdb_meta_test.c:682:11: note: in expansion of macro ‘kvdb_meta_create’
+  682 |     err = kvdb_meta_create(home);
+      |           ^~~~~~~~~~~~~~~~
+tests/mocks/kvdb_meta_ut.h:95:76: warning: passing argument 2 of ‘mapi_inject_check’ from incompatible pointer type [-Wincompatible-pointer-types]
+   95 |         if (!mapi_enabled || !mapi_inject_check(mapi_idx_kvdb_meta_create, &rc)) \
+      |                                                                            ^~~
+      |                                                                            |
+      |                                                                            int *
+../tests/unit/kvdb/kvdb_meta_test.c:682:11: note: in expansion of macro ‘kvdb_meta_create’
+  682 |     err = kvdb_meta_create(home);
+      |           ^~~~~~~~~~~~~~~~
+In file included from tests/mocks/hse_ut.h:7,
+                 from ../include/hse/hse.h:1140,
+                 from ../tests/framework/include/mtf/framework.h:8,
+                 from ../tests/unit/kvdb/kvdb_meta_test.c:7:
+../tests/mocks/include/mock/api.h:165:43: note: expected ‘uint64_t *’ {aka ‘long unsigned int *’} but argument is of type ‘int *’
+  165 | mapi_inject_check(uint32_t api, uint64_t *rc);
+      |                                 ~~~~~~~~~~^~
+In file included from ../lib/include/hse_ikvdb/kvdb_meta.h:161,
+                 from ../tests/unit/kvdb/kvdb_meta_test.c:9:
+tests/mocks/kvdb_meta_ut.h:75:9: error: unknown type name ‘u64’
+   75 |         u64 rc = 0; \
+      |         ^~~
+../tests/unit/kvdb/kvdb_meta_test.c:685:11: note: in expansion of macro ‘kvdb_meta_serialize’
+  685 |     err = kvdb_meta_serialize(&meta, home);
+      |           ^~~~~~~~~~~~~~~~~~~
+tests/mocks/kvdb_meta_ut.h:76:79: warning: passing argument 2 of ‘mapi_inject_check’ from incompatible pointer type [-Wincompatible-pointer-types]
+   76 |         if (!mapi_enabled || !mapi_inject_check(mapi_idx_kvdb_meta_serialize, &rc)) \
+      |                                                                               ^~~
+      |                                                                               |
+      |                                                                               int *
+../tests/unit/kvdb/kvdb_meta_test.c:685:11: note: in expansion of macro ‘kvdb_meta_serialize’
+  685 |     err = kvdb_meta_serialize(&meta, home);
+      |           ^~~~~~~~~~~~~~~~~~~
+In file included from tests/mocks/hse_ut.h:7,
+                 from ../include/hse/hse.h:1140,
+                 from ../tests/framework/include/mtf/framework.h:8,
+                 from ../tests/unit/kvdb/kvdb_meta_test.c:7:
+../tests/mocks/include/mock/api.h:165:43: note: expected ‘uint64_t *’ {aka ‘long unsigned int *’} but argument is of type ‘int *’
+  165 | mapi_inject_check(uint32_t api, uint64_t *rc);
+      |                                 ~~~~~~~~~~^~
+In file included from ../lib/include/hse_ikvdb/kvdb_meta.h:161,
+                 from ../tests/unit/kvdb/kvdb_meta_test.c:9:
+tests/mocks/kvdb_meta_ut.h:151:9: error: unknown type name ‘u64’
+  151 |         u64 rc = 0; \
+      |         ^~~
+../tests/unit/kvdb/kvdb_meta_test.c:690:11: note: in expansion of macro ‘kvdb_meta_deserialize’
+  690 |     err = kvdb_meta_deserialize(&meta, home);
+      |           ^~~~~~~~~~~~~~~~~~~~~
+tests/mocks/kvdb_meta_ut.h:152:81: warning: passing argument 2 of ‘mapi_inject_check’ from incompatible pointer type [-Wincompatible-pointer-types]
+  152 |         if (!mapi_enabled || !mapi_inject_check(mapi_idx_kvdb_meta_deserialize, &rc)) \
+      |                                                                                 ^~~
+      |                                                                                 |
+      |                                                                                 int *
+../tests/unit/kvdb/kvdb_meta_test.c:690:11: note: in expansion of macro ‘kvdb_meta_deserialize’
+  690 |     err = kvdb_meta_deserialize(&meta, home);
+      |           ^~~~~~~~~~~~~~~~~~~~~
+In file included from tests/mocks/hse_ut.h:7,
+                 from ../include/hse/hse.h:1140,
+                 from ../tests/framework/include/mtf/framework.h:8,
+                 from ../tests/unit/kvdb/kvdb_meta_test.c:7:
+../tests/mocks/include/mock/api.h:165:43: note: expected ‘uint64_t *’ {aka ‘long unsigned int *’} but argument is of type ‘int *’
+  165 | mapi_inject_check(uint32_t api, uint64_t *rc);
+      |                                 ~~~~~~~~~~^~
+In file included from ../lib/include/hse_ikvdb/kvdb_meta.h:161,
+                 from ../tests/unit/kvdb/kvdb_meta_test.c:9:
+tests/mocks/kvdb_meta_ut.h:19:9: error: unknown type name ‘u64’
+   19 |         u64 rc = 0; \
+      |         ^~~
+../tests/unit/kvdb/kvdb_meta_test.c:701:11: note: in expansion of macro ‘kvdb_meta_storage_add’
+  701 |     err = kvdb_meta_storage_add(&meta, home, &params);
+      |           ^~~~~~~~~~~~~~~~~~~~~
+tests/mocks/kvdb_meta_ut.h:20:81: warning: passing argument 2 of ‘mapi_inject_check’ from incompatible pointer type [-Wincompatible-pointer-types]
+   20 |         if (!mapi_enabled || !mapi_inject_check(mapi_idx_kvdb_meta_storage_add, &rc)) \
+      |                                                                                 ^~~
+      |                                                                                 |
+      |                                                                                 int *
+../tests/unit/kvdb/kvdb_meta_test.c:701:11: note: in expansion of macro ‘kvdb_meta_storage_add’
+  701 |     err = kvdb_meta_storage_add(&meta, home, &params);
+      |           ^~~~~~~~~~~~~~~~~~~~~
+In file included from tests/mocks/hse_ut.h:7,
+                 from ../include/hse/hse.h:1140,
+                 from ../tests/framework/include/mtf/framework.h:8,
+                 from ../tests/unit/kvdb/kvdb_meta_test.c:7:
+../tests/mocks/include/mock/api.h:165:43: note: expected ‘uint64_t *’ {aka ‘long unsigned int *’} but argument is of type ‘int *’
+  165 | mapi_inject_check(uint32_t api, uint64_t *rc);
+      |                                 ~~~~~~~~~~^~
+In file included from ../lib/include/hse_ikvdb/kvdb_meta.h:161,
+                 from ../tests/unit/kvdb/kvdb_meta_test.c:9:
+tests/mocks/kvdb_meta_ut.h:151:9: error: unknown type name ‘u64’
+  151 |         u64 rc = 0; \
+      |         ^~~
+../tests/unit/kvdb/kvdb_meta_test.c:706:11: note: in expansion of macro ‘kvdb_meta_deserialize’
+  706 |     err = kvdb_meta_deserialize(&meta, home);
+      |           ^~~~~~~~~~~~~~~~~~~~~
+tests/mocks/kvdb_meta_ut.h:152:81: warning: passing argument 2 of ‘mapi_inject_check’ from incompatible pointer type [-Wincompatible-pointer-types]
+  152 |         if (!mapi_enabled || !mapi_inject_check(mapi_idx_kvdb_meta_deserialize, &rc)) \
+      |                                                                                 ^~~
+      |                                                                                 |
+      |                                                                                 int *
+../tests/unit/kvdb/kvdb_meta_test.c:706:11: note: in expansion of macro ‘kvdb_meta_deserialize’
+  706 |     err = kvdb_meta_deserialize(&meta, home);
+      |           ^~~~~~~~~~~~~~~~~~~~~
+In file included from tests/mocks/hse_ut.h:7,
+                 from ../include/hse/hse.h:1140,
+                 from ../tests/framework/include/mtf/framework.h:8,
+                 from ../tests/unit/kvdb/kvdb_meta_test.c:7:
+../tests/mocks/include/mock/api.h:165:43: note: expected ‘uint64_t *’ {aka ‘long unsigned int *’} but argument is of type ‘int *’
+  165 | mapi_inject_check(uint32_t api, uint64_t *rc);
+      |                                 ~~~~~~~~~~^~
+In file included from ../lib/include/hse_ikvdb/kvdb_meta.h:161,
+                 from ../tests/unit/kvdb/kvdb_meta_test.c:9:
+../tests/unit/kvdb/kvdb_meta_test.c: In function ‘to_mpool_rparams_relative’:
+tests/mocks/kvdb_meta_ut.h:113:9: error: unknown type name ‘u64’
+  113 |         u64 rc = 0; \
+      |         ^~~
+../tests/unit/kvdb/kvdb_meta_test.c:733:11: note: in expansion of macro ‘kvdb_meta_to_mpool_rparams’
+  733 |     err = kvdb_meta_to_mpool_rparams(&meta, test_home, &params);
+      |           ^~~~~~~~~~~~~~~~~~~~~~~~~~
+tests/mocks/kvdb_meta_ut.h:114:86: warning: passing argument 2 of ‘mapi_inject_check’ from incompatible pointer type [-Wincompatible-pointer-types]
+  114 |         if (!mapi_enabled || !mapi_inject_check(mapi_idx_kvdb_meta_to_mpool_rparams, &rc)) \
+      |                                                                                      ^~~
+      |                                                                                      |
+      |                                                                                      int *
+../tests/unit/kvdb/kvdb_meta_test.c:733:11: note: in expansion of macro ‘kvdb_meta_to_mpool_rparams’
+  733 |     err = kvdb_meta_to_mpool_rparams(&meta, test_home, &params);
+      |           ^~~~~~~~~~~~~~~~~~~~~~~~~~
+In file included from tests/mocks/hse_ut.h:7,
+                 from ../include/hse/hse.h:1140,
+                 from ../tests/framework/include/mtf/framework.h:8,
+                 from ../tests/unit/kvdb/kvdb_meta_test.c:7:
+../tests/mocks/include/mock/api.h:165:43: note: expected ‘uint64_t *’ {aka ‘long unsigned int *’} but argument is of type ‘int *’
+  165 | mapi_inject_check(uint32_t api, uint64_t *rc);
+      |                                 ~~~~~~~~~~^~
+In file included from ../lib/include/hse_ikvdb/kvdb_meta.h:161,
+                 from ../tests/unit/kvdb/kvdb_meta_test.c:9:
+../tests/unit/kvdb/kvdb_meta_test.c: In function ‘to_mpool_rparams_absolute’:
+tests/mocks/kvdb_meta_ut.h:113:9: error: unknown type name ‘u64’
+  113 |         u64 rc = 0; \
+      |         ^~~
+../tests/unit/kvdb/kvdb_meta_test.c:753:11: note: in expansion of macro ‘kvdb_meta_to_mpool_rparams’
+  753 |     err = kvdb_meta_to_mpool_rparams(&meta, test_home, &params);
+      |           ^~~~~~~~~~~~~~~~~~~~~~~~~~
+tests/mocks/kvdb_meta_ut.h:114:86: warning: passing argument 2 of ‘mapi_inject_check’ from incompatible pointer type [-Wincompatible-pointer-types]
+  114 |         if (!mapi_enabled || !mapi_inject_check(mapi_idx_kvdb_meta_to_mpool_rparams, &rc)) \
+      |                                                                                      ^~~
+      |                                                                                      |
+      |                                                                                      int *
+../tests/unit/kvdb/kvdb_meta_test.c:753:11: note: in expansion of macro ‘kvdb_meta_to_mpool_rparams’
+  753 |     err = kvdb_meta_to_mpool_rparams(&meta, test_home, &params);
+      |           ^~~~~~~~~~~~~~~~~~~~~~~~~~
+In file included from tests/mocks/hse_ut.h:7,
+                 from ../include/hse/hse.h:1140,
+                 from ../tests/framework/include/mtf/framework.h:8,
+                 from ../tests/unit/kvdb/kvdb_meta_test.c:7:
+../tests/mocks/include/mock/api.h:165:43: note: expected ‘uint64_t *’ {aka ‘long unsigned int *’} but argument is of type ‘int *’
+  165 | mapi_inject_check(uint32_t api, uint64_t *rc);
+      |                                 ~~~~~~~~~~^~
+In file included from ../lib/include/hse_ikvdb/kvdb_meta.h:161,
+                 from ../tests/unit/kvdb/kvdb_meta_test.c:9:
+../tests/unit/kvdb/kvdb_meta_test.c: In function ‘to_mpool_rparams_null’:
+tests/mocks/kvdb_meta_ut.h:113:9: error: unknown type name ‘u64’
+  113 |         u64 rc = 0; \
+      |         ^~~
+../tests/unit/kvdb/kvdb_meta_test.c:775:11: note: in expansion of macro ‘kvdb_meta_to_mpool_rparams’
+  775 |     err = kvdb_meta_to_mpool_rparams(&meta, test_home, &params);
+      |           ^~~~~~~~~~~~~~~~~~~~~~~~~~
+tests/mocks/kvdb_meta_ut.h:114:86: warning: passing argument 2 of ‘mapi_inject_check’ from incompatible pointer type [-Wincompatible-pointer-types]
+  114 |         if (!mapi_enabled || !mapi_inject_check(mapi_idx_kvdb_meta_to_mpool_rparams, &rc)) \
+      |                                                                                      ^~~
+      |                                                                                      |
+      |                                                                                      int *
+../tests/unit/kvdb/kvdb_meta_test.c:775:11: note: in expansion of macro ‘kvdb_meta_to_mpool_rparams’
+  775 |     err = kvdb_meta_to_mpool_rparams(&meta, test_home, &params);
+      |           ^~~~~~~~~~~~~~~~~~~~~~~~~~
+In file included from tests/mocks/hse_ut.h:7,
+                 from ../include/hse/hse.h:1140,
+                 from ../tests/framework/include/mtf/framework.h:8,
+                 from ../tests/unit/kvdb/kvdb_meta_test.c:7:
+../tests/mocks/include/mock/api.h:165:43: note: expected ‘uint64_t *’ {aka ‘long unsigned int *’} but argument is of type ‘int *’
+  165 | mapi_inject_check(uint32_t api, uint64_t *rc);
+      |                                 ~~~~~~~~~~^~
+In file included from ../lib/include/hse_ikvdb/kvdb_meta.h:161,
+                 from ../tests/unit/kvdb/kvdb_meta_test.c:9:
+../tests/unit/kvdb/kvdb_meta_test.c: In function ‘to_mpool_dparams_relative’:
+tests/mocks/kvdb_meta_ut.h:170:9: error: unknown type name ‘u64’
+  170 |         u64 rc = 0; \
+      |         ^~~
+../tests/unit/kvdb/kvdb_meta_test.c:800:11: note: in expansion of macro ‘kvdb_meta_to_mpool_dparams’
+  800 |     err = kvdb_meta_to_mpool_dparams(&meta, test_home, &params);
+      |           ^~~~~~~~~~~~~~~~~~~~~~~~~~
+tests/mocks/kvdb_meta_ut.h:171:86: warning: passing argument 2 of ‘mapi_inject_check’ from incompatible pointer type [-Wincompatible-pointer-types]
+  171 |         if (!mapi_enabled || !mapi_inject_check(mapi_idx_kvdb_meta_to_mpool_dparams, &rc)) \
+      |                                                                                      ^~~
+      |                                                                                      |
+      |                                                                                      int *
+../tests/unit/kvdb/kvdb_meta_test.c:800:11: note: in expansion of macro ‘kvdb_meta_to_mpool_dparams’
+  800 |     err = kvdb_meta_to_mpool_dparams(&meta, test_home, &params);
+      |           ^~~~~~~~~~~~~~~~~~~~~~~~~~
+In file included from tests/mocks/hse_ut.h:7,
+                 from ../include/hse/hse.h:1140,
+                 from ../tests/framework/include/mtf/framework.h:8,
+                 from ../tests/unit/kvdb/kvdb_meta_test.c:7:
+../tests/mocks/include/mock/api.h:165:43: note: expected ‘uint64_t *’ {aka ‘long unsigned int *’} but argument is of type ‘int *’
+  165 | mapi_inject_check(uint32_t api, uint64_t *rc);
+      |                                 ~~~~~~~~~~^~
+In file included from ../lib/include/hse_ikvdb/kvdb_meta.h:161,
+                 from ../tests/unit/kvdb/kvdb_meta_test.c:9:
+../tests/unit/kvdb/kvdb_meta_test.c: In function ‘to_mpool_dparams_absolute’:
+tests/mocks/kvdb_meta_ut.h:170:9: error: unknown type name ‘u64’
+  170 |         u64 rc = 0; \
+      |         ^~~
+../tests/unit/kvdb/kvdb_meta_test.c:820:11: note: in expansion of macro ‘kvdb_meta_to_mpool_dparams’
+  820 |     err = kvdb_meta_to_mpool_dparams(&meta, test_home, &params);
+      |           ^~~~~~~~~~~~~~~~~~~~~~~~~~
+tests/mocks/kvdb_meta_ut.h:171:86: warning: passing argument 2 of ‘mapi_inject_check’ from incompatible pointer type [-Wincompatible-pointer-types]
+  171 |         if (!mapi_enabled || !mapi_inject_check(mapi_idx_kvdb_meta_to_mpool_dparams, &rc)) \
+      |                                                                                      ^~~
+      |                                                                                      |
+      |                                                                                      int *
+../tests/unit/kvdb/kvdb_meta_test.c:820:11: note: in expansion of macro ‘kvdb_meta_to_mpool_dparams’
+  820 |     err = kvdb_meta_to_mpool_dparams(&meta, test_home, &params);
+      |           ^~~~~~~~~~~~~~~~~~~~~~~~~~
+In file included from tests/mocks/hse_ut.h:7,
+                 from ../include/hse/hse.h:1140,
+                 from ../tests/framework/include/mtf/framework.h:8,
+                 from ../tests/unit/kvdb/kvdb_meta_test.c:7:
+../tests/mocks/include/mock/api.h:165:43: note: expected ‘uint64_t *’ {aka ‘long unsigned int *’} but argument is of type ‘int *’
+  165 | mapi_inject_check(uint32_t api, uint64_t *rc);
+      |                                 ~~~~~~~~~~^~
+In file included from ../lib/include/hse_ikvdb/kvdb_meta.h:161,
+                 from ../tests/unit/kvdb/kvdb_meta_test.c:9:
+../tests/unit/kvdb/kvdb_meta_test.c: In function ‘to_mpool_dparams_null’:
+tests/mocks/kvdb_meta_ut.h:170:9: error: unknown type name ‘u64’
+  170 |         u64 rc = 0; \
+      |         ^~~
+../tests/unit/kvdb/kvdb_meta_test.c:842:11: note: in expansion of macro ‘kvdb_meta_to_mpool_dparams’
+  842 |     err = kvdb_meta_to_mpool_dparams(&meta, test_home, &params);
+      |           ^~~~~~~~~~~~~~~~~~~~~~~~~~
+tests/mocks/kvdb_meta_ut.h:171:86: warning: passing argument 2 of ‘mapi_inject_check’ from incompatible pointer type [-Wincompatible-pointer-types]
+  171 |         if (!mapi_enabled || !mapi_inject_check(mapi_idx_kvdb_meta_to_mpool_dparams, &rc)) \
+      |                                                                                      ^~~
+      |                                                                                      |
+      |                                                                                      int *
+../tests/unit/kvdb/kvdb_meta_test.c:842:11: note: in expansion of macro ‘kvdb_meta_to_mpool_dparams’
+  842 |     err = kvdb_meta_to_mpool_dparams(&meta, test_home, &params);
+      |           ^~~~~~~~~~~~~~~~~~~~~~~~~~
+In file included from tests/mocks/hse_ut.h:7,
+                 from ../include/hse/hse.h:1140,
+                 from ../tests/framework/include/mtf/framework.h:8,
+                 from ../tests/unit/kvdb/kvdb_meta_test.c:7:
+../tests/mocks/include/mock/api.h:165:43: note: expected ‘uint64_t *’ {aka ‘long unsigned int *’} but argument is of type ‘int *’
+  165 | mapi_inject_check(uint32_t api, uint64_t *rc);
+      |                                 ~~~~~~~~~~^~
+[5/215] Compiling C object tests/unit/element_source_test.p/util_element_source_test.c.o
+[6/215] Compiling C object tests/unit/hse_err_test.p/util_hse_err_test.c.o
+[7/215] Compiling C object tests/unit/fmt_test.p/util_fmt_test.c.o
+[8/215] Compiling C object tests/unit/seqno_test.p/util_seqno_test.c.o
+[9/215] Compiling C object tests/unit/xrand_test.p/util_xrand_test.c.o
+[10/215] Compiling C object tests/unit/hlog_unit_test.p/util_hlog_unit_test.c.o
+[11/215] Compiling C object tests/unit/json_test.p/util_json_test.c.o
+[12/215] Compiling C object tests/unit/printbuf_test.p/util_printbuf_test.c.o
+[13/215] Compiling C object tests/unit/parse_num_test.p/util_parse_num_test.c.o
+[14/215] Compiling C object tests/unit/event_timer_test.p/util_event_timer_test.c.o
+[15/215] Compiling C object tests/unit/delay_test.p/util_delay_test.c.o
+[16/215] Compiling C object tests/mocks/libhse-2-mock.a.p/.._.._lib_mpool_src_mclass.c.o
+[17/215] Compiling C object tests/unit/token_bucket_test.p/util_token_bucket_test.c.o
+[18/215] Compiling C object tests/unit/data_tree_test.p/util_data_tree_test.c.o
+[19/215] Compiling C object tests/mocks/libhse-2-mock.a.p/.._.._lib_mpool_src_omf.c.o
+[20/215] Compiling C object tests/unit/yaml_test.p/util_yaml_test.c.o
+[21/215] Compiling C object tests/unit/spinlock_test.p/util_spinlock_test.c.o
+[22/215] Compiling C object tests/unit/mpool_test.p/mpool_common.c.o
+[23/215] Compiling C object tests/unit/vlb_test.p/util_vlb_test.c.o
+[24/215] Compiling C object tests/unit/structured_logging_test.p/util_structured_logging_test.c.o
+[25/215] Compiling C object tests/unit/rbtree_test.p/util_rbtree_test.c.o
+[26/215] Compiling C object tests/unit/timer_test.p/util_timer_test.c.o
+[27/215] Compiling C object lib/libhse-2.so.2.1.0.p/mpool_src_omf.c.o
+[28/215] Compiling C object tests/unit/compression_test.p/util_compression_test.c.o
+[29/215] Compiling C object tests/unit/key_util_test.p/util_key_util_test.c.o
+[30/215] Compiling C object lib/libhse-2.so.2.1.0.p/mpool_src_mclass.c.o
+[31/215] Compiling C object lib/libhse-2.so.2.1.0.p/mpool_src_mdc_file.c.o
+[32/215] Compiling C object lib/libhse-2.so.2.1.0.p/mpool_src_mdc.c.o
+[33/215] Compiling C object tests/mocks/libhse-2-mock.a.p/.._.._lib_mpool_src_mdc.c.o
+[34/215] Compiling C object tests/mocks/libhse-2-mock.a.p/.._.._lib_mpool_src_mdc_file.c.o
+[35/215] Compiling C object tests/unit/table_test.p/util_table_test.c.o
+[36/215] Compiling C object tests/unit/keylock_test.p/util_keylock_test.c.o
+[37/215] Compiling C object tests/unit/allocation_test.p/util_allocation_test.c.o
+[38/215] Compiling C object tests/unit/perfc_test.p/util_perfc_test.c.o
+[39/215] Compiling C object tests/unit/bloom_filter_test.p/util_bloom_filter_test.c.o
+[40/215] Compiling C object tests/unit/rest_api_test.p/util_rest_api_test.c.o
+[41/215] Compiling C object tests/unit/cheap_test.p/util_cheap_test.c.o
+[42/215] Compiling C object tests/unit/event_counter_test.p/util_event_counter_test.c.o
+[43/215] Compiling C object tests/unit/workqueue_test.p/util_workqueue_test.c.o
+[44/215] Compiling C object tests/unit/logging_test.p/util_logging_test.c.o
+[45/215] Compiling C object tests/unit/hash_test.p/util_hash_test.c.o
+[46/215] Compiling C object tests/unit/atomic_test.p/util_atomic_test.c.o
+[47/215] Compiling C object tests/unit/bin_heap_test.p/util_bin_heap_test.c.o
+[48/215] Compiling C object tests/unit/mdc_test.p/mpool_mdc_test.c.o
+[49/215] Compiling C object tests/unit/bonsai_tree_test.p/util_bonsai_tree_test.c.o
+ninja: build stopped: subcommand failed.

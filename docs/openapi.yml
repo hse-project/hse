@@ -1,0 +1,37 @@
+openapi: "3.0.2"
+info:
+  title: HSE REST API
+  version: "2.1"
+  description: API description for the HSE REST server.
+  license:
+    name: Apache 2.0
+    url: "http://www.apache.org/licenses/LICENSE-2.0.html"
+paths:
+  /kvdb/{alias}/home:
+    summary: Get the home directory for a KVDB.
+    description: This is a description.
+    parameters:
+      - $ref: "#/components/parameters/aliasParam"
+    get:
+      description: Get KVDB home.
+      tags:
+        - kvdb
+      responses:
+        "200":
+          content:
+            application/json:
+              example: /var/lib/hse/kvdb0
+              schema:
+                type: string
+          description: OK
+components:
+  parameters:
+    aliasParam:
+      name: alias
+      in: path
+      required: true
+      description: REST alias for a KVDB
+      example: 0
+      schema:
+        type: integer
+        format: int32

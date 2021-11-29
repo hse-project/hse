@@ -29,7 +29,7 @@ struct kvdb_meta {
     } km_wal;
     struct {
         char path[PATH_MAX];
-    } km_storage[MP_MED_COUNT];
+    } km_storage[HSE_MCLASS_COUNT];
 };
 
 /**
@@ -75,19 +75,6 @@ kvdb_meta_serialize(const struct kvdb_meta *meta, const char *kvdb_home);
 /* MTF_MOCK */
 merr_t
 kvdb_meta_deserialize(struct kvdb_meta *meta, const char *kvdb_home);
-
-/**
- * Gets the size of the kvdb.meta file in bytes
- *
- * @param kvdb_home: KVDB home
- * @param[out] size: Size of kvdb.meta file in bytes
- * @returns Error status
- * @retval 0 on succes
- * @retval !0 on error
- */
-/* MTF_MOCK */
-merr_t
-kvdb_meta_usage(const char *kvdb_home, uint64_t *size);
 
 /**
  * Upgrade KVDB meta

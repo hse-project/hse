@@ -5,6 +5,7 @@
 
 #include <ftw.h>
 
+#include <hse_util/invariant.h>
 #include <hse_util/mutex.h>
 #include <hse_util/slab.h>
 #include <hse_util/logging.h>
@@ -1249,21 +1250,19 @@ mblock_file_unmapall(struct mblock_file *mbfp)
 }
 
 merr_t
-mblock_file_stats_get(struct mblock_file *mbfp, struct mblock_file_stats *stats)
+mblock_file_info_get(struct mblock_file *mbfp, struct mblock_file_info *info)
 {
     struct stat sbuf;
     int         rc;
 
-    if (!mbfp || !stats)
-        return merr(EINVAL);
+    INVARIANT(mbfp);
+    INVARIANT(info);
 
     rc = fstat(mbfp->fd, &sbuf);
     if (rc == -1)
         return merr(errno);
-    stats->allocated = 512 * sbuf.st_blocks;
 
-    stats->used = atomic_read(&mbfp->wlen);
-    stats->mbcnt = atomic_read(&mbfp->mbcnt);
+    info->used = atomic_read(&mbfp->wlen);
 
     return 0;
 }

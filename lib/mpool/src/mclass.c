@@ -28,6 +28,7 @@
  * @mcid:     mclass ID (persisted in mblock/mdc metadata)
  * @gclose:   was mclass closed gracefully in prior instance
  * @dpath:    mclass directory path
+ * @upath:    mclass user-provided path
  */
 struct media_class {
     DIR *               dirp;
@@ -36,11 +37,12 @@ struct media_class {
     enum mclass_id      mcid;
     bool                gclose;
     char *              dpath;
+    char *              upath;
 };
 
 merr_t
 mclass_open(
-    enum mpool_mclass           mclass,
+    enum hse_mclass           mclass,
     const struct mclass_params *params,
     int                         flags,
     struct media_class **       handle)
@@ -49,7 +51,7 @@ mclass_open(
     DIR *               dirp;
     merr_t              err;
 
-    if (!params || !handle || mclass >= MP_MED_COUNT)
+    if (!params || !handle || mclass >= HSE_MCLASS_COUNT)
         return merr(EINVAL);
 
     dirp = opendir(params->path);
@@ -76,6 +78,12 @@ mclass_open(
         goto err_exit1;
     }
 
+    mc->upath = strdup(params->path);
+    if (!mc->upath) {
+        err = merr(ENOMEM);
+        goto err_exit1;
+    }
+
     err = mblock_fset_open(mc, params->filecnt, params->fmaxsz, flags, &mc->mbfsp);
     if (err) {
         log_errx("Opening data files failed, mclass %d: @@e", err, mclass);
@@ -88,6 +96,7 @@ mclass_open(
 
 err_exit1:
     free(mc->dpath);
+    free(mc->upath);
     free(mc);
 
 err_exit2:
@@ -105,6 +114,7 @@ mclass_close(struct media_class *mc)
     mblock_fset_close(mc->mbfsp);
     closedir(mc->dirp);
     free(mc->dpath);
+    free(mc->upath);
     free(mc);
 
     return 0;
@@ -294,6 +304,12 @@ mclass_dpath(struct media_class *mc)
     return mc ? mc->dpath : NULL;
 }
 
+const char *
+mclass_upath(const struct media_class *const mc)
+{
+    return mc ? mc->upath : NULL;
+}
+
 struct mblock_fset *
 mclass_fset(struct media_class *mc)
 {
@@ -331,57 +347,69 @@ mclass_gclose_get(struct media_class *mc)
 }
 
 enum mclass_id
-mclass_to_mcid(enum mpool_mclass mclass)
+mclass_to_mcid(enum hse_mclass mclass)
 {
     switch (mclass) {
-    case MP_MED_CAPACITY:
+    case HSE_MCLASS_CAPACITY:
         return MCID_CAPACITY;
 
-    case MP_MED_STAGING:
+    case HSE_MCLASS_STAGING:
         return MCID_STAGING;
 
-    case MP_MED_PMEM:
+    case HSE_MCLASS_PMEM:
         return MCID_PMEM;
     }
 
     return MCID_INVALID;
 }
 
-enum mpool_mclass
+enum hse_mclass
 mcid_to_mclass(enum mclass_id mcid)
 {
     switch (mcid) {
     case MCID_INVALID:
-        return MP_MED_INVALID;
+        return HSE_MCLASS_INVALID;
 
     case MCID_CAPACITY:
-        return MP_MED_CAPACITY;
+        return HSE_MCLASS_CAPACITY;
 
     case MCID_STAGING:
-        return MP_MED_STAGING;
+        return HSE_MCLASS_STAGING;
 
     case MCID_PMEM:
-        return MP_MED_PMEM;
+        return HSE_MCLASS_PMEM;
     }
 
-    return MP_MED_INVALID;
+    return HSE_MCLASS_INVALID;
 }
 
 merr_t
-mclass_stats_get(struct media_class *mc, struct mpool_mclass_stats *stats)
+mclass_info_get(struct media_class *mc, struct hse_mclass_info *info)
 {
+    size_t n;
     merr_t err;
 
     assert(mc);
-    assert(stats);
+    assert(info);
 
-    err = mblock_fset_stats_get(mc->mbfsp, stats);
+    err = mblock_fset_info_get(mc->mbfsp, info);
     if (err)
         return err;
 
-    strlcpy(stats->mcs_path, mclass_dpath(mc), sizeof(stats->mcs_path));
+    n = strlcpy(info->mi_path, mc->upath, sizeof(info->mi_path));
+    if (n >= sizeof(info->mi_path))
+        return merr(ENAMETOOLONG);
 
     return 0;
+}
+
+void
+mclass_props_get(struct media_class *const mc, struct mpool_mclass_props *const props)
+{
+    props->mc_fmaxsz = mblock_fset_fmaxsz_get(mc->mbfsp);
+    props->mc_mblocksz = mc->mblocksz >> MB_SHIFT;
+    props->mc_filecnt = mblock_fset_filecnt_get(mc->mbfsp);
+    strlcpy(props->mc_path, mc->upath, sizeof(props->mc_path));
 }
 
 merr_t
@@ -389,6 +417,9 @@ mclass_ftw(struct media_class *mc, const char *prefix, struct mpool_file_cb *cb)
 {
     assert(mc);
 
+    /* [HSE_REVISIT]: No nested functions please :). GCC only and my editor
+     * hates it.
+     */
     int
     mclass_file_cb(const char *path, const struct stat *sb, int typeflag, struct FTW *ftwbuf)
     {

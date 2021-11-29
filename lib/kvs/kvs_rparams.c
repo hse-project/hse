@@ -8,10 +8,14 @@
 #include <stddef.h>
 #include <stdint.h>
 
+#include <bsd/string.h>
+
 #include <hse_util/compiler.h>
 #include <hse_util/logging.h>
 #include <hse_util/perfc.h>
 #include <hse_util/storage.h>
+#include <hse_util/storage.h>
+#include <hse_util/invariant.h>
 
 #include <hse_ikvdb/mclass_policy.h>
 #include <hse_ikvdb/param.h>
@@ -61,8 +65,7 @@ validate_cn_node_size_hi(const struct param_spec *ps, const struct params *const
     return true;
 }
 
-static bool HSE_NONNULL(1, 2, 3)
-compression_value_algorithm_converter(
+static bool HSE_NONNULL(1, 2, 3) compression_value_algorithm_converter(
     const struct param_spec *const ps,
     const cJSON *const             node,
     void *const                    data)
@@ -92,6 +95,62 @@ compression_value_algorithm_converter(
     return false;
 }
 
+static merr_t
+compression_value_algorithm_stringify(
+    const struct param_spec *const ps,
+    const void *const              value,
+    char *const                    buf,
+    const size_t                   buf_sz,
+    size_t *const                  needed_sz)
+{
+    int         n;
+    const char *param = NULL;
+
+    INVARIANT(ps);
+    INVARIANT(value);
+    INVARIANT(buf);
+
+    const enum vcomp_algorithm algo = *(enum vcomp_algorithm *)value;
+
+    switch (algo) {
+        case VCOMP_ALGO_NONE:
+            param = VCOMP_PARAM_NONE;
+            break;
+        case VCOMP_ALGO_LZ4:
+            param = VCOMP_PARAM_LZ4;
+            break;
+    }
+
+    assert(param);
+
+    n = snprintf(buf, buf_sz, "\"%s\"", param);
+    if (n < 0)
+        return merr(EBADMSG);
+
+    if (needed_sz)
+        *needed_sz = n;
+
+    return 0;
+}
+
+cJSON *
+compression_value_jsonify(const struct param_spec *const ps, const void *const value)
+{
+    INVARIANT(ps);
+    INVARIANT(value);
+
+    const enum vcomp_algorithm algo = *(enum vcomp_algorithm *)value;
+
+    switch (algo) {
+        case VCOMP_ALGO_NONE:
+            return cJSON_CreateString(VCOMP_PARAM_NONE);
+        case VCOMP_ALGO_LZ4:
+            return cJSON_CreateString(VCOMP_PARAM_LZ4);
+    }
+
+    abort();
+}
+
 static const struct param_spec pspecs[] = {
     {
         .ps_name = "kvs_cursor_ttl",
@@ -102,6 +161,8 @@ static const struct param_spec pspecs[] = {
         .ps_size = PARAM_SZ(struct kvs_rparams, kvs_cursor_ttl),
         .ps_convert = param_default_converter,
         .ps_validate = param_default_validator,
+        .ps_stringify = param_default_stringify,
+        .ps_jsonify = param_default_jsonify,
         .ps_default_value = {
             .as_uscalar = 1500,
         },
@@ -121,6 +182,8 @@ static const struct param_spec pspecs[] = {
         .ps_size = PARAM_SZ(struct kvs_rparams, transactions_enable),
         .ps_convert = param_default_converter,
         .ps_validate = param_default_validator,
+        .ps_stringify = param_default_stringify,
+        .ps_jsonify = param_default_jsonify,
         .ps_default_value = {
             .as_bool = false,
         },
@@ -134,6 +197,8 @@ static const struct param_spec pspecs[] = {
         .ps_size = PARAM_SZ(struct kvs_rparams, perfc_level),
         .ps_convert = param_default_converter,
         .ps_validate = param_default_validator,
+        .ps_stringify = param_default_stringify,
+        .ps_jsonify = param_default_jsonify,
         .ps_default_value = {
             .as_uscalar = PERFC_LEVEL_DEFAULT,
         },
@@ -153,6 +218,8 @@ static const struct param_spec pspecs[] = {
         .ps_size = PARAM_SZ(struct kvs_rparams, cn_node_size_lo),
         .ps_convert = param_default_converter,
         .ps_validate = param_default_validator,
+        .ps_stringify = param_default_stringify,
+        .ps_jsonify = param_default_jsonify,
         .ps_validate_relations = validate_cn_node_size_lo,
         .ps_default_value = {
             .as_uscalar = 20 * 1024.
@@ -173,6 +240,8 @@ static const struct param_spec pspecs[] = {
         .ps_size = PARAM_SZ(struct kvs_rparams, cn_node_size_hi),
         .ps_convert = param_default_converter,
         .ps_validate = param_default_validator,
+        .ps_stringify = param_default_stringify,
+        .ps_jsonify = param_default_jsonify,
         .ps_validate_relations = validate_cn_node_size_hi,
         .ps_default_value = {
             .as_uscalar = 28 * 1024,
@@ -193,6 +262,8 @@ static const struct param_spec pspecs[] = {
         .ps_size = PARAM_SZ(struct kvs_rparams, cn_compact_vblk_ra),
         .ps_convert = param_default_converter,
         .ps_validate = param_default_validator,
+        .ps_stringify = param_default_stringify,
+        .ps_jsonify = param_default_jsonify,
         .ps_default_value = {
             .as_uscalar = 256 * 1024,
         },
@@ -212,6 +283,8 @@ static const struct param_spec pspecs[] = {
         .ps_size = PARAM_SZ(struct kvs_rparams, cn_compact_vra),
         .ps_convert = param_default_converter,
         .ps_validate = param_default_validator,
+        .ps_stringify = param_default_stringify,
+        .ps_jsonify = param_default_jsonify,
         .ps_default_value = {
             .as_uscalar = 128 * 1024,
         },
@@ -231,6 +304,8 @@ static const struct param_spec pspecs[] = {
         .ps_size = PARAM_SZ(struct kvs_rparams, cn_compact_kblk_ra),
         .ps_convert = param_default_converter,
         .ps_validate = param_default_validator,
+        .ps_stringify = param_default_stringify,
+        .ps_jsonify = param_default_jsonify,
         .ps_default_value = {
             .as_uscalar = 512 * 1024,
         },
@@ -250,6 +325,8 @@ static const struct param_spec pspecs[] = {
         .ps_size = PARAM_SZ(struct kvs_rparams, cn_capped_ttl),
         .ps_convert = param_default_converter,
         .ps_validate = param_default_validator,
+        .ps_stringify = param_default_stringify,
+        .ps_jsonify = param_default_jsonify,
         .ps_default_value = {
             .as_uscalar = 9000,
         },
@@ -269,6 +346,8 @@ static const struct param_spec pspecs[] = {
         .ps_size = PARAM_SZ(struct kvs_rparams, cn_capped_vra),
         .ps_convert = param_default_converter,
         .ps_validate = param_default_validator,
+        .ps_stringify = param_default_stringify,
+        .ps_jsonify = param_default_jsonify,
         .ps_default_value = {
             .as_uscalar = 512 * 1024,
         },
@@ -288,6 +367,8 @@ static const struct param_spec pspecs[] = {
         .ps_size = PARAM_SZ(struct kvs_rparams, cn_cursor_vra),
         .ps_convert = param_default_converter,
         .ps_validate = param_default_validator,
+        .ps_stringify = param_default_stringify,
+        .ps_jsonify = param_default_jsonify,
         .ps_default_value = {
             .as_uscalar = 0,
         },
@@ -307,6 +388,8 @@ static const struct param_spec pspecs[] = {
         .ps_size = PARAM_SZ(struct kvs_rparams, cn_cursor_kra),
         .ps_convert = param_default_converter,
         .ps_validate = param_default_validator,
+        .ps_stringify = param_default_stringify,
+        .ps_jsonify = param_default_jsonify,
         .ps_default_value = {
             .as_bool = false,
         },
@@ -320,6 +403,8 @@ static const struct param_spec pspecs[] = {
         .ps_size = PARAM_SZ(struct kvs_rparams, cn_cursor_seq),
         .ps_convert = param_default_converter,
         .ps_validate = param_default_validator,
+        .ps_stringify = param_default_stringify,
+        .ps_jsonify = param_default_jsonify,
         .ps_default_value = {
             .as_uscalar = 0,
         },
@@ -340,6 +425,8 @@ static const struct param_spec pspecs[] = {
         .ps_size = PARAM_SZ(struct kvs_rparams, cn_mcache_wbt),
         .ps_convert = param_default_converter,
         .ps_validate = param_default_validator,
+        .ps_stringify = param_default_stringify,
+        .ps_jsonify = param_default_jsonify,
         .ps_default_value = {
             .as_uscalar = 0,
         },
@@ -359,6 +446,8 @@ static const struct param_spec pspecs[] = {
         .ps_size = PARAM_SZ(struct kvs_rparams, cn_mcache_vminlvl),
         .ps_convert = param_default_converter,
         .ps_validate = param_default_validator,
+        .ps_stringify = param_default_stringify,
+        .ps_jsonify = param_default_jsonify,
         .ps_default_value = {
             .as_uscalar = UINT16_MAX,
         },
@@ -378,6 +467,8 @@ static const struct param_spec pspecs[] = {
         .ps_size = PARAM_SZ(struct kvs_rparams, cn_mcache_vmin),
         .ps_convert = param_default_converter,
         .ps_validate = param_default_validator,
+        .ps_stringify = param_default_stringify,
+        .ps_jsonify = param_default_jsonify,
         .ps_default_value = {
             .as_uscalar = 256,
         },
@@ -397,6 +488,8 @@ static const struct param_spec pspecs[] = {
         .ps_size = PARAM_SZ(struct kvs_rparams, cn_mcache_vmax),
         .ps_convert = param_default_converter,
         .ps_validate = param_default_validator,
+        .ps_stringify = param_default_stringify,
+        .ps_jsonify = param_default_jsonify,
         .ps_default_value = {
             .as_uscalar = 4096,
         },
@@ -416,6 +509,8 @@ static const struct param_spec pspecs[] = {
         .ps_size = PARAM_SZ(struct kvs_rparams, cn_mcache_kra_params),
         .ps_convert = param_default_converter,
         .ps_validate = param_default_validator,
+        .ps_stringify = param_default_stringify,
+        .ps_jsonify = param_default_jsonify,
         .ps_default_value = {
             .as_uscalar = (50u << 16) | (4u << 8) | 4u,
         },
@@ -435,6 +530,8 @@ static const struct param_spec pspecs[] = {
         .ps_size = PARAM_SZ(struct kvs_rparams, cn_mcache_vra_params),
         .ps_convert = param_default_converter,
         .ps_validate = param_default_validator,
+        .ps_stringify = param_default_stringify,
+        .ps_jsonify = param_default_jsonify,
         .ps_default_value = {
             .as_uscalar = (40u << 16) | (2u << 8) | 1u,
         },
@@ -454,6 +551,8 @@ static const struct param_spec pspecs[] = {
         .ps_size = PARAM_SZ(struct kvs_rparams, cn_diag_mode),
         .ps_convert = param_default_converter,
         .ps_validate = param_default_validator,
+        .ps_stringify = param_default_stringify,
+        .ps_jsonify = param_default_jsonify,
         .ps_default_value = {
             .as_bool = false,
         },
@@ -467,6 +566,8 @@ static const struct param_spec pspecs[] = {
         .ps_size = PARAM_SZ(struct kvs_rparams, cn_maint_disable),
         .ps_convert = param_default_converter,
         .ps_validate = param_default_validator,
+        .ps_stringify = param_default_stringify,
+        .ps_jsonify = param_default_jsonify,
         .ps_default_value = {
             .as_bool = false,
         },
@@ -480,6 +581,8 @@ static const struct param_spec pspecs[] = {
         .ps_size = PARAM_SZ(struct kvs_rparams, cn_bloom_create),
         .ps_convert = param_default_converter,
         .ps_validate = param_default_validator,
+        .ps_stringify = param_default_stringify,
+        .ps_jsonify = param_default_jsonify,
         .ps_default_value = {
             .as_bool = true,
         },
@@ -493,6 +596,8 @@ static const struct param_spec pspecs[] = {
         .ps_size = PARAM_SZ(struct kvs_rparams, cn_bloom_lookup),
         .ps_convert = param_default_converter,
         .ps_validate = param_default_validator,
+        .ps_stringify = param_default_stringify,
+        .ps_jsonify = param_default_jsonify,
         .ps_default_value = {
             .as_uscalar = 0,
         },
@@ -512,6 +617,8 @@ static const struct param_spec pspecs[] = {
         .ps_size = PARAM_SZ(struct kvs_rparams, cn_bloom_prob),
         .ps_convert = param_default_converter,
         .ps_validate = param_default_validator,
+        .ps_stringify = param_default_stringify,
+        .ps_jsonify = param_default_jsonify,
         .ps_default_value = {
             .as_uscalar = 10000,
         },
@@ -531,6 +638,8 @@ static const struct param_spec pspecs[] = {
         .ps_size = PARAM_SZ(struct kvs_rparams, cn_bloom_capped),
         .ps_convert = param_default_converter,
         .ps_validate = param_default_validator,
+        .ps_stringify = param_default_stringify,
+        .ps_jsonify = param_default_jsonify,
         .ps_default_value = {
             .as_uscalar = 0,
         },
@@ -550,6 +659,8 @@ static const struct param_spec pspecs[] = {
         .ps_size = PARAM_SZ(struct kvs_rparams, cn_bloom_preload),
         .ps_convert = param_default_converter,
         .ps_validate = param_default_validator,
+        .ps_stringify = param_default_stringify,
+        .ps_jsonify = param_default_jsonify,
         .ps_default_value = {
             .as_uscalar = 0,
         },
@@ -569,6 +680,8 @@ static const struct param_spec pspecs[] = {
         .ps_size = PARAM_SZ(struct kvs_rparams, cn_compaction_debug),
         .ps_convert = param_default_converter,
         .ps_validate = param_default_validator,
+        .ps_stringify = param_default_stringify,
+        .ps_jsonify = param_default_jsonify,
         .ps_default_value = {
             .as_uscalar = 0,
         },
@@ -588,6 +701,8 @@ static const struct param_spec pspecs[] = {
         .ps_size = PARAM_SZ(struct kvs_rparams, cn_maint_delay),
         .ps_convert = param_default_converter,
         .ps_validate = param_default_validator,
+        .ps_stringify = param_default_stringify,
+        .ps_jsonify = param_default_jsonify,
         .ps_default_value = {
             .as_uscalar = 1000,
         },
@@ -607,6 +722,8 @@ static const struct param_spec pspecs[] = {
         .ps_size = PARAM_SZ(struct kvs_rparams, cn_close_wait),
         .ps_convert = param_default_converter,
         .ps_validate = param_default_validator,
+        .ps_stringify = param_default_stringify,
+        .ps_jsonify = param_default_jsonify,
         .ps_default_value = {
             .as_uscalar = false,
         },
@@ -620,6 +737,8 @@ static const struct param_spec pspecs[] = {
         .ps_size = PARAM_SZ(struct kvs_rparams, cn_verify),
         .ps_convert = param_default_converter,
         .ps_validate = param_default_validator,
+        .ps_stringify = param_default_stringify,
+        .ps_jsonify = param_default_jsonify,
         .ps_default_value = {
             .as_uscalar = false,
         },
@@ -633,6 +752,8 @@ static const struct param_spec pspecs[] = {
         .ps_size = PARAM_SZ(struct kvs_rparams, cn_kcachesz),
         .ps_convert = param_default_converter,
         .ps_validate = param_default_validator,
+        .ps_stringify = param_default_stringify,
+        .ps_jsonify = param_default_jsonify,
         .ps_default_value = {
             .as_uscalar = 1024 * 1024,
         },
@@ -652,6 +773,8 @@ static const struct param_spec pspecs[] = {
         .ps_size = PARAM_SZ(struct kvs_rparams, kblock_size),
         .ps_convert = param_convert_to_bytes_from_MB,
         .ps_validate = param_default_validator,
+        .ps_stringify = param_stringify_bytes_to_MB,
+        .ps_jsonify = param_jsonify_bytes_to_MB,
         .ps_default_value = {
             .as_uscalar = 32 * MB,
         },
@@ -671,6 +794,8 @@ static const struct param_spec pspecs[] = {
         .ps_size = PARAM_SZ(struct kvs_rparams, vblock_size),
         .ps_convert = param_convert_to_bytes_from_MB,
         .ps_validate = param_default_validator,
+        .ps_stringify = param_stringify_bytes_to_MB,
+        .ps_jsonify = param_jsonify_bytes_to_MB,
         .ps_default_value = {
             .as_uscalar = 32 * MB,
         },
@@ -690,6 +815,8 @@ static const struct param_spec pspecs[] = {
         .ps_size = PARAM_SZ(struct kvs_rparams, capped_evict_ttl),
         .ps_convert = param_default_converter,
         .ps_validate = param_default_validator,
+        .ps_stringify = param_default_stringify,
+        .ps_jsonify = param_default_jsonify,
         .ps_default_value = {
             .as_uscalar = 120,
         },
@@ -709,6 +836,8 @@ static const struct param_spec pspecs[] = {
         .ps_size = PARAM_SZ(struct kvs_rparams, read_only),
         .ps_convert = param_default_converter,
         .ps_validate = param_default_validator,
+        .ps_stringify = param_default_stringify,
+        .ps_jsonify = param_default_jsonify,
         .ps_default_value = {
             .as_bool = false,
         },
@@ -722,6 +851,8 @@ static const struct param_spec pspecs[] = {
         .ps_size = PARAM_SZ(struct kvs_rparams, mclass_policy),
         .ps_convert = param_default_converter,
         .ps_validate = param_default_validator,
+        .ps_stringify = param_default_stringify,
+        .ps_jsonify = param_default_jsonify,
         .ps_default_value = {
             .as_string = "capacity_only",
         },
@@ -740,6 +871,8 @@ static const struct param_spec pspecs[] = {
         .ps_size = PARAM_SZ(struct kvs_rparams, vcompmin),
         .ps_convert = param_default_converter,
         .ps_validate = param_default_validator,
+        .ps_stringify = param_default_stringify,
+        .ps_jsonify = param_default_jsonify,
         .ps_default_value = {
             .as_uscalar = 12,
         },
@@ -759,6 +892,8 @@ static const struct param_spec pspecs[] = {
         .ps_size = PARAM_SZ(struct kvs_rparams, value_compression),
         .ps_convert = compression_value_algorithm_converter,
         .ps_validate = param_default_validator,
+        .ps_stringify = compression_value_algorithm_stringify,
+        .ps_jsonify = compression_value_jsonify,
         .ps_default_value = {
             .as_enum = VCOMP_ALGO_NONE,
         },
@@ -787,4 +922,42 @@ kvs_rparams_defaults()
 
     param_default_populate(pspecs, NELEM(pspecs), &p);
     return params;
+}
+
+merr_t
+kvs_rparams_get(
+    const struct kvs_rparams *const params,
+    const char *const               param,
+    char *const                     buf,
+    const size_t                    buf_sz,
+    size_t *const                   needed_sz)
+{
+    const struct params p = { .p_params = { .as_kvs_rp = params }, .p_type = PARAMS_KVS_RP };
+
+    return param_get(&p, pspecs, NELEM(pspecs), param, buf, buf_sz, needed_sz);
+}
+
+merr_t
+kvs_rparams_set(
+    const struct kvs_rparams *const params,
+    const char *const               param,
+    const char *const               value)
+{
+    if (!params || !param || !value)
+        return merr(EINVAL);
+
+    const struct params p = { .p_params = { .as_kvs_rp = params }, .p_type = PARAMS_KVS_RP };
+
+    return param_set(&p, pspecs, NELEM(pspecs), param, value);
+}
+
+cJSON *
+kvs_rparams_to_json(const struct kvs_rparams *const params)
+{
+    if (!params)
+        return NULL;
+
+    const struct params p = { .p_params = { .as_kvs_rp = params }, .p_type = PARAMS_KVS_RP };
+
+    return param_to_json(&p, pspecs, NELEM(pspecs));
 }

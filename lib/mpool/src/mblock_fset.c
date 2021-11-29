@@ -6,6 +6,7 @@
 #include <sys/statvfs.h>
 
 #include <hse_util/event_counter.h>
+#include <hse_util/invariant.h>
 #include <hse_util/logging.h>
 #include <hse_util/page.h>
 #include <hse_util/slab.h>
@@ -779,41 +780,43 @@ mblock_fset_unmap(struct mblock_fset *mbfsp, uint64_t mbid)
 }
 
 merr_t
-mblock_fset_stats_get(struct mblock_fset *mbfsp, struct mpool_mclass_stats *stats)
+mblock_fset_info_get(struct mblock_fset *mbfsp, struct hse_mclass_info *info)
 {
-    struct statvfs sbuf = {};
     uint64_t       allocated = 0;
-    int            i, rc;
+    int            i;
     merr_t         err;
 
-    if (!mbfsp || !stats)
-        return merr(EINVAL);
+    INVARIANT(mbfsp);
+    INVARIANT(info);
 
     for (i = 0; i < mbfsp->mhdr.fcnt; i++) {
-        struct mblock_file_stats fst = {};
+        struct mblock_file_info fst = {};
 
-        err = mblock_file_stats_get(mbfsp->filev[i], &fst);
+        err = mblock_file_info_get(mbfsp->filev[i], &fst);
         if (err)
             return err;
 
-        stats->mcs_allocated += fst.allocated;
-        stats->mcs_used += fst.used;
-        stats->mcs_mblock_cnt += fst.mbcnt;
+        info->mi_allocated_bytes += fst.allocated;
+        info->mi_used_bytes += fst.used;
     }
 
     err = mblock_fset_meta_usage(mbfsp, &allocated);
     if (err)
         return err;
-    stats->mcs_allocated += allocated;
-    stats->mcs_used += allocated;
-
-    rc = fstatvfs(mbfsp->metafd, &sbuf);
-    if (rc == -1)
-        return merr(errno);
-
-    stats->mcs_total = sbuf.f_blocks * sbuf.f_frsize;
-    stats->mcs_available = sbuf.f_bavail * sbuf.f_bsize;
-    stats->mcs_fsid = sbuf.f_fsid;
+    info->mi_allocated_bytes += allocated;
+    info->mi_used_bytes += allocated;
 
     return 0;
+}
+
+size_t
+mblock_fset_fmaxsz_get(const struct mblock_fset *const mbfsp)
+{
+    return mbfsp ? mbfsp->mhdr.fszmax : 0;
+}
+
+uint8_t
+mblock_fset_filecnt_get(const struct mblock_fset *const mbfsp)
+{
+    return mbfsp ? mbfsp->mhdr.fcnt : 0;
 }

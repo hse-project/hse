@@ -504,7 +504,7 @@ test_start(void *arg)
         wander = (random() % test->t_wandermax) & PAGE_MASK;
         wobble = (random() % test->t_wobblemax) & PAGE_MASK;
 
-        err = mpool_mblock_alloc(mp, MP_MED_CAPACITY, &objid, &props);
+        err = mpool_mblock_alloc(mp, HSE_MCLASS_CAPACITY, &objid, &props);
         if (err) {
             if (merr_errno(err) == ENOSPC)
                 break;
@@ -1136,8 +1136,8 @@ main(int argc, char **argv)
 
     mpool_cparams_defaults(&cparams);
     path = strdup(argv[0]);
-    strlcpy(cparams.mclass[MP_MED_CAPACITY].path, path,
-            sizeof(cparams.mclass[MP_MED_CAPACITY].path));
+    strlcpy(cparams.mclass[HSE_MCLASS_CAPACITY].path, path,
+            sizeof(cparams.mclass[HSE_MCLASS_CAPACITY].path));
 
     err = mpool_create(path, &cparams);
     if (err) {
@@ -1147,8 +1147,8 @@ main(int argc, char **argv)
         return -1;
     }
 
-    strlcpy(rparams.mclass[MP_MED_CAPACITY].path, path,
-            sizeof(rparams.mclass[MP_MED_CAPACITY].path));
+    strlcpy(rparams.mclass[HSE_MCLASS_CAPACITY].path, path,
+            sizeof(rparams.mclass[HSE_MCLASS_CAPACITY].path));
     err = mpool_open(path, &rparams, oflags, &mp);
     if (err) {
         merr_strinfo(err, errbuf, sizeof(errbuf), NULL);
@@ -1162,7 +1162,7 @@ main(int argc, char **argv)
         eprint("mpool_props_get(%s): %s\n", path, errbuf);
         goto err_exit;
     }
-    wbufsz = props.mp_mblocksz[MP_MED_CAPACITY] << 20;
+    wbufsz = props.mclass[HSE_MCLASS_CAPACITY].mc_mblocksz << 20;
 
     limit = wbufsz + WANDERMAX + WOBBLEMAX;
 
@@ -1263,8 +1263,8 @@ err_exit:
     free(testv);
 
     if (!err) {
-        strlcpy(dparams.mclass[MP_MED_CAPACITY].path, path,
-                sizeof(dparams.mclass[MP_MED_CAPACITY].path));
+        strlcpy(dparams.mclass[HSE_MCLASS_CAPACITY].path, path,
+                sizeof(dparams.mclass[HSE_MCLASS_CAPACITY].path));
         err = mpool_destroy(path, &dparams);
         if (err)
             fprintf(stderr, "mpool destroy at path %s failed\n", path);

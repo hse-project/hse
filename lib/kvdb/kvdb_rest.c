@@ -17,6 +17,10 @@
 #include <hse_ikvdb/kvset_view.h>
 #include <hse_ikvdb/cn.h>
 #include <hse_ikvdb/cn_tree_view.h>
+#include <hse_ikvdb/kvset_view.h>
+#include <hse_ikvdb/kvdb_rparams.h>
+
+#include <cjson/cJSON_Utils.h>
 
 #include "kvdb_rest.h"
 #include "kvdb_kvs.h"
@@ -50,10 +54,10 @@
 static merr_t
 get_kvs_list(struct ikvdb *ikvdb, int fd, struct yaml_context *yc)
 {
-    char ** kvs_list;
-    size_t  kvs_cnt;
-    int     i;
-    merr_t  err;
+    char **kvs_list;
+    size_t kvs_cnt;
+    int    i;
+    merr_t err;
 
     err = ikvdb_kvs_names_get(ikvdb, &kvs_cnt, &kvs_list);
     if (ev(err))
@@ -96,6 +100,260 @@ rest_kvdb_get(
         return err;
 
     return 0;
+}
+
+static merr_t
+rest_kvdb_home_get(
+    const char *      path,
+    struct conn_info *info,
+    const char *      url,
+    struct kv_iter *  iter,
+    void *            context)
+{
+    char          buf[PATH_MAX + 2];
+    struct ikvdb *kvdb = context;
+    const char *  home = ikvdb_home(kvdb);
+    int           n HSE_MAYBE_UNUSED;
+
+    n = snprintf(buf, sizeof(buf), "\"%s\"", home);
+    assert(n >= 0 && n < sizeof(buf));
+
+    if (write(info->resp_fd, buf, strlen(buf)) == -1)
+        return merr(errno);
+
+    return 0;
+}
+
+static merr_t
+rest_kvdb_param_get(
+    const char *      path,
+    struct conn_info *info,
+    const char *      url,
+    struct kv_iter *  iter,
+    void *            context)
+{
+    merr_t        err = 0;
+    struct ikvdb *kvdb = context;
+
+    /* Check from single parameter or all parameters */
+    if (strcmp(path, url)) {
+        size_t      needed_sz;
+        char *      tmp;
+        size_t      buf_sz = 128;
+        const char *param = path + strlen(url) + 1; /* move past the final '/' */
+        char *      buf = malloc(buf_sz);
+
+        if (!buf)
+            return merr(ENOMEM);
+
+        err = ikvdb_param_get(kvdb, param, buf, buf_sz, &needed_sz);
+        if (needed_sz >= buf_sz && !err) {
+            buf_sz = needed_sz + 1;
+            tmp = realloc(buf, buf_sz);
+            if (!tmp)
+                return merr(ENOMEM);
+
+            buf = tmp;
+
+            err = ikvdb_param_get(kvdb, param, buf, buf_sz, NULL);
+        }
+
+        if (!err && write(info->resp_fd, buf, strnlen(buf, buf_sz)) == -1)
+            err = merr(errno);
+
+        free(buf);
+    } else {
+        char * str;
+        cJSON *root = kvdb_rparams_to_json(ikvdb_rparams(kvdb));
+        if (!root)
+            return merr(ENOMEM);
+
+        str = cJSON_PrintUnformatted(root);
+        if (!str)
+            return merr(ENOMEM);
+
+        if (!err && write(info->resp_fd, str, strlen(str)) == -1)
+            err = merr(errno);
+
+        cJSON_free(str);
+    }
+
+    return err;
+}
+
+static merr_t
+rest_kvdb_param_put(
+    const char *      path,
+    struct conn_info *info,
+    const char *      url,
+    struct kv_iter *  iter,
+    void *            context)
+{
+    const char *  param;
+    struct ikvdb *kvdb = context;
+    const bool    has_param = strcmp(path, url);
+
+    /* Check for case when no parameter is specified, /kvdb/0/params */
+    if (!has_param)
+        return merr(EINVAL);
+
+    param = path + strlen(url) + 1;
+
+    return kvdb_rparams_set(ikvdb_rparams(kvdb), param, info->data);
+}
+
+static merr_t
+rest_kvs_param_get(
+    const char *      path,
+    struct conn_info *info,
+    const char *      url,
+    struct kv_iter *  iter,
+    void *            context)
+{
+    merr_t          err = 0;
+    struct hse_kvs *kvs = context;
+
+    /* Check from single parameter or all parameters */
+    if (strcmp(path, url)) {
+        size_t      needed_sz;
+        char *      tmp;
+        size_t      buf_sz = 128;
+        const char *param = path + strlen(url) + 1; /* move past the final '/' */
+        char *      buf = malloc(buf_sz);
+
+        if (!buf)
+            return merr(ENOMEM);
+
+        err = ikvdb_kvs_param_get(kvs, param, buf, buf_sz, &needed_sz);
+        if (needed_sz >= buf_sz && !err) {
+            buf_sz = needed_sz + 1;
+            tmp = realloc(buf, buf_sz);
+            if (!tmp)
+                return merr(ENOMEM);
+
+            buf = tmp;
+
+            err = ikvdb_kvs_param_get(kvs, param, buf, buf_sz, NULL);
+        }
+
+        if (!err && write(info->resp_fd, buf, strnlen(buf, buf_sz)) == -1)
+            err = merr(errno);
+
+        free(buf);
+    } else {
+        char * str;
+        cJSON *merged, *cp_json, *rp_json;
+
+        cp_json = kvs_cparams_to_json(((struct kvdb_kvs *)kvs)->kk_cparams);
+        if (!cp_json)
+            return merr(ENOMEM);
+
+        rp_json = kvs_rparams_to_json(&((struct kvdb_kvs *)kvs)->kk_ikvs->ikv_rp);
+        if (!rp_json) {
+            cJSON_Delete(cp_json);
+            return merr(ENOMEM);
+        }
+
+        merged = cJSONUtils_MergePatchCaseSensitive(cp_json, rp_json);
+        assert(merged);
+
+        str = cJSON_PrintUnformatted(merged);
+        cJSON_Delete(merged);
+        if (!str) {
+            return merr(ENOMEM);
+        }
+
+        if (!err && write(info->resp_fd, str, strlen(str)) == -1)
+            err = merr(errno);
+
+        cJSON_free(str);
+    }
+
+    return err;
+}
+
+static merr_t
+rest_kvs_param_put(
+    const char *      path,
+    struct conn_info *info,
+    const char *      url,
+    struct kv_iter *  iter,
+    void *            context)
+{
+    const char *     param;
+    struct kvdb_kvs *kvs = context;
+    const bool       has_param = strcmp(path, url);
+
+    /* Check for case when no parameter is specified, /kvdb/0/kvs/1/params */
+    if (!has_param)
+        return merr(EINVAL);
+
+    param = path + strlen(url) + 1;
+
+    return kvs_rparams_set(&kvs->kk_ikvs->ikv_rp, param, info->data);
+}
+
+static merr_t
+rest_kvdb_mclass_info_get(
+    const char *      path,
+    struct conn_info *info,
+    const char *      url,
+    struct kv_iter *  iter,
+    void *            context)
+{
+    merr_t                 err = 0;
+    enum hse_mclass        mclass = HSE_MCLASS_INVALID;
+    struct hse_mclass_info mc_info;
+    cJSON *                root;
+    char *                 str;
+
+    for (int i = HSE_MCLASS_BASE; i < HSE_MCLASS_COUNT; i++) {
+        if (strstr(path, mpool_mclass_to_string[i])) {
+            mclass = (enum hse_mclass)i;
+            break;
+        }
+    }
+
+    assert(mclass != HSE_MCLASS_INVALID);
+
+    err = ikvdb_mclass_info_get((struct ikvdb *)context, mclass, &mc_info);
+    if (err)
+        return err;
+
+    root = cJSON_CreateObject();
+    if (!root)
+        return merr(ENOMEM);
+
+    if (!cJSON_AddNumberToObject(root, "allocated_bytes", mc_info.mi_allocated_bytes)) {
+        err = merr(ENOMEM);
+        goto out;
+    }
+
+    if (!cJSON_AddNumberToObject(root, "used_bytes", mc_info.mi_used_bytes)) {
+        err = merr(ENOMEM);
+        goto out;
+    }
+
+    if (!cJSON_AddStringToObject(root, "path", mc_info.mi_path)) {
+        err = merr(ENOMEM);
+        goto out;
+    }
+
+    str = cJSON_PrintUnformatted(root);
+    if (!str) {
+        err = merr(ENOMEM);
+        goto out;
+    }
+
+    if (!err && write(info->resp_fd, str, strlen(str)) == -1)
+        err = merr(errno);
+
+    cJSON_free(str);
+
+out:
+    cJSON_Delete(root);
+
+    return err;
 }
 
 static merr_t
@@ -178,37 +436,6 @@ rest_kvdb_compact_status_get(
     return 0;
 }
 
-static merr_t
-rest_kvdb_storage_stats_get(
-    const char *      path,
-    struct conn_info *info,
-    const char *      url,
-    struct kv_iter *  iter,
-    void *            context)
-{
-    struct ikvdb *               ikvdb = context;
-    struct hse_kvdb_storage_info stinfo = {};
-    size_t                       b, bufoff;
-    char *                       buf = info->buf;
-    size_t                       bufsz = info->buf_sz;
-    merr_t                       err;
-
-    err = ikvdb_storage_info_get(ikvdb, &stinfo);
-    if (err)
-        return err;
-
-    bufoff = 0;
-    b = snprintf_append(buf, bufsz, &bufoff, "total: %lu\n", stinfo.total_bytes);
-    b += snprintf_append(buf, bufsz, &bufoff, "available: %lu\n", stinfo.available_bytes);
-    b += snprintf_append(buf, bufsz, &bufoff, "allocated: %lu\n", stinfo.allocated_bytes);
-    b += snprintf_append(buf, bufsz, &bufoff, "used: %lu\n", stinfo.used_bytes);
-
-    if (write(info->resp_fd, buf, b) != b)
-        return merr(EIO);
-
-    return 0;
-}
-
 merr_t
 kvdb_rest_register(struct ikvdb *kvdb)
 {
@@ -223,14 +450,21 @@ kvdb_rest_register(struct ikvdb *kvdb)
         err = status;
 
     status = rest_url_register(
-        kvdb,
-        URL_FLAG_EXACT,
-        rest_kvdb_storage_stats_get,
-        NULL,
-        "kvdb/%s/storage_stats",
-        ikvdb_alias(kvdb));
+        kvdb, URL_FLAG_EXACT, rest_kvdb_home_get, NULL, "kvdb/%s/home", ikvdb_alias(kvdb));
     if (ev(status) && !err)
         err = status;
+
+    status = rest_url_register(
+        kvdb, 0, rest_kvdb_param_get, rest_kvdb_param_put, "kvdb/%s/params", ikvdb_alias(kvdb));
+    if (ev(status) && !err)
+        err = status;
+
+    for (size_t i = 0; i < NELEM(mpool_mclass_to_string); i++) {
+        status = rest_url_register(kvdb, URL_FLAG_EXACT, rest_kvdb_mclass_info_get, NULL,
+            "kvdb/%s/mclass/%s/info", ikvdb_alias(kvdb), mpool_mclass_to_string[i]);
+        if (ev(status) && !err)
+            err = status;
+    }
 
     status = rest_url_register(
         kvdb,
@@ -651,7 +885,7 @@ rest_kvs_tree(
 }
 
 merr_t
-kvs_rest_register(struct ikvdb *const kvdb, const char *kvs_name, void *kvs)
+kvs_rest_register(struct ikvdb *const kvdb, const char *kvs_name, struct kvdb_kvs *kvs)
 {
     merr_t err = 0;
     merr_t status;
@@ -661,13 +895,23 @@ kvs_rest_register(struct ikvdb *const kvdb, const char *kvs_name, void *kvs)
 
     status = rest_url_register(
         kvs,
+        0,
+        rest_kvs_param_get,
+        rest_kvs_param_put,
+        "kvdb/%s/kvs/%s/params",
+        ikvdb_alias(kvdb),
+        kvs_name);
+    if (ev(status) && !err)
+        err = status;
+
+    status = rest_url_register(
+        kvs,
         URL_FLAG_EXACT,
         rest_kvs_tree,
         0,
         "kvdb/%s/kvs/%s/cn/tree",
         ikvdb_alias(kvdb),
         kvs_name);
-
     if (ev(status) && !err)
         err = status;
 

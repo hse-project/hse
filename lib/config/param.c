@@ -4,6 +4,7 @@
  */
 
 #include <fenv.h>
+#include <pthread.h>
 #include <stdbool.h>
 #include <stdint.h>
 #include <string.h>
@@ -13,12 +14,83 @@
 #include <bsd/string.h>
 
 #include <hse_ikvdb/param.h>
+#include <hse_ikvdb/hse_gparams.h>
+#include <hse_ikvdb/kvdb_cparams.h>
+#include <hse_ikvdb/kvdb_rparams.h>
+#include <hse_ikvdb/kvs_cparams.h>
+#include <hse_ikvdb/kvs_rparams.h>
+
 #include <hse_util/storage.h>
 #include <hse_util/log2.h>
+#include <hse_util/invariant.h>
 
 #include "logging.h"
 
 #define IS_WHOLE(_val) (round(_val) == _val)
+
+cJSON *
+param_to_json(
+    const struct params *const     params,
+    const struct param_spec *const pspecs,
+    const size_t                   pspecs_sz)
+{
+    cJSON *root;
+
+    INVARIANT(params);
+    INVARIANT(pspecs);
+    INVARIANT(pspecs_sz > 0);
+
+    root = cJSON_CreateObject();
+
+    for (size_t i = 0; i < pspecs_sz; i++) {
+        const struct param_spec *ps = &pspecs[i];
+        const void *             data = (char *)params->p_params.as_generic + ps->ps_offset;
+        cJSON *                  item, *node = root;
+        char *                   dup = strdup(ps->ps_name);
+        char *                   key = dup;
+        char *                   check = strchr(key, '.');
+        bool                     res;
+
+        if (!key)
+            goto out;
+
+        item = ps->ps_jsonify(ps, data);
+        if (!item)
+            goto out;
+
+        while (check) {
+            cJSON *   stash;
+            const int idx = (uintptr_t)(check - key);
+
+            key[idx] = '\0';
+            stash = node;
+            node = cJSON_GetObjectItemCaseSensitive(stash, key);
+            if (!node)
+                node = cJSON_AddObjectToObject(stash, key);
+            if (!node)
+                goto out;
+            key[idx] = '.';
+
+            /* Move past the dot */
+            key = check + 1;
+            assert(key[0] != '\0');
+
+            check = strchr(key, '.');
+        }
+
+        res = cJSON_AddItemToObject(node, key, item);
+        free(dup);
+        if (!res)
+            goto out;
+    }
+
+    return root;
+
+out:
+    cJSON_Delete(root);
+
+    return NULL;
+}
 
 void
 param_default_populate(
@@ -88,8 +160,7 @@ param_default_populate(
             case PARAM_TYPE_ARRAY:
             case PARAM_TYPE_OBJECT:
             default:
-                assert(false);
-                break;
+                abort();
         }
     }
 
@@ -338,11 +409,112 @@ param_default_converter(const struct param_spec *ps, const cJSON *node, void *va
         case PARAM_TYPE_ARRAY:
         case PARAM_TYPE_OBJECT:
         default:
-            assert(false);
-            break;
+            abort();
     }
 
     return true;
+}
+
+merr_t
+param_default_stringify(
+    const struct param_spec *const ps,
+    const void *const              value,
+    char *const                    buf,
+    const size_t                   buf_sz,
+    size_t *                       needed_sz)
+{
+    int n;
+
+    INVARIANT(ps);
+    INVARIANT(buf);
+    INVARIANT(value);
+
+    switch (ps->ps_type) {
+        case PARAM_TYPE_BOOL:
+            n = snprintf(buf, buf_sz, "%s", *(bool *)value ? "true" : "false");
+            break;
+        case PARAM_TYPE_I8:
+            n = snprintf(buf, buf_sz, "%d", *(int8_t *)value);
+            break;
+        case PARAM_TYPE_I16:
+            n = snprintf(buf, buf_sz, "%d", *(int16_t *)value);
+            break;
+        case PARAM_TYPE_I32:
+            n = snprintf(buf, buf_sz, "%d", *(int32_t *)value);
+            break;
+        case PARAM_TYPE_I64:
+            n = snprintf(buf, buf_sz, "%ld", *(int64_t *)value);
+            break;
+        case PARAM_TYPE_U8:
+            n = snprintf(buf, buf_sz, "%u", *(uint8_t *)value);
+            break;
+        case PARAM_TYPE_U16:
+            n = snprintf(buf, buf_sz, "%u", *(uint16_t *)value);
+            break;
+        case PARAM_TYPE_U32:
+            n = snprintf(buf, buf_sz, "%u", *(uint32_t *)value);
+            break;
+        case PARAM_TYPE_U64:
+            n = snprintf(buf, buf_sz, "%lu", *(uint64_t *)value);
+            break;
+        case PARAM_TYPE_ENUM:
+            n = snprintf(buf, buf_sz, "%d", *(int *)value);
+            break;
+        case PARAM_TYPE_STRING:
+            if (((char *)value)[0] == '\0') {
+                n = (int)strlcpy(buf, "null", buf_sz);
+            } else {
+                n = snprintf(buf, buf_sz, "\"%s\"", (char *)value);
+            }
+            break;
+        case PARAM_TYPE_ARRAY:
+        case PARAM_TYPE_OBJECT:
+        default:
+            abort();
+    }
+
+    if (n < 0)
+        return merr(EBADMSG);
+    if (needed_sz)
+        *needed_sz = n;
+
+    return 0;
+}
+
+cJSON *
+param_default_jsonify(const struct param_spec *const ps, const void *const value)
+{
+    assert(ps);
+    assert(value);
+
+    switch (ps->ps_type) {
+        case PARAM_TYPE_BOOL:
+            return cJSON_CreateBool(*(bool *)value);
+        case PARAM_TYPE_I8:
+            return cJSON_CreateNumber(*(int8_t *)value);
+        case PARAM_TYPE_I16:
+            return cJSON_CreateNumber(*(int16_t *)value);
+        case PARAM_TYPE_I32:
+            return cJSON_CreateNumber(*(int32_t *)value);
+        case PARAM_TYPE_I64:
+            return cJSON_CreateNumber(*(int64_t *)value);
+        case PARAM_TYPE_U8:
+            return cJSON_CreateNumber(*(uint8_t *)value);
+        case PARAM_TYPE_U16:
+            return cJSON_CreateNumber(*(uint16_t *)value);
+        case PARAM_TYPE_U32:
+            return cJSON_CreateNumber(*(uint32_t *)value);
+        case PARAM_TYPE_U64:
+            return cJSON_CreateNumber(*(uint64_t *)value);
+        case PARAM_TYPE_ENUM:
+            return cJSON_CreateNumber(*(int *)value);
+        case PARAM_TYPE_STRING:
+            return cJSON_CreateString(value);
+        case PARAM_TYPE_ARRAY:
+        case PARAM_TYPE_OBJECT:
+        default:
+            abort();
+    }
 }
 
 bool
@@ -371,7 +543,7 @@ param_roundup_pow2(const struct param_spec *ps, const cJSON *node, void *value)
             *(uint32_t *)value = roundup_pow_of_two((unsigned long)to_conv);
             break;
         default:
-            return false;
+            abort();
     }
 
     return true;
@@ -500,8 +672,7 @@ param_default_validator(const struct param_spec *ps, const void *value)
         case PARAM_TYPE_ARRAY:
         case PARAM_TYPE_OBJECT:
         default:
-            assert(false);
-            break;
+            abort();
     }
 
     return false;
@@ -618,7 +789,7 @@ param_default_validator(const struct param_spec *ps, const void *value)
                 *(int64_t *)value = (uint64_t)tmp;                                                \
                 break;                                                                            \
             default:                                                                              \
-                assert(false);                                                                    \
+                abort();                                                                          \
         }                                                                                         \
                                                                                                   \
         return true;                                                                              \
@@ -630,3 +801,242 @@ STORAGE_CONVERTER(GB)
 STORAGE_CONVERTER(TB)
 
 #undef STORAGE_CONVERTER
+
+#define STORAGE_STRINGIFY(X)                                                        \
+    merr_t param_stringify_bytes_to_##X(                                            \
+        const struct param_spec *const ps,                                          \
+        const void *const              value,                                       \
+        char *const                    buf,                                         \
+        const size_t                   buf_sz,                                      \
+        size_t *                       needed_sz)                                   \
+    {                                                                               \
+        int n;                                                                      \
+                                                                                    \
+        switch (ps->ps_type) {                                                      \
+            case PARAM_TYPE_I8:                                                     \
+                n = snprintf(buf, buf_sz, "%ld", *(int8_t *)value / (int64_t)X);    \
+                break;                                                              \
+            case PARAM_TYPE_I16:                                                    \
+                n = snprintf(buf, buf_sz, "%ld", *(int16_t *)value / (int64_t)X);   \
+                break;                                                              \
+            case PARAM_TYPE_I32:                                                    \
+                n = snprintf(buf, buf_sz, "%ld", *(int32_t *)value / (int64_t)X);   \
+                break;                                                              \
+            case PARAM_TYPE_I64:                                                    \
+                n = snprintf(buf, buf_sz, "%ld", *(int64_t *)value / (int64_t)X);   \
+                break;                                                              \
+            case PARAM_TYPE_U8:                                                     \
+                n = snprintf(buf, buf_sz, "%lu", *(uint8_t *)value / (uint64_t)X);  \
+                break;                                                              \
+            case PARAM_TYPE_U16:                                                    \
+                n = snprintf(buf, buf_sz, "%lu", *(uint16_t *)value / (uint64_t)X); \
+                break;                                                              \
+            case PARAM_TYPE_U32:                                                    \
+                n = snprintf(buf, buf_sz, "%lu", *(uint32_t *)value / (uint64_t)X); \
+                break;                                                              \
+            case PARAM_TYPE_U64:                                                    \
+                n = snprintf(buf, buf_sz, "%lu", *(uint64_t *)value / (uint64_t)X); \
+                break;                                                              \
+            default:                                                                \
+                abort();                                                            \
+        }                                                                           \
+                                                                                    \
+        if (n < 0)                                                                  \
+            return merr(EBADMSG);                                                   \
+        if (needed_sz)                                                              \
+            *needed_sz = n;                                                         \
+                                                                                    \
+        return 0;                                                                   \
+    }
+
+STORAGE_STRINGIFY(KB)
+STORAGE_STRINGIFY(MB)
+STORAGE_STRINGIFY(GB)
+STORAGE_STRINGIFY(TB)
+
+#undef STORAGE_STRINGIFY
+
+#define STORAGE_JSONIFY(X)                                                                        \
+    cJSON *param_jsonify_bytes_to_##X(const struct param_spec *const ps, const void *const value) \
+    {                                                                                             \
+        switch (ps->ps_type) {                                                                    \
+            case PARAM_TYPE_I8:                                                                   \
+                return cJSON_CreateNumber(*(int8_t *)value / (double)X);                          \
+            case PARAM_TYPE_I16:                                                                  \
+                return cJSON_CreateNumber(*(int16_t *)value / (double)X);                         \
+            case PARAM_TYPE_I32:                                                                  \
+                return cJSON_CreateNumber(*(int32_t *)value / (double)X);                         \
+            case PARAM_TYPE_I64:                                                                  \
+                return cJSON_CreateNumber(*(int64_t *)value / (double)X);                         \
+            case PARAM_TYPE_U8:                                                                   \
+                return cJSON_CreateNumber(*(uint8_t *)value / (double)X);                         \
+            case PARAM_TYPE_U16:                                                                  \
+                return cJSON_CreateNumber(*(uint16_t *)value / (double)X);                        \
+            case PARAM_TYPE_U32:                                                                  \
+                return cJSON_CreateNumber(*(uint32_t *)value / (double)X);                        \
+            case PARAM_TYPE_U64:                                                                  \
+                return cJSON_CreateNumber(*(uint64_t *)value / (double)X);                        \
+            default:                                                                              \
+                abort();                                                                          \
+        }                                                                                         \
+    }
+
+STORAGE_JSONIFY(KB)
+STORAGE_JSONIFY(MB)
+STORAGE_JSONIFY(GB)
+STORAGE_JSONIFY(TB)
+
+merr_t
+param_get(
+    const struct params *const     params,
+    const struct param_spec *const pspecs,
+    const size_t                   pspecs_sz,
+    const char *const              param,
+    char *const                    buf,
+    const size_t                   buf_sz,
+    size_t *const                  needed_sz)
+{
+    const struct param_spec *ps = NULL;
+
+    if (!params || !params->p_params.as_generic || !pspecs || !param)
+        return merr(EINVAL);
+
+    for (size_t i = 0; i < pspecs_sz; i++)
+        if (!strcmp(pspecs[i].ps_name, param))
+            ps = &pspecs[i];
+
+    if (!ps)
+        return merr(EINVAL);
+
+    assert(ps->ps_stringify);
+    return ps->ps_stringify(
+        ps, (char *)params->p_params.as_generic + ps->ps_offset, buf, buf_sz, needed_sz);
+}
+
+MTF_STATIC size_t
+params_size(const struct params *const params)
+{
+    switch (params->p_type) {
+    case PARAMS_HSE_GP:
+        return sizeof(struct hse_gparams);
+    case PARAMS_KVDB_CP:
+        return sizeof(struct kvdb_cparams);
+    case PARAMS_KVDB_RP:
+        return sizeof(struct kvdb_rparams);
+    case PARAMS_KVS_CP:
+        return sizeof(struct kvs_cparams);
+    case PARAMS_KVS_RP:
+        return sizeof(struct kvs_rparams);
+    default:
+        abort();
+    }
+}
+
+merr_t
+param_set(
+    const struct params *const     params,
+    const struct param_spec *const pspecs,
+    const size_t                   pspecs_sz,
+    const char *const              param,
+    const char *const              value)
+{
+    merr_t                   err = 0;
+    cJSON *                  node;
+    const struct param_spec *ps = NULL;
+    size_t                   n;
+    void *                   new = NULL;
+    void *                   data;
+    int                      rc HSE_MAYBE_UNUSED;
+    static pthread_mutex_t   lock = PTHREAD_MUTEX_INITIALIZER;
+
+    INVARIANT(params);
+    INVARIANT(pspecs);
+    INVARIANT(pspecs_sz > 0);
+    INVARIANT(param);
+    INVARIANT(value);
+
+    node = cJSON_Parse(value);
+    if (!node) {
+        if (cJSON_GetErrorPtr()) {
+            log_err("Failed to parse %s %s: %s", params_logging_context(params), param, value);
+            return merr(EINVAL);
+        } else {
+            return merr(ENOMEM);
+        }
+    }
+
+    for (size_t i = 0; i < pspecs_sz; i++) {
+        if (!strcmp(pspecs[i].ps_name, param)) {
+            ps = &pspecs[i];
+        }
+    }
+
+    if (!ps) {
+        log_err("Unknown parameter %s", param);
+        err = merr(EINVAL);
+        goto out;
+    }
+
+    if (!(ps->ps_flags & PARAM_FLAG_WRITABLE)) {
+        log_err("%s is not writable", param);
+        err = merr(EINVAL);
+        goto out;
+    }
+
+    n = params_size(params);
+
+    new = malloc(n);
+    if (!new) {
+        err = merr(ENOMEM);
+        goto out;
+    }
+
+    memcpy(new, params->p_params.as_generic, n);
+
+    data = (char *)new + ps->ps_offset;
+
+    if (!ps->ps_convert(ps, node, data)) {
+        log_err("Failed to convert %s %s", params_logging_context(params), param);
+        err = merr(EINVAL);
+        goto out;
+    }
+
+    if (!ps->ps_validate(ps, data)) {
+        log_err("Failed to validate %s %s", params_logging_context(params), param);
+        err = merr(EINVAL);
+        goto out;
+    }
+
+    if (ps->ps_validate_relations &&!ps->ps_validate_relations(ps,
+            &(struct params){ .p_params = { .as_generic = new }, .p_type = PARAMS_GEN})) {
+        log_err(
+            "Failed to validate parameter relationships for %s %s",
+            params_logging_context(params),
+            ps->ps_name);
+        err = merr(EINVAL);
+        goto out;
+    }
+
+    rc = pthread_mutex_lock(&lock);
+    assert(!rc);
+
+    /* [HSE_REVISIT]: This is a race condition. The way params are currently
+     * designed doesn't allow for mutexes to be a part of the equation easily.
+     * So when we do this memcpy(), there is a chance someone somewhere could be
+     * reading the exact same value we are changing. I think one solution we
+     * could follow-up with is a registration system, where components register
+     * to be notified when values change.
+     */
+
+    assert(ps->ps_size > 0);
+    memcpy((char *)params->p_params.as_generic + ps->ps_offset, data, ps->ps_size);
+
+    rc = pthread_mutex_unlock(&lock);
+    assert(!rc);
+
+out:
+    free(new);
+    cJSON_Delete(node);
+
+    return err;
+}

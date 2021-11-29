@@ -89,16 +89,15 @@ struct mblock_file_params {
 };
 
 /**
- * struct mblock_file_stats - mblock file stats
+ * struct mblock_file_info - mblock file info
  *
  * @allocated: allocated bytes
  * @used:      used bytes
  * @mbcnt:     mblock count
  */
-struct mblock_file_stats {
+struct mblock_file_info {
     uint64_t allocated;
     uint64_t used;
-    uint32_t mbcnt;
 };
 
 /**
@@ -281,12 +280,12 @@ merr_t
 mblock_file_unmap(struct mblock_file *mbfp, uint64_t mbid);
 
 /**
- * mblock_file_stats_get() - get mblock file stats
+ * mblock_file_info_get() - get mblock file info
  *
  * @mbfp:  mblock file handle
- * @stats: mblock file stats (output)
+ * @info: mblock file info (output)
  */
 merr_t
-mblock_file_stats_get(struct mblock_file *mbfp, struct mblock_file_stats *stats);
+mblock_file_info_get(struct mblock_file *mbfp, struct mblock_file_info *info);
 
 #endif /* MPOOL_MBLOCK_FILE_H */

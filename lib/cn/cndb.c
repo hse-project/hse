@@ -134,23 +134,24 @@ cndb_info2omf(int hdr_type, const struct cndb_cn *cn, struct cndb_info_omf *inf)
 merr_t
 cndb_alloc(struct mpool *mp, u64 *captgt, u64 *oid1_out, u64 *oid2_out)
 {
-    merr_t err;
-    size_t capacity;
-    int    i;
+    merr_t                    err;
+    size_t                    capacity;
+    int                       i;
+    struct mpool_mclass_props props;
 
     if (captgt && *captgt)
         capacity = *captgt;
     else
         capacity = CNDB_CAPTGT_DEFAULT;
 
-    for (i = MP_MED_COUNT - 1; i >= MP_MED_BASE; i--) {
-        err = mpool_mclass_props_get(mp, i, NULL);
+    for (i = HSE_MCLASS_COUNT - 1; i >= HSE_MCLASS_BASE; i--) {
+        err = mpool_mclass_props_get(mp, i, &props);
         if (!err)
             break;
     }
-    assert(i >= MP_MED_BASE);
+    assert(i >= HSE_MCLASS_BASE);
 
-    if (i < MP_MED_BASE)
+    if (i < HSE_MCLASS_BASE)
         return merr(ENOENT);
 
     err = mpool_mdc_alloc(mp, CNDB_MAGIC, capacity, i, oid1_out, oid2_out);
@@ -2905,12 +2906,6 @@ cndb_close(struct cndb *cndb)
     free(cndb);
 
     return err;
-}
-
-merr_t
-cndb_usage(struct cndb *cndb, uint64_t *allocated, uint64_t *used)
-{
-    return mpool_mdc_usage(cndb->cndb_mdc, allocated, used);
 }
 
 struct kvs_cparams *

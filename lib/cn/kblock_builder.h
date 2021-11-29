@@ -18,7 +18,7 @@ struct blk_list;
 struct kvs_rparams;
 struct cn_merge_stats;
 
-enum mpool_mclass;
+enum hse_mclass;
 enum hse_mclass_policy_age;
 
 struct kbb_key_stats {
@@ -130,7 +130,7 @@ kbb_finish(struct kblock_builder *bld, struct blk_list *kblks, u64 seqno_min, u6
 
 /* MTF_MOCK */
 size_t
-kbb_estimate_alen(struct cn *cn, size_t wlen, enum mpool_mclass mclass);
+kbb_estimate_alen(struct cn *cn, size_t wlen, enum hse_mclass mclass);
 
 void
 kbb_set_agegroup(struct kblock_builder *bld, enum hse_mclass_policy_age age);

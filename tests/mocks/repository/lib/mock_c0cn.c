@@ -800,7 +800,7 @@ static struct mapi_injection kvdb_meta_inject_list[] = {
     { mapi_idx_kvdb_meta_create,           MAPI_RC_SCALAR, 0 },
     { mapi_idx_kvdb_meta_destroy,          MAPI_RC_SCALAR, 0 },
     { mapi_idx_kvdb_meta_serialize,        MAPI_RC_SCALAR, 0 },
-    { mapi_idx_kvdb_meta_usage,            MAPI_RC_SCALAR, 0 },
+    { mapi_idx_kvdb_meta_upgrade,            MAPI_RC_SCALAR, 0 },
     { mapi_idx_kvdb_meta_to_mpool_rparams, MAPI_RC_SCALAR, 0 },
     { mapi_idx_kvdb_meta_to_mpool_dparams, MAPI_RC_SCALAR, 0 },
     { -1 },
@@ -821,7 +821,7 @@ _kvdb_meta_deserialize(struct kvdb_meta *meta, const char *kvdb_home)
     meta->km_wal.oid1 = 3;
     meta->km_wal.oid2 = 4;
 
-    for (i = MP_MED_BASE; i < MP_MED_COUNT; i++)
+    for (i = HSE_MCLASS_BASE; i < HSE_MCLASS_COUNT; i++)
         strlcpy(meta->km_storage[i].path, mpool_mclass_to_string[i],
                 sizeof(meta->km_storage[i].path));
 
