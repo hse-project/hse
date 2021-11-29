@@ -29,7 +29,7 @@ struct kvdb_meta {
     } km_wal;
     struct {
         char path[PATH_MAX];
-    } km_storage[MP_MED_COUNT];
+    } km_storage[HSE_MCLASS_COUNT];
 };
 
 /**

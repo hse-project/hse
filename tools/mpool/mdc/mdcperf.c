@@ -261,7 +261,7 @@ thread_create(
     return 0;
 }
 
-static unsigned int mclass = MP_MED_CAPACITY;
+static unsigned int mclass = HSE_MCLASS_CAPACITY;
 
 struct ml_writer_args {
     struct mpool   *mp;
@@ -690,15 +690,15 @@ perf_seq_writes(const char *path)
     struct oid_pair       *oid;
     uint64_t               capacity;
 
-    mclass = MP_MED_CAPACITY;
+    mclass = HSE_MCLASS_CAPACITY;
     tc = opt.threads;
 
     ret = pattern_base(NULL);
     if (ret == -1)
         return merr(EINVAL);
 
-    strlcpy(params.mclass[MP_MED_CAPACITY].path, path,
-            sizeof(params.mclass[MP_MED_CAPACITY].path));
+    strlcpy(params.mclass[HSE_MCLASS_CAPACITY].path, path,
+            sizeof(params.mclass[HSE_MCLASS_CAPACITY].path));
     /* 2. Open the mpool */
     err = mpool_open(path, &params, O_RDWR, &mp);
     if (err) {
@@ -1078,8 +1078,8 @@ main(int argc, char **argv)
     }
 
     mpool_cparams_defaults(&cparams);
-    strlcpy(cparams.mclass[MP_MED_CAPACITY].path, path,
-            sizeof(cparams.mclass[MP_MED_CAPACITY].path));
+    strlcpy(cparams.mclass[HSE_MCLASS_CAPACITY].path, path,
+            sizeof(cparams.mclass[HSE_MCLASS_CAPACITY].path));
     err = mpool_create(path, &cparams);
     if (err) {
         fprintf(stderr, "mpool creation at path %s failed\n", path);
@@ -1092,8 +1092,8 @@ main(int argc, char **argv)
     else
         perf_seq_reads(path);
 
-    strlcpy(dparams.mclass[MP_MED_CAPACITY].path, path,
-            sizeof(dparams.mclass[MP_MED_CAPACITY].path));
+    strlcpy(dparams.mclass[HSE_MCLASS_CAPACITY].path, path,
+            sizeof(dparams.mclass[HSE_MCLASS_CAPACITY].path));
     err = mpool_destroy(path, &dparams);
     if (err) {
         fprintf(stderr, "mpool destroy at path %s failed\n", path);

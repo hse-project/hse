@@ -19,7 +19,7 @@ struct wal_replay_info;
 struct wal_fileset *
 wal_fileset_open(
     struct mpool     *mp,
-    enum mpool_mclass mclass,
+    enum hse_mclass mclass,
     size_t            capacity,
     uint32_t          magic,
     uint32_t          vers);
@@ -32,7 +32,7 @@ wal_fileset_close(
     uint64_t            txhorizon);
 
 void
-wal_fileset_mclass_update(struct wal_fileset *wfset, enum mpool_mclass mclass);
+wal_fileset_mclass_update(struct wal_fileset *wfset, enum hse_mclass mclass);
 
 merr_t
 wal_file_open(

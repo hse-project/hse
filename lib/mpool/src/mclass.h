@@ -55,7 +55,7 @@ struct mclass_params {
  */
 merr_t
 mclass_open(
-    enum mpool_mclass           mclass,
+    enum hse_mclass           mclass,
     const struct mclass_params *params,
     int                         flags,
     struct media_class **       handle);
@@ -124,14 +124,14 @@ mclass_fset(struct media_class *mc);
  * @mclass: media class
  */
 enum mclass_id
-mclass_to_mcid(enum mpool_mclass mclass);
+mclass_to_mcid(enum hse_mclass mclass);
 
 /**
  * mcid_to_mclass() - convert mclass ID to mclass
  *
  * @mcid: media class ID
  */
-enum mpool_mclass
+enum hse_mclass
 mcid_to_mclass(enum mclass_id mcid);
 
 /**

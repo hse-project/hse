@@ -297,12 +297,12 @@ ikvdb_pmem_only_from_cparams(
     }
     *pmem_only = daxhome;
 
-    for (i = MP_MED_BASE; *pmem_only && i < MP_MED_COUNT; i++) {
-        if (i != MP_MED_PMEM)
+    for (i = HSE_MCLASS_BASE; *pmem_only && i < HSE_MCLASS_COUNT; i++) {
+        if (i != HSE_MCLASS_PMEM)
             *pmem_only = (cparams->storage.mclass[i].path[0] == '\0');
     }
 
-    if (daxhome && !(*pmem_only) && cparams->storage.mclass[MP_MED_CAPACITY].path[0] == '\0') {
+    if (daxhome && !(*pmem_only) && cparams->storage.mclass[HSE_MCLASS_CAPACITY].path[0] == '\0') {
         log_err("Mandatory capacity mclass path not provided for KVDB (%s), "
                 "unable to use the default path", kvdb_home);
         return merr(EINVAL);
@@ -327,7 +327,7 @@ ikvdb_create(const char *kvdb_home, struct kvdb_cparams *params, bool pmem_only)
     if (ev(err))
         goto out;
 
-    for (int i = 0; i < MP_MED_COUNT; i++) {
+    for (int i = 0; i < HSE_MCLASS_COUNT; i++) {
         if (params->storage.mclass[i].path[0] != '\0') {
             strlcpy(
                 mp_rparams.mclass[i].path,
@@ -340,7 +340,7 @@ ikvdb_create(const char *kvdb_home, struct kvdb_cparams *params, bool pmem_only)
     if (ev(err))
         goto mpool_cleanup;
 
-    for (int i = 0; i < MP_MED_COUNT; i++) {
+    for (int i = 0; i < HSE_MCLASS_COUNT; i++) {
         struct mpool_mclass_props mcprops;
 
         err = mpool_mclass_props_get(mp, i, &mcprops);
@@ -392,7 +392,7 @@ mpool_cleanup:
     {
         struct mpool_dparams mp_dparams;
 
-        for (int i = 0; i < MP_MED_COUNT; i++) {
+        for (int i = 0; i < HSE_MCLASS_COUNT; i++) {
             if (params->storage.mclass[i].path[0] != '\0') {
                 strlcpy(
                     mp_dparams.mclass[i].path,
@@ -428,12 +428,12 @@ ikvdb_pmem_only_from_meta(const char *kvdb_home, const struct kvdb_meta *meta, b
          return err;
     }
 
-    for (i = MP_MED_BASE; *pmem_only && i < MP_MED_COUNT; i++) {
-        *pmem_only = ((i != MP_MED_PMEM) ? (meta->km_storage[i].path[0] == '\0') :
+    for (i = HSE_MCLASS_BASE; *pmem_only && i < HSE_MCLASS_COUNT; i++) {
+        *pmem_only = ((i != HSE_MCLASS_PMEM) ? (meta->km_storage[i].path[0] == '\0') :
             (meta->km_storage[i].path[0] != '\0'));
     }
 
-    if (!(*pmem_only) && meta->km_storage[MP_MED_CAPACITY].path[0] == '\0') {
+    if (!(*pmem_only) && meta->km_storage[HSE_MCLASS_CAPACITY].path[0] == '\0') {
         log_err("Mandatory capacity mclass path not set for a standard KVDB (%s)", kvdb_home);
         return merr(EINVAL);
     }
@@ -446,7 +446,7 @@ ikvdb_storage_add(const char *kvdb_home, struct kvdb_cparams *params)
 {
     struct kvdb_meta  meta;
     merr_t            err;
-    bool              mc_present[MP_MED_COUNT] = {0}, pmem_only;
+    bool              mc_present[HSE_MCLASS_COUNT] = {0}, pmem_only;
     int               i;
 
     assert(kvdb_home);
@@ -467,14 +467,14 @@ ikvdb_storage_add(const char *kvdb_home, struct kvdb_cparams *params)
     if (err)
         return err;
 
-    if (pmem_only != (params->storage.mclass[MP_MED_CAPACITY].path[0] != '\0')) {
+    if (pmem_only != (params->storage.mclass[HSE_MCLASS_CAPACITY].path[0] != '\0')) {
         log_err("Cannot add storage to a %s KVDB (%s): capacity mclass must be %s",
                 pmem_only ? "pmem-only" : "standard", kvdb_home,
                 pmem_only ? "added before other media classes" : "provided at create time");
         return merr(EINVAL);
     }
 
-    for (i = MP_MED_BASE; i < MP_MED_COUNT; i++) {
+    for (i = HSE_MCLASS_BASE; i < HSE_MCLASS_COUNT; i++) {
         if (params->storage.mclass[i].path[0] != '\0') {
             char buf[PATH_MAX];
             int j;
@@ -484,7 +484,7 @@ ikvdb_storage_add(const char *kvdb_home, struct kvdb_cparams *params)
                 goto errout;
             }
 
-            static_assert(sizeof(buf) == sizeof(params->storage.mclass[MP_MED_BASE].path),
+            static_assert(sizeof(buf) == sizeof(params->storage.mclass[HSE_MCLASS_BASE].path),
                           "mismatched buffer sizes");
 
             err = kvdb_home_storage_path_get(kvdb_home, params->storage.mclass[i].path,
@@ -494,7 +494,7 @@ ikvdb_storage_add(const char *kvdb_home, struct kvdb_cparams *params)
 
             strlcpy(params->storage.mclass[i].path, buf, sizeof(params->storage.mclass[i].path));
 
-            for (j = i - 1; j >= MP_MED_BASE; j--) {
+            for (j = i - 1; j >= HSE_MCLASS_BASE; j--) {
                 if (meta.km_storage[j].path[0] != '\0') {
                     char rpath1[PATH_MAX], rpath2[PATH_MAX];
 
@@ -533,7 +533,7 @@ errout:
     {
         struct mpool_dparams dparams = {0};
 
-        for (i = MP_MED_BASE; i < MP_MED_COUNT; i++) {
+        for (i = HSE_MCLASS_BASE; i < HSE_MCLASS_COUNT; i++) {
             if (mc_present[i]) {
                 strlcpy(dparams.mclass[i].path, params->storage.mclass[i].path,
                         sizeof(dparams.mclass[i].path));
@@ -587,7 +587,7 @@ ikvdb_mclass_info_get(
 
     self = ikvdb_h2r(kvdb);
 
-    return mpool_mclass_info_get(self->ikdb_mp, (enum mpool_mclass)mclass, info);
+    return mpool_mclass_info_get(self->ikdb_mp, (enum hse_mclass)mclass, info);
 }
 
 static inline void
@@ -1301,7 +1301,7 @@ ikvdb_open(
     if (ev(err))
         goto out;
 
-    for (int i = 0; i < MP_MED_COUNT; i++) {
+    for (int i = 0; i < HSE_MCLASS_COUNT; i++) {
         struct mpool_mclass_props mcprops;
 
         err = mpool_mclass_props_get(self->ikdb_mp, i, &mcprops);
@@ -1443,7 +1443,7 @@ ikvdb_open(
     if (self->ikdb_pmem_only) {
         log_info("KVDB (%s) is pmem-only, setting the durability.mclass policy to \"pmem_only\"",
                  kvdb_home);
-        self->ikdb_rp.dur_mclass = MP_MED_PMEM;
+        self->ikdb_rp.dur_mclass = HSE_MCLASS_PMEM;
     }
 
     err = wal_open(self->ikdb_mp, &self->ikdb_rp, &rinfo, &self->ikdb_handle, &self->ikdb_health,
@@ -1847,7 +1847,7 @@ ikvdb_param_get(
     if (err)
         return err;
 
-    for (int i = MP_MED_BASE; i < MP_MED_COUNT; i++) {
+    for (int i = HSE_MCLASS_BASE; i < HSE_MCLASS_COUNT; i++) {
         cparams.storage.mclass[i].fmaxsz = props.mclass[i].mc_fmaxsz;
         cparams.storage.mclass[i].mblocksz = props.mclass[i].mc_mblocksz;
         cparams.storage.mclass[i].filecnt = props.mclass[i].mc_filecnt;
@@ -1968,7 +1968,7 @@ ikvdb_kvs_open(
 
     params->read_only = self->ikdb_rp.read_only; /* inherit from kvdb */
 
-    for (i = MP_MED_BASE; i < MP_MED_COUNT; i++) {
+    for (i = HSE_MCLASS_BASE; i < HSE_MCLASS_COUNT; i++) {
         if (strstr(params->mclass_policy, mpool_mclass_to_string[i])) {
             struct mpool_mclass_props props;
             err = mpool_mclass_props_get(self->ikdb_mp, i, &props);

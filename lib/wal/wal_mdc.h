@@ -14,7 +14,7 @@ struct wal_mdc;
 merr_t
 wal_mdc_create(
     struct mpool     *mp,
-    enum mpool_mclass mclass,
+    enum hse_mclass mclass,
     size_t            capacity,
     uint64_t         *mdcid1,
     uint64_t         *mdcid2);

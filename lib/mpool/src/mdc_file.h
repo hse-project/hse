@@ -6,6 +6,8 @@
 #ifndef MPOOL_MDC_FILE_H
 #define MPOOL_MDC_FILE_H
 
+#include <stdint.h>
+
 #include <hse_util/hse_err.h>
 #include <hse_ikvdb/omf_version.h>
 
@@ -51,7 +53,7 @@ struct mdc_rechdr {
 };
 
 static inline uint64_t
-logid_make(u8 fid, enum mclass_id mcid, uint32_t magic)
+logid_make(uint8_t fid, enum mclass_id mcid, uint32_t magic)
 {
     return (uint64_t)fid << 34 | (uint64_t)mcid << 32 | magic;
 }

@@ -113,7 +113,7 @@ rest_kvdb_home_get(
     char          buf[PATH_MAX + 2];
     struct ikvdb *kvdb = context;
     const char *  home = ikvdb_home(kvdb);
-    int           n;
+    int           n HSE_MAYBE_UNUSED;
 
     n = snprintf(buf, sizeof(buf), "\"%s\"", home);
     assert(n >= 0 && n < sizeof(buf));
@@ -302,7 +302,7 @@ rest_kvdb_mclass_info_get(
     void *            context)
 {
     merr_t                 err = 0;
-    enum hse_mclass        mclass = MP_MED_INVALID;
+    enum hse_mclass        mclass = HSE_MCLASS_INVALID;
     struct hse_mclass_info mc_info;
     cJSON *                root;
     char *                 str;
@@ -314,7 +314,7 @@ rest_kvdb_mclass_info_get(
         }
     }
 
-    assert(mclass != MP_MED_INVALID);
+    assert(mclass != HSE_MCLASS_INVALID);
 
     err = ikvdb_mclass_info_get((struct ikvdb *)context, mclass, &mc_info);
     if (err)

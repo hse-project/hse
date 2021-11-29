@@ -42,7 +42,7 @@ struct media_class {
 
 merr_t
 mclass_open(
-    enum mpool_mclass           mclass,
+    enum hse_mclass           mclass,
     const struct mclass_params *params,
     int                         flags,
     struct media_class **       handle)
@@ -51,7 +51,7 @@ mclass_open(
     DIR *               dirp;
     merr_t              err;
 
-    if (!params || !handle || mclass >= MP_MED_COUNT)
+    if (!params || !handle || mclass >= HSE_MCLASS_COUNT)
         return merr(EINVAL);
 
     dirp = opendir(params->path);
@@ -347,40 +347,40 @@ mclass_gclose_get(struct media_class *mc)
 }
 
 enum mclass_id
-mclass_to_mcid(enum mpool_mclass mclass)
+mclass_to_mcid(enum hse_mclass mclass)
 {
     switch (mclass) {
-    case MP_MED_CAPACITY:
+    case HSE_MCLASS_CAPACITY:
         return MCID_CAPACITY;
 
-    case MP_MED_STAGING:
+    case HSE_MCLASS_STAGING:
         return MCID_STAGING;
 
-    case MP_MED_PMEM:
+    case HSE_MCLASS_PMEM:
         return MCID_PMEM;
     }
 
     return MCID_INVALID;
 }
 
-enum mpool_mclass
+enum hse_mclass
 mcid_to_mclass(enum mclass_id mcid)
 {
     switch (mcid) {
     case MCID_INVALID:
-        return MP_MED_INVALID;
+        return HSE_MCLASS_INVALID;
 
     case MCID_CAPACITY:
-        return MP_MED_CAPACITY;
+        return HSE_MCLASS_CAPACITY;
 
     case MCID_STAGING:
-        return MP_MED_STAGING;
+        return HSE_MCLASS_STAGING;
 
     case MCID_PMEM:
-        return MP_MED_PMEM;
+        return HSE_MCLASS_PMEM;
     }
 
-    return MP_MED_INVALID;
+    return HSE_MCLASS_INVALID;
 }
 
 merr_t

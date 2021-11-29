@@ -44,11 +44,11 @@ struct wal_iocb {
 struct wal;
 struct mpool;
 
-enum mpool_mclass
+enum hse_mclass
 wal_dur_mclass_get(struct wal *wal);
 
 void
-wal_dur_mclass_set(struct wal *wal, enum mpool_mclass mclass);
+wal_dur_mclass_set(struct wal *wal, enum hse_mclass mclass);
 
 uint64_t
 wal_reclaim_gen_get(struct wal *wal);

@@ -35,7 +35,7 @@ mpool_mdc_alloc(
     struct mpool     *mp,
     uint32_t          magic,
     size_t            capacity,
-    enum mpool_mclass mclass,
+    enum hse_mclass mclass,
     uint64_t         *logid1,
     uint64_t         *logid2)
 {
@@ -44,7 +44,7 @@ mpool_mdc_alloc(
     merr_t   err;
     int      dirfd, flags, mode, i;
 
-    if (!mp || mclass >= MP_MED_COUNT || capacity < MDC_LOGHDR_LEN || !logid1 || !logid2)
+    if (!mp || mclass >= HSE_MCLASS_COUNT || capacity < MDC_LOGHDR_LEN || !logid1 || !logid2)
         return merr(EINVAL);
 
     err = mpool_mclass_dirfd(mp, mclass, &dirfd);

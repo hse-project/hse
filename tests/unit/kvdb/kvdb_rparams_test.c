@@ -559,14 +559,14 @@ MTF_DEFINE_UTEST_PRE(kvdb_rparams_test, durability_mclass, test_pre)
     ASSERT_EQ(0, ps->ps_flags);
     ASSERT_EQ(PARAM_TYPE_ENUM, ps->ps_type);
     ASSERT_EQ(offsetof(struct kvdb_rparams, dur_mclass), ps->ps_offset);
-    ASSERT_EQ(sizeof(enum mpool_mclass), ps->ps_size);
+    ASSERT_EQ(sizeof(enum hse_mclass), ps->ps_size);
     ASSERT_NE((uintptr_t)ps->ps_convert, (uintptr_t)param_default_converter);
     ASSERT_EQ((uintptr_t)ps->ps_validate, (uintptr_t)param_default_validator);
     ASSERT_NE((uintptr_t)ps->ps_stringify, (uintptr_t)param_default_stringify);
     ASSERT_NE((uintptr_t)ps->ps_jsonify, (uintptr_t)param_default_jsonify);
-    ASSERT_EQ(MP_MED_CAPACITY, params.dur_mclass);
-    ASSERT_EQ(MP_MED_BASE, ps->ps_bounds.as_enum.ps_min);
-    ASSERT_EQ(MP_MED_MAX, ps->ps_bounds.as_enum.ps_max);
+    ASSERT_EQ(HSE_MCLASS_CAPACITY, params.dur_mclass);
+    ASSERT_EQ(HSE_MCLASS_BASE, ps->ps_bounds.as_enum.ps_min);
+    ASSERT_EQ(HSE_MCLASS_MAX, ps->ps_bounds.as_enum.ps_max);
 
     ps->ps_stringify(ps, &params.dur_mclass, buf, sizeof(buf), &needed_sz);
     ASSERT_STREQ("\"" HSE_MCLASS_CAPACITY_NAME "\"", buf);

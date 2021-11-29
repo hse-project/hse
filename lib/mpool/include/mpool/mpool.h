@@ -6,6 +6,9 @@
 #ifndef MPOOL_H
 #define MPOOL_H
 
+#include <stdbool.h>
+#include <stdlib.h>
+
 #include <mpool/mpool_structs.h>
 
 #include <hse_util/hse_err.h>
@@ -14,6 +17,7 @@ struct mpool;            /* opaque mpool handle */
 struct mpool_mdc;        /* opaque MDC (metadata container) handle */
 struct mpool_mcache_map; /* opaque mcache map handle */
 struct mpool_file;       /* opaque mpool file handle */
+struct iovec;
 
 /* MTF_MOCK_DECL(mpool) */
 
@@ -21,7 +25,7 @@ struct mpool_file;       /* opaque mpool file handle */
  * Mpool Administrative APIs...
  */
 
-extern const char *const mpool_mclass_to_string[MP_MED_COUNT];
+extern const char *const mpool_mclass_to_string[HSE_MCLASS_COUNT];
 
 /**
  * mpool_create() - Create an mpool
@@ -46,22 +50,22 @@ mpool_cparams_defaults(struct mpool_cparams *cparams);
 /**
  * mpool_mclass_add() - Add a media class to the mpool
  *
- * @mclass   enum mpool_mclass, cannot be MP_MED_CAPACITY
+ * @mclass   enum hse_mclass, cannot be HSE_MCLASS_CAPACITY
  * @cparams: mpool cparams
  */
 /* MTF_MOCK */
 merr_t
-mpool_mclass_add(enum mpool_mclass mclass, const struct mpool_cparams *cparams);
+mpool_mclass_add(enum hse_mclass mclass, const struct mpool_cparams *cparams);
 
 /**
  * mpool_mclass_destroy() - Destroy the specified mclass (used only during error path cleanup)
  *
- * @mclass   enum mpool_mclass, cannot be MP_MED_CAPACITY
+ * @mclass   enum hse_mclass, cannot be HSE_MCLASS_CAPACITY
  * @dparams: mpool dparams
  */
 /* MTF_MOCK */
 void
-mpool_mclass_destroy(enum mpool_mclass mclass, const struct mpool_dparams *dparams);
+mpool_mclass_destroy(enum hse_mclass mclass, const struct mpool_dparams *dparams);
 
 /**
  * mpool_open() - Open an mpool
@@ -115,7 +119,7 @@ mpool_destroy(const char *home, const struct mpool_dparams *dparams);
 merr_t
 mpool_mclass_props_get(
     struct mpool *             mp,
-    enum mpool_mclass          mclass,
+    enum hse_mclass          mclass,
     struct mpool_mclass_props *props);
 
 /**
@@ -130,20 +134,20 @@ mpool_mclass_props_get(
  */
 /* MTF_MOCK */
 merr_t
-mpool_mclass_info_get(struct mpool *mp, enum mpool_mclass mclass, struct hse_mclass_info *info);
+mpool_mclass_info_get(struct mpool *mp, enum hse_mclass mclass, struct hse_mclass_info *info);
 
 /**
  * mpool_mclass_ftw() - walk files in 'mclass' and invoke cb for each file matching 'prefix'
  *
  * @mp:     mpool descriptor
- * @mclass: enum mpool_mclass
+ * @mclass: enum hse_mclass
  * @prefix: file prefix
  * @cb:     instance of struct mpool_file_cb
  */
 merr_t
 mpool_mclass_ftw(
     struct mpool         *mp,
-    enum mpool_mclass     mclass,
+    enum hse_mclass     mclass,
     const char           *prefix,
     struct mpool_file_cb *cb);
 
@@ -188,7 +192,7 @@ mpool_mdc_alloc(
     struct mpool *    mp,
     uint32_t          magic,
     size_t            capacity,
-    enum mpool_mclass mclass,
+    enum hse_mclass mclass,
     uint64_t *        logid1,
     uint64_t *        logid2);
 
@@ -340,7 +344,7 @@ mpool_mdc_usage(struct mpool_mdc *mdc, uint64_t *allocated, uint64_t *used);
 merr_t
 mpool_mblock_alloc(
     struct mpool *       mp,
-    enum mpool_mclass    mclass,
+    enum hse_mclass    mclass,
     uint64_t *           mbid,
     struct mblock_props *props);
 
@@ -561,7 +565,7 @@ mpool_mcache_mincore(
 merr_t
 mpool_file_open(
     struct mpool       *mp,
-    enum mpool_mclass   mclass,
+    enum hse_mclass   mclass,
     const char         *name,
     int                 flags,
     size_t              capacity,
@@ -584,7 +588,7 @@ mpool_file_close(struct mpool_file *file);
  * @name:   file name
  */
 merr_t
-mpool_file_destroy(struct mpool *mp, enum mpool_mclass mclass, const char *name);
+mpool_file_destroy(struct mpool *mp, enum hse_mclass mclass, const char *name);
 
 /**
  * mpool_file_read() - Read an mpool file

@@ -103,7 +103,7 @@ merr_t
 kvdb_meta_serialize(const struct kvdb_meta *const meta, const char *const kvdb_home)
 {
     merr_t err = 0;
-    cJSON *root, *wal, *cndb, *storage, *mclass[MP_MED_COUNT];
+    cJSON *root, *wal, *cndb, *storage, *mclass[HSE_MCLASS_COUNT];
     char * str = NULL;
     size_t str_sz;
     size_t written;
@@ -161,7 +161,7 @@ kvdb_meta_serialize(const struct kvdb_meta *const meta, const char *const kvdb_h
         goto out;
     }
 
-    for (i = MP_MED_BASE; i < MP_MED_COUNT; i++) {
+    for (i = HSE_MCLASS_BASE; i < HSE_MCLASS_COUNT; i++) {
         mclass[i] = cJSON_AddObjectToObject(storage, mpool_mclass_to_string[i]);
         if (!mclass[i]) {
             err = merr(ENOMEM);
@@ -284,7 +284,7 @@ parse_v1(const cJSON *const root, struct kvdb_meta *const meta, const char *cons
     size_t n;
     double omf_version_val, cndb_oid1_val, cndb_oid2_val, wal_oid1_val, wal_oid2_val;
     cJSON *omf_version, *wal, *wal_oid1, *wal_oid2, *cndb, *cndb_oid1, *cndb_oid2, *storage;
-    cJSON *mclass[MP_MED_COUNT], *mclass_path[MP_MED_COUNT];
+    cJSON *mclass[HSE_MCLASS_COUNT], *mclass_path[HSE_MCLASS_COUNT];
     int i;
 
     INVARIANT(root);
@@ -306,8 +306,8 @@ parse_v1(const cJSON *const root, struct kvdb_meta *const meta, const char *cons
     if (!cJSON_IsObject(storage) || !check_storage_keys(storage))
         return merr(EPROTO);
 
-    for (i = MP_MED_BASE; i < MP_MED_COUNT; i++) {
-        if (i != MP_MED_PMEM) {
+    for (i = HSE_MCLASS_BASE; i < HSE_MCLASS_COUNT; i++) {
+        if (i != HSE_MCLASS_PMEM) {
             mclass[i] = cJSON_GetObjectItemCaseSensitive(storage, mpool_mclass_to_string[i]);
             if (!cJSON_IsObject(mclass[i]) || !check_media_class_keys(mclass[i]))
                 return merr(EPROTO);
@@ -324,11 +324,11 @@ parse_v1(const cJSON *const root, struct kvdb_meta *const meta, const char *cons
     if (!cJSON_IsNumber(wal_oid1) || !cJSON_IsNumber(wal_oid2))
         return merr(EPROTO);
 
-    for (i = MP_MED_BASE; i < MP_MED_COUNT; i++) {
-        if (i != MP_MED_PMEM) {
+    for (i = HSE_MCLASS_BASE; i < HSE_MCLASS_COUNT; i++) {
+        if (i != HSE_MCLASS_PMEM) {
             mclass_path[i] = cJSON_GetObjectItemCaseSensitive(mclass[i], "path");
 
-            if (i == MP_MED_CAPACITY && !cJSON_IsString(mclass_path[i]))
+            if (i == HSE_MCLASS_CAPACITY && !cJSON_IsString(mclass_path[i]))
                 return merr(EPROTO);
 
             if (!(cJSON_IsString(mclass_path[i]) || cJSON_IsNull(mclass_path[i])))
@@ -371,12 +371,12 @@ parse_v1(const cJSON *const root, struct kvdb_meta *const meta, const char *cons
     meta->km_wal.oid1 = wal_oid1_val;
     meta->km_wal.oid2 = wal_oid2_val;
 
-    for (i = MP_MED_BASE; i < MP_MED_COUNT; i++) {
-        if (i == MP_MED_PMEM) {
+    for (i = HSE_MCLASS_BASE; i < HSE_MCLASS_COUNT; i++) {
+        if (i == HSE_MCLASS_PMEM) {
             memset(meta->km_storage[i].path, 0, sizeof(meta->km_storage[i].path));
         } else {
             if (cJSON_IsNull(mclass_path[i])) {
-                assert(i != MP_MED_CAPACITY);
+                assert(i != HSE_MCLASS_CAPACITY);
                 memset(meta->km_storage[i].path, 0, sizeof(meta->km_storage[i].path));
             } else {
                 n = strlcpy(meta->km_storage[i].path, cJSON_GetStringValue(mclass_path[i]),
@@ -396,7 +396,7 @@ parse_v2(const cJSON *const root, struct kvdb_meta *const meta, const char *cons
     size_t n;
     double omf_version_val, cndb_oid1_val, cndb_oid2_val, wal_oid1_val, wal_oid2_val;
     cJSON *omf_version, *wal, *wal_oid1, *wal_oid2, *cndb, *cndb_oid1, *cndb_oid2, *storage;
-    cJSON *mclass[MP_MED_COUNT], *mclass_path[MP_MED_COUNT];
+    cJSON *mclass[HSE_MCLASS_COUNT], *mclass_path[HSE_MCLASS_COUNT];
     int i;
 
     INVARIANT(root);
@@ -418,7 +418,7 @@ parse_v2(const cJSON *const root, struct kvdb_meta *const meta, const char *cons
     if (!cJSON_IsObject(storage) || !check_storage_keys(storage))
         return merr(EPROTO);
 
-    for (i = MP_MED_BASE; i < MP_MED_COUNT; i++) {
+    for (i = HSE_MCLASS_BASE; i < HSE_MCLASS_COUNT; i++) {
         mclass[i] = cJSON_GetObjectItemCaseSensitive(storage, mpool_mclass_to_string[i]);
         if (!cJSON_IsObject(mclass[i]) || !check_media_class_keys(mclass[i]))
             return merr(EPROTO);
@@ -434,7 +434,7 @@ parse_v2(const cJSON *const root, struct kvdb_meta *const meta, const char *cons
     if (!cJSON_IsNumber(wal_oid1) || !cJSON_IsNumber(wal_oid2))
         return merr(EPROTO);
 
-    for (i = MP_MED_BASE; i < MP_MED_COUNT; i++) {
+    for (i = HSE_MCLASS_BASE; i < HSE_MCLASS_COUNT; i++) {
         mclass_path[i] = cJSON_GetObjectItemCaseSensitive(mclass[i], "path");
 
         if (!(cJSON_IsString(mclass_path[i]) || cJSON_IsNull(mclass_path[i])))
@@ -476,7 +476,7 @@ parse_v2(const cJSON *const root, struct kvdb_meta *const meta, const char *cons
     meta->km_wal.oid1 = wal_oid1_val;
     meta->km_wal.oid2 = wal_oid2_val;
 
-    for (i = MP_MED_BASE; i < MP_MED_COUNT; i++) {
+    for (i = HSE_MCLASS_BASE; i < HSE_MCLASS_COUNT; i++) {
         if (cJSON_IsNull(mclass_path[i])) {
             memset(meta->km_storage[i].path, 0, sizeof(meta->km_storage[i].path));
         } else {
@@ -624,18 +624,18 @@ kvdb_meta_upgrade(struct kvdb_meta *const meta, const char *const kvdb_home)
 }
 
 static_assert(
-    sizeof(((struct kvdb_meta *)0)->km_storage[MP_MED_BASE].path) ==
-        sizeof(((struct mpool_cparams *)0)->mclass[MP_MED_BASE].path),
+    sizeof(((struct kvdb_meta *)0)->km_storage[HSE_MCLASS_BASE].path) ==
+        sizeof(((struct mpool_cparams *)0)->mclass[HSE_MCLASS_BASE].path),
     "sizes of buffers differ");
 
 static_assert(
-    sizeof(((struct kvdb_meta *)0)->km_storage[MP_MED_BASE].path) ==
-        sizeof(((struct mpool_rparams *)0)->mclass[MP_MED_BASE].path),
+    sizeof(((struct kvdb_meta *)0)->km_storage[HSE_MCLASS_BASE].path) ==
+        sizeof(((struct mpool_rparams *)0)->mclass[HSE_MCLASS_BASE].path),
     "sizes of buffers differ");
 
 static_assert(
-    sizeof(((struct kvdb_meta *)0)->km_storage[MP_MED_BASE].path) ==
-        sizeof(((struct mpool_dparams *)0)->mclass[MP_MED_BASE].path),
+    sizeof(((struct kvdb_meta *)0)->km_storage[HSE_MCLASS_BASE].path) ==
+        sizeof(((struct mpool_dparams *)0)->mclass[HSE_MCLASS_BASE].path),
     "sizes of buffers differ");
 
 void
@@ -648,7 +648,7 @@ kvdb_meta_from_mpool_cparams(
     assert(kvdb_home);
     assert(params);
 
-    for (int i = MP_MED_BASE; i < MP_MED_COUNT; i++) {
+    for (int i = HSE_MCLASS_BASE; i < HSE_MCLASS_COUNT; i++) {
         const char *mc_path = params->mclass[i].path;
 
         /* strnlen() + 1 should move us past the final trailing / */
@@ -669,7 +669,7 @@ kvdb_meta_to_mpool_rparams(
     assert(kvdb_home);
     assert(params);
 
-    for (int i = MP_MED_BASE; i < MP_MED_COUNT; i++) {
+    for (int i = HSE_MCLASS_BASE; i < HSE_MCLASS_COUNT; i++) {
         merr_t err;
 
         err = kvdb_home_storage_path_get(kvdb_home, meta->km_storage[i].path,
@@ -691,7 +691,7 @@ kvdb_meta_to_mpool_dparams(
     assert(kvdb_home);
     assert(params);
 
-    for (int i = MP_MED_BASE; i < MP_MED_COUNT; i++) {
+    for (int i = HSE_MCLASS_BASE; i < HSE_MCLASS_COUNT; i++) {
         merr_t err;
 
         err = kvdb_home_storage_path_get(kvdb_home, meta->km_storage[i].path,
@@ -716,7 +716,7 @@ kvdb_meta_storage_add(
     assert(kvdb_home);
     assert(cparams);
 
-    for (i = MP_MED_BASE; i < MP_MED_COUNT; i++) {
+    for (i = HSE_MCLASS_BASE; i < HSE_MCLASS_COUNT; i++) {
         const char *path = cparams->mclass[i].path;
 
         if (path[0] != '\0') {

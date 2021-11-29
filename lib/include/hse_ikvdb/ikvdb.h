@@ -41,7 +41,7 @@ struct cndb;
 struct kvdb_diag_kvs_list;
 struct kvs;
 struct ikvdb_kvs_hdl;
-enum mpool_mclass;
+enum hse_mclass;
 
 struct hse_kvdb_txn {
 };

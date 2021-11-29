@@ -17,7 +17,7 @@ struct blk_list;
 struct kvs_rparams;
 struct cn_merge_stats;
 
-enum mpool_mclass;
+enum hse_mclass;
 enum hse_mclass_policy_age;
 
 /* MTF_MOCK_DECL(vblock_builder) */
@@ -70,7 +70,7 @@ vbb_finish(struct vblock_builder *bld, struct blk_list *vblks);
 
 /* MTF_MOCK */
 size_t
-vbb_estimate_alen(struct cn *cn, size_t wlen, enum mpool_mclass mclass);
+vbb_estimate_alen(struct cn *cn, size_t wlen, enum hse_mclass mclass);
 
 /**
  * vbb_flush_entry() - Writes vblock contents into media

@@ -20,7 +20,7 @@ struct mpool;
  * @mclass: media class
  */
 struct media_class *
-mpool_mclass_handle(struct mpool *mp, enum mpool_mclass mclass);
+mpool_mclass_handle(struct mpool *mp, enum hse_mclass mclass);
 
 /**
  * mpool_mclass_dirfd - return media class directory fd
@@ -29,6 +29,6 @@ mpool_mclass_handle(struct mpool *mp, enum mpool_mclass mclass);
  * @mclass: media class
  */
 merr_t
-mpool_mclass_dirfd(struct mpool *mp, enum mpool_mclass mclass, int *dirfd);
+mpool_mclass_dirfd(struct mpool *mp, enum hse_mclass mclass, int *dirfd);
 
 #endif /* MPOOL_INTERNAL_H */

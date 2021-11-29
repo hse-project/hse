@@ -55,7 +55,7 @@ MTF_DEFINE_UTEST_POST(kvdb_meta_test, serde, destroy_post)
     meta.km_wal.oid1 = 3;
     meta.km_wal.oid2 = 4;
 
-    for (i = MP_MED_BASE; i < MP_MED_COUNT; i++)
+    for (i = HSE_MCLASS_BASE; i < HSE_MCLASS_COUNT; i++)
         strlcpy(meta.km_storage[i].path, mpool_mclass_to_string[i],
                 sizeof(meta.km_storage[i].path));
 
@@ -74,7 +74,7 @@ MTF_DEFINE_UTEST_POST(kvdb_meta_test, serde, destroy_post)
     ASSERT_EQ(2, meta.km_cndb.oid2);
     ASSERT_EQ(3, meta.km_wal.oid1);
     ASSERT_EQ(4, meta.km_wal.oid2);
-    for (i = MP_MED_BASE; i < MP_MED_COUNT; i++)
+    for (i = HSE_MCLASS_BASE; i < HSE_MCLASS_COUNT; i++)
         ASSERT_STREQ(mpool_mclass_to_string[i], meta.km_storage[i].path);
 }
 
@@ -87,8 +87,8 @@ MTF_DEFINE_UTEST_POST(kvdb_meta_test, null_storage_paths, destroy_post)
 
     memset(zero, 0, sizeof(zero));
 
-    strlcpy(meta.km_storage[MP_MED_CAPACITY].path, "capacity",
-            sizeof(meta.km_storage[MP_MED_CAPACITY].path));
+    strlcpy(meta.km_storage[HSE_MCLASS_CAPACITY].path, "capacity",
+            sizeof(meta.km_storage[HSE_MCLASS_CAPACITY].path));
 
     err = kvdb_meta_create(home);
     ASSERT_EQ(0, err);
@@ -104,7 +104,7 @@ MTF_DEFINE_UTEST_POST(kvdb_meta_test, null_storage_paths, destroy_post)
     err = kvdb_meta_deserialize(&meta, home);
     ASSERT_EQ(0, err);
 
-    for (i = MP_MED_STAGING; i < MP_MED_PMEM; i++)
+    for (i = HSE_MCLASS_STAGING; i < HSE_MCLASS_PMEM; i++)
         ASSERT_EQ(0, memcmp(meta.km_storage[i].path, zero, sizeof(zero)));
 }
 
@@ -562,15 +562,15 @@ MTF_DEFINE_UTEST_PRE(kvdb_meta_test, from_mpool_cparams_absolute, test_pre)
 {
     struct mpool_cparams params;
     struct kvdb_meta     meta;
-    const char *paths[MP_MED_COUNT] = {"/home/my_capacity", "/home/my_staging", "/home/my_pmem"};
+    const char *paths[HSE_MCLASS_COUNT] = {"/home/my_capacity", "/home/my_staging", "/home/my_pmem"};
     int i;
 
-    for (i = MP_MED_BASE; i < MP_MED_COUNT; i++)
+    for (i = HSE_MCLASS_BASE; i < HSE_MCLASS_COUNT; i++)
         strlcpy(params.mclass[i].path, paths[i], sizeof(params.mclass[i].path));
 
     kvdb_meta_from_mpool_cparams(&meta, test_home, &params);
 
-    for (i = MP_MED_BASE; i < MP_MED_COUNT; i++)
+    for (i = HSE_MCLASS_BASE; i < HSE_MCLASS_COUNT; i++)
         ASSERT_STREQ(meta.km_storage[i].path, params.mclass[i].path);
 }
 
@@ -578,29 +578,29 @@ MTF_DEFINE_UTEST_PRE(kvdb_meta_test, from_mpool_cparams_relative, test_pre)
 {
     struct mpool_cparams params;
     struct kvdb_meta     meta;
-    const char *paths[MP_MED_COUNT] = {"./my_capacity", "1/2/my_staging", "1/2/my_pmem"};
+    const char *paths[HSE_MCLASS_COUNT] = {"./my_capacity", "1/2/my_staging", "1/2/my_pmem"};
     int   i;
     char *homedup;
 
-    for (i = MP_MED_BASE; i < MP_MED_COUNT; i++)
+    for (i = HSE_MCLASS_BASE; i < HSE_MCLASS_COUNT; i++)
         strlcpy(params.mclass[i].path, paths[i], sizeof(params.mclass[i].path));
 
     kvdb_meta_from_mpool_cparams(&meta, test_home, &params);
 
-    for (i = MP_MED_BASE; i < MP_MED_COUNT; i++)
+    for (i = HSE_MCLASS_BASE; i < HSE_MCLASS_COUNT; i++)
         ASSERT_STREQ(meta.km_storage[i].path, params.mclass[i].path);
 
     homedup = strdup(test_home);
     ASSERT_NE(homedup, NULL);
 
-    for (i = MP_MED_BASE; i < MP_MED_COUNT; i++) {
+    for (i = HSE_MCLASS_BASE; i < HSE_MCLASS_COUNT; i++) {
         snprintf(params.mclass[i].path, sizeof(params.mclass[i].path), "%s/%s", homedup, paths[i]);
         meta.km_storage[i].path[0] = '\0';
     }
 
     kvdb_meta_from_mpool_cparams(&meta, test_home, &params);
 
-    for (i = MP_MED_BASE; i < MP_MED_COUNT; i++)
+    for (i = HSE_MCLASS_BASE; i < HSE_MCLASS_COUNT; i++)
         ASSERT_STREQ(meta.km_storage[i].path, params.mclass[i].path);
 
     free(homedup);
@@ -609,7 +609,7 @@ MTF_DEFINE_UTEST_PRE(kvdb_meta_test, from_mpool_cparams_relative, test_pre)
 MTF_DEFINE_UTEST_PRE(kvdb_meta_test, meta_storage_add_absolute, test_pre)
 {
     struct mpool_cparams params;
-    const char *paths[MP_MED_COUNT] = { "/home/my_capacity", "/home/my_staging", "/home/my_pmem" };
+    const char *paths[HSE_MCLASS_COUNT] = { "/home/my_capacity", "/home/my_staging", "/home/my_pmem" };
     struct kvdb_meta     meta = {
         .km_version = KVDB_META_VERSION,
         .km_omf_version = GLOBAL_OMF_VERSION,
@@ -639,8 +639,8 @@ MTF_DEFINE_UTEST_PRE(kvdb_meta_test, meta_storage_add_absolute, test_pre)
     err = kvdb_meta_deserialize(&meta, home);
     ASSERT_EQ(0, err);
 
-    params.mclass[MP_MED_CAPACITY].path[0] = '\0';
-    for (i = MP_MED_STAGING; i < MP_MED_COUNT; i++)
+    params.mclass[HSE_MCLASS_CAPACITY].path[0] = '\0';
+    for (i = HSE_MCLASS_STAGING; i < HSE_MCLASS_COUNT; i++)
         strlcpy(params.mclass[i].path, paths[i], sizeof(params.mclass[i].path));
 
     err = kvdb_meta_storage_add(&meta, home, &params);
@@ -651,15 +651,15 @@ MTF_DEFINE_UTEST_PRE(kvdb_meta_test, meta_storage_add_absolute, test_pre)
     err = kvdb_meta_deserialize(&meta, home);
     ASSERT_EQ(0, err);
 
-    ASSERT_STREQ(meta.km_storage[MP_MED_CAPACITY].path, paths[MP_MED_CAPACITY]);
-    for (i = MP_MED_STAGING; i < MP_MED_COUNT; i++)
+    ASSERT_STREQ(meta.km_storage[HSE_MCLASS_CAPACITY].path, paths[HSE_MCLASS_CAPACITY]);
+    for (i = HSE_MCLASS_STAGING; i < HSE_MCLASS_COUNT; i++)
         ASSERT_STREQ(meta.km_storage[i].path, paths[i]);
 }
 
 MTF_DEFINE_UTEST_PRE(kvdb_meta_test, meta_storage_add_relative, test_pre)
 {
     struct mpool_cparams params;
-    const char *paths[MP_MED_COUNT] = { "my_capacity", "1/2/my_staging", "1/2/my_pmem" };
+    const char *paths[HSE_MCLASS_COUNT] = { "my_capacity", "1/2/my_staging", "1/2/my_pmem" };
     struct kvdb_meta     meta = {
         .km_version = KVDB_META_VERSION,
         .km_omf_version = GLOBAL_OMF_VERSION,
@@ -693,8 +693,8 @@ MTF_DEFINE_UTEST_PRE(kvdb_meta_test, meta_storage_add_relative, test_pre)
     homedup = strdup(home);
     ASSERT_NE(homedup, NULL);
 
-    params.mclass[MP_MED_CAPACITY].path[0] = '\0';
-    for (i = MP_MED_STAGING; i < MP_MED_COUNT; i++)
+    params.mclass[HSE_MCLASS_CAPACITY].path[0] = '\0';
+    for (i = HSE_MCLASS_STAGING; i < HSE_MCLASS_COUNT; i++)
         snprintf(params.mclass[i].path, sizeof(params.mclass[i].path) - strlen(paths[i]) - 1,
                  "%s/%s", homedup, paths[i]);
 
@@ -706,8 +706,8 @@ MTF_DEFINE_UTEST_PRE(kvdb_meta_test, meta_storage_add_relative, test_pre)
     err = kvdb_meta_deserialize(&meta, home);
     ASSERT_EQ(0, err);
 
-    ASSERT_STREQ(meta.km_storage[MP_MED_CAPACITY].path, paths[MP_MED_CAPACITY]);
-    for (i = MP_MED_STAGING; i < MP_MED_COUNT; i++)
+    ASSERT_STREQ(meta.km_storage[HSE_MCLASS_CAPACITY].path, paths[HSE_MCLASS_CAPACITY]);
+    for (i = HSE_MCLASS_STAGING; i < HSE_MCLASS_COUNT; i++)
         ASSERT_STREQ(meta.km_storage[i].path, params.mclass[i].path);
 
     free(homedup);
@@ -724,16 +724,16 @@ MTF_DEFINE_UTEST_PRE(kvdb_meta_test, to_mpool_rparams_relative, test_pre)
             { .path = "my_pmem" },
         },
     };
-    char paths[MP_MED_COUNT][2 * PATH_MAX];
+    char paths[HSE_MCLASS_COUNT][2 * PATH_MAX];
     int  i;
 
-    for (i = MP_MED_BASE; i < MP_MED_COUNT; i++)
+    for (i = HSE_MCLASS_BASE; i < HSE_MCLASS_COUNT; i++)
         snprintf(paths[i], sizeof(paths[i]), "%s/%s", test_home, meta.km_storage[i].path);
 
     err = kvdb_meta_to_mpool_rparams(&meta, test_home, &params);
     ASSERT_EQ(0, err);
 
-    for (i = MP_MED_BASE; i < MP_MED_COUNT; i++)
+    for (i = HSE_MCLASS_BASE; i < HSE_MCLASS_COUNT; i++)
         ASSERT_STREQ(paths[i], params.mclass[i].path);
 }
 
@@ -753,7 +753,7 @@ MTF_DEFINE_UTEST_PRE(kvdb_meta_test, to_mpool_rparams_absolute, test_pre)
     err = kvdb_meta_to_mpool_rparams(&meta, test_home, &params);
     ASSERT_EQ(0, err);
 
-    for (i = MP_MED_BASE; i < MP_MED_COUNT; i++)
+    for (i = HSE_MCLASS_BASE; i < HSE_MCLASS_COUNT; i++)
         ASSERT_STREQ(meta.km_storage[i].path, params.mclass[i].path);
 }
 
@@ -770,13 +770,13 @@ MTF_DEFINE_UTEST_PRE(kvdb_meta_test, to_mpool_rparams_null, test_pre)
     };
     int i;
 
-    const char null[sizeof(params.mclass[MP_MED_BASE].path)] = {};
+    const char null[sizeof(params.mclass[HSE_MCLASS_BASE].path)] = {};
 
     err = kvdb_meta_to_mpool_rparams(&meta, test_home, &params);
     ASSERT_EQ(0, err);
 
-    ASSERT_STREQ("/my_capacity", params.mclass[MP_MED_CAPACITY].path);
-    for (i = MP_MED_STAGING; i < MP_MED_COUNT; i++)
+    ASSERT_STREQ("/my_capacity", params.mclass[HSE_MCLASS_CAPACITY].path);
+    for (i = HSE_MCLASS_STAGING; i < HSE_MCLASS_COUNT; i++)
         ASSERT_EQ(0, memcmp(null, params.mclass[i].path, sizeof(null)));
 }
 
@@ -791,16 +791,16 @@ MTF_DEFINE_UTEST_PRE(kvdb_meta_test, to_mpool_dparams_relative, test_pre)
             { .path = "my_pmem" },
         },
     };
-    char paths[MP_MED_COUNT][2 * PATH_MAX];
+    char paths[HSE_MCLASS_COUNT][2 * PATH_MAX];
     int i;
 
-    for (i = MP_MED_BASE; i < MP_MED_COUNT; i++)
+    for (i = HSE_MCLASS_BASE; i < HSE_MCLASS_COUNT; i++)
         snprintf(paths[i], sizeof(paths[i]), "%s/%s", test_home, meta.km_storage[i].path);
 
     err = kvdb_meta_to_mpool_dparams(&meta, test_home, &params);
     ASSERT_EQ(0, err);
 
-    for (i = MP_MED_BASE; i < MP_MED_COUNT; i++)
+    for (i = HSE_MCLASS_BASE; i < HSE_MCLASS_COUNT; i++)
         ASSERT_STREQ(paths[i], params.mclass[i].path);
 }
 
@@ -820,7 +820,7 @@ MTF_DEFINE_UTEST_PRE(kvdb_meta_test, to_mpool_dparams_absolute, test_pre)
     err = kvdb_meta_to_mpool_dparams(&meta, test_home, &params);
     ASSERT_EQ(0, err);
 
-    for (i = MP_MED_BASE; i < MP_MED_COUNT; i++)
+    for (i = HSE_MCLASS_BASE; i < HSE_MCLASS_COUNT; i++)
         ASSERT_STREQ(meta.km_storage[i].path, params.mclass[i].path);
 }
 
@@ -837,13 +837,13 @@ MTF_DEFINE_UTEST_PRE(kvdb_meta_test, to_mpool_dparams_null, test_pre)
     };
     int i;
 
-    const char null[sizeof(params.mclass[MP_MED_BASE].path)] = {};
+    const char null[sizeof(params.mclass[HSE_MCLASS_BASE].path)] = {};
 
     err = kvdb_meta_to_mpool_dparams(&meta, test_home, &params);
     ASSERT_EQ(0, err);
 
-    ASSERT_STREQ("/my_capacity", params.mclass[MP_MED_CAPACITY].path);
-    for (i = MP_MED_STAGING; i < MP_MED_COUNT; i++)
+    ASSERT_STREQ("/my_capacity", params.mclass[HSE_MCLASS_CAPACITY].path);
+    for (i = HSE_MCLASS_STAGING; i < HSE_MCLASS_COUNT; i++)
         ASSERT_EQ(0, memcmp(null, params.mclass[i].path, sizeof(null)));
 }
 

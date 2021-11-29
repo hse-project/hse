@@ -104,7 +104,7 @@ main(int argc, char *argv[])
     wpct = 100;
     thrds = 1;
     mblksize = 1 << 25;
-    mclass = MP_MED_CAPACITY;
+    mclass = HSE_MCLASS_CAPACITY;
 
     if (argc < 3) {
         usage(program);
@@ -128,7 +128,7 @@ main(int argc, char *argv[])
                 break;
             case 'c':
                 mclass = (int)strtoul(optarg, &end, 0);
-                if ((mclass < MP_MED_BASE) || (mclass >= MP_MED_COUNT)) {
+                if ((mclass < HSE_MCLASS_BASE) || (mclass >= HSE_MCLASS_COUNT)) {
                     usage(program);
                     return -1;
                 }

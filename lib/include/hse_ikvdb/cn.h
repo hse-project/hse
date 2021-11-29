@@ -30,7 +30,7 @@ struct kvdb_kvs;
 struct sts;
 struct mclass_policy;
 enum cn_action;
-enum mpool_mclass;
+enum hse_mclass;
 
 /* MTF_MOCK */
 merr_t
@@ -223,11 +223,11 @@ cn_get_flags(const struct cn *handle);
 
 /* MTF_MOCK */
 u64
-cn_vma_mblock_max(struct cn *cn, enum mpool_mclass mclass);
+cn_vma_mblock_max(struct cn *cn, enum hse_mclass mclass);
 
 /* MTF_MOCK */
 u64
-cn_mpool_dev_zone_alloc_unit_default(struct cn *cn, enum mpool_mclass mclass);
+cn_mpool_dev_zone_alloc_unit_default(struct cn *cn, enum hse_mclass mclass);
 
 #if HSE_MOCKING
 #include "cn_ut.h"

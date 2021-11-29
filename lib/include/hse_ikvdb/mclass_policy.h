@@ -6,6 +6,8 @@
 #ifndef HSE_MCLASS_POLICY_H
 #define HSE_MCLASS_POLICY_H
 
+#include <stdint.h>
+
 #include <mpool/mpool.h>
 #include <hse_util/compiler.h>
 #include <hse_util/hse_err.h>
@@ -32,8 +34,8 @@ enum hse_mclass_policy_dtype {
 #define HSE_MPOLICY_COUNT 24
 
 struct mclass_policy {
-    char mc_name[HSE_MPOLICY_NAME_LEN_MAX];
-    u8   mc_table[HSE_MPOLICY_AGE_CNT][HSE_MPOLICY_DTYPE_CNT];
+    char    mc_name[HSE_MPOLICY_NAME_LEN_MAX];
+    uint8_t mc_table[HSE_MPOLICY_AGE_CNT][HSE_MPOLICY_DTYPE_CNT];
 };
 
 /**
@@ -54,8 +56,8 @@ mclass_policy_get_num_default_policies();
  * @agegroup: age group (see hse_mclass_policy_age)
  * @datatype: data type (see hse_mclass_policy_dtype)
  */
-enum mpool_mclass
-mclass_policy_get_type(struct mclass_policy *policy, u8 agegroup, u8 datatype);
+enum hse_mclass
+mclass_policy_get_type(struct mclass_policy *policy, uint8_t agegroup, uint8_t datatype);
 
 /*
  * The following are used by the YAML parser to validate the media

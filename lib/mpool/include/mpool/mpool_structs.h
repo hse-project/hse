@@ -6,31 +6,20 @@
 #ifndef MPOOL_STRUCTS_H
 #define MPOOL_STRUCTS_H
 
+#include <stdint.h>
+
 #include <hse/types.h>
 
-#include <hse_util/inttypes.h>
 #include <hse_util/storage.h>
 
 #define WAL_FILE_PFX           "wal"
 #define WAL_FILE_PFX_LEN       (sizeof(WAL_FILE_PFX) - 1)
 
-/**
- * mpool_mclass = Media classes
- *
- * @MP_MED_CAPACITY: Primary data storage, cold data, or similar.
- * @MP_MED_STAGING:  Initial data ingest, hot data storage, or similar.
- * @MP_MED_PMEM:     WAL, Initial data ingest, hot data storage, or similar.
+/* [HSE_REVISIT]: The fact that this is necessary at all seems like a code
+ * smell. Ideally, I think we remove this and properly propogate errors up the
+ * stack, assert(), or abort(). This is a holdover from MP_MED_INVALID.
  */
-enum mpool_mclass {
-    MP_MED_CAPACITY = HSE_MCLASS_CAPACITY,
-    MP_MED_STAGING  = HSE_MCLASS_STAGING,
-    MP_MED_PMEM     = HSE_MCLASS_PMEM,
-};
-
-#define MP_MED_BASE            HSE_MCLASS_BASE
-#define MP_MED_MAX             HSE_MCLASS_MAX
-#define MP_MED_COUNT           HSE_MCLASS_COUNT
-#define MP_MED_INVALID         U8_MAX
+#define HSE_MCLASS_INVALID UINT8_MAX
 
 #define MPOOL_CAPACITY_MCLASS_DEFAULT_PATH "capacity"
 #define MPOOL_PMEM_MCLASS_DEFAULT_PATH     "pmem"
@@ -53,7 +42,7 @@ struct mpool_cparams {
         uint32_t mblocksz;
         uint8_t  filecnt;
         char     path[PATH_MAX];
-    } mclass[MP_MED_COUNT];
+    } mclass[HSE_MCLASS_COUNT];
 };
 
 /**
@@ -64,7 +53,7 @@ struct mpool_cparams {
 struct mpool_rparams {
     struct {
         char path[PATH_MAX];
-    } mclass[MP_MED_COUNT];
+    } mclass[HSE_MCLASS_COUNT];
 };
 
 /**
@@ -75,7 +64,7 @@ struct mpool_rparams {
 struct mpool_dparams {
     struct {
         char path[PATH_MAX];
-    } mclass[MP_MED_COUNT];
+    } mclass[HSE_MCLASS_COUNT];
 };
 
 /**
@@ -84,7 +73,7 @@ struct mpool_dparams {
  * @mclass: Array of media class info objects.
  */
 struct mpool_info {
-    struct hse_mclass_info mclass[MP_MED_COUNT];
+    struct hse_mclass_info mclass[HSE_MCLASS_COUNT];
 };
 
 /**
@@ -105,7 +94,7 @@ struct mpool_mclass_props {
  * @mclass: Array of media class properties.
  */
 struct mpool_props {
-    struct mpool_mclass_props mclass[MP_MED_COUNT];
+    struct mpool_mclass_props mclass[HSE_MCLASS_COUNT];
 };
 
 /*

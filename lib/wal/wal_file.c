@@ -30,7 +30,7 @@ struct wal_fileset {
     struct list_head replay;
 
     struct mpool *mp HSE_L1D_ALIGNED;
-    enum mpool_mclass mclass;
+    enum hse_mclass mclass;
     size_t   capacity;
     uint32_t magic;
     uint32_t version;
@@ -154,7 +154,7 @@ wal_fileset_reclaim(
 }
 
 void
-wal_fileset_mclass_update(struct wal_fileset *wfset, enum mpool_mclass mclass)
+wal_fileset_mclass_update(struct wal_fileset *wfset, enum hse_mclass mclass)
 {
     wfset->mclass = mclass;
 }
@@ -162,7 +162,7 @@ wal_fileset_mclass_update(struct wal_fileset *wfset, enum mpool_mclass mclass)
 struct wal_fileset *
 wal_fileset_open(
     struct mpool     *mp,
-    enum mpool_mclass mclass,
+    enum hse_mclass mclass,
     size_t            capacity,
     uint32_t          magic,
     uint32_t          vers)

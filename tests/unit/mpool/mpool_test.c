@@ -61,7 +61,7 @@ MTF_DEFINE_UTEST_PREPOST(mpool_test, mpool_ocd_test, mpool_test_pre, mpool_test_
 
     err = mpool_props_get(mp, &mprops);
     ASSERT_EQ(0, merr_errno(err));
-    ASSERT_EQ(32, mprops.mclass[MP_MED_CAPACITY].mc_mblocksz);
+    ASSERT_EQ(32, mprops.mclass[HSE_MCLASS_CAPACITY].mc_mblocksz);
 
     err = mpool_info_get(NULL, &info);
     ASSERT_EQ(EINVAL, merr_errno(err));
@@ -74,21 +74,21 @@ MTF_DEFINE_UTEST_PREPOST(mpool_test, mpool_ocd_test, mpool_test_pre, mpool_test_
     ASSERT_LT(allocated_bytes_summation(&info), (64 << 20L));
     ASSERT_LT(used_bytes_summation(&info), (64 << 20L));
     ASSERT_EQ(
-        0, strncmp(capacity_path, info.mclass[MP_MED_CAPACITY].mi_path, sizeof(capacity_path)));
-    ASSERT_EQ(0, strlen(info.mclass[MP_MED_STAGING].mi_path));
+        0, strncmp(capacity_path, info.mclass[HSE_MCLASS_CAPACITY].mi_path, sizeof(capacity_path)));
+    ASSERT_EQ(0, strlen(info.mclass[HSE_MCLASS_STAGING].mi_path));
 
     err = mpool_close(mp);
     ASSERT_EQ(0, err);
 
-    exists = mclass_files_exist(tcparams.mclass[MP_MED_CAPACITY].path);
+    exists = mclass_files_exist(tcparams.mclass[HSE_MCLASS_CAPACITY].path);
     ASSERT_EQ(true, exists);
 
     mpool_destroy(home, &tdparams);
 
-    exists = mclass_files_exist(tcparams.mclass[MP_MED_CAPACITY].path);
+    exists = mclass_files_exist(tcparams.mclass[HSE_MCLASS_CAPACITY].path);
     ASSERT_EQ(false, exists);
 
-    setup_mclass(MP_MED_STAGING);
+    setup_mclass(HSE_MCLASS_STAGING);
 
     err = mpool_create(home, &tcparams);
     ASSERT_EQ(0, err);
@@ -111,7 +111,7 @@ MTF_DEFINE_UTEST_PREPOST(mpool_test, mpool_ocd_test, mpool_test_pre, mpool_test_
     rc = remove_staging_path();
     ASSERT_EQ(0, rc);
 
-    err = mpool_mclass_add(MP_MED_STAGING, &tcparams);
+    err = mpool_mclass_add(HSE_MCLASS_STAGING, &tcparams);
     ASSERT_EQ(ENOENT, merr_errno(err));
 
     err = mpool_open(home, &trparams, O_RDWR, &mp);
@@ -130,7 +130,7 @@ MTF_DEFINE_UTEST_PREPOST(mpool_test, mpool_ocd_test, mpool_test_pre, mpool_test_
 
     rewinddir(dirp);
 
-    err = mpool_mclass_add(MP_MED_STAGING, &tcparams);
+    err = mpool_mclass_add(HSE_MCLASS_STAGING, &tcparams);
     ASSERT_EQ(0, merr_errno(err));
 
     err = mpool_open(home, &trparams, O_RDWR, &mp);
@@ -141,8 +141,8 @@ MTF_DEFINE_UTEST_PREPOST(mpool_test, mpool_ocd_test, mpool_test_pre, mpool_test_
     ASSERT_LT(allocated_bytes_summation(&info), (64 << 20L) * 2); /* 2 media classes */
     ASSERT_LT(used_bytes_summation(&info), (64 << 20L) * 2);
     ASSERT_EQ(
-        0, strncmp(capacity_path, info.mclass[MP_MED_CAPACITY].mi_path, sizeof(capacity_path)));
-    ASSERT_EQ(0, strncmp(staging_path, info.mclass[MP_MED_STAGING].mi_path, sizeof(staging_path)));
+        0, strncmp(capacity_path, info.mclass[HSE_MCLASS_CAPACITY].mi_path, sizeof(capacity_path)));
+    ASSERT_EQ(0, strncmp(staging_path, info.mclass[HSE_MCLASS_STAGING].mi_path, sizeof(staging_path)));
 
     entry = 0;
     while ((d = readdir(dirp)) != NULL && entry < 3)
@@ -175,54 +175,54 @@ MTF_DEFINE_UTEST_PREPOST(mpool_test, mclass_test, mpool_test_pre, mpool_test_pos
     err = mpool_open(home, &trparams, O_RDWR, &mp);
     ASSERT_EQ(0, err);
 
-    err = mpool_mclass_props_get(NULL, MP_MED_CAPACITY, &props);
+    err = mpool_mclass_props_get(NULL, HSE_MCLASS_CAPACITY, &props);
     ASSERT_EQ(EINVAL, merr_errno(err));
 
-    err = mpool_mclass_props_get(mp, MP_MED_CAPACITY, NULL);
+    err = mpool_mclass_props_get(mp, HSE_MCLASS_CAPACITY, NULL);
     ASSERT_EQ(EINVAL, merr_errno(err));
 
-    err = mpool_mclass_props_get(mp, MP_MED_COUNT, &props);
+    err = mpool_mclass_props_get(mp, HSE_MCLASS_COUNT, &props);
     ASSERT_EQ(EINVAL, merr_errno(err));
 
-    err = mpool_mclass_props_get(mp, MP_MED_STAGING, &props);
+    err = mpool_mclass_props_get(mp, HSE_MCLASS_STAGING, &props);
     ASSERT_EQ(ENOENT, merr_errno(err));
 
-    err = mpool_mclass_props_get(mp, MP_MED_CAPACITY, &props);
+    err = mpool_mclass_props_get(mp, HSE_MCLASS_CAPACITY, &props);
     ASSERT_EQ(0, merr_errno(err));
     ASSERT_EQ(32, props.mc_mblocksz);
 
-    err = mpool_mclass_info_get(NULL, MP_MED_CAPACITY, &info);
+    err = mpool_mclass_info_get(NULL, HSE_MCLASS_CAPACITY, &info);
     ASSERT_EQ(EINVAL, merr_errno(err));
 
-    err = mpool_mclass_info_get(mp, MP_MED_COUNT, &info);
+    err = mpool_mclass_info_get(mp, HSE_MCLASS_COUNT, &info);
     ASSERT_EQ(EINVAL, merr_errno(err));
 
-    err = mpool_mclass_info_get(mp, MP_MED_STAGING, &info);
+    err = mpool_mclass_info_get(mp, HSE_MCLASS_STAGING, &info);
     ASSERT_EQ(ENOENT, merr_errno(err));
 
-    err = mpool_mclass_info_get(mp, MP_MED_CAPACITY, NULL);
+    err = mpool_mclass_info_get(mp, HSE_MCLASS_CAPACITY, NULL);
     ASSERT_EQ(EINVAL, merr_errno(err));
 
-    err = mpool_mclass_info_get(mp, MP_MED_CAPACITY, &info);
+    err = mpool_mclass_info_get(mp, HSE_MCLASS_CAPACITY, &info);
     ASSERT_EQ(0, merr_errno(err));
     ASSERT_LT(info.mi_allocated_bytes, (64 << 20L));
     ASSERT_LT(info.mi_used_bytes, (64 << 20L));
     ASSERT_EQ(0, strncmp(capacity_path, info.mi_path, sizeof(capacity_path)));
 
-    mc = mpool_mclass_handle(NULL, MP_MED_CAPACITY);
+    mc = mpool_mclass_handle(NULL, HSE_MCLASS_CAPACITY);
     ASSERT_EQ(NULL, mc);
 
-    mc = mpool_mclass_handle(mp, MP_MED_COUNT);
+    mc = mpool_mclass_handle(mp, HSE_MCLASS_COUNT);
     ASSERT_EQ(NULL, mc);
 
-    mc = mpool_mclass_handle(mp, MP_MED_CAPACITY);
+    mc = mpool_mclass_handle(mp, HSE_MCLASS_CAPACITY);
     ASSERT_NE(NULL, mc);
 
     mcid = mclass_id(NULL);
     ASSERT_EQ(mcid, MCID_INVALID);
 
     mcid = mclass_id(mc);
-    ASSERT_EQ(mcid, MP_MED_CAPACITY + 1);
+    ASSERT_EQ(mcid, HSE_MCLASS_CAPACITY + 1);
 
     fd = mclass_dirfd(NULL);
     ASSERT_EQ(fd, -1);
@@ -257,13 +257,13 @@ MTF_DEFINE_UTEST_PREPOST(mpool_test, mclass_test, mpool_test_pre, mpool_test_pos
     mbsz = mclass_mblocksz_get(mc);
     ASSERT_EQ(64 << 20, mbsz);
 
-    for (i = MP_MED_BASE; i < MP_MED_COUNT; i++) {
+    for (i = HSE_MCLASS_BASE; i < HSE_MCLASS_COUNT; i++) {
         ASSERT_EQ(i + 1, mclass_to_mcid(i));
         ASSERT_EQ(i, mcid_to_mclass(i + 1));
     }
 
     ASSERT_EQ(MCID_INVALID, mclass_to_mcid(i));
-    ASSERT_EQ(MP_MED_INVALID, mcid_to_mclass(i + 1));
+    ASSERT_EQ(HSE_MCLASS_INVALID, mcid_to_mclass(i + 1));
 
     err = mpool_close(mp);
     ASSERT_EQ(0, err);

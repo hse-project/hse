@@ -85,7 +85,7 @@ get_mblock(u64 id, struct mocked_mblock **mb)
 static merr_t
 _mpool_mblock_alloc(
     struct mpool *       mp,
-    enum mpool_mclass    mclass,
+    enum hse_mclass    mclass,
     uint64_t *           handle,
     struct mblock_props *props)
 {
@@ -179,17 +179,17 @@ _mpool_mblock_delete(struct mpool *mp, uint64_t id)
 merr_t
 _mpool_props_get(struct mpool *mp, struct mpool_props *props)
 {
-    props->mclass[MP_MED_CAPACITY].mc_mblocksz = MPOOL_MBLOCK_SIZE_DEFAULT;
-    props->mclass[MP_MED_CAPACITY].mc_filecnt = MPOOL_MBLOCK_FILECNT_DEFAULT;
-    props->mclass[MP_MED_CAPACITY].mc_fmaxsz = MPOOL_MBLOCK_FILESZ_DEFAULT;
+    props->mclass[HSE_MCLASS_CAPACITY].mc_mblocksz = MPOOL_MBLOCK_SIZE_DEFAULT;
+    props->mclass[HSE_MCLASS_CAPACITY].mc_filecnt = MPOOL_MBLOCK_FILECNT_DEFAULT;
+    props->mclass[HSE_MCLASS_CAPACITY].mc_fmaxsz = MPOOL_MBLOCK_FILESZ_DEFAULT;
     strlcpy(
-        props->mclass[MP_MED_CAPACITY].mc_path,
+        props->mclass[HSE_MCLASS_CAPACITY].mc_path,
         MPOOL_CAPACITY_MCLASS_DEFAULT_PATH,
-        sizeof(props->mclass[MP_MED_CAPACITY].mc_path));
+        sizeof(props->mclass[HSE_MCLASS_CAPACITY].mc_path));
 
-    props->mclass[MP_MED_STAGING].mc_mblocksz = MPOOL_MBLOCK_SIZE_DEFAULT;
-    props->mclass[MP_MED_STAGING].mc_filecnt = MPOOL_MBLOCK_FILECNT_DEFAULT;
-    props->mclass[MP_MED_STAGING].mc_fmaxsz = MPOOL_MBLOCK_FILESZ_DEFAULT;
+    props->mclass[HSE_MCLASS_STAGING].mc_mblocksz = MPOOL_MBLOCK_SIZE_DEFAULT;
+    props->mclass[HSE_MCLASS_STAGING].mc_filecnt = MPOOL_MBLOCK_FILECNT_DEFAULT;
+    props->mclass[HSE_MCLASS_STAGING].mc_fmaxsz = MPOOL_MBLOCK_FILESZ_DEFAULT;
 
     return 0;
 }
@@ -197,13 +197,13 @@ _mpool_props_get(struct mpool *mp, struct mpool_props *props)
 merr_t
 _mpool_mclass_props_get(
     struct mpool *             mp,
-    enum mpool_mclass          mclass,
+    enum hse_mclass          mclass,
     struct mpool_mclass_props *props)
 {
-    if (mclass >= MP_MED_COUNT)
+    if (mclass >= HSE_MCLASS_COUNT)
         return merr(EINVAL);
 
-    if (mclass == MP_MED_STAGING)
+    if (mclass == HSE_MCLASS_STAGING)
         return merr(ENOENT);
 
     return 0;

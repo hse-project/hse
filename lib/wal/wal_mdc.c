@@ -45,7 +45,7 @@ wal_mdc_version_write(struct wal_mdc *mdc, uint32_t version, bool sync)
 }
 
 static merr_t
-wal_mdc_config_write(struct wal_mdc *mdc, enum mpool_mclass mclass, bool sync)
+wal_mdc_config_write(struct wal_mdc *mdc, enum hse_mclass mclass, bool sync)
 {
     struct wal_config_omf comf;
 
@@ -85,7 +85,7 @@ static merr_t
 wal_mdc_config_unpack(const char *buf, struct wal *wal)
 {
     struct wal_config_omf *comf;
-    enum mpool_mclass mclass;
+    enum hse_mclass mclass;
 
     if (!buf || !wal)
         return merr(EINVAL);
@@ -109,7 +109,7 @@ wal_mdchdr_rtype_get(char *inbuf)
 merr_t
 wal_mdc_create(
     struct mpool     *mp,
-    enum mpool_mclass mclass,
+    enum hse_mclass mclass,
     size_t            capacity,
     uint64_t         *mdcid1,
     uint64_t         *mdcid2)

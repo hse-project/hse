@@ -46,10 +46,10 @@ int
 remove_pmem_path(void);
 
 void
-unset_mclass(const enum mpool_mclass mclass);
+unset_mclass(const enum hse_mclass mclass);
 
 void
-setup_mclass(const enum mpool_mclass mclass);
+setup_mclass(const enum hse_mclass mclass);
 
 uint64_t
 allocated_bytes_summation(const struct mpool_info *const info);
