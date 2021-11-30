@@ -124,14 +124,18 @@ merr_strinfo(merr_t err, char *buf, size_t buf_sz, size_t *need_sz)
         }
 
         sz += ret;
-        if (sz >= buf_sz)
-            goto out;
+        if (sz >= buf_sz) {
+            sz += merr_strerror(err, NULL, 0);
+        } else {
+            sz += merr_strerror(err, buf + sz, buf_sz - sz);
+        }
 
-        sz += merr_strerror(err, buf + sz, buf_sz - sz);
-        if (sz >= buf_sz)
-            goto out;
+        if (sz >= buf_sz) {
+            ret = snprintf(NULL, 0, " (%d)", merr_errno(err));
+        } else {
+            ret = snprintf(buf + sz, buf_sz - sz, " (%d)", merr_errno(err));
+        }
 
-        ret = snprintf(buf + sz, buf_sz - sz, " (%d)", merr_errno(err));
         if (ret < 0) {
             /* Try to just return what we already have. */
             buf[sz] = '\000';
@@ -139,7 +143,6 @@ merr_strinfo(merr_t err, char *buf, size_t buf_sz, size_t *need_sz)
         }
 
         sz += ret;
-
     } else {
         sz = strlcpy(buf, "success", buf_sz);
     }
@@ -147,6 +150,6 @@ merr_strinfo(merr_t err, char *buf, size_t buf_sz, size_t *need_sz)
 out:
     if (need_sz)
         *need_sz = sz;
-    
+
     return buf;
 }
