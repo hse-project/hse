@@ -13,6 +13,8 @@
 
 #include <bsd/string.h>
 
+#include <hse/hse.h>
+
 #include <mpool/mpool.h>
 #include <hse_ikvdb/mclass_policy.h>
 #include <hse_ikvdb/param.h>
@@ -243,9 +245,9 @@ mclass_policies_converter(const struct param_spec *ps, const cJSON *node, void *
                 }
 
                 enum hse_mclass media = HSE_MCLASS_INVALID;
-                for (int k = 0; k < NELEM(mpool_mclass_to_string); k++) {
+                for (int k = HSE_MCLASS_BASE; k < HSE_MCLASS_COUNT; k++) {
                     ctx = cJSON_GetStringValue(dtype_json);
-                    if (!strcmp(ctx, mpool_mclass_to_string[k])) {
+                    if (!strcmp(ctx, hse_mclass_name_get(k))) {
                         media = (enum hse_mclass)k;
                         break;
                     }
@@ -352,19 +354,19 @@ mclass_policies_jsonify(const struct param_spec *const ps, const void *const val
         cJSON *config = cJSON_AddObjectToObject(policy, "config");
         cJSON *internal = cJSON_AddObjectToObject(config, "internal");
         cJSON *internal_k = cJSON_AddStringToObject(internal, "keys",
-            mpool_mclass_to_string[policies[i].mc_table[HSE_MPOLICY_AGE_INTERNAL][HSE_MPOLICY_DTYPE_KEY]]);
+            hse_mclass_name_get(policies[i].mc_table[HSE_MPOLICY_AGE_INTERNAL][HSE_MPOLICY_DTYPE_KEY]));
         cJSON *internal_v = cJSON_AddStringToObject(internal, "values",
-            mpool_mclass_to_string[policies[i].mc_table[HSE_MPOLICY_AGE_INTERNAL][HSE_MPOLICY_DTYPE_VALUE]]);
+            hse_mclass_name_get(policies[i].mc_table[HSE_MPOLICY_AGE_INTERNAL][HSE_MPOLICY_DTYPE_VALUE]));
         cJSON *leaf = cJSON_AddObjectToObject(config, "leaf");
         cJSON *leaf_k = cJSON_AddStringToObject(leaf, "keys",
-            mpool_mclass_to_string[policies[i].mc_table[HSE_MPOLICY_AGE_LEAF][HSE_MPOLICY_DTYPE_KEY]]);
+            hse_mclass_name_get(policies[i].mc_table[HSE_MPOLICY_AGE_LEAF][HSE_MPOLICY_DTYPE_KEY]));
         cJSON *leaf_v = cJSON_AddStringToObject(leaf, "values",
-            mpool_mclass_to_string[policies[i].mc_table[HSE_MPOLICY_AGE_LEAF][HSE_MPOLICY_DTYPE_VALUE]]);
+            hse_mclass_name_get(policies[i].mc_table[HSE_MPOLICY_AGE_LEAF][HSE_MPOLICY_DTYPE_VALUE]));
         cJSON *root = cJSON_AddObjectToObject(config, "root");
         cJSON *root_k = cJSON_AddStringToObject(root, "keys",
-            mpool_mclass_to_string[policies[i].mc_table[HSE_MPOLICY_AGE_ROOT][HSE_MPOLICY_DTYPE_KEY]]);
+            hse_mclass_name_get(policies[i].mc_table[HSE_MPOLICY_AGE_ROOT][HSE_MPOLICY_DTYPE_KEY]));
         cJSON *root_v = cJSON_AddStringToObject(root, "values",
-            mpool_mclass_to_string[policies[i].mc_table[HSE_MPOLICY_AGE_ROOT][HSE_MPOLICY_DTYPE_VALUE]]);
+            hse_mclass_name_get(policies[i].mc_table[HSE_MPOLICY_AGE_ROOT][HSE_MPOLICY_DTYPE_VALUE]));
 
         if (!policy || !name || !config || !internal || !internal_k || !internal_v || !leaf ||
             !leaf_k || !leaf_v || !root || !root_k || !root_v) {
@@ -398,7 +400,7 @@ dur_mclass_converter(
 
     const char *value = cJSON_GetStringValue(node);
     for (int i = HSE_MCLASS_BASE; i < HSE_MCLASS_COUNT; i++) {
-        if (!strcmp(mpool_mclass_to_string[i], value)) {
+        if (!strcmp(hse_mclass_name_get(i), value)) {
             *(enum hse_mclass *)data = i;
             return true;
         }
@@ -425,7 +427,7 @@ dur_mclass_stringify(
     INVARIANT(value);
     INVARIANT(mc < HSE_MCLASS_COUNT && mc >= HSE_MCLASS_BASE);
 
-    param = mpool_mclass_to_string[mc];
+    param = hse_mclass_name_get(mc);
 
     n = snprintf(buf, buf_sz, "\"%s\"", param);
     if (n < 0)
@@ -443,7 +445,7 @@ dur_mclass_jsonify(const struct param_spec *const ps, const void *const value)
     INVARIANT(ps);
     INVARIANT(value);
 
-    return cJSON_CreateString(mpool_mclass_to_string[*(enum hse_mclass *)value]);
+    return cJSON_CreateString(hse_mclass_name_get(*(enum hse_mclass *)value));
 }
 
 static bool HSE_NONNULL(1, 2, 3)

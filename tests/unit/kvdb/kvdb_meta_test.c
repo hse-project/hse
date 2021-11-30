@@ -46,7 +46,6 @@ MTF_DEFINE_UTEST_POST(kvdb_meta_test, serde, destroy_post)
 {
     struct kvdb_meta meta;
     merr_t           err;
-    int              i;
 
     meta.km_version = KVDB_META_VERSION;
     meta.km_omf_version = GLOBAL_OMF_VERSION;
@@ -55,8 +54,8 @@ MTF_DEFINE_UTEST_POST(kvdb_meta_test, serde, destroy_post)
     meta.km_wal.oid1 = 3;
     meta.km_wal.oid2 = 4;
 
-    for (i = HSE_MCLASS_BASE; i < HSE_MCLASS_COUNT; i++)
-        strlcpy(meta.km_storage[i].path, mpool_mclass_to_string[i],
+    for (int i = HSE_MCLASS_BASE; i < HSE_MCLASS_COUNT; i++)
+        strlcpy(meta.km_storage[i].path, hse_mclass_name_get(i),
                 sizeof(meta.km_storage[i].path));
 
     err = kvdb_meta_create(home);
@@ -74,8 +73,8 @@ MTF_DEFINE_UTEST_POST(kvdb_meta_test, serde, destroy_post)
     ASSERT_EQ(2, meta.km_cndb.oid2);
     ASSERT_EQ(3, meta.km_wal.oid1);
     ASSERT_EQ(4, meta.km_wal.oid2);
-    for (i = HSE_MCLASS_BASE; i < HSE_MCLASS_COUNT; i++)
-        ASSERT_STREQ(mpool_mclass_to_string[i], meta.km_storage[i].path);
+    for (int i = HSE_MCLASS_BASE; i < HSE_MCLASS_COUNT; i++)
+        ASSERT_STREQ(hse_mclass_name_get(i), meta.km_storage[i].path);
 }
 
 MTF_DEFINE_UTEST_POST(kvdb_meta_test, null_storage_paths, destroy_post)

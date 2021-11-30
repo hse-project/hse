@@ -16,6 +16,7 @@
 #ifndef HSE_PLATFORM_CONDVAR_H
 #define HSE_PLATFORM_CONDVAR_H
 
+#include <pthread.h>
 #include <stdlib.h>
 
 #include <hse_util/assert.h>

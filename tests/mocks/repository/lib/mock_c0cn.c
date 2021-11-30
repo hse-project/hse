@@ -5,6 +5,8 @@
 
 #include <mock/api.h>
 
+#include <hse/hse.h>
+
 #include <hse_util/page.h>
 #include <hse_util/keycmp.h>
 #include <hse_util/table.h>
@@ -822,7 +824,7 @@ _kvdb_meta_deserialize(struct kvdb_meta *meta, const char *kvdb_home)
     meta->km_wal.oid2 = 4;
 
     for (i = HSE_MCLASS_BASE; i < HSE_MCLASS_COUNT; i++)
-        strlcpy(meta->km_storage[i].path, mpool_mclass_to_string[i],
+        strlcpy(meta->km_storage[i].path, hse_mclass_name_get(i),
                 sizeof(meta->km_storage[i].path));
 
     return 0;
