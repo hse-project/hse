@@ -5,6 +5,7 @@ GRTAGS
 GTAGS
 GTAGS.*
 cscope.*
+*.gcov
 *.prof
 *.out
 __pycache__
