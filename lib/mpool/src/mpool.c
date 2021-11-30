@@ -8,10 +8,12 @@
 #include <limits.h>
 #include <bsd/string.h>
 
+#include <hse/hse.h>
+
+#include <hse_util/assert.h>
 #include <hse_util/logging.h>
 #include <hse_util/hse_err.h>
 #include <hse_util/workqueue.h>
-#include <hse_util/invariant.h>
 #include <hse_util/page.h>
 #include <hse_util/dax.h>
 
@@ -33,12 +35,6 @@
 struct mpool {
     struct media_class *mc[HSE_MCLASS_COUNT];
     const char          home[]; /* flexible array */
-};
-
-const char *const mpool_mclass_to_string[HSE_MCLASS_COUNT] = {
-    [HSE_MCLASS_CAPACITY] = HSE_MCLASS_CAPACITY_NAME,
-    [HSE_MCLASS_STAGING] = HSE_MCLASS_STAGING_NAME,
-    [HSE_MCLASS_PMEM] = HSE_MCLASS_PMEM_NAME,
 };
 
 static merr_t
@@ -101,7 +97,7 @@ mclass_path_check(enum hse_mclass mclass, const char *path)
 
     if (isdax != (mclass == HSE_MCLASS_PMEM)) {
         log_err("%s mclass path (%s) %s reside on a DAX filesystem",
-                mpool_mclass_to_string[mclass], path,
+                hse_mclass_name_get(mclass), path,
                 isdax ? "must not" : "must");
         return merr(ENOTSUP);
     }

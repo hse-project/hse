@@ -24,6 +24,7 @@
 #mesondefine SUPPORTS_ATTR_NONNULL
 
 #mesondefine WITH_COVERAGE
+#mesondefine WITH_INVARIANTS
 #mesondefine WITH_UBSAN
 
 #endif

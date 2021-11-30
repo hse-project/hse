@@ -1,6 +1,6 @@
 /* SPDX-License-Identifier: Apache-2.0 */
 /*
- * Copyright (C) 2015-2020 Micron Technology, Inc.  All rights reserved.
+ * Copyright (C) 2015-2021 Micron Technology, Inc.  All rights reserved.
  *
  * The condvar subsystem is an abstraction of the pthread condition
  * variable APIs taht provide the same general semantics in both user
@@ -15,6 +15,9 @@
  */
 #ifndef HSE_PLATFORM_CONDVAR_H
 #define HSE_PLATFORM_CONDVAR_H
+
+#include <pthread.h>
+#include <stdlib.h>
 
 #include <hse_util/assert.h>
 #include <hse_util/compiler.h>

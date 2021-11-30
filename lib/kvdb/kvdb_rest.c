@@ -3,6 +3,7 @@
  * Copyright (C) 2015-2021 Micron Technology, Inc.  All rights reserved.
  */
 
+#include <hse/hse.h>
 #include <hse/flags.h>
 #include <hse/experimental.h>
 
@@ -308,7 +309,7 @@ rest_kvdb_mclass_info_get(
     char *                 str;
 
     for (int i = HSE_MCLASS_BASE; i < HSE_MCLASS_COUNT; i++) {
-        if (strstr(path, mpool_mclass_to_string[i])) {
+        if (strstr(path, hse_mclass_name_get(i))) {
             mclass = (enum hse_mclass)i;
             break;
         }
@@ -459,9 +460,9 @@ kvdb_rest_register(struct ikvdb *kvdb)
     if (ev(status) && !err)
         err = status;
 
-    for (size_t i = 0; i < NELEM(mpool_mclass_to_string); i++) {
+    for (int i = HSE_MCLASS_BASE; i < HSE_MCLASS_COUNT; i++) {
         status = rest_url_register(kvdb, URL_FLAG_EXACT, rest_kvdb_mclass_info_get, NULL,
-            "kvdb/%s/mclass/%s/info", ikvdb_alias(kvdb), mpool_mclass_to_string[i]);
+            "kvdb/%s/mclass/%s/info", ikvdb_alias(kvdb), hse_mclass_name_get(i));
         if (ev(status) && !err)
             err = status;
     }

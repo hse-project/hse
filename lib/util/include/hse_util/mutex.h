@@ -1,6 +1,6 @@
 /* SPDX-License-Identifier: Apache-2.0 */
 /*
- * Copyright (C) 2015-2020 Micron Technology, Inc.  All rights reserved.
+ * Copyright (C) 2015-2021 Micron Technology, Inc.  All rights reserved.
  */
 
 #ifndef HSE_PLATFORM_MUTEX_H
@@ -63,6 +63,10 @@
  * uses spinning to retry the lock to avoid the cost of immediate
  * descheduling.
  */
+
+#include <errno.h>
+#include <pthread.h>
+#include <stdlib.h>
 
 #include <hse_util/assert.h>
 #include <hse_util/compiler.h>

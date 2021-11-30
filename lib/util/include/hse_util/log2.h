@@ -6,9 +6,9 @@
 #ifndef HSE_LOG2_H
 #define HSE_LOG2_H
 
+#include <hse_util/assert.h>
 #include <hse_util/inttypes.h>
 #include <hse_util/compiler.h>
-#include <hse_util/invariant.h>
 
 static HSE_ALWAYS_INLINE HSE_CONST
 unsigned int

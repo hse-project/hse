@@ -13,8 +13,8 @@
 
 #include <bsd/string.h>
 
+#include <hse_util/assert.h>
 #include <hse_util/hse_err.h>
-#include <hse_util/invariant.h>
 #include <hse_util/inttypes.h>
 #include <hse_util/dax.h>
 
@@ -24,10 +24,10 @@
 static merr_t
 path_join(const char *home, const char *path, char *buf, const size_t buf_sz)
 {
-    assert(home);
-    assert(path);
-    assert(buf);
-    assert(buf_sz > 0);
+    INVARIANT(home);
+    INVARIANT(path);
+    INVARIANT(buf);
+    INVARIANT(buf_sz > 0);
 
     int n;
 
@@ -58,10 +58,10 @@ kvdb_home_storage_path_get(
     char *       buf,
     const size_t buf_sz)
 {
-    assert(home);
-    assert(path);
-    assert(buf);
-    assert(buf_sz > 0);
+    INVARIANT(home);
+    INVARIANT(path);
+    INVARIANT(buf);
+    INVARIANT(buf_sz > 0);
 
     return path_join(home, path, buf, buf_sz);
 }
@@ -75,8 +75,8 @@ kvdb_home_storage_realpath_get(
 {
     merr_t err = 0;
 
-    assert(home);
-    assert(path);
+    INVARIANT(home);
+    INVARIANT(path);
 
     if (path[0] == '\0') {
         buf[0] = '\0';
@@ -108,9 +108,9 @@ kvdb_home_storage_realpath_get(
 merr_t
 kvdb_home_pidfile_path_get(const char *home, char *buf, const size_t buf_sz)
 {
-    assert(home);
-    assert(buf);
-    assert(buf_sz > 0);
+    INVARIANT(home);
+    INVARIANT(buf);
+    INVARIANT(buf_sz > 0);
 
     int n;
 

@@ -11,11 +11,13 @@
 #include <bsd/string.h>
 #include <cjson/cJSON.h>
 
+#include <hse/hse.h>
+
 #include <hse_ikvdb/kvdb_meta.h>
 #include <hse_ikvdb/kvdb_home.h>
 #include <hse_ikvdb/omf_version.h>
+#include <hse_util/assert.h>
 #include <hse_util/logging.h>
-#include <hse_util/invariant.h>
 
 #include <mpool/mpool.h>
 
@@ -162,7 +164,7 @@ kvdb_meta_serialize(const struct kvdb_meta *const meta, const char *const kvdb_h
     }
 
     for (i = HSE_MCLASS_BASE; i < HSE_MCLASS_COUNT; i++) {
-        mclass[i] = cJSON_AddObjectToObject(storage, mpool_mclass_to_string[i]);
+        mclass[i] = cJSON_AddObjectToObject(storage, hse_mclass_name_get(i));
         if (!mclass[i]) {
             err = merr(ENOMEM);
             goto out;
@@ -265,7 +267,20 @@ check_storage_keys(const cJSON *const node)
 {
     assert(node);
 
-    return check_keys(node, NELEM(mpool_mclass_to_string), mpool_mclass_to_string);
+    for (const cJSON *n = node->child; n; n = n->next) {
+        bool found = false;
+        for (int i = HSE_MCLASS_BASE; i < HSE_MCLASS_COUNT; i++) {
+            if (!strcmp(n->string, hse_mclass_name_get(i))) {
+                found = true;
+                break;
+            }
+        }
+
+        if (!found)
+            return false;
+    }
+
+    return true;
 }
 
 static bool
@@ -308,7 +323,7 @@ parse_v1(const cJSON *const root, struct kvdb_meta *const meta, const char *cons
 
     for (i = HSE_MCLASS_BASE; i < HSE_MCLASS_COUNT; i++) {
         if (i != HSE_MCLASS_PMEM) {
-            mclass[i] = cJSON_GetObjectItemCaseSensitive(storage, mpool_mclass_to_string[i]);
+            mclass[i] = cJSON_GetObjectItemCaseSensitive(storage, hse_mclass_name_get(i));
             if (!cJSON_IsObject(mclass[i]) || !check_media_class_keys(mclass[i]))
                 return merr(EPROTO);
         }
@@ -419,7 +434,7 @@ parse_v2(const cJSON *const root, struct kvdb_meta *const meta, const char *cons
         return merr(EPROTO);
 
     for (i = HSE_MCLASS_BASE; i < HSE_MCLASS_COUNT; i++) {
-        mclass[i] = cJSON_GetObjectItemCaseSensitive(storage, mpool_mclass_to_string[i]);
+        mclass[i] = cJSON_GetObjectItemCaseSensitive(storage, hse_mclass_name_get(i));
         if (!cJSON_IsObject(mclass[i]) || !check_media_class_keys(mclass[i]))
             return merr(EPROTO);
     }

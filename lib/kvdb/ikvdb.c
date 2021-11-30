@@ -6,11 +6,12 @@
 #define MTF_MOCK_IMPL_ikvdb
 #define MTF_MOCK_IMPL_kvs
 
+#include <hse/hse.h>
 #include <hse/flags.h>
 #include <hse/experimental.h>
 
+#include <hse_util/assert.h>
 #include <hse_util/hse_err.h>
-#include <hse_util/invariant.h>
 #include <hse_util/event_counter.h>
 #include <hse_util/page.h>
 #include <hse_util/seqno.h>
@@ -1969,13 +1970,16 @@ ikvdb_kvs_open(
     params->read_only = self->ikdb_rp.read_only; /* inherit from kvdb */
 
     for (i = HSE_MCLASS_BASE; i < HSE_MCLASS_COUNT; i++) {
-        if (strstr(params->mclass_policy, mpool_mclass_to_string[i])) {
+        const char *name = hse_mclass_name_get(i);
+
+        if (strstr(params->mclass_policy, name)) {
             struct mpool_mclass_props props;
+
             err = mpool_mclass_props_get(self->ikdb_mp, i, &props);
             if (err) {
                 if (merr_errno(err) == ENOENT)
                     log_err("%s media not configured, cannot use \"%s\" mclass policy for KVS %s",
-                            mpool_mclass_to_string[i], params->mclass_policy, kvs_name);
+                            name, params->mclass_policy, kvs_name);
                 return err;
             }
         }
