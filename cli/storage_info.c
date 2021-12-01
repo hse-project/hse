@@ -38,7 +38,7 @@ hse_storage_info(const char *const kvdb_home)
 
     err = hse_kvdb_open(kvdb_home, 0, NULL, &kvdb);
     if (!err) {
-        for (size_t i = HSE_MCLASS_BASE; i < HSE_MCLASS_COUNT; i++) {
+        for (int i = HSE_MCLASS_BASE; i < HSE_MCLASS_COUNT; i++) {
             err = hse_kvdb_mclass_info_get(kvdb, i, &info[i]);
             if (err) {
                 if (hse_err_to_errno(err) == ENOENT) {
@@ -56,6 +56,8 @@ hse_storage_info(const char *const kvdb_home)
 
         for (int i = HSE_MCLASS_BASE; i < HSE_MCLASS_COUNT; i++) {
             struct hse_mclass_info *data = &info[i];
+
+            memset(data, 0, sizeof(*data));
 
             rc = snprintf(
                 url, sizeof(url), "kvdb/%s/mclass/%s/info", content.alias, hse_mclass_name_get(i));
