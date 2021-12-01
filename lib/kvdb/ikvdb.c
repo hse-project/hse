@@ -588,7 +588,7 @@ ikvdb_mclass_info_get(
 
     self = ikvdb_h2r(kvdb);
 
-    return mpool_mclass_info_get(self->ikdb_mp, (enum hse_mclass)mclass, info);
+    return mpool_mclass_info_get(self->ikdb_mp, mclass, info);
 }
 
 static inline void
