@@ -46,11 +46,6 @@ particular Linux distribution and environment.
 See [`INSTALL.md`](https://github.com/hse-project/hse/blob/master/INSTALL.md)
 for examples of the packages required for several common Linux distributions.
 
-### Poetry
-
-We use [Poetry](https://python-poetry.org/) to manage Python dependencies.
-Install Poetry as per the [docs](https://python-poetry.org/docs/#installation).
-
 ### Building HSE
 
 <!--If you change the name of this header, please update all links to it as well-->
@@ -66,16 +61,9 @@ cd hse
 git checkout <release tag>
 ```
 
-Install Python dependencies using Poetry.
+Build and install using Meson and Ninja.
 
 ```shell
-poetry install
-```
-
-Build and install using Meson and Ninja from within the Poetry shell.
-
-```shell
-poetry shell
 meson setup build
 meson compile -C build
 meson install -C build
@@ -83,11 +71,6 @@ meson install -C build
 
 The default install directory is `/opt/hse`. This can be overridden by
 configuring the build with either `-Dprefix=$prefix` or `--prefix=$prefix`.
-After building and installing HSE you can exit the Poetry shell.
-
-```shell
-exit
-```
 
 ## Additional References
 

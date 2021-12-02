@@ -15,7 +15,7 @@ from hse2 import hse
 class KvdbContext(ContextDecorator):
     def __init__(
         self,
-        home: Optional[Union[str, "os.PathLike[str]"]] = cli.HOME,
+        home: Union[str, "os.PathLike[str]"] = cli.HOME,
         exists_ok: bool = True,
     ) -> None:
         super().__init__()

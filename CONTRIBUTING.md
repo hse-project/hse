@@ -222,13 +222,6 @@ cd $location
 tar -czf hse.tar.gz hse
 ```
 
-### Python
-
-Some of the tests or tools may require various Python dependencies including
-[`hse-python`](https://github.com/hse-project/hse-python). At the root of the
-repository is a `pyproject.toml`, which is configured with Poetry to install
-python dependencies. Refer to the [README.md](./README.md#poetry)
-
 ### Git Hooks
 
 HSE has some Git hooks in its source tree that you are welcome to use.
