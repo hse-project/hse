@@ -37,6 +37,7 @@ merr_t
 kbr_get_kblock_desc(
     struct mpool *           ds,
     struct mpool_mcache_map *map,
+    struct mblock_props     *props,
     u32                      map_idx,
     u64                      kblkid,
     struct kvs_mblk_desc *   kblkdesc)
@@ -52,6 +53,8 @@ kbr_get_kblock_desc(
     kblkdesc->map = map;
     kblkdesc->map_idx = map_idx;
     kblkdesc->map_base = base;
+    kblkdesc->mclass = props->mpr_mclass;
+
     return 0;
 }
 

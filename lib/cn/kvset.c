@@ -221,6 +221,7 @@ static merr_t
 kvset_kblk_init(
     struct kvs_rparams *     rp,
     struct mpool *           ds,
+    struct mblock_props     *props,
     struct mpool_mcache_map *kmap,
     u32                      idx,
     struct kvset_kblk *      p,
@@ -232,7 +233,7 @@ kvset_kblk_init(
 
     p->kb_cn_bloom_lookup = rp->cn_bloom_lookup;
 
-    err = kbr_get_kblock_desc(ds, kmap, idx, p->kb_kblk.bk_blkid, kbd);
+    err = kbr_get_kblock_desc(ds, kmap, props, idx, p->kb_kblk.bk_blkid, kbd);
     if (ev(err))
         return err;
 
@@ -448,7 +449,7 @@ kvset_create2(
     assert(n_kblks);
     last_kb = n_kblks - 1;
 
-    mblock_max = cn_vma_mblock_max(tree->cn, HSE_MCLASS_CAPACITY);
+    mblock_max = cn_vma_mblock_max(tree->cn);
 
     /* number of mcache maps needed */
     kmapc = (n_kblks + mblock_max - 1) / mblock_max;
@@ -562,7 +563,8 @@ kvset_create2(
 
         kblk->kb_kblk.bk_blkid = mbid;
 
-        err = kvset_kblk_init(rp, ds, ks->ks_kmapv[i / mblock_max], i % mblock_max, kblk, &hlog);
+        err = kvset_kblk_init(rp, ds, &props, ks->ks_kmapv[i / mblock_max], i % mblock_max,
+                              kblk, &hlog);
         if (ev(err))
             goto err_exit;
 
@@ -826,16 +828,8 @@ kvset_create(struct cn_tree *tree, u64 tag, struct kvset_meta *km, struct kvset 
         if (km->km_capped)
             flags |= MBSET_FLAGS_CAPPED;
 
-        err = mbset_create(
-            cn_tree_get_ds(tree),
-            n_vblks,
-            idv,
-            sizeof(struct vblock_desc),
-            vblock_udata_init,
-            flags,
-            cn_vma_mblock_max(tree->cn, HSE_MCLASS_CAPACITY),
-            &vbset);
-
+        err = mbset_create(cn_tree_get_ds(tree), n_vblks, idv, sizeof(struct vblock_desc),
+                           vblock_udata_init, flags, cn_vma_mblock_max(tree->cn), &vbset);
         if (idv != bufv)
             free(idv);
         if (ev(err))
@@ -964,7 +958,7 @@ cleanup_kblocks(struct kvset *ks)
     uint   i, mapc;
     u64    mblock_max;
 
-    mblock_max = cn_vma_mblock_max(ks->ks_tree->cn, HSE_MCLASS_CAPACITY);
+    mblock_max = cn_vma_mblock_max(ks->ks_tree->cn);
     /* unmap */
     mapc = (ks->ks_st.kst_kblks + mblock_max - 1) / mblock_max;
     for (i = 0; i < mapc; i++) {
@@ -1515,8 +1509,9 @@ kvset_lookup_val(struct kvset *ks, struct kvs_vtuple_ref *vref, struct kvs_buf *
     dst = vbuf->b_buf;
     copylen = min(vref->vb.vr_len, vbuf->b_buf_sz);
 
-    direct = copylen >= ks->ks_vmax
-        || (copylen >= ks->ks_vmin && ks->ks_node_level >= ks->ks_vminlvl);
+    direct = (copylen >= ks->ks_vmax ||
+              (copylen >= ks->ks_vmin && ks->ks_node_level >= ks->ks_vminlvl)) &&
+             (vbd->vbd_mblkdesc.mclass != HSE_MCLASS_PMEM);
 
     if (!copylen)
         goto done;
@@ -2796,7 +2791,7 @@ kvset_madvise_kmaps(struct kvset *ks, int advice)
 
     assert(advice == MADV_DONTNEED || advice == MADV_RANDOM);
 
-    mblock_max = cn_vma_mblock_max(ks->ks_tree->cn, HSE_MCLASS_CAPACITY);
+    mblock_max = cn_vma_mblock_max(ks->ks_tree->cn);
 
     mapc = (ks->ks_st.kst_kblks + mblock_max - 1) / mblock_max;
 
@@ -2813,7 +2808,7 @@ kvset_purge_kmaps(struct kvset *ks)
     merr_t err;
     u64    mblock_max;
 
-    mblock_max = cn_vma_mblock_max(ks->ks_tree->cn, HSE_MCLASS_CAPACITY);
+    mblock_max = cn_vma_mblock_max(ks->ks_tree->cn);
     mapc = (ks->ks_st.kst_kblks + mblock_max - 1) / mblock_max;
 
     for (i = 0; i < mapc; ++i) {

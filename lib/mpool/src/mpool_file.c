@@ -76,6 +76,12 @@ mpool_file_open(
             rc = ftruncate(fd, capacity);
             ev(rc);
         }
+
+        rc = fsync(dirfd);
+        if (rc == -1) {
+            err = merr(errno);
+            goto errout;
+        }
     }
 
     sz = sizeof(*mfp) + strlen(name) + 1;
@@ -89,8 +95,8 @@ mpool_file_open(
     mfp->mp = mp;
     mfp->mc = mc;
     mfp->fd = fd;
-    mfp->io = io_sync_ops;
     strcpy((char *)mfp->name, name);
+    mclass_io_ops_set(mclass, &mfp->io);
 
     *handle = mfp;
 
@@ -108,12 +114,17 @@ merr_t
 mpool_file_close(struct mpool_file *file)
 {
     merr_t err;
+    int    rc;
 
     if (!file)
         return merr(EINVAL);
 
     err = mpool_file_unmap(file);
     ev(err);
+
+    rc = fsync(file->fd);
+    if (rc == -1)
+        return merr(errno);
 
     close(file->fd);
     free(file);
@@ -139,6 +150,10 @@ mpool_file_destroy(struct mpool *mp, enum hse_mclass mclass, const char *name)
     if (rc < 0)
         return merr(errno);
 
+    rc = fsync(dirfd);
+    if (rc == -1)
+        return merr(errno);
+
     return 0;
 }
 
@@ -154,7 +169,7 @@ mpool_file_read(struct mpool_file *file, off_t offset, char *buf, size_t buflen,
     iov.iov_base = buf;
     iov.iov_len = buflen;
 
-    err = file->io.read(file->fd, offset, (const struct iovec *)&iov, 1, 0, rdlen);
+    err = file->io.read(NULL, file->fd, offset, (const struct iovec *)&iov, 1, 0, rdlen);
     if (err)
         return err;
 
@@ -178,7 +193,7 @@ mpool_file_write(
     iov.iov_base = (char *)buf;
     iov.iov_len = buflen;
 
-    err = file->io.write(file->fd, offset, (const struct iovec *)&iov, 1, 0, wrlen);
+    err = file->io.write(NULL, file->fd, offset, (const struct iovec *)&iov, 1, 0, wrlen);
     if (err)
         return err;
 
@@ -191,7 +206,7 @@ mpool_file_sync(struct mpool_file *file)
     int rc;
 
     rc = fsync(file->fd);
-    if (rc)
+    if (rc == -1)
         return merr(errno);
 
     return 0;
@@ -216,6 +231,7 @@ mpool_file_mmap(struct mpool_file *file, bool read_only, int advice, char **addr
     char *addr;
     int prot, rc;
     size_t sz;
+    merr_t err;
 
     if (!file)
         return merr(EINVAL);
@@ -223,9 +239,9 @@ mpool_file_mmap(struct mpool_file *file, bool read_only, int advice, char **addr
     sz = mpool_file_size(file);
     prot = read_only ? PROT_READ : PROT_READ | PROT_WRITE;
 
-    addr = mmap(NULL, sz, prot, MAP_SHARED, file->fd, 0);
-    if (addr == MAP_FAILED)
-        return merr(errno);
+    err = file->io.mmap((void **)&addr, sz, prot, MAP_SHARED, file->fd, 0);
+    if (err)
+        return err;
 
     file->addr = addr;
     file->size = sz;
@@ -244,16 +260,13 @@ mpool_file_mmap(struct mpool_file *file, bool read_only, int advice, char **addr
 static merr_t
 mpool_file_unmap(struct mpool_file *file)
 {
-    int rc;
+    merr_t err = 0;
 
-    if (!file->addr)
-        return 0;
+    if (file->addr) {
+        err = file->io.munmap(file->addr, file->size);
+        if (!err)
+            file->addr = NULL;
+    }
 
-    rc = munmap(file->addr, file->size);
-    if (rc == -1)
-        return merr(errno);
-
-    file->addr = NULL;
-
-    return 0;
+    return err;
 }

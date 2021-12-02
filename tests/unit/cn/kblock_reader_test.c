@@ -170,15 +170,16 @@ MTF_DEFINE_UTEST_PRE(kblock_reader_test, t_kbr_get_kblock_desc, pre)
     u32                      map_idx = 3;
     u64                      kbid = 0xffff;
     struct kvs_mblk_desc     desc;
+    struct mblock_props      props = { 0 };
 
     /* force success w/o having an actual mblock */
     mapi_inject_ptr(mapi_idx_mpool_mcache_getbase, (void *)1);
-    err = kbr_get_kblock_desc(ds, map, map_idx, kbid, &desc);
+    err = kbr_get_kblock_desc(ds, map, &props, map_idx, kbid, &desc);
     ASSERT_EQ(err, 0);
 
     /* force fail */
     mapi_inject_ptr(mapi_idx_mpool_mcache_getbase, 0);
-    err = kbr_get_kblock_desc(ds, map, map_idx, kbid, &desc);
+    err = kbr_get_kblock_desc(ds, map, &props, map_idx, kbid, &desc);
     ASSERT_NE(err, 0);
 }
 

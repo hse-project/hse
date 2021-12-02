@@ -15,13 +15,21 @@
  * write: write IO
  */
 struct io_ops {
-    merr_t
-        (*read)(int fd, off_t off, const struct iovec *iov, int iovcnt, int flags, size_t *rdlen);
-    merr_t
-        (*write)(int fd, off_t off, const struct iovec *iov, int iovcnt, int flags, size_t *wrlen);
+    merr_t (*read)(const void *src_addr, int src_fd, off_t off, const struct iovec *iov,
+		   int iovcnt, int flags, size_t *rdlen);
+    merr_t (*write)(void *dst_addr, int dst_fd, off_t off, const struct iovec *iov,
+		    int iovcnt, int flags, size_t *wrlen);
+    merr_t (*mmap)(void **addr, size_t len, int prot, int flags, int fd, off_t offset);
+    merr_t (*munmap)(void *addr, size_t len);
+    merr_t (*msync)(void *addr, size_t len, int flags);
 };
 
 /* sync backend */
 extern const struct io_ops io_sync_ops;
+
+/* pmem backend */
+#ifdef HAVE_PMEM
+extern const struct io_ops io_pmem_ops;
+#endif /* HAVE_PMEM */
 
 #endif /* MPOOL_IO_H */

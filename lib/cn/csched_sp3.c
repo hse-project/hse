@@ -1507,6 +1507,14 @@ sp3_submit(struct sp3 *sp, struct cn_compaction_work *w, uint qnum, uint rbt_idx
             break;
     }
 
+    /* Force compaction reads to use mcache if the value blocks for this node reside on
+     * the pmem media class.
+     */
+    if (cn_tree_node_mclass(tn, HSE_MPOLICY_DTYPE_VALUE) == HSE_MCLASS_PMEM) {
+        w->cw_iter_flags |= kvset_iter_flag_mcache;
+        w->cw_io_workq = NULL;
+    }
+
     w->cw_sched = sp;
     w->cw_completion = sp3_work_complete;
     w->cw_progress = sp3_work_progress;

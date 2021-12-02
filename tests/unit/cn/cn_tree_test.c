@@ -277,6 +277,7 @@ struct mapi_injection inject_list[] = {
     { mapi_idx_cn_mpool_dev_zone_alloc_unit_default, MAPI_RC_SCALAR, 32 << 20 },
     { mapi_idx_cn_ref_get, MAPI_RC_SCALAR, 0 },
     { mapi_idx_cn_ref_put, MAPI_RC_SCALAR, 0 },
+    { mapi_idx_cn_tree_node_mclass, MAPI_RC_SCALAR, 0 },
 
     /* csched */
     { mapi_idx_csched_notify_ingest, MAPI_RC_SCALAR, 0 },

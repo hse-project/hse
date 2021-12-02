@@ -8,11 +8,15 @@
 
 #include <stdint.h>
 
-#include <mpool/mpool.h>
 #include <hse_util/compiler.h>
 #include <hse_util/hse_err.h>
 
+#include <mpool/mpool.h>
+
+struct ikvdb;
+
 #define HSE_MPOLICY_DEFAULT_NAME "default_policy"
+#define HSE_MPOLICY_AUTO_NAME    "auto"
 
 enum hse_mclass_policy_age {
     HSE_MPOLICY_AGE_ROOT,
@@ -39,16 +43,22 @@ struct mclass_policy {
 };
 
 /**
- * mclass_policy_get_default_policy_names() - returns default policy names
+ * mclass_policy_names_get() - returns pre-defined mclass policy names
  */
 const char **
-mclass_policy_get_default_policy_names() HSE_RETURNS_NONNULL;
+mclass_policy_names_get() HSE_RETURNS_NONNULL;
 
 /**
- * mclass_policy_get_num_default_policies() - number of default policies
+ * mclass_policy_names_cnt() - number of pre-defined mclass policy names
  */
 int
-mclass_policy_get_num_default_policies();
+mclass_policy_names_cnt();
+
+/**
+ * mclass_policy_default_get() - returns default policy for a KVDB
+ */
+const char *
+mclass_policy_default_get(struct ikvdb *handle);
 
 /**
  * mclass_policy_get_type() - get the media type to use for the

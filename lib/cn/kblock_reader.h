@@ -11,6 +11,7 @@
 
 struct mpool;
 struct mpool_mcache_map;
+struct mblock_props;
 struct bloom_desc;
 struct wbt_desc;
 struct kvs_mblk_desc;
@@ -35,6 +36,7 @@ merr_t
 kbr_get_kblock_desc(
     struct mpool *           ds,
     struct mpool_mcache_map *map,
+    struct mblock_props     *props,
     u32                      map_idx,
     u64                      kblock_id,
     struct kvs_mblk_desc *   kblock_desc);

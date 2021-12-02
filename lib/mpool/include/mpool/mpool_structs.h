@@ -19,7 +19,9 @@
  * smell. Ideally, I think we remove this and properly propogate errors up the
  * stack, assert(), or abort(). This is a holdover from MP_MED_INVALID.
  */
-#define HSE_MCLASS_INVALID UINT8_MAX
+#define HSE_MCLASS_INVALID         UINT8_MAX
+#define HSE_MCLASS_AUTO            HSE_MCLASS_COUNT
+#define HSE_MCLASS_AUTO_NAME       "auto"
 
 #define MPOOL_CAPACITY_MCLASS_DEFAULT_PATH "capacity"
 #define MPOOL_PMEM_MCLASS_DEFAULT_PATH     "pmem"

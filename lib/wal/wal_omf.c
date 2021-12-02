@@ -13,6 +13,18 @@
 #include "wal_omf.h"
 #include "wal_replay.h"
 
+static HSE_ALWAYS_INLINE uint64_t
+crc_valid_bit_set(uint32_t crc32)
+{
+    return ((1ull << CRC_VALID_SHIFT) | crc32);
+}
+
+static HSE_ALWAYS_INLINE bool
+crc_valid_bit_isset(uint64_t crc)
+{
+    return (((crc & CRC_VALID_MASK) >> CRC_VALID_SHIFT) == 1);
+}
+
 void
 wal_rechdr_pack(enum wal_rec_type rtype, uint64_t rid, size_t tlen, uint64_t gen, void *outbuf)
 {
@@ -37,10 +49,12 @@ void
 wal_rechdr_crc_pack(char *recbuf, size_t len)
 {
     struct wal_rechdr_omf *rhomf = (struct wal_rechdr_omf *)recbuf;
-    uint32_t crc;
+    uint64_t crc;
+    uint32_t crc32;
     uint32_t ignore = offsetof(struct wal_rechdr_omf, rh_cksum) + sizeof(rhomf->rh_cksum);
 
-    crc = crc32c(0, recbuf + ignore, len - ignore);
+    crc32 = crc32c(0, recbuf + ignore, len - ignore);
+    crc = crc_valid_bit_set(crc32);
     omf_set_rh_cksum(rhomf, crc);
 }
 
@@ -138,12 +152,14 @@ wal_rec_cksum_valid(const char *inbuf)
 {
     const struct wal_rechdr_omf *rhomf = (const void *)inbuf;
     size_t len;
-    uint32_t crc, ignore = offsetof(struct wal_rechdr_omf, rh_cksum) + sizeof(rhomf->rh_cksum);
+    uint64_t crc;
+    uint32_t crc32, ignore = offsetof(struct wal_rechdr_omf, rh_cksum) + sizeof(rhomf->rh_cksum);
 
     len = wal_reclen_total(inbuf);
-    crc = crc32c(0, inbuf + ignore, len - ignore);
+    crc32 = crc32c(0, inbuf + ignore, len - ignore);
+    crc = omf_rh_cksum(rhomf);
 
-    return (crc == omf_rh_cksum(rhomf));
+    return ((crc32 == (crc & CRC_MASK)) && crc_valid_bit_isset(crc));
 }
 
 void
@@ -348,12 +364,14 @@ wal_filehdr_pack(
     void                   *outbuf)
 {
     struct wal_filehdr_omf *fhomf = outbuf;
-    uint32_t crc;
+    uint64_t crc;
+    uint32_t crc32;
     uint32_t ignore = sizeof(fhomf->fh_cksum);
     uint32_t len = sizeof(*fhomf);
 
     omf_set_fh_magic(fhomf, magic);
     omf_set_fh_version(fhomf, version);
+    omf_set_fh_rsvd(fhomf, 0);
     omf_set_fh_close(fhomf, close ? 1 : 0);
     omf_set_fh_mingen(fhomf, info->min_gen);
     omf_set_fh_maxgen(fhomf, info->max_gen);
@@ -364,7 +382,8 @@ wal_filehdr_pack(
     omf_set_fh_startoff(fhomf, soff);
     omf_set_fh_endoff(fhomf, eoff);
 
-    crc = crc32c(0, outbuf + ignore, len - ignore);
+    crc32 = crc32c(0, outbuf, len - ignore);
+    crc = crc_valid_bit_set(crc32);
     omf_set_fh_cksum(fhomf, crc);
 }
 
@@ -379,7 +398,8 @@ wal_filehdr_unpack(
     struct wal_minmax_info *info)
 {
     const struct wal_filehdr_omf *fhomf = inbuf;
-    uint32_t crc, crcomf;
+    uint64_t crc;
+    uint32_t crc32;
     uint32_t ignore = sizeof(fhomf->fh_cksum);
     uint32_t len = sizeof(*fhomf);
 
@@ -394,9 +414,9 @@ wal_filehdr_unpack(
     info->min_txid = omf_fh_mintxid(fhomf);
     info->max_txid = omf_fh_maxtxid(fhomf);
 
-    crc = crc32c(0, inbuf + ignore, len - ignore);
-    crcomf = omf_fh_cksum(fhomf);
-    if (crc != crcomf) {
+    crc32 = crc32c(0, inbuf, len - ignore);
+    crc = omf_fh_cksum(fhomf);
+    if ((crc32 != (crc & CRC_MASK)) || !crc_valid_bit_isset(crc)) {
         const struct wal_filehdr_omf ref = {0};
 
         return ((memcmp(fhomf, &ref, sizeof(*fhomf)) == 0) ? merr(ENODATA) : merr(EBADMSG));
@@ -406,7 +426,7 @@ wal_filehdr_unpack(
         return merr(EBADMSG);
 
     if (version != omf_fh_version(fhomf))
-        return merr(EPROTO); /* version mismatch, no upgrade support yet */
+        return merr(EPROTO); /* version mismatch, no upgrade support for WAL data files */
 
     return 0;
 }

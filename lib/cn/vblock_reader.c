@@ -52,6 +52,7 @@ vbr_desc_read(
     vblk_desc->vbd_mblkdesc.mb_id = props->mpr_objid;
     vblk_desc->vbd_mblkdesc.map = map;
     vblk_desc->vbd_mblkdesc.map_idx = idx;
+    vblk_desc->vbd_mblkdesc.mclass = props->mpr_mclass;
     vblk_desc->vbd_off = PAGE_SIZE;
     vblk_desc->vbd_len = props->mpr_write_len - PAGE_SIZE;
     vblk_desc->vbd_vgroup = vgroup;

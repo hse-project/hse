@@ -80,7 +80,7 @@ struct kvdb_rparams {
     uint8_t           dur_throttle_hi_th;
     bool              dur_enable;
     bool              dur_buf_managed;
-    enum hse_mclass dur_mclass;
+    uint8_t           dur_mclass;
 
     uint64_t throttle_update_ns;
     uint     throttle_init_policy; /* [HSE_REVISIT]: Make this a fixed width type */

@@ -469,8 +469,7 @@ ikvdb_storage_add(const char *kvdb_home, struct kvdb_cparams *params)
         return err;
 
     if (pmem_only != (params->storage.mclass[HSE_MCLASS_CAPACITY].path[0] != '\0')) {
-        log_err("Cannot add storage to a %s KVDB (%s): capacity mclass must be %s",
-                pmem_only ? "pmem-only" : "standard", kvdb_home,
+        log_err("cannot add storage to KVDB (%s): capacity mclass must be %s", kvdb_home,
                 pmem_only ? "added before other media classes" : "provided at create time");
         return merr(EINVAL);
     }
@@ -1334,6 +1333,13 @@ ikvdb_open(
     hse_meminfo(NULL, &mavail, 0);
     ikvdb_lowmem_adjust(self, mavail >> 30);
 
+    if (self->ikdb_rp.throttle_init_policy == THROTTLE_DELAY_START_AUTO) {
+        log_info("setting throttling.init_policy to \"%s\" for KVDB(%s)",
+                 self->ikdb_pmem_only ? "light" : "heavy", kvdb_home);
+        self->ikdb_rp.throttle_init_policy =
+            self->ikdb_pmem_only ? THROTTLE_DELAY_START_LIGHT : THROTTLE_DELAY_START_HEAVY;
+    }
+
     throttle_init(&self->ikdb_throttle, &self->ikdb_rp, self->ikdb_alias);
     throttle_init_params(&self->ikdb_throttle, &self->ikdb_rp);
 
@@ -1455,8 +1461,7 @@ ikvdb_open(
     ikvdb_wal_replay_info_init(self, seqno, gen, txhorizon, &rinfo);
 
     if (self->ikdb_pmem_only) {
-        log_info("KVDB (%s) is pmem-only, setting the durability.mclass policy to \"pmem_only\"",
-                 kvdb_home);
+        log_info("setting durability.mclass to \"pmem\" for KVDB(%s)", kvdb_home);
         self->ikdb_rp.dur_mclass = HSE_MCLASS_PMEM;
     }
 
@@ -1982,6 +1987,22 @@ ikvdb_kvs_open(
 
     params->read_only = self->ikdb_rp.read_only; /* inherit from kvdb */
 
+    if (!strcmp(params->mclass_policy, HSE_MPOLICY_AUTO_NAME)) {
+        const char *policy = mclass_policy_default_get(handle);
+
+        if (!policy || !strcmp(policy, "invalid")) {
+            log_err("unable to determine default mclass policy for KVS %s", kvs_name);
+            return merr(EINVAL);
+        }
+
+        strlcpy(params->mclass_policy, policy, HSE_MPOLICY_NAME_LEN_MAX);
+        log_info("KVS %s is configured to use the mclass policy \"%s\"",
+                 kvs_name, params->mclass_policy);
+    } else if (self->ikdb_pmem_only && strcmp(params->mclass_policy, "pmem_only")) {
+        log_info("setting mclass policy to \"pmem_only\" for KVS %s", kvs_name);
+        strcpy(params->mclass_policy, "pmem_only");
+    }
+
     for (i = HSE_MCLASS_BASE; i < HSE_MCLASS_COUNT; i++) {
         const char *name = hse_mclass_name_get(i);
 
@@ -1995,12 +2016,6 @@ ikvdb_kvs_open(
     }
 
     mutex_lock(&self->ikdb_lock);
-
-    if (self->ikdb_pmem_only && strcmp(params->mclass_policy, "pmem_only")) {
-        log_info("KVDB is pmem-only, changing the mclass policy to \"pmem_only\" for the KVS %s",
-                 kvs_name);
-        strlcpy(params->mclass_policy, "pmem_only", HSE_MPOLICY_NAME_LEN_MAX);
-    }
 
     idx = get_kvs_index(self->ikdb_kvs_vec, kvs_name, NULL);
     if (idx < 0) {

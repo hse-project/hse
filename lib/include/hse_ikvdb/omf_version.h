@@ -65,6 +65,7 @@ enum {
 
 enum {
     WAL_VERSION1 = 1,
+    WAL_VERSION2 = 2,
 };
 
 enum {
@@ -86,7 +87,7 @@ enum {
 #define CN_TSTATE_VERSION      CN_TSTATE_VERSION1
 #define MBLOCK_METAHDR_VERSION MBLOCK_METAHDR_VERSION2
 #define MDC_LOGHDR_VERSION     MDC_LOGHDR_VERSION2
-#define WAL_VERSION            WAL_VERSION1
+#define WAL_VERSION            WAL_VERSION2
 #define KVDB_META_VERSION      KVDB_META_VERSION2
 
 #endif

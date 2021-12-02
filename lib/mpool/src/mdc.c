@@ -29,6 +29,9 @@ struct mpool_mdc {
     struct mdc_file *mfpa;
 };
 
+/* Forward decls */
+merr_t
+mpool_mdc_delete(struct mpool *mp, uint64_t logid1, uint64_t logid2);
 
 merr_t
 mpool_mdc_alloc(
@@ -42,7 +45,7 @@ mpool_mdc_alloc(
     enum mclass_id mcid;
     uint64_t id[2];
     merr_t   err;
-    int      dirfd, flags, mode, i;
+    int      dirfd, flags, mode, i, rc;
 
     if (!mp || mclass >= HSE_MCLASS_COUNT || capacity < MDC_LOGHDR_LEN || !logid1 || !logid2)
         return merr(EINVAL);
@@ -71,6 +74,13 @@ mpool_mdc_alloc(
 
             return err;
         }
+    }
+
+    rc = fsync(dirfd);
+    if (rc == -1) {
+        err = merr(errno);
+        mpool_mdc_delete(mp, id[0], id[1]);
+        return err;
     }
 
     *logid1 = id[0];

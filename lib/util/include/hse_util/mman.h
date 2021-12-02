@@ -7,6 +7,7 @@
 #define HSE_PLATFORM_MMAN_H
 
 #include <sys/mman.h>
+#include <linux/mman.h>
 
 #ifndef MADV_FREE
 #define MADV_FREE MADV_DONTNEED

@@ -98,8 +98,8 @@ MTF_DEFINE_UTEST_PRE(test, t_basic, pre_test)
 
     throttle_init_params(t, &kvdb_rp);
 
-    /* delay should be THROTTLE_DELAY_START_DEFAULT after init params */
-    ASSERT_EQ(THROTTLE_DELAY_START_DEFAULT, throttle_delay(t));
+    /* delay should be THROTTLE_DELAY_START_AUTO after init params */
+    ASSERT_EQ(THROTTLE_DELAY_START_AUTO, throttle_delay(t));
 
     /* get sensors */
     for (i = 0; i < sc; i++) {
@@ -110,8 +110,8 @@ MTF_DEFINE_UTEST_PRE(test, t_basic, pre_test)
     /* invalid sensor number --> NULL */
     ASSERT_EQ(throttle_sensor(t, sc), NULL);
 
-    /* delay should still be THROTTLE_DELAY_START after sensor retrieved */
-    ASSERT_EQ(THROTTLE_DELAY_START_DEFAULT, throttle_delay(t));
+    /* delay should still be THROTTLE_DELAY_START_AUTO after sensor retrieved */
+    ASSERT_EQ(THROTTLE_DELAY_START_AUTO, throttle_delay(t));
 
     /* sensor values should be 0 */
     for (i = 0; i < sc; i++) {

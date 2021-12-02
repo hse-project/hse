@@ -8,27 +8,55 @@
 #include <hse_util/platform.h>
 #include <hse_util/page.h>
 #include <hse_util/dax.h>
+#include <hse_util/mman.h>
 
-#if defined(MAP_SYNC) && defined(MAP_SHARED_VALIDATE)
-#include <dirent.h>
-#include <sys/mman.h>
+#ifdef HAVE_PMEM
+#include <libpmem.h>
 #else
-#include <mntent.h>
+#include <dirent.h>
 #endif
 
 merr_t
 dax_path_is_fsdax(const char *path, bool *isdax)
 {
-    merr_t err = 0;
-    int rc;
+#ifdef HAVE_PMEM
 
-#if defined(MAP_SYNC) && defined(MAP_SHARED_VALIDATE)
+    char buf[PATH_MAX + 16];
+    const char *fname = "hse-dax-test";
+    const int fsize = 4 << 20;
+    void *addr;
+    size_t n;
+    int is_pmem = 0;
+
+    if (!path || !isdax)
+        return merr(EINVAL);
+
+    *isdax = false;
+
+    n = snprintf(buf, sizeof(buf), "%s/%s", path, fname);
+    if (n >= sizeof(buf))
+        return merr(ENAMETOOLONG);
+
+    addr = pmem_map_file(buf, fsize, PMEM_FILE_CREATE, S_IRUSR | S_IWUSR, NULL, &is_pmem);
+    if (!addr)
+        return merr(errno);
+
+    pmem_unmap(addr, fsize);
+
+    *isdax = (is_pmem > 0);
+
+    remove(buf);
+
+    return 0;
+
+#else
 
     DIR *dirp;
-    int fddir, fd;
+    int fddir, fd, rc;
     char *addr;
     const int fsize = 4 * PAGE_SIZE;
     const char *fname = "hse-dax-test";
+    merr_t err = 0;
 
     if (!path || !isdax)
         return merr(EINVAL);
@@ -71,63 +99,7 @@ out:
 
     return err;
 
-#else
-
-    struct mntent *entry;
-    struct stat sbuf;
-    const char *mnttab = "/etc/mtab";
-    FILE *fp;
-    dev_t pathdev;
-
-    if (!path || !isdax)
-        return merr(EINVAL);
-
-    *isdax = false;
-
-    rc = stat(path, &sbuf);
-    if (rc == -1)
-        return merr(errno);
-    pathdev = sbuf.st_dev;
-
-    fp = fopen(mnttab, "r");
-    if (!fp)
-        return merr(errno);
-
-    while ((entry = getmntent(fp))) {
-        rc = stat(entry->mnt_dir, &sbuf);
-        if (rc == -1) {
-            err = merr(errno);
-            break;
-        }
-
-        if (pathdev == sbuf.st_dev) { /* same FS as path */
-            char *daxopt, *end;
-            char daxval[16];
-            int  n;
-
-            daxopt = strstr(entry->mnt_opts, "dax");
-            if (!daxopt)
-                break;
-
-            end = strchr(daxopt, ',');
-            if (end)
-                *end = '\0';
-
-            n = sscanf(daxopt, "dax=%s", daxval);
-            if (n == 1) {
-                if (strcmp(daxval, "always") == 0)
-                    *isdax = true;
-                /* TODO: Handle dax=inode */
-            }
-            break;
-        }
-    }
-
-    fclose(fp);
-
-    return err;
-
-#endif
+#endif /* HAVE_PMEM */
 }
 
 #if HSE_MOCKING

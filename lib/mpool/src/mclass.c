@@ -10,12 +10,15 @@
 #include <hse_util/event_counter.h>
 #include <hse_util/logging.h>
 #include <hse_util/workqueue.h>
+#include <hse_util/assert.h>
+
 #include <mpool/mpool_structs.h>
 
 #include "mclass.h"
 #include "mdc.h"
 #include "mdc_file.h"
 #include "mblock_fset.h"
+#include "io.h"
 
 #define MCLASS_FILES_MAX   (MBLOCK_FSET_FILES_MAX)
 
@@ -381,6 +384,18 @@ mcid_to_mclass(enum mclass_id mcid)
     }
 
     return HSE_MCLASS_INVALID;
+}
+
+void
+mclass_io_ops_set(enum hse_mclass mclass, struct io_ops *io)
+{
+    INVARIANT(io);
+
+#ifdef HAVE_PMEM
+    *io = (mclass == HSE_MCLASS_PMEM) ? io_pmem_ops : io_sync_ops;
+#else
+    *io = io_sync_ops;
+#endif
 }
 
 merr_t
