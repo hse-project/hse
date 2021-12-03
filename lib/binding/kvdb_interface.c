@@ -503,6 +503,15 @@ hse_kvdb_mclass_info_get(
     return ikvdb_mclass_info_get((struct ikvdb *)handle, mclass, info);
 }
 
+bool
+hse_kvdb_mclass_is_configured(struct hse_kvdb *const handle, const enum hse_mclass mclass)
+{
+    if (HSE_UNLIKELY(!handle || mclass >= HSE_MCLASS_COUNT))
+        return false;
+
+    return ikvdb_mclass_is_configured((struct ikvdb *)handle, mclass);
+}
+
 hse_err_t
 hse_kvdb_kvs_create(
     struct hse_kvdb *        handle,

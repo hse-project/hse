@@ -591,6 +591,19 @@ ikvdb_mclass_info_get(
     return mpool_mclass_info_get(self->ikdb_mp, mclass, info);
 }
 
+bool
+ikvdb_mclass_is_configured(struct ikvdb *const kvdb, const enum hse_mclass mclass)
+{
+    struct ikvdb_impl *self;
+
+    INVARIANT(kvdb);
+    INVARIANT(mclass < HSE_MCLASS_COUNT);
+
+    self = ikvdb_h2r(kvdb);
+
+    return mpool_mclass_is_configured(self->ikdb_mp, mclass);
+}
+
 static inline void
 ikvdb_tb_configure(struct ikvdb_impl *self, u64 burst, u64 rate, bool initialize)
 {

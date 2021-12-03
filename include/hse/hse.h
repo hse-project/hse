@@ -293,6 +293,21 @@ hse_kvdb_kvs_names_free(struct hse_kvdb *kvdb, char **namev);
 hse_err_t
 hse_kvdb_mclass_info_get(struct hse_kvdb *kvdb, enum hse_mclass mclass, struct hse_mclass_info *info);
 
+/** @brief Check if a media class is configured for a KVDB.
+ *
+ * @note This function is thread safe.
+ *
+ * @param kvdb: KVDB handle from hse_kvdb_open().
+ * @param mclass: Media class to query for.
+ *
+ * @remark @p kvdb must not be NULL.
+ *
+ * @returns Whether or not @p mclass is configured.
+ * @retval false: if @p kvdb or @p mclass is invalid.
+ */
+bool
+hse_kvdb_mclass_is_configured(struct hse_kvdb *kvdb, enum hse_mclass mclass);
+
 /** @brief Open a KVDB.
  *
  * @note This function is not thread safe.
