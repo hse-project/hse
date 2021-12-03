@@ -19,6 +19,7 @@
 
 static struct ikvs *kvs;
 static struct lc *lc;
+static struct kvdb_health mock_health;
 
 static int
 test_pre(struct mtf_test_info *lcl_ti)
@@ -32,7 +33,7 @@ test_pre(struct mtf_test_info *lcl_ti)
 
     mock_c0cn_set();
 
-    err = lc_create(&lc, (void *)-1);
+    err = lc_create(&lc, &mock_health);
     ASSERT_EQ_RET(0, err, -1);
 
     lc_ingest_seqno_set(lc, 1);
