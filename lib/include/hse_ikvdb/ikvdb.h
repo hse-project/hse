@@ -101,6 +101,18 @@ ikvdb_drop(const char *kvdb_home);
 merr_t
 ikvdb_mclass_info_get(struct ikvdb *kvdb, enum hse_mclass mclass, struct hse_mclass_info *info);
 
+/** @brief Check if a media class is configured for a KVDB.
+ *
+ * @note This function is thread safe.
+ *
+ * @param kvdb: KVDB handle from hse_kvdb_open().
+ * @param mclass: Media class to query for.
+ *
+ * @returns Whether or not the @p mclass is configured.
+ */
+bool
+ikvdb_mclass_is_configured(struct ikvdb *kvdb, enum hse_mclass mclass);
+
 /**
  * Add media class to a KVDB
  *

@@ -58,7 +58,7 @@ enum hse_err_ctx {
 };
 
 /** @brief Smallest error context value */
-#define HSE_ERR_CTX_MIN HSE_ERR_CTX_NONE
+#define HSE_ERR_CTX_BASE HSE_ERR_CTX_NONE
 
 /** @brief Largest error context value */
 #define HSE_ERR_CTX_MAX HSE_ERR_CTX_NONE
