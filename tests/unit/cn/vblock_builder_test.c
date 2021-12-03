@@ -119,7 +119,8 @@ MTF_DEFINE_UTEST_PRE(test, t_vbb_create1, test_setup)
     ASSERT_EQ(err, 0);
 
     for (i = 0; i < HSE_MPOLICY_AGE_CNT; i++) {
-        vbb_set_agegroup(vbb, i);
+        err = vbb_set_agegroup(vbb, i);
+        ASSERT_EQ(0, merr_errno(err));
         ASSERT_EQ(vbb_get_agegroup(vbb), i);
     }
 
@@ -468,7 +469,7 @@ fill_exact(struct mtf_test_info *lcl_ti, struct vblock_builder *vbb, uint space,
 {
     merr_t err = 0;
     uint   vlen_max = HSE_KVS_VALUE_LEN_MAX;
-    uint   avail = kvsrp.vblock_size - PAGE_SIZE - space;
+    uint   avail = MPOOL_MBLOCK_SIZE_DEFAULT - PAGE_SIZE - space;
     uint   vlen;
 
     while (avail > 0) {
@@ -491,7 +492,7 @@ run_test_case(struct mtf_test_info *lcl_ti, enum test_case tc, size_t n_vblocks)
 {
     struct vblock_builder *vbb = 0;
 
-    const size_t mblock_size = kvsrp.vblock_size;
+    const size_t mblock_size = MPOOL_MBLOCK_SIZE_DEFAULT;
     const size_t vblock_hdr_size = PAGE_SIZE;
     const size_t avail_mblock_size = mblock_size - vblock_hdr_size;
     const size_t vlen = 50 * 1000;

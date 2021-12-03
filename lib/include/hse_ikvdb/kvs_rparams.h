@@ -72,8 +72,6 @@ struct kvs_rparams {
     uint64_t cn_bloom_preload;
 
     uint64_t cn_kcachesz;
-    uint64_t kblock_size;
-    uint64_t vblock_size;
 
     uint64_t capped_evict_ttl;
 

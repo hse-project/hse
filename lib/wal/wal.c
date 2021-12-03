@@ -501,11 +501,9 @@ wal_create(struct mpool *mp, uint64_t *mdcid1, uint64_t *mdcid2)
     struct wal_mdc *          mdc;
     merr_t                    err;
     int                       i;
-    struct mpool_mclass_props props;
 
     for (i = HSE_MCLASS_COUNT - 1; i >= HSE_MCLASS_BASE; i--) {
-        err = mpool_mclass_props_get(mp, i, &props);
-        if (!err)
+        if (mpool_mclass_is_configured(mp, i))
             break;
     }
     assert(i >= HSE_MCLASS_BASE);

@@ -179,17 +179,20 @@ _mpool_mblock_delete(struct mpool *mp, uint64_t id)
 merr_t
 _mpool_props_get(struct mpool *mp, struct mpool_props *props)
 {
-    props->mclass[HSE_MCLASS_CAPACITY].mc_mblocksz = MPOOL_MBLOCK_SIZE_DEFAULT;
-    props->mclass[HSE_MCLASS_CAPACITY].mc_filecnt = MPOOL_MBLOCK_FILECNT_DEFAULT;
-    props->mclass[HSE_MCLASS_CAPACITY].mc_fmaxsz = MPOOL_MBLOCK_FILESZ_DEFAULT;
-    strlcpy(
-        props->mclass[HSE_MCLASS_CAPACITY].mc_path,
-        MPOOL_CAPACITY_MCLASS_DEFAULT_PATH,
-        sizeof(props->mclass[HSE_MCLASS_CAPACITY].mc_path));
+    assert(HSE_MCLASS_BASE == HSE_MCLASS_CAPACITY);
 
-    props->mclass[HSE_MCLASS_STAGING].mc_mblocksz = MPOOL_MBLOCK_SIZE_DEFAULT;
-    props->mclass[HSE_MCLASS_STAGING].mc_filecnt = MPOOL_MBLOCK_FILECNT_DEFAULT;
-    props->mclass[HSE_MCLASS_STAGING].mc_fmaxsz = MPOOL_MBLOCK_FILESZ_DEFAULT;
+    for (int i = HSE_MCLASS_BASE; i < HSE_MCLASS_COUNT; i++) {
+        if (i == HSE_MCLASS_BASE) {
+            strlcpy(
+                props->mclass[i].mc_path,
+                MPOOL_CAPACITY_MCLASS_DEFAULT_PATH,
+                sizeof(props->mclass[i].mc_path));
+        }
+
+        props->mclass[i].mc_mblocksz = MPOOL_MBLOCK_SIZE_DEFAULT;
+        props->mclass[i].mc_filecnt = MPOOL_MBLOCK_FILECNT_DEFAULT;
+        props->mclass[i].mc_fmaxsz = MPOOL_MBLOCK_FILESZ_DEFAULT;
+    }
 
     return 0;
 }
@@ -197,16 +200,35 @@ _mpool_props_get(struct mpool *mp, struct mpool_props *props)
 merr_t
 _mpool_mclass_props_get(
     struct mpool *             mp,
-    enum hse_mclass          mclass,
+    enum hse_mclass            mclass,
     struct mpool_mclass_props *props)
+{
+    if (mclass >= HSE_MCLASS_COUNT || !props)
+        return merr(EINVAL);
+
+    memset(props, 0, sizeof(*props));
+
+    if (mclass == HSE_MCLASS_BASE) {
+        strlcpy(
+            props->mc_path,
+            MPOOL_CAPACITY_MCLASS_DEFAULT_PATH,
+            sizeof(props->mc_path));
+
+        props->mc_mblocksz = MPOOL_MBLOCK_SIZE_DEFAULT;
+        props->mc_filecnt = MPOOL_MBLOCK_FILECNT_DEFAULT;
+        props->mc_fmaxsz = MPOOL_MBLOCK_FILESZ_DEFAULT;
+    }
+
+    return mclass == HSE_MCLASS_BASE ? 0 : merr(ENOENT);
+}
+
+bool
+_mpool_mclass_is_configured(struct mpool *const mp, const enum hse_mclass mclass)
 {
     if (mclass >= HSE_MCLASS_COUNT)
         return merr(EINVAL);
 
-    if (mclass == HSE_MCLASS_STAGING)
-        return merr(ENOENT);
-
-    return 0;
+    return mclass == HSE_MCLASS_BASE;
 }
 
 /*
@@ -794,29 +816,32 @@ mock_mpool_set(void)
     /* Allow repeated init() w/o intervening unset() */
     mock_mpool_unset();
 
-    MOCK_SET(mpool, _mpool_mblock_alloc);
-    MOCK_SET(mpool, _mpool_mblock_props_get);
     MOCK_SET(mpool, _mpool_mblock_abort);
+    MOCK_SET(mpool, _mpool_mblock_alloc);
     MOCK_SET(mpool, _mpool_mblock_commit);
     MOCK_SET(mpool, _mpool_mblock_delete);
+    MOCK_SET(mpool, _mpool_mblock_props_get);
     MOCK_SET(mpool, _mpool_mblock_read);
     MOCK_SET(mpool, _mpool_mblock_write);
 
+    MOCK_SET(mpool, _mpool_mcache_getbase);
+    MOCK_SET(mpool, _mpool_mcache_getpages);
     MOCK_SET(mpool, _mpool_mcache_mmap);
     MOCK_SET(mpool, _mpool_mcache_munmap);
     MOCK_SET(mpool, _mpool_mcache_madvise);
-    MOCK_SET(mpool, _mpool_mcache_getbase);
-    MOCK_SET(mpool, _mpool_mcache_getpages);
 
-    MOCK_SET(mpool, _mpool_mdc_open);
+    MOCK_SET(mpool, _mpool_mdc_append);
+    MOCK_SET(mpool, _mpool_mdc_cend);
     MOCK_SET(mpool, _mpool_mdc_close);
     MOCK_SET(mpool, _mpool_mdc_cstart);
-    MOCK_SET(mpool, _mpool_mdc_cend);
-    MOCK_SET(mpool, _mpool_mdc_append);
-    MOCK_SET(mpool, _mpool_mdc_rewind);
+    MOCK_SET(mpool, _mpool_mdc_open);
     MOCK_SET(mpool, _mpool_mdc_read);
+    MOCK_SET(mpool, _mpool_mdc_rewind);
+
     MOCK_SET(mpool, _mpool_props_get);
+
     MOCK_SET(mpool, _mpool_mclass_props_get);
+    MOCK_SET(mpool, _mpool_mclass_is_configured);
 }
 
 void
@@ -824,27 +849,32 @@ mock_mpool_unset(void)
 {
     int i;
 
-    MOCK_UNSET(mpool, _mpool_mblock_alloc);
     MOCK_UNSET(mpool, _mpool_mblock_abort);
+    MOCK_UNSET(mpool, _mpool_mblock_alloc);
     MOCK_UNSET(mpool, _mpool_mblock_commit);
     MOCK_UNSET(mpool, _mpool_mblock_delete);
+    MOCK_UNSET(mpool, _mpool_mblock_props_get);
     MOCK_UNSET(mpool, _mpool_mblock_read);
     MOCK_UNSET(mpool, _mpool_mblock_write);
-    MOCK_UNSET(mpool, _mpool_props_get);
-    MOCK_UNSET(mpool, _mpool_mclass_props_get);
 
+    MOCK_UNSET(mpool, _mpool_mcache_getbase);
+    MOCK_UNSET(mpool, _mpool_mcache_getpages);
     MOCK_UNSET(mpool, _mpool_mcache_mmap);
     MOCK_UNSET(mpool, _mpool_mcache_munmap);
     MOCK_UNSET(mpool, _mpool_mcache_madvise);
-    MOCK_UNSET(mpool, _mpool_mcache_getbase);
-    MOCK_UNSET(mpool, _mpool_mcache_getpages);
 
+    MOCK_UNSET(mpool, _mpool_mdc_append);
+    MOCK_UNSET(mpool, _mpool_mdc_cend);
     MOCK_UNSET(mpool, _mpool_mdc_close);
     MOCK_UNSET(mpool, _mpool_mdc_cstart);
-    MOCK_UNSET(mpool, _mpool_mdc_cend);
-    MOCK_UNSET(mpool, _mpool_mdc_append);
-    MOCK_UNSET(mpool, _mpool_mdc_rewind);
+    MOCK_UNSET(mpool, _mpool_mdc_open);
     MOCK_UNSET(mpool, _mpool_mdc_read);
+    MOCK_UNSET(mpool, _mpool_mdc_rewind);
+
+    MOCK_UNSET(mpool, _mpool_props_get);
+
+    MOCK_UNSET(mpool, _mpool_mclass_props_get);
+    MOCK_UNSET(mpool, _mpool_mclass_is_configured);
 
     for (i = 0; i < MPM_MAX_MBLOCKS; ++i)
         mapi_safe_free(mocked_mblocks[i].mb_base);

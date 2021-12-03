@@ -407,7 +407,7 @@ void
 mclass_props_get(struct media_class *const mc, struct mpool_mclass_props *const props)
 {
     props->mc_fmaxsz = mblock_fset_fmaxsz_get(mc->mbfsp);
-    props->mc_mblocksz = mc->mblocksz >> MB_SHIFT;
+    props->mc_mblocksz = mc->mblocksz;
     props->mc_filecnt = mblock_fset_filecnt_get(mc->mbfsp);
     strlcpy(props->mc_path, mc->upath, sizeof(props->mc_path));
 }

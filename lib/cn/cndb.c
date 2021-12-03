@@ -137,7 +137,6 @@ cndb_alloc(struct mpool *mp, u64 *captgt, u64 *oid1_out, u64 *oid2_out)
     merr_t                    err;
     size_t                    capacity;
     int                       i;
-    struct mpool_mclass_props props;
 
     if (captgt && *captgt)
         capacity = *captgt;
@@ -145,8 +144,7 @@ cndb_alloc(struct mpool *mp, u64 *captgt, u64 *oid1_out, u64 *oid2_out)
         capacity = CNDB_CAPTGT_DEFAULT;
 
     for (i = HSE_MCLASS_COUNT - 1; i >= HSE_MCLASS_BASE; i--) {
-        err = mpool_mclass_props_get(mp, i, &props);
-        if (!err)
+        if (mpool_mclass_is_configured(mp, i))
             break;
     }
     assert(i >= HSE_MCLASS_BASE);

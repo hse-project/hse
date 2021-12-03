@@ -207,9 +207,9 @@ MTF_DEFINE_UTEST_PRE(kvs_rparams_test, cn_compact_vblk_ra, test_pre)
     ASSERT_EQ((uintptr_t)ps->ps_validate, (uintptr_t)param_default_validator);
     ASSERT_EQ((uintptr_t)ps->ps_stringify, (uintptr_t)param_default_stringify);
     ASSERT_EQ((uintptr_t)ps->ps_jsonify, (uintptr_t)param_default_jsonify);
-    ASSERT_EQ(256 * 1024, params.cn_compact_vblk_ra);
-    ASSERT_EQ(0, ps->ps_bounds.as_uscalar.ps_min);
-    ASSERT_EQ(UINT64_MAX, ps->ps_bounds.as_uscalar.ps_max);
+    ASSERT_EQ(256 << KB_SHIFT, params.cn_compact_vblk_ra);
+    ASSERT_EQ(32 << KB_SHIFT, ps->ps_bounds.as_uscalar.ps_min);
+    ASSERT_EQ(2 << MB_SHIFT, ps->ps_bounds.as_uscalar.ps_max);
 }
 
 MTF_DEFINE_UTEST_PRE(kvs_rparams_test, cn_compact_vra, test_pre)
@@ -245,9 +245,9 @@ MTF_DEFINE_UTEST_PRE(kvs_rparams_test, cn_compact_kblk_ra, test_pre)
     ASSERT_EQ((uintptr_t)ps->ps_validate, (uintptr_t)param_default_validator);
     ASSERT_EQ((uintptr_t)ps->ps_stringify, (uintptr_t)param_default_stringify);
     ASSERT_EQ((uintptr_t)ps->ps_jsonify, (uintptr_t)param_default_jsonify);
-    ASSERT_EQ(512 * 1024, params.cn_compact_kblk_ra);
-    ASSERT_EQ(0, ps->ps_bounds.as_uscalar.ps_min);
-    ASSERT_EQ(UINT64_MAX, ps->ps_bounds.as_uscalar.ps_max);
+    ASSERT_EQ(512 << KB_SHIFT, params.cn_compact_kblk_ra);
+    ASSERT_EQ(32 << KB_SHIFT, ps->ps_bounds.as_uscalar.ps_min);
+    ASSERT_EQ(2 << MB_SHIFT, ps->ps_bounds.as_uscalar.ps_max);
 }
 
 MTF_DEFINE_UTEST_PRE(kvs_rparams_test, cn_capped_ttl, test_pre)
@@ -675,54 +675,6 @@ MTF_DEFINE_UTEST_PRE(kvs_rparams_test, cn_kcachesz, test_pre)
     ASSERT_EQ(UINT64_MAX, ps->ps_bounds.as_uscalar.ps_max);
 }
 
-MTF_DEFINE_UTEST_PRE(kvs_rparams_test, kblock_size, test_pre)
-{
-    merr_t                   err;
-    const struct param_spec *ps = ps_get("kblock_size_mb");
-
-    ASSERT_NE(NULL, ps);
-    ASSERT_NE(NULL, ps->ps_description);
-    ASSERT_EQ(PARAM_FLAG_EXPERIMENTAL, ps->ps_flags);
-    ASSERT_EQ(PARAM_TYPE_U64, ps->ps_type);
-    ASSERT_EQ(offsetof(struct kvs_rparams, kblock_size), ps->ps_offset);
-    ASSERT_EQ(sizeof(uint64_t), ps->ps_size);
-    ASSERT_EQ((uintptr_t)ps->ps_convert, (uintptr_t)param_convert_to_bytes_from_MB);
-    ASSERT_EQ((uintptr_t)ps->ps_validate, (uintptr_t)param_default_validator);
-    ASSERT_EQ((uintptr_t)ps->ps_stringify, (uintptr_t)param_stringify_bytes_to_MB);
-    ASSERT_EQ((uintptr_t)ps->ps_jsonify, (uintptr_t)param_jsonify_bytes_to_MB);
-    ASSERT_EQ(32 * MB, params.kblock_size);
-    ASSERT_EQ(KBLOCK_MIN_SIZE, ps->ps_bounds.as_uscalar.ps_min);
-    ASSERT_EQ(KBLOCK_MAX_SIZE, ps->ps_bounds.as_uscalar.ps_max);
-
-    err = check("kblock_size_mb=32", true, NULL);
-    ASSERT_EQ(0, merr_errno(err));
-    ASSERT_EQ(32 * MB, params.kblock_size);
-}
-
-MTF_DEFINE_UTEST_PRE(kvs_rparams_test, vblock_size, test_pre)
-{
-    merr_t                   err;
-    const struct param_spec *ps = ps_get("vblock_size_mb");
-
-    ASSERT_NE(NULL, ps);
-    ASSERT_NE(NULL, ps->ps_description);
-    ASSERT_EQ(PARAM_FLAG_EXPERIMENTAL, ps->ps_flags);
-    ASSERT_EQ(PARAM_TYPE_U64, ps->ps_type);
-    ASSERT_EQ(offsetof(struct kvs_rparams, vblock_size), ps->ps_offset);
-    ASSERT_EQ(sizeof(uint64_t), ps->ps_size);
-    ASSERT_EQ((uintptr_t)ps->ps_convert, (uintptr_t)param_convert_to_bytes_from_MB);
-    ASSERT_EQ((uintptr_t)ps->ps_validate, (uintptr_t)param_default_validator);
-    ASSERT_EQ((uintptr_t)ps->ps_stringify, (uintptr_t)param_stringify_bytes_to_MB);
-    ASSERT_EQ((uintptr_t)ps->ps_jsonify, (uintptr_t)param_jsonify_bytes_to_MB);
-    ASSERT_EQ(32 * MB, params.vblock_size);
-    ASSERT_EQ(VBLOCK_MIN_SIZE, ps->ps_bounds.as_uscalar.ps_min);
-    ASSERT_EQ(VBLOCK_MAX_SIZE, ps->ps_bounds.as_uscalar.ps_max);
-
-    err = check("kblock_size_mb=32", true, NULL);
-    ASSERT_EQ(0, merr_errno(err));
-    ASSERT_EQ(32 * MB, params.kblock_size);
-}
-
 MTF_DEFINE_UTEST_PRE(kvs_rparams_test, capped_evict_ttl, test_pre)
 {
     const struct param_spec *ps = ps_get("capped_evict_ttl");
@@ -870,16 +822,16 @@ MTF_DEFINE_UTEST(kvs_rparams_test, set)
 
     const struct kvs_rparams p = kvs_rparams_defaults();
 
-    err = kvs_rparams_set(&p, "cn_compact_kblk_ra", "64");
+    err = kvs_rparams_set(&p, "cn_compact_kblk_ra", "32768");
     ASSERT_EQ(0, merr_errno(err));
-    ASSERT_EQ(64, p.cn_compact_kblk_ra);
+    ASSERT_EQ(32768, p.cn_compact_kblk_ra);
 
     err = kvs_rparams_set(&p, NULL, "64");
     ASSERT_EQ(EINVAL, merr_errno(err));
 
     err = kvs_rparams_set(&p, "cn_compact_kblk_ra", NULL);
     ASSERT_EQ(EINVAL, merr_errno(err));
-    ASSERT_EQ(64, p.cn_compact_kblk_ra);
+    ASSERT_EQ(32768, p.cn_compact_kblk_ra);
 
     err = kvs_rparams_set(&p, "does.not.exist", "5");
     ASSERT_EQ(EINVAL, merr_errno(err));
@@ -887,12 +839,12 @@ MTF_DEFINE_UTEST(kvs_rparams_test, set)
     /* Fail to parse */
     err = kvs_rparams_set(&p, "cn_compact_kblk_ra", "invalid");
     ASSERT_EQ(EINVAL, merr_errno(err));
-    ASSERT_EQ(64, p.cn_compact_kblk_ra);
+    ASSERT_EQ(32768, p.cn_compact_kblk_ra);
 
     /* Fail to convert */
     err = kvs_rparams_set(&p, "cn_compact_kblk_ra", "\"convert\"");
     ASSERT_EQ(EINVAL, merr_errno(err));
-    ASSERT_EQ(64, p.cn_compact_kblk_ra);
+    ASSERT_EQ(32768, p.cn_compact_kblk_ra);
 
     /* Fail to validate */
     /* No writable parameter which would have a way to not be validated. cJSON
