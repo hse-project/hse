@@ -13,8 +13,10 @@
 #include <hse_ikvdb/tuple.h>
 #include <hse_ikvdb/lc.h>
 #include <hse_ikvdb/cursor.h>
+#include <hse_ikvdb/kvdb_health.h>
 
 struct lc *lc;
+struct kvdb_health mock_health;
 
 int
 test_collection_setup(struct mtf_test_info *info)
@@ -33,7 +35,7 @@ test_pre(struct mtf_test_info *lcl_ti)
 {
     merr_t err;
 
-    err = lc_create(&lc, (void *)-1);
+    err = lc_create(&lc, &mock_health);
     ASSERT_EQ_RET(0, err, -1);
 
     lc_ingest_seqno_set(lc, 0);
