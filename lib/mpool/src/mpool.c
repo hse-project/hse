@@ -390,17 +390,16 @@ mpool_mclass_props_get(struct mpool *mp, enum hse_mclass mclass, struct mpool_mc
 {
     struct media_class *mc;
 
-    if (!mp || mclass >= HSE_MCLASS_COUNT)
+    if (!mp || mclass >= HSE_MCLASS_COUNT || !props)
         return merr(EINVAL);
+
+    memset(props, 0, sizeof(*props));
 
     mc = mp->mc[mclass];
     if (!mc)
         return merr(ENOENT);
 
-    if (props) {
-        memset(props, 0, sizeof(*props));
-        mclass_props_get(mc, props);
-    }
+    mclass_props_get(mc, props);
 
     return 0;
 }
@@ -436,7 +435,7 @@ mpool_props_get(struct mpool *mp, struct mpool_props *props)
     memset(props, 0, sizeof(*props));
 
     for (i = HSE_MCLASS_BASE; i < HSE_MCLASS_COUNT; i++) {
-        merr_t                    err;
+        merr_t err;
 
         err = mpool_mclass_props_get(mp, i, &props->mclass[i]);
         if (err) {

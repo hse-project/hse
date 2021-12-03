@@ -240,7 +240,6 @@ cn_node_isroot(const struct cn_tree_node *node);
 uint
 cn_node_level(const struct cn_tree_node *node);
 
-/* MTF_MOCK */
 enum hse_mclass
 cn_tree_node_mclass(struct cn_tree_node *tn, enum hse_mclass_policy_dtype dtype);
 

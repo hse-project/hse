@@ -1034,7 +1034,7 @@ mblock_file_read(
         return merr(EINVAL);
     }
 
-    return mbfp->dataio.read(NULL, mbfp->fd, roff, iov, iovc, 0, NULL);
+    return mbfp->dataio.read(mbfp->fd, roff, iov, iovc, 0, NULL);
 }
 
 merr_t
@@ -1076,7 +1076,7 @@ mblock_file_write(struct mblock_file *mbfp, uint64_t mbid, const struct iovec *i
         return merr(EINVAL);
     }
 
-    err = mbfp->dataio.write(NULL, mbfp->fd, woff, iov, iovc, 0, NULL);
+    err = mbfp->dataio.write(mbfp->fd, woff, iov, iovc, 0, NULL);
     if (!err)
         atomic_add(wlenp, len);
 

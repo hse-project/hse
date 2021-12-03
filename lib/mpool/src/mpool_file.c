@@ -169,7 +169,7 @@ mpool_file_read(struct mpool_file *file, off_t offset, char *buf, size_t buflen,
     iov.iov_base = buf;
     iov.iov_len = buflen;
 
-    err = file->io.read(NULL, file->fd, offset, (const struct iovec *)&iov, 1, 0, rdlen);
+    err = file->io.read(file->fd, offset, &iov, 1, 0, rdlen);
     if (err)
         return err;
 
@@ -193,7 +193,7 @@ mpool_file_write(
     iov.iov_base = (char *)buf;
     iov.iov_len = buflen;
 
-    err = file->io.write(NULL, file->fd, offset, (const struct iovec *)&iov, 1, 0, wrlen);
+    err = file->io.write(file->fd, offset, &iov, 1, 0, wrlen);
     if (err)
         return err;
 

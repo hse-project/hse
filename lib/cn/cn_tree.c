@@ -3461,17 +3461,13 @@ cn_tree_perfc_shape_report(
     }
 }
 
-enum hse_mclass
+HSE_WEAK enum hse_mclass
 cn_tree_node_mclass(struct cn_tree_node *tn, enum hse_mclass_policy_dtype dtype)
 {
     struct mclass_policy *policy;
     enum hse_mclass_policy_age age;
 
     INVARIANT(tn);
-
-    /* HSE-REVISIT: This check exist only to satisfy unit test. Needs to be removed */
-    if (!tn->tn_tree || !tn->tn_tree->cn)
-        return HSE_MCLASS_CAPACITY;
 
     policy = cn_get_mclass_policy(tn->tn_tree->cn);
     age = cn_node_isleaf(tn) ? HSE_MPOLICY_AGE_LEAF :

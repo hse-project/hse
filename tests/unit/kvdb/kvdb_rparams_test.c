@@ -829,7 +829,7 @@ MTF_DEFINE_UTEST_PRE(kvdb_rparams_test, cn_maint_threads, test_pre)
     ASSERT_EQ((uintptr_t)ps->ps_validate, (uintptr_t)param_default_validator);
     ASSERT_EQ((uintptr_t)ps->ps_stringify, (uintptr_t)param_default_stringify);
     ASSERT_EQ((uintptr_t)ps->ps_jsonify, (uintptr_t)param_default_jsonify);
-    ASSERT_EQ(17, params.cn_maint_threads);
+    ASSERT_EQ(32, params.cn_maint_threads);
     ASSERT_EQ(1, ps->ps_bounds.as_uscalar.ps_min);
     ASSERT_EQ(256, ps->ps_bounds.as_uscalar.ps_max);
 }

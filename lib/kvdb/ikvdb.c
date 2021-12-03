@@ -1990,17 +1990,17 @@ ikvdb_kvs_open(
     if (!strcmp(params->mclass_policy, HSE_MPOLICY_AUTO_NAME)) {
         const char *policy = mclass_policy_default_get(handle);
 
-        if (!policy || !strcmp(policy, "invalid")) {
-            log_err("unable to determine default mclass policy for KVS %s", kvs_name);
+        if (!policy) {
+            log_err("unable to determine default mclass policy for KVS (%s)", kvs_name);
             return merr(EINVAL);
         }
 
         strlcpy(params->mclass_policy, policy, HSE_MPOLICY_NAME_LEN_MAX);
-        log_info("KVS %s is configured to use the mclass policy \"%s\"",
+        log_info("KVS (%s) is configured to use the mclass policy \"%s\"",
                  kvs_name, params->mclass_policy);
-    } else if (self->ikdb_pmem_only && strcmp(params->mclass_policy, "pmem_only")) {
-        log_info("setting mclass policy to \"pmem_only\" for KVS %s", kvs_name);
-        strcpy(params->mclass_policy, "pmem_only");
+    } else if (self->ikdb_pmem_only && strcmp(params->mclass_policy, HSE_MPOLICY_PMEM_ONLY)) {
+        log_info("setting mclass policy to \"%s\" for KVS (%s)", HSE_MPOLICY_PMEM_ONLY, kvs_name);
+        strcpy(params->mclass_policy, HSE_MPOLICY_PMEM_ONLY);
     }
 
     for (i = HSE_MCLASS_BASE; i < HSE_MCLASS_COUNT; i++) {
@@ -2008,7 +2008,7 @@ ikvdb_kvs_open(
 
         if (strstr(params->mclass_policy, name)) {
             if (!mpool_mclass_is_configured(self->ikdb_mp, i)) {
-                log_err("%s media not configured, cannot use \"%s\" mclass policy for KVS %s",
+                log_err("%s media not configured, cannot use \"%s\" mclass policy for KVS (%s)",
                         name, params->mclass_policy, kvs_name);
                 return merr(ENOENT);
             }

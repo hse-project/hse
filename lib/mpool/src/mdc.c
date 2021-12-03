@@ -5,9 +5,13 @@
 
 #include <dirent.h>
 
+#define MTF_MOCK_IMPL_mpool
+
 #include <hse_util/event_counter.h>
 #include <hse_util/hse_err.h>
 #include <hse_util/logging.h>
+
+#include <mpool/mpool.h>
 
 #include "mpool_internal.h"
 #include "mclass.h"
@@ -28,10 +32,6 @@ struct mpool_mdc {
     struct mdc_file *mfp2;
     struct mdc_file *mfpa;
 };
-
-/* Forward decls */
-merr_t
-mpool_mdc_delete(struct mpool *mp, uint64_t logid1, uint64_t logid2);
 
 merr_t
 mpool_mdc_alloc(

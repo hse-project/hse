@@ -191,7 +191,7 @@ vbb_create(
     policy = cn_get_mclass_policy(bld->cn);
 
     err = mpool_mclass_props_get(
-        bld->ds, policy->mc_table[bld->agegroup][HSE_MPOLICY_DTYPE_KEY], &props);
+        bld->ds, policy->mc_table[bld->agegroup][HSE_MPOLICY_DTYPE_VALUE], &props);
     if (err)
         return err;
 
@@ -322,7 +322,7 @@ vbb_set_agegroup(struct vblock_builder *bld, enum hse_mclass_policy_age age)
     policy = cn_get_mclass_policy(bld->cn);
 
     err = mpool_mclass_props_get(
-        bld->ds, policy->mc_table[bld->agegroup][HSE_MPOLICY_DTYPE_KEY], &props);
+        bld->ds, policy->mc_table[bld->agegroup][HSE_MPOLICY_DTYPE_VALUE], &props);
     if (err)
         return err;
 

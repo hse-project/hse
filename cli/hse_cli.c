@@ -170,7 +170,7 @@ static cli_cmd_func_t cli_hse_storage_profile;
 struct cli_cmd        cli_hse_storage_commands[] = {
     { "add", "Add a new media class storage to an existing offline KVDB", cli_hse_storage_add, 0 },
     { "info", "Display storage information about a KVDB", cli_hse_storage_info, 0 },
-    { "profile", "Profile capacity storage path to determine throttle policy",
+    { "profile", "Profile capacity storage to determine throttling policy",
         cli_hse_storage_profile, 0 },
     { 0 },
 };

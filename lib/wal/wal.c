@@ -612,8 +612,7 @@ wal_open(
         int i;
 
         for (i = HSE_MCLASS_COUNT - 1; i >= HSE_MCLASS_BASE; i--) {
-            err = mpool_mclass_props_get(mp, i, NULL);
-            if (!err)
+            if (mpool_mclass_is_configured(mp, i))
                 break;
         }
         assert(i >= HSE_MCLASS_BASE);
@@ -629,14 +628,12 @@ wal_open(
 
     if (mclass != wal->dur_mclass) {
         const char *name = hse_mclass_name_get(mclass);
-        merr_t err;
 
-        err = mpool_mclass_props_get(mp, mclass, NULL);
-        if (err) {
-            if (merr_errno(err) == ENOENT)
-                log_err("%s media not configured, cannot set durability.mclass to \"%s\"",
-                        name, name);
-            return err;
+        if (!mpool_mclass_is_configured(mp, mclass)) {
+            log_err("%s media not configured, cannot set durability.mclass to \"%s\"",
+                    name, name);
+            err = merr(ENOENT);
+            goto errout;
         }
 
         wal->dur_mclass = mclass;

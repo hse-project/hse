@@ -42,7 +42,6 @@ iolen(const struct iovec *iov, int cnt)
 
 merr_t
 io_sync_read(
-    const void         *src_addr,
     int                 src_fd,
     off_t               off,
     const struct iovec *iov,
@@ -53,8 +52,6 @@ io_sync_read(
     const struct iovec *curiov;
     int left;
     off_t start;
-
-    INVARIANT(!src_addr);
 
     curiov = iov;
     left = iovcnt;
@@ -93,7 +90,6 @@ out:
 
 merr_t
 io_sync_write(
-    void               *dst_addr,
     int                 dst_fd,
     off_t               off,
     const struct iovec *iov,
@@ -104,8 +100,6 @@ io_sync_write(
     const struct iovec *curiov;
     int left;
     off_t start;
-
-    INVARIANT(!dst_addr);
 
     curiov = iov;
     left = iovcnt;

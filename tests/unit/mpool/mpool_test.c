@@ -71,8 +71,8 @@ MTF_DEFINE_UTEST_PREPOST(mpool_test, mpool_ocd_test, mpool_test_pre, mpool_test_
 
     err = mpool_info_get(mp, &info);
     ASSERT_EQ(0, err);
-    ASSERT_LT(allocated_bytes_summation(&info), (70 << 20L));
-    ASSERT_LT(used_bytes_summation(&info), (70 << 20L));
+    ASSERT_LT(allocated_bytes_summation(&info), (70ul << MB_SHIFT));
+    ASSERT_LT(used_bytes_summation(&info), (70ul << MB_SHIFT));
     ASSERT_EQ(
         0, strncmp(capacity_path, info.mclass[HSE_MCLASS_CAPACITY].mi_path, sizeof(capacity_path)));
     ASSERT_EQ(0, strlen(info.mclass[HSE_MCLASS_STAGING].mi_path));
@@ -138,8 +138,8 @@ MTF_DEFINE_UTEST_PREPOST(mpool_test, mpool_ocd_test, mpool_test_pre, mpool_test_
 
     err = mpool_info_get(mp, &info);
     ASSERT_EQ(0, err);
-    ASSERT_LT(allocated_bytes_summation(&info), (70 << 20L) * 2); /* 2 media classes */
-    ASSERT_LT(used_bytes_summation(&info), (70 << 20L) * 2);
+    ASSERT_LT(allocated_bytes_summation(&info), (70ul << MB_SHIFT) * 2); /* 2 media classes */
+    ASSERT_LT(used_bytes_summation(&info), (70ul << MB_SHIFT) * 2);
     ASSERT_EQ(
         0, strncmp(capacity_path, info.mclass[HSE_MCLASS_CAPACITY].mi_path, sizeof(capacity_path)));
     ASSERT_EQ(0, strncmp(staging_path, info.mclass[HSE_MCLASS_STAGING].mi_path, sizeof(staging_path)));
@@ -179,7 +179,7 @@ MTF_DEFINE_UTEST_PREPOST(mpool_test, mclass_test, mpool_test_pre, mpool_test_pos
     ASSERT_EQ(EINVAL, merr_errno(err));
 
     err = mpool_mclass_props_get(mp, HSE_MCLASS_CAPACITY, NULL);
-    ASSERT_EQ(0, err);
+    ASSERT_EQ(EINVAL, merr_errno(err));
 
     err = mpool_mclass_props_get(mp, HSE_MCLASS_COUNT, &props);
     ASSERT_EQ(EINVAL, merr_errno(err));
@@ -205,8 +205,8 @@ MTF_DEFINE_UTEST_PREPOST(mpool_test, mclass_test, mpool_test_pre, mpool_test_pos
 
     err = mpool_mclass_info_get(mp, HSE_MCLASS_CAPACITY, &info);
     ASSERT_EQ(0, merr_errno(err));
-    ASSERT_LT(info.mi_allocated_bytes, (70 << 20L));
-    ASSERT_LT(info.mi_used_bytes, (70 << 20L));
+    ASSERT_LT(info.mi_allocated_bytes, (70ul << MB_SHIFT));
+    ASSERT_LT(info.mi_used_bytes, (70ul << MB_SHIFT));
     ASSERT_EQ(0, strncmp(capacity_path, info.mi_path, sizeof(capacity_path)));
 
     mc = mpool_mclass_handle(NULL, HSE_MCLASS_CAPACITY);
@@ -247,15 +247,15 @@ MTF_DEFINE_UTEST_PREPOST(mpool_test, mclass_test, mpool_test_pre, mpool_test_pos
     ASSERT_EQ(mbsz, 0);
 
     mbsz = mclass_mblocksz_get(mc);
-    ASSERT_EQ(32 << 20, mbsz);
+    ASSERT_EQ(32ul << MB_SHIFT, mbsz);
 
-    mclass_mblocksz_set(NULL, 64 << 20);
+    mclass_mblocksz_set(NULL, 64ul << MB_SHIFT);
     mbsz = mclass_mblocksz_get(mc);
-    ASSERT_EQ(32 << 20, mbsz);
+    ASSERT_EQ(32ul << MB_SHIFT, mbsz);
 
-    mclass_mblocksz_set(mc, 64 << 20);
+    mclass_mblocksz_set(mc, 64ul << MB_SHIFT);
     mbsz = mclass_mblocksz_get(mc);
-    ASSERT_EQ(64 << 20, mbsz);
+    ASSERT_EQ(64ul << MB_SHIFT, mbsz);
 
     for (i = HSE_MCLASS_BASE; i < HSE_MCLASS_COUNT; i++) {
         ASSERT_EQ(i + 1, mclass_to_mcid(i));

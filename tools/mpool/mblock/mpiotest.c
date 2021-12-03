@@ -1162,7 +1162,7 @@ main(int argc, char **argv)
         eprint("mpool_props_get(%s): %s\n", path, errbuf);
         goto err_exit;
     }
-    wbufsz = props.mclass[HSE_MCLASS_CAPACITY].mc_mblocksz << 20;
+    wbufsz = props.mclass[HSE_MCLASS_CAPACITY].mc_mblocksz;
 
     limit = wbufsz + WANDERMAX + WOBBLEMAX;
 

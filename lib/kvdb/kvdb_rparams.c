@@ -34,7 +34,7 @@ mclass_policies_default_builder(const struct param_spec *ps, void *data)
     struct mclass_policy *mclass_policies = data;
     struct mclass_policy *policy;
 
-    assert(mclass_policy_names_cnt() == 8);
+    assert(mclass_policy_names_cnt() == 6);
 
     /* Setup capacity_only */
     policy = &mclass_policies[0];
@@ -86,34 +86,14 @@ mclass_policies_default_builder(const struct param_spec *ps, void *data)
     policy->mc_table[HSE_MPOLICY_AGE_LEAF][HSE_MPOLICY_DTYPE_KEY] = HSE_MCLASS_PMEM;
     policy->mc_table[HSE_MPOLICY_AGE_LEAF][HSE_MPOLICY_DTYPE_VALUE] = HSE_MCLASS_PMEM;
 
-    /* Setup pmem_staging */
+    /* Setup pmem_max_capacity */
     policy = &mclass_policies[5];
-    strlcpy(policy->mc_name, "pmem_staging", sizeof("pmem_staging"));
-    policy->mc_table[HSE_MPOLICY_AGE_ROOT][HSE_MPOLICY_DTYPE_KEY] = HSE_MCLASS_PMEM;
-    policy->mc_table[HSE_MPOLICY_AGE_ROOT][HSE_MPOLICY_DTYPE_VALUE] = HSE_MCLASS_PMEM;
-    policy->mc_table[HSE_MPOLICY_AGE_INTERNAL][HSE_MPOLICY_DTYPE_KEY] = HSE_MCLASS_PMEM;
-    policy->mc_table[HSE_MPOLICY_AGE_INTERNAL][HSE_MPOLICY_DTYPE_VALUE] = HSE_MCLASS_STAGING;
-    policy->mc_table[HSE_MPOLICY_AGE_LEAF][HSE_MPOLICY_DTYPE_KEY] = HSE_MCLASS_PMEM;
-    policy->mc_table[HSE_MPOLICY_AGE_LEAF][HSE_MPOLICY_DTYPE_VALUE] = HSE_MCLASS_STAGING;
-
-    /* Setup pmem_capacity */
-    policy = &mclass_policies[6];
-    strlcpy(policy->mc_name, "pmem_capacity", sizeof("pmem_capacity"));
+    strlcpy(policy->mc_name, "pmem_max_capacity", sizeof("pmem_max_capacity"));
     policy->mc_table[HSE_MPOLICY_AGE_ROOT][HSE_MPOLICY_DTYPE_KEY] = HSE_MCLASS_PMEM;
     policy->mc_table[HSE_MPOLICY_AGE_ROOT][HSE_MPOLICY_DTYPE_VALUE] = HSE_MCLASS_PMEM;
     policy->mc_table[HSE_MPOLICY_AGE_INTERNAL][HSE_MPOLICY_DTYPE_KEY] = HSE_MCLASS_PMEM;
     policy->mc_table[HSE_MPOLICY_AGE_INTERNAL][HSE_MPOLICY_DTYPE_VALUE] = HSE_MCLASS_CAPACITY;
     policy->mc_table[HSE_MPOLICY_AGE_LEAF][HSE_MPOLICY_DTYPE_KEY] = HSE_MCLASS_PMEM;
-    policy->mc_table[HSE_MPOLICY_AGE_LEAF][HSE_MPOLICY_DTYPE_VALUE] = HSE_MCLASS_CAPACITY;
-
-    /* Setup pmem_staging_capacity */
-    policy = &mclass_policies[7];
-    strlcpy(policy->mc_name, "pmem_staging_capacity", sizeof("pmem_staging_capacity"));
-    policy->mc_table[HSE_MPOLICY_AGE_ROOT][HSE_MPOLICY_DTYPE_KEY] = HSE_MCLASS_PMEM;
-    policy->mc_table[HSE_MPOLICY_AGE_ROOT][HSE_MPOLICY_DTYPE_VALUE] = HSE_MCLASS_PMEM;
-    policy->mc_table[HSE_MPOLICY_AGE_INTERNAL][HSE_MPOLICY_DTYPE_KEY] = HSE_MCLASS_STAGING;
-    policy->mc_table[HSE_MPOLICY_AGE_INTERNAL][HSE_MPOLICY_DTYPE_VALUE] = HSE_MCLASS_STAGING;
-    policy->mc_table[HSE_MPOLICY_AGE_LEAF][HSE_MPOLICY_DTYPE_KEY] = HSE_MCLASS_STAGING;
     policy->mc_table[HSE_MPOLICY_AGE_LEAF][HSE_MPOLICY_DTYPE_VALUE] = HSE_MCLASS_CAPACITY;
 
     for (int i = mclass_policy_names_cnt(); i < ps->ps_bounds.as_array.ps_max_len; i++) {
@@ -424,9 +404,9 @@ dur_mclass_stringify(
     const size_t                   buf_sz,
     size_t *const                  needed_sz)
 {
-    int                     n;
-    const char *            param;
     uint8_t mc = *(const uint8_t *)value;
+    const char *param;
+    int n;
 
     INVARIANT(ps);
     INVARIANT(value);
@@ -1403,7 +1383,7 @@ static const struct param_spec pspecs[] = {
         .ps_stringify = param_default_stringify,
         .ps_jsonify = param_default_jsonify,
         .ps_default_value = {
-            .as_uscalar = 17,
+            .as_uscalar = 32,
         },
         .ps_bounds = {
             .as_uscalar = {

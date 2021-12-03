@@ -17,6 +17,7 @@ struct ikvdb;
 
 #define HSE_MPOLICY_DEFAULT_NAME "default_policy"
 #define HSE_MPOLICY_AUTO_NAME    "auto"
+#define HSE_MPOLICY_PMEM_ONLY    "pmem_only"
 
 enum hse_mclass_policy_age {
     HSE_MPOLICY_AGE_ROOT,

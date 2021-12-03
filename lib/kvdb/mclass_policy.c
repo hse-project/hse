@@ -18,9 +18,7 @@ const char *mclass_policy_names[] = { "capacity_only",
                                       "staging_max_capacity",
                                       "staging_min_capacity",
                                       "pmem_only",
-                                      "pmem_staging",
-                                      "pmem_capacity",
-                                      "pmem_staging_capacity"};
+                                      "pmem_max_capacity"};
 
 /*
  * Expressed using 3 bits:
@@ -38,14 +36,14 @@ const char *mclass_policy_names[] = { "capacity_only",
  * [6] 110 - invalid (pmem + staging)
  * [7] 111 - capacity + staging + pmem
  */
-const char *mclass_policy_defaults[] = { "invalid",
+const char *mclass_policy_defaults[] = { NULL,
                                          "capacity_only",
-                                         "invalid",
+                                         NULL,
                                          "staging_max_capacity",
                                          "pmem_only",
-                                         "pmem_capacity",
-                                         "invalid",
-                                         "pmem_staging_capacity"};
+                                         "pmem_max_capacity",
+                                         NULL,
+                                         "pmem_max_capacity"};
 
 const char **
 mclass_policy_names_get()
@@ -73,13 +71,8 @@ mclass_policy_default_get(struct ikvdb *handle)
         return NULL;
 
     for (i = HSE_MCLASS_BASE; i < HSE_MCLASS_COUNT; i++) {
-        merr_t err;
-
-        err = mpool_mclass_props_get(mp, i, NULL);
-        if (!err)
+        if (mpool_mclass_is_configured(mp, i))
             config |= (1 << i);
-        else if (merr_errno(err) != ENOENT)
-            return NULL;
     }
 
     if (ev(config >= NELEM(mclass_policy_defaults))) {
