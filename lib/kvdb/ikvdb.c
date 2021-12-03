@@ -350,7 +350,7 @@ ikvdb_create(const char *kvdb_home, struct kvdb_cparams *params, bool pmem_only)
         else if (err)
             goto mpool_cleanup;
 
-        err = mcprops.mc_mblocksz == 32 ? 0 : merr(EINVAL);
+        err = mcprops.mc_mblocksz == MPOOL_MBLOCK_SIZE_DEFAULT ? 0 : merr(EINVAL);
         if (ev(err))
             goto mpool_cleanup;
     }
@@ -1311,7 +1311,7 @@ ikvdb_open(
         else if (err)
             goto out;
 
-        err = mcprops.mc_mblocksz == 32 ? 0 : merr(EINVAL);
+        err = mcprops.mc_mblocksz == MPOOL_MBLOCK_SIZE_DEFAULT ? 0 : merr(EINVAL);
         if (ev(err))
             goto out;
     }
@@ -1973,14 +1973,10 @@ ikvdb_kvs_open(
         const char *name = hse_mclass_name_get(i);
 
         if (strstr(params->mclass_policy, name)) {
-            struct mpool_mclass_props props;
-
-            err = mpool_mclass_props_get(self->ikdb_mp, i, &props);
-            if (err) {
-                if (merr_errno(err) == ENOENT)
-                    log_err("%s media not configured, cannot use \"%s\" mclass policy for KVS %s",
-                            name, params->mclass_policy, kvs_name);
-                return err;
+            if (!mpool_mclass_is_configured(self->ikdb_mp, i)) {
+                log_err("%s media not configured, cannot use \"%s\" mclass policy for KVS %s",
+                        name, params->mclass_policy, kvs_name);
+                return merr(ENOENT);
             }
         }
     }

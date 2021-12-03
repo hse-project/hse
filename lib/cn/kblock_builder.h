@@ -132,7 +132,7 @@ kbb_finish(struct kblock_builder *bld, struct blk_list *kblks, u64 seqno_min, u6
 size_t
 kbb_estimate_alen(struct cn *cn, size_t wlen, enum hse_mclass mclass);
 
-void
+merr_t
 kbb_set_agegroup(struct kblock_builder *bld, enum hse_mclass_policy_age age);
 
 enum hse_mclass_policy_age

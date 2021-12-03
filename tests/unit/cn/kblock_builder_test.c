@@ -8,7 +8,6 @@
 
 #include <hse_util/hse_err.h>
 #include <hse_util/logging.h>
-#include <hse_util/storage.h>
 
 #include <hse/limits.h>
 
@@ -28,8 +27,6 @@
 
 const struct kvs_rparams mocked_rp_default = {
     .cn_bloom_create = 1,
-    .kblock_size = 32 * MB,
-    .vblock_size = 32 *MB,
 };
 
 const struct kvs_cparams mocked_cp_default = {
@@ -250,7 +247,8 @@ MTF_DEFINE_UTEST_PRE(test, t_kbb_create1, test_setup)
     ASSERT_EQ(err, 0);
 
     for (i = 0; i < HSE_MPOLICY_AGE_CNT; i++) {
-        kbb_set_agegroup(kbb, i);
+        err = kbb_set_agegroup(kbb, i);
+        ASSERT_EQ(0, merr_errno(err));
         ASSERT_EQ(kbb_get_agegroup(kbb), i);
     }
 

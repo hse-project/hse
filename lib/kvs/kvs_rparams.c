@@ -18,6 +18,7 @@
 #include <hse_util/storage.h>
 
 #include <hse_ikvdb/mclass_policy.h>
+#include <hse_ikvdb/ikvdb.h>
 #include <hse_ikvdb/param.h>
 #include <hse_ikvdb/kvs_rparams.h>
 #include <hse_ikvdb/limits.h>
@@ -265,12 +266,12 @@ static const struct param_spec pspecs[] = {
         .ps_stringify = param_default_stringify,
         .ps_jsonify = param_default_jsonify,
         .ps_default_value = {
-            .as_uscalar = 256 * 1024,
+            .as_uscalar = 256 << KB_SHIFT,
         },
         .ps_bounds = {
             .as_uscalar = {
-                .ps_min = 0,
-                .ps_max = UINT64_MAX,
+                .ps_min = 32 << KB_SHIFT,
+                .ps_max = 2 << MB_SHIFT,
             },
         },
     },
@@ -307,12 +308,12 @@ static const struct param_spec pspecs[] = {
         .ps_stringify = param_default_stringify,
         .ps_jsonify = param_default_jsonify,
         .ps_default_value = {
-            .as_uscalar = 512 * 1024,
+            .as_uscalar = 512 << KB_SHIFT,
         },
         .ps_bounds = {
             .as_uscalar = {
-                .ps_min = 0,
-                .ps_max = UINT64_MAX,
+                .ps_min = 32 << KB_SHIFT,
+                .ps_max = 2 << MB_SHIFT,
             },
         },
     },
@@ -761,48 +762,6 @@ static const struct param_spec pspecs[] = {
             .as_uscalar = {
                 .ps_min = 0,
                 .ps_max = UINT64_MAX,
-            },
-        },
-    },
-    {
-        .ps_name = "kblock_size_mb",
-        .ps_description = "preferred kblock size (in MiB)",
-        .ps_flags = PARAM_FLAG_EXPERIMENTAL,
-        .ps_type = PARAM_TYPE_U64,
-        .ps_offset = offsetof(struct kvs_rparams, kblock_size),
-        .ps_size = PARAM_SZ(struct kvs_rparams, kblock_size),
-        .ps_convert = param_convert_to_bytes_from_MB,
-        .ps_validate = param_default_validator,
-        .ps_stringify = param_stringify_bytes_to_MB,
-        .ps_jsonify = param_jsonify_bytes_to_MB,
-        .ps_default_value = {
-            .as_uscalar = 32 * MB,
-        },
-        .ps_bounds = {
-            .as_uscalar = {
-                .ps_min = KBLOCK_MIN_SIZE,
-                .ps_max = KBLOCK_MAX_SIZE,
-            },
-        },
-    },
-    {
-        .ps_name = "vblock_size_mb",
-        .ps_description = "",
-        .ps_flags = PARAM_FLAG_EXPERIMENTAL,
-        .ps_type = PARAM_TYPE_U64,
-        .ps_offset = offsetof(struct kvs_rparams, vblock_size),
-        .ps_size = PARAM_SZ(struct kvs_rparams, vblock_size),
-        .ps_convert = param_convert_to_bytes_from_MB,
-        .ps_validate = param_default_validator,
-        .ps_stringify = param_stringify_bytes_to_MB,
-        .ps_jsonify = param_jsonify_bytes_to_MB,
-        .ps_default_value = {
-            .as_uscalar = 32 * MB,
-        },
-        .ps_bounds = {
-            .as_uscalar = {
-                .ps_min = VBLOCK_MIN_SIZE,
-                .ps_max = VBLOCK_MAX_SIZE,
             },
         },
     },

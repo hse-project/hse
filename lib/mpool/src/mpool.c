@@ -515,6 +515,12 @@ mpool_mclass_ftw(
     return mclass_ftw(mc, prefix, cb);
 }
 
+bool
+mpool_mclass_is_configured(struct mpool *const mp, const enum hse_mclass mclass)
+{
+    return !!mpool_mclass_handle(mp, mclass);
+}
+
 void
 mpool_cparams_defaults(struct mpool_cparams *cparams)
 {

@@ -1,6 +1,6 @@
 /* SPDX-License-Identifier: Apache-2.0 */
 /*
- * Copyright (C) 2015-2020 Micron Technology, Inc.  All rights reserved.
+ * Copyright (C) 2015-2021 Micron Technology, Inc.  All rights reserved.
  */
 
 #define MTF_MOCK_IMPL_vblock_builder
@@ -16,7 +16,6 @@
 #include <hse_util/perfc.h>
 #include <hse_util/vlb.h>
 
-#include <hse_ikvdb/kvs_rparams.h>
 #include <hse_ikvdb/tuple.h>
 #include <hse_ikvdb/limits.h>
 #include <hse_ikvdb/kvset_builder.h>
@@ -53,7 +52,6 @@ _vblock_start(struct vblock_builder *bld)
     u64                    blkid;
     u64                    tstart;
     struct cn_merge_stats *stats = bld->mstats;
-    struct kvs_rparams *   rp;
     enum hse_mclass      mclass;
     struct mclass_policy * mpolicy = cn_get_mclass_policy(bld->cn);
 
@@ -70,13 +68,7 @@ _vblock_start(struct vblock_builder *bld)
     if (stats)
         count_ops(&stats->ms_vblk_alloc, 1, mbprop.mpr_alloc_cap, get_time_ns() - tstart);
 
-    rp = cn_get_rp(bld->cn);
-
-    if (mbprop.mpr_alloc_cap != rp->vblock_size) {
-        mpool_mblock_abort(bld->ds, blkid);
-        assert(0);
-        return merr(ev(EBUG));
-    }
+    assert(mbprop.mpr_alloc_cap == bld->max_size);
 
     err = blk_list_append(&bld->vblk_list, blkid);
     if (ev(err)) {
@@ -174,13 +166,13 @@ vbb_create(
     struct perfc_set *      pc,
     u64                     vgroup)
 {
-    struct vblock_builder  *bld;
-    struct kvs_rparams     *rp;
-    void                   *wbuf;
+    struct mpool_mclass_props props;
+    struct mclass_policy     *policy;
+    struct vblock_builder    *bld;
+    void                     *wbuf;
+    merr_t                    err;
 
     assert(builder_out);
-
-    rp = cn_get_rp(cn);
 
     wbuf = vlb_alloc(WBUF_LEN_MAX + sizeof(*bld));
     if (ev(!wbuf))
@@ -193,9 +185,17 @@ vbb_create(
     bld->pc = pc;
     bld->ds = cn_get_dataset(cn);
     bld->vgroup = vgroup;
-    bld->max_size = rp->vblock_size;
     bld->agegroup = HSE_MPOLICY_AGE_LEAF;
     bld->wbuf = wbuf;
+
+    policy = cn_get_mclass_policy(bld->cn);
+
+    err = mpool_mclass_props_get(
+        bld->ds, policy->mc_table[bld->agegroup][HSE_MPOLICY_DTYPE_KEY], &props);
+    if (err)
+        return err;
+
+    bld->max_size = props.mc_mblocksz;
 
     *builder_out = bld;
 
@@ -310,10 +310,25 @@ vbb_finish(struct vblock_builder *bld, struct blk_list *vblks)
     return 0;
 }
 
-void
+merr_t
 vbb_set_agegroup(struct vblock_builder *bld, enum hse_mclass_policy_age age)
 {
+    merr_t                    err;
+    struct mclass_policy *    policy;
+    struct mpool_mclass_props props;
+
     bld->agegroup = age;
+
+    policy = cn_get_mclass_policy(bld->cn);
+
+    err = mpool_mclass_props_get(
+        bld->ds, policy->mc_table[bld->agegroup][HSE_MPOLICY_DTYPE_KEY], &props);
+    if (err)
+        return err;
+
+    bld->max_size = props.mc_mblocksz;
+
+    return err;
 }
 
 enum hse_mclass_policy_age

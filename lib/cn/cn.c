@@ -1578,7 +1578,7 @@ cn_make(struct mpool *ds, const struct kvs_cparams *cp, struct kvdb_health *heal
 u64
 cn_mpool_dev_zone_alloc_unit_default(struct cn *cn, enum hse_mclass mclass)
 {
-    return cn->cn_mpool_props.mclass[mclass].mc_mblocksz << 20;
+    return cn->cn_mpool_props.mclass[mclass].mc_mblocksz;
 }
 
 u64

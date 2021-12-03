@@ -251,8 +251,6 @@ kv_spill(struct cn_compaction_work *w)
      * readahead buffer).
      */
     direct_read_len = w->cw_rp->cn_compact_vblk_ra;
-    if (direct_read_len < 32 * 1024)
-        direct_read_len = 32 * 1024;
     direct_read_len -= PAGE_SIZE;
 
     tstart = perfc_ison(w->cw_pc, PERFC_DI_CNCOMP_VGET) ? 1 : 0;

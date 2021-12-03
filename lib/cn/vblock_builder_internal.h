@@ -1,10 +1,19 @@
 /* SPDX-License-Identifier: Apache-2.0 */
 /*
- * Copyright (C) 2015-2020 Micron Technology, Inc.  All rights reserved.
+ * Copyright (C) 2015-2021 Micron Technology, Inc.  All rights reserved.
  */
 
 #ifndef HSE_KVS_CN_VBLOCK_BUILDER_INT_H
 #define HSE_KVS_CN_VBLOCK_BUILDER_INT_H
+
+#include <stdbool.h>
+#include <stddef.h>
+#include <stdint.h>
+
+#include <hse_ikvdb/blk_list.h>
+#include <hse_ikvdb/mclass_policy.h>
+
+#include <hse_util/hse_err.h>
 
 #define WBUF_LEN_MAX (1024 * 1024)
 #define VBLOCK_HDR_LEN 4096
@@ -25,6 +34,7 @@ struct cn_merge_stats;
  *             minus the size of the vblock byte header.
  * @destruct:  if true, vlbock builder is ready to be destroyed
  * @opt_wrsz:  optimal write size for incremental mblock writes
+ * @mblocksz:  mblock size of specified media class
  *
  * WBUF_LEN_MAX is the allocated size of the write buffer.  Each mblock write
  * will be at most WBUF_LEN_MAX bytes.  Member @wbuf_len is the actual write
@@ -40,7 +50,7 @@ struct cn_merge_stats;
  * When a new value is given to the vblock builder
  * -----------------------------------------------
  *
- *   Let @vlen be the lenght of the new value
+ *   Let @vlen be the length of the new value
  *
  *   If current vblock has not been allocated, start a new vblock as follows:
  *     - allocate vblock
@@ -70,16 +80,16 @@ struct vblock_builder {
     struct cn_merge_stats *    mstats;
     struct blk_list            vblk_list;
     enum hse_mclass_policy_age agegroup;
-    u64                        vsize;
-    u64                        blkid;
-    uint                       max_size;
-    uint                       vblk_off;
+    uint64_t                   vsize;
+    uint64_t                   blkid;
+    uint32_t                   max_size;
+    off_t                      vblk_off;
     void *                     wbuf;
-    uint                       wbuf_off;
-    uint                       wbuf_len;
-    u64                        vgroup;
+    off_t                      wbuf_off;
+    unsigned int               wbuf_len;
+    uint64_t                   vgroup;
     bool                       destruct;
-    u32                        opt_wrsz;
+    uint32_t                   opt_wrsz;
 };
 
 static inline bool
@@ -88,13 +98,13 @@ _vblock_has_room(struct vblock_builder *bld, size_t vlen)
     return bld->vblk_off + vlen <= bld->max_size;
 }
 
-static inline uint
+static inline uint32_t
 _vblock_unused_media_space(struct vblock_builder *bld)
 {
     return bld->max_size - bld->vblk_off;
 }
 
 merr_t
-_vblock_finish_ext(struct vblock_builder *bld, u8 slot, bool final);
+_vblock_finish_ext(struct vblock_builder *bld, uint8_t slot, bool final);
 
 #endif

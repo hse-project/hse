@@ -191,7 +191,7 @@ function emit_header(name, set_name, ku, prefix, args)
             printf("\t\trc = (void *)(mtfm_%s_%s_get())(__VA_ARGS__); \\\n",
                    set_name, name) > TARGET_FILE;
             printf("\trc; \\\n") > TARGET_FILE;
-        } else if (prefix ~ /bool|int|uint|unsigned|long|ulong|merr_t|size_t|ssize_t|enum|s8|s16|s32|s64|u8|u16|u32|u64|int8_t|int16_t|int32_t|int64_t|uint8_t|uint16_t|uint32_t|uint64_t/) {
+        } else if (prefix ~ /bool|int|uint|unsigned|unsigned int|long|ulong|merr_t|size_t|ssize_t|enum|s8|s16|s32|s64|u8|u16|u32|u64|int8_t|int16_t|int32_t|int64_t|uint8_t|uint16_t|uint32_t|uint64_t/) {
             printf("\tuint64_t rc = 0; \\\n") > TARGET_FILE;
             printf("\tif (!mapi_enabled || !mapi_inject_check(%s%s, &rc)) \\\n",
                    "mapi_idx_", name) > TARGET_FILE;

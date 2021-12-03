@@ -114,7 +114,7 @@ vbb_vblock_hdr_len(void);
 merr_t
 vbb_blk_list_merge(struct vblock_builder *dst, struct vblock_builder *src, struct blk_list *vblks);
 
-void
+merr_t
 vbb_set_agegroup(struct vblock_builder *bld, enum hse_mclass_policy_age age);
 
 enum hse_mclass_policy_age

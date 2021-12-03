@@ -1,6 +1,6 @@
 /* SPDX-License-Identifier: Apache-2.0 */
 /*
- * Copyright (C) 2015-2020 Micron Technology, Inc.  All rights reserved.
+ * Copyright (C) 2015-2021 Micron Technology, Inc.  All rights reserved.
  */
 
 #define MTF_MOCK_IMPL_kblock_builder
@@ -133,15 +133,15 @@ struct curr_kblock {
     struct kvs_cparams *cp;
     struct perfc_set *  pc;
 
-    u64 total_key_bytes;
-    u64 total_val_bytes;
-    u32 num_keys;
-    u32 num_tombstones;
+    uint64_t total_key_bytes;
+    uint64_t total_val_bytes;
+    uint32_t num_keys;
+    uint32_t num_tombstones;
 
-    uint max_size;
-    uint max_pgc;
-    uint blm_pgc;
-    uint wbt_pgc;
+    uint32_t max_size;
+    uint32_t max_pgc;
+    uint32_t blm_pgc;
+    uint32_t wbt_pgc;
 
     uint                   blm_elt_cap;
     struct hash_set        hash_set;
@@ -154,14 +154,15 @@ struct curr_kblock {
     uint  bloom_used_max;
 };
 
-static HSE_ALWAYS_INLINE uint
+static HSE_ALWAYS_INLINE uint32_t
 free_pgc(struct curr_kblock *kblk)
 {
-    uint used = KBLOCK_HDR_PAGES + HLOG_PGC + kblk->blm_pgc + kblk->wbt_pgc;
+    const uint32_t used = KBLOCK_HDR_PAGES + HLOG_PGC + kblk->blm_pgc + kblk->wbt_pgc;
 
     assert(kblk->max_pgc >= used);
     if (kblk->max_pgc >= used)
         return kblk->max_pgc - used;
+
     return 0;
 }
 
@@ -171,6 +172,7 @@ free_pgc(struct curr_kblock *kblk)
  * @finished_kblks: list of finished kblocks (written, not committed)
  * @curr: the kblock currently being built
  * @finished: mark builder as finished (end of life)
+ * @max_size: Maximum mblock size of all configured media classes.
  */
 struct kblock_builder {
     struct mpool *             ds;
@@ -180,15 +182,16 @@ struct kblock_builder {
     struct perfc_set *         pc;
     struct hlog *              hlog;
     struct cn_merge_stats *    mstats;
-    enum hse_mclass_policy_age agegroup;
     struct blk_list            finished_kblks;
     struct curr_kblock         curr;
-    bool                       finished;
     struct wbb *               ptree;
+    enum hse_mclass_policy_age agegroup;
+    bool                       finished;
     uint                       pt_pgc;
     uint                       pt_max_pgc;
-    u64                        seqno_min;
-    u64                        seqno_max;
+    uint32_t                   max_size;
+    uint64_t                   seqno_min;
+    uint64_t                   seqno_max;
 };
 
 /**
@@ -453,7 +456,7 @@ kblock_init(
     struct kvs_cparams *cp,
     struct kvs_rparams *rp,
     struct perfc_set *  pc,
-    size_t              max_size)
+    uint32_t            max_size)
 {
     merr_t err;
 
@@ -841,10 +844,11 @@ kbb_estimate_alen(struct cn *cn, size_t wlen, enum hse_mclass mclass)
 static merr_t
 kblock_finish(struct kblock_builder *bld, struct wbb *ptree)
 {
-    struct bloom_hdr_omf blm_hdr;
-    struct wbt_hdr_omf   wbt_hdr = { 0 };
-    struct wbt_hdr_omf   pt_hdr = { 0 };
-    struct mblock_props  mbprop;
+    struct bloom_hdr_omf      blm_hdr;
+    struct wbt_hdr_omf        wbt_hdr = { 0 };
+    struct wbt_hdr_omf        pt_hdr = { 0 };
+    struct mblock_props       mbprop;
+    struct mpool_mclass_props mc_props;
 
     struct curr_kblock *   kblk = &bld->curr;
     struct cn_merge_stats *stats = bld->mstats;
@@ -945,7 +949,17 @@ kblock_finish(struct kblock_builder *bld, struct wbb *ptree)
     for (i = 0; i < iov_cnt; i++)
         wlen += iov[i].iov_len;
 
-    kblocksz = bld->rp->kblock_size;
+    mclass = mclass_policy_get_type(mpolicy, bld->agegroup, HSE_MPOLICY_DTYPE_KEY);
+    if (ev(mclass == HSE_MCLASS_INVALID)) {
+        err = merr(EINVAL);
+        goto errout;
+    }
+
+    err = mpool_mclass_props_get(bld->ds, mclass, &mc_props);
+    if (ev(err))
+        goto errout;
+
+    kblocksz = mc_props.mc_mblocksz;
     if (wlen > kblocksz) {
         log_debug("BUG: wlen %lu kblocksz %lu", wlen, kblocksz);
         assert(wlen <= kblocksz);
@@ -955,12 +969,6 @@ kblock_finish(struct kblock_builder *bld, struct wbb *ptree)
 
     if (stats)
         tstart = get_time_ns();
-
-    mclass = mclass_policy_get_type(mpolicy, bld->agegroup, HSE_MPOLICY_DTYPE_KEY);
-    if (ev(mclass == HSE_MCLASS_INVALID)) {
-        err = merr(EINVAL);
-        goto errout;
-    }
 
     err = mpool_mblock_alloc(bld->ds, mclass, &blkid, &mbprop);
     if (ev(err))
@@ -1013,9 +1021,10 @@ errout:
 merr_t
 kbb_create(struct kblock_builder **builder_out, struct cn *cn, struct perfc_set *pc)
 {
-    merr_t                 err;
-    uint                   kb_size;
-    struct kblock_builder *bld;
+    merr_t                    err;
+    struct kblock_builder *   bld;
+    struct mpool_mclass_props props;
+    struct mclass_policy *    policy;
 
     assert(builder_out);
 
@@ -1031,17 +1040,24 @@ kbb_create(struct kblock_builder **builder_out, struct cn *cn, struct perfc_set 
     bld->pc = pc;
     bld->agegroup = HSE_MPOLICY_AGE_LEAF;
 
+    policy = cn_get_mclass_policy(cn);
+
+    err = mpool_mclass_props_get(
+        bld->ds, policy->mc_table[bld->agegroup][HSE_MPOLICY_DTYPE_KEY], &props);
+    if (ev(err))
+        goto err_exit1;
+
+    bld->max_size = props.mc_mblocksz;
+
     err = hlog_create(&bld->hlog, HLOG_PRECISION);
     if (ev(err))
         goto err_exit1;
 
-    kb_size = bld->rp->kblock_size;
-
-    err = kblock_init(&bld->curr, bld->cp, bld->rp, bld->pc, kb_size);
+    err = kblock_init(&bld->curr, bld->cp, bld->rp, bld->pc, bld->max_size);
     if (ev(err))
         goto err_exit2;
 
-    err = wbb_create(&bld->ptree, kb_size / PAGE_SIZE, &bld->pt_pgc);
+    err = wbb_create(&bld->ptree, bld->max_size / PAGE_SIZE, &bld->pt_pgc);
     if (ev(err))
         goto err_exit3;
 
@@ -1188,9 +1204,9 @@ kbb_finish(struct kblock_builder *bld, struct blk_list *kblks, u64 seqno_min, u6
      */
     if (!kblock_is_empty(&bld->curr)) {
         struct wbb *pt = 0;
-        u64         kbsize = bld->rp->kblock_size;
-        u64         ptsize = (wbb_page_cnt_get(bld->ptree)) * PAGE_SIZE;
-        u64         kbused =
+        uint64_t    kbsize = bld->max_size;
+        uint64_t    ptsize = (wbb_page_cnt_get(bld->ptree)) * PAGE_SIZE;
+        uint64_t    kbused =
             (KBLOCK_HDR_PAGES + HLOG_PGC + bld->curr.blm_pgc + wbb_page_cnt_get(bld->curr.wbtree)) *
             PAGE_SIZE;
 
@@ -1220,10 +1236,25 @@ kbb_finish(struct kblock_builder *bld, struct blk_list *kblks, u64 seqno_min, u6
     return 0;
 }
 
-void
+merr_t
 kbb_set_agegroup(struct kblock_builder *bld, enum hse_mclass_policy_age age)
 {
+    merr_t                    err;
+    struct mclass_policy *    policy;
+    struct mpool_mclass_props props;
+
     bld->agegroup = age;
+
+    policy = cn_get_mclass_policy(bld->cn);
+
+    err = mpool_mclass_props_get(
+        bld->ds, policy->mc_table[bld->agegroup][HSE_MPOLICY_DTYPE_KEY], &props);
+    if (err)
+        return err;
+
+    bld->max_size = props.mc_mblocksz;
+
+    return err;
 }
 
 enum hse_mclass_policy_age

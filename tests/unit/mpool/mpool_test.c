@@ -61,7 +61,7 @@ MTF_DEFINE_UTEST_PREPOST(mpool_test, mpool_ocd_test, mpool_test_pre, mpool_test_
 
     err = mpool_props_get(mp, &mprops);
     ASSERT_EQ(0, merr_errno(err));
-    ASSERT_EQ(32, mprops.mclass[HSE_MCLASS_CAPACITY].mc_mblocksz);
+    ASSERT_EQ(MPOOL_MBLOCK_SIZE_DEFAULT, mprops.mclass[HSE_MCLASS_CAPACITY].mc_mblocksz);
 
     err = mpool_info_get(NULL, &info);
     ASSERT_EQ(EINVAL, merr_errno(err));
@@ -189,7 +189,7 @@ MTF_DEFINE_UTEST_PREPOST(mpool_test, mclass_test, mpool_test_pre, mpool_test_pos
 
     err = mpool_mclass_props_get(mp, HSE_MCLASS_CAPACITY, &props);
     ASSERT_EQ(0, merr_errno(err));
-    ASSERT_EQ(32, props.mc_mblocksz);
+    ASSERT_EQ(MPOOL_MBLOCK_SIZE_DEFAULT, props.mc_mblocksz);
 
     err = mpool_mclass_info_get(NULL, HSE_MCLASS_CAPACITY, &info);
     ASSERT_EQ(EINVAL, merr_errno(err));
@@ -267,6 +267,34 @@ MTF_DEFINE_UTEST_PREPOST(mpool_test, mclass_test, mpool_test_pre, mpool_test_pos
 
     err = mpool_close(mp);
     ASSERT_EQ(0, err);
+
+    mpool_destroy(home, &tdparams);
+}
+
+MTF_DEFINE_UTEST_PREPOST(mpool_test, is_configured, mpool_test_pre, mpool_test_post)
+{
+    merr_t        err;
+    struct mpool *mp;
+
+    err = mpool_create(home, &tcparams);
+    ASSERT_EQ(0, err);
+
+    err = mpool_open(home, &trparams, O_RDWR, &mp);
+    ASSERT_EQ(0, err);
+
+    for (int i = HSE_MCLASS_BASE; i < HSE_MCLASS_COUNT; i++) {
+        if (i == HSE_MCLASS_BASE) {
+            ASSERT_TRUE(mpool_mclass_is_configured(mp, i));
+        } else {
+            ASSERT_FALSE(mpool_mclass_is_configured(mp, i));
+        }
+    }
+
+    ASSERT_FALSE(mpool_mclass_is_configured(NULL, HSE_MCLASS_BASE));
+    ASSERT_FALSE(mpool_mclass_is_configured(mp, HSE_MCLASS_COUNT));
+
+    err = mpool_close(mp);
+    ASSERT_EQ(0, merr_errno(err));
 
     mpool_destroy(home, &tdparams);
 }

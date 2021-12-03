@@ -1,6 +1,6 @@
 /* SPDX-License-Identifier: Apache-2.0 */
 /*
- * Copyright (C) 2015-2020 Micron Technology, Inc.  All rights reserved.
+ * Copyright (C) 2015-2021 Micron Technology, Inc.  All rights reserved.
  */
 
 #include <hse_util/hse_err.h>
@@ -2473,18 +2473,13 @@ kvset_iter_free_buffers(struct kvset_iterator *iter, struct kblk_reader *kr)
 static merr_t
 kvset_iter_enable_mblock_read_cmn(struct kvset_iterator *iter, struct kblk_reader *kr)
 {
-    void *mem;
-    uint  node_buf_sz;
-    uint  kb_max_sz;
+    void *   mem;
+    uint64_t node_buf_sz;
 
     /* compute appropriate node buffer size */
-    kb_max_sz = iter->ks->ks_rp->kblock_size;
-    if (kb_max_sz > VLB_ALLOCSZ_MAX / 2)
-        kb_max_sz = VLB_ALLOCSZ_MAX / 2;
-
     node_buf_sz = iter->ks->ks_rp->cn_compact_kblk_ra;
-    if (node_buf_sz > kb_max_sz)
-        node_buf_sz = kb_max_sz;
+    if (node_buf_sz > VLB_ALLOCSZ_MAX / 2)
+        node_buf_sz = VLB_ALLOCSZ_MAX / 2;
     if (node_buf_sz < 2 * PAGE_SIZE)
         node_buf_sz = 2 * PAGE_SIZE;
     node_buf_sz = PAGE_ALIGN(node_buf_sz);
@@ -2539,15 +2534,12 @@ kvset_iter_enable_mblock_read(struct kvset_iterator *iter)
     struct kblk_reader *kr = &iter->kreader;
     struct vblk_reader *vr;
     void *              mem;
-    uint                vr_buf_sz;
-    uint                vb_max_sz;
+    uint64_t            vr_buf_sz;
     uint                i;
     merr_t              err;
-    int                 ra_size;
+    uint64_t            ra_size;
 
     ra_size = iter->ks->ks_rp->cn_compact_vblk_ra;
-    if (ra_size < 32 * 1024)
-        ra_size = 32 * 1024;
 
     /* The root needs twice prefetching as the rest to avoid backlog. Also,
      * when the bandwidth is very low which is seen predominantly in slower
@@ -2557,21 +2549,17 @@ kvset_iter_enable_mblock_read(struct kvset_iterator *iter)
     if (ra_size < HSE_KVS_VALUE_LEN_MAX) {
         if (iter->ks->ks_node_level == 0)
             ra_size = HSE_KVS_VALUE_LEN_MAX;
-        ra_size = min_t(uint, ra_size, HSE_KVS_VALUE_LEN_MAX);
+        ra_size = min_t(uint64_t, ra_size, HSE_KVS_VALUE_LEN_MAX);
     }
 
     /* Limit buffered reads to values lesser than cn_compact_vblk_ra. The
      * upper level spill/compaction routines make direct reads for the sizes
      * matching or exceeding cn_compact_vblk_ra.
      */
-    vr_buf_sz = max_t(uint, PAGE_SIZE, ra_size);
+    vr_buf_sz = max_t(uint64_t, PAGE_SIZE, ra_size);
 
-    vb_max_sz = iter->ks->ks_rp->vblock_size;
-    if (vb_max_sz > VLB_ALLOCSZ_MAX / 2)
-        vb_max_sz = VLB_ALLOCSZ_MAX / 2;
-
-    if (vr_buf_sz > vb_max_sz)
-        vr_buf_sz = vb_max_sz;
+    if (vr_buf_sz > VLB_ALLOCSZ_MAX / 2)
+        vr_buf_sz = VLB_ALLOCSZ_MAX / 2;
     vr_buf_sz = PAGE_ALIGN(vr_buf_sz);
 
     err = kvset_iter_enable_mblock_read_cmn(iter, kr);

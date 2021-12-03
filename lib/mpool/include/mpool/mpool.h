@@ -149,6 +149,17 @@ mpool_mclass_ftw(
     const char           *prefix,
     struct mpool_file_cb *cb);
 
+/** @brief Check if a media class is configured.
+ *
+ * @param mp: Mpool.
+ * @param mclass: Media class.
+ *
+ * @returns true if configured, false if not.
+ */
+/* MTF_MOCK */
+bool
+mpool_mclass_is_configured(struct mpool *mp, enum hse_mclass mclass);
+
 /**
  * mpool_props_get() - get mpool properties
  *
