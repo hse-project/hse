@@ -70,7 +70,7 @@ class YcsbTest(BaseTest):
         config.check_ycsb_installed()
 
         self.compact = compact
-        self.compact_args = [config.HSE_EXECUTABLE, "--home", config.KVDB_HOME, "kvdb", "compact"]
+        self.compact_args = [config.HSE_EXECUTABLE, "kvdb", "compact", config.KVDB_HOME]
         self.cwd = config.YCSB_HOME
 
         self.ycsb_executable_path = os.path.join(config.YCSB_HOME, "bin", "ycsb")
