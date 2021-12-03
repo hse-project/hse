@@ -82,7 +82,8 @@ struct mblock_file {
     struct mblock_rgnmap rgnmap;
 
     struct mblock_fset *mbfsp;
-    struct io_ops       io;
+    struct io_ops       dataio;
+    struct io_ops       metaio;
 
     size_t         fszmax;
     size_t         mblocksz;
@@ -414,17 +415,11 @@ mblock_file_meta_len(size_t fszmax, size_t mblocksz, uint32_t version)
 }
 
 static merr_t
-mblock_file_meta_format(char *addr, struct mblock_filehdr *fh)
+mblock_file_meta_format(struct mblock_file *mbfp, char *addr, struct mblock_filehdr *fh)
 {
-    int rc;
-
     omf_mblock_filehdr_pack(fh, addr);
 
-    rc = msync((void *)((uintptr_t)addr & PAGE_MASK), PAGE_SIZE, MS_SYNC);
-    if (rc == -1)
-        return merr(errno);
-
-    return 0;
+    return mbfp->metaio.msync(addr, omf_mblock_filehdr_len(MBLOCK_METAHDR_VERSION), MS_SYNC);
 }
 
 static void
@@ -469,7 +464,7 @@ mblock_file_meta_load(struct mblock_file *mbfp, uint32_t version, bool gclose, b
     }
 
     if (upgrade)
-        mblock_file_meta_format(mbfp->meta_ugaddr, &fh);
+        mblock_file_meta_format(mbfp, mbfp->meta_ugaddr, &fh);
 
     if (fh.uniq != 0)
         mbfp->uniq = fh.uniq + MBLOCK_FILE_UNIQ_DELTA;
@@ -505,7 +500,7 @@ mblock_file_meta_load(struct mblock_file *mbfp, uint32_t version, bool gclose, b
         } else if (err && !rdonly) {
             assert(merr_errno(err) == ENOMSG);
             omf_mblock_oid_pack_zero(addr);
-            msync((void *)((uintptr_t)addr & PAGE_MASK), PAGE_SIZE, MS_SYNC);
+            mbfp->metaio.msync(addr, omf_mblock_oid_len(MBLOCK_METAHDR_VERSION), MS_SYNC);
         }
 
         addr += omf_mblock_oid_len(version);
@@ -513,15 +508,14 @@ mblock_file_meta_load(struct mblock_file *mbfp, uint32_t version, bool gclose, b
 
     if (upgrade) {
         char *start;
-        int rc;
 
         addr = mbfp->meta_ugaddr;
         start = (void *)((uintptr_t)addr & PAGE_MASK);
         end = addr + mblock_file_meta_len(mbfp->fszmax, mbfp->mblocksz, MBLOCK_METAHDR_VERSION);
 
-        rc = msync(start, end - start, MS_SYNC);
-        if (rc == -1)
-            return merr(errno);
+        err = mbfp->metaio.msync(start, end - start, MS_SYNC);
+        if (err)
+            return err;
     }
 
     log_debug("mclass %d, file-id %d found %lu valid mblocks, uniq %u",
@@ -540,9 +534,8 @@ static merr_t
 mblock_file_meta_log(struct mblock_file *mbfp, uint64_t *mbidv, int mbidc, bool delete)
 {
     struct mblock_oid_info mbinfo;
-    uint32_t block, wlen;
+    uint32_t block, wlen, oid_len;
     char    *addr;
-    int      rc;
     merr_t   err = 0;
 
     if (!mbfp || !mbidv)
@@ -555,9 +548,10 @@ mblock_file_meta_log(struct mblock_file *mbfp, uint64_t *mbidv, int mbidc, bool 
     block = block_id(*mbidv);
 
     wlen = atomic_read(mbfp->wlenv + block);
+    oid_len = omf_mblock_oid_len(MBLOCK_METAHDR_VERSION);
 
     addr += MBLOCK_FILE_META_HDRLEN;
-    addr += (block * omf_mblock_oid_len(MBLOCK_METAHDR_VERSION));
+    addr += (block * oid_len);
 
     mutex_lock(&mbfp->meta_lock);
 
@@ -568,13 +562,15 @@ mblock_file_meta_log(struct mblock_file *mbfp, uint64_t *mbidv, int mbidc, bool 
         return err ?: merr(EINVAL);
     }
 
-    mbinfo.mb_oid = delete ? 0 : *mbidv;
-    mbinfo.mb_wlen = delete ? 0 : wlen;
-    omf_mblock_oid_pack(&mbinfo, addr);
+    if (delete) {
+        omf_mblock_oid_pack_zero(addr);
+    } else {
+        mbinfo.mb_oid = *mbidv;
+        mbinfo.mb_wlen = wlen;
+        omf_mblock_oid_pack(&mbinfo, addr);
+    }
 
-    rc = msync((void *)((uintptr_t)addr & PAGE_MASK), PAGE_SIZE, MS_SYNC);
-    if (rc == -1)
-        err = merr(errno);
+    err = mbfp->metaio.msync(addr, oid_len, MS_SYNC);
     mutex_unlock(&mbfp->meta_lock);
 
     return err;
@@ -641,6 +637,8 @@ mblock_file_open(
     mbfp->fileid = fileid;
     mbfp->mcid = mcid;
     mbfp->mblocksz = mblocksz;
+    mbfp->dataio = io_sync_ops;
+    mbfp->metaio = *params->metaio;
 
     mbfp->fszmax = fszmax;
     err = mblock_rgnmap_init(mbfp, params->rmcache);
@@ -655,7 +653,7 @@ mblock_file_open(
         struct mblock_filehdr fh = {};
 
         fh.fileid = fileid;
-        err = mblock_file_meta_format(mbfp->meta_addr, &fh);
+        err = mblock_file_meta_format(mbfp, mbfp->meta_addr, &fh);
     } else {
         mbfp->meta_ugaddr = params->meta_ugaddr;
         err = mblock_file_meta_load(mbfp, version, params->gclose, rdonly);
@@ -680,8 +678,6 @@ mblock_file_open(
             goto err_exit;
         }
     }
-
-    mbfp->io = io_sync_ops;
 
     mutex_init(&mbfp->uniq_lock);
     mutex_init(&mbfp->meta_lock);
@@ -750,7 +746,7 @@ mblock_uniq_gen(struct mblock_file *mbfp, uint32_t *uniqout)
         fh.fileid = mbfp->fileid;
         fh.uniq = uniq;
 
-        err = mblock_file_meta_format(mbfp->meta_addr, &fh);
+        err = mblock_file_meta_format(mbfp, mbfp->meta_addr, &fh);
     }
 
     mutex_unlock(&mbfp->uniq_lock);
@@ -1038,7 +1034,7 @@ mblock_file_read(
         return merr(EINVAL);
     }
 
-    return mbfp->io.read(mbfp->fd, roff, iov, iovc, 0, NULL);
+    return mbfp->dataio.read(mbfp->fd, roff, iov, iovc, 0, NULL);
 }
 
 merr_t
@@ -1080,7 +1076,7 @@ mblock_file_write(struct mblock_file *mbfp, uint64_t mbid, const struct iovec *i
         return merr(EINVAL);
     }
 
-    err = mbfp->io.write(mbfp->fd, woff, iov, iovc, 0, NULL);
+    err = mbfp->dataio.write(mbfp->fd, woff, iov, iovc, 0, NULL);
     if (!err)
         atomic_add(wlenp, len);
 
@@ -1147,11 +1143,10 @@ mblock_file_map_getbase(struct mblock_file *mbfp, uint64_t mbid, char **addr_out
     addr = map->addr;
     if (!addr) {
         /* Setup map */
-        addr = mmap(NULL, mblock_mmap_csize(mblocksz), PROT_READ, MAP_SHARED, mbfp->fd, soff);
-        if (addr == MAP_FAILED) {
-            err = merr(errno);
+        err = mbfp->dataio.mmap((void **)&addr, mblock_mmap_csize(mblocksz), PROT_READ,
+                                MAP_SHARED, mbfp->fd, soff);
+        if (err)
             goto exit;
-        }
 
         rc = madvise(addr, mblock_mmap_csize(mblocksz), MADV_RANDOM);
         if (rc) {
@@ -1206,10 +1201,8 @@ mblock_file_unmap(struct mblock_file *mbfp, uint64_t mbid)
         rc = madvise(addr, mblock_mmap_csize(mblocksz), MADV_DONTNEED);
         ev(rc);
 
-        rc = munmap(addr, mblock_mmap_csize(mblocksz));
-        if (rc)
-            err = merr(errno);
-        else
+        err = mbfp->dataio.munmap(addr, mblock_mmap_csize(mblocksz));
+        if (!err)
             map->addr = NULL;
     }
     mutex_unlock(&mbfp->mmap_lock);

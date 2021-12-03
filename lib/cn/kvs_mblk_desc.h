@@ -8,6 +8,8 @@
 
 #include <hse_util/inttypes.h>
 
+#include <mpool/mpool_structs.h>
+
 struct mpool_mcache_map;
 struct mpool;
 
@@ -15,6 +17,7 @@ struct kvs_mblk_desc {
     void *                   map_base; /* base address of mcache map */
     struct mpool_mcache_map *map;      /* mcache map */
     u32                      map_idx;  /* index of mblk in map */
+    enum hse_mclass          mclass;   /* media class */
     struct mpool *           ds;       /* mpool dataset */
     u64                      mb_id;    /* mblock id */
 };

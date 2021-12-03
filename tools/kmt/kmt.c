@@ -3996,7 +3996,8 @@ prop_decode(const char *list, const char *sep, const char *valid)
             wcmajprob = strtod(value, &end);
         } else if (0 == strcmp(name, "mclass")) {
             mclass = strtoul(value, &end, 0);
-            mclass = mclass == 1 ? HSE_MCLASS_STAGING : HSE_MCLASS_CAPACITY;
+            mclass = mclass == 1 ? HSE_MCLASS_STAGING :
+                ((mclass == 2) ? HSE_MCLASS_PMEM : HSE_MCLASS_CAPACITY);
         } else {
             eprint("%s property '%s' ignored\n", valid ? "unhandled" : "invalid", name);
             continue;
@@ -4194,7 +4195,7 @@ usage(struct km_impl *impl)
     printf("  keydist     %10zu  0: recmax/jobs, >0: in keydist chunks\n", keydist);
     printf("  lor           %lu:%lu:%u  set locality of reference [span:opsmax:constrain]\n",
            (ulong)km_lor.span, (ulong)km_lor.opsmax, (uint)km_lor.constrain);
-    printf("  mclass      %10d  media class in mpool mode - 0: cap, 1: stg \n", mclass);
+    printf("  mclass      %10d  media class in mpool mode - 0: cap, 1: stg, 2: pmem\n", mclass);
     printf("  perfc       %10d  set perfc_level for all perf counters\n", perfc);
     printf("  secsz       %10zu  set device/mpool mode r/w size\n", secsz);
     printf("  swapexcl    %10u  disable exclusive record swapping\n", swapexcl);

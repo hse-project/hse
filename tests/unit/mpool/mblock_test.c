@@ -88,8 +88,8 @@ MTF_DEFINE_UTEST_PREPOST(mblock_test, mblock_abc, mpool_test_pre, mpool_test_pos
 
     err = mpool_info_get(mp, &info);
     ASSERT_EQ(0, err);
-    ASSERT_LT(allocated_bytes_summation(&info), 64 << 20);
-    ASSERT_LT(used_bytes_summation(&info), 64 << 20);
+    ASSERT_LT(allocated_bytes_summation(&info), 70 << 20);
+    ASSERT_LT(used_bytes_summation(&info), 70 << 20);
     ASSERT_EQ(
         0, strncmp(capacity_path, info.mclass[HSE_MCLASS_CAPACITY].mi_path, sizeof(capacity_path)));
 
@@ -124,8 +124,8 @@ MTF_DEFINE_UTEST_PREPOST(mblock_test, mblock_abc, mpool_test_pre, mpool_test_pos
 
     err = mpool_info_get(mp, &info);
     ASSERT_EQ(0, err);
-    ASSERT_LT(allocated_bytes_summation(&info), 64 << 20);
-    ASSERT_LT(used_bytes_summation(&info), 64 << 20);
+    ASSERT_LT(allocated_bytes_summation(&info), 70 << 20);
+    ASSERT_LT(used_bytes_summation(&info), 70 << 20);
     ASSERT_EQ(
         0, strncmp(capacity_path, info.mclass[HSE_MCLASS_CAPACITY].mi_path, sizeof(capacity_path)));
 
@@ -259,8 +259,8 @@ MTF_DEFINE_UTEST_PREPOST(mblock_test, mblock_abc, mpool_test_pre, mpool_test_pos
 
     err = mpool_info_get(mp, &info);
     ASSERT_EQ(0, err);
-    ASSERT_LT(allocated_bytes_summation(&info), 100 << 20);
-    ASSERT_LT(used_bytes_summation(&info), 100 << 20);
+    ASSERT_LT(allocated_bytes_summation(&info), 140 << 20);
+    ASSERT_LT(used_bytes_summation(&info), 140 << 20);
     ASSERT_EQ(
         0, strncmp(capacity_path, info.mclass[HSE_MCLASS_CAPACITY].mi_path, sizeof(capacity_path)));
     ASSERT_EQ(0, strncmp(staging_path, info.mclass[HSE_MCLASS_STAGING].mi_path, sizeof(staging_path)));
@@ -431,8 +431,8 @@ MTF_DEFINE_UTEST_PREPOST(mblock_test, mblock_io, mpool_test_pre, mpool_test_post
 
     err = mpool_info_get(mp, &info);
     ASSERT_EQ(0, err);
-    ASSERT_LT(allocated_bytes_summation(&info), 64 << 20);
-    ASSERT_LT(used_bytes_summation(&info), 64 << 20);
+    ASSERT_LT(allocated_bytes_summation(&info), 70 << 20);
+    ASSERT_LT(used_bytes_summation(&info), 70 << 20);
     ASSERT_EQ(
         0, strncmp(capacity_path, info.mclass[HSE_MCLASS_CAPACITY].mi_path, sizeof(capacity_path)));
 

@@ -180,6 +180,12 @@ _kvset_get_max_key(struct kvset *ks, void **key, uint *klen)
     *klen = 3;
 }
 
+enum hse_mclass
+cn_tree_node_mclass(struct cn_tree_node *tn, enum hse_mclass_policy_dtype dtype)
+{
+    return HSE_MCLASS_CAPACITY;
+}
+
 /*----------------------------------------------------------------
  * Mocked kvset iterator
  */

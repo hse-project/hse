@@ -34,7 +34,7 @@ mclass_policies_default_builder(const struct param_spec *ps, void *data)
     struct mclass_policy *mclass_policies = data;
     struct mclass_policy *policy;
 
-    assert(mclass_policy_get_num_default_policies() == 8);
+    assert(mclass_policy_names_cnt() == 6);
 
     /* Setup capacity_only */
     policy = &mclass_policies[0];
@@ -86,19 +86,9 @@ mclass_policies_default_builder(const struct param_spec *ps, void *data)
     policy->mc_table[HSE_MPOLICY_AGE_LEAF][HSE_MPOLICY_DTYPE_KEY] = HSE_MCLASS_PMEM;
     policy->mc_table[HSE_MPOLICY_AGE_LEAF][HSE_MPOLICY_DTYPE_VALUE] = HSE_MCLASS_PMEM;
 
-    /* Setup pmem_staging */
+    /* Setup pmem_max_capacity */
     policy = &mclass_policies[5];
-    strlcpy(policy->mc_name, "pmem_staging", sizeof("pmem_staging"));
-    policy->mc_table[HSE_MPOLICY_AGE_ROOT][HSE_MPOLICY_DTYPE_KEY] = HSE_MCLASS_PMEM;
-    policy->mc_table[HSE_MPOLICY_AGE_ROOT][HSE_MPOLICY_DTYPE_VALUE] = HSE_MCLASS_PMEM;
-    policy->mc_table[HSE_MPOLICY_AGE_INTERNAL][HSE_MPOLICY_DTYPE_KEY] = HSE_MCLASS_PMEM;
-    policy->mc_table[HSE_MPOLICY_AGE_INTERNAL][HSE_MPOLICY_DTYPE_VALUE] = HSE_MCLASS_STAGING;
-    policy->mc_table[HSE_MPOLICY_AGE_LEAF][HSE_MPOLICY_DTYPE_KEY] = HSE_MCLASS_PMEM;
-    policy->mc_table[HSE_MPOLICY_AGE_LEAF][HSE_MPOLICY_DTYPE_VALUE] = HSE_MCLASS_STAGING;
-
-    /* Setup pmem_capacity */
-    policy = &mclass_policies[6];
-    strlcpy(policy->mc_name, "pmem_capacity", sizeof("pmem_capacity"));
+    strlcpy(policy->mc_name, "pmem_max_capacity", sizeof("pmem_max_capacity"));
     policy->mc_table[HSE_MPOLICY_AGE_ROOT][HSE_MPOLICY_DTYPE_KEY] = HSE_MCLASS_PMEM;
     policy->mc_table[HSE_MPOLICY_AGE_ROOT][HSE_MPOLICY_DTYPE_VALUE] = HSE_MCLASS_PMEM;
     policy->mc_table[HSE_MPOLICY_AGE_INTERNAL][HSE_MPOLICY_DTYPE_KEY] = HSE_MCLASS_PMEM;
@@ -106,18 +96,7 @@ mclass_policies_default_builder(const struct param_spec *ps, void *data)
     policy->mc_table[HSE_MPOLICY_AGE_LEAF][HSE_MPOLICY_DTYPE_KEY] = HSE_MCLASS_PMEM;
     policy->mc_table[HSE_MPOLICY_AGE_LEAF][HSE_MPOLICY_DTYPE_VALUE] = HSE_MCLASS_CAPACITY;
 
-    /* Setup pmem_staging_capacity */
-    policy = &mclass_policies[7];
-    strlcpy(policy->mc_name, "pmem_staging_capacity", sizeof("pmem_staging_capacity"));
-    policy->mc_table[HSE_MPOLICY_AGE_ROOT][HSE_MPOLICY_DTYPE_KEY] = HSE_MCLASS_PMEM;
-    policy->mc_table[HSE_MPOLICY_AGE_ROOT][HSE_MPOLICY_DTYPE_VALUE] = HSE_MCLASS_PMEM;
-    policy->mc_table[HSE_MPOLICY_AGE_INTERNAL][HSE_MPOLICY_DTYPE_KEY] = HSE_MCLASS_STAGING;
-    policy->mc_table[HSE_MPOLICY_AGE_INTERNAL][HSE_MPOLICY_DTYPE_VALUE] = HSE_MCLASS_STAGING;
-    policy->mc_table[HSE_MPOLICY_AGE_LEAF][HSE_MPOLICY_DTYPE_KEY] = HSE_MCLASS_STAGING;
-    policy->mc_table[HSE_MPOLICY_AGE_LEAF][HSE_MPOLICY_DTYPE_VALUE] = HSE_MCLASS_CAPACITY;
-
-    for (int i = mclass_policy_get_num_default_policies(); i < ps->ps_bounds.as_array.ps_max_len;
-         i++) {
+    for (int i = mclass_policy_names_cnt(); i < ps->ps_bounds.as_array.ps_max_len; i++) {
         const size_t HSE_MAYBE_UNUSED sz =
             strlcpy(mclass_policies[i].mc_name, HSE_MPOLICY_DEFAULT_NAME, HSE_MPOLICY_NAME_LEN_MAX);
 
@@ -154,7 +133,7 @@ mclass_policies_converter(const struct param_spec *ps, const cJSON *node, void *
     const struct mclass_policy_map *dtype_map = mclass_policy_get_map(1);
     const unsigned int              dtype_map_sz = mclass_policy_get_num_map_entries(1);
 
-    int i = mclass_policy_get_num_default_policies();
+    int i = mclass_policy_names_cnt();
     for (cJSON *policy_json = node->child; policy_json; policy_json = policy_json->next, i++) {
         if (i >= HSE_MPOLICY_COUNT)
             return false;
@@ -345,7 +324,7 @@ mclass_policies_jsonify(const struct param_spec *const ps, const void *const val
     if (!arr)
         return NULL;
 
-    for (size_t i = mclass_policy_get_num_default_policies(); i < ps->ps_bounds.as_array.ps_max_len; i++) {
+    for (size_t i = mclass_policy_names_cnt(); i < ps->ps_bounds.as_array.ps_max_len; i++) {
         if (!strcmp(policies[i].mc_name, HSE_MPOLICY_DEFAULT_NAME))
             return arr;
 
@@ -399,14 +378,20 @@ dur_mclass_converter(
         return false;
 
     const char *value = cJSON_GetStringValue(node);
+
+    if (!strcmp(value, HSE_MCLASS_AUTO_NAME)) {
+        *(uint8_t *)data = HSE_MCLASS_AUTO;
+        return true;
+    }
+
     for (int i = HSE_MCLASS_BASE; i < HSE_MCLASS_COUNT; i++) {
         if (!strcmp(hse_mclass_name_get(i), value)) {
-            *(enum hse_mclass *)data = i;
+            *(uint8_t *)data = i;
             return true;
         }
     }
 
-    log_err("Invalid value: %s, must be one of capacity or staging", value);
+    log_err("Invalid value: %s, must be one of capacity or staging or pmem or auto", value);
 
     return false;
 }
@@ -419,15 +404,17 @@ dur_mclass_stringify(
     const size_t                   buf_sz,
     size_t *const                  needed_sz)
 {
-    int                     n;
-    const char *            param;
-    const enum hse_mclass mc = *(const enum hse_mclass *)value;
+    uint8_t mc = *(const uint8_t *)value;
+    const char *param;
+    int n;
 
     INVARIANT(ps);
     INVARIANT(value);
-    INVARIANT(mc < HSE_MCLASS_COUNT && mc >= HSE_MCLASS_BASE);
 
-    param = hse_mclass_name_get(mc);
+    if (mc == HSE_MCLASS_AUTO)
+        param = HSE_MCLASS_AUTO_NAME;
+    else
+        param = hse_mclass_name_get((const enum hse_mclass)mc);
 
     n = snprintf(buf, buf_sz, "\"%s\"", param);
     if (n < 0)
@@ -442,10 +429,18 @@ dur_mclass_stringify(
 static cJSON * HSE_NONNULL(1, 2)
 dur_mclass_jsonify(const struct param_spec *const ps, const void *const value)
 {
+    uint8_t mc = *(const uint8_t *)value;
+    const char *name;
+
     INVARIANT(ps);
     INVARIANT(value);
 
-    return cJSON_CreateString(hse_mclass_name_get(*(enum hse_mclass *)value));
+    if (mc == HSE_MCLASS_AUTO)
+        name = HSE_MCLASS_AUTO_NAME;
+    else
+        name = hse_mclass_name_get(*(enum hse_mclass *)value);
+
+    return cJSON_CreateString(name);
 }
 
 static bool HSE_NONNULL(1, 2, 3)
@@ -462,14 +457,16 @@ throttle_init_policy_converter(
         return false;
 
     const char *value = cJSON_GetStringValue(node);
-    if (!strcmp(value, "default")) {
-        *(uint *)data = THROTTLE_DELAY_START_DEFAULT;
+    if (!strcmp(value, "auto")) {
+        *(uint *)data = THROTTLE_DELAY_START_AUTO;
     } else if (!strcmp(value, "light")) {
         *(uint *)data = THROTTLE_DELAY_START_LIGHT;
     } else if (!strcmp(value, "medium")) {
         *(uint *)data = THROTTLE_DELAY_START_MEDIUM;
+    } else if (!strcmp(value, "heavy") || !strcmp(value, "default")) {
+        *(uint *)data = THROTTLE_DELAY_START_HEAVY;
     } else {
-        log_err("Invalid value: %s, must be one of default, light, or medium", value);
+        log_err("Invalid value: %s, must be one of light, medium, heavy or auto", value);
         return false;
     }
 
@@ -491,14 +488,17 @@ throttle_init_policy_stringify(
     INVARIANT(value);
 
     switch (*(uint *)value) {
-        case THROTTLE_DELAY_START_DEFAULT:
-            param = "\"default\"";
+        case THROTTLE_DELAY_START_AUTO:
+            param = "\"auto\"";
             break;
         case THROTTLE_DELAY_START_LIGHT:
             param = "\"light\"";
             break;
         case THROTTLE_DELAY_START_MEDIUM:
             param = "\"medium\"";
+            break;
+        case THROTTLE_DELAY_START_HEAVY:
+            param = "\"heavy\"";
             break;
         default:
             abort();
@@ -519,12 +519,14 @@ throttle_init_policy_jsonify(const struct param_spec *const ps, const void *cons
     INVARIANT(value);
 
     switch (*(uint *)value) {
-        case THROTTLE_DELAY_START_DEFAULT:
-            return cJSON_CreateString("default");
+        case THROTTLE_DELAY_START_AUTO:
+            return cJSON_CreateString("auto");
         case THROTTLE_DELAY_START_LIGHT:
             return cJSON_CreateString("light");
         case THROTTLE_DELAY_START_MEDIUM:
             return cJSON_CreateString("medium");
+        case THROTTLE_DELAY_START_HEAVY:
+            return cJSON_CreateString("heavy");
         default:
             abort();
     }
@@ -1091,7 +1093,7 @@ static const struct param_spec pspecs[] = {
         .ps_name = "durability.mclass",
         .ps_description = "media class to use for WAL files",
         .ps_flags = 0,
-        .ps_type = PARAM_TYPE_ENUM,
+        .ps_type = PARAM_TYPE_U8,
         .ps_offset = offsetof(struct kvdb_rparams, dur_mclass),
         .ps_size = PARAM_SZ(struct kvdb_rparams, dur_mclass),
         .ps_convert = dur_mclass_converter,
@@ -1099,12 +1101,12 @@ static const struct param_spec pspecs[] = {
         .ps_stringify = dur_mclass_stringify,
         .ps_jsonify = dur_mclass_jsonify,
         .ps_default_value = {
-            .as_enum = HSE_MCLASS_CAPACITY,
+            .as_uscalar = HSE_MCLASS_AUTO, /* let HSE pick */
         },
         .ps_bounds = {
-            .as_enum = {
+            .as_uscalar = {
                 .ps_min = HSE_MCLASS_BASE,
-                .ps_max = HSE_MCLASS_MAX,
+                .ps_max = HSE_MCLASS_AUTO,
             },
         },
     },
@@ -1219,12 +1221,12 @@ static const struct param_spec pspecs[] = {
         .ps_stringify = throttle_init_policy_stringify,
         .ps_jsonify = throttle_init_policy_jsonify,
         .ps_default_value = {
-            .as_enum = THROTTLE_DELAY_START_DEFAULT,
+            .as_enum = THROTTLE_DELAY_START_AUTO, /* let HSE pick */
         },
         .ps_bounds = {
             .as_enum = {
                 .ps_min = THROTTLE_DELAY_START_LIGHT,
-                .ps_max = THROTTLE_DELAY_START_DEFAULT,
+                .ps_max = THROTTLE_DELAY_START_AUTO,
             },
         },
     },
@@ -1381,7 +1383,7 @@ static const struct param_spec pspecs[] = {
         .ps_stringify = param_default_stringify,
         .ps_jsonify = param_default_jsonify,
         .ps_default_value = {
-            .as_uscalar = 17,
+            .as_uscalar = 32,
         },
         .ps_bounds = {
             .as_uscalar = {

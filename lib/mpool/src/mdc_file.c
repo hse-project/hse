@@ -13,6 +13,7 @@
 #include "mdc.h"
 #include "mdc_file.h"
 #include "omf.h"
+#include "mclass.h"
 #include "io.h"
 
 /**
@@ -60,7 +61,6 @@ loghdr_init(struct mdc_loghdr *lh, uint64_t gen)
     lh->vers = MDC_LOGHDR_VERSION;
     lh->magic = MDC_LOGHDR_MAGIC;
     lh->gen = gen;
-    lh->rsvd = 0;
     lh->crc = 0;
 }
 
@@ -78,7 +78,7 @@ loghdr_update_byfd(int fd, struct mdc_loghdr *lh, uint64_t gen)
     if (err)
         return err;
 
-    len = omf_mdc_loghdr_len();
+    len = omf_mdc_loghdr_len(lh->vers);
     cc = pwrite(fd, &lhomf, len, 0);
     if (cc != len)
         return merr(errno);
@@ -95,7 +95,6 @@ loghdr_update(struct mdc_file *mfp, struct mdc_loghdr *lh, uint64_t gen)
 {
     merr_t err;
     size_t len;
-    int    rc;
 
     loghdr_init(lh, gen);
 
@@ -103,12 +102,9 @@ loghdr_update(struct mdc_file *mfp, struct mdc_loghdr *lh, uint64_t gen)
     if (err)
         return err;
 
-    len = omf_mdc_loghdr_len();
-    rc = msync(mfp->addr, len, MS_SYNC);
-    if (rc == -1)
-        return merr(errno);
+    len = omf_mdc_loghdr_len(lh->vers);
 
-    return 0;
+    return mfp->io.msync(mfp->addr, len, MS_SYNC);
 }
 
 static merr_t
@@ -135,40 +131,20 @@ loghdr_validate(struct mdc_file *mfp, bool gclose, uint64_t *gen)
     return 0;
 }
 
-static uint32_t
-logrec_crc_get(const uint8_t *data1, size_t len1, const uint8_t *data2, size_t len2)
-{
-    uint32_t crc;
-
-    crc = crc32c(0, data1, len1);
-
-    return crc32c(crc, data2, len2);
-}
-
 static merr_t
 logrec_validate(struct mdc_file *mfp, char *addr, bool gclose, size_t *recsz)
 {
-    struct mdc_rechdr      rh;
-    struct mdc_rechdr_omf *rhomf;
-    uint32_t               crc;
-    uint8_t                hdrlen;
+    struct mdc_rechdr rh;
+    merr_t err;
 
     *recsz = 0;
 
-    omf_mdc_rechdr_unpack((const char *)addr, &rh);
-    if (rh.size == 0 && rh.crc == 0)
-        return merr(ENODATA); /* end-of-log */
+    err = omf_mdc_rechdr_unpack((const char *)addr, mfp->lh.vers, gclose, true, &rh);
+    if (err)
+        return err;
 
-    if (addr + rh.size - mfp->addr > mfp->size || rh.rsvd != 0)
+    if (addr + rh.size - mfp->addr > mfp->size)
         return merr(EBADMSG); /* corruption */
-
-    rhomf = (struct mdc_rechdr_omf *)addr;
-    addr = (void *)rhomf->rh_data;
-
-    hdrlen = sizeof(rhomf->rh_size);
-    crc = logrec_crc_get((const uint8_t *)&rhomf->rh_size, hdrlen, (const uint8_t *)addr, rh.size);
-    if (crc != rh.crc) /* Likely crashed while writing record, mark end-of-log */
-        return gclose ? merr(EBADMSG) : merr(ENOMSG);
 
     *recsz = rh.size;
 
@@ -247,16 +223,18 @@ mdc_file_mmap(struct mdc_file *mfp, size_t newsize, bool rdonly)
         return merr(EINVAL);
 
     do {
+        merr_t err;
         int prot = rdonly ? PROT_READ : (PROT_READ | PROT_WRITE);
 
-        addr = mmap(mfp->addr, newsize, prot, MAP_SHARED, mfp->fd, 0);
-        if (addr == MAP_FAILED)
-            return merr(errno);
+        addr = mfp->addr;
+        err = mfp->io.mmap(&addr, newsize, prot, MAP_SHARED, mfp->fd, 0);
+        if (err)
+            return err;
 
         if (!mfp->addr || mfp->addr == addr)
             break;
 
-        munmap(mfp->addr, mfp->size);
+        mfp->io.munmap(mfp->addr, mfp->size);
     } while (0);
 
     mfp->addr = addr;
@@ -268,16 +246,15 @@ mdc_file_mmap(struct mdc_file *mfp, size_t newsize, bool rdonly)
 static merr_t
 mdc_file_unmap(struct mdc_file *mfp)
 {
-    int rc;
+    merr_t err = 0;
 
     if (mfp->addr) {
-        rc = munmap(mfp->addr, mfp->size);
-        if (rc == -1)
-            return merr(errno);
-        mfp->addr = NULL;
+        err = mfp->io.munmap(mfp->addr, mfp->size);
+        if (!err)
+            mfp->addr = NULL;
     }
 
-    return 0;
+    return err;
 }
 
 static merr_t
@@ -304,7 +281,7 @@ mdc_file_validate(struct mdc_file *mfp, bool gclose, uint64_t *gen)
 
     if (mfp->size > MDC_LOGHDR_LEN) {
         addr += MDC_LOGHDR_LEN; /* move past the log header */
-        rhlen = omf_mdc_rechdr_len();
+        rhlen = omf_mdc_rechdr_len(mfp->lh.vers);
 
         /* Step 2: validate log records */
         do {
@@ -397,11 +374,12 @@ mdc_file_open(
     mfp->mdc = mdc;
     mfp->logid = logid;
     mfp->fd = fd;
-    mfp->io = io_sync_ops;
     strlcpy(mfp->name, name, sizeof(mfp->name));
     mfp->roff = MDC_LOGHDR_LEN;
     mfp->raoff = MDC_RA_BYTES;
     mfp->need_dsync = false;
+
+    mclass_io_ops_set(mcid_to_mclass(logid_mcid(logid)), &mfp->io);
 
     err = mdc_file_mmap(mfp, mfp->size, rdonly);
     if (err)
@@ -457,9 +435,9 @@ mdc_file_erase(struct mdc_file *mfp, uint64_t newgen)
         return err;
 
     if (mfp->size > MDC_LOGHDR_LEN) {
-        rc = msync(mfp->addr + MDC_LOGHDR_LEN, mfp->size - MDC_LOGHDR_LEN, MS_INVALIDATE);
-        if (rc == -1)
-            return merr(errno);
+        err = mfp->io.msync(mfp->addr + MDC_LOGHDR_LEN, mfp->size - MDC_LOGHDR_LEN, MS_INVALIDATE);
+        if (err)
+            return err;
 
         rc = fallocate(mfp->fd, FALLOC_FL_ZERO_RANGE | FALLOC_FL_KEEP_SIZE,
                        MDC_LOGHDR_LEN, mfp->size - MDC_LOGHDR_LEN);
@@ -546,13 +524,14 @@ mdc_file_sync(struct mdc_file *mfp)
     } else {
         char *addr = mfp->addr + mfp->syncoff;
         size_t len;
+        merr_t err;
 
         addr = (char *)((uintptr_t)addr & PAGE_MASK);
         len = (mfp->addr + mfp->woff) - addr;
 
-        rc = msync(addr, len, MS_SYNC);
-        if (rc == -1)
-            return merr(errno);
+        err = mfp->io.msync(addr, len, MS_SYNC);
+        if (err)
+            return err;
     }
 
     mfp->syncoff = mfp->woff;
@@ -601,6 +580,7 @@ mdc_file_read(struct mdc_file *mfp, void *data, size_t len, bool verify, size_t 
     struct mdc_rechdr rh;
     char             *addr;
     int               rhlen, rc;
+    merr_t            err;
 
     if (!mfp || !data)
         return merr(EINVAL);
@@ -620,7 +600,10 @@ mdc_file_read(struct mdc_file *mfp, void *data, size_t len, bool verify, size_t 
         mfp->raoff <<= 1;
     }
 
-    omf_mdc_rechdr_unpack((const char *)addr, &rh);
+    err = omf_mdc_rechdr_unpack((const char *)addr, mfp->lh.vers, true, verify, &rh);
+    if (err)
+        return err;
+
     if (mfp->roff == mfp->woff) {
         if (rdlen)
             *rdlen = 0;
@@ -633,25 +616,8 @@ mdc_file_read(struct mdc_file *mfp, void *data, size_t len, bool verify, size_t 
     if (ev(rh.size > len))
         return merr(EOVERFLOW);
 
-    rhlen = omf_mdc_rechdr_len();
+    rhlen = omf_mdc_rechdr_len(mfp->lh.vers);
     memcpy(data, addr + rhlen, rh.size);
-
-    if (verify) {
-        struct mdc_rechdr_omf *rhomf;
-        uint32_t               crc;
-        uint8_t                hdrlen;
-
-        rhomf = (struct mdc_rechdr_omf *)addr;
-
-        hdrlen = sizeof(rhomf->rh_size);
-        crc = logrec_crc_get(
-            (const uint8_t *)&rhomf->rh_size,
-            hdrlen,
-            (const uint8_t *)data,
-            rh.size);
-        if (crc != rh.crc)
-            return merr(EBADMSG);
-    }
 
     switch (mfp->lh.vers) {
     case MDC_LOGHDR_VERSION:
@@ -708,23 +674,16 @@ mdc_file_append_sys(struct mdc_file *mfp, void *data, size_t len)
     struct mdc_rechdr_omf rhomf = {};
     struct iovec          iov[2];
     merr_t   err;
-    uint32_t crc;
-    uint8_t hdrlen;
 
-    omf_set_rh_rsvd(&rhomf, 0);
-    omf_set_rh_size(&rhomf, len);
-
-    hdrlen = sizeof(rhomf.rh_size);
-    crc = logrec_crc_get((const uint8_t *)&rhomf.rh_size, hdrlen, data, len);
-    omf_set_rh_crc(&rhomf, crc);
+    omf_mdc_rechdr_pack(data, len, &rhomf);
 
     iov[0].iov_base = &rhomf;
-    iov[0].iov_len = omf_mdc_rechdr_len();
+    iov[0].iov_len = omf_mdc_rechdr_len(mfp->lh.vers);
 
     iov[1].iov_base = data;
     iov[1].iov_len = len;
 
-    err = mfp->io.write(mfp->fd, mfp->woff, (const struct iovec *)&iov, 2, 0, NULL);
+    err = mfp->io.write(mfp->fd, mfp->woff, iov, 2, 0, NULL);
     if (err)
         return err;
 
@@ -738,21 +697,14 @@ mdc_file_append_mem(struct mdc_file *mfp, void *data, size_t len)
 {
     struct mdc_rechdr_omf *rhomf;
     char    *addr;
-    uint32_t crc;
-    uint8_t hdrlen;
 
     addr = mfp->addr + mfp->woff;
     assert(IS_ALIGNED((unsigned long)addr, sizeof(uint64_t)));
 
     rhomf = (struct mdc_rechdr_omf *)addr;
-    omf_set_rh_rsvd(rhomf, 0);
-    omf_set_rh_size(rhomf, len);
-
-    hdrlen = sizeof(rhomf->rh_size);
-    crc = logrec_crc_get((const uint8_t *)&rhomf->rh_size, hdrlen, data, len);
-    omf_set_rh_crc(rhomf, crc);
-
     memcpy((void *)rhomf->rh_data, data, len);
+
+    omf_mdc_rechdr_pack(data, len, addr);
 
     return 0;
 }
@@ -766,7 +718,7 @@ mdc_file_append(struct mdc_file *mfp, void *data, size_t len, bool sync)
     if (!mfp || !data)
         return merr(EINVAL);
 
-    tlen = omf_mdc_rechdr_len() + ALIGN(len, sizeof(uint64_t));
+    tlen = omf_mdc_rechdr_len(mfp->lh.vers) + ALIGN(len, sizeof(uint64_t));
 
     /* Extend file if the usage exceeds 75% of current size. */
     if (mfp->woff + tlen > ((3 * mfp->size) / 4)) {

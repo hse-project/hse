@@ -13,6 +13,10 @@
 struct wal_rec;
 struct wal_txmeta_rec;
 
+#define CRC_VALID_SHIFT    (32)
+#define CRC_VALID_MASK     (0x0000000100000000)
+#define CRC_MASK           (0x00000000ffffffff)
+
 enum wal_rec_type {
     WAL_RT_INVALID = 0,
 
@@ -72,10 +76,10 @@ OMF_SETGET(struct wal_version_omf, ver_magic, 32);
 
 struct wal_config_omf {
     struct wal_mdchdr_omf cfg_hdr;
-    uint8_t cfg_mclass;
-    uint8_t cfg_rsvd1;
-    uint16_t  cfg_rsvd2;
-    uint32_t  cfg_rsvd3;
+    uint8_t  cfg_mclass;
+    uint8_t  cfg_rsvd1;
+    uint16_t cfg_rsvd2;
+    uint32_t cfg_rsvd3;
 } HSE_PACKED;
 
 /* Define set/get methods for wal_config_omf */
@@ -95,9 +99,9 @@ struct wal_close_omf {
  */
 
 struct wal_filehdr_omf {
-    uint32_t fh_cksum;
     uint32_t fh_magic;
     uint32_t fh_version;
+    uint32_t fh_rsvd;
     uint32_t fh_close;
     uint64_t fh_mingen;
     uint64_t fh_maxgen;
@@ -107,12 +111,13 @@ struct wal_filehdr_omf {
     uint64_t fh_maxtxid;
     uint64_t fh_startoff;
     uint64_t fh_endoff;
+    uint64_t fh_cksum;
 } HSE_PACKED;
 
 /* Define set/get methods for wal_filehdr_omf */
-OMF_SETGET(struct wal_filehdr_omf, fh_cksum, 32);
 OMF_SETGET(struct wal_filehdr_omf, fh_magic, 32);
 OMF_SETGET(struct wal_filehdr_omf, fh_version, 32);
+OMF_SETGET(struct wal_filehdr_omf, fh_rsvd, 32);
 OMF_SETGET(struct wal_filehdr_omf, fh_close, 32);
 OMF_SETGET(struct wal_filehdr_omf, fh_mingen, 64);
 OMF_SETGET(struct wal_filehdr_omf, fh_maxgen, 64);
@@ -122,12 +127,13 @@ OMF_SETGET(struct wal_filehdr_omf, fh_mintxid, 64);
 OMF_SETGET(struct wal_filehdr_omf, fh_maxtxid, 64);
 OMF_SETGET(struct wal_filehdr_omf, fh_startoff, 64);
 OMF_SETGET(struct wal_filehdr_omf, fh_endoff, 64);
+OMF_SETGET(struct wal_filehdr_omf, fh_cksum, 64);
 
 
 struct wal_rechdr_omf {
     uint64_t rh_off;
-    uint32_t rh_flags;
-    uint32_t rh_cksum;
+    uint64_t rh_flags;
+    uint64_t rh_cksum;
     uint64_t rh_rid;
     uint64_t rh_gen;
     uint32_t rh_type;
@@ -137,8 +143,8 @@ struct wal_rechdr_omf {
 
 /* Define set/get methods for wal_rechdr_omf */
 OMF_SETGET(struct wal_rechdr_omf, rh_off, 64);
-OMF_SETGET(struct wal_rechdr_omf, rh_flags, 32);
-OMF_SETGET(struct wal_rechdr_omf, rh_cksum, 32);
+OMF_SETGET(struct wal_rechdr_omf, rh_flags, 64);
+OMF_SETGET(struct wal_rechdr_omf, rh_cksum, 64);
 OMF_SETGET(struct wal_rechdr_omf, rh_rid, 64);
 OMF_SETGET(struct wal_rechdr_omf, rh_gen, 64);
 OMF_SETGET(struct wal_rechdr_omf, rh_type, 32);

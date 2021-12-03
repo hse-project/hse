@@ -414,7 +414,7 @@ hse_storage_profile(const char *path, bool quiet, bool verbose)
     int                cnt_score;
     uint64_t           max_thrds = thread_counts[num_thread_counts - 1];
     uint64_t           max_space_needed;
-    const char        *result = "default";
+    const char        *result = "heavy";
     char               pathbuf[PATH_MAX];
 
     snprintf(pathbuf, sizeof(pathbuf), "%s/%s", path, PROF_TMP_DIR);
@@ -495,7 +495,7 @@ hse_storage_profile(const char *path, bool quiet, bool verbose)
     else if (avg_score < 1.2)
         result = "medium";
     else
-        result = "default";
+        result = "heavy";
 
     if (!quiet && !verbose)
         printf("\nRecommended throttling.init_policy: \"%s\"\n", result);

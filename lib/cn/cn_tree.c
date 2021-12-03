@@ -783,16 +783,24 @@ tn_samp_update_finish(struct cn_tree_node *tn)
     {
         u64 cur_alen = s->ns_kst.kst_kalen;
         u64 new_wlen = s->ns_kst.kst_kwlen * pct / pct_scale;
-        u64 new_clen = kbb_estimate_alen(tn->tn_tree->cn, new_wlen, HSE_MCLASS_CAPACITY);
+        enum hse_mclass mclass;
+        u64 new_clen;
 
+        mclass = cn_tree_node_mclass(tn, HSE_MPOLICY_DTYPE_KEY);
+        assert(mclass != HSE_MCLASS_INVALID);
+        new_clen = kbb_estimate_alen(tn->tn_tree->cn, new_wlen, mclass);
         s->ns_kclen = min(new_clen, cur_alen);
     }
 
     {
         u64 cur_alen = s->ns_kst.kst_valen;
         u64 cur_wlen = s->ns_kst.kst_vulen * pct / pct_scale;
-        u64 new_clen = vbb_estimate_alen(tn->tn_tree->cn, cur_wlen, HSE_MCLASS_CAPACITY);
+        enum hse_mclass mclass;
+        u64 new_clen;
 
+        mclass = cn_tree_node_mclass(tn, HSE_MPOLICY_DTYPE_VALUE);
+        assert(mclass != HSE_MCLASS_INVALID);
+        new_clen = vbb_estimate_alen(tn->tn_tree->cn, cur_wlen, mclass);
         s->ns_vclen = min(new_clen, cur_alen);
     }
 
@@ -3451,6 +3459,21 @@ cn_tree_perfc_shape_report(
         perfc_set(pcv[i], PERFC_BA_CNSHAPE_MAXLEN, ssv[i].maxlen);
         perfc_set(pcv[i], PERFC_BA_CNSHAPE_MAXSIZE, ssv[i].maxsize);
     }
+}
+
+HSE_WEAK enum hse_mclass
+cn_tree_node_mclass(struct cn_tree_node *tn, enum hse_mclass_policy_dtype dtype)
+{
+    struct mclass_policy *policy;
+    enum hse_mclass_policy_age age;
+
+    INVARIANT(tn);
+
+    policy = cn_get_mclass_policy(tn->tn_tree->cn);
+    age = cn_node_isleaf(tn) ? HSE_MPOLICY_AGE_LEAF :
+        (cn_node_isroot(tn) ? HSE_MPOLICY_AGE_ROOT : HSE_MPOLICY_AGE_INTERNAL);
+
+    return mclass_policy_get_type(policy, age, dtype);
 }
 
 merr_t

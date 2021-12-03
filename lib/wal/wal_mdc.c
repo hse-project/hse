@@ -70,10 +70,11 @@ wal_mdc_version_unpack(const char *buf, struct wal *wal)
     vomf = (struct wal_version_omf *)buf;
 
     version = omf_ver_version(vomf);
-    if (WAL_VERSION != version)
-        return merr(EPROTO); /* wal version mismatch, no upgrade support yet */
-
-    wal_version_set(wal, version);
+    if (version > WAL_VERSION) {
+        log_err("wal version (%d) cannot parse on-media version (%d), please upgrade HSE",
+                version, WAL_VERSION);
+        return merr(EPROTO);
+    }
 
     if (WAL_MAGIC != omf_ver_magic(vomf))
         return merr(EBADMSG);
@@ -216,7 +217,7 @@ wal_mdc_compact(struct wal_mdc *mdc, struct wal *wal)
         return err;
     }
 
-    err = wal_mdc_version_write(mdc, wal_version_get(wal), sync);
+    err = wal_mdc_version_write(mdc, WAL_VERSION, sync);
     if (err)
         return err;
 

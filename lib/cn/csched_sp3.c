@@ -1507,6 +1507,17 @@ sp3_submit(struct sp3 *sp, struct cn_compaction_work *w, uint qnum, uint rbt_idx
             break;
     }
 
+    /* Force compaction reads to use mcache if the value blocks for this node reside on
+     * the pmem media class. This is not accurate if the mclass policy is changed during
+     * subsequent kvs opens, which results in a mix of media classes for the k/vblocks
+     * in this node. However, this is not a correctness issue and will recover on its own
+     * after a series of compaction operations.
+     */
+    if (cn_tree_node_mclass(tn, HSE_MPOLICY_DTYPE_VALUE) == HSE_MCLASS_PMEM) {
+        w->cw_iter_flags |= kvset_iter_flag_mcache;
+        w->cw_io_workq = NULL;
+    }
+
     w->cw_sched = sp;
     w->cw_completion = sp3_work_complete;
     w->cw_progress = sp3_work_progress;

@@ -725,7 +725,7 @@ MTF_DEFINE_UTEST_PRE(kvs_rparams_test, mclass_policy, test_pre)
     ASSERT_EQ((uintptr_t)ps->ps_validate, (uintptr_t)param_default_validator);
     ASSERT_EQ((uintptr_t)ps->ps_stringify, (uintptr_t)param_default_stringify);
     ASSERT_EQ((uintptr_t)ps->ps_jsonify, (uintptr_t)param_default_jsonify);
-    ASSERT_STREQ("capacity_only", params.mclass_policy);
+    ASSERT_STREQ(HSE_MPOLICY_AUTO_NAME, params.mclass_policy);
     ASSERT_EQ(HSE_MPOLICY_NAME_LEN_MAX, ps->ps_bounds.as_string.ps_max_len);
 }
 

@@ -23,6 +23,9 @@
 
 #include <hse_util/minmax.h>
 #include <hse_util/event_counter.h>
+#include <hse_util/mman.h>
+#include <hse_util/assert.h>
+#include <hse_util/page.h>
 
 #include "io.h"
 
@@ -38,7 +41,13 @@ iolen(const struct iovec *iov, int cnt)
 }
 
 merr_t
-io_sync_read(int fd, off_t off, const struct iovec *iov, int iovcnt, int flags, size_t *rdlen)
+io_sync_read(
+    int                 src_fd,
+    off_t               off,
+    const struct iovec *iov,
+    int                 iovcnt,
+    int                 flags,
+    size_t             *rdlen)
 {
     const struct iovec *curiov;
     int left;
@@ -58,7 +67,7 @@ io_sync_read(int fd, off_t off, const struct iovec *iov, int iovcnt, int flags, 
         len = iolen(curiov, cnt);
 
         /* Pass flags to preadv2(). Not available on fc25. */
-        cc = preadv(fd, curiov, cnt, off);
+        cc = preadv(src_fd, curiov, cnt, off);
         if (cc != len) {
             if (cc == -1)
                 return merr(errno);
@@ -80,7 +89,13 @@ out:
 }
 
 merr_t
-io_sync_write(int fd, off_t off, const struct iovec *iov, int iovcnt, int flags, size_t *wrlen)
+io_sync_write(
+    int                 dst_fd,
+    off_t               off,
+    const struct iovec *iov,
+    int                 iovcnt,
+    int                 flags,
+    size_t             *wrlen)
 {
     const struct iovec *curiov;
     int left;
@@ -99,7 +114,7 @@ io_sync_write(int fd, off_t off, const struct iovec *iov, int iovcnt, int flags,
         len = iolen(curiov, cnt);
 
         /* Pass flags to pwritev2(). Not available on fc25. */
-        cc = pwritev(fd, curiov, cnt, off);
+        cc = pwritev(dst_fd, curiov, cnt, off);
         if (cc != len) {
             if (cc == -1)
                 return merr(errno);
@@ -120,7 +135,53 @@ out:
     return 0;
 }
 
+merr_t
+io_sync_mmap(void **addr, size_t len, int prot, int flags, int fd, off_t offset)
+{
+    void *addrout;
+
+    INVARIANT(addr);
+
+    addrout = mmap(*addr, len, prot, flags, fd, offset);
+    if (addrout == MAP_FAILED)
+        return merr(errno);
+
+    *addr = addrout;
+
+    return 0;
+}
+
+merr_t
+io_sync_munmap(void *addr, size_t len)
+{
+    int rc;
+
+    INVARIANT(addr);
+
+    rc = munmap(addr, len);
+
+    return (rc == -1) ? merr(errno) : 0;
+}
+
+merr_t
+io_sync_msync(void *addr, size_t len, int flags)
+{
+    int rc;
+
+    INVARIANT(addr);
+
+    addr = (void *)((uintptr_t)addr & PAGE_MASK);
+    len = PAGE_ALIGN(len);
+
+    rc = msync(addr, len, flags);
+
+    return (rc == -1) ? merr(errno) : 0;
+}
+
 const struct io_ops io_sync_ops = {
     .read = io_sync_read,
     .write = io_sync_write,
+    .mmap = io_sync_mmap,
+    .munmap = io_sync_munmap,
+    .msync = io_sync_msync,
 };

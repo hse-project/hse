@@ -28,14 +28,12 @@ struct mdc_file;
  * @vers:  MDC file version
  * @magic: MDC file magic
  * @gen:   generation
- * @rsvd:  reserved
  * @crc:   header CRC
  */
 struct mdc_loghdr {
     uint32_t vers;
     uint32_t magic;
     uint64_t gen;
-    uint32_t rsvd;
     uint32_t crc;
 };
 
@@ -43,12 +41,10 @@ struct mdc_loghdr {
  * struct mdc_rechdr - MDC record header
  *
  * @size: record length
- * @rsvd: reserved
  * @crc:  record CRC
  */
 struct mdc_rechdr {
     uint64_t size;
-    uint32_t rsvd;
     uint32_t crc;
 };
 

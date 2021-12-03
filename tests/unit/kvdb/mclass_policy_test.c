@@ -26,7 +26,7 @@ MTF_DEFINE_UTEST_PRE(mclass_policy_test, mclass_policy_default, general_pre)
     int                  i, j, l;
     merr_t               err;
     struct kvdb_rparams  params = kvdb_rparams_defaults();
-    struct mclass_policy dpolicies[8];
+    struct mclass_policy dpolicies[6];
     const char * const   paramv[] = { "mclass_policies=[{\"name\": \"test_only\", \"config\": "
                        "{\"internal\": {\"values\": \"capacity\"}}}]" };
 
@@ -70,30 +70,13 @@ MTF_DEFINE_UTEST_PRE(mclass_policy_test, mclass_policy_default, general_pre)
         for (j = 0; j < HSE_MPOLICY_DTYPE_CNT; j++)
             dpolicies[4].mc_table[i][j] = HSE_MCLASS_PMEM;
 
-    /* pmem_staging */
-    strcpy(dpolicies[5].mc_name, "pmem_staging");
+    /* pmem_max_capacity */
+    strcpy(dpolicies[5].mc_name, "pmem_max_capacity");
     for (i = 0; i < HSE_MPOLICY_AGE_CNT; i++)
         for (j = 0; j < HSE_MPOLICY_DTYPE_CNT; j++)
             dpolicies[5].mc_table[i][j] = HSE_MCLASS_PMEM;
-    dpolicies[5].mc_table[HSE_MPOLICY_AGE_INTERNAL][HSE_MPOLICY_DTYPE_VALUE] = HSE_MCLASS_STAGING;
-    dpolicies[5].mc_table[HSE_MPOLICY_AGE_LEAF][HSE_MPOLICY_DTYPE_VALUE] = HSE_MCLASS_STAGING;
-
-    /* pmem_capacity */
-    strcpy(dpolicies[6].mc_name, "pmem_capacity");
-    for (i = 0; i < HSE_MPOLICY_AGE_CNT; i++)
-        for (j = 0; j < HSE_MPOLICY_DTYPE_CNT; j++)
-            dpolicies[6].mc_table[i][j] = HSE_MCLASS_PMEM;
-    dpolicies[6].mc_table[HSE_MPOLICY_AGE_INTERNAL][HSE_MPOLICY_DTYPE_VALUE] = HSE_MCLASS_CAPACITY;
-    dpolicies[6].mc_table[HSE_MPOLICY_AGE_LEAF][HSE_MPOLICY_DTYPE_VALUE] = HSE_MCLASS_CAPACITY;
-
-    /* pmem_staging_capacity */
-    strcpy(dpolicies[7].mc_name, "pmem_staging_capacity");
-    dpolicies[7].mc_table[HSE_MPOLICY_AGE_ROOT][HSE_MPOLICY_DTYPE_KEY] = HSE_MCLASS_PMEM;
-    dpolicies[7].mc_table[HSE_MPOLICY_AGE_ROOT][HSE_MPOLICY_DTYPE_VALUE] = HSE_MCLASS_PMEM;
-    dpolicies[7].mc_table[HSE_MPOLICY_AGE_INTERNAL][HSE_MPOLICY_DTYPE_KEY] = HSE_MCLASS_STAGING;
-    dpolicies[7].mc_table[HSE_MPOLICY_AGE_INTERNAL][HSE_MPOLICY_DTYPE_VALUE] = HSE_MCLASS_STAGING;
-    dpolicies[7].mc_table[HSE_MPOLICY_AGE_LEAF][HSE_MPOLICY_DTYPE_KEY] = HSE_MCLASS_STAGING;
-    dpolicies[7].mc_table[HSE_MPOLICY_AGE_LEAF][HSE_MPOLICY_DTYPE_VALUE] = HSE_MCLASS_CAPACITY;
+    dpolicies[5].mc_table[HSE_MPOLICY_AGE_INTERNAL][HSE_MPOLICY_DTYPE_VALUE] = HSE_MCLASS_CAPACITY;
+    dpolicies[5].mc_table[HSE_MPOLICY_AGE_LEAF][HSE_MPOLICY_DTYPE_VALUE] = HSE_MCLASS_CAPACITY;
 
     err = argv_deserialize_to_kvdb_rparams(NELEM(paramv), paramv, &params);
     ASSERT_EQ(0, err);
@@ -101,7 +84,7 @@ MTF_DEFINE_UTEST_PRE(mclass_policy_test, mclass_policy_default, general_pre)
     /* Validate that the parsed policies match the hardcoded matrices for the default policies. */
     for (i = 0; i < HSE_MPOLICY_AGE_CNT; i++) {
         for (j = 0; j < HSE_MPOLICY_DTYPE_CNT; j++) {
-                for (l = 0; l < 8; l++) {
+                for (l = 0; l < 6; l++) {
                     enum hse_mclass            hse_mtype;
                     enum hse_mclass            mpool_mtype;
 
@@ -123,21 +106,21 @@ MTF_DEFINE_UTEST_PRE(mclass_policy_test, mclass_policy_default, general_pre)
      */
     err = argv_deserialize_to_kvdb_rparams(NELEM(paramv), paramv, &params);
     ASSERT_EQ(err, 0);
-    ASSERT_EQ(strcmp(params.mclass_policies[8].mc_name, "test_only"), 0);
+    ASSERT_EQ(strcmp(params.mclass_policies[6].mc_name, "test_only"), 0);
 
     for (i = 0; i < HSE_MPOLICY_AGE_CNT; i++) {
         for (j = 0; j < HSE_MPOLICY_DTYPE_CNT; j++) {
                 enum hse_mclass            hse_mtype;
                 enum hse_mclass            mpool_mtype;
 
-                hse_mtype = params.mclass_policies[8].mc_table[i][j];
+                hse_mtype = params.mclass_policies[6].mc_table[i][j];
 
                 if (!((i == HSE_MPOLICY_AGE_INTERNAL) && (j == HSE_MPOLICY_DTYPE_VALUE)))
                     ASSERT_EQ(hse_mtype, dpolicies[2].mc_table[i][j]);
                 else
                     ASSERT_EQ(hse_mtype, HSE_MCLASS_CAPACITY);
 
-                mpool_mtype = mclass_policy_get_type(&params.mclass_policies[8], i, j);
+                mpool_mtype = mclass_policy_get_type(&params.mclass_policies[6], i, j);
                 ASSERT_EQ(mpool_mtype, hse_mtype);
         }
     }

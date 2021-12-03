@@ -75,8 +75,8 @@ wal_buffer_flush_worker(struct work_struct *work)
     struct wal_rechdr_omf *rhdr;
     struct wal_minmax_info info = {};
     char *buf;
-    uint64_t coff, foff, prev_foff, cgen, rgen, start_foff, flushb = 0, buflen;
-    uint32_t flags, rhlen;
+    uint64_t coff, foff, prev_foff, cgen, rgen, start_foff, flushb = 0, buflen, flags;
+    uint32_t rhlen;
     size_t bufsz, bufasz;
     merr_t err;
     bool wrap;

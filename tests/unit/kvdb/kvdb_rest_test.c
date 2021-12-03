@@ -176,6 +176,7 @@ test_pre(struct mtf_test_info *lcl_ti)
     struct kvs_rparams  kvs_rp = kvs_rparams_defaults();
     struct kvs_cparams  kvs_cp = kvs_cparams_defaults();
     const char * const  paramv[] = { "durability.enabled=false" };
+    const char *const   kvs_open_paramv[] = { "mclass.policy=\"capacity_only\"" };
 
     /* Mocks */
     mapi_inject_clear();
@@ -206,6 +207,9 @@ test_pre(struct mtf_test_info *lcl_ti)
     err = ikvdb_kvs_create(store, KVS2, &kvs_cp);
     ASSERT_EQ_RET(0, err, merr_errno(err));
     err = ikvdb_kvs_create(store, KVS3, &kvs_cp);
+
+    err = argv_deserialize_to_kvs_rparams(NELEM(kvs_open_paramv), kvs_open_paramv, &kvs_rp);
+    ASSERT_EQ_RET(0, err, merr_errno(err));
 
     err = ikvdb_kvs_open(store, KVS1, &kvs_rp, 0, &kvs1);
     ASSERT_EQ_RET(0, err, merr_errno(err));

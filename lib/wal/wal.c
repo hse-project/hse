@@ -19,6 +19,7 @@
 #include <hse_ikvdb/c0sk.h>
 #include <hse_ikvdb/omf_version.h>
 
+#include <hse/hse.h>
 #include <mpool/mpool.h>
 
 #include "wal.h"
@@ -547,7 +548,7 @@ wal_open(
     struct wal            **wal_out)
 {
     struct wal *wal;
-    enum hse_mclass mclass;
+    uint8_t mclass;
     merr_t err;
     int rc;
 
@@ -571,7 +572,6 @@ wal_open(
 
     wal->dur_ms = HSE_WAL_DUR_MS_DFLT;
     wal->dur_bufsz = HSE_WAL_DUR_BUFSZ_MB_DFLT << MB_SHIFT;
-    wal->dur_mclass = HSE_MCLASS_CAPACITY;
 
     err = wal_mdc_open(mp, rinfo->mdcid1, rinfo->mdcid2, wal->read_only, &wal->mdc);
     if (err)
@@ -608,8 +608,34 @@ wal_open(
         wal->dur_bufsz = (size_t)rp->dur_bufsz_mb << MB_SHIFT;
 
     mclass = rp->dur_mclass;
-    if (mclass != wal->dur_mclass) {
+    if (mclass == HSE_MCLASS_AUTO) {
+        int i;
+
+        for (i = HSE_MCLASS_COUNT - 1; i >= HSE_MCLASS_BASE; i--) {
+            if (mpool_mclass_is_configured(mp, i))
+                break;
+        }
+        assert(i >= HSE_MCLASS_BASE);
+
+        if (i < HSE_MCLASS_BASE) {
+            err = merr(ENOENT);
+            goto errout;
+        }
+        mclass = i;
         assert(mclass < HSE_MCLASS_COUNT);
+        log_info("setting durability.mclass policy to \"%s\"", hse_mclass_name_get(mclass));
+    }
+
+    if (mclass != wal->dur_mclass) {
+        const char *name = hse_mclass_name_get(mclass);
+
+        if (!mpool_mclass_is_configured(mp, mclass)) {
+            log_err("%s media not configured, cannot set durability.mclass to \"%s\"",
+                    name, name);
+            err = merr(ENOENT);
+            goto errout;
+        }
+
         wal->dur_mclass = mclass;
         wal_fileset_mclass_update(wal->wfset, wal->dur_mclass);
     }

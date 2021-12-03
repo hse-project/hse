@@ -23,6 +23,8 @@
 #mesondefine SUPPORTS_ATTR_SENTINEL
 #mesondefine SUPPORTS_ATTR_NONNULL
 
+#mesondefine HAVE_PMEM
+
 #mesondefine WITH_COVERAGE
 #mesondefine WITH_INVARIANTS
 #mesondefine WITH_UBSAN

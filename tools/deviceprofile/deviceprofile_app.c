@@ -191,7 +191,7 @@ main(int argc, char *argv[])
         goto err_exit;
     }
 
-    mblksize = props.mclass[mclass].mc_mblocksz * MB;
+    mblksize = props.mclass[mclass].mc_mblocksz;
     err = deviceprofile_calibrate_create(ds, mclass, mblksize, mblks_per_thrd, thrds, &dpc);
     if (err) {
         fprintf(stderr, "Initialization error %ld\n", err);

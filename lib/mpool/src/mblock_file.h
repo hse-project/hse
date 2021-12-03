@@ -57,20 +57,17 @@ struct io_ops;
  *
  * @uniq:   last persisted uniquifier
  * @fileid: file identifier
- * @rsvd1:
- * @rsvd2:
  */
 struct mblock_filehdr {
     uint32_t uniq;
     uint8_t  fileid;
-    uint8_t  rsvd1;
-    uint16_t rsvd2;
 };
 
 /**
  * struct mblock_file_params - mblock file params
  *
  * @rmcache:     region map cache
+ * @metaio:      io backend to use for metadata operations
  * @meta_addr:   start of memory-mapped region in the metadata file
  * @meta_ugaddr: start of memory-mapped region in the target metadata file (for upgrade)
  * @fszmax:      max file size
@@ -80,6 +77,7 @@ struct mblock_filehdr {
  */
 struct mblock_file_params {
     struct kmem_cache *rmcache;
+    struct io_ops     *metaio;
     char  *meta_addr;
     char  *meta_ugaddr;
     size_t fszmax;

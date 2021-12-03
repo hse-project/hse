@@ -51,6 +51,8 @@ sudo dnf install libcurl-devel libyaml-devel userspace-rcu-devel \
 # Optionally, depending on the your build settings
 sudo dnf install cjson-devel lz4-devel xxhash-devel mongo-c-driver-devel \
     ncurses-devel HdrHistogram_c-devel doxygen
+# For optimal persistent memory (pmem) media class support on x86 architecture
+sudo dnf install libpmem-devel
 ```
 
 ### Ubuntu 18.04
@@ -65,6 +67,8 @@ sudo apt install libcurl4-openssl-dev libyaml-dev liburcu-dev \
     libmicrohttpd-dev
 # Optionally, depending on the your build settings.
 sudo apt install liblz4-dev libncurses-dev doxygen graphviz
+# For optimal persistent memory (pmem) media class support on x86 architecture
+sudo dnf install libpmem-dev
 ```
 
 ## Dependencies from Meson Subprojects

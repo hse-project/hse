@@ -28,10 +28,16 @@ enum {
  * Comments show the corresponding rate.
  */
 #define THROTTLE_DELAY_MAX           268435456  /*        500,000  bytes/sec */
-#define THROTTLE_DELAY_START_DEFAULT   2097151  /*     64,000,030  bytes/sec */
+#define THROTTLE_DELAY_START_HEAVY     2097151  /*     64,000,030  bytes/sec */
 #define THROTTLE_DELAY_START_MEDIUM     731241  /*    183,547,869  bytes/sec */
 #define THROTTLE_DELAY_START_LIGHT      251137  /*    534,440,277  bytes/sec */
 #define THROTTLE_DELAY_MIN                8192  /* 16,384,000,000  bytes/sec */
+#define THROTTLE_DELAY_START_DEFAULT (THROTTLE_DELAY_START_HEAVY)
+
+/* AUTO indicates that the stack picks a delay value based on the KVDB config.
+ * THROTTLE_DELAY_START_LIGHT for a pmem-only KVDB, otherwise THROTTLE_DELAY_START_HEAVY.
+ */
+#define THROTTLE_DELAY_START_AUTO    (THROTTLE_DELAY_MAX)
 
 #define THROTTLE_SMAX_CNT          24
 #define THROTTLE_REDUCE_CYCLES    200

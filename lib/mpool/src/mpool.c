@@ -435,7 +435,7 @@ mpool_props_get(struct mpool *mp, struct mpool_props *props)
     memset(props, 0, sizeof(*props));
 
     for (i = HSE_MCLASS_BASE; i < HSE_MCLASS_COUNT; i++) {
-        merr_t                    err;
+        merr_t err;
 
         err = mpool_mclass_props_get(mp, i, &props->mclass[i]);
         if (err) {

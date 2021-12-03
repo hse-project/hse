@@ -19,6 +19,7 @@ struct media_class;
 struct mblock_fset;
 struct mpool;
 struct workqueue_struct;
+struct io_ops;
 
 /**
  * enum mclass_id - media class ID
@@ -166,6 +167,15 @@ mclass_gclose_set(struct media_class *mc);
  */
 bool
 mclass_gclose_get(struct media_class *mc);
+
+/**
+ * mclass_io_ops_set() -  set io ops for the specified mclass
+ *
+ * @mclass: mclass enum
+ * @io:     io_ops (output)
+ */
+void
+mclass_io_ops_set(enum hse_mclass mclass, struct io_ops *io);
 
 /**
  * mclass_info_get() - get media class info

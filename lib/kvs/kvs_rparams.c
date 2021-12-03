@@ -813,7 +813,7 @@ static const struct param_spec pspecs[] = {
         .ps_stringify = param_default_stringify,
         .ps_jsonify = param_default_jsonify,
         .ps_default_value = {
-            .as_string = "capacity_only",
+            .as_string = HSE_MPOLICY_AUTO_NAME, /* let HSE pick */
         },
         .ps_bounds = {
             .as_string = {

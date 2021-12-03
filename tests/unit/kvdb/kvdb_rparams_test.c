@@ -557,26 +557,27 @@ MTF_DEFINE_UTEST_PRE(kvdb_rparams_test, durability_mclass, test_pre)
     ASSERT_NE(NULL, ps);
     ASSERT_NE(NULL, ps->ps_description);
     ASSERT_EQ(0, ps->ps_flags);
-    ASSERT_EQ(PARAM_TYPE_ENUM, ps->ps_type);
+    ASSERT_EQ(PARAM_TYPE_U8, ps->ps_type);
     ASSERT_EQ(offsetof(struct kvdb_rparams, dur_mclass), ps->ps_offset);
-    ASSERT_EQ(sizeof(enum hse_mclass), ps->ps_size);
+    ASSERT_EQ(sizeof(uint8_t), ps->ps_size);
     ASSERT_NE((uintptr_t)ps->ps_convert, (uintptr_t)param_default_converter);
     ASSERT_EQ((uintptr_t)ps->ps_validate, (uintptr_t)param_default_validator);
     ASSERT_NE((uintptr_t)ps->ps_stringify, (uintptr_t)param_default_stringify);
     ASSERT_NE((uintptr_t)ps->ps_jsonify, (uintptr_t)param_default_jsonify);
-    ASSERT_EQ(HSE_MCLASS_CAPACITY, params.dur_mclass);
+    ASSERT_EQ(HSE_MCLASS_AUTO, params.dur_mclass);
     ASSERT_EQ(HSE_MCLASS_BASE, ps->ps_bounds.as_enum.ps_min);
-    ASSERT_EQ(HSE_MCLASS_MAX, ps->ps_bounds.as_enum.ps_max);
+    ASSERT_EQ(HSE_MCLASS_AUTO, ps->ps_bounds.as_enum.ps_max);
 
     ps->ps_stringify(ps, &params.dur_mclass, buf, sizeof(buf), &needed_sz);
-    ASSERT_STREQ("\"" HSE_MCLASS_CAPACITY_NAME "\"", buf);
-    ASSERT_EQ(10, needed_sz);
+    ASSERT_STREQ("\"" HSE_MCLASS_AUTO_NAME "\"", buf);
+    ASSERT_EQ(6, needed_sz);
 
     /* clang-format off */
     err = check(
         "durability.mclass=none", false,
         "durability.mclass=capacity", true,
         "durability.mclass=staging", true,
+        "durability.mclass=auto", true,
         NULL
     );
     /* clang-format on */
@@ -674,13 +675,13 @@ MTF_DEFINE_UTEST_PRE(kvdb_rparams_test, thorttling_init_policy, test_pre)
     ASSERT_EQ((uintptr_t)ps->ps_validate, (uintptr_t)param_default_validator);
     ASSERT_NE((uintptr_t)ps->ps_stringify, (uintptr_t)param_default_stringify);
     ASSERT_NE((uintptr_t)ps->ps_jsonify, (uintptr_t)param_default_jsonify);
-    ASSERT_EQ(THROTTLE_DELAY_START_DEFAULT, params.throttle_init_policy);
+    ASSERT_EQ(THROTTLE_DELAY_START_AUTO, params.throttle_init_policy);
     ASSERT_EQ(THROTTLE_DELAY_START_LIGHT, ps->ps_bounds.as_uscalar.ps_min);
-    ASSERT_EQ(THROTTLE_DELAY_START_DEFAULT, ps->ps_bounds.as_uscalar.ps_max);
+    ASSERT_EQ(THROTTLE_DELAY_START_AUTO, ps->ps_bounds.as_uscalar.ps_max);
 
     ps->ps_stringify(ps, &params.throttle_init_policy, buf, sizeof(buf), &needed_sz);
-    ASSERT_STREQ("\"default\"", buf);
-    ASSERT_EQ(9, needed_sz);
+    ASSERT_STREQ("\"auto\"", buf);
+    ASSERT_EQ(6, needed_sz);
 }
 
 MTF_DEFINE_UTEST_PRE(kvdb_rparams_test, throttle_burst, test_pre)
@@ -828,7 +829,7 @@ MTF_DEFINE_UTEST_PRE(kvdb_rparams_test, cn_maint_threads, test_pre)
     ASSERT_EQ((uintptr_t)ps->ps_validate, (uintptr_t)param_default_validator);
     ASSERT_EQ((uintptr_t)ps->ps_stringify, (uintptr_t)param_default_stringify);
     ASSERT_EQ((uintptr_t)ps->ps_jsonify, (uintptr_t)param_default_jsonify);
-    ASSERT_EQ(17, params.cn_maint_threads);
+    ASSERT_EQ(32, params.cn_maint_threads);
     ASSERT_EQ(1, ps->ps_bounds.as_uscalar.ps_min);
     ASSERT_EQ(256, ps->ps_bounds.as_uscalar.ps_max);
 }

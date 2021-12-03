@@ -5,9 +5,13 @@
 
 #include <dirent.h>
 
+#define MTF_MOCK_IMPL_mpool
+
 #include <hse_util/event_counter.h>
 #include <hse_util/hse_err.h>
 #include <hse_util/logging.h>
+
+#include <mpool/mpool.h>
 
 #include "mpool_internal.h"
 #include "mclass.h"
@@ -29,7 +33,6 @@ struct mpool_mdc {
     struct mdc_file *mfpa;
 };
 
-
 merr_t
 mpool_mdc_alloc(
     struct mpool     *mp,
@@ -42,7 +45,7 @@ mpool_mdc_alloc(
     enum mclass_id mcid;
     uint64_t id[2];
     merr_t   err;
-    int      dirfd, flags, mode, i;
+    int      dirfd, flags, mode, i, rc;
 
     if (!mp || mclass >= HSE_MCLASS_COUNT || capacity < MDC_LOGHDR_LEN || !logid1 || !logid2)
         return merr(EINVAL);
@@ -71,6 +74,13 @@ mpool_mdc_alloc(
 
             return err;
         }
+    }
+
+    rc = fsync(dirfd);
+    if (rc == -1) {
+        err = merr(errno);
+        mpool_mdc_delete(mp, id[0], id[1]);
+        return err;
     }
 
     *logid1 = id[0];
