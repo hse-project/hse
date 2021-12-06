@@ -260,6 +260,9 @@ validate_kvs_name(const char *name)
     if (name_len == HSE_KVS_NAME_LEN_MAX)
         return merr(ev(ENAMETOOLONG));
 
+    if (strcmp(name, "default") == 0)
+        return merr(EINVAL);
+
     /* Does the name contain invalid characters ?
      * i.e. char apart from [-_A-Za-z0-9]
      */

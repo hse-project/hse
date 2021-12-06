@@ -112,6 +112,10 @@ MTF_DEFINE_UTEST_PREPOST(kvs_api, kvs_invalid, kvs_setup, kvs_teardown)
     err = hse_kvdb_kvs_create(kvdb_handle, kvs_name, 0, NULL);
     ASSERT_EQ(hse_err_to_errno(err), EEXIST);
 
+    /* TC: Cannot create a KVS with name of "default" */
+    err = hse_kvdb_kvs_create(kvdb_handle, "default", 0, NULL);
+    ASSERT_EQ(hse_err_to_errno(err), EINVAL);
+
     /* TC: KVDB cannot have more than 256 KVS */
     for (int i = 2; i <= HSE_KVS_COUNT_MAX; i++) {
         n = snprintf(buf, sizeof(buf), "%s_%d", kvs_name, i);
