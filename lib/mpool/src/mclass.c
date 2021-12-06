@@ -20,8 +20,6 @@
 #include "mblock_fset.h"
 #include "io.h"
 
-#define MCLASS_FILES_MAX   (MBLOCK_FSET_FILES_MAX)
-
 /**
  * struct media_class - mclass instance
  *
@@ -207,7 +205,7 @@ mclass_filecnt_get(const char *path, const struct stat *sb, int typeflag, struct
 }
 
 static void
-mclass_destroy_setup(uint8_t filecnt, struct workqueue_struct *wq)
+mclass_destroy_setup(struct workqueue_struct *wq)
 {
     size_t worksz, sz;
     int    pathc, workc, fcnt;
@@ -264,7 +262,7 @@ mclass_files_exist(const char *path)
 {
     filecnt = 0;
 
-    nftw(path, mclass_filecnt_get, MCLASS_FILES_MAX, FTW_PHYS | FTW_ACTIONRETVAL);
+    nftw(path, mclass_filecnt_get, MPOOL_MCLASS_FILECNT_MAX, FTW_PHYS | FTW_ACTIONRETVAL);
 
     return filecnt > 0;
 }
@@ -279,9 +277,9 @@ mclass_destroy(const char *path, struct workqueue_struct *wq)
         return 0;
 
     if (wq)
-        mclass_destroy_setup(filecnt, wq);
+        mclass_destroy_setup(wq);
 
-    nftw(path, mclass_removecb, MCLASS_FILES_MAX, FTW_PHYS | FTW_ACTIONRETVAL);
+    nftw(path, mclass_removecb, MPOOL_MCLASS_FILECNT_MAX, FTW_PHYS | FTW_ACTIONRETVAL);
 
     if (wq)
         mclass_destroy_teardown();
@@ -450,7 +448,7 @@ mclass_ftw(struct media_class *mc, const char *prefix, struct mpool_file_cb *cb)
         return FTW_CONTINUE;
     }
 
-    nftw(mc->dpath, mclass_file_cb, MCLASS_FILES_MAX, FTW_PHYS | FTW_ACTIONRETVAL);
+    nftw(mc->dpath, mclass_file_cb, MPOOL_MCLASS_FILECNT_MAX, FTW_PHYS | FTW_ACTIONRETVAL);
 
     return 0;
 }

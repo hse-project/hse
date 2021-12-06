@@ -12,10 +12,49 @@
 #include <mpool/mpool.h>
 #include <mpool_internal.h>
 #include <mclass.h>
+#include <mblock_fset.h>
 
 #include "common.h"
 
 MTF_BEGIN_UTEST_COLLECTION_PRE(mpool_test, mpool_collection_pre)
+
+static merr_t
+mpool_filecnt_test(uint8_t filecnt)
+{
+    merr_t err;
+
+    setup_mclass_with_params(HSE_MCLASS_CAPACITY, filecnt, MPOOL_MBLOCK_SIZE_DEFAULT,
+                             MPOOL_MCLASS_FILESZ_DEFAULT);
+    make_capacity_path();
+
+    setup_mclass_with_params(HSE_MCLASS_STAGING, filecnt, MPOOL_MBLOCK_SIZE_DEFAULT,
+                             MPOOL_MCLASS_FILESZ_DEFAULT);
+    make_staging_path();
+
+    err = mpool_create(home, &tcparams);
+    if (!err)
+        err = mpool_destroy(home, &tdparams);
+
+    return err;
+}
+
+static merr_t
+mpool_filesz_test(uint32_t mblocksz, uint64_t fszmax)
+{
+    merr_t err;
+
+    setup_mclass_with_params(HSE_MCLASS_CAPACITY, MPOOL_MCLASS_FILECNT_DEFAULT, mblocksz, fszmax);
+    make_capacity_path();
+
+    setup_mclass_with_params(HSE_MCLASS_STAGING, MPOOL_MCLASS_FILECNT_DEFAULT, mblocksz, fszmax);
+    make_staging_path();
+
+    err = mpool_create(home, &tcparams);
+    if (!err)
+        err = mpool_destroy(home, &tdparams);
+
+    return err;
+}
 
 MTF_DEFINE_UTEST_PREPOST(mpool_test, mpool_ocd_test, mpool_test_pre, mpool_test_post)
 {
@@ -155,6 +194,18 @@ MTF_DEFINE_UTEST_PREPOST(mpool_test, mpool_ocd_test, mpool_test_pre, mpool_test_
     ASSERT_EQ(0, err);
 
     mpool_destroy(home, &tdparams);
+
+    err = mpool_filecnt_test(MPOOL_MCLASS_FILECNT_MAX);
+    ASSERT_EQ(0, err);
+
+    err = mpool_filecnt_test(MPOOL_MCLASS_FILECNT_MAX - 1);
+    ASSERT_EQ(0, err);
+
+    err = mpool_filecnt_test(MPOOL_MCLASS_FILECNT_MIN);
+    ASSERT_EQ(0, err);
+
+    err = mpool_filesz_test(MPOOL_MBLOCK_SIZE_MIN, MPOOL_MCLASS_FILESZ_MIN);
+    ASSERT_EQ(0, err);
 }
 
 MTF_DEFINE_UTEST_PREPOST(mpool_test, mclass_test, mpool_test_pre, mpool_test_post)

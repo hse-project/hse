@@ -76,8 +76,8 @@ mclass_params_init(
     }
 
     mcp->mblocksz = MPOOL_MBLOCK_SIZE_DEFAULT;
-    mcp->filecnt = MPOOL_MBLOCK_FILECNT_DEFAULT;
-    mcp->fmaxsz = MPOOL_MBLOCK_FILESZ_DEFAULT;
+    mcp->filecnt = MPOOL_MCLASS_FILECNT_DEFAULT;
+    mcp->fmaxsz = MPOOL_MCLASS_FILESZ_DEFAULT;
 
     return 0;
 }
@@ -530,8 +530,8 @@ mpool_cparams_defaults(struct mpool_cparams *cparams)
         return;
 
     for (i = HSE_MCLASS_BASE; i < HSE_MCLASS_COUNT; i++) {
-        cparams->mclass[i].fmaxsz = MPOOL_MBLOCK_FILESZ_DEFAULT;
-        cparams->mclass[i].filecnt = MPOOL_MBLOCK_FILECNT_DEFAULT;
+        cparams->mclass[i].fmaxsz = MPOOL_MCLASS_FILESZ_DEFAULT;
+        cparams->mclass[i].filecnt = MPOOL_MCLASS_FILECNT_DEFAULT;
         cparams->mclass[i].mblocksz = MPOOL_MBLOCK_SIZE_DEFAULT;
         cparams->mclass[i].path[0] = '\0';
     }

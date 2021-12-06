@@ -474,7 +474,7 @@ ikvdb_storage_add(const char *kvdb_home, struct kvdb_cparams *params)
     if (pmem_only != (params->storage.mclass[HSE_MCLASS_CAPACITY].path[0] != '\0')) {
         log_err("cannot add storage to KVDB (%s): capacity mclass must be %s", kvdb_home,
                 pmem_only ? "added before other media classes" : "provided at create time");
-        return merr(EINVAL);
+        return merr(ENOTSUP);
     }
 
     for (i = HSE_MCLASS_BASE; i < HSE_MCLASS_COUNT; i++) {
