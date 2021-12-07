@@ -190,8 +190,8 @@ _mpool_props_get(struct mpool *mp, struct mpool_props *props)
         }
 
         props->mclass[i].mc_mblocksz = MPOOL_MBLOCK_SIZE_DEFAULT;
-        props->mclass[i].mc_filecnt = MPOOL_MBLOCK_FILECNT_DEFAULT;
-        props->mclass[i].mc_fmaxsz = MPOOL_MBLOCK_FILESZ_DEFAULT;
+        props->mclass[i].mc_filecnt = MPOOL_MCLASS_FILECNT_DEFAULT;
+        props->mclass[i].mc_fmaxsz = MPOOL_MCLASS_FILESZ_DEFAULT;
     }
 
     return 0;
@@ -215,8 +215,8 @@ _mpool_mclass_props_get(
             sizeof(props->mc_path));
 
         props->mc_mblocksz = MPOOL_MBLOCK_SIZE_DEFAULT;
-        props->mc_filecnt = MPOOL_MBLOCK_FILECNT_DEFAULT;
-        props->mc_fmaxsz = MPOOL_MBLOCK_FILESZ_DEFAULT;
+        props->mc_filecnt = MPOOL_MCLASS_FILECNT_DEFAULT;
+        props->mc_fmaxsz = MPOOL_MCLASS_FILESZ_DEFAULT;
     }
 
     return mclass == HSE_MCLASS_BASE ? 0 : merr(ENOENT);

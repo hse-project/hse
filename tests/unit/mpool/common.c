@@ -165,7 +165,7 @@ unset_mclass(const enum hse_mclass mc)
 }
 
 void
-setup_mclass(const enum hse_mclass mc)
+setup_mclass_with_params(const enum hse_mclass mc, uint8_t fcnt, uint32_t mbsz, uint64_t fmaxsz)
 {
     const char *path = (mc == HSE_MCLASS_CAPACITY) ? capacity_path :
         (mc == HSE_MCLASS_STAGING ? staging_path : pmem_path);
@@ -173,6 +173,17 @@ setup_mclass(const enum hse_mclass mc)
     strlcpy(tcparams.mclass[mc].path, path, sizeof(tcparams.mclass[mc].path));
     strlcpy(trparams.mclass[mc].path, path, sizeof(trparams.mclass[mc].path));
     strlcpy(tdparams.mclass[mc].path, path, sizeof(tdparams.mclass[mc].path));
+
+    tcparams.mclass[mc].filecnt = fcnt;
+    tcparams.mclass[mc].mblocksz = mbsz;
+    tcparams.mclass[mc].fmaxsz = fmaxsz;
+}
+
+void
+setup_mclass(const enum hse_mclass mc)
+{
+    setup_mclass_with_params(mc, MPOOL_MCLASS_FILECNT_DEFAULT, MPOOL_MBLOCK_SIZE_DEFAULT,
+                             MPOOL_MCLASS_FILESZ_DEFAULT);
 }
 
 uint64_t

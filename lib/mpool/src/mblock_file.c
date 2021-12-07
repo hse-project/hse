@@ -1255,6 +1255,7 @@ mblock_file_info_get(struct mblock_file *mbfp, struct mblock_file_info *info)
     if (rc == -1)
         return merr(errno);
 
+    info->allocated = S_BLKSIZE * sbuf.st_blocks;
     info->used = atomic_read(&mbfp->wlen);
 
     return 0;

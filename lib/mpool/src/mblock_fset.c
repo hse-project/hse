@@ -10,6 +10,7 @@
 #include <hse_util/logging.h>
 #include <hse_util/page.h>
 #include <hse_util/slab.h>
+#include <hse_util/storage.h>
 
 #include "omf.h"
 #include "mclass.h"
@@ -21,7 +22,6 @@
 
 #define MBLOCK_FSET_HDR_LEN        (4096)
 #define MBLOCK_FSET_NAME_LEN       (32)
-#define GB_SHIFT                   (30)
 #define MBLOCK_FSET_RMCACHE_CNT    (4)
 
 /* clang-format on */
@@ -446,8 +446,8 @@ mblock_fset_open(
         return merr(ENOMEM);
 
     mbfsp->mc = mc;
-    mbfsp->mhdr.fcnt = fcnt ?: MPOOL_MBLOCK_FILECNT_DEFAULT;
-    mbfsp->mhdr.fszmax = fszmax ?: MPOOL_MBLOCK_FILESZ_DEFAULT;
+    mbfsp->mhdr.fcnt = fcnt ?: MPOOL_MCLASS_FILECNT_DEFAULT;
+    mbfsp->mhdr.fszmax = fszmax ?: MPOOL_MCLASS_FILESZ_DEFAULT;
     mbfsp->mhdr.mblksz = mclass_mblocksz_get(mc);
 
     mclass_io_ops_set(mcid_to_mclass(mclass_id(mc)), &mbfsp->io);

@@ -31,12 +31,12 @@ static const struct param_spec pspecs[] = {
         .ps_stringify = param_stringify_bytes_to_GB,
         .ps_jsonify = param_jsonify_bytes_to_GB,
         .ps_default_value = {
-            .as_uscalar = MPOOL_MBLOCK_FILESZ_DEFAULT,
+            .as_uscalar = MPOOL_MCLASS_FILESZ_DEFAULT,
         },
         .ps_bounds = {
             .as_uscalar = {
-                .ps_min = 0,
-                .ps_max = UINT64_MAX,
+                .ps_min = MPOOL_MCLASS_FILESZ_MIN,
+                .ps_max = MPOOL_MCLASS_FILESZ_MAX,
             }
         }
     },
@@ -56,8 +56,8 @@ static const struct param_spec pspecs[] = {
         },
         .ps_bounds = {
             .as_uscalar = {
-                .ps_min = 0,
-                .ps_max = UINT32_MAX,
+                .ps_min = MPOOL_MBLOCK_SIZE_MIN,
+                .ps_max = MPOOL_MBLOCK_SIZE_MAX,
             }
         }
     },
@@ -73,12 +73,12 @@ static const struct param_spec pspecs[] = {
         .ps_stringify = param_default_stringify,
         .ps_jsonify = param_default_jsonify,
         .ps_default_value = {
-            .as_uscalar = MPOOL_MBLOCK_FILECNT_DEFAULT,
+            .as_uscalar = MPOOL_MCLASS_FILECNT_DEFAULT,
         },
         .ps_bounds = {
             .as_uscalar = {
-                .ps_min = 0,
-                .ps_max = UINT8_MAX,
+                .ps_min = MPOOL_MCLASS_FILECNT_MIN,
+                .ps_max = MPOOL_MCLASS_FILECNT_MAX,
             },
         }
     },
@@ -114,12 +114,12 @@ static const struct param_spec pspecs[] = {
         .ps_stringify = param_stringify_bytes_to_GB,
         .ps_jsonify = param_jsonify_bytes_to_GB,
         .ps_default_value = {
-            .as_uscalar = MPOOL_MBLOCK_FILESZ_DEFAULT,
+            .as_uscalar = MPOOL_MCLASS_FILESZ_DEFAULT,
         },
         .ps_bounds = {
             .as_uscalar = {
-                .ps_min = 0,
-                .ps_max = UINT64_MAX,
+                .ps_min = MPOOL_MCLASS_FILESZ_MIN,
+                .ps_max = MPOOL_MCLASS_FILESZ_MAX,
             },
         },
     },
@@ -139,8 +139,8 @@ static const struct param_spec pspecs[] = {
         },
         .ps_bounds = {
             .as_uscalar = {
-                .ps_min = 0,
-                .ps_max = UINT32_MAX,
+                .ps_min = MPOOL_MBLOCK_SIZE_MIN,
+                .ps_max = MPOOL_MBLOCK_SIZE_MAX,
             },
         },
     },
@@ -156,12 +156,12 @@ static const struct param_spec pspecs[] = {
         .ps_stringify = param_default_stringify,
         .ps_jsonify = param_default_jsonify,
         .ps_default_value = {
-            .as_uscalar = MPOOL_MBLOCK_FILECNT_DEFAULT,
+            .as_uscalar = MPOOL_MCLASS_FILECNT_DEFAULT,
         },
         .ps_bounds = {
             .as_uscalar = {
-                .ps_min = 0,
-                .ps_max = UINT8_MAX,
+                .ps_min = MPOOL_MCLASS_FILECNT_MIN,
+                .ps_max = MPOOL_MCLASS_FILECNT_MAX,
             },
         },
     },
@@ -197,12 +197,12 @@ static const struct param_spec pspecs[] = {
         .ps_stringify = param_stringify_bytes_to_GB,
         .ps_jsonify = param_jsonify_bytes_to_GB,
         .ps_default_value = {
-            .as_uscalar = MPOOL_MBLOCK_FILESZ_DEFAULT,
+            .as_uscalar = MPOOL_MCLASS_FILESZ_DEFAULT,
         },
         .ps_bounds = {
             .as_uscalar = {
-                .ps_min = 0,
-                .ps_max = UINT64_MAX,
+                .ps_min = MPOOL_MCLASS_FILESZ_MIN,
+                .ps_max = MPOOL_MCLASS_FILESZ_MAX,
             },
         },
     },
@@ -222,8 +222,8 @@ static const struct param_spec pspecs[] = {
         },
         .ps_bounds = {
             .as_uscalar = {
-                .ps_min = 0,
-                .ps_max = UINT32_MAX,
+                .ps_min = MPOOL_MBLOCK_SIZE_MIN,
+                .ps_max = MPOOL_MBLOCK_SIZE_MAX,
             },
         },
     },
@@ -239,12 +239,12 @@ static const struct param_spec pspecs[] = {
         .ps_stringify = param_default_stringify,
         .ps_jsonify = param_default_jsonify,
         .ps_default_value = {
-            .as_uscalar = MPOOL_MBLOCK_FILECNT_DEFAULT,
+            .as_uscalar = MPOOL_MCLASS_FILECNT_DEFAULT,
         },
         .ps_bounds = {
             .as_uscalar = {
-                .ps_min = 0,
-                .ps_max = UINT8_MAX,
+                .ps_min = MPOOL_MCLASS_FILECNT_MIN,
+                .ps_max = MPOOL_MCLASS_FILECNT_MAX,
             },
         },
     },

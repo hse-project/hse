@@ -43,6 +43,10 @@
 #define MBID_RSVD_MASK   (0x00000000003f0000)
 #define MBID_BLOCK_MASK  (0x000000000000ffff)
 
+
+_Static_assert(((1 << MBID_FILEID_BITS) - 1) == (MPOOL_MCLASS_FILECNT_MAX),
+	       "MBID_FILEID_BITS and MPOOL_MCLASS_FILECNT_MAX mismatch");
+
 /* clang-format on */
 
 struct mblock_mmap;

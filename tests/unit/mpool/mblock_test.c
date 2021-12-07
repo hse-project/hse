@@ -207,7 +207,7 @@ MTF_DEFINE_UTEST_PREPOST(mblock_test, mblock_abc, mpool_test_pre, mpool_test_pos
     err = mpool_mblock_abort(mp, mbid);
     ASSERT_EQ(0, err);
 
-    for (int i = 1; i < MPOOL_MBLOCK_FILECNT_DEFAULT; i++) {
+    for (int i = 1; i < MPOOL_MCLASS_FILECNT_DEFAULT; i++) {
         mpool_mblock_alloc(mp, HSE_MCLASS_STAGING, &mbid1, NULL);
         mpool_mblock_abort(mp, mbid1);
     }
@@ -235,7 +235,7 @@ MTF_DEFINE_UTEST_PREPOST(mblock_test, mblock_abc, mpool_test_pre, mpool_test_pos
     err = mpool_mblock_abort(mp, mbid);
     ASSERT_EQ(0, err);
 
-    for (int i = 1; i < MPOOL_MBLOCK_FILECNT_DEFAULT; i++) {
+    for (int i = 1; i < MPOOL_MCLASS_FILECNT_DEFAULT; i++) {
         mpool_mblock_alloc(mp, HSE_MCLASS_STAGING, &mbid1, NULL);
         mpool_mblock_abort(mp, mbid1);
     }
@@ -422,19 +422,12 @@ MTF_DEFINE_UTEST_PREPOST(mblock_test, mblock_io, mpool_test_pre, mpool_test_post
     err = mblock_rw(mp, mbid, badbuf, mbsz + 17, 0, write);
     ASSERT_EQ(EINVAL, merr_errno(err));
 
-    wlen = 8 << 10;
+    wlen = 1 << 20;
     err = mblock_rw(mp, mbid, buf, wlen, 0, write);
     ASSERT_EQ(0, err);
 
     err = mblock_rw(mp, mbid, buf, 0, 0, write);
     ASSERT_EQ(0, err);
-
-    err = mpool_info_get(mp, &info);
-    ASSERT_EQ(0, err);
-    ASSERT_LT(allocated_bytes_summation(&info), 70 << 20);
-    ASSERT_LT(used_bytes_summation(&info), 70 << 20);
-    ASSERT_EQ(
-        0, strncmp(capacity_path, info.mclass[HSE_MCLASS_CAPACITY].mi_path, sizeof(capacity_path)));
 
     /* Reading from an uncommitted mblock is allowed. */
     err = mblock_rw(mp, mbid, buf, wlen, 0, !write);
@@ -442,6 +435,13 @@ MTF_DEFINE_UTEST_PREPOST(mblock_test, mblock_io, mpool_test_pre, mpool_test_post
 
     err = mpool_mblock_commit(mp, mbid);
     ASSERT_EQ(0, err);
+
+    err = mpool_info_get(mp, &info);
+    ASSERT_EQ(0, err);
+    ASSERT_GE(allocated_bytes_summation(&info), wlen + (64 << 20));
+    ASSERT_GE(used_bytes_summation(&info), wlen + (64 << 20));
+    ASSERT_EQ(0, strncmp(capacity_path, info.mclass[HSE_MCLASS_CAPACITY].mi_path,
+                         sizeof(capacity_path)));
 
     err = mpool_mblock_props_get(mp, mbid, &props);
     ASSERT_EQ(0, err);
