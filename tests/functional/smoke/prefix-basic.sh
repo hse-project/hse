@@ -11,7 +11,7 @@
 # We then test that we can scan and find all keys by both their
 # primary and secondary prefixes.
 
-. "$(dirname "${BASH_SOURCE[0]}")/smoke.subr"
+. common.subr
 
 trap kvdb_drop EXIT
 kvdb_create

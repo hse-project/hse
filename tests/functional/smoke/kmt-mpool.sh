@@ -6,7 +6,7 @@
 
 #tdoc: quick mpool IO test using kmt (50%, 20% and 5% writes)
 
-source "$(dirname "${BASH_SOURCE[0]}")/smoke.subr"
+. common.subr
 
 trap kvdb_drop EXIT
 kvdb_create

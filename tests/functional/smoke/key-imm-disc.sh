@@ -6,7 +6,7 @@
 
 #doc: test edges of key_immediate and key_disc
 
-. "$(dirname "${BASH_SOURCE[0]}")/smoke.subr"
+. common.subr
 
 trap kvdb_drop EXIT
 kvdb_create

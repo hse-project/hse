@@ -6,7 +6,7 @@
 
 #doc: samples test
 
-. "$(dirname "${BASH_SOURCE[0]}")/smoke.subr"
+. common.subr
 
 fbase="$home/large_val"
 

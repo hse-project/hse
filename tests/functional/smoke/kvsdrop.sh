@@ -6,7 +6,7 @@
 
 #doc: test to verify kvs drop functionality, specifically testing the edge condition where the last transactions are completely removed.
 
-. "$(dirname "${BASH_SOURCE[0]}")/smoke.subr"
+. common.subr
 
 trap kvdb_drop EXIT
 kvdb_create

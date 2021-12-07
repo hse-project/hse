@@ -6,7 +6,7 @@
 
 #doc: test for complete annihilation during spills when tombs delete all existing keys
 
-. "$(dirname "${BASH_SOURCE[0]}")/smoke.subr"
+. common.subr
 
 trap kvdb_drop EXIT
 kvdb_create

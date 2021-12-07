@@ -6,7 +6,7 @@
 
 #doc: kmt large value test (SBUSWNF-2165)
 
-. "$(dirname "${BASH_SOURCE[0]}")/smoke.subr"
+. common.subr
 
 trap kvdb_drop EXIT
 kvdb_create

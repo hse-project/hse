@@ -351,22 +351,13 @@ static int
 get_storage_info(const char *path, struct storage_info *info)
 {
     struct statvfs sbuf = {};
-    int fd, rc;
+    int rc;
 
-    fd = open(path, 0, S_IRUSR);
-    if (fd < 0) {
-        fprintf(stderr, "Failed to open storage %s: %s\n", path, strerror(errno));
-        return errno;
-    }
-
-    rc = fstatvfs(fd, &sbuf);
+    rc = statvfs(path, &sbuf);
     if (rc == -1) {
-        close(fd);
         fprintf(stderr, "Failed to retrieve FS stats for %s: %s\n", path, strerror(errno));
         return errno;
     }
-
-    close(fd);
 
     info->total_space = sbuf.f_blocks * sbuf.f_frsize;
     info->avail_space = sbuf.f_bavail * sbuf.f_bsize;
@@ -446,7 +437,7 @@ hse_storage_profile(const char *path, bool quiet, bool verbose)
         rc = ENOSPC;
         fprintf(
             stderr,
-            "The profiling test needs %u MiB of free space to characterize KVDB performance.",
+            "The profiling test needs %u MiB of free space to characterize KVDB performance.\n",
             space_needed_mb);
 
         goto err_exit;

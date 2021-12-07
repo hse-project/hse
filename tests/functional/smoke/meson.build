@@ -1,9 +1,6 @@
 tests = {
-    # These two first
+    # This one first
     'aloha': {
-        'suites': ['smoke-ci'],
-    },
-    'version': {
         'suites': ['smoke-ci'],
     },
 
@@ -274,17 +271,17 @@ foreach t, params : tests
         t,
         bash,
         args: [
-            '@0@.sh'.format(t),
+            meson.current_source_dir() / '@0@.sh'.format(t),
         ],
         timeout: 1800,
-        workdir: meson.current_source_dir(),
+        workdir: fs.parent(meson.current_source_dir()),
         suite: ['functional'] + params.get('suites', []),
         depends: [
             hse_cli_symlink,
             params.get('depends', []),
         ],
         env: environment({
-            'HSE_TEST_RUNNER_RUNNER': 'bash',
+            'HSE_TEST_RUNNER_RUNNER': 'shell',
         })
     )
 endforeach

@@ -23,6 +23,8 @@ cmake = import('cmake')
 bash = find_program('bash')
 sh = find_program('sh') # write POSIX-compliant when easily doable
 
+ci = run_command(sh, '-c', '[ ${CI+x} ]', check: false).returncode() == 0
+
 cc = meson.get_compiler('c')
 python = find_program('python3')
 

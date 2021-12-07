@@ -6,7 +6,7 @@
 
 #doc: kmt/kvdb insert test: 1 billion 20-byte keys with 50-byte values
 
-. "$(dirname "${BASH_SOURCE[0]}")/smoke.subr"
+. common.subr
 
 trap kvdb_drop EXIT
 kvdb_create

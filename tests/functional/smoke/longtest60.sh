@@ -6,7 +6,7 @@
 
 #doc: 60s longtest
 
-. "$(dirname "${BASH_SOURCE[0]}")/smoke.subr"
+. common.subr
 
 trap kvdb_drop EXIT
 kvdb_create

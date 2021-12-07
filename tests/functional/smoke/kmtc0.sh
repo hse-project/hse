@@ -6,7 +6,7 @@
 
 #doc: quick kvdb/c0 read performance test using kmt (60s)
 
-. "$(dirname "${BASH_SOURCE[0]}")/smoke.subr"
+. common.subr
 
 trap kvdb_drop EXIT
 kvdb_create
