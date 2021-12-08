@@ -6,3 +6,4 @@ hse.pid   linguist-language=JSON
 hse.conf  linguist-language=JSON
 kvdb.conf linguist-language=JSON
 kvdb.meta linguist-language=JSON
+*.subr    linguist-language=Shell

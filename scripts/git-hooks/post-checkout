@@ -5,15 +5,16 @@
 # Copyright (C) 2021 Micron Technology, Inc. All rights reserved.
 
 if [ -z "${HSE_GIT_HOOK_POST_CHECKOUT_SKIP}" ]; then
-	exit 0
+    exit 0
 fi
 
 branch=$(git branch --show-current)
 
+# Remove following when another binding is added
+
+# shellcheck disable=2043
 for s in hse-python; do
-	git -C subprojects/$s checkout "$branch" > /dev/null 2>&1
-	rc=$?
-	if [ $rc -eq 0 ]; then
-		git -C subprojects/$s pull origin "$branch" > /dev/null 2>&1
-	fi
+    if git -C "subprojects/$s" checkout "$branch" > /dev/null 2>&1; then
+        git -C "subprojects/$s" pull origin "$branch" > /dev/null 2>&1
+    fi
 done

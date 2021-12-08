@@ -1,0 +1,26 @@
+name: ShellCheck
+
+on:
+  pull_request:
+    types: [opened, synchronize, reopened, edited]
+    paths:
+      - '**/*.sh'
+      - 'scripts/git-hooks/*'
+
+jobs:
+  lint:
+    runs-on: ubuntu-latest
+    container:
+      image: fedora:latest
+      options: --privileged  -v /usr/src:/usr/src -v /lib/modules:/lib/modules
+
+    steps:
+      - uses: actions/checkout@v2
+
+      - name: Initialize
+        run: |
+          dnf install -y findutils ShellCheck
+
+      - name: Lint
+        run: |
+          ./scripts/dev/shellcheck.sh

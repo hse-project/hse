@@ -173,4 +173,4 @@ jobs:
 
       - name: checkoss
         run: |
-          scripts/dev/checkoss
+          scripts/dev/checkoss.sh

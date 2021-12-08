@@ -1,45 +1,50 @@
+# SPDX-License-Identifier: Apache-2.0
+#
+# Copyright (C) 2021 Micron Technology, Inc. All rights reserved.
+
+# shellcheck shell=bash
+
 set -u
 set -o pipefail
 
 err () {
-	# reset OPTIND
-	OPTIND=0
-	local status=1
-	while getopts ":s:" o "$@"; do
-		case "${o}" in
-			s)
-				status="$OPTARG"
-				;;
-			\?) echo "Invalid option $OPTARG" >&2; exit 1;;
-    		\:) echo "Option $OPTARG requires an argument" >&2; exit 1;;
-		esac
-	done
-	shift $((OPTIND-1))
+    # reset OPTIND
+    OPTIND=0
+    local status=1
+    while getopts ":s:" o "$@"; do
+        case "${o}" in
+            s) status="$OPTARG";;
+            \?) echo "Invalid option $OPTARG" >&2; exit 1;;
+            :) echo "Option $OPTARG requires an argument" >&2; exit 1;;
+            *) exit 2;;
+        esac
+    done
+    shift $((OPTIND-1))
 
-	echo -e "$@" >&2
-	exit "$status"
+    echo -e "$@" >&2
+    exit "$status"
 }
 
 usage() {
-	echo "Usage: $0 [-C home]"
+    echo "Usage: $0 [-C home]"
 }
 
-program=$(basename "$0")
 home=$(pwd)
 
 while getopts ":hC:" o; do
-	case "${o}" in
-		h) usage; exit 0;;
-		C) home="$OPTARG";;
-		\?) err "Invalid option $OPTARG\n\n$(usage)" >&2;;
-    	:) err "Option $OPTARG requires an argument\n\n$(usage)" >&2;;
-	esac
+    case "${o}" in
+        h) usage; exit 0;;
+        C) home="$OPTARG";;
+        \?) err "Invalid option $OPTARG\n\n$(usage)" >&2;;
+        :) err "Option $OPTARG requires an argument\n\n$(usage)" >&2;;
+        *) exit 2;;
+    esac
 done
 shift $((OPTIND-1))
 
 cmd () {
-	# reset OPTIND from global getopts
-	OPTIND=0
+    # reset OPTIND from global getopts
+    OPTIND=0
     local check_status=1 # 0=ignore, 1=expect success, 2=expect error
     local check_signal=0
     local status
@@ -47,66 +52,68 @@ cmd () {
         case "${o}" in
             i) # ignore status
                 check_status=0
-				;;
+                ;;
             e) # expect error status
                 check_status=2
-				;;
+                ;;
             s) # expect kill by signal
                 check_signal=$2
                 check_signal=$((check_signal + 128))
                 check_status=2
-				;;
+                ;;
         \?) err "Invalid option $OPTARG" >&2;;
-    	:) err "Option $OPTARG requires an argument" >&2;;
+        :) err "Option $OPTARG requires an argument" >&2;;
+        *) exit 2;;
         esac
     done
-	shift $((OPTIND-1))
+    shift $((OPTIND-1))
 
-	"$@"
-	status=$?
+    "$@"
+    status=$?
 
-	case $check_status in
-		0) ;;
-		1)
-			if [ $status -ne 0 ]; then
-				err -s $status "ERROR: Expected success, got $status\n\t$*"
-			fi
-			;;
-		2)
-			if [ $status -eq 0 ]; then
-				err -s "-1" "ERROR: Expected non-zero\n\t$*"
-			fi
-			;;
-	esac
+    case $check_status in
+        0) ;;
+        1)
+            if [ "$status" -ne 0 ]; then
+                err -s "$status" "ERROR: Expected success, got $status\n\t$*"
+            fi
+            ;;
+        2)
+            if [ "$status" -eq 0 ]; then
+                err -s "-1" "ERROR: Expected non-zero\n\t$*"
+            fi
+            ;;
+        *) exit 2;;
+    esac
 
     # Killed by signal causes failure unless explicitly ignored.
     # special case: ignore 255 b/c many programs use exit(-1) which
     # maps to a return status of 255.
-	if [ $status -ge 128 ] && [ $status -ne 255 ] && [ $status -ne $check_signal ]; then
-		err -s $status Command terminated by signal $((status-128))
-	fi
+    if [ "$status" -ge 128 ] && [ "$status" -ne 255 ] && [ "$status" -ne "$check_signal" ]; then
+        err -s "$status" Command terminated by signal $((status-128))
+    fi
 }
 
 kvdb_create () {
-	cmd hse kvdb create "$home" "$@" >&2
+    cmd hse kvdb create "$home" "$@" >&2
 }
 
 kvdb_drop () {
-	cmd hse kvdb drop "$home" "$@" >&2
+    cmd hse kvdb drop "$home" "$@" >&2
 }
 
 kvs_create () {
-	if [ "$#" -lt 1 ]; then
-		err kvs_create requires the name of the KVS at a minimum
-	fi
-	cmd hse kvs create "$home" "$@" >&2
-	echo "$1"
+    if [ "$#" -lt 1 ]; then
+        err kvs_create requires the name of the KVS at a minimum
+    fi
+    cmd hse kvs create "$home" "$@" >&2
+    echo "$1"
 }
 
 kvs_drop () {
-	if [ "$#" -lt 1 ]; then
-		err kvs_drop requires the name of the KVS at a minimum
-	fi
-	cmd hse kvs drop "$home" "$@" >&2
-	echo "$1"
+    if [ "$#" -lt 1 ]; then
+        err kvs_drop requires the name of the KVS at a minimum
+    fi
+    cmd hse kvs drop "$home" "$@" >&2
+    echo "$1"
 }
