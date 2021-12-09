@@ -63,6 +63,14 @@ git checkout <release tag>
 
 Build and install using Meson and Ninja.
 
+The minimum version of Meson required to build HSE can be found in the root
+[meson.build](./meson.build). In there, you will find a `meson_version`
+keyword argument to the `project()` function at the beginnging of the file.
+
+If your system doesn't supply a Meson version new enough to build HSE, refer to
+the Meson
+[installation instructions](https://mesonbuild.com/Getting-meson.html).
+
 ```shell
 meson setup build
 meson compile -C build
