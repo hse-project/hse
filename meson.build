@@ -19,13 +19,12 @@ project(
 pkg = import('pkgconfig')
 fs = import('fs')
 cmake = import('cmake')
-pymod = import('python')
 
 bash = find_program('bash')
 sh = find_program('sh') # write POSIX-compliant when easily doable
 
 cc = meson.get_compiler('c')
-python = pymod.find_installation('python3')
+python = find_program('python3')
 
 version_components = meson.project_version().split('.')
 
@@ -69,7 +68,7 @@ if get_option('b_sanitize').contains('undefined')
 endif
 
 git = find_program('git', required: false)
-in_git = git.found() and run_command(git, 'rev-parse').returncode() == 0
+in_git = git.found() and run_command(git, 'rev-parse', check: false).returncode() == 0
 if not meson.is_subproject() and in_git
     build_version = run_command(
         git,
