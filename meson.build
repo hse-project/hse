@@ -304,11 +304,23 @@ if 'all' in get_option('bindings')
     assert(get_option('bindings').length() == 1, 'The -Dbindings=all option cannot have additional values')
     bindings += 'python'
 elif 'none' in get_option('bindings')
-    assert(get_option('bindings').length() == 1, 'The -bindings=none option cannot have additional values')
+    assert(get_option('bindings').length() == 1, 'The -Dbindings=none option cannot have additional values')
+elif 'auto' in get_option('bindings')
+    assert(get_option('bindings').length() == 1, 'The -Dbindings=auto option cannot have additional values')
+
+    # Determine whether we can build hse-ython
+    cython_verison_res = run_command(
+        python,
+        '-c',
+        'from Cython.Compiler.Version import version; print(version)'
+    )
+    if cython_verison_res.returncode() == 0
+        if cython_verison_res.stdout().strip().version_compare('>=0.29.21')
+            bindings += 'python'
+        endif
+    endif
 else
-    foreach b : get_option('bindings')
-        bindings += b
-    endforeach
+    bindings = get_option('bindings')
 endif
 
 # Add paths to these variables if you want to see targets in the runtime
