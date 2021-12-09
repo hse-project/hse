@@ -6,8 +6,9 @@
 
 bindir=
 
+# shellcheck disable=SC2016,SC2154
 case $1 in
-  /*) bindir=$(sed -E 's/(.*?)\$MESON_INSTALL_PREFIX/\1/' <<< $MESON_INSTALL_DESTDIR_PREFIX)/$1 ;;
+  /*) bindir=$(sed -E 's/(.*?)\$MESON_INSTALL_PREFIX/\1/' <<< "$MESON_INSTALL_DESTDIR_PREFIX")/$1 ;;
   *) bindir=$MESON_INSTALL_DESTDIR_PREFIX/$1 ;;
 esac
 

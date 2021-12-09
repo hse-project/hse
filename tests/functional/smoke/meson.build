@@ -266,7 +266,7 @@ foreach t, params : tests
     run_command(
         sh,
         '-c',
-        '[ -x "@0@" ]'.format(t),
+        '[ -x "@0@.sh" ]'.format(t),
         check: true
     )
 
@@ -274,7 +274,7 @@ foreach t, params : tests
         t,
         bash,
         args: [
-            t,
+            '@0@.sh'.format(t),
         ],
         timeout: 1800,
         workdir: meson.current_source_dir(),

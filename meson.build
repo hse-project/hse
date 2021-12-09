@@ -330,8 +330,8 @@ rpath = get_option('rpath') ? '$ORIGIN' / bindir_to_libdir : ''
 
 if get_option('tests')
     find_program('gawk')
-    mapi_idx_generate = find_program('scripts/build/mapi_idx_generate')
-    ut_mock_decl_files = find_program('scripts/build/ut_mock_decl_files')
+    mapi_idx_generate = find_program('scripts/build/mapi_idx_generate.sh')
+    ut_mock_decl_files = find_program('scripts/build/ut_mock_decl_files.sh')
     utpp = find_program('scripts/build/utpp')
 endif
 
@@ -400,7 +400,7 @@ if get_option('ycsb')
     subdir('hsejni')
 endif
 
-format = find_program('scripts/dev/format')
+format = find_program('scripts/dev/format.sh')
 run_target(
     'format',
     command: [
@@ -420,21 +420,30 @@ if not meson.is_subproject()
         run_target(
             'git-hooks',
             command: [
-                find_program('scripts/git-hooks/link'),
+                find_program('scripts/git-hooks/link.sh'),
             ],
         )
     endif
 endif
 
-checkoss = find_program('scripts/dev/checkoss')
 run_target(
     'checkoss',
     command: [
-        checkoss,
+        find_program('scripts/dev/checkoss.sh'),
         '@BUILD_ROOT@',
         '@SOURCE_ROOT@',
     ],
 )
+
+shellcheck = find_program('shellcheck', required: false)
+if shellcheck.found()
+    run_target(
+        'shellcheck',
+        command: [
+            find_program('scripts/dev/shellcheck.sh'),
+        ]
+    )
+endif
 
 gcovr = find_program('gcovr', required: get_option('b_coverage'))
 if gcovr.found() and get_option('b_coverage') and get_option('tests')

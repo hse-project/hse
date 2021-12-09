@@ -1,5 +1,10 @@
 #!/usr/bin/awk -f
+
+# SPDX-License-Identifier: Apache-2.0
 #
+# Copyright (C) 2021 Micron Technology, Inc. All rights reserved.
+
+
 # Given a C header file annotated for pre-processing for NF Unit Testing,
 # create the auxiliary output files to provide the mocking capability.
 #
@@ -7,7 +12,6 @@
 #        declaration syntax with attributes, etc.
 #
 #        [HSE_REVISIT]
-#
 
 function init(i)
 {
