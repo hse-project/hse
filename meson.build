@@ -165,7 +165,7 @@ liburcu_bp_dep = dependency(
     version: '>=0.10.1',
     fallback: 'userspace-rcu',
     default_options: [
-        'default_library=shared',
+        'default_library=static',
         'warning_level=0',
         'werror=false',
     ],
@@ -218,7 +218,7 @@ libmicrohttpd_dep = dependency(
     version: '>=0.9.59',
     fallback: 'libmicrohttpd',
     default_options: [
-        'default_library=shared',
+        'default_library=static',
         'warning_level=0',
         'werror=false',
     ],
