@@ -306,7 +306,7 @@ wal_put(
 
     klen = kt->kt_len;
     vlen = kvs_vtuple_vlen(vt);
-    rlen = wal_reclen();
+    rlen = wal_reclen(wal->version);
     kvlen = ALIGN(klen, kvalign) + ALIGN(vlen, kvalign);
     len = rlen + kvlen;
 
@@ -360,7 +360,7 @@ wal_del_impl(
     if (!wal)
         return 0;
 
-    rlen = wal_reclen();
+    rlen = wal_reclen(wal->version);
     klen = kt->kt_len;
     kalen = ALIGN(klen, kalign);
     len = rlen + kalen;
@@ -428,7 +428,7 @@ wal_txn(
     if (!wal)
         return 0;
 
-    rlen = wal_txn_reclen();
+    rlen = wal_txn_reclen(wal->version);
     rec = wal_bufset_alloc(wal->wbs, rlen, &offset, &wbidx, cookie);
     if (!rec) {
         merr_t err = merr(ENOMEM); /* unrecoverable error */
@@ -581,7 +581,7 @@ wal_open(
     if (err)
         goto errout;
 
-    wal->wfset = wal_fileset_open(mp, wal->dur_mclass, WAL_FILE_SIZE_BYTES, WAL_MAGIC, WAL_VERSION);
+    wal->wfset = wal_fileset_open(mp, wal->dur_mclass, WAL_FILE_SIZE_BYTES, WAL_MAGIC, wal->version);
     if (!wal->wfset) {
         err = merr(ENOMEM);
         goto errout;
@@ -600,6 +600,9 @@ wal_open(
         *wal_out = wal;
         return 0;
     }
+
+    wal->version = WAL_VERSION;
+    wal_fileset_version_update(wal->wfset, wal->version);
 
     if (rp->dur_intvl_ms != HSE_WAL_DUR_MS_DFLT)
         wal->dur_ms = clamp_t(long, rp->dur_intvl_ms, HSE_WAL_DUR_MS_MIN, HSE_WAL_DUR_MS_MAX);

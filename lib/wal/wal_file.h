@@ -34,6 +34,9 @@ wal_fileset_close(
 void
 wal_fileset_mclass_update(struct wal_fileset *wfset, enum hse_mclass mclass);
 
+void
+wal_fileset_version_update(struct wal_fileset *wfset, uint32_t version);
+
 merr_t
 wal_file_open(
     struct wal_fileset *wfset,

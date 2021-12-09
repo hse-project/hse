@@ -245,7 +245,9 @@ static struct wal_rec *
 wal_rec_iter_next(struct wal_rec_iter *iter)
 {
     struct wal_rec *rec;
+    struct wal_rechdr hdr;
     const char *buf;
+    uint32_t version = wal_version_get(iter->rw->rw_rep->r_wal);
 
 next_rec:
     if (iter->eof)
@@ -260,9 +262,11 @@ next_rec:
         return NULL;
     }
 
-    iter->curoff += wal_reclen_total(buf);
+    wal_rechdr_unpack(buf, version, &hdr);
 
-    if (wal_rec_skip(buf) || wal_rec_is_txnmeta(buf))
+    iter->curoff += (wal_rechdr_len(version) + hdr.len);
+
+    if (wal_rec_skip(&hdr) || wal_rec_is_txnmeta(&hdr))
         goto next_rec;
 
     rec = kmem_cache_alloc(iter->rcache);
@@ -271,7 +275,7 @@ next_rec:
         return NULL;
     }
 
-    wal_rec_unpack(buf, rec);
+    wal_rec_unpack(buf, &hdr, version, rec);
 
     if (rec->hdr.type == WAL_RT_TX) {
         struct wal_replay *rep = iter->rw->rw_rep;
@@ -362,19 +366,22 @@ wal_recs_validate(struct wal_replay_work *rw)
     struct wal_replay *rep = rw->rw_rep;
     struct wal_minmax_info *info;
     struct wal_replay_gen_info *rginfo = rw->rw_rginfo;
+    struct wal_rechdr hdr;
     off_t curoff = 0, rgeoff = 0;
     uint64_t gen = rginfo->gen, recoff = 0;
     const char *buf = rginfo->buf;
-    bool valid, eorg = false;
+    bool valid;
+    uint32_t version;
     merr_t err = 0;
 
     info = rginfo->info_valid ? NULL : &rginfo->info;
+    version = wal_version_get(rep->r_wal);
 
     while ((valid = wal_rec_is_valid(buf, curoff + rginfo->soff, rginfo->size, &recoff,
-                                     gen, info, &eorg))) {
-        size_t len = wal_reclen_total(buf);
+                                     gen, version, &hdr, info))) {
+        size_t len = wal_rechdr_len(version) + hdr.len;
 
-        if (wal_rec_is_txncommit(buf)) {
+        if (hdr.type == WAL_RT_TXCOMMIT) {
             struct wal_txmeta_rec *trec;
 
             trec = kmem_cache_alloc(rep->r_txm_cache);
@@ -383,7 +390,7 @@ wal_recs_validate(struct wal_replay_work *rw)
                 goto exit;
             }
 
-            wal_txn_rec_unpack(buf, trec);
+            wal_txn_rec_unpack(buf, &hdr, version, trec);
             trec->fileoff = curoff + rginfo->soff;
 
             if (trec->cseqno > rep->r_info->seqno) {
@@ -404,7 +411,7 @@ wal_recs_validate(struct wal_replay_work *rw)
 
         curoff += len;
 
-        if (eorg && curoff > rgeoff)
+        if ((hdr.flags & WAL_FLAGS_EORG) && curoff > rgeoff)
             rgeoff = curoff;
 
         if ((rginfo->eoff != 0 && (curoff + rginfo->soff >= rginfo->eoff)) ||
