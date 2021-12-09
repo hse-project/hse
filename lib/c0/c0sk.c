@@ -1525,8 +1525,8 @@ c0sk_gen_set(struct c0sk *handle, uint64_t gen)
     mutex_lock(&self->c0sk_kvms_mutex);
     first = c0sk_get_first_c0kvms(handle);
     if (first) {
-        c0kvms_gen_init(gen - 1);
-        c0kvms_gen_update(first);
+        c0kvms_gen_set(first, gen);
+        atomic_set(&self->c0sk_ingest_gen, gen);
     }
     mutex_unlock(&self->c0sk_kvms_mutex);
 }

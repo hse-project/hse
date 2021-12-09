@@ -977,6 +977,12 @@ c0kvms_putref(struct c0_kvmultiset *handle)
     ev(1);
 }
 
+void
+c0kvms_gen_init(uint64_t gen)
+{
+    atomic_set(&c0kvms_gen, gen);
+}
+
 u64
 c0kvms_gen_update(struct c0_kvmultiset *handle)
 {
@@ -988,9 +994,13 @@ c0kvms_gen_update(struct c0_kvmultiset *handle)
 }
 
 void
-c0kvms_gen_init(u64 gen)
+c0kvms_gen_set(struct c0_kvmultiset *handle, uint64_t gen)
 {
-    atomic_set(&c0kvms_gen, gen);
+    struct c0_kvmultiset_impl *self = c0_kvmultiset_h2r(handle);
+
+    c0kvms_gen_init(gen);
+
+    self->c0ms_gen = gen;
 }
 
 u64

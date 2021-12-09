@@ -127,6 +127,9 @@ c0kvms_gen_update(struct c0_kvmultiset *mset);
 void
 c0kvms_gen_init(u64 dgen);
 
+void
+c0kvms_gen_set(struct c0_kvmultiset *mset, uint64_t gen);
+
 struct c0_kvset *
 c0kvms_ptomb_c0kvset_get(struct c0_kvmultiset *handle);
 
