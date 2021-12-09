@@ -354,9 +354,7 @@ endif
 subdir('lib')
 subdir('cli')
 subdir('samples')
-if get_option('docs')
-    subdir('docs')
-endif
+subdir('docs')
 
 # Environment in which various run_targets and tests will run in
 run_env = environment()

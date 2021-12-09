@@ -14,7 +14,7 @@ option('samples', type: 'boolean', value: true,
     description: 'Build samples')
 option('bindings', type: 'array', choices: ['all', 'none', 'auto', 'python'], value: ['auto'],
     description: 'Build language bindings')
-option('docs', type: 'boolean', value: false,
+option('docs', type: 'feature', value: 'auto',
     description: 'Build documentation')
 option('omf-byte-order', type: 'combo', choices: ['native', 'big', 'little'],
     value: 'native', description: 'On-media-format byte order')
