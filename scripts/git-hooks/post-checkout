@@ -1,10 +1,10 @@
-#!/usr/bin/env bash
+#!/bin/sh
 
 # SPDX-License-Identifier: Apache-2.0
 #
 # Copyright (C) 2021 Micron Technology, Inc. All rights reserved.
 
-if [ -z "${HSE_GIT_HOOK_POST_CHECKOUT_SKIP}" ]; then
+if [ -n "${HSE_GIT_HOOK_POST_CHECKOUT_SKIP}" ]; then
     exit 0
 fi
 
@@ -15,6 +15,12 @@ branch=$(git branch --show-current)
 # shellcheck disable=2043
 for s in hse-python; do
     if git -C "subprojects/$s" checkout "$branch" > /dev/null 2>&1; then
-        git -C "subprojects/$s" pull origin "$branch" > /dev/null 2>&1
+        upstream=$(git for-each-ref --format='%(upstream:short)' "$(git symbolic-ref -q HEAD)")
+        if [ -n "$upstream" ]; then
+            remote="${upstream%%/*}"
+            branch="${upstream#*/}"
+            echo "Updating $s..."
+            git -C "subprojects/$s" pull "$remote" "$branch" > /dev/null 2>&1
+        fi
     fi
 done
