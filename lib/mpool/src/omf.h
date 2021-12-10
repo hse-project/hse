@@ -169,16 +169,20 @@ omf_mdc_rechdr_pack(void *data, size_t len, void *outbuf);
 /**
  * omf_mdc_rechdr_unpack - Unpack inbuf into rh
  *
- * @inbuf:   packed log header
- * @version: record header version
- * @gclose:  graceful close
- * @rh:      unpacked in-memory record header (output)
- * @crc:     is crc valid bit set (output)
+ * @inbuf:      packed log header
+ * @version:    record header version
+ * @curoff:     current record offset
+ * @len:        mdc file length
+ * @gclose:     graceful close
+ * @crc_verify: verify crc?
+ * @rh:         unpacked in-memory record header (output)
  */
 merr_t
 omf_mdc_rechdr_unpack(
     const char        *inbuf,
     uint32_t           version,
+    off_t              curoff,
+    size_t             len,
     bool               gclose,
     bool               crc_verify,
     struct mdc_rechdr *rh);

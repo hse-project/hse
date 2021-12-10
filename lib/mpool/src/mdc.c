@@ -65,7 +65,7 @@ mpool_mdc_alloc(
         id[i] = logid_make(i, mcid, magic);
         mdc_filename_gen(name, sizeof(name), id[i]);
 
-        err = mdc_file_create(dirfd, name, flags, mode, capacity);
+        err = mdc_file_create(dirfd, name, flags, mode, mclass, capacity);
         if (err) {
             if (i != 0) {
                 mdc_filename_gen(name, sizeof(name), id[0]);

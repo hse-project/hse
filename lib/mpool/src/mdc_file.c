@@ -115,7 +115,7 @@ loghdr_validate(struct mdc_file *mfp, bool gclose, uint64_t *gen)
 
     lh = &mfp->lh;
 
-    err = omf_mdc_loghdr_unpack((const char *)mfp->addr, gclose, lh);
+    err = omf_mdc_loghdr_unpack(mfp->addr, gclose, lh);
     if (err)
         return err;
 
@@ -139,12 +139,9 @@ logrec_validate(struct mdc_file *mfp, char *addr, bool gclose, size_t *recsz)
 
     *recsz = 0;
 
-    err = omf_mdc_rechdr_unpack((const char *)addr, mfp->lh.vers, gclose, true, &rh);
+    err = omf_mdc_rechdr_unpack(addr, mfp->lh.vers, addr - mfp->addr, mfp->size, gclose, true, &rh);
     if (err)
         return err;
-
-    if (addr + rh.size - mfp->addr > mfp->size)
-        return merr(EBADMSG); /* corruption */
 
     *recsz = rh.size;
 
@@ -152,7 +149,13 @@ logrec_validate(struct mdc_file *mfp, char *addr, bool gclose, size_t *recsz)
 }
 
 merr_t
-mdc_file_create(int dirfd, const char *name, int flags, int mode, size_t capacity)
+mdc_file_create(
+    int             dirfd,
+    const char     *name,
+    int             flags,
+    int             mode,
+    enum hse_mclass mclass,
+    size_t          capacity)
 {
     int    fd, rc;
     merr_t err = 0;
@@ -161,10 +164,18 @@ mdc_file_create(int dirfd, const char *name, int flags, int mode, size_t capacit
     if (fd < 0)
         return merr(errno);
 
-    rc = posix_fallocate(fd, 0, capacity);
-    if (rc) {
-        err = merr(rc);
-        goto errout;
+    if (mclass == HSE_MCLASS_PMEM) {
+        rc = posix_fallocate(fd, 0, capacity);
+        if (rc) {
+            err = merr(rc);
+            goto errout;
+        }
+    } else {
+        rc = ftruncate(fd, capacity);
+        if (rc == -1) {
+            err = merr(errno);
+            goto errout;
+        }
     }
 
     rc = fsync(fd);
@@ -379,7 +390,7 @@ mdc_file_open(
     mfp->raoff = MDC_RA_BYTES;
     mfp->need_dsync = false;
 
-    mclass_io_ops_set(mcid_to_mclass(logid_mcid(logid)), &mfp->io);
+    mclass_io_ops_set(logid_mclass(logid), &mfp->io);
 
     err = mdc_file_mmap(mfp, mfp->size, rdonly);
     if (err)
@@ -449,9 +460,15 @@ mdc_file_erase(struct mdc_file *mfp, uint64_t newgen)
             if (rc == -1)
                 return merr(errno);
 
-            rc = posix_fallocate(mfp->fd, 0, mfp->size);
-            if (rc)
-                return merr(rc);
+            if (logid_mclass(mfp->logid) == HSE_MCLASS_PMEM) {
+                rc = posix_fallocate(mfp->fd, 0, mfp->size);
+                if (rc)
+                    return merr(rc);
+            } else {
+                rc = ftruncate(mfp->fd, mfp->size);
+                if (rc == -1)
+                    return merr(errno);
+            }
         }
     }
 
@@ -600,15 +617,15 @@ mdc_file_read(struct mdc_file *mfp, void *data, size_t len, bool verify, size_t 
         mfp->raoff <<= 1;
     }
 
-    err = omf_mdc_rechdr_unpack((const char *)addr, mfp->lh.vers, true, verify, &rh);
-    if (err)
-        return err;
-
     if (mfp->roff == mfp->woff) {
         if (rdlen)
             *rdlen = 0;
         return 0; /* Reached end of log */
     }
+
+    err = omf_mdc_rechdr_unpack(addr, mfp->lh.vers, addr - mfp->addr, mfp->size, true, verify, &rh);
+    if (err)
+        return err;
 
     if (rdlen)
         *rdlen = rh.size;
@@ -653,9 +670,15 @@ mdc_file_extend(struct mdc_file *mfp, size_t minsz)
     if (err)
         return err;
 
-    rc = posix_fallocate(mfp->fd, 0, sz);
-    if (rc)
-        return merr(rc);
+    if (logid_mclass(mfp->logid) == HSE_MCLASS_PMEM) {
+        rc = posix_fallocate(mfp->fd, 0, sz);
+        if (rc)
+            return merr(rc);
+    } else {
+        rc = ftruncate(mfp->fd, sz);
+        if (rc == -1)
+            return merr(errno);
+    }
 
     err = mdc_file_mmap(mfp, sz, false);
     if (err)

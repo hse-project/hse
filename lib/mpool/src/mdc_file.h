@@ -66,6 +66,12 @@ logid_mcid(uint64_t logid)
     return (logid >> 32) & 3;
 }
 
+static inline enum hse_mclass
+logid_mclass(uint64_t logid)
+{
+    return mcid_to_mclass(logid_mcid(logid));
+}
+
 static inline uint8_t
 logid_fid(uint64_t logid)
 {
@@ -93,10 +99,17 @@ mdc_filename_gen(char *buf, size_t buflen, uint64_t logid)
  * @name:     MDC file name
  * @flags:    file creation flags
  * @mode:     file creation mode
+ * @mclass:   media class used for MDC file
  * @capacity: capacity (bytes)
  */
 merr_t
-mdc_file_create(int dirfd, const char *name, int flags, int mode, size_t capacity);
+mdc_file_create(
+    int             dirfd,
+    const char     *name,
+    int             flags,
+    int             mode,
+    enum hse_mclass mclass,
+    size_t          capacity);
 
 /**
  * mdc_file_destroy() - destroy an MDC file
