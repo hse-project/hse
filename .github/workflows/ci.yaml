@@ -6,7 +6,7 @@ on:
       - master
       - v2.*
   pull_request:
-    types: [opened, synchronize, reopened, edited]
+    types: [opened, synchronize, reopened]
 
 env:
   MESON_TESTTHREADS: 1
