@@ -21,7 +21,20 @@ jobs:
         buildtype: [release, debug]
 
     steps:
-      - uses: actions/checkout@v2
+      - name: Checkout HSE
+        uses: actions/checkout@v2
+
+      - name: Checkout hse-python
+        uses: actions/checkout@v2
+        with:
+          repository: hse-project/hse-python
+          path: subprojects/hse-python
+
+      - name: Post-checkout
+        run: |
+          for b in hse-python; do
+            git -C "subprojects/$b" checkout ${{ github.head_ref }} || true
+          done
 
       - name: Initialize
         run: |
@@ -60,7 +73,20 @@ jobs:
         buildtype: [release, debug]
 
     steps:
-      - uses: actions/checkout@v2
+      - name: Checkout HSE
+        uses: actions/checkout@v2
+
+      - name: Checkout hse-python
+        uses: actions/checkout@v2
+        with:
+          repository: hse-project/hse-python
+          path: subprojects/hse-python
+
+      - name: Post-checkout
+        run: |
+          for b in hse-python; do
+            git -C "subprojects/$b" checkout ${{ github.head_ref }} || true
+          done
 
       - name: Initialize
         run: |
@@ -98,7 +124,20 @@ jobs:
         buildtype: [release, debug]
 
     steps:
-      - uses: actions/checkout@v2
+      - name: Checkout HSE
+        uses: actions/checkout@v2
+
+      - name: Checkout hse-python
+        uses: actions/checkout@v2
+        with:
+          repository: hse-project/hse-python
+          path: subprojects/hse-python
+
+      - name: Post-checkout
+        run: |
+          for b in hse-python; do
+            git -C "subprojects/$b" checkout ${{ github.head_ref }} || true
+          done
 
       - name: Initialize
         run: |
@@ -138,7 +177,20 @@ jobs:
         buildtype: [release, debug]
 
     steps:
-      - uses: actions/checkout@v2
+      - name: Checkout HSE
+        uses: actions/checkout@v2
+
+      - name: Checkout hse-python
+        uses: actions/checkout@v2
+        with:
+          repository: hse-project/hse-python
+          path: subprojects/hse-python
+
+      - name: Post-checkout
+        run: |
+          for b in hse-python; do
+            git -C "subprojects/$b" checkout ${{ github.head_ref }} || true
+          done
 
       - name: Initialize
         run: |
