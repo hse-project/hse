@@ -64,13 +64,13 @@ jobs:
 
       - name: Initialize
         run: |
-          sudo dnf install -y git ninja-build meson python-unversioned-command pkg-config python3-Cython java-1.8.0-openjdk-devel libmicrohttpd-devel userspace-rcu-devel libyaml-devel lz4-devel libbsd-devel libcurl-devel
+          sudo dnf install -y git ninja-build meson python-unversioned-command pkg-config python3-Cython java-1.8.0-openjdk-devel libmicrohttpd-devel userspace-rcu-devel libyaml-devel lz4-devel libbsd-devel libcurl-devel libpmem-devel
           sudo dnf install -y xz mongo-c-driver libbson openssl-devel cyrus-sasl-devel ncurses-devel cmake make automake gcc gcc-c++ kernel-devel
           sudo dnf install -y python-pip python-wheel python3-devel libxml2-devel libxslt-devel
 
       - name: Setup
         run: |
-          meson builddir -Dbuildtype=${{ matrix.buildtype }} --fatal-meson-warnings -Ddocs=disabled -Dbindings=all -Dycsb=true -Dwerror=true
+          meson builddir -Dbuildtype=${{ matrix.buildtype }} --fatal-meson-warnings -Dpmem=enabled -Ddocs=disabled -Dbindings=all -Dycsb=true -Dwerror=true
 
       - name: Build
         run: |
