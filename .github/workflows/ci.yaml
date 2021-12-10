@@ -18,7 +18,7 @@ jobs:
       fail-fast: false
       matrix:
         os: [ubuntu-18.04, ubuntu-20.04]
-        build_type: [release, debug]
+        buildtype: [release, debug]
 
     steps:
       - uses: actions/checkout@v2
@@ -32,7 +32,7 @@ jobs:
 
       - name: Setup
         run: |
-          meson builddir -Dbuildtype=${{ matrix.build_type }} --fatal-meson-warnings -Dbindings=all -Dycsb=true -Dwerror=true
+          meson builddir -Dbuildtype=${{ matrix.buildtype }} --fatal-meson-warnings -Dbindings=all -Dycsb=true -Dwerror=true
 
       - name: Build
         run: |
@@ -45,7 +45,7 @@ jobs:
       - uses: actions/upload-artifact@v2
         if: failure()
         with:
-          name: build-artifact-${{ matrix.os }}-${{ matrix.build_type }}
+          name: build-artifact-${{ matrix.os }}-${{ matrix.buildtype }}
           path: builddir/meson-logs/
 
   fedora:
@@ -57,7 +57,7 @@ jobs:
       fail-fast: false
       matrix:
         image-tag: [35]
-        build_type: [release, debug]
+        buildtype: [release, debug]
 
     steps:
       - uses: actions/checkout@v2
@@ -70,7 +70,7 @@ jobs:
 
       - name: Setup
         run: |
-          meson builddir -Dbuildtype=${{ matrix.build_type }} --fatal-meson-warnings -Dbindings=all -Dycsb=true -Dwerror=true
+          meson builddir -Dbuildtype=${{ matrix.buildtype }} --fatal-meson-warnings -Dbindings=all -Dycsb=true -Dwerror=true
 
       - name: Build
         run: |
@@ -83,7 +83,7 @@ jobs:
       - uses: actions/upload-artifact@v2
         if: failure()
         with:
-          name: build-artifact-fedora-${{ matrix.image-tag }}-${{ matrix.build_type }}
+          name: build-artifact-fedora-${{ matrix.image-tag }}-${{ matrix.buildtype }}
           path: builddir/meson-logs/
 
   almalinux:
@@ -95,7 +95,7 @@ jobs:
       fail-fast: false
       matrix:
         image-tag: [8]
-        build_type: [release, debug]
+        buildtype: [release, debug]
 
     steps:
       - uses: actions/checkout@v2
@@ -111,7 +111,7 @@ jobs:
 
       - name: Setup
         run: |
-          meson builddir -Dbuildtype=${{ matrix.build_type }} --fatal-meson-warnings -Dbindings=all -Dycsb=true -Dwerror=true
+          meson builddir -Dbuildtype=${{ matrix.buildtype }} --fatal-meson-warnings -Dbindings=all -Dycsb=true -Dwerror=true
 
       - name: Build
         run: |
@@ -124,7 +124,7 @@ jobs:
       - uses: actions/upload-artifact@v2
         if: failure()
         with:
-          name: build-artifact-almalinux-${{ matrix.image-tag }}-${{ matrix.build_type }}
+          name: build-artifact-almalinux-${{ matrix.image-tag }}-${{ matrix.buildtype }}
           path: builddir/meson-logs/
 
   asan-ubsan:
@@ -135,7 +135,7 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        build_type: [release, debug]
+        buildtype: [release, debug]
 
     steps:
       - uses: actions/checkout@v2
@@ -149,7 +149,7 @@ jobs:
 
       - name: Setup
         run: |
-          meson builddir -Dbuildtype=${{ matrix.build_type }} --fatal-meson-warnings -Dbindings=all -Dycsb=true -Db_sanitize=address,undefined
+          meson builddir -Dbuildtype=${{ matrix.buildtype }} --fatal-meson-warnings -Dbindings=all -Dycsb=true -Db_sanitize=address,undefined
 
       - name: Build
         run: |
@@ -162,7 +162,7 @@ jobs:
       - uses: actions/upload-artifact@v2
         if: failure()
         with:
-          name: build-artifact-fedora-latest-${{ matrix.build_type }}
+          name: build-artifact-fedora-latest-${{ matrix.buildtype }}
           path: builddir/meson-logs/
 
   checkoss:
