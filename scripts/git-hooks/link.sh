@@ -1,14 +1,12 @@
-#!/usr/bin/env bash
+#!/bin/sh
 
 # SPDX-License-Identifier: Apache-2.0
 #
 # Copyright (C) 2021 Micron Technology, Inc. All rights reserved.
 
-set -e
-
 git_hooks_dir="$(git rev-parse --git-path hooks)"
 
-rel_path=$(python3 -c "import os; print(os.path.relpath('$(dirname "${BASH_SOURCE[0]}")', '$git_hooks_dir'))")
+rel_path=$(realpath --relative-to "$git_hooks_dir" "$(dirname "$(realpath "$0")")")
 
 # TODO: Add pre-commit hook back when formatting is all sorted out
 # shellcheck disable=2043
