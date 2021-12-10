@@ -29,12 +29,13 @@ struct wal_replay_gen_info {
 
 struct wal_rechdr {
     uint64_t off;
-    uint32_t cksum;
-    uint32_t flags;
+    uint64_t cksum;
+    uint64_t flags;
     uint64_t rid;
     uint64_t gen;
     uint32_t type;
     uint32_t len;
+    uint64_t rsvd;
 };
 
 struct wal_rec {

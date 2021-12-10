@@ -75,6 +75,7 @@ wal_mdc_version_unpack(const char *buf, struct wal *wal)
                 version, WAL_VERSION);
         return merr(EPROTO);
     }
+    wal_version_set(wal, version);
 
     if (WAL_MAGIC != omf_ver_magic(vomf))
         return merr(EBADMSG);

@@ -34,15 +34,24 @@ wal_rechdr_pack(enum wal_rec_type rtype, uint64_t rid, size_t tlen, uint64_t gen
     omf_set_rh_flags(rhomf, WAL_FLAGS_MORG);
     omf_set_rh_gen(rhomf, gen);
     omf_set_rh_type(rhomf, rtype);
-    omf_set_rh_len(rhomf, tlen - wal_rechdr_len()); /* exclude record hdr */
+    omf_set_rh_len(rhomf, tlen - wal_rechdr_len(WAL_VERSION)); /* exclude record hdr */
     omf_set_rh_rid(rhomf, rid);
     omf_set_rh_rsvd(rhomf, 0);
 }
 
 uint32_t
-wal_rechdr_len(void)
+wal_rechdr_len(uint32_t version)
 {
-    return sizeof(struct wal_rechdr_omf);
+    switch (version) {
+    case WAL_VERSION1:
+        return sizeof(struct wal_rechdr_omf_v1);
+
+    case WAL_VERSION:
+        return sizeof(struct wal_rechdr_omf);
+
+    default:
+        abort();
+    }
 }
 
 void
@@ -78,9 +87,18 @@ wal_rec_pack(
 }
 
 uint32_t
-wal_reclen(void)
+wal_reclen(uint32_t version)
 {
-    return sizeof(struct wal_rec_omf);
+    switch (version) {
+    case WAL_VERSION1:
+        return sizeof(struct wal_rec_omf_v1);
+
+    case WAL_VERSION:
+        return sizeof(struct wal_rec_omf);
+
+    default:
+        abort();
+    }
 }
 
 void
@@ -99,74 +117,64 @@ wal_rec_finish(struct wal_record *rec, uint64_t seqno, uint64_t gen)
 
 /* Record unpack routines */
 
-uint64_t
-wal_reclen_total(const void *inbuf)
+bool
+wal_rec_skip(struct wal_rechdr *hdr)
 {
-    const struct wal_rechdr_omf *rhomf = inbuf;
-
-    return wal_rechdr_len() + omf_rh_len(rhomf);
-}
-
-static HSE_ALWAYS_INLINE uint64_t
-wal_rec_off(const void *inbuf)
-{
-    const struct wal_rechdr_omf *rhomf = inbuf;
-
-    return omf_rh_off(rhomf);
+    return (hdr->off >= WAL_ROFF_RECOV_ERR);
 }
 
 bool
-wal_rec_skip(const void *inbuf)
+wal_rec_is_txnmeta(struct wal_rechdr *hdr)
 {
-    return (wal_rec_off(inbuf) >= WAL_ROFF_RECOV_ERR);
-}
-
-bool
-wal_rec_is_eorg(const void *inbuf)
-{
-    const struct wal_rechdr_omf *rhomf = inbuf;
-
-    return omf_rh_flags(rhomf) & WAL_FLAGS_EORG;
-}
-
-bool
-wal_rec_is_txncommit(const void *inbuf)
-{
-    const struct wal_rechdr_omf *rhomf = inbuf;
-
-    return (omf_rh_type(rhomf) == WAL_RT_TXCOMMIT);
-}
-
-bool
-wal_rec_is_txnmeta(const void *inbuf)
-{
-    const struct wal_rechdr_omf *rhomf = inbuf;
-
-    return (omf_rh_type(rhomf) == WAL_RT_TXBEGIN ||
-            omf_rh_type(rhomf) == WAL_RT_TXABORT ||
-            omf_rh_type(rhomf) == WAL_RT_TXCOMMIT);
+    return (hdr->type == WAL_RT_TXBEGIN || hdr->type == WAL_RT_TXABORT || hdr->type == WAL_RT_TXCOMMIT);
 }
 
 static HSE_ALWAYS_INLINE bool
-wal_rec_cksum_valid(const char *inbuf)
+wal_rec_cksum_valid_v1(const char *inbuf)
+{
+    const struct wal_rechdr_omf_v1 *rhomf = (const void *)inbuf;
+    size_t len;
+    uint32_t crc, ignore = offsetof(struct wal_rechdr_omf_v1, rh_cksum) + sizeof(rhomf->rh_cksum);
+
+    len = wal_rechdr_len(WAL_VERSION1) + omf_rh_len_v1(rhomf);
+    crc = crc32c(0, inbuf + ignore, len - ignore);
+
+    return (crc == omf_rh_cksum_v1(rhomf));
+}
+
+static HSE_ALWAYS_INLINE bool
+wal_rec_cksum_valid_latest(const char *inbuf)
 {
     const struct wal_rechdr_omf *rhomf = (const void *)inbuf;
     size_t len;
     uint64_t crc;
     uint32_t crc32, ignore = offsetof(struct wal_rechdr_omf, rh_cksum) + sizeof(rhomf->rh_cksum);
 
-    len = wal_reclen_total(inbuf);
+    len = wal_rechdr_len(WAL_VERSION) + omf_rh_len(rhomf);
     crc32 = crc32c(0, inbuf + ignore, len - ignore);
     crc = omf_rh_cksum(rhomf);
 
     return ((crc32 == (crc & CRC_MASK)) && crc_valid_bit_isset(crc));
 }
 
-void
-wal_update_minmax_seqno(const void *buf, struct wal_minmax_info *info)
+static HSE_ALWAYS_INLINE bool
+wal_rec_cksum_valid(const char *inbuf, uint32_t version)
 {
-    const struct wal_rechdr_omf *rhomf = buf;
-    uint32_t rtype = omf_rh_type(rhomf);
+    switch (version) {
+    case WAL_VERSION1:
+        return wal_rec_cksum_valid_v1(inbuf);
+
+    case WAL_VERSION:
+        return wal_rec_cksum_valid_latest(inbuf);
+
+    default:
+        abort();
+    }
+}
+
+void
+wal_update_minmax_seqno(const void *buf, uint32_t rtype, struct wal_minmax_info *info)
+{
     bool nontx, txcom;
 
     nontx = wal_rectype_nontxn(rtype);
@@ -183,10 +191,8 @@ wal_update_minmax_seqno(const void *buf, struct wal_minmax_info *info)
 }
 
 void
-wal_update_minmax_txid(const void *buf, struct wal_minmax_info *info)
+wal_update_minmax_txid(const void *buf, uint32_t rtype, struct wal_minmax_info *info)
 {
-    const struct wal_rechdr_omf *rhomf = buf;
-    uint32_t rtype = omf_rh_type(rhomf);
     bool tx, txmeta;
 
     tx = wal_rectype_txn(rtype);
@@ -209,62 +215,55 @@ wal_rec_is_valid(
     size_t                  fsize,
     uint64_t               *recoff,
     uint64_t                gen,
-    struct wal_minmax_info *info,
-    bool                   *eorg)
+    uint32_t                version,
+    struct wal_rechdr      *hdr,
+    struct wal_minmax_info *info)
 {
-    const struct wal_rechdr_omf *rhomf = inbuf;
     uint64_t roff;
     size_t   len;
     size_t   fbytes_left = fsize - foff;
 
-    *eorg = false;
-
-    if (fbytes_left < wal_rechdr_len())
+    if (fbytes_left < wal_rechdr_len(version))
         return false;
 
-    roff = wal_rec_off(inbuf);
+    wal_rechdr_unpack(inbuf, version, hdr);
 
+    roff = hdr->off;
     if (roff == WAL_ROFF_UNRECOV_ERR)
         return false;
 
     if (*recoff != 0 && roff != WAL_ROFF_RECOV_ERR && roff != *recoff)
         return false;
 
-    if ((omf_rh_flags(rhomf) & WAL_FLAGS_MASK) != 0)
+    if ((hdr->flags & WAL_FLAGS_MASK) != 0)
         return false;
 
-    if (omf_rh_type(rhomf) > WAL_RT_TYPE_MAX)
+    if (hdr->type > WAL_RT_TYPE_MAX)
         return false;
 
-    len = omf_rh_len(rhomf);
-    if (len > (wal_reclen() + HSE_KVS_KEY_LEN_MAX + HSE_KVS_VALUE_LEN_MAX + 2 * sizeof(uint64_t)))
+    len = hdr->len;
+    if (len > (wal_reclen(version) + HSE_KVS_KEY_LEN_MAX + HSE_KVS_VALUE_LEN_MAX + 2 * sizeof(uint64_t)))
         return false;
 
-    if (fbytes_left < wal_rechdr_len() + len)
+    if (fbytes_left < wal_rechdr_len(version) + len)
         return false;
 
-    if (!wal_rec_cksum_valid(inbuf))
+    if (!wal_rec_cksum_valid(inbuf, version))
         return false;
 
-    if (omf_rh_gen(rhomf) > gen)
+    if (hdr->gen > gen)
         return false;
 
-    if (omf_rh_rsvd(rhomf) != 0)
+    if (hdr->rsvd != 0)
         return false;
 
-    if (!wal_rec_skip(inbuf) && info) {
-        uint64_t gen;
+    if (!wal_rec_skip(hdr) && info) {
+        wal_update_minmax_seqno(inbuf, hdr->type, info);
+        wal_update_minmax_txid(inbuf, hdr->type, info);
 
-        wal_update_minmax_seqno(inbuf, info);
-        wal_update_minmax_txid(inbuf, info);
-
-        gen = omf_rh_gen(rhomf);
-        info->min_gen = min_t(uint64_t, info->min_gen, gen);
-        info->max_gen = max_t(uint64_t, info->max_gen, gen);
+        info->min_gen = min_t(uint64_t, info->min_gen, hdr->gen);
+        info->max_gen = max_t(uint64_t, info->max_gen, hdr->gen);
     }
-
-    if (wal_rec_is_eorg(inbuf))
-        *eorg = true;
 
     if (*recoff == 0 && roff != WAL_ROFF_RECOV_ERR)
         *recoff = roff;
@@ -273,32 +272,91 @@ wal_rec_is_valid(
 }
 
 static HSE_ALWAYS_INLINE void
-wal_rechdr_unpack(const void *inbuf, struct wal_rec *rec)
+wal_rechdr_unpack_v1(const void *inbuf, struct wal_rechdr *hdr)
+{
+    const struct wal_rechdr_omf_v1 *rhomf = inbuf;
+
+    hdr->off = omf_rh_off_v1(rhomf);
+    hdr->flags = omf_rh_flags_v1(rhomf);
+    hdr->cksum = omf_rh_cksum_v1(rhomf);
+    hdr->rid = omf_rh_rid_v1(rhomf);
+    hdr->gen = omf_rh_gen_v1(rhomf);
+    hdr->type = omf_rh_type_v1(rhomf);
+    hdr->len = omf_rh_len_v1(rhomf);
+    hdr->rsvd = omf_rh_rsvd_v1(rhomf);
+}
+
+static HSE_ALWAYS_INLINE void
+wal_rechdr_unpack_latest(const void *inbuf, struct wal_rechdr *hdr)
 {
     const struct wal_rechdr_omf *rhomf = inbuf;
-    struct wal_rechdr *hdr = &rec->hdr;
 
     hdr->off = omf_rh_off(rhomf);
-    hdr->cksum = omf_rh_cksum(rhomf);
     hdr->flags = omf_rh_flags(rhomf);
+    hdr->cksum = omf_rh_cksum(rhomf);
     hdr->rid = omf_rh_rid(rhomf);
     hdr->gen = omf_rh_gen(rhomf);
     hdr->type = omf_rh_type(rhomf);
     hdr->len = omf_rh_len(rhomf);
+    hdr->rsvd = omf_rh_rsvd(rhomf);
 }
 
 void
-wal_rec_unpack(const char *inbuf, struct wal_rec *rec)
+wal_rechdr_unpack(const void *inbuf, uint32_t version, struct wal_rechdr *hdr)
 {
-    const struct wal_rec_omf *romf = (const void *)inbuf;
-    size_t rlen = wal_reclen();
+    switch (version) {
+
+    case WAL_VERSION1:
+        wal_rechdr_unpack_v1(inbuf, hdr);
+        break;
+
+    case WAL_VERSION:
+        wal_rechdr_unpack_latest(inbuf, hdr);
+        break;
+
+    default:
+        abort();
+    }
+}
+
+static void
+wal_rec_unpack_v1(const char *inbuf, struct wal_rechdr *hdr, struct wal_rec *rec)
+{
+    const struct wal_rec_omf_v1 *romf = (const void *)inbuf;
+    size_t rlen = wal_reclen(WAL_VERSION1);
     size_t kvalign = sizeof(uint64_t);
     size_t klen, vxlen;
     const void *kdata;
     void *vdata = NULL;
 
-    wal_rechdr_unpack(inbuf, rec);
+    rec->hdr = *hdr;
+    rec->cnid = omf_r_cnid_v1(romf);
+    rec->txid = omf_r_txid_v1(romf);
+    rec->seqno = omf_r_seqno_v1(romf);
+    rec->op = omf_r_op_v1(romf);
 
+    klen = omf_r_klen_v1(romf);
+    assert(klen != 0);
+    kdata = inbuf + rlen;
+    kvs_ktuple_init(&rec->kt, kdata, klen);
+
+    vxlen = omf_r_vxlen_v1(romf);
+    if (vxlen > 0)
+        vdata = PTR_ALIGN((void *)rec->kt.kt_data + klen, kvalign);
+    kvs_vtuple_init(&rec->vt, vdata, vxlen);
+}
+
+static void
+wal_rec_unpack_latest(const char *inbuf, struct wal_rechdr *hdr, struct wal_rec *rec)
+{
+    const struct wal_rec_omf *romf = (const void *)inbuf;
+    size_t rlen = wal_reclen(WAL_VERSION);
+    size_t kvalign = sizeof(uint64_t);
+    size_t klen, vxlen;
+    const void *kdata;
+    void *vdata = NULL;
+
+    rec->hdr = *hdr;
     rec->cnid = omf_r_cnid(romf);
     rec->txid = omf_r_txid(romf);
     rec->seqno = omf_r_seqno(romf);
@@ -313,6 +371,23 @@ wal_rec_unpack(const char *inbuf, struct wal_rec *rec)
     if (vxlen > 0)
         vdata = PTR_ALIGN((void *)rec->kt.kt_data + klen, kvalign);
     kvs_vtuple_init(&rec->vt, vdata, vxlen);
+}
+
+void
+wal_rec_unpack(const char *inbuf, struct wal_rechdr *hdr, uint32_t version, struct wal_rec *rec)
+{
+    switch (version) {
+    case WAL_VERSION1:
+        wal_rec_unpack_v1(inbuf, hdr, rec);
+        break;
+
+    case WAL_VERSION:
+        wal_rec_unpack_latest(inbuf, hdr, rec);
+        break;
+
+    default:
+        abort();
+    }
 }
 
 void
@@ -334,23 +409,60 @@ wal_txn_rec_pack(uint64_t txid, uint64_t seqno, uint64_t cid, void *outbuf)
     omf_set_tr_cid(tromf, cid);
 }
 
-void
-wal_txn_rec_unpack(const void *inbuf, struct wal_txmeta_rec *trec)
+static void
+wal_txn_rec_unpack_v1(const void *inbuf, struct wal_rechdr *hdr, struct wal_txmeta_rec *trec)
 {
-    const struct wal_rechdr_omf *rhomf = inbuf;
+    const struct wal_txnrec_omf_v1 *tromf = inbuf;
+
+    trec->rid = hdr->rid;
+    trec->gen = hdr->gen;
+    trec->txid = omf_tr_txid_v1(tromf);
+    trec->cseqno = omf_tr_seqno_v1(tromf);
+    trec->cid = omf_tr_cid_v1(tromf);
+}
+
+static void
+wal_txn_rec_unpack_latest(const void *inbuf, struct wal_rechdr *hdr, struct wal_txmeta_rec *trec)
+{
     const struct wal_txnrec_omf *tromf = inbuf;
 
-    trec->rid = omf_rh_rid(rhomf);
-    trec->gen = omf_rh_gen(rhomf);
+    trec->rid = hdr->rid;
+    trec->gen = hdr->gen;
     trec->txid = omf_tr_txid(tromf);
     trec->cseqno = omf_tr_seqno(tromf);
     trec->cid = omf_tr_cid(tromf);
 }
 
-uint32_t
-wal_txn_reclen(void)
+void
+wal_txn_rec_unpack(const void *inbuf, struct wal_rechdr *hdr, uint32_t version, struct wal_txmeta_rec *trec)
 {
-    return sizeof(struct wal_txnrec_omf);
+    switch (version) {
+    case WAL_VERSION1:
+        wal_txn_rec_unpack_v1(inbuf, hdr, trec);
+        break;
+
+    case WAL_VERSION:
+        wal_txn_rec_unpack_latest(inbuf, hdr, trec);
+        break;
+
+    default:
+        abort();
+    }
+}
+
+uint32_t
+wal_txn_reclen(uint32_t version)
+{
+    switch (version) {
+    case WAL_VERSION1:
+        return sizeof(struct wal_txnrec_omf_v1);
+
+    case WAL_VERSION:
+        return sizeof(struct wal_txnrec_omf);
+
+    default:
+        abort();
+    }
 }
 
 void
@@ -387,11 +499,49 @@ wal_filehdr_pack(
     omf_set_fh_cksum(fhomf, crc);
 }
 
-merr_t
-wal_filehdr_unpack(
+static merr_t
+wal_filehdr_unpack_v1(
     const void             *inbuf,
     uint32_t                magic,
-    uint32_t                version,
+    bool                   *close,
+    off_t                  *soff,
+    off_t                  *eoff,
+    struct wal_minmax_info *info)
+{
+    const struct wal_filehdr_omf_v1 *fhomf = inbuf;
+    uint32_t crc, crcomf;
+    uint32_t ignore = sizeof(fhomf->fh_cksum);
+    uint32_t len = sizeof(*fhomf);
+
+    *close = (omf_fh_close_v1(fhomf) == 1);
+    *soff = omf_fh_startoff_v1(fhomf);
+    *eoff = omf_fh_endoff_v1(fhomf);
+
+    info->min_seqno = omf_fh_minseqno_v1(fhomf);
+    info->max_seqno = omf_fh_maxseqno_v1(fhomf);
+    info->min_gen = omf_fh_mingen_v1(fhomf);
+    info->max_gen = omf_fh_maxgen_v1(fhomf);
+    info->min_txid = omf_fh_mintxid_v1(fhomf);
+    info->max_txid = omf_fh_maxtxid_v1(fhomf);
+
+    crc = crc32c(0, inbuf + ignore, len - ignore);
+    crcomf = omf_fh_cksum_v1(fhomf);
+    if (crc != crcomf) {
+        const struct wal_filehdr_omf_v1 ref = {0};
+
+        return ((memcmp(fhomf, &ref, sizeof(*fhomf)) == 0) ? merr(ENODATA) : merr(EBADMSG));
+    }
+
+    if ((magic != omf_fh_magic_v1(fhomf)) || (WAL_VERSION1 != omf_fh_version_v1(fhomf)))
+        return merr(EBADMSG);
+
+    return 0;
+}
+
+static merr_t
+wal_filehdr_unpack_latest(
+    const void             *inbuf,
+    uint32_t                magic,
     bool                   *close,
     off_t                  *soff,
     off_t                  *eoff,
@@ -422,11 +572,37 @@ wal_filehdr_unpack(
         return ((memcmp(fhomf, &ref, sizeof(*fhomf)) == 0) ? merr(ENODATA) : merr(EBADMSG));
     }
 
-    if (magic != omf_fh_magic(fhomf))
+    if ((magic != omf_fh_magic(fhomf)) || (WAL_VERSION != omf_fh_version(fhomf)))
         return merr(EBADMSG);
 
-    if (version != omf_fh_version(fhomf))
-        return merr(EPROTO); /* version mismatch, no upgrade support for WAL data files */
-
     return 0;
+}
+
+merr_t
+wal_filehdr_unpack(
+    const void             *inbuf,
+    uint32_t                magic,
+    uint32_t                version,
+    bool                   *close,
+    off_t                  *soff,
+    off_t                  *eoff,
+    struct wal_minmax_info *info)
+{
+    merr_t err;
+
+    switch (version) {
+    case WAL_VERSION1:
+        err = wal_filehdr_unpack_v1(inbuf, magic, close, soff, eoff, info);
+        break;
+
+    case WAL_VERSION:
+        err = wal_filehdr_unpack_latest(inbuf, magic, close, soff, eoff, info);
+        break;
+
+    default:
+        err = merr(EPROTO);
+        break;
+    }
+
+    return err;
 }

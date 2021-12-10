@@ -159,10 +159,16 @@ wal_fileset_mclass_update(struct wal_fileset *wfset, enum hse_mclass mclass)
     wfset->mclass = mclass;
 }
 
+void
+wal_fileset_version_update(struct wal_fileset *wfset, uint32_t version)
+{
+    wfset->version = version;
+}
+
 struct wal_fileset *
 wal_fileset_open(
     struct mpool     *mp,
-    enum hse_mclass mclass,
+    enum hse_mclass   mclass,
     size_t            capacity,
     uint32_t          magic,
     uint32_t          vers)

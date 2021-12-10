@@ -84,7 +84,7 @@ wal_buffer_flush_worker(struct work_struct *work)
     wb = container_of(work, struct wal_buffer, wb_fwork);
 
     coff = atomic_read(&wb->wb_offset_head);
-    rhlen = wal_rechdr_len();
+    rhlen = wal_rechdr_len(WAL_VERSION);
     bufsz = wb->wb_bs->wbs_buf_sz;
     bufasz = wb->wb_bs->wbs_buf_allocsz;
 
@@ -147,11 +147,13 @@ restart:
         info.max_gen = max_t(uint64_t, info.max_gen, rgen);
 
         if (!skiprec) {
+            uint32_t rtype = omf_rh_type(rhdr);
+
             /* Determine min/max seqno from non-tx op and tx-commit record */
-            wal_update_minmax_seqno(buf, &info);
+            wal_update_minmax_seqno(buf, rtype, &info);
 
             /* Determine min/max txid from tx op and tx-meta record */
-            wal_update_minmax_txid(buf, &info);
+            wal_update_minmax_txid(buf, rtype, &info);
         }
 
         prev_foff = foff;
@@ -240,7 +242,7 @@ wal_bufset_open(
     wbs->wbs_ingestgen = ingestgen;
 
     wbs->wbs_buf_sz = bufsz;
-    wbs->wbs_buf_allocsz = ALIGN(bufsz + wal_reclen() + HSE_KVS_KEY_LEN_MAX +
+    wbs->wbs_buf_allocsz = ALIGN(bufsz + wal_reclen(WAL_VERSION) + HSE_KVS_KEY_LEN_MAX +
                                  HSE_KVS_VALUE_LEN_MAX, 2ul << MB_SHIFT);
 
     for (i = 0; i < WAL_NODE_MAX; ++i) {

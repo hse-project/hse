@@ -906,7 +906,8 @@ c0sk_release_multiset(struct c0sk_impl *self, struct c0_kvmultiset *multiset)
     gen = c0kvms_gen_read(multiset);
 
     mutex_lock(&self->c0sk_kvms_mutex);
-    assert(self->c0sk_release_gen < gen);
+    assert(self->c0sk_release_gen < gen ||
+           (self->c0sk_release_gen == gen && atomic_read(&self->c0sk_replaying) > 0));
     self->c0sk_release_gen = gen;
 
     cds_list_for_each_entry_reverse(p, &self->c0sk_kvmultisets, c0ms_link)

@@ -106,11 +106,10 @@ omf_mdc_loghdr_unpack_latest(const char *inbuf, bool gclose, struct mdc_loghdr *
 merr_t
 omf_mdc_loghdr_unpack(const void *inbuf, bool gclose, struct mdc_loghdr *lh)
 {
-    const struct mdc_loghdr_omf ref = { 0 };
     merr_t err;
 
-    lh->vers = omf_lh_vers(inbuf);
-    if (lh->vers == 0 && (memcmp(inbuf, &ref, sizeof(ref)) == 0))
+    lh->vers = omf_lh_vers(inbuf); /* version is at a fixed offset */
+    if (lh->vers == 0)
         return merr(ENODATA);
 
     switch (lh->vers) {
@@ -159,7 +158,12 @@ omf_mdc_rechdr_pack(void *data, size_t len, void *outbuf)
 }
 
 static merr_t
-omf_mdc_rechdr_unpack_v1(const char *inbuf, bool crc_verify, struct mdc_rechdr *rh)
+omf_mdc_rechdr_unpack_v1(
+    const char        *inbuf,
+    off_t              curoff,
+    size_t             len,
+    bool               crc_verify,
+    struct mdc_rechdr *rh)
 {
     struct mdc_rechdr_omf_v1 *rhomf;
     uint32_t crc;
@@ -169,6 +173,15 @@ omf_mdc_rechdr_unpack_v1(const char *inbuf, bool crc_verify, struct mdc_rechdr *
     rh->crc = omf_rh_crc_v1(rhomf);
     rh->size = omf_rh_size_v1(rhomf);
 
+    if (rh->size == 0) {
+        const struct mdc_rechdr_omf_v1 ref = { 0 };
+
+        return ((memcmp(rhomf, &ref, sizeof(*rhomf)) == 0) ? merr(ENODATA) : merr(ENOMSG));
+    }
+
+    if (rh->size > len || (curoff + rh->size > len))
+        return merr(EBADMSG);
+
     if (crc_verify) {
         uint8_t hdrlen = sizeof(rhomf->rh_size);
         const char *data;
@@ -177,18 +190,21 @@ omf_mdc_rechdr_unpack_v1(const char *inbuf, bool crc_verify, struct mdc_rechdr *
 
         crc = omf_rechdr_crc_get((const uint8_t *)&rhomf->rh_size, hdrlen,
                                  (const uint8_t *)data, rh->size);
-        if (crc != rh->crc) {
-            const struct mdc_rechdr_omf ref = { 0 };
-
-            return ((memcmp(rhomf, &ref, sizeof(*rhomf)) == 0) ? merr(ENODATA) : merr(ENOMSG));
-        }
+        if (crc != rh->crc)
+            return merr(ENOMSG);
     }
 
     return 0;
 }
 
 static merr_t
-omf_mdc_rechdr_unpack_latest(const char *inbuf, bool gclose, bool crc_verify, struct mdc_rechdr *rh)
+omf_mdc_rechdr_unpack_latest(
+    const char        *inbuf,
+    off_t              curoff,
+    size_t             len,
+    bool               gclose,
+    bool               crc_verify,
+    struct mdc_rechdr *rh)
 {
     struct mdc_rechdr_omf *rhomf;
     uint64_t crc;
@@ -199,6 +215,9 @@ omf_mdc_rechdr_unpack_latest(const char *inbuf, bool gclose, bool crc_verify, st
     crc = omf_rh_crc(rhomf);
     rh->crc = crc & CRC_MASK;
     rh->size = omf_rh_size(rhomf);
+
+    if (rh->size > len || (curoff + rh->size > len))
+        return merr(EBADMSG);
 
     if (crc_verify) {
         uint8_t hdrlen = sizeof(rhomf->rh_size);
@@ -220,6 +239,8 @@ merr_t
 omf_mdc_rechdr_unpack(
     const char        *inbuf,
     uint32_t           version,
+    off_t              curoff,
+    size_t             len,
     bool               gclose,
     bool               crc_verify,
     struct mdc_rechdr *rh)
@@ -228,11 +249,11 @@ omf_mdc_rechdr_unpack(
 
     switch (version) {
     case MDC_LOGHDR_VERSION1:
-        err = omf_mdc_rechdr_unpack_v1(inbuf, crc_verify, rh);
+        err = omf_mdc_rechdr_unpack_v1(inbuf, curoff, len, crc_verify, rh);
         break;
 
     case MDC_LOGHDR_VERSION:
-        err = omf_mdc_rechdr_unpack_latest(inbuf, gclose, crc_verify, rh);
+        err = omf_mdc_rechdr_unpack_latest(inbuf, curoff, len, gclose, crc_verify, rh);
         break;
 
     default:

@@ -245,7 +245,9 @@ static struct wal_rec *
 wal_rec_iter_next(struct wal_rec_iter *iter)
 {
     struct wal_rec *rec;
+    struct wal_rechdr hdr;
     const char *buf;
+    uint32_t version = wal_version_get(iter->rw->rw_rep->r_wal);
 
 next_rec:
     if (iter->eof)
@@ -260,9 +262,11 @@ next_rec:
         return NULL;
     }
 
-    iter->curoff += wal_reclen_total(buf);
+    wal_rechdr_unpack(buf, version, &hdr);
 
-    if (wal_rec_skip(buf) || wal_rec_is_txnmeta(buf))
+    iter->curoff += (wal_rechdr_len(version) + hdr.len);
+
+    if (wal_rec_skip(&hdr) || wal_rec_is_txnmeta(&hdr))
         goto next_rec;
 
     rec = kmem_cache_alloc(iter->rcache);
@@ -271,7 +275,7 @@ next_rec:
         return NULL;
     }
 
-    wal_rec_unpack(buf, rec);
+    wal_rec_unpack(buf, &hdr, version, rec);
 
     if (rec->hdr.type == WAL_RT_TX) {
         struct wal_replay *rep = iter->rw->rw_rep;
@@ -362,19 +366,22 @@ wal_recs_validate(struct wal_replay_work *rw)
     struct wal_replay *rep = rw->rw_rep;
     struct wal_minmax_info *info;
     struct wal_replay_gen_info *rginfo = rw->rw_rginfo;
+    struct wal_rechdr hdr;
     off_t curoff = 0, rgeoff = 0;
     uint64_t gen = rginfo->gen, recoff = 0;
     const char *buf = rginfo->buf;
-    bool valid, eorg = false;
+    bool valid;
+    uint32_t version;
     merr_t err = 0;
 
     info = rginfo->info_valid ? NULL : &rginfo->info;
+    version = wal_version_get(rep->r_wal);
 
     while ((valid = wal_rec_is_valid(buf, curoff + rginfo->soff, rginfo->size, &recoff,
-                                     gen, info, &eorg))) {
-        size_t len = wal_reclen_total(buf);
+                                     gen, version, &hdr, info))) {
+        size_t len = wal_rechdr_len(version) + hdr.len;
 
-        if (wal_rec_is_txncommit(buf)) {
+        if (hdr.type == WAL_RT_TXCOMMIT) {
             struct wal_txmeta_rec *trec;
 
             trec = kmem_cache_alloc(rep->r_txm_cache);
@@ -383,7 +390,7 @@ wal_recs_validate(struct wal_replay_work *rw)
                 goto exit;
             }
 
-            wal_txn_rec_unpack(buf, trec);
+            wal_txn_rec_unpack(buf, &hdr, version, trec);
             trec->fileoff = curoff + rginfo->soff;
 
             if (trec->cseqno > rep->r_info->seqno) {
@@ -404,7 +411,7 @@ wal_recs_validate(struct wal_replay_work *rw)
 
         curoff += len;
 
-        if (eorg && curoff > rgeoff)
+        if ((hdr.flags & WAL_FLAGS_EORG) && curoff > rgeoff)
             rgeoff = curoff;
 
         if ((rginfo->eoff != 0 && (curoff + rginfo->soff >= rginfo->eoff)) ||
@@ -577,7 +584,9 @@ wal_replay_core(struct wal_replay *rep)
     struct wal_replay_gen *cur, *next;
     struct ikvdb *ikvdb;
     uint32_t flags;
-    uint64_t maxseqno = 0;
+    uint64_t maxseqno = 0, last_gen = 0;
+    bool     need_sync = false;
+    merr_t   err;
 
     ikvdb = wal_ikvdb(rep->r_wal);
     flags = HSE_BTF_MANAGED; /* Replay with MANAGED flag to let c0 share the mmaped wal files */
@@ -590,22 +599,35 @@ wal_replay_core(struct wal_replay *rep)
 
     cur = list_first_entry_or_null(&rep->r_head, typeof(*cur), rg_link);
     if (cur && cur->rg_bytes != 0) {
-        if (ikvdb_wal_replay_size_set(ikvdb, rep->r_ikvsh, cur->rg_bytes))
-            ikvdb_sync(ikvdb, HSE_KVDB_SYNC_ASYNC);
+        /*
+         * When the first c0kvms to be replayed requires resizing, the current active c0kvms
+         * is synced and a new c0kvms with an appropriate size is provisioned.
+         * This could result in rolling back the gen for this newly provisioned c0kvms by
+         * at most one in ikvdb_wal_replay_gen_set().
+         */
+        if (ikvdb_wal_replay_size_set(ikvdb, rep->r_ikvsh, cur->rg_bytes)) {
+            need_sync = true;
+            ikvdb_sync(ikvdb, 0);
+        }
     }
 
     list_for_each_entry_safe(cur, next, &rep->r_head, rg_link) {
-        merr_t err;
         bool   flush = false, last_entry;
+
+        /* Ensure that WAL replays in increasing order of c0kvms gen */
+        if (cur->rg_gen <= last_gen) {
+            assert(cur->rg_gen > last_gen);
+            err = merr(EBUG);
+            goto errout;
+        }
+        last_gen = cur->rg_gen;
 
         /* Set the c0kvms gen to the gen that's about to be replayed */
         ikvdb_wal_replay_gen_set(ikvdb, cur->rg_gen);
 
         err = wal_replay_gen_impl(rep, cur, flags);
-        if (err) {
-            ikvdb_wal_replay_disable(ikvdb);
-            return err;
-        }
+        if (err)
+            goto errout;
 
         if (next && next->rg_bytes != 0)
             flush = ikvdb_wal_replay_size_set(ikvdb, rep->r_ikvsh, next->rg_bytes);
@@ -614,10 +636,8 @@ wal_replay_core(struct wal_replay *rep)
 
         if (flush || cur->rg_krcnt || last_entry) {
             err = ikvdb_sync(ikvdb, last_entry ? 0 : HSE_KVDB_SYNC_ASYNC);
-            if (err) {
-                ikvdb_wal_replay_disable(ikvdb);
-                return err;
-            }
+            if (err)
+                goto errout;
         }
 
         maxseqno = max_t(uint64_t, maxseqno, cur->rg_maxseqno);
@@ -629,6 +649,15 @@ wal_replay_core(struct wal_replay *rep)
         free(cur);
     }
 
+    /* This additional sync ensures that all replayed c0kvmses are ingested in the case of a
+     * gen rollback.
+     */
+    if (need_sync) {
+        err = ikvdb_sync(ikvdb, 0);
+        if (err)
+            goto errout;
+    }
+
     /* Set ikvdb seqno to the max seqno seen during replay */
     ikvdb_wal_replay_seqno_set(ikvdb, maxseqno);
 
@@ -637,6 +666,11 @@ wal_replay_core(struct wal_replay *rep)
     ikvdb_wal_replay_size_reset(rep->r_ikvsh);
 
     return ikvdb_sync(ikvdb, 0); /* Sync a final time after restoring all replay settings */
+
+errout:
+    ikvdb_wal_replay_disable(ikvdb);
+
+    return err;
 }
 
 static merr_t
