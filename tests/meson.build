@@ -17,26 +17,24 @@ if get_option('b_sanitize') != 'none'
     endif
 endif
 
+wrapper = [
+    python,
+    test_runner,
+    '--',
+]
+
 add_test_setup(
     'default',
-    exe_wrapper: [
-        python,
-        test_runner,
-        '--',
-    ],
+    exe_wrapper: wrapper,
     env: run_env,
-    is_default: true,
+    is_default: not meson.is_subproject(),
     # TODO: Check with Meson 0.59 else PR to Meson...
     exclude_suites: ['long', 'non-deterministic', 'stress', 'stress-large', 'nightly-small'] + additional_suite_exclusions,
 )
 
 add_test_setup(
     'ci',
-    exe_wrapper: [
-        python,
-        test_runner,
-        '--',
-    ],
+    exe_wrapper: wrapper,
     env: run_env,
     is_default: false,
     # TODO: Check with Meson 0.59 else PR to Meson...
