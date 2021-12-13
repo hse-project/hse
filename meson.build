@@ -311,7 +311,8 @@ elif 'auto' in get_option('bindings')
     cython_verison_res = run_command(
         python,
         '-c',
-        'from Cython.Compiler.Version import version; print(version)'
+        'from Cython.Compiler.Version import version; print(version)',
+        check: false
     )
     if cython_verison_res.returncode() == 0
         if cython_verison_res.stdout().strip().version_compare('>=0.29.21')
@@ -367,9 +368,8 @@ if 'python' in bindings
         ]
     )
 
-    hse_python_depends = [
-        hse_python.get_variable('extension_modules'),
-    ]
+    # Transition this to a depedency object when possible (seems to be >= 0.60 at least).
+    hse_python_depends = hse_python.get_variable('extension_modules')
     run_env.set('PYTHONPATH', hse_python.get_variable('project_build_root'))
 
     run_target(
