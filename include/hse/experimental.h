@@ -12,10 +12,7 @@
 #ifndef HSE_EXPERIMENTAL_H
 #define HSE_EXPERIMENTAL_H
 
-#include <hse/flags.h>
-#include <hse/limits.h>
 #include <hse/types.h>
-#include <hse/version.h>
 
 #include <stdbool.h>
 #include <stddef.h>
@@ -130,7 +127,7 @@ enum hse_kvs_pfx_probe_cnt {
  *
  * @remark @p kvs must not be NULL.
  * @remark @p pfx must not be NULL.
- * @remark @p pfx_len must be within the range of [1, HSE_KVS_KEY_LEN_MAX].
+ * @remark @p pfx_len must be within the range of [1, HSE_KVS_PFX_LEN_MAX].
  * @remark @p found must not be NULL.
  * @remark @p keybuf_sz must be equal to HSE_KVS_KEY_LEN_MAX.
  * @remark @p val_len must not be NULL.

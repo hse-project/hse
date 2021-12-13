@@ -1958,10 +1958,6 @@ ikvdb_kvs_drop(struct ikvdb *handle, const char *kvs_name)
         goto out_immediate;
     }
 
-    err = validate_kvs_name(kvs_name);
-    if (ev(err))
-        goto out_immediate;
-
     mutex_lock(&self->ikdb_lock);
 
     idx = get_kvs_index(self->ikdb_kvs_vec, kvs_name, NULL);
@@ -2008,6 +2004,8 @@ ikvdb_param_get(
     struct ikvdb_impl *self = ikvdb_h2r(handle);
 
     INVARIANT(handle);
+    INVARIANT(param);
+    INVARIANT(!(buf_sz > 0 && !buf));
 
     err = kvdb_rparams_get(&self->ikdb_rp, param, buf, buf_sz, needed_sz);
     if (!err)
@@ -2053,6 +2051,8 @@ ikvdb_kvs_param_get(
     struct kvdb_kvs *kk = (struct kvdb_kvs *)handle;
 
     INVARIANT(handle);
+    INVARIANT(param);
+    INVARIANT(!(buf_sz > 0 && !buf));
 
     err = kvs_cparams_get(kk->kk_cparams, param, buf, buf_sz, needed_sz);
     if (!err)
@@ -2069,16 +2069,26 @@ ikvdb_kvs_names_get(struct ikvdb *handle, size_t *namec, char ***namev)
     char **            kvsv;
     char *             name;
 
+    INVARIANT(handle);
+    INVARIANT(namev);
+
     if (namec)
         *namec = 0;
 
     *namev = NULL;
 
     kvsv = calloc(HSE_KVS_COUNT_MAX, sizeof(*kvsv) + HSE_KVS_NAME_LEN_MAX);
-    if (!namev)
+    if (!kvsv)
         return merr(ev(ENOMEM));
 
     mutex_lock(&self->ikdb_lock);
+
+    /* If no KVSs, short-circuit. */
+    if (!self->ikdb_kvs_cnt) {
+        free(kvsv);
+        kvsv = NULL;
+        goto out;
+    }
 
     /* seek to start of the section holding the strings */
     name = (char *)&kvsv[self->ikdb_kvs_cnt];
@@ -2095,12 +2105,14 @@ ikvdb_kvs_names_get(struct ikvdb *handle, size_t *namec, char ***namev)
         name += HSE_KVS_NAME_LEN_MAX;
     }
 
+out:
     *namev = kvsv;
 
     if (namec)
         *namec = self->ikdb_kvs_cnt;
 
     mutex_unlock(&self->ikdb_lock);
+
     return 0;
 }
 
@@ -2627,11 +2639,11 @@ ikvdb_kvs_prefix_delete(
 {
     struct kvdb_kvs *  kk = (struct kvdb_kvs *)handle;
     struct ikvdb_impl *parent;
-    u32                ct_pfx_len;
     u64                seqnoref;
 
-    if (ev(!handle))
-        return merr(EINVAL);
+    INVARIANT(handle);
+    INVARIANT(kt->kt_data);
+    INVARIANT(kt->kt_len > 0 && kt->kt_len <= HSE_KVS_PFX_LEN_MAX);
 
     if (ev(!is_write_allowed(kk->kk_ikvs, txn)))
         return merr(EINVAL);
@@ -2640,12 +2652,9 @@ ikvdb_kvs_prefix_delete(
     if (ev(parent->ikdb_read_only))
         return merr(EROFS);
 
-    ct_pfx_len = kk->kk_cparams->pfx_len;
-
-    if (ev(!kt->kt_data || kt->kt_len != ct_pfx_len))
+    /* [HSE_REVISIT]: Should this be an invariant? */
+    if (kt->kt_len != kk->kk_cparams->pfx_len)
         return merr(EINVAL);
-    if (ev(kt->kt_len == 0))
-        return merr(ENOENT);
 
     seqnoref = txn ? 0 : HSE_SQNREF_SINGLE;
 
@@ -3286,7 +3295,7 @@ ikvdb_wal_replay_open(struct ikvdb *ikvdb, struct ikvdb_kvs_hdl **ikvsh_out)
     merr_t  err;
     int     i;
     size_t  sz;
-    size_t  kvshc;
+    size_t  kvshc = 0;
     char  **knamev = NULL;
 
     err = ikvdb_kvs_names_get(ikvdb, &kvshc, &knamev);
