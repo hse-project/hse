@@ -296,7 +296,7 @@ ikvdb_pmem_only_from_cparams(
 
     err = kvdb_home_is_fsdax(kvdb_home, &daxhome);
     if (err) {
-         log_err("Cannot determinte if %s is on a DAX filesystem", kvdb_home);
+         log_err("Cannot determine if %s is on a DAX filesystem", kvdb_home);
          return err;
     }
     *pmem_only = daxhome;

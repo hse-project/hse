@@ -5,7 +5,7 @@
 
 #tdoc: mdc data integrity and perf tests
 
-. "$(dirname "${BASH_SOURCE[0]}")/smoke.subr"
+. common.subr
 
 storage="$home/capacity/smoke-mdc-test"
 

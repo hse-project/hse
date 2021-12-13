@@ -6,8 +6,9 @@
 
 set -u
 set -o pipefail
+set -e
 
-err () {
+err() {
     # reset OPTIND
     OPTIND=0
     local status=1
@@ -68,8 +69,10 @@ cmd () {
     done
     shift $((OPTIND-1))
 
+    set +e
     "$@"
     status=$?
+    set -e
 
     case $check_status in
         0) ;;

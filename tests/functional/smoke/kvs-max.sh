@@ -4,9 +4,9 @@
 #
 # Copyright (C) 2021 Micron Technology, Inc. All rights reserved.
 
-#doc: ensure we can create 256 kvs'
+#doc: ensure we can create 256 KVSs
 
-. "$(dirname "${BASH_SOURCE[0]}")/smoke.subr"
+. common.subr
 
 trap kvdb_drop EXIT
 kvdb_create

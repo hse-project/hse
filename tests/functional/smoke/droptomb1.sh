@@ -6,7 +6,7 @@
 
 #doc: verify tombstones in root node hide keys in level 1 (see SBUSWNF-1265/PR-672)
 
-. "$(dirname "${BASH_SOURCE[0]}")/smoke.subr"
+. common.subr
 
 trap kvdb_drop EXIT
 kvdb_create

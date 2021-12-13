@@ -6,7 +6,7 @@
 
 #doc: test to verify absolute and relative path handling in kvdb create, storage add and kvdb meta.
 
-. "$(dirname "${BASH_SOURCE[0]}")/smoke.subr"
+. common.subr
 
 pdir="$home"/paths
 cmd mkdir -p "$pdir"

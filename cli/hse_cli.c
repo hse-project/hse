@@ -1285,7 +1285,7 @@ cli_hse_storage_profile(struct cli_cmd *self, struct cli *cli)
         cmd_print_help(self, help ? stdout : stderr);
 
         if (!verbose) {
-            printf("\nUse -hv for more detail\n\n");
+            printf("\nUse -hv for more detail\n");
             return rc;
         }
 
@@ -1477,7 +1477,7 @@ cli_hse_utils_strerror(struct cli_cmd *self, struct cli *cli)
         cmd_print_help(self, help ? stdout : stderr);
 
         if (!verbose) {
-            printf("\nUse -hv for more detail\n\n");
+            printf("\nUse -hv for more detail\n");
             return rc;
         }
 

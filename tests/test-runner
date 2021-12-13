@@ -33,8 +33,8 @@ class Test(abc.ABC):
 
         if runner is None:
             return PlainTest(program, *args)
-        elif runner == "bash":
-            return BashTest(program, *args)
+        elif runner == "shell":
+            return ShellTest(program, *args)
         elif runner == "python":
             return PythonTest(program, *args)
         elif runner == "pytest":
@@ -69,7 +69,7 @@ class PythonTest(Test):
         return [str(self._program), self._args[0], "-C", str(home), *self._args[1:]]
 
 
-class BashTest(Test):
+class ShellTest(Test):
     def __init__(self, program: pathlib.Path, *args: str) -> None:
         super().__init__(program, *args)
 

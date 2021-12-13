@@ -9,7 +9,7 @@
 # way putbin creates its keys. Any change to that will affect the results of
 # this test.
 
-. "$(dirname "${BASH_SOURCE[0]}")/smoke.subr"
+. common.subr
 
 trap kvdb_drop EXIT
 kvdb_create

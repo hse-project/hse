@@ -2,4 +2,5 @@ disable=SC2001
 disable=SC2119
 disable=SC2250
 disable=SC2292
+disable=SC2311
 disable=SC2312

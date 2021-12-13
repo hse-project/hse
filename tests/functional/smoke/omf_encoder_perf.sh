@@ -6,6 +6,6 @@
 
 #doc: run omf_encoder_perf
 
-. "$(dirname "${BASH_SOURCE[0]}")/smoke.subr"
+. common.subr
 
 cmd omf_encoder_perf

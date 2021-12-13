@@ -6,7 +6,7 @@
 
 #doc: cn_kbdump test
 
-. "$(dirname "${BASH_SOURCE[0]}")/smoke.subr"
+. common.subr
 
 kbid="doesnotexist"
 

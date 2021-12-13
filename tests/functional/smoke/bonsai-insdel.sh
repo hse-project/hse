@@ -6,7 +6,7 @@
 
 #doc: stress test bonsai tree insert/delete
 
-. "$(dirname "${BASH_SOURCE[0]}")/smoke.subr"
+. common.subr
 
 # simple 30 second, test one bonsai tree, three threads
 cmd bnt -j3 -t30 -okvtreec=1 -i128k -v

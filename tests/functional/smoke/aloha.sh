@@ -6,7 +6,7 @@
 
 #doc: a "hello world" test
 
-. "$(dirname "${BASH_SOURCE[0]}")/smoke.subr"
+. common.subr
 
 cmd echo aloha
 cmd -i echo --not-an-option

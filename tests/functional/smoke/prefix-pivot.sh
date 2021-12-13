@@ -1,6 +1,6 @@
 #!/usr/bin/env bash
 
-. "$(dirname "${BASH_SOURCE[0]}")/smoke.subr"
+. common.subr
 
 # SPDX-License-Identifier: Apache-2.0
 #

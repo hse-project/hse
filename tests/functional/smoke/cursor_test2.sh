@@ -6,7 +6,7 @@
 
 #doc: Query fixed length ranges while updating random records.
 
-. "$(dirname "${BASH_SOURCE[0]}")/smoke.subr"
+. common.subr
 
 trap kvdb_drop EXIT
 kvdb_create
