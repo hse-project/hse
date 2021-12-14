@@ -296,33 +296,6 @@ cn_node_free(struct cn_tree_node *tn)
     }
 }
 
-struct cn_node_destroy_work {
-    struct work_struct   dw_work;
-    struct cn_tree_node *dw_node;
-    atomic_int          *dw_inflight;
-};
-
-static void
-cn_node_destroy_cb(struct work_struct *work)
-{
-    struct cn_node_destroy_work *w;
-    struct kvset_list_entry *    le, *tmp;
-    struct cn_tree_node *        node;
-
-    w = container_of(work, struct cn_node_destroy_work, dw_work);
-    node = w->dw_node;
-
-    list_for_each_entry_safe (le, tmp, &node->tn_kvset_list, le_link)
-        kvset_put_ref(le->le_kvset);
-
-    cn_node_free(node);
-
-    if (w->dw_inflight) {
-        atomic_dec(w->dw_inflight);
-        free(work);
-    }
-}
-
 bool
 cn_node_isleaf(const struct cn_tree_node *tn)
 {
@@ -420,33 +393,28 @@ cn_tree_create(
     return 0;
 }
 
+static void
+cn_node_destroy_cb(struct cn_work *work)
+{
+    struct kvset_list_entry *le, *tmp;
+    struct cn_tree_node *node;
+
+    node = container_of(work, struct cn_tree_node, tn_destroy_work);
+
+    list_for_each_entry_safe(le, tmp, &node->tn_kvset_list, le_link)
+        kvset_put_ref(le->le_kvset);
+
+    cn_node_free(node);
+}
+
 void
 cn_tree_destroy(struct cn_tree *tree)
 {
-    struct workqueue_struct *wq;
-    struct cn_tree_node *    node;
-    struct tree_iter         iter;
-    atomic_int               inflight;
-    ulong                    nodecnt;
-    ulong                    tstart;
+    struct cn_tree_node *node;
+    struct tree_iter iter;
 
     if (!tree)
         return;
-
-    atomic_set(&inflight, 0);
-    tstart = get_time_ns();
-    nodecnt = 0;
-    wq = NULL;
-
-    /* Create a workqueue so that we can destroy the tree nodes
-     * concurrently, as doing so yields a 4x reduction in teardown
-     * time (vs destroying them one-by-one).
-     */
-    if (tree->ct_l_nodec > 1) {
-        int nthreads = min_t(int, tree->ct_l_nodec, 16);
-
-        wq = alloc_workqueue("cn_tree_destroy", 0, nthreads);
-    }
 
     /*
      * Bottom up traversal is safe in the sense that nodes can be
@@ -454,41 +422,12 @@ cn_tree_destroy(struct cn_tree *tree)
      */
     tree_iter_init(tree, &iter, TRAVERSE_BOTTOMUP);
 
-    while (NULL != (node = tree_iter_next(tree, &iter))) {
-        struct cn_node_destroy_work *w, dw;
+    while (NULL != (node = tree_iter_next(tree, &iter)))
+        cn_work_submit(tree->cn, cn_node_destroy_cb, &node->tn_destroy_work);
 
-        w = malloc(sizeof(*w));
-        if (w) {
-            atomic_inc(&inflight);
-            w->dw_inflight = &inflight;
-        } else {
-            w = &dw;
-            w->dw_inflight = NULL;
-        }
-
-        INIT_WORK(&w->dw_work, cn_node_destroy_cb);
-        w->dw_node = node;
-
-        if (wq)
-            queue_work(wq, &w->dw_work);
-        else
-            cn_node_destroy_cb(&w->dw_work);
-
-        ++nodecnt;
-    }
-
-    /* Wait here for all inflight work to complete...
+    /* Wait for async work to complete...
      */
-    destroy_workqueue(wq);
-
-    log_debug("destroyed %lu nodes on wq %p in %lu ms (inflight %d, nodec %u)",
-              nodecnt,
-              wq,
-              (ulong)(get_time_ns() - tstart) / 1000000,
-              atomic_read(&inflight),
-              tree->ct_l_nodec);
-
-    assert(atomic_dec_return(&inflight) == -1);
+    cn_ref_wait(tree->cn);
 
     rmlock_destroy(&tree->ct_lock);
     free_aligned(tree);

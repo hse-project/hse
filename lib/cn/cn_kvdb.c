@@ -28,13 +28,13 @@ cn_kvdb_create(uint cn_maint_threads, uint cn_io_threads, struct cn_kvdb **out)
     atomic_set(&self->cnd_kblk_size, 0);
     atomic_set(&self->cnd_vblk_size, 0);
 
-    self->cn_maint_wq = alloc_workqueue("cn_maint", 0, cn_maint_threads);
+    self->cn_maint_wq = alloc_workqueue("hse_cn_maint", 0, 3, cn_maint_threads);
     if (ev(!self->cn_maint_wq)) {
         free(self);
         return merr(ENOMEM);
     }
 
-    self->cn_io_wq = alloc_workqueue("cn_io", 0, cn_io_threads);
+    self->cn_io_wq = alloc_workqueue("hse_cn_io", 0, 1, cn_io_threads);
     if (ev(!self->cn_io_wq)) {
         destroy_workqueue(self->cn_maint_wq);
         free(self);

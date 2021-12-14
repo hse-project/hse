@@ -1,6 +1,6 @@
 /* SPDX-License-Identifier: Apache-2.0 */
 /*
- * Copyright (C) 2015-2020 Micron Technology, Inc.  All rights reserved.
+ * Copyright (C) 2015-2021 Micron Technology, Inc.  All rights reserved.
  */
 
 #ifndef HSE_PLATFORM_WORKQUEUE_H
@@ -38,19 +38,10 @@ struct delayed_work {
     struct workqueue_struct *wq;
 };
 
-/*
- * Barrier work item for flush workqueue
- */
-struct wq_barrier {
-    struct work_struct wqb_work;
-    uint               wqb_visitors;
-    uint               wqb_barid;
-};
-
-#define INIT_WORK(_WORK, _FUNC)          \
-    do {                                 \
-        (_WORK)->func = (_FUNC);         \
-        INIT_LIST_HEAD(&(_WORK)->entry); \
+#define INIT_WORK(_work, _func)                 \
+    do {                                        \
+        (_work)->func = (_func);                \
+        INIT_LIST_HEAD(&(_work)->entry);        \
     } while (0)
 
 #define INIT_DELAYED_WORK(_dwork, _func)                                \
@@ -66,9 +57,10 @@ struct workqueue_struct *
 alloc_workqueue(
     const char * fmt,        /* fmt string for name workqueue */
     unsigned int flags,      /* ignored */
-    int          max_active, /* number of threads servicing queue */
+    int          min_active, /* min number of threads servicing queue */
+    int          max_active, /* max number of threads servicing queue */
     ...                      /* fmt string arguments */
-    ) HSE_PRINTF(1, 4);
+    ) HSE_PRINTF(1, 5);
 
 /*
  * Destroy a workqueue.  Waits until all running work has finished and
@@ -86,6 +78,9 @@ destroy_workqueue(struct workqueue_struct *wq);
  */
 void
 flush_workqueue(struct workqueue_struct *wq);
+
+void
+dump_workqueue(struct workqueue_struct *wq);
 
 /*
  * Add work to a workqueue.  Return false if work was already on a
@@ -108,15 +103,5 @@ cancel_delayed_work(struct delayed_work *work);
 
 void
 delayed_work_timer_fn(unsigned long data);
-
-#if HSE_MOCKING
-
-/* MTF_MOCK */
-bool
-queue_work_locked(struct workqueue_struct *wq, struct work_struct *work);
-
-#include "workqueue_ut.h"
-
-#endif /* HSE_MOCKING */
 
 #endif /* HSE_PLATFORM_WORKQUEUE_H */

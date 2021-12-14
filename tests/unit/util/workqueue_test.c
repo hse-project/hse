@@ -17,35 +17,35 @@ MTF_DEFINE_UTEST(workqueue_test, create)
 {
     struct workqueue_struct *q;
 
-    q = alloc_workqueue(NULL, 0, 0);
+    q = alloc_workqueue(NULL, 0, 0, 0);
     ASSERT_TRUE(q);
     destroy_workqueue(q);
 
-    q = alloc_workqueue("test", 0, 0);
+    q = alloc_workqueue("test", 0, 0, 0);
     ASSERT_TRUE(q);
     destroy_workqueue(q);
 
-    q = alloc_workqueue("test", 0, 1);
+    q = alloc_workqueue("test", 0, 1, 1);
     ASSERT_TRUE(q);
     destroy_workqueue(q);
 
-    q = alloc_workqueue("test%d", 0, 1, 19);
+    q = alloc_workqueue("test%d", 0, 1, 1, 19);
     ASSERT_TRUE(q);
     destroy_workqueue(q);
 
-    q = alloc_workqueue("test", 0, WQ_DFL_ACTIVE);
+    q = alloc_workqueue("test", 0, 1, WQ_DFL_ACTIVE);
     ASSERT_TRUE(q);
     destroy_workqueue(q);
 
-    q = alloc_workqueue("test", 0, WQ_MAX_ACTIVE);
+    q = alloc_workqueue("test", 0, 1, WQ_MAX_ACTIVE);
     ASSERT_TRUE(q);
     destroy_workqueue(q);
 
-    q = alloc_workqueue("test", 0, -1);
+    q = alloc_workqueue("test", 0, -1, -1);
     ASSERT_TRUE(q);
     destroy_workqueue(q);
 
-    q = alloc_workqueue("test", 0, WQ_MAX_ACTIVE + 1);
+    q = alloc_workqueue("test", 0, 1, WQ_MAX_ACTIVE + 1);
     ASSERT_TRUE(q);
     destroy_workqueue(q);
 }
@@ -133,7 +133,7 @@ MTF_DEFINE_UTEST(workqueue_test, run)
     expected = 0;
     atomic_set(&counter, 0);
 
-    q = alloc_workqueue("test", 0, max_active);
+    q = alloc_workqueue("test", 0, max_active, max_active);
     ASSERT_TRUE(q);
 
     myworks = calloc(num_works, sizeof(void *));
@@ -183,7 +183,7 @@ MTF_DEFINE_UTEST(workqueue_test, run_delay)
     expected = 0;
     atomic_set(&counter, 0);
 
-    q = alloc_workqueue("test", 0, max_active);
+    q = alloc_workqueue("test", 0, max_active, max_active);
     ASSERT_TRUE(q);
 
     myworks = calloc(num_works, sizeof(void *));
@@ -239,7 +239,7 @@ MTF_DEFINE_UTEST(workqueue_test, t_delayed_work)
     int   i;
     bool  b;
 
-    q = alloc_workqueue("test", 0, 5);
+    q = alloc_workqueue("test", 0, 5, 5);
     ASSERT_TRUE(q);
 
     atomic_set(&counter, 0);
@@ -282,7 +282,7 @@ MTF_DEFINE_UTEST(workqueue_test, t_cancel_delayed_work)
     workv = calloc(workc, sizeof(*workv));
     ASSERT_TRUE(workv != NULL);
 
-    q = alloc_workqueue("test", 0, max_active);
+    q = alloc_workqueue("test", 0, max_active, max_active);
     ASSERT_TRUE(q);
 
     atomic_set(&counter, 0);
@@ -336,7 +336,7 @@ MTF_DEFINE_UTEST(workqueue_test, t_queue_work_twice)
     ASSERT_TRUE(workv != NULL);
 
     /* Create alloc_workqueue w/ one thread. */
-    q = alloc_workqueue("test", 0, max_active);
+    q = alloc_workqueue("test", 0, max_active, max_active);
     ASSERT_TRUE(q);
 
     /* Queue up several jobs that wait for counter to go non-zero. */
@@ -369,27 +369,27 @@ MTF_DEFINE_UTEST(workqueue_test, t_queue_work_twice)
 }
 
 /* simple destroy workqueue tests */
-MTF_DEFINE_UTEST(workqueue_test, t_destroy_workqueue1)
+MTF_DEFINE_UTEST(workqueue_test, destroy_simple)
 {
     struct workqueue_struct *q;
 
     destroy_workqueue(NULL);
 
-    q = alloc_workqueue("test", 0, 0);
+    q = alloc_workqueue(__func__, 0, 0, 0);
     ASSERT_TRUE(q);
     destroy_workqueue(q);
 
-    q = alloc_workqueue("test", 0, 1);
+    q = alloc_workqueue(__func__, 0, 1, 1);
     ASSERT_TRUE(q);
     destroy_workqueue(q);
 
-    q = alloc_workqueue("test", 0, 10);
+    q = alloc_workqueue(__func__, 0, 10, 10);
     ASSERT_TRUE(q);
     destroy_workqueue(q);
 }
 
 /* destroy workqueue with work in the queue */
-MTF_DEFINE_UTEST(workqueue_test, t_destroy_workqueue2)
+MTF_DEFINE_UTEST(workqueue_test, destroy_pending)
 {
     struct workqueue_struct *q = NULL;
     struct wait_work *       workv;
@@ -402,7 +402,7 @@ MTF_DEFINE_UTEST(workqueue_test, t_destroy_workqueue2)
     ASSERT_TRUE(workv != NULL);
 
     /* Create alloc_workqueue w/ one thread. */
-    q = alloc_workqueue("test", 0, max_active);
+    q = alloc_workqueue(__func__, 0, max_active, max_active);
     ASSERT_TRUE(q);
 
     atomic_set(&counter, 0);
@@ -428,46 +428,55 @@ MTF_DEFINE_UTEST(workqueue_test, t_destroy_workqueue2)
 
 /* Try to destroy a workqueue with delayed work that hasn't yet expired.
  */
-MTF_DEFINE_UTEST(workqueue_test, t_destroy_workqueue3)
+MTF_DEFINE_UTEST(workqueue_test, destroy_delayed)
 {
     struct workqueue_struct *q = NULL;
 
     struct delayed_work *workv;
-    int                  workc = 1;
-    int                  max_active = 1;
+    int                  workc = 1000;
     ulong                worker_delay_ms;
     ulong                my_delay_ms;
-    int                  cnt;
+    int                  cnt, i;
+    uint                 idle_ttl;
+    uint                 tcdelay;
     bool                 b;
+
+    idle_ttl = hse_gparams.gp_workqueue_idle_ttl;
+    tcdelay = hse_gparams.gp_workqueue_tcdelay;
+    hse_gparams.gp_workqueue_idle_ttl = 0;
+    hse_gparams.gp_workqueue_tcdelay = 0;
 
     workv = calloc(workc, sizeof(*workv));
     ASSERT_TRUE(workv != NULL);
 
-    q = alloc_workqueue("test", 0, max_active);
+    q = alloc_workqueue(__func__, 0, 0, 17);
     ASSERT_TRUE(q);
 
     atomic_set(&counter, 0);
+    my_delay_ms = 333;
 
-    worker_delay_ms = 2000;
-    my_delay_ms = 100;
+    for (i = 0; i < workc; ++i) {
+        worker_delay_ms = (my_delay_ms * 3) + (i * 3);
 
-    INIT_DELAYED_WORK(&workv[0], simple_worker);
-    b = queue_delayed_work(q, &workv[0], msecs_to_jiffies(worker_delay_ms));
-    ASSERT_TRUE(b);
+        INIT_DELAYED_WORK(&workv[i], simple_worker);
+        b = queue_delayed_work(q, &workv[i], msecs_to_jiffies(worker_delay_ms));
+        ASSERT_TRUE(b);
+    }
 
+    /* This non-deterministic assert could fail if any dwork runs
+     * before the assert, which could happen on a very busy machine...
+     */
     usleep(my_delay_ms * 1000);
     cnt = atomic_read(&counter);
     ASSERT_EQ(cnt, 0);
 
     destroy_workqueue(q);
 
-    b = cancel_delayed_work(&workv[0]);
-    ASSERT_TRUE(b);
-
     cnt = atomic_read(&counter);
-    ASSERT_EQ(cnt, 0);
+    ASSERT_EQ(cnt, workc);
 
-    destroy_workqueue(q);
+    hse_gparams.gp_workqueue_idle_ttl = idle_ttl;
+    hse_gparams.gp_workqueue_tcdelay = tcdelay;
     free(workv);
 }
 
@@ -494,7 +503,7 @@ MTF_DEFINE_UTEST(workqueue_test, flush_test)
     int                      i, actual;
     bool                     b;
 
-    q = alloc_workqueue("test_flush", 0, num_works);
+    q = alloc_workqueue("test_flush", 0, num_works, num_works);
     ASSERT_TRUE(q);
 
     /* Test that a nil workqueue doesn't crash us...
@@ -554,7 +563,7 @@ MTF_DEFINE_UTEST(workqueue_test, destroy_test)
 
         atomic_set(&counter, 0);
 
-        wq = alloc_workqueue("test_destroy", 0, n + 1);
+        wq = alloc_workqueue("test_destroy", 0, n + 1, n + 1);
         ASSERT_TRUE(wq);
 
         for (i = 0; i < workc; i++) {
@@ -602,7 +611,7 @@ MTF_DEFINE_UTEST(workqueue_test, destroy_test)
 
         atomic_set(&counter, 0);
 
-        wq = alloc_workqueue("test_destroy", 0, n + 1);
+        wq = alloc_workqueue("test_destroy", 0, n + 1, n + 1);
         ASSERT_TRUE(wq);
 
         for (i = 0; i < workc; i++) {
@@ -706,11 +715,10 @@ MTF_DEFINE_UTEST(workqueue_test, flush_destroy)
 
         atomic_set(&counter, 0);
         atomic_set(&counter2, 0);
-        mapi_calls_clear(mapi_idx_queue_work_locked);
 
         wqtdmax = (tdmax / 2) * i + 1;
 
-        wq = alloc_workqueue(__func__, 0, wqtdmax);
+        wq = alloc_workqueue(__func__, 0, wqtdmax, wqtdmax);
         ASSERT_TRUE(wq);
 
         for (j = 0; j < tdmax; ++j) {
@@ -792,7 +800,7 @@ MTF_DEFINE_UTEST(workqueue_test, flush_party)
 
         wqtdmax = (itermax / 3) * i + 1;
 
-        wq = alloc_workqueue(__func__, 0, wqtdmax);
+        wq = alloc_workqueue(__func__, 0, wqtdmax, wqtdmax);
         ASSERT_TRUE(wq);
 
         for (j = 0; j < tdmax; ++j) {
@@ -856,7 +864,7 @@ MTF_DEFINE_UTEST(workqueue_test, requeue)
 
     atomic_set(&counter, 0);
 
-    wq = alloc_workqueue(__func__, 0, 1);
+    wq = alloc_workqueue(__func__, 0, 1, 1);
     ASSERT_TRUE(wq);
 
     /* Enqueue workv[0] to tie up our one worker thread.

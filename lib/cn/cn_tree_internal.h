@@ -21,6 +21,7 @@
 #include "cn_tree.h"
 #include "cn_tree_iter.h"
 #include "cn_metrics.h"
+#include "cn_work.h"
 #include "omf.h"
 
 #include "csched_sp3.h"
@@ -158,6 +159,7 @@ struct cn_tree {
  * @tn_rspills_lock:  lock to protect @tn_rspills
  * @tn_rspills:       list of active spills from this node to its children
  * @tn_compacting:   true if node is being compacted
+ * @tn_destroy_work: used for async destroy
  * @tn_hlog:         hyperloglog structure
  * @tn_add_cntr:
  * @tn_rem_cntr:
@@ -180,8 +182,9 @@ struct cn_tree_node {
     atomic_int       tn_compacting;
 
     union {
-        struct sp3_node sp3n;
-    } tn_sched;
+        struct sp3_node tn_sp3n;
+        struct cn_work  tn_destroy_work;
+    };
 
     struct hlog         *tn_hlog HSE_L1D_ALIGNED;
     struct cn_node_stats tn_ns;
@@ -199,8 +202,8 @@ struct cn_tree_node {
 };
 
 /* cn_tree_node to sp3_node */
-#define tn2spn(_tn) (&(_tn)->tn_sched.sp3n)
-#define spn2tn(_spn) container_of(_spn, struct cn_tree_node, tn_sched.sp3n)
+#define tn2spn(_tn) (&(_tn)->tn_sp3n)
+#define spn2tn(_spn) container_of(_spn, struct cn_tree_node, tn_sp3n)
 
 /**
  * cn_tree_find_node - map a node location to a node pointer

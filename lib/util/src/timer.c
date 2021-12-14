@@ -12,13 +12,14 @@
 #include <sys/prctl.h>
 #include <sys/resource.h>
 
-static volatile bool timer_running;
+static volatile bool timer_running HSE_READ_MOSTLY;
+static struct workqueue_struct *timer_wq HSE_READ_MOSTLY;
+
+static spinlock_t timer_xlock;
 static struct list_head timer_list;
-static spinlock_t timer_xlock HSE_ALIGNED(64);
 
 static struct work_struct timer_jclock_work;
 static struct work_struct timer_dispatch_work;
-static struct workqueue_struct *timer_wq HSE_ALIGNED(64);
 
 unsigned long timer_slack HSE_READ_MOSTLY;
 
@@ -59,6 +60,7 @@ timer_jclock_cb(struct work_struct *work)
 
     sigfillset(&set);
     pthread_sigmask(SIG_BLOCK, &set, 0);
+    pthread_setname_np(pthread_self(), "hse_jclock");
 
     while (timer_running) {
         struct timer_list *first;
@@ -134,7 +136,7 @@ add_timer(struct timer_list *timer)
         list_del_init(&timer->entry);
     }
 
-    list_for_each_entry (t, &timer_list, entry) {
+    list_for_each_entry(t, &timer_list, entry) {
         if (t->expires > timer->expires)
             break;
         prev = &t->entry;
@@ -174,17 +176,19 @@ hse_timer_init(void)
     rc = prctl(PR_GET_TIMERSLACK, 0, 0, 0, 0);
     timer_slack = (rc == -1) ? 50000 : rc;
 
-    /* We need three threads:
-     *   1) one for the jclock
-     *   2) one to dispatch expired timers
+    /* We need at least three threads:
+     *   1) one to run the jiffy clock
+     *   2) one to dispatch expired dwork
      *   3) one to prune the cursor cache
      */
-    timer_wq = alloc_workqueue("timer_wq", 0, 3);
+    timer_wq = alloc_workqueue("hse_timer", 0, 3, 3);
     if (!timer_wq) {
-        log_err("unable to alloc timer_wq");
+        log_err("unable to alloc timer workqueue");
         return merr(ENOMEM);
     }
 
+    /* Start the jiffy clock and wait for it initialize jiffies.
+     */
     timer_running = true;
     queue_work(timer_wq, &timer_jclock_work);
 
@@ -197,21 +201,32 @@ hse_timer_init(void)
 void
 hse_timer_fini(void)
 {
-    struct timer_list *t, *next;
-
     if (!timer_wq)
         return;
+
+    /* There shouldn't be any pending timers, but if there
+     * are we'll log a message and force them to expire.
+     */
+    while (1) {
+        struct timer_list *first;
+
+        timer_lock();
+        first = timer_first();
+        if (first) {
+            log_err("timer %p abandoned, func %p, data %lu, expires in %lu jiffies\n",
+                    first, first->function, first->data, first->expires - jiffies);
+            first->expires = jiffies;
+            assert(0);
+        }
+        timer_unlock();
+
+        if (!first)
+            break;
+
+        usleep(USEC_PER_SEC);
+    }
 
     timer_running = false;
     destroy_workqueue(timer_wq);
     timer_wq = NULL;
-
-    /* It's an iffy proposition touching the entries on the timer
-     * list as their memory may have been freed and reused.
-     */
-    timer_lock();
-    list_for_each_entry_safe (t, next, &timer_list, entry) {
-        log_err("timer %p abandoned, expires %lu\n", t, t->expires);
-    }
-    timer_unlock();
 }

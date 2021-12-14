@@ -970,7 +970,7 @@ wal_replay_prepare(struct wal_replay *rep)
     /* The no. of worker threads must not be lower than rep->r_cnt.
      * More details in the replay worker code
      */
-    rep->r_wq = alloc_workqueue("wal_replay_wq", 0, rep->r_cnt);
+    rep->r_wq = alloc_workqueue("hse_wal_replay", 0, rep->r_cnt, rep->r_cnt);
     if (!rep->r_wq)
         return merr(ENOMEM);
 

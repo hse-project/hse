@@ -1077,7 +1077,7 @@ rest_server_start(const char *sock_path)
 
     spin_lock_init(&rest.sessions_lock);
 
-    rest.url_hdlr_wq = alloc_workqueue("url_handler_wq", 0, WQ_THREADS);
+    rest.url_hdlr_wq = alloc_workqueue("hse_url_handler", 0, 1, WQ_THREADS);
     if (!rest.url_hdlr_wq) {
         unlink(rest.sock_name);
         return merr(ev(ENOMEM));

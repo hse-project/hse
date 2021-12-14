@@ -16,8 +16,8 @@
 #include "wal.h"
 #include "wal_file.h"
 
-static struct kmem_cache       *iowcache;
-static struct workqueue_struct *iowq;
+static struct kmem_cache       *iowcache HSE_READ_MOSTLY;
+static struct workqueue_struct *iowq HSE_READ_MOSTLY;
 
 struct wal_io_work {
     struct list_head  iow_list;
@@ -215,8 +215,8 @@ wal_io_create(
     io = aligned_alloc(alignof(*io), sz);
     if (!io)
         return NULL;
-    memset(io, 0, sz);
 
+    memset(io, 0, sz);
     INIT_LIST_HEAD(&io->io_active);
     mutex_init(&io->io_lock);
     cv_init(&io->io_cv, "wal_wcv");
@@ -240,6 +240,9 @@ wal_io_create(
 void
 wal_io_destroy(struct wal_io *io)
 {
+    if (!io)
+        return;
+
     mutex_lock(&io->io_lock);
     io->io_stop = true;
     cv_signal(&io->io_cv);
@@ -262,7 +265,7 @@ wal_io_init(uint32_t threads)
     if (!iowcache)
         return merr(ENOMEM);
 
-    iowq = alloc_workqueue("wal_io_wq", 0, threads);
+    iowq = alloc_workqueue("hse_wal_io", 0, threads, threads);
     if (!iowq)
         return merr(ENOMEM);
 

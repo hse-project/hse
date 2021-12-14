@@ -94,11 +94,14 @@ wal_timer(void *rock)
 {
     struct wal *wal = rock;
     uint64_t rid_last = 0;
+    sigset_t sigset;
     long dur_ns;
     bool closing = false;
     merr_t err;
 
-    pthread_setname_np(pthread_self(), "wal_timer");
+    sigfillset(&sigset);
+    pthread_sigmask(SIG_BLOCK, &sigset, NULL);
+    pthread_setname_np(pthread_self(), "hse_wal_timer");
 
     dur_ns = MSEC_TO_NSEC(wal->dur_ms) - (long)timer_slack;
 
@@ -165,9 +168,12 @@ wal_sync_notifier(void *rock)
 {
     struct wal *wal = rock;
     bool closing = false;
+    sigset_t sigset;
     merr_t err;
 
-    pthread_setname_np(pthread_self(), "wal_sync_notifier");
+    sigfillset(&sigset);
+    pthread_sigmask(SIG_BLOCK, &sigset, NULL);
+    pthread_setname_np(pthread_self(), "hse_wal_sync");
 
     while (!closing) {
         struct wal_sync_waiter *swait;
@@ -573,6 +579,14 @@ wal_open(
     wal->dur_ms = HSE_WAL_DUR_MS_DFLT;
     wal->dur_bufsz = HSE_WAL_DUR_BUFSZ_MB_DFLT << MB_SHIFT;
 
+    mutex_init(&wal->timer_mutex);
+    cv_init(&wal->timer_cv, "wal_timer_cv");
+
+    mutex_init(&wal->sync_mutex);
+    cv_init(&wal->sync_cv, "wal_sync_cv");
+    INIT_LIST_HEAD(&wal->sync_waiters);
+    wal->sync_pending = false;
+
     err = wal_mdc_open(mp, rinfo->mdcid1, rinfo->mdcid2, wal->read_only, &wal->mdc);
     if (err)
         goto errout;
@@ -660,8 +674,6 @@ wal_open(
         goto errout;
     }
 
-    cv_init(&wal->timer_cv, "wal_timer_cv");
-    mutex_init(&wal->timer_mutex);
     rc = pthread_create(&wal->timer_tid, NULL, wal_timer, wal);
     if (rc) {
         err = merr(rc);
@@ -669,10 +681,6 @@ wal_open(
     }
     wal->timer_tid_valid = true;
 
-    INIT_LIST_HEAD(&wal->sync_waiters);
-    cv_init(&wal->sync_cv, "wal_sync_cv");
-    mutex_init(&wal->sync_mutex);
-    wal->sync_pending = false;
     rc = pthread_create(&wal->sync_notify_tid, NULL, wal_sync_notifier, wal);
     if (rc) {
         err = merr(rc);
@@ -704,8 +712,6 @@ wal_close(struct wal *wal)
         mutex_unlock(&wal->timer_mutex);
 
         pthread_join(wal->timer_tid, 0);
-        cv_destroy(&wal->timer_cv);
-        mutex_destroy(&wal->timer_mutex);
     }
 
     wal_bufset_close(wal->wbs);
@@ -719,14 +725,18 @@ wal_close(struct wal *wal)
         mutex_unlock(&wal->sync_mutex);
 
         pthread_join(wal->sync_notify_tid, 0);
-        cv_destroy(&wal->sync_cv);
-        mutex_destroy(&wal->sync_mutex);
     }
 
     /* Write a close record to indicate graceful shutdown */
     if (!wal->read_only)
         wal_mdc_close_write(wal->mdc);
     wal_mdc_close(wal->mdc);
+
+    mutex_destroy(&wal->sync_mutex);
+    cv_destroy(&wal->sync_cv);
+
+    mutex_destroy(&wal->timer_mutex);
+    cv_destroy(&wal->timer_cv);
 
     free(wal);
 }
