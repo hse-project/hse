@@ -32,16 +32,16 @@
 /*
  * A single log instance can have no more than MAX_HSE_SPECS hse-specific
  * conversion specifiers. For that instance there can be no more than
- * MAX_HSE_NV_PAIRS of structured log data entries created.
+ * HSE_LOG_NV_PAIRS_MAX of structured log data entries created.
  *
  * As structured name value data is accumulated it must be retained
  * until right before the dynamic call to json payload formatter so that
  * those values can be tacked onto its argument list.
  */
-#define MAX_HSE_SPECS       (10)
+#define HSE_LOG_SPECS_MAX   (10)
 
 /*
- * A single log instance can have no more than MAX_HSE_NV_PAIRS of structured
+ * A single log instance can have no more than HSE_LOG_NV_PAIRS_MAX of structured
  * log data entries created.
  *
  * The need for the space is due to current logging logic that requies the
@@ -51,7 +51,7 @@
  * As structured name value data is accumulated it must be retained until
  * those values can be tacked onto its argument list.
  */
-#define MAX_HSE_NV_PAIRS    (40 * MAX_HSE_SPECS)
+#define HSE_LOG_NV_PAIRS_MAX  (40 * HSE_LOG_SPECS_MAX)
 
 /*
  * The HSE platform logging subsystem needs to accept client-registered
@@ -198,7 +198,7 @@ static inline HSE_PRINTF(1, 2) int hse_slog_validate_list(char *fmt, ...)
     return _SLOG_LIST_TOKEN;
 }
 
-extern FILE *logging_file;
+extern FILE *hse_log_file;
 
 /* clang-format on */
 

@@ -282,10 +282,10 @@ MTF_DEFINE_UTEST(structured_logging_test, Test_preprocess_fmt_string_hse)
     static const char *const fmt = "There was an error: @@e";
     void *                   av[] = { &err, 0 };
 
-    name_buf = malloc(sizeof(void *) * MAX_HSE_NV_PAIRS);
+    name_buf = malloc(sizeof(void *) * HSE_LOG_NV_PAIRS_MAX);
     ASSERT_EQ(0, !name_buf);
 
-    value_buf = malloc(sizeof(void *) * MAX_HSE_NV_PAIRS);
+    value_buf = malloc(sizeof(void *) * HSE_LOG_NV_PAIRS_MAX);
     ASSERT_EQ(0, !value_buf);
 
     state.dict = dict;

@@ -16,14 +16,14 @@
 #define HSE_LOGGING_VER "1"
 
 /**
- * MAX_LOGGING_ASYNC_ENTRIES - maximum number of asynchronous log messages
+ * HSE_LOG_ASYNC_ENTRIES_MAX - maximum number of asynchronous log messages
  *      in the circular buffer al_entries[].
  *      If the async log messages are posted faster then the consumer thread
  *      hse_log_async_cons_th() can consume them, the max capacity of the
  *      circular buffer is reached (MAX_LOGGING_ASYNC_ENTRIES). Beyond that,
  *      new async log messages are dropped.
  */
-#define MAX_LOGGING_ASYNC_ENTRIES 256
+#define HSE_LOG_ASYNC_ENTRIES_MAX 256
 
 /******************************************************************************
  * Enumeration of values the state machine parsing an HSE log format string
@@ -54,8 +54,8 @@ enum std_length_modifier {
  * release.
  ******************************************************************************/
 
-#define MAX_STRUCTURED_DATA_LENGTH 4000
-#define MAX_STRUCTURED_NAME_LENGTH 100
+#define HSE_LOG_STRUCTURED_DATALEN_MAX (4000 / HSE_ACP_LINESIZE * HSE_ACP_LINESIZE)
+#define HSE_LOG_STRUCTURED_NAMELEN_MAX (100)
 
 /******************************************************************************
  * HSE Conversion Specifiers
@@ -78,72 +78,17 @@ enum std_length_modifier {
  * WARNING: The add and fmt methods are in the performance path!  Use with care!
  ******************************************************************************/
 
-/**
- * struct hse_log_async_entry - an asynchronous log message in the circular
- * buffer.
- * @ae_source_line:
- * @ae_priority:
- * @ae_buf: The format is: <source filename>0<string>
- *      with "string" 0 terminated. While is should not happen, string may be
- *      empty or not be there at all if <source filename> it too big.
- *      "string" is logged by the async log consumer thread with a format %s.
- */
-struct hse_log_async_entry {
-    s32          ae_source_line;
-    hse_logpri_t ae_priority;
-    char         ae_buf[MAX_STRUCTURED_DATA_LENGTH];
-};
-
-/**
- * struct hse_log_async - allow to log from interrupt context.
- *      The log messages are only stored in a circular buffer attached to
- *      structure. The thread _hse_log_async_cons_th() process them later.
- * @al_wstruct:
- * @al_lock: Protect the fields below.
- * @al_th_working: true if the async log consumer thread is working.
- * @al_cons: always increasing and rolling integer.
- *      al_cons%MAX_LOGGING_ASYNC_ENTRIES is the index in al_entries[]
- *      where the next entry to consume is located.
- *      Only changed by the thread _hse_log_async_cons_th().
- * @al_nb: 0 <= al_nb <= MAX_LOGGING_ASYNC_ENTRIES. Number on entries
- *      in al_entries[] ready to be consumed.
- * @al_entries: circular buffer of log messages.
- */
-struct hse_log_async {
-    struct workqueue_struct *   al_wq;
-    struct work_struct          al_wstruct;
-    struct mutex                al_lock;
-    bool                        al_th_working;
-    u32                         al_cons;
-    u32                         al_nb;
-    struct hse_log_async_entry *al_entries;
-};
-
-struct hse_logging_infrastructure {
-    char *               mli_nm_buf;
-    char *               mli_fmt_buf;
-    char *               mli_sd_buf;
-    char *               mli_json_buf;
-    char **              mli_name_buf;
-    char **              mli_value_buf;
-    int                  mli_active;
-    int                  mli_opened;
-    struct hse_log_async mli_async;
-};
-
 struct slog {
     hse_logpri_t        sl_priority;
     int                 sl_entries;
     struct json_context sl_json;
 };
 
-extern struct hse_logging_infrastructure hse_logging_inf;
-
 merr_t
-hse_logging_init(void) HSE_COLD;
+hse_log_init(void) HSE_COLD;
 
 void
-hse_logging_fini(void) HSE_COLD;
+hse_log_fini(void) HSE_COLD;
 
 struct hse_log_fmt_state {
     char * dict;
