@@ -53,13 +53,16 @@ jobs:
 
       - name: Test
         run: |
+          ulimit -c unlimited
           meson test -C builddir --setup=ci --print-errorlogs --no-stdsplit
 
       - uses: actions/upload-artifact@v2
         if: failure()
         with:
-          name: build-artifact-${{ matrix.os }}-${{ matrix.buildtype }}
-          path: builddir/meson-logs/
+          name: build-artifact-${{ matrix.os }}-${{ matrix.build_type }}
+          path: |
+             builddir/meson-logs/
+             /var/log/syslog
 
   fedora:
     runs-on: ubuntu-latest
@@ -104,13 +107,16 @@ jobs:
 
       - name: Test
         run: |
+          ulimit -c unlimited
           meson test -C builddir --setup=ci --print-errorlogs --no-stdsplit
 
       - uses: actions/upload-artifact@v2
         if: failure()
         with:
-          name: build-artifact-fedora-${{ matrix.image-tag }}-${{ matrix.buildtype }}
-          path: builddir/meson-logs/
+          name: build-artifact-fedora-${{ matrix.image-tag }}-${{ matrix.build_type }}
+          path: |
+            builddir/meson-logs/
+            /var/log/messages
 
   almalinux:
     runs-on: ubuntu-latest
@@ -158,13 +164,16 @@ jobs:
 
       - name: Test
         run: |
+          ulimit -c unlimited
           meson test -C builddir --setup=ci --print-errorlogs --no-stdsplit
 
       - uses: actions/upload-artifact@v2
         if: failure()
         with:
-          name: build-artifact-almalinux-${{ matrix.image-tag }}-${{ matrix.buildtype }}
-          path: builddir/meson-logs/
+          name: build-artifact-almalinux-${{ matrix.image-tag }}-${{ matrix.build_type }}
+          path: |
+            builddir/meson-logs/
+            /var/log/messages
 
   asan-ubsan:
     runs-on: ubuntu-latest
@@ -209,13 +218,16 @@ jobs:
 
       - name: Test
         run: |
+          ulimit -c unlimited
           meson test -C builddir --setup=ci --print-errorlogs --no-stdsplit
 
       - uses: actions/upload-artifact@v2
         if: failure()
         with:
-          name: build-artifact-fedora-latest-${{ matrix.buildtype }}
-          path: builddir/meson-logs/
+          name: build-artifact-fedora-latest-${{ matrix.build_type }}
+          path: |
+            builddir/meson-logs/
+            /var/log/messages
 
   checkoss:
     runs-on: ubuntu-latest
