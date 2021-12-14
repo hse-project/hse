@@ -473,7 +473,10 @@ main(int argc, char **argv)
         free(info[c].key);
     free(info);
 
-    hse_fini();
+    /* Call hse_fini only if the kvdb was closed.
+     */
+    if (!opt_sync)
+        hse_fini();
 
     pg_destroy(pg);
     svec_reset(&hse_gparm);
