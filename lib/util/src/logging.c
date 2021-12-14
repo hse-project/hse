@@ -232,7 +232,7 @@ errout:
 
 /* Note that this function only disables async logging and maybe
  * redirects the logging destination.  Calls to hse_log() should
- * work before, during,and after calls to this function.
+ * work before, during, and after calls to this function.
  */
 void
 hse_log_fini(void)

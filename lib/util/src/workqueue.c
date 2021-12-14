@@ -48,6 +48,7 @@ struct wq_barrier {
  * @wq_tdmax:       maximum number of worker threads
  * @wq_tdmin:       minimum number of worker threads
  * @wq_barid:       barrier ID generator
+ * @wq_tcdelay:     delay in milliseconds between thread-create operations
  * @wq_barrier:     condvar where all threads wait for barrier completion
  * @wq_idle:        condvar where idle worker threads wait
  * @wq_delayed:     list of work to be dispatched in the future
@@ -130,6 +131,9 @@ grow_workqueue_cb(ulong arg)
         --wq->wq_tdcnt;
     }
 
+    /* Keep growing if there's pending work and room to grow (might create
+     * more threads than are strictly needed depending upon scheduling).
+     */
     wq->wq_growing = workqueue_first(wq) && (wq->wq_tdcnt < wq->wq_tdmax);
     if (wq->wq_growing) {
         wq->wq_grow.expires = jiffies + wq->wq_tcdelay;
@@ -137,6 +141,8 @@ grow_workqueue_cb(ulong arg)
         ++wq->wq_refcnt;
     }
 
+    /* Release the reference acquired by queue_work().
+     */
     --wq->wq_refcnt;
     mutex_unlock(&wq->wq_lock);
 }
