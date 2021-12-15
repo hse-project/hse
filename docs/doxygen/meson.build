@@ -33,10 +33,15 @@ doxyfile = configure_file(
     configuration: conf_data
 )
 
-doxygen = custom_target('doxygen',
+doxygen = custom_target(
+    'doxygen',
     build_by_default: true,
     input: doxyfile,
-    command: [doxygen, '@INPUT@'],
+    command: [
+        sh,
+        '-c',
+        '@0@ "@INPUT@" > /dev/null'.format(doxygen.full_path()),
+    ],
     depend_files: [
         logo,
         cssfile,
