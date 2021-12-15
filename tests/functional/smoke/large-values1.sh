@@ -44,7 +44,7 @@ cmd kmt "$home" "$kvs" -s1 "$VLEN" -c $kvs_oparams
 cmd putbin "$home" "$kvs" -n 1000 kvs-oparms cn_close_wait=true
 
 # verify spill has occurred
-cmd cn_metrics "$home" "$kvs" | cmd grep -q n.1,
+cmd cn_metrics "$home" "$kvs" | cmd grep n.1,
 
 # verify keys and values
 # shellcheck disable=SC2086

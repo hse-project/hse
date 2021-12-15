@@ -362,7 +362,7 @@ mpool_destroy(const char *home, const struct mpool_dparams *dparams)
     if (!home || !dparams)
         return merr(EINVAL);
 
-    mpdwq = alloc_workqueue("mp_destroy", 0, MP_DESTROY_THREADS);
+    mpdwq = alloc_workqueue("hse_mp_destroy", 0, 1, MP_DESTROY_THREADS);
     ev(!mpdwq);
 
     for (int i = HSE_MCLASS_COUNT - 1; i >= HSE_MCLASS_BASE; i--) {

@@ -157,5 +157,5 @@ hse_log_reg_platform(void)
 {
     hse_log_register('E', fmt_event_counter_stats, add_event_counter_stats);
     if (!hse_log_register('e', fmt_hse_err, add_hse_err))
-        backstop_log("init_hse_logging() cannot add hse_err formatter");
+        hse_log_backstop("%s: cannot add hse_err formatter\n", __func__);
 }

@@ -6,17 +6,9 @@
 #ifndef HSE_LOGGING_UTIL_HEADER
 #define HSE_LOGGING_UTIL_HEADER
 
-#include <hse_util/logging.h>
-#include <hse_util/inttypes.h>
+#include <hse_util/compiler.h>
 
-/* MTF_MOCK_DECL(logging_util) */
-
-/* MTF_MOCK */
-void
-backstop_log(const char *msg);
-
-#if HSE_MOCKING
-#include "logging_util_ut.h"
-#endif /* HSE_MOCKING */
+void HSE_NONNULL(1)
+hse_log_backstop(const char *fmt, ...);
 
 #endif /* HSE_LOGGING_UTIL_HEADER */

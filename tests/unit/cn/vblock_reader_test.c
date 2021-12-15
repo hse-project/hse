@@ -429,7 +429,7 @@ MTF_DEFINE_UTEST_PRE(vblock_reader_test, t_vbr_madvise_async, pre)
     u64                      argv[1];
     int                      rc;
 
-    vbr_wq = alloc_workqueue("vbr", 0, 0);
+    vbr_wq = alloc_workqueue("vbr", 0, 0, 0);
     ASSERT_NE(NULL, vbr_wq);
 
     vblk_sz = PAGE_SIZE + n_entries * vlen;

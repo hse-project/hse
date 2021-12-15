@@ -504,7 +504,7 @@ MTF_DEFINE_UTEST_PRE(test, t_cn_tree_create_node, test_setup)
     err = cn_tree_create(&tree, NULL, 0, &cp, &mock_health, rp);
     ASSERT_EQ(err, 0);
 
-    cn_tree_setup(tree, mock_ds, (void *)0x1234, rp, (void *)0x5678, 10, (void *)0x9abc);
+    cn_tree_setup(tree, mock_ds, NULL, rp, (void *)0x5678, 10, (void *)0x9abc);
     ASSERT_EQ(0x9abc, cn_tree_get_cnkvdb(tree));
     ASSERT_EQ(mock_ds, cn_tree_get_ds(tree));
     ASSERT_EQ(rp, cn_tree_get_rp(tree));

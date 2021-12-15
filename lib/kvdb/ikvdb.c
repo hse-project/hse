@@ -673,6 +673,8 @@ ikvdb_throttle_task(struct work_struct *work)
     struct ikvdb_impl *self;
     u64                throttle_update_prev = 0;
 
+    pthread_setname_np(pthread_self(), "hse_throttle");
+
     self = container_of(work, struct ikvdb_impl, ikdb_throttle_work);
 
     while (!self->ikdb_work_stop) {
@@ -1052,7 +1054,7 @@ ikvdb_maint_start(struct ikvdb_impl *self)
     merr_t err;
 
     self->ikdb_work_stop = false;
-    self->ikdb_workqueue = alloc_workqueue("kvdb_maint", 0, 2);
+    self->ikdb_workqueue = alloc_workqueue("hse_kvdb_maint", 0, 2, 2);
     if (!self->ikdb_workqueue) {
         err = merr(ENOMEM);
         log_errx("%s cannot start kvdb maintenance", err, self->ikdb_home);

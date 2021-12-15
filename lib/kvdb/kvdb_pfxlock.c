@@ -79,7 +79,7 @@ struct kvdb_pfxlock {
 /* clang-format on */
 
 static void
-kpl_gc_worker(struct work_struct *work);
+kvdb_pfxlock_gc(struct work_struct *work);
 
 static void
 kvdb_pfxlock_entry_free(struct kvdb_pfxlock_tree *tree, struct kvdb_pfxlock_entry *entry)
@@ -155,13 +155,13 @@ kvdb_pfxlock_create(struct viewset *txn_viewset, struct kvdb_pfxlock **pfxlock_o
     /* Set up GC worker for pfxlock
      */
     pfxlock->kpl_gc_delay_ms = 1500;
-    pfxlock->kpl_gc_wq = alloc_workqueue("kpl_gc", 0, 1);
+    pfxlock->kpl_gc_wq = alloc_workqueue("hse_pfxlock_gc", 0, 1, 1);
     if (ev(!pfxlock->kpl_gc_wq)) {
         free(pfxlock);
         return merr(ENOMEM);
     }
 
-    INIT_DELAYED_WORK(&pfxlock->kpl_gc.kpl_gc_dwork, kpl_gc_worker);
+    INIT_DELAYED_WORK(&pfxlock->kpl_gc.kpl_gc_dwork, kvdb_pfxlock_gc);
     queue_delayed_work(
         pfxlock->kpl_gc_wq,
         &pfxlock->kpl_gc.kpl_gc_dwork,
@@ -549,7 +549,7 @@ kvdb_pfxlock_prune(struct kvdb_pfxlock *pfxlock)
 }
 
 static void
-kpl_gc_worker(struct work_struct *work)
+kvdb_pfxlock_gc(struct work_struct *work)
 {
     struct kvdb_pfxlock_gc *gc = container_of(work, struct kvdb_pfxlock_gc, kpl_gc_dwork.work);
     struct kvdb_pfxlock *   kpl = container_of(gc, struct kvdb_pfxlock, kpl_gc);

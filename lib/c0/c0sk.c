@@ -484,7 +484,7 @@ c0sk_open(
 
     tdmax = clamp_t(uint, kvdb_rp->c0_ingest_threads, 1, HSE_C0_INGEST_THREADS_MAX);
 
-    c0sk->c0sk_wq_ingest = alloc_workqueue("c0sk_ingest", 0, tdmax);
+    c0sk->c0sk_wq_ingest = alloc_workqueue("hse_c0sk_ingest", 0, 1, tdmax);
     if (!c0sk->c0sk_wq_ingest) {
         err = merr(ENOMEM);
         goto errout;
@@ -492,7 +492,7 @@ c0sk_open(
 
     tdmax = clamp_t(uint, kvdb_rp->c0_maint_threads, 1, HSE_C0_MAINT_THREADS_MAX);
 
-    c0sk->c0sk_wq_maint = alloc_workqueue("c0sk_maint", 0, tdmax);
+    c0sk->c0sk_wq_maint = alloc_workqueue("hse_c0sk_maint", 0, 1, tdmax);
     if (!c0sk->c0sk_wq_maint) {
         err = merr(ENOMEM);
         goto errout;

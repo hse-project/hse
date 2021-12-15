@@ -158,12 +158,6 @@ cn_get_mclass_policy(const struct cn *cn)
 }
 
 bool
-cn_is_closing(const struct cn *cn)
-{
-    return cn->cn_closing;
-}
-
-bool
 cn_is_replay(const struct cn *cn)
 {
     return cn->cn_replay;
@@ -196,7 +190,7 @@ cn_get_io_wq(struct cn *cn)
 struct workqueue_struct *
 cn_get_maint_wq(struct cn *cn)
 {
-    return cn->cn_maint_wq;
+    return cn ? cn->cn_maint_wq : NULL;
 }
 
 struct csched *
@@ -240,7 +234,7 @@ cn_pc_capped_get(struct cn *cn)
 }
 
 /**
- * cn_get_ref() - increment a cn reference counter
+ * cn_ref_get() - acquire a reference on a cn object
  *
  * cn reference counts are used to ensure cn, along with it's tree and nodes,
  * are not deleted while in use by another object.  There is no explicit tree
@@ -252,13 +246,28 @@ cn_pc_capped_get(struct cn *cn)
 void
 cn_ref_get(struct cn *cn)
 {
-    atomic_inc(&cn->cn_refcnt);
+    atomic_inc_acq(&cn->cn_refcnt);
 }
 
 void
 cn_ref_put(struct cn *cn)
 {
-    atomic_dec(&cn->cn_refcnt);
+    atomic_dec_rel(&cn->cn_refcnt);
+}
+
+/* Wait for all async jobs started by cn_work_submit() to complete.
+ * Intended only for use by cn_close() and cn_tree_destroy().
+ */
+void
+cn_ref_wait(struct cn *cn)
+{
+    useconds_t dly = 0;
+
+    while (cn && atomic_read_acq(&cn->cn_refcnt) > 0) {
+        if (dly < 10000)
+            dly += timer_slack;
+        usleep(dly);
+    }
 }
 
 u64
@@ -1164,54 +1173,43 @@ cn_open(
 
     atomic_set(&cn->cn_ingest_dgen, cn_tree_initial_dgen(cn->cn_tree));
 
+    if (maint) {
+        cn->cn_maint_wq = cn_kvdb->cn_maint_wq;
+        cn->cn_io_wq = cn_kvdb->cn_io_wq;
+
+        if (cn_is_capped(cn)) {
+            cn->cn_maint_running = true;
+
+            /* If capped bloom probability is zero then disable bloom creation.
+             * Otherwise, cn_bloom_capped overrides cn_bloom_prob.
+             */
+            if (rp->cn_bloom_create) {
+                rp->cn_bloom_create = (rp->cn_bloom_capped > 0);
+                if (rp->cn_bloom_create)
+                    rp->cn_bloom_prob = rp->cn_bloom_capped;
+            }
+
+            INIT_DELAYED_WORK(&cn->cn_maint_dwork, cn_maint_task);
+            queue_delayed_work(cn->cn_maint_wq, &cn->cn_maint_dwork,
+                               msecs_to_jiffies(rp->cn_maint_delay));
+        } else {
+            csched_tree_add(cn->csched, cn->cn_tree);
+        }
+    }
+
     log_info(
-        "%s/%s replay %d fanout %u pfx_len %u pfx_pivot %u cnid %lu depth %u/%u %s "
-        "kb %lu%c/%lu vb %lu%c/%lu",
-        cn->cn_kvdb_alias,
-        cn->cn_kvsname,
-        cn->cn_replay,
-        cn->cp->fanout,
-        cn->cp->pfx_len,
-        cn->cp->pfx_pivot,
-        (ulong)cnid,
-        ctx.ckmk_node_level_max,
-        cn_tree_max_depth(ilog2(cn->cp->fanout)),
-        cn_is_capped(cn) ? "capped" : "!capped",
-        ksz >> (kshift * 10),
-        *kszsuf,
-        kcnt,
-        vsz >> (vshift * 10),
-        *vszsuf,
-        vcnt);
+        "%s/%s cnid %lu fanout %u pfx_len %u pfx_pivot %u depth %u/%u"
+        " kb %lu%c/%lu vb %lu%c/%lu%s%s%s%s",
+        cn->cn_kvdb_alias, cn->cn_kvsname, (ulong)cnid,
+        cn->cp->fanout, cn->cp->pfx_len, cn->cp->pfx_pivot,
+        ctx.ckmk_node_level_max, cn_tree_max_depth(ilog2(cn->cp->fanout)),
+        ksz >> (kshift * 10), *kszsuf, kcnt,
+        vsz >> (vshift * 10), *vszsuf, vcnt,
+        rp->cn_diag_mode ? " diag" : "",
+        rp->read_only ? " rdonly" : "",
+        cn_is_capped(cn) ? " capped" : "",
+        cn->cn_replay ? " replay" : "");
 
-    if (!maint)
-        goto done;
-
-    /* Work queue for offloading kvset destroy from client queries,
-     * and running vblock readahead operations.
-     */
-    cn->cn_maint_wq = cn_kvdb->cn_maint_wq;
-    cn->cn_io_wq = cn_kvdb->cn_io_wq;
-
-    if (cn->csched && !cn_is_capped(cn))
-        csched_tree_add(cn->csched, cn->cn_tree);
-
-    if (cn_is_capped(cn)) {
-        INIT_DELAYED_WORK(&cn->cn_maint_dwork, cn_maint_task);
-        queue_delayed_work(cn->cn_maint_wq, &cn->cn_maint_dwork,
-                           msecs_to_jiffies(rp->cn_maint_delay));
-    }
-
-    /* If capped bloom probability is zero then disable bloom creation.
-     * Otherwise, cn_bloom_capped overrides cn_bloom_prob.
-     */
-    if (cn_is_capped(cn) && rp->cn_bloom_create) {
-        rp->cn_bloom_create = (rp->cn_bloom_capped > 0);
-        if (rp->cn_bloom_create)
-            rp->cn_bloom_prob = rp->cn_bloom_capped;
-    }
-
-done:
     /* successful exit */
     cndb_getref(cndb);
     *cn_out = cn;
@@ -1233,12 +1231,7 @@ err_exit:
 merr_t
 cn_close(struct cn *cn)
 {
-    u64        report_ns = 5 * NSEC_PER_SEC;
-    u64        next_report;
-    useconds_t dlymax, dly;
-    bool       cancel;
-
-    cn->cn_closing = true;
+    bool cancel;
 
     cancel = !cn->rp->cn_close_wait;
     if (cancel)
@@ -1247,48 +1240,24 @@ cn_close(struct cn *cn)
     /* Wait for the cn maint thread to exit.  Any async kvset destroys
      * that may have started will be waited on by the cn_refcnt loop.
      */
-    if (cn->cn_maint_wq && cn_is_capped(cn)) {
+    if (cn->cn_maint_running) {
         while (!cancel_delayed_work(&cn->cn_maint_dwork))
             usleep(1000);
     }
 
-    if (cn->csched && !cn->cn_replay)
-        csched_tree_remove(cn->csched, cn->cn_tree, cancel);
+    csched_tree_remove(cn->csched, cn->cn_tree, cancel);
 
     /* Wait for all compaction jobs and async kvset destroys to complete.
      * This wait holds up ikvdb_close(), so it's important not to dawdle.
      */
-    next_report = get_time_ns() + NSEC_PER_SEC;
-    dlymax = 1000;
-    dly = 0;
-
-    while (atomic_read(&cn->cn_refcnt) > 0) {
-        if (dly < dlymax)
-            dly += 100;
-        usleep(dly);
-
-        if (get_time_ns() < next_report)
-            continue;
-
-        log_info("cn %s waiting for %d async jobs...", cn->cn_kvsname, atomic_read(&cn->cn_refcnt));
-
-        next_report = get_time_ns() + report_ns;
-        dlymax = 10000;
-    }
-
-    /* The maint and I/O workqueues should be idle at this point...
-     */
-    if (cn->cn_maint_wq) {
-        flush_workqueue(cn->cn_maint_wq);
-        flush_workqueue(cn->cn_io_wq);
-        cn->cn_maint_wq = NULL;
-        cn->cn_io_wq = NULL;
-    }
+    cn_ref_wait(cn);
 
     cndb_cn_close(cn->cn_cndb, cn->cn_cnid);
     cndb_putref(cn->cn_cndb);
 
     cn_tree_destroy(cn->cn_tree);
+    assert(atomic_read(&cn->cn_refcnt) == 0);
+
     cn_tstate_destroy(cn->cn_tstate);
 
     cn_perfc_free(cn);
@@ -1329,13 +1298,25 @@ cn_work_wrapper(struct work_struct *context)
 void
 cn_work_submit(struct cn *cn, cn_work_fn *handler, struct cn_work *work)
 {
-    cn_ref_get(cn);
+    struct workqueue_struct *wq;
 
     work->cnw_cnref = cn;
     work->cnw_handler = handler;
 
     INIT_WORK(&work->cnw_work, cn_work_wrapper);
-    queue_work(cn->cn_maint_wq, &work->cnw_work);
+
+    if (!cn) {
+        handler(work);
+        return;
+    }
+
+    cn_ref_get(cn);
+
+    wq = cn_get_maint_wq(cn);
+    if (wq)
+        queue_work(wq, &work->cnw_work);
+    else
+        cn_work_wrapper(&work->cnw_work);
 }
 
 /**

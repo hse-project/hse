@@ -1058,7 +1058,7 @@ kmem_cache_init(void)
         INIT_LIST_HEAD(&kmc.kmc_nodev[i].node_full);
     }
 
-    kmc.kmc_wq = alloc_workqueue("kmc", 0, 1);
+    kmc.kmc_wq = alloc_workqueue("hse_kmc_reaper", 0, 1, 1);
     if (ev(!kmc.kmc_wq)) {
         for (i = 0; i < NELEM(kmc.kmc_nodev); ++i)
             kmc_node_lock_destroy(kmc.kmc_nodev + i);

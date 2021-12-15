@@ -313,6 +313,48 @@ static const struct param_spec pspecs[] = {
         },
     },
     {
+        .ps_name = "workqueue_tcdelay",
+        .ps_description = "set workqueue thread-create delay (milliseconds)",
+        .ps_flags = PARAM_FLAG_EXPERIMENTAL,
+        .ps_type = PARAM_TYPE_U32,
+        .ps_offset = offsetof(struct hse_gparams, gp_workqueue_tcdelay),
+        .ps_size = PARAM_SZ(struct hse_gparams, gp_workqueue_tcdelay),
+        .ps_convert = param_default_converter,
+        .ps_validate = param_default_validator,
+        .ps_stringify = param_default_stringify,
+        .ps_jsonify = param_default_jsonify,
+        .ps_default_value = {
+            .as_uscalar = 1000,
+        },
+        .ps_bounds = {
+            .as_uscalar = {
+                .ps_min = 0,
+                .ps_max = UINT32_MAX,
+            },
+        },
+    },
+    {
+        .ps_name = "workqueue_idle_ttl",
+        .ps_description = "set workqueue idle thread time-to-live (seconds)",
+        .ps_flags = PARAM_FLAG_EXPERIMENTAL,
+        .ps_type = PARAM_TYPE_U32,
+        .ps_offset = offsetof(struct hse_gparams, gp_workqueue_idle_ttl),
+        .ps_size = PARAM_SZ(struct hse_gparams, gp_workqueue_idle_ttl),
+        .ps_convert = param_default_converter,
+        .ps_validate = param_default_validator,
+        .ps_stringify = param_default_stringify,
+        .ps_jsonify = param_default_jsonify,
+        .ps_default_value = {
+            .as_uscalar = 300,
+        },
+        .ps_bounds = {
+            .as_uscalar = {
+                .ps_min = 0,
+                .ps_max = UINT32_MAX,
+            },
+        },
+    },
+    {
         .ps_name = "perfc.level",
         .ps_description = "set kvs perf counter enagagement level (min:0 default:2 max:9)",
         .ps_flags = PARAM_FLAG_EXPERIMENTAL,

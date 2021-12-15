@@ -65,10 +65,6 @@ cn_is_capped(const struct cn *cn);
 
 /* MTF_MOCK */
 bool
-cn_is_closing(const struct cn *cn);
-
-/* MTF_MOCK */
-bool
 cn_is_replay(const struct cn *cn);
 
 /* MTF_MOCK */
@@ -172,6 +168,9 @@ cn_ref_get(struct cn *cn);
 /* MTF_MOCK */
 void
 cn_ref_put(struct cn *cn);
+
+void
+cn_ref_wait(struct cn *cn);
 
 /* MTF_MOCK */
 struct workqueue_struct *

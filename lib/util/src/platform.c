@@ -170,21 +170,21 @@ hse_platform_init(void)
     dt_init();
     event_counter_init();
 
-    err = hse_logging_init();
+    err = hse_cpu_init();
+    if (err)
+        goto errout;
+
+    err = hse_timer_init();
+    if (err)
+        goto errout;
+
+    err = hse_log_init();
     if (err)
         goto errout;
 
     hse_log_reg_platform();
 
-    err = hse_cpu_init();
-    if (err)
-        goto errout;
-
     err = vlb_init();
-    if (err)
-        goto errout;
-
-    err = hse_timer_init();
     if (err)
         goto errout;
 
@@ -220,9 +220,9 @@ hse_platform_fini(void)
     rest_destroy();
     kmem_cache_fini();
     perfc_fini();
-    hse_timer_fini();
     vlb_fini();
-    hse_logging_fini();
+    hse_log_fini();
+    hse_timer_fini();
     hse_cgroup_fini();
     dt_fini();
 }

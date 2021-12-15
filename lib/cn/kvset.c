@@ -209,12 +209,7 @@ kvset_put_ref(struct kvset *ks)
 
     cn = cn_tree_get_cn(ks->ks_tree);
 
-    if (cn_get_maint_wq(cn)) {
-        cn_work_submit(cn, kvset_put_ref_work, &ks->ks_kvset_cn_work);
-        return;
-    }
-
-    kvset_put_ref_work(&ks->ks_kvset_cn_work);
+    cn_work_submit(cn, kvset_put_ref_work, &ks->ks_kvset_cn_work);
 }
 
 static merr_t

@@ -23,6 +23,8 @@ struct hse_gparams {
     uint64_t gp_c0kvs_ccache_sz;
     uint64_t gp_c0kvs_cheap_sz;
     uint64_t gp_vlb_cache_sz;
+    uint32_t gp_workqueue_tcdelay;
+    uint32_t gp_workqueue_idle_ttl;
     uint8_t  gp_perfc_level;
 
     struct {

@@ -281,7 +281,7 @@ wal_bufset_open(
     }
 
     threads = wbs->wbs_bufc;
-    wbs->wbs_flushwq = alloc_workqueue("wal_flush_wq", 0, threads);
+    wbs->wbs_flushwq = alloc_workqueue("hse_wal_flush", 0, 1, threads);
     if (!wbs->wbs_flushwq)
         goto errout;
 

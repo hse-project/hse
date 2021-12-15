@@ -2451,7 +2451,7 @@ sp3_create(
     if (ev(err))
         goto err_exit;
 
-    sp->wqueue = alloc_workqueue("sp3_monitor", 0, 1);
+    sp->wqueue = alloc_workqueue("hse_sp3_monitor", 0, 1, 1);
     if (ev(!sp->wqueue)) {
         err = merr(ENOMEM);
         goto err_exit;

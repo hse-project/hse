@@ -128,7 +128,7 @@ kvdb_ctxn_unlock_impl(struct kvdb_ctxn_impl *ctxn)
 }
 
 static void
-kvdb_ctxn_set_thread(struct work_struct *work)
+kvdb_ctxn_reaper(struct work_struct *work)
 {
     enum kvdb_ctxn_state       state;
     struct list_head           freelist, alist;
@@ -697,7 +697,7 @@ kvdb_ctxn_set_create(struct kvdb_ctxn_set **handle_out, u64 txn_timeout_ms, u64 
 
     memset(ktn, 0, sizeof(*ktn));
 
-    ktn->ktn_wq = alloc_workqueue("kvdb_ctxn_set", 0, 1);
+    ktn->ktn_wq = alloc_workqueue("hse_ctxn_reaper", 0, 1, 1);
     if (ev(!ktn->ktn_wq)) {
         free_aligned(ktn);
         return merr(ENOMEM);
@@ -709,7 +709,7 @@ kvdb_ctxn_set_create(struct kvdb_ctxn_set **handle_out, u64 txn_timeout_ms, u64 
     ktn->ktn_queued = false;
     ktn->ktn_txn_timeout = txn_timeout_ms;
     ktn->txn_wkth_delay = msecs_to_jiffies(delay_msecs);
-    INIT_DELAYED_WORK(&ktn->ktn_dwork, kvdb_ctxn_set_thread);
+    INIT_DELAYED_WORK(&ktn->ktn_dwork, kvdb_ctxn_reaper);
 
     mutex_init(&ktn->ktn_list_mutex);
     CDS_INIT_LIST_HEAD(&ktn->ktn_alloc_list);

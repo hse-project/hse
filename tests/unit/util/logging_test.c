@@ -535,8 +535,8 @@ MTF_DEFINE_UTEST(hse_logging_test, Test_hse_alog)
     merr_t rc;
     int    i;
 
-    hse_logging_fini();
-    rc = hse_logging_init();
+    hse_log_fini();
+    rc = hse_log_init();
     ASSERT_EQ(0, rc);
 
     hse_log_err("Test %s %d", "test", -1);
@@ -544,14 +544,14 @@ MTF_DEFINE_UTEST(hse_logging_test, Test_hse_alog)
     /*
      * Fill up the circular buffer and overflow it by 20 entries
      * before the consumer thread has a chance to start filling it.
-     * Only the first MAX_LOGGING_ASYNC_ENTRIES should show, the last 20
-     * shoud be discarded.
+     * Only the first HSE_LOG_ASYNC_ENTRIES_MAX should show, the
+     * last 20 should be discarded.
      */
-    for (i = 0; i < MAX_LOGGING_ASYNC_ENTRIES + 20; i++)
+    for (i = 0; i < HSE_LOG_ASYNC_ENTRIES_MAX + 20; i++)
         hse_alog("Test %s %d", "test", i);
     /*
      * Give the consumer thread time  to consume and show all
-     * MAX_LOGGING_ASYNC_ENTRIES log messages.
+     * HSE_LOG_ASYNC_ENTRIES_MAX log messages.
      */
     sleep(2);
 
@@ -562,11 +562,13 @@ MTF_DEFINE_UTEST(hse_logging_test, Test_hse_alog)
 
 MTF_DEFINE_UTEST(hse_logging_test, Test_hse_slog)
 {
-    int   argc = 3;
-    char *argv[3] = { "abc", "123", "!@#" };
+    char *argv[] = { "abc", "123", "!@#" };
+    int argc = NELEM(argv);
+    int rc;
 
-    hse_logging_fini();
-    hse_logging_init();
+    hse_log_fini();
+    rc = hse_log_init();
+    ASSERT_EQ(0, rc);
 
     /* [HSE_REVISIT]
      * Should be able to use shared_result to assert the output.
@@ -702,7 +704,7 @@ MTF_DEFINE_UTEST(hse_logging_test, Test_hse_slog)
 
 MTF_DEFINE_UTEST(hse_logging_test, Test_hse_slog_dynamic)
 {
-    int                  i;
+    int                  rc, i;
     struct slog *        logger;
     struct json_context *jc;
 
@@ -713,8 +715,9 @@ MTF_DEFINE_UTEST(hse_logging_test, Test_hse_slog_dynamic)
 
     struct kv_pair kv_table[] = { { "answer", 42 }, { "foobar", 2000 } };
 
-    hse_logging_fini();
-    hse_logging_init();
+    hse_log_fini();
+    rc = hse_log_init();
+    ASSERT_EQ(0, rc);
 
     hse_slog_create(HSE_LOGPRI_NOTICE, &logger, "utest");
 
@@ -743,12 +746,13 @@ MTF_DEFINE_UTEST(hse_logging_test, Test_hse_slog_dynamic)
 
 MTF_DEFINE_UTEST(hse_logging_test, Test_hse_slog_dynamic_resize)
 {
-    int                  i, original;
+    int                  original, rc, i;
     struct slog *        logger;
     struct json_context *jc;
 
-    hse_logging_fini();
-    hse_logging_init();
+    hse_log_fini();
+    rc = hse_log_init();
+    ASSERT_EQ(0, rc);
 
     hse_slog_create(HSE_LOGPRI_NOTICE, &logger, "utest");
 

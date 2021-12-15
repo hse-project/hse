@@ -390,7 +390,7 @@ lc_create(struct lc **handle, struct kvdb_health *health)
     }
 
     self->lc_gc_delay_ms = 1000;
-    self->lc_gc_wq = alloc_workqueue("lc_gc", 0, 1);
+    self->lc_gc_wq = alloc_workqueue("hse_lc_gc", 0, 1, 1);
     if (ev(!self->lc_gc_wq)) {
         err = merr(ENOMEM);
         goto err_exit;

@@ -37,7 +37,6 @@ struct cn {
     atomic_ulong cn_ingest_dgen;
 
     atomic_int cn_refcnt;
-    bool       cn_closing;
     bool       cn_replay;
 
     /* for asynchronous mblock I/O */
@@ -59,6 +58,7 @@ struct cn {
     struct workqueue_struct *cn_maint_wq;
     struct delayed_work      cn_maint_dwork;
     atomic_int               cn_maint_cancel;
+    bool                     cn_maint_running;
 
     struct kvs_rparams *  rp;
     struct kvs_cparams *  cp;

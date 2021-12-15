@@ -36,21 +36,56 @@
 #define PARAM_GET_INVALID(_type, _dst, _dstsz) \
     ({ ((_dstsz) < sizeof(_type) || !(_dst) || (uintptr_t)(_dst) & (__alignof(_type) - 1)); })
 
-DEFINE_MUTEX(hse_logging_lock);
+/**
+ * struct hse_log_async_entry - an asynchronous log message in the circular
+ * buffer.
+ * @ae_source_line:
+ * @ae_priority:
+ * @ae_buf: The format is: <source filename>0<string>
+ *      with "string" 0 terminated. While is should not happen, string may be
+ *      empty or not be there at all if <source filename> it too big.
+ *      "string" is logged by the async log consumer thread with a format %s.
+ */
+struct hse_log_async_entry {
+    s32          ae_source_line;
+    hse_logpri_t ae_priority;
+    char         ae_buf[HSE_LOG_STRUCTURED_DATALEN_MAX];
+};
 
-FILE *logging_file = NULL;
+/**
+ * struct hse_log_async - allow to log from interrupt context.
+ *      The log messages are only stored in a circular buffer attached to
+ *      structure. The hse_log workqueue calls hse_log_async() to process them later.
+ * @al_wstruct:
+ * @al_lock: Protect the fields below.
+ * @al_th_working: true if the async log consumer thread is working.
+ * @al_cons: always increasing and rolling integer.
+ *      al_cons%MAX_LOGGING_ASYNC_ENTRIES is the index in al_entries[]
+ *      where the next entry to consume is located.
+ *      Only changed by the thread _hse_log_async_cons_th().
+ * @al_nb: 0 <= al_nb <= MAX_LOGGING_ASYNC_ENTRIES. Number on entries
+ *      in al_entries[] ready to be consumed.
+ * @al_entries: circular buffer of log messages.
+ */
+struct hse_log_async {
+    struct workqueue_struct *   al_wq;
+    struct work_struct          al_wstruct;
+    struct mutex                al_lock;
+    bool                        al_running;
+    u32                         al_cons;
+    u32                         al_nb;
+    struct hse_log_async_entry *al_entries;
+};
 
-struct hse_logging_infrastructure hse_logging_inf = {
-    .mli_nm_buf = 0,    /* temp buffer for structured data field name */
-    .mli_fmt_buf = 0,   /* intermediate format buffer                 */
-    .mli_sd_buf = 0,    /* buffer to accumulate structured data       */
-    .mli_name_buf = 0,  /* buffer to accumulate key offsets data      */
-    .mli_value_buf = 0, /* buffer to accumulate value offsets         */
-    .mli_json_buf = 0,  /* buffer to accumulate json elements         */
-    .mli_active = 0,    /* has the logging been initialized           */
-    .mli_opened = 0,    /* has the logging been "opened"              */
-    .mli_async =
-        {.al_wq = NULL, .al_cons = 0, .al_nb = 0, .al_entries = NULL, .al_th_working = false }
+struct hse_log_infrastructure {
+    char  mli_nm_buf[HSE_LOG_STRUCTURED_DATALEN_MAX] HSE_ACP_ALIGNED;
+    char  mli_fmt_buf[HSE_LOG_STRUCTURED_DATALEN_MAX];
+    char  mli_sd_buf[HSE_LOG_STRUCTURED_DATALEN_MAX];
+    char  mli_json_buf[HSE_LOG_STRUCTURED_DATALEN_MAX];
+    char *mli_name_buf[HSE_LOG_NV_PAIRS_MAX];
+    char *mli_value_buf[HSE_LOG_NV_PAIRS_MAX];
+    bool  mli_active;
+    struct hse_log_async mli_async;
 };
 
 struct hse_log_code {
@@ -58,15 +93,20 @@ struct hse_log_code {
     hse_log_add_func_t *add; /* structured field */
 };
 
+static DEFINE_MUTEX(hse_log_lock);
+static struct hse_log_infrastructure hse_log_inf;
+
+FILE *hse_log_file = NULL;
+
 /**
- * _hse_consume_one_async() - log one entry of the circular buffer.
+ * hse_log_async_consume() - log one entry of the circular buffer.
  * @entry: entry in the circular buffer that needs to be logged.
  *
  * Locking: no lock held because this entry in the circular buffer can only
  *      be changed by this thread at the moment.
  */
 static void
-_hse_consume_one_async(struct hse_log_async_entry *entry)
+hse_log_async_consume(struct hse_log_async_entry *entry)
 {
     u32 source_file_len;
     const char *slog_prefix = hse_gparams.gp_logging.structured ? "@cee:" : "";
@@ -82,7 +122,7 @@ _hse_consume_one_async(struct hse_log_async_entry *entry)
 }
 
 /**
- * _hse_log_async_cons_th() - consumer of the async logs.
+ * hse_log_async() - consumer of the async logs.
  * @wstruct:
  *
  * Process the log messages that were posted in the circular buffer
@@ -90,7 +130,7 @@ _hse_consume_one_async(struct hse_log_async_entry *entry)
  * It offloads the processing and actual logging of the log messages.
  */
 static void
-_hse_log_async_cons_th(struct work_struct *wstruct)
+hse_log_async(struct work_struct *wstruct)
 {
     struct hse_log_async *      async;
     struct hse_log_async_entry *entry;
@@ -103,10 +143,10 @@ _hse_log_async_cons_th(struct work_struct *wstruct)
     mutex_lock(&async->al_lock);
 
     while (async->al_nb > 0) {
-        entry = async->al_entries + async->al_cons % MAX_LOGGING_ASYNC_ENTRIES;
+        entry = async->al_entries + async->al_cons % HSE_LOG_ASYNC_ENTRIES_MAX;
         mutex_unlock(&async->al_lock);
 
-        _hse_consume_one_async(entry);
+        hse_log_async_consume(entry);
 
         /* Don't hog the cpu. */
         if ((++loop % 128) == 0)
@@ -117,214 +157,132 @@ _hse_log_async_cons_th(struct work_struct *wstruct)
         async->al_nb--;
     }
 
-    async->al_th_working = false;
+    async->al_running = false;
     mutex_unlock(&async->al_lock);
 }
 
+/* Note that this function only enables async logging and maybe
+ * redirects the logging destination.  Calls to hse_log() should
+ * work before, during, and after calls to this function,
+ * regardless of whether or not it succeeds.
+ */
 merr_t
-hse_logging_init(void)
+hse_log_init(void)
 {
-    void * nm_buf = 0, *fmt_buf = 0, *sd_buf = 0;
-    void * json_buf = 0;
-    char **name_buf = 0, **value_buf = 0;
-    void * async_entries = NULL;
-    merr_t err;
-
+    struct hse_log_async *async = &hse_log_inf.mli_async;
+    struct hse_log_async_entry *entryv = NULL;
     struct workqueue_struct *wq = NULL;
-    struct hse_log_async *   async;
+    FILE *fp = NULL;
+    merr_t err;
 
     if (!hse_gparams.gp_logging.enabled)
         return 0;
 
     if (hse_gparams.gp_logging.destination == LD_STDOUT) {
-        logging_file = stdout;
+        fp = stdout;
     } else if (hse_gparams.gp_logging.destination == LD_STDERR) {
-        logging_file = stderr;
+        fp = stderr;
     } else if (hse_gparams.gp_logging.destination == LD_FILE) {
-        logging_file = fopen(hse_gparams.gp_logging.path, "a");
-        if (!logging_file)
-            return merr(errno);
+        fp = fopen(hse_gparams.gp_logging.path, "a");
+        if (!fp) {
+            err = merr(errno);
+            log_errx("failed to open log file %s: @@e",
+                     err, hse_gparams.gp_logging.path);
+            return err;
+        }
+
+        setlinebuf(fp);
     }
 
-    /* stdout is already line buffered */
-    if (logging_file && logging_file != stdout) {
-        if (setvbuf(logging_file, NULL, _IOLBF, 0) != 0)
-            return merr(errno);
-    }
-
-    mutex_lock(&hse_logging_lock);
-    err = hse_logging_inf.mli_active ? EBUSY : 0;
-    mutex_unlock(&hse_logging_lock);
-
-    if (err)
-        return merr(err);
-
-    nm_buf = malloc(MAX_STRUCTURED_DATA_LENGTH);
-    if (!nm_buf) {
-        backstop_log("init_hse_logging() failed to allocate "
-                     "name buffer");
+    entryv = calloc(HSE_LOG_ASYNC_ENTRIES_MAX, sizeof(*entryv));
+    if (!entryv) {
+        log_err("failed to alloc async entries");
         err = merr(ENOMEM);
-        goto out_err;
+        goto errout;
     }
 
-    fmt_buf = malloc(MAX_STRUCTURED_DATA_LENGTH);
-    if (!fmt_buf) {
-        backstop_log("init_hse_logging() failed to allocate "
-                     "format buffer");
-        err = merr(ENOMEM);
-        goto out_err;
-    }
-
-    sd_buf = malloc(MAX_STRUCTURED_DATA_LENGTH);
-    if (!sd_buf) {
-        backstop_log("init_hse_logging() failed to allocate "
-                     "structured data buffer");
-        err = merr(ENOMEM);
-        goto out_err;
-    }
-
-    json_buf = malloc(MAX_STRUCTURED_DATA_LENGTH);
-    if (!json_buf) {
-        backstop_log("init_hse_logging() failed to allocate "
-                     "json structured data buffer");
-        err = merr(ENOMEM);
-        goto out_err;
-    }
-
-    name_buf = malloc(sizeof(void *) * MAX_HSE_NV_PAIRS);
-    if (!name_buf) {
-        backstop_log("init_hse_logging() failed to allocate "
-                     "name offset structured data buffer");
-        err = merr(ENOMEM);
-        goto out_err;
-    }
-
-    value_buf = malloc(sizeof(void *) * MAX_HSE_NV_PAIRS);
-    if (!value_buf) {
-        backstop_log("init_hse_logging() failed to allocate "
-                     "value offset structured data buffer");
-        err = merr(ENOMEM);
-        goto out_err;
-    }
-
-    async_entries = malloc(sizeof(struct hse_log_async_entry) * MAX_LOGGING_ASYNC_ENTRIES);
-    if (!async_entries) {
-        backstop_log("init_hse_logging() failed to allocate "
-                     "async entries");
-        err = merr(ENOMEM);
-        goto out_err;
-    }
-
-    wq = alloc_workqueue("hse_logd", 0, 1);
+    wq = alloc_workqueue("hse_log", 0, 1, 1);
     if (!wq) {
-        backstop_log("init_hse_logging() failed to allocate "
-                     "the work queue");
+        log_err("failed to create hse_log workqueue");
         err = merr(ENOMEM);
-        goto out_err;
+        goto errout;
     }
 
-    mutex_lock(&hse_logging_lock);
-    if (hse_logging_inf.mli_active) {
-        /* Lost race to initialize logging, free memory and return */
-        mutex_unlock(&hse_logging_lock);
-        err = merr(EBUSY);
-        goto out_err;
+    mutex_lock(&hse_log_lock);
+    err = hse_log_inf.mli_active ? merr(EBUSY) : 0;
+    if (!err) {
+        mutex_init(&async->al_lock);
+        async->al_entries = entryv;
+        async->al_wq = wq;
+        hse_log_file = fp;
+        hse_log_inf.mli_active = true;
     }
+    mutex_unlock(&hse_log_lock);
 
-    hse_logging_inf.mli_nm_buf = nm_buf;
-    hse_logging_inf.mli_fmt_buf = fmt_buf;
-    hse_logging_inf.mli_sd_buf = sd_buf;
-    hse_logging_inf.mli_json_buf = json_buf;
-    hse_logging_inf.mli_name_buf = name_buf;
-    hse_logging_inf.mli_value_buf = value_buf;
-    async = &(hse_logging_inf.mli_async);
-    async->al_entries = async_entries;
-    async->al_wq = wq;
-    mutex_init(&async->al_lock);
-    hse_logging_inf.mli_active = 1;
-
-    mutex_unlock(&hse_logging_lock);
-
-    return 0;
-
-out_err:
-    free(nm_buf);
-    free(fmt_buf);
-    free(sd_buf);
-    free(json_buf);
-    free(name_buf);
-    free(value_buf);
-    free(async_entries);
-    destroy_workqueue(wq);
+errout:
+    if (err) {
+        if (fp && fp != stdout && fp != stderr)
+            fclose(fp);
+        destroy_workqueue(wq);
+        free(entryv);
+    }
 
     return err;
 }
 
+/* Note that this function only disables async logging and maybe
+ * redirects the logging destination.  Calls to hse_log() should
+ * work before, during, and after calls to this function.
+ */
 void
-hse_logging_fini(void)
+hse_log_fini(void)
 {
-    struct workqueue_struct *wq;
-    struct hse_log_async *   async;
+    struct hse_log_async *async = &hse_log_inf.mli_async;
+    struct workqueue_struct *wq = NULL;
+    void *entryv;
+    FILE *fp;
 
-    if (!hse_gparams.gp_logging.enabled)
+    mutex_lock(&hse_log_lock);
+    if (hse_log_inf.mli_active) {
+        mutex_lock(&async->al_lock);
+        wq = async->al_wq;
+        async->al_wq = NULL;
+        mutex_unlock(&async->al_lock);
+    }
+    mutex_unlock(&hse_log_lock);
+
+    if (!wq)
         return;
-
-    mutex_lock(&hse_logging_lock);
-    hse_gparams.gp_logging.level = -1;
-    mutex_unlock(&hse_logging_lock);
-
-    async = &hse_logging_inf.mli_async;
-
-    mutex_lock(&async->al_lock);
-    wq = async->al_wq;
-    async->al_wq = NULL;
-    mutex_unlock(&async->al_lock);
 
     /* Wait for the async logging consumer thread to exit. */
     destroy_workqueue(wq);
 
-    mutex_lock(&hse_logging_lock);
-
-    if (hse_gparams.gp_logging.destination == LD_FILE &&
-        logging_file != stdout &&
-        logging_file != stderr)
-        fclose(logging_file);
-
-    free(hse_logging_inf.mli_name_buf);
-    hse_logging_inf.mli_name_buf = 0;
-
-    free(hse_logging_inf.mli_value_buf);
-    hse_logging_inf.mli_value_buf = 0;
-
-    free(hse_logging_inf.mli_nm_buf);
-    hse_logging_inf.mli_nm_buf = 0;
-
-    free(hse_logging_inf.mli_fmt_buf);
-    hse_logging_inf.mli_fmt_buf = 0;
-
-    free(hse_logging_inf.mli_sd_buf);
-    hse_logging_inf.mli_sd_buf = 0;
-
-    free(hse_logging_inf.mli_json_buf);
-    hse_logging_inf.mli_json_buf = 0;
-
-    /*
-     * Thread _hse_log_async_cons_th() exited, the async logging resources
-     * can be freed.
+    /* Other than the async logger (which has an implicit reference
+     * on hse_log_file) all other usage of hse_log_file should be
+     * guarded by hse_log_lock such that it should now be safe to
+     * reset it now that the async logger is no longer running.
      */
-    free(async->al_entries);
+    mutex_lock(&hse_log_lock);
+    fp = hse_log_file;
+    hse_log_file = NULL;
+
+    mutex_destroy(&async->al_lock);
+    entryv = async->al_entries;
     async->al_entries = NULL;
     async->al_cons = 0;
     async->al_nb = 0;
 
-    hse_logging_inf.mli_active = 0;
-    hse_logging_inf.mli_opened = 0;
+    hse_log_inf.mli_active = false;
+    mutex_unlock(&hse_log_lock);
 
-    mutex_unlock(&hse_logging_lock);
+    if (fp && fp != stdout && fp != stderr)
+        fclose(fp);
+
+    free(entryv);
 }
 
 /*
- * _hse_log_post_vasync() - post the log message in a circular buffer.
+ * hse_log_post_vasync() - post the log message in a circular buffer.
  * @source_file: source file of the logging site
  * @source_line: line number of the logging site
  * @priority: priority of the log message
@@ -334,7 +292,7 @@ hse_logging_fini(void)
  * Locking: can be called from interrupt handler => can't block.
  */
 static void
-_hse_log_post_vasync(
+hse_log_post_vasync(
     const char   *source_file,
     s32           source_line,
     hse_logpri_t  priority,
@@ -346,10 +304,10 @@ _hse_log_post_vasync(
     bool                        start;
     char *                      buf;
 
-    async = &(hse_logging_inf.mli_async);
+    async = &(hse_log_inf.mli_async);
 
     mutex_lock(&async->al_lock);
-    if (async->al_nb == MAX_LOGGING_ASYNC_ENTRIES || !async->al_wq) {
+    if (async->al_nb == HSE_LOG_ASYNC_ENTRIES_MAX || !async->al_wq) {
         /* Circular buffer full. */
         mutex_unlock(&async->al_lock);
         ev(ENOENT);
@@ -357,7 +315,7 @@ _hse_log_post_vasync(
     }
 
     /* Next free entry */
-    entry = async->al_entries + (async->al_cons + async->al_nb) % MAX_LOGGING_ASYNC_ENTRIES;
+    entry = async->al_entries + (async->al_cons + async->al_nb) % HSE_LOG_ASYNC_ENTRIES_MAX;
 
     buf = entry->ae_buf;
     buf[0] = 0;
@@ -382,19 +340,19 @@ _hse_log_post_vasync(
     async->al_nb++;
 
     /* Start the consumer thread if it is not already working. */
-    start = !async->al_th_working;
+    start = !async->al_running;
     if (start)
-        async->al_th_working = true;
+        async->al_running = true;
     mutex_unlock(&async->al_lock);
 
     if (start) {
-        INIT_WORK(&async->al_wstruct, _hse_log_async_cons_th);
+        INIT_WORK(&async->al_wstruct, hse_log_async);
         queue_work(async->al_wq, &async->al_wstruct);
     }
 }
 
 /*
- * _hse_log_post_async() - post the log message as json payload
+ * hse_log_post_async() - post the log message as json payload
  * in a circular buffer.
  * @source_file: source file of the logging site
  * @source_line: line number of the logging site
@@ -404,17 +362,17 @@ _hse_log_post_vasync(
  * Locking: can be called from interrupt handler => can't block.
  */
 static void
-_hse_log_post_async(const char *source_file, s32 source_line, hse_logpri_t priority, char *payload)
+hse_log_post_async(const char *source_file, s32 source_line, hse_logpri_t priority, char *payload)
 {
     struct hse_log_async *      async;
     struct hse_log_async_entry *entry;
     bool                        start;
     char *                      buf;
 
-    async = &(hse_logging_inf.mli_async);
+    async = &(hse_log_inf.mli_async);
 
     mutex_lock(&async->al_lock);
-    if (async->al_nb == MAX_LOGGING_ASYNC_ENTRIES || !async->al_wq) {
+    if (async->al_nb == HSE_LOG_ASYNC_ENTRIES_MAX || !async->al_wq) {
         /* Circular buffer full. */
         mutex_unlock(&async->al_lock);
         ev(ENOENT);
@@ -422,7 +380,7 @@ _hse_log_post_async(const char *source_file, s32 source_line, hse_logpri_t prior
     }
 
     /* Next free entry */
-    entry = async->al_entries + (async->al_cons + async->al_nb) % MAX_LOGGING_ASYNC_ENTRIES;
+    entry = async->al_entries + (async->al_cons + async->al_nb) % HSE_LOG_ASYNC_ENTRIES_MAX;
 
     buf = entry->ae_buf;
     buf[0] = 0;
@@ -447,19 +405,19 @@ _hse_log_post_async(const char *source_file, s32 source_line, hse_logpri_t prior
     async->al_nb++;
 
     /* Start the consumer thread if it is not already working. */
-    start = !async->al_th_working;
+    start = !async->al_running;
     if (start)
-        async->al_th_working = true;
+        async->al_running = true;
     mutex_unlock(&async->al_lock);
 
     if (start) {
-        INIT_WORK(&async->al_wstruct, _hse_log_async_cons_th);
+        INIT_WORK(&async->al_wstruct, hse_log_async);
         queue_work(async->al_wq, &async->al_wstruct);
     }
 }
 
 /*
- * The function _hse_log() accomplishes the actual logging function and is
+ * The function hse_log() accomplishes the actual logging function and is
  * invoked by client code through the use of macros. The code does two things:
  * (1) abstracts away the difference between logging in user space via
  * syslog() and in kernel space via printk(), and (2) offers structured
@@ -492,7 +450,7 @@ hse_log(
     struct hse_log_fmt_state state;
     va_list                  args;
     int                      num_hse_args;
-    char *                   int_fmt = hse_logging_inf.mli_fmt_buf;
+    char *                   int_fmt = hse_log_inf.mli_fmt_buf;
     bool                     res = false;
     u64 now;
 
@@ -507,34 +465,26 @@ hse_log(
 
     ev->ev_priv = now + hse_gparams.gp_logging.squelch_ns;
 
-    mutex_lock(&hse_logging_lock);
+    mutex_lock(&hse_log_lock);
 
-    assert(hse_logging_inf.mli_nm_buf != 0);
-    assert(hse_logging_inf.mli_fmt_buf != 0);
-    assert(hse_logging_inf.mli_sd_buf != 0);
-    assert(hse_logging_inf.mli_name_buf != 0);
-    assert(hse_logging_inf.mli_value_buf != 0);
-    assert(hse_logging_inf.mli_json_buf != 0);
-
-    state.dict = hse_logging_inf.mli_sd_buf;
-    state.dict_rem = MAX_STRUCTURED_DATA_LENGTH;
+    state.dict = hse_log_inf.mli_sd_buf;
+    state.dict_rem = HSE_LOG_STRUCTURED_DATALEN_MAX;
     state.dict_pos = state.dict;
-    state.names = hse_logging_inf.mli_name_buf;
-    state.values = hse_logging_inf.mli_value_buf;
+    state.names = hse_log_inf.mli_name_buf;
+    state.values = hse_log_inf.mli_value_buf;
 
     /*
      * This code is at the mercy of the caller actually putting a NULL
      * as the last element of the hse_args array. The following code
-     * scans until either a NULL is found or MAX_HSE_SPECS have been
-     * found. In the latter case, the call is aborted.
+     * scans until either a NULL is found or HSE_LOG_SPECS_MAX have
+     * been found. In the latter case, the call is aborted.
      */
     num_hse_args = 0;
     if (hse_args) {
-        while (hse_args[num_hse_args] && num_hse_args <= MAX_HSE_SPECS)
+        while (hse_args[num_hse_args] && num_hse_args <= HSE_LOG_SPECS_MAX)
             num_hse_args++;
         if (hse_args[num_hse_args]) {
-            backstop_log("Too many HSE arguments given to _hse_log(), "
-                         "aborting log attempt");
+            hse_log_backstop("%s: hse_args list too long\n", __func__);
             goto out;
         }
     } else {
@@ -543,7 +493,7 @@ hse_log(
         hse_args = hse_args_none;
     }
     state.num_hse_specs = num_hse_args;
-    assert(state.num_hse_specs <= MAX_HSE_SPECS);
+    assert(state.num_hse_specs <= HSE_LOG_SPECS_MAX);
 
     state.hse_spec_cnt = 0;
     state.nv_index = 0;
@@ -553,18 +503,20 @@ hse_log(
 
     va_start(args, hse_args);
     res = vpreprocess_fmt_string(
-        &state, ev->ev_dte.dte_func, fmt_string, int_fmt, MAX_STRUCTURED_DATA_LENGTH, hse_args, args);
+        &state, ev->ev_dte.dte_func, fmt_string, int_fmt,
+        HSE_LOG_STRUCTURED_DATALEN_MAX, hse_args, args);
     va_end(args);
 
-    if (!res)
-        goto out;
+    if (res) {
+        async = async && hse_log_inf.mli_async.al_wq;
 
-    va_start(args, hse_args);
-    finalize_log_structure(ev->ev_pri, async, ev->ev_file, ev->ev_line, &state, int_fmt, args);
-    va_end(args);
+        va_start(args, hse_args);
+        finalize_log_structure(ev->ev_pri, async, ev->ev_file, ev->ev_line, &state, int_fmt, args);
+        va_end(args);
+    }
 
 out:
-    mutex_unlock(&hse_logging_lock);
+    mutex_unlock(&hse_log_lock);
 }
 
 static struct hse_log_code codetab[52];
@@ -630,7 +582,7 @@ vpreprocess_fmt_string(
      * IN_HSE_FORMAT when an extended conversion is detected.
      */
 
-    const char *msg1 = "Extra hse conversion specifiers found\n";
+    const char *msg1 = "%s: extra hse conversion specifiers found\n";
 
     bool  res = true;
     char *src_pos = (char *)fmt;
@@ -666,7 +618,7 @@ vpreprocess_fmt_string(
 
             case IN_HSE_FORMAT:
                 if (hse_cnt == state->num_hse_specs) {
-                    backstop_log(msg1);
+                    hse_log_backstop(msg1, __func__);
                     return false;
                 }
 
@@ -759,21 +711,18 @@ IN_HSE_FORMAT_handler(
      */
 
     struct hse_log_code *slot = get_code_slot(**src_pos);
-    char                 errmsg[50];
 
     c = **src_pos;
 
     if (!slot || !slot->fmt) {
-        snprintf(errmsg, sizeof(errmsg), "invalid hse conversion specifier %c", c);
-        backstop_log(errmsg);
+        hse_log_backstop("%s: invalid hse conversion specifier %c\n", __func__, c);
         return false;
     }
 
     ++*src_pos; /* [HSE_REVISIT]: multi-char: pos += slot->len? */
 
     if (!append_hse_arg(slot, tgt_pos, tgt_end, state, obj)) {
-        snprintf(errmsg, sizeof(errmsg), "cannot append hse conversion specifier %c", c);
-        backstop_log(errmsg);
+        hse_log_backstop("%s: cannot append hse conversion specifier %c\n", __func__, c);
         return false;
     }
 
@@ -786,31 +735,34 @@ bool
 hse_log_register(int code, hse_log_fmt_func_t *fmt, hse_log_add_func_t *add)
 {
     struct hse_log_code *slot;
+    bool b = false;
 
-    if (!fmt || !add)
-        return false;
-
+    mutex_lock(&hse_log_lock);
     slot = get_code_slot(code);
+    if (slot && !slot->fmt && fmt && add) {
+        slot->fmt = fmt;
+        slot->add = add;
+        b = true;
+    }
+    mutex_unlock(&hse_log_lock);
 
-    if (!slot || slot->fmt)
-        return false;
-
-    slot->fmt = fmt;
-    slot->add = add;
-    return true;
+    return b;
 }
 
 bool
 hse_log_deregister(int code)
 {
-    struct hse_log_code *slot = get_code_slot(code);
+    struct hse_log_code *slot;
 
-    if (!slot)
-        return false;
+    mutex_lock(&hse_log_lock);
+    slot = get_code_slot(code);
+    if (slot) {
+        slot->fmt = NULL;
+        slot->add = NULL;
+    }
+    mutex_unlock(&hse_log_lock);
 
-    slot->fmt = 0;
-    slot->add = 0;
-    return true;
+    return !!slot;
 }
 
 /* -------------------------------------------------- */
@@ -894,18 +846,18 @@ hse_log_push(struct hse_log_fmt_state *state, bool index, const char *name, cons
 bool
 push_nv(struct hse_log_fmt_state *state, bool index, const char *name, const char *val)
 {
-    char * buf = hse_logging_inf.mli_nm_buf;
+    char * buf = hse_log_inf.mli_nm_buf;
     size_t sz;
     char * tmp = (char *)name;
     char * name_offset;
     char * val_offset;
 
-    if (state->nv_index >= MAX_HSE_NV_PAIRS)
+    if (state->nv_index >= HSE_LOG_NV_PAIRS_MAX)
         return false;
 
     if (index) {
-        sz = snprintf(buf, MAX_STRUCTURED_NAME_LENGTH, name, state->hse_spec_cnt);
-        if (sz > MAX_STRUCTURED_NAME_LENGTH)
+        sz = snprintf(buf, HSE_LOG_STRUCTURED_NAMELEN_MAX, name, state->hse_spec_cnt);
+        if (sz > HSE_LOG_STRUCTURED_NAMELEN_MAX)
             return false;
         tmp = buf;
     }
@@ -988,9 +940,9 @@ finalize_log_structure(
     char *              msg_buf;
     const char *        slog_prefix = "@cee:";
 
-    msg_buf = hse_logging_inf.mli_nm_buf;
+    msg_buf = hse_log_inf.mli_nm_buf;
 
-    i = vsnprintf(msg_buf, MAX_STRUCTURED_DATA_LENGTH, fmt, args);
+    i = vsnprintf(msg_buf, HSE_LOG_STRUCTURED_DATALEN_MAX, fmt, args);
 
     if (!hse_gparams.gp_logging.structured) {
         jc.json_buf = msg_buf;
@@ -998,8 +950,8 @@ finalize_log_structure(
         goto emit_logs;
     }
 
-    jc.json_buf = hse_logging_inf.mli_json_buf;
-    jc.json_buf_sz = MAX_STRUCTURED_DATA_LENGTH;
+    jc.json_buf = hse_log_inf.mli_json_buf;
+    jc.json_buf_sz = HSE_LOG_STRUCTURED_DATALEN_MAX;
 
     json_element_start(&jc, NULL);
 
@@ -1019,7 +971,7 @@ finalize_log_structure(
 
   emit_logs:
     if (async)
-        _hse_log_post_async(source_file, source_line, priority, jc.json_buf);
+        hse_log_post_async(source_file, source_line, priority, jc.json_buf);
     else
         hse_slog_emit(priority, "%s%s\n", slog_prefix, jc.json_buf);
 }
@@ -1153,11 +1105,11 @@ hse_format_payload(struct json_context *jc, va_list payload)
  *
  * hse_slog_commit(HSE_NOTICE, logger);
  *
- * 1) The hse_log and hse_alog macros resolve to the same _hse_log() call.
+ * 1) The hse_log and hse_alog macros resolve to the same hse_log() call.
  * Since all hse_log calls are asynchronous by default, hse_alog should be
  * removed.
  *
- * 2) The _hse_log() call does duplicate work since it handles both async
+ * 2) The hse_log() call does duplicate work since it handles both async
  * and sync calls. The logic should be divided similar to hse_slog() and
  * hse_slog_emit().
  *
@@ -1192,24 +1144,24 @@ hse_slog_internal(hse_logpri_t priority, const char *fmt, ...)
         return;
 
     va_start(payload, fmt);
-    mutex_lock(&hse_logging_lock);
+    mutex_lock(&hse_log_lock);
 
     if (fmt) {
         buf = fmt;
     } else {
         struct json_context jc = { 0 };
 
-        jc.json_buf = hse_logging_inf.mli_fmt_buf;
-        jc.json_buf_sz = MAX_STRUCTURED_DATA_LENGTH;
+        jc.json_buf = hse_log_inf.mli_fmt_buf;
+        jc.json_buf_sz = HSE_LOG_STRUCTURED_DATALEN_MAX;
 
         hse_format_payload(&jc, payload);
 
-        buf = hse_logging_inf.mli_fmt_buf;
+        buf = hse_log_inf.mli_fmt_buf;
     }
 
-    _hse_log_post_vasync("_hse_slog", 1, priority, buf, payload);
+    hse_log_post_vasync("_hse_slog", 1, priority, buf, payload);
 
-    mutex_unlock(&hse_logging_lock);
+    mutex_unlock(&hse_log_lock);
     va_end(payload);
 }
 
@@ -1221,10 +1173,10 @@ hse_slog_emit(hse_logpri_t priority, const char *fmt, ...)
     va_list payload;
 
     va_start(payload, fmt);
-    if (hse_gparams.gp_logging.destination == LD_SYSLOG) {
-        vsyslog(priority, fmt, payload);
+    if (hse_log_file) {
+        vfprintf(hse_log_file, fmt, payload);
     } else {
-        vfprintf(logging_file, fmt, payload);
+        vsyslog(priority, fmt, payload);
     }
     va_end(payload);
 }
@@ -1244,14 +1196,17 @@ hse_slog_create(hse_logpri_t priority, struct slog **sl, const char *type)
 
     *sl = calloc(1, sizeof(struct slog));
     if (ev(!*sl))
-        goto err2;
+        return ENOMEM;
 
     jc = &((*sl)->sl_json);
     jc->json_buf_sz = 2048;
 
     jc->json_buf = malloc(jc->json_buf_sz);
-    if (ev(!jc->json_buf))
-        goto err1;
+    if (ev(!jc->json_buf)) {
+        free(*sl);
+        *sl = NULL;
+        return ENOMEM;
+    }
 
     json_element_start(jc, NULL);
     json_element_field(jc, "type", "%s", type);
@@ -1262,11 +1217,6 @@ hse_slog_create(hse_logpri_t priority, struct slog **sl, const char *type)
     (*sl)->sl_entries = 0;
 
     return 0;
-err1:
-    free(*sl);
-err2:
-    *sl = NULL;
-    return ENOMEM;
 }
 
 int
@@ -1317,8 +1267,10 @@ hse_slog_commit(struct slog *sl)
     json_element_end(jc);
     json_element_end(jc);
 
+    mutex_lock(&hse_log_lock);
     if (sl->sl_entries)
         hse_slog_emit(sl->sl_priority, "@cee:%s\n", jc->json_buf);
+    mutex_unlock(&hse_log_lock);
 
     free(jc->json_buf);
     free(sl);

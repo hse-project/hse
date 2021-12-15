@@ -259,7 +259,7 @@ deviceprofile_calibrate_create(
 
     memset(dprofile->dp_elem_work, 0, threads * sizeof(*dprofile->dp_elem_work));
 
-    dprofile->dp_workqueue = alloc_workqueue("dp_workqueue", 0, threads);
+    dprofile->dp_workqueue = alloc_workqueue("dp_workqueue", 0, threads, threads);
     if (!dprofile->dp_workqueue) {
         free(dprofile->dp_elem_work);
         free(dprofile);
