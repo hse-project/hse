@@ -28,14 +28,15 @@ void
 yaml_realloc_buf(struct yaml_context *yc)
 {
     void *buf;
+    size_t newsz = yc->yaml_buf_sz * 2;
 
-    buf = realloc(yc->yaml_buf, yc->yaml_buf_sz * 2);
+    buf = realloc(yc->yaml_buf, newsz);
 
     if (!buf)
         return; /* DO NOT call ev() */
 
     yc->yaml_buf = buf;
-    yc->yaml_buf_sz *= 2;
+    yc->yaml_buf_sz = newsz;
 }
 
 static void

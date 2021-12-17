@@ -104,6 +104,7 @@ rest_dt_get(
     char *                      buf;
     struct yaml_context         yc = { 0 };
     union dt_iterate_parameters dip = {.yc = &yc };
+    char                        dt_path[PATH_MAX];
 
     switch (rest_kv_count(iter)) {
         case 0:
@@ -125,7 +126,8 @@ rest_dt_get(
     if (!buf)
         return merr(ENOMEM);
 
-    sprintf(buf, "/%s", path);
+    snprintf(buf, bufsz, "/%s", path);
+    strncpy(dt_path, buf, sizeof(dt_path));
 
     yc.yaml_indent = 0;
     yc.yaml_offset = pathsz;
@@ -133,7 +135,7 @@ rest_dt_get(
     yc.yaml_buf_sz = bufsz;
     yc.yaml_buf = buf;
 
-    if (dt_iterate_cmd(DT_OP_EMIT, buf, &dip, 0, fld, val) > 0)
+    if (dt_iterate_cmd(DT_OP_EMIT, dt_path, &dip, 0, fld, val) > 0)
         rest_write_safe(info->resp_fd, yc.yaml_buf + pathsz, yc.yaml_offset - pathsz);
 
     free(yc.yaml_buf);
