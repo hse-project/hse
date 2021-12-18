@@ -14,6 +14,8 @@
 #include <hse_util/rest_api.h>
 #include <hse_util/spinlock.h>
 
+#include <bsd/string.h>
+
 /* rest hooks for dt */
 merr_t
 rest_dt_put(
@@ -28,17 +30,13 @@ rest_dt_put(
     union dt_iterate_parameters dip = {.dsp = &dsp };
     struct rest_kv *            kv;
     struct yaml_context         yc = { 0 };
-    char                        buf[1024 * 1024];
+    char                       *buf;
+    size_t                      bufsz = 1024 * 1024;
+    merr_t                      err = 0;
 
     /* only support rest queries in URI */
     if (info->data)
         return merr(ev(EPROTONOSUPPORT));
-
-    yc.yaml_indent = 0;
-    yc.yaml_offset = 0;
-    yc.yaml_buf = buf;
-    yc.yaml_buf_sz = sizeof(buf);
-    yc.yaml_emit = NULL;
 
     /* Separate out the path and arguments */
     dsp.path = calloc(1, strlen(path) + 2);
@@ -47,16 +45,29 @@ rest_dt_put(
 
     sprintf(dsp.path, "/%s", path);
 
+    buf = malloc(bufsz);
+    if (ev(!buf))
+        return merr(ENOMEM);
+
+    yc.yaml_indent = 0;
+    yc.yaml_offset = 0;
+    yc.yaml_buf = buf;
+    yc.yaml_buf_sz = bufsz;
+    yc.yaml_emit = NULL;
+
     /* Check if path is valid */
     dte = dt_find(dsp.path, 0);
     if (!dte) {
-        size_t n = snprintf(buf, sizeof(buf), "Invalid path: %s\n", dsp.path);
+        size_t n = snprintf(buf, bufsz, "Invalid path: %s\n", dsp.path);
 
         free(dsp.path);
-        if (write(info->resp_fd, buf, n) != n)
-            return merr(EIO);
+        if (write(info->resp_fd, buf, n) != n) {
+            err = merr(EIO);
+            goto exit;
+        }
 
-        return merr(ev(ENXIO));
+        err = merr(ev(ENXIO));
+        goto exit;
     }
 
     /* Parse the arguments and extract key=value pairs*/
@@ -71,6 +82,7 @@ rest_dt_put(
         dsp.value = kv->value;
         dsp.value_len = dsp.value ? strlen(dsp.value) : 0;
 
+        printf("%s(%d): %s\n", kv->key, dsp.field, kv->value);
         n = dt_iterate_cmd(DT_OP_SET, dsp.path, &dip, 0, 0, 0);
 
         yaml_start_element(&yc, "path", dsp.path);
@@ -83,10 +95,14 @@ rest_dt_put(
 
     free(dsp.path);
 
-    if (write(info->resp_fd, buf, yc.yaml_offset) != yc.yaml_offset)
-        return merr(EIO);
+    if (write(info->resp_fd, buf, yc.yaml_offset) != yc.yaml_offset) {
+        err = merr(EIO);
+        goto exit;
+    }
 
-    return 0;
+exit:
+    free(buf);
+    return err;
 }
 
 merr_t
@@ -126,8 +142,15 @@ rest_dt_get(
     if (!buf)
         return merr(ENOMEM);
 
-    snprintf(buf, bufsz, "/%s", path);
-    strncpy(dt_path, buf, sizeof(dt_path));
+    if (snprintf(buf, bufsz, "/%s", path) > bufsz) {
+        free(buf);
+        return merr(ENAMETOOLONG);
+    }
+
+    if (strlcpy(dt_path, buf, sizeof(dt_path)) > sizeof(dt_path)) {
+        free(buf);
+        return merr(ENAMETOOLONG);
+    }
 
     yc.yaml_indent = 0;
     yc.yaml_offset = pathsz;
