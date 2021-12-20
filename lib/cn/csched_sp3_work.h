@@ -1,6 +1,6 @@
 /* SPDX-License-Identifier: Apache-2.0 */
 /*
- * Copyright (C) 2015-2020 Micron Technology, Inc.  All rights reserved.
+ * Copyright (C) 2015-2021 Micron Technology, Inc.  All rights reserved.
  */
 
 #ifndef HSE_KVDB_CN_CSCHED_SP3_WORK_H
@@ -21,9 +21,9 @@ struct cn_compaction_work;
 enum sp3_work_type {
     wtype_rspill,       /* root node: spill */
     wtype_ispill,       /* root or internal nodes: spill */
+    wtype_node_len,     /* all nodes: number of kvsets */
     wtype_leaf_garbage, /* leaf nodes: garbage */
     wtype_leaf_size,    /* leaf nodes: size */
-    wtype_node_len,     /* all nodes: numbrer of kvsets */
     wtype_leaf_scatter, /* leaf nodes: scatter */
 };
 #define wtype_MAX (wtype_leaf_scatter + 1)
@@ -61,34 +61,7 @@ sp3_work(
     struct sp3_thresholds *     thresholds,
     enum sp3_work_type          wtype,
     uint                        debug,
-    uint *                      qnum_out,
     struct cn_compaction_work **wp);
-
-/* work queues */
-#define SP3_QNUM_ROOT           (0)
-#define SP3_QNUM_INTERN         (1)
-#define SP3_QNUM_LEAF           (2)
-#define SP3_QNUM_LEAFBIG        (3)
-#define SP3_QNUM_LSCAT          (4)
-#define SP3_NUM_QUEUES          (5)
-
-/* queue thread counts */
-#define SP3_QTHREADS_ROOT       (3ul)
-#define SP3_QTHREADS_INTERN     (4ul)
-#define SP3_QTHREADS_LEAF       (4ul) /* these jobs don't use shared queue */
-#define SP3_QTHREADS_LEAFBIG    (4ul) /* these jobs don't use shared queue */
-#define SP3_QTHREADS_LSCAT      (2ul)
-#define SP3_QTHREADS_SHARED     (4ul)
-
-/* Default value CSCHED_QTHREADS rparam.
- */
-#define CSCHED_QTHREADS_DEFAULT                                         \
-    ((SP3_QTHREADS_ROOT << (8 * SP3_QNUM_ROOT)) |                       \
-     (SP3_QTHREADS_INTERN << (8 * SP3_QNUM_INTERN)) |                   \
-     (SP3_QTHREADS_LEAF << (8 * SP3_QNUM_LEAF)) |                       \
-     (SP3_QTHREADS_LEAFBIG << (8 * SP3_QNUM_LEAFBIG)) |                 \
-     (SP3_QTHREADS_LSCAT << (8 * SP3_QNUM_LSCAT)) |                     \
-     (SP3_QTHREADS_SHARED << (8 * SP3_NUM_QUEUES)))
 
 /* clang-format off */
 

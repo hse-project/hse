@@ -134,6 +134,8 @@ struct cn_work_est {
  * struct cn_compaction_work - control structure for cn tree compaction
  *
  * @cw_work:         for linking into workqueues
+ * @cw_debug:        enables debug stats
+ * @cw_qshared:      job is running courtesy of a shared-queue thread
  * @cw_tree:         cn tree
  * @cw_node:         node within cn tree
  * @cw_mark:         oldest kvset to be compacted
@@ -147,7 +149,6 @@ struct cn_work_est {
  * @cw_dgen_lo:      the dgen of the oldest kvset to be compacted
  * @cw_active_count: for tracking the number of active "root" or "other" threads
  * @cw_horizon:      sequence number horizon to use while compacting
- * @cw_debug:        enables debug stats
  * @cw_outc:         number of output kvsets
  * @cw_outv:         outputs (mblock ids used to make output kvsets)
  * @cw_inputv:       number of input kvsets
@@ -177,6 +178,7 @@ struct cn_compaction_work {
     uint                     cw_iter_flags;
     uint                     cw_debug;
     bool                     cw_canceled;
+    bool                     cw_qshared;
     merr_t                   cw_err;
     struct workqueue_struct *cw_io_workq;
     struct perfc_set *       cw_pc;

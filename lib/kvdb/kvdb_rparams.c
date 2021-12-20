@@ -840,7 +840,7 @@ static const struct param_spec pspecs[] = {
         .ps_stringify = param_default_stringify,
         .ps_jsonify = param_default_jsonify,
         .ps_default_value = {
-            .as_uscalar = 0,
+            .as_uscalar = CSCHED_QTHREADS_DEFAULT,
         },
         .ps_bounds = {
             .as_uscalar = {

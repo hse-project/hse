@@ -106,12 +106,6 @@ components = {
         'kvdb_rparams_test': {},
         'mclass_policy_test': {},
         'omf_version_test': {},
-        'sched_sts_test': {
-            'cases': {
-                'default': [],
-                'debug': ['debug'],
-            },
-        },
         'throttle_test': {},
         'viewset_test': {},
         'kvdb_pfxlock_test': {},

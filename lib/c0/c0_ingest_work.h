@@ -15,7 +15,6 @@
 #include <hse_ikvdb/kvset_builder.h>
 #include <hse_ikvdb/c0_kvmultiset.h>
 #include <hse_ikvdb/c0_kvset_iterator.h>
-#include <hse_ikvdb/sched_sts.h>
 #include <hse_ikvdb/lc.h>
 
 /* clang-format off */

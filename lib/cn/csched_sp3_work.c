@@ -338,10 +338,10 @@ sp3_work_leaf_garbage(
         /* Node is not big enough to spill.  If there's more than
          * one kvset, then kv-compact.  Otherwise do nothing.
          */
-        if (kvsets > 1)
-            *action = CN_ACTION_COMPACT_KV;
-        else
+        if (kvsets < 4)
             return 0;
+
+        *action = CN_ACTION_COMPACT_KV;
     }
 
     *rule = CN_CR_LGARB;
@@ -640,7 +640,6 @@ sp3_work(
     struct sp3_thresholds *     thresh,
     enum sp3_work_type          wtype,
     uint                        debug,
-    uint *                      qnum_out,
     struct cn_compaction_work **wp)
 {
     struct cn_tree_node *      tn;
@@ -658,7 +657,6 @@ sp3_work(
     struct kvset_list_entry *mark = NULL;
     atomic_int              *bonus = NULL;
 
-    *qnum_out = 0;
     tn = spn2tn(spn);
 
     if (tn->tn_tree->rp->cn_maint_disable)
@@ -688,54 +686,46 @@ sp3_work(
     }
 
     if (cn_node_isleaf(tn)) {
-
         switch (wtype) {
-            case wtype_leaf_size:
-                n_kvsets = sp3_work_leaf_size(spn, thresh, &mark, &action, &rule);
-                *qnum_out = SP3_QNUM_LEAFBIG;
-                break;
+        case wtype_leaf_size:
+            n_kvsets = sp3_work_leaf_size(spn, thresh, &mark, &action, &rule);
+            break;
 
-            case wtype_leaf_garbage:
-                n_kvsets = sp3_work_leaf_garbage(spn, thresh, &mark, &action, &rule);
-                *qnum_out = SP3_QNUM_LEAF;
-                break;
+        case wtype_leaf_garbage:
+            n_kvsets = sp3_work_leaf_garbage(spn, thresh, &mark, &action, &rule);
+            break;
 
-            case wtype_node_len:
-                n_kvsets = sp3_work_leaf_len(spn, thresh, &mark, &action, &rule, &bonus);
-                *qnum_out = SP3_QNUM_LEAF;
-                break;
+        case wtype_node_len:
+            n_kvsets = sp3_work_leaf_len(spn, thresh, &mark, &action, &rule, &bonus);
+            break;
 
-            case wtype_leaf_scatter:
-                n_kvsets = sp3_work_leaf_scatter(spn, thresh, &mark, &action, &rule, &bonus);
-                *qnum_out = SP3_QNUM_LSCAT;
-                break;
+        case wtype_leaf_scatter:
+            n_kvsets = sp3_work_leaf_scatter(spn, thresh, &mark, &action, &rule, &bonus);
+            break;
 
-            default:
-                ev_warn(1);
-                break;
+        default:
+            ev_warn(1);
+            break;
         }
     } else {
-        uint cmin, cmax;
+        uint cmin = thresh->rspill_kvsets_min;
+        uint cmax = thresh->rspill_kvsets_max;
 
         switch (wtype) {
-            case wtype_rspill:
-                cmin = thresh->rspill_kvsets_min;
-                cmax = thresh->rspill_kvsets_max;
-                *qnum_out = SP3_QNUM_ROOT;
-                break;
-            case wtype_node_len:
-                cmin = thresh->rspill_kvsets_min;
-                cmax = thresh->rspill_kvsets_max;
-                *qnum_out = SP3_QNUM_INTERN;
-                break;
-            case wtype_ispill:
+        case wtype_rspill:
+        case wtype_node_len:
+            break;
+
+        case wtype_ispill:
+            if (tn->tn_loc.node_level > 0) {
                 cmin = thresh->ispill_kvsets_min;
                 cmax = thresh->ispill_kvsets_max;
-                *qnum_out = SP3_QNUM_INTERN;
-                break;
-            default:
-                ev_warn(1);
-                goto locked_nowork;
+            }
+            break;
+
+        default:
+            ev_warn(1);
+            goto locked_nowork;
         }
 
         n_kvsets = sp3_work_ispill(spn, cmin, cmax, &mark, &action, &rule);

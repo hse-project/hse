@@ -43,7 +43,6 @@ mocked_headers = [
     meson.project_source_root() / 'lib/kvdb/viewset.h',
     meson.project_source_root() / 'lib/kvdb/kvdb_keylock.h',
     meson.project_source_root() / 'lib/kvdb/kvdb_pfxlock.h',
-    meson.project_source_root() / 'lib/kvdb/sched_sts_perfc.h',
     meson.project_source_root() / 'lib/lc/bonsai_iter.h',
     meson.project_source_root() / 'lib/mpool/include/mpool/mpool.h',
     meson.project_source_root() / 'lib/util/include/hse_util/alloc.h',

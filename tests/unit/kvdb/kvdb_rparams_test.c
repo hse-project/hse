@@ -318,7 +318,7 @@ MTF_DEFINE_UTEST_PRE(kvdb_rparams_test, csched_qthreads, test_pre)
     ASSERT_EQ((uintptr_t)ps->ps_validate, (uintptr_t)param_default_validator);
     ASSERT_EQ((uintptr_t)ps->ps_stringify, (uintptr_t)param_default_stringify);
     ASSERT_EQ((uintptr_t)ps->ps_jsonify, (uintptr_t)param_default_jsonify);
-    ASSERT_EQ(0, params.csched_qthreads);
+    ASSERT_EQ(CSCHED_QTHREADS_DEFAULT, params.csched_qthreads);
     ASSERT_EQ(0, ps->ps_bounds.as_uscalar.ps_min);
     ASSERT_EQ(UINT64_MAX, ps->ps_bounds.as_uscalar.ps_max);
 }

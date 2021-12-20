@@ -12,7 +12,6 @@ kvdb_sources = files(
     'kvdb_rparams.c',
     'mclass_policy.c',
     'sched_sts.c',
-    'sched_sts_perfc.c',
     'throttle.c',
     'viewset.c',
 )
