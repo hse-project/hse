@@ -1,7 +1,9 @@
 /* SPDX-License-Identifier: Apache-2.0 */
 /*
- * Copyright (C) 2015-2021 Micron Technology, Inc.  All rights reserved.
+ * Copyright (C) 2015-2022 Micron Technology, Inc.  All rights reserved.
  */
+
+#include <urcu-bp.h>
 
 #include <hse_util/platform.h>
 #include <hse_util/assert.h>
@@ -12,7 +14,6 @@
 #include <hse_util/compiler.h>
 #include <hse_util/slab.h>
 #include <hse_util/keylock.h>
-#include <hse_util/rcu.h>
 #include <hse_util/page.h>
 #include <hse_util/vlb.h>
 #include <hse_util/xrand.h>

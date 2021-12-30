@@ -13,8 +13,23 @@ project(
     ],
 )
 
+cpp = meson.get_compiler('cpp')
+
 hse_dep = dependency('hse-2')
 threads_dep = dependency('threads')
+
+add_project_arguments(
+    cpp.get_supported_arguments([
+        '-DHAVE_FREAD',
+        '-DHAVE_FWRITE',
+        '-DHAVE_FFLUSH',
+        '-DHAVE_FSYNC',
+        '-DLEVELDB_PLATFORM_POSIX',
+        '-Wno-unused-parameter',
+        '-Wno-sign-compare',
+    ]),
+    language: 'cpp'
+)
 
 db_bench = executable(
     'db_bench',
@@ -27,15 +42,6 @@ db_bench = executable(
         'util/status.cc',
         'util/testutil.cc',
     ),
-    cpp_args: [
-        '-DHAVE_FREAD',
-        '-DHAVE_FWRITE',
-        '-DHAVE_FFLUSH',
-        '-DHAVE_FSYNC',
-        '-DLEVELDB_PLATFORM_POSIX',
-        '-Wno-unused-parameter',
-        '-Wno-sign-compare',
-    ],
     include_directories: [
         include_directories('.'),
         include_directories('include'),

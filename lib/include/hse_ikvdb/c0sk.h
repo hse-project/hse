@@ -1,14 +1,15 @@
 /* SPDX-License-Identifier: Apache-2.0 */
 /*
- * Copyright (C) 2015-2021 Micron Technology, Inc.  All rights reserved.
+ * Copyright (C) 2015-2022 Micron Technology, Inc.  All rights reserved.
  */
 
-#ifndef HSE_CORE_C0SK_H
-#define HSE_CORE_C0SK_H
+#ifndef HSE_C0_C0SK_H
+#define HSE_C0_C0SK_H
+
+#include <urcu-bp.h>
 
 #include <hse_util/inttypes.h>
 #include <hse_util/hse_err.h>
-#include <hse_util/rcu.h>
 #include <hse_util/mutex.h>
 
 #include <mpool/mpool.h>

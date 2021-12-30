@@ -2,7 +2,9 @@ components = {
     'c0': {
         'c0_kvmultiset_test': {},
         'c0_kvset_iterator_test': {},
-        'c0_kvset_test': {},
+        'c0_kvset_test': {
+            'c_args': cc.get_supported_arguments(['-Wno-clobbered']),
+        },
         'c0_test': {
             'sources': [
                 files(
@@ -221,7 +223,9 @@ components = {
         'rbtree_test': {},
         'rest_api_test': {},
         'rest_client_test': {},
-        'seqno_test': {},
+        'seqno_test': {
+            'c_args': cc.get_supported_arguments(['-Wno-clobbered']),
+        },
         'spinlock_test': {
             'sources': [
                 files(
@@ -249,9 +253,7 @@ foreach c, tests : components
                 c / '@0@.c'.format(t),
                 params.get('sources', []),
             ],
-            c_args: [
-                params.get('c_args', []),
-            ],
+            c_args: params.get('c_args', []),
             include_directories: params.get('include_directories', []),
             dependencies: [
                 hse_mock_dep,

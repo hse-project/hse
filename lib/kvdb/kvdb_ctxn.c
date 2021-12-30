@@ -1,9 +1,11 @@
 /* SPDX-License-Identifier: Apache-2.0 */
 /*
- * Copyright (C) 2015-2021 Micron Technology, Inc.  All rights reserved.
+ * Copyright (C) 2015-2022 Micron Technology, Inc.  All rights reserved.
  */
 
 #define MTF_MOCK_IMPL_kvdb_ctxn
+
+#include <urcu/rculist.h>
 
 #include <hse_util/arch.h>
 #include <hse_util/assert.h>

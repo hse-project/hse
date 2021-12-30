@@ -1,17 +1,18 @@
 /* SPDX-License-Identifier: Apache-2.0 */
 /*
- * Copyright (C) 2015-2021 Micron Technology, Inc.  All rights reserved.
+ * Copyright (C) 2015-2022 Micron Technology, Inc.  All rights reserved.
  */
 
 #ifndef HSE_KVS_C0SK_INTERNAL_H
 #define HSE_KVS_C0SK_INTERNAL_H
+
+#include <urcu/rculist.h>
 
 #include <hse/limits.h>
 
 #include <hse_util/arch.h>
 #include <hse_util/mutex.h>
 #include <hse_util/condvar.h>
-#include <hse_util/cds_list.h>
 #include <hse_util/perfc.h>
 #include <hse_util/workqueue.h>
 

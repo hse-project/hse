@@ -294,8 +294,8 @@ jobs:
       - name: Setup
         run: |
           meson builddir -Dbuildtype=${{ matrix.buildtype }} \
-            --fatal-meson-warnings -Dtools=enabled -Ddocs=disabled \
-            -Dbindings=all -Dycsb=true -Db_sanitize=address,undefined
+            -Db_sanitize=address,undefined -Dwerror=true -Dtools=enabled \
+            -Ddocs=disabled -Dbindings=all -Dycsb=true
 
       - name: Build
         run: |
