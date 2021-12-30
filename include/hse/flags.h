@@ -1,6 +1,6 @@
 /* SPDX-License-Identifier: Apache-2.0 */
 /*
- * Copyright (C) 2021 Micron Technology, Inc.  All rights reserved.
+ * Copyright (C) 2021-2023 Micron Technology, Inc.  All rights reserved.
  */
 
 #ifndef HSE_FLAGS_H

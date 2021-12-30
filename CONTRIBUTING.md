@@ -62,11 +62,9 @@ git clone git@github.com:hse-project/hse.git
 Refer to the [README.md](./README.md#building-hse) to get
 started.
 
-Building HSE requires Meson >= 0.58.
-
 HSE comes with many build options. Refer to the
 [`meson_options.txt` file](./meson_options.txt) for all available build options.
-Alternatively run the following command:
+Alternatively run the following command after successfully configuring HSE:
 
 ```shell
 meson configure build

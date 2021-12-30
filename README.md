@@ -51,9 +51,9 @@ for examples of the packages required for several common Linux distributions.
 <!--If you change the name of this header, please update all links to it as well-->
 
 Clone the [`hse`](https://github.com/hse-project/hse) repo and checkout
-the latest release tag.  This tag must be for HSE version 2.0 or higher.
+the latest release tag. This tag must be for HSE version 2.0 or higher.
 
-For example
+For example:
 
 ```shell
 git clone https://github.com/hse-project/hse.git

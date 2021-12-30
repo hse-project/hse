@@ -1,6 +1,6 @@
 /* SPDX-License-Identifier: Apache-2.0 */
 /*
- * Copyright (C) 2015-2021 Micron Technology, Inc.  All rights reserved.
+ * Copyright (C) 2015-2023 Micron Technology, Inc.  All rights reserved.
  */
 
 /* The interfaces defined in this file are provided only for use by
@@ -36,11 +36,11 @@ extern "C" {
 
 /** @brief Status of a compaction request. */
 struct hse_kvdb_compact_status {
-    unsigned int kvcs_samp_lwm;  /**< space amp low water mark (%). */
-    unsigned int kvcs_samp_hwm;  /**< space amp high water mark (%). */
-    unsigned int kvcs_samp_curr; /**< current space amp (%). */
-    unsigned int kvcs_active;    /**< is an externally requested compaction underway. */
-    unsigned int kvcs_canceled;  /**< was an externally requested compaction canceled. */
+    unsigned int kvcs_samp_lwm;  /**< Space amp low water mark (%). */
+    unsigned int kvcs_samp_hwm;  /**< Space amp high water mark (%). */
+    unsigned int kvcs_samp_curr; /**< Current space amp (%). */
+    unsigned int kvcs_active;    /**< Non-zero IFF an externally requested compaction underway. */
+    unsigned int kvcs_canceled;  /**< Non-zero IFF an externally requested compaction canceled. */
 };
 
 /** @brief Request a data compaction operation.
@@ -58,7 +58,7 @@ struct hse_kvdb_compact_status {
  *
  * @note This function is thread safe.
  *
- * @param kvdb: KVDB handle from hse_kvdb_open().
+ * @param kvdb: KVDB handle.
  * @param flags: Compaction flags.
  *
  * @remark @p kvdb must not be NULL.
@@ -76,7 +76,7 @@ hse_kvdb_compact(struct hse_kvdb *kvdb, unsigned int flags);
  *
  * @note This function is thread safe.
  *
- * @param kvdb: KVDB handle from hse_kvdb_open().
+ * @param kvdb: KVDB handle.
  * @param[out] status: Status of compaction request.
  *
  * @remark @p kvdb must not be NULL.
@@ -110,10 +110,10 @@ enum hse_kvs_pfx_probe_cnt {
  * <b>Flags:</b>
  * @arg 0 - Reserved for future use.
  *
- * @param kvs: KVS handle from hse_kvdb_kvs_open().
+ * @param kvs: KVS handle.
  * @param flags: Flags for operation specialization.
  * @param txn: Transaction context (optional).
- * @param pfx: Prefix to be probed.
+ * @param pfx: Prefix.
  * @param pfx_len: Length of @p pfx.
  * @param[out] found: Zero, one or multiple matches seen.
  * @param[in,out] keybuf: Buffer which will be populated with contents of first
