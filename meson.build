@@ -1,7 +1,7 @@
 project(
     'hse',
     ['c'],
-    version: '2.2.0',
+    version: files('VERSION'),
     license: [
         'Apache-2.0',
     ],
