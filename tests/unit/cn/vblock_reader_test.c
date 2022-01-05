@@ -64,7 +64,7 @@ MTF_DEFINE_UTEST_PRE(vblock_reader_test, t_vbr_desc_read, pre)
     ASSERT_EQ(0, err);
 
     omf_set_vbh_magic(&vbhdr, VBLOCK_HDR_MAGIC);
-    omf_set_vbh_version(&vbhdr, VBLOCK_HDR_VERSION2);
+    omf_set_vbh_version(&vbhdr, VBLOCK_HDR_VERSION);
     omf_set_vbh_vgroup(&vbhdr, get_time_ns());
     set_props(&props, blkid, 83787);
 
@@ -104,7 +104,7 @@ MTF_DEFINE_UTEST_PRE(vblock_reader_test, t_vbr_desc_update, pre)
     ASSERT_EQ(0, err);
 
     omf_set_vbh_magic(&vbhdr, VBLOCK_HDR_MAGIC);
-    omf_set_vbh_version(&vbhdr, VBLOCK_HDR_VERSION2);
+    omf_set_vbh_version(&vbhdr, VBLOCK_HDR_VERSION);
     omf_set_vbh_vgroup(&vbhdr, get_time_ns());
     set_props(&props, blkid, 83787);
 
@@ -157,7 +157,7 @@ MTF_DEFINE_UTEST_PRE(vblock_reader_test, t_vbr_desc_read_errors, pre)
     ASSERT_EQ(0, err);
 
     omf_set_vbh_magic(&vbhdr, VBLOCK_HDR_MAGIC);
-    omf_set_vbh_version(&vbhdr, VBLOCK_HDR_VERSION2);
+    omf_set_vbh_version(&vbhdr, VBLOCK_HDR_VERSION);
     omf_set_vbh_vgroup(&vbhdr, get_time_ns());
     set_props(&props, blkid, 83787);
 
@@ -191,7 +191,7 @@ MTF_DEFINE_UTEST_PRE(vblock_reader_test, t_detect_bad_magic, pre)
 
     /* vbh_magic is wrong, and should be detected in vbr_desc_read */
     omf_set_vbh_magic(&vbhdr, -1);
-    omf_set_vbh_version(&vbhdr, VBLOCK_HDR_VERSION2);
+    omf_set_vbh_version(&vbhdr, VBLOCK_HDR_VERSION);
     omf_set_vbh_vgroup(&vbhdr, get_time_ns());
     set_props(&props, blkid, 83787);
 
@@ -257,7 +257,7 @@ MTF_DEFINE_UTEST_PRE(vblock_reader_test, t_detect_version1, pre)
 
     /* vbh_version is wrong, and should be detected in vbr_desc_read */
     omf_set_vbh_magic(&vbhdr, VBLOCK_HDR_MAGIC);
-    omf_set_vbh_version(&vbhdr, VBLOCK_HDR_VERSION1);
+    omf_set_vbh_version(&vbhdr, VBLOCK_HDR_VERSION + 1);
     omf_set_vbh_vgroup(&vbhdr, get_time_ns());
     set_props(&props, blkid, 83787);
 
@@ -268,7 +268,7 @@ MTF_DEFINE_UTEST_PRE(vblock_reader_test, t_detect_version1, pre)
     ASSERT_EQ(0, err);
 
     err = vbr_desc_read(ds, map, 0, &vgroups, argv, &props, &vblk_desc);
-    ASSERT_EQ(0, err);
+    ASSERT_EQ(EINVAL, merr_errno(err));
 
     mpool_mcache_munmap(map);
 }
@@ -304,7 +304,7 @@ MTF_DEFINE_UTEST_PRE(vblock_reader_test, t_vbr_value, pre)
 
     hdr = (struct vblock_hdr_omf *)vblk;
     omf_set_vbh_magic(hdr, VBLOCK_HDR_MAGIC);
-    omf_set_vbh_version(hdr, VBLOCK_HDR_VERSION2);
+    omf_set_vbh_version(hdr, VBLOCK_HDR_VERSION);
     omf_set_vbh_vgroup(hdr, get_time_ns());
     set_props(&props, blkid, n_entries * vlen);
 
@@ -360,7 +360,7 @@ MTF_DEFINE_UTEST_PRE(vblock_reader_test, t_vbr_read_ahead, pre)
 
     hdr = (struct vblock_hdr_omf *)vblk;
     omf_set_vbh_magic(hdr, VBLOCK_HDR_MAGIC);
-    omf_set_vbh_version(hdr, VBLOCK_HDR_VERSION2);
+    omf_set_vbh_version(hdr, VBLOCK_HDR_VERSION);
     omf_set_vbh_vgroup(hdr, get_time_ns());
     set_props(&props, blkid, n_entries * vlen);
 
@@ -446,7 +446,7 @@ MTF_DEFINE_UTEST_PRE(vblock_reader_test, t_vbr_madvise_async, pre)
 
     hdr = (struct vblock_hdr_omf *)vblk;
     omf_set_vbh_magic(hdr, VBLOCK_HDR_MAGIC);
-    omf_set_vbh_version(hdr, VBLOCK_HDR_VERSION2);
+    omf_set_vbh_version(hdr, VBLOCK_HDR_VERSION);
     omf_set_vbh_vgroup(hdr, get_time_ns());
     set_props(&props, blkid, n_entries * vlen);
 

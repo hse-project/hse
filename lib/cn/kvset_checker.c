@@ -587,7 +587,7 @@ kc_vblock_meta(struct mpool *ds, struct blk_list *list)
         if (omf_vbh_magic(vb_hdr) != VBLOCK_HDR_MAGIC)
             print_err("vblock 0x%08lx: incorrect magic", vbid);
 
-        if (omf_vbh_version(vb_hdr) > VBLOCK_HDR_VERSION2)
+        if (omf_vbh_version(vb_hdr) > VBLOCK_HDR_VERSION)
             print_err("vblock 0x%08lx: invalid version", vbid);
 
         free_aligned(vb_buf);

@@ -88,7 +88,7 @@ _vblock_start(struct vblock_builder *bld)
     /* add header to write buffer */
     memset(bld->wbuf, 0x0, VBLOCK_HDR_LEN);
     omf_set_vbh_magic(bld->wbuf, VBLOCK_HDR_MAGIC);
-    omf_set_vbh_version(bld->wbuf, VBLOCK_HDR_VERSION2);
+    omf_set_vbh_version(bld->wbuf, VBLOCK_HDR_VERSION);
     omf_set_vbh_vgroup(bld->wbuf, bld->vgroup);
 
     return 0;

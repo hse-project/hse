@@ -30,9 +30,10 @@ vbr_desc_read(
 {
     struct vblock_hdr_omf *hdr;
 
-    bool  supported;
-    void *base;
-    u64   vgroup;
+    bool     supported;
+    void    *base;
+    u64      vgroup;
+    uint32_t vers;
 
     base = mpool_mcache_getbase(map, idx);
     if (ev(!base))
@@ -40,10 +41,10 @@ vbr_desc_read(
 
     hdr = base;
     vgroup = omf_vbh_vgroup(hdr);
+    vers = omf_vbh_version(hdr);
 
-    supported =
-        (omf_vbh_magic(hdr) == VBLOCK_HDR_MAGIC && (omf_vbh_version(hdr) == VBLOCK_HDR_VERSION1 ||
-                                                    omf_vbh_version(hdr) == VBLOCK_HDR_VERSION2));
+    supported = (omf_vbh_magic(hdr) == VBLOCK_HDR_MAGIC &&
+                 (vers >= VBLOCK_HDR_VERSION2 && vers <= VBLOCK_HDR_VERSION));
     if (ev(!supported))
         return merr(EINVAL);
 

@@ -313,15 +313,6 @@ OMF_SETGET(struct vblock_hdr_omf, vbh_magic, 32)
 OMF_SETGET(struct vblock_hdr_omf, vbh_version, 32)
 OMF_SETGET(struct vblock_hdr_omf, vbh_vgroup, 64)
 
-/* Version 1 header */
-struct vblock_hdr1_omf {
-    uint32_t vbh1_magic;
-    uint32_t vbh1_version;
-    uint32_t vbh1_entries;
-    uint32_t vbh1_data_off; /* offset from start of vblock to values */
-    uint64_t vbh1_data_len; /* length of value region */
-} HSE_PACKED;
-
 /* cn dynamic state
  */
 #define CN_TSTATE_MAGIC (u32)('c' << 24 | 't' << 16 | 's' << 8 | 'm')

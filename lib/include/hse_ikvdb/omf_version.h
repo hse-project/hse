@@ -30,7 +30,6 @@ enum {
 };
 
 enum {
-    VBLOCK_HDR_VERSION1 = 1,
     VBLOCK_HDR_VERSION2 = 2,
 };
 
