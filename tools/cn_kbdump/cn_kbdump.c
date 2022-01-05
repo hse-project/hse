@@ -506,9 +506,8 @@ print_wbt_node(void *h, uint version, void *kmd, int pgno, int root)
     uint                hdr_sz;
 
     internal_node = omf_wbn_magic(h) == WBT_INE_NODE_MAGIC;
-    hdr_sz = version < WBT_TREE_VERSION5 ? sizeof(struct wbt4_node_hdr_omf)
-                                         : sizeof(struct wbt_node_hdr_omf);
-    pfx_len = version < WBT_TREE_VERSION5 ? 0 : omf_wbn_pfx_len(h);
+    hdr_sz = sizeof(struct wbt_node_hdr_omf);
+    pfx_len = omf_wbn_pfx_len(h);
     pfx = h + hdr_sz;
 
     ie = (struct wbt_ine_omf *)(h + hdr_sz + pfx_len);
@@ -531,8 +530,7 @@ print_wbt_node(void *h, uint version, void *kmd, int pgno, int root)
     nkeys = omf_wbn_num_keys(h);
     for (i = 0; i < nkeys; ++i, ++ie, ++le) {
         if (internal_node) {
-            version < WBT_TREE_VERSION5 ? wbt4_ine_key(h, ie, &kdata, &klen)
-                                        : wbt_ine_key(h, ie, &kdata, &klen);
+            wbt_ine_key(h, ie, &kdata, &klen);
 
             printf(
                 "    ie %-4d left %d  key %d,%d %s\n",
@@ -547,8 +545,7 @@ print_wbt_node(void *h, uint version, void *kmd, int pgno, int root)
 
             struct kmd_vref vref;
 
-            version < WBT_TREE_VERSION5 ? wbt4_lfe_key(h, le, &kdata, &klen)
-                                        : wbt_lfe_key(h, le, &kdata, &klen);
+            wbt_lfe_key(h, le, &kdata, &klen);
 
             koff = omf_lfe_koff(le);
             lfe_kmd = wbt_lfe_kmd(h, le);
@@ -685,10 +682,7 @@ void
 print_wbt(void *wbt_hdr, void *kblk, bool ptomb)
 {
     switch (wbt_hdr_version(wbt_hdr)) {
-        case WBT_TREE_VERSION6:
-        case WBT_TREE_VERSION5:
-        case WBT_TREE_VERSION4:
-        case WBT_TREE_VERSION3:
+        case WBT_TREE_VERSION:
             print_wbt_impl(wbt_hdr, kblk, ptomb);
             break;
         default:

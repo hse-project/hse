@@ -3141,12 +3141,7 @@ kvset_iter_next_key_read(
     struct wb_pos *        wbt_reader;
     struct iter_meta *     meta;
     struct kblk_reader *   kr;
-    struct kvset_kblk *    kblk;
-    struct wbt_desc *      wbd;
     struct cn_merge_stats *ms = iter->stats;
-
-    kblk = &iter->ks->ks_kblks[iter->curr_kblk];
-    wbd = read_type == READ_WBT ? &kblk->kb_wbt_desc : &kblk->kb_pt_desc;
 
     if (read_type == READ_WBT) {
         kr = &iter->kreader;
@@ -3199,11 +3194,8 @@ kvset_iter_next_key_read(
     }
 
     /* just landed on a new node */
-    wbd = read_type == READ_WBT ? &kblk->kb_wbt_desc : &kblk->kb_pt_desc;
-
     wbt_reader->wb_keyc = omf_wbn_num_keys(wbt_reader->wb_node);
-    wbt_reader->wb_pfx_len =
-        wbd->wbd_version < WBT_TREE_VERSION5 ? 0 : omf_wbn_pfx_len(wbt_reader->wb_node);
+    wbt_reader->wb_pfx_len = omf_wbn_pfx_len(wbt_reader->wb_node);
     wbt_reader->wb_pfx = wbt_reader->wb_node + sizeof(struct wbt_node_hdr_omf);
     wbt_reader->wb_lfe = wbt_reader->wb_pfx + wbt_reader->wb_pfx_len;
 
@@ -3212,10 +3204,7 @@ kvset_iter_next_key_read(
 
 next_key:
     /* set kdata and klen outputs */
-    if (wbd->wbd_version < WBT_TREE_VERSION5)
-        wbt4_lfe_key(wbt_reader->wb_node, wbt_reader->wb_lfe, kdata, klen);
-    else
-        wbt_lfe_key(wbt_reader->wb_node, wbt_reader->wb_lfe, kdata, klen);
+    wbt_lfe_key(wbt_reader->wb_node, wbt_reader->wb_lfe, kdata, klen);
 
     /* set kmd output, which is used by caller to iterate through values */
     meta->kmd =

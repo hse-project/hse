@@ -38,10 +38,6 @@ enum {
 };
 
 enum {
-    WBT_TREE_VERSION2 = 2,
-    WBT_TREE_VERSION3 = 3,
-    WBT_TREE_VERSION4 = 4,
-    WBT_TREE_VERSION5 = 5,
     WBT_TREE_VERSION6 = 6,
 };
 

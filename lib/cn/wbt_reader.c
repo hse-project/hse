@@ -20,8 +20,7 @@
 #include "kblock_reader.h"
 
 /* omf version specific includes */
-#include "wbt_reader_v5.h"
-#include "wbt_reader_v4.h"
+#include "wbt_reader_v6.h"
 
 #define MTF_MOCK_IMPL_wbt_reader
 #include "wbt_reader.h"
@@ -88,14 +87,11 @@ bool
 wbti_seek(struct wbti *self, struct kvs_ktuple *seek)
 {
     switch (self->wbd->wbd_version) {
-        case WBT_TREE_VERSION6:
-        case WBT_TREE_VERSION5:
-            return wbti5_seek(self, seek);
-        case WBT_TREE_VERSION4:
-        case WBT_TREE_VERSION3:
-            return wbti4_seek(self, seek);
+        case WBT_TREE_VERSION:
+            return wbti6_seek(self, seek);
     }
 
+    assert(self->wbd->wbd_version == WBT_TREE_VERSION);
     return false;
 }
 
@@ -103,14 +99,11 @@ bool
 wbti_next(struct wbti *self, const void **kdata, uint *klen, const void **kmd)
 {
     switch (self->wbd->wbd_version) {
-        case WBT_TREE_VERSION6:
-        case WBT_TREE_VERSION5:
-            return wbti5_next(self, kdata, klen, kmd);
-        case WBT_TREE_VERSION4:
-        case WBT_TREE_VERSION3:
-            return wbti4_next(self, kdata, klen, kmd);
+        case WBT_TREE_VERSION:
+            return wbti6_next(self, kdata, klen, kmd);
     }
 
+    assert(self->wbd->wbd_version == WBT_TREE_VERSION);
     return false;
 }
 
@@ -124,13 +117,11 @@ wbti_reset(
     bool                  cache)
 {
     switch (desc->wbd_version) {
-        case WBT_TREE_VERSION6:
-        case WBT_TREE_VERSION5:
-            wbti5_reset(self, kbd, desc, seek, reverse, cache);
+        case WBT_TREE_VERSION:
+            wbti6_reset(self, kbd, desc, seek, reverse, cache);
             break;
-        case WBT_TREE_VERSION4:
-        case WBT_TREE_VERSION3:
-            wbti4_reset(self, kbd, desc, seek, reverse, cache);
+        default:
+            assert(desc->wbd_version == WBT_TREE_VERSION);
             break;
     }
 }
@@ -181,13 +172,11 @@ void
 wbti_prefix(struct wbti *self, const void **pfx, uint *pfx_len)
 {
     switch (self->wbd->wbd_version) {
-        case WBT_TREE_VERSION6:
-        case WBT_TREE_VERSION5:
+        case WBT_TREE_VERSION:
             wbt_node_pfx(self->node, pfx, pfx_len);
             break;
-        case WBT_TREE_VERSION4:
-        case WBT_TREE_VERSION3:
-            wbt4_node_pfx(self->node, pfx, pfx_len);
+        default:
+            assert(self->wbd->wbd_version == WBT_TREE_VERSION);
             break;
     }
 }
@@ -203,14 +192,11 @@ wbtr_read_vref(
     struct kvs_vtuple_ref *     vref)
 {
     switch (wbd->wbd_version) {
-        case WBT_TREE_VERSION6:
-        case WBT_TREE_VERSION5:
-            return wbtr5_read_vref(kbd, wbd, kt, lcp, seq, lookup_res, vref);
-        case WBT_TREE_VERSION4:
-        case WBT_TREE_VERSION3:
-            return wbtr4_read_vref(kbd, wbd, kt, lcp, seq, lookup_res, vref);
+        case WBT_TREE_VERSION:
+            return wbtr6_read_vref(kbd, wbd, kt, lcp, seq, lookup_res, vref);
     }
 
+    assert(wbd->wbd_version == WBT_TREE_VERSION);
     return merr(ev(EBUG));
 }
 

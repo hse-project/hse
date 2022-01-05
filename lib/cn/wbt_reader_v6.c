@@ -21,7 +21,7 @@
 #include "kblock_reader.h"
 
 #include "wbt_reader.h"
-#include "wbt_reader_v5.h"
+#include "wbt_reader_v6.h"
 
 static void
 wbti_get_page(struct wbti *self, u32 node_idx)
@@ -526,7 +526,7 @@ skip_search:
 }
 
 bool
-wbti5_seek(struct wbti *self, struct kvs_ktuple *seek)
+wbti6_seek(struct wbti *self, struct kvs_ktuple *seek)
 {
     if (HSE_UNLIKELY(!self->wbd->wbd_n_pages))
         return false;
@@ -631,14 +631,14 @@ wbti_next_rev(struct wbti *self, const void **kdata, uint *klen, const void **km
 }
 
 bool
-wbti5_next(struct wbti *self, const void **kdata, uint *klen, const void **kmd)
+wbti6_next(struct wbti *self, const void **kdata, uint *klen, const void **kmd)
 {
     return self->reverse ? wbti_next_rev(self, kdata, klen, kmd)
                          : wbti_next_fwd(self, kdata, klen, kmd);
 }
 
 void
-wbti5_reset(
+wbti6_reset(
     struct wbti *         self,
     struct kvs_mblk_desc *kbd,
     struct wbt_desc *     desc,
@@ -658,7 +658,7 @@ wbti5_reset(
     self->reverse = reverse;
 
     if (seek) {
-        if (!wbti5_seek(self, seek))
+        if (!wbti6_seek(self, seek))
             self->node_idx = NODE_EOF;
     } else {
         wbti_get_page(self, reverse ? desc->wbd_leaf_cnt - 1 : 0);
@@ -671,7 +671,7 @@ wbti5_reset(
 }
 
 merr_t
-wbtr5_read_vref(
+wbtr6_read_vref(
     const struct kvs_mblk_desc *kbd,
     const struct wbt_desc *     wbd,
     const struct kvs_ktuple *   kt,
