@@ -432,8 +432,6 @@ cndb_unpack_get_fn(struct cndb_upg_histlen *upghl, u32 cndb_version);
  */
 cndb_unpack_fn omf_cndb_ver_unpack;
 cndb_unpack_fn omf_cndb_meta_unpack;
-cndb_unpack_fn omf_cndb_info_unpack_v4;
-cndb_unpack_fn omf_cndb_info_unpack_v6;
 
 /**
  * omf_cndb_info_unpack() - unpack record CNDB_TYPE_INFO and CNDB_TYPE_INFOD
@@ -441,22 +439,13 @@ cndb_unpack_fn omf_cndb_info_unpack_v6;
  * See cndb_unpack_fn definition for parameters explanation.
  */
 cndb_unpack_fn omf_cndb_info_unpack;
-cndb_unpack_fn omf_cndb_info_unpack_v7;
-cndb_unpack_fn omf_cndb_info_unpack_v9;
 
 /**
- * omf_cndb_tx_unpack_v4() - unpack record CNDB_TYPE_TX V4
+ * omf_cndb_tx_unpack_v10() - unpack record CNDB_TYPE_TX V10
  *
  * See cndb_unpack_fn definition for parameters explanation.
  */
-cndb_unpack_fn omf_cndb_tx_unpack_v4;
-
-/**
- * omf_cndb_tx_unpack_v5() - unpack record CNDB_TYPE_TX V5
- *
- * See cndb_unpack_fn definition for parameters explanation.
- */
-cndb_unpack_fn omf_cndb_tx_unpack_v5;
+cndb_unpack_fn omf_cndb_tx_unpack_v10;
 
 /**
  * omf_cndb_tx_unpack() - unpack record CNDB_TYPE_TX
@@ -464,13 +453,6 @@ cndb_unpack_fn omf_cndb_tx_unpack_v5;
  * See cndb_unpack_fn definition for parameters explanation.
  */
 cndb_unpack_fn omf_cndb_tx_unpack;
-
-/**
- * omf_cndb_txc_unpack() - unpack record CNDB_TYPE_TXC for cndb mdc version 4
- *
- * See cndb_unpack_fn definition for parameters explanation.
- */
-cndb_unpack_fn omf_cndb_txc_unpack_v4;
 
 /**
  * omf_cndb_txc_unpack() - unpack record CNDB_TYPE_TXC
@@ -485,7 +467,6 @@ cndb_unpack_fn omf_cndb_txc_unpack;
  * See cndb_unpack_fn definition for parameters explanation.
  */
 cndb_unpack_fn omf_cndb_txm_unpack;
-cndb_unpack_fn omf_cndb_txm_unpack_v8;
 
 /**
  * omf_cndb_txd_unpack() - unpack record CNDB_TYPE_TXD

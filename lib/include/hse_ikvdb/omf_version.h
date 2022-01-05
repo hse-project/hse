@@ -14,12 +14,6 @@ enum {
 };
 
 enum {
-    CNDB_VERSION4 = 4,
-    CNDB_VERSION5 = 5,
-    CNDB_VERSION6 = 6,
-    CNDB_VERSION7 = 7,
-    CNDB_VERSION8 = 8,
-    CNDB_VERSION9 = 9,
     CNDB_VERSION10 = 10,
     CNDB_VERSION11 = 11,
     CNDB_VERSION12 = 12,

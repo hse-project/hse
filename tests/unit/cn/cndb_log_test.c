@@ -399,46 +399,9 @@ MTF_DEFINE_UTEST(cndb_log_test, simpledrop_recovery)
 
 #if HSE_OMF_BYTE_ORDER == __ORDER_LITTLE_ENDIAN__
 
-/* putbin_v9 and putbin_v11 can no longer be generated and hence
- * do not exist in big endian format as it was not available at
- * that time...
+/* putbin_v11 can no longer be generated and hence do not exist in big endian format as it
+ * was not available at that time...
  */
-MTF_DEFINE_UTEST(cndb_log_test, info_v9_test)
-{
-    merr_t err;
-    size_t expect_workc = 0;
-    size_t expect_keepc = 38;
-    u64    ingestid, txhorizon;
-
-    err = load_log("putbin_v9");
-    ASSERT_EQ(0, err);
-
-    err = cndb_open(mock_ds, CNDB_OPEN_RDWR, 0, 0, 0, 0, &mock_health, NULL, &mock_cndb);
-    ASSERT_EQ(0, err);
-
-    err = mpm_mdc_set_getlen(mock_cndb->cndb_mdc, getlen);
-    ASSERT_EQ(0, err);
-
-    mapi_inject(mapi_idx_mpool_mblock_props_get, 0);
-    mapi_inject(mapi_idx_mpool_mblock_abort, 0);
-    mapi_inject(mapi_idx_mpool_mblock_delete, 0);
-    mapi_inject(mapi_idx_mpool_mdc_usage, 0);
-    err = cndb_replay(mock_cndb, &seqno, &ingestid, &txhorizon);
-    ASSERT_EQ(0, err);
-
-    ASSERT_EQ(expect_workc, mock_cndb->cndb_workc);
-    cndb_validate_vector(mock_cndb->cndb_workv, mock_cndb->cndb_workc);
-    ASSERT_EQ(expect_keepc, mock_cndb->cndb_keepc);
-    cndb_validate_vector(mock_cndb->cndb_keepv, mock_cndb->cndb_keepc);
-
-    err = cndb_close(mock_cndb);
-    ASSERT_EQ(0, err);
-
-    mapi_inject_unset(mapi_idx_mpool_mdc_usage);
-    mapi_inject_unset(mapi_idx_mpool_mblock_props_get);
-    mapi_inject_unset(mapi_idx_mpool_mblock_abort);
-    mapi_inject_unset(mapi_idx_mpool_mblock_delete);
-}
 
 MTF_DEFINE_UTEST(cndb_log_test, info_v11_test)
 {
