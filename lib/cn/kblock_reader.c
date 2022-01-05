@@ -29,8 +29,10 @@
 static HSE_ALWAYS_INLINE bool
 kblock_hdr_valid(const struct kblock_hdr_omf *omf)
 {
-    return (HSE_LIKELY(
-        omf_kbh_magic(omf) == KBLOCK_HDR_MAGIC && omf_kbh_version(omf) <= KBLOCK_HDR_VERSION));
+    uint32_t vers = omf_kbh_version(omf);
+
+    return (HSE_LIKELY(omf_kbh_magic(omf) == KBLOCK_HDR_MAGIC &&
+                       vers >= KBLOCK_HDR_VERSION5 && vers <= KBLOCK_HDR_VERSION));
 }
 
 merr_t
@@ -133,12 +135,8 @@ kbr_read_seqno_range(struct kvs_mblk_desc *kblkdesc, u64 *seqno_min, u64 *seqno_
     if (!kblock_hdr_valid(kb_hdr))
         return merr(EINVAL);
 
-    if (omf_kbh_version(kb_hdr) <= KBLOCK_HDR_VERSION4) {
-        *seqno_min = *seqno_max = 0;
-    } else {
-        *seqno_min = omf_kbh_min_seqno(kb_hdr);
-        *seqno_max = omf_kbh_max_seqno(kb_hdr);
-    }
+    *seqno_min = omf_kbh_min_seqno(kb_hdr);
+    *seqno_max = omf_kbh_max_seqno(kb_hdr);
 
     return 0;
 }
@@ -162,9 +160,6 @@ kbr_read_pt_region_desc(struct kvs_mblk_desc *kblkdesc, struct wbt_desc *desc)
     kb_hdr = pg;
     if (!kblock_hdr_valid(kb_hdr))
         return merr(EINVAL);
-
-    if (omf_kbh_version(kb_hdr) <= KBLOCK_HDR_VERSION3)
-        return 0;
 
     pt_hdr = (void *)kb_hdr + omf_kbh_pt_hoff(kb_hdr);
 

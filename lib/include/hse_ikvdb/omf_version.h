@@ -26,9 +26,6 @@ enum {
 };
 
 enum {
-    KBLOCK_HDR_VERSION2 = 2,
-    KBLOCK_HDR_VERSION3 = 3,
-    KBLOCK_HDR_VERSION4 = 4,
     KBLOCK_HDR_VERSION5 = 5,
 };
 
