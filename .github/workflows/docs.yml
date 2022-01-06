@@ -2,7 +2,7 @@ name: Docs
 
 on:
   pull_request:
-    types: [opened, synchronize, reopened, edited]
+    types: [opened, synchronize, reopened]
     paths:
       - 'docs/**'
       - 'include/**/*.h'

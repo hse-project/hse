@@ -2,7 +2,7 @@ name: ShellCheck
 
 on:
   pull_request:
-    types: [opened, synchronize, reopened, edited]
+    types: [opened, synchronize, reopened]
     paths:
       - '**/*.sh'
       - 'scripts/git-hooks/*'
