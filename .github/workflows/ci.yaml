@@ -61,8 +61,8 @@ jobs:
         with:
           name: build-artifact-${{ matrix.os }}-${{ matrix.build_type }}
           path: |
-             builddir/meson-logs/
-             /var/log/syslog
+            builddir/meson-logs/
+            /var/log/syslog
 
   fedora:
     runs-on: ubuntu-latest

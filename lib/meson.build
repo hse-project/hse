@@ -140,22 +140,24 @@ hse_dep = declare_dependency(
     variables: hse_variables,
 )
 
-hse_internal = static_library(
-    '@0@-internal'.format(lib_name),
-    objects: hse.extract_all_objects(recursive: true),
-    gnu_symbol_visibility: 'hidden'
-)
+if not get_option('tools').disabled() or get_option('tests')
+    hse_internal = static_library(
+        '@0@-internal'.format(lib_name),
+        objects: hse.extract_all_objects(recursive: true),
+        gnu_symbol_visibility: 'hidden'
+    )
 
-hse_internal_dep = declare_dependency(
-    link_with: hse_internal,
-    version: meson.project_version(),
-    sources: [
-        version_h,
-    ],
-    include_directories: hse_include_directories,
-    dependencies: hse_dependencies,
-    variables: hse_variables
-)
+    hse_internal_dep = declare_dependency(
+        link_with: hse_internal,
+        version: meson.project_version(),
+        sources: [
+            version_h,
+        ],
+        include_directories: hse_include_directories,
+        dependencies: hse_dependencies,
+        variables: hse_variables
+    )
+endif
 
 pkg.generate(
     hse,

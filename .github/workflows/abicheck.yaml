@@ -1,0 +1,82 @@
+name: ABI
+
+on:
+  push:
+    branches:
+      - v*.*
+  pull_request:
+    types: [opened, synchronize, reopened]
+    branches:
+      - v*.*
+
+jobs:
+  check:
+    runs-on: ubuntu-latest
+    container:
+      image: fedora:latest
+      options: --privileged  -v /usr/src:/usr/src -v /lib/modules:/lib/modules
+
+    steps:
+      - name: Initialize
+        run: |
+          dnf install -y \
+            abi-compliance-checker git ninja-build meson pkg-config gcc \
+            libmicrohttpd-devel userspace-rcu-devel libyaml-devel lz4-devel \
+            libbsd-devel libcurl-devel libpmem-devel
+          dnf install -y abi-compliance-checker
+
+      - uses: actions/checkout@v2
+        with:
+          fetch-depth: 2
+
+      - name: Setup current
+        run: |
+          meson builddir-current --fatal-meson-warnings -Doptimization=g \
+            -Dwerror=true -Dc_args="-g3" -Dcli=false -Dtools=disabled \
+            -Dsamples=false -Ddocs=disabled -Dbindings=none -Dtests=false \
+            -Dtools=disabled
+
+      - name: Build current
+        run: |
+          ninja -C builddir-current
+
+      - name: Dump current
+        run: |
+          major_version=$(cat VERSION | awk '{split($0, version, "."); print version[1]}')
+          abi-dumper "builddir-current/lib/libhse-${major_version}.so" \
+            -o current.dump -public-headers include -loud \
+            -vnum "$(cat VERSION)-current" -debug
+
+      - run: |
+          git checkout HEAD^
+
+      - name: Setup previous
+        run: |
+          meson builddir-previous --fatal-meson-warnings -Doptimization=g \
+            -Dwerror=true -Dc_args="-g3" -Dcli=false -Dtools=disabled \
+            -Dsamples=false -Ddocs=disabled -Dbindings=none -Dtests=false \
+            -Dtools=disabled
+
+      - name: Build previous
+        run: ninja -C builddir-previous
+
+      - name: Dump previous
+        run: |
+          major_version=$(cat VERSION | awk '{split($0, version, "."); print version[1]}')
+          abi-dumper "builddir-current/libhse-${major_version}.so" \
+            -o previous.dump -public-headers include -loud \
+            -vnum "$(cat VERSION)-previous" -debug
+
+      - name: Compare
+        run: |
+          major_version=$(cat VERSION | awk '{split($0, version, "."); print version[1]}')
+          abi-compliance-checker -l "libhse-${major_version}.so" \
+            -new current.dump -old previous.dump
+
+      - uses: actions/upload-artifact@v2
+        if: failure()
+        with:
+          name: abi-dumps
+          path: |
+            current.dump
+            previous.dump

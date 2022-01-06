@@ -957,7 +957,7 @@ lc_cursor_read(struct lc_cursor *cur, struct kvs_cursor_element *lc_elem, bool *
 
             if (rc == 0) {
                 enum hse_seqno_state state;
-                u64                  seqno;
+                u64                  seqno = 0;
 
                 /* Note that c0kvs_findval() will return a value only if either
                  *   1. it has a concrete seqno or
