@@ -29,19 +29,15 @@
 
 #include <bsd/string.h>
 #include <cjson/cJSON.h>
-#include <cjson/cJSON_Utils.h>
 
 #define SESSIONS_PER_THREAD 5
 #define NUM_THREADS 3
 #define MAX_SESSIONS (SESSIONS_PER_THREAD * NUM_THREADS)
 #define WQ_THREADS 5
 
-#ifndef MHD_HTTP_NOT_ACCEPTABLE
-#define MHD_HTTP_NOT_ACCEPTABLE MHD_HTTP_METHOD_NOT_ACCEPTABLE
-#endif
-
-#ifndef MHD_HTTP_TOO_MANY_REQUESTS
-#define MHD_HTTP_TOO_MANY_REQUESTS 429
+/* Required for building with libmicrohttpd >= 0.9.75 */
+#ifndef MHD_HTTP_UNPROCESSABLE_CONTENT
+#define MHD_HTTP_UNPROCESSABLE_CONTENT MHD_HTTP_UNPROCESSABLE_ENTITY
 #endif
 
 #define KV_PAIR_MAX 16
@@ -795,7 +791,7 @@ webserver_response(
 
     err = string_validate(path, REST_URL_LEN_MAX);
     if (ev(err)) {
-        http_status = MHD_HTTP_UNPROCESSABLE_ENTITY;
+        http_status = MHD_HTTP_UNPROCESSABLE_CONTENT;
         goto respond;
     }
 
@@ -853,7 +849,7 @@ webserver_response(
     MHD_get_connection_values(connection, MHD_GET_ARGUMENT_KIND, &extract_kv_pairs, session);
 
     if (ev(session->targ.iter.err)) {
-        http_status = MHD_HTTP_UNPROCESSABLE_ENTITY;
+        http_status = MHD_HTTP_UNPROCESSABLE_CONTENT;
         err = session->targ.iter.err;
         goto respond;
     }
