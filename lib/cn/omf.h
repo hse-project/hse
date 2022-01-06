@@ -146,23 +146,22 @@ OMF_SETGET(struct bloom_hdr_omf, bh_n_hashes, 8)
  *
  * Wanna B-Tree (WBT) On-Media-Format
  *
- * OMF v6: Added support for compressed values. Uses a new value type
+ * Supported versions:
+ *     v6: Added support for compressed values. Uses a new value type
  *         (vtype_cval) which affects KMD format. Unfortunately,
  *         there is no version field for KMD, so we bump the WBTree
  *         version even though the actual WBTree header, leaf and
  *         internal nodes are no different from OMF v5.
  *
- * OMF v5: Added longest common prefix elimination for keys in WBTree nodes.
- *
- * OMF v4: Added new value, "immediate", for short values.
- *
- * OMF v3 and below: Ancient history. Nobody cares. Should remove support.
+ * Deprecated versions:
+ *     v5: Added longest common prefix elimination for keys in WBTree nodes
+ *     v4: Added new value, "immediate", for short values
  */
 #define WBT_NODE_SIZE 4096 /* must equal system page size */
 
 #define WBT_TREE_MAGIC ((u32)0x4a3a2a1a)
 
-/* WBT header (OMF v4-v6) */
+/* WBT header (v6) */
 struct wbt_hdr_omf {
     uint32_t wbt_magic;
     uint32_t wbt_version;
@@ -190,7 +189,7 @@ wbt_hdr_version(void *omf)
 #define WBT_LFE_NODE_MAGIC ((u16)0xabc0)
 #define WBT_INE_NODE_MAGIC ((u16)0xabc1)
 
-/* WBT node header (OMF v5-v6) */
+/* WBT node header (v6) */
 struct wbt_node_hdr_omf {
     uint16_t wbn_magic;    /* magic number, distinguishes INEs from LFEs */
     uint16_t wbn_num_keys; /* number of keys in node */
@@ -204,18 +203,7 @@ OMF_SETGET(struct wbt_node_hdr_omf, wbn_num_keys, 16)
 OMF_SETGET(struct wbt_node_hdr_omf, wbn_kmd, 32)
 OMF_SETGET(struct wbt_node_hdr_omf, wbn_pfx_len, 16)
 
-/* WBT node header (OMF v4) */
-struct wbt4_node_hdr_omf {
-    uint16_t wbn4_magic;    /* node magic , distinguishes INEs from LFEs */
-    uint16_t wbn4_num_keys; /* number of keys in node */
-    uint32_t wbn4_kmd;      /* offset in kmd region to this node's kmd */
-} HSE_PACKED;
-
-OMF_SETGET(struct wbt4_node_hdr_omf, wbn4_magic, 16)
-OMF_SETGET(struct wbt4_node_hdr_omf, wbn4_num_keys, 16)
-OMF_SETGET(struct wbt4_node_hdr_omf, wbn4_kmd, 32)
-
-/* WBT internal node entry (OMF v4-v6) */
+/* WBT internal node entry (v6) */
 struct wbt_ine_omf {
     uint16_t ine_koff;       /* byte offset from start of node to key */
     uint16_t ine_left_child; /* node number of left child */
@@ -224,7 +212,7 @@ struct wbt_ine_omf {
 OMF_SETGET(struct wbt_ine_omf, ine_koff, 16)
 OMF_SETGET(struct wbt_ine_omf, ine_left_child, 16)
 
-/* WBT leaf node entry (OMF v4-v6)
+/* WBT leaf node entry (v6)
  * Note, if lfe_kmd == U16_MAX, then the actual kmd offset is stored as a LE32
  * value at lfe_koff, and the actual key is stored at lfe_koff + 4.
  */
@@ -235,62 +223,6 @@ struct wbt_lfe_omf {
 
 OMF_SETGET(struct wbt_lfe_omf, lfe_koff, 16)
 OMF_SETGET(struct wbt_lfe_omf, lfe_kmd, 16)
-
-/******** WB tree Version 3 ********/
-
-/* GCOV_EXCL_START */
-
-/* WB tree version 3 header */
-struct wbt3_hdr_omf {
-    uint32_t wbt3_magic;
-    uint32_t wbt3_version;
-    uint16_t wbt3_root;     /* index of wbtree root node */
-    uint16_t wbt3_leaf;     /* index of first wbtree leaf node */
-    uint16_t wbt3_leaf_cnt; /* number of wbtree leaf nodes */
-    uint16_t wbt3_kmd_pgc;  /* size of kmd region in pages */
-    uint32_t wbt3_reserved1;
-    uint32_t wbt3_reserved2;
-} HSE_PACKED;
-
-OMF_SETGET(struct wbt3_hdr_omf, wbt3_magic, 32)
-OMF_SETGET(struct wbt3_hdr_omf, wbt3_version, 32)
-OMF_SETGET(struct wbt3_hdr_omf, wbt3_root, 16);
-OMF_SETGET(struct wbt3_hdr_omf, wbt3_leaf, 16);
-OMF_SETGET(struct wbt3_hdr_omf, wbt3_leaf_cnt, 16);
-OMF_SETGET(struct wbt3_hdr_omf, wbt3_kmd_pgc, 16);
-
-/* WB tree version 3 node header */
-
-struct wbt3_node_hdr_omf {
-    uint16_t wbn3_magic;    /* magic number, distinguishes INEs from LFEs */
-    uint16_t wbn3_num_keys; /* number of keys in node */
-    uint32_t wbn3_kmd;      /* offset in kmd region to node's kmd data */
-} HSE_PACKED;
-
-OMF_SETGET(struct wbt3_node_hdr_omf, wbn3_magic, 16)
-OMF_SETGET(struct wbt3_node_hdr_omf, wbn3_num_keys, 16)
-OMF_SETGET(struct wbt3_node_hdr_omf, wbn3_kmd, 32)
-
-/* WB tree version 3 internal node entry (ine) */
-struct wbt3_ine_omf {
-    uint16_t ine3_koff;       /* byte offset from start of node to key */
-    uint16_t ine3_left_child; /* node number of left child */
-} HSE_PACKED;
-
-OMF_SETGET(struct wbt3_ine_omf, ine3_koff, 16)
-OMF_SETGET(struct wbt3_ine_omf, ine3_left_child, 16)
-
-/* WB tree version 3 leaf node entry (lfe).
- * Note, if lfe_kmd == U16_MAX, then the actual kmd offset is stored as a LE32
- * value at lfe_koff, and the actual key is stored at lfe_koff + 4.
- */
-struct wbt3_lfe_omf {
-    uint16_t lfe3_koff;
-    uint16_t lfe3_kmd;
-} HSE_PACKED;
-
-OMF_SETGET(struct wbt3_lfe_omf, lfe3_koff, 16)
-OMF_SETGET(struct wbt3_lfe_omf, lfe3_kmd, 16)
 
 /* GCOV_EXCL_STOP */
 
@@ -312,15 +244,6 @@ struct vblock_hdr_omf {
 OMF_SETGET(struct vblock_hdr_omf, vbh_magic, 32)
 OMF_SETGET(struct vblock_hdr_omf, vbh_version, 32)
 OMF_SETGET(struct vblock_hdr_omf, vbh_vgroup, 64)
-
-/* Version 1 header */
-struct vblock_hdr1_omf {
-    uint32_t vbh1_magic;
-    uint32_t vbh1_version;
-    uint32_t vbh1_entries;
-    uint32_t vbh1_data_off; /* offset from start of vblock to values */
-    uint64_t vbh1_data_len; /* length of value region */
-} HSE_PACKED;
 
 /* cn dynamic state
  */

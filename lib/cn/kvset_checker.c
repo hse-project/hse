@@ -587,7 +587,7 @@ kc_vblock_meta(struct mpool *ds, struct blk_list *list)
         if (omf_vbh_magic(vb_hdr) != VBLOCK_HDR_MAGIC)
             print_err("vblock 0x%08lx: incorrect magic", vbid);
 
-        if (omf_vbh_version(vb_hdr) > VBLOCK_HDR_VERSION2)
+        if (omf_vbh_version(vb_hdr) > VBLOCK_HDR_VERSION)
             print_err("vblock 0x%08lx: invalid version", vbid);
 
         free_aligned(vb_buf);
@@ -758,8 +758,7 @@ _kblock_check(struct kb_info *kb_info, struct vb_meta *vb_meta)
 
     wbt_ver = omf_wbt_version(wbt_hdr);
     switch (wbt_ver) {
-        case WBT_TREE_VERSION6:
-        case WBT_TREE_VERSION5:
+        case WBT_TREE_VERSION:
             kb_info->wbt_ops.wops_lfe = wbt_lfe;
             kb_info->wbt_ops.wops_node_pfx = wbt_node_pfx;
             kb_info->wbt_ops.wops_lfe_key = wbt_lfe_key;
@@ -767,15 +766,8 @@ _kblock_check(struct kb_info *kb_info, struct vb_meta *vb_meta)
             kb_info->wbt_ops.wops_ine = wbt_ine;
             kb_info->wbt_ops.wops_ine_key = wbt_ine_key;
             break;
-        case WBT_TREE_VERSION4:
         default:
-            kb_info->wbt_ops.wops_lfe = wbt4_lfe;
-            kb_info->wbt_ops.wops_node_pfx = wbt4_node_pfx;
-            kb_info->wbt_ops.wops_lfe_key = wbt4_lfe_key;
-            kb_info->wbt_ops.wops_lfe_kmd = wbt_lfe_kmd; /* same as v5 */
-            kb_info->wbt_ops.wops_ine = wbt4_ine;
-            kb_info->wbt_ops.wops_ine_key = wbt4_ine_key;
-            break;
+            return merr(EINVAL);
     }
 
     blm_hdr = kb_info->blk + omf_kbh_blm_hoff(kb_hdr);

@@ -65,21 +65,42 @@ enum {
 
 _Static_assert(CNDB_CN_NAME_MAX == HSE_KVS_NAME_LEN_MAX, "kvs name len mismatch");
 
+/**
+ * struct cndb_oid_omf
+ */
 struct cndb_oid_omf {
     uint64_t cndb_oid;
 } HSE_PACKED;
 
+OMF_SETGET(struct cndb_oid_omf, cndb_oid, 64);
+
+
+/**
+ * struct cndb_hdr_omf
+ */
 struct cndb_hdr_omf {
     uint32_t cnhdr_type;
     uint32_t cnhdr_len;
 } HSE_PACKED;
 
+OMF_SETGET(struct cndb_hdr_omf, cnhdr_type, 32);
+OMF_SETGET(struct cndb_hdr_omf, cnhdr_len, 32);
+
+
+/**
+ * struct cndb_ver_omf
+ */
 struct cndb_ver_omf {
     struct cndb_hdr_omf hdr;
     uint32_t            cnver_magic;
     uint32_t            cnver_version;
     uint64_t            cnver_captgt;
 } HSE_PACKED;
+
+OMF_SETGET(struct cndb_ver_omf, cnver_magic, 32);
+OMF_SETGET(struct cndb_ver_omf, cnver_version, 32);
+OMF_SETGET(struct cndb_ver_omf, cnver_captgt, 64);
+
 
 /**
  * struct cndb_info_omf
@@ -99,7 +120,6 @@ struct cndb_ver_omf {
  * @cninfo_name: the name of the kvs
  * @cninfo_meta: opaque data
  */
-
 struct cndb_info_omf {
     struct cndb_hdr_omf hdr;
     uint32_t            cninfo_fanout_bits;
@@ -113,139 +133,19 @@ struct cndb_info_omf {
     char                cninfo_meta[];
 } HSE_PACKED;
 
-/**
- * struct cndb_info_omf8
- *
- * Record a KVStore information.
- * If type is CNDB_TYPE_INFO:
- *      appended when the KVS is created.
- * If type is CNDB_TYPE_INFOD:
- *      appended when the KVS is deleted.
- *
- * @cninfo_fanout_bits: cn tree fanout bits
- * @cninfo_prefix_len: kvs prefix length
- * @cninfo_prefix_pivot: cn tree pivot level (for prefix trees only)
- * @cninfo_flags: flags (eg, capped kvs)
- * @cninfo_cnid: uniquely identify the KVS in the KVDB.
- * @cninfo_metasz: size of opaque metadata following @cninfo_name.
- * @cninfo_name: the name of the kvs
- * @cninfo_meta: opaque data
- */
+OMF_SETGET(struct cndb_info_omf, cninfo_fanout_bits, 32);
+OMF_SETGET(struct cndb_info_omf, cninfo_prefix_len, 32);
+OMF_SETGET(struct cndb_info_omf, cninfo_sfx_len, 32);
+OMF_SETGET(struct cndb_info_omf, cninfo_prefix_pivot, 32);
+OMF_SETGET(struct cndb_info_omf, cninfo_flags, 32);
+OMF_SETGET(struct cndb_info_omf, cninfo_metasz, 32);
+OMF_SETGET(struct cndb_info_omf, cninfo_cnid, 64);
+OMF_SETGET_CHBUF(struct cndb_info_omf, cninfo_name);
 
-struct cndb_info_omf_v8 {
-    struct cndb_hdr_omf hdr;
-    uint32_t            cninfo_fanout_bits;
-    uint32_t            cninfo_prefix_len;
-    uint32_t            cninfo_prefix_pivot;
-    uint32_t            cninfo_flags;
-    uint32_t            cninfo_metasz;
-    uint64_t            cninfo_cnid;
-    char                cninfo_name[CNDB_CN_NAME_MAX];
-    char                cninfo_meta[];
-} HSE_PACKED;
-
-OMF_GET_VER(struct cndb_info_omf_v8, cninfo_fanout_bits, 32, v8);
-OMF_GET_VER(struct cndb_info_omf_v8, cninfo_prefix_len, 32, v8);
-OMF_GET_VER(struct cndb_info_omf_v8, cninfo_prefix_pivot, 32, v8);
-OMF_GET_VER(struct cndb_info_omf_v8, cninfo_flags, 32, v8);
-OMF_GET_VER(struct cndb_info_omf_v8, cninfo_metasz, 32, v8);
-OMF_GET_VER(struct cndb_info_omf_v8, cninfo_cnid, 64, v8);
-OMF_GET_CHBUF_VER(struct cndb_info_omf_v8, cninfo_name, v8);
-
-/**
- * struct cndb_info_omf_v7
- *
- * Record a KVStore information.
- * If type is CNDB_TYPE_INFO:
- *      appended when the KVS is created.
- * If type is CNDB_TYPE_INFOD:
- *      appended when the KVS is deleted.
- *
- * @cninfo_fanout_bits:
- * @cninfo_prefix_len:
- * @cninfo_flags:
- * @cninfo_cnid: uniquely identify the KVS in the KVDB.
- * @cninfo_metasz: size of opaque metadata following @cninfo_name.
- * @cninfo_name: the name of the kvs
- * @cninfo_meta: opaque data
- */
-struct cndb_info_omf_v7 {
-    struct cndb_hdr_omf hdr;
-    uint32_t            cninfo_fanout_bits;
-    uint32_t            cninfo_prefix_len;
-    uint32_t            cninfo_flags;
-    uint32_t            cninfo_metasz;
-    uint64_t            cninfo_cnid;
-    char                cninfo_name[CNDB_CN_NAME_MAX];
-    char                cninfo_meta[];
-} HSE_PACKED;
-
-OMF_GET_VER(struct cndb_info_omf_v7, cninfo_fanout_bits, 32, v7);
-OMF_GET_VER(struct cndb_info_omf_v7, cninfo_prefix_len, 32, v7);
-OMF_GET_VER(struct cndb_info_omf_v7, cninfo_flags, 32, v7);
-OMF_GET_VER(struct cndb_info_omf_v7, cninfo_metasz, 32, v7);
-OMF_GET_VER(struct cndb_info_omf_v7, cninfo_cnid, 64, v7);
-OMF_GET_CHBUF_VER(struct cndb_info_omf_v7, cninfo_name, v7);
-
-/**
- * struct cndb_info_omf_v6
- *
- * Record a KVStore information.
- * If type is CNDB_TYPE_INFO:
- *      appended when the KVS is created.
- * If type is CNDB_TYPE_INFOD:
- *      appended when the KVS is deleted.
- *
- * @cninfo_fanout_bits:
- * @cninfo_prefix_len:
- * @cninfo_flags:
- * @cninfo_cnid: uniquely identify the KVS in the KVDB.
- */
-
-struct cndb_info_omf_v6 {
-    struct cndb_hdr_omf hdr;
-    uint32_t            cninfo_fanout_bits;
-    uint32_t            cninfo_prefix_len;
-    uint32_t            cninfo_flags;
-    uint64_t            cninfo_cnid;
-    char                cninfo_name[CNDB_CN_NAME_MAX];
-} HSE_PACKED;
-
-OMF_GET_VER(struct cndb_info_omf_v6, cninfo_fanout_bits, 32, v6);
-OMF_GET_VER(struct cndb_info_omf_v6, cninfo_prefix_len, 32, v6);
-OMF_GET_VER(struct cndb_info_omf_v6, cninfo_flags, 32, v6);
-OMF_GET_VER(struct cndb_info_omf_v6, cninfo_cnid, 64, v6);
-OMF_GET_CHBUF_VER(struct cndb_info_omf_v6, cninfo_name, v6);
-
-/**
- * struct cndb_info_omf_v4
- *
- * Record a KVStore information.
- * If type is CNDB_TYPE_INFO:
- *      appended when the KVS is created.
- * If type is CNDB_TYPE_INFOD:
- *      appended when the KVS is deleted.
- *
- * @cninfo_fanout_bits:
- * @cninfo_prefix_len:
- * @cninfo_cnid: uniquely identify the KVS in the KVDB.
- */
-
-struct cndb_info_omf_v4 {
-    struct cndb_hdr_omf hdr;
-    uint32_t            cninfo_fanout_bits;
-    uint32_t            cninfo_prefix_len;
-    uint64_t            cninfo_cnid;
-    char                cninfo_name[CNDB_CN_NAME_MAX];
-} HSE_PACKED;
-
-OMF_GET_VER(struct cndb_info_omf_v4, cninfo_fanout_bits, 32, v4);
-OMF_GET_VER(struct cndb_info_omf_v4, cninfo_prefix_len, 32, v4);
-OMF_GET_VER(struct cndb_info_omf_v4, cninfo_cnid, 64, v4);
-OMF_GET_CHBUF_VER(struct cndb_info_omf_v4, cninfo_name, v4);
 
 /**
  * struct cndb_meta_omf - Metadata concerning the cndb
+ *
  * @cnmeta_seqno_max: max seqno encountered during the last rollover.
  */
 struct cndb_meta_omf {
@@ -253,26 +153,13 @@ struct cndb_meta_omf {
     uint64_t            cnmeta_seqno_max;
 } HSE_PACKED;
 
-/**
- * struct cndb_tx_omf_v4
- */
-struct cndb_tx_omf_v4 {
-    struct cndb_hdr_omf hdr;
-    uint64_t            tx_id;
-    uint64_t            tx_seqno;
-    uint32_t            tx_nc;
-    uint32_t            tx_nd;
-} HSE_PACKED;
+OMF_SETGET(struct cndb_meta_omf, cnmeta_seqno_max, 64);
 
-OMF_GET_VER(struct cndb_tx_omf_v4, tx_id, 64, v4);
-OMF_GET_VER(struct cndb_tx_omf_v4, tx_seqno, 64, v4);
-OMF_GET_VER(struct cndb_tx_omf_v4, tx_nc, 32, v4);
-OMF_GET_VER(struct cndb_tx_omf_v4, tx_nd, 32, v4);
 
 /**
- * struct cndb_tx_omf_v5
+ * struct cndb_tx_omf_v10
  */
-struct cndb_tx_omf_v5 {
+struct cndb_tx_omf_v10 {
     struct cndb_hdr_omf hdr;
     uint64_t            tx_id;
     uint64_t            tx_seqno;
@@ -281,15 +168,16 @@ struct cndb_tx_omf_v5 {
     uint32_t            tx_nd;
 } HSE_PACKED;
 
-OMF_GET_VER(struct cndb_tx_omf_v5, tx_id, 64, v5);
-OMF_GET_VER(struct cndb_tx_omf_v5, tx_seqno, 64, v5);
-OMF_GET_VER(struct cndb_tx_omf_v5, tx_ingestid, 64, v5);
-OMF_GET_VER(struct cndb_tx_omf_v5, tx_nc, 32, v5);
-OMF_GET_VER(struct cndb_tx_omf_v5, tx_nd, 32, v5);
+OMF_GET_VER(struct cndb_tx_omf_v10, tx_id, 64, v10);
+OMF_GET_VER(struct cndb_tx_omf_v10, tx_seqno, 64, v10);
+OMF_GET_VER(struct cndb_tx_omf_v10, tx_ingestid, 64, v10);
+OMF_GET_VER(struct cndb_tx_omf_v10, tx_nc, 32, v10);
+OMF_GET_VER(struct cndb_tx_omf_v10, tx_nd, 32, v10);
 
 
 /**
  * struct cndb_tx_omf
+ *
  * Record type CNDB_TYPE_TX.
  * One record per CN ingest or CN compaction or CN spill.
  * Is the first record of a transaction containing mutiple records (with
@@ -325,52 +213,17 @@ struct cndb_tx_omf {
     uint64_t            tx_txhorizon;
 } HSE_PACKED;
 
-#define CNDB_TXF_KEEPV 1 /* For field txc_flags in CNDB_VERSION4 */
-/*
- * struct cndb_txc_omf_v4
- * The "c" stands for mblock commit.
- * Record type CNDB_TYPE_TXC for cndb mdc version 4.
- * One record per new CN kvset created during the CN mutation.
- * This record is appended just before the kvset mblocks are committed.
- *
- * @txc_cnid:
- * @txc_id:
- * @txc_tag: the first such record of the transaction/CN mutation has its
- *      tag equal to the transaction id. Subsequent such records in the
- *      transaction have their tag incremented by 1 for each record.
- *      This tag can be seen as a kvset unique id.
- *      This same tag will also be placed later in the record CNDB_TYPE_ACK
- *      (with CNDB_ACK_TYPE_D type) when the kvset will be deleted.
- *      It allows to correlate CNDB_TYPE_TXC and CNDB_TYPE_ACK records applying
- *      to a same kvset.
- * @txc_flags:
- * @txc_kcnt:
- * @txc_vcnt:
- * @txc_mcnt:
- * an array of txc_kcnt mblock OIDs appears here
- * an array of txc_vcnt mblock OIDs appears here
- * an array of txc_mcnt mblock OIDs appears here
- */
-struct cndb_txc_omf_v4 {
-    struct cndb_hdr_omf hdr;
-    uint64_t            txc_cnid;
-    uint64_t            txc_id;
-    uint64_t            txc_tag;
-    uint32_t            txc_flags;
-    uint32_t            txc_kcnt;
-    uint32_t            txc_vcnt;
-    uint32_t            txc_mcnt;
-} HSE_PACKED;
-OMF_GET_VER(struct cndb_txc_omf_v4, txc_cnid, 64, v4);
-OMF_GET_VER(struct cndb_txc_omf_v4, txc_id, 64, v4);
-OMF_GET_VER(struct cndb_txc_omf_v4, txc_tag, 64, v4);
-OMF_GET_VER(struct cndb_txc_omf_v4, txc_flags, 32, v4);
-OMF_GET_VER(struct cndb_txc_omf_v4, txc_kcnt, 32, v4);
-OMF_GET_VER(struct cndb_txc_omf_v4, txc_vcnt, 32, v4);
-OMF_GET_VER(struct cndb_txc_omf_v4, txc_mcnt, 32, v4);
+OMF_SETGET(struct cndb_tx_omf, tx_id, 64);
+OMF_SETGET(struct cndb_tx_omf, tx_nc, 32);
+OMF_SETGET(struct cndb_tx_omf, tx_nd, 32);
+OMF_SETGET(struct cndb_tx_omf, tx_seqno, 64);
+OMF_SETGET(struct cndb_tx_omf, tx_ingestid, 64);
+OMF_SETGET(struct cndb_tx_omf, tx_txhorizon, 64);
+
 
 /*
  * struct cndb_txc_omf
+ *
  * The "c" stands for mblock commit.
  * Record type CNDB_TYPE_TXC.
  * One record per new CN kvset created during the CN mutation.
@@ -407,44 +260,14 @@ struct cndb_txc_omf {
     uint32_t            txc_mcnt;
 } HSE_PACKED;
 
-/**
- * struct cndb_txm_omf_v8
- *
- * Record type CNDB_TYPE_TXM.
- * One record per new kvset in a transaction/CN mutation.
- * Record the position of the new kvset in the CN tree.
- *
- * @txm_cnid:
- * @txm_id:
- * @txm_tag: kvset tag (tag in kvset record cndb_txc_omf appended when the
- *      kvset was committed).
- * @txm_level:
- * @txm_offset:
- * @txm_dgen:
- * @txm_vused:
- * @txm_compc:
- */
-struct cndb_txm_omf_v8 {
-    struct cndb_hdr_omf hdr;
-    uint64_t            txm_cnid;
-    uint64_t            txm_id;
-    uint64_t            txm_tag;
-    uint32_t            txm_level;
-    uint32_t            txm_offset;
-    uint64_t            txm_dgen;
-    uint64_t            txm_vused;
-    uint32_t            txm_compc;
-    uint32_t            txm_unused;
-} HSE_PACKED;
+OMF_SETGET(struct cndb_txc_omf, txc_cnid, 64);
+OMF_SETGET(struct cndb_txc_omf, txc_id, 64);
+OMF_SETGET(struct cndb_txc_omf, txc_tag, 64);
+OMF_SETGET(struct cndb_txc_omf, txc_keepvbc, 32);
+OMF_SETGET(struct cndb_txc_omf, txc_kcnt, 32);
+OMF_SETGET(struct cndb_txc_omf, txc_vcnt, 32);
+OMF_SETGET(struct cndb_txc_omf, txc_mcnt, 32);
 
-OMF_GET_VER(struct cndb_txm_omf_v8, txm_cnid, 64, v8);
-OMF_GET_VER(struct cndb_txm_omf_v8, txm_id, 64, v8);
-OMF_GET_VER(struct cndb_txm_omf_v8, txm_tag, 64, v8);
-OMF_GET_VER(struct cndb_txm_omf_v8, txm_level, 32, v8);
-OMF_GET_VER(struct cndb_txm_omf_v8, txm_offset, 32, v8);
-OMF_GET_VER(struct cndb_txm_omf_v8, txm_dgen, 64, v8);
-OMF_GET_VER(struct cndb_txm_omf_v8, txm_vused, 64, v8);
-OMF_GET_VER(struct cndb_txm_omf_v8, txm_compc, 32, v8);
 
 /**
  * struct cndb_txm_omf
@@ -477,8 +300,20 @@ struct cndb_txm_omf {
     uint32_t            txm_scatter;
 } HSE_PACKED;
 
+OMF_SETGET(struct cndb_txm_omf, txm_cnid, 64);
+OMF_SETGET(struct cndb_txm_omf, txm_id, 64);
+OMF_SETGET(struct cndb_txm_omf, txm_tag, 64);
+OMF_SETGET(struct cndb_txm_omf, txm_level, 32);
+OMF_SETGET(struct cndb_txm_omf, txm_offset, 32);
+OMF_SETGET(struct cndb_txm_omf, txm_dgen, 64);
+OMF_SETGET(struct cndb_txm_omf, txm_vused, 64);
+OMF_SETGET(struct cndb_txm_omf, txm_compc, 32);
+OMF_SETGET(struct cndb_txm_omf, txm_scatter, 32);
+
+
 /*
  * struct cndb_txd_omf
+ *
  * Record type CNDB_TYPE_TXD.
  * One such record per kvset deleted as part of a transaction/CN mutation
  * State that the mblocks of the kvset are not needed anymore (they can be
@@ -503,10 +338,17 @@ struct cndb_txd_omf {
     /* an array of txd_n_oids mblock OIDs appears here */
 } HSE_PACKED;
 
+OMF_SETGET(struct cndb_txd_omf, txd_cnid, 64);
+OMF_SETGET(struct cndb_txd_omf, txd_id, 64);
+OMF_SETGET(struct cndb_txd_omf, txd_tag, 64);
+OMF_SETGET(struct cndb_txd_omf, txd_n_oids, 32);
+
+
 enum { CNDB_ACK_TYPE_C = 1, CNDB_ACK_TYPE_D = 2 };
 
 /**
  * struct cndb_ack_omf
+ *
  * If type is CNDB_ACK_TYPE_C:
  * Record that all the mblocks of all the new kvsets of the CN mutation have
  * been committed.
@@ -530,66 +372,20 @@ struct cndb_ack_omf {
     uint32_t            pad_do_not_use;
 } HSE_PACKED;
 
-struct cndb_nak_omf {
-    struct cndb_hdr_omf hdr;
-    uint64_t            nak_txid;
-} HSE_PACKED;
-
-OMF_SETGET(struct cndb_hdr_omf, cnhdr_type, 32);
-OMF_SETGET(struct cndb_hdr_omf, cnhdr_len, 32);
-
-OMF_SETGET(struct cndb_ver_omf, cnver_magic, 32);
-OMF_SETGET(struct cndb_ver_omf, cnver_version, 32);
-OMF_SETGET(struct cndb_ver_omf, cnver_captgt, 64);
-
-OMF_SETGET(struct cndb_info_omf, cninfo_fanout_bits, 32);
-OMF_SETGET(struct cndb_info_omf, cninfo_prefix_len, 32);
-OMF_SETGET(struct cndb_info_omf, cninfo_sfx_len, 32);
-OMF_SETGET(struct cndb_info_omf, cninfo_prefix_pivot, 32);
-OMF_SETGET(struct cndb_info_omf, cninfo_flags, 32);
-OMF_SETGET(struct cndb_info_omf, cninfo_metasz, 32);
-OMF_SETGET(struct cndb_info_omf, cninfo_cnid, 64);
-OMF_SETGET_CHBUF(struct cndb_info_omf, cninfo_name);
-
-OMF_SETGET(struct cndb_meta_omf, cnmeta_seqno_max, 64);
-
-OMF_SETGET(struct cndb_tx_omf, tx_id, 64);
-OMF_SETGET(struct cndb_tx_omf, tx_nc, 32);
-OMF_SETGET(struct cndb_tx_omf, tx_nd, 32);
-OMF_SETGET(struct cndb_tx_omf, tx_seqno, 64);
-OMF_SETGET(struct cndb_tx_omf, tx_ingestid, 64);
-OMF_SETGET(struct cndb_tx_omf, tx_txhorizon, 64);
-
-OMF_SETGET(struct cndb_txc_omf, txc_cnid, 64);
-OMF_SETGET(struct cndb_txc_omf, txc_id, 64);
-OMF_SETGET(struct cndb_txc_omf, txc_tag, 64);
-OMF_SETGET(struct cndb_txc_omf, txc_keepvbc, 32);
-OMF_SETGET(struct cndb_txc_omf, txc_kcnt, 32);
-OMF_SETGET(struct cndb_txc_omf, txc_vcnt, 32);
-OMF_SETGET(struct cndb_txc_omf, txc_mcnt, 32);
-
-OMF_SETGET(struct cndb_txm_omf, txm_cnid, 64);
-OMF_SETGET(struct cndb_txm_omf, txm_id, 64);
-OMF_SETGET(struct cndb_txm_omf, txm_tag, 64);
-OMF_SETGET(struct cndb_txm_omf, txm_level, 32);
-OMF_SETGET(struct cndb_txm_omf, txm_offset, 32);
-OMF_SETGET(struct cndb_txm_omf, txm_dgen, 64);
-OMF_SETGET(struct cndb_txm_omf, txm_vused, 64);
-OMF_SETGET(struct cndb_txm_omf, txm_compc, 32);
-OMF_SETGET(struct cndb_txm_omf, txm_scatter, 32);
-
-OMF_SETGET(struct cndb_txd_omf, txd_cnid, 64);
-OMF_SETGET(struct cndb_txd_omf, txd_id, 64);
-OMF_SETGET(struct cndb_txd_omf, txd_tag, 64);
-OMF_SETGET(struct cndb_txd_omf, txd_n_oids, 32);
-
 OMF_SETGET(struct cndb_ack_omf, ack_txid, 64);
 OMF_SETGET(struct cndb_ack_omf, ack_type, 32);
 OMF_SETGET(struct cndb_ack_omf, ack_tag, 64);
 OMF_SETGET(struct cndb_ack_omf, ack_cnid, 64);
 
-OMF_SETGET(struct cndb_nak_omf, nak_txid, 64);
 
-OMF_SETGET(struct cndb_oid_omf, cndb_oid, 64);
+/**
+ * struct cndb_nak_omf
+ */
+struct cndb_nak_omf {
+    struct cndb_hdr_omf hdr;
+    uint64_t            nak_txid;
+} HSE_PACKED;
+
+OMF_SETGET(struct cndb_nak_omf, nak_txid, 64);
 
 #endif /* HSE_KVS_CNDB_OMF_H */

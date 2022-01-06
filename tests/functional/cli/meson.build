@@ -104,7 +104,7 @@ foreach t, params : tests
             meson.current_source_dir() / '@0@.sh'.format(t),
         ],
         workdir: fs.parent(meson.current_source_dir()),
-        timeout: 60,
+        timeout: 300,
         depends: [
             hse_cli_symlink,
         ],

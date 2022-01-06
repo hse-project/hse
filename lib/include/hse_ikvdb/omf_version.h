@@ -14,26 +14,16 @@ enum {
 };
 
 enum {
-    CNDB_VERSION4 = 4,
-    CNDB_VERSION5 = 5,
-    CNDB_VERSION6 = 6,
-    CNDB_VERSION7 = 7,
-    CNDB_VERSION8 = 8,
-    CNDB_VERSION9 = 9,
     CNDB_VERSION10 = 10,
     CNDB_VERSION11 = 11,
     CNDB_VERSION12 = 12,
 };
 
 enum {
-    KBLOCK_HDR_VERSION2 = 2,
-    KBLOCK_HDR_VERSION3 = 3,
-    KBLOCK_HDR_VERSION4 = 4,
     KBLOCK_HDR_VERSION5 = 5,
 };
 
 enum {
-    VBLOCK_HDR_VERSION1 = 1,
     VBLOCK_HDR_VERSION2 = 2,
 };
 
@@ -42,10 +32,6 @@ enum {
 };
 
 enum {
-    WBT_TREE_VERSION2 = 2,
-    WBT_TREE_VERSION3 = 3,
-    WBT_TREE_VERSION4 = 4,
-    WBT_TREE_VERSION5 = 5,
     WBT_TREE_VERSION6 = 6,
 };
 

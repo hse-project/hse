@@ -25,7 +25,7 @@
 struct cndb_upg_history cndb_ver_unpackt[] = {
     {
         omf_cndb_ver_unpack,
-        CNDB_VERSION4,
+        CNDB_VERSION10,
     },
 };
 
@@ -44,14 +44,6 @@ struct cndb_upg_history cndb_meta_unpackt[] = {
  */
 struct cndb_upg_history cndb_info_unpackt[] = {
     {
-        omf_cndb_info_unpack_v7,
-        CNDB_VERSION7,
-    },
-    {
-        omf_cndb_info_unpack_v9,
-        CNDB_VERSION9,
-    },
-    {
         omf_cndb_info_unpack,
         CNDB_VERSION10,
     },
@@ -62,12 +54,8 @@ struct cndb_upg_history cndb_info_unpackt[] = {
  */
 struct cndb_upg_history cndb_tx_unpackt[] = {
     {
-        omf_cndb_tx_unpack_v4,
-        CNDB_VERSION4,
-    },
-    {
-        omf_cndb_tx_unpack_v5,
-        CNDB_VERSION5,
+        omf_cndb_tx_unpack_v10,
+        CNDB_VERSION10,
     },
     {
         omf_cndb_tx_unpack,
@@ -80,12 +68,8 @@ struct cndb_upg_history cndb_tx_unpackt[] = {
  */
 struct cndb_upg_history cndb_txc_unpackt[] = {
     {
-        omf_cndb_txc_unpack_v4,
-        CNDB_VERSION4,
-    },
-    {
         omf_cndb_txc_unpack,
-        CNDB_VERSION5,
+        CNDB_VERSION10,
     },
 };
 
@@ -94,12 +78,8 @@ struct cndb_upg_history cndb_txc_unpackt[] = {
  */
 struct cndb_upg_history cndb_txm_unpackt[] = {
     {
-        omf_cndb_txm_unpack_v8,
-        CNDB_VERSION4,
-    },
-    {
         omf_cndb_txm_unpack,
-        CNDB_VERSION9,
+        CNDB_VERSION10,
     },
 };
 
@@ -109,7 +89,7 @@ struct cndb_upg_history cndb_txm_unpackt[] = {
 struct cndb_upg_history cndb_txd_unpackt[] = {
     {
         omf_cndb_txd_unpack,
-        CNDB_VERSION4,
+        CNDB_VERSION10,
     },
 };
 
@@ -119,7 +99,7 @@ struct cndb_upg_history cndb_txd_unpackt[] = {
 struct cndb_upg_history cndb_ack_unpackt[] = {
     {
         omf_cndb_ack_unpack,
-        CNDB_VERSION4,
+        CNDB_VERSION10,
     },
 };
 
@@ -129,7 +109,7 @@ struct cndb_upg_history cndb_ack_unpackt[] = {
 struct cndb_upg_history cndb_nak_unpackt[] = {
     {
         omf_cndb_nak_unpack,
-        CNDB_VERSION4,
+        CNDB_VERSION10,
     },
 };
 
@@ -277,137 +257,12 @@ omf_cndb_info_unpack(void *omf_blob, u32 ver, union cndb_mtu *mtu, u32 *plen)
 }
 
 merr_t
-omf_cndb_info_unpack_v9(void *omf_blob, u32 ver, union cndb_mtu *mtu, u32 *plen)
-{
-    struct cndb_info_omf *omf = omf_blob;
-    struct cndb_info *    mti;
-    u32                   type;
-    u32                   len;
-
-    type = omf_cnhdr_type(&(omf->hdr));
-    if (type != CNDB_TYPE_INFO && type != CNDB_TYPE_INFOD) {
-        log_err("Invalid record type %u for this unpacking function, version %u", type, ver);
-        return merr(EINVAL);
-    }
-
-    if ((mtu == NULL) && (plen == NULL)) {
-        log_err("NULL length pointer, version %u", ver);
-        return merr(EINVAL);
-    }
-
-    len = sizeof(struct cndb_info) + omf_cninfo_metasz(omf);
-    if (mtu == NULL) {
-        /* The caller wants only the length */
-        *plen = len;
-        return 0;
-    }
-
-    if (plen && (*plen < len)) {
-        log_err("Receive buffer too small, version %u", ver);
-        return merr(EINVAL);
-    }
-
-    mti = &mtu->i;
-    mtu->h.mth_type = type;
-
-    mti->mti_fanout_bits = omf_cninfo_fanout_bits(omf);
-    mti->mti_prefix_len = omf_cninfo_prefix_len(omf);
-    mti->mti_prefix_pivot = omf_cninfo_prefix_pivot(omf);
-    mti->mti_flags = omf_cninfo_flags(omf);
-    mti->mti_cnid = omf_cninfo_cnid(omf);
-    mti->mti_metasz = omf_cninfo_metasz(omf);
-
-    omf_cninfo_name(omf, mti->mti_name, sizeof(mti->mti_name));
-    memcpy(mti->mti_meta, omf->cninfo_meta, mti->mti_metasz);
-
-    return 0;
-}
-
-merr_t
-omf_cndb_info_unpack_v7(void *omf, u32 ver, union cndb_mtu *mtu, u32 *plen)
-{
-    u32                      type;
-    u32                      len;
-    struct cndb_info *       mti = (void *)mtu;
-    struct cndb_info_omf_v7 *info_omf = omf;
-
-    type = omf_cnhdr_type(&(info_omf->hdr));
-    if (type != CNDB_TYPE_INFO && type != CNDB_TYPE_INFOD) {
-        log_err("Invalid record type %u for this unpacking function, version %u", type, ver);
-        return merr(EINVAL);
-    }
-    if ((mtu == NULL) && (plen == NULL)) {
-        log_err("NULL length pointer, version %u", ver);
-        return merr(EINVAL);
-    }
-    len = sizeof(struct cndb_info) + omf_cninfo_metasz_v7(info_omf);
-    if (mtu == NULL) {
-        /* The caller wants only the length */
-        *plen = len;
-        return 0;
-    }
-    if (plen && (*plen < len)) {
-        log_err("Receive buffer too small, version %u", ver);
-        return merr(EINVAL);
-    }
-
-    mtu->h.mth_type = type;
-    mti->mti_fanout_bits = omf_cninfo_fanout_bits_v7(info_omf);
-    mti->mti_prefix_len = omf_cninfo_prefix_len_v7(info_omf);
-    mti->mti_flags = omf_cninfo_flags_v7(info_omf);
-    mti->mti_cnid = omf_cninfo_cnid_v7(info_omf);
-    mti->mti_metasz = omf_cninfo_metasz_v7(info_omf);
-    omf_cninfo_name_v7(info_omf, mti->mti_name, sizeof(mti->mti_name));
-    memcpy(mti->mti_meta, info_omf->cninfo_meta, mti->mti_metasz);
-
-    return 0;
-}
-
-merr_t
-omf_cndb_tx_unpack_v4(void *omf, u32 ver, union cndb_mtu *mtu, u32 *plen)
-{
-    u32                    type;
-    u32                    len;
-    struct cndb_tx *       mtx = (void *)mtu;
-    struct cndb_tx_omf_v4 *tx_omf = omf;
-
-    type = omf_cnhdr_type(&(tx_omf->hdr));
-    if (type != CNDB_TYPE_TX) {
-        log_err("Invalid record type %u for this unpacking function, version %u", type, ver);
-        return merr(EINVAL);
-    }
-    if ((mtu == NULL) && (plen == NULL)) {
-        log_err("NULL length pointer, version %u", ver);
-        return merr(EINVAL);
-    }
-    len = sizeof(struct cndb_tx);
-    if (mtu == NULL) {
-        /* The caller wants only the length */
-        *plen = len;
-        return 0;
-    }
-    if (plen && (*plen < len)) {
-        log_err("Receive buffer too small, version %u", ver);
-        return merr(EINVAL);
-    }
-
-    mtu->h.mth_type = type;
-    mtx->mtx_id = omf_tx_id_v4(tx_omf);
-    mtx->mtx_nc = omf_tx_nc_v4(tx_omf);
-    mtx->mtx_nd = omf_tx_nd_v4(tx_omf);
-    mtx->mtx_seqno = omf_tx_seqno_v4(tx_omf);
-    mtx->mtx_ingestid = CNDB_INVAL_INGESTID;
-
-    return 0;
-}
-
-merr_t
-omf_cndb_tx_unpack_v5(void *omf, u32 ver, union cndb_mtu *mtu, u32 *plen)
+omf_cndb_tx_unpack_v10(void *omf, u32 ver, union cndb_mtu *mtu, u32 *plen)
 {
     u32                     type;
     u32                     len;
     struct cndb_tx *        mtx = (void *)mtu;
-    struct cndb_tx_omf_v5 *tx_omf = omf;
+    struct cndb_tx_omf_v10 *tx_omf = omf;
 
     type = omf_cnhdr_type(&(tx_omf->hdr));
     if (type != CNDB_TYPE_TX) {
@@ -430,11 +285,11 @@ omf_cndb_tx_unpack_v5(void *omf, u32 ver, union cndb_mtu *mtu, u32 *plen)
     }
 
     mtu->h.mth_type = type;
-    mtx->mtx_id = omf_tx_id_v5(tx_omf);
-    mtx->mtx_nc = omf_tx_nc_v5(tx_omf);
-    mtx->mtx_nd = omf_tx_nd_v5(tx_omf);
-    mtx->mtx_seqno = omf_tx_seqno_v5(tx_omf);
-    mtx->mtx_ingestid = omf_tx_ingestid_v5(tx_omf);
+    mtx->mtx_id = omf_tx_id_v10(tx_omf);
+    mtx->mtx_nc = omf_tx_nc_v10(tx_omf);
+    mtx->mtx_nd = omf_tx_nd_v10(tx_omf);
+    mtx->mtx_seqno = omf_tx_seqno_v10(tx_omf);
+    mtx->mtx_ingestid = omf_tx_ingestid_v10(tx_omf);
     mtx->mtx_txhorizon = CNDB_INVAL_HORIZON;
 
     return 0;
@@ -475,68 +330,6 @@ omf_cndb_tx_unpack(void *omf, u32 ver, union cndb_mtu *mtu, u32 *plen)
     mtx->mtx_seqno = omf_tx_seqno(tx_omf);
     mtx->mtx_ingestid = omf_tx_ingestid(tx_omf);
     mtx->mtx_txhorizon = omf_tx_txhorizon(tx_omf);
-
-    return 0;
-}
-
-merr_t
-omf_cndb_txc_unpack_v4(void *omf, u32 ver, union cndb_mtu *mtu, u32 *plen)
-{
-    u32                     type;
-    u32                     len;
-    int                     i;
-    u32                     mtc_flags;
-    struct cndb_txc *       mtc = (void *)mtu;
-    struct cndb_oid *       mto = NULL;
-    struct cndb_oid_omf *   omo = NULL;
-    struct cndb_txc_omf_v4 *txc_omf = omf;
-
-    type = omf_cnhdr_type(&(txc_omf->hdr));
-    if (type != CNDB_TYPE_TXC) {
-        log_err("Invalid record type %u for this unpacking function, version %u", type, ver);
-        return merr(EINVAL);
-    }
-    if ((mtu == NULL) && (plen == NULL)) {
-        log_err("NULL length pointer, version %u", ver);
-        return merr(EINVAL);
-    }
-    len = sizeof(struct cndb_txc) +
-          sizeof(struct cndb_oid) * (omf_txc_kcnt_v4(txc_omf) + omf_txc_vcnt_v4(txc_omf));
-    if (mtu == NULL) {
-        /* The caller wants only the length */
-        *plen = len;
-        return 0;
-    }
-    if (plen && (*plen < len)) {
-        log_err("Receive buffer too small, version %u", ver);
-        return merr(EINVAL);
-    }
-
-    mtu->h.mth_type = type;
-    mtc->mtc_cnid = omf_txc_cnid_v4(txc_omf);
-    mtc->mtc_id = omf_txc_id_v4(txc_omf);
-    mtc->mtc_tag = omf_txc_tag_v4(txc_omf);
-    mtc->mtc_kcnt = omf_txc_kcnt_v4(txc_omf);
-    mtc->mtc_vcnt = omf_txc_vcnt_v4(txc_omf);
-
-    mtc_flags = omf_txc_flags_v4(txc_omf);
-    if (mtc_flags & CNDB_TXF_KEEPV)
-        mtc->mtc_keepvbc = mtc->mtc_vcnt;
-    else
-        mtc->mtc_keepvbc = 0;
-
-    if (omf_txc_mcnt_v4(txc_omf) != 0)
-        log_info("cndb tx %lu OMF contains meta blocks, ignored", (ulong)mtc->mtc_id);
-
-    mto = (void *)&mtc[1];
-    omo = (void *)&txc_omf[1];
-    for (i = 0; i < mtc->mtc_kcnt; i++)
-        mto[i].mmtx_oid = omf_cndb_oid(&omo[i]);
-
-    mto += mtc->mtc_kcnt;
-    omo += mtc->mtc_kcnt;
-    for (i = 0; i < mtc->mtc_vcnt; i++)
-        mto[i].mmtx_oid = omf_cndb_oid(&omo[i]);
 
     return 0;
 }
@@ -634,48 +427,6 @@ omf_cndb_txm_unpack(void *omf, u32 ver, union cndb_mtu *mtu, u32 *plen)
     mtm->mtm_vused = omf_txm_vused(txm_omf);
     mtm->mtm_compc = omf_txm_compc(txm_omf);
     mtm->mtm_scatter = omf_txm_scatter(txm_omf);
-
-    return 0;
-}
-
-merr_t
-omf_cndb_txm_unpack_v8(void *omf, u32 ver, union cndb_mtu *mtu, u32 *plen)
-{
-    u32                     type;
-    u32                     len;
-    struct cndb_txm *       mtm = (void *)mtu;
-    struct cndb_txm_omf_v8 *txm_omf = omf;
-
-    type = omf_cnhdr_type(&(txm_omf->hdr));
-    if (type != CNDB_TYPE_TXM) {
-        log_err("Invalid record type %u for this unpacking function, version %u", type, ver);
-        return merr(EINVAL);
-    }
-    if ((mtu == NULL) && (plen == NULL)) {
-        log_err("NULL length pointer, version %u", ver);
-        return merr(EINVAL);
-    }
-    len = sizeof(struct cndb_txm);
-    if (mtu == NULL) {
-        /* The caller wants only the length */
-        *plen = len;
-        return 0;
-    }
-    if (plen && (*plen < len)) {
-        log_err("Receive buffer too small, version %u", ver);
-        return merr(EINVAL);
-    }
-
-    mtu->h.mth_type = type;
-    mtm->mtm_cnid = omf_txm_cnid_v8(txm_omf);
-    mtm->mtm_id = omf_txm_id_v8(txm_omf);
-    mtm->mtm_tag = omf_txm_tag_v8(txm_omf);
-    mtm->mtm_level = omf_txm_level_v8(txm_omf);
-    mtm->mtm_offset = omf_txm_offset_v8(txm_omf);
-    mtm->mtm_dgen = omf_txm_dgen_v8(txm_omf);
-    mtm->mtm_vused = omf_txm_vused_v8(txm_omf);
-    mtm->mtm_compc = omf_txm_compc_v8(txm_omf);
-    mtm->mtm_scatter = mtm->mtm_vused ? max_t(u32, mtm->mtm_compc, 1) : 0;
 
     return 0;
 }

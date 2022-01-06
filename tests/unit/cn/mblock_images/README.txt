@@ -6,31 +6,25 @@ by several unit tests.  The file naming scheme is:
 
 Kblocks have a three part version identifier that consists of the kblock
 header version number, the wbtree version number and the bloom version number.
-For example, "kb3_w2_b3" identifies kblock header version 3, wbtree version 2
-and bloom version 3.
+For example, "kb5_w6_b5" identifies kblock header version 5, wbtree version 6
+and bloom version 5.
 
 Here's a rundown of the data files in this directory:
 
-    Kblock and vblock with 100 keys, created with simple_client:
+    Kblock and vblock with 500 keys, created with simple_client:
 
-        simple_100a.kb3_w2_b3
-        simple_100a.vb1
-
-    Kblock and vblock with 100 keys, created with simple_client, updated for
-    wbtree version 3:
-
-        simple_100b.kb3_w3_b3
-        simple_100b.vb1
+        simple_500c.kb5_w6_b5
+        simple_500c.vb2
 
     Kblock and vblock with 100 keys and 4 values per key, created with ctxn_validation:
 
-        multival_100keys_4vals.kb3_w3_b3.xz
-        multival_100keys_4vals.vb1.xz
+        multival_100keys_4vals.kb5_w6_b5.xz
+        multival_100keys_4vals.vb2.xz
 
     Kblock and vblock with 10 keys and 2000 values per key, created with ctxn_validation:
 
-        multival_10keys_2000vals.kb3_w3_b3.xz
-        multival_10keys_2000vals.vb1.xz
+        multival_10keys_2000vals.kb5_w6_b5.xz
+        multival_10keys_2000vals.vb2.xz
 
 
 How to create new versions of these files
@@ -63,7 +57,7 @@ Sample output:
     H Loc           Dgen    Keys   Tombs AvgKlen AvgVlen  KbAlen  VbAlen KbWlen% VbWlen% VbUlen% Comps  Kbs  Vbs KblockIDs  / VblockIDs
     t 1,0,1            1   1.03k       0       3       6  33.55m  33.55m     0.1     3.1     0.0     0    1    1
 
-    $ cn_kbdump -s /mnt/kvdb/kvdb1/capacity 0x102400000 0x102400000
+    $ cn_kbdump /mnt/kvdb/kvdb1/capacity 0x102400000 0x102400000
     0x102400000: K magic 0xfadedfad  ver 5  nkey 1031  ntomb 0
         metrics: keys 1031 tombs 0 key_bytes 4045 val_bytes 6660
         wbt: hdr 112 24  data_pg 1 6  ver 6
@@ -91,7 +85,7 @@ Sample output:
 
 3. Extract mblocks from cn and save in files:
 
-    $ cn_kbdump -w . -s /mnt/kvdb/kvdb1/capacity 0x102400000 0x102400000 / 0x102400000
+    $ cn_kbdump -w . /mnt/kvdb/kvdb1/capacity 0x102400000 0x102400000 / 0x101400000
 
 The following files are created by cn_kbdump:
 
@@ -103,9 +97,9 @@ The following files are created by cn_kbdump:
     gunzip K0*.gz V0*.gz
 
     mv K000.0x102400000.gz simple_1031c.kbX_wY_bZ
-    mv V000.0x101400000.gz simple_1031c.vb1
+    mv V000.0x101400000.gz simple_1031c.vbV
 
-    xz simple_1031c.kbX_wY_bZ simple_1031c.vb1
+    xz simple_1031c.kbX_wY_bZ simple_1031c.vbV
 
   where X, Y, and Z are the kblock, wbt, and bloom header version numbers
   as output by the cn_kbdump command (see sample output in step 2).

@@ -27,8 +27,6 @@ cn_sources = files(
     'vcomp_params.c',
     'wbt_builder.c',
     'wbt_reader.c',
-    'wbt_reader_v4.c',
-    'wbt_reader_v5.c',
 )
 
 cn_includes = include_directories('.')

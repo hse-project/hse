@@ -1235,66 +1235,34 @@ MTF_DEFINE_UTEST(cndb_test, cndb_upgrade_test1)
 
 MTF_DEFINE_UTEST(cndb_test, cndb_upgrade_test2)
 {
-    struct cndb_tx_omf_v4   tx_v4 = {};
+    struct cndb_tx_omf_v10  tx_v10 = {};
     union cndb_mtu *        mtu;
-    struct cndb_txc_omf_v4 *txc_v4;
     u32                     len;
     merr_t                  err;
     u32                     zero_len = 0;
-    size_t                  sz;
-    int                     vcnt;
 
     /*
-     * Test unpacking tx v4
+     * Test unpacking tx v10
      */
-    cndb_set_hdr(&tx_v4.hdr, CNDB_TYPE_TX, sizeof(tx_v4));
-    err = omf_cndb_tx_unpack_v4(&tx_v4, 0, NULL, NULL);
+    cndb_set_hdr(&tx_v10.hdr, CNDB_TYPE_TX, sizeof(tx_v10));
+    err = omf_cndb_tx_unpack_v10(&tx_v10, 0, NULL, NULL);
     ASSERT_EQ(merr_errno(err), EINVAL);
 
-    err = omf_cndb_tx_unpack_v4(&tx_v4, 0, NULL, NULL);
+    err = omf_cndb_tx_unpack_v10(&tx_v10, 0, NULL, NULL);
     ASSERT_EQ(merr_errno(err), EINVAL);
-    err = omf_cndb_tx_unpack_v4(&tx_v4, 0, NULL, &len);
+    err = omf_cndb_tx_unpack_v10(&tx_v10, 0, NULL, &len);
     ASSERT_EQ(err, 0);
     ASSERT_NE(len, 0);
 
     mtu = calloc(1, len);
     ASSERT_NE(NULL, mtu);
 
-    err = omf_cndb_tx_unpack_v4(&tx_v4, 0, mtu, &zero_len);
+    err = omf_cndb_tx_unpack_v10(&tx_v10, 0, mtu, &zero_len);
     ASSERT_EQ(merr_errno(err), EINVAL);
 
-    err = omf_cndb_tx_unpack_v4(&tx_v4, 0, mtu, &len);
+    err = omf_cndb_tx_unpack_v10(&tx_v10, 0, mtu, &len);
     ASSERT_EQ(err, 0);
     free(mtu);
-
-    /*
-     * Test unpacking TXC cndb version 4.
-     */
-    vcnt = 9;
-    sz = sizeof(struct cndb_txc) + sizeof(struct cndb_oid) * vcnt;
-    txc_v4 = calloc(1, sz);
-    ASSERT_NE(NULL, txc_v4);
-
-    cndb_set_hdr(&txc_v4->hdr, CNDB_TYPE_TXC, sizeof(*txc_v4));
-    txc_v4->txc_vcnt = cpu_to_omf32(vcnt);
-    err = omf_cndb_txc_unpack_v4(txc_v4, CNDB_VERSION4, NULL, &len);
-    ASSERT_EQ(err, 0);
-    ASSERT_NE(len, 0);
-    ASSERT_EQ(len, sz);
-
-    mtu = calloc(1, len);
-    ASSERT_NE(NULL, mtu);
-    err = omf_cndb_txc_unpack_v4(txc_v4, CNDB_VERSION4, mtu, &len);
-    ASSERT_EQ(err, 0);
-    ASSERT_EQ(mtu->c.mtc_keepvbc, 0);
-
-    txc_v4->txc_flags = cpu_to_omf32(1);
-    err = omf_cndb_txc_unpack_v4(txc_v4, CNDB_VERSION4, mtu, &len);
-    ASSERT_EQ(err, 0);
-    ASSERT_EQ(mtu->c.mtc_keepvbc, 9);
-
-    free(mtu);
-    free(txc_v4);
 }
 
 MTF_DEFINE_UTEST_PREPOST(cndb_test, cndb_record_unpack_test, test_pre, test_post)
@@ -1309,7 +1277,7 @@ MTF_DEFINE_UTEST_PREPOST(cndb_test, cndb_record_unpack_test, test_pre, test_post
 
     mapi_inject_once_ptr(mapi_idx_malloc, 1, NULL);
     cndb_set_hdr(&ver.hdr, CNDB_TYPE_VERSION, sizeof(ver.hdr));
-    err = cndb_record_unpack(CNDB_VERSION5, &(ver.hdr), &mtu);
+    err = cndb_record_unpack(CNDB_VERSION, &(ver.hdr), &mtu);
     ASSERT_EQ(merr_errno(err), ENOMEM);
     ASSERT_EQ(mtu, NULL);
 }
