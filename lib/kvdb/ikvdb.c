@@ -1915,6 +1915,11 @@ ikvdb_kvs_names_get(struct ikvdb *handle, size_t *namec, char ***namev)
     char **            kvsv;
     char *             name;
 
+    if (namec)
+        *namec = 0;
+
+    *namev = NULL;
+
     kvsv = calloc(HSE_KVS_COUNT_MAX, sizeof(*kvsv) + HSE_KVS_NAME_LEN_MAX);
     if (!namev)
         return merr(ev(ENOMEM));
