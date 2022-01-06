@@ -146,14 +146,16 @@ OMF_SETGET(struct bloom_hdr_omf, bh_n_hashes, 8)
  *
  * Wanna B-Tree (WBT) On-Media-Format
  *
- * OMF v6: Added support for compressed values. Uses a new value type
+ * Supported versions:
+ *     v6: Added support for compressed values. Uses a new value type
  *         (vtype_cval) which affects KMD format. Unfortunately,
  *         there is no version field for KMD, so we bump the WBTree
  *         version even though the actual WBTree header, leaf and
  *         internal nodes are no different from OMF v5.
  *
- * OMF v5: Added longest common prefix elimination for keys in WBTree nodes (unsupported).
- * OMF v4: Added new value, "immediate", for short values (unsupported).
+ * Deprecated versions:
+ *     v5: Added longest common prefix elimination for keys in WBTree nodes
+ *     v4: Added new value, "immediate", for short values
  */
 #define WBT_NODE_SIZE 4096 /* must equal system page size */
 

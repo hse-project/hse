@@ -44,9 +44,9 @@ vbr_desc_read(
     vers = omf_vbh_version(hdr);
 
     supported = (omf_vbh_magic(hdr) == VBLOCK_HDR_MAGIC &&
-                 (vers >= VBLOCK_HDR_VERSION2 && vers <= VBLOCK_HDR_VERSION));
+                 (VBLOCK_HDR_VERSION2 <= vers && vers <= VBLOCK_HDR_VERSION));
     if (ev(!supported))
-        return merr(EINVAL);
+        return merr(EPROTO);
 
     memset(vblk_desc, 0, sizeof(*vblk_desc));
     vblk_desc->vbd_mblkdesc.map_base = base;
