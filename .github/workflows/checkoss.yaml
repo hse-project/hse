@@ -1,0 +1,16 @@
+name: checkoss
+
+on:
+  pull_request:
+    types: [opened, synchronize, reopened]
+
+jobs:
+  check:
+    runs-on: ubuntu-latest
+
+    steps:
+      - uses: actions/checkout@v2
+
+      - name: checkoss
+        run: |
+          scripts/dev/checkoss.sh

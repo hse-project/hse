@@ -1,12 +1,26 @@
-name: CI
+name: Builds
 
 on:
   push:
     branches:
       - master
       - v2.*
+    paths-ignore:
+      - "**/*.md"
+      - .clang-format
+      - .gitattributes
+      - .gitignore
+      - .shellcheckrc
+      - LICENSE
   pull_request:
     types: [opened, synchronize, reopened]
+    paths-ignore:
+      - "**/*.md"
+      - .clang-format
+      - .gitattributes
+      - .gitignore
+      - .shellcheckrc
+      - LICENSE
 
 env:
   MESON_TESTTHREADS: 1
@@ -228,13 +242,3 @@ jobs:
           path: |
             builddir/meson-logs/
             /var/log/messages
-
-  checkoss:
-    runs-on: ubuntu-latest
-
-    steps:
-      - uses: actions/checkout@v2
-
-      - name: checkoss
-        run: |
-          scripts/dev/checkoss.sh
