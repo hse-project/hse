@@ -167,7 +167,6 @@ pre_test(struct mtf_test_info *ti)
 {
     mapi_inject(mapi_idx_sts_create, 0);
     mapi_inject(mapi_idx_sts_destroy, 0);
-    mapi_inject(mapi_idx_sts_resume, 0);
 
     MOCK_SET_FN(csched_noop, sp_noop_create, mocked_sp_noop_create);
     MOCK_SET_FN(csched_sp3, sp3_create, mocked_sp3_create);

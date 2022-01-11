@@ -14,7 +14,7 @@
 
 /* MTF_MOCK_DECL(csched_sp3) */
 
-#define RBT_MAX 5
+#define RBT_MAX 6
 #define CN_THROTTLE_MAX (THROTTLE_SENSOR_SCALE_MED + 50)
 
 struct kvdb_rparams;
@@ -32,22 +32,22 @@ sp3_create(
     struct csched_ops ** handle);
 
 struct sp3_rbe {
-    s64            rbe_weight;
     struct rb_node rbe_node;
+    uint64_t       rbe_weight;
 };
 
 struct sp3_node {
-    struct sp3_rbe spn_rbe[RBT_MAX];
-    u32            spn_ttl;
-    u64            spn_timeout;
-    bool           spn_initialized;
+    struct sp3_rbe   spn_rbe[RBT_MAX];
+    struct list_head spn_rlink;
+    struct list_head spn_alink;
+    u32              spn_ttl;
+    bool             spn_initialized;
 };
 
 struct sp3_tree {
     struct list_head spt_tlink;
     uint             spt_job_cnt;
     atomic_int       spt_enabled;
-    atomic_int       spt_ingest_count;
     atomic_ulong     spt_ingest_alen;
     atomic_ulong     spt_ingest_wlen;
 };

@@ -318,26 +318,7 @@ MTF_DEFINE_UTEST_PRE(kvdb_rparams_test, csched_qthreads, test_pre)
     ASSERT_EQ((uintptr_t)ps->ps_validate, (uintptr_t)param_default_validator);
     ASSERT_EQ((uintptr_t)ps->ps_stringify, (uintptr_t)param_default_stringify);
     ASSERT_EQ((uintptr_t)ps->ps_jsonify, (uintptr_t)param_default_jsonify);
-    ASSERT_EQ(0, params.csched_qthreads);
-    ASSERT_EQ(0, ps->ps_bounds.as_uscalar.ps_min);
-    ASSERT_EQ(UINT64_MAX, ps->ps_bounds.as_uscalar.ps_max);
-}
-
-MTF_DEFINE_UTEST_PRE(kvdb_rparams_test, csched_node_len_max, test_pre)
-{
-    const struct param_spec *ps = ps_get("csched_node_len_max");
-
-    ASSERT_NE(NULL, ps);
-    ASSERT_NE(NULL, ps->ps_description);
-    ASSERT_EQ(PARAM_FLAG_EXPERIMENTAL | PARAM_FLAG_WRITABLE, ps->ps_flags);
-    ASSERT_EQ(PARAM_TYPE_U64, ps->ps_type);
-    ASSERT_EQ(offsetof(struct kvdb_rparams, csched_node_len_max), ps->ps_offset);
-    ASSERT_EQ(sizeof(uint64_t), ps->ps_size);
-    ASSERT_EQ((uintptr_t)ps->ps_convert, (uintptr_t)param_default_converter);
-    ASSERT_EQ((uintptr_t)ps->ps_validate, (uintptr_t)param_default_validator);
-    ASSERT_EQ((uintptr_t)ps->ps_stringify, (uintptr_t)param_default_stringify);
-    ASSERT_EQ((uintptr_t)ps->ps_jsonify, (uintptr_t)param_default_jsonify);
-    ASSERT_EQ(0, params.csched_node_len_max);
+    ASSERT_EQ(CSCHED_QTHREADS_DEFAULT, params.csched_qthreads);
     ASSERT_EQ(0, ps->ps_bounds.as_uscalar.ps_min);
     ASSERT_EQ(UINT64_MAX, ps->ps_bounds.as_uscalar.ps_max);
 }
@@ -848,7 +829,7 @@ MTF_DEFINE_UTEST_PRE(kvdb_rparams_test, cn_io_threads, test_pre)
     ASSERT_EQ((uintptr_t)ps->ps_validate, (uintptr_t)param_default_validator);
     ASSERT_EQ((uintptr_t)ps->ps_stringify, (uintptr_t)param_default_stringify);
     ASSERT_EQ((uintptr_t)ps->ps_jsonify, (uintptr_t)param_default_jsonify);
-    ASSERT_EQ(13, params.cn_io_threads);
+    ASSERT_EQ(17, params.cn_io_threads);
     ASSERT_EQ(1, ps->ps_bounds.as_uscalar.ps_min);
     ASSERT_EQ(256, ps->ps_bounds.as_uscalar.ps_max);
 }

@@ -1,6 +1,6 @@
 /* SPDX-License-Identifier: Apache-2.0 */
 /*
- * Copyright (C) 2015-2020 Micron Technology, Inc.  All rights reserved.
+ * Copyright (C) 2015-2021 Micron Technology, Inc.  All rights reserved.
  */
 
 #ifndef HSE_IKVDB_CSCHED_H
@@ -8,7 +8,6 @@
 
 #include <hse_util/inttypes.h>
 
-#include <hse_ikvdb/sched_sts.h>
 #include <hse_ikvdb/csched_rp.h>
 
 /* MTF_MOCK_DECL(csched) */
@@ -21,6 +20,31 @@ struct cn_samp_stats;
 struct mpool;
 struct hse_kvdb_compact_status;
 struct kvdb_health;
+
+/* clang-format off */
+
+/* work queues */
+enum sp3_qnum {
+    SP3_QNUM_ROOT,
+    SP3_QNUM_INTERN,
+    SP3_QNUM_NODELEN,
+    SP3_QNUM_LGARB,
+    SP3_QNUM_LSIZE,
+    SP3_QNUM_SHARED,
+    SP3_QNUM_MAX
+};
+
+/* Default threads-per-queue for csched_qthreads kvdb rparam.
+ */
+#define CSCHED_QTHREADS_DEFAULT                 \
+    ((5ul << (8 * SP3_QNUM_ROOT)) |             \
+     (5ul << (8 * SP3_QNUM_INTERN)) |           \
+     (5ul << (8 * SP3_QNUM_NODELEN)) |          \
+     (1ul << (8 * SP3_QNUM_LGARB)) |            \
+     (1ul << (8 * SP3_QNUM_LSIZE)) |            \
+     (2ul << (8 * SP3_QNUM_SHARED)))
+
+/* clang-format on */
 
 /**
  * enum csched_policy - compaction scheduler policy

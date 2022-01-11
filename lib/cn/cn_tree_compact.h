@@ -1,6 +1,6 @@
 /* SPDX-License-Identifier: Apache-2.0 */
 /*
- * Copyright (C) 2015-2021 Micron Technology, Inc.  All rights reserved.
+ * Copyright (C) 2015-2022 Micron Technology, Inc.  All rights reserved.
  */
 
 #ifndef HSE_KVDB_CN_CN_TREE_COMPACT_H
@@ -36,15 +36,16 @@ enum cn_action {
 
 enum cn_comp_rule {
     CN_CR_NONE = 0,
-    CN_CR_SPILL,          /* normal spill */
-    CN_CR_SPILL_ONE,      /* spill a single kvset b/c it was large */
-    CN_CR_SPILL_TINY,     /* spill many small kvsets */
-    CN_CR_ILONG_LW,       /* long interior node, light weight */
+    CN_CR_RSPILL,         /* normal root spill */
+    CN_CR_RTINY,          /* tiny root spill */
+    CN_CR_ISPILL,         /* normal internal node spill */
+    CN_CR_ISPILL_ONE,     /* spill a single kvset b/c it was large */
+    CN_CR_ITINY,          /* tiny internal node (kv-compact) */
+    CN_CR_ILONG,          /* long interior node (kcompact) */
     CN_CR_LBIG,           /* big leaf (near pop threshold) */
     CN_CR_LBIG_ONE,       /* big leaf, compact one kvset */
     CN_CR_LGARB,          /* leaf garbage (reducing space amp) */
     CN_CR_LLONG,          /* long leaf */
-    CN_CR_LLONG_SCATTER,  /* long leaf, with high vblk scatter */
     CN_CR_LSHORT_LW,      /* short leaf, light weight */
     CN_CR_LSHORT_IDLE,    /* short leaf, idle */
     CN_CR_LSHORT_IDLE_VG, /* short leaf, idle, vblk groups */
@@ -81,32 +82,34 @@ cn_comp_rule2str(enum cn_comp_rule rule)
         case CN_CR_END:
             break;
 
-        case CN_CR_SPILL:
-            return "spill";
-        case CN_CR_SPILL_ONE:
-            return "spill_one";
-        case CN_CR_SPILL_TINY:
-            return "spill_tiny";
-        case CN_CR_ILONG_LW:
-            return "ilong_lw";
+        case CN_CR_RSPILL:
+            return "rspill";
+        case CN_CR_RTINY:
+            return "rtiny";
+        case CN_CR_ISPILL:
+            return "ispill";
+        case CN_CR_ISPILL_ONE:
+            return "ispone";
+        case CN_CR_ITINY:
+            return "itiny";
+        case CN_CR_ILONG:
+            return "ilong";
         case CN_CR_LBIG:
-            return "big";
+            return "lbig";
         case CN_CR_LBIG_ONE:
-            return "big_one";
+            return "lbig1";
         case CN_CR_LGARB:
-            return "garbage";
+            return "lgarb";
         case CN_CR_LLONG:
-            return "long";
-        case CN_CR_LLONG_SCATTER:
-            return "longscat";
+            return "llong";
         case CN_CR_LSHORT_LW:
-            return "short_lw";
+            return "lshort";
         case CN_CR_LSHORT_IDLE:
             return "idle";
         case CN_CR_LSHORT_IDLE_VG:
-            return "idle_vg";
+            return "idlevg";
         case CN_CR_LSCATTER:
-            return "scatter";
+            return "lscat";
     }
 
     return "unknown_rule";
@@ -134,6 +137,7 @@ struct cn_work_est {
  * struct cn_compaction_work - control structure for cn tree compaction
  *
  * @cw_work:         for linking into workqueues
+ * @cw_debug:        enables debug stats
  * @cw_tree:         cn tree
  * @cw_node:         node within cn tree
  * @cw_mark:         oldest kvset to be compacted
@@ -147,7 +151,6 @@ struct cn_work_est {
  * @cw_dgen_lo:      the dgen of the oldest kvset to be compacted
  * @cw_active_count: for tracking the number of active "root" or "other" threads
  * @cw_horizon:      sequence number horizon to use while compacting
- * @cw_debug:        enables debug stats
  * @cw_outc:         number of output kvsets
  * @cw_outv:         outputs (mblock ids used to make output kvsets)
  * @cw_inputv:       number of input kvsets
@@ -204,7 +207,6 @@ struct cn_compaction_work {
     atomic_int               cw_rspill_commit_in_progress;
     u64                      cw_dgen_hi;
     u64                      cw_dgen_lo;
-    atomic_int              *cw_bonus;
 
     /* For scheduler */
     struct sts_job        cw_job;

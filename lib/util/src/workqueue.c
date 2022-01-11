@@ -62,6 +62,7 @@ struct workqueue_struct {
     bool              wq_running;
     bool              wq_growing;
     int               wq_refcnt;
+    int               wq_tdbsy;
     int               wq_tdcnt;
     int               wq_tdmax;
     int               wq_tdmin;
@@ -106,6 +107,7 @@ grow_workqueue_cb(ulong arg)
     priv->wqp_wq = wq;
     ++wq->wq_refcnt;
     ++wq->wq_tdcnt;
+    ++wq->wq_tdbsy;
     mutex_unlock(&wq->wq_lock);
 
     rc = pthread_create(&priv->wqp_tid, NULL, worker_thread, priv);
@@ -129,6 +131,7 @@ grow_workqueue_cb(ulong arg)
         priv->wqp_wq = NULL;
         --wq->wq_refcnt;
         --wq->wq_tdcnt;
+        --wq->wq_tdbsy;
     }
 
     /* Keep growing if there's pending work and room to grow (might create
@@ -238,6 +241,7 @@ destroy_workqueue(struct workqueue_struct *wq)
 
     assert(list_empty(&wq->wq_pending));
     assert(list_empty(&wq->wq_delayed));
+    assert(wq->wq_tdbsy == 0);
     assert(wq->wq_tdcnt == 0);
     assert(!wq->wq_growing);
     mutex_unlock(&wq->wq_lock);
@@ -264,10 +268,10 @@ queue_work_locked(struct workqueue_struct *wq, struct work_struct *work)
     if (enqueued) {
         list_add_tail(&work->entry, &wq->wq_pending);
 
-        /* Try to spawn a new worker thread if there was work pending
-         * when we arrived or we have no worker threads.
+        /* Try to spawn a new worker thread if there do not appear
+         * to be enough workers to handle the load.
          */
-        if ((workqueue_first(wq) != work && wq->wq_tdcnt < wq->wq_tdmax) || wq->wq_tdcnt < 1) {
+        if (wq->wq_tdbsy >= wq->wq_tdcnt && wq->wq_tdcnt < wq->wq_tdmax) {
             if (!wq->wq_growing) {
                 wq->wq_grow.expires = jiffies + 1;
                 add_timer(&wq->wq_grow);
@@ -338,6 +342,7 @@ worker_thread(void *arg)
     struct wq_priv *         priv = arg;
     struct workqueue_struct *wq = priv->wqp_wq;
     sigset_t                 sigset;
+    int timedout;
 
     sigfillset(&sigset);
     pthread_sigmask(SIG_BLOCK, &sigset, NULL);
@@ -346,6 +351,7 @@ worker_thread(void *arg)
     pthread_detach(pthread_self());
 
     mutex_lock(&wq->wq_lock);
+    timedout = 0;
 
     while (1) {
         struct wq_barrier *barrier;
@@ -354,16 +360,19 @@ worker_thread(void *arg)
         work = workqueue_first(wq);
         if (!work) {
             bool extra = wq->wq_tdcnt > wq->wq_tdmin;
-            static thread_local int timedout = 0;
 
             if (!wq->wq_running || (timedout && extra))
                 break;
+
+            --wq->wq_tdbsy;
 
             /* Sleep a short time if there are extra workers.  If we time out
              * and still have extra workers after draining the pending queue
              * then exit (above).  Otherwise, sleep here until signaled.
              */
             timedout = cv_timedwait(&wq->wq_idle, &wq->wq_lock, extra ? 10000 : -1);
+
+            ++wq->wq_tdbsy;
             continue;
         }
 
@@ -402,9 +411,10 @@ worker_thread(void *arg)
         cv_broadcast(&wq->wq_barrier);
     }
 
+    priv->wqp_wq = NULL;
     --wq->wq_refcnt;
     --wq->wq_tdcnt;
-    priv->wqp_wq = NULL;
+    --wq->wq_tdbsy;
     cv_signal(&wq->wq_idle);
     mutex_unlock(&wq->wq_lock);
 

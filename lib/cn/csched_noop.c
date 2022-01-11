@@ -6,20 +6,15 @@
 #define MTF_MOCK_IMPL_csched_noop
 
 #include <hse_util/platform.h>
+#include <hse_util/event_counter.h>
+#include <hse_util/logging.h>
 #include <hse_util/slab.h>
 
 #include <hse_ikvdb/cn.h>
-#include <hse_ikvdb/ikvdb.h>
 #include <hse_ikvdb/csched.h>
-#include <hse_ikvdb/sched_sts.h>
-#include <hse_ikvdb/kvdb_rparams.h>
 
 #include "csched_ops.h"
 #include "csched_noop.h"
-
-#include "cn_tree_compact.h"
-#include "cn_tree_internal.h"
-#include "kvset.h"
 
 struct csched_noop {
     struct csched_ops ops;

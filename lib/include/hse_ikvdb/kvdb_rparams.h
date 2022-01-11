@@ -60,7 +60,6 @@ struct kvdb_rparams {
     uint64_t txn_timeout;
 
     uint64_t csched_debug_mask;
-    uint64_t csched_node_len_max;
     uint64_t csched_qthreads;
     uint64_t csched_samp_max;
     uint32_t csched_policy;

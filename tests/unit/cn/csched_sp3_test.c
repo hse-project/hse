@@ -249,7 +249,6 @@ sp3_work_mock(
     struct sp3_thresholds *     thresh,
     enum sp3_work_type          wtype,
     uint                        debug,
-    uint *                      qnum_out,
     struct cn_compaction_work **w_out)
 {
     struct cn_tree_node *      tn;
@@ -259,7 +258,6 @@ sp3_work_mock(
     const char *               comptype = 0;
 
     *w_out = 0;
-    *qnum_out = 0;
     tn = spn2tn(spn);
 
     /* no work */
@@ -279,7 +277,6 @@ sp3_work_mock(
     if (!tn->tn_parent) {
 
         w->cw_action = CN_ACTION_SPILL;
-        *qnum_out = SP3_QNUM_INTERN;
         comptype = "rspill";
 
     } else {
@@ -288,11 +285,9 @@ sp3_work_mock(
 
         if (cn_node_isleaf(tn)) {
             w->cw_action = CN_ACTION_COMPACT_KV;
-            *qnum_out = SP3_QNUM_LEAF;
             comptype = "kv_compact";
         } else {
             w->cw_action = CN_ACTION_SPILL;
-            *qnum_out = SP3_QNUM_INTERN;
             comptype = "ispill";
         }
     }
@@ -467,8 +462,6 @@ MTF_DEFINE_UTEST_PRE(test, t_sp3_create_nomem, pre_test)
     merr_t             err = merr(EBUG);
     int                rc;
 
-    mapi_inject(mapi_idx_sts_perfc_alloc, 0);
-    mapi_inject(mapi_idx_sts_perfc_free, 0);
     mapi_inject(mapi_idx_perfc_alloc_impl, 0);
 
     void run(struct mtf_test_info * lcl_ti, uint i, uint j)
@@ -493,8 +486,6 @@ MTF_DEFINE_UTEST_PRE(test, t_sp3_create_nomem, pre_test)
     rc = mapi_alloc_tester(lcl_ti, run, clean);
     ASSERT_EQ(rc, 0);
 
-    mapi_inject_unset(mapi_idx_sts_perfc_alloc);
-    mapi_inject_unset(mapi_idx_sts_perfc_free);
     mapi_inject_unset(mapi_idx_perfc_alloc_impl);
 }
 

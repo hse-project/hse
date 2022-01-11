@@ -265,6 +265,9 @@ cn_node_alloc(struct cn_tree *tree, uint level, uint offset)
     INIT_LIST_HEAD(&tn->tn_rspills);
     mutex_init(&tn->tn_rspills_lock);
 
+    atomic_init(&tn->tn_compacting, 0);
+    atomic_init(&tn->tn_busycnt, 0);
+
     tn->tn_tree = tree;
     tn->tn_loc.node_level = level;
     tn->tn_loc.node_offset = offset;
@@ -1401,10 +1404,6 @@ cn_comp_release(struct cn_compaction_work *w)
         cn_node_comp_token_put(w->cw_node);
 
     perfc_inc(w->cw_pc, PERFC_BA_CNCOMP_FINISH);
-
-    if (ev(w->cw_bonus))
-        atomic_dec(w->cw_bonus);
-    w->cw_bonus = NULL;
 
     if (w->cw_completion)
         w->cw_completion(w);
@@ -2625,6 +2624,7 @@ cn_comp_update_kvcompact(struct cn_compaction_work *work, struct kvset *new_kvse
 
     cn_tree_samp(tree, &work->cw_samp_post);
 
+    atomic_sub_rel(&work->cw_node->tn_busycnt, (1u << 16) + work->cw_kvset_cnt);
     rmlock_wunlock(&tree->ct_lock);
 
     /* Delete retired kvsets. */
@@ -2755,6 +2755,8 @@ cn_comp_update_spill(struct cn_compaction_work *work, struct spill_child *childv
         cn_tree_samp_update_spill(tree, pnode);
 
         cn_tree_samp(tree, &work->cw_samp_post);
+
+        atomic_sub_rel(&pnode->tn_busycnt, (1u << 16) + work->cw_kvset_cnt);
     }
     rmlock_wunlock(&tree->ct_lock);
 
