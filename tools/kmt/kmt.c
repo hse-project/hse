@@ -272,6 +272,7 @@ bool           testmode = false;
 bool           sysbench = false;
 bool           xstats = false;
 bool           headers;
+uint           hdrcnt;
 uint64_t       recmax;
 uint           tdmax;
 ulong          seed;
@@ -2992,8 +2993,12 @@ td_test(struct km_inst *inst)
         }
 
         if (swappct == 0 || (xrand32() % KM_SWAPPCT_MODULUS) >= swappct) {
-            if (txn)
+            if (txn) {
+                inst->stats.op = OP_TXN_ABORT;
+                inst->stats.abort++;
+
                 hse_kvdb_txn_abort(impl->kvdb, txn);
+            }
             goto unlock;
         }
 
@@ -3073,6 +3078,29 @@ td_test(struct km_inst *inst)
     td_unlock();
 }
 
+int width_xstats, width_sync;
+int width_tbfg, width_tcup;
+int width_tfs, width_tad;
+
+void
+status_init(void)
+{
+    if (swaptxn && testmode) {
+        width_tbfg = 7;
+        width_tcup = 7;
+    } else {
+        width_tbfg = 4;
+        width_tcup = 4;
+    }
+
+    width_xstats = 6;
+    width_sync = 6;
+    width_tfs = 6;
+    width_tad = 4;
+
+    hdrcnt = 0;
+}
+
 void
 status(
     struct km_impl *impl,
@@ -3081,15 +3109,12 @@ status(
     struct timeval *tv_prev,
     time_t          mark)
 {
-    static int      hdrcnt;
-    static const int syncus_header_width =
-        6; /* 6 is the length of the SYNCUS column header below */
-    struct timeval  tv_now, tv_diff, tv_delta, tv_usrsys;
+    struct timeval  tv_now, tv_diff, tv_usrsys;
     struct km_inst *instv_end, *inst;
     struct rusage   rusage;
 
-    int    width_gpd, width_pds, width_igpd, width_ipds;
-    int    width_td, width_secs, width_sync_us;
+    int    width_icup, width_ibfg, width_iad;
+    int    width_td, width_secs;
     ulong  get_total, iget_total;
     ulong  getbytes_total, igetbytes_total;
     ulong  put_total, iput_total;
@@ -3101,18 +3126,11 @@ status(
     ulong  abort_total, iabort_total;
     ulong  total_ms, usrsys;
     long   avg_sync_latency_us = 0;
-    time_t msecs;
     int    nthreads;
     bool   show, txn;
     char   errmsg[128];
 
     gettimeofday(&tv_now, NULL);
-
-    timersub(&tv_now, tv_prev, &tv_delta);
-    msecs = tv_delta.tv_sec * 1000 + tv_delta.tv_usec / 1000;
-
-    if (mark > msecs)
-        return;
 
     timersub(&tv_now, tv_start, &tv_diff);
     total_ms = tv_diff.tv_sec * 1000000 + tv_diff.tv_usec;
@@ -3135,15 +3153,23 @@ status(
     instv_end = instv + impl->tdmax;
     inst = instv;
 
-    width_gpd = 12;
-    width_igpd = 9;
-#ifdef XKMT
-    width_gpd += 1;
-    width_igpd += 1;
-#endif
+    txn = swaptxn && testmode;
+    if (txn) {
+        width_ibfg = (inst->stats.begin > 5000000) ? 9 : 7;
+        width_icup = (inst->stats.commit > 5000000) ? 9 : 7;
+        width_iad = (inst->stats.abort > 5000000) ? 9 : 7;
+        if (width_tad < 6)
+            width_tad = 6;
+    } else {
+        width_ibfg = (inst->stats.get > 0) ? 8 : 4;
+        width_icup = (inst->stats.put > 0) ? 7 : 4;
+        width_iad = (inst->stats.del > 0) ? 7 : 4;
+    }
 
-    width_pds = width_gpd;
-    width_ipds = width_igpd;
+#ifdef XKMT
+    width_ibfg += 2;
+    width_icup += 2;
+#endif
 
     width_secs = (total_ms > 999999) ? 9 : 7;
 
@@ -3157,33 +3183,72 @@ status(
             atomic_read(&impl->km_sync_latency.km_total_sync_latency_us) / iters;
     }
 
-    width_sync_us = snprintf(NULL, 0, "%*ld", syncus_header_width, avg_sync_latency_us);
-    width_sync_us = width_sync_us >= syncus_header_width ? width_sync_us : syncus_header_width;
-
-    txn = swaptxn && testmode;
-    show = headers && (verbosity > 1 || mark == 0 || ++hdrcnt >= 60);
+    show = headers && (verbosity > 1 || mark == 0 || (hdrcnt++ % 32) == 0);
     if (show) {
+        size_t sz;
+        int n;
+
+        n = snprintf(NULL, 0, "%*ld", width_sync, avg_sync_latency_us);
+        if (n > width_sync)
+            width_sync = n;
+
+        sz = inst->stats.get | inst->stats.begin;
+        n = snprintf(NULL, 0, "%*zu", width_tbfg, sz * tdmax * 2);
+        if (n > width_tbfg)
+            width_tbfg = n;
+
+        sz = inst->stats.put | inst->stats.commit;
+        n = snprintf(NULL, 0, "%*zu", width_tcup, sz * tdmax * 2);
+        if (n > width_tcup)
+            width_tcup = n;
+
+        sz = inst->stats.del | inst->stats.abort;
+        n = snprintf(NULL, 0, "%*zu", width_tad, sz * tdmax * 2);
+        if (n > width_tad)
+            width_tad = n;
+
+        if (xstats) {
+            sz = (rusage.ru_inblock | rusage.ru_oublock) / 1000;
+            n = snprintf(NULL, 0, "%*zu", width_xstats, sz * 2);
+            if (n > width_xstats)
+                width_xstats = n;
+
+            sz = rusage.ru_minflt | rusage.ru_majflt;
+            n = snprintf(NULL, 0, "%*zu", width_tfs, sz * 2);
+            if (n > width_tfs)
+                width_tfs = n;
+        } else {
+            sz = (inst->stats.getbytes | inst->stats.putbytes) >> 20;
+            n = snprintf(NULL, 0, "%*zu", width_xstats, sz * tdmax * 2);
+            if (n > width_xstats)
+                width_xstats = n;
+
+            sz = inst->stats.oswap;
+            n = snprintf(NULL, 0, "%*zu", width_tfs, sz * tdmax * 2);
+            if (n > width_tfs)
+                width_tfs = n;
+        }
+
         printf(
-            "\n%-6s %*s %6s %*s %*s %*s %*s %*s %*s %*s %*s %*s %*s %6s %*s %*s %s %s\n",
+            "\n%-6s %*s %6s %*s %*s %*s %*s %*s %*s %*s %*s %*s %*s %6s %*s %*s %*s %5s %5s\n",
             "MODE",
             width_td, "TD",
             "OP",
-            8, "tGETMB",
-            7, "tPUTMB",
-            width_gpd, txn ? "tBEGIN" : mongo ? "tFIND" : "tGET",
-            width_pds, txn ? "tCOMMIT" : mongo ? "tUPSERT" : "tPUT",
-            width_pds, txn ? "tABORT" : mongo ? "tDELETE" : "tDEL",
-            width_igpd, txn ? "iBEGIN" : mongo ? "iFIND" : "iGET",
-            width_ipds, txn ? "iCOMMIT" : mongo ? "iUPSERT" : "iPUT",
-            width_ipds, txn ? "iABORT" : mongo ? "iDELETE" : "iDEL",
-            width_pds, xstats ? "MINFLT" : "tSWAPS",
-            width_ipds, xstats ? "MAJFLT" : "iSWAPS",
+            width_xstats, xstats ? "tINBLK" : "tGETMB",
+            width_xstats, xstats ? "tOUBLK" : "tPUTMB",
+            width_tbfg, txn ? "tBEGIN" : mongo ? "tFIND" : "tGET",
+            width_tcup, txn ? "tCOMMIT" : mongo ? "tUPSERT" : "tPUT",
+            width_tad, txn ? "tABORT" : mongo ? "tDELETE" : "tDEL",
+            width_ibfg, txn ? "iBEGIN" : mongo ? "iFIND" : "iGET",
+            width_icup, txn ? "iCOMMIT" : mongo ? "iUPSERT" : "iPUT",
+            width_iad, txn ? "iABORT" : mongo ? "iDELETE" : "iDEL",
+            width_tfs, xstats ? "MINFLT" : "tSWAPS",
+            width_tfs, xstats ? "MAJFLT" : "iSWAPS",
             "USRSYS",
-            width_sync_us, "SYNCUS",
+            width_sync, "SYNCUS",
             width_secs, "MSECS",
-            xstats ? "ELAPSED" : "DATE",
-            "");
-        hdrcnt = 0;
+            xstats ? 7 : 10, xstats ? "ELAPSED" : "DATE",
+            "tRA", "tWA");
     }
 
     errmsg[0] = '\000';
@@ -3250,25 +3315,25 @@ status(
 
         if (verbosity > 1 || errmsg[0]) {
             printf(
-                "%-6s %*u %6s %*lu %*lu %*lu %*lu %*lu %*lu %*lu %*lu %*lu %*lu %6lu %*s %*lu %ld "
-                "%s\n",
+                "%-6s %*u %6s %*lu %*lu %*lu %*lu %*lu %*lu %*lu %*lu %*lu %*lu %6lu %*s %*lu %*ld"
+                " %s\n",
                 instv->mode,
                 width_td, inst->tid,
                 op2txt[inst->stats.op],
-                8, getbytes_now / (1024 * 1024),
-                7, putbytes_now / (1024 * 1024),
-                width_gpd, txn ? begin_now : get_now,
-                width_pds, txn ? commit_now : put_now,
-                width_pds, txn ? abort_now : del_now,
-                width_igpd, txn ? ibegin_now : iget_now,
-                width_ipds, txn ? icommit_now : iput_now,
-                width_ipds, txn ? iabort_now : idel_now,
-                width_pds, xstats ? rusage.ru_minflt : swap_total,
-                width_ipds, xstats ? rusage.ru_majflt : iswap_total,
+                width_xstats, xstats ? rusage.ru_inblock / 1000 : (getbytes_now >> 20),
+                width_xstats, xstats ? rusage.ru_oublock / 1000 : (putbytes_now >> 20),
+                width_tbfg, txn ? begin_now : get_now,
+                width_tcup, txn ? commit_now : put_now,
+                width_tad, txn ? abort_now : del_now,
+                width_ibfg, txn ? ibegin_now : iget_now,
+                width_icup, txn ? icommit_now : iput_now,
+                width_iad, txn ? iabort_now : idel_now,
+                width_tfs, xstats ? rusage.ru_minflt : swap_total,
+                width_tfs, xstats ? rusage.ru_majflt : iswap_total,
                 usrsys,
-                width_sync_us, "N/A",
+                width_sync, "N/A",
                 width_secs, total_ms,
-                tv_now.tv_sec - (xstats ? tv_init.tv_sec : 0),
+                xstats ? 7 : 10, tv_now.tv_sec - (xstats ? tv_init.tv_sec : 0),
                 errmsg);
 
             errmsg[0] = '\000';
@@ -3289,24 +3354,27 @@ status(
     }
 
     printf(
-        "%-6s %*d %6s %*lu %*lu %*lu %*lu %*lu %*lu %*lu %*lu %*lu %*lu %6lu %*ld %*lu %ld\n",
+        "%-6s %*d %6s %*lu %*lu %*lu %*lu %*lu %*lu %*lu %*lu %*lu %*lu %6lu %*ld %*lu %*ld"
+        " %5.1lf %5.1lf\n",
         instv->mode,
         width_td, nthreads,
         "all",
-        8, getbytes_total / (1024 * 1024),
-        7, putbytes_total / (1024 * 1024),
-        width_gpd, txn ? begin_total : get_total,
-        width_pds, txn ? commit_total : put_total,
-        width_pds, txn ? abort_total : del_total,
-        width_igpd, txn ? ibegin_total : iget_total,
-        width_ipds, txn ? icommit_total : iput_total,
-        width_ipds, txn ? iabort_total : idel_total,
-        width_pds, xstats ? rusage.ru_minflt : swap_total,
-        width_ipds, xstats ? rusage.ru_majflt : iswap_total,
+        width_xstats, xstats ? rusage.ru_inblock / 1000 : (getbytes_total >> 20),
+        width_xstats, xstats ? rusage.ru_oublock / 1000 : (putbytes_total >> 20),
+        width_tbfg, txn ? begin_total : get_total,
+        width_tcup, txn ? commit_total : put_total,
+        width_tad, txn ? abort_total : del_total,
+        width_ibfg, txn ? ibegin_total : iget_total,
+        width_icup, txn ? icommit_total : iput_total,
+        width_iad, txn ? iabort_total : idel_total,
+        width_tfs, xstats ? rusage.ru_minflt : swap_total,
+        width_tfs, xstats ? rusage.ru_majflt : iswap_total,
         usrsys,
-        width_sync_us, avg_sync_latency_us,
+        width_sync, avg_sync_latency_us,
         width_secs, total_ms,
-        tv_now.tv_sec - (xstats ? tv_init.tv_sec : 0));
+        xstats ? 7 : 10, tv_now.tv_sec - (xstats ? tv_init.tv_sec : 0),
+        getbytes_total ? (double)(rusage.ru_inblock * 4096) / getbytes_total : 0,
+        putbytes_total ? (double)(rusage.ru_oublock * 4096) / putbytes_total : 0);
 
     if (mark >= 1000)
         fflush(stdout);
@@ -3582,10 +3650,6 @@ spawn(struct km_impl *impl, void (*run)(struct km_inst *), uint runmax, time_t m
         strcpy(instv[i].mode, "open");
 
     gettimeofday(&tv_start, NULL);
-    tv_prev = tv_start;
-
-    if (verbosity > 1 || nerrs > 0 || mark > 0)
-        status(impl, instv, &tv_start, &tv_prev, 0);
 
     kvs_txn = swaptxn && run == td_test;
 
@@ -3664,9 +3728,11 @@ spawn(struct km_impl *impl, void (*run)(struct km_inst *), uint runmax, time_t m
     timeout.tv_sec = 1;
     timeout.tv_nsec = 0;
     if (mark > 0) {
-        timeout.tv_sec = mark / 1000;
-        timeout.tv_nsec = (mark % 1000) * 1000 * 1000;
+        timeout.tv_sec = (mark - 1) / 1000;
+        timeout.tv_nsec = ((mark - 1) % 1000) * 1000 * 1000;
     }
+
+    status_init();
 
     /* Sleep in this loop until all worker threads have exited.
      * Print status every 'mark' seconds and/or on demand each
@@ -3718,7 +3784,7 @@ spawn(struct km_impl *impl, void (*run)(struct km_inst *), uint runmax, time_t m
                     break;
 
                 default:
-                    status(impl, instv, &tv_start, &tv_prev, -1);
+                    status(impl, instv, &tv_start, &tv_prev, 0);
                     break;
                 }
             } else {

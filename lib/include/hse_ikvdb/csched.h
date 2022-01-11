@@ -24,34 +24,25 @@ struct kvdb_health;
 /* clang-format off */
 
 /* work queues */
-#define SP3_QNUM_ROOT           (0)
-#define SP3_QNUM_INTERN         (1)
-#define SP3_QNUM_NODELEN        (2)
-#define SP3_QNUM_LEAF           (3)
-#define SP3_QNUM_LEAFBIG        (4)
-#define SP3_QNUM_LSCAT          (5)
-#define SP3_QNUM_SHARED         (6)
-#define SP3_NUM_QUEUES          (6) /* excludes SP3_QNUM_SHARED */
+enum sp3_qnum {
+    SP3_QNUM_ROOT,
+    SP3_QNUM_INTERN,
+    SP3_QNUM_NODELEN,
+    SP3_QNUM_LGARB,
+    SP3_QNUM_LSIZE,
+    SP3_QNUM_SHARED,
+    SP3_QNUM_MAX
+};
 
-/* queue thread counts */
-#define SP3_QTHREADS_ROOT       (3ul)
-#define SP3_QTHREADS_INTERN     (5ul) /* these jobs don't use shared queue */
-#define SP3_QTHREADS_NODELEN    (3ul)
-#define SP3_QTHREADS_LEAF       (4ul) /* these jobs don't use shared queue */
-#define SP3_QTHREADS_LEAFBIG    (4ul) /* these jobs don't use shared queue */
-#define SP3_QTHREADS_LSCAT      (2ul)
-#define SP3_QTHREADS_SHARED     (4ul)
-
-/* Default value CSCHED_QTHREADS rparam.
+/* Default threads-per-queue for csched_qthreads kvdb rparam.
  */
-#define CSCHED_QTHREADS_DEFAULT                                         \
-    ((SP3_QTHREADS_ROOT << (8 * SP3_QNUM_ROOT)) |                       \
-     (SP3_QTHREADS_INTERN << (8 * SP3_QNUM_INTERN)) |                   \
-     (SP3_QTHREADS_NODELEN << (8 * SP3_QNUM_NODELEN)) |                 \
-     (SP3_QTHREADS_LEAF << (8 * SP3_QNUM_LEAF)) |                       \
-     (SP3_QTHREADS_LEAFBIG << (8 * SP3_QNUM_LEAFBIG)) |                 \
-     (SP3_QTHREADS_LSCAT << (8 * SP3_QNUM_LSCAT)) |                     \
-     (SP3_QTHREADS_SHARED << (8 * SP3_QNUM_SHARED)))
+#define CSCHED_QTHREADS_DEFAULT                 \
+    ((5ul << (8 * SP3_QNUM_ROOT)) |             \
+     (5ul << (8 * SP3_QNUM_INTERN)) |           \
+     (5ul << (8 * SP3_QNUM_NODELEN)) |          \
+     (1ul << (8 * SP3_QNUM_LGARB)) |            \
+     (1ul << (8 * SP3_QNUM_LSIZE)) |            \
+     (2ul << (8 * SP3_QNUM_SHARED)))
 
 /* clang-format on */
 

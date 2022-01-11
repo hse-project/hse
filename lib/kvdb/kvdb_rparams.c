@@ -850,27 +850,6 @@ static const struct param_spec pspecs[] = {
         },
     },
     {
-        .ps_name = "csched_node_len_max",
-        .ps_description = "csched max kvsets per node",
-        .ps_flags = PARAM_FLAG_EXPERIMENTAL | PARAM_FLAG_WRITABLE,
-        .ps_type = PARAM_TYPE_U64,
-        .ps_offset = offsetof(struct kvdb_rparams, csched_node_len_max),
-        .ps_size = PARAM_SZ(struct kvdb_rparams, csched_node_len_max),
-        .ps_convert = param_default_converter,
-        .ps_validate = param_default_validator,
-        .ps_stringify = param_default_stringify,
-        .ps_jsonify = param_default_jsonify,
-        .ps_default_value = {
-            .as_uscalar = 0,
-        },
-        .ps_bounds = {
-            .as_uscalar = {
-                .ps_min = 0,
-                .ps_max = UINT64_MAX,
-            },
-        },
-    },
-    {
         .ps_name = "csched_rspill_params",
         .ps_description = "root node spill params [min,max]",
         .ps_flags = PARAM_FLAG_EXPERIMENTAL | PARAM_FLAG_WRITABLE,
@@ -1404,7 +1383,7 @@ static const struct param_spec pspecs[] = {
         .ps_stringify = param_default_stringify,
         .ps_jsonify = param_default_jsonify,
         .ps_default_value = {
-            .as_uscalar = 13,
+            .as_uscalar = 17,
         },
         .ps_bounds = {
             .as_uscalar = {

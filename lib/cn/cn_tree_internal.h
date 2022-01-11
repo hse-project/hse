@@ -1,6 +1,6 @@
 /* SPDX-License-Identifier: Apache-2.0 */
 /*
- * Copyright (C) 2015-2021 Micron Technology, Inc.  All rights reserved.
+ * Copyright (C) 2015-2022 Micron Technology, Inc.  All rights reserved.
  */
 
 #ifndef HSE_KVDB_CN_CN_TREE_INTERNAL_H
@@ -159,6 +159,7 @@ struct cn_tree {
  * @tn_rspills_lock:  lock to protect @tn_rspills
  * @tn_rspills:       list of active spills from this node to its children
  * @tn_compacting:   true if node is being compacted
+ * @tn_busycnt:      count of jobs and kvsets being compacted/spilled
  * @tn_destroy_work: used for async destroy
  * @tn_hlog:         hyperloglog structure
  * @tn_add_cntr:
@@ -180,6 +181,7 @@ struct cn_tree_node {
     bool             tn_rspills_wedged;
     u8               tn_childc;
     atomic_int       tn_compacting;
+    atomic_uint      tn_busycnt;
 
     union {
         struct sp3_node tn_sp3n;
