@@ -1,6 +1,6 @@
 /* SPDX-License-Identifier: Apache-2.0 */
 /*
- * Copyright (C) 2015-2021 Micron Technology, Inc.  All rights reserved.
+ * Copyright (C) 2015-2022 Micron Technology, Inc.  All rights reserved.
  */
 
 #include <hse_ikvdb/c0sk.h>
@@ -16,7 +16,6 @@ _c0sk_open(
     struct mpool *       mp_dataset,
     const char *         mp_name,
     struct kvdb_health * health,
-    struct csched *      csched,
     atomic_ulong        *kvdb_seq,
     u64                  gen,
     struct c0sk **       c0sk)

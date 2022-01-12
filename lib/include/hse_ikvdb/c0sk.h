@@ -27,7 +27,6 @@ struct kvs_rparams;
 struct kvs_cursor_element;
 struct cursor_summary;
 struct kvset_builder;
-struct csched;
 struct throttle_sensor;
 struct query_ctx;
 struct kvdb_ctxn_set;
@@ -62,7 +61,6 @@ c0sk_open(
     struct mpool *       mp_dataset,
     const char *         kvdb_alias,
     struct kvdb_health * health,
-    struct csched *      csched,
     atomic_ulong        *kvdb_seq,
     u64                  gen,
     struct c0sk **       c0sk);

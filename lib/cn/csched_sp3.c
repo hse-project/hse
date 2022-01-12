@@ -2714,9 +2714,7 @@ sp3_create(
     size_t      name_sz, alloc_sz;
     uint        tx;
 
-    assert(rp);
-    assert(kvdb_alias);
-    assert(handle);
+    assert(rp && kvdb_alias && handle);
 
     /* Allocate cache aligned space for struct csched + sp->name */
     name_sz = strlen(kvdb_alias) + 1;

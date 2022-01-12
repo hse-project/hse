@@ -62,8 +62,7 @@ sts_create(struct kvdb_rparams *rp, const char *name, uint nq, struct sts **hand
     snprintf(self->sts_name, sizeof(self->sts_name), "hse_sts_%s", name);
 
     if (csched_rp_dbg_mon(rp))
-        log_info("sts/mon create %s, queues %u, policy 0x%x",
-                 self->sts_name, nq, rp->csched_policy);
+        log_info("sts/mon create %s, queues %u", self->sts_name, nq);
 
     self->sts_wq = alloc_workqueue(self->sts_name, 0, nq, WQ_MAX_ACTIVE, 0);
     if (!self->sts_wq) {

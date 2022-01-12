@@ -426,7 +426,6 @@ c0sk_open(
     struct mpool *       mp_dataset,
     const char *         kvdb_alias,
     struct kvdb_health * health,
-    struct csched *      csched,
     atomic_ulong        *kvdb_seq,
     u64                  gen,
     struct c0sk **       c0skp)
@@ -450,7 +449,6 @@ c0sk_open(
     c0sk->c0sk_kvdb_rp = kvdb_rp;
     c0sk->c0sk_ds = mp_dataset;
     c0sk->c0sk_kvdb_health = health;
-    c0sk->c0sk_csched = csched;
 
     c0sk->c0sk_kvdb_seq = kvdb_seq;
 
