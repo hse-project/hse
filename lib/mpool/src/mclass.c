@@ -37,6 +37,7 @@ struct media_class {
     size_t              mblocksz;
     enum mclass_id      mcid;
     bool                gclose;
+    bool                directio;
     char *              dpath;
     char *              upath;
 };
@@ -90,6 +91,8 @@ mclass_open(
         log_errx("Opening data files failed, mclass %d: @@e", err, mclass);
         goto err_exit1;
     }
+
+    mc->directio = (flags & O_DIRECT);
 
     *handle = mc;
 
@@ -315,6 +318,12 @@ struct mblock_fset *
 mclass_fset(struct media_class *mc)
 {
     return mc ? mc->mbfsp : NULL;
+}
+
+bool
+mclass_supports_directio(struct media_class *mc)
+{
+    return mc ? mc->directio : true;
 }
 
 size_t

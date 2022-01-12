@@ -120,6 +120,14 @@ struct mblock_fset *
 mclass_fset(struct media_class *mc);
 
 /**
+ * mclass_supports_directio() - check directio support
+ *
+ * @mc: mclass handle
+ */
+bool
+mclass_supports_directio(struct media_class *mc);
+
+/**
  * mclass_to_mcid() - convert mclass to mclass ID
  *
  * @mclass: media class

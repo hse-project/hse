@@ -663,7 +663,7 @@ mblock_file_open(
     if (err)
         goto err_exit;
 
-    fd = openat(dirfd, name, flags | O_DIRECT | O_SYNC, S_IRUSR | S_IWUSR);
+    fd = openat(dirfd, name, flags | O_SYNC, S_IRUSR | S_IWUSR);
     if (fd < 0) {
         err = merr(errno);
         goto err_exit;

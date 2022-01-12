@@ -7,6 +7,11 @@
 
 #include <limits.h>
 #include <bsd/string.h>
+#include <sys/vfs.h>
+
+#if __linux__
+#include <linux/magic.h>
+#endif
 
 #include <hse/hse.h>
 
@@ -105,10 +110,43 @@ mclass_path_check(enum hse_mclass mclass, const char *path)
     return 0;
 }
 
+/*
+ * This function currently uses a Linux-specific statfs(2) syscall.
+ *
+ * A portable way to implement this will be to traverse all mounted file-systems using
+ * getmntent() and check whether the device ID ('st_dev' from stat(2)) of any of the
+ * tmpfs file-systems matches with the device ID of 'path'.
+ *
+ * At this point, using statfs(2) is lightweight and this can be revisited when we
+ * port HSE to other platforms.
+ */
+static merr_t
+mclass_path_is_tmpfs(const char *path, bool *tmpfs)
+{
+    struct statfs sbuf;
+    int rc;
+
+    INVARIANT(path);
+    INVARIANT(tmpfs);
+
+    *tmpfs = false;
+
+    if (path[0] == '\0')
+        return 0;
+
+    rc = statfs(path, &sbuf);
+    if (rc == -1)
+        return merr(errno);
+
+    *tmpfs = (sbuf.f_type == TMPFS_MAGIC);
+
+    return 0;
+}
+
 static merr_t
 mpool_mclass_open(
     struct mpool               *mp,
-    enum hse_mclass           mclass,
+    enum hse_mclass             mclass,
     const struct mclass_params *mcp,
     uint32_t                    flags,
     struct media_class **       mc)
@@ -308,12 +346,27 @@ mpool_open(
 
     for (i = HSE_MCLASS_BASE; i < HSE_MCLASS_COUNT; i++) {
         struct mclass_params mcp = {0};
+        uint32_t oflags = flags;
 
         err = mclass_params_init(rparams->mclass[i].path, &mcp);
         if (err)
             goto errout;
 
-        err = mpool_mclass_open(mp, i, &mcp, flags, &mp->mc[i]);
+        if (!rparams->mclass[i].dio_disable) {
+            bool tmpfs;
+
+            err = mclass_path_is_tmpfs(mcp.path, &tmpfs);
+            if (err)
+                goto errout;
+
+            if (!tmpfs)
+                oflags |= O_DIRECT;
+            else
+                log_info("Disabling direct I/O access as the mclass (%d) path (%s) is on a tmpfs",
+                         i, mcp.path);
+        }
+
+        err = mpool_mclass_open(mp, i, &mcp, oflags, &mp->mc[i]);
         if (err)
             goto errout;
     }

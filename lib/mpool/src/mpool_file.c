@@ -29,7 +29,7 @@ mpool_file_unmap(struct mpool_file *file);
 merr_t
 mpool_file_open(
     struct mpool       *mp,
-    enum hse_mclass   mclass,
+    enum hse_mclass     mclass,
     const char         *name,
     int                 flags,
     size_t              capacity,
@@ -60,6 +60,10 @@ mpool_file_open(
     flags &= (O_RDWR | O_RDONLY | O_WRONLY | O_CREAT | O_DIRECT | O_SYNC);
     if (create)
         flags |= (O_CREAT | O_EXCL);
+
+    /* Drop O_DIRECT if the mclass doesn't support direct I/O */
+    if ((flags & O_DIRECT) && !mclass_supports_directio(mc))
+        flags &= ~O_DIRECT;
 
     fd = openat(dirfd, name, flags, S_IRUSR | S_IWUSR);
     if (fd < 0) {

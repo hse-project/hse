@@ -106,7 +106,7 @@ main(int argc, char **argv)
     const char          *home;
     const char          *config = NULL;
     struct mpool        *mp;
-    struct mpool_rparams params;
+    struct mpool_rparams params = {0};
     struct kvdb_meta     meta;
 
     progname = basename(argv[0]);

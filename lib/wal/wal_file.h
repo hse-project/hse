@@ -32,10 +32,13 @@ wal_fileset_close(
     uint64_t            txhorizon);
 
 void
-wal_fileset_mclass_update(struct wal_fileset *wfset, enum hse_mclass mclass);
+wal_fileset_mclass_set(struct wal_fileset *wfset, enum hse_mclass mclass);
 
 void
-wal_fileset_version_update(struct wal_fileset *wfset, uint32_t version);
+wal_fileset_version_set(struct wal_fileset *wfset, uint32_t version);
+
+void
+wal_fileset_flags_set(struct wal_fileset *wfset, uint32_t flags);
 
 merr_t
 wal_file_open(

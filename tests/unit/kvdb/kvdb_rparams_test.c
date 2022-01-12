@@ -853,6 +853,57 @@ MTF_DEFINE_UTEST_PRE(kvdb_rparams_test, keylock_tables, test_pre)
     ASSERT_EQ(8192, ps->ps_bounds.as_uscalar.ps_max);
 }
 
+MTF_DEFINE_UTEST_PRE(kvdb_rparams_test, storage_capacity_directio_enabled, test_pre)
+{
+    const struct param_spec *ps = ps_get("storage.capacity.directio.enabled");
+
+    ASSERT_NE(NULL, ps);
+    ASSERT_NE(NULL, ps->ps_description);
+    ASSERT_EQ(PARAM_FLAG_EXPERIMENTAL, ps->ps_flags);
+    ASSERT_EQ(PARAM_TYPE_BOOL, ps->ps_type);
+    ASSERT_EQ(offsetof(struct kvdb_rparams, dio_enable[HSE_MCLASS_CAPACITY]), ps->ps_offset);
+    ASSERT_EQ(sizeof(bool), ps->ps_size);
+    ASSERT_EQ((uintptr_t)ps->ps_convert, (uintptr_t)param_default_converter);
+    ASSERT_EQ((uintptr_t)ps->ps_validate, (uintptr_t)param_default_validator);
+    ASSERT_EQ((uintptr_t)ps->ps_stringify, (uintptr_t)param_default_stringify);
+    ASSERT_EQ((uintptr_t)ps->ps_jsonify, (uintptr_t)param_default_jsonify);
+    ASSERT_EQ(true, params.dio_enable[HSE_MCLASS_CAPACITY]);
+}
+
+MTF_DEFINE_UTEST_PRE(kvdb_rparams_test, storage_staging_directio_enabled, test_pre)
+{
+    const struct param_spec *ps = ps_get("storage.staging.directio.enabled");
+
+    ASSERT_NE(NULL, ps);
+    ASSERT_NE(NULL, ps->ps_description);
+    ASSERT_EQ(PARAM_FLAG_EXPERIMENTAL, ps->ps_flags);
+    ASSERT_EQ(PARAM_TYPE_BOOL, ps->ps_type);
+    ASSERT_EQ(offsetof(struct kvdb_rparams, dio_enable[HSE_MCLASS_STAGING]), ps->ps_offset);
+    ASSERT_EQ(sizeof(bool), ps->ps_size);
+    ASSERT_EQ((uintptr_t)ps->ps_convert, (uintptr_t)param_default_converter);
+    ASSERT_EQ((uintptr_t)ps->ps_validate, (uintptr_t)param_default_validator);
+    ASSERT_EQ((uintptr_t)ps->ps_stringify, (uintptr_t)param_default_stringify);
+    ASSERT_EQ((uintptr_t)ps->ps_jsonify, (uintptr_t)param_default_jsonify);
+    ASSERT_EQ(true, params.dio_enable[HSE_MCLASS_STAGING]);
+}
+
+MTF_DEFINE_UTEST_PRE(kvdb_rparams_test, storage_pmem_directio_enabled, test_pre)
+{
+    const struct param_spec *ps = ps_get("storage.pmem.directio.enabled");
+
+    ASSERT_NE(NULL, ps);
+    ASSERT_NE(NULL, ps->ps_description);
+    ASSERT_EQ(PARAM_FLAG_EXPERIMENTAL, ps->ps_flags);
+    ASSERT_EQ(PARAM_TYPE_BOOL, ps->ps_type);
+    ASSERT_EQ(offsetof(struct kvdb_rparams, dio_enable[HSE_MCLASS_PMEM]), ps->ps_offset);
+    ASSERT_EQ(sizeof(bool), ps->ps_size);
+    ASSERT_EQ((uintptr_t)ps->ps_convert, (uintptr_t)param_default_converter);
+    ASSERT_EQ((uintptr_t)ps->ps_validate, (uintptr_t)param_default_validator);
+    ASSERT_EQ((uintptr_t)ps->ps_stringify, (uintptr_t)param_default_stringify);
+    ASSERT_EQ((uintptr_t)ps->ps_jsonify, (uintptr_t)param_default_jsonify);
+    ASSERT_EQ(true, params.dio_enable[HSE_MCLASS_PMEM]);
+}
+
 MTF_DEFINE_UTEST_PRE(kvdb_rparams_test, mclass_policies, test_pre)
 {
     /* [HSE_REVISIT]: mclass_policies has its own test. It should maybe be moved
