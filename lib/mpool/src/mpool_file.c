@@ -61,8 +61,8 @@ mpool_file_open(
     if (create)
         flags |= (O_CREAT | O_EXCL);
 
-    /* Drop ODIRECT if the mclass doesn't support direct-io */
-    if ((flags & O_DIRECT) && !mclass_directio(mc))
+    /* Drop O_DIRECT if the mclass doesn't support direct I/O */
+    if ((flags & O_DIRECT) && !mclass_supports_directio(mc))
         flags &= ~O_DIRECT;
 
     fd = openat(dirfd, name, flags, S_IRUSR | S_IWUSR);

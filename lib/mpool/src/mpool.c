@@ -119,7 +119,6 @@ mclass_path_check(enum hse_mclass mclass, const char *path)
  *
  * At this point, using statfs(2) is lightweight and this can be revisited when we
  * port HSE to other platforms.
- *
  */
 static merr_t
 mclass_path_is_tmpfs(const char *path, bool *tmpfs)
@@ -363,7 +362,7 @@ mpool_open(
             if (!tmpfs)
                 oflags |= O_DIRECT;
             else
-                log_info("Disabling O_DIRECT access as the mclass(%d) path(%s) is on a tmpfs",
+                log_info("Disabling direct I/O access as the mclass (%d) path (%s) is on a tmpfs",
                          i, mcp.path);
         }
 

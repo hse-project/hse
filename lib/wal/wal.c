@@ -658,7 +658,7 @@ wal_open(
         wal_fileset_mclass_set(wal->wfset, wal->dur_mclass);
     }
 
-    wal_fileset_flags_set(wal->wfset, !rp->dio_disable[wal->dur_mclass] ? O_DIRECT : 0);
+    wal_fileset_flags_set(wal->wfset, rp->dio_enable[wal->dur_mclass] ? O_DIRECT : 0);
 
     err = wal_mdc_compact(wal->mdc, wal);
     if (err)

@@ -923,7 +923,7 @@ ikvdb_diag_open(
         goto self_cleanup;
 
     for (int i = HSE_MCLASS_BASE; i < HSE_MCLASS_COUNT; i++)
-        mparams.mclass[i].dio_disable = params->dio_disable[i];
+        mparams.mclass[i].dio_disable = !params->dio_enable[i];
 
     err = mpool_open(kvdb_home, &mparams, O_RDWR, &self->ikdb_mp);
     if (ev(err))
@@ -1318,7 +1318,7 @@ ikvdb_open(
         goto out;
 
     for (i = HSE_MCLASS_BASE; i < HSE_MCLASS_COUNT; i++)
-        mparams.mclass[i].dio_disable = params->dio_disable[i];
+        mparams.mclass[i].dio_disable = !params->dio_enable[i];
 
     flags = params->read_only ? O_RDONLY : O_RDWR;
     err = mpool_open(kvdb_home, &mparams, flags, &self->ikdb_mp);

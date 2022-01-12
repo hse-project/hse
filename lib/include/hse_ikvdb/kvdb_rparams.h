@@ -101,7 +101,7 @@ struct kvdb_rparams {
 
     uint32_t keylock_tables;
 
-    bool   dio_disable[HSE_MCLASS_COUNT];
+    bool   dio_enable[HSE_MCLASS_COUNT];
     struct mclass_policy mclass_policies[HSE_MPOLICY_COUNT];
 };
 

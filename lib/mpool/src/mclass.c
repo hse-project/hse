@@ -321,7 +321,7 @@ mclass_fset(struct media_class *mc)
 }
 
 bool
-mclass_directio(struct media_class *mc)
+mclass_supports_directio(struct media_class *mc)
 {
     return mc ? mc->directio : true;
 }
