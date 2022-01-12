@@ -22,7 +22,6 @@
 #include <hse_ikvdb/throttle.h>
 #include <hse_ikvdb/kvdb_rparams.h>
 
-#include "csched_ops.h"
 #include "csched_sp3.h"
 #include "csched_sp3_work.h"
 
@@ -190,7 +189,6 @@ struct sp3_globals sp3g;
 
 /**
  * struct sp3 - kvdb scheduler policy
- * @ops:
  * @ds:           to access mpool qos
  * @rp:           kvb run-time params
  * @sts:          short term scheduler
@@ -210,7 +208,6 @@ struct sp3_globals sp3g;
  */
 struct sp3 {
     /* Accessed only by monitor thread */
-    struct csched_ops        ops HSE_ACP_ALIGNED;
     struct mpool            *ds;
     struct kvdb_rparams     *rp;
     struct sts              *sts;
@@ -300,9 +297,6 @@ struct sp3 {
     struct work_struct mon_work;
     char name[];
 };
-
-/* external to internal handle */
-#define h2sp(_hdl) container_of(_hdl, struct sp3, ops)
 
 /* cn_tree 2 sp3_tree */
 #define tree2spt(_tree) (&(_tree)->ct_sched.sp3t)
@@ -2466,18 +2460,24 @@ sp3_monitor(struct work_struct *work)
  *
  ****************************************************************/
 
-static void
-sp3_op_throttle_sensor(struct csched_ops *handle, struct throttle_sensor *sensor)
+void
+sp3_throttle_sensor(struct csched *handle, struct throttle_sensor *sensor)
 {
-    struct sp3 *sp = h2sp(handle);
+    struct sp3 *sp = (struct sp3 *)handle;
+
+    if (!sp)
+        return;
 
     sp->throttle_sensor_root = sensor;
 }
 
-static void
-sp3_op_compact_request(struct csched_ops *handle, int flags)
+void
+sp3_compact_request(struct csched *handle, int flags)
 {
-    struct sp3 *sp = h2sp(handle);
+    struct sp3 *sp = (struct sp3 *)handle;
+
+    if (!sp)
+        return;
 
     if (flags & HSE_KVDB_COMPACT_CANCEL) {
         sp3_ucomp_cancel(sp);
@@ -2488,10 +2488,13 @@ sp3_op_compact_request(struct csched_ops *handle, int flags)
     }
 }
 
-static void
-sp3_op_compact_status_get(struct csched_ops *handle, struct hse_kvdb_compact_status *status)
+void
+sp3_compact_status_get(struct csched *handle, struct hse_kvdb_compact_status *status)
 {
-    struct sp3 *sp = h2sp(handle);
+    struct sp3 *sp = (struct sp3 *)handle;
+
+    if (!sp)
+        return;
 
     status->kvcs_active = sp->ucomp_active;
     status->kvcs_canceled = sp->ucomp_canceled;
@@ -2501,13 +2504,16 @@ sp3_op_compact_status_get(struct csched_ops *handle, struct hse_kvdb_compact_sta
 }
 
 /**
- * sp3_op_notify_ingest() - External API: notify ingest job has completed
+ * sp3_notify_ingest() - External API: notify ingest job has completed
  */
-static void
-sp3_op_notify_ingest(struct csched_ops *handle, struct cn_tree *tree, size_t alen, size_t wlen)
+void
+sp3_notify_ingest(struct csched *handle, struct cn_tree *tree, size_t alen, size_t wlen)
 {
-    struct sp3 *     sp = h2sp(handle);
+    struct sp3 *sp = (struct sp3 *)handle;
     struct sp3_tree *spt = tree2spt(tree);
+
+    if (!sp)
+        return;
 
     atomic_add(&spt->spt_ingest_alen, alen);
     atomic_add(&spt->spt_ingest_wlen, wlen);
@@ -2525,13 +2531,16 @@ sp3_tree_init(struct sp3_tree *spt)
 }
 
 /**
- * sp3_op_tree_add() - External API: add tree to scheduler
+ * sp3_tree_add() - External API: add tree to scheduler
  */
-static void
-sp3_op_tree_add(struct csched_ops *handle, struct cn_tree *tree)
+void
+sp3_tree_add(struct csched *handle, struct cn_tree *tree)
 {
-    struct sp3 *     sp = h2sp(handle);
+    struct sp3 *sp = (struct sp3 *)handle;
     struct sp3_tree *spt = tree2spt(tree);
+
+    if (!sp)
+        return;
 
     assert(!sp3_tree_is_managed(tree));
 
@@ -2550,15 +2559,15 @@ sp3_op_tree_add(struct csched_ops *handle, struct cn_tree *tree)
 }
 
 /**
- * sp3_op_tree_remove() - External API: remove tree from scheduler
+ * sp3_tree_remove() - External API: remove tree from scheduler
  */
-static void
-sp3_op_tree_remove(struct csched_ops *handle, struct cn_tree *tree, bool cancel)
+void
+sp3_tree_remove(struct csched *handle, struct cn_tree *tree, bool cancel)
 {
-    struct sp3 *     sp = h2sp(handle);
+    struct sp3 *sp = (struct sp3 *)handle;
     struct sp3_tree *spt = tree2spt(tree);
 
-    if (!sp3_tree_is_managed(tree))
+    if (!sp || !sp3_tree_is_managed(tree))
         return;
 
     if (debug_tree_life(sp))
@@ -2646,15 +2655,15 @@ sp3_rest_get(
 }
 
 /**
- * sp3_op_destroy() - External API: SP3 destructor
+ * sp3_destroy() - External API: SP3 destructor
  */
-static void
-sp3_op_destroy(struct csched_ops *handle)
+void
+sp3_destroy(struct csched *handle)
 {
-    struct sp3 *sp = h2sp(handle);
+    struct sp3 *sp = (struct sp3 *)handle;
     uint        tx;
 
-    if (ev(!handle))
+    if (!sp)
         return;
 
     /* Destroy shouldn't be invoked until all cn trees been removed and
@@ -2706,7 +2715,7 @@ sp3_create(
     struct kvdb_rparams *rp,
     const char *         kvdb_alias,
     struct kvdb_health * health,
-    struct csched_ops ** handle)
+    struct csched      **handle)
 {
     char group[128];
     struct sp3 *sp;
@@ -2761,14 +2770,6 @@ sp3_create(
         goto err_exit;
     }
 
-    sp->ops.cs_destroy = sp3_op_destroy;
-    sp->ops.cs_notify_ingest = sp3_op_notify_ingest;
-    sp->ops.cs_throttle_sensor = sp3_op_throttle_sensor;
-    sp->ops.cs_compact_request = sp3_op_compact_request;
-    sp->ops.cs_compact_status_get = sp3_op_compact_status_get;
-    sp->ops.cs_tree_add = sp3_op_tree_add;
-    sp->ops.cs_tree_remove = sp3_op_tree_remove;
-
     snprintf(group, sizeof(group), "kvdb/%s", sp->name);
 
     perfc_alloc(csched_sp3_perfc, group, "sp3", rp->perfc_level, &sp->sched_pc);
@@ -2793,7 +2794,7 @@ sp3_create(
         rest_url_register(NULL, 0, sp3_rest_get, NULL, "sp3");
     }
 
-    *handle = &sp->ops;
+    *handle = (void *)sp;
     return 0;
 
 err_exit:

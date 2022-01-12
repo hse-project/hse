@@ -45,7 +45,6 @@ components = {
         'cn_open_test': {},
         'cn_perfc_test': {},
         'cn_tree_test': {},
-        'csched_noop_test': {},
         'csched_sp3_test': {
             # mapi_malloc_tester isn't reliable in multithreaded environments. Add to
             # non-deterministic suite
@@ -55,7 +54,6 @@ components = {
                 'debug': ['debug'],
             },
         },
-        'csched_test': {},
         'kblock_builder_test': {},
         'kblock_reader_test': {},
         'kcompact_test': {},
