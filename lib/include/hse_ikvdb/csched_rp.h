@@ -19,8 +19,6 @@
 /* SP3 Debug */
 #define csched_rp_dbg_qos(_rp) ((bool)((_rp)->csched_debug_mask & 0x0010))
 #define csched_rp_dbg_sched(_rp) ((bool)((_rp)->csched_debug_mask & 0x0020))
-#define csched_rp_dbg_job(_rp) ((bool)((_rp)->csched_debug_mask & 0x0040))
-#define csched_rp_dbg_jobv(_rp) ((bool)((_rp)->csched_debug_mask & 0x0080))
 
 #define csched_rp_dbg_samp_work(_rp) ((bool)((_rp)->csched_debug_mask & 0x0100))
 #define csched_rp_dbg_samp_ingest(_rp) ((bool)((_rp)->csched_debug_mask & 0x0200))
@@ -30,8 +28,6 @@
 #define csched_rp_dbg_rbtree(_rp) ((bool)((_rp)->csched_debug_mask & 0x1000))
 
 /* STS Debug */
-#define csched_rp_dbg_jobs(_rp) ((bool)((_rp)->csched_debug_mask & 0x2000))
 #define csched_rp_dbg_mon(_rp) ((bool)((_rp)->csched_debug_mask & 0x4000))
-#define csched_rp_dbg_worker(_rp) ((bool)((_rp)->csched_debug_mask & 0x8000))
 
 #endif

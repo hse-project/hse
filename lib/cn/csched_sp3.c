@@ -180,12 +180,12 @@ struct sp3_qinfo {
 };
 
 struct sp3_globals {
-    struct mutex     sg_runq_lock;
+    struct mutex     sg_runq_lock HSE_ACP_ALIGNED;
     struct list_head sg_runq_list;
     atomic_int       sg_refcnt;
 };
 
-struct sp3_globals sp3g;
+static struct sp3_globals sp3g;
 
 /**
  * struct sp3 - kvdb scheduler policy
@@ -1340,7 +1340,7 @@ sp3_process_workitem(struct sp3 *sp, struct cn_compaction_work *w)
     sp3_dirty_node_locked(sp, tn);
     rmlock_runlock(lock);
 
-    if (w->cw_node->tn_loc.node_level > 0 || (w->cw_debug & CW_DEBUG_ROOT))
+    if (w->cw_debug & CW_DEBUG_PROGRESS)
         sp3_log_progress(w, &w->cw_stats, true);
 
     if (!tn->tn_parent) {
@@ -1556,6 +1556,7 @@ sp3_work_complete(struct cn_compaction_work *w)
     /* Put work on completion list and wake monitor. */
     mutex_lock(&sp->work_list_lock);
     list_add_tail(&w->cw_sched_link, &sp->work_list);
+    w->cw_status = 'Z';
     mutex_unlock(&sp->work_list_lock);
 
     sp3_monitor_wake(sp);
@@ -1566,14 +1567,14 @@ sp3_work_progress(struct cn_compaction_work *w)
 {
     struct cn_merge_stats ms;
 
+    if (!(w->cw_debug & CW_DEBUG_PROGRESS))
+        return;
+
     /* compute change in merge stats from previous progress report */
     cn_merge_stats_diff(&ms, &w->cw_stats, &w->cw_stats_prev);
     memcpy(&w->cw_stats_prev, &w->cw_stats, sizeof(w->cw_stats_prev));
 
-    if ((w->cw_debug & CW_DEBUG_PROGRESS) &&
-        (w->cw_node->tn_loc.node_level > 0 || (w->cw_debug & CW_DEBUG_ROOT))) {
-        sp3_log_progress(w, &ms, false);
-    }
+    sp3_log_progress(w, &ms, false);
 }
 
 static inline void
@@ -1739,38 +1740,6 @@ sp3_submit(struct sp3 *sp, struct cn_compaction_work *w, uint qnum)
     list_add_tail(&w->cw_runq_link, &sp3g.sg_runq_list);
     mutex_unlock(&sp3g.sg_runq_lock);
 
-    if (w->cw_node->tn_loc.node_level > 0 || (w->cw_debug & CW_DEBUG_ROOT)) {
-
-        slog_info(
-            HSE_SLOG_START("cn_comp_start"),
-            HSE_SLOG_FIELD("job", "%u", w->cw_job.sj_id),
-            HSE_SLOG_FIELD("comp", "%s", cn_action2str(w->cw_action)),
-            HSE_SLOG_FIELD("rule", "%s", cn_comp_rule2str(w->cw_comp_rule)),
-            HSE_SLOG_FIELD("cnid", "%lu", w->cw_tree->cnid),
-            HSE_SLOG_FIELD("lvl", "%u", w->cw_node->tn_loc.node_level),
-            HSE_SLOG_FIELD("off", "%u", w->cw_node->tn_loc.node_offset),
-            HSE_SLOG_FIELD("leaf", "%u", (uint)cn_node_isleaf(w->cw_node)),
-            HSE_SLOG_FIELD("qnum", "%u", w->cw_qnum),
-            HSE_SLOG_FIELD("c_nk", "%u", w->cw_nk),
-            HSE_SLOG_FIELD("c_nv", "%u", w->cw_nv),
-            HSE_SLOG_FIELD("c_kvsets", "%u", w->cw_kvset_cnt),
-            HSE_SLOG_FIELD("nd_kvsets", "%lu", (ulong)cn_ns_kvsets(&w->cw_ns)),
-            HSE_SLOG_FIELD("nd_cap%%", "%lu", (ulong)w->cw_ns.ns_pcap),
-            HSE_SLOG_FIELD("nd_keys", "%lu", (ulong)cn_ns_keys(&w->cw_ns)),
-            HSE_SLOG_FIELD(
-                "nd_hll%%",
-                "%lu",
-                (ulong)(
-                    cn_ns_keys(&w->cw_ns) == 0
-                        ? 0
-                        : ((100 * w->cw_ns.ns_keys_uniq) / cn_ns_keys(&w->cw_ns)))),
-            HSE_SLOG_FIELD("rdsz_b", "%ld", (long)w->cw_est.cwe_read_sz),
-            HSE_SLOG_FIELD("wrsz_b", "%ld", (long)w->cw_est.cwe_write_sz),
-            HSE_SLOG_FIELD("i_alen_b", "%ld", (long)w->cw_est.cwe_samp.i_alen),
-            HSE_SLOG_FIELD("l_alen_b", "%ld", (long)w->cw_est.cwe_samp.l_alen),
-            HSE_SLOG_END);
-    }
-
     if (debug_sched(sp)) {
         log_info("%-2lu %u,%-4u j%u q%u n%u t%-2u %s:%-6s  kvsets %u,%-2u  clen %5lu"
                  "  cap %u%%  samp %lu%%%s",
@@ -1787,6 +1756,44 @@ sp3_submit(struct sp3 *sp, struct cn_compaction_work *w, uint qnum)
                  sp->samp_reduce ? " samp_reduce" : "");
     }
 
+    if (HSE_LIKELY(!w->cw_debug))
+        return;
+
+    if (cn_node_isroot(w->cw_node) && !(w->cw_debug & CW_DEBUG_ROOT))
+        return;
+    else if (cn_node_isleaf(w->cw_node) && !(w->cw_debug & CW_DEBUG_LEAF))
+        return;
+    else if (!(w->cw_debug & CW_DEBUG_INTERNAL))
+        return;
+
+    slog_info(
+        HSE_SLOG_START("cn_comp_start"),
+        HSE_SLOG_FIELD("job", "%u", w->cw_job.sj_id),
+        HSE_SLOG_FIELD("comp", "%s", cn_action2str(w->cw_action)),
+        HSE_SLOG_FIELD("rule", "%s", cn_comp_rule2str(w->cw_comp_rule)),
+        HSE_SLOG_FIELD("cnid", "%lu", w->cw_tree->cnid),
+        HSE_SLOG_FIELD("lvl", "%u", w->cw_node->tn_loc.node_level),
+        HSE_SLOG_FIELD("off", "%u", w->cw_node->tn_loc.node_offset),
+        HSE_SLOG_FIELD("leaf", "%u", (uint)cn_node_isleaf(w->cw_node)),
+        HSE_SLOG_FIELD("qnum", "%u", w->cw_qnum),
+        HSE_SLOG_FIELD("c_nk", "%u", w->cw_nk),
+        HSE_SLOG_FIELD("c_nv", "%u", w->cw_nv),
+        HSE_SLOG_FIELD("c_kvsets", "%u", w->cw_kvset_cnt),
+        HSE_SLOG_FIELD("nd_kvsets", "%lu", (ulong)cn_ns_kvsets(&w->cw_ns)),
+        HSE_SLOG_FIELD("nd_cap%%", "%lu", (ulong)w->cw_ns.ns_pcap),
+        HSE_SLOG_FIELD("nd_keys", "%lu", (ulong)cn_ns_keys(&w->cw_ns)),
+        HSE_SLOG_FIELD(
+            "nd_hll%%",
+            "%lu",
+            (ulong)(
+                cn_ns_keys(&w->cw_ns) == 0
+                ? 0
+                : ((100 * w->cw_ns.ns_keys_uniq) / cn_ns_keys(&w->cw_ns)))),
+        HSE_SLOG_FIELD("rdsz_b", "%ld", (long)w->cw_est.cwe_read_sz),
+        HSE_SLOG_FIELD("wrsz_b", "%ld", (long)w->cw_est.cwe_write_sz),
+        HSE_SLOG_FIELD("i_alen_b", "%ld", (long)w->cw_est.cwe_samp.i_alen),
+        HSE_SLOG_FIELD("l_alen_b", "%ld", (long)w->cw_est.cwe_samp.l_alen),
+        HSE_SLOG_END);
 }
 
 static bool
@@ -2678,7 +2685,7 @@ sp3_destroy(struct csched *handle)
         assert(!rb_first(sp->rbt + tx));
 
     if (atomic_dec_return(&sp3g.sg_refcnt) == 0) {
-        rest_url_deregister("sp3");
+        rest_url_deregister("csched");
 
         mutex_lock(&sp3g.sg_runq_lock);
         if (!list_empty(&sp3g.sg_runq_list))
@@ -2791,7 +2798,7 @@ sp3_create(
         mutex_init(&sp3g.sg_runq_lock);
         INIT_LIST_HEAD(&sp3g.sg_runq_list);
 
-        rest_url_register(NULL, 0, sp3_rest_get, NULL, "sp3");
+        rest_url_register(NULL, 0, sp3_rest_get, NULL, "csched");
     }
 
     *handle = (void *)sp;
