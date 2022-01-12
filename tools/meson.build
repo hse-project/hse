@@ -72,18 +72,6 @@ tools = {
             'parm_groups.c',
         ),
     },
-    'deviceprofile': {
-        'sources': files(
-            'deviceprofile/deviceprofile.c',
-            'deviceprofile/deviceprofile_app.c',
-        ),
-        'c_args': [
-            '-DHDR_HISTOGRAM_C_FROM_SUBPROJECT=@0@'.format(get_variable('HdrHistogram_c_from_subproject', 0)),
-        ],
-        'dependencies': [
-            HdrHistogram_c_dep,
-        ],
-    },
     'omf_encoder_perf': {
         'sources': files(
             'omf_encoder_perf/omf_encoder_perf.c',

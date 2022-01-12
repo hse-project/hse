@@ -52,6 +52,7 @@ struct mpool_cparams {
  */
 struct mpool_rparams {
     struct {
+        bool dio_disable;
         char path[PATH_MAX];
     } mclass[HSE_MCLASS_COUNT];
 };

@@ -120,6 +120,14 @@ struct mblock_fset *
 mclass_fset(struct media_class *mc);
 
 /**
+ * mclass_directio() - get direct-io setting on the open mclass
+ *
+ * @mc: mclass handle
+ */
+bool
+mclass_directio(struct media_class *mc);
+
+/**
  * mclass_to_mcid() - convert mclass to mclass ID
  *
  * @mclass: media class

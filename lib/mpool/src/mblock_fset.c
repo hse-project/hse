@@ -240,6 +240,7 @@ mblock_fset_meta_open(struct mblock_fset *mbfsp, int flags)
 
     mbfsp->metafd = -1;
 
+    flags &= (O_RDWR | O_RDONLY | O_WRONLY | O_CREAT);
     if (flags & O_CREAT)
         create = true;
 
@@ -315,7 +316,7 @@ mblock_fset_upgrade_cleanup(struct mblock_fset *mbfsp)
 }
 
 static merr_t
-mblock_fset_upgrade_prepare(struct mblock_fset *mbfsp, int flags)
+mblock_fset_upgrade_prepare(struct mblock_fset *mbfsp, bool create)
 {
     merr_t err;
     size_t sz, metalen;
@@ -326,7 +327,7 @@ mblock_fset_upgrade_prepare(struct mblock_fset *mbfsp, int flags)
     if (mbfsp->mhdr.vers > MBLOCK_METAHDR_VERSION)
         return merr(EPROTO);
 
-    if (mbfsp->mhdr.vers == MBLOCK_METAHDR_VERSION || (flags & O_CREAT) || mbfsp->rdonly)
+    if (mbfsp->mhdr.vers == MBLOCK_METAHDR_VERSION || create || mbfsp->rdonly)
         return 0; /* Nothing to do */
 
     sz = strlen(mbfsp->mname) + 2; /* +1 for . and +1 for \0 */
@@ -436,6 +437,7 @@ mblock_fset_open(
     struct mblock_file_params fparams = { 0 };
     size_t sz;
     merr_t err;
+    bool   create;
     int    i;
 
     if (!mc || !handle)
@@ -452,8 +454,9 @@ mblock_fset_open(
 
     mclass_io_ops_set(mcid_to_mclass(mclass_id(mc)), &mbfsp->io);
 
-    flags &= (O_RDWR | O_RDONLY | O_WRONLY | O_CREAT);
-    if (flags & O_CREAT)
+    flags &= (O_RDWR | O_RDONLY | O_WRONLY | O_CREAT | O_DIRECT);
+    create = (flags & O_CREAT);
+    if (create)
         flags |= O_EXCL;
 
     mbfsp->rdonly = ((flags & O_ACCMODE) == O_RDONLY);
@@ -498,7 +501,7 @@ mblock_fset_open(
 
     mbfsp->mlock = mblock_fset_meta_mlock(mbfsp->maddr, mbfsp->metalen);
 
-    err = mblock_fset_upgrade_prepare(mbfsp, flags);
+    err = mblock_fset_upgrade_prepare(mbfsp, create);
     if (err)
         goto errout;
 
@@ -534,7 +537,7 @@ mblock_fset_open(
      * Write the mblock metadata header at the end of fset create. This is to
      * detect partial fset create during reopen.
      */
-    if (flags & O_CREAT) {
+    if (create) {
         int dirfd, rc;
 
         mblock_metahdr_init(mbfsp);

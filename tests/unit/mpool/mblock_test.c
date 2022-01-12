@@ -513,6 +513,29 @@ MTF_DEFINE_UTEST_PREPOST(mblock_test, mblock_io, mpool_test_pre, mpool_test_post
     err = mpool_close(mp);
     ASSERT_EQ(0, err);
 
+    /* Test IO without O_DIRECT */
+    trparams.mclass[HSE_MCLASS_CAPACITY].dio_disable = true;
+    err = mpool_open(home, &trparams, O_RDWR, &mp);
+    ASSERT_EQ(0, err);
+
+    err = mpool_mblock_alloc(mp, HSE_MCLASS_CAPACITY, &mbid, NULL);
+    ASSERT_EQ(0, err);
+
+    wlen = 1 << 20;
+    err = mblock_rw(mp, mbid, buf, wlen, 0, write);
+    ASSERT_EQ(0, err);
+
+    err = mpool_mblock_commit(mp, mbid);
+    ASSERT_EQ(0, err);
+
+    err = mblock_rw(mp, mbid, buf, wlen, 0, !write);
+    ASSERT_EQ(0, err);
+
+    trparams.mclass[HSE_MCLASS_CAPACITY].dio_disable = false;
+
+    err = mpool_close(mp);
+    ASSERT_EQ(0, err);
+
     mpool_destroy(home, &tdparams);
 
     free(buf);

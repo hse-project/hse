@@ -34,6 +34,7 @@ struct wal_fileset {
     size_t   capacity;
     uint32_t magic;
     uint32_t version;
+    uint32_t flags;
     merr_t   err;
     void    *repbuf;
 };
@@ -154,15 +155,21 @@ wal_fileset_reclaim(
 }
 
 void
-wal_fileset_mclass_update(struct wal_fileset *wfset, enum hse_mclass mclass)
+wal_fileset_mclass_set(struct wal_fileset *wfset, enum hse_mclass mclass)
 {
     wfset->mclass = mclass;
 }
 
 void
-wal_fileset_version_update(struct wal_fileset *wfset, uint32_t version)
+wal_fileset_version_set(struct wal_fileset *wfset, uint32_t version)
 {
     wfset->version = version;
+}
+
+void
+wal_fileset_flags_set(struct wal_fileset *wfset, uint32_t flags)
+{
+    wfset->flags = flags;
 }
 
 struct wal_fileset *
@@ -190,6 +197,7 @@ wal_fileset_open(
     wfset->capacity = capacity;
     wfset->magic = magic;
     wfset->version = vers;
+    wfset->flags = 0;
     wfset->repbuf = NULL;
 
     return wfset;
@@ -233,7 +241,7 @@ wal_file_open(
 
     snprintf(name, sizeof(name), "%s-%lu-%d", WAL_FILE_PFX, gen, fileid);
 
-    flags = replay ? O_RDONLY : O_RDWR | O_SYNC | O_DIRECT;
+    flags = replay ? O_RDONLY : wfset->flags | O_RDWR | O_SYNC;
 
     err = mpool_file_open(wfset->mp, wfset->mclass, name, flags, wfset->capacity, sparse, &mpf);
     if (err)

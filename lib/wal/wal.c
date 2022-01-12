@@ -595,7 +595,8 @@ wal_open(
     if (err)
         goto errout;
 
-    wal->wfset = wal_fileset_open(mp, wal->dur_mclass, WAL_FILE_SIZE_BYTES, WAL_MAGIC, wal->version);
+    wal->wfset = wal_fileset_open(mp, wal->dur_mclass, WAL_FILE_SIZE_BYTES,
+                                  WAL_MAGIC, wal->version);
     if (!wal->wfset) {
         err = merr(ENOMEM);
         goto errout;
@@ -616,7 +617,7 @@ wal_open(
     }
 
     wal->version = WAL_VERSION;
-    wal_fileset_version_update(wal->wfset, wal->version);
+    wal_fileset_version_set(wal->wfset, wal->version);
 
     if (rp->dur_intvl_ms != HSE_WAL_DUR_MS_DFLT)
         wal->dur_ms = clamp_t(long, rp->dur_intvl_ms, HSE_WAL_DUR_MS_MIN, HSE_WAL_DUR_MS_MAX);
@@ -654,8 +655,10 @@ wal_open(
         }
 
         wal->dur_mclass = mclass;
-        wal_fileset_mclass_update(wal->wfset, wal->dur_mclass);
+        wal_fileset_mclass_set(wal->wfset, wal->dur_mclass);
     }
+
+    wal_fileset_flags_set(wal->wfset, !rp->dio_disable[wal->dur_mclass] ? O_DIRECT : 0);
 
     err = wal_mdc_compact(wal->mdc, wal);
     if (err)
