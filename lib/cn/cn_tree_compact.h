@@ -180,6 +180,8 @@ struct cn_compaction_work {
     uint                     cw_iter_flags;
     uint                     cw_debug;
     bool                     cw_canceled;
+    char                     cw_status;
+    uint8_t                  cw_qnum;
     merr_t                   cw_err;
     struct workqueue_struct *cw_io_workq;
     struct perfc_set *       cw_pc;
@@ -214,6 +216,7 @@ struct cn_compaction_work {
     cn_work_callback      cw_progress;
     void *                cw_sched;
     struct list_head      cw_sched_link;
+    struct list_head      cw_runq_link;
     struct cn_samp_stats  cw_samp_pre;
     struct cn_samp_stats  cw_samp_post;
     struct cn_work_est    cw_est;

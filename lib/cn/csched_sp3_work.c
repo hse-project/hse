@@ -918,6 +918,9 @@ sp3_work(
         mutex_unlock(&tn->tn_rspills_lock);
     }
 
+    INIT_LIST_HEAD(&w->cw_runq_link);
+    w->cw_status = 'I';
+
     sp3_work_estimate(w, ichildc, lchildc);
 
     return 0;

@@ -1405,10 +1405,14 @@ cn_comp_release(struct cn_compaction_work *w)
 
     perfc_inc(w->cw_pc, PERFC_BA_CNCOMP_FINISH);
 
-    if (w->cw_completion)
+    if (w->cw_completion) {
+        w->cw_status = 'Z';
         w->cw_completion(w);
-    else
+    } else {
+        assert(list_empty(&w->cw_runq_link));
+        w->cw_status = 'X';
         free(w);
+    }
 }
 
 /**
@@ -3279,6 +3283,7 @@ cn_comp_slice_cb(struct sts_job *job)
     struct cn_compaction_work *w;
 
     w = container_of(job, struct cn_compaction_work, cw_job);
+    w->cw_status = 'R';
 
     cn_comp(w);
 }

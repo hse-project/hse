@@ -1,6 +1,6 @@
 /* SPDX-License-Identifier: Apache-2.0 */
 /*
- * Copyright (C) 2015-2021 Micron Technology, Inc.  All rights reserved.
+ * Copyright (C) 2015-2022 Micron Technology, Inc.  All rights reserved.
  */
 
 #define MTF_MOCK_IMPL_sched_sts
@@ -28,8 +28,6 @@ sts_job_run(struct work_struct *work)
     struct sts_job *job = container_of(work, struct sts_job, sj_work);
 
     job->sj_job_fn(job);
-
-    pthread_setname_np(pthread_self(), "hse_sts_idle");
 }
 
 void
@@ -37,9 +35,6 @@ sts_job_submit(struct sts *self, struct sts_job *job)
 {
     assert(self && job);
     assert(job->sj_job_fn);
-
-    if (csched_rp_dbg_jobs(self->sts_rp))
-        log_info("sts/job %u submit qnum %u", job->sj_id, job->sj_qnum);
 
     INIT_WORK(&job->sj_work, sts_job_run);
     queue_work(self->sts_wq, &job->sj_work);
@@ -64,8 +59,7 @@ sts_create(struct kvdb_rparams *rp, const char *name, uint nq, struct sts **hand
     memset(self, 0, sizeof(*self));
     self->sts_rp = rp;
 
-    snprintf(self->sts_name, sizeof(self->sts_name), "hse_sts_%u_%s",
-             rp->csched_policy, name);
+    snprintf(self->sts_name, sizeof(self->sts_name), "hse_sts_%s", name);
 
     if (csched_rp_dbg_mon(rp))
         log_info("sts/mon create %s, queues %u, policy 0x%x",

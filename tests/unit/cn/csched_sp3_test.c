@@ -1,6 +1,6 @@
 /* SPDX-License-Identifier: Apache-2.0 */
 /*
- * Copyright (C) 2015-2021 Micron Technology, Inc.  All rights reserved.
+ * Copyright (C) 2015-2022 Micron Technology, Inc.  All rights reserved.
  */
 
 #include <mtf/framework.h>
@@ -219,12 +219,6 @@ job_done(struct cn_compaction_work *w, int cancel)
 }
 
 void
-job_cancel_cb(struct sts_job *job)
-{
-    job_done(container_of(job, struct cn_compaction_work, cw_job), 1);
-}
-
-void
 job_cb(struct sts_job *job)
 {
     job_done(container_of(job, struct cn_compaction_work, cw_job), 0);
@@ -238,7 +232,6 @@ sts_job_submit_mock(struct sts *self, struct sts_job *job)
     real_fn = mtfm_sched_sts_sts_job_submit_getreal();
 
     job->sj_job_fn = job_cb;
-    job->sj_cancel_fn = job_cancel_cb;
 
     real_fn(self, job);
 }

@@ -12,6 +12,7 @@
 #include <hse_util/platform.h>
 #include <hse_util/alloc.h>
 #include <hse_util/slab.h>
+#include <hse_util/rest_api.h>
 
 #include <hse_ikvdb/cn.h>
 #include <hse_ikvdb/ikvdb.h>
@@ -178,6 +179,14 @@ struct sp3_qinfo {
     uint qjobs;
     uint qjobs_max;
 };
+
+struct sp3_globals {
+    struct mutex     sg_runq_lock;
+    struct list_head sg_runq_list;
+    atomic_int       sg_refcnt;
+};
+
+struct sp3_globals sp3g;
 
 /**
  * struct sp3 - kvdb scheduler policy
@@ -1277,13 +1286,13 @@ sp3_process_workitem(struct sp3 *sp, struct cn_compaction_work *w)
     void *lock;
 
     assert(spt->spt_job_cnt > 0);
-    assert(w->cw_job.sj_qnum < SP3_QNUM_MAX);
-    assert(sp->qinfo[w->cw_job.sj_qnum].qjobs > 0);
+    assert(w->cw_qnum < SP3_QNUM_MAX);
+    assert(sp->qinfo[w->cw_qnum].qjobs > 0);
     assert(sp->jobs_started > sp->jobs_finished);
 
     spt->spt_job_cnt--;
 
-    sp->qinfo[w->cw_job.sj_qnum].qjobs--;
+    sp->qinfo[w->cw_qnum].qjobs--;
     sp->jobs_finished++;
 
     cn_samp_diff(&diff, &w->cw_samp_post, &w->cw_samp_pre);
@@ -1349,6 +1358,10 @@ sp3_process_workitem(struct sp3 *sp, struct cn_compaction_work *w)
         sp->rspill_dt_prev = (dt + sp->rspill_dt_prev) / 2;
         atomic_set(&sp->rspill_dt, sp->rspill_dt_prev);
     }
+
+    mutex_lock(&sp3g.sg_runq_lock);
+    list_del(&w->cw_runq_link);
+    mutex_unlock(&sp3g.sg_runq_lock);
 
     free(w);
 
@@ -1711,6 +1724,7 @@ sp3_submit(struct sp3 *sp, struct cn_compaction_work *w, uint qnum)
     w->cw_progress = sp3_work_progress;
     w->cw_prog_interval = nsecs_to_jiffies(NSEC_PER_SEC);
     w->cw_debug = csched_rp_dbg_comp(sp->rp);
+    w->cw_qnum = qnum;
 
     sp->samp_wip.i_alen += w->cw_est.cwe_samp.i_alen;
     sp->samp_wip.l_alen += w->cw_est.cwe_samp.l_alen;
@@ -1721,8 +1735,15 @@ sp3_submit(struct sp3 *sp, struct cn_compaction_work *w, uint qnum)
     assert(!qfull(sp, qnum));
     sp->qinfo[qnum].qjobs++;
     sp->jobs_started++;
+    sp->job_id++;
+    sp->activity++;
 
-    w->cw_job.sj_id = sp->job_id++;
+    sts_job_init(&w->cw_job, cn_comp_slice_cb, sp->job_id);
+    sts_job_submit(sp->sts, &w->cw_job);
+
+    mutex_lock(&sp3g.sg_runq_lock);
+    list_add_tail(&w->cw_runq_link, &sp3g.sg_runq_list);
+    mutex_unlock(&sp3g.sg_runq_lock);
 
     if (w->cw_node->tn_loc.node_level > 0 || (w->cw_debug & CW_DEBUG_ROOT)) {
 
@@ -1735,7 +1756,7 @@ sp3_submit(struct sp3 *sp, struct cn_compaction_work *w, uint qnum)
             HSE_SLOG_FIELD("lvl", "%u", w->cw_node->tn_loc.node_level),
             HSE_SLOG_FIELD("off", "%u", w->cw_node->tn_loc.node_offset),
             HSE_SLOG_FIELD("leaf", "%u", (uint)cn_node_isleaf(w->cw_node)),
-            HSE_SLOG_FIELD("qnum", "%u", qnum),
+            HSE_SLOG_FIELD("qnum", "%u", w->cw_qnum),
             HSE_SLOG_FIELD("c_nk", "%u", w->cw_nk),
             HSE_SLOG_FIELD("c_nv", "%u", w->cw_nv),
             HSE_SLOG_FIELD("c_kvsets", "%u", w->cw_kvset_cnt),
@@ -1761,7 +1782,7 @@ sp3_submit(struct sp3 *sp, struct cn_compaction_work *w, uint qnum)
                  "  cap %u%%  samp %lu%%%s",
                  w->cw_tree->cnid,
                  w->cw_node->tn_loc.node_level, w->cw_node->tn_loc.node_offset,
-                 w->cw_job.sj_id, qnum,
+                 w->cw_job.sj_id, w->cw_qnum,
                  atomic_read(&w->cw_node->tn_busycnt) >> 16,
                  spt->spt_job_cnt,
                  cn_action2str(w->cw_action), cn_comp_rule2str(w->cw_comp_rule),
@@ -1772,10 +1793,6 @@ sp3_submit(struct sp3 *sp, struct cn_compaction_work *w, uint qnum)
                  sp->samp_reduce ? " samp_reduce" : "");
     }
 
-    sts_job_init(&w->cw_job, cn_comp_slice_cb, cn_comp_cancel_cb, qnum, w->cw_tree->cnid);
-    sts_job_submit(sp->sts, &w->cw_job);
-
-    sp->activity++;
 }
 
 static bool
@@ -2556,6 +2573,78 @@ sp3_op_tree_remove(struct csched_ops *handle, struct cn_tree *tree, bool cancel)
     sp3_monitor_wake(sp);
 }
 
+static merr_t
+sp3_rest_get(
+    const char       *path,
+    struct conn_info *info,
+    const char       *url,
+    struct kv_iter   *iter,
+    void             *context)
+{
+    struct cn_compaction_work *w;
+    size_t bufsz, buflen;
+    char *buf;
+    int n;
+
+    bufsz = 32 * 1024;
+    buf = malloc(bufsz);
+    if (!buf)
+        return merr(ENOMEM);
+
+    n = snprintf(buf, bufsz,
+                 "%3s %6s %5s %7s %-7s %2s %1s %5s %6s %6s %4s"
+                 " %3s %5s %3s %4s %6s %6s %6s %6s %1s %4s  %s\n",
+                 "ID", "LOC   ", "JOB", "ACTION", "RULE",
+                 "Q", "T", "KVSET", "ALEN", "CLEN", "PCAP",
+                 "CC", "DGEN", "NK", "NV",
+                 "RALEN", "IALEN", "LALEN", "LGOOD",
+                 "S", "TIME", "TNAME");
+    if (n < 1 || n >= bufsz) {
+        free(buf);
+        return merr(ENOMEM);
+    }
+
+    buflen = n;
+
+    mutex_lock(&sp3g.sg_runq_lock);
+    list_for_each_entry(w, &sp3g.sg_runq_list, cw_runq_link) {
+        n = snprintf(buf + buflen, bufsz - buflen,
+                     "%3lu %u,%-4u %5u %7s %-7s %2u %1u %2u,%-2u %6lu %6lu %4u"
+                     " %3u %5lu %3u %4u %6ld %6ld %6ld %6ld %1c %4lu  %s\n",
+                     w->cw_tree->cnid,
+                     w->cw_node->tn_loc.node_level, w->cw_node->tn_loc.node_offset,
+                     w->cw_job.sj_id,
+                     cn_action2str(w->cw_action), cn_comp_rule2str(w->cw_comp_rule),
+                     w->cw_qnum,
+                     atomic_read(&w->cw_node->tn_busycnt) >> 16,
+                     w->cw_kvset_cnt, (uint)cn_ns_kvsets(&w->cw_ns),
+                     cn_ns_alen(&w->cw_ns) >> 20,
+                     cn_ns_clen(&w->cw_ns) >> 20,
+                     w->cw_ns.ns_pcap,
+                     w->cw_compc,
+                     w->cw_dgen_lo,
+                     w->cw_nk, w->cw_nv,
+                     w->cw_est.cwe_samp.r_alen >> 20,
+                     w->cw_est.cwe_samp.i_alen >> 20,
+                     w->cw_est.cwe_samp.l_alen >> 20,
+                     w->cw_est.cwe_samp.l_good >> 20,
+                     w->cw_status,
+                     (jclock_ns - w->cw_t0_enqueue) / NSEC_PER_SEC,
+                     w->cw_threadname);
+
+        if (n < 1 || n >= bufsz - buflen || buflen + n >= bufsz)
+            break;
+
+        buflen += n;
+    }
+    mutex_unlock(&sp3g.sg_runq_lock);
+
+    rest_write_safe(info->resp_fd, buf, buflen);
+    free(buf);
+
+    return 0;
+}
+
 /**
  * sp3_op_destroy() - External API: SP3 destructor
  */
@@ -2578,6 +2667,17 @@ sp3_op_destroy(struct csched_ops *handle)
 
     for (tx = 0; tx < RBT_MAX; tx++)
         assert(!rb_first(sp->rbt + tx));
+
+    if (atomic_dec_return(&sp3g.sg_refcnt) == 0) {
+        rest_url_deregister("sp3");
+
+        mutex_lock(&sp3g.sg_runq_lock);
+        if (!list_empty(&sp3g.sg_runq_list))
+            abort();
+        mutex_unlock(&sp3g.sg_runq_lock);
+
+        mutex_destroy(&sp3g.sg_runq_lock);
+    }
 
     atomic_set(&sp->running, 0);
     sp3_monitor_wake(sp);
@@ -2687,6 +2787,13 @@ sp3_create(
         HSE_SLOG_FIELD("leafsize", "%u", qthreads(sp, SP3_QNUM_LSIZE)),
         HSE_SLOG_FIELD("shared", "%u", qthreads(sp, SP3_QNUM_SHARED)),
         HSE_SLOG_END);
+
+    if (atomic_inc_return(&sp3g.sg_refcnt) == 1) {
+        mutex_init(&sp3g.sg_runq_lock);
+        INIT_LIST_HEAD(&sp3g.sg_runq_list);
+
+        rest_url_register(NULL, 0, sp3_rest_get, NULL, "sp3");
+    }
 
     *handle = &sp->ops;
     return 0;

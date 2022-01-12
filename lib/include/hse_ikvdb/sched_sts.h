@@ -1,6 +1,6 @@
 /* SPDX-License-Identifier: Apache-2.0 */
 /*
- * Copyright (C) 2015-2021 Micron Technology, Inc.  All rights reserved.
+ * Copyright (C) 2015-2022 Micron Technology, Inc.  All rights reserved.
  */
 
 #ifndef HSE_IKVDB_STS_H
@@ -16,22 +16,14 @@ struct sts_job;
 struct kvdb_rparams;
 
 typedef void sts_job_fn(struct sts_job *job);
-typedef void sts_cancel_fn(struct sts_job *job);
 
 /**
  * struct sts_job - short term scheduler job handle
- * @sj_link:      for keeping jobs on a linked list (scheduler internal use)
- * @sj_sts:       handle to scheduler that manages this job
  * @sj_job_fn:    job handler, set by client, invoked by scheduler
- * @sj_cancel_fn: job cancel function, set by client, invoked by scheduler
- * @sj_tag:       tag, set by client, used to cancel all jobs with same tag
- * @sj_qnum:      scheduler queue
+ * @sj_id:        job ID
  */
 struct sts_job {
     sts_job_fn        *sj_job_fn;
-    sts_cancel_fn     *sj_cancel_fn;
-    u64                sj_tag;
-    uint               sj_qnum;
     uint               sj_id;
     struct work_struct sj_work;
 };
@@ -52,12 +44,10 @@ void
 sts_destroy(struct sts *s);
 
 static inline void
-sts_job_init(struct sts_job *job, sts_job_fn *job_fn, sts_cancel_fn *cancel_fn, uint qnum, u64 tag)
+sts_job_init(struct sts_job *job, sts_job_fn *job_fn, uint id)
 {
     job->sj_job_fn = job_fn;
-    job->sj_cancel_fn = cancel_fn;
-    job->sj_qnum = qnum;
-    job->sj_tag = tag;
+    job->sj_id = id;
 }
 
 /* MTF_MOCK */
