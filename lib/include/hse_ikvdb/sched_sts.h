@@ -13,7 +13,6 @@
 
 struct sts;
 struct sts_job;
-struct kvdb_rparams;
 
 typedef void sts_job_fn(struct sts_job *job);
 
@@ -30,14 +29,13 @@ struct sts_job {
 
 /**
  * sts_create() - create a short term scheduler for kvdb compaction work
- * @rp:      kvdb run-time parameters
  * @name:    name
  * @nq:      number of queues
  * @sts:     (out) short term scheduler handle
  */
 /* MTF_MOCK */
 merr_t
-sts_create(struct kvdb_rparams *rp, const char *name, uint nq, struct sts **sts);
+sts_create(const char *name, uint nq, struct sts **sts);
 
 /* MTF_MOCK */
 void

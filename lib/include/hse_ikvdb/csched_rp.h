@@ -27,7 +27,4 @@
 
 #define csched_rp_dbg_rbtree(_rp) ((bool)((_rp)->csched_debug_mask & 0x1000))
 
-/* STS Debug */
-#define csched_rp_dbg_mon(_rp) ((bool)((_rp)->csched_debug_mask & 0x4000))
-
 #endif

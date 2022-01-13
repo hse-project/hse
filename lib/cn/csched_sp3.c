@@ -2767,7 +2767,7 @@ sp3_create(
     atomic_set(&sp->sp_ingest_count, 0);
     atomic_set(&sp->sp_prune_count, 0);
 
-    err = sts_create(sp->rp, sp->name, SP3_QNUM_MAX, &sp->sts);
+    err = sts_create(sp->name, SP3_QNUM_MAX, &sp->sts);
     if (ev(err))
         goto err_exit;
 

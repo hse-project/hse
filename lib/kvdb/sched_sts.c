@@ -9,8 +9,6 @@
 #include <hse_util/logging.h>
 #include <hse_util/workqueue.h>
 
-#include <hse_ikvdb/kvdb_rparams.h>
-#include <hse_ikvdb/csched_rp.h>
 #include <hse_ikvdb/sched_sts.h>
 
 /**
@@ -18,7 +16,6 @@
  */
 struct sts {
     struct workqueue_struct *sts_wq HSE_L1D_ALIGNED;
-    struct kvdb_rparams     *sts_rp;
     char                     sts_name[16];
 };
 
@@ -41,11 +38,10 @@ sts_job_submit(struct sts *self, struct sts_job *job)
 }
 
 merr_t
-sts_create(struct kvdb_rparams *rp, const char *name, uint nq, struct sts **handle)
+sts_create(const char *name, uint nq, struct sts **handle)
 {
     struct sts *self;
 
-    assert(rp);
     assert(name);
     assert(nq);
     assert(handle);
@@ -57,12 +53,7 @@ sts_create(struct kvdb_rparams *rp, const char *name, uint nq, struct sts **hand
         return merr(ENOMEM);
 
     memset(self, 0, sizeof(*self));
-    self->sts_rp = rp;
-
     snprintf(self->sts_name, sizeof(self->sts_name), "hse_sts_%s", name);
-
-    if (csched_rp_dbg_mon(rp))
-        log_info("sts/mon create %s, queues %u", self->sts_name, nq);
 
     self->sts_wq = alloc_workqueue(self->sts_name, 0, nq, WQ_MAX_ACTIVE, 0);
     if (!self->sts_wq) {
