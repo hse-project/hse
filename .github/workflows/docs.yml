@@ -12,20 +12,23 @@ jobs:
     runs-on: ubuntu-latest
     container:
       image: fedora:latest
-      options: --privileged  -v /usr/src:/usr/src -v /lib/modules:/lib/modules
 
     steps:
       - uses: actions/checkout@v2
 
       - name: Initialize
         run: |
-          sudo dnf install -y git ninja-build meson poetry python-unversioned-command pkg-config libmicrohttpd-devel userspace-rcu-devel libyaml-devel lz4-devel libbsd-devel libcurl-devel doxygen
-          sudo dnf install -y xz mongo-c-driver libbson openssl-devel cyrus-sasl-devel ncurses-devel cmake make automake gcc gcc-c++ kernel-devel
-          sudo dnf install -y python3-devel libxml2-devel libxslt-devel
+          dnf install -y git ninja-build meson python-unversioned-command \
+            pkg-config cmake make automake gcc kernel-devel doxygen \
+            libmicrohttpd-devel userspace-rcu-devel libyaml-devel \
+            libbsd-devel libcurl-devel libpmem-devel xz libbson \
+            python3-devel python3-Cython libxml2-devel libxslt-devel
 
       - name: Setup
         run: |
-          meson builddir --fatal-meson-warnings -Dwerror=true -Ddocs=enabled -Dtests=false -Dtools=disabled -Dbindings=none -Dcli=false -Dsamples=false -Ddb_bench=false
+          meson builddir --fatal-meson-warnings -Dwerror=true -Ddocs=enabled \
+            -Dtests=false -Dtools=disabled -Dbindings=none -Dcli=false \
+            -Dsamples=false -Ddb_bench=false
 
       - name: Build
         run: |

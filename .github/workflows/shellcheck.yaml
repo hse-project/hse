@@ -12,7 +12,6 @@ jobs:
     runs-on: ubuntu-latest
     container:
       image: fedora:latest
-      options: --privileged  -v /usr/src:/usr/src -v /lib/modules:/lib/modules
 
     steps:
       - uses: actions/checkout@v2

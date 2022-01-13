@@ -53,8 +53,10 @@ jobs:
       - name: Initialize
         run: |
           sudo apt-get update
-          sudo apt-get install build-essential ninja-build libbsd-dev pkg-config openjdk-8-jdk libmicrohttpd-dev liburcu-dev libyaml-dev liblz4-dev libcurl4-openssl-dev python3-setuptools
-          sudo apt-get install libmongoc-1.0-0 libbson-1.0-0 libssl-dev libsasl2-dev
+          sudo apt-get install build-essential ninja-build pkg-config \
+            libbsd-dev libmicrohttpd-dev liburcu-dev libyaml-dev \
+            libcurl4-openssl-dev python3-setuptools libmongoc-dev \
+            libbson-dev libssl-dev libsasl2-dev
           sudo python3 -m pip install meson Cython
 
       - name: Setup
@@ -73,7 +75,7 @@ jobs:
       - uses: actions/upload-artifact@v2
         if: failure()
         with:
-          name: build-artifact-${{ matrix.os }}-${{ matrix.build_type }}
+          name: build-artifact-${{ matrix.os }}-${{ matrix.buildtype }}
           path: |
             builddir/meson-logs/
             /var/log/syslog
@@ -82,7 +84,6 @@ jobs:
     runs-on: ubuntu-latest
     container:
       image: fedora:${{ matrix.image-tag }}
-      options: --privileged  -v /usr/src:/usr/src -v /lib/modules:/lib/modules
     strategy:
       fail-fast: false
       matrix:
@@ -107,13 +108,19 @@ jobs:
 
       - name: Initialize
         run: |
-          sudo dnf install -y git ninja-build meson python-unversioned-command pkg-config python3-Cython java-1.8.0-openjdk-devel libmicrohttpd-devel userspace-rcu-devel libyaml-devel lz4-devel libbsd-devel libcurl-devel libpmem-devel
-          sudo dnf install -y xz mongo-c-driver libbson openssl-devel cyrus-sasl-devel ncurses-devel cmake make automake gcc gcc-c++ kernel-devel
-          sudo dnf install -y python-pip python-wheel python3-devel libxml2-devel libxslt-devel
+          dnf install -y git ninja-build meson python-unversioned-command \
+            pkg-config cmake make automake gcc gcc-c++ kernel-devel \
+            libmicrohttpd-devel userspace-rcu-devel libyaml-devel \
+            libbsd-devel libcurl-devel libpmem-devel xz mongo-c-driver libbson \
+            openssl-devel cyrus-sasl-devel ncurses-devel \
+            java-1.8.0-openjdk-devel python3-devel python3-Cython \
+            libxml2-devel libxslt-devel
 
       - name: Setup
         run: |
-          meson builddir -Dbuildtype=${{ matrix.buildtype }} --fatal-meson-warnings -Dtools=enabled -Dpmem=enabled -Ddocs=disabled -Dbindings=all -Dycsb=true -Dwerror=true
+          meson builddir -Dbuildtype=${{ matrix.buildtype }} \
+            --fatal-meson-warnings -Dtools=enabled -Dpmem=enabled \
+            -Ddocs=disabled -Dbindings=all -Dycsb=true -Dwerror=true
 
       - name: Build
         run: |
@@ -127,7 +134,7 @@ jobs:
       - uses: actions/upload-artifact@v2
         if: failure()
         with:
-          name: build-artifact-fedora-${{ matrix.image-tag }}-${{ matrix.build_type }}
+          name: build-artifact-${{ github.job }}-${{ matrix.image-tag }}-${{ matrix.buildtype }}
           path: |
             builddir/meson-logs/
             /var/log/messages
@@ -136,7 +143,6 @@ jobs:
     runs-on: ubuntu-latest
     container:
       image: almalinux:${{ matrix.image-tag }}
-      options: --privileged  -v /usr/src:/usr/src -v /lib/modules:/lib/modules
     strategy:
       fail-fast: false
       matrix:
@@ -163,14 +169,17 @@ jobs:
         run: |
           dnf install -y sudo dnf-plugins-core epel-release
           dnf config-manager --set-enabled powertools
-          dnf install -y git ninja-build pkg-config java-1.8.0-openjdk-devel libmicrohttpd-devel userspace-rcu-devel libyaml-devel lz4-devel libbsd-devel libcurl-devel
-          dnf install -y xz mongo-c-driver libbson openssl-devel cyrus-sasl-devel ncurses-devel cmake make automake gcc gcc-c++ kernel-devel
-          dnf install -y python36 python3-devel libxml2 libxslt
+          dnf install -y git ninja-build pkg-config cmake make automake gcc \
+            gcc-c++ kernel-devel libmicrohttpd-devel userspace-rcu-devel \
+            libyaml-devel libbsd-devel libcurl-devel xz mongo-c-driver libbson \
+            openssl-devel cyrus-sasl-devel ncurses-devel \
+            java-1.8.0-openjdk-devel python36 python3-devel libxml2 libxslt
           python3 -m pip install meson Cython
 
       - name: Setup
         run: |
-          meson builddir -Dbuildtype=${{ matrix.buildtype }} -Dtools=enabled -Ddocs=disabled -Dbindings=all -Dycsb=true -Dwerror=true
+          meson builddir -Dbuildtype=${{ matrix.buildtype }} -Dtools=enabled \
+            -Ddocs=disabled -Dbindings=all -Dycsb=true -Dwerror=true
 
       - name: Build
         run: |
@@ -184,16 +193,73 @@ jobs:
       - uses: actions/upload-artifact@v2
         if: failure()
         with:
-          name: build-artifact-almalinux-${{ matrix.image-tag }}-${{ matrix.build_type }}
+          name: build-artifact-${{ github.job }}-${{ matrix.image-tag }}-${{ matrix.buildtype }}
           path: |
             builddir/meson-logs/
             /var/log/messages
+
+  architectures:
+    runs-on: ubuntu-latest
+    container:
+      image: debian:11
+    strategy:
+      fail-fast: false
+      matrix:
+        buildtype: [release, debug]
+        arch: [s390x]
+
+    steps:
+      - name: Checkout HSE
+        uses: actions/checkout@v2
+
+      - name: Checkout hse-python
+        uses: actions/checkout@v2
+        with:
+          repository: hse-project/hse-python
+          path: subprojects/hse-python
+
+      - name: Post-checkout
+        run: |
+          for b in hse-python; do
+            git -C "subprojects/$b" checkout ${{ github.head_ref }} || true
+          done
+
+      - name: Initialize
+        run: |
+          dpkg --add-architecture ${{ matrix.arch }}
+          apt-get -y update
+          apt-get -y install python3 python3-pip pkg-config ninja-build cmake \
+            gawk build-essential crossbuild-essential-${{ matrix.arch }} \
+            libpython3-dev:${{ matrix.arch }} liburcu-dev:${{ matrix.arch }} \
+            libcurl4-openssl-dev:${{ matrix.arch }} \
+            libbsd-dev:${{ matrix.arch }} libmicrohttpd-dev:${{ matrix.arch }} \
+            libyaml-dev:${{ matrix.arch }} libmongoc-dev:${{ matrix.arch }} \
+            libbson-dev:${{ matrix.arch }} libncurses-dev:${{ matrix.arch }} \
+            openjdk-11-jdk:${{ matrix.arch }} openjdk-11-jdk
+          python3 -m pip install meson Cython
+
+      - name: Setup
+        run: |
+          meson builddir --cross-file cross/${{ matrix.arch }}.ini \
+            --cross-file cross/common.ini --cross-file cross/ci.ini \
+            -Dbuildtype=${{ matrix.buildtype }} -Dycsb=true -Dtools=enabled \
+            -Ddocs=disabled -Dbindings=all -Dwerror=true
+
+      - name: Build
+        run: |
+          ninja -C builddir
+
+      - uses: actions/upload-artifact@v2
+        if: failure()
+        with:
+          name: build-artifact-${{ github.job }}-${{ matrix.arch }}-${{ matrix.buildtype }}
+          path: |
+            builddir/meson-logs/
 
   asan-ubsan:
     runs-on: ubuntu-latest
     container:
       image: fedora:latest
-      options: --privileged  -v /usr/src:/usr/src -v /lib/modules:/lib/modules
     strategy:
       fail-fast: false
       matrix:
@@ -217,14 +283,19 @@ jobs:
 
       - name: Initialize
         run: |
-          sudo dnf install -y git ninja-build meson python-unversioned-command pkg-config python3-Cython java-1.8.0-openjdk-devel libmicrohttpd-devel userspace-rcu-devel libyaml-devel lz4-devel libbsd-devel libcurl-devel
-          sudo dnf install -y xz mongo-c-driver libbson openssl-devel cyrus-sasl-devel ncurses-devel cmake make automake gcc gcc-c++ kernel-devel
-          sudo dnf install -y python3-devel libxml2-devel libxslt-devel
-          sudo dnf install -y libasan libubsan
+          dnf install -y git ninja-build meson python-unversioned-command \
+            pkg-config cmake make automake gcc gcc-c++ kernel-devel \
+            libmicrohttpd-devel userspace-rcu-devel libyaml-devel \
+            libbsd-devel libcurl-devel libpmem-devel xz mongo-c-driver libbson \
+            openssl-devel cyrus-sasl-devel ncurses-devel \
+            java-1.8.0-openjdk-devel python3-devel python3-Cython \
+            libxml2-devel libxslt-devel libasan libubsan
 
       - name: Setup
         run: |
-          meson builddir -Dbuildtype=${{ matrix.buildtype }} --fatal-meson-warnings -Dtools=enabled -Ddocs=disabled -Dbindings=all -Dycsb=true -Db_sanitize=address,undefined
+          meson builddir -Dbuildtype=${{ matrix.buildtype }} \
+            --fatal-meson-warnings -Dtools=enabled -Ddocs=disabled \
+            -Dbindings=all -Dycsb=true -Db_sanitize=address,undefined
 
       - name: Build
         run: |
@@ -238,7 +309,7 @@ jobs:
       - uses: actions/upload-artifact@v2
         if: failure()
         with:
-          name: build-artifact-fedora-latest-${{ matrix.build_type }}
+          name: build-artifact-${{ github.job }}-${{ matrix.buildtype }}
           path: |
             builddir/meson-logs/
             /var/log/messages
