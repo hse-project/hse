@@ -1,7 +1,9 @@
 /* SPDX-License-Identifier: Apache-2.0 */
 /*
- * Copyright (C) 2015-2021 Micron Technology, Inc.  All rights reserved.
+ * Copyright (C) 2015-2022 Micron Technology, Inc.  All rights reserved.
  */
+
+#include <urcu/rculist.h>
 
 #include <hse_util/platform.h>
 #include <hse_util/event_counter.h>
@@ -10,7 +12,6 @@
 #include <hse_util/log2.h>
 #include <hse_util/table.h>
 #include <hse_util/xrand.h>
-#include <hse_util/cds_list.h>
 #include <hse_util/bonsai_tree.h>
 #include <hse_util/bkv_collection.h>
 

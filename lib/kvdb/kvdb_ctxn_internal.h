@@ -1,12 +1,15 @@
 /* SPDX-License-Identifier: Apache-2.0 */
 /*
- * Copyright (C) 2015-2021 Micron Technology, Inc.  All rights reserved.
+ * Copyright (C) 2015-2022 Micron Technology, Inc.  All rights reserved.
  */
 
 #ifndef HSE_KVDB_TXN_INTERNAL_H
 #define HSE_KVDB_TXN_INTERNAL_H
 
+#include <urcu-bp.h>
+
 #include <hse_ikvdb/kvdb_ctxn.h>
+#include <hse_util/mutex.h>
 
 /* clang-format off */
 

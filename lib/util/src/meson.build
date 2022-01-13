@@ -28,7 +28,6 @@ util_sources = files(
     'perfc.c',
     'platform.c',
     'printbuf.c',
-    'rcu.c',
     'rest_api.c',
     'rest_client.c',
     'rest_dt.c',

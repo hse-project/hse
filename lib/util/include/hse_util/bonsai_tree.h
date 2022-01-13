@@ -1,6 +1,6 @@
 /* SPDX-License-Identifier: Apache-2.0 */
 /*
- * Copyright (C) 2015-2021 Micron Technology, Inc.  All rights reserved.
+ * Copyright (C) 2015-2022 Micron Technology, Inc.  All rights reserved.
  */
 
 /*
@@ -11,6 +11,8 @@
 #ifndef HSE_BONSAI_TREE_H
 #define HSE_BONSAI_TREE_H
 
+#include <urcu-bp.h>
+
 #include <hse_util/arch.h>
 #include <hse_util/page.h>
 #include <hse_util/atomic.h>
@@ -19,7 +21,6 @@
 #include <hse_util/cursor_heap.h>
 #include <hse_util/hse_err.h>
 #include <hse_util/list.h>
-#include <hse_util/rcu.h>
 
 /* clang-format off */
 

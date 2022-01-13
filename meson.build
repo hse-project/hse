@@ -46,27 +46,23 @@ relative_dir = run_command(
 ).stdout().strip()
 
 # Strip relative path prefixes from the code if possible, otherwise hide them.
-# The following snippet is attributed to the SwayWM Project under the MIT license.
-if cc.has_argument('-fmacro-prefix-map=/prefix/to/hide=')
-    add_project_arguments(
+# The following snippet is inspired by the SwayWM Project under the MIT license.
+add_project_arguments(
+    cc.first_supported_argument([
         '-fmacro-prefix-map=@0@='.format(relative_dir),
-        language: 'c'
-    )
-    else
-    add_project_arguments(
         '-DHSE_REL_SRC_DIR="@0@"'.format(relative_dir),
-        language: 'c'
-    )
-endif
+    ]),
+    language: 'c'
+)
 
 if get_option('b_sanitize').contains('undefined')
-    if cc.has_argument('-fno-sanitize-recover=undefinded') and cc.has_argument('-fsanitize-recover=alignment')
-        add_project_arguments(
-            '-fno-sanitize-recover=undefinded',
+    add_project_arguments(
+        cc.get_supported_arguments([
+            '-fno-sanitize-recover=undefined',
             '-fsanitize-recover=alignment',
-            language: 'c'
-        )
-    endif
+        ]),
+        language: 'c'
+    )
 endif
 
 git = find_program('git', required: false)
@@ -89,8 +85,10 @@ if get_option('debug')
 
     if get_option('buildtype') == 'debug'
         add_project_arguments(
-            '-DDEBUG_RCU',
-            '-fstack-protector-all',
+            cc.get_supported_arguments([
+                '-DDEBUG_RCU',
+                '-fstack-protector-all',
+            ]),
             language: 'c',
         )
     endif
@@ -127,19 +125,31 @@ if get_option('omf-byte-order') != 'native'
 endif
 
 add_project_arguments(
-    '-D_GNU_SOURCE',
-    '-D_LGPL_SOURCE',
-    '-Wlogical-op',
-    '-Wno-missing-field-initializers',
-    '-Wmaybe-uninitialized',
-    '-Wno-sign-compare',
-    '-Wno-unused-parameter',
-    '-Wno-clobbered', # TODO: figure out a way to get back to compiling with -Wclobbered (enabled by -Wextra)
-    '-DHSE_LOGPRI_DEFAULT=@0@'.format(log_pri_default),
-    '-DLEVEL1_DCACHE_LINESIZE=@0@'.format(level1_dcache_linesize),
-    '-DURCU_INLINE_SMALL_FUNCTIONS',
-    language: 'c',
+    cc.get_supported_arguments([
+        '-D_GNU_SOURCE',
+        '-D_LGPL_SOURCE',
+        '-Wlogical-op',
+        '-Wno-missing-field-initializers',
+        '-Wmaybe-uninitialized',
+        '-Wno-sign-compare',
+        '-Wno-unused-parameter',
+        '-DHSE_LOGPRI_DEFAULT=@0@'.format(log_pri_default),
+        '-DLEVEL1_DCACHE_LINESIZE=@0@'.format(level1_dcache_linesize),
+        '-DURCU_INLINE_SMALL_FUNCTIONS',
+    ]),
+    language: 'c'
 )
+
+if cc.get_id() == 'clang'
+    assert(get_option('c_std') == 'gnu11', 'Remove this if HSE moves to c11 instead of gnu11')
+    add_project_arguments(
+        cc.get_supported_arguments([
+            '-Wno-gnu-alignof-expression',
+            '-Wno-gnu-variable-sized-type-not-at-end'
+        ]),
+        language: 'c'
+    )
+endif
 
 libcurl_dep = dependency(
     'libcurl',
@@ -374,7 +384,6 @@ if 'python' in bindings
         ]
     )
 
-    # Transition this to a depedency object when possible (seems to be >= 0.60 at least).
     hse_python_depends = hse_python.get_variable('extension_modules')
     run_env.set('PYTHONPATH', hse_python.get_variable('project_build_root'))
 

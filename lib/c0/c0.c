@@ -1,7 +1,9 @@
 /* SPDX-License-Identifier: Apache-2.0 */
 /*
- * Copyright (C) 2015-2021 Micron Technology, Inc.  All rights reserved.
+ * Copyright (C) 2015-2022 Micron Technology, Inc.  All rights reserved.
  */
+
+#include <urcu-bp.h>
 
 #include <hse_util/platform.h>
 #include <hse_util/hse_err.h>
@@ -9,7 +11,6 @@
 #include <hse_util/alloc.h>
 #include <hse_util/slab.h>
 #include <hse_util/condvar.h>
-#include <hse_util/rcu.h>
 #include <hse_util/logging.h>
 
 #define MTF_MOCK_IMPL_c0

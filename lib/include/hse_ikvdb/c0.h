@@ -1,14 +1,15 @@
 /* SPDX-License-Identifier: Apache-2.0 */
 /*
- * Copyright (C) 2015-2020 Micron Technology, Inc.  All rights reserved.
+ * Copyright (C) 2015-2022 Micron Technology, Inc.  All rights reserved.
  */
 
-#ifndef HSE_CORE_C0_H
-#define HSE_CORE_C0_H
+#ifndef HSE_C0_C0_H
+#define HSE_C0_C0_H
+
+#include <urcu-bp.h>
 
 #include <hse_util/inttypes.h>
 #include <hse_util/hse_err.h>
-#include <hse_util/rcu.h>
 #include <hse_util/mutex.h>
 
 #include <hse_ikvdb/ikvdb.h>
@@ -19,11 +20,8 @@
 #define CURSOR_FLAG_TOMBS_INV_PUTS 4
 #define CURSOR_FLAG_TOMBS_FLUSH 8
 
-/* [HSE_REVISIT] - which of these are really necessary */
-
 struct c0;
 struct c0_cursor;
-struct c0sk;
 struct cn;
 
 struct query_ctx;
