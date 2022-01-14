@@ -1,6 +1,6 @@
 /* SPDX-License-Identifier: Apache-2.0 */
 /*
- * Copyright (C) 2015-2021 Micron Technology, Inc.  All rights reserved.
+ * Copyright (C) 2015-2022 Micron Technology, Inc.  All rights reserved.
  */
 
 #ifndef HSE_PLATFORM_REST_API_H
@@ -88,11 +88,11 @@ rest_url_register(
     enum rest_url_flags flags,
     rest_get_t *        get_func,
     rest_put_t *        put_func,
-    char *              fmt,
+    const char *        fmt,
     ...);
 
 merr_t
-rest_url_deregister(char *fmt, ...);
+rest_url_deregister(const char *fmt, ...);
 
 /**
  * rest_write_safe() - Check if the fd is available for writing and only then
@@ -105,11 +105,5 @@ rest_url_deregister(char *fmt, ...);
  */
 ssize_t
 rest_write_safe(int fd, const char *buf, size_t sz);
-
-ssize_t
-rest_write_ulong(int fd, const char *prefix, ulong value, const char *suffix);
-
-ssize_t
-rest_write_string(int fd, const char *string);
 
 #endif /* HSE_PLATFORM_REST_API_H */

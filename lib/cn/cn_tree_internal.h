@@ -250,14 +250,6 @@ cn_tree_node_mclass(struct cn_tree_node *tn, enum hse_mclass_policy_dtype dtype)
 
 /* MTF_MOCK */
 void
-cn_comp(struct cn_compaction_work *w);
-
-/* MTF_MOCK */
-void
-cn_comp_cancel_cb(struct sts_job *job);
-
-/* MTF_MOCK */
-void
 cn_comp_slice_cb(struct sts_job *job);
 
 #if HSE_MOCKING

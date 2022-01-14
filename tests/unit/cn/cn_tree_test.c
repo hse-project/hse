@@ -875,10 +875,12 @@ MTF_DEFINE_UTEST_PRE(test, t_cn_comp, test_setup)
 
                 cn_comp_work_init(&t, tn, &w, action, use_token);
 
-                if (cancel)
-                    cn_comp_cancel_cb(&w.cw_job);
-                else
-                    cn_comp_slice_cb(&w.cw_job);
+                /* [HSE_REVISIT] We used to call cn_comp_cancel_cb()
+                 * here if (cancel > 0), but that function no longer
+                 * exists.  Presumably this test is still useful
+                 * to test teardown while a job is in flight?
+                 */
+                cn_comp_slice_cb(&w.cw_job);
 
                 test_tree_destroy(&t);
             }
