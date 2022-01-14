@@ -182,12 +182,12 @@ MTF_DEFINE_UTEST_PRE(kvdb_rparams_test, csched_policy, test_pre)
     ASSERT_EQ(offsetof(struct kvdb_rparams, csched_policy), ps->ps_offset);
     ASSERT_EQ(sizeof(uint32_t), ps->ps_size);
     ASSERT_EQ((uintptr_t)ps->ps_convert, (uintptr_t)param_default_converter);
-    ASSERT_NE((uintptr_t)ps->ps_validate, (uintptr_t)param_default_validator);
+    ASSERT_EQ((uintptr_t)ps->ps_validate, (uintptr_t)param_default_validator);
     ASSERT_EQ((uintptr_t)ps->ps_stringify, (uintptr_t)param_default_stringify);
     ASSERT_EQ((uintptr_t)ps->ps_jsonify, (uintptr_t)param_default_jsonify);
-    ASSERT_EQ(csched_policy_sp3, params.csched_policy);
-    ASSERT_EQ(csched_policy_old, ps->ps_bounds.as_uscalar.ps_min);
-    ASSERT_EQ(csched_policy_noop, ps->ps_bounds.as_uscalar.ps_max);
+    ASSERT_EQ(csched_rp_kvset_iter_async, params.csched_policy);
+    ASSERT_EQ(csched_rp_kvset_iter_async, ps->ps_bounds.as_uscalar.ps_min);
+    ASSERT_EQ(csched_rp_kvset_iter_mcache, ps->ps_bounds.as_uscalar.ps_max);
 }
 
 MTF_DEFINE_UTEST_PRE(kvdb_rparams_test, csched_debug_mask, test_pre)

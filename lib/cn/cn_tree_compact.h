@@ -115,8 +115,10 @@ cn_comp_rule2str(enum cn_comp_rule rule)
     return "unknown_rule";
 }
 
-#define CW_DEBUG_ROOT 0x01 /* include ingest and root spills */
-#define CW_DEBUG_PROGRESS 0x02
+#define CW_DEBUG_PROGRESS   0x01
+#define CW_DEBUG_ROOT       0x02 /* include ingest and root spills */
+#define CW_DEBUG_INTERNAL   0x04
+#define CW_DEBUG_LEAF       0x08
 
 typedef void (*cn_work_callback)(struct cn_compaction_work *w);
 
@@ -180,6 +182,7 @@ struct cn_compaction_work {
     uint                     cw_iter_flags;
     uint                     cw_debug;
     bool                     cw_canceled;
+    uint8_t                  cw_qnum;
     merr_t                   cw_err;
     struct workqueue_struct *cw_io_workq;
     struct perfc_set *       cw_pc;

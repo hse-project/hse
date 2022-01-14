@@ -1,6 +1,6 @@
 /* SPDX-License-Identifier: Apache-2.0 */
 /*
- * Copyright (C) 2015-2021 Micron Technology, Inc.  All rights reserved.
+ * Copyright (C) 2015-2022 Micron Technology, Inc.  All rights reserved.
  */
 
 #ifndef HSE_IKVDB_CSCHED_H
@@ -47,15 +47,7 @@ enum sp3_qnum {
 /* clang-format on */
 
 /**
- * enum csched_policy - compaction scheduler policy
- * csched_policy_old:  Do not use csched.  Use old tree walker scheduler.
- * csched_policy_noop: Disable scheduler.
- */
-enum csched_policy { csched_policy_old = 0, csched_policy_sp3 = 3, csched_policy_noop = 0xff };
-
-/**
  * csched_create() - create a scheduler for kvdb compaction work
- * @policy:
  * @ds:      dataset handle to access mpool qos
  * @rp:      kvdb run-time parameters
  * @kvdb_home: kvdb home
@@ -65,7 +57,6 @@ enum csched_policy { csched_policy_old = 0, csched_policy_sp3 = 3, csched_policy
 /* MTF_MOCK */
 merr_t
 csched_create(
-    enum csched_policy   policy,
     struct mpool *       ds,
     struct kvdb_rparams *rp,
     const char *         kvdb_home,

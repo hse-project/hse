@@ -1049,7 +1049,6 @@ cn_open(
     struct cn * cn;
     size_t      sz;
     u64         dgen = 0;
-    bool        maint;
     uint64_t    mperr;
 
     struct cn_kvsetmk_ctx ctx = { 0 };
@@ -1104,11 +1103,6 @@ cn_open(
     if (cn_is_capped(cn))
         rp->kvs_cursor_ttl = rp->cn_capped_ttl;
 
-    /* Enable tree maintenance if we have a scheduler,
-     * and if replay, diag and read_only are all false.
-     */
-    cn->csched = ikvdb_get_csched(cn->ikvdb);
-
     cn->cn_mpolicy = ikvdb_get_mclass_policy(cn->ikvdb, rp->mclass_policy);
     if (ev(!cn->cn_mpolicy)) {
         err = merr(EINVAL);
@@ -1116,10 +1110,7 @@ cn_open(
         goto err_exit;
     }
 
-    log_info("%s using %s media class policy", cn->cn_kvsname, rp->mclass_policy);
-
     cn->cn_replay = flags & IKVS_OFLAG_REPLAY;
-    maint = cn->csched && !cn->cn_replay && !rp->cn_diag_mode && !rp->read_only;
 
     /* no perf counters in replay mode */
     if (!cn->cn_replay)
@@ -1173,7 +1164,13 @@ cn_open(
 
     atomic_set(&cn->cn_ingest_dgen, cn_tree_initial_dgen(cn->cn_tree));
 
-    if (maint) {
+    /* Enable tree maintenance unless it's deliberately disabled
+     * or we're in replay, diag, or read-only mode.
+     */
+    rp->cn_maint_disable = rp->cn_maint_disable || cn->cn_replay ||
+        rp->cn_diag_mode || rp->read_only;
+
+    if (!rp->cn_maint_disable) {
         cn->cn_maint_wq = cn_kvdb->cn_maint_wq;
         cn->cn_io_wq = cn_kvdb->cn_io_wq;
 
@@ -1193,18 +1190,22 @@ cn_open(
             queue_delayed_work(cn->cn_maint_wq, &cn->cn_maint_dwork,
                                msecs_to_jiffies(rp->cn_maint_delay));
         } else {
+            cn->csched = ikvdb_get_csched(cn->ikvdb);
+
             csched_tree_add(cn->csched, cn->cn_tree);
         }
     }
 
     log_info(
         "%s/%s cnid %lu fanout %u pfx_len %u pfx_pivot %u depth %u/%u"
-        " kb %lu%c/%lu vb %lu%c/%lu%s%s%s%s",
+        " kb %lu%c/%lu vb %lu%c/%lu %s%s%s%s%s%s",
         cn->cn_kvdb_alias, cn->cn_kvsname, (ulong)cnid,
         cn->cp->fanout, cn->cp->pfx_len, cn->cp->pfx_pivot,
         ctx.ckmk_node_level_max, cn_tree_max_depth(ilog2(cn->cp->fanout)),
         ksz >> (kshift * 10), *kszsuf, kcnt,
         vsz >> (vshift * 10), *vszsuf, vcnt,
+        rp->mclass_policy,
+        rp->cn_maint_disable ? " !maint" : "",
         rp->cn_diag_mode ? " diag" : "",
         rp->read_only ? " rdonly" : "",
         cn_is_capped(cn) ? " capped" : "",

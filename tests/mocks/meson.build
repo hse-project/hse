@@ -12,7 +12,6 @@ mocked_headers = [
     meson.project_source_root() / 'lib/cn/cn_tree_internal.h',
     meson.project_source_root() / 'lib/cn/cn_tree_iter.h',
     meson.project_source_root() / 'lib/cn/cn_tree_stats.h',
-    meson.project_source_root() / 'lib/cn/csched_noop.h',
     meson.project_source_root() / 'lib/cn/csched_sp3.h',
     meson.project_source_root() / 'lib/cn/csched_sp3_work.h',
     meson.project_source_root() / 'lib/cn/kblock_builder.h',

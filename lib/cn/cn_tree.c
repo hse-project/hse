@@ -1,6 +1,6 @@
 /* SPDX-License-Identifier: Apache-2.0 */
 /*
- * Copyright (C) 2015-2021 Micron Technology, Inc.  All rights reserved.
+ * Copyright (C) 2015-2022 Micron Technology, Inc.  All rights reserved.
  */
 
 #define MTF_MOCK_IMPL_cn_tree
@@ -1370,16 +1370,15 @@ cn_node_comp_token_put(struct cn_tree_node *tn)
 static void
 cn_comp_release(struct cn_compaction_work *w)
 {
-    struct kvset_list_entry *le;
-    uint                     kx;
-
     assert(w->cw_node);
 
+    /* If this work is on the concurrent spill list then it must also
+     * be at the head of the list.  If not, it means that the caller
+     * applied a spill operation out-of-order such that a reader can
+     * now read an old/stale key/value when it should have read a
+     * newer one, meaning the kvdb is corrupted.
+     */
     if (w->cw_rspill_conc) {
-        /* This work is on the concurrent spill list.  It should not be
-         * released unless it is at head of list.  Verify it is at
-         * head and remove it.
-         */
         struct cn_compaction_work *tmp HSE_MAYBE_UNUSED;
 
         mutex_lock(&w->cw_node->tn_rspills_lock);
@@ -1390,6 +1389,9 @@ cn_comp_release(struct cn_compaction_work *w)
     }
 
     if (w->cw_err) {
+        struct kvset_list_entry *le;
+        uint kx;
+
         /* unmark input kvsets */
         le = w->cw_mark;
         for (kx = 0; kx < w->cw_kvset_cnt; kx++) {
@@ -1405,10 +1407,18 @@ cn_comp_release(struct cn_compaction_work *w)
 
     perfc_inc(w->cw_pc, PERFC_BA_CNCOMP_FINISH);
 
-    if (w->cw_completion)
-        w->cw_completion(w);
-    else
+    if (HSE_UNLIKELY(!w->cw_completion)) {
         free(w);
+        return;
+    }
+
+    sts_job_status_set(&w->cw_job, 'Z');
+
+    /* After this function returns the job will be disassociated
+     * from its thread and hence becomes a zombie.  Do not touch
+     * *w afterward as it may have already been freed.
+     */
+    w->cw_completion(w);
 }
 
 /**
@@ -2990,7 +3000,7 @@ cn_comp_cleanup(struct cn_compaction_work *w)
             log_errx("compaction error @@e: sts/job %u comp %s rule %s"
                      " cnid %lu lvl %u off %u dgenlo %lu dgenhi %lu wedge %d",
                      w->cw_err,
-                     w->cw_job.sj_id,
+                     sts_job_id_get(&w->cw_job),
                      cn_action2str(w->cw_action),
                      cn_comp_rule2str(w->cw_comp_rule),
                      cn_tree_get_cnid(w->cw_tree),
@@ -3096,6 +3106,8 @@ cn_comp_compact(struct cn_compaction_work *w)
     if (ev(err))
         goto err_exit;
 
+    sts_job_status_set(&w->cw_job, 'P');
+
     /* cn_tree_prepare_compaction() will initiate I/O
      * if ASYNCIO is enabled.
      */
@@ -3111,10 +3123,14 @@ cn_comp_compact(struct cn_compaction_work *w)
      * and kv-compaction. */
     w->cw_keep_vblks = kcompact;
 
+    sts_job_status_set(&w->cw_job, kcompact ? 'K' : 'S');
+
     if (kcompact)
         err = cn_kcompact(w);
     else
         err = cn_spill(w);
+
+    sts_job_status_set(&w->cw_job, 'C');
 
     /* [HSE_REVISIT] The combination of key_bytes_out and val_bytes_out
      * seems more than what is written to the media for kcompaction.
@@ -3208,6 +3224,8 @@ err_exit:
 static void
 cn_comp_finish(struct cn_compaction_work *w)
 {
+    sts_job_status_set(&w->cw_job, 'F');
+
     cn_comp_commit(w);
     cn_comp_cleanup(w);
     cn_comp_release(w);
@@ -3220,7 +3238,7 @@ cn_comp_finish(struct cn_compaction_work *w)
  * cn_comp_cancel_cb() and cn_comp_slice_cb().  See section comment for more
  * info.
  */
-void
+static void
 cn_comp(struct cn_compaction_work *w)
 {
     u64               tstart;
@@ -3228,11 +3246,19 @@ cn_comp(struct cn_compaction_work *w)
     struct perfc_set *pc = w->cw_pc;
 
     tstart = perfc_lat_start(pc);
+
     cn_comp_compact(w);
 
+    /* Acquire a cn reference here to prevent cn from closing
+     * before we finish updating the latency perf counter.
+     * Do not touch *w after calling cn_comp_finish()
+     * as it may have already been freed.
+     */
     cn_ref_get(cn);
     if (w->cw_rspill_conc) {
         struct cn_tree_node *node;
+
+        sts_job_status_set(&w->cw_job, 'Q');
 
         /* Mark this root spill as done.  Then process tn_rspill_list
          * to ensure concurrent root spills are completed in the
@@ -3245,29 +3271,11 @@ cn_comp(struct cn_compaction_work *w)
     } else {
         /* Non-root spill (only one at a time per node). */
         cn_comp_finish(w);
+        w = NULL;
     }
 
     perfc_lat_record(pc, PERFC_LT_CNCOMP_TOTAL, tstart);
     cn_ref_put(cn);
-}
-
-/**
- * cn_comp_cancel_cb() - sts callback when a job is canceled
- */
-void
-cn_comp_cancel_cb(struct sts_job *job)
-{
-    struct cn_compaction_work *w;
-
-    w = container_of(job, struct cn_compaction_work, cw_job);
-
-    if (w->cw_debug)
-        log_info("sts/job %u cancel callback", w->cw_job.sj_id);
-
-    w->cw_canceled = true;
-    w->cw_err = merr(ESHUTDOWN);
-
-    cn_comp(w);
 }
 
 /**
@@ -3276,9 +3284,7 @@ cn_comp_cancel_cb(struct sts_job *job)
 void
 cn_comp_slice_cb(struct sts_job *job)
 {
-    struct cn_compaction_work *w;
-
-    w = container_of(job, struct cn_compaction_work, cw_job);
+    struct cn_compaction_work *w = container_of(job, typeof(*w), cw_job);
 
     cn_comp(w);
 }

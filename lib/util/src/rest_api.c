@@ -1,6 +1,6 @@
 /* SPDX-License-Identifier: Apache-2.0 */
 /*
- * Copyright (C) 2015-2021 Micron Technology, Inc.  All rights reserved.
+ * Copyright (C) 2015-2022 Micron Technology, Inc.  All rights reserved.
  */
 
 #include <hse_util/platform.h>
@@ -203,7 +203,7 @@ rest_url_register(
     enum rest_url_flags url_flags,
     rest_get_t *        get_func,
     rest_put_t *        put_func,
-    char *              fmt,
+    const char *        fmt,
     ...)
 {
     struct url_desc *ud;
@@ -260,7 +260,7 @@ rest_url_register(
 }
 
 merr_t
-rest_url_deregister(char *fmt, ...)
+rest_url_deregister(const char *fmt, ...)
 {
     char             name[REST_URL_LEN_MAX];
     va_list          ap;
@@ -1156,6 +1156,9 @@ rest_write_safe(int fd, const char *buf, size_t sz)
     ssize_t         cc, nwr;
     int             n;
 
+    if (!buf)
+        return 0;
+
     pfdv[0].fd = fd;
     pfdv[0].events = POLLOUT;
 
@@ -1184,28 +1187,4 @@ rest_write_safe(int fd, const char *buf, size_t sz)
     }
 
     return nwr;
-}
-
-ssize_t
-rest_write_string(int fd, const char *string)
-{
-    if (!string && *string)
-        return 0;
-
-    return rest_write_safe(fd, string, strlen(string));
-}
-
-ssize_t
-rest_write_ulong(int fd, const char *prefix, ulong value, const char *suffix)
-{
-    ssize_t n = 0;
-    char    buf[128];
-
-    snprintf(buf, sizeof(buf), "%lu", value);
-
-    n += rest_write_string(fd, prefix);
-    n += rest_write_string(fd, buf);
-    n += rest_write_string(fd, suffix);
-
-    return n;
 }

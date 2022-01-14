@@ -8,7 +8,6 @@ cn_sources = files(
     'cn_perfc.c',
     'cn_tree.c',
     'csched.c',
-    'csched_noop.c',
     'csched_sp3.c',
     'csched_sp3_work.c',
     'hse_log_fmt.c',

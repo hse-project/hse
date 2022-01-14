@@ -1,6 +1,6 @@
 /* SPDX-License-Identifier: Apache-2.0 */
 /*
- * Copyright (C) 2015-2021 Micron Technology, Inc.  All rights reserved.
+ * Copyright (C) 2015-2022 Micron Technology, Inc.  All rights reserved.
  */
 
 #define MTF_MOCK_IMPL_ikvdb
@@ -1361,7 +1361,6 @@ ikvdb_open(
 
     if (!self->ikdb_read_only) {
         err = csched_create(
-            csched_rp_policy(&self->ikdb_rp),
             self->ikdb_mp,
             &self->ikdb_rp,
             self->ikdb_alias,
@@ -1454,7 +1453,6 @@ ikvdb_open(
         self->ikdb_mp,
         self->ikdb_alias,
         &self->ikdb_health,
-        self->ikdb_csched,
         &self->ikdb_seqno,
         gen,
         &self->ikdb_c0sk);
@@ -2012,8 +2010,6 @@ ikvdb_kvs_open(
         }
 
         strlcpy(params->mclass_policy, policy, HSE_MPOLICY_NAME_LEN_MAX);
-        log_info("KVS (%s) is configured to use the mclass policy \"%s\"",
-                 kvs_name, params->mclass_policy);
     } else if (self->ikdb_pmem_only && strcmp(params->mclass_policy, HSE_MPOLICY_PMEM_ONLY)) {
         log_info("setting mclass policy to \"%s\" for KVS (%s)", HSE_MPOLICY_PMEM_ONLY, kvs_name);
         strcpy(params->mclass_policy, HSE_MPOLICY_PMEM_ONLY);

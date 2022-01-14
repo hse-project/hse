@@ -1,6 +1,6 @@
 /* SPDX-License-Identifier: Apache-2.0 */
 /*
- * Copyright (C) 2015-2021 Micron Technology, Inc.  All rights reserved.
+ * Copyright (C) 2015-2022 Micron Technology, Inc.  All rights reserved.
  */
 
 #include <mtf/framework.h>
@@ -18,7 +18,6 @@
 #include <hse_ikvdb/csched_rp.h>
 #include <hse_ikvdb/cn.h>
 
-#include <cn/csched_ops.h>
 #include <cn/csched_sp3.h>
 #include <cn/csched_sp3_work.h>
 #include <cn/cn_tree_create.h>
@@ -219,12 +218,6 @@ job_done(struct cn_compaction_work *w, int cancel)
 }
 
 void
-job_cancel_cb(struct sts_job *job)
-{
-    job_done(container_of(job, struct cn_compaction_work, cw_job), 1);
-}
-
-void
 job_cb(struct sts_job *job)
 {
     job_done(container_of(job, struct cn_compaction_work, cw_job), 0);
@@ -238,7 +231,6 @@ sts_job_submit_mock(struct sts *self, struct sts_job *job)
     real_fn = mtfm_sched_sts_sts_job_submit_getreal();
 
     job->sj_job_fn = job_cb;
-    job->sj_cancel_fn = job_cancel_cb;
 
     real_fn(self, job);
 }
@@ -403,7 +395,7 @@ pre_test(struct mtf_test_info *ti)
 }
 
 void
-add_tree(struct cn_tree *tree, struct csched_ops *ops)
+add_tree(struct cn_tree *tree, struct csched *cs)
 {
     u64 cnt;
     u32 api;
@@ -411,14 +403,14 @@ add_tree(struct cn_tree *tree, struct csched_ops *ops)
     api = mapi_idx_cn_ref_get;
     cnt = mapi_calls(api);
 
-    ops->cs_tree_add(ops, tree);
+    sp3_tree_add(cs, tree);
 
     while (mapi_calls(api) == cnt)
         msleep(20);
 }
 
 void
-remove_tree(struct cn_tree *tree, struct csched_ops *ops)
+remove_tree(struct cn_tree *tree, struct csched *cs)
 {
     u64 cnt;
     u32 api;
@@ -426,7 +418,7 @@ remove_tree(struct cn_tree *tree, struct csched_ops *ops)
     api = mapi_idx_cn_ref_put;
     cnt = mapi_calls(api);
 
-    ops->cs_tree_remove(ops, tree, false);
+    sp3_tree_remove(cs, tree, false);
 
     while (mapi_calls(api) == cnt)
         msleep(20);
@@ -442,31 +434,31 @@ MTF_BEGIN_UTEST_COLLECTION_PRE(test, pre_collection)
 
 MTF_DEFINE_UTEST_PRE(test, t_sp3_create, pre_test)
 {
-    struct csched_ops *ops;
-    merr_t             err;
+    struct csched *cs;
+    merr_t err;
 
-    err = sp3_create(NULL, kvdb_rp, mp, &health, &ops);
+    err = sp3_create(NULL, kvdb_rp, mp, &health, &cs);
     ASSERT_EQ(err, 0);
-    ops->cs_destroy(0);
-    ops->cs_destroy(ops);
+    sp3_destroy(0);
+    sp3_destroy(cs);
 
     kvdb_rp->csched_qthreads = 1;
-    err = sp3_create(NULL, kvdb_rp, mp, &health, &ops);
+    err = sp3_create(NULL, kvdb_rp, mp, &health, &cs);
     ASSERT_EQ(err, 0);
-    ops->cs_destroy(ops);
+    sp3_destroy(cs);
 }
 
 MTF_DEFINE_UTEST_PRE(test, t_sp3_create_nomem, pre_test)
 {
-    struct csched_ops *ops = 0;
-    merr_t             err = merr(EBUG);
-    int                rc;
+    struct csched *cs = NULL;
+    merr_t err = merr(EBUG);
+    int rc;
 
     mapi_inject(mapi_idx_perfc_alloc_impl, 0);
 
     void run(struct mtf_test_info * lcl_ti, uint i, uint j)
     {
-        err = sp3_create(NULL, kvdb_rp, mp, &health, &ops);
+        err = sp3_create(NULL, kvdb_rp, mp, &health, &cs);
         if (i == j)
             ASSERT_EQ(err, 0);
         else
@@ -479,8 +471,8 @@ MTF_DEFINE_UTEST_PRE(test, t_sp3_create_nomem, pre_test)
          * previous call to run().
          */
         if (!err)
-            ops->cs_destroy(ops);
-        ops = 0;
+            sp3_destroy(cs);
+        cs = NULL;
     }
 
     rc = mapi_alloc_tester(lcl_ti, run, clean);
@@ -491,11 +483,11 @@ MTF_DEFINE_UTEST_PRE(test, t_sp3_create_nomem, pre_test)
 
 MTF_DEFINE_UTEST_PRE(test, t_sp3_create_fail, pre_test)
 {
-    struct csched_ops *ops;
-    merr_t             err;
+    struct csched *cs;
+    merr_t err;
 
     mapi_inject(mapi_idx_sts_create, 1234);
-    err = sp3_create(NULL, kvdb_rp, mp, &health, &ops);
+    err = sp3_create(NULL, kvdb_rp, mp, &health, &cs);
     ASSERT_EQ(err, 1234);
     mapi_inject_unset(mapi_idx_sts_create);
 }
@@ -504,34 +496,34 @@ MTF_DEFINE_UTEST_PRE(test, t_sp3_one_empty_tree, pre_test)
 {
     merr_t             err;
     struct test_tree * tt;
-    struct csched_ops *ops;
+    struct csched     *cs;
 
-    err = sp3_create(NULL, kvdb_rp, mp, &health, &ops);
+    err = sp3_create(NULL, kvdb_rp, mp, &health, &cs);
     ASSERT_EQ(err, 0);
 
     tt = new_tree(4);
     ASSERT_NE(tt, NULL);
 
-    add_tree(tt->tree, ops);
+    add_tree(tt->tree, cs);
 
     msleep(DELAY_MS);
 
-    remove_tree(tt->tree, ops);
+    remove_tree(tt->tree, cs);
 
     destroy_trees();
-    ops->cs_destroy(ops);
+    sp3_destroy(cs);
 }
 
 MTF_DEFINE_UTEST_PRE(test, t_sp3_many_empty_trees, pre_test)
 {
     merr_t             err;
     struct test_tree * tt;
-    struct csched_ops *ops;
+    struct csched     *cs;
     uint               num_trees = 50;
     uint               fanouts[] = { 2, 4, 8, 16 };
     uint               i;
 
-    err = sp3_create(NULL, kvdb_rp, mp, &health, &ops);
+    err = sp3_create(NULL, kvdb_rp, mp, &health, &cs);
     ASSERT_EQ(err, 0);
 
     for (i = 0; i < num_trees; i++) {
@@ -540,16 +532,16 @@ MTF_DEFINE_UTEST_PRE(test, t_sp3_many_empty_trees, pre_test)
     }
 
     for (i = 0; i < num_trees; i++)
-        add_tree(ttv[i].tree, ops);
+        add_tree(ttv[i].tree, cs);
 
     msleep(DELAY_MS);
 
     for (i = 0; i < num_trees; i++)
-        remove_tree(ttv[i].tree, ops);
+        remove_tree(ttv[i].tree, cs);
 
     destroy_trees();
 
-    ops->cs_destroy(ops);
+    sp3_destroy(cs);
 }
 
 #define SP3_NODE_LEN_THRESH 32
@@ -558,10 +550,10 @@ MTF_DEFINE_UTEST_PRE(test, t_sp3_one_small_tree_with_work, pre_test)
 {
     merr_t             err;
     struct test_tree * tt;
-    struct csched_ops *ops;
+    struct csched     *cs;
     uint               i;
 
-    err = sp3_create(NULL, kvdb_rp, mp, &health, &ops);
+    err = sp3_create(NULL, kvdb_rp, mp, &health, &cs);
     ASSERT_EQ(err, 0);
 
     tt = new_tree(4);
@@ -571,26 +563,26 @@ MTF_DEFINE_UTEST_PRE(test, t_sp3_one_small_tree_with_work, pre_test)
     ASSERT_EQ(err, 0);
 
     for (i = 0; i < ttc; i++)
-        add_tree(ttv[i].tree, ops);
+        add_tree(ttv[i].tree, cs);
 
     msleep(DELAY_MS);
 
     for (i = 0; i < ttc; i++)
-        remove_tree(ttv[i].tree, ops);
+        remove_tree(ttv[i].tree, cs);
 
     destroy_trees();
 
-    ops->cs_destroy(ops);
+    sp3_destroy(cs);
 }
 
 MTF_DEFINE_UTEST_PRE(test, t_sp3_one_medium_tree_with_work, pre_test)
 {
     merr_t             err;
     struct test_tree * tt;
-    struct csched_ops *ops;
+    struct csched     *cs;
     uint               i;
 
-    err = sp3_create(NULL, kvdb_rp, mp, &health, &ops);
+    err = sp3_create(NULL, kvdb_rp, mp, &health, &cs);
     ASSERT_EQ(err, 0);
 
     tt = new_tree(4);
@@ -603,26 +595,26 @@ MTF_DEFINE_UTEST_PRE(test, t_sp3_one_medium_tree_with_work, pre_test)
     ASSERT_EQ(err, 0);
 
     for (i = 0; i < ttc; i++)
-        add_tree(ttv[i].tree, ops);
+        add_tree(ttv[i].tree, cs);
 
     msleep(DELAY_MS);
 
     for (i = 0; i < ttc; i++)
-        remove_tree(ttv[i].tree, ops);
+        remove_tree(ttv[i].tree, cs);
 
     destroy_trees();
 
-    ops->cs_destroy(ops);
+    sp3_destroy(cs);
 }
 
 MTF_DEFINE_UTEST_PRE(test, t_sp3_one_big_tree_with_work, pre_test)
 {
     merr_t             err;
     struct test_tree * tt;
-    struct csched_ops *ops;
+    struct csched     *cs;
     uint               i;
 
-    err = sp3_create(NULL, kvdb_rp, mp, &health, &ops);
+    err = sp3_create(NULL, kvdb_rp, mp, &health, &cs);
     ASSERT_EQ(err, 0);
 
     tt = new_tree(4);
@@ -641,16 +633,16 @@ MTF_DEFINE_UTEST_PRE(test, t_sp3_one_big_tree_with_work, pre_test)
     ASSERT_EQ(err, 0);
 
     for (i = 0; i < ttc; i++)
-        add_tree(ttv[i].tree, ops);
+        add_tree(ttv[i].tree, cs);
 
     msleep(DELAY_MS);
 
     for (i = 0; i < ttc; i++)
-        remove_tree(ttv[i].tree, ops);
+        remove_tree(ttv[i].tree, cs);
 
     destroy_trees();
 
-    ops->cs_destroy(ops);
+    sp3_destroy(cs);
 }
 
 MTF_END_UTEST_COLLECTION(test);

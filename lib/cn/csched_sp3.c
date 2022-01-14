@@ -12,6 +12,7 @@
 #include <hse_util/platform.h>
 #include <hse_util/alloc.h>
 #include <hse_util/slab.h>
+#include <hse_util/rest_api.h>
 
 #include <hse_ikvdb/cn.h>
 #include <hse_ikvdb/ikvdb.h>
@@ -21,7 +22,6 @@
 #include <hse_ikvdb/throttle.h>
 #include <hse_ikvdb/kvdb_rparams.h>
 
-#include "csched_ops.h"
 #include "csched_sp3.h"
 #include "csched_sp3_work.h"
 
@@ -181,7 +181,6 @@ struct sp3_qinfo {
 
 /**
  * struct sp3 - kvdb scheduler policy
- * @ops:
  * @ds:           to access mpool qos
  * @rp:           kvb run-time params
  * @sts:          short term scheduler
@@ -201,7 +200,6 @@ struct sp3_qinfo {
  */
 struct sp3 {
     /* Accessed only by monitor thread */
-    struct csched_ops        ops HSE_ACP_ALIGNED;
     struct mpool            *ds;
     struct kvdb_rparams     *rp;
     struct sts              *sts;
@@ -291,9 +289,6 @@ struct sp3 {
     struct work_struct mon_work;
     char name[];
 };
-
-/* external to internal handle */
-#define h2sp(_hdl) container_of(_hdl, struct sp3, ops)
 
 /* cn_tree 2 sp3_tree */
 #define tree2spt(_tree) (&(_tree)->ct_sched.sp3t)
@@ -1277,13 +1272,13 @@ sp3_process_workitem(struct sp3 *sp, struct cn_compaction_work *w)
     void *lock;
 
     assert(spt->spt_job_cnt > 0);
-    assert(w->cw_job.sj_qnum < SP3_QNUM_MAX);
-    assert(sp->qinfo[w->cw_job.sj_qnum].qjobs > 0);
+    assert(w->cw_qnum < SP3_QNUM_MAX);
+    assert(sp->qinfo[w->cw_qnum].qjobs > 0);
     assert(sp->jobs_started > sp->jobs_finished);
 
     spt->spt_job_cnt--;
 
-    sp->qinfo[w->cw_job.sj_qnum].qjobs--;
+    sp->qinfo[w->cw_qnum].qjobs--;
     sp->jobs_finished++;
 
     cn_samp_diff(&diff, &w->cw_samp_post, &w->cw_samp_pre);
@@ -1337,7 +1332,7 @@ sp3_process_workitem(struct sp3 *sp, struct cn_compaction_work *w)
     sp3_dirty_node_locked(sp, tn);
     rmlock_runlock(lock);
 
-    if (w->cw_node->tn_loc.node_level > 0 || (w->cw_debug & CW_DEBUG_ROOT))
+    if (w->cw_debug & CW_DEBUG_PROGRESS)
         sp3_log_progress(w, &w->cw_stats, true);
 
     if (!tn->tn_parent) {
@@ -1350,12 +1345,13 @@ sp3_process_workitem(struct sp3 *sp, struct cn_compaction_work *w)
         atomic_set(&sp->rspill_dt, sp->rspill_dt_prev);
     }
 
-    free(w);
-
     if (debug_samp_work(sp)) {
         sp3_log_samp_each_tree(sp);
         sp3_log_samp_overall(sp);
     }
+
+    sts_job_done(sp->sts, &w->cw_job);
+    free(w);
 }
 
 static void
@@ -1559,14 +1555,14 @@ sp3_work_progress(struct cn_compaction_work *w)
 {
     struct cn_merge_stats ms;
 
+    if (!(w->cw_debug & CW_DEBUG_PROGRESS))
+        return;
+
     /* compute change in merge stats from previous progress report */
     cn_merge_stats_diff(&ms, &w->cw_stats, &w->cw_stats_prev);
     memcpy(&w->cw_stats_prev, &w->cw_stats, sizeof(w->cw_stats_prev));
 
-    if ((w->cw_debug & CW_DEBUG_PROGRESS) &&
-        (w->cw_node->tn_loc.node_level > 0 || (w->cw_debug & CW_DEBUG_ROOT))) {
-        sp3_log_progress(w, &ms, false);
-    }
+    sp3_log_progress(w, &ms, false);
 }
 
 static inline void
@@ -1656,7 +1652,61 @@ sp3_comp_thread_name(
     else
         node_type = 'i';
 
-    snprintf(buf, bufsz, "hse_%c%s_%s_%u%u", node_type, a, r, loc->node_level, loc->node_offset);
+    snprintf(buf, bufsz, "hse_%c%s_%s_%u%u",
+             node_type, a, r, loc->node_level, loc->node_offset);
+}
+
+/* This function is the sts job-print callback which is invoked
+ * with the sts run-queue lock held and hence must not block.
+ */
+static int
+sp3_job_print(struct sts_job *job, bool hdr, char *buf, size_t bufsz)
+{
+    struct cn_compaction_work *w = container_of(job, typeof(*w), cw_job);
+    int n = 0, m = 0;
+
+    if (hdr) {
+        n = snprintf(buf, bufsz,
+                     "%3s %6s %5s %7s %-7s %2s %1s %5s %6s %6s %4s"
+                     " %3s %5s %3s %4s %6s %6s %6s %6s %1s %4s  %s\n",
+                     "ID", "LOC   ", "JOB", "ACTION", "RULE",
+                     "Q", "T", "KVSET", "ALEN", "CLEN", "PCAP",
+                     "CC", "DGEN", "NK", "NV",
+                     "RALEN", "IALEN", "LALEN", "LGOOD",
+                     "S", "TIME", "TNAME");
+
+        if (n < 1 || n >= bufsz)
+            return n;
+
+        bufsz -= n;
+        buf += n;
+    }
+
+    m = snprintf(buf, bufsz,
+                 "%3lu %u,%-4u %5u %7s %-7s %2u %1u %2u,%-2u %6lu %6lu %4u"
+                 " %3u %5lu %3u %4u %6ld %6ld %6ld %6ld %1c %4lu  %s\n",
+                 w->cw_tree->cnid,
+                 w->cw_node->tn_loc.node_level, w->cw_node->tn_loc.node_offset,
+                 sts_job_id_get(&w->cw_job),
+                 cn_action2str(w->cw_action), cn_comp_rule2str(w->cw_comp_rule),
+                 w->cw_qnum,
+                 atomic_read(&w->cw_node->tn_busycnt) >> 16,
+                 w->cw_kvset_cnt, (uint)cn_ns_kvsets(&w->cw_ns),
+                 cn_ns_alen(&w->cw_ns) >> 20,
+                 cn_ns_clen(&w->cw_ns) >> 20,
+                 w->cw_ns.ns_pcap,
+                 w->cw_compc,
+                 w->cw_dgen_lo,
+                 w->cw_nk, w->cw_nv,
+                 w->cw_est.cwe_samp.r_alen >> 20,
+                 w->cw_est.cwe_samp.i_alen >> 20,
+                 w->cw_est.cwe_samp.l_alen >> 20,
+                 w->cw_est.cwe_samp.l_good >> 20,
+                 sts_job_status_get(&w->cw_job),
+                 (jclock_ns - w->cw_t0_enqueue) / NSEC_PER_SEC,
+                 w->cw_threadname);
+
+    return (m < 1) ? m : (n + m);
 }
 
 static void
@@ -1711,6 +1761,7 @@ sp3_submit(struct sp3 *sp, struct cn_compaction_work *w, uint qnum)
     w->cw_progress = sp3_work_progress;
     w->cw_prog_interval = nsecs_to_jiffies(NSEC_PER_SEC);
     w->cw_debug = csched_rp_dbg_comp(sp->rp);
+    w->cw_qnum = qnum;
 
     sp->samp_wip.i_alen += w->cw_est.cwe_samp.i_alen;
     sp->samp_wip.l_alen += w->cw_est.cwe_samp.l_alen;
@@ -1721,47 +1772,18 @@ sp3_submit(struct sp3 *sp, struct cn_compaction_work *w, uint qnum)
     assert(!qfull(sp, qnum));
     sp->qinfo[qnum].qjobs++;
     sp->jobs_started++;
+    sp->job_id++;
+    sp->activity++;
 
-    w->cw_job.sj_id = sp->job_id++;
-
-    if (w->cw_node->tn_loc.node_level > 0 || (w->cw_debug & CW_DEBUG_ROOT)) {
-
-        slog_info(
-            HSE_SLOG_START("cn_comp_start"),
-            HSE_SLOG_FIELD("job", "%u", w->cw_job.sj_id),
-            HSE_SLOG_FIELD("comp", "%s", cn_action2str(w->cw_action)),
-            HSE_SLOG_FIELD("rule", "%s", cn_comp_rule2str(w->cw_comp_rule)),
-            HSE_SLOG_FIELD("cnid", "%lu", w->cw_tree->cnid),
-            HSE_SLOG_FIELD("lvl", "%u", w->cw_node->tn_loc.node_level),
-            HSE_SLOG_FIELD("off", "%u", w->cw_node->tn_loc.node_offset),
-            HSE_SLOG_FIELD("leaf", "%u", (uint)cn_node_isleaf(w->cw_node)),
-            HSE_SLOG_FIELD("qnum", "%u", qnum),
-            HSE_SLOG_FIELD("c_nk", "%u", w->cw_nk),
-            HSE_SLOG_FIELD("c_nv", "%u", w->cw_nv),
-            HSE_SLOG_FIELD("c_kvsets", "%u", w->cw_kvset_cnt),
-            HSE_SLOG_FIELD("nd_kvsets", "%lu", (ulong)cn_ns_kvsets(&w->cw_ns)),
-            HSE_SLOG_FIELD("nd_cap%%", "%lu", (ulong)w->cw_ns.ns_pcap),
-            HSE_SLOG_FIELD("nd_keys", "%lu", (ulong)cn_ns_keys(&w->cw_ns)),
-            HSE_SLOG_FIELD(
-                "nd_hll%%",
-                "%lu",
-                (ulong)(
-                    cn_ns_keys(&w->cw_ns) == 0
-                        ? 0
-                        : ((100 * w->cw_ns.ns_keys_uniq) / cn_ns_keys(&w->cw_ns)))),
-            HSE_SLOG_FIELD("rdsz_b", "%ld", (long)w->cw_est.cwe_read_sz),
-            HSE_SLOG_FIELD("wrsz_b", "%ld", (long)w->cw_est.cwe_write_sz),
-            HSE_SLOG_FIELD("i_alen_b", "%ld", (long)w->cw_est.cwe_samp.i_alen),
-            HSE_SLOG_FIELD("l_alen_b", "%ld", (long)w->cw_est.cwe_samp.l_alen),
-            HSE_SLOG_END);
-    }
+    sts_job_init(&w->cw_job, cn_comp_slice_cb, sp->job_id);
+    sts_job_submit(sp->sts, &w->cw_job);
 
     if (debug_sched(sp)) {
         log_info("%-2lu %u,%-4u j%u q%u n%u t%-2u %s:%-6s  kvsets %u,%-2u  clen %5lu"
                  "  cap %u%%  samp %lu%%%s",
                  w->cw_tree->cnid,
                  w->cw_node->tn_loc.node_level, w->cw_node->tn_loc.node_offset,
-                 w->cw_job.sj_id, qnum,
+                 w->cw_job.sj_id, w->cw_qnum,
                  atomic_read(&w->cw_node->tn_busycnt) >> 16,
                  spt->spt_job_cnt,
                  cn_action2str(w->cw_action), cn_comp_rule2str(w->cw_comp_rule),
@@ -1772,10 +1794,44 @@ sp3_submit(struct sp3 *sp, struct cn_compaction_work *w, uint qnum)
                  sp->samp_reduce ? " samp_reduce" : "");
     }
 
-    sts_job_init(&w->cw_job, cn_comp_slice_cb, cn_comp_cancel_cb, qnum, w->cw_tree->cnid);
-    sts_job_submit(sp->sts, &w->cw_job);
+    if (HSE_LIKELY(!w->cw_debug))
+        return;
 
-    sp->activity++;
+    if (cn_node_isroot(w->cw_node) && !(w->cw_debug & CW_DEBUG_ROOT))
+        return;
+    else if (cn_node_isleaf(w->cw_node) && !(w->cw_debug & CW_DEBUG_LEAF))
+        return;
+    else if (!(w->cw_debug & CW_DEBUG_INTERNAL))
+        return;
+
+    slog_info(
+        HSE_SLOG_START("cn_comp_start"),
+        HSE_SLOG_FIELD("job", "%u", w->cw_job.sj_id),
+        HSE_SLOG_FIELD("comp", "%s", cn_action2str(w->cw_action)),
+        HSE_SLOG_FIELD("rule", "%s", cn_comp_rule2str(w->cw_comp_rule)),
+        HSE_SLOG_FIELD("cnid", "%lu", w->cw_tree->cnid),
+        HSE_SLOG_FIELD("lvl", "%u", w->cw_node->tn_loc.node_level),
+        HSE_SLOG_FIELD("off", "%u", w->cw_node->tn_loc.node_offset),
+        HSE_SLOG_FIELD("leaf", "%u", (uint)cn_node_isleaf(w->cw_node)),
+        HSE_SLOG_FIELD("qnum", "%u", w->cw_qnum),
+        HSE_SLOG_FIELD("c_nk", "%u", w->cw_nk),
+        HSE_SLOG_FIELD("c_nv", "%u", w->cw_nv),
+        HSE_SLOG_FIELD("c_kvsets", "%u", w->cw_kvset_cnt),
+        HSE_SLOG_FIELD("nd_kvsets", "%lu", (ulong)cn_ns_kvsets(&w->cw_ns)),
+        HSE_SLOG_FIELD("nd_cap%%", "%lu", (ulong)w->cw_ns.ns_pcap),
+        HSE_SLOG_FIELD("nd_keys", "%lu", (ulong)cn_ns_keys(&w->cw_ns)),
+        HSE_SLOG_FIELD(
+            "nd_hll%%",
+            "%lu",
+            (ulong)(
+                cn_ns_keys(&w->cw_ns) == 0
+                ? 0
+                : ((100 * w->cw_ns.ns_keys_uniq) / cn_ns_keys(&w->cw_ns)))),
+        HSE_SLOG_FIELD("rdsz_b", "%ld", (long)w->cw_est.cwe_read_sz),
+        HSE_SLOG_FIELD("wrsz_b", "%ld", (long)w->cw_est.cwe_write_sz),
+        HSE_SLOG_FIELD("i_alen_b", "%ld", (long)w->cw_est.cwe_samp.i_alen),
+        HSE_SLOG_FIELD("l_alen_b", "%ld", (long)w->cw_est.cwe_samp.l_alen),
+        HSE_SLOG_END);
 }
 
 static bool
@@ -2449,18 +2505,24 @@ sp3_monitor(struct work_struct *work)
  *
  ****************************************************************/
 
-static void
-sp3_op_throttle_sensor(struct csched_ops *handle, struct throttle_sensor *sensor)
+void
+sp3_throttle_sensor(struct csched *handle, struct throttle_sensor *sensor)
 {
-    struct sp3 *sp = h2sp(handle);
+    struct sp3 *sp = (struct sp3 *)handle;
+
+    if (!sp)
+        return;
 
     sp->throttle_sensor_root = sensor;
 }
 
-static void
-sp3_op_compact_request(struct csched_ops *handle, int flags)
+void
+sp3_compact_request(struct csched *handle, int flags)
 {
-    struct sp3 *sp = h2sp(handle);
+    struct sp3 *sp = (struct sp3 *)handle;
+
+    if (!sp)
+        return;
 
     if (flags & HSE_KVDB_COMPACT_CANCEL) {
         sp3_ucomp_cancel(sp);
@@ -2471,10 +2533,13 @@ sp3_op_compact_request(struct csched_ops *handle, int flags)
     }
 }
 
-static void
-sp3_op_compact_status_get(struct csched_ops *handle, struct hse_kvdb_compact_status *status)
+void
+sp3_compact_status_get(struct csched *handle, struct hse_kvdb_compact_status *status)
 {
-    struct sp3 *sp = h2sp(handle);
+    struct sp3 *sp = (struct sp3 *)handle;
+
+    if (!sp)
+        return;
 
     status->kvcs_active = sp->ucomp_active;
     status->kvcs_canceled = sp->ucomp_canceled;
@@ -2484,13 +2549,16 @@ sp3_op_compact_status_get(struct csched_ops *handle, struct hse_kvdb_compact_sta
 }
 
 /**
- * sp3_op_notify_ingest() - External API: notify ingest job has completed
+ * sp3_notify_ingest() - External API: notify ingest job has completed
  */
-static void
-sp3_op_notify_ingest(struct csched_ops *handle, struct cn_tree *tree, size_t alen, size_t wlen)
+void
+sp3_notify_ingest(struct csched *handle, struct cn_tree *tree, size_t alen, size_t wlen)
 {
-    struct sp3 *     sp = h2sp(handle);
+    struct sp3 *sp = (struct sp3 *)handle;
     struct sp3_tree *spt = tree2spt(tree);
+
+    if (!sp)
+        return;
 
     atomic_add(&spt->spt_ingest_alen, alen);
     atomic_add(&spt->spt_ingest_wlen, wlen);
@@ -2508,13 +2576,16 @@ sp3_tree_init(struct sp3_tree *spt)
 }
 
 /**
- * sp3_op_tree_add() - External API: add tree to scheduler
+ * sp3_tree_add() - External API: add tree to scheduler
  */
-static void
-sp3_op_tree_add(struct csched_ops *handle, struct cn_tree *tree)
+void
+sp3_tree_add(struct csched *handle, struct cn_tree *tree)
 {
-    struct sp3 *     sp = h2sp(handle);
+    struct sp3 *sp = (struct sp3 *)handle;
     struct sp3_tree *spt = tree2spt(tree);
+
+    if (!sp)
+        return;
 
     assert(!sp3_tree_is_managed(tree));
 
@@ -2533,15 +2604,15 @@ sp3_op_tree_add(struct csched_ops *handle, struct cn_tree *tree)
 }
 
 /**
- * sp3_op_tree_remove() - External API: remove tree from scheduler
+ * sp3_tree_remove() - External API: remove tree from scheduler
  */
-static void
-sp3_op_tree_remove(struct csched_ops *handle, struct cn_tree *tree, bool cancel)
+void
+sp3_tree_remove(struct csched *handle, struct cn_tree *tree, bool cancel)
 {
-    struct sp3 *     sp = h2sp(handle);
+    struct sp3 *sp = (struct sp3 *)handle;
     struct sp3_tree *spt = tree2spt(tree);
 
-    if (!sp3_tree_is_managed(tree))
+    if (!sp || !sp3_tree_is_managed(tree))
         return;
 
     if (debug_tree_life(sp))
@@ -2557,15 +2628,15 @@ sp3_op_tree_remove(struct csched_ops *handle, struct cn_tree *tree, bool cancel)
 }
 
 /**
- * sp3_op_destroy() - External API: SP3 destructor
+ * sp3_destroy() - External API: SP3 destructor
  */
-static void
-sp3_op_destroy(struct csched_ops *handle)
+void
+sp3_destroy(struct csched *handle)
 {
-    struct sp3 *sp = h2sp(handle);
+    struct sp3 *sp = (struct sp3 *)handle;
     uint        tx;
 
-    if (ev(!handle))
+    if (!sp)
         return;
 
     /* Destroy shouldn't be invoked until all cn trees been removed and
@@ -2606,20 +2677,19 @@ sp3_create(
     struct kvdb_rparams *rp,
     const char *         kvdb_alias,
     struct kvdb_health * health,
-    struct csched_ops ** handle)
+    struct csched      **handle)
 {
+    const char *restname = "csched";
     char group[128];
     struct sp3 *sp;
     merr_t      err;
     size_t      name_sz, alloc_sz;
     uint        tx;
 
-    assert(rp);
-    assert(kvdb_alias);
-    assert(handle);
+    INVARIANT(rp && kvdb_alias && handle);
 
     /* Allocate cache aligned space for struct csched + sp->name */
-    name_sz = strlen(kvdb_alias) + 1;
+    name_sz = strlen(restname) + strlen(kvdb_alias) + 2;
     alloc_sz = sizeof(*sp) + name_sz;
     alloc_sz = roundup(alloc_sz, alignof(*sp));
 
@@ -2629,7 +2699,7 @@ sp3_create(
 
     memset(sp, 0, alloc_sz);
     sp->ds = ds;
-    strlcpy(sp->name, kvdb_alias, name_sz);
+    snprintf(sp->name, name_sz, "%s/%s", restname, kvdb_alias);
 
     sp->rp = rp;
     sp->health = health;
@@ -2653,7 +2723,7 @@ sp3_create(
     atomic_set(&sp->sp_ingest_count, 0);
     atomic_set(&sp->sp_prune_count, 0);
 
-    err = sts_create(sp->rp, sp->name, SP3_QNUM_MAX, &sp->sts);
+    err = sts_create(sp->name, SP3_QNUM_MAX, sp3_job_print, &sp->sts);
     if (ev(err))
         goto err_exit;
 
@@ -2662,14 +2732,6 @@ sp3_create(
         err = merr(ENOMEM);
         goto err_exit;
     }
-
-    sp->ops.cs_destroy = sp3_op_destroy;
-    sp->ops.cs_notify_ingest = sp3_op_notify_ingest;
-    sp->ops.cs_throttle_sensor = sp3_op_throttle_sensor;
-    sp->ops.cs_compact_request = sp3_op_compact_request;
-    sp->ops.cs_compact_status_get = sp3_op_compact_status_get;
-    sp->ops.cs_tree_add = sp3_op_tree_add;
-    sp->ops.cs_tree_remove = sp3_op_tree_remove;
 
     snprintf(group, sizeof(group), "kvdb/%s", sp->name);
 
@@ -2688,7 +2750,7 @@ sp3_create(
         HSE_SLOG_FIELD("shared", "%u", qthreads(sp, SP3_QNUM_SHARED)),
         HSE_SLOG_END);
 
-    *handle = &sp->ops;
+    *handle = (void *)sp;
     return 0;
 
 err_exit:

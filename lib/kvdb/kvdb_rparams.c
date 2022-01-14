@@ -1,6 +1,6 @@
 /* SPDX-License-Identifier: Apache-2.0 */
 /*
- * Copyright (C) 2015-2021 Micron Technology, Inc.  All rights reserved.
+ * Copyright (C) 2015-2022 Micron Technology, Inc.  All rights reserved.
  */
 
 #include <errno.h>
@@ -532,18 +532,6 @@ throttle_init_policy_jsonify(const struct param_spec *const ps, const void *cons
     }
 }
 
-static bool HSE_NONNULL(1, 2)
-csched_policy_validator(const struct param_spec *const ps, const void *const data)
-{
-    const enum csched_policy policy = *(enum csched_policy *)data;
-
-    assert(ps);
-    assert(data);
-
-    return policy == csched_policy_old || policy == csched_policy_sp3 ||
-           policy == csched_policy_noop;
-}
-
 static const struct param_spec pspecs[] = {
     {
         .ps_name = "read_only",
@@ -680,7 +668,6 @@ static const struct param_spec pspecs[] = {
             },
         },
     },
-    /* [HSE_REVISIT]: Change this to an enum where users can give value as a string */
     {
         .ps_name = "csched_policy",
         .ps_description = "csched (compaction scheduler) policy",
@@ -689,16 +676,16 @@ static const struct param_spec pspecs[] = {
         .ps_offset = offsetof(struct kvdb_rparams, csched_policy),
         .ps_size = PARAM_SZ(struct kvdb_rparams, csched_policy),
         .ps_convert = param_default_converter,
-        .ps_validate = csched_policy_validator,
+        .ps_validate = param_default_validator,
         .ps_stringify = param_default_stringify,
         .ps_jsonify = param_default_jsonify,
         .ps_default_value = {
-            .as_uscalar = csched_policy_sp3,
+            .as_uscalar = csched_rp_kvset_iter_async,
         },
         .ps_bounds = {
             .as_uscalar = {
-                .ps_min = csched_policy_old,
-                .ps_max = csched_policy_noop,
+                .ps_min = csched_rp_kvset_iter_async,
+                .ps_max = csched_rp_kvset_iter_mcache,
             },
         },
     },
