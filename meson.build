@@ -145,7 +145,6 @@ if cc.get_id() == 'clang'
     add_project_arguments(
         cc.get_supported_arguments([
             '-Wno-gnu-alignof-expression',
-            '-Wno-gnu-variable-sized-type-not-at-end'
         ]),
         language: 'c'
     )

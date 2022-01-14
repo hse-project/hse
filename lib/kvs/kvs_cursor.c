@@ -732,8 +732,6 @@ kvs_cursor_init(struct hse_kvs_cursor *cursor, struct kvdb_ctxn *ctxn)
     void *                  cn = kvs->ikv_cn;
     u64                     seqno = cursor->kc_seq;
     merr_t                  err = 0;
-    u32                     flags;
-    bool                    updated;
     u64                     tstart;
     struct cursor_summary * summary = &cur->kci_summary;
     bool                    reverse = cur->kci_reverse;
@@ -763,11 +761,16 @@ kvs_cursor_init(struct hse_kvs_cursor *cursor, struct kvdb_ctxn *ctxn)
         err = c0_cursor_create(c0, seqno, reverse, prefix, pfxlen, summary, &cur->kci_c0cur);
         perfc_lat_record(cur->kci_cd_pc, PERFC_LT_CD_CREATE_C0, tstart);
     } else {
+        u32 flags = 0;
+
         assert(cur->kci_cncur);
 
         /* Update c0 cursor */
         cur->kci_need_seek = 1;
         tstart = perfc_lat_startu(cur->kci_cd_pc, PERFC_LT_CD_UPDATE_C0);
+
+        /* [HSE_REVISIT] mapi breaks initialization of flags.
+         */
         err = c0_cursor_update(cur->kci_c0cur, seqno, &flags);
         perfc_lat_record(cur->kci_cd_pc, PERFC_LT_CD_UPDATE_C0, tstart);
 
@@ -811,9 +814,14 @@ kvs_cursor_init(struct hse_kvs_cursor *cursor, struct kvdb_ctxn *ctxn)
         err = cn_cursor_create(cn, seqno, reverse, prefix, pfxlen, summary, &cur->kci_cncur);
         perfc_lat_record(cur->kci_cd_pc, PERFC_LT_CD_CREATE_CN, tstart);
     } else {
+        bool updated = false;
+
         /* Update cn cursor */
         cur->kci_need_seek = 1;
         tstart = perfc_lat_startu(cur->kci_cd_pc, PERFC_LT_CD_UPDATE_CN);
+
+        /* [HSE_REVISIT] mapi breaks initialization of updated.
+         */
         err = cn_cursor_update(cur->kci_cncur, seqno, &updated);
         perfc_lat_record(cur->kci_cd_pc, PERFC_LT_CD_UPDATE_CN, tstart);
 
@@ -827,8 +835,10 @@ kvs_cursor_init(struct hse_kvs_cursor *cursor, struct kvdb_ctxn *ctxn)
     assert(cur->kci_cncur);
 
     {
-        u32 active, total;
+        u32 active = 0, total;
 
+        /* [HSE_REVISIT] mapi breaks initialization of active.
+         */
         cn_cursor_active_kvsets(cur->kci_cncur, &active, &total);
         perfc_rec_sample(cur->kci_cd_pc, PERFC_DI_CD_ACTIVEKVSETS_CN, active);
     }
@@ -953,10 +963,12 @@ kvs_cursor_update(struct hse_kvs_cursor *handle, struct kvdb_ctxn *ctxn, u64 seq
     perfc_lat_record(cursor->kci_cd_pc, PERFC_LT_CD_UPDATE_CN, tstart);
 
     if (updated) {
-        u32 active, total;
+        u32 active = 0, total;
 
         perfc_inc(cursor->kci_cc_pc, PERFC_BA_CC_UPDATED_CN);
 
+        /* [HSE_REVISIT] mapi breaks initialization of active.
+         */
         cn_cursor_active_kvsets(cursor->kci_cncur, &active, &total);
         perfc_rec_sample(cursor->kci_cd_pc, PERFC_DI_CD_ACTIVEKVSETS_CN, active);
     }
@@ -1389,7 +1401,10 @@ kvs_curcache_init(void)
 
     /* Limit the cursor cache to roughly 10% of system memory,
      * but no less than 1GB and no more than 32GB.
+     *
+     * [HSE_REVISIT] mapi breaks initialization of mavail by hse_meminfo().
      */
+    mavail = 0;
     hse_meminfo(NULL, &mavail, 0);
 
     sz = (mavail * HSE_CURCACHE_SZ_PCT) / 100;

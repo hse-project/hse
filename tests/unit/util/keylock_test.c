@@ -1,6 +1,6 @@
 /* SPDX-License-Identifier: Apache-2.0 */
 /*
- * Copyright (C) 2015-2021 Micron Technology, Inc.  All rights reserved.
+ * Copyright (C) 2015-2022 Micron Technology, Inc.  All rights reserved.
  */
 
 #include <mtf/framework.h>
@@ -23,9 +23,11 @@ MTF_BEGIN_UTEST_COLLECTION_PRE(keylock_test, test_collection_pre);
 
 MTF_DEFINE_UTEST(keylock_test, keylock_create_destroy)
 {
-    merr_t          err = 0;
-    struct keylock *handle;
+    struct keylock *handle = NULL;
+    merr_t err = 0;
 
+    /* [HSE_REVISIT] mapi breaks initialization of handle.
+     */
     err = keylock_create(0, &handle);
     ASSERT_TRUE(handle);
     ASSERT_FALSE(err);
@@ -49,13 +51,15 @@ MTF_DEFINE_UTEST(keylock_test, keylock_lock_unlock)
 {
     uint                 table_size = KLE_PSL_MAX;
     merr_t               err = 0;
-    struct keylock *     handle;
+    struct keylock *     handle = NULL;
     int                  i;
     uint                 index;
     u64                  hash, num_entries = 0;
     u64                  entries[table_size * 2];
     bool                 inherited;
 
+    /* [HSE_REVISIT] mapi breaks initialization of handle.
+     */
     err = keylock_create(0, &handle);
     ASSERT_TRUE(handle);
     ASSERT_FALSE(err);

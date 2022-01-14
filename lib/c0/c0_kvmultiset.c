@@ -69,7 +69,7 @@ struct c0_kvmultiset_impl {
     atomic_ulong          c0ms_txhorizon;
     size_t                c0ms_used;
     atomic_ulong         *c0ms_kvdb_seq;
-    void                **c0ms_stashp;
+    atomic_intptr_t      *c0ms_stashp;
     struct kvdb_callback *c0ms_cb;
 
     atomic_int               c0ms_ingesting HSE_L1D_ALIGNED;
@@ -728,9 +728,9 @@ c0kvms_seqno_get(struct c0_kvmultiset *handle)
 }
 
 merr_t
-c0kvms_create(u32 num_sets, atomic_ulong *kvdb_seq, void **stashp, struct c0_kvmultiset **multiset)
+c0kvms_create(u32 num_sets, atomic_ulong *kvdb_seq, atomic_intptr_t *stashp, struct c0_kvmultiset **multiset)
 {
-    struct c0_kvmultiset_impl *kvms;
+    struct c0_kvmultiset_impl *kvms = stashp ? (void *)*stashp : NULL;
     merr_t                     err;
     size_t                     c0snr_sz, iw_sz;
     int                        i, j;
@@ -739,12 +739,10 @@ c0kvms_create(u32 num_sets, atomic_ulong *kvdb_seq, void **stashp, struct c0_kvm
 
     num_sets = clamp_t(u32, num_sets, HSE_C0_INGEST_WIDTH_MIN, HSE_C0_INGEST_WIDTH_MAX);
 
-    kvms = stashp ? *stashp : NULL;
-
     /* Check the caller's stash for a recently freed kvms and use
      * it (if possible) rather than create a new one.
      */
-    if (kvms && atomic_cas(stashp, kvms, NULL)) {
+    if (kvms && atomic_cas(stashp, (intptr_t)kvms, (intptr_t)NULL)) {
         if (kvms->c0ms_num_sets != num_sets ||
             kvms->c0ms_kvdb_seq != kvdb_seq) {
 
@@ -852,12 +850,12 @@ c0kvms_create(u32 num_sets, atomic_ulong *kvdb_seq, void **stashp, struct c0_kvm
 }
 
 void
-c0kvms_destroy_cache(void **stashp)
+c0kvms_destroy_cache(atomic_intptr_t *stashp)
 {
-    struct c0_kvmultiset_impl *kvms = stashp ? *stashp : NULL;
+    struct c0_kvmultiset_impl *kvms = stashp ? (void *)*stashp : NULL;
     int i;
 
-    if (kvms && atomic_cas(kvms->c0ms_stashp, kvms, NULL)) {
+    if (kvms && atomic_cas(kvms->c0ms_stashp, (intptr_t)kvms, (intptr_t)NULL)) {
         for (i = 0; i < kvms->c0ms_num_sets; ++i)
             c0kvs_destroy(kvms->c0ms_sets[i]);
 
@@ -909,7 +907,7 @@ c0kvms_destroy(struct c0_kvmultiset_impl *mset)
         for (i = 1; i < mset->c0ms_num_sets; ++i)
             c0kvs_reset(mset->c0ms_sets[i], 0);
 
-        if (atomic_cas(mset->c0ms_stashp, NULL, mset))
+        if (atomic_cas(mset->c0ms_stashp, (intptr_t)NULL, (intptr_t)mset))
             mset = NULL;
     }
 

@@ -1,6 +1,6 @@
 /* SPDX-License-Identifier: Apache-2.0 */
 /*
- * Copyright (C) 2015-2020 Micron Technology, Inc.  All rights reserved.
+ * Copyright (C) 2015-2022 Micron Technology, Inc.  All rights reserved.
  */
 
 #include <rbtree.h>
@@ -506,7 +506,8 @@ validate_buf(
 
     remaining = MY_BUF_SIZE - offset;
 
-    offset += snprintf(my_buf + offset, remaining, "%s:\n", DT_PATH_EVENT + strlen(DT_PATH_ROOT) + 1);
+    offset += snprintf(my_buf + offset, remaining, "%s:\n",
+                       &DT_PATH_EVENT[strlen(DT_PATH_ROOT) + 1]);
     remaining = MY_BUF_SIZE - offset;
 
     offset += snprintf(my_buf + offset, remaining,

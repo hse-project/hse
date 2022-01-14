@@ -1,6 +1,6 @@
 /* SPDX-License-Identifier: Apache-2.0 */
 /*
- * Copyright (C) 2015-2020 Micron Technology, Inc.  All rights reserved.
+ * Copyright (C) 2015-2020,2022 Micron Technology, Inc.  All rights reserved.
  */
 
 #include <hse_util/platform.h>
@@ -103,7 +103,7 @@ kvdb_health_event(struct kvdb_health *health, uint event, merr_t healtherr)
         return merr(EINVAL);
 
     atomic_or_rel(&health->krx_tripped_mask, event);
-    atomic_cas(ep, 0, healtherr);
+    atomic_cas(ep, (long)0, (long)healtherr);
 
     atomic_set(tp, 1);
     atomic_inc(op);

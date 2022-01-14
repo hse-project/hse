@@ -1,6 +1,6 @@
 /* SPDX-License-Identifier: Apache-2.0 */
 /*
- * Copyright (C) 2015-2021 Micron Technology, Inc.  All rights reserved.
+ * Copyright (C) 2015-2022 Micron Technology, Inc.  All rights reserved.
  */
 
 #ifndef HSE_RMLOCK_H
@@ -18,8 +18,8 @@
 struct rmlock;
 
 struct rmlock_bkt {
-    u64            rm_rwcnt HSE_ACP_ALIGNED;
-    struct rmlock *rm_lockp;
+    atomic_uint_fast64_t  rm_rwcnt HSE_ACP_ALIGNED;
+    struct rmlock        *rm_lockp;
 };
 
 struct rmlock {

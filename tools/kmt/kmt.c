@@ -683,7 +683,7 @@ super_free(void *mem, size_t sz)
 struct bktlock {
     union {
         pthread_rwlock_t   rwlock;
-        int spinlock;
+        atomic_int spinlock;
     };
 } HSE_ACP_ALIGNED;
 
@@ -710,14 +710,14 @@ struct bkt {
  * them from pthread spin locks used by hse.
  */
 static __always_inline bool
-atomic_cas_acq(int *p, int oldv, int newv)
+atomic_cas_acq(atomic_int *p, int oldv, int newv)
 {
     return atomic_compare_exchange_weak_explicit(p, &oldv, newv,
                                                  memory_order_acquire, memory_order_relaxed);
 }
 
 static __always_inline bool
-atomic_cas_rel(int *p, int oldv, int newv)
+atomic_cas_rel(atomic_int *p, int oldv, int newv)
 {
     return atomic_compare_exchange_strong_explicit(p, &oldv, newv,
                                                    memory_order_acquire, memory_order_relaxed);

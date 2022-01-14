@@ -60,11 +60,11 @@ merr_t
 c0kvms_create(
     u32                    num_sets,
     atomic_ulong          *kvdb_seq,
-    void                 **stash,
+    atomic_intptr_t       *stash,
     struct c0_kvmultiset **multiset);
 
 void
-c0kvms_destroy_cache(void **stashp);
+c0kvms_destroy_cache(atomic_intptr_t *stashp);
 
 void
 c0kvms_seqno_set(struct c0_kvmultiset *handle, uint64_t kvdb_seq);

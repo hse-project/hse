@@ -559,8 +559,8 @@ c0sk_ingest_worker(struct work_struct *work)
 
     assert(min_seq >= lc_ingest_seqno_get(lc));
 
-    kvms_minheap = &ingest->c0iw_kvms_minheap;
-    lc_minheap = &ingest->c0iw_lc_minheap;
+    kvms_minheap = (struct bin_heap2 *)&ingest->c0iw_kvms_minheap;
+    lc_minheap = (struct bin_heap2 *)&ingest->c0iw_lc_minheap;
 
     assert(c0sk->c0sk_kvdb_health);
 
@@ -1022,8 +1022,8 @@ merr_t
 c0sk_queue_ingest(struct c0sk_impl *self, struct c0_kvmultiset *old)
 {
     struct c0_kvmultiset *new;
+    atomic_intptr_t *stashp;
     merr_t err;
-    void  **stashp;
 
     c0kvms_ingesting(old);
 

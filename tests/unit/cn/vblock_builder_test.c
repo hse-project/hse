@@ -133,6 +133,7 @@ MTF_DEFINE_UTEST_PRE(test, t_vbb_destroy1, test_setup)
     vbb_destroy(NULL);
 }
 
+#ifndef __clang__
 /* Test: vbb_create, allocation failure */
 MTF_DEFINE_UTEST_PRE(test, t_vbb_create_fail_nomem, test_setup)
 {
@@ -159,6 +160,7 @@ MTF_DEFINE_UTEST_PRE(test, t_vbb_create_fail_nomem, test_setup)
     rc = mapi_alloc_tester(lcl_ti, run, clean);
     ASSERT_EQ(rc, 0);
 }
+#endif
 
 /* Test: vbb_finish w/ no values. */
 MTF_DEFINE_UTEST_PRE(test, t_vbb_finish_empty1, test_setup)

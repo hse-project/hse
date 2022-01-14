@@ -1,6 +1,6 @@
 /* SPDX-License-Identifier: Apache-2.0 */
 /*
- * Copyright (C) 2015-2021 Micron Technology, Inc. All rights reserved.
+ * Copyright (C) 2015-2022 Micron Technology, Inc.  All rights reserved.
  *
  * Stress + data integrity test tool for HSE KVDB.
  *
@@ -411,14 +411,6 @@ static uint64_t
 xrand64(void)
 {
     return xoroshiro128plus(xrand64_state);
-}
-
-static inline __attribute__((const)) unsigned int
-ilog2(unsigned long n)
-{
-    assert(n > 0);
-
-    return (NBBY * sizeof(n) - 1) - __builtin_clzl(n);
 }
 
 /* Start a time stamp interval...
@@ -955,9 +947,9 @@ prob_decode(const char *value, char **endp)
         return d;
 
     if (d >= 1)
-        return UINT64_MAX;
+        return ULONG_MAX;
 
-    return (d < 0) ? 0 : (d * UINT64_MAX);
+    return (d < 0) ? 0 : (d * (double)ULONG_MAX);
 }
 
 /* Scan the list for name/value pairs separated by the given separator.
@@ -1134,13 +1126,13 @@ usage(void)
     printf("  perfc        set perfc_level for all perf counters (default: %d)\n", perfc);
     printf("  ridpfxlen    set prefix len of rid kvs (default:  %zu)\n", ridpfxlen);
     printf("  tombprob     probability to entomb an inode (default: %lf)\n",
-           (double)tombprob / UINT64_MAX);
+           (double)tombprob / (double)ULONG_MAX);
     printf("  txncdlyprob  probabilty to delay a commit (default: %lf)\n",
-           (double)txncdlyprob / UINT64_MAX);
+           (double)txncdlyprob / (double)ULONG_MAX);
     printf("  txnfreeprob  probability to free a txn buffer (default: %lf)\n",
-           (double)txnfreeprob / UINT64_MAX);
+           (double)txnfreeprob / (double)ULONG_MAX);
     printf("  updateprob   probability to update a key (default: %lf)\n",
-           (double)updateprob / UINT64_MAX);
+           (double)updateprob / (double)ULONG_MAX);
     printf("  vcomp        enable value compression for data and tomb kvs (default: %d)\n", vcomp);
     printf("  vrunlen      generated ascii value run length (default: %zu)\n", vrunlen);
 

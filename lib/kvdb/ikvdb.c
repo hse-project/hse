@@ -1341,6 +1341,9 @@ ikvdb_open(
 
     memcpy(self->ikdb_mpolicies, params->mclass_policies, sizeof(params->mclass_policies));
 
+    /* [HSE_REVISIT] mapi breaks initialization of mavail by hse_meminfo().
+     */
+    mavail = 0;
     hse_meminfo(NULL, &mavail, 0);
     ikvdb_lowmem_adjust(self, mavail >> 30);
 

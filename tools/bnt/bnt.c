@@ -1,6 +1,6 @@
 /* SPDX-License-Identifier: Apache-2.0 */
 /*
- * Copyright (C) 2021 Micron Technology, Inc.  All rights reserved.
+ * Copyright (C) 2021,2022 Micron Technology, Inc.  All rights reserved.
  *
  * This program stress tests the Bonsai tree insert and delete capabilities.
  */
@@ -661,9 +661,10 @@ prob_decode(const char *value, char **endp)
         return d;
 
     if (d >= 1)
-        return UINT64_MAX;
+        return ULONG_MAX;
 
-    return (d < 0) ? 0 : (d * UINT64_MAX);
+
+    return (d < 0) ? 0 : (d * (double)ULONG_MAX);
 }
 
 /* Scan the list for name/value pairs separated by the given separator.
@@ -775,7 +776,7 @@ usage(void)
     printf("\nPROPERTIES:\n");
     printf("  kvtreec      specify number of bonsai trees (default: %u)\n", kvtreec);
     printf("  updateprob   probability to update a key (default: %.3lf)\n",
-           (double)updateprob / ULONG_MAX);
+           (double)updateprob / (double)ULONG_MAX);
 }
 
 int

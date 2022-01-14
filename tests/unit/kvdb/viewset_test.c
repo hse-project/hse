@@ -30,6 +30,7 @@ MTF_DEFINE_UTEST(viewset_test, t_viewset_create)
     viewset_destroy(vs);
 }
 
+#ifndef __clang__
 MTF_DEFINE_UTEST(viewset_test, t_viewset_create_enomem)
 {
     struct viewset *vs;
@@ -56,6 +57,7 @@ MTF_DEFINE_UTEST(viewset_test, t_viewset_create_enomem)
     rc = mapi_alloc_tester(lcl_ti, run, clean);
     ASSERT_EQ(rc, 0);
 }
+#endif
 
 MTF_DEFINE_UTEST(viewset_test, t_viewset_insert)
 {

@@ -1,6 +1,6 @@
 /* SPDX-License-Identifier: Apache-2.0 */
 /*
- * Copyright (C) 2018 Micron Technology, Inc.  All rights reserved.
+ * Copyright (C) 2018,2022 Micron Technology, Inc.  All rights reserved.
  *
  * This test emulates the behavior of a capped kvs.
  *
@@ -66,7 +66,6 @@ int exrc;
 
 static volatile bool killthreads;
 static volatile bool exit_puts;
-static volatile int progress;
 
 struct opts {
     ulong batch;

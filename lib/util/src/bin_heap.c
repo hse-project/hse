@@ -1,6 +1,6 @@
 /* SPDX-License-Identifier: Apache-2.0 */
 /*
- * Copyright (C) 2015-2021 Micron Technology, Inc.  All rights reserved.
+ * Copyright (C) 2015-2022 Micron Technology, Inc.  All rights reserved.
  */
 
 #include <hse_util/arch.h>
@@ -120,17 +120,13 @@ bin_heap_print(struct bin_heap *bh, bool verbose, void (*printer)(const void *))
             (*printer)(bh->bh_item_ptrs[node]);
 
         if (left < size) {
-            int result = compare_items(bh, node, left);
             /* expect: node <= left */
-            assert(result <= 0);
-            result = result; /*unused*/
+            assert(compare_items(bh, node, left) <= 0);
         }
 
         if (right < size) {
-            int result = compare_items(bh, node, right);
             /* expect: node <= right */
-            assert(result <= 0);
-            result = result; /*unused*/
+            assert(compare_items(bh, node, right) <= 0);
         }
     }
 }
@@ -310,7 +306,7 @@ bin_heap2_create(u32 max_width, bin_heap2_compare_fn *cmp, struct bin_heap2 **bh
     if (HSE_UNLIKELY(max_width < 1 || !cmp || !bh_out))
         return merr(EINVAL);
 
-    sz = BIN_HEAP2_SZ(max_width);
+    sz = sizeof(*bh) + sizeof(struct heap_node) * max_width;
 
     bh = alloc_aligned(sz, HSE_ACP_LINESIZE);
     if (!bh)

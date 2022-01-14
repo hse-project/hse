@@ -64,8 +64,10 @@ static void
 hse_lowmem_adjust(unsigned long *memgb)
 {
     struct hse_gparams gpdef = hse_gparams_defaults();
-    unsigned long      mavail;
+    unsigned long      mavail = 0;
 
+    /* [HSE_REVISIT] mapi breaks initialization of mavail.
+     */
     hse_meminfo(NULL, &mavail, 30);
 
     if (mavail <= HSE_LOWMEM_THRESHOLD_GB_DFLT) {
