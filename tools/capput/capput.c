@@ -625,7 +625,7 @@ main(int argc, char **argv)
 
     sz = (opts.put_threads + opts.cur_threads) * sizeof(*g_ti);
 
-    g_ti = aligned_alloc(alignof(*g_ti), roundup(sz, alignof(*g_ti)));
+    g_ti = aligned_alloc(__alignof__(*g_ti), roundup(sz, __alignof__(*g_ti)));
     if (!g_ti) {
         fatal(ENOMEM, "Allocation failed");
     }

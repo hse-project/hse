@@ -1,6 +1,6 @@
 /* SPDX-License-Identifier: Apache-2.0 */
 /*
- * Copyright (C) 2015-2020 Micron Technology, Inc.  All rights reserved.
+ * Copyright (C) 2015-2020,2022 Micron Technology, Inc.  All rights reserved.
  */
 
 #ifndef HSE_PLATFORM_BIN_HEAP_H
@@ -78,6 +78,10 @@ struct bin_heap2 {
     struct heap_node bh2_elts[];
 };
 
+/* This macro defines a fixed-sized bin heap that is compatible
+ * with struct bin_heap2.  The primary purpose is to eliminate
+ * indirection through a pointer to access the elements array.
+ */
 #define BIN_HEAP2_DEFINE(_bh2_name, _bh2_width)     \
     struct {                                        \
         BIN_HEAP2_BODY;                             \

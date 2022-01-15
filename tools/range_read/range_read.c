@@ -663,7 +663,7 @@ main(
             fatal(ENOMEM, "Failed to allocate memory for latencies");
 
         for (i = 0; i < opts.threads; i++) {
-            rc = posix_memalign((void **)&dt[i].dt, alignof(*dt[i].dt), sizeof(*dt[i].dt) * DT_CNT);
+            rc = posix_memalign((void **)&dt[i].dt, __alignof__(*dt[i].dt), sizeof(*dt[i].dt) * DT_CNT);
             if (rc)
                 fatal(rc, "Failed to allocate memory for latency buffers");
         }

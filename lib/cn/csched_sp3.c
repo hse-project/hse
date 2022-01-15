@@ -2691,9 +2691,9 @@ sp3_create(
     /* Allocate cache aligned space for struct csched + sp->name */
     name_sz = strlen(restname) + strlen(kvdb_alias) + 2;
     alloc_sz = sizeof(*sp) + name_sz;
-    alloc_sz = roundup(alloc_sz, alignof(*sp));
+    alloc_sz = roundup(alloc_sz, __alignof__(*sp));
 
-    sp = aligned_alloc(alignof(*sp), alloc_sz);
+    sp = aligned_alloc(__alignof__(*sp), alloc_sz);
     if (ev(!sp))
         return merr(ENOMEM);
 

@@ -34,7 +34,7 @@
  */
 
 #define PARAM_GET_INVALID(_type, _dst, _dstsz) \
-    ({ ((_dstsz) < sizeof(_type) || !(_dst) || (uintptr_t)(_dst) & (__alignof(_type) - 1)); })
+    ({ ((_dstsz) < sizeof(_type) || !(_dst) || (uintptr_t)(_dst) & (__alignof__(_type) - 1)); })
 
 /**
  * struct hse_log_async_entry - an asynchronous log message in the circular

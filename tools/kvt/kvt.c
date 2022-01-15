@@ -2065,7 +2065,7 @@ kvt_init(const char *keyfile, const char *keyfmt, u_long keymax, bool dump)
         status("loading...");
     }
 
-    tdargv = aligned_alloc(alignof(*tdargv), ijobsmax * sizeof(*tdargv));
+    tdargv = aligned_alloc(__alignof__(*tdargv), ijobsmax * sizeof(*tdargv));
     if (!tdargv) {
         eprint(errno, "calloc tdargv %u %zu", ijobsmax, sizeof(*tdargv));
         return EX_OSERR;
@@ -2610,7 +2610,7 @@ kvt_check(int check, bool dump)
     workq.tail = &workq.head;
     workq.running = true;
 
-    tdargv = aligned_alloc(alignof(*tdargv), cjobs * sizeof(*tdargv));
+    tdargv = aligned_alloc(__alignof__(*tdargv), cjobs * sizeof(*tdargv));
     if (!tdargv) {
         eprint(errno, "calloc tdargv %u %zu", cjobs, sizeof(*tdargv));
         return EX_OSERR;
@@ -3114,7 +3114,7 @@ kvt_test(void)
     sigaddset(&sigmask_block, SIGALRM);
     pthread_sigmask(SIG_BLOCK, &sigmask_block, &sigmask_orig);
 
-    tdargv = aligned_alloc(alignof(*tdargv), tjobsmax * sizeof(*tdargv));
+    tdargv = aligned_alloc(__alignof__(*tdargv), tjobsmax * sizeof(*tdargv));
     if (!tdargv) {
         eprint(errno, "calloc tdargv %u %zu", tjobsmax, sizeof(*tdargv));
         return EX_OSERR;

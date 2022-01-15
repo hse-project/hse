@@ -1,6 +1,6 @@
 /* SPDX-License-Identifier: Apache-2.0 */
 /*
- * Copyright (C) 2021 Micron Technology, Inc.  All rights reserved.
+ * Copyright (C) 2021-2022 Micron Technology, Inc.  All rights reserved.
  */
 
 #include <sys/sysinfo.h>
@@ -212,7 +212,7 @@ wal_io_create(
     size_t sz;
 
     sz = sizeof(*io);
-    io = aligned_alloc(alignof(*io), sz);
+    io = aligned_alloc(__alignof__(*io), sz);
     if (!io)
         return NULL;
 

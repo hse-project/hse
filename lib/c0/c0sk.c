@@ -438,7 +438,7 @@ c0sk_open(
 
     assert(health);
 
-    c0sk = aligned_alloc(alignof(*c0sk), sizeof(*c0sk));
+    c0sk = aligned_alloc(__alignof__(*c0sk), sizeof(*c0sk));
     if (!c0sk) {
         err = merr(ENOMEM);
         goto errout;

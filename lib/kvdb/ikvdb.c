@@ -1086,7 +1086,7 @@ kvdb_kvs_create(void)
 {
     struct kvdb_kvs *kvs;
 
-    kvs = aligned_alloc(alignof(*kvs), sizeof(*kvs));
+    kvs = aligned_alloc(__alignof__(*kvs), sizeof(*kvs));
     if (kvs) {
         memset(kvs, 0, sizeof(*kvs));
         kvs->kk_vcompmin = UINT_MAX;

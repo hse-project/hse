@@ -1,6 +1,6 @@
 /* SPDX-License-Identifier: Apache-2.0 */
 /*
- * Copyright (C) 2021 Micron Technology, Inc.  All rights reserved.
+ * Copyright (C) 2021-2022 Micron Technology, Inc.  All rights reserved.
  *
  * Late Commit (LC) is a layer that sits between c0 and cn. Its primary purpose is to hold
  * uncommitted transactions until they are committed and ready for ingest into cn.
@@ -366,7 +366,7 @@ lc_create(struct lc **handle, struct kvdb_health *health)
     merr_t          err;
     int             i;
 
-    self = aligned_alloc(alignof(*self), sizeof(*self));
+    self = aligned_alloc(__alignof__(*self), sizeof(*self));
     if (ev(!self))
         return merr(ENOMEM);
 

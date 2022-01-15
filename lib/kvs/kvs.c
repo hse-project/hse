@@ -1,6 +1,6 @@
 /* SPDX-License-Identifier: Apache-2.0 */
 /*
- * Copyright (C) 2015-2021 Micron Technology, Inc.  All rights reserved.
+ * Copyright (C) 2015-2022 Micron Technology, Inc.  All rights reserved.
  */
 
 /*
@@ -609,7 +609,7 @@ kvs_create(struct ikvs **ikvs_out, struct kvs_rparams *rp)
 
     *ikvs_out = NULL;
 
-    ikvs = aligned_alloc(alignof(*ikvs), sizeof(*ikvs));
+    ikvs = aligned_alloc(__alignof__(*ikvs), sizeof(*ikvs));
     if (ev(!ikvs))
         return merr(ENOMEM);
 

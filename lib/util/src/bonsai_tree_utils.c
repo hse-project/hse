@@ -1,6 +1,6 @@
 /* SPDX-License-Identifier: Apache-2.0 */
 /*
- * Copyright (C) 2015-2021 Micron Technology, Inc.  All rights reserved.
+ * Copyright (C) 2015-2022 Micron Technology, Inc.  All rights reserved.
  */
 
 #include "bonsai_tree_pvt.h"
@@ -239,10 +239,10 @@ bn_slab_alloc(struct bonsai_root *tree, struct bonsai_slabinfo *slabinfo)
     bool canfree;
 
     if (tree->br_cheap) {
-        slab = cheap_memalign(tree->br_cheap, alignof(*slab), HSE_BT_SLABSZ);
+        slab = cheap_memalign(tree->br_cheap, __alignof__(*slab), HSE_BT_SLABSZ);
         canfree = false;
     } else {
-        slab = aligned_alloc(alignof(*slab), HSE_BT_SLABSZ);
+        slab = aligned_alloc(__alignof__(*slab), HSE_BT_SLABSZ);
         canfree = true;
     }
 

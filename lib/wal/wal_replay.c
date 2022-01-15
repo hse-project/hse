@@ -1,6 +1,6 @@
 /* SPDX-License-Identifier: Apache-2.0 */
 /*
- * Copyright (C) 2021 Micron Technology, Inc.  All rights reserved.
+ * Copyright (C) 2021-2022 Micron Technology, Inc.  All rights reserved.
  */
 
 #include <hse_util/hse_err.h>
@@ -101,7 +101,7 @@ wal_replay_open(struct wal *wal, struct wal_replay_info *rinfo, struct wal_repla
     struct wal_replay *rep;
     merr_t err;
 
-    rep = aligned_alloc(alignof(*rep), sizeof(*rep));
+    rep = aligned_alloc(__alignof__(*rep), sizeof(*rep));
     if (!rep)
         return merr(ENOMEM);
     memset(rep, 0, sizeof(*rep));
@@ -692,7 +692,7 @@ wal_replay_consolidate(struct wal_replay *rep)
 
             assert(rginfo->gen > prev_gen);
 
-            rgen = aligned_alloc(alignof(*rgen), sizeof(*rgen));
+            rgen = aligned_alloc(__alignof__(*rgen), sizeof(*rgen));
             if (!rgen) {
                 err = merr(ENOMEM);
                 break;

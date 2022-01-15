@@ -144,7 +144,6 @@ if cc.get_id() == 'clang'
     assert(get_option('c_std') == 'gnu11', 'Remove this if HSE moves to c11 instead of gnu11')
     add_project_arguments(
         cc.get_supported_arguments([
-            '-Wno-gnu-alignof-expression',
         ]),
         language: 'c'
     )

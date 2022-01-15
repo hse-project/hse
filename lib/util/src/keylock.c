@@ -1,6 +1,6 @@
 /* SPDX-License-Identifier: Apache-2.0 */
 /*
- * Copyright (C) 2015-2021 Micron Technology, Inc.  All rights reserved.
+ * Copyright (C) 2015-2022 Micron Technology, Inc.  All rights reserved.
  */
 
 #define MTF_MOCK_IMPL_keylock
@@ -66,13 +66,13 @@ keylock_create(keylock_cb_fn *cb_func, struct keylock **handle_out)
 
     sz = sizeof(struct keylock_impl);
     sz += sizeof(struct keylock_entry) * KLE_PSL_MAX;
-    sz = roundup(sz + alignof(*table), alignof(*table));
+    sz = roundup(sz + __alignof__(*table), __alignof__(*table));
 
     mem = calloc(1, sz);
     if (!mem)
         return merr(ENOMEM);
 
-    table = PTR_ALIGN(mem, alignof(*table));
+    table = PTR_ALIGN(mem, __alignof__(*table));
     table->kli_fullhwm = KLE_PSL_MAX * 90 / 100;
     table->kli_cb_func = cb_func ? cb_func : keylock_cb_func;
     table->kli_mem = mem;

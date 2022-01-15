@@ -1,6 +1,6 @@
 /* SPDX-License-Identifier: Apache-2.0 */
 /*
- * Copyright (C) 2015-2021 Micron Technology, Inc.  All rights reserved.
+ * Copyright (C) 2015-2022 Micron Technology, Inc.  All rights reserved.
  */
 
 #define MTF_MOCK_IMPL_cn
@@ -902,7 +902,7 @@ cn_tstate_create(struct cn *cn)
     void *                 ptr;
     size_t                 sz;
 
-    impl = alloc_aligned(sizeof(*impl), alignof(*impl));
+    impl = alloc_aligned(sizeof(*impl), __alignof__(*impl));
     if (ev(!impl))
         return merr(ENOMEM);
 
@@ -1075,7 +1075,7 @@ cn_open(
     if (!rp)
         sz += sizeof(*rp);
 
-    cn = alloc_aligned(sz, alignof(*cn));
+    cn = alloc_aligned(sz, __alignof__(*cn));
     if (ev(!cn))
         return merr(ENOMEM);
 

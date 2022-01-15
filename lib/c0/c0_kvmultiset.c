@@ -1050,7 +1050,8 @@ c0kvms_init(void)
 
     assert(c0kvms_cache == NULL);
 
-    c0kvms_cache = kmem_cache_create("c0kvms", sizeof(**kvmsv), alignof(**kvmsv), SLAB_PACKED, NULL);
+    c0kvms_cache = kmem_cache_create("c0kvms", sizeof(**kvmsv), __alignof__(**kvmsv),
+                                     SLAB_PACKED, NULL);
     if (!c0kvms_cache)
         return merr(ENOMEM);
 

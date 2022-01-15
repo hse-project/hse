@@ -1,6 +1,6 @@
 /* SPDX-License-Identifier: Apache-2.0 */
 /*
- * Copyright (C) 2021 Micron Technology, Inc.  All rights reserved.
+ * Copyright (C) 2021-2022 Micron Technology, Inc.  All rights reserved.
  */
 
 #define MTF_MOCK_IMPL_wal
@@ -563,7 +563,7 @@ wal_open(
 
     *wal_out = NULL;
 
-    wal = aligned_alloc(alignof(*wal), sizeof(*wal));
+    wal = aligned_alloc(__alignof__(*wal), sizeof(*wal));
     if (!wal)
         return merr(ENOMEM);
 

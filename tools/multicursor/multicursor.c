@@ -1,6 +1,6 @@
 /* SPDX-License-Identifier: Apache-2.0 */
 /*
- * Copyright (C) 2018 Micron Technology, Inc.  All rights reserved.
+ * Copyright (C) 2018,2022 Micron Technology, Inc.  All rights reserved.
  *
  * This test loads a number of keys and uses multiple cursors to verify the
  * various ranges of the key space.
@@ -365,7 +365,7 @@ main(int argc, char **argv)
 	/* Load phase */
 	sz = (opts.threads) * sizeof(*g_ti);
 
-	g_ti = aligned_alloc(alignof(*g_ti), sz);
+	g_ti = aligned_alloc(__alignof__(*g_ti), sz);
 	if (!g_ti) {
 		pg_destroy(pg);
 		fatal(ENOMEM, "Allocation failed");
