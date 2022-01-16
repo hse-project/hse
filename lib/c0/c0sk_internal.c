@@ -1022,7 +1022,7 @@ merr_t
 c0sk_queue_ingest(struct c0sk_impl *self, struct c0_kvmultiset *old)
 {
     struct c0_kvmultiset *new;
-    atomic_intptr_t *stashp;
+    void * _Atomic *stashp;
     merr_t err;
 
     c0kvms_ingesting(old);

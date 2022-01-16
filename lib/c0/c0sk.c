@@ -434,7 +434,7 @@ c0sk_open(
     struct c0sk_impl *    c0sk;
     merr_t                err;
     uint                  tdmax;
-    atomic_intptr_t      *stashp;
+    void * _Atomic       *stashp;
 
     assert(health);
 
