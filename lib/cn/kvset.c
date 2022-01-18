@@ -1,6 +1,6 @@
 /* SPDX-License-Identifier: Apache-2.0 */
 /*
- * Copyright (C) 2015-2021 Micron Technology, Inc.  All rights reserved.
+ * Copyright (C) 2015-2022 Micron Technology, Inc.  All rights reserved.
  */
 
 #include <hse_util/hse_err.h>
@@ -466,7 +466,7 @@ kvset_create2(
          sizeof(ks->ks_vbsetv[0]) * vbsetc + sizeof(ks->ks_vblk2mbs[0]) * n_vblks);
 
     if (ev(alloc_len > kvset_cache[0].sz))
-        ks = alloc_aligned(alloc_len, alignof(*ks));
+        ks = alloc_aligned(alloc_len, __alignof__(*ks));
     else if (alloc_len > kvset_cache[1].sz)
         ks = kmem_cache_alloc(kvset_cache[0].cache);
     else if (alloc_len > kvset_cache[2].sz)

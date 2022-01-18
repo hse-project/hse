@@ -167,9 +167,9 @@ kvdb_keylock_create(struct kvdb_keylock **handle_out, u32 num_tables)
 
     sz = sizeof(*klock);
     sz += num_tables * sizeof(struct keylock *);
-    sz = ALIGN(sz, alignof(*klock));
+    sz = ALIGN(sz, __alignof__(*klock));
 
-    klock = alloc_aligned(sz, alignof(*klock));
+    klock = alloc_aligned(sz, __alignof__(*klock));
     if (ev(!klock))
         return merr(ENOMEM);
 

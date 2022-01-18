@@ -1,6 +1,6 @@
 /* SPDX-License-Identifier: Apache-2.0 */
 /*
- * Copyright (C) 2015-2021 Micron Technology, Inc.  All rights reserved.
+ * Copyright (C) 2015-2022 Micron Technology, Inc.  All rights reserved.
  */
 
 #include <hse_util/platform.h>
@@ -37,7 +37,7 @@ rmlock_init(struct rmlock *lock)
 
     sz = sizeof(*lock->rm_bktv) * RMLOCK_MAX;
 
-    lock->rm_bktv = aligned_alloc(alignof(*lock->rm_bktv), sz);
+    lock->rm_bktv = aligned_alloc(__alignof__(*lock->rm_bktv), sz);
     if (!lock->rm_bktv)
         return merr(ENOMEM);
 

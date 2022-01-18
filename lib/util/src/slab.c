@@ -1,6 +1,6 @@
 /* SPDX-License-Identifier: Apache-2.0 */
 /*
- * Copyright (C) 2015-2021 Micron Technology, Inc.  All rights reserved.
+ * Copyright (C) 2015-2022 Micron Technology, Inc.  All rights reserved.
  */
 
 #define MTF_MOCK_IMPL_slab
@@ -907,7 +907,7 @@ kmem_cache_create(const char *name, size_t size, size_t align, ulong flags, void
     if (ctor)
         return NULL;
 
-    align = max_t(size_t, align, _Alignof(max_align_t));
+    align = max_t(size_t, align, alignof(max_align_t));
 
     if (flags & SLAB_HWCACHE_ALIGN)
         align = ALIGN(align, HSE_L1D_LINESIZE);
@@ -932,7 +932,7 @@ kmem_cache_create(const char *name, size_t size, size_t align, ulong flags, void
     if (iasz > slab_sz / 2)
         return NULL;
 
-    zone = aligned_alloc(alignof(*zone), sizeof(*zone) + descmax * 8);
+    zone = aligned_alloc(__alignof__(*zone), sizeof(*zone) + descmax * 8);
     if (ev(!zone))
         return NULL;
 

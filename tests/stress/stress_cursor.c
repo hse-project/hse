@@ -1,6 +1,6 @@
 /* SPDX-License-Identifier: Apache-2.0 */
 /*
- * Copyright (C) 2021 Micron Technology, Inc.  All rights reserved.
+ * Copyright (C) 2021-2022 Micron Technology, Inc.  All rights reserved.
  */
 
 #include <assert.h>
@@ -18,6 +18,7 @@
 #include <unistd.h>
 
 #include <hse/hse.h>
+#include <hse_util/compiler.h>
 #include "stress_util.h"
 
 #define MAX_KEY_LEN HSE_KVS_KLEN_MAX
@@ -738,7 +739,6 @@ spawn_threads(
     char                    buf[100];
     struct cursor_test_data args[MAX_THREAD];
     int                     rc;
-    int                     n;
 
     log_info("number of processors: %d", numberOfProcessors);
     log_info("spawning %d thread(s), fun_name=\"%s\"", params->thread_count, fun_name);
@@ -747,6 +747,7 @@ spawn_threads(
         int            rc, j;
         pthread_attr_t attr;
         cpu_set_t      cpus;
+        int n HSE_MAYBE_UNUSED;
 
         pthread_attr_init(&attr);
 
@@ -784,7 +785,6 @@ spawn_threads(
 
         n = snprintf(buf, sizeof(buf), "%s-%03d", fun_name, thread);
         assert(n < sizeof(buf));
-        n = n; /* unused */
 
         pthread_setname_np(thread_info[thread], buf);
     }

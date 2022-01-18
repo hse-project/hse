@@ -1,6 +1,6 @@
 /* SPDX-License-Identifier: Apache-2.0 */
 /*
- * Copyright (C) 2015-2021 Micron Technology, Inc.  All rights reserved.
+ * Copyright (C) 2015-2022 Micron Technology, Inc.  All rights reserved.
  */
 
 #ifndef HSE_PLATFORM_ATOMIC_H
@@ -92,7 +92,7 @@
 #define atomic_cas(_ptr, _old, _new)                            \
     ({                                                          \
         typeof(_ptr) ptr = (_ptr);                              \
-        typeof(*ptr) exp = (_old);                              \
+        typeof(_old) exp = (_old);                              \
                                                                 \
         atomic_compare_exchange_strong(ptr, &exp, (_new));      \
     })

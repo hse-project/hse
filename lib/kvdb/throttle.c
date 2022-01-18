@@ -1,6 +1,6 @@
 /* SPDX-License-Identifier: Apache-2.0 */
 /*
- * Copyright (C) 2015-2021 Micron Technology, Inc.  All rights reserved.
+ * Copyright (C) 2015-2022 Micron Technology, Inc.  All rights reserved.
  */
 
 #include <hse_util/minmax.h>
@@ -113,7 +113,7 @@ throttle_init(struct throttle *self, struct kvdb_rparams *rp, const char *kvdb_a
     char group[128];
     int i;
 
-    assert(IS_ALIGNED((uintptr_t)self, alignof(*self)));
+    assert(IS_ALIGNED((uintptr_t)self, __alignof__(*self)));
 
     snprintf(group, sizeof(group), "kvdb/%s", kvdb_alias);
 

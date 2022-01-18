@@ -1,6 +1,6 @@
 /* SPDX-License-Identifier: Apache-2.0 */
 /*
- * Copyright (C) 2015-2021 Micron Technology, Inc.  All rights reserved.
+ * Copyright (C) 2015-2022 Micron Technology, Inc.  All rights reserved.
  */
 
 #define MTF_MOCK_IMPL_alloc
@@ -16,8 +16,8 @@ alloc_aligned(size_t size, size_t align)
     if ((align & (align - 1)) || align > UINT32_MAX || size > UINT32_MAX)
         return NULL;
 
-    if (align < _Alignof(max_align_t))
-        align = _Alignof(max_align_t);
+    if (align < alignof(max_align_t))
+        align = alignof(max_align_t);
 
     mem = malloc(size + align);
     if (mem) {

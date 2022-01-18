@@ -1,6 +1,6 @@
 /* SPDX-License-Identifier: Apache-2.0 */
 /*
- * Copyright (C) 2021 Micron Technology, Inc.  All rights reserved.
+ * Copyright (C) 2021-2022 Micron Technology, Inc.  All rights reserved.
  */
 
 #include <hse_util/logging.h>
@@ -247,8 +247,10 @@ wal_mdc_replay(struct wal_mdc *mdc, struct wal *wal)
 
     while (!err) {
         enum wal_rec_type rtype;
-        size_t rdlen;
+        size_t rdlen = 0;
 
+        /* [HSE_REVISIT] mapi break initialization of rdlen.
+         */
         err = mpool_mdc_read(mdc->mp_mdc, mdc->buf, WAL_BUF_SZ, &rdlen);
         if (rdlen == 0 || err)
             break;

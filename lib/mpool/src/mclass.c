@@ -1,6 +1,6 @@
 /* SPDX-License-Identifier: Apache-2.0 */
 /*
- * Copyright (C) 2021 Micron Technology, Inc.  All rights reserved.
+ * Copyright (C) 2021-2022 Micron Technology, Inc.  All rights reserved.
  */
 
 #include <ftw.h>
@@ -434,28 +434,31 @@ mclass_props_get(struct media_class *const mc, struct mpool_mclass_props *const 
     strlcpy(props->mc_path, mc->upath, sizeof(props->mc_path));
 }
 
+static thread_local struct mpool_file_cb *mclass_ftw_cb;
+static thread_local const char *mclass_ftw_prefix;
+
+static int
+mclass_file_cb(const char *path, const struct stat *sb, int typeflag, struct FTW *ftwbuf)
+{
+    if (typeflag == FTW_D && ftwbuf->level > 0)
+        return FTW_SKIP_SUBTREE;
+
+    if (typeflag == FTW_D)
+        return FTW_CONTINUE;
+
+    if (!mclass_ftw_prefix || strstr(basename(path), mclass_ftw_prefix))
+        mclass_ftw_cb->cbfunc(mclass_ftw_cb->cbarg, path);
+
+    return FTW_CONTINUE;
+}
+
 merr_t
 mclass_ftw(struct media_class *mc, const char *prefix, struct mpool_file_cb *cb)
 {
     assert(mc);
 
-    /* [HSE_REVISIT]: No nested functions please :). GCC only and my editor
-     * hates it.
-     */
-    int
-    mclass_file_cb(const char *path, const struct stat *sb, int typeflag, struct FTW *ftwbuf)
-    {
-        if (typeflag == FTW_D && ftwbuf->level > 0)
-            return FTW_SKIP_SUBTREE;
-
-        if (typeflag == FTW_D)
-            return FTW_CONTINUE;
-
-        if (!prefix || strstr(basename(path), prefix))
-            cb->cbfunc(cb->cbarg, path);
-
-        return FTW_CONTINUE;
-    }
+    mclass_ftw_prefix = prefix;
+    mclass_ftw_cb = cb;
 
     nftw(mc->dpath, mclass_file_cb, MPOOL_MCLASS_FILECNT_MAX, FTW_PHYS | FTW_ACTIONRETVAL);
 

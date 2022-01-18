@@ -1,6 +1,6 @@
 /* SPDX-License-Identifier: Apache-2.0 */
 /*
- * Copyright (C) 2015-2019,2021 Micron Technology, Inc.  All rights reserved.
+ * Copyright (C) 2015-2019,2021-2022 Micron Technology, Inc.  All rights reserved.
  */
 
 #include <errno.h>
@@ -294,7 +294,7 @@ ctxn_validation_basic_collision(void)
     char                    key[64];
     u32                     vtxn;
 
-    tdargsv = aligned_alloc(alignof(*tdargsv), sizeof(*tdargsv) * jobsmax);
+    tdargsv = aligned_alloc(__alignof__(*tdargsv), sizeof(*tdargsv) * jobsmax);
     if (!tdargsv)
         abort();
 
@@ -798,7 +798,7 @@ spawn(spawn_cb_t *func)
     for (i = 0; i < NELEM(barv); ++i)
         pthread_barrier_init(&barv[i], NULL, jobsmax);
 
-    tdargsv = aligned_alloc(alignof(*tdargsv), sizeof(*tdargsv) * jobsmax);
+    tdargsv = aligned_alloc(__alignof__(*tdargsv), sizeof(*tdargsv) * jobsmax);
     if (!tdargsv)
         abort();
 

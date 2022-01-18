@@ -244,7 +244,7 @@ cn_node_size(void)
 
     sz = sizeof(*node) + sizeof(*node->tn_childv) * CN_FANOUT_MAX;
 
-    return ALIGN(sz, alignof(*node));
+    return ALIGN(sz, __alignof__(*node));
 }
 
 static struct cn_tree_node *
@@ -345,7 +345,7 @@ cn_tree_create(
     if (ev(cp->pfx_len > HSE_KVS_PFX_LEN_MAX))
         return merr(EINVAL);
 
-    tree = alloc_aligned(sizeof(*tree), alignof(*tree));
+    tree = alloc_aligned(sizeof(*tree), __alignof__(*tree));
     if (ev(!tree))
         return merr(ENOMEM);
 
@@ -1531,9 +1531,11 @@ cn_tree_capped_compact(struct cn_tree *tree)
     /* Step 1: Identify the kvsets that can be retired.
      */
     for (le = last; le != first; le = list_prev_entry(le, le_link)) {
-        void *max_key;
+        void *max_key = NULL;
         uint  max_klen;
 
+        /* [HSE_REVISIT] mapi breaks initialization of max_key.
+         */
         kvset_get_max_key(le->le_kvset, &max_key, &max_klen);
 
         if (max_key && (!pt_len || kvset_get_seqno_max(le->le_kvset) >= horizon ||

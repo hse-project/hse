@@ -736,7 +736,7 @@ perfc_alloc_impl(
         return 0;
     }
 
-    dte = aligned_alloc(alignof(*dte), sizeof(*dte));
+    dte = aligned_alloc(__alignof__(*dte), sizeof(*dte));
     if (ev(!dte)) {
         err = merr(ENOMEM);
         goto errout;

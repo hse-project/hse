@@ -18,6 +18,7 @@
 #include <unistd.h>
 
 #include <hse/experimental.h>
+#include <hse_util/compiler.h>
 
 int DEBUG = 0;
 
@@ -47,11 +48,10 @@ log_print(int level, const char *fmt, ...)
     va_list    args;
     time_t     t = time(NULL);
     struct tm *lt = localtime(&t);
-    int        n;
+    int n HSE_MAYBE_UNUSED;
 
     n = strftime(buf, sizeof(buf), "%Y-%m-%dT%H:%M:%S%z", lt);
     assert(n > 0);
-    n = n; /* unused */
 
     printf("[%s %-5s] ", buf, level_names[level]);
 
@@ -65,11 +65,10 @@ log_print(int level, const char *fmt, ...)
 void
 gen_kvs_ext_name(char *dest, size_t dest_size, const char *base_kvs_name, long int txn, int rank)
 {
-    int n;
+    int n HSE_MAYBE_UNUSED;
 
     n = snprintf(dest, dest_size, "%s_r%d_t%ld", base_kvs_name, rank, txn);
     assert(n < dest_size);
-    n = n; /* unused */
 }
 
 void
@@ -100,7 +99,7 @@ generate_record(
     const char *val_data,
     long        key_idx)
 {
-    int n;
+    int n HSE_MAYBE_UNUSED;
 
     assert(val_len <= val_buf_size);
     assert(key_len <= key_buf_size);
@@ -109,7 +108,6 @@ generate_record(
     // size param to snprintf includes terminating null byte
     n = snprintf(key_buf, key_buf_size, "%0*ld", key_len - 1, key_idx);
     assert(n < key_buf_size);
-    n = n; /* unused */
 
     if (val_len > key_len) {
         int val_pfx_len = val_len - key_len;

@@ -1,6 +1,6 @@
 /* SPDX-License-Identifier: Apache-2.0 */
 /*
- * Copyright (C) 2015-2021 Micron Technology, Inc.  All rights reserved.
+ * Copyright (C) 2015-2022 Micron Technology, Inc.  All rights reserved.
  */
 
 #include <hse_util/slab.h>
@@ -454,11 +454,11 @@ c0kvs_create(
         c0kvs_destroy_impl(set);
     }
 
-    cheap = cheap_create(_Alignof(max_align_t), alloc_sz);
+    cheap = cheap_create(__alignof__(max_align_t), alloc_sz);
     if (ev(!cheap))
         return merr(ENOMEM);
 
-    set = cheap_memalign(cheap, alignof(*set), sizeof(*set));
+    set = cheap_memalign(cheap, __alignof__(*set), sizeof(*set));
     if (ev(!set)) {
         cheap_destroy(cheap);
         return merr(ENOMEM);

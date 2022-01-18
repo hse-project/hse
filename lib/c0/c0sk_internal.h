@@ -111,7 +111,7 @@ struct c0sk_impl {
     u32        c0sk_ingest_width HSE_L1D_ALIGNED;
     int        c0sk_boost;
     char      *c0sk_kvdb_alias;
-    void      *c0sk_stash;
+    void * _Atomic c0sk_stash;
 
     struct {
         atomic_int refcnt HSE_ACP_ALIGNED;

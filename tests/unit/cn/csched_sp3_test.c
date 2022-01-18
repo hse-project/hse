@@ -448,6 +448,7 @@ MTF_DEFINE_UTEST_PRE(test, t_sp3_create, pre_test)
     sp3_destroy(cs);
 }
 
+#ifndef __clang__
 MTF_DEFINE_UTEST_PRE(test, t_sp3_create_nomem, pre_test)
 {
     struct csched *cs = NULL;
@@ -480,6 +481,7 @@ MTF_DEFINE_UTEST_PRE(test, t_sp3_create_nomem, pre_test)
 
     mapi_inject_unset(mapi_idx_perfc_alloc_impl);
 }
+#endif
 
 MTF_DEFINE_UTEST_PRE(test, t_sp3_create_fail, pre_test)
 {

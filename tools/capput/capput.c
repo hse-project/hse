@@ -1,6 +1,6 @@
 /* SPDX-License-Identifier: Apache-2.0 */
 /*
- * Copyright (C) 2018 Micron Technology, Inc.  All rights reserved.
+ * Copyright (C) 2018,2022 Micron Technology, Inc.  All rights reserved.
  *
  * This test emulates the behavior of a capped kvs.
  *
@@ -66,7 +66,6 @@ int exrc;
 
 static volatile bool killthreads;
 static volatile bool exit_puts;
-static volatile int progress;
 
 struct opts {
     ulong batch;
@@ -626,7 +625,7 @@ main(int argc, char **argv)
 
     sz = (opts.put_threads + opts.cur_threads) * sizeof(*g_ti);
 
-    g_ti = aligned_alloc(alignof(*g_ti), roundup(sz, alignof(*g_ti)));
+    g_ti = aligned_alloc(__alignof__(*g_ti), roundup(sz, __alignof__(*g_ti)));
     if (!g_ti) {
         fatal(ENOMEM, "Allocation failed");
     }

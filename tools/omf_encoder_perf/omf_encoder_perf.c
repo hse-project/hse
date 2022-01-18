@@ -1,6 +1,6 @@
 /* SPDX-License-Identifier: Apache-2.0 */
 /*
- * Copyright (C) 2015-2020 Micron Technology, Inc.  All rights reserved.
+ * Copyright (C) 2015-2020,2020 Micron Technology, Inc.  All rights reserved.
  */
 
 #include <hse_util/platform.h>
@@ -573,8 +573,8 @@ run_kmd_write_perf(struct kmd_test_stats *s)
 void
 run_kmd_read_perf(struct kmd_test_stats *s)
 {
-    u64            off, seq, rx, rval, exp_seq;
-    unsigned       i, count, exp_count;
+    u64            off, seq, rx, rval;
+    unsigned       i, count;
     enum kmd_vtype vtype;
     uint           vbidx, vboff, vlen, clen;
     const void *   vdata;
@@ -583,6 +583,8 @@ run_kmd_read_perf(struct kmd_test_stats *s)
     rx = 0;
 
     while (true) {
+        unsigned exp_count HSE_MAYBE_UNUSED;
+        u64 exp_seq HSE_MAYBE_UNUSED;
 
         rval = randv[(randc - 1) & rx++];
         exp_count = (rval & 3) + 1;
@@ -591,9 +593,8 @@ run_kmd_read_perf(struct kmd_test_stats *s)
         count = kmd_count(mem, &off);
         if (count == 0)
             break;
+
         assert(count == exp_count);
-        exp_count = exp_count;
-        exp_seq = exp_seq;
 
         s->nkeys++;
         s->nseqs += count;

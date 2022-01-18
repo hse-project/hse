@@ -114,7 +114,7 @@ sts_create(const char *name, uint nq, sts_print_fn *print_fn, struct sts **handl
 
     *handle = NULL;
 
-    self = aligned_alloc(alignof(*self), sizeof(*self));
+    self = aligned_alloc(__alignof__(*self), sizeof(*self));
     if (ev(!self))
         return merr(ENOMEM);
 

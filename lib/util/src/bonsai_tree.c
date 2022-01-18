@@ -1,6 +1,6 @@
 /* SPDX-License-Identifier: Apache-2.0 */
 /*
- * Copyright (C) 2015-2021 Micron Technology, Inc.  All rights reserved.
+ * Copyright (C) 2015-2022 Micron Technology, Inc.  All rights reserved.
  */
 
 #include <hse_util/log2.h>
@@ -828,9 +828,9 @@ bn_create(
     sz = sizeof(*r) + PAGE_SIZE + HSE_BT_SLABSZ * NELEM(r->br_slabinfov);
 
     if (cheap) {
-        r = cheap_memalign(cheap, alignof(*r), sz);
+        r = cheap_memalign(cheap, __alignof__(*r), sz);
     } else {
-        r = aligned_alloc(alignof(*r), sz);
+        r = aligned_alloc(__alignof__(*r), sz);
     }
 
     if (!r)

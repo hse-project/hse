@@ -434,11 +434,11 @@ c0sk_open(
     struct c0sk_impl *    c0sk;
     merr_t                err;
     uint                  tdmax;
-    void                **stashp;
+    void * _Atomic       *stashp;
 
     assert(health);
 
-    c0sk = aligned_alloc(alignof(*c0sk), sizeof(*c0sk));
+    c0sk = aligned_alloc(__alignof__(*c0sk), sizeof(*c0sk));
     if (!c0sk) {
         err = merr(ENOMEM);
         goto errout;

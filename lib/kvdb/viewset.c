@@ -1,6 +1,6 @@
 /* SPDX-License-Identifier: Apache-2.0 */
 /*
- * Copyright (C) 2015-2021 Micron Technology, Inc.  All rights reserved.
+ * Copyright (C) 2015-2022 Micron Technology, Inc.  All rights reserved.
  */
 
 #include <hse_util/assert.h>
@@ -128,7 +128,7 @@ viewset_tree_create(u32 max_elts, u32 index, struct viewset_tree **tree)
     sz = sizeof(*self);
     sz += sizeof(self->vst_entryv[0]) * max_elts;
 
-    self = alloc_aligned(sz, alignof(*self));
+    self = alloc_aligned(sz, __alignof__(*self));
     if (ev(!self))
         return merr(ENOMEM);
 
@@ -182,7 +182,7 @@ viewset_create(struct viewset **handle, atomic_ulong *kvdb_seqno_addr, atomic_ul
 
     max_elts = HSE_VIEWSET_ELTS_MAX / VIEWSET_BKT_MAX;
 
-    self = alloc_aligned(sizeof(*self), alignof(*self));
+    self = alloc_aligned(sizeof(*self), __alignof__(*self));
     if (ev(!self))
         return merr(ENOMEM);
 

@@ -1,6 +1,6 @@
 /* SPDX-License-Identifier: Apache-2.0 */
 /*
- * Copyright (C) 2015-2020 Micron Technology, Inc.  All rights reserved.
+ * Copyright (C) 2015-2020,2022 Micron Technology, Inc.  All rights reserved.
  */
 
 #ifndef HSE_PLATFORM_BIN_HEAP_H
@@ -50,15 +50,6 @@ bin_heap_delete_top(struct bin_heap *bh);
 
 /* ------------------------------------------------------------------------ */
 
-#define BIN_HEAP2_SZ(_bh2_width) \
-    (sizeof(struct bin_heap2) + sizeof(struct heap_node) * (_bh2_width))
-
-#define BIN_HEAP2_DEFINE(_bh2_name, _bh2_width)                 \
-    union {                                                     \
-        struct bin_heap2 _bh2_name;                             \
-        char _bh2_name ## _data[BIN_HEAP2_SZ(_bh2_width)];      \
-    }
-
 struct bin_heap2;
 
 /*
@@ -75,12 +66,27 @@ struct heap_node {
     struct element_source *hn_es;
 };
 
+#define BIN_HEAP2_BODY                          \
+    struct {                                    \
+        int                   bh2_width;        \
+        int                   bh2_max_width;    \
+        bin_heap2_compare_fn *bh2_cmp;          \
+    }
+
 struct bin_heap2 {
-    int                   bh2_width;
-    int                   bh2_max_width;
-    bin_heap2_compare_fn *bh2_cmp;
-    struct heap_node      bh2_elts[];
+    BIN_HEAP2_BODY;
+    struct heap_node bh2_elts[];
 };
+
+/* This macro defines a fixed-sized bin heap that is compatible
+ * with struct bin_heap2.  The primary purpose is to eliminate
+ * indirection through a pointer to access the elements array.
+ */
+#define BIN_HEAP2_DEFINE(_bh2_name, _bh2_width)     \
+    struct {                                        \
+        BIN_HEAP2_BODY;                             \
+        struct heap_node bh2_elts[(_bh2_width)];    \
+    } _bh2_name
 
 u32
 bin_heap2_width(struct bin_heap2 *bh);

@@ -204,7 +204,7 @@ kvdb_ctxn_alloc(
 
     kvdb_ctxn_set = kvdb_ctxn_set_h2r(kcs_handle);
 
-    ctxn = alloc_aligned(sizeof(*ctxn), alignof(*ctxn));
+    ctxn = alloc_aligned(sizeof(*ctxn), __alignof__(*ctxn));
     if (ev(!ctxn))
         return NULL;
 
@@ -693,7 +693,7 @@ kvdb_ctxn_set_create(struct kvdb_ctxn_set **handle_out, u64 txn_timeout_ms, u64 
 
     *handle_out = 0;
 
-    ktn = alloc_aligned(sizeof(*ktn), alignof(*ktn));
+    ktn = alloc_aligned(sizeof(*ktn), __alignof__(*ktn));
     if (ev(!ktn))
         return merr(ENOMEM);
 
@@ -781,15 +781,16 @@ kvdb_ctxn_cursor_bind(struct kvdb_ctxn *handle)
         return 0;
 
     if (!bind) {
-        struct kvdb_ctxn_bind *old = NULL;
+        intptr_t old = 0;
 
         /* HSE_REVISIT Consider using a cache for this */
         bind = calloc(1, sizeof(*bind));
         if (!bind)
             return 0;
+
         bind->b_ctxn = handle;
 
-        if (!atomic_cmpxchg(&ctxn->ctxn_bind, &old, bind)) {
+        if (!atomic_cmpxchg((atomic_intptr_t *)&ctxn->ctxn_bind, &old, (intptr_t)bind)) {
             free(bind);
             bind = ctxn->ctxn_bind;
         }

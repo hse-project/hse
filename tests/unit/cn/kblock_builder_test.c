@@ -255,6 +255,7 @@ MTF_DEFINE_UTEST_PRE(test, t_kbb_create1, test_setup)
     kbb_destroy(kbb);
 }
 
+#ifndef __clang__
 /* Test: kbb_create failures w/ ENOMEM */
 MTF_DEFINE_UTEST_PRE(test, t_kbb_create_fail_nomem, test_setup)
 {
@@ -284,6 +285,7 @@ MTF_DEFINE_UTEST_PRE(test, t_kbb_create_fail_nomem, test_setup)
     rc = mapi_alloc_tester(lcl_ti, run, clean);
     ASSERT_EQ(rc, 0);
 }
+#endif
 
 /* Test: simple kbb_add_entry success case */
 MTF_DEFINE_UTEST_PRE(test, t_kbb_add_entry_success, test_setup)

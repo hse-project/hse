@@ -1,6 +1,6 @@
 /* SPDX-License-Identifier: Apache-2.0 */
 /*
- * Copyright (C) 2021 Micron Technology, Inc.  All rights reserved.
+ * Copyright (C) 2021-2022 Micron Technology, Inc.  All rights reserved.
  *
  * The pfxlock is a collection of rbtrees that maintain shared and exclusive locks. Each entry
  * contains an end_seqno which is set at the time of commit/abort. An entry can be deleted only
@@ -123,7 +123,7 @@ kvdb_pfxlock_entry_alloc(struct kvdb_pfxlock_tree *tree)
         return e;
     }
 
-    return aligned_alloc(alignof(*e), sizeof(*e));
+    return aligned_alloc(__alignof__(*e), sizeof(*e));
 }
 
 merr_t
@@ -132,7 +132,7 @@ kvdb_pfxlock_create(struct viewset *txn_viewset, struct kvdb_pfxlock **pfxlock_o
     struct kvdb_pfxlock *pfxlock;
     int i, j;
 
-    pfxlock = aligned_alloc(alignof(*pfxlock), sizeof(*pfxlock));
+    pfxlock = aligned_alloc(__alignof__(*pfxlock), sizeof(*pfxlock));
     if (ev(!pfxlock))
         return merr(ENOMEM);
 

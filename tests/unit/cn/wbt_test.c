@@ -277,10 +277,13 @@ tree_construct(struct mtf_test_info *lcl_ti, void **tree_out, struct wbt_hdr_omf
 
     for (i = 0; i < key_list.nkeys; i++) {
         struct key_obj ko;
-        bool           added;
+        bool added = false;
 
         key2kobj(&ko, k->kdata, k->klen);
         kmd_add_zval(kmd, &kmd_used, 1);
+
+        /* [HSE_REVISIT] mapi break initialization of added.
+         */
         wbb_add_entry(wbb, &ko, 1, kmd, kmd_used, max_pgc, &wbt_pgc, &added);
         ASSERT_TRUE_RET(added, 1);
         kmd_used = 0;

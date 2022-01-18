@@ -1,6 +1,6 @@
 /* SPDX-License-Identifier: Apache-2.0 */
 /*
- * Copyright (C) 2021 Micron Technology, Inc.  All rights reserved.
+ * Copyright (C) 2021-2022 Micron Technology, Inc.  All rights reserved.
  */
 
 #include <bsd/string.h>
@@ -182,7 +182,7 @@ wal_fileset_open(
 {
     struct wal_fileset *wfset;
 
-    wfset = aligned_alloc(alignof(*wfset), sizeof(*wfset));
+    wfset = aligned_alloc(__alignof__(*wfset), sizeof(*wfset));
     if (!wfset)
         return NULL;
 
@@ -247,7 +247,7 @@ wal_file_open(
     if (err)
         return err;
 
-    wfile = aligned_alloc(alignof(*wfile), sizeof(*wfile));
+    wfile = aligned_alloc(__alignof__(*wfile), sizeof(*wfile));
     if (!wfile) {
         mpool_file_close(mpf);
         return merr(ENOMEM);
@@ -648,7 +648,7 @@ discard:
     }
 
     sz = fcnt * sizeof(*rginfo);
-    rginfo = aligned_alloc(alignof(*rginfo), sz);
+    rginfo = aligned_alloc(__alignof__(*rginfo), sz);
     if (!rginfo) {
         err = merr(ENOMEM);
         goto exit;

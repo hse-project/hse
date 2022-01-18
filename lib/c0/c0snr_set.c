@@ -1,6 +1,6 @@
 /* SPDX-License-Identifier: Apache-2.0 */
 /*
- * Copyright (C) 2021 Micron Technology, Inc.  All rights reserved.
+ * Copyright (C) 2021-2022 Micron Technology, Inc.  All rights reserved.
  */
 
 #include <hse_util/arch.h>
@@ -137,7 +137,7 @@ c0snr_set_list_create(u32 max_elts, u32 index, struct c0snr_set_list **tree)
     void *                 vlb;
 
     sz = sizeof(*self) + sizeof(self->act_entryv[0]) * max_elts;
-    sz += alignof(*self) * 8;
+    sz += __alignof__(*self) * 8;
     sz = roundup(sz, 4ul << 20);
 
     vlb = vlb_alloc(sz);
@@ -147,7 +147,7 @@ c0snr_set_list_create(u32 max_elts, u32 index, struct c0snr_set_list **tree)
     /* Mitigate cacheline aliasing by offsetting into mem some number of
      * cache lines, then recompute max_elts based on the remaining space.
      */
-    self = vlb + __alignof(*self) * (index % 8);
+    self = vlb + __alignof__(*self) * (index % 8);
     max_elts = (sz - ((void *)self->act_entryv - vlb)) / sizeof(self->act_entryv[0]);
 
     memset(self, 0, sizeof(*self));
@@ -179,7 +179,7 @@ c0snr_set_create(struct c0snr_set **handle)
     max_bkts = NELEM(self->css_bktv);
     max_elts = HSE_C0SNRSET_ELTS_MAX / max_bkts;
 
-    self = alloc_aligned(sizeof(*self), alignof(*self));
+    self = alloc_aligned(sizeof(*self), __alignof__(*self));
     if (ev(!self))
         return merr(ENOMEM);
 

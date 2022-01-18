@@ -2697,6 +2697,7 @@ MTF_DEFINE_UTEST_PREPOST(c0sk_test, c0_deregister, no_fail_pre, no_fail_post)
     err = create_mock_cn(&mock_cn, false, false, &kvs_rp, 0);
     ASSERT_EQ(0, err);
 
+    skidx = U16_MAX;
     err = c0sk_c0_deregister(0, skidx);
     ASSERT_EQ(EINVAL, merr_errno(err));
 

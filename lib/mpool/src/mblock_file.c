@@ -1,6 +1,6 @@
 /* SPDX-License-Identifier: Apache-2.0 */
 /*
- * Copyright (C) 2021 Micron Technology, Inc.  All rights reserved.
+ * Copyright (C) 2021-2022 Micron Technology, Inc.  All rights reserved.
  */
 
 #include <ftw.h>
@@ -620,13 +620,13 @@ mblock_file_open(
     wlenc = fszmax >> ilog2(mblocksz);
 
     sz = sizeof(*mbfp);
-    sz += roundup(wlenc * sizeof(*mbfp->wlenv), alignof(*mbfp->mmapv));
+    sz += roundup(wlenc * sizeof(*mbfp->wlenv), __alignof__(*mbfp->mmapv));
     sz += mmapc * sizeof(*mbfp->mmapv);
-    sz = roundup(sz, alignof(*mbfp));
+    sz = roundup(sz, __alignof__(*mbfp));
 
-    assert(alignof(*mbfp) >= alignof(*mbfp->mmapv));
+    assert(__alignof__(*mbfp) >= __alignof__(*mbfp->mmapv));
 
-    mbfp = aligned_alloc(alignof(*mbfp), sz);
+    mbfp = aligned_alloc(__alignof__(*mbfp), sz);
     if (!mbfp)
         return merr(ENOMEM);
 
@@ -684,7 +684,7 @@ mblock_file_open(
 
     mutex_init(&mbfp->mmap_lock);
     mbfp->mmapc = mmapc;
-    mbfp->mmapv = (void *)roundup((uintptr_t)(mbfp->wlenv + wlenc), alignof(*mbfp->mmapv));
+    mbfp->mmapv = (void *)roundup((uintptr_t)(mbfp->wlenv + wlenc), __alignof__(*mbfp->mmapv));
 
     *handle = mbfp;
 

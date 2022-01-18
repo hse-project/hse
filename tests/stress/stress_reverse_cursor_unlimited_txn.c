@@ -1,6 +1,6 @@
 /* SPDX-License-Identifier: Apache-2.0 */
 /*
- * Copyright (C) 2021 Micron Technology, Inc.  All rights reserved.
+ * Copyright (C) 2021-2022 Micron Technology, Inc.  All rights reserved.
  */
 
 #include <assert.h>
@@ -17,6 +17,7 @@
 #include <unistd.h>
 
 #include <hse/hse.h>
+#include <hse_util/compiler.h>
 #include "stress_util.h"
 
 #define MAX_KEY_LEN HSE_KVS_KLEN_MAX
@@ -460,7 +461,6 @@ spawn_threads(struct cursor_test_data *params, void *thread_fun, char *fun_name)
     struct cursor_test_data args[MAX_THREAD];
     int                     thread_count = 0;
     int                     rc;
-    int                     n;
 
     if (strcmp(fun_name, "point_insertion") == 0)
         thread_count = params->point_insertion_thread_count;
@@ -470,6 +470,8 @@ spawn_threads(struct cursor_test_data *params, void *thread_fun, char *fun_name)
     log_info("spawning %d thread(s), fun_name=\"%s\"", thread_count, fun_name);
 
     for (thread = 0; thread < thread_count; thread++) {
+        int n HSE_MAYBE_UNUSED;
+
         params->key_count_per_thread = get_count_per_x(params->key_count, thread_count);
         params->rank = thread;
         params->start = get_first_key_index(params->key_count_per_thread, thread);
@@ -482,7 +484,6 @@ spawn_threads(struct cursor_test_data *params, void *thread_fun, char *fun_name)
 
         n = snprintf(buf, sizeof(buf), "%s-%03d", fun_name, thread);
         assert(n < sizeof(buf));
-        n = n; /* unused */
 
         pthread_setname_np(thread_info[thread], buf);
     }

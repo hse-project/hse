@@ -1,6 +1,6 @@
 /* SPDX-License-Identifier: Apache-2.0 */
 /*
- * Copyright (C) 2021 Micron Technology, Inc.  All rights reserved.
+ * Copyright (C) 2021-2022 Micron Technology, Inc.  All rights reserved.
  */
 
 #include <hse_util/platform.h>
@@ -233,7 +233,7 @@ wal_bufset_open(
 
     sz = sizeof(*wbs) + sizeof(*wbs->wbs_bufv) * WAL_NODE_MAX * WAL_BPN_MAX;
 
-    wbs = aligned_alloc(alignof(*wbs), roundup(sz, alignof(*wbs)));
+    wbs = aligned_alloc(__alignof__(*wbs), roundup(sz, __alignof__(*wbs)));
     if (!wbs)
         return NULL;
 

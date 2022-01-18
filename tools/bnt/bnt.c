@@ -1,6 +1,6 @@
 /* SPDX-License-Identifier: Apache-2.0 */
 /*
- * Copyright (C) 2021 Micron Technology, Inc.  All rights reserved.
+ * Copyright (C) 2021-2022 Micron Technology, Inc.  All rights reserved.
  *
  * This program stress tests the Bonsai tree insert and delete capabilities.
  */
@@ -524,9 +524,9 @@ kvtree_init(void)
     hse_err_t err;
     size_t sz;
 
-    sz = roundup(sizeof(*kvtreev) * kvtreec, alignof(*kvtreev) * 2);
+    sz = roundup(sizeof(*kvtreev) * kvtreec, __alignof__(*kvtreev) * 2);
 
-    kvtreev = aligned_alloc(alignof(*kvtreev) * 2, sz);
+    kvtreev = aligned_alloc(__alignof__(*kvtreev) * 2, sz);
     if (!kvtreev) {
         eprint(errno, "kvtreev %zu %u", sz, kvtreec);
         return EX_OSERR;
@@ -661,9 +661,10 @@ prob_decode(const char *value, char **endp)
         return d;
 
     if (d >= 1)
-        return UINT64_MAX;
+        return ULONG_MAX;
 
-    return (d < 0) ? 0 : (d * UINT64_MAX);
+
+    return (d < 0) ? 0 : (d * (double)ULONG_MAX);
 }
 
 /* Scan the list for name/value pairs separated by the given separator.
@@ -775,7 +776,7 @@ usage(void)
     printf("\nPROPERTIES:\n");
     printf("  kvtreec      specify number of bonsai trees (default: %u)\n", kvtreec);
     printf("  updateprob   probability to update a key (default: %.3lf)\n",
-           (double)updateprob / ULONG_MAX);
+           (double)updateprob / (double)ULONG_MAX);
 }
 
 int
@@ -1089,7 +1090,7 @@ bnt_test(void)
     sigaddset(&sigmask_block, SIGALRM);
     pthread_sigmask(SIG_BLOCK, &sigmask_block, &sigmask_orig);
 
-    tdargv = aligned_alloc(alignof(*tdargv), tjobsmax * sizeof(*tdargv));
+    tdargv = aligned_alloc(__alignof__(*tdargv), tjobsmax * sizeof(*tdargv));
     if (!tdargv) {
         eprint(errno, "calloc tdargv %u %zu", tjobsmax, sizeof(*tdargv));
         return EX_OSERR;
@@ -1366,7 +1367,7 @@ bnt_check(void)
     sigaddset(&sigmask_block, SIGTERM);
     pthread_sigmask(SIG_BLOCK, &sigmask_block, &sigmask_orig);
 
-    tdargv = aligned_alloc(alignof(*tdargv), cjobsmax * sizeof(*tdargv));
+    tdargv = aligned_alloc(__alignof__(*tdargv), cjobsmax * sizeof(*tdargv));
     if (!tdargv) {
         eprint(errno, "calloc tdargv %u %zu", cjobsmax, sizeof(*tdargv));
         return EX_OSERR;
