@@ -454,7 +454,7 @@ c0kvs_create(
         c0kvs_destroy_impl(set);
     }
 
-    cheap = cheap_create(alignof(max_align_t), alloc_sz);
+    cheap = cheap_create(__alignof__(max_align_t), alloc_sz);
     if (ev(!cheap))
         return merr(ENOMEM);
 
