@@ -451,8 +451,18 @@ ikvdb_attach(
             return merr(EINVAL);
         }
 
-        if (paths[i])
+        if (paths[i]) {
+            size_t len = strnlen(paths[i], PATH_MAX);
+
+            if (len == 0 || len == PATH_MAX) {
+                log_err("cannot attach KVDB (%s) from KVDB (%s): %s path is either of "
+                        "zero length or longer than PATH_MAX", kvdb_home_tgt, kvdb_home_src,
+                        hse_mclass_name_get(i));
+                return merr(EINVAL);
+            }
+
             strlcpy(meta_tgt.km_storage[i].path, paths[i], sizeof(meta_tgt.km_storage[i].path));
+        }
     }
 
     err = kvdb_meta_create(kvdb_home_tgt);
@@ -683,6 +693,7 @@ ikvdb_mclass_reconfigure(const char *kvdb_home, enum hse_mclass mclass, const ch
     struct kvdb_rparams  rp;
     struct ikvdb        *kvdb;
     merr_t err;
+    size_t len;
 
     INVARIANT(kvdb_home && path);
 
@@ -707,6 +718,13 @@ ikvdb_mclass_reconfigure(const char *kvdb_home, enum hse_mclass mclass, const ch
         log_errx("cannot reconfigure %s mclass path for KVDB (%s), media class not configured: @@e",
                  err, hse_mclass_name_get(mclass), kvdb_home);
         return err;
+    }
+
+    len = strnlen(path, PATH_MAX);
+    if (len == 0 || len == PATH_MAX) {
+        log_err("cannot reconfigure %s mclass path for KVDB (%s), path is either of "
+                "zero length or longer than PATH_MAX", hse_mclass_name_get(mclass), kvdb_home);
+        return merr(EINVAL);
     }
 
     strlcpy(meta.km_storage[mclass].path, path, sizeof(meta.km_storage[mclass].path));

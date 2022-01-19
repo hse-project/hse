@@ -169,16 +169,16 @@ hse_param_get(const char *param, char *buf, size_t buf_sz, size_t *needed_sz);
  * @{
  */
 
-/** @brief Attach a new KVDB to a snapshot/copy of the media class paths from kvdb_home_src.
+/** @brief Attach a new KVDB to a snapshot/copy of the media class paths from @p kvdb_home_src.
  *
  * @note This function is not thread safe.
  *
  * @param kvdb_home_tgt: KVDB home directory for the attach target.
  * @param kvdb_home_src: KVDB home directory for the attach source.
- * @param paths: a snapshot/copy of the media class paths from the attach source.
+ * @param paths: A snapshot/copy of the media class paths from the attach source.
  *
  * @remark @p kvdb_home_tgt and kvdb_home_src must not be NULL.
- * @remark kvdb_home_src must be offline for attach
+ * @remark @p kvdb_home_src must be offline for attach.
  * @remark A snapshot/copy of all the configured media class paths must be provided in paths.
  *
  * @returns Error status.
@@ -333,10 +333,10 @@ hse_kvdb_mclass_is_configured(struct hse_kvdb *kvdb, enum hse_mclass mclass);
  * @note This function is not thread safe.
  *
  * @param kvdb_home: KVDB home directory.
- * @param mclass: media class to reconfigure
- * @param path: new media class path
+ * @param mclass: Media class to reconfigure.
+ * @param path: New media class path.
  *
- * @remark KVDB must be offline when reconfiguring a media class path
+ * @remark KVDB must be offline when reconfiguring a media class path.
  *
  * @returns Error status.
  */
