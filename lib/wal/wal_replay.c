@@ -1010,8 +1010,13 @@ wal_replay(struct wal *wal, struct wal_replay_info *rinfo)
     struct wal_replay *rep = NULL;
     merr_t err = 0;
 
-    if (wal_is_read_only(wal) || wal_is_clean(wal))
-        return 0; /* clean shutdown */
+    if (wal_is_clean(wal))
+        return 0; /* clean shutdown, nothing to do */
+
+    if (wal_is_read_only(wal)) {
+        log_err("WAL is dirty, cannot replay in read-only mode");
+        return merr(EPERM);
+    }
 
     err = wal_replay_open(wal, rinfo, &rep);
     if (err)

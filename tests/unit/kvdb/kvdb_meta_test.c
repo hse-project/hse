@@ -605,7 +605,7 @@ MTF_DEFINE_UTEST_PRE(kvdb_meta_test, from_mpool_cparams_relative, test_pre)
     free(homedup);
 }
 
-MTF_DEFINE_UTEST_PRE(kvdb_meta_test, meta_storage_add_absolute, test_pre)
+MTF_DEFINE_UTEST_PREPOST(kvdb_meta_test, meta_storage_add_absolute, test_pre, destroy_post)
 {
     struct mpool_cparams params;
     const char *paths[HSE_MCLASS_COUNT] = { "/home/my_capacity", "/home/my_staging", "/home/my_pmem" };
@@ -655,7 +655,7 @@ MTF_DEFINE_UTEST_PRE(kvdb_meta_test, meta_storage_add_absolute, test_pre)
         ASSERT_STREQ(meta.km_storage[i].path, paths[i]);
 }
 
-MTF_DEFINE_UTEST_PRE(kvdb_meta_test, meta_storage_add_relative, test_pre)
+MTF_DEFINE_UTEST_PREPOST(kvdb_meta_test, meta_storage_add_relative, test_pre, destroy_post)
 {
     struct mpool_cparams params;
     const char *paths[HSE_MCLASS_COUNT] = { "my_capacity", "1/2/my_staging", "1/2/my_pmem" };

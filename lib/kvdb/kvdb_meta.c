@@ -71,7 +71,7 @@ kvdb_meta_create(const char *const kvdb_home)
     if (n < 0)
         return merr(EBADMSG);
 
-    meta_fd = creat(buf, KVDB_META_PERMS);
+    meta_fd = open(buf, O_CREAT | O_WRONLY | O_EXCL, KVDB_META_PERMS);
     if (meta_fd == -1)
         return merr(errno);
 
