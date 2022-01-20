@@ -18,7 +18,7 @@ jobs:
       fail-fast: false
       matrix:
         os: [ubuntu-latest]
-        buildtype: [release, debugoptimized]
+        buildtype: [release, debug]
 
     steps:
       - name: Freeing up disk space on CI system
