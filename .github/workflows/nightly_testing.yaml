@@ -18,7 +18,7 @@ jobs:
       fail-fast: false
       matrix:
         os: [ubuntu-latest]
-        build_type: [release, debugoptimized]
+        buildtype: [release, debug]
 
     steps:
       - name: Freeing up disk space on CI system
@@ -47,7 +47,7 @@ jobs:
 
       - name: Setup
         run: |
-          meson builddir -Dbuildtype=${{ matrix.build_type }} --fatal-meson-warnings -Dycsb=true
+          meson builddir -Dbuildtype=${{ matrix.buildtype }} -Dtools=enabled -Ddocs=disabled -Dbindings=all -Dycsb=true -Dwerror=true
 
       - name: Test
         run: |
