@@ -75,10 +75,21 @@ kvdb_perfc_register(void *pc);
  * @kvdb_home: KVDB home
  * @params:    fixed configuration parameters
  * @captgt:    captgt of the mdc
- * @pmem_only: is it a pmem-only KVDB
  */
 merr_t
-ikvdb_create(const char *kvdb_home, struct kvdb_cparams *params, bool pmem_only);
+ikvdb_create(const char *kvdb_home, struct kvdb_cparams *params);
+
+/**
+ * ikvdb_attach() - Attach a target KVDB instance 'kvdb_home_tgt' to 'kvdb_home_src'
+ * @kvdb_home_tgt: KVDB home target
+ * @kvdb_home_src: KVDB home source
+ * @paths:         snapshot/copy of the 'kvdb_home_src' media class paths
+ */
+merr_t
+ikvdb_attach(
+    const char *kvdb_home_tgt,
+    const char *kvdb_home_src,
+    const char *paths[HSE_MCLASS_COUNT]);
 
 /**
  * Drop a KVDB
@@ -112,6 +123,17 @@ ikvdb_mclass_info_get(struct ikvdb *kvdb, enum hse_mclass mclass, struct hse_mcl
  */
 bool
 ikvdb_mclass_is_configured(struct ikvdb *kvdb, enum hse_mclass mclass);
+
+/** @brief Reconfigure the specified media class for a KVDB
+ *
+ * @note This function is not thread safe.
+ *
+ * @param kvdb_home: KVDB home
+ * @param mclass: media class to reconfigure
+ * @param path:   target path
+ */
+merr_t
+ikvdb_mclass_reconfigure(const char *kvdb_home, enum hse_mclass mclass, const char *path);
 
 /**
  * Add media class to a KVDB

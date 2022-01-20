@@ -316,7 +316,7 @@ ikvdb_pmem_only_from_cparams(
 }
 
 merr_t
-ikvdb_create(const char *kvdb_home, struct kvdb_cparams *params, bool pmem_only)
+ikvdb_create(const char *kvdb_home, struct kvdb_cparams *params)
 {
     assert(kvdb_home);
     assert(params);
@@ -412,6 +412,87 @@ out:
      */
 
     return err;
+}
+
+merr_t
+ikvdb_attach(
+    const char *kvdb_home_tgt,
+    const char *kvdb_home_src,
+    const char *paths[HSE_MCLASS_COUNT])
+{
+    struct kvdb_meta    meta_tgt;
+    struct kvdb_meta    meta_src;
+    struct kvdb_rparams rp;
+    struct ikvdb       *kvdb;
+    merr_t err;
+    int    i;
+
+    INVARIANT(kvdb_home_tgt && kvdb_home_src && paths);
+
+    err = kvdb_meta_deserialize(&meta_src, kvdb_home_src);
+    if (err) {
+        log_errx("cannot attach KVDB (%s) from KVDB (%s), deserializing source meta failed: @@e",
+                 err, kvdb_home_tgt, kvdb_home_src);
+        return err;
+    }
+
+    /* Copy relevant fields from the src KVDB home meta file */
+    meta_tgt.km_version = meta_src.km_version;
+    meta_tgt.km_omf_version = meta_src.km_omf_version;
+    meta_tgt.km_cndb = meta_src.km_cndb;
+    meta_tgt.km_wal = meta_src.km_wal;
+
+    for (i = HSE_MCLASS_BASE; i < HSE_MCLASS_COUNT; i++) {
+        if ((meta_src.km_storage[i].path[0] == '\0' && paths[i] && paths[i][0] != '\0') ||
+            (meta_src.km_storage[i].path[0] != '\0' && (!paths[i] || paths[i][0] == '\0'))) {
+            log_err("cannot attach KVDB (%s) from KVDB (%s): %s", kvdb_home_tgt, kvdb_home_src,
+                    (meta_src.km_storage[i].path[0] != '\0') ? "mandatory paths missing" :
+                    "excessive paths provided");
+            return merr(EINVAL);
+        }
+
+        if (paths[i]) {
+            size_t len = strnlen(paths[i], PATH_MAX);
+
+            if (len == 0 || len == PATH_MAX) {
+                log_err("cannot attach KVDB (%s) from KVDB (%s): %s path is either of "
+                        "zero length or longer than PATH_MAX", kvdb_home_tgt, kvdb_home_src,
+                        hse_mclass_name_get(i));
+                return merr(EINVAL);
+            }
+
+            strlcpy(meta_tgt.km_storage[i].path, paths[i], sizeof(meta_tgt.km_storage[i].path));
+        }
+    }
+
+    err = kvdb_meta_create(kvdb_home_tgt);
+    if (err) {
+        log_errx("cannot attach KVDB (%s) from KVDB (%s), target KVDB not empty: @@e",
+                 err, kvdb_home_tgt, kvdb_home_src);
+        return err;
+    }
+
+    err = kvdb_meta_serialize(&meta_tgt, kvdb_home_tgt);
+    if (err) {
+        kvdb_meta_destroy(kvdb_home_tgt);
+        log_errx("cannot attach KVDB (%s) from KVDB (%s), serializing target meta failed: @@e",
+                 err, kvdb_home_tgt, kvdb_home_src);
+        return err;
+    }
+
+    /* Validate that the DB can be opened successfully, this also checks for duplicate paths */
+    rp = kvdb_rparams_defaults();
+
+    err = ikvdb_open(kvdb_home_tgt, &rp, &kvdb);
+    if (err) {
+        kvdb_meta_destroy(kvdb_home_tgt);
+        log_errx("cannot attach KVDB (%s) from KVDB (%s), opening target KVDB failed: @@e",
+                 err, kvdb_home_tgt, kvdb_home_src);
+        return err;
+    }
+    ikvdb_close(kvdb);
+
+    return 0;
 }
 
 static merr_t
@@ -548,7 +629,6 @@ errout:
     return err;
 }
 
-
 merr_t
 ikvdb_drop(const char *const kvdb_home)
 {
@@ -604,6 +684,71 @@ ikvdb_mclass_is_configured(struct ikvdb *const kvdb, const enum hse_mclass mclas
     self = ikvdb_h2r(kvdb);
 
     return mpool_mclass_is_configured(self->ikdb_mp, mclass);
+}
+
+merr_t
+ikvdb_mclass_reconfigure(const char *kvdb_home, enum hse_mclass mclass, const char *path)
+{
+    struct kvdb_meta     meta, meta_orig;
+    struct kvdb_rparams  rp;
+    struct ikvdb        *kvdb;
+    merr_t err;
+    size_t len;
+
+    INVARIANT(kvdb_home && path);
+
+    err = kvdb_meta_deserialize(&meta, kvdb_home);
+    if (err) {
+        log_errx("cannot reconfigure %s mclass path for KVDB (%s), deserializing meta failed: @@e",
+                 err, hse_mclass_name_get(mclass), kvdb_home);
+        return err;
+    }
+    meta_orig = meta;
+
+    if (meta.km_version != KVDB_META_VERSION || meta.km_omf_version != GLOBAL_OMF_VERSION) {
+        err = merr(EPROTO);
+        log_errx("cannot reconfigure %s mclass path for KVDB (%s), "
+                 "out-of-date meta/on-media versions %u/%u: @@e",
+                 err, hse_mclass_name_get(mclass), kvdb_home, meta.km_version, meta.km_omf_version);
+        return err;
+    }
+
+    if (meta.km_storage[mclass].path[0] == '\0') {
+        err = merr(ENOENT);
+        log_errx("cannot reconfigure %s mclass path for KVDB (%s), media class not configured: @@e",
+                 err, hse_mclass_name_get(mclass), kvdb_home);
+        return err;
+    }
+
+    len = strnlen(path, PATH_MAX);
+    if (len == 0 || len == PATH_MAX) {
+        log_err("cannot reconfigure %s mclass path for KVDB (%s), path is either of "
+                "zero length or longer than PATH_MAX", hse_mclass_name_get(mclass), kvdb_home);
+        return merr(EINVAL);
+    }
+
+    strlcpy(meta.km_storage[mclass].path, path, sizeof(meta.km_storage[mclass].path));
+
+    err = kvdb_meta_serialize(&meta, kvdb_home);
+    if (err) {
+        log_errx("cannot reconfigure %s mclass path for KVDB (%s), serializing meta failed: @@e",
+                 err, hse_mclass_name_get(mclass), kvdb_home);
+        return err;
+    }
+
+    /* Validate that the DB can be opened successfully, this also checks for duplicate paths */
+    rp = kvdb_rparams_defaults();
+
+    err = ikvdb_open(kvdb_home, &rp, &kvdb);
+    if (err) {
+        kvdb_meta_serialize(&meta_orig, kvdb_home); /* restore original meta file */
+        log_errx("cannot reconfigure %s mclass path for KVDB (%s), KVDB open failed: @@e",
+                 err, hse_mclass_name_get(mclass), kvdb_home);
+        return err;
+    }
+    ikvdb_close(kvdb);
+
+    return 0;
 }
 
 static inline void
@@ -897,9 +1042,10 @@ ikvdb_diag_open(
 {
     static atomic_ulong  tseqno = 0;
     struct ikvdb_impl   *self = NULL;
-    merr_t               err;
     struct kvdb_meta     meta;
     struct mpool_rparams mparams;
+    merr_t err;
+    int    flags;
 
     err = ikvdb_alloc(kvdb_home, params, &self);
     if (err)
@@ -925,7 +1071,8 @@ ikvdb_diag_open(
     for (int i = HSE_MCLASS_BASE; i < HSE_MCLASS_COUNT; i++)
         mparams.mclass[i].dio_disable = !params->dio_enable[i];
 
-    err = mpool_open(kvdb_home, &mparams, O_RDWR, &self->ikdb_mp);
+    flags = params->read_only ? O_RDONLY : O_RDWR;
+    err = mpool_open(kvdb_home, &mparams, flags, &self->ikdb_mp);
     if (ev(err))
         goto self_cleanup;
 

@@ -169,6 +169,26 @@ hse_param_get(const char *param, char *buf, size_t buf_sz, size_t *needed_sz);
  * @{
  */
 
+/** @brief Attach a new KVDB to a snapshot/copy of the media class paths from @p kvdb_home_src.
+ *
+ * @note This function is not thread safe.
+ *
+ * @param kvdb_home_tgt: KVDB home directory for the attach target.
+ * @param kvdb_home_src: KVDB home directory for the attach source.
+ * @param paths: A snapshot/copy of the media class paths from the attach source.
+ *
+ * @remark @p kvdb_home_tgt and kvdb_home_src must not be NULL.
+ * @remark @p kvdb_home_src must be offline for attach.
+ * @remark A snapshot/copy of all the configured media class paths must be provided in paths.
+ *
+ * @returns Error status.
+ */
+hse_err_t
+hse_kvdb_attach(
+    const char *kvdb_home_tgt,
+    const char *kvdb_home_src,
+    const char *paths[HSE_MCLASS_COUNT]);
+
 /** @brief Close a KVDB.
  *
  * @warning After invoking this function, calling any other KVDB functions will
@@ -308,6 +328,21 @@ hse_kvdb_mclass_info_get(struct hse_kvdb *kvdb, enum hse_mclass mclass, struct h
 bool
 hse_kvdb_mclass_is_configured(struct hse_kvdb *kvdb, enum hse_mclass mclass);
 
+/** @brief Reconfigure a media class storage path for an existing offline KVDB.
+ *
+ * @note This function is not thread safe.
+ *
+ * @param kvdb_home: KVDB home directory.
+ * @param mclass: Media class to reconfigure.
+ * @param path: New media class path.
+ *
+ * @remark KVDB must be offline when reconfiguring a media class path.
+ *
+ * @returns Error status.
+ */
+hse_err_t
+hse_kvdb_mclass_reconfigure(const char *kvdb_home, enum hse_mclass mclass, const char *path);
+
 /** @brief Open a KVDB.
  *
  * @note This function is not thread safe.
@@ -367,7 +402,7 @@ hse_kvdb_param_get(
  * @param paramv: List of KVDB create-time parameters in key=value format.
  *
  * @remark @p kvdb_home must not be NULL.
- * @remark @p KVBD must have already been created.
+ * @remark @p KVDB must have already been created.
  * @remark @p paramv must not be NULL.
  *
  * @returns Error status.

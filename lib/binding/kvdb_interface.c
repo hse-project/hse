@@ -188,23 +188,22 @@ hse_kvdb_create(const char *kvdb_home, size_t paramc, const char *const *const p
     u64                 tstart;
     char                pidfile_path[PATH_MAX];
     struct pidfh *      pfh = NULL;
-    struct pidfile      content = {};
     size_t              n;
     bool                pmem_only;
 
-    if (HSE_UNLIKELY(!kvdb_home)) {
+    if (!kvdb_home) {
         log_err("A KVDB home must be provided");
         return merr(EINVAL);
     }
 
     n = strnlen(kvdb_home, PATH_MAX);
 
-    if (HSE_UNLIKELY(n == PATH_MAX)) {
+    if (n == PATH_MAX) {
         log_err("KVDB home path length cannot be longer than PATH_MAX");
         return merr(ENAMETOOLONG);
     }
 
-    if (HSE_UNLIKELY(n == 0)) {
+    if (n == 0) {
         log_err("KVDB home must be a non-zero length path");
         return merr(EINVAL);
     }
@@ -241,24 +240,14 @@ hse_kvdb_create(const char *kvdb_home, size_t paramc, const char *const *const p
         goto out;
     }
 
-    content.pid = getpid();
-
-    err = merr(pidfile_serialize(pfh, &content));
-    if (err) {
-        log_errx("Failed to serialize data to the KVDB pidfile (%s): @@e", err, pidfile_path);
-        goto out;
-    }
-
-    err = ikvdb_create(kvdb_home, &dbparams, pmem_only);
+    err = ikvdb_create(kvdb_home, &dbparams);
     if (ev(err))
         goto out;
 
     perfc_lat_record(&kvdb_pkvdbl_pc, PERFC_LT_PKVDBL_KVDB_CREATE, tstart);
 
 out:
-    if (pidfile_remove(pfh) == -1 && !err)
-        err = merr(errno);
-    pfh = NULL;
+    pidfile_remove(pfh);
 
     return err;
 }
@@ -271,19 +260,19 @@ hse_kvdb_drop(const char *kvdb_home)
     merr_t        err;
     size_t        n;
 
-    if (HSE_UNLIKELY(!kvdb_home)) {
+    if (!kvdb_home) {
         log_err("A KVDB home must be provided");
         return merr(EINVAL);
     }
 
     n = strnlen(kvdb_home, PATH_MAX);
 
-    if (HSE_UNLIKELY(n == PATH_MAX)) {
+    if (n == PATH_MAX) {
         log_err("KVDB home path length cannot be longer than PATH_MAX");
         return merr(ENAMETOOLONG);
     }
 
-    if (HSE_UNLIKELY(n == 0)) {
+    if (n == 0) {
         log_err("KVDB home must be a non-zero length path");
         return merr(EINVAL);
     }
@@ -296,9 +285,7 @@ hse_kvdb_drop(const char *kvdb_home)
 
     pfh = pidfile_open(pidfile_path, S_IRUSR | S_IWUSR, NULL);
     if (!pfh) {
-        if (errno == EEXIST)
-            errno = EBUSY;
-        err = merr(errno);
+        err = (errno == EEXIST) ? merr(EBUSY) : merr(errno);
         log_errx("Failed to open KVDB pidfile (%s): @@e", err, pidfile_path);
         goto out;
     }
@@ -308,8 +295,7 @@ hse_kvdb_drop(const char *kvdb_home)
         goto out;
 
 out:
-    if (pfh)
-        pidfile_remove(pfh);
+    pidfile_remove(pfh);
 
     return err;
 }
@@ -331,22 +317,22 @@ hse_kvdb_open(
     struct pidfile      content = {};
     size_t              n;
 
-    if (HSE_UNLIKELY(!kvdb_home)) {
+    if (!kvdb_home) {
         log_err("A KVDB home must be provided");
         return merr(EINVAL);
     }
 
-    if (HSE_UNLIKELY(!handle))
+    if (!handle)
         return merr(EINVAL);
 
     n = strnlen(kvdb_home, PATH_MAX);
 
-    if (HSE_UNLIKELY(n == PATH_MAX)) {
+    if (n == PATH_MAX) {
         log_err("KVDB home path length cannot be longer than PATH_MAX");
         return merr(ENAMETOOLONG);
     }
 
-    if (HSE_UNLIKELY(n == 0)) {
+    if (n == 0) {
         log_err("KVDB home must be a non-zero length path");
         return merr(EINVAL);
     }
@@ -417,8 +403,7 @@ hse_kvdb_open(
 
 out:
     if (err) {
-        if (pfh)
-            pidfile_remove(pfh);
+        pidfile_remove(pfh);
         config_destroy(conf);
         ikvdb_close(ikvdb);
     }
@@ -433,7 +418,7 @@ hse_kvdb_close(struct hse_kvdb *handle)
     struct pidfh * pfh;
     struct config *conf;
 
-    if (HSE_UNLIKELY(!handle))
+    if (!handle)
         return merr(EINVAL);
 
     perfc_inc(&kvdb_pc, PERFC_RA_KVDBOP_KVDB_CLOSE);
@@ -445,10 +430,72 @@ hse_kvdb_close(struct hse_kvdb *handle)
     err = ikvdb_close((struct ikvdb *)handle);
     ev(err);
 
-    if (pidfile_remove(pfh) == -1 && !err)
-        err = merr(errno);
-
+    pidfile_remove(pfh);
     config_destroy(conf);
+
+    return err;
+}
+
+hse_err_t
+hse_kvdb_attach(
+    const char *kvdb_home_tgt,
+    const char *kvdb_home_src,
+    const char *paths[static HSE_MCLASS_COUNT])
+{
+    merr_t         err;
+    char           pidfile_path[PATH_MAX];
+    struct pidfh  *pfh_tgt = NULL, *pfh_src = NULL;
+    size_t         tlen, slen;
+
+    if (!kvdb_home_tgt || !kvdb_home_src) {
+        log_err("KVDB attach target and source home dirs must be provided");
+        return merr(EINVAL);
+    }
+
+    tlen = strnlen(kvdb_home_tgt, PATH_MAX);
+    slen = strnlen(kvdb_home_src, PATH_MAX);
+    if (tlen == PATH_MAX || slen == PATH_MAX) {
+        log_err("KVDB attach target and source home dir lengths cannot be longer than PATH_MAX");
+        return merr(ENAMETOOLONG);
+    }
+
+    if (tlen == 0 || slen == 0) {
+        log_err("KVDB attach target and source home dirs must both be non-zero length paths");
+        return merr(EINVAL);
+    }
+
+    /* Keep both the source and target kvdb busy during the attach operation */
+    err = kvdb_home_pidfile_path_get(kvdb_home_tgt, pidfile_path, sizeof(pidfile_path));
+    if (err) {
+        log_errx("Failed to create KVDB pidfile path (%s/kvdb.pid): @@e", err, kvdb_home_tgt);
+        return err;
+    }
+
+    pfh_tgt = pidfile_open(pidfile_path, S_IRUSR | S_IWUSR, NULL);
+    if (!pfh_tgt) {
+        err = (errno == EEXIST) ? merr(EBUSY) : merr(errno);
+        log_errx("Failed to open KVDB pidfile (%s): @@e", err, pidfile_path);
+        goto out;
+    }
+
+    err = kvdb_home_pidfile_path_get(kvdb_home_src, pidfile_path, sizeof(pidfile_path));
+    if (err) {
+        log_errx("Failed to create KVDB pidfile path (%s/kvdb.pid): @@e", err, kvdb_home_src);
+        goto out;
+    }
+
+    pfh_src = pidfile_open(pidfile_path, S_IRUSR | S_IWUSR, NULL);
+    if (!pfh_src) {
+        err = (errno == EEXIST) ? merr(EBUSY) : merr(errno);
+        log_errx("Failed to open KVDB pidfile (%s): @@e", err, pidfile_path);
+        goto out;
+    }
+
+    err = ikvdb_attach(kvdb_home_tgt, kvdb_home_src, paths);
+
+out:
+    pidfile_remove(pfh_src);
+    pidfile_remove(pfh_tgt);
 
     return err;
 }
@@ -461,7 +508,7 @@ hse_kvdb_param_get(
     const size_t           buf_sz,
     size_t *const          needed_sz)
 {
-    if (HSE_UNLIKELY(!handle || !param))
+    if (!handle || !param)
         return merr(EINVAL);
 
     return ikvdb_param_get((struct ikvdb *)handle, param, buf, buf_sz, needed_sz);
@@ -472,7 +519,7 @@ hse_kvdb_kvs_names_get(struct hse_kvdb *handle, size_t *namec, char ***namev)
 {
     merr_t err;
 
-    if (HSE_UNLIKELY(!handle || !namev))
+    if (!handle || !namev)
         return merr(EINVAL);
 
     perfc_inc(&kvdb_pc, PERFC_RA_KVDBOP_KVDB_KVS_NAMES_GET);
@@ -497,7 +544,7 @@ hse_kvdb_mclass_info_get(
     const enum hse_mclass         mclass,
     struct hse_mclass_info *const info)
 {
-    if (HSE_UNLIKELY(!handle || !info))
+    if (!handle || !info)
         return merr(EINVAL);
 
     memset(info, 0, sizeof(*info));
@@ -508,11 +555,51 @@ hse_kvdb_mclass_info_get(
 bool
 hse_kvdb_mclass_is_configured(struct hse_kvdb *const handle, const enum hse_mclass mclass)
 {
-    if (HSE_UNLIKELY(!handle || mclass >= HSE_MCLASS_COUNT))
+    if (!handle || mclass >= HSE_MCLASS_COUNT)
         return false;
 
     return ikvdb_mclass_is_configured((struct ikvdb *)handle, mclass);
 }
+
+hse_err_t
+hse_kvdb_mclass_reconfigure(const char *kvdb_home, enum hse_mclass mclass, const char *path)
+{
+    merr_t         err;
+    char           pidfile_path[PATH_MAX];
+    struct pidfh  *pfh;
+
+    if (!kvdb_home) {
+        log_err("A KVDB home must be provided");
+        return merr(EINVAL);
+    }
+
+    if (!path) {
+        log_err("Cannot reconfigure %s mclass path for the KVDB (%s) if path is NULL",
+                hse_mclass_name_get(mclass), kvdb_home);
+        return merr(EINVAL);
+    }
+
+    err = kvdb_home_pidfile_path_get(kvdb_home, pidfile_path, sizeof(pidfile_path));
+    if (err) {
+        log_errx("Failed to create KVDB pidfile path (%s)/kvdb.pid: @@e", err, kvdb_home);
+        return err;
+    }
+
+    pfh = pidfile_open(pidfile_path, S_IRUSR | S_IWUSR, NULL);
+    if (!pfh) {
+        err = (errno == EEXIST) ? merr(EBUSY) : merr(errno);
+        log_errx("Failed to open KVDB pidfile (%s): @@e", err, pidfile_path);
+        goto out;
+    }
+
+    err = ikvdb_mclass_reconfigure(kvdb_home, mclass, path);
+
+out:
+    pidfile_remove(pfh);
+
+    return err;
+}
+
 
 hse_err_t
 hse_kvdb_kvs_create(
@@ -524,7 +611,7 @@ hse_kvdb_kvs_create(
     struct kvs_cparams params = kvs_cparams_defaults();
     merr_t             err;
 
-    if (HSE_UNLIKELY(!handle))
+    if (!handle)
         return merr(EINVAL);
 
     perfc_inc(&kvdb_pc, PERFC_RA_KVDBOP_KVDB_KVS_CREATE);
@@ -552,7 +639,7 @@ hse_kvdb_kvs_drop(struct hse_kvdb *handle, const char *const kvs_name)
 {
     merr_t err;
 
-    if (HSE_UNLIKELY(!handle || !kvs_name))
+    if (!handle || !kvs_name)
         return merr(EINVAL);
 
     perfc_inc(&kvdb_pc, PERFC_RA_KVDBOP_KVDB_KVS_DROP);
@@ -575,7 +662,7 @@ hse_kvdb_kvs_open(
     merr_t             err;
     u64                tstart;
 
-    if (HSE_UNLIKELY(!handle || !kvs_name || !kvs_out))
+    if (!handle || !kvs_name || !kvs_out)
         return merr(EINVAL);
 
     tstart = perfc_lat_start(&kvdb_pkvdbl_pc);
@@ -600,7 +687,7 @@ hse_kvdb_kvs_close(struct hse_kvs *handle)
 {
     merr_t err;
 
-    if (HSE_UNLIKELY(!handle))
+    if (!handle)
         return merr(EINVAL);
 
     perfc_inc(&kvdb_pc, PERFC_RA_KVDBOP_KVDB_KVS_CLOSE);
@@ -614,33 +701,10 @@ hse_kvdb_kvs_close(struct hse_kvs *handle)
 const char *
 hse_kvdb_home_get(struct hse_kvdb *const handle)
 {
-    if (HSE_UNLIKELY(!handle))
+    if (!handle)
         return NULL;
 
     return ikvdb_home((struct ikvdb *)handle);
-}
-
-const char *
-hse_kvs_name_get(struct hse_kvs *const handle)
-{
-    if (HSE_UNLIKELY(!handle))
-        return NULL;
-
-    return kvdb_kvs_name((struct kvdb_kvs *)handle);
-}
-
-hse_err_t
-hse_kvs_param_get(
-    struct hse_kvs *const handle,
-    const char *const     param,
-    char *const           buf,
-    const size_t          buf_sz,
-    size_t *const         needed_sz)
-{
-    if (HSE_UNLIKELY(!handle || !param))
-        return merr(EINVAL);
-
-    return ikvdb_kvs_param_get(handle, param, buf, buf_sz, needed_sz);
 }
 
 hse_err_t
@@ -650,15 +714,14 @@ hse_kvdb_storage_add(const char *kvdb_home, size_t paramc, const char *const *co
     merr_t              err;
     char                pidfile_path[PATH_MAX];
     struct pidfh *      pfh;
-    struct pidfile      content = {};
 
-    if (HSE_UNLIKELY(!kvdb_home)) {
+    if (!kvdb_home) {
         log_err("A KVDB home must be provided");
         return merr(EINVAL);
     }
 
-    if (HSE_UNLIKELY(!paramv || paramc == 0)) {
-        log_err("Cannot add storage to the the KVDB (%s) if paramv is empty", kvdb_home);
+    if (!paramv || paramc == 0) {
+        log_err("Cannot add storage to the KVDB (%s) if paramv is empty", kvdb_home);
         return merr(EINVAL);
     }
 
@@ -681,21 +744,35 @@ hse_kvdb_storage_add(const char *kvdb_home, size_t paramc, const char *const *co
         goto out;
     }
 
-    content.pid = getpid();
-
-    err = merr(pidfile_serialize(pfh, &content));
-    if (err) {
-        log_errx("Failed to serialize data to the KVDB pidfile (%s): @@e", err, pidfile_path);
-        goto out;
-    }
-
     err = ikvdb_storage_add(kvdb_home, &cparams);
 
 out:
-    if (pidfile_remove(pfh) == -1 && !err)
-        err = merr(errno);
+    pidfile_remove(pfh);
 
     return err;
+}
+
+const char *
+hse_kvs_name_get(struct hse_kvs *const handle)
+{
+    if (!handle)
+        return NULL;
+
+    return kvdb_kvs_name((struct kvdb_kvs *)handle);
+}
+
+hse_err_t
+hse_kvs_param_get(
+    struct hse_kvs *const handle,
+    const char *const     param,
+    char *const           buf,
+    const size_t          buf_sz,
+    size_t *const         needed_sz)
+{
+    if (!handle || !param)
+        return merr(EINVAL);
+
+    return ikvdb_kvs_param_get(handle, param, buf, buf_sz, needed_sz);
 }
 
 hse_err_t
@@ -1289,7 +1366,7 @@ hse_kvs_cursor_destroy(struct hse_kvs_cursor *cursor)
 hse_err_t
 hse_kvdb_compact(struct hse_kvdb *handle, unsigned int flags)
 {
-    if (HSE_UNLIKELY(!handle))
+    if (!handle)
         return merr(EINVAL);
 
     ikvdb_compact((struct ikvdb *)handle, flags);
@@ -1300,7 +1377,7 @@ hse_kvdb_compact(struct hse_kvdb *handle, unsigned int flags)
 hse_err_t
 hse_kvdb_compact_status_get(struct hse_kvdb *handle, struct hse_kvdb_compact_status *status)
 {
-    if (HSE_UNLIKELY(!handle || !status))
+    if (!handle || !status)
         return merr(EINVAL);
 
     memset(status, 0, sizeof(*status));
