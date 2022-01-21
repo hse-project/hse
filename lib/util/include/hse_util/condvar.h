@@ -1,6 +1,6 @@
 /* SPDX-License-Identifier: Apache-2.0 */
 /*
- * Copyright (C) 2015-2021 Micron Technology, Inc.  All rights reserved.
+ * Copyright (C) 2015-2022 Micron Technology, Inc.  All rights reserved.
  *
  * The condvar subsystem is an abstraction of the pthread condition
  * variable APIs taht provide the same general semantics in both user
@@ -24,48 +24,42 @@
 #include <hse_util/mutex.h>
 
 struct cv {
-    long           cv_waiters;
+    int            cv_waiters;
     pthread_cond_t cv_waitq;
-    const char *   cv_desc;
 };
 
 static HSE_ALWAYS_INLINE void
 cv_signal(struct cv *cv)
 {
-    int rc;
+    int rc HSE_MAYBE_UNUSED;
 
     if (cv->cv_waiters > 0) {
         rc = pthread_cond_signal(&cv->cv_waitq);
 
-        if (HSE_UNLIKELY(rc))
-            abort();
+        assert(rc == 0);
     }
 }
 
 static HSE_ALWAYS_INLINE void
 cv_broadcast(struct cv *cv)
 {
-    int rc;
+    int rc HSE_MAYBE_UNUSED;
 
     if (cv->cv_waiters > 0) {
         rc = pthread_cond_broadcast(&cv->cv_waitq);
 
-        if (HSE_UNLIKELY(rc))
-            abort();
+        assert(rc == 0);
     }
 }
 
 /**
  * cv_init() - initialize a condition variable
  * @cv:     ptr to a condition variable
- * @desc:   ptr to cv description (used for WCHAN by ps).
  *
  * Provides the same general semantics as pthread_cond_init().
- *
- * The memory used by desc must remain valid until the cv is destroyed.
  */
 void
-cv_init(struct cv *cv, const char *desc);
+cv_init(struct cv *cv);
 
 /**
  * cv_destroy() - destroy a condition variable
@@ -81,6 +75,7 @@ cv_destroy(struct cv *cv);
  * @cv:         ptr to a condition variable
  * @mtx:        ptr to mutex
  * @timeout:    maximum number of milliseconds to sleep
+ * @wmesg:      wait message, must reside in global memory
  *
  * Provides the same general semantics as pthread_cond_timedwait().
  * If %timeout is negative cv_timedwait() blocks indefinitely.
@@ -89,19 +84,20 @@ cv_destroy(struct cv *cv);
  * if the timeout expires.
  */
 int
-cv_timedwait(struct cv *cv, struct mutex *mtx, const int timeout);
+cv_timedwait(struct cv *cv, struct mutex *mtx, const long timeout, const char *wmesg);
 
 /**
  * cv_wait() - wait for condition variable to be signaled
  * @cv:     ptr to a condition variable
  * @mtx:    ptr to mutex
+ * @wmesg:  wait message, must reside in global memory
  *
  * Provides the same general semantics as pthread_cond_wait().
  */
 static HSE_ALWAYS_INLINE void
-cv_wait(struct cv *cv, struct mutex *mtx)
+cv_wait(struct cv *cv, struct mutex *mtx, const char *wmesg)
 {
-    cv_timedwait(cv, mtx, -1);
+    cv_timedwait(cv, mtx, -1, wmesg);
 }
 
 #endif /* HSE_PLATFORM_CONDVAR_H */

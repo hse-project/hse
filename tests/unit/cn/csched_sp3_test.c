@@ -8,7 +8,6 @@
 #include <mock/alloc_tester.h>
 
 #include <hse_util/hse_err.h>
-#include <hse_util/delay.h>
 
 #include <hse_ikvdb/kvdb_rparams.h>
 #include <hse_ikvdb/kvs_rparams.h>
@@ -406,7 +405,7 @@ add_tree(struct cn_tree *tree, struct csched *cs)
     sp3_tree_add(cs, tree);
 
     while (mapi_calls(api) == cnt)
-        msleep(20);
+        usleep(20 * 1000);
 }
 
 void
@@ -421,7 +420,7 @@ remove_tree(struct cn_tree *tree, struct csched *cs)
     sp3_tree_remove(cs, tree, false);
 
     while (mapi_calls(api) == cnt)
-        msleep(20);
+        usleep(20 * 1000);
 }
 
 /*****************************************************************
@@ -508,7 +507,7 @@ MTF_DEFINE_UTEST_PRE(test, t_sp3_one_empty_tree, pre_test)
 
     add_tree(tt->tree, cs);
 
-    msleep(DELAY_MS);
+    usleep(DELAY_MS * 1000);
 
     remove_tree(tt->tree, cs);
 
@@ -536,7 +535,7 @@ MTF_DEFINE_UTEST_PRE(test, t_sp3_many_empty_trees, pre_test)
     for (i = 0; i < num_trees; i++)
         add_tree(ttv[i].tree, cs);
 
-    msleep(DELAY_MS);
+    usleep(DELAY_MS * 1000);
 
     for (i = 0; i < num_trees; i++)
         remove_tree(ttv[i].tree, cs);
@@ -567,7 +566,7 @@ MTF_DEFINE_UTEST_PRE(test, t_sp3_one_small_tree_with_work, pre_test)
     for (i = 0; i < ttc; i++)
         add_tree(ttv[i].tree, cs);
 
-    msleep(DELAY_MS);
+    usleep(DELAY_MS * 1000);
 
     for (i = 0; i < ttc; i++)
         remove_tree(ttv[i].tree, cs);
@@ -599,7 +598,7 @@ MTF_DEFINE_UTEST_PRE(test, t_sp3_one_medium_tree_with_work, pre_test)
     for (i = 0; i < ttc; i++)
         add_tree(ttv[i].tree, cs);
 
-    msleep(DELAY_MS);
+    usleep(DELAY_MS * 1000);
 
     for (i = 0; i < ttc; i++)
         remove_tree(ttv[i].tree, cs);
@@ -637,7 +636,7 @@ MTF_DEFINE_UTEST_PRE(test, t_sp3_one_big_tree_with_work, pre_test)
     for (i = 0; i < ttc; i++)
         add_tree(ttv[i].tree, cs);
 
-    msleep(DELAY_MS);
+    usleep(DELAY_MS * 1000);
 
     for (i = 0; i < ttc; i++)
         remove_tree(ttv[i].tree, cs);

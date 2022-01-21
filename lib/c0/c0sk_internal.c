@@ -504,7 +504,7 @@ c0sk_ingest_serialize_wait(struct c0_ingest_work *ingest)
         if (me == next)
             break;
 
-        cv_timedwait(&c0sk->c0sk_kvms_cv, &c0sk->c0sk_kvms_mutex, 1000);
+        cv_timedwait(&c0sk->c0sk_kvms_cv, &c0sk->c0sk_kvms_mutex, 1000, "c0ingser");
     }
     mutex_unlock(&c0sk->c0sk_kvms_mutex);
 }
@@ -696,7 +696,7 @@ exit_err:
         if (kvms == c0sk_get_last_c0kvms(&c0sk->c0sk_handle))
             break;
 
-        cv_wait(&c0sk->c0sk_kvms_cv, &c0sk->c0sk_kvms_mutex);
+        cv_wait(&c0sk->c0sk_kvms_cv, &c0sk->c0sk_kvms_mutex, "c0updseq");
     }
     mutex_unlock(&c0sk->c0sk_kvms_mutex);
 
@@ -1036,7 +1036,7 @@ c0sk_queue_ingest(struct c0sk_impl *self, struct c0_kvmultiset *old)
         if (atomic_inc_return(&self->c0sk_ingest_ldrcnt) == 1)
             break; /* ingest leader */
 
-        nanosleep(&req, NULL);
+        hse_nanosleep(&req, NULL, "c0ingest");
     }
 
     err = 0;

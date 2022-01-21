@@ -470,7 +470,7 @@ c0sk_open(
     atomic_set(&c0sk->c0sk_ingest_finlat, 30000);
     mutex_init_adaptive(&c0sk->c0sk_kvms_mutex);
     mutex_init(&c0sk->c0sk_sync_mutex);
-    cv_init(&c0sk->c0sk_kvms_cv, "c0sk_kvms_cv");
+    cv_init(&c0sk->c0sk_kvms_cv);
 
     if (sem_init(&c0sk->c0sk_sync_sema, 0, 1)) {
         err = merr(errno);
@@ -730,7 +730,7 @@ c0sk_sync(struct c0sk *handle, const unsigned int flags)
     if (flags & HSE_KVDB_SYNC_ASYNC)
         return err;
 
-    cv_init(&waiter.c0skw_cv, __func__);
+    cv_init(&waiter.c0skw_cv);
 
     /* Wait here until the current c0kvms is released.  Print
      * the backlog size periodically until we've been signaled.
@@ -739,7 +739,7 @@ c0sk_sync(struct c0sk *handle, const unsigned int flags)
     list_add_tail(&waiter.c0skw_link, &self->c0sk_sync_waiters);
 
     while (waiter.c0skw_gen > self->c0sk_release_gen) {
-        rc = cv_timedwait(&waiter.c0skw_cv, &self->c0sk_sync_mutex, 1000);
+        rc = cv_timedwait(&waiter.c0skw_cv, &self->c0sk_sync_mutex, 1000, "c0sync");
 
         if (rc && (self->c0sk_kvdb_rp->c0_debug & C0_DEBUG_SYNC)) {
             mutex_unlock(&self->c0sk_sync_mutex);

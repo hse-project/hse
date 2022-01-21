@@ -122,7 +122,7 @@ sts_create(const char *name, uint nq, sts_print_fn *print_fn, struct sts **handl
     mutex_init(&self->sts_runq_lock);
     INIT_LIST_HEAD(&self->sts_runq_list);
     self->sts_print_fn = print_fn;
-    snprintf(self->sts_name, sizeof(self->sts_name), "hse_sts_%s", name);
+    snprintf(self->sts_name, sizeof(self->sts_name), "hse_%s", name);
 
     self->sts_wq = alloc_workqueue(self->sts_name, 0, nq, WQ_MAX_ACTIVE, 0);
     if (!self->sts_wq) {

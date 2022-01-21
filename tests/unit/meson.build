@@ -192,7 +192,6 @@ components = {
                 ),
             ],
         },
-        'delay_test': {},
         'element_source_test': {
             'sources': [
                 files(

@@ -1,6 +1,6 @@
 /* SPDX-License-Identifier: Apache-2.0 */
 /*
- * Copyright (C) 2015-2021 Micron Technology, Inc.  All rights reserved.
+ * Copyright (C) 2015-2022 Micron Technology, Inc.  All rights reserved.
  */
 
 #ifndef HSE_PLATFORM_WORKQUEUE_H
@@ -16,6 +16,7 @@
 #include <hse_util/inttypes.h>
 #include <hse_util/list.h>
 #include <hse_util/timer.h>
+#include <hse_util/condvar.h>
 
 /* MTF_MOCK_DECL(workqueue) */
 
@@ -103,5 +104,27 @@ cancel_delayed_work(struct delayed_work *work);
 
 void
 delayed_work_timer_fn(unsigned long data);
+
+/**
+ * end_stats_work() - Mark the end of a work loop iteration
+ *
+ * This function should be called by long-running workqueue callbacks
+ * which implement a work-processing loop that rarely returns.  Such
+ * callbacks should call end_stats_work() at the end of each loop
+ * iteration to update workqueue statistics.
+ */
+void
+end_stats_work(void);
+
+/**
+ * begin_stats_work() - Mark the beginning of a work loop iteration
+ *
+ * This function should be called by long-running workqueue callbacks
+ * which implement a work-processing loop that rarely returns.  Such
+ * callbacks should call begin_stats_work() at the begging of each
+ * loop iteration to update workqueue statistics.
+ */
+void
+begin_stats_work(void);
 
 #endif /* HSE_PLATFORM_WORKQUEUE_H */

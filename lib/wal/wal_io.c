@@ -122,6 +122,7 @@ wal_io_worker(struct work_struct *work)
         INIT_LIST_HEAD(&active);
 
         mutex_lock(&io->io_lock);
+        end_stats_work();
 
         while (list_empty(&io->io_active)) {
             if (io->io_stop) {
@@ -129,9 +130,11 @@ wal_io_worker(struct work_struct *work)
                 atomic_set(&io->io_stopped, 1);
                 return;
             }
-            cv_wait(&io->io_cv, &io->io_lock);
+
+            cv_timedwait(&io->io_cv, &io->io_lock, -1, "walioslp");
         }
 
+        begin_stats_work();
         list_splice(&io->io_active, &active);
         INIT_LIST_HEAD(&io->io_active);
         mutex_unlock(&io->io_lock);
@@ -219,7 +222,7 @@ wal_io_create(
     memset(io, 0, sz);
     INIT_LIST_HEAD(&io->io_active);
     mutex_init(&io->io_lock);
-    cv_init(&io->io_cv, "wal_wcv");
+    cv_init(&io->io_cv);
     io->io_stop = false;
 
     atomic_set(&io->io_err, 0);

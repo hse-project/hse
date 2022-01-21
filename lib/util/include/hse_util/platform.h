@@ -1,6 +1,6 @@
 /* SPDX-License-Identifier: Apache-2.0 */
 /*
- * Copyright (C) 2015-2020 Micron Technology, Inc.  All rights reserved.
+ * Copyright (C) 2015-2020,2022 Micron Technology, Inc.  All rights reserved.
  */
 
 #ifndef HSE_PLATFORM_PLATFORM_H
@@ -11,6 +11,50 @@
 #include <hse_util/hse_err.h>
 
 /* MTF_MOCK_DECL(platform) */
+
+/* Threads about to block or enter a long-running operation may
+ * set hse_wmesg_tls to indicate their current status.  After
+ * returning from the operation they should set it to "-".
+ * The message should reside in global memory.
+ */
+extern thread_local volatile const char *hse_wmesg_tls;
+
+static HSE_ALWAYS_INLINE int
+hse_nanosleep(const struct timespec *req, struct timespec *rem, const char *wmesg)
+{
+    int rc;
+
+    assert(wmesg);
+    hse_wmesg_tls = wmesg;
+
+    rc = clock_nanosleep(CLOCK_MONOTONIC, 0, req, rem);
+
+    hse_wmesg_tls = "-";
+    return rc;
+}
+
+/**
+ * hse_readfile() - read a file into a buffer
+ * @dirfd: ignored if path is absolute
+ * @path:  pathname to file
+ * @buf:   dest buffer for file data
+ * @bufsz: dest buffer size
+ * @flags: open(2) flags
+ *
+ * This function is intended to provide the same semantics as the
+ * proposed readfile(2) system call on Linux.  Reads at most %bufsz
+ * bytes from the file specified by %path into %buf.
+ *
+ * Return: On success, returns the lesser of %bufsz or the number
+ * of bytes in the file.  On error, returns -1 and sets errno.
+ *
+ * https://git.kernel.org/pub/scm/linux/kernel/git/gregkh/driver-core.git/diff/?h=readfile
+ *
+ * [HSE_REVISIT] Replace with Linux's readfile(2) if/when it comes
+ * into existance.
+ */
+ssize_t
+hse_readfile(int dirfd, const char *path, void *buf, size_t bufsz, int flags);
 
 /**
  * hse_meminfo() - Get current system-wide memory usage
@@ -51,16 +95,19 @@ hse_meminfo(unsigned long *freep, unsigned long *availp, unsigned int shift);
  * To convert values larger than 2^43 simply divide by hse_tsc_freq, which is
  * slower but will not overflow.
  */
+#define HSE_TSC_SHIFT   (21u)
+#define HSE_TSC_HWM     (1ul << (64u - HSE_TSC_SHIFT))
+
 extern unsigned long hse_tsc_freq;
 extern unsigned int hse_tsc_mult;
-extern unsigned int hse_tsc_shift;
 
 static HSE_ALWAYS_INLINE u64
 cycles_to_nsecs(u64 cycles)
 {
-    /* To avoid overflow, cycles is limited to 2^(64 - hse_tsc_shift).
-     */
-    return (cycles * hse_tsc_mult) >> hse_tsc_shift;
+    if (HSE_UNLIKELY(cycles >= HSE_TSC_HWM))
+        return (cycles >> HSE_TSC_SHIFT) * hse_tsc_mult;
+
+    return (cycles * hse_tsc_mult) >> HSE_TSC_SHIFT;
 }
 
 extern const char *hse_progname;

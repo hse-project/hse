@@ -835,13 +835,22 @@ ikvdb_throttle_task(struct work_struct *work)
             throttle_update_prev = tstart;
         }
 
+        end_stats_work();
+
         /* Sleep for 10ms minus processing overhead.  Does not account
          * for sleep time variance, but does account for timer slack
          * to minimize drift.
          */
-        tstart = (get_time_ns() - tstart + timer_slack) / 1000;
-        if (tstart < 10000)
-            usleep(10000 - tstart);
+        tstart = get_time_ns() - tstart + timer_slack;
+        if (tstart < NSEC_PER_SEC / 100) {
+            struct timespec req = {
+                .tv_nsec = (NSEC_PER_SEC / 100 - tstart)
+            };
+
+            hse_nanosleep(&req, NULL, "throtslp");
+        }
+
+        begin_stats_work();
     }
 }
 
@@ -854,7 +863,7 @@ ikvdb_maint_task(struct work_struct *work)
 
     self = container_of(work, struct ikvdb_impl, ikdb_maint_work);
 
-    maxdelay = 10000; /* 10ms initial delay time */
+    maxdelay = NSEC_PER_SEC / 100; /* 10ms initial delay time */
 
     while (!self->ikdb_work_stop) {
         uint64_t vadd = 0, vsub = 0, curcnt;
@@ -893,20 +902,28 @@ ikvdb_maint_task(struct work_struct *work)
         }
         mutex_unlock(&self->ikdb_lock);
 
+        end_stats_work();
+
         /* Sleep for 100ms minus processing overhead.  Does not account
-         * for sleep time variance.  Divide delta by 1024 rather than
-         * 1000 to facilitate intentional drift.
+         * for sleep time variance.
          */
-        tstart = (get_time_ns() - tstart) / 1024;
-        if (tstart < maxdelay)
-            usleep(maxdelay - tstart);
+        tstart = get_time_ns() - tstart;
+        if (tstart < maxdelay) {
+            struct timespec req = {
+                .tv_nsec = (maxdelay - tstart)
+            };
+
+            hse_nanosleep(&req, NULL, "kvdbmslp");
+        }
+
+        begin_stats_work();
 
         /* Use a smaller delay at program start to avoid unnecessarily
          * holding up a short lived program.  Once we hit 100ms we'll
          * stop incrementing maxdelay.
          */
-        if (maxdelay < 100000)
-            maxdelay += 3000;
+        if (maxdelay < NSEC_PER_SEC / 10)
+            maxdelay += NSEC_PER_SEC / 300;
     }
 }
 

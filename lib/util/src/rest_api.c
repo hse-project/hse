@@ -7,7 +7,6 @@
 #include <hse_util/minmax.h>
 #include <hse_util/logging.h>
 #include <hse_util/hse_err.h>
-#include <hse_util/delay.h>
 #include <hse_util/workqueue.h>
 #include <hse_util/event_counter.h>
 
@@ -292,7 +291,7 @@ rest_url_deregister(const char *fmt, ...)
 
     if (match) {
         while (atomic_read(&match->refcnt) > 0)
-            msleep(100);
+            usleep(100 * USEC_PER_SEC);
 
         match->get_handler = match->put_handler = match->context = 0;
         return 0;
@@ -1135,7 +1134,7 @@ rest_server_stop(void)
             break;
 
         log_warn("%d sessions still active", nbusy);
-        msleep(3000);
+        usleep(3000 * USEC_PER_SEC);
     }
 
     /* Don't hang in desstroy_workqueue() if there are active sessions.

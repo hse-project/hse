@@ -2439,13 +2439,17 @@ sp3_monitor(struct work_struct *work)
         merr_t err;
 
         mutex_lock(&sp->mon_lock);
+        end_stats_work();
+
         if (!sp->mon_signaled && now < chk_qos.next) {
             int timeout_ms = max_t(int, 10, (chk_qos.next - now) / USEC_PER_SEC);
 
-            cv_timedwait(&sp->mon_cv, &sp->mon_lock, timeout_ms);
+            cv_timedwait(&sp->mon_cv, &sp->mon_lock, timeout_ms, "spmonslp");
 
             now = get_time_ns();
         }
+
+        begin_stats_work();
         sp->mon_signaled = false;
         mutex_unlock(&sp->mon_lock);
 
@@ -2708,7 +2712,7 @@ sp3_create(
     mutex_init(&sp->work_list_lock);
 
     mutex_init(&sp->mon_lock);
-    cv_init(&sp->mon_cv, "csched");
+    cv_init(&sp->mon_cv);
 
     INIT_LIST_HEAD(&sp->mon_tlist);
     INIT_LIST_HEAD(&sp->new_tlist);

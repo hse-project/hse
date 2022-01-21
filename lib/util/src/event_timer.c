@@ -1,11 +1,10 @@
 /* SPDX-License-Identifier: Apache-2.0 */
 /*
- * Copyright (C) 2015-2020 Micron Technology, Inc.  All rights reserved.
+ * Copyright (C) 2015-2020,2022 Micron Technology, Inc.  All rights reserved.
  */
 
 #define USE_EVENT_TIMER
 #include <hse_util/arch.h>
-#include <hse_util/delay.h>
 #include <hse_util/event_timer.h>
 
 #include <math.h>
