@@ -32,6 +32,7 @@ jobs:
       fail-fast: false
       matrix:
         os: [ubuntu-18.04, ubuntu-20.04]
+        toolchain: [gcc, clang]
         buildtype: [release, debug]
 
     steps:
@@ -59,9 +60,32 @@ jobs:
             libbson-dev libssl-dev libsasl2-dev
           sudo python3 -m pip install meson Cython
 
+      - name: Setup gcc toolchain
+        if: ${{ matrix.toolchain == 'gcc' }}
+        run: |
+          echo "CC=gcc" >> $GITHUB_ENV
+          echo "CXX=g++" >> $GITHUB_ENV
+          sudo apt-get install gcc g++
+
+        # Fix false warnings by installing newer version in 18.04
+        #
+        # Ignore deprecation warnings on 20.04 due to:
+        #     https://github.com/cython/cython/issues/3474
+      - name: Setup clang toolchain
+        if: ${{ matrix.toolchain == 'clang' }}
+        run: |
+          echo "CC=clang" >> $GITHUB_ENV
+          echo "CXX=clang++" >> $GITHUB_ENV
+          sudo apt-get install \
+            $(if [ $(lsb_release -rs) = "18.04" ]; then echo clang-10; else clang; fi;)
+          if [ $(lsb_release -rs) = "20.04" ]; then
+            echo "CFLAGS=-Wno-deprecated ${CFLAGS}" >> $GITHUB_ENV
+          fi
+
       - name: Setup
         run: |
-          meson builddir -Dbuildtype=${{ matrix.buildtype }} -Dtools=enabled -Ddocs=disabled -Dbindings=all -Dycsb=true -Dwerror=true
+          meson builddir -Dbuildtype=${{ matrix.buildtype }} -Dtools=enabled \
+            -Ddocs=disabled -Dbindings=all -Dycsb=true -Dwerror=true
 
       - name: Build
         run: |
@@ -75,7 +99,7 @@ jobs:
       - uses: actions/upload-artifact@v2
         if: failure()
         with:
-          name: build-artifact-${{ matrix.os }}-${{ matrix.buildtype }}
+          name: ${{ matrix.os }}-${{ matrix.toolchain }}-${{ matrix.buildtype }}
           path: |
             builddir/meson-logs/
             /var/log/syslog
@@ -88,6 +112,7 @@ jobs:
       fail-fast: false
       matrix:
         image-tag: [35]
+        toolchain: [gcc, clang]
         buildtype: [release, debug]
 
     steps:
@@ -108,13 +133,28 @@ jobs:
 
       - name: Initialize
         run: |
+          dnf group install -y --with-optional \
+            "C Development Tools and Libraries"
           dnf install -y git ninja-build meson python-unversioned-command \
-            pkg-config cmake make automake gcc gcc-c++ kernel-devel \
-            libmicrohttpd-devel userspace-rcu-devel libyaml-devel \
-            libbsd-devel libcurl-devel libpmem-devel xz mongo-c-driver libbson \
+            libmicrohttpd-devel userspace-rcu-devel libyaml-devel libbsd-devel \
+            libcurl-devel libpmem-devel xz mongo-c-driver libbson \
             openssl-devel cyrus-sasl-devel ncurses-devel \
-            java-1.8.0-openjdk-devel python3-devel python3-Cython \
-            libxml2-devel libxslt-devel
+            java-1.8.0-openjdk-devel python3-devel python3-Cython libxml2 \
+            libxslt
+
+      - name: Setup gcc toolchain
+        if: ${{ matrix.toolchain == 'gcc' }}
+        run: |
+          echo "CC=gcc" >> $GITHUB_ENV
+          echo "CXX=g++" >> $GITHUB_ENV
+          dnf install -y gcc gcc-c++
+
+      - name: Setup clang toolchain
+        if: ${{ matrix.toolchain == 'clang' }}
+        run: |
+          echo "CC=clang" >> $GITHUB_ENV
+          echo "CXX=clang++" >> $GITHUB_ENV
+          dnf install -y clang
 
       - name: Setup
         run: |
@@ -134,7 +174,7 @@ jobs:
       - uses: actions/upload-artifact@v2
         if: failure()
         with:
-          name: build-artifact-${{ github.job }}-${{ matrix.image-tag }}-${{ matrix.buildtype }}
+          name: ${{ github.job }}-${{ matrix.image-tag }}-${{ matrix.toolchain }}-${{ matrix.buildtype }}
           path: |
             builddir/meson-logs/
             /var/log/messages
@@ -147,6 +187,7 @@ jobs:
       fail-fast: false
       matrix:
         image-tag: [8]
+        toolchain: [gcc, clang]
         buildtype: [release, debug]
 
     steps:
@@ -169,12 +210,27 @@ jobs:
         run: |
           dnf install -y sudo dnf-plugins-core epel-release
           dnf config-manager --set-enabled powertools
-          dnf install -y git ninja-build pkg-config cmake make automake gcc \
-            gcc-c++ kernel-devel libmicrohttpd-devel userspace-rcu-devel \
-            libyaml-devel libbsd-devel libcurl-devel xz mongo-c-driver libbson \
-            openssl-devel cyrus-sasl-devel ncurses-devel \
-            java-1.8.0-openjdk-devel python36 python3-devel libxml2 libxslt
+          dnf group install -y --with-optional "Development Tools"
+          dnf install -y git ninja-build libmicrohttpd-devel \
+            userspace-rcu-devel libyaml-devel libbsd-devel libcurl-devel \
+            libpmem-devel xz mongo-c-driver libbson openssl-devel \
+            cyrus-sasl-devel ncurses-devel java-1.8.0-openjdk-devel \
+            python36 python36-devel libxml2 libxslt
           python3 -m pip install meson Cython
+
+      - name: Setup gcc toolchain
+        if: ${{ matrix.toolchain == 'gcc' }}
+        run: |
+          echo "CC=gcc" >> $GITHUB_ENV
+          echo "CXX=g++" >> $GITHUB_ENV
+          dnf install -y gcc gcc-c++
+
+      - name: Setup clang toolchain
+        if: ${{ matrix.toolchain == 'clang' }}
+        run: |
+          echo "CC=clang" >> $GITHUB_ENV
+          echo "CXX=clang++" >> $GITHUB_ENV
+          dnf install -y clang
 
       - name: Setup
         run: |
@@ -193,7 +249,7 @@ jobs:
       - uses: actions/upload-artifact@v2
         if: failure()
         with:
-          name: build-artifact-${{ github.job }}-${{ matrix.image-tag }}-${{ matrix.buildtype }}
+          name: ${{ github.job }}-${{ matrix.image-tag }}-${{ matrix.toolchain }}-${{ matrix.buildtype }}
           path: |
             builddir/meson-logs/
             /var/log/messages
@@ -252,7 +308,7 @@ jobs:
       - uses: actions/upload-artifact@v2
         if: failure()
         with:
-          name: build-artifact-${{ github.job }}-${{ matrix.arch }}-${{ matrix.buildtype }}
+          name: ${{ github.job }}-${{ matrix.arch }}-${{ matrix.buildtype }}
           path: |
             builddir/meson-logs/
 
@@ -283,10 +339,11 @@ jobs:
 
       - name: Initialize
         run: |
+          dnf group install -y --with-optional \
+            "C Development Tools and Libraries"
           dnf install -y git ninja-build meson python-unversioned-command \
-            pkg-config cmake make automake gcc gcc-c++ kernel-devel \
-            libmicrohttpd-devel userspace-rcu-devel libyaml-devel \
-            libbsd-devel libcurl-devel libpmem-devel xz mongo-c-driver libbson \
+            libmicrohttpd-devel userspace-rcu-devel libyaml-devel libbsd-devel \
+            libcurl-devel libpmem-devel xz mongo-c-driver libbson \
             openssl-devel cyrus-sasl-devel ncurses-devel \
             java-1.8.0-openjdk-devel python3-devel python3-Cython \
             libxml2-devel libxslt-devel libasan libubsan
@@ -309,7 +366,7 @@ jobs:
       - uses: actions/upload-artifact@v2
         if: failure()
         with:
-          name: build-artifact-${{ github.job }}-${{ matrix.buildtype }}
+          name: ${{ github.job }}-${{ matrix.buildtype }}
           path: |
             builddir/meson-logs/
             /var/log/messages

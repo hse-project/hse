@@ -565,7 +565,7 @@ MTF_DEFINE_UTEST_PREPOST(c0_kvset_test, advanced_repeated_put, no_fail_pre, no_f
     u64                      num_entries, num_tombs;
     u64                      key_bytes, val_bytes;
     u64                      tr_keys = 0, tr_tombs = 0;
-    u64                      tr_key_bytes = 0, tr_val_bytes = 0;
+    u64                      tr_key_bytes HSE_MAYBE_UNUSED = 0, tr_val_bytes HSE_MAYBE_UNUSED = 0;
     uintptr_t                iseqnoref, oseqnoref;
     u64                      view_seqno;
     struct bonsai_kv *       bkv;

@@ -18,11 +18,9 @@ jobs:
 
       - name: Initialize
         run: |
-          dnf install -y git ninja-build meson python-unversioned-command \
-            pkg-config cmake make automake gcc kernel-devel doxygen \
-            libmicrohttpd-devel userspace-rcu-devel libyaml-devel \
-            libbsd-devel libcurl-devel libpmem-devel xz libbson \
-            python3-devel python3-Cython libxml2-devel libxslt-devel
+          dnf install -y git ninja-build meson libmicrohttpd-devel \
+            userspace-rcu-devel libyaml-devel libbsd-devel libcurl-devel \
+            libpmem-devel
 
       - name: Setup
         run: |
