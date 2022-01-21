@@ -46,7 +46,7 @@ jobs:
 
       - name: Setup
         run: |
-          meson builddir -Dbuildtype=${{ matrix.build_type }} --fatal-meson-warnings -Dycsb=true
+          meson builddir -Dbuildtype=${{ matrix.build_type }} -Dycsb=true
 
       - name: Test
         run: |
