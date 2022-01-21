@@ -185,7 +185,7 @@ MTF_DEFINE_UTEST(config_test, from_hse_conf)
     merr_t         err;
 
     err = config_from_hse_conf("C:\\does\\not\\exist.conf", &conf);
-    ASSERT_EQ(0, merr_errno(err));
+    ASSERT_EQ(ENOENT, merr_errno(err));
 
     err = config_from_hse_conf(NULL, &conf);
     ASSERT_EQ(0, merr_errno(err));

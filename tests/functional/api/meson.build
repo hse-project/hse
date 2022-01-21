@@ -1,9 +1,10 @@
 tests = {
+    'cursor_api_test': {},
+    'error_api_test': {},
+    'hse_api_test': {},
     'kvdb_api_test': {},
+    'kvs_api_test': {},
     'transaction_api_test': {},
-    'kvs_put_get_delete_api_test': {},
-    'kvs_lifecycle_test': {},
-    'cursor_api_test': {}
 }
 
 foreach t, params : tests

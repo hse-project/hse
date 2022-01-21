@@ -86,14 +86,14 @@ hse_err_to_errno(hse_err_t err);
  *
  * @param err: Error value returned from an HSE API function.
  * @param[in,out] buf: Buffer to hold the formatted string.
- * @param buf_len: Length of buffer.
+ * @param buf_sz: Size of @p buf.
  *
  * @returns The number of characters (excluding the terminating NULL byte) which
  * would have been written to the final string if enough space had been
  * available.
  */
 size_t
-hse_strerror(hse_err_t err, char *buf, size_t buf_len);
+hse_strerror(hse_err_t err, char *buf, size_t buf_sz);
 
 /** @brief Return an hse_err_t value's error context.
  *
@@ -215,6 +215,8 @@ hse_kvdb_close(struct hse_kvdb *kvdb);
  * @param paramv: List of parameters in key=value format.
  *
  * @remark @p kvdb_home must not be NULL.
+ * @remark @p kvdb_home must have a length > 0.
+ * @remark If @p paramc is > 0, then @p paramv cannot be NULL.
  *
  * @returns Error status.
  */
@@ -231,6 +233,7 @@ hse_kvdb_create(const char *kvdb_home, size_t paramc, const char *const *paramv)
  * @param kvdb_home: KVDB home directory.
  *
  * @remark @p kvdb_home must not be NULL.
+ * @remark @p kvdb_home must have a length > 0.
  *
  * @returns Error status.
  */
@@ -354,6 +357,8 @@ hse_kvdb_mclass_reconfigure(const char *kvdb_home, enum hse_mclass mclass, const
  *
  * @remark The KVDB must have already been created.
  * @remark @p kvdb_home must not be NULL.
+ * @remark @p kvdb_home must have a length > 0.
+ * @remark If @p paramc is > 0, then @p paramv cannot be NULL.
  * @remark @p kvdb must not be NULL.
  *
  * @returns Error status.
@@ -507,7 +512,7 @@ hse_kvdb_kvs_drop(struct hse_kvdb *kvdb, const char *kvs_name);
  *
  * This function is not thread safe.
  *
- * @param handle: KVDB handle from hse_kvdb_open().
+ * @param kvdb: KVDB handle from hse_kvdb_open().
  * @param kvs_name: KVS name.
  * @param paramc: Number of configuration parameters in @p paramv.
  * @param paramv: List of parameters in key=value format.
@@ -522,7 +527,7 @@ hse_kvdb_kvs_drop(struct hse_kvdb *kvdb, const char *kvs_name);
  */
 hse_err_t
 hse_kvdb_kvs_open(
-    struct hse_kvdb *  handle,
+    struct hse_kvdb *  kvdb,
     const char *       kvs_name,
     const size_t       paramc,
     const char *const *paramv,
@@ -577,9 +582,9 @@ hse_kvs_delete(
  * @param key: Key to get from @p kvs.
  * @param key_len: Length of @p key.
  * @param[out] found: Whether or not @p key was found.
- * @param[in,out] buf: Buffer into which the value associated with @p key will
+ * @param[in,out] valbuf: Buffer into which the value associated with @p key will
  * be copied (optional).
- * @param buf_len: Length of @p buf.
+ * @param valbuf_sz: Size of @p valbuf.
  * @param[out] val_len: Actual length of value if @p key was found.
  *
  * @remark @p kvs must not be NULL.
@@ -599,8 +604,8 @@ hse_kvs_get(
     const void *         key,
     size_t               key_len,
     bool *               found,
-    void *               buf,
-    size_t               buf_len,
+    void *               valbuf,
+    size_t               valbuf_sz,
     size_t *             val_len);
 
 /** @brief Get the name of a KVS.

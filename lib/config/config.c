@@ -450,11 +450,7 @@ config_from_hse_conf(const char *const config, struct config **conf)
 
     err = config_create(config, &impl);
     if (err) {
-        if (merr_errno(err) == ENOENT) {
-            err = 0;
-        } else {
-            fprintf(stderr, "Failed to read %s\n", config);
-        }
+        fprintf(stderr, "Failed to read %s\n", config);
         goto out;
     }
 
