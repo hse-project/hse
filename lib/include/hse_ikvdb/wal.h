@@ -11,7 +11,7 @@
 #include <hse_ikvdb/kvs.h>
 #include <hse_ikvdb/tuple.h>
 
-#define HSE_WAL_DUR_MS_MIN         (25)
+#define HSE_WAL_DUR_MS_MIN         (1)
 #define HSE_WAL_DUR_MS_DFLT        (100)
 #define HSE_WAL_DUR_MS_MAX         (1000)
 
