@@ -38,7 +38,8 @@ cv_timedwait(struct cv *cv, struct mutex *mtx, const long timeout, const char *w
 {
     int rc;
 
-    hse_wmesg_tls = wmesg ?: "cv_wait";
+    assert(wmesg);
+    hse_wmesg_tls = wmesg;
 
     ++cv->cv_waiters;
 

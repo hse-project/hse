@@ -149,9 +149,13 @@ grow_workqueue_cb(ulong arg)
     if (wq->wq_growing) {
         wq->wq_grow.expires = jiffies + wq->wq_tcdelay;
         add_timer(&wq->wq_grow);
-        ++wq->wq_refcnt;
-        ++wq->wq_tdcnt;
+        wq->wq_refcnt += 2;
+        wq->wq_tdcnt++;
     }
+
+    /* Drop our "growing callback" reference.
+     */
+    --wq->wq_refcnt;
     mutex_unlock(&wq->wq_lock);
 }
 
@@ -168,7 +172,7 @@ alloc_workqueue(const char *fmt, unsigned int flags, int min_active, int max_act
         INIT_LIST_HEAD(&wg.wg_list);
     }
 
-    max_active = max_active ?: WQ_DFL_ACTIVE;
+    max_active = max_active ? max_active : WQ_DFL_ACTIVE;
     max_active = clamp_t(int, max_active, 1, WQ_MAX_ACTIVE);
     min_active = clamp_t(int, min_active, 0, max_active);
 
@@ -297,14 +301,15 @@ queue_work_locked(struct workqueue_struct *wq, struct work_struct *work)
         list_add_tail(&work->entry, &wq->wq_pending);
 
         /* Try to spawn a new worker thread if there does not appear
-         * to be enough workers to handle the load.
+         * to be enough workers to handle the load.  Acquire a ref
+         * for the grow callback and a birth ref for the new thread.
          */
         if (wq->wq_tdcnt < wq->wq_tdmax && wq->wq_idle.cv_waiters == 0) {
             if (!wq->wq_growing) {
                 wq->wq_grow.expires = jiffies + 1;
                 add_timer(&wq->wq_grow);
                 wq->wq_growing = true;
-                wq->wq_refcnt++;
+                wq->wq_refcnt += 2;
                 wq->wq_tdcnt++;
             }
         }
@@ -740,10 +745,11 @@ workqueue_rest_get(
                      widthv[1], priv->wp_calls,
                      lat, divsuf + (ldiv - divtab),
                      *priv->wp_wmesgp,
-                     statestr ?: "?", cpustr ?: "?",
-                     widthv[2], tidstr ?: "?",
+                     statestr ? statestr : "?",
+                     cpustr ? cpustr : "?",
+                     widthv[2], tidstr ? tidstr : "?",
                      widthv[3], tmbuf,
-                     commstr ?: "?");
+                     commstr ? commstr : "?");
         if (n < 1 || n >= bufsz - buflen)
             break;
 
