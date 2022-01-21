@@ -25,7 +25,7 @@ jobs:
 
       - name: Setup
         run: |
-          meson builddir --fatal-meson-warnings -Dwerror=true -Ddocs=enabled -Dtests=false -Dtools=disabled -Dbindings=none -Dcli=false -Dsamples=false -Ddb_bench=false
+          meson builddir -Dwerror=true -Ddocs=enabled -Dtests=false -Dtools=disabled -Dbindings=none -Dcli=false -Dsamples=false -Ddb_bench=false
 
       - name: Build
         run: |
