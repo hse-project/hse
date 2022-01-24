@@ -17,7 +17,7 @@
  * returning from the operation they should set it to "-".
  * The message should reside in global memory.
  */
-extern thread_local volatile const char *hse_wmesg_tls;
+extern thread_local const char * volatile hse_wmesg_tls;
 
 static HSE_ALWAYS_INLINE int
 hse_nanosleep(const struct timespec *req, struct timespec *rem, const char *wmesg)

@@ -1350,7 +1350,7 @@ sp3_process_workitem(struct sp3 *sp, struct cn_compaction_work *w)
         sp3_log_samp_overall(sp);
     }
 
-    sts_job_done(sp->sts, &w->cw_job);
+    sts_job_done(&w->cw_job);
     free(w);
 }
 
@@ -1664,16 +1664,21 @@ sp3_job_print(struct sts_job *job, bool hdr, char *buf, size_t bufsz)
 {
     struct cn_compaction_work *w = container_of(job, typeof(*w), cw_job);
     int n = 0, m = 0;
+    char tmbuf[32];
+    ulong tm;
 
     if (hdr) {
         n = snprintf(buf, bufsz,
-                     "%3s %6s %5s %7s %-7s %2s %1s %5s %6s %6s %4s"
-                     " %3s %5s %3s %4s %6s %6s %6s %6s %1s %4s  %s\n",
+                     "%3s %6s %5s %7s %-7s"
+                     " %2s %1s %5s %6s %6s %4s"
+                     " %4s %5s %3s %4s"
+                     " %6s %6s %6s %6s"
+                     " %8s %4s %s\n",
                      "ID", "LOC   ", "JOB", "ACTION", "RULE",
                      "Q", "T", "KVSET", "ALEN", "CLEN", "PCAP",
                      "CC", "DGEN", "NK", "NV",
                      "RALEN", "IALEN", "LALEN", "LGOOD",
-                     "S", "TIME", "TNAME");
+                     "WMESG", "TIME", "TNAME");
 
         if (n < 1 || n >= bufsz)
             return n;
@@ -1682,9 +1687,15 @@ sp3_job_print(struct sts_job *job, bool hdr, char *buf, size_t bufsz)
         buf += n;
     }
 
+    tm = (jclock_ns - w->cw_t0_enqueue) / NSEC_PER_SEC;
+    snprintf(tmbuf, sizeof(tmbuf), "%lu:%02lu", (tm / 60) % 60, tm % 60);
+
     m = snprintf(buf, bufsz,
-                 "%3lu %u,%-4u %5u %7s %-7s %2u %1u %2u,%-2u %6lu %6lu %4u"
-                 " %3u %5lu %3u %4u %6ld %6ld %6ld %6ld %1c %4lu  %s\n",
+                 "%3lu %u,%-4u %5u %7s %-7s"
+                 " %2u %1u %2u,%-2u %6lu %6lu %4u"
+                 " %4u %5lu %3u %4u"
+                 " %6ld %6ld %6ld %6ld"
+                 " %8.8s %4s %s\n",
                  w->cw_tree->cnid,
                  w->cw_node->tn_loc.node_level, w->cw_node->tn_loc.node_offset,
                  sts_job_id_get(&w->cw_job),
@@ -1702,9 +1713,8 @@ sp3_job_print(struct sts_job *job, bool hdr, char *buf, size_t bufsz)
                  w->cw_est.cwe_samp.i_alen >> 20,
                  w->cw_est.cwe_samp.l_alen >> 20,
                  w->cw_est.cwe_samp.l_good >> 20,
-                 sts_job_status_get(&w->cw_job),
-                 (jclock_ns - w->cw_t0_enqueue) / NSEC_PER_SEC,
-                 w->cw_threadname);
+                 sts_job_wmesg_get(&w->cw_job),
+                 tmbuf, w->cw_threadname);
 
     return (m < 1) ? m : (n + m);
 }

@@ -1,6 +1,6 @@
 /* SPDX-License-Identifier: Apache-2.0 */
 /*
- * Copyright (C) 2015-2021 Micron Technology, Inc.  All rights reserved.
+ * Copyright (C) 2015-2022 Micron Technology, Inc.  All rights reserved.
  */
 
 #include "mapi_idx.h"
@@ -225,12 +225,11 @@ test_post(struct mtf_test_info *ti)
 {
     MOCK_UNSET(kvset_view, _kvset_get_metrics);
 
-    rest_server_stop();
-
-    rest_destroy();
-
     ikvdb_close(store);
     store = 0;
+
+    rest_server_stop();
+    rest_destroy();
 
     MOCK_UNSET(platform, _hse_meminfo);
 

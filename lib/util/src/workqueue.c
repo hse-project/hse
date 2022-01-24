@@ -42,7 +42,7 @@ struct wq_priv {
     ulong             wp_tstart;
     ulong             wp_cstart;
     ulong             wp_calls;
-    volatile const char **wp_wmesgp;
+    const char * volatile *wp_wmesgp;
     ulong             wp_latv[8] HSE_L1X_ALIGNED;
 };
 
@@ -95,12 +95,15 @@ struct workqueue_struct {
 
 struct workqueue_globals {
     struct mutex     wg_lock HSE_ACP_ALIGNED;
-    struct list_head wg_list;
-    atomic_int       wg_refcnt;
+    struct list_head wg_tlist;
+    bool             wg_inited;
 };
 
-static struct workqueue_globals wg;
-static thread_local struct wq_priv wq_priv_tls;
+static struct workqueue_globals hse_wg = {
+    .wg_lock = { PTHREAD_MUTEX_INITIALIZER }
+};
+
+static thread_local struct wq_priv hse_wp_tls;
 
 static void
 dump_workqueue_locked(struct workqueue_struct *wq);
@@ -167,10 +170,12 @@ alloc_workqueue(const char *fmt, unsigned int flags, int min_active, int max_act
     va_list args;
     int rc, i;
 
-    if (atomic_inc_return(&wg.wg_refcnt) == 1) {
-        mutex_init(&wg.wg_lock);
-        INIT_LIST_HEAD(&wg.wg_list);
+    mutex_lock(&hse_wg.wg_lock);
+    if (!hse_wg.wg_inited) {
+        INIT_LIST_HEAD(&hse_wg.wg_tlist);
+        hse_wg.wg_inited = true;
     }
+    mutex_unlock(&hse_wg.wg_lock);
 
     max_active = max_active ? max_active : WQ_DFL_ACTIVE;
     max_active = clamp_t(int, max_active, 1, WQ_MAX_ACTIVE);
@@ -262,12 +267,12 @@ destroy_workqueue(struct workqueue_struct *wq)
      * the global priv list (which contains live wq pointers);
      */
     do {
-        mutex_lock(&wg.wg_lock);
-        list_for_each_entry(priv, &wg.wg_list, wp_link) {
+        mutex_lock(&hse_wg.wg_lock);
+        list_for_each_entry(priv, &hse_wg.wg_tlist, wp_link) {
             if (priv->wp_wq == wq)
                 break;
         }
-        mutex_unlock(&wg.wg_lock);
+        mutex_unlock(&hse_wg.wg_lock);
 
         if (priv)
             usleep(333);
@@ -276,11 +281,6 @@ destroy_workqueue(struct workqueue_struct *wq)
     cv_destroy(&wq->wq_barrier);
     cv_destroy(&wq->wq_idle);
     mutex_destroy(&wq->wq_lock);
-
-    if (atomic_dec_return(&wg.wg_refcnt) == 0) {
-        rest_url_deregister("ps");
-        mutex_destroy(&wg.wg_lock);
-    }
 
     free(wq);
 }
@@ -374,7 +374,7 @@ static void *
 worker_thread(void *arg)
 {
     struct workqueue_struct *wq = arg;
-    struct wq_priv *priv = &wq_priv_tls;
+    struct wq_priv *priv = &hse_wp_tls;
     sigset_t sigset;
     int timedout;
 
@@ -393,9 +393,9 @@ worker_thread(void *arg)
     priv->wp_calls = 0;
     priv->wp_wmesgp = &hse_wmesg_tls;
 
-    mutex_lock(&wg.wg_lock);
-    list_add_tail(&priv->wp_link, &wg.wg_list);
-    mutex_unlock(&wg.wg_lock);
+    mutex_lock(&hse_wg.wg_lock);
+    list_add_tail(&priv->wp_link, &hse_wg.wg_tlist);
+    mutex_unlock(&hse_wg.wg_lock);
 
     mutex_lock(&wq->wq_lock);
     timedout = 0;
@@ -468,9 +468,9 @@ worker_thread(void *arg)
     --wq->wq_tdcnt;
     mutex_unlock(&wq->wq_lock);
 
-    mutex_lock(&wg.wg_lock);
+    mutex_lock(&hse_wg.wg_lock);
     list_del(&priv->wp_link);
-    mutex_unlock(&wg.wg_lock);
+    mutex_unlock(&hse_wg.wg_lock);
 
     pthread_exit(NULL);
 }
@@ -586,7 +586,7 @@ cancel_delayed_work(struct delayed_work *dwork)
 void
 end_stats_work(void)
 {
-    struct wq_priv *priv = &wq_priv_tls;
+    struct wq_priv *priv = &hse_wp_tls;
 
     assert(priv);
 
@@ -597,7 +597,7 @@ end_stats_work(void)
 void
 begin_stats_work(void)
 {
-    struct wq_priv *priv = &wq_priv_tls;
+    struct wq_priv *priv = &hse_wp_tls;
 
     assert(priv);
 
@@ -631,16 +631,17 @@ workqueue_rest_get(
     if (path)
         ++path;
 
-    buf = malloc(bufsz);
-    if (!buf)
-        return merr(ENOMEM);
-
     /* Determine max column widths...
      */
-    mutex_lock(&wg.wg_lock);
+    mutex_lock(&hse_wg.wg_lock);
+    if (!hse_wg.wg_inited) {
+        mutex_unlock(&hse_wg.wg_lock);
+        return 0;
+    }
+
     memset(maxv, 0, sizeof(maxv));
 
-    list_for_each_entry(priv, &wg.wg_list, wp_link) {
+    list_for_each_entry(priv, &hse_wg.wg_tlist, wp_link) {
         if (priv->wp_barid > maxv[0])
             maxv[0] = priv->wp_barid;
         if (priv->wp_calls > maxv[1])
@@ -650,7 +651,7 @@ workqueue_rest_get(
         if (priv->wp_tstart > maxv[3])
             maxv[3] = priv->wp_tstart;
     }
-    mutex_unlock(&wg.wg_lock);
+    mutex_unlock(&hse_wg.wg_lock);
 
     maxv[3] = (get_time_ns() - maxv[3]) / NSEC_PER_SEC;
 
@@ -659,12 +660,16 @@ workqueue_rest_get(
         widthv[i] = max_t(int, widthv[i], strlen(colv[i]));
     }
 
+    buf = malloc(bufsz);
+    if (!buf)
+        return merr(ENOMEM);
+
     dirfd = open("/proc/self/task", O_DIRECTORY | O_RDONLY);
     buflen = 0;
     idx = 0;
 
-    mutex_lock(&wg.wg_lock);
-    list_for_each_entry(priv, &wg.wg_list, wp_link) {
+    mutex_lock(&hse_wg.wg_lock);
+    list_for_each_entry(priv, &hse_wg.wg_tlist, wp_link) {
         struct workqueue_struct *wq = priv->wp_wq;
         char *tidstr, *commstr, *statestr, *cpustr;
         char linebuf[1024], fnbuf[32], tmbuf[32];
@@ -762,7 +767,7 @@ workqueue_rest_get(
         buflen += n;
         idx++;
     }
-    mutex_unlock(&wg.wg_lock);
+    mutex_unlock(&hse_wg.wg_lock);
 
     rest_write_safe(info->resp_fd, buf, buflen);
 

@@ -28,7 +28,9 @@ unsigned int hse_tsc_mult HSE_READ_MOSTLY;
 
 const char *hse_progname HSE_READ_MOSTLY;
 
-thread_local volatile const char *hse_wmesg_tls;
+/* Note: The wmesg pointer is volatile, not what it points to...
+ */
+thread_local const char * volatile hse_wmesg_tls = "-";
 
 extern rest_get_t workqueue_rest_get;
 extern rest_get_t kmc_rest_get;

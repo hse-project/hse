@@ -19,10 +19,12 @@
  * struct sts - HSE scheduler used for cn tree ingest and compaction operations
  */
 struct sts {
-    struct mutex             sts_runq_lock HSE_L1D_ALIGNED;
-    struct list_head         sts_runq_list;
+    struct mutex             sts_lock HSE_ACP_ALIGNED;
+    struct list_head         sts_joblist;
+    int                      sts_jobcnt;
     sts_print_fn            *sts_print_fn;
     struct workqueue_struct *sts_wq;
+    struct cv                sts_cv;
     char                     sts_name[16];
 };
 
@@ -32,7 +34,7 @@ sts_job_run(struct work_struct *work)
 {
     struct sts_job *job = container_of(work, struct sts_job, sj_work);
 
-    sts_job_status_set(job, 'R');
+    job->sj_wmesgp = &hse_wmesg_tls;
 
     /* Do not touch *job after this function returns
      * as it may have already been freed.
@@ -43,23 +45,44 @@ sts_job_run(struct work_struct *work)
 void
 sts_job_submit(struct sts *self, struct sts_job *job)
 {
+    static const char *sts_wmesg_submit = "enqueued";
+
     assert(self && job);
     assert(job->sj_job_fn);
 
-    mutex_lock(&self->sts_runq_lock);
-    list_add_tail(&job->sj_runq_link, &self->sts_runq_list);
-    mutex_unlock(&self->sts_runq_lock);
+    job->sj_sts = self;
+    job->sj_wmesgp = &sts_wmesg_submit;
+
+    mutex_lock(&self->sts_lock);
+    list_add_tail(&job->sj_link, &self->sts_joblist);
+    ++self->sts_jobcnt;
+    mutex_unlock(&self->sts_lock);
 
     INIT_WORK(&job->sj_work, sts_job_run);
     queue_work(self->sts_wq, &job->sj_work);
 }
 
 void
-sts_job_done(struct sts *self, struct sts_job *job)
+sts_job_detach(struct sts_job *job)
 {
-    mutex_lock(&self->sts_runq_lock);
-    list_del(&job->sj_runq_link);
-    mutex_unlock(&self->sts_runq_lock);
+    static const char *sts_wmesg_detach = "detached";
+    struct sts *self = job->sj_sts;
+
+    mutex_lock(&self->sts_lock);
+    job->sj_wmesgp = &sts_wmesg_detach;
+    mutex_unlock(&self->sts_lock);
+}
+
+void
+sts_job_done(struct sts_job *job)
+{
+    struct sts *self = job->sj_sts;
+
+    mutex_lock(&self->sts_lock);
+    list_del(&job->sj_link);
+    if (--self->sts_jobcnt == 0)
+        cv_signal(&self->sts_cv);
+    mutex_unlock(&self->sts_lock);
 }
 
 static merr_t
@@ -78,6 +101,8 @@ sts_rest_get(
     bool hdr;
     int n;
 
+    assert(self->sts_print_fn);
+
     buf = malloc(bufsz);
     if (!buf)
         return merr(ENOMEM);
@@ -85,8 +110,8 @@ sts_rest_get(
     buflen = 0;
     hdr = true;
 
-    mutex_lock(&self->sts_runq_lock);
-    list_for_each_entry(job, &self->sts_runq_list, sj_runq_link) {
+    mutex_lock(&self->sts_lock);
+    list_for_each_entry(job, &self->sts_joblist, sj_link) {
 
         n = self->sts_print_fn(job, hdr, buf + buflen, bufsz - buflen);
         if (n < 1 || n >= bufsz - buflen)
@@ -95,7 +120,7 @@ sts_rest_get(
         buflen += n;
         hdr = false;
     }
-    mutex_unlock(&self->sts_runq_lock);
+    mutex_unlock(&self->sts_lock);
 
     rest_write_safe(info->resp_fd, buf, buflen);
     free(buf);
@@ -119,19 +144,28 @@ sts_create(const char *name, uint nq, sts_print_fn *print_fn, struct sts **handl
         return merr(ENOMEM);
 
     memset(self, 0, sizeof(*self));
-    mutex_init(&self->sts_runq_lock);
-    INIT_LIST_HEAD(&self->sts_runq_list);
+    mutex_init(&self->sts_lock);
+    cv_init(&self->sts_cv);
+    INIT_LIST_HEAD(&self->sts_joblist);
     self->sts_print_fn = print_fn;
-    snprintf(self->sts_name, sizeof(self->sts_name), "hse_%s", name);
+    strlcpy(self->sts_name, name, sizeof(self->sts_name));
 
-    self->sts_wq = alloc_workqueue(self->sts_name, 0, nq, WQ_MAX_ACTIVE, 0);
+    self->sts_wq = alloc_workqueue("hse_%s", 0, nq, WQ_MAX_ACTIVE, self->sts_name);
     if (!self->sts_wq) {
         free(self);
         return merr(ENOMEM);
     }
 
-    if (print_fn)
-        rest_url_register(self, 0, sts_rest_get, NULL, name);
+    if (print_fn) {
+        merr_t err;
+
+        err = rest_url_register(self, 0, sts_rest_get, NULL, self->sts_name);
+        if (err) {
+            log_errx("unable to register url '%s': @@e", err, self->sts_name);
+            self->sts_print_fn = NULL;
+            assert(0);
+        }
+    }
 
     *handle = self;
 
@@ -144,18 +178,27 @@ sts_destroy(struct sts *self)
     if (!self)
         return;
 
-    if (self->sts_print_fn)
-        rest_url_deregister(self->sts_name);
+    mutex_lock(&self->sts_lock);
+    while (self->sts_jobcnt > 0)
+        cv_wait(&self->sts_cv, &self->sts_lock, "jwait");
+    mutex_unlock(&self->sts_lock);
+
+    if (self->sts_print_fn) {
+        merr_t err;
+
+        err = rest_url_deregister(self->sts_name);
+        if (err) {
+            log_errx("unable to deregister url '%s': @@e", err, self->sts_name);
+            assert(0);
+        }
+
+        self->sts_print_fn = NULL;
+    }
 
     destroy_workqueue(self->sts_wq);
 
-    mutex_lock(&self->sts_runq_lock);
-    if (!list_empty(&self->sts_runq_list))
-        abort();
-    mutex_unlock(&self->sts_runq_lock);
-
-    mutex_destroy(&self->sts_runq_lock);
-
+    mutex_destroy(&self->sts_lock);
+    cv_destroy(&self->sts_cv);
     free(self);
 }
 

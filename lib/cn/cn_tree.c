@@ -1412,8 +1412,6 @@ cn_comp_release(struct cn_compaction_work *w)
         return;
     }
 
-    sts_job_status_set(&w->cw_job, 'Z');
-
     /* After this function returns the job will be disassociated
      * from its thread and hence becomes a zombie.  Do not touch
      * *w afterward as it may have already been freed.
@@ -3108,8 +3106,6 @@ cn_comp_compact(struct cn_compaction_work *w)
     if (ev(err))
         goto err_exit;
 
-    sts_job_status_set(&w->cw_job, 'P');
-
     /* cn_tree_prepare_compaction() will initiate I/O
      * if ASYNCIO is enabled.
      */
@@ -3125,14 +3121,10 @@ cn_comp_compact(struct cn_compaction_work *w)
      * and kv-compaction. */
     w->cw_keep_vblks = kcompact;
 
-    sts_job_status_set(&w->cw_job, kcompact ? 'K' : 'S');
-
     if (kcompact)
         err = cn_kcompact(w);
     else
         err = cn_spill(w);
-
-    sts_job_status_set(&w->cw_job, 'C');
 
     /* [HSE_REVISIT] The combination of key_bytes_out and val_bytes_out
      * seems more than what is written to the media for kcompaction.
@@ -3226,8 +3218,6 @@ err_exit:
 static void
 cn_comp_finish(struct cn_compaction_work *w)
 {
-    sts_job_status_set(&w->cw_job, 'F');
-
     cn_comp_commit(w);
     cn_comp_cleanup(w);
     cn_comp_release(w);
@@ -3251,6 +3241,12 @@ cn_comp(struct cn_compaction_work *w)
 
     cn_comp_compact(w);
 
+    /* Detach this job from the callback thread as we're about
+     * to either hand it off to the monitor thread or leave it
+     * on the rspill list for some other thread to finish.
+     */
+    sts_job_detach(&w->cw_job);
+
     /* Acquire a cn reference here to prevent cn from closing
      * before we finish updating the latency perf counter.
      * Do not touch *w after calling cn_comp_finish()
@@ -3259,8 +3255,6 @@ cn_comp(struct cn_compaction_work *w)
     cn_ref_get(cn);
     if (w->cw_rspill_conc) {
         struct cn_tree_node *node;
-
-        sts_job_status_set(&w->cw_job, 'Q');
 
         /* Mark this root spill as done.  Then process tn_rspill_list
          * to ensure concurrent root spills are completed in the

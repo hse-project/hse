@@ -20,24 +20,19 @@ typedef int sts_print_fn(struct sts_job *job, bool hdr, char *buf, size_t bufsz)
 
 /**
  * struct sts_job - short term scheduler job handle
- * @sj_runq_link: run queue list linkage
- * @sj_job_fn:    job handler, set by client, invoked by scheduler
- * @sj_id:        job ID
- * @sj_status:    job status code
- *
- * A job is initialized with status code 'I' (idle) and then set to 'R'
- * (run) just prior to invoking the user job function.  The callee may
- * then call sts_job_status_set() at any time to set the status code
- * (to any alphabetical character) to indicate the current job status.
- * The status code is not interpreted by sts in any way, it is simply
- * displayed by sts via the job-print rest handler.
+ * @sj_link:      Job list linkage
+ * @sj_job_fn:    Job handler, set by client, invoked by scheduler
+ * @sj_id:        Job ID
+ * @sj_sts:       Ptr to scheduler
+ * @sj_wmesgp:    Ptr to wait message ptr
  */
 struct sts_job {
-    struct list_head   sj_runq_link;
-    sts_job_fn        *sj_job_fn;
-    uint               sj_id;
-    char               sj_status;
-    struct work_struct sj_work;
+    struct list_head       sj_link;
+    sts_job_fn            *sj_job_fn;
+    uint                   sj_id;
+    struct sts            *sj_sts;
+    const char * volatile *sj_wmesgp;
+    struct work_struct     sj_work;
 };
 
 /**
@@ -60,19 +55,6 @@ sts_job_init(struct sts_job *job, sts_job_fn *job_fn, uint id)
 {
     job->sj_job_fn = job_fn;
     job->sj_id = id;
-    job->sj_status = 'I';
-}
-
-static inline void
-sts_job_status_set(struct sts_job *job, char status)
-{
-    job->sj_status = isalpha(status) ? status : '?';
-}
-
-static inline char
-sts_job_status_get(struct sts_job *job)
-{
-    return job->sj_status;
 }
 
 static inline uint
@@ -81,12 +63,37 @@ sts_job_id_get(struct sts_job *job)
     return job->sj_id;
 }
 
+static inline const char *
+sts_job_wmesg_get(struct sts_job *job)
+{
+    return *job->sj_wmesgp;
+}
+
 /* MTF_MOCK */
 void
 sts_job_submit(struct sts *s, struct sts_job *job);
 
+/**
+ * sts_job_detach() - Detach job from callback thread context
+ *
+ * The job function (sj_job_fn) must call sts_job_detach() directly
+ * from the callback context if it intends to hand off the job to
+ * another thread (e.g., enqueue it for later processing).
+ */
+/* MTF_MOCK */
 void
-sts_job_done(struct sts *s, struct sts_job *job);
+sts_job_detach(struct sts_job *job);
+
+/**
+ * sts_job_done() - Notify scheduler that the job is done
+ *
+ * sts_job_done() must be called on the job before the job is freed.
+ * It may be called directly from the callback context or at any
+ * time from any other thread if it has been detached.
+ */
+/* MTF_MOCK */
+void
+sts_job_done(struct sts_job *job);
 
 #if HSE_MOCKING
 #include "sched_sts_ut.h"
