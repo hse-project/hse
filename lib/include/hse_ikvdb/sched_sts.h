@@ -15,8 +15,22 @@
 struct sts;
 struct sts_job;
 
+/**
+ * sts_print_fn() - rest hook job print callback
+ * @job:   The job to print
+ * @priv:  Ptr to 64-byte buffer
+ * @buf:   Buffer into which to print
+ * @bufsz: Size of %buf
+ *
+ * In response to a rest-get call sts will call the print function
+ * once for each active job and once thereafter with job set to NULL.
+ * The priv buffer is zeroed before the first callback and passed
+ * unperturbed to each call thereafter.  The callback can use it
+ * to maintain state between callbacks, and clean things on the
+ * last callback (i.e., when job is nil).
+ */
+typedef int sts_print_fn(struct sts_job *job, void *priv, char *buf, size_t bufsz);
 typedef void sts_job_fn(struct sts_job *job);
-typedef int sts_print_fn(struct sts_job *job, bool hdr, char *buf, size_t bufsz);
 
 /**
  * struct sts_job - short term scheduler job handle

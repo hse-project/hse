@@ -93,37 +93,48 @@ sts_rest_get(
     struct kv_iter   *iter,
     void             *context)
 {
-    const size_t bufsz = 128 * 128; /* jobs * columns */
     struct sts *self = context;
+    size_t bufsz = 128 * 128; /* jobs * columns */
+    size_t privsz = 64;
     struct sts_job *job;
-    size_t buflen;
-    char *buf;
-    bool hdr;
+    char *buf, *priv;
     int n;
 
     assert(self->sts_print_fn);
 
-    buf = malloc(bufsz);
+    buf = calloc(bufsz, 1);
     if (!buf)
         return merr(ENOMEM);
 
-    buflen = 0;
-    hdr = true;
+    priv = buf;
+    bufsz -= privsz;
+    buf += privsz;
 
     mutex_lock(&self->sts_lock);
     list_for_each_entry(job, &self->sts_joblist, sj_link) {
 
-        n = self->sts_print_fn(job, hdr, buf + buflen, bufsz - buflen);
-        if (n < 1 || n >= bufsz - buflen)
-            break;
+        n = self->sts_print_fn(job, priv, buf, bufsz);
+        if (n > 0) {
+            if (n > bufsz)
+                n = bufsz;
 
-        buflen += n;
-        hdr = false;
+            bufsz -= n;
+            buf += n;
+        }
+    }
+
+    n = self->sts_print_fn(NULL, priv, buf, bufsz);
+    if (n > 0) {
+        if (n > bufsz)
+            n = bufsz;
+
+        bufsz -= n;
+        buf += n;
     }
     mutex_unlock(&self->sts_lock);
 
-    rest_write_safe(info->resp_fd, buf, buflen);
-    free(buf);
+    rest_write_safe(info->resp_fd, priv + privsz, buf - priv - privsz);
+    free(priv);
 
     return 0;
 }

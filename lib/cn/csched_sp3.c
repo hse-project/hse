@@ -1658,16 +1658,26 @@ sp3_comp_thread_name(
 
 /* This function is the sts job-print callback which is invoked
  * with the sts run-queue lock held and hence must not block.
+ * priv is a pointer to a 64-byte block for our private use,
+ * zeroed before the first call.  job is set to NULL on the
+ * last call to allow us to clean up any lingering state.
  */
 static int
-sp3_job_print(struct sts_job *job, bool hdr, char *buf, size_t bufsz)
+sp3_job_print(struct sts_job *job, void *priv, char *buf, size_t bufsz)
 {
     struct cn_compaction_work *w = container_of(job, typeof(*w), cw_job);
+    struct job_print_state {
+        bool hdr;
+    } *jps = priv;
     int n = 0, m = 0;
     char tmbuf[32];
     ulong tm;
 
-    if (hdr) {
+    if (!job) {
+        return (jps->hdr) ? snprintf(buf, bufsz, "\n") : 0;
+    }
+
+    if (!jps->hdr) {
         n = snprintf(buf, bufsz,
                      "%3s %6s %5s %7s %-7s"
                      " %2s %1s %5s %6s %6s %4s"
@@ -1683,6 +1693,7 @@ sp3_job_print(struct sts_job *job, bool hdr, char *buf, size_t bufsz)
         if (n < 1 || n >= bufsz)
             return n;
 
+        jps->hdr = true;
         bufsz -= n;
         buf += n;
     }
