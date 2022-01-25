@@ -286,6 +286,8 @@ struct mapi_injection inject_list[] = {
 
     /* csched */
     { mapi_idx_csched_notify_ingest, MAPI_RC_SCALAR, 0 },
+    { mapi_idx_sts_job_detach, MAPI_RC_SCALAR, 0 },
+    { mapi_idx_sts_job_done, MAPI_RC_SCALAR, 0 },
 
     /* cndb  */
     { mapi_idx_cndb_txn_start, MAPI_RC_SCALAR, 0 },

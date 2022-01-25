@@ -1,8 +1,9 @@
 /* SPDX-License-Identifier: Apache-2.0 */
 /*
- * Copyright (C) 2015-2021 Micron Technology, Inc.  All rights reserved.
+ * Copyright (C) 2015-2022 Micron Technology, Inc.  All rights reserved.
  */
 
+#include <hse_util/platform.h>
 #include <hse_util/assert.h>
 #include <hse_util/mutex.h>
 #include <hse_util/condvar.h>
@@ -10,22 +11,39 @@
 #include <hse_util/event_counter.h>
 #include <hse_util/workqueue.h>
 #include <hse_util/logging.h>
+#include <hse_util/rest_api.h>
+#include <hse_util/list.h>
+#include <hse_util/atomic.h>
 
 #include <hse_ikvdb/hse_gparams.h>
 
 #include <signal.h>
 #include <pthread.h>
+#include <syscall.h>
+
+#define WP_LATV_IDX(_wqp) ((_wqp)->wp_calls % NELEM((_wqp)->wp_latv))
 
 /**
  * struct wq_priv - worker thread private data
- * @wqp_barid:  ID of most recently processed barrier
- * @wqp_wq:     workqueue ptr
- * @wqp_tid:    pthread thread ID
+ * @wp_wq:     Workqueue
+ * @wp_tid:    Thread ID of owner thread
+ * @wp_barid:  ID of most recently processed barrier
+ * @wp_tstart: Thread start time (nsecs)
+ * @wp_cstart: Start time of most recent callback (cycles)
+ * @wp_calls:  Total number of callbacks dispatched
+ * @wp_wmesgp: Address of thread-local wait message ptr
+ * @wp_latv:   Vector of most recent callback latencies
  */
 struct wq_priv {
-    uint      wqp_barid;
-    void     *wqp_wq;
-    pthread_t wqp_tid;
+    struct list_head  wp_link HSE_ACP_ALIGNED;
+    void             *wp_wq;
+    pid_t             wp_tid;
+    uint              wp_barid;
+    ulong             wp_tstart;
+    ulong             wp_cstart;
+    ulong             wp_calls;
+    const char * volatile *wp_wmesgp;
+    ulong             wp_latv[8] HSE_L1X_ALIGNED;
 };
 
 /**
@@ -44,37 +62,48 @@ struct wq_barrier {
  * @wq_running:     workqueue is able to dispatch requests
  * @wq_growing:     workqueue is spawning worker threads
  * @wq_refcnt:      references held by long-lived threads and delayed work
+ * @wq_dlycnt:      current number of delayed work requests
  * @wq_tdcnt:       current number of worker threads
  * @wq_tdmax:       maximum number of worker threads
  * @wq_tdmin:       minimum number of worker threads
  * @wq_barid:       barrier ID generator
  * @wq_tcdelay:     delay in milliseconds between thread-create operations
- * @wq_barrier:     condvar where all threads wait for barrier completion
  * @wq_idle:        condvar where idle worker threads wait
+ * @wq_barrier:     condvar where all threads wait for barrier completion
  * @wq_delayed:     list of work to be dispatched in the future
  * @wq_grow:        timer for grow callback
- * @wq_name:        workqueue name (see pthread_setname_np())
- * @wq_priv:        flexible array of worker thread private data structs
+ * @wq_name:        workqueue name
  */
 struct workqueue_struct {
-    struct mutex      wq_lock;
+    struct mutex      wq_lock HSE_ACP_ALIGNED;
     struct list_head  wq_pending;
     bool              wq_running;
     bool              wq_growing;
     int               wq_refcnt;
-    int               wq_tdbsy;
+    int               wq_dlycnt;
     int               wq_tdcnt;
     int               wq_tdmax;
     int               wq_tdmin;
     uint              wq_barid;
     uint              wq_tcdelay;
-    struct cv         wq_barrier;
     struct cv         wq_idle;
+    struct cv         wq_barrier;
     struct list_head  wq_delayed;
     struct timer_list wq_grow;
     char              wq_name[16];
-    struct wq_priv    wq_priv[];
 };
+
+struct workqueue_globals {
+    struct mutex     wg_lock HSE_ACP_ALIGNED;
+    struct list_head wg_tlist;
+    bool             wg_inited;
+};
+
+static struct workqueue_globals hse_wg = {
+    .wg_lock = { PTHREAD_MUTEX_INITIALIZER }
+};
+
+static thread_local struct wq_priv hse_wp_tls;
 
 static void
 dump_workqueue_locked(struct workqueue_struct *wq);
@@ -92,31 +121,10 @@ static void
 grow_workqueue_cb(ulong arg)
 {
     struct workqueue_struct *wq = (void *)arg;
-    struct wq_priv *priv = NULL;
-    int rc, i;
+    pthread_t tid;
+    int rc;
 
-    mutex_lock(&wq->wq_lock);
-    for (i = 0; i < wq->wq_tdmax; ++i) {
-        priv = wq->wq_priv + (wq->wq_tdcnt + i) % wq->wq_tdmax;
-        if (!priv->wqp_wq)
-            break;
-    }
-
-    assert(priv && i < wq->wq_tdmax);
-
-    priv->wqp_wq = wq;
-    ++wq->wq_refcnt;
-    ++wq->wq_tdcnt;
-    ++wq->wq_tdbsy;
-    mutex_unlock(&wq->wq_lock);
-
-    rc = pthread_create(&priv->wqp_tid, NULL, worker_thread, priv);
-    if (rc) {
-        merr_t err = merr(rc);
-
-        log_warnx("growing failed (%s %d/%d%d): @@e",
-                  err, wq->wq_name, wq->wq_tdcnt, wq->wq_tdmin, wq->wq_tdmax);
-    }
+    rc = pthread_create(&tid, NULL, worker_thread, wq);
 
     mutex_lock(&wq->wq_lock);
     if (rc) {
@@ -128,10 +136,13 @@ grow_workqueue_cb(ulong arg)
         if (first && !first->func)
             cv_broadcast(&wq->wq_barrier);
 
-        priv->wqp_wq = NULL;
+        /* Drop references acquired by queue_work_locked()
+         * or a follow-on grow attempt (below).
+         */
         --wq->wq_refcnt;
         --wq->wq_tdcnt;
-        --wq->wq_tdbsy;
+
+        ev_warn(1);
     }
 
     /* Keep growing if there's pending work and room to grow (might create
@@ -141,43 +152,47 @@ grow_workqueue_cb(ulong arg)
     if (wq->wq_growing) {
         wq->wq_grow.expires = jiffies + wq->wq_tcdelay;
         add_timer(&wq->wq_grow);
-        ++wq->wq_refcnt;
+        wq->wq_refcnt += 2;
+        wq->wq_tdcnt++;
     }
 
-    /* Release the reference acquired by queue_work().
+    /* Drop our "growing callback" reference.
      */
     --wq->wq_refcnt;
     mutex_unlock(&wq->wq_lock);
 }
 
-
 struct workqueue_struct *
 alloc_workqueue(const char *fmt, unsigned int flags, int min_active, int max_active, ...)
 {
     struct workqueue_struct *wq;
-
+    pthread_t tid;
     va_list args;
-    size_t  wqsz;
-    int     i;
+    int rc, i;
 
-    max_active = max_active ?: WQ_DFL_ACTIVE;
+    mutex_lock(&hse_wg.wg_lock);
+    if (!hse_wg.wg_inited) {
+        INIT_LIST_HEAD(&hse_wg.wg_tlist);
+        hse_wg.wg_inited = true;
+    }
+    mutex_unlock(&hse_wg.wg_lock);
+
+    max_active = max_active ? max_active : WQ_DFL_ACTIVE;
     max_active = clamp_t(int, max_active, 1, WQ_MAX_ACTIVE);
     min_active = clamp_t(int, min_active, 0, max_active);
 
-    wqsz = sizeof(*wq) + max_active * sizeof(wq->wq_priv[0]);
-
-    wq = aligned_alloc(HSE_ACP_LINESIZE, roundup(wqsz, HSE_ACP_LINESIZE));
+    wq = aligned_alloc(__alignof__(*wq), sizeof(*wq));
     if (ev(!wq))
         return NULL;
 
-    memset(wq, 0, wqsz);
+    memset(wq, 0, sizeof(*wq));
     va_start(args, max_active);
     vsnprintf(wq->wq_name, sizeof(wq->wq_name), fmt ? fmt : "workqueue", args);
     va_end(args);
 
     mutex_init_adaptive(&wq->wq_lock);
-    cv_init(&wq->wq_idle, "wq_idle");
-    cv_init(&wq->wq_barrier, "wq_barrier");
+    cv_init(&wq->wq_idle);
+    cv_init(&wq->wq_barrier);
 
     INIT_LIST_HEAD(&wq->wq_pending);
     INIT_LIST_HEAD(&wq->wq_delayed);
@@ -185,23 +200,25 @@ alloc_workqueue(const char *fmt, unsigned int flags, int min_active, int max_act
     setup_timer(&wq->wq_grow, grow_workqueue_cb, wq);
     wq->wq_tcdelay = msecs_to_jiffies(1000);
 
-    /* refcnt, tdmin, and tdmax are carefully managed to ensure
-     * grow_workqueue_cb() doesn't call add_timer() and to prevent
+    /* refcnt, tdcnt, tdmin, and tdmax are initialized to prevent
      * threads entering worker_thread() from exiting until after
      * we have spawned the minimum number of worker threads.
      */
     wq->wq_refcnt = min_active;
+    wq->wq_tdmax = min_active;
+    wq->wq_tdcnt = min_active;
     wq->wq_tdmin = max_active;
     wq->wq_running = true;
 
     for (i = 0; i < min_active; ++i) {
-        wq->wq_growing = true;
-        wq->wq_tdmax = i + 1;
-        grow_workqueue_cb((ulong)wq);
+        rc = pthread_create(&tid, NULL, worker_thread, wq);
+        if (rc)
+            break;
     }
 
     mutex_lock(&wq->wq_lock);
-    assert(!wq->wq_growing);
+    wq->wq_refcnt -= (min_active - i);
+    wq->wq_tdcnt -= (min_active - i);
 
     if (wq->wq_tdcnt < min_active) {
         mutex_unlock(&wq->wq_lock);
@@ -219,6 +236,7 @@ alloc_workqueue(const char *fmt, unsigned int flags, int min_active, int max_act
 void
 destroy_workqueue(struct workqueue_struct *wq)
 {
+    struct wq_priv *priv;
     int rc;
 
     if (ev(!wq))
@@ -234,17 +252,31 @@ destroy_workqueue(struct workqueue_struct *wq)
      * calling this function to avoid interminable hangs...
      */
     while (wq->wq_refcnt > 0) {
-        rc = cv_timedwait(&wq->wq_idle, &wq->wq_lock, 10000);
+        rc = cv_timedwait(&wq->wq_barrier, &wq->wq_lock, 10000, "qdestroy");
         if (rc)
             dump_workqueue_locked(wq);
     }
 
     assert(list_empty(&wq->wq_pending));
     assert(list_empty(&wq->wq_delayed));
-    assert(wq->wq_tdbsy == 0);
     assert(wq->wq_tdcnt == 0);
     assert(!wq->wq_growing);
     mutex_unlock(&wq->wq_lock);
+
+    /* Wait for all exiting threads to remove themselves from
+     * the global priv list (which contains live wq pointers);
+     */
+    do {
+        mutex_lock(&hse_wg.wg_lock);
+        list_for_each_entry(priv, &hse_wg.wg_tlist, wp_link) {
+            if (priv->wp_wq == wq)
+                break;
+        }
+        mutex_unlock(&hse_wg.wg_lock);
+
+        if (priv)
+            usleep(333);
+    } while (priv);
 
     cv_destroy(&wq->wq_barrier);
     cv_destroy(&wq->wq_idle);
@@ -268,15 +300,17 @@ queue_work_locked(struct workqueue_struct *wq, struct work_struct *work)
     if (enqueued) {
         list_add_tail(&work->entry, &wq->wq_pending);
 
-        /* Try to spawn a new worker thread if there do not appear
-         * to be enough workers to handle the load.
+        /* Try to spawn a new worker thread if there does not appear
+         * to be enough workers to handle the load.  Acquire a ref
+         * for the grow callback and a birth ref for the new thread.
          */
-        if (wq->wq_tdbsy >= wq->wq_tdcnt && wq->wq_tdcnt < wq->wq_tdmax) {
+        if (wq->wq_tdcnt < wq->wq_tdmax && wq->wq_idle.cv_waiters == 0) {
             if (!wq->wq_growing) {
                 wq->wq_grow.expires = jiffies + 1;
                 add_timer(&wq->wq_grow);
                 wq->wq_growing = true;
-                wq->wq_refcnt++;
+                wq->wq_refcnt += 2;
+                wq->wq_tdcnt++;
             }
         }
 
@@ -317,7 +351,7 @@ flush_workqueue(struct workqueue_struct *wq)
         /* Wait for all workers to visit the barrier.
          */
         while (barrier.wqb_visitors < UINT_MAX)
-            cv_wait(&wq->wq_barrier, &wq->wq_lock);
+            cv_wait(&wq->wq_barrier, &wq->wq_lock, "barflush");
     }
 
     --wq->wq_refcnt;
@@ -339,9 +373,9 @@ flush_workqueue(struct workqueue_struct *wq)
 static void *
 worker_thread(void *arg)
 {
-    struct wq_priv *         priv = arg;
-    struct workqueue_struct *wq = priv->wqp_wq;
-    sigset_t                 sigset;
+    struct workqueue_struct *wq = arg;
+    struct wq_priv *priv = &hse_wp_tls;
+    sigset_t sigset;
     int timedout;
 
     sigfillset(&sigset);
@@ -349,6 +383,19 @@ worker_thread(void *arg)
 
     pthread_setname_np(pthread_self(), wq->wq_name);
     pthread_detach(pthread_self());
+
+    memset(priv, 0, sizeof(*priv));
+    priv->wp_wq = wq;
+    priv->wp_tid = syscall(SYS_gettid);
+    priv->wp_barid = 0;
+    priv->wp_tstart = get_time_ns();
+    priv->wp_cstart = get_cycles();
+    priv->wp_calls = 0;
+    priv->wp_wmesgp = &hse_wmesg_tls;
+
+    mutex_lock(&hse_wg.wg_lock);
+    list_add_tail(&priv->wp_link, &hse_wg.wg_tlist);
+    mutex_unlock(&hse_wg.wg_lock);
 
     mutex_lock(&wq->wq_lock);
     timedout = 0;
@@ -364,15 +411,11 @@ worker_thread(void *arg)
             if (!wq->wq_running || (timedout && extra))
                 break;
 
-            --wq->wq_tdbsy;
-
             /* Sleep a short time if there are extra workers.  If we time out
              * and still have extra workers after draining the pending queue
              * then exit (above).  Otherwise, sleep here until signaled.
              */
-            timedout = cv_timedwait(&wq->wq_idle, &wq->wq_lock, extra ? 10000 : -1);
-
-            ++wq->wq_tdbsy;
+            timedout = cv_timedwait(&wq->wq_idle, &wq->wq_lock, extra ? 60000 : -1, "idle");
             continue;
         }
 
@@ -380,7 +423,13 @@ worker_thread(void *arg)
             list_del_init(&work->entry);
             mutex_unlock(&wq->wq_lock);
 
+            priv->wp_cstart = get_cycles();
+            priv->wp_calls++;
+
             work->func(work);
+
+            priv->wp_latv[WP_LATV_IDX(priv)] = (get_cycles() - priv->wp_cstart);
+            priv->wp_cstart += priv->wp_latv[WP_LATV_IDX(priv)];
 
             mutex_lock(&wq->wq_lock);
             continue;
@@ -391,15 +440,15 @@ worker_thread(void *arg)
         /* Increment the barrier visitor count once for each
          * thread's first visit to the barrier.
          */
-        if (priv->wqp_barid != barrier->wqb_barid) {
-            priv->wqp_barid = barrier->wqb_barid;
+        if (priv->wp_barid != barrier->wqb_barid) {
+            priv->wp_barid = barrier->wqb_barid;
             ++barrier->wqb_visitors;
         }
 
         /* Wait until all worker threads have visited this barrier.
          */
         if (barrier->wqb_visitors < wq->wq_tdcnt) {
-            cv_wait(&wq->wq_barrier, &wq->wq_lock);
+            cv_wait(&wq->wq_barrier, &wq->wq_lock, "barwait");
             continue;
         }
 
@@ -411,14 +460,19 @@ worker_thread(void *arg)
         cv_broadcast(&wq->wq_barrier);
     }
 
-    priv->wqp_wq = NULL;
+    /* Wake up all threads waiting on wq_barrier so that they
+     * can reevaluate the situation.
+     */
+    cv_broadcast(&wq->wq_barrier);
     --wq->wq_refcnt;
     --wq->wq_tdcnt;
-    --wq->wq_tdbsy;
-    cv_signal(&wq->wq_idle);
     mutex_unlock(&wq->wq_lock);
 
-    return NULL;
+    mutex_lock(&hse_wg.wg_lock);
+    list_del(&priv->wp_link);
+    mutex_unlock(&hse_wg.wg_lock);
+
+    pthread_exit(NULL);
 }
 
 /*
@@ -469,6 +523,7 @@ delayed_work_timer_fn(unsigned long data)
 
         assert(enqueued);
         --wq->wq_refcnt;
+        --wq->wq_dlycnt;
     }
 
     assert(pending);
@@ -494,6 +549,7 @@ queue_delayed_work(struct workqueue_struct *wq, struct delayed_work *dwork, unsi
         dwork->timer.expires = expires;
         dwork->wq = wq;
         ++wq->wq_refcnt;
+        ++wq->wq_dlycnt;
     }
     mutex_unlock(&wq->wq_lock);
 
@@ -519,11 +575,206 @@ cancel_delayed_work(struct delayed_work *dwork)
         if (pending) {
             list_del_init(&dwork->work.entry);
             --wq->wq_refcnt;
+            --wq->wq_dlycnt;
         }
     }
     mutex_unlock(&wq->wq_lock);
 
     return pending;
+}
+
+void
+end_stats_work(void)
+{
+    struct wq_priv *priv = &hse_wp_tls;
+
+    assert(priv);
+
+    priv->wp_latv[WP_LATV_IDX(priv)] = (get_cycles() - priv->wp_cstart);
+    priv->wp_cstart += priv->wp_latv[WP_LATV_IDX(priv)];
+}
+
+void
+begin_stats_work(void)
+{
+    struct wq_priv *priv = &hse_wp_tls;
+
+    assert(priv);
+
+    priv->wp_cstart = get_cycles();
+    priv->wp_calls++;
+}
+
+merr_t
+workqueue_rest_get(
+    const char       *path,
+    struct conn_info *info,
+    const char       *url,
+    struct kv_iter   *iter,
+    void             *context)
+{
+    static const ulong divtab[] = {
+        1, 0, 1, 1, 1e3, 10, 1e6, 10, 1e9, 10, 1e9 * 3600, 2, 1e9 * 86400, 1,
+        1e9 * 86400 * 365, 1, 1e9 * 86400 * 365 * 100, 1, ULONG_MAX, 1
+    };
+    static const char *divsuf = "xx  nsusmss h d y c xx";
+    const size_t bufsz = 128 * 128; /* jobs * columns */
+    struct wq_priv *priv;
+    int dirfd, idx, n;
+    size_t buflen;
+    char *colv[4] = { "BARID", "CALLS", "TID", "TIME" };
+    ulong maxv[4];
+    int widthv[4];
+    char *buf;
+
+    path = strchr(path, '/');
+    if (path)
+        ++path;
+
+    /* Determine max column widths...
+     */
+    mutex_lock(&hse_wg.wg_lock);
+    if (!hse_wg.wg_inited) {
+        mutex_unlock(&hse_wg.wg_lock);
+        return 0;
+    }
+
+    memset(maxv, 0, sizeof(maxv));
+
+    list_for_each_entry(priv, &hse_wg.wg_tlist, wp_link) {
+        if (priv->wp_barid > maxv[0])
+            maxv[0] = priv->wp_barid;
+        if (priv->wp_calls > maxv[1])
+            maxv[1] = priv->wp_calls;
+        if (priv->wp_tid > maxv[2])
+            maxv[2] = priv->wp_tid;
+        if (priv->wp_tstart > maxv[3])
+            maxv[3] = priv->wp_tstart;
+    }
+    mutex_unlock(&hse_wg.wg_lock);
+
+    maxv[3] = (get_time_ns() - maxv[3]) / NSEC_PER_SEC;
+
+    for (uint i = 0; i < NELEM(widthv); ++i) {
+        widthv[i] = snprintf(NULL, 0, "%lu", maxv[i]);
+        widthv[i] = max_t(int, widthv[i], strlen(colv[i]));
+    }
+
+    buf = malloc(bufsz);
+    if (!buf)
+        return merr(ENOMEM);
+
+    dirfd = open("/proc/self/task", O_DIRECTORY | O_RDONLY);
+    buflen = 0;
+    idx = 0;
+
+    mutex_lock(&hse_wg.wg_lock);
+    list_for_each_entry(priv, &hse_wg.wg_tlist, wp_link) {
+        struct workqueue_struct *wq = priv->wp_wq;
+        char *tidstr, *commstr, *statestr, *cpustr;
+        char linebuf[1024], fnbuf[32], tmbuf[32];
+        const ulong *ldiv = divtab + 2;
+        ulong lat = 0, tm;
+        ssize_t cc;
+
+        tidstr = commstr = statestr = cpustr = NULL;
+
+        snprintf(fnbuf, sizeof(fnbuf), "%d/stat", priv->wp_tid);
+
+        cc = hse_readfile(dirfd, fnbuf, linebuf, sizeof(linebuf), O_RDONLY);
+        if (cc > 0) {
+            char *str = linebuf;
+
+            str[cc - 1] = '\000';
+            tidstr = strsep(&str, " ");
+            commstr = strsep(&str, " ");
+            statestr = strsep(&str, " ");
+
+            for (uint i = 0; i < 38 - 3 && *str; /**/)
+                i += (*str++ == ' ');
+            cpustr = strsep(&str, " ");
+        }
+
+        /* Compute the average of the most recent callback latency
+         * samples and convert from cycles to usecs.
+         */
+        if (priv->wp_calls > NELEM(priv->wp_latv)) {
+            for (n = 0; n < NELEM(priv->wp_latv); ++n)
+                lat += priv->wp_latv[n];
+            lat /= NELEM(priv->wp_latv);
+            lat = cycles_to_nsecs(lat);
+            while (lat >= ldiv[0] * ldiv[1])
+                ldiv += 2;
+            lat /= ldiv[-2];
+        }
+
+        tm = (get_time_ns() - priv->wp_tstart) / NSEC_PER_SEC;
+        if (tm >= 3600) {
+            n = snprintf(tmbuf, sizeof(tmbuf), "%lu:%02lu:%02lu",
+                         tm / 3600, (tm / 60) % 60, tm % 60);
+        } else {
+            n = snprintf(tmbuf, sizeof(tmbuf), "%lu:%02lu",
+                         (tm / 60) % 60, tm % 60);
+        }
+        if (n > widthv[3])
+            widthv[3] = n;
+
+        if (buflen == 0) {
+            n = snprintf(buf, bufsz,
+                         "%3s %-16s %3s %3s %3s %3s %3s %3s %3s"
+                         " %*s %*s %7s %8s %1s %3s"
+                         " %*s %*s %-16s\n",
+                         "IDX", "WQNAME", "REF", "MIN", "MAX", "CNT", "BSY", "WK", "DWK",
+                         widthv[0], colv[0],
+                         widthv[1], colv[1],
+                         "LATENCY", "WMESG", "S", "CPU",
+                         widthv[2], colv[2],
+                         widthv[3], colv[3],
+                         "TNAME");
+            if (n < 1 || n >= bufsz)
+                return merr(EINVAL);
+
+            buflen = n;
+        }
+
+        n = snprintf(buf + buflen, bufsz - buflen,
+                     "%3d %-16s %3d %3d %3d %3d %3d %3d %3d"
+                     " %*u %*lu %5lu%2.2s %8.8s %1s %3s"
+                     " %*s %*s %-16s\n",
+                     idx, wq->wq_name, wq->wq_refcnt,
+                     wq->wq_tdmin, wq->wq_tdmax, wq->wq_tdcnt,
+                     wq->wq_tdcnt - wq->wq_idle.cv_waiters,
+                     wq->wq_refcnt - wq->wq_dlycnt - wq->wq_tdcnt,
+                     wq->wq_dlycnt,
+                     widthv[0], wq->wq_barid,
+                     widthv[1], priv->wp_calls,
+                     lat, divsuf + (ldiv - divtab),
+                     *priv->wp_wmesgp,
+                     statestr ? statestr : "?",
+                     cpustr ? cpustr : "?",
+                     widthv[2], tidstr ? tidstr : "?",
+                     widthv[3], tmbuf,
+                     commstr ? commstr : "?");
+        if (n < 1 || n >= bufsz - buflen)
+            break;
+
+        /* Filter out lines that do not partially match
+         * the user-supplied literal pattern.
+         */
+        if (path && !strstr(buf + buflen, path))
+            continue;
+
+        buflen += n;
+        idx++;
+    }
+    mutex_unlock(&hse_wg.wg_lock);
+
+    rest_write_safe(info->resp_fd, buf, buflen);
+
+    close(dirfd);
+    free(buf);
+
+    return 0;
 }
 
 /**
@@ -542,20 +793,10 @@ dump_workqueue_locked(struct workqueue_struct *wq)
     struct work_struct *w;
     int i, n;
 
-    log_warn("%s %p: pid %d, refcnt %d, tdcnt %d, tdmin %d, tdmax %d, growing %d",
-             wq->wq_name, wq, getpid(), wq->wq_refcnt,
+    log_warn("%s %p: pid %d, refcnt %d, dlycnt %d tdcnt %d, tdmin %d, tdmax %d, growing %d",
+             wq->wq_name, wq, getpid(), wq->wq_refcnt, wq->wq_dlycnt,
              wq->wq_tdcnt, wq->wq_tdmin, wq->wq_tdmax,
              wq->wq_growing);
-
-    for (i = 0; i < wq->wq_tdmax; ++i) {
-        struct wq_priv *priv = wq->wq_priv + i;
-
-        if (!priv->wqp_wq)
-            continue;
-
-        log_warn("%s %p: %3u, barid %u, tid %lx",
-                 wq->wq_name, wq, i, priv->wqp_barid, priv->wqp_tid);
-    }
 
     i = 0;
     list_for_each_entry(w, &wq->wq_pending, entry) {

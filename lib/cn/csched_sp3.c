@@ -1350,7 +1350,7 @@ sp3_process_workitem(struct sp3 *sp, struct cn_compaction_work *w)
         sp3_log_samp_overall(sp);
     }
 
-    sts_job_done(sp->sts, &w->cw_job);
+    sts_job_done(&w->cw_job);
     free(w);
 }
 
@@ -1658,33 +1658,55 @@ sp3_comp_thread_name(
 
 /* This function is the sts job-print callback which is invoked
  * with the sts run-queue lock held and hence must not block.
+ * priv is a pointer to a 64-byte block for our private use,
+ * zeroed before the first call.  job is set to NULL on the
+ * last call to allow us to clean up any lingering state.
  */
 static int
-sp3_job_print(struct sts_job *job, bool hdr, char *buf, size_t bufsz)
+sp3_job_print(struct sts_job *job, void *priv, char *buf, size_t bufsz)
 {
     struct cn_compaction_work *w = container_of(job, typeof(*w), cw_job);
+    struct job_print_state {
+        bool hdr;
+    } *jps = priv;
     int n = 0, m = 0;
+    char tmbuf[32];
+    ulong tm;
 
-    if (hdr) {
+    if (!job) {
+        return (jps->hdr) ? snprintf(buf, bufsz, "\n") : 0;
+    }
+
+    if (!jps->hdr) {
         n = snprintf(buf, bufsz,
-                     "%3s %6s %5s %7s %-7s %2s %1s %5s %6s %6s %4s"
-                     " %3s %5s %3s %4s %6s %6s %6s %6s %1s %4s  %s\n",
+                     "%3s %6s %5s %7s %-7s"
+                     " %2s %1s %5s %6s %6s %4s"
+                     " %4s %5s %3s %4s"
+                     " %6s %6s %6s %6s"
+                     " %8s %4s %s\n",
                      "ID", "LOC   ", "JOB", "ACTION", "RULE",
                      "Q", "T", "KVSET", "ALEN", "CLEN", "PCAP",
                      "CC", "DGEN", "NK", "NV",
                      "RALEN", "IALEN", "LALEN", "LGOOD",
-                     "S", "TIME", "TNAME");
+                     "WMESG", "TIME", "TNAME");
 
         if (n < 1 || n >= bufsz)
             return n;
 
+        jps->hdr = true;
         bufsz -= n;
         buf += n;
     }
 
+    tm = (jclock_ns - w->cw_t0_enqueue) / NSEC_PER_SEC;
+    snprintf(tmbuf, sizeof(tmbuf), "%lu:%02lu", (tm / 60) % 60, tm % 60);
+
     m = snprintf(buf, bufsz,
-                 "%3lu %u,%-4u %5u %7s %-7s %2u %1u %2u,%-2u %6lu %6lu %4u"
-                 " %3u %5lu %3u %4u %6ld %6ld %6ld %6ld %1c %4lu  %s\n",
+                 "%3lu %u,%-4u %5u %7s %-7s"
+                 " %2u %1u %2u,%-2u %6lu %6lu %4u"
+                 " %4u %5lu %3u %4u"
+                 " %6ld %6ld %6ld %6ld"
+                 " %8.8s %4s %s\n",
                  w->cw_tree->cnid,
                  w->cw_node->tn_loc.node_level, w->cw_node->tn_loc.node_offset,
                  sts_job_id_get(&w->cw_job),
@@ -1702,9 +1724,8 @@ sp3_job_print(struct sts_job *job, bool hdr, char *buf, size_t bufsz)
                  w->cw_est.cwe_samp.i_alen >> 20,
                  w->cw_est.cwe_samp.l_alen >> 20,
                  w->cw_est.cwe_samp.l_good >> 20,
-                 sts_job_status_get(&w->cw_job),
-                 (jclock_ns - w->cw_t0_enqueue) / NSEC_PER_SEC,
-                 w->cw_threadname);
+                 sts_job_wmesg_get(&w->cw_job),
+                 tmbuf, w->cw_threadname);
 
     return (m < 1) ? m : (n + m);
 }
@@ -2439,13 +2460,17 @@ sp3_monitor(struct work_struct *work)
         merr_t err;
 
         mutex_lock(&sp->mon_lock);
+        end_stats_work();
+
         if (!sp->mon_signaled && now < chk_qos.next) {
             int timeout_ms = max_t(int, 10, (chk_qos.next - now) / USEC_PER_SEC);
 
-            cv_timedwait(&sp->mon_cv, &sp->mon_lock, timeout_ms);
+            cv_timedwait(&sp->mon_cv, &sp->mon_lock, timeout_ms, "spmonslp");
 
             now = get_time_ns();
         }
+
+        begin_stats_work();
         sp->mon_signaled = false;
         mutex_unlock(&sp->mon_lock);
 
@@ -2708,7 +2733,7 @@ sp3_create(
     mutex_init(&sp->work_list_lock);
 
     mutex_init(&sp->mon_lock);
-    cv_init(&sp->mon_cv, "csched");
+    cv_init(&sp->mon_cv);
 
     INIT_LIST_HEAD(&sp->mon_tlist);
     INIT_LIST_HEAD(&sp->new_tlist);

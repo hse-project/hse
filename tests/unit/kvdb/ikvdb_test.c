@@ -1,6 +1,6 @@
 /* SPDX-License-Identifier: Apache-2.0 */
 /*
- * Copyright (C) 2015-2021 Micron Technology, Inc.  All rights reserved.
+ * Copyright (C) 2015-2022 Micron Technology, Inc.  All rights reserved.
  */
 
 #include <ftw.h>
@@ -13,7 +13,6 @@
 #include <support/random_buffer.h>
 
 #include <hse_util/hse_err.h>
-#include <hse_util/delay.h>
 #include <hse_util/dax.h>
 
 #include <hse_ikvdb/kvs.h>
@@ -1447,7 +1446,7 @@ parallel_cursors(void *info)
         VERIFY_EQ_RET(0, memcmp(v, buf, vlen), 0);
 
         if (i < 50)
-            msleep(20);
+            usleep(20 * 1000);
 
         err = ikvdb_kvs_cursor_destroy(c);
         VERIFY_EQ_RET(0, err, 0);

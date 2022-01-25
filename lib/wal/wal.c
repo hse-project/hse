@@ -57,10 +57,11 @@ struct wal {
     atomic_int closing;
     bool       clean;
     bool       read_only;
-    bool       timer_tid_valid;
-    bool       sync_notify_tid_valid;
-    pthread_t  timer_tid;
-    pthread_t  sync_notify_tid;
+    bool       timer_running;
+    bool       sync_notifier_running;
+    struct work_struct timer_work;
+    struct work_struct sync_notifier_work;
+    struct workqueue_struct *wq;
     uint32_t   dur_ms;
     size_t     dur_bufsz;
     enum hse_mclass dur_mclass;
@@ -89,18 +90,15 @@ struct wal_sync_waiter {
 void
 wal_ionotify_cb(void *cbarg, merr_t err);
 
-static void *
-wal_timer(void *rock)
+static void
+wal_timer(struct work_struct *work)
 {
-    struct wal *wal = rock;
+    struct wal *wal = container_of(work, struct wal, timer_work);
     uint64_t rid_last = 0;
-    sigset_t sigset;
     long dur_ns;
     bool closing = false;
     merr_t err;
 
-    sigfillset(&sigset);
-    pthread_sigmask(SIG_BLOCK, &sigset, NULL);
     pthread_setname_np(pthread_self(), "hse_wal_timer");
 
     dur_ns = MSEC_TO_NSEC(wal->dur_ms) - (long)timer_slack;
@@ -148,11 +146,16 @@ wal_timer(void *rock)
         }
 
         mutex_lock(&wal->timer_mutex);
+        end_stats_work();
+
         if (wal->sync_pending)
             closing = false;
         else if (!closing && sleep_ns > 0)
-            cv_timedwait(&wal->timer_cv, &wal->timer_mutex, NSEC_TO_MSEC(sleep_ns));
+            cv_timedwait(&wal->timer_cv, &wal->timer_mutex,
+                         NSEC_TO_MSEC(sleep_ns), "waltmslp");
         wal->sync_pending = false;
+
+        begin_stats_work();
         mutex_unlock(&wal->timer_mutex);
     }
 
@@ -160,19 +163,16 @@ wal_timer(void *rock)
     if (err)
         kvdb_health_error(wal->health, err);
 
-    pthread_exit(NULL);
+    wal->timer_running = false;
 }
 
-static void *
-wal_sync_notifier(void *rock)
+static void
+wal_sync_notifier(struct work_struct *work)
 {
-    struct wal *wal = rock;
+    struct wal *wal = container_of(work, struct wal, sync_notifier_work);
     bool closing = false;
-    sigset_t sigset;
     merr_t err;
 
-    sigfillset(&sigset);
-    pthread_sigmask(SIG_BLOCK, &sigset, NULL);
     pthread_setname_np(pthread_self(), "hse_wal_sync");
 
     while (!closing) {
@@ -191,8 +191,11 @@ wal_sync_notifier(void *rock)
         }
 
         closing = (closing || err) && list_empty(&wal->sync_waiters);
-        if (!closing)
-            cv_timedwait(&wal->sync_cv, &wal->sync_mutex, wal->dur_ms);
+        if (!closing) {
+            end_stats_work();
+            cv_timedwait(&wal->sync_cv, &wal->sync_mutex, wal->dur_ms, "walsnslp");
+            begin_stats_work();
+        }
         mutex_unlock(&wal->sync_mutex);
     }
 
@@ -200,7 +203,7 @@ wal_sync_notifier(void *rock)
     if (err)
         kvdb_health_error(wal->health, err);
 
-    pthread_exit(NULL);
+    wal->sync_notifier_running = false;
 }
 
 void
@@ -230,7 +233,7 @@ wal_sync_impl(struct wal *wal, struct wal_sync_waiter *swait)
 
     while (swait->ws_bufcnt > wal_bufset_durcnt(wal->wbs, swait->ws_bufcnt, swait->ws_offv) &&
            !swait->ws_err)
-        cv_timedwait(&swait->ws_cv, &wal->sync_mutex, wal->dur_ms);
+        cv_timedwait(&swait->ws_cv, &wal->sync_mutex, wal->dur_ms, "walsync");
 
     list_del(&swait->ws_link);
     mutex_unlock(&wal->sync_mutex);
@@ -248,7 +251,7 @@ wal_sync(struct wal *wal)
     if (!wal)
         return merr(EINVAL);
 
-    cv_init(&swait.ws_cv, "wal_sync_waiter");
+    cv_init(&swait.ws_cv);
     INIT_LIST_HEAD(&swait.ws_link);
 
     swait.ws_bufcnt = wal_bufset_curoff(wal->wbs, WAL_BUF_MAX, swait.ws_offv);
@@ -268,7 +271,7 @@ wal_cond_sync(struct wal *wal, uint64_t gen)
 
     assert(wal);
 
-    cv_init(&swait.ws_cv, "wal_cond_sync_waiter");
+    cv_init(&swait.ws_cv);
     INIT_LIST_HEAD(&swait.ws_link);
 
     swait.ws_bufcnt = wal_bufset_genoff(wal->wbs, gen, WAL_BUF_MAX, swait.ws_offv);
@@ -556,7 +559,6 @@ wal_open(
     struct wal *wal;
     uint8_t mclass;
     merr_t err;
-    int rc;
 
     if (!mp || !rp || !rinfo || !wal_out)
         return merr(EINVAL);
@@ -580,10 +582,10 @@ wal_open(
     wal->dur_bufsz = HSE_WAL_DUR_BUFSZ_MB_DFLT << MB_SHIFT;
 
     mutex_init(&wal->timer_mutex);
-    cv_init(&wal->timer_cv, "wal_timer_cv");
+    cv_init(&wal->timer_cv);
 
     mutex_init(&wal->sync_mutex);
-    cv_init(&wal->sync_cv, "wal_sync_cv");
+    cv_init(&wal->sync_cv);
     INIT_LIST_HEAD(&wal->sync_waiters);
     wal->sync_pending = false;
 
@@ -677,19 +679,19 @@ wal_open(
         goto errout;
     }
 
-    rc = pthread_create(&wal->timer_tid, NULL, wal_timer, wal);
-    if (rc) {
-        err = merr(rc);
+    wal->wq = alloc_workqueue("hse_wal", 0, 2, 2);
+    if (!wal->wq) {
+        err = merr(ENOMEM);
         goto errout;
     }
-    wal->timer_tid_valid = true;
 
-    rc = pthread_create(&wal->sync_notify_tid, NULL, wal_sync_notifier, wal);
-    if (rc) {
-        err = merr(rc);
-        goto errout;
-    }
-    wal->sync_notify_tid_valid = true;
+    wal->timer_running = true;
+    INIT_WORK(&wal->timer_work, wal_timer);
+    queue_work(wal->wq, &wal->timer_work);
+
+    wal->sync_notifier_running = true;
+    INIT_WORK(&wal->sync_notifier_work, wal_sync_notifier);
+    queue_work(wal->wq, &wal->sync_notifier_work);
 
     *wal_out = wal;
 
@@ -709,12 +711,12 @@ wal_close(struct wal *wal)
 
     atomic_inc(&wal->closing);
 
-    if (wal->timer_tid_valid) {
+    while (wal->timer_running) {
         mutex_lock(&wal->timer_mutex);
         cv_signal(&wal->timer_cv);
         mutex_unlock(&wal->timer_mutex);
 
-        pthread_join(wal->timer_tid, 0);
+        usleep(333);
     }
 
     wal_bufset_close(wal->wbs);
@@ -722,13 +724,13 @@ wal_close(struct wal *wal)
                       atomic_read(&wal->wal_ingestgen), atomic_read(&wal->wal_txhorizon));
 
     /* Ensure that the notify thread exits after all pending IOs are drained */
-    if (wal->sync_notify_tid_valid) {
+    if (wal->sync_notifier_running) {
         mutex_lock(&wal->sync_mutex);
         cv_signal(&wal->sync_cv);
         mutex_unlock(&wal->sync_mutex);
-
-        pthread_join(wal->sync_notify_tid, 0);
     }
+
+    destroy_workqueue(wal->wq);
 
     /* Write a close record to indicate graceful shutdown */
     if (!wal->read_only)

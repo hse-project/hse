@@ -17,7 +17,6 @@
 #include <hse_util/perfc.h>
 #include <hse_util/log2.h>
 #include <hse_util/mman.h>
-#include <hse_util/delay.h>
 #include <hse_util/keycmp.h>
 #include <hse_util/compression_lz4.h>
 #include <hse_util/vlb.h>
@@ -163,7 +162,7 @@ kvset_put_ref_final(struct kvset *ks)
         if (i >= ks->ks_st.kst_vblks)
             break;
 
-        msleep(tries * 1000);
+        usleep(tries * USEC_PER_SEC);
         ev(1);
     }
 
@@ -2005,10 +2004,11 @@ struct kv_iterator_ops kvset_iter_ops;
 
 /* async_mbio: for asynchronous mblock i/o */
 struct async_mbio {
-    struct cv    cv;
     struct mutex mutex;
     int          pending;
     int          status;
+    const char  *cv_wmesg;
+    struct cv    cv;
 };
 
 struct kr_buf {
@@ -2151,12 +2151,13 @@ struct kvset_iterator {
 #define handle_to_kvset_iter(_handle) container_of(_handle, struct kvset_iterator, handle)
 
 static void
-mbio_init(struct async_mbio *io)
+mbio_init(struct async_mbio *io, const char *wmesg)
 {
     mutex_init(&io->mutex);
-    cv_init(&io->cv, "kvset_mbio");
+    cv_init(&io->cv);
     io->status = 0;
     io->pending = 0;
+    io->cv_wmesg = wmesg;
 }
 
 static void
@@ -2189,7 +2190,7 @@ mbio_wait(struct async_mbio *io, struct cn_merge_stats_ops *stats)
     if (stats && io->pending)
         tstart = get_time_ns();
     while (io->pending)
-        cv_wait(&io->cv, &io->mutex);
+        cv_wait(&io->cv, &io->mutex, io->cv_wmesg);
     if (tstart)
         count_ops(stats, 1, 0, get_time_ns() - tstart);
     err = io->status;
@@ -2494,7 +2495,7 @@ kvset_iter_enable_mblock_read_cmn(struct kvset_iterator *iter, struct kblk_reade
     kr->ds = iter->ks->ks_ds;
     kr->pc = iter->pc;
 
-    mbio_init(&kr->mbio);
+    mbio_init(&kr->mbio, "krmbio");
 
     return 0;
 
@@ -2569,7 +2570,7 @@ kvset_iter_enable_mblock_read(struct kvset_iterator *iter)
         for (i = 0; i < iter->ks->ks_vgroups; i++) {
             vr = iter->vreaders + i;
 
-            mbio_init(&vr->mbio);
+            mbio_init(&vr->mbio, "vrmbio");
 
             mem = vlb_alloc(vr_buf_sz * 2);
             if (ev(!mem))

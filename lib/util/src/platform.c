@@ -1,6 +1,6 @@
 /* SPDX-License-Identifier: Apache-2.0 */
 /*
- * Copyright (C) 2015-2021 Micron Technology, Inc.  All rights reserved.
+ * Copyright (C) 2015-2022 Micron Technology, Inc.  All rights reserved.
  */
 
 #define MTF_MOCK_IMPL_platform
@@ -25,11 +25,62 @@
 
 unsigned long hse_tsc_freq HSE_READ_MOSTLY;
 unsigned int hse_tsc_mult HSE_READ_MOSTLY;
-unsigned int hse_tsc_shift HSE_READ_MOSTLY;
 
 const char *hse_progname HSE_READ_MOSTLY;
 
+/* Note: The wmesg pointer is volatile, not what it points to...
+ */
+thread_local const char * volatile hse_wmesg_tls = "-";
+
+extern rest_get_t workqueue_rest_get;
 extern rest_get_t kmc_rest_get;
+
+/* usleep(3) is simple to use but made obsolete by the more cumbersome
+ * nanosleep(2).  So we implement our own version built upon nanosleep
+ * to leverage its well-known and reliable semantics.
+ */
+int
+usleep(useconds_t usec)
+{
+    struct timespec req;
+
+    req.tv_nsec = (usec % USEC_PER_SEC) * 1000;
+    req.tv_sec = usec / USEC_PER_SEC;
+
+    return hse_nanosleep(&req, NULL, "usleep");
+}
+
+ssize_t
+hse_readfile(int dirfd, const char *path, void *buf, size_t bufsz, int flags)
+{
+    ssize_t cc = -1;
+    int fd;
+
+    fd = openat(dirfd, path, flags);
+    if (fd > 0) {
+        ssize_t buflen = 0;
+        int xerrno = 0;
+
+        while (buflen < bufsz) {
+            cc = read(fd, buf + buflen, bufsz - buflen);
+            if (cc <= 0) {
+                if (cc < 0) {
+                    xerrno = errno;
+                    buflen = cc;
+                }
+                break;
+            }
+
+            buflen += cc;
+        }
+
+        close(fd);
+        cc = buflen;
+        errno = xerrno;
+    }
+
+    return cc;
+}
 
 static inline int
 hse_meminfo_cvt(const char *src, ulong *valp)
@@ -55,36 +106,36 @@ hse_meminfo_cvt(const char *src, ulong *valp)
 void
 hse_meminfo(ulong *freep, ulong *availp, uint shift)
 {
-    static const char path[] = "/proc/meminfo";
     static const char mf[] = "MemFree:";
     static const char ma[] = "MemAvailable:";
-    static const int  mflen = sizeof(mf) - 1;
-    static const int  malen = sizeof(ma) - 1;
-
-    char  line[128];
-    FILE *fp;
+    char buf[256], *str;
+    ssize_t cc;
 
     if (hse_meminfo_cgroup(freep, availp, shift))
         return;
 
-    fp = fopen(path, "r");
-    if (fp) {
-        int nmax = !!freep + !!availp;
+    cc = hse_readfile(-1, "/proc/meminfo", buf, sizeof(buf), O_RDONLY);
+    if (cc > 0) {
+        buf[cc - 1] = '\000';
 
-        while (nmax > 0 && fgets(line, sizeof(line), fp)) {
-            if (freep && 0 == strncmp(line, mf, mflen)) {
-                nmax -= hse_meminfo_cvt(line + mflen, freep);
+        if (freep) {
+            str = strstr(buf, mf);
+            if (str && hse_meminfo_cvt(str + strlen(mf), freep)) {
                 *freep >>= shift;
                 freep = NULL;
-            } else if (availp && 0 == strncmp(line, ma, malen)) {
-                nmax -= hse_meminfo_cvt(line + malen, availp);
+            }
+        }
+
+        if (availp) {
+            str = strstr(buf, ma);
+            if (str && hse_meminfo_cvt(str + strlen(ma), availp)) {
                 *availp >>= shift;
                 availp = NULL;
             }
         }
 
-        assert(nmax == 0);
-        fclose(fp);
+        assert(!freep);
+        assert(!availp);
     }
 
     if (ev(freep))
@@ -112,23 +163,22 @@ hse_meminfo(ulong *freep, ulong *availp, uint shift)
 static merr_t
 hse_cpu_init(void)
 {
+    char buf[4096], *str;
     int bogomips = 0;
-    FILE *fp;
+    ssize_t cc;
 
-    fp = fopen("/proc/cpuinfo", "r");
-    if (fp) {
-        char linebuf[1024];
-        int val, n;
+    cc = hse_readfile(-1, "/proc/cpuinfo", buf, sizeof(buf), O_RDONLY);
+    if (cc > 0) {
+        buf[cc - 1] = '\000';
 
-        while (fgets(linebuf, sizeof(linebuf), fp)) {
-            n = sscanf(linebuf, "bogomips%*[^0-9]%d", &val);
-            if (n == 1 && val > 0) {
+        str = strstr(buf, "bogomips");
+        if (str) {
+            int val, n;
+
+            n = sscanf(str, "bogomips%*[^0-9]%d", &val);
+            if (n == 1 && val > 0)
                 bogomips = val;
-                break;
-            }
         }
-
-        fclose(fp);
     }
 
 #if __amd64__
@@ -142,11 +192,10 @@ hse_cpu_init(void)
     if (!hse_tsc_freq)
         return merr(ENOENT);
 
-    hse_tsc_shift = 21;
-    hse_tsc_mult = (NSEC_PER_SEC << hse_tsc_shift) / hse_tsc_freq;
+    hse_tsc_mult = (NSEC_PER_SEC << HSE_TSC_SHIFT) / hse_tsc_freq;
 
     log_info("bogomips %d, freq %lu, shift %u, mult %u, L1D_CLSZ %d",
-             bogomips, hse_tsc_freq, hse_tsc_shift, hse_tsc_mult,
+             bogomips, hse_tsc_freq, HSE_TSC_SHIFT, hse_tsc_mult,
              LEVEL1_DCACHE_LINESIZE);
 
     return 0;
@@ -197,8 +246,9 @@ hse_platform_init(void)
         goto errout;
 
     rest_init();
-    rest_url_register(0, 0, rest_dt_get, rest_dt_put, "data"); /* for dt */
-    rest_url_register(0, 0, kmc_rest_get, NULL, "kmc");
+    rest_url_register(NULL, 0, rest_dt_get, rest_dt_put, "data"); /* for dt */
+    rest_url_register(NULL, 0, kmc_rest_get, NULL, "kmc");
+    rest_url_register(NULL, 0, workqueue_rest_get, NULL, "ps");
 
     log_info_sync("%s: version %s, image %s",
                   HSE_UTIL_DESC, HSE_VERSION_STRING, hse_progname);

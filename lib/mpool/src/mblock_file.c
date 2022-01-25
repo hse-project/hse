@@ -5,6 +5,7 @@
 
 #include <ftw.h>
 
+#include <hse_util/platform.h>
 #include <hse_util/assert.h>
 #include <hse_util/mutex.h>
 #include <hse_util/slab.h>
@@ -883,7 +884,10 @@ mblock_file_commit(struct mblock_file *mbfp, uint64_t *mbidv, int mbidc)
     if (err)
         return err;
 
+    hse_wmesg_tls = "mbcommit";
     err = mblock_file_meta_log(mbfp, mbidv, mbidc, delete);
+    hse_wmesg_tls = "-";
+
     if (err)
         return err;
 
@@ -1034,7 +1038,11 @@ mblock_file_read(
         return merr(EINVAL);
     }
 
-    return mbfp->dataio.read(mbfp->fd, roff, iov, iovc, 0, NULL);
+    hse_wmesg_tls = "mbread";
+    err = mbfp->dataio.read(mbfp->fd, roff, iov, iovc, 0, NULL);
+    hse_wmesg_tls = "-";
+
+    return err;
 }
 
 merr_t
@@ -1076,7 +1084,10 @@ mblock_file_write(struct mblock_file *mbfp, uint64_t mbid, const struct iovec *i
         return merr(EINVAL);
     }
 
+    hse_wmesg_tls = "mbwrite";
     err = mbfp->dataio.write(mbfp->fd, woff, iov, iovc, 0, NULL);
+    hse_wmesg_tls = "-";
+
     if (!err)
         atomic_add(wlenp, len);
 
@@ -1139,6 +1150,8 @@ mblock_file_map_getbase(struct mblock_file *mbfp, uint64_t mbid, char **addr_out
     soff = chunk_start_off(mbid, mblocksz);
     off = chunk_off(mbid, mblocksz);
 
+    hse_wmesg_tls = "mbmapget";
+
     mutex_lock(&mbfp->mmap_lock);
     addr = map->addr;
     if (!addr) {
@@ -1168,6 +1181,8 @@ mblock_file_map_getbase(struct mblock_file *mbfp, uint64_t mbid, char **addr_out
 exit:
     mutex_unlock(&mbfp->mmap_lock);
 
+    hse_wmesg_tls = "-";
+
     if (!err) {
         *addr_out = addr + off;
         *wlen = atomic_read(mbfp->wlenv + block_id(mbid));
@@ -1192,6 +1207,8 @@ mblock_file_unmap(struct mblock_file *mbfp, uint64_t mbid)
     cidx = chunk_idx(mbid, mblocksz);
     map = &mbfp->mmapv[cidx];
 
+    hse_wmesg_tls = "mbunmap";
+
     mutex_lock(&mbfp->mmap_lock);
     addr = map->addr;
     assert(addr);
@@ -1206,6 +1223,8 @@ mblock_file_unmap(struct mblock_file *mbfp, uint64_t mbid)
             map->addr = NULL;
     }
     mutex_unlock(&mbfp->mmap_lock);
+
+    hse_wmesg_tls = "-";
 
     return err;
 }

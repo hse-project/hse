@@ -7,7 +7,6 @@
 #include <hse_util/assert.h>
 #include <hse_util/inttypes.h>
 #include <hse_util/logging.h>
-#include <hse_util/delay.h>
 #include <hse_util/perfc.h>
 #include <hse_util/page.h>
 

@@ -1,6 +1,6 @@
 /* SPDX-License-Identifier: Apache-2.0 */
 /*
- * Copyright (C) 2015-2020 Micron Technology, Inc.  All rights reserved.
+ * Copyright (C) 2015-2020,2022 Micron Technology, Inc.  All rights reserved.
  */
 
 #include <hse_util/platform.h>
@@ -8,6 +8,7 @@
 #include <hse_util/spinlock.h>
 #include <hse_util/logging.h>
 #include <hse_util/timer.h>
+#include <hse_util/condvar.h>
 
 #include <sys/prctl.h>
 #include <sys/resource.h>
@@ -47,8 +48,9 @@ timer_first(void)
 static void
 timer_jclock_cb(struct work_struct *work)
 {
-    sigset_t set;
     int prio;
+
+    pthread_setname_np(pthread_self(), "hse_jclock");
 
     /* Try to increase this thread's scheduling priority to
      * improve timekeeping and dispatch of expired timers.
@@ -57,10 +59,6 @@ timer_jclock_cb(struct work_struct *work)
     prio = getpriority(PRIO_PROCESS, 0);
     if (!(prio == -1 && errno))
         setpriority(PRIO_PROCESS, 0, prio - 1);
-
-    sigfillset(&set);
-    pthread_sigmask(SIG_BLOCK, &set, 0);
-    pthread_setname_np(pthread_self(), "hse_jclock");
 
     while (timer_running) {
         struct timer_list *first;
@@ -86,7 +84,9 @@ timer_jclock_cb(struct work_struct *work)
         ts.tv_sec = 0;
         ts.tv_nsec = roundup(now, NSEC_PER_JIFFY) - now;
 
-        clock_nanosleep(CLOCK_MONOTONIC, 0, &ts, NULL);
+        end_stats_work();
+        hse_nanosleep(&ts, NULL, "jclkslp");
+        begin_stats_work();
     }
 }
 
