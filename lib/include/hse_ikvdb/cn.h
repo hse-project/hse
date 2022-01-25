@@ -81,7 +81,7 @@ cn_fini(void);
 
 /* MTF_MOCK */
 u64
-cn_get_ingest_dgen(const struct cn *cn);
+cn_get_ingest_dgen(struct cn *cn);
 
 /* MTF_MOCK */
 void

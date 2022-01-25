@@ -311,10 +311,10 @@ MTF_DEFINE_UTEST_PREPOST(c0_kvmultiset_test, ingest_sk, no_fail_pre, no_fail_pos
     bin_heap2_destroy(bh);
 
     c0kvms_usage(kvms, &usage);
-    assert(usage.u_keys == (keys_out - tombs_out));
-    assert(usage.u_tombs == tombs_out);
-    assert(usage.u_keyb == keyb_out);
-    assert(usage.u_valb == valb_out);
+    ASSERT_EQ(usage.u_keys, keys_out - tombs_out);
+    ASSERT_EQ(usage.u_tombs, tombs_out);
+    ASSERT_EQ(usage.u_keyb, keyb_out);
+    ASSERT_EQ(usage.u_valb, valb_out);
 
     c0kvms_putref(kvms);
 }

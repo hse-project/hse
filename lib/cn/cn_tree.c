@@ -3085,7 +3085,6 @@ cn_comp_compact(struct cn_compaction_work *w)
     bool   skip_commit = false;
     merr_t err;
     u32    i;
-    u64    ingestsz;
 
     if (ev(w->cw_err))
         return;
@@ -3125,17 +3124,6 @@ cn_comp_compact(struct cn_compaction_work *w)
         err = cn_kcompact(w);
     else
         err = cn_spill(w);
-
-    /* [HSE_REVISIT] The combination of key_bytes_out and val_bytes_out
-     * seems more than what is written to the media for kcompaction.
-     * Discarding the kcompation for bandwidth calculation for now.
-     */
-    if (kcompact) {
-        ingestsz = 0;
-    } else {
-        ingestsz = w->cw_stats.ms_key_bytes_out;
-        ingestsz += w->cw_stats.ms_val_bytes_out;
-    }
 
     if (merr_errno(err) == ESHUTDOWN && atomic_read(w->cw_cancel_request))
         w->cw_canceled = true;

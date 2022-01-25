@@ -134,7 +134,7 @@ cn_fini(void)
 }
 
 u64
-cn_get_ingest_dgen(const struct cn *cn)
+cn_get_ingest_dgen(struct cn *cn)
 {
     return atomic_read(&cn->cn_ingest_dgen);
 }

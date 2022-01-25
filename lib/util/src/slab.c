@@ -1312,7 +1312,6 @@ kmc_snprintf(struct kmem_cache *zone, char *buf, size_t bufsz, const char *fmt)
     struct list_head *head;
     struct kmc_slab *slab;
     ulong zalloc, zfree;
-    ulong salloc, sfree;
     ulong iused, itotal;
     char flagsbuf[128];
     void **addrv;
@@ -1325,7 +1324,6 @@ kmc_snprintf(struct kmem_cache *zone, char *buf, size_t bufsz, const char *fmt)
     }
 
     nempty = nchunks = nhuge = 0;
-    salloc = sfree = 0;
     iused = itotal = 0;
 
     kmc_zone_lock(zone);
@@ -1341,9 +1339,6 @@ kmc_snprintf(struct kmem_cache *zone, char *buf, size_t bufsz, const char *fmt)
         iused += slab->slab_iused;
         if (slab->slab_iused == 0)
             ++nempty;
-
-        salloc += slab->slab_zalloc;
-        sfree += slab->slab_zfree;
 
         if (addrv && addrc < addrmax) {
             if (addrv[addrc - 1] != slab->slab_chunk)

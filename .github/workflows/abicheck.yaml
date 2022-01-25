@@ -14,7 +14,6 @@ jobs:
     runs-on: ubuntu-latest
     container:
       image: fedora:latest
-      options: --privileged  -v /usr/src:/usr/src -v /lib/modules:/lib/modules
 
     steps:
       - name: Initialize
@@ -23,7 +22,6 @@ jobs:
             abi-compliance-checker git ninja-build meson pkg-config gcc \
             libmicrohttpd-devel userspace-rcu-devel libyaml-devel lz4-devel \
             libbsd-devel libcurl-devel libpmem-devel
-          dnf install -y abi-compliance-checker
 
       - uses: actions/checkout@v2
         with:
@@ -34,7 +32,7 @@ jobs:
           meson builddir-current --fatal-meson-warnings -Doptimization=g \
             -Dwerror=true -Dc_args="-g3" -Dcli=false -Dtools=disabled \
             -Dsamples=false -Ddocs=disabled -Dbindings=none -Dtests=false \
-            -Dtools=disabled
+            -Dtools=disabled -Dpmem=enabled
 
       - name: Build current
         run: |
@@ -55,7 +53,7 @@ jobs:
           meson builddir-previous --fatal-meson-warnings -Doptimization=g \
             -Dwerror=true -Dc_args="-g3" -Dcli=false -Dtools=disabled \
             -Dsamples=false -Ddocs=disabled -Dbindings=none -Dtests=false \
-            -Dtools=disabled
+            -Dtools=disabled -Dpmem=enabled
 
       - name: Build previous
         run: ninja -C builddir-previous
