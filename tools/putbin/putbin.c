@@ -54,8 +54,8 @@ struct info {
     int       niter;
     int       action;
     int       error;
-    unsigned  start;
-    unsigned  last;
+    unsigned  long start;
+    unsigned  long last;
     unsigned  stride;
     unsigned  endian;
 
@@ -73,7 +73,7 @@ run(void *p)
     uint32_t *      uniq = ti->val + sizeof(*seq);
     struct hse_kvs *h = ti->kvs;
     char *          test = tab[ti->action].name;
-    unsigned        i;
+    unsigned long   i;
     bool            found;
     int             now;
     struct timespec ts;
@@ -96,7 +96,7 @@ run(void *p)
 
         /* give system a chance to catch up */
         if (ti->paws && i != ti->start && i % ti->paws == 0) {
-            printf("sleep(2) after %d keys....\n", i - ti->start);
+            printf("sleep(2) after %lu keys....\n", i - ti->start);
             sleep(2);
         }
 
@@ -149,7 +149,7 @@ run(void *p)
     }
 
     snprintf(
-        msg, sizeof(msg), "%s: tid 0x%0lx: keys %d..%d", test, ti->tid, ti->start, ti->last - 1);
+        msg, sizeof(msg), "%s: tid 0x%0lx: keys %lu..%lu", test, ti->tid, ti->start, ti->last - 1);
     EVENT_PRINT(t, msg);
     return 0;
 }
@@ -249,7 +249,8 @@ main(int argc, char **argv)
     int                c, tc;
     int                rc;
     unsigned           action, endian, iter, paws, comp;
-    unsigned           cnt, start, klen, vlen;
+    unsigned           klen, vlen;
+    unsigned long      start, cnt;
     unsigned           opt_sync = 0;
     struct svec        hse_gparm = { 0 };
 
@@ -304,10 +305,10 @@ main(int argc, char **argv)
                 vlen = (unsigned)strtoul(optarg, 0, 0);
                 break;
             case 'c':
-                cnt = (unsigned)strtoul(optarg, 0, 0);
+                cnt = strtoul(optarg, 0, 0);
                 break;
             case 's':
-                start = (unsigned)strtoul(optarg, 0, 0);
+                start = strtoul(optarg, 0, 0);
                 break;
             case 'Z':
                 config = optarg;
@@ -399,7 +400,7 @@ main(int argc, char **argv)
         int          rc;
 
         printf(
-            "%s %u binary keys of len %d, starting with %u, "
+            "%s %lu binary keys of len %d, starting with %lu, "
             "in %d threads\n",
             tab[action].verb,
             cnt,

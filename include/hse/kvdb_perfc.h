@@ -133,15 +133,15 @@ enum kvdb_perfc_sidx_kvdb_metrics {
 };
 
 enum kvdb_perfc_sidx_api_throttle {
-    PERFC_DI_THSR_CNROOT,
-    PERFC_DI_THSR_C0SK,
-    PERFC_DI_THSR_WAL,
-    PERFC_DI_THSR_MAX,
-    PERFC_DI_THSR_MAVG,
+    PERFC_BA_THSR_CNROOT,
+    PERFC_BA_THSR_C0SK,
+    PERFC_BA_THSR_WAL,
+    PERFC_BA_THSR_MAX,
+    PERFC_BA_THSR_MAVG,
     PERFC_EN_THSR
 };
 
-enum kvdb_perfc_sidx_throttle_sleep { PERFC_DI_THR_SVAL, PERFC_EN_THR_MAX };
+enum kvdb_perfc_sidx_throttle_sleep { PERFC_BA_THR_SVAL, PERFC_EN_THR_MAX };
 
 enum kvdb_perfc_compact {
     PERFC_BA_CNCOMP_START,

@@ -55,8 +55,6 @@ MTF_DEFINE_UTEST_PRE(test, t_init, pre_test)
     struct throttle thr;
     int             i;
 
-    throttle_perfc_fini();
-
     for (i = 0; i <= 1; i++) {
         kvdb_rp = kvdb_rparams_defaults();
 
@@ -65,22 +63,12 @@ MTF_DEFINE_UTEST_PRE(test, t_init, pre_test)
             mapi_inject(mapi_idx_perfc_ivl_create, -1);
         }
 
-        throttle_perfc_init();
-        throttle_perfc_fini();
-
-        throttle_perfc_init();
-        throttle_perfc_fini();
-
-        throttle_perfc_init();
         throttle_init(&thr, &kvdb_rp, __func__);
         throttle_fini(&thr);
-        throttle_perfc_fini();
 
         mapi_inject_unset(mapi_idx_perfc_alloc_impl);
         mapi_inject_unset(mapi_idx_perfc_ivl_create);
     }
-
-    throttle_perfc_init();
 }
 
 MTF_DEFINE_UTEST_PRE(test, t_basic, pre_test)

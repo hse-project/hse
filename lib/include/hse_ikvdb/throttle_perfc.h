@@ -6,10 +6,4 @@
 #ifndef HSE_IKVDB_THROTTLE_PERFC_H
 #define HSE_IKVDB_THROTTLE_PERFC_H
 
-void
-throttle_perfc_init(void);
-
-void
-throttle_perfc_fini(void);
-
 #endif
