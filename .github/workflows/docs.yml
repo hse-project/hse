@@ -6,6 +6,7 @@ on:
     paths:
       - 'docs/**'
       - 'include/**/*.h'
+      - .github/workflows/docs.yml
 
 jobs:
   docs:
@@ -18,9 +19,11 @@ jobs:
 
       - name: Initialize
         run: |
+          dnf group install -y --with-optional \
+            "C Development Tools and Libraries"
           dnf install -y git ninja-build meson libmicrohttpd-devel \
             userspace-rcu-devel libyaml-devel libbsd-devel libcurl-devel \
-            libpmem-devel
+            libpmem-devel doxygen
 
       - name: Setup
         run: |
