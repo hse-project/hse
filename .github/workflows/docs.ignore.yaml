@@ -1,0 +1,17 @@
+name: Docs
+
+on:
+  pull_request:
+    types: [opened, synchronize, reopened]
+    paths-ignore:
+      - "docs/**"
+      - "include/**/*.h"
+      - .github/workflows/docs.yml
+
+jobs:
+  docs:
+    runs-on: ubuntu-latest
+
+    steps:
+      - run: |
+          echo "Skipping ${{ github.workflow }}/${{ github.job }}"

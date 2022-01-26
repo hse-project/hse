@@ -4,8 +4,10 @@ on:
   pull_request:
     types: [opened, synchronize, reopened]
     paths:
-      - '**/*.sh'
-      - 'scripts/git-hooks/*'
+      - "**/*.sh"
+      - "scripts/git-hooks/*"
+      - .github/workflows/shellcheck.yaml
+      - .shellcheckrc
 
 jobs:
   lint:

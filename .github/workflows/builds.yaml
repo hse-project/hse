@@ -7,6 +7,9 @@ on:
       - v2.*
     paths-ignore:
       - "**/*.md"
+      - ".github/ISSUE_TEMPLATE/**"
+      - ".github/workflows/**"
+      - "!.github/workflows/builds.yaml"
       - .clang-format
       - .gitattributes
       - .gitignore
@@ -16,6 +19,9 @@ on:
     types: [opened, synchronize, reopened]
     paths-ignore:
       - "**/*.md"
+      - ".github/ISSUE_TEMPLATE/**"
+      - ".github/workflows/**"
+      - "!.github/workflows/builds.yaml"
       - .clang-format
       - .gitattributes
       - .gitignore

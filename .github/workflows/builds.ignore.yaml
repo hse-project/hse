@@ -1,0 +1,65 @@
+name: Builds
+
+on:
+  push:
+    branches:
+      - master
+      - v2.*
+    paths:
+      - "**.md"
+      - ".github/ISSUE_TEMPLATE/**"
+      - ".github/workflows/**"
+      - "!.github/workflows/builds.yaml"
+      - .clang-format
+      - .gitattributes
+      - .gitignore
+      - .shellcheckrc
+      - LICENSE
+  pull_request:
+    types: [opened, synchronize, reopened]
+    paths:
+      - "**.md"
+      - ".github/ISSUE_TEMPLATE/**"
+      - ".github/workflows/**"
+      - "!.github/workflows/builds.yaml"
+      - .clang-format
+      - .gitattributes
+      - .gitignore
+      - .shellcheckrc
+      - LICENSE
+
+jobs:
+  ubuntu:
+    runs-on: ubuntu-latest
+
+    steps:
+      - run: |
+          echo "Skipping ${{ github.workflow }}/${{ github.job }}"
+
+  fedora:
+    runs-on: ubuntu-latest
+
+    steps:
+      - run: |
+          echo "Skipping ${{ github.workflow }}/${{ github.job }}"
+
+  almalinux:
+    runs-on: ubuntu-latest
+
+    steps:
+      - run: |
+          echo "Skipping ${{ github.workflow }}/${{ github.job }}"
+
+  architectures:
+    runs-on: ubuntu-latest
+
+    steps:
+      - run: |
+          echo "Skipping ${{ github.workflow }}/${{ github.job }}"
+
+  asan-ubsan:
+    runs-on: ubuntu-latest
+
+    steps:
+      - run: |
+          echo "Skipping ${{ github.workflow }}/${{ github.job }}"
