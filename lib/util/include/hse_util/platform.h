@@ -83,31 +83,21 @@ hse_meminfo(unsigned long *freep, unsigned long *availp, unsigned int shift);
  * hse_tsc_shift determines the number of significant digits in the
  * conversion performed by cycles_to_nsecs().
  *
- * tsc_mult represents nanoseconds-per-cycle multiplied by 2^hse_tsc_shift to
- * scale it up to an integer with a reasonable number of significant digits.
+ * hse_tsc_mult represents nanoseconds-per-cycle multiplied by 2^hse_tsc_shift
+ * to scale it up to an integer with a reasonable number of significant digits.
  * Conversion from cycles to nanoseconds then requires only a multiplication
- * by hse_tsc_mult and a division by 2^hse_tsc_shift (i.e., the division reduces
- * to a simple shift by hse_tsc_shift).  The multiplication by hse_tsc_mult therefore
- * limits the magnitude of the value that can be converted to 2^(64 - hse_tsc_shift))
- * in order to avoid overflow.  For example, given a TSC frequency of 2.6GHz,
- * the range of cycles_to_nsecs() is limited to 2^43, or about 3383 seconds,
- * which should be good enough for typical latency measurement purposes.
- * To convert values larger than 2^43 simply divide by hse_tsc_freq, which is
- * slower but will not overflow.
+ * by hse_tsc_mult and a division by 2^hse_tsc_shift (i.e., the division
+ * reduces to a simple shift by hse_tsc_shift).
  */
 #define HSE_TSC_SHIFT   (21u)
-#define HSE_TSC_HWM     (1ul << (64u - HSE_TSC_SHIFT))
 
-extern unsigned long hse_tsc_freq;
-extern unsigned int hse_tsc_mult;
+extern volatile unsigned long hse_tsc_freq;
+extern volatile unsigned int hse_tsc_mult;
 
 static HSE_ALWAYS_INLINE u64
 cycles_to_nsecs(u64 cycles)
 {
-    if (HSE_UNLIKELY(cycles >= HSE_TSC_HWM))
-        return (cycles >> HSE_TSC_SHIFT) * hse_tsc_mult;
-
-    return (cycles * hse_tsc_mult) >> HSE_TSC_SHIFT;
+    return ((__uint128_t)cycles * hse_tsc_mult) >> HSE_TSC_SHIFT;
 }
 
 extern const char *hse_progname;

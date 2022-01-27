@@ -48,6 +48,7 @@ timer_first(void)
 static void
 timer_jclock_cb(struct work_struct *work)
 {
+    ulong tune_next = 0;
     int prio;
 
     pthread_setname_np(pthread_self(), "hse_jclock");
@@ -60,21 +61,46 @@ timer_jclock_cb(struct work_struct *work)
     if (!(prio == -1 && errno))
         setpriority(PRIO_PROCESS, 0, prio - 1);
 
+    /* Disable tuning if get_cycles() is based upon get_time_ns().
+     */
+    if (hse_tsc_freq == 1000000000ul)
+        tune_next = ULONG_MAX;
+
     while (timer_running) {
         struct timer_list *first;
         unsigned long now, jnow;
         struct timespec ts;
+        __uint128_t freq;
 
         clock_gettime(CLOCK_MONOTONIC, &ts);
         now = ts.tv_sec * NSEC_PER_SEC + ts.tv_nsec;
 
+        /* Periodically refine hse_tsc_freq until it converges
+         * on the measured value.
+         */
+        if (now >= tune_next) {
+            atomic_thread_fence(memory_order_seq_cst);
+
+            freq = get_cycles() - timer_jclock.jc_cstart;
+            freq = (freq * NSEC_PER_SEC) / (now - timer_jclock.jc_tstart);
+
+            freq = (hse_tsc_freq * 127 + freq) / 128;
+            if (freq != hse_tsc_freq) {
+                hse_tsc_mult = (NSEC_PER_SEC << HSE_TSC_SHIFT) / freq;
+                hse_tsc_freq = freq;
+                tune_next = now + NSEC_PER_SEC / 100;
+            } else {
+                tune_next = now + NSEC_PER_SEC;
+            }
+        }
+
         jnow = nsecs_to_jiffies(now);
-        atomic_set(&timer_jclock.jc_jiffies, jnow);
-        atomic_set(&timer_jclock.jc_jclock_ns, now);
+        timer_jclock.jc_jiffies = jnow;
+        timer_jclock.jc_jclock_ns = now;
 
         timer_lock();
         first = timer_first();
-        if (first && first->expires > jnow)
+        if (first && first->expires >= jnow)
             first = NULL;
         timer_unlock();
 
@@ -173,6 +199,23 @@ hse_timer_init(void)
     INIT_WORK(&timer_jclock_work, timer_jclock_cb);
     INIT_WORK(&timer_dispatch_work, timer_dispatch_cb);
 
+    /* Try to obtain cstart and tstart close in time to improve
+     * the accuracy of our measured TSC frequency.
+     */
+    for (uint i = 0; i < 8; ++i) {
+        timer_jclock.jc_cstart = get_cycles();
+        atomic_thread_fence(memory_order_seq_cst);
+        timer_jclock.jc_tstart = get_time_ns();
+
+        if (get_cycles() - timer_jclock.jc_cstart < 1024)
+            break;
+
+        ev_warn(1);
+    }
+
+    timer_jclock.jc_jclock_ns = timer_jclock.jc_tstart;
+    timer_jclock.jc_jiffies = nsecs_to_jiffies(timer_jclock.jc_jclock_ns);
+
     rc = prctl(PR_GET_TIMERSLACK, 0, 0, 0, 0);
     timer_slack = (rc == -1) ? 50000 : rc;
 
@@ -187,13 +230,10 @@ hse_timer_init(void)
         return merr(ENOMEM);
     }
 
-    /* Start the jiffy clock and wait for it initialize jiffies.
+    /* Start the jiffy clock...
      */
     timer_running = true;
     queue_work(timer_wq, &timer_jclock_work);
-
-    while (!jiffies)
-        usleep(333);
 
     return 0;
 }

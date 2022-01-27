@@ -13,9 +13,11 @@
 #include <hse_util/list.h>
 
 struct timer_jclock {
-    atomic_ulong jc_jclock_ns;
-    atomic_ulong jc_jiffies;
-} HSE_ACP_ALIGNED;
+    volatile ulong jc_jclock_ns HSE_ACP_ALIGNED;
+    volatile ulong jc_jiffies;
+    ulong          jc_cstart;
+    ulong          jc_tstart;
+};
 
 struct timer_list {
     struct list_head entry;
@@ -33,8 +35,8 @@ struct timer_list {
  */
 extern struct timer_jclock timer_jclock;
 
-#define jclock_ns   atomic_read(&timer_jclock.jc_jclock_ns)
-#define jiffies     atomic_read(&timer_jclock.jc_jiffies)
+#define jclock_ns   (timer_jclock.jc_jclock_ns)
+#define jiffies     (timer_jclock.jc_jiffies)
 
 extern unsigned long timer_slack;
 

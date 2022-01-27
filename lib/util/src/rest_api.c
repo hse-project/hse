@@ -126,8 +126,8 @@ string_validate(const char *str, size_t max)
     while (*str && max-- > 0) {
         if (!isalnum(*str) && *str != '_' && *str != '-' && *str != '.' && *str != '/' &&
             *str != ':') {
-            log_err("rest, bad request: %s", str);
-            return merr(ev(EINVAL));
+            ev(1);
+            return merr(EINVAL);
         }
         ++str;
     }
@@ -291,7 +291,7 @@ rest_url_deregister(const char *fmt, ...)
 
     if (match) {
         while (atomic_read(&match->refcnt) > 0)
-            usleep(100 * USEC_PER_SEC);
+            usleep(100 * 1000);
 
         match->get_handler = match->put_handler = match->context = 0;
         return 0;
@@ -1134,13 +1134,10 @@ rest_server_stop(void)
             break;
 
         log_warn("%d sessions still active", nbusy);
-        usleep(3000 * USEC_PER_SEC);
+        usleep(tries * 100 * 1000);
     }
 
-    /* Don't hang in desstroy_workqueue() if there are active sessions.
-     */
-    if (nbusy == 0)
-        destroy_workqueue(rest.url_hdlr_wq);
+    destroy_workqueue(rest.url_hdlr_wq);
 
     rest.monitor_daemon = NULL;
     rest.url_hdlr_wq = NULL;
