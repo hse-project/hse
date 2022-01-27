@@ -23,8 +23,8 @@
 #include "rest_dt.h"
 #include "cgroup.h"
 
-unsigned long hse_tsc_freq HSE_READ_MOSTLY;
-unsigned int hse_tsc_mult HSE_READ_MOSTLY;
+volatile unsigned long hse_tsc_freq;
+volatile unsigned int hse_tsc_mult;
 
 const char *hse_progname HSE_READ_MOSTLY;
 
