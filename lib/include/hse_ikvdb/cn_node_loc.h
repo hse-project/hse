@@ -84,19 +84,24 @@ struct cn_node_loc {
  * The max tree depth is the minimum of limit_1 and limit_2.  For a 64-bit
  * hash (H=64), and 32-bit node offsets (N=32), the limits are:
  *
- *     fbits  fanout  limit_1  limit_2  max depth  nodes at max depth
- -     -----  ------  -------  -------  ---------  ------------------
- *       1       2       64       31        31      2147483648  (2048M)
- *       2       4       32       15        15      1073741824  (1024M)
- *       3       8       21       10        10      1073741824  (1024M)
- *       4      16       16        7         7       268435456   (256M)
- *       5      32       12        6         6      1073741824  (1024M)
- *       6      64       10        5         5      1073741824  (1024M)
+ * fbits  fanout   H   N  limit_1  limit_2  max_depth         leaves  leaves/M
+ *     1       2  64  32       64       31         31  2,147,483,648      2048
+ *     2       4  64  32       32       15         15  1,073,741,824      1024
+ *     3       8  64  32       21       10         10  1,073,741,824      1024
+ *     4      16  64  32       16        7          7    268,435,456       256
+ *     5      32  64  32       12        6          6  1,073,741,824      1024
+ *     6      64  64  32       10        5          5  1,073,741,824      1024
+ *     7     128  64  32        9        4          4    268,435,456       256
+ *     8     256  64  32        8        3          3     16,777,216        16
+ *     9     512  64  32        7        3          3    134,217,728       128
+ *    10    1024  64  32        6        3          3  1,073,741,824      1024
+ *    11    2048  64  32        5        2          2      4,194,304         4
+ *    12    4096  64  32        5        2          2     16,777,216        16
  */
 static inline uint
 cn_tree_max_depth(uint fbits)
 {
-    uint depth[] = { 0, 31, 15, 10, 7, 6, 5 };
+    uint depth[] = { 0, 31, 15, 10, 7, 6, 5, 4, 3, 3, 3, 2, 2 };
 
     assert(CN_FANOUT_BITS_MAX + 1 == NELEM(depth));
     assert(CN_FANOUT_BITS_MAX >= fbits);

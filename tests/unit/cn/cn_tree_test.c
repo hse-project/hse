@@ -1,6 +1,6 @@
 /* SPDX-License-Identifier: Apache-2.0 */
 /*
- * Copyright (C) 2015-2021 Micron Technology, Inc.  All rights reserved.
+ * Copyright (C) 2015-2022 Micron Technology, Inc.  All rights reserved.
  */
 
 #include <mtf/framework.h>
@@ -382,7 +382,7 @@ MTF_DEFINE_UTEST_PRE(test, t_create_error_paths, test_setup)
     ASSERT_TRUE(err);
 
     /* huge fanouts are invalid */
-    cp.fanout = 100;
+    cp.fanout = CN_FANOUT_MAX + 1;
     err = cn_tree_create(&tree, NULL, 0, &cp, &mock_health, rp);
     ASSERT_TRUE(err);
 
