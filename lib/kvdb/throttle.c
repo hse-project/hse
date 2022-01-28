@@ -21,90 +21,22 @@
 /* clang-format off */
 
 static struct perfc_name throttle_sen_perfc[] _dt_section = {
-    NE(PERFC_DI_THSR_CNROOT, 1, "csched root sensor",         "thsr_cnroot"),
-    NE(PERFC_DI_THSR_C0SK,   1, "c0sk ingest queue sensor",   "thsr_c0sk"),
-    NE(PERFC_DI_THSR_WAL,    1, "wal buffer length sensor",   "thsr_wal"),
-    NE(PERFC_DI_THSR_MAX,    1, "max sensor",                 "thsr_max"),
-    NE(PERFC_DI_THSR_MAVG,   1, "mavg sensor",                "thsr_mavg"),
+    NE(PERFC_BA_THSR_CNROOT,   1, "csched root sensor",         "thsr_cnroot"),
+    NE(PERFC_BA_THSR_C0SK,     1, "c0sk ingest queue sensor",   "thsr_c0sk"),
+    NE(PERFC_BA_THSR_WAL,      1, "wal buffer length sensor",   "thsr_wal"),
+    NE(PERFC_BA_THSR_MAX,      1, "max sensor",                 "thsr_max"),
+    NE(PERFC_BA_THSR_MAVG,     1, "mavg sensor",                "thsr_mavg"),
 };
 
 NE_CHECK(throttle_sen_perfc, PERFC_EN_THSR, "perfc table/enum mismatch");
 
 static struct perfc_name throttle_sleep_perfc[] _dt_section = {
-    NE(PERFC_DI_THR_SVAL, 2, "throttle sleep", "thr_sleep"),
+    NE(PERFC_BA_THR_SVAL, 2, "throttle sleep", "thr_sleep"),
 };
 
 NE_CHECK(throttle_sleep_perfc, PERFC_EN_THR_MAX, "perfc table/enum mismatch");
 
 /* clang-format on */
-
-void
-throttle_perfc_init(void)
-{
-    struct perfc_ivl *sensor_ivl, *sleep_ivl;
-    u64               boundv[PERFC_IVL_MAX];
-    merr_t            err;
-    int               i;
-
-    /* Intervals for throttle sensors: linear from (0..2*SCALE). */
-    for (i = 0; i < PERFC_IVL_MAX; i++)
-        boundv[i] = ((i + 1) * 2 * THROTTLE_SENSOR_SCALE / (PERFC_IVL_MAX + 1));
-
-    err = perfc_ivl_create(PERFC_IVL_MAX, boundv, &sensor_ivl);
-    if (ev(err))
-        return;
-
-    i = PERFC_IVL_MAX - 1;
-    boundv[i] = THROTTLE_DELAY_MAX;
-
-    /* Intervals for sleep. */
-    for (i = i - 1; i >= 0; i--)
-        boundv[i] = boundv[i + 1] / 2;
-
-    err = perfc_ivl_create(PERFC_IVL_MAX, boundv, &sleep_ivl);
-    if (ev(err)) {
-        perfc_ivl_destroy(sensor_ivl);
-        return;
-    }
-
-    throttle_sen_perfc[PERFC_DI_THSR_CNROOT].pcn_ivl = sensor_ivl;
-    throttle_sen_perfc[PERFC_DI_THSR_C0SK].pcn_ivl = sensor_ivl;
-    throttle_sen_perfc[PERFC_DI_THSR_WAL].pcn_ivl = sensor_ivl;
-    throttle_sen_perfc[PERFC_DI_THSR_MAX].pcn_ivl = sensor_ivl;
-    throttle_sen_perfc[PERFC_DI_THSR_MAVG].pcn_ivl = sensor_ivl;
-    throttle_sleep_perfc[PERFC_DI_THR_SVAL].pcn_ivl = sleep_ivl;
-}
-
-void
-throttle_perfc_fini(void)
-{
-    const struct perfc_ivl *ivl;
-    int                     i, j;
-
-    /* Order N^2, but N is small and it destroys all 'perfc_ivl'
-     * structures correctly regardless of how they were allocated
-     * and shared among the perf counters.
-     */
-    for (i = 0; i < NELEM(throttle_sen_perfc); i++) {
-        ivl = throttle_sen_perfc[i].pcn_ivl;
-        if (ivl) {
-            perfc_ivl_destroy(ivl);
-            for (j = i; j < NELEM(throttle_sen_perfc); j++)
-                if (ivl == throttle_sen_perfc[j].pcn_ivl)
-                    throttle_sen_perfc[j].pcn_ivl = 0;
-        }
-    }
-
-    for (i = 0; i < NELEM(throttle_sleep_perfc); i++) {
-        ivl = throttle_sleep_perfc[i].pcn_ivl;
-        if (ivl) {
-            perfc_ivl_destroy(ivl);
-            for (j = i; j < NELEM(throttle_sleep_perfc); j++)
-                if (ivl == throttle_sleep_perfc[j].pcn_ivl)
-                    throttle_sleep_perfc[j].pcn_ivl = 0;
-        }
-    }
-}
 
 void
 throttle_init(struct throttle *self, struct kvdb_rparams *rp, const char *kvdb_alias)
@@ -123,11 +55,8 @@ throttle_init(struct throttle *self, struct kvdb_rparams *rp, const char *kvdb_a
     for (i = 0; i < THROTTLE_SENSOR_CNT; i++)
         atomic_set(&self->thr_sensorv[i].ts_sensor, 0);
 
-    if (throttle_sen_perfc[PERFC_DI_THSR_MAVG].pcn_ivl)
-        perfc_alloc(throttle_sen_perfc, group, "set", rp->perfc_level, &self->thr_sensor_perfc);
-
-    if (throttle_sleep_perfc[PERFC_DI_THR_SVAL].pcn_ivl)
-        perfc_alloc(throttle_sleep_perfc, group, "set", rp->perfc_level, &self->thr_sleep_perfc);
+    perfc_alloc(throttle_sen_perfc, group, "set", rp->perfc_level, &self->thr_sensor_perfc);
+    perfc_alloc(throttle_sleep_perfc, group, "set", rp->perfc_level, &self->thr_sleep_perfc);
 }
 
 void
@@ -196,7 +125,7 @@ throttle_reset_mavg(struct throttle *self)
     self->thr_mavg.tm_sum = 0;
     self->thr_mavg.tm_sample_cnt = 0;
 
-    perfc_rec_sample(&self->thr_sensor_perfc, PERFC_DI_THSR_MAVG, 0);
+    perfc_set(&self->thr_sensor_perfc, PERFC_BA_THSR_MAVG, 0);
 }
 
 void
@@ -374,13 +303,13 @@ throttle_update(struct throttle *self)
 
         switch (i) {
             case THROTTLE_SENSOR_CNROOT:
-                cidx = PERFC_DI_THSR_CNROOT;
+                cidx = PERFC_BA_THSR_CNROOT;
                 break;
             case THROTTLE_SENSOR_C0SK:
-                cidx = PERFC_DI_THSR_C0SK;
+                cidx = PERFC_BA_THSR_C0SK;
                 break;
             case THROTTLE_SENSOR_WAL:
-                cidx = PERFC_DI_THSR_WAL;
+                cidx = PERFC_BA_THSR_WAL;
                 break;
         }
 
@@ -389,10 +318,10 @@ throttle_update(struct throttle *self)
             max_val = tmp;
 
         assert(cidx != UINT_MAX);
-        perfc_rec_sample(&self->thr_sensor_perfc, cidx, tmp);
+        perfc_set(&self->thr_sensor_perfc, cidx, tmp);
     }
 
-    perfc_rec_sample(&self->thr_sensor_perfc, PERFC_DI_THSR_MAX, max_val);
+    perfc_set(&self->thr_sensor_perfc, PERFC_BA_THSR_MAX, max_val);
 
     if (self->thr_skip_cnt > 0) {
         /*
@@ -427,7 +356,7 @@ throttle_update(struct throttle *self)
         assert(mavg->tm_sample_cnt <= THROTTLE_SMAX_CNT);
         mavg->tm_curr = mavg->tm_sum / mavg->tm_sample_cnt;
 
-        perfc_rec_sample(&self->thr_sensor_perfc, PERFC_DI_THSR_MAVG, mavg->tm_curr);
+        perfc_set(&self->thr_sensor_perfc, PERFC_BA_THSR_MAVG, mavg->tm_curr);
     }
 
     if (HSE_UNLIKELY(self->thr_rp->throttle_disable))
@@ -514,7 +443,7 @@ throttle_update(struct throttle *self)
         }
     }
 
-    perfc_rec_sample(&self->thr_sleep_perfc, PERFC_DI_THR_SVAL, self->thr_delay);
+    perfc_set(&self->thr_sleep_perfc, PERFC_BA_THR_SVAL, self->thr_delay);
 
     self->thr_cycles++;
     if (debug & THROTTLE_DEBUG_DELAYV) {

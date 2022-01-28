@@ -3574,13 +3574,11 @@ kvdb_perfc_initialize(void)
     kvs_perfc_init();
     c0sk_perfc_init();
     cn_perfc_init();
-    throttle_perfc_init();
 }
 
 static void
 kvdb_perfc_finish(void)
 {
-    throttle_perfc_fini();
     cn_perfc_fini();
     c0sk_perfc_fini();
     kvs_perfc_fini();
