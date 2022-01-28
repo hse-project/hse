@@ -108,7 +108,7 @@ again:
     if (itermax > 0 && ++success < 3)
         goto again;
 
-    ASSERT_GE(itermax, 3);
+    ASSERT_GE(success, 3);
     ASSERT_GT(itermax, 0);
 
     free(cyclev);

@@ -2930,7 +2930,14 @@ cndb_cn_create2(struct cndb *cndb, const struct kvs_cparams *cparams, u64 *cnid_
         CNDB_LOG_ERR(err, cndb, " fanout");
         goto done;
     }
+
     fanout_bits = ilog2(cparams->fanout);
+
+    if (cparams->fanout != (1u << fanout_bits)) {
+        err = merr(EINVAL);
+        CNDB_LOG_ERR(err, cndb, " fanout bits");
+        return err;
+    }
 
     cndb_set_hdr(&info.hdr, CNDB_TYPE_INFO, sizeof(info));
     omf_set_cninfo_fanout_bits(&info, fanout_bits);

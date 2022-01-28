@@ -1528,6 +1528,9 @@ cn_make(struct mpool *ds, const struct kvs_cparams *cp, struct kvdb_health *heal
 
     fanout_bits = ilog2(cp->fanout);
 
+    if (cp->fanout != (1u << fanout_bits))
+        return merr(EINVAL);
+
     /* Create and destroy a tree as a means of validating
      * prefix len, etc.
      */
