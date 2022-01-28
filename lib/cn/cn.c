@@ -1523,22 +1523,10 @@ cn_make(struct mpool *ds, const struct kvs_cparams *cp, struct kvdb_health *heal
     assert(cp);
     assert(health);
 
-    switch (cp->fanout) {
-        case 2:
-            fanout_bits = 1;
-            break;
-        case 4:
-            fanout_bits = 2;
-            break;
-        case 8:
-            fanout_bits = 3;
-            break;
-        case 16:
-            fanout_bits = 4;
-            break;
-        default:
-            return merr(EINVAL);
-    }
+    if (cp->fanout < CN_FANOUT_MIN || cp->fanout > CN_FANOUT_MAX)
+        return merr(EINVAL);
+
+    fanout_bits = ilog2(cp->fanout);
 
     /* Create and destroy a tree as a means of validating
      * prefix len, etc.

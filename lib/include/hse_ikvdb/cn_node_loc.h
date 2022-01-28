@@ -96,7 +96,7 @@ struct cn_node_loc {
 static inline uint
 cn_tree_max_depth(uint fbits)
 {
-    uint depth[] = { 0, 31, 15, 10, 7 };
+    uint depth[] = { 0, 31, 15, 10, 7, 6, 5 };
 
     assert(CN_FANOUT_BITS_MAX + 1 == NELEM(depth));
     assert(CN_FANOUT_BITS_MAX >= fbits);

@@ -54,7 +54,7 @@ MTF_DEFINE_UTEST_PRE(kvs_cparams_test, fanout, test_pre)
     ASSERT_EQ((uintptr_t)ps->ps_validate, (uintptr_t)param_default_validator);
     ASSERT_EQ((uintptr_t)ps->ps_stringify, (uintptr_t)param_default_stringify);
     ASSERT_EQ((uintptr_t)ps->ps_jsonify, (uintptr_t)param_default_jsonify);
-    ASSERT_EQ(CN_FANOUT_MAX, params.fanout);
+    ASSERT_EQ(16, params.fanout);
     ASSERT_EQ(CN_FANOUT_MIN, ps->ps_bounds.as_uscalar.ps_min);
     ASSERT_EQ(CN_FANOUT_MAX, ps->ps_bounds.as_uscalar.ps_max);
 }
