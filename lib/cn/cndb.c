@@ -2925,12 +2925,19 @@ cndb_cn_create2(struct cndb *cndb, const struct kvs_cparams *cparams, u64 *cnid_
     u32                  fanout_bits = 0;
     u32                  flags = 0;
 
-    if (cparams->fanout < 2 || cparams->fanout > 16) {
+    if (cparams->fanout < CN_FANOUT_MIN || cparams->fanout > CN_FANOUT_MAX) {
         err = merr(EINVAL);
         CNDB_LOG_ERR(err, cndb, " fanout");
         goto done;
     }
+
     fanout_bits = ilog2(cparams->fanout);
+
+    if (cparams->fanout != (1u << fanout_bits)) {
+        err = merr(EINVAL);
+        CNDB_LOG_ERR(err, cndb, " fanout bits");
+        return err;
+    }
 
     cndb_set_hdr(&info.hdr, CNDB_TYPE_INFO, sizeof(info));
     omf_set_cninfo_fanout_bits(&info, fanout_bits);

@@ -1,6 +1,6 @@
 /* SPDX-License-Identifier: Apache-2.0 */
 /*
- * Copyright (C) 2015-2021 Micron Technology, Inc.  All rights reserved.
+ * Copyright (C) 2015-2022 Micron Technology, Inc.  All rights reserved.
  */
 
 #include <mtf/framework.h>
@@ -8,6 +8,7 @@
 
 #include <hse_util/hse_err.h>
 #include <hse_util/inttypes.h>
+#include <hse_util/log2.h>
 
 #include <hse_ikvdb/kvs_cparams.h>
 #include <hse_ikvdb/cn.h>
@@ -52,19 +53,17 @@ MTF_DEFINE_UTEST_PREPOST(cn_make_test, cn_make1, pre, post)
 
     cp = kvs_cparams_defaults();
     for (i = 0; i < 100; i++) {
+        uint bits = (i > 0) ? ilog2(i) : 0;
+
         cp.fanout = i;
-        switch (i) {
-            case 2:
-            case 4:
-            case 8:
-            case 16:
-                err = cn_make(ds, &cp, &health);
-                ASSERT_EQ(err, 0);
-                break;
-            default:
-                err = cn_make(ds, &cp, &health);
-                ASSERT_EQ(merr_errno(err), EINVAL);
-                break;
+
+        err = cn_make(ds, &cp, &health);
+        if (err) {
+            ASSERT_TRUE(bits < CN_FANOUT_BITS_MIN || bits > CN_FANOUT_BITS_MAX ||
+                        cp.fanout != (1u << bits));
+        } else {
+            ASSERT_TRUE(bits >= CN_FANOUT_BITS_MIN && bits <= CN_FANOUT_BITS_MAX &&
+                        cp.fanout == (1u << bits));
         }
     }
 }

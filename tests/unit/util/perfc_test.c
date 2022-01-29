@@ -40,14 +40,14 @@ MTF_DEFINE_UTEST(perfc, perfc_get_cycles)
     uint64_t tstart, tstop;
     uint64_t cstart, cstop;
     uint64_t *cyclev;
-    int itermax = 128;
+    int itermax = 1024;
     int success = 0;
 
     cyclev = calloc(sizeof(*cyclev), cyclec);
     ASSERT_NE(NULL, cyclev);
 
 again:
-    usleep(333 * 1000); /* attempt to get a fresh time slice */
+    usleep(150 * 1000); /* attempt to get a fresh time slice */
 
     cstart = get_cycles();
     atomic_thread_fence(memory_order_seq_cst);
@@ -67,6 +67,7 @@ again:
             usleep(1); /* attempt to elicit a cpu migration */
     }
 
+    usleep(150 * 1000); /* attempt to get a fresh time slice */
     tstop = get_time_ns();
     atomic_thread_fence(memory_order_seq_cst);
     cstop = get_cycles();
@@ -108,7 +109,7 @@ again:
     if (itermax > 0 && ++success < 3)
         goto again;
 
-    ASSERT_GE(itermax, 3);
+    ASSERT_GE(success, 3);
     ASSERT_GT(itermax, 0);
 
     free(cyclev);
