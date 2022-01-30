@@ -2624,8 +2624,10 @@ cn_comp_update_kvcompact(struct cn_compaction_work *work, struct kvset *new_kvse
             le = tmp;
         }
 
-        if (new_kvset)
+        if (new_kvset) {
             kvset_list_add(new_kvset, &le->le_link);
+            work->cw_node->tn_cgen++;
+        }
     }
 
     cn_tree_samp(tree, &work->cw_samp_pre);
@@ -2744,6 +2746,8 @@ cn_comp_update_spill(struct cn_compaction_work *work, struct spill_child *childv
 
                 kvset_list_add(kvset, &cnode->tn_kvset_list);
             }
+
+            cnode->tn_cgen++;
         }
 
         /* Move old kvsets from parent node to retired list.
@@ -3292,6 +3296,8 @@ cn_tree_ingest_update(struct cn_tree *tree, struct kvset *kvset, void *ptomb, ui
 
     rmlock_wlock(&tree->ct_lock);
     kvset_list_add(kvset, &tree->ct_root->tn_kvset_list);
+    tree->ct_root->tn_cgen++;
+
     cn_inc_ingest_dgen(tree->cn);
 
     /* Record ptomb as the max ptomb seen by this cn */
