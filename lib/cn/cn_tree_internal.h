@@ -168,8 +168,8 @@ struct cn_tree {
  * @tn_stats_rem_cntr:
  * @tn_ns:           metrics about node to guide node compaction decisions
  * @tn_loc:          location of node within tree
- * @tn_kvset_cnt:    number of kvsets  in node
  * @tn_pfx_spill:    true if spills/scans from this node use the prefix hash
+ * @tn_cgen:         incremented each time the node changes
  * @tn_tree:         ptr to tree struct
  * @tn_parent:       parent node
  * @tn_child:        child nodes
@@ -197,6 +197,7 @@ struct cn_tree_node {
     struct cn_node_loc   tn_loc HSE_L1D_ALIGNED;
     bool                 tn_terminal_node_warning;
     bool                 tn_pfx_spill;
+    uint                 tn_cgen;
     struct list_head     tn_kvset_list; /* head = newest kvset */
     struct cn_tree *     tn_tree;
     struct cn_tree_node *tn_parent;

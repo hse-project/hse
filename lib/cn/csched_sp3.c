@@ -379,6 +379,7 @@ sp3_node_init(struct sp3 *sp, struct sp3_node *spn)
     uint ttl, tx;
 
     spn->spn_initialized = true;
+    spn->spn_cgen = UINT_MAX;
 
     for (tx = 0; tx < RBT_MAX; tx++)
         RB_CLEAR_NODE(&spn->spn_rbe[tx].rbe_node);
@@ -1103,6 +1104,14 @@ sp3_dirty_node_locked(struct sp3 *sp, struct cn_tree_node *tn)
     uint64_t nkvsets_total, nkvsets, nkeys;
     uint garbage = 0, scatter = 0, jobs;
 
+    /* Skip if node hasn't changed since last time we inserted
+     * it into the work trees.
+     */
+    if (spn->spn_cgen == tn->tn_cgen)
+        return;
+
+    spn->spn_cgen = tn->tn_cgen;
+
     jobs = atomic_read_acq(&tn->tn_busycnt);
     nkeys = cn_ns_keys(&tn->tn_ns);
 
@@ -1316,8 +1325,6 @@ sp3_process_workitem(struct sp3 *sp, struct cn_compaction_work *w)
                     newleaf = true;
                 }
 
-                /* [HSE_REVISIT] Skip if node didn't change.
-                 */
                 sp3_dirty_node_locked(sp, tn->tn_childv[i]);
             }
         }
@@ -2447,6 +2454,7 @@ sp3_monitor(struct work_struct *work)
     struct sp3 *sp = container_of(work, struct sp3, mon_work);
 
     struct periodic_check chk_qos     = { .interval = NSEC_PER_SEC / 3 };
+    struct periodic_check chk_sched   = { .interval = NSEC_PER_SEC * 3 };
     struct periodic_check chk_refresh = { .interval = NSEC_PER_SEC * 10 };
     struct periodic_check chk_shape   = { .interval = NSEC_PER_SEC * 15 };
 
@@ -2477,7 +2485,6 @@ sp3_monitor(struct work_struct *work)
         /* The following "process and prune" functions will increment
          * sp->activity to trigger a call (below) to sp3_schedule().
          */
-        sp->activity = 0;
         sp3_process_worklist(sp);
         sp3_process_ingest(sp);
         sp3_process_new_trees(sp);
@@ -2493,12 +2500,16 @@ sp3_monitor(struct work_struct *work)
             bad_health = true;
         }
 
-        if (sp->activity) {
-            last_activity = now + NSEC_PER_SEC * 5;
-            sp->activity = 0;
+        if (now > chk_sched.next || sp->activity) {
+            if (sp->activity) {
+                last_activity = now + NSEC_PER_SEC * 5;
+                sp->activity = 0;
+            }
 
             if (!bad_health)
                 sp3_schedule(sp);
+
+            chk_sched.next = now + chk_sched.interval;
         }
 
         if (now > chk_refresh.next) {

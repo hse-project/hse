@@ -34,8 +34,9 @@ struct sp3_node {
     struct sp3_rbe   spn_rbe[RBT_MAX];
     struct list_head spn_rlink;
     struct list_head spn_alink;
-    u32              spn_ttl;
+    u16              spn_ttl;
     bool             spn_initialized;
+    uint             spn_cgen;
 };
 
 struct sp3_tree {
