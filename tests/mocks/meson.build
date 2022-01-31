@@ -52,7 +52,6 @@ mocked_headers = [
     meson.project_source_root() / 'lib/util/include/hse_util/platform.h',
     meson.project_source_root() / 'lib/util/include/hse_util/slab.h',
     meson.project_source_root() / 'lib/util/include/hse_util/token_bucket.h',
-    meson.project_source_root() / 'lib/util/include/hse_util/workqueue.h',
     meson.project_source_root() / 'lib/util/src/logging_util.h',
     meson.project_source_root() / 'tests/mocks/include/mock/allocation.h',
 ]
@@ -112,7 +111,6 @@ foreach mc, source_dir : mocked_components
         hdr = '@0@_ut.h'.format(stem)
         mock_decl = custom_target(
             '@0@.@1@-utpp-h'.format(mc, stem),
-            build_by_default: true,
             input: f,
             command: [
                 utpp,
@@ -131,7 +129,6 @@ foreach mc, source_dir : mocked_components
         src = '@0@_ut_impl.i'.format(stem)
         mock_impl = custom_target(
             '@0@.@1@-utpp-c'.format(mc, stem),
-            build_by_default: true,
             input: f,
             command: [
                 utpp,
