@@ -2,6 +2,8 @@ if not get_option('tools').disabled()
     subdir('scripts')
 endif
 
+go = find_program('go', required: get_option('tools'))
+
 tool_targets = {}
 
 tools = {
@@ -38,6 +40,18 @@ tools = {
             'common.c',
             'parm_groups.c',
         ),
+    },
+    'cn-tree-simulator': {
+        'sources': files(
+            'cn-tree-simulator/go.mod',
+            'cn-tree-simulator/main.go',
+            'cn-tree-simulator/cn/kvset.go',
+            'cn-tree-simulator/cn/event.go',
+            'cn-tree-simulator/cn/node.go',
+            'cn-tree-simulator/cn/params.go',
+            'cn-tree-simulator/cn/tree.go',
+        ),
+        'language': 'go',
     },
     'cndb_log': {
         'sources': files(
@@ -286,26 +300,57 @@ tools = {
 
 foreach t, params : tools
     if not get_option('tools').disabled()
-        target = executable(
-            t,
-            params['sources'],
-            c_args: params.get('c_args', []),
-            include_directories: [
-                component_root_includes,
-                hse_include_directories,
-                tools_includes,
-                params.get('include_directories', []),
-            ],
-            dependencies: [
-                hse_internal_dep,
-                hse_dependencies,
-                libhse_cli_dep,
-                params.get('dependencies', [])
-            ],
-            install: true,
-            install_rpath: rpath,
-            gnu_symbol_visibility: 'hidden',
-        )
+        language = params.get('language', 'c')
+
+        if language == 'c'
+            target = executable(
+                t,
+                params['sources'],
+                c_args: params.get('c_args', []),
+                include_directories: [
+                    component_root_includes,
+                    hse_include_directories,
+                    tools_includes,
+                    params.get('include_directories', []),
+                ],
+                dependencies: [
+                    hse_internal_dep,
+                    hse_dependencies,
+                    libhse_cli_dep,
+                    params.get('dependencies', [])
+                ],
+                install: true,
+                install_rpath: rpath,
+                gnu_symbol_visibility: 'hidden',
+            )
+        elif language == 'go'
+            if go.found()
+                target = custom_target(
+                    t,
+                    input: params.get('sources'),
+                    output: t,
+                    command: [
+                        sh,
+                        '-c',
+                        ' '.join([
+                            'cd',
+                            meson.current_source_dir() / t,
+                            '&&',
+                            go.full_path(),
+                            'build',
+                            '-o',
+                            meson.current_build_dir() / t,
+                        ])
+                    ],
+                    install: true,
+                    install_dir: get_option('prefix') / get_option('bindir')
+                )
+            else
+                target = disabler()
+            endif
+        else
+            error('Unrecognized \'language\' keyword argument')
+        endif
 
         tool_targets += { t: target }
     else

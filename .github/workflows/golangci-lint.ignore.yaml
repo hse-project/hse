@@ -1,0 +1,17 @@
+name: golangci-lint
+
+on:
+  pull_request:
+    types: [opened, synchronize, reopened]
+    paths-ignore:
+      - "**.go"
+      - "**/go.mod"
+      - .github/workflows/go.yaml
+
+jobs:
+  golangci:
+    runs-on: ubuntu-latest
+
+    steps:
+      - run: |
+          echo "Skipping ${{ github.workflow }}/${{ github.job }}"

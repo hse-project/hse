@@ -62,7 +62,7 @@ jobs:
         run: |
           sudo apt-get update
           sudo apt-get install build-essential ninja-build pkg-config \
-            libbsd-dev libmicrohttpd-dev liburcu-dev libyaml-dev \
+            libbsd-dev libmicrohttpd-dev liburcu-dev libyaml-dev golang \
             libcurl4-openssl-dev python3-setuptools libmongoc-dev \
             libbson-dev libssl-dev libsasl2-dev
           sudo python3 -m pip install meson Cython
@@ -88,6 +88,19 @@ jobs:
           if [ $(lsb_release -rs) = "20.04" ]; then
             echo "CFLAGS=-Wno-deprecated ${CFLAGS}" >> $GITHUB_ENV
           fi
+
+      - name: Setup go
+        if: ${{ matrix.os == 'ubuntu-18.04' }}
+        run: |
+          sudo mkdir /usr/local/lib/go-1.11
+          cd /tmp
+          wget --quiet https://dl.google.com/go/go1.11.linux-amd64.tar.gz
+          sudo tar -xf go1.11.linux-amd64.tar.gz --strip 1 --directory \
+            /usr/local/lib/go-1.11
+          sudo update-alternatives --install /usr/bin/go go \
+            /usr/local/lib/go-1.11/bin/go 40
+          sudo update-alternatives --set go /usr/local/lib/go-1.11/bin/go
+          echo "GOROOT=/usr/local/lib/go-1.11" >> $GITHUB_ENV
 
       - name: Setup
         run: |
@@ -146,7 +159,7 @@ jobs:
             "C Development Tools and Libraries"
           dnf install -y git ninja-build meson python-unversioned-command \
             libmicrohttpd-devel userspace-rcu-devel libyaml-devel libbsd-devel \
-            libcurl-devel libpmem-devel xz mongo-c-driver libbson \
+            libcurl-devel libpmem-devel golang xz mongo-c-driver libbson \
             openssl-devel cyrus-sasl-devel ncurses-devel \
             java-1.8.0-openjdk-devel python3-devel python3-Cython libxml2 \
             libxslt
@@ -224,7 +237,7 @@ jobs:
           dnf group install -y --with-optional "Development Tools"
           dnf install -y git ninja-build libmicrohttpd-devel \
             userspace-rcu-devel libyaml-devel libbsd-devel libcurl-devel \
-            libpmem-devel xz mongo-c-driver libbson openssl-devel \
+            libpmem-devel golang xz mongo-c-driver libbson openssl-devel \
             cyrus-sasl-devel ncurses-devel java-1.8.0-openjdk-devel \
             python36 python36-devel libxml2 libxslt
           python3 -m pip install meson Cython
@@ -275,6 +288,8 @@ jobs:
       matrix:
         buildtype: [release, debug]
         arch: [s390x]
+    env:
+      GOARCH: ${{ matrix.arch }}
 
     steps:
       - name: Checkout HSE
@@ -302,8 +317,9 @@ jobs:
             libpython3-dev:${{ matrix.arch }} liburcu-dev:${{ matrix.arch }} \
             libcurl4-openssl-dev:${{ matrix.arch }} \
             libbsd-dev:${{ matrix.arch }} libmicrohttpd-dev:${{ matrix.arch }} \
-            libyaml-dev:${{ matrix.arch }} libmongoc-dev:${{ matrix.arch }} \
-            libbson-dev:${{ matrix.arch }} libncurses-dev:${{ matrix.arch }} \
+            libyaml-dev:${{ matrix.arch }} golang \
+            libmongoc-dev:${{ matrix.arch }} libbson-dev:${{ matrix.arch }} \
+            libncurses-dev:${{ matrix.arch }} \
             openjdk-11-jdk:${{ matrix.arch }} openjdk-11-jdk
           python3 -m pip install meson Cython
 
@@ -357,7 +373,7 @@ jobs:
             "C Development Tools and Libraries"
           dnf install -y git ninja-build meson python-unversioned-command \
             libmicrohttpd-devel userspace-rcu-devel libyaml-devel libbsd-devel \
-            libcurl-devel libpmem-devel xz mongo-c-driver libbson \
+            libcurl-devel libpmem-devel golang xz mongo-c-driver libbson \
             openssl-devel cyrus-sasl-devel ncurses-devel \
             java-1.8.0-openjdk-devel python3-devel python3-Cython \
             libxml2-devel libxslt-devel libasan libubsan
