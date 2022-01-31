@@ -26,7 +26,7 @@ MTF_MODULE_UNDER_TEST(hse_platform);
 
 MTF_BEGIN_UTEST_COLLECTION_PRE(perfc, platform_pre);
 
-
+#ifndef HSE_CI
 /* Test that calls to get_cycles() always return a count greater
  * than any previous call and are accurately measuring elapsed
  * time w.r.t get_time_ns().  This might fail on amd64 if the TSC
@@ -114,6 +114,7 @@ again:
 
     free(cyclev);
 }
+#endif
 
 MTF_DEFINE_UTEST(perfc, perfc_basic_create_find_and_remove)
 {
