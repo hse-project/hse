@@ -34,6 +34,10 @@ hse_major_version = version_components[0]
 hse_minor_version = version_components[1]
 hse_patch_version = version_components[2]
 
+if ci
+    add_project_arguments('-DHSE_CI', language: 'c')
+endif
+
 # Compute the relative path used by compiler invocations.
 relative_dir = run_command(
     python,
