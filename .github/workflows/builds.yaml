@@ -380,3 +380,51 @@ jobs:
             builddir/meson-logs/
             /var/log/messages
             /var/log/syslog
+
+  subprojects:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout HSE
+        uses: actions/checkout@v2
+
+      - name: Checkout hse-python
+        uses: actions/checkout@v2
+        with:
+          repository: hse-project/hse-python
+          path: subprojects/hse-python
+
+      - name: Post-checkout
+        run: |
+          for b in hse-python; do
+            git -C "subprojects/$b" checkout ${{ github.head_ref }} || true
+          done
+
+      - name: Initialize
+        run: |
+          sudo apt-get update
+          sudo apt-get install build-essential ninja-build pkg-config
+          sudo python3 -m pip install meson Cython
+
+      - name: Setup
+        run: |
+          meson builddir -Dwrap_mode=forcefallback -Dtools=enabled \
+            -Ddocs=disabled -Dbindings=all -Dycsb=true -Dwerror=true
+
+      - name: Build
+        run: |
+          ninja -C builddir
+
+      - name: Test
+        run: |
+          ulimit -c unlimited
+          meson test -C builddir --setup=ci --print-errorlogs --no-stdsplit
+
+      - uses: actions/upload-artifact@v2
+        if: failure()
+        with:
+          name: ${{ github.job }}
+          path: |
+            builddir/meson-logs/
+            /var/log/messages
+            /var/log/syslog
