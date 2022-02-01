@@ -18,8 +18,6 @@
 #include <hse_util/timer.h>
 #include <hse_util/condvar.h>
 
-/* MTF_MOCK_DECL(workqueue) */
-
 #define WQ_MAX_ACTIVE (128)
 #define WQ_DFL_ACTIVE (WQ_MAX_ACTIVE / 8)
 

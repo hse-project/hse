@@ -2,7 +2,7 @@
 
 # SPDX-License-Identifier: Apache-2.0
 #
-# Copyright (C) 2021 Micron Technology, Inc. All rights reserved.
+# Copyright (C) 2021-2022 Micron Technology, Inc. All rights reserved.
 
 
 # Given a C header file annotated for pre-processing for NF Unit Testing,
@@ -18,9 +18,6 @@ function init(i)
     LAST_FILENAME="";
 
     g_in_mock_def      = 0;
-    g_in_mock_ku_def   = 0;
-    g_in_mock_kern_def = 0;
-    g_in_mock_user_def = 0;
 
     for (i = 1; i < ARGC; i++) {
         if (ARGV[i] == "-h") {
@@ -53,11 +50,10 @@ function init(i)
 function fini()
 {
     if (length(g_mock_func_names) > 0)
-      process_functions(g_mock_func_names,
-                        g_mock_func_kus,
-                        g_mock_func_prefixes,
-                        g_mock_func_args,
-                        g_mock_set_names);
+        process_functions(g_mock_func_names,
+            g_mock_func_prefixes,
+            g_mock_func_args,
+            g_mock_set_names);
 }
 
 function usage(msg,
@@ -75,7 +71,7 @@ function usage(msg,
 function die(msg)
 {
     printf("utpp: error at %s:%d:\n%s\n",
-	   FILENAME, FNR, msg) > "/dev/stderr";
+        FILENAME, FNR, msg) > "/dev/stderr";
     exit 1;
 }
 
@@ -85,7 +81,7 @@ function func_decl_parse(func_decl, func_def, mock_set,
     # find the function name and argument list ...
     res = match(func_decl, /[[:alpha:]_][[:alnum:]_]*[ \t\n]*\(.*\)[ \t\n]*;/);
     if (res == 0)
-      die(sprintf("error: bad function declaration: %s\n", func_decl));
+        die(sprintf("error: bad function declaration: %s\n", func_decl));
 
     # pull out the entire prefix which should just be the return type ...
     tmp_str = substr(func_decl, 1, RSTART-1);
@@ -99,13 +95,13 @@ function func_decl_parse(func_decl, func_def, mock_set,
     tmp_str = substr(func_decl, RSTART, RLENGTH);
     res = match(tmp_str, /[[:alpha:]_][[:alnum:]_]*/);
     if (res == 0)
-      die("error: bad function name: $tmp_str")
+        die("error: bad function name: $tmp_str")
     func_def["name"] = substr(tmp_str, RSTART, RLENGTH);
 
     # pull out the function argument specification ...
     res = match(tmp_str, /\(.*\)/);
     if (res == 0)
-      die("error: bad function arguments: $tmp_str")
+        die("error: bad function arguments: $tmp_str")
     tmp_str = substr(tmp_str, RSTART, RLENGTH);
     gsub(/\(/, "", tmp_str);
     gsub(/\)/, "", tmp_str);
@@ -123,13 +119,13 @@ function extract_mock_set_name(mock_set_decl,
     # extract MTF_MOCK_DECL(<set name>) ...
     res = match(mock_set_decl, /MTF_MOCK_DECL.*\(.*\)/);
     if (res == 0)
-      die(sprintf("error: bad mockable declaration: %s\n", mock_set_decl));
+        die(sprintf("error: bad mockable declaration: %s\n", mock_set_decl));
     tmp_str = substr(mock_set_decl, RSTART, RLENGTH);
 
     # get rid of the opening and closing parentheses
     res = match(tmp_str, /\(.*\)/);
     if (res == 0)
-      die(sprintf("error: bad mockable declaration: %s\n", mock_set_decl));
+        die(sprintf("error: bad mockable declaration: %s\n", mock_set_decl));
     tmp_str = substr(tmp_str, RSTART+1, RLENGTH-2);
 
     # get rid of any whitespace
@@ -142,85 +138,65 @@ function extract_mock_set_name(mock_set_decl,
       die(sprintf("error: bad mockable declaration: %s\n", mock_set_decl))
 }
 
-function emit_ku_header(name, set_name, prefix, args,
-                        ku_names, ku_prefixes, ku_args) # local vars
-{
-    split(name,   ku_names,    "|");
-    split(prefix, ku_prefixes, "|");
-    split(args,   ku_args,     "|");
-
-    printf("#ifdef __KERNEL__\n\n") > TARGET_FILE;
-    emit_header(ku_names[1], set_name, 0, ku_prefixes[1], ku_args[1]);
-    printf("\n#else /* __KERNEL__ */\n\n") > TARGET_FILE;
-    emit_header(ku_names[2], set_name, 0, ku_prefixes[2], ku_args[2]);
-    printf("\n#endif /* __KERNEL__ */\n\n") > TARGET_FILE;
-
-    return
-}
-
-function emit_header(name, set_name, ku, prefix, args)
+function emit_header(name, set_name, prefix, args)
 {
     if (++first_time_mock == 1) {
         printf("#include <stdint.h>\n\n") > TARGET_FILE;
         printf("#include <mock/api.h>\n") > TARGET_FILE;
     }
-    if (ku == 0) {
-        printf("\n\n/* %s\n */\n", name) > TARGET_FILE;
 
-        printf("typedef %s (*mtfm_%s_%s_fp)(%s);\n",
-               prefix, set_name, name, args) > TARGET_FILE;
+    printf("\n\n/* %s\n */\n", name) > TARGET_FILE;
 
-        printf("mtfm_%s_%s_fp  mtfm_%s_%s_get(void);\n",
-               set_name, name, set_name, name) > TARGET_FILE;
+    printf("typedef %s (*mtfm_%s_%s_fp)(%s);\n",
+            prefix, set_name, name, args) > TARGET_FILE;
 
-        printf("mtfm_%s_%s_fp  mtfm_%s_%s_getreal(void);\n\n",
-               set_name, name, set_name, name)  > TARGET_FILE;
+    printf("mtfm_%s_%s_fp  mtfm_%s_%s_get(void);\n",
+            set_name, name, set_name, name) > TARGET_FILE;
 
-        warn=0
+    printf("mtfm_%s_%s_fp  mtfm_%s_%s_getreal(void);\n\n",
+            set_name, name, set_name, name)  > TARGET_FILE;
 
-        printf("#ifndef MTF_MOCK_IMPL_%s\n", set_name) > TARGET_FILE;
-        printf("#define %s(...) \\\n", name) > TARGET_FILE;
-        printf("({ \\\n") > TARGET_FILE;
+    warn=0
 
-        if (prefix == "void") {
-            printf("\tif (!mapi_enabled || !mapi_inject_check(%s%s, 0)) \\\n",
-                   "mapi_idx_", name) > TARGET_FILE;
-            printf("\t\t(mtfm_%s_%s_get())(__VA_ARGS__); \\\n",
-                   set_name, name) > TARGET_FILE;
-            printf("\t(void)0; \\\n") > TARGET_FILE;
-        } else if (prefix ~ /\*$/) {
-            printf("\tvoid *rc = NULL; \\\n") > TARGET_FILE;
-            printf("\tif (!mapi_enabled || !mapi_inject_check_ptr(%s%s, &rc)) \\\n",
-                   "mapi_idx_", name) > TARGET_FILE;
-            printf("\t\trc = (void *)(mtfm_%s_%s_get())(__VA_ARGS__); \\\n",
-                   set_name, name) > TARGET_FILE;
-            printf("\trc; \\\n") > TARGET_FILE;
-        } else if (prefix ~ /bool|int|uint|unsigned|unsigned int|long|ulong|merr_t|size_t|ssize_t|enum|s8|s16|s32|s64|u8|u16|u32|u64|int8_t|int16_t|int32_t|int64_t|uint8_t|uint16_t|uint32_t|uint64_t/) {
-            printf("\tuint64_t rc = 0; \\\n") > TARGET_FILE;
-            printf("\tif (!mapi_enabled || !mapi_inject_check(%s%s, &rc)) \\\n",
-                   "mapi_idx_", name) > TARGET_FILE;
-            printf("\t\trc = (mtfm_%s_%s_get())(__VA_ARGS__); \\\n",
-                   set_name, name) > TARGET_FILE;
-            printf("\trc; \\\n") > TARGET_FILE;
-        } else {
-            printf("\t(mtfm_%s_%s_get())(__VA_ARGS__); \\\n",
-                   set_name, name) > TARGET_FILE;
-            warn=1
-        }
+    printf("#ifndef MTF_MOCK_IMPL_%s\n", set_name) > TARGET_FILE;
+    printf("#define %s(...) \\\n", name) > TARGET_FILE;
+    printf("({ \\\n") > TARGET_FILE;
 
-        printf("})\n") > TARGET_FILE;
-        if (warn) {
-            printf("//#warning \"!!! %s: unhandled return type %s !!!\"\n",
-                   name, prefix) > TARGET_FILE;
-        }
-        printf("#endif /* MTF_MOCK_IMPL_%s */\n\n", set_name) > TARGET_FILE;
-
-        printf("void mtfm_%s_%s_set(%s (*mock)(%s));\n",
-               set_name, name, prefix, args) > TARGET_FILE;
-        return;
+    if (prefix == "void") {
+        printf("\tif (!mapi_enabled || !mapi_inject_check(%s%s, 0)) \\\n",
+            "mapi_idx_", name) > TARGET_FILE;
+        printf("\t\t(mtfm_%s_%s_get())(__VA_ARGS__); \\\n",
+            set_name, name) > TARGET_FILE;
+        printf("\t(void)0; \\\n") > TARGET_FILE;
+    } else if (prefix ~ /\*$/) {
+        printf("\tvoid *rc = NULL; \\\n") > TARGET_FILE;
+        printf("\tif (!mapi_enabled || !mapi_inject_check_ptr(%s%s, &rc)) \\\n",
+            "mapi_idx_", name) > TARGET_FILE;
+        printf("\t\trc = (void *)(mtfm_%s_%s_get())(__VA_ARGS__); \\\n",
+            set_name, name) > TARGET_FILE;
+        printf("\trc; \\\n") > TARGET_FILE;
+    } else if (prefix ~ /bool|int|uint|unsigned|unsigned int|long|ulong|merr_t|size_t|ssize_t|enum|s8|s16|s32|s64|u8|u16|u32|u64|int8_t|int16_t|int32_t|int64_t|uint8_t|uint16_t|uint32_t|uint64_t/) {
+        printf("\tuint64_t rc = 0; \\\n") > TARGET_FILE;
+        printf("\tif (!mapi_enabled || !mapi_inject_check(%s%s, &rc)) \\\n",
+            "mapi_idx_", name) > TARGET_FILE;
+        printf("\t\trc = (mtfm_%s_%s_get())(__VA_ARGS__); \\\n",
+            set_name, name) > TARGET_FILE;
+        printf("\trc; \\\n") > TARGET_FILE;
+    } else {
+        printf("\t(mtfm_%s_%s_get())(__VA_ARGS__); \\\n",
+            set_name, name) > TARGET_FILE;
+        warn=1
     }
 
-    emit_ku_header(name, set_name, prefix, args);
+    printf("})\n") > TARGET_FILE;
+    if (warn) {
+        printf("//#warning \"!!! %s: unhandled return type %s !!!\"\n",
+                name, prefix) > TARGET_FILE;
+    }
+    printf("#endif /* MTF_MOCK_IMPL_%s */\n\n", set_name) > TARGET_FILE;
+
+    printf("void mtfm_%s_%s_set(%s (*mock)(%s));\n",
+        set_name, name, prefix, args) > TARGET_FILE;
 }
 
 function emit_ops_definition(set_name, ops_elmnts, ops_inits)
@@ -231,122 +207,66 @@ function emit_ops_definition(set_name, ops_elmnts, ops_inits)
     printf("%s};\n\n", ops_inits) > TARGET_FILE;
 }
 
-function fmt_ops_elmnt(name, ku, prefix, args)
+function fmt_ops_elmnt(name, prefix, args)
 {
-    if (ku == 0)
-      return sprintf("\t%s (*%s)(%s);\n", prefix, name, args);
-
-    return fmt_ku_ops_elmnt(name, prefix, args);
+    return sprintf("\t%s (*%s)(%s);\n", prefix, name, args);
 }
 
-function fmt_ku_ops_elmnt(name, prefix, args,
-                          ku_names, ku_prefixes, ku_args, res) # local vars
+function fmt_ops_init(name)
 {
-    split(name,   ku_names,    "|");
-    split(prefix, ku_prefixes, "|");
-    split(args,   ku_args,     "|");
-
-    res = sprintf("#ifdef __KERNEL__\n");
-    res = res fmt_ops_elmnt(ku_names[1], 0, ku_prefixes[1], ku_args[1]);
-    res = res sprintf("#else /* __KERNEL__ */\n");
-    res = res fmt_ops_elmnt(ku_names[2], 0, ku_prefixes[2], ku_args[2]);
-    res = res sprintf("#endif /* __KERNEL__ */\n");
-
-    return res;
+    return sprintf("\t.%s = NULL,\n", name);
 }
 
-function fmt_ops_init(name, ku)
-{
-    if (ku == 0)
-      return sprintf("\t.%s = NULL,\n", name);
-
-    return fmt_ku_ops_init(name);
-}
-
-function fmt_ku_ops_init(name,
-                         ku_names, res) # local vars
-{
-    split(name, ku_names, "|");
-
-    res = sprintf("#ifdef __KERNEL__\n");
-    res = res fmt_ops_init(ku_names[1], 0);
-    res = res sprintf("#else /* __KERNEL__ */\n");
-    res = res fmt_ops_init(ku_names[2], 0);
-    res = res sprintf("#endif /* __KERNEL__ */\n");
-
-    return res;
-}
-
-function fmt_mock_methods(name, ku, set_name, prefix, args,
+function fmt_mock_methods(name, set_name, prefix, args,
                           res) # local vars
 {
-    if (ku == 0) {
-        res = ""
-        res = res sprintf("mtfm_%s_%s_fp\nmtfm_%s_%s_get(void)\n{\n",
+    res = ""
+    res = res sprintf("mtfm_%s_%s_fp\nmtfm_%s_%s_get(void)\n{\n",
+                  set_name, name, set_name, name);
+    res = res sprintf("\tif (mtfm_%s_ops.%s)\n",
+                      set_name, name);
+    res = res sprintf("\t\treturn mtfm_%s_ops.%s;\n",
+                      set_name, name);
+    res = res sprintf("\n\treturn %s;\n", name);
+    res = res sprintf("}\n");
+
+    res = res sprintf("mtfm_%s_%s_fp\nmtfm_%s_%s_getreal(void)\n{\n",
                       set_name, name, set_name, name);
-        res = res sprintf("\tif (mtfm_%s_ops.%s)\n",
-                          set_name, name);
-        res = res sprintf("\t\treturn mtfm_%s_ops.%s;\n",
-                          set_name, name);
-        res = res sprintf("\n\treturn %s;\n", name);
-        res = res sprintf("}\n");
+    res = res sprintf("\treturn %s;\n", name);
+    res = res sprintf("}\n");
 
-        res = res sprintf("mtfm_%s_%s_fp\nmtfm_%s_%s_getreal(void)\n{\n",
-                          set_name, name, set_name, name);
-        res = res sprintf("\treturn %s;\n", name);
-        res = res sprintf("}\n");
-
-        res = res sprintf("void\nmtfm_%s_%s_set(\n\t%s (*mock)(%s))\n{\n",
-                          set_name, name, prefix, args);
-        res = res sprintf("\tmtfm_%s_ops.%s = mock;\n}\n",
-                          set_name, name);
-	return res;
-    }
-
-    return fmt_mock_ku_methods(name, set_name, prefix, args);
-}
-
-function fmt_mock_ku_methods(name, set_name, prefix, args,
-                             ku_names, ku_set_names, # local vars
-                             ku_prefixes, ku_args, res)
-{
-    split(name   ,   ku_names,      "|");
-    split(prefix,    ku_prefixes,   "|");
-    split(args,      ku_args,       "|");
-
-    res = sprintf("\n#ifdef __KERNEL__\n\n");
-    res = res fmt_mock_methods(ku_names[1], 0,
-                               set_name, ku_prefixes[1], ku_args[1]);
-    res = res sprintf("\n#else /* __KERNEL__ */\n\n");
-    res = res fmt_mock_methods(ku_names[2], 0,
-                               set_name, ku_prefixes[2], ku_args[2]);
-    res = res sprintf("\n#endif /* __KERNEL__ */\n\n");
+    res = res sprintf("void\nmtfm_%s_%s_set(\n\t%s (*mock)(%s))\n{\n",
+                      set_name, name, prefix, args);
+    res = res sprintf("\tmtfm_%s_ops.%s = mock;\n}\n",
+                      set_name, name);
 
     return res;
 }
 
-function process_functions(func_names, func_kus,
+function process_functions(func_names,
                            func_prefixes, func_args,
                            func_set_names,
-                           name, ku, prefix, args, # local vars
+                           name, prefix, args, # local vars
                            key, set_name, set_names,
                            ops_elmnts, ops_inits,
                            new_str, methods,
                            set_name_func_set)
 {
-    if (length(func_names) == 0)
-      return;
+    if (length(func_names) == 0) {
+        printf("we are here\n")
+        return;
+    }
 
     # create a dictionary containing all MTF_MOCK_DECL set names
     for (key in func_set_names)
-      set_names[func_set_names[key]] = 1;
+        set_names[func_set_names[key]] = 1;
 
     # traverse that dictionary ...
     for (set_name in set_names) {
         # create a set containing all func names for the current set name
         for (name in func_names)
-          if (set_name == func_set_names[name])
-            set_name_func_set[func_names[name]] = 1;
+            if (set_name == func_set_names[name])
+                set_name_func_set[func_names[name]] = 1;
 
         # empty the strings where code is accumulated
         ops_elmnts = "";
@@ -354,11 +274,11 @@ function process_functions(func_names, func_kus,
         methods    = "";
 
         if (HEADER_MODE) {
-	    printf("/* Copyright (C) 2014-%s Micron Technology, Inc. ",
-		   strftime("%Y")) > TARGET_FILE
-	    printf("All rights reserved. */\n") > TARGET_FILE
-	    printf("/* HSE GENERATED FILE: DO NOT EDIT. %s\n",
-		   "Generated by scripts/build/utpp */\n") > TARGET_FILE
+            printf("/* Copyright (C) 2014-%s Micron Technology, Inc. ",
+            strftime("%Y")) > TARGET_FILE
+            printf("All rights reserved. */\n") > TARGET_FILE
+            printf("/* HSE GENERATED FILE: DO NOT EDIT. %s\n",
+                "Generated by scripts/build/utpp */\n") > TARGET_FILE
             # Prepare and print a guard ifdef in the header file
             unique_str=toupper(TARGET_FILE)
             gsub("/", "_", unique_str)
@@ -369,30 +289,23 @@ function process_functions(func_names, func_kus,
             printf("#define %s\n\n", unique_str) > TARGET_FILE;
 
             for (name in set_name_func_set) {
-                ku     = func_kus[name];
                 prefix = func_prefixes[name];
                 name   = func_names[name];
                 args   = func_args[name];
 
-                emit_header(name, set_name, ku, prefix, args);
+                emit_header(name, set_name, prefix, args);
             }
-	    # Terminate the guard ifdef in the header file
+            # Terminate the guard ifdef in the header file
             printf("\n#endif /* %s */\n", unique_str) > TARGET_FILE;
-
         } else if (ENUM_MODE) {
             for (name in set_name_func_set) {
-                ku     = func_kus[name];
                 prefix = func_prefixes[name];
                 name   = func_names[name];
                 args   = func_args[name];
 
-                if (ku+0 == 0)
-                        print name
-                else {
-                        split(name, a, "|")
-                        print a[1]
-                        print a[2]
-                }
+                split(name, a, "|")
+                print a[1]
+                print a[2]
             }
         } else {
             #
@@ -405,21 +318,20 @@ function process_functions(func_names, func_kus,
 
             # loop over just the functions in the set_name_func_set ...
             for (name in set_name_func_set) {
-                ku     = func_kus[name];
                 prefix = func_prefixes[name];
                 name   = func_names[name];
                 args   = func_args[name];
 
                 # accumulate the code to declare the methods
-                methods = methods fmt_mock_methods(name, ku,
+                methods = methods fmt_mock_methods(name,
                                                    set_name, prefix, args);
 
                 # accumulate the code to declare the elements
-                new_str = fmt_ops_elmnt(name, ku, prefix, args);
+                new_str = fmt_ops_elmnt(name, prefix, args);
                 ops_elmnts = ops_elmnts new_str;
 
                 # ... and the code to initialize those elements
-                new_str = fmt_ops_init(name, ku);
+                new_str = fmt_ops_init(name);
                 ops_inits  = ops_inits new_str;
             }
             emit_ops_definition(set_name, ops_elmnts, ops_inits);
@@ -439,7 +351,7 @@ function process_func_decl_input(input,
                                  i, fields, num_fields, tmp, # local vars
                                  func_name, func_set_name,
                                  func_prefix, func_args,
-                                 func_ku_spec, func_elements)
+                                 func_elements)
 {
     # look for an opening parenthesis ...
     split(input, fields, "(");
@@ -448,7 +360,7 @@ function process_func_decl_input(input,
     if (num_fields > 1) {
         # found it ...
         if (g_paren_level == 0)
-          g_paren_start = 1;
+            g_paren_start = 1;
         g_paren_level++;
     }
 
@@ -457,7 +369,7 @@ function process_func_decl_input(input,
         # look for the closing parenthesis ...
         g_paren_level -= gsub(")", "", tmp);
         if (g_paren_level < 0)
-          die("unbalanced parentheses near $fn_decl")
+            die("unbalanced parentheses near $fn_decl")
 
         if (g_paren_start == 1 && g_paren_level == 0) {
             # Saw an open parenthesis and found its matching close parethesis,
@@ -468,67 +380,28 @@ function process_func_decl_input(input,
                 func_decl_parse(g_func_decl, func_elements, g_mock_set);
 
                 if ("prefix" in func_elements)
-                  func_prefix = func_elements["prefix"];
+                    func_prefix = func_elements["prefix"];
                 else
-                  die("error: failed parsing function declaration: $func_decl")
+                    die("error: failed parsing function declaration: $func_decl")
 
                 if ("name" in func_elements)
-                  func_name = func_elements["name"];
+                    func_name = func_elements["name"];
                 else
-                  die("error: failed parsing function declaration: $func_decl")
+                    die("error: failed parsing function declaration: $func_decl")
 
                 if ("args" in func_elements)
-                  func_args = func_elements["args"];
+                    func_args = func_elements["args"];
                 else
-                  die("error: failed parsing function declaration: $func_decl")
+                    die("error: failed parsing function declaration: $func_decl")
 
                 func_set_name = func_elements["set_name"];
 
-                if (!g_in_mock_ku) {
-                    g_mock_func_kus[func_name]      = 0;
-                    g_mock_set_names[func_name]     = func_set_name;
-                    g_mock_func_prefixes[func_name] = func_prefix;
-                    g_mock_func_names[func_name]    = func_name;
-                    g_mock_func_args[func_name]     = func_args;
+                g_mock_set_names[func_name]     = func_set_name;
+                g_mock_func_prefixes[func_name] = func_prefix;
+                g_mock_func_names[func_name]    = func_name;
+                g_mock_func_args[func_name]     = func_args;
 
-                    return 1;
-                } else {
-                    if (g_in_mock_kdef) {
-                        g_kfunc_set_name = func_set_name;
-                        g_kfunc_prefix   = func_prefix;
-                        g_kfunc_name     = func_name;
-                        g_kfunc_args     = func_args;
-
-                        g_in_mock_kdef = 0;
-                    } else if (g_in_mock_udef) {
-                        g_ufunc_set_name = func_set_name;
-                        g_ufunc_prefix   = func_prefix;
-                        g_ufunc_name     = func_name;
-                        g_ufunc_args     = func_args;
-
-                        g_in_mock_udef = 0;
-                    } else
-                      die("error: fatal error processing near " input);
-
-                    if (length(g_kfunc_name) > 0 && length(g_ufunc_name) > 0) {
-                        if (g_kfunc_set_name != g_ufunc_set_name)
-                          die("error: fatal error processing near " input);
-                        func_name = g_kfunc_name "|" g_ufunc_name;
-
-                        g_mock_func_kus[func_name]   = 1;
-                        g_mock_set_names[func_name] = g_kfunc_set_name;
-
-                        tmp = g_kfunc_prefix "|" g_ufunc_prefix;
-                        g_mock_func_prefixes[func_name] = tmp;
-
-                        g_mock_func_names[func_name] = func_name;
-
-                        tmp = g_kfunc_args "|" g_ufunc_args;
-                        g_mock_func_args[func_name] = tmp;
-
-                        return 1;
-                    }
-                }
+                return 1;
             }
         }
     }
@@ -539,37 +412,9 @@ function process_func_decl_input(input,
 function process_mock_def(input,
                           res)
 {
-#    printf("in  process_mock_def()\n");
     res = process_func_decl_input(input);
     if (res)
-      g_in_mock_def = 0;
-}
-
-function process_mock_ku_def(input,
-                             res)
-{
-#    printf("in  process_mock_ku_def()\n");
-    # loop looking for either /* MTF_MOCK_K */ or /* MTF_MOCK_U */
-    if (g_in_mock_kdef == 0 && g_in_mock_udef == 0) {
-        res = match(input, /^[[:blank:]]*\/[*].*MTF_MOCK_K[ \t]*[*]\//);
-        if (res != 0) {
-            g_in_mock_kdef = 1;
-            g_func_decl    = "";
-            next
-        }
-        res = match(input, /^[[:blank:]]*\/[*].*MTF_MOCK_U[ \t]*[*]\//);
-        if (res != 0) {
-            g_in_mock_udef = 1;
-            g_func_decl    = "";
-            next
-        }
-        next
-    }
-    res = process_func_decl_input(input)
-    if (res) {
         g_in_mock_def = 0;
-        g_in_mock_ku  = 0;
-    }
 }
 
 #
@@ -585,13 +430,9 @@ function process_mock_ku_def(input,
 # Match /* MTF_MOCK */ with whitespace variations ...
 #
 /^[[:blank:]]*\/[*].*MTF_MOCK[^_][ \t]*.*[*]\// {
-#    printf("matched MTF_MOCK\n");
     if (!g_in_mock_set)
-      die("error: MTF_MOCK declaration before MTF_MOCK_DECL(<set name>)")
-    if (g_in_mock_ku_def)
-      die("error: MTF_MOCK declaration while still processing MTF_MOCK_KU")
+        die("error: MTF_MOCK declaration before MTF_MOCK_DECL(<set name>)")
     g_in_mock_def = 1;
-    g_in_mock_ku  = 0;
     g_paren_level = 0;
     g_mock_set    = g_mock_set_name
     g_func_decl   = "";
@@ -599,51 +440,18 @@ function process_mock_ku_def(input,
     next
 }
 
-#
-# Match /* MTF_MOCK_KU */ with whitespace variations ...
-#
-/^[[:blank:]]*\/[*].*MTF_MOCK_KU[ \t]*.*[*]\// {
-#    printf("matched MTF_MOCK_KU\n");
-    if (!g_in_mock_set)
-      die("error: MTF_MOCK_KU declaration before MTF_MOCK_DECL(<set name>)")
-    if (g_in_mock_def)
-      die("error: MTF_MOCK_KU declaration while still processing MTF_MOCK")
-    g_in_mock_def  = 1;
-    g_in_mock_ku   = 1;
-    g_in_mock_kdef = 0;
-    g_in_mock_udef = 0;
-    g_paren_level  = 0;
-    g_mock_set     = g_mock_set_name
-    g_paren_start  = 0;
-
-    g_kfunc_set_name = "";
-    g_kfunc_prefix   = "";
-    g_kfunc_name     = "";
-    g_kfunc_args     = "";
-
-    g_ufunc_set_name = "";
-    g_ufunc_prefix   = "";
-    g_ufunc_name     = "";
-    g_ufunc_args     = "";
-
-    next
-}
-
 # match everything ...
 {
     # discard if we're not processing a mockable entry point ...
     if (!g_in_mock_def)
-      next
+        next
 
     gsub(/\n/, "", $0);
 
     # accumulate the function declaration text ...
     g_func_decl = g_func_decl " " $0
 
-    if (!g_in_mock_ku)
-      process_mock_def($0)
-    else
-      process_mock_ku_def($0)
+    process_mock_def($0)
 }
 
 BEGIN {
