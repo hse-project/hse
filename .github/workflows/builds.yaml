@@ -108,6 +108,7 @@ jobs:
           name: ${{ matrix.os }}-${{ matrix.toolchain }}-${{ matrix.buildtype }}
           path: |
             builddir/meson-logs/
+            /var/log/messages
             /var/log/syslog
 
   fedora:
@@ -184,6 +185,7 @@ jobs:
           path: |
             builddir/meson-logs/
             /var/log/messages
+            /var/log/syslog
 
   almalinux:
     runs-on: ubuntu-latest
@@ -259,6 +261,7 @@ jobs:
           path: |
             builddir/meson-logs/
             /var/log/messages
+            /var/log/syslog
 
   architectures:
     runs-on: ubuntu-latest
@@ -376,3 +379,4 @@ jobs:
           path: |
             builddir/meson-logs/
             /var/log/messages
+            /var/log/syslog
