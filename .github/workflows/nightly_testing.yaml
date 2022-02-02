@@ -37,27 +37,44 @@ jobs:
       - name: Initialize
         run: |
           sudo apt-get update
-          sudo apt-get install build-essential ninja-build libbsd-dev pkg-config openjdk-8-jdk libmicrohttpd-dev liburcu-dev libyaml-dev liblz4-dev libcurl4-openssl-dev python3-setuptools
-          sudo apt-get install libmongoc-1.0-0 libbson-1.0-0 libssl-dev libsasl2-dev
+          sudo apt-get install build-essential ninja-build pkg-config \
+            libbsd-dev openjdk-8-jdk libmicrohttpd-dev liburcu-dev libyaml-dev \
+            liblz4-dev libcurl4-openssl-dev libmongoc-1.0-0 libbson-1.0-0 \
+            libssl-dev libsasl2-dev
           sudo python3 -m pip install meson Cython
 
       - uses: actions/checkout@v2
         with:
           ref: ${{ github.event.inputs.branch }}
 
+      - name: Checkout hse-python
+        uses: actions/checkout@v2
+        with:
+          repository: hse-project/hse-python
+          path: subprojects/hse-python
+
+      - name: Post-checkout
+        run: |
+          for b in hse-python; do
+            git -C "subprojects/$b" checkout ${{ github.head_ref }} || true
+          done
+
       - name: Setup
         run: |
-          meson builddir -Dbuildtype=${{ matrix.buildtype }} -Dtools=enabled -Ddocs=disabled -Dbindings=all -Dycsb=true -Dwerror=true
+          meson builddir -Dbuildtype=${{ matrix.buildtype }} -Dtools=enabled \
+            -Ddocs=disabled -Dbindings=all -Dwerror=true
 
       - name: Test
         run: |
-          meson test -C builddir --suite=nightly-small --print-errorlogs --no-stdsplit
+          meson test -C builddir --suite=nightly-small --print-errorlogs \
+            --no-stdsplit
 
       - uses: actions/upload-artifact@v2
         if: failure()
         with:
-          name: build-artifact-ubuntu-${{ matrix.build_type }}
+          name: build-artifact-ubuntu-${{ matrix.buildtype }}
           path: |
             builddir/meson-logs/
+            /var/log/messages
             /var/log/syslog
             /var/log/kern.log
