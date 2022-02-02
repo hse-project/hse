@@ -1,6 +1,6 @@
 /* SPDX-License-Identifier: Apache-2.0 */
 /*
- * Copyright (C) 2015-2020 Micron Technology, Inc.  All rights reserved.
+ * Copyright (C) 2015-2020,2022 Micron Technology, Inc.  All rights reserved.
  */
 
 #ifndef HSE_KVS_CN_KVSET_H
@@ -362,22 +362,6 @@ kvset_get_vgroups(struct kvset *km);
 /* MTF_MOCK */
 struct cn_tree *
 kvset_get_tree(struct kvset *kvset);
-
-/**
- * kvset_defer_compc() - check to see k-compaction should be deferred
- * @km:        kvset handle
- * @totkeys:   total number of keys in the node
- *
- * @kvset_defer_compc is designed to be called on the oldest kvset in a node
- * to see if it should be excluded from an impending k-compaction.  If the
- * given kvset %km contains most of the keys in the kvset then we advance
- * %compc and return %true.
- *
- * Return: %true if %km should be excluded from the next k-compaction.
- */
-/* MTF_MOCK */
-bool
-kvset_defer_compc(struct kvset *km, u64 totkeys);
 
 /**
  * kvset_iter_create() - Create iterator to traverse all entries in a kvset
