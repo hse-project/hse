@@ -10,10 +10,7 @@ fi
 
 branch=$(git branch --show-current)
 
-# Remove following when another binding is added
-
-# shellcheck disable=2043
-for s in hse-python; do
+for s in hse-java hse-python; do
     if git -C "subprojects/$s" checkout "$branch" > /dev/null 2>&1; then
         upstream=$(git for-each-ref --format='%(upstream:short)' "$(git symbolic-ref -q HEAD)")
         if [ -n "$upstream" ]; then
