@@ -179,7 +179,7 @@ struct cn_tree_node {
     struct list_head tn_rspills;
     u64              tn_biggest_kvset; /* key count */
     bool             tn_rspills_wedged;
-    u8               tn_childc;
+    uint16_t         tn_childc;
     atomic_int       tn_compacting;
     atomic_uint      tn_busycnt;
 
