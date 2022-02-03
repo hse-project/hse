@@ -12,8 +12,8 @@ verbose_output=$(cmd hse -vV)
 
 cmd test "$long_output" == "$short_ouptut"
 
-echo "$short_ouptut" | cmd grep --quiet -P '^r\d+\.\d+\.\d+'
+echo "$short_ouptut" | cmd grep -P '^r\d+\.\d+\.\d+'
 
 cmd test "$(printf "%s\n" "$verbose_output" | wc -l)" -eq 2
-echo "$verbose_output" | cmd grep --quiet -P '^version: r\d+\.\d+\.\d+'
-echo "$verbose_output" | cmd grep --quiet -P '^build-configuration: '
+echo "$verbose_output" | cmd grep -P '^version: r\d+\.\d+\.\d+'
+echo "$verbose_output" | cmd grep -P '^build-configuration: '

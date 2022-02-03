@@ -8,7 +8,7 @@
 
 output=$(cmd hse utils -h)
 
-echo "$output" | cmd grep --quiet -F "Usage: hse utils [options] <command> ..."
-echo "$output" | cmd grep --quiet -F "Options:"
-echo "$output" | cmd grep --quiet -F "Commands:"
-echo "$output" | cmd grep --quiet -F "strerror"
+echo "$output" | cmd grep -F "Usage: hse utils [options] <command> ..."
+echo "$output" | cmd grep -F "Options:"
+echo "$output" | cmd grep -F "Commands:"
+echo "$output" | cmd grep -F "strerror"

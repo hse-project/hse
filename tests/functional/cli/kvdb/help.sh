@@ -8,10 +8,10 @@
 
 output=$(cmd hse kvdb -h)
 
-echo "$output" | cmd grep --quiet -F "Usage: hse kvdb [options] <command> ..."
-echo "$output" | cmd grep --quiet -F "Options:"
-echo "$output" | cmd grep --quiet -F "Commands:"
-echo "$output" | cmd grep --quiet -F "create"
-echo "$output" | cmd grep --quiet -F "drop"
-echo "$output" | cmd grep --quiet -F "info"
-echo "$output" | cmd grep --quiet -F "compact"
+echo "$output" | cmd grep -F "Usage: hse kvdb [options] <command> ..."
+echo "$output" | cmd grep -F "Options:"
+echo "$output" | cmd grep -F "Commands:"
+echo "$output" | cmd grep -F "create"
+echo "$output" | cmd grep -F "drop"
+echo "$output" | cmd grep -F "info"
+echo "$output" | cmd grep -F "compact"

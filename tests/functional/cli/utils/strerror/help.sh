@@ -8,5 +8,5 @@
 
 output=$(cmd hse utils strerror -h)
 
-echo "$output" | cmd grep --quiet -F "Usage: hse utils strerror [options] [--] <errorcode>"
-echo "$output" | cmd grep --quiet -F "Options:"
+echo "$output" | cmd grep -F "Usage: hse utils strerror [options] [--] <errorcode>"
+echo "$output" | cmd grep -F "Options:"

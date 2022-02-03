@@ -8,6 +8,6 @@
 
 output=$(cmd hse kvs create -h)
 
-echo "$output" | cmd grep --quiet -F "Usage: hse kvs create [options] <kvdb_home> <kvs> [<param>=<value>]..."
-echo "$output" | cmd grep --quiet -F "Options:"
-echo "$output" | cmd grep --quiet -F "Parameters:"
+echo "$output" | cmd grep -F "Usage: hse kvs create [options] <kvdb_home> <kvs> [<param>=<value>]..."
+echo "$output" | cmd grep -F "Options:"
+echo "$output" | cmd grep -F "Parameters:"

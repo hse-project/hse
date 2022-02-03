@@ -8,7 +8,7 @@
 
 output=$(cmd hse -h)
 
-echo "$output" | cmd grep --quiet -F "Usage: hse [options] <command> ..."
-echo "$output" | cmd grep --quiet -F "Options:"
-echo "$output" | cmd grep --quiet -F "Commands:"
-echo "$output" | cmd grep --quiet -F "Examples:"
+echo "$output" | cmd grep -F "Usage: hse [options] <command> ..."
+echo "$output" | cmd grep -F "Options:"
+echo "$output" | cmd grep -F "Commands:"
+echo "$output" | cmd grep -F "Examples:"

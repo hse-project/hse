@@ -8,4 +8,4 @@
 
 output=$(cmd -e hse utils strerror --does-not-exist 2>&1)
 
-echo "$output" | cmd grep --quiet -F "hse utils strerror: invalid option '--does-not-exist', use -h for help"
+echo "$output" | cmd grep -F "hse utils strerror: invalid option '--does-not-exist', use -h for help"

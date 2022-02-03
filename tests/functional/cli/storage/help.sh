@@ -8,9 +8,9 @@
 
 output=$(cmd hse storage -h)
 
-echo "$output" | cmd grep --quiet -F "Usage: hse storage [options] <command> ..."
-echo "$output" | cmd grep --quiet -F "Options:"
-echo "$output" | cmd grep --quiet -F "Commands:"
-echo "$output" | cmd grep --quiet -F "add"
-echo "$output" | cmd grep --quiet -F "info"
-echo "$output" | cmd grep --quiet -F "profile"
+echo "$output" | cmd grep -F "Usage: hse storage [options] <command> ..."
+echo "$output" | cmd grep -F "Options:"
+echo "$output" | cmd grep -F "Commands:"
+echo "$output" | cmd grep -F "add"
+echo "$output" | cmd grep -F "info"
+echo "$output" | cmd grep -F "profile"

@@ -8,5 +8,5 @@
 
 output=$(cmd hse storage profile -h)
 
-echo "$output" | cmd grep --quiet -F "Usage: hse storage profile [options] <storage_path>"
-echo "$output" | cmd grep --quiet -F "Options:"
+echo "$output" | cmd grep -F "Usage: hse storage profile [options] <storage_path>"
+echo "$output" | cmd grep -F "Options:"

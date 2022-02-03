@@ -8,4 +8,4 @@
 
 output=$(cmd -e hse does-not-exist 2>&1)
 
-echo "$output" | cmd grep --quiet -F "hse: invalid command 'does-not-exist', use -h for help"
+echo "$output" | cmd grep -F "hse: invalid command 'does-not-exist', use -h for help"
