@@ -6,7 +6,7 @@ on:
       - master
       - v2.*
     paths-ignore:
-      - "**/*.md"
+      - "**.md"
       - ".github/ISSUE_TEMPLATE/**"
       - ".github/workflows/**"
       - "!.github/workflows/builds.yaml"
@@ -18,7 +18,7 @@ on:
   pull_request:
     types: [opened, synchronize, reopened]
     paths-ignore:
-      - "**/*.md"
+      - "**.md"
       - ".github/ISSUE_TEMPLATE/**"
       - ".github/workflows/**"
       - "!.github/workflows/builds.yaml"
