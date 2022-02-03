@@ -2,9 +2,7 @@ project(
     'hse',
     ['c'],
     version: files('VERSION'),
-    license: [
-        'Apache-2.0',
-    ],
+    license: 'Apache-2.0',
     default_options: [
         'prefix=/opt/hse',
         'b_ndebug=if-release',
