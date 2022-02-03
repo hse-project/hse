@@ -90,3 +90,10 @@ jobs:
     steps:
       - run: |
           echo "Skipping ${{ github.workflow }}/${{ github.job }}"
+
+  subprojects:
+    runs-on: ubuntu-latest
+
+    steps:
+      - run: |
+          echo "Skipping ${{ github.workflow }}/${{ github.job }}"
