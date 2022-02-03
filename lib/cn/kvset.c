@@ -1800,19 +1800,6 @@ kvset_get_tree(struct kvset *ks)
     return ks->ks_tree;
 }
 
-bool
-kvset_defer_compc(struct kvset *ks, u64 totkeys)
-{
-    if (ks->ks_st.kst_keys > 64 * 1048576) {
-        if ((ks->ks_st.kst_keys * 100 / totkeys) > 90) {
-            ++ks->ks_compc;
-            return true;
-        }
-    }
-
-    return false;
-}
-
 u8 *
 kvset_get_hlog(struct kvset *ks)
 {

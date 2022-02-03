@@ -2944,7 +2944,17 @@ cn_comp_commit(struct cn_compaction_work *w)
             km.km_node_offset =
                 node_nth_child_offset(w->cw_tree->ct_fanout_bits, &w->cw_node->tn_loc, i);
         } else {
-            km.km_compc = w->cw_compc + 1;
+            struct kvset_list_entry *le = w->cw_mark;
+
+            km.km_compc = w->cw_compc;
+
+            /* If we're in the middle of a run then do not increment compc
+             * if it would become greater than the next older kvset.
+             */
+            le = list_next_entry_or_null(le, le_link, &w->cw_node->tn_kvset_list);
+            if (!le || w->cw_compc < kvset_get_compc(le->le_kvset))
+                km.km_compc++;
+
             km.km_node_level = w->cw_node->tn_loc.node_level;
             km.km_node_offset = w->cw_node->tn_loc.node_offset;
         }
