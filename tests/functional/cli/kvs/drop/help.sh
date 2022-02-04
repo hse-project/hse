@@ -8,5 +8,5 @@
 
 output=$(cmd hse kvs drop -h)
 
-echo "$output" | cmd grep --quiet -F "Usage: hse kvs drop [options] <kvdb_home> <kvs>"
-echo "$output" | cmd grep --quiet -F "Options:"
+echo "$output" | cmd grep -F "Usage: hse kvs drop [options] <kvdb_home> <kvs>"
+echo "$output" | cmd grep -F "Options:"

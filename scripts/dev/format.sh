@@ -37,9 +37,9 @@ files=$(find \
     -type f \( -name "*.[ch]" -o -name "*.h.in" \) -print)
 
 clang_format_help=$(clang-format --help)
-echo "$clang_format_help" | grep --quiet -- "--Werror"
+echo "$clang_format_help" | grep -- "--Werror"
 clang_format_has_werror=$?
-echo "$clang_format_help" | grep --quiet -- "--dry-run"
+echo "$clang_format_help" | grep -- "--dry-run"
 clang_format_has_dry_run=$?
 
 check=0

@@ -79,6 +79,6 @@ for fanout in 2 4 8 16; do
 
     # TODO: verify tree shape, remove shellcheck directive above
     #metrics_log=$LOG
-    #cmd grep -q "^n $lvl," $metrics_log
-    #cmd -e grep -q "^n $((lvl+1))," $metrics_log
+    #cmd grep "^n $lvl," $metrics_log
+    #cmd -e grep "^n $((lvl+1))," $metrics_log
 done

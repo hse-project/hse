@@ -34,7 +34,7 @@ kvs_oparams="kvs-oparams cn_maint_disable=true"
 cmd kmt "$home" "$kvs" -s1 "$VLEN" "-i$KEYS" $kvs_oparams
 
 # verify no spill occurred
-cmd cn_metrics "$home" "$kvs" | cmd -e grep -q n.1,
+cmd cn_metrics "$home" "$kvs" | cmd -e grep n.1,
 
 # verify keys and values
 # shellcheck disable=SC2086

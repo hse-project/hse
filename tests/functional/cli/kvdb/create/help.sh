@@ -8,5 +8,5 @@
 
 output=$(cmd hse kvdb create -h)
 
-echo "$output" | cmd grep --quiet -F "Usage: hse kvdb create [options] <kvdb_home> [<param>=<value>]..."
-echo "$output" | cmd grep --quiet -F "Options:"
+echo "$output" | cmd grep -F "Usage: hse kvdb create [options] <kvdb_home> [<param>=<value>]..."
+echo "$output" | cmd grep -F "Options:"

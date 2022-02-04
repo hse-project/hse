@@ -8,5 +8,5 @@
 
 output=$(cmd hse storage info -h)
 
-echo "$output" | cmd grep --quiet -F "Usage: hse storage info [options] <kvdb_home>"
-echo "$output" | cmd grep --quiet -F "Options:"
+echo "$output" | cmd grep -F "Usage: hse storage info [options] <kvdb_home>"
+echo "$output" | cmd grep -F "Options:"

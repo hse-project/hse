@@ -12,8 +12,8 @@ kvdb_create
 
 output=$(cmd hse storage profile --quiet "$home")
 
-echo "$output" | cmd grep --quiet -P "(medium|heavy|light)"
+echo "$output" | cmd grep -P "(medium|heavy|light)"
 
 output=$(cmd hse storage profile "$home")
 
-echo "$output" | cmd grep --quiet -P "Recommended throttling\.init_policy: \"(medium|heavy|light)\""
+echo "$output" | cmd grep -P "Recommended throttling\.init_policy: \"(medium|heavy|light)\""
