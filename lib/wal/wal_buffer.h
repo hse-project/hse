@@ -10,11 +10,13 @@ struct wal_fileset;
 struct wal_bufset;
 struct wal_buffer;
 struct wal_iocb;
+struct wal_flush_stats;
 
 struct wal_bufset *
 wal_bufset_open(
     struct wal_fileset *wfset,
     size_t              bufsz,
+    uint32_t            dur_bytes,
     atomic_ulong       *ingestgen,
     struct wal_iocb    *iocb);
 
@@ -41,13 +43,16 @@ void
 wal_bufset_reclaim(struct wal_bufset *wbs, uint64_t gen);
 
 merr_t
-wal_bufset_flush(struct wal_bufset *wbs, uint64_t *flushb, uint64_t *bufszp, uint64_t *buflenp);
+wal_bufset_flush(struct wal_bufset *wbs, struct wal_flush_stats *wbfsp);
 
 int
 wal_bufset_durcnt(struct wal_bufset *wbs, int offc, uint64_t *offv);
 
 int
 wal_bufset_curoff(struct wal_bufset *wbs, int offc, uint64_t *offv);
+
+int
+wal_bufset_flushoff(struct wal_bufset *wbs, int offc, uint64_t *offv);
 
 int
 wal_bufset_genoff(struct wal_bufset *wbs, uint64_t gen, int offc, uint64_t *offv);

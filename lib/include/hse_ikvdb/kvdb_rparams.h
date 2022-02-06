@@ -75,10 +75,11 @@ struct kvdb_rparams {
 
     uint32_t dur_bufsz_mb;
     uint32_t dur_intvl_ms;
-    uint8_t  dur_throttle_lo_th;
-    uint8_t  dur_throttle_hi_th;
+    uint32_t dur_sz_bytes;
     bool     dur_enable;
     bool     dur_buf_managed;
+    uint8_t  dur_throttle_lo_th;
+    uint8_t  dur_throttle_hi_th;
     uint8_t  dur_mclass;
 
     uint64_t throttle_update_ns;

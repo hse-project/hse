@@ -25,6 +25,8 @@
 #define WAL_ROFF_UNRECOV_ERR    (UINT64_MAX)
 #define WAL_ROFF_RECOV_ERR      (UINT64_MAX - 1)
 
+#define WAL_FLUSH_WAIT_PCT      (25)
+
 /* clang-format on */
 
 struct wal_minmax_info {
@@ -39,6 +41,15 @@ struct wal_minmax_info {
 struct wal_iocb {
     void *cbarg;
     void (*iocb)(void *cbarg, merr_t err);
+};
+
+struct wal_flush_stats {
+    int      bufcnt;
+    uint64_t bufsz;
+    uint64_t max_buflen;
+    uint64_t flush_soff[WAL_BUF_MAX];
+    uint64_t flush_len[WAL_BUF_MAX];
+    uint64_t flush_tlen;
 };
 
 struct wal;

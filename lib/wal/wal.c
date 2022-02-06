@@ -63,6 +63,7 @@ struct wal {
     struct work_struct sync_notifier_work;
     struct workqueue_struct *wq;
     uint32_t   dur_ms;
+    uint32_t   dur_bytes;
     size_t     dur_bufsz;
     enum hse_mclass dur_mclass;
     uint32_t   version;
@@ -90,6 +91,66 @@ struct wal_sync_waiter {
 void
 wal_ionotify_cb(void *cbarg, merr_t err);
 
+HSE_ALWAYS_INLINE static void
+wal_throttle_sensor_set(struct wal *wal, uint64_t bufsz, uint64_t buflen)
+{
+    const uint64_t hwm = (bufsz * wal->wal_thr_hwm) / 100;
+    const uint64_t lwm = (bufsz * wal->wal_thr_lwm) / 100;
+    uint32_t new;
+
+    if (ev(!wal->wal_thr_sensor))
+        return;
+
+    ev(buflen >= bufsz);
+
+    new = (buflen > lwm) ? (THROTTLE_SENSOR_SCALE * buflen) / hwm : 0;
+
+    throttle_sensor_set(wal->wal_thr_sensor, new);
+}
+
+/*
+ * Wait for at least 'pct' of flushed data to become durable.
+ * This avoids overloading the WAL IO layer with numerous flushes when IOs are
+ * backed up due to a slow IO backend.
+ */
+HSE_ALWAYS_INLINE static void
+wal_flush_wait(struct wal *wal, struct wal_flush_stats *stats, uint8_t pct)
+{
+    INVARIANT(wal && stats);
+
+    const int flushc = stats->bufcnt;
+    uint64_t flushv[flushc];
+
+    assert(flushc > 0);
+    for (int i = 0; i < flushc; i++)
+        flushv[i] = stats->flush_soff[i] + ((stats->flush_len[i] * pct) / 100);
+
+    while (wal_bufset_durcnt(wal->wbs, flushc, flushv) < flushc)
+        usleep(50);
+}
+
+HSE_ALWAYS_INLINE static bool
+wal_dirty_exceeds_threshold(struct wal *wal, const int flushc, uint64_t *flushv)
+{
+    INVARIANT(wal && flushc > 0);
+
+    uint64_t curv[flushc], tot_bytes = 0;
+    uint32_t buf_thresh = wal->dur_bytes / flushc;
+    uint8_t  buf_cnt = 0;
+
+    wal_bufset_curoff(wal->wbs, flushc, curv);
+    for (int i = 0; i < flushc; i++) {
+        uint64_t bytes = (curv[i] - flushv[i]);
+
+        if (bytes > 0) {
+            tot_bytes += bytes;
+            buf_cnt++;
+        }
+    }
+
+    return (tot_bytes > 0 && tot_bytes >= (buf_cnt * buf_thresh));
+}
+
 static void
 wal_timer(struct work_struct *work)
 {
@@ -104,7 +165,7 @@ wal_timer(struct work_struct *work)
     dur_ns = MSEC_TO_NSEC(wal->dur_ms) - (long)timer_slack;
 
     while (!closing && !atomic_read(&wal->error)) {
-        uint64_t tstart, rid, lag, sleep_ns, flushb, bufsz, buflen;
+        uint64_t tstart, rid, lag, sleep_ns;
 
         closing = !!atomic_read(&wal->closing);
 
@@ -113,46 +174,50 @@ wal_timer(struct work_struct *work)
 
         rid = atomic_read(&wal->wal_rid);
         if (rid != rid_last || closing) {
+            struct wal_flush_stats stats;
             rid_last = rid;
 
-            err = wal_bufset_flush(wal->wbs, &flushb, &bufsz, &buflen);
+            err = wal_bufset_flush(wal->wbs, &stats);
             if (err) {
                 atomic_set(&wal->error, err);
                 wal_ionotify_cb(wal, err); /* Notify sync waiters on flush error */
                 continue;
             }
 
-            /* No dirty data, notify any sync waiters */
-            if (flushb == 0)
-                wal_ionotify_cb(wal, 0);
+            if (stats.flush_tlen == 0)
+                wal_ionotify_cb(wal, 0); /* No dirty data, notify any sync waiters */
 
-            if (wal->wal_thr_sensor) {
-                const uint64_t hwm = (bufsz * wal->wal_thr_hwm) / 100;
-                const uint64_t lwm = (bufsz * wal->wal_thr_lwm) / 100;
-                uint32_t new;
+            wal_throttle_sensor_set(wal, stats.bufsz, stats.max_buflen);
 
-                ev(buflen >= bufsz);
-
-                new = (buflen > lwm) ? (THROTTLE_SENSOR_SCALE * buflen) / hwm : 0;
-
-                throttle_sensor_set(wal->wal_thr_sensor, new);
-            }
+            wal_flush_wait(wal, &stats, WAL_FLUSH_WAIT_PCT);
 
             lag = get_time_ns() - tstart;
             sleep_ns = (lag >= sleep_ns || closing) ? 0 : sleep_ns - lag;
         } else {
-            /* No mutations, notify any sync waiters */
-            wal_ionotify_cb(wal, 0);
+            wal_ionotify_cb(wal, 0); /* No mutations, notify any sync waiters */
         }
 
         mutex_lock(&wal->timer_mutex);
         end_stats_work();
 
-        if (wal->sync_pending)
+        if (wal->sync_pending) {
             closing = false;
-        else if (!closing && sleep_ns > 0)
-            cv_timedwait(&wal->timer_cv, &wal->timer_mutex,
-                         NSEC_TO_MSEC(sleep_ns), "waltmslp");
+        } else if (!closing && sleep_ns > 0) {
+            uint64_t flushv[WAL_BUF_MAX], intvl, tstart = get_time_ns();
+            int flushc;
+
+            intvl = max_t(uint64_t, sleep_ns / 10, MSEC_TO_NSEC(1));
+            flushc = wal_bufset_flushoff(wal->wbs, WAL_BUF_MAX, flushv);
+
+            while (cv_timedwait(&wal->timer_cv, &wal->timer_mutex,
+                                NSEC_TO_MSEC(intvl), "waltmslp") == ETIMEDOUT &&
+                   !wal->sync_pending && (get_time_ns() - tstart < sleep_ns) &&
+                   !atomic_read(&wal->closing)) {
+                if (wal_dirty_exceeds_threshold(wal, flushc, flushv))
+                    break;
+            }
+        }
+
         wal->sync_pending = false;
 
         begin_stats_work();
@@ -579,6 +644,7 @@ wal_open(
     wal->buf_flags = wal->buf_managed ? HSE_BTF_MANAGED : 0;
 
     wal->dur_ms = HSE_WAL_DUR_MS_DFLT;
+    wal->dur_bytes = HSE_WAL_DUR_SZ_DFLT;
     wal->dur_bufsz = HSE_WAL_DUR_BUFSZ_MB_DFLT << MB_SHIFT;
 
     mutex_init(&wal->timer_mutex);
@@ -622,7 +688,11 @@ wal_open(
     wal_fileset_version_set(wal->wfset, wal->version);
 
     if (rp->dur_intvl_ms != HSE_WAL_DUR_MS_DFLT)
-        wal->dur_ms = clamp_t(long, rp->dur_intvl_ms, HSE_WAL_DUR_MS_MIN, HSE_WAL_DUR_MS_MAX);
+        wal->dur_ms = clamp_t(uint32_t, rp->dur_intvl_ms, HSE_WAL_DUR_MS_MIN, HSE_WAL_DUR_MS_MAX);
+
+    if (rp->dur_sz_bytes != HSE_WAL_DUR_SZ_DFLT)
+        wal->dur_bytes = clamp_t(uint32_t, rp->dur_sz_bytes,
+                                 HSE_WAL_DUR_SZ_MIN, HSE_WAL_DUR_SZ_MAX);
 
     if (rp->dur_bufsz_mb != HSE_WAL_DUR_BUFSZ_MB_DFLT)
         wal->dur_bufsz = (size_t)rp->dur_bufsz_mb << MB_SHIFT;
@@ -673,7 +743,8 @@ wal_open(
 
     wal->wiocb.iocb = wal_ionotify_cb;
     wal->wiocb.cbarg = wal;
-    wal->wbs = wal_bufset_open(wal->wfset, wal->dur_bufsz, &wal->wal_ingestgen, &wal->wiocb);
+    wal->wbs = wal_bufset_open(wal->wfset, wal->dur_bufsz, wal->dur_bytes,
+                               &wal->wal_ingestgen, &wal->wiocb);
     if (!wal->wbs) {
         err = merr(ENOMEM);
         goto errout;
