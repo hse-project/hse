@@ -74,13 +74,14 @@ struct kvdb_rparams {
     uint64_t csched_leaf_len_params;
     uint64_t csched_node_min_ttl;
 
-    uint32_t          dur_bufsz_mb;
-    uint32_t          dur_intvl_ms;
-    uint8_t           dur_throttle_lo_th;
-    uint8_t           dur_throttle_hi_th;
-    bool              dur_enable;
-    bool              dur_buf_managed;
-    uint8_t           dur_mclass;
+    uint32_t dur_bufsz_mb;
+    uint32_t dur_intvl_ms;
+    uint32_t dur_size_bytes;
+    bool     dur_enable;
+    bool     dur_buf_managed;
+    uint8_t  dur_throttle_lo_th;
+    uint8_t  dur_throttle_hi_th;
+    uint8_t  dur_mclass;
 
     uint64_t throttle_update_ns;
     uint     throttle_init_policy; /* [HSE_REVISIT]: Make this a fixed width type */
