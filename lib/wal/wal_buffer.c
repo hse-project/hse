@@ -512,13 +512,10 @@ wal_bufset_flush(struct wal_bufset *wbs, struct wal_flush_stats *wbfsp)
     return 0;
 }
 
-int
-wal_bufset_curoff(struct wal_bufset *wbs, int offc, uint64_t *offv)
+uint32_t
+wal_bufset_curoff(struct wal_bufset *wbs, uint32_t offc, uint64_t *offv)
 {
-    assert(offc >= wbs->wbs_bufc);
-
-    if (offc < wbs->wbs_bufc)
-        return -1;
+    INVARIANT(offc >= wbs->wbs_bufc);
 
     for (int i = 0; i < wbs->wbs_bufc; ++i) {
         struct wal_buffer *wb = wbs->wbs_bufv + i;
@@ -529,13 +526,10 @@ wal_bufset_curoff(struct wal_bufset *wbs, int offc, uint64_t *offv)
     return wbs->wbs_bufc;
 }
 
-int
-wal_bufset_flushoff(struct wal_bufset *wbs, int offc, uint64_t *offv)
+uint32_t
+wal_bufset_flushoff(struct wal_bufset *wbs, uint32_t offc, uint64_t *offv)
 {
-    assert(offc >= wbs->wbs_bufc);
-
-    if (offc < wbs->wbs_bufc)
-        return -1;
+    INVARIANT(offc >= wbs->wbs_bufc);
 
     for (int i = 0; i < wbs->wbs_bufc; ++i) {
         struct wal_buffer *wb = wbs->wbs_bufv + i;
@@ -546,13 +540,10 @@ wal_bufset_flushoff(struct wal_bufset *wbs, int offc, uint64_t *offv)
     return wbs->wbs_bufc;
 }
 
-int
-wal_bufset_genoff(struct wal_bufset *wbs, uint64_t gen, int offc, uint64_t *offv)
+uint32_t
+wal_bufset_genoff(struct wal_bufset *wbs, uint64_t gen, uint32_t offc, uint64_t *offv)
 {
-    assert(offc >= wbs->wbs_bufc);
-
-    if (offc < wbs->wbs_bufc)
-        return -1;
+    INVARIANT(offc >= wbs->wbs_bufc);
 
     for (int i = 0; i < wbs->wbs_bufc; ++i) {
         struct wal_buffer *wb = wbs->wbs_bufv + i;
@@ -565,14 +556,12 @@ wal_bufset_genoff(struct wal_bufset *wbs, uint64_t gen, int offc, uint64_t *offv
     return wbs->wbs_bufc;
 }
 
-int
-wal_bufset_durcnt(struct wal_bufset *wbs, int offc, uint64_t *offv)
+uint32_t
+wal_bufset_durcnt(struct wal_bufset *wbs, uint32_t offc, uint64_t *offv)
 {
     int reached = 0;
 
-    assert(offc >= wbs->wbs_bufc);
-    if (offc < wbs->wbs_bufc)
-        return -1;
+    INVARIANT(offc >= wbs->wbs_bufc);
 
     for (int i = 0; i < wbs->wbs_bufc; ++i) {
         struct wal_buffer *wb = wbs->wbs_bufv + i;

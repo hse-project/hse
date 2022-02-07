@@ -45,16 +45,16 @@ wal_bufset_reclaim(struct wal_bufset *wbs, uint64_t gen);
 merr_t
 wal_bufset_flush(struct wal_bufset *wbs, struct wal_flush_stats *wbfsp);
 
-int
-wal_bufset_durcnt(struct wal_bufset *wbs, int offc, uint64_t *offv);
+uint32_t
+wal_bufset_durcnt(struct wal_bufset *wbs, uint32_t offc, uint64_t *offv);
 
-int
-wal_bufset_curoff(struct wal_bufset *wbs, int offc, uint64_t *offv);
+uint32_t
+wal_bufset_curoff(struct wal_bufset *wbs, uint32_t offc, uint64_t *offv);
 
-int
-wal_bufset_flushoff(struct wal_bufset *wbs, int offc, uint64_t *offv);
+uint32_t
+wal_bufset_flushoff(struct wal_bufset *wbs, uint32_t offc, uint64_t *offv);
 
-int
-wal_bufset_genoff(struct wal_bufset *wbs, uint64_t gen, int offc, uint64_t *offv);
+uint32_t
+wal_bufset_genoff(struct wal_bufset *wbs, uint64_t gen, uint32_t offc, uint64_t *offv);
 
 #endif /* WAL_BUFFER_H */

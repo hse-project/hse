@@ -462,15 +462,15 @@ MTF_DEFINE_UTEST_PRE(kvdb_rparams_test, durability_size, test_pre)
     ASSERT_NE(NULL, ps->ps_description);
     ASSERT_EQ(PARAM_FLAG_EXPERIMENTAL, ps->ps_flags);
     ASSERT_EQ(PARAM_TYPE_U32, ps->ps_type);
-    ASSERT_EQ(offsetof(struct kvdb_rparams, dur_sz_bytes), ps->ps_offset);
+    ASSERT_EQ(offsetof(struct kvdb_rparams, dur_size_bytes), ps->ps_offset);
     ASSERT_EQ(sizeof(uint32_t), ps->ps_size);
     ASSERT_EQ((uintptr_t)ps->ps_convert, (uintptr_t)param_default_converter);
     ASSERT_EQ((uintptr_t)ps->ps_validate, (uintptr_t)param_default_validator);
     ASSERT_EQ((uintptr_t)ps->ps_stringify, (uintptr_t)param_default_stringify);
     ASSERT_EQ((uintptr_t)ps->ps_jsonify, (uintptr_t)param_default_jsonify);
-    ASSERT_EQ(HSE_WAL_DUR_SZ_DFLT, params.dur_sz_bytes);
-    ASSERT_EQ(HSE_WAL_DUR_SZ_MIN, ps->ps_bounds.as_uscalar.ps_min);
-    ASSERT_EQ(HSE_WAL_DUR_SZ_MAX, ps->ps_bounds.as_uscalar.ps_max);
+    ASSERT_EQ(HSE_WAL_DUR_SIZE_BYTES_DFLT, params.dur_size_bytes);
+    ASSERT_EQ(HSE_WAL_DUR_SIZE_BYTES_MIN, ps->ps_bounds.as_uscalar.ps_min);
+    ASSERT_EQ(HSE_WAL_DUR_SIZE_BYTES_MAX, ps->ps_bounds.as_uscalar.ps_max);
 }
 
 MTF_DEFINE_UTEST_PRE(kvdb_rparams_test, durability_buffer_size, test_pre)

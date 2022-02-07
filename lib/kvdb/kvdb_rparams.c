@@ -979,22 +979,22 @@ static const struct param_spec pspecs[] = {
     },
     {
         .ps_name = "durability.size_bytes",
-        .ps_description = "durability size in bytes",
+        .ps_description = "Maximum amount of application data lost in the event of a crash",
         .ps_flags = PARAM_FLAG_EXPERIMENTAL,
         .ps_type = PARAM_TYPE_U32,
-        .ps_offset = offsetof(struct kvdb_rparams, dur_sz_bytes),
-        .ps_size = PARAM_SZ(struct kvdb_rparams, dur_sz_bytes),
+        .ps_offset = offsetof(struct kvdb_rparams, dur_size_bytes),
+        .ps_size = PARAM_SZ(struct kvdb_rparams, dur_size_bytes),
         .ps_convert = param_default_converter,
         .ps_validate = param_default_validator,
         .ps_stringify = param_default_stringify,
         .ps_jsonify = param_default_jsonify,
         .ps_default_value = {
-            .as_uscalar = HSE_WAL_DUR_SZ_DFLT,
+            .as_uscalar = HSE_WAL_DUR_SIZE_BYTES_DFLT,
         },
         .ps_bounds = {
             .as_uscalar = {
-                .ps_min = HSE_WAL_DUR_SZ_MIN,
-                .ps_max = HSE_WAL_DUR_SZ_MAX,
+                .ps_min = HSE_WAL_DUR_SIZE_BYTES_MIN,
+                .ps_max = HSE_WAL_DUR_SIZE_BYTES_MAX,
             },
         },
     },

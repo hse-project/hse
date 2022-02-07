@@ -44,7 +44,7 @@ struct wal_iocb {
 };
 
 struct wal_flush_stats {
-    int      bufcnt;
+    uint32_t bufcnt;
     uint64_t bufsz;
     uint64_t max_buflen;
     uint64_t flush_soff[WAL_BUF_MAX];

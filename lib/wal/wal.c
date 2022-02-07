@@ -77,7 +77,7 @@ struct wal {
 struct wal_sync_waiter {
     struct list_head ws_link;
     merr_t           ws_err;
-    int              ws_bufcnt;
+    uint32_t         ws_bufcnt;
     uint64_t         ws_offv[WAL_BUF_MAX];
     struct cv        ws_cv;
 };
@@ -91,7 +91,7 @@ struct wal_sync_waiter {
 void
 wal_ionotify_cb(void *cbarg, merr_t err);
 
-HSE_ALWAYS_INLINE static void
+static HSE_ALWAYS_INLINE void
 wal_throttle_sensor_set(struct wal *wal, uint64_t bufsz, uint64_t buflen)
 {
     const uint64_t hwm = (bufsz * wal->wal_thr_hwm) / 100;
@@ -113,34 +113,41 @@ wal_throttle_sensor_set(struct wal *wal, uint64_t bufsz, uint64_t buflen)
  * This avoids overloading the WAL IO layer with numerous flushes when IOs are
  * backed up due to a slow IO backend.
  */
-HSE_ALWAYS_INLINE static void
+static HSE_ALWAYS_INLINE void
 wal_flush_wait(struct wal *wal, struct wal_flush_stats *stats, uint8_t pct)
 {
     INVARIANT(wal && stats);
 
-    const int flushc = stats->bufcnt;
-    uint64_t flushv[flushc];
+    uint64_t flushv[WAL_BUF_MAX];
+    const uint32_t flushc = stats->bufcnt;
+    assert(flushc <= WAL_BUF_MAX);
 
-    assert(flushc > 0);
+    pct = clamp_t(uint8_t, pct, 0, 100);
+
     for (int i = 0; i < flushc; i++)
         flushv[i] = stats->flush_soff[i] + ((stats->flush_len[i] * pct) / 100);
 
-    while (wal_bufset_durcnt(wal->wbs, flushc, flushv) < flushc)
+    while (wal_bufset_durcnt(wal->wbs, WAL_BUF_MAX, flushv) < flushc)
         usleep(50);
 }
 
-HSE_ALWAYS_INLINE static bool
-wal_dirty_exceeds_threshold(struct wal *wal, const int flushc, uint64_t *flushv)
+static HSE_ALWAYS_INLINE bool
+wal_dirty_exceeds_threshold(struct wal *wal, const uint32_t flushc, uint64_t *flushv)
 {
-    INVARIANT(wal && flushc > 0);
+    INVARIANT(wal && flushc <= WAL_BUF_MAX);
 
-    uint64_t curv[flushc], tot_bytes = 0;
+    uint64_t curv[WAL_BUF_MAX], tot_bytes = 0;
     uint32_t buf_thresh = wal->dur_bytes / flushc;
-    uint8_t  buf_cnt = 0;
+    uint32_t buf_cnt;
 
-    wal_bufset_curoff(wal->wbs, flushc, curv);
+    buf_cnt = wal_bufset_curoff(wal->wbs, WAL_BUF_MAX, curv);
+    assert(buf_cnt == flushc);
+    if (ev(buf_cnt != flushc))
+        return false;
+
+    buf_cnt = 0;
     for (int i = 0; i < flushc; i++) {
-        uint64_t bytes = (curv[i] - flushv[i]);
+        const uint64_t bytes = (curv[i] - flushv[i]);
 
         if (bytes > 0) {
             tot_bytes += bytes;
@@ -204,15 +211,20 @@ wal_timer(struct work_struct *work)
             closing = false;
         } else if (!closing && sleep_ns > 0) {
             uint64_t flushv[WAL_BUF_MAX], intvl, tstart = get_time_ns();
-            int flushc;
+            uint32_t flushc;
 
             intvl = max_t(uint64_t, sleep_ns / 10, MSEC_TO_NSEC(1));
             flushc = wal_bufset_flushoff(wal->wbs, WAL_BUF_MAX, flushv);
 
-            while (cv_timedwait(&wal->timer_cv, &wal->timer_mutex,
-                                NSEC_TO_MSEC(intvl), "waltmslp") == ETIMEDOUT &&
-                   !wal->sync_pending && (get_time_ns() - tstart < sleep_ns) &&
-                   !atomic_read(&wal->closing)) {
+            while (!atomic_read(&wal->closing)) {
+                int rc = cv_timedwait(&wal->timer_cv, &wal->timer_mutex,
+                                      NSEC_TO_MSEC(intvl), "waltmslp");
+                if (rc != ETIMEDOUT)
+                    break;
+
+                if (wal->sync_pending || (get_time_ns() - tstart >= sleep_ns))
+                    break;
+
                 if (wal_dirty_exceeds_threshold(wal, flushc, flushv))
                     break;
             }
@@ -249,7 +261,7 @@ wal_sync_notifier(struct work_struct *work)
 
         list_for_each_entry(swait, &wal->sync_waiters, ws_link) {
             if (err ||
-                swait->ws_bufcnt <= wal_bufset_durcnt(wal->wbs, swait->ws_bufcnt, swait->ws_offv)) {
+                swait->ws_bufcnt <= wal_bufset_durcnt(wal->wbs, WAL_BUF_MAX, swait->ws_offv)) {
                 swait->ws_err = err;
                 cv_signal(&swait->ws_cv);
             }
@@ -296,7 +308,7 @@ wal_sync_impl(struct wal *wal, struct wal_sync_waiter *swait)
     cv_signal(&wal->timer_cv);
     mutex_unlock(&wal->timer_mutex);
 
-    while (swait->ws_bufcnt > wal_bufset_durcnt(wal->wbs, swait->ws_bufcnt, swait->ws_offv) &&
+    while (swait->ws_bufcnt > wal_bufset_durcnt(wal->wbs, WAL_BUF_MAX, swait->ws_offv) &&
            !swait->ws_err)
         cv_timedwait(&swait->ws_cv, &wal->sync_mutex, wal->dur_ms, "walsync");
 
@@ -320,8 +332,6 @@ wal_sync(struct wal *wal)
     INIT_LIST_HEAD(&swait.ws_link);
 
     swait.ws_bufcnt = wal_bufset_curoff(wal->wbs, WAL_BUF_MAX, swait.ws_offv);
-    if (swait.ws_bufcnt < 0)
-        return merr(EBUG);
 
     return wal_sync_impl(wal, &swait);
 }
@@ -340,8 +350,6 @@ wal_cond_sync(struct wal *wal, uint64_t gen)
     INIT_LIST_HEAD(&swait.ws_link);
 
     swait.ws_bufcnt = wal_bufset_genoff(wal->wbs, gen, WAL_BUF_MAX, swait.ws_offv);
-    if (swait.ws_bufcnt < 0)
-        return merr(EBUG);
 
     start = get_time_ns();
     err = wal_sync_impl(wal, &swait);
@@ -644,7 +652,7 @@ wal_open(
     wal->buf_flags = wal->buf_managed ? HSE_BTF_MANAGED : 0;
 
     wal->dur_ms = HSE_WAL_DUR_MS_DFLT;
-    wal->dur_bytes = HSE_WAL_DUR_SZ_DFLT;
+    wal->dur_bytes = HSE_WAL_DUR_SIZE_BYTES_DFLT;
     wal->dur_bufsz = HSE_WAL_DUR_BUFSZ_MB_DFLT << MB_SHIFT;
 
     mutex_init(&wal->timer_mutex);
@@ -690,9 +698,9 @@ wal_open(
     if (rp->dur_intvl_ms != HSE_WAL_DUR_MS_DFLT)
         wal->dur_ms = clamp_t(uint32_t, rp->dur_intvl_ms, HSE_WAL_DUR_MS_MIN, HSE_WAL_DUR_MS_MAX);
 
-    if (rp->dur_sz_bytes != HSE_WAL_DUR_SZ_DFLT)
-        wal->dur_bytes = clamp_t(uint32_t, rp->dur_sz_bytes,
-                                 HSE_WAL_DUR_SZ_MIN, HSE_WAL_DUR_SZ_MAX);
+    if (rp->dur_size_bytes != HSE_WAL_DUR_SIZE_BYTES_DFLT)
+        wal->dur_bytes = clamp_t(uint32_t, rp->dur_size_bytes,
+                                 HSE_WAL_DUR_SIZE_BYTES_MIN, HSE_WAL_DUR_SIZE_BYTES_MAX);
 
     if (rp->dur_bufsz_mb != HSE_WAL_DUR_BUFSZ_MB_DFLT)
         wal->dur_bufsz = (size_t)rp->dur_bufsz_mb << MB_SHIFT;
