@@ -47,6 +47,8 @@ struct wal_buffer {
 struct wal_bufset {
     struct workqueue_struct *wbs_flushwq;
 
+    uint32_t    wbs_buf_durbytes;
+
     size_t      wbs_buf_sz;
     size_t      wbs_buf_allocsz;
 
@@ -76,7 +78,7 @@ wal_buffer_flush_worker(struct work_struct *work)
     struct wal_minmax_info info = {};
     char *buf;
     uint64_t coff, foff, prev_foff, cgen, rgen, start_foff, flushb = 0, buflen, flags;
-    uint32_t rhlen;
+    uint32_t rhlen, dur_bytes;
     size_t bufsz, bufasz;
     merr_t err;
     bool wrap;
@@ -85,6 +87,7 @@ wal_buffer_flush_worker(struct work_struct *work)
 
     coff = atomic_read(&wb->wb_offset_head);
     rhlen = wal_rechdr_len(WAL_VERSION);
+    dur_bytes = wb->wb_bs->wbs_buf_durbytes;
     bufsz = wb->wb_bs->wbs_buf_sz;
     bufasz = wb->wb_bs->wbs_buf_allocsz;
 
@@ -139,8 +142,7 @@ restart:
         if (rgen > cgen)
             break;
 
-        /* Do not allow the IO payload to exceed 32 MiB */
-        if ((foff - start_foff) >= (32u << MB_SHIFT))
+        if ((foff - start_foff) >= dur_bytes)
             break;
 
         info.min_gen = min_t(uint64_t, info.min_gen, rgen);
@@ -222,6 +224,7 @@ struct wal_bufset *
 wal_bufset_open(
     struct wal_fileset *wfset,
     size_t              bufsz,
+    uint32_t            dur_bytes,
     atomic_ulong       *ingestgen,
     struct wal_iocb    *iocb)
 {
@@ -259,6 +262,7 @@ wal_bufset_open(
             atomic_set(&wb->wb_doff, PAGE_SIZE);
             atomic_set(&wb->wb_foff, PAGE_SIZE);
             atomic_set(&wb->wb_curgen, 0);
+            atomic_set(&wb->wb_flushb, 0);
             atomic_set(&wb->wb_flushc, 0);
             atomic_set(&wb->wb_flushing, 0);
             atomic_set(&wb->wb_wrap, 0);
@@ -279,6 +283,12 @@ wal_bufset_open(
             wbs->wbs_bufc++;
         }
     }
+
+    assert(wbs->wbs_bufc > 0);
+    if (wbs->wbs_bufc == 0)
+        goto errout;
+
+    wbs->wbs_buf_durbytes = dur_bytes / wbs->wbs_bufc;
 
     threads = wbs->wbs_bufc;
     wbs->wbs_flushwq = alloc_workqueue("wal_flush_wq", 0, threads);
@@ -451,7 +461,7 @@ wal_bufset_reclaim(struct wal_bufset *wbs, uint64_t gen)
 }
 
 merr_t
-wal_bufset_flush(struct wal_bufset *wbs, uint64_t *flushb, uint64_t *bufszp, uint64_t *buflenp)
+wal_bufset_flush(struct wal_bufset *wbs, struct wal_flush_stats *wbfsp)
 {
     struct workqueue_struct *wq;
     merr_t err;
@@ -462,10 +472,15 @@ wal_bufset_flush(struct wal_bufset *wbs, uint64_t *flushb, uint64_t *bufszp, uin
 
     wq = wbs->wbs_flushwq;
 
+    memset(wbfsp, 0, sizeof(*wbfsp));
+
     for (i = 0; i < wbs->wbs_bufc; ++i) {
         struct wal_buffer *wb = wbs->wbs_bufv + i;
 
-        if (wb->wb_buf && atomic_cas(&wb->wb_flushing, 0, 1)) {
+        wbfsp->flush_soff[i] = atomic_read(&wb->wb_foff);
+
+        if (wb->wb_buf && atomic_read(&wb->wb_offset_head) > PAGE_SIZE &&
+            atomic_cas(&wb->wb_flushing, 0, 1)) {
             atomic_set(&wb->wb_flushb, 0);
             queue_work(wq, &wb->wb_fwork);
         }
@@ -475,32 +490,32 @@ wal_bufset_flush(struct wal_bufset *wbs, uint64_t *flushb, uint64_t *bufszp, uin
     if ((err = atomic_read(&wbs->wbs_err)))
         return err;
 
-    *bufszp = wbs->wbs_buf_sz;
-    *buflenp = 0;
-    *flushb = 0;
+    wbfsp->bufsz = wbs->wbs_buf_sz;
+    wbfsp->bufcnt = wbs->wbs_bufc;
+    wbfsp->max_buflen = 0;
+    wbfsp->flush_tlen = 0;
 
     for (i = 0; i < wbs->wbs_bufc; ++i) {
         struct wal_buffer *wb = wbs->wbs_bufv + i;
-        uint64_t head, tail;
+        uint64_t head, tail, flen;
 
-        *flushb += atomic_read(&wb->wb_flushb);
+        flen = atomic_read(&wb->wb_flushb);
+        wbfsp->flush_tlen += flen;
+        wbfsp->flush_len[i] = flen;
 
         tail = atomic_read_acq(&wb->wb_offset_tail);
         head = atomic_read(&wb->wb_offset_head);
-        if (head - tail > *buflenp)
-            *buflenp = head - tail;
+        if (head - tail > wbfsp->max_buflen)
+            wbfsp->max_buflen = head - tail;
     }
 
     return 0;
 }
 
-int
-wal_bufset_curoff(struct wal_bufset *wbs, int offc, uint64_t *offv)
+uint32_t
+wal_bufset_curoff(struct wal_bufset *wbs, uint32_t offc, uint64_t *offv)
 {
-    assert(offc >= wbs->wbs_bufc);
-
-    if (offc < wbs->wbs_bufc)
-        return -1;
+    INVARIANT(offc >= wbs->wbs_bufc);
 
     for (int i = 0; i < wbs->wbs_bufc; ++i) {
         struct wal_buffer *wb = wbs->wbs_bufv + i;
@@ -511,13 +526,24 @@ wal_bufset_curoff(struct wal_bufset *wbs, int offc, uint64_t *offv)
     return wbs->wbs_bufc;
 }
 
-int
-wal_bufset_genoff(struct wal_bufset *wbs, uint64_t gen, int offc, uint64_t *offv)
+uint32_t
+wal_bufset_flushoff(struct wal_bufset *wbs, uint32_t offc, uint64_t *offv)
 {
-    assert(offc >= wbs->wbs_bufc);
+    INVARIANT(offc >= wbs->wbs_bufc);
 
-    if (offc < wbs->wbs_bufc)
-        return -1;
+    for (int i = 0; i < wbs->wbs_bufc; ++i) {
+        struct wal_buffer *wb = wbs->wbs_bufv + i;
+
+        offv[i] = atomic_read(&wb->wb_foff);
+    }
+
+    return wbs->wbs_bufc;
+}
+
+uint32_t
+wal_bufset_genoff(struct wal_bufset *wbs, uint64_t gen, uint32_t offc, uint64_t *offv)
+{
+    INVARIANT(offc >= wbs->wbs_bufc);
 
     for (int i = 0; i < wbs->wbs_bufc; ++i) {
         struct wal_buffer *wb = wbs->wbs_bufv + i;
@@ -530,14 +556,12 @@ wal_bufset_genoff(struct wal_bufset *wbs, uint64_t gen, int offc, uint64_t *offv
     return wbs->wbs_bufc;
 }
 
-int
-wal_bufset_durcnt(struct wal_bufset *wbs, int offc, uint64_t *offv)
+uint32_t
+wal_bufset_durcnt(struct wal_bufset *wbs, uint32_t offc, uint64_t *offv)
 {
     int reached = 0;
 
-    assert(offc >= wbs->wbs_bufc);
-    if (offc < wbs->wbs_bufc)
-        return -1;
+    INVARIANT(offc >= wbs->wbs_bufc);
 
     for (int i = 0; i < wbs->wbs_bufc; ++i) {
         struct wal_buffer *wb = wbs->wbs_bufv + i;

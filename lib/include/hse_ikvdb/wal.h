@@ -15,6 +15,11 @@
 #define HSE_WAL_DUR_MS_DFLT        (100)
 #define HSE_WAL_DUR_MS_MAX         (1000)
 
+/* Durability size threshold for all wal buffers combined */
+#define HSE_WAL_DUR_SIZE_BYTES_MIN     (32 * 1024u)
+#define HSE_WAL_DUR_SIZE_BYTES_DFLT    (8 * 1024 * 1024u)
+#define HSE_WAL_DUR_SIZE_BYTES_MAX     (128 * 1024 * 1024u)
+
 /* Per wal buffer size */
 #define HSE_WAL_DUR_BUFSZ_MB_MIN   (256ul)
 #define HSE_WAL_DUR_BUFSZ_MB_DFLT  (4096ul)
