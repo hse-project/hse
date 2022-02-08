@@ -50,6 +50,7 @@ jobs:
         with:
           repository: hse-project/hse-python
           path: subprojects/hse-python
+          ref: ${{ github.base_ref || github.ref }}
 
       - name: Post-checkout
         run: |
@@ -131,6 +132,7 @@ jobs:
         with:
           repository: hse-project/hse-python
           path: subprojects/hse-python
+          ref: ${{ github.base_ref || github.ref }}
 
       - name: Post-checkout
         run: |
@@ -207,6 +209,7 @@ jobs:
         with:
           repository: hse-project/hse-python
           path: subprojects/hse-python
+          ref: ${{ github.base_ref || github.ref }}
 
       - name: Post-checkout
         run: |
@@ -282,6 +285,7 @@ jobs:
         with:
           repository: hse-project/hse-python
           path: subprojects/hse-python
+          ref: ${{ github.base_ref || github.ref }}
 
       - name: Post-checkout
         run: |
@@ -339,6 +343,7 @@ jobs:
         with:
           repository: hse-project/hse-python
           path: subprojects/hse-python
+          ref: ${{ github.base_ref || github.ref }}
 
       - name: Post-checkout
         run: |
@@ -393,6 +398,7 @@ jobs:
         with:
           repository: hse-project/hse-python
           path: subprojects/hse-python
+          ref: ${{ github.base_ref || github.ref }}
 
       - name: Post-checkout
         run: |
