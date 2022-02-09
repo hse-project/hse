@@ -1,6 +1,6 @@
 /* SPDX-License-Identifier: Apache-2.0 */
 /*
- * Copyright (C) 2021 Micron Technology, Inc.  All rights reserved.
+ * Copyright (C) 2021-2022 Micron Technology, Inc.  All rights reserved.
  */
 
 #ifndef HSE_KVDB_OMF_VERSION_H
@@ -11,12 +11,14 @@
 enum {
     GLOBAL_OMF_VERSION1 = 1,
     GLOBAL_OMF_VERSION2 = 2,
+    GLOBAL_OMF_VERSION3 = 3,
 };
 
 enum {
     CNDB_VERSION10 = 10,
     CNDB_VERSION11 = 11,
     CNDB_VERSION12 = 12,
+    CNDB_VERSION13 = 13,
 };
 
 enum {
@@ -37,6 +39,7 @@ enum {
 
 enum {
     CN_TSTATE_VERSION1 = 1,
+    CN_TSTATE_VERSION2 = 2,
 };
 
 enum {
@@ -59,18 +62,18 @@ enum {
     KVDB_META_VERSION2 = 2,
 };
 
-#define GLOBAL_OMF_VERSION GLOBAL_OMF_VERSION2
+#define GLOBAL_OMF_VERSION     GLOBAL_OMF_VERSION3
 
 /* In the event one of the following versions in incremented, increment the
  * global OMF version.
  */
 
-#define CNDB_VERSION           CNDB_VERSION12
+#define CNDB_VERSION           CNDB_VERSION13
 #define KBLOCK_HDR_VERSION     KBLOCK_HDR_VERSION5
 #define VBLOCK_HDR_VERSION     VBLOCK_HDR_VERSION2
 #define BLOOM_OMF_VERSION      BLOOM_OMF_VERSION5
 #define WBT_TREE_VERSION       WBT_TREE_VERSION6
-#define CN_TSTATE_VERSION      CN_TSTATE_VERSION1
+#define CN_TSTATE_VERSION      CN_TSTATE_VERSION2
 #define MBLOCK_METAHDR_VERSION MBLOCK_METAHDR_VERSION2
 #define MDC_LOGHDR_VERSION     MDC_LOGHDR_VERSION2
 #define WAL_VERSION            WAL_VERSION2

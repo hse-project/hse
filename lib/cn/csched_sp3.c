@@ -784,8 +784,8 @@ sp3_refresh_thresholds(struct sp3 *sp)
             thresh.rspill_kvsets_max = (v >> 0) & 0xff;
             thresh.rspill_kvsets_min = (v >> 8) & 0xff;
         } else {
-            thresh.rspill_kvsets_max = 8;
-            thresh.rspill_kvsets_min = 4;
+            thresh.rspill_kvsets_max = 9;
+            thresh.rspill_kvsets_min = 5;
         }
         thresh.rspill_kvsets_min = max(thresh.rspill_kvsets_min, SP3_RSPILL_KVSETS_MIN);
     }
@@ -2158,7 +2158,7 @@ sp3_qos_check(struct sp3 *sp)
     if (!sp->throttle_sensor_root)
         return;
 
-    rootmin = sp->thresh.rspill_kvsets_min;
+    rootmin = sp->thresh.rspill_kvsets_max;
     rootmax = rootmin;
     sval = 0;
 
@@ -2171,7 +2171,7 @@ sp3_qos_check(struct sp3 *sp)
          * of long, tiny root nodes on the throttle.
          */
         if (cn_ns_clen(&tree->ct_root->tn_ns) < (1ul << 30))
-            nk /= 2;
+            nk /= 3;
 
         if (nk > rootmax && !rp->cn_maint_disable)
             rootmax = nk;

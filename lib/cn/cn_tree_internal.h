@@ -62,7 +62,6 @@ struct cn_kle_hdr {
     ulong            kh_nfrees;
 };
 
-#define CN_KHASHMAP_SHIFT (8)
 
 /**
  * struct cn_khashmap - key hash map
@@ -75,22 +74,21 @@ struct cn_khashmap {
     spinlock_t khm_lock;
     u32        khm_gen;
     u32        khm_gen_committed;
-    u8         khm_mapv[CN_TSTATE_KHM_SZ];
+    u16        khm_mapv[CN_TSTATE_KHM_SZ];
 };
 
 /**
  * struct cn_tree - the cn tree (tree of nodes holding kvsets)
  * @ct_root:        root node of tree
  * @ct_khashmap:    ptr to key hash map
- * @ct_cp:          cn create-time parameters
- * @ct_fanout_bits: log base2 of tree fanout
- * @ds:    dataset
+ * @ct_fanout:      tree fanout
+ * @ct_depth_max:   depth limit for this tree (not current depth)
  * @cn:    ptr to parent cn object
+ * @ds:    dataset
  * @rp:    ptr to shared runtime parameters struct
+ * @ct_cp:          cn create-time parameters
  * @cndb:  handle for cndb (the metadata journal/log)
  * @cnid:  cndb's identifier for this cn tree
- * @ct_fanout_mask: fanout bit mask (@ct_fanout - 1)
- * @ct_depth_max:   depth limit for this tree (not current depth)
  * @ct_dgen_init:
  * @ct_r_nodec:
  * @ct_l_nodec:
@@ -111,18 +109,17 @@ struct cn_khashmap {
 struct cn_tree {
     struct cn_tree_node *ct_root;
     struct cn_khashmap * ct_khashmap;
-    u16                  ct_fanout_bits;
-    u16                  ct_pfx_len;
-    uint                 ct_fanout_mask;
+    u16                  ct_fanout;
     u16                  ct_depth_max;
+    u16                  ct_pfx_len;
     u16                  ct_sfx_len;
     bool                 ct_nospace;
     struct cn *          cn;
     struct mpool *       ds;
     struct kvs_rparams * rp;
 
+    struct cn_tstate  *ct_tstate;
     struct cn_khashmap ct_khmbuf;
-    struct cn_tstate * ct_tstate;
 
     struct cndb *       cndb;
     struct cn_kvdb *    cn_kvdb;
@@ -208,15 +205,6 @@ struct cn_tree_node {
 #define tn2spn(_tn) (&(_tn)->tn_sp3n)
 #define spn2tn(_spn) container_of(_spn, struct cn_tree_node, tn_sp3n)
 
-/**
- * cn_tree_find_node - map a node location to a node pointer
- * @tree: cn tree to look for node
- * @loc:  location to map into a node pointer
- */
-/* MTF_MOCK */
-struct cn_tree_node *
-cn_tree_find_node(struct cn_tree *tree, struct cn_node_loc *loc);
-
 /* MTF_MOCK */
 merr_t
 cn_tree_create_node(
@@ -242,10 +230,6 @@ cn_node_isleaf(const struct cn_tree_node *node);
 bool
 cn_node_isroot(const struct cn_tree_node *node);
 
-/* MTF_MOCK */
-uint
-cn_node_level(const struct cn_tree_node *node);
-
 enum hse_mclass
 cn_tree_node_mclass(struct cn_tree_node *tn, enum hse_mclass_policy_dtype dtype);
 
@@ -254,6 +238,17 @@ void
 cn_comp_slice_cb(struct sts_job *job);
 
 #if HSE_MOCKING
+/**
+ * cn_tree_find_node() - Map a node location to a node pointer.
+ *
+ * @tree: tree to search
+ * @loc: (input) node location
+ *
+ * Returns NULL if tree @tree has no node at location @loc.
+ */
+struct cn_tree_node *
+cn_tree_find_node(struct cn_tree *tree, const struct cn_node_loc *loc);
+
 #include "cn_tree_internal_ut.h"
 #endif /* HSE_MOCKING */
 

@@ -1108,7 +1108,7 @@ init_work(
     w->cw_horizon = horizon;
     w->cw_kvset_cnt = num_sources;
     w->cw_inputv = sources;
-    w->cw_hash_shift = shift;
+    w->cw_level = 0;
     w->cw_pc = pc;
     w->cw_cancel_request = cancel;
     w->cw_outc = num_outputs;
@@ -1130,14 +1130,14 @@ struct cn_tstate_impl {
 };
 
 static void
-ts_get(struct cn_tstate *tstate, u32 *genp, u8 *mapv)
+ts_get(struct cn_tstate *tstate, u32 *genp, u16 *mapv)
 {
     struct cn_tstate_impl *impl;
 
     impl = container_of(tstate, struct cn_tstate_impl, tsi_tstate);
 
     *genp = omf_ts_khm_gen(&impl->tsi_omf);
-    memcpy(mapv, impl->tsi_omf.ts_khm_mapv, CN_TSTATE_KHM_SZ);
+    memcpy(mapv, impl->tsi_omf.ts_khm_mapv, sizeof(mapv[0]) * CN_TSTATE_KHM_SZ);
 }
 
 static merr_t
@@ -1564,6 +1564,7 @@ test_prehook(struct mtf_test_info *info)
     /* Neuter the following APIs */
     mapi_inject_ptr(mapi_idx_cn_tree_get_khashmap, NULL);
     mapi_inject_ptr(mapi_idx_cn_tree_get_cn, NULL);
+    mapi_inject(mapi_idx_cn_tree_route_create, 0);
     mapi_inject(mapi_idx_kvset_builder_set_merge_stats, 0);
 
     return 0;

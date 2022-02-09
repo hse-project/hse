@@ -1,6 +1,6 @@
 /* SPDX-License-Identifier: Apache-2.0 */
 /*
- * Copyright (C) 2015-2020 Micron Technology, Inc.  All rights reserved.
+ * Copyright (C) 2015-2020,2022 Micron Technology, Inc.  All rights reserved.
  */
 
 #ifndef HSE_KVS_CNDB_INTERNAL_H
@@ -20,7 +20,7 @@ struct mpool_mdc;
 struct mpool;
 
 /* [HSE_REVISIT] Eventually, these values should be automatically tuned for each
- * cndb based on the size of the mpool and the fanout bits.
+ * cndb based on the size of the mpool and the fanout.
  */
 #define CNDB_KVSETS_L1 (8)
 #define CNDB_KVSETS_L2 (8 * CNDB_KVSETS_L1)
@@ -67,12 +67,6 @@ struct cndb_cn {
      */
     struct cndb_info_omf *cn_cbuf;
 };
-
-/**
- * cndb_cn_initializer() - Only used in tests
- */
-struct cndb_cn
-cndb_cn_initializer(unsigned int fanout_bits, unsigned int pfx_len, u64 cnid);
 
 struct cndb_idx {
     u64              cdx_tag;
@@ -227,7 +221,7 @@ struct cndb_meta {
 struct cndb_info {
     struct cndb_hdr hdr;
     u32             mti_sfx_len;
-    u32             mti_fanout_bits;
+    u32             mti_fanout;
     u32             mti_prefix_len;
     u32             mti_prefix_pivot;
     u32             mti_flags;
@@ -705,5 +699,11 @@ cndb_record_unpack(u32 cndb_version, struct cndb_hdr_omf *buf, union cndb_mtu **
     CNDB_LOG((_err), (_cndb), HSE_LOGPRI_ERR, "tx %lu" _fmt, (ulong)(_txid), ##__VA_ARGS__)
 
 #if HSE_MOCKING
+/**
+ * cndb_cn_initializer() - Only used in tests
+ */
+struct cndb_cn
+cndb_cn_initializer(unsigned int fanout, unsigned int pfx_len, u64 cnid);
+
 #include "cndb_internal_ut.h"
 #endif /* HSE_MOCKING */

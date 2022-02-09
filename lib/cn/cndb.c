@@ -119,7 +119,7 @@ cndb_info2omf(int hdr_type, const struct cndb_cn *cn, struct cndb_info_omf *inf)
     memset(inf, 0, sizeof(*inf));
 
     cndb_set_hdr(&inf->hdr, hdr_type, sz);
-    omf_set_cninfo_fanout_bits(inf, ilog2(cn->cn_cp.fanout));
+    omf_set_cninfo_fanout(inf, cn->cn_cp.fanout);
     omf_set_cninfo_prefix_len(inf, cn->cn_cp.pfx_len);
     omf_set_cninfo_sfx_len(inf, cn->cn_cp.sfx_len);
     omf_set_cninfo_prefix_pivot(inf, cn->cn_cp.pfx_pivot);
@@ -791,7 +791,7 @@ cndb_import_md(struct cndb *cndb, struct cndb_hdr_omf *buf, union cndb_mtu **mtu
     if (typ == CNDB_TYPE_INFO) {
         struct cndb_info * mti = &lmtu->i;
         struct kvs_cparams cp = {
-            .fanout = 1 << mti->mti_fanout_bits,
+            .fanout = mti->mti_fanout,
             .pfx_len = mti->mti_prefix_len,
             .sfx_len = mti->mti_sfx_len,
             .pfx_pivot = mti->mti_prefix_pivot,
@@ -2922,7 +2922,6 @@ cndb_cn_create2(struct cndb *cndb, const struct kvs_cparams *cparams, u64 *cnid_
 {
     merr_t               err;
     struct cndb_info_omf info = {};
-    u32                  fanout_bits = 0;
     u32                  flags = 0;
 
     if (cparams->fanout < CN_FANOUT_MIN || cparams->fanout > CN_FANOUT_MAX) {
@@ -2931,16 +2930,8 @@ cndb_cn_create2(struct cndb *cndb, const struct kvs_cparams *cparams, u64 *cnid_
         goto done;
     }
 
-    fanout_bits = ilog2(cparams->fanout);
-
-    if (cparams->fanout != (1u << fanout_bits)) {
-        err = merr(EINVAL);
-        CNDB_LOG_ERR(err, cndb, " fanout bits");
-        return err;
-    }
-
     cndb_set_hdr(&info.hdr, CNDB_TYPE_INFO, sizeof(info));
-    omf_set_cninfo_fanout_bits(&info, fanout_bits);
+    omf_set_cninfo_fanout(&info, cparams->fanout);
     omf_set_cninfo_prefix_len(&info, cparams->pfx_len);
     omf_set_cninfo_sfx_len(&info, cparams->sfx_len);
     omf_set_cninfo_prefix_pivot(&info, cparams->pfx_pivot);
@@ -3284,22 +3275,22 @@ cndb_txn_nak(struct cndb *cndb, u64 txid)
     return ev(err);
 }
 
+#if HSE_MOCKING
 /**
  * cndb_cn_initializer() - Only used in tests
  */
 struct cndb_cn
-cndb_cn_initializer(unsigned int fanout_bits, unsigned int pfx_len, u64 cnid)
+cndb_cn_initializer(unsigned int fanout, unsigned int pfx_len, u64 cnid)
 {
     struct cndb_cn cn = {};
 
-    cn.cn_cp.fanout = 1 << fanout_bits;
-    cn.cn_cp.pfx_len = 1 << fanout_bits;
+    cn.cn_cp.fanout = fanout;
+    cn.cn_cp.pfx_len = 1u << (ilog2(fanout - 1) + 1);
     cn.cn_cnid = cnid;
 
     return cn;
 }
 
-#if HSE_MOCKING
 #include "cndb_ut.h"
 #include "cndb_ut_impl.i"
 #include "cndb_internal_ut.h"

@@ -66,10 +66,7 @@ verify_kvset(void *ctx, struct kvset_meta *km, u64 tag)
 {
     struct callback_info *info = ctx;
     struct entity *       ent = info->ent;
-    u8                    khmapv[CN_TSTATE_KHM_SZ];
     hse_err_t             err;
-
-    omf_ts_khm_mapv(&info->omf, khmapv, CN_TSTATE_KHM_SZ);
 
     if (ent) {
         if (ent->level != km->km_node_level || ent->offset != km->km_node_offset)
@@ -80,7 +77,7 @@ verify_kvset(void *ctx, struct kvset_meta *km, u64 tag)
             return 0; /* skip kvset */
     }
 
-    err = kc_kvset_check(info->mp, info->cp, km, khmapv);
+    err = kc_kvset_check(info->mp, info->cp, km, NULL);
     if (err)
         info->errors = true;
 

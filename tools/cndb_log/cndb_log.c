@@ -1,6 +1,6 @@
 /* SPDX-License-Identifier: Apache-2.0 */
 /*
- * Copyright (C) 2015-2020 Micron Technology, Inc.  All rights reserved.
+ * Copyright (C) 2015-2020,2022 Micron Technology, Inc.  All rights reserved.
  */
 
 /*
@@ -145,7 +145,7 @@ print_info(struct tool_info *ti, union cndb_mtu *mtu)
         " flags 0x%x metasz %lu name %s meta",
         "info",
         mti->mti_cnid,
-        mti->mti_fanout_bits,
+        mti->mti_fanout,
         mti->mti_prefix_len,
         mti->mti_sfx_len,
         mti->mti_prefix_pivot,
@@ -170,7 +170,7 @@ print_infod(struct tool_info *ti, union cndb_mtu *mtu)
         " flags 0x%x name %s\n",
         "infod",
         mti->mti_cnid,
-        mti->mti_fanout_bits,
+        mti->mti_fanout,
         mti->mti_prefix_len,
         mti->mti_prefix_pivot,
         mti->mti_flags,
@@ -511,7 +511,7 @@ replay_log(struct tool_info *ti)
         inf = cn->cn_cbuf;
 
         cndb_set_hdr(&inf->hdr, CNDB_TYPE_INFO, cn->cn_cbufsz);
-        omf_set_cninfo_fanout_bits(inf, ilog2(cn->cn_cp.fanout));
+        omf_set_cninfo_fanout(inf, cn->cn_cp.fanout);
         omf_set_cninfo_prefix_len(inf, cn->cn_cp.pfx_len);
         omf_set_cninfo_cnid(inf, cn->cn_cnid);
         omf_set_cninfo_flags(inf, cn->cn_flags);

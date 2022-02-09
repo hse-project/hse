@@ -81,11 +81,8 @@
 /*
  * Min and max fanouts.
  */
-#define CN_FANOUT_BITS_MIN          (1)
-#define CN_FANOUT_BITS_MAX          (12)
-
-#define CN_FANOUT_MIN               (1 << CN_FANOUT_BITS_MIN)
-#define CN_FANOUT_MAX               (1 << CN_FANOUT_BITS_MAX)
+#define CN_FANOUT_MIN               (2)
+#define CN_FANOUT_MAX               (1024)
 
 #define CN_SMALL_VALUE_THRESHOLD    (8)
 

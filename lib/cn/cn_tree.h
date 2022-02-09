@@ -1,6 +1,6 @@
 /* SPDX-License-Identifier: Apache-2.0 */
 /*
- * Copyright (C) 2015-2020 Micron Technology, Inc.  All rights reserved.
+ * Copyright (C) 2015-2020,2022 Micron Technology, Inc.  All rights reserved.
  */
 
 #ifndef HSE_KVDB_CN_CN_TREE_H
@@ -42,8 +42,15 @@ struct cn_tstate {
         cn_tstate_abort_t *  ts_abort,
         void *               arg);
 
-    void (*ts_get)(struct cn_tstate *tstate, u32 *genp, u8 *mapv);
+    void (*ts_get)(struct cn_tstate *tstate, u32 *genp, u16 *mapv);
 };
+
+uint
+cn_tree_route_lookup(struct cn_tree *tree, u64 hash, uint level);
+
+/* MTF_MOCK */
+uint
+cn_tree_route_create(struct cn_tree *tree, u64 hash, uint level);
 
 /* MTF_MOCK */
 merr_t
@@ -66,11 +73,6 @@ cn_tree_lookup(
 /* MTF_MOCK */
 u64
 cn_tree_initial_dgen(const struct cn_tree *tree);
-
-/* Get value of fanout_bits used in create() */
-/* MTF_MOCK */
-u32
-cn_tree_fanout_bits(const struct cn_tree *);
 
 /* Return true if the cn_tree is capped. */
 bool

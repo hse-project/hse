@@ -1,6 +1,6 @@
 /* SPDX-License-Identifier: Apache-2.0 */
 /*
- * Copyright (C) 2015-2021 Micron Technology, Inc.  All rights reserved.
+ * Copyright (C) 2015-2022 Micron Technology, Inc.  All rights reserved.
  */
 
 #include <mtf/framework.h>
@@ -40,7 +40,7 @@ MTF_DEFINE_UTEST_PRE(cn_api, basic, pre)
 {
     struct cn *        cn;
     struct cndb        cndb;
-    struct cndb_cn     cndbcn = cndb_cn_initializer(2, 0, 0);
+    struct cndb_cn     cndbcn = cndb_cn_initializer(4, 0, 0);
     struct cn_kvdb    *cn_kvdb;
     struct kvs_buf     vbuf;
     struct kvdb_kvs    kk = { 0 };
@@ -136,34 +136,32 @@ MTF_DEFINE_UTEST_PRE(cn_api, node_loc, pre)
 {
     struct cn_node_loc loc;
 
-    ASSERT_EQ(nodes_in_level(2, 0), 1);
-    ASSERT_EQ(nodes_in_level(2, 1), 4);
-    ASSERT_EQ(nodes_in_level(2, 2), 16);
-    ASSERT_EQ(nodes_in_level(3, 1), 8);
-    ASSERT_EQ(nodes_in_level(3, 2), 64);
-    ASSERT_EQ(nodes_in_level(3, 3), 512);
+    ASSERT_EQ(nodes_in_level(4, 0), 1);
+    ASSERT_EQ(nodes_in_level(4, 1), 4);
+    ASSERT_EQ(nodes_in_level(4, 2), 16);
+    ASSERT_EQ(nodes_in_level(8, 1), 8);
+    ASSERT_EQ(nodes_in_level(8, 2), 64);
+    ASSERT_EQ(nodes_in_level(8, 3), 512);
 
     /* examples from the code comments */
     loc.node_level = 2;
     loc.node_offset = 6;
-    ASSERT_EQ(node_parent_offset(2, &loc), 1);
+    ASSERT_EQ(node_parent_offset(4, &loc), 1);
     loc.node_offset = 12;
-    ASSERT_EQ(node_parent_offset(2, &loc), 3);
+    ASSERT_EQ(node_parent_offset(4, &loc), 3);
     loc.node_level = 3;
     loc.node_offset = 7;
-    ASSERT_EQ(node_parent_offset(1, &loc), 3);
+    ASSERT_EQ(node_parent_offset(2, &loc), 3);
 
     /* a few others with edge conditions */
     loc.node_level = 2;
     loc.node_offset = 1;
-    ASSERT_EQ(node_parent_offset(3, &loc), 0);
+    ASSERT_EQ(node_parent_offset(8, &loc), 0);
     loc.node_offset = 63;
-    ASSERT_EQ(node_parent_offset(3, &loc), 7);
+    ASSERT_EQ(node_parent_offset(8, &loc), 7);
 
-    ASSERT_EQ(node_nth_child_offset(3, &loc, 0), 512 - 8);
-    ASSERT_EQ(node_nth_child_offset(3, &loc, 7), 512 - 1);
-
-    ASSERT_EQ(node_first_child_offset(3, &loc), 512 - 8);
+    ASSERT_EQ(node_nth_child_offset(8, &loc, 0), 512 - 8);
+    ASSERT_EQ(node_nth_child_offset(8, &loc, 7), 512 - 1);
 }
 
 MTF_END_UTEST_COLLECTION(cn_api);

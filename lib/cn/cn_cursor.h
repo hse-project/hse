@@ -35,8 +35,6 @@ struct cursor_summary;
  * @ct_pfx_len: length of the tree prefix
  * @pfxhash:    hash for this prefix
  * @merr:       if cursor is in error state, this is why
- * @shift:      how to find next child node from pfxhash
- * @mask:
  * @dgen:       max dgen in this scan
  * @seqno:      view sequence number for this cursor
  * @reverse:    reverse iterator: 1=yes 0=no
@@ -64,8 +62,6 @@ struct cn_cursor {
     u32                     ct_pfx_len;
     u64                     pfxhash;
     u64                     merr;
-    u32                     shift;
-    u32                     mask;
     u64                     dgen;
     u64                     seqno;
 

@@ -52,18 +52,15 @@ MTF_DEFINE_UTEST_PREPOST(cn_make_test, cn_make1, pre, post)
     struct kvs_cparams cp;
 
     cp = kvs_cparams_defaults();
-    for (i = 0; i < 100; i++) {
-        uint bits = (i > 0) ? ilog2(i) : 0;
 
+    for (i = CN_FANOUT_MAX - 1; i < CN_FANOUT_MAX + 1; i++) {
         cp.fanout = i;
 
         err = cn_make(ds, &cp, &health);
         if (err) {
-            ASSERT_TRUE(bits < CN_FANOUT_BITS_MIN || bits > CN_FANOUT_BITS_MAX ||
-                        cp.fanout != (1u << bits));
+            ASSERT_TRUE(i < CN_FANOUT_MAX || i > CN_FANOUT_MAX || (1u << ilog2(i)) != i);
         } else {
-            ASSERT_TRUE(bits >= CN_FANOUT_BITS_MIN && bits <= CN_FANOUT_BITS_MAX &&
-                        cp.fanout == (1u << bits));
+            ASSERT_TRUE(i >= CN_FANOUT_MIN && i <= CN_FANOUT_MAX);
         }
     }
 }

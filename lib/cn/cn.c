@@ -838,7 +838,7 @@ struct cn_tstate_impl {
 };
 
 static void
-cn_tstate_get(struct cn_tstate *tstate, u32 *genp, u8 *mapv)
+cn_tstate_get(struct cn_tstate *tstate, u32 *genp, u16 *mapv)
 {
     struct cn_tstate_impl *impl;
 
@@ -848,7 +848,7 @@ cn_tstate_get(struct cn_tstate *tstate, u32 *genp, u8 *mapv)
 
     mutex_lock(&impl->tsi_lock);
     *genp = omf_ts_khm_gen(&impl->tsi_omf);
-    omf_ts_khm_mapv(&impl->tsi_omf, mapv, CN_TSTATE_KHM_SZ);
+    omf_ts_khm_mapv(&impl->tsi_omf, mapv, sizeof(mapv[0]) * CN_TSTATE_KHM_SZ);
     mutex_unlock(&impl->tsi_lock);
 }
 
@@ -1384,7 +1384,7 @@ cn_cursor_create(
      * if it exists, else the requested prefix may search a different
      * finger down the tree.
      *
-     * pfxhash, shift and mask are used to navigate the tree prefix path
+     * pfxhash is used to navigate the tree prefix path.
      *
      * memory layout:
      *  cur     sizeof(cur)
@@ -1396,9 +1396,6 @@ cn_cursor_create(
     cur->pfx_len = pfx_len;
     cur->ct_pfx_len = ct_pfx_len;
     cur->pfx = prefix;
-
-    cur->shift = cn_tree_fanout_bits(cn->cn_tree);
-    cur->mask = (1 << cur->shift) - 1;
 
     /* for cursor update */
     cur->cn = cn;
@@ -1515,7 +1512,6 @@ cn_make(struct mpool *ds, const struct kvs_cparams *cp, struct kvdb_health *heal
 {
     merr_t             err;
     struct cn_tree *   tree;
-    u32                fanout_bits;
     struct kvs_rparams rp;
     struct kvs_cparams icp;
 
@@ -1526,9 +1522,7 @@ cn_make(struct mpool *ds, const struct kvs_cparams *cp, struct kvdb_health *heal
     if (cp->fanout < CN_FANOUT_MIN || cp->fanout > CN_FANOUT_MAX)
         return merr(EINVAL);
 
-    fanout_bits = ilog2(cp->fanout);
-
-    if (cp->fanout != (1u << fanout_bits))
+    if (cp->fanout != roundup_pow_of_two(cp->fanout))
         return merr(EINVAL);
 
     /* Create and destroy a tree as a means of validating
@@ -1536,7 +1530,7 @@ cn_make(struct mpool *ds, const struct kvs_cparams *cp, struct kvdb_health *heal
      */
     rp = kvs_rparams_defaults();
 
-    icp.fanout = 1 << fanout_bits;
+    icp.fanout = cp->fanout;
     icp.pfx_len = cp->pfx_len;
     icp.sfx_len = cp->sfx_len;
     icp.pfx_pivot = cp->pfx_pivot;

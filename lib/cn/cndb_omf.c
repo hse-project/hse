@@ -1,6 +1,6 @@
 /* SPDX-License-Identifier: Apache-2.0 */
 /*
- * Copyright (C) 2015-2020 Micron Technology, Inc.  All rights reserved.
+ * Copyright (C) 2015-2020,2022 Micron Technology, Inc.  All rights reserved.
  */
 
 #include <hse_util/alloc.h>
@@ -242,7 +242,7 @@ omf_cndb_info_unpack(void *omf_blob, u32 ver, union cndb_mtu *mtu, u32 *plen)
     mti = &mtu->i;
     mtu->h.mth_type = type;
 
-    mti->mti_fanout_bits = omf_cninfo_fanout_bits(omf);
+    mti->mti_fanout = omf_cninfo_fanout(omf);
     mti->mti_sfx_len = omf_cninfo_sfx_len(omf);
     mti->mti_prefix_len = omf_cninfo_prefix_len(omf);
     mti->mti_prefix_pivot = omf_cninfo_prefix_pivot(omf);

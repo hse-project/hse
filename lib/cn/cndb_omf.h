@@ -1,6 +1,6 @@
 /* SPDX-License-Identifier: Apache-2.0 */
 /*
- * Copyright (C) 2015-2021 Micron Technology, Inc.  All rights reserved.
+ * Copyright (C) 2015-2022 Micron Technology, Inc.  All rights reserved.
  */
 
 #ifndef HSE_KVS_CNDB_OMF_H
@@ -111,7 +111,7 @@ OMF_SETGET(struct cndb_ver_omf, cnver_captgt, 64);
  * If type is CNDB_TYPE_INFOD:
  *      appended when the KVS is deleted.
  *
- * @cninfo_fanout_bits: cn tree fanout bits
+ * @cninfo_fanout:     cn tree fanout
  * @cninfo_prefix_len: kvs prefix length
  * @cninfo_prefix_pivot: cn tree pivot level (for prefix trees only)
  * @cninfo_flags: flags (eg, capped kvs)
@@ -122,7 +122,7 @@ OMF_SETGET(struct cndb_ver_omf, cnver_captgt, 64);
  */
 struct cndb_info_omf {
     struct cndb_hdr_omf hdr;
-    uint32_t            cninfo_fanout_bits;
+    uint32_t            cninfo_fanout;
     uint32_t            cninfo_prefix_len;
     uint32_t            cninfo_sfx_len;
     uint32_t            cninfo_prefix_pivot;
@@ -133,7 +133,7 @@ struct cndb_info_omf {
     char                cninfo_meta[];
 } HSE_PACKED;
 
-OMF_SETGET(struct cndb_info_omf, cninfo_fanout_bits, 32);
+OMF_SETGET(struct cndb_info_omf, cninfo_fanout, 32);
 OMF_SETGET(struct cndb_info_omf, cninfo_prefix_len, 32);
 OMF_SETGET(struct cndb_info_omf, cninfo_sfx_len, 32);
 OMF_SETGET(struct cndb_info_omf, cninfo_prefix_pivot, 32);

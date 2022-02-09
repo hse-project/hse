@@ -303,7 +303,7 @@ MTF_DEFINE_UTEST_PREPOST(cn_cursor, create_prefix, pre, post)
     struct cn *        cn;
     struct mpool *     ds = (void *)-1;
     struct cndb        cndb;
-    struct cndb_cn     cndbcn = cndb_cn_initializer(3, 0, 0);
+    struct cndb_cn     cndbcn = cndb_cn_initializer(8, 0, 0);
     struct kvdb_kvs    kk = { 0 };
     struct kvs_cparams cp = {};
 
@@ -344,7 +344,7 @@ MTF_DEFINE_UTEST_PREPOST(cn_cursor, create_noprefix, pre, post)
     struct mpool *     ds = (void *)-1;
     merr_t             err;
     struct cndb        cndb;
-    struct cndb_cn     cndbcn = cndb_cn_initializer(3, 0, 0);
+    struct cndb_cn     cndbcn = cndb_cn_initializer(8, 0, 0);
     struct kvdb_kvs    kk = { 0 };
     struct kvs_cparams cp = {};
 
@@ -388,7 +388,7 @@ MTF_DEFINE_UTEST_PREPOST(cn_cursor, repeat_update, pre, post)
     struct cn_cursor     *cur;
     merr_t         err;
     struct cndb    cndb;
-    struct cndb_cn cndbcn = cndb_cn_initializer(3, 0, 0);
+    struct cndb_cn cndbcn = cndb_cn_initializer(8, 0, 0);
     struct cursor_summary sum;
     struct kvdb_kvs    kk = { 0 };
     struct kvs_cparams cp = {};
@@ -466,7 +466,7 @@ MTF_DEFINE_UTEST_PREPOST(cn_cursor, root_1kvset, pre, post)
 
     merr_t             err;
     struct cndb        cndb;
-    struct cndb_cn     cndbcn = cndb_cn_initializer(3, 0, 0);
+    struct cndb_cn     cndbcn = cndb_cn_initializer(8, 0, 0);
     struct kvdb_kvs    kk = { 0 };
     struct kvs_cparams cp = {};
 
@@ -543,7 +543,7 @@ MTF_DEFINE_UTEST_PREPOST(cn_cursor, root_4kvsets, pre, post)
     merr_t              err;
     int                 i;
     struct cndb         cndb;
-    struct cndb_cn      cndbcn = cndb_cn_initializer(3, 0, 0);
+    struct cndb_cn      cndbcn = cndb_cn_initializer(8, 0, 0);
     struct kvs_cparams  cp = {};
 
     struct kvdb_kvs kk = { 0 };
@@ -647,7 +647,7 @@ MTF_DEFINE_UTEST_PREPOST(cn_cursor, prefix_tree, pre, post)
     int                 i;
 
     struct cndb        cndb;
-    struct cndb_cn     cndbcn = cndb_cn_initializer(2, 0, 0);
+    struct cndb_cn     cndbcn = cndb_cn_initializer(4, 0, 0);
     struct kvs_cparams cp = {};
 
     struct kvdb_kvs kk = { 0 };
@@ -798,7 +798,7 @@ MTF_DEFINE_UTEST_PREPOST(cn_cursor, cursor_seek, pre, post)
     int                 i;
 
     struct cndb    cndb;
-    struct cndb_cn cndbcn = cndb_cn_initializer(2, 0, 0);
+    struct cndb_cn cndbcn = cndb_cn_initializer(4, 0, 0);
 
     struct kvdb_kvs kk = { 0 };
 
@@ -985,7 +985,7 @@ MTF_DEFINE_UTEST_PREPOST(cn_cursor, capped_update, pre, post)
     struct cn_cursor *    cur;
     merr_t                err;
     struct cndb           cndb;
-    struct cndb_cn        cndbcn = cndb_cn_initializer(3, 0, 0);
+    struct cndb_cn        cndbcn = cndb_cn_initializer(8, 0, 0);
     struct cursor_summary sum;
     struct kvdb_kvs       kk = { 0 };
     struct kvs_cparams    cp = {};
@@ -1135,7 +1135,7 @@ MTF_DEFINE_UTEST_PREPOST(cn_cursor, capped_update_errors, pre, post)
     struct cn_cursor *    cur;
     merr_t                err;
     struct cndb           cndb;
-    struct cndb_cn        cndbcn = cndb_cn_initializer(3, 0, 0);
+    struct cndb_cn        cndbcn = cndb_cn_initializer(8, 0, 0);
     struct cursor_summary sum;
     struct kvdb_kvs       kk = { 0 };
     struct kvs_cparams    cp = {};

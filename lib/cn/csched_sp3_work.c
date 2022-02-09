@@ -351,6 +351,7 @@ sp3_work_node_idle(
     struct list_head *head;
 
     uint idlec = thresh->llen_idlec;
+    uint vgroups = 0;
     uint runlen = 0;
 
     tn = spn2tn(spn);
@@ -362,20 +363,17 @@ sp3_work_node_idle(
     list_for_each_entry(le, head, le_link) {
         if (kvset_get_compc(le->le_kvset) >= idlec)
             break;
+
+        vgroups += kvset_get_vgroups(le->le_kvset);
         *mark = le;
         ++runlen;
     }
 
-    if (runlen < SP3_LLEN_RUNLEN_MIN)
+    if (runlen < SP3_LLEN_RUNLEN_MIN || runlen >= vgroups)
         return 0;
 
-    *action = CN_ACTION_COMPACT_K;
-    *rule = CN_CR_LSHORT_IDLE;
-
-    if (kvset_get_vgroups((*mark)->le_kvset) > 1) {
-        *action = CN_ACTION_COMPACT_KV;
-        *rule = CN_CR_LSHORT_IDLE_VG;
-    }
+    *action = CN_ACTION_COMPACT_KV;
+    *rule = CN_CR_LSHORT_IDLE_VG;
 
     return runlen;
 }
