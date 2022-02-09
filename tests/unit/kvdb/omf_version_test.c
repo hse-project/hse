@@ -1,6 +1,6 @@
 /* SPDX-License-Identifier: Apache-2.0 */
 /*
- * Copyright (C) 2021 Micron Technology, Inc.  All rights reserved.
+ * Copyright (C) 2021-2022 Micron Technology, Inc.  All rights reserved.
  */
 
 #include <mtf/framework.h>
@@ -20,15 +20,15 @@ MTF_DEFINE_UTEST(omf_version_test, global_version)
      */
 
      /* Global OMF version */
-    ASSERT_EQ(GLOBAL_OMF_VERSION, 2);
+    ASSERT_EQ(GLOBAL_OMF_VERSION, 3);
 
     /* Low-level OMF versions */
-    ASSERT_EQ(CNDB_VERSION, 12);
+    ASSERT_EQ(CNDB_VERSION, 13);
     ASSERT_EQ(KBLOCK_HDR_VERSION, 5);
     ASSERT_EQ(VBLOCK_HDR_VERSION, 2);
     ASSERT_EQ(BLOOM_OMF_VERSION, 5);
     ASSERT_EQ(WBT_TREE_VERSION, 6);
-    ASSERT_EQ(CN_TSTATE_VERSION, 1);
+    ASSERT_EQ(CN_TSTATE_VERSION, 2);
     ASSERT_EQ(MBLOCK_METAHDR_VERSION, 2);
     ASSERT_EQ(MDC_LOGHDR_VERSION, 2);
     ASSERT_EQ(WAL_VERSION, 2);
