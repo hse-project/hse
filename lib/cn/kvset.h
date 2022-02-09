@@ -525,10 +525,10 @@ kc_kblock_check(struct mpool *ds, u64 kblkid, struct vb_meta *vb_meta);
  * @ds:     handle to the kvdb dataset
  * @cp:     kvs create-time params
  * @meta:   kvset_meta data
- * @khmapv: key hashmap
+ * @tree:   cn tree ptr
  */
 merr_t
-kc_kvset_check(struct mpool *ds, struct kvs_cparams *cp, struct kvset_meta *meta, u8 *khmapv);
+kc_kvset_check(struct mpool *ds, struct kvs_cparams *cp, struct kvset_meta *meta, struct cn_tree *tree);
 
 /**
  * kvset_iter_next_val_direct() -  read value via direct io

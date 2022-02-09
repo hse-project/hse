@@ -196,8 +196,6 @@ cndb_cn_blob_set(struct cndb *cndb, u64 cnid, size_t blobsz, void *blob);
  * @idx:          target index
  * @cnid:         cnid
  * @flags:        cn flags
- * @fanout_bits:  fanout bits
- * @pfx_len:       prefix length
  * @name:         KVS name
  * @namelen:      size of buffer backing @name
  */

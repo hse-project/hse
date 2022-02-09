@@ -451,16 +451,15 @@ MTF_DEFINE_UTEST_PRE(test, t_cn_tree_create_node, test_setup)
     merr_t          err;
     struct cn_tree *tree;
     uint            max_depth, depth, off;
-    uint            fan, fbits;
+    uint            fanout;
     uint            api;
 
-    for (fbits = CN_FANOUT_BITS_MIN; fbits <= CN_FANOUT_BITS_MAX; fbits++) {
+    for (fanout = CN_FANOUT_MIN; fanout <= CN_FANOUT_MAX; fanout++) {
         struct kvs_cparams cp = { 0 };
 
-        fan = 1 << fbits;
-        max_depth = cn_tree_max_depth(fbits);
+        max_depth = cn_tree_max_depth(fanout);
 
-        cp.fanout = fan;
+        cp.fanout = fanout;
         cp.sfx_len = 0;
         err = cn_tree_create(&tree, NULL, 0, &cp, &mock_health, rp);
         ASSERT_EQ(err, 0);
@@ -475,18 +474,18 @@ MTF_DEFINE_UTEST_PRE(test, t_cn_tree_create_node, test_setup)
         for (depth = max_depth + 1; depth-- > 0;) {
 
             /* invalid node offset. */
-            off = nodes_in_level(fbits, depth);
+            off = nodes_in_level(fanout, depth);
             err = cn_tree_create_node(tree, depth, off, 0);
             ASSERT_EQ(merr_errno(err), EINVAL);
 
             /* right side of tree */
-            off = nodes_in_level(fbits, depth) - 1;
+            off = nodes_in_level(fanout, depth) - 1;
             err = cn_tree_create_node(tree, depth, off, 0);
             ASSERT_EQ(err, 0);
 
             /* middle of tree */
             if (depth > 1) {
-                off = fan * depth - 1;
+                off = fanout * depth - 1;
                 err = cn_tree_create_node(tree, depth, off, 0);
                 ASSERT_EQ(err, 0);
             }

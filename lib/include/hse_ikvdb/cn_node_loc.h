@@ -1,12 +1,14 @@
 /* SPDX-License-Identifier: Apache-2.0 */
 /*
- * Copyright (C) 2015-2020 Micron Technology, Inc.  All rights reserved.
+ * Copyright (C) 2015-2020,2022 Micron Technology, Inc.  All rights reserved.
  */
 
 #ifndef HSE_KVS_CN_CN_NODE_LOC_H
 #define HSE_KVS_CN_CN_NODE_LOC_H
 
 #include <hse_util/platform.h>
+#include <hse_util/log2.h>
+
 #include <hse_ikvdb/limits.h>
 
 /**
@@ -55,6 +57,12 @@ struct cn_node_loc {
     u32 node_offset;
 };
 
+static inline uint
+cn_tree_fanout2bits(uint fanout)
+{
+    return ilog2(fanout - 1) + 1;
+}
+
 /**
  * cn_tree_max_depth() - get max supported cn tree depth for a given fanout
  * @fbits: fanout, in bits (e.g.: fbits = 3 --> fanout of 8)
@@ -99,13 +107,16 @@ struct cn_node_loc {
  *    12    4096  64  32        5        2          2     16,777,216        16
  */
 static inline uint
-cn_tree_max_depth(uint fbits)
+cn_tree_max_depth(uint fanout)
 {
-    uint depth[] = { 0, 31, 15, 10, 7, 6, 5, 4, 3, 3, 3, 2, 2 };
+    static const uint depth[] = { 0, 31, 15, 10, 7, 6, 5, 4, 3, 3, 3, 2, 2 };
+    uint fbits;
 
-    assert(CN_FANOUT_BITS_MAX + 1 == NELEM(depth));
-    assert(CN_FANOUT_BITS_MAX >= fbits);
-    assert(CN_FANOUT_BITS_MIN <= fbits);
+    assert(fanout >= CN_FANOUT_MIN);
+    assert(fanout <= CN_FANOUT_MAX);
+
+    fbits = cn_tree_fanout2bits(fanout);
+    assert(fbits > 0 && fbits < NELEM(depth));
 
     return depth[fbits];
 }
@@ -121,10 +132,13 @@ cn_tree_max_depth(uint fbits)
  *
  */
 static inline u32
-nodes_in_level(u32 fanout_bits, u32 level)
+nodes_in_level(u32 fanout, u32 level)
 {
-    assert(fanout_bits * level < 32);
-    return (u32)1 << (fanout_bits * level);
+    uint fbits = cn_tree_fanout2bits(fanout);
+
+    assert(fbits * level < 32);
+
+    return (u32)1 << (fbits * level);
 }
 
 /**
@@ -149,9 +163,11 @@ nodes_in_level(u32 fanout_bits, u32 level)
  *      parent_node   == (2,3)
  */
 static inline u32
-node_parent_offset(u32 fanout_bits, struct cn_node_loc *loc)
+node_parent_offset(u32 fanout, const struct cn_node_loc *loc)
 {
-    return loc->node_offset >> fanout_bits;
+    uint fbits = cn_tree_fanout2bits(fanout);
+
+    return loc->node_offset >> fbits;
 }
 
 /**
@@ -176,15 +192,11 @@ node_parent_offset(u32 fanout_bits, struct cn_node_loc *loc)
  *      child[2].node   == (3,7)
  */
 static inline u32
-node_nth_child_offset(u32 fanout_bits, struct cn_node_loc *loc, u32 nth)
+node_nth_child_offset(u32 fanout, const struct cn_node_loc *loc, u32 nth)
 {
-    return (loc->node_offset << fanout_bits) + nth;
-}
+    uint fbits = cn_tree_fanout2bits(fanout);
 
-static inline u32
-node_first_child_offset(u32 fanout_bits, struct cn_node_loc *loc)
-{
-    return node_nth_child_offset(fanout_bits, loc, 0);
+    return (loc->node_offset << fbits) + nth;
 }
 
 #endif

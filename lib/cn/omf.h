@@ -258,7 +258,7 @@ struct cn_tstate_omf {
 
     uint32_t ts_khm_gen;
     uint32_t ts_khm_rsvd;
-    uint8_t  ts_khm_mapv[CN_TSTATE_KHM_SZ];
+    uint16_t ts_khm_mapv[CN_TSTATE_KHM_SZ];
 } HSE_PACKED;
 
 OMF_SETGET(struct cn_tstate_omf, ts_magic, 32)

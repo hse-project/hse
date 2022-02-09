@@ -532,9 +532,7 @@ kvset_create2(
     assert(n_kblks);
 
     if (rp->cn_verify) {
-        struct cn_khashmap *map = cn_tree_get_khashmap(tree);
-
-        kc_kvset_check(ds, cp, km, map->khm_mapv);
+        kc_kvset_check(ds, cp, km, tree);
     }
 
     /* map kblocks */

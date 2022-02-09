@@ -222,20 +222,6 @@ tree_iter_next(struct cn_tree *tree, struct tree_iter *iter)
     return visit;
 }
 
-static inline u32
-path_step_to_target(struct cn_tree *tree, struct cn_node_loc *tgt, u32 curr_level)
-{
-    u32 shift = 0, child_branch;
-    u32 fanout_bits = ilog2(tree->ct_cp->fanout);
-
-    if (tgt->node_level > curr_level)
-        shift = fanout_bits * (tgt->node_level - 1 - curr_level);
-
-    child_branch = (tgt->node_offset >> shift) & tree->ct_fanout_mask;
-
-    return child_branch;
-}
-
 static size_t
 cn_node_size(void)
 {
@@ -277,7 +263,7 @@ cn_node_alloc(struct cn_tree *tree, uint level, uint offset)
         u64 scale;
         u64 hi = tree->rp->cn_node_size_hi << 20;
         u64 lo = tree->rp->cn_node_size_lo << 20;
-        u64 nodes = nodes_in_level(ilog2(tree->ct_cp->fanout), level);
+        u64 nodes = nodes_in_level(tree->ct_fanout, level);
 
         /* Scale by large value (1<<20) to get adequate resolution. */
         assert(nodes);
@@ -311,12 +297,6 @@ cn_node_isroot(const struct cn_tree_node *tn)
     return !tn->tn_parent;
 }
 
-uint
-cn_node_level(const struct cn_tree_node *node)
-{
-    return node->tn_loc.node_level;
-}
-
 /**
  * cn_tree_create() - add node to tree during initial tree creation
  *
@@ -339,7 +319,7 @@ cn_tree_create(
 
     assert(health);
 
-    if (ev(cp->fanout < 1 << CN_FANOUT_BITS_MIN || cp->fanout > 1 << CN_FANOUT_BITS_MAX))
+    if (ev(cp->fanout < CN_FANOUT_MIN || cp->fanout > CN_FANOUT_MAX))
         return merr(EINVAL);
 
     if (ev(cp->pfx_len > HSE_KVS_PFX_LEN_MAX))
@@ -351,8 +331,7 @@ cn_tree_create(
 
     memset(tree, 0, sizeof(*tree));
     tree->ct_cp = cp;
-    tree->ct_fanout_bits = ilog2(cp->fanout);
-    tree->ct_fanout_mask = tree->ct_cp->fanout - 1;
+    tree->ct_fanout = cp->fanout;
     tree->ct_pfx_len = cp->pfx_len;
     tree->ct_sfx_len = cp->sfx_len;
 
@@ -368,7 +347,7 @@ cn_tree_create(
         tree->ct_tstate = tstate;
     }
 
-    tree->ct_depth_max = cn_tree_max_depth(tree->ct_fanout_bits);
+    tree->ct_depth_max = cn_tree_max_depth(tree->ct_fanout);
 
     tree->ct_kvdb_health = health;
     tree->rp = rp;
@@ -512,81 +491,18 @@ cn_tree_is_replay(const struct cn_tree *tree)
  * SECTION: CN_TREE Internal Functions to map node locations to node pointers
  */
 
-/**
- * cn_tree_find_parent_child_link() - Find the parent->child link for a
- *                                    child at given target location.
- * @tree: tree to search
- * @tgt: (input) location of child node
- * @parent: (output) ptr to child's parent
- * @link: (output) ptr to parent's child ptr (eg, &parent->child[2])
- *
- * Notes:
- *  - The target node need not exist.  Use cn_tree_find_node()
- *    if you need to map a node location to an existing node.
- *  - On return, if @parent == NULL, then the target node is
- *    the root of the tree.
- */
-/* [HSE_REVISIT] This is old code and is currently only used in unit tests
- * to see if a node is in a tree.  Remove it from here and implement
- * find_node() in the unit test itself.
- */
-static merr_t
-cn_tree_find_parent_child_link(
-    struct cn_tree *       tree,
-    struct cn_node_loc *   tgt,
-    struct cn_tree_node ** parent_out,
-    struct cn_tree_node ***link_out)
+static inline u32
+path_step_to_target(struct cn_tree *tree, struct cn_node_loc *tgt, u32 curr_level)
 {
-    struct cn_tree_node * parent;
-    struct cn_tree_node **link;
-    u32                   level;
+    u32 fbits = cn_tree_fanout2bits(tree->ct_fanout);
+    u32 shift = 0, child_branch;
 
-    if (tgt->node_level > tree->ct_depth_max)
-        return merr(ev(EINVAL));
+    if (tgt->node_level > curr_level)
+        shift = fbits * (tgt->node_level - 1 - curr_level);
 
-    if (tgt->node_offset >= nodes_in_level(tree->ct_fanout_bits, tgt->node_level))
-        return merr(ev(EINVAL));
+    child_branch = (tgt->node_offset >> shift) % tree->ct_fanout;
 
-    parent = NULL;
-    link = &tree->ct_root;
-
-    for (level = 0; level < tgt->node_level; level++) {
-        u32 branch;
-
-        if (!*link)
-            return merr(ev(EINVAL));
-        branch = path_step_to_target(tree, tgt, level);
-        parent = *link;
-        link = &parent->tn_childv[branch];
-    }
-
-    *parent_out = parent;
-    *link_out = link;
-    return 0;
-}
-
-/**
- * cn_tree_find_node() - Map a node location to a node pointer.
- *
- * @tree: tree to search
- * @loc: (input) node location
- *
- * Returns NULL if tree @tree has no node at location @loc.
- */
-/* [HSE_REVISIT] This is old code and is currently only used in unit tests
- * to see if a node is in a tree.  Remove it from here and implement
- * find_node() in the unit test itself.
- */
-struct cn_tree_node *
-cn_tree_find_node(struct cn_tree *tree, struct cn_node_loc *loc)
-{
-    struct cn_tree_node * parent;
-    struct cn_tree_node **link = 0; /* for gcc4.4 */
-
-    if (cn_tree_find_parent_child_link(tree, loc, &parent, &link))
-        return NULL;
-
-    return *link;
+    return child_branch;
 }
 
 /**
@@ -611,7 +527,7 @@ cn_tree_create_node(
     uint                  level, offset;
 
     if (node_level > tree->ct_depth_max ||
-        node_offset >= nodes_in_level(tree->ct_fanout_bits, node_level))
+        node_offset >= nodes_in_level(tree->ct_fanout, node_level))
         return merr(ev(EINVAL));
 
     loc.node_level = node_level;
@@ -629,6 +545,7 @@ cn_tree_create_node(
             *link = cn_node_alloc(tree, level, offset);
             if (!*link)
                 return merr(ev(ENOMEM));
+
             (*link)->tn_parent = parent;
 
             parent->tn_childc++;
@@ -640,7 +557,7 @@ cn_tree_create_node(
         }
 
         cx = path_step_to_target(tree, &loc, level);
-        offset = node_nth_child_offset(tree->ct_fanout_bits, &(*link)->tn_loc, cx);
+        offset = node_nth_child_offset(tree->ct_fanout, &(*link)->tn_loc, cx);
         parent = *link;
         link = &(*link)->tn_childv[cx];
     }
@@ -1112,17 +1029,59 @@ unlock:
     rmlock_runlock(lock);
 }
 
-static HSE_ALWAYS_INLINE uint
-khashmap2child(struct cn_khashmap *khashmap, u64 hash, uint shift, uint level)
+static HSE_ALWAYS_INLINE uint64_t
+cn_tree_level2hash(uint64_t hash, uint level)
 {
-    uint child = hash >> (shift * level);
+    level = (level * 17) % 64;
+
+    if (level > 0)
+        hash = (hash << level) | (hash >> (64 - level));
+
+    return hash;
+}
+
+uint
+cn_tree_route_lookup(struct cn_tree *tree, uint64_t hash, uint level)
+{
+    hash = cn_tree_level2hash(hash, level);
+
+    if (tree->ct_khashmap)
+        hash = tree->ct_khashmap->khm_mapv[hash % CN_TSTATE_KHM_SZ];
+
+    return (hash % tree->ct_fanout);
+}
+
+uint
+cn_tree_route_create(struct cn_tree *tree, uint64_t hash, uint level)
+{
+    struct cn_khashmap *khashmap = tree->ct_khashmap;
+    uint child;
+
+    hash = cn_tree_level2hash(hash, level);
 
     if (khashmap) {
-        child %= CN_TSTATE_KHM_SZ;
-        child = khashmap->khm_mapv[child];
+        uint idx = hash % CN_TSTATE_KHM_SZ;
+
+        child = khashmap->khm_mapv[idx];
+
+        /* Compute a key hash map index from the lower bits of the hash,
+         * and use it look up the child node index.  The first time we
+         * encounter an unheretofore seen khashmap index we compute
+         * the successively next child node index, thereby distributing
+         * child node indexes evenly across hashes.
+         */
+        if (HSE_UNLIKELY(child == 0)) {
+            spin_lock(&khashmap->khm_lock);
+            while (khashmap->khm_mapv[idx] == 0)
+                khashmap->khm_mapv[idx] = (khashmap->khm_gen += 3);
+            child = khashmap->khm_mapv[idx];
+            spin_unlock(&khashmap->khm_lock);
+        }
+    } else {
+        child = hash;
     }
 
-    return child;
+    return (child % tree->ct_fanout);
 }
 
 /**
@@ -1180,11 +1139,9 @@ cn_tree_lookup(
     struct kvs_buf *     vbuf)
 {
     struct cn_tree_node *    node;
-    struct cn_khashmap *     khashmap;
     struct key_disc          kdisc;
     void *                   lock;
     merr_t                   err;
-    u32                      shift;
     uint                     pc_nkvset;
     uint                     pc_depth;
     enum kvdb_perfc_sidx_cnget pc_cidx;
@@ -1216,12 +1173,6 @@ cn_tree_lookup(
     key_disc_init(kt->kt_data, kt->kt_len, &kdisc);
 
     node = tree->ct_root;
-    shift = tree->ct_fanout_bits;
-    khashmap = tree->ct_khashmap;
-    if (khashmap) {
-        shift = CN_KHASHMAP_SHIFT;
-        __builtin_prefetch(khashmap);
-    }
 
     pfx_hashing = kt->kt_len > tree->ct_pfx_len && node->tn_pfx_spill;
     first = true;
@@ -1297,8 +1248,7 @@ cn_tree_lookup(
             }
         }
 
-        child = khashmap2child(khashmap, spill_hash, shift, pc_depth);
-        child &= tree->ct_fanout_mask;
+        child = cn_tree_route_lookup(tree, spill_hash, pc_depth);
         node = node->tn_childv[child];
 
         __builtin_prefetch(node);
@@ -1337,12 +1287,6 @@ void
 cn_tree_set_initial_dgen(struct cn_tree *tree, u64 dgen)
 {
     tree->ct_dgen_init = dgen;
-}
-
-u32
-cn_tree_fanout_bits(const struct cn_tree *tree)
-{
-    return tree->ct_fanout_bits;
 }
 
 bool
@@ -1611,7 +1555,7 @@ cn_tree_prepare_compaction(struct cn_compaction_work *w)
     bool                     oldest;
     struct workqueue_struct *vra_wq;
 
-    fanout = 1 << w->cw_tree->ct_fanout_bits;
+    fanout = w->cw_tree->ct_fanout;
     n_outs = fanout;
 
     /* if we are compacting, we only have a single output */
@@ -1700,16 +1644,7 @@ cn_tree_prepare_compaction(struct cn_compaction_work *w)
     w->cw_outv = outs;
     w->cw_vbmap = vbm;
     w->cw_drop_tombv = drop_tombs;
-    w->cw_hash_shift = 0;
-
-    if (n_outs > 1) {
-        uint bits = w->cw_tree->ct_fanout_bits;
-
-        if (cn_tree_get_khashmap(w->cw_tree))
-            bits = CN_KHASHMAP_SHIFT;
-
-        w->cw_hash_shift = bits * node->tn_loc.node_level;
-    }
+    w->cw_level = w->cw_node->tn_loc.node_level;
 
     return 0;
 
@@ -1733,8 +1668,6 @@ err_exit:
  * Ideally, this code would live in cn_cursor.c, but the create function
  * deeply understands the cn_tree traversal and locking models.
  */
-
-#define hash_bits(C, L) (((C)->pfxhash >> ((C)->shift * (L))) & (C)->mask)
 
 /*
  * Min heap comparator.
@@ -1812,7 +1745,6 @@ cn_tree_cursor_create(struct cn_cursor *cur, struct cn_tree *tree)
 {
     struct workqueue_struct *vra_wq;
     struct cn_tree_node *    node;
-    struct cn_khashmap *     khashmap;
     struct kvset_list_entry *le;
     void *                   lock;
     struct table *           view;
@@ -1820,7 +1752,6 @@ cn_tree_cursor_create(struct cn_cursor *cur, struct cn_tree *tree)
     struct kv_iterator **    kv_iter;
     struct element_source ** esrc;
     uint                     iterc;
-    uint                     shift;
     enum kvset_iter_flags    flags;
 
     merr_t err = 0;
@@ -1849,8 +1780,6 @@ cn_tree_cursor_create(struct cn_cursor *cur, struct cn_tree *tree)
      */
 
     node = tree->ct_root;
-    khashmap = cn_tree_get_khashmap(tree);
-    shift = khashmap ? CN_KHASHMAP_SHIFT : cur->shift;
 
     rmlock_rlock(&tree->ct_lock, &lock);
     cur->dgen = cn_get_ingest_dgen(cur->cn);
@@ -1910,8 +1839,7 @@ cn_tree_cursor_create(struct cn_cursor *cur, struct cn_tree *tree)
             uint child;
 
             /* descend by prefix hash */
-            child = khashmap2child(khashmap, cur->pfxhash, shift, level);
-            child &= cur->mask;
+            child = cn_tree_route_lookup(tree, cur->pfxhash, level);
             node = node->tn_childv[child];
         } else {
             /* switch from prefix key hash to full key hash */
@@ -2796,11 +2724,11 @@ cn_comp_commit_spill(struct cn_compaction_work *work, struct kvset **kvsets)
     struct spill_child *     childv;
 
     /* Precondition: n_outputs == tree fanout */
-    assert(work->cw_outc == tree->ct_cp->fanout);
-    if (ev(work->cw_outc != tree->ct_cp->fanout))
+    assert(work->cw_outc == tree->ct_fanout);
+    if (ev(work->cw_outc != tree->ct_fanout))
         return merr(EBUG);
 
-    childv = calloc(tree->ct_cp->fanout, sizeof(*childv));
+    childv = calloc(tree->ct_fanout, sizeof(*childv));
     if (!childv)
         return merr(EBUG);
 
@@ -2816,7 +2744,7 @@ cn_comp_commit_spill(struct cn_compaction_work *work, struct kvset **kvsets)
             childv[cx].node = cn_node_alloc(
                 tree,
                 node->tn_loc.node_level + 1,
-                node_nth_child_offset(tree->ct_fanout_bits, &node->tn_loc, cx));
+                node_nth_child_offset(tree->ct_fanout, &node->tn_loc, cx));
             if (ev(!childv[cx].node)) {
                 err = merr(ENOMEM);
                 goto done;
@@ -2942,7 +2870,7 @@ cn_comp_commit(struct cn_compaction_work *w)
             km.km_compc = 0;
             km.km_node_level = w->cw_node->tn_loc.node_level + 1;
             km.km_node_offset =
-                node_nth_child_offset(w->cw_tree->ct_fanout_bits, &w->cw_node->tn_loc, i);
+                node_nth_child_offset(w->cw_tree->ct_fanout, &w->cw_node->tn_loc, i);
         } else {
             struct kvset_list_entry *le = w->cw_mark;
 
@@ -3470,6 +3398,24 @@ cn_tree_fini(void)
 }
 
 #if HSE_MOCKING
+struct cn_tree_node *
+cn_tree_find_node(struct cn_tree *tree, const struct cn_node_loc *loc)
+{
+    struct cn_tree_node *tn;
+    struct tree_iter iter;
+
+    tree_iter_init(tree, &iter, TRAVERSE_TOPDOWN);
+
+    while (NULL != (tn = tree_iter_next(tree, &iter))) {
+        if (tn->tn_loc.node_offset == loc->node_offset &&
+            tn->tn_loc.node_level == loc->node_level) {
+            break;
+        }
+    }
+
+    return tn;
+}
+
 #include "cn_tree_ut_impl.i"
 #include "cn_tree_compact_ut_impl.i"
 #include "cn_tree_create_ut_impl.i"

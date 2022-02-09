@@ -152,7 +152,7 @@ kv_spill_prepare(struct cn_tstate_omf *omf, void *arg)
 
     spin_lock(&khashmap->khm_lock);
     if (khashmap->khm_gen > khashmap->khm_gen_committed) {
-        omf_set_ts_khm_mapv(omf, khashmap->khm_mapv, CN_TSTATE_KHM_SZ);
+        omf_set_ts_khm_mapv(omf, khashmap->khm_mapv, sizeof(khashmap->khm_mapv));
         omf_set_ts_khm_gen(omf, khashmap->khm_gen);
     }
     spin_unlock(&khashmap->khm_lock);
@@ -241,7 +241,6 @@ kv_spill(struct cn_compaction_work *w)
     if (!more || ev(err))
         goto done;
 
-    khashmap = cn_tree_get_khashmap(w->cw_tree);
     cn_sfx_len = w->cw_cp->sfx_len;
 
     /* We must issue a direct read for all values that will not fit into
@@ -285,30 +284,11 @@ new_key:
 
     hash = pfx_obj_hash64(&curr.kobj, hashlen);
 
-    if (khashmap) {
-        u8 * mapv = khashmap->khm_mapv;
-        uint idx;
-
-        /* Compute a key hash map index from the lower bits of the hash,
-         * and use it look up the child node index.  The first time we
-         * encounter an unheretofore seen khashmap index we compute
-         * the successively next child node index, thereby distributing
-         * child node indexes evenly across hashes.
-         */
-        idx = (hash >> w->cw_hash_shift) % CN_TSTATE_KHM_SZ;
-
-        if (HSE_UNLIKELY(mapv[idx] == 0)) {
-            spin_lock(&khashmap->khm_lock);
-            while (mapv[idx] == 0)
-                mapv[idx] = (khashmap->khm_gen += 3);
-            spin_unlock(&khashmap->khm_lock);
-        }
-        cnum = mapv[idx];
+    if (w->cw_outc > 1) {
+        cnum = cn_tree_route_create(w->cw_tree, hash, w->cw_level);
     } else {
-        cnum = (hash >> w->cw_hash_shift);
+        cnum = 0;
     }
-
-    cnum &= (w->cw_outc - 1);
     child = w->cw_child[cnum];
 
     bg_val = false;
@@ -573,6 +553,7 @@ done:
      * if it changed while we were using it (regardless of who changed it,
      * and especially if we changed it, regardless of error).
      */
+    khashmap = cn_tree_get_khashmap(w->cw_tree);
     if (khashmap) {
         merr_t err2;
         bool   update;

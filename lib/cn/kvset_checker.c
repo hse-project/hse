@@ -72,7 +72,7 @@ struct kb_info {
 
     /* tree shape info */
     struct kvs_cparams *cp;
-    u8 *                khmapv;
+    struct cn_tree     *tree;
 
     /* other kb data */
     u8 *              kmd;
@@ -192,9 +192,8 @@ kc_loc_check(struct kb_info *kb, struct key_obj *kobj, u64 *hash_out)
 
     u32 off = kb->offset;
     u32 level = kb->level;
-    u32 fanbits = ilog2(kb->cp->fanout);
+    u32 fanbits = cn_tree_fanout2bits(kb->cp->fanout);
     u32 fanmask = kb->cp->fanout - 1;
-    u8 *mapv = kb->khmapv;
 
     u8   key[HSE_KVS_KEY_LEN_MAX];
     uint klen;
@@ -214,18 +213,23 @@ kc_loc_check(struct kb_info *kb, struct key_obj *kobj, u64 *hash_out)
         pfxhash = hse_hash64(key, hashlen);
     }
 
+    /* [HSE_REVISIT] The kvck tool would like to verify the route of
+     * the given hash, but it does not have access to the cn tree.
+     * Perhaps we can pass it in by cnid and look it up?
+     */
+    if (!kb->tree)
+        return 0;
+
     /* Check if the key can land in this node. Verify if all relevant bits
      * of the hash lead up the right nodes to the root node.
      */
     for (i = level - 1; i >= 0; i--) {
         u64 *hash = i >= kb->cp->pfx_pivot ? &fullhash : &pfxhash;
-        u32  shift = CN_KHASHMAP_SHIFT * i;
-        u32  idx = (*hash >> shift) % CN_TSTATE_KHM_SZ;
         u32  cnum = off & fanmask;
 
         assert(*hash);
 
-        if (mapv[idx] % kb->cp->fanout != cnum) {
+        if (cn_tree_route_lookup(kb->tree, *hash, i) != cnum) {
             err = true;
             lfe_err(kb, "hash: key cannot reach node %u,%u", i + 1, off);
         }
@@ -907,7 +911,7 @@ kc_kblock_check(struct mpool *ds, u64 kblkid, struct vb_meta *vb_meta)
 }
 
 merr_t
-kc_kvset_check(struct mpool *ds, struct kvs_cparams *cp, struct kvset_meta *km, u8 *khmapv)
+kc_kvset_check(struct mpool *ds, struct kvs_cparams *cp, struct kvset_meta *km, struct cn_tree *tree)
 {
     int             i, kblk_cnt;
     bool            rc = false;
@@ -949,7 +953,7 @@ kc_kvset_check(struct mpool *ds, struct kvs_cparams *cp, struct kvset_meta *km, 
         kb_info.level = km->km_node_level;
         kb_info.offset = km->km_node_offset;
         kb_info.cp = cp;
-        kb_info.khmapv = khmapv;
+        kb_info.tree = tree;
 
         err = _kblock_check(&kb_info, vb_meta);
         if (err) {
