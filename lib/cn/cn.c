@@ -1201,7 +1201,7 @@ cn_open(
         " kb %lu%c/%lu vb %lu%c/%lu %s%s%s%s%s%s",
         cn->cn_kvdb_alias, cn->cn_kvsname, (ulong)cnid,
         cn->cp->fanout, cn->cp->pfx_len, cn->cp->pfx_pivot,
-        ctx.ckmk_node_level_max, cn_tree_max_depth(ilog2(cn->cp->fanout)),
+        ctx.ckmk_node_level_max, cn_tree_max_depth(cn->cp->fanout),
         ksz >> (kshift * 10), *kszsuf, kcnt,
         vsz >> (vshift * 10), *vszsuf, vcnt,
         rp->mclass_policy,
