@@ -275,12 +275,6 @@ tools = {
             'parm_groups.c',
         ),
     },
-    'wbtsize': {
-        'sources': files(
-            'wbtsize/wbtsize.c',
-            'parm_groups.c',
-        ),
-    },
     'wscan': {
         'sources': files(
             'wscan/wscan.c',
