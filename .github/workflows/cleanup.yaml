@@ -12,4 +12,4 @@ jobs:
         uses: styfle/cancel-workflow-action@0.9.1
         with:
           ignore_sha: true
-          workflow_id: ci.yaml
+          workflow_id: abicheck.yaml,builds.yaml,checkoss.yaml,docs.yaml,shellcheck.yaml

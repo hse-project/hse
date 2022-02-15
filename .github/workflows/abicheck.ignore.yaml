@@ -1,0 +1,23 @@
+name: ABI
+
+on:
+  pull_request:
+    types: [opened, synchronize, reopened]
+    paths:
+      - "**.md"
+      - ".github/ISSUE_TEMPLATE/**"
+      - ".github/workflows/**"
+      - "!.github/workflows/abicheck.yaml"
+      - .clang-format
+      - .gitattributes
+      - .gitignore
+      - .shellcheckrc
+      - LICENSE
+
+jobs:
+  check:
+    runs-on: ubuntu-latest
+
+    steps:
+      - run: |
+          echo "Skipping ${{ github.workflow }}/${{ github.job }}"
