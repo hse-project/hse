@@ -50,7 +50,7 @@ hse_cli_symlink = custom_target(
         '--force',
         '--symbolic',
         fs.name(hse_cli.full_path()),
-        meson.project_build_root() / '@OUTPUT@',
+        '@OUTPUT@',
     ],
     output: meson.project_name(),
 )
