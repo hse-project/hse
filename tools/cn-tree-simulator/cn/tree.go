@@ -128,8 +128,11 @@ func (t *Tree) splitNode(parent *node, src *node) *node {
 		kvsets: list.New(),
 	}
 
+	kblocks := src.kvsets.Len()
+	vblocks := 0
 	for kvset := src.kvsets.Back(); kvset != nil; kvset = kvset.Prev() {
 		src.splitKVSet(n, kvset.Value.(*kvSet))
+		vblocks += int(kvset.Value.(*kvSet).Vgroups)
 	}
 
 	for child := parent.children.Front(); child != nil; child = child.Next() {
@@ -140,6 +143,8 @@ func (t *Tree) splitNode(parent *node, src *node) *node {
 	}
 
 	t.nodeIdx++
+
+	t.root.stats.written += 2 * t.params.MblockSize * (uint64(kblocks) + uint64(vblocks))
 
 	return n
 }

@@ -9,6 +9,7 @@ type TreeParams struct {
 	PrintState  bool
 	KeyLength   uint
 	ValueLength uint
+	MblockSize  uint64
 
 	RootNode RootNodeParams
 	LeafNode LeafNodeParams

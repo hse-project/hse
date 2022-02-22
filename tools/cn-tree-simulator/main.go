@@ -40,6 +40,7 @@ func main() {
 	fs.BoolVar(&params.cn.Verbose, "verbose", false, "Print stats for every node")
 	fs.UintVar(&params.cn.KeyLength, "key-length", 1000, "Key length")
 	fs.UintVar(&params.cn.ValueLength, "value-length", 7000, "Value length")
+	fs.Uint64Var(&params.cn.MblockSize, "mblock-size", 32<<20, "Mblock size")
 	fs.Uint64Var(&params.cn.RootNode.SpillSize, "spill-size", 8<<30, "Spill size")
 	fs.Uint64Var(&params.cn.RootNode.InitialSpillSize, "initial-spill-size", 8<<30, "Initial spill size")
 	fs.Uint64Var(&params.cn.LeafNode.SplitSize, "split-size", 8<<30, "Split size")
