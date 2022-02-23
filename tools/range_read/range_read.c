@@ -18,6 +18,7 @@
 #include <getopt.h>
 #include <libgen.h>
 #include <sysexits.h>
+#include <stdlib.h>
 #include <sys/resource.h>
 
 #include <cli/param.h>
@@ -268,9 +269,7 @@ cursor(void *arg)
         fatal(ENOMEM, "Failed to allocate resources for cursor thread");
 
     if (opts.use_update) {
-        int i;
-
-        for (i = 0; i < opts.npfx; i++) {
+        for (int i = 0; i < opts.npfx; i++) {
             *p = htobe64(i);
             cur[i] = kh_cursor_create(targ->kvs, 0, NULL, kbuf, sizeof(*p));
         }
@@ -654,7 +653,7 @@ main(
     if (opts.phase & EXEC) {
         struct lat_hist *lat;
 
-        lat = malloc(opts.threads * sizeof(*lat));
+        lat = aligned_alloc(HSE_ACP_LINESIZE, sizeof(*lat) * opts.threads);
         if (!lat)
             fatal(ENOMEM, "Cannot allocate mmeory for histogram data");
 
