@@ -859,7 +859,7 @@ kblock_finish(struct kblock_builder *bld, struct wbb *ptree)
     uint          iov_max;
     uint          i, chunk;
     size_t        wlen;
-    uint          flags = 0;
+    uint32_t      flags = 0;
 
     merr_t err;
     u64    blkid = 0;

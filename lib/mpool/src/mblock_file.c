@@ -393,7 +393,7 @@ block_id(uint64_t mbid)
     return mbid & MBID_BLOCK_MASK;
 }
 
-static HSE_ALWAYS_INLINE uint64_t
+static HSE_ALWAYS_INLINE off_t
 block_off(uint64_t mbid, size_t mblocksz)
 {
     return ((uint64_t)block_id(mbid)) << ilog2(mblocksz);
@@ -795,7 +795,7 @@ mblock_file_alloc(struct mblock_file *mbfp, uint32_t flags, int mbidc, uint64_t 
     mbid |= (block - 1);
 
     if (flags & MPOOL_MBLOCK_PREALLOC) {
-        size_t mblocksz = mbfp->mblocksz;
+        off_t  mblocksz = mbfp->mblocksz;
         int    rc;
 
         rc = posix_fallocate(mbfp->fd, block_off(mbid, mblocksz), mblocksz);
@@ -904,12 +904,12 @@ mblock_file_commit(struct mblock_file *mbfp, uint64_t *mbidv, int mbidc)
     return 0;
 }
 
-merr_t
-mblock_file_abort(struct mblock_file *mbfp, uint64_t *mbidv, int mbidc)
+static merr_t
+mblock_file_abrt_or_del(struct mblock_file *mbfp, uint64_t *mbidv, int mbidc, bool delete)
 {
     uint32_t block;
+    off_t    mblocksz;
     merr_t   err;
-    size_t   mblocksz;
     int      rc;
 
     if (!mbfp || !mbidv)
@@ -923,13 +923,16 @@ mblock_file_abort(struct mblock_file *mbfp, uint64_t *mbidv, int mbidc)
     if (err)
         return err;
 
-    err = mblock_file_meta_validate(mbfp, mbidv, mbidc, false);
+    if (delete) {
+        err = mblock_file_meta_log(mbfp, mbidv, mbidc, delete);
+        if (!err)
+            atomic_sub(&mbfp->wlen, atomic_read(mbfp->wlenv + block));
+    } else {
+        err = mblock_file_meta_validate(mbfp, mbidv, mbidc, delete);
+    }
     if (err)
         return err;
 
-    /* Discard mblock as it might have been pre-allocated by the client or
-     * the client decided to abort after writing some data.
-     */
     mblocksz = mbfp->mblocksz;
     rc = fallocate(mbfp->fd, FALLOC_FL_PUNCH_HOLE | FALLOC_FL_KEEP_SIZE,
                    block_off(*mbidv, mblocksz), mblocksz);
@@ -946,45 +949,15 @@ mblock_file_abort(struct mblock_file *mbfp, uint64_t *mbidv, int mbidc)
 }
 
 merr_t
+mblock_file_abort(struct mblock_file *mbfp, uint64_t *mbidv, int mbidc)
+{
+    return mblock_file_abrt_or_del(mbfp, mbidv, mbidc, false);
+}
+
+merr_t
 mblock_file_delete(struct mblock_file *mbfp, uint64_t *mbidv, int mbidc)
 {
-    uint64_t block;
-    size_t   mblocksz;
-    merr_t   err;
-    int      rc;
-    bool delete = true;
-
-    if (!mbfp || !mbidv)
-        return merr(EINVAL);
-
-    if (mbidc > 1)
-        return merr(ENOTSUP);
-
-    block = block_id(*mbidv);
-    err = mblock_rgn_find(&mbfp->rgnmap, block + 1);
-    if (err)
-        return err;
-
-    /* First log the delete */
-    err = mblock_file_meta_log(mbfp, mbidv, mbidc, delete);
-    if (err)
-        return err;
-
-    /* Discard mblock */
-    mblocksz = mbfp->mblocksz;
-    rc = fallocate(mbfp->fd, FALLOC_FL_PUNCH_HOLE | FALLOC_FL_KEEP_SIZE,
-                   block_off(*mbidv, mblocksz), mblocksz);
-    ev(rc);
-
-    atomic_sub(&mbfp->wlen, atomic_read(mbfp->wlenv + block));
-    atomic_set(mbfp->wlenv + block, 0);
-    atomic_dec(&mbfp->mbcnt);
-
-    err = mblock_rgn_free(&mbfp->rgnmap, block + 1);
-    if (err)
-        return err;
-
-    return 0;
+    return mblock_file_abrt_or_del(mbfp, mbidv, mbidc, true);
 }
 
 static merr_t
@@ -1133,13 +1106,13 @@ chunk_idx(uint64_t mbid, size_t mblocksz)
     return block_off(mbid, mblocksz) >> mblock_mmap_cshift(mblocksz);
 }
 
-static HSE_ALWAYS_INLINE uint64_t
+static HSE_ALWAYS_INLINE off_t
 chunk_start_off(uint64_t mbid, size_t mblocksz)
 {
     return block_off(mbid, mblocksz) & mblock_mmap_cmask(mblocksz);
 }
 
-static HSE_ALWAYS_INLINE uint64_t
+static HSE_ALWAYS_INLINE off_t
 chunk_off(uint64_t mbid, size_t mblocksz)
 {
     return block_off(mbid, mblocksz) ^ chunk_start_off(mbid, mblocksz);
