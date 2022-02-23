@@ -176,11 +176,12 @@ mblock_file_close(struct mblock_file *mbfp);
  * mblock_file_alloc() - allocate a vector of mblock objects
  *
  * @mbfp:  mblock file handle
+ * @flags: mblock alloc flags
  * @mbidc: count of objects to allocate
  * @mbidv: vector of mblock ids (output)
  */
 merr_t
-mblock_file_alloc(struct mblock_file *mbfp, int mbidc, uint64_t *mbidv);
+mblock_file_alloc(struct mblock_file *mbfp, uint32_t flags, int mbidc, uint64_t *mbidv);
 
 /**
  * mblock_file_commit() - commit a vector of mblock objects

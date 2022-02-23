@@ -344,6 +344,7 @@ mpool_mdc_usage(struct mpool_mdc *mdc, uint64_t *allocated, uint64_t *used);
  *
  * @mp:     mpool
  * @mclass: media class
+ * @flags:  mblock alloc flags
  * @mbid:   mblock object ID (output)
  * @props:  properties of new mblock (output) - will be returned if the ptr is non-NULL
  *
@@ -353,7 +354,8 @@ mpool_mdc_usage(struct mpool_mdc *mdc, uint64_t *allocated, uint64_t *used);
 merr_t
 mpool_mblock_alloc(
     struct mpool *       mp,
-    enum hse_mclass    mclass,
+    enum hse_mclass      mclass,
+    uint32_t             flags,
     uint64_t *           mbid,
     struct mblock_props *props);
 

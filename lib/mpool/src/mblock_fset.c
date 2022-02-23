@@ -611,7 +611,7 @@ mblock_fset_close(struct mblock_fset *mbfsp)
 }
 
 merr_t
-mblock_fset_alloc(struct mblock_fset *mbfsp, int mbidc, uint64_t *mbidv)
+mblock_fset_alloc(struct mblock_fset *mbfsp, uint32_t flags, int mbidc, uint64_t *mbidv)
 {
     struct mblock_file *mbfp;
     merr_t err;
@@ -632,7 +632,7 @@ mblock_fset_alloc(struct mblock_fset *mbfsp, int mbidc, uint64_t *mbidv)
         mbfp = mbfsp->filev[fidx];
         assert(mbfp);
 
-        err = mblock_file_alloc(mbfp, mbidc, mbidv);
+        err = mblock_file_alloc(mbfp, flags, mbidc, mbidv);
         if (merr_errno(err) != ENOSPC)
             break;
     } while (retries-- > 0);

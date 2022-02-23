@@ -85,7 +85,8 @@ get_mblock(u64 id, struct mocked_mblock **mb)
 static merr_t
 _mpool_mblock_alloc(
     struct mpool *       mp,
-    enum hse_mclass    mclass,
+    enum hse_mclass      mclass,
+    uint32_t             flags,
     uint64_t *           handle,
     struct mblock_props *props)
 {

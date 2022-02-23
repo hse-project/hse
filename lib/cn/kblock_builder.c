@@ -859,6 +859,7 @@ kblock_finish(struct kblock_builder *bld, struct wbb *ptree)
     uint          iov_max;
     uint          i, chunk;
     size_t        wlen;
+    uint          flags = 0;
 
     merr_t err;
     u64    blkid = 0;
@@ -967,10 +968,14 @@ kblock_finish(struct kblock_builder *bld, struct wbb *ptree)
         goto errout;
     }
 
+    /* Set preallocate flag if this kblock's write length >= 90% of the mblock size */
+    if (wlen >= ((kblocksz * 9) / 10))
+        flags |= MPOOL_MBLOCK_PREALLOC;
+
     if (stats)
         tstart = get_time_ns();
 
-    err = mpool_mblock_alloc(bld->ds, mclass, &blkid, &mbprop);
+    err = mpool_mblock_alloc(bld->ds, mclass, flags, &blkid, &mbprop);
     if (ev(err))
         goto errout;
 

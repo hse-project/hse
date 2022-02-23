@@ -61,7 +61,7 @@ _vblock_start(struct vblock_builder *bld)
     if (ev(mclass == HSE_MCLASS_INVALID))
         return merr(EINVAL);
 
-    err = mpool_mblock_alloc(bld->ds, mclass, &blkid, &mbprop);
+    err = mpool_mblock_alloc(bld->ds, mclass, 0, &blkid, &mbprop);
     if (ev(err))
         return err;
 

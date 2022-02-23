@@ -759,7 +759,7 @@ mblock_uniq_gen(struct mblock_file *mbfp, uint32_t *uniqout)
 }
 
 merr_t
-mblock_file_alloc(struct mblock_file *mbfp, int mbidc, uint64_t *mbidv)
+mblock_file_alloc(struct mblock_file *mbfp, uint32_t flags, int mbidc, uint64_t *mbidv)
 {
     uint64_t mbid;
     uint32_t block, uniq;
@@ -793,6 +793,14 @@ mblock_file_alloc(struct mblock_file *mbfp, int mbidc, uint64_t *mbidv)
     mbid |= ((uint64_t)mbfp->fileid << MBID_FILEID_SHIFT);
     mbid |= ((uint64_t)mbfp->mcid << MBID_MCID_SHIFT);
     mbid |= (block - 1);
+
+    if (flags & MPOOL_MBLOCK_PREALLOC) {
+        size_t mblocksz = mbfp->mblocksz;
+        int    rc;
+
+        rc = posix_fallocate(mbfp->fd, block_off(mbid, mblocksz), mblocksz);
+        ev(rc); /* advisory */
+    }
 
     atomic_set(mbfp->wlenv + block - 1, 0);
     atomic_inc(&mbfp->mbcnt);
@@ -901,6 +909,8 @@ mblock_file_abort(struct mblock_file *mbfp, uint64_t *mbidv, int mbidc)
 {
     uint32_t block;
     merr_t   err;
+    size_t   mblocksz;
+    int      rc;
 
     if (!mbfp || !mbidv)
         return merr(EINVAL);
@@ -916,6 +926,14 @@ mblock_file_abort(struct mblock_file *mbfp, uint64_t *mbidv, int mbidc)
     err = mblock_file_meta_validate(mbfp, mbidv, mbidc, false);
     if (err)
         return err;
+
+    /* Discard mblock as it might have been pre-allocated by the client or
+     * the client decided to abort after writing some data.
+     */
+    mblocksz = mbfp->mblocksz;
+    rc = fallocate(mbfp->fd, FALLOC_FL_PUNCH_HOLE | FALLOC_FL_KEEP_SIZE,
+                   block_off(*mbidv, mblocksz), mblocksz);
+    ev(rc);
 
     atomic_set(mbfp->wlenv + block, 0);
     atomic_dec(&mbfp->mbcnt);
@@ -952,13 +970,10 @@ mblock_file_delete(struct mblock_file *mbfp, uint64_t *mbidv, int mbidc)
     if (err)
         return err;
 
-    mblocksz = mbfp->mblocksz;
     /* Discard mblock */
-    rc = fallocate(
-        mbfp->fd,
-        FALLOC_FL_PUNCH_HOLE | FALLOC_FL_KEEP_SIZE,
-        block_off(*mbidv, mblocksz),
-        mblocksz);
+    mblocksz = mbfp->mblocksz;
+    rc = fallocate(mbfp->fd, FALLOC_FL_PUNCH_HOLE | FALLOC_FL_KEEP_SIZE,
+                   block_off(*mbidv, mblocksz), mblocksz);
     ev(rc);
 
     atomic_sub(&mbfp->wlen, atomic_read(mbfp->wlenv + block));

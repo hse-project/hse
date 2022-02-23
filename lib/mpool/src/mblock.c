@@ -16,7 +16,8 @@ struct mpool;
 merr_t
 mpool_mblock_alloc(
     struct mpool        *mp,
-    enum hse_mclass    mclass,
+    enum hse_mclass      mclass,
+    uint32_t             flags,
     uint64_t            *mbid,
     struct mblock_props *props)
 {
@@ -31,7 +32,7 @@ mpool_mblock_alloc(
     if (ev(!mc))
         return merr(ENOENT);
 
-    err = mblock_fset_alloc(mclass_fset(mc), 1, mbid);
+    err = mblock_fset_alloc(mclass_fset(mc), flags, 1, mbid);
 
     if (!err && props) {
         props->mpr_objid = *mbid;
