@@ -18,25 +18,37 @@
 #include <getopt.h>
 #include <libgen.h>
 #include <sysexits.h>
+#include <stdlib.h>
 #include <sys/resource.h>
 
 #include <cli/param.h>
 
 #include "kvs_helper.h"
 
+#if HDR_HISTOGRAM_C_FROM_SUBPROJECT == 1
+#include <hdr_histogram.h>
+#else
+#include <hdr/hdr_histogram.h>
+#endif
+
 const char *progname;
 
 struct thread_info {
-    uint64_t    sfx_start;
-    uint64_t    sfx_end;
+    uint64_t              sfx_start;
+    uint64_t              sfx_end;
 } HSE_ACP_ALIGNED;
 
-#define DT_CNT 10 * 1000 * 1000
+enum lat_type {
+    LAT_CUR_CREATE = 0,
+    LAT_CUR_SEEK,
+    LAT_CUR_READ,
+    LAT_CUR_FULL,
+    LAT_GET_FULL,
+    LAT_CNT
+};
 
-struct delta_time {
-    u64 *dt;
-    uint dt_cnt;
-    uint dt_skip;
+struct lat_hist {
+    struct hdr_histogram *lat[LAT_CNT];
 } HSE_ACP_ALIGNED;
 
 enum phase {
@@ -46,40 +58,37 @@ enum phase {
 };
 
 struct opts {
-    char logdir[1024];
     char *blens;
     char *vsep;
     uint threads;
-    uint upd_threads;
-    uint warmup_threads;
     uint phase;
     uint nsfx;
-    uint sfx_start;
     uint vlen;
     uint npfx;
     uint duration;
     uint range;
     bool verify;
+    bool use_update;
+    uint warmup;
     char *tests;
 } opts = {
     .threads = 96,
-    .warmup_threads = 64,
-    .upd_threads = 0,
     .phase = NONE,
     .nsfx = 1000 * 1000,
-    .sfx_start = 0,
     .vlen  = 1024,
     .npfx  = 8,
     .duration = 300,
     .range = 42,
     .verify = false,
+    .use_update = false,
+    .warmup = false,
     .tests = "cursor,get",
 };
 
 static volatile bool stopthreads HSE_ACP_ALIGNED;
 
 atomic_ulong n_write HSE_ACP_ALIGNED;
-atomic_ulong n_cursor HSE_ACP_ALIGNED;
+atomic_ulong n_get HSE_ACP_ALIGNED;
 atomic_ulong n_read HSE_ACP_ALIGNED;
 
 
@@ -133,8 +142,6 @@ loader(void *arg)
     unsigned char        *val;
     u64                   nwrite;
 
-    xrand64_init(0);
-
     val = malloc(opts.vlen);
     if (!val)
         fatal(ENOMEM, "Failed to allocate resources for cursor thread");
@@ -176,23 +183,21 @@ rand_key(u64 *pfx, u64 *sfx)
 }
 
 void
-point_get(
-    void *arg)
+point_get(void *arg)
 {
     struct thread_arg    *targ = arg;
+    struct lat_hist      *lat = targ->arg;
     unsigned char        *vbuf;
     size_t                vlen;
     uint64_t             *p = 0; /* prefix */
     uint64_t             *s = 0; /* suffix */
     char                  kbuf[sizeof(*p) + sizeof(*s)];
 
-    struct delta_time    *dt = targ->arg;
-    uint                  dt_idx = 0;
-    const size_t          dt_size = dt ? DT_CNT : 0;
-    u64                   opcnt, ncursor, nread;
+    u64                   nget;
+    pthread_t             tid = pthread_self();
 
-    xrand64_init(0);
-    pthread_setname_np(pthread_self(), __func__);
+    xrand64_init(tid);
+    pthread_setname_np(tid, __func__);
 
     vbuf = malloc(opts.vlen);
     if (!vbuf)
@@ -201,85 +206,93 @@ point_get(
     p  = (uint64_t *)kbuf;
     s  = p + 1;
 
-    ncursor = 0;
-    nread = 0;
-    opcnt = 0;
+    nget = 0;
     while (!stopthreads) {
         uint64_t           pfx, sfx;
         int                i, inc = 1;
         bool               found;
-        u64                start, end;
+        u64                t_start, dt;
 
         rand_key(&pfx, &sfx);
 
         *p = htobe64(pfx);
-        start = get_time_ns();
+        t_start = get_time_ns();
         for (i = 0; i < opts.range && sfx < opts.nsfx; i++, sfx += inc) {
+            merr_t err;
 
             *s = htobe64(sfx);
-            hse_kvs_get(targ->kvs, 0, NULL, kbuf, sizeof(kbuf), &found, vbuf, opts.vlen, &vlen);
+            err = hse_kvs_get(targ->kvs, 0, 0, kbuf, sizeof(kbuf), &found, vbuf, opts.vlen, &vlen);
+            if (err)
+                fatal(err, "error");
             if (!found)
                 fatal(ENOKEY, "Key not found\n");
 
-            if (++nread % 1024 == 0)
-                atomic_add(&n_read, 1024);
+            if (++nget % 1024 == 0)
+                atomic_add(&n_get, 1024);
         }
-        end = get_time_ns();
-
-        if (dt && (opcnt % dt->dt_skip == 0) && dt_idx < dt_size)
-            dt->dt[dt_idx++] = end - start;
-
-        if (++ncursor % 128 == 0)
-            atomic_add(&n_cursor, 128);
-        opcnt++;
+        dt = get_time_ns() - t_start;
+        hdr_record_value(lat->lat[LAT_GET_FULL], dt);
     }
-    atomic_add(&n_read, nread & 1023);
-    atomic_add(&n_cursor, ncursor & 127);
 
-    if (dt)
-        dt->dt_cnt = dt_idx;
-
+    atomic_add(&n_get, nget & 1023);
     free(vbuf);
 }
 
 void
-cursor(
-    void *arg)
+cursor(void *arg)
 {
     struct thread_arg    *targ = arg;
+    struct lat_hist      *lat = targ->arg;
     unsigned char         kbuf[2 * sizeof(uint64_t)];
     unsigned char        *vbuf;
     uint64_t             *p = (void *)kbuf;
     uint64_t             *s = p + 1;
     bool                  eof = false;
 
-    struct delta_time    *dt = targ->arg;
-    uint                  dt_idx = 0;
-    u64                   opcnt, ncursor, nread;
-    const size_t          dt_size = DT_CNT;
+    u64                   nread;
+    pthread_t             tid = pthread_self();
 
-    pthread_setname_np(pthread_self(), __func__);
+    struct hse_kvs_cursor *cur[opts.npfx];
+
+    xrand64_init(tid);
+    pthread_setname_np(tid, __func__);
 
     vbuf = malloc(opts.vlen);
     if (!vbuf)
         fatal(ENOMEM, "Failed to allocate resources for cursor thread");
 
-    ncursor = 0;
+    if (opts.use_update) {
+        for (int i = 0; i < opts.npfx; i++) {
+            *p = htobe64(i);
+            cur[i] = kh_cursor_create(targ->kvs, 0, NULL, kbuf, sizeof(*p));
+        }
+    }
+
     nread = 0;
-    opcnt = 0;
     while (!stopthreads) {
-        struct hse_kvs_cursor *c;
         uint64_t           pfx, sfx;
         int                i, inc = 1;
-        u64                start;
+        u64                t_start;
+        u64                t_create, t_seek, t_read, t_full;
+        struct hse_kvs_cursor *c;
 
         rand_key(&pfx, &sfx);
         *p = htobe64(pfx);
         *s = htobe64(sfx);
 
-        start = get_time_ns();
-        c = kh_cursor_create(targ->kvs, 0, NULL, kbuf, sizeof(*p));
+        t_start = get_time_ns();
+
+        if (opts.use_update) {
+            c = cur[pfx];
+            kh_cursor_update_view(cur[pfx], 0);
+        } else {
+            c = cur[0] = kh_cursor_create(targ->kvs, 0, NULL, kbuf, sizeof(*p));
+        }
+
+        t_create = get_time_ns();
+
         kh_cursor_seek(c, kbuf, sizeof(kbuf));
+        t_seek = get_time_ns();
 
         /* read the range of keys */
         for (i = 0; i < opts.range; i++, sfx += inc) {
@@ -298,83 +311,66 @@ cursor(
 
             /* verify keys */
             *s = htobe64(sfx);
-            if (HSE_UNLIKELY(klen != sizeof(kbuf) ||
-                             memcmp(key, kbuf, klen)))
+            if (HSE_UNLIKELY(klen != sizeof(kbuf) || memcmp(key, kbuf, klen)))
                 fatal(ENOKEY, "unexpected key. Expected %lu-%lu "
                       "Got %lu-%lu\n", pfx, sfx,
                       be64toh(*(uint64_t *)key),
                       be64toh(*((uint64_t *)key + 1)));
         }
+        t_read = get_time_ns();
 
-        kh_cursor_destroy(c);
+        if (!opts.use_update)
+            kh_cursor_destroy(c);
 
-        if ((opcnt % dt->dt_skip == 0) && dt_idx < dt_size)
-            dt->dt[dt_idx++] = get_time_ns() - start;
+        t_full = get_time_ns();
 
-        if (++ncursor % 128 == 0)
-            atomic_add(&n_cursor, 128);
+        hdr_record_value(lat->lat[LAT_CUR_CREATE], t_create - t_start);
+        hdr_record_value(lat->lat[LAT_CUR_SEEK], t_seek - t_create);
+        hdr_record_value(lat->lat[LAT_CUR_READ], t_read - t_seek);
+        hdr_record_value(lat->lat[LAT_CUR_FULL], t_full - t_start);
     }
+
     atomic_add(&n_read, nread & 1023);
-    atomic_add(&n_cursor, ncursor & 127);
-
-    if (dt)
-        dt->dt_cnt = dt_idx;
-
     free(vbuf);
+
+    if (opts.use_update) {
+        int i;
+
+        for (i = 0; i < NELEM(cur); i++)
+            kh_cursor_destroy(cur[i]);
+    }
 }
 
 void
-print_stats(
-    void *arg)
+print_stats()
 {
-    struct thread_arg    *targ = arg;
     uint32_t second = 0;
-    uint64_t nw, nr, nc;
-    uint64_t last_writes = 0, last_reads = 0, last_cursors = 0;
-    char logfile[2048];
-    FILE *logfd;
-
-    snprintf(logfile, sizeof(logfile), "%s/%s", opts.logdir, (char *)targ->arg);
-    logfd = fopen(logfile, "w");
-    if (!logfd)
-        fatal(errno, "Could not open log file %s", logfile);
-
-    fprintf(logfd, "\n%s%s%s%s%s%s%s%s%s%s%s%s%s%s%s\n",
-            "timestamp", opts.vsep,
-            "elapsed", opts.vsep,
-            "writes", opts.vsep,
-            "reads", opts.vsep,
-            "cursors", opts.vsep,
-            "lRate", opts.vsep,
-            "rRate", opts.vsep,
-            "cRate");
+    uint64_t nw, nr, ng;
+    uint64_t last_writes = 0, last_reads = 0, last_gets = 0;
 
     while (!stopthreads) {
         usleep(999 * 1000);
 
         nw = atomic_read(&n_write);
         nr = atomic_read(&n_read);
-        nc = atomic_read(&n_cursor);
+        ng = atomic_read(&n_get);
 
-        fprintf(logfd, "%lu%s%u%s%lu%s%lu%s%lu%s%lu%s%lu%s%lu\n",
-                gtod_usec(), opts.vsep,
-                second, opts.vsep,
-                nw, opts.vsep,
-                nr, opts.vsep,
-                nc, opts.vsep,
-                nw - last_writes, opts.vsep,
-                nr - last_reads, opts.vsep,
-                nc - last_cursors);
-        fflush(logfd);
+        if (second % 20 == 0)
+            printf("\n%18s %8s %12s %8s %12s %8s %12s %8s\n",
+                   "timestamp", "elapsed", "tPut", "iPut", "tRead", "iRead", "tGet", "iGet");
 
-        last_writes  = nw;
-        last_reads   = nr;
-        last_cursors = nc;
+        printf("%18lu %8u %12lu %8lu %12lu %8lu %12lu %8lu\n",
+                gtod_usec(), second,
+                nw, nw - last_writes,
+                nr, nr - last_reads,
+                ng, ng - last_gets);
+
+        last_writes = nw;
+        last_reads  = nr;
+        last_gets   = ng;
 
         second++;
     }
-
-    fclose(logfd);
 }
 
 /* Driver */
@@ -401,31 +397,68 @@ usage(void)
         "-c vsep    string to separate values in log file (default: [%s])\n"
         "-d dur     Duration of exec in seconds (default: %u)\n"
         "-e         Exec\n"
-        "-f logdir  Log directory (default: %s)\n"
         "-h         Print this help menu\n"
         "-j jobs    Number of threads (default: %u)\n"
         "-l         Load\n"
         "-p npfx    Number of prefixes (default: %u)\n"
         "-s nsfx    Number of suffixes per prefix (default: %u)\n"
-        "-S start   Starting suffix (default: %u)\n"
         "-T tests   List of tests to run (default: \"%s\")\n"
+        "-u         Reuse cursor (default: %s)\n"
         "-V         Verify data (default: %s)\n"
         "-v vlen    Value length (default: %u)\n"
-        "-w wjobs   number of warmup threads (default: %u)\n"
+        "-w         Warmup the cache (default: %s)\n"
         "-Z config  path to global config file\n"
         "\n",
-        progname, opts.vsep, opts.duration, opts.logdir,
-        opts.threads, opts.npfx, opts.nsfx, opts.sfx_start,
-        opts.tests, opts.verify ? "true" : "false",
-        opts.vlen, opts.warmup_threads);
+        progname, opts.vsep, opts.duration, opts.threads,
+        opts.npfx, opts.nsfx,
+        opts.tests, opts.use_update ? "true" : "false",
+        opts.verify ? "true" : "false",
+        opts.vlen, opts.warmup ? "true" : "false");
 
     printf(
         "Examples:\n\n"
         "  1. Load:\n"
-        "    %s mp1 kvs1 -j96 -p4 -s10000 -l\n\n"
+        "    %s /mnt/kvdb kvs1 -j96 -p4 -s10000 -l\n\n"
         "  2. Exec:\n"
-        "    %s mp1 kvs1 -j96 -p4 -s10000 -e -b10,20,25 -d60\n"
+        "    %s /mnt/kvdb kvs1 -j96 -p4 -s10000 -e -b10,20,25 -d60 -w\n"
         "\n", progname, progname);
+}
+
+static void
+print_hist_one(const char *opname, unsigned long cnt, struct hdr_histogram *hist)
+{
+    unsigned long sample_cnt, min, max, mean, stdev, lat90, lat95, lat99, lat999, lat9999;
+    const char *lat_fmt = "%12s: %16lu %8lu %12lu %8lu %8lu %8lu %8lu %8lu %8lu %12lu\n";
+
+    sample_cnt = cnt;
+    min = hdr_min(hist);
+    max = hdr_max(hist);
+    mean = hdr_mean(hist);
+    stdev = hdr_stddev(hist);
+    lat90 = hdr_value_at_percentile(hist, 90.0);
+    lat95 = hdr_value_at_percentile(hist, 95.0);
+    lat99 = hdr_value_at_percentile(hist, 99.0);
+    lat999 = hdr_value_at_percentile(hist, 99.9);
+    lat9999 = hdr_value_at_percentile(hist, 99.99);
+
+    printf(lat_fmt, opname, sample_cnt, min, max, mean, stdev, lat90, lat95, lat99, lat999, lat9999);
+}
+
+void
+print_hist(struct lat_hist *lat, unsigned long cur_cnt, unsigned long get_cnt)
+{
+    const char *hdr_fmt = "%12s %17s %8s %12s %8s %8s %8s %8s %8s %8s %12s\n";
+
+    printf(hdr_fmt, "operation", "samples", "min", "max", "mean", "stddev", "90.0", "95.0", "99.0", "99.9", "99.99");
+    if (strcasestr(opts.tests, "cursor")) {
+        print_hist_one("cur_create", cur_cnt, lat->lat[LAT_CUR_CREATE]);
+        print_hist_one("cur_seek", cur_cnt, lat->lat[LAT_CUR_SEEK]);
+        print_hist_one("cur_read", cur_cnt, lat->lat[LAT_CUR_READ]);
+        print_hist_one("cur_full", cur_cnt, lat->lat[LAT_CUR_FULL]);
+    }
+
+    if (strcasestr(opts.tests, "get"))
+        print_hist_one("get_full", get_cnt, lat->lat[LAT_GET_FULL]);
 }
 
 int
@@ -438,7 +471,7 @@ main(
     struct svec         kvdb_oparms = { 0 };
     struct svec         kvs_cparms = { 0 };
     struct svec         kvs_oparms = { 0 };
-    int                 i, rc;
+    int                 rc;
     const char         *mpool, *kvs, *config = NULL;
     int                 c;
     struct thread_info *ti = 0;
@@ -453,9 +486,7 @@ main(
 
     opts.vsep = ",";
 
-    strncpy(opts.logdir, "/tmp/range_read_logs", sizeof(opts.logdir));
-
-    while ((c = getopt(argc, argv, ":b:c:d:ef:hj:lp:s:S:T:Vv:w:Z:")) != -1) {
+    while ((c = getopt(argc, argv, ":b:c:d:ehj:lp:s:T:uVv:wZ:")) != -1) {
         char *errmsg, *end;
 
         errmsg = end = NULL;
@@ -478,9 +509,6 @@ main(
         case 'e':
             opts.phase |= EXEC;
             break;
-        case 'f':
-            strncpy(opts.logdir, optarg, sizeof(opts.logdir) - 1);
-            break;
         case 'h':
             usage();
             exit(0);
@@ -499,14 +527,13 @@ main(
             opts.nsfx = strtoul(optarg, &end, 0);
             errmsg = "invalid number of suffixes";
             break;
-        case 'S':
-            opts.sfx_start = strtoul(optarg, &end, 0);
-            errmsg = "invalid suffix start";
-            break;
         case 'T':
             opts.tests = strdup(optarg);
             errmsg = "invalid tests";
             freet = true;
+            break;
+        case 'u':
+            opts.use_update = true;
             break;
         case 'V':
             opts.verify = true;
@@ -516,8 +543,7 @@ main(
             errmsg = "invalid value length";
             break;
         case 'w':
-            opts.warmup_threads = strtoul(optarg, &end, 0);
-            errmsg = "invalid warmup threads count";
+            opts.warmup = true;
             break;
         case 'Z':
             config = optarg;
@@ -580,15 +606,10 @@ main(
         exit(EX_USAGE);
     }
 
-    rc = mkdir(opts.logdir, 0755);
-    if (rc!= 0 && errno != EEXIST)
-        fatal(errno, "Cannot create directory for logs");
-
     if (opts.phase & LOAD) {
         uint thread_share;
         uint thread_extra;
         uint tot_keys;
-        char logfile[1024];
 
         thread_share = opts.nsfx / opts.threads;
         thread_extra = opts.nsfx % opts.threads;
@@ -599,8 +620,8 @@ main(
             fatal(ENOMEM, "Cannot allocate memory for thread data");
 
         /* distribute suffixes across jobs */
-        for (i = 0; i < opts.threads; i++) {
-            ti[i].sfx_start = opts.sfx_start + (thread_share * i);
+        for (int i = 0; i < opts.threads; i++) {
+            ti[i].sfx_start = thread_share * i;
             ti[i].sfx_end   = ti[i].sfx_start + thread_share;
 
             if (i == opts.threads - 1)
@@ -610,68 +631,64 @@ main(
         /* Start all the loaders in a detached state so we can have them
          * running while the exec phase is running too.
          */
-        stopthreads = false;
-        snprintf(logfile, sizeof(logfile), "rr_load_%u.log", opts.sfx_start);
-        kh_register(KH_FLAG_DETACH, &print_stats, logfile);
-        for (i = 0; i < opts.threads; i++)
-            kh_register_kvs(kvs, KH_FLAG_DETACH, &kvs_cparms, &kvs_oparms, &loader, &ti[i]);
+        kh_register(0, &print_stats, 0);
+        for (int i = 0; i < opts.threads; i++)
+            kh_register_kvs(kvs, 0, &kvs_cparms, &kvs_oparms, &loader, &ti[i]);
 
-        while (!stopthreads && atomic_read(&n_write) < tot_keys)
+        while (atomic_read(&n_write) < tot_keys)
             sleep(5);
     }
 
     if (opts.phase & EXEC) {
-        long tot_mem;
-        uint warmup_nkeys;
-        uint tot_keys;
-        char logfile[2048];
+        struct lat_hist *lat;
 
-        stopthreads = false;
+        lat = aligned_alloc(HSE_ACP_LINESIZE, sizeof(*lat) * opts.threads);
+        if (!lat)
+            fatal(ENOMEM, "Cannot allocate mmeory for histogram data");
 
-        tot_mem = system_memory();
-        warmup_nkeys = tot_mem / (opts.vlen + (2 * sizeof(uint64_t)));
-        tot_keys = opts.npfx * opts.nsfx;
-        warmup_nkeys = warmup_nkeys < tot_keys ? warmup_nkeys : tot_keys;
+        for (int i = 0; i < opts.threads; i++) {
+            for (int l = 0; l < LAT_CNT; l++)
+                hdr_init(1, 10UL * 1000 * 1000 * 1000, 4, &lat[i].lat[l]);
+        }
 
-        printf("Memory %lu\n", tot_mem);
-        printf("Warmup %u\n", warmup_nkeys);
+        if (opts.warmup) {
+            long tot_mem;
+            uint warmup_nkeys;
+            uint tot_keys;
 
-        /* 1. Warm up mcache using point gets */
-        printf("Warming up cache\n");
-        opts.range=1;
-        atomic_set(&n_cursor, 0);
-        atomic_set(&n_read, 0);
+            stopthreads = false;
 
-        snprintf(logfile, sizeof(logfile), "rr_warmup.log");
-        kh_register(0, &print_stats, logfile);
+            tot_mem = system_memory();
+            warmup_nkeys = tot_mem / (opts.vlen + (2 * sizeof(uint64_t)));
+            tot_keys = opts.npfx * opts.nsfx;
+            warmup_nkeys = warmup_nkeys < tot_keys ? warmup_nkeys : tot_keys;
+            warmup_nkeys = (warmup_nkeys * 3) / 2;
 
-        for (i = 0; i < opts.warmup_threads; i++)
-            kh_register_kvs(kvs, 0, &kvs_cparms, &kvs_oparms, &point_get, 0);
+            /* 1. Warm up mcache using point gets */
+            printf("System memory %lu\n", tot_mem);
+            printf("Warmup keycnt %u\n", warmup_nkeys);
+            opts.range=1;
+            atomic_set(&n_get, 0);
+            atomic_set(&n_read, 0);
 
-        while (!stopthreads && atomic_read(&n_read) < warmup_nkeys)
-            sleep(5);
+            for (int i = 0; i < opts.threads; i++)
+                kh_register_kvs(kvs, 0, &kvs_cparms, &kvs_oparms, &point_get, &lat[i]);
 
-        stopthreads = true;
-        kh_wait();
+            while (!stopthreads && atomic_read(&n_get) < warmup_nkeys)
+                sleep(5);
+
+            stopthreads = true;
+            kh_wait();
+        }
 
         /* 2. Start actual test */
         printf("Starting test\n");
 
-        struct delta_time *dt;
-        dt = malloc(opts.threads * sizeof(*dt));
-        if (!dt)
-            fatal(ENOMEM, "Failed to allocate memory for latencies");
-
-        for (i = 0; i < opts.threads; i++) {
-            rc = posix_memalign((void **)&dt[i].dt, __alignof__(*dt[i].dt), sizeof(*dt[i].dt) * DT_CNT);
-            if (rc)
-                fatal(rc, "Failed to allocate memory for latency buffers");
-        }
-
-        char *s;
-        s = strsep(&opts.blens, ",.;:/");
+        char *s = strsep(&opts.blens, ",.;:/");
         while (s) {
             uint duration;
+            unsigned long get_cnt= 0;
+            unsigned long cur_cnt= 0;
             int j;
             struct op {
                 const char *opname;
@@ -681,28 +698,30 @@ main(
                 {.opname = "get",    .opfunc = &point_get},
             };
 
+            /* hdr_reset take a while, so reset the histograms upfront before all the op
+             * threads are started.
+             */
+            for (int i = 0; i < opts.threads; i++) {
+                for (int l = 0; l < LAT_CNT; l++)
+                    hdr_reset(lat[i].lat[l]);
+            }
+
             opts.range = strtoul(s, 0, 0);
-            printf("npfx %u nsfx %u burst Len %u\n", opts.npfx, opts.nsfx, opts.range);
-
-            for (j = 0; j < 2; j++) {
-                FILE *logfd;
-
+            for (j = 0; j < NELEM(op); j++) {
                 if (!strcasestr(opts.tests, op[j].opname))
                     continue;
 
-                atomic_set(&n_cursor, 0);
+                atomic_set(&n_get, 0);
                 atomic_set(&n_read, 0);
+
+                printf("%s: npfx %u nsfx %u burstlen %u\n",
+                       op[j].opname, opts.npfx, opts.nsfx, opts.range);
+
                 stopthreads = false;
 
-                snprintf(logfile, sizeof(logfile), "rr_%s_%s_out.log", op[j].opname, s);
-                kh_register(0, &print_stats, logfile);
-
-                for (i = 0; i < opts.threads; i++) {
-                    memset(dt[i].dt, 0x00, DT_CNT);
-                    dt[i].dt_skip = 5;
-                    dt[i].dt_cnt = 0;
-                    kh_register_kvs(kvs, 0, &kvs_cparms, &kvs_oparms, op[j].opfunc, &dt[i]);
-                }
+                kh_register(0, &print_stats, 0);
+                for (int i = 0; i < opts.threads; i++)
+                    kh_register_kvs(kvs, 0, &kvs_cparms, &kvs_oparms, op[j].opfunc, &lat[i]);
 
                 duration = opts.duration;
                 while (!stopthreads && duration--)
@@ -711,29 +730,31 @@ main(
                 stopthreads = true;
                 kh_wait();
 
-                snprintf(logfile, sizeof(logfile), "%s/rr_%s_%s_lat_out.log", opts.logdir, op[j].opname, s);
-                logfd = fopen(logfile, "w");
-                for (i = 0; i < opts.threads; i++) {
-                    struct delta_time d = dt[i];
-                    int k;
-
-                    for (k = 0; k < d.dt_cnt; k++)
-                        fprintf(logfd, "%lu\n", d.dt[k]);
-                }
-                fclose(logfd);
-
+                get_cnt = atomic_read(&n_get) ?: 0;
+                cur_cnt = atomic_read(&n_get) ?: 0;
             }
+
+            /* Accumulate latency data into lat[0].
+             */
+            for (int i = 1; i < opts.threads; i++) {
+                for (int l = 0; l < LAT_CNT; l++)
+                    hdr_add(lat[0].lat[l], lat[i].lat[l]);
+            }
+
+            printf("\nLatency summary (ns):\n");
+            print_hist(&lat[0], cur_cnt, get_cnt);
 
             s = strsep(&opts.blens, ",.;:/");
         }
-        for (i = 0; i < opts.threads; i++)
-            free(dt[i].dt);
 
-        free(dt);
+        for (int i = 0; i < opts.threads; i++) {
+            for (int l = 0; l < LAT_CNT; l++)
+                hdr_close(lat[i].lat[l]);
+        }
+
+        free(lat);
     }
 
-    stopthreads = true;
-    kh_wait_all(); /* Catch all threads - including detached */
     kh_fini();
 
     free(ti);
