@@ -187,4 +187,39 @@ MTF_DEFINE_UTEST_PREPOST(kvs_cursor_test, basic_test, test_pre, test_post)
     verify_range(lcl_ti, "pq", 3, 7);
 }
 
+MTF_DEFINE_UTEST(kvs_cursor_test, val_copy_null_cursor)
+{
+    merr_t err;
+
+    err = kvs_cursor_val_copy(NULL, NULL, 0, (const void **)-1, (size_t *)-1);
+    ASSERT_EQ(EINVAL, merr_errno(err));
+}
+
+MTF_DEFINE_UTEST_PREPOST(kvs_cursor_test, val_copy_null_val_out, test_pre, test_post)
+{
+    merr_t                 err;
+    struct hse_kvs_cursor *cur;
+    size_t                 value_len = 0;
+    char *                 data = "test";
+    bool                   eof = false;
+
+    insert_key(lcl_ti, data);
+
+    cur = kvs_cursor_alloc(kvs, NULL, 0, false);
+    ASSERT_NE(NULL, cur);
+
+    err = kvs_cursor_init(cur, NULL);
+    ASSERT_EQ(0, merr_errno(err));
+
+    err = kvs_cursor_read(cur, 0, &eof);
+    ASSERT_EQ(0, err);
+    ASSERT_FALSE(eof);
+
+    err = kvs_cursor_val_copy(cur, NULL, 0, NULL, &value_len);
+    ASSERT_EQ(0, merr_errno(err));
+    ASSERT_EQ(strlen(data), value_len);
+
+    kvs_cursor_destroy(cur);
+}
+
 MTF_END_UTEST_COLLECTION(kvs_cursor_test);
