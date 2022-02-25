@@ -74,11 +74,12 @@ mblock_fset_close(struct mblock_fset *mbfsp);
  * mblock_fset_alloc() - allocate object from an mblock fileset
  *
  * @mbfsp: mblock fileset handle
+ * @flags: mblock alloc flags
  * @mbidc: mblock count (support only mbidc == 1)
  * @mbidv: mblock id (output)
  */
 merr_t
-mblock_fset_alloc(struct mblock_fset *mbfsp, int mbidc, uint64_t *mbidv);
+mblock_fset_alloc(struct mblock_fset *mbfsp, uint32_t flags, int mbidc, uint64_t *mbidv);
 
 /**
  * mblock_fset_commit() - commit mblocks

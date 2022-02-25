@@ -86,7 +86,7 @@ MTF_DEFINE_UTEST_PREPOST(mcache_test, mcache_api, mpool_test_pre, mpool_test_pos
     randomize_buffer(buf, bufsz, bufsz + 17);
 
     for (i = 0; i < 32; i++) {
-        err = mpool_mblock_alloc(mp, HSE_MCLASS_CAPACITY, &mbidv[i], NULL);
+        err = mpool_mblock_alloc(mp, HSE_MCLASS_CAPACITY, 0, &mbidv[i], NULL);
         ASSERT_EQ(0, err);
 
         err = mblock_write(mp, mbidv[i], buf, PAGE_SIZE * (i + 1));
@@ -191,7 +191,8 @@ MTF_DEFINE_UTEST_PREPOST(mcache_test, mcache_api, mpool_test_pre, mpool_test_pos
     ASSERT_EQ(0, merr_errno(err));
 
     for (i = 0; i < 32; i++) {
-        err = mpool_mblock_alloc(mp, i % 2 ? HSE_MCLASS_CAPACITY : HSE_MCLASS_STAGING, &mbidv[i], NULL);
+        err = mpool_mblock_alloc(mp, i % 2 ? HSE_MCLASS_CAPACITY : HSE_MCLASS_STAGING, 0,
+                                 &mbidv[i], NULL);
         ASSERT_EQ(0, err);
 
         err = mblock_write(mp, mbidv[i], buf, PAGE_SIZE * (i + 1));
@@ -268,7 +269,7 @@ MTF_DEFINE_UTEST_PREPOST(mcache_test, mcache_invalid_args, mpool_test_pre, mpool
     err = mpool_open(home, &trparams, O_RDWR, &mp);
     ASSERT_EQ(0, err);
 
-    err = mpool_mblock_alloc(mp, HSE_MCLASS_CAPACITY, &mbid, NULL);
+    err = mpool_mblock_alloc(mp, HSE_MCLASS_CAPACITY, 0, &mbid, NULL);
     ASSERT_EQ(0, err);
 
     mc = mpool_mclass_handle(mp, HSE_MCLASS_CAPACITY);
