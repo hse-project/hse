@@ -1140,16 +1140,16 @@ kvs_cursor_key_copy(
 
 merr_t
 kvs_cursor_val_copy(
-    struct hse_kvs_cursor  *cursor,
-    void                   *buf,
-    size_t                  bufsz,
-    const void            **val_out,
-    size_t                 *vlen_out)
+    struct hse_kvs_cursor *cursor,
+    void *buf,
+    size_t bufsz,
+    const void **val_out,
+    size_t *vlen_out)
 {
     struct kvs_cursor_impl *cur;
-    struct kvs_vtuple *     vt;
-    uint                    clen;
-    merr_t                  err = 0;
+    struct kvs_vtuple *vt;
+    uint clen;
+    merr_t err = 0;
 
     if (!cursor)
         return merr(EINVAL);
@@ -1174,11 +1174,11 @@ kvs_cursor_val_copy(
         if (ev(err))
             return err;
 
-        if (ev(outlen != min_t(u64, vt->vt_xlen, bufsz)))
+        if (ev(outlen != min_t(u64, kvs_vtuple_vlen(vt), bufsz)))
             return EBUG;
 
     } else {
-        memcpy(buf, vt->vt_data, min_t(u64, vt->vt_xlen, bufsz));
+        memcpy(buf, vt->vt_data, min_t(u64, kvs_vtuple_vlen(vt), bufsz));
     }
 
     if (val_out)
@@ -1186,7 +1186,7 @@ kvs_cursor_val_copy(
 
 out:
     if (vlen_out)
-        *vlen_out = vt->vt_xlen;
+        *vlen_out = kvs_vtuple_vlen(vt);
 
     return 0;
 }

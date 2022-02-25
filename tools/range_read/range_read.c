@@ -730,8 +730,8 @@ main(
                 stopthreads = true;
                 kh_wait();
 
-                get_cnt = atomic_read(&n_get) ?: 0;
-                cur_cnt = atomic_read(&n_get) ?: 0;
+                get_cnt = atomic_read(&n_get) ?: get_cnt;
+                cur_cnt = atomic_read(&n_read) ?: cur_cnt;
             }
 
             /* Accumulate latency data into lat[0].
