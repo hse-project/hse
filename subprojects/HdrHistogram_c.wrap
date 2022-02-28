@@ -1,6 +1,6 @@
 [wrap-file]
-directory = HdrHistogram_c-0.11.2
+directory = HdrHistogram_c-0.11.5
 
-source_url = https://github.com/HdrHistogram/HdrHistogram_c/archive/refs/tags/0.11.2.tar.gz
-source_filename = 0.11.2.tar.gz
-source_hash = 637f28b5f64de2e268131e4e34e6eef0b91cf5ff99167db447d9b2825eae6bad
+source_url = https://github.com/HdrHistogram/HdrHistogram_c/archive/refs/tags/0.11.5.tar.gz
+source_filename = 0.11.5.tar.gz
+source_hash = f81a192b62ae25bcebe63c9f3c74f371d04f88a74c1867532ec8a0012a9e482c
