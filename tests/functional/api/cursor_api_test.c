@@ -1,6 +1,6 @@
 /* SPDX-License-Identifier: Apache-2.0 */
 /*
- * Copyright (C) 2021 Micron Technology, Inc.  All rights reserved.
+ * Copyright (C) 2021-2022 Micron Technology, Inc.  All rights reserved.
  */
 
 #include <hse/hse.h>
@@ -881,23 +881,6 @@ MTF_DEFINE_UTEST(cursor_api_test, read_copy_null_valbuf_with_valbuf_sz)
         (size_t *)-1,
         NULL,
         8,
-        (size_t *)-1,
-        (bool *)-1);
-    ASSERT_EQ(EINVAL, hse_err_to_errno(err));
-}
-
-MTF_DEFINE_UTEST(cursor_api_test, read_copy_null_valbuf_with_val_len)
-{
-    hse_err_t err;
-
-    err = hse_kvs_cursor_read_copy(
-        (struct hse_kvs_cursor *)-1,
-        0,
-        (void *)-1,
-        8,
-        (size_t *)-1,
-        NULL,
-        0,
         (size_t *)-1,
         (bool *)-1);
     ASSERT_EQ(EINVAL, hse_err_to_errno(err));

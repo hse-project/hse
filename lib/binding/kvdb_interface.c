@@ -1369,11 +1369,8 @@ hse_kvs_cursor_read_copy(
     if (HSE_UNLIKELY(!valbuf && valbuf_sz > 0))
         return merr(EINVAL);
 
-    if (HSE_UNLIKELY(!!valbuf ^ !!val_len))
-        return merr(EINVAL);
-
     err = ikvdb_kvs_cursor_read_copy(cursor, flags, keybuf, keybuf_sz, key_len,
-                                valbuf, valbuf_sz, val_len, eof);
+        valbuf, valbuf_sz, val_len, eof);
     ev(err);
 
     if (!err && !*eof) {

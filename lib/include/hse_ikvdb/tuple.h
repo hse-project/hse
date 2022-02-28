@@ -1,12 +1,13 @@
 /* SPDX-License-Identifier: Apache-2.0 */
 /*
- * Copyright (C) 2015-2021 Micron Technology, Inc.  All rights reserved.
+ * Copyright (C) 2015-2022 Micron Technology, Inc.  All rights reserved.
  */
 
 #ifndef HSE_CORE_TUPLE_H
 #define HSE_CORE_TUPLE_H
 
-#include <hse_util/inttypes.h>
+#include <stdint.h>
+
 #include <hse_util/hse_err.h>
 #include <hse_util/key_util.h>
 #include <hse_util/seqno.h>
@@ -37,12 +38,12 @@ enum key_lookup_res {
 /* clang-format on */
 
 struct kvs_ktuple {
-    u64         kt_hash;
+    uint64_t    kt_hash;
     const void *kt_data;
-    s32         kt_len;
-    u32         kt_flags;
-    u64         kt_seqno;
-    u64         kt_dgen;
+    int32_t     kt_len;
+    uint32_t    kt_flags;
+    uint64_t    kt_seqno;
+    uint64_t    kt_dgen;
 };
 
 /**
@@ -55,14 +56,14 @@ struct kvs_ktuple {
  * instead encodes a special value (e.g., a tomb).
  */
 struct kvs_vtuple {
-    void *vt_data;
-    u64   vt_xlen;
+    void    *vt_data;
+    uint64_t vt_xlen;
 };
 
 struct kvs_buf {
-    void *b_buf;
-    u32   b_buf_sz;
-    u32   b_len;
+    void    *b_buf;
+    uint32_t b_buf_sz;
+    uint32_t b_len;
 };
 
 struct kvs_kvtuple {
@@ -74,21 +75,21 @@ struct kvs_vtuple_ref {
     enum kmd_vtype vr_type;
     union {
         struct {
-            u16 vr_index;
-            u32 vr_off;
-            u32 vr_len;
-            u32 vr_complen;
+            uint16_t vr_index;
+            uint32_t vr_off;
+            uint32_t vr_len;
+            uint32_t vr_complen;
         } vb;
         struct {
-            u16         vr_len;
+            uint16_t    vr_len;
             const void *vr_data;
         } vi;
     };
-    u64 vr_seq;
+    uint64_t vr_seq;
 };
 
 static inline void
-kvs_ktuple_init(struct kvs_ktuple *kt, const void *key, s32 key_len)
+kvs_ktuple_init(struct kvs_ktuple *kt, const void *key, int32_t key_len)
 {
     kt->kt_data = key;
     kt->kt_len = key_len;
@@ -97,7 +98,7 @@ kvs_ktuple_init(struct kvs_ktuple *kt, const void *key, s32 key_len)
 }
 
 static inline void
-kvs_ktuple_init_nohash(struct kvs_ktuple *kt, const void *key, s32 key_len)
+kvs_ktuple_init_nohash(struct kvs_ktuple *kt, const void *key, int32_t key_len)
 {
     kt->kt_data = key;
     kt->kt_len = key_len;
@@ -116,7 +117,7 @@ kvs_ktuple_init_nohash(struct kvs_ktuple *kt, const void *key, s32 key_len)
  * from the fields of an existing encoded vtuple.
  */
 static inline void
-kvs_vtuple_init(struct kvs_vtuple *vt, void *val, u64 xlen)
+kvs_vtuple_init(struct kvs_vtuple *vt, void *val, uint64_t xlen)
 {
     vt->vt_data = val;
     vt->vt_xlen = xlen;
@@ -140,7 +141,7 @@ kvs_vtuple_cinit(struct kvs_vtuple *vt, void *val, uint vlen, uint clen)
     assert(clen > 0 && clen < vlen);
 
     vt->vt_data = val;
-    vt->vt_xlen = ((u64)clen << 32) | vlen;
+    vt->vt_xlen = ((uint64_t)clen << 32) | vlen;
 }
 
 /**
@@ -150,26 +151,27 @@ kvs_vtuple_cinit(struct kvs_vtuple *vt, void *val, uint vlen, uint clen)
  * kvs_vtuple_vlen() returns the in-core length (in bytes) of the
  * given vtuple, irrespective of whether or not it is compressed.
  */
-static HSE_ALWAYS_INLINE uint
+static HSE_ALWAYS_INLINE uint32_t
 kvs_vtuple_vlen(const struct kvs_vtuple *vt)
 {
-    uint clen = vt->vt_xlen >> 32;
-    uint vlen = vt->vt_xlen & 0xfffffffful;
+    const uint32_t clen = vt->vt_xlen >> 32;
+    const uint32_t vlen = vt->vt_xlen & 0xfffffffful;
 
     return clen ?: vlen;
 }
 
-static HSE_ALWAYS_INLINE uint
+static HSE_ALWAYS_INLINE uint32_t
 kvs_vtuple_clen(const struct kvs_vtuple *vt)
 {
     return vt->vt_xlen >> 32;
 }
 
 static inline void
-kvs_buf_init(struct kvs_buf *vbuf, void *buf, u32 buf_size)
+kvs_buf_init(struct kvs_buf *vbuf, void *buf, uint32_t buf_size)
 {
     vbuf->b_buf = buf;
     vbuf->b_buf_sz = buf_size;
     vbuf->b_len = 0;
 }
+
 #endif

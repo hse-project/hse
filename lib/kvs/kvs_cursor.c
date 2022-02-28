@@ -1,6 +1,6 @@
 /* SPDX-License-Identifier: Apache-2.0 */
 /*
- * Copyright (C) 2015-2021 Micron Technology, Inc.  All rights reserved.
+ * Copyright (C) 2015-2022 Micron Technology, Inc.  All rights reserved.
  */
 
 #include <hse_util/platform.h>
@@ -1140,17 +1140,27 @@ kvs_cursor_key_copy(
 
 merr_t
 kvs_cursor_val_copy(
-    struct hse_kvs_cursor  *cursor,
-    void                   *buf,
-    size_t                  bufsz,
-    const void            **val_out,
-    size_t                 *vlen_out)
+    struct hse_kvs_cursor *cursor,
+    void *buf,
+    size_t bufsz,
+    const void **val_out,
+    size_t *vlen_out)
 {
-    struct kvs_cursor_impl *cur = cursor_h2r(cursor);
+    struct kvs_cursor_impl *cur;
+    struct kvs_vtuple *vt;
+    uint clen;
+    merr_t err = 0;
 
-    struct kvs_vtuple *vt = &cur->kci_elem_last.kce_vt;
-    uint               clen = cur->kci_elem_last.kce_complen;
-    merr_t             err = 0;
+    if (!cursor)
+        return merr(EINVAL);
+
+    cur = cursor_h2r(cursor);
+
+    vt = &cur->kci_elem_last.kce_vt;
+    clen = cur->kci_elem_last.kce_complen;
+
+    if (!buf && !val_out)
+        goto out;
 
     if (!buf) {
         buf = cur->kci_buf + HSE_KVS_KEY_LEN_MAX;
@@ -1164,18 +1174,19 @@ kvs_cursor_val_copy(
         if (ev(err))
             return err;
 
-        if (ev(outlen != min_t(u64, vt->vt_xlen, bufsz)))
+        if (ev(outlen != min_t(u64, kvs_vtuple_vlen(vt), bufsz)))
             return EBUG;
 
     } else {
-        memcpy(buf, vt->vt_data, min_t(u64, vt->vt_xlen, bufsz));
+        memcpy(buf, vt->vt_data, min_t(u64, kvs_vtuple_vlen(vt), bufsz));
     }
-
-    if (vlen_out)
-        *vlen_out = vt->vt_xlen;
 
     if (val_out)
         *val_out = buf;
+
+out:
+    if (vlen_out)
+        *vlen_out = kvs_vtuple_vlen(vt);
 
     return 0;
 }

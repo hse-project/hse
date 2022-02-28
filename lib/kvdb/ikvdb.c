@@ -3002,11 +3002,9 @@ ikvdb_kvs_cursor_read(
         return 0;
 
     kvs_cursor_key_copy(cur, NULL, 0, key, key_len);
-    if (val) {
-        err = kvs_cursor_val_copy(cur, NULL, 0, val, val_len);
-        if (ev(err))
-            return err;
-    }
+    err = kvs_cursor_val_copy(cur, NULL, 0, val, val_len);
+    if (ev(err))
+        return err;
 
     perfc_lat_record(
         cur->kc_pkvsl_pc,
@@ -3050,11 +3048,9 @@ ikvdb_kvs_cursor_read_copy(
         return 0;
 
     kvs_cursor_key_copy(cur, keybuf, keybuf_sz, NULL, key_len);
-    if (valbuf) {
-        err = kvs_cursor_val_copy(cur, valbuf, valbuf_sz, NULL, val_len);
-        if (ev(err))
-            return err;
-    }
+    err = kvs_cursor_val_copy(cur, valbuf, valbuf_sz, NULL, val_len);
+    if (ev(err))
+        return err;
 
     perfc_lat_record(
         cur->kc_pkvsl_pc,
