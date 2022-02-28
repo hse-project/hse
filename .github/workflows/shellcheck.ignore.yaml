@@ -4,7 +4,7 @@ on:
   pull_request:
     types: [opened, synchronize, reopened]
     paths-ignore:
-      - "**/*.sh"
+      - "**.sh"
       - "scripts/git-hooks/*"
       - .github/workflows/shellcheck.yaml
       - .shellcheckrc
