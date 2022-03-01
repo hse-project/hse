@@ -433,7 +433,8 @@ bn_find_impl(struct bonsai_root *tree, const struct bonsai_skey *skey, enum bons
     struct bonsai_node *node, *node_le, *node_ge;
     const struct key_immediate *ki;
     const void *key;
-    uint klen, lcp, bounds;
+    uint klen, lcp;
+    int  bounds;
     s32  res;
 
     ki = &skey->bsk_key_imm;
