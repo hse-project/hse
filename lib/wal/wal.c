@@ -126,8 +126,11 @@ wal_flush_wait(struct wal *wal, struct wal_flush_stats *stats, uint8_t pct)
     for (int i = 0; i < flushc; i++)
         flushv[i] = stats->flush_soff[i] + ((stats->flush_len[i] * pct) / 100);
 
-    while (wal_bufset_durcnt(wal->wbs, WAL_BUF_MAX, flushv) < flushc)
+    while (wal_bufset_durcnt(wal->wbs, WAL_BUF_MAX, flushv) < flushc) {
+        if (HSE_UNLIKELY(atomic_read(&wal->error)))
+            break;
         usleep(50);
+    }
 }
 
 static HSE_ALWAYS_INLINE bool
@@ -214,7 +217,7 @@ wal_timer(void *rock)
             intvl = max_t(uint64_t, sleep_ns / 10, MSEC_TO_NSEC(1));
             flushc = wal_bufset_flushoff(wal->wbs, WAL_BUF_MAX, flushv);
 
-            while (!atomic_read(&wal->closing)) {
+            while (!atomic_read(&wal->closing) && !atomic_read(&wal->error)) {
                 int rc = cv_timedwait(&wal->timer_cv, &wal->timer_mutex, NSEC_TO_MSEC(intvl));
                 if (rc != ETIMEDOUT)
                     break;
@@ -252,6 +255,8 @@ wal_sync_notifier(void *rock)
 
         mutex_lock(&wal->sync_mutex);
         err = atomic_read(&wal->error);
+        if (!err)
+            err = kvdb_health_check(wal->health, KVDB_HEALTH_FLAG_ALL);
         closing = !!atomic_read(&wal->closing);
 
         list_for_each_entry(swait, &wal->sync_waiters, ws_link) {
