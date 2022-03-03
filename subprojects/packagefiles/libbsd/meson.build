@@ -18,7 +18,7 @@ if get_option('warning_level') == '0'
         c_flags += '-w'
     elif cc.get_id() == 'clang'
         c_flags += '-Wno-everything'
-    elif
+    else
         error('Unable to translate "warning_level" for your compiler')
     endif
 else
