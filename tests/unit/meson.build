@@ -230,7 +230,7 @@ components = {
                 ),
             ],
         },
-	'structured_logging_test': {},
+        'structured_logging_test': {},
         'table_test': {},
         'timer_test': {},
         'token_bucket_test': {},
