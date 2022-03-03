@@ -736,7 +736,7 @@ cn_ingestv(
 
     err = cndb_txn_start(cndb, &txid, count, 0, seqno_max, ingestid, txhorizon);
     if (ev(err))
-        goto done;
+        goto nak;
 
     check = 0;
     for (i = first; i <= last; i++) {
@@ -749,22 +749,27 @@ cn_ingestv(
 
         err = cn_ingest_prep(cn[i], mbv[i], txid, &context, &kvsetv[i]);
         if (ev(err))
-            goto done;
-        check++;
+            goto nak;
+
+        if (kvsetv[i])
+            check++;
     }
-    assert(check == count);
+
+    if (check != count) {
+        err = merr(EINVAL);
+        goto nak;
+    }
 
     /* There must not be any failure conditions after successful ACK_C
      * because the operation has been committed.
      */
     err = cndb_txn_ack_c(cndb, txid);
     if (ev(err))
-        goto done;
+        goto nak;
 
-    check = 0;
     for (i = first; i <= last; i++) {
 
-        if (!cn[i] || !mbv[i])
+        if (!cn[i] || !mbv[i] || !kvsetv[i])
             continue;
 
         if (log_ingest) {
@@ -778,9 +783,11 @@ cn_ingestv(
             mbv[i]->bl_last_ptomb,
             mbv[i]->bl_last_ptlen,
             mbv[i]->bl_last_ptseq);
-        check++;
+
+        kvsetv[i] = NULL;
+        check--;
     }
-    assert(check == count);
+    assert(check == 0);
 
     if (log_ingest) {
         slog_info(
@@ -799,13 +806,23 @@ cn_ingestv(
             HSE_SLOG_END);
     }
 
-done:
-    if (err && txid && cndb_txn_nak(cndb, txid))
-        ev(1);
+    txid = 0; /* Reset txid to prevent nak */
 
+nak:
+    if (txid) {
+        merr_t err2 = cndb_txn_nak(cndb, txid);
+
+        if (!err)
+            err = err2;
+    }
+
+done:
     /* NOTE: we always free the callers kvset mblocks */
     for (i = first; i <= last; i++) {
         kvset_mblocks_destroy(mbv[i]);
+
+        if (kvsetv && kvsetv[i])
+            kvset_put_ref(kvsetv[i]);
 
         if (cn[i])
             perfc_inc(&cn[i]->cn_pc_ingest, PERFC_BA_CNCOMP_FINISH);

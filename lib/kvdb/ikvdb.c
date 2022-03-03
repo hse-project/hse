@@ -2490,9 +2490,7 @@ ikvdb_kvs_put(
     if (HSE_UNLIKELY(parent->ikdb_read_only))
         return merr(EROFS);
 
-    /* puts do not stop on block deletion failures. */
-    err = kvdb_health_check(
-        &parent->ikdb_health, KVDB_HEALTH_FLAG_ALL & ~KVDB_HEALTH_FLAG_DELBLKFAIL);
+    err = kvdb_health_check(&parent->ikdb_health, KVDB_HEALTH_FLAG_ALL);
     if (err)
         return err;
 
@@ -2636,9 +2634,7 @@ ikvdb_kvs_del(
     if (ev(parent->ikdb_read_only))
         return merr(EROFS);
 
-    /* tombstone puts do not stop on block deletion failures. */
-    err = kvdb_health_check(
-        &parent->ikdb_health, KVDB_HEALTH_FLAG_ALL & ~KVDB_HEALTH_FLAG_DELBLKFAIL);
+    err = kvdb_health_check(&parent->ikdb_health, KVDB_HEALTH_FLAG_ALL);
     if (ev(err))
         return err;
 

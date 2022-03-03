@@ -32,12 +32,6 @@ get_atomics(
         *epp = &health->krx_nospace.khs_err;
         break;
 
-    case KVDB_HEALTH_FLAG_DELBLKFAIL:
-        *tpp = &health->krx_delblkfail.khs_tripped;
-        *opp = &health->krx_delblkfail.khs_odometer;
-        *epp = &health->krx_delblkfail.khs_err;
-        break;
-
     case KVDB_HEALTH_FLAG_CNDBFAIL:
         *tpp = &health->krx_cndbfail.khs_tripped;
         *opp = &health->krx_cndbfail.khs_odometer;

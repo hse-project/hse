@@ -1,6 +1,6 @@
 /* SPDX-License-Identifier: Apache-2.0 */
 /*
- * Copyright (C) 2015-2021 Micron Technology, Inc.  All rights reserved.
+ * Copyright (C) 2015-2022 Micron Technology, Inc.  All rights reserved.
  */
 
 #include <mtf/conditions.h>
@@ -280,7 +280,7 @@ MTF_DEFINE_UTEST_PRE(cn_ingest_test, worker, test_pre)
 
     init_mblks(m, n_kvsets, &k, &v);
     err = cn_ingestv(cnv, mbv, NELEM(cnv), U64_MAX, U64_MAX, NULL, NULL);
-    ASSERT_EQ(err, 0);
+    ASSERT_EQ(EINVAL, merr_errno(err));
     free_mblks(m, n_kvsets);
 
     cn_tree_destroy(cn.cn_tree);

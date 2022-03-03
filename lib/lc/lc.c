@@ -1190,8 +1190,7 @@ lc_gc_worker(struct work_struct *work)
     if (HSE_UNLIKELY(atomic_read(&lc->lc_closing)))
         goto exit;
 
-    if (ev(lc->lc_err ||
-           kvdb_health_check(lc->lc_health, KVDB_HEALTH_FLAG_ALL & ~KVDB_HEALTH_FLAG_DELBLKFAIL)))
+    if (ev(lc->lc_err || kvdb_health_check(lc->lc_health, KVDB_HEALTH_FLAG_ALL)))
         goto exit;
 
     /* Note that the horizon_incl returned here is an inclusive lower bound for entries that

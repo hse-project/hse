@@ -92,7 +92,6 @@ struct c0sk_impl {
     u64                  c0sk_release_gen;
     s32                  c0sk_kvmultisets_cnt;
     atomic_int           c0sk_ingest_finlat;
-    atomic_int           c0sk_ingest_serialized_cnt;
     atomic_ulong         c0sk_ingest_order_curr;
     atomic_ulong         c0sk_ingest_order_next;
     atomic_ulong         c0sk_ingest_min;

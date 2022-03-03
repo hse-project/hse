@@ -1,6 +1,6 @@
 /* SPDX-License-Identifier: Apache-2.0 */
 /*
- * Copyright (C) 2015-2021 Micron Technology, Inc.  All rights reserved.
+ * Copyright (C) 2015-2022 Micron Technology, Inc.  All rights reserved.
  */
 
 #include <rbtree.h>
@@ -25,96 +25,6 @@ platform_pre(struct mtf_test_info *ti)
 MTF_MODULE_UNDER_TEST(hse_platform);
 
 MTF_BEGIN_UTEST_COLLECTION_PRE(perfc, platform_pre);
-
-#ifndef HSE_CI
-/* Test that calls to get_cycles() always return a count greater
- * than any previous call and are accurately measuring elapsed
- * time w.r.t get_time_ns().  This might fail on amd64 if the TSC
- * isn't p-state invariant.  This test primarily exists to test
- * verify that successive reads of the s390x TOD clock go foward
- * in time.
- */
-MTF_DEFINE_UTEST(perfc, perfc_get_cycles)
-{
-    const uint cyclec = 16 * 1024 * 1024;
-    uint64_t tstart, tstop;
-    uint64_t cstart, cstop;
-    uint64_t *cyclev;
-    int itermax = 1024;
-    int success = 0;
-
-    cyclev = calloc(sizeof(*cyclev), cyclec);
-    ASSERT_NE(NULL, cyclev);
-
-again:
-    usleep(150 * 1000); /* attempt to get a fresh time slice */
-
-    cstart = get_cycles();
-    atomic_thread_fence(memory_order_seq_cst);
-    tstart = get_time_ns();
-
-    for (uint i = 0; i < cyclec; i += 8) {
-        cyclev[i + 0] = get_cycles();
-        cyclev[i + 1] = get_cycles();
-        cyclev[i + 2] = get_cycles();
-        cyclev[i + 3] = get_cycles();
-        cyclev[i + 4] = get_cycles();
-        cyclev[i + 5] = get_cycles();
-        cyclev[i + 6] = get_cycles();
-        cyclev[i + 7] = get_cycles();
-
-        if (i % (1u << 25) == 0)
-            usleep(1); /* attempt to elicit a cpu migration */
-    }
-
-    usleep(150 * 1000); /* attempt to get a fresh time slice */
-    tstop = get_time_ns();
-    atomic_thread_fence(memory_order_seq_cst);
-    cstop = get_cycles();
-
-    for (uint i = 1; i < cyclec; ++i) {
-        ASSERT_GE(cyclev[i], cyclev[i - 1]);
-    }
-
-    ASSERT_GT(cstop, cstart);
-    ASSERT_GT(tstop, tstart);
-
-    log_info("%u: gtn %lu, c2n %lu, diff %ld, freq %lu, mult %u\n",
-             itermax, (tstop - tstart), cycles_to_nsecs(cstop - cstart),
-             (int64_t)cycles_to_nsecs(cstop - cstart) - (int64_t)(tstop - tstart),
-             hse_tsc_freq, hse_tsc_mult);
-
-    /* If our initial value for hse_tsc_freq is too far off the mark
-     * then our assumptions may be wrong until it converges on its
-     * true value (see timer_jclock_cb()).
-     */
-    if ((tstop - tstart) > cycles_to_nsecs(cstop - cstart)) {
-        if (itermax-- > 0) {
-            success = 0;
-            goto again;
-        }
-    }
-
-    /* If we get preempted between the paired calls to get_cycles()
-     * and get_time_ns() the delta could be huge, so try again.
-     * Otherwise we expect the delta should be less than 1us.
-     */
-    if (cycles_to_nsecs(cstop - cstart) - (tstop - tstart) > 1000) {
-        if (itermax-- > 0) {
-            success = 0;
-            goto again;
-        }
-    }
-
-    if (itermax > 0 && ++success < 3)
-        goto again;
-
-    ASSERT_GE(success, 3);
-    ASSERT_GT(itermax, 0);
-
-    free(cyclev);
-}
-#endif
 
 MTF_DEFINE_UTEST(perfc, perfc_basic_create_find_and_remove)
 {
