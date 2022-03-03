@@ -60,6 +60,7 @@
 #include "intern_builder.h"
 #include "bloom_reader.h"
 #include "cn_perfc.h"
+#include "kvset_internal.h"
 
 #define VMA_SIZE_MAX 30
 

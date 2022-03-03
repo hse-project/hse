@@ -26,6 +26,7 @@
 #include "cndb_omf.h"
 #include "cndb_internal.h"
 #include "kvset.h"
+#include "kvset_internal.h"
 
 /* PRIVATE */
 void

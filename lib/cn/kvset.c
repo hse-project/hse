@@ -42,7 +42,7 @@
 #include <hse_util/hlog.h>
 
 #include "kvset.h"
-
+#include "kvset_internal.h"
 #include "kblock_reader.h"
 #include "vblock_reader.h"
 #include "bloom_reader.h"
