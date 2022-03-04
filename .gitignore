@@ -33,3 +33,4 @@ subprojects/*
 *venv*/
 compile_commands.json
 /.cache/
+/.vscode/
