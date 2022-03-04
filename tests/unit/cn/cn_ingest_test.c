@@ -278,9 +278,11 @@ MTF_DEFINE_UTEST_PRE(cn_ingest_test, worker, test_pre)
     err = cn_tree_create(&cn.cn_tree, NULL, 0, &cp, &mock_health, &rp);
     ASSERT_EQ(err, 0);
 
+    /* The kblocks contain no keys, so the ingest should fail.
+     */
     init_mblks(m, n_kvsets, &k, &v);
     err = cn_ingestv(cnv, mbv, NELEM(cnv), U64_MAX, U64_MAX, NULL, NULL);
-    ASSERT_EQ(EINVAL, merr_errno(err));
+    ASSERT_NE(0, err);
     free_mblks(m, n_kvsets);
 
     cn_tree_destroy(cn.cn_tree);
