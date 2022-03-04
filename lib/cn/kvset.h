@@ -31,6 +31,7 @@ struct mbset;
 struct cn_kvdb;
 struct cn_tree;
 struct cn_merge_stats;
+struct kvset_stats;
 
 #include "blk_list.h"
 
@@ -38,8 +39,6 @@ struct kvset_list_entry {
     struct list_head le_link;
     struct kvset *   le_kvset;
 };
-
-#include "kvset_internal.h"
 
 enum kvset_iter_flags {
     kvset_iter_flag_mcache = (1u << 0),

@@ -13,6 +13,7 @@
 #include <hse_ikvdb/cndb.h>
 #include <hse_ikvdb/blk_list.h>
 #include <hse_ikvdb/cn.h>
+#include <hse_ikvdb/omf_version.h>
 #include <mpool/mpool.h>
 
 #include <cn/cndb_omf.h>

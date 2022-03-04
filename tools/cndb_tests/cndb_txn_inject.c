@@ -13,7 +13,7 @@
 #include <hse_ikvdb/ikvdb.h>
 #include <hse_ikvdb/diag_kvdb.h>
 #include <hse_ikvdb/blk_list.h>
-
+#include <hse_ikvdb/omf_version.h>
 #include <hse_ikvdb/cndb.h>
 
 #include <mpool/mpool.h>

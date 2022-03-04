@@ -28,6 +28,7 @@
 #include "wbt_internal.h"
 #include "cn_metrics.h"
 #include "cn_tree.h"
+#include "kvset.h"
 
 struct kvset_kblk {
     struct kvs_mblk_desc kb_kblk_desc; /* kblock descriptor */

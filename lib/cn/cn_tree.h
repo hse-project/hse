@@ -6,25 +6,22 @@
 #ifndef HSE_KVDB_CN_CN_TREE_H
 #define HSE_KVDB_CN_CN_TREE_H
 
-#include <hse_util/inttypes.h>
 #include <hse_util/hse_err.h>
-#include <hse_util/workqueue.h>
-#include <hse_util/perfc.h>
-
-#include <hse_ikvdb/tuple.h>
-#include <hse_ikvdb/kvset_view.h>
-#include <hse_ikvdb/kvdb_health.h>
+#include <hse_util/inttypes.h>
 
 #include "cn_metrics.h"
 #include "kcompact.h"
-#include "kvset.h"
 
 /* MTF_MOCK_DECL(cn_tree) */
 
 struct cn_tree;
-struct query_ctx;
 struct cn_cache;
 enum cn_action;
+enum key_lookup_res;
+struct kvs_buf;
+struct kvs_ktuple;
+struct perfc_set;
+struct query_ctx;
 
 struct cn_tstate_omf;
 typedef merr_t

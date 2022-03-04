@@ -18,6 +18,7 @@
 #include "cn_tree_compact.h"
 #include "cn_tree_internal.h"
 #include "kvset.h"
+#include "kvset_internal.h"
 
 #define SIZE_1GIB       ((size_t)1 << 30)
 
