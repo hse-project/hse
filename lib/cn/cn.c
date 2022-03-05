@@ -595,13 +595,14 @@ cn_ingest_prep(
     struct kvset **       kvsetp)
 {
     struct kvset_meta km = {};
-    struct kvset *    kvset;
     u64               dgen, tag_throwaway = 0;
     u32               commitc = 0;
     merr_t            err = 0;
 
     if (ev(!mblocks))
         return merr(EINVAL);
+
+    *kvsetp = NULL;
 
     dgen = atomic_read(&cn->cn_ingest_dgen) + 1;
 
@@ -653,11 +654,7 @@ cn_ingest_prep(
     if (ev(err))
         goto done;
 
-    err = kvset_create(cn->cn_tree, *context, &km, &kvset);
-    if (ev(err))
-        goto done;
-
-    *kvsetp = kvset;
+    err = kvset_create(cn->cn_tree, *context, &km, kvsetp);
 
 done:
     if (err) {
@@ -785,6 +782,7 @@ cn_ingestv(
             mbv[i]->bl_last_ptseq);
 
         kvsetv[i] = NULL;
+
         check--;
     }
     assert(check == 0);
