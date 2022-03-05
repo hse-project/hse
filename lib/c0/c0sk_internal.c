@@ -491,24 +491,6 @@ c0sk_merge_loop(
     return 0;
 }
 
-static void
-c0sk_ingest_serialize_wait(struct c0_ingest_work *ingest)
-{
-    struct c0sk_impl *c0sk = c0sk_h2r(ingest->c0iw_c0sk);
-
-    mutex_lock(&c0sk->c0sk_kvms_mutex);
-    while (1) {
-        u64 me = ingest->c0iw_ingest_order;
-        u64 next = atomic_read_acq(&c0sk->c0sk_ingest_order_next);
-
-        if (me == next)
-            break;
-
-        cv_timedwait(&c0sk->c0sk_kvms_cv, &c0sk->c0sk_kvms_mutex, 1000, "c0ingser");
-    }
-    mutex_unlock(&c0sk->c0sk_kvms_mutex);
-}
-
 /**
  * c0sk_ingest_worker() - Ingest worker thread
  *
@@ -548,7 +530,6 @@ c0sk_ingest_worker(struct work_struct *work)
     u64                    txhorizon = c0kvms_txhorizon_get(kvms);
     int                    i;
     u64                    go = 0;
-    bool                   released = false;
     bool                   debug = c0sk->c0sk_kvdb_rp->c0_debug & C0_DEBUG_INGSPILL;
     bool                   accumulate = c0sk->c0sk_kvdb_rp->c0_debug & C0_DEBUG_ACCUMULATE;
     merr_t                 err = 0;
@@ -571,8 +552,7 @@ c0sk_ingest_worker(struct work_struct *work)
         cpu_relax();
 
     /* ingests do not stop on block deletion failures. */
-    err = kvdb_health_check(
-        c0sk->c0sk_kvdb_health, KVDB_HEALTH_FLAG_ALL & ~KVDB_HEALTH_FLAG_DELBLKFAIL);
+    err = kvdb_health_check(c0sk->c0sk_kvdb_health, KVDB_HEALTH_FLAG_ALL);
     if (ev(err))
         goto exit_err;
 
@@ -610,9 +590,19 @@ c0sk_ingest_worker(struct work_struct *work)
     if (debug)
         ingest->t4 = get_time_ns();
 
-    /* Wait for older ingests to finish this sequential part */
-    c0sk_ingest_serialize_wait(ingest);
-    assert(atomic_inc_return(&c0sk->c0sk_ingest_serialized_cnt) == 1);
+    /* Ingest worker threads must proceed sequentially in ingest order
+     * over the following merge section.
+     */
+    mutex_lock(&c0sk->c0sk_kvms_mutex);
+    while (1) {
+        u64 next = atomic_read_acq(&c0sk->c0sk_ingest_order_next);
+
+        if (ingest->c0iw_ingest_order == next)
+            break;
+
+        cv_wait(&c0sk->c0sk_kvms_cv, &c0sk->c0sk_kvms_mutex, "c0ingser");
+    }
+    mutex_unlock(&c0sk->c0sk_kvms_mutex);
 
     c0sk_cningest_walcb(c0sk, max_seq, kvms_gen, txhorizon, false);
 
@@ -635,17 +625,14 @@ c0sk_ingest_worker(struct work_struct *work)
         }
     }
 
-    assert(atomic_dec_return(&c0sk->c0sk_ingest_serialized_cnt) == 0);
-
-    if (ev(err))
-        goto health_err;
-
     atomic_inc_acq(&c0sk->c0sk_ingest_order_next); /* Move the ingest order forward */
 
     mutex_lock(&c0sk->c0sk_kvms_mutex);
     cv_broadcast(&c0sk->c0sk_kvms_cv); /* Wake up newer ingest threads */
     mutex_unlock(&c0sk->c0sk_kvms_mutex);
-    released = true;
+
+    if (ev(err))
+        goto health_err;
 
     ingest->t6 = get_time_ns();
 
@@ -670,15 +657,6 @@ health_err:
         kvdb_health_error(c0sk->c0sk_kvdb_health, err);
 
 exit_err:
-    if (!released) {
-        atomic_inc_acq(&c0sk->c0sk_ingest_order_next); /* Move the ingest order forward */
-
-        mutex_lock(&c0sk->c0sk_kvms_mutex);
-        cv_broadcast(&c0sk->c0sk_kvms_cv); /* Wake up newer ingest threads */
-        mutex_unlock(&c0sk->c0sk_kvms_mutex);
-        released = true;
-    }
-
     if (lc_list)
         lc_builder_destroy(lc_list);
 
@@ -731,7 +709,7 @@ exit_err:
         ingest->t9 = get_time_ns();
 
     if (err) {
-        log_errx("c0 ingest failed on %p: @@e", err, kvms);
+        log_errx("c0 ingest failed on kvms %p %lu: @@e", err, kvms, kvms_gen);
     } else {
         int finlat;
 

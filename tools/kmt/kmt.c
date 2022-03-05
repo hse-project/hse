@@ -139,6 +139,7 @@
 #include <hse_util/minmax.h>
 #include <hse_util/page.h>
 #include <hse_util/hse_err.h>
+#include <hse_util/byteorder.h>
 
 #include <hse_ikvdb/kvs_rparams.h>
 #include <hse_ikvdb/kvs_cparams.h>
@@ -218,11 +219,6 @@ hse_err_to_errno(hse_err_t err);
 
 #include <tools/parm_groups.h>
 
-#if !defined(__USE_ISOC11) || defined(USE_EFENCE)
-#define aligned_alloc(_align, _size) memalign((_align), (_size))
-extern void *memalign(size_t, size_t) __attribute_malloc__ __wur;
-#endif
-
 #define KM_REC_KEY_MAX  (1024)
 #define KM_REC_SZ_MAX   (1024 * 1024 * 4)
 #define KM_REC_VLEN_MAX (KM_REC_SZ_MAX - sizeof(struct km_rec) - KM_REC_KEY_MAX)
@@ -244,12 +240,16 @@ int            verbosity;
 const char *   keyfmt;
 size_t         keybinmin = 8;
 size_t         keybinmax = 8;
-bool           keybinary = false;
 size_t         keydist = 8192;
 float          wpctf = 20;
 uint           swappct;
+uint           tdmax;
 bool           swapexcl = true;
 bool           swaptxn = false;
+bool           kvdb_mode = false;
+bool           latency = false;
+bool           recverify = true;
+bool           keybinary = false;
 char          *fieldname_fmt = "field%u";
 uint           fieldnamew_min; /* minimum fieldname width */
 uint           fieldnamew_max; /* maximum fieldname width */
@@ -266,7 +266,6 @@ uint           wcmin = 0;
 uint           vrunlen;
 bool           wcmin_given = false;
 bool           stayopen = false;
-bool           recverify = true;
 bool           initmode = false;
 bool           testmode = false;
 bool           sysbench = false;
@@ -274,17 +273,14 @@ bool           xstats = false;
 bool           headers;
 uint           hdrcnt;
 uint64_t       recmax;
-uint           tdmax;
 ulong          seed;
 size_t         secsz;
 size_t         vebsz = 4 * 1024 * 1024;
 int            dev_oflags = O_RDWR | O_DIRECT;
 int            oom_score_adj = -500;
 uint           c0putval = UINT_MAX;
-bool           kvdb_mode = false;
-bool           latency = false;
-long           sync_timeout_ms = 0;
 int            mclass = HSE_MCLASS_CAPACITY;
+long           sync_timeout_ms = 0;
 
 struct parm_groups *pg;
 struct svec         hse_gparms = { 0 };
@@ -453,11 +449,11 @@ struct km_rec_ops {
  * subrange starting at %base from which record IDs are randomly generated.
  */
 struct km_lor {
+    u64 opscnt;
+    u64 opsmax;
     u64 range;
     u64 base;
     u64 span;
-    u64 opscnt;
-    u64 opsmax;
     u64 constrain;
 };
 
@@ -952,15 +948,15 @@ hse_strerror(u64 err, char *buf, size_t bufsz)
     return strerror_r(err, buf, bufsz);
 }
 
-#define hse_kvdb_open     kvdb_open_xkmt
-#define hse_kvdb_kvs_open kvdb_kvs_open_xkmt
-#define hse_kvdb_close    kvdb_close_xkmt
-#define hse_kvs_get       kvs_get_xkmt
-#define hse_kvs_put       kvs_put_xkmt
-#define hse_kvs_delete    kvs_delete_xkmt
+#define hse_kvdb_open     xkmt_kvdb_open
+#define hse_kvdb_kvs_open xkmt_kvdb_kvs_open
+#define hse_kvdb_close    xkmt_kvdb_close
+#define hse_kvs_get       xkmt_kvs_get
+#define hse_kvs_put       xkmt_kvs_put
+#define hse_kvs_delete    xkmt_kvs_delete
 
 int
-kvdb_open_xkmt(const char *mp_name, size_t pc, const char *const *pv, struct hse_kvdb **kvdb_handle)
+xkmt_kvdb_open(const char *mp_name, size_t pc, const char *const *pv, struct hse_kvdb **kvdb_handle)
 {
     if (!kvs) {
         kvs = aligned_alloc(PAGE_SIZE, sizeof(*kvs));
@@ -979,7 +975,7 @@ kvdb_open_xkmt(const char *mp_name, size_t pc, const char *const *pv, struct hse
 }
 
 int
-kvdb_kvs_open_xkmt(
+xkmt_kvdb_kvs_open(
     struct hse_kvdb *  kvdb_handle,
     const char *       kvs_name,
     size_t parmc,
@@ -995,13 +991,13 @@ kvdb_kvs_open_xkmt(
 }
 
 int
-kvdb_close_xkmt(struct hse_kvdb *hdl)
+xkmt_kvdb_close(struct hse_kvdb *hdl)
 {
     return 0;
 }
 
 int
-kvs_get_xkmt(
+xkmt_kvs_get(
     struct hse_kvs *kvs_handle,
     unsigned int    flags,
     void *          txn,
@@ -1053,7 +1049,7 @@ kvs_get_xkmt(
 }
 
 int
-kvs_put_xkmt(
+xkmt_kvs_put(
     struct hse_kvs *kvs_handle,
     unsigned int    flags,
     void *          txn,
@@ -1139,7 +1135,7 @@ kvs_put_xkmt(
 }
 
 int
-kvs_delete_xkmt(
+xkmt_kvs_delete(
     struct hse_kvs *kvs_handle,
     unsigned int    flags,
     void *          txn,
@@ -1438,7 +1434,7 @@ chk_init(struct km_impl *impl, uint64_t recmax)
     }
 
     prot = PROT_READ | PROT_WRITE;
-    mflags = MAP_SHARED | MAP_POPULATE;
+    mflags = MAP_SHARED;
 
     impl->chk = mmap(NULL, length, prot, mflags, fd, 0);
 
@@ -1532,7 +1528,7 @@ km_rec_keygen_cmn(void *key, uint64_t rid)
         if (len > keybinmin)
             len = keybinmin + (rid % (keybinmax - keybinmin + 1));
 
-        *(uint64_t *)key = rid;
+        *(uint64_t *)key = cpu_to_be64(rid);
 
         return len;
     }
