@@ -578,6 +578,29 @@ wal_replay_gen_impl(struct wal_replay *rep, struct wal_replay_gen *rgen, bool fl
  * General WAL replay interfaces
  */
 
+/*
+ * WAL force replay:
+ *
+ * The objective of "durability.replay.force" KVDB rparam is to instruct WAL to replay as
+ * much data as possible and bring the kvdb back online. The user must be aware that there
+ * can be data loss when opening a KVDB in this mode.
+ *
+ * Force replay must be used as the last resort when there are no other alternate strategies
+ * that allow WAL to replay in normal mode without losing data.
+ *
+ * For instance, if the app fails due to a ENOSPC health event, then it is highly likely
+ * that the replay would also fail with ENOSPC when it re-ingests the same data.
+ *
+ * The user has two options here to bring the affected KVDB online:
+ *
+ * 1. Extend the file-system such that the affected KVDB has enough free space for the
+ *    replay to succeed
+ *
+ * 2. Open the affected KVDB in force replay mode.
+ *
+ * TODO: Review other places in the wal replay code that can make progress without
+ *       failing if the force replay flag is set
+ */
 static merr_t
 wal_replay_core(struct wal_replay *rep)
 {
@@ -635,9 +658,16 @@ wal_replay_core(struct wal_replay *rep)
         last_entry = !next;
 
         if (flush || cur->rg_krcnt || last_entry) {
-            err = ikvdb_sync(ikvdb, last_entry ? 0 : HSE_KVDB_SYNC_ASYNC);
-            if (err)
+            err = ikvdb_sync(ikvdb,
+                             (last_entry || rep->r_info->replay_force) ? 0 : HSE_KVDB_SYNC_ASYNC);
+            if (err) {
+                if (rep->r_info->replay_force) {
+                    err = 0;
+                    kvdb_health_clearall(wal_health(rep->r_wal));
+                    break;
+                }
                 goto errout;
+            }
         }
 
         maxseqno = max_t(uint64_t, maxseqno, cur->rg_maxseqno);

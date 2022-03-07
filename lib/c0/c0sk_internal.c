@@ -564,16 +564,16 @@ c0sk_ingest_worker(struct work_struct *work)
     for (i = 0; i < 2; i++) {
         err = bkv_collection_create(&cn_list[i], CN_INGEST_BKV_CNT, &c0sk_cningest_cb, ingest);
         if (ev(err))
-            goto exit_err;
+            goto health_err;
     }
 
     err = lc_builder_create(lc, &lc_list);
     if (ev(err))
-        goto exit_err;
+        goto health_err;
 
     err = bin_heap2_prepare(kvms_minheap, ingest->c0iw_kvms_iterc, ingest->c0iw_kvms_sourcev);
     if (ev(err))
-        goto exit_err;
+        goto health_err;
 
     if (debug)
         ingest->t3 = get_time_ns();
@@ -678,24 +678,29 @@ exit_err:
     }
     mutex_unlock(&c0sk->c0sk_kvms_mutex);
 
-    if (HSE_LIKELY(!c0sk->c0sk_kvdb_rp->read_only)) {
+    /*
+     * The health check in this serialized section prevents out-of-order cN ingests by
+     * bailing out the ingest threads working on newer kvmses when an health error is
+     * encountered during the ingest of an older kvms.
+     */
+    if (!err)
+        err = kvdb_health_check(c0sk->c0sk_kvdb_health, KVDB_HEALTH_FLAG_ALL);
+
+    if (!err && HSE_LIKELY(!c0sk->c0sk_kvdb_rp->read_only)) {
         u64 cn_min = 0, cn_max = 0;
 
         c0sk_ingest_rec_perfc(&c0sk->c0sk_pc_ingest, PERFC_DI_C0SKING_PREP, go);
-
         go = perfc_lat_start(&c0sk->c0sk_pc_ingest);
 
         err = cn_ingestv(c0sk->c0sk_cnv, mbv, HSE_KVS_COUNT_MAX, kvms_gen,
                          txhorizon, &cn_min, &cn_max);
-
-        c0sk_ingest_rec_perfc(&c0sk->c0sk_pc_ingest, PERFC_DI_C0SKING_FIN, go);
-
-        if (ev(err))
+        if (err) {
             kvdb_health_error(c0sk->c0sk_kvdb_health, err);
+        } else {
+            c0sk_ingest_rec_perfc(&c0sk->c0sk_pc_ingest, PERFC_DI_C0SKING_FIN, go);
 
-        c0sk_cningest_walcb(c0sk, max_seq, kvms_gen, txhorizon, true);
+            c0sk_cningest_walcb(c0sk, max_seq, kvms_gen, txhorizon, true);
 
-        if (!err) {
             if (debug && cn_min && cn_max)
                 log_debug("minseq: c0sk %lu cn %lu; maxseq: c0sk %lu cn %lu",
                           min_seq, cn_min, max_seq, cn_max);

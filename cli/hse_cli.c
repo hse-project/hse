@@ -1148,7 +1148,7 @@ cli_hse_storage_add(struct cli_cmd *self, struct cli *cli)
 static int
 cli_hse_storage_info_impl(struct cli *cli, const char *kvdb_home)
 {
-    if (cli_hse_init(cli))
+    if (cli_hse_init_rest(cli))
         return -1;
 
     if (cli->optind != cli->argc) {

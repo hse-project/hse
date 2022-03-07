@@ -44,7 +44,7 @@ struct wal_replay_info {
     uint64_t  gen;
     uint64_t  seqno;
     uint64_t  txhorizon;
-    bool      clean;
+    bool      replay_force;
 };
 
 /* MTF_MOCK */

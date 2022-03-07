@@ -291,7 +291,18 @@ wal_bufset_open(
     wbs->wbs_buf_durbytes = dur_bytes / wbs->wbs_bufc;
 
     threads = wbs->wbs_bufc;
-    wbs->wbs_flushwq = alloc_workqueue("hse_wal_flush", 0, 1, threads);
+
+    /*
+     * Setting both the "min" and "max" in flushwq to 'threads' enables WAL to recover from
+     * crashes that happen in a few seconds after startup, i.e., if the crash happens before
+     * the workqueue logic can grow the number of flushwq threads to "max", then there could
+     * be pending requests in the flushwq yet to be processed and persisted into WAL.
+     *
+     * Note that setting `min' to 1 interferes with recovery only when such a short-lived
+     * application expects WAL to recover all its data before the last timer sync, i.e.,
+     * the app. doesn't issue periodic kvdb syncs using hse_kvdb_sync().
+     */
+    wbs->wbs_flushwq = alloc_workqueue("hse_wal_flush", 0, threads, threads);
     if (!wbs->wbs_flushwq)
         goto errout;
 

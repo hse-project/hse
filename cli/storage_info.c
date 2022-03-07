@@ -25,7 +25,7 @@ hse_storage_info(const char *const kvdb_home)
     hse_err_t               err = 0;
     struct hse_kvdb *       kvdb = NULL;
     struct hse_mclass_info  info[HSE_MCLASS_COUNT];
-    int                     rc = 0;
+    int                     rc = 0, rowid;
     struct pidfile          content;
     char                    url[128];
     char                    buf[1024];
@@ -33,6 +33,7 @@ hse_storage_info(const char *const kvdb_home)
     const char *            values[NELEM(headers) * HSE_MCLASS_COUNT];
     cJSON *                 root;
     HSE_MAYBE_UNUSED size_t n;
+    bool                    mc_present[HSE_MCLASS_COUNT] = { 0 };
 
     INVARIANT(kvdb_home);
 
@@ -48,6 +49,9 @@ hse_storage_info(const char *const kvdb_home)
 
                 goto out;
             }
+
+            if (info[i].mi_allocated_bytes > 0)
+                mc_present[i] = true;
         }
     } else if (err && hse_err_to_errno(err) == EBUSY) {
         rc = pidfile_deserialize(kvdb_home, &content);
@@ -98,44 +102,54 @@ hse_storage_info(const char *const kvdb_home)
                 cJSON_GetObjectItemCaseSensitive(root, "allocated_bytes"));
             data->mi_used_bytes = cJSON_GetNumberValue(
                 cJSON_GetObjectItemCaseSensitive(root, "used_bytes"));
+
+            if (data->mi_allocated_bytes > 0)
+                mc_present[i] = true;
         }
     } else {
+        if (hse_err_to_errno(err) == ENOENT)
+            fprintf(stderr, "No such KVDB (%s)\n", kvdb_home);
         return hse_err_to_errno(err);
     }
 
+    rowid = 0;
     for (int i = HSE_MCLASS_BASE; i < HSE_MCLASS_COUNT; i++) {
-        const int base = i * NELEM(headers);
-        values[base] = hse_mclass_name_get(i);
+        if (mc_present[i]) {
+            const int base = rowid * NELEM(headers);
+            values[base] = hse_mclass_name_get(i);
 
-        rc = snprintf(nums[i][0], sizeof(nums[i][0]), "%lu", info[i].mi_allocated_bytes);
-        if (rc < 0) {
-            rc = EBADMSG;
-            goto out;
-        } else if (rc >= sizeof(nums[i][0])) {
-            rc = EMSGSIZE;
-            goto out;
-        } else {
-            rc = 0;
+            rc = snprintf(nums[rowid][0], sizeof(nums[rowid][0]), "%lu",
+                          info[i].mi_allocated_bytes);
+            if (rc < 0) {
+                rc = EBADMSG;
+                goto out;
+            } else if (rc >= sizeof(nums[rowid][0])) {
+                rc = EMSGSIZE;
+                goto out;
+            } else {
+                rc = 0;
+            }
+            values[base + 1] = nums[rowid][0];
+
+            rc = snprintf(nums[rowid][1], sizeof(nums[rowid][1]), "%lu", info[i].mi_used_bytes);
+            if (rc < 0) {
+                rc = EBADMSG;
+                goto out;
+            } else if (rc >= sizeof(nums[rowid][1])) {
+                rc = EMSGSIZE;
+                goto out;
+            } else {
+                rc = 0;
+            }
+            values[base + 2] = nums[rowid][1];
+
+            values[base + 3] = info[i].mi_path;
+
+            rowid++;
         }
-        values[base + 1] = nums[i][0];
-
-        rc = snprintf(nums[i][1], sizeof(nums[i][1]), "%lu", info[i].mi_used_bytes);
-        if (rc < 0) {
-            rc = EBADMSG;
-            goto out;
-        } else if (rc >= sizeof(nums[i][0])) {
-            rc = EMSGSIZE;
-            goto out;
-        } else {
-            rc = 0;
-        }
-        values[base + 2] = nums[i][1];
-
-        values[base + 3] = info[i].mi_path;
     }
 
-    tprint(stdout, HSE_MCLASS_COUNT, NELEM(headers), headers,
-        values, NULL);
+    tprint(stdout, rowid, NELEM(headers), headers, values, NULL);
 
 out:
     if (kvdb)

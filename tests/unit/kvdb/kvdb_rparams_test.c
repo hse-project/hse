@@ -454,6 +454,23 @@ MTF_DEFINE_UTEST_PRE(kvdb_rparams_test, durability_interval, test_pre)
     ASSERT_EQ(HSE_WAL_DUR_MS_MAX, ps->ps_bounds.as_uscalar.ps_max);
 }
 
+MTF_DEFINE_UTEST_PRE(kvdb_rparams_test, durability_replay_force, test_pre)
+{
+    const struct param_spec *ps = ps_get("durability.replay.force");
+
+    ASSERT_NE(NULL, ps);
+    ASSERT_NE(NULL, ps->ps_description);
+    ASSERT_EQ(PARAM_FLAG_EXPERIMENTAL, ps->ps_flags);
+    ASSERT_EQ(PARAM_TYPE_BOOL, ps->ps_type);
+    ASSERT_EQ(offsetof(struct kvdb_rparams, dur_replay_force), ps->ps_offset);
+    ASSERT_EQ(sizeof(bool), ps->ps_size);
+    ASSERT_EQ((uintptr_t)ps->ps_convert, (uintptr_t)param_default_converter);
+    ASSERT_EQ((uintptr_t)ps->ps_validate, (uintptr_t)param_default_validator);
+    ASSERT_EQ((uintptr_t)ps->ps_stringify, (uintptr_t)param_default_stringify);
+    ASSERT_EQ((uintptr_t)ps->ps_jsonify, (uintptr_t)param_default_jsonify);
+    ASSERT_EQ(false, params.dur_replay_force);
+}
+
 MTF_DEFINE_UTEST_PRE(kvdb_rparams_test, durability_size, test_pre)
 {
     const struct param_spec *ps = ps_get("durability.size_bytes");
