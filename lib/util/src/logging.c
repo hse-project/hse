@@ -1140,7 +1140,7 @@ hse_slog_internal(hse_logpri_t priority, const char *fmt, ...)
     if (!hse_gparams.gp_logging.structured)
         return;
 
-    if (priority >= hse_gparams.gp_logging.level || !hse_gparams.gp_logging.enabled)
+    if (priority > hse_gparams.gp_logging.level || !hse_gparams.gp_logging.enabled)
         return;
 
     va_start(payload, fmt);
