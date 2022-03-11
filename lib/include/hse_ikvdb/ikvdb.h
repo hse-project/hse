@@ -1,6 +1,6 @@
 /* SPDX-License-Identifier: Apache-2.0 */
 /*
- * Copyright (C) 2015-2021 Micron Technology, Inc.  All rights reserved.
+ * Copyright (C) 2015-2022 Micron Technology, Inc.  All rights reserved.
  */
 
 #ifndef HSE_IKVDB_API_H
@@ -362,9 +362,12 @@ ikvdb_kvs_count(struct ikvdb *kvdb, unsigned int *count);
  * @kvdb:      KVDB handle
  * @kvs_name:  KVS name
  * @params:    KVS cparams
+ *
+ * HSE_REVIST: make cparams arg const after removing the transitional
+ * route map hooks.
  */
 merr_t
-ikvdb_kvs_create(struct ikvdb *kvdb, const char *kvs_name, const struct kvs_cparams *params);
+ikvdb_kvs_create(struct ikvdb *kvdb, const char *kvs_name, struct kvs_cparams *params);
 
 /**
  * ikvdb_kvs_drop() - delete a KVS from the associated KVDB

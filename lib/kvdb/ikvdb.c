@@ -1882,31 +1882,54 @@ kvdb_kvs_set_ikvs(struct kvdb_kvs *kk, struct ikvs *ikvs)
 }
 
 merr_t
-ikvdb_kvs_create(struct ikvdb *handle, const char *kvs_name, const struct kvs_cparams *params)
+ikvdb_kvs_create(struct ikvdb *handle, const char *kvs_name, struct kvs_cparams *params)
 {
+    struct ikvdb_impl *self;
+    struct kvdb_kvs *kvs;
+    merr_t err;
+    int idx;
+
     assert(handle);
     assert(kvs_name);
     assert(params);
 
-    merr_t             err = 0;
-    struct ikvdb_impl *self = ikvdb_h2r(handle);
-    struct kvdb_kvs *  kvs = NULL;
-    int                idx;
-
+    self = ikvdb_h2r(handle);
     if (self->ikdb_read_only)
-        goto out_immediate;
+        return 0;
 
     err = validate_kvs_name(kvs_name);
     if (ev(err))
-        goto out_immediate;
+        return err;
 
     kvs = kvdb_kvs_create();
-    if (ev(!kvs)) {
-        err = merr(ENOMEM);
-        goto out_immediate;
-    }
+    if (ev(!kvs))
+        return merr(ENOMEM);
 
     strlcpy(kvs->kk_name, kvs_name, sizeof(kvs->kk_name));
+
+    /* HSE_REVISIT: The following block is transitional code
+     * to assist with initializing the hard-coded route map.
+     * Make params arg const after removing this block.
+     */
+    if (1) {
+        char path[128], buf[128];
+        uint fanout, pfxlen;
+        ssize_t cc;
+        int n;
+
+        n = snprintf(path, sizeof(path), "/var/tmp/routemap-%s", kvs_name);
+        if (n < 1 || n >= sizeof(path))
+            abort();
+
+        cc = hse_readfile(-1, path, buf, sizeof(buf), O_RDONLY);
+        if (cc > 0) {
+            n = sscanf(buf, "%u%u", &fanout, &pfxlen);
+            if (n == 2) {
+                params->fanout = fanout;
+                params->pfx_len = pfxlen;
+            }
+        }
+    }
 
     mutex_lock(&self->ikdb_lock);
 
@@ -1955,9 +1978,8 @@ ikvdb_kvs_create(struct ikvdb *handle, const char *kvs_name, const struct kvs_cp
 
 out_unlock:
     mutex_unlock(&self->ikdb_lock);
-out_immediate:
-    if (err && kvs)
-        kvdb_kvs_destroy(kvs);
+
+    kvdb_kvs_destroy(kvs);
 
     return err;
 }

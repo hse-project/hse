@@ -284,8 +284,22 @@ new_key:
 
     hash = pfx_obj_hash64(&curr.kobj, hashlen);
 
-    if (w->cw_outc > 1) {
-        cnum = cn_tree_route_create(w->cw_tree, hash, w->cw_level);
+    /* Check w->cw_tree because merge_test sets it to NULL.
+     */
+    if (w->cw_outc > 1 && w->cw_tree) {
+        if (w->cw_level == 0 && w->cw_tree->ct_route_map) {
+            char kbuf[HSE_KVS_KEY_LEN_MAX];
+            size_t kbufsz = w->cw_pfx_len;
+            uint klen;
+
+            key_obj_copy(kbuf, kbufsz, &klen, &curr.kobj);
+            if (klen > kbufsz)
+                klen = kbufsz;
+
+            cnum = cn_tree_route_create(w->cw_tree, kbuf, klen, hash, w->cw_level);
+        } else {
+            cnum = cn_tree_route_create(w->cw_tree, NULL, 0, hash, w->cw_level);
+        }
     } else {
         cnum = 0;
     }

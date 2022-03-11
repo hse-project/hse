@@ -229,7 +229,7 @@ kc_loc_check(struct kb_info *kb, struct key_obj *kobj, u64 *hash_out)
 
         assert(*hash);
 
-        if (cn_tree_route_lookup(kb->tree, *hash, i) != cnum) {
+        if (cn_tree_route_lookup(kb->tree, kobj->ko_pfx, kobj->ko_pfx_len, *hash, i) != cnum) {
             err = true;
             lfe_err(kb, "hash: key cannot reach node %u,%u", i + 1, off);
         }

@@ -67,6 +67,7 @@
 #include "kcompact.h"
 #include "kblock_builder.h"
 #include "vblock_builder.h"
+#include "route.h"
 
 static struct kmem_cache *cn_node_cache HSE_READ_MOSTLY;
 
@@ -307,6 +308,7 @@ merr_t
 cn_tree_create(
     struct cn_tree **   handle,
     struct cn_tstate *  tstate,
+    const char         *kvsname,
     u32                 cn_cflags,
     struct kvs_cparams *cp,
     struct kvdb_health *health,
@@ -334,6 +336,8 @@ cn_tree_create(
     tree->ct_fanout = cp->fanout;
     tree->ct_pfx_len = cp->pfx_len;
     tree->ct_sfx_len = cp->sfx_len;
+
+    tree->ct_route_map = route_map_create(cp, kvsname);
 
     if (tstate) {
         struct cn_khashmap *khm = &tree->ct_khmbuf;
@@ -412,6 +416,7 @@ cn_tree_destroy(struct cn_tree *tree)
     cn_ref_wait(tree->cn);
 
     rmlock_destroy(&tree->ct_lock);
+    route_map_destroy(tree->ct_route_map);
     free_aligned(tree);
 }
 
@@ -1041,8 +1046,11 @@ cn_tree_level2hash(uint64_t hash, uint level)
 }
 
 uint
-cn_tree_route_lookup(struct cn_tree *tree, uint64_t hash, uint level)
+cn_tree_route_lookup(struct cn_tree *tree, const void *key, uint keylen, uint64_t hash, uint level)
 {
+    if (level == 0 && tree->ct_route_map)
+        return route_map_lookup(tree->ct_route_map, key, keylen);
+
     hash = cn_tree_level2hash(hash, level);
 
     if (tree->ct_khashmap)
@@ -1052,11 +1060,15 @@ cn_tree_route_lookup(struct cn_tree *tree, uint64_t hash, uint level)
 }
 
 uint
-cn_tree_route_create(struct cn_tree *tree, uint64_t hash, uint level)
+cn_tree_route_create(struct cn_tree *tree, const void *key, uint keylen, uint64_t hash, uint level)
 {
-    struct cn_khashmap *khashmap = tree->ct_khashmap;
+    struct cn_khashmap *khashmap;
     uint child;
 
+    if (level == 0 && tree->ct_route_map)
+        return route_map_lookup(tree->ct_route_map, key, keylen);
+
+    khashmap = tree->ct_khashmap;
     hash = cn_tree_level2hash(hash, level);
 
     if (khashmap) {
@@ -1073,7 +1085,7 @@ cn_tree_route_create(struct cn_tree *tree, uint64_t hash, uint level)
         if (HSE_UNLIKELY(child == 0)) {
             spin_lock(&khashmap->khm_lock);
             while (khashmap->khm_mapv[idx] == 0)
-                khashmap->khm_mapv[idx] = (khashmap->khm_gen += 3);
+                khashmap->khm_mapv[idx] = (khashmap->khm_gen += 1);
             child = khashmap->khm_mapv[idx];
             spin_unlock(&khashmap->khm_lock);
         }
@@ -1248,7 +1260,7 @@ cn_tree_lookup(
             }
         }
 
-        child = cn_tree_route_lookup(tree, spill_hash, pc_depth);
+        child = cn_tree_route_lookup(tree, kt->kt_data, kt->kt_len, spill_hash, pc_depth);
         node = node->tn_childv[child];
 
         __builtin_prefetch(node);
@@ -1839,7 +1851,7 @@ cn_tree_cursor_create(struct cn_cursor *cur, struct cn_tree *tree)
             uint child;
 
             /* descend by prefix hash */
-            child = cn_tree_route_lookup(tree, cur->pfxhash, level);
+            child = cn_tree_route_lookup(tree, cur->pfx, cur->pfx_len, cur->pfxhash, level);
             node = node->tn_childv[child];
         } else {
             /* switch from prefix key hash to full key hash */

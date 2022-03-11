@@ -43,11 +43,11 @@ struct cn_tstate {
 };
 
 uint
-cn_tree_route_lookup(struct cn_tree *tree, u64 hash, uint level);
+cn_tree_route_lookup(struct cn_tree *tree, const void *pfx, uint pfxlen, u64 hash, uint level);
 
 /* MTF_MOCK */
 uint
-cn_tree_route_create(struct cn_tree *tree, u64 hash, uint level);
+cn_tree_route_create(struct cn_tree *tree, const void *pfx, uint pfxlen, u64 hash, uint level);
 
 /* MTF_MOCK */
 merr_t
