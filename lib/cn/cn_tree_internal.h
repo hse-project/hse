@@ -27,6 +27,7 @@
 #include "csched_sp3.h"
 
 struct hlog;
+struct route_map;
 
 /* Each node in a cN tree contains a list of kvsets that must be protected
  * against concurrent update.  Since update of the list is relatively rare,
@@ -118,6 +119,7 @@ struct cn_tree {
     struct mpool *       ds;
     struct kvs_rparams * rp;
 
+    struct route_map  *ct_route_map;
     struct cn_tstate  *ct_tstate;
     struct cn_khashmap ct_khmbuf;
 

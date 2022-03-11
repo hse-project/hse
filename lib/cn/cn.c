@@ -1136,7 +1136,7 @@ cn_open(
     if (ev(err))
         goto err_exit;
 
-    err = cn_tree_create(&cn->cn_tree, cn->cn_tstate, cn->cn_cflags, cn->cp, health, rp);
+    err = cn_tree_create(&cn->cn_tree, cn->cn_tstate, cn->cn_kvsname, cn->cn_cflags, cn->cp, health, rp);
     if (ev(err))
         goto err_exit;
 
@@ -1551,7 +1551,7 @@ cn_make(struct mpool *ds, const struct kvs_cparams *cp, struct kvdb_health *heal
     icp.sfx_len = cp->sfx_len;
     icp.pfx_pivot = cp->pfx_pivot;
 
-    err = cn_tree_create(&tree, NULL, cn_cp2cflags(cp), &icp, health, &rp);
+    err = cn_tree_create(&tree, NULL, NULL, cn_cp2cflags(cp), &icp, health, &rp);
     if (!err)
         cn_tree_destroy(tree);
 

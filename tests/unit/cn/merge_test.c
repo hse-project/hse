@@ -1,6 +1,6 @@
 /* SPDX-License-Identifier: Apache-2.0 */
 /*
- * Copyright (C) 2015-2021 Micron Technology, Inc.  All rights reserved.
+ * Copyright (C) 2015-2022 Micron Technology, Inc.  All rights reserved.
  */
 
 #include <mtf/framework.h>
@@ -1264,7 +1264,7 @@ run_testcase(struct mtf_test_info *lcl_ti, int mode, const char *info)
             .fanout = 8,
         };
 
-        err = cn_tree_create(&tree, &impl.tsi_tstate, 0, &cp, &health, &rp);
+        err = cn_tree_create(&tree, &impl.tsi_tstate, NULL, 0, &cp, &health, &rp);
         ASSERT_EQ(err, 0);
         ASSERT_NE(tree, NULL);
 
@@ -1319,7 +1319,7 @@ run_testcase(struct mtf_test_info *lcl_ti, int mode, const char *info)
             .fanout = 8,
         };
 
-        err = cn_tree_create(&tree, &impl.tsi_tstate, 0, &cp, &health, &rp);
+        err = cn_tree_create(&tree, &impl.tsi_tstate, NULL, 0, &cp, &health, &rp);
         ASSERT_EQ(err, 0);
         ASSERT_NE(tree, NULL);
 
