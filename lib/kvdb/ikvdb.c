@@ -1419,6 +1419,7 @@ ikvdb_wal_replay_info_init(
     rinfo->seqno = seqno;
     rinfo->gen = gen;
     rinfo->txhorizon = txhorizon;
+    rinfo->replay_force = self->ikdb_rp.dur_replay_force;
 }
 
 merr_t
@@ -2675,6 +2676,7 @@ ikvdb_kvs_prefix_delete(
     struct kvdb_kvs *  kk = (struct kvdb_kvs *)handle;
     struct ikvdb_impl *parent;
     u64                seqnoref;
+    merr_t             err;
 
     INVARIANT(handle);
     INVARIANT(kt->kt_data);
@@ -2686,6 +2688,10 @@ ikvdb_kvs_prefix_delete(
     parent = kk->kk_parent;
     if (ev(parent->ikdb_read_only))
         return merr(EROFS);
+
+    err = kvdb_health_check(&parent->ikdb_health, KVDB_HEALTH_FLAG_ALL);
+    if (ev(err))
+        return err;
 
     /* [HSE_REVISIT]: Should this be an invariant? */
     if (kt->kt_len != kk->kk_cparams->pfx_len)

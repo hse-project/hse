@@ -156,3 +156,21 @@ kvdb_health_clear(struct kvdb_health *health, uint event)
 
     return 0;
 }
+
+merr_t
+kvdb_health_clearall(struct kvdb_health *health)
+{
+    uint event, mask = KVDB_HEALTH_FLAG_ALL;
+    merr_t err = 0;
+
+    for (event = 1; mask; event <<= 1) {
+        if (mask & event) {
+            err = kvdb_health_clear(health, event);
+            if (err)
+                break;
+            mask &= ~event;
+        }
+    }
+
+    return err;
+}

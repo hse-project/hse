@@ -78,6 +78,7 @@ struct kvdb_rparams {
     uint32_t dur_size_bytes;
     bool     dur_enable;
     bool     dur_buf_managed;
+    bool     dur_replay_force;
     uint8_t  dur_throttle_lo_th;
     uint8_t  dur_throttle_hi_th;
     uint8_t  dur_mclass;

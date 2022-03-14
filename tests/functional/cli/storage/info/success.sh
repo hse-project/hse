@@ -18,9 +18,7 @@ echo "$output" | cmd grep -F "USED_BYTES"
 echo "$output" | cmd grep -F "PATH"
 
 echo "$output" | cmd grep -F "capacity"
-echo "$output" | cmd grep -F "staging"
-echo "$output" | cmd grep -F "pmem"
 
 echo "$output" | cmd grep -F "$home/capacity"
 
-cmd test "$(echo "$output" | cmd wc -l)" -eq 4
+cmd test "$(echo "$output" | cmd wc -l)" -eq 2

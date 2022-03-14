@@ -6,4 +6,6 @@
 
 . common.subr
 
-cmd -e hse storage info /does-not-exist
+output=$(cmd -e hse storage info /does-not-exist 2>&1)
+
+echo "$output" | cmd grep -F "No such KVDB (/does-not-exist)"
