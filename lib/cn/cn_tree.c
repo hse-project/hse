@@ -1060,6 +1060,26 @@ cn_tree_route_lookup(struct cn_tree *tree, const void *key, uint keylen, uint64_
 }
 
 uint
+cn_tree_route_get(
+    struct cn_tree *tree,
+    const void     *key,
+    uint            keylen,
+    void           *edge_kbuf,
+    size_t          edge_kbuf_sz,
+    uint           *edge_klen)
+{
+    assert(tree->ct_route_map);
+    return route_map_get(tree->ct_route_map, key, keylen, edge_kbuf, edge_kbuf_sz, edge_klen);
+}
+
+void
+cn_tree_route_put(struct cn_tree *tree, uint cnum)
+{
+    assert(tree->ct_route_map);
+    route_map_put(tree->ct_route_map, cnum);
+}
+
+uint
 cn_tree_route_create(struct cn_tree *tree, const void *key, uint keylen, uint64_t hash, uint level)
 {
     struct cn_khashmap *khashmap;
@@ -3035,7 +3055,7 @@ cn_comp_compact(struct cn_compaction_work *w)
 {
     struct kvdb_health *hp;
 
-    bool   kcompact = w->cw_action == CN_ACTION_COMPACT_K;
+    bool   kcompact = (w->cw_action == CN_ACTION_COMPACT_K);
     bool   skip_commit = false;
     merr_t err;
     u32    i;

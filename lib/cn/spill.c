@@ -180,386 +180,431 @@ kv_spill_abort(struct cn_tstate_omf *omf, void *arg)
 {
 }
 
+static inline bool
+is_spill_to_intnode(struct cn_tree_node *pnode, uint child)
+{
+    return pnode->tn_childv[child] && !cn_node_isleaf(pnode->tn_childv[child]);
+}
+
+#include "spill_hash.c"
+
+static merr_t
+get_kvset_builder(struct cn_compaction_work *w, uint cnum, struct kvset_builder **bldr_out)
+{
+    struct kvset_builder *bldr = NULL;
+    merr_t err;
+
+    err = kvset_builder_create(&bldr, cn_tree_get_cn(w->cw_tree), w->cw_pc, w->cw_dgen_hi);
+    if (!err) {
+        struct cn_tree_node *pnode;
+
+        kvset_builder_set_merge_stats(bldr, &w->cw_stats);
+
+        /* TODO: Remove HSE_MPOLICY_AGE_INTERNAL once we move to a strict 2-level cN tree */
+        pnode = w->cw_node;
+        if (w->cw_action == CN_ACTION_SPILL) {
+            if (is_spill_to_intnode(pnode, cnum))
+                kvset_builder_set_agegroup(bldr, HSE_MPOLICY_AGE_INTERNAL);
+            else
+                kvset_builder_set_agegroup(bldr, HSE_MPOLICY_AGE_LEAF);
+        } else {
+            if (cn_node_isleaf(pnode))
+                kvset_builder_set_agegroup(bldr, HSE_MPOLICY_AGE_LEAF);
+            if (cn_node_isroot(pnode))
+                kvset_builder_set_agegroup(bldr, HSE_MPOLICY_AGE_ROOT);
+            else
+                kvset_builder_set_agegroup(bldr, HSE_MPOLICY_AGE_INTERNAL);
+        }
+    }
+
+    *bldr_out = bldr;
+
+    return err;
+}
+
+/*
+ * [HSE_REVISIT] direct read path allocates buffer. Performing direct reads into the buffer
+ * in kvset builder without this is a future opportunity.
+ */
+static merr_t
+get_direct_read_buf(uint len, bool aligned_voff, u32 *bufsz, void **buf)
+{
+    uint bufsz_min = len;
+
+    if (ev(len > HSE_KVS_VALUE_LEN_MAX)) {
+        assert(len <= HSE_KVS_VALUE_LEN_MAX);
+        return merr(EBUG);
+    }
+
+    /* If value offset is not page aligned then allocate one additional page to prevent a
+     * potential copy inside direct read function
+     */
+    if (!aligned_voff)
+        bufsz_min += PAGE_SIZE;
+
+    if (!(*buf) || *bufsz < bufsz_min) {
+        const uint vlen_max = HSE_KVS_VALUE_LEN_MAX;
+
+        *bufsz = (len < vlen_max / 4) ? vlen_max / 4 :
+            ((len < vlen_max / 2) ? vlen_max / 2 : vlen_max);
+
+        /* add an extra page if not aligned */
+        if (bufsz_min < *bufsz)
+            *bufsz += PAGE_SIZE;
+
+        free_aligned(*buf);
+
+        *buf = alloc_aligned(*bufsz, PAGE_SIZE);
+        if (!(*buf))
+            return merr(ENOMEM);
+    }
+
+    return 0;
+}
+
+static uint
+get_route(
+    struct cn_compaction_work *w,
+    struct key_obj            *kobj,
+    char                      *ekbuf,
+    size_t                     ekbuf_sz,
+    uint                      *eklen)
+{
+    uint cnum;
+
+    if (w->cw_action == CN_ACTION_SPILL) {
+        char kbuf[HSE_KVS_KEY_LEN_MAX];
+        uint klen;
+
+        assert(w->cw_tree->ct_route_map);
+        assert(w->cw_outc > 1 && w->cw_level == 0);
+
+        key_obj_copy(kbuf, sizeof(kbuf), &klen, kobj);
+        cnum = cn_tree_route_get(w->cw_tree, kbuf, klen, ekbuf, ekbuf_sz, eklen);
+    } else {
+        assert(w->cw_outc == 1);
+        cnum = 0;
+    }
+
+    return cnum;
+}
+
+static void
+put_route(struct cn_compaction_work *w, uint cnum)
+{
+    if (w->cw_action == CN_ACTION_SPILL)
+        cn_tree_route_put(w->cw_tree, cnum);
+}
+
 /**
- * kv_spill() - merge key-value streams, then partition by child
+ * cn_spill() - merge key-value streams, then spill kv-pairs one node at a time or
+ *              kv-compact into a node.
  * Requirements:
  *   - Each input iterator must produce keys in sorted order.
  *   - Iterator iterv[i] must contain newer entries than iterv[i+1].
  */
-static merr_t
-kv_spill(struct cn_compaction_work *w)
+merr_t
+cn_spill(struct cn_compaction_work *w)
 {
-    struct bin_heap *     bh;
-    struct merge_item     curr;
-    merr_t                err;
-    struct kvset_builder *child;
-
-    u64   hash;
-    uint  vlen;
-    uint  complen;
-    uint  omlen;
-    uint  cnum;
-    u32   childmask; /* mask: which children get kvpairs */
-    void *buf = NULL;
-    u32   bufsz = 0;
-
+    struct bin_heap *bh;
+    struct merge_item curr;
+    struct kvset_builder *child = NULL;
     struct cn_khashmap *khashmap = NULL;
+    struct key_obj ekobj = { 0 }, prev_kobj;
+    struct cn_tree *tree = w->cw_tree;
 
-    bool emitted_val, bg_val, more;
+    char ekbuf[HSE_KVS_KEY_LEN_MAX];
+    uint vlen, complen, omlen, eklen, direct_read_len, cnum, prev_cnum;
+    uint curr_klen HSE_MAYBE_UNUSED;
+    u32 bufsz = 0;
+    void *buf = NULL;
+    merr_t err;
+
     u64  seq, emitted_seq = 0, emitted_seq_pt = 0;
-    uint curr_klen;
+    bool emitted_val = false, bg_val = false, more, gt_max_edge = false;
+    bool kvcompact = (w->cw_action == CN_ACTION_COMPACT_KV);
+    bool spill = (w->cw_action == CN_ACTION_SPILL);
 
-    struct key_obj prev_kobj;
-
-    /* pt_kobj is set to a prefix that can annihilate keys - i.e. it has a
-     * seqno <= horizon
-     */
-    struct key_obj pt_kobj = { 0 };
-    bool           pt_set = false;
-    u64            pt_seq = 0;
-    u32            pt_spread; /* mask: which children get ptomb */
-
-    uint   seqno_errcnt = 0;
-    size_t hashlen, cn_sfx_len;
-    uint   direct_read_len;
-    u64    tstart;
-    u64    tprog = 0;
-
-    u64 dbg_prev_seq HSE_MAYBE_UNUSED;
+    u64  tstart, tprog = 0;
+    u64  dbg_prev_seq HSE_MAYBE_UNUSED;
     uint dbg_prev_src HSE_MAYBE_UNUSED;
     uint dbg_nvals_this_key HSE_MAYBE_UNUSED;
+    uint seqno_errcnt = 0;
     bool dbg_dup HSE_MAYBE_UNUSED;
+
+    /* Variables for tracking the last ptomb context */
+    struct key_obj pt_kobj = { 0 };
+    bool pt_set = false;
+    u64 pt_seq = 0;
+
+    /* TODO: Using spill by hash will be gone once we completely move to a 2-level cN tree
+     * with a full fledged route map
+     */
+    if (!tree->rp->cn_incr_rspill || !tree->ct_route_map || (spill && w->cw_level > 0))
+        return cn_spill_hash(w);
+
+    assert(w->cw_kvset_cnt);
+    assert(w->cw_inputv);
 
     if (w->cw_prog_interval && w->cw_progress)
         tprog = jiffies;
 
-    err = merge_init(&bh, w->cw_inputv, w->cw_kvset_cnt, &w->cw_stats);
-    if (ev(err))
-        return err;
-
-    more = get_next_item(bh, w->cw_inputv, &curr, &w->cw_stats, &err);
-    if (!more || ev(err))
-        goto done;
-
-    cn_sfx_len = w->cw_cp->sfx_len;
-
-    /* We must issue a direct read for all values that will not fit into
-     * the vblock readahead buffer.  Since all direct reads require page
-     * size alignment any value whose length is greater than the buffer
-     * size minus one page must be read directly from disk (vs from the
+    /*
+     * We must issue a direct read for all values that will not fit into the vblock readahead
+     * buffer.  Since all direct reads require page size alignment any value whose length is
+     * greater than the buffer size minus one page must be read directly from disk (vs from the
      * readahead buffer).
      */
     direct_read_len = w->cw_rp->cn_compact_vblk_ra;
     direct_read_len -= PAGE_SIZE;
 
-    tstart = perfc_ison(w->cw_pc, PERFC_DI_CNCOMP_VGET) ? 1 : 0;
+    memset(w->cw_outv, 0, w->cw_outc * sizeof(*w->cw_outv));
 
-new_key:
-    pt_spread = 0;
-    childmask = 0;
-
-    if (atomic_read(w->cw_cancel_request)) {
-        err = merr(ESHUTDOWN);
-        goto done;
-    }
-
-    if (tprog) {
-        u64 now = jiffies;
-
-        if (now - tprog > w->cw_prog_interval) {
-            tprog = now;
-            w->cw_progress(w);
-        }
-    }
-
-    /* Caller sets cw_pfx_len appropriately for the current
-     * level, so no need to adapt the hash according to the
-     * tree level.
-     */
-    curr_klen = key_obj_len(&curr.kobj);
-    assert(curr_klen >= cn_sfx_len || curr.vctx.is_ptomb);
-
-    hashlen = w->cw_pfx_len;
-    hashlen = hashlen ?: curr_klen - cn_sfx_len;
-
-    hash = pfx_obj_hash64(&curr.kobj, hashlen);
-
-    /* Check w->cw_tree because merge_test sets it to NULL.
-     */
-    if (w->cw_outc > 1 && w->cw_tree) {
-        if (w->cw_level == 0 && w->cw_tree->ct_route_map) {
-            char kbuf[HSE_KVS_KEY_LEN_MAX];
-            size_t kbufsz = w->cw_pfx_len;
-            uint klen;
-
-            key_obj_copy(kbuf, kbufsz, &klen, &curr.kobj);
-            if (klen > kbufsz)
-                klen = kbufsz;
-
-            cnum = cn_tree_route_create(w->cw_tree, kbuf, klen, hash, w->cw_level);
-        } else {
-            cnum = cn_tree_route_create(w->cw_tree, NULL, 0, hash, w->cw_level);
-        }
-    } else {
-        cnum = 0;
-    }
-    child = w->cw_child[cnum];
-
-    bg_val = false;
-    emitted_val = false;
-    emitted_seq = 0;
-    emitted_seq_pt = 0;
-
-    dbg_prev_seq = 0;
-    dbg_prev_src = 0;
-    dbg_nvals_this_key = 0;
-    dbg_dup = false;
-
-get_values:
-
-    while (!bg_val) {
-        const void *   vdata = NULL;
-        bool           should_emit = false;
-        enum kmd_vtype vtype;
-        u32            vbidx;
-        u32            vboff;
-        bool           direct;
-
-        if (tstart > 0)
-            tstart = get_time_ns();
-
-        if (!kvset_iter_next_vref(
-                w->cw_inputv[curr.src], &curr.vctx, &seq, &vtype, &vbidx, &vboff,
-                &vdata, &vlen, &complen))
-            break;
-
-        if (vtype == vtype_val)
-            omlen = vlen;
-        else if (vtype == vtype_cval)
-            omlen = complen;
-        else
-            omlen = 0;
-
-        direct = omlen > direct_read_len;
-
-        /* [HSE_REVISIT] direct read path allocates buffer. Performing
-         * direct reads into the buffer in kvset builder without this
-         * is a future opportunity.
-         */
-        if (direct) {
-            uint bufsz_min;
-
-            if (ev(omlen > HSE_KVS_VALUE_LEN_MAX)) {
-                assert(omlen <= HSE_KVS_VALUE_LEN_MAX);
-                err = merr(EBUG);
-                goto done;
-            }
-
-            bufsz_min = omlen;
-
-            /* If value offset is not page aligned then allocate
-             * one additional page to prevent a potential copy
-             * inside direct read function
-             */
-            if (vboff % PAGE_SIZE)
-                bufsz_min += PAGE_SIZE;
-
-            if (!buf || bufsz < bufsz_min) {
-                free_aligned(buf);
-
-                if (omlen < HSE_KVS_VALUE_LEN_MAX / 4)
-                    bufsz = HSE_KVS_VALUE_LEN_MAX / 4;
-                else if (omlen < HSE_KVS_VALUE_LEN_MAX / 2)
-                    bufsz = HSE_KVS_VALUE_LEN_MAX / 2;
-                else
-                    bufsz = HSE_KVS_VALUE_LEN_MAX;
-
-                /* add an extra page if not aligned */
-                if (bufsz_min < bufsz)
-                    bufsz += PAGE_SIZE;
-
-                buf = alloc_aligned(bufsz, PAGE_SIZE);
-                if (!buf) {
-                    err = merr(ENOMEM);
-                    goto done;
-                }
-            }
-
-            err = kvset_iter_next_val_direct(
-                w->cw_inputv[curr.src], vtype, vbidx, vboff, buf, omlen, bufsz);
-            vdata = buf;
-        } else {
-            err = kvset_iter_next_val(
-                w->cw_inputv[curr.src], &curr.vctx, vtype, vbidx, vboff, &vdata, &vlen, &complen);
-        }
-        if (ev(err))
-            goto done;
-
-        if (tstart > 0) {
-            u64 t = get_time_ns() - tstart;
-
-            perfc_rec_sample(w->cw_pc, PERFC_DI_CNCOMP_VGET, t);
-        }
-
-        /* Assertion logic:
-         *   if (dbg_nvals_this_key)
-         *       assert(dbg_prev_seq > seq);
-         */
-        if (HSE_UNLIKELY(dbg_nvals_this_key && dbg_prev_seq <= seq)) {
-            assert(0);
-            seqno_errcnt++;
-        }
-
-        /* If we are spreading ptombs to all children, cw_pfx_len is 0.
-         * Else, if ptomb, curr.klen should match cw_pfx_len.
-         */
-        assert(!HSE_CORE_IS_PTOMB(vdata) || !w->cw_pfx_len || w->cw_pfx_len == curr_klen);
-
-        dbg_nvals_this_key++;
-        dbg_prev_seq = seq;
-
-        bg_val = (seq <= w->cw_horizon);
-
-        if (bg_val) {
-            if (pt_set && seq < pt_seq)
-                break; /* drop val */
-
-            if (HSE_CORE_IS_PTOMB(vdata)) {
-                pt_set = true;
-                pt_kobj = curr.kobj;
-                pt_seq = seq;
-            }
-        }
-
-        if (HSE_CORE_IS_PTOMB(vdata))
-            should_emit = !emitted_seq_pt || seq < emitted_seq_pt;
-        else
-            should_emit = !emitted_seq || seq < emitted_seq;
-
-        should_emit = should_emit || !emitted_val;
-
-        /* Compare seq to emitted_seq to ensure when a key has values
-         * in two kvsets with the same sequence number, that only the
-         * value from the first kvset is emitted.
-         */
-        if (should_emit) {
-            if (HSE_UNLIKELY(HSE_CORE_IS_PTOMB(vdata)) && w->cw_pfx_len == 0 && w->cw_outc > 1) {
-                /* prefixed cn tree. But spilling by full hash.
-                 * Pass on ptomb to all children
-                 */
-                int i;
-
-                for (i = 0; i < w->cw_outc; i++) {
-                    if (w->cw_drop_tombv[i] && bg_val)
-                        continue;
-
-                    err = kvset_builder_add_val(w->cw_child[i], seq, vdata, vlen, 0);
-                    if (ev(err))
-                        goto done;
-
-                    emitted_val = true;
-                    emitted_seq_pt = seq;
-                    pt_spread |= (1 << i);
-                }
-            } else {
-                if (w->cw_drop_tombv[cnum] && HSE_CORE_IS_TOMB(vdata) && bg_val)
-                    continue; /* skip value */
-
-                err = kvset_builder_add_val(child, seq, vdata, vlen, complen);
-                if (ev(err))
-                    goto done;
-
-                w->cw_stats.ms_val_bytes_out += complen ? complen : vlen;
-                emitted_val = true;
-                childmask |= (1 << cnum);
-                if (HSE_CORE_IS_PTOMB(vdata))
-                    emitted_seq_pt = seq;
-                else
-                    emitted_seq = seq;
-            }
-        } else {
-            /* The only time we ever land here is when the same
-             * key appears in two input kvsets with overlapping
-             * sequence numbers.  For example:
-             *
-             * Kvset #1: MEAL --> [[11,BURGERS], [10,BEER]]
-             * Kvset #2: MEAL --> [[10,SPAM], [9,FRIES]]
-             *
-             * We have already emitted BURGERS and BEER, are
-             * currently processing SPAM (which must be be
-             * discarded), and will get FRIES on the next
-             * iteration.
-             *
-             * The following assertions verify that we aren't here
-             * for other reasons (e.g., input kvsets that violate
-             * assumptions about sequence numbers).
-             */
-            assert(dbg_prev_src < curr.src);
-            assert(seq == emitted_seq);
-            if (seq > emitted_seq)
-                seqno_errcnt++;
-
-            /* Two ptombs can have the same seqno only if they are
-             * part of a txn. But if that is the case, those ptombs
-             * will never be dups. So, there can never be duplicate
-             * ptombs with the same seqno.
-             */
-            assert(vdata != HSE_CORE_TOMB_PFX);
-        }
-    }
-
-    prev_kobj = curr.kobj;
-
-    dbg_dup = false;
-    dbg_nvals_this_key = 0;
-    dbg_prev_src = curr.src;
+    err = merge_init(&bh, w->cw_inputv, w->cw_kvset_cnt, &w->cw_stats);
+    if (err)
+        return err;
 
     more = get_next_item(bh, w->cw_inputv, &curr, &w->cw_stats, &err);
-    if (ev(err))
-        goto done;
+    if (more)
+        cnum = get_route(w, &curr.kobj, ekbuf, sizeof(ekbuf), &eklen);
 
-    if (more) {
-        if (0 == key_obj_cmp(&curr.kobj, &prev_kobj)) {
-            dbg_dup = true;
-            assert(dbg_prev_src <= curr.src);
-            goto get_values;
-        } else if (pt_set && key_obj_cmp_prefix(&pt_kobj, &curr.kobj) != 0) {
-            /* cached ptomb key is no longer valid */
-            pt_set = false;
+    while (!err && more) {
+        bool new_key = true;
+
+        if (!child) {
+            err = get_kvset_builder(w, cnum, &child);
+            if (err) {
+                put_route(w, cnum);
+                break;
+            }
+            /*
+             * Add ptomb to 'child' if a ptomb context is carried forward from the
+             * previous node spill, i.e., this ptomb spans across multiple children.
+             */
+            if (pt_set && (!w->cw_drop_tombv[cnum] || pt_seq > w->cw_horizon)) {
+                const void *pt_vdata = HSE_CORE_TOMB_PFX;
+
+                err = kvset_builder_add_val(child, pt_seq, pt_vdata, 0, 0);
+                if (!err)
+                    err = kvset_builder_add_key(child, &pt_kobj);
+
+                if (err) {
+                    put_route(w, cnum);
+                    kvset_builder_destroy(child);
+                    break;
+                }
+
+                w->cw_stats.ms_keys_out++;
+                w->cw_stats.ms_key_bytes_out += key_obj_len(&pt_kobj);
+            }
         }
-    }
+        assert(child);
 
-    if (emitted_val) {
-        if (pt_spread) {
-            int i;
-            u32 spillmask = pt_spread | childmask;
+        key2kobj(&ekobj, ekbuf, eklen);
+        assert(!gt_max_edge || key_obj_ncmp(&curr.kobj, &ekobj, eklen) > 0);
 
-            for (i = 0; i < w->cw_outc; i++) {
-                if ((spillmask & (1 << i)) == 0)
+        tstart = perfc_ison(w->cw_pc, PERFC_DI_CNCOMP_VGET) ? 1 : 0;
+
+        while (more && (kvcompact || gt_max_edge ||
+                        key_obj_ncmp(&curr.kobj, &ekobj, eklen) <= 0)) {
+            if (atomic_read(w->cw_cancel_request)) {
+                err = merr(ESHUTDOWN);
+                break;
+            }
+
+            curr_klen = key_obj_len(&curr.kobj);
+            assert(curr_klen >= w->cw_cp->sfx_len || curr.vctx.is_ptomb);
+
+            if (new_key) {
+                bg_val = false;
+                emitted_val = false;
+                emitted_seq = 0;
+                emitted_seq_pt = 0;
+
+                dbg_prev_seq = 0;
+                dbg_prev_src = 0;
+                dbg_nvals_this_key = 0;
+                dbg_dup = false;
+            }
+
+            while (!bg_val) {
+                const void *   vdata = NULL;
+                bool           should_emit = false;
+                enum kmd_vtype vtype;
+                u32            vbidx;
+                u32            vboff;
+                bool           direct;
+
+                if (tstart > 0)
+                    tstart = get_time_ns();
+
+                if (!kvset_iter_next_vref(w->cw_inputv[curr.src], &curr.vctx, &seq, &vtype, &vbidx,
+                                          &vboff, &vdata, &vlen, &complen))
+                    break;
+
+                omlen = (vtype == vtype_val) ? vlen : ((vtype == vtype_cval) ? complen : 0);
+
+                direct = omlen > direct_read_len;
+                if (direct) {
+                    err = get_direct_read_buf(omlen, !(vboff % PAGE_SIZE), &bufsz, &buf);
+                    if (err)
+                        break;
+
+                    err = kvset_iter_next_val_direct(w->cw_inputv[curr.src], vtype, vbidx,
+                                                     vboff, buf, omlen, bufsz);
+                    vdata = buf;
+                } else {
+                    err = kvset_iter_next_val(w->cw_inputv[curr.src], &curr.vctx, vtype, vbidx,
+                                              vboff, &vdata, &vlen, &complen);
+                }
+                if (err)
+                    break;
+
+                if (tstart > 0) {
+                    u64 t = get_time_ns() - tstart;
+
+                    perfc_rec_sample(w->cw_pc, PERFC_DI_CNCOMP_VGET, t);
+                }
+
+                if (HSE_UNLIKELY(dbg_nvals_this_key && dbg_prev_seq <= seq)) {
+                    assert(0);
+                    seqno_errcnt++;
+                }
+
+                assert(!HSE_CORE_IS_PTOMB(vdata) || !w->cw_pfx_len || w->cw_pfx_len == curr_klen);
+                dbg_nvals_this_key++;
+                dbg_prev_seq = seq;
+
+                bg_val = (seq <= w->cw_horizon);
+
+                /* Set ptomb context and annihilate keys irrespective of bg_val */
+                if (pt_set && seq < pt_seq)
+                    break; /* drop val */
+
+                if (HSE_CORE_IS_PTOMB(vdata)) {
+                    pt_set = true;
+                    pt_kobj = curr.kobj;
+                    pt_seq = seq;
+                }
+
+                if (HSE_CORE_IS_PTOMB(vdata))
+                    should_emit = !emitted_seq_pt || seq < emitted_seq_pt;
+                else
+                    should_emit = !emitted_seq || seq < emitted_seq;
+
+                should_emit = should_emit || !emitted_val;
+
+                /* Compare seq to emitted_seq to ensure when a key has values in two kvsets with
+                 * the same sequence number, then only the value from the first kvset is emitted.
+                 */
+                if (should_emit) {
+                    if (w->cw_drop_tombv[cnum] && HSE_CORE_IS_TOMB(vdata) && bg_val)
+                        continue; /* skip value */
+
+                    err = kvset_builder_add_val(child, seq, vdata, vlen, complen);
+                    if (err)
+                        break;
+
+                    w->cw_stats.ms_val_bytes_out += complen ? complen : vlen;
+                    emitted_val = true;
+                    if (HSE_CORE_IS_PTOMB(vdata))
+                        emitted_seq_pt = seq;
+                    else
+                        emitted_seq = seq;
+                } else {
+                    /* The same key can appear in two input kvsets with overlapping sequence
+                     * numbers. The following assertions verify that we aren't here for other
+                     * reasons (e.g., input kvsets that violate assumptions about sequence numbers).
+                     */
+                    assert(dbg_prev_src < curr.src);
+                    assert(seq == emitted_seq);
+                    if (seq > emitted_seq)
+                        seqno_errcnt++;
+
+                    /* Two ptombs can have the same seqno only if they are part of a txn. But if
+                     * that is the case, those ptombs will never be dups. So, there can never be
+                     * duplicate ptombs with the same seqno.
+                     */
+                    assert(vdata != HSE_CORE_TOMB_PFX);
+                }
+            }
+
+            if (err)
+                break;
+
+            prev_kobj = curr.kobj;
+
+            dbg_dup = false;
+            dbg_nvals_this_key = 0;
+            dbg_prev_src = curr.src;
+
+            more = get_next_item(bh, w->cw_inputv, &curr, &w->cw_stats, &err);
+            if (err)
+                break;
+
+            if (more) {
+                if (0 == key_obj_cmp(&curr.kobj, &prev_kobj)) {
+                    dbg_dup = true;
+                    new_key = false;
+                    assert(dbg_prev_src <= curr.src);
                     continue;
+                } else if (pt_set && key_obj_cmp_prefix(&pt_kobj, &curr.kobj) != 0) {
+                    pt_set = false; /* cached ptomb key is no longer valid */
+                }
+            }
 
-                err = kvset_builder_add_key(w->cw_child[i], &prev_kobj);
-                if (ev(err))
-                    goto done;
+            if (emitted_val) {
+                err = kvset_builder_add_key(child, &prev_kobj);
+                if (err)
+                    break;
 
                 w->cw_stats.ms_keys_out++;
                 w->cw_stats.ms_key_bytes_out += key_obj_len(&prev_kobj);
             }
 
-        } else {
-            err = kvset_builder_add_key(child, &prev_kobj);
-            if (ev(err))
-                goto done;
+            new_key = true;
 
-            w->cw_stats.ms_keys_out++;
-            w->cw_stats.ms_key_bytes_out += key_obj_len(&prev_kobj);
+            if (tprog) {
+                u64 now = jiffies;
+
+                if (now - tprog > w->cw_prog_interval) {
+                    tprog = now;
+                    w->cw_progress(w);
+                }
+            }
+        }
+
+        if (err) {
+            put_route(w, cnum);
+            kvset_builder_destroy(child);
+            break;
+        }
+
+        prev_cnum = cnum;
+        assert(!gt_max_edge || !more);
+        if (more) {
+            cnum = get_route(w, &curr.kobj, ekbuf, sizeof(ekbuf), &eklen);
+            /* This accommodates keys that are greater than the maximum edge in the route map */
+            if (prev_cnum == cnum)
+                gt_max_edge = true;
+        }
+
+        if (!more || !gt_max_edge) {
+            err = kvset_builder_get_mblocks(child, &w->cw_outv[prev_cnum]);
+            if (err) {
+                while (prev_cnum-- > 0) {
+                    abort_mblocks(w->cw_ds, &w->cw_outv[prev_cnum].kblks);
+                    abort_mblocks(w->cw_ds, &w->cw_outv[prev_cnum].vblks);
+                }
+                memset(w->cw_outv, 0, w->cw_outc * sizeof(*w->cw_outv));
+            }
+
+            put_route(w, cnum);
+            kvset_builder_destroy(child);
+            child = NULL;
         }
     }
 
-    if (more)
-        goto new_key;
-
-done:
     bin_heap_destroy(bh);
     free_aligned(buf);
 
@@ -567,7 +612,7 @@ done:
      * if it changed while we were using it (regardless of who changed it,
      * and especially if we changed it, regardless of error).
      */
-    khashmap = cn_tree_get_khashmap(w->cw_tree);
+    khashmap = cn_tree_get_khashmap(tree);
     if (khashmap) {
         merr_t err2;
         bool   update;
@@ -577,9 +622,9 @@ done:
         spin_unlock(&khashmap->khm_lock);
 
         if (update) {
-            struct cn_tstate *ts = w->cw_tree->ct_tstate;
+            struct cn_tstate *ts = tree->ct_tstate;
 
-            err2 = ts->ts_update(ts, kv_spill_prepare, kv_spill_commit, kv_spill_abort, w->cw_tree);
+            err2 = ts->ts_update(ts, kv_spill_prepare, kv_spill_commit, kv_spill_abort, tree);
             err = err ?: err2;
         }
     }
@@ -589,81 +634,6 @@ done:
 
     if (tprog)
         w->cw_progress(w);
-
-    return err;
-}
-
-static inline bool
-is_spill_to_intnode(struct cn_tree_node *pnode, u32 child)
-{
-    return pnode->tn_childv[child] && !cn_node_isleaf(pnode->tn_childv[child]);
-}
-
-merr_t
-cn_spill(struct cn_compaction_work *w)
-{
-    merr_t err;
-    uint   i;
-
-    assert(w->cw_kvset_cnt);
-    assert(w->cw_inputv);
-
-    memset(w->cw_outv, 0, w->cw_outc * sizeof(*w->cw_outv));
-
-    for (i = 0; i < w->cw_outc; i++) {
-        struct cn_tree_node *pnode;
-
-        err = kvset_builder_create(
-            &w->cw_child[i],
-            cn_tree_get_cn(w->cw_tree),
-            w->cw_pc,
-            w->cw_dgen_hi);
-        if (ev(err))
-            goto done;
-
-        kvset_builder_set_merge_stats(w->cw_child[i], &w->cw_stats);
-
-        pnode = w->cw_node;
-        if (pnode && w->cw_action == CN_ACTION_SPILL) {
-            if (is_spill_to_intnode(pnode, i))
-                kvset_builder_set_agegroup(w->cw_child[i], HSE_MPOLICY_AGE_INTERNAL);
-            else
-                kvset_builder_set_agegroup(w->cw_child[i], HSE_MPOLICY_AGE_LEAF);
-        }
-
-        if (pnode && w->cw_action == CN_ACTION_COMPACT_KV) {
-            if (cn_node_isleaf(pnode))
-                kvset_builder_set_agegroup(w->cw_child[i], HSE_MPOLICY_AGE_LEAF);
-            else if (cn_node_isroot(pnode))
-                kvset_builder_set_agegroup(w->cw_child[i], HSE_MPOLICY_AGE_ROOT);
-            else
-                kvset_builder_set_agegroup(w->cw_child[i], HSE_MPOLICY_AGE_INTERNAL);
-        }
-    }
-
-    err = kv_spill(w);
-    if (ev(err))
-        goto done;
-
-    /* Get each child's output mblocks */
-    for (i = 0; i < w->cw_outc; i++) {
-        err = kvset_builder_get_mblocks(w->cw_child[i], &w->cw_outv[i]);
-        if (ev(err))
-            break;
-    }
-
-    if (err) {
-        while (i-- > 0) {
-            abort_mblocks(w->cw_ds, &w->cw_outv[i].kblks);
-            abort_mblocks(w->cw_ds, &w->cw_outv[i].vblks);
-        }
-        memset(w->cw_outv, 0, w->cw_outc * sizeof(*w->cw_outv));
-    }
-
-done:
-    /* Applies to success and failure paths */
-    for (i = 0; i < w->cw_outc; i++)
-        kvset_builder_destroy(w->cw_child[i]);
 
     return err;
 }

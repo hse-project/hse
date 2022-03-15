@@ -787,6 +787,21 @@ static const struct param_spec pspecs[] = {
         },
     },
     {
+        .ps_name = "cn_incr_rspill",
+        .ps_description = "Enable incremental root spill",
+        .ps_flags = PARAM_FLAG_EXPERIMENTAL,
+        .ps_type = PARAM_TYPE_BOOL,
+        .ps_offset = offsetof(struct kvs_rparams, cn_incr_rspill),
+        .ps_size = PARAM_SZ(struct kvs_rparams, cn_incr_rspill),
+        .ps_convert = param_default_converter,
+        .ps_validate = param_default_validator,
+        .ps_stringify = param_default_stringify,
+        .ps_jsonify = param_default_jsonify,
+        .ps_default_value = {
+            .as_uscalar = true,
+        },
+    },
+    {
         .ps_name = "read_only",
         .ps_description = "open kvs in read-only mode",
         .ps_flags = PARAM_FLAG_EXPERIMENTAL,

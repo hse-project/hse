@@ -117,6 +117,33 @@ route_map_lookup(struct route_map *map, const void *pfx, uint pfxlen)
     return node->rtn_child;
 }
 
+uint
+route_map_get(
+    struct route_map *map,
+    const void       *pfx,
+    uint              pfxlen,
+    void             *edge_kbuf,
+    size_t            edge_kbuf_sz,
+    uint             *edge_klen)
+{
+    struct route_node *node;
+
+    node = route_map_find(map, pfx, pfxlen);
+
+    assert(edge_kbuf && edge_kbuf_sz >= node->rtn_keylen);
+    if (edge_kbuf && edge_kbuf_sz >= node->rtn_keylen) {
+        memcpy(edge_kbuf, node->rtn_keybuf, node->rtn_keylen);
+        *edge_klen = node->rtn_keylen;
+    }
+
+    return node->rtn_child;
+}
+
+void
+route_map_put(struct route_map *map, uint cnum)
+{
+}
+
 struct route_map *
 route_map_create(const struct kvs_cparams *cp, const char *kvsname)
 {

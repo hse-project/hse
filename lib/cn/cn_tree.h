@@ -49,6 +49,18 @@ cn_tree_route_lookup(struct cn_tree *tree, const void *pfx, uint pfxlen, u64 has
 uint
 cn_tree_route_create(struct cn_tree *tree, const void *pfx, uint pfxlen, u64 hash, uint level);
 
+uint
+cn_tree_route_get(
+    struct cn_tree *tree,
+    const void     *key,
+    uint            keylen,
+    void           *edge_kbuf,
+    size_t          edge_kbuf_sz,
+    uint           *edge_klen);
+
+void
+cn_tree_route_put(struct cn_tree *tree, uint cnum);
+
 /* MTF_MOCK */
 merr_t
 cn_tree_lookup(
