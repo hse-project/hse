@@ -2,6 +2,3 @@
 alignment:_urcu_bp_read_lock
 alignment:_urcu_bp_read_unlock
 alignment:_urcu_bp_read_ongoing
-alignment:param_default_populate
-alignment:_rcu_read_lock
-alignment:_rcu_read_unlock
