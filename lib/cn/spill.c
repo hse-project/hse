@@ -276,7 +276,6 @@ get_route(
         char kbuf[HSE_KVS_KEY_LEN_MAX];
         uint klen;
 
-        assert(w->cw_tree->ct_route_map);
         assert(w->cw_outc > 1 && w->cw_level == 0);
 
         key_obj_copy(kbuf, sizeof(kbuf), &klen, kobj);
@@ -329,8 +328,8 @@ cn_spill(struct cn_compaction_work *w)
     u64  dbg_prev_seq HSE_MAYBE_UNUSED;
     uint dbg_prev_src HSE_MAYBE_UNUSED;
     uint dbg_nvals_this_key HSE_MAYBE_UNUSED;
-    uint seqno_errcnt = 0;
     bool dbg_dup HSE_MAYBE_UNUSED;
+    uint seqno_errcnt = 0;
 
     /* Variables for tracking the last ptomb context */
     struct key_obj pt_kobj = { 0 };
@@ -349,8 +348,7 @@ cn_spill(struct cn_compaction_work *w)
     if (w->cw_prog_interval && w->cw_progress)
         tprog = jiffies;
 
-    /*
-     * We must issue a direct read for all values that will not fit into the vblock readahead
+    /* We must issue a direct read for all values that will not fit into the vblock readahead
      * buffer.  Since all direct reads require page size alignment any value whose length is
      * greater than the buffer size minus one page must be read directly from disk (vs from the
      * readahead buffer).
@@ -377,8 +375,9 @@ cn_spill(struct cn_compaction_work *w)
                 put_route(w, cnum);
                 break;
             }
-            /*
-             * Add ptomb to 'child' if a ptomb context is carried forward from the
+            assert(child);
+
+            /* Add ptomb to 'child' if a ptomb context is carried forward from the
              * previous node spill, i.e., this ptomb spans across multiple children.
              */
             if (pt_set && (!w->cw_drop_tombv[cnum] || pt_seq > w->cw_horizon)) {
@@ -398,7 +397,6 @@ cn_spill(struct cn_compaction_work *w)
                 w->cw_stats.ms_key_bytes_out += key_obj_len(&pt_kobj);
             }
         }
-        assert(child);
 
         key2kobj(&ekobj, ekbuf, eklen);
         assert(!gt_max_edge || key_obj_ncmp(&curr.kobj, &ekobj, eklen) > 0);
@@ -457,6 +455,7 @@ cn_spill(struct cn_compaction_work *w)
                     err = kvset_iter_next_val(w->cw_inputv[curr.src], &curr.vctx, vtype, vbidx,
                                               vboff, &vdata, &vlen, &complen);
                 }
+
                 if (err)
                     break;
 
@@ -543,7 +542,7 @@ cn_spill(struct cn_compaction_work *w)
                 break;
 
             if (more) {
-                if (0 == key_obj_cmp(&curr.kobj, &prev_kobj)) {
+                if (key_obj_cmp(&curr.kobj, &prev_kobj) == 0) {
                     dbg_dup = true;
                     new_key = false;
                     assert(dbg_prev_src <= curr.src);
@@ -585,7 +584,7 @@ cn_spill(struct cn_compaction_work *w)
         if (more) {
             cnum = get_route(w, &curr.kobj, ekbuf, sizeof(ekbuf), &eklen);
             /* This accommodates keys that are greater than the maximum edge in the route map */
-            if (prev_cnum == cnum)
+            if (cnum == prev_cnum)
                 gt_max_edge = true;
         }
 
@@ -599,7 +598,7 @@ cn_spill(struct cn_compaction_work *w)
                 memset(w->cw_outv, 0, w->cw_outc * sizeof(*w->cw_outv));
             }
 
-            put_route(w, cnum);
+            put_route(w, prev_cnum);
             kvset_builder_destroy(child);
             child = NULL;
         }

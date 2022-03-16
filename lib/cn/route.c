@@ -117,6 +117,10 @@ route_map_lookup(struct route_map *map, const void *pfx, uint pfxlen)
     return node->rtn_child;
 }
 
+/* In a future revision of route map, the route_map_get() routine will likey take a
+ * reference on the returned edge to ensure that a spill and a split/join does not
+ * run concurrently on a node.
+ */
 uint
 route_map_get(
     struct route_map *map,
@@ -126,19 +130,18 @@ route_map_get(
     size_t            edge_kbuf_sz,
     uint             *edge_klen)
 {
-    struct route_node *node;
+    struct route_node *node = route_map_find(map, pfx, pfxlen);
 
-    node = route_map_find(map, pfx, pfxlen);
+    INVARIANT(edge_kbuf && edge_klen && edge_kbuf_sz >= node->rtn_keylen);
 
-    assert(edge_kbuf && edge_kbuf_sz >= node->rtn_keylen);
-    if (edge_kbuf && edge_kbuf_sz >= node->rtn_keylen) {
-        memcpy(edge_kbuf, node->rtn_keybuf, node->rtn_keylen);
-        *edge_klen = node->rtn_keylen;
-    }
+    memcpy(edge_kbuf, node->rtn_keybuf, node->rtn_keylen);
+
+    *edge_klen = node->rtn_keylen;
 
     return node->rtn_child;
 }
 
+/* This is a placeholder routine to drop the reference taken in route_map_get() */
 void
 route_map_put(struct route_map *map, uint cnum)
 {

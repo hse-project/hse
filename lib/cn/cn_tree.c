@@ -1068,14 +1068,16 @@ cn_tree_route_get(
     size_t          edge_kbuf_sz,
     uint           *edge_klen)
 {
-    assert(tree->ct_route_map);
+    INVARIANT(tree->ct_route_map);
+
     return route_map_get(tree->ct_route_map, key, keylen, edge_kbuf, edge_kbuf_sz, edge_klen);
 }
 
 void
 cn_tree_route_put(struct cn_tree *tree, uint cnum)
 {
-    assert(tree->ct_route_map);
+    INVARIANT(tree->ct_route_map);
+
     route_map_put(tree->ct_route_map, cnum);
 }
 
