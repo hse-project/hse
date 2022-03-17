@@ -1214,19 +1214,39 @@ run_testcase(struct mtf_test_info *lcl_ti, int mode, const char *info)
     tp.fanout = tp.fanout;
     tp.pt_spread = false;
 
+    rp.cn_incr_rspill = false;
+
     if (mode == MODE_SPILL) {
+        struct cn_tree *tree;
+        struct cn_tstate_impl impl;
+        struct cn_tstate_omf *omf;
+        struct kvdb_health    health;
+
         struct kvs_cparams cp = {
             .fanout = tp.fanout, .pfx_len = tp.pfx_len,
         };
 
+        memset(&impl, 0, sizeof(impl));
+        impl.tsi_tstate.ts_get = ts_get;
+        impl.tsi_tstate.ts_update = ts_update;
+        omf = &impl.tsi_omf;
+        omf_set_ts_magic(omf, CN_TSTATE_MAGIC);
+        omf_set_ts_version(omf, CN_TSTATE_VERSION);
+
         if (tp.pfx_len == 0)
             tp.pt_spread = true;
+
+        err = cn_tree_create(&tree, &impl.tsi_tstate, NULL, 0, &cp, &health, &rp);
+        ASSERT_EQ(err, 0);
+        ASSERT_NE(tree, NULL);
+
+        cn_tree_setup(tree, NULL, NULL, &rp, NULL, 1234, 0);
 
         init_work(
             &w,
             ds,
             &rp,
-            NULL,
+            tree,
             tp.horizon,
             iterc,
             iterv,
@@ -1243,6 +1263,7 @@ run_testcase(struct mtf_test_info *lcl_ti, int mode, const char *info)
 
         err = cn_spill(&w);
         ASSERT_EQ(err, 0);
+        cn_tree_destroy(tree);
     } else if (mode == MODE_KHASHMAP) {
         struct cn_tstate_impl impl;
         struct cn_tstate_omf *omf;
@@ -1268,7 +1289,7 @@ run_testcase(struct mtf_test_info *lcl_ti, int mode, const char *info)
         ASSERT_EQ(err, 0);
         ASSERT_NE(tree, NULL);
 
-        cn_tree_setup(tree, NULL, NULL, NULL, NULL, 1234, 0);
+        cn_tree_setup(tree, NULL, NULL, &rp, NULL, 1234, 0);
 
         if (tp.pfx_len == 0)
             tp.pt_spread = true;
@@ -1323,7 +1344,7 @@ run_testcase(struct mtf_test_info *lcl_ti, int mode, const char *info)
         ASSERT_EQ(err, 0);
         ASSERT_NE(tree, NULL);
 
-        cn_tree_setup(tree, NULL, NULL, NULL, NULL, 1234, 0);
+        cn_tree_setup(tree, NULL, NULL, &rp, NULL, 1234, 0);
 
         if (tp.pfx_len == 0)
             tp.pt_spread = true;

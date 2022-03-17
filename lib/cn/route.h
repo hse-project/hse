@@ -18,4 +18,16 @@ route_map_destroy(struct route_map *map);
 uint
 route_map_lookup(struct route_map *map, const void *pfx, uint pfxlen);
 
-#endif
+uint
+route_map_get(
+    struct route_map *map,
+    const void       *pfx,
+    uint              pfxlen,
+    void             *edge_kbuf,
+    size_t            edge_kbuf_sz,
+    uint             *edge_klen);
+
+void
+route_map_put(struct route_map *map, uint cnum);
+
+#endif /* HSE_ROUTE_H */
