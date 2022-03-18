@@ -971,7 +971,7 @@ hse_kvs_prefix_probe(
         err = merr(EINVAL);
     else if (!pfx_len)
         err = merr(ENOENT);
-    else if (pfx_len > HSE_KVS_PFX_LEN_MAX)
+    else if (pfx_len > HSE_KVS_KEY_LEN_MAX)
         err = merr(ENAMETOOLONG);
     else if (keybuf_sz != HSE_KVS_KEY_LEN_MAX)
         err = merr(EINVAL);

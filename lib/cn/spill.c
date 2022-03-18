@@ -476,10 +476,10 @@ cn_spill(struct cn_compaction_work *w)
 
                 bg_val = (seq <= w->cw_horizon);
 
-                /* Set ptomb context and annihilate keys irrespective of bg_val */
-                if (pt_set && seq < pt_seq)
+                if (bg_val && pt_set && seq < pt_seq)
                     break; /* drop val */
 
+                /* Set ptomb context irrespective of bg_val for tombstone propagation */
                 if (HSE_CORE_IS_PTOMB(vdata)) {
                     pt_set = true;
                     pt_kobj = curr.kobj;
