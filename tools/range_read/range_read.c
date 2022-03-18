@@ -25,11 +25,7 @@
 
 #include "kvs_helper.h"
 
-#if HDR_HISTOGRAM_C_FROM_SUBPROJECT == 1
-#include <hdr_histogram.h>
-#else
 #include <hdr/hdr_histogram.h>
-#endif
 
 const char *progname;
 

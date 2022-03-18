@@ -261,8 +261,8 @@ if not get_option('tools').disabled() and (not HdrHistogram_c_dep.found()
         or 'HdrHistogram_c' in get_option('force_fallback_for'))
     HdrHistogram_c_options = cmake.subproject_options()
     HdrHistogram_c_options.add_cmake_defines({
-        'HDR_HISTOGRAM_BUILD_SHARED': false,
         'HDR_HISTOGRAM_BUILD_PROGRAMS': false,
+        'HDR_HISTOGRAM_BUILD_SHARED': false,
         'HDR_HISTOGRAM_BUILD_STATIC': true,
         'HDR_LOG_REQUIRED': false,
     })
@@ -270,9 +270,6 @@ if not get_option('tools').disabled() and (not HdrHistogram_c_dep.found()
     HdrHistogram_c_options.set_override_option('warning_level', '0')
     HdrHistogram_c_proj = cmake.subproject('HdrHistogram_c', options: HdrHistogram_c_options)
     HdrHistogram_c_dep = HdrHistogram_c_proj.dependency('hdr_histogram_static')
-    HdrHistogram_c_from_subproject = true
-else
-    HdrHistogram_c_from_subproject = false
 endif
 libmongoc_dep = dependency('libmongoc-1.0', version: '>=1.17.3', required: false)
 libbson_dep = dependency('libbson-1.0', version: '>=1.17.3', required: false)

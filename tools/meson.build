@@ -82,9 +82,6 @@ tools = {
             'kmt/kmt.c',
             'parm_groups.c',
         ),
-        'c_args': [
-            '-DHDR_HISTOGRAM_C_FROM_SUBPROJECT=@0@'.format(get_variable('HdrHistogram_c_from_subproject', 0)),
-        ],
         'dependencies': [
             HdrHistogram_c_dep,
             libmongoc_dep,
@@ -97,7 +94,6 @@ tools = {
             'parm_groups.c',
         ),
         'c_args': [
-            '-DHDR_HISTOGRAM_C_FROM_SUBPROJECT=@0@'.format(get_variable('HdrHistogram_c_from_subproject', 0)),
             '-DXKMT',
         ],
         'dependencies': [
@@ -238,9 +234,6 @@ tools = {
             'kvs_helper.c',
             'parm_groups.c',
         ),
-        'c_args': [
-            '-DHDR_HISTOGRAM_C_FROM_SUBPROJECT=@0@'.format(get_variable('HdrHistogram_c_from_subproject', 0)),
-        ],
         'dependencies': [
             HdrHistogram_c_dep,
         ],
