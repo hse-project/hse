@@ -875,7 +875,7 @@ MTF_DEFINE_UTEST(kvs_api_test, prefix_probe_pfx_len_too_long)
         0,
         NULL,
         (void *)-1,
-        HSE_KVS_PFX_LEN_MAX + 1,
+        HSE_KVS_KEY_LEN_MAX + 1,
         (enum hse_kvs_pfx_probe_cnt *)-1,
         (void *)-1,
         HSE_KVS_KEY_LEN_MAX,
