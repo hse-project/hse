@@ -24,8 +24,8 @@
 int
 pidfile_serialize(struct pidfh *pfh, const struct pidfile *content)
 {
-    assert(pfh);
-    assert(content);
+    if (!pfh || !content)
+        return EINVAL;
 
     cJSON *root = NULL, *socket = NULL;
     char * str = NULL;
@@ -82,8 +82,8 @@ out:
 int
 pidfile_deserialize(const char *home, struct pidfile *content)
 {
-    assert(home);
-    assert(content);
+    if (!home || !content)
+        return EINVAL;
 
     FILE *      pidf = NULL;
     cJSON *     root = NULL, *pid = NULL, *alias = NULL, *socket = NULL, *socket_path = NULL;
