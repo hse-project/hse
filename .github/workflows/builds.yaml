@@ -58,6 +58,13 @@ jobs:
             git -C "subprojects/$b" checkout ${{ github.head_ref }} || true
           done
 
+      - name: Cache
+        uses: actions/cache@v3
+        with:
+          path: |
+            subprojects/packagecache
+          key: ${{ matrix.os }}-${{ hashFiles('subprojects/**.wrap') }}
+
       - name: Initialize
         run: |
           sudo apt-get update
@@ -140,6 +147,13 @@ jobs:
             git -C "subprojects/$b" checkout ${{ github.head_ref }} || true
           done
 
+      - name: Cache
+        uses: actions/cache@v3
+        with:
+          path: |
+            subprojects/packagecache
+          key: ${{ github.job }}-${{ matrix.image-tag }}-${{ hashFiles('subprojects/**.wrap') }}
+
       - name: Initialize
         run: |
           dnf group install -y --with-optional \
@@ -217,6 +231,13 @@ jobs:
             git -C "subprojects/$b" checkout ${{ github.head_ref }} || true
           done
 
+      - name: Cache
+        uses: actions/cache@v3
+        with:
+          path: |
+            subprojects/packagecache
+          key: ${{ github.job }}-${{ matrix.image-tag }}-${{ hashFiles('subprojects/**.wrap') }}
+
       - name: Initialize
         run: |
           dnf install -y sudo dnf-plugins-core epel-release
@@ -293,6 +314,13 @@ jobs:
             git -C "subprojects/$b" checkout ${{ github.head_ref }} || true
           done
 
+      - name: Cache
+        uses: actions/cache@v3
+        with:
+          path: |
+            subprojects/packagecache
+          key: ${{ github.job }}-${{ matrix.arch }}-${{ hashFiles('subprojects/**.wrap') }}
+
       - name: Initialize
         run: |
           dpkg --add-architecture ${{ matrix.arch }}
@@ -351,6 +379,13 @@ jobs:
             git -C "subprojects/$b" checkout ${{ github.head_ref }} || true
           done
 
+      - name: Cache
+        uses: actions/cache@v3
+        with:
+          path: |
+            subprojects/packagecache
+          key: ${{ github.job }}-${{ hashFiles('subprojects/**.wrap') }}
+
       - name: Initialize
         run: |
           dnf group install -y --with-optional \
@@ -405,6 +440,13 @@ jobs:
           for b in hse-python; do
             git -C "subprojects/$b" checkout ${{ github.head_ref }} || true
           done
+
+      - name: Cache
+        uses: actions/cache@v3
+        with:
+          path: |
+            subprojects/packagecache
+          key: ${{ github.job }}-${{ hashFiles('subprojects/**.wrap') }}
 
       - name: Initialize
         run: |
