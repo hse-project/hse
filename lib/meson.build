@@ -144,7 +144,7 @@ hse_dep = declare_dependency(
     variables: hse_variables,
 )
 
-if not get_option('tools').disabled() or get_option('tests')
+if get_option('tools').allowed() or get_option('tests')
     hse_internal = static_library(
         '@0@-internal'.format(lib_name),
         objects: hse.extract_all_objects(recursive: true),

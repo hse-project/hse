@@ -11,14 +11,14 @@ project(
         'warning_level=2',
         'force_fallback_for=xxhash,lz4,cjson',
     ],
-    meson_version: '>=0.58.0',
+    meson_version: '>=0.61.0'
 )
 
 pkg = import('pkgconfig')
 fs = import('fs')
-cmake = import('cmake')
+cmake = import('cmake', required: false, disabler: true)
 
-bash = find_program('bash')
+bash = find_program('bash', required: get_option('tests'))
 sh = find_program('sh') # write POSIX-compliant when easily doable
 
 ci = run_command(sh, '-c', '[ ${CI+x} ]', check: false).returncode() == 0
@@ -252,7 +252,7 @@ xoroshiro_proj = subproject('xoroshiro')
 xoroshiro_dep = xoroshiro_proj.get_variable('xoroshiro_dep')
 ncurses_dep = dependency('ncurses', version: '>= 6.1.20180127', required: get_option('tools'))
 HdrHistogram_c_dep = cc.find_library('hdr_histogram', required: false, disabler: true)
-if not get_option('tools').disabled() and (not HdrHistogram_c_dep.found()
+if cmake.found() and get_option('tools').allowed() and (not HdrHistogram_c_dep.found()
         or (HdrHistogram_c_dep.found() and not cc.has_header_symbol(
             'hdr/hdr_histogram.h',
             'hdr_record_value_atomic',
@@ -274,7 +274,7 @@ endif
 libmongoc_dep = dependency('libmongoc-1.0', version: '>=1.17.3', required: false)
 libbson_dep = dependency('libbson-1.0', version: '>=1.17.3', required: false)
 mongo_c_driver_force_fallback = get_option('wrap_mode') == 'forcefallback' or 'mongo-c-driver' in get_option('force_fallback_for')
-if not get_option('tools').disabled() and (not libmongoc_dep.found()
+if cmake.found() and get_option('tools').allowed() and (not libmongoc_dep.found()
         or not libbson_dep.found() or mongo_c_driver_force_fallback)
     mongo_c_driver_options = cmake.subproject_options()
     mongo_c_driver_options.add_cmake_defines({
@@ -463,8 +463,8 @@ if shellcheck.found()
     )
 endif
 
-gcovr = find_program('gcovr', required: get_option('b_coverage'))
-if gcovr.found() and get_option('b_coverage') and get_option('tests')
+if get_option('b_coverage') and get_option('tests')
+    gcovr = find_program('gcovr', required: get_option('b_coverage'), disabler: true)
 
     reports = {
         'text': [ '-o' ],
@@ -477,7 +477,7 @@ if gcovr.found() and get_option('b_coverage') and get_option('tests')
         custom_target(
             'gcovr-@0@'.format(type),
             command: [
-                'gcovr',
+                gcovr,
                 '-r',
                 '@SOURCE_ROOT@',
                 '@BUILD_ROOT@',
