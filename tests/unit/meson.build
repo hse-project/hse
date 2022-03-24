@@ -145,6 +145,11 @@ components = {
             ],
         },
     },
+    'pidfile': {
+        'pidfile_test': {
+            'args': [meson.current_source_dir() / 'pidfile'],
+        },
+    },
     'kvs': {
         'kvs_cparams_test': {},
         'kvs_cursor_test': {},
