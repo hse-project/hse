@@ -15,32 +15,30 @@ footerfile = meson.current_source_dir() / 'html/footerFile.html'
 cssfile = meson.current_source_dir() / 'html/styleSheetFile.css'
 examples = meson.project_source_root() / 'samples'
 
-conf_data = configuration_data({
-    'DOXYGEN_INPUT': ' '.join(input_files),
-    'DOXYGEN_LAYOUT': layout,
-    'DOXYGEN_LOGO': logo,
-    'DOXYGEN_HEADER': headerfile,
-    'DOXYGEN_FOOTER': footerfile,
-    'DOXYGEN_CSS': cssfile,
-    'DOXYGEN_EXAMPLES': examples,
-    'DOXYGEN_OUTPUT': join_paths(meson.current_build_dir(), 'api'),
-    'DOXYGEN_WARN_AS_ERROR': get_option('werror') ? 'YES' : 'NO',
-})
-
 doxyfile = configure_file(
     input: 'doxyfile.in',
     output: 'doxyfile',
-    configuration: conf_data
+    configuration: configuration_data({
+        'DOXYGEN_INPUT': ' '.join(input_files),
+        'DOXYGEN_LAYOUT': layout,
+        'DOXYGEN_LOGO': logo,
+        'DOXYGEN_HEADER': headerfile,
+        'DOXYGEN_FOOTER': footerfile,
+        'DOXYGEN_CSS': cssfile,
+        'DOXYGEN_EXAMPLES': examples,
+        'DOXYGEN_OUTPUT': meson.current_build_dir() / 'output',
+        'DOXYGEN_WARN_AS_ERROR': get_option('werror') ? 'YES' : 'NO',
+    })
 )
 
-doxygen = custom_target(
-    'doxygen',
+docs = custom_target(
+    'docs',
     build_by_default: true,
     input: doxyfile,
+    output: 'output',
     command: [
-        sh,
-        '-c',
-        '@0@ "@INPUT@" > /dev/null'.format(doxygen.full_path()),
+        doxygen,
+        '@INPUT@',
     ],
     depend_files: [
         logo,
@@ -50,8 +48,7 @@ doxygen = custom_target(
         input_files,
         layout,
         version_h,
-    ],
-    output: ['api']
+    ]
 )
 
 run_target(
@@ -68,5 +65,5 @@ run_target(
             '"${HSE_DOXYGEN_SERVE_PORT:-0}"',
         ])
     ],
-    depends: doxygen
+    depends: docs
 )

@@ -33,4 +33,4 @@ jobs:
 
       - name: Build
         run: |
-          meson compile -C builddir doxygen
+          meson compile -C builddir docs

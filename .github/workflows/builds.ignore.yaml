@@ -9,6 +9,7 @@ on:
       - "**.md"
       - ".github/ISSUE_TEMPLATE/**"
       - ".github/workflows/**"
+      - "docs/**"
       - "!.github/workflows/builds.yaml"
       - .clang-format
       - .gitattributes
@@ -21,6 +22,7 @@ on:
       - "**.md"
       - ".github/ISSUE_TEMPLATE/**"
       - ".github/workflows/**"
+      - "docs/**"
       - "!.github/workflows/builds.yaml"
       - .clang-format
       - .gitattributes
