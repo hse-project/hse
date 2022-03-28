@@ -1,15 +1,19 @@
 /* SPDX-License-Identifier: Apache-2.0 */
 /*
- * Copyright (C) 2015-2020 Micron Technology, Inc.  All rights reserved.
+ * Copyright (C) 2015-2022 Micron Technology, Inc.  All rights reserved.
  */
 
 #ifndef HSE_KVS_CN_KVSET_BUILDER_INT_H
 #define HSE_KVS_CN_KVSET_BUILDER_INT_H
 
+#include <hse/limits.h>
+
 #include <hse_util/perfc.h>
+#include <hse_ikvdb/blk_list.h>
 #include <hse_ikvdb/mclass_policy.h>
 
 #include "cn_metrics.h"
+#include "kblock_builder.h"
 
 struct cn;
 
