@@ -151,7 +151,7 @@ WBTree Interior Node (one 4K page):
 
   Each kmd entry stores information regarding a value: sequence number and a pointer to the value (or if the value is small, the value itself).
   Each kmd entry can describe one of the following 5 value types:
-    1. `vtype_val`:   Normal value. This stores a pointer to the actual value located in the vblock.
+    1. `vtype_val`:   Normal value. This stores an offset to the actual value located in the vblock.
     2. `vtype_ival`:  Small value. Value length is no greater than 8 bytes.
     3. `vtype_zval`:  Zero-length value
     4. `vtype_tomb`:  Tombstone
@@ -162,7 +162,7 @@ WBTree Interior Node (one 4K page):
     +--------------------+
     | vtype              | vtype_val
     | sequence number    |
-    | vgroup id          |
+    | vgroup ID          |
     | vblock index       |
     | vblock offset      |
     | value length       |
@@ -176,7 +176,7 @@ WBTree Interior Node (one 4K page):
     | sequence number    |
     +--------------------+
 
-The `vblock idx` stored in kmd is an index within the vgroup specified by `vgroup id`.
+The `vblock index` stored in kmd is an index within the vgroup specified by `vgroup ID`.
 
 ### PTree (A WBTree that holds prefix tombstones)
 

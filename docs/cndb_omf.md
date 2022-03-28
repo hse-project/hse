@@ -76,9 +76,9 @@ number of vblocks that were moved to the other kvset. The `vgroup->offset` mappi
 `TX_KVSET_CREATE` record handles this change.
 
 During a kvset split, some mblocks are rewritten while others are just moved around. If the KVDB
-crashes while there's an ongoing split operation, there's some recovery needed when the KVDB is
-brought back up. This would involve cleaning up the mblocks that were created for this split but not
-the mblocks that were moved. The KMap and VMap bitmaps represent blocks that were created.
+crashes before the split completes, then recovery is required before the KVDB can be brought online.
+This includes cleaning up the mblocks that were created for this split but not the mblocks that were
+moved. The KMap and VMap bitmaps represent blocks that were created.
 i.e. for a KMap/VMap entry:
   0: mblock was moved. Do not delete on rollback
   1: mblock was created. Delete on rollback.
@@ -105,12 +105,12 @@ the metadata for the kvset described by the `TX_KVSET_CREATE` record.
 - TX id: Transaction id to tie this record to the corresponding `TX_START` record.
 - Cnid: (CN id) A unique identifier for the KVS.
 - Tag: A unique number used to match with corresponding `ACK` records.
-- Node id: Node id to which this kvset belongs. Node ids are found in TX_NODE records.
+- Node id: Node id to which this kvset belongs. Node ids are found in `TX_NODE` records.
 - Dgen: Data generation number. Everytime a new kvset is created during ingest, it gets a new dgen.
   Kvsets resulting from a compaction operation adopt the dgen of the src kvset with the largest dgen.
-- Vused:
+- Vused: Sum of lengths of referenced values across all vblocks.
 - Compc: Number of times this kvset has undergone compactions.
-- Scatter:
+- Scatter: Whether or not values follow key order.
 
 ### TX_KVSET_DELETE
 
@@ -125,8 +125,8 @@ the metadata for the kvset described by the `TX_KVSET_CREATE` record.
 All records until now are meant to log an intent. `ACK` and `NACK` commit and abort transactions (or
 parts of transactions) repectively.
 
-Types of `ACK` records (specified in the cn record header) :
-1. `ACK-N`: Ack a `TX_NODE` record
+Types of `ACK` records (specified in the `ack_type` field of the `ACK` record) :
+1. `ACK-N`: Ack a `TX_NODE` record.
 2. `ACK-C`: Ack a `TX_KVSET_CREATE` record. One `ACK` record for every `TX_KVSET_CREATE` record.
 3. `ACK-D`: Ack a `TX_KVSET_DELETE` record. One `ACK` record for every `TX_KVSET_DELETE` record.
 
@@ -145,12 +145,11 @@ Mark txn as aborted.
 
 - A new KVDB starts out with a CNDB that contains the version and a meta record.
 - When a new KVS is created, an info record is appended to the CNDB. When the record type is set to
-  `CNDB_TYPE_INFOD`, this same record marks a KVS delete operation.
+  `KVS_CREATE`.
 
 ### Tree shape changes
 
-- On startup, CNDB will read through `TX_NODE` records in order and maintain a `master node list`
-  accordingly.
+- On startup, CNDB will read through `TX_NODE` records in order and maintain a `master node list`.
 - When a `TX_NODE` record is read, an entry is added to a pending node list. When this txn is
   committed, the `master node list` is updated with the node replacements.
 - On mdc compaction, CNDB would write its `TX_NODE` record based on the `master node list`.
@@ -283,11 +282,11 @@ Part 4: CNDB compaction (txm records are skippped for brevity)
 
 ### Incremental spills
 
-Incremental spill refers to the fact that a spill constructs and plugs in all the kvsets of a child
-node before proceeding to the next child node. A full spill operation can take a while, but it
-doesn't have to hold up all split/join/kcompact/kvcompact operations until it finishes. Only the
-child node to which the spill is writing data needs to be locked from participating in any
-maintenance operations.
+Incremental spill refers to the fact that a spill constructs and creates the kvset of a child
+node and adds it to the node list before proceeding to the next child node. A full spill operation
+can take a while, but it doesn't have to hold up all split/join/kcompact/kvcompact operations until
+it finishes. Only the child node to which the spill is writing data needs to be prevented from
+participating in any maintenance operations.
 
 To achieve this, CN logs each incremental step in spill as a separate transaction. Also, deleting the
 source kvsets is its own transaction. If the process crashes in the middle of this spill, CN can
@@ -322,9 +321,9 @@ Consider the following root spill (txm records are skipped for brevity):
 ```
 
 Consider the case where the above spill operation crashes right before the last `ACK-C` (step 3 of
-3) is logged. When the KVDB is reopened, the tree would contain kvsets resulting from this spill in
-the first two child nodes, but not the third one. Also, the 3 source kvsets in the root node would
-be intact.
+3) is logged. When the KVDB is reopened, the tree will contain kvsets resulting from this spill in
+the first two child nodes, but not the third one. Also, the three source kvsets in the root node
+would be intact.
 - The scheduler would see the kvsets in the root node and schedule a spill operation.
 - Before building a kvset for a child, look at the kvsets in the child nodes and, based on the dgen
   range, determine whether this child already contains the spilled data. If yes, move to the next
