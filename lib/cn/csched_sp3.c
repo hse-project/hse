@@ -31,19 +31,6 @@
 
 struct mpool;
 
-struct perfc_name csched_sp3_perfc[] _dt_section = {
-    NE(PERFC_BA_SP3_SAMP,       2, "spaceamp",                 "c_sp3_samp"),
-    NE(PERFC_BA_SP3_REDUCE,     2, "reduce flag",              "c_sp3_reduce"),
-
-    NE(PERFC_BA_SP3_LGOOD_CURR, 3, "currrent leaf used size ", "c_sp3_lgood"),
-    NE(PERFC_BA_SP3_LGOOD_TARG, 3, "target leaf used size",    "t_sp3_lgood"),
-    NE(PERFC_BA_SP3_LSIZE_CURR, 3, "currrent leaf size",       "c_sp3_lsize"),
-    NE(PERFC_BA_SP3_LSIZE_TARG, 3, "target leaf size",         "t_sp3_lsize"),
-    NE(PERFC_BA_SP3_RSIZE_CURR, 3, "currrent non-leaf size",   "c_sp3_rsize"),
-    NE(PERFC_BA_SP3_RSIZE_TARG, 3, "target non-leaf size",     "t_sp3_rsize"),
-};
-NE_CHECK(csched_sp3_perfc, PERFC_EN_SP3, "csched_sp3_perfc table/enum mismatch");
-
 /*
  * The scheduler monitors multiple cn trees to determine what compaction jobs
  * to run and when to run them.
@@ -303,13 +290,12 @@ struct sp3 {
 #define ONE   SCALE
 
 /* Easy-ish access to run-time parameters */
-#define debug_samp_work(_sp)   (csched_rp_dbg_samp_work((_sp)->rp))
-#define debug_samp_ingest(_sp) (csched_rp_dbg_samp_ingest((_sp)->rp))
 #define debug_tree_life(_sp)   (csched_rp_dbg_tree_life((_sp)->rp))
 #define debug_dirty_node(_sp)  (csched_rp_dbg_dirty_node((_sp)->rp))
 #define debug_sched(_sp)       (csched_rp_dbg_sched((_sp)->rp))
 #define debug_qos(_sp)         (csched_rp_dbg_qos((_sp)->rp))
 #define debug_rbtree(_sp)      (csched_rp_dbg_rbtree((_sp)->rp))
+#define debug_tree_shape(_sp)  (csched_rp_dbg_tree_shape((_sp)->rp))
 
 static void
 sp3_dirty_node(struct sp3 *sp, struct cn_tree_node *tn);
@@ -355,12 +341,6 @@ static inline uint
 samp_pct_leaves(struct cn_samp_stats *s, uint scale)
 {
     return scale * safe_div(s->l_alen, s->i_alen + s->l_alen);
-}
-
-static inline uint
-samp_pct_good(struct cn_samp_stats *s, uint scale)
-{
-    return scale * safe_div(s->l_good, s->l_alen);
 }
 
 static inline uint
@@ -422,93 +402,6 @@ sp3_samp_target(struct sp3 *sp, struct cn_samp_stats *ss)
     ss->i_alen = sp->samp.i_alen + sp->samp_wip.i_alen;
     ss->l_alen = sp->samp.l_alen + sp->samp_wip.l_alen;
     ss->l_good = sp->samp.l_good + sp->samp_wip.l_good;
-}
-
-static void
-sp3_log_samp_overall_type(struct cn_samp_stats *s, const char *type, bool work_in_progress)
-{
-    uint pct_good = 0;
-    uint pct_leaves = 0;
-    uint est = 0;
-
-    if (!work_in_progress) {
-        pct_good = samp_pct_good(s, 100);
-        pct_leaves = samp_pct_leaves(s, 100);
-        est = samp_est(s, 100);
-    }
-
-    slog_info(
-        HSE_SLOG_START("cn_samp_work"),
-        HSE_SLOG_FIELD("type", "%s", type),
-        HSE_SLOG_FIELD("samp", "%u", est),
-        HSE_SLOG_FIELD("ialen", "%ld", s->i_alen),
-        HSE_SLOG_FIELD("lalen", "%ld", s->l_alen),
-        HSE_SLOG_FIELD("lgood", "%ld", s->l_good),
-        HSE_SLOG_FIELD("lgarb", "%ld", s->l_alen - s->l_good),
-        HSE_SLOG_FIELD("lgood_pct", "%u", pct_good),
-        HSE_SLOG_FIELD("leaf_pct", "%u", pct_leaves),
-        HSE_SLOG_END);
-}
-
-static void
-sp3_log_samp_overall(struct sp3 *sp)
-{
-    struct cn_samp_stats curr;
-    struct cn_samp_stats targ;
-    struct cn_samp_stats wip;
-
-    curr = sp->samp;
-    wip = sp->samp_wip;
-    sp3_samp_target(sp, &targ);
-
-    perfc_set(&sp->sched_pc, PERFC_BA_SP3_LGOOD_CURR, (u64)curr.l_good);
-    perfc_set(&sp->sched_pc, PERFC_BA_SP3_LSIZE_CURR, (u64)curr.l_alen);
-    perfc_set(&sp->sched_pc, PERFC_BA_SP3_RSIZE_CURR, (u64)curr.i_alen);
-
-    perfc_set(&sp->sched_pc, PERFC_BA_SP3_LGOOD_TARG, (u64)targ.l_good);
-    perfc_set(&sp->sched_pc, PERFC_BA_SP3_LSIZE_TARG, (u64)targ.l_alen);
-    perfc_set(&sp->sched_pc, PERFC_BA_SP3_RSIZE_TARG, (u64)targ.i_alen);
-
-    sp3_log_samp_overall_type(&curr, "current", false);
-    sp3_log_samp_overall_type(&wip, "wrk_in_prog", true);
-    sp3_log_samp_overall_type(&targ, "target", false);
-}
-
-static void
-sp3_log_samp_one_tree(struct cn_tree *tree)
-{
-    struct cn_samp_stats *s;
-    long                  i_avg_sz;
-    long                  l_avg_sz;
-
-    s = &tree->ct_samp;
-    i_avg_sz = (tree->ct_i_nodec ? s->i_alen / tree->ct_i_nodec : 0) >> 20;
-    l_avg_sz = (tree->ct_l_nodec ? s->l_alen / tree->ct_l_nodec : 0) >> 20;
-
-    slog_info(
-        HSE_SLOG_START("cn_samp_tree"),
-        HSE_SLOG_FIELD("cnid", "%lu", tree->cnid),
-        HSE_SLOG_FIELD("ialen", "%ld", s->i_alen),
-        HSE_SLOG_FIELD("lalen", "%ld", s->l_alen),
-        HSE_SLOG_FIELD("lgood", "%ld", s->l_good),
-        HSE_SLOG_FIELD("lgarb", "%ld", s->l_alen - s->l_good),
-        HSE_SLOG_FIELD("samp", "%u", samp_est(s, 100)),
-        HSE_SLOG_FIELD("inodes", "%u", tree->ct_i_nodec),
-        HSE_SLOG_FIELD("lnodes", "%u", tree->ct_l_nodec),
-        HSE_SLOG_FIELD("lgood_pct", "%u", samp_pct_good(s, 100)),
-        HSE_SLOG_FIELD("leaf_pct", "%u", samp_pct_leaves(s, 100)),
-        HSE_SLOG_FIELD("ialen_avg_M", "%ld", i_avg_sz),
-        HSE_SLOG_FIELD("lalen_avg_M", "%ld", l_avg_sz),
-        HSE_SLOG_END);
-}
-
-static void
-sp3_log_samp_each_tree(struct sp3 *sp)
-{
-    struct cn_tree *tree;
-
-    list_for_each_entry (tree, &sp->mon_tlist, ct_sched.sp3t.spt_tlink)
-        sp3_log_samp_one_tree(tree);
 }
 
 static void
@@ -596,28 +489,6 @@ sp3_log_progress(struct cn_compaction_work *w, struct cn_merge_stats *ms, bool f
         HSE_SLOG_FIELD("prep_us", "%lu", pt),
         HSE_SLOG_FIELD("merge_us", "%lu", bt),
         HSE_SLOG_FIELD("commit_us", "%lu", ct),
-        HSE_SLOG_END);
-}
-
-static void
-sp3_log_job_samp(
-    struct sp3 *               sp,
-    struct cn_compaction_work *w,
-    const char *               stage,
-    struct cn_samp_stats *     samp)
-{
-    slog_info(
-        HSE_SLOG_START("cn_job_samp"),
-        HSE_SLOG_FIELD("job", "%u", w->cw_job.sj_id),
-        HSE_SLOG_FIELD("stage", "%s", stage),
-        HSE_SLOG_FIELD("cnid", "%lu", w->cw_tree->cnid),
-        HSE_SLOG_FIELD("lvl", "%u", w->cw_node->tn_loc.node_level),
-        HSE_SLOG_FIELD("off", "%u", w->cw_node->tn_loc.node_offset),
-        HSE_SLOG_FIELD("comp", "%s", cn_action2str(w->cw_action)),
-        HSE_SLOG_FIELD("rule", "%s", cn_comp_rule2str(w->cw_comp_rule)),
-        HSE_SLOG_FIELD("ialen", "%ld", samp->i_alen),
-        HSE_SLOG_FIELD("lalen", "%ld", samp->l_alen),
-        HSE_SLOG_FIELD("lgood", "%ld", samp->l_good),
         HSE_SLOG_END);
 }
 
@@ -1245,13 +1116,6 @@ sp3_process_workitem(struct sp3 *sp, struct cn_compaction_work *w)
 
     cn_samp_diff(&diff, &w->cw_samp_post, &w->cw_samp_pre);
 
-    if (debug_samp_work(sp)) {
-        sp3_log_job_samp(sp, w, "pre", &w->cw_samp_pre);
-        sp3_log_job_samp(sp, w, "post", &w->cw_samp_post);
-        sp3_log_job_samp(sp, w, "diff", &diff);
-        sp3_log_job_samp(sp, w, "estimated", &w->cw_est.cwe_samp);
-    }
-
     sp->samp.r_alen += diff.r_alen;
     sp->samp.r_wlen += diff.r_wlen;
     sp->samp.i_alen += diff.i_alen;
@@ -1292,7 +1156,7 @@ sp3_process_workitem(struct sp3 *sp, struct cn_compaction_work *w)
     sp3_dirty_node_locked(sp, tn);
     rmlock_runlock(lock);
 
-    if (w->cw_debug & CW_DEBUG_PROGRESS)
+    if (w->cw_debug & (CW_DEBUG_PROGRESS | CW_DEBUG_FINAL))
         sp3_log_progress(w, &w->cw_stats, true);
 
     if (!tn->tn_parent) {
@@ -1303,11 +1167,6 @@ sp3_process_workitem(struct sp3 *sp, struct cn_compaction_work *w)
         dt = w->cw_t3_build - w->cw_t2_prep;
         sp->rspill_dt_prev = (dt + sp->rspill_dt_prev) / 2;
         atomic_set(&sp->rspill_dt, sp->rspill_dt_prev);
-    }
-
-    if (debug_samp_work(sp)) {
-        sp3_log_samp_each_tree(sp);
-        sp3_log_samp_overall(sp);
     }
 
     sts_job_done(&w->cw_job);
@@ -1353,11 +1212,6 @@ sp3_process_ingest(struct sp3 *sp)
 
     if (ingested)
         sp->activity++;
-
-    if (ingested && debug_samp_ingest(sp)) {
-        sp3_log_samp_each_tree(sp);
-        sp3_log_samp_overall(sp);
-    }
 }
 
 static void
@@ -1414,8 +1268,6 @@ sp3_process_new_trees(struct sp3 *sp)
         }
         rmlock_runlock(lock);
 
-        sp3_log_samp_one_tree(tree);
-
         sp->samp.r_alen += tree->ct_samp.r_alen;
         sp->samp.r_wlen += tree->ct_samp.r_wlen;
         sp->samp.i_alen += tree->ct_samp.i_alen;
@@ -1453,22 +1305,6 @@ sp3_prune_trees(struct sp3 *sp)
             sp3_unlink_all_nodes(sp, tree);
             list_del_init(&spt->spt_tlink);
 
-            sp3_log_samp_one_tree(tree);
-            sp3_log_samp_overall(sp);
-
-            /* [HSE_REVISIT]
-             * Uncomment these asserts after fixing NFSE-3736.
-             */
-#if 0
-#ifdef HSE_BUILD_DEBUG
-            assert(sp->samp.i_alen >= tree->ct_samp.i_alen);
-            assert(sp->samp.r_alen >= tree->ct_samp.r_alen);
-            assert(sp->samp.r_wlen >= tree->ct_samp.r_wlen);
-            assert(sp->samp.l_alen >= tree->ct_samp.l_alen);
-            assert(sp->samp.l_good >= tree->ct_samp.l_good);
-#endif
-#endif
-
             if (sp->samp.i_alen >= tree->ct_samp.i_alen)
                 sp->samp.i_alen -= tree->ct_samp.i_alen;
             if (sp->samp.r_alen >= tree->ct_samp.r_alen)
@@ -1479,8 +1315,6 @@ sp3_prune_trees(struct sp3 *sp)
                 sp->samp.l_alen -= tree->ct_samp.l_alen;
             if (sp->samp.l_good >= tree->ct_samp.l_good)
                 sp->samp.l_good -= tree->ct_samp.l_good;
-
-            sp3_log_samp_overall(sp);
 
             cn_ref_put(tree->cn);
 
@@ -1747,61 +1581,34 @@ sp3_submit(struct sp3 *sp, struct cn_compaction_work *w, uint qnum)
     sts_job_init(&w->cw_job, cn_comp_slice_cb, sp->job_id);
     sts_job_submit(sp->sts, &w->cw_job);
 
-    if (debug_sched(sp)) {
-        log_info("%-2lu %u,%-4u j%u q%u n%u t%-2u %s:%-6s  kvsets %u,%-2u  clen %5lu"
-                 "  cap %u%%  samp %lu%%%s",
-                 w->cw_tree->cnid,
-                 w->cw_node->tn_loc.node_level, w->cw_node->tn_loc.node_offset,
-                 w->cw_job.sj_id, w->cw_qnum,
-                 atomic_read(&w->cw_node->tn_busycnt) >> 16,
-                 spt->spt_job_cnt,
-                 cn_action2str(w->cw_action), cn_comp_rule2str(w->cw_comp_rule),
-                 w->cw_kvset_cnt, (uint)cn_ns_kvsets(&w->cw_ns),
-                 cn_ns_clen(&w->cw_ns) >> 20,
-                 w->cw_ns.ns_pcap,
-                 100 - (cn_ns_clen(&w->cw_ns) * 100 / cn_ns_alen(&w->cw_ns)),
-                 sp->samp_reduce ? " samp_reduce" : "");
+    if (debug_sched(sp) || (w->cw_debug & CW_DEBUG_START)) {
+
+        const struct cn_node_stats *ns = &w->cw_ns;
+        ulong hll_pct = cn_ns_keys(ns) ? ((100 * ns->ns_keys_uniq) / cn_ns_keys(ns)) : 0;
+        uint busycnt = atomic_read(&w->cw_node->tn_busycnt) >> 16;
+
+        slog_info(
+            HSE_SLOG_START("cn_comp_start"),
+            HSE_SLOG_FIELD("job", "%u", w->cw_job.sj_id),
+            HSE_SLOG_FIELD("jcnt", "%u", spt->spt_job_cnt),
+            HSE_SLOG_FIELD("bcnt", "%u", busycnt),
+            HSE_SLOG_FIELD("qnum", "%u", w->cw_qnum),
+            HSE_SLOG_FIELD("reduce", "%d", sp->samp_reduce),
+            HSE_SLOG_FIELD("cnid", "%lu", w->cw_tree->cnid),
+            HSE_SLOG_FIELD("comp", "%s", cn_action2str(w->cw_action)),
+            HSE_SLOG_FIELD("rule", "%s", cn_comp_rule2str(w->cw_comp_rule)),
+            HSE_SLOG_FIELD("lvl", "%u", w->cw_node->tn_loc.node_level),
+            HSE_SLOG_FIELD("off", "%u", w->cw_node->tn_loc.node_offset),
+            HSE_SLOG_FIELD("c_nk", "%u", w->cw_nk),
+            HSE_SLOG_FIELD("c_nv", "%u", w->cw_nv),
+            HSE_SLOG_FIELD("c_kvsets", "%u", w->cw_kvset_cnt),
+            HSE_SLOG_FIELD("nd_kvsets", "%lu", (ulong)cn_ns_kvsets(ns)),
+            HSE_SLOG_FIELD("nd_keys", "%lu", (ulong)cn_ns_keys(ns)),
+            HSE_SLOG_FIELD("nd_hll%%", "%lu", hll_pct),
+            HSE_SLOG_FIELD("nd_clen_mb", "%lu", (ulong)cn_ns_clen(ns) >> MB_SHIFT),
+            HSE_SLOG_FIELD("samp", "%u", cn_ns_samp(ns)),
+            HSE_SLOG_END);
     }
-
-    if (HSE_LIKELY(!w->cw_debug))
-        return;
-
-    if (cn_node_isroot(w->cw_node) && !(w->cw_debug & CW_DEBUG_ROOT))
-        return;
-    else if (cn_node_isleaf(w->cw_node) && !(w->cw_debug & CW_DEBUG_LEAF))
-        return;
-    else if (!(w->cw_debug & CW_DEBUG_INTERNAL))
-        return;
-
-    slog_info(
-        HSE_SLOG_START("cn_comp_start"),
-        HSE_SLOG_FIELD("job", "%u", w->cw_job.sj_id),
-        HSE_SLOG_FIELD("comp", "%s", cn_action2str(w->cw_action)),
-        HSE_SLOG_FIELD("rule", "%s", cn_comp_rule2str(w->cw_comp_rule)),
-        HSE_SLOG_FIELD("cnid", "%lu", w->cw_tree->cnid),
-        HSE_SLOG_FIELD("lvl", "%u", w->cw_node->tn_loc.node_level),
-        HSE_SLOG_FIELD("off", "%u", w->cw_node->tn_loc.node_offset),
-        HSE_SLOG_FIELD("leaf", "%u", (uint)cn_node_isleaf(w->cw_node)),
-        HSE_SLOG_FIELD("qnum", "%u", w->cw_qnum),
-        HSE_SLOG_FIELD("c_nh", "%u", w->cw_nh),
-        HSE_SLOG_FIELD("c_nk", "%u", w->cw_nk),
-        HSE_SLOG_FIELD("c_nv", "%u", w->cw_nv),
-        HSE_SLOG_FIELD("c_kvsets", "%u", w->cw_kvset_cnt),
-        HSE_SLOG_FIELD("nd_kvsets", "%lu", (ulong)cn_ns_kvsets(&w->cw_ns)),
-        HSE_SLOG_FIELD("nd_cap%%", "%lu", (ulong)w->cw_ns.ns_pcap),
-        HSE_SLOG_FIELD("nd_keys", "%lu", (ulong)cn_ns_keys(&w->cw_ns)),
-        HSE_SLOG_FIELD(
-            "nd_hll%%",
-            "%lu",
-            (ulong)(
-                cn_ns_keys(&w->cw_ns) == 0
-                ? 0
-                : ((100 * w->cw_ns.ns_keys_uniq) / cn_ns_keys(&w->cw_ns)))),
-        HSE_SLOG_FIELD("rdsz_b", "%ld", (long)w->cw_est.cwe_read_sz),
-        HSE_SLOG_FIELD("wrsz_b", "%ld", (long)w->cw_est.cwe_write_sz),
-        HSE_SLOG_FIELD("i_alen_b", "%ld", (long)w->cw_est.cwe_samp.i_alen),
-        HSE_SLOG_FIELD("l_alen_b", "%ld", (long)w->cw_est.cwe_samp.l_alen),
-        HSE_SLOG_END);
 }
 
 static bool
@@ -1897,23 +1704,28 @@ sp3_rb_dump(struct sp3 *sp, uint tx, uint count_max)
 static void
 sp3_tree_shape_log(const struct cn_tree_node *tn, bool bad, const char *category)
 {
-    uint pcap;
+    ulong hll_pct;
+    const struct cn_node_stats *ns;
 
     if (!tn)
         return;
 
-    pcap = cn_node_isleaf(tn) ? tn->tn_ns.ns_pcap : 0;
+    ns = &tn->tn_ns;
+    hll_pct = cn_ns_keys(ns) ? ((100 * ns->ns_keys_uniq) / cn_ns_keys(ns)) : 0;
 
     slog_info(
         HSE_SLOG_START("cn_tree_shape"),
         HSE_SLOG_FIELD("type", "%s", category),
-        HSE_SLOG_FIELD("lvl", "%u", tn->tn_loc.node_level),
-        HSE_SLOG_FIELD("off", "%u", tn->tn_loc.node_offset),
         HSE_SLOG_FIELD("status", "%s", bad ? "bad" : "good"),
         HSE_SLOG_FIELD("cnid", "%lu", (ulong)tn->tn_tree->cnid),
-        HSE_SLOG_FIELD("nd_kvsets", "%lu", (ulong)cn_ns_kvsets(&tn->tn_ns)),
-        HSE_SLOG_FIELD("nd_alen", "%lu", (ulong)cn_ns_alen(&tn->tn_ns)),
-        HSE_SLOG_FIELD("pcap", "%u", pcap),
+        HSE_SLOG_FIELD("lvl", "%u", tn->tn_loc.node_level),
+        HSE_SLOG_FIELD("off", "%u", tn->tn_loc.node_offset),
+        HSE_SLOG_FIELD("nd_kvsets", "%lu", (ulong)cn_ns_kvsets(ns)),
+        HSE_SLOG_FIELD("nd_alen_mb", "%lu", (ulong)cn_ns_alen(ns) >> MB_SHIFT),
+        HSE_SLOG_FIELD("nd_wlen_mb", "%lu", (ulong)cn_ns_alen(ns) >> MB_SHIFT),
+        HSE_SLOG_FIELD("nd_clen_mb", "%lu", (ulong)cn_ns_clen(ns) >> MB_SHIFT),
+        HSE_SLOG_FIELD("nd_hll%%", "%lu", hll_pct),
+        HSE_SLOG_FIELD("nd_samp", "%u", cn_ns_samp(ns)),
         HSE_SLOG_END);
 }
 
@@ -1955,7 +1767,7 @@ sp3_tree_shape_check(struct sp3 *sp)
     uint llen = 0;
     uint lsiz = 0;
     uint lclen = 0;
-    bool log = false;
+    bool log = debug_tree_shape(sp);
     bool bad;
 
     struct sp3_node *spn;
@@ -2012,29 +1824,10 @@ sp3_tree_shape_check(struct sp3 *sp)
         log = true; /* log details below */
     }
 
-    if (log || debug_sched(sp)) {
-
+    if (log) {
         sp3_tree_shape_log(rlen_node, rlen > rlen_thresh, "longest_root");
-        sp3_tree_shape_log(ilen_node, ilen > ilen_thresh, "longest_internal");
         sp3_tree_shape_log(llen_node, llen > llen_thresh, "longest_leaf");
         sp3_tree_shape_log(lsiz_node, lsiz > lsiz_thresh, "largest_leaf");
-
-        slog_info(
-            HSE_SLOG_START("cn_sched"),
-            HSE_SLOG_FIELD("samp_lwm", "%.3f", scale2dbl(sp->samp_lwm)),
-            HSE_SLOG_FIELD("hwm", "%.3f", scale2dbl(sp->samp_hwm)),
-            HSE_SLOG_FIELD("max", "%.3f", scale2dbl(sp->samp_max)),
-            HSE_SLOG_FIELD("curr", "%.3f", scale2dbl(sp->samp_targ)),
-            HSE_SLOG_FIELD("reduce", "%d", sp->samp_reduce),
-            HSE_SLOG_FIELD("lf_pct_targ", "%.3f", scale2dbl(sp->lpct_targ)),
-            HSE_SLOG_FIELD("jobs_started", "%u", sp->jobs_started),
-            HSE_SLOG_FIELD("jobs_finished", "%u", sp->jobs_finished),
-            HSE_SLOG_FIELD("cur_jobs", "%u", sp->jobs_started - sp->jobs_finished),
-            HSE_SLOG_FIELD("max_jobs", "%u", sp->jobs_max),
-            HSE_SLOG_END);
-
-        sp3_log_samp_each_tree(sp);
-        sp3_log_samp_overall(sp);
     }
 }
 
@@ -2337,9 +2130,6 @@ sp3_update_samp(struct sp3 *sp)
     sp->lpct_targ = samp_pct_leaves(&targ, SCALE);
 
     sp->samp_curr = samp_est(&sp->samp, SCALE);
-
-    perfc_set(&sp->sched_pc, PERFC_BA_SP3_SAMP, sp->samp_targ);
-    perfc_set(&sp->sched_pc, PERFC_BA_SP3_REDUCE, sp->samp_reduce);
 
     sp3_ucomp_check(sp);
 
@@ -2689,8 +2479,6 @@ sp3_create(
     }
 
     snprintf(group, sizeof(group), "kvdb/%s", sp->name);
-
-    perfc_alloc(csched_sp3_perfc, group, "sp3", rp->perfc_level, &sp->sched_pc);
 
     INIT_WORK(&sp->mon_work, sp3_monitor);
     queue_work(sp->mon_wq, &sp->mon_work);

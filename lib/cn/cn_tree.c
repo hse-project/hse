@@ -1867,7 +1867,7 @@ cn_comp_cleanup(struct cn_compaction_work *w)
          * Canceled jobs are expected, so there's no need to log them
          * unless debugging.
          */
-        if (w->cw_debug || !w->cw_canceled)
+        if (!w->cw_canceled)
             log_errx("compaction error @@e: sts/job %u comp %s rule %s"
                      " cnid %lu lvl %u off %u dgenlo %lu dgenhi %lu wedge %d",
                      w->cw_err,

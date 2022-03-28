@@ -14,17 +14,16 @@
 #define csched_rp_kvset_iter_mcache 2
 
 /* Compaction stats */
-#define csched_rp_dbg_comp(_rp) ((_rp)->csched_debug_mask & 0x000f)
+#define csched_rp_dbg_comp(_rp)       ((uint)((_rp)->csched_debug_mask & 0x000f))
 
 /* SP3 Debug */
-#define csched_rp_dbg_qos(_rp) ((bool)((_rp)->csched_debug_mask & 0x0010))
-#define csched_rp_dbg_sched(_rp) ((bool)((_rp)->csched_debug_mask & 0x0020))
+#define csched_rp_dbg_qos(_rp)        ((bool)((_rp)->csched_debug_mask & 0x0010))
+#define csched_rp_dbg_sched(_rp)      ((bool)((_rp)->csched_debug_mask & 0x0020))
+#define csched_rp_dbg_tree_shape(_rp) ((bool)((_rp)->csched_debug_mask & 0x0040))
 
-#define csched_rp_dbg_samp_work(_rp) ((bool)((_rp)->csched_debug_mask & 0x0100))
-#define csched_rp_dbg_samp_ingest(_rp) ((bool)((_rp)->csched_debug_mask & 0x0200))
 #define csched_rp_dbg_dirty_node(_rp) ((bool)((_rp)->csched_debug_mask & 0x0400))
-#define csched_rp_dbg_tree_life(_rp) ((bool)((_rp)->csched_debug_mask & 0x0800))
+#define csched_rp_dbg_tree_life(_rp)  ((bool)((_rp)->csched_debug_mask & 0x0800))
 
-#define csched_rp_dbg_rbtree(_rp) ((bool)((_rp)->csched_debug_mask & 0x1000))
+#define csched_rp_dbg_rbtree(_rp)     ((bool)((_rp)->csched_debug_mask & 0x1000))
 
 #endif

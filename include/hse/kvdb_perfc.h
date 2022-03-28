@@ -85,18 +85,6 @@ enum kvdb_perfc_sidx_ctxnop {
     PERFC_EN_CTXNOP
 };
 
-enum kvdb_perfc_sidx_sp3 {
-    PERFC_BA_SP3_SAMP,
-    PERFC_BA_SP3_REDUCE,
-    PERFC_BA_SP3_LGOOD_CURR,
-    PERFC_BA_SP3_LGOOD_TARG,
-    PERFC_BA_SP3_LSIZE_CURR,
-    PERFC_BA_SP3_LSIZE_TARG,
-    PERFC_BA_SP3_RSIZE_CURR,
-    PERFC_BA_SP3_RSIZE_TARG,
-    PERFC_EN_SP3
-};
-
 enum kvdb_perfc_sidx_cnget {
     PERFC_LT_CNGET_GET,
 
