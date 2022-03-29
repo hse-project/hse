@@ -47,6 +47,13 @@ jobs:
       - name: Checkout HSE
         uses: actions/checkout@v2
 
+      - name: Checkout hse-java
+        uses: actions/checkout@v2
+        with:
+          repository: hse-project/hse-java
+          path: subprojects/hse-java
+          ref: ${{ github.base_ref || github.ref }}
+
       - name: Checkout hse-python
         uses: actions/checkout@v2
         with:
@@ -56,18 +63,29 @@ jobs:
 
       - name: Post-checkout
         run: |
-          for b in hse-python; do
+          for b in hse-java hse-python; do
             git -C "subprojects/$b" checkout ${{ github.head_ref }} || true
           done
+
+      - name: Get Meson on ubuntu-18.04
+        if: ${{ matrix.os == 'ubuntu-18.04' }}
+        run: |
+          sudo apt-get install python3.7
+          sudo python3.7 -m pip install meson
+
+      - name: Get Meson on ubuntu-20.04
+        if: ${{ matrix.os == 'ubuntu-20.04' }}
+        run: |
+          sudo python3 -m pip install meson
 
       - name: Initialize
         run: |
           sudo apt-get update
           sudo apt-get install build-essential ninja-build pkg-config \
             libbsd-dev libmicrohttpd-dev liburcu-dev libyaml-dev \
-            libcurl4-openssl-dev python3-setuptools libmongoc-dev \
-            libbson-dev libssl-dev libsasl2-dev
-          sudo python3 -m pip install meson Cython
+            libcurl4-openssl-dev libmongoc-dev libbson-dev libssl-dev \
+            libsasl2-dev openjdk-8-jdk maven
+          sudo python3 -m pip install Cython
 
       - name: Setup gcc toolchain
         if: ${{ matrix.toolchain == 'gcc' }}
@@ -94,7 +112,7 @@ jobs:
       - name: Setup
         run: |
           meson builddir -Dbuildtype=${{ matrix.buildtype }} -Dtools=enabled \
-            -Ddocs=disabled -Dbindings=all -Dycsb=true -Dwerror=true
+            -Ddocs=disabled -Dbindings=all -Dwerror=true
 
       - name: Build
         run: |
@@ -129,6 +147,13 @@ jobs:
       - name: Checkout HSE
         uses: actions/checkout@v2
 
+      - name: Checkout hse-java
+        uses: actions/checkout@v2
+        with:
+          repository: hse-project/hse-java
+          path: subprojects/hse-java
+          ref: ${{ github.base_ref || github.ref }}
+
       - name: Checkout hse-python
         uses: actions/checkout@v2
         with:
@@ -138,7 +163,7 @@ jobs:
 
       - name: Post-checkout
         run: |
-          for b in hse-python; do
+          for b in hse-java hse-python; do
             git -C "subprojects/$b" checkout ${{ github.head_ref }} || true
           done
 
@@ -146,12 +171,13 @@ jobs:
         run: |
           dnf group install -y --with-optional \
             "C Development Tools and Libraries"
-          dnf install -y git ninja-build meson python-unversioned-command \
+          dnf install -y git ninja-build python-unversioned-command \
             libmicrohttpd-devel userspace-rcu-devel libyaml-devel libbsd-devel \
             libcurl-devel libpmem-devel xz mongo-c-driver libbson \
             openssl-devel cyrus-sasl-devel ncurses-devel \
-            java-1.8.0-openjdk-devel python3-devel python3-Cython libxml2 \
-            libxslt
+            java-1.8.0-openjdk-devel maven python3-devel python3-Cython \
+            libxml2 libxslt
+          python3 -m pip install meson
 
       - name: Setup gcc toolchain
         if: ${{ matrix.toolchain == 'gcc' }}
@@ -168,10 +194,11 @@ jobs:
           dnf install -y clang
 
       - name: Setup
+        # Add --fatal-meson-warnings back in 0.62.1
         run: |
           meson builddir -Dbuildtype=${{ matrix.buildtype }} \
-            --fatal-meson-warnings -Dtools=enabled -Dpmem=enabled \
-            -Ddocs=disabled -Dbindings=all -Dycsb=true -Dwerror=true
+            -Dtools=enabled -Dpmem=enabled \
+            -Ddocs=disabled -Dbindings=all -Dwerror=true
 
       - name: Build
         run: |
@@ -206,6 +233,13 @@ jobs:
       - name: Checkout HSE
         uses: actions/checkout@v2
 
+      - name: Checkout hse-java
+        uses: actions/checkout@v2
+        with:
+          repository: hse-project/hse-java
+          path: subprojects/hse-java
+          ref: ${{ github.base_ref || github.ref }}
+
       - name: Checkout hse-python
         uses: actions/checkout@v2
         with:
@@ -215,7 +249,7 @@ jobs:
 
       - name: Post-checkout
         run: |
-          for b in hse-python; do
+          for b in hse-java hse-python; do
             git -C "subprojects/$b" checkout ${{ github.head_ref }} || true
           done
 
@@ -227,8 +261,8 @@ jobs:
           dnf install -y git ninja-build libmicrohttpd-devel \
             userspace-rcu-devel libyaml-devel libbsd-devel libcurl-devel \
             libpmem-devel xz mongo-c-driver libbson openssl-devel \
-            cyrus-sasl-devel ncurses-devel java-1.8.0-openjdk-devel \
-            python36 python36-devel libxml2 libxslt
+            cyrus-sasl-devel ncurses-devel java-1.8.0-openjdk-devel maven \
+            python39 python39-devel libxml2 libxslt
           python3 -m pip install meson Cython
 
       - name: Setup gcc toolchain
@@ -248,7 +282,7 @@ jobs:
       - name: Setup
         run: |
           meson builddir -Dbuildtype=${{ matrix.buildtype }} -Dtools=enabled \
-            -Ddocs=disabled -Dbindings=all -Dycsb=true -Dwerror=true
+            -Ddocs=disabled -Dbindings=all
 
       - name: Build
         run: |
@@ -282,6 +316,13 @@ jobs:
       - name: Checkout HSE
         uses: actions/checkout@v2
 
+      - name: Checkout hse-java
+        uses: actions/checkout@v2
+        with:
+          repository: hse-project/hse-java
+          path: subprojects/hse-java
+          ref: ${{ github.base_ref || github.ref }}
+
       - name: Checkout hse-python
         uses: actions/checkout@v2
         with:
@@ -291,7 +332,7 @@ jobs:
 
       - name: Post-checkout
         run: |
-          for b in hse-python; do
+          for b in hse-java hse-python; do
             git -C "subprojects/$b" checkout ${{ github.head_ref }} || true
           done
 
@@ -306,15 +347,14 @@ jobs:
             libbsd-dev:${{ matrix.arch }} libmicrohttpd-dev:${{ matrix.arch }} \
             libyaml-dev:${{ matrix.arch }} libmongoc-dev:${{ matrix.arch }} \
             libbson-dev:${{ matrix.arch }} libncurses-dev:${{ matrix.arch }} \
-            openjdk-11-jdk:${{ matrix.arch }} openjdk-11-jdk
+            openjdk-11-jdk maven
           python3 -m pip install meson Cython
 
       - name: Setup
         run: |
           meson builddir --cross-file cross/${{ matrix.arch }}.ini \
-            --cross-file cross/common.ini --cross-file cross/ci.ini \
-            -Dbuildtype=${{ matrix.buildtype }} -Dycsb=true -Dtools=enabled \
-            -Ddocs=disabled -Dbindings=all -Dwerror=true
+            --cross-file cross/common.ini -Dbuildtype=${{ matrix.buildtype }} \
+            -Dtools=enabled -Ddocs=disabled -Dbindings=all -Dwerror=true
 
       - name: Build
         run: |
@@ -340,6 +380,13 @@ jobs:
       - name: Checkout HSE
         uses: actions/checkout@v2
 
+      - name: Checkout hse-java
+        uses: actions/checkout@v2
+        with:
+          repository: hse-project/hse-java
+          path: subprojects/hse-java
+          ref: ${{ github.base_ref || github.ref }}
+
       - name: Checkout hse-python
         uses: actions/checkout@v2
         with:
@@ -349,7 +396,7 @@ jobs:
 
       - name: Post-checkout
         run: |
-          for b in hse-python; do
+          for b in hse-java hse-python; do
             git -C "subprojects/$b" checkout ${{ github.head_ref }} || true
           done
 
@@ -357,18 +404,19 @@ jobs:
         run: |
           dnf group install -y --with-optional \
             "C Development Tools and Libraries"
-          dnf install -y git ninja-build meson python-unversioned-command \
+          dnf install -y git ninja-build python-unversioned-command \
             libmicrohttpd-devel userspace-rcu-devel libyaml-devel libbsd-devel \
             libcurl-devel libpmem-devel xz mongo-c-driver libbson \
             openssl-devel cyrus-sasl-devel ncurses-devel \
-            java-1.8.0-openjdk-devel python3-devel python3-Cython \
+            java-1.8.0-openjdk-devel maven python3-devel python3-Cython \
             libxml2-devel libxslt-devel libasan libubsan
+          python3 -m pip install meson
 
       - name: Setup
         run: |
           meson builddir -Dbuildtype=${{ matrix.buildtype }} \
             -Db_sanitize=address,undefined -Dwerror=true -Dtools=enabled \
-            -Ddocs=disabled -Dbindings=all -Dycsb=true
+            -Ddocs=disabled -Dbindings=all
 
       - name: Build
         run: |
@@ -395,6 +443,13 @@ jobs:
       - name: Checkout HSE
         uses: actions/checkout@v2
 
+      - name: Checkout hse-java
+        uses: actions/checkout@v2
+        with:
+          repository: hse-project/hse-java
+          path: subprojects/hse-java
+          ref: ${{ github.base_ref || github.ref }}
+
       - name: Checkout hse-python
         uses: actions/checkout@v2
         with:
@@ -404,20 +459,21 @@ jobs:
 
       - name: Post-checkout
         run: |
-          for b in hse-python; do
+          for b in hse-java hse-python; do
             git -C "subprojects/$b" checkout ${{ github.head_ref }} || true
           done
 
       - name: Initialize
         run: |
           sudo apt-get update
-          sudo apt-get install build-essential ninja-build pkg-config
+          sudo apt-get install build-essential ninja-build pkg-config \
+            openjdk-11-jdk
           sudo python3 -m pip install meson Cython
 
       - name: Setup
         run: |
           meson builddir -Dwrap_mode=forcefallback -Dtools=enabled \
-            -Ddocs=disabled -Dbindings=all -Dycsb=true -Dwerror=true
+            -Ddocs=disabled -Dbindings=all -Dwerror=true
 
       - name: Build
         run: |

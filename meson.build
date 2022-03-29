@@ -305,11 +305,23 @@ endif
 bindings = []
 if 'all' in get_option('bindings')
     assert(get_option('bindings').length() == 1, 'The -Dbindings=all option cannot have additional values')
+
+    bindings += 'java'
     bindings += 'python'
 elif 'none' in get_option('bindings')
     assert(get_option('bindings').length() == 1, 'The -Dbindings=none option cannot have additional values')
 elif 'auto' in get_option('bindings')
     assert(get_option('bindings').length() == 1, 'The -Dbindings=auto option cannot have additional values')
+
+    # Determine whether we can build hse-java
+    if meson.version().version_compare('>=0.62.0')
+        if add_languages('java', native: false, required: false)
+            javac = meson.get_compiler('java')
+            if javac.version().version_compare('>=1.8.0')
+                bindings += 'java'
+            endif
+        endif
+    endif
 
     # Determine whether we can build hse-ython
     cython_verison_res = run_command(
@@ -373,7 +385,7 @@ if 'python' in bindings
     )
 
     hse_python_depends = hse_python.get_variable('extension_modules')
-    run_env.set('PYTHONPATH', hse_python.get_variable('project_build_root'))
+    run_env.prepend('PYTHONPATH', hse_python.get_variable('project_build_root'))
 
     run_target(
         'python-repl',
@@ -385,6 +397,40 @@ if 'python' in bindings
     )
 else
     hse_python_depends = disabler()
+endif
+
+if 'java' in bindings
+    hse_java = subproject(
+        'hse-java',
+        default_options: [
+            'tests=@0@'.format(get_option('tests')),
+        ]
+    )
+
+    hsejni = hse_java.get_variable('hsejni')
+    hse_jar = hse_java.get_variable('hse_jar')
+
+    hse_java_depends = [
+        hsejni,
+        hse_jar,
+    ]
+
+    run_env.prepend('LD_LIBRARY_PATH', fs.parent(hsejni.full_path()))
+    run_env.prepend('CLASSPATH', hse_jar.full_path())
+
+    jshell = find_program('jshell', required: false)
+    if jshell.found()
+        run_target(
+            'jshell',
+            command: [
+                jshell,
+            ],
+            depends: hse_java_depends,
+            env: run_env
+        )
+    endif
+else
+    hse_java_depends = disabler()
 endif
 
 if get_option('db_bench') and get_option('experimental')
@@ -406,10 +452,6 @@ run_env.prepend('PATH', executable_paths)
 
 if get_option('tests')
     subdir('tests')
-endif
-
-if get_option('ycsb')
-    subdir('hsejni')
 endif
 
 format = find_program('scripts/dev/format.sh')

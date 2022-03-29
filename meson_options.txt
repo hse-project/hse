@@ -4,15 +4,13 @@ option('experimental', type: 'boolean', value: true, yield: true,
     description: 'Build the experimental parts of HSE')
 option('tests', type: 'boolean', value: true,
     description: 'Build and enable tests')
-option('ycsb', type: 'boolean', value: false,
-    description: 'Build JNI bridge artifacts')
 option('db_bench', type: 'boolean', value: true,
     description: 'Build db_bench')
 option('tools', type: 'feature', value: 'auto',
     description: 'Build tools')
 option('samples', type: 'boolean', value: true,
     description: 'Build samples')
-option('bindings', type: 'array', choices: ['all', 'none', 'auto', 'python'], value: ['auto'],
+option('bindings', type: 'array', choices: ['all', 'none', 'auto', 'java', 'python'], value: ['auto'],
     description: 'Build language bindings')
 option('docs', type: 'feature', value: 'auto',
     description: 'Build documentation')
