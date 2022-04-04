@@ -433,14 +433,13 @@ bn_find_impl(struct bonsai_root *tree, const struct bonsai_skey *skey, enum bons
     struct bonsai_node *node, *node_le, *node_ge;
     const struct key_immediate *ki;
     const void *key;
-    uint klen, lcp;
+    uint klen;
     int  bounds;
     s32  res;
 
     ki = &skey->bsk_key_imm;
     key = skey->bsk_key;
     klen = key_imm_klen(ki);
-    lcp = KI_DLEN_MAX;
 
     /* Once the tree has been finalized we can safely compare the
      * search key to the bounds of the tree and/or leverage the
@@ -453,6 +452,7 @@ bn_find_impl(struct bonsai_root *tree, const struct bonsai_skey *skey, enum bons
     bounds = atomic_read_acq(&tree->br_bounds);
     if (bounds > 0) {
         struct bonsai_kv *bkv = rcu_dereference(tree->br_kv.bkv_prev); /* max key */
+        uint lcp;
 
         /* br_bounds is set to 1 + the lcp to use. */
         lcp = min_t(uint, klen, bounds - 1);
@@ -466,8 +466,6 @@ bn_find_impl(struct bonsai_root *tree, const struct bonsai_skey *skey, enum bons
                 goto search;
             }
         }
-
-        lcp = KI_DLEN_MAX;
 
         /*
          * If search key > max, then a miss for both GE and EQ get.
@@ -489,9 +487,6 @@ bn_find_impl(struct bonsai_root *tree, const struct bonsai_skey *skey, enum bons
     }
 
 search:
-    key += lcp;
-    klen -= lcp;
-
     node = rcu_dereference(tree->br_root);
     node_le = node_ge = NULL;
 
@@ -499,13 +494,12 @@ search:
         res = key_immediate_cmp(ki, &node->bn_key_imm);
 
         if (HSE_UNLIKELY(res == S32_MIN)) {
-            assert(key_imm_klen(&node->bn_key_imm) >= lcp);
 
             /* At this point we are assured that both keys'
              * ki_dlen are greater than KI_DLEN_MAX.
              */
             res = key_inner_cmp(
-                key, klen, node->bn_kv->bkv_key + lcp, key_imm_klen(&node->bn_key_imm) - lcp);
+                key, klen, node->bn_kv->bkv_key, key_imm_klen(&node->bn_key_imm));
         }
 
         if (HSE_UNLIKELY(res == 0))
