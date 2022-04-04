@@ -104,7 +104,6 @@ struct rest {
     struct mutex url_tab_lock HSE_L1D_ALIGNED;
     struct table *url_tab; /* table of rest URLs */
 
-    struct workqueue_struct *url_hdlr_wq HSE_L1D_ALIGNED;
     struct MHD_Daemon *monitor_daemon;
 
     int  sockfd;
@@ -496,7 +495,7 @@ get_url_desc(const char *path)
     return match;
 }
 
-static void
+static merr_t
 url_handler(struct work_struct *w)
 {
     struct thread_arg *ta = container_of(w, struct thread_arg, work);
@@ -518,6 +517,8 @@ url_handler(struct work_struct *w)
     atomic_set(&ta->busy, 0);
 
     rest_session_release(container_of(ta, struct session, targ));
+
+    return err;
 }
 
 static int
@@ -879,12 +880,7 @@ webserver_response(
     atomic_inc(&session->refcnt);
     atomic_set(&session->targ.busy, 1);
 
-    INIT_WORK(&session->targ.work, url_handler);
-    session->enqueued = queue_work(rest.url_hdlr_wq, &session->targ.work);
-    if (session->enqueued)
-        http_status = MHD_HTTP_OK;
-    else
-        http_status = MHD_HTTP_TOO_MANY_REQUESTS;
+    url_handler(&session->targ.work);
 
 respond:
     if (udesc && (http_status != MHD_HTTP_OK))
@@ -1072,12 +1068,6 @@ rest_server_start(const char *sock_path)
 
     spin_lock_init(&rest.sessions_lock);
 
-    rest.url_hdlr_wq = alloc_workqueue("hse_url_handler", 0, 1, WQ_THREADS);
-    if (!rest.url_hdlr_wq) {
-        unlink(rest.sock_name);
-        return merr(ev(ENOMEM));
-    }
-
     rest.monitor_daemon = MHD_start_daemon(
         MHD_USE_EPOLL_INTERNALLY_LINUX_ONLY,
         0,
@@ -1137,10 +1127,7 @@ rest_server_stop(void)
         usleep(tries * 100 * 1000);
     }
 
-    destroy_workqueue(rest.url_hdlr_wq);
-
     rest.monitor_daemon = NULL;
-    rest.url_hdlr_wq = NULL;
 }
 
 ssize_t
