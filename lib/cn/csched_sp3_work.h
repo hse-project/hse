@@ -38,7 +38,7 @@ struct sp3_thresholds {
     u8 lcomp_kvsets_min;
     u8 lcomp_kvsets_max;
     u8 lcomp_pop_pct;       /* leaf node spill-by-clen percentage threshold */
-    u8 lcomp_pop_keys;      /* leaf node spill-by-keys threshold (millions) */
+    u8 lcomp_pop_keys;      /* leaf node spill-by-keys threshold (units of 4 million) */
     u8 lscatter_pct;
     u8 llen_runlen_min;
     u8 llen_runlen_max;

@@ -2,7 +2,7 @@
 
 # SPDX-License-Identifier: Apache-2.0
 #
-# Copyright (C) 2021 Micron Technology, Inc. All rights reserved.
+# Copyright (C) 2021-2022 Micron Technology, Inc.  All rights reserved.
 
 #doc: simple kmt test on KVDB
 
@@ -23,7 +23,7 @@ cmd kmt -i "$recmax" -t10 -c -j"$threads" -w50 "$home" "$kvs1"
 cmd kmt -t10 -cD -j"$threads" -w50 "$home" "$kvs1" kvs-oparms cn_verify=true
 
 # test ingest + cn
-cmd kmt -i4m -t15 -cD -bl0 -j"$threads" -w50 "$home" "$kvs2" kvs-oparms cn_verify=true kvdb-oparms c0_debug=1
+cmd kmt -i3m -t15 -cD -bl0 -j"$threads" -w50 "$home" "$kvs2" kvs-oparms cn_verify=true kvdb-oparms c0_debug=1
 
 # hammer on c0 update
 cmd kmt -i448 -t15 -cD -j"$threads" -w50 -b "$home" "$kvs3" kvdb-oparms c0_debug=1
