@@ -819,7 +819,7 @@ sp3_refresh_thresholds(struct sp3 *sp)
             thresh.lcomp_kvsets_max = 12;
             thresh.lcomp_kvsets_min = 2;
             thresh.lcomp_pop_pct = 100;
-            thresh.lcomp_pop_keys = 128;
+            thresh.lcomp_pop_keys = 128; /* units of 4 million */
         }
         thresh.lcomp_kvsets_min = max(thresh.lcomp_kvsets_min, SP3_LCOMP_KVSETS_MIN);
     }
@@ -1189,7 +1189,7 @@ sp3_dirty_node_locked(struct sp3 *sp, struct cn_tree_node *tn)
 
             sp3_node_insert(sp, spn, RBT_L_PCAP, weight);
         } else {
-            uint64_t pop_keys = (uint64_t)sp->thresh.lcomp_pop_keys << 20;
+            uint64_t pop_keys = (uint64_t)sp->thresh.lcomp_pop_keys << 22;
 
             pop_keys *= tn->tn_loc.node_level;
 

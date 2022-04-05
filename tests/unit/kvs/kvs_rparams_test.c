@@ -147,7 +147,7 @@ MTF_DEFINE_UTEST_PRE(kvs_rparams_test, cn_node_sisze_lo, test_pre)
     ASSERT_EQ((uintptr_t)ps->ps_stringify, (uintptr_t)param_default_stringify);
     ASSERT_EQ((uintptr_t)ps->ps_jsonify, (uintptr_t)param_default_jsonify);
     ASSERT_NE(NULL, ps->ps_validate_relations);
-    ASSERT_EQ(20 * 1024, params.cn_node_size_lo);
+    ASSERT_EQ(28 * 1024, params.cn_node_size_lo);
     ASSERT_EQ(0, ps->ps_bounds.as_uscalar.ps_min);
     ASSERT_EQ(UINT64_MAX, ps->ps_bounds.as_uscalar.ps_max);
 
@@ -178,7 +178,7 @@ MTF_DEFINE_UTEST_PRE(kvs_rparams_test, cn_node_size_hi, test_pre)
     ASSERT_EQ((uintptr_t)ps->ps_stringify, (uintptr_t)param_default_stringify);
     ASSERT_EQ((uintptr_t)ps->ps_jsonify, (uintptr_t)param_default_jsonify);
     ASSERT_NE(NULL, ps->ps_validate_relations);
-    ASSERT_EQ(28 * 1024, params.cn_node_size_hi);
+    ASSERT_EQ(32 * 1024, params.cn_node_size_hi);
     ASSERT_EQ(0, ps->ps_bounds.as_uscalar.ps_min);
     ASSERT_EQ(UINT64_MAX, ps->ps_bounds.as_uscalar.ps_max);
 

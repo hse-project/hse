@@ -223,7 +223,7 @@ static const struct param_spec pspecs[] = {
         .ps_jsonify = param_default_jsonify,
         .ps_validate_relations = validate_cn_node_size_lo,
         .ps_default_value = {
-            .as_uscalar = 20 * 1024.
+            .as_uscalar = 28 * 1024.
         },
         .ps_bounds = {
             .as_uscalar = {
@@ -245,7 +245,7 @@ static const struct param_spec pspecs[] = {
         .ps_jsonify = param_default_jsonify,
         .ps_validate_relations = validate_cn_node_size_hi,
         .ps_default_value = {
-            .as_uscalar = 28 * 1024,
+            .as_uscalar = 32 * 1024,
         },
         .ps_bounds = {
             .as_uscalar = {
