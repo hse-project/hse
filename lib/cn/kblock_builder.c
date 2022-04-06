@@ -687,7 +687,7 @@ _kblock_make_header(
     off = 0;
 
     assert(
-        sizeof(*hdr) + sizeof(*wbt_hdr) + sizeof(*blm_hdr) + sizeof(pt_hdr) + 4 * align +
+        sizeof(*hdr) + sizeof(*wbt_hdr) + sizeof(*blm_hdr) + sizeof(*pt_hdr) + 4 * align +
             2 * HSE_KBLOCK_OMF_KLEN_MAX <=
         PAGE_SIZE);
 
