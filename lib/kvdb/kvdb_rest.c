@@ -85,6 +85,7 @@ rest_kvdb_get(
     struct ikvdb *      ikvdb = context;
     merr_t              err;
     struct yaml_context yc = { 0 };
+    char buf[4096];
 
     /* verify that the request was exact */
     if (strcmp(path, url) != 0)
@@ -92,8 +93,8 @@ rest_kvdb_get(
 
     yc.yaml_indent = 0;
     yc.yaml_offset = 0;
-    yc.yaml_buf = info->buf;
-    yc.yaml_buf_sz = info->buf_sz;
+    yc.yaml_buf = buf;
+    yc.yaml_buf_sz = sizeof(buf);
     yc.yaml_emit = NULL;
 
     err = get_kvs_list(ikvdb, info->resp_fd, &yc);
@@ -410,8 +411,8 @@ rest_kvdb_compact_status_get(
     const char *                   p = path + strlen(url);
     const char *                   action;
     size_t                         b, buf_off;
-    char *                         buf = info->buf;
-    size_t                         bufsz = info->buf_sz;
+    char                           buf[4096];
+    size_t                         bufsz = sizeof(buf);
 
     if (ev(*p == 0))
         return merr(EINVAL);
@@ -824,6 +825,7 @@ rest_kvs_tree(
     bool                list_blkid = true;
     struct yaml_context yc = { 0 };
     int                 fd = info->resp_fd;
+    char buf[4096];
 
     /* verify that the request was exact */
     if (strcmp(path, url) != 0)
@@ -831,8 +833,8 @@ rest_kvs_tree(
 
     yc.yaml_indent = 0;
     yc.yaml_offset = 0;
-    yc.yaml_buf = info->buf;
-    yc.yaml_buf_sz = info->buf_sz;
+    yc.yaml_buf = buf;
+    yc.yaml_buf_sz = sizeof(buf);
     yc.yaml_emit = NULL;
 
     /* HSE_REVISIT: It is not safe to make a ref out of thin air.

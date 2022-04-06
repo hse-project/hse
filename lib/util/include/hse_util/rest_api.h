@@ -20,9 +20,8 @@
 
 enum rest_url_flags {
     URL_FLAG_NONE = 0,
-    URL_FLAG_BINVAL = 1 << 1,
     URL_FLAG_EXACT =
-        1 << 2, /* Whether the registered route should match exactly with the requested route */
+        1 << 1, /* Whether the registered route should match exactly with the requested route */
 };
 
 struct kv_iter;
@@ -32,15 +31,11 @@ struct kv_iter;
  * @resp_fd: write response to this fd
  * @data:    uploaded data, if any
  * @data_sz: size of data
- * @buf:     ptr to a buffer that will exist for the duration of this session
- * @buf_sz:  size of @buf
  */
 struct conn_info {
     int         resp_fd;
     const char *data;
     size_t *    data_sz;
-    char *      buf;
-    size_t      buf_sz;
 };
 
 /* arguments passed as key-value pairs as part of URI */

@@ -62,45 +62,7 @@ struct url_desc {
     atomic_int          refcnt;
 };
 
-struct thread_arg {
-    struct work_struct work;
-    struct url_desc *  udesc;
-    const char *       path;
-    struct kv_iter     iter;
-    struct conn_info * ci;
-    int                op;
-    atomic_int         busy;
-};
-
-/**
- * struct session - identifies one client session/request
- * @resp_pipe:   Pipe for communication between url handler function (get/put)
- *               and the rest server's response callback (rest_response_cb)
- * @response:    MHD response object
- * @targ:        argument to url handler thread
- * @enqueued:    whether work was enqueued
- * @ci:          connection information for the handler
- * @refcnt:      reference count
- * @slot:        ptr to session table slot
- * @magic:       used for sanity checking
- * @buf:         Scratch space for handlers to use for the session duration
- */
-struct session {
-    int                  resp_pipe[2];
-    struct MHD_Response *response;
-    struct thread_arg    targ;
-    int                  enqueued;
-    struct conn_info     ci;
-    atomic_int           refcnt;
-    struct session **    slot;
-    void *               magic;
-    char                 buf[4096];
-};
-
 struct rest {
-    spinlock_t      sessions_lock;
-    struct session *sessions[MAX_SESSIONS];
-
     struct mutex url_tab_lock HSE_L1D_ALIGNED;
     struct table *url_tab; /* table of rest URLs */
 
@@ -320,18 +282,12 @@ static int
 #endif
 extract_kv_pairs(void *cls, enum MHD_ValueKind kind, const char *key, const char *value)
 {
-    struct session *    session = cls;
     struct kv_iter *    iter;
     struct rest_kv *    kv;
-    enum rest_url_flags url_flags;
     merr_t              err;
 
-    assert(session->magic == session);
-
-    iter = &session->targ.iter;
+    iter = cls;
     assert(iter->err == 0);
-
-    url_flags = session->targ.udesc->url_flags;
 
     if (!key) {
         iter->err = merr(ev(EINVAL));
@@ -360,18 +316,15 @@ extract_kv_pairs(void *cls, enum MHD_ValueKind kind, const char *key, const char
     }
 
     if (value) {
-
         if (ev(strlen(value) > URL_VLEN_MAX)) {
             iter->err = merr(EINVAL);
             return MHD_NO;
         }
 
-        if ((url_flags & URL_FLAG_BINVAL) == 0) {
-            err = string_validate(value, URL_VLEN_MAX);
-            if (err) {
-                iter->err = ev(err);
-                return MHD_NO;
-            }
+        err = string_validate(value, URL_VLEN_MAX);
+        if (err) {
+            iter->err = ev(err);
+            return MHD_NO;
         }
     }
 
@@ -420,42 +373,6 @@ kv_tab_free(struct table *tab)
     table_destroy(tab);
 }
 
-static void
-rest_session_release(struct session *s)
-{
-    int rc HSE_MAYBE_UNUSED;
-
-    assert(s->magic == s);
-
-    if (atomic_dec_return(&s->refcnt) > 0)
-        return;
-
-    s->magic = (void *)0x0badcafe0badcafe;
-
-    spin_lock(&rest.sessions_lock);
-    if (s->slot && *s->slot == s)
-        *s->slot = NULL;
-    s->slot = NULL;
-    spin_unlock(&rest.sessions_lock);
-
-    if (s->targ.iter.kv_tab) {
-        kv_tab_free(s->targ.iter.kv_tab);
-        s->targ.iter.kv_tab = 0;
-    }
-
-    /* To ensure that we don't close a re-purposed desciptor
-     * this is the only place that we close the descriptors
-     * we opened in rest_session_close().
-     */
-    rc = close(s->resp_pipe[0]);
-    assert(rc == 0 || errno != EBADF);
-
-    rc = close(s->resp_pipe[1]);
-    assert(rc == 0 || errno != EBADF);
-
-    free(s);
-}
-
 static struct url_desc *
 get_url_desc(const char *path)
 {
@@ -495,32 +412,6 @@ get_url_desc(const char *path)
     return match;
 }
 
-static merr_t
-url_handler(struct work_struct *w)
-{
-    struct thread_arg *ta = container_of(w, struct thread_arg, work);
-    struct url_desc *  ud = ta->udesc;
-    merr_t             err;
-
-    if (ta->op == URL_GET)
-        err = ud->get_handler(ta->path, ta->ci, ud->name, &ta->iter, ud->context);
-    else
-        err = ud->put_handler(ta->path, ta->ci, ud->name, &ta->iter, ud->context);
-
-    if (ev(err))
-        log_errx("%s handler for %s failed: @@e",
-                 err, (ta->op == URL_GET) ? "GET" : "PUT", ta->path);
-
-    shutdown(ta->ci->resp_fd, SHUT_RDWR);
-    atomic_dec(&ud->refcnt);
-
-    atomic_set(&ta->busy, 0);
-
-    rest_session_release(container_of(ta, struct session, targ));
-
-    return err;
-}
-
 static int
 valid_method(const char *method_name)
 {
@@ -530,109 +421,16 @@ valid_method(const char *method_name)
          !strcmp(method_name, MHD_HTTP_METHOD_POST)));
 }
 
-static int
-gen_help_msg(size_t *bytes, char *buf, size_t bufsz)
-{
-    int i, len;
-
-    struct yaml_context yc = {
-        .yaml_indent = 0,
-        .yaml_offset = 0,
-        .yaml_buf = buf,
-        .yaml_buf_sz = bufsz,
-        .yaml_emit = NULL,
-    };
-
-    if (!bytes)
-        return merr(ev(EINVAL));
-
-    memset(buf, 0, bufsz);
-
-    yaml_start_element_type(&yc, "Usage");
-
-    yaml_start_element_type(&yc, "GET");
-    yaml_element_field(
-        &yc,
-        "Syntax (w/o kv)",
-        "curl --noproxy localhost --unix-socket /path/to/socket "
-        "http://localhost/path/to/command");
-
-    yaml_element_field(
-        &yc,
-        "Syntax (w/  kv)",
-        "curl --noproxy localhost --unix-socket /path/to/socket "
-        "http://localhost/path/to/command?arg1=val1&arg2=val2");
-
-    yaml_end_element(&yc);
-    yaml_end_element_type(&yc); /* GET */
-
-    yaml_start_element_type(&yc, "PUT");
-    yaml_element_field(
-        &yc,
-        "Syntax (w/o kv)",
-        "curl --noproxy localhost --unix-socket /path/to/socket "
-        "-X PUT http://localhost/path/to/command");
-
-    yaml_element_field(
-        &yc,
-        "Syntax (w/  kv)",
-        "curl --noproxy localhost --unix-socket /path/to/socket "
-        "-X PUT http://localhost/path/to/command?arg1=val1&arg2=val2");
-
-    yaml_end_element(&yc);
-    yaml_end_element_type(&yc); /* PUT */
-
-    yaml_end_element_type(&yc); /* Usage */
-
-    yaml_start_element_type(&yc, "Registered URLs");
-
-    mutex_lock(&rest.url_tab_lock);
-    len = table_len(rest.url_tab);
-
-    for (i = 0; i < len; i++) {
-        struct url_desc *p = table_at(rest.url_tab, i);
-        char *           ops;
-
-        if (!p->get_handler && !p->put_handler)
-            continue; /* skip this URL. It was deregistered */
-
-        ops = p->get_handler && p->put_handler
-                  ? "put,get"
-                  : p->put_handler ? "put" : p->get_handler ? "get" : "(none)";
-
-        yaml_start_element(&yc, "name", p->name);
-        yaml_element_field(&yc, "ops", ops);
-        yaml_end_element(&yc);
-    }
-    mutex_unlock(&rest.url_tab_lock);
-
-    yaml_end_element(&yc);
-    yaml_end_element_type(&yc); /* Registered URLs */
-
-    *bytes = yc.yaml_offset;
-
-    return 0;
-}
-
-static void
-rest_response_free(void *cls)
-{
-    rest_session_release(cls);
-}
-
 static ssize_t
 rest_response_cb(void *cls, uint64_t pos, char *buf, size_t max)
 {
     struct timespec tv = {.tv_sec = 10 };
-    struct session *s = cls;
     struct pollfd   pfdv[1];
     sigset_t        mask;
     ssize_t         cc;
     int             fd, n;
 
-    assert(s->magic == s);
-
-    fd = s->resp_pipe[0];
+    fd = *(int*)cls;
 
     cc = read(fd, buf, max);
     if (cc > 0)
@@ -656,66 +454,6 @@ rest_response_cb(void *cls, uint64_t pos, char *buf, size_t max)
     return MHD_CONTENT_READER_END_OF_STREAM;
 }
 
-static struct session *
-rest_session_create(void)
-{
-    int             i, ret;
-    int             flags;
-    struct session *tmp;
-
-    tmp = calloc(1, sizeof(*tmp));
-    if (ev(!tmp))
-        return NULL;
-
-    ret = socketpair(AF_UNIX, SOCK_STREAM, 0, tmp->resp_pipe);
-    if (ev(ret == -1)) {
-        free(tmp);
-        return NULL;
-    }
-
-    /* A session is born with a reference which will be released
-     * by rest_session_complete().
-     */
-    atomic_set(&tmp->refcnt, 1);
-    tmp->enqueued = false;
-    tmp->magic = tmp;
-
-    /* the two ends of the pipe must be non-blocking */
-    flags = fcntl(tmp->resp_pipe[0], F_GETFL);
-    if (ev(flags < 0))
-        goto err;
-
-    ret = fcntl(tmp->resp_pipe[0], F_SETFL, flags | O_NONBLOCK);
-    if (ev(ret < 0))
-        goto err;
-
-    flags = fcntl(tmp->resp_pipe[1], F_GETFL);
-    if (ev(flags < 0))
-        goto err;
-
-    ret = fcntl(tmp->resp_pipe[1], F_SETFL, flags | O_NONBLOCK);
-    if (ev(ret < 0))
-        goto err;
-
-    spin_lock(&rest.sessions_lock);
-    for (i = 0; i < MAX_SESSIONS; ++i) {
-        if (!rest.sessions[i]) {
-            tmp->slot = rest.sessions + i;
-            rest.sessions[i] = tmp;
-            break;
-        }
-    }
-    spin_unlock(&rest.sessions_lock);
-
-err:
-    if (!tmp->slot) {
-        rest_session_release(tmp);
-        tmp = NULL;
-    }
-
-    return tmp;
-}
-
 #if (MHD_VERSION >= 0x00097002)
 static enum MHD_Result
 #else
@@ -731,57 +469,49 @@ webserver_response(
     unsigned long *        upload_data_size,
     void **                ptr)
 {
-    const char *     request_pfx = "http+unix://";
-    size_t           request_pfx_len = strlen(request_pfx);
     int              http_status = MHD_HTTP_NOT_FOUND;
-    int              ret;
-    struct session * session;
+    int              ret, flags;
     char *           path;
     struct url_desc *udesc = 0;
-    int              write_fd;
     merr_t           err = 0;
+    struct kv_iter iter;
+    struct conn_info ci;
+    struct MHD_Response *response = NULL;
+    int pipefds[2] = { -1, -1 };
 
-    if (!(*ptr)) {
-        /* The first call is only to establish a connection.
-         * Create a new session to hold session-specific info
-         */
-        session = rest_session_create();
-        if (ev(!session))
-            return MHD_NO;
+    path = (char *)(url + 1);
 
-        /* Acquire a reference for the response callback, will
-         * be released by rest_response_free().
-         */
-        atomic_inc(&session->refcnt);
-
-        session->response = MHD_create_response_from_callback(
-            MHD_SIZE_UNKNOWN, PIPE_BUF * 8, rest_response_cb, session, rest_response_free);
-
-        if (!session->response) {
-            rest_session_release(session);
-            rest_session_release(session);
-            return MHD_NO;
-        }
-
-        *ptr = session;
-
-        return MHD_YES;
+    ret = pipe(pipefds);
+    if (ev(ret == -1)) {
+        ret = MHD_NO;
+        goto cleanup;
     }
 
-    session = *ptr;
-    write_fd = session->resp_pipe[1];
+    /* the two ends of the pipe must be non-blocking */
+    flags = fcntl(pipefds[0], F_GETFL);
+    if (ev(flags < 0))
+        goto cleanup;
 
-    if (strncmp(request_pfx, url, request_pfx_len) == 0) {
-        const char *suffix = ".sock";
-        char *      p = strstr(url + request_pfx_len, suffix);
-
-        if (p)
-            path = p + strlen(suffix) + 1;
-        else
-            path = (char *)url;
-    } else {
-        path = (char *)(url + 1);
+    ret = fcntl(pipefds[0], F_SETFL, flags | O_NONBLOCK);
+    if (ev(ret < 0)) {
+        ret = MHD_NO;
+        goto cleanup;
     }
+
+    flags = fcntl(pipefds[1], F_GETFL);
+    if (ev(flags < 0)) {
+        ret = MHD_NO;
+        goto cleanup;
+    }
+
+    ret = fcntl(pipefds[1], F_SETFL, flags | O_NONBLOCK);
+    if (ev(ret < 0)) {
+        ret = MHD_NO;
+        goto cleanup;
+    }
+
+    response = MHD_create_response_from_callback(
+            MHD_SIZE_UNKNOWN, PIPE_BUF * 8, rest_response_cb, &pipefds[0], NULL);
 
     if (!path || path[0] == 0) {
         err = merr(ev(ENOENT));
@@ -802,132 +532,65 @@ webserver_response(
 
     udesc = get_url_desc(path);
     if (!udesc) {
-        size_t bytes;
-
         http_status = MHD_HTTP_NOT_FOUND;
-
-        /* REST API version */
-        if (strcmp(method, MHD_HTTP_METHOD_GET) == 0 && strcasecmp(path, "version") == 0) {
-            bytes = snprintf(
-                session->buf,
-                sizeof(session->buf),
-                "HSE REST API Version %d.%d %s\n",
-                REST_VERSION_MAJOR,
-                REST_VERSION_MINOR,
-                HSE_VERSION_STRING);
-
-            http_status = MHD_HTTP_OK;
-            if (write(write_fd, session->buf, bytes) != bytes)
-                http_status = MHD_HTTP_INTERNAL_SERVER_ERROR;
-            shutdown(write_fd, SHUT_RDWR);
-            goto respond;
-        }
-
-        /* REST API help */
-        if (strcmp(method, MHD_HTTP_METHOD_GET) == 0 && strcasecmp(path, "help") == 0) {
-            http_status = MHD_HTTP_OK;
-            gen_help_msg(&bytes, session->buf, sizeof(session->buf));
-            if (write(write_fd, session->buf, bytes) != bytes)
-                http_status = MHD_HTTP_INTERNAL_SERVER_ERROR;
-            shutdown(write_fd, SHUT_RDWR);
-        }
-
         goto respond;
     }
 
-    session->targ.udesc = udesc;
-    session->targ.path = path;
-    session->targ.ci = &session->ci;
-
     /* create an iterator for all the key=val pairs in the URL */
-    err = kv_iter_init(&session->targ.iter);
+    err = kv_iter_init(&iter);
     if (ev(err)) {
         http_status = MHD_HTTP_INTERNAL_SERVER_ERROR;
         goto respond;
     }
 
-    MHD_get_connection_values(connection, MHD_GET_ARGUMENT_KIND, &extract_kv_pairs, session);
+    MHD_get_connection_values(connection, MHD_GET_ARGUMENT_KIND, &extract_kv_pairs, &iter);
 
-    if (ev(session->targ.iter.err)) {
+    if (ev(iter.err)) {
         http_status = MHD_HTTP_UNPROCESSABLE_CONTENT;
-        err = session->targ.iter.err;
+        err = iter.err;
         goto respond;
     }
 
-    session->ci.data = upload_data;
-    session->ci.data_sz = upload_data_size;
-    session->ci.resp_fd = session->resp_pipe[1];
-    session->ci.buf = session->buf;
-    session->ci.buf_sz = sizeof(session->buf);
+    ci.resp_fd = pipefds[1];
+    ci.data = upload_data;
+    ci.data_sz = upload_data_size;
 
     /* Call the requested operation's handler, if registered */
     if (strcmp(method, MHD_HTTP_METHOD_GET) == 0 && udesc->get_handler) {
-        http_status = MHD_HTTP_OK;
-        session->targ.op = URL_GET;
+        err = udesc->get_handler(path, &ci, udesc->name, &iter, udesc->context);
+        if (!err)
+            http_status = MHD_HTTP_OK;
     } else if (
         (strcmp(method, MHD_HTTP_METHOD_PUT) == 0 || strcmp(method, MHD_HTTP_METHOD_POST) == 0) &&
         udesc->put_handler) {
-        http_status = MHD_HTTP_OK;
-        session->targ.op = URL_PUT;
+        err = udesc->put_handler(path, &ci, udesc->name, &iter, udesc->context);
+        if (!err)
+            http_status = MHD_HTTP_CREATED;
     } else {
         http_status = MHD_HTTP_NOT_IMPLEMENTED;
         goto respond;
     }
 
-    /* Acquire a reference for url_handler(), will be released
-     * by url_handler().
-     */
-    atomic_inc(&session->refcnt);
-    atomic_set(&session->targ.busy, 1);
-
-    url_handler(&session->targ.work);
-
 respond:
-    if (udesc && (http_status != MHD_HTTP_OK))
-        atomic_dec(&udesc->refcnt);
-
-    if (http_status != MHD_HTTP_OK) {
-        size_t bytes;
-
-        gen_help_msg(&bytes, session->buf, sizeof(session->buf));
-        if (write(write_fd, session->buf, bytes) != bytes)
-            http_status = MHD_HTTP_INTERNAL_SERVER_ERROR;
-        shutdown(write_fd, SHUT_RDWR);
-        if (udesc)
-            atomic_dec(&udesc->refcnt);
-    }
-
     if (ev(err))
         log_errx("rest api internal error: @@e", err);
 
-    ret = MHD_queue_response(connection, http_status, session->response);
-    MHD_destroy_response(session->response);
+    ret = MHD_queue_response(connection, http_status, response);
 
-    return ret;
-}
-
-static void *
-rest_session_complete(
-    void *                          cls,
-    struct MHD_Connection *         connection,
-    void **                         con_cls,
-    enum MHD_RequestTerminationCode toe)
-{
-    struct session *s = *con_cls;
-
-    if (!s)
-        return 0;
-
-    assert(s->magic == s);
-
-    if (s->enqueued) {
-        if (ev(toe != MHD_REQUEST_TERMINATED_COMPLETED_OK))
-            shutdown(s->resp_pipe[0], SHUT_RDWR);
+cleanup:
+    if (iter.kv_tab)
+        kv_tab_free(iter.kv_tab);
+    if (response)
+        MHD_destroy_response(response);
+    for (int i = 0; i < sizeof(pipefds) / sizeof(pipefds[0]); i++) {
+        if (pipefds[i] != -1) {
+            int rc HSE_MAYBE_UNUSED;
+            rc = close(pipefds[i]);
+            assert(rc == 0 || errno != EBADF);
+        }
     }
 
-    rest_session_release(s);
-
-    return 0;
+    return ret;
 }
 
 static merr_t
@@ -1066,25 +729,19 @@ rest_server_start(const char *sock_path)
         return err;
     }
 
-    spin_lock_init(&rest.sessions_lock);
-
     rest.monitor_daemon = MHD_start_daemon(
-        MHD_USE_EPOLL_INTERNALLY_LINUX_ONLY,
+        MHD_USE_THREAD_PER_CONNECTION | MHD_USE_INTERNAL_POLLING_THREAD,
         0,
         NULL,
         NULL,
         &webserver_response,
         NULL,
-        MHD_OPTION_THREAD_POOL_SIZE,
-        NUM_THREADS,
         MHD_OPTION_LISTEN_SOCKET,
         rest.sockfd,
         MHD_OPTION_CONNECTION_LIMIT,
         (unsigned int)MAX_SESSIONS,
         MHD_OPTION_CONNECTION_TIMEOUT,
         (unsigned int)120,
-        MHD_OPTION_NOTIFY_COMPLETED,
-        rest_session_complete,
         NULL,
         MHD_OPTION_END);
     if (!rest.monitor_daemon) {
@@ -1100,32 +757,11 @@ rest_server_start(const char *sock_path)
 void
 rest_server_stop(void)
 {
-    int nbusy, tries, i;
-
     if (ev(!rest.monitor_daemon))
         return;
 
     unlink(rest.sock_name);
     MHD_stop_daemon(rest.monitor_daemon);
-
-    for (tries = 0; tries < 3; ++tries) {
-        spin_lock(&rest.sessions_lock);
-        for (nbusy = i = 0; i < MAX_SESSIONS; ++i) {
-            struct session *s = rest.sessions[i];
-
-            if (s) {
-                shutdown(s->resp_pipe[1], SHUT_RDWR);
-                ++nbusy;
-            }
-        }
-        spin_unlock(&rest.sessions_lock);
-
-        if (nbusy == 0)
-            break;
-
-        log_warn("%d sessions still active", nbusy);
-        usleep(tries * 100 * 1000);
-    }
 
     rest.monitor_daemon = NULL;
 }
