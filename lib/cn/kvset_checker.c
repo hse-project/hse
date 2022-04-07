@@ -273,10 +273,11 @@ check_vref(
     u32 *              last_vbidx,
     u32 *              last_vboff)
 {
+    u64  vbid;
     u32  vbidx, vlen, vboff;
     bool err = false;
 
-    kmd_val(kb_info->kmd, off, &vbidx, &vboff, &vlen);
+    kmd_val(kb_info->kmd, off, &vbid, &vbidx, &vboff, &vlen);
 
     if (*last_vboff > 0 && vbidx == *last_vbidx && vboff < *last_vboff) {
         err = true;

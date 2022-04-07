@@ -348,6 +348,7 @@ cn_spill(struct cn_compaction_work *w)
                 const void *   vdata = NULL;
                 bool           should_emit = false;
                 enum kmd_vtype vtype;
+                u64            vbid;
                 u32            vbidx;
                 u32            vboff;
                 bool           direct;
@@ -355,7 +356,7 @@ cn_spill(struct cn_compaction_work *w)
                 if (tstart > 0)
                     tstart = get_time_ns();
 
-                if (!kvset_iter_next_vref(w->cw_inputv[curr.src], &curr.vctx, &seq, &vtype, &vbidx,
+                if (!kvset_iter_next_vref(w->cw_inputv[curr.src], &curr.vctx, &seq, &vtype, &vbid, &vbidx,
                                           &vboff, &vdata, &vlen, &complen))
                     break;
 

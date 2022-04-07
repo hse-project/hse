@@ -767,6 +767,7 @@ static merr_t
 _kvset_builder_add_vref(
     struct kvset_builder *self,
     u64                   seq,
+    u64                   vbid_kvset_node,
     uint                  vbidx_kvset_node,
     uint                  vboff_nth_key,
     uint                  vlen_nth_val,
@@ -890,6 +891,7 @@ _kvset_iter_next_vref(
     struct kvset_iter_vctx *vc,
     u64 *                   seq,
     enum kmd_vtype *        vtype,
+    u64 *                   vbid,
     uint *                  vbidx,
     uint *                  vboff,
     const void **           vdata,
@@ -925,6 +927,7 @@ _kvset_iter_next_vref(
              *   vlen_out == nth_val
              * See also _kvset_builder_add_vref(), which unpacks this data.
              */
+            *vbid = kvset_node;
             *vbidx = kvset_node;
             *vboff = nth_key;
             *vlen_out = nth_val;

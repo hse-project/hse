@@ -148,6 +148,7 @@ kcompact(struct cn_compaction_work *w)
     merr_t            err;
 
     enum kmd_vtype vtype;
+    u64            vbid;
     uint           vbidx, vboff, vlen, complen;
     const void *   vdata;
 
@@ -214,7 +215,7 @@ get_values:
 
     while (horizon &&
            kvset_iter_next_vref(
-               w->cw_inputv[curr.src], &curr.vctx, &seq, &vtype, &vbidx, &vboff,
+               w->cw_inputv[curr.src], &curr.vctx, &seq, &vtype, &vbid, &vbidx, &vboff,
                &vdata, &vlen, &complen))
     {
         bool should_emit = false;
@@ -264,7 +265,7 @@ get_values:
                 case vtype_val:
                 case vtype_cval:
                     err = kvset_builder_add_vref(
-                        w->cw_child[0], seq, vbidx + w->cw_vbmap.vbm_map[curr.src],
+                        w->cw_child[0], seq, vbid, vbidx + w->cw_vbmap.vbm_map[curr.src],
                         vboff, vlen, complen);
                     break;
                 case vtype_zval:

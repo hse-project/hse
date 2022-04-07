@@ -457,6 +457,7 @@ tp_next_entry(
     struct kmd_test_profile *tp,
     enum kmd_vtype *         vtype,
     u64 *                    seq,
+    u64 *                    vbid,
     uint *                   vbidx,
     uint *                   vboff,
     const void **            vdata,
@@ -510,6 +511,7 @@ tp_next_entry(
 value:
     *vtype = vtype_val;
     *vboff = xrand64(&tp->xr);
+    *vbid = xrand64(&tp->xr) & HG64_MAX;
     *vbidx = xrand64(&tp->xr) & HG16_32K_MAX;
     *vlen = xrand64(&tp->xr) & HG32_1024M_MAX;
     *clen = 0;
@@ -533,7 +535,7 @@ value:
 void
 run_kmd_write_perf(struct kmd_test_stats *s)
 {
-    u64      off, seq, rx, rval;
+    u64      off, seq, rx, rval, vbid;
     unsigned count;
     uint     vbidx, vboff, vlen;
 
@@ -557,13 +559,14 @@ run_kmd_write_perf(struct kmd_test_stats *s)
             count = 3;
         }
 
+        vbid = rval;
         vbidx = (rval >> 16) & 0xf;
         vboff = (rval >> 32);
         vlen = (rval >> 24) & 0xff;
 
         s->nvals += count;
         while (count-- > 0)
-            kmd_add_val(mem, &off, seq++, vbidx, vboff, vlen);
+            kmd_add_val(mem, &off, seq++, vbid, vbidx, vboff, vlen);
     }
 
     kmd_set_count(mem, &off, 0);
@@ -573,7 +576,7 @@ run_kmd_write_perf(struct kmd_test_stats *s)
 void
 run_kmd_read_perf(struct kmd_test_stats *s)
 {
-    u64            off, seq, rx, rval;
+    u64            off, seq, rx, rval, vbid;
     unsigned       i, count;
     enum kmd_vtype vtype;
     uint           vbidx, vboff, vlen, clen;
@@ -608,11 +611,11 @@ run_kmd_read_perf(struct kmd_test_stats *s)
                     s->nvals++;
                     break;
                 case vtype_val:
-                    kmd_val(mem, &off, &vbidx, &vboff, &vlen);
+                    kmd_val(mem, &off, &vbid, &vbidx, &vboff, &vlen);
                     s->nvals++;
                     break;
                 case vtype_cval:
-                    kmd_cval(mem, &off, &vbidx, &vboff, &vlen, &clen);
+                    kmd_cval(mem, &off, &vbid, &vbidx, &vboff, &vlen, &clen);
                     s->nvals++;
                     break;
                 case vtype_zval:
@@ -631,7 +634,7 @@ run_kmd_read_perf(struct kmd_test_stats *s)
 void
 run_kmd_tp(struct kmd_test_profile *tp, struct kmd_test_stats *s, bool writing)
 {
-    u64            off, seq;
+    u64            off, seq, vbid;
     unsigned       count, actual_count, may_need;
     enum kmd_vtype vtype;
     uint           i, vbidx, vboff, vlen, clen;
@@ -661,7 +664,7 @@ run_kmd_tp(struct kmd_test_profile *tp, struct kmd_test_stats *s, bool writing)
         s->nkeys++;
         s->nseqs += count;
         for (i = 0; i < count; i++) {
-            tp_next_entry(tp, &vtype, &seq, &vbidx, &vboff, &vdata, &vlen, &clen);
+            tp_next_entry(tp, &vtype, &seq, &vbid, &vbidx, &vboff, &vdata, &vlen, &clen);
             switch (vtype) {
                 case vtype_tomb:
                     s->ntombs++;
@@ -695,15 +698,16 @@ run_kmd_tp(struct kmd_test_profile *tp, struct kmd_test_stats *s, bool writing)
                         kmd_add_ival(mem, &off, seq, vdata, vlen);
                         break;
                     case vtype_cval:
-                        kmd_add_cval(mem, &off, seq, vbidx, vboff, vlen, clen);
+                        kmd_add_cval(mem, &off, seq, vbid, vbidx, vboff, vlen, clen);
                         break;
                     case vtype_val:
-                        kmd_add_val(mem, &off, seq, vbidx, vboff, vlen);
+                        kmd_add_val(mem, &off, seq, vbid, vbidx, vboff, vlen);
                         break;
                 }
             } else {
                 u64            actual_seq;
                 enum kmd_vtype actual_vtype;
+                u64            actual_vbid;
                 uint           actual_vbidx;
                 uint           actual_vboff;
                 uint           actual_vlen;
@@ -715,13 +719,15 @@ run_kmd_tp(struct kmd_test_profile *tp, struct kmd_test_stats *s, bool writing)
                 assert(seq == actual_seq);
                 switch (vtype) {
                     case vtype_val:
-                        kmd_val(mem, &off, &actual_vbidx, &actual_vboff, &actual_vlen);
+                        kmd_val(mem, &off, &actual_vbid, &actual_vbidx, &actual_vboff, &actual_vlen);
+                        assert(actual_vbid == vbid);
                         assert(actual_vbidx == vbidx);
                         assert(actual_vboff == vboff);
                         assert(actual_vlen == vlen);
                         break;
                     case vtype_cval:
-                        kmd_cval(mem, &off, &actual_vbidx, &actual_vboff, &actual_vlen, &actual_clen);
+                        kmd_cval(mem, &off, &actual_vbid, &actual_vbidx, &actual_vboff, &actual_vlen, &actual_clen);
+                        assert(actual_vbid == vbid);
                         assert(actual_vbidx == vbidx);
                         assert(actual_vboff == vboff);
                         assert(actual_vlen == vlen);

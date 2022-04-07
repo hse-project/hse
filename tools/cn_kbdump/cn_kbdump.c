@@ -429,6 +429,7 @@ print_blm(struct blk *blk)
 struct kmd_vref {
     enum kmd_vtype vtype;
     size_t         vtype_off;
+    u64            vbid;
     uint           vbidx;
     uint           vboff;
     uint           vlen;
@@ -454,11 +455,12 @@ val_get_next(void *kmd, size_t *off, struct kmd_vref *vref)
 
     switch (vref->vtype) {
         case vtype_val:
-            kmd_val(kmd, off, &vref->vbidx, &vref->vboff, &vref->vlen);
+            kmd_val(kmd, off, &vref->vbid, &vref->vbidx, &vref->vboff, &vref->vlen);
             snprintf(
                 vref->vinfo,
                 sizeof(vref->vinfo),
-                "type=v %u/%u/%u",
+                "type=v %lu/%u/%u/%u",
+                vref->vbid,
                 vref->vbidx,
                 vref->vboff,
                 vref->vlen);

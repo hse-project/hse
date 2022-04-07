@@ -157,7 +157,7 @@ MTF_DEFINE_UTEST_PREPOST(test, t_kvset_builder_add_entry1, pre, post)
     /*
      * One flavor for add_vref
      */
-    err = kvset_builder_add_vref(bld, seq2, 1, 2, 3, 0);
+    err = kvset_builder_add_vref(bld, seq2, 1, 1, 2, 3, 0);
     ASSERT_EQ(err, 0);
 
     /*
@@ -209,6 +209,7 @@ MTF_DEFINE_UTEST_PREPOST(test, t_reserve_kmd1, pre, post)
 {
     merr_t err;
     u64    seq = 0x1122334455667788ULL;
+    u64    vbid = 1;
     uint   vbidx = 300;
     uint   vboff = 128 * 1000 * 1000;
     uint   vlen = 1000 * 1000;
@@ -222,7 +223,7 @@ MTF_DEFINE_UTEST_PREPOST(test, t_reserve_kmd1, pre, post)
 
     /* Add entries to exercise kmd growth */
     for (i = 0; i < 100; i++) {
-        err = kvset_builder_add_vref(bld, seq, vbidx, vboff, vlen, 0);
+        err = kvset_builder_add_vref(bld, seq, vbid, vbidx, vboff, vlen, 0);
         ASSERT_EQ(err, 0);
     }
 
@@ -235,6 +236,7 @@ MTF_DEFINE_UTEST_PREPOST(test, t_reserve_kmd2, pre, post)
     u32    api;
     merr_t err;
     u64    seq = 0x1122334455667788ULL;
+    u64    vbid = 1;
     uint   vbidx = 300;
     uint   vboff = 128 * 1000 * 1000;
     uint   vlen = 1000 * 1000;
@@ -251,7 +253,7 @@ MTF_DEFINE_UTEST_PREPOST(test, t_reserve_kmd2, pre, post)
 
     /* Add entries to kmd, eventually we should get an ENOMEM. */
     for (i = 0; i < 100; i++) {
-        err = kvset_builder_add_vref(bld, seq, vbidx, vboff, vlen, 0);
+        err = kvset_builder_add_vref(bld, seq, vbid, vbidx, vboff, vlen, 0);
         if (err)
             break;
     }

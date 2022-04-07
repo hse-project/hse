@@ -3352,6 +3352,7 @@ kvset_iter_next_vref(
     struct kvset_iter_vctx *vc,
     u64 *                   seq,
     enum kmd_vtype *        vtype,
+    u64 *                   vbid,
     uint *                  vbidx,
     uint *                  vboff,
     const void **           vdata,
@@ -3379,10 +3380,10 @@ kvset_iter_next_vref(
     kmd_type_seq(vc->kmd, &vc->off, vtype, seq);
     switch (*vtype) {
         case vtype_val:
-            kmd_val(vc->kmd, &vc->off, vbidx, vboff, vlen);
+            kmd_val(vc->kmd, &vc->off, vbid, vbidx, vboff, vlen);
             break;
         case vtype_cval:
-            kmd_cval(vc->kmd, &vc->off, vbidx, vboff, vlen, complen);
+            kmd_cval(vc->kmd, &vc->off, vbid, vbidx, vboff, vlen, complen);
             break;
         case vtype_ival:
             kmd_ival(vc->kmd, &vc->off, vdata, vlen);

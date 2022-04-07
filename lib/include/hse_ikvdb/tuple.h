@@ -75,6 +75,7 @@ struct kvs_vtuple_ref {
     enum kmd_vtype vr_type;
     union {
         struct {
+            uint64_t vr_id;
             uint16_t vr_index;
             uint32_t vr_off;
             uint32_t vr_len;

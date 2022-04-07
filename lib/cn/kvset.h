@@ -469,6 +469,7 @@ kvset_iter_next_vref(
     struct kvset_iter_vctx *vc,
     u64 *                   seq,
     enum kmd_vtype *        vtype,
+    u64 *                   vbid,
     uint *                  vbidx,
     uint *                  vboff,
     const void **           vdata,

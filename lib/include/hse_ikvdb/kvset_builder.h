@@ -81,6 +81,7 @@ merr_t
 kvset_builder_add_vref(
     struct kvset_builder   *self,
     u64                     seq,
+    u64                     vbid,
     uint                    vbidx,
     uint                    vboff,
     uint                    vlen,

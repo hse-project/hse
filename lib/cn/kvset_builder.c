@@ -215,9 +215,9 @@ kvset_builder_add_val(
         self->key_stats.c0_vlen += omlen;
 
         if (complen)
-            kmd_add_cval(self->main.kmd, &self->main.kmd_used, seq, vbidx, vboff, vlen, complen);
+            kmd_add_cval(self->main.kmd, &self->main.kmd_used, seq, vbid, vbidx, vboff, vlen, complen);
         else
-            kmd_add_val(self->main.kmd, &self->main.kmd_used, seq, vbidx, vboff, vlen);
+            kmd_add_val(self->main.kmd, &self->main.kmd_used, seq, vbid, vbidx, vboff, vlen);
 
         /* stats (and space amp) use on-media length */
         self->vused += omlen;
@@ -254,6 +254,7 @@ merr_t
 kvset_builder_add_vref(
     struct kvset_builder   *self,
     u64                     seq,
+    u64                     vbid,
     uint                    vbidx,
     uint                    vboff,
     uint                    vlen,
@@ -265,9 +266,9 @@ kvset_builder_add_vref(
         return merr(ev(ENOMEM));
 
     if (complen > 0)
-        kmd_add_cval(self->main.kmd, &self->main.kmd_used, seq, vbidx, vboff, vlen, complen);
+        kmd_add_cval(self->main.kmd, &self->main.kmd_used, seq, vbid, vbidx, vboff, vlen, complen);
     else
-        kmd_add_val(self->main.kmd, &self->main.kmd_used, seq, vbidx, vboff, vlen);
+        kmd_add_val(self->main.kmd, &self->main.kmd_used, seq, vbid, vbidx, vboff, vlen);
 
     self->vused += om_len;
     self->key_stats.tot_vlen += om_len;

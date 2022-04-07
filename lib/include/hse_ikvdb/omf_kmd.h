@@ -133,13 +133,14 @@ kmd_add_ival(void *kmd, size_t *off, u64 seq, const void *vdata, u8 vlen)
 }
 
 static inline void
-kmd_add_val(void *kmd, size_t *off, u64 seq, uint vbidx, uint vboff, uint vlen)
+kmd_add_val(void *kmd, size_t *off, u64 seq, u64 vbid, uint vbidx, uint vboff, uint vlen)
 {
     __be32 val32;
 
     ((u8 *)kmd)[*off] = vtype_val;
     *off += 1;
     encode_hg64(kmd, off, seq);
+    encode_hg64(kmd, off, vbid);
     encode_hg16_32k(kmd, off, vbidx);
     val32 = cpu_to_be32(vboff);
     memcpy(kmd + *off, &val32, sizeof(val32));
@@ -148,13 +149,14 @@ kmd_add_val(void *kmd, size_t *off, u64 seq, uint vbidx, uint vboff, uint vlen)
 }
 
 static inline void
-kmd_add_cval(void *kmd, size_t *off, u64 seq, uint vbidx, uint vboff, uint vlen, uint complen)
+kmd_add_cval(void *kmd, size_t *off, u64 seq, u64 vbid, uint vbidx, uint vboff, uint vlen, uint complen)
 {
     __be32 val32;
 
     ((u8 *)kmd)[*off] = vtype_cval;
     *off += 1;
     encode_hg64(kmd, off, seq);
+    encode_hg64(kmd, off, vbid);
     encode_hg16_32k(kmd, off, vbidx);
     val32 = cpu_to_be32(vboff);
     memcpy(kmd + *off, &val32, sizeof(val32));
@@ -178,10 +180,11 @@ kmd_type_seq(const void *kmd, size_t *off, enum kmd_vtype *vtype, u64 *seq)
 }
 
 static inline void
-kmd_val(const void *kmd, size_t *off, uint *vbidx, uint *vboff, uint *vlen)
+kmd_val(const void *kmd, size_t *off, u64 *vbid, uint *vbidx, uint *vboff, uint *vlen)
 {
     __be32 val32;
 
+    *vbid = decode_hg64(kmd, off);
     *vbidx = decode_hg16_32k(kmd, off);
     memcpy(&val32, kmd + *off, sizeof(val32));
     *vboff = be32_to_cpu(val32);
@@ -190,10 +193,11 @@ kmd_val(const void *kmd, size_t *off, uint *vbidx, uint *vboff, uint *vlen)
 }
 
 static inline void
-kmd_cval(const void *kmd, size_t *off, uint *vbidx, uint *vboff, uint *vlen, uint *complen)
+kmd_cval(const void *kmd, size_t *off, u64 *vbid, uint *vbidx, uint *vboff, uint *vlen, uint *complen)
 {
     __be32 val32;
 
+    *vbid = decode_hg64(kmd, off);
     *vbidx = decode_hg16_32k(kmd, off);
     memcpy(&val32, kmd + *off, sizeof(val32));
     *vboff = be32_to_cpu(val32);

@@ -35,6 +35,7 @@ void
 wbt_read_kmd_vref(const void *kmd, size_t *off, u64 *seq, struct kvs_vtuple_ref *vref)
 {
     enum kmd_vtype vtype;
+    u64            vbid = 0;
     uint           vbidx = 0;
     uint           vboff = 0;
     uint           vlen = 0;
@@ -45,23 +46,25 @@ wbt_read_kmd_vref(const void *kmd, size_t *off, u64 *seq, struct kvs_vtuple_ref 
 
     switch (vtype) {
         case vtype_val:
-            kmd_val(kmd, off, &vbidx, &vboff, &vlen);
+            kmd_val(kmd, off, &vbid, &vbidx, &vboff, &vlen);
             /* assert no truncation */
             assert(vbidx <= U16_MAX);
             assert(vboff <= U32_MAX);
             assert(vlen <= U32_MAX);
+            vref->vb.vr_id = vbid;
             vref->vb.vr_index = vbidx;
             vref->vb.vr_off = vboff;
             vref->vb.vr_len = vlen;
             vref->vb.vr_complen = 0;
             break;
         case vtype_cval:
-            kmd_cval(kmd, off, &vbidx, &vboff, &vlen, &complen);
+            kmd_cval(kmd, off, &vbid, &vbidx, &vboff, &vlen, &complen);
             /* assert no truncation */
             assert(vbidx <= U16_MAX);
             assert(vboff <= U32_MAX);
             assert(vlen <= U32_MAX);
             assert(complen <= U32_MAX);
+            vref->vb.vr_id = vbid;
             vref->vb.vr_index = vbidx;
             vref->vb.vr_off = vboff;
             vref->vb.vr_len = vlen;
