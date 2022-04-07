@@ -6,6 +6,8 @@
 #ifndef HSE_RMLOCK_H
 #define HSE_RMLOCK_H
 
+/* MTF_MOCK_DECL(rmlock) */
+
 #include <hse_util/atomic.h>
 
 #include <pthread.h>
@@ -32,14 +34,31 @@ struct rmlock {
     struct rmlock_bkt   rm_bkt;
 };
 
+/* MTF_MOCK */
 merr_t rmlock_init(struct rmlock *lock) HSE_COLD;
+
+/* MTF_MOCK */
 void rmlock_destroy(struct rmlock *lock) HSE_COLD;
+
+/* MTF_MOCK */
 void rmlock_rlock(struct rmlock *lock, void **cookiep);
+
+/* MTF_MOCK */
 void rmlock_runlock(void *cookie);
+
+/* MTF_MOCK */
 void rmlock_yield(struct rmlock *lock, void **cookiep);
+
+/* MTF_MOCK */
 void rmlock_wlock(struct rmlock *lock);
+
+/* MTF_MOCK */
 void rmlock_wunlock(struct rmlock *lock);
 
 /* clang-format on */
+
+#if HSE_MOCKING
+#include "rmlock_ut.h"
+#endif /* HSE_MOCKING */
 
 #endif

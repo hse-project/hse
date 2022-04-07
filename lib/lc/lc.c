@@ -867,6 +867,8 @@ lc_cursor_create(
         uint minlen = min_t(size_t, pfxlen, tree_pfxlen);
         uint len = i == 0 ? minlen : pfxlen;
 
+        /* [HSE_REVISIT] Move the bonsai iter init code to seek..
+         */
         bonsai_iter_init(
             &cur->lcc_it[i],
             &self->lc_broot[i],

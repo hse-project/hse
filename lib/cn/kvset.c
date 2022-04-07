@@ -2675,6 +2675,7 @@ kvset_iter_create(
             kvset_iter_mblock_read_start(iter);
     }
 
+    kvset_get_ref(ks);
     *handle = &iter->handle;
     return 0;
 
@@ -2684,6 +2685,20 @@ err_exit2:
 err_exit1:
     kmem_cache_free(kvset_iter_cache, iter);
     return err;
+}
+
+struct element_source *
+kvset_iter_es_get(struct kv_iterator *kvi)
+{
+    return &kvi->kvi_es;
+}
+
+struct kvset *
+kvset_iter_kvset_get(struct kv_iterator *handle)
+{
+    struct kvset_iterator *iter = handle_to_kvset_iter(handle);
+
+    return iter->ks;
 }
 
 static bool
@@ -3561,7 +3576,7 @@ kvset_iter_get_valptr(
 }
 
 merr_t
-kvset_iter_next_val(
+kvset_iter_val_get(
     struct kv_iterator *    handle,
     struct kvset_iter_vctx *vc,
     enum kmd_vtype          vtype,

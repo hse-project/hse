@@ -984,17 +984,6 @@ c0sk_cursor_discover(struct c0_cursor *cur)
     return 0;
 }
 
-void
-c0sk_cursor_prepare(struct c0_cursor *cur)
-{
-    int i;
-
-    for (i = 0; i < cur->c0cur_cnt; i++)
-        c0kvms_cursor_prepare(cur->c0cur_curv[i]);
-
-    bin_heap2_prepare(cur->c0cur_bh, cur->c0cur_cnt, cur->c0cur_esrcv);
-}
-
 merr_t
 c0sk_cursor_create(
     struct c0sk *          handle,

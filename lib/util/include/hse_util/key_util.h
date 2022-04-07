@@ -230,28 +230,37 @@ struct key_obj {
     uint        ko_sfx_len;
 };
 
+/**
+ * key_obj_copy() - Copy kobj key in a buffer.
+ *
+ * @kbuf:    Buffer into which the key is copied.
+ * @kbuf_sz: Size of %kbuf.
+ * @klen:    (output) set to length of the stored key.
+ * @kobj:    key object.
+ */
 static HSE_ALWAYS_INLINE void *
 key_obj_copy(void *kbuf, size_t kbuf_sz, uint *klen, const struct key_obj *kobj)
 {
-    uint  copylen, keylen;
-    void *tmp_kbuf = NULL;
+    uint keylen = kobj->ko_pfx_len + kobj->ko_sfx_len;
 
-    keylen = kobj->ko_pfx_len + kobj->ko_sfx_len;
     if (klen)
         *klen = keylen;
 
-    copylen = min_t(uint, kbuf_sz, kobj->ko_pfx_len);
-    if (HSE_LIKELY(kbuf && kobj->ko_pfx))
-        memcpy(kbuf, kobj->ko_pfx, copylen);
+    if (kbuf_sz < keylen) {
+        uint bytes;
 
-    if (kbuf_sz <= kobj->ko_pfx_len)
+        if (kbuf_sz < kobj->ko_pfx_len)
+            return memcpy(kbuf, kobj->ko_pfx, kbuf_sz);
+
+        bytes = kbuf_sz - kobj->ko_pfx_len;
+        assert(bytes < kobj->ko_sfx_len);
+
+        memcpy(kbuf + kobj->ko_pfx_len, kobj->ko_sfx, bytes);
         return kbuf;
+    }
 
-    copylen = min_t(uint, kbuf_sz - kobj->ko_pfx_len, kobj->ko_sfx_len);
-    tmp_kbuf = kbuf + kobj->ko_pfx_len;
-    if (HSE_LIKELY(tmp_kbuf && kobj->ko_sfx))
-        memcpy(tmp_kbuf, kobj->ko_sfx, copylen);
-
+    memcpy(kbuf, kobj->ko_pfx, kobj->ko_pfx_len);
+    memcpy(kbuf + kobj->ko_pfx_len, kobj->ko_sfx, kobj->ko_sfx_len);
     return kbuf;
 }
 

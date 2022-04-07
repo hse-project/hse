@@ -322,7 +322,7 @@ struct mapi_injection inject_list[] = {
     { mapi_idx_kvset_iter_set_stats, MAPI_RC_SCALAR, 0 },
     { mapi_idx_kvset_iter_seek, MAPI_RC_SCALAR, -1 },
     { mapi_idx_kvset_iter_next_key, MAPI_RC_SCALAR, -1 },
-    { mapi_idx_kvset_iter_next_val, MAPI_RC_SCALAR, -1 },
+    { mapi_idx_kvset_iter_val_get, MAPI_RC_SCALAR, -1 },
     { mapi_idx_kvset_iter_next_vref, MAPI_RC_SCALAR, -1 },
 
     { -1 },

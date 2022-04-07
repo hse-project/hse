@@ -948,7 +948,7 @@ _kvset_iter_next_vref(
 }
 
 static merr_t
-_kvset_iter_next_val(
+_kvset_iter_val_get(
     struct kv_iterator *    kvi,
     struct kvset_iter_vctx *vc,
     enum kmd_vtype          vtype,
@@ -963,7 +963,7 @@ _kvset_iter_next_val(
      *   vbidx     == kvset node
      *   vboff     == key in kvset node
      *   *vlen_out == which value
-     * See _kvset_iter_next_val() which supplies the location of value
+     * See _kvset_iter_val_get() which supplies the location of value
      * See also _kvset_iter_next_key(), which packs this data.
      */
     int kvset_node;
@@ -1437,7 +1437,7 @@ test_prehook(struct mtf_test_info *info)
 
     /* Install kvset iterator mocks */
     MOCK_SET(kvset, _kvset_iter_next_key);
-    MOCK_SET(kvset, _kvset_iter_next_val);
+    MOCK_SET(kvset, _kvset_iter_val_get);
     MOCK_SET(kvset, _kvset_iter_next_vref);
 
     /* Neuter the following APIs */

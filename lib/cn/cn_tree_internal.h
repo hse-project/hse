@@ -8,8 +8,8 @@
 
 /* MTF_MOCK_DECL(cn_tree_internal) */
 
-#include <hse_util/mutex.h>
 #include <hse_util/rmlock.h>
+#include <hse_util/mutex.h>
 #include <hse_util/spinlock.h>
 #include <hse_util/list.h>
 
@@ -206,12 +206,6 @@ struct cn_tree_node {
 /* cn_tree_node to sp3_node */
 #define tn2spn(_tn) (&(_tn)->tn_sp3n)
 #define spn2tn(_spn) container_of(_spn, struct cn_tree_node, tn_sp3n)
-
-void
-rmlock_rlock(struct rmlock *lock, void **cookiep);
-
-void
-rmlock_runlock(void *cookie);
 
 /* MTF_MOCK */
 void

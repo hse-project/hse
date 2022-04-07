@@ -422,7 +422,7 @@ cn_spill(struct cn_compaction_work *w)
                                                      vboff, buf, omlen, bufsz);
                     vdata = buf;
                 } else {
-                    err = kvset_iter_next_val(w->cw_inputv[curr.src], &curr.vctx, vtype, vbidx,
+                    err = kvset_iter_val_get(w->cw_inputv[curr.src], &curr.vctx, vtype, vbidx,
                                               vboff, &vdata, &vlen, &complen);
                 }
 

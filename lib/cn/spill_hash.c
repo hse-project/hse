@@ -217,7 +217,7 @@ get_values:
                 w->cw_inputv[curr.src], vtype, vbidx, vboff, buf, omlen, bufsz);
             vdata = buf;
         } else {
-            err = kvset_iter_next_val(
+            err = kvset_iter_val_get(
                 w->cw_inputv[curr.src], &curr.vctx, vtype, vbidx, vboff, &vdata, &vlen, &complen);
         }
         if (ev(err))

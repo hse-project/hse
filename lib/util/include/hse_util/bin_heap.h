@@ -6,6 +6,8 @@
 #ifndef HSE_PLATFORM_BIN_HEAP_H
 #define HSE_PLATFORM_BIN_HEAP_H
 
+/* MTF_MOCK_DECL(bin_heap) */
+
 #include <hse_util/inttypes.h>
 #include <hse_util/hse_err.h>
 #include <hse_util/element_source.h>
@@ -94,38 +96,31 @@ bin_heap2_width(struct bin_heap2 *bh);
 void
 bin_heap2_init(u32 max_width, bin_heap2_compare_fn *cmp, struct bin_heap2 *bh);
 
+/* MTF_MOCK */
 merr_t
 bin_heap2_create(u32 max_width, bin_heap2_compare_fn *cmp, struct bin_heap2 **bh_out);
 
+/* MTF_MOCK */
 void
 bin_heap2_destroy(struct bin_heap2 *bh);
 
 merr_t
 bin_heap2_reset(struct bin_heap2 *bh);
 
+/* MTF_MOCK */
 merr_t
 bin_heap2_prepare(struct bin_heap2 *bh, u32 width, struct element_source *es[]);
 
 merr_t
 bin_heap2_prepare_list(struct bin_heap2 *bh, u32 width, struct element_source *es);
 
+/* MTF_MOCK */
 bool
 bin_heap2_pop(struct bin_heap2 *bh, void **item);
 
-static HSE_ALWAYS_INLINE bool
-bin_heap2_peek(struct bin_heap2 *bh, void **item)
-{
-    struct heap_node node;
-
-    if (bh->bh2_width == 0) {
-        *item = 0;
-        return false;
-    }
-
-    node = bh->bh2_elts[0];
-    *item = node.hn_data;
-    return true;
-}
+/* MTF_MOCK */
+bool
+bin_heap2_peek(struct bin_heap2 *bh, void **item);
 
 bool
 bin_heap2_peek_debug(struct bin_heap2 *bh, void **item, struct element_source **es);
@@ -154,5 +149,9 @@ bin_heap2_replace_src(struct bin_heap2 *bh, struct element_source *es);
 
 s64
 bin_heap2_age_cmp(struct element_source *es1, struct element_source *es2);
+
+#if HSE_MOCKING
+#include "bin_heap_ut.h"
+#endif /* HSE_MOCKING */
 
 #endif

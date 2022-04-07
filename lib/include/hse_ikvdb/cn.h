@@ -40,7 +40,7 @@ cn_make(struct mpool *ds, const struct kvs_cparams *cp, struct kvdb_health *heal
 merr_t
 cn_open(
     struct cn_kvdb *    cn_kvdb,
-    struct mpool *      mp_dataset,
+    struct mpool *      mp,
     struct kvdb_kvs *   kvs,
     struct cndb *       cndb,
     u64                 cnid,
