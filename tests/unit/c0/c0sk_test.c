@@ -1958,8 +1958,6 @@ MTF_DEFINE_UTEST_PREPOST(c0sk_test, c0_cursor_robust, no_fail_pre, no_fail_post)
         ASSERT_EQ(0, err);
         atomic_inc(&seqno);
 
-        c0sk_cursor_prepare(cur[i]);
-
         /* this cursor will NOT see these keys */
 
         for (; j < n; ++j) {
@@ -2295,8 +2293,6 @@ MTF_DEFINE_UTEST_PREPOST(c0sk_test, c0_rcursor_robust, no_fail_pre, no_fail_post
         ASSERT_EQ(0, err);
         atomic_inc(&seqno);
 
-        c0sk_cursor_prepare(cur[i]);
-
         /* this cursor will NOT see these keys */
 
         for (; j < n; ++j) {
@@ -2575,8 +2571,6 @@ MTF_DEFINE_UTEST_PREPOST(c0sk_test, c0_cursor_ptombs, no_fail_pre, no_fail_post)
             ASSERT_EQ(0, err);
 
             atomic_inc(&seqno);
-
-            c0sk_cursor_prepare(cur);
 
         } else if (random() % 100 < 5) {
             atomic_inc(&seqno);

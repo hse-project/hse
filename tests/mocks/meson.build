@@ -48,6 +48,8 @@ mocked_headers = [
     meson.project_source_root() / 'lib/util/include/hse_util/dax.h',
     meson.project_source_root() / 'lib/util/include/hse_util/hlog.h',
     meson.project_source_root() / 'lib/util/include/hse_util/keylock.h',
+    meson.project_source_root() / 'lib/util/include/hse_util/rmlock.h',
+    meson.project_source_root() / 'lib/util/include/hse_util/bin_heap.h',
     meson.project_source_root() / 'lib/util/include/hse_util/perfc.h',
     meson.project_source_root() / 'lib/util/include/hse_util/platform.h',
     meson.project_source_root() / 'lib/util/include/hse_util/slab.h',

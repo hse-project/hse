@@ -439,8 +439,12 @@ merr_t
 kvset_iter_next_key(struct kv_iterator *handle, struct key_obj *kobj, struct kvset_iter_vctx *vc);
 
 /* MTF_MOCK */
+struct element_source *
+kvset_iter_es_get(struct kv_iterator *handle);
+
+/* MTF_MOCK */
 merr_t
-kvset_iter_next_val(
+kvset_iter_val_get(
     struct kv_iterator *    handle,
     struct kvset_iter_vctx *vc,
     enum kmd_vtype          vtype,

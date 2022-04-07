@@ -1374,7 +1374,6 @@ cn_cursor_free(struct cn_cursor *cur)
  *
  * [HSE_REVISIT] There should be an enforced time limit to auto-release
  * all resources after expiration.
- * [HSE_REVISIT] What are the exact effects of a full scan on a huge tree?
  */
 merr_t
 cn_cursor_create(
@@ -1395,32 +1394,24 @@ cn_cursor_create(
     if (ev(!cur))
         return merr(ENOMEM);
 
-    /*
-     * The pfxhash MUST be calculated on the configured tree pfx_len,
-     * if it exists, else the requested prefix may search a different
-     * finger down the tree.
-     *
-     * pfxhash is used to navigate the tree prefix path.
-     *
-     * memory layout:
+    /*  Memory layout:
      *  cur     sizeof(cur)
      *  prefix  pfx_len
      *  keybuf  MAX_KEY_LEN
      *  valbuf  MAX_VAL_LEN
      */
-    cur->pfxhash = pfx_hash64(prefix, pfx_len, ct_pfx_len);
     cur->pfx_len = pfx_len;
     cur->ct_pfx_len = ct_pfx_len;
     cur->pfx = prefix;
 
     /* for cursor update */
-    cur->cn = cn;
+    cur->cncur_cn = cn;
     cur->seqno = seqno;
 
     cur->summary = summary;
     cur->reverse = reverse;
 
-    err = cn_tree_cursor_create(cur, cn->cn_tree);
+    err = cn_tree_cursor_create(cur);
     if (ev(err)) {
         cn_cursor_free(cur);
         return err;
@@ -1431,15 +1422,9 @@ cn_cursor_create(
 }
 
 merr_t
-cn_cursor_prepare(struct cn_cursor *cur)
-{
-    return cn_tree_cursor_prepare(cur);
-}
-
-merr_t
 cn_cursor_update(struct cn_cursor *cur, u64 seqno, bool *updated)
 {
-    u64    dgen = atomic_read(&cur->cn->cn_ingest_dgen);
+    u64    dgen = atomic_read(&cur->cncur_cn->cn_ingest_dgen);
     merr_t err;
 
     if (updated)
@@ -1455,7 +1440,7 @@ cn_cursor_update(struct cn_cursor *cur, u64 seqno, bool *updated)
     if (cur->dgen == dgen)
         return 0;
 
-    err = cn_tree_cursor_update(cur, cur->cn->cn_tree);
+    err = cn_tree_cursor_update(cur, cur->cncur_cn->cn_tree);
     if (updated)
         *updated = true;
 
@@ -1482,7 +1467,7 @@ cn_cursor_read(struct cn_cursor *cursor, struct kvs_cursor_element *elem, bool *
 static bool
 cncur_next(struct element_source *es, void **element)
 {
-    struct cn_cursor *cncur = container_of(es, struct cn_cursor, es);
+    struct cn_cursor *cncur = container_of(es, struct cn_cursor, cncur_es);
     bool              eof;
     merr_t            err;
 
@@ -1498,22 +1483,20 @@ cncur_next(struct element_source *es, void **element)
 struct element_source *
 cn_cursor_es_make(struct cn_cursor *cncur)
 {
-    cncur->es = es_make(cncur_next, 0, 0);
-    return &cncur->es;
+    cncur->cncur_es = es_make(cncur_next, 0, 0);
+    return &cncur->cncur_es;
 }
 
 struct element_source *
 cn_cursor_es_get(struct cn_cursor *cncur)
 {
-    return &cncur->es;
+    return &cncur->cncur_es;
 }
 
 void
 cn_cursor_destroy(struct cn_cursor *cur)
 {
     cn_tree_cursor_destroy(cur);
-    free(cur->iterv);
-    free(cur->esrcv);
     cn_cursor_free(cur);
 }
 

@@ -2686,6 +2686,13 @@ err_exit1:
     return err;
 }
 
+struct element_source *
+kvset_iter_es_get(struct kv_iterator *kvi)
+
+{
+    return &kvi->kvi_es;
+}
+
 static bool
 kvset_cursor_next(struct element_source *es, void **element)
 {
@@ -3561,7 +3568,7 @@ kvset_iter_get_valptr(
 }
 
 merr_t
-kvset_iter_next_val(
+kvset_iter_val_get(
     struct kv_iterator *    handle,
     struct kvset_iter_vctx *vc,
     enum kmd_vtype          vtype,

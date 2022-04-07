@@ -440,19 +440,6 @@ c0kvms_cursor_new_iter(
     c0kvs_iterator_init(self->c0ms_sets[i], iter, flags, cur->c0mc_skidx);
 
     empty = c0_kvset_iterator_empty(iter);
-    if (!empty) {
-        /*
-         * cur->c0mc_pfx buffer is initialized in kvs.c.
-         * Forward cursor prefix buffer is cur->c0mc_pfx_len bytes long.
-         * Reverse cursor prefix buffer is initialized to pfx bytes
-         * followed by FF for a total len of HSE_KVS_KEY_LEN_MAX.
-         */
-        if (cur->c0mc_reverse)
-            seeklen = HSE_KVS_KEY_LEN_MAX;
-
-        c0_kvset_iterator_seek(iter, cur->c0mc_pfx, seeklen, 0);
-    }
-
     return !empty;
 }
 

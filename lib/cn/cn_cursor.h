@@ -9,10 +9,15 @@
 #include <hse_util/hse_err.h>
 #include <hse_util/inttypes.h>
 #include <hse_util/bin_heap.h>
+#include <hse_util/table.h>
+
+#include <hse/limits.h>
 
 #include <hse_ikvdb/cursor.h>
 
 #include "cn_metrics.h"
+#include "kvset.h"
+#include "kv_iterator.h"
 
 /* MTF_MOCK_DECL(cn_cursor) */
 
@@ -20,6 +25,26 @@ struct cn;
 struct kvs_ktuple;
 struct kvs_kvtuple;
 struct cursor_summary;
+
+#define NUM_LEVELS (2)
+
+struct cn_level_cursor {
+    struct element_source   es;
+    struct table           *kvref_tab;
+    struct bin_heap2       *bh;
+    u32                     iterc;
+    uint                    level;
+    struct kv_iterator    **iterv;
+    struct cn_kv_item       item;
+    struct element_source **esrcv;
+    struct cn_cursor       *cncur;
+    struct route_node      *route_node;
+    u64                     dgen_hi;
+    u64                     dgen_lo;
+
+    uint                    next_eklen;
+    unsigned char           next_ekey[HSE_KVS_KEY_LEN_MAX];
+};
 
 /**
  * struct cn_cursor - allocated prefix scan context, including output buffer
@@ -33,7 +58,6 @@ struct cursor_summary;
  * @pfx:        prefix is saved here
  * @pfx_len:    length of the prefix
  * @ct_pfx_len: length of the tree prefix
- * @pfxhash:    hash for this prefix
  * @merr:       if cursor is in error state, this is why
  * @dgen:       max dgen in this scan
  * @seqno:      view sequence number for this cursor
@@ -48,22 +72,26 @@ struct cursor_summary;
  * @buf:        where to store current key + value
  */
 struct cn_cursor {
-    struct bin_heap2 *      bh;
-    struct element_source   es;
-    struct kvs_cursor_element elem;
-    u32                     iterc;
+    struct element_source   cncur_es;
+    struct cn *             cncur_cn;
+
+    struct bin_heap2       *cncur_bh;
+
+    struct cn_level_cursor cncur_lcur[NUM_LEVELS];
+    u32                    cncur_iterc;
+
+    struct element_source  *cncur_esrcv[NUM_LEVELS];
     u32                     itermax;
-    struct kv_iterator **   iterv;
-    struct element_source **esrcv;
-    struct cn *             cn;
     struct cursor_summary * summary;
     const void *            pfx;
     u32                     pfx_len;
     u32                     ct_pfx_len;
-    u64                     pfxhash;
     u64                     merr;
     u64                     dgen;
     u64                     seqno;
+    enum kvset_iter_flags   cncur_flags;
+
+    struct kvs_cursor_element elem;
 
     /* bitflags */
     u32 reverse : 1;
@@ -72,6 +100,8 @@ struct cn_cursor {
 
     struct cn_merge_stats stats;
     struct kc_filter *    filter;
+
+    struct table *kvset_putref_tab;
 
     struct key_obj pt_kobj;
     u64            pt_seq;
@@ -87,10 +117,6 @@ cn_cursor_create(
     u32                    len,
     struct cursor_summary *summary,
     struct cn_cursor **    cursorp);
-
-/* MTF_MOCK */
-merr_t
-cn_cursor_prepare(struct cn_cursor *cur);
 
 /* MTF_MOCK */
 merr_t

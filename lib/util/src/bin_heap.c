@@ -3,6 +3,8 @@
  * Copyright (C) 2015-2022 Micron Technology, Inc.  All rights reserved.
  */
 
+#define MTF_MOCK_IMPL_bin_heap
+
 #include <hse_util/arch.h>
 #include <hse_util/assert.h>
 #include <hse_util/alloc.h>
@@ -566,6 +568,21 @@ bin_heap2_pop(struct bin_heap2 *bh, void **item)
 }
 
 bool
+bin_heap2_peek(struct bin_heap2 *bh, void **item)
+{
+    struct heap_node node;
+
+    if (bh->bh2_width == 0) {
+        *item = 0;
+        return false;
+    }
+
+    node = bh->bh2_elts[0];
+    *item = node.hn_data;
+    return true;
+}
+
+bool
 bin_heap2_peek_debug(struct bin_heap2 *bh, void **item, struct element_source **es)
 {
     struct heap_node node;
@@ -581,3 +598,7 @@ bin_heap2_peek_debug(struct bin_heap2 *bh, void **item, struct element_source **
     *es = node.hn_es;
     return true;
 }
+
+#if HSE_MOCKING
+#include "bin_heap_ut_impl.i"
+#endif

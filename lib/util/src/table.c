@@ -56,6 +56,9 @@ table_calloc(uint capacity, size_t elemsz)
 void
 table_destroy(struct table *tab)
 {
+    if (!tab)
+        return;
+
     free(tab->data);
     tab->data = (void *)-1;
     free(tab);

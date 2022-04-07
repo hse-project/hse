@@ -491,7 +491,7 @@ _kvset_cursor_next(struct element_source *es, void **element)
 static int valbuf[1 + CN_SMALL_VALUE_THRESHOLD];
 
 static merr_t
-_kvset_iter_next_val(
+_kvset_iter_val_get(
     struct kv_iterator *    kvi,
     struct kvset_iter_vctx *vc,
     enum kmd_vtype          vtype,
@@ -660,7 +660,7 @@ mock_kvset_set(void)
     MOCK_SET(kvset, _kvset_from_iter);
     MOCK_SET(kvset, _kvset_iter_seek);
     MOCK_SET(kvset, _kvset_iter_next_key);
-    MOCK_SET(kvset, _kvset_iter_next_val);
+    MOCK_SET(kvset, _kvset_iter_val_get);
     MOCK_SET(kvset, _kvset_iter_next_vref);
 
     MOCK_SET(kvset_view, _kvset_get_dgen);
@@ -686,7 +686,7 @@ mock_kvset_unset(void)
     MOCK_UNSET(kvset, _kvset_from_iter);
     MOCK_UNSET(kvset, _kvset_iter_seek);
     MOCK_UNSET(kvset, _kvset_iter_next_key);
-    MOCK_UNSET(kvset, _kvset_iter_next_val);
+    MOCK_UNSET(kvset, _kvset_iter_val_get);
     MOCK_UNSET(kvset, _kvset_iter_next_vref);
 
     MOCK_UNSET(kvset_view, _kvset_get_num_kblocks);

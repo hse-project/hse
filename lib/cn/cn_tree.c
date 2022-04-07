@@ -6,7 +6,6 @@
 #define MTF_MOCK_IMPL_cn_tree
 #define MTF_MOCK_IMPL_cn_tree_compact
 #define MTF_MOCK_IMPL_cn_tree_create
-#define MTF_MOCK_IMPL_cn_tree_cursor
 #define MTF_MOCK_IMPL_cn_tree_internal
 #define MTF_MOCK_IMPL_cn_tree_iter
 #define MTF_MOCK_IMPL_ct_view
@@ -51,7 +50,6 @@
 #include "cn_tree.h"
 #include "cn_tree_compact.h"
 #include "cn_tree_create.h"
-#include "cn_tree_cursor.h"
 #include "cn_tree_iter.h"
 #include "cn_tree_internal.h"
 
@@ -79,6 +77,7 @@ struct kvstarts {
     int               pt_start;
 };
 
+#if 0
 /**
  * kvset_iter_release_work -
  */
@@ -132,6 +131,7 @@ kvset_iterv_release(uint iterc, struct kv_iterator **iterv, struct workqueue_str
         kvset_iter_release(iterv[i]);
     ev(1);
 }
+#endif
 
 static void
 cn_setname(const char *name)
@@ -1582,52 +1582,7 @@ err_exit:
  *   > 0 : a_blob > b_blob
  *  == 0 : a_blob == b_blob
  */
-static int
-cn_kv_cmp(const void *a_blob, const void *b_blob)
-{
-    const struct cn_kv_item *a = a_blob;
-    const struct cn_kv_item *b = b_blob;
-
-    return key_obj_cmp(&a->kobj, &b->kobj);
-}
-
-/*
- * Max heap comparator with a caveat: A ptomb sorts before all keys w/ matching
- * prefix.
- *
- * Returns:
- *   < 0 : a_blob > b_blob
- *   > 0 : a_blob < b_blob
- *  == 0 : a_blob == b_blob
- */
-static int
-cn_kv_cmp_rev(const void *a_blob, const void *b_blob)
-{
-    const struct cn_kv_item *a = a_blob;
-    const struct cn_kv_item *b = b_blob;
-    size_t                   a_klen = a->kobj.ko_pfx_len + a->kobj.ko_sfx_len;
-    size_t                   b_klen = b->kobj.ko_pfx_len + b->kobj.ko_sfx_len;
-
-    int rc;
-
-    if (!(a->vctx.is_ptomb ^ b->vctx.is_ptomb))
-        return key_obj_cmp(&b->kobj, &a->kobj);
-
-    /* Exactly one of a and b is a ptomb. */
-    if (a->vctx.is_ptomb && a_klen <= b_klen) {
-        rc = key_obj_ncmp(&b->kobj, &a->kobj, a_klen);
-        if (rc == 0)
-            return -1; /* a wins */
-    } else if (b->vctx.is_ptomb && b_klen <= a_klen) {
-        rc = key_obj_ncmp(&b->kobj, &a->kobj, b_klen);
-        if (rc == 0)
-            return 1; /* b wins */
-    }
-
-    /* Non-ptomb key is shorter than ptomb. Full key compare. */
-    return key_obj_cmp(&b->kobj, &a->kobj);
-}
-
+#if 0
 static void
 kvstart_put_ref(void *arg)
 {
@@ -1838,20 +1793,6 @@ errout:
     vtc_free(view);
 
     return err;
-}
-
-merr_t
-cn_tree_cursor_prepare(struct cn_cursor *cur)
-{
-    merr_t err;
-
-    if (!cur->bh) {
-        assert(cur->eof);
-        return 0;
-    }
-
-    err = bin_heap2_prepare(cur->bh, cur->iterc, cur->esrcv);
-    return ev(err);
 }
 
 static merr_t
@@ -2092,7 +2033,7 @@ cn_tree_cursor_update(struct cn_cursor *cur, struct cn_tree *tree)
     cur->bh = NULL;
     cur->eof = 0;
 
-    return cn_tree_cursor_create(cur, tree);
+    return cn_tree_cursor_create(cur);
 }
 
 /* cn_tree_cursor_destroy() doesn't really destroy the cursor object,
@@ -2243,7 +2184,7 @@ cn_tree_cursor_read(struct cn_cursor *cur, struct kvs_cursor_element *elem, bool
         if (!found)
             continue; /* Key doesn't have a value in the cursor's view. */
 
-        cur->merr = kvset_iter_next_val(kv_iter, &item.vctx, vtype, vbidx,
+        cur->merr = kvset_iter_val_get(kv_iter, &item.vctx, vtype, vbidx,
                                         vboff, &vdata, &vlen, &complen);
         if (ev(cur->merr))
             return cur->merr;
@@ -2393,6 +2334,7 @@ cn_tree_cursor_seek(
 
     return 0;
 }
+#endif
 
 /*----------------------------------------------------------------
  *
@@ -3256,7 +3198,6 @@ cn_tree_find_node(struct cn_tree *tree, const struct cn_node_loc *loc)
 #include "cn_tree_ut_impl.i"
 #include "cn_tree_compact_ut_impl.i"
 #include "cn_tree_create_ut_impl.i"
-#include "cn_tree_cursor_ut_impl.i"
 #include "cn_tree_internal_ut_impl.i"
 #include "cn_tree_iter_ut_impl.i"
 #include "cn_tree_view_ut_impl.i"

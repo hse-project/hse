@@ -6,22 +6,27 @@
 #ifndef HSE_KVDB_CN_CN_TREE_CURSOR_H
 #define HSE_KVDB_CN_CN_TREE_CURSOR_H
 
-/* MTF_MOCK_DECL(cn_tree_cursor) */
-
 #include <hse_util/inttypes.h>
 #include <hse_util/hse_err.h>
+#include <hse_util/table.h>
+
+#include <hse_ikvdb/kvs.h>
+#include <hse_ikvdb/cursor.h>
+
+/* MTF_MOCK_DECL(cn_tree_cursor) */
 
 struct cn_cursor;
 struct cn_tree;
+struct cn_tree_node;
 struct kvs_ktuple;
 
-/* MTF_MOCK */
-merr_t
-cn_tree_cursor_create(struct cn_cursor *cur, struct cn_tree *tree);
+struct kvref {
+    struct kvset *kvset;
+};
 
 /* MTF_MOCK */
 merr_t
-cn_tree_cursor_prepare(struct cn_cursor *cur);
+cn_tree_cursor_create(struct cn_cursor *cur);
 
 /* MTF_MOCK */
 merr_t
