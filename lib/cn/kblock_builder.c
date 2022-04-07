@@ -102,6 +102,7 @@ struct hash_set {
  * @num_tombstones:  Number of keys in kblock that have tombstone values.
  * @total_key_bytes: Sum of all key lengths.
  * @total_val_bytes: Sum of all value lengths.
+ * @hlog: kblocks's hlog, last kblock stores the kvsets hlog instead
  *
  * Description:
  *
@@ -148,6 +149,7 @@ struct curr_kblock {
     struct bf_bithash_desc desc;
 
     void *kblk_hdr;
+    struct hlog *hlog;
     void *bloom;
     uint  bloom_len;
     uint  bloom_alloc_len;
@@ -172,6 +174,7 @@ free_pgc(struct curr_kblock *kblk)
  * @finished_kblks: list of finished kblocks (written, not committed)
  * @curr: the kblock currently being built
  * @finished: mark builder as finished (end of life)
+ * @kvset_hlog: kvset's hlog to be stored in the last kblock
  * @max_size: Maximum mblock size of all configured media classes.
  */
 struct kblock_builder {
@@ -180,7 +183,7 @@ struct kblock_builder {
     struct kvs_rparams *       rp;
     struct kvs_cparams *       cp;
     struct perfc_set *         pc;
-    struct hlog *              hlog;
+    struct hlog *              kvset_hlog;
     struct cn_merge_stats *    mstats;
     struct blk_list            finished_kblks;
     struct curr_kblock         curr;
@@ -471,9 +474,15 @@ kblock_init(
     kblk->pc = pc;
     kblk->desc = bf_compute_bithash_est(rp->cn_bloom_prob);
 
-    err = wbb_create(&kblk->wbtree, kblk->wbt_pgc + free_pgc(kblk), &kblk->wbt_pgc);
+    err = hlog_create(&kblk->hlog, HLOG_PRECISION);
     if (ev(err))
         return err;
+
+    err = wbb_create(&kblk->wbtree, kblk->wbt_pgc + free_pgc(kblk), &kblk->wbt_pgc);
+    if (ev(err)) {
+        hlog_destroy(kblk->hlog);
+        return err;
+    }
 
     return 0;
 }
@@ -494,6 +503,7 @@ kblock_reset(struct curr_kblock *kblk)
 
     hash_set_reset(&kblk->hash_set);
 
+    hlog_reset(kblk->hlog);
     wbb_reset(kblk->wbtree, &kblk->wbt_pgc);
 }
 
@@ -507,6 +517,7 @@ kblock_free(struct curr_kblock *kblk)
     free_aligned(kblk->kblk_hdr);
 
     wbb_destroy(kblk->wbtree);
+    hlog_destroy(kblk->hlog);
     hash_set_free(&kblk->hash_set);
     memset(kblk, 0, sizeof(*kblk));
 }
@@ -842,7 +853,7 @@ kbb_estimate_alen(struct cn *cn, size_t wlen, enum hse_mclass mclass)
  * This function unconditionally invokes kblock_free().
  */
 static merr_t
-kblock_finish(struct kblock_builder *bld, struct wbb *ptree)
+kblock_finish(struct kblock_builder *bld, struct wbb *ptree, struct hlog *hlog)
 {
     struct bloom_hdr_omf      blm_hdr;
     struct wbt_hdr_omf        wbt_hdr = { 0 };
@@ -924,7 +935,7 @@ kblock_finish(struct kblock_builder *bld, struct wbb *ptree)
     }
 
     /* Finalize HyperLogLog. */
-    iov[iov_cnt].iov_base = hlog_data(bld->hlog);
+    iov[iov_cnt].iov_base = hlog_data(hlog);
     iov[iov_cnt].iov_len = HLOG_PGC * PAGE_SIZE;
     iov_cnt++;
 
@@ -1054,7 +1065,7 @@ kbb_create(struct kblock_builder **builder_out, struct cn *cn, struct perfc_set 
 
     bld->max_size = props.mc_mblocksz;
 
-    err = hlog_create(&bld->hlog, HLOG_PRECISION);
+    err = hlog_create(&bld->kvset_hlog, HLOG_PRECISION);
     if (ev(err))
         goto err_exit1;
 
@@ -1073,7 +1084,7 @@ err_exit3:
     kblock_free(&bld->curr);
 
 err_exit2:
-    hlog_destroy(bld->hlog);
+    hlog_destroy(bld->kvset_hlog);
 
 err_exit1:
     free(bld);
@@ -1087,7 +1098,7 @@ kbb_destroy(struct kblock_builder *bld)
     if (ev(!bld))
         return;
 
-    hlog_destroy(bld->hlog);
+    hlog_destroy(bld->kvset_hlog);
     kblock_free(&bld->curr);
     wbb_destroy(bld->ptree);
     abort_mblocks(bld->ds, &bld->finished_kblks);
@@ -1151,7 +1162,8 @@ kbb_add_entry(
     if (ev(err))
         return err;
     if (added) {
-        hlog_add(bld->hlog, hash);
+        hlog_add(bld->kvset_hlog, hash);
+        hlog_add(bld->curr.hlog, hash);
         return 0;
     }
 
@@ -1167,14 +1179,15 @@ kbb_add_entry(
         return merr(EBUG);
 
     /* There are more keys to add, do not pass in ptree details */
-    err = kblock_finish(bld, 0);
+    err = kblock_finish(bld, 0, bld->curr.hlog);
     if (ev(err))
         return err;
 
     err = kblock_add_entry(&bld->curr, kobj, kmd, kmd_len, stats, &added);
     if (ev(err))
         return err;
-    hlog_add(bld->hlog, hash);
+    hlog_add(bld->kvset_hlog, hash);
+    hlog_add(bld->curr.hlog, hash);
     assert(added);
     if (ev(!added))
         return merr(EBUG);
@@ -1221,13 +1234,13 @@ kbb_finish(struct kblock_builder *bld, struct blk_list *kblks, u64 seqno_min, u6
             pt = bld->ptree;
         }
 
-        err = kblock_finish(bld, pt);
+        err = kblock_finish(bld, pt, bld->kvset_hlog);
         if (ev(err))
             return err;
     }
 
     if (wbb_entries(bld->ptree) && pt_kblock) {
-        err = kblock_finish(bld, bld->ptree);
+        err = kblock_finish(bld, bld->ptree, bld->kvset_hlog);
         if (ev(err))
             return err;
     }
