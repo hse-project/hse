@@ -43,12 +43,12 @@ jobs:
             libssl-dev libsasl2-dev
           sudo python3 -m pip install meson Cython
 
-      - uses: actions/checkout@v2
+      - uses: actions/checkout@v3
         with:
           ref: ${{ github.event.inputs.branch }}
 
       - name: Checkout hse-python
-        uses: actions/checkout@v2
+        uses: actions/checkout@v3
         with:
           repository: hse-project/hse-python
           path: subprojects/hse-python

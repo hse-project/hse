@@ -30,7 +30,7 @@ jobs:
             libmicrohttpd-devel userspace-rcu-devel libyaml-devel lz4-devel \
             libbsd-devel libcurl-devel libpmem-devel
 
-      - uses: actions/checkout@v2
+      - uses: actions/checkout@v3
         with:
           fetch-depth: 2
 
