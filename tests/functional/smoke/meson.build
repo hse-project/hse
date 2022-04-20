@@ -194,7 +194,7 @@ tests = {
         ],
     },
     'kmt1': {
-        'suites': ['smoke', 'nightly-small'],
+        'suites': ['smoke'],
         'depends': [
             tool_targets['kmt'],
         ],
@@ -218,7 +218,7 @@ tests = {
         ],
     },
     'large-values1': {
-        'suites': ['smoke', 'nightly-small'],
+        'suites': ['smoke'],
         'depends': [
             tool_targets['kmt'],
             tool_targets['cn_metrics'],
@@ -233,7 +233,7 @@ tests = {
         ],
     },
     'probe-test': {
-        'suites': ['smoke', 'nightly-small'],
+        'suites': ['smoke'],
         'depends': [
             tool_targets['pfx_probe'],
         ],
