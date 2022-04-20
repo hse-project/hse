@@ -2,7 +2,7 @@
 
 # SPDX-License-Identifier: Apache-2.0
 #
-# Copyright (C) 2021 Micron Technology, Inc. All rights reserved.
+# Copyright (C) 2021-2022 Micron Technology, Inc.  All rights reserved.
 
 #doc: kmt large value test (SBUSWNF-2165)
 
@@ -23,22 +23,19 @@ VLEN=-l1048532:1048576
 # whichever is smaller.
 
 KEYS=$(awk '/^MemAvail/ {printf "%lu", $2 / (1024 * 8)}' /proc/meminfo)
-if ((KEYS > 20000)) ; then
-   KEYS=20000
+if ((KEYS > 10000)) ; then
+   KEYS=10000
 fi
 
 kvs_oparams="kvs-oparams cn_maint_disable=true"
 
 # ingest w spill disabled
 # shellcheck disable=SC2086
-cmd kmt "$home" "$kvs" -s1 "$VLEN" "-i$KEYS" $kvs_oparams
-
-# verify no spill occurred
-cmd cn_metrics "$home" "$kvs" | cmd -e grep n.1,
+cmd kmt -j8 "-i$KEYS" "$VLEN" -s1 -x "$home" "$kvs"
 
 # verify keys and values
 # shellcheck disable=SC2086
-cmd kmt "$home" "$kvs" -s1 "$VLEN" -c $kvs_oparams
+cmd kmt -j8 -c "$VLEN" "$home" -s1 -x "$kvs"
 
 # spill
 cmd putbin "$home" "$kvs" -n 1000 kvs-oparms cn_close_wait=true
@@ -48,4 +45,4 @@ cmd cn_metrics "$home" "$kvs" | cmd grep n.1,
 
 # verify keys and values
 # shellcheck disable=SC2086
-cmd kmt "$home" "$kvs" -s1 "$VLEN" -c $kvs_oparams
+cmd kmt -j8 -c "$VLEN" "$home" -s1 -x "$kvs" $kvs_oparams

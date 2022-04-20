@@ -2,7 +2,7 @@
 
 # SPDX-License-Identifier: Apache-2.0
 #
-# Copyright (C) 2021 Micron Technology, Inc. All rights reserved.
+# Copyright (C) 2021-2022 Micron Technology, Inc.  All rights reserved.
 
 . common.subr
 
@@ -13,10 +13,10 @@ kvdb_create
 # fanout=16 for a smaller pivot level
 kvs=$(kvs_create smoke-0 fanout=16 prefix.length=8 suffix.length=8) || exit $?
 
-typeset -i p=1000
-typeset -i c=100
+typeset -i p=100
+typeset -i c=50
 typeset -i s=10
-typeset -i threads=$(($(nproc) + 1))
+typeset -i threads=$(($(nproc) / 4 + 1))
 typeset -i ramgb
 
 ramgb=$(awk '/^MemAvail/ {printf "%lu", $2 / 1048576}' /proc/meminfo)
@@ -27,10 +27,7 @@ fi
 
 oparms=(
     kvdb-oparms
-    csched_samp_max=100
-    kvs-oparms
-    cn_node_size_hi=128
-    cn_node_size_lo=128)
+    csched_samp_max=100)
 
 # Use probe
 cmd pfx_probe "$home" "$kvs" "-p$p" "-c$c" "-s$s" "-j$threads" "${oparms[@]}"

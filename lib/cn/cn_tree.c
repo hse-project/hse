@@ -337,8 +337,6 @@ cn_tree_create(
     tree->ct_pfx_len = cp->pfx_len;
     tree->ct_sfx_len = cp->sfx_len;
 
-    tree->ct_route_map = route_map_create(cp, kvsname);
-
     if (tstate) {
         struct cn_khashmap *khm = &tree->ct_khmbuf;
 
@@ -362,10 +360,32 @@ cn_tree_create(
         return merr(ENOMEM);
     }
 
-    /* no internal nodes, one leaf node (root) */
-    tree->ct_i_nodec = 0;
-    tree->ct_l_nodec = 1;
-    tree->ct_lvl_max = 0; /* root at level 0 */
+    for (uint i = 0; i < cp->fanout; i++) {
+
+        struct cn_tree_node *tn;
+
+        tn = cn_node_alloc(tree, 1, i);
+        if (!tn) {
+            cn_tree_destroy(tree);
+            return merr(ENOMEM);
+        }
+
+        tn->tn_parent = tree->ct_root;
+        tree->ct_root->tn_childv[i] = tn;
+        tree->ct_root->tn_childc += 1;
+    }
+
+    tree->ct_i_nodec = 1;
+    tree->ct_l_nodec = 16;
+    tree->ct_lvl_max = 1;
+
+    if (kvsname) {
+        tree->ct_route_map = route_map_create(cp, kvsname, tree);
+        if (!tree->ct_route_map) {
+            cn_tree_destroy(tree);
+            return merr(ENOMEM);
+        }
+    }
 
     err = rmlock_init(&tree->ct_lock);
     if (err) {
@@ -508,68 +528,6 @@ path_step_to_target(struct cn_tree *tree, struct cn_node_loc *tgt, u32 curr_leve
     child_branch = (tgt->node_offset >> shift) % tree->ct_fanout;
 
     return child_branch;
-}
-
-/**
- * cn_tree_create_node - add kvset to tree during initialization
- * @tree:  tree under construction
- *
- * This function is used during initialization to add a node to the cn tree.
- * It will create nodes along the path from root to the new node.
- *
- * NOTE: It is not intended to be used to update a node after compaction or
- * ingest operations.
- */
-merr_t
-cn_tree_create_node(
-    struct cn_tree *      tree,
-    uint                  node_level,
-    uint                  node_offset,
-    struct cn_tree_node **node_out)
-{
-    struct cn_tree_node **link, *parent;
-    struct cn_node_loc    loc;
-    uint                  level, offset;
-
-    if (node_level > tree->ct_depth_max ||
-        node_offset >= nodes_in_level(tree->ct_fanout, node_level))
-        return merr(ev(EINVAL));
-
-    loc.node_level = node_level;
-    loc.node_offset = node_offset;
-
-    offset = 0;
-    parent = 0;
-    link = &tree->ct_root;
-
-    for (level = 0; level <= node_level; level++) {
-
-        uint cx; /* child index */
-
-        if (!*link) {
-            *link = cn_node_alloc(tree, level, offset);
-            if (!*link)
-                return merr(ev(ENOMEM));
-
-            (*link)->tn_parent = parent;
-
-            parent->tn_childc++;
-            if (parent->tn_childc == 1)
-                tree->ct_i_nodec++;
-            else
-                tree->ct_l_nodec++;
-            tree->ct_lvl_max = max(tree->ct_lvl_max, level);
-        }
-
-        cx = path_step_to_target(tree, &loc, level);
-        offset = node_nth_child_offset(tree->ct_fanout, &(*link)->tn_loc, cx);
-        parent = *link;
-        link = &(*link)->tn_childv[cx];
-    }
-
-    if (node_out)
-        *node_out = parent;
-    return 0;
 }
 
 /* Caller should hold tree read lock if consistent stats are desired */
@@ -792,8 +750,7 @@ cn_tree_samp(const struct cn_tree *tree, struct cn_samp_stats *s_out)
  * @offset: node offset
  *
  * This function is used during initialization to insert a kvset at the
- * correct position in node (@level,@offset) of the cn tree.  It will create
- * the node if necessary.
+ * correct position in node (@level,@offset) of the cn tree.
  *
  * NOTE: It is not intended to be used to update a node after compaction or
  * ingest operations.
@@ -805,14 +762,14 @@ cn_tree_insert_kvset(struct cn_tree *tree, struct kvset *kvset, uint level, uint
     struct list_head *       head;
     struct cn_tree_node *    node;
     u64                      dgen;
-    merr_t                   err;
+
+    assert(level <= 1);
+    assert(tree->ct_root);
+    assert(offset < tree->ct_root->tn_childc);
+
+    node = level == 0 ? tree->ct_root : tree->ct_root->tn_childv[offset];
 
     dgen = kvset_get_dgen(kvset);
-    node = NULL;
-
-    err = cn_tree_create_node(tree, level, offset, &node);
-    if (ev(err))
-        return err;
 
     list_for_each (head, &node->tn_kvset_list) {
         entry = list_entry(head, typeof(*entry), le_link);
@@ -1045,77 +1002,44 @@ cn_tree_level2hash(uint64_t hash, uint level)
     return hash;
 }
 
-uint
-cn_tree_route_lookup(struct cn_tree *tree, const void *key, uint keylen, uint64_t hash, uint level)
+struct cn_tree_node *
+cn_tree_node_lookup(struct cn_tree *tree, const void *key, uint keylen)
 {
-    if (level == 0 && tree->ct_route_map)
-        return route_map_lookup(tree->ct_route_map, key, keylen);
+    struct route_node *node;
 
-    hash = cn_tree_level2hash(hash, level);
+    assert(tree && key);
 
-    if (tree->ct_khashmap)
-        hash = tree->ct_khashmap->khm_mapv[hash % CN_TSTATE_KHM_SZ];
+    node = route_map_lookup(tree->ct_route_map, key, keylen);
+    if (!node)
+        return NULL;
 
-    return (hash % tree->ct_fanout);
+    if (!node->rtn_tnode)
+        node->rtn_tnode = tree->ct_root->tn_childv[node->rtn_child];
+
+    return node->rtn_tnode;
 }
 
-uint
-cn_tree_route_get(
-    struct cn_tree *tree,
-    const void     *key,
-    uint            keylen,
-    void           *edge_kbuf,
-    size_t          edge_kbuf_sz,
-    uint           *edge_klen)
+struct route_node *
+cn_tree_route_get(struct cn_tree *tree, const void *key, uint keylen)
 {
-    INVARIANT(tree->ct_route_map);
+    struct route_node *node;
+    void *lock;
 
-    return route_map_get(tree->ct_route_map, key, keylen, edge_kbuf, edge_kbuf_sz, edge_klen);
+    assert(tree && key);
+
+    rmlock_rlock(&tree->ct_lock, &lock);
+    node = route_map_get(tree->ct_route_map, key, keylen);
+    rmlock_runlock(lock);
+
+    return node;
 }
 
 void
-cn_tree_route_put(struct cn_tree *tree, uint cnum)
+cn_tree_route_put(struct cn_tree *tree, struct route_node *node)
 {
-    INVARIANT(tree->ct_route_map);
+    assert(tree && node);
 
-    route_map_put(tree->ct_route_map, cnum);
-}
-
-uint
-cn_tree_route_create(struct cn_tree *tree, const void *key, uint keylen, uint64_t hash, uint level)
-{
-    struct cn_khashmap *khashmap;
-    uint child;
-
-    if (level == 0 && tree->ct_route_map)
-        return route_map_lookup(tree->ct_route_map, key, keylen);
-
-    khashmap = tree->ct_khashmap;
-    hash = cn_tree_level2hash(hash, level);
-
-    if (khashmap) {
-        uint idx = hash % CN_TSTATE_KHM_SZ;
-
-        child = khashmap->khm_mapv[idx];
-
-        /* Compute a key hash map index from the lower bits of the hash,
-         * and use it look up the child node index.  The first time we
-         * encounter an unheretofore seen khashmap index we compute
-         * the successively next child node index, thereby distributing
-         * child node indexes evenly across hashes.
-         */
-        if (HSE_UNLIKELY(child == 0)) {
-            spin_lock(&khashmap->khm_lock);
-            while (khashmap->khm_mapv[idx] == 0)
-                khashmap->khm_mapv[idx] = (khashmap->khm_gen += 1);
-            child = khashmap->khm_mapv[idx];
-            spin_unlock(&khashmap->khm_lock);
-        }
-    } else {
-        child = hash;
-    }
-
-    return (child % tree->ct_fanout);
+    route_map_put(tree->ct_route_map, node);
 }
 
 /**
@@ -1180,13 +1104,12 @@ cn_tree_lookup(
     uint                     pc_depth;
     enum kvdb_perfc_sidx_cnget pc_cidx;
     u64                      pc_start;
-    u64                      spill_hash = 0;
-    bool                     pfx_hashing, first;
     void *                   wbti;
 
     __builtin_prefetch(tree);
 
     *res = NOT_FOUND;
+    err = 0;
 
     pc_cidx = PERFC_LT_CNGET_GET_L5 + 1;
     pc_depth = pc_nkvset = 0;
@@ -1206,17 +1129,11 @@ cn_tree_lookup(
 
     key_disc_init(kt->kt_data, kt->kt_len, &kdisc);
 
+    rmlock_rlock(&tree->ct_lock, &lock);
     node = tree->ct_root;
 
-    pfx_hashing = kt->kt_len > tree->ct_pfx_len && node->tn_pfx_spill;
-    first = true;
-    err = 0;
-
-    rmlock_rlock(&tree->ct_lock, &lock);
     while (node) {
         struct kvset_list_entry *le;
-        bool yield = false;
-        u32 child;
 
         /* Search kvsets from newest to oldest (head to tail).
          * If an error occurs or a key is found, return immediately.
@@ -1225,7 +1142,6 @@ cn_tree_lookup(
             struct kvset *kvset;
 
             kvset = le->le_kvset;
-            yield = true;
             ++pc_nkvset;
 
             switch (qctx->qtype) {
@@ -1252,40 +1168,10 @@ cn_tree_lookup(
             }
         }
 
-        if (pc_depth > 0 && yield)
-            rmlock_yield(&tree->ct_lock, &lock);
+        if (node != tree->ct_root)
+            break;
 
-        if (first && pfx_hashing) {
-            /* Descend by prefix key */
-            spill_hash = key_hash64(kt->kt_data, tree->ct_pfx_len);
-            first = false;
-        } else if (first || (pfx_hashing && !node->tn_pfx_spill)) {
-            if (pfx_hashing && !node->tn_pfx_spill)
-                pfx_hashing = false;
-            first = false;
-
-            /* Descend by full key because: 1) tree is not a
-             * prefix tree, or 2) kt_len <= pfx_len, 3) or
-             * switching from prefix to full key descent.
-             */
-            if (!tree->ct_sfx_len || wbti) {
-                if (!kt->kt_hash)
-                    kt->kt_hash = key_hash64(kt->kt_data, kt->kt_len);
-
-                spill_hash = kt->kt_hash;
-            } else {
-                size_t hashlen;
-
-                assert(qctx->qtype == QUERY_GET);
-                hashlen = kt->kt_len - tree->ct_sfx_len;
-                spill_hash = key_hash64(kt->kt_data, hashlen);
-            }
-        }
-
-        child = cn_tree_route_lookup(tree, kt->kt_data, kt->kt_len, spill_hash, pc_depth);
-        node = node->tn_childv[child];
-
-        __builtin_prefetch(node);
+        node = cn_tree_node_lookup(tree, kt->kt_data, kt->kt_len);
 
         ++pc_depth;
         ++pc_cidx;
@@ -1583,10 +1469,8 @@ cn_tree_prepare_compaction(struct cn_compaction_work *w)
     struct kv_iterator **    ins = 0;
     u32                      n_outs;
     u32                      fanout;
-    bool *                   drop_tombs = 0;
     struct kvset_mblocks *   outs = 0;
     struct kvset_vblk_map    vbm = {};
-    bool                     oldest;
     struct workqueue_struct *vra_wq;
 
     fanout = w->cw_tree->ct_fanout;
@@ -1598,9 +1482,14 @@ cn_tree_prepare_compaction(struct cn_compaction_work *w)
 
     ins = calloc(w->cw_kvset_cnt, sizeof(*ins));
     outs = calloc(n_outs, sizeof(*outs));
-    drop_tombs = calloc(n_outs, sizeof(*drop_tombs));
 
-    if (ev(!ins || !drop_tombs || !outs)) {
+    if (ev(!ins || !outs)) {
+        err = merr(ENOMEM);
+        goto err_exit;
+    }
+
+    w->cw_output_nodev = calloc(n_outs, sizeof(w->cw_output_nodev[0]));
+    if (!w->cw_output_nodev) {
         err = merr(ENOMEM);
         goto err_exit;
     }
@@ -1650,35 +1539,17 @@ cn_tree_prepare_compaction(struct cn_compaction_work *w)
             goto err_exit;
     }
 
-    /* Enable dropping of tombstones in merge logic if 'mark' is
-     * the oldest kvset in the node, and the node has no children.
-     */
-    oldest =
-        (w->cw_mark == list_last_entry(&node->tn_kvset_list, struct kvset_list_entry, le_link));
-
-    if (n_outs == 1) {
-        /* compacting: if ANY children, do not drop tombs */
-        drop_tombs[0] = oldest;
-        for (i = 0; i < fanout; ++i) {
-            if (node->tn_childv[i]) {
-                drop_tombs[0] = false;
-                break;
-            }
-        }
-    } else if (oldest) {
-        for (i = 0; i < n_outs; i++)
-            drop_tombs[i] = node->tn_childv[i] == NULL;
-    }
-
-    /*
-     * set work struct outputs
-     */
     w->cw_inputv = ins;
     w->cw_outc = n_outs;
     w->cw_outv = outs;
     w->cw_vbmap = vbm;
-    w->cw_drop_tombv = drop_tombs;
     w->cw_level = w->cw_node->tn_loc.node_level;
+
+    /* Enable dropping of tombstones in merge logic if 'mark' is
+     * the oldest kvset in the node and we're not spilling.
+     */
+    w->cw_drop_tombs = (w->cw_action != CN_ACTION_SPILL) &&
+        (w->cw_mark == list_last_entry(&node->tn_kvset_list, struct kvset_list_entry, le_link));
 
     return 0;
 
@@ -1690,8 +1561,8 @@ err_exit:
         free(ins);
         free(vbm.vbm_blkv);
     }
-    free(drop_tombs);
     free(outs);
+    free(w->cw_output_nodev);
 
     return err;
 }
@@ -1812,15 +1683,14 @@ cn_tree_cursor_create(struct cn_cursor *cur, struct cn_tree *tree)
      * The logic for descending the tree is similar to the logic
      * cn_tree_lookup().
      */
-
-    node = tree->ct_root;
-
     rmlock_rlock(&tree->ct_lock, &lock);
     cur->dgen = cn_get_ingest_dgen(cur->cn);
+    node = tree->ct_root;
+
     while (node) {
 
         /* recover least dgen of parent when entering a node */
-        u32 level = node->tn_loc.node_level;
+        // is the above "least-dgen" comment stale???
 
         list_for_each_entry (le, &node->tn_kvset_list, le_link) {
             struct kvset *   kvset = le->le_kvset;
@@ -1840,8 +1710,10 @@ cn_tree_cursor_create(struct cn_cursor *cur, struct cn_tree *tree)
 
             s = table_append(view);
             if (ev(!s)) {
+                rmlock_runlock(lock);
+
                 err = merr(ENOMEM);
-                break;
+                goto errout;
             }
 
             kvset_get_ref(kvset);
@@ -1853,32 +1725,24 @@ cn_tree_cursor_create(struct cn_cursor *cur, struct cn_tree *tree)
             ++iterc;
         }
 
-        if (HSE_UNLIKELY(err)) {
-            rmlock_runlock(lock);
-
-            log_errx("cnid %lx pfx_len %d loc %u,%u: @@e",
-                     err, (ulong)tree->cnid,
-                     cur->pfx_len, level,
-                     node->tn_loc.node_offset);
-            goto errout;
-        }
-
-        if (level > 0)
-            rmlock_yield(&tree->ct_lock, &lock);
-
         if (iterp) {
             /* in region of tree that spills on hash of full key */
             node = tree_iter_next(tree, iterp);
         } else if (node->tn_pfx_spill && cur->pfx_len >= cur->ct_pfx_len) {
-            uint child;
+
+            /* TODO: Dont know if this is correct, but we can only go left
+             * or right from here, we cannot descend...
+             */
+            if (node != tree->ct_root)
+                break;
 
             /* descend by prefix hash */
-            child = cn_tree_route_lookup(tree, cur->pfx, cur->pfx_len, cur->pfxhash, level);
-            node = node->tn_childv[child];
+            node = cn_tree_node_lookup(tree, cur->pfx, cur->pfx_len);
         } else {
             /* switch from prefix key hash to full key hash */
             iterp = &iter;
             tree_iter_init_node(tree, iterp, TRAVERSE_TOPDOWN, node);
+
             /* iter->next is inited to the node we just processed.
              * Call next twice to avoid processing this node again.
              */
@@ -2650,24 +2514,19 @@ cn_comp_commit_kvcompact(struct cn_compaction_work *work, struct kvset *kvset)
     return 0;
 }
 
-struct spill_child {
-    struct cn_tree_node *node;
-    struct kvset *       kvset;
-};
-
 /**
  * cn_comp_update_spill() - update tree after spill operation
  * See section comment for more info.
  */
 static void
-cn_comp_update_spill(struct cn_compaction_work *work, struct spill_child *childv)
+cn_comp_update_spill(struct cn_compaction_work *work, struct kvset **kvsets)
 {
     struct cn_tree *         tree = work->cw_tree;
     u64                      txid = work->cw_work_txid;
     struct cn_tree_node *    pnode = work->cw_node;
     struct kvset_list_entry *le, *tmp;
-    u32                      cx, kx;
     struct list_head         retired_kvsets;
+    struct cn_tree_node *    node;
 
     if (ev(work->cw_err))
         return;
@@ -2676,40 +2535,13 @@ cn_comp_update_spill(struct cn_compaction_work *work, struct spill_child *childv
 
     rmlock_wlock(&tree->ct_lock);
     {
-
-        for (cx = 0; cx < work->cw_outc; cx++) {
-            struct cn_tree_node *cnode;
-            struct kvset *       kvset;
-
-            kvset = childv[cx].kvset;
-            if (!kvset)
-                continue;
-
-            cnode = childv[cx].node;
-            if (cnode) {
-                /* Add new kvsets to new children. */
-                assert(!pnode->tn_childv[cx]);
-
-                kvset_list_add(kvset, &cnode->tn_kvset_list);
-                cnode->tn_parent = pnode;
-                pnode->tn_childv[cx] = cnode;
-                pnode->tn_childc++;
-                if (pnode->tn_childc == 1)
-                    tree->ct_i_nodec++;
-                else
-                    tree->ct_l_nodec++;
-
-                tree->ct_lvl_max = max(tree->ct_lvl_max, cnode->tn_loc.node_level);
-
-            } else {
-                /* Add new kvset to existing child */
-                cnode = pnode->tn_childv[cx];
-                assert(cnode);
-
-                kvset_list_add(kvset, &cnode->tn_kvset_list);
+        for (uint i = 0; i < work->cw_outc; i++) {
+            if (kvsets[i]) {
+                node = work->cw_output_nodev[i];
+                assert(node);
+                kvset_list_add(kvsets[i], &node->tn_kvset_list);
+                node->tn_cgen++;
             }
-
-            cnode->tn_cgen++;
         }
 
         /* Move old kvsets from parent node to retired list.
@@ -2718,10 +2550,10 @@ cn_comp_update_spill(struct cn_compaction_work *work, struct spill_child *childv
          * - The dgen of the oldest input kvset must match work struct dgen_lo
          *   (i.e., concurrent spills from a node must be committed in order).
          */
-        for (kx = 0; kx < work->cw_kvset_cnt; kx++) {
+        for (uint i = 0; i < work->cw_kvset_cnt; i++) {
             assert(!list_empty(&pnode->tn_kvset_list));
             le = list_last_entry(&pnode->tn_kvset_list, struct kvset_list_entry, le_link);
-            assert(kx > 0 || work->cw_dgen_lo == kvset_get_dgen(le->le_kvset));
+            assert(i > 0 || work->cw_dgen_lo == kvset_get_dgen(le->le_kvset));
             list_del(&le->le_link);
             list_add(&le->le_link, &retired_kvsets);
         }
@@ -2751,46 +2583,19 @@ static merr_t
 cn_comp_commit_spill(struct cn_compaction_work *work, struct kvset **kvsets)
 {
     struct cn_tree *         tree = work->cw_tree;
-    struct cn_tree_node *    node = work->cw_node;
-    merr_t                   err = 0;
+    merr_t                   err;
     struct kvset_list_entry *le;
-    u32                      cx, kx;
-    struct spill_child *     childv;
 
     /* Precondition: n_outputs == tree fanout */
     assert(work->cw_outc == tree->ct_fanout);
     if (ev(work->cw_outc != tree->ct_fanout))
         return merr(EBUG);
 
-    childv = calloc(tree->ct_fanout, sizeof(*childv));
-    if (!childv)
-        return merr(EBUG);
-
-    for (cx = 0; cx < work->cw_outc; cx++) {
-        childv[cx].kvset = kvsets[cx];
-        childv[cx].node = NULL;
-
-        if (!kvsets[cx])
-            continue;
-
-        if (!node->tn_childv[cx]) {
-
-            childv[cx].node = cn_node_alloc(
-                tree,
-                node->tn_loc.node_level + 1,
-                node_nth_child_offset(tree->ct_fanout, &node->tn_loc, cx));
-            if (ev(!childv[cx].node)) {
-                err = merr(ENOMEM);
-                goto done;
-            }
-        }
-    }
-
     /* Update CNDB with "D" records.  No need to lock kvset as long as
      * we only access the marked kvsets.
      */
     le = work->cw_mark;
-    for (kx = 0; kx < work->cw_kvset_cnt; kx++) {
+    for (uint i = 0; i < work->cw_kvset_cnt; i++) {
         assert(le);
 
         err = kvset_log_d_records(le->le_kvset, work->cw_keep_vblks, work->cw_work_txid);
@@ -2807,15 +2612,9 @@ cn_comp_commit_spill(struct cn_compaction_work *work, struct kvset **kvsets)
         goto done;
 
     /* Update tree and stats.  No failure paths allowed after ACK_C. */
-    cn_comp_update_spill(work, childv);
+    cn_comp_update_spill(work, kvsets);
 
 done:
-    if (err) {
-        while (cx-- > 0)
-            cn_node_free(childv[cx].node);
-    }
-    free(childv);
-
     return err;
 }
 
@@ -2901,10 +2700,14 @@ cn_comp_commit(struct cn_compaction_work *w)
         km.km_scatter = use_mbsets ? scatter : (km.km_vused ? 1 : 0);
 
         if (spill) {
+            struct cn_tree_node *node = w->cw_output_nodev[i];
+
+            assert(node);
             km.km_compc = 0;
-            km.km_node_level = w->cw_node->tn_loc.node_level + 1;
+            km.km_node_level = node->tn_loc.node_level;
             km.km_node_offset =
-                node_nth_child_offset(w->cw_tree->ct_fanout, &w->cw_node->tn_loc, i);
+                node_nth_child_offset(w->cw_tree->ct_fanout, &w->cw_node->tn_loc,
+                    node->tn_loc.node_offset);
         } else {
             struct kvset_list_entry *le = w->cw_mark;
 
@@ -2995,6 +2798,7 @@ cn_comp_cleanup(struct cn_compaction_work *w)
 
     free(w->cw_vbmap.vbm_blkv);
     free(w->cw_tagv);
+    free(w->cw_output_nodev);
     if (w->cw_outv) {
         for (i = 0; i < w->cw_outc; i++) {
             blk_list_free(&w->cw_outv[i].kblks);
@@ -3109,7 +2913,6 @@ cn_comp_compact(struct cn_compaction_work *w)
         if (w->cw_inputv[i])
             w->cw_inputv[i]->kvi_ops->kvi_release(w->cw_inputv[i]);
     free(w->cw_inputv);
-    free(w->cw_drop_tombv);
     if (ev(err)) {
         if (!w->cw_canceled)
             kvdb_health_error(hp, err);

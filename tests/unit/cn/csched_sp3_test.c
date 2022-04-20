@@ -628,12 +628,6 @@ MTF_DEFINE_UTEST_PRE(test, t_sp3_one_big_tree_with_work, pre_test)
     err = new_kvsets(tt, SP3_NODE_LEN_THRESH + 2, 1, -1);
     ASSERT_EQ(err, 0);
 
-    err = new_kvsets(tt, SP3_NODE_LEN_THRESH + 3, 2, -1);
-    ASSERT_EQ(err, 0);
-
-    err = new_kvsets(tt, SP3_NODE_LEN_THRESH + 4, 3, -1);
-    ASSERT_EQ(err, 0);
-
     for (i = 0; i < ttc; i++)
         add_tree(ttv[i].tree, cs);
 

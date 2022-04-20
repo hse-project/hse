@@ -1,6 +1,6 @@
 /* SPDX-License-Identifier: Apache-2.0 */
 /*
- * Copyright (C) 2015-2021 Micron Technology, Inc.  All rights reserved.
+ * Copyright (C) 2015-2022 Micron Technology, Inc.  All rights reserved.
  */
 
 #include <hse_util/platform.h>
@@ -32,6 +32,7 @@
 #include "cn_metrics.h"
 #include "kv_iterator.h"
 #include "blk_list.h"
+#include "route.h"
 
 /**
  * struct merge_item -- an item in the bin_heap
@@ -180,41 +181,16 @@ kv_spill_abort(struct cn_tstate_omf *omf, void *arg)
 {
 }
 
-static inline bool
-is_spill_to_intnode(struct cn_tree_node *pnode, uint child)
-{
-    return pnode->tn_childv[child] && !cn_node_isleaf(pnode->tn_childv[child]);
-}
-
-#include "spill_hash.c"
-
 static merr_t
-get_kvset_builder(struct cn_compaction_work *w, uint cnum, struct kvset_builder **bldr_out)
+get_kvset_builder(struct cn_compaction_work *w, struct kvset_builder **bldr_out)
 {
     struct kvset_builder *bldr = NULL;
     merr_t err;
 
     err = kvset_builder_create(&bldr, cn_tree_get_cn(w->cw_tree), w->cw_pc, w->cw_dgen_hi);
     if (!err) {
-        struct cn_tree_node *pnode;
-
         kvset_builder_set_merge_stats(bldr, &w->cw_stats);
-
-        /* TODO: Remove HSE_MPOLICY_AGE_INTERNAL once we move to a strict 2-level cN tree */
-        pnode = w->cw_node;
-        if (w->cw_action == CN_ACTION_SPILL) {
-            if (is_spill_to_intnode(pnode, cnum))
-                kvset_builder_set_agegroup(bldr, HSE_MPOLICY_AGE_INTERNAL);
-            else
-                kvset_builder_set_agegroup(bldr, HSE_MPOLICY_AGE_LEAF);
-        } else {
-            if (cn_node_isleaf(pnode))
-                kvset_builder_set_agegroup(bldr, HSE_MPOLICY_AGE_LEAF);
-            if (cn_node_isroot(pnode))
-                kvset_builder_set_agegroup(bldr, HSE_MPOLICY_AGE_ROOT);
-            else
-                kvset_builder_set_agegroup(bldr, HSE_MPOLICY_AGE_INTERNAL);
-        }
+        kvset_builder_set_agegroup(bldr, HSE_MPOLICY_AGE_LEAF);
     }
 
     *bldr_out = bldr;
@@ -262,37 +238,40 @@ get_direct_read_buf(uint len, bool aligned_voff, u32 *bufsz, void **buf)
     return 0;
 }
 
-static uint
-get_route(
-    struct cn_compaction_work *w,
-    struct key_obj            *kobj,
-    char                      *ekbuf,
-    size_t                     ekbuf_sz,
-    uint                      *eklen)
+struct route_info {
+    struct route_node  *rnode;
+    struct key_obj      ekobj;
+    bool                last_node;
+    char                ekey[HSE_KVS_KEY_LEN_MAX];
+};
+
+void
+cn_spill_route_get(
+    struct cn_tree *tree,
+    struct key_obj *kobj,
+    struct route_info *ri)
 {
-    uint cnum;
+    unsigned klen;
 
-    if (w->cw_action == CN_ACTION_SPILL) {
-        char kbuf[HSE_KVS_KEY_LEN_MAX];
-        uint klen;
+    assert(sizeof(ri->ekey) == HSE_KVS_KEY_LEN_MAX);
 
-        assert(w->cw_outc > 1 && w->cw_level == 0);
+    /* Borrow callers output buffer to convert input key obj to a char
+     * buffer as required by the route API.
+     */
+    key_obj_copy(ri->ekey, sizeof(ri->ekey), &klen, kobj);
+    ri->rnode = cn_tree_route_get(tree, ri->ekey, klen);
+    assert(ri->rnode);
 
-        key_obj_copy(kbuf, sizeof(kbuf), &klen, kobj);
-        cnum = cn_tree_route_get(w->cw_tree, kbuf, klen, ekbuf, ekbuf_sz, eklen);
-    } else {
-        assert(w->cw_outc == 1);
-        cnum = 0;
-    }
+    route_node_keycpy(ri->rnode, ri->ekey, sizeof(ri->ekey), &klen);
+    key2kobj(&ri->ekobj, ri->ekey, klen);
 
-    return cnum;
+    ri->last_node = route_node_islast(ri->rnode);
 }
 
 static void
-put_route(struct cn_compaction_work *w, uint cnum)
+cn_spill_route_put(struct cn_tree *tree, struct route_node *node)
 {
-    if (w->cw_action == CN_ACTION_SPILL)
-        cn_tree_route_put(w->cw_tree, cnum);
+    cn_tree_route_put(tree, node);
 }
 
 /**
@@ -309,20 +288,20 @@ cn_spill(struct cn_compaction_work *w)
     struct merge_item curr;
     struct kvset_builder *child = NULL;
     struct cn_khashmap *khashmap = NULL;
-    struct key_obj ekobj = { 0 }, prev_kobj;
+    struct key_obj prev_kobj = { 0 };
     struct cn_tree *tree = w->cw_tree;
+    struct route_info ri = {};
 
-    char ekbuf[HSE_KVS_KEY_LEN_MAX];
-    uint vlen, complen, omlen, eklen, direct_read_len, cnum, prev_cnum;
+    uint vlen, complen, omlen, direct_read_len;
     uint curr_klen HSE_MAYBE_UNUSED;
     u32 bufsz = 0;
     void *buf = NULL;
     merr_t err;
+    uint output_nodec = 0;
 
     u64  seq, emitted_seq = 0, emitted_seq_pt = 0;
-    bool emitted_val = false, bg_val = false, more, gt_max_edge = false;
+    bool emitted_val = false, bg_val = false, more;
     bool kvcompact = (w->cw_action == CN_ACTION_COMPACT_KV);
-    bool spill = (w->cw_action == CN_ACTION_SPILL);
 
     u64  tstart, tprog = 0;
     u64  dbg_prev_seq HSE_MAYBE_UNUSED;
@@ -335,12 +314,6 @@ cn_spill(struct cn_compaction_work *w)
     struct key_obj pt_kobj = { 0 };
     bool pt_set = false;
     u64 pt_seq = 0;
-
-    /* TODO: Using spill by hash will be gone once we completely move to a 2-level cN tree
-     * with a full fledged route map
-     */
-    if (!tree->rp->cn_incr_rspill || !tree->ct_route_map || (spill && w->cw_level > 0))
-        return cn_spill_hash(w);
 
     assert(w->cw_kvset_cnt);
     assert(w->cw_inputv);
@@ -364,15 +337,15 @@ cn_spill(struct cn_compaction_work *w)
 
     more = get_next_item(bh, w->cw_inputv, &curr, &w->cw_stats, &err);
     if (more)
-        cnum = get_route(w, &curr.kobj, ekbuf, sizeof(ekbuf), &eklen);
+        cn_spill_route_get(w->cw_tree, &curr.kobj, &ri);
 
     while (!err && more) {
         bool new_key = true;
 
         if (!child) {
-            err = get_kvset_builder(w, cnum, &child);
+            err = get_kvset_builder(w, &child);
             if (err) {
-                put_route(w, cnum);
+                cn_spill_route_put(w->cw_tree, ri.rnode);
                 break;
             }
             assert(child);
@@ -380,15 +353,14 @@ cn_spill(struct cn_compaction_work *w)
             /* Add ptomb to 'child' if a ptomb context is carried forward from the
              * previous node spill, i.e., this ptomb spans across multiple children.
              */
-            if (pt_set && (!w->cw_drop_tombv[cnum] || pt_seq > w->cw_horizon)) {
-                const void *pt_vdata = HSE_CORE_TOMB_PFX;
+            if (pt_set && (!w->cw_drop_tombs || pt_seq > w->cw_horizon)) {
 
-                err = kvset_builder_add_val(child, pt_seq, pt_vdata, 0, 0);
+                err = kvset_builder_add_val(child, pt_seq, HSE_CORE_TOMB_PFX, 0, 0);
                 if (!err)
                     err = kvset_builder_add_key(child, &pt_kobj);
 
                 if (err) {
-                    put_route(w, cnum);
+                    cn_spill_route_put(w->cw_tree, ri.rnode);
                     kvset_builder_destroy(child);
                     break;
                 }
@@ -398,13 +370,11 @@ cn_spill(struct cn_compaction_work *w)
             }
         }
 
-        key2kobj(&ekobj, ekbuf, eklen);
-        assert(!gt_max_edge || key_obj_ncmp(&curr.kobj, &ekobj, eklen) > 0);
-
         tstart = perfc_ison(w->cw_pc, PERFC_DI_CNCOMP_VGET) ? 1 : 0;
 
-        while (more && (kvcompact || gt_max_edge ||
-                        key_obj_ncmp(&curr.kobj, &ekobj, eklen) <= 0)) {
+
+        while (more && (kvcompact || ri.last_node || key_obj_cmp(&curr.kobj, &ri.ekobj) <= 0)) {
+
             if (atomic_read(w->cw_cancel_request)) {
                 err = merr(ESHUTDOWN);
                 break;
@@ -476,8 +446,8 @@ cn_spill(struct cn_compaction_work *w)
 
                 bg_val = (seq <= w->cw_horizon);
 
-                if (bg_val && pt_set && seq < pt_seq)
-                    break; /* drop val */
+                if (bg_val && pt_set && w->cw_horizon >= pt_seq && pt_seq > seq)
+                    break; /* drop val if it and pt are beyond horizon */
 
                 /* Set ptomb context irrespective of bg_val for tombstone propagation */
                 if (HSE_CORE_IS_PTOMB(vdata)) {
@@ -497,7 +467,7 @@ cn_spill(struct cn_compaction_work *w)
                  * the same sequence number, then only the value from the first kvset is emitted.
                  */
                 if (should_emit) {
-                    if (w->cw_drop_tombv[cnum] && HSE_CORE_IS_TOMB(vdata) && bg_val)
+                    if (w->cw_drop_tombs && HSE_CORE_IS_TOMB(vdata) && bg_val)
                         continue; /* skip value */
 
                     err = kvset_builder_add_val(child, seq, vdata, vlen, complen);
@@ -574,34 +544,32 @@ cn_spill(struct cn_compaction_work *w)
         }
 
         if (err) {
-            put_route(w, cnum);
+            cn_spill_route_put(w->cw_tree, ri.rnode);
             kvset_builder_destroy(child);
             break;
         }
 
-        prev_cnum = cnum;
-        assert(!gt_max_edge || !more);
-        if (more) {
-            cnum = get_route(w, &curr.kobj, ekbuf, sizeof(ekbuf), &eklen);
-            /* This accommodates keys that are greater than the maximum edge in the route map */
-            if (cnum == prev_cnum)
-                gt_max_edge = true;
-        }
+        assert(!ri.last_node || !more);
 
-        if (!more || !gt_max_edge) {
-            err = kvset_builder_get_mblocks(child, &w->cw_outv[prev_cnum]);
+        if (!more || !ri.last_node) {
+            err = kvset_builder_get_mblocks(child, &w->cw_outv[output_nodec]);
             if (err) {
-                while (prev_cnum-- > 0) {
-                    abort_mblocks(w->cw_ds, &w->cw_outv[prev_cnum].kblks);
-                    abort_mblocks(w->cw_ds, &w->cw_outv[prev_cnum].vblks);
+                while (output_nodec-- > 0) {
+                    abort_mblocks(w->cw_ds, &w->cw_outv[output_nodec].kblks);
+                    abort_mblocks(w->cw_ds, &w->cw_outv[output_nodec].vblks);
                 }
                 memset(w->cw_outv, 0, w->cw_outc * sizeof(*w->cw_outv));
+            } else {
+                w->cw_output_nodev[output_nodec++] = route_node_tnode(ri.rnode);
             }
 
-            put_route(w, prev_cnum);
+            cn_spill_route_put(w->cw_tree, ri.rnode);
             kvset_builder_destroy(child);
             child = NULL;
         }
+
+        if (more)
+            cn_spill_route_get(w->cw_tree, &curr.kobj, &ri);
     }
 
     bin_heap_destroy(bh);
@@ -612,7 +580,7 @@ cn_spill(struct cn_compaction_work *w)
      * and especially if we changed it, regardless of error).
      */
     khashmap = cn_tree_get_khashmap(tree);
-    if (khashmap) {
+    if (!err && khashmap) {
         merr_t err2;
         bool   update;
 

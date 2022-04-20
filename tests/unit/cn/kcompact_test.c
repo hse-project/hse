@@ -66,22 +66,22 @@ init_work(
     struct cn_compaction_work *w,
     struct mpool *             ds,
     struct kvs_rparams *       rp,
-    bool *                     drop_tomb,
     uint                       kvset_cnt,
     struct kv_iterator **      inputv,
     atomic_int                *cancel,
     struct kvset_mblocks *     outv,
+    struct cn_tree_node **     output_nodev,
     struct kvset_vblk_map *    vbmap)
 {
     memset(w, 0, sizeof(*w));
 
     w->cw_ds = ds;
     w->cw_rp = rp;
-    w->cw_drop_tombv = drop_tomb;
     w->cw_kvset_cnt = kvset_cnt;
     w->cw_inputv = inputv;
     w->cw_cancel_request = cancel;
     w->cw_outv = outv;
+    w->cw_output_nodev = output_nodev;
     w->cw_vbmap = *vbmap;
 
     return w;
@@ -252,9 +252,9 @@ MTF_DEFINE_UTEST_PRE(kcompact_test, four_into_one, pre)
     struct cn_compaction_work w;
     struct kvs_rparams        rp = kvs_rparams_defaults();
     struct kvset_mblocks      output = {};
+    struct cn_tree_node      *output_node = NULL;
     struct kvset_vblk_map     vbm = { 0 };
     struct nkv_tab            nkv;
-    bool                      drop_tombv[1] = { false };
     atomic_int                c;
     u64                       dgen = 0;
     int                       i;
@@ -284,7 +284,7 @@ MTF_DEFINE_UTEST_PRE(kcompact_test, four_into_one, pre)
     st.vwant = 0;
     st.src = 0; /* the lowest should always be the src */
 
-    init_work(&w, (struct mpool *)1, &rp, drop_tombv, NITER, itv, &c, &output, &vbm);
+    init_work(&w, (struct mpool *)1, &rp, NITER, itv, &c, &output, &output_node, &vbm);
 
     err = cn_kcompact(&w);
     ASSERT_EQ(0, err);
@@ -313,9 +313,9 @@ MTF_DEFINE_UTEST_PRE(kcompact_test, all_gone, pre)
     struct kvs_rparams        rp = kvs_rparams_defaults();
     struct kvset_vblk_map     vbm = { 0 };
     struct kvset_mblocks      output = {};
+    struct cn_tree_node      *output_node = NULL;
     struct kv_iterator *      itv[5] = { 0 };
     struct nkv_tab            nkv;
-    bool                      drop_tombv[1] = { false };
     atomic_int                c;
     u64                       dgen = 0;
     int                       i;
@@ -350,7 +350,7 @@ MTF_DEFINE_UTEST_PRE(kcompact_test, all_gone, pre)
     st.vwant = -1; /* -1 == tombstones */
     st.src = 0;    /* the lowest should always be the src */
 
-    init_work(&w, (struct mpool *)1, &rp, drop_tombv, 5, itv, &c, &output, &vbm);
+    init_work(&w, (struct mpool *)1, &rp, 5, itv, &c, &output, &output_node, &vbm);
 
     err = cn_kcompact(&w);
     ASSERT_EQ(0, err);
@@ -378,9 +378,9 @@ MTF_DEFINE_UTEST_PREPOST(kcompact_test, all_gone_mixed, mixed_pre, mixed_post)
     struct kvs_rparams        rp = kvs_rparams_defaults();
     struct kvset_vblk_map     vbm = { 0 };
     struct kvset_mblocks      output = {};
+    struct cn_tree_node      *output_node = NULL;
     struct kv_iterator *      itv[5] = { 0 };
     struct nkv_tab            nkv;
-    bool                      drop_tombv[1] = { false };
     atomic_int                c;
     u64                       dgen = 0;
     int                       i;
@@ -415,7 +415,7 @@ MTF_DEFINE_UTEST_PREPOST(kcompact_test, all_gone_mixed, mixed_pre, mixed_post)
     st.vwant = -1; /* -1 == tombstones */
     st.src = 0;    /* the lowest should always be the src */
 
-    init_work(&w, (struct mpool *)1, &rp, drop_tombv, 5, itv, &c, &output, &vbm);
+    init_work(&w, (struct mpool *)1, &rp, 5, itv, &c, &output, &output_node, &vbm);
 
     err = cn_kcompact(&w);
     ASSERT_EQ(0, err);
@@ -443,9 +443,9 @@ MTF_DEFINE_UTEST_PREPOST(kcompact_test, four_into_one_mixed, mixed_pre, mixed_po
     struct cn_compaction_work w;
     struct kvs_rparams        rp = kvs_rparams_defaults();
     struct kvset_mblocks      output = {};
+    struct cn_tree_node      *output_node = NULL;
     struct kvset_vblk_map     vbm = { 0 };
     struct nkv_tab            nkv;
-    bool                      drop_tombv[1] = { false };
     atomic_int                c;
     u64                       dgen = 0;
     int                       i;
@@ -475,7 +475,7 @@ MTF_DEFINE_UTEST_PREPOST(kcompact_test, four_into_one_mixed, mixed_pre, mixed_po
     st.vwant = 0;
     st.src = 0; /* the lowest should always be the src */
 
-    init_work(&w, (struct mpool *)1, &rp, drop_tombv, NITER, itv, &c, &output, &vbm);
+    init_work(&w, (struct mpool *)1, &rp, NITER, itv, &c, &output, &output_node, &vbm);
 
     err = cn_kcompact(&w);
     ASSERT_EQ(0, err);
@@ -501,9 +501,9 @@ run_kcompact(struct mtf_test_info *lcl_ti, int expect)
     struct kvs_rparams        rp = kvs_rparams_defaults();
     struct kvset_vblk_map     vbm = { 0 };
     struct kvset_mblocks      output = {};
+    struct cn_tree_node      *output_node = NULL;
     struct kv_iterator *      itv[5] = { 0 };
     struct nkv_tab            nkv;
-    bool                      drop_tombv[1] = { false };
     atomic_int                c;
     u64                       dgen = 0;
     int                       i;
@@ -538,7 +538,7 @@ run_kcompact(struct mtf_test_info *lcl_ti, int expect)
     st.vwant = -1; /* -1 == tombstones */
     st.src = 0;    /* the lowest should always be the src */
 
-    init_work(&w, (struct mpool *)1, &rp, drop_tombv, 5, itv, &c, &output, &vbm);
+    init_work(&w, (struct mpool *)1, &rp, 5, itv, &c, &output, &output_node, &vbm);
 
     err = cn_kcompact(&w);
     if (err)

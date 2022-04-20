@@ -158,7 +158,7 @@ struct cn_work_est {
  * @cw_inputv:       number of input kvsets
  * @cw_vbmap:        tracks vblocks that are transferred from intput to output
  *                       kvsets during k-compaction
- * @cw_drop_tombv:   if true, then tombstones can be dropped in the merge loop
+ * @cw_drop_tombs:   if true, then tombstones can be dropped in the merge loop
  * @cw_work_txid:    the cndb transaction id
  * @cw_commitc:      keeps track of how many output mblocks have been committed
  * @cw_keep_vblks:   indicates whether or not vblocks should be deleted or
@@ -228,10 +228,11 @@ struct cn_compaction_work {
     /* initialized in cn_tree_prepare_compaction () */
     uint                  cw_level;
     uint                  cw_outc;
+    bool                  cw_drop_tombs;
     struct kvset_mblocks *cw_outv;
     struct kv_iterator ** cw_inputv;
     struct kvset_vblk_map cw_vbmap;
-    bool *                cw_drop_tombv;
+    struct cn_tree_node **cw_output_nodev;
 
     /* initialized in cn_compaction_worker() */
     u64                   cw_work_txid;

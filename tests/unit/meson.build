@@ -33,11 +33,10 @@ components = {
             ],
         },
         'cn_api_test': {},
-        'cn_cursor_test': {},
         'cndb_log_test': {
             'args': [
                 meson.current_source_dir() / 'cn/mdc_images',
-            ]
+            ],
         },
         'cndb_test': {},
         'cn_ingest_test': {},
