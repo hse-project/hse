@@ -1029,7 +1029,6 @@ hse_kvs_cursor_destroy(struct hse_kvs_cursor *cursor);
  * @remark @p cursor must not be NULL.
  * @remark @p key must not be NULL.
  * @remark @p key_len must not be NULL.
- * @remark @p val must not be NULL.
  * @remark @p val_len must not be NULL.
  * @remark @p eof must not be NULL.
  *
@@ -1072,7 +1071,6 @@ hse_kvs_cursor_read(
  * @remark @p cursor must not be NULL.
  * @remark @p key must not be NULL.
  * @remark @p key_len must not be NULL.
- * @remark @p val must not be NULL.
  * @remark @p val_len must not be NULL.
  * @remark @p eof must not be NULL.
  *
