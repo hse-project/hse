@@ -374,19 +374,6 @@ if 'java' in bindings or 'auto' in bindings
             hsejni,
             hse_jar,
         ]
-
-        run_env.prepend('LD_LIBRARY_PATH', fs.parent(hsejni.full_path()))
-        run_env.prepend('CLASSPATH', hse_jar.full_path())
-
-        jshell = find_program('jshell', required: false, disabler: true)
-        run_target(
-            'jshell',
-            command: [
-                jshell,
-            ],
-            depends: hse_java_depends,
-            env: run_env
-        )
     endif
 endif
 
@@ -403,15 +390,6 @@ if 'python' in bindings or 'auto' in bindings
     if hse_python.found()
         hse_python_depends = hse_python.get_variable('extension_modules')
         run_env.prepend('PYTHONPATH', hse_python.get_variable('project_build_root'))
-
-        run_target(
-            'python-repl',
-            command: [
-                python,
-            ],
-            depends: hse_python_depends,
-            env: run_env,
-        )
     endif
 endif
 
@@ -441,14 +419,23 @@ run_target(
     'format',
     command: [
         format,
-    ],
+    ]
 )
 run_target(
     'format-check',
     command: [
         format,
         '-c',
-    ],
+    ]
+)
+
+run_target(
+    'checkoss',
+    command: [
+        find_program('scripts/dev/checkoss.sh'),
+        '@BUILD_ROOT@',
+        '@SOURCE_ROOT@',
+    ]
 )
 
 if not meson.is_subproject()
@@ -457,19 +444,10 @@ if not meson.is_subproject()
             'git-hooks',
             command: [
                 find_program('scripts/git-hooks/link.sh'),
-            ],
+            ]
         )
     endif
 endif
-
-run_target(
-    'checkoss',
-    command: [
-        find_program('scripts/dev/checkoss.sh'),
-        '@BUILD_ROOT@',
-        '@SOURCE_ROOT@',
-    ],
-)
 
 shellcheck = find_program('shellcheck', required: false)
 if shellcheck.found()

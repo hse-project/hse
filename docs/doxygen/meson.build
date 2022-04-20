@@ -61,7 +61,7 @@ run_target(
             '-m',
             'http.server',
             '--directory',
-            '@0@/api/html'.format(meson.current_build_dir()),
+            meson.current_build_dir() / 'output/html',
             '"${HSE_DOXYGEN_SERVE_PORT:-0}"',
         ])
     ],
