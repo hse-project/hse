@@ -45,17 +45,17 @@ jobs:
 
     steps:
       - name: Checkout HSE
-        uses: actions/checkout@v2
+        uses: actions/checkout@v3
 
       - name: Checkout hse-java
-        uses: actions/checkout@v2
+        uses: actions/checkout@v3
         with:
           repository: hse-project/hse-java
           path: subprojects/hse-java
           ref: ${{ github.base_ref || github.ref }}
 
       - name: Checkout hse-python
-        uses: actions/checkout@v2
+        uses: actions/checkout@v3
         with:
           repository: hse-project/hse-python
           path: subprojects/hse-python
@@ -145,17 +145,17 @@ jobs:
 
     steps:
       - name: Checkout HSE
-        uses: actions/checkout@v2
+        uses: actions/checkout@v3
 
       - name: Checkout hse-java
-        uses: actions/checkout@v2
+        uses: actions/checkout@v3
         with:
           repository: hse-project/hse-java
           path: subprojects/hse-java
           ref: ${{ github.base_ref || github.ref }}
 
       - name: Checkout hse-python
-        uses: actions/checkout@v2
+        uses: actions/checkout@v3
         with:
           repository: hse-project/hse-python
           path: subprojects/hse-python
@@ -231,17 +231,17 @@ jobs:
 
     steps:
       - name: Checkout HSE
-        uses: actions/checkout@v2
+        uses: actions/checkout@v3
 
       - name: Checkout hse-java
-        uses: actions/checkout@v2
+        uses: actions/checkout@v3
         with:
           repository: hse-project/hse-java
           path: subprojects/hse-java
           ref: ${{ github.base_ref || github.ref }}
 
       - name: Checkout hse-python
-        uses: actions/checkout@v2
+        uses: actions/checkout@v3
         with:
           repository: hse-project/hse-python
           path: subprojects/hse-python
@@ -314,17 +314,17 @@ jobs:
 
     steps:
       - name: Checkout HSE
-        uses: actions/checkout@v2
+        uses: actions/checkout@v3
 
       - name: Checkout hse-java
-        uses: actions/checkout@v2
+        uses: actions/checkout@v3
         with:
           repository: hse-project/hse-java
           path: subprojects/hse-java
           ref: ${{ github.base_ref || github.ref }}
 
       - name: Checkout hse-python
-        uses: actions/checkout@v2
+        uses: actions/checkout@v3
         with:
           repository: hse-project/hse-python
           path: subprojects/hse-python
@@ -378,17 +378,17 @@ jobs:
 
     steps:
       - name: Checkout HSE
-        uses: actions/checkout@v2
+        uses: actions/checkout@v3
 
       - name: Checkout hse-java
-        uses: actions/checkout@v2
+        uses: actions/checkout@v3
         with:
           repository: hse-project/hse-java
           path: subprojects/hse-java
           ref: ${{ github.base_ref || github.ref }}
 
       - name: Checkout hse-python
-        uses: actions/checkout@v2
+        uses: actions/checkout@v3
         with:
           repository: hse-project/hse-python
           path: subprojects/hse-python
@@ -441,17 +441,17 @@ jobs:
 
     steps:
       - name: Checkout HSE
-        uses: actions/checkout@v2
+        uses: actions/checkout@v3
 
       - name: Checkout hse-java
-        uses: actions/checkout@v2
+        uses: actions/checkout@v3
         with:
           repository: hse-project/hse-java
           path: subprojects/hse-java
           ref: ${{ github.base_ref || github.ref }}
 
       - name: Checkout hse-python
-        uses: actions/checkout@v2
+        uses: actions/checkout@v3
         with:
           repository: hse-project/hse-python
           path: subprojects/hse-python
