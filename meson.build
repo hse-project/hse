@@ -475,7 +475,7 @@ if gcovr.found() and get_option('b_coverage') and get_option('tests')
                 'gcovr',
                 '-r',
                 '@SOURCE_ROOT@',
-                '@BUILD_ROOT@/lib',
+                '@BUILD_ROOT@',
                 args,
                 '@OUTPUT@',
                 '-f',
