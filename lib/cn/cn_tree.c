@@ -516,20 +516,6 @@ cn_tree_is_replay(const struct cn_tree *tree)
  * SECTION: CN_TREE Internal Functions to map node locations to node pointers
  */
 
-static inline u32
-path_step_to_target(struct cn_tree *tree, struct cn_node_loc *tgt, u32 curr_level)
-{
-    u32 fbits = cn_tree_fanout2bits(tree->ct_fanout);
-    u32 shift = 0, child_branch;
-
-    if (tgt->node_level > curr_level)
-        shift = fbits * (tgt->node_level - 1 - curr_level);
-
-    child_branch = (tgt->node_offset >> shift) % tree->ct_fanout;
-
-    return child_branch;
-}
-
 /* Caller should hold tree read lock if consistent stats are desired */
 void
 cn_node_stats_get(const struct cn_tree_node *tn, struct cn_node_stats *s_out)
@@ -989,17 +975,6 @@ unlock:
     }
 
     rmlock_runlock(lock);
-}
-
-static HSE_ALWAYS_INLINE uint64_t
-cn_tree_level2hash(uint64_t hash, uint level)
-{
-    level = (level * 17) % 64;
-
-    if (level > 0)
-        hash = (hash << level) | (hash >> (64 - level));
-
-    return hash;
 }
 
 struct cn_tree_node *
