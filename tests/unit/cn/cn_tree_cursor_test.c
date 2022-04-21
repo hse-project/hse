@@ -15,6 +15,7 @@
 #include <cn/cn_tree_internal.h>
 #include <cn/cn_cursor.h>
 #include <cn/kvset.h>
+#include <cn/route.h>
 
 struct cn_kv_item;
 
@@ -170,6 +171,24 @@ _kvset_iter_val_get(
     return 0;
 }
 
+struct route_map *
+_route_map_create(const struct kvs_cparams *cp, const char *kvsname, struct cn_tree *tree)
+{
+    void *map;
+
+    map = calloc(4096, sizeof(struct route_node));
+    if (!map)
+        return NULL;
+
+    return map;
+}
+
+void
+_route_map_destroy(struct route_map *map)
+{
+    free(map);
+}
+
 merr_t
 cn_tree_lcur_seek(
     struct cn_level_cursor *lcur,
@@ -211,6 +230,9 @@ pre_test(struct mtf_test_info *lcl_ti)
     mapi_inject(mapi_idx_cn_get_maint_wq, 0);
 
     MOCK_SET(cn, _cn_get_tree);
+
+    MOCK_SET(route, _route_map_create);
+    MOCK_SET(route, _route_map_destroy);
 
     mapi_inject(mapi_idx_kvset_iter_create, 0);
     mapi_inject(mapi_idx_kvset_iter_release, 0);
@@ -254,6 +276,15 @@ MTF_DEFINE_UTEST_PREPOST(cn_tree_cursor_test, empty, pre_test, post_test)
     merr_t err;
     struct cn_cursor cur = {};
 
+    struct route_node node = {
+        .rtn_keylen = 1,
+        .rtn_child  = 0,
+    };
+
+    tree.ct_route_map = route_map_create(NULL, "KVS-Dummy", NULL);
+    snprintf((char *)node.rtn_keybuf, sizeof(node.rtn_keybuf), "z");
+    ASSERT_EQ(NULL, route_map_insert(tree.ct_route_map, &node));
+
     err = cn_tree_cursor_create(&cur);
     ASSERT_EQ(0, err);
 
@@ -270,6 +301,8 @@ MTF_DEFINE_UTEST_PREPOST(cn_tree_cursor_test, empty, pre_test, post_test)
     ASSERT_TRUE(eof);
 
     cn_tree_cursor_destroy(&cur);
+
+    route_map_destroy(tree.ct_route_map);
 }
 
 MTF_DEFINE_UTEST_PREPOST(cn_tree_cursor_test, basic, pre_test, post_test)
@@ -280,6 +313,15 @@ MTF_DEFINE_UTEST_PREPOST(cn_tree_cursor_test, basic, pre_test, post_test)
     };
 
     struct kv kv[2];
+
+    struct route_node node = {
+        .rtn_keylen = 1,
+        .rtn_child  = 0,
+    };
+
+    tree.ct_route_map = route_map_create(NULL, "KVS-Dummy", NULL);
+    snprintf((char *)node.rtn_keybuf, sizeof(node.rtn_keybuf), "z");
+    ASSERT_EQ(NULL, route_map_insert(tree.ct_route_map, &node));
 
     kv_start();
     kv_add(&kv[0], "key01", 1, vtype_val);
@@ -323,6 +365,8 @@ MTF_DEFINE_UTEST_PREPOST(cn_tree_cursor_test, basic, pre_test, post_test)
     ASSERT_TRUE(eof);
 
     cn_tree_cursor_destroy(&cur);
+
+    route_map_destroy(tree.ct_route_map);
 }
 
 MTF_DEFINE_UTEST_PREPOST(cn_tree_cursor_test, dups, pre_test, post_test)
@@ -340,6 +384,15 @@ MTF_DEFINE_UTEST_PREPOST(cn_tree_cursor_test, dups, pre_test, post_test)
     kv_add(&kv[2], "key02", 2, vtype_tomb);
     kv_add(&kv[3], "key02", 1, vtype_val);
     kv_end();
+
+    struct route_node node = {
+        .rtn_keylen = 1,
+        .rtn_child  = 0,
+    };
+
+    tree.ct_route_map = route_map_create(NULL, "KVS-Dummy", NULL);
+    snprintf((char *)node.rtn_keybuf, sizeof(node.rtn_keybuf), "z");
+    ASSERT_EQ(NULL, route_map_insert(tree.ct_route_map, &node));
 
     err = cn_tree_cursor_create(&cur);
     ASSERT_EQ(0, err);
@@ -378,6 +431,8 @@ MTF_DEFINE_UTEST_PREPOST(cn_tree_cursor_test, dups, pre_test, post_test)
     ASSERT_TRUE(eof);
 
     cn_tree_cursor_destroy(&cur);
+
+    route_map_destroy(tree.ct_route_map);
 }
 
 MTF_DEFINE_UTEST_PREPOST(cn_tree_cursor_test, with_ptomb, pre_test, post_test)
@@ -409,6 +464,15 @@ MTF_DEFINE_UTEST_PREPOST(cn_tree_cursor_test, with_ptomb, pre_test, post_test)
     kv_add(&kv[8], "bb01", 4,  vtype_val);    /* Hidden: Does not match cursor pfx */
     kv_end();
 
+    struct route_node node = {
+        .rtn_keylen = 1,
+        .rtn_child  = 0,
+    };
+
+    tree.ct_route_map = route_map_create(NULL, "KVS-Dummy", NULL);
+    snprintf((char *)node.rtn_keybuf, sizeof(node.rtn_keybuf), "z");
+    ASSERT_EQ(NULL, route_map_insert(tree.ct_route_map, &node));
+
     err = cn_tree_cursor_create(&cur);
     ASSERT_EQ(0, err);
 
@@ -435,6 +499,8 @@ MTF_DEFINE_UTEST_PREPOST(cn_tree_cursor_test, with_ptomb, pre_test, post_test)
     ASSERT_TRUE(eof);
 
     cn_tree_cursor_destroy(&cur);
+
+    route_map_destroy(tree.ct_route_map);
 }
 
 MTF_END_UTEST_COLLECTION(cn_tree_cursor_test)

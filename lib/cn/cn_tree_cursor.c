@@ -21,96 +21,15 @@
 
 #include <cn/cn_cursor.h>
 
+#include "route.h"
+
 #define MTF_MOCK_IMPL_cn_tree_cursor
 
-#include "route.h"
 #include "cn_tree_internal.h"
 #include "cn_tree_cursor.h"
 #include "kvset_internal.h"
 #include "kvset.h"
 #include "kv_iterator.h"
-
-/* Temporary route map stubs - START
- * ==================================
- */
-
-struct route_map *map;
-
-struct route_node {
-};
-
-struct route_node *
-rmap_lookup(struct route_map *map, const void *pfx, uint pfxlen)
-{
-    return 0;
-}
-
-struct route_node *
-rmap_lookupGT(struct route_map *map, const void *pfx, uint pfxlen)
-{
-    return 0;
-}
-
-struct route_node *
-rmap_get(struct route_map *map, struct route_node *rtn)
-{
-    return 0;
-}
-
-void
-rmap_put(struct route_map *map, struct route_node *node)
-{
-}
-
-static HSE_ALWAYS_INLINE bool
-rnode_isfirst(const struct route_node *node)
-{
-    return true;
-}
-
-static HSE_ALWAYS_INLINE bool
-rnode_islast(const struct route_node *node)
-{
-    return true;
-}
-
-static HSE_ALWAYS_INLINE void *
-rnode_tnode(struct route_node *node)
-{
-    return 0;
-}
-
-static HSE_ALWAYS_INLINE void
-rnode_keycpy(struct route_node *node, void *kbuf, size_t kbuf_sz, uint *klen)
-{
-}
-
-struct route_node *
-rnode_next(const struct route_node *node)
-{
-    return 0;
-}
-
-struct route_node *
-rnode_prev(const struct route_node *node)
-{
-    return 0;
-}
-
-struct route_map *
-rmap_create(const struct kvs_cparams *cp, const char *kvsname, struct cn_tree *tree)
-{
-    return 0;
-}
-
-void
-rmap_destroy(struct route_map *map)
-{
-}
-
-/* Temporary route map stubs - END
- * ==================================
- */
 
 /*
  * Min heap comparator.
@@ -348,7 +267,7 @@ cn_tree_lcur_advance(struct cn_level_cursor *lcur)
 {
         struct cn_cursor *cncur = lcur->cncur;
         struct cn_tree *tree = cn_get_tree(cncur->cncur_cn);
-        struct route_node *rtn_curr, *rtn_next;
+        struct route_node *rtn_curr, *rtn_ekey;
         merr_t err;
         bool added;
         void *lock;
@@ -364,13 +283,18 @@ cn_tree_lcur_advance(struct cn_level_cursor *lcur)
         }
 
         rmlock_rlock(&tree->ct_lock, &lock);
-        rtn_curr = rmap_lookup(map, lcur->next_ekey, lcur->next_eklen);
-        rtn_next = cncur->reverse ? rmap_lookup(map, lcur->next_ekey, lcur->next_eklen) :
-                                    rmap_lookupGT(map, lcur->next_ekey, lcur->next_eklen);
 
-        rnode_keycpy(rtn_next, &lcur->next_ekey, sizeof(lcur->next_ekey), &lcur->next_eklen);
+        if (cncur->reverse) {
+            rtn_curr = route_map_lookup(tree->ct_route_map, lcur->next_ekey, lcur->next_eklen);
+            rtn_ekey = route_node_prev(rtn_curr);
+        } else {
+            rtn_curr = route_map_lookupGT(tree->ct_route_map, lcur->next_ekey, lcur->next_eklen);
+            rtn_ekey = rtn_curr;
+        }
 
-        err = cn_tree_kvset_refs(rnode_tnode(rtn_curr), lcur);
+        route_node_keycpy(rtn_ekey, &lcur->next_ekey, sizeof(lcur->next_ekey), &lcur->next_eklen);
+
+        err = cn_tree_kvset_refs(route_node_tnode(rtn_curr), lcur);
         rmlock_runlock(&lock);
 
         if (ev(err)) {
@@ -402,7 +326,7 @@ again:
         if (lcur->level == 0)
             return false;
 
-        l1_eof = lcur->cncur->reverse ? rnode_isfirst(lcur->route_node) : rnode_islast(lcur->route_node);
+        l1_eof = lcur->cncur->reverse ? route_node_isfirst(lcur->route_node) : route_node_islast(lcur->route_node);
         if (l1_eof)
             return false;
 
@@ -436,16 +360,16 @@ cn_tree_cursor_seek(
 
     rmlock_rlock(&tree->ct_lock, &lock);
 
-    rtn_curr = rmap_lookup(map, key, len);
-    rtn_ekey = cur->reverse ? rnode_prev(rtn_curr) : rtn_curr;
+    rtn_curr = route_map_lookup(tree->ct_route_map, key, len);
+    rtn_ekey = cur->reverse ? route_node_prev(rtn_curr) : rtn_curr;
 
     lcur = &cur->cncur_lcur[1];
-    rnode_keycpy(rtn_ekey, lcur->next_ekey, sizeof(lcur->next_ekey), &lcur->next_eklen);
+    route_node_keycpy(rtn_ekey, lcur->next_ekey, sizeof(lcur->next_ekey), &lcur->next_eklen);
 
     for (i = 0; i < lcur->iterc; i++)
         kvset_iter_release(kvset_cursor_es_h2r(lcur->esrcv[i]));
 
-    err = cn_tree_kvset_refs(rnode_tnode(rtn_curr), lcur);
+    err = cn_tree_kvset_refs(route_node_tnode(rtn_curr), lcur);
     rmlock_runlock(lock);
 
     if (ev(err))

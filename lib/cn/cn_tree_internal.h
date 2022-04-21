@@ -208,14 +208,6 @@ struct cn_tree_node {
 #define spn2tn(_spn) container_of(_spn, struct cn_tree_node, tn_sp3n)
 
 /* MTF_MOCK */
-merr_t
-cn_tree_create_node(
-    struct cn_tree *      handle,
-    uint                  node_level,
-    uint                  node_offset,
-    struct cn_tree_node **node);
-
-/* MTF_MOCK */
 void
 cn_node_stats_get(const struct cn_tree_node *tn, struct cn_node_stats *stats);
 
