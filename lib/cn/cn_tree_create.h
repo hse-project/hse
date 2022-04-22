@@ -35,7 +35,6 @@ struct kvs_cparams;
 merr_t
 cn_tree_create(
     struct cn_tree **   tree,
-    struct cn_tstate *  tstate,
     const char         *kvsname,
     u32                 cn_cflags,
     struct kvs_cparams *cp,

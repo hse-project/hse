@@ -243,26 +243,4 @@ OMF_SETGET(struct vblock_hdr_omf, vbh_magic, 32)
 OMF_SETGET(struct vblock_hdr_omf, vbh_version, 32)
 OMF_SETGET(struct vblock_hdr_omf, vbh_vgroup, 64)
 
-/* cn dynamic state
- */
-#define CN_TSTATE_MAGIC (u32)('c' << 24 | 't' << 16 | 's' << 8 | 'm')
-#define CN_TSTATE_KHM_SZ (1024)
-
-struct cn_tstate_omf {
-    uint32_t ts_magic;
-    uint32_t ts_version;
-
-    uint64_t ts_rsvd[14];
-
-    uint32_t ts_khm_gen;
-    uint32_t ts_khm_rsvd;
-    uint16_t ts_khm_mapv[CN_TSTATE_KHM_SZ];
-} HSE_PACKED;
-
-OMF_SETGET(struct cn_tstate_omf, ts_magic, 32)
-OMF_SETGET(struct cn_tstate_omf, ts_version, 32)
-
-OMF_SETGET(struct cn_tstate_omf, ts_khm_gen, 32)
-OMF_SETGET_CHBUF(struct cn_tstate_omf, ts_khm_mapv);
-
 #endif

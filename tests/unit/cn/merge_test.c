@@ -1103,56 +1103,6 @@ init_work(
     return w;
 }
 
-/* Emulate cn.c's tree state management.
- */
-struct cn_tstate_impl {
-    struct cn_tstate     tsi_tstate;
-    struct cn_tstate_omf tsi_omf;
-    merr_t               tsi_err;
-};
-
-static void
-ts_get(struct cn_tstate *tstate, u32 *genp, u16 *mapv)
-{
-    struct cn_tstate_impl *impl;
-
-    impl = container_of(tstate, struct cn_tstate_impl, tsi_tstate);
-
-    *genp = omf_ts_khm_gen(&impl->tsi_omf);
-    memcpy(mapv, impl->tsi_omf.ts_khm_mapv, sizeof(mapv[0]) * CN_TSTATE_KHM_SZ);
-}
-
-static merr_t
-ts_update(
-    struct cn_tstate *   tstate,
-    cn_tstate_prepare_t *ts_prepare,
-    cn_tstate_commit_t * ts_commit,
-    cn_tstate_abort_t *  ts_abort,
-    void *               arg)
-{
-    struct cn_tstate_impl *impl;
-    merr_t                 err;
-
-    impl = container_of(tstate, struct cn_tstate_impl, tsi_tstate);
-
-    err = ts_prepare(&impl->tsi_omf, arg);
-    if (err) {
-        ts_abort(&impl->tsi_omf, arg);
-        return err;
-    }
-
-    /* Error injection...
-     */
-    if (impl->tsi_err) {
-        ts_abort(&impl->tsi_omf, arg);
-        return impl->tsi_err;
-    }
-
-    ts_commit(&impl->tsi_omf, arg);
-
-    return 0;
-}
-
 static void
 run_testcase(struct mtf_test_info *lcl_ti, int mode, const char *info)
 {
@@ -1194,22 +1144,13 @@ run_testcase(struct mtf_test_info *lcl_ti, int mode, const char *info)
 
     if (mode == MODE_SPILL) {
         struct cn_tree *tree;
-        struct cn_tstate_impl impl;
-        struct cn_tstate_omf *omf;
         struct kvdb_health    health;
 
         struct kvs_cparams cp = {
             .fanout = tp.fanout, .pfx_len = tp.pfx_len,
         };
 
-        memset(&impl, 0, sizeof(impl));
-        impl.tsi_tstate.ts_get = ts_get;
-        impl.tsi_tstate.ts_update = ts_update;
-        omf = &impl.tsi_omf;
-        omf_set_ts_magic(omf, CN_TSTATE_MAGIC);
-        omf_set_ts_version(omf, CN_TSTATE_VERSION);
-
-        err = cn_tree_create(&tree, &impl.tsi_tstate, "kvs", 0, &cp, &health, &rp);
+        err = cn_tree_create(&tree, "kvs", 0, &cp, &health, &rp);
         ASSERT_EQ(err, 0);
         ASSERT_NE(tree, NULL);
 
@@ -1441,7 +1382,6 @@ test_prehook(struct mtf_test_info *info)
     MOCK_SET(kvset, _kvset_iter_next_vref);
 
     /* Neuter the following APIs */
-    mapi_inject_ptr(mapi_idx_cn_tree_get_khashmap, NULL);
     mapi_inject_ptr(mapi_idx_cn_tree_get_cn, NULL);
     mapi_inject(mapi_idx_kvset_builder_set_merge_stats, 0);
 

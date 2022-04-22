@@ -252,7 +252,6 @@ cn_node_isroot(const struct cn_tree_node *tn)
 merr_t
 cn_tree_create(
     struct cn_tree **   handle,
-    struct cn_tstate *  tstate,
     const char         *kvsname,
     u32                 cn_cflags,
     struct kvs_cparams *cp,
@@ -281,21 +280,7 @@ cn_tree_create(
     tree->ct_fanout = cp->fanout;
     tree->ct_pfx_len = cp->pfx_len;
     tree->ct_sfx_len = cp->sfx_len;
-
-    if (tstate) {
-        struct cn_khashmap *khm = &tree->ct_khmbuf;
-
-        spin_lock_init(&khm->khm_lock);
-
-        tstate->ts_get(tstate, &khm->khm_gen, khm->khm_mapv);
-        khm->khm_gen_committed = khm->khm_gen;
-
-        tree->ct_khashmap = khm;
-        tree->ct_tstate = tstate;
-    }
-
     tree->ct_depth_max = cn_tree_max_depth(tree->ct_fanout);
-
     tree->ct_kvdb_health = health;
     tree->rp = rp;
 
@@ -407,12 +392,6 @@ struct cn *
 cn_tree_get_cn(const struct cn_tree *tree)
 {
     return tree->cn;
-}
-
-struct cn_khashmap *
-cn_tree_get_khashmap(const struct cn_tree *tree)
-{
-    return tree->ct_khashmap;
 }
 
 struct cn_kvdb *
