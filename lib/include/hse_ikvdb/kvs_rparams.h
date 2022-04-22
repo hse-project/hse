@@ -38,7 +38,6 @@ struct kvs_rparams {
     bool     cn_close_wait;
     bool     cn_diag_mode;
     bool     cn_verify;
-    bool     cn_incr_rspill;
     bool     read_only;
     uint8_t  perfc_level;
     uint32_t cn_maint_delay;

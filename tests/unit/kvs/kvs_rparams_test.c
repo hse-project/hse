@@ -147,7 +147,7 @@ MTF_DEFINE_UTEST_PRE(kvs_rparams_test, cn_node_sisze_lo, test_pre)
     ASSERT_EQ((uintptr_t)ps->ps_stringify, (uintptr_t)param_default_stringify);
     ASSERT_EQ((uintptr_t)ps->ps_jsonify, (uintptr_t)param_default_jsonify);
     ASSERT_NE(NULL, ps->ps_validate_relations);
-    ASSERT_EQ(28 * 1024, params.cn_node_size_lo);
+    ASSERT_EQ(8192 * 1024, params.cn_node_size_lo);
     ASSERT_EQ(0, ps->ps_bounds.as_uscalar.ps_min);
     ASSERT_EQ(UINT64_MAX, ps->ps_bounds.as_uscalar.ps_max);
 
@@ -178,7 +178,7 @@ MTF_DEFINE_UTEST_PRE(kvs_rparams_test, cn_node_size_hi, test_pre)
     ASSERT_EQ((uintptr_t)ps->ps_stringify, (uintptr_t)param_default_stringify);
     ASSERT_EQ((uintptr_t)ps->ps_jsonify, (uintptr_t)param_default_jsonify);
     ASSERT_NE(NULL, ps->ps_validate_relations);
-    ASSERT_EQ(32 * 1024, params.cn_node_size_hi);
+    ASSERT_EQ(9216 * 1024, params.cn_node_size_hi);
     ASSERT_EQ(0, ps->ps_bounds.as_uscalar.ps_min);
     ASSERT_EQ(UINT64_MAX, ps->ps_bounds.as_uscalar.ps_max);
 
@@ -692,23 +692,6 @@ MTF_DEFINE_UTEST_PRE(kvs_rparams_test, capped_evict_ttl, test_pre)
     ASSERT_EQ(120, params.capped_evict_ttl);
     ASSERT_EQ(0, ps->ps_bounds.as_uscalar.ps_min);
     ASSERT_EQ(UINT64_MAX, ps->ps_bounds.as_uscalar.ps_max);
-}
-
-MTF_DEFINE_UTEST_PRE(kvs_rparams_test, cn_incr_rspill, test_pre)
-{
-    const struct param_spec *ps = ps_get("cn_incr_rspill");
-
-    ASSERT_NE(NULL, ps);
-    ASSERT_NE(NULL, ps->ps_description);
-    ASSERT_EQ(PARAM_FLAG_EXPERIMENTAL, ps->ps_flags);
-    ASSERT_EQ(PARAM_TYPE_BOOL, ps->ps_type);
-    ASSERT_EQ(offsetof(struct kvs_rparams, cn_incr_rspill), ps->ps_offset);
-    ASSERT_EQ(sizeof(bool), ps->ps_size);
-    ASSERT_EQ((uintptr_t)ps->ps_convert, (uintptr_t)param_default_converter);
-    ASSERT_EQ((uintptr_t)ps->ps_validate, (uintptr_t)param_default_validator);
-    ASSERT_EQ((uintptr_t)ps->ps_stringify, (uintptr_t)param_default_stringify);
-    ASSERT_EQ((uintptr_t)ps->ps_jsonify, (uintptr_t)param_default_jsonify);
-    ASSERT_EQ(true, params.cn_incr_rspill);
 }
 
 MTF_DEFINE_UTEST_PRE(kvs_rparams_test, read_only, test_pre)

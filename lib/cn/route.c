@@ -13,27 +13,17 @@
 #include <hse_util/xrand.h>
 #include <hse_util/log2.h>
 #include <hse_util/byteorder.h>
+#include <hse_util/minmax.h>
 
-#include <rbtree.h>
-
+#include "cn_tree_internal.h"
 #include "route.h"
 
-struct route_node {
-    union {
-        struct rb_node rtn_node;
-        struct route_node *rtn_next;
-    };
-    uint16_t       rtn_keylen;
-    uint16_t       rtn_child;
-    uint8_t        rtn_keybuf[28];
-};
-
 struct route_map {
-    struct rb_root     rtm_root;
-    uint               rtm_pfxlen;
-    uint               rtm_fanout;
-    struct route_node *rtm_free;
-    struct route_node  rtm_nodev[] HSE_L1D_ALIGNED;
+    struct rb_root        rtm_root;
+    uint                  rtm_pfxlen;
+    uint                  rtm_fanout;
+    struct route_node    *rtm_free;
+    struct route_node     rtm_nodev[] HSE_L1D_ALIGNED;
 };
 
 static struct route_node *
@@ -73,11 +63,7 @@ route_map_find(struct route_map *map, const void *key, uint keylen)
     struct rb_root *root = &map->rtm_root;
     struct rb_node **link = &root->rb_node;
     struct rb_node *node = *link;
-    uint len = keylen;
     int dir = 0;
-
-    if (len > map->rtm_pfxlen)
-        len = map->rtm_pfxlen;
 
     /* The last node from which a left turn was taken in the traversal path is the
      * in-order successor of the search key.  If there was no left turn taken in
@@ -89,7 +75,7 @@ route_map_find(struct route_map *map, const void *key, uint keylen)
 
         this = rb_entry(*link, struct route_node, rtn_node);
 
-        rc = memcmp(key, this->rtn_keybuf, len);
+        rc = keycmp(key, keylen, this->rtn_keybuf, this->rtn_keylen);
 
         if (rc < 0) {
             dir = -1;
@@ -107,48 +93,36 @@ route_map_find(struct route_map *map, const void *key, uint keylen)
     return rb_entry(node, struct route_node, rtn_node);
 }
 
-uint
+struct route_node *
 route_map_lookup(struct route_map *map, const void *pfx, uint pfxlen)
+{
+    return map ? route_map_find(map, pfx, pfxlen) : NULL;
+}
+
+struct route_node *
+route_map_get(struct route_map *map, const void *pfx, uint pfxlen)
 {
     struct route_node *node;
 
     node = route_map_find(map, pfx, pfxlen);
+    if (node)
+        atomic_inc(&node->rtn_refcnt);
 
-    return node->rtn_child;
+    return node;
 }
 
-/* In a future revision of route map, the route_map_get() routine will likey take a
- * reference on the returned edge to ensure that a spill and a split/join does not
- * run concurrently on a node.
- */
-uint
-route_map_get(
-    struct route_map *map,
-    const void       *pfx,
-    uint              pfxlen,
-    void             *edge_kbuf,
-    size_t            edge_kbuf_sz,
-    uint             *edge_klen)
-{
-    struct route_node *node = route_map_find(map, pfx, pfxlen);
-
-    INVARIANT(edge_kbuf && edge_klen && edge_kbuf_sz >= node->rtn_keylen);
-
-    memcpy(edge_kbuf, node->rtn_keybuf, node->rtn_keylen);
-
-    *edge_klen = node->rtn_keylen;
-
-    return node->rtn_child;
-}
-
-/* This is a placeholder routine to drop the reference taken in route_map_get() */
 void
-route_map_put(struct route_map *map, uint cnum)
+route_map_put(struct route_map *map, struct route_node *node)
 {
+    assert(map && node);
+
+    if (atomic_dec_return(&node->rtn_refcnt) == 0) {
+        // TODO: Put on rtm_free list, but need more locking...
+    }
 }
 
 struct route_map *
-route_map_create(const struct kvs_cparams *cp, const char *kvsname)
+route_map_create(const struct kvs_cparams *cp, const char *kvsname, struct cn_tree *tree)
 {
     char path[128], buf[1024];
     uint fanout, pfxlen, skip;
@@ -167,28 +141,37 @@ route_map_create(const struct kvs_cparams *cp, const char *kvsname)
         return NULL;
 
     cc = hse_readfile(-1, path, buf, sizeof(buf), O_RDONLY);
-    if (cc < 1)
-        return NULL;
+    if (cc < 1) {
+        pfxlen = cp->pfx_len ? cp->pfx_len : 5;
+        if (pfxlen > sizeof(binkeybuf))
+            return NULL;
 
-    n = sscanf(buf, "%u%u%ms%u", &fanout, &pfxlen, &fmt, &skip);
-
-    if (n < 3 || fanout != cp->fanout || pfxlen != cp->pfx_len) {
-        log_err("fanout (%u vs %u), pfxlen (%u vs %u)",
-                fanout, cp->fanout, pfxlen, cp->pfx_len);
-        return NULL;
-    }
-
-    if (n < 4 || skip < 1)
+        /* Create binary edge keys by default with user-specified pfxlen and fanout.
+         */
+        fanout = cp->fanout;
         skip = 1;
+        fmt = NULL;
+    } else {
+        n = sscanf(buf, "%u%u%ms%u", &fanout, &pfxlen, &fmt, &skip);
 
-    if (!strcmp(fmt, "binary")) {
-        if (pfxlen > sizeof(binkeybuf)) {
-            log_err("pfxlen %u > binkeybuf %zu", pfxlen, sizeof(binkeybuf));
+        if (n < 3 || fanout != cp->fanout || pfxlen != cp->pfx_len) {
+            log_err("fanout (%u vs %u), pfxlen (%u vs %u)",
+                    fanout, cp->fanout, pfxlen, cp->pfx_len);
             return NULL;
         }
 
-        free(fmt);
-        fmt = NULL;
+        if (n < 4 || skip < 1)
+            skip = 1;
+
+        if (!strcmp(fmt, "binary")) {
+            if (pfxlen > sizeof(binkeybuf)) {
+                log_err("pfxlen %u > binkeybuf %zu", pfxlen, sizeof(binkeybuf));
+                return NULL;
+            }
+
+            free(fmt);
+            fmt = NULL;
+        }
     }
 
     sz = sizeof(*map) + sizeof(map->rtm_nodev[0]) * fanout;
@@ -248,8 +231,13 @@ route_map_create(const struct kvs_cparams *cp, const char *kvsname)
         child = childv[i];
         fmtarg = (child + 1) * skip - 1;
 
+        node->rtn_refcnt = 1;
         node->rtn_keylen = pfxlen;
         node->rtn_child = child;
+
+        assert(child < fanout);
+        node->rtn_tnode = tree->ct_root->tn_childv[child];
+        assert(node->rtn_tnode);
 
         if (fmt) {
             n = snprintf((char *)node->rtn_keybuf, sizeof(node->rtn_keybuf), fmt, fmtarg);
@@ -283,7 +271,18 @@ route_map_create(const struct kvs_cparams *cp, const char *kvsname)
 
     free(fmt);
 
-    if (!rb_first(&map->rtm_root)) {
+    if (rb_first(&map->rtm_root)) {
+        struct route_node *this;
+        struct rb_node *node;
+
+        node = rb_first(&map->rtm_root);
+        this = rb_entry(node, struct route_node, rtn_node);
+        this->rtn_isfirst = true;
+
+        node = rb_last(&map->rtm_root);
+        this = rb_entry(node, struct route_node, rtn_node);
+        this->rtn_islast = true;
+    } else {
         free(map);
         return NULL;
     }

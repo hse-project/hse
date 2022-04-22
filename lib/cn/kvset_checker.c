@@ -186,7 +186,7 @@ kc_print_reg(bool verbose, print_cb *print_func)
 static int
 kc_loc_check(struct kb_info *kb, struct key_obj *kobj, u64 *hash_out)
 {
-    u64  fullhash, pfxhash;
+    u64  fullhash;
     int  i, hashlen;
     bool err = false;
 
@@ -200,17 +200,15 @@ kc_loc_check(struct kb_info *kb, struct key_obj *kobj, u64 *hash_out)
 
     key_obj_copy(key, sizeof(key), &klen, kobj);
 
-    pfxhash = fullhash = 0;
+    fullhash = 0;
     if (klen >= kb->cp->pfx_len + kb->cp->sfx_len) {
         hashlen = klen - kb->cp->sfx_len;
         fullhash = hse_hash64(key, hashlen);
         *hash_out = fullhash;
     }
-    pfxhash = fullhash;
 
     if (kb->cp->pfx_len && kb->cp->pfx_len <= klen) {
         hashlen = kb->cp->pfx_len;
-        pfxhash = hse_hash64(key, hashlen);
     }
 
     /* [HSE_REVISIT] The kvck tool would like to verify the route of
@@ -223,13 +221,13 @@ kc_loc_check(struct kb_info *kb, struct key_obj *kobj, u64 *hash_out)
     /* Check if the key can land in this node. Verify if all relevant bits
      * of the hash lead up the right nodes to the root node.
      */
+    // TODO: Need to acquire/release cn tree lock here...
     for (i = level - 1; i >= 0; i--) {
-        u64 *hash = i >= kb->cp->pfx_pivot ? &fullhash : &pfxhash;
         u32  cnum = off & fanmask;
+        struct cn_tree_node *node;
 
-        assert(*hash);
-
-        if (cn_tree_route_lookup(kb->tree, kobj->ko_pfx, kobj->ko_pfx_len, *hash, i) != cnum) {
+        node = cn_tree_node_lookup(kb->tree, kobj->ko_pfx, kobj->ko_pfx_len);
+        if (node->tn_loc.node_offset != cnum) {
             err = true;
             lfe_err(kb, "hash: key cannot reach node %u,%u", i + 1, off);
         }

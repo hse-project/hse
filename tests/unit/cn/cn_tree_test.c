@@ -443,86 +443,6 @@ MTF_DEFINE_UTEST_PRE(test, t_simple_api, test_setup)
     cn_tree_destroy(tree);
 }
 
-/*----------------------------------------------------------------
- * Test cn_tree_find_parent_child_link() by way of cn_tree_create_node().
- */
-MTF_DEFINE_UTEST_PRE(test, t_cn_tree_create_node, test_setup)
-{
-    merr_t          err;
-    struct cn_tree *tree;
-    uint            max_depth, depth, off;
-    uint            fanout;
-    uint            api;
-
-    for (fanout = CN_FANOUT_MIN; fanout <= CN_FANOUT_MAX; fanout++) {
-        struct kvs_cparams cp = { 0 };
-
-        max_depth = cn_tree_max_depth(fanout);
-
-        cp.fanout = fanout;
-        cp.sfx_len = 0;
-        err = cn_tree_create(&tree, NULL, NULL, 0, &cp, &mock_health, rp);
-        ASSERT_EQ(err, 0);
-
-        /* create root to leaf on left side of tree */
-        for (depth = 0; depth <= max_depth; depth++) {
-            err = cn_tree_create_node(tree, depth, 0, 0);
-            ASSERT_EQ(err, 0);
-        }
-
-        /* create leaf to root */
-        for (depth = max_depth + 1; depth-- > 0;) {
-
-            /* invalid node offset. */
-            off = nodes_in_level(fanout, depth);
-            err = cn_tree_create_node(tree, depth, off, 0);
-            ASSERT_EQ(merr_errno(err), EINVAL);
-
-            /* right side of tree */
-            off = nodes_in_level(fanout, depth) - 1;
-            err = cn_tree_create_node(tree, depth, off, 0);
-            ASSERT_EQ(err, 0);
-
-            /* middle of tree */
-            if (depth > 1) {
-                off = fanout * depth - 1;
-                err = cn_tree_create_node(tree, depth, off, 0);
-                ASSERT_EQ(err, 0);
-            }
-        }
-
-        /* invalid node level */
-        err = cn_tree_create_node(tree, depth, 0, 0);
-        ASSERT_EQ(merr_errno(err), EINVAL);
-
-        cn_tree_destroy(tree);
-    }
-
-    struct kvs_cparams cp = {
-        .fanout = 16,
-    };
-
-    err = cn_tree_create(&tree, NULL, NULL, 0, &cp, &mock_health, rp);
-    ASSERT_EQ(err, 0);
-
-    cn_tree_setup(tree, mock_ds, NULL, rp, (void *)0x5678, 10, (void *)0x9abc);
-    ASSERT_EQ(0x9abc, cn_tree_get_cnkvdb(tree));
-    ASSERT_EQ(mock_ds, cn_tree_get_ds(tree));
-    ASSERT_EQ(rp, cn_tree_get_rp(tree));
-    ASSERT_EQ(0x5678, cn_tree_get_cndb(tree));
-    ASSERT_EQ(10, cn_tree_get_cnid(tree));
-    ASSERT_EQ(1 << 4, (cn_tree_get_cparams(tree))->fanout);
-
-    /* allocation failure */
-    api = mapi_idx_kmem_cache_zalloc;
-    mapi_inject_once_ptr(api, 1, NULL);
-    err = cn_tree_create_node(tree, 1, 1, 0);
-    ASSERT_EQ(merr_errno(err), ENOMEM);
-    mapi_inject_unset(api);
-
-    cn_tree_destroy(tree);
-}
-
 MTF_DEFINE_UTEST_PRE(test, t_cn_tree_ingest_update, test_setup)
 {
     struct cn_tree *         tree;
@@ -920,16 +840,8 @@ MY_TEST1(create, fanout_bits, 4, 0);
 
 MY_TEST2(test_tree, fanout_bits, 1, levels, 1, 1);
 MY_TEST2(test_tree, fanout_bits, 1, levels, 2, 1);
-MY_TEST2(test_tree, fanout_bits, 1, levels, 3, 0);
-MY_TEST2(test_tree, fanout_bits, 1, levels, 4, 0);
-
-MY_TEST2(test_tree, fanout_bits, 2, levels, 1, 0);
-MY_TEST2(test_tree, fanout_bits, 2, levels, 3, 1);
 
 MY_TEST2(test_tree, fanout_bits, 3, levels, 1, 0);
-MY_TEST2(test_tree, fanout_bits, 3, levels, 3, 0);
-
-MY_TEST2(test_tree, fanout_bits, 4, levels, 1, 0);
-MY_TEST2(test_tree, fanout_bits, 4, levels, 3, 0);
+MY_TEST2(test_tree, fanout_bits, 3, levels, 2, 1);
 
 MTF_END_UTEST_COLLECTION(test)

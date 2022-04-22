@@ -243,7 +243,7 @@ get_values:
                 pt_seq = seq;
             }
 
-            if (w->cw_drop_tombv[0] && (vtype == vtype_tomb || vtype == vtype_ptomb))
+            if (w->cw_drop_tombs && (vtype == vtype_tomb || vtype == vtype_ptomb))
                 continue; /* skip value */
         }
 

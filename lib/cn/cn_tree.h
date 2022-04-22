@@ -15,6 +15,7 @@
 /* MTF_MOCK_DECL(cn_tree) */
 
 struct cn_tree;
+struct cn_tree_node;
 struct cn_cache;
 enum cn_action;
 enum key_lookup_res;
@@ -42,24 +43,14 @@ struct cn_tstate {
     void (*ts_get)(struct cn_tstate *tstate, u32 *genp, u16 *mapv);
 };
 
-uint
-cn_tree_route_lookup(struct cn_tree *tree, const void *pfx, uint pfxlen, u64 hash, uint level);
+struct cn_tree_node *
+cn_tree_node_lookup(struct cn_tree *tree, const void *key, uint keylen);
 
-/* MTF_MOCK */
-uint
-cn_tree_route_create(struct cn_tree *tree, const void *pfx, uint pfxlen, u64 hash, uint level);
-
-uint
-cn_tree_route_get(
-    struct cn_tree *tree,
-    const void     *key,
-    uint            keylen,
-    void           *edge_kbuf,
-    size_t          edge_kbuf_sz,
-    uint           *edge_klen);
+struct route_node *
+cn_tree_route_get(struct cn_tree *tree, const void *key, uint keylen);
 
 void
-cn_tree_route_put(struct cn_tree *tree, uint cnum);
+cn_tree_route_put(struct cn_tree *tree, struct route_node *node);
 
 /* MTF_MOCK */
 merr_t

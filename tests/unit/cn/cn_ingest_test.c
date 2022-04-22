@@ -293,7 +293,7 @@ MTF_DEFINE_UTEST_PRE(cn_ingest_test, fail_cleanup, test_pre)
     struct kvset_mblocks m[1];
     uint                 n_kvsets = NELEM(m);
 
-    u32                i, k, v;
+    u32                k, v;
     merr_t             err;
     struct cn          cn = {};
     struct kvs_rparams rp;
@@ -321,17 +321,6 @@ MTF_DEFINE_UTEST_PRE(cn_ingest_test, fail_cleanup, test_pre)
     ASSERT_EQ(merr_errno(err), EBADF);
     mapi_inject(mapi_idx_kvset_create, 0);
     free_mblks(m, n_kvsets);
-
-    /* we should NOT find any kvset at node 1,n */
-    for (i = 0; i < n_kvsets; ++i) {
-        struct cn_node_loc   loc;
-        struct cn_tree_node *node;
-
-        loc.node_level = 1;
-        loc.node_offset = i;
-        node = cn_tree_find_node(cn.cn_tree, &loc);
-        ASSERT_EQ(node, NULL);
-    }
 
     cn_tree_destroy(cn.cn_tree);
 }

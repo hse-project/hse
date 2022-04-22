@@ -167,32 +167,22 @@ MTF_DEFINE_UTEST_PREPOST(cn_open_test, cn_open_rp, pre, post)
 
 MTF_DEFINE_UTEST_PREPOST(cn_open_test, cn_open_enomem, pre, post)
 {
-    merr_t     err;
+    merr_t     err = 0;
     struct cn *cn;
-    uint       i, num_allocs;
+    uint       i;
 
-    /* cn_open requires `num_allocs` memory allocations. Expose each one
-     * and verify we tested them all.
-     */
-    num_allocs = 7 + 18; /* 10 perfc set * 2 allocations per set. */
-
-    for (i = 0; i <= num_allocs; i++) {
+    for (i = 0; !err && i < 100; i++) {
 
         mapi_inject_once_ptr(mapi_idx_malloc, i + 1, 0);
 
         err = cn_open(CN_OPEN_ARGS, &cn);
-
-        if (i == num_allocs || (i > 0 && i < 19)) {
-            ASSERT_EQ(err, 0);
+        if (!err)
             cn_close(cn);
-        } else {
+        else
             ASSERT_EQ(merr_errno(err), ENOMEM);
-        }
 
         mapi_inject_unset(mapi_idx_malloc);
     }
-
-    ASSERT_EQ(err, 0);
 }
 
 MTF_DEFINE_UTEST_PREPOST(cn_open_test, cn_open_err_path, pre, post)

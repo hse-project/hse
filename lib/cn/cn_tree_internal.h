@@ -207,14 +207,6 @@ struct cn_tree_node {
 #define tn2spn(_tn) (&(_tn)->tn_sp3n)
 #define spn2tn(_spn) container_of(_spn, struct cn_tree_node, tn_sp3n)
 
-/* MTF_MOCK */
-merr_t
-cn_tree_create_node(
-    struct cn_tree *      handle,
-    uint                  node_level,
-    uint                  node_offset,
-    struct cn_tree_node **node);
-
 void
 rmlock_rlock(struct rmlock *lock, void **cookiep);
 

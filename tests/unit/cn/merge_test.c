@@ -77,7 +77,6 @@ static struct test_params {
     int  last_pt_key;
     u64  last_pt_seq;
     int  pt_count;
-    bool pt_spread;
 } tp;
 
 static void
@@ -681,17 +680,8 @@ _kvset_builder_add_key(struct kvset_builder *builder, const struct key_obj *kobj
     VERIFY_TRUE_RET(!memcmp(kdata, ref_kdata, klen), __LINE__);
 
     /* reset for next key */
-    if (tp.pt_spread && tp.last_pt_key >= 0) {
-        if (--tp.pt_count <= 0) {
-            tp.last_pt_key = -1;
-            ++tp.next_output_key;
-            tp.next_output_val = 0;
-            tp.pt_count = 0;
-        }
-    } else {
-        ++tp.next_output_key;
-        tp.next_output_val = 0;
-    }
+    tp.next_output_key++;
+    tp.next_output_val = 0;
 
     return 0;
 }
@@ -770,15 +760,7 @@ _kvset_builder_add_val_internal(
         VERIFY_EQ(0, cmp);
     }
 
-    if (tp.pt_spread && vtype == vtype_ptomb) {
-        tp.pt_count++;
-        if (tp.last_pt_key != tp.next_output_key)
-            tp.last_pt_key = tp.next_output_key;
-        if (tp.pt_count == tp.fanout)
-            ++tp.next_output_val;
-    } else {
-        ++tp.next_output_val;
-    }
+    tp.next_output_val++;
 }
 
 static merr_t
@@ -1077,8 +1059,6 @@ kv_spill_test_kvi_create(
 
 #define MODE_SPILL 0
 #define MODE_KCOMPACT 1
-#define MODE_KHASHMAP 2
-#define MODE_KHASHMAP_ERR 3
 
 static struct cn_compaction_work *
 init_work(
@@ -1094,8 +1074,9 @@ init_work(
     struct perfc_set *         pc,
     atomic_int                *cancel,
     uint                       num_outputs,
-    bool *                     drop_tomb,
+    bool                       drop_tombs,
     struct kvset_mblocks *     outputs,
+    struct cn_tree_node **     output_nodev,
     struct kvset_vblk_map *    vbm)
 {
     memset(w, 0, sizeof(*w));
@@ -1112,8 +1093,9 @@ init_work(
     w->cw_pc = pc;
     w->cw_cancel_request = cancel;
     w->cw_outc = num_outputs;
-    w->cw_drop_tombv = drop_tomb;
+    w->cw_drop_tombs = drop_tombs;
     w->cw_outv = outputs;
+    w->cw_output_nodev = output_nodev;
 
     if (vbm)
         w->cw_vbmap = *vbm;
@@ -1202,19 +1184,13 @@ run_testcase(struct mtf_test_info *lcl_ti, int mode, const char *info)
 
     struct mpool *       ds = (struct mpool *)lcl_ti;
     u32                  shift = 0;
-    bool                 drop_tombs[tp.fanout];
     struct kvset_mblocks outputs[tp.fanout];
+    struct cn_tree_node *output_nodev[tp.fanout];
     struct kvs_rparams   rp = kvs_rparams_defaults();
     int                  pfx_len = tp.pfx_len;
 
     memset(outputs, 0, sizeof(outputs));
-    for (i = 0; i < tp.fanout; i++)
-        drop_tombs[i] = tp.drop_tombs;
-
-    tp.fanout = tp.fanout;
-    tp.pt_spread = false;
-
-    rp.cn_incr_rspill = false;
+    memset(output_nodev, 0, sizeof(output_nodev));
 
     if (mode == MODE_SPILL) {
         struct cn_tree *tree;
@@ -1233,10 +1209,7 @@ run_testcase(struct mtf_test_info *lcl_ti, int mode, const char *info)
         omf_set_ts_magic(omf, CN_TSTATE_MAGIC);
         omf_set_ts_version(omf, CN_TSTATE_VERSION);
 
-        if (tp.pfx_len == 0)
-            tp.pt_spread = true;
-
-        err = cn_tree_create(&tree, &impl.tsi_tstate, NULL, 0, &cp, &health, &rp);
+        err = cn_tree_create(&tree, &impl.tsi_tstate, "kvs", 0, &cp, &health, &rp);
         ASSERT_EQ(err, 0);
         ASSERT_NE(tree, NULL);
 
@@ -1255,126 +1228,17 @@ run_testcase(struct mtf_test_info *lcl_ti, int mode, const char *info)
             0,
             &cancel,
             tp.fanout,
-            drop_tombs,
+            tp.drop_tombs,
             outputs,
+            output_nodev,
             0);
 
+        w.cw_action = CN_ACTION_SPILL;
         w.cw_cp = &cp;
 
         err = cn_spill(&w);
         ASSERT_EQ(err, 0);
         cn_tree_destroy(tree);
-    } else if (mode == MODE_KHASHMAP) {
-        struct cn_tstate_impl impl;
-        struct cn_tstate_omf *omf;
-        struct kvdb_health    health;
-        struct cn_tree *      tree;
-
-        mapi_inject_unset(mapi_idx_cn_tree_get_khashmap);
-
-        memset(&health, 0, sizeof(health));
-
-        memset(&impl, 0, sizeof(impl));
-        impl.tsi_tstate.ts_get = ts_get;
-        impl.tsi_tstate.ts_update = ts_update;
-        omf = &impl.tsi_omf;
-        omf_set_ts_magic(omf, CN_TSTATE_MAGIC);
-        omf_set_ts_version(omf, CN_TSTATE_VERSION);
-
-        struct kvs_cparams cp = {
-            .fanout = 8,
-        };
-
-        err = cn_tree_create(&tree, &impl.tsi_tstate, NULL, 0, &cp, &health, &rp);
-        ASSERT_EQ(err, 0);
-        ASSERT_NE(tree, NULL);
-
-        cn_tree_setup(tree, NULL, NULL, &rp, NULL, 1234, 0);
-
-        if (tp.pfx_len == 0)
-            tp.pt_spread = true;
-
-        init_work(
-            &w,
-            ds,
-            &rp,
-            tree,
-            tp.horizon,
-            iterc,
-            iterv,
-            shift,
-            pfx_len,
-            0,
-            &cancel,
-            tp.fanout,
-            drop_tombs,
-            outputs,
-            0);
-
-        err = cn_spill(&w);
-        ASSERT_EQ(err, 0);
-
-        if (cn_ns_keys(&w.cw_ns) > 0)
-            ASSERT_GT(omf_ts_khm_gen(omf), 0);
-        cn_tree_destroy(tree);
-        mapi_inject_ptr(mapi_idx_cn_tree_get_khashmap, NULL);
-
-    } else if (mode == MODE_KHASHMAP_ERR) {
-        struct cn_tstate_impl impl;
-        struct cn_tstate_omf *omf;
-        struct kvdb_health    health;
-        struct cn_tree *      tree;
-
-        mapi_inject_unset(mapi_idx_cn_tree_get_khashmap);
-        memset(&health, 0, sizeof(health));
-
-        memset(&impl, 0, sizeof(impl));
-        impl.tsi_tstate.ts_get = ts_get;
-        impl.tsi_tstate.ts_update = ts_update;
-        omf = &impl.tsi_omf;
-        omf_set_ts_magic(omf, CN_TSTATE_MAGIC);
-        omf_set_ts_version(omf, CN_TSTATE_VERSION);
-        impl.tsi_err = EIO;
-
-        struct kvs_cparams cp = {
-            .fanout = 8,
-        };
-
-        err = cn_tree_create(&tree, &impl.tsi_tstate, NULL, 0, &cp, &health, &rp);
-        ASSERT_EQ(err, 0);
-        ASSERT_NE(tree, NULL);
-
-        cn_tree_setup(tree, NULL, NULL, &rp, NULL, 1234, 0);
-
-        if (tp.pfx_len == 0)
-            tp.pt_spread = true;
-
-        init_work(
-            &w,
-            ds,
-            &rp,
-            tree,
-            tp.horizon,
-            iterc,
-            iterv,
-            shift,
-            pfx_len,
-            0,
-            &cancel,
-            tp.fanout,
-            drop_tombs,
-            outputs,
-            0);
-
-        err = cn_spill(&w);
-
-        if (omf_ts_khm_gen(omf) > 0)
-            ASSERT_EQ(err, impl.tsi_err);
-        else
-            ASSERT_EQ(err, 0);
-        cn_tree_destroy(tree);
-        mapi_inject_ptr(mapi_idx_cn_tree_get_khashmap, NULL);
-
     } else {
         /* kcompact */
         struct kvset_vblk_map vbm;
@@ -1410,9 +1274,12 @@ run_testcase(struct mtf_test_info *lcl_ti, int mode, const char *info)
             0,
             &cancel,
             1,
-            drop_tombs,
+            tp.drop_tombs,
             outputs,
+            output_nodev,
             &vbm);
+
+        w.cw_action = CN_ACTION_COMPACT_K;
 
         err = cn_kcompact(&w);
         ASSERT_EQ(err, 0);
@@ -1470,19 +1337,10 @@ run_all_tcases(struct mtf_test_info *lcl_ti)
         run_testcase(lcl_ti, MODE_SPILL, "spill");
 
         tp.pfx_len = tp.pfx_len >= 0 ? tp.pfx_len : 0;
-        run_testcase(lcl_ti, MODE_KHASHMAP, "spill khashmap");
-
-        tp.pfx_len = tp.pfx_len >= 0 ? tp.pfx_len : 0;
-        run_testcase(lcl_ti, MODE_KHASHMAP_ERR, "spill khashmap error");
-
-        tp.pfx_len = tp.pfx_len >= 0 ? tp.pfx_len : 0;
         run_testcase(lcl_ti, MODE_KCOMPACT, "kcompact");
 
         tp.pfx_len = tp.pfx_len >= 0 ? tp.pfx_len : 3;
         run_testcase(lcl_ti, MODE_SPILL, "spill with prefix");
-
-        tp.pfx_len = tp.pfx_len >= 0 ? tp.pfx_len : 3;
-        run_testcase(lcl_ti, MODE_KHASHMAP, "spill khashmap with prefix");
 
         teardown_tcase(lcl_ti);
     }
@@ -1585,7 +1443,6 @@ test_prehook(struct mtf_test_info *info)
     /* Neuter the following APIs */
     mapi_inject_ptr(mapi_idx_cn_tree_get_khashmap, NULL);
     mapi_inject_ptr(mapi_idx_cn_tree_get_cn, NULL);
-    mapi_inject(mapi_idx_cn_tree_route_create, 0);
     mapi_inject(mapi_idx_kvset_builder_set_merge_stats, 0);
 
     return 0;
