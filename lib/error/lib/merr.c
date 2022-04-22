@@ -8,8 +8,8 @@
 #include <hse/error/merr.h>
 
 #include <assert.h>
-#include <ctype.h>
 #include <stdint.h>
+#include <stdio.h>
 
 #include <bsd/string.h>
 

@@ -3,20 +3,20 @@
  * Copyright (C) 2015-2022 Micron Technology, Inc.  All rights reserved.
  */
 
+#include <sys/mman.h>
+
 #include <hse/error/merr.h>
+#include <hse/logging/logging.h>
 #include <hse_util/event_counter.h>
 #include <hse_util/alloc.h>
 #include <hse_util/slab.h>
 #include <hse_util/assert.h>
-#include <hse/logging/logging.h>
 #include <hse_util/bloom_filter.h>
-#include <hse/logging/logging.h>
 #include <hse_util/condvar.h>
 #include <hse_util/mutex.h>
 #include <hse_util/page.h>
 #include <hse_util/perfc.h>
 #include <hse_util/log2.h>
-#include <hse_util/mman.h>
 #include <hse_util/keycmp.h>
 #include <hse_util/compression_lz4.h>
 #include <hse_util/vlb.h>

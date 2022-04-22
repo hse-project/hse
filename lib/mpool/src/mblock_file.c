@@ -4,12 +4,13 @@
  */
 
 #include <ftw.h>
+#include <sys/mman.h>
 
+#include <hse/logging/logging.h>
 #include <hse_util/platform.h>
 #include <hse_util/assert.h>
 #include <hse_util/mutex.h>
 #include <hse_util/slab.h>
-#include <hse/logging/logging.h>
 #include <hse_util/event_counter.h>
 #include <hse_util/minmax.h>
 #include <hse_util/log2.h>

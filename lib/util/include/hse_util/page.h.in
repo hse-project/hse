@@ -1,18 +1,14 @@
 /* SPDX-License-Identifier: Apache-2.0 */
 /*
- * Copyright (C) 2015-2020 Micron Technology, Inc.  All rights reserved.
+ * Copyright (C) 2015-2022 Micron Technology, Inc.  All rights reserved.
  */
 
 #ifndef HSE_PLATFORM_PAGE_H
 #define HSE_PLATFORM_PAGE_H
 
-#include <hse_util/base.h>
-#include <hse_util/mman.h>
-
-#define SECTOR_SHIFT 9
-#define PAGE_SHIFT 12
-#define PAGE_SIZE (1UL << PAGE_SHIFT)
+#define PAGE_SIZE @PAGE_SIZE@UL
 #define PAGE_MASK (~(PAGE_SIZE - 1))
+#define SECTOR_SHIFT 9
 
 /* Align @x upward to @mask. Value of @mask should be one less
  * than a power of two (e.g., 0x0001ffff).

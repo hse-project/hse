@@ -20,6 +20,7 @@ cmake = import('cmake', required: false, disabler: true)
 
 bash = find_program('bash', required: get_option('tests'))
 sh = find_program('sh') # write POSIX-compliant when easily doable
+getconf = find_program('getconf', required: false, native: true)
 
 ci = run_command(sh, '-c', '[ ${CI+x} ]', check: false).returncode() == 0
 
@@ -108,14 +109,24 @@ else
     )
 endif
 
-level1_dcache_linesize = run_command(
-    'getconf',
-    'LEVEL1_DCACHE_LINESIZE',
-    check: true
-).stdout().strip()
+if not meson.is_cross_build() and getconf.found()
+    level1_dcache_linesize = run_command(
+        getconf,
+        'LEVEL1_DCACHE_LINESIZE',
+        check: true
+    ).stdout().strip()
 
-if level1_dcache_linesize.contains('undefined')
-   level1_dcache_linesize = 64
+    if level1_dcache_linesize.contains('undefined')
+        level1_dcache_linesize = 64
+    else
+        level1_dcache_linesize = level1_dcache_linesize.to_int()
+    endif
+else
+    level1_dcache_linesize = meson.get_external_property(
+        'level1-dcache-linesize',
+        64,
+        native: not meson.is_cross_build()
+    )
 endif
 
 if get_option('omf-byte-order') != 'native'

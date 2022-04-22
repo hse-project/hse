@@ -1,10 +1,14 @@
 /* SPDX-License-Identifier: Apache-2.0 */
 /*
- * Copyright (C) 2021 Micron Technology, Inc.  All rights reserved.
+ * Copyright (C) 2021-2022 Micron Technology, Inc.  All rights reserved.
  */
 
 #ifndef MPOOL_LIMITS_H
 #define MPOOL_LIMITS_H
+
+#include <stdint.h>
+
+#include <hse_util/storage.h>
 
 #define MPOOL_MBLOCK_SIZE_MIN          (2ul << MB_SHIFT)
 #define MPOOL_MBLOCK_SIZE_MAX          (1024ul << MB_SHIFT)

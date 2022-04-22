@@ -3,6 +3,8 @@
  * Copyright (C) 2022 Micron Technology, Inc.  All rights reserved.
  */
 
+#include <sys/mman.h>
+
 #include <hse_util/event_counter.h>
 #include <hse_util/assert.h>
 #include <hse_util/keycmp.h>

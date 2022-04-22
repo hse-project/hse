@@ -1,11 +1,13 @@
 /* SPDX-License-Identifier: Apache-2.0 */
 /*
- * Copyright (C) 2015-2021 Micron Technology, Inc.  All rights reserved.
+ * Copyright (C) 2015-2022 Micron Technology, Inc.  All rights reserved.
  */
 
+#include <sys/mman.h>
+
 #include <hse_util/arch.h>
-#include <hse_util/page.h>
 #include <hse_util/cursor_heap.h>
+#include <hse_util/page.h>
 
 #include "cheap_testlib.h"
 
@@ -431,63 +433,6 @@ MTF_DEFINE_UTEST(cheap_test, cheap_test_trim)
      */
     sz = rss(h, maxpg, vec);
     ASSERT_EQ(sz, maxpg * PAGE_SIZE);
-
-#if MADV_FREE == MADV_DONTNEED
-
-    /* Trim one page.
-     */
-    cheap_trim(h, (maxpg - 1) * PAGE_SIZE);
-    sz = rss(h, maxpg, vec);
-    ASSERT_EQ(sz, (maxpg - 1) * PAGE_SIZE);
-    ASSERT_EQ(0, vec[maxpg - 1] & 0x01);
-
-    /* Trim to half, then check that at most half the pages
-     * are resident.
-     */
-    cheap_trim(h, (maxpg / 2) * PAGE_SIZE);
-    sz = rss(h, maxpg, vec);
-    ASSERT_EQ(sz, (maxpg / 2) * PAGE_SIZE);
-    ASSERT_EQ(0, vec[maxpg / 2] & 0x01);
-
-    /* Trim to half (again), then check that at most half the pages
-     * are still resident.
-     */
-    cheap_trim(h, (maxpg / 2) * PAGE_SIZE);
-    sz = rss(h, maxpg, vec);
-    ASSERT_EQ(sz, (maxpg / 2) * PAGE_SIZE);
-    ASSERT_EQ(0, vec[maxpg / 2] & 0x01);
-
-    /* Trim to a quarter, then check that at most one quarter
-     * of the pages are resident.
-     */
-    cheap_trim(h, (maxpg / 4) * PAGE_SIZE);
-    sz = rss(h, maxpg, vec);
-    ASSERT_EQ(sz, (maxpg / 4) * PAGE_SIZE);
-    ASSERT_EQ(0, vec[maxpg / 4] & 0x01);
-
-    /* Trim to half (again), then check that at most one quarter
-     * of the pages are still resident.
-     */
-    cheap_trim(h, (maxpg / 2) * PAGE_SIZE);
-    sz = rss(h, maxpg, vec);
-    ASSERT_EQ(sz, (maxpg / 4) * PAGE_SIZE);
-    ASSERT_EQ(0, vec[maxpg / 4] & 0x01);
-
-    /* Trim to zero, then check that at most one page is resident.
-     */
-    cheap_trim(h, 0);
-    sz = rss(h, maxpg, vec);
-    ASSERT_EQ(sz, PAGE_SIZE);
-    ASSERT_EQ(1, vec[0] & 0x01);
-
-    /* Trim to half, then check that at most one page is resident.
-     */
-    cheap_trim(h, (maxpg / 2) * PAGE_SIZE);
-    sz = rss(h, maxpg, vec);
-    ASSERT_EQ(sz, PAGE_SIZE);
-    ASSERT_EQ(1, vec[0] & 0x01);
-
-#endif
 
     cheap_destroy(h);
 }
