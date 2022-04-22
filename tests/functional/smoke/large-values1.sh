@@ -11,7 +11,7 @@
 trap kvdb_drop EXIT
 kvdb_create
 
-kvs=$(kvs_create smoke-0) || exit $?
+kvs=$(kvs_create smoke-0)
 
 # This test depends on having 1MiB values in vblocks at offsets that are not
 # page-aligned.  Using a small number of value lengths make that a frequent

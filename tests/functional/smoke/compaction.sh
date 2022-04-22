@@ -2,7 +2,7 @@
 
 # SPDX-License-Identifier: Apache-2.0
 #
-# Copyright (C) 2021 Micron Technology, Inc. All rights reserved.
+# Copyright (C) 2021-2022 Micron Technology, Inc. All rights reserved.
 
 #doc: test cn tree spill, k-compaction and kv-compaction
 
@@ -14,7 +14,7 @@ kvdb_create
 counter=0
 
 setup () {
-    kvs=$(kvs_create "smoke-$counter") || exit $?
+    kvs=$(kvs_create "smoke-$counter")
     counter=$((counter+1))
 
     # first 6 kvsets have keys 0..999

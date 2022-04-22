@@ -2,7 +2,7 @@
 
 # SPDX-License-Identifier: Apache-2.0
 #
-# Copyright (C) 2021 Micron Technology, Inc. All rights reserved.
+# Copyright (C) 2021-2022 Micron Technology, Inc. All rights reserved.
 
 #doc: test to verify kvs drop functionality, specifically testing the edge condition where the last transactions are completely removed.
 
@@ -13,8 +13,8 @@ kvdb_create
 
 keys=10
 
-kvs=$(kvs_create smoke-0) || exit $?
-kvs2=$(kvs_create smoke-1) || exit $?
+kvs=$(kvs_create smoke-0)
+kvs2=$(kvs_create smoke-1)
 
 cmd putbin "-c$keys" "$home" "$kvs"
 cmd putbin "-c$keys" "$home" "$kvs2"
@@ -23,7 +23,7 @@ cmd putbin "-c$keys" "$home" "$kvs2"
 cmd putbin -V "-c$keys" "$home" "$kvs"
 cmd putbin -V "-c$keys" "$home" "$kvs2"
 
-kvs_drop "$kvs2" || exit $?
+kvs_drop "$kvs2"
 
 # validate cndb and that cnid 1 keys exist
 cmd putbin -V "-c$keys" "$home" "$kvs"

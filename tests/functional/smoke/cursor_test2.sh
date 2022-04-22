@@ -11,7 +11,7 @@
 trap kvdb_drop EXIT
 kvdb_create
 
-kvs=$(kvs_create smoke-0 prefix.length=8) || $?
+kvs=$(kvs_create smoke-0 prefix.length=8)
 
 # Load
 nthread=$(($(nproc) / 4 + 3))

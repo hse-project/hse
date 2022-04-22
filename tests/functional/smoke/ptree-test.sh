@@ -2,7 +2,7 @@
 
 # SPDX-License-Identifier: Apache-2.0
 #
-# Copyright (C) 2021 Micron Technology, Inc. All rights reserved.
+# Copyright (C) 2021-2022 Micron Technology, Inc. All rights reserved.
 
 #doc: test ptree semantics
 
@@ -11,7 +11,7 @@
 trap kvdb_drop EXIT
 kvdb_create
 
-kvs=$(kvs_create smoke-0 prefix.length=8) || exit $?
+kvs=$(kvs_create smoke-0 prefix.length=8)
 
 # Test 1: Should result in 2 kblocks
 keys=1300000
