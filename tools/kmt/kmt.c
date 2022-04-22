@@ -3200,7 +3200,7 @@ status(
             width_tad = n;
 
         if (xstats) {
-            sz = (rusage.ru_inblock | rusage.ru_oublock) / 1000;
+            sz = ((rusage.ru_inblock | rusage.ru_oublock) * 512) >> 20;
             n = snprintf(NULL, 0, "%*zu", width_xstats, sz * 2);
             if (n > width_xstats)
                 width_xstats = n;
@@ -3226,8 +3226,8 @@ status(
             "MODE",
             width_td, "TD",
             "OP",
-            width_xstats, xstats ? "tINBLK" : "tGETMB",
-            width_xstats, xstats ? "tOUBLK" : "tPUTMB",
+            width_xstats, xstats ? "tINMB" : "tGETMB",
+            width_xstats, xstats ? "tOUMB" : "tPUTMB",
             width_tbfg, txn ? "tBEGIN" : mongo ? "tFIND" : "tGET",
             width_tcup, txn ? "tCOMMIT" : mongo ? "tUPSERT" : "tPUT",
             width_tad, txn ? "tABORT" : mongo ? "tDELETE" : "tDEL",
@@ -3312,8 +3312,8 @@ status(
                 instv->mode,
                 width_td, inst->tid,
                 op2txt[inst->stats.op],
-                width_xstats, xstats ? rusage.ru_inblock / 1000 : (getbytes_now >> 20),
-                width_xstats, xstats ? rusage.ru_oublock / 1000 : (putbytes_now >> 20),
+                width_xstats, (xstats ? (rusage.ru_inblock * 512u) : getbytes_now) >> 20,
+                width_xstats, (xstats ? (rusage.ru_oublock * 512u) : putbytes_now) >> 20,
                 width_tbfg, txn ? begin_now : get_now,
                 width_tcup, txn ? commit_now : put_now,
                 width_tad, txn ? abort_now : del_now,
@@ -3351,8 +3351,8 @@ status(
         instv->mode,
         width_td, nthreads,
         "all",
-        width_xstats, xstats ? rusage.ru_inblock / 1000 : (getbytes_total >> 20),
-        width_xstats, xstats ? rusage.ru_oublock / 1000 : (putbytes_total >> 20),
+        width_xstats, (xstats ? (rusage.ru_inblock * 512u) : getbytes_total) >> 20,
+        width_xstats, (xstats ? (rusage.ru_oublock * 512u) : putbytes_total) >> 20,
         width_tbfg, txn ? begin_total : get_total,
         width_tcup, txn ? commit_total : put_total,
         width_tad, txn ? abort_total : del_total,
@@ -3365,8 +3365,8 @@ status(
         width_sync, avg_sync_latency_us,
         width_secs, total_ms,
         xstats ? 7 : 10, tv_now.tv_sec - (xstats ? tv_init.tv_sec : 0),
-        getbytes_total ? (double)(rusage.ru_inblock * 4096) / getbytes_total : 0,
-        putbytes_total ? (double)(rusage.ru_oublock * 4096) / putbytes_total : 0);
+        getbytes_total ? (double)(rusage.ru_inblock * 512) / getbytes_total : 0,
+        putbytes_total ? (double)(rusage.ru_oublock * 512) / putbytes_total : 0);
 
     if (mark >= 1000)
         fflush(stdout);
