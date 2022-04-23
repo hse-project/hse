@@ -204,18 +204,7 @@ cn_node_alloc(struct cn_tree *tree, uint level, uint offset)
     tn->tn_loc.node_level = level;
     tn->tn_loc.node_offset = offset;
 
-    {
-        /* Compute max node size */
-        u64 scale;
-        u64 hi = tree->rp->cn_node_size_hi << 20;
-        u64 lo = tree->rp->cn_node_size_lo << 20;
-        u64 nodes = nodes_in_level(tree->ct_fanout, level);
-
-        /* Scale by large value (1<<20) to get adequate resolution. */
-        assert(nodes);
-        scale = (tn->tn_loc.node_offset << 20) / nodes;
-        tn->tn_size_max = lo + ((scale * (hi - lo)) >> 20);
-    }
+    tn->tn_size_max = tree->rp->cn_node_size_hi;
 
     return tn;
 }
@@ -278,7 +267,6 @@ cn_tree_create(
     tree->ct_fanout = cp->fanout;
     tree->ct_pfx_len = cp->pfx_len;
     tree->ct_sfx_len = cp->sfx_len;
-    tree->ct_depth_max = cn_tree_max_depth(tree->ct_fanout);
     tree->ct_kvdb_health = health;
     tree->rp = rp;
 
@@ -1779,9 +1767,8 @@ cn_comp_commit(struct cn_compaction_work *w)
             assert(node);
             km.km_compc = 0;
             km.km_node_level = node->tn_loc.node_level;
-            km.km_node_offset =
-                node_nth_child_offset(w->cw_tree->ct_fanout, &w->cw_node->tn_loc,
-                    node->tn_loc.node_offset);
+            km.km_node_offset = node->tn_loc.node_offset;
+
         } else {
             struct kvset_list_entry *le = w->cw_mark;
 

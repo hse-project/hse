@@ -1055,11 +1055,10 @@ cn_open(
     }
 
     log_info(
-        "%s/%s cnid %lu fanout %u pfx_len %u depth %u/%u"
+        "%s/%s cnid %lu fanout %u pfx_len %u"
         " kb %lu%c/%lu vb %lu%c/%lu %s%s%s%s%s%s",
         cn->cn_kvdb_alias, cn->cn_kvsname, (ulong)cnid,
         cn->cp->fanout, cn->cp->pfx_len,
-        ctx.ckmk_node_level_max, cn_tree_max_depth(cn->cp->fanout),
         ksz >> (kshift * 10), *kszsuf, kcnt,
         vsz >> (vshift * 10), *vszsuf, vcnt,
         rp->mclass_policy,
