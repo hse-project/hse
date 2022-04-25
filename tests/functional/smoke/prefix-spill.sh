@@ -2,7 +2,7 @@
 
 # SPDX-License-Identifier: Apache-2.0
 #
-# Copyright (C) 2021 Micron Technology, Inc. All rights reserved.
+# Copyright (C) 2021-2022 Micron Technology, Inc. All rights reserved.
 
 #doc: use putbin to spill and test get
 
@@ -12,9 +12,9 @@ trap kvdb_drop EXIT
 kvdb_create
 
 # add 3 KVSes to the KVDB
-kvs0=$(kvs_create smoke-0) || exit $?
-kvs1=$(kvs_create smoke-1 prefix.length=2) || exit $?
-kvs2=$(kvs_create smoke-2 prefix.length=3) || exit $?
+kvs0=$(kvs_create smoke-0)
+kvs1=$(kvs_create smoke-1 prefix.length=2)
+kvs2=$(kvs_create smoke-2 prefix.length=3)
 
 keys=70000
 

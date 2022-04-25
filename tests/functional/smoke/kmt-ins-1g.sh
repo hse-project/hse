@@ -2,7 +2,7 @@
 
 # SPDX-License-Identifier: Apache-2.0
 #
-# Copyright (C) 2021 Micron Technology, Inc. All rights reserved.
+# Copyright (C) 2021-2022 Micron Technology, Inc. All rights reserved.
 
 #doc: kmt/kvdb insert test: 1 billion 20-byte keys with 50-byte values
 
@@ -11,7 +11,7 @@
 trap kvdb_drop EXIT
 kvdb_create
 
-kvs=$(kvs_create smoke-0) || $?
+kvs=$(kvs_create smoke-0)
 
 threads=$(( 2 * $(nproc) ))
 keys=1g

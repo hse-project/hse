@@ -13,7 +13,7 @@ kvdb_create
 
 keys=10
 
-kvs=$(kvs_create smoke-0) || $?
+kvs=$(kvs_create smoke-0)
 
 sp='[[:space:]]'
 

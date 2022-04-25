@@ -2,7 +2,7 @@
 
 # SPDX-License-Identifier: Apache-2.0
 #
-# Copyright (C) 2021 Micron Technology, Inc. All rights reserved.
+# Copyright (C) 2021-2022 Micron Technology, Inc. All rights reserved.
 
 # This test creates a small kvs in which all keys start with an "x"
 # (the primary prefix) followed by one of 13 secondary prefixes,
@@ -16,7 +16,7 @@
 trap kvdb_drop EXIT
 kvdb_create
 
-kvs=$(kvs_create smoke-0) || exit $?
+kvs=$(kvs_create smoke-0)
 
 typeset -i pfxmax=12
 typeset -i total=0

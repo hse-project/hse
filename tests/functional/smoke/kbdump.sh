@@ -2,7 +2,7 @@
 
 # SPDX-License-Identifier: Apache-2.0
 #
-# Copyright (C) 2021 Micron Technology, Inc. All rights reserved.
+# Copyright (C) 2021-2022 Micron Technology, Inc. All rights reserved.
 
 #doc: cn_kbdump test
 
@@ -20,7 +20,7 @@ trap cleanup EXIT
 kvdb_create
 
 keys=1000
-kvs=$(kvs_create smoke-0) || exit $?
+kvs=$(kvs_create smoke-0)
 cmd simple_client "$home" "$kvs" -c "$keys" -v
 
 kbid=$(cn_metrics "$home" "$kvs" | awk '$1 == "k" {print $16}')

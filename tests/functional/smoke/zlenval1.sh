@@ -2,7 +2,7 @@
 
 # SPDX-License-Identifier: Apache-2.0
 #
-# Copyright (C) 2021 Micron Technology, Inc. All rights reserved.
+# Copyright (C) 2021-2022 Micron Technology, Inc. All rights reserved.
 
 #doc: use putgetdel to test zero-length values
 
@@ -12,7 +12,7 @@ trap kvdb_drop EXIT
 kvdb_create
 
 keys=100
-kvs=$(kvs_create smoke-0) || exit $?
+kvs=$(kvs_create smoke-0)
 
 # Six step test:
 # - Put keys with 0-byte values

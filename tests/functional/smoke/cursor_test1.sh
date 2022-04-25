@@ -2,7 +2,7 @@
 
 # SPDX-License-Identifier: Apache-2.0
 #
-# Copyright (C) 2021 Micron Technology, Inc. All rights reserved.
+# Copyright (C) 2021-2022 Micron Technology, Inc. All rights reserved.
 
 . common.subr
 
@@ -10,7 +10,7 @@ trap kvdb_drop EXIT
 kvdb_create
 
 # add a KVS to the KVDB
-kvs=$(kvs_create smoke-0) || exit $?
+kvs=$(kvs_create smoke-0)
 
 # 1. Create 10000 cursors spread across 20 threads - each thread gets a few
 #    cursors

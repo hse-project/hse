@@ -2,7 +2,7 @@
 
 # SPDX-License-Identifier: Apache-2.0
 #
-# Copyright (C) 2021 Micron Technology, Inc. All rights reserved.
+# Copyright (C) 2021-2022 Micron Technology, Inc. All rights reserved.
 
 #doc: quick longtest focused on cn
 
@@ -11,8 +11,7 @@
 trap kvdb_drop EXIT
 kvdb_create
 
-# add 3 KVSes to the KVDB
-kvs=$(kvs_create smoke-1) || exit $?
+kvs=$(kvs_create smoke-0)
 
 threads=4
 keys=100000

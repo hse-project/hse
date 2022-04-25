@@ -2,7 +2,7 @@
 
 # SPDX-License-Identifier: Apache-2.0
 #
-# Copyright (C) 2021 Micron Technology, Inc. All rights reserved.
+# Copyright (C) 2021-2022 Micron Technology, Inc. All rights reserved.
 
 #doc: test edges of key_immediate and key_disc
 
@@ -24,7 +24,7 @@ key_formats=(
 counter=0
 
 for fmt in "${key_formats[@]}"; do
-    kvs=$(kvs_create "smoke-$counter") || $?
+    kvs=$(kvs_create "smoke-$counter")
     counter=$((counter+1))
     cmd kmt -s1 -c -f "$fmt" -j3 -i16 -t30 "$home" "$kvs"
     cmd kmt -s1 -c -f "$fmt" "$home" "$kvs"

@@ -14,10 +14,10 @@ kvdb_create
 jobs=$(($(nproc) / 4 + 3))
 recmax=$((128 * jobs))
 
-kvs1=$(kvs_create smoke-0) || $?
-kvs2=$(kvs_create smoke-1) || $?
-kvs3=$(kvs_create smoke-2) || $?
-kvs4=$(kvs_create smoke-3) || $?
+kvs1=$(kvs_create smoke-0)
+kvs2=$(kvs_create smoke-1)
+kvs3=$(kvs_create smoke-2)
+kvs4=$(kvs_create smoke-3)
 
 cmd kmt -i "$recmax" -t10 -c -j"$jobs" -w50 "$home" "$kvs1"
 cmd kmt -t10 -cD -j"$jobs" -w50 "$home" "$kvs1" kvs-oparms cn_verify=true

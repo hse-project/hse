@@ -2,7 +2,7 @@
 
 # SPDX-License-Identifier: Apache-2.0
 #
-# Copyright (C) 2021 Micron Technology, Inc. All rights reserved.
+# Copyright (C) 2021-2022 Micron Technology, Inc. All rights reserved.
 
 # Prefix trees switch from prefix spilling to full key spilling when
 # spilling from a level with at least 1024 nodes;
@@ -68,7 +68,7 @@ for fanout in 2 4 8 16; do
         *) exit 2;;
     esac
 
-    kvs=$(kvs_create smoke-"$fanout" prefix.length=4 fanout="$fanout") || exit $?
+    kvs=$(kvs_create smoke-"$fanout" prefix.length=4 fanout="$fanout")
 
 
     cmd kmt -j32 -f 'xxxx%016lx' "-l$vlen:$vlen" -s1 "-i$nkeys" "$home" "$kvs" "${oparms[@]}"
