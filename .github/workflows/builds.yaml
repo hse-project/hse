@@ -111,8 +111,9 @@ jobs:
 
       - name: Setup
         run: |
-          meson builddir -Dbuildtype=${{ matrix.buildtype }} -Dtools=enabled \
-            -Ddocs=disabled -Dbindings=all -Dwerror=true
+          meson builddir --fatal-meson-warnings -Dwerror=true \
+            -Dbuildtype=${{ matrix.buildtype }} -Dtools=enabled \
+            -Ddocs=disabled -Dbindings=all
 
       - name: Build
         run: |
@@ -194,11 +195,10 @@ jobs:
           dnf install -y clang
 
       - name: Setup
-        # Add --fatal-meson-warnings back in 0.62.1
         run: |
-          meson builddir -Dbuildtype=${{ matrix.buildtype }} \
-            -Dtools=enabled -Dpmem=enabled \
-            -Ddocs=disabled -Dbindings=all -Dwerror=true
+          meson builddir --fatal-meson-warnings -Dwerror=true\
+            -Dbuildtype=${{ matrix.buildtype }} -Dtools=enabled -Dpmem=enabled \
+            -Ddocs=disabled -Dbindings=all
 
       - name: Build
         run: |
@@ -281,7 +281,8 @@ jobs:
 
       - name: Setup
         run: |
-          meson builddir -Dbuildtype=${{ matrix.buildtype }} -Dtools=enabled \
+          meson builddir --fatal-meson-warnings -Dwerror=true \
+            -Dbuildtype=${{ matrix.buildtype }} -Dtools=enabled \
             -Ddocs=disabled -Dbindings=all
 
       - name: Build
@@ -352,9 +353,10 @@ jobs:
 
       - name: Setup
         run: |
-          meson builddir --cross-file cross/${{ matrix.arch }}.ini \
-            --cross-file cross/common.ini -Dbuildtype=${{ matrix.buildtype }} \
-            -Dtools=enabled -Ddocs=disabled -Dbindings=all -Dwerror=true
+          meson builddir --fatal-meson-warnings -Dwerror=true --cross-file \
+            cross/${{ matrix.arch }}.ini --cross-file cross/common.ini \
+            -Dbuildtype=${{ matrix.buildtype }} -Dtools=enabled \
+            -Ddocs=disabled -Dbindings=all
 
       - name: Build
         run: |
@@ -414,9 +416,9 @@ jobs:
 
       - name: Setup
         run: |
-          meson builddir -Dbuildtype=${{ matrix.buildtype }} \
-            -Db_sanitize=address,undefined -Dwerror=true -Dtools=enabled \
-            -Ddocs=disabled -Dbindings=all
+          meson builddir -Dwerror=true -Dbuildtype=${{ matrix.buildtype }} \
+            -Db_sanitize=address,undefined -Dtools=enabled -Ddocs=disabled \
+            -Dbindings=all
 
       - name: Build
         run: |
@@ -472,8 +474,9 @@ jobs:
 
       - name: Setup
         run: |
-          meson builddir -Dwrap_mode=forcefallback -Dtools=enabled \
-            -Ddocs=disabled -Dbindings=all -Dwerror=true
+          meson builddir --fatal-meson-warnings -Dwerror=true \
+            -Dwrap_mode=forcefallback -Dtools=enabled -Ddocs=disabled \
+            -Dbindings=all
 
       - name: Build
         run: |
