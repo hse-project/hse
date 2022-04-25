@@ -61,8 +61,9 @@ jobs:
 
       - name: Setup
         run: |
-          meson builddir -Dbuildtype=${{ matrix.buildtype }} -Dtools=enabled \
-            -Ddocs=disabled -Dbindings=all -Dwerror=true
+          meson builddir --fatal-meson-warnings -Dwerror=true \
+            -Dbuildtype=${{ matrix.buildtype }} -Dtools=enabled \
+            -Ddocs=disabled -Dbindings=all
 
       - name: Test
         run: |
