@@ -109,7 +109,7 @@ foreach t, params : tests
             hse_cli_symlink,
         ],
         env: environment({
-            'HSE_TEST_RUNNER_RUNNER': 'shell',
+            'HSE_TEST_RUNNER_RUNNER': 'bash',
         }),
         suite: ['functional', 'cli']
     )
