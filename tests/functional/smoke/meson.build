@@ -281,7 +281,7 @@ foreach t, params : tests
             params.get('depends', []),
         ],
         env: environment({
-            'HSE_TEST_RUNNER_RUNNER': 'shell',
+            'HSE_TEST_RUNNER_RUNNER': 'bash',
         })
     )
 endforeach
