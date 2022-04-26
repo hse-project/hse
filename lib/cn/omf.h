@@ -224,8 +224,6 @@ struct wbt_lfe_omf {
 OMF_SETGET(struct wbt_lfe_omf, lfe_koff, 16)
 OMF_SETGET(struct wbt_lfe_omf, lfe_kmd, 16)
 
-/* GCOV_EXCL_STOP */
-
 /*****************************************************************
  *
  * Vblock header OMF

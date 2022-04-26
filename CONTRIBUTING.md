@@ -234,3 +234,15 @@ ninja -C build git-hooks
 
 Either of the above commands will ensure that Git hooks are properly setup for
 the project.
+
+### Coverage
+
+HSE uses `gcovr` to get code coverage. To enable coverage and get the coverage
+reports run the following:
+
+```shell
+meson build --buildtype=debug -Db_coverage=true
+meson compile -C build
+meson test -C build --setup=ci
+meson compile gcovr-{html,text,json,xml} -C build
+```
