@@ -23,6 +23,10 @@
 #include <sys/statvfs.h>
 #include <sys/time.h>
 #include <sys/uio.h>
+#include <sys/vfs.h>
+#if __linux__
+#include <linux/magic.h>
+#endif
 
 /* We use 128KiB writes in all cases */
 #define PROF_BLOCK_SIZE            (128u * 1024)
@@ -53,6 +57,7 @@ struct storage_profile_work {
     uint64_t  file_sz;
     uint64_t  block_sz;
     int       rc;
+    bool      tmpfs;
     uint64_t *samples;
 };
 
@@ -148,7 +153,9 @@ profile_worker(void *rock)
 
     snprintf(fname, sizeof(fname), "%s-%d-%d", "profile-file", work->thrcnt, work->index);
 
-    flags = O_CREAT | O_EXCL | O_DIRECT | O_SYNC | O_RDWR;
+    flags = O_CREAT | O_EXCL | O_SYNC | O_RDWR;
+    flags |= (work->tmpfs ? 0 : O_DIRECT);
+
     fd = openat(dirfd, fname, flags, S_IRUSR | S_IWUSR);
     if (fd < 0) {
         work->rc = errno;
@@ -215,8 +222,10 @@ perform_profile_run(
     struct storage_profile_work *work_specs;
     struct storage_prof_stat stats;
     struct itimerval timer = {0};
+    struct statfs sbuf;
     const uint32_t samples_per_thread = (file_sz / block_sz);
     int      i, j, rc = 0;
+    bool     tmpfs;
     uint64_t sum, tot_samples;
     double   tmp, var_sum;
     double   mean;
@@ -231,6 +240,13 @@ perform_profile_run(
     if (!work_specs)
         return ENOMEM;
 
+    rc = fstatfs(dirfd, &sbuf);
+    if (rc == -1) {
+        rc = errno;
+        goto err_exit;
+    }
+    tmpfs = (sbuf.f_type == TMPFS_MAGIC);
+
     /* prepare the per-thread data */
     for (i = 0; i < thread_cnt; ++i) {
         work_specs[i].dirfd = dirfd;
@@ -238,6 +254,7 @@ perform_profile_run(
         work_specs[i].thrcnt = thread_cnt;
         work_specs[i].file_sz = file_sz;
         work_specs[i].block_sz = block_sz;
+        work_specs[i].tmpfs = tmpfs;
         work_specs[i].rc = 0;
 
         work_specs[i].samples = malloc(samples_per_thread * sizeof(double));
