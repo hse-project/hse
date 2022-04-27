@@ -30,8 +30,8 @@
 const char *progname;
 
 struct thread_info {
-    uint64_t              sfx_start;
-    uint64_t              sfx_end;
+    uint64_t key_start;
+    uint64_t key_end;
 } HSE_ACP_ALIGNED;
 
 enum lat_type {
@@ -56,29 +56,29 @@ enum phase {
 struct opts {
     char *blens;
     char *vsep;
-    uint threads;
-    uint phase;
-    uint nsfx;
-    uint vlen;
-    uint npfx;
-    uint duration;
-    uint range;
-    bool verify;
-    bool use_update;
-    uint warmup;
+    uint  threads;
+    uint  phase;
+    uint  nkeys;
+    uint  vlen;
+    uint  duration;
+    uint  range;
+    bool  verify;
+    bool  use_update;
+    uint  warmup;
     char *tests;
+    char *keyfmt;
 } opts = {
     .threads = 96,
     .phase = NONE,
-    .nsfx = 1000 * 1000,
     .vlen  = 1024,
-    .npfx  = 8,
+    .nkeys  = 100,
     .duration = 300,
     .range = 42,
     .verify = false,
     .use_update = false,
     .warmup = false,
     .tests = "cursor,get",
+    .keyfmt = NULL, /* binary keys */
 };
 
 static volatile bool stopthreads HSE_ACP_ALIGNED;
@@ -126,15 +126,25 @@ xrand64(void)
     return xoroshiro128plus(xrand64_state);
 }
 
+uint
+make_key(int idx, char *kbuf, size_t kbufsz)
+{
+    uint64_t *k = (void *)kbuf;
+
+    if (opts.keyfmt)
+        return snprintf(kbuf, kbufsz, opts.keyfmt, idx);
+
+    *k = htobe64(idx);
+    return sizeof(*k);
+}
+
 void
 loader(void *arg)
 {
     struct thread_arg    *targ = arg;
     struct thread_info   *ti = targ->arg;
-    uint64_t             *p = 0; /* prefix */
-    uint64_t             *s = 0; /* suffix */
-    int                   i, j;
-    char                  key[sizeof(*p) + sizeof(*s)];
+    int                   i;
+    char                  kbuf[HSE_KVS_KEY_LEN_MAX] = {};
     unsigned char        *val;
     u64                   nwrite;
 
@@ -145,37 +155,27 @@ loader(void *arg)
     memset(val, 0xfe, opts.vlen);
     pthread_setname_np(pthread_self(), __func__);
 
-    p  = (uint64_t *)key;
-    s  = p + 1;
     nwrite = 0;
+    for (i = ti->key_start; i < ti->key_end; i++) {
+        int rc;
+        size_t klen = make_key(i, kbuf, sizeof(kbuf));
 
-    for (i = 0; i < opts.npfx; i++) {
-        *p = htobe64(i);
+        rc = hse_kvs_put(targ->kvs, 0, NULL, kbuf, klen, val, opts.vlen);
+        if (rc)
+            fatal(rc, "Put failed");
 
-        for (j = ti->sfx_start; j < ti->sfx_end; j++) {
-            int rc;
-
-            *s = htobe64(j);
-
-            rc = hse_kvs_put(targ->kvs, 0, NULL, key, sizeof(key),
-                             val, opts.vlen);
-            if (rc)
-                fatal(rc, "Put failed");
-
-            if (++nwrite % 1024 == 0)
-                atomic_add(&n_write, 1024);
-        }
+        if (++nwrite % 1024 == 0)
+            atomic_add(&n_write, 1024);
     }
 
     atomic_add(&n_write, nwrite & 1023);
     free(val);
 }
 
-void
-rand_key(u64 *pfx, u64 *sfx)
+u64
+rand_key()
 {
-    *pfx = xrand64() % opts.npfx;
-    *sfx = xrand64() % opts.nsfx;
+    return xrand64() % opts.nkeys;
 }
 
 void
@@ -185,9 +185,7 @@ point_get(void *arg)
     struct lat_hist      *lat = targ->arg;
     unsigned char        *vbuf;
     size_t                vlen;
-    uint64_t             *p = 0; /* prefix */
-    uint64_t             *s = 0; /* suffix */
-    char                  kbuf[sizeof(*p) + sizeof(*s)];
+    char                  kbuf[HSE_KVS_KEY_LEN_MAX] = {};
 
     u64                   nget;
     pthread_t             tid = pthread_self();
@@ -199,25 +197,20 @@ point_get(void *arg)
     if (!vbuf)
         fatal(ENOMEM, "Failed to allocate resources for point-get thread");
 
-    p  = (uint64_t *)kbuf;
-    s  = p + 1;
-
     nget = 0;
     while (!stopthreads) {
-        uint64_t           pfx, sfx;
-        int                i, inc = 1;
-        bool               found;
-        u64                t_start, dt;
+        bool found;
+        u64  t_start, dt, i, key_start;
+        uint klen;
 
-        rand_key(&pfx, &sfx);
+        key_start = rand_key();
 
-        *p = htobe64(pfx);
         t_start = get_time_ns();
-        for (i = 0; i < opts.range && sfx < opts.nsfx; i++, sfx += inc) {
+        for (i = key_start; i < opts.range && i < opts.nkeys; i++) {
             merr_t err;
 
-            *s = htobe64(sfx);
-            err = hse_kvs_get(targ->kvs, 0, 0, kbuf, sizeof(kbuf), &found, vbuf, opts.vlen, &vlen);
+            klen = make_key(i, kbuf, sizeof(kbuf));
+            err = hse_kvs_get(targ->kvs, 0, 0, kbuf, klen, &found, vbuf, opts.vlen, &vlen);
             if (err)
                 fatal(err, "error");
             if (!found)
@@ -239,16 +232,13 @@ cursor(void *arg)
 {
     struct thread_arg    *targ = arg;
     struct lat_hist      *lat = targ->arg;
-    unsigned char         kbuf[2 * sizeof(uint64_t)];
+    char                  kbuf[HSE_KVS_KEY_LEN_MAX] = {};
+    uint                  kbuf_klen;
     unsigned char        *vbuf;
-    uint64_t             *p = (void *)kbuf;
-    uint64_t             *s = p + 1;
     bool                  eof = false;
 
     u64                   nread;
     pthread_t             tid = pthread_self();
-
-    struct hse_kvs_cursor *cur[opts.npfx];
 
     xrand64_init(tid);
     pthread_setname_np(tid, __func__);
@@ -257,41 +247,28 @@ cursor(void *arg)
     if (!vbuf)
         fatal(ENOMEM, "Failed to allocate resources for cursor thread");
 
-    if (opts.use_update) {
-        for (int i = 0; i < opts.npfx; i++) {
-            *p = htobe64(i);
-            cur[i] = kh_cursor_create(targ->kvs, 0, NULL, kbuf, sizeof(*p));
-        }
-    }
-
     nread = 0;
     while (!stopthreads) {
-        uint64_t           pfx, sfx;
-        int                i, inc = 1;
-        u64                t_start;
-        u64                t_create, t_seek, t_read, t_full;
+        int i;
+        u64 t_start;
+        u64 t_create, t_seek, t_read, t_full;
+        u64 key_start;
+
         struct hse_kvs_cursor *c;
 
-        rand_key(&pfx, &sfx);
-        *p = htobe64(pfx);
-        *s = htobe64(sfx);
+        key_start = rand_key();
 
         t_start = get_time_ns();
-
-        if (opts.use_update) {
-            c = cur[pfx];
-            kh_cursor_update_view(cur[pfx], 0);
-        } else {
-            c = cur[0] = kh_cursor_create(targ->kvs, 0, NULL, kbuf, sizeof(*p));
-        }
+        c = kh_cursor_create(targ->kvs, 0, NULL, NULL, 0);
 
         t_create = get_time_ns();
 
-        kh_cursor_seek(c, kbuf, sizeof(kbuf));
+        kbuf_klen = make_key(key_start, kbuf, sizeof(kbuf));
+        kh_cursor_seek(c, kbuf, kbuf_klen);
         t_seek = get_time_ns();
 
         /* read the range of keys */
-        for (i = 0; i < opts.range; i++, sfx += inc) {
+        for (i = key_start; i < opts.range; i++) {
             const void *key, *val;
             size_t      klen, vlen;
 
@@ -306,18 +283,13 @@ cursor(void *arg)
                 continue;
 
             /* verify keys */
-            *s = htobe64(sfx);
-            if (HSE_UNLIKELY(klen != sizeof(kbuf) || memcmp(key, kbuf, klen)))
-                fatal(ENOKEY, "unexpected key. Expected %lu-%lu "
-                      "Got %lu-%lu\n", pfx, sfx,
-                      be64toh(*(uint64_t *)key),
-                      be64toh(*((uint64_t *)key + 1)));
+            kbuf_klen = make_key(i, kbuf, sizeof(kbuf));
+            if (HSE_UNLIKELY(klen != kbuf_klen || memcmp(key, kbuf, klen)))
+                fatal(ENOKEY, "Incorrect key\n");
         }
         t_read = get_time_ns();
 
-        if (!opts.use_update)
-            kh_cursor_destroy(c);
-
+        kh_cursor_destroy(c);
         t_full = get_time_ns();
 
         hdr_record_value(lat->lat[LAT_CUR_CREATE], t_create - t_start);
@@ -328,13 +300,6 @@ cursor(void *arg)
 
     atomic_add(&n_read, nread & 1023);
     free(vbuf);
-
-    if (opts.use_update) {
-        int i;
-
-        for (i = 0; i < NELEM(cur); i++)
-            kh_cursor_destroy(cur[i]);
-    }
 }
 
 void
@@ -393,11 +358,11 @@ usage(void)
         "-c vsep    string to separate values in log file (default: [%s])\n"
         "-d dur     Duration of exec in seconds (default: %u)\n"
         "-e         Exec\n"
+        "-f keyfmt  Key format (default: %s)\n"
         "-h         Print this help menu\n"
         "-j jobs    Number of threads (default: %u)\n"
         "-l         Load\n"
-        "-p npfx    Number of prefixes (default: %u)\n"
-        "-s nsfx    Number of suffixes per prefix (default: %u)\n"
+        "-n nkeys   Number of keys (default: %u)\n"
         "-T tests   List of tests to run (default: \"%s\")\n"
         "-u         Reuse cursor (default: %s)\n"
         "-V         Verify data (default: %s)\n"
@@ -405,9 +370,9 @@ usage(void)
         "-w         Warmup the cache (default: %s)\n"
         "-Z config  path to global config file\n"
         "\n",
-        progname, opts.vsep, opts.duration, opts.threads,
-        opts.npfx, opts.nsfx,
-        opts.tests, opts.use_update ? "true" : "false",
+        progname, opts.vsep,
+        opts.duration,  opts.keyfmt ?: "binary", opts.nkeys,
+        opts.threads, opts.tests, opts.use_update ? "true" : "false",
         opts.verify ? "true" : "false",
         opts.vlen, opts.warmup ? "true" : "false");
 
@@ -471,8 +436,10 @@ main(
     const char         *mpool, *kvs, *config = NULL;
     int                 c;
     struct thread_info *ti = 0;
-    bool                freet = false;
     void               *blens_base HSE_MAYBE_UNUSED = NULL;
+    void               *keyfmt_base HSE_MAYBE_UNUSED = NULL;
+    void               *tests_base HSE_MAYBE_UNUSED = NULL;
+    void               *vsep_base HSE_MAYBE_UNUSED = NULL;
 
     progname = basename(argv[0]);
 
@@ -482,7 +449,7 @@ main(
 
     opts.vsep = ",";
 
-    while ((c = getopt(argc, argv, ":b:c:d:ehj:lp:s:T:uVv:wZ:")) != -1) {
+    while ((c = getopt(argc, argv, ":b:c:d:ef:hj:ln:T:uVv:wZ:")) != -1) {
         char *errmsg, *end;
 
         errmsg = end = NULL;
@@ -496,6 +463,7 @@ main(
             break;
         case 'c':
             opts.vsep = strdup(optarg);
+            vsep_base = opts.vsep;
             errmsg = "invalid value separator";
             break;
         case 'd':
@@ -504,6 +472,12 @@ main(
             break;
         case 'e':
             opts.phase |= EXEC;
+            break;
+        case 'f':
+            if (strcmp(optarg, "binary")) {
+                opts.keyfmt = strdup(optarg);
+                keyfmt_base = opts.keyfmt;
+            }
             break;
         case 'h':
             usage();
@@ -515,18 +489,14 @@ main(
         case 'l':
             opts.phase |= LOAD;
             break;
-        case 'p':
-            opts.npfx = strtoul(optarg, &end, 0);
-            errmsg = "invalid number of prefixes";
-            break;
-        case 's':
-            opts.nsfx = strtoul(optarg, &end, 0);
-            errmsg = "invalid number of suffixes";
+        case 'n':
+            opts.nkeys = strtoul(optarg, &end, 0);
+            errmsg = "invalid number of keys";
             break;
         case 'T':
             opts.tests = strdup(optarg);
+            tests_base = opts.tests;
             errmsg = "invalid tests";
-            freet = true;
             break;
         case 'u':
             opts.use_update = true;
@@ -603,25 +573,20 @@ main(
     }
 
     if (opts.phase & LOAD) {
-        uint thread_share;
-        uint thread_extra;
-        uint tot_keys;
+        uint thread_share = opts.nkeys / opts.threads;
+        uint thread_extra = opts.nkeys % opts.threads;
 
-        thread_share = opts.nsfx / opts.threads;
-        thread_extra = opts.nsfx % opts.threads;
-
-        tot_keys = opts.npfx * opts.nsfx;
         ti = malloc(opts.threads * sizeof(*ti));
         if (!ti)
             fatal(ENOMEM, "Cannot allocate memory for thread data");
 
         /* distribute suffixes across jobs */
         for (int i = 0; i < opts.threads; i++) {
-            ti[i].sfx_start = thread_share * i;
-            ti[i].sfx_end   = ti[i].sfx_start + thread_share;
+            ti[i].key_start = thread_share * i;
+            ti[i].key_end   = ti[i].key_start + thread_share;
 
             if (i == opts.threads - 1)
-                ti[i].sfx_end += thread_extra;
+                ti[i].key_end += thread_extra;
         }
 
         /* Start all the loaders in a detached state so we can have them
@@ -631,7 +596,7 @@ main(
         for (int i = 0; i < opts.threads; i++)
             kh_register_kvs(kvs, 0, &kvs_cparms, &kvs_oparms, &loader, &ti[i]);
 
-        while (atomic_read(&n_write) < tot_keys)
+        while (atomic_read(&n_write) < opts.nkeys)
             sleep(5);
     }
 
@@ -650,14 +615,12 @@ main(
         if (opts.warmup) {
             long tot_mem;
             uint warmup_nkeys;
-            uint tot_keys;
 
             stopthreads = false;
 
             tot_mem = system_memory();
             warmup_nkeys = tot_mem / (opts.vlen + (2 * sizeof(uint64_t)));
-            tot_keys = opts.npfx * opts.nsfx;
-            warmup_nkeys = warmup_nkeys < tot_keys ? warmup_nkeys : tot_keys;
+            warmup_nkeys = warmup_nkeys < opts.nkeys ? warmup_nkeys : opts.nkeys;
             warmup_nkeys = (warmup_nkeys * 3) / 2;
 
             /* 1. Warm up mcache using point gets */
@@ -710,9 +673,7 @@ main(
                 atomic_set(&n_get, 0);
                 atomic_set(&n_read, 0);
 
-                printf("%s: npfx %u nsfx %u burstlen %u\n",
-                       op[j].opname, opts.npfx, opts.nsfx, opts.range);
-
+                printf("%s: nkeys %u burstlen %u\n", op[j].opname, opts.nkeys, opts.range);
                 stopthreads = false;
 
                 kh_register(0, &print_stats, 0);
@@ -755,8 +716,9 @@ main(
 
     free(ti);
     free(blens_base);
-    if (freet)
-        free(opts.tests);
+    free(keyfmt_base);
+    free(tests_base);
+    free(vsep_base);
 
     pg_destroy(pg);
 	svec_reset(&hse_gparms);
