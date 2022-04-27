@@ -249,18 +249,26 @@ key_obj_copy(void *kbuf, size_t kbuf_sz, uint *klen, const struct key_obj *kobj)
     if (kbuf_sz < keylen) {
         uint bytes;
 
-        if (kbuf_sz < kobj->ko_pfx_len)
+        if (kbuf_sz <= kobj->ko_pfx_len)
             return memcpy(kbuf, kobj->ko_pfx, kbuf_sz);
+
+        if (kobj->ko_pfx_len)
+            memcpy(kbuf, kobj->ko_pfx, kobj->ko_pfx_len);
 
         bytes = kbuf_sz - kobj->ko_pfx_len;
         assert(bytes < kobj->ko_sfx_len);
 
-        memcpy(kbuf + kobj->ko_pfx_len, kobj->ko_sfx, bytes);
+        if (bytes)
+            memcpy(kbuf + kobj->ko_pfx_len, kobj->ko_sfx, bytes);
         return kbuf;
     }
 
-    memcpy(kbuf, kobj->ko_pfx, kobj->ko_pfx_len);
-    memcpy(kbuf + kobj->ko_pfx_len, kobj->ko_sfx, kobj->ko_sfx_len);
+    if (kobj->ko_pfx_len)
+        memcpy(kbuf, kobj->ko_pfx, kobj->ko_pfx_len);
+
+    if (kobj->ko_sfx_len)
+        memcpy(kbuf + kobj->ko_pfx_len, kobj->ko_sfx, kobj->ko_sfx_len);
+
     return kbuf;
 }
 

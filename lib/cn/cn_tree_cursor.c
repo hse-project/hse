@@ -135,6 +135,9 @@ kvref_tab_putref(void *arg)
     }
 }
 
+static bool
+cn_tree_lcur_read(struct element_source *, void **);
+
 MTF_STATIC merr_t
 cn_tree_lcur_init(
     struct cn_level_cursor *lcur)
@@ -151,6 +154,7 @@ cn_tree_lcur_init(
     merr_t err;
 
     lcur->cnlc_iterc = 0;
+    lcur->cnlc_es = es_make(cn_tree_lcur_read, 0, 0);
 
     /* Grow element source array if necessary.
      */
@@ -226,6 +230,10 @@ cn_tree_cursor_create(struct cn_cursor *cur)
         }
     }
 
+    cur->cncur_flags = kvset_iter_flag_mcache;
+    if (cur->cncur_reverse)
+        cur->cncur_flags |= kvset_iter_flag_reverse;
+
     lcur = &cur->cncur_lcur[0];
 
     rmlock_rlock(&tree->ct_lock, &lock);
@@ -281,9 +289,6 @@ cn_tree_cursor_destroy(struct cn_cursor *cur)
     bin_heap2_destroy(cur->cncur_bh);
 }
 
-static bool
-cn_tree_lcur_read(struct element_source *, void **);
-
 MTF_STATIC merr_t
 cn_tree_lcur_seek(
     struct cn_level_cursor *lcur,
@@ -304,7 +309,6 @@ cn_tree_lcur_seek(
     }
 
     err = bin_heap2_prepare(lcur->cnlc_bh, lcur->cnlc_iterc, lcur->cnlc_esrcv);
-    lcur->cnlc_es = es_make(cn_tree_lcur_read, 0, 0);
 
     return err;
 }
@@ -430,12 +434,12 @@ cn_tree_cursor_seek(
     table_apply(lcur->cnlc_kvref_tab, kvref_tab_putref);
     table_reset(lcur->cnlc_kvref_tab);
 
-    rtn_curr = route_map_lookup(tree->ct_route_map, key, len);
+    rtn_curr = route_map_lookup(tree->ct_route_map, key, len-1);
 
     do {
         if (!first_pass)
             rtn_curr = reverse ? route_node_prev(rtn_curr) :
-                                                         route_node_next(rtn_curr);
+                                 route_node_next(rtn_curr);
 
         first_pass = false;
         lcur->cnlc_islast = reverse ? route_node_isfirst(rtn_curr) :
@@ -461,10 +465,6 @@ cn_tree_cursor_seek(
     err = cn_tree_lcur_init(lcur);
     if (ev(err))
         return err;
-
-    cur->cncur_flags = kvset_iter_flag_mcache;
-    if (reverse)
-        cur->cncur_flags |= kvset_iter_flag_reverse;
 
     /* Prepare iters and binheaps.
      */
@@ -613,7 +613,7 @@ cur_item_pfx_cmp(struct cn_cursor *cur, struct cn_kv_item *item)
 
 /* When bin_heap2_pop() is called, it moves the underlying iterators forward. This could cause the
  * level 1 iterator to cross nodes, which involves releasing its resources and acquiring new ones
- * for the new node. This crossover must happen before cn_tree_cursor_read() reads from an item from
+ * for the new node. This crossover must happen before cn_tree_cursor_read() uses an item from
  * the binheap.
  *
  * This ensures that the pointers in item will remain valid until the next call to
@@ -626,7 +626,7 @@ static void
 cn_tree_cursor_advance_safe(struct cn_cursor *cur)
 {
     struct kvset *ks;
-    struct cn_kv_item item, *popme;
+    struct cn_kv_item item, *popme = NULL;
 
     bin_heap2_peek(cur->cncur_bh, (void **)&popme);
     assert(popme); /* This is the key read at the last cursor read. */

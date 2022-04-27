@@ -47,6 +47,13 @@ struct key_iter {
     char          kdata[];
 };
 
+void *
+key_iter_next(struct key_iter *curr)
+{
+    curr = (void *)curr + ALIGN((sizeof(*curr) + curr->klen), 8);
+    return curr;
+}
+
 #define BUF_SIZE (128 << 20)
 
 int
@@ -56,7 +63,7 @@ pre_collection(struct mtf_test_info *lcl_ti)
 
     /* Set up key list */
     key_list.bufsz = BUF_SIZE;
-    key_list.buf = malloc(key_list.bufsz);
+    key_list.buf = aligned_alloc(8, key_list.bufsz);
     ASSERT_NE_RET(NULL, key_list.buf, 1);
 
     return 0;
@@ -119,15 +126,16 @@ bool
 add_key(struct key_list *kl, void *key, size_t klen)
 {
     struct key_iter *k;
+    size_t sz = ALIGN((sizeof(*k) + klen), 8);
 
-    if (kl->buf_used + sizeof(*k) + klen > kl->bufsz)
+    if (kl->buf_used + sz > kl->bufsz)
         return false;
 
     k = kl->buf + kl->buf_used;
     k->klen = klen;
     memcpy(k->kdata, key, klen);
 
-    kl->buf_used += sizeof(*k) + klen;
+    kl->buf_used += sz;
     kl->nkeys++;
 
     return true;
@@ -155,7 +163,7 @@ tree_construct(struct mtf_test_info *lcl_ti, void **tree_out, struct wbt_hdr_omf
         wbb_add_entry(wbb, &ko, 1, kmd, kmd_used, max_pgc, &wbt_pgc, &added);
         ASSERT_TRUE_RET(added, 1);
         kmd_used = 0;
-        k = (void *)k + sizeof(*k) + k->klen;
+        k = key_iter_next(k);
     }
 
     err = wbb_freeze(wbb, hdr, max_pgc, &wbt_pgc, iov, sizeof(iov), &iov_cnt);
@@ -244,7 +252,7 @@ cursor_verify(
             ASSERT_FALSE_RET(found, 1);
         }
 
-        k = (void *)k + sizeof(*k) + k->klen;
+        k = key_iter_next(k);
     }
 
     return 0;
@@ -293,7 +301,7 @@ get_verify(struct mtf_test_info *lcl_ti, void *tree, struct wbt_hdr_omf *hdr, st
         else
             ASSERT_NE_RET(FOUND_VAL, lookup_res, 1);
 
-        k = (void *)k + sizeof(*k) + k->klen;
+        k = key_iter_next(k);
     }
 
     return 0;
@@ -353,7 +361,7 @@ MTF_DEFINE_UTEST_PREPOST(wbt_test, one_key, pre_test, post_test)
     struct key_list ql = { 0 }; /* query list */
 
     ql.bufsz = 2 * BUF_SIZE;
-    ql.buf = malloc(ql.bufsz);
+    ql.buf = aligned_alloc(8, ql.bufsz);
     ASSERT_NE(NULL, ql.buf);
 
     for (i = 0; i < 3; i++) {
@@ -537,7 +545,7 @@ MTF_DEFINE_UTEST_PREPOST(wbt_test, skip_keys, pre_test, post_test)
 
     memset(buf, 0xfe, sizeof(buf));
     ql.bufsz = 2 * BUF_SIZE;
-    ql.buf = malloc(ql.bufsz);
+    ql.buf = aligned_alloc(8, ql.bufsz);
     ASSERT_NE(NULL, ql.buf);
 
     for (i = 0; i < 2 * nkeys; i++) {

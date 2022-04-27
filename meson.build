@@ -462,8 +462,6 @@ endif
 gcovr = find_program('gcovr', required: get_option('b_coverage'))
 if gcovr.found() and get_option('b_coverage') and get_option('tests')
 
-    run_command('mkdir', '-p', join_paths(meson.build_root(), 'coverage'), check: true)
-
     reports = {
         'text': [ '-o' ],
         'html': [ '--html', '--html-details', '-o' ],
@@ -480,12 +478,12 @@ if gcovr.found() and get_option('b_coverage') and get_option('tests')
                 '@SOURCE_ROOT@',
                 '@BUILD_ROOT@',
                 args,
-                '@BUILD_ROOT@/coverage/@OUTPUT@',
+                '@BUILD_ROOT@/@OUTPUT@',
                 '-f',
                 '@SOURCE_ROOT@/lib'
             ],
             depends: unit_test_exes,
-            output: 'coverage.@0@'.format(type),
+            output: 'coverage.@0@'.format(type)
         )
     endforeach
 endif

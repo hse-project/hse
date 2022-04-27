@@ -49,9 +49,23 @@ struct route_node {
 };
 
 
+/**
+ * route_map_lookup() - Return a node for which its edge key is greater than or equal to %pfx
+ *
+ * @map:    Route map handle
+ * @pfx:    Prefix being looked up
+ * @pfxlen: Length of %pfx
+ */
 struct route_node *
 route_map_lookup(struct route_map *map, const void *pfx, uint pfxlen);
 
+/**
+ * route_map_lookupGT() - Return a node for which its edge key is strictly greater than %pfx
+ *
+ * @map:    Route map handle
+ * @pfx:    Prefix being looked up
+ * @pfxlen: Length of %pfx
+ */
 struct route_node *
 route_map_lookupGT(struct route_map *map, const void *pfx, uint pfxlen);
 

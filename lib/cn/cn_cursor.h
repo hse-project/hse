@@ -33,15 +33,15 @@ struct cn_level_cursor {
     struct table           *cnlc_kvref_tab;
     struct bin_heap2       *cnlc_bh;
     size_t                  cnlc_bh_max_cnt;
-    u32                     cnlc_iterc;
+    uint32_t                cnlc_iterc;
     uint                    cnlc_level;
     struct kv_iterator    **cnlc_iterv;
     struct cn_kv_item       cnlc_item;
     struct element_source **cnlc_esrcv;
     size_t                  cnlc_esrcc;
     struct cn_cursor       *cnlc_cncur;
-    u64                     cnlc_dgen_hi;
-    u64                     cnlc_dgen_lo;
+    uint64_t                cnlc_dgen_hi;
+    uint64_t                cnlc_dgen_lo;
     bool                    cnlc_islast;
 
     uint                    cnlc_next_eklen;
@@ -50,25 +50,26 @@ struct cn_level_cursor {
 
 /**
  * struct cn_cursor - allocated prefix scan context, including output buffer
- * @cncur_bh:                how to merge iterators
- * @cncur_iterc:             number of kvsets referenced
- * @cncur_iterv:             kvset iterator vector
- * @cncur_esrcv:             element source vector
- * @cncur_cn:                cn this cursor operates upon
+ * @cncur_es:          element source for the kvs cursor
+ * @cncur_cn:          cn this cursor operates upon
+ * @cncur_bh:          how to merge iterators
+ * @cncur_iterc:       number of kvsets referenced
+ * @cncur_iterv:       kvset iterator vector
+ * @cncur_esrcv:       element source vector
  * @cncur_summary:
- * @cncur_pfx:        prefix is saved here
- * @cncur_pfxlen:    length of the prefix
+ * @cncur_pfx:         prefix is saved here
+ * @cncur_pfxlen:      length of the prefix
  * @cncur_tree_pfxlen: length of the tree prefix
  * @cncur_merr:        if cursor is in error state, this is why
- * @cncur_dgen:              max dgen in this scan
- * @cncur_seqno:             view sequence number for this cursor
- * @cncur_reverse:           reverse iterator: 1=yes 0=no
- * @cncur_eof:               cursor is at eof: 1=yes 0=no
- * @cncur_pt_set:            if the ptomb in cncur_pt_kobj, if there is one, is relevant.
- * @cncur_stats:             metrics for this scan; exists lifetime of cursor
+ * @cncur_dgen:        max dgen in this scan
+ * @cncur_seqno:       view sequence number for this cursor
+ * @cncur_reverse:     reverse iterator: 1=yes 0=no
+ * @cncur_eof:         cursor is at eof: 1=yes 0=no
+ * @cncur_pt_set:      if the ptomb in cncur_pt_kobj, if there is one, is relevant.
+ * @cncur_stats:       metrics for this scan; exists lifetime of cursor
  * @cncur_filter:
- * @cncur_pt_kobj:           ptomb key obj (key in kblk OR pt_buf[] right after cur update)
- * @cncur_pt_seq:            ptomb's seqno
+ * @cncur_pt_kobj:     ptomb key obj (key in kblk OR pt_buf[] right after cur update)
+ * @cncur_pt_seq:      ptomb's seqno
  */
 struct cn_cursor {
     struct element_source   cncur_es;
@@ -77,56 +78,56 @@ struct cn_cursor {
     struct bin_heap2       *cncur_bh;
 
     struct cn_level_cursor cncur_lcur[NUM_LEVELS];
-    u32                    cncur_iterc;
+    uint32_t               cncur_iterc;
 
     struct element_source  *cncur_esrcv[NUM_LEVELS];
     struct cursor_summary * cncur_summary;
     const void *            cncur_pfx;
-    u32                     cncur_pfxlen;
-    u32                     cncur_tree_pfxlen;
-    u64                     cncur_merr;
-    u64                     cncur_dgen;
-    u64                     cncur_seqno;
+    uint32_t                cncur_pfxlen;
+    uint32_t                cncur_tree_pfxlen;
+    merr_t                  cncur_merr;
+    uint64_t                cncur_dgen;
+    uint64_t                cncur_seqno;
     enum kvset_iter_flags   cncur_flags;
 
     struct kvs_cursor_element cncur_elem;
 
     /* bitflags */
-    u32 cncur_reverse : 1;
-    u32 cncur_eof : 1;
-    u32 cncur_pt_set : 1;
-    u32 cncur_pt_level : 1;
-    u32 cncur_first_read : 1;
-    u32 cncur_seek_root : 1;
+    uint32_t cncur_reverse : 1;
+    uint32_t cncur_eof : 1;
+    uint32_t cncur_pt_set : 1;
+    uint32_t cncur_pt_level : 1;
+    uint32_t cncur_first_read : 1;
+    uint32_t cncur_seek_root : 1;
 
     struct cn_merge_stats cncur_stats;
     struct kc_filter *    cncur_filter;
 
     struct key_obj cncur_pt_kobj;
-    u64            cncur_pt_seq;
+    uint64_t       cncur_pt_seq;
 };
 
 /* MTF_MOCK */
 merr_t
 cn_cursor_create(
     struct cn *            cn,
-    u64                    seqno,
+    uint64_t               seqno,
     bool                   reverse,
     const void *           prefix,
-    u32                    len,
+    uint32_t               len,
     struct cursor_summary *summary,
     struct cn_cursor **    cursorp);
 
 /* MTF_MOCK */
 merr_t
-cn_cursor_update(struct cn_cursor *cursor, u64 seqno, bool *updated);
+cn_cursor_update(struct cn_cursor *cursor, uint64_t seqno, bool *updated);
 
 /* MTF_MOCK */
 merr_t
 cn_cursor_seek(
     struct cn_cursor * cursor,
     const void *       prefix,
-    u32                len,
+    uint32_t           len,
     struct kc_filter * filter);
 
 /* MTF_MOCK */
@@ -139,7 +140,7 @@ cn_cursor_destroy(struct cn_cursor *cursor);
 
 /* MTF_MOCK */
 merr_t
-cn_cursor_active_kvsets(struct cn_cursor *cursor, u32 *active, u32 *total);
+cn_cursor_active_kvsets(struct cn_cursor *cursor, uint32_t *active, uint32_t *total);
 
 /* MTF_MOCK */
 struct element_source *

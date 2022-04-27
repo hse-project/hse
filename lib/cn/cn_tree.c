@@ -77,61 +77,6 @@ struct kvstarts {
     int               pt_start;
 };
 
-#if 0
-/**
- * kvset_iter_release_work -
- */
-struct kir_work {
-    struct work_struct  kir_work;
-    uint                kir_iterc;
-    struct kv_iterator *kir_iterv[];
-};
-
-static void
-kvset_iterv_release_cb(struct work_struct *work)
-{
-    struct kir_work *w;
-    uint             i;
-
-    w = container_of(work, struct kir_work, kir_work);
-
-    for (i = 0; i < w->kir_iterc; ++i)
-        kvset_iter_release(w->kir_iterv[i]);
-
-    free(work);
-}
-
-static void
-kvset_iterv_release(uint iterc, struct kv_iterator **iterv, struct workqueue_struct *wq)
-{
-    struct kir_work *w;
-
-    size_t sz, itervsz;
-    uint   i;
-
-    if (!iterc)
-        return;
-
-    if (wq) {
-        itervsz = sizeof(w->kir_iterv[0]) * iterc;
-        sz = sizeof(*w) + itervsz;
-
-        w = malloc(sz);
-        if (w) {
-            INIT_WORK(&w->kir_work, kvset_iterv_release_cb);
-            w->kir_iterc = iterc;
-            memcpy(w->kir_iterv, iterv, itervsz);
-
-            queue_work(wq, &w->kir_work);
-            return;
-        }
-    }
-
-    for (i = 0; i < iterc; ++i)
-        kvset_iter_release(iterv[i]);
-    ev(1);
-}
-#endif
 
 static void
 cn_setname(const char *name)

@@ -193,7 +193,9 @@ ref_tree_iter_create(struct ref_tree *rt, char *pfx, size_t pfxlen, bool reverse
     it->view_seq = view_seq;
     it->reverse = reverse;
     it->pfxlen = pfxlen;
-    memcpy(it->pfx, pfx, pfxlen);
+
+    if (pfxlen)
+        memcpy(it->pfx, pfx, pfxlen);
 
     it->curr = NULL;
     it->eof = false;
@@ -251,11 +253,6 @@ ref_tree_iter_read(struct ref_tree_iter *rt_iter, char **key, size_t *klen)
     }
 
     return !rt_iter->eof;
-}
-
-void
-ref_tree_iter_update(struct ref_tree_iter *rt_iter, uint64_t view_seq)
-{
 }
 
 

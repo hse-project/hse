@@ -36,9 +36,6 @@ bool
 ref_tree_iter_read(struct ref_tree_iter *rt_iter, char **key, size_t *klen);
 
 void
-ref_tree_iter_update(struct ref_tree_iter *rt_iter, uint64_t view_seq);
-
-void
 ref_tree_iter_destroy(struct ref_tree_iter *rt_iter);
 
 #endif

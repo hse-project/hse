@@ -20,6 +20,7 @@
 struct cn_kv_item;
 
 struct cn_tree tree;
+struct kv_iterator dummy_kviter;
 
 void *
 _cn_get_tree(const struct cn *cn)
@@ -85,6 +86,7 @@ _bin_heap2_pop(struct bin_heap2 *bh, void **item)
     curr->item.vctx.kmd = curr;
     curr->item.vctx.next = 0;
     curr->item.vctx.nvals = 1;
+    curr->item.src = &dummy_kviter.kvi_es;
 
     *item = &curr->item;
     curr = curr->next;
@@ -103,6 +105,7 @@ _bin_heap2_peek(struct bin_heap2 *bh, void **item)
     curr->item.vctx.kmd = curr;
     curr->item.vctx.next = 0;
     curr->item.vctx.nvals = 1;
+    curr->item.src = &dummy_kviter.kvi_es;
     curr->item.vctx.is_ptomb = (curr->vtype == vtype_ptomb);
 
     *item = &curr->item;
@@ -526,3 +529,5 @@ MTF_DEFINE_UTEST_PREPOST(cn_tree_cursor_test, with_ptomb, pre_test, post_test)
 }
 
 MTF_END_UTEST_COLLECTION(cn_tree_cursor_test)
+
+#pragma pop_macro("kvset_cursor_es_h2r")

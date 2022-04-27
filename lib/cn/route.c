@@ -92,7 +92,6 @@ route_map_find(struct route_map *map, const void *key, uint keylen, bool gt)
         }
     }
 
-    node = gt ? rb_next(node) : node;
     return rb_entry(node, struct route_node, rtn_node);
 }
 
