@@ -434,7 +434,7 @@ cn_tree_cursor_seek(
     table_apply(lcur->cnlc_kvref_tab, kvref_tab_putref);
     table_reset(lcur->cnlc_kvref_tab);
 
-    rtn_curr = route_map_lookup(tree->ct_route_map, key, len-1);
+    rtn_curr = route_map_lookup(tree->ct_route_map, key, len);
 
     do {
         if (!first_pass)
@@ -490,9 +490,8 @@ cn_tree_cursor_seek(
     cur->cncur_seek_root = 0;
     cur->cncur_eof = cur->cncur_iterc ? false : true;
     cur->cncur_pt_set = 0;
-    err = bin_heap2_prepare(cur->cncur_bh, cur->cncur_iterc, cur->cncur_esrcv);
 
-    return err;
+    return bin_heap2_prepare(cur->cncur_bh, cur->cncur_iterc, cur->cncur_esrcv);
 }
 
 merr_t

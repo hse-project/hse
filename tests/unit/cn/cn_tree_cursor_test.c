@@ -529,5 +529,3 @@ MTF_DEFINE_UTEST_PREPOST(cn_tree_cursor_test, with_ptomb, pre_test, post_test)
 }
 
 MTF_END_UTEST_COLLECTION(cn_tree_cursor_test)
-
-#pragma pop_macro("kvset_cursor_es_h2r")

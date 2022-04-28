@@ -268,7 +268,7 @@ cursor(void *arg)
         t_seek = get_time_ns();
 
         /* read the range of keys */
-        for (i = key_start; i < opts.range; i++) {
+        for (i = key_start; i < key_start + opts.range; i++) {
             const void *key, *val;
             size_t      klen, vlen;
 
