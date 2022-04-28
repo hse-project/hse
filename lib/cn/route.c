@@ -186,9 +186,8 @@ route_map_create(const struct kvs_cparams *cp, const char *kvsname, struct cn_tr
     } else {
         n = sscanf(buf, "%u%u%ms%u", &fanout, &pfxlen, &fmt, &skip);
 
-        if (n < 3 || fanout != cp->fanout || pfxlen != cp->pfx_len) {
-            log_err("fanout (%u vs %u), pfxlen (%u vs %u)",
-                    fanout, cp->fanout, pfxlen, cp->pfx_len);
+        if (n < 3 || fanout != cp->fanout) {
+            log_err("fanout (%u vs %u)", fanout, cp->fanout);
             return NULL;
         }
 
