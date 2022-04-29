@@ -14,26 +14,134 @@
 #include <hse_util/log2.h>
 #include <hse_util/byteorder.h>
 #include <hse_util/minmax.h>
-
-#define MTF_MOCK_IMPL_route
+#include <hse_util/assert.h>
 
 #include "cn_tree_internal.h"
 #include "route.h"
 
+/*
+ * TODO: `rtm_skip' and `rtm_fmt' will be gone when we get rid of static routes
+ */
 struct route_map {
     struct rb_root        rtm_root;
     uint                  rtm_pfxlen;
     uint                  rtm_fanout;
+    uint                  rtm_skip;
+    char                 *rtm_fmt;
     struct route_node    *rtm_free;
     struct route_node     rtm_nodev[] HSE_L1D_ALIGNED;
 };
 
+static merr_t
+route_node_key_set(
+    struct route_map  *map,
+    struct route_node *node,
+    const void        *edge_key,
+    uint               edge_klen,
+    uint32_t           nodeoff)
+{
+    INVARIANT(node);
+    if (edge_key && edge_klen > 0) {
+        INVARIANT(node->rtn_keybufp);
+        assert(node->rtn_keybufp != node->rtn_keybuf || edge_klen <= sizeof(node->rtn_keybuf));
+
+        memcpy(node->rtn_keybufp, edge_key, edge_klen);
+        node->rtn_keylen = edge_klen;
+    } else { /* TODO: This else path will be gone when we get rid of static routes */
+        uint pfxlen = map->rtm_pfxlen;
+        uint fmtarg = (nodeoff + 1) * map->rtm_skip - 1;
+
+        if (map->rtm_fmt) {
+            int n = snprintf((char *)node->rtn_keybuf, sizeof(node->rtn_keybuf), map->rtm_fmt,
+                             fmtarg);
+
+            if (n < 1 || n >= sizeof(node->rtn_keybuf) || (n != pfxlen)) {
+                log_err("fmt error %u: n %d, pfxlen %u, fmt [%s], fmtarg %u",
+                        nodeoff, n, pfxlen, map->rtm_fmt, fmtarg);
+                return merr(EINVAL);
+            }
+        } else {
+            uint64_t binkeybuf = cpu_to_be64(fmtarg);
+
+            memcpy(node->rtn_keybuf, (char *)&binkeybuf + (sizeof(binkeybuf) - pfxlen), pfxlen);
+        }
+
+        node->rtn_keylen = pfxlen;
+    }
+
+    return 0;
+}
+
+static struct route_node *
+route_node_alloc(struct route_map *map, uint edge_klen)
+{
+    struct route_node *node = map->rtm_free;
+    size_t sz;
+
+    if (node && edge_klen <= sizeof(node->rtn_keybuf)) {
+        map->rtm_free = node->rtn_next;
+        node->rtn_keybufp = node->rtn_keybuf;
+        return node;
+    }
+
+    sz = sizeof(*node);
+    if (edge_klen > sizeof(node->rtn_keybuf))
+        sz += ALIGN(edge_klen, __alignof__(*node));
+
+    node = aligned_alloc(__alignof__(*node), sz);
+    if (node)
+        node->rtn_keybufp = (sz > sizeof(*node)) ? (uint8_t *)(node + 1) : node->rtn_keybuf;
+
+    return node;
+}
+
+static void
+route_node_free(struct route_map *map, struct route_node *node)
+{
+    bool freeme = (node < map->rtm_nodev || node >= (map->rtm_nodev + map->rtm_fanout));
+
+    if (!freeme) {
+        node->rtn_next = map->rtm_free;
+        map->rtm_free = node;
+        return;
+    }
+
+    free(node);
+}
+
+/*
+ * TODO: The `nodeoff' parameter will be gone when we get rid of static routes
+ */
 struct route_node *
-route_map_insert(struct route_map *map, struct route_node *node)
+route_map_insert(
+    struct route_map *map,
+    void             *tnode,
+    const void       *edge_key,
+    uint              edge_klen,
+    uint32_t          nodeoff)
 {
     struct rb_root *root = &map->rtm_root;
     struct rb_node **link = &root->rb_node;
     struct rb_node *parent = NULL;
+    struct rb_node *first = rb_first(root), *last = rb_last(root);
+    struct route_node *node;
+    merr_t err;
+
+    INVARIANT(map && tnode);
+
+    node = route_node_alloc(map, edge_klen);
+    if (!node)
+        return NULL;
+
+    atomic_set(&node->rtn_refcnt, 1);
+    node->rtn_tnode = tnode;
+    node->rtn_isfirst = node->rtn_islast = false;
+
+    err = route_node_key_set(map, node, edge_key, edge_klen, nodeoff);
+    if (err) {
+        route_map_put(map, node);
+        return NULL;
+    }
 
     while (*link) {
         struct route_node *this;
@@ -42,21 +150,69 @@ route_map_insert(struct route_map *map, struct route_node *node)
         this = rb_entry(*link, struct route_node, rtn_node);
         parent = *link;
 
-        rc = keycmp(node->rtn_keybuf, node->rtn_keylen, this->rtn_keybuf, this->rtn_keylen);
+        rc = keycmp(node->rtn_keybufp, node->rtn_keylen, this->rtn_keybufp, this->rtn_keylen);
 
         if (rc < 0) {
             link = &(*link)->rb_left;
         } else if (rc > 0) {
             link = &(*link)->rb_right;
         } else {
-            return this;
+            log_err("dup route detected %u", nodeoff);
+            route_map_put(map, node);
+            return NULL;
         }
     }
 
     rb_link_node(&node->rtn_node, parent, link);
     rb_insert_color(&node->rtn_node, root);
 
-    return NULL;
+    if (first != rb_first(root)) {
+        assert(rb_first(root) == &node->rtn_node);
+        node->rtn_isfirst = true;
+        if (first) {
+            struct route_node *this = rb_entry(first, struct route_node, rtn_node);
+            this->rtn_isfirst = false;
+        }
+    }
+
+    if (last != rb_last(root)) {
+        assert(rb_last(root) == &node->rtn_node);
+        node->rtn_islast = true;
+        if (last) {
+            struct route_node *this = rb_entry(last, struct route_node, rtn_node);
+            this->rtn_islast = false;
+        }
+    }
+
+    return node;
+}
+
+void
+route_map_delete(struct route_map *map, struct route_node *node)
+{
+    struct rb_root *root;
+    struct rb_node *first, *last, *cur;
+
+    if (!map || !node)
+        return;
+
+    root = &map->rtm_root;
+    first = rb_first(root);
+    last = rb_last(root);
+
+    rb_erase(&node->rtn_node, root);
+    route_map_put(map, node);
+
+    assert(first && last);
+    if (first != (cur = rb_first(root)) && cur) {
+        struct route_node *this = rb_entry(cur, struct route_node, rtn_node);
+        this->rtn_isfirst = true;
+    }
+
+    if (last != (cur = rb_last(root)) && cur) {
+        struct route_node *this = rb_entry(cur, struct route_node, rtn_node);
+        this->rtn_islast = true;
+    }
 }
 
 static struct route_node *
@@ -77,7 +233,7 @@ route_map_find(struct route_map *map, const void *key, uint keylen, bool gt)
 
         this = rb_entry(*link, struct route_node, rtn_node);
 
-        rc = keycmp(key, keylen, this->rtn_keybuf, this->rtn_keylen);
+        rc = keycmp(key, keylen, this->rtn_keybufp, this->rtn_keylen);
 
         if (rc < 0) {
             dir = -1;
@@ -96,23 +252,23 @@ route_map_find(struct route_map *map, const void *key, uint keylen, bool gt)
 }
 
 struct route_node *
-route_map_lookup(struct route_map *map, const void *pfx, uint pfxlen)
+route_map_lookup(struct route_map *map, const void *key, uint keylen)
 {
-    return map ? route_map_find(map, pfx, pfxlen, false) : NULL;
+    return map ? route_map_find(map, key, keylen, false) : NULL;
 }
 
 struct route_node *
-route_map_lookupGT(struct route_map *map, const void *pfx, uint pfxlen)
+route_map_lookupGT(struct route_map *map, const void *key, uint keylen)
 {
-    return map ? route_map_find(map, pfx, pfxlen, true) : NULL;
+    return map ? route_map_find(map, key, keylen, true) : NULL;
 }
 
 struct route_node *
-route_map_get(struct route_map *map, const void *pfx, uint pfxlen)
+route_map_get(struct route_map *map, const void *key, uint keylen)
 {
     struct route_node *node;
 
-    node = route_map_find(map, pfx, pfxlen, false);
+    node = route_map_find(map, key, keylen, false);
     if (node)
         atomic_inc(&node->rtn_refcnt);
 
@@ -122,10 +278,13 @@ route_map_get(struct route_map *map, const void *pfx, uint pfxlen)
 void
 route_map_put(struct route_map *map, struct route_node *node)
 {
-    assert(map && node);
+    INVARIANT(map && node);
 
     if (atomic_dec_return(&node->rtn_refcnt) == 0) {
-        // TODO: Put on rtm_free list, but need more locking...
+        node->rtn_tnode = NULL;
+        node->rtn_keylen = 0;
+        node->rtn_isfirst = node->rtn_islast = false;
+        route_node_free(map, node);
     }
 }
 
@@ -153,13 +312,55 @@ route_node_prev(struct route_node *node)
     return rb_entry(prev, struct route_node, rtn_node);
 }
 
+#ifndef NDEBUG
+/* Walk the generated tree to compute the depth of each child node and distribution
+ * of nodes per level (for debugging).
+ */
+static void
+route_map_dump(struct route_map *map)
+{
+    struct rb_node *node;
+    uint distv[64] = {}, nodeoff = 0;
+    char buf[1024];
+    int n;
+
+    node = rb_first(&map->rtm_root);
+
+    while (node) {
+        struct route_node *this = rb_entry(node, struct route_node, rtn_node);
+        struct rb_node *parent = node;
+        uint depth = 0;
+
+        while ((parent = rb_parent(parent)))
+            ++depth;
+
+        ++distv[depth];
+
+        n = 0;
+        for (uint i = 0; i < this->rtn_keylen; ++i)
+            n += snprintf(buf + n, sizeof(buf) - n, " %02x", this->rtn_keybuf[i]);
+
+        log_debug("%3u %2u %2u:%s", nodeoff++, this->rtn_keylen, depth, buf);
+
+        node = rb_next(node);
+    }
+
+    n = 0;
+    for (uint i = 0; i < NELEM(distv); ++i) {
+        if (distv[i] > 0)
+            n += snprintf(buf + n, sizeof(buf) - n, " %u,%u", distv[i], i);
+    }
+
+    log_info("distv:%s", buf);
+}
+#endif
+
 struct route_map *
-route_map_create(const struct kvs_cparams *cp, const char *kvsname, struct cn_tree *tree)
+route_map_create(const struct kvs_cparams *cp, const char *kvsname)
 {
     char path[128], buf[1024];
     uint fanout, pfxlen, skip;
     struct route_map *map;
-    uint64_t binkeybuf;
     ssize_t cc;
     size_t sz;
     char *fmt;
@@ -175,7 +376,7 @@ route_map_create(const struct kvs_cparams *cp, const char *kvsname, struct cn_tr
     cc = hse_readfile(-1, path, buf, sizeof(buf), O_RDONLY);
     if (cc < 1) {
         pfxlen = cp->pfx_len ? cp->pfx_len : 5;
-        if (pfxlen > sizeof(binkeybuf))
+        if (pfxlen > sizeof(uint64_t))
             return NULL;
 
         /* Create binary edge keys by default with user-specified pfxlen and fanout.
@@ -195,8 +396,8 @@ route_map_create(const struct kvs_cparams *cp, const char *kvsname, struct cn_tr
             skip = 1;
 
         if (!strcmp(fmt, "binary")) {
-            if (pfxlen > sizeof(binkeybuf)) {
-                log_err("pfxlen %u > binkeybuf %zu", pfxlen, sizeof(binkeybuf));
+            if (pfxlen > sizeof(uint64_t)) {
+                log_err("pfxlen %u > %zu", pfxlen, sizeof(uint64_t));
                 return NULL;
             }
 
@@ -216,147 +417,16 @@ route_map_create(const struct kvs_cparams *cp, const char *kvsname, struct cn_tr
     memset(map, 0, sz);
     map->rtm_fanout = fanout;
     map->rtm_pfxlen = pfxlen;
+    map->rtm_fmt = fmt;
+    map->rtm_skip = skip;
 
-    uint childv[fanout];
+    /* Fill the route_node cache entries */
+    for (int i = fanout - 1; i >= 0; --i)
+        route_node_free(map, map->rtm_nodev + i);
 
-    if (is_power_of_2(fanout)) {
-        uint child = 0;
-
-        /* Build a vector of child node indices in order of optimal
-         * pivots per level for a perfectly balanced rb tree.
-         */
-        for (uint div = 2; div <= fanout; div *= 2) {
-            for (uint i = 1; i < div; i += 2)
-                childv[child++] = (i * fanout) / div;
-        }
-
-        assert(child == fanout - 1);
-        childv[child] = 0;
-    } else {
-        for (uint i = 0; i < fanout; ++i)
-            childv[i] = i;
-
-        childv[0] = fanout / 2;
-        childv[fanout / 2] = 0;
-
-        /* Shuffle child node indices to prevent worst-case rb insertion...
-         */
-        for (uint i = 1; i < fanout; ++i) {
-            uint r = (xrand64_tls() % (fanout - 1)) + 1;
-            uint tmp = childv[i];
-
-            childv[i] = childv[r];
-            childv[r] = tmp;
-        }
-    }
-
-    /* Iterate over the vector of child node indicies to generate an edge key
-     * for each child node and then insert the node into the rb tree.
-     */
-    for (uint i = 0; i < fanout; ++i) {
-        struct route_node *node = map->rtm_nodev + i;
-        struct route_node *dup;
-        uint child, fmtarg;
-        int n;
-
-        child = childv[i];
-        fmtarg = (child + 1) * skip - 1;
-
-        node->rtn_refcnt = 1;
-        node->rtn_keylen = pfxlen;
-        node->rtn_child = child;
-
-        assert(child < fanout);
-        node->rtn_tnode = tree->ct_root->tn_childv[child];
-        assert(node->rtn_tnode);
-
-        if (fmt) {
-            n = snprintf((char *)node->rtn_keybuf, sizeof(node->rtn_keybuf), fmt, fmtarg);
-
-            if (n < 1 || n >= sizeof(node->rtn_keybuf)) {
-                log_err("overflow %u: n %d, pfxlen %u, fmt [%s], fmtarg %u",
-                        child, n, pfxlen, fmt, fmtarg);
-                abort();
-            }
-
-            if (n != pfxlen) {
-                log_err("skipping %u: n %d, pfxlen %u, fmt [%s], fmtarg %u",
-                        child, n, pfxlen, fmt, fmtarg);
-                continue;
-            }
-        } else {
-            binkeybuf = cpu_to_be64(fmtarg);
-
-            memcpy(node->rtn_keybuf, (char *)&binkeybuf + (sizeof(binkeybuf) - pfxlen), pfxlen);
-        }
-
-        dup = route_map_insert(map, node);
-        if (dup) {
-            log_err("dup route %u: child %u, pfxlen %u, fmt [%s], fmtarg %u",
-                    child, dup->rtn_child, pfxlen, fmt ?: "binary", fmtarg);
-
-            node->rtn_next = map->rtm_free;
-            map->rtm_free = node;
-        }
-    }
-
-    free(fmt);
-
-    if (rb_first(&map->rtm_root)) {
-        struct route_node *this;
-        struct rb_node *node;
-
-        node = rb_first(&map->rtm_root);
-        this = rb_entry(node, struct route_node, rtn_node);
-        this->rtn_isfirst = true;
-
-        node = rb_last(&map->rtm_root);
-        this = rb_entry(node, struct route_node, rtn_node);
-        this->rtn_islast = true;
-    } else {
-        free(map);
-        return NULL;
-    }
-
-    /* Walk the generated tree to compute the depth of each child node and distribution
-     * of nodes per level (for debugging).
-     */
-    if (1) {
-        struct route_node *root = rb_entry(map->rtm_root.rb_node, struct route_node, rtn_node);
-        struct rb_node *node;
-        uint distv[64] = {};
-        char buf[1024];
-        int n;
-
-        node = rb_first(&map->rtm_root);
-
-        while (node) {
-            struct route_node *this = rb_entry(node, struct route_node, rtn_node);
-            struct rb_node *parent = node;
-            uint depth = 0;
-
-            while ((parent = rb_parent(parent)))
-                ++depth;
-
-            ++distv[depth];
-
-            n = 0;
-            for (uint i = 0; i < this->rtn_keylen; ++i)
-                n += snprintf(buf + n, sizeof(buf) - n, " %02x", this->rtn_keybuf[i]);
-
-            log_debug("%3u %2u %2u:%s", this->rtn_child, this->rtn_keylen, depth, buf);
-
-            node = rb_next(node);
-        }
-
-        n = 0;
-        for (uint i = 0; i < NELEM(distv); ++i) {
-            if (distv[i] > 0)
-                n += snprintf(buf + n, sizeof(buf) - n, " %u,%u", distv[i], i);
-        }
-
-        log_info("pivot %3u, distv:%s", root->rtn_child, buf);
-    }
+#ifndef NDEBUG
+    route_map_dump(map);
+#endif
 
     return map;
 }
@@ -364,12 +434,24 @@ route_map_create(const struct kvs_cparams *cp, const char *kvsname, struct cn_tr
 void
 route_map_destroy(struct route_map *map)
 {
+    struct rb_root *root;
+
     if (!map)
         return;
 
+    root = &map->rtm_root;
+
+    assert(!root->rb_node);
+    if (root->rb_node) {
+        struct route_node *node, *next;
+
+        log_err("route node leak detected");
+
+        rbtree_postorder_for_each_entry_safe(node, next, &map->rtm_root, rtn_node) {
+            route_map_delete(map, node);
+        }
+    }
+
+    free(map->rtm_fmt);
     free(map);
 }
-
-#if HSE_MOCKING
-#include "route_ut_impl.i"
-#endif

@@ -305,8 +305,15 @@ cn_tree_create(
         return merr(ENOMEM);
     }
 
-    for (uint i = 0; i < cp->fanout; i++) {
+    if (kvsname) {
+        tree->ct_route_map = route_map_create(cp, kvsname);
+        if (!tree->ct_route_map) {
+            cn_tree_destroy(tree);
+            return merr(ENOMEM);
+        }
+    }
 
+    for (uint i = 0; i < cp->fanout; i++) {
         struct cn_tree_node *tn;
 
         tn = cn_node_alloc(tree, 1, i);
@@ -318,19 +325,20 @@ cn_tree_create(
         tn->tn_parent = tree->ct_root;
         tree->ct_root->tn_childv[i] = tn;
         tree->ct_root->tn_childc += 1;
+
+        if (tree->ct_route_map) {
+            tn->tn_route_node = route_map_insert(tree->ct_route_map, tn, NULL, 0, i);
+            if (!tn->tn_route_node) {
+                cn_tree_destroy(tree);
+                return merr(ENOMEM);
+            }
+        }
+
     }
 
     tree->ct_i_nodec = 1;
-    tree->ct_l_nodec = 16;
+    tree->ct_l_nodec = cp->fanout;
     tree->ct_lvl_max = 1;
-
-    if (kvsname) {
-        tree->ct_route_map = route_map_create(cp, kvsname, tree);
-        if (!tree->ct_route_map) {
-            cn_tree_destroy(tree);
-            return merr(ENOMEM);
-        }
-    }
 
     err = rmlock_init(&tree->ct_lock);
     if (err) {
@@ -373,8 +381,10 @@ cn_tree_destroy(struct cn_tree *tree)
      */
     tree_iter_init(tree, &iter, TRAVERSE_BOTTOMUP);
 
-    while (NULL != (node = tree_iter_next(tree, &iter)))
+    while (NULL != (node = tree_iter_next(tree, &iter))) {
+        route_map_delete(tree->ct_route_map, node->tn_route_node);
         cn_work_submit(tree->cn, cn_node_destroy_cb, &node->tn_destroy_work);
+    }
 
     /* Wait for async work to complete...
      */
@@ -933,8 +943,7 @@ cn_tree_node_lookup(struct cn_tree *tree, const void *key, uint keylen)
     if (!node)
         return NULL;
 
-    if (!node->rtn_tnode)
-        node->rtn_tnode = tree->ct_root->tn_childv[node->rtn_child];
+    assert(node->rtn_tnode);
 
     return node->rtn_tnode;
 }
