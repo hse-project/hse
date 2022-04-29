@@ -26,6 +26,7 @@
 
 #include <hse_ikvdb/tuple.h>
 #include <hse_ikvdb/cn_kvdb.h>
+#include <hse_ikvdb/cn.h>
 #include <hse_ikvdb/ikvdb.h>
 #include <hse_ikvdb/kvs_rparams.h>
 
@@ -445,7 +446,7 @@ vblock_udata_update(
 merr_t
 kvset_create2(
     struct cn_tree *   tree,
-    u64                tag,
+    uint64_t           kvsetid,
     struct kvset_meta *km,
     uint               vbset_cnt_len,
     uint *             vbset_cnts,
@@ -546,12 +547,13 @@ kvset_create2(
     ks->ks_dgen = km->km_dgen;
     ks->ks_compc = km->km_compc;
     ks->ks_scatter = km->km_scatter;
-    ks->ks_tag = tag;
+    ks->ks_kvsetid = kvsetid;
     ks->ks_cnid = cn_tree_get_cnid(tree);
     ks->ks_cndb = cn_tree_get_cndb(tree);
     ks->ks_pfx_len = cp->pfx_len;
     ks->ks_sfx_len = cp->sfx_len;
     ks->ks_node_level = km->km_node_level;
+    ks->ks_nodeid = km->km_nodeid;
     ks->ks_vminlvl = min_t(u16, rp->cn_mcache_vminlvl, U16_MAX);
     ks->ks_vmin = rp->cn_mcache_vmin;
     ks->ks_vmax = rp->cn_mcache_vmax;
@@ -567,7 +569,7 @@ kvset_create2(
     else if (n_vblks > 0)
         ks->ks_vra_len = rp->cn_cursor_vra;
 
-    assert(ks->ks_tag != 0);
+    assert(ks->ks_kvsetid != 0);
 
     if (rp->cn_verify)
         kc_kvset_check(ds, cp, km, tree);
@@ -877,7 +879,7 @@ err_exit:
 }
 
 merr_t
-kvset_create(struct cn_tree *tree, u64 tag, struct kvset_meta *km, struct kvset **ks)
+kvset_create(struct cn_tree *tree, uint64_t kvsetid, struct kvset_meta *km, struct kvset **ks)
 {
     merr_t         err;
     uint           n_vblks = km->km_vblk_list.n_blks;
@@ -915,7 +917,7 @@ kvset_create(struct cn_tree *tree, u64 tag, struct kvset_meta *km, struct kvset 
     /* kvset_create2 takes its own mbset ref, must free ours
      * unconditionally after calling kvset_create2.
      */
-    err = kvset_create2(tree, tag, km, len, &vbsetc, &vbsetv, ks);
+    err = kvset_create2(tree, kvsetid, km, len, &vbsetc, &vbsetv, ks);
     ev(err);
 
     if (n_vblks)
@@ -925,41 +927,11 @@ kvset_create(struct cn_tree *tree, u64 tag, struct kvset_meta *km, struct kvset 
 }
 
 merr_t
-kvset_log_d_records(struct kvset *ks, bool keepv, u64 txid)
+kvset_delete_log_record(struct kvset *ks, struct cndb_txn *txn)
 {
-    uint   i, cnt;
-    u64 *  oidv = NULL;
-    int    oidx = 0;
-    merr_t err = 0;
-
-    assert(txid);
-    assert(ks->ks_tag != 0);
-
-    cnt = 1; /* hblock */
-    cnt += ks->ks_st.kst_kblks;
-    if (!keepv)
-        cnt += ks->ks_st.kst_vblks;
-
-    /* [HSE_REVISIT] we should contemplate storing these in a way that
-     * the blkids are already an array to avoid this allocation.
-     */
-    oidv = malloc_array(cnt, sizeof(*oidv));
-    if (!oidv)
-        return merr(ev(ENOMEM));
-
-    oidv[oidx++] = ks->ks_hblk.kh_hblk.bk_blkid;
-    for (i = 0; i < ks->ks_st.kst_kblks; i++)
-        oidv[oidx++] = ks->ks_kblks[i].kb_kblk.bk_blkid;
-    if (!keepv) {
-        for (i = 0; i < ks->ks_st.kst_vblks; i++)
-            oidv[oidx++] = lvx2mbid(ks, i);
-    }
-
-    err = cndb_txn_txd(ks->ks_cndb, txid, ks->ks_cnid, ks->ks_tag, cnt, oidv);
-    ev(err);
-
-    free(oidv);
-
+    merr_t err = cndb_record_kvset_del(ks->ks_cndb, txn, ks->ks_cnid, ks->ks_kvsetid,
+                                       &ks->ks_delete_cookie);
+    ks->ks_delete_txn = txn;
     return err;
 }
 
@@ -988,15 +960,11 @@ _kvset_mbset_destroyed(void *rock, bool mblk_delete_error)
 }
 
 void
-kvset_mark_mblocks_for_delete(struct kvset *ks, bool keepv, u64 txid)
+kvset_mark_mblocks_for_delete(struct kvset *ks, bool keepv)
 {
     /* NOTE: this function is used during compaction *After* the ACK_C
      * record, so it must not have failure conditions.
      */
-    assert(txid);
-    assert(ks->ks_delete_txid == 0);
-
-    ks->ks_delete_txid = txid;
     ks->ks_deleted = keepv ? DEL_KEEPV : DEL_ALL;
 
     /* If we need to delete vblocks, then:
@@ -1087,8 +1055,8 @@ _kvset_destroy(struct kvset *ks)
 
     cleanup_kblocks(ks);
 
-    if (ks->ks_deleted && !atomic_read(&ks->ks_delete_error))
-        cndb_txn_ack_d(ks->ks_cndb, ks->ks_delete_txid, ks->ks_tag, ks->ks_cnid);
+    if ((ks->ks_deleted != DEL_NONE) && !atomic_read(&ks->ks_delete_error))
+        cndb_record_kvset_del_ack(ks->ks_cndb, ks->ks_delete_txn, ks->ks_delete_cookie);
 
     free((void *)ks->ks_klarge);
 

@@ -29,7 +29,7 @@ MTF_DEFINE_UTEST_PREPOST(mdc_test, mdc_abc, mpool_test_pre, mpool_test_post)
     struct mpool_mdc *mdc;
     uint64_t          logid1, logid2, logid3, logid4;
     merr_t            err;
-    size_t            usage;
+    size_t            used, alloc, size;
 
     err = mpool_create(mtf_kvdb_home, &tcparams);
     ASSERT_EQ(0, err);
@@ -138,15 +138,23 @@ MTF_DEFINE_UTEST_PREPOST(mdc_test, mdc_abc, mpool_test_pre, mpool_test_post)
     err = mpool_mdc_open(mp, logid1, logid2, false, &mdc);
     ASSERT_EQ(0, err);
 
-    err = mpool_mdc_usage(NULL, NULL, &usage);
+    err = mpool_mdc_usage(NULL, NULL, NULL, &used);
     ASSERT_EQ(EINVAL, merr_errno(err));
 
-    err = mpool_mdc_usage(mdc, NULL, NULL);
+    err = mpool_mdc_usage(mdc, NULL, NULL, NULL);
     ASSERT_EQ(EINVAL, merr_errno(err));
 
-    err = mpool_mdc_usage(mdc, NULL, &usage);
+    err = mpool_mdc_usage(mdc, &size, &alloc, NULL);
+    ASSERT_EQ(EINVAL, merr_errno(err));
+
+    err = mpool_mdc_usage(mdc, NULL, NULL, &used);
+    ASSERT_EQ(EINVAL, merr_errno(err));
+
+    err = mpool_mdc_usage(mdc, &size, &alloc, &used);
     ASSERT_EQ(0, err);
-    ASSERT_EQ(MDC_LOGHDR_LEN, usage);
+    ASSERT_EQ(MDC_TEST_CAP, size);
+    ASSERT_EQ(MDC_LOGHDR_LEN, used);
+    ASSERT_EQ(MDC_TEST_CAP, alloc);
 
     err = mpool_mdc_close(mdc);
     ASSERT_EQ(0, err);
@@ -325,7 +333,7 @@ mdc_rw_test(
 
     merr_t err;
     char  *rdbuf;
-    size_t rdlen, reclen, rectot, reccnt, usage;
+    size_t rdlen, reclen, rectot, reccnt, used, alloc, size;
     off_t  start;
     bool   sync;
     u16    reopen_freq, sync_freq;
@@ -361,13 +369,13 @@ mdc_rw_test(
         sync = false;
 
         if (!err) {
-            ASSERT_EQ(0, mpool_mdc_usage(mdc, NULL, &usage));
-            ASSERT_NE(0, usage);
+            ASSERT_EQ(0, mpool_mdc_usage(mdc, &size, &alloc, &used));
+            ASSERT_NE(0, used);
 
             rectot = rectot + 1;
         } else if (merr_errno(err) == EFBIG) {
-            ASSERT_EQ(0, mpool_mdc_usage(mdc, NULL, &usage));
-            ASSERT_GE(usage, bufsz - 64);
+            ASSERT_EQ(0, mpool_mdc_usage(mdc, &size, &alloc, &used));
+            ASSERT_GE(used, bufsz - 64);
             break;
         }
         ASSERT_EQ(0, err);

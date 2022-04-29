@@ -55,15 +55,10 @@ cn_mb_est_alen(size_t max_captgt, size_t alloc_unit, size_t payload, uint flags)
 merr_t
 cn_mblocks_commit(
     struct mpool *        ds,
-    struct cndb *         cndb,
-    u64                   cnid,
-    u64                   txid,
     u32                   num_lists,
     struct kvset_mblocks *list,
     enum cn_mutation      mutation,
-    u32 *                 n_committed,
-    u64 *                 context,
-    u64 *                 tags);
+    u32 *                 n_committed);
 
 /* MTF_MOCK */
 void

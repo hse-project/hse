@@ -292,7 +292,7 @@ ml_writer(void *arg)
     struct mpool_mdc      *mdc;
     struct timeval         start_tv, stop_tv;
     int                    id = targs->instance;
-    size_t                 used;
+    size_t                 used, alloc, size;
     u64                    oid1 = args->oid.oid[0];
     u64                    oid2 = args->oid.oid[1];
     u32                    write_cnt = args->wc;
@@ -370,7 +370,7 @@ ml_writer(void *arg)
         goto free_buf;
     }
 
-    err = mpool_mdc_usage(mdc, NULL, &used);
+    err = mpool_mdc_usage(mdc, &size, &alloc, &used);
     if (err) {
         fprintf(
             stderr,
@@ -430,7 +430,7 @@ ml_reader(void *arg)
     struct mpool_mdc      *mdc;
     struct timeval         start_tv, stop_tv;
     int                    id = targs->instance;
-    size_t                 used;
+    size_t                 used, alloc, size;
     u64                    oid1 = args->oid.oid[0];
     u64                    oid2 = args->oid.oid[1];
     u32                    read_cnt = args->rc;
@@ -466,7 +466,7 @@ ml_reader(void *arg)
         return resp;
     }
 
-    err = mpool_mdc_usage(mdc, NULL, &used);
+    err = mpool_mdc_usage(mdc, &size, &alloc, &used);
     if (err) {
         fprintf(
             stderr,
@@ -557,7 +557,7 @@ ml_verify(void *arg)
     struct mpool_mdc      *mdc;
     struct timeval         start_tv, stop_tv;
     int                    id = targs->instance;
-    size_t                 used;
+    size_t                 used, alloc, size;
     u64                    oid1 = args->oid.oid[0];
     u64                    oid2 = args->oid.oid[1];
     u32                    read_cnt = args->rc;
@@ -593,7 +593,7 @@ ml_verify(void *arg)
         return resp;
     }
 
-    err = mpool_mdc_usage(mdc, NULL, &used);
+    err = mpool_mdc_usage(mdc, &size, &alloc, &used);
     if (err) {
         fprintf(
             stderr,

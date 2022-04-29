@@ -67,19 +67,7 @@ try:
 
         cnt, k, _, v, _ = kvs.prefix_probe(b"Abc")
         assert cnt == hse.KvsPfxProbeCnt.MUL
-        assert (k, v) == (b"AbcX9", b"1")
-
-        """
-        [HSE_REVISIT] - why is this commented out? @gaurav
-
-        txn = kvdb.transaction()
-        txn.begin()
-        kvs.delete(b"AbcX9", txn=txn)
-        cnt, k, _, v, _ = kvs.prefix_probe(b"Abc", txn=txn)
-        assert cnt == hse.KvsPfxProbeCnt.MUL
         assert (k, v) == (b"AbcX4", b"1")
-        txn.commit()
-        """
 
         kvs.delete(b"AbcX9")
 

@@ -28,16 +28,15 @@ MTF_DEFINE_UTEST(route_test, route_api_test)
     uint eklen = 5, idx;
     char ekbuf_large[sizeof(rnode->rtn_keybuf) + 1];
 
+    map = route_map_create(0);
+    ASSERT_EQ(NULL, map);
+
     cp.fanout = fanout;
-
-    map = route_map_create(NULL, kvsname);
-    ASSERT_EQ(NULL, map);
-
-    map = route_map_create(&cp, NULL);
-    ASSERT_EQ(NULL, map);
-
-    map = route_map_create(&cp, kvsname);
+    map = route_map_create(cp.fanout);
     ASSERT_NE(NULL, map);
+
+    struct ekey_generator *egen = ekgen_create(kvsname, &cp);
+    ASSERT_NE(NULL, egen);
 
     for (int i = 0; i < 2 * fanout; i++) {
         uint64_t ekey;
@@ -54,10 +53,11 @@ MTF_DEFINE_UTEST(route_test, route_api_test)
 
         /* Test both paths in route_node_key_set() */
         if (i % 2) {
-            rnodev[i] = route_map_insert(map, &tn, NULL, 0, i);
+            klen = ekgen_generate(egen, kbuf, sizeof(kbuf), i);
+            rnodev[i] = route_map_insert(map, &tn, kbuf, klen);
             ASSERT_NE(NULL, rnodev[i]);
         } else {
-            rnodev[i] = route_map_insert(map, &tn, ekbuf[i], eklen, i);
+            rnodev[i] = route_map_insert(map, &tn, ekbuf[i], eklen);
             ASSERT_NE(NULL, rnodev[i]);
         }
 
@@ -75,10 +75,13 @@ MTF_DEFINE_UTEST(route_test, route_api_test)
         ASSERT_EQ(eklen, klen);
     }
 
-    rnode = route_map_insert(map, &tn, NULL, 0, 0);
+    char kbuf[sizeof(rnode->rtn_keybuf)];
+    size_t klen;
+    klen = ekgen_generate(egen, kbuf, sizeof(kbuf), 0);
+    rnode = route_map_insert(map, &tn, kbuf, klen);
     ASSERT_EQ(NULL, rnode);
 
-    rnode = route_map_insert(map, &tn, ekbuf[0], eklen, 0);
+    rnode = route_map_insert(map, &tn, ekbuf[0], eklen);
     ASSERT_EQ(NULL, rnode);
 
     /* Delete odd numbered nodes */
@@ -91,13 +94,13 @@ MTF_DEFINE_UTEST(route_test, route_api_test)
 
     /* Reinsert odd numbered nodes */
     for (int i = 1; i < 2 * fanout; i += 2) {
-        rnodev[i] = route_map_insert(map, &tn, ekbuf[i], eklen, i);
+        rnodev[i] = route_map_insert(map, &tn, ekbuf[i], eklen);
         ASSERT_NE(NULL, rnodev[i]);
     }
 
     /* Insert a node with large edge key when the node cache is empty */
     memset(ekbuf_large, 0xff, sizeof(ekbuf_large));
-    rnode = route_map_insert(map, &tn, ekbuf_large, sizeof(ekbuf_large), 0);
+    rnode = route_map_insert(map, &tn, ekbuf_large, sizeof(ekbuf_large));
     ASSERT_NE(NULL, rnode);
     route_map_delete(map, rnode);
 
@@ -141,10 +144,11 @@ MTF_DEFINE_UTEST(route_test, route_api_test)
 
     /* Insert a node with large edge key when the node cache is non-empty */
     memset(ekbuf_large, 0xff, sizeof(ekbuf_large));
-    rnode = route_map_insert(map, &tn, ekbuf_large, sizeof(ekbuf_large), 0);
+    rnode = route_map_insert(map, &tn, ekbuf_large, sizeof(ekbuf_large));
     ASSERT_NE(NULL, rnode);
     route_map_delete(map, rnode);
 
+    ekgen_destroy(egen);
     route_map_destroy(map);
 }
 

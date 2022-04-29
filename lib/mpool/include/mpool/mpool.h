@@ -323,6 +323,7 @@ mpool_mdc_cend(struct mpool_mdc *mdc);
  *
  * @mdc: MDC handle
  */
+/* MTF_MOCK */
 merr_t
 mpool_mdc_sync(struct mpool_mdc *mdc);
 
@@ -330,12 +331,13 @@ mpool_mdc_sync(struct mpool_mdc *mdc);
  * mpool_mdc_usage() - Return mdc statistics
  *
  * @mdc:       MDC handle
+ * @size:      MDC size
  * @allocated: Number of bytes allocated
  * @used:      Number of bytest used (includes overhead)
  */
 /* MTF_MOCK */
 merr_t
-mpool_mdc_usage(struct mpool_mdc *mdc, uint64_t *allocated, uint64_t *used);
+mpool_mdc_usage(struct mpool_mdc *mdc, uint64_t *size, uint64_t *allocated, uint64_t *used);
 
 /******************************** MBLOCK APIs ************************************/
 

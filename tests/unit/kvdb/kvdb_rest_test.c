@@ -126,6 +126,13 @@ _hse_meminfo(ulong *freep, ulong *availp, uint shift)
         *availp = 32;
 }
 
+merr_t
+mock_mpool_mdc_read(struct mpool_mdc *mdc, void *data, size_t len, size_t *rdlen)
+{
+    *rdlen = 0;
+    return 0;
+}
+
 struct kvs_cparams kp;
 
 /* Prefer the mapi_inject_list method for mocking functions over the
@@ -145,15 +152,13 @@ struct mapi_injection inject_list[] = {
     { mapi_idx_mpool_mdc_cend, MAPI_RC_SCALAR, 0 },
     { mapi_idx_mpool_mdc_usage, MAPI_RC_SCALAR, 0 },
     { mapi_idx_mpool_mdc_rewind, MAPI_RC_SCALAR, 0 },
-    { mapi_idx_mpool_mdc_read, MAPI_RC_SCALAR, 0 },
     { mapi_idx_mpool_mclass_props_get, MAPI_RC_SCALAR, ENOENT },
     { mapi_idx_mpool_mclass_is_configured, MAPI_RC_SCALAR, true },
 
     { mapi_idx_cn_get_tree, MAPI_RC_SCALAR, 0 },
 
-    { mapi_idx_cndb_cn_cparams, MAPI_RC_PTR, &kp },
-    { mapi_idx_cndb_replay, MAPI_RC_SCALAR, 0 },
-    { mapi_idx_cndb_cn_create, MAPI_RC_SCALAR, 0 },
+    { mapi_idx_cndb_kvs_cparams, MAPI_RC_PTR, &kp },
+    { mapi_idx_cndb_record_kvs_add, MAPI_RC_SCALAR, 0 },
 
     { mapi_idx_wal_open, MAPI_RC_SCALAR, 0 },
     { mapi_idx_wal_close, MAPI_RC_SCALAR, 0 },
@@ -188,6 +193,8 @@ test_pre(struct mtf_test_info *lcl_ti)
 
     mock_kvdb_meta_set();
     mock_c0cn_set();
+
+    mtfm_mpool_mpool_mdc_read_set(mock_mpool_mdc_read);
 
     MOCK_SET(ct_view, _cn_tree_view_create);
     MOCK_SET(ct_view, _cn_tree_view_destroy);

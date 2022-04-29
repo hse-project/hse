@@ -42,9 +42,6 @@ The number of create and delete records aren't recorded here. They can be tracke
 along. A txn is "complete" when the number of `TX_KVSET_CREATE` records and `ACK-C` records are equal. A
 "complete" txn is one that can be rolled forward if necessary.
 
-Every transaction in CNDB has at least one `TX_KVSET_CREATE` record. So the `ACK-N` records do not count toward
-marking the txn as complete.
-
 - TX id: A unique id for the CNDB txn. Note that a txn can span different cnids.
 - Seqno: KVDB seqno at the time of logging this record.
 - Ingest id: Every ingest operation gets a unique id. If `TX_START` does not describe an ingest operation,
@@ -126,9 +123,8 @@ All records until now are meant to log an intent. `ACK` and `NACK` commit and ab
 parts of transactions) repectively.
 
 Types of `ACK` records (specified in the `ack_type` field of the `ACK` record) :
-1. `ACK-N`: Ack a `TX_NODE` record.
-2. `ACK-C`: Ack a `TX_KVSET_CREATE` record. One `ACK` record for every `TX_KVSET_CREATE` record.
-3. `ACK-D`: Ack a `TX_KVSET_DELETE` record. One `ACK` record for every `TX_KVSET_DELETE` record.
+1. `ACK-C`: Ack a `TX_KVSET_CREATE` record. One `ACK` record for every `TX_KVSET_CREATE` record.
+1. `ACK-D`: Ack a `TX_KVSET_DELETE` record. One `ACK` record for every `TX_KVSET_DELETE` record.
 
 - TX id: Transaction id to tie this record to the corresponding `TX_START` record.
 - Cnid: (CN id) A unique identifier for the KVS. Used only by Ack-D.
@@ -177,7 +173,6 @@ meta seqno=01
 # First root spill. Creates a single node at level 1 - n01
 > tx     txid=02 seqno=[...] ingest_id=CNDB_INVAL_INGESTID txhorizon=CNDB_INVAL_HORIZON
 > txnode txid=02 cnid=01 old.cnt=0 new.cnt=1 node=n01 # Create one node at level 1
-> ack-N  txid=02 # L1_nodelist: 0->n1
 > txc    txid=02 cnid=01 tag=01 kblk.cnt=01 vblk.cnt=01 ...
 > txm    txid=02 cnid=01 tag=01 node=n01 dgen [...] vused [...] compc [...] scatter [...]
 > txd    txid=02 cnid=01 tag=02 kblk.cnt=01 vblk.cnt=01 ...
@@ -196,7 +191,6 @@ Part 2: Splits
 # Split node=n01
 > tx     txid=03 seqno=[...] ingest_id=CNDB_INVAL_INGESTID txhorizon=CNDB_INVAL_HORIZON
 > txnode txid=03 cnid=01 old.cnt=1 new.cnt=2 node=n01 node=n02 node=n03
-> ack-N  txid=03
 > txc    txid=03 cnid=01 tag=01 kblk.cnt=01 vblk.cnt=01 ...
 > txm    txid=03 cnid=01 tag=01 node=n02 dgen [...] vused [...] compc [...] scatter [...]
 > txc    txid=03 cnid=01 tag=02 kblk.cnt=01 vblk.cnt=01 ...
@@ -223,7 +217,6 @@ Part 2: Splits
 # Split node=n02. Each node contains 2 kvsets.
 > tx     txid=04 seqno=[...] ingest_id=CNDB_INVAL_INGESTID txhorizon=CNDB_INVAL_HORIZON
 > txnode txid=04 cnid=01 old.cnt=1 new.cnt=2 node=n02 node=n04 node=n05
-> ack-N  txid=04
 > txc    txid=04 cnid=01 tag=01 kblk.cnt=01 vblk.cnt=01 ...
 > txm    txid=04 cnid=01 tag=01 node=n04 dgen [...] vused [...] compc [...] scatter [...]
 > txc    txid=04 cnid=01 tag=02 kblk.cnt=01 vblk.cnt=01 ...
@@ -252,7 +245,6 @@ Part 3: Join - No kvset/mblock delete required.
 ```
 > tx     txid=05 seqno=[...] ingest_id=CNDB_INVAL_INGESTID txhorizon=CNDB_INVAL_HORIZON
 > txnode txid=05 cnid=01 old.cnt=2 new.cnt=1 node=n04 node=n05 node=n06
-> ack-N  txid=05
 > txc    txid=05 cnid=01 tag=01 kblk.cnt=01 vblk.cnt=01 ...
 > txm    txid=05 cnid=01 tag=01 node=n06 dgen [...] vused [...] compc [...] scatter [...]
 > txc    txid=05 cnid=01 tag=02 kblk.cnt=01 vblk.cnt=01 ...
@@ -268,12 +260,10 @@ Part 4: CNDB compaction (txm records are skippped for brevity)
 # Create N nodes from 0 nodes. Encapsulates the tree shape.
 > tx     txid=06 seqno=[...] ingest_id=CNDB_INVAL_INGESTID txhorizon=CNDB_INVAL_HORIZON
 > txnode txid=06 cnid=01 old.cnt=0 new.cnt=2 node=n06 node=n3
-> ack-N  txid=06
 > txc    txid=06 cnid=01 tag=01 ...
 > txc    txid=06 cnid=01 tag=02 ...
 > txc    txid=06 cnid=01 tag=03 ...
 > ... more txc records. May contain ack-D records if this is rolling over CNDB on a live system.
-> ack-N  txid=06
 > ack-C  txid=06 tag=01
 > ack-C  txid=06 tag=02
 > ack-C  txid=06 tag=03

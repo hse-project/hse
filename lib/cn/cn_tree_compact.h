@@ -225,10 +225,10 @@ struct cn_compaction_work {
     struct cn_tree_node **cw_output_nodev;
 
     /* initialized in cn_compaction_worker() */
-    u64                   cw_work_txid;
+    struct cndb_txn      *cw_cndb_txn;
     uint                  cw_commitc;
     bool                  cw_keep_vblks;
-    u64 *                 cw_tagv;
+    void                **cw_cookie;
     struct kvset_builder *cw_child[CN_FANOUT_MAX];
 
     /* used in cleanup if debug enabled */

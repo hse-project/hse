@@ -124,7 +124,7 @@ jobs:
 
         # Ignore deprecation warnings on 20.04 due to:
         #     https://github.com/cython/cython/issues/3474
-      - name: Setup clang toolchain on Ubuntu 18.04
+      - name: Setup clang toolchain on Ubuntu 20.04
         if: ${{ matrix.toolchain == 'clang' && matrix.image-tag == '20.04' }}
         run: |
           echo "CC=clang" >> $GITHUB_ENV

@@ -60,14 +60,16 @@ test_pre(struct mtf_test_info *ti)
     mock_c0cn_set();
 
     g_kvs_cp = kvs_cparams_defaults();
-    mapi_inject_ptr(mapi_idx_cndb_cn_cparams, &g_kvs_cp);
+    mapi_inject_ptr(mapi_idx_cndb_kvs_cparams, &g_kvs_cp);
 
     mapi_inject(mapi_idx_cn_get_rp, 0);
     mapi_inject(mapi_idx_cn_get_cnid, 0);
     mapi_inject(mapi_idx_cn_get_ingest_perfc, 0);
     mapi_inject(mapi_idx_cn_get_sfx_len, 0);
 
-    mapi_inject(mapi_idx_cndb_cn_drop, 0);
+    mapi_inject(mapi_idx_cndb_record_kvs_del, 0);
+    mapi_inject(mapi_idx_cndb_replay, 0);
+
     mapi_inject(mapi_idx_c0_get_pfx_len, 0);
     mapi_inject(mapi_idx_mpool_mclass_props_get, ENOENT);
     mapi_inject(mapi_idx_mpool_open, 0);
@@ -89,7 +91,7 @@ test_post(struct mtf_test_info *ti)
     mapi_inject_unset(mapi_idx_cn_get_ingest_perfc);
     mapi_inject_unset(mapi_idx_cn_get_sfx_len);
 
-    mapi_inject(mapi_idx_cndb_cn_drop, 0);
+    mapi_inject(mapi_idx_cndb_record_kvs_del, 0);
     mapi_inject_unset(mapi_idx_c0_get_pfx_len);
     mapi_inject_unset(mapi_idx_mpool_mclass_props_get);
     mapi_inject_unset(mapi_idx_mpool_open);
@@ -110,10 +112,10 @@ test_pre_c0(struct mtf_test_info *ti)
     mock_cn_set();
 
     g_kvs_cp = kvs_cparams_defaults();
-    mapi_inject_ptr(mapi_idx_cndb_cn_cparams, &g_kvs_cp);
+    mapi_inject_ptr(mapi_idx_cndb_kvs_cparams, &g_kvs_cp);
 
     mapi_inject(mapi_idx_cn_get_ingest_perfc, 0);
-    mapi_inject(mapi_idx_cndb_cn_drop, 0);
+    mapi_inject(mapi_idx_cndb_record_kvs_del, 0);
     mapi_inject(mapi_idx_mpool_open, 0);
     mapi_inject(mapi_idx_mpool_close, 0);
     mapi_inject(mapi_idx_mpool_mclass_props_get, ENOENT);
@@ -130,7 +132,7 @@ test_post_c0(struct mtf_test_info *ti)
     mock_wal_unset();
 
     mapi_inject_unset(mapi_idx_cn_get_ingest_perfc);
-    mapi_inject_unset(mapi_idx_cndb_cn_drop);
+    mapi_inject_unset(mapi_idx_cndb_record_kvs_del);
     mapi_inject_unset(mapi_idx_mpool_open);
     mapi_inject_unset(mapi_idx_mpool_close);
     mapi_inject_unset(mapi_idx_mpool_mclass_props_get);
@@ -479,10 +481,10 @@ MTF_DEFINE_UTEST_PREPOST(ikvdb_test, ikvdb_kvs_destroy_test, test_pre, test_post
     ikvdb_kvs_count(hdl, &cnt);
     ASSERT_EQ(1, cnt);
 
-    mapi_inject(mapi_idx_cndb_cn_drop, 0);
+    mapi_inject(mapi_idx_cndb_record_kvs_del, 0);
     err = ikvdb_kvs_drop(hdl, kvs);
     ASSERT_EQ(0, merr_errno(err));
-    mapi_inject_unset(mapi_idx_cndb_cn_drop);
+    mapi_inject_unset(mapi_idx_cndb_record_kvs_del);
 
     ikvdb_kvs_count(hdl, &cnt);
     ASSERT_EQ(0, cnt);

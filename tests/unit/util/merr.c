@@ -5,6 +5,9 @@
 
 #include <hse_util/hse_err.h>
 
+#include <stdlib.h>
+#include <stdio.h>
+
 int
 main(int argc, char **argv)
 {

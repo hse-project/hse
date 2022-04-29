@@ -75,6 +75,7 @@ struct kvset {
     u32           ks_pfx_len; /* cn tree pfx_len */
     u32           ks_sfx_len; /* cn tree sfx_len */
     u16           ks_node_level;
+    u64           ks_nodeid;
     u16           ks_vminlvl;
     u32           ks_vmin;
     u32           ks_vmax;
@@ -86,8 +87,13 @@ struct kvset {
     u64                 ks_cnid;
     struct cn_kvdb *    ks_cn_kvdb;
     struct cn_tree *    ks_tree;
-    struct cndb *       ks_cndb;
     struct kvset_stats  ks_st;
+
+    /* cndb - deferred delete */
+    struct cndb        *ks_cndb;
+    struct cndb_txn    *ks_delete_txn;
+    void               *ks_delete_cookie;
+    u64                 ks_kvsetid;
 
     /* new compaction metrics */
     u8 * ks_hlog;
@@ -111,7 +117,6 @@ struct kvset {
     uint                      ks_vbsetc;
 
     struct cn_work ks_kvset_cn_work;
-    u64            ks_delete_txid;
 
     const void *ks_maxkey;  /* largest key in kvset */
     const void *ks_minkey;  /* smallest key in kvset */
@@ -126,7 +131,6 @@ struct kvset {
     u64        ks_seqno_min;
     size_t     ks_kvset_sz;
     u64        ks_ctime;
-    u64        ks_tag;
 
     struct kvset_kblk ks_kblks[] HSE_L1D_ALIGNED;
 };

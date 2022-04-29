@@ -178,7 +178,7 @@ cn_node_size(void)
     return ALIGN(sz, __alignof__(*node));
 }
 
-static struct cn_tree_node *
+struct cn_tree_node *
 cn_node_alloc(struct cn_tree *tree, uint level, uint offset)
 {
     struct cn_tree_node *tn;
@@ -275,33 +275,13 @@ cn_tree_create(
         return merr(ENOMEM);
     }
 
+    tree->ct_root->tn_nodeid = 0;
+
     if (kvsname) {
-        tree->ct_route_map = route_map_create(cp, kvsname);
+        tree->ct_route_map = route_map_create(cp->fanout);
         if (!tree->ct_route_map) {
             cn_tree_destroy(tree);
             return merr(ENOMEM);
-        }
-    }
-
-    for (uint i = 0; i < cp->fanout; i++) {
-        struct cn_tree_node *tn;
-
-        tn = cn_node_alloc(tree, 1, i);
-        if (!tn) {
-            cn_tree_destroy(tree);
-            return merr(ENOMEM);
-        }
-
-        tn->tn_parent = tree->ct_root;
-        tree->ct_root->tn_childv[i] = tn;
-        tree->ct_root->tn_childc += 1;
-
-        if (tree->ct_route_map) {
-            /* A cn_tree_node can exist without a corresponding route_node until we have
-             * node splits.
-             * TODO: add tn->tn_route_node NULL check once we have node splits.
-             */
-            tn->tn_route_node = route_map_insert(tree->ct_route_map, tn, NULL, 0, i);
         }
     }
 
@@ -696,6 +676,25 @@ cn_tree_insert_kvset(struct cn_tree *tree, struct kvset *kvset, uint level, uint
     return 0;
 }
 
+merr_t
+cn_node_insert_kvset(struct cn_tree_node *node, struct kvset *kvset)
+{
+    struct list_head *head;
+    u64 dgen = kvset_get_dgen(kvset);
+
+    list_for_each (head, &node->tn_kvset_list) {
+        struct kvset_list_entry *entry;
+
+        entry = list_entry(head, typeof(*entry), le_link);
+        if (dgen > kvset_get_dgen(entry->le_kvset))
+            break;
+        assert(dgen != kvset_get_dgen(entry->le_kvset));
+    }
+
+    kvset_list_add_tail(kvset, head);
+
+    return 0;
+}
 /**
  * struct vtc_bkt - view table cache bucket
  * @lock:  protects all fields in the bucket
@@ -1246,11 +1245,11 @@ cn_tree_capped_compact(struct cn_tree *tree)
     struct kvset_list_entry *first, *last;
     struct cn_tree_node *    node;
     struct list_head *       head, retired;
+    struct cndb_txn         *cndb_txn;
 
     u8     pt_key[sizeof(tree->ct_last_ptomb)];
     void * lock;
     merr_t err;
-    u64    txid;
     u64    horizon;
     u64    pt_seq;
     uint   pt_len;
@@ -1303,39 +1302,29 @@ cn_tree_capped_compact(struct cn_tree *tree)
 
     perfc_set(cn_pc_capped_get(tree->cn), PERFC_BA_CNCAPPED_PTSEQ, pt_seq);
 
-    if (!mark) {
-        cn_tree_capped_evict(tree, first, last);
-        return;
-    }
+    if (!mark)
+        goto err_out;
 
-    err = cndb_txn_start(tree->cndb, &txid, 0, kvset_cnt, 0,
-                         CNDB_INVAL_INGESTID, CNDB_INVAL_HORIZON);
+    err = cndb_record_txstart(tree->cndb, 0, CNDB_INVAL_INGESTID, CNDB_INVAL_HORIZON, 0,
+                              (u16)kvset_cnt, &cndb_txn);
     if (ev(err))
-        return;
+        goto err_out;
 
-    /* Step 2: Add D-records.
+    /* Step 2: Log kvset delete records.
      * Don't need to hold a lock because this is the only thread deleting
      * kvsets from cn and we are sure that there are at least kvset_cnt
      * kvsets in the node.
      */
-    for (le = last; true; le = list_prev_entry(le, le_link)) {
-        err = kvset_log_d_records(le->le_kvset, false, txid);
-
-        if (ev(err) || le == mark)
+    for (le = last; le == mark; le = list_prev_entry(le, le_link)) {
+        err = kvset_delete_log_record(le->le_kvset, cndb_txn);
+        if (ev(err))
             break;
     }
 
     if (ev(err)) {
-        cndb_txn_nak(tree->cndb, txid);
-        return;
+        cndb_record_nak(tree->cndb, cndb_txn);
+        goto err_out;
     }
-
-    /* There must not be any failure conditions after successful ACK_C
-     * because the operation has been committed.
-     */
-    err = cndb_txn_ack_c(tree->cndb, txid);
-    if (ev(err))
-        return;
 
     /* Step 3: Remove retired kvsets from node list.
      */
@@ -1347,9 +1336,15 @@ cn_tree_capped_compact(struct cn_tree *tree)
     /* Step 4: Delete retired kvsets outside the tree write lock.
      */
     list_for_each_entry_safe (le, next, &retired, le_link) {
-        kvset_mark_mblocks_for_delete(le->le_kvset, false, txid);
+        kvset_mark_mblocks_for_delete(le->le_kvset, false);
         kvset_put_ref(le->le_kvset);
     }
+
+    return;
+
+err_out:
+    cn_tree_capped_evict(tree, first, last);
+    return;
 }
 
 merr_t
@@ -1489,7 +1484,6 @@ static void
 cn_comp_update_kvcompact(struct cn_compaction_work *work, struct kvset *new_kvset)
 {
     struct cn_tree *         tree = work->cw_tree;
-    u64                      txid = work->cw_work_txid;
     struct kvset_list_entry *le, *tmp;
     struct list_head         retired_kvsets;
     uint                     i;
@@ -1532,7 +1526,7 @@ cn_comp_update_kvcompact(struct cn_compaction_work *work, struct kvset *new_kvse
         assert(kvset_get_dgen(le->le_kvset) >= work->cw_dgen_lo);
         assert(kvset_get_dgen(le->le_kvset) <= work->cw_dgen_hi);
 
-        kvset_mark_mblocks_for_delete(le->le_kvset, work->cw_keep_vblks, txid);
+        kvset_mark_mblocks_for_delete(le->le_kvset, work->cw_keep_vblks);
         kvset_put_ref(le->le_kvset);
     }
 }
@@ -1544,30 +1538,7 @@ cn_comp_update_kvcompact(struct cn_compaction_work *work, struct kvset *new_kvse
 static merr_t
 cn_comp_commit_kvcompact(struct cn_compaction_work *work, struct kvset *kvset)
 {
-    struct kvset_list_entry *le;
-    u32                      i;
-    merr_t                   err;
-
     assert(work->cw_dgen_lo == kvset_get_workid(work->cw_mark->le_kvset));
-
-    /* Update CNDB with "D" records.  No need to lock kvset as long as
-     * we only access the marked kvsets.
-     */
-    le = work->cw_mark;
-    for (i = 0; i < work->cw_kvset_cnt; i++) {
-        err = kvset_log_d_records(le->le_kvset, work->cw_keep_vblks, work->cw_work_txid);
-        if (ev(err))
-            return err;
-
-        le = list_prev_entry(le, le_link);
-    }
-
-    /* There must not be any failure conditions after successful ACK_C
-     * because the operation has been committed.
-     */
-    err = cndb_txn_ack_c(work->cw_tree->cndb, work->cw_work_txid);
-    if (ev(err))
-        return err;
 
     /* Update tree and stats.  No failure paths allowed after ACK_C. */
     cn_comp_update_kvcompact(work, kvset);
@@ -1583,7 +1554,6 @@ static void
 cn_comp_update_spill(struct cn_compaction_work *work, struct kvset **kvsets)
 {
     struct cn_tree *         tree = work->cw_tree;
-    u64                      txid = work->cw_work_txid;
     struct cn_tree_node *    pnode = work->cw_node;
     struct kvset_list_entry *le, *tmp;
     struct list_head         retired_kvsets;
@@ -1631,7 +1601,7 @@ cn_comp_update_spill(struct cn_compaction_work *work, struct kvset **kvsets)
 
     /* Delete old kvsets. */
     list_for_each_entry_safe (le, tmp, &retired_kvsets, le_link) {
-        kvset_mark_mblocks_for_delete(le->le_kvset, false, txid);
+        kvset_mark_mblocks_for_delete(le->le_kvset, false);
         kvset_put_ref(le->le_kvset);
     }
 }
@@ -1644,39 +1614,15 @@ static merr_t
 cn_comp_commit_spill(struct cn_compaction_work *work, struct kvset **kvsets)
 {
     struct cn_tree *         tree = work->cw_tree;
-    merr_t                   err;
-    struct kvset_list_entry *le;
 
     /* Precondition: n_outputs == tree fanout */
     assert(work->cw_outc == tree->ct_fanout);
     if (ev(work->cw_outc != tree->ct_fanout))
         return merr(EBUG);
 
-    /* Update CNDB with "D" records.  No need to lock kvset as long as
-     * we only access the marked kvsets.
-     */
-    le = work->cw_mark;
-    for (uint i = 0; i < work->cw_kvset_cnt; i++) {
-        assert(le);
-
-        err = kvset_log_d_records(le->le_kvset, work->cw_keep_vblks, work->cw_work_txid);
-        if (ev(err))
-            goto done;
-        le = list_prev_entry(le, le_link);
-    }
-
-    /* There must not be any failure conditions after successful ACK_C
-     * because the operation has been committed.
-     */
-    err = cndb_txn_ack_c(tree->cndb, work->cw_work_txid);
-    if (ev(err))
-        goto done;
-
     /* Update tree and stats.  No failure paths allowed after ACK_C. */
     cn_comp_update_spill(work, kvsets);
-
-done:
-    return err;
+    return 0;
 }
 
 /**
@@ -1692,15 +1638,34 @@ cn_comp_commit(struct cn_compaction_work *w)
     uint            i, alloc_len;
     bool            spill, use_mbsets;
     uint            scatter;
+    bool            kcompact = (w->cw_action == CN_ACTION_COMPACT_K);
+    bool            skip_commit = false;
+    void          **cookiev = 0;
+
+    struct kvdb_health *hp = w->cw_tree->ct_kvdb_health;
+    struct kvset_list_entry *le;
 
     if (ev(w->cw_err))
         goto done;
 
     assert(w->cw_outc);
-
     spill = w->cw_outc > 1;
-
     use_mbsets = w->cw_action == CN_ACTION_COMPACT_K;
+
+    /* if k-compaction and no kblocks, then force keepv to false. */
+    if (kcompact && w->cw_outv[0].kblks.n_blks == 0) {
+        skip_commit = true;
+        w->cw_keep_vblks = false;
+    }
+
+    if (!skip_commit) {
+        cookiev = calloc(w->cw_outc, sizeof(*cookiev));
+        if (ev(!cookiev)) {
+            w->cw_err = merr(ENOMEM);
+            kvdb_health_event(hp, KVDB_HEALTH_FLAG_NOMEM, w->cw_err);
+            goto done;
+        }
+    }
 
     alloc_len = sizeof(*kvsets) * w->cw_outc;
     if (use_mbsets) {
@@ -1739,12 +1704,28 @@ cn_comp_commit(struct cn_compaction_work *w)
         }
     }
 
+    w->cw_err = cndb_record_txstart(w->cw_tree->cndb, 0, CNDB_INVAL_INGESTID, CNDB_INVAL_HORIZON,
+                                    (u16)w->cw_outc, (u16)w->cw_kvset_cnt, &w->cw_cndb_txn);
+    if (ev(w->cw_err)) {
+        kvdb_health_error(hp, w->cw_err);
+        goto done;
+    }
+
+    /* Log CNDB records for all kvsets before committing the mblocks.
+     */
+
     for (i = 0; i < w->cw_outc; i++) {
         struct kvset_meta km = {};
+        uint64_t kvsetid;
+        uint64_t nodeid;
+        uint ncommitted;
 
         /* [HSE_REVISIT] there may be vblks to delete!!! */
-        if (!w->cw_outv[i].hblk.bk_blkid)
+        if (!w->cw_outv[i].hblk.bk_blkid) {
+            assert(w->cw_outv[i].kblks.n_blks == 0);
+            assert(w->cw_outv[i].vblks.n_blks == 0);
             continue;
+        }
 
         km.km_dgen = w->cw_dgen_hi;
         km.km_vused = w->cw_outv[i].bl_vused;
@@ -1768,6 +1749,7 @@ cn_comp_commit(struct cn_compaction_work *w)
             km.km_node_level = node->tn_loc.node_level;
             km.km_node_offset = node->tn_loc.node_offset;
 
+            nodeid = km.km_nodeid = node->tn_nodeid;
         } else {
             struct kvset_list_entry *le = w->cw_mark;
 
@@ -1782,27 +1764,75 @@ cn_comp_commit(struct cn_compaction_work *w)
 
             km.km_node_level = w->cw_node->tn_loc.node_level;
             km.km_node_offset = w->cw_node->tn_loc.node_offset;
+            nodeid = km.km_nodeid = w->cw_node->tn_nodeid;
         }
-        w->cw_err =
-            cndb_txn_meta(w->cw_tree->cndb, w->cw_work_txid, w->cw_tree->cnid, w->cw_tagv[i], &km);
-        if (ev(w->cw_err))
+
+        /* CNDB: Log kvset add records.
+         */
+        kvsetid = cndb_kvsetid_mint(w->cw_tree->cndb);
+
+        w->cw_err = cndb_record_kvset_add(
+                        w->cw_tree->cndb, w->cw_cndb_txn, w->cw_tree->cnid,
+                        nodeid, &km, kvsetid, km.km_hblk.bk_blkid,
+                        w->cw_outv[i].kblks.n_blks, (uint64_t *)w->cw_outv[i].kblks.blks,
+                        w->cw_outv[i].vblks.n_blks, (uint64_t *)w->cw_outv[i].vblks.blks,
+                        &cookiev[i]);
+
+        if (ev(w->cw_err)) {
+            kvdb_health_error(hp, w->cw_err);
             goto done;
+        }
+
+        w->cw_err = cn_mblocks_commit(w->cw_ds, 1, &w->cw_outv[i],
+                                      kcompact ? CN_MUT_KCOMPACT : CN_MUT_OTHER, &ncommitted);
+        if (ev(w->cw_err)) {
+            kvdb_health_error(hp, w->cw_err);
+            goto done;
+        }
+
+        w->cw_commitc += ncommitted;
 
         if (use_mbsets) {
-            w->cw_err = kvset_create2(
-                w->cw_tree, w->cw_tagv[i], &km, w->cw_kvset_cnt, cnts, vecs, &kvsets[i]);
+            w->cw_err = kvset_create2(w->cw_tree, kvsetid, &km,
+                                      w->cw_kvset_cnt, cnts, vecs, &kvsets[i]);
         } else {
-            w->cw_err = kvset_create(w->cw_tree, w->cw_tagv[i], &km, &kvsets[i]);
+            w->cw_err = kvset_create(w->cw_tree, kvsetid, &km, &kvsets[i]);
         }
+
         if (ev(w->cw_err))
             goto done;
     }
 
-    if (spill)
-        w->cw_err = cn_comp_commit_spill(w, kvsets);
-    else
-        w->cw_err = cn_comp_commit_kvcompact(w, kvsets[0]);
+    /* CNDB: Log kvset delete records.
+     */
+    for (i = 0, le = w->cw_mark; i < w->cw_kvset_cnt; i++) {
+        assert(le);
+
+        w->cw_err = kvset_delete_log_record(le->le_kvset, w->cw_cndb_txn);
+        if (ev(w->cw_err))
+            goto done;
+
+        le = list_prev_entry(le, le_link);
+    }
+
+    /* CNDB: Ack all the kvset add records.
+     */
+    for (i = 0; i < w->cw_outc; i++) {
+        if (w->cw_outv[i].kblks.n_blks == 0)
+            continue;
+
+        w->cw_err = cndb_record_kvset_add_ack(w->cw_tree->cndb, w->cw_cndb_txn, cookiev[i]);
+        if (ev(w->cw_err))
+            goto done;
+    }
+
+    w->cw_err = spill ? cn_comp_commit_spill(w, kvsets) :
+                        cn_comp_commit_kvcompact(w, kvsets[0]);
+    if (ev(w->cw_err))
+        goto done;
+
 done:
+
     if (w->cw_err && kvsets) {
         for (i = 0; i < w->cw_outc; i++) {
             if (kvsets[i])
@@ -1810,7 +1840,8 @@ done:
         }
     }
 
-    /* always free kvset ptrs */
+    /* always free these ptrs */
+    free(cookiev);
     free(kvsets);
 }
 
@@ -1857,7 +1888,7 @@ cn_comp_cleanup(struct cn_compaction_work *w)
     }
 
     free(w->cw_vbmap.vbm_blkv);
-    free(w->cw_tagv);
+    free(w->cw_cookie);
     free(w->cw_output_nodev);
     if (w->cw_outv) {
         for (i = 0; i < w->cw_outc; i++) {
@@ -1922,7 +1953,6 @@ cn_comp_compact(struct cn_compaction_work *w)
     struct kvdb_health *hp;
 
     bool   kcompact = (w->cw_action == CN_ACTION_COMPACT_K);
-    bool   skip_commit = false;
     merr_t err;
     u32    i;
 
@@ -1960,19 +1990,19 @@ cn_comp_compact(struct cn_compaction_work *w)
      * and kv-compaction. */
     w->cw_keep_vblks = kcompact;
 
-    if (kcompact)
-        err = cn_kcompact(w);
-    else
-        err = cn_spill(w);
+    err = kcompact ? cn_kcompact(w) : cn_spill(w);
 
     if (merr_errno(err) == ESHUTDOWN && atomic_read(w->cw_cancel_request))
         w->cw_canceled = true;
 
     /* defer status check until *after* cleanup */
-    for (i = 0; i < w->cw_kvset_cnt; i++)
+    for (i = 0; i < w->cw_kvset_cnt; i++) {
         if (w->cw_inputv[i])
             w->cw_inputv[i]->kvi_ops->kvi_release(w->cw_inputv[i]);
+    }
+
     free(w->cw_inputv);
+
     if (ev(err)) {
         if (!w->cw_canceled)
             kvdb_health_error(hp, err);
@@ -1980,56 +2010,6 @@ cn_comp_compact(struct cn_compaction_work *w)
     }
 
     w->cw_t3_build = get_time_ns();
-
-    /* if k-compaction and no kblocks, then force keepv to false. */
-    if (kcompact && w->cw_outv[0].kblks.n_blks == 0) {
-        skip_commit = true;
-        w->cw_keep_vblks = false;
-    }
-
-    if (!skip_commit) {
-        w->cw_tagv = calloc(w->cw_outc, sizeof(*w->cw_tagv));
-        if (!w->cw_tagv) {
-            err = merr(ev(ENOMEM));
-            kvdb_health_event(hp, KVDB_HEALTH_FLAG_NOMEM, err);
-            goto err_exit;
-        }
-    }
-
-    {
-        int nc = (skip_commit) ? 0 : w->cw_outc;
-        int nd = w->cw_kvset_cnt;
-
-        err = cndb_txn_start(w->cw_tree->cndb, &w->cw_work_txid, nc, nd, 0, CNDB_INVAL_INGESTID,
-                             CNDB_INVAL_HORIZON);
-        if (ev(err)) {
-            kvdb_health_error(hp, err);
-            goto err_exit;
-        }
-    }
-
-    if (!skip_commit) {
-        u64 context = 0; /* must initially be zero */
-
-        /* Note: cn_mblocks_commit() creates "C" records in CNDB */
-        err = cn_mblocks_commit(
-            w->cw_ds,
-            w->cw_tree->cndb,
-            w->cw_tree->cnid,
-            w->cw_work_txid,
-            w->cw_outc,
-            w->cw_outv,
-            kcompact ? CN_MUT_KCOMPACT : CN_MUT_OTHER,
-            &w->cw_commitc,
-            &context,
-            w->cw_tagv);
-
-        if (ev(err)) {
-            kvdb_health_error(hp, err);
-            goto err_exit;
-        }
-    }
-
     w->cw_t4_commit = get_time_ns();
 
 err_exit:

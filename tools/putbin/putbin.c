@@ -418,7 +418,7 @@ main(int argc, char **argv)
             ti->joined = 1;
             ti->paws = paws;
             ti->start = start + stride * c;
-            ti->last = ti->start + stride;
+            ti->last = c == tc - 1 ? start + cnt : ti->start + stride;
             ti->action = action;
             ti->endian = endian;
 

@@ -848,17 +848,9 @@ mock_kvdb_meta_unset(void)
 static u64 cndb_id_mocked;
 
 static merr_t
-_cndb_alloc(struct mpool *ds, u64 *captgt, u64 *oid1, u64 *oid2)
+_cndb_record_kvs_add(struct cndb *cndb, const struct kvs_cparams *cp, uint64_t *cnid_out, const char *name)
 {
-    *oid1 = ++cndb_id_mocked;
-    *oid2 = ++cndb_id_mocked;
-    return 0;
-}
-
-static merr_t
-_cndb_cn_create(struct cndb *cndb, const struct kvs_cparams *cp, u64 *cnid, char *name)
-{
-    *cnid = ++cndb_id_mocked;
+    *cnid_out = ++cndb_id_mocked;
     return 0;
 }
 
@@ -870,21 +862,18 @@ _cndb_cn_create(struct cndb *cndb, const struct kvs_cparams *cp, u64 *cnid, char
  * changes).
  */
 static struct mapi_injection cndb_inject_list[] = {
-    { mapi_idx_cndb_create,       MAPI_RC_SCALAR, 0 },
-    { mapi_idx_cndb_replay,       MAPI_RC_SCALAR, 0 },
-    { mapi_idx_cndb_cnv_get,      MAPI_RC_SCALAR, 0 },
-    { mapi_idx_cndb_cn_info_idx,  MAPI_RC_SCALAR, 0 },
-    { mapi_idx_cndb_cn_count,     MAPI_RC_SCALAR, 0 },
-    { mapi_idx_cndb_open,         MAPI_RC_SCALAR, 0 },
-    { mapi_idx_cndb_close,        MAPI_RC_SCALAR, 0 },
-    { mapi_idx_cndb_replay,       MAPI_RC_SCALAR, 0 },
-    { mapi_idx_cndb_txn_start,    MAPI_RC_SCALAR, 0 },
-    { mapi_idx_cndb_txn_txc,      MAPI_RC_SCALAR, 0 },
-    { mapi_idx_cndb_txn_txd,      MAPI_RC_SCALAR, 0 },
-    { mapi_idx_cndb_txn_meta,     MAPI_RC_SCALAR, 0 },
-    { mapi_idx_cndb_txn_ack_c,    MAPI_RC_SCALAR, 0 },
-    { mapi_idx_cndb_txn_ack_d,    MAPI_RC_SCALAR, 0 },
-    { mapi_idx_cndb_txn_nak,      MAPI_RC_SCALAR, 0 },
+    { mapi_idx_cndb_create,               MAPI_RC_SCALAR, 0 },
+    { mapi_idx_cndb_kvs_info,             MAPI_RC_SCALAR, 0 },
+    { mapi_idx_cndb_kvs_count,            MAPI_RC_SCALAR, 0 },
+    { mapi_idx_cndb_open,                 MAPI_RC_SCALAR, 0 },
+    { mapi_idx_cndb_replay,               MAPI_RC_SCALAR, 0 },
+    { mapi_idx_cndb_close,                MAPI_RC_SCALAR, 0 },
+    { mapi_idx_cndb_record_txstart,       MAPI_RC_SCALAR, 0 },
+    { mapi_idx_cndb_record_kvset_add,     MAPI_RC_SCALAR, 0 },
+    { mapi_idx_cndb_record_kvset_del,     MAPI_RC_SCALAR, 0 },
+    { mapi_idx_cndb_record_kvset_add_ack, MAPI_RC_SCALAR, 0 },
+    { mapi_idx_cndb_record_kvset_del_ack, MAPI_RC_SCALAR, 0 },
+    { mapi_idx_cndb_record_nak,           MAPI_RC_SCALAR, 0 },
     { -1 },
 };
 
@@ -892,16 +881,14 @@ void
 mock_cndb_set()
 {
     mapi_inject_list_set(cndb_inject_list);
-    MOCK_SET(cndb, _cndb_alloc);
-    MOCK_SET(cndb, _cndb_cn_create);
+    MOCK_SET(cndb, _cndb_record_kvs_add);
 }
 
 void
 mock_cndb_unset()
 {
     mapi_inject_list_unset(cndb_inject_list);
-    MOCK_UNSET(cndb, _cndb_alloc);
-    MOCK_UNSET(cndb, _cndb_cn_create);
+    MOCK_UNSET(cndb, _cndb_record_kvs_add);
 }
 
 /*****************************************************************

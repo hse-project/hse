@@ -173,6 +173,8 @@ struct cn_tree_node {
     u64                  tn_size_max;
     u64                  tn_update_incr_dgen;
 
+    uint64_t             tn_nodeid;
+
     struct cn_node_loc   tn_loc HSE_L1D_ALIGNED;
     uint                 tn_cgen;
     struct list_head     tn_kvset_list; /* head = newest kvset */

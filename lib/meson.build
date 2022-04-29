@@ -67,6 +67,7 @@ subdir('util')
 subdir('c0')
 subdir('lc')
 subdir('cn')
+subdir('cndb')
 subdir('kvdb')
 subdir('wal')
 subdir('mpool')
@@ -79,6 +80,7 @@ hse_sources = [
     lc_sources,
     config_sources,
     cn_sources,
+    cndb_sources,
     kvdb_sources,
     kvs_sources,
     wal_sources,

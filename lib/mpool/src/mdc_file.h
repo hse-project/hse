@@ -208,12 +208,13 @@ mdc_file_rewind(struct mdc_file *mfp);
  * mdc_file_stats() - get stats of an MDC file
  *
  * @mfp:       mdc file handle
+ * @size:      mdc file size
  * @allocated: allocated space in bytes (output)
  * @used:      used space in bytes (output)
  *
  */
 merr_t
-mdc_file_stats(struct mdc_file *mfp, uint64_t *allocated, uint64_t *used);
+mdc_file_stats(struct mdc_file *mfp, uint64_t *size, uint64_t *allocated, uint64_t *used);
 
 /**
  * mdc_file_read() - read an MDC file

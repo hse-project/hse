@@ -43,20 +43,19 @@ struct injections injections[] = {
     { 0, mapi_idx_kvset_create },
     { 0, mapi_idx_kvset_put_ref },
     { 0, mapi_idx_kvset_get_ref },
-    { 0, mapi_idx_kvset_log_d_records },
+    { 0, mapi_idx_kvset_delete_log_record },
     { 0, mapi_idx_kvset_mark_mblocks_for_delete },
     { 0, mapi_idx_kvset_get_hlog },
     { 123, mapi_idx_kvset_get_dgen },
 
     /* cndb */
-    { 0, mapi_idx_cndb_seqno },
-    { 0, mapi_idx_cndb_txn_start },
-    { 0, mapi_idx_cndb_txn_txc },
-    { 0, mapi_idx_cndb_txn_txd },
-    { 0, mapi_idx_cndb_txn_meta },
-    { 0, mapi_idx_cndb_txn_ack_c },
-    { 0, mapi_idx_cndb_txn_ack_d },
-    { 0, mapi_idx_cndb_txn_nak },
+    { 0, mapi_idx_cndb_record_txstart },
+    { 0, mapi_idx_cndb_kvsetid_mint },
+    { 0, mapi_idx_cndb_record_kvset_add },
+    { 0, mapi_idx_cndb_record_kvset_del },
+    { 0, mapi_idx_cndb_record_kvset_add_ack },
+    { 0, mapi_idx_cndb_record_kvset_del_ack },
+    { 0, mapi_idx_cndb_record_nak },
 
     /* hlog */
     { 0, mapi_idx_hlog_create },
@@ -187,55 +186,27 @@ MTF_BEGIN_UTEST_COLLECTION_PREPOST(cn_ingest_test, setup, teardown);
 MTF_DEFINE_UTEST_PRE(cn_ingest_test, commit_delete, test_pre)
 {
     struct kvset_mblocks m[4];
-    u64                  tags[NELEM(m)];
     uint                 n_kvsets = NELEM(m);
 
     u32    n, k, v;
     merr_t err;
-    u64    context;
 
     /*
      * Test cn_mblocks_commit w/ cndb_txn_txc set to succeed
      */
     n = 0;
     init_mblks(m, n_kvsets, &k, &v);
-    context = 0;
-    err = cn_mblocks_commit(mock_ds, 0, 0, 0, n_kvsets, m, CN_MUT_OTHER, &n, &context, tags);
+    err = cn_mblocks_commit(mock_ds, n_kvsets, m, CN_MUT_OTHER, &n);
     ASSERT_EQ(err, 0);
     ASSERT_EQ(n, n_kvsets * (1 + k + v)); /* 1 for hblock */
     free_mblks(m, n_kvsets);
 
     n = 0;
     init_mblks(m, n_kvsets, &k, &v);
-    context = 0;
-    err = cn_mblocks_commit(mock_ds, 0, 0, 0, n_kvsets, m, CN_MUT_KCOMPACT, &n, &context, tags);
+    err = cn_mblocks_commit(mock_ds, n_kvsets, m, CN_MUT_KCOMPACT, &n);
     ASSERT_EQ(err, 0);
     ASSERT_EQ(n, n_kvsets * (1 + k)); /* kcompact ==> does not commit vblks, 1 for hblock */
     free_mblks(m, n_kvsets);
-
-    /*
-     * Test cn_mblocks_commit w/ cndb_txn_txc set to fail
-     */
-    mapi_inject(mapi_idx_cndb_txn_txc, -1);
-
-    n = 0;
-    init_mblks(m, n_kvsets, &k, &v);
-    context = 0;
-    err = cn_mblocks_commit(mock_ds, 0, 0, 0, n_kvsets, m, CN_MUT_OTHER, &n, &context, tags);
-    ASSERT_NE(err, 0);
-    ASSERT_EQ(n, 0);
-    free_mblks(m, n_kvsets);
-
-    n = 0;
-    init_mblks(m, n_kvsets, &k, &v);
-    context = 0;
-    err = cn_mblocks_commit(mock_ds, 0, 0, 0, n_kvsets, m, CN_MUT_KCOMPACT, &n, &context, tags);
-    ASSERT_NE(err, 0);
-    ASSERT_EQ(n, 0);
-    free_mblks(m, n_kvsets);
-
-    /* unset cndb_txn_txc injection */
-    mapi_inject(mapi_idx_cndb_txn_txc, 0);
 
     /* Test cn_mblocks_destroy with kcompact == false.
      * Should delete kblocks and vblocks.

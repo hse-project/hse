@@ -36,7 +36,7 @@ def separate_keys(kvdb: hse.Kvdb, kvs: hse.Kvs):
     # Probe
     cnt, k, _, v, _ = kvs.prefix_probe(b"ab0")
     assert cnt == hse.KvsPfxProbeCnt.MUL
-    assert (k, v) == (b"ab03", b"val-c0")
+    assert (k, v) == (b"ab01", b"val-cn")
 
     # Cursor
     with kvs.cursor(filt=b"ab") as c:
@@ -90,9 +90,7 @@ def duplicate_lc_cn(kvdb: hse.Kvdb, kvs: hse.Kvs, cursor_sync: bool = False):
 
     # Cursor
     with kvs.cursor(filt=b"ab") as c:
-        probe_kv = (b"ab02", b"val-c0")
         if cursor_sync:
-            probe_kv = (b"ab01", b"val-lc")
             kvdb.sync()
 
         # Point Get
@@ -102,7 +100,7 @@ def duplicate_lc_cn(kvdb: hse.Kvdb, kvs: hse.Kvs, cursor_sync: bool = False):
         # Probe
         cnt, k, _, v, _ = kvs.prefix_probe(b"ab0")
         assert cnt == hse.KvsPfxProbeCnt.MUL
-        assert (k, v) == probe_kv
+        assert (k, v) == (b"ab01", b"val-lc")
 
         # Read all keys
         assert c.read() == (b"ab01", b"val-lc")
@@ -162,7 +160,7 @@ def duplicate_c0_lc(kvdb: hse.Kvdb, kvs: hse.Kvs, cursor_sync: bool = False):
         # Probe
         cnt, k, _, v, _ = kvs.prefix_probe(b"ab0")
         assert cnt == hse.KvsPfxProbeCnt.MUL
-        assert (k, v) == (b"ab02", b"val-c0")
+        assert (k, v) == (b"ab01", b"val-cn")
 
         # Read all keys
         assert c.read() == (b"ab01", b"val-cn")
@@ -413,7 +411,7 @@ try:
         kvdb_ctx = lifecycle.KvdbContext().rparams("durability.enabled=false", "c0_debug=16")
         kvdb = stack.enter_context(kvdb_ctx)
 
-        kvs_ctx = lifecycle.KvsContext(kvdb, "test_kvs").cparams("prefix.length=2", "suffix.length=1").rparams("transactions.enabled=true")
+        kvs_ctx = lifecycle.KvsContext(kvdb, "test_kvs").cparams("prefix.length=2").rparams("transactions.enabled=true")
         with kvs_ctx as kvs:
             separate_keys(kvdb, kvs)
 

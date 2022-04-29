@@ -21,12 +21,14 @@
 #include <cn/cn_tree.h>
 #include <cn/cn_tree_create.h>
 #include <cn/cn_tree_compact.h>
+#include <cn/cn_tree_internal.h>
 #include <cn/spill.h>
 #include <cn/kcompact.h>
 #include <cn/cn_metrics.h>
 #include <cn/kvs_mblk_desc.h>
 #include <cn/kv_iterator.h>
 #include <cn/kvset.h>
+#include <cn/route.h>
 #include <cn/omf.h>
 
 #include <yaml.h>
@@ -1156,6 +1158,21 @@ run_testcase(struct mtf_test_info *lcl_ti, int mode, const char *info)
         ASSERT_NE(tree, NULL);
 
         cn_tree_setup(tree, NULL, NULL, &rp, NULL, 1234, 0);
+        tree->ct_root->tn_childc = cp.fanout;
+
+        for (i = 0; i < tree->ct_root->tn_childc; i++) {
+            struct cn_tree_node *tn;
+            char ekbuf[HSE_KVS_KEY_LEN_MAX];
+            size_t eklen;
+
+            tn = cn_node_alloc(tree, 1, i);
+            ASSERT_NE(0, tn);
+
+            eklen = snprintf(ekbuf, sizeof(ekbuf), "a.%08d", i);
+            tn->tn_route_node = route_map_insert(tree->ct_route_map, tn, ekbuf, eklen);
+            tn->tn_parent = tree->ct_root;
+            tree->ct_root->tn_childv[i] = tn;
+        }
 
         init_work(
             &w,

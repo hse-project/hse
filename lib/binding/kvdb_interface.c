@@ -959,11 +959,11 @@ hse_kvs_prefix_probe(
     size_t                      valbuf_sz,
     size_t *                    val_len)
 {
-    struct kvs_ktuple   kt;
-    struct kvs_buf      kbuf, vbuf;
-    enum key_lookup_res res;
-    merr_t              err = 0;
-    u64 sum             HSE_MAYBE_UNUSED;
+    struct hse_kvs_cursor *cur;
+    bool eof;
+    const void *key;
+    size_t klen;
+    merr_t err = 0;
 
     if (!handle || !pfx || !found || !val_len || flags != 0)
         err = merr(EINVAL);
@@ -980,48 +980,32 @@ hse_kvs_prefix_probe(
         return err;
 
     /* If valbuf is NULL and valbuf_sz is zero, this call is meant as a
-     * probe for the existence of the key and length of its value. To
-     * prevent c0/cn from allocating a new buffer for the value, set valbuf
-     * to non-zero and proceed.
+     * probe for the existence of the key and length of its value.
      */
-    if (!valbuf && valbuf_sz == 0)
-        valbuf = (void *)-1;
 
-    kvs_ktuple_init(&kt, pfx, pfx_len);
-    kvs_buf_init(&kbuf, keybuf, keybuf_sz);
-    kvs_buf_init(&vbuf, valbuf, valbuf_sz);
-
-    err = ikvdb_kvs_pfx_probe(handle, flags, txn, &kt, &res, &kbuf, &vbuf);
+    err = ikvdb_kvs_cursor_create(handle, flags, txn, pfx, pfx_len, &cur);
     if (ev(err))
         return err;
 
-    sum = 0;
+    *found = HSE_KVS_PFX_FOUND_ZERO;
+    err = ikvdb_kvs_cursor_read_copy(cur, flags, keybuf, keybuf_sz, key_len,
+                                     valbuf, valbuf_sz, val_len, &eof);
+    if (ev(err || eof))
+        goto out;
 
-    switch (res) {
-        case NOT_FOUND:
-        case FOUND_PTMB:
-        case FOUND_TMB:
-            *found = HSE_KVS_PFX_FOUND_ZERO;
-            break;
+    *found = HSE_KVS_PFX_FOUND_ONE;
+    err = ikvdb_kvs_cursor_read(cur, flags, &key, &klen, 0, 0, &eof);
 
-        case FOUND_VAL:
-            *found = HSE_KVS_PFX_FOUND_ONE;
-            *key_len = kbuf.b_len;
-            *val_len = vbuf.b_len;
-            sum = *key_len + *val_len;
-            break;
+    if (ev(err || eof))
+        goto out;
 
-        case FOUND_MULTIPLE:
-            *found = HSE_KVS_PFX_FOUND_MUL;
-            *key_len = kbuf.b_len;
-            *val_len = vbuf.b_len;
-            sum = *key_len + *val_len;
-            break;
-    }
+    *found = HSE_KVS_PFX_FOUND_MUL;
+    PERFC_INCADD_RU(&kvdb_pc, PERFC_RA_KVDBOP_KVS_PFXPROBE, PERFC_RA_KVDBOP_KVS_GETB,
+                    klen + *key_len + *val_len);
 
-    PERFC_INCADD_RU(&kvdb_pc, PERFC_RA_KVDBOP_KVS_PFXPROBE, PERFC_RA_KVDBOP_KVS_GETB, sum);
-
-    return 0UL;
+out:
+    ikvdb_kvs_cursor_destroy(cur);
+    return err;
 }
 
 hse_err_t

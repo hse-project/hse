@@ -44,16 +44,16 @@ try:
         kvs.put(b"AbcXZ", b"3", txn=txn)
         cnt, k, _, v, _ = kvs.prefix_probe(b"Abc", txn=txn)  # inside txn
         assert cnt == hse.KvsPfxProbeCnt.MUL
-        assert (k, v) == (b"AbcXZ", b"3")
+        assert (k, v) == (b"AbcXX", b"1")
         with kvdb.transaction() as t:
             cnt, k, _, v, _ = kvs.prefix_probe(b"Abc", txn=t)  # outside txn
             assert cnt == hse.KvsPfxProbeCnt.MUL
-            assert (k, v) == (b"AbcXY", b"2")
+            assert (k, v) == (b"AbcXX", b"1")
 
         txn.commit()
 
         cnt, k, _, v, _ = kvs.prefix_probe(b"Abc")
         assert cnt == hse.KvsPfxProbeCnt.MUL
-        assert (k, v) == (b"AbcXZ", b"3")
+        assert (k, v) == (b"AbcXX", b"1")
 finally:
     hse.fini()

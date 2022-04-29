@@ -38,7 +38,7 @@ mpool_mdc_alloc(
     struct mpool     *mp,
     uint32_t          magic,
     size_t            capacity,
-    enum hse_mclass mclass,
+    enum hse_mclass   mclass,
     uint64_t         *logid1,
     uint64_t         *logid2)
 {
@@ -410,27 +410,21 @@ mpool_mdc_append(struct mpool_mdc *mdc, void *data, size_t len, bool sync)
 }
 
 merr_t
-mpool_mdc_usage(struct mpool_mdc *mdc, uint64_t *allocated, uint64_t *used)
+mpool_mdc_usage(struct mpool_mdc *mdc, uint64_t *size, uint64_t *allocated, uint64_t *used)
 {
     merr_t   err;
-    uint64_t alloc1, alloc2;
 
-    if (!mdc || (!allocated && !used))
+    if (!mdc || !size || !allocated || !used)
         return merr(EINVAL);
 
     mutex_lock(&mdc->lock);
 
-    err = mdc_file_stats(mdc->mfp1, allocated ? &alloc1 : NULL,
-                         mdc->mfp1 == mdc->mfpa ? used : NULL);
-    if (!err) {
-        err = mdc_file_stats(mdc->mfp2, allocated ? &alloc2 : NULL,
-                             mdc->mfp2 == mdc->mfpa ? used : NULL);
-    }
+    if (mdc->mfpa == mdc->mfp1)
+        err = mdc_file_stats(mdc->mfp1, size, allocated, used);
+    else
+        err = mdc_file_stats(mdc->mfp2, size, allocated, used);
 
     mutex_unlock(&mdc->lock);
-
-    if (!err && allocated)
-        *allocated = alloc1 + alloc2;
 
     return err;
 }
