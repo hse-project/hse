@@ -169,7 +169,7 @@ class YcsbTest(BaseTest):
         if ("threadcount" not in properties) and ("-threads" not in args):
             new_args.extend(["-threads", str(config.AVAILABLE_CPUS)])
 
-        new_args.extend(["-p", "hse.kvdb_home=%s" % config.KVDB_HOME])
+        new_args.extend(["-p", "hse.kvdb.home=%s" % config.KVDB_HOME])
 
         info = YcsbCommandInfo(new_args, properties, workload_name, dest_dir)
 

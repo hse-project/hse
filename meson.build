@@ -375,6 +375,8 @@ if 'java' in bindings or 'auto' in bindings
             hse_jar,
         ]
     endif
+else
+    hse_java = disabler()
 endif
 
 hse_python_depends = disabler()
