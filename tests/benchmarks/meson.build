@@ -28,6 +28,7 @@ tests = {
         ],
         'env': environment({
             'HSE_TEST_RUNNER_RUNNER': 'python',
+            'LD_LIBRARY_PATH': hse_java.found() ? fs.parent(hsejni.full_path()) : '',
         })
     },
     'test_ycsb_2tb_scan': {
@@ -39,6 +40,7 @@ tests = {
         ],
         'env': environment({
             'HSE_TEST_RUNNER_RUNNER': 'python',
+            'LD_LIBRARY_PATH': hse_java.found() ? fs.parent(hsejni.full_path()) : '',
         })
     },
     'test_dbbench': {
@@ -56,12 +58,6 @@ tests = {
 foreach t, params : tests
     path = meson.current_source_dir() / '@0@.py'.format(t)
     testname = fs.stem(path)
-
-    if params.get('suite', '').contains('ycsb') and not hse_java.found() 
-        continue
-    elif params.get('suite', '').contains('ycsb') and hse_java.found()
-        params['env'].append('LD_LIBRARY_PATH', fs.parent(hsejni.full_path()))
-    endif
 
     benchmark(
         testname,

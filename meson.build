@@ -393,6 +393,8 @@ if 'python' in bindings or 'auto' in bindings
         hse_python_depends = hse_python.get_variable('extension_modules')
         run_env.prepend('PYTHONPATH', hse_python.get_variable('project_build_root'))
     endif
+else
+    hse_python = disabler()
 endif
 
 if get_option('db_bench') and get_option('experimental')
