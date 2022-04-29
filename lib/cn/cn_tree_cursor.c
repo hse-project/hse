@@ -195,7 +195,8 @@ cn_tree_lcur_init(
 
         lcur->cnlc_bh_max_cnt = bh_max_cnt;
         err = bin_heap2_create(lcur->cnlc_bh_max_cnt,
-                               cncur->cncur_reverse ? cn_kv_cmp_rev : cn_kv_cmp, &lcur->cnlc_bh);
+                               cncur->cncur_reverse ? cn_kv_cmp_rev : cn_kv_cmp,
+                               &lcur->cnlc_bh);
         if (ev(err))
             return err;
     }
@@ -344,19 +345,21 @@ cn_tree_lcur_advance(struct cn_level_cursor *lcur)
                route_map_lookupGT(tree->ct_route_map, lcur->cnlc_next_ekey, lcur->cnlc_next_eklen);
 
     do {
-        if (!first_pass)
-            rtn_curr = cncur->cncur_reverse ? route_node_prev(rtn_curr) : route_node_next(rtn_curr);
-
-        first_pass = false;
-
         if (cncur->cncur_reverse) {
+            if (!first_pass)
+                rtn_curr = route_node_prev(rtn_curr);
+
             lcur->cnlc_islast = route_node_isfirst(rtn_curr);
             rtn_ekey = route_node_prev(rtn_curr);
         } else {
+            if (!first_pass)
+                rtn_curr = route_node_next(rtn_curr);
+
             lcur->cnlc_islast = route_node_islast(rtn_curr);
             rtn_ekey = rtn_curr;
         }
 
+        first_pass = false;
         cncur->cncur_merr = cn_tree_kvset_refs(route_node_tnode(rtn_curr), lcur);
         if (ev(cncur->cncur_merr))
             break;
@@ -423,7 +426,6 @@ cn_tree_cursor_seek(
     struct route_node *rtn_curr, *rtn_ekey;
     merr_t err = 0;
     bool first_pass = true;
-    bool reverse = cur->cncur_reverse;
     int i;
 
     rmlock_rlock(&tree->ct_lock, &lock);
@@ -437,16 +439,22 @@ cn_tree_cursor_seek(
     rtn_curr = route_map_lookup(tree->ct_route_map, key, len);
 
     do {
-        if (!first_pass)
-            rtn_curr = reverse ? route_node_prev(rtn_curr) :
-                                 route_node_next(rtn_curr);
+        if (cur->cncur_reverse) {
+            if (!first_pass)
+                rtn_curr = route_node_prev(rtn_curr);
+
+            lcur->cnlc_islast = route_node_isfirst(rtn_curr);
+            rtn_ekey = route_node_prev(rtn_curr);
+
+        } else {
+            if (!first_pass)
+                rtn_curr = route_node_next(rtn_curr);
+
+            lcur->cnlc_islast = route_node_islast(rtn_curr);
+            rtn_ekey = rtn_curr;
+        }
 
         first_pass = false;
-        lcur->cnlc_islast = reverse ? route_node_isfirst(rtn_curr) :
-                                      route_node_islast(rtn_curr);
-
-        rtn_ekey = reverse ? route_node_prev(rtn_curr) : rtn_curr;
-
         err = cn_tree_kvset_refs(route_node_tnode(rtn_curr), lcur);
         if (ev(err))
             break;
