@@ -98,7 +98,6 @@ struct cn_cursor {
     uint32_t cncur_pt_set : 1;
     uint32_t cncur_pt_level : 1;
     uint32_t cncur_first_read : 1;
-    uint32_t cncur_seek_root : 1;
 
     struct cn_merge_stats cncur_stats;
     struct kc_filter *    cncur_filter;

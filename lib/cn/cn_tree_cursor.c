@@ -136,10 +136,10 @@ kvref_tab_putref(void *arg)
 }
 
 static bool
-cn_tree_lcur_read(struct element_source *, void **);
+cn_lcur_read(struct element_source *, void **);
 
 MTF_STATIC merr_t
-cn_tree_lcur_init(
+cn_lcur_init(
     struct cn_level_cursor *lcur)
 {
     struct cn_cursor       *cncur = lcur->cnlc_cncur;
@@ -154,7 +154,7 @@ cn_tree_lcur_init(
     merr_t err;
 
     lcur->cnlc_iterc = 0;
-    lcur->cnlc_es = es_make(cn_tree_lcur_read, 0, 0);
+    lcur->cnlc_es = es_make(cn_lcur_read, 0, 0);
 
     /* Grow element source array if necessary.
      */
@@ -201,7 +201,21 @@ cn_tree_lcur_init(
             return err;
     }
 
-    return err;
+    return 0;
+}
+
+static void
+cn_lcur_kvset_release(struct cn_level_cursor *lcur)
+{
+    int i;
+
+    for (i = 0; i < lcur->cnlc_iterc; i++)
+        kvset_iter_release(kvset_cursor_es_h2r(lcur->cnlc_esrcv[i]));
+
+    lcur->cnlc_iterc = 0;
+
+    table_apply(lcur->cnlc_kvref_tab, kvref_tab_putref);
+    table_reset(lcur->cnlc_kvref_tab);
 }
 
 merr_t
@@ -219,6 +233,7 @@ cn_tree_cursor_create(struct cn_cursor *cur)
         lcur = &cur->cncur_lcur[i];
         lcur->cnlc_cncur = cur;
         lcur->cnlc_level = i;
+        lcur->cnlc_iterc = 0;
         if (!lcur->cnlc_kvref_tab)
             lcur->cnlc_kvref_tab = table_create(kvref_tab_cnt, sizeof(struct kvref), false);
 
@@ -244,15 +259,11 @@ cn_tree_cursor_create(struct cn_cursor *cur)
     if (ev(err))
         goto out;
 
-    err = cn_tree_lcur_init(lcur);
-    if (ev(err)) {
-        for (int j = 0; j < lcur->cnlc_iterc; j++)
-            kvset_iter_release(kvset_cursor_es_h2r(lcur->cnlc_esrcv[j]));
+    err = cn_lcur_init(lcur);
+    if (ev(err))
         goto out;
-    }
 
     cur->cncur_first_read = 1;
-    cur->cncur_seek_root = 1;
 
     cur->cncur_dgen = lcur->cnlc_dgen_hi;
     err = bin_heap2_create(NUM_LEVELS, cur->cncur_reverse ? cn_kv_cmp_rev : cn_kv_cmp, &cur->cncur_bh);
@@ -262,6 +273,7 @@ out:
         for (; i >= 0; i--) {
             struct cn_level_cursor *lcur = &cur->cncur_lcur[i];
 
+            cn_lcur_kvset_release(lcur);
             table_destroy(lcur->cnlc_kvref_tab);
             free(lcur->cnlc_esrcv);
         }
@@ -273,15 +285,13 @@ out:
 void
 cn_tree_cursor_destroy(struct cn_cursor *cur)
 {
-    int i, j;
+    int i;
 
     for (i = 0; i < NUM_LEVELS; i++) {
         struct cn_level_cursor *lcur = &cur->cncur_lcur[i];
 
-        for (j = 0; j < lcur->cnlc_iterc; j++)
-            kvset_iter_release(kvset_cursor_es_h2r(lcur->cnlc_esrcv[j]));
+        cn_lcur_kvset_release(lcur);
 
-        table_apply(lcur->cnlc_kvref_tab, kvref_tab_putref);
         table_destroy(lcur->cnlc_kvref_tab);
         bin_heap2_destroy(lcur->cnlc_bh);
         free(lcur->cnlc_esrcv);
@@ -291,7 +301,7 @@ cn_tree_cursor_destroy(struct cn_cursor *cur)
 }
 
 MTF_STATIC merr_t
-cn_tree_lcur_seek(
+cn_lcur_seek(
     struct cn_level_cursor *lcur,
     const void             *key,
     u32                     len)
@@ -315,14 +325,13 @@ cn_tree_lcur_seek(
 }
 
 static void
-cn_tree_lcur_advance(struct cn_level_cursor *lcur)
+cn_lcur_advance(struct cn_level_cursor *lcur)
 {
     struct cn_cursor *cncur = lcur->cnlc_cncur;
     struct cn_tree *tree = cn_get_tree(cncur->cncur_cn);
     struct route_node *rtn_curr, *rtn_ekey;
     void *lock;
     bool first_pass = true;
-    int i;
 
     if (lcur->cnlc_islast)
         return;
@@ -333,11 +342,8 @@ cn_tree_lcur_advance(struct cn_level_cursor *lcur)
     if (cncur->cncur_pt_set && cncur->cncur_pt_level == 1)
         cncur->cncur_pt_set = 0;
 
-    for (i = 0; i < lcur->cnlc_iterc; i++)
-        kvset_iter_release(kvset_cursor_es_h2r(lcur->cnlc_esrcv[i]));
+    cn_lcur_kvset_release(lcur);
 
-    table_apply(lcur->cnlc_kvref_tab, kvref_tab_putref);
-    table_reset(lcur->cnlc_kvref_tab);
     rmlock_rlock(&tree->ct_lock, &lock);
 
     rtn_curr = cncur->cncur_reverse ?
@@ -371,22 +377,26 @@ cn_tree_lcur_advance(struct cn_level_cursor *lcur)
     if (ev(cncur->cncur_merr))
         return;
 
-    cncur->cncur_merr = cn_tree_lcur_init(lcur);
+    cncur->cncur_merr = cn_lcur_init(lcur);
     if (ev(cncur->cncur_merr))
         return;
 
     if (lcur->cnlc_iterc) {
-        cncur->cncur_merr = cn_tree_lcur_seek(lcur, lcur->cnlc_next_ekey, lcur->cnlc_next_eklen);
+        cncur->cncur_merr = cn_lcur_seek(lcur, lcur->cnlc_next_ekey, lcur->cnlc_next_eklen);
         if (ev(cncur->cncur_merr))
             return;
     }
 
-    if (!lcur->cnlc_islast)
-        route_node_keycpy(rtn_ekey, &lcur->cnlc_next_ekey, sizeof(lcur->cnlc_next_ekey), &lcur->cnlc_next_eklen);
+    if (lcur->cnlc_islast)
+        return;
+
+    route_node_keycpy(rtn_ekey, &lcur->cnlc_next_ekey,
+                      sizeof(lcur->cnlc_next_ekey),
+                      &lcur->cnlc_next_eklen);
 }
 
 static bool
-cn_tree_lcur_read(struct element_source *es, void **element)
+cn_lcur_read(struct element_source *es, void **element)
 {
     struct cn_level_cursor *lcur = container_of(es, struct cn_level_cursor, cnlc_es);
     struct cn_kv_item      *popme;
@@ -398,7 +408,7 @@ cn_tree_lcur_read(struct element_source *es, void **element)
         if (lcur->cnlc_level == 0 || lcur->cnlc_islast)
             return false;
 
-        cn_tree_lcur_advance(lcur);
+        cn_lcur_advance(lcur);
         if (ev(lcur->cnlc_cncur->cncur_merr))
             return false;
 
@@ -428,13 +438,9 @@ cn_tree_cursor_seek(
     bool first_pass = true;
     int i;
 
+    cn_lcur_kvset_release(lcur);
+
     rmlock_rlock(&tree->ct_lock, &lock);
-
-    for (i = 0; i < lcur->cnlc_iterc; i++)
-        kvset_iter_release(kvset_cursor_es_h2r(lcur->cnlc_esrcv[i]));
-
-    table_apply(lcur->cnlc_kvref_tab, kvref_tab_putref);
-    table_reset(lcur->cnlc_kvref_tab);
 
     rtn_curr = route_map_lookup(tree->ct_route_map, key, len);
 
@@ -470,7 +476,7 @@ cn_tree_cursor_seek(
     if (ev(err))
         return err;
 
-    err = cn_tree_lcur_init(lcur);
+    err = cn_lcur_init(lcur);
     if (ev(err))
         return err;
 
@@ -485,7 +491,7 @@ cn_tree_cursor_seek(
         if (!lcur->cnlc_iterc)
             continue;
 
-        err = cn_tree_lcur_seek(lcur, key, len);
+        err = cn_lcur_seek(lcur, key, len);
         if (ev(err))
             return err;
 
@@ -495,7 +501,6 @@ cn_tree_cursor_seek(
     }
 
     cur->cncur_first_read = 1;
-    cur->cncur_seek_root = 0;
     cur->cncur_eof = cur->cncur_iterc ? false : true;
     cur->cncur_pt_set = 0;
 
@@ -528,20 +533,13 @@ cn_tree_cursor_update(struct cn_cursor *cur)
     struct cn_tree *tree = cn_get_tree(cur->cncur_cn);
     struct cn_level_cursor *lcur;
     void *lock;
-    int i, j;
+    int i;
     merr_t err;
 
     /* Release resources.
      */
-    for (i = 0; i < NUM_LEVELS; i++) {
-        struct cn_level_cursor *lcur = &cur->cncur_lcur[i];
-
-        for (j = 0; j < lcur->cnlc_iterc; j++)
-            kvset_iter_release(kvset_cursor_es_h2r(lcur->cnlc_esrcv[j]));
-
-        table_apply(lcur->cnlc_kvref_tab, kvref_tab_putref);
-        table_reset(lcur->cnlc_kvref_tab);
-    }
+    for (i = 0; i < NUM_LEVELS; i++)
+        cn_lcur_kvset_release(&cur->cncur_lcur[i]);
 
     /* Re-acquire Level 0 resources.
      */
@@ -555,12 +553,11 @@ cn_tree_cursor_update(struct cn_cursor *cur)
     if (ev(err))
         return err;
 
-    err = cn_tree_lcur_init(lcur);
+    err = cn_lcur_init(lcur);
     if (ev(err))
         return err;
 
     cur->cncur_dgen = lcur->cnlc_dgen_hi;
-    cur->cncur_seek_root = 1;
 
     return err;
 }

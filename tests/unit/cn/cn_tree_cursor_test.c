@@ -194,7 +194,7 @@ _route_map_destroy(struct route_map *map)
 
 /* This is a mock */
 merr_t
-cn_tree_lcur_init(
+cn_lcur_init(
     struct cn_level_cursor *lcur)
 {
     /* Set number of iterators to some non-zero value so the code doesn't skip seek.
@@ -205,7 +205,7 @@ cn_tree_lcur_init(
 
 /* This is a mock */
 merr_t
-cn_tree_lcur_seek(
+cn_lcur_seek(
     struct cn_level_cursor *lcur,
     const void             *key,
     u32                     len)
