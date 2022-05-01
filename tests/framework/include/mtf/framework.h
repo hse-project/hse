@@ -29,7 +29,7 @@ extern int         mtf_verify_flag;
 extern int         mtf_verify_line;
 extern const char *mtf_verify_file;
 
-extern char home[PATH_MAX];
+extern char mtf_kvdb_home[PATH_MAX];
 
 #define MTF_MODULE_UNDER_TEST(module) const char *___mtf_module_under_test = #module
 

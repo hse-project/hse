@@ -200,7 +200,7 @@ test_pre(struct mtf_test_info *lcl_ti)
 
     err = argv_deserialize_to_kvdb_rparams(NELEM(paramv), paramv, &params);
     ASSERT_EQ_RET(0, err, merr_errno(err));
-    err = ikvdb_open(home, &params, &store);
+    err = ikvdb_open(mtf_kvdb_home, &params, &store);
     ASSERT_EQ_RET(0, err, merr_errno(err));
     err = ikvdb_kvs_create(store, KVS1, &kvs_cp);
     ASSERT_EQ_RET(0, err, merr_errno(err));

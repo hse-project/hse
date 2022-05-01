@@ -31,7 +31,7 @@ test_collection_setup(struct mtf_test_info *lcl_ti)
 {
     hse_err_t err;
 
-    err = fxt_kvdb_setup(home, 0, NULL, 0, NULL, &kvdb_handle);
+    err = fxt_kvdb_setup(mtf_kvdb_home, 0, NULL, 0, NULL, &kvdb_handle);
 
     return hse_err_to_errno(err);
 }
@@ -41,7 +41,7 @@ test_collection_teardown(struct mtf_test_info *lcl_ti)
 {
     hse_err_t err;
 
-    err = fxt_kvdb_teardown(home, kvdb_handle);
+    err = fxt_kvdb_teardown(mtf_kvdb_home, kvdb_handle);
 
     return hse_err_to_errno(err);
 }

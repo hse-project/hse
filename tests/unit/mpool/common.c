@@ -15,11 +15,10 @@
 #include <hse_util/storage.h>
 
 #include <mtf/common.h>
+#include <mtf/framework.h>
 #include <mpool/mpool.h>
 
 #include "common.h"
-
-extern char home[PATH_MAX];
 
 char capacity_path[PATH_MAX];
 char staging_path[PATH_MAX];
@@ -78,13 +77,13 @@ mpool_collection_pre(struct mtf_test_info *ti)
     int rc = 0;
     size_t n;
 
-    n = snprintf(capacity_path, sizeof(capacity_path), "%s/capacity", home);
+    n = snprintf(capacity_path, sizeof(capacity_path), "%s/capacity", mtf_kvdb_home);
     if (n >= sizeof(capacity_path))
         return ENAMETOOLONG;
-    n = snprintf(staging_path, sizeof(staging_path), "%s/staging", home);
+    n = snprintf(staging_path, sizeof(staging_path), "%s/staging", mtf_kvdb_home);
     if (n >= sizeof(staging_path))
         return ENAMETOOLONG;
-    n = snprintf(pmem_path, sizeof(pmem_path), "%s/pmem", home);
+    n = snprintf(pmem_path, sizeof(pmem_path), "%s/pmem", mtf_kvdb_home);
     if (n >= sizeof(pmem_path))
         return ENAMETOOLONG;
 

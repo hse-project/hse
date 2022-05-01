@@ -21,7 +21,7 @@ test_collection_setup(struct mtf_test_info *lcl_ti)
 {
     hse_err_t err;
 
-    err = fxt_kvdb_setup(home, 0, NULL, 0, NULL, &kvdb_handle);
+    err = fxt_kvdb_setup(mtf_kvdb_home, 0, NULL, 0, NULL, &kvdb_handle);
 
     return hse_err_to_errno(err);
 }
@@ -31,7 +31,7 @@ test_collection_teardown(struct mtf_test_info *lcl_ti)
 {
     hse_err_t err;
 
-    err = fxt_kvdb_teardown(home, kvdb_handle);
+    err = fxt_kvdb_teardown(mtf_kvdb_home, kvdb_handle);
 
     return hse_err_to_errno(err);
 }
@@ -94,7 +94,7 @@ MTF_DEFINE_UTEST(kvdb_api_test, create_mismatched_paramc_paramv)
 {
     hse_err_t err;
 
-    err = hse_kvdb_create(home, 1, NULL);
+    err = hse_kvdb_create(mtf_kvdb_home, 1, NULL);
     ASSERT_EQ(EINVAL, hse_err_to_errno(err));
 }
 
@@ -103,7 +103,7 @@ MTF_DEFINE_UTEST(kvdb_api_test, create_exists)
     hse_err_t err;
 
     /* TC: Trying to create a KVDB on an already open KVDB returns EEXIST */
-    err = hse_kvdb_create(home, 0, NULL);
+    err = hse_kvdb_create(mtf_kvdb_home, 0, NULL);
     ASSERT_EQ(EEXIST, hse_err_to_errno(err));
 }
 
@@ -139,7 +139,7 @@ MTF_DEFINE_UTEST(kvdb_api_test, drop_open_kvdb)
 {
     hse_err_t err;
 
-    err = hse_kvdb_drop(home);
+    err = hse_kvdb_drop(mtf_kvdb_home);
     ASSERT_EQ(EBUSY, hse_err_to_errno(err));
 }
 
@@ -156,7 +156,7 @@ MTF_DEFINE_UTEST(kvdb_api_test, home_success)
     const char *home_intro;
 
     home_intro = hse_kvdb_home_get(kvdb_handle);
-    ASSERT_STREQ(home, home_intro);
+    ASSERT_STREQ(mtf_kvdb_home, home_intro);
 }
 
 MTF_DEFINE_UTEST(kvdb_api_test, kvs_names_null_kvdb)
@@ -233,7 +233,8 @@ MTF_DEFINE_UTEST(kvdb_api_test, mclass_info_success)
     struct hse_mclass_info info;
     char                   buf[PATH_MAX + sizeof("capacity")];
 
-    snprintf(buf, sizeof(buf), "%s%s%s", home, home[strlen(home)] == '/' ? "" : "/", "capacity");
+    snprintf(buf, sizeof(buf), "%s%s%s", mtf_kvdb_home,
+        mtf_kvdb_home[strlen(mtf_kvdb_home)] == '/' ? "" : "/", "capacity");
 
     err = hse_kvdb_mclass_info_get(kvdb_handle, HSE_MCLASS_CAPACITY, &info);
     ASSERT_EQ(0, hse_err_to_errno(err));
@@ -301,7 +302,7 @@ MTF_DEFINE_UTEST(kvdb_api_test, open_twice)
 {
     hse_err_t err;
 
-    err = hse_kvdb_open(home, 0, NULL, &kvdb_handle);
+    err = hse_kvdb_open(mtf_kvdb_home, 0, NULL, &kvdb_handle);
     ASSERT_EQ(EBUSY, hse_err_to_errno(err));
 }
 
@@ -309,7 +310,7 @@ MTF_DEFINE_UTEST(kvdb_api_test, open_mismatched_paramc_paramv)
 {
     hse_err_t err;
 
-    err = hse_kvdb_open(home, 1, NULL, (void *)-1);
+    err = hse_kvdb_open(mtf_kvdb_home, 1, NULL, (void *)-1);
     ASSERT_EQ(EINVAL, hse_err_to_errno(err));
 }
 
@@ -320,7 +321,7 @@ MTF_DEFINE_UTEST(kvdb_api_test, reopen)
     err = hse_kvdb_close(kvdb_handle);
     ASSERT_EQ(0, hse_err_to_errno(err));
 
-    err = hse_kvdb_open(home, 0, NULL, &kvdb_handle);
+    err = hse_kvdb_open(mtf_kvdb_home, 0, NULL, &kvdb_handle);
     ASSERT_EQ(0, hse_err_to_errno(err));
 }
 
@@ -384,7 +385,7 @@ MTF_DEFINE_UTEST(kvdb_api_test, storage_add_zero_paramc)
 {
     hse_err_t err;
 
-    err = hse_kvdb_storage_add(home, 0, (void *)-1);
+    err = hse_kvdb_storage_add(mtf_kvdb_home, 0, (void *)-1);
     ASSERT_EQ(EINVAL, hse_err_to_errno(err));
 }
 
@@ -392,7 +393,7 @@ MTF_DEFINE_UTEST(kvdb_api_test, storage_add_null_paramv)
 {
     hse_err_t err;
 
-    err = hse_kvdb_storage_add(home, 1, NULL);
+    err = hse_kvdb_storage_add(mtf_kvdb_home, 1, NULL);
     ASSERT_EQ(EINVAL, hse_err_to_errno(err));
 }
 
@@ -401,7 +402,7 @@ MTF_DEFINE_UTEST(kvdb_api_test, storage_add_open)
     hse_err_t   err;
     const char *paramv[] = { "storage." HSE_MCLASS_STAGING_NAME ".path=staging" };
 
-    err = hse_kvdb_storage_add(home, NELEM(paramv), paramv);
+    err = hse_kvdb_storage_add(mtf_kvdb_home, NELEM(paramv), paramv);
     ASSERT_EQ(EBUSY, hse_err_to_errno(err));
 }
 
@@ -417,8 +418,8 @@ MTF_DEFINE_UTEST(kvdb_api_test, storage_add_success)
         sizeof(staging_path),
         "storage.%s.path=%s%s%s",
         HSE_MCLASS_STAGING_NAME,
-        home,
-        home[strlen(home)] == '/' ? "" : "/",
+        mtf_kvdb_home,
+        mtf_kvdb_home[strlen(mtf_kvdb_home)] == '/' ? "" : "/",
         "staging");
 
     rc = mkdir(
@@ -429,10 +430,10 @@ MTF_DEFINE_UTEST(kvdb_api_test, storage_add_success)
     err = hse_kvdb_close(kvdb_handle);
     ASSERT_EQ(0, hse_err_to_errno(err));
 
-    err = hse_kvdb_storage_add(home, NELEM(paramv), paramv);
+    err = hse_kvdb_storage_add(mtf_kvdb_home, NELEM(paramv), paramv);
     ASSERT_EQ(0, hse_err_to_errno(err));
 
-    err = hse_kvdb_open(home, 0, NULL, &kvdb_handle);
+    err = hse_kvdb_open(mtf_kvdb_home, 0, NULL, &kvdb_handle);
     ASSERT_EQ(0, hse_err_to_errno(err));
 }
 
