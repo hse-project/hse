@@ -24,10 +24,11 @@ tests = {
         'timeout': 0,
         'depends': [
             hse_cli,
+            hse_java_depends,
         ],
         'env': environment({
             'HSE_TEST_RUNNER_RUNNER': 'python',
-            'LD_LIBRARY_PATH': meson.project_build_root() / 'hsejni' / 'src',
+            'LD_LIBRARY_PATH': hse_java.found() ? fs.parent(hsejni.full_path()) : '',
         })
     },
     'test_ycsb_2tb_scan': {
@@ -35,10 +36,11 @@ tests = {
         'timeout': 0,
         'depends': [
             hse_cli,
+            hse_java_depends,
         ],
         'env': environment({
             'HSE_TEST_RUNNER_RUNNER': 'python',
-            'LD_LIBRARY_PATH': meson.project_build_root() / 'hsejni' / 'src',
+            'LD_LIBRARY_PATH': hse_java.found() ? fs.parent(hsejni.full_path()) : '',
         })
     },
     'test_dbbench': {
