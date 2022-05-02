@@ -18,135 +18,11 @@
 #include <cn/kvs_mblk_desc.h>
 
 #include <mocks/mock_mpool.h>
+#include <support/ref_tree.h>
 
 #include <rbtree.h>
 
-/*
- * Reference Tree API
- */
-struct ref_tree {
-    struct rb_root rt_root;
-    void *         rt_buf;
-    size_t         rt_bufsz;
-    size_t         rt_curr;
-} reft;
-
-/* Each node contains one key. */
-struct reft_node {
-    struct rb_node node;
-    void *         key;
-    size_t         klen;
-};
-
-bool
-reft_insert(void *key, size_t klen)
-{
-    struct rb_node ** link;
-    struct rb_node *  parent;
-    struct rb_root *  root;
-    struct reft_node *n;
-
-    root = &reft.rt_root;
-    link = &root->rb_node;
-    parent = 0;
-
-    while (*link) {
-        int rc;
-
-        parent = *link;
-        n = container_of(parent, struct reft_node, node);
-
-        rc = keycmp(key, klen, n->key, n->klen);
-        if (rc < 0)
-            link = &(*link)->rb_left;
-        else if (rc > 0)
-            link = &(*link)->rb_right;
-        else
-            return false;
-    }
-
-    if (reft.rt_curr + sizeof(*n) + klen > reft.rt_bufsz)
-        return false;
-
-    n = reft.rt_buf + reft.rt_curr;
-    n->klen = klen;
-    n->key = n + 1;
-    reft.rt_curr += sizeof(*n);
-
-    memcpy(reft.rt_buf + reft.rt_curr, key, klen);
-    reft.rt_curr += klen;
-
-    rb_link_node(&n->node, parent, link);
-    rb_insert_color(&n->node, root);
-
-    return true;
-}
-
-enum {
-    QTYPE_GET,
-    QTYPE_SEEK_FWD,
-    QTYPE_SEEK_REV,
-};
-
-int
-reft_lookup(void *in_kdata, size_t in_klen, void **out_kdata, size_t *out_klen, int qtype)
-{
-    struct rb_node *  node;
-    struct rb_node *  last_smaller = rb_first(&reft.rt_root);
-    struct rb_node *  last_larger = rb_last(&reft.rt_root);
-    struct reft_node *n = NULL;
-
-    node = reft.rt_root.rb_node;
-
-    while (node) {
-        int rc;
-
-        n = container_of(node, struct reft_node, node);
-
-        rc = keycmp(in_kdata, in_klen, n->key, n->klen);
-        if (rc < 0) {
-            last_larger = node;
-            node = node->rb_left;
-        } else if (rc > 0) {
-            last_smaller = node;
-            node = node->rb_right;
-        } else {
-            last_smaller = last_larger = node;
-            break;
-        }
-    }
-
-    switch (qtype) {
-        case QTYPE_GET:
-            if (!node)
-                goto not_found;
-
-            n = container_of(node, struct reft_node, node);
-            break;
-        case QTYPE_SEEK_FWD:
-            n = container_of(last_larger, struct reft_node, node);
-            if (keycmp(n->key, n->klen, in_kdata, in_klen) < 0)
-                goto not_found;
-
-            break;
-        case QTYPE_SEEK_REV:
-            n = container_of(last_smaller, struct reft_node, node);
-            if (keycmp(n->key, n->klen, in_kdata, in_klen) > 0)
-                goto not_found;
-
-            break;
-    }
-
-    *out_kdata = n->key;
-    *out_klen = n->klen;
-
-    return 0;
-
-not_found:
-    *out_kdata = NULL;
-    *out_klen = 0;
-    return 1;
-}
+struct ref_tree *rtree;
 
 /*
  * WBTree test structs and helper functions.
@@ -168,8 +44,15 @@ struct key_list {
 
 struct key_iter {
     size_t        klen;
-    unsigned char kdata[];
+    char          kdata[];
 };
+
+void *
+key_iter_next(struct key_iter *curr)
+{
+    curr = (void *)curr + ALIGN((sizeof(*curr) + curr->klen), 8);
+    return curr;
+}
 
 #define BUF_SIZE (128 << 20)
 
@@ -180,13 +63,8 @@ pre_collection(struct mtf_test_info *lcl_ti)
 
     /* Set up key list */
     key_list.bufsz = BUF_SIZE;
-    key_list.buf = malloc(key_list.bufsz);
+    key_list.buf = aligned_alloc(8, key_list.bufsz);
     ASSERT_NE_RET(NULL, key_list.buf, 1);
-
-    /* Set up rb tree */
-    reft.rt_bufsz = BUF_SIZE;
-    reft.rt_buf = malloc(reft.rt_bufsz);
-    ASSERT_NE_RET(NULL, reft.rt_buf, 1);
 
     return 0;
 }
@@ -195,7 +73,6 @@ int
 post_collection(struct mtf_test_info *lcl_ti)
 {
     free(key_list.buf);
-    free(reft.rt_buf);
     mock_mpool_unset();
     return 0;
 }
@@ -206,14 +83,11 @@ int
 pre_test(struct mtf_test_info *lcl_ti)
 {
     wbb_create(&wbb, max_pgc, &wbt_pgc);
+    rtree = ref_tree_create();
 
     kmd_used = 0;
     key_list.buf_used = 0;
     key_list.nkeys = 0;
-
-    reft.rt_curr = 0;
-    reft.rt_root = RB_ROOT;
-    memset(reft.rt_buf, 0x00, reft.rt_bufsz);
 
     return 0;
 }
@@ -221,6 +95,7 @@ pre_test(struct mtf_test_info *lcl_ti)
 int
 post_test(struct mtf_test_info *lcl_ti)
 {
+    ref_tree_destroy(rtree);
     wbb_destroy(wbb);
     return 0;
 }
@@ -251,15 +126,16 @@ bool
 add_key(struct key_list *kl, void *key, size_t klen)
 {
     struct key_iter *k;
+    size_t sz = ALIGN((sizeof(*k) + klen), 8);
 
-    if (kl->buf_used + sizeof(*k) + klen > kl->bufsz)
+    if (kl->buf_used + sz > kl->bufsz)
         return false;
 
     k = kl->buf + kl->buf_used;
     k->klen = klen;
     memcpy(k->kdata, key, klen);
 
-    kl->buf_used += sizeof(*k) + klen;
+    kl->buf_used += sz;
     kl->nkeys++;
 
     return true;
@@ -287,7 +163,7 @@ tree_construct(struct mtf_test_info *lcl_ti, void **tree_out, struct wbt_hdr_omf
         wbb_add_entry(wbb, &ko, 1, kmd, kmd_used, max_pgc, &wbt_pgc, &added);
         ASSERT_TRUE_RET(added, 1);
         kmd_used = 0;
-        k = (void *)k + sizeof(*k) + k->klen;
+        k = key_iter_next(k);
     }
 
     err = wbb_freeze(wbb, hdr, max_pgc, &wbt_pgc, iov, sizeof(iov), &iov_cnt);
@@ -334,7 +210,6 @@ cursor_verify(
     k = kl->buf;
     for (i = 0; i < kl->nkeys; i++) {
         merr_t err;
-        uint   klen;
         int    rc;
 
         kvs_ktuple_init_nohash(&kt, k->kdata, k->klen);
@@ -351,16 +226,25 @@ cursor_verify(
             wbti_prefix(wbti, &ko.ko_pfx, &ko.ko_pfx_len);
         wbti_destroy(wbti);
 
-        void *        fkey;
+        char *        fkey;
         size_t        fklen;
-        int           qt = reverse ? QTYPE_SEEK_REV : QTYPE_SEEK_FWD;
         unsigned char kbuf[HSE_KVS_KEY_LEN_MAX];
+        uint          klen;
 
-        reft_lookup(k->kdata, k->klen, &fkey, &fklen, qt);
+        struct ref_tree_iter *iter;
+        bool more, eof;
+
+        iter = ref_tree_iter_create(rtree, 0, 0, reverse, 1);
+        ASSERT_NE_RET(NULL, iter, 1);
+
+        ref_tree_iter_seek(iter, k->kdata, k->klen, &eof);
+        more = ref_tree_iter_read(iter, &fkey, &fklen);
+        ref_tree_iter_destroy(iter);
+
         key_obj_copy(kbuf, sizeof(kbuf), &klen, &ko);
 
         /* Compare keys found in the reference rb tree and the wb tree. */
-        if (fkey) {
+        if (more) {
             ASSERT_TRUE_RET(found, 1);
             rc = keycmp(fkey, fklen, kbuf, klen);
             ASSERT_EQ_RET(0, rc, 1);
@@ -368,7 +252,7 @@ cursor_verify(
             ASSERT_FALSE_RET(found, 1);
         }
 
-        k = (void *)k + sizeof(*k) + k->klen;
+        k = key_iter_next(k);
     }
 
     return 0;
@@ -410,16 +294,14 @@ get_verify(struct mtf_test_info *lcl_ti, void *tree, struct wbt_hdr_omf *hdr, st
         err = wbtr_read_vref(&kbd, &wbd, &kt, 0, 1, &lookup_res, &vref);
         ASSERT_EQ_RET(0, err, 1);
 
-        void * fkey;
-        size_t fklen;
+        bool found = ref_tree_get(rtree, k->kdata, k->klen);
 
-        reft_lookup(k->kdata, k->klen, &fkey, &fklen, QTYPE_GET);
-        if (fkey)
+        if (found)
             ASSERT_EQ_RET(FOUND_VAL, lookup_res, 1);
         else
             ASSERT_NE_RET(FOUND_VAL, lookup_res, 1);
 
-        k = (void *)k + sizeof(*k) + k->klen;
+        k = key_iter_next(k);
     }
 
     return 0;
@@ -463,7 +345,7 @@ MTF_DEFINE_UTEST_PREPOST(wbt_test, basic, pre_test, post_test)
         snprintf(buf, sizeof(buf), "key-%020d", i);
         added = add_key(&key_list, buf, sizeof(buf));
         ASSERT_TRUE(added);
-        added = reft_insert(buf, sizeof(buf));
+        added = ref_tree_insert(rtree, buf, sizeof(buf), 0);
         ASSERT_TRUE(added);
     }
 
@@ -479,7 +361,7 @@ MTF_DEFINE_UTEST_PREPOST(wbt_test, one_key, pre_test, post_test)
     struct key_list ql = { 0 }; /* query list */
 
     ql.bufsz = 2 * BUF_SIZE;
-    ql.buf = malloc(ql.bufsz);
+    ql.buf = aligned_alloc(8, ql.bufsz);
     ASSERT_NE(NULL, ql.buf);
 
     for (i = 0; i < 3; i++) {
@@ -490,7 +372,7 @@ MTF_DEFINE_UTEST_PREPOST(wbt_test, one_key, pre_test, post_test)
         if (i == 1) {
             added = add_key(&key_list, buf, sizeof(buf));
             ASSERT_TRUE(added);
-            added = reft_insert(buf, sizeof(buf));
+            added = ref_tree_insert(rtree, buf, sizeof(buf), 0);
             ASSERT_TRUE(added);
         }
     }
@@ -516,7 +398,7 @@ MTF_DEFINE_UTEST_PREPOST(wbt_test, few_keys, pre_test, post_test)
         snprintf(buf, sizeof(buf), "key-%020d", i);
         added = add_key(&key_list, buf, sizeof(buf));
         ASSERT_TRUE(added);
-        added = reft_insert(buf, sizeof(buf));
+        added = ref_tree_insert(rtree, buf, sizeof(buf), 0);
         ASSERT_TRUE(added);
     }
 
@@ -540,7 +422,7 @@ MTF_DEFINE_UTEST_PREPOST(wbt_test, increasing_length, pre_test, post_test)
         snprintf(buf, sizeof(buf), "key-%020d", i);
         added = add_key(&key_list, buf, i + 30);
         ASSERT_TRUE(added);
-        added = reft_insert(buf, i + 30);
+        added = ref_tree_insert(rtree, buf, i + 30, 0);
         ASSERT_TRUE(added);
     }
 
@@ -584,7 +466,7 @@ MTF_DEFINE_UTEST_PREPOST(wbt_test, large_last_key, pre_test, post_test)
 
         added = add_key(&key_list, buf, kl);
         ASSERT_TRUE(added);
-        added = reft_insert(buf, kl);
+        added = ref_tree_insert(rtree, buf, kl, 0);
         ASSERT_TRUE(added);
     }
 
@@ -614,7 +496,7 @@ MTF_DEFINE_UTEST(wbt_test, varying_large_key)
 
             added = add_key(&key_list, buf, kl);
             ASSERT_TRUE(added);
-            added = reft_insert(buf, kl);
+            added = ref_tree_insert(rtree, buf, kl, 0);
             ASSERT_TRUE(added);
         }
 
@@ -645,7 +527,7 @@ MTF_DEFINE_UTEST_PREPOST(wbt_test, small_last_key, pre_test, post_test)
 
         added = add_key(&key_list, buf, klen);
         ASSERT_TRUE(added);
-        added = reft_insert(buf, klen);
+        added = ref_tree_insert(rtree, buf, klen, 0);
         ASSERT_TRUE(added);
     }
 
@@ -663,7 +545,7 @@ MTF_DEFINE_UTEST_PREPOST(wbt_test, skip_keys, pre_test, post_test)
 
     memset(buf, 0xfe, sizeof(buf));
     ql.bufsz = 2 * BUF_SIZE;
-    ql.buf = malloc(ql.bufsz);
+    ql.buf = aligned_alloc(8, ql.bufsz);
     ASSERT_NE(NULL, ql.buf);
 
     for (i = 0; i < 2 * nkeys; i++) {
@@ -675,7 +557,7 @@ MTF_DEFINE_UTEST_PREPOST(wbt_test, skip_keys, pre_test, post_test)
         if (i % 2 == 0) {
             added = add_key(&key_list, buf, klen);
             ASSERT_TRUE(added);
-            added = reft_insert(buf, klen);
+            added = ref_tree_insert(rtree, buf, klen, 0);
             ASSERT_TRUE(added);
         }
 

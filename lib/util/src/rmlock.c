@@ -3,6 +3,8 @@
  * Copyright (C) 2015-2022 Micron Technology, Inc.  All rights reserved.
  */
 
+#define MTF_MOCK_IMPL_rmlock
+
 #include <hse_util/platform.h>
 #include <hse_util/alloc.h>
 #include <hse_util/minmax.h>
@@ -12,7 +14,6 @@
 
 #define rmlock_cmpxchg(_ptr, _oldp, _new) \
     atomic_cmpxchg((_ptr), (_oldp), (_new))
-
 
 static HSE_ALWAYS_INLINE uint
 rmlock_bktidx(struct rmlock *lock)
@@ -216,3 +217,7 @@ rmlock_wunlock(struct rmlock *lock)
     if (rc)
         abort();
 }
+
+#if HSE_MOCKING
+#include "rmlock_ut_impl.i"
+#endif

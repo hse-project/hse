@@ -15,6 +15,8 @@
 #include <hse_util/byteorder.h>
 #include <hse_util/minmax.h>
 
+#define MTF_MOCK_IMPL_route
+
 #include "cn_tree_internal.h"
 #include "route.h"
 
@@ -26,7 +28,7 @@ struct route_map {
     struct route_node     rtm_nodev[] HSE_L1D_ALIGNED;
 };
 
-static struct route_node *
+struct route_node *
 route_map_insert(struct route_map *map, struct route_node *node)
 {
     struct rb_root *root = &map->rtm_root;
@@ -58,7 +60,7 @@ route_map_insert(struct route_map *map, struct route_node *node)
 }
 
 static struct route_node *
-route_map_find(struct route_map *map, const void *key, uint keylen)
+route_map_find(struct route_map *map, const void *key, uint keylen, bool gt)
 {
     struct rb_root *root = &map->rtm_root;
     struct rb_node **link = &root->rb_node;
@@ -86,7 +88,7 @@ route_map_find(struct route_map *map, const void *key, uint keylen)
             if (dir >= 0 && *link)
                 node = *link;
         } else {
-            return this;
+            return gt ? rb_entry(rb_next(*link), struct route_node, rtn_node) : this;
         }
     }
 
@@ -96,7 +98,13 @@ route_map_find(struct route_map *map, const void *key, uint keylen)
 struct route_node *
 route_map_lookup(struct route_map *map, const void *pfx, uint pfxlen)
 {
-    return map ? route_map_find(map, pfx, pfxlen) : NULL;
+    return map ? route_map_find(map, pfx, pfxlen, false) : NULL;
+}
+
+struct route_node *
+route_map_lookupGT(struct route_map *map, const void *pfx, uint pfxlen)
+{
+    return map ? route_map_find(map, pfx, pfxlen, true) : NULL;
 }
 
 struct route_node *
@@ -104,7 +112,7 @@ route_map_get(struct route_map *map, const void *pfx, uint pfxlen)
 {
     struct route_node *node;
 
-    node = route_map_find(map, pfx, pfxlen);
+    node = route_map_find(map, pfx, pfxlen, false);
     if (node)
         atomic_inc(&node->rtn_refcnt);
 
@@ -119,6 +127,30 @@ route_map_put(struct route_map *map, struct route_node *node)
     if (atomic_dec_return(&node->rtn_refcnt) == 0) {
         // TODO: Put on rtm_free list, but need more locking...
     }
+}
+
+struct route_node *
+route_node_next(struct route_node *node)
+{
+    struct rb_node *next;
+
+    if (!node)
+        return NULL;
+
+    next = rb_next(&node->rtn_node);
+    return rb_entry(next, struct route_node, rtn_node);
+}
+
+struct route_node *
+route_node_prev(struct route_node *node)
+{
+    struct rb_node *prev;
+
+    if (!node)
+        return NULL;
+
+    prev = rb_prev(&node->rtn_node);
+    return rb_entry(prev, struct route_node, rtn_node);
 }
 
 struct route_map *
@@ -154,9 +186,8 @@ route_map_create(const struct kvs_cparams *cp, const char *kvsname, struct cn_tr
     } else {
         n = sscanf(buf, "%u%u%ms%u", &fanout, &pfxlen, &fmt, &skip);
 
-        if (n < 3 || fanout != cp->fanout || pfxlen != cp->pfx_len) {
-            log_err("fanout (%u vs %u), pfxlen (%u vs %u)",
-                    fanout, cp->fanout, pfxlen, cp->pfx_len);
+        if (n < 3 || fanout != cp->fanout) {
+            log_err("fanout (%u vs %u)", fanout, cp->fanout);
             return NULL;
         }
 
@@ -338,3 +369,7 @@ route_map_destroy(struct route_map *map)
 
     free(map);
 }
+
+#if HSE_MOCKING
+#include "route_ut_impl.i"
+#endif

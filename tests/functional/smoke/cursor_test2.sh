@@ -11,19 +11,17 @@
 trap kvdb_drop EXIT
 kvdb_create
 
-kvs=$(kvs_create smoke-0 prefix.length=8)
+kvs=$(kvs_create smoke-0)
 
 # Load
 nthread=$(($(nproc) / 4 + 3))
 vlen=1024
-npfx=8
-nsfx=200000 # (npfx * nsfx) keys total
-cmd range_read "$home" "$kvs" -l "-j$nthread" "-v$vlen" "-p$npfx" "-s$nsfx" kvs-oparms
+nkeys=1600000
+cmd range_read "$home" "$kvs" -l "-j$nthread" "-v$vlen" "-n$nkeys"
 
 cmd kvck "$home"
 
-# Query
+# Query without warmup
 duration=20 # seconds
 range=10
-cmd range_read "$home" "$kvs" -e -w "-b$range" "-j$nthread" "-v$vlen" "-p$npfx" "-s$nsfx" "-d$duration" -V
-cmd range_read "$home" "$kvs" -e -w "-b$range" "-j$nthread" "-v$vlen" "-p$npfx" "-s$nsfx" "-d$duration" -V
+cmd range_read "$home" "$kvs" -e "-b$range" "-j$nthread" "-v$vlen" "-n$nkeys" "-d$duration" -V

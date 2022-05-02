@@ -1914,7 +1914,7 @@ ikvdb_kvs_create(struct ikvdb *handle, const char *kvs_name, struct kvs_cparams 
      */
     if (1) {
         char path[128], buf[128];
-        uint fanout, pfxlen;
+        uint fanout;
         ssize_t cc;
         int n;
 
@@ -1924,11 +1924,9 @@ ikvdb_kvs_create(struct ikvdb *handle, const char *kvs_name, struct kvs_cparams 
 
         cc = hse_readfile(-1, path, buf, sizeof(buf), O_RDONLY);
         if (cc > 0) {
-            n = sscanf(buf, "%u%u", &fanout, &pfxlen);
-            if (n == 2) {
+            n = sscanf(buf, "%u", &fanout);
+            if (n == 1)
                 params->fanout = fanout;
-                params->pfx_len = pfxlen;
-            }
         }
     }
 

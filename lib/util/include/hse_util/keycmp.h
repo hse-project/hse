@@ -40,9 +40,14 @@ keycmp(const void *key1, u32 len1, const void *key2, u32 len2)
  *   positive int : pfx is "greater than" key
  */
 static HSE_ALWAYS_INLINE int
-keycmp_prefix(const void *pfx, u32 pfx_len, const void *key, u32 keylen)
+keycmp_prefix(const void *pfx, u32 pfxlen, const void *key, u32 keylen)
 {
-    return keylen < pfx_len ? 1 : memcmp(pfx, key, pfx_len);
+    if (keylen < pfxlen) {
+        int rc = memcmp(pfx, key, keylen);
+        return rc ?: 1;
+    }
+
+    return memcmp(pfx, key, pfxlen);
 }
 
 #endif

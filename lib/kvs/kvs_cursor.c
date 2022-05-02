@@ -62,7 +62,7 @@ struct perfc_name kvs_cd_perfc_op[] _dt_section = {
 
     NE(PERFC_DI_CD_READPERSEEK,     5, "Cursor reads per seek",         "d_cc_readperseek", 7),
     NE(PERFC_DI_CD_TOMBSPERPROBE,   5, "Tombs seen per pfx probe",      "d_cc_tombsperprobe", 7),
-    NE(PERFC_DI_CD_ACTIVEKVSETS_CN, 5, "kvsets in cursors view",        "d_cc_activekvsets"),
+    NE(PERFC_DI_CD_ACTIVEKVSETS_CN, 2, "kvsets in cursors view",        "d_cc_activekvsets"),
 };
 
 NE_CHECK(kvs_cd_perfc_op, PERFC_EN_CD, "cursor dist perfc ops table/enum mismatch");
@@ -167,7 +167,6 @@ struct kvs_cursor_impl {
     u32 kci_eof : 1;
     u32 kci_need_toss : 1;
     u32 kci_need_seek : 1;
-    u32 kci_need_prepare : 1;
     u32 kci_reverse : 1;
     u32 kci_ptomb_set : 1;
 
@@ -766,7 +765,6 @@ kvs_cursor_init(struct hse_kvs_cursor *cursor, struct kvdb_ctxn *ctxn)
         assert(cur->kci_cncur);
 
         /* Update c0 cursor */
-        cur->kci_need_seek = 1;
         tstart = perfc_lat_startu(cur->kci_cd_pc, PERFC_LT_CD_UPDATE_C0);
 
         /* [HSE_REVISIT] mapi breaks initialization of flags.
@@ -801,7 +799,6 @@ kvs_cursor_init(struct hse_kvs_cursor *cursor, struct kvdb_ctxn *ctxn)
             &cur->kci_lccur);
     } else {
         err = lc_cursor_update(cur->kci_lccur, prefix, pfxlen, seqno);
-        cur->kci_need_seek = 1;
     }
 
     if (ev(err))
@@ -817,7 +814,6 @@ kvs_cursor_init(struct hse_kvs_cursor *cursor, struct kvdb_ctxn *ctxn)
         bool updated = false;
 
         /* Update cn cursor */
-        cur->kci_need_seek = 1;
         tstart = perfc_lat_startu(cur->kci_cd_pc, PERFC_LT_CD_UPDATE_CN);
 
         /* [HSE_REVISIT] mapi breaks initialization of updated.
@@ -834,27 +830,14 @@ kvs_cursor_init(struct hse_kvs_cursor *cursor, struct kvdb_ctxn *ctxn)
 
     assert(cur->kci_cncur);
 
-    {
-        u32 active = 0, total;
-
-        /* [HSE_REVISIT] mapi breaks initialization of active.
-         */
-        cn_cursor_active_kvsets(cur->kci_cncur, &active, &total);
-        perfc_rec_sample(cur->kci_cd_pc, PERFC_DI_CD_ACTIVEKVSETS_CN, active);
-    }
-
     cur->kci_need_toss = 0;
-    cur->kci_need_prepare = 1;
+    cur->kci_need_seek = 1;
 
-    if (cur->kci_need_seek) {
-        cur->kci_need_prepare = 0;
-
-        memcpy(cur->kci_last_kbuf, cur->kci_prefix, cur->kci_pfxlen);
-        cur->kci_last_klen = cur->kci_pfxlen;
-        if (cur->kci_reverse) {
-            cur->kci_last_klen = HSE_KVS_KEY_LEN_MAX;
-            memset(cur->kci_last_kbuf + cur->kci_pfxlen, 0xFF, HSE_KVS_KEY_LEN_MAX - cur->kci_pfxlen);
-        }
+    memcpy(cur->kci_last_kbuf, cur->kci_prefix, cur->kci_pfxlen);
+    cur->kci_last_klen = cur->kci_pfxlen;
+    if (cur->kci_reverse) {
+        cur->kci_last_klen = HSE_KVS_KEY_LEN_MAX;
+        memset(cur->kci_last_kbuf + cur->kci_pfxlen, 0xFF, HSE_KVS_KEY_LEN_MAX - cur->kci_pfxlen);
     }
 
     if (cursor->kc_bind)
@@ -975,9 +958,6 @@ kvs_cursor_update(struct hse_kvs_cursor *handle, struct kvdb_ctxn *ctxn, u64 seq
 
     /* Seek will re-prepare the binheap. */
     cursor->kci_need_seek = 1;
-
-    /* The cursor doesn't need preparing since seek will perform the prepare anyway. */
-    cursor->kci_need_prepare = 0;
 
     /* Reset the ptomb_set flag to discard an old ptomb (which may have been ingested/compacted
      * since). The following seek will set it if needed.
@@ -1108,6 +1088,15 @@ ikvs_cursor_seek(struct kvs_cursor_impl *cursor, const void *key, size_t klen)
 
     err = bin_heap2_prepare(cursor->kci_bh, cnt, cursor->kci_esrcv);
 
+    {
+        u32 active = 0, total;
+
+        /* [HSE_REVISIT] mapi breaks initialization of active.
+         */
+        cn_cursor_active_kvsets(cursor->kci_cncur, &active, &total);
+        perfc_rec_sample(cursor->kci_cd_pc, PERFC_DI_CD_ACTIVEKVSETS_CN, active);
+    }
+
 out:
     return err;
 }
@@ -1191,20 +1180,6 @@ out:
     return 0;
 }
 
-static merr_t
-kvs_cursor_prepare(struct hse_kvs_cursor *cursor)
-{
-    struct kvs_cursor_impl *cur = cursor_h2r(cursor);
-
-    /* Prepare only c0 and cn cursors. lc is prepared at create.
-     */
-    c0_cursor_prepare(cur->kci_c0cur);
-    cn_cursor_prepare(cur->kci_cncur);
-
-    cursor->kc_err = bin_heap2_prepare(cur->kci_bh, KVS_CURSOR_SOURCES_CNT, cur->kci_esrcv);
-    return cursor->kc_err;
-}
-
 merr_t
 kvs_cursor_read(struct hse_kvs_cursor *handle, unsigned int flags, bool *eofp)
 {
@@ -1212,11 +1187,6 @@ kvs_cursor_read(struct hse_kvs_cursor *handle, unsigned int flags, bool *eofp)
 
     if (ev(cursor->kci_err))
         return cursor->kci_err;
-
-    if (cursor->kci_need_prepare)
-        kvs_cursor_prepare(handle);
-
-    cursor->kci_need_prepare = 0;
 
     if (cursor->kci_need_seek) {
         struct kvs_ktuple key = { 0 };
@@ -1284,8 +1254,6 @@ kvs_cursor_seek(
 
     if (ev(cursor->kci_err))
         return cursor->kci_err;
-
-    cursor->kci_need_prepare = 0;
 
     /* Set up limits if provided */
     if (ev(limit_len > HSE_KVS_KEY_LEN_MAX))

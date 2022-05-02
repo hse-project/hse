@@ -6,6 +6,8 @@
 #ifndef HSE_ROUTE_H
 #define HSE_ROUTE_H
 
+/* MTF_MOCK_DECL(route) */
+
 struct cn_tree;
 struct route_map;
 struct kvs_cparams;
@@ -47,11 +49,34 @@ struct route_node {
 };
 
 
+/**
+ * route_map_lookup() - Return a node for which its edge key is greater than or equal to %pfx
+ *
+ * @map:    Route map handle
+ * @pfx:    Prefix being looked up
+ * @pfxlen: Length of %pfx
+ */
 struct route_node *
 route_map_lookup(struct route_map *map, const void *pfx, uint pfxlen);
 
+/**
+ * route_map_lookupGT() - Return a node for which its edge key is strictly greater than %pfx
+ *
+ * @map:    Route map handle
+ * @pfx:    Prefix being looked up
+ * @pfxlen: Length of %pfx
+ */
+struct route_node *
+route_map_lookupGT(struct route_map *map, const void *pfx, uint pfxlen);
+
 struct route_node *
 route_map_get(struct route_map *map, const void *pfx, uint pfxlen);
+
+struct route_node *
+route_node_next(struct route_node *node);
+
+struct route_node *
+route_node_prev(struct route_node *node);
 
 static HSE_ALWAYS_INLINE bool
 route_node_isfirst(const struct route_node *node)
@@ -81,10 +106,19 @@ route_node_keycpy(struct route_node *node, void *kbuf, size_t kbuf_sz, uint *kle
 void
 route_map_put(struct route_map *map, struct route_node *node);
 
+struct route_node *
+route_map_insert(struct route_map *map, struct route_node *node);
+
+/* MTF_MOCK */
 struct route_map *
 route_map_create(const struct kvs_cparams *cp, const char *kvsname, struct cn_tree *tree);
 
+/* MTF_MOCK */
 void
 route_map_destroy(struct route_map *map);
+
+#if HSE_MOCKING
+#include "route_ut.h"
+#endif /* HSE_MOCKING */
 
 #endif /* HSE_ROUTE_H */

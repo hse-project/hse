@@ -1958,8 +1958,6 @@ MTF_DEFINE_UTEST_PREPOST(c0sk_test, c0_cursor_robust, no_fail_pre, no_fail_post)
         ASSERT_EQ(0, err);
         atomic_inc(&seqno);
 
-        c0sk_cursor_prepare(cur[i]);
-
         /* this cursor will NOT see these keys */
 
         for (; j < n; ++j) {
@@ -1995,6 +1993,9 @@ MTF_DEFINE_UTEST_PREPOST(c0sk_test, c0_cursor_robust, no_fail_pre, no_fail_post)
         int cnt = 0;
         int want = i * 20000;
         int last = -1;
+
+        err = c0sk_cursor_seek(cur[i], "", 0, 0);
+        ASSERT_EQ(0, err);
 
         for (eof = false; !eof;) {
             struct kvs_cursor_element elem;
@@ -2293,9 +2294,11 @@ MTF_DEFINE_UTEST_PREPOST(c0sk_test, c0_rcursor_robust, no_fail_pre, no_fail_post
         err = c0sk_cursor_create(
             c0sk, atomic_read(&seqno), skidx, true, 0, pfx, 0, &summary, &cur[i]);
         ASSERT_EQ(0, err);
-        atomic_inc(&seqno);
 
-        c0sk_cursor_prepare(cur[i]);
+        err = c0sk_cursor_seek(cur[i], pfx, sizeof(pfx), 0);
+        ASSERT_EQ(0, err);
+
+        atomic_inc(&seqno);
 
         /* this cursor will NOT see these keys */
 
@@ -2574,9 +2577,10 @@ MTF_DEFINE_UTEST_PREPOST(c0sk_test, c0_cursor_ptombs, no_fail_pre, no_fail_post)
                 c0sk, atomic_read(&seqno), skidx, 0, sizeof(kbuf[0]), "", 0, &summary, &cur);
             ASSERT_EQ(0, err);
 
-            atomic_inc(&seqno);
+            err = c0sk_cursor_seek(cur, "", 0, 0);
+            ASSERT_EQ(0, err);
 
-            c0sk_cursor_prepare(cur);
+            atomic_inc(&seqno);
 
         } else if (random() % 100 < 5) {
             atomic_inc(&seqno);

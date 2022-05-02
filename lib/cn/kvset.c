@@ -2610,6 +2610,24 @@ kvset_iter_mblock_read_start(struct kvset_iterator *iter)
     }
 }
 
+static bool
+kvset_cursor_next(struct element_source *es, void **element)
+{
+    struct kv_iterator *kvi = kvset_cursor_es_h2r(es);
+    struct cn_kv_item * kv = &kvi->kvi_kv;
+
+    *element = 0;
+
+    kvset_iter_next_key(kvi, &kv->kobj, &kv->vctx);
+    if (kvi->kvi_eof)
+        return false;
+
+    kv->src = es;
+    *element = &kvi->kvi_kv;
+
+    return true;
+}
+
 merr_t
 kvset_iter_create(
     struct kvset *           ks,
@@ -2642,6 +2660,7 @@ kvset_iter_create(
     iter->ks = ks;
     iter->handle.kvi_ops = &kvset_iter_ops;
     iter->vra_len = roundup(ks->ks_vra_len, PAGE_SIZE);
+    iter->handle.kvi_es = es_make(kvset_cursor_next, 0, 0);
 
     if (fullscan && !mblock_read) {
         iter->vra_len = roundup(ks->ks_rp->cn_compact_vra, PAGE_SIZE);
@@ -2675,6 +2694,7 @@ kvset_iter_create(
             kvset_iter_mblock_read_start(iter);
     }
 
+    kvset_get_ref(ks);
     *handle = &iter->handle;
     return 0;
 
@@ -2686,22 +2706,18 @@ err_exit1:
     return err;
 }
 
-static bool
-kvset_cursor_next(struct element_source *es, void **element)
+struct element_source *
+kvset_iter_es_get(struct kv_iterator *kvi)
 {
-    struct kv_iterator *kvi = kvset_cursor_es_h2r(es);
-    struct cn_kv_item * kv = &kvi->kvi_kv;
+    return &kvi->kvi_es;
+}
 
-    *element = 0;
+struct kvset *
+kvset_iter_kvset_get(struct kv_iterator *handle)
+{
+    struct kvset_iterator *iter = handle_to_kvset_iter(handle);
 
-    kvset_iter_next_key(kvi, &kv->kobj, &kv->vctx);
-    if (kvi->kvi_eof)
-        return false;
-
-    kv->src = es;
-    *element = &kvi->kvi_kv;
-
-    return true;
+    return iter->ks;
 }
 
 void
@@ -3000,7 +3016,6 @@ kvset_iter_seek(struct kv_iterator *handle, const void *key, s32 len, bool *eof)
     iter->last = SRC_NONE;
 
     *eof = handle->kvi_eof = iter->pti_meta.eof && iter->wbti_meta.eof;
-    handle->kvi_es = es_make(kvset_cursor_next, 0, 0);
 
     wbti_destroy(wbti);
     wbti_destroy(pti);
@@ -3561,7 +3576,7 @@ kvset_iter_get_valptr(
 }
 
 merr_t
-kvset_iter_next_val(
+kvset_iter_val_get(
     struct kv_iterator *    handle,
     struct kvset_iter_vctx *vc,
     enum kmd_vtype          vtype,

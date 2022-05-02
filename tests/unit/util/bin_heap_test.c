@@ -511,7 +511,7 @@ MTF_DEFINE_UTEST(bin_heap_test, bin_heap2_one)
     char                   out[WIDTH];
     merr_t                 err;
     int                    i;
-    void *                 item;
+    void *                 item = NULL;
     u32                    v, last;
 
     for (i = 0; i < WIDTH; ++i) {
@@ -550,7 +550,7 @@ MTF_DEFINE_UTEST(bin_heap_test, bin_heap2_insert_remove)
     char                   out[WIDTH];
     merr_t                 err;
     int                    i, j;
-    void *                 item;
+    void *                 item = NULL;
     u32                    v, last;
 
     for (i = 0; i < WIDTH; ++i) {
@@ -644,7 +644,7 @@ MTF_DEFINE_UTEST(bin_heap_test, bin_heap2_replace_test)
     struct element_source *handles[WIDTH + 1];
     merr_t                 err;
     int                    i, j;
-    void *                 item;
+    void *                 item = NULL;
     u32                    v;
 
     bin_heap2_create(WIDTH, u32_cmp, &bh);
@@ -733,7 +733,7 @@ MTF_DEFINE_UTEST(bin_heap_test, bin_heap2_basic)
     struct element_source *handles[WIDTH];
     merr_t                 err;
     int                    i;
-    void *                 item;
+    void *                 item = NULL;
     u32                    value, last;
 
     for (i = 0; i < WIDTH; ++i) {
@@ -796,7 +796,7 @@ MTF_DEFINE_UTEST(bin_heap_test, bin_heap2_dups)
     struct bin_heap2 *     bh;
     struct sample_es *     es[WIDTH];
     struct element_source *handles[WIDTH];
-    u32 *                  item, *dup;
+    u32 *                  item = NULL, *dup = NULL;
     merr_t                 err;
     int                    i;
     u32                    last, src;

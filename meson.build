@@ -461,6 +461,7 @@ endif
 
 gcovr = find_program('gcovr', required: get_option('b_coverage'))
 if gcovr.found() and get_option('b_coverage') and get_option('tests')
+
     reports = {
         'text': [ '-o' ],
         'html': [ '--html', '--html-details', '-o' ],
@@ -477,7 +478,7 @@ if gcovr.found() and get_option('b_coverage') and get_option('tests')
                 '@SOURCE_ROOT@',
                 '@BUILD_ROOT@',
                 args,
-                '@OUTPUT@',
+                '@BUILD_ROOT@/@OUTPUT@',
                 '-f',
                 '@SOURCE_ROOT@/lib'
             ],

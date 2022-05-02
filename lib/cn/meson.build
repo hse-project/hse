@@ -7,6 +7,7 @@ cn_sources = files(
     'cn_kvdb.c',
     'cn_perfc.c',
     'cn_tree.c',
+    'cn_tree_cursor.c',
     'csched.c',
     'csched_sp3.c',
     'csched_sp3_work.c',
