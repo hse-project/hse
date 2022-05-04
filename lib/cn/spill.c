@@ -142,46 +142,6 @@ get_next_item(
 }
 
 static merr_t
-kv_spill_prepare(struct cn_tstate_omf *omf, void *arg)
-{
-    struct cn_tree *    tree = arg;
-    struct cn_khashmap *khashmap;
-
-    khashmap = cn_tree_get_khashmap(tree);
-    if (!khashmap)
-        return 0;
-
-    spin_lock(&khashmap->khm_lock);
-    if (khashmap->khm_gen > khashmap->khm_gen_committed) {
-        omf_set_ts_khm_mapv(omf, khashmap->khm_mapv, sizeof(khashmap->khm_mapv));
-        omf_set_ts_khm_gen(omf, khashmap->khm_gen);
-    }
-    spin_unlock(&khashmap->khm_lock);
-
-    return 0;
-}
-
-static void
-kv_spill_commit(const struct cn_tstate_omf *omf, void *arg)
-{
-    struct cn_tree *    tree = arg;
-    struct cn_khashmap *khashmap;
-
-    khashmap = cn_tree_get_khashmap(tree);
-    if (!khashmap)
-        return;
-
-    spin_lock(&khashmap->khm_lock);
-    khashmap->khm_gen_committed = omf_ts_khm_gen(omf);
-    spin_unlock(&khashmap->khm_lock);
-}
-
-static void
-kv_spill_abort(struct cn_tstate_omf *omf, void *arg)
-{
-}
-
-static merr_t
 get_kvset_builder(struct cn_compaction_work *w, struct kvset_builder **bldr_out)
 {
     struct kvset_builder *bldr = NULL;
@@ -287,9 +247,7 @@ cn_spill(struct cn_compaction_work *w)
     struct bin_heap *bh;
     struct merge_item curr;
     struct kvset_builder *child = NULL;
-    struct cn_khashmap *khashmap = NULL;
     struct key_obj prev_kobj = { 0 };
-    struct cn_tree *tree = w->cw_tree;
     struct route_info ri = {};
 
     uint vlen, complen, omlen, direct_read_len;
@@ -574,27 +532,6 @@ cn_spill(struct cn_compaction_work *w)
 
     bin_heap_destroy(bh);
     free_aligned(buf);
-
-    /* We must ensure the latest version of the key hash map is persisted
-     * if it changed while we were using it (regardless of who changed it,
-     * and especially if we changed it, regardless of error).
-     */
-    khashmap = cn_tree_get_khashmap(tree);
-    if (!err && khashmap) {
-        merr_t err2;
-        bool   update;
-
-        spin_lock(&khashmap->khm_lock);
-        update = (khashmap->khm_gen > khashmap->khm_gen_committed);
-        spin_unlock(&khashmap->khm_lock);
-
-        if (update) {
-            struct cn_tstate *ts = tree->ct_tstate;
-
-            err2 = ts->ts_update(ts, kv_spill_prepare, kv_spill_commit, kv_spill_abort, tree);
-            err = err ?: err2;
-        }
-    }
 
     if (seqno_errcnt)
         log_warn("seqno errcnt %u", seqno_errcnt);

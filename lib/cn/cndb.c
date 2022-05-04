@@ -2194,6 +2194,7 @@ cndb_cn_count(struct cndb *cndb, u32 *cnt)
     return 0;
 }
 
+/* [HSE_REVISIT] tstate used to use cndb_cn_blob_get().  does anybody else?  can we lose it? */
 merr_t
 cndb_cn_blob_get(struct cndb *cndb, u64 cnid, size_t *blobsz, void **blob)
 {

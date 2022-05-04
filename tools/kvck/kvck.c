@@ -43,7 +43,6 @@ struct callback_info {
     struct mpool *       mp;
     struct kvs_cparams * cp;
     struct entity *      ent;
-    struct cn_tstate_omf omf;
     bool                 errors;
 };
 
@@ -106,9 +105,6 @@ _verify_kvs(struct cndb *cndb, int cndb_idx, struct entity *ent)
         log_err("Failed to retrieve key hashmap blob from cndb");
         return EBUG;
     }
-
-    if (ptr && sz != 0)
-        memcpy(&info.omf, ptr, sz);
 
     cnt = NELEM(kvs_tab);
     for (i = 0; i < cnt; i++)

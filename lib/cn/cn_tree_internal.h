@@ -63,25 +63,9 @@ struct cn_kle_hdr {
     ulong            kh_nfrees;
 };
 
-
-/**
- * struct cn_khashmap - key hash map
- * @khm_mapv:
- * @khm_gen_committed:
- * @khm_gen:
- * @khm_lock:
- */
-struct cn_khashmap {
-    spinlock_t khm_lock;
-    u32        khm_gen;
-    u32        khm_gen_committed;
-    u16        khm_mapv[CN_TSTATE_KHM_SZ];
-};
-
 /**
  * struct cn_tree - the cn tree (tree of nodes holding kvsets)
  * @ct_root:        root node of tree
- * @ct_khashmap:    ptr to key hash map
  * @ct_fanout:      tree fanout
  * @ct_depth_max:   depth limit for this tree (not current depth)
  * @cn:    ptr to parent cn object
@@ -109,7 +93,6 @@ struct cn_khashmap {
  */
 struct cn_tree {
     struct cn_tree_node *ct_root;
-    struct cn_khashmap * ct_khashmap;
     u16                  ct_fanout;
     u16                  ct_depth_max;
     u16                  ct_pfx_len;
@@ -120,8 +103,6 @@ struct cn_tree {
     struct kvs_rparams * rp;
 
     struct route_map  *ct_route_map;
-    struct cn_tstate  *ct_tstate;
-    struct cn_khashmap ct_khmbuf;
 
     struct cndb *       cndb;
     struct cn_kvdb *    cn_kvdb;

@@ -82,13 +82,6 @@ cn_tree_is_capped(const struct cn_tree *tree);
 struct cn *
 cn_tree_get_cn(const struct cn_tree *tree);
 
-/* MTF_MOCK */
-struct cn_khashmap *
-cn_tree_get_khashmap(const struct cn_tree *tree);
-
-struct cn_cache *
-cn_tree_get_cache(const struct cn_tree *tree);
-
 struct cn_kvdb *
 cn_tree_get_cnkvdb(const struct cn_tree *tree);
 

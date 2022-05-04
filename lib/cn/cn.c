@@ -846,160 +846,6 @@ cn_maint_task(struct work_struct *work)
                        msecs_to_jiffies(cn->rp->cn_maint_delay));
 }
 
-struct cn_tstate_impl {
-    struct cn_tstate     tsi_tstate;
-    struct cn *          tsi_cn;
-    struct mutex         tsi_lock;
-    struct cn_tstate_omf tsi_omf;
-};
-
-static void
-cn_tstate_get(struct cn_tstate *tstate, u32 *genp, u16 *mapv)
-{
-    struct cn_tstate_impl *impl;
-
-    assert(tstate && genp && mapv);
-
-    impl = container_of(tstate, struct cn_tstate_impl, tsi_tstate);
-
-    mutex_lock(&impl->tsi_lock);
-    *genp = omf_ts_khm_gen(&impl->tsi_omf);
-    omf_ts_khm_mapv(&impl->tsi_omf, mapv, sizeof(mapv[0]) * CN_TSTATE_KHM_SZ);
-    mutex_unlock(&impl->tsi_lock);
-}
-
-static merr_t
-cn_tstate_update(
-    struct cn_tstate *   tstate,
-    cn_tstate_prepare_t *ts_prepare,
-    cn_tstate_commit_t * ts_commit,
-    cn_tstate_abort_t *  ts_abort,
-    void *               arg)
-{
-    struct cn_tstate_impl *impl;
-    struct cn_tstate_omf * omf;
-    struct cn *            cn;
-    merr_t                 err;
-
-    if (!tstate)
-        return 0;
-
-    if (ev(!ts_prepare || !ts_commit || !ts_abort))
-        return merr(EINVAL);
-
-    impl = container_of(tstate, struct cn_tstate_impl, tsi_tstate);
-    omf = &impl->tsi_omf;
-
-    cn = impl->tsi_cn;
-    assert(cn);
-
-    mutex_lock(&impl->tsi_lock);
-    err = ts_prepare(omf, arg);
-    if (!err) {
-        err = cndb_cn_blob_set(cn->cn_cndb, cn->cn_cnid, sizeof(*omf), omf);
-
-        if (err)
-            ts_abort(omf, arg);
-        else
-            ts_commit(omf, arg);
-    }
-    mutex_unlock(&impl->tsi_lock);
-
-    return err;
-}
-
-static merr_t
-cn_tstate_create(struct cn *cn)
-{
-    const char *           errmsg = "";
-    struct cn_tstate_impl *impl;
-    struct cn_tstate_omf * omf;
-    merr_t                 err;
-    void *                 ptr;
-    size_t                 sz;
-
-    impl = alloc_aligned(sizeof(*impl), __alignof__(*impl));
-    if (ev(!impl))
-        return merr(ENOMEM);
-
-    memset(impl, 0, sizeof(*impl));
-    mutex_init(&impl->tsi_lock);
-    impl->tsi_tstate.ts_update = cn_tstate_update;
-    impl->tsi_tstate.ts_get = cn_tstate_get;
-    impl->tsi_cn = cn;
-
-    omf = &impl->tsi_omf;
-    ptr = NULL;
-    sz = 0;
-
-    err = cndb_cn_blob_get(cn->cn_cndb, cn->cn_cnid, &sz, &ptr);
-    if (ev(err)) {
-        errmsg = "unable to load cn_tstate";
-        goto errout;
-    }
-
-    if (!ptr && sz == 0) {
-        omf_set_ts_magic(omf, CN_TSTATE_MAGIC);
-        omf_set_ts_version(omf, CN_TSTATE_VERSION);
-
-        if (!ikvdb_read_only(cn->ikvdb)) {
-            err = cndb_cn_blob_set(cn->cn_cndb, cn->cn_cnid, sizeof(*omf), omf);
-            if (ev(err)) {
-                errmsg = "unable to store initial cn_tstate";
-                goto errout;
-            }
-        }
-    } else {
-        if (ev(!ptr || sz != sizeof(*omf))) {
-            errmsg = "invalid cn_tstate size";
-            err = merr(EINVAL);
-            goto errout;
-        }
-
-        memcpy(omf, ptr, sz);
-    }
-
-    if (ev(omf_ts_magic(omf) != CN_TSTATE_MAGIC)) {
-        errmsg = "invalid cn_tstate magic";
-        err = merr(EINVAL);
-        goto errout;
-    } else if (ev(omf_ts_version(omf) != CN_TSTATE_VERSION)) {
-        errmsg = "invalid cn_tstate version";
-        err = merr(EINVAL);
-        goto errout;
-    }
-
-    cn->cn_tstate = &impl->tsi_tstate;
-
-errout:
-    if (err) {
-        log_errx("%s: @@e", err, errmsg);
-        mutex_destroy(&impl->tsi_lock);
-        free_aligned(impl);
-    }
-
-    free(ptr);
-
-    return err;
-}
-
-static void
-cn_tstate_destroy(struct cn_tstate *tstate)
-{
-    struct cn_tstate_impl *impl;
-
-    if (ev(!tstate))
-        return;
-
-    impl = container_of(tstate, struct cn_tstate_impl, tsi_tstate);
-
-    assert(impl->tsi_cn);
-    impl->tsi_cn = NULL;
-
-    mutex_destroy(&impl->tsi_lock);
-    free_aligned(impl);
-}
-
 struct cn_kvsetmk_ctx {
     struct cn *ckmk_cn;
     u64 *      ckmk_dgen;
@@ -1132,11 +978,7 @@ cn_open(
     if (!cn->cn_replay)
         cn_perfc_alloc(cn, rp->perfc_level);
 
-    err = cn_tstate_create(cn);
-    if (ev(err))
-        goto err_exit;
-
-    err = cn_tree_create(&cn->cn_tree, cn->cn_tstate, cn->cn_kvsname, cn->cn_cflags, cn->cp, health, rp);
+    err = cn_tree_create(&cn->cn_tree, cn->cn_kvsname, cn->cn_cflags, cn->cp, health, rp);
     if (ev(err))
         goto err_exit;
 
@@ -1237,7 +1079,6 @@ err_exit:
     flush_workqueue(cn->cn_maint_wq);
     flush_workqueue(cn->cn_io_wq);
     cn_tree_destroy(cn->cn_tree);
-    cn_tstate_destroy(cn->cn_tstate);
     if (!cn->cn_replay)
         cn_perfc_free(cn);
     free_aligned(cn);
@@ -1274,8 +1115,6 @@ cn_close(struct cn *cn)
 
     cn_tree_destroy(cn->cn_tree);
     assert(atomic_read(&cn->cn_refcnt) == 0);
-
-    cn_tstate_destroy(cn->cn_tstate);
 
     cn_perfc_free(cn);
     free_aligned(cn);
@@ -1534,7 +1373,7 @@ cn_make(struct mpool *ds, const struct kvs_cparams *cp, struct kvdb_health *heal
     icp.sfx_len = cp->sfx_len;
     icp.pfx_pivot = cp->pfx_pivot;
 
-    err = cn_tree_create(&tree, NULL, NULL, cn_cp2cflags(cp), &icp, health, &rp);
+    err = cn_tree_create(&tree, NULL, cn_cp2cflags(cp), &icp, health, &rp);
     if (!err)
         cn_tree_destroy(tree);
 
