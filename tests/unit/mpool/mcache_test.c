@@ -73,10 +73,10 @@ MTF_DEFINE_UTEST_PREPOST(mcache_test, mcache_api, mpool_test_pre, mpool_test_pos
     size_t   bufsz;
     char    *buf, *addr;
 
-    err = mpool_create(home, &tcparams);
+    err = mpool_create(mtf_kvdb_home, &tcparams);
     ASSERT_EQ(0, err);
 
-    err = mpool_open(home, &trparams, O_RDWR, &mp);
+    err = mpool_open(mtf_kvdb_home, &trparams, O_RDWR, &mp);
     ASSERT_EQ(0, err);
 
     bufsz = 32 * PAGE_SIZE;
@@ -187,7 +187,7 @@ MTF_DEFINE_UTEST_PREPOST(mcache_test, mcache_api, mpool_test_pre, mpool_test_pos
     err = mpool_mclass_add(HSE_MCLASS_STAGING, &tcparams);
     ASSERT_EQ(0, merr_errno(err));
 
-    err = mpool_open(home, &trparams, O_RDWR, &mp);
+    err = mpool_open(mtf_kvdb_home, &trparams, O_RDWR, &mp);
     ASSERT_EQ(0, merr_errno(err));
 
     for (i = 0; i < 32; i++) {
@@ -247,7 +247,7 @@ MTF_DEFINE_UTEST_PREPOST(mcache_test, mcache_api, mpool_test_pre, mpool_test_pos
 
     err = mpool_close(mp);
     ASSERT_EQ(0, err);
-    mpool_destroy(home, &tdparams);
+    mpool_destroy(mtf_kvdb_home, &tdparams);
 
     free(buf);
 }
@@ -263,10 +263,10 @@ MTF_DEFINE_UTEST_PREPOST(mcache_test, mcache_invalid_args, mpool_test_pre, mpool
     uint64_t mbid;
     merr_t   err;
 
-    err = mpool_create(home, &tcparams);
+    err = mpool_create(mtf_kvdb_home, &tcparams);
     ASSERT_EQ(0, err);
 
-    err = mpool_open(home, &trparams, O_RDWR, &mp);
+    err = mpool_open(mtf_kvdb_home, &trparams, O_RDWR, &mp);
     ASSERT_EQ(0, err);
 
     err = mpool_mblock_alloc(mp, HSE_MCLASS_CAPACITY, 0, &mbid, NULL);
@@ -301,7 +301,7 @@ MTF_DEFINE_UTEST_PREPOST(mcache_test, mcache_invalid_args, mpool_test_pre, mpool
 
     err = mpool_close(mp);
     ASSERT_EQ(0, err);
-    mpool_destroy(home, &tdparams);
+    mpool_destroy(mtf_kvdb_home, &tdparams);
 }
 
 MTF_END_UTEST_COLLECTION(mcache_test);

@@ -18,7 +18,7 @@ static char cappath[PATH_MAX + 16];
 int
 test_pre(struct mtf_test_info *info)
 {
-    snprintf(cappath, sizeof(cappath), "%s/%s", home, capdir);
+    snprintf(cappath, sizeof(cappath), "%s/%s", mtf_kvdb_home, capdir);
 
     return mkdir(cappath, S_IRWXU | S_IRWXG);
 }
@@ -50,11 +50,11 @@ MTF_DEFINE_UTEST_PREPOST(kvdb_home_test, storage_realpath, test_pre, test_post)
     merr_t err;
     char   buf[PATH_MAX];
 
-    err = kvdb_home_storage_realpath_get(home, capdir, buf, false);
+    err = kvdb_home_storage_realpath_get(mtf_kvdb_home, capdir, buf, false);
     ASSERT_EQ(0, err);
     ASSERT_STREQ(cappath, buf);
 
-    err = kvdb_home_storage_realpath_get(home, cappath, buf, true);
+    err = kvdb_home_storage_realpath_get(mtf_kvdb_home, cappath, buf, true);
     ASSERT_EQ(0, err);
     ASSERT_STREQ(cappath, buf);
 }

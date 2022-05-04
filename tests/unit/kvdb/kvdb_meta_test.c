@@ -22,7 +22,7 @@ static char test_home[PATH_MAX];
 int
 collection_pre(struct mtf_test_info *info)
 {
-    kvdb_meta_destroy(home);
+    kvdb_meta_destroy(mtf_kvdb_home);
     return !(info->ti_coll->tci_argc == 4);
 }
 
@@ -36,7 +36,7 @@ test_pre(struct mtf_test_info *info)
 int
 destroy_post(struct mtf_test_info *info)
 {
-    kvdb_meta_destroy(home);
+    kvdb_meta_destroy(mtf_kvdb_home);
     return 0;
 }
 
@@ -58,15 +58,15 @@ MTF_DEFINE_UTEST_POST(kvdb_meta_test, serde, destroy_post)
         strlcpy(meta.km_storage[i].path, hse_mclass_name_get(i),
                 sizeof(meta.km_storage[i].path));
 
-    err = kvdb_meta_create(home);
+    err = kvdb_meta_create(mtf_kvdb_home);
     ASSERT_EQ(0, err);
 
-    err = kvdb_meta_serialize(&meta, home);
+    err = kvdb_meta_serialize(&meta, mtf_kvdb_home);
     ASSERT_EQ(0, err);
 
     memset(&meta, 0, sizeof(meta));
 
-    err = kvdb_meta_deserialize(&meta, home);
+    err = kvdb_meta_deserialize(&meta, mtf_kvdb_home);
     ASSERT_EQ(0, err);
 
     ASSERT_EQ(1, meta.km_cndb.oid1);
@@ -89,18 +89,18 @@ MTF_DEFINE_UTEST_POST(kvdb_meta_test, null_storage_paths, destroy_post)
     strlcpy(meta.km_storage[HSE_MCLASS_CAPACITY].path, "capacity",
             sizeof(meta.km_storage[HSE_MCLASS_CAPACITY].path));
 
-    err = kvdb_meta_create(home);
+    err = kvdb_meta_create(mtf_kvdb_home);
     ASSERT_EQ(0, err);
 
     meta.km_version = KVDB_META_VERSION;
     meta.km_omf_version = GLOBAL_OMF_VERSION;
 
-    err = kvdb_meta_serialize(&meta, home);
+    err = kvdb_meta_serialize(&meta, mtf_kvdb_home);
     ASSERT_EQ(0, err);
 
     memset(&meta, 1, sizeof(meta));
 
-    err = kvdb_meta_deserialize(&meta, home);
+    err = kvdb_meta_deserialize(&meta, mtf_kvdb_home);
     ASSERT_EQ(0, err);
 
     for (i = HSE_MCLASS_STAGING; i < HSE_MCLASS_PMEM; i++)
@@ -627,27 +627,27 @@ MTF_DEFINE_UTEST_PREPOST(kvdb_meta_test, meta_storage_add_absolute, test_pre, de
     merr_t err;
     int    i;
 
-    err = kvdb_meta_create(home);
+    err = kvdb_meta_create(mtf_kvdb_home);
     ASSERT_EQ(0, err);
 
-    err = kvdb_meta_serialize(&meta, home);
+    err = kvdb_meta_serialize(&meta, mtf_kvdb_home);
     ASSERT_EQ(0, err);
 
     memset(&meta, 0, sizeof(meta));
 
-    err = kvdb_meta_deserialize(&meta, home);
+    err = kvdb_meta_deserialize(&meta, mtf_kvdb_home);
     ASSERT_EQ(0, err);
 
     params.mclass[HSE_MCLASS_CAPACITY].path[0] = '\0';
     for (i = HSE_MCLASS_STAGING; i < HSE_MCLASS_COUNT; i++)
         strlcpy(params.mclass[i].path, paths[i], sizeof(params.mclass[i].path));
 
-    err = kvdb_meta_storage_add(&meta, home, &params);
+    err = kvdb_meta_storage_add(&meta, mtf_kvdb_home, &params);
     ASSERT_EQ(0, err);
 
     memset(&meta, 0, sizeof(meta));
 
-    err = kvdb_meta_deserialize(&meta, home);
+    err = kvdb_meta_deserialize(&meta, mtf_kvdb_home);
     ASSERT_EQ(0, err);
 
     ASSERT_STREQ(meta.km_storage[HSE_MCLASS_CAPACITY].path, paths[HSE_MCLASS_CAPACITY]);
@@ -678,18 +678,18 @@ MTF_DEFINE_UTEST_PREPOST(kvdb_meta_test, meta_storage_add_relative, test_pre, de
     char *homedup;
     int   i;
 
-    err = kvdb_meta_create(home);
+    err = kvdb_meta_create(mtf_kvdb_home);
     ASSERT_EQ(0, err);
 
-    err = kvdb_meta_serialize(&meta, home);
+    err = kvdb_meta_serialize(&meta, mtf_kvdb_home);
     ASSERT_EQ(0, err);
 
     memset(&meta, 0, sizeof(meta));
 
-    err = kvdb_meta_deserialize(&meta, home);
+    err = kvdb_meta_deserialize(&meta, mtf_kvdb_home);
     ASSERT_EQ(0, err);
 
-    homedup = strdup(home);
+    homedup = strdup(mtf_kvdb_home);
     ASSERT_NE(homedup, NULL);
 
     params.mclass[HSE_MCLASS_CAPACITY].path[0] = '\0';
@@ -697,12 +697,12 @@ MTF_DEFINE_UTEST_PREPOST(kvdb_meta_test, meta_storage_add_relative, test_pre, de
         snprintf(params.mclass[i].path, sizeof(params.mclass[i].path) - strlen(paths[i]) - 1,
                  "%s/%s", homedup, paths[i]);
 
-    err = kvdb_meta_storage_add(&meta, home, &params);
+    err = kvdb_meta_storage_add(&meta, mtf_kvdb_home, &params);
     ASSERT_EQ(0, err);
 
     memset(&meta, 0, sizeof(meta));
 
-    err = kvdb_meta_deserialize(&meta, home);
+    err = kvdb_meta_deserialize(&meta, mtf_kvdb_home);
     ASSERT_EQ(0, err);
 
     ASSERT_STREQ(meta.km_storage[HSE_MCLASS_CAPACITY].path, paths[HSE_MCLASS_CAPACITY]);

@@ -31,10 +31,10 @@ MTF_DEFINE_UTEST_PREPOST(mdc_test, mdc_abc, mpool_test_pre, mpool_test_post)
     merr_t            err;
     size_t            usage;
 
-    err = mpool_create(home, &tcparams);
+    err = mpool_create(mtf_kvdb_home, &tcparams);
     ASSERT_EQ(0, err);
 
-    err = mpool_open(home, &trparams, O_RDWR, &mp);
+    err = mpool_open(mtf_kvdb_home, &trparams, O_RDWR, &mp);
     ASSERT_EQ(0, err);
 
     err = mpool_mdc_alloc(NULL, MDC_TEST_MAGIC, MDC_TEST_CAP, HSE_MCLASS_CAPACITY, &logid1, &logid2);
@@ -165,7 +165,7 @@ MTF_DEFINE_UTEST_PREPOST(mdc_test, mdc_abc, mpool_test_pre, mpool_test_post)
     err = mpool_mclass_add(HSE_MCLASS_STAGING, &tcparams);
     ASSERT_EQ(0, merr_errno(err));
 
-    err = mpool_open(home, &trparams, O_RDWR, &mp);
+    err = mpool_open(mtf_kvdb_home, &trparams, O_RDWR, &mp);
     ASSERT_EQ(0, merr_errno(err));
 
     err = mpool_mdc_alloc(mp, MDC_TEST_MAGIC, MDC_TEST_CAP, HSE_MCLASS_CAPACITY, &logid1, &logid2);
@@ -195,7 +195,7 @@ MTF_DEFINE_UTEST_PREPOST(mdc_test, mdc_abc, mpool_test_pre, mpool_test_post)
 
     err = mpool_close(mp);
     ASSERT_EQ(0, err);
-    mpool_destroy(home, &tdparams);
+    mpool_destroy(mtf_kvdb_home, &tdparams);
 }
 
 MTF_DEFINE_UTEST_PREPOST(mdc_test, mdc_io_basic, mpool_test_pre, mpool_test_post)
@@ -209,10 +209,10 @@ MTF_DEFINE_UTEST_PREPOST(mdc_test, mdc_io_basic, mpool_test_pre, mpool_test_post
     char    *buf, *rdbuf;
     size_t   bufsz = 16 << 10, rdlen;
 
-    err = mpool_create(home, &tcparams);
+    err = mpool_create(mtf_kvdb_home, &tcparams);
     ASSERT_EQ(0, err);
 
-    err = mpool_open(home, &trparams, O_RDWR, &mp);
+    err = mpool_open(mtf_kvdb_home, &trparams, O_RDWR, &mp);
     ASSERT_EQ(0, err);
 
     err = mpool_mdc_alloc(mp, MDC_TEST_MAGIC, MDC_TEST_CAP, HSE_MCLASS_CAPACITY, &logid1, &logid2);
@@ -305,7 +305,7 @@ MTF_DEFINE_UTEST_PREPOST(mdc_test, mdc_io_basic, mpool_test_pre, mpool_test_post
 
     err = mpool_close(mp);
     ASSERT_EQ(0, err);
-    mpool_destroy(home, &tdparams);
+    mpool_destroy(mtf_kvdb_home, &tdparams);
 
     free(buf);
     free(rdbuf);
@@ -420,10 +420,10 @@ MTF_DEFINE_UTEST_PREPOST(mdc_test, mdc_io_advanced, mpool_test_pre, mpool_test_p
     size_t   bufsz = 128 << 10;
     uint64_t logid1, logid2;
 
-    err = mpool_create(home, &tcparams);
+    err = mpool_create(mtf_kvdb_home, &tcparams);
     ASSERT_EQ(0, err);
 
-    err = mpool_open(home, &trparams, O_RDWR, &mp);
+    err = mpool_open(mtf_kvdb_home, &trparams, O_RDWR, &mp);
     ASSERT_EQ(0, err);
 
     err = mpool_mdc_alloc(mp, MDC_TEST_MAGIC, 16 * 1024, HSE_MCLASS_CAPACITY, &logid1, &logid2);
@@ -454,7 +454,7 @@ MTF_DEFINE_UTEST_PREPOST(mdc_test, mdc_io_advanced, mpool_test_pre, mpool_test_p
     err = mpool_close(mp);
     ASSERT_EQ(0, err);
 
-    mpool_destroy(home, &tdparams);
+    mpool_destroy(mtf_kvdb_home, &tdparams);
 
     free(buf);
 }
@@ -469,10 +469,10 @@ MTF_DEFINE_UTEST_PREPOST(mdc_test, mdc_io_overlap, mpool_test_pre, mpool_test_po
     char    *buf, *rdbuf;
     size_t   bufsz = 128 << 10, wdlen, rdlen, reclen, wdcnt, wdstart;
 
-    err = mpool_create(home, &tcparams);
+    err = mpool_create(mtf_kvdb_home, &tcparams);
     ASSERT_EQ(0, err);
 
-    err = mpool_open(home, &trparams, O_RDWR, &mp);
+    err = mpool_open(mtf_kvdb_home, &trparams, O_RDWR, &mp);
     ASSERT_EQ(0, err);
 
     err = mpool_mdc_alloc(mp, MDC_TEST_MAGIC, 16 * 1024, HSE_MCLASS_CAPACITY, &logid1, &logid2);
@@ -541,7 +541,7 @@ MTF_DEFINE_UTEST_PREPOST(mdc_test, mdc_io_overlap, mpool_test_pre, mpool_test_po
     err = mpool_close(mp);
     ASSERT_EQ(0, err);
 
-    mpool_destroy(home, &tdparams);
+    mpool_destroy(mtf_kvdb_home, &tdparams);
 
     free(buf);
     free(rdbuf);
@@ -557,10 +557,10 @@ MTF_DEFINE_UTEST_PREPOST(mdc_test, mdc_io_reopen, mpool_test_pre, mpool_test_pos
     char    *buf, *rdbuf;
     size_t   bufsz = 128 << 10, wdlen, rdlen, reclen, wdcnt, wdstart;
 
-    err = mpool_create(home, &tcparams);
+    err = mpool_create(mtf_kvdb_home, &tcparams);
     ASSERT_EQ(0, err);
 
-    err = mpool_open(home, &trparams, O_RDWR, &mp);
+    err = mpool_open(mtf_kvdb_home, &trparams, O_RDWR, &mp);
     ASSERT_EQ(0, err);
 
     err = mpool_mdc_alloc(mp, MDC_TEST_MAGIC, 16 * 1024, HSE_MCLASS_CAPACITY, &logid1, &logid2);
@@ -635,7 +635,7 @@ MTF_DEFINE_UTEST_PREPOST(mdc_test, mdc_io_reopen, mpool_test_pre, mpool_test_pos
     err = mpool_close(mp);
     ASSERT_EQ(0, err);
 
-    mpool_destroy(home, &tdparams);
+    mpool_destroy(mtf_kvdb_home, &tdparams);
 
     free(buf);
     free(rdbuf);

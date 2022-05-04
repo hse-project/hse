@@ -22,7 +22,7 @@ int         mtf_verify_flag;
 int         mtf_verify_line;
 const char *mtf_verify_file;
 
-char home[PATH_MAX];
+char mtf_kvdb_home[PATH_MAX];
 
 static inline void
 reset_mtf_test_coll_info(struct mtf_test_coll_info *tci)
@@ -120,7 +120,7 @@ mtf_main(int argc, char **argv, struct mtf_test_coll_info *tci)
     tci->tci_argv = argv;
     tci->tci_optind = optind;
 
-    if (argv_home && !realpath(argv_home, home)) {
+    if (argv_home && !realpath(argv_home, mtf_kvdb_home)) {
         fprintf(
             stderr,
             "%s: failed to resolve home directory %s: %s\n",
