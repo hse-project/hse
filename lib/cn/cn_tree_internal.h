@@ -199,6 +199,7 @@ struct cn_tree_node {
     uint                 tn_cgen;
     struct list_head     tn_kvset_list; /* head = newest kvset */
     struct cn_tree *     tn_tree;
+    struct route_node   *tn_route_node;
     struct cn_tree_node *tn_parent;
     struct cn_tree_node *tn_childv[];
 };
