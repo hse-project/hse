@@ -76,21 +76,58 @@ static struct route_node *
 route_node_alloc(struct route_map *map, uint edge_klen)
 {
     struct route_node *node = map->rtm_free;
-    size_t sz;
+    size_t nodesz;
 
-    if (node && edge_klen <= sizeof(node->rtn_keybuf)) {
+    if (node) {
+        size_t kbufsz;
+
         map->rtm_free = node->rtn_next;
-        node->rtn_keybufp = node->rtn_keybuf;
+        kbufsz = node->rtn_keybufsz;
+
+        /* 1. If the edge key fits the inline buffer then use the inline buffer.
+         * 2. If the edge key doesn't fit the inline buffer but fits the previously allocated
+         * buffer then use the previously allocated buffer.
+         * 3. If the edge key doesn't fit both the inline and the previously allocated buffer
+         * then allocate a new larger buffer.
+         *
+         * For cases (1) and (3), free the previously allocated buffer.
+         */
+        if ((edge_klen <= sizeof(node->rtn_keybuf)) || edge_klen > kbufsz) {
+            if (kbufsz > 0) {
+                assert(node->rtn_keybufp != node->rtn_keybuf);
+                free(node->rtn_keybufp);
+                node->rtn_keybufp = node->rtn_keybuf;
+                node->rtn_keybufsz = 0;
+            }
+
+            if (edge_klen > sizeof(node->rtn_keybuf)) {
+                size_t align = sizeof(uint64_t);
+
+                assert(edge_klen > kbufsz);
+                kbufsz = ALIGN(edge_klen, align);
+
+                node->rtn_keybufp = aligned_alloc(align, kbufsz);
+                if (!node->rtn_keybufp)
+                    return NULL;
+                node->rtn_keybufsz = kbufsz;
+            }
+        }
+
         return node;
     }
 
-    sz = sizeof(*node);
+    /* The route_node cache is empty, allocate a new route_node.
+     * These allocated route_node entries are never cached.
+     */
+    nodesz = sizeof(*node);
     if (edge_klen > sizeof(node->rtn_keybuf))
-        sz += ALIGN(edge_klen, __alignof__(*node));
+        nodesz += ALIGN(edge_klen, __alignof__(*node));
 
-    node = aligned_alloc(__alignof__(*node), sz);
-    if (node)
-        node->rtn_keybufp = (sz > sizeof(*node)) ? (uint8_t *)(node + 1) : node->rtn_keybuf;
+    node = aligned_alloc(__alignof__(*node), nodesz);
+    if (node) {
+        memset(node, 0, nodesz);
+        node->rtn_keybufp = (nodesz > sizeof(*node)) ? (uint8_t *)(node + 1) : node->rtn_keybuf;
+    }
 
     return node;
 }
@@ -421,8 +458,12 @@ route_map_create(const struct kvs_cparams *cp, const char *kvsname)
     map->rtm_skip = skip;
 
     /* Fill the route_node cache entries */
-    for (int i = fanout - 1; i >= 0; --i)
-        route_node_free(map, map->rtm_nodev + i);
+    for (int i = fanout - 1; i >= 0; --i) {
+        struct route_node *node = map->rtm_nodev + i;
+
+        node->rtn_keybufp = node->rtn_keybuf;
+        route_node_free(map, node);
+    }
 
 #ifndef NDEBUG
     route_map_dump(map);
@@ -435,6 +476,7 @@ void
 route_map_destroy(struct route_map *map)
 {
     struct rb_root *root;
+    struct route_node *node;
 
     if (!map)
         return;
@@ -450,6 +492,15 @@ route_map_destroy(struct route_map *map)
         rbtree_postorder_for_each_entry_safe(node, next, &map->rtm_root, rtn_node) {
             route_map_delete(map, node);
         }
+    }
+
+    node = map->rtm_free;
+    while (node) {
+        if (node->rtn_keybufp != node->rtn_keybuf) {
+            assert(node->rtn_keybufsz > sizeof(node->rtn_keybuf));
+            free(node->rtn_keybufp);
+        }
+        node = node->rtn_next;
     }
 
     free(map->rtm_fmt);

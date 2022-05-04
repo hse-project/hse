@@ -18,13 +18,14 @@ struct kvs_cparams;
 
 /**
  * struct route_node - tracks an edge key in the routing table
- * @rtn_node:    rb tree linkage
- * @rtn_refcnt:  reference count
- * @rtn_keylen:  edge key length
- * @rtn_tnode:   cn_tree_node pointer
- * @rtn_next:    ptr to the next route_node with larger edge key
- * @rtn_keybufp: ptr to the inline or an externally allocated edge key
- * @rtn_keybuf:  the edge key
+ * @rtn_node:     rb tree linkage
+ * @rtn_refcnt:   reference count
+ * @rtn_keylen:   edge key length
+ * @rtn_tnode:    cn_tree_node pointer
+ * @rtn_next:     ptr to the next route_node with larger edge key
+ * @rtn_keybufp:  ptr to the inline or an allocated edge key
+ * @rtn_keybufsz: size of the allocated edge key
+ * @rtn_keybuf:   the edge key
  *
  * Notes;
  *   1) rtn_tnode is currently used only to optimize tree-node lookups
@@ -42,7 +43,8 @@ struct route_node {
     bool               rtn_islast;
     void              *rtn_tnode;
     uint8_t           *rtn_keybufp;
-    uint8_t            rtn_keybuf[72];
+    size_t             rtn_keybufsz;
+    uint8_t            rtn_keybuf[64];
 };
 
 /*
