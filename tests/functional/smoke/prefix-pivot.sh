@@ -22,7 +22,6 @@ rparams=(
     log_lvl=5
     csched_debug_mask=0x60
     csched_rspill_params=0x0104
-    csched_ispill_params=0x0104
     csched_leaf_pct=99
 
     kvs-oparms

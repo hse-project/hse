@@ -157,13 +157,12 @@ NE_CHECK(csched_sp3_perfc, PERFC_EN_SP3, "csched_sp3_perfc table/enum mismatch")
  *      required to manage space amp.
  */
 
-/* Red-Black Trees */
-#define RBT_RI_ALEN 0 /* root and internal nodes sorted by alen */
-#define RBT_L_PCAP  1 /* leaf nodes sorted by pct capacity */
-#define RBT_L_GARB  2 /* leaf nodes sorted by garbage */
-#define RBT_LI_LEN  3 /* internal and leaf nodes, sorted by #kvsets */
-#define RBT_L_SCAT  4 /* leaf nodes sorted by vblock scatter */
-#define RBT_LI_IDLE 5 /* internal and leaf nodes sorted by ttl */
+/* Leaf Node Red-Black Trees */
+#define RBT_L_PCAP  0 /* leaf nodes sorted by pct capacity */
+#define RBT_L_GARB  1 /* leaf nodes sorted by garbage */
+#define RBT_L_LEN   2 /* leaf nodes sorted by #kvsets */
+#define RBT_L_SCAT  3 /* leaf nodes sorted by vblock scatter */
+#define RBT_L_IDLE  4  /* leaf nodes sorted by ttl */
 
 #define CSCHED_SAMP_MAX_MIN  100
 #define CSCHED_SAMP_MAX_MAX  999
@@ -790,23 +789,6 @@ sp3_refresh_thresholds(struct sp3 *sp)
         thresh.rspill_kvsets_min = max(thresh.rspill_kvsets_min, SP3_RSPILL_KVSETS_MIN);
     }
 
-    /* internal node spill settings */
-    v = sp->rp->csched_ispill_params;
-    if (v != U64_MAX) {
-        if (v) {
-            thresh.ispill_kvsets_max = (v >> 0) & 0xff;
-            thresh.ispill_kvsets_min = (v >> 8) & 0xff;
-            thresh.ispill_pop_szgb = (v >> 16) & 0xff;
-            thresh.ispill_pop_keys = (v >> 24) & 0xff;
-        } else {
-            thresh.ispill_kvsets_max = 8;
-            thresh.ispill_kvsets_min = 1;
-            thresh.ispill_pop_szgb = 4;
-            thresh.ispill_pop_keys = 16;
-        }
-        thresh.ispill_kvsets_min = max(thresh.ispill_kvsets_min, SP3_ISPILL_KVSETS_MIN);
-    }
-
     /* leaf node compaction settings */
     v = sp->rp->csched_leaf_comp_params;
     if (v != U64_MAX) {
@@ -858,7 +840,6 @@ sp3_refresh_thresholds(struct sp3 *sp)
 
     log_info("sp3 thresholds:"
              " rspill: min/max %u/%u,"
-             " ispill: min/max/sz/keys %u/%u/%u/%u,"
              " lcomp: min/max/pct/keys %u/%u/%u%%/%u,"
              " llen: min/max %u/%u,"
              " idlec: %u,"
@@ -867,11 +848,6 @@ sp3_refresh_thresholds(struct sp3 *sp)
 
              thresh.rspill_kvsets_min,
              thresh.rspill_kvsets_max,
-
-             thresh.ispill_kvsets_min,
-             thresh.ispill_kvsets_max,
-             thresh.ispill_pop_szgb,
-             thresh.ispill_pop_keys,
 
              thresh.lcomp_kvsets_min,
              thresh.lcomp_kvsets_max,
@@ -1126,9 +1102,9 @@ sp3_dirty_node_locked(struct sp3 *sp, struct cn_tree_node *tn)
         if (nkvsets >= sp->thresh.llen_runlen_min && jobs < 1) {
             uint64_t weight = (nkvsets << 32) | nkeys;
 
-            sp3_node_insert(sp, spn, RBT_LI_LEN, weight);
+            sp3_node_insert(sp, spn, RBT_L_LEN, weight);
         } else {
-            sp3_node_remove(sp, spn, RBT_LI_LEN);
+            sp3_node_remove(sp, spn, RBT_L_LEN);
         }
 
         /* RBT_LI_IDLE: Nodes sorted by idle check expiration time.
@@ -1143,10 +1119,10 @@ sp3_dirty_node_locked(struct sp3 *sp, struct cn_tree_node *tn)
 
                 weight = (weight << 32) | nkvsets;
 
-                sp3_node_insert(sp, spn, RBT_LI_IDLE, weight);
+                sp3_node_insert(sp, spn, RBT_L_IDLE, weight);
             }
         } else {
-            sp3_node_remove(sp, spn, RBT_LI_IDLE);
+            sp3_node_remove(sp, spn, RBT_L_IDLE);
         }
 
     } else {
@@ -1219,29 +1195,6 @@ sp3_dirty_node_locked(struct sp3 *sp, struct cn_tree_node *tn)
             sp3_node_remove(sp, spn, RBT_L_SCAT);
         }
 
-    } else {
-        if (nkvsets >= sp->thresh.ispill_kvsets_min && jobs < 3) {
-            uint64_t pop_keys = (uint64_t)sp->thresh.ispill_pop_keys << 20;
-            uint64_t pop_sz = sp->thresh.ispill_pop_szgb;
-            uint64_t alen = cn_ns_alen(&tn->tn_ns) >> 30;
-            uint64_t weight;
-
-            /* All interior nodes reside in RBT_RI_ALEN so that they can be
-             * spilled regardless of size (e.g., to meet tree leaf targets).
-             * If the allocated length is below the minimum spill size and
-             * the number of keys exceeds the "pop_keys" threshold then
-             * insert using the "pop_sz" threshold to ensure it gets spilled.
-             * Spill-by-alen always takes precedence over spill-by-keys.
-             */
-            if (alen < pop_sz && nkeys > pop_keys) {
-                weight = (pop_sz << 32) | nkvsets;
-            } else {
-                weight = (alen << 32) | (UINT32_MAX - nkvsets);
-            }
-
-            /* RBT_RI_ALEN: root and internal nodes sorted by alen */
-            sp3_node_insert(sp, spn, RBT_RI_ALEN, weight);
-        }
     }
 
     if (debug_dirty_node(sp)) {
@@ -1613,18 +1566,6 @@ sp3_comp_thread_name(
             break;
         case CN_CR_RTINY:
             r = "tr";
-            break;
-        case CN_CR_ISPILL:
-            r = "si";
-            break;
-        case CN_CR_ISPILL_ONE:
-            r = "s1";
-            break;
-        case CN_CR_ITINY:
-            r = "ti";
-            break;
-        case CN_CR_ILONG:
-            r = "li";
             break;
         case CN_CR_LBIG:
             r = "bn";
@@ -2233,9 +2174,8 @@ sp3_schedule(struct sp3 *sp)
 {
     enum job_type {
         jtype_root,
-        jtype_ispill,
-        jtype_node_len,
-        jtype_node_idle,
+        jtype_leaf_len,
+        jtype_leaf_idle,
         jtype_leaf_garbage,
         jtype_leaf_size,
         jtype_leaf_scatter,
@@ -2281,30 +2221,8 @@ sp3_schedule(struct sp3 *sp)
             job = sp3_check_roots(sp, qnum);
             break;
 
-        case jtype_ispill:
-            qnum = SP3_QNUM_INTERN;
-            if (qfull(sp, qnum)) {
-                qnum = SP3_QNUM_SHARED;
-                if (qfull(sp, qnum))
-                    break;
-            }
-
-            thresh = (uint64_t)sp->thresh.ispill_pop_szgb << 32;
-            if (sp->lpct_targ < rp_leaf_pct)
-                thresh = 0;
-
-            /* Service RBT_RI_ALEN red-black tree, which
-             * contains both root and internal nodes and
-             * keeps leaf_pct above configured value.
-             * Implements:
-             *   - Root node space amp rule
-             *   - Internal node space amp rule
-             */
-            job = sp3_check_rb_tree(sp, RBT_RI_ALEN, thresh, wtype_ispill, qnum);
-            break;
-
-        case jtype_node_len:
-            qnum = SP3_QNUM_NODELEN;
+        case jtype_leaf_len:
+            qnum = SP3_QNUM_LLEN;
             if (qfull(sp, qnum))
                 break;
 
@@ -2313,10 +2231,10 @@ sp3_schedule(struct sp3 *sp)
              *   - Internal node query-shape rule
              *   - Leaf node query-shape rule
              */
-            job = sp3_check_rb_tree(sp, RBT_LI_LEN, 0, wtype_node_len, qnum);
+            job = sp3_check_rb_tree(sp, RBT_L_LEN, 0, wtype_node_len, qnum);
             break;
 
-        case jtype_node_idle:
+        case jtype_leaf_idle:
             qnum = SP3_QNUM_SHARED;
             if (qfull(sp, qnum))
                 break;
@@ -2328,7 +2246,7 @@ sp3_schedule(struct sp3 *sp)
             if (sp->thresh.llen_idlec > 0) {
                 thresh = (UINT32_MAX - (jclock_ns >> 32)) << 32;
 
-                job = sp3_check_rb_tree(sp, RBT_LI_IDLE, thresh, wtype_node_idle, qnum);
+                job = sp3_check_rb_tree(sp, RBT_L_IDLE, thresh, wtype_node_idle, qnum);
             }
             break;
 
@@ -2775,16 +2693,6 @@ sp3_create(
 
     INIT_WORK(&sp->mon_work, sp3_monitor);
     queue_work(sp->mon_wq, &sp->mon_work);
-
-    slog_info(
-        HSE_SLOG_START("cn_threads"),
-        HSE_SLOG_FIELD("root", "%u", qthreads(sp, SP3_QNUM_ROOT)),
-        HSE_SLOG_FIELD("intern", "%u", qthreads(sp, SP3_QNUM_INTERN)),
-        HSE_SLOG_FIELD("nodelen", "%u", qthreads(sp, SP3_QNUM_NODELEN)),
-        HSE_SLOG_FIELD("leafgarb", "%u", qthreads(sp, SP3_QNUM_LGARB)),
-        HSE_SLOG_FIELD("leafsize", "%u", qthreads(sp, SP3_QNUM_LSIZE)),
-        HSE_SLOG_FIELD("shared", "%u", qthreads(sp, SP3_QNUM_SHARED)),
-        HSE_SLOG_END);
 
     *handle = (void *)sp;
     return 0;

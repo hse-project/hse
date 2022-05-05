@@ -50,7 +50,6 @@ oparms=(
     kvdb-oparms
     csched_debug_mask=0x30
     csched_rspill_params=0x01ff
-    csched_ispill_params=0x01ff
     csched_leaf_comp_params=0x0001ff
     csched_qthreads=0x080808
     kvs-oparms

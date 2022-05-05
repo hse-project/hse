@@ -1385,7 +1385,7 @@ cn_tree_prepare_compaction(struct cn_compaction_work *w)
     n_outs = fanout;
 
     /* if we are compacting, we only have a single output */
-    if (w->cw_action < CN_ACTION_SPILL)
+    if (w->cw_action == CN_ACTION_COMPACT_K || w->cw_action == CN_ACTION_COMPACT_KV)
         n_outs = 1;
 
     ins = calloc(w->cw_kvset_cnt, sizeof(*ins));

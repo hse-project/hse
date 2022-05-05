@@ -20,7 +20,6 @@ struct cn_compaction_work;
 
 enum sp3_work_type {
     wtype_rspill,       /* root node: spill */
-    wtype_ispill,       /* root or internal nodes: spill */
     wtype_node_len,     /* all nodes: number of kvsets */
     wtype_node_idle,    /* internal+leaf nodes: kcompact/kvcompact */
     wtype_leaf_garbage, /* leaf nodes: garbage */
@@ -31,10 +30,6 @@ enum sp3_work_type {
 struct sp3_thresholds {
     u8 rspill_kvsets_min;
     u8 rspill_kvsets_max;
-    u8 ispill_kvsets_min;
-    u8 ispill_kvsets_max;
-    u8 ispill_pop_szgb;     /* internal node spill-by-alen threshold (gibibytes) */
-    u8 ispill_pop_keys;     /* internal node spill-by_keys threshold (millions) */
     u8 lcomp_kvsets_min;
     u8 lcomp_kvsets_max;
     u8 lcomp_pop_pct;       /* leaf node spill-by-clen percentage threshold */
@@ -46,11 +41,10 @@ struct sp3_thresholds {
     u8 llen_idlem;
 };
 
-/* rspill and ispill require at least 1 kvset,
+/* rspill requires at least 1 kvset,
  * lcomp and llen require at least 2 kvsets.
  */
 #define SP3_RSPILL_KVSETS_MIN   ((u8)1)
-#define SP3_ISPILL_KVSETS_MIN   ((u8)1)
 #define SP3_LCOMP_KVSETS_MIN    ((u8)2)
 #define SP3_LLEN_RUNLEN_MIN     ((u8)2)
 #define SP3_LSCAT_THRESH_MIN    ((u8)2)
