@@ -254,7 +254,6 @@ tests = {
     # These tests also fail, not sure when they started to fail:
     #
     #   prefix-spill
-    #   prefix-pivot
     #   ptree-test
 }
 

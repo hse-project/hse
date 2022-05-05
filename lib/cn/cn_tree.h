@@ -109,9 +109,6 @@ cn_tree_get_pfx_len(const struct cn_tree *tree);
 bool
 cn_tree_is_replay(const struct cn_tree *tree);
 
-uint
-cn_tree_get_pfx_pivot(struct cn_tree *tree);
-
 /* MTF_MOCK */
 void
 cn_tree_samp(const struct cn_tree *tree, struct cn_samp_stats *s_out);

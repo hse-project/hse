@@ -113,7 +113,6 @@ OMF_SETGET(struct cndb_ver_omf, cnver_captgt, 64);
  *
  * @cninfo_fanout:     cn tree fanout
  * @cninfo_prefix_len: kvs prefix length
- * @cninfo_prefix_pivot: cn tree pivot level (for prefix trees only)
  * @cninfo_flags: flags (eg, capped kvs)
  * @cninfo_cnid: uniquely identify the KVS in the KVDB.
  * @cninfo_metasz: size of opaque metadata following @cninfo_name.
@@ -125,7 +124,7 @@ struct cndb_info_omf {
     uint32_t            cninfo_fanout;
     uint32_t            cninfo_prefix_len;
     uint32_t            cninfo_sfx_len;
-    uint32_t            cninfo_prefix_pivot;
+    uint32_t            cninfo_unused;
     uint32_t            cninfo_flags;
     uint32_t            cninfo_metasz;
     uint64_t            cninfo_cnid;
@@ -136,7 +135,6 @@ struct cndb_info_omf {
 OMF_SETGET(struct cndb_info_omf, cninfo_fanout, 32);
 OMF_SETGET(struct cndb_info_omf, cninfo_prefix_len, 32);
 OMF_SETGET(struct cndb_info_omf, cninfo_sfx_len, 32);
-OMF_SETGET(struct cndb_info_omf, cninfo_prefix_pivot, 32);
 OMF_SETGET(struct cndb_info_omf, cninfo_flags, 32);
 OMF_SETGET(struct cndb_info_omf, cninfo_metasz, 32);
 OMF_SETGET(struct cndb_info_omf, cninfo_cnid, 64);

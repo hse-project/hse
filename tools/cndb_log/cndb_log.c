@@ -141,14 +141,13 @@ print_info(struct tool_info *ti, union cndb_mtu *mtu)
 
     printf("%04x: ", fileoff);
     printf(
-        "%-6s cnid %lu fanout %u prefix %u sfx_len %u pivot %u"
+        "%-6s cnid %lu fanout %u prefix %u sfx_len %u"
         " flags 0x%x metasz %lu name %s meta",
         "info",
         mti->mti_cnid,
         mti->mti_fanout,
         mti->mti_prefix_len,
         mti->mti_sfx_len,
-        mti->mti_prefix_pivot,
         mti->mti_flags,
         (ulong)mti->mti_metasz,
         mti->mti_name);
@@ -166,13 +165,12 @@ print_infod(struct tool_info *ti, union cndb_mtu *mtu)
 
     printf("%04x: ", fileoff);
     printf(
-        "%-6s cnid %lu fanout %u prefix %u pivot %u"
+        "%-6s cnid %lu fanout %u prefix %u"
         " flags 0x%x name %s\n",
         "infod",
         mti->mti_cnid,
         mti->mti_fanout,
         mti->mti_prefix_len,
-        mti->mti_prefix_pivot,
         mti->mti_flags,
         mti->mti_name);
 }

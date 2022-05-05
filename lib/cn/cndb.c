@@ -123,7 +123,6 @@ cndb_info2omf(int hdr_type, const struct cndb_cn *cn, struct cndb_info_omf *inf)
     omf_set_cninfo_fanout(inf, cn->cn_cp.fanout);
     omf_set_cninfo_prefix_len(inf, cn->cn_cp.pfx_len);
     omf_set_cninfo_sfx_len(inf, cn->cn_cp.sfx_len);
-    omf_set_cninfo_prefix_pivot(inf, cn->cn_cp.pfx_pivot);
 
     omf_set_cninfo_flags(inf, cn->cn_flags);
     omf_set_cninfo_metasz(inf, sz - sizeof(*inf));
@@ -795,7 +794,6 @@ cndb_import_md(struct cndb *cndb, struct cndb_hdr_omf *buf, union cndb_mtu **mtu
             .fanout = mti->mti_fanout,
             .pfx_len = mti->mti_prefix_len,
             .sfx_len = mti->mti_sfx_len,
-            .pfx_pivot = mti->mti_prefix_pivot,
         };
 
         err = cndb_cnv_add(
@@ -2936,7 +2934,6 @@ cndb_cn_create2(struct cndb *cndb, const struct kvs_cparams *cparams, u64 *cnid_
     omf_set_cninfo_fanout(&info, cparams->fanout);
     omf_set_cninfo_prefix_len(&info, cparams->pfx_len);
     omf_set_cninfo_sfx_len(&info, cparams->sfx_len);
-    omf_set_cninfo_prefix_pivot(&info, cparams->pfx_pivot);
     omf_set_cninfo_name(&info, (unsigned char *)name, strlen(name));
 
     if (cparams->kvs_ext01)

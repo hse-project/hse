@@ -389,7 +389,6 @@ MTF_DEFINE_UTEST_PRE(test, t_create_error_paths, test_setup)
     /* pfx_len greater than HSE_KVS_PFX_LEN_MAX is invalid */
     cp.fanout = 1 << 3;
     cp.pfx_len = HSE_KVS_PFX_LEN_MAX + 1;
-    cp.pfx_pivot = 2;
     err = cn_tree_create(&tree, NULL, 0, &cp, &mock_health, rp);
     ASSERT_TRUE(err);
 
@@ -424,7 +423,7 @@ MTF_DEFINE_UTEST_PRE(test, t_simple_api, test_setup)
 
     struct cn_tree *    tree = 0;
     struct kvs_cparams *out,
-        cp = {.sfx_len = 0, .pfx_len = 12, .fanout = 8, .pfx_pivot = 0 };
+        cp = {.sfx_len = 0, .pfx_len = 12, .fanout = 8 };
 
     err = cn_tree_create(&tree, NULL, 0, &cp, &mock_health, rp);
     ASSERT_EQ(err, 0);

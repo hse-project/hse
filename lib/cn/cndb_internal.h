@@ -223,7 +223,6 @@ struct cndb_info {
     u32             mti_sfx_len;
     u32             mti_fanout;
     u32             mti_prefix_len;
-    u32             mti_prefix_pivot;
     u32             mti_flags;
     u64             mti_cnid;
     size_t          mti_metasz;

@@ -453,7 +453,6 @@ MTF_DEFINE_UTEST_PREPOST(cndb_test, cndb_cnv_add_test, test_pre, test_post)
     struct kvs_cparams cp = {
         .fanout = 1 << 1,
         .pfx_len = 2,
-        .pfx_pivot = 0,
     };
 
     cndb.cndb_kvdb_health = &mock_health;
