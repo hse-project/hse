@@ -38,10 +38,6 @@ enum cn_comp_rule {
     CN_CR_NONE = 0,
     CN_CR_RSPILL,         /* normal root spill */
     CN_CR_RTINY,          /* tiny root spill */
-    CN_CR_ISPILL,         /* normal internal node spill */
-    CN_CR_ISPILL_ONE,     /* spill a single kvset b/c it was large */
-    CN_CR_ITINY,          /* tiny internal node (kv-compact) */
-    CN_CR_ILONG,          /* long interior node (kcompact) */
     CN_CR_LBIG,           /* big leaf (near pop threshold) */
     CN_CR_LBIG_ONE,       /* big leaf, compact one kvset */
     CN_CR_LGARB,          /* leaf garbage (reducing space amp) */
@@ -86,14 +82,6 @@ cn_comp_rule2str(enum cn_comp_rule rule)
             return "rspill";
         case CN_CR_RTINY:
             return "rtiny";
-        case CN_CR_ISPILL:
-            return "ispill";
-        case CN_CR_ISPILL_ONE:
-            return "ispone";
-        case CN_CR_ITINY:
-            return "itiny";
-        case CN_CR_ILONG:
-            return "ilong";
         case CN_CR_LBIG:
             return "lbig";
         case CN_CR_LBIG_ONE:

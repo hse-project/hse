@@ -858,27 +858,6 @@ static const struct param_spec pspecs[] = {
         },
     },
     {
-        .ps_name = "csched_ispill_params",
-        .ps_description = "internal node spill params [min,max]",
-        .ps_flags = PARAM_FLAG_EXPERIMENTAL | PARAM_FLAG_WRITABLE,
-        .ps_type = PARAM_TYPE_U64,
-        .ps_offset = offsetof(struct kvdb_rparams, csched_ispill_params),
-        .ps_size = PARAM_SZ(struct kvdb_rparams, csched_ispill_params),
-        .ps_convert = param_default_converter,
-        .ps_validate = param_default_validator,
-        .ps_stringify = param_default_stringify,
-        .ps_jsonify = param_default_jsonify,
-        .ps_default_value = {
-            .as_uscalar = 0,
-        },
-        .ps_bounds = {
-            .as_uscalar = {
-                .ps_min = 0,
-                .ps_max = UINT64_MAX,
-            },
-        },
-    },
-    {
         .ps_name = "csched_leaf_comp_params",
         .ps_description = "leaf compact params [poppct,min,max]",
         .ps_flags = PARAM_FLAG_EXPERIMENTAL | PARAM_FLAG_WRITABLE,

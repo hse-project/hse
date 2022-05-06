@@ -95,16 +95,16 @@ sp3_work_estimate(struct cn_compaction_work *w, uint internal_children, uint lea
 
         case CN_ACTION_SPILL:
             /* If any child is an internal node, then assume
-         * this operation will simply move data to other internal
-         * nodes (no net effect on samp).  Otherwise assume all data
-         * will move to leaf nodes.
-         *
-         * If we have both leaf and internal children, then data will
-         * be split between 'i_alen' and 'l_alen', but this usually
-         * happens in prefix trees where one prefix dominates, in
-         * which case most of the data will land in the internal
-         * node used by the dominant prefix.
-         */
+             * this operation will simply move data to other internal
+             * nodes (no net effect on samp).  Otherwise assume all data
+             * will move to leaf nodes.
+             *
+             * If we have both leaf and internal children, then data will
+             * be split between 'i_alen' and 'l_alen', but this usually
+             * happens in prefix trees where one prefix dominates, in
+             * which case most of the data will land in the internal
+             * node used by the dominant prefix.
+             */
             consume = kalen + valen;
             percent_keep = 100 * 100 / cn_ns_samp(&w->cw_ns);
             dst_is_leaf = cn_node_isroot(w->cw_node) || !internal_children;
@@ -135,7 +135,7 @@ sp3_work_estimate(struct cn_compaction_work *w, uint internal_children, uint lea
 }
 
 static uint
-sp3_work_ispill_find_kvsets(struct sp3_node *spn, uint n_max, struct kvset_list_entry **mark)
+sp3_work_rspill_find_kvsets(struct sp3_node *spn, uint n_max, struct kvset_list_entry **mark)
 {
     uint                     n_kvsets;
     struct kvset_list_entry *le;
@@ -171,21 +171,10 @@ sp3_work_ispill_find_kvsets(struct sp3_node *spn, uint n_max, struct kvset_list_
     return n_kvsets;
 }
 
-/* Handle an internal node that needs to be spilled.
- * Notes:
- * - The "compc" check ensures that k-compacted kvsets are spilled one
- *   at a time.
- * Pros:
- *   - Prevent those possibly large kvsets from being spilled in giant
- *     spill operation.
- * Cons:
- *   - Smaller spills can lead to lower mblock utilization.
- *   - Higher write amp due to less GC during spill operation, and
- *     more kvsets in child node that will then have to be
- *     k-compacted or kv-compacted.
+/* Handle root spill
  */
 static uint
-sp3_work_ispill(
+sp3_work_rspill(
     struct sp3_node *         spn,
     struct sp3_thresholds    *thresh,
     struct kvset_list_entry **mark,
@@ -195,148 +184,26 @@ sp3_work_ispill(
     struct cn_tree_node *tn = spn2tn(spn);
     uint cnt_min, cnt_max, cnt;
 
-    if (tn->tn_loc.node_level > 0) {
-        cnt_min = thresh->ispill_kvsets_min;
-        cnt_max = thresh->ispill_kvsets_max;
-    } else {
-        cnt_min = thresh->rspill_kvsets_min;
-        cnt_max = thresh->rspill_kvsets_max;
-    }
+    cnt_min = thresh->rspill_kvsets_min;
+    cnt_max = thresh->rspill_kvsets_max;
 
-    cnt = sp3_work_ispill_find_kvsets(spn, cnt_max, mark);
+    cnt = sp3_work_rspill_find_kvsets(spn, cnt_max, mark);
     if (cnt < cnt_min)
         return 0;
 
     *action = CN_ACTION_SPILL;
-    *rule = CN_CR_ISPILL;
+    *rule = CN_CR_RSPILL;
 
-    if (tn->tn_loc.node_level > 0) {
-        uint compc = kvset_get_compc((*mark)->le_kvset);
-        uint64_t clen = cn_ns_clen(&tn->tn_ns);
+    /* Defer tiny root spills */
+    if (cn_ns_clen(&tn->tn_ns) < SIZE_1GIB) {
 
-        /* If there is another job currently spilling this node then wait
-         * to schedule additional jobs until there are a sufficient number
-         * of kvsets to spill.
-         */
-        if (compc < 2 && cnt < cnt_max / 2) {
-            if (atomic_read(&tn->tn_busycnt) > 0)
-                return 0;
-        }
+        if (cnt < cnt_max)
+            return 0;
 
-        /* If the spill size is large and the oldest kvset is heavily
-         * compacted then spill only the oldest kvset.  If the oldest
-         * kvset is lightly compacted then just reduce the spill count.
-         *
-         * Otherwise, if the spill size is tiny then defer the spill
-         * until there are a sufficient number of kvsets to spill.
-         */
-        if (clen > tn->tn_size_max / 2 ||
-            cn_ns_keys(&tn->tn_ns) > ((uint64_t)thresh->ispill_pop_keys << 20)) {
-
-            if (compc > 2) {
-                *rule = CN_CR_ISPILL_ONE;
-                cnt = 1;
-            } else if (compc > 0) {
-                cnt = min(cnt, cnt_max / 2);
-            }
-        }
-        else if (clen < SIZE_1GIB) {
-            if (cnt < cnt_max / 2)
-                return 0;
-
-            *rule = CN_CR_ITINY;
-        }
-    } else {
-        uint64_t clen = cn_ns_clen(&tn->tn_ns);
-
-        *rule = CN_CR_RSPILL;
-
-        /* Defer tiny root spills...
-         */
-        if (clen < SIZE_1GIB) {
-            if (cnt < cnt_max)
-                return 0;
-
-            *rule = CN_CR_RTINY;
-        }
+        *rule = CN_CR_RTINY;
     }
 
     return cnt;
-}
-
-/* Handle an internal node that has been partially spilled.
- *
- * When a leaf node "pops", sp3_work_leaf_size() will typically spill
- * just one kvset from the node, leaving behind a partially spilled
- * internal node.  The scheduler will then schedule ispill jobs
- * (via sp3_work_ispill()) to continue spilling internal nodes until
- * the leaf threshold for the tree has been met and the node size
- * falls below the ispill_pop_szgb threshold.
- *
- * Regardless, the scheduler will schedule icompact jobs (via this
- * function) on internal nodes in order to keep them from growing
- * too long until they are sufficiently large to be spilled via
- * sp3_work_ispill().
- */
-static uint
-sp3_work_icompact(
-    struct sp3_node          *spn,
-    struct sp3_thresholds    *thresh,
-    struct kvset_list_entry **mark,
-    enum cn_action           *action,
-    enum cn_comp_rule        *rule)
-{
-    struct cn_tree_node *tn = spn2tn(spn);
-    uint runlen_min = thresh->llen_runlen_min;
-    uint runlen_max = thresh->llen_runlen_max;
-
-    if (cn_ns_kvsets(&tn->tn_ns) >= runlen_min) {
-        struct kvset_list_entry *le;
-        struct list_head *head;
-        uint compc = UINT_MAX;
-        uint runlen = 0;
-
-        head = &tn->tn_kvset_list;
-        *mark = list_last_entry(head, typeof(*le), le_link);
-
-        list_for_each_entry_reverse(le, head, le_link) {
-            uint tmp = kvset_get_compc(le->le_kvset);
-
-            if (compc != tmp && runlen < runlen_min) {
-                compc = tmp;
-                *mark = le;
-                runlen = 1;
-            } else if (++runlen >= runlen_max) {
-                break;
-            }
-        }
-
-        if (runlen >= runlen_min) {
-            uint64_t clen = cn_ns_clen(&tn->tn_ns);
-
-            *action = CN_ACTION_COMPACT_K;
-            *rule = CN_CR_ILONG;
-
-            /* Mitigate creation of ginormous kvsets during initial
-             * spill as they clog up the spill pipeline.
-             */
-            if (compc > 1 && clen > tn->tn_size_max / 2)
-                return max(runlen_min / 2, 2u);
-
-            /* kv-compact if the run includes the oldest kvset and the
-             * spill size is so small that a spill would likely result
-             * in compounding space amplification.
-             */
-            if (clen < SIZE_1GIB && list_is_last(&(*mark)->le_link, head)) {
-                *action = CN_ACTION_COMPACT_KV;
-                *rule = CN_CR_ITINY;
-            }
-
-            return runlen;
-        }
-    }
-
-    return 0;
 }
 
 static uint
@@ -785,12 +652,11 @@ sp3_work(
     } else {
         switch (wtype) {
         case wtype_rspill:
-        case wtype_ispill:
-            n_kvsets = sp3_work_ispill(spn, thresh, &mark, &action, &rule);
+            n_kvsets = sp3_work_rspill(spn, thresh, &mark, &action, &rule);
             break;
 
         case wtype_node_len:
-            n_kvsets = sp3_work_icompact(spn, thresh, &mark, &action, &rule);
+            assert(0);
             break;
 
         case wtype_node_idle:

@@ -275,13 +275,8 @@ sp3_work_mock(
         if (!cn_node_comp_token_get(tn))
             goto no_work;
 
-        if (cn_node_isleaf(tn)) {
-            w->cw_action = CN_ACTION_COMPACT_KV;
-            comptype = "kv_compact";
-        } else {
-            w->cw_action = CN_ACTION_SPILL;
-            comptype = "ispill";
-        }
+        w->cw_action = CN_ACTION_COMPACT_KV;
+        comptype = "kv_compact";
     }
 
     w->cw_dgen_lo = kvset_get_dgen(w->cw_mark->le_kvset);

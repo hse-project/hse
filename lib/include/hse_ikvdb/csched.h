@@ -26,8 +26,7 @@ struct kvdb_health;
 /* work queues */
 enum sp3_qnum {
     SP3_QNUM_ROOT,
-    SP3_QNUM_INTERN,
-    SP3_QNUM_NODELEN,
+    SP3_QNUM_LLEN,
     SP3_QNUM_LGARB,
     SP3_QNUM_LSIZE,
     SP3_QNUM_SHARED,
@@ -38,8 +37,7 @@ enum sp3_qnum {
  */
 #define CSCHED_QTHREADS_DEFAULT                 \
     ((5ul << (8 * SP3_QNUM_ROOT)) |             \
-     (5ul << (8 * SP3_QNUM_INTERN)) |           \
-     (5ul << (8 * SP3_QNUM_NODELEN)) |          \
+     (5ul << (8 * SP3_QNUM_LLEN)) |             \
      (1ul << (8 * SP3_QNUM_LGARB)) |            \
      (1ul << (8 * SP3_QNUM_LSIZE)) |            \
      (2ul << (8 * SP3_QNUM_SHARED)))

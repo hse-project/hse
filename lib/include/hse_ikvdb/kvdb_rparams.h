@@ -68,7 +68,6 @@ struct kvdb_rparams {
     uint8_t  csched_leaf_pct;
     uint8_t  csched_vb_scatter_pct;
     uint64_t csched_rspill_params;
-    uint64_t csched_ispill_params;
     uint64_t csched_leaf_comp_params;
     uint64_t csched_leaf_len_params;
     uint64_t csched_node_min_ttl;
