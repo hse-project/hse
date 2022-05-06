@@ -178,10 +178,37 @@ io_sync_msync(void *addr, size_t len, int flags)
     return (rc == -1) ? merr(errno) : 0;
 }
 
+merr_t
+io_sync_clone(int src_fd, off_t src_off, int tgt_fd, off_t tgt_off, size_t len, int flags)
+{
+    size_t left = len, cc;
+    off_t cur_soff = src_off, cur_toff = tgt_off;
+
+    do {
+        cc = copy_file_range(src_fd, &cur_soff, tgt_fd, &cur_toff, len, 0);
+        if (cc == -1)
+            return merr(errno);
+
+        left -= cc;
+
+        /* copy_file_range() automatically adjusts `cur_soff' and `cur_toff' with the
+         * number of bytes copied. Below check verifies that this is infact the case.
+         */
+        if ((left + (cur_soff - src_off) != len) || (left + (cur_toff - tgt_off) != len))
+            return merr(EBUG);
+
+    } while (left > 0 && cc > 0);
+
+    assert(left == 0);
+
+    return left > 0 ? merr(EIO) : 0;
+}
+
 const struct io_ops io_sync_ops = {
     .read = io_sync_read,
     .write = io_sync_write,
     .mmap = io_sync_mmap,
     .munmap = io_sync_munmap,
     .msync = io_sync_msync,
+    .clone = io_sync_clone,
 };

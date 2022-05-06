@@ -228,12 +228,6 @@ cn_spill_route_get(
     ri->last_node = route_node_islast(ri->rnode);
 }
 
-static void
-cn_spill_route_put(struct cn_tree *tree, struct route_node *node)
-{
-    cn_tree_route_put(tree, node);
-}
-
 /**
  * cn_spill() - merge key-value streams, then spill kv-pairs one node at a time or
  *              kv-compact into a node.
@@ -302,10 +296,8 @@ cn_spill(struct cn_compaction_work *w)
 
         if (!child) {
             err = get_kvset_builder(w, &child);
-            if (err) {
-                cn_spill_route_put(w->cw_tree, ri.rnode);
+            if (err)
                 break;
-            }
             assert(child);
 
             /* Add ptomb to 'child' if a ptomb context is carried forward from the
@@ -318,7 +310,6 @@ cn_spill(struct cn_compaction_work *w)
                     err = kvset_builder_add_key(child, &pt_kobj);
 
                 if (err) {
-                    cn_spill_route_put(w->cw_tree, ri.rnode);
                     kvset_builder_destroy(child);
                     break;
                 }
@@ -502,7 +493,6 @@ cn_spill(struct cn_compaction_work *w)
         }
 
         if (err) {
-            cn_spill_route_put(w->cw_tree, ri.rnode);
             kvset_builder_destroy(child);
             break;
         }
@@ -521,7 +511,6 @@ cn_spill(struct cn_compaction_work *w)
                 w->cw_output_nodev[output_nodec++] = route_node_tnode(ri.rnode);
             }
 
-            cn_spill_route_put(w->cw_tree, ri.rnode);
             kvset_builder_destroy(child);
             child = NULL;
         }

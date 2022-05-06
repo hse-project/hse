@@ -5,6 +5,7 @@
 
 #include <mtf/framework.h>
 #include <mock/api.h>
+#include <support/random_buffer.h>
 
 #include <hse_util/hse_err.h>
 #include <hse_util/minmax.h>
@@ -755,6 +756,123 @@ MTF_DEFINE_UTEST_PREPOST(mblock_test, mblock_invalid_args, mpool_test_pre, mpool
     ASSERT_EQ(0, err);
 
     mpool_destroy(mtf_kvdb_home, &tdparams);
+}
+
+MTF_DEFINE_UTEST_PREPOST(mblock_test, mblock_clone, mpool_test_pre, mpool_test_post)
+{
+    struct mpool *mp;
+
+    uint64_t mbid, tgt_mbid;
+    merr_t   err;
+    int      rc;
+    char    *wbuf, *rbuf, *zbuf;
+    bool     write = true;
+    size_t   bufsz = 32 * MB;
+
+    err = mpool_create(mtf_kvdb_home, &tcparams);
+    ASSERT_EQ(0, err);
+
+    err = mpool_open(mtf_kvdb_home, &trparams, O_RDWR, &mp);
+    ASSERT_EQ(0, err);
+
+    err = mpool_mblock_alloc(mp, HSE_MCLASS_CAPACITY, 0, &mbid, NULL);
+    ASSERT_EQ(0, err);
+
+    rc = posix_memalign((void **)&wbuf, PAGE_SIZE, (bufsz * 2) + MB);
+    ASSERT_EQ(0, rc);
+    rbuf = wbuf + bufsz;
+    zbuf = rbuf + bufsz;
+
+    randomize_buffer(wbuf, bufsz, 131);
+    randomize_buffer(rbuf, bufsz, 149);
+    memset(zbuf, 0, MB);
+
+    err = mblock_rw(mp, mbid, wbuf, bufsz, 0, write);
+    ASSERT_EQ(0, err);
+
+    err = mpool_mblock_commit(mp, mbid);
+    ASSERT_EQ(0, err);
+
+    err = mblock_rw(mp, mbid, rbuf, bufsz, 0, !write);
+    ASSERT_EQ(0, err);
+    ASSERT_EQ(0, memcmp(wbuf, rbuf, bufsz));
+
+    err = mpool_mblock_clone(mp, mbid, 0, 4 * MB, &tgt_mbid);
+    ASSERT_EQ(0, err);
+
+    randomize_buffer(rbuf, MB, 151);
+    err = mblock_rw(mp, tgt_mbid, rbuf, 4 * MB, 0, !write);
+    ASSERT_EQ(0, err);
+    ASSERT_EQ(0, memcmp(wbuf, rbuf, 4 * MB));
+
+    err = mblock_rw(mp, tgt_mbid, rbuf, 1 * MB, 4 * MB, !write);
+    ASSERT_EQ(EINVAL, merr_errno(err));
+
+    err = mpool_close(mp);
+    ASSERT_EQ(0, err);
+
+    err = mpool_open(mtf_kvdb_home, &trparams, O_RDWR, &mp);
+    ASSERT_EQ(0, err);
+
+    randomize_buffer(rbuf, MB, 163);
+    err = mblock_rw(mp, tgt_mbid, rbuf, 4 * MB, 0, !write);
+    ASSERT_EQ(0, err);
+    ASSERT_EQ(0, memcmp(wbuf, rbuf, 4 * MB));
+
+    err = mpool_mblock_delete(mp, tgt_mbid);
+    ASSERT_EQ(0, err);
+
+    err = mpool_mblock_clone(mp, mbid, 16 * MB, 4 * MB, &tgt_mbid);
+    ASSERT_EQ(0, err);
+
+    randomize_buffer(rbuf, bufsz, 173);
+    err = mblock_rw(mp, tgt_mbid, rbuf, 20 * MB, 0, !write);
+    ASSERT_EQ(0, err);
+    for (int i = 0; i < 16; i++)
+        ASSERT_EQ(0, memcmp(zbuf, rbuf + i * MB, MB));
+    ASSERT_EQ(0, memcmp(wbuf + 16 * MB, rbuf + 16 * MB, 4 * MB));
+
+    err = mblock_rw(mp, tgt_mbid, rbuf, 1 * MB, 20 * MB, !write);
+    ASSERT_EQ(EINVAL, merr_errno(err));
+
+    err = mpool_mblock_delete(mp, tgt_mbid);
+    ASSERT_EQ(0, err);
+
+    err = mpool_mblock_clone(mp, mbid, 0, 0, &tgt_mbid);
+    ASSERT_EQ(0, err);
+
+    randomize_buffer(rbuf, bufsz, 181);
+    err = mblock_rw(mp, mbid, rbuf, bufsz, 0, !write);
+    ASSERT_EQ(0, err);
+    ASSERT_EQ(0, memcmp(wbuf, rbuf, bufsz));
+
+    err = mpool_mblock_delete(mp, tgt_mbid);
+    ASSERT_EQ(0, err);
+
+    err = mpool_mblock_clone(NULL, mbid, 0, bufsz, &tgt_mbid);
+    ASSERT_EQ(EINVAL, merr_errno(err));
+
+    err = mpool_mblock_clone(mp, mbid, 0, bufsz, NULL);
+    ASSERT_EQ(EINVAL, merr_errno(err));
+
+    err = mpool_mblock_clone(mp, mbid, -1, bufsz, &tgt_mbid);
+    ASSERT_EQ(EINVAL, merr_errno(err));
+
+    err = mpool_mblock_clone(mp, mbid, 0, bufsz + 1, &tgt_mbid);
+    ASSERT_EQ(EINVAL, merr_errno(err));
+
+    err = mpool_mblock_clone(mp, mbid, 1, bufsz, &tgt_mbid);
+    ASSERT_EQ(EINVAL, merr_errno(err));
+
+    err = mpool_mblock_clone(mp, mbid, 0, 1, &tgt_mbid);
+    ASSERT_EQ(EINVAL, merr_errno(err));
+
+    err = mpool_close(mp);
+    ASSERT_EQ(0, err);
+
+    mpool_destroy(mtf_kvdb_home, &tdparams);
+
+    free(wbuf);
 }
 
 MTF_END_UTEST_COLLECTION(mblock_test);

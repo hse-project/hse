@@ -157,3 +157,18 @@ mpool_mblock_read(struct mpool *mp, uint64_t mbid, const struct iovec *iov, int 
 
     return mblock_fset_read(mclass_fset(mc), mbid, iov, iovc, off);
 }
+
+merr_t
+mpool_mblock_clone(struct mpool *mp, uint64_t mbid, off_t off, size_t len, uint64_t *mbid_out)
+{
+    struct media_class *mc;
+
+    if (!mp || !mbid_out)
+        return merr(EINVAL);
+
+    mc = mpool_mclass_handle(mp, mcid_to_mclass(mclassid(mbid)));
+    if (!mc)
+        return merr(ENOENT);
+
+    return mblock_fset_clone(mclass_fset(mc), mbid, off, len, mbid_out);
+}

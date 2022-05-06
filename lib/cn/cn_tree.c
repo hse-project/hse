@@ -922,18 +922,10 @@ cn_tree_route_get(struct cn_tree *tree, const void *key, uint keylen)
     assert(tree && key);
 
     rmlock_rlock(&tree->ct_lock, &lock);
-    node = route_map_get(tree->ct_route_map, key, keylen);
+    node = route_map_lookup(tree->ct_route_map, key, keylen);
     rmlock_runlock(lock);
 
     return node;
-}
-
-void
-cn_tree_route_put(struct cn_tree *tree, struct route_node *node)
-{
-    assert(tree && node);
-
-    route_map_put(tree->ct_route_map, node);
 }
 
 /**

@@ -79,7 +79,7 @@ route_node_alloc(struct route_map *map, uint edge_klen)
     size_t nodesz;
 
     if (node) {
-        size_t kbufsz;
+        uint32_t kbufsz;
 
         map->rtm_free = node->rtn_next;
         kbufsz = node->rtn_keybufsz;
@@ -138,6 +138,10 @@ route_node_free(struct route_map *map, struct route_node *node)
     bool freeme = (node < map->rtm_nodev || node >= (map->rtm_nodev + map->rtm_fanout));
 
     if (!freeme) {
+        node->rtn_tnode = NULL;
+        node->rtn_keylen = 0;
+        node->rtn_isfirst = node->rtn_islast = false;
+
         node->rtn_next = map->rtm_free;
         map->rtm_free = node;
         return;
@@ -170,13 +174,12 @@ route_map_insert(
     if (!node)
         return NULL;
 
-    atomic_set(&node->rtn_refcnt, 1);
     node->rtn_tnode = tnode;
     node->rtn_isfirst = node->rtn_islast = false;
 
     err = route_node_key_set(map, node, edge_key, edge_klen, nodeoff);
     if (err) {
-        route_map_put(map, node);
+        route_node_free(map, node);
         return NULL;
     }
 
@@ -195,7 +198,7 @@ route_map_insert(
             link = &(*link)->rb_right;
         } else {
             log_err("dup route detected %u", nodeoff);
-            route_map_put(map, node);
+            route_node_free(map, node);
             return NULL;
         }
     }
@@ -238,7 +241,7 @@ route_map_delete(struct route_map *map, struct route_node *node)
     last = rb_last(root);
 
     rb_erase(&node->rtn_node, root);
-    route_map_put(map, node);
+    route_node_free(map, node);
 
     assert(first && last);
     if (first != (cur = rb_first(root)) && cur) {
@@ -298,31 +301,6 @@ struct route_node *
 route_map_lookupGT(struct route_map *map, const void *key, uint keylen)
 {
     return map ? route_map_find(map, key, keylen, true) : NULL;
-}
-
-struct route_node *
-route_map_get(struct route_map *map, const void *key, uint keylen)
-{
-    struct route_node *node;
-
-    node = route_map_find(map, key, keylen, false);
-    if (node)
-        atomic_inc(&node->rtn_refcnt);
-
-    return node;
-}
-
-void
-route_map_put(struct route_map *map, struct route_node *node)
-{
-    INVARIANT(map && node);
-
-    if (atomic_dec_return(&node->rtn_refcnt) == 0) {
-        node->rtn_tnode = NULL;
-        node->rtn_keylen = 0;
-        node->rtn_isfirst = node->rtn_islast = false;
-        route_node_free(map, node);
-    }
 }
 
 struct route_node *

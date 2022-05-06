@@ -101,10 +101,6 @@ MTF_DEFINE_UTEST(route_test, route_api_test)
     ASSERT_NE(NULL, rnode);
     route_map_delete(map, rnode);
 
-    rnode = route_map_get(map, ekbuf[0], eklen);
-    ASSERT_EQ(rnode, rnodev[0]);
-    route_map_put(map, rnode);
-
     idx = 5;
     rnode = route_map_lookup(map, ekbuf[idx], eklen); /* same as edge key */
     ASSERT_EQ(rnode, rnodev[idx]);
@@ -128,10 +124,6 @@ MTF_DEFINE_UTEST(route_test, route_api_test)
     route_map_delete(NULL, rnodev[0]);
     route_map_delete(map, NULL);
 
-    rnode = route_map_get(map, ekbuf[0], eklen);
-    ASSERT_EQ(rnode, rnodev[0]);
-    /* Intentionally skip put */
-
     rnode = route_map_lookup(map, ekbuf[0], eklen);
     ASSERT_EQ(route_node_next(rnode), rnodev[1]);
     ASSERT_EQ(route_node_prev(rnode), NULL);
@@ -144,12 +136,8 @@ MTF_DEFINE_UTEST(route_test, route_api_test)
     ASSERT_EQ(route_node_next(rnode), NULL);
     ASSERT_EQ(route_node_prev(rnode), rnodev[(2 * fanout) - 2]);
 
-    for (int i = 0; i < 2 * fanout; i++) {
+    for (int i = 0; i < 2 * fanout; i++)
         route_map_delete(map, rnodev[i]);
-
-        if (i == 0)
-            route_map_put(map, rnodev[i]);
-    }
 
     /* Insert a node with large edge key when the node cache is non-empty */
     memset(ekbuf_large, 0xff, sizeof(ekbuf_large));
