@@ -849,7 +849,7 @@ cn_maint_task(struct work_struct *work)
 struct cn_kvsetmk_ctx {
     struct cn *ckmk_cn;
     u64 *      ckmk_dgen;
-    uint       ckmk_node_level_max;
+    uint       ckmk_node_level_max;//HSE_REVISIT: remove this in hse-3
     uint       ckmk_kvsets;
 };
 
@@ -1055,10 +1055,10 @@ cn_open(
     }
 
     log_info(
-        "%s/%s cnid %lu fanout %u pfx_len %u pfx_pivot %u depth %u/%u"
+        "%s/%s cnid %lu fanout %u pfx_len %u depth %u/%u"
         " kb %lu%c/%lu vb %lu%c/%lu %s%s%s%s%s%s",
         cn->cn_kvdb_alias, cn->cn_kvsname, (ulong)cnid,
-        cn->cp->fanout, cn->cp->pfx_len, cn->cp->pfx_pivot,
+        cn->cp->fanout, cn->cp->pfx_len,
         ctx.ckmk_node_level_max, cn_tree_max_depth(cn->cp->fanout),
         ksz >> (kshift * 10), *kszsuf, kcnt,
         vsz >> (vshift * 10), *vszsuf, vcnt,
@@ -1371,7 +1371,6 @@ cn_make(struct mpool *ds, const struct kvs_cparams *cp, struct kvdb_health *heal
     icp.fanout = cp->fanout;
     icp.pfx_len = cp->pfx_len;
     icp.sfx_len = cp->sfx_len;
-    icp.pfx_pivot = cp->pfx_pivot;
 
     err = cn_tree_create(&tree, NULL, cn_cp2cflags(cp), &icp, health, &rp);
     if (!err)

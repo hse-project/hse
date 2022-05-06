@@ -217,8 +217,6 @@ cn_node_alloc(struct cn_tree *tree, uint level, uint offset)
         tn->tn_size_max = lo + ((scale * (hi - lo)) >> 20);
     }
 
-    tn->tn_pfx_spill = tree->ct_pfx_len > 0 && level < tree->ct_cp->pfx_pivot;
-
     return tn;
 }
 

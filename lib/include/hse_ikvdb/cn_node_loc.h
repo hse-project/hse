@@ -107,7 +107,7 @@ cn_tree_fanout2bits(uint fanout)
  *    12    4096  64  32        5        2          2     16,777,216        16
  */
 static inline uint
-cn_tree_max_depth(uint fanout)
+cn_tree_max_depth(uint fanout)//HSE_REVISIT: remove this in hse-3
 {
     static const uint depth[] = { 0, 31, 15, 10, 7, 6, 5, 4, 3, 3, 3, 2, 2 };
     uint fbits;

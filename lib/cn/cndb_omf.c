@@ -245,7 +245,6 @@ omf_cndb_info_unpack(void *omf_blob, u32 ver, union cndb_mtu *mtu, u32 *plen)
     mti->mti_fanout = omf_cninfo_fanout(omf);
     mti->mti_sfx_len = omf_cninfo_sfx_len(omf);
     mti->mti_prefix_len = omf_cninfo_prefix_len(omf);
-    mti->mti_prefix_pivot = omf_cninfo_prefix_pivot(omf);
     mti->mti_flags = omf_cninfo_flags(omf);
     mti->mti_cnid = omf_cninfo_cnid(omf);
     mti->mti_metasz = omf_cninfo_metasz(omf);

@@ -773,9 +773,6 @@ sp3_work(
 
     INIT_LIST_HEAD(&w->cw_rspill_link);
 
-    if (w->cw_action == CN_ACTION_SPILL && !tn->tn_pfx_spill)
-        w->cw_pfx_len = 0;
-
     if (w->cw_rspill_conc) {
         /* ensure concurrent root spills complete in order */
         mutex_lock(&tn->tn_rspills_lock);

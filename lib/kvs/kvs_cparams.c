@@ -56,27 +56,6 @@ static const struct param_spec pspecs[] = {
         },
     },
     {
-        .ps_name = "prefix.pivot",
-        .ps_description = "First level to spill with full hash, only applies when prefix.length > 0 (0=root)",
-        .ps_flags = PARAM_FLAG_EXPERIMENTAL,
-        .ps_type = PARAM_TYPE_U32,
-        .ps_offset = offsetof(struct kvs_cparams, pfx_pivot),
-        .ps_size = PARAM_SZ(struct kvs_cparams, pfx_pivot),
-        .ps_convert = param_default_converter,
-        .ps_validate = param_default_validator,
-        .ps_stringify = param_default_stringify,
-        .ps_jsonify = param_default_jsonify,
-        .ps_default_value = {
-            .as_uscalar = 2,
-        },
-        .ps_bounds = {
-            .as_uscalar = {
-                .ps_min = 0,
-                .ps_max = UINT32_MAX,
-            },
-        },
-    },
-    {
         .ps_name = "kvs_ext01",
         .ps_description = "kvs_ext01",
         .ps_flags = PARAM_FLAG_EXPERIMENTAL,

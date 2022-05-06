@@ -176,7 +176,6 @@ struct cn_tree_node {
 
     struct cn_node_loc   tn_loc HSE_L1D_ALIGNED;
     bool                 tn_terminal_node_warning;
-    bool                 tn_pfx_spill;
     uint                 tn_cgen;
     struct list_head     tn_kvset_list; /* head = newest kvset */
     struct cn_tree *     tn_tree;

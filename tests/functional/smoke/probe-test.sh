@@ -9,9 +9,7 @@
 trap kvdb_drop EXIT
 kvdb_create
 
-# add a KVS to the KVDB
-# fanout=16 for a smaller pivot level
-kvs=$(kvs_create smoke-0 fanout=16 prefix.length=8 suffix.length=8)
+kvs=$(kvs_create smoke-0 prefix.length=8 suffix.length=8)
 
 typeset -i p=100
 typeset -i c=50
