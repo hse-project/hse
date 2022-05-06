@@ -27,6 +27,7 @@ struct kvs_cparams;
  * @rtn_keybuf:   the edge key
  *
  * Notes;
+ *   0) A route_node instance fits in two cache lines (on architectures with 64B cache lines)
  *   1) rtn_tnode is currently used only to optimize tree-node lookups
  *   2) rtn_next will be NULL for the last route node (i.e., the rightmost edge)
  *   3) rtn_next is used for free list linkage when node is not in rb tree

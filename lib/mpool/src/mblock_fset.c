@@ -841,21 +841,20 @@ mblock_fset_clone(
     INVARIANT(mbfsp && mbid_out);
 
     mblksz = mbfsp->mhdr.mblksz;
-    if (len == SIZE_MAX)
+    if (len == 0)
         len = mblksz;
 
-    if (off < 0 || len == 0 || off + len > mblksz ||
-        !PAGE_ALIGNED(off) || !PAGE_ALIGNED(len))
+    if (off < 0 || off + len > mblksz || !PAGE_ALIGNED(off) || !PAGE_ALIGNED(len))
         return merr(EINVAL);
-
-    err = mblock_fset_alloc(mbfsp, 0, 1, &tgt_mbid);
-    if (err)
-        return err;
 
     src_mbfp = mbfsp->filev[file_index(src_mbid)];
     err = mblock_file_mbinfo_get(src_mbfp, src_mbid, &src_mbinfo);
     if (err)
-        goto errout;
+        return err;
+
+    err = mblock_fset_alloc(mbfsp, 0, 1, &tgt_mbid);
+    if (err)
+        return err;
 
     tgt_mbfp = mbfsp->filev[file_index(tgt_mbid)];
     err = mblock_file_mbinfo_get(tgt_mbfp, tgt_mbid, &tgt_mbinfo);

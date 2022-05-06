@@ -198,11 +198,11 @@ size_t
 mblock_fset_fmaxsz_get(const struct mblock_fset *const mbfsp);
 
 /**
- * mblock_fset_read() - clone an mblock
+ * mblock_fset_clone() - clone an mblock
  *
  * @mbfsp:    mblock fileset handle
  * @mbid:     source mblock id
- * @off:      start offset to clone from/to in the source/target mblock ID
+ * @off:      start offset to clone from/to in the source/target mblock IDs
  * @len:      number of bytes to clone
  * @mbid_out: target mblock id (output)
  */

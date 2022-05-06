@@ -838,7 +838,7 @@ MTF_DEFINE_UTEST_PREPOST(mblock_test, mblock_clone, mpool_test_pre, mpool_test_p
     err = mpool_mblock_delete(mp, tgt_mbid);
     ASSERT_EQ(0, err);
 
-    err = mpool_mblock_clone(mp, mbid, 0, SIZE_MAX, &tgt_mbid);
+    err = mpool_mblock_clone(mp, mbid, 0, 0, &tgt_mbid);
     ASSERT_EQ(0, err);
 
     randomize_buffer(rbuf, bufsz, 181);
@@ -856,9 +856,6 @@ MTF_DEFINE_UTEST_PREPOST(mblock_test, mblock_clone, mpool_test_pre, mpool_test_p
     ASSERT_EQ(EINVAL, merr_errno(err));
 
     err = mpool_mblock_clone(mp, mbid, -1, bufsz, &tgt_mbid);
-    ASSERT_EQ(EINVAL, merr_errno(err));
-
-    err = mpool_mblock_clone(mp, mbid, 0, 0, &tgt_mbid);
     ASSERT_EQ(EINVAL, merr_errno(err));
 
     err = mpool_mblock_clone(mp, mbid, 0, bufsz + 1, &tgt_mbid);

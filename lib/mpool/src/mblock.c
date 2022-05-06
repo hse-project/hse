@@ -162,13 +162,11 @@ merr_t
 mpool_mblock_clone(struct mpool *mp, uint64_t mbid, off_t off, size_t len, uint64_t *mbid_out)
 {
     struct media_class *mc;
-    enum hse_mclass mclass;
 
     if (!mp || !mbid_out)
         return merr(EINVAL);
 
-    mclass = mcid_to_mclass(mclassid(mbid));
-    mc = mpool_mclass_handle(mp, mclass);
+    mc = mpool_mclass_handle(mp, mcid_to_mclass(mclassid(mbid)));
     if (!mc)
         return merr(ENOENT);
 
