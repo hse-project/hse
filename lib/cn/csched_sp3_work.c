@@ -282,8 +282,6 @@ sp3_work_leaf_size(
 
     tn = spn2tn(spn);
 
-    assert(tn->tn_loc.node_level <= tn->tn_tree->ct_depth_max);
-
     head = &tn->tn_kvset_list;
     *mark = list_last_entry_or_null(head, typeof(*le), le_link);
 
@@ -312,8 +310,6 @@ sp3_work_leaf_garbage(
     uint                     kvsets;
 
     tn = spn2tn(spn);
-
-    assert(tn->tn_loc.node_level <= tn->tn_tree->ct_depth_max);
 
     head = &tn->tn_kvset_list;
     *mark = list_last_entry_or_null(head, typeof(*le), le_link);
@@ -673,19 +669,6 @@ sp3_work(
         goto locked_nowork;
 
     if (action == CN_ACTION_SPILL) {
-
-        if (tn->tn_loc.node_level == tn->tn_tree->ct_depth_max) {
-
-            if (!tn->tn_terminal_node_warning) {
-                tn->tn_terminal_node_warning = true;
-                log_warn("cnid %lu node (%lu,%lu) at max depth",
-                         (ulong)tn->tn_tree->cnid,
-                         (ulong)tn->tn_loc.node_level,
-                         (ulong)tn->tn_loc.node_offset);
-            }
-
-            goto locked_nowork;
-        }
 
         /* Restrict concurrent spills to root and internal nodes,
          * and limit the concurrency to three jobs.

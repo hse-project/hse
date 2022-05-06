@@ -187,13 +187,8 @@ static int
 kc_loc_check(struct kb_info *kb, struct key_obj *kobj, u64 *hash_out)
 {
     u64  fullhash;
-    int  i, hashlen;
+    int  hashlen;
     bool err = false;
-
-    u32 off = kb->offset;
-    u32 level = kb->level;
-    u32 fanbits = cn_tree_fanout2bits(kb->cp->fanout);
-    u32 fanmask = kb->cp->fanout - 1;
 
     u8   key[HSE_KVS_KEY_LEN_MAX];
     uint klen;
@@ -217,24 +212,6 @@ kc_loc_check(struct kb_info *kb, struct key_obj *kobj, u64 *hash_out)
      */
     if (!kb->tree)
         return 0;
-
-    /* Check if the key can land in this node. Verify if all relevant bits
-     * of the hash lead up the right nodes to the root node.
-     */
-    // TODO: Need to acquire/release cn tree lock here...
-    for (i = level - 1; i >= 0; i--) {
-        u32  cnum = off & fanmask;
-        struct cn_tree_node *node;
-
-        node = cn_tree_node_lookup(kb->tree, kobj->ko_pfx, kobj->ko_pfx_len);
-        if (node->tn_loc.node_offset != cnum) {
-            err = true;
-            lfe_err(kb, "hash: key cannot reach node %u,%u", i + 1, off);
-        }
-
-        /* Divide by fanout */
-        off = (off >> fanbits);
-    }
 
     return err ? 1 : 0;
 }

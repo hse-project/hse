@@ -132,36 +132,4 @@ MTF_DEFINE_UTEST_PRE(cn_api, basic, pre)
     free(cndb.cndb_cbuf);
 }
 
-MTF_DEFINE_UTEST_PRE(cn_api, node_loc, pre)
-{
-    struct cn_node_loc loc;
-
-    ASSERT_EQ(nodes_in_level(4, 0), 1);
-    ASSERT_EQ(nodes_in_level(4, 1), 4);
-    ASSERT_EQ(nodes_in_level(4, 2), 16);
-    ASSERT_EQ(nodes_in_level(8, 1), 8);
-    ASSERT_EQ(nodes_in_level(8, 2), 64);
-    ASSERT_EQ(nodes_in_level(8, 3), 512);
-
-    /* examples from the code comments */
-    loc.node_level = 2;
-    loc.node_offset = 6;
-    ASSERT_EQ(node_parent_offset(4, &loc), 1);
-    loc.node_offset = 12;
-    ASSERT_EQ(node_parent_offset(4, &loc), 3);
-    loc.node_level = 3;
-    loc.node_offset = 7;
-    ASSERT_EQ(node_parent_offset(2, &loc), 3);
-
-    /* a few others with edge conditions */
-    loc.node_level = 2;
-    loc.node_offset = 1;
-    ASSERT_EQ(node_parent_offset(8, &loc), 0);
-    loc.node_offset = 63;
-    ASSERT_EQ(node_parent_offset(8, &loc), 7);
-
-    ASSERT_EQ(node_nth_child_offset(8, &loc, 0), 512 - 8);
-    ASSERT_EQ(node_nth_child_offset(8, &loc, 7), 512 - 1);
-}
-
 MTF_END_UTEST_COLLECTION(cn_api);

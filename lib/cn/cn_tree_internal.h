@@ -94,7 +94,6 @@ struct cn_kle_hdr {
 struct cn_tree {
     struct cn_tree_node *ct_root;
     u16                  ct_fanout;
-    u16                  ct_depth_max;
     u16                  ct_pfx_len;
     u16                  ct_sfx_len;
     bool                 ct_nospace;
@@ -175,7 +174,6 @@ struct cn_tree_node {
     u64                  tn_update_incr_dgen;
 
     struct cn_node_loc   tn_loc HSE_L1D_ALIGNED;
-    bool                 tn_terminal_node_warning;
     uint                 tn_cgen;
     struct list_head     tn_kvset_list; /* head = newest kvset */
     struct cn_tree *     tn_tree;
