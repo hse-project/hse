@@ -22,6 +22,7 @@ struct io_ops {
     merr_t (*mmap)(void **addr, size_t len, int prot, int flags, int fd, off_t offset);
     merr_t (*munmap)(void *addr, size_t len);
     merr_t (*msync)(void *addr, size_t len, int flags);
+    merr_t (*clone)(int src_fd, off_t src_off, int tgt_fd, off_t tgt_off, size_t len, int flags);
 };
 
 /* sync backend */

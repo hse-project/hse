@@ -441,6 +441,20 @@ mpool_mblock_write(struct mpool *mp, uint64_t mbid, const struct iovec *iov, int
 merr_t
 mpool_mblock_read(struct mpool *mp, uint64_t mbid, const struct iovec *iov, int iovc, off_t offset);
 
+/**
+ * mpool_mblock_clone() - clone the specified mblock
+ *
+ * @mp:       mpool
+ * @mbid:     mblock object ID to clone from
+ * @off:      start offset to clone from/to in the source/target mblock id
+ * @len:      number of bytes to clone. SIZE_MAX implies the entire mblock.
+ * @mbid_out: target mblock id (output)
+ *
+ * Return: %0 on success, <%0 on error
+ */
+merr_t
+mpool_mblock_clone(struct mpool *mp, uint64_t mbid, off_t off, size_t len, uint64_t *mbid_out);
+
 /******************************** MCACHE APIs ************************************/
 
 /**

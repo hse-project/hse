@@ -1082,6 +1082,25 @@ mblock_file_write(struct mblock_file *mbfp, uint64_t mbid, const struct iovec *i
     return err;
 }
 
+merr_t
+mblock_file_wlen_set(struct mblock_file *mbfp, uint64_t mbid, size_t wlen)
+{
+    uint32_t block;
+    merr_t err;
+
+    if (!mbfp || wlen > mbfp->mblocksz)
+        return merr(EINVAL);
+
+    block = block_id(mbid);
+    err = mblock_rgn_find(&mbfp->rgnmap, block + 1);
+    if (err)
+        return err;
+
+    atomic_set(mbfp->wlenv + block, wlen);
+
+    return 0;
+}
+
 static HSE_ALWAYS_INLINE size_t
 mblock_mmap_csize(size_t mblocksz)
 {
@@ -1264,6 +1283,24 @@ mblock_file_info_get(struct mblock_file *mbfp, struct mblock_file_info *info)
 
     info->allocated = S_BLKSIZE * sbuf.st_blocks;
     info->used = atomic_read(&mbfp->wlen);
+
+    return 0;
+}
+
+merr_t
+mblock_file_mbinfo_get(struct mblock_file *mbfp, uint64_t mbid, struct mblock_file_mbinfo *mbinfo)
+{
+    uint32_t block;
+    merr_t err;
+
+    block = block_id(mbid);
+    err = mblock_rgn_find(&mbfp->rgnmap, block + 1);
+    if (err)
+        return err;
+
+    mbinfo->fd = mbfp->fd;
+    mbinfo->off = block_off(mbid, mbfp->mblocksz);
+    mbinfo->wlen = atomic_read(mbfp->wlenv + block);
 
     return 0;
 }

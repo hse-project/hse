@@ -19,7 +19,6 @@ struct kvs_cparams;
 /**
  * struct route_node - tracks an edge key in the routing table
  * @rtn_node:     rb tree linkage
- * @rtn_refcnt:   reference count
  * @rtn_keylen:   edge key length
  * @rtn_tnode:    cn_tree_node pointer
  * @rtn_next:     ptr to the next route_node with larger edge key
@@ -37,14 +36,13 @@ struct route_node {
         struct rb_node     rtn_node;
         struct route_node *rtn_next;
     };
-    atomic_uint        rtn_refcnt;
     uint16_t           rtn_keylen;
     bool               rtn_isfirst;
     bool               rtn_islast;
+    uint32_t           rtn_keybufsz;
     void              *rtn_tnode;
     uint8_t           *rtn_keybufp;
-    size_t             rtn_keybufsz;
-    uint8_t            rtn_keybuf[64];
+    uint8_t            rtn_keybuf[72];
 };
 
 /*
@@ -80,12 +78,6 @@ route_map_lookup(struct route_map *map, const void *key, uint keylen);
  */
 struct route_node *
 route_map_lookupGT(struct route_map *map, const void *key, uint keylen);
-
-struct route_node *
-route_map_get(struct route_map *map, const void *key, uint keylen);
-
-void
-route_map_put(struct route_map *map, struct route_node *node);
 
 struct route_map *
 route_map_create(const struct kvs_cparams *cp, const char *kvsname);

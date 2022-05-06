@@ -11,6 +11,7 @@
 #include <hse_util/page.h>
 #include <hse_util/slab.h>
 #include <hse_util/storage.h>
+#include <hse_util/minmax.h>
 
 #include "omf.h"
 #include "mclass.h"
@@ -821,4 +822,69 @@ uint8_t
 mblock_fset_filecnt_get(const struct mblock_fset *const mbfsp)
 {
     return mbfsp ? mbfsp->mhdr.fcnt : 0;
+}
+
+merr_t
+mblock_fset_clone(
+    struct mblock_fset *mbfsp,
+    uint64_t            src_mbid,
+    off_t               off,
+    size_t              len,
+    uint64_t           *mbid_out)
+{
+    struct mblock_file *src_mbfp, *tgt_mbfp;
+    struct mblock_file_mbinfo src_mbinfo, tgt_mbinfo;
+    off_t src_off = off, tgt_off = off;
+    uint64_t tgt_mbid, mblksz;
+    merr_t err;
+
+    INVARIANT(mbfsp && mbid_out);
+
+    mblksz = mbfsp->mhdr.mblksz;
+    if (len == SIZE_MAX)
+        len = mblksz;
+
+    if (off < 0 || len == 0 || off + len > mblksz ||
+        !PAGE_ALIGNED(off) || !PAGE_ALIGNED(len))
+        return merr(EINVAL);
+
+    err = mblock_fset_alloc(mbfsp, 0, 1, &tgt_mbid);
+    if (err)
+        return err;
+
+    src_mbfp = mbfsp->filev[file_index(src_mbid)];
+    err = mblock_file_mbinfo_get(src_mbfp, src_mbid, &src_mbinfo);
+    if (err)
+        goto errout;
+
+    tgt_mbfp = mbfsp->filev[file_index(tgt_mbid)];
+    err = mblock_file_mbinfo_get(tgt_mbfp, tgt_mbid, &tgt_mbinfo);
+    if (err)
+        goto errout;
+    assert(tgt_mbinfo.wlen == 0);
+
+    src_off += src_mbinfo.off;
+    tgt_off += tgt_mbinfo.off;
+    len = min_t(size_t, src_mbinfo.wlen, len);
+
+    err = mbfsp->io.clone(src_mbinfo.fd, src_off, tgt_mbinfo.fd, tgt_off, len, 0);
+    if (err)
+        goto errout;
+
+    err = mblock_file_wlen_set(tgt_mbfp, tgt_mbid, off + len);
+    if (err)
+        goto errout;
+
+    err = mblock_fset_commit(mbfsp, &tgt_mbid, 1);
+    if (err)
+        goto errout;
+
+    *mbid_out = tgt_mbid;
+
+    return 0;
+
+errout:
+    mblock_fset_abort(mbfsp, &tgt_mbid, 1);
+
+    return err;
 }

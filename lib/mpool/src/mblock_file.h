@@ -103,6 +103,19 @@ struct mblock_file_info {
 };
 
 /**
+ * struct mblock_file_mbinfo - mblock info
+ *
+ * @fd:   mblock file descriptor
+ * @off:  file offset at which the mblock of interest is allocated from
+ * @wlen: number of bytes written to the mblock of interest
+ */
+struct mblock_file_mbinfo {
+    int fd;
+    off_t off;
+    size_t wlen;
+};
+
+/**
  * struct mblock_rgn -
  *
  * @rgn_node:  rb-tree linkage
@@ -290,5 +303,25 @@ mblock_file_unmap(struct mblock_file *mbfp, uint64_t mbid);
  */
 merr_t
 mblock_file_info_get(struct mblock_file *mbfp, struct mblock_file_info *info);
+
+/**
+ * mblock_file_mbinfo_get() - get an mblock info from the mblock data file
+ *
+ * @mbfp:   mblock file handle
+ * @mbid:   mblock ID
+ * @mbinfo: mblock info (output)
+ */
+merr_t
+mblock_file_mbinfo_get(struct mblock_file *mbfp, uint64_t mbid, struct mblock_file_mbinfo *mbinfo);
+
+/**
+ * mblock_file_wlen_set() - set the write length of an mblock (used by mblock clone)
+ *
+ * @mbfp: mblock file handle
+ * @mbid: mblock ID
+ * @wlen: write length
+ */
+merr_t
+mblock_file_wlen_set(struct mblock_file *mbfp, uint64_t mbid, size_t wlen);
 
 #endif /* MPOOL_MBLOCK_FILE_H */

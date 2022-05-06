@@ -74,10 +74,17 @@ io_pmem_msync(void *addr, size_t len, int flags)
     return 0;
 }
 
+merr_t
+io_pmem_clone(int src_fd, off_t src_off, int tgt_fd, off_t tgt_off, size_t len, int flags)
+{
+    return io_sync_ops.clone(src_fd, src_off, tgt_fd, tgt_off, len, flags);
+}
+
 const struct io_ops io_pmem_ops = {
     .read = io_pmem_read,
     .write = io_pmem_write,
     .mmap = io_pmem_mmap,
     .munmap = io_pmem_munmap,
     .msync = io_pmem_msync,
+    .clone = io_pmem_clone,
 };
