@@ -32,7 +32,7 @@ struct route_map {
     struct route_node     rtm_nodev[] HSE_L1D_ALIGNED;
 };
 
-static merr_t
+static int
 route_node_key_set(
     struct route_map  *map,
     struct route_node *node,
@@ -55,10 +55,16 @@ route_node_key_set(
             int n = snprintf((char *)node->rtn_keybuf, sizeof(node->rtn_keybuf), map->rtm_fmt,
                              fmtarg);
 
-            if (n < 1 || n >= sizeof(node->rtn_keybuf) || (n != pfxlen)) {
-                log_err("fmt error %u: n %d, pfxlen %u, fmt [%s], fmtarg %u",
+            if (n < 1 || n >= sizeof(node->rtn_keybuf)) {
+                log_err("overflow %u: n %d, pfxlen %u, fmt [%s], fmtarg %u",
                         nodeoff, n, pfxlen, map->rtm_fmt, fmtarg);
-                return merr(EINVAL);
+                abort();
+            }
+
+            if (n != pfxlen) {
+                log_err("skipping %u: n %d, pfxlen %u, fmt [%s], fmtarg %u",
+                        nodeoff, n, pfxlen, map->rtm_fmt, fmtarg);
+                return -1;
             }
         } else {
             uint64_t binkeybuf = cpu_to_be64(fmtarg);
@@ -166,19 +172,21 @@ route_map_insert(
     struct rb_node *parent = NULL;
     struct rb_node *first = rb_first(root), *last = rb_last(root);
     struct route_node *node;
-    merr_t err;
+    int rc;
 
     INVARIANT(map && tnode);
 
     node = route_node_alloc(map, edge_klen);
-    if (!node)
+    if (!node) {
+        log_err("route node allocation failed for %u", nodeoff);
         return NULL;
+    }
 
     node->rtn_tnode = tnode;
     node->rtn_isfirst = node->rtn_islast = false;
 
-    err = route_node_key_set(map, node, edge_key, edge_klen, nodeoff);
-    if (err) {
+    rc = route_node_key_set(map, node, edge_key, edge_klen, nodeoff);
+    if (rc < 0) {
         route_node_free(map, node);
         return NULL;
     }
@@ -327,49 +335,6 @@ route_node_prev(struct route_node *node)
     return rb_entry(prev, struct route_node, rtn_node);
 }
 
-#ifndef NDEBUG
-/* Walk the generated tree to compute the depth of each child node and distribution
- * of nodes per level (for debugging).
- */
-static void
-route_map_dump(struct route_map *map)
-{
-    struct rb_node *node;
-    uint distv[64] = {}, nodeoff = 0;
-    char buf[1024];
-    int n;
-
-    node = rb_first(&map->rtm_root);
-
-    while (node) {
-        struct route_node *this = rb_entry(node, struct route_node, rtn_node);
-        struct rb_node *parent = node;
-        uint depth = 0;
-
-        while ((parent = rb_parent(parent)))
-            ++depth;
-
-        ++distv[depth];
-
-        n = 0;
-        for (uint i = 0; i < this->rtn_keylen; ++i)
-            n += snprintf(buf + n, sizeof(buf) - n, " %02x", this->rtn_keybuf[i]);
-
-        log_debug("%3u %2u %2u:%s", nodeoff++, this->rtn_keylen, depth, buf);
-
-        node = rb_next(node);
-    }
-
-    n = 0;
-    for (uint i = 0; i < NELEM(distv); ++i) {
-        if (distv[i] > 0)
-            n += snprintf(buf + n, sizeof(buf) - n, " %u,%u", distv[i], i);
-    }
-
-    log_info("distv:%s", buf);
-}
-#endif
-
 struct route_map *
 route_map_create(const struct kvs_cparams *cp, const char *kvsname)
 {
@@ -443,10 +408,6 @@ route_map_create(const struct kvs_cparams *cp, const char *kvsname)
         route_node_free(map, node);
     }
 
-#ifndef NDEBUG
-    route_map_dump(map);
-#endif
-
     return map;
 }
 
@@ -484,3 +445,49 @@ route_map_destroy(struct route_map *map)
     free(map->rtm_fmt);
     free(map);
 }
+
+#ifndef NDEBUG
+/* Walk the generated tree to compute the depth of each child node and distribution
+ * of nodes per level (for debugging).
+ *
+ * TODO: Leaving this function here so that it can be used in the future to peek at
+ * the route map via REST.
+ */
+static void HSE_MAYBE_UNUSED
+route_map_dump(struct route_map *map)
+{
+    struct rb_node *node;
+    uint distv[64] = {}, nodeoff = 0;
+    char buf[1024];
+    int n;
+
+    node = rb_first(&map->rtm_root);
+
+    while (node) {
+        struct route_node *this = rb_entry(node, struct route_node, rtn_node);
+        struct rb_node *parent = node;
+        uint depth = 0;
+
+        while ((parent = rb_parent(parent)))
+            ++depth;
+
+        ++distv[depth];
+
+        n = 0;
+        for (uint i = 0; i < this->rtn_keylen; ++i)
+            n += snprintf(buf + n, sizeof(buf) - n, " %02x", this->rtn_keybuf[i]);
+
+        log_debug("%3u %2u %2u:%s", nodeoff++, this->rtn_keylen, depth, buf);
+
+        node = rb_next(node);
+    }
+
+    n = 0;
+    for (uint i = 0; i < NELEM(distv); ++i) {
+        if (distv[i] > 0)
+            n += snprintf(buf + n, sizeof(buf) - n, " %u,%u", distv[i], i);
+    }
+
+    log_info("distv:%s", buf);
+}
+#endif

@@ -298,13 +298,12 @@ cn_tree_create(
         tree->ct_root->tn_childc += 1;
 
         if (tree->ct_route_map) {
+            /* A cn_tree_node can exist without a corresponding route_node until we have
+             * node splits.
+             * TODO: add tn->tn_route_node NULL check once we have node splits.
+             */
             tn->tn_route_node = route_map_insert(tree->ct_route_map, tn, NULL, 0, i);
-            if (!tn->tn_route_node) {
-                cn_tree_destroy(tree);
-                return merr(ENOMEM);
-            }
         }
-
     }
 
     tree->ct_i_nodec = 1;
@@ -353,7 +352,8 @@ cn_tree_destroy(struct cn_tree *tree)
     tree_iter_init(tree, &iter, TRAVERSE_BOTTOMUP);
 
     while (NULL != (node = tree_iter_next(tree, &iter))) {
-        route_map_delete(tree->ct_route_map, node->tn_route_node);
+        if (node->tn_route_node)
+            route_map_delete(tree->ct_route_map, node->tn_route_node);
         cn_work_submit(tree->cn, cn_node_destroy_cb, &node->tn_destroy_work);
     }
 
