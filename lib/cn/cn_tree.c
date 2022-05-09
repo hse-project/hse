@@ -116,8 +116,8 @@ tree_iter_next(struct cn_tree *tree, struct tree_iter *iter)
     struct cn_tree_node *visit = 0;
     struct cn_tree_node *prev = iter->prev;
     struct cn_tree_node *node = iter->next;
-    struct kvs_cparams * cp = tree->ct_cp;
-    u32                  child;
+    uint fanout = tree->ct_fanout;
+    uint child;
 
     while (node && node != iter->end && !visit) {
         /*
@@ -145,21 +145,21 @@ tree_iter_next(struct cn_tree *tree, struct tree_iter *iter)
              *   the decision until we know if prev is last
              *   non-null child.
              */
-            for (child = 1; child <= cp->fanout; child++)
+            for (child = 1; child <= fanout; child++)
                 if (prev == node->tn_childv[child - 1])
                     break;
         }
 
         /* Search for next non-null child. */
-        while (child < cp->fanout && !node->tn_childv[child])
+        while (child < fanout && !node->tn_childv[child])
             child++;
 
         /* Now make bottomup visit decision */
-        if (!iter->topdown && child == cp->fanout)
+        if (!iter->topdown && child == fanout)
             visit = node;
 
         prev = node;
-        node = (child < cp->fanout ? node->tn_childv[child] : node->tn_parent);
+        node = (child < fanout ? node->tn_childv[child] : node->tn_parent);
     }
 
     iter->prev = prev;
