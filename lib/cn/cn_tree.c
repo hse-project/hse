@@ -204,7 +204,7 @@ cn_node_alloc(struct cn_tree *tree, uint level, uint offset)
     tn->tn_loc.node_level = level;
     tn->tn_loc.node_offset = offset;
 
-    tn->tn_size_max = tree->rp->cn_node_size_hi;
+    tn->tn_size_max = tree->rp->cn_node_size_hi << 20;
 
     return tn;
 }
