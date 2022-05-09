@@ -1913,36 +1913,26 @@ kvset_get_vbsetv(struct kvset *ks, uint *vbsetc)
     return ks->ks_vbsetv;
 }
 
-/**
- * kvset_get_max_key() - Get the largest key in a kvset
- * @ks:   struct kvset handle.
- * @key:  (output) largest key. Null if kvset contains only ptombs.
- * @klen: (output) length of @key. Zero if kvset contains only ptombs.
- */
 void
-kvset_get_max_key(struct kvset *ks, void **key, uint *klen)
+kvset_get_min_key(struct kvset *ks, const void **min_key, uint *min_klen)
 {
-    struct kvset_kblk *kb;
-    int                last = ks->ks_st.kst_kblks - 1;
+    struct kvset_kblk *kb = &ks->ks_kblks[0];
 
-    *key = 0;
-    *klen = 0;
+    INVARIANT(min_key && min_klen);
 
-    /* Check if kblock has non-ptombs. If not, use the second to last kblk.
-     * If there is exactly one kblock and it contains only ptombs, return
-     * with (*key) set to 0;
-     */
-    if (ks->ks_kblks[last].kb_wbt_desc.wbd_n_pages == 0) {
-        if (!last)
-            return;
+    *min_key = kb->kb_koff_min;
+    *min_klen = kb->kb_klen_min;
+}
 
-        --last;
-    }
+void
+kvset_get_max_key(struct kvset *ks, const void **max_key, uint *max_klen)
+{
+    struct kvset_kblk *kb = &ks->ks_kblks[ks->ks_st.kst_kblks - 1];
 
-    kb = &ks->ks_kblks[last];
+    INVARIANT(max_key && max_klen);
 
-    *key = (void *)kb->kb_koff_max;
-    *klen = kb->kb_klen_max;
+    *max_key = kb->kb_koff_max;
+    *max_klen = kb->kb_klen_max;
 }
 
 void
