@@ -298,13 +298,12 @@ cn_tree_create(
         tree->ct_root->tn_childc += 1;
 
         if (tree->ct_route_map) {
+            /* A cn_tree_node can exist without a corresponding route_node until we have
+             * node splits.
+             * TODO: add tn->tn_route_node NULL check once we have node splits.
+             */
             tn->tn_route_node = route_map_insert(tree->ct_route_map, tn, NULL, 0, i);
-            if (!tn->tn_route_node) {
-                cn_tree_destroy(tree);
-                return merr(ENOMEM);
-            }
         }
-
     }
 
     tree->ct_i_nodec = 1;
@@ -353,7 +352,8 @@ cn_tree_destroy(struct cn_tree *tree)
     tree_iter_init(tree, &iter, TRAVERSE_BOTTOMUP);
 
     while (NULL != (node = tree_iter_next(tree, &iter))) {
-        route_map_delete(tree->ct_route_map, node->tn_route_node);
+        if (node->tn_route_node)
+            route_map_delete(tree->ct_route_map, node->tn_route_node);
         cn_work_submit(tree->cn, cn_node_destroy_cb, &node->tn_destroy_work);
     }
 
@@ -1279,7 +1279,7 @@ cn_tree_capped_compact(struct cn_tree *tree)
     /* Step 1: Identify the kvsets that can be retired.
      */
     for (le = last; le != first; le = list_prev_entry(le, le_link)) {
-        void *max_key = NULL;
+        const void *max_key = NULL;
         uint  max_klen;
 
         /* [HSE_REVISIT] mapi breaks initialization of max_key.
@@ -2239,6 +2239,66 @@ cn_tree_node_mclass(struct cn_tree_node *tn, enum hse_mclass_policy_dtype dtype)
         (cn_node_isroot(tn) ? HSE_MPOLICY_AGE_ROOT : HSE_MPOLICY_AGE_INTERNAL);
 
     return mclass_policy_get_type(policy, age, dtype);
+}
+
+void
+cn_tree_node_get_min_key(struct cn_tree_node *tn, void *kbuf, size_t kbuf_sz, uint *min_klen)
+{
+    struct kvset_list_entry *le;
+    const void *min_key = NULL;
+    void *lock;
+
+    INVARIANT(kbuf && kbuf_sz > 0 && min_klen);
+
+    *min_klen = 0;
+
+    rmlock_rlock(&tn->tn_tree->ct_lock, &lock);
+    list_for_each_entry (le, &tn->tn_kvset_list, le_link) {
+        struct kvset *kvset = le->le_kvset;
+        const void *key;
+        uint klen;
+
+        kvset_get_min_key(kvset, &key, &klen);
+
+        if (!min_key || keycmp(key, klen, min_key, *min_klen) < 0) {
+            min_key = key;
+            *min_klen = klen;
+        }
+    }
+    assert(min_key && *min_klen > 0);
+
+    memcpy(kbuf, min_key, min_t(size_t, kbuf_sz, *min_klen));
+    rmlock_runlock(lock);
+}
+
+void
+cn_tree_node_get_max_key(struct cn_tree_node *tn, void *kbuf, size_t kbuf_sz, uint *max_klen)
+{
+    struct kvset_list_entry *le;
+    const void *max_key = NULL;
+    void *lock;
+
+    INVARIANT(kbuf && kbuf_sz > 0 && max_klen);
+
+    *max_klen = 0;
+
+    rmlock_rlock(&tn->tn_tree->ct_lock, &lock);
+    list_for_each_entry (le, &tn->tn_kvset_list, le_link) {
+        struct kvset *kvset = le->le_kvset;
+        const void *key;
+        uint klen;
+
+        kvset_get_max_key(kvset, &key, &klen);
+
+        if (!max_key || keycmp(key, klen, max_key, *max_klen) > 0) {
+            max_key = key;
+            *max_klen = klen;
+        }
+    }
+    assert(max_key && *max_klen > 0);
+
+    memcpy(kbuf, max_key, min_t(size_t, kbuf_sz, *max_klen));
+    rmlock_runlock(lock);
 }
 
 merr_t

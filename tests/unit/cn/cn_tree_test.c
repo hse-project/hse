@@ -7,6 +7,7 @@
 
 #include <hse_util/hse_err.h>
 #include <hse_util/logging.h>
+#include <hse_util/keycmp.h>
 
 #include <hse/limits.h>
 
@@ -47,6 +48,8 @@ struct fake_kvset {
     u64                     vused;
     u64                     workid;
     struct kvset_stats      stats;
+    char                    min_key;
+    char                    max_key;
     struct fake_kvset *     next;
 };
 
@@ -174,10 +177,17 @@ _kvset_get_num_vblocks(struct kvset *handle)
 }
 
 void
-_kvset_get_max_key(struct kvset *ks, void **key, uint *klen)
+_kvset_get_max_key(struct kvset *ks, const void **key, uint *klen)
 {
-    *key = "foo";
-    *klen = 3;
+    *key = (const void *)&(((struct fake_kvset *)ks)->max_key);
+    *klen = 1;
+}
+
+void
+_kvset_get_min_key(struct kvset *ks, const void **key, uint *klen)
+{
+    *key = (const void *)&(((struct fake_kvset *)ks)->min_key);
+    *klen = 1;
 }
 
 enum hse_mclass
@@ -348,6 +358,7 @@ test_setup(struct mtf_test_info *lcl_ti)
     MOCK_SET(kvset, _kvset_iter_create);
     MOCK_SET(kvset, _kvset_from_iter);
 
+    MOCK_SET(kvset, _kvset_get_min_key);
     MOCK_SET(kvset, _kvset_get_max_key);
     MOCK_SET(kvset, _kvset_statsp);
     MOCK_SET(kvset, _kvset_stats);
@@ -806,6 +817,45 @@ MTF_DEFINE_UTEST_PRE(test, t_cn_comp, test_setup)
             }
         }
     }
+}
+
+MTF_DEFINE_UTEST_PRE(test, cn_node_get_minmax, test_setup)
+{
+    struct cn_tree_node *tn;
+    struct test_params tp = {};
+    struct kvset_list_entry *le;
+    struct test t = {};
+    uint klen;
+    int cnt = 0;
+    merr_t err;
+    char kbuf[4];
+
+    tp.fanout_bits = 3;
+    tp.levels = 2;
+
+    test_init(&t, &tp, lcl_ti);
+
+    err = test_tree_create(&t);
+    ASSERT_EQ(0, err);
+
+    tn = t.tree->ct_root->tn_childv[2];
+
+    list_for_each_entry (le, &tn->tn_kvset_list, le_link) {
+        struct fake_kvset *kvset = (struct fake_kvset *)le->le_kvset;
+
+        kvset->min_key = 'a' + cnt;
+        kvset->max_key = 'p' + cnt;
+        ++cnt;
+    }
+
+    cn_tree_node_get_min_key(tn, kbuf, sizeof(kbuf), &klen);
+    ASSERT_EQ(0, keycmp(kbuf, klen, "a", 1));
+
+    cn_tree_node_get_max_key(tn, kbuf, sizeof(kbuf), &klen);
+    const char max = 'p' + cnt - 1;
+    ASSERT_EQ(0, keycmp(kbuf, klen, &max, 1));
+
+    test_tree_destroy(&t);
 }
 
 #define MY_TEST1(NAME, N1, V1, VERBOSE)                     \
