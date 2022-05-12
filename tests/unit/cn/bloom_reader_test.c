@@ -175,21 +175,4 @@ MTF_DEFINE_UTEST_PRE(bloom_reader_test, basic_blm_test, test_prehook)
         read_blooms(lcl_ti, kblock_files[i]);
 }
 
-MTF_DEFINE_UTEST_PRE(bloom_reader_test, t_bloom_reader_filter_info, test_prehook)
-{
-    merr_t            err;
-    struct bloom_desc desc;
-    u32               modulus;
-    u32               hashes;
-
-    modulus = 0;
-    hashes = 0;
-    desc.bd_modulus = 1234;
-    desc.bd_n_hashes = 7;
-    err = bloom_reader_filter_info(&desc, &hashes, &modulus);
-    ASSERT_EQ(err, 0);
-    ASSERT_EQ(hashes, 7);
-    ASSERT_EQ(modulus, 1234);
-}
-
 MTF_END_UTEST_COLLECTION(bloom_reader_test)

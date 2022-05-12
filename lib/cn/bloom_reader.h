@@ -46,17 +46,4 @@ bloom_reader_lookup(
     const struct bloom_desc *desc,
     uint64_t                 hash);
 
-#if HSE_MOCKING
-#include <hse_util/hse_err.h>
-
-/**
- * bloom_reader_filter_info() - Retrieve the characteristics of the bloom filter
- * @blm_rgn_desc:  region descriptor of kblock's Bloom filter region
- * @hash_cnt:      (output) number of hash functions
- * @modulus:       (output) hash-to-bucket modulus
- */
-merr_t
-bloom_reader_filter_info(struct bloom_desc *blm_rgn_desc, u32 *hash_cnt, u32 *modulus);
-#endif
-
 #endif

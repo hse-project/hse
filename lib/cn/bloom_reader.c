@@ -34,14 +34,3 @@ bloom_reader_lookup(
 
     return bf_lookup(hash, bitmap, desc->bd_n_hashes, desc->bd_rotl, desc->bd_bktmask);
 }
-
-#if HSE_MOCKING
-merr_t
-bloom_reader_filter_info(struct bloom_desc *desc, u32 *hash_cnt, u32 *modulus)
-{
-    *hash_cnt = desc->bd_n_hashes;
-    *modulus = desc->bd_modulus;
-
-    return 0;
-}
-#endif
