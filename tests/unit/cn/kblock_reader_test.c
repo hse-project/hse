@@ -193,7 +193,6 @@ MTF_DEFINE_UTEST_PRE(kblock_reader_test, basic_wbt_blm_test, pre)
     struct kblk_metrics  metrics;
     struct kvs_mblk_desc blkdesc;
     u64                  blkid;
-    u8 *                 blm_pages;
 
     memset(&blkdesc, 0, sizeof(blkdesc));
 
@@ -236,38 +235,16 @@ MTF_DEFINE_UTEST_PRE(kblock_reader_test, basic_wbt_blm_test, pre)
     /* BLOOM_LOOKUP_MCACHE will return base address of the bloom
      * blocks in the mcache map.
      */
-    blm_pages = NULL;
-    err = kbr_read_blm_pages(&blkdesc, BLOOM_LOOKUP_MCACHE, &blm_desc, &blm_pages);
+    blm_desc.bd_bitmap = NULL;
+    err = kbr_read_blm_pages(&blkdesc, &blm_desc);
     ASSERT_EQ(0, err);
-    ASSERT_NE(NULL, blm_pages);
-    kbr_free_blm_pages(&blkdesc, BLOOM_LOOKUP_MCACHE, blm_pages);
+    ASSERT_NE(NULL, blm_desc.bd_bitmap);
 
-    blm_pages = NULL;
     mapi_inject_once(mapi_idx_mpool_mcache_getpages, 1, EBUG);
-    err = kbr_read_blm_pages(&blkdesc, BLOOM_LOOKUP_MCACHE, &blm_desc, &blm_pages);
+    blm_desc.bd_bitmap = NULL;
+    err = kbr_read_blm_pages(&blkdesc, &blm_desc);
     ASSERT_NE(0, err);
-    ASSERT_EQ(NULL, blm_pages);
-
-    /* BLOOM_LOOKUP_BUFFER will return a ptr to a buffer
-     * which contains the bloom blocks read from the mblock.
-     */
-    blm_pages = NULL;
-    err = kbr_read_blm_pages(&blkdesc, BLOOM_LOOKUP_BUFFER, &blm_desc, &blm_pages);
-    ASSERT_EQ(0, err);
-    ASSERT_NE(NULL, blm_pages);
-    kbr_free_blm_pages(&blkdesc, BLOOM_LOOKUP_BUFFER, blm_pages);
-
-    blm_pages = (void *)(-1);
-    mapi_inject_once_ptr(mapi_idx_alloc_aligned, 1, NULL);
-    err = kbr_read_blm_pages(&blkdesc, BLOOM_LOOKUP_BUFFER, &blm_desc, &blm_pages);
-    ASSERT_NE(0, err);
-    ASSERT_EQ(NULL, blm_pages);
-
-    blm_pages = (void *)(-1);
-    mapi_inject_once(mapi_idx_mpool_mblock_read, 1, EBUG);
-    err = kbr_read_blm_pages(&blkdesc, BLOOM_LOOKUP_BUFFER, &blm_desc, &blm_pages);
-    ASSERT_NE(0, err);
-    ASSERT_EQ(NULL, blm_pages);
+    ASSERT_EQ(NULL, blm_desc.bd_bitmap);
 
     err = kbr_read_metrics(&blkdesc, &metrics);
 
@@ -276,22 +253,6 @@ MTF_DEFINE_UTEST_PRE(kblock_reader_test, basic_wbt_blm_test, pre)
     ASSERT_EQ(omf_kbh_tombs(kb.kb_hdr), metrics.num_tombstones);
     ASSERT_EQ(omf_kbh_key_bytes(kb.kb_hdr), metrics.tot_key_bytes);
     ASSERT_EQ(omf_kbh_val_bytes(kb.kb_hdr), metrics.tot_val_bytes);
-
-    /* BLOOM_LOOKUP_NONE should succeed, but return NULL blm_pages.
-     */
-    blm_pages = (void *)(-1);
-    err = kbr_read_blm_pages(&blkdesc, BLOOM_LOOKUP_NONE, &blm_desc, &blm_pages);
-    ASSERT_EQ(0, err);
-    ASSERT_EQ(NULL, blm_pages);
-
-    blm_desc.bd_n_pages = 0;
-    blm_pages = (void *)(-1);
-    err = kbr_read_blm_pages(&blkdesc, BLOOM_LOOKUP_NONE, &blm_desc, &blm_pages);
-    ASSERT_EQ(0, err);
-    ASSERT_EQ(NULL, blm_pages);
-
-    kbr_free_blm_pages(&blkdesc, BLOOM_LOOKUP_NONE, NULL);
-    kbr_free_blm_pages(&blkdesc, BLOOM_LOOKUP_NONE, (void *)(-1));
 
     mpool_mcache_munmap(blkdesc.map);
 }
@@ -528,7 +489,6 @@ MTF_DEFINE_UTEST_PRE(kblock_reader_test, basic_kblock_error_test, pre)
     struct bloom_desc    blm_desc;
     struct kvs_mblk_desc blkdesc;
     u64                  blkid;
-    u8 *                 blm_pages;
 
     memset(&blkdesc, 0, sizeof(blkdesc));
 
@@ -564,30 +524,12 @@ MTF_DEFINE_UTEST_PRE(kblock_reader_test, basic_kblock_error_test, pre)
     err = kbr_read_blm_region_desc(&blkdesc, &blm_desc);
     ASSERT_EQ(0, err);
 
-    /* BLOOM_LOOKUP_MCACHE will return base address of the bloom
-     * blocks in the mcache map.
+    /* kbr_read_blm_pages() should return base address of the bloom blocks in the mcache map.
      */
-    blm_pages = NULL;
-    err = kbr_read_blm_pages(&blkdesc, BLOOM_LOOKUP_MCACHE, &blm_desc, &blm_pages);
+    blm_desc.bd_bitmap = NULL;
+    err = kbr_read_blm_pages(&blkdesc, &blm_desc);
     ASSERT_EQ(0, err);
-    ASSERT_NE(NULL, blm_pages);
-    kbr_free_blm_pages(&blkdesc, BLOOM_LOOKUP_MCACHE, blm_pages);
-
-    /* BLOOM_LOOKUP_BUFFER will return a ptr to a buffer
-     * which contains the bloom blocks read from the mblock.
-     */
-    blm_pages = NULL;
-    err = kbr_read_blm_pages(&blkdesc, BLOOM_LOOKUP_BUFFER, &blm_desc, &blm_pages);
-    ASSERT_EQ(0, err);
-    ASSERT_TRUE(blm_pages != 0);
-    kbr_free_blm_pages(&blkdesc, BLOOM_LOOKUP_BUFFER, blm_pages);
-
-    mapi_inject_once_ptr(mapi_idx_malloc, 1, NULL);
-    blm_pages = NULL;
-    err = kbr_read_blm_pages(&blkdesc, BLOOM_LOOKUP_BUFFER, &blm_desc, &blm_pages);
-    ASSERT_EQ(merr_errno(err), ENOMEM);
-
-    mpool_mcache_munmap(blkdesc.map);
+    ASSERT_NE(NULL, blm_desc.bd_bitmap);
 }
 
 MTF_END_UTEST_COLLECTION(kblock_reader_test)

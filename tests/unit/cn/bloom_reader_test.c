@@ -1,9 +1,11 @@
 /* SPDX-License-Identifier: Apache-2.0 */
 /*
- * Copyright (C) 2015-2021 Micron Technology, Inc.  All rights reserved.
+ * Copyright (C) 2015-2022 Micron Technology, Inc.  All rights reserved.
  */
 
 #include <mtf/framework.h>
+
+#include <hse_ikvdb/tuple.h>
 
 #include <hse_util/inttypes.h>
 #include <hse_util/logging.h>
@@ -81,7 +83,7 @@ read_blooms(struct mtf_test_info *lcl_ti, char *kblock_file)
     uint                  i, cnt, fpc;
     char *                endptr;
     char                  filename[PATH_MAX];
-    char                  keybuf[100];
+    char                  keybuf[32];
     struct kvs_mblk_desc  blkdesc;
     u64                   blkid;
     u8 *                  blm_pages;
@@ -136,25 +138,22 @@ read_blooms(struct mtf_test_info *lcl_ti, char *kblock_file)
     ASSERT_NE(kblock_file, endptr);
     ASSERT_GT(cnt, 0);
 
+    rgndesc.bd_bitmap = blm_pages;
+
     for (i = fpc = 0; i < cnt; ++i) {
-        ktuple.kt_data = keybuf;
-        ktuple.kt_hash = 0;
+        int len;
 
         /* Format key to match what simple_client tool uses */
-        ktuple.kt_len = snprintf(keybuf, sizeof(keybuf), "k%u", i);
+        len = snprintf(keybuf, sizeof(keybuf), "k%u", i);
 
-        hit = bloom_reader_buffer_lookup(&rgndesc, blm_pages, &ktuple);
-        ASSERT_TRUE(hit);
+        kvs_ktuple_init(&ktuple, keybuf, len);
 
-        hit = false;
-        err = bloom_reader_mcache_lookup(&rgndesc, &blkdesc, &ktuple, &hit);
-        ASSERT_EQ(0, err);
+        hit = bloom_reader_lookup(&rgndesc, ktuple.kt_hash);
         ASSERT_TRUE(hit);
 
         /* Permute the hash to try and elicit a false positive.
          */
-        ktuple.kt_hash = ~ktuple.kt_hash;
-        hit = bloom_reader_buffer_lookup(&rgndesc, blm_pages, &ktuple);
+        hit = bloom_reader_lookup(&rgndesc, ~(ktuple.kt_hash));
         if (hit)
             ++fpc;
     }

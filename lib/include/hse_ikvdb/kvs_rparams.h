@@ -66,10 +66,9 @@ struct kvs_rparams {
     uint64_t cn_mcache_vra_params;
 
     bool     cn_bloom_create;
-    uint64_t cn_bloom_lookup;
+    bool     cn_bloom_preload;
     uint64_t cn_bloom_prob;
     uint64_t cn_bloom_capped;
-    uint64_t cn_bloom_preload;
 
     uint64_t cn_kcachesz;
 

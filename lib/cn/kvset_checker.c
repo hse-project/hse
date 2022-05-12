@@ -396,11 +396,6 @@ wbn_leaf_check(
             break;
         }
 
-        if (!bloom_reader_buffer_lookup(&kb_info->blm_desc, kb_info->blm_data, &kt)) {
-            err = true;
-            lfe_err(kb_info, "bloom cannot find this key");
-        }
-
         prev_key = key;
         prev_klen = klen;
 

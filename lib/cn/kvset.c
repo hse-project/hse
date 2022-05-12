@@ -225,8 +225,6 @@ kvset_kblk_init(
     struct kblock_hdr_omf *hdr;
     merr_t                 err;
 
-    p->kb_cn_bloom_lookup = rp->cn_bloom_lookup;
-
     err = kbr_get_kblock_desc(ds, kmap, props, idx, p->kb_kblk.bk_blkid, kbd);
     if (ev(err))
         return err;
@@ -239,7 +237,7 @@ kvset_kblk_init(
     if (ev(err))
         return err;
 
-    err = kbr_read_blm_pages(kbd, p->kb_cn_bloom_lookup, &p->kb_blm_desc, &p->kb_blm_pages);
+    err = kbr_read_blm_pages(kbd, &p->kb_blm_desc);
     if (ev(err))
         return err;
 
@@ -297,7 +295,7 @@ kvset_kblk_init(
 
     /* Preload the bloom filter.
      */
-    if (rp->cn_bloom_preload && p->kb_cn_bloom_lookup == BLOOM_LOOKUP_MCACHE)
+    if (rp->cn_bloom_preload)
         kbr_madvise_bloom(kbd, &p->kb_blm_desc, MADV_WILLNEED);
 
     return 0;
@@ -978,8 +976,6 @@ cleanup_kblocks(struct kvset *ks)
 static void
 _kvset_destroy(struct kvset *ks)
 {
-    u32 i;
-
     assert(ks);
     assert(atomic_read(&ks->ks_ref) == 0);
 
@@ -991,12 +987,6 @@ _kvset_destroy(struct kvset *ks)
 
         atomic_sub(&cnd->cnd_kblk_size, ks->ks_st.kst_kalen);
         atomic_sub(&cnd->cnd_vblk_size, ks->ks_st.kst_valen);
-    }
-
-    for (i = 0; i < ks->ks_st.kst_kblks; i++) {
-        struct kvset_kblk *kblk = ks->ks_kblks + i;
-
-        kbr_free_blm_pages(&kblk->kb_kblk_desc, kblk->kb_cn_bloom_lookup, kblk->kb_blm_pages);
     }
 
     cleanup_kblocks(ks);
@@ -1190,18 +1180,9 @@ kblk_get_value_ref(
     struct kvs_vtuple_ref *vref)
 {
     struct kvset_kblk *kblk = ks->ks_kblks + kblk_idx;
-    bool               hit;
-    merr_t             err;
 
-    if (kblk->kb_blm_pages) {
-        hit = bloom_reader_buffer_lookup(&kblk->kb_blm_desc, kblk->kb_blm_pages, kt);
-        if (!hit)
-            return 0;
-    } else if (kblk->kb_blm_desc.bd_n_pages) {
-        err = bloom_reader_mcache_lookup(&kblk->kb_blm_desc, &kblk->kb_kblk_desc, kt, &hit);
-        if (!ev(err) && !hit)
-            return 0;
-    }
+    if (!bloom_reader_lookup(&kblk->kb_blm_desc, kt->kt_hash))
+        return 0;
 
     return wbtr_read_vref(&kblk->kb_kblk_desc, &kblk->kb_wbt_desc, kt, lcp, seq, result, vref);
 }
@@ -1611,19 +1592,8 @@ next_kblk:
      * subsequent kblock.  It is thus safe to stop looking at
      * this kvset once there's a bloom miss.
      */
-    if (kblk->kb_blm_desc.bd_n_pages) {
-        const u64 lookup = kblk->kb_cn_bloom_lookup;
-        bool      hit = true;
-
-        if (HSE_LIKELY(lookup == BLOOM_LOOKUP_MCACHE)) {
-            hit = bloom_reader_buffer_lookup(&kblk->kb_blm_desc, kblk->kb_blm_pages, kt);
-        } else if (lookup == BLOOM_LOOKUP_BUFFER) {
-            hit = bloom_reader_buffer_lookup(&kblk->kb_blm_desc, kblk->kb_blm_pages, kt);
-        }
-
-        if (!hit)
-            goto done;
-    }
+    if (!bloom_reader_lookup(&kblk->kb_blm_desc, kt->kt_hash))
+        goto done;
 
     wbti_reset(wbti, &kblk->kb_kblk_desc, &kblk->kb_wbt_desc, kt, 0, 0);
 
@@ -2763,7 +2733,7 @@ kvset_madvise_kblks(struct kvset *ks, int advice, bool blooms, bool leaves)
             kbr_madvise_kmd(&p->kb_kblk_desc, d, advice);
         }
 
-        if (blooms && p->kb_cn_bloom_lookup == BLOOM_LOOKUP_MCACHE)
+        if (blooms)
             kbr_madvise_bloom(&p->kb_kblk_desc, &p->kb_blm_desc, advice);
     }
 }

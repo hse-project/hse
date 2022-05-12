@@ -64,19 +64,14 @@ merr_t
 kbr_read_blm_region_desc(struct kvs_mblk_desc *kblock_desc, struct bloom_desc *blm_desc);
 
 /**
- * kbr_read_blm_pages() - Read the Bloom filter pages
- *                          into an allocated buffer.
+ * kbr_read_blm_pages() - Get base address of bloom filter bitmap
  * @kblock_desc:    KVBLOCK_DESC for KBLOCK to read
- * @cn_bloom_lookup: private and stable copy from rparams
  * @blm_desc:       bloom region descriptor
- * @blm_pages_out:  (output) buffer with bloom pages
  */
 merr_t
 kbr_read_blm_pages(
     struct kvs_mblk_desc *kblock_desc,
-    ulong                 cn_bloom_lookup,
-    struct bloom_desc *   blm_desc,
-    u8 **                 blm_pages_out);
+    struct bloom_desc *   blm_desc);
 
 /**
  * kbr_read_pt_region_desc() - Read ptree pages into the descriptor
@@ -88,9 +83,6 @@ kbr_read_pt_region_desc(struct kvs_mblk_desc *kblkdesc, struct wbt_desc *desc);
 
 merr_t
 kbr_read_seqno_range(struct kvs_mblk_desc *kblkdesc, u64 *seqno_min, u64 *seqno_max);
-
-void
-kbr_free_blm_pages(struct kvs_mblk_desc *kbd, ulong cn_bloom_lookup, void *blm_pages);
 
 /**
  * kbr_read_metrics() - Read kblock header to obtain metrics.

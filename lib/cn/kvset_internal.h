@@ -43,9 +43,7 @@ struct kvset_kblk {
     u16             kb_klen_max;   /* length of largest key */
     u16             kb_klen_min;   /* length of smallest key */
 
-    u16               kb_cn_bloom_lookup;
     struct bloom_desc kb_blm_desc;  /* Bloom descriptor */
-    u8 *              kb_blm_pages; /* Bloom pages */
 
     u64 kb_seqno_min; /* min seqno */
     u64 kb_seqno_max; /* max seqno */
