@@ -56,7 +56,12 @@ dostuff(void *arg)
 	for (i = 0; i < opts.nptombs; i++) {
 		int rc;
 
+#pragma GCC diagnostic push
+#ifndef __clang__ /* Not supported by clang */
+_Pragma("GCC diagnostic ignored \"-Wformat-truncation\"") /* 'k' + 6 digits + NUL byte = 8 */
+#endif
 		snprintf(key, sizeof(key), "k%06lu", i);
+#pragma GCC diagnostic pop
 		rc = hse_kvs_prefix_delete(targ->kvs, 0, NULL, key, sizeof(key));
 		if (rc) {
 			killthreads = 1;

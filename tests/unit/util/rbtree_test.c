@@ -292,11 +292,12 @@ test_case_pre(struct mtf_test_info *ti)
 int
 test_case_post(struct mtf_test_info *ti)
 {
-    struct rb_node *node;
+    struct rb_node *node, *next;
 
-    for (node = rb_first(&tree); node; node = rb_next(node)) {
+    for (node = rb_first(&tree); node; node = next) {
         struct entry *e = rb_entry(node, struct entry, entry_node);
 
+        next = rb_next(node);
         rb_erase(node, &tree.rb_node);
         free(e);
     }
