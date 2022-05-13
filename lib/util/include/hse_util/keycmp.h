@@ -44,7 +44,8 @@ keycmp_prefix(const void *pfx, u32 pfxlen, const void *key, u32 keylen)
 {
     if (keylen < pfxlen) {
         int rc = memcmp(pfx, key, keylen);
-        return rc ?: 1;
+
+        return rc ? rc : 1;
     }
 
     return memcmp(pfx, key, pfxlen);

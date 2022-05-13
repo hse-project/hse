@@ -640,10 +640,13 @@ wal_fileset_replay(
 
 discard:
         if (discard) {
+            uint64_t gen = cur->gen;
+            int fileid = cur->fileid;
+
             err = 0;
             list_del_init(&cur->link);
             wal_file_close(cur);
-            wal_file_destroy(wfset, cur->gen, cur->fileid);
+            wal_file_destroy(wfset, gen, fileid);
         }
     }
 
