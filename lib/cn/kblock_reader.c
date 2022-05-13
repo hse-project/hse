@@ -222,76 +222,20 @@ kbr_read_blm_region_desc(struct kvs_mblk_desc *kbd, struct bloom_desc *desc)
 merr_t
 kbr_read_blm_pages(
     struct kvs_mblk_desc *kbd,
-    ulong                 cn_bloom_lookup,
-    struct bloom_desc *   desc,
-    u8 **                 blm_pages_out)
+    struct bloom_desc *   desc)
 {
-    merr_t err;
+    off_t pgnumv[] = { desc->bd_first_page };
 
-    *blm_pages_out = NULL;
+    desc->bd_bitmap = NULL;
 
     if (!desc->bd_n_pages)
         return 0;
 
-    /*
-     * If we're in user space and the bloom is mcache mapped then
-     * issue an mpool_mcache_getpages() on just the first page, to get
+    /* Issue an mpool_mcache_getpages() on just the first page to get
      * the base address of the bloom filter - which we assume is
      * contiguous in virtual address space.
-     *
-     * Otherwise we allocate a buffer and read the bloom filter
-     * into it (works in both user and kernel space).
-     *
-     * Note that there is no code for an mcached bloom lookup in
-     * kernel space, but it is possible.
      */
-
-    if (cn_bloom_lookup == BLOOM_LOOKUP_MCACHE) {
-        off_t pgnumv[] = { desc->bd_first_page };
-        void *addrv[] = { NULL };
-
-        err = mpool_mcache_getpages(kbd->map, 1, kbd->map_idx, pgnumv, addrv);
-        if (ev(err))
-            return err;
-
-        *blm_pages_out = addrv[0];
-        return 0;
-    }
-
-    if (cn_bloom_lookup == BLOOM_LOOKUP_BUFFER) {
-        struct iovec iov;
-        size_t       off = desc->bd_first_page * PAGE_SIZE;
-        size_t       len = desc->bd_n_pages * PAGE_SIZE;
-        u8 *         pages;
-
-        pages = alloc_page_aligned(len);
-        if (ev(!pages))
-            return merr(ENOMEM);
-
-        iov.iov_base = pages;
-        iov.iov_len = len;
-
-        err = mpool_mblock_read(kbd->ds, kbd->mb_id, &iov, 1, off);
-        if (ev(err)) {
-            free_aligned(pages);
-            return err;
-        }
-
-        *blm_pages_out = pages;
-        return 0;
-    }
-
-    return 0;
-}
-
-void
-kbr_free_blm_pages(struct kvs_mblk_desc *kbd, ulong cn_bloom_lookup, void *blm_pages)
-{
-    if (!blm_pages)
-        return;
-
-    if (cn_bloom_lookup == BLOOM_LOOKUP_BUFFER)
-        free_aligned(blm_pages);
+    return mpool_mcache_getpages(kbd->map, 1, kbd->map_idx, pgnumv, (void **)&desc->bd_bitmap);
 }
 
 merr_t

@@ -589,24 +589,18 @@ static const struct param_spec pspecs[] = {
         },
     },
     {
-        .ps_name = "cn_bloom_lookup",
-        .ps_description = "control bloom lookup (0:off, 1:mcache, 2:read)",
+        .ps_name = "cn_bloom_preload",
+        .ps_description = "preload mcache bloom filters",
         .ps_flags = PARAM_FLAG_EXPERIMENTAL,
-        .ps_type = PARAM_TYPE_U64,
-        .ps_offset = offsetof(struct kvs_rparams, cn_bloom_lookup),
-        .ps_size = PARAM_SZ(struct kvs_rparams, cn_bloom_lookup),
+        .ps_type = PARAM_TYPE_BOOL,
+        .ps_offset = offsetof(struct kvs_rparams, cn_bloom_preload),
+        .ps_size = PARAM_SZ(struct kvs_rparams, cn_bloom_preload),
         .ps_convert = param_default_converter,
         .ps_validate = param_default_validator,
         .ps_stringify = param_default_stringify,
         .ps_jsonify = param_default_jsonify,
         .ps_default_value = {
-            .as_uscalar = 0,
-        },
-        .ps_bounds = {
-            .as_uscalar = {
-                .ps_min = 0,
-                .ps_max = 2,
-            },
+            .as_uscalar = false,
         },
     },
     {
@@ -637,27 +631,6 @@ static const struct param_spec pspecs[] = {
         .ps_type = PARAM_TYPE_U64,
         .ps_offset = offsetof(struct kvs_rparams, cn_bloom_capped),
         .ps_size = PARAM_SZ(struct kvs_rparams, cn_bloom_capped),
-        .ps_convert = param_default_converter,
-        .ps_validate = param_default_validator,
-        .ps_stringify = param_default_stringify,
-        .ps_jsonify = param_default_jsonify,
-        .ps_default_value = {
-            .as_uscalar = 0,
-        },
-        .ps_bounds = {
-            .as_uscalar = {
-                .ps_min = 0,
-                .ps_max = UINT64_MAX,
-            },
-        },
-    },
-    {
-        .ps_name = "cn_bloom_preload",
-        .ps_description = "preload mcache bloom filters",
-        .ps_flags = PARAM_FLAG_EXPERIMENTAL,
-        .ps_type = PARAM_TYPE_U64,
-        .ps_offset = offsetof(struct kvs_rparams, cn_bloom_preload),
-        .ps_size = PARAM_SZ(struct kvs_rparams, cn_bloom_preload),
         .ps_convert = param_default_converter,
         .ps_validate = param_default_validator,
         .ps_stringify = param_default_stringify,

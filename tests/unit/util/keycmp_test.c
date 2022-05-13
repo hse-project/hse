@@ -1,6 +1,6 @@
 /* SPDX-License-Identifier: Apache-2.0 */
 /*
- * Copyright (C) 2015-2020 Micron Technology, Inc.  All rights reserved.
+ * Copyright (C) 2015-2020,2022 Micron Technology, Inc.  All rights reserved.
  */
 
 #include <mtf/framework.h>
@@ -42,26 +42,28 @@ MTF_DEFINE_UTEST(keycmp_test, basic)
 
 MTF_DEFINE_UTEST(keycmp_test, prefix)
 {
-    const unsigned char pfx[] = { 0, 1, 2, 3 };
-    const unsigned char key1[] = { 0, 1, 2, 3, 0xaa, 0xbb };
-    const unsigned char key2[] = { 0, 1, 2, 0xaa, 0xbb };
-    const unsigned char key3[] = { 0, 1, 2 };
+    const unsigned char pfx[8] = { 0, 1, 2, 3 };
+    const unsigned char key1[8] = { 0, 1, 2, 3, 0xaa, 0xbb };
+    const unsigned char key2[8] = { 0, 1, 2, 0xaa, 0xbb };
+    const unsigned char key3[8] = { 0, 1, 2 };
     int                 rc;
 
-    rc = keycmp_prefix(pfx, sizeof(pfx), key1, sizeof(key1));
+    /* NOTE: All buffer are the same size to avert buggy asan warnings.
+     */
+    rc = keycmp_prefix(pfx, 4, key1, 6);
     ASSERT_EQ(rc, 0);
 
-    rc = keycmp_prefix(pfx, sizeof(pfx), key1, sizeof(pfx) - 1);
+    rc = keycmp_prefix(pfx, 4, key1, 3);
     ASSERT_NE(rc, 0);
 
-    rc = keycmp_prefix(pfx, sizeof(pfx) - 1, key2, sizeof(key2));
+    rc = keycmp_prefix(pfx, 3, key2, 5);
     ASSERT_EQ(rc, 0);
 
-    rc = keycmp_prefix(pfx, sizeof(pfx), key2, sizeof(key2));
+    rc = keycmp_prefix(pfx, 4, key2, 5);
     ASSERT_NE(rc, 0);
     ASSERT_TRUE(rc < 0);
 
-    rc = keycmp_prefix(pfx, sizeof(pfx), key3, sizeof(key3));
+    rc = keycmp_prefix(pfx, 4, key3, 3);
     ASSERT_TRUE(rc > 0);
 }
 

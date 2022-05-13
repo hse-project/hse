@@ -1,6 +1,6 @@
 /* SPDX-License-Identifier: Apache-2.0 */
 /*
- * Copyright (C) 2021 Micron Technology, Inc.  All rights reserved.
+ * Copyright (C) 2021-2022 Micron Technology, Inc.  All rights reserved.
  */
 
 #include <tools/parm_groups.h>
@@ -193,15 +193,18 @@ pg_add_str(struct parm_groups *self, struct svec *sv, const char *parm)
 int
 svec_append_pg_impl(struct svec *self, struct parm_groups *pg, va_list ap)
 {
-    int err = 0;;
+    int err = 0;
     struct svec sv;
     struct svec *sv_grp;
     void *arg;
 
+    if (!pg)
+        return EINVAL;
+
     svec_init(&sv);
 
     while (!err && NULL != (arg = va_arg(ap, void *))) {
-        if (pg && NULL != (sv_grp = pg_find_grp(pg, arg)))
+        if (NULL != (sv_grp = pg_find_grp(pg, arg)))
             err = svec_append_svec(&sv, sv_grp, NULL);
         else
             err = pg_add_str(pg, &sv, arg);
@@ -223,19 +226,6 @@ svec_append_pg(struct svec *self, struct parm_groups *pg, ...)
 
     va_start(ap, pg);
     err = svec_append_pg_impl(self, pg, ap);
-    va_end(ap);
-
-    return err;
-}
-
-int
-svec_append(struct svec *self, ...)
-{
-    int err = 0;;
-    va_list ap;
-
-    va_start(ap, self);
-    err = svec_append_pg_impl(self, NULL, ap);
     va_end(ap);
 
     return err;
