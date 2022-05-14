@@ -140,7 +140,7 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        image-tag: [35]
+        image-tag: [36]
         toolchain: [gcc, clang]
         buildtype: [release, debug]
 
@@ -372,7 +372,7 @@ jobs:
   asan-ubsan:
     runs-on: ubuntu-latest
     container:
-      image: fedora:latest
+      image: fedora:36
     strategy:
       fail-fast: false
       matrix:

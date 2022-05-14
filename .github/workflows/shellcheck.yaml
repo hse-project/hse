@@ -13,7 +13,7 @@ jobs:
   lint:
     runs-on: ubuntu-latest
     container:
-      image: fedora:latest
+      image: fedora:36
 
     steps:
       - uses: actions/checkout@v3

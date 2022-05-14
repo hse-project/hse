@@ -20,7 +20,7 @@ jobs:
   check:
     runs-on: ubuntu-latest
     container:
-      image: fedora:latest
+      image: fedora:36
 
     steps:
       - name: Initialize
