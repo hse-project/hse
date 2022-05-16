@@ -27,10 +27,13 @@
 #include <hse_util/log2.h>
 #include <hse_util/vlb.h>
 #include <hse_util/logging.h>
+#include <hse_util/keycmp.h>
 
 #include "omf.h"
 #include "blk_list.h"
+#include "kblock_reader.h"
 #include "wbt_builder.h"
+#include "wbt_reader.h"
 #include "cn_mblocks.h"
 #include "cn_metrics.h"
 #include "cn_perfc.h"
@@ -1285,6 +1288,131 @@ void
 kbb_set_merge_stats(struct kblock_builder *bld, struct cn_merge_stats *stats)
 {
     bld->mstats = stats;
+}
+
+static merr_t
+kblock_copy_range(
+    struct kblock_desc   *kbd,
+    const struct key_obj *start, /* exclusive */
+    const struct key_obj *end,   /* inclusive */
+    uint64_t             *kb_out)
+{
+    struct wbti *wbti = NULL;
+    struct kblock_builder *kbb;
+    struct key_obj cur = { 0 };
+    const void *kmd;
+    merr_t err;
+    uint64_t tot_keys = 0;
+
+    /* start == NULL implies a copy from the first key
+     * end == NULL implies a copy until EOF
+     */
+    err = kbb_create(&kbb, kbd->cn, NULL);
+    if (err)
+        return err;
+
+    if (start) {
+        char kbuf[HSE_KVS_KEY_LEN_MAX];
+        struct kvs_ktuple seek;
+        uint klen;
+
+        key_obj_copy(kbuf, sizeof(kbuf), &klen, start);
+        kvs_ktuple_init_nohash(&seek, kbuf, klen);
+
+        err = wbti_create(&wbti, kbd->kd_mbd, kbd->kd_wbd, &seek, false, false);
+    } else {
+        err = wbti_create(&wbti, kbd->kd_mbd, kbd->kd_wbd, NULL, false, false);
+    }
+
+    while (!err && wbti_next(wbti, &cur.ko_sfx, &cur.ko_sfx_len, &kmd)) {
+        struct kbb_key_stats stats = { 0 };
+        size_t off = 0, kmd_cnt_off;
+        uint nvals;
+
+        wbti_prefix(wbti, &cur.ko_pfx, &cur.ko_pfx_len);
+
+        if (!start || key_obj_cmp(&cur, start) > 0) {
+            start = NULL; /* skip future comparisons with start */
+            if (end && key_obj_cmp(&cur, end) > 0)
+                break;
+
+            nvals = stats.nvals = kmd_count(kmd, &off);
+            kmd_cnt_off = off;
+
+            while (nvals--) {
+                struct kvs_vtuple_ref vref = { 0 };
+                u64 vseq;
+
+                wbt_read_kmd_vref(kmd, &off, &vseq, &vref);
+
+                switch (vref.vr_type) {
+                case vtype_val:
+                case vtype_cval:
+                    stats.tot_vlen += (vref.vb.vr_complen ? : vref.vb.vr_len);
+                    break;
+
+                case vtype_ival:
+                    stats.tot_vlen += vref.vi.vr_len;
+                    break;
+
+                case vtype_tomb:
+                    ++stats.ntombs;
+                    break;
+
+                case vtype_ptomb: /* TODO: must be an assert after ptomb is moved to a hblock */
+                case vtype_zval:
+                    break;
+
+                default:
+                    assert(0);
+                    break;
+                }
+            }
+
+            err = kbb_add_entry(kbb, &cur, kmd + kmd_cnt_off, off - kmd_cnt_off, &stats);
+            if (!err)
+                ++tot_keys;
+        }
+    }
+
+    if (!err && tot_keys > 0) {
+        struct blk_list kblk_list;
+
+        err = kbb_finish(kbb, &kblk_list, kbd->seqno_min, kbd->seqno_max);
+        if (!err) {
+            assert(kblk_list.n_blks == 1);
+            *kb_out = kblk_list.blks->bk_blkid;
+        }
+    }
+
+    wbti_destroy(wbti);
+    kbb_destroy(kbb);
+
+    return err;
+}
+
+merr_t
+kblock_split(
+    struct kblock_desc *kbd,
+    struct key_obj     *split_key,
+    uint64_t           *kb_left,
+    uint64_t           *kb_right)
+{
+    merr_t err;
+
+    if (!kbd || !split_key || !kb_left || !kb_right)
+        return merr(EINVAL);
+
+    *kb_left = *kb_right = 0;
+
+    err = kblock_copy_range(kbd, NULL, split_key, kb_left);
+    if (!err) {
+        err = kblock_copy_range(kbd, split_key, NULL, kb_right);
+        if (!err && (*kb_left == 0 && *kb_right == 0))
+            err = merr(EBUG);
+    }
+
+    return err;
 }
 
 #if HSE_MOCKING

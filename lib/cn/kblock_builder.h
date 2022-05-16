@@ -17,6 +17,8 @@ struct kblock_builder;
 struct blk_list;
 struct kvs_rparams;
 struct cn_merge_stats;
+struct wbti;
+struct kblock_desc;
 
 enum hse_mclass;
 enum hse_mclass_policy_age;
@@ -140,6 +142,25 @@ kbb_get_agegroup(struct kblock_builder *bld);
 
 void
 kbb_set_merge_stats(struct kblock_builder *bld, struct cn_merge_stats *stats);
+
+/**
+ * kblock_split() - split a given kblock (@kbd) into two kblocks at @split_key
+ *
+ * @kbd:       kblock descriptor describing the source kblock
+ * @split_key: the key at which the kblock needs to be split.
+ * @kb_left:   (output) keys <= the split key are written to this left kblock
+ * @kb_right:  (output) keys > the split key are written to this right kblock
+ *
+ * NOTE:
+ * If either @kb_left or @kb_right is not populated and err == 0, then all keys
+ * from the source kblock got written to either the left or the right kblock.
+ */
+merr_t
+kblock_split(
+    struct kblock_desc   *kbd,
+    struct key_obj       *split_key,
+    uint64_t             *kb_left,
+    uint64_t             *kb_right);
 
 #if HSE_MOCKING
 #include "kblock_builder_ut.h"
