@@ -1,7 +1,9 @@
 /* SPDX-License-Identifier: Apache-2.0 */
 /*
- * Copyright (C) 2015-2021 Micron Technology, Inc.  All rights reserved.
+ * Copyright (C) 2015-2022 Micron Technology, Inc.  All rights reserved.
  */
+
+#include <stdint.h>
 
 #include <hse_util/hse_err.h>
 #include <hse_util/inttypes.h>
@@ -49,8 +51,8 @@ u64 mocked_mdc_id;
 static merr_t
 get_mocked_map(struct mpool_mcache_map *map, struct mocked_map **mocked)
 {
-    size_t addr = (size_t)map;
-    size_t base = (size_t)&mocked_maps[0];
+    uintptr_t addr = (uintptr_t)map;
+    uintptr_t base = (uintptr_t)&mocked_maps[0];
 
     if (base > addr)
         return merr(EBUG);
@@ -263,7 +265,7 @@ mblock_rw(u64 id, const struct iovec *iov, int niov, size_t off, bool read)
 
     for (i = 0; i < niov; i++) {
         /* Each iovec address must be page aligned */
-        if (!IS_ALIGNED((unsigned long)iov[i].iov_base, PAGE_SIZE))
+        if (!IS_ALIGNED((uintptr_t)iov[i].iov_base, PAGE_SIZE))
             return merr(EINVAL);
         /* Each iovec length must be page aligned */
         if (!IS_ALIGNED(iov[i].iov_len, PAGE_SIZE))
@@ -290,6 +292,9 @@ mblock_rw(u64 id, const struct iovec *iov, int niov, size_t off, bool read)
         memcpy(dst, src, iov[i].iov_len);
         off += iov[i].iov_len;
     }
+
+    if (!read)
+        mb->mb_write_len = total_len;
 
     return 0;
 }

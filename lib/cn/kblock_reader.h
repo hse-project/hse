@@ -1,6 +1,6 @@
 /* SPDX-License-Identifier: Apache-2.0 */
 /*
- * Copyright (C) 2015-2020 Micron Technology, Inc.  All rights reserved.
+ * Copyright (C) 2015-2022 Micron Technology, Inc.  All rights reserved.
  */
 
 #ifndef HSE_KVS_CN_KBLOCK_READER_H
@@ -34,7 +34,7 @@ struct kblock_desc {
 };
 
 /**
- * kbr_get_kblock_desc() - Get the KVBLOCK descriptor for the given
+ * kbr_get_kblock_desc() - Get the mblock descriptor for the given
  *                     KBLOCK ID.
  * @kblock_id:      KBLOCK ID for KBLOCK to read
  * @kblock_desc:    (output) KVBLOCK_DESC for KBLOCK
@@ -57,9 +57,6 @@ kbr_get_kblock_desc(
 merr_t
 kbr_read_wbt_region_desc(struct kvs_mblk_desc *kblock_desc, struct wbt_desc *wbt_rgn_desc);
 
-merr_t
-kbr_read_wbt_region_desc_mem(void *hdr_page, struct wbt_desc *desc);
-
 /**
  * kbr_read_blm_region_desc() - Read the Bloom filter region
  *                          descriptor for the given KBLOCK ID.
@@ -79,17 +76,6 @@ merr_t
 kbr_read_blm_pages(
     struct kvs_mblk_desc *kblock_desc,
     struct bloom_desc *   blm_desc);
-
-/**
- * kbr_read_pt_region_desc() - Read ptree pages into the descriptor
- * @kblkdesc: KVBLOCK_DESC for KBLOCK to read
- * @desc:     wbt descriptor
- */
-merr_t
-kbr_read_pt_region_desc(struct kvs_mblk_desc *kblkdesc, struct wbt_desc *desc);
-
-merr_t
-kbr_read_seqno_range(struct kvs_mblk_desc *kblkdesc, u64 *seqno_min, u64 *seqno_max);
 
 /**
  * kbr_read_metrics() - Read kblock header to obtain metrics.

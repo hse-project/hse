@@ -1,6 +1,6 @@
 /* SPDX-License-Identifier: Apache-2.0 */
 /*
- * Copyright (C) 2015-2020 Micron Technology, Inc.  All rights reserved.
+ * Copyright (C) 2015-2022 Micron Technology, Inc.  All rights reserved.
  */
 
 #ifndef HSE_KVS_CN_WBT_READER_H
@@ -12,21 +12,10 @@
 #include <hse_ikvdb/tuple.h>
 
 struct kvs_mblk_desc;
-struct wbt_desc;
 struct mpool;
+struct wbt_hdr_omf;
 
 /* MTF_MOCK_DECL(wbt_reader) */
-
-struct wbti {
-    struct wbt_desc *     wbd; /* MUST BE FIRST */
-    struct kvs_mblk_desc *kbd;
-    void *                node;
-    void *                kmd;
-    u32                   node_idx;
-    u32                   lfe_idx;
-
-    bool reverse;
-};
 
 #define NODE_EOF ((u32)-1)
 
@@ -49,21 +38,32 @@ struct wbti {
  *    to bytes 2*4096 to 5*4096-1 (end of page 4).
  */
 struct wbt_desc {
-    u32 wbd_first_page;
-    u32 wbd_n_pages;
-    u16 wbd_root;
-    u16 wbd_leaf;
-    u16 wbd_leaf_cnt;
-    u16 wbd_kmd_pgc;
-    u16 wbd_version;
+    uint32_t wbd_first_page;
+    uint32_t wbd_n_pages;
+    uint16_t wbd_root;
+    uint16_t wbd_leaf;
+    uint16_t wbd_leaf_cnt;
+    uint16_t wbd_kmd_pgc;
+    uint16_t wbd_version;
+};
+
+struct wbti {
+    struct wbt_desc *wbd; /* MUST BE FIRST */
+    const void *base;
+    const struct wbt_node_hdr_omf *node;
+    const void *kmd;
+    uint32_t node_idx;
+    uint32_t lfe_idx;
+
+    bool reverse;
 };
 
 /**
  * wbtr_read_vref() - Read the metadata data for the value associated with key
- * @kbd:    kblock region descriptor
- * @wbd:    wbtree descriptor
- * @kt:     key to search for
- * @lcp:    longest common prefix common to %kt and all keys in the kblock
+ * @base: base address of the block
+ * @wbd: wbtree descriptor
+ * @kt: key to search for
+ * @lcp: longest common prefix common to %kt and all keys in the kblock
  * @lookup_res: (output) one of NOT_FOUND, FOUND_VAL,
  *              or FOUND_TMB (tombstone)
  * @vref: (output) value metadata if found
@@ -71,13 +71,13 @@ struct wbt_desc {
 /* MTF_MOCK */
 merr_t
 wbtr_read_vref(
-    const struct kvs_mblk_desc *kbd,
-    const struct wbt_desc *     wbd,
-    const struct kvs_ktuple *   kt,
-    uint                        lcp,
-    u64                         seq,
-    enum key_lookup_res *       lookup_res,
-    struct kvs_vtuple_ref *     vref);
+    const void *base,
+    const struct wbt_desc *wbd,
+    const struct kvs_ktuple *kt,
+    uint lcp,
+    u64 seq,
+    enum key_lookup_res *lookup_res,
+    struct kvs_vtuple_ref *vref);
 
 merr_t
 wbti_alloc(struct wbti **wbti_out);
@@ -85,7 +85,7 @@ wbti_alloc(struct wbti **wbti_out);
 /**
  * wbti_reset() - Reset the fields of a wbtree iterator.
  * @wbti: wbt iterator
- * @kbd:  kblock descriptor
+ * @base: base address of the block
  * @wbd:  wbtree descriptor
  * @seek: if set, first key in iterator
  * @reverse: whether to iterate backwards
@@ -93,17 +93,17 @@ wbti_alloc(struct wbti **wbti_out);
  */
 void
 wbti_reset(
-    struct wbti *         self,
-    struct kvs_mblk_desc *kbd,
-    struct wbt_desc *     desc,
-    struct kvs_ktuple *   seek,
-    bool                  reverse,
-    bool                  cache);
+    struct wbti *self,
+    const void *base,
+    struct wbt_desc *desc,
+    struct kvs_ktuple *seek,
+    bool reverse,
+    bool cache);
 
 /**
  * wbti_create() - Create a wbtree iterator
  * @wbti: (output) newly constructed iterator
- * @kbd:  kblock descriptor
+ * @base: base address of the block
  * @wbd:  wbtree descriptor
  * @seek: if set, first key in iterator
  * @reverse: whether to iterate backwards
@@ -112,12 +112,12 @@ wbti_reset(
 /* MTF_MOCK */
 merr_t
 wbti_create(
-    struct wbti **        wbti,
-    struct kvs_mblk_desc *kbd,
-    struct wbt_desc *     wbd,
-    struct kvs_ktuple *   seek,
-    bool                  reverse,
-    bool                  cache);
+    struct wbti **wbti,
+    const void *base,
+    struct wbt_desc *wbd,
+    struct kvs_ktuple *seek,
+    bool reverse,
+    bool cache);
 
 /**
  * wbti_destroy() - Destroy a wbtree iterator. Does not
@@ -159,6 +159,10 @@ merr_t
 wbti_init(void);
 void
 wbti_fini(void);
+
+/* MTF_MOCK */
+merr_t
+wbtr_read_desc(const struct wbt_hdr_omf *wbt_hdr, struct wbt_desc *desc);
 
 #if HSE_MOCKING
 #include "wbt_reader_ut.h"

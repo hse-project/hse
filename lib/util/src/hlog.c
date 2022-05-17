@@ -1,6 +1,6 @@
 /* SPDX-License-Identifier: Apache-2.0 */
 /*
- * Copyright (C) 2015-2020 Micron Technology, Inc.  All rights reserved.
+ * Copyright (C) 2015-2022 Micron Technology, Inc.  All rights reserved.
  */
 
 /*
@@ -41,11 +41,11 @@
 #include <math.h>
 
 struct hlog {
-    u64  nkeys;
-    u64  mask;
+    uint64_t nkeys;
+    uint64_t  mask;
     uint precision;
     uint regc;
-    u8 * regv;
+    uint8_t * regv;
 };
 
 #define HLOG_PRECISION_MIN 4
@@ -105,7 +105,7 @@ hlog_reset(struct hlog *hlog)
     memset(hlog->regv, 0, hlog->regc * sizeof(*hlog->regv));
 }
 
-void *
+uint8_t *
 hlog_data(struct hlog *hlog)
 {
     return hlog->regv;

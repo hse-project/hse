@@ -1,6 +1,6 @@
 /* SPDX-License-Identifier: Apache-2.0 */
 /*
- * Copyright (C) 2015-2020 Micron Technology, Inc.  All rights reserved.
+ * Copyright (C) 2015-2020,2022 Micron Technology, Inc.  All rights reserved.
  */
 
 #ifndef HSE_KVDB_CN_METRICS_H
@@ -12,10 +12,13 @@
 
 /**
  * struct kvset_stats - kvset statistics
- * @kst_keys:  number of keys
+ * @kst_keys: number of keys
  * @kst_kvsets: number of kvsets
+ * @kst_hblks: number of hblocks
  * @kst_kblks: number of kblocks
  * @kst_vblks: number of vblocks
+ * @kst_halen: sum mpr_alloc_cap for all hblocks
+ * @kst_hwlen: sum mpr_write_len for all hblocks
  * @kst_kalen: sum mpr_alloc_cap for all kblocks
  * @kst_kwlen: sum mpr_write_len for all kblocks
  * @kst_valen: sum mpr_alloc_cap for all vblocks
@@ -24,15 +27,18 @@
  *
  */
 struct kvset_stats {
-    u64 kst_keys;
-    u64 kst_kalen;
-    u64 kst_kwlen;
-    u64 kst_valen;
-    u64 kst_vwlen;
-    u64 kst_vulen;
-    u32 kst_kvsets;
-    u32 kst_kblks;
-    u32 kst_vblks;
+    uint64_t kst_keys;
+    uint64_t kst_halen;
+    uint64_t kst_hwlen;
+    uint64_t kst_kalen;
+    uint64_t kst_kwlen;
+    uint64_t kst_valen;
+    uint64_t kst_vwlen;
+    uint64_t kst_vulen;
+    uint32_t kst_kvsets;
+    uint32_t kst_hblks;
+    uint32_t kst_kblks;
+    uint32_t kst_vblks;
 };
 
 /**
@@ -44,13 +50,13 @@ struct kvset_stats {
 static inline u64
 kvset_alen(const struct kvset_stats *kst)
 {
-    return kst->kst_kalen + kst->kst_valen;
+    return kst->kst_halen + kst->kst_kalen + kst->kst_valen;
 }
 
 static inline u64
 kvset_wlen(const struct kvset_stats *kst)
 {
-    return kst->kst_kwlen + kst->kst_vwlen;
+    return kst->kst_hwlen + kst->kst_kwlen + kst->kst_vwlen;
 }
 
 static inline u64
@@ -61,8 +67,9 @@ kvset_vulen(const struct kvset_stats *kst)
 
 /**
  * struct cn_node_stats - node metrics used by compacation scheduler
- * @ns_kclen:  estimated total kblock capacity (mpr_alloc_cap) after compaction
- * @ns_vclen:  estimated total vblock capacity (mpr_alloc_cap) after compaction
+ * @ns_hclen: estimated total hblock capacity (mpr_alloc_cap) after compaction
+ * @ns_kclen: estimated total kblock capacity (mpr_alloc_cap) after compaction
+ * @ns_vclen: estimated total vblock capacity (mpr_alloc_cap) after compaction
  * @ns_keys_uniq:  number of unique keys (estimated from hyperloglog)
  * @ns_scatter:   a measure of vblocks scatter
  * @ns_pcap:      current size / max size as a percentage
@@ -71,6 +78,7 @@ kvset_vulen(const struct kvset_stats *kst)
 struct cn_node_stats {
     struct kvset_stats ns_kst;
     u64                ns_keys_uniq;
+    u64                ns_hclen;
     u64                ns_kclen;
     u64                ns_vclen;
     u32                ns_scatter;
@@ -111,7 +119,7 @@ cn_ns_clen(const struct cn_node_stats *ns)
     /* This is different than alen, wlen, and ulen because it depends
      * on HyperLogLog stats which are only computed at the node level.
      */
-    return ns->ns_kclen + ns->ns_vclen;
+    return ns->ns_hclen + ns->ns_kclen + ns->ns_vclen;
 }
 
 static inline u64
@@ -120,13 +128,21 @@ cn_ns_keys(const struct cn_node_stats *ns)
     return ns->ns_kst.kst_keys;
 }
 
-static inline u64
+static inline uint32_t
+cn_ns_hblks(const struct cn_node_stats *ns)
+{
+    assert(ns->ns_kst.kst_hblks == 1);
+
+    return ns->ns_kst.kst_hblks;
+}
+
+static inline uint32_t
 cn_ns_kblks(const struct cn_node_stats *ns)
 {
     return ns->ns_kst.kst_kblks;
 }
 
-static inline u64
+static inline uint32_t
 cn_ns_vblks(const struct cn_node_stats *ns)
 {
     return ns->ns_kst.kst_vblks;
@@ -190,6 +206,9 @@ struct cn_merge_stats {
     u64 ms_val_bytes_out;
     u64 ms_vblk_wasted_reads;
 
+    struct cn_merge_stats_ops ms_hblk_alloc;
+    struct cn_merge_stats_ops ms_hblk_write;
+
     struct cn_merge_stats_ops ms_kblk_alloc;
     struct cn_merge_stats_ops ms_kblk_write;
 
@@ -221,6 +240,9 @@ cn_merge_stats_diff(
     s->ms_val_bytes_out = a->ms_val_bytes_out - b->ms_val_bytes_out;
 
     s->ms_vblk_wasted_reads = a->ms_vblk_wasted_reads - b->ms_vblk_wasted_reads;
+
+    cn_merge_stats_ops_diff(&s->ms_hblk_alloc, &a->ms_hblk_alloc, &b->ms_hblk_alloc);
+    cn_merge_stats_ops_diff(&s->ms_hblk_write, &a->ms_hblk_write, &b->ms_hblk_write);
 
     cn_merge_stats_ops_diff(&s->ms_kblk_alloc, &a->ms_kblk_alloc, &b->ms_kblk_alloc);
     cn_merge_stats_ops_diff(&s->ms_kblk_write, &a->ms_kblk_write, &b->ms_kblk_write);

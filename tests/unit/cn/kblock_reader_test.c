@@ -1,6 +1,6 @@
 /* SPDX-License-Identifier: Apache-2.0 */
 /*
- * Copyright (C) 2015-2021 Micron Technology, Inc.  All rights reserved.
+ * Copyright (C) 2015-2022 Micron Technology, Inc.  All rights reserved.
  */
 
 #include <mtf/framework.h>
@@ -44,7 +44,6 @@ struct kb_hdr {
     struct kblock_hdr_omf *kb_hdr;
     struct wbt_hdr_omf *   wbt_hdr;
     struct bloom_hdr_omf * blm_hdr;
-    struct wbt_hdr_omf *   pt_hdr;
     u8                     data[4096];
 };
 
@@ -60,13 +59,11 @@ init_kb_hdr(struct kb_hdr *kb)
     u32 align = 8;
     u32 wbt_off = (sizeof(struct kblock_hdr_omf) + align) & ~(align - 1);
     u32 blm_off = wbt_off + ((sizeof(struct wbt_hdr_omf) + align) & ~(align - 1));
-    u32 pt_off = blm_off + ((sizeof(struct bloom_hdr_omf) + align) & ~(align - 1));
 
     memset(kb->data, 0, 4096);
     kb->kb_hdr = (struct kblock_hdr_omf *)(kb->data);
     kb->wbt_hdr = (struct wbt_hdr_omf *)(kb->data + wbt_off);
     kb->blm_hdr = (struct bloom_hdr_omf *)(kb->data + blm_off);
-    kb->pt_hdr = (struct wbt_hdr_omf *)(kb->data + pt_off);
 
     omf_set_kbh_magic(kb->kb_hdr, KBLOCK_HDR_MAGIC);
     omf_set_kbh_version(kb->kb_hdr, KBLOCK_HDR_VERSION);
@@ -87,17 +84,6 @@ init_kb_hdr(struct kb_hdr *kb)
     omf_set_kbh_wbt_dlen_pg(kb->kb_hdr, 10);
     omf_set_kbh_blm_hoff(kb->kb_hdr, blm_off);
 
-    omf_set_kbh_pt_hoff(kb->kb_hdr, pt_off);
-
-    /* NOTE: fake ptree is supposed to be at pages 13..15 */
-    omf_set_kbh_pt_hlen(kb->kb_hdr, sizeof(struct wbt_hdr_omf));
-    omf_set_kbh_pt_doff_pg(kb->kb_hdr, 13);
-    omf_set_kbh_pt_dlen_pg(kb->kb_hdr, 3);
-
-    /* fake seqnos */
-    omf_set_kbh_min_seqno(kb->kb_hdr, 11);
-    omf_set_kbh_max_seqno(kb->kb_hdr, 101);
-
     omf_set_wbt_magic(kb->wbt_hdr, WBT_TREE_MAGIC);
     omf_set_wbt_version(kb->wbt_hdr, WBT_TREE_VERSION);
     omf_set_wbt_root(kb->wbt_hdr, 0);
@@ -112,18 +98,12 @@ init_kb_hdr(struct kb_hdr *kb)
     omf_set_bh_rotl(kb->blm_hdr, BF_ROTL);
     omf_set_bh_n_hashes(kb->blm_hdr, 7);
     omf_set_bh_bitmapsz(kb->blm_hdr, ALIGN((omf_bh_modulus(kb->blm_hdr) / CHAR_BIT), PAGE_SIZE));
-
-    omf_set_wbt_magic(kb->pt_hdr, WBT_TREE_MAGIC);
-    omf_set_wbt_version(kb->pt_hdr, WBT_TREE_VERSION);
-    omf_set_wbt_root(kb->pt_hdr, 0);
-    omf_set_wbt_leaf(kb->pt_hdr, 0);
-    omf_set_wbt_leaf_cnt(kb->pt_hdr, 0);
 }
 
 merr_t
 write_kb_hdr(struct kb_hdr *kb, struct kvs_mblk_desc *blkdesc)
 {
-    return mpm_mblock_write(blkdesc->mb_id, kb->data, 0, PAGE_SIZE);
+    return mpm_mblock_write(blkdesc->mbid, kb->data, 0, PAGE_SIZE);
 }
 
 int
@@ -131,14 +111,11 @@ check_read_hdrs(
     struct kb_hdr *       kb,
     struct kvs_mblk_desc *blkdesc,
     int                   wbt_errno,
-    int                   blm_errno,
-    int                   pt_errno,
-    int                   seq_errno)
+    int                   blm_errno)
 {
     merr_t            err;
-    struct wbt_desc   wb_desc, pt_desc;
+    struct wbt_desc   wb_desc;
     struct bloom_desc blm_desc;
-    u64               seqno_min, seqno_max;
 
     write_kb_hdr(kb, blkdesc);
 
@@ -147,12 +124,6 @@ check_read_hdrs(
 
     err = kbr_read_blm_region_desc(blkdesc, &blm_desc);
     VERIFY_EQ_RET(merr_errno(err), blm_errno, 1);
-
-    err = kbr_read_pt_region_desc(blkdesc, &pt_desc);
-    VERIFY_EQ_RET(merr_errno(err), pt_errno, 1);
-
-    err = kbr_read_seqno_range(blkdesc, &seqno_min, &seqno_max);
-    VERIFY_EQ_RET(merr_errno(err), seq_errno, 1);
 
     return 0;
 }
@@ -187,7 +158,7 @@ MTF_DEFINE_UTEST_PRE(kblock_reader_test, basic_wbt_blm_test, pre)
 {
     merr_t               err;
     struct mpool *       mp_ds = (void *)-1;
-    struct wbt_desc      wb_desc, pt_desc;
+    struct wbt_desc      wb_desc;
     struct bloom_desc    blm_desc;
     struct kb_hdr        kb;
     struct kblk_metrics  metrics;
@@ -198,12 +169,12 @@ MTF_DEFINE_UTEST_PRE(kblock_reader_test, basic_wbt_blm_test, pre)
 
     err = mpm_mblock_alloc(FAKE_KBLOCK_SIZE, &blkid);
     ASSERT_EQ(0, err);
-    blkdesc.mb_id = blkid;
+    blkdesc.mbid = blkid;
 
     err = mpm_mblock_write(blkid, fake_kblock_buf, 0, FAKE_KBLOCK_SIZE);
     ASSERT_EQ(0, err);
 
-    err = mpool_mcache_mmap(mp_ds, 1, &blkdesc.mb_id, &blkdesc.map);
+    err = mpool_mcache_mmap(mp_ds, 1, &blkdesc.mbid, &blkdesc.map);
     ASSERT_EQ(0, err);
 
     init_kb_hdr(&kb);
@@ -214,18 +185,6 @@ MTF_DEFINE_UTEST_PRE(kblock_reader_test, basic_wbt_blm_test, pre)
     ASSERT_EQ(0, err);
     ASSERT_EQ(omf_kbh_wbt_doff_pg(kb.kb_hdr), wb_desc.wbd_first_page);
     ASSERT_EQ(omf_kbh_wbt_dlen_pg(kb.kb_hdr), wb_desc.wbd_n_pages);
-
-    err = kbr_read_pt_region_desc(&blkdesc, &pt_desc);
-    ASSERT_EQ(0, err);
-    ASSERT_EQ(omf_kbh_pt_doff_pg(kb.kb_hdr), pt_desc.wbd_first_page);
-    ASSERT_EQ(omf_kbh_pt_dlen_pg(kb.kb_hdr), pt_desc.wbd_n_pages);
-
-    u64 seqno_min, seqno_max;
-
-    err = kbr_read_seqno_range(&blkdesc, &seqno_min, &seqno_max);
-    ASSERT_EQ(0, err);
-    ASSERT_EQ(omf_kbh_min_seqno(kb.kb_hdr), seqno_min);
-    ASSERT_EQ(omf_kbh_max_seqno(kb.kb_hdr), seqno_max);
 
     err = kbr_read_blm_region_desc(&blkdesc, &blm_desc);
     ASSERT_EQ(0, err);
@@ -270,12 +229,12 @@ MTF_DEFINE_UTEST_PRE(kblock_reader_test, t_kbr_madvise_bloom, pre)
 
     err = mpm_mblock_alloc(FAKE_KBLOCK_SIZE, &blkid);
     ASSERT_EQ(0, err);
-    blkdesc.mb_id = blkid;
+    blkdesc.mbid = blkid;
 
     err = mpm_mblock_write(blkid, fake_kblock_buf, 0, FAKE_KBLOCK_SIZE);
     ASSERT_EQ(0, err);
 
-    err = mpool_mcache_mmap(mp_ds, 1, &blkdesc.mb_id, &blkdesc.map);
+    err = mpool_mcache_mmap(mp_ds, 1, &blkdesc.mbid, &blkdesc.map);
     ASSERT_EQ(0, err);
 
     init_kb_hdr(&kb);
@@ -309,12 +268,12 @@ MTF_DEFINE_UTEST_PRE(kblock_reader_test, t_kbr_madvise_wbt_leaf_nodes, pre)
 
     err = mpm_mblock_alloc(FAKE_KBLOCK_SIZE, &blkid);
     ASSERT_EQ(0, err);
-    blkdesc.mb_id = blkid;
+    blkdesc.mbid = blkid;
 
     err = mpm_mblock_write(blkid, fake_kblock_buf, 0, FAKE_KBLOCK_SIZE);
     ASSERT_EQ(0, err);
 
-    err = mpool_mcache_mmap(mp_ds, 1, &blkdesc.mb_id, &blkdesc.map);
+    err = mpool_mcache_mmap(mp_ds, 1, &blkdesc.mbid, &blkdesc.map);
     ASSERT_EQ(0, err);
 
     init_kb_hdr(&kb);
@@ -348,12 +307,12 @@ MTF_DEFINE_UTEST_PRE(kblock_reader_test, t_kbr_madvise_wbt_int_nodes, pre)
 
     err = mpm_mblock_alloc(FAKE_KBLOCK_SIZE, &blkid);
     ASSERT_EQ(0, err);
-    blkdesc.mb_id = blkid;
+    blkdesc.mbid = blkid;
 
     err = mpm_mblock_write(blkid, fake_kblock_buf, 0, FAKE_KBLOCK_SIZE);
     ASSERT_EQ(0, err);
 
-    err = mpool_mcache_mmap(mp_ds, 1, &blkdesc.mb_id, &blkdesc.map);
+    err = mpool_mcache_mmap(mp_ds, 1, &blkdesc.mbid, &blkdesc.map);
     ASSERT_EQ(0, err);
 
     init_kb_hdr(&kb);
@@ -377,44 +336,6 @@ MTF_DEFINE_UTEST_PRE(kblock_reader_test, t_kbr_madvise_wbt_int_nodes, pre)
     mpool_mcache_munmap(blkdesc.map);
 }
 
-MTF_DEFINE_UTEST_PRE(kblock_reader_test, t_kbr_cache_pt_leaf_nodes, pre)
-{
-    merr_t               err;
-    struct mpool *       mp_ds = (void *)-1;
-    struct kb_hdr        kb = {};
-    struct kvs_mblk_desc blkdesc = {};
-    struct wbt_desc      wb_desc = {};
-    u64                  blkid = 0;
-
-    err = mpm_mblock_alloc(FAKE_KBLOCK_SIZE, &blkid);
-    ASSERT_EQ(0, err);
-    blkdesc.mb_id = blkid;
-
-    err = mpm_mblock_write(blkid, fake_kblock_buf, 0, FAKE_KBLOCK_SIZE);
-    ASSERT_EQ(0, err);
-
-    err = mpool_mcache_mmap(mp_ds, 1, &blkdesc.mb_id, &blkdesc.map);
-    ASSERT_EQ(0, err);
-
-    init_kb_hdr(&kb);
-    err = write_kb_hdr(&kb, &blkdesc);
-    ASSERT_EQ(err, 0);
-
-    mapi_inject(mapi_idx_mpool_mcache_getpages, EBUG);
-    err = kbr_read_pt_region_desc(&blkdesc, &wb_desc);
-    ASSERT_EQ(EBUG, merr_errno(err));
-    mapi_inject_unset(mapi_idx_mpool_mcache_getpages);
-
-    u64 seqno_min, seqno_max;
-
-    mapi_inject(mapi_idx_mpool_mcache_getpages, EBUG);
-    err = kbr_read_seqno_range(&blkdesc, &seqno_min, &seqno_max);
-    ASSERT_EQ(EBUG, merr_errno(err));
-    mapi_inject_unset(mapi_idx_mpool_mcache_getpages);
-
-    mpool_mcache_munmap(blkdesc.map);
-}
-
 MTF_DEFINE_UTEST_PRE(kblock_reader_test, t_corrupt_header, pre)
 {
     merr_t               err;
@@ -427,54 +348,54 @@ MTF_DEFINE_UTEST_PRE(kblock_reader_test, t_corrupt_header, pre)
 
     err = mpm_mblock_alloc(FAKE_KBLOCK_SIZE, &blkid);
     ASSERT_EQ(err, 0);
-    blkdesc.mb_id = blkid;
+    blkdesc.mbid = blkid;
 
     err = mpm_mblock_write(blkid, fake_kblock_buf, 0, FAKE_KBLOCK_SIZE);
     ASSERT_EQ(0, err);
 
-    err = mpool_mcache_mmap(mp_ds, 1, &blkdesc.mb_id, &blkdesc.map);
+    err = mpool_mcache_mmap(mp_ds, 1, &blkdesc.mbid, &blkdesc.map);
     ASSERT_EQ(err, 0);
 
     /* verify we can read w/o corruption */
     init_kb_hdr(&kb);
-    err = check_read_hdrs(&kb, &blkdesc, 0, 0, 0, 0);
+    err = check_read_hdrs(&kb, &blkdesc, 0, 0);
     ASSERT_EQ(err, 0);
 
     /* corrupt kblock hdr magic */
     init_kb_hdr(&kb);
     omf_set_kbh_magic(kb.kb_hdr, omf_kbh_magic(kb.kb_hdr) + 1);
-    err = check_read_hdrs(&kb, &blkdesc, EINVAL, EINVAL, EINVAL, EINVAL);
+    err = check_read_hdrs(&kb, &blkdesc, EINVAL, EINVAL);
     ASSERT_EQ(err, 0);
 
     /* corrupt kblock hdr version */
     init_kb_hdr(&kb);
     omf_set_kbh_version(kb.kb_hdr, omf_kbh_version(kb.kb_hdr) + 1);
-    err = check_read_hdrs(&kb, &blkdesc, EINVAL, EINVAL, EINVAL, EINVAL);
+    err = check_read_hdrs(&kb, &blkdesc, EINVAL, EINVAL);
     ASSERT_EQ(err, 0);
 
     /* corrupt wbt hdr magic */
     init_kb_hdr(&kb);
     omf_set_wbt_magic(kb.wbt_hdr, omf_wbt_magic(kb.wbt_hdr) + 1);
-    err = check_read_hdrs(&kb, &blkdesc, EINVAL, 0, 0, 0);
+    err = check_read_hdrs(&kb, &blkdesc, EINVAL, 0);
     ASSERT_EQ(err, 0);
 
     /* corrupt wbt hdr version */
     init_kb_hdr(&kb);
     omf_set_wbt_version(kb.wbt_hdr, omf_wbt_version(kb.wbt_hdr) + 1);
-    err = check_read_hdrs(&kb, &blkdesc, EINVAL, 0, 0, 0);
+    err = check_read_hdrs(&kb, &blkdesc, EINVAL, 0);
     ASSERT_EQ(err, 0);
 
     /* corrupt blm hdr magic */
     init_kb_hdr(&kb);
     omf_set_bh_magic(kb.blm_hdr, omf_bh_magic(kb.blm_hdr) + 1);
-    err = check_read_hdrs(&kb, &blkdesc, 0, EINVAL, 0, 0);
+    err = check_read_hdrs(&kb, &blkdesc, 0, EINVAL);
     ASSERT_EQ(err, 0);
 
     /* corrupt blm hdr version */
     /* check should succeed, but with blooms disabled */
     init_kb_hdr(&kb);
     omf_set_bh_version(kb.blm_hdr, omf_bh_version(kb.blm_hdr) + 1);
-    err = check_read_hdrs(&kb, &blkdesc, 0, 0, 0, 0);
+    err = check_read_hdrs(&kb, &blkdesc, 0, 0);
     ASSERT_EQ(err, 0);
 
     mpool_mcache_munmap(blkdesc.map);
@@ -494,7 +415,7 @@ MTF_DEFINE_UTEST_PRE(kblock_reader_test, basic_kblock_error_test, pre)
 
     err = mpm_mblock_alloc(FAKE_KBLOCK_SIZE, &blkid);
     ASSERT_EQ(0, err);
-    blkdesc.mb_id = blkid;
+    blkdesc.mbid = blkid;
 
     err = mpm_mblock_write(blkid, fake_kblock_buf, 0, FAKE_KBLOCK_SIZE);
     ASSERT_EQ(0, err);
@@ -503,7 +424,7 @@ MTF_DEFINE_UTEST_PRE(kblock_reader_test, basic_kblock_error_test, pre)
     err = write_kb_hdr(&kb, &blkdesc);
     ASSERT_EQ(err, 0);
 
-    err = mpool_mcache_mmap(mp_ds, 1, &blkdesc.mb_id, &blkdesc.map);
+    err = mpool_mcache_mmap(mp_ds, 1, &blkdesc.mbid, &blkdesc.map);
     ASSERT_EQ(0, err);
 
     force_err = __LINE__;

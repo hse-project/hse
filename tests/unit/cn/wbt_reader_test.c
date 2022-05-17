@@ -1,6 +1,6 @@
 /* SPDX-License-Identifier: Apache-2.0 */
 /*
- * Copyright (C) 2015-2021 Micron Technology, Inc.  All rights reserved.
+ * Copyright (C) 2015-2022 Micron Technology, Inc.  All rights reserved.
  */
 
 #include <mtf/framework.h>
@@ -78,10 +78,10 @@ t_wbtr_read_vref_helper(struct mtf_test_info *lcl_ti, const char *kblock_image_f
 
     err = mpm_mblock_alloc_file(&blkid, filename);
     ASSERT_EQ(err, 0);
-    blkdesc.mb_id = blkid;
+    blkdesc.mbid = blkid;
     blkdesc.map_idx = 0;
 
-    err = mpool_mcache_mmap(mp_ds, 1, &blkdesc.mb_id, &blkdesc.map);
+    err = mpool_mcache_mmap(mp_ds, 1, &blkdesc.mbid, &blkdesc.map);
     ASSERT_EQ(err, 0);
 
     blkdesc.map_base = mpool_mcache_getbase(blkdesc.map, blkdesc.map_idx);
@@ -92,7 +92,7 @@ t_wbtr_read_vref_helper(struct mtf_test_info *lcl_ti, const char *kblock_image_f
     desc.wbd_first_page = omf_kbh_wbt_doff_pg(blkdesc.map_base);
     desc.wbd_n_pages = omf_kbh_wbt_dlen_pg(blkdesc.map_base);
 
-    err = kbr_read_wbt_region_desc_mem(wbt_hdr, &desc);
+    err = wbtr_read_desc(wbt_hdr, &desc);
     ASSERT_EQ(err, 0);
 
     nkeys = 500;
@@ -105,7 +105,7 @@ t_wbtr_read_vref_helper(struct mtf_test_info *lcl_ti, const char *kblock_image_f
         ktuple.kt_len = strlen(keybuf);
         ktuple.kt_data = keybuf;
 
-        wbtr_read_vref(&blkdesc, &desc, &ktuple, 0, seqno, &lookup_res, &vref);
+        wbtr_read_vref(blkdesc.map_base, &desc, &ktuple, 0, seqno, &lookup_res, &vref);
         if (i < nkeys)
             ASSERT_EQ(FOUND_VAL, lookup_res);
         else
@@ -121,7 +121,7 @@ t_wbtr_read_vref_helper(struct mtf_test_info *lcl_ti, const char *kblock_image_f
     ktuple.kt_hash = 0;
     ktuple.kt_len = -1 * strlen(keybuf);
     ktuple.kt_data = keybuf;
-    err = wbti_create(&wbti, &blkdesc, &desc, &ktuple, false, false);
+    err = wbti_create(&wbti, blkdesc.map_base, &desc, &ktuple, false, false);
     ASSERT_EQ(0, err);
 
     int cnt = 0;

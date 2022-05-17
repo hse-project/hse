@@ -8,11 +8,15 @@ foreach opt : ['buildtype', 'debug', 'optimization', 'b_lto', 'b_ndebug', 'b_pgo
     build_opts += '-D@0@=@1@'.format(opt, get_option(opt))
 endforeach
 
+if not cc.has_function_attribute('packed')
+    error('Compiler must support the "packed" attribute')
+endif
+
 build_config_h_data = configuration_data({
     'build_config': '"@0@"'.format(' '.join(build_opts)),
     'SUPPORTS_ATTR_ALWAYS_INLINE': cc.has_function_attribute('always_inline'),
     'SUPPORTS_ATTR_FORMAT': cc.has_function_attribute('format'),
-    'SUPPORTS_ATTR_PACKED': cc.has_function_attribute('packed'),
+    'SUPPORTS_ATTR_PACKED': true,
     'SUPPORTS_ATTR_ALIGNED': cc.has_function_attribute('aligned'),
     'SUPPORTS_ATTR_SECTION': cc.compiles(
         '''

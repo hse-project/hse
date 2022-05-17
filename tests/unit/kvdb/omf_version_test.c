@@ -9,7 +9,7 @@
 
 MTF_BEGIN_UTEST_COLLECTION(omf_version_test)
 
-MTF_DEFINE_UTEST(omf_version_test, global_version)
+MTF_DEFINE_UTEST(omf_version_test, omf_version)
 {
     /* This test fails if any OMF versions change.  The intent is to
      * catch errors when a low-level OMF version changes but the
@@ -20,11 +20,12 @@ MTF_DEFINE_UTEST(omf_version_test, global_version)
      */
 
      /* Global OMF version */
-    ASSERT_EQ(GLOBAL_OMF_VERSION, 3);
+    ASSERT_EQ(GLOBAL_OMF_VERSION, 4);
 
     /* Low-level OMF versions */
-    ASSERT_EQ(CNDB_VERSION, 13);
-    ASSERT_EQ(KBLOCK_HDR_VERSION, 5);
+    ASSERT_EQ(CNDB_VERSION, 14);
+    ASSERT_EQ(HBLOCK_HDR_VERSION, 1);
+    ASSERT_EQ(KBLOCK_HDR_VERSION, 6);
     ASSERT_EQ(VBLOCK_HDR_VERSION, 2);
     ASSERT_EQ(BLOOM_OMF_VERSION, 5);
     ASSERT_EQ(WBT_TREE_VERSION, 6);

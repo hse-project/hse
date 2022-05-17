@@ -14,6 +14,7 @@ mocked_headers = [
     meson.project_source_root() / 'lib/cn/cn_tree_stats.h',
     meson.project_source_root() / 'lib/cn/csched_sp3.h',
     meson.project_source_root() / 'lib/cn/csched_sp3_work.h',
+    meson.project_source_root() / 'lib/cn/hblock_builder.h',
     meson.project_source_root() / 'lib/cn/kblock_builder.h',
     meson.project_source_root() / 'lib/cn/kcompact.h',
     meson.project_source_root() / 'lib/cn/kvset.h',

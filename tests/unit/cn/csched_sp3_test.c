@@ -283,6 +283,7 @@ sp3_work_mock(
     le = w->cw_mark;
     for (i = 0; i < w->cw_kvset_cnt; i++) {
         w->cw_dgen_hi = kvset_get_dgen(le->le_kvset);
+        w->cw_nh++; /* Only ever one hblock per kvset */
         w->cw_nk += kvset_get_num_kblocks(le->le_kvset);
         w->cw_nv += kvset_get_num_vblocks(le->le_kvset);
         le = list_prev_entry(le, le_link);

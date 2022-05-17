@@ -1,6 +1,6 @@
 /* SPDX-License-Identifier: Apache-2.0 */
 /*
- * Copyright (C) 2015-2021 Micron Technology, Inc.  All rights reserved.
+ * Copyright (C) 2015-2022 Micron Technology, Inc.  All rights reserved.
  */
 
 #include <hse/hse.h>
@@ -505,6 +505,7 @@ struct ctx {
 
     /* per node */
     struct cn_node_loc node_loc; /* cached loc */
+    u32                node_hblks;
     u32                node_kblks;
     u32                node_vblks;
     u64                node_dgen;
@@ -518,6 +519,7 @@ struct ctx {
     /* per tree */
     u32 tot_kvsets;
     u32 tot_nodes;
+    u32 tot_hblks;
     u32 tot_kblks;
     u32 tot_vblks;
     u32 max_depth;
@@ -556,9 +558,12 @@ print_unit(
     u32                  vgroups,
     u64                  nkeys,
     u64                  ntombs,
+    u64                  nptombs,
+    u64                  hlen,
     u64                  klen,
     u64                  vlen,
     int                  nkvsets,
+    int                  nhblks,
     int                  nkblks,
     int                  nvblks,
     int                  fd,
@@ -567,16 +572,19 @@ print_unit(
     yaml2fd(fd, yaml_field_fmt, yc, "dgen", "%lu", dgen);
     yaml2fd(fd, yaml_field_fmt, yc, "nkeys", "%lu", nkeys);
     yaml2fd(fd, yaml_field_fmt, yc, "ntombs", "%lu", ntombs);
+    yaml2fd(fd, yaml_field_fmt, yc, "nptombs", "%lu", nptombs);
     if (type == 'k') {
         yaml2fd(fd, yaml_field_fmt, yc, "compc", "%u", compc);
         yaml2fd(fd, yaml_field_fmt, yc, "vgroups", "%u", vgroups);
     }
+    yaml2fd(fd, yaml_field_fmt, yc, "hlen", "%lu", hlen);
     yaml2fd(fd, yaml_field_fmt, yc, "klen", "%lu", klen);
     yaml2fd(fd, yaml_field_fmt, yc, "vlen", "%lu", vlen);
 
     if (nkvsets >= 0) /* do not print these fields for kvsets */
         yaml2fd(fd, yaml_field_fmt, yc, "nkvsets", "%d", nkvsets);
 
+    yaml2fd(fd, yaml_field_fmt, yc, "nhblks", "%d", nhblks);
     yaml2fd(fd, yaml_field_fmt, yc, "nkblks", "%d", nkblks);
     yaml2fd(fd, yaml_field_fmt, yc, "nvblks", "%d", nvblks);
 }
@@ -618,15 +626,20 @@ print_elem(
                 m->vgroups,
                 m->num_keys,
                 m->num_tombstones,
+                m->nptombs,
+                m->header_bytes,
                 m->tot_key_bytes,
                 m->tot_val_bytes,
                 -1,
+                1, /* always one hblock */
                 ctx->num_kblks,
                 ctx->num_vblks,
                 ctx->fd,
                 yc);
 
             if (ctx->list) {
+                yaml2fd(ctx->fd, yaml_field_fmt, yc, "hblk", "0x%lx", kvset_get_hblock_id(kvset));
+
                 yaml2fd(ctx->fd, yaml_start_element_type, yc, "kblks");
                 print_ids(kvset, TYPE_KBLK, ctx->fd, yc);
                 yaml2fd(ctx->fd, yaml_end_element_type, yc);
@@ -653,9 +666,12 @@ print_elem(
                 0,
                 m->num_keys,
                 m->num_tombstones,
+                m->nptombs,
+                m->header_bytes,
                 m->tot_key_bytes,
                 m->tot_val_bytes,
                 ctx->kvset_idx,
+                ctx->node_hblks,
                 ctx->node_kblks,
                 ctx->node_vblks,
                 ctx->fd,
@@ -686,6 +702,7 @@ print_tree(struct ctx *ctx, struct cn_node_loc *loc, struct kvset *kvset)
             print_elem("node", ctx, &ctx->node, &ctx->node_loc, 0);
         memset(&ctx->node, 0, sizeof(ctx->node));
         ctx->node_loc = *loc;
+        ctx->node_hblks = 0;
         ctx->node_kblks = 0;
         ctx->node_vblks = 0;
         ctx->node_dgen = 0;
@@ -696,6 +713,8 @@ print_tree(struct ctx *ctx, struct cn_node_loc *loc, struct kvset *kvset)
     kvset_get_metrics(kvset, &km);
 
     ++ctx->tot_kvsets;
+    ctx->tot_hblks++;
+    ctx->node_hblks++;
     ctx->num_kblks = kvset_get_num_kblocks(kvset);
     ctx->tot_kblks += ctx->num_kblks;
     ctx->node_kblks += ctx->num_kblks;
@@ -714,15 +733,19 @@ print_tree(struct ctx *ctx, struct cn_node_loc *loc, struct kvset *kvset)
 
     ctx->node.num_keys += km.num_keys;
     ctx->node.num_tombstones += km.num_tombstones;
+    ctx->node.nptombs += km.nptombs;
     ctx->node.num_kblocks += km.num_kblocks;
     ctx->node.num_vblocks += km.num_vblocks;
+    ctx->node.header_bytes += km.header_bytes;
     ctx->node.tot_key_bytes += km.tot_key_bytes;
     ctx->node.tot_val_bytes += km.tot_val_bytes;
 
     ctx->total.num_keys += km.num_keys;
     ctx->total.num_tombstones += km.num_tombstones;
+    ctx->total.nptombs += km.nptombs;
     ctx->total.num_kblocks += km.num_kblocks;
     ctx->total.num_vblocks += km.num_vblocks;
+    ctx->total.header_bytes += km.header_bytes;
     ctx->total.tot_key_bytes += km.tot_key_bytes;
     ctx->total.tot_val_bytes += km.tot_val_bytes;
 
@@ -785,9 +808,12 @@ kvs_rest_query_tree(struct kvdb_kvs *kvs, struct yaml_context *yc, int fd, bool 
         0,
         m->num_keys,
         m->num_tombstones,
+        m->nptombs,
+        m->header_bytes,
         m->tot_key_bytes,
         m->tot_val_bytes,
         ctx.tot_kvsets,
+        ctx.tot_hblks,
         ctx.tot_kblks,
         ctx.tot_vblks,
         ctx.fd,

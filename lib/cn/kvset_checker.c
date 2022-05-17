@@ -1,6 +1,6 @@
 /* SPDX-License-Identifier: Apache-2.0 */
 /*
- * Copyright (C) 2015-2020 Micron Technology, Inc.  All rights reserved.
+ * Copyright (C) 2015-2022 Micron Technology, Inc.  All rights reserved.
  */
 
 #include <hse_util/platform.h>
@@ -40,17 +40,17 @@
 #define pgoff(x) ((x)*PAGE_SIZE)
 
 struct wbt_ops {
-    struct wbt_lfe_omf *(*wops_lfe)(void *node, int nth);
+    const struct wbt_lfe_omf *(*wops_lfe)(const struct wbt_node_hdr_omf *node, int nth);
 
-    void (*wops_node_pfx)(void *node, const void **pfx, uint *pfx_len);
+    void (*wops_node_pfx)(const struct wbt_node_hdr_omf *node, const void **pfx, uint *pfx_len);
 
-    void (*wops_lfe_key)(void *node, struct wbt_lfe_omf *lfe, const void **kdata, uint *klen);
+    void (*wops_lfe_key)(const struct wbt_node_hdr_omf *node, const struct wbt_lfe_omf *lfe, const void **kdata, uint *klen);
 
-    uint (*wops_lfe_kmd)(void *node, struct wbt_lfe_omf *lfe);
+    uint (*wops_lfe_kmd)(const struct wbt_node_hdr_omf *node, const struct wbt_lfe_omf *lfe);
 
-    struct wbt_ine_omf *(*wops_ine)(void *node, int nth);
+    const struct wbt_ine_omf *(*wops_ine)(const struct wbt_node_hdr_omf *node, int nth);
 
-    void (*wops_ine_key)(void *node, struct wbt_ine_omf *ine, const void **kdata, uint *klen);
+    void (*wops_ine_key)(const struct wbt_node_hdr_omf *node, const struct wbt_ine_omf *ine, const void **kdata, uint *klen);
 };
 
 struct kb_info {
@@ -226,7 +226,7 @@ rightmost_key(struct kb_info *kb, int idx, struct key_obj *kobj, struct nodemap 
     num_keys = omf_wbn_num_keys(node);
 
     if (omf_wbn_magic(node) == WBT_LFE_NODE_MAGIC) {
-        struct wbt_lfe_omf *lfe;
+        const struct wbt_lfe_omf *lfe;
 
         lfe = kb->wbt_ops.wops_lfe(node, 0);
         lfe += (num_keys - 1);
@@ -238,8 +238,8 @@ rightmost_key(struct kb_info *kb, int idx, struct key_obj *kobj, struct nodemap 
     }
 
     if (omf_wbn_magic(node) == WBT_INE_NODE_MAGIC) {
-        struct wbt_ine_omf *ine;
-        u32                 left;
+        const struct wbt_ine_omf *ine;
+        u32 left;
 
         ine = kb->wbt_ops.wops_ine(node, 0);
 
@@ -343,8 +343,8 @@ wbn_leaf_check(
     struct node_info * prev,
     struct kb_metrics *kb_metrics)
 {
-    int                 i, j;
-    struct wbt_lfe_omf *lfe;
+    int i, j;
+    const struct wbt_lfe_omf *lfe;
 
     const void *key = 0;
     const void *pfx = 0;
@@ -467,7 +467,7 @@ wbn_leaf_check(
 static int
 wbn_int_check(struct kb_info *kb, void *hdr, struct nodemap *map, int idx)
 {
-    struct wbt_ine_omf *ine;
+    const struct wbt_ine_omf *ine;
     int                 i;
     bool                err = false;
     u32                 edge_cnt; /* number of edge keys in this node */
@@ -656,7 +656,7 @@ verify_minmax(struct kb_info *kb)
 
     u16 leaf_cnt = omf_wbt_leaf_cnt(wbt_hdr);
 
-    struct wbt_lfe_omf *lfe;
+    const struct wbt_lfe_omf *lfe;
 
     /* smallest key */
     lfe = kb->wbt_ops.wops_lfe(node_hdr, 0);

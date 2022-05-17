@@ -1,6 +1,6 @@
 /* SPDX-License-Identifier: Apache-2.0 */
 /*
- * Copyright (C) 2015-2021 Micron Technology, Inc.  All rights reserved.
+ * Copyright (C) 2015-2022 Micron Technology, Inc.  All rights reserved.
  */
 
 #define MTF_MOCK_IMPL_cndb
@@ -398,6 +398,7 @@ mtx2omf(struct cndb *cndb, void *omf, union cndb_mtu *mtu)
             omf_set_txc_id(omf, mtc->mtc_id);
             omf_set_txc_tag(omf, mtc->mtc_tag);
             omf_set_txc_keepvbc(omf, mtc->mtc_keepvbc);
+            omf_set_txc_hoid(omf, mtc->mtc_hoid);
             omf_set_txc_kcnt(omf, mtc->mtc_kcnt);
             omf_set_txc_vcnt(omf, mtc->mtc_vcnt);
 
@@ -446,6 +447,7 @@ mtx2omf(struct cndb *cndb, void *omf, union cndb_mtu *mtu)
             omf_set_txd_cnid(omf, mtd->mtd_cnid);
             omf_set_txd_id(omf, mtd->mtd_id);
             omf_set_txd_tag(omf, mtd->mtd_tag);
+            omf_set_txd_hoid(omf, mtd->mtd_hoid);
             omf_set_txd_n_oids(omf, mtd->mtd_n_oids);
 
             mto = (void *)&mtd[1];
@@ -1109,10 +1111,10 @@ merr_t
 cndb_blkdel(struct cndb *cndb, union cndb_mtu *mtu, u64 txid)
 {
     struct blk_list blks;
-    u32             bx;
-    merr_t          err = 0;
-    u64 *           p;
-    u32             c;
+    uint32_t c, bx;
+    merr_t err = 0;
+    uint64_t *p;
+    uint64_t hoid;
 
     struct cndb_txd *txd = (void *)mtu;
     struct cndb_txc *txc = (void *)mtu;
@@ -1127,13 +1129,24 @@ cndb_blkdel(struct cndb *cndb, union cndb_mtu *mtu, u64 txid)
     blk_list_init(&blks);
 
     if (mtu->h.mth_type == CNDB_TYPE_TXD) {
+        hoid = txd->mtd_hoid;
         p = (void *)&txd[1];
         c = txd->mtd_n_oids;
     } else {
+        hoid = txc->mtc_hoid;
         p = (void *)&txc[1];
         c = txc->mtc_kcnt;
     }
 
+    /* Add hblock to block list */
+    CNDB_LOGTX_INFO(0, cndb, txid, " un-acked mblock %lx", (ulong)*p);
+    err = blk_list_append(&blks, hoid);
+    if (ev(err)) {
+        CNDB_LOGTX_ERR(err, cndb, txid, " mblock %lx blklist append failed", hoid);
+        goto done;
+    }
+
+    /* Add kblocks and vblocks to block list */
     for (pass = KBLK; pass <= VBLK; pass++) {
         err = cndb_blklist_add(cndb, txid, &blks, c, p);
         if (ev(err))
@@ -1416,6 +1429,7 @@ md_reap(struct cndb *cndb, int from, int to, struct txstate *needed, struct txst
          * and we have an ack-C, kvdb didn't follow the protocol and we
          * cannot recover.
          */
+        assert(!(seen->c != needed->c || seen->m != needed->m || seen->nak || seen->d != needed->d));
         if (seen->c != needed->c || seen->m != needed->m || seen->nak || seen->d != needed->d) {
             err = merr(EPROTO);
             CNDB_LOGTX_ERR(err, cndb, txid, " unrecoverable");
@@ -1506,7 +1520,7 @@ md_keep(struct cndb *cndb, int from, int to)
                 cndb_get_ingestid(cndb, txp);
                 break;
             case CNDB_TYPE_TXC:
-                if (mtu->c.mtc_kcnt == 0 && mtu->c.mtc_vcnt == 0) {
+                if (mtu->c.mtc_hoid == 0 && mtu->c.mtc_kcnt == 0 && mtu->c.mtc_vcnt == 0) {
                     /* mark empty kvset for removal */
                     txp->mtx_nc--;
                     mtu->c.mtc_id = 0;
@@ -1670,7 +1684,7 @@ md_partial_keep(struct cndb *cndb, int from, int to, struct txstate *needed, str
                 txp = workv[i];
                 break;
             case CNDB_TYPE_TXC:
-                if (mtu->c.mtc_kcnt == 0 && mtu->c.mtc_vcnt == 0)
+                if (mtu->c.mtc_hoid == 0 && mtu->c.mtc_kcnt == 0 && mtu->c.mtc_vcnt == 0)
                     break;
 
                 tc[nc++] = mtu->c.mtc_tag;
@@ -1899,7 +1913,7 @@ cndb_compact(struct cndb *cndb)
         switch (mtu->h.mth_type) {
             case CNDB_TYPE_TXC:
                 seen.c++;
-                if (mtu->c.mtc_kcnt == 0 && mtu->c.mtc_vcnt == 0)
+                if (mtu->c.mtc_hoid == 0 && mtu->c.mtc_kcnt == 0 && mtu->c.mtc_vcnt == 0)
                     needed.m--;
                 continue;
             case CNDB_TYPE_TXD:
@@ -2414,6 +2428,8 @@ cndb_cn_instantiate(struct cndb *cndb, u64 cnid, void *ctx, cn_init_callback *cb
         km.km_vused = txm->mtm_vused;
         km.km_node_level = txm->mtm_level;
         km.km_node_offset = txm->mtm_offset;
+
+        km.km_hblk.bk_blkid = txc->mtc_hoid;
 
         nk = txc->mtc_kcnt;
         nv = txc->mtc_vcnt;
@@ -3127,6 +3143,7 @@ cndb_txn_txc(
 
     omf_set_txc_keepvbc(txc, keepvbc);
     if (mblocks) {
+        omf_set_txc_hoid(txc, mblocks->hblk.bk_blkid);
         omf_set_txc_kcnt(txc, mblocks->kblks.n_blks);
         omf_set_txc_vcnt(txc, mblocks->vblks.n_blks);
 

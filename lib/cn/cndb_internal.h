@@ -248,6 +248,7 @@ struct cndb_tx {
  * @mtc_tag:
  * @mtc_keepvbc: number of vblocks to keep (NOT to delete in case the CN
  *      mutation is rolled back).
+ * @mtc_hoid: hblock OID
  * @mtc_kcnt:
  * @mtc_vcnt:
  * an array of mtc_kcnt mblock OIDs appears here
@@ -255,12 +256,13 @@ struct cndb_tx {
  */
 struct cndb_txc {
     struct cndb_hdr hdr;
-    u64             mtc_cnid;
-    u64             mtc_id;
-    u64             mtc_tag;
-    u32             mtc_keepvbc;
-    u32             mtc_kcnt;
-    u32             mtc_vcnt;
+    uint64_t        mtc_cnid;
+    uint64_t        mtc_id;
+    uint64_t        mtc_tag;
+    uint64_t        mtc_hoid;
+    uint32_t        mtc_keepvbc;
+    uint32_t        mtc_kcnt;
+    uint32_t        mtc_vcnt;
 };
 
 struct cndb_txm {
@@ -278,10 +280,11 @@ struct cndb_txm {
 
 struct cndb_txd {
     struct cndb_hdr hdr;
-    u64             mtd_cnid;
-    u64             mtd_id;
-    u64             mtd_tag;
-    u32             mtd_n_oids;
+    uint64_t        mtd_cnid;
+    uint64_t        mtd_id;
+    uint64_t        mtd_tag;
+    uint64_t        mtd_hoid;
+    uint32_t        mtd_n_oids;
     /* an array of mtd_n_oids mblock OIDs appears here */
 };
 

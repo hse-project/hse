@@ -259,7 +259,6 @@ get_values:
          * value from the first kvset is emitted.
          */
         if (should_emit) {
-
             switch (vtype) {
                 case vtype_val:
                 case vtype_cval:
@@ -386,24 +385,24 @@ cn_kcompact(struct cn_compaction_work *w)
     if (ev(err))
         goto done;
 
+    /* During k-compaction, vblocks will not be generated. Instead, they will be
+     * inherited from the input kvsets.
+     */
+    if (w->cw_vbmap.vbm_blkc > 0) {
+        kvset_builder_adopt_vblocks(w->cw_child[0], w->cw_input_vgroups, w->cw_vbmap.vbm_blkc,
+            w->cw_vbmap.vbm_blkv);
+
+        w->cw_vbmap.vbm_blkv = NULL;
+        w->cw_vbmap.vbm_blkc = 0;
+    }
+
     /* get resulting mblocks */
     err = kvset_builder_get_mblocks(w->cw_child[0], w->cw_outv);
     if (ev(err))
         goto done;
 
-    /* kvset builder should not have created vblocks during kcompaction */
-    assert(w->cw_outv->vblks.blks == 0);
-    assert(w->cw_outv->vblks.n_blks == 0);
-
-    /* kcompact --> reuse existing vblocks */
-    if (w->cw_vbmap.vbm_blkv) {
-        w->cw_outv->vblks.blks = w->cw_vbmap.vbm_blkv;
-        w->cw_outv->vblks.n_blks = w->cw_vbmap.vbm_blkc;
-        w->cw_vbmap.vbm_blkv = 0;
-        w->cw_vbmap.vbm_blkc = 0;
-    }
-
 done:
     kvset_builder_destroy(w->cw_child[0]);
+
     return err;
 }

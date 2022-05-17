@@ -53,6 +53,7 @@ abort_mblock(struct mpool *dataset, struct kvs_block *blk)
     } else {
         blk->bk_blkid = 0;
     }
+
     return err;
 }
 

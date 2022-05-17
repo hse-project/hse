@@ -58,8 +58,12 @@ const struct kvset_stats fake_kvset_stats = {
     .kst_keys = 10000,
     .kst_kvsets = 1,
 
+    .kst_hblks = 1,
     .kst_kblks = 1,
     .kst_vblks = 1,
+
+    .kst_halen = 32 * 1024 * 1024,
+    .kst_hwlen = 30 * 1024 * 1024,
 
     .kst_kalen = 32 * 1024 * 1024,
     .kst_kwlen = 30 * 1024 * 1024,
@@ -266,8 +270,8 @@ struct mapi_injection inject_list[] = {
     { mapi_idx_kvset_get_ref, MAPI_RC_SCALAR, 0 },
     { mapi_idx_kvset_log_d_records, MAPI_RC_SCALAR, 0 },
     { mapi_idx_kvset_mark_mblocks_for_delete, MAPI_RC_SCALAR, 0 },
+    { mapi_idx_kvset_madvise_hblk, MAPI_RC_SCALAR, 0},
     { mapi_idx_kvset_madvise_kblks, MAPI_RC_SCALAR, 0 },
-    { mapi_idx_kvset_madvise_kmaps, MAPI_RC_SCALAR, 0 },
     { mapi_idx_kvset_madvise_vblks, MAPI_RC_SCALAR, 0 },
     { mapi_idx_kvset_madvise_vmaps, MAPI_RC_SCALAR, 0 },
     { mapi_idx_kvset_get_scatter_score, MAPI_RC_SCALAR, 0 },
@@ -322,8 +326,9 @@ struct mapi_injection inject_list[] = {
     { mapi_idx_ikvdb_get_csched, MAPI_RC_SCALAR, 0 },
 
     /* kvset mblock ids */
-    { mapi_idx_kvset_get_nth_kblock_id, MAPI_RC_SCALAR, 0xabc001 },
-    { mapi_idx_kvset_get_nth_vblock_id, MAPI_RC_SCALAR, 0xabc002 },
+    { mapi_idx_kvset_get_hblock_id, MAPI_RC_SCALAR, 0xabc001 },
+    { mapi_idx_kvset_get_nth_kblock_id, MAPI_RC_SCALAR, 0xabc002 },
+    { mapi_idx_kvset_get_nth_vblock_id, MAPI_RC_SCALAR, 0xabc003 },
     { mapi_idx_kvset_get_nth_vblock_len, MAPI_RC_SCALAR, 128 * 1024 },
 
     /* we need kvset_iter_create, but we should never
@@ -756,6 +761,7 @@ cn_comp_work_init(
         w->cw_dgen_hi = kvset_get_dgen(le->le_kvset);
 
         stats = kvset_statsp(le->le_kvset);
+        w->cw_nh += stats->kst_hblks;
         w->cw_nk += stats->kst_kblks;
         w->cw_nv += stats->kst_vblks;
 

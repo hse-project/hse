@@ -1,7 +1,9 @@
 /* SPDX-License-Identifier: Apache-2.0 */
 /*
- * Copyright (C) 2015-2021 Micron Technology, Inc.  All rights reserved.
+ * Copyright (C) 2015-2022 Micron Technology, Inc.  All rights reserved.
  */
+
+#include <stdlib.h>
 
 #include <hse_util/platform.h>
 #include <hse_util/alloc.h>
@@ -11,6 +13,7 @@
 #include <hse_util/atomic.h>
 #include <hse_util/event_counter.h>
 #include <hse_util/keycmp.h>
+#include <hse_util/compiler.h>
 
 #include <hse/limits.h>
 
@@ -91,7 +94,7 @@ wbti_get_page(struct wbti *self, u32 node_idx)
     assert(node_idx != self->node_idx || self->node == NULL);
 
     mblock_offset = PAGE_SIZE * (node_idx + self->wbd->wbd_first_page);
-    self->node = (struct wbt_node_hdr_omf *)(self->kbd->map_base + mblock_offset);
+    self->node = self->base + mblock_offset;
 
     assert(omf_wbn_magic(self->node) == WBT_LFE_NODE_MAGIC);
 
@@ -101,33 +104,32 @@ wbti_get_page(struct wbti *self, u32 node_idx)
 
 static int
 wbtr_seek_page(
-    const struct kvs_mblk_desc *kbd,
-    const struct wbt_desc *     wbd,
-    const void *                kt_data,
-    uint                        kt_len,
-    uint                        lcp)
+    const void *base,
+    const struct wbt_desc *wbd,
+    const void *kt_data,
+    uint kt_len,
+    uint lcp)
 {
-    struct wbt_node_hdr_omf *node;
+    const struct wbt_node_hdr_omf *node;
     int                      j, cmp, node_num;
     uint                     cmplen;
     size_t                   pg;
 
     /* pull struct derefs out of the loop */
-    uint  first_page = wbd->wbd_first_page;
-    void *map_base = kbd->map_base;
+    uint first_page = wbd->wbd_first_page;
 
     /* search from root */
     node_num = wbd->wbd_root;
 
     /* prefetch root node header */
-    __builtin_prefetch(map_base + (first_page + wbd->wbd_root) * PAGE_SIZE);
+    __builtin_prefetch(base + (first_page + wbd->wbd_root) * PAGE_SIZE);
 
     assert(0 <= node_num && node_num < wbd->wbd_n_pages);
     pg = first_page + node_num;
-    node = map_base + pg * PAGE_SIZE;
+    node = base + pg * PAGE_SIZE;
 
     while (omf_wbn_magic(node) == WBT_INE_NODE_MAGIC) {
-        struct wbt_ine_omf *ine;
+        const struct wbt_ine_omf *ine;
 
         int first = 0;
         int last = omf_wbn_num_keys(node) - 1;
@@ -186,7 +188,7 @@ wbtr_seek_page(
 
         assert(0 <= node_num && node_num < wbd->wbd_n_pages);
         pg = first_page + node_num;
-        node = map_base + pg * PAGE_SIZE;
+        node = base + pg * PAGE_SIZE;
         __builtin_prefetch(node);
     }
 
@@ -251,14 +253,13 @@ wbtr_seek_page(
 static bool
 wbti_seek_fwd(struct wbti *self, struct kvs_ktuple *kt)
 {
-    struct wbt_node_hdr_omf *node;
+    const struct wbt_node_hdr_omf *node;
     int                      j, cmp, node_num;
     int                      first, last, lfe_eof;
     size_t                   pg;
     const void *             kdata, *kt_data;
     uint                     klen, kt_len, cmplen;
-    struct wbt_lfe_omf *     lfe;
-    struct kvs_mblk_desc *   kbd = self->kbd;
+    const struct wbt_lfe_omf *lfe;
     struct wbt_desc *        wbd = self->wbd;
 
     bool create = kt->kt_len < 0;
@@ -273,12 +274,12 @@ wbti_seek_fwd(struct wbti *self, struct kvs_ktuple *kt)
     kt_data = kt->kt_data;
     kt_len = abs(kt->kt_len);
 
-    node_num = wbtr_seek_page(kbd, wbd, kt_data, kt_len, 0);
+    node_num = wbtr_seek_page(self->base, wbd, kt_data, kt_len, 0);
     wbti_get_page(self, node_num);
 
     assert(0 <= node_num && node_num < wbd->wbd_n_pages);
     pg = wbd->wbd_first_page + node_num;
-    node = kbd->map_base + pg * PAGE_SIZE;
+    node = self->base + pg * PAGE_SIZE;
 
     /* at leaf */
     assert(omf_wbn_magic(node) == WBT_LFE_NODE_MAGIC);
@@ -443,14 +444,13 @@ skip_search:
 static bool
 wbti_seek_rev(struct wbti *self, struct kvs_ktuple *kt)
 {
-    struct wbt_node_hdr_omf *node;
+    const struct wbt_node_hdr_omf *node;
     int                      cmp, node_num;
     int                      first, last, lfe_eof;
     size_t                   pg;
     const void *             kdata, *kt_data;
     uint                     klen, kt_len, cmplen;
-    struct wbt_lfe_omf *     lfe;
-    struct kvs_mblk_desc *   kbd = self->kbd;
+    const struct wbt_lfe_omf *lfe;
     struct wbt_desc *        wbd = self->wbd;
     bool                     create = kt->kt_len < 0;
     bool                     sfx_search;
@@ -470,7 +470,7 @@ wbti_seek_rev(struct wbti *self, struct kvs_ktuple *kt)
     if (create)
         kt_len = HSE_KVS_KEY_LEN_MAX;
 
-    node_num = wbtr_seek_page(kbd, wbd, kt_data, kt_len, 0);
+    node_num = wbtr_seek_page(self->base, wbd, kt_data, kt_len, 0);
     dbg_nrepeat = 0;
 
 repeat:
@@ -478,7 +478,7 @@ repeat:
 
     assert(0 <= node_num && node_num < wbd->wbd_n_pages);
     pg = wbd->wbd_first_page + node_num;
-    node = kbd->map_base + pg * PAGE_SIZE;
+    node = self->base + pg * PAGE_SIZE;
 
     /* at leaf */
     assert(omf_wbn_magic(node) == WBT_LFE_NODE_MAGIC);
@@ -624,8 +624,8 @@ wbti_node_advance(struct wbti *self)
 static bool
 wbti_next_fwd(struct wbti *self, const void **kdata, uint *klen, const void **kmd)
 {
-    struct wbt_lfe_omf *lfe;
-    size_t              off;
+    const struct wbt_lfe_omf *lfe;
+    size_t off;
 
     u64 seq HSE_MAYBE_UNUSED;
     uint cnt HSE_MAYBE_UNUSED;
@@ -659,7 +659,7 @@ wbti_next_fwd(struct wbti *self, const void **kdata, uint *klen, const void **km
 static bool
 wbti_next_rev(struct wbti *self, const void **kdata, uint *klen, const void **kmd)
 {
-    struct wbt_lfe_omf *lfe;
+    const struct wbt_lfe_omf *lfe;
     size_t              off;
 
     u64 seq HSE_MAYBE_UNUSED;
@@ -699,19 +699,19 @@ wbti_next(struct wbti *self, const void **kdata, uint *klen, const void **kmd)
 
 void
 wbti_reset(
-    struct wbti *         self,
-    struct kvs_mblk_desc *kbd,
-    struct wbt_desc *     desc,
-    struct kvs_ktuple *   seek,
-    bool                  reverse,
-    bool                  cache)
+    struct wbti *self,
+    const void *base,
+    struct wbt_desc *desc,
+    struct kvs_ktuple *seek,
+    bool reverse,
+    bool cache)
 {
     /* self is not zeroed out so be sure to initialize all fields.
      */
     self->wbd = desc;
-    self->kbd = kbd;
+    self->base = base;
     self->node = NULL;
-    self->kmd = kbd->map_base + PAGE_SIZE * (self->wbd->wbd_first_page + self->wbd->wbd_root + 1);
+    self->kmd = base + PAGE_SIZE * (self->wbd->wbd_first_page + self->wbd->wbd_root + 1);
 
     self->node_idx = 0;
     self->lfe_idx = 0;
@@ -732,21 +732,21 @@ wbti_reset(
 
 merr_t
 wbtr_read_vref(
-    const struct kvs_mblk_desc *kbd,
-    const struct wbt_desc *     wbd,
-    const struct kvs_ktuple *   kt,
-    uint                        lcp,
-    u64                         seq,
-    enum key_lookup_res *       lookup_res,
-    struct kvs_vtuple_ref *     vref)
+    const void *base,
+    const struct wbt_desc *wbd,
+    const struct kvs_ktuple *kt,
+    uint lcp,
+    uint64_t seq,
+    enum key_lookup_res *lookup_res,
+    struct kvs_vtuple_ref *vref)
 {
-    struct wbt_node_hdr_omf *node;
+    const struct wbt_node_hdr_omf *node;
     int                      j, cmp, node_num;
     int                      first, last;
     size_t                   pg;
     const void *             kdata, *kt_data;
     uint                     klen, kt_len;
-    struct wbt_lfe_omf *     lfe;
+    const struct wbt_lfe_omf *lfe;
 
     const void *node_pfx;
     uint        node_pfx_len;
@@ -759,11 +759,11 @@ wbtr_read_vref(
     if (HSE_UNLIKELY(!wbd->wbd_n_pages))
         goto done;
 
-    node_num = wbtr_seek_page(kbd, wbd, kt_data, kt_len, 0);
+    node_num = wbtr_seek_page(base, wbd, kt_data, kt_len, 0);
 
     assert(0 <= node_num && node_num < wbd->wbd_n_pages);
     pg = wbd->wbd_first_page + node_num;
-    node = kbd->map_base + pg * PAGE_SIZE;
+    node = base + pg * PAGE_SIZE;
 
     /* at leaf */
     assert(omf_wbn_magic(node) == WBT_LFE_NODE_MAGIC);
@@ -799,12 +799,12 @@ wbtr_read_vref(
             first = j + 1;
         else {
             /* Found key */
-            void * kmd;
+            const void *kmd;
             size_t off;
             u64    vseq;
             uint   nvals;
 
-            kmd = kbd->map_base + PAGE_SIZE * (wbd->wbd_first_page + wbd->wbd_root + 1);
+            kmd = base + PAGE_SIZE * (wbd->wbd_first_page + wbd->wbd_root + 1);
 
             off = wbt_lfe_kmd(node, lfe);
             assert(off < wbd->wbd_kmd_pgc * PAGE_SIZE);
@@ -856,12 +856,12 @@ wbti_alloc(struct wbti **wbti_out)
 
 merr_t
 wbti_create(
-    struct wbti **        wbti_out,
-    struct kvs_mblk_desc *kbd,
-    struct wbt_desc *     desc,
-    struct kvs_ktuple *   seek,
-    bool                  reverse,
-    bool                  cache)
+    struct wbti **wbti_out,
+    const void *base,
+    struct wbt_desc *desc,
+    struct kvs_ktuple *seek,
+    bool reverse,
+    bool cache)
 {
     struct wbti *self = NULL;
     merr_t       err;
@@ -870,7 +870,7 @@ wbti_create(
     if (ev(err))
         return err;
 
-    wbti_reset(self, kbd, desc, seek, reverse, cache);
+    wbti_reset(self, base, desc, seek, reverse, cache);
 
     *wbti_out = self;
     return 0;
@@ -901,6 +901,38 @@ wbti_fini(void)
 {
     kmem_cache_destroy(wbti_cache);
     wbti_cache = NULL;
+}
+
+static bool HSE_NONNULL(1)
+wbtr_hdr_valid(const struct wbt_hdr_omf *omf)
+{
+    const uint32_t version = omf_wbt_version(omf);
+    const uint32_t magic = omf_wbt_magic(omf);
+
+    return HSE_LIKELY(version == WBT_TREE_VERSION && magic == WBT_TREE_MAGIC);
+}
+
+merr_t
+wbtr_read_desc(const struct wbt_hdr_omf *wbt_hdr, struct wbt_desc *desc)
+{
+    if (!wbtr_hdr_valid(wbt_hdr))
+        return merr(ev(EINVAL));
+
+    desc->wbd_version = omf_wbt_version(wbt_hdr);
+
+    switch (desc->wbd_version) {
+    case WBT_TREE_VERSION:
+        desc->wbd_root = omf_wbt_root(wbt_hdr);
+        desc->wbd_leaf = omf_wbt_leaf(wbt_hdr);
+        desc->wbd_leaf_cnt = omf_wbt_leaf_cnt(wbt_hdr);
+        desc->wbd_kmd_pgc = omf_wbt_kmd_pgc(wbt_hdr);
+        break;
+
+    default:
+        abort();
+    }
+
+    return 0;
 }
 
 #if HSE_MOCKING

@@ -1,6 +1,6 @@
 /* SPDX-License-Identifier: Apache-2.0 */
 /*
- * Copyright (C) 2015-2020 Micron Technology, Inc.  All rights reserved.
+ * Copyright (C) 2015-2022 Micron Technology, Inc.  All rights reserved.
  */
 
 #define MTF_MOCK_IMPL_kvset_builder
@@ -21,6 +21,7 @@
 #include "kcompact.h"
 #include "spill.h"
 
+#include "hblock_builder.h"
 #include "kblock_builder.h"
 #include "vblock_builder.h"
 #include "vblock_reader.h"
@@ -37,33 +38,37 @@ kvset_builder_create(
     struct kvset_builder *bld;
     merr_t                err;
 
-    bld = malloc(sizeof(*bld));
-    if (!bld)
-        return merr(ev(ENOMEM));
-
-    memset(bld, 0, sizeof(*bld));
+    bld = calloc(1, sizeof(*bld));
+    if (ev(!bld))
+        return merr(ENOMEM);
 
     bld->seqno_min = U64_MAX;
 
+    err = hbb_create(&bld->hbb, cn);
+    if (ev(err))
+        goto out;
+
     err = kbb_create(&bld->kbb, cn, pc);
     if (ev(err))
-        goto err_exit1;
+        goto out;
 
     err = vbb_create(&bld->vbb, cn, pc, vgroup);
     if (ev(err))
-        goto err_exit2;
+        goto out;
 
     bld->cn = cn;
     bld->key_stats.seqno_prev = U64_MAX;
     bld->key_stats.seqno_prev_ptomb = U64_MAX;
 
     *bld_out = bld;
+
     return 0;
 
-err_exit2:
+out:
     kbb_destroy(bld->kbb);
-err_exit1:
+    hbb_destroy(bld->hbb);
     free(bld);
+
     return err;
 }
 
@@ -115,7 +120,7 @@ kvset_builder_add_key(struct kvset_builder *self, const struct key_obj *kobj)
         return merr(EINVAL);
 
     if (self->key_stats.nptombs > 0) {
-        err = kbb_add_ptomb(self->kbb, kobj, self->sec.kmd, self->sec.kmd_used, &self->key_stats);
+        err = hbb_add_ptomb(self->hbb, kobj, self->hblk_kmd.kmd, self->hblk_kmd.kmd_used, &self->key_stats);
         if (ev(err))
             return err;
 
@@ -125,20 +130,20 @@ kvset_builder_add_key(struct kvset_builder *self, const struct key_obj *kobj)
     }
 
     if (self->key_stats.nvals > 0) {
-        err = kbb_add_entry(self->kbb, kobj, self->main.kmd, self->main.kmd_used, &self->key_stats);
+        err = kbb_add_entry(self->kbb, kobj, self->kblk_kmd.kmd, self->kblk_kmd.kmd_used, &self->key_stats);
         if (ev(err))
             return err;
     }
 
     self->key_stats.nvals = 0;
     self->key_stats.ntombs = 0;
-    self->key_stats.nptombs = 0;
     self->key_stats.tot_vlen = 0;
     self->key_stats.seqno_prev = U64_MAX;
     self->key_stats.seqno_prev_ptomb = U64_MAX;
+    self->key_stats.nptombs = 0;
 
-    self->main.kmd_used = 0;
-    self->sec.kmd_used = 0;
+    self->kblk_kmd.kmd_used = 0;
+    self->hblk_kmd.kmd_used = 0;
 
     return ev(err);
 }
@@ -176,25 +181,25 @@ kvset_builder_add_val(
 {
     merr_t           err;
     u64              seqno_prev;
-    struct kmd_info *ki = vdata == HSE_CORE_TOMB_PFX ? &self->sec : &self->main;
+    struct kmd_info *ki = vdata == HSE_CORE_TOMB_PFX ? &self->hblk_kmd : &self->kblk_kmd;
 
     if (ev(reserve_kmd(ki)))
         return merr(ENOMEM);
 
     if (vdata == HSE_CORE_TOMB_REG) {
-        kmd_add_tomb(self->main.kmd, &self->main.kmd_used, seq);
+        kmd_add_tomb(self->kblk_kmd.kmd, &self->kblk_kmd.kmd_used, seq);
         self->key_stats.ntombs++;
     } else if (vdata == HSE_CORE_TOMB_PFX) {
-        kmd_add_ptomb(self->sec.kmd, &self->sec.kmd_used, seq);
+        kmd_add_ptomb(self->hblk_kmd.kmd, &self->hblk_kmd.kmd_used, seq);
         self->key_stats.nptombs++;
         self->last_ptseq = seq;
     } else if (!vdata || vlen == 0) {
-        kmd_add_zval(self->main.kmd, &self->main.kmd_used, seq);
+        kmd_add_zval(self->kblk_kmd.kmd, &self->kblk_kmd.kmd_used, seq);
     } else if (complen == 0 && vlen <= CN_SMALL_VALUE_THRESHOLD) {
         /* Do not currently support compressed valus in KMD as an "ival", so
          * complen must be zero.
          */
-        kmd_add_ival(self->main.kmd, &self->main.kmd_used, seq, vdata, vlen);
+        kmd_add_ival(self->kblk_kmd.kmd, &self->kblk_kmd.kmd_used, seq, vdata, vlen);
         self->key_stats.tot_vlen += vlen;
     } else {
 
@@ -215,9 +220,9 @@ kvset_builder_add_val(
         self->key_stats.c0_vlen += omlen;
 
         if (complen)
-            kmd_add_cval(self->main.kmd, &self->main.kmd_used, seq, vbidx, vboff, vlen, complen);
+            kmd_add_cval(self->kblk_kmd.kmd, &self->kblk_kmd.kmd_used, seq, vbidx, vboff, vlen, complen);
         else
-            kmd_add_val(self->main.kmd, &self->main.kmd_used, seq, vbidx, vboff, vlen);
+            kmd_add_val(self->kblk_kmd.kmd, &self->kblk_kmd.kmd_used, seq, vbidx, vboff, vlen);
 
         /* stats (and space amp) use on-media length */
         self->vused += omlen;
@@ -261,13 +266,13 @@ kvset_builder_add_vref(
 {
     uint om_len = complen ? complen : vlen; /* on-media length */
 
-    if (reserve_kmd(&self->main))
+    if (reserve_kmd(&self->kblk_kmd))
         return merr(ev(ENOMEM));
 
     if (complen > 0)
-        kmd_add_cval(self->main.kmd, &self->main.kmd_used, seq, vbidx, vboff, vlen, complen);
+        kmd_add_cval(self->kblk_kmd.kmd, &self->kblk_kmd.kmd_used, seq, vbidx, vboff, vlen, complen);
     else
-        kmd_add_val(self->main.kmd, &self->main.kmd_used, seq, vbidx, vboff, vlen);
+        kmd_add_val(self->kblk_kmd.kmd, &self->kblk_kmd.kmd_used, seq, vbidx, vboff, vlen);
 
     self->vused += om_len;
     self->key_stats.tot_vlen += om_len;
@@ -282,18 +287,18 @@ kvset_builder_add_vref(
 merr_t
 kvset_builder_add_nonval(struct kvset_builder *self, u64 seq, enum kmd_vtype vtype)
 {
-    struct kmd_info *ki = vtype == vtype_ptomb ? &self->sec : &self->main;
+    struct kmd_info *ki = vtype == vtype_ptomb ? &self->hblk_kmd : &self->kblk_kmd;
 
     if (reserve_kmd(ki))
         return merr(ev(ENOMEM));
 
     assert(vtype != vtype_zval);
     if (vtype == vtype_tomb) {
-        kmd_add_tomb(self->main.kmd, &self->main.kmd_used, seq);
+        kmd_add_tomb(self->kblk_kmd.kmd, &self->kblk_kmd.kmd_used, seq);
         self->key_stats.ntombs++;
         self->key_stats.nvals++;
     } else if (vtype == vtype_ptomb) {
-        kmd_add_ptomb(self->sec.kmd, &self->sec.kmd_used, seq);
+        kmd_add_ptomb(self->hblk_kmd.kmd, &self->hblk_kmd.kmd_used, seq);
         self->key_stats.nptombs++;
     } else {
         return merr(ev(EBUG));
@@ -306,10 +311,27 @@ kvset_builder_add_nonval(struct kvset_builder *self, u64 seq, enum kmd_vtype vty
 }
 
 void
+kvset_builder_adopt_vblocks(
+    struct kvset_builder *self,
+    unsigned int vgroups,
+    size_t num_vblocks,
+    struct kvs_block *vblocks)
+{
+    assert(self->vblk_list.n_blks == 0);
+
+    self->vgroups = vgroups;
+    self->vblk_list.blks = vblocks;
+    self->vblk_list.n_blks = num_vblocks;
+    self->vblk_list.n_alloc = num_vblocks;
+}
+
+void
 kvset_builder_destroy(struct kvset_builder *bld)
 {
     if (ev(!bld))
         return;
+
+    mpool_mblock_abort(cn_get_dataset(bld->cn), bld->hblk.bk_blkid);
 
     abort_mblocks(cn_get_dataset(bld->cn), &bld->kblk_list);
     blk_list_free(&bld->kblk_list);
@@ -317,11 +339,12 @@ kvset_builder_destroy(struct kvset_builder *bld)
     abort_mblocks(cn_get_dataset(bld->cn), &bld->vblk_list);
     blk_list_free(&bld->vblk_list);
 
+    hbb_destroy(bld->hbb);
     kbb_destroy(bld->kbb);
     vbb_destroy(bld->vbb);
 
-    free(bld->main.kmd);
-    free(bld->sec.kmd);
+    free(bld->kblk_kmd.kmd);
+    free(bld->hblk_kmd.kmd);
     free(bld);
 }
 
@@ -329,6 +352,7 @@ void
 kvset_mblocks_destroy(struct kvset_mblocks *blks)
 {
     if (blks) {
+        memset(&blks->hblk, 0, sizeof(blks->hblk));
         blk_list_free(&blks->kblks);
         blk_list_free(&blks->vblks);
     }
@@ -339,30 +363,50 @@ kvset_builder_finish(struct kvset_builder *imp)
 {
     merr_t err = 0;
 
-    assert(imp->kbb);
-    assert(imp->vbb);
+    INVARIANT(imp->hbb);
+    INVARIANT(imp->kbb);
+    INVARIANT(imp->vbb);
 
-    err = kbb_finish(imp->kbb, &imp->kblk_list, imp->seqno_min, imp->seqno_max);
+    err = kbb_finish(imp->kbb, &imp->kblk_list);
     if (ev(err))
         return err;
 
     if (imp->kblk_list.n_blks == 0) {
-        /* There are no kblocks. This happens when each input key has
-         * a tombstone and we are in "drop_tomb" mode.  This
-         * output kvset is empty and should not be created.  Destroy
-         * the corresponding vblock generator (which aborts any
-         * mblocks it has already allocated) and move on.  The empty
-         * kblk_list will prevent htis kvset from being created. */
+        /* There are no kblocks. This happens when each input key has a
+         * tombstone and we are in "drop_tomb" mode. This output kvset is empty
+         * and should not be created. Destroy the corresponding hblock vblock
+         * builder (which aborts any mblocks they had already allocated) and
+         * move on. The empty kblk_list will prevent this kvset from being
+         * created.
+         */
         vbb_destroy(imp->vbb);
-        imp->vbb = 0;
-        return 0;
+        imp->vbb = NULL;
+    } else {
+        /* If we haven't adopted any vblocks previously */
+        if (imp->vblk_list.n_blks == 0) {
+            err = vbb_finish(imp->vbb, &imp->vblk_list);
+            if (ev(err)) {
+                abort_mblocks(cn_get_dataset(imp->cn), &imp->kblk_list);
+
+                return err;
+            }
+
+            /* In the event we have vblocks, there will always be one vgroup. */
+            if (imp->vblk_list.n_blks > 0)
+                imp->vgroups = 1;
+        }
     }
 
-    err = vbb_finish(imp->vbb, &imp->vblk_list);
-    if (ev(err))
-        return err;
+    err = hbb_finish(imp->hbb, &imp->hblk, imp->seqno_min, imp->seqno_max, imp->kblk_list.n_blks,
+        imp->vblk_list.n_blks, imp->vgroups, kbb_get_composite_hlog(imp->kbb));
+    if (ev(err)) {
+        abort_mblocks(cn_get_dataset(imp->cn), &imp->kblk_list);
+        abort_mblocks(cn_get_dataset(imp->cn), &imp->vblk_list);
 
-    return 0;
+        return err;
+    }
+
+    return err;
 }
 
 merr_t
@@ -375,6 +419,10 @@ kvset_builder_get_mblocks(struct kvset_builder *self, struct kvset_mblocks *mblk
     if (ev(err))
         return err;
 
+    /* transfer hblock to caller */
+    mblks->hblk = self->hblk;
+    self->hblk.bk_blkid = 0;
+
     /* transfer kblock ids to caller */
     list = &self->kblk_list;
     mblks->kblks.blks = list->blks;
@@ -382,7 +430,7 @@ kvset_builder_get_mblocks(struct kvset_builder *self, struct kvset_mblocks *mblk
     list->blks = 0;
     list->n_blks = 0;
 
-    /* ditto for vblock ids */
+    /* transfer vblock ids to caller */
     list = &self->vblk_list;
     mblks->vblks.blks = list->blks;
     mblks->vblks.n_blks = list->n_blks;
@@ -406,7 +454,9 @@ kvset_builder_get_mblocks(struct kvset_builder *self, struct kvset_mblocks *mblk
 void
 kvset_builder_set_agegroup(struct kvset_builder *self, enum hse_mclass_policy_age age)
 {
-    assert(age < HSE_MPOLICY_AGE_CNT);
+    INVARIANT(age < HSE_MPOLICY_AGE_CNT);
+
+    hbb_set_agegroup(self->hbb, age);
     kbb_set_agegroup(self->kbb, age);
     vbb_set_agegroup(self->vbb, age);
 }

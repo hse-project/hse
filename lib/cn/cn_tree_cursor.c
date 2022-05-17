@@ -314,9 +314,8 @@ cn_lcur_seek(
         bool eof = false;
 
         err = kvset_iter_seek(it, key, len, &eof);
-        if (ev(err)) {
+        if (ev(err))
             return err;
-        }
     }
 
     err = bin_heap2_prepare(lcur->cnlc_bh, lcur->cnlc_iterc, lcur->cnlc_esrcv);

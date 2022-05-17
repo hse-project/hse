@@ -1652,7 +1652,7 @@ sp3_job_print(struct sts_job *job, void *priv, char *buf, size_t bufsz)
     m = snprintf(buf, bufsz,
                  "%3lu %u,%-4u %5u %7s %-7s"
                  " %2u %1u %2u,%-2u %6lu %6lu %4u"
-                 " %4u %5lu %3u %4u"
+                 " %4u %5lu %3u %3u %4u"
                  " %6ld %6ld %6ld %6ld"
                  " %8.8s %4s %s\n",
                  w->cw_tree->cnid,
@@ -1667,7 +1667,7 @@ sp3_job_print(struct sts_job *job, void *priv, char *buf, size_t bufsz)
                  w->cw_ns.ns_pcap,
                  w->cw_compc,
                  w->cw_dgen_lo,
-                 w->cw_nk, w->cw_nv,
+                 w->cw_nh, w->cw_nk, w->cw_nv,
                  w->cw_est.cwe_samp.r_alen >> 20,
                  w->cw_est.cwe_samp.i_alen >> 20,
                  w->cw_est.cwe_samp.l_alen >> 20,
@@ -1783,6 +1783,7 @@ sp3_submit(struct sp3 *sp, struct cn_compaction_work *w, uint qnum)
         HSE_SLOG_FIELD("off", "%u", w->cw_node->tn_loc.node_offset),
         HSE_SLOG_FIELD("leaf", "%u", (uint)cn_node_isleaf(w->cw_node)),
         HSE_SLOG_FIELD("qnum", "%u", w->cw_qnum),
+        HSE_SLOG_FIELD("c_nh", "%u", w->cw_nh),
         HSE_SLOG_FIELD("c_nk", "%u", w->cw_nk),
         HSE_SLOG_FIELD("c_nv", "%u", w->cw_nv),
         HSE_SLOG_FIELD("c_kvsets", "%u", w->cw_kvset_cnt),

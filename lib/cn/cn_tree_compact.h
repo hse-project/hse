@@ -184,9 +184,11 @@ struct cn_compaction_work {
     struct kvset_list_entry *cw_mark;
     struct cn_node_stats     cw_ns;
     uint                     cw_kvset_cnt;
-    uint                     cw_nk;
-    uint                     cw_nv;
+    uint32_t                 cw_nh;
+    uint32_t                 cw_nk;
+    uint32_t                 cw_nv;
     uint                     cw_compc;
+    uint                     cw_input_vgroups;
     uint                     cw_pfx_len;
     enum cn_action           cw_action;
     enum cn_comp_rule        cw_comp_rule;

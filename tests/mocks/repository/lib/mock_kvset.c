@@ -1,6 +1,6 @@
 /* SPDX-License-Identifier: Apache-2.0 */
 /*
- * Copyright (C) 2015-2021 Micron Technology, Inc.  All rights reserved.
+ * Copyright (C) 2015-2022 Micron Technology, Inc.  All rights reserved.
  */
 
 #include <mock/api.h>
@@ -222,9 +222,10 @@ _kvset_create(struct cn_tree *tree, u64 tag, struct kvset_meta *km, struct kvset
 {
     struct mock_kvset *mk;
     size_t             alloc_sz;
-    int                i, j;
+    int                i = 0, j;
 
-    alloc_sz = sizeof(*mk) + (sizeof(u64) * (km->km_kblk_list.n_blks + km->km_vblk_list.n_blks));
+    /* +1 for the singular hblock */
+    alloc_sz = sizeof(*mk) + (sizeof(u64) * (1 + km->km_kblk_list.n_blks + km->km_vblk_list.n_blks));
     alloc_sz = ALIGN(alloc_sz, PAGE_SIZE);
 
     mk = mmap(NULL, alloc_sz, PROT_READ | PROT_WRITE, MAP_ANON | MAP_PRIVATE, -1, 0);
@@ -245,8 +246,12 @@ _kvset_create(struct cn_tree *tree, u64 tag, struct kvset_meta *km, struct kvset
     mk->stats.kst_keys = 10000;
     mk->stats.kst_kvsets = 1;
 
+    mk->stats.kst_hblks = 1;
     mk->stats.kst_kblks = km->km_kblk_list.n_blks;
     mk->stats.kst_vblks = km->km_vblk_list.n_blks;
+
+    mk->stats.kst_halen = 32 * 1024 * 1024;
+    mk->stats.kst_hwlen = 30 * 1024 * 1024;
 
     mk->stats.kst_kalen = 32 * 1024 * 1024;
     mk->stats.kst_kwlen = 30 * 1024 * 1024;
@@ -259,7 +264,8 @@ _kvset_create(struct cn_tree *tree, u64 tag, struct kvset_meta *km, struct kvset
     mk->iter_data = tree->ds;
     mk->ref = 1; /* as in reality, kvsets are minted ref 1 */
 
-    for (i = 0; i < km->km_kblk_list.n_blks; i++)
+    mk->ids[i++] = km->km_hblk.bk_blkid;
+    for (i = 1; i < km->km_kblk_list.n_blks; i++)
         mk->ids[i] = km->km_kblk_list.blks[i].bk_blkid;
 
     for (j = 0; j < km->km_vblk_list.n_blks; j++, i++)
@@ -597,7 +603,7 @@ _kvset_iter_next_vref(
 }
 
 merr_t
-_kvset_iter_set_start(struct kv_iterator *kvi, int start, int pt_start)
+_kvset_iter_set_start(struct kv_iterator *kvi, int start)
 {
     kvi->kvi_es = es_make(_kvset_cursor_next, 0, 0);
     return 0;

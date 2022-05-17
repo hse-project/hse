@@ -83,12 +83,15 @@ struct injections injections[] = {
 };
 
 const struct kvset_stats fake_kvset_stats = {
-
     .kst_keys = 10000,
     .kst_kvsets = 1,
 
+    .kst_hblks = 1,
     .kst_kblks = 1,
     .kst_vblks = 1,
+
+    .kst_halen = 32 * 1024 * 1024,
+    .kst_hwlen = 30 * 1024 * 1024,
 
     .kst_kalen = 32 * 1024 * 1024,
     .kst_kwlen = 30 * 1024 * 1024,
@@ -163,6 +166,7 @@ init_mblks(struct kvset_mblocks *p, uint nsets, uint *nk, uint *nv)
     memset(p, 0, nsets * sizeof(*p));
 
     for (i = 0; i < nsets; ++i) {
+        p[i].hblk.bk_blkid = mblk_id++;
 
         blk_list_init(&p[i].kblks);
         for (j = 0; j < *nk; j++)
@@ -198,7 +202,7 @@ MTF_DEFINE_UTEST_PRE(cn_ingest_test, commit_delete, test_pre)
     context = 0;
     err = cn_mblocks_commit(mock_ds, 0, 0, 0, n_kvsets, m, CN_MUT_OTHER, &n, &context, tags);
     ASSERT_EQ(err, 0);
-    ASSERT_EQ(n, n_kvsets * (k + v));
+    ASSERT_EQ(n, n_kvsets * (1 + k + v)); /* 1 for hblock */
     free_mblks(m, n_kvsets);
 
     n = 0;
@@ -206,7 +210,7 @@ MTF_DEFINE_UTEST_PRE(cn_ingest_test, commit_delete, test_pre)
     context = 0;
     err = cn_mblocks_commit(mock_ds, 0, 0, 0, n_kvsets, m, CN_MUT_KCOMPACT, &n, &context, tags);
     ASSERT_EQ(err, 0);
-    ASSERT_EQ(n, n_kvsets * k); /* kcompact ==> does not commit vblks */
+    ASSERT_EQ(n, n_kvsets * (1 + k)); /* kcompact ==> does not commit vblks, 1 for hblock */
     free_mblks(m, n_kvsets);
 
     /*
@@ -238,8 +242,8 @@ MTF_DEFINE_UTEST_PRE(cn_ingest_test, commit_delete, test_pre)
      */
     init_mblks(m, n_kvsets, &k, &v);
     mapi_calls_clear(mapi_idx_mpool_mblock_delete);
-    cn_mblocks_destroy(mock_ds, n_kvsets, m, 0, k + v);
-    ASSERT_EQ(mapi_calls(mapi_idx_mpool_mblock_delete), n_kvsets * (k + v));
+    cn_mblocks_destroy(mock_ds, n_kvsets, m, 0, 1 + k + v); /* 1 for hblock */
+    ASSERT_EQ(mapi_calls(mapi_idx_mpool_mblock_delete), n_kvsets * (1 + k + v)); /* 1 for hblock */
     free_mblks(m, n_kvsets);
 
     /* Test cn_mblocks_destroy with kcompact == true.

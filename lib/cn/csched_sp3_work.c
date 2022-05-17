@@ -45,6 +45,7 @@ static void
 sp3_work_estimate(struct cn_compaction_work *w, uint internal_children, uint leaf_children)
 {
     u64 keys = 0;
+    u64 halen = 0;
     u64 kalen = 0;
     u64 valen = 0;
 
@@ -63,6 +64,7 @@ sp3_work_estimate(struct cn_compaction_work *w, uint internal_children, uint lea
         const struct kvset_stats *stats = kvset_statsp(le->le_kvset);
 
         keys += stats->kst_keys;
+        halen += stats->kst_kalen;
         kalen += stats->kst_kalen;
         valen += stats->kst_valen;
 
@@ -83,12 +85,12 @@ sp3_work_estimate(struct cn_compaction_work *w, uint internal_children, uint lea
 
         case CN_ACTION_COMPACT_K:
             /* Assume no garbage collection, thus percent_keep == 100 */
-            consume = kalen;
+            consume = halen + kalen;
             dst_is_leaf = src_is_leaf;
             break;
 
         case CN_ACTION_COMPACT_KV:
-            consume = kalen + valen;
+            consume = halen + kalen + valen;
             percent_keep = 100 * 100 / cn_ns_samp(&w->cw_ns);
             dst_is_leaf = src_is_leaf;
             break;
@@ -105,7 +107,7 @@ sp3_work_estimate(struct cn_compaction_work *w, uint internal_children, uint lea
              * which case most of the data will land in the internal
              * node used by the dominant prefix.
              */
-            consume = kalen + valen;
+            consume = halen + kalen + valen;
             percent_keep = 100 * 100 / cn_ns_samp(&w->cw_ns);
             dst_is_leaf = cn_node_isroot(w->cw_node) || !internal_children;
             break;
@@ -713,8 +715,10 @@ sp3_work(
         assert(kvset_get_workid(le->le_kvset) == 0);
         kvset_set_workid(le->le_kvset, w->cw_dgen_lo);
         w->cw_dgen_hi = kvset_get_dgen(le->le_kvset);
+        w->cw_nh++; /* Only ever 1 hblock per kvset */
         w->cw_nk += kvset_get_num_kblocks(le->le_kvset);
         w->cw_nv += kvset_get_num_vblocks(le->le_kvset);
+        w->cw_input_vgroups += kvset_get_vgroups(le->le_kvset);
         le = list_prev_entry(le, le_link);
     }
 
