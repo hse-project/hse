@@ -10,6 +10,7 @@
 #include <hse_ikvdb/tuple.h>
 
 struct mpool;
+struct cn;
 struct mpool_mcache_map;
 struct mblock_props;
 struct bloom_desc;
@@ -24,6 +25,12 @@ struct kblk_metrics {
     u64 tot_val_bytes;
     u32 tot_wbt_pages;
     u32 tot_blm_pages;
+};
+
+struct kblock_desc {
+    struct cn            *cn;
+    struct kvs_mblk_desc *kd_mbd;
+    struct wbt_desc      *kd_wbd;
 };
 
 /**

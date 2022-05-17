@@ -19,6 +19,7 @@
 #include <hse_ikvdb/mclass_policy.h>
 
 #include <cn/kblock_builder.h>
+#include <cn/kblock_reader.h>
 #include <cn/omf.h>
 #include <cn/blk_list.h>
 #include <cn/bloom_reader.h>
@@ -188,6 +189,18 @@ test_setup(struct mtf_test_info *lcl_ti)
     mapi_inject(mapi_idx_cn_get_cnid, 1001);
     mapi_inject(mapi_idx_cn_get_dataset, 0);
     mapi_inject(mapi_idx_cn_get_flags, 0);
+
+    return 0;
+}
+
+int
+test_setup_kbsplit(struct mtf_test_info *lcl_ti)
+{
+    mapi_inject(mapi_idx_wbti_create, 0);
+    mapi_inject(mapi_idx_wbti_destroy, 0);
+    mapi_inject(mapi_idx_wbti_next, 0);
+    mapi_inject(mapi_idx_wbti_prefix, 0);
+    mapi_inject(mapi_idx_wbt_read_kmd_vref, 0);
 
     return 0;
 }
@@ -658,6 +671,27 @@ MTF_DEFINE_UTEST_PRE(test, t_hash_set, test_setup)
     ASSERT_EQ(err, 0);
 
     kbb_destroy(kbb);
+}
+
+MTF_DEFINE_UTEST_PRE(test, t_kblock_split, test_setup_kbsplit)
+{
+    struct kblock_desc kdsc;
+    struct key_obj skey = { 0 };
+    uint64_t kbl, kbr;
+    merr_t err;
+    char key[4] = {0xff, 0xff, 0xff, 0xff};
+
+    skey.ko_sfx = key;
+    skey.ko_sfx_len = 4;
+
+    kdsc.cn = (void *)0x1234;
+    kdsc.kd_mbd = (void *)0x1234;
+    kdsc.kd_wbd = (void *)0x1234;
+
+    mapi_inject(mapi_idx_wbti_create, merr(ENOMEM));
+    err = kblock_split(&kdsc, &skey, &kbl, &kbr);
+    ASSERT_EQ(ENOMEM, merr_errno(err));
+    mapi_inject(mapi_idx_wbti_create, 0);
 }
 
 MTF_END_UTEST_COLLECTION(test)

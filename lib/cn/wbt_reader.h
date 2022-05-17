@@ -109,6 +109,7 @@ wbti_reset(
  * @reverse: whether to iterate backwards
  * @cache: whether to cache wbt node values
  */
+/* MTF_MOCK */
 merr_t
 wbti_create(
     struct wbti **        wbti,
@@ -123,6 +124,7 @@ wbti_create(
  *       destroy or otherwise modify any other objects.
  * @wbti: iterator to destroy
  */
+/* MTF_MOCK */
 void
 wbti_destroy(struct wbti *wbti);
 
@@ -132,6 +134,7 @@ wbti_destroy(struct wbti *wbti);
  * @pfx:    (out) longest common prefix
  * @pfx_len: (out) length of @pfx
  */
+/* MTF_MOCK */
 void
 wbti_prefix(struct wbti *self, const void **pfx, uint *pfx_len);
 
@@ -144,9 +147,11 @@ wbti_prefix(struct wbti *self, const void **pfx, uint *pfx_len);
  *
  * Returns: false if EOF (outputs not valid), true otherwise (outputs valid).
  */
+/* MTF_MOCK */
 bool
 wbti_next(struct wbti *wbti, const void **kdata, uint *klen, const void **kmd);
 
+/* MTF_MOCK */
 void
 wbt_read_kmd_vref(const void *kmd, size_t *off, u64 *seq, struct kvs_vtuple_ref *vref);
 

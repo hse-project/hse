@@ -17,6 +17,8 @@ struct kblock_builder;
 struct blk_list;
 struct kvs_rparams;
 struct cn_merge_stats;
+struct wbti;
+struct kblock_desc;
 
 enum hse_mclass;
 enum hse_mclass_policy_age;
@@ -140,6 +142,28 @@ kbb_get_agegroup(struct kblock_builder *bld);
 
 void
 kbb_set_merge_stats(struct kblock_builder *bld, struct cn_merge_stats *stats);
+
+/**
+ * kblock_split() - split a given kblock (@kbd) into two kblocks at @split_key
+ *
+ * @kbd:        kblock descriptor describing the source kblock
+ * @split_key:  the key at which the kblock needs to be split.
+ * @kbid_left:  (output) mblock ID of kblock containing keys <= split key
+ * @kbid_right: (output) mblock ID of kblock containing keys > split key
+ *
+ * NOTE:
+ * If either @kbid_left or @kbid_right is not populated and err == 0, then all
+ * keys from the source kblock got written to either @kbid_left or @kbid_right
+ *
+ * The output mblocks (@kbid_left and @kbid_right) are not committed when this
+ * function returns. It is up to the caller to abort or commit them.
+ */
+merr_t
+kblock_split(
+    struct kblock_desc   *kbd,
+    struct key_obj       *split_key,
+    uint64_t             *kbid_left,
+    uint64_t             *kbid_right);
 
 #if HSE_MOCKING
 #include "kblock_builder_ut.h"

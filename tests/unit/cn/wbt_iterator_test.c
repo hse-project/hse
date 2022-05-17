@@ -265,7 +265,7 @@ reverse:
 
     while (1) {
         const void *pfx;
-        uint        plen;
+        uint        plen = 0;
         int         rc;
 
         if (!wbti_next(wbti, &kdata, &klen, &kmd))
