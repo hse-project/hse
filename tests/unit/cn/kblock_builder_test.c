@@ -194,7 +194,7 @@ test_setup(struct mtf_test_info *lcl_ti)
 }
 
 int
-test_setup2(struct mtf_test_info *lcl_ti)
+test_setup_kbsplit(struct mtf_test_info *lcl_ti)
 {
     mapi_inject(mapi_idx_wbti_create, 0);
     mapi_inject(mapi_idx_wbti_destroy, 0);
@@ -673,7 +673,7 @@ MTF_DEFINE_UTEST_PRE(test, t_hash_set, test_setup)
     kbb_destroy(kbb);
 }
 
-MTF_DEFINE_UTEST_PRE(test, t_kblock_split, test_setup2)
+MTF_DEFINE_UTEST_PRE(test, t_kblock_split, test_setup_kbsplit)
 {
     struct kblock_desc kdsc;
     struct key_obj skey = { 0 };
@@ -687,24 +687,6 @@ MTF_DEFINE_UTEST_PRE(test, t_kblock_split, test_setup2)
     kdsc.cn = (void *)0x1234;
     kdsc.kd_mbd = (void *)0x1234;
     kdsc.kd_wbd = (void *)0x1234;
-
-    err = kblock_split(NULL, &skey, &kbl, &kbr);
-    ASSERT_EQ(EINVAL, merr_errno(err));
-
-    err = kblock_split(&kdsc, NULL, &kbl, &kbr);
-    ASSERT_EQ(EINVAL, merr_errno(err));
-
-    err = kblock_split(&kdsc, &skey, NULL, &kbr);
-    ASSERT_EQ(EINVAL, merr_errno(err));
-
-    err = kblock_split(&kdsc, &skey, &kbl, NULL);
-    ASSERT_EQ(EINVAL, merr_errno(err));
-
-    err = kblock_split(&kdsc, &skey, &kbl, NULL);
-    ASSERT_EQ(EINVAL, merr_errno(err));
-
-    err = kblock_split(&kdsc, &skey, &kbl, &kbr);
-    ASSERT_EQ(EBUG, merr_errno(err));
 
     mapi_inject(mapi_idx_wbti_create, merr(ENOMEM));
     err = kblock_split(&kdsc, &skey, &kbl, &kbr);

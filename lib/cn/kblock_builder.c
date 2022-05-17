@@ -1290,12 +1290,26 @@ kbb_set_merge_stats(struct kblock_builder *bld, struct cn_merge_stats *stats)
     bld->mstats = stats;
 }
 
+/**
+ * kblock_copy_range() - copy all keys `k' in range start < k <= end from @kbd
+ *
+ * @kbd:      kblock descriptor
+ * @start:    start key (exclusive)
+ * @end :     end key (inclusive)
+ * @kbid_out: (output) output mblock ID where the keys are copied into.
+ *
+ * Notes:
+ * (1) start == NULL implies a copy from the first key
+ * (2) end == NULL implies a copy until EOF
+ * (3) The output mblock in @kbid_out is not committed.
+ *     It is left to the caller to either commit or abort it.
+ */
 static merr_t
 kblock_copy_range(
     struct kblock_desc   *kbd,
     const struct key_obj *start, /* exclusive */
     const struct key_obj *end,   /* inclusive */
-    uint64_t             *kb_out)
+    uint64_t             *kbid_out)
 {
     struct wbti *wbti = NULL;
     struct kblock_builder *kbb;
@@ -1304,9 +1318,6 @@ kblock_copy_range(
     merr_t err;
     uint64_t tot_keys = 0;
 
-    /* start == NULL implies a copy from the first key
-     * end == NULL implies a copy until EOF
-     */
     err = kbb_create(&kbb, kbd->cn, NULL);
     if (err)
         return err;
@@ -1331,57 +1342,58 @@ kblock_copy_range(
 
         wbti_prefix(wbti, &cur.ko_pfx, &cur.ko_pfx_len);
 
-        if (!start || key_obj_cmp(&cur, start) > 0) {
-            start = NULL; /* skip future comparisons with start */
-            if (end && key_obj_cmp(&cur, end) > 0)
+        if (HSE_UNLIKELY(start && key_obj_cmp(&cur, start) == 0))
+            continue;
+        start = NULL;
+
+        if (HSE_UNLIKELY(end && key_obj_cmp(&cur, end) > 0))
+            break;
+
+        nvals = stats.nvals = kmd_count(kmd, &off);
+        kmd_cnt_off = off;
+
+        while (nvals--) {
+            struct kvs_vtuple_ref vref = { 0 };
+            u64 vseq;
+
+            wbt_read_kmd_vref(kmd, &off, &vseq, &vref);
+
+            switch (vref.vr_type) {
+            case vtype_val:
+            case vtype_cval:
+                stats.tot_vlen += (vref.vb.vr_complen ? : vref.vb.vr_len);
                 break;
 
-            nvals = stats.nvals = kmd_count(kmd, &off);
-            kmd_cnt_off = off;
+            case vtype_ival:
+                stats.tot_vlen += vref.vi.vr_len;
+                break;
 
-            while (nvals--) {
-                struct kvs_vtuple_ref vref = { 0 };
-                u64 vseq;
+            case vtype_tomb:
+                ++stats.ntombs;
+                break;
 
-                wbt_read_kmd_vref(kmd, &off, &vseq, &vref);
+            case vtype_ptomb: /* TODO: must be an assert after ptomb is moved to a hblock */
+            case vtype_zval:
+                break;
 
-                switch (vref.vr_type) {
-                case vtype_val:
-                case vtype_cval:
-                    stats.tot_vlen += (vref.vb.vr_complen ? : vref.vb.vr_len);
-                    break;
-
-                case vtype_ival:
-                    stats.tot_vlen += vref.vi.vr_len;
-                    break;
-
-                case vtype_tomb:
-                    ++stats.ntombs;
-                    break;
-
-                case vtype_ptomb: /* TODO: must be an assert after ptomb is moved to a hblock */
-                case vtype_zval:
-                    break;
-
-                default:
-                    assert(0);
-                    break;
-                }
+            default:
+                assert(0);
+                break;
             }
-
-            err = kbb_add_entry(kbb, &cur, kmd + kmd_cnt_off, off - kmd_cnt_off, &stats);
-            if (!err)
-                ++tot_keys;
         }
+
+        err = kbb_add_entry(kbb, &cur, kmd + kmd_cnt_off, off - kmd_cnt_off, &stats);
+        if (!err)
+            ++tot_keys;
     }
 
     if (!err && tot_keys > 0) {
         struct blk_list kblk_list;
 
-        err = kbb_finish(kbb, &kblk_list, kbd->seqno_min, kbd->seqno_max);
+        err = kbb_finish(kbb, &kblk_list, 0, 0);
         if (!err) {
             assert(kblk_list.n_blks == 1);
-            *kb_out = kblk_list.blks->bk_blkid;
+            *kbid_out = kblk_list.blks->bk_blkid;
         }
     }
 
@@ -1395,21 +1407,22 @@ merr_t
 kblock_split(
     struct kblock_desc *kbd,
     struct key_obj     *split_key,
-    uint64_t           *kb_left,
-    uint64_t           *kb_right)
+    uint64_t           *kbid_left,
+    uint64_t           *kbid_right)
 {
     merr_t err;
 
-    if (!kbd || !split_key || !kb_left || !kb_right)
-        return merr(EINVAL);
+    INVARIANT(kbd && split_key && kbid_left && kbid_right);
 
-    *kb_left = *kb_right = 0;
+    *kbid_left = *kbid_right = 0;
 
-    err = kblock_copy_range(kbd, NULL, split_key, kb_left);
+    err = kblock_copy_range(kbd, NULL, split_key, kbid_left);
     if (!err) {
-        err = kblock_copy_range(kbd, split_key, NULL, kb_right);
-        if (!err && (*kb_left == 0 && *kb_right == 0))
+        err = kblock_copy_range(kbd, split_key, NULL, kbid_right);
+        if (!err && (*kbid_left == 0 && *kbid_right == 0)) {
+            assert(*kbid_left || *kbid_right);
             err = merr(EBUG);
+        }
     }
 
     return err;

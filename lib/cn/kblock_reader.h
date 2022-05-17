@@ -27,15 +27,10 @@ struct kblk_metrics {
     u32 tot_blm_pages;
 };
 
-/* TODO: seqno_min and seqno_max are not needed after the min and max seqno of a kvset
- * is moved from the last kblock to a hblock
- */
 struct kblock_desc {
     struct cn            *cn;
     struct kvs_mblk_desc *kd_mbd;
     struct wbt_desc      *kd_wbd;
-    u64                   seqno_min;
-    u64                   seqno_max;
 };
 
 /**
