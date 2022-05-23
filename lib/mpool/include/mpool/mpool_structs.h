@@ -107,14 +107,12 @@ struct mpool_props {
  * @mpr_objid:        mblock identifier
  * @mpr_alloc_cap:    allocated capacity in bytes
  * @mpr_write_len:    written user-data in bytes
- * @mpr_optimal_wrsz: optimal write size(in bytes) for all but the last incremental mblock write
  * @mpr_mclass:       media class
  */
 struct mblock_props {
     uint64_t mpr_objid;
     uint32_t mpr_alloc_cap;
     uint32_t mpr_write_len;
-    uint32_t mpr_optimal_wrsz;
     uint32_t mpr_mclass;
 };
 

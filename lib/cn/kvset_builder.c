@@ -174,6 +174,7 @@ kvset_builder_add_key(struct kvset_builder *self, const struct key_obj *kobj)
 merr_t
 kvset_builder_add_val(
     struct kvset_builder   *self,
+    const struct key_obj   *kobj,
     u64                     seq,
     const void             *vdata,
     uint                    vlen,
@@ -213,7 +214,7 @@ kvset_builder_add_val(
 
         /* vblock builder needs on-media length */
         omlen = complen ? complen : vlen;
-        err = vbb_add_entry(self->vbb, vdata, omlen, &vbid, &vbidx, &vboff);
+        err = vbb_add_entry(self->vbb, kobj, vdata, omlen, &vbid, &vbidx, &vboff);
         if (ev(err))
             return err;
 
@@ -361,17 +362,25 @@ kvset_mblocks_destroy(struct kvset_mblocks *blks)
 static merr_t
 kvset_builder_finish(struct kvset_builder *imp)
 {
-    merr_t err = 0;
+    merr_t err;
 
     INVARIANT(imp->hbb);
     INVARIANT(imp->kbb);
     INVARIANT(imp->vbb);
 
-    err = kbb_finish(imp->kbb, &imp->kblk_list);
-    if (ev(err))
-        return err;
+    if (!kbb_is_empty(imp->kbb)) {
+        struct key_obj *min_kobj, *max_kobj;
 
-    if (imp->kblk_list.n_blks == 0) {
+        kbb_curr_kblk_minmax_keys(imp->kbb, &min_kobj, &max_kobj);
+
+        err = vbb_finish(imp->vbb, &imp->vblk_list, max_kobj);
+        if (err)
+            return err;
+
+        /* In the event we have vblocks, there will always be one vgroup. */
+        if (imp->vblk_list.n_blks > 0)
+            imp->vgroups = 1;
+    } else {
         /* There are no kblocks. This happens when each input key has a
          * tombstone and we are in "drop_tomb" mode. This output kvset is empty
          * and should not be created. Destroy the corresponding hblock vblock
@@ -381,32 +390,25 @@ kvset_builder_finish(struct kvset_builder *imp)
          */
         vbb_destroy(imp->vbb);
         imp->vbb = NULL;
-    } else {
-        /* If we haven't adopted any vblocks previously */
-        if (imp->vblk_list.n_blks == 0) {
-            err = vbb_finish(imp->vbb, &imp->vblk_list);
-            if (ev(err)) {
-                abort_mblocks(cn_get_dataset(imp->cn), &imp->kblk_list);
+    }
 
-                return err;
-            }
+    err = kbb_finish(imp->kbb, &imp->kblk_list);
+    if (err) {
+        abort_mblocks(cn_get_dataset(imp->cn), &imp->vblk_list);
 
-            /* In the event we have vblocks, there will always be one vgroup. */
-            if (imp->vblk_list.n_blks > 0)
-                imp->vgroups = 1;
-        }
+        return err;
     }
 
     err = hbb_finish(imp->hbb, &imp->hblk, imp->seqno_min, imp->seqno_max, imp->kblk_list.n_blks,
-        imp->vblk_list.n_blks, imp->vgroups, kbb_get_composite_hlog(imp->kbb));
-    if (ev(err)) {
+                     imp->vblk_list.n_blks, imp->vgroups, kbb_get_composite_hlog(imp->kbb));
+    if (err) {
         abort_mblocks(cn_get_dataset(imp->cn), &imp->kblk_list);
         abort_mblocks(cn_get_dataset(imp->cn), &imp->vblk_list);
 
         return err;
     }
 
-    return err;
+    return 0;
 }
 
 merr_t

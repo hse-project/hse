@@ -28,8 +28,7 @@ vbr_desc_read(
     struct mblock_props *    props,
     struct vblock_desc *     vblk_desc)
 {
-    struct vblock_hdr_omf *hdr;
-
+    struct vblock_footer_omf *footer;
     bool     supported;
     void    *base;
     u64      vgroup;
@@ -39,12 +38,11 @@ vbr_desc_read(
     if (ev(!base))
         return merr(EINVAL);
 
-    hdr = base;
-    vgroup = omf_vbh_vgroup(hdr);
-    vers = omf_vbh_version(hdr);
+    footer = base + props->mpr_write_len - VBLOCK_FOOTER_LEN;
+    vgroup = omf_vbf_vgroup(footer);
+    vers = omf_vbf_version(footer);
 
-    supported = (omf_vbh_magic(hdr) == VBLOCK_HDR_MAGIC &&
-                 (VBLOCK_HDR_VERSION2 <= vers && vers <= VBLOCK_HDR_VERSION));
+    supported = (omf_vbf_magic(footer) == VBLOCK_FOOTER_MAGIC && vers == VBLOCK_FOOTER_VERSION);
     if (ev(!supported))
         return merr(EPROTO);
 
@@ -54,8 +52,8 @@ vbr_desc_read(
     vblk_desc->vbd_mblkdesc.map = map;
     vblk_desc->vbd_mblkdesc.map_idx = idx;
     vblk_desc->vbd_mblkdesc.mclass = props->mpr_mclass;
-    vblk_desc->vbd_off = PAGE_SIZE;
-    vblk_desc->vbd_len = props->mpr_write_len - PAGE_SIZE;
+    vblk_desc->vbd_off = 0;
+    vblk_desc->vbd_len = props->mpr_write_len - VBLOCK_FOOTER_LEN;
     vblk_desc->vbd_vgroup = vgroup;
     atomic_set(&vblk_desc->vbd_vgidx, 1);
     atomic_set(&vblk_desc->vbd_refcnt, 0);

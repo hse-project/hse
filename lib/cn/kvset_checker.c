@@ -537,7 +537,7 @@ kc_vblock_meta(struct mpool *ds, struct blk_list *list)
         char *       vb_buf;
         u64          vbid = list->blks[i].bk_blkid;
 
-        struct vblock_hdr_omf *vb_hdr;
+        struct vblock_footer_omf *vb_footer;
 
         err = mpool_mblock_props_get(ds, vbid, &vb->props[i]);
         if (ev(err)) {
@@ -545,24 +545,25 @@ kc_vblock_meta(struct mpool *ds, struct blk_list *list)
             break;
         }
 
-        /* Verify correctness of vblocks' headers */
-        vb_buf = alloc_page_aligned(PAGE_SIZE);
+        /* Verify correctness of vblocks' footer */
+        vb_buf = alloc_page_aligned(VBLOCK_FOOTER_LEN);
         iov.iov_base = vb_buf;
-        iov.iov_len = PAGE_SIZE;
+        iov.iov_len = VBLOCK_FOOTER_LEN;
 
-        err = mpool_mblock_read(ds, vbid, &iov, 1, 0);
+        err = mpool_mblock_read(ds, vbid, &iov, 1, vb->props[i].mpr_write_len - VBLOCK_FOOTER_LEN);
         if (ev(err)) {
             print_merr(err, "vblock 0x%08lx: cannot read mblock", vbid);
             free_aligned(vb_buf);
             break;
         }
 
-        vb_hdr = (struct vblock_hdr_omf *)vb_buf;
-        if (omf_vbh_magic(vb_hdr) != VBLOCK_HDR_MAGIC)
-            print_err("vblock 0x%08lx: incorrect magic", vbid);
+        vb_footer = (struct vblock_footer_omf *)vb_buf;
 
-        if (omf_vbh_version(vb_hdr) > VBLOCK_HDR_VERSION)
-            print_err("vblock 0x%08lx: invalid version", vbid);
+        if (omf_vbf_magic(vb_footer) != VBLOCK_FOOTER_MAGIC)
+            print_err("vblock 0x%08lx: incorrect footer magic", vbid);
+
+        if (omf_vbf_version(vb_footer) > VBLOCK_FOOTER_VERSION)
+            print_err("vblock 0x%08lx: invalid footer version", vbid);
 
         free_aligned(vb_buf);
     }

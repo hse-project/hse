@@ -283,6 +283,7 @@ c0sk_cningest_cb(void *rock, struct bonsai_kv *bkv, struct bonsai_val *vlist)
 
     seqno_prev = U64_MAX;
     pt_seqno_prev = U64_MAX;
+    key2kobj(&ko, bkv->bkv_key, key_imm_klen(&bkv->bkv_key_imm));
 
     for (val = vlist; val; val = val->bv_priv) {
         enum hse_seqno_state state HSE_MAYBE_UNUSED;
@@ -305,13 +306,12 @@ c0sk_cningest_cb(void *rock, struct bonsai_kv *bkv, struct bonsai_val *vlist)
             seqno_prev = seqno;
 
         err = kvset_builder_add_val(
-            bldr, seqno, val->bv_value, bonsai_val_ulen(val), bonsai_val_clen(val));
+            bldr, &ko, seqno, val->bv_value, bonsai_val_ulen(val), bonsai_val_clen(val));
 
         if (ev(err))
             return err;
     }
 
-    key2kobj(&ko, bkv->bkv_key, key_imm_klen(&bkv->bkv_key_imm));
     err = kvset_builder_add_key(bldr, &ko);
     if (ev(err))
         return err;

@@ -20,6 +20,7 @@
 
 #include <cn/vblock_builder.h>
 #include <cn/blk_list.h>
+#include <cn/omf.h>
 
 #include <mocks/mock_mpool.h>
 
@@ -57,6 +58,8 @@ struct mclass_policy mocked_mpolicy = {
     .mc_name = "capacity_only",
 };
 
+static struct key_obj max_kobj;
+
 /*----------------------------------------------------------------------------
  * Call at start of each MTF_DEFINE_UTEST
  */
@@ -81,6 +84,7 @@ test_setup(struct mtf_test_info *lcl_ti)
 int
 initial_setup(struct mtf_test_info *lcl_ti)
 {
+    const char key = 'f';
     u32 i, j;
 
     workbuf = mapi_safe_malloc(WORKBUF_SIZE);
@@ -94,6 +98,8 @@ initial_setup(struct mtf_test_info *lcl_ti)
     for (i = 0; i < HSE_MPOLICY_AGE_CNT; i++)
         for (j = 0; j < HSE_MPOLICY_DTYPE_CNT; j++)
             mocked_mpolicy.mc_table[i][j] = HSE_MCLASS_CAPACITY;
+
+    key2kobj(&max_kobj, &key, sizeof(key));
 
     return 0;
 }
@@ -172,7 +178,7 @@ MTF_DEFINE_UTEST_PRE(test, t_vbb_finish_empty1, test_setup)
     err = vbb_create(VBB_CREATE_ARGS);
     ASSERT_EQ(err, 0);
 
-    err = vbb_finish(vbb, &blks);
+    err = vbb_finish(vbb, &blks, &max_kobj);
     ASSERT_EQ(err, 0);
     ASSERT_EQ(blks.n_blks, 0);
     blk_list_free(&blks);
@@ -193,7 +199,7 @@ MTF_DEFINE_UTEST_PRE(test, t_vbb_finish_exact, test_setup)
     err = fill_exact(lcl_ti, vbb, 0, 0);
     ASSERT_EQ(err, 0);
 
-    err = vbb_finish(vbb, &blks);
+    err = vbb_finish(vbb, &blks, &max_kobj);
     ASSERT_EQ(err, 0);
     ASSERT_GE(blks.n_blks, 1);
 
@@ -262,7 +268,7 @@ MTF_DEFINE_UTEST_PRE(test, t_vbb_add_entry_exact, test_setup)
     err = fill_exact(lcl_ti, vbb, 0, 0);
     ASSERT_EQ(err, 0);
 
-    err = vbb_finish(vbb, &blks);
+    err = vbb_finish(vbb, &blks, &max_kobj);
     ASSERT_EQ(err, 0);
     ASSERT_GE(blks.n_blks, 1);
 
@@ -283,7 +289,7 @@ MTF_DEFINE_UTEST_PRE(test, t_vbb_add_entry_exact, test_setup)
     err = add_entry(lcl_ti, vbb, 1, 0); /* one extra */
     ASSERT_EQ(err, 0);
 
-    err = vbb_finish(vbb, &blks);
+    err = vbb_finish(vbb, &blks, &max_kobj);
     ASSERT_EQ(err, 0);
     ASSERT_EQ(blks.n_blks, 2); /* verify 1 vblock */
 
@@ -396,7 +402,7 @@ MTF_DEFINE_UTEST_PRE(test, t_vbb_finish_fail_mblock_write, test_setup)
     api = mapi_idx_mpool_mblock_write;
     mapi_inject(api, 666);
 
-    err = vbb_finish(vbb, &blks);
+    err = vbb_finish(vbb, &blks, &max_kobj);
     ASSERT_EQ(merr_errno(err), 666);
 
     mapi_inject_unset(api);
@@ -440,7 +446,7 @@ add_entry(struct mtf_test_info *lcl_ti, struct vblock_builder *vbb, uint vlen, i
      */
     unsigned base = (7 * salt++) % (WORKBUF_SIZE - vlen - 1);
 
-    err = vbb_add_entry(vbb, workbuf + base, vlen, &vbid, &vbidx, &vboff);
+    err = vbb_add_entry(vbb, &max_kobj, workbuf + base, vlen, &vbid, &vbidx, &vboff);
     if (!err) {
         ASSERT_TRUE_RET(vboff != -1, -1);
         ASSERT_TRUE_RET(vbidx != -1, -1);
@@ -471,7 +477,7 @@ fill_exact(struct mtf_test_info *lcl_ti, struct vblock_builder *vbb, uint space,
 {
     merr_t err = 0;
     uint   vlen_max = HSE_KVS_VALUE_LEN_MAX;
-    uint   avail = MPOOL_MBLOCK_SIZE_DEFAULT - PAGE_SIZE - space;
+    uint   avail = MPOOL_MBLOCK_SIZE_DEFAULT - VBLOCK_FOOTER_LEN - space;
     uint   vlen;
 
     while (avail > 0) {
@@ -495,8 +501,9 @@ run_test_case(struct mtf_test_info *lcl_ti, enum test_case tc, size_t n_vblocks)
     struct vblock_builder *vbb = 0;
 
     const size_t mblock_size = MPOOL_MBLOCK_SIZE_DEFAULT;
-    const size_t vblock_hdr_size = PAGE_SIZE;
-    const size_t avail_mblock_size = mblock_size - vblock_hdr_size;
+    const size_t vblock_hdr_size = 0;
+    const size_t vblock_ftr_size = VBLOCK_FOOTER_LEN;
+    const size_t avail_mblock_size = mblock_size - vblock_hdr_size - vblock_ftr_size;
     const size_t vlen = 50 * 1000;
     const size_t values_per_mblock = avail_mblock_size / vlen;
     const size_t add_count = n_vblocks * values_per_mblock;
@@ -513,12 +520,13 @@ run_test_case(struct mtf_test_info *lcl_ti, enum test_case tc, size_t n_vblocks)
     mapi_calls_clear(mapi_idx_mpool_mblock_commit);
     mapi_calls_clear(mapi_idx_mpool_mblock_delete);
 
-    log_info("Creating vbb: size %zu = hdr %zu + %zu values x %zu bytes/value + %ld leftover",
+    log_info("Creating vbb: size %zu = %zu values x %zu bytes/value + footer %d + "
+             "%ld leftover",
              mblock_size,
-             PAGE_SIZE,
              values_per_mblock,
              vlen,
-             (long)(mblock_size - PAGE_SIZE - values_per_mblock * vlen));
+             VBLOCK_FOOTER_LEN,
+             (long)(mblock_size - values_per_mblock * vlen - VBLOCK_FOOTER_LEN));
 
     err = vbb_create(VBB_CREATE_ARGS);
     ASSERT_EQ_RET(err, 0, 1);
@@ -532,7 +540,7 @@ run_test_case(struct mtf_test_info *lcl_ti, enum test_case tc, size_t n_vblocks)
 
         case tc_finish:
 
-            err = vbb_finish(vbb, &blks);
+            err = vbb_finish(vbb, &blks, &max_kobj);
             ASSERT_EQ_RET(0, err, 1);
             ASSERT_EQ_RET(blks.n_blks, n_vblocks, 1);
             for (i = 0; i < n_vblocks; i++)

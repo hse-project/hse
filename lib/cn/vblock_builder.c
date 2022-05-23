@@ -5,7 +5,10 @@
 
 #define MTF_MOCK_IMPL_vblock_builder
 
-#include "vblock_builder.h"
+#include <stdbool.h>
+#include <stddef.h>
+#include <stdint.h>
+
 
 #include <hse_util/alloc.h>
 #include <hse_util/slab.h>
@@ -15,7 +18,10 @@
 #include <hse_util/logging.h>
 #include <hse_util/perfc.h>
 #include <hse_util/vlb.h>
+#include <hse_util/hse_err.h>
 
+#include <hse_ikvdb/blk_list.h>
+#include <hse_ikvdb/mclass_policy.h>
 #include <hse_ikvdb/tuple.h>
 #include <hse_ikvdb/limits.h>
 #include <hse_ikvdb/kvset_builder.h>
@@ -23,16 +29,99 @@
 
 #include <hse/limits.h>
 #include <hse/kvdb_perfc.h>
+#include <mpool/mpool.h>
 
+#include "vblock_builder.h"
 #include "omf.h"
 #include "blk_list.h"
 #include "cn_mblocks.h"
 #include "cn_metrics.h"
 #include "cn_perfc.h"
 
-#include <mpool/mpool.h>
+#define WBUF_LEN_MAX      ((1024 * 1024) + VBLOCK_FOOTER_LEN)
 
-#include "vblock_builder_internal.h"
+/**
+ * struct vblock_builder - create vblocks from a stream of values
+ * @ds:        mpool dataset
+ * @pc:        performance counters
+ * @vblk_list: list of vblocks
+ * @wbuf:      write buffer
+ * @wbuf_off:  offset of next unused byte in write buffer
+ * @wbuf_len:  length of next write to media
+ * @vblk_off:  offset of next unused byte in vblock
+ * @vsize:     vblock size for compaction stats.  for vblocks, vsize
+ *             is the number of bytes written to the vblock before committing it
+ * @destruct:  if true, vlbock builder is ready to be destroyed
+ * @mblocksz:  mblock size of specified media class
+ *
+ * @cur_kobj:  keyobj context for the current vbb_add_entry()
+ * @cur_minklen: min key length
+ * @cur_minkey:  a copy of the min key referencing this vblock
+ *
+ * WBUF_LEN_MAX is the allocated size of the write buffer.  Each mblock write
+ * will be at most WBUF_LEN_MAX bytes.  Member @wbuf_len is the actual write
+ * size, and is <= WBUF_LEN_MAX.
+ *
+ * The vblock builder creates as many vblocks as needed to store the values.
+ * The write buffer is allocated once when the builder is created, and is
+ * reused between vblocks.  The following logic explains how the vlbock
+ * builder state is managed as new values are added.
+ *
+ * When a new value is given to the vblock builder
+ * -----------------------------------------------
+ *
+ *   Let @vlen be the length of the new value
+ *
+ *   If current vblock has not been allocated, start a new vblock as follows:
+ *     - allocate vblock
+ *     - set @wbuf_len to WBUF_LEN_MAX - VBLOCK_FOOTER_LEN, reserving space for footer
+ *
+ *   If current vblock does not have room for new value:
+ *     - write residual contents of @wbuf to mblock
+ *     - start a new vblock as described above
+ *
+ *   While @vlen > 0:
+ *     - copy whatever fits into @wbuf (cannot exceed @wbuf_len)
+ *     - let @copied be number of bytes copied
+ *     - set @vlen -= @copied
+ *     - set @wbuf_off += @copied
+ *     - if @wbuf_off == @wbuf_len:
+ *       -- write @wbuf_len bytes to mblock
+ *       -- set @wbuf_off to 0
+ *       -- set @vblk_off += @wbuff_off
+ */
+struct vblock_builder {
+    struct mpool *             ds;
+    struct cn *                cn;
+    struct perfc_set *         pc;
+    struct cn_merge_stats *    mstats;
+    struct blk_list            vblk_list;
+    enum hse_mclass_policy_age agegroup;
+    uint64_t                   vsize;
+    uint64_t                   blkid;
+    uint32_t                   max_size;
+    off_t                      vblk_off;
+    void *                     wbuf;
+    off_t                      wbuf_off;
+    unsigned int               wbuf_len;
+    uint64_t                   vgroup;
+    bool                       destruct;
+    const struct key_obj      *cur_kobj;
+    uint32_t                   cur_minklen;
+    char                       cur_minkey[HSE_KVS_KEY_LEN_MAX];
+};
+
+static inline bool
+vblock_has_room(struct vblock_builder *bld, size_t vlen)
+{
+    return bld->vblk_off + vlen <= (bld->max_size - VBLOCK_FOOTER_LEN);
+}
+
+static inline uint32_t HSE_MAYBE_UNUSED
+vblock_unused_media_space(struct vblock_builder *bld)
+{
+    return bld->max_size - bld->vblk_off;
+}
 
 size_t
 vbb_estimate_alen(struct cn *cn, size_t wlen, enum hse_mclass mclass)
@@ -45,7 +134,7 @@ vbb_estimate_alen(struct cn *cn, size_t wlen, enum hse_mclass mclass)
 }
 
 static merr_t
-_vblock_start(struct vblock_builder *bld)
+vblock_start(struct vblock_builder *bld)
 {
     merr_t                 err = 0;
     struct mblock_props    mbprop;
@@ -76,26 +165,20 @@ _vblock_start(struct vblock_builder *bld)
         return err;
     }
 
-    assert(mbprop.mpr_optimal_wrsz);
-
-    /* set offsets to leave space for header */
-    bld->vblk_off = VBLOCK_HDR_LEN;
-    bld->wbuf_off = VBLOCK_HDR_LEN;
+    bld->vblk_off = bld->wbuf_off = 0;
     bld->blkid = blkid;
-    bld->wbuf_len = WBUF_LEN_MAX - (WBUF_LEN_MAX % mbprop.mpr_optimal_wrsz);
-    bld->opt_wrsz = mbprop.mpr_optimal_wrsz;
+    bld->wbuf_len = WBUF_LEN_MAX - VBLOCK_FOOTER_LEN; /* Reserve space for footer */
 
-    /* add header to write buffer */
-    memset(bld->wbuf, 0x0, VBLOCK_HDR_LEN);
-    omf_set_vbh_magic(bld->wbuf, VBLOCK_HDR_MAGIC);
-    omf_set_vbh_version(bld->wbuf, VBLOCK_HDR_VERSION);
-    omf_set_vbh_vgroup(bld->wbuf, bld->vgroup);
+    /* Store a copy of the first key referencing this vblock.
+     * It is written later to the vblock footer as the min key.
+     */
+    key_obj_copy(bld->cur_minkey, sizeof(bld->cur_minkey), &bld->cur_minklen, bld->cur_kobj);
 
     return 0;
 }
 
 static merr_t
-_vblock_write(struct vblock_builder *bld)
+vblock_write(struct vblock_builder *bld)
 {
     merr_t                 err;
     struct iovec           iov;
@@ -132,26 +215,45 @@ _vblock_write(struct vblock_builder *bld)
 }
 
 static merr_t
-_vblock_finish(struct vblock_builder *bld)
+vblock_finish(struct vblock_builder *bld)
 {
+    struct vblock_footer_omf *vbfomf;
+    uint32_t buflen, zfill_len, klen, max_klen;
+    off_t min_koff, max_koff;
     merr_t err = 0;
-    uint   buflen;
-    uint   zfill_len;
 
-    if (bld->blkid && bld->wbuf_off) {
+    if (bld->blkid == 0)
+        return 0;
 
-        zfill_len = bld->wbuf_len - bld->wbuf_off;
-        if (zfill_len > _vblock_unused_media_space(bld))
-            zfill_len = _vblock_unused_media_space(bld);
+    /* Align the buffer offset to a page boundary and zero out the rounded space */
+    zfill_len = PAGE_ALIGN(bld->wbuf_off) - bld->wbuf_off;
+    assert(zfill_len <= vblock_unused_media_space(bld));
+    memset(bld->wbuf + bld->wbuf_off, 0, zfill_len);
+    bld->wbuf_off += zfill_len;
 
-        buflen = bld->wbuf_len;
-        bld->wbuf_len = bld->wbuf_off + zfill_len;
+    assert(bld->wbuf_len >= bld->wbuf_off);
+    assert(vblock_unused_media_space(bld) >= VBLOCK_FOOTER_LEN);
 
-        memset(bld->wbuf + bld->wbuf_off, 0, zfill_len);
+    vbfomf = bld->wbuf + bld->wbuf_off;
+    omf_set_vbf_magic(vbfomf, VBLOCK_FOOTER_MAGIC);
+    omf_set_vbf_version(vbfomf, VBLOCK_FOOTER_VERSION);
+    omf_set_vbf_vgroup(vbfomf, bld->vgroup);
 
-        err = _vblock_write(bld);
-        bld->wbuf_len = buflen;
-    }
+    max_klen = key_obj_len(bld->cur_kobj);
+    omf_set_vbf_min_klen(vbfomf, bld->cur_minklen);
+    omf_set_vbf_max_klen(vbfomf, max_klen);
+
+    min_koff = bld->wbuf_off + VBLOCK_FOOTER_LEN - (2 * HSE_KVS_KEY_LEN_MAX);
+    memcpy(bld->wbuf + min_koff, bld->cur_minkey, bld->cur_minklen);
+
+    max_koff = min_koff + HSE_KVS_KEY_LEN_MAX;
+    key_obj_copy(bld->wbuf + max_koff, max_klen, &klen, bld->cur_kobj);
+    assert(klen == max_klen);
+
+    buflen = bld->wbuf_len;
+    bld->wbuf_len = bld->wbuf_off + VBLOCK_FOOTER_LEN;
+    err = vblock_write(bld);
+    bld->wbuf_len = buflen;
 
     bld->blkid = 0;
 
@@ -219,6 +321,7 @@ vbb_destroy(struct vblock_builder *bld)
 merr_t
 vbb_add_entry(
     struct vblock_builder *bld,
+    const struct key_obj  *kobj,
     const void *           vdata,
     uint                   vlen, /* on-media length */
     u64 *                  vbidout,
@@ -234,20 +337,22 @@ vbb_add_entry(
     assert(vlen);
     assert(vlen <= HSE_KVS_VALUE_LEN_MAX);
 
-    if (HSE_UNLIKELY(!_vblock_has_room(bld, vlen))) {
-        err = _vblock_finish(bld);
+    bld->cur_kobj = kobj;
+
+    if (HSE_UNLIKELY(!vblock_has_room(bld, vlen))) {
+        err = vblock_finish(bld);
         if (ev(err))
             return err;
     }
 
     if (HSE_UNLIKELY(!bld->blkid)) {
-        err = _vblock_start(bld);
+        err = vblock_start(bld);
         if (ev(err))
             return err;
     }
 
     assert(bld->blkid);
-    assert(_vblock_has_room(bld, vlen));
+    assert(vblock_has_room(bld, vlen));
 
     voff = 0;
 
@@ -268,7 +373,7 @@ vbb_add_entry(
 
         /* Issue write if buffer is full. */
         if (bld->wbuf_off == bld->wbuf_len) {
-            err = _vblock_write(bld);
+            err = vblock_write(bld);
             if (ev(err))
                 return err;
         }
@@ -276,7 +381,7 @@ vbb_add_entry(
 
     assert(bld->wbuf_off < bld->wbuf_len);
 
-    *vboffout = bld->vblk_off - VBLOCK_HDR_LEN;
+    *vboffout = bld->vblk_off;
     *vbidxout = bld->vblk_list.n_blks - 1;
     *vbidout = bld->vblk_list.blks[*vbidxout].bk_blkid;
 
@@ -290,15 +395,16 @@ vbb_add_entry(
  * and mark the builder as closed for business.
  */
 merr_t
-vbb_finish(struct vblock_builder *bld, struct blk_list *vblks)
+vbb_finish(struct vblock_builder *bld, struct blk_list *vblks, const struct key_obj *max_kobj)
 {
     merr_t err;
 
     assert(!bld->destruct);
 
     bld->destruct = true;
+    bld->cur_kobj = max_kobj;
 
-    err = _vblock_finish(bld);
+    err = vblock_finish(bld);
     if (ev(err))
         return err;
 

@@ -927,7 +927,6 @@ kblock_finish(struct kblock_builder *bld)
      * mblock optimal write size. Use largest chunk size less than 1 MiB.
      */
     chunk = 1024 * 1024;
-    chunk = chunk - (chunk % mbprop.mpr_optimal_wrsz);
     err = mblk_blow_chunks(bld, blkid, iov, iov_cnt, chunk);
     if (ev(err))
         goto errout;
@@ -1148,6 +1147,21 @@ void
 kbb_set_merge_stats(struct kblock_builder *bld, struct cn_merge_stats *stats)
 {
     bld->mstats = stats;
+}
+
+bool
+kbb_is_empty(struct kblock_builder *bld)
+{
+    return kblock_is_empty(&bld->curr);
+}
+
+void
+kbb_curr_kblk_minmax_keys(
+    struct kblock_builder *bld,
+    struct key_obj        **min_kobj,
+    struct key_obj        **max_kobj)
+{
+    wbb_min_max_keys(bld->curr.wbtree, min_kobj, max_kobj);
 }
 
 /**

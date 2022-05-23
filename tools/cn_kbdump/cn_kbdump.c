@@ -235,9 +235,22 @@ print_kblk(struct blk *blk)
 void
 print_vblk(struct blk *blk)
 {
-    struct vblock_hdr_omf *p = blk->buf;
+    struct vblock_footer_omf *f = blk->buf + blk->len - VBLOCK_FOOTER_LEN;
+    off_t min_koff, max_koff;
 
-    printf("%s: V magic 0x%08x  ver %d\n", blk->id, omf_vbh_magic(p), omf_vbh_version(p));
+    printf("%s: V footer magic 0x%08x version %u\n", blk->id, omf_vbf_magic(f), omf_vbf_version(f));
+
+    min_koff = blk->len - (2 * HSE_KVS_KEY_LEN_MAX);
+    printf(
+        "    keymin: len %u key %s\n",
+        omf_vbf_min_klen(f),
+        fmt_data(blk->buf + min_koff, omf_vbf_min_klen(f), HSE_KVS_KEY_LEN_MAX));
+
+    max_koff = min_koff + HSE_KVS_KEY_LEN_MAX;
+    printf(
+        "    keymax: len %u key %s\n",
+        omf_vbf_max_klen(f),
+        fmt_data(blk->buf + max_koff, omf_vbf_max_klen(f), HSE_KVS_KEY_LEN_MAX));
 }
 
 int
@@ -842,7 +855,7 @@ ereadfp(FILE *fp, struct blk *blk)
     cc = fread(cur, 1, 512, fp);
     kblk = (struct kblock_hdr_omf *)cur;
     if (cc != 512 ||
-        (omf_kbh_magic(kblk) != KBLOCK_HDR_MAGIC && omf_kbh_magic(kblk) != VBLOCK_HDR_MAGIC))
+        (omf_kbh_magic(kblk) != KBLOCK_HDR_MAGIC && omf_kbh_magic(kblk) != VBLOCK_FOOTER_MAGIC))
         fatal(EPROTO, "%s not a kblock or vblock", blk->id);
     blk->is_kblock = omf_kbh_magic(kblk) == KBLOCK_HDR_MAGIC;
     /* read up to a max sized block */
@@ -1132,7 +1145,6 @@ main(int argc, char **argv)
     for (i = 0; i < nv; ++i) {
         blk = table_at(vtab, i);
         print_vblk(blk);
-        blk->buf += PAGE_SIZE; /* adjust so offsets are ordinal 0 */
     }
 
     /* print the kblocks, and perhaps the keys + values */

@@ -110,7 +110,6 @@ _mpool_mblock_alloc(
         props->mpr_objid = blkid;
         props->mpr_alloc_cap = mb->mb_alloc_cap;
         props->mpr_write_len = 0;
-        props->mpr_optimal_wrsz = 4096 * 3;
     }
 
     return 0;
