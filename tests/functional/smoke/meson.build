@@ -169,12 +169,6 @@ tests = {
             tool_targets['cn_metrics'],
         ],
     },
-    'kvs-max': {
-        'suites': ['smoke', 'nightly-small'],
-        'depends': [
-            tool_targets['kmt'],
-        ],
-    },
     'omf_encoder_perf': {
         'suites': ['smoke', 'nightly-small'],
         'depends': [
