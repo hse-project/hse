@@ -29,7 +29,8 @@
 #define MPOOL_CAPACITY_MCLASS_DEFAULT_PATH "capacity"
 #define MPOOL_PMEM_MCLASS_DEFAULT_PATH     "pmem"
 
-#define MPOOL_MBLOCK_PREALLOC  (1u << 0)    /* advisory */
+#define MPOOL_MBLOCK_PREALLOC   (1u << 0)   /* advisory */
+#define MPOOL_MBLOCK_PUNCH_HOLE (1u << 1)
 
 /**
  * struct mpool_cparams - mpool create params

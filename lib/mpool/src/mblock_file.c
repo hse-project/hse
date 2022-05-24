@@ -764,12 +764,20 @@ mblock_file_alloc(struct mblock_file *mbfp, uint32_t flags, int mbidc, uint64_t 
     uint64_t mbid;
     uint32_t block, uniq;
     merr_t   err;
+    bool     prealloc, punch_hole;
 
     if (!mbfp || !mbidv)
         return merr(EINVAL);
 
     if (mbidc > 1)
         return merr(ENOTSUP);
+
+    prealloc = (flags & MPOOL_MBLOCK_PREALLOC);
+    punch_hole = (flags & MPOOL_MBLOCK_PUNCH_HOLE);
+
+    /* Both prealloc and punch hole flags are mutually exclusive */
+    if (prealloc && punch_hole)
+        return merr(EINVAL);
 
     block = mblock_rgn_alloc(&mbfp->rgnmap);
     if (block == 0)
@@ -794,12 +802,20 @@ mblock_file_alloc(struct mblock_file *mbfp, uint32_t flags, int mbidc, uint64_t 
     mbid |= ((uint64_t)mbfp->mcid << MBID_MCID_SHIFT);
     mbid |= (block - 1);
 
-    if (flags & MPOOL_MBLOCK_PREALLOC) {
-        off_t  mblocksz = mbfp->mblocksz;
-        int    rc;
+    if (prealloc) {
+        int rc;
 
-        rc = posix_fallocate(mbfp->fd, block_off(mbid, mblocksz), mblocksz);
+        rc = posix_fallocate(mbfp->fd, block_off(mbid, mbfp->mblocksz), mbfp->mblocksz);
         ev(rc); /* advisory */
+    } else if (punch_hole) {
+        int rc;
+
+        rc = fallocate(mbfp->fd, FALLOC_FL_PUNCH_HOLE | FALLOC_FL_KEEP_SIZE,
+                       block_off(mbid, mbfp->mblocksz), mbfp->mblocksz);
+        if (rc == -1) {
+            mblock_rgn_free(&mbfp->rgnmap, block);
+            return merr(errno);
+        }
     }
 
     atomic_set(mbfp->wlenv + block - 1, 0);

@@ -852,7 +852,7 @@ mblock_fset_clone(
     if (err)
         return err;
 
-    err = mblock_fset_alloc(mbfsp, 0, 1, &tgt_mbid);
+    err = mblock_fset_alloc(mbfsp, MPOOL_MBLOCK_PUNCH_HOLE, 1, &tgt_mbid);
     if (err)
         return err;
 
