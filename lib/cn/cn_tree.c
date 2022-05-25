@@ -490,6 +490,7 @@ tn_samp_update_finish(struct cn_tree_node *tn)
     struct cn_node_stats *s = &tn->tn_ns;
     const uint            pct_scale = 1024;
     uint                  pct;
+    const uint64_t num_keys = cn_ns_keys(s);
 
     /* Use hlog to estimate number of unique keys, but protect
      * against estimated values outside the valid range.
@@ -499,13 +500,20 @@ tn_samp_update_finish(struct cn_tree_node *tn)
         s->ns_keys_uniq = hlog_card(tn->tn_hlog);
         if (s->ns_keys_uniq < tn->tn_biggest_kvset)
             s->ns_keys_uniq = tn->tn_biggest_kvset;
-        else if (s->ns_keys_uniq > cn_ns_keys(s))
-            s->ns_keys_uniq = cn_ns_keys(s);
+        else if (s->ns_keys_uniq > num_keys)
+            s->ns_keys_uniq = num_keys;
     } else {
-        s->ns_keys_uniq = cn_ns_keys(s);
+        s->ns_keys_uniq = num_keys;
     }
 
-    pct = pct_scale * s->ns_keys_uniq / cn_ns_keys(s);
+    /* In the event that a node is composed of only prefix tombstones, it will
+     * have 0 keys. Therefore protect against a division-by-zero error.
+     */
+    if (num_keys > 0) {
+        pct = pct_scale * s->ns_keys_uniq / num_keys;
+    } else {
+        pct = pct_scale;
+    }
 
     {
         u64 cur_alen = s->ns_kst.kst_kalen;
