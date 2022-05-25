@@ -2366,11 +2366,21 @@ kblk_start_read(struct kvset_iterator *iter, struct kblk_reader *kr, enum read_t
         /* starting a new kblock */
         kblk = &iter->ks->ks_kblks[kr->kr_next_kblk_idx];
 
-        wbt = read_type == READ_WBT ? &kblk->kb_wbt_desc : &iter->ks->ks_hblk.kh_ptree_desc;
+        switch (read_type) {
+        case READ_WBT:
+            wbt = &kblk->kb_wbt_desc;
+            kr->kr_mbid = kblk->kb_kblk.bk_blkid;
+            kr->kr_next_kblk_idx++;
+            break;
+        case READ_PT:
+            wbt = &iter->ks->ks_hblk.kh_ptree_desc;
+            kr->kr_mbid = iter->ks->ks_hblk.kh_hblk.bk_blkid;
+            /* Reuse same kblock for next iteration since it went unused */
+            break;
+        }
 
         kr->kr_nodex = 0;
         kr->kr_nodec = wbt->wbd_leaf_cnt;
-        kr->kr_mbid = kblk->kb_kblk.bk_blkid;
         kr->kr_kmd_pgc = wbt->wbd_kmd_pgc;
         kr->kr_node_start_pg = wbt->wbd_first_page;
         kr->kr_kmd_start_pg = (wbt->wbd_first_page + wbt->wbd_root + 1);
@@ -2381,7 +2391,6 @@ kblk_start_read(struct kvset_iterator *iter, struct kblk_reader *kr, enum read_t
         }
 
         iter->curr_kblk = kr->kr_next_kblk_idx;
-        kr->kr_next_kblk_idx++;
     }
 
     mbio_arm(&kr->mbio);
@@ -3091,7 +3100,6 @@ kvset_iter_next_wbt_key_mcache(struct kvset_iterator *iter, const void **kdata, 
 
 next_kblock:
     if (!iter->wbti) {
-
         struct kvset_kblk *kb;
         bool               eof;
 
@@ -3263,8 +3271,7 @@ kvset_iter_next_pt_key_mcache(struct kvset_iterator *iter, const void **kdata, u
     return 0;
 }
 
-static
-merr_t
+static merr_t
 kvset_iter_next_pt_key(struct kv_iterator *handle, const void **kdata, uint *klen)
 {
     struct kvset_iterator *iter = handle_to_kvset_iter(handle);
