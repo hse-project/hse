@@ -1,6 +1,6 @@
 /* SPDX-License-Identifier: Apache-2.0 */
 /*
- * Copyright (C) 2015-2021 Micron Technology, Inc.  All rights reserved.
+ * Copyright (C) 2015-2022 Micron Technology, Inc.  All rights reserved.
  */
 
 #define MTF_MOCK_IMPL_cn_kvdb
@@ -23,8 +23,10 @@ cn_kvdb_create(uint cn_maint_threads, uint cn_io_threads, struct cn_kvdb **out)
     if (ev(!self))
         return merr(ENOMEM);
 
+    atomic_set(&self->cnd_hblk_cnt, 0);
     atomic_set(&self->cnd_kblk_cnt, 0);
     atomic_set(&self->cnd_vblk_cnt, 0);
+    atomic_set(&self->cnd_hblk_size, 0);
     atomic_set(&self->cnd_kblk_size, 0);
     atomic_set(&self->cnd_vblk_size, 0);
 

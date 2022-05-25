@@ -78,7 +78,7 @@ MTF_DEFINE_UTEST_PRE(vblock_reader_test, t_vbr_desc_read, pre)
 
     err = vbr_desc_read(ds, map, 0, &vgroups, argv, &props, &vblk_desc);
     ASSERT_EQ(0, err);
-    ASSERT_EQ(blkid, vblk_desc.vbd_mblkdesc.mb_id);
+    ASSERT_EQ(blkid, vblk_desc.vbd_mblkdesc.mbid);
     ASSERT_EQ(4096, vblk_desc.vbd_off);
     ASSERT_EQ(83787, vblk_desc.vbd_len);
     ASSERT_EQ(0, vgroups);

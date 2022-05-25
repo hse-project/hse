@@ -2,7 +2,7 @@
 
 # SPDX-License-Identifier: Apache-2.0
 #
-# Copyright (C) 2021 Micron Technology, Inc. All rights reserved.
+# Copyright (C) 2021-2022 Micron Technology, Inc. All rights reserved.
 
 """
 Create multiple c0 KVMSes and use a cursor to verify the keys. Update this cursor (explicitly as
@@ -16,7 +16,7 @@ from hse2 import hse
 from utility import lifecycle, cli
 
 
-def resize_c0_cursor(kvdb, kvs):
+def resize_c0_cursor(kvdb: hse.Kvdb, kvs: hse.Kvs):
     cnt1 = 10
     cnt2 = 30
 
@@ -39,7 +39,7 @@ def resize_c0_cursor(kvdb, kvs):
         assert sum(1 for _ in c.items()) == cnt1 + cnt2
 
 
-def reuse_c0_cursor(kvdb, kvs):
+def reuse_c0_cursor(kvdb: hse.Kvdb, kvs: hse.Kvs):
     kvs.put("ab01", "val01")
     kvs.put("ab02", "val01")
     kvdb.sync(flags=hse.KvdbSyncFlag.ASYNC)

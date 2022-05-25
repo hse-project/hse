@@ -27,6 +27,10 @@
  */
 #define PTR_ALIGN(p, a) ((typeof(p))ALIGN((unsigned long)(p), (a)))
 
+/* Align @x to the next byte boundary
+ */
+#define BYTE_ALIGN(x) ALIGN(x, CHAR_BIT)
+
 /* Align 'addr' to the next page boundary.
  */
 #define PAGE_ALIGN(addr) ALIGN(addr, PAGE_SIZE)

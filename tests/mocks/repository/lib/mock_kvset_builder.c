@@ -1,6 +1,6 @@
 /* SPDX-License-Identifier: Apache-2.0 */
 /*
- * Copyright (C) 2015-2021 Micron Technology, Inc.  All rights reserved.
+ * Copyright (C) 2015-2022 Micron Technology, Inc.  All rights reserved.
  */
 
 #include <mock/api.h>
@@ -51,6 +51,7 @@ static struct mapi_injection inject_list[] = {
     { mapi_idx_kvset_builder_add_vref, MAPI_RC_SCALAR, 0 },
     { mapi_idx_kvset_builder_get_mblocks, MAPI_RC_SCALAR, 0 },
     { mapi_idx_kvset_builder_set_agegroup, MAPI_RC_SCALAR, 0 },
+    { mapi_idx_kvset_builder_adopt_vblocks, MAPI_RC_SCALAR, 0},
     { -1},
 };
 

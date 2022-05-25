@@ -6,12 +6,11 @@
 #ifndef HSE_KVDB_OMF_VERSION_H
 #define HSE_KVDB_OMF_VERSION_H
 
-#include <inttypes.h>
-
 enum {
     GLOBAL_OMF_VERSION1 = 1,
     GLOBAL_OMF_VERSION2 = 2,
     GLOBAL_OMF_VERSION3 = 3,
+    GLOBAL_OMF_VERSION4 = 4,
 };
 
 enum {
@@ -19,10 +18,15 @@ enum {
     CNDB_VERSION11 = 11,
     CNDB_VERSION12 = 12,
     CNDB_VERSION13 = 13,
+    CNDB_VERSION14 = 14,
 };
 
 enum {
-    KBLOCK_HDR_VERSION5 = 5,
+    HBLOCK_HDR_VERSION1 = 1
+};
+
+enum {
+    KBLOCK_HDR_VERSION6 = 6,
 };
 
 enum {
@@ -62,14 +66,15 @@ enum {
     KVDB_META_VERSION2 = 2,
 };
 
-#define GLOBAL_OMF_VERSION     GLOBAL_OMF_VERSION3
+#define GLOBAL_OMF_VERSION     GLOBAL_OMF_VERSION4
 
 /* In the event one of the following versions in incremented, increment the
  * global OMF version.
  */
 
-#define CNDB_VERSION           CNDB_VERSION13
-#define KBLOCK_HDR_VERSION     KBLOCK_HDR_VERSION5
+#define CNDB_VERSION           CNDB_VERSION14
+#define HBLOCK_HDR_VERSION     HBLOCK_HDR_VERSION1
+#define KBLOCK_HDR_VERSION     KBLOCK_HDR_VERSION6
 #define VBLOCK_HDR_VERSION     VBLOCK_HDR_VERSION2
 #define BLOOM_OMF_VERSION      BLOOM_OMF_VERSION5
 #define WBT_TREE_VERSION       WBT_TREE_VERSION6

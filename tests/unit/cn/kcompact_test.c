@@ -1,6 +1,6 @@
 /* SPDX-License-Identifier: Apache-2.0 */
 /*
- * Copyright (C) 2015-2021 Micron Technology, Inc.  All rights reserved.
+ * Copyright (C) 2015-2022 Micron Technology, Inc.  All rights reserved.
  */
 
 #include <mtf/framework.h>
@@ -304,6 +304,8 @@ MTF_DEFINE_UTEST_PRE(kcompact_test, four_into_one, pre)
         kvset_put_ref((struct kvset *)iter->kvset);
         kvset_iter_release(itv[i]);
     }
+
+    free(vbm.vbm_blkv);
 #undef NITER
 }
 
@@ -370,6 +372,8 @@ MTF_DEFINE_UTEST_PRE(kcompact_test, all_gone, pre)
         kvset_put_ref((struct kvset *)iter->kvset);
         kvset_iter_release(itv[i]);
     }
+
+    free(vbm.vbm_blkv);
 }
 
 MTF_DEFINE_UTEST_PREPOST(kcompact_test, all_gone_mixed, mixed_pre, mixed_post)
@@ -435,6 +439,8 @@ MTF_DEFINE_UTEST_PREPOST(kcompact_test, all_gone_mixed, mixed_pre, mixed_post)
         kvset_put_ref((struct kvset *)iter->kvset);
         kvset_iter_release(itv[i]);
     }
+
+    free(vbm.vbm_blkv);
 }
 
 MTF_DEFINE_UTEST_PREPOST(kcompact_test, four_into_one_mixed, mixed_pre, mixed_post)
@@ -491,6 +497,8 @@ MTF_DEFINE_UTEST_PREPOST(kcompact_test, four_into_one_mixed, mixed_pre, mixed_po
         kvset_put_ref((struct kvset *)iter->kvset);
         kvset_iter_release(itv[i]);
     }
+
+    free(vbm.vbm_blkv);
 #undef NITER
 }
 
@@ -541,8 +549,6 @@ run_kcompact(struct mtf_test_info *lcl_ti, int expect)
     init_work(&w, (struct mpool *)1, &rp, 5, itv, &c, &output, &output_node, &vbm);
 
     err = cn_kcompact(&w);
-    if (err)
-        free(vbm.vbm_blkv);
 
     if (expect == -1)
         ASSERT_TRUE_RET(err, 1);
@@ -556,6 +562,8 @@ run_kcompact(struct mtf_test_info *lcl_ti, int expect)
         kvset_put_ref((struct kvset *)iter->kvset);
         kvset_iter_release(itv[i]);
     }
+
+    free(vbm.vbm_blkv);
 
     return 0;
 }

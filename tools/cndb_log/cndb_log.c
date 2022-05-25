@@ -1,6 +1,6 @@
 /* SPDX-License-Identifier: Apache-2.0 */
 /*
- * Copyright (C) 2015-2020,2022 Micron Technology, Inc.  All rights reserved.
+ * Copyright (C) 2015-2022 Micron Technology, Inc.  All rights reserved.
  */
 
 /*
@@ -202,18 +202,14 @@ print_txc(struct tool_info *ti, union cndb_mtu *mtu)
 
     printf("%04x: ", fileoff);
     printf("%-6s %lu ", "txc", mtc->mtc_id);
-    /* [HSE_REVISIT] either remove so-called meta-blocks (nm)
-     * or implement them.  Until then, print 0 for nm so that
-     * this output matches what cndblog2c.awk expects
-     */
     printf(
-        "tag %lu cnid %lu keepvbc %u nk %d nv %d nm %d ids ",
+        "tag %lu cnid %lu keepvbc %u hoid 0x%08lx nk %d nv %d ids ",
         mtc->mtc_tag,
         mtc->mtc_cnid,
         mtc->mtc_keepvbc,
+        mtc->mtc_hoid,
         mtc->mtc_kcnt,
-        mtc->mtc_vcnt,
-        0);
+        mtc->mtc_vcnt);
 
     mblk = (void *)(mtc + 1); /* beginning of kblk list */
     for (i = 0; i < mtc->mtc_kcnt; i++)
@@ -257,7 +253,8 @@ print_txd(struct tool_info *ti, union cndb_mtu *mtu)
 
     printf("%04x: ", fileoff);
     printf("%-6s %lu ", "txd", mtd->mtd_id);
-    printf("tag %lu cnid %lu nb %d ids ", mtd->mtd_tag, mtd->mtd_cnid, mtd->mtd_n_oids);
+    printf("tag %lu cnid %lu hoid 0x%08lx nb %d ids ", mtd->mtd_hoid, mtd->mtd_tag,
+        mtd->mtd_cnid, mtd->mtd_n_oids);
     mblk = (void *)(mtd + 1); /* start of mblock list */
     for (i = 0; i < mtd->mtd_n_oids; i++)
         printf("0x%08lx ", mblk[i]);

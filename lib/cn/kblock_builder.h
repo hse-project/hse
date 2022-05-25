@@ -1,6 +1,6 @@
 /* SPDX-License-Identifier: Apache-2.0 */
 /*
- * Copyright (C) 2015-2020 Micron Technology, Inc.  All rights reserved.
+ * Copyright (C) 2015-2022 Micron Technology, Inc.  All rights reserved.
  */
 
 #ifndef HSE_KVS_CN_KBLOCK_BUILDER_H
@@ -13,25 +13,16 @@
 #include <hse_util/key_util.h>
 
 struct cn;
-struct kblock_builder;
-struct blk_list;
-struct kvs_rparams;
 struct cn_merge_stats;
-struct wbti;
+struct blk_list;
+struct kblock_builder;
 struct kblock_desc;
+struct key_stats;
+struct kvs_rparams;
+struct wbti;
 
 enum hse_mclass;
 enum hse_mclass_policy_age;
-
-struct kbb_key_stats {
-    uint nvals;
-    uint ntombs;
-    uint nptombs;
-    u64  tot_vlen;
-    u64  seqno_prev;
-    u64  seqno_prev_ptomb;
-    u64  c0_vlen;
-};
 
 /* MTF_MOCK_DECL(kblock_builder) */
 
@@ -77,15 +68,6 @@ kbb_create(struct kblock_builder **bld_out, struct cn *cn, struct perfc_set *pc)
 void
 kbb_destroy(struct kblock_builder *bld);
 
-/* MTF_MOCK */
-merr_t
-kbb_add_ptomb(
-    struct kblock_builder *bld,
-    const struct key_obj * kobj,
-    const void *           kmd,
-    uint                   kmd_len,
-    struct kbb_key_stats * stats);
-
 /**
  * kbb_add_entry() - Store a key and a value reference in a kblock.
  * @bld: builder handle
@@ -106,7 +88,7 @@ kbb_add_entry(
     const struct key_obj * kobj,
     const void *           kmd,
     uint                   kmd_len,
-    struct kbb_key_stats * stats);
+    struct key_stats *     stats);
 
 /**
  * kbb_finish() - ensure all kblocks have been written to media and
@@ -128,17 +110,17 @@ kbb_add_entry(
  */
 /* MTF_MOCK */
 merr_t
-kbb_finish(struct kblock_builder *bld, struct blk_list *kblks, u64 seqno_min, u64 seqno_max);
+kbb_finish(struct kblock_builder *bld, struct blk_list *kblks);
 
 /* MTF_MOCK */
 size_t
 kbb_estimate_alen(struct cn *cn, size_t wlen, enum hse_mclass mclass);
 
+const uint8_t *
+kbb_get_composite_hlog(const struct kblock_builder *bld);
+
 merr_t
 kbb_set_agegroup(struct kblock_builder *bld, enum hse_mclass_policy_age age);
-
-enum hse_mclass_policy_age
-kbb_get_agegroup(struct kblock_builder *bld);
 
 void
 kbb_set_merge_stats(struct kblock_builder *bld, struct cn_merge_stats *stats);

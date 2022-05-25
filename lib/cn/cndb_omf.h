@@ -240,9 +240,11 @@ OMF_SETGET(struct cndb_tx_omf, tx_txhorizon, 64);
  * @txc_keepvbc: count of vblocks to keep (do not delete them when rolling back
  *      a CN mutation). The oids of the vblocks to keep are at beginning of
  *      the array vblocks oids.
+ * @txc_hoid: hblock OID
  * @txc_kcnt:
  * @txc_vcnt:
  * @txc_mcnt:
+ * an array of txn_hcnt mblock OIDs appears here
  * an array of txc_kcnt mblock OIDs appears here
  * an array of txc_vcnt mblock OIDs appears here
  * an array of txc_mcnt mblock OIDs appears here
@@ -253,6 +255,7 @@ struct cndb_txc_omf {
     uint64_t            txc_id;
     uint64_t            txc_tag;
     uint32_t            txc_keepvbc;
+    uint64_t            txc_hoid;
     uint32_t            txc_kcnt;
     uint32_t            txc_vcnt;
     uint32_t            txc_mcnt;
@@ -262,6 +265,7 @@ OMF_SETGET(struct cndb_txc_omf, txc_cnid, 64);
 OMF_SETGET(struct cndb_txc_omf, txc_id, 64);
 OMF_SETGET(struct cndb_txc_omf, txc_tag, 64);
 OMF_SETGET(struct cndb_txc_omf, txc_keepvbc, 32);
+OMF_SETGET(struct cndb_txc_omf, txc_hoid, 64);
 OMF_SETGET(struct cndb_txc_omf, txc_kcnt, 32);
 OMF_SETGET(struct cndb_txc_omf, txc_vcnt, 32);
 OMF_SETGET(struct cndb_txc_omf, txc_mcnt, 32);
@@ -331,6 +335,7 @@ struct cndb_txd_omf {
     uint64_t            txd_cnid;
     uint64_t            txd_id;
     uint64_t            txd_tag;
+    uint64_t            txd_hoid;
     uint32_t            txd_n_oids;
     uint32_t            pad_do_not_use;
     /* an array of txd_n_oids mblock OIDs appears here */
@@ -339,6 +344,7 @@ struct cndb_txd_omf {
 OMF_SETGET(struct cndb_txd_omf, txd_cnid, 64);
 OMF_SETGET(struct cndb_txd_omf, txd_id, 64);
 OMF_SETGET(struct cndb_txd_omf, txd_tag, 64);
+OMF_SETGET(struct cndb_txd_omf, txd_hoid, 64);
 OMF_SETGET(struct cndb_txd_omf, txd_n_oids, 32);
 
 

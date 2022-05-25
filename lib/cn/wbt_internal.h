@@ -14,28 +14,27 @@
 
 #include "omf.h"
 
-/*
- * Current version - Version 5
- */
-
-static HSE_ALWAYS_INLINE struct wbt_lfe_omf *
-wbt_lfe(void *node, int nth)
+static HSE_ALWAYS_INLINE const struct wbt_lfe_omf *
+wbt_lfe(const struct wbt_node_hdr_omf *node, int nth)
 {
-    uint                hdr_sz = sizeof(struct wbt_node_hdr_omf);
-    struct wbt_lfe_omf *p = node + hdr_sz + omf_wbn_pfx_len(node);
+    const struct wbt_lfe_omf *p = (void *)node + sizeof(*node) + omf_wbn_pfx_len(node);
 
     return p + nth;
 }
 
 static HSE_ALWAYS_INLINE void
-wbt_node_pfx(void *node, const void **pfx, uint *pfx_len)
+wbt_node_pfx(const struct wbt_node_hdr_omf *node, const void **pfx, uint *pfx_len)
 {
     *pfx_len = omf_wbn_pfx_len(node);
-    *pfx = node + sizeof(struct wbt_node_hdr_omf);
+    *pfx = (void *)node + sizeof(*node);
 }
 
 static HSE_ALWAYS_INLINE void
-wbt_lfe_key(void *node, struct wbt_lfe_omf *lfe, const void **kdata, uint *klen)
+wbt_lfe_key(
+    const struct wbt_node_hdr_omf *node,
+    const struct wbt_lfe_omf *lfe,
+    const void **kdata,
+    uint *klen)
 {
     uint start, end;
 
@@ -43,23 +42,23 @@ wbt_lfe_key(void *node, struct wbt_lfe_omf *lfe, const void **kdata, uint *klen)
     start = omf_lfe_koff(lfe) + 4 * (omf_lfe_kmd(lfe) == U16_MAX);
 
     /* prefetch key data */
-    __builtin_prefetch(node + start);
+    __builtin_prefetch((void *)node + start);
 
     /* end == one byte past end of key. */
     end = (lfe == wbt_lfe(node, 0) ? WBT_NODE_SIZE : omf_lfe_koff(lfe - 1));
 
     *klen = end - start;
-    *kdata = node + start;
+    *kdata = (void *)node + start;
 }
 
-static HSE_ALWAYS_INLINE uint
-wbt_lfe_kmd(void *node, struct wbt_lfe_omf *lfe)
+static HSE_ALWAYS_INLINE uint32_t
+wbt_lfe_kmd(const struct wbt_node_hdr_omf *node, const struct wbt_lfe_omf *lfe)
 {
-    uint kmd_off = omf_lfe_kmd(lfe);
+    uint32_t kmd_off = omf_lfe_kmd(lfe);
 
     /* Offset stored in front of key when its too large for 16-bits */
     if (kmd_off == U16_MAX) {
-        u32 *p = node + omf_lfe_koff(lfe);
+        const u32 *p = (void *)node + omf_lfe_koff(lfe);
 
         kmd_off = omf32_to_cpu(*p);
     }
@@ -67,17 +66,20 @@ wbt_lfe_kmd(void *node, struct wbt_lfe_omf *lfe)
     return omf_wbn_kmd(node) + kmd_off;
 }
 
-static HSE_ALWAYS_INLINE struct wbt_ine_omf *
-wbt_ine(void *node, int nth)
+static HSE_ALWAYS_INLINE const struct wbt_ine_omf *
+wbt_ine(const struct wbt_node_hdr_omf *node, int nth)
 {
-    uint                hdr_sz = sizeof(struct wbt_node_hdr_omf);
-    struct wbt_ine_omf *p = node + hdr_sz + omf_wbn_pfx_len(node);
+    const struct wbt_ine_omf *p = (void *)node + sizeof(*node) + omf_wbn_pfx_len(node);
 
     return p + nth;
 }
 
 static HSE_ALWAYS_INLINE void
-wbt_ine_key(void *node, struct wbt_ine_omf *ine, const void **kdata, uint *klen)
+wbt_ine_key(
+    const struct wbt_node_hdr_omf *node,
+    const struct wbt_ine_omf *ine,
+    const void **kdata,
+    uint *klen)
 {
     uint start, end;
 
@@ -87,7 +89,7 @@ wbt_ine_key(void *node, struct wbt_ine_omf *ine, const void **kdata, uint *klen)
     /* end of key */
     end = (ine == wbt_ine(node, 0) ? WBT_NODE_SIZE : omf_ine_koff(ine - 1));
 
-    *kdata = node + start;
+    *kdata = (void *)node + start;
     *klen = end - start;
 }
 

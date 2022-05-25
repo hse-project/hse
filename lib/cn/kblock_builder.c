@@ -1,6 +1,6 @@
 /* SPDX-License-Identifier: Apache-2.0 */
 /*
- * Copyright (C) 2015-2021 Micron Technology, Inc.  All rights reserved.
+ * Copyright (C) 2015-2022 Micron Technology, Inc.  All rights reserved.
  */
 
 #define MTF_MOCK_IMPL_kblock_builder
@@ -160,7 +160,7 @@ struct curr_kblock {
 };
 
 static HSE_ALWAYS_INLINE uint32_t
-free_pgc(struct curr_kblock *kblk)
+available_pgc(struct curr_kblock *kblk)
 {
     const uint32_t used = KBLOCK_HDR_PAGES + HLOG_PGC + kblk->blm_pgc + kblk->wbt_pgc;
 
@@ -174,10 +174,10 @@ free_pgc(struct curr_kblock *kblk)
 /**
  * struct kblock_builder - Create kblocks from a stream of key/value pairs.
  * @ds: the dataset in which kblocks will be created
+ * @composite_hlog: hlog for the entire set of kblocks
  * @finished_kblks: list of finished kblocks (written, not committed)
  * @curr: the kblock currently being built
  * @finished: mark builder as finished (end of life)
- * @kvset_hlog: kvset's hlog to be stored in the last kblock
  * @max_size: Maximum mblock size of all configured media classes.
  */
 struct kblock_builder {
@@ -186,18 +186,15 @@ struct kblock_builder {
     struct kvs_rparams *       rp;
     struct kvs_cparams *       cp;
     struct perfc_set *         pc;
-    struct hlog *              kvset_hlog;
+    struct hlog *              composite_hlog;
     struct cn_merge_stats *    mstats;
     struct blk_list            finished_kblks;
     struct curr_kblock         curr;
-    struct wbb *               ptree;
     enum hse_mclass_policy_age agegroup;
     bool                       finished;
     uint                       pt_pgc;
     uint                       pt_max_pgc;
     uint32_t                   max_size;
-    uint64_t                   seqno_min;
-    uint64_t                   seqno_max;
 };
 
 /**
@@ -481,7 +478,7 @@ kblock_init(
     if (ev(err))
         return err;
 
-    err = wbb_create(&kblk->wbtree, kblk->wbt_pgc + free_pgc(kblk), &kblk->wbt_pgc);
+    err = wbb_create(&kblk->wbtree, kblk->wbt_pgc + available_pgc(kblk), &kblk->wbt_pgc);
     if (ev(err)) {
         hlog_destroy(kblk->hlog);
         return err;
@@ -545,7 +542,7 @@ kblock_add_entry(
     const struct key_obj *kobj,
     const void *          kmd,
     uint                  kmd_len,
-    struct kbb_key_stats *stats,
+    struct key_stats *    stats,
     bool *                added)
 {
     merr_t err = 0;
@@ -557,7 +554,7 @@ kblock_add_entry(
 
         /* Ensure we have enough pages reserved for bloom filters. */
         if (kblk->num_keys + 1 > kblk->blm_elt_cap) {
-            if (!free_pgc(kblk))
+            if (!available_pgc(kblk))
                 return 0;
             kblk->blm_pgc++;
             kblk->blm_elt_cap = bf_element_estimate(kblk->desc, kblk->blm_pgc * PAGE_SIZE);
@@ -587,7 +584,7 @@ kblock_add_entry(
         stats->nvals,
         kmd,
         kmd_len,
-        kblk->wbt_pgc + free_pgc(kblk),
+        kblk->wbt_pgc + available_pgc(kblk),
         &kblk->wbt_pgc,
         added);
     /* Out of space indicated by err==0 and added==false. */
@@ -676,23 +673,14 @@ _kblock_finish_bloom(struct curr_kblock *kblk, struct bloom_hdr_omf *blm_hdr)
 static void
 _kblock_make_header(
     struct curr_kblock *   kblk,
-    struct wbb         *   ptree,
     struct wbt_hdr_omf *   wbt_hdr,
-    struct wbt_hdr_omf *   pt_hdr,
-    uint                   pt_pgc,
     struct bloom_hdr_omf * blm_hdr,
-    u64                    seqno_min,
-    u64                    seqno_max,
     struct kblock_hdr_omf *hdr)
 {
     void *          base;
     struct key_obj *min_kobj, *max_kobj;
     unsigned        off;
     const unsigned  align = 7;
-
-    struct key_obj  tmp_kobj;
-    unsigned char   tmp_kobj_buf[HSE_KVS_KEY_LEN_MAX];
-    unsigned int    tmp_kobj_bufsz = sizeof(tmp_kobj_buf);
 
     assert(kblk->num_keys > 0);
 
@@ -701,7 +689,7 @@ _kblock_make_header(
     off = 0;
 
     assert(
-        sizeof(*hdr) + sizeof(*wbt_hdr) + sizeof(*blm_hdr) + sizeof(*pt_hdr) + 4 * align +
+        sizeof(*hdr) + sizeof(*wbt_hdr) + sizeof(*blm_hdr) + 4 * align +
             2 * HSE_KBLOCK_OMF_KLEN_MAX <=
         PAGE_SIZE);
 
@@ -729,55 +717,8 @@ _kblock_make_header(
     off += omf_kbh_blm_hlen(hdr);
     off = (off + align) & ~align;
 
-    omf_set_kbh_pt_hoff(hdr, off);
-    omf_set_kbh_pt_hlen(hdr, sizeof(*pt_hdr));
-
     /* get min/max keys */
     wbb_min_max_keys(kblk->wbtree, &min_kobj, &max_kobj);
-    if (ptree) {
-        struct key_obj *pt_min, *pt_max;
-        uint minklen, maxklen;
-        uint minptlen, maxptlen;
-        int rc;
-        bool pad_and_copy = false;
-
-        wbb_min_max_keys(ptree, &pt_min, &pt_max);
-
-        minklen  = key_obj_len(min_kobj);
-        maxklen  = key_obj_len(max_kobj);
-        minptlen = key_obj_len(pt_min);
-        maxptlen = key_obj_len(pt_max);
-
-        if (minptlen) {
-            if (minklen) {
-                rc = key_obj_cmp(pt_min, min_kobj);
-                if (rc < 0)
-                    min_kobj = pt_min;
-            } else {
-                min_kobj = pt_min;
-            }
-        }
-
-        if (maxptlen) {
-            if (maxklen) {
-                rc = key_obj_cmp(pt_max, max_kobj);
-                if (rc > 0)
-                    pad_and_copy = true;
-            } else {
-                pad_and_copy = true;
-            }
-        }
-
-        /* [HSE_REVISIT] Why do we need the padding? */
-        if (pad_and_copy) {
-            uint len;
-
-            key_obj_copy(tmp_kobj_buf, tmp_kobj_bufsz, &len, pt_max);
-            memset(tmp_kobj_buf + len, 0xff, tmp_kobj_bufsz - len);
-            key2kobj(&tmp_kobj, tmp_kobj_buf, tmp_kobj_bufsz);
-            max_kobj = &tmp_kobj;
-        }
-    }
 
 #ifndef NDEBUG
     if (omf_wbt_kmd_pgc(wbt_hdr)) {
@@ -802,7 +743,8 @@ _kblock_make_header(
     omf_set_kbh_max_klen(hdr, key_obj_len(max_kobj));
 
     /* make sure bloom header doesn't overlap with max key */
-    assert(omf_kbh_max_koff(hdr) >= omf_kbh_pt_hoff(hdr) + sizeof(*pt_hdr));
+    assert(omf_kbh_max_koff(hdr) >=
+        (omf_kbh_blm_doff_pg(hdr) + omf_kbh_blm_dlen_pg(hdr)) * PAGE_SIZE);
 
     /* make sure max key doesn't overlap with min key */
     assert(omf_kbh_min_koff(hdr) >= omf_kbh_max_koff(hdr) + key_obj_len(max_kobj));
@@ -817,21 +759,12 @@ _kblock_make_header(
     omf_set_kbh_hlog_doff_pg(hdr, KBLOCK_HDR_PAGES + kblk->wbt_pgc + kblk->blm_pgc);
     omf_set_kbh_hlog_dlen_pg(hdr, HLOG_PGC);
 
-    if (pt_pgc) {
-        omf_set_kbh_pt_doff_pg(hdr, KBLOCK_HDR_PAGES + kblk->wbt_pgc + kblk->blm_pgc + HLOG_PGC);
-        omf_set_kbh_pt_dlen_pg(hdr, pt_pgc);
-    }
-
-    omf_set_kbh_min_seqno(hdr, seqno_min);
-    omf_set_kbh_max_seqno(hdr, seqno_max);
-
     /* Copy wbtree, bloom and min/max keys into header page.
      * Use void* 'base' for ptr arithmetic.
      */
     base = hdr;
     memcpy(base + omf_kbh_wbt_hoff(hdr), wbt_hdr, sizeof(*wbt_hdr));
     memcpy(base + omf_kbh_blm_hoff(hdr), blm_hdr, sizeof(*blm_hdr));
-    memcpy(base + omf_kbh_pt_hoff(hdr), pt_hdr, sizeof(*pt_hdr));
 
     key_obj_copy(base + omf_kbh_max_koff(hdr), HSE_KVS_KEY_LEN_MAX, 0, max_kobj);
     key_obj_copy(base + omf_kbh_min_koff(hdr), HSE_KVS_KEY_LEN_MAX, 0, min_kobj);
@@ -856,11 +789,10 @@ kbb_estimate_alen(struct cn *cn, size_t wlen, enum hse_mclass mclass)
  * This function unconditionally invokes kblock_free().
  */
 static merr_t
-kblock_finish(struct kblock_builder *bld, struct wbb *ptree, struct hlog *hlog)
+kblock_finish(struct kblock_builder *bld)
 {
     struct bloom_hdr_omf      blm_hdr;
     struct wbt_hdr_omf        wbt_hdr = { 0 };
-    struct wbt_hdr_omf        pt_hdr = { 0 };
     struct mblock_props       mbprop;
     struct mpool_mclass_props mc_props;
 
@@ -877,7 +809,6 @@ kblock_finish(struct kblock_builder *bld, struct wbb *ptree, struct hlog *hlog)
 
     merr_t err;
     u64    blkid = 0;
-    uint   pt_pgc = 0;
     u64    tstart = 0;
     u64    kblocksz;
 
@@ -894,10 +825,12 @@ kblock_finish(struct kblock_builder *bld, struct wbb *ptree, struct hlog *hlog)
 
     /* Include wbtree pages from main and ptree and add 3 more iov members for
      * the kblock header, bloom and hlog
+     *
+     * [HSE_TODO]: This 1 here represents the wbtree's nodev iovec. Create a
+     * helper function to just ask the wbtree how many iovecs it will need in
+     * the worst case.
      */
     iov_max = 3 + 1 + wbb_max_inodec_get(kblk->wbtree) + wbb_kmd_pgc_get(kblk->wbtree);
-    if (ptree && wbb_entries(ptree))
-        iov_max += 1 + wbb_max_inodec_get(ptree) + wbb_kmd_pgc_get(ptree);
 
     iov = malloc(sizeof(*iov) * iov_max);
     if (ev(!iov))
@@ -915,7 +848,7 @@ kblock_finish(struct kblock_builder *bld, struct wbb *ptree, struct hlog *hlog)
         err = wbb_freeze(
             kblk->wbtree,
             &wbt_hdr,
-            kblk->wbt_pgc + free_pgc(kblk),
+            kblk->wbt_pgc + available_pgc(kblk),
             &kblk->wbt_pgc,
             iov + iov_cnt,
             iov_max,
@@ -938,25 +871,13 @@ kblock_finish(struct kblock_builder *bld, struct wbb *ptree, struct hlog *hlog)
     }
 
     /* Finalize HyperLogLog. */
-    iov[iov_cnt].iov_base = hlog_data(hlog);
+    iov[iov_cnt].iov_base = hlog_data(bld->curr.hlog);
     iov[iov_cnt].iov_len = HLOG_PGC * PAGE_SIZE;
     iov_cnt++;
 
-    /* Finalize ptomb tree */
-    wbb_hdr_init(ptree, &pt_hdr);
-    if (ptree && wbb_entries(ptree)) {
-        pt_pgc = bld->pt_pgc;
-        err = wbb_freeze(
-            ptree, &pt_hdr, bld->pt_pgc + free_pgc(kblk), &pt_pgc, iov + iov_cnt, iov_max, &i);
-        if (ev(err))
-            goto errout;
-        iov_cnt += i;
-    }
-
     /* Format kblock header. */
-    kblk->num_keys += ptree ? wbb_entries(ptree) : 0;
     _kblock_make_header(
-        kblk, ptree, &wbt_hdr, &pt_hdr, pt_pgc, &blm_hdr, bld->seqno_min, bld->seqno_max, kblk->kblk_hdr);
+        kblk, &wbt_hdr, &blm_hdr, kblk->kblk_hdr);
 
     assert(iov_cnt <= iov_max);
 
@@ -1015,6 +936,9 @@ kblock_finish(struct kblock_builder *bld, struct wbb *ptree, struct hlog *hlog)
     if (ev(err))
         goto errout;
 
+    /* Add the current kblock's hlog to the composite hlog */
+    hlog_union(bld->composite_hlog, hlog_data(kblk->hlog));
+
     /* unconditional reset */
     kblock_reset(kblk);
     free(iov);
@@ -1068,7 +992,7 @@ kbb_create(struct kblock_builder **builder_out, struct cn *cn, struct perfc_set 
 
     bld->max_size = props.mc_mblocksz;
 
-    err = hlog_create(&bld->kvset_hlog, HLOG_PRECISION);
+    err = hlog_create(&bld->composite_hlog, HLOG_PRECISION);
     if (ev(err))
         goto err_exit1;
 
@@ -1076,18 +1000,11 @@ kbb_create(struct kblock_builder **builder_out, struct cn *cn, struct perfc_set 
     if (ev(err))
         goto err_exit2;
 
-    err = wbb_create(&bld->ptree, bld->max_size / PAGE_SIZE, &bld->pt_pgc);
-    if (ev(err))
-        goto err_exit3;
-
     *builder_out = bld;
     return 0;
 
-err_exit3:
-    kblock_free(&bld->curr);
-
 err_exit2:
-    hlog_destroy(bld->kvset_hlog);
+    hlog_destroy(bld->composite_hlog);
 
 err_exit1:
     free(bld);
@@ -1101,43 +1018,11 @@ kbb_destroy(struct kblock_builder *bld)
     if (ev(!bld))
         return;
 
-    hlog_destroy(bld->kvset_hlog);
+    hlog_destroy(bld->composite_hlog);
     kblock_free(&bld->curr);
-    wbb_destroy(bld->ptree);
     abort_mblocks(bld->ds, &bld->finished_kblks);
     blk_list_free(&bld->finished_kblks);
     free(bld);
-}
-
-merr_t
-kbb_add_ptomb(
-    struct kblock_builder *bld,
-    const struct key_obj * kobj,
-    const void *           kmd,
-    uint                   kmd_len,
-    struct kbb_key_stats * stats)
-{
-    merr_t err;
-    bool   added = false;
-
-    assert(stats->nptombs > 0);
-
-    err = wbb_add_entry(
-        bld->ptree,
-        kobj,
-        stats->nptombs,
-        kmd,
-        kmd_len,
-        bld->curr.max_size / PAGE_SIZE,
-        &bld->pt_pgc,
-        &added);
-
-    if (ev(err))
-        return err;
-    if (ev(!added))
-        return merr(EXFULL);
-
-    return 0;
 }
 
 /* Add a key with a vref to kblock. Create new kblock if needed. */
@@ -1147,7 +1032,7 @@ kbb_add_entry(
     const struct key_obj * kobj,
     const void *           kmd,
     uint                   kmd_len,
-    struct kbb_key_stats * stats)
+    struct key_stats *     stats)
 {
     merr_t err;
     bool   added;
@@ -1165,7 +1050,6 @@ kbb_add_entry(
     if (ev(err))
         return err;
     if (added) {
-        hlog_add(bld->kvset_hlog, hash);
         hlog_add(bld->curr.hlog, hash);
         return 0;
     }
@@ -1182,14 +1066,13 @@ kbb_add_entry(
         return merr(EBUG);
 
     /* There are more keys to add, do not pass in ptree details */
-    err = kblock_finish(bld, 0, bld->curr.hlog);
+    err = kblock_finish(bld);
     if (ev(err))
         return err;
 
     err = kblock_add_entry(&bld->curr, kobj, kmd, kmd_len, stats, &added);
     if (ev(err))
         return err;
-    hlog_add(bld->kvset_hlog, hash);
     hlog_add(bld->curr.hlog, hash);
     assert(added);
     if (ev(!added))
@@ -1202,10 +1085,9 @@ kbb_add_entry(
  * and mark the builder as closed for business.
  */
 merr_t
-kbb_finish(struct kblock_builder *bld, struct blk_list *kblks, u64 seqno_min, u64 seqno_max)
+kbb_finish(struct kblock_builder *bld, struct blk_list *kblks)
 {
     merr_t err;
-    bool   pt_kblock = true;
 
     if (ev(bld->finished))
         return merr(EINVAL);
@@ -1214,39 +1096,17 @@ kbb_finish(struct kblock_builder *bld, struct blk_list *kblks, u64 seqno_min, u6
      * this flag prevents other operations.
      */
     bld->finished = true;
-    bld->seqno_min = seqno_min;
-    bld->seqno_max = seqno_max;
 
-    /* Must have a spot to keep the hlog */
-    assert(bld->finished_kblks.n_blks == 0 || !kblock_is_empty(&bld->curr));
+    /* In the event we have no keys, return no kblocks to the caller. */
+    if (bld->curr.num_keys == 0) {
+        assert(bld->finished_kblks.n_blks == 0);
 
-    /* Finish main wbtree. If there's enough space left in the kblock, add
-     * ptree to this kblock. If not, add the ptree to the next kblock.
-     */
-    if (!kblock_is_empty(&bld->curr)) {
-        struct wbb *pt = 0;
-        uint64_t    kbsize = bld->max_size;
-        uint64_t    ptsize = (wbb_page_cnt_get(bld->ptree)) * PAGE_SIZE;
-        uint64_t    kbused =
-            (KBLOCK_HDR_PAGES + HLOG_PGC + bld->curr.blm_pgc + wbb_page_cnt_get(bld->curr.wbtree)) *
-            PAGE_SIZE;
-
-        /* Write ptree here if we have enough space */
-        if ((kbused + ptsize < kbsize)) {
-            pt_kblock = false;
-            pt = bld->ptree;
-        }
-
-        err = kblock_finish(bld, pt, bld->kvset_hlog);
-        if (ev(err))
-            return err;
+        return 0;
     }
 
-    if (wbb_entries(bld->ptree) && pt_kblock) {
-        err = kblock_finish(bld, bld->ptree, bld->kvset_hlog);
-        if (ev(err))
-            return err;
-    }
+    err = kblock_finish(bld);
+    if (ev(err))
+        return err;
 
     /* Transfer ownership of blk_list and the mblocks in
      * the blk_list to caller
@@ -1255,6 +1115,12 @@ kbb_finish(struct kblock_builder *bld, struct blk_list *kblks, u64 seqno_min, u6
     memset(&bld->finished_kblks, 0, sizeof(bld->finished_kblks));
 
     return 0;
+}
+
+const uint8_t *
+kbb_get_composite_hlog(const struct kblock_builder *const bld)
+{
+    return hlog_data(bld->composite_hlog);
 }
 
 merr_t
@@ -1276,12 +1142,6 @@ kbb_set_agegroup(struct kblock_builder *bld, enum hse_mclass_policy_age age)
     bld->max_size = props.mc_mblocksz;
 
     return err;
-}
-
-enum hse_mclass_policy_age
-kbb_get_agegroup(struct kblock_builder *bld)
-{
-    return bld->agegroup;
 }
 
 void
@@ -1336,7 +1196,7 @@ kblock_copy_range(
     }
 
     while (!err && wbti_next(wbti, &cur.ko_sfx, &cur.ko_sfx_len, &kmd)) {
-        struct kbb_key_stats stats = { 0 };
+        struct key_stats stats = { 0 };
         size_t off = 0, kmd_cnt_off;
         uint nvals;
 
@@ -1372,10 +1232,10 @@ kblock_copy_range(
                 ++stats.ntombs;
                 break;
 
-            case vtype_ptomb: /* TODO: must be an assert after ptomb is moved to a hblock */
             case vtype_zval:
                 break;
 
+            case vtype_ptomb:
             default:
                 assert(0);
                 break;
@@ -1390,7 +1250,9 @@ kblock_copy_range(
     if (!err && tot_keys > 0) {
         struct blk_list kblk_list;
 
-        err = kbb_finish(kbb, &kblk_list, 0, 0);
+        blk_list_init(&kblk_list);
+
+        err = kbb_finish(kbb, &kblk_list);
         if (!err) {
             assert(kblk_list.n_blks == 1);
             *kbid_out = kblk_list.blks->bk_blkid;

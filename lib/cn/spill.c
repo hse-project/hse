@@ -503,6 +503,7 @@ cn_spill(struct cn_compaction_work *w)
             err = kvset_builder_get_mblocks(child, &w->cw_outv[output_nodec]);
             if (err) {
                 while (output_nodec-- > 0) {
+                    abort_mblock(w->cw_ds, &w->cw_outv[output_nodec].hblk);
                     abort_mblocks(w->cw_ds, &w->cw_outv[output_nodec].kblks);
                     abort_mblocks(w->cw_ds, &w->cw_outv[output_nodec].vblks);
                 }

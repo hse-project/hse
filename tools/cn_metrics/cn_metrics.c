@@ -1,6 +1,6 @@
 /* SPDX-License-Identifier: Apache-2.0 */
 /*
- * Copyright (C) 2015-2021 Micron Technology, Inc.  All rights reserved.
+ * Copyright (C) 2015-2022 Micron Technology, Inc.  All rights reserved.
  */
 
 #include <stdio.h>
@@ -312,6 +312,7 @@ rollup(struct rollup *from, struct rollup *to)
 
     to->km.num_keys += from->km.num_keys;
     to->km.num_tombstones += from->km.num_tombstones;
+    to->km.nptombs += from->km.nptombs;
     to->km.num_kblocks += from->km.num_kblocks;
     to->km.num_vblocks += from->km.num_vblocks;
     to->km.tot_key_bytes += from->km.tot_key_bytes;
@@ -358,21 +359,21 @@ print_ids(
         printf(" ...");
 }
 
-const char *hdrv[] = { "H",       "Loc",     "Dgen",   "Keys",   "Tombs",
-                       "AvgKlen", "AvgVlen", "KbAlen", "VbAlen", "KbWlen%",
-                       "VbWlen%", "VbUlen%", "Comps",  "Kbs",    "Vbs" };
+const char *hdrv[] = { "H", "Loc", "Dgen", "Keys", "Tombs", "Ptombs", "AvgKlen",
+                       "AvgVlen", "HbAlen", "KbAlen", "VbAlen", "HbWlen%",
+                       "KbWlen%", "VbWlen%", "VbUlen%", "Comps", "Kbs", "Vbs" };
 
-#define FMT_HDR                \
-    "%s %-12s %5s "            \
-    "%*s %*s %*s %*s %*s %*s " \
-    "%7s %7s %7s "             \
-    "%5s %4s %4s"
+#define FMT_HDR                        \
+    "%s %-12s %5s "                    \
+    "%*s %*s %*s %*s %*s %*s %*s %*s " \
+    "%7s %7s %7s %7s "                 \
+    "%5s %4s %4s "
 
-#define FMT_ROW                \
-    "%s %-12s %5lu "           \
-    "%*s %*s %*s %*s %*s %*s " \
-    "%7.1f %7.1f %7.1f "       \
-    "%5u %4u %4u%s"
+#define FMT_ROW                        \
+    "%s %-12s %5lu "                   \
+    "%*s %*s %*s %*s %*s %*s %*s %*s " \
+    "%7.1f %7.1f %7.1f %7.1f "         \
+    "%5u %4u %4u %s"
 
 #define BN(_buf, _val) bn64((_buf), sizeof((_buf)), opt.bnfmt, (_val))
 
@@ -385,7 +386,9 @@ print_row(char *tag, struct rollup *r, uint index, char *sep)
 
     char nkeys[BIGNUM_BUFSZ];
     char ntombs[BIGNUM_BUFSZ];
+    char nptombs[BIGNUM_BUFSZ];
 
+    char halen[BIGNUM_BUFSZ];
     char kalen[BIGNUM_BUFSZ];
     char valen[BIGNUM_BUFSZ];
 
@@ -396,7 +399,9 @@ print_row(char *tag, struct rollup *r, uint index, char *sep)
 
     BN(nkeys, r->ks.kst_keys);
     BN(ntombs, r->km.num_tombstones);
+    BN(nptombs, r->km.nptombs);
 
+    BN(halen, r->ks.kst_halen);
     BN(kalen, r->ks.kst_kalen);
     BN(valen, r->ks.kst_valen);
 
@@ -413,13 +418,18 @@ print_row(char *tag, struct rollup *r, uint index, char *sep)
         opt.bnfw,
         ntombs,
         opt.bnfw,
+        nptombs,
+        opt.bnfw,
         avg_klen,
         opt.bnfw,
         avg_vlen,
         opt.bnfw,
+        halen,
+        opt.bnfw,
         kalen,
         opt.bnfw,
         valen,
+        DIVZ(100.0 * r->ks.kst_hwlen, r->ks.kst_halen),
         DIVZ(100.0 * r->ks.kst_kwlen, r->ks.kst_kalen),
         DIVZ(100.0 * r->ks.kst_vwlen, r->ks.kst_valen),
         DIVZ(100.0 * r->ks.kst_vulen, r->ks.kst_valen),
@@ -449,13 +459,18 @@ print_hdr(void)
         hdrv[7],
         opt.bnfw,
         hdrv[8],
+        opt.bnfw,
         hdrv[9],
+        opt.bnfw,
         hdrv[10],
         hdrv[11],
         hdrv[12],
         hdrv[13],
         hdrv[14],
-        (opt.nodes_only ? "" : " KblockIDs  / VblockIDs"));
+        hdrv[15],
+        hdrv[16],
+        hdrv[17],
+        (opt.nodes_only ? "" : " HblockID / KblockIDs / VblockIDs"));
 }
 
 static int
@@ -495,10 +510,11 @@ tree_walk_callback(
 
         printf(
             "#Node pcap%% %u scatter %u kuniq%% %6.1f "
-            "KbClen%% %6.1f VbClen%% %6.1f samp %6.1f\n",
+            "HbClen%% %6.1f KbClen%% %6.1f VbClen%% %6.1f samp %6.1f\n",
             ns.ns_pcap,
             ns.ns_scatter,
             DIVZ(1e2 * ns.ns_keys_uniq, cn_ns_keys(&ns)),
+            DIVZ(1e2 * ns.ns_hclen, n->ks.kst_halen),
             DIVZ(1e2 * ns.ns_kclen, n->ks.kst_kalen),
             DIVZ(1e2 * ns.ns_vclen, n->ks.kst_valen),
             cn_ns_samp(&ns) / 1e2);
@@ -529,6 +545,7 @@ tree_walk_callback(
         }
 
         print_row("k", k, c->node_kvsets - 1, "");
+        printf(" 0x%08lx /", kvset_get_hblock_id(kvset));
         print_ids(kvset, kvset_get_num_kblocks, kvset_get_nth_kblock_id, limit);
         printf(" /");
         print_ids(kvset, kvset_get_num_vblocks, kvset_get_nth_vblock_id, limit);

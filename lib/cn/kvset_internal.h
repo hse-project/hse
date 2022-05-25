@@ -1,6 +1,6 @@
 /* SPDX-License-Identifier: Apache-2.0 */
 /*
- * Copyright (C) 2015-2020 Micron Technology, Inc.  All rights reserved.
+ * Copyright (C) 2015-2022 Micron Technology, Inc.  All rights reserved.
  */
 
 #ifndef HSE_KVS_CN_KVSET_INTERNAL_H
@@ -29,11 +29,29 @@
 #include "cn_metrics.h"
 #include "cn_tree.h"
 #include "kvset.h"
+#include "hblock_reader.h"
+
+struct kvset_hblk {
+    struct kvs_mblk_desc kh_hblk_desc;
+    struct wbt_desc kh_ptree_desc;
+
+    struct key_disc kh_pfx_max_disc;
+    struct key_disc kh_pfx_min_disc;
+    const void *kh_pfx_max;
+    const void *kh_pfx_min;
+    uint8_t kh_pfx_max_len;
+    uint8_t kh_pfx_min_len;
+
+    uint64_t kh_seqno_min; /* min seqno */
+    uint64_t kh_seqno_max; /* max seqno */
+
+    struct hblk_metrics kh_metrics;
+    struct kvs_block kh_hblk;
+};
 
 struct kvset_kblk {
     struct kvs_mblk_desc kb_kblk_desc; /* kblock descriptor */
     struct wbt_desc      kb_wbt_desc;  /* wbtree descriptor */
-    struct wbt_desc      kb_pt_desc;   /* ptree descriptor */
 
     u8              kb_ksmall[64]; /* small key cache */
     struct key_disc kb_kdisc_max;  /* kdisc of largest key in kblk */
@@ -44,9 +62,6 @@ struct kvset_kblk {
     u16             kb_klen_min;   /* length of smallest key */
 
     struct bloom_desc kb_blm_desc;  /* Bloom descriptor */
-
-    u64 kb_seqno_min; /* min seqno */
-    u64 kb_seqno_max; /* max seqno */
 
     struct kblk_metrics kb_metrics; /* kblock metrics */
     struct kvs_block    kb_kblk;    /* blkid and handle */
@@ -86,6 +101,9 @@ struct kvset {
     struct key_disc ks_kdisc_max; /* max key in kvset */
     struct key_disc ks_kdisc_min; /* min key in kvset */
     int             ks_lcp;       /* longest common prefix */
+
+    struct kvset_hblk ks_hblk;
+    struct mpool_mcache_map *ks_hmap; /* hblock mcache map */
 
     const u8 *                ks_klarge; /* large key cache */
     struct mpool_mcache_map **ks_kmapv;

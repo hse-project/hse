@@ -22,6 +22,16 @@ struct kvs_rparams;
 struct perfc_set;
 struct cn_merge_stats;
 
+struct key_stats {
+    uint nvals;
+    uint ntombs;
+    uint nptombs;
+    u64  tot_vlen;
+    u64  seqno_prev;
+    u64  seqno_prev_ptomb;
+    u64  c0_vlen;
+};
+
 /* MTF_MOCK_DECL(kvset_builder) */
 /* MTF_MOCK */
 merr_t
@@ -89,6 +99,14 @@ kvset_builder_add_vref(
 /* MTF_MOCK */
 merr_t
 kvset_builder_add_nonval(struct kvset_builder *self, u64 seq, enum kmd_vtype vtype);
+
+/* MTF_MOCK */
+void
+kvset_builder_adopt_vblocks(
+    struct kvset_builder *self,
+    unsigned int vgroups,
+    size_t num_vblocks,
+    struct kvs_block *vblocks);
 
 /* MTF_MOCK */
 void

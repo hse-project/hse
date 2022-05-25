@@ -1,6 +1,6 @@
 /* SPDX-License-Identifier: Apache-2.0 */
 /*
- * Copyright (C) 2015-2020 Micron Technology, Inc.  All rights reserved.
+ * Copyright (C) 2015-2022 Micron Technology, Inc.  All rights reserved.
  */
 
 /*
@@ -84,10 +84,12 @@ open_kvdb_and_cndb(struct kvs_info *ki)
     fprintf(stderr, "CNDB oids(0x%lx, 0x%lx)\n", ki->cndb->cndb_oid1, ki->cndb->cndb_oid2);
 }
 
+int nh = 1; /* hblks in each crec */
 int nk = 1; /* kblks in each crec */
 int nv = 1; /* vblks in each crec */
 
 u64 txid = 1111;
+u64 hb = 100;
 u64 kb = 1000;
 u64 vb = 10000;
 int dgen = 0;
@@ -138,16 +140,19 @@ write_ingest(struct kvs_info *ki, bool wrongingestid)
     cndb_txn_start(ki->cndb, &txid, nc, 0, 0, wrongingestid ? 33 : ingestid++, 0);
 
     for (i = 0, tag = 0; i < nc; i++) {
-        u64 mblkid[2]; /* 1 kb, 1 vb */
+        u64 mblkid[3]; /* 1 hb, 1 kb, 1 vb */
 
-        mblkid[0] = kb++;
-        mblkid[1] = vb++;
+        mblkid[0] = hb++;
+        mblkid[1] = kb++;
+        mblkid[2] = vb++;
 
         mblocks.kblks.n_blks = 1;
         mblocks.vblks.n_blks = 1;
 
-        mblocks.kblks.blks = (void *)&mblkid[0];
-        mblocks.vblks.blks = (void *)&mblkid[1];
+        mblocks.hblk.bk_blkid = mblkid[0];
+
+        mblocks.kblks.blks = (void *)&mblkid[1];
+        mblocks.vblks.blks = (void *)&mblkid[2];
 
         cndb_txn_txc(ki->cndb, txid, i + 1, &tag, &mblocks, 0);
         tags[tagc++] = tag;
@@ -174,16 +179,18 @@ write_spill(struct kvs_info *ki)
     cndb_txn_start(ki->cndb, &txid, c, d, 0, CNDB_INVAL_INGESTID, CNDB_INVAL_HORIZON);
 
     for (i = 0, tag = 0; i < c; i++) {
-        u64 mblkid[2];
+        u64 mblkid[3];
 
-        mblkid[0] = kb++;
-        mblkid[1] = vb++;
+        mblkid[0] = hb++;
+        mblkid[1] = kb++;
+        mblkid[2] = vb++;
 
         mblocks.kblks.n_blks = 1;
         mblocks.vblks.n_blks = 1;
 
-        mblocks.kblks.blks = (void *)&mblkid[0];
-        mblocks.vblks.blks = (void *)&mblkid[1];
+        mblocks.hblk.bk_blkid = mblkid[0];
+        mblocks.kblks.blks = (void *)&mblkid[1];
+        mblocks.vblks.blks = (void *)&mblkid[2];
 
         cndb_txn_txc(ki->cndb, txid, 1, &tag, &mblocks, 0);
         tags[tagc++] = tag;
@@ -206,10 +213,11 @@ write_spill(struct kvs_info *ki)
     cndb_txn_txd(ki->cndb, txid, 1, tags[dtagc++], NELEM(mblkid), (void *)mblkid);
 
     for (i = 0; i < d - 1; i++) {
-        u64 m[2];
+        u64 m[3];
 
-        m[0] = 1012 + (3 * i);
-        m[1] = 10012 + (3 * i);
+        m[0] = 112 + (3 * i);
+        m[1] = 1012 + (3 * i);
+        m[2] = 10012 + (3 * i);
 
         assert(dtagc < tagc);
         cndb_txn_txd(ki->cndb, txid, 1, tags[dtagc++], NELEM(m), (void *)m);
@@ -230,17 +238,19 @@ write_kc(struct kvs_info *ki)
     cndb_txn_start(ki->cndb, &txid, c, d, 0, CNDB_INVAL_INGESTID, CNDB_INVAL_HORIZON);
 
     for (i = 0, tag = 0; i < c; i++) {
-        u64 mblkid[5];
+        u64 mblkid[6];
 
-        mblkid[0] = kb++;
-        mblkid[1] = 10000;
-        mblkid[2] = 10003;
-        mblkid[3] = 10006;
-        mblkid[4] = 10009;
+        mblkid[0] = hb++;
+        mblkid[1] = kb++;
+        mblkid[2] = 10000;
+        mblkid[3] = 10003;
+        mblkid[4] = 10006;
+        mblkid[5] = 10009;
 
         mblocks.kblks.n_blks = 1;
         mblocks.vblks.n_blks = 4;
 
+        mblocks.hblk.bk_blkid = mblkid[0];
         mblocks.kblks.blks = (void *)&mblkid[0];
         mblocks.vblks.blks = (void *)&mblkid[1];
 

@@ -1,6 +1,6 @@
 /* SPDX-License-Identifier: Apache-2.0 */
 /*
- * Copyright (C) 2015-2021 Micron Technology, Inc.  All rights reserved.
+ * Copyright (C) 2015-2022 Micron Technology, Inc.  All rights reserved.
  */
 
 #ifndef HSE_IKVS_CN_KVDB_H
@@ -14,14 +14,18 @@
 
 /**
  * struct cn_kvdb - public portion of per kvdb cN object
+ * @cnd_hblk_cnt:  number of cn hblocks in kvdb
  * @cnd_kblk_cnt:  number of cn kblocks in kvdb
  * @cnd_vblk_cnt:  number of cn vblocks in kvdb
+ * @cnd_kblk_size: sum of on-media sizes of all cn hblocks in kvdb (bytes)
  * @cnd_kblk_size: sum of on-media sizes of all cn kblocks in kvdb (bytes)
  * @cnd_vblk_size: sum of on-media sizes of all cn vblocks in kvdb (bytes)
  */
 struct cn_kvdb {
+    atomic_ulong cnd_hblk_cnt;
     atomic_ulong cnd_kblk_cnt;
     atomic_ulong cnd_vblk_cnt;
+    atomic_ulong cnd_hblk_size;
     atomic_ulong cnd_kblk_size;
     atomic_ulong cnd_vblk_size;
 

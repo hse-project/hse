@@ -1,6 +1,6 @@
 /* SPDX-License-Identifier: Apache-2.0 */
 /*
- * Copyright (C) 2015-2021 Micron Technology, Inc.  All rights reserved.
+ * Copyright (C) 2015-2022 Micron Technology, Inc.  All rights reserved.
  */
 
 /*
@@ -219,12 +219,6 @@ print_kblk(struct blk *blk)
         omf_kbh_blm_doff_pg(p),
         omf_kbh_blm_dlen_pg(p),
         omf_bh_version(blm_hdr));
-    printf(
-        "    pt:  hdr %d %d  data_pg %d %d\n",
-        omf_kbh_pt_hoff(p),
-        omf_kbh_pt_hlen(p),
-        omf_kbh_pt_doff_pg(p),
-        omf_kbh_pt_dlen_pg(p));
     printf("    kmd: start_pg %u\n", omf_kbh_wbt_doff_pg(p) + omf_wbt_root(wbt_hdr) + 1);
     printf(
         "    keymin: off %u len %u key %s\n",
@@ -236,10 +230,6 @@ print_kblk(struct blk *blk)
         omf_kbh_max_koff(p),
         omf_kbh_max_klen(p),
         fmt_data(omf_kbh_max_koff(p) + base, omf_kbh_max_klen(p), 1024));
-    printf(
-        "    min_seqno: %lu\n", omf_kbh_min_seqno(p));
-    printf(
-        "    max_seqno: %lu\n", omf_kbh_max_seqno(p));
 }
 
 void
@@ -632,7 +622,7 @@ print_wbt_nodes(void *kblk, void *kmd, int root, bool ptomb)
 
     for (i = pgno = 0; pgno <= root; ++pgno, ++i) {
         if (ptomb)
-            wbn = kblk + pgoff(pgno + omf_kbh_pt_doff_pg(kblk));
+            wbn = kblk + pgoff(pgno + omf_hbh_ptree_data_off_pg(kblk));
         else
             wbn = kblk + pgoff(pgno + omf_kbh_wbt_doff_pg(kblk));
 
@@ -656,13 +646,13 @@ print_wbt_nodes(void *kblk, void *kmd, int root, bool ptomb)
 }
 
 void
-print_wbt_impl(void *wbt_hdr, void *kblk, bool ptomb)
+print_wbt_impl(const struct wbt_hdr_omf *wbt_hdr, void *blk, bool ptomb)
 {
     u32 wbt_doff;
     u8 *kmd;
 
-    wbt_doff = ptomb ? omf_kbh_pt_doff_pg(kblk) : omf_kbh_wbt_doff_pg(kblk);
-    kmd = kblk + pgoff(wbt_doff + omf_wbt_root(wbt_hdr) + 1);
+    wbt_doff = ptomb ? omf_hbh_ptree_data_off_pg(blk) : omf_kbh_wbt_doff_pg(blk);
+    kmd = blk + pgoff(wbt_doff + omf_wbt_root(wbt_hdr) + 1);
 
     printf(
         "    wbthdr: magic 0x%08x  ver %d  root %d  leaf1 %d  nleaf %d "
@@ -675,15 +665,15 @@ print_wbt_impl(void *wbt_hdr, void *kblk, bool ptomb)
         omf_wbt_kmd_pgc(wbt_hdr));
 
     if ((opt.verbose || opt.klen) && omf_wbt_kmd_pgc(wbt_hdr) > 0)
-        print_wbt_nodes(kblk, kmd, omf_wbt_root(wbt_hdr), ptomb);
+        print_wbt_nodes(blk, kmd, omf_wbt_root(wbt_hdr), ptomb);
 }
 
 void
-print_wbt(void *wbt_hdr, void *kblk, bool ptomb)
+print_wbt(const struct wbt_hdr_omf *wbt_hdr, void *blk, bool ptomb)
 {
-    switch (wbt_hdr_version(wbt_hdr)) {
+    switch (omf_wbt_version(wbt_hdr)) {
         case WBT_TREE_VERSION:
-            print_wbt_impl(wbt_hdr, kblk, ptomb);
+            print_wbt_impl(wbt_hdr, blk, ptomb);
             break;
         default:
             printf("Invalid wbtree magic and/or version\n");
@@ -1137,8 +1127,6 @@ main(int argc, char **argv)
         goto done;
     }
 
-    /* interpret the data */
-
     /* print vblock headers and adjust offsets */
     nv = table_len(vtab);
     for (i = 0; i < nv; ++i) {
@@ -1160,8 +1148,6 @@ main(int argc, char **argv)
          */
         print_blm(blk);
         print_wbt(off2addr(kblk, omf_kbh_wbt_hoff(kblk)), kblk, false);
-        printf("ptombs\n");
-        print_wbt(off2addr(kblk, omf_kbh_pt_hoff(kblk)), kblk, true);
     }
 
   done:

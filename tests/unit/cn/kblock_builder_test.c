@@ -1,6 +1,6 @@
 /* SPDX-License-Identifier: Apache-2.0 */
 /*
- * Copyright (C) 2015-2021 Micron Technology, Inc.  All rights reserved.
+ * Copyright (C) 2015-2022 Micron Technology, Inc.  All rights reserved.
  */
 
 #include <mtf/framework.h>
@@ -13,11 +13,12 @@
 
 #include <hse_ikvdb/kvs_rparams.h>
 #include <hse_ikvdb/kvs_cparams.h>
-#include <hse_ikvdb/tuple.h>
-#include <hse_ikvdb/limits.h>
 #include <hse_ikvdb/kvset_builder.h>
+#include <hse_ikvdb/limits.h>
 #include <hse_ikvdb/mclass_policy.h>
+#include <hse_ikvdb/tuple.h>
 
+#include <cn/hblock_builder.h>
 #include <cn/kblock_builder.h>
 #include <cn/kblock_reader.h>
 #include <cn/omf.h>
@@ -55,7 +56,7 @@ int   salt;
 
 #define KBB_CREATE_ARGS &kbb, (void *)-1, 0
 
-struct kbb_key_stats key_stats = { .nvals = 3, .ntombs = 1, .tot_vlen = 144 };
+struct key_stats key_stats = { .nvals = 3, .ntombs = 1, .tot_vlen = 144 };
 
 static int
 check_err(struct mtf_test_info *lcl_ti, merr_t err, int expected_errno)
@@ -78,36 +79,6 @@ check_err(struct mtf_test_info *lcl_ti, merr_t err, int expected_errno)
     }
 
     return 0;
-}
-
-static int
-add_ptomb(
-    struct mtf_test_info * lcl_ti,
-    struct kblock_builder *kbb,
-    uint                   klen,
-    uint                   kmdlen,
-    int                    expected_errno)
-{
-    merr_t      err;
-    const void *kdata;
-    const void *kmd;
-
-    struct kbb_key_stats ptomb_stats = { .nptombs = 1, .tot_vlen = 0 };
-
-    ASSERT_LE_RET(klen, WORK_BUF_SIZE, -1);
-    ASSERT_LE_RET(kmdlen, WORK_BUF_SIZE, -1);
-
-    /* Use salt to compute an offset into the
-     * key_buf so values aren't all identical.
-     */
-    kdata = key_buf + ((7 * salt++) % (WORK_BUF_SIZE - klen - 1));
-    kmd = kmd_buf + ((7 * salt++) % (WORK_BUF_SIZE - kmdlen - 1));
-
-    struct key_obj ko;
-
-    key2kobj(&ko, kdata, klen);
-    err = kbb_add_ptomb(kbb, &ko, kmd, kmdlen, &ptomb_stats);
-    return check_err(lcl_ti, err, expected_errno);
 }
 
 static int
@@ -261,7 +232,6 @@ MTF_DEFINE_UTEST_PRE(test, t_kbb_create1, test_setup)
     for (i = 0; i < HSE_MPOLICY_AGE_CNT; i++) {
         err = kbb_set_agegroup(kbb, i);
         ASSERT_EQ(0, merr_errno(err));
-        ASSERT_EQ(kbb_get_agegroup(kbb), i);
     }
 
     kbb_destroy(kbb);
@@ -398,7 +368,7 @@ MTF_DEFINE_UTEST_PRE(test, t_kbb_finish, test_setup)
     err = add_entry(lcl_ti, kbb, 123, 0, 9, 0);
     ASSERT_EQ(err, 0);
 
-    err = kbb_finish(kbb, &blks, 0, 0);
+    err = kbb_finish(kbb, &blks);
     ASSERT_EQ(err, 0);
 
     blk_list_free(&blks);
@@ -413,7 +383,7 @@ MTF_DEFINE_UTEST_PRE(test, t_kbb_finish, test_setup)
     err = add_entry(lcl_ti, kbb, 123, 0, 9, 0);
     ASSERT_EQ(err, 0);
 
-    err = kbb_finish(kbb, &blks, 0, 0);
+    err = kbb_finish(kbb, &blks);
     ASSERT_EQ(err, 0);
 
     blk_list_free(&blks);
@@ -431,97 +401,7 @@ MTF_DEFINE_UTEST_PRE(test, t_kbb_finish, test_setup)
         if (mapi_calls(api) == 2)
             break;
     }
-    err = kbb_finish(kbb, &blks, 0, 0);
-    ASSERT_EQ(err, 0);
-
-    blk_list_free(&blks);
-    kbb_destroy(kbb);
-}
-
-/* [HSE_REVISIT] make a table fo this */
-static int
-get_max_keys(struct mtf_test_info *lcl_ti, uint klen, uint kmdlen)
-{
-    struct kblock_builder *kbb = 0;
-    uint                   i, api;
-
-    kbb_create(KBB_CREATE_ARGS);
-
-    api = mapi_idx_mpool_mblock_alloc;
-    mapi_calls_clear(api);
-    for (i = 0; i < 100 * 1000; i++) {
-        add_entry(lcl_ti, kbb, klen, 0, kmdlen, 0);
-        if (mapi_calls(api) == 1)
-            break;
-    }
-
-    kbb_destroy(kbb);
-    return i;
-}
-
-/*
- * With fixed mblock size per media class, the kblock contents cannot exceed
- * KBLOCK_MAX_SIZE. Commenting this test until we arrive at a solution to
- * handle this.
- */
-MTF_DEFINE_UTEST_PRE(test, t_kbb_finish_with_ptombs, test_setup)
-{
-    uint                   i, api;
-    merr_t                 err = 0;
-    struct kblock_builder *kbb = 0;
-    struct blk_list        blks;
-    uint                   entries_per_kb;
-
-    /* only ptomb with bloom */
-    err = kbb_create(KBB_CREATE_ARGS);
-    ASSERT_EQ(err, 0);
-
-    err = add_ptomb(lcl_ti, kbb, 123, 9, 0);
-    ASSERT_EQ(err, 0);
-
-    err = kbb_finish(kbb, &blks, 0, 0);
-    ASSERT_EQ(err, 0);
-
-    blk_list_free(&blks);
-    kbb_destroy(kbb);
-
-    /* only ptomb without bloom */
-    mocked_rp.cn_bloom_create = 0;
-
-    err = kbb_create(KBB_CREATE_ARGS);
-    ASSERT_EQ(err, 0);
-
-    err = add_ptomb(lcl_ti, kbb, 123, 9, 0);
-    ASSERT_EQ(err, 0);
-
-    err = kbb_finish(kbb, &blks, 0, 0);
-    ASSERT_EQ(err, 0);
-
-    blk_list_free(&blks);
-    kbb_destroy(kbb);
-
-    /* ptombs causing kblock to be larger than KBLOCK_MAX_SIZE */
-
-    err = kbb_create(KBB_CREATE_ARGS);
-    ASSERT_EQ(err, 0);
-
-    entries_per_kb = get_max_keys(lcl_ti, BIG_KLEN, BIG_KMDLEN);
-
-    api = mapi_idx_mpool_mblock_alloc;
-    mapi_calls_clear(api);
-    for (i = 0; i < entries_per_kb; i++) {
-        err = add_entry(lcl_ti, kbb, BIG_KLEN, 0, BIG_KMDLEN, 0);
-        ASSERT_EQ(err, 0);
-        if (mapi_calls(api) == 1)
-            break;
-    }
-
-    for (i = 0; i < 2000; i++) {
-        err = add_ptomb(lcl_ti, kbb, BIG_KLEN, 9, 0);
-        ASSERT_EQ(err, 0);
-    }
-
-    err = kbb_finish(kbb, &blks, 0, 0);
+    err = kbb_finish(kbb, &blks);
     ASSERT_EQ(err, 0);
 
     blk_list_free(&blks);
@@ -547,7 +427,7 @@ MTF_DEFINE_UTEST_PRE(test, t_kbb_finish_fail, test_setup)
 
         mapi_inject(api[i], 100 + i);
 
-        err = kbb_finish(kbb, &blks, 0, 0);
+        err = kbb_finish(kbb, &blks);
         ASSERT_EQ(merr_errno(err), 100 + i);
 
         mapi_inject_unset(api[i]);
@@ -566,7 +446,7 @@ MTF_DEFINE_UTEST_PRE(test, t_kbb_finish_fail, test_setup)
 
         mapi_inject_once_ptr(mapi_idx_malloc, 1 + i, 0);
 
-        err = kbb_finish(kbb, &blks, 0, 0);
+        err = kbb_finish(kbb, &blks);
         if (i == num_allocs) {
             ASSERT_EQ(err, 0);
             blk_list_free(&blks);
@@ -622,15 +502,39 @@ MTF_DEFINE_UTEST_PRE(test, t_kbb_finish_empty1, test_setup)
     struct blk_list        blks;
 
     err = kbb_create(KBB_CREATE_ARGS);
-    ASSERT_EQ(err, 0);
+    ASSERT_EQ(0, merr_errno(err));
 
-    err = kbb_finish(kbb, &blks, 0, 0);
-    ASSERT_EQ(err, 0);
-    ASSERT_EQ(blks.n_blks, 0);
+    err = kbb_finish(kbb, &blks);
+    ASSERT_EQ(0, merr_errno(err));
 
     /* finish when already finished */
-    err = kbb_finish(kbb, &blks, 0, 0);
+    err = kbb_finish(kbb, &blks);
     ASSERT_NE(err, 0);
+
+    kbb_destroy(kbb);
+}
+
+/* kbb_finish w/ no keys */
+MTF_DEFINE_UTEST_PRE(test, finish_again, test_setup)
+{
+    merr_t                 err = 0;
+    struct kblock_builder *kbb = 0;
+    struct blk_list        blks;
+
+    err = kbb_create(KBB_CREATE_ARGS);
+    ASSERT_EQ(0, merr_errno(err));
+
+    err = add_entry(lcl_ti, kbb, 123, 0, 9, 0);
+    ASSERT_EQ(0, err);
+
+    err = kbb_finish(kbb, &blks);
+    ASSERT_EQ(0, merr_errno(err));
+
+    blk_list_free(&blks);
+
+    /* finish when already finished */
+    err = kbb_finish(kbb, &blks);
+    ASSERT_EQ(EINVAL, merr_errno(err));
 
     kbb_destroy(kbb);
 }

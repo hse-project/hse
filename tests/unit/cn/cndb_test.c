@@ -1,6 +1,6 @@
 /* SPDX-License-Identifier: Apache-2.0 */
 /*
- * Copyright (C) 2015-2021 Micron Technology, Inc.  All rights reserved.
+ * Copyright (C) 2015-2022 Micron Technology, Inc.  All rights reserved.
  */
 
 #include <mtf/framework.h>
@@ -252,6 +252,7 @@ MTF_DEFINE_UTEST(cndb_test, omf2mtx_test)
     mcc.mtc_id = 2;
     mcc.mtc_tag = 3;
     mcc.mtc_keepvbc = 4;
+    mcc.mtc_hoid = 0;
     mcc.mtc_kcnt = 0;
     mcc.mtc_vcnt = 0;
 
@@ -270,6 +271,7 @@ MTF_DEFINE_UTEST(cndb_test, omf2mtx_test)
     mcd.mtd_cnid = 1;
     mcd.mtd_id = 2;
     mcd.mtd_tag = 3;
+    mcd.mtd_hoid = 0;
     mcd.mtd_n_oids = 0;
 
     mca.hdr.mth_type = CNDB_TYPE_ACK;
@@ -389,6 +391,7 @@ MTF_DEFINE_UTEST_PREPOST(cndb_test, cndb_txc_bitmap, test_pre, test_post)
     ASSERT_EQ(0, err);
     mtc = (struct cndb_txc *)cndb.cndb_workv[3];
     ASSERT_EQ(mtc->mtc_keepvbc, 10);
+    ASSERT_EQ(mtc->mtc_hoid, mb.hblk.bk_blkid);
     ASSERT_EQ(mtc->mtc_kcnt, mb.kblks.n_blks);
     ASSERT_EQ(mtc->mtc_vcnt, mb.vblks.n_blks);
 
@@ -746,7 +749,8 @@ MTF_DEFINE_UTEST_PREPOST(cndb_test, import_md_test, test_pre, test_post)
 MTF_DEFINE_UTEST_PREPOST(cndb_test, cndb_blkdel_test, test_pre, test_post)
 {
     struct cndb cndb = {};
-    merr_t      err;
+    merr_t err;
+    uint64_t hoidc, hoidd;
 
     enum {
         INVAL_0 = 0,
@@ -755,22 +759,51 @@ MTF_DEFINE_UTEST_PREPOST(cndb_test, cndb_blkdel_test, test_pre, test_post)
         TAG_3 = 3,
     };
 
-    struct cndb_txc  txc = { { CNDB_TYPE_TXC }, CNID_1, TXID_2, TAG_3, 0, 0, 0 };
-    struct cndb_txd  txd = { { CNDB_TYPE_TXD }, CNID_1, TXID_2, TAG_3, 0 };
+    err = mpm_mblock_alloc(MPOOL_MBLOCK_SIZE_DEFAULT, &hoidc);
+    ASSERT_EQ(0, merr_errno(err));
+
+    err = mpm_mblock_alloc(MPOOL_MBLOCK_SIZE_DEFAULT, &hoidd);
+    ASSERT_EQ(0, merr_errno(err));
+
+    union cndb_mtu txc = {
+        .c = {
+            .hdr = { CNDB_TYPE_TXC },
+            .mtc_cnid = CNID_1,
+            .mtc_id = TXID_2,
+            .mtc_tag = TAG_3,
+            .mtc_keepvbc = 0,
+            .mtc_hoid = hoidc,
+            .mtc_kcnt = 0,
+            .mtc_vcnt = 0,
+        },
+    };
+
+    union cndb_mtu txd = {
+        .d = {
+            .hdr = { CNDB_TYPE_TXD },
+            .mtd_cnid = CNID_1,
+            .mtd_id = TXID_2,
+            .mtd_tag = TAG_3,
+            .mtd_hoid =  hoidd,
+            .mtd_n_oids = 0,
+        },
+    };
+
     char             buf[CNDB_CBUFSZ_DEFAULT];
     struct cndb_txd *db = (void *)&buf;
     u64 *            oidp;
 
-    err = cndb_blkdel(&cndb, (void *)&txc, TXID_2);
+    err = cndb_blkdel(&cndb, &txc, TXID_2);
     ASSERT_EQ(0, err);
 
-    err = cndb_blkdel(&cndb, (void *)&txd, TXID_2);
+    err = cndb_blkdel(&cndb, &txd, TXID_2);
     ASSERT_EQ(0, err);
 
-    db->hdr.mth_type = txd.hdr.mth_type;
-    db->mtd_cnid = txd.mtd_cnid;
-    db->mtd_id = txd.mtd_id;
-    db->mtd_tag = txd.mtd_tag;
+    db->hdr.mth_type = txd.d.hdr.mth_type;
+    db->mtd_cnid = txd.d.mtd_cnid;
+    db->mtd_id = txd.d.mtd_id;
+    db->mtd_tag = txd.d.mtd_tag;
+    db->mtd_hoid = 1;
     db->mtd_n_oids = 1;
     oidp = (void *)&db[1];
     *oidp = 0x21122112;

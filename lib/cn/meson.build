@@ -11,6 +11,8 @@ cn_sources = files(
     'csched.c',
     'csched_sp3.c',
     'csched_sp3_work.c',
+    'hblock_builder.c',
+    'hblock_reader.c',
     'hse_log_fmt.c',
     'intern_builder.c',
     'kblock_builder.c',
@@ -27,7 +29,7 @@ cn_sources = files(
     'vblock_reader.c',
     'vcomp_params.c',
     'wbt_builder.c',
-    'wbt_reader.c',
+    'wbt_reader.c'
 )
 
 cn_includes = include_directories('.')

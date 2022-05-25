@@ -1,6 +1,6 @@
 /* SPDX-License-Identifier: Apache-2.0 */
 /*
- * Copyright (C) 2015-2017,2021 Micron Technology, Inc. All rights reserved.
+ * Copyright (C) 2015-2017,2021-2022 Micron Technology, Inc. All rights reserved.
  */
 
 /*
@@ -105,8 +105,8 @@ run(void *p)
         found = false;
 
         /*
-		 * The Meat-N-Potatos is all in this one switch.
-		 */
+         * The Meat-N-Potatos is all in this one switch.
+         */
         switch (ti->action) {
             case GET:
                 EVENT_START(t);

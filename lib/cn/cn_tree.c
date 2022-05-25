@@ -74,7 +74,6 @@ static struct kmem_cache *cn_node_cache HSE_READ_MOSTLY;
 struct kvstarts {
     struct kvset_view view; /* must be first field! */
     int               start;
-    int               pt_start;
 };
 
 
@@ -1733,20 +1732,20 @@ cn_comp_commit(struct cn_compaction_work *w)
     }
 
     for (i = 0; i < w->cw_outc; i++) {
-
         struct kvset_meta km = {};
 
         /* [HSE_REVISIT] there may be vblks to delete!!! */
-        if (w->cw_outv[i].kblks.n_blks == 0)
+        if (!w->cw_outv[i].hblk.bk_blkid)
             continue;
 
         km.km_dgen = w->cw_dgen_hi;
         km.km_vused = w->cw_outv[i].bl_vused;
 
-        /* Lend kblk and vblk lists to kvset_create().
+        /* Lend hblk, kblk, and vblk lists to kvset_create().
          * Yes, the struct copy is a bit gross, but it works and
          * avoids unnecessary allocations of temporary lists.
          */
+        km.km_hblk = w->cw_outv[i].hblk;
         km.km_kblk_list = w->cw_outv[i].kblks;
         km.km_vblk_list = w->cw_outv[i].vblks;
         km.km_capped = cn_is_capped(w->cw_tree->cn);
@@ -2140,8 +2139,8 @@ cn_tree_ingest_update(struct cn_tree *tree, struct kvset *kvset, void *ptomb, ui
     cn_tree_samp_update_ingest(tree, tree->ct_root);
     cn_tree_samp(tree, &post);
 
-    assert(post.i_alen > pre.i_alen);
-    assert(post.r_wlen > pre.r_wlen);
+    assert(post.i_alen >= pre.i_alen);
+    assert(post.r_wlen >= pre.r_wlen);
     assert(post.l_alen == pre.l_alen);
     assert(post.l_good == pre.l_good);
 

@@ -369,6 +369,7 @@ omf_cndb_txc_unpack(void *omf, u32 ver, union cndb_mtu *mtu, u32 *plen)
     mtc->mtc_cnid = omf_txc_cnid(txc_omf);
     mtc->mtc_id = omf_txc_id(txc_omf);
     mtc->mtc_tag = omf_txc_tag(txc_omf);
+    mtc->mtc_hoid = omf_txc_hoid(txc_omf);
     mtc->mtc_kcnt = omf_txc_kcnt(txc_omf);
     mtc->mtc_vcnt = omf_txc_vcnt(txc_omf);
     mtc->mtc_keepvbc = omf_txc_keepvbc(txc_omf);
@@ -465,6 +466,7 @@ omf_cndb_txd_unpack(void *omf, u32 ver, union cndb_mtu *mtu, u32 *plen)
     mtd->mtd_cnid = omf_txd_cnid(txd_omf);
     mtd->mtd_id = omf_txd_id(txd_omf);
     mtd->mtd_tag = omf_txd_tag(txd_omf);
+    mtd->mtd_hoid = omf_txd_hoid(txd_omf);
     mtd->mtd_n_oids = omf_txd_n_oids(txd_omf);
 
     mto = (void *)&mtd[1];

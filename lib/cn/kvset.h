@@ -1,6 +1,6 @@
 /* SPDX-License-Identifier: Apache-2.0 */
 /*
- * Copyright (C) 2015-2020,2022 Micron Technology, Inc.  All rights reserved.
+ * Copyright (C) 2015-2022 Micron Technology, Inc.  All rights reserved.
  */
 
 #ifndef HSE_KVS_CN_KVSET_H
@@ -48,6 +48,7 @@ enum kvset_iter_flags {
 
 /**
  * struct kvset_meta - describes the content of a kvset
+ * @km_hblk:        hblock
  * @km_kblk_list:   reference to vector of kblock ids
  * @km_vblk_list:   reference to vector of vblock ids
  * @km_dgen:        kvset generation id
@@ -61,16 +62,17 @@ enum kvset_iter_flags {
  * This structure is passed between the MDC and kvset_create.
  */
 struct kvset_meta {
+    struct kvs_block km_hblk;
     struct blk_list km_kblk_list;
     struct blk_list km_vblk_list;
-    u64             km_dgen;
-    u64             km_vused;
-    u32             km_node_offset;
-    u32             km_scatter;
-    u16             km_node_level;
-    u16             km_compc;
-    bool            km_capped;
-    bool            km_restored;
+    uint64_t km_dgen;
+    uint64_t km_vused;
+    uint32_t km_node_offset;
+    uint32_t km_scatter;
+    uint16_t km_node_level;
+    uint16_t km_compc;
+    bool km_capped;
+    bool km_restored;
 };
 
 enum {
@@ -124,6 +126,25 @@ merr_t
 kvset_create(struct cn_tree *tree, u64 tag, struct kvset_meta *meta, struct kvset **kvset);
 
 /**
+ * Preload/discard hblock mcache map pages
+ *
+ * This function is used to either preload or discard pages from @p kvset
+ * kvset's mcache mapped hblock, depending upon @p madvice:
+ *
+ * @p MADV_WILLNEED: Initiate readahead preloading of all the pages
+ * @p MADV_DONTNEED: Mark all the pages as currently unneeded
+ *
+ * See madvise(2) for more informaation.
+ *
+ * @param kvset kvset pointer
+ * @param advice readahead mode for madvise(2)
+ * @param leaves madvise(2) leaf nodes as well
+ */
+/* MTF_MOCK */
+void
+kvset_madvise_hblk(struct kvset *kvset, int advice, bool leaves);
+
+/**
  * kvset_madvise_kblks() - preload/discard kblock mcache map pages
  * @kvset:    kvset pointer
  * @advice:   readahead mode for madvise()
@@ -139,32 +160,6 @@ kvset_create(struct cn_tree *tree, u64 tag, struct kvset_meta *meta, struct kvse
 /* MTF_MOCK */
 void
 kvset_madvise_kblks(struct kvset *kvset, int advice, bool blooms, bool leaves);
-
-/**
- * kvset_madvise_kmaps() - Change kvset kblock mcache map memory use mode
- * @kvset:    kvset pointer
- * @advise:   readahead mode for madvise()
- *
- * This function is used to change the mcache map readahead mode for all
- * mcache maps in the given kvset's kblocks, where %adivce may be one
- * of the following:  %MADV_RANDOM, %MADV_DONTNEED
- *
- * Note that the default mode for mcache maps is MADV_RANDOM, which
- * effectively disables readahead.
- *
- * See madvise(2) for more informaation.
- */
-/* MTF_MOCK */
-void
-kvset_madvise_kmaps(struct kvset *kvset, int advice);
-
-/**
- * kvset_purge_kmaps() - Purge kvset kblock mcache map
- * @kvset:    kvset pointer
- */
-/* MTF_MOCK */
-void
-kvset_purge_kmaps(struct kvset *kvset);
 
 /**
  * kvset_madvise_vblks() - preload/discard vblock mcache map pages
@@ -275,9 +270,8 @@ kvset_get_max_key(struct kvset *ks, const void **max_key, uint *max_klen);
 u64
 kvset_ctime(const struct kvset *kvset);
 
-/* MTF_MOCK */
-int
-kvset_pt_start(struct kvset *kvset);
+bool
+kvset_has_ptree(const struct kvset *ks) HSE_NONNULL(1);
 
 /**
  * kvset_kblk_start() - return index of kblock where this key may reside
@@ -438,7 +432,7 @@ kvset_iter_set_stats(struct kv_iterator *handle, struct cn_merge_stats *stats);
 
 /* MTF_MOCK */
 merr_t
-kvset_iter_set_start(struct kv_iterator *kv_iter, int start, int pt_start);
+kvset_iter_set_start(struct kv_iterator *kv_iter, int start);
 
 /**
  * kvset_iter_seek() - efficiently moves the iterator to starting kblk (or eof)

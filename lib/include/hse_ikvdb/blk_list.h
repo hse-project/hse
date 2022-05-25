@@ -1,6 +1,6 @@
 /* SPDX-License-Identifier: Apache-2.0 */
 /*
- * Copyright (C) 2015-2020 Micron Technology, Inc.  All rights reserved.
+ * Copyright (C) 2015-2022 Micron Technology, Inc.  All rights reserved.
  */
 
 #ifndef HSE_IKVDB_BLK_LIST_H
@@ -24,6 +24,7 @@ struct blk_list {
 };
 
 struct kvset_mblocks {
+    struct kvs_block hblk;
     struct blk_list kblks;
     struct blk_list vblks;
     u64             bl_vused;

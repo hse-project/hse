@@ -41,6 +41,7 @@
 
 #include <hse_util/hlog.h>
 
+#include "hblock_reader.h"
 #include "kvset.h"
 #include "kvset_internal.h"
 #include "kblock_reader.h"
@@ -212,14 +213,65 @@ kvset_put_ref(struct kvset *ks)
 }
 
 static merr_t
+kvset_hblk_init(
+    struct mpool *mpool,
+    struct mblock_props *props,
+    struct mpool_mcache_map *map,
+    uint8_t **hlog,
+    struct kvset_hblk *blk)
+{
+    merr_t err;
+    struct kvs_mblk_desc *hbd = &blk->kh_hblk_desc;
+
+    err = hbr_read_desc(mpool, map, props, blk->kh_hblk.bk_blkid, hbd);
+    if (err)
+        return err;
+
+    err = hbr_read_seqno_range(hbd, &blk->kh_seqno_min, &blk->kh_seqno_max);
+    if (ev(err))
+        return err;
+
+    err = hbr_read_ptree_region_desc(hbd, &blk->kh_ptree_desc);
+    if (err)
+        return err;
+
+    err = hbr_read_metrics(hbd, &blk->kh_metrics);
+    if (err)
+        return err;
+
+    if (omf_hbh_max_pfx_len(hbd->map_base)) {
+        blk->kh_pfx_max = hbd->map_base + omf_hbh_max_pfx_off(hbd->map_base);
+        blk->kh_pfx_max_len = omf_hbh_max_pfx_len(hbd->map_base);
+        key_disc_init(blk->kh_pfx_max, blk->kh_pfx_max_len, &blk->kh_pfx_max_disc);
+    } else {
+        blk->kh_pfx_max = NULL;
+        blk->kh_pfx_max_len = 0;
+        memset(&blk->kh_pfx_max_disc, 0, sizeof(blk->kh_pfx_max_disc));
+    }
+
+    if (omf_hbh_min_pfx_len(hbd->map_base)) {
+        blk->kh_pfx_min = hbd->map_base + omf_hbh_min_pfx_off(hbd->map_base);
+        blk->kh_pfx_min_len = omf_hbh_min_pfx_len(hbd->map_base);
+        key_disc_init(blk->kh_pfx_min, blk->kh_pfx_min_len, &blk->kh_pfx_min_disc);
+    } else {
+        blk->kh_pfx_min = NULL;
+        blk->kh_pfx_min_len = 0;
+        memset(&blk->kh_pfx_min_disc, 0, sizeof(blk->kh_pfx_min_disc));
+    }
+
+    *hlog = hbd->map_base + (omf_hbh_hlog_off_pg(hbd->map_base) * PAGE_SIZE);
+
+    return err;
+}
+
+static merr_t
 kvset_kblk_init(
     struct kvs_rparams *     rp,
     struct mpool *           ds,
     struct mblock_props     *props,
     struct mpool_mcache_map *kmap,
     u32                      idx,
-    struct kvset_kblk *      p,
-    u8 **                    hlog)
+    struct kvset_kblk *      p)
 {
     struct kvs_mblk_desc * kbd = &p->kb_kblk_desc;
     struct kblock_hdr_omf *hdr;
@@ -241,27 +293,11 @@ kvset_kblk_init(
     if (ev(err))
         return err;
 
-    err = kbr_read_pt_region_desc(kbd, &p->kb_pt_desc);
-    if (ev(err))
-        return err;
-
     err = kbr_read_metrics(kbd, &p->kb_metrics);
     if (ev(err))
         return err;
 
-    err = kbr_read_seqno_range(kbd, &p->kb_seqno_min, &p->kb_seqno_max);
-    if (ev(err))
-        return err;
-
     hdr = p->kb_kblk_desc.map_base;
-
-    if (omf_kbh_hlog_dlen_pg(hdr)) {
-        assert(omf_kbh_hlog_dlen_pg(hdr) == HLOG_PGC);
-        *hlog = p->kb_kblk_desc.map_base + PAGE_SIZE * omf_kbh_hlog_doff_pg(hdr);
-    } else {
-        /* must be version 2 kblock */
-        *hlog = 0;
-    }
 
     /* Cache min/max key ptrs and lengths, and initialize the
      * min/max key discriminators for use in kblk_plausible().
@@ -427,18 +463,18 @@ kvset_create2(
     struct kvset *ks;
     size_t        kcachesz;
     ulong         mavail;
-    uint          n_kblks = km->km_kblk_list.n_blks;
-    uint          n_vblks = km->km_vblk_list.n_blks;
+    const uint32_t n_kblks = km->km_kblk_list.n_blks;
+    const uint32_t n_vblks = km->km_vblk_list.n_blks;
     uint          kmapc;
     uint          vbsetc;
-    u64           kvdb_kalen, kvdb_valen, mblock_max;
-    ulong         kra, vra;
+    u64           kvdb_halen, kvdb_kalen, kvdb_valen, mblock_max;
+    ulong         hra, kra, vra;
     int           last_kb;
 
     struct kvs_cparams *cp;
 
-    /* need kblocks, vblocks optional */
-    assert(n_kblks);
+    /* need hblock, kblocks and vblocks optional */
+    assert(km->km_hblk.bk_blkid);
     last_kb = n_kblks - 1;
 
     mblock_max = cn_vma_mblock_max(tree->cn);
@@ -453,14 +489,18 @@ kvset_create2(
 
     /* one allocation for:
      * - the kvset struct
+     * - array of mcache_map pts for hblocks
+     * - array of struct kvset_hblk for hblocks
      * - array of mcache_map ptrs for kblocks
      * - array of struct kvset_kblk for kblocks
      * - array of ptrs to vbsets
      * - array of struct mbset_locator
      */
-    alloc_len =
-        (sizeof(*ks) + sizeof(ks->ks_kmapv[0]) * kmapc + sizeof(ks->ks_kblks[0]) * n_kblks +
-         sizeof(ks->ks_vbsetv[0]) * vbsetc + sizeof(ks->ks_vblk2mbs[0]) * n_vblks);
+    alloc_len = sizeof(*ks);
+    alloc_len += sizeof(ks->ks_kmapv[0]) * kmapc;
+    alloc_len += sizeof(ks->ks_kblks[0]) * n_kblks;
+    alloc_len += sizeof(ks->ks_vbsetv[0]) * vbsetc;
+    alloc_len += sizeof(ks->ks_vblk2mbs[0]) * n_vblks;
 
     if (ev(alloc_len > kvset_cache[0].sz))
         ks = alloc_aligned(alloc_len, __alignof__(*ks));
@@ -491,6 +531,7 @@ kvset_create2(
 
     ks->ks_st.kst_kvsets = 1;
     ks->ks_st.kst_vulen = km->km_vused;
+    ks->ks_st.kst_hblks = 1;
     ks->ks_st.kst_kblks = n_kblks;
     ks->ks_st.kst_vblks = n_vblks;
 
@@ -527,11 +568,36 @@ kvset_create2(
         ks->ks_vra_len = rp->cn_cursor_vra;
 
     assert(ks->ks_tag != 0);
-    assert(n_kblks);
 
-    if (rp->cn_verify) {
+    if (rp->cn_verify)
         kc_kvset_check(ds, cp, km, tree);
+
+    /* map single hblock */
+    err = mpool_mcache_mmap(ds, 1, &km->km_hblk.bk_blkid, &ks->ks_hmap);
+    if (ev(err))
+        goto err_exit;
+
+    {
+        struct mblock_props props;
+
+        err = mpool_mblock_props_get(ds, km->km_hblk.bk_blkid, &props);
+        if (ev(err))
+            goto err_exit;
+
+        ks->ks_hblk.kh_hblk.bk_blkid = km->km_hblk.bk_blkid;
+
+        err = kvset_hblk_init(ds, &props, ks->ks_hmap, &ks->ks_hlog, &ks->ks_hblk);
+        if (ev(err))
+            goto err_exit;
+
+        /* kvset_stats from kblocks */
+        ks->ks_st.kst_halen += props.mpr_alloc_cap;
+        ks->ks_st.kst_hwlen += props.mpr_write_len;
     }
+
+    ks->ks_seqno_min = ks->ks_hblk.kh_seqno_min;
+    ks->ks_seqno_max = ks->ks_hblk.kh_seqno_max;
+    assert(ks->ks_seqno_min <= ks->ks_seqno_max);
 
     /* map kblocks */
     err = kvset_map_blklist(ds, &km->km_kblk_list, mblock_max, ks->ks_kmapv);
@@ -545,7 +611,6 @@ kvset_create2(
         struct mblock_props props;
 
         u64 mbid = km->km_kblk_list.blks[i].bk_blkid;
-        u8 *hlog;
 
         err = mpool_mblock_props_get(ds, mbid, &props);
         if (ev(err))
@@ -554,7 +619,7 @@ kvset_create2(
         kblk->kb_kblk.bk_blkid = mbid;
 
         err = kvset_kblk_init(rp, ds, &props, ks->ks_kmapv[i / mblock_max], i % mblock_max,
-                              kblk, &hlog);
+                              kblk);
         if (ev(err))
             goto err_exit;
 
@@ -563,9 +628,6 @@ kvset_create2(
          */
         if (kblk->kb_koff_max != kblk->kb_ksmall)
             kcachesz += kblk->kb_klen_max + kblk->kb_klen_min;
-
-        /* save ptr to last kblock's hlog */
-        ks->ks_hlog = hlog;
 
         /* kvset_stats from kblocks */
         ks->ks_st.kst_kalen += props.mpr_alloc_cap;
@@ -609,59 +671,68 @@ kvset_create2(
 
             dst += kb->kb_klen_min;
 
-/* There is no further need to access the kblock
+            /* There is no further need to access the kblock
              * header past this point, and hence its physical
              * pages will eventually be reclaimed by the VMM.
              * For debug builds, we remove all access rights
              * to the kblock header in order to catch those
              * who might otherwise try to access it.
              */
-#if !defined(HSE_BUILD_RELEASE)
+#ifndef NDEBUG
             mprotect(kb->kb_kblk_desc.map_base, PAGE_SIZE, PROT_NONE);
 #endif
         }
     }
 
-    ks->ks_minkey = ks->ks_kblks[0].kb_koff_min;
-    ks->ks_minklen = ks->ks_kblks[0].kb_klen_min;
-    {
-        const void *last_key = ks->ks_kblks[last_kb].kb_koff_max;
-        u16         last_klen = ks->ks_kblks[last_kb].kb_klen_max;
-
-        /* If last kblock contains only ptombs and it's not the only kblock
-         * in the kvset, compare max keys with penultimate kblock.
-         */
-        ks->ks_maxkey = last_key;
-        ks->ks_maxklen = last_klen;
-        if (ks->ks_kblks[last_kb].kb_wbt_desc.wbd_n_pages == 0 && n_kblks > 1) {
-            int         prev = last_kb - 1;
-            const void *prev_key = ks->ks_kblks[prev].kb_koff_max;
-            u16         prev_klen = ks->ks_kblks[prev].kb_klen_max;
-
-            if (keycmp(prev_key, prev_klen, last_key, last_klen) > 0) {
-                ks->ks_maxkey = prev_key;
-                ks->ks_maxklen = prev_klen;
+    if (n_kblks) {
+        if (kvset_has_ptree(ks)) {
+            if (keycmp(ks->ks_kblks[0].kb_koff_min, ks->ks_kblks[0].kb_klen_min,
+                    ks->ks_hblk.kh_pfx_min, ks->ks_hblk.kh_pfx_min_len) > 0) {
+                ks->ks_minkey = ks->ks_hblk.kh_pfx_min;
+                ks->ks_minklen = ks->ks_hblk.kh_pfx_min_len;
+            } else {
+                ks->ks_minkey = ks->ks_kblks[0].kb_koff_min;
+                ks->ks_minklen = ks->ks_kblks[0].kb_klen_min;
             }
+
+            if (keycmp(ks->ks_kblks[last_kb].kb_koff_max, ks->ks_kblks[last_kb].kb_klen_max,
+                    ks->ks_hblk.kh_pfx_max, ks->ks_hblk.kh_pfx_max_len) > 0) {
+                ks->ks_maxkey = ks->ks_kblks[last_kb].kb_koff_max;
+                ks->ks_maxklen = ks->ks_kblks[last_kb].kb_klen_max;
+            } else {
+                ks->ks_maxkey = ks->ks_hblk.kh_pfx_max;
+                ks->ks_maxklen = ks->ks_hblk.kh_pfx_max_len;
+            }
+
+            if (key_disc_cmp(&ks->ks_kblks[0].kb_kdisc_min, &ks->ks_hblk.kh_pfx_min_disc) > 0) {
+                ks->ks_kdisc_min = ks->ks_hblk.kh_pfx_min_disc;
+            } else {
+                ks->ks_kdisc_min = ks->ks_kblks[0].kb_kdisc_min;
+            }
+
+            if (key_disc_cmp(&ks->ks_kblks[last_kb].kb_kdisc_max,
+                    &ks->ks_hblk.kh_pfx_max_disc) > 0) {
+                ks->ks_kdisc_max = ks->ks_kblks[last_kb].kb_kdisc_max;
+            } else {
+                ks->ks_kdisc_max = ks->ks_hblk.kh_pfx_max_disc;
+            }
+        } else {
+            ks->ks_minkey = ks->ks_kblks[0].kb_koff_min;
+            ks->ks_minklen = ks->ks_kblks[0].kb_klen_min;
+            ks->ks_maxkey = ks->ks_kblks[last_kb].kb_koff_max;
+            ks->ks_maxklen = ks->ks_kblks[last_kb].kb_klen_max;
+
+            ks->ks_kdisc_min = ks->ks_kblks[0].kb_kdisc_min;
+            ks->ks_kdisc_max = ks->ks_kblks[last_kb].kb_kdisc_max;
         }
-    }
+    } else {
+        ks->ks_minkey = ks->ks_hblk.kh_pfx_min;
+        ks->ks_minklen = ks->ks_hblk.kh_pfx_min_len;
+        ks->ks_maxkey = ks->ks_hblk.kh_pfx_max;
+        ks->ks_maxklen = ks->ks_hblk.kh_pfx_max_len;
 
-    /* The last kblock's header doubles as a kvset header.
-     * Retrieve kvset's seqno range from this kblock's hdr.
-     */
-    ks->ks_seqno_min = ks->ks_kblks[last_kb].kb_seqno_min;
-    ks->ks_seqno_max = ks->ks_kblks[last_kb].kb_seqno_max;
-    assert(ks->ks_seqno_max >= ks->ks_seqno_min);
-
-    /* Initialize kvset key min/max discriminators - only from main wbt
-     */
-    ks->ks_kdisc_min = ks->ks_kblks[0].kb_kdisc_min;
-    {
-        int last = last_kb;
-
-        if (ks->ks_kblks[last].kb_wbt_desc.wbd_n_pages == 0 && n_kblks > 1)
-            --last;
-
-        ks->ks_kdisc_max = ks->ks_kblks[last].kb_kdisc_max;
+        ks->ks_kdisc_min = ks->ks_hblk.kh_pfx_min_disc;
+        ks->ks_kdisc_max = ks->ks_hblk.kh_pfx_max_disc;
     }
 
     /* Check to see if all keys in this kvset have a common prefix.
@@ -720,12 +791,16 @@ kvset_create2(
     kvset_get_ref(ks);
     ks->ks_deleted = DEL_NONE;
 
+    kvdb_halen = atomic_fetch_add(&cn_kvdb->cnd_hblk_size, ks->ks_st.kst_halen);
+    kvdb_halen += ks->ks_st.kst_halen;
+
     kvdb_kalen = atomic_fetch_add(&cn_kvdb->cnd_kblk_size, ks->ks_st.kst_kalen);
     kvdb_kalen += ks->ks_st.kst_kalen;
 
     kvdb_valen = atomic_fetch_add(&cn_kvdb->cnd_vblk_size, ks->ks_st.kst_valen);
     kvdb_valen += ks->ks_st.kst_valen;
 
+    atomic_inc(&cn_kvdb->cnd_hblk_cnt);
     atomic_add(&cn_kvdb->cnd_kblk_cnt, ks->ks_st.kst_kblks);
     atomic_add(&cn_kvdb->cnd_vblk_cnt, ks->ks_st.kst_vblks);
 
@@ -735,8 +810,9 @@ kvset_create2(
     hse_meminfo(NULL, &mavail, 30);
 
     /* Convert from bytes to GiB for comparison w/ mavail. */
-    kvdb_kalen >>= 30;
-    kvdb_valen >>= 30;
+    kvdb_halen >>= GB_SHIFT;
+    kvdb_kalen >>= GB_SHIFT;
+    kvdb_valen >>= GB_SHIFT;
 
 #define ra_lev0(_ra) ((_ra)&0xffu)
 #define ra_lev1(_ra) (((_ra) >> 8) & 0xffu)
@@ -755,10 +831,17 @@ kvset_create2(
      * true when all KVSes are open.  During startup, KVSes are
      * opened one at a time, so the metric will be wrong until the
      * last kvset of the last KVS is opened.  The same issue
-     * applies to kvdb_valen.
+     * applies to kvdb_valen and kvdb_halen.
      */
+    hra = rp->cn_mcache_kra_params;
     kra = rp->cn_mcache_kra_params;
     vra = rp->cn_mcache_vra_params;
+
+    if (ks->ks_node_level < ra_lev0(kra) || (!km->km_restored && ks->ks_node_level < ra_lev1(hra) &&
+                                             kvdb_halen * 100 < ra_pct(hra) * mavail)) {
+        if (ks->ks_node_level == 0 || (ra_willneed(hra) & 0x01))
+            kvset_madvise_hblk(ks, MADV_WILLNEED, true);
+    }
 
     if (ks->ks_node_level < ra_lev0(kra) || (!km->km_restored && ks->ks_node_level < ra_lev1(kra) &&
                                              kvdb_kalen * 100 < ra_pct(kra) * mavail)) {
@@ -852,7 +935,8 @@ kvset_log_d_records(struct kvset *ks, bool keepv, u64 txid)
     assert(txid);
     assert(ks->ks_tag != 0);
 
-    cnt = ks->ks_st.kst_kblks;
+    cnt = 1; /* hblock */
+    cnt += ks->ks_st.kst_kblks;
     if (!keepv)
         cnt += ks->ks_st.kst_vblks;
 
@@ -863,6 +947,7 @@ kvset_log_d_records(struct kvset *ks, bool keepv, u64 txid)
     if (!oidv)
         return merr(ev(ENOMEM));
 
+    oidv[oidx++] = ks->ks_hblk.kh_hblk.bk_blkid;
     for (i = 0; i < ks->ks_st.kst_kblks; i++)
         oidv[oidx++] = ks->ks_kblks[i].kb_kblk.bk_blkid;
     if (!keepv) {
@@ -982,11 +1067,22 @@ _kvset_destroy(struct kvset *ks)
     if (ks->ks_cn_kvdb) {
         struct cn_kvdb *cnd = ks->ks_cn_kvdb;
 
+        atomic_dec(&cnd->cnd_hblk_cnt);
         atomic_sub(&cnd->cnd_kblk_cnt, ks->ks_st.kst_kblks);
         atomic_sub(&cnd->cnd_vblk_cnt, ks->ks_st.kst_vblks);
 
+        atomic_sub(&cnd->cnd_hblk_size, ks->ks_st.kst_halen);
         atomic_sub(&cnd->cnd_kblk_size, ks->ks_st.kst_kalen);
         atomic_sub(&cnd->cnd_vblk_size, ks->ks_st.kst_valen);
+    }
+
+    mpool_mcache_munmap(ks->ks_hmap);
+    if (ks->ks_deleted) {
+        const merr_t err = mpool_mblock_delete(ks->ks_ds, ks->ks_hblk.kh_hblk.bk_blkid);
+        if (ev(err)) {
+            atomic_inc(&ks->ks_delete_error);
+            return;
+        }
     }
 
     cleanup_kblocks(ks);
@@ -1078,32 +1174,14 @@ kblk_plausible(
     return 0; /* key might be in this kblock */
 }
 
-/**
- * kvset_pt_start() - return index of kblock that contains pfx tombstones
- *
- * Returns:
- * -1:      there are no prefix tombstones in the kvset
- *  i >= 0: index of kblock that contains prefix tombstones
- */
-int
-kvset_pt_start(struct kvset *ks)
+bool
+kvset_has_ptree(const struct kvset *const ks)
 {
-    int last = ks->ks_st.kst_kblks - 1;
-
-    if (ks->ks_pfx_len == 0)
-        return -1; /* not a prefixed tree */
-
-    if (ks->ks_kblks[last].kb_pt_desc.wbd_n_pages == 0)
-        return -1;
-
-    /* [HSE_REVISIT] check key ranges for pfx */
-
-    return last;
+    return ks->ks_pfx_len > 0 && ks->ks_hblk.kh_ptree_desc.wbd_n_pages > 0;
 }
 
 /**
- * kvset_kblk_start() - determine if a kvset might contain a key. This does not
- * include ptombs. For ptombs, see kvset_pt_start().
+ * kvset_kblk_start() - determine if a kvset might contain a key.
  *
  * len > 0 => seek;   seek to key
  * len < 0 => create; seek to prefix
@@ -1184,7 +1262,7 @@ kblk_get_value_ref(
     if (!bloom_reader_lookup(&kblk->kb_blm_desc, kt->kt_hash))
         return 0;
 
-    return wbtr_read_vref(&kblk->kb_kblk_desc, &kblk->kb_wbt_desc, kt, lcp, seq, result, vref);
+    return wbtr_read_vref(kblk->kb_kblk_desc.map_base, &kblk->kb_wbt_desc, kt, lcp, seq, result, vref);
 }
 
 static merr_t
@@ -1196,18 +1274,15 @@ kvset_ptomb_lookup(
     struct kvs_vtuple_ref *vref)
 {
     merr_t err;
-    int    last = ks->ks_st.kst_kblks - 1;
 
-    if (ks->ks_pfx_len && kt->kt_len >= ks->ks_pfx_len &&
-        ks->ks_kblks[last].kb_pt_desc.wbd_n_pages > 0) {
-
+    if (ks->ks_pfx_len && kt->kt_len >= ks->ks_pfx_len && kvset_has_ptree(ks)) {
         struct kvs_ktuple pfx;
 
         kvs_ktuple_init_nohash(&pfx, kt->kt_data, ks->ks_pfx_len);
 
         err = wbtr_read_vref(
-            &ks->ks_kblks[last].kb_kblk_desc,
-            &ks->ks_kblks[last].kb_pt_desc,
+            ks->ks_hblk.kh_hblk_desc.map_base,
+            &ks->ks_hblk.kh_ptree_desc,
             &pfx,
             0,
             view_seq,
@@ -1274,9 +1349,6 @@ kvset_lookup_vref(
         goto done;
 
 search:
-    if (last && ks->ks_kblks[last].kb_wbt_desc.wbd_n_pages == 0)
-        --last; /* last kblk contains only ptombs. Don't include it */
-
     while (first <= last) {
         i = (first + last) / 2;
 
@@ -1579,8 +1651,6 @@ kvset_pfx_lookup(
         goto done; /* eof */
 
     last = ks->ks_st.kst_kblks - 1;
-    if (last && ks->ks_kblks[last].kb_wbt_desc.wbd_n_pages == 0)
-        --last;
 
 next_kblk:
     kblk = &ks->ks_kblks[kbidx];
@@ -1595,7 +1665,7 @@ next_kblk:
     if (!bloom_reader_lookup(&kblk->kb_blm_desc, kt->kt_hash))
         goto done;
 
-    wbti_reset(wbti, &kblk->kb_kblk_desc, &kblk->kb_wbt_desc, kt, 0, 0);
+    wbti_reset(wbti, kblk->kb_kblk_desc.map_base, &kblk->kb_wbt_desc, kt, 0, 0);
 
 get_more:
     /* Get next key and set kmd to the base addr for the next keys' metadata */
@@ -1797,8 +1867,12 @@ kvset_stats_add(const struct kvset_stats *add, struct kvset_stats *result)
 {
     result->kst_kvsets += add->kst_kvsets;
     result->kst_keys += add->kst_keys;
+    result->kst_hblks += add->kst_hblks;
     result->kst_kblks += add->kst_kblks;
     result->kst_vblks += add->kst_vblks;
+
+    result->kst_halen += add->kst_halen;
+    result->kst_hwlen += add->kst_hwlen;
 
     result->kst_kalen += add->kst_kalen;
     result->kst_kwlen += add->kst_kwlen;
@@ -1832,12 +1906,6 @@ kvset_set_scatter_pct(struct kvset *ks, uint spct)
     ks->ks_scatter_pct = spct;
 }
 
-u32
-kvset_get_num_kblocks(struct kvset *ks)
-{
-    return ks->ks_st.kst_kblks;
-}
-
 u64
 kvset_get_workid(struct kvset *ks)
 {
@@ -1848,6 +1916,18 @@ void
 kvset_set_workid(struct kvset *ks, u64 id)
 {
     ks->ks_workid = id;
+}
+
+uint64_t
+kvset_get_hblock_id(struct kvset *ks)
+{
+    return ks->ks_hblk.kh_hblk.bk_blkid;
+}
+
+u32
+kvset_get_num_kblocks(struct kvset *ks)
+{
+    return ks->ks_st.kst_kblks;
 }
 
 u64
@@ -1913,10 +1993,13 @@ kvset_get_metrics(struct kvset *ks, struct kvset_metrics *m)
 
     memset(m, 0, sizeof(*m));
 
+    m->num_hblocks = ks->ks_st.kst_hblks;
     m->num_kblocks = ks->ks_st.kst_kblks;
     m->num_vblocks = ks->ks_st.kst_vblks;
+    m->header_bytes = ks->ks_st.kst_hwlen;
     m->compc = ks->ks_compc;
     m->vgroups = ks->ks_vgroups;
+    m->nptombs = ks->ks_hblk.kh_metrics.hm_nptombs;
 
     for (i = 0; i < ks->ks_st.kst_kblks; i++) {
         p = ks->ks_kblks + i;
@@ -2283,7 +2366,7 @@ kblk_start_read(struct kvset_iterator *iter, struct kblk_reader *kr, enum read_t
         /* starting a new kblock */
         kblk = &iter->ks->ks_kblks[kr->kr_next_kblk_idx];
 
-        wbt = read_type == READ_WBT ? &kblk->kb_wbt_desc : &kblk->kb_pt_desc;
+        wbt = read_type == READ_WBT ? &kblk->kb_wbt_desc : &iter->ks->ks_hblk.kh_ptree_desc;
 
         kr->kr_nodex = 0;
         kr->kr_nodec = wbt->wbd_leaf_cnt;
@@ -2689,7 +2772,7 @@ kvset_iter_set_stats(struct kv_iterator *handle, struct cn_merge_stats *stats)
 }
 
 merr_t
-kvset_iter_set_start(struct kv_iterator *handle, int start, int pt_start)
+kvset_iter_set_start(struct kv_iterator *handle, int start)
 {
     struct kvset_iterator *iter = handle_to_kvset_iter(handle);
 
@@ -2702,7 +2785,7 @@ kvset_iter_set_start(struct kv_iterator *handle, int start, int pt_start)
     if (start >= 0)
         iter->wbti_meta.eof = false;
 
-    if (pt_start >= 0)
+    if (kvset_has_ptree(iter->ks))
         iter->pti_meta.eof = false;
 
     iter->last = SRC_NONE;
@@ -2713,64 +2796,32 @@ kvset_iter_set_start(struct kv_iterator *handle, int start, int pt_start)
 }
 
 void
-kvset_madvise_kblks(struct kvset *ks, int advice, bool blooms, bool leaves)
+kvset_madvise_hblk(struct kvset *ks, const int advice, const bool leaves)
 {
-    int i, j;
-
     assert(advice == MADV_WILLNEED || advice == MADV_DONTNEED);
 
-    for (i = 0; i < ks->ks_st.kst_kblks; i++) {
+    if (leaves)
+        hbr_madvise_wbt_leaf_nodes(&ks->ks_hblk.kh_hblk_desc, &ks->ks_hblk.kh_ptree_desc, advice);
+    hbr_madvise_wbt_int_nodes(&ks->ks_hblk.kh_hblk_desc, &ks->ks_hblk.kh_ptree_desc,
+        advice);
+    hbr_madvise_kmd(&ks->ks_hblk.kh_hblk_desc, &ks->ks_hblk.kh_ptree_desc, advice);
+}
 
+void
+kvset_madvise_kblks(struct kvset *ks, int advice, bool blooms, bool leaves)
+{
+    assert(advice == MADV_WILLNEED || advice == MADV_DONTNEED);
+
+    for (int i = 0; i < ks->ks_st.kst_kblks; i++) {
         struct kvset_kblk *p = ks->ks_kblks + i;
-        struct wbt_desc *  wbt_desc[2] = { &p->kb_wbt_desc, &p->kb_pt_desc };
 
-        for (j = 0; j < NELEM(wbt_desc); j++) {
-            struct wbt_desc *d = wbt_desc[j];
-
-            if (leaves)
-                kbr_madvise_wbt_leaf_nodes(&p->kb_kblk_desc, d, advice);
-            kbr_madvise_wbt_int_nodes(&p->kb_kblk_desc, d, advice);
-            kbr_madvise_kmd(&p->kb_kblk_desc, d, advice);
-        }
+        if (leaves)
+            kbr_madvise_wbt_leaf_nodes(&p->kb_kblk_desc, &p->kb_wbt_desc, advice);
+        kbr_madvise_wbt_int_nodes(&p->kb_kblk_desc, &p->kb_wbt_desc, advice);
+        kbr_madvise_kmd(&p->kb_kblk_desc, &p->kb_wbt_desc, advice);
 
         if (blooms)
             kbr_madvise_bloom(&p->kb_kblk_desc, &p->kb_blm_desc, advice);
-    }
-}
-
-void
-kvset_madvise_kmaps(struct kvset *ks, int advice)
-{
-    size_t len = SIZE_MAX;
-    uint   mapc, i;
-    merr_t err;
-    u64    mblock_max;
-
-    assert(advice == MADV_DONTNEED || advice == MADV_RANDOM);
-
-    mblock_max = cn_vma_mblock_max(ks->ks_tree->cn);
-
-    mapc = (ks->ks_st.kst_kblks + mblock_max - 1) / mblock_max;
-
-    for (i = 0; i < mapc; ++i) {
-        err = mpool_mcache_madvise(ks->ks_kmapv[i], 0, 0, len, advice);
-        ev(err);
-    }
-}
-
-void
-kvset_purge_kmaps(struct kvset *ks)
-{
-    uint   mapc, i;
-    merr_t err;
-    u64    mblock_max;
-
-    mblock_max = cn_vma_mblock_max(ks->ks_tree->cn);
-    mapc = (ks->ks_st.kst_kblks + mblock_max - 1) / mblock_max;
-
-    for (i = 0; i < mapc; ++i) {
-        err = mpool_mcache_purge(ks->ks_kmapv[i], ks->ks_ds);
-        ev(err);
     }
 }
 
@@ -2861,7 +2912,7 @@ kvset_iter_seek(struct kv_iterator *handle, const void *key, s32 len, bool *eof)
     struct kvset_kblk *    kblk;
     struct kvs_ktuple      kt;
     merr_t                 err;
-    int                    start, pt_start;
+    int                    start;
     struct wbti *          wbti, *pti;
 
     kvs_ktuple_init_nohash(&kt, key, len);
@@ -2887,8 +2938,7 @@ kvset_iter_seek(struct kv_iterator *handle, const void *key, s32 len, bool *eof)
         }
     }
 
-    /*
-     * Do not tear down iterators immediately if they can be re-used by
+    /* Do not tear down iterators immediately if they can be re-used by
      * this call. If they are not re-used, destroy them at the end.
      * Use the wbt and/or pt to efficiently find the first page where
      * this key may reside, and build or re-use iterators from there.
@@ -2899,8 +2949,7 @@ kvset_iter_seek(struct kv_iterator *handle, const void *key, s32 len, bool *eof)
     err = 0;
 
     iter->pti_meta.eof = true;
-    pt_start = kvset_pt_start(ks);
-    if (pt_start >= 0) {
+    if (kvset_has_ptree(ks)) {
         struct kvs_ktuple kt_pfx;
 
         kvs_ktuple_init_nohash(&kt_pfx, key, ks->ks_pfx_len);
@@ -2908,15 +2957,14 @@ kvset_iter_seek(struct kv_iterator *handle, const void *key, s32 len, bool *eof)
         if (kt_pfx.kt_len > abs(kt.kt_len))
             kt_pfx.kt_len = abs(kt.kt_len);
 
-        kblk = &ks->ks_kblks[pt_start];
-
         if (!pti)
             err = wbti_alloc(&pti);
         if (ev(err)) {
             wbti_destroy(wbti);
             return err;
         }
-        wbti_reset(pti, &kblk->kb_kblk_desc, &kblk->kb_pt_desc, &kt_pfx, iter->reverse, 0);
+        wbti_reset(pti, ks->ks_hblk.kh_hblk_desc.map_base, &ks->ks_hblk.kh_ptree_desc, &kt_pfx,
+            iter->reverse, 0);
         iter->pti = pti;
         pti = NULL;
 
@@ -2944,7 +2992,6 @@ kvset_iter_seek(struct kv_iterator *handle, const void *key, s32 len, bool *eof)
             }
             /* No-op. We started out assuming eof. We were right */
         } else {
-            /* HSE_REVISIT: always correct? */
             start = iter->reverse ? ks->ks_st.kst_kblks - 1 : 0;
             iter->wbti_meta.eof = false;
         }
@@ -2968,7 +3015,7 @@ kvset_iter_seek(struct kv_iterator *handle, const void *key, s32 len, bool *eof)
             }
             return err;
         }
-        wbti_reset(wbti, &kblk->kb_kblk_desc, &kblk->kb_wbt_desc, &kt, iter->reverse, 0);
+        wbti_reset(wbti, kblk->kb_kblk_desc.map_base, &kblk->kb_wbt_desc, &kt, iter->reverse, 0);
         iter->wbti = wbti;
         wbti = NULL;
     }
@@ -3059,22 +3106,12 @@ next_kblock:
         assert(iter->curr_kblk < ks->ks_st.kst_kblks);
         kb = ks->ks_kblks + iter->curr_kblk;
 
-        /* This kblock doesn't have a wb tree. This is possible only
-         * with the last kblock of the ks
-         */
-        if (kb->kb_wbt_desc.wbd_n_pages == 0) {
-            assert(iter->curr_kblk == ks->ks_st.kst_kblks - 1);
-
-            iter->curr_kblk += inc;
-            goto next_kblock;
-        }
-
         /* Can use 'cn_cursor_kblk_madv' to control use of madvise
          * with mcache map since this code is only used with cursors.
          */
         preload_wbt_nodes = ks->ks_rp->cn_cursor_kra;
         err = wbti_create(
-            &iter->wbti, &kb->kb_kblk_desc, &kb->kb_wbt_desc, 0, iter->reverse, preload_wbt_nodes);
+            &iter->wbti, kb->kb_kblk_desc.map_base, &kb->kb_wbt_desc, 0, iter->reverse, preload_wbt_nodes);
         if (ev(err))
             return err;
         assert(iter->wbti);
@@ -3200,11 +3237,7 @@ kvset_iter_next_pt_key_mcache(struct kvset_iterator *iter, const void **kdata, u
     bool          preload_wbt_nodes, more;
 
     if (!iter->pti_meta.eof && !iter->pti) {
-        int pt_start;
-
-        pt_start = kvset_pt_start(ks);
-
-        if (pt_start < 0) {
+        if (!kvset_has_ptree(ks)) {
             iter->pti_meta.eof = true;
             return 0;
         }
@@ -3212,8 +3245,8 @@ kvset_iter_next_pt_key_mcache(struct kvset_iterator *iter, const void **kdata, u
         preload_wbt_nodes = ks->ks_rp->cn_cursor_kra;
         err = wbti_create(
             &iter->pti,
-            &ks->ks_kblks[pt_start].kb_kblk_desc,
-            &ks->ks_kblks[pt_start].kb_pt_desc,
+            ks->ks_hblk.kh_hblk_desc.map_base,
+            &ks->ks_hblk.kh_ptree_desc,
             0,
             iter->reverse,
             preload_wbt_nodes);

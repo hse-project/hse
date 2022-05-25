@@ -1,6 +1,6 @@
 /* SPDX-License-Identifier: Apache-2.0 */
 /*
- * Copyright (C) 2015-2021 Micron Technology, Inc.  All rights reserved.
+ * Copyright (C) 2015-2022 Micron Technology, Inc.  All rights reserved.
  */
 
 #include <mtf/framework.h>
@@ -82,6 +82,12 @@ MTF_DEFINE_UTEST_PREPOST(test, t_kvset_builder_create, pre, post)
     mapi_inject_ptr(api, 0);
     err = KVSET_BUILDER_CREATE();
     ASSERT_EQ(merr_errno(err), ENOMEM);
+    mapi_inject_unset(api);
+
+    api = mapi_idx_hbb_create;
+    mapi_inject(api, api + 1234);
+    err = KVSET_BUILDER_CREATE();
+    ASSERT_EQ(err, api + 1234);
     mapi_inject_unset(api);
 
     api = mapi_idx_kbb_create;

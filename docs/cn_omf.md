@@ -256,27 +256,33 @@ Mblock consisting of kvset metadata.
 
 #### Metadata Header
 
-    +-----------------------------+
-    | u32 hbh_magic               | Magic
-    | u32 hbh_version             | Version of the hblock
-    | u64 hbh_min_seqno           | Minimum sequence number referenced in kvset
-    | u64 hbh_max_seqno           | Maximum sequence number referenced in kvset
-    | u32 hbh_num_kblocks         | Number of kblocks within the kvset
-    | u32 hbh_num_vblocks         | Number of vblocks within the kvset
-    | u32 hbh_num_vgroups         | Number of vgroups within the kvset
-    | u32 hbh_ptree_off_pg        | Offset of the ptree
-    | u32 hbh_ptree_len_pg        | Length of the ptree
-    | u32 hbh_hlog_off_pg         | Offset of the hlog
-    | u32 hbh_hlog_len_pg         | Length of the hlog (constant 16K)
-    | u32 hbh_vblk_idx_adj_off_pg | Offset of the vblock index adjust
-    | u32 hbh_vblk_idx_adj_len_pg | Length of the vblock index adjust
-    |-----------------------------| -- HBLOCK_HDR_PAGES * PAGE_SIZE - 2 * HSE_KVS_PFX_LEN_MAX
-    | max pfx                     |
-    | (replicated here)           |
-    |-----------------------------| -- HBLOCK_HDR_PAGES * PAGE_SIZE - 2 * HSE_KVS_PFX_LEN_MAX + hbh_max_pfx_len
-    | min pfx                     |
-    | (replicated here)           |
-    +-----------------------------+
+    +----------------------------------+
+    | u32 hbh_magic                    | Magic
+    | u32 hbh_version                  | Version of the hblock
+    | u64 hbh_min_seqno                | Minimum sequence number referenced in kvset
+    | u64 hbh_max_seqno                | Maximum sequence number referenced in kvset
+    | u32 hbh_num_ptombs               | Number of prefix tombstones
+    | u32 hbh_num_kblocks              | Number of kblocks within the kvset
+    | u32 hbh_num_vblocks              | Number of vblocks within the kvset
+    | u32 hbh_num_vgroups              | Number of vgroups within the kvset
+    | struct wbt_hdr_omf hbh_ptree_hdr | Prefix tombstone tree header
+    | u32 hbh_ptree_off_pg             | Offset of the ptree
+    | u32 hbh_ptree_len_pg             | Length of the ptree
+    | u32 hbh_hlog_off_pg              | Offset of the hlog
+    | u32 hbh_hlog_len_pg              | Length of the hlog (constant 16K)
+    | u32 hbh_vblk_idx_adj_off_pg      | Offset of the vblock index adjust
+    | u32 hbh_vblk_idx_adj_len_pg      | Length of the vblock index adjust
+    | u32 hbh_max_pfx_off              | Offset of the max prefix
+    | u32 hbh_max_pfx_len              | Length of the max prefix
+    | u32 hbh_min_pfx_off              | Offset of the min prefix
+    | u32 hbh_min_pfx_len              | Length of the min prefix
+    |----------------------------------| -- HBLOCK_HDR_PAGES * PAGE_SIZE - 2 * HSE_KVS_PFX_LEN_MAX
+    | max pfx                          |
+    | (replicated here)                |
+    |----------------------------------| -- HBLOCK_HDR_PAGES * PAGE_SIZE - 2 * HSE_KVS_PFX_LEN_MAX + hbh_max_pfx_len
+    | min pfx                          |
+    | (replicated here)                |
+    +----------------------------------+
 
 #### Vblock Index Adjust
 

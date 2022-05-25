@@ -1,6 +1,6 @@
 /* SPDX-License-Identifier: Apache-2.0 */
 /*
- * Copyright (C) 2015-2021 Micron Technology, Inc.  All rights reserved.
+ * Copyright (C) 2015-2022 Micron Technology, Inc.  All rights reserved.
  */
 
 #include <mtf/framework.h>
@@ -173,7 +173,7 @@ load_kblock(
     ASSERT_EQ_RET(err, 0, -1);
 
     /* create mmap for mblock */
-    kblk_desc->mb_id = blkid;
+    kblk_desc->mbid = blkid;
     kblk_desc->map_idx = 0;
     kblk_desc->map_base = 0;
     kblk_desc->ds = (struct mpool *)-1;
@@ -188,7 +188,7 @@ load_kblock(
     desc->wbd_first_page = omf_kbh_wbt_doff_pg(kblk_desc->map_base);
     desc->wbd_n_pages = omf_kbh_wbt_dlen_pg(kblk_desc->map_base);
 
-    err = kbr_read_wbt_region_desc_mem(wbt_hdr, desc);
+    err = wbtr_read_desc(wbt_hdr, desc);
     ASSERT_EQ_RET(err, 0, -1);
 
     mpool_mcache_munmap(kblk_desc->map);
@@ -211,7 +211,7 @@ MTF_DEFINE_UTEST_PREPOST(wbti_test, t_wbti_create_fail_nomem, pre, post)
 
     /* allocation failure */
     mapi_inject_once_ptr(mapi_idx_malloc, 1, NULL);
-    err = wbti_create(&wbti, &kbd, &desc, 0, false, cache_spill_wbt);
+    err = wbti_create(&wbti, kbd.map_base, &desc, 0, false, cache_spill_wbt);
     ASSERT_EQ(ENOMEM, merr_errno(err));
 }
 
@@ -246,7 +246,7 @@ t_iterate_helper(struct mtf_test_info *lcl_ti, struct test_kblock *kblock)
     inc = 1;
 
 reverse:
-    err = wbti_create(&wbti, &kbd, &desc, 0, inc < 0, cache_spill_wbt);
+    err = wbti_create(&wbti, kbd.map_base, &desc, 0, inc < 0, cache_spill_wbt);
     ASSERT_EQ(err, 0);
     ASSERT_TRUE(wbti);
 
@@ -259,7 +259,7 @@ reverse:
     wbti_destroy(wbti);
     wbti = 0;
 
-    err = wbti_create(&wbti, &kbd, &desc, &seek, (inc < 1), cache_spill_wbt);
+    err = wbti_create(&wbti, kbd.map_base, &desc, &seek, (inc < 1), cache_spill_wbt);
     ASSERT_EQ(err, 0);
     ASSERT_TRUE(wbti);
 
@@ -346,7 +346,7 @@ t_seek_helper(struct mtf_test_info *lcl_ti, struct test_kblock *kblock, bool rev
         seek.kt_len = xlen;
     }
 
-    err = wbti_create(&wbti, &kbd, &desc, &seek, reverse, cache_leaves);
+    err = wbti_create(&wbti, kbd.map_base, &desc, &seek, reverse, cache_leaves);
     ASSERT_EQ(err, 0);
     ASSERT_TRUE(wbti);
 

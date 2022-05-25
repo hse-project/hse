@@ -1,6 +1,6 @@
 /* SPDX-License-Identifier: Apache-2.0 */
 /*
- * Copyright (C) 2015-2021 Micron Technology, Inc.  All rights reserved.
+ * Copyright (C) 2015-2022 Micron Technology, Inc.  All rights reserved.
  */
 
 #include <mtf/framework.h>
@@ -214,7 +214,7 @@ cursor_verify(
 
         kvs_ktuple_init_nohash(&kt, k->kdata, k->klen);
 
-        err = wbti_create(&wbti, &kbd, &wbd, &kt, reverse, false);
+        err = wbti_create(&wbti, kbd.map_base, &wbd, &kt, reverse, false);
         ASSERT_EQ_RET(0, err, 1);
 
         /* Get the node prefix only after having called wbti_next(). This is
@@ -291,7 +291,7 @@ get_verify(struct mtf_test_info *lcl_ti, void *tree, struct wbt_hdr_omf *hdr, st
         key2kobj(&ko_ref, k->kdata, k->klen);
 
         lookup_res = NOT_FOUND;
-        err = wbtr_read_vref(&kbd, &wbd, &kt, 0, 1, &lookup_res, &vref);
+        err = wbtr_read_vref(kbd.map_base, &wbd, &kt, 0, 1, &lookup_res, &vref);
         ASSERT_EQ_RET(0, err, 1);
 
         bool found = ref_tree_get(rtree, k->kdata, k->klen);

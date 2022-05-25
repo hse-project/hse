@@ -1,6 +1,6 @@
 /* SPDX-License-Identifier: Apache-2.0 */
 /*
- * Copyright (C) 2015-2021 Micron Technology, Inc.  All rights reserved.
+ * Copyright (C) 2015-2022 Micron Technology, Inc.  All rights reserved.
  */
 
 #include <hse_util/hse_err.h>
@@ -32,7 +32,7 @@ kblock_hdr_valid(const struct kblock_hdr_omf *omf)
     uint32_t vers = omf_kbh_version(omf);
 
     return (HSE_LIKELY(omf_kbh_magic(omf) == KBLOCK_HDR_MAGIC &&
-                       vers >= KBLOCK_HDR_VERSION5 && vers <= KBLOCK_HDR_VERSION));
+                       vers >= KBLOCK_HDR_VERSION6 && vers <= KBLOCK_HDR_VERSION));
 }
 
 merr_t
@@ -51,7 +51,7 @@ kbr_get_kblock_desc(
         return merr(ev(EINVAL));
 
     kblkdesc->ds = ds;
-    kblkdesc->mb_id = kblkid;
+    kblkdesc->mbid = kblkid;
     kblkdesc->map = map;
     kblkdesc->map_idx = map_idx;
     kblkdesc->map_base = base;
@@ -61,30 +61,11 @@ kbr_get_kblock_desc(
 }
 
 merr_t
-kbr_read_wbt_region_desc_mem(void *wbt_hdr, struct wbt_desc *desc)
-{
-    desc->wbd_version = wbt_hdr_version(wbt_hdr);
-
-    switch (desc->wbd_version) {
-        case WBT_TREE_VERSION:
-            desc->wbd_root = omf_wbt_root(wbt_hdr);
-            desc->wbd_leaf = omf_wbt_leaf(wbt_hdr);
-            desc->wbd_leaf_cnt = omf_wbt_leaf_cnt(wbt_hdr);
-            desc->wbd_kmd_pgc = omf_wbt_kmd_pgc(wbt_hdr);
-            break;
-
-        default:
-            return merr(ev(EINVAL));
-    }
-
-    return 0;
-}
-
-merr_t
 kbr_read_wbt_region_desc(struct kvs_mblk_desc *kblkdesc, struct wbt_desc *desc)
 {
     merr_t err;
-    void * pg, *wbt_hdr;
+    void * pg;
+    struct wbt_hdr_omf *wbt_hdr;
     off_t  pg_idxs[1];
 
     struct kblock_hdr_omf *kb_hdr;
@@ -103,61 +84,7 @@ kbr_read_wbt_region_desc(struct kvs_mblk_desc *kblkdesc, struct wbt_desc *desc)
     desc->wbd_first_page = omf_kbh_wbt_doff_pg(kb_hdr);
     desc->wbd_n_pages = omf_kbh_wbt_dlen_pg(kb_hdr);
 
-    err = kbr_read_wbt_region_desc_mem(wbt_hdr, desc);
-    ev(err);
-
-    return err;
-}
-
-merr_t
-kbr_read_seqno_range(struct kvs_mblk_desc *kblkdesc, u64 *seqno_min, u64 *seqno_max)
-{
-    merr_t                 err;
-    off_t                  pg_idxs[1];
-    struct kblock_hdr_omf *kb_hdr;
-    void *                 pg;
-
-    pg_idxs[0] = 0;
-    err = mpool_mcache_getpages(kblkdesc->map, 1, kblkdesc->map_idx, pg_idxs, &pg);
-    if (ev(err))
-        return err;
-
-    kb_hdr = pg;
-    if (!kblock_hdr_valid(kb_hdr))
-        return merr(EINVAL);
-
-    *seqno_min = omf_kbh_min_seqno(kb_hdr);
-    *seqno_max = omf_kbh_max_seqno(kb_hdr);
-
-    return 0;
-}
-
-merr_t
-kbr_read_pt_region_desc(struct kvs_mblk_desc *kblkdesc, struct wbt_desc *desc)
-{
-    merr_t err;
-    void * pg, *pt_hdr;
-    off_t  pg_idxs[1];
-
-    struct kblock_hdr_omf *kb_hdr;
-
-    memset(desc, 0, sizeof(*desc));
-
-    pg_idxs[0] = 0;
-    err = mpool_mcache_getpages(kblkdesc->map, 1, kblkdesc->map_idx, pg_idxs, &pg);
-    if (ev(err))
-        return err;
-
-    kb_hdr = pg;
-    if (!kblock_hdr_valid(kb_hdr))
-        return merr(EINVAL);
-
-    pt_hdr = (void *)kb_hdr + omf_kbh_pt_hoff(kb_hdr);
-
-    desc->wbd_first_page = omf_kbh_pt_doff_pg(kb_hdr);
-    desc->wbd_n_pages = omf_kbh_pt_dlen_pg(kb_hdr);
-
-    err = kbr_read_wbt_region_desc_mem(pt_hdr, desc);
+    err = wbtr_read_desc(wbt_hdr, desc);
     ev(err);
 
     return err;
@@ -176,7 +103,7 @@ kbr_read_blm_region_desc(struct kvs_mblk_desc *kbd, struct bloom_desc *desc)
     u32                    version;
 
     memset(desc, 0, sizeof(*desc));
-    mbid = kbd->mb_id;
+    mbid = kbd->mbid;
 
     pg_idxs[0] = 0;
     err = mpool_mcache_getpages(kbd->map, 1, kbd->map_idx, pg_idxs, &pg);
@@ -272,7 +199,6 @@ kbr_madvise_region(struct kvs_mblk_desc *kblkdesc, u32 pg, u32 pg_cnt, int advic
     u32    pg_max = pg + pg_cnt;
 
     while (pg < pg_max) {
-
         u32 chunk = min_t(u32, pg_max - pg, HSE_RA_PAGES_MAX);
 
         err = mpool_mcache_madvise(

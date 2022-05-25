@@ -423,9 +423,7 @@ cn_mblocks_commit(
      * easily anticipate this case.
      */
     for (lx = 0; lx < num_lists; lx++) {
-
-        /*
-         * If key compaction, all the vblocks are already committed
+        /* If key compaction, all the vblocks are already committed
          * and all of them need to be kept on rollback.
          * Else all vblocks need to be
          * committed and none will be kept on rollback.
@@ -443,6 +441,20 @@ cn_mblocks_commit(
     }
 
     for (lx = 0; lx < num_lists; lx++) {
+        /* If we have a valid block ID. This check is protected in
+         * commit_mblock() when using a for loop where blk_list::n_blks is the
+         * upper bound. If there are no blocks in the block list, no blocks are
+         * committed.
+         */
+        if (list[lx].hblk.bk_blkid) {
+            err = commit_mblock(ds, &list[lx].hblk);
+            if (ev(err)) {
+                return err;
+            } else {
+                *n_committed += 1;
+            }
+        }
+
         err = cn_commit_blks(ds, &list[lx].kblks, n_committed);
         if (ev(err))
             return err;
@@ -497,13 +509,16 @@ cn_mblocks_destroy(
         if (kcompact)
             continue;
         cn_delete_blks(ds, &list[lx].vblks, n_committed);
-    }
-}
 
-static inline size_t
-roundup_size(size_t val, size_t align)
-{
-    return align * ((val + align - 1) / align);
+        /* Same logic as cn_delete_blks() applied to one block. Candidate for
+        * refactor.
+        */
+        if (n_committed > 0) {
+            delete_mblock(ds, &list->hblk);
+        } else {
+            abort_mblock(ds, &list->hblk);
+        }
+    }
 }
 
 /**
@@ -564,7 +579,7 @@ cn_mb_est_alen(size_t full_captgt, size_t mb_alloc_unit, size_t wlen, uint flags
     if (pow2)
         full_captgt = roundup_pow_of_two(full_captgt);
 
-    full_alen = roundup_size(full_captgt, mb_alloc_unit);
+    full_alen = roundup(full_captgt, mb_alloc_unit);
     alen = full_alen * (wlen / full_alen);
     extra = wlen - alen;
 
@@ -574,7 +589,7 @@ cn_mb_est_alen(size_t full_captgt, size_t mb_alloc_unit, size_t wlen, uint flags
         else if (pow2)
             extra = roundup_pow_of_two(extra);
 
-        alen += roundup_size(extra, mb_alloc_unit);
+        alen += roundup(extra, mb_alloc_unit);
     }
 
     return alen;
@@ -622,10 +637,11 @@ cn_ingest_prep(
     if (ev(err))
         goto done;
 
-    /* Lend kblk and vblk lists to kvset_create().
+    /* Lend hblk, kblk and vblk lists to kvset_create().
      * Yes, the struct copy is a bit gross, but it works and
      * avoids unnecessary allocations of temporary lists.
      */
+    km.km_hblk = mblocks->hblk;
     km.km_kblk_list = mblocks->kblks;
     km.km_vblk_list = mblocks->vblks;
     km.km_dgen = dgen;
@@ -638,15 +654,16 @@ cn_ingest_prep(
     km.km_restored = false;
     km.km_scatter = km.km_vused ? 1 : 0;
 
-    /* It is conceivable that there are no kblocks on ingest.  All it takes
-     * is the creation of builder in the c0 ingest code without any keys
-     * ever making it to that builder.  We've already told CNDB how many
-     * C-records to expect, so we had to get this far to create the
-     * correct number of C and CMeta records.  But if there are in fact
-     * no kblocks, there's nothing more to do.  CNDB recognizes this
-     * and realizes that this is not a real kvset.
+    /* It is conceivable that there is no hblock present. All it takes is
+     * the creation of builders in the c0 ingest code without any keys or ptombs
+     * ever making it to that builder. We've already told CNDB how many
+     * C-records to expect, so we had to get this far to create the correct
+     * number of C and CMeta records. But if there are in fact no kblocks and no
+     * hblock, there's nothing more to do. CNDB recognizes this and realizes
+     * that this is not a real kvset.
      */
-    if (mblocks->kblks.n_blks == 0) {
+    if (!mblocks->hblk.bk_blkid) {
+        assert(mblocks->kblks.n_blks == 0);
         assert(mblocks->vblks.n_blks == 0);
         goto done;
     }
@@ -695,7 +712,6 @@ cn_ingestv(
      */
     first = last = count = 0;
     for (i = 0; i < ingestc; i++) {
-
         if (!cn[i] || !mbv[i])
             continue;
 
@@ -738,7 +754,6 @@ cn_ingestv(
 
     check = 0;
     for (i = first; i <= last; i++) {
-
         if (!cn[i] || !mbv[i])
             continue;
 
@@ -766,7 +781,6 @@ cn_ingestv(
         goto nak;
 
     for (i = first; i <= last; i++) {
-
         if (!cn[i] || !mbv[i] || !kvsetv[i])
             continue;
 
@@ -795,8 +809,11 @@ cn_ingestv(
             HSE_SLOG_FIELD("seqno", "%lu", (ulong)ingestid),
             HSE_SLOG_FIELD("kvsets", "%lu", (ulong)kst.kst_kvsets),
             HSE_SLOG_FIELD("keys", "%lu", (ulong)kst.kst_keys),
+            HSE_SLOG_FIELD("hblks", "%lu", (ulong)kst.kst_hblks),
             HSE_SLOG_FIELD("kblks", "%lu", (ulong)kst.kst_kblks),
             HSE_SLOG_FIELD("vblks", "%lu", (ulong)kst.kst_vblks),
+            HSE_SLOG_FIELD("halen", "%lu", (ulong)kst.kst_halen),
+            HSE_SLOG_FIELD("hwlen", "%lu", (ulong)kst.kst_hwlen),
             HSE_SLOG_FIELD("kalen", "%lu", (ulong)kst.kst_kalen),
             HSE_SLOG_FIELD("kwlen", "%lu", (ulong)kst.kst_kwlen),
             HSE_SLOG_FIELD("valen", "%lu", (ulong)kst.kst_valen),
@@ -905,8 +922,8 @@ cn_open(
     uint                flags,
     struct cn **        cn_out)
 {
-    ulong       ksz, kcnt, kshift, vsz, vcnt, vshift;
-    const char *kszsuf, *vszsuf;
+    ulong       hsz, hcnt, hshift, ksz, kcnt, kshift, vsz, vcnt, vshift;
+    const char *hszsuf, *kszsuf, *vszsuf;
     merr_t      err;
     struct cn * cn;
     size_t      sz;
@@ -987,11 +1004,14 @@ cn_open(
     ctx.ckmk_cn = cn;
     ctx.ckmk_dgen = &dgen;
 
+    hsz = hcnt = hshift = 0;
     ksz = kcnt = kshift = 0;
     vsz = vcnt = vshift = 0;
-    kszsuf = vszsuf = "bkmgtp";
+    hszsuf = kszsuf = vszsuf = "bkmgtp";
 
     if (cn_kvdb) {
+        hsz = atomic_read(&cn_kvdb->cnd_hblk_size);
+        hcnt = atomic_read(&cn_kvdb->cnd_hblk_cnt);
         ksz = atomic_read(&cn_kvdb->cnd_kblk_size);
         kcnt = atomic_read(&cn_kvdb->cnd_kblk_cnt);
         vsz = atomic_read(&cn_kvdb->cnd_vblk_size);
@@ -1004,14 +1024,18 @@ cn_open(
 
     if (cn_kvdb) {
         /* [HSE_REVISIT]: This approach is not thread-safe */
+        hsz = atomic_read(&cn_kvdb->cnd_hblk_size) - hsz;
+        hcnt = atomic_read(&cn_kvdb->cnd_hblk_cnt) - hcnt;
         ksz = atomic_read(&cn_kvdb->cnd_kblk_size) - ksz;
         kcnt = atomic_read(&cn_kvdb->cnd_kblk_cnt) - kcnt;
         vsz = atomic_read(&cn_kvdb->cnd_vblk_size) - vsz;
         vcnt = atomic_read(&cn_kvdb->cnd_vblk_cnt) - vcnt;
 
+        hshift = ilog2(hsz | 1) / 10;
         kshift = ilog2(ksz | 1) / 10;
         vshift = ilog2(vsz | 1) / 10;
 
+        hszsuf += hshift;
         kszsuf += kshift;
         vszsuf += vshift;
     }
@@ -1056,9 +1080,10 @@ cn_open(
 
     log_info(
         "%s/%s cnid %lu fanout %u pfx_len %u"
-        " kb %lu%c/%lu vb %lu%c/%lu %s%s%s%s%s%s",
+        " hb %lu%c/%lu kb %lu%c/%lu vb %lu%c/%lu %s%s%s%s%s%s",
         cn->cn_kvdb_alias, cn->cn_kvsname, (ulong)cnid,
         cn->cp->fanout, cn->cp->pfx_len,
+        hsz >> (hshift * 10), *hszsuf, hcnt,
         ksz >> (kshift * 10), *kszsuf, kcnt,
         vsz >> (vshift * 10), *vszsuf, vcnt,
         rp->mclass_policy,
