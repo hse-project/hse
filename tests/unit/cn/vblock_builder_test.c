@@ -58,6 +58,7 @@ struct mclass_policy mocked_mpolicy = {
     .mc_name = "capacity_only",
 };
 
+static const char *max_key = "maxkey";
 static struct key_obj max_kobj;
 
 /*----------------------------------------------------------------------------
@@ -84,7 +85,6 @@ test_setup(struct mtf_test_info *lcl_ti)
 int
 initial_setup(struct mtf_test_info *lcl_ti)
 {
-    const char key = 'f';
     u32 i, j;
 
     workbuf = mapi_safe_malloc(WORKBUF_SIZE);
@@ -99,7 +99,7 @@ initial_setup(struct mtf_test_info *lcl_ti)
         for (j = 0; j < HSE_MPOLICY_DTYPE_CNT; j++)
             mocked_mpolicy.mc_table[i][j] = HSE_MCLASS_CAPACITY;
 
-    key2kobj(&max_kobj, &key, sizeof(key));
+    key2kobj(&max_kobj, max_key, strlen(max_key));
 
     return 0;
 }
@@ -186,6 +186,33 @@ MTF_DEFINE_UTEST_PRE(test, t_vbb_finish_empty1, test_setup)
     vbb_destroy(vbb);
 }
 
+static void
+verify_vblock_footer(struct mtf_test_info *lcl_ti, uint64_t blkid, off_t off)
+{
+    struct vblock_footer_omf *vbfomf;
+    char vbf[VBLOCK_FOOTER_LEN];
+    size_t klen;
+    merr_t err;
+
+    err = mpm_mblock_read(blkid, vbf, off, VBLOCK_FOOTER_LEN);
+    ASSERT_EQ(0, err);
+
+    vbfomf = (void *)vbf;
+
+    ASSERT_EQ(VBLOCK_FOOTER_MAGIC, omf_vbf_magic(vbfomf));
+    ASSERT_EQ(VBLOCK_FOOTER_VERSION, omf_vbf_version(vbfomf));
+    ASSERT_EQ(1, omf_vbf_vgroup(vbfomf));
+
+    klen = strlen(max_key);
+    ASSERT_EQ(klen, omf_vbf_min_klen(vbfomf));
+    ASSERT_EQ(klen, omf_vbf_max_klen(vbfomf));
+
+    ASSERT_EQ(0, omf_vbf_rsvd(vbfomf));
+
+    ASSERT_EQ(0, memcmp(max_key, &vbf[VBLOCK_FOOTER_LEN - 2 * HSE_KVS_KEY_LEN_MAX], klen));
+    ASSERT_EQ(0, memcmp(max_key, &vbf[VBLOCK_FOOTER_LEN - HSE_KVS_KEY_LEN_MAX], klen));
+}
+
 /* Test: vbb_finish w/ vblock that is exactly full. */
 MTF_DEFINE_UTEST_PRE(test, t_vbb_finish_exact, test_setup)
 {
@@ -202,6 +229,8 @@ MTF_DEFINE_UTEST_PRE(test, t_vbb_finish_exact, test_setup)
     err = vbb_finish(vbb, &blks, &max_kobj);
     ASSERT_EQ(err, 0);
     ASSERT_GE(blks.n_blks, 1);
+
+    verify_vblock_footer(lcl_ti, blks.blks->bk_blkid, HSE_KVS_VALUE_LEN_MAX - VBLOCK_FOOTER_LEN);
 
     blk_list_free(&blks);
     vbb_destroy(vbb);
@@ -292,6 +321,9 @@ MTF_DEFINE_UTEST_PRE(test, t_vbb_add_entry_exact, test_setup)
     err = vbb_finish(vbb, &blks, &max_kobj);
     ASSERT_EQ(err, 0);
     ASSERT_EQ(blks.n_blks, 2); /* verify 1 vblock */
+
+    verify_vblock_footer(lcl_ti, blks.blks[0].bk_blkid, HSE_KVS_VALUE_LEN_MAX - VBLOCK_FOOTER_LEN);
+    verify_vblock_footer(lcl_ti, blks.blks[1].bk_blkid, PAGE_SIZE);
 
     blk_list_free(&blks);
     vbb_destroy(vbb);
@@ -501,9 +533,8 @@ run_test_case(struct mtf_test_info *lcl_ti, enum test_case tc, size_t n_vblocks)
     struct vblock_builder *vbb = 0;
 
     const size_t mblock_size = MPOOL_MBLOCK_SIZE_DEFAULT;
-    const size_t vblock_hdr_size = 0;
     const size_t vblock_ftr_size = VBLOCK_FOOTER_LEN;
-    const size_t avail_mblock_size = mblock_size - vblock_hdr_size - vblock_ftr_size;
+    const size_t avail_mblock_size = mblock_size - vblock_ftr_size;
     const size_t vlen = 50 * 1000;
     const size_t values_per_mblock = avail_mblock_size / vlen;
     const size_t add_count = n_vblocks * values_per_mblock;
@@ -543,8 +574,12 @@ run_test_case(struct mtf_test_info *lcl_ti, enum test_case tc, size_t n_vblocks)
             err = vbb_finish(vbb, &blks, &max_kobj);
             ASSERT_EQ_RET(0, err, 1);
             ASSERT_EQ_RET(blks.n_blks, n_vblocks, 1);
-            for (i = 0; i < n_vblocks; i++)
+            for (i = 0; i < n_vblocks; i++) {
                 ASSERT_EQ_RET(blks.blks[i].bk_blkid, MPM_MBLOCK_ID_BASE + i, 1);
+                verify_vblock_footer(lcl_ti, blks.blks[i].bk_blkid,
+                                     HSE_KVS_VALUE_LEN_MAX - VBLOCK_FOOTER_LEN);
+            }
+
             blk_list_free(&blks);
 
             vbb_destroy(vbb);

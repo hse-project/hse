@@ -119,7 +119,7 @@ merr_t
 vbb_set_agegroup(struct vblock_builder *bld, enum hse_mclass_policy_age age);
 
 enum hse_mclass_policy_age
-vbb_get_agegroup(struct vblock_builder *bld);
+vbb_get_agegroup(const struct vblock_builder *bld);
 
 void
 vbb_set_merge_stats(struct vblock_builder *bld, struct cn_merge_stats *stats);

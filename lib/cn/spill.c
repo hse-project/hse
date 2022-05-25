@@ -305,7 +305,7 @@ cn_spill(struct cn_compaction_work *w)
              */
             if (pt_set && (!w->cw_drop_tombs || pt_seq > w->cw_horizon)) {
 
-                err = kvset_builder_add_val(child, &pt_kobj, pt_seq, HSE_CORE_TOMB_PFX, 0, 0);
+                err = kvset_builder_add_val(child, &pt_kobj, HSE_CORE_TOMB_PFX, 0, pt_seq, 0);
                 if (!err)
                     err = kvset_builder_add_key(child, &pt_kobj);
 
@@ -419,7 +419,7 @@ cn_spill(struct cn_compaction_work *w)
                     if (w->cw_drop_tombs && HSE_CORE_IS_TOMB(vdata) && bg_val)
                         continue; /* skip value */
 
-                    err = kvset_builder_add_val(child, &curr.kobj, seq, vdata, vlen, complen);
+                    err = kvset_builder_add_val(child, &curr.kobj, vdata, vlen, seq, complen);
                     if (err)
                         break;
 

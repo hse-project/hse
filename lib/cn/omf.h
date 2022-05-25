@@ -279,7 +279,7 @@ OMF_SETGET(struct bloom_hdr_omf, bh_n_hashes, 8)
  *
  ****************************************************************/
 
-#define VBLOCK_FOOTER_MAGIC ((u32)0xea73feed)
+#define VBLOCK_FOOTER_MAGIC UINT32_C(0xea73feed)
 #define VBLOCK_FOOTER_LEN   4096
 
 /*
@@ -293,8 +293,9 @@ struct vblock_footer_omf {
     uint32_t vbf_magic;
     uint32_t vbf_version;
     uint64_t vbf_vgroup;
-    uint32_t vbf_min_klen;
-    uint32_t vbf_max_klen;
+    uint16_t vbf_min_klen;
+    uint16_t vbf_max_klen;
+    uint32_t vbf_rsvd;
 } HSE_PACKED;
 
 static_assert(sizeof(struct vblock_footer_omf) <= (VBLOCK_FOOTER_LEN - (2 * HSE_KVS_KEY_LEN_MAX)),
@@ -303,7 +304,8 @@ static_assert(sizeof(struct vblock_footer_omf) <= (VBLOCK_FOOTER_LEN - (2 * HSE_
 OMF_SETGET(struct vblock_footer_omf, vbf_magic, 32)
 OMF_SETGET(struct vblock_footer_omf, vbf_version, 32)
 OMF_SETGET(struct vblock_footer_omf, vbf_vgroup, 64)
-OMF_SETGET(struct vblock_footer_omf, vbf_min_klen, 32)
-OMF_SETGET(struct vblock_footer_omf, vbf_max_klen, 32)
+OMF_SETGET(struct vblock_footer_omf, vbf_min_klen, 16)
+OMF_SETGET(struct vblock_footer_omf, vbf_max_klen, 16)
+OMF_SETGET(struct vblock_footer_omf, vbf_rsvd, 32)
 
 #endif

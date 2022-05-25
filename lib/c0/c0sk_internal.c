@@ -306,7 +306,7 @@ c0sk_cningest_cb(void *rock, struct bonsai_kv *bkv, struct bonsai_val *vlist)
             seqno_prev = seqno;
 
         err = kvset_builder_add_val(
-            bldr, &ko, seqno, val->bv_value, bonsai_val_ulen(val), bonsai_val_clen(val));
+            bldr, &ko, val->bv_value, bonsai_val_ulen(val), seqno, bonsai_val_clen(val));
 
         if (ev(err))
             return err;

@@ -82,9 +82,9 @@ merr_t
 kvset_builder_add_val(
     struct kvset_builder *  self,
     const struct key_obj   *kobj,
-    u64                     seq,
     const void *            vdata,
     uint                    vlen,
+    u64                     seq,
     uint                    complen);
 
 /* MTF_MOCK */

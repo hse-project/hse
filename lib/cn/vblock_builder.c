@@ -53,8 +53,6 @@
  *             is the number of bytes written to the vblock before committing it
  * @destruct:  if true, vlbock builder is ready to be destroyed
  * @mblocksz:  mblock size of specified media class
- *
- * @cur_kobj:  keyobj context for the current vbb_add_entry()
  * @cur_minklen: min key length
  * @cur_minkey:  a copy of the min key referencing this vblock
  *
@@ -67,8 +65,7 @@
  * reused between vblocks.  The following logic explains how the vlbock
  * builder state is managed as new values are added.
  *
- * When a new value is given to the vblock builder
- * -----------------------------------------------
+ * When a new value is given to the vblock builder:
  *
  *   Let @vlen be the length of the new value
  *
@@ -106,19 +103,18 @@ struct vblock_builder {
     unsigned int               wbuf_len;
     uint64_t                   vgroup;
     bool                       destruct;
-    const struct key_obj      *cur_kobj;
     uint32_t                   cur_minklen;
     char                       cur_minkey[HSE_KVS_KEY_LEN_MAX];
 };
 
 static inline bool
-vblock_has_room(struct vblock_builder *bld, size_t vlen)
+vblock_has_room(const struct vblock_builder *bld, size_t vlen)
 {
     return bld->vblk_off + vlen <= (bld->max_size - VBLOCK_FOOTER_LEN);
 }
 
 static inline uint32_t HSE_MAYBE_UNUSED
-vblock_unused_media_space(struct vblock_builder *bld)
+vblock_unused_media_space(const struct vblock_builder *bld)
 {
     return bld->max_size - bld->vblk_off;
 }
@@ -134,7 +130,7 @@ vbb_estimate_alen(struct cn *cn, size_t wlen, enum hse_mclass mclass)
 }
 
 static merr_t
-vblock_start(struct vblock_builder *bld)
+vblock_start(struct vblock_builder *bld, const struct key_obj *min_kobj)
 {
     merr_t                 err = 0;
     struct mblock_props    mbprop;
@@ -172,7 +168,7 @@ vblock_start(struct vblock_builder *bld)
     /* Store a copy of the first key referencing this vblock.
      * It is written later to the vblock footer as the min key.
      */
-    key_obj_copy(bld->cur_minkey, sizeof(bld->cur_minkey), &bld->cur_minklen, bld->cur_kobj);
+    key_obj_copy(bld->cur_minkey, sizeof(bld->cur_minkey), &bld->cur_minklen, min_kobj);
 
     return 0;
 }
@@ -215,7 +211,7 @@ vblock_write(struct vblock_builder *bld)
 }
 
 static merr_t
-vblock_finish(struct vblock_builder *bld)
+vblock_finish(struct vblock_builder *bld, const struct key_obj *max_kobj)
 {
     struct vblock_footer_omf *vbfomf;
     uint32_t buflen, zfill_len, klen, max_klen;
@@ -231,23 +227,26 @@ vblock_finish(struct vblock_builder *bld)
     memset(bld->wbuf + bld->wbuf_off, 0, zfill_len);
     bld->wbuf_off += zfill_len;
 
-    assert(bld->wbuf_len >= bld->wbuf_off);
+    assert(bld->wbuf_off <= bld->wbuf_len);
     assert(vblock_unused_media_space(bld) >= VBLOCK_FOOTER_LEN);
 
     vbfomf = bld->wbuf + bld->wbuf_off;
+    memset(vbfomf, 0, VBLOCK_FOOTER_LEN);
+
     omf_set_vbf_magic(vbfomf, VBLOCK_FOOTER_MAGIC);
     omf_set_vbf_version(vbfomf, VBLOCK_FOOTER_VERSION);
     omf_set_vbf_vgroup(vbfomf, bld->vgroup);
 
-    max_klen = key_obj_len(bld->cur_kobj);
+    max_klen = key_obj_len(max_kobj);
     omf_set_vbf_min_klen(vbfomf, bld->cur_minklen);
     omf_set_vbf_max_klen(vbfomf, max_klen);
+    omf_set_vbf_rsvd(vbfomf, 0);
 
     min_koff = bld->wbuf_off + VBLOCK_FOOTER_LEN - (2 * HSE_KVS_KEY_LEN_MAX);
     memcpy(bld->wbuf + min_koff, bld->cur_minkey, bld->cur_minklen);
 
     max_koff = min_koff + HSE_KVS_KEY_LEN_MAX;
-    key_obj_copy(bld->wbuf + max_koff, max_klen, &klen, bld->cur_kobj);
+    key_obj_copy(bld->wbuf + max_koff, HSE_KVS_KEY_LEN_MAX, &klen, max_kobj);
     assert(klen == max_klen);
 
     buflen = bld->wbuf_len;
@@ -337,22 +336,20 @@ vbb_add_entry(
     assert(vlen);
     assert(vlen <= HSE_KVS_VALUE_LEN_MAX);
 
-    bld->cur_kobj = kobj;
-
     if (HSE_UNLIKELY(!vblock_has_room(bld, vlen))) {
-        err = vblock_finish(bld);
+        err = vblock_finish(bld, kobj);
         if (ev(err))
             return err;
     }
 
     if (HSE_UNLIKELY(!bld->blkid)) {
-        err = vblock_start(bld);
+        err = vblock_start(bld, kobj);
         if (ev(err))
             return err;
+        assert(vblock_has_room(bld, vlen));
     }
 
     assert(bld->blkid);
-    assert(vblock_has_room(bld, vlen));
 
     voff = 0;
 
@@ -402,9 +399,8 @@ vbb_finish(struct vblock_builder *bld, struct blk_list *vblks, const struct key_
     assert(!bld->destruct);
 
     bld->destruct = true;
-    bld->cur_kobj = max_kobj;
 
-    err = vblock_finish(bld);
+    err = vblock_finish(bld, max_kobj);
     if (ev(err))
         return err;
 
@@ -438,7 +434,7 @@ vbb_set_agegroup(struct vblock_builder *bld, enum hse_mclass_policy_age age)
 }
 
 enum hse_mclass_policy_age
-vbb_get_agegroup(struct vblock_builder *bld)
+vbb_get_agegroup(const struct vblock_builder *bld)
 {
     return bld->agegroup;
 }

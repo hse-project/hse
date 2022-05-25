@@ -151,10 +151,11 @@ kvset_builder_add_key(struct kvset_builder *self, const struct key_obj *kobj)
 /**
  * kvset_builder_add_val() - Add a value or a tombstone to a kvset entry.
  * @builder: Kvset builder object.
- * @seq: Sequence number of value or tombstone.
+ * @kobj: key object
  * @vdata: Pointer to @vlen bytes of uncompressed value data, @complen
  *         bytes of compressed value data, or a special tombstone pointer.
  * @vlen: Length of uncompressed value.
+ * @seq: Sequence number of value or tombstone.
  * @complen: Length of compressed value if value is compressed. Must
  *           be set to 0 if value is not compressed.
  *
@@ -175,9 +176,9 @@ merr_t
 kvset_builder_add_val(
     struct kvset_builder   *self,
     const struct key_obj   *kobj,
-    u64                     seq,
     const void             *vdata,
     uint                    vlen,
+    u64                     seq,
     uint                    complen)
 {
     merr_t           err;
@@ -363,23 +364,27 @@ static merr_t
 kvset_builder_finish(struct kvset_builder *imp)
 {
     merr_t err;
+    bool adopted_vbs = (imp->vblk_list.n_blks > 0);
 
     INVARIANT(imp->hbb);
     INVARIANT(imp->kbb);
     INVARIANT(imp->vbb);
 
     if (!kbb_is_empty(imp->kbb)) {
-        struct key_obj *min_kobj, *max_kobj;
+        /* If we haven't adopted any vblocks previously */
+        if (!adopted_vbs) {
+            struct key_obj min_kobj = { 0 }, max_kobj = { 0 };
 
-        kbb_curr_kblk_minmax_keys(imp->kbb, &min_kobj, &max_kobj);
+            kbb_curr_kblk_min_max_keys(imp->kbb, &min_kobj, &max_kobj);
 
-        err = vbb_finish(imp->vbb, &imp->vblk_list, max_kobj);
-        if (err)
-            return err;
+            err = vbb_finish(imp->vbb, &imp->vblk_list, &max_kobj);
+            if (err)
+                return err;
 
-        /* In the event we have vblocks, there will always be one vgroup. */
-        if (imp->vblk_list.n_blks > 0)
-            imp->vgroups = 1;
+            /* In the event we have vblocks, there will always be one vgroup. */
+            if (imp->vblk_list.n_blks > 0)
+                imp->vgroups = 1;
+        }
     } else {
         /* There are no kblocks. This happens when each input key has a
          * tombstone and we are in "drop_tomb" mode. This output kvset is empty
@@ -394,7 +399,8 @@ kvset_builder_finish(struct kvset_builder *imp)
 
     err = kbb_finish(imp->kbb, &imp->kblk_list);
     if (err) {
-        abort_mblocks(cn_get_dataset(imp->cn), &imp->vblk_list);
+        if (!adopted_vbs)
+            abort_mblocks(cn_get_dataset(imp->cn), &imp->vblk_list);
 
         return err;
     }
@@ -403,7 +409,8 @@ kvset_builder_finish(struct kvset_builder *imp)
                      imp->vblk_list.n_blks, imp->vgroups, kbb_get_composite_hlog(imp->kbb));
     if (err) {
         abort_mblocks(cn_get_dataset(imp->cn), &imp->kblk_list);
-        abort_mblocks(cn_get_dataset(imp->cn), &imp->vblk_list);
+        if (!adopted_vbs)
+            abort_mblocks(cn_get_dataset(imp->cn), &imp->vblk_list);
 
         return err;
     }

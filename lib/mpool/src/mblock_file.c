@@ -775,7 +775,6 @@ mblock_file_alloc(struct mblock_file *mbfp, uint32_t flags, int mbidc, uint64_t 
     prealloc = (flags & MPOOL_MBLOCK_PREALLOC);
     punch_hole = (flags & MPOOL_MBLOCK_PUNCH_HOLE);
 
-    /* Both prealloc and punch hole flags are mutually exclusive */
     if (prealloc && punch_hole)
         return merr(EINVAL);
 

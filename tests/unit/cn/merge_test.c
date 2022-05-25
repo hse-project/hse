@@ -802,9 +802,9 @@ merr_t
 _kvset_builder_add_val(
     struct kvset_builder *  self,
     const struct key_obj   *kobj,
-    u64                     seq,
     const void *            vdata,
     uint                    vlen,
+    u64                     seq,
     uint                    complen)
 {
     enum kmd_vtype vtype;

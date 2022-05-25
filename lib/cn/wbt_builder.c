@@ -56,6 +56,7 @@ struct wbb {
     uint  max_inodec;
     uint  max_pgc;
     uint  used_pgc;
+    bool  finalized;
 
     void *cnode;
 
@@ -70,6 +71,9 @@ struct wbb {
     uint  cnode_key_stage_pgc;
     uint  cnode_key_extra_cnt;
     void *cnode_first_key;
+    void *cnode_last_key;
+    u16   cnode_first_klen;
+    u16   cnode_last_klen;
 
     struct intern_builder *ibldr;
 
@@ -460,8 +464,13 @@ wbb_add_entry(
 
     wbb->cnode_key_cursor += get_kst_sz(klen);
 
-    if (wbb->cnode_nkeys == 0)
+    if (wbb->cnode_nkeys == 0) {
         wbb->cnode_first_key = kst_leaf->kdata;
+        wbb->cnode_first_klen = klen;
+    }
+
+    wbb->cnode_last_key = kst_leaf->kdata;
+    wbb->cnode_last_klen = klen;
 
     wbb->cnode_nkeys++;
 
@@ -557,6 +566,8 @@ wbb_freeze(
 
     *iov_cnt_out = iov_cnt;
     *wbt_pgc = wbb->used_pgc;
+
+    wbb->finalized = true;
 
     return 0;
 }
@@ -714,10 +725,21 @@ wbb_destroy(struct wbb *wbb)
 }
 
 void
-wbb_min_max_keys(struct wbb *wbb, struct key_obj **first_kobj, struct key_obj **last_kobj)
+wbb_min_max_keys(struct wbb *wbb, struct key_obj *first_kobj, struct key_obj *last_kobj)
 {
-    *first_kobj = &wbb->wbt_first_kobj;
-    *last_kobj = &wbb->wbt_last_kobj;
+    if (wbb->finalized) {
+        *first_kobj = wbb->wbt_first_kobj;
+        *last_kobj = wbb->wbt_last_kobj;
+    } else {
+        assert(wbb->cnode_nkeys > 0);
+
+        if (wbb->entries == 0)
+            key2kobj(first_kobj, wbb->cnode_first_key, wbb->cnode_first_klen);
+        else
+            *first_kobj = wbb->wbt_first_kobj;
+
+        key2kobj(last_kobj, wbb->cnode_last_key, wbb->cnode_last_klen);
+    }
 }
 
 uint

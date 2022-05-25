@@ -678,7 +678,7 @@ _kblock_make_header(
     struct kblock_hdr_omf *hdr)
 {
     void *          base;
-    struct key_obj *min_kobj, *max_kobj;
+    struct key_obj  min_kobj = { 0 }, max_kobj = { 0 };
     unsigned        off;
     const unsigned  align = 7;
 
@@ -722,8 +722,8 @@ _kblock_make_header(
 
 #ifndef NDEBUG
     if (omf_wbt_kmd_pgc(wbt_hdr)) {
-        uint minkey_len = key_obj_len(min_kobj);
-        uint maxkey_len = key_obj_len(max_kobj);
+        uint minkey_len = key_obj_len(&min_kobj);
+        uint maxkey_len = key_obj_len(&max_kobj);
 
         assert(0 < minkey_len && minkey_len <= HSE_KVS_KEY_LEN_MAX);
         assert(0 < maxkey_len && maxkey_len <= HSE_KVS_KEY_LEN_MAX);
@@ -735,19 +735,19 @@ _kblock_make_header(
     /* min key is at last 8-byte boundary that accommodates the min key */
     off = (PAGE_SIZE - HSE_KBLOCK_OMF_KLEN_MAX) & ~align;
     omf_set_kbh_min_koff(hdr, off);
-    omf_set_kbh_min_klen(hdr, key_obj_len(min_kobj));
+    omf_set_kbh_min_klen(hdr, key_obj_len(&min_kobj));
 
     /* max key is right before min key at an 8-byte boundary */
     off = (off - HSE_KBLOCK_OMF_KLEN_MAX) & ~align;
     omf_set_kbh_max_koff(hdr, off);
-    omf_set_kbh_max_klen(hdr, key_obj_len(max_kobj));
+    omf_set_kbh_max_klen(hdr, key_obj_len(&max_kobj));
 
     /* make sure bloom header doesn't overlap with max key */
     assert(omf_kbh_max_koff(hdr) >=
         (omf_kbh_blm_doff_pg(hdr) + omf_kbh_blm_dlen_pg(hdr)) * PAGE_SIZE);
 
     /* make sure max key doesn't overlap with min key */
-    assert(omf_kbh_min_koff(hdr) >= omf_kbh_max_koff(hdr) + key_obj_len(max_kobj));
+    assert(omf_kbh_min_koff(hdr) >= omf_kbh_max_koff(hdr) + key_obj_len(&max_kobj));
 
     /* Set offset and length for wbtree, bloom and hlog regions. */
     omf_set_kbh_wbt_doff_pg(hdr, KBLOCK_HDR_PAGES);
@@ -766,8 +766,8 @@ _kblock_make_header(
     memcpy(base + omf_kbh_wbt_hoff(hdr), wbt_hdr, sizeof(*wbt_hdr));
     memcpy(base + omf_kbh_blm_hoff(hdr), blm_hdr, sizeof(*blm_hdr));
 
-    key_obj_copy(base + omf_kbh_max_koff(hdr), HSE_KVS_KEY_LEN_MAX, 0, max_kobj);
-    key_obj_copy(base + omf_kbh_min_koff(hdr), HSE_KVS_KEY_LEN_MAX, 0, min_kobj);
+    key_obj_copy(base + omf_kbh_max_koff(hdr), HSE_KVS_KEY_LEN_MAX, 0, &max_kobj);
+    key_obj_copy(base + omf_kbh_min_koff(hdr), HSE_KVS_KEY_LEN_MAX, 0, &min_kobj);
 }
 
 size_t
@@ -1156,10 +1156,10 @@ kbb_is_empty(struct kblock_builder *bld)
 }
 
 void
-kbb_curr_kblk_minmax_keys(
+kbb_curr_kblk_min_max_keys(
     struct kblock_builder *bld,
-    struct key_obj        **min_kobj,
-    struct key_obj        **max_kobj)
+    struct key_obj        *min_kobj,
+    struct key_obj        *max_kobj)
 {
     wbb_min_max_keys(bld->curr.wbtree, min_kobj, max_kobj);
 }

@@ -83,11 +83,11 @@ wbb_freeze(
     uint *              iov_cnt);
 
 /**
- * wbb_freeze() - get min/max keys from a finalized wbtree
+ * wbb_min_max_keys() - get min/max keys from a finalized or non-finalized wbtree
  */
 /* MTF_MOCK */
 void
-wbb_min_max_keys(struct wbb *wbb, struct key_obj **first_kobj, struct key_obj **last_kobj);
+wbb_min_max_keys(struct wbb *wbb, struct key_obj *first_kobj, struct key_obj *last_kobj);
 
 /**
  * wbb_page_cnt() - Get total number of pages consumed by wbtree and the
