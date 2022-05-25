@@ -103,11 +103,13 @@ param_default_populate(
     const size_t             pspecs_sz,
     const struct params *    params)
 {
+    char *p;
+
     assert(pspecs);
     assert(pspecs_sz > 0);
     assert(params);
 
-    char *p = (char *)params->p_params.as_generic;
+    p = (char *)params->p_params.as_generic;
 
     for (size_t i = 0; i < pspecs_sz; i++) {
         const struct param_spec ps = pspecs[i];
@@ -158,8 +160,10 @@ param_default_populate(
                 break;
             case PARAM_TYPE_STRING:
                 if (ps.ps_default_value.as_string) {
+                    size_t n HSE_MAYBE_UNUSED;
+
                     strlcpy(data, ps.ps_default_value.as_string, ps.ps_bounds.as_string.ps_max_len);
-                    const size_t HSE_MAYBE_UNUSED n = strlcpy(
+                    n = strlcpy(
                         data, ps.ps_default_value.as_string, ps.ps_bounds.as_string.ps_max_len);
                     assert(n <= ps.ps_bounds.as_string.ps_max_len);
                 } else {
@@ -200,12 +204,15 @@ param_default_converter(const struct param_spec *ps, const cJSON *node, void *va
             break;
         }
         case PARAM_TYPE_INT: {
+            double to_conv;
+
             assert(!(ps->ps_flags & PARAM_FLAG_NULLABLE));
             if (!cJSON_IsNumber(node)) {
                 log_err("Value of %s must be a number", ps->ps_name);
                 return false;
             }
-            const double to_conv = cJSON_GetNumberValue(node);
+
+            to_conv = cJSON_GetNumberValue(node);
             if (!IS_WHOLE(to_conv)) {
                 log_err("%s must be a whole number", ps->ps_name);
                 return false;
@@ -223,12 +230,15 @@ param_default_converter(const struct param_spec *ps, const cJSON *node, void *va
             break;
         }
         case PARAM_TYPE_I8: {
+            double to_conv;
+
             assert(!(ps->ps_flags & PARAM_FLAG_NULLABLE));
             if (!cJSON_IsNumber(node)) {
                 log_err("Value of %s must be a number", ps->ps_name);
                 return false;
             }
-            const double to_conv = cJSON_GetNumberValue(node);
+
+            to_conv = cJSON_GetNumberValue(node);
             if (!IS_WHOLE(to_conv)) {
                 log_err("Value of %s must be a whole number", ps->ps_name);
                 return false;
@@ -245,12 +255,14 @@ param_default_converter(const struct param_spec *ps, const cJSON *node, void *va
             break;
         }
         case PARAM_TYPE_I16: {
+            double to_conv;
             assert(!(ps->ps_flags & PARAM_FLAG_NULLABLE));
             if (!cJSON_IsNumber(node)) {
                 log_err("Value of %s must be a number", ps->ps_name);
                 return false;
             }
-            const double to_conv = cJSON_GetNumberValue(node);
+
+            to_conv = cJSON_GetNumberValue(node);
             if (!IS_WHOLE(to_conv)) {
                 log_err("Value of %s must be a whole number", ps->ps_name);
                 return false;
@@ -267,12 +279,15 @@ param_default_converter(const struct param_spec *ps, const cJSON *node, void *va
             break;
         }
         case PARAM_TYPE_I32: {
+            double to_conv;
+
             assert(!(ps->ps_flags & PARAM_FLAG_NULLABLE));
             if (!cJSON_IsNumber(node)) {
                 log_err("Value of %s must be a number", ps->ps_name);
                 return false;
             }
-            const double to_conv = cJSON_GetNumberValue(node);
+
+            to_conv = cJSON_GetNumberValue(node);
             if (!IS_WHOLE(to_conv)) {
                 log_err("Value of %s must be a whole number", ps->ps_name);
                 return false;
@@ -289,12 +304,15 @@ param_default_converter(const struct param_spec *ps, const cJSON *node, void *va
             break;
         }
         case PARAM_TYPE_I64: {
+            double to_conv;
+
             assert(!(ps->ps_flags & PARAM_FLAG_NULLABLE));
             if (!cJSON_IsNumber(node)) {
                 log_err("Value of %s must be a number", ps->ps_name);
                 return false;
             }
-            const double to_conv = cJSON_GetNumberValue(node);
+
+            to_conv = cJSON_GetNumberValue(node);
             if (!IS_WHOLE(to_conv)) {
                 log_err("%s must be a whole number", ps->ps_name);
                 return false;
@@ -312,12 +330,15 @@ param_default_converter(const struct param_spec *ps, const cJSON *node, void *va
             break;
         }
         case PARAM_TYPE_U8: {
+            double to_conv;
+
             assert(!(ps->ps_flags & PARAM_FLAG_NULLABLE));
             if (!cJSON_IsNumber(node)) {
                 log_err("Value of %s must be a number", ps->ps_name);
                 return false;
             }
-            const double to_conv = cJSON_GetNumberValue(node);
+
+            to_conv = cJSON_GetNumberValue(node);
             if (!IS_WHOLE(to_conv)) {
                 log_err("Value of %s must be a number", ps->ps_name);
                 return false;
@@ -333,12 +354,15 @@ param_default_converter(const struct param_spec *ps, const cJSON *node, void *va
             break;
         }
         case PARAM_TYPE_U16: {
+            double to_conv;
+
             assert(!(ps->ps_flags & PARAM_FLAG_NULLABLE));
             if (!cJSON_IsNumber(node)) {
                 log_err("Value of %s must be a number", ps->ps_name);
                 return false;
             }
-            const double to_conv = cJSON_GetNumberValue(node);
+
+            to_conv = cJSON_GetNumberValue(node);
             if (!IS_WHOLE(to_conv)) {
                 log_err("Value of %s must be a whole number", ps->ps_name);
                 return false;
@@ -354,12 +378,15 @@ param_default_converter(const struct param_spec *ps, const cJSON *node, void *va
             break;
         }
         case PARAM_TYPE_U32: {
+            double to_conv;
+
             assert(!(ps->ps_flags & PARAM_FLAG_NULLABLE));
             if (!cJSON_IsNumber(node)) {
                 log_err("Value of %s must be a number", ps->ps_name);
                 return false;
             }
-            const double to_conv = cJSON_GetNumberValue(node);
+
+            to_conv = cJSON_GetNumberValue(node);
             if (!IS_WHOLE(to_conv)) {
                 log_err("Value of %s must be a whole number", ps->ps_name);
                 return false;
@@ -375,12 +402,15 @@ param_default_converter(const struct param_spec *ps, const cJSON *node, void *va
             break;
         }
         case PARAM_TYPE_U64: {
+            double to_conv;
+
             assert(!(ps->ps_flags & PARAM_FLAG_NULLABLE));
             if (!cJSON_IsNumber(node)) {
                 log_err("Value of %s must be a number", ps->ps_name);
                 return false;
             }
-            const double to_conv = cJSON_GetNumberValue(node);
+
+            to_conv = cJSON_GetNumberValue(node);
             if (!IS_WHOLE(to_conv)) {
                 log_err("Value of %s must be a whole number", ps->ps_name);
                 return false;
@@ -395,13 +425,16 @@ param_default_converter(const struct param_spec *ps, const cJSON *node, void *va
             *(uint64_t *)value = (uint64_t)to_conv;
             break;
         }
-        case PARAM_TYPE_ENUM:
+        case PARAM_TYPE_ENUM: {
+            double to_conv;
+
             assert(!(ps->ps_flags & PARAM_FLAG_NULLABLE));
             if (!cJSON_IsNumber(node)) {
                 log_err("Value of %s must be a number", ps->ps_name);
                 return false;
             }
-            const double to_conv = cJSON_GetNumberValue(node);
+
+            to_conv = cJSON_GetNumberValue(node);
             if (!IS_WHOLE(to_conv)) {
                 log_err("%s must be a whole number", ps->ps_name);
                 return false;
@@ -417,6 +450,7 @@ param_default_converter(const struct param_spec *ps, const cJSON *node, void *va
             }
             *(int *)value = (int)to_conv;
             break;
+        }
         case PARAM_TYPE_DOUBLE:
             assert(!(ps->ps_flags & PARAM_FLAG_NULLABLE));
             if (!cJSON_IsNumber(node)) {
@@ -429,12 +463,16 @@ param_default_converter(const struct param_spec *ps, const cJSON *node, void *va
             if (cJSON_IsNull(node)) {
                 memset(value, 0, ps->ps_bounds.as_string.ps_max_len);
             } else {
+                size_t n;
+                const char *to_copy;
+
                 if (!cJSON_IsString(node)) {
                     log_err("Value of %s must be a string", ps->ps_name);
                     return false;
                 }
-                const char * to_copy = cJSON_GetStringValue(node);
-                const size_t n = strlcpy(value, to_copy, ps->ps_bounds.as_string.ps_max_len);
+
+                to_copy = cJSON_GetStringValue(node);
+                n = strlcpy(value, to_copy, ps->ps_bounds.as_string.ps_max_len);
                 if (n >= ps->ps_bounds.as_string.ps_max_len) {
                     log_err(
                         "Length of the value of %s must be less that or equal to %lu",
@@ -747,27 +785,30 @@ param_default_validator(const struct param_spec *ps, const void *value)
     bool param_convert_to_bytes_from_##_units(                                                    \
         const struct param_spec *ps, const cJSON *node, void *value)                              \
     {                                                                                             \
+        double tmp;                                                                               \
+        int rc HSE_MAYBE_UNUSED;                                                                  \
+                                                                                                  \
         assert(ps);                                                                               \
         assert(node);                                                                             \
         assert(value);                                                                            \
                                                                                                   \
         assert(!(ps->ps_flags & PARAM_FLAG_NULLABLE));                                            \
         if (!cJSON_IsNumber(node)) {                                                              \
-            log_err("Value of %s must be a number", ps->ps_name);                                \
+            log_err("Value of %s must be a number", ps->ps_name);                                 \
             return false;                                                                         \
         }                                                                                         \
                                                                                                   \
-        const int HSE_MAYBE_UNUSED rc = feclearexcept(FE_OVERFLOW | FE_UNDERFLOW);                \
+        rc = feclearexcept(FE_OVERFLOW | FE_UNDERFLOW);                                           \
         assert(rc == 0);                                                                          \
                                                                                                   \
-        double tmp = cJSON_GetNumberValue(node);                                                  \
+        tmp = cJSON_GetNumberValue(node);                                                         \
         tmp = tmp * _units;                                                                       \
         if (fetestexcept(FE_OVERFLOW)) {                                                          \
-            log_err("Value of %s is too large", ps->ps_name);                                    \
+            log_err("Value of %s is too large", ps->ps_name);                                     \
             feclearexcept(FE_OVERFLOW);                                                           \
             return false;                                                                         \
         } else if (fetestexcept(FE_UNDERFLOW)) {                                                  \
-            log_err("Value of %s is too small", ps->ps_name);                                    \
+            log_err("Value of %s is too small", ps->ps_name);                                     \
             feclearexcept(FE_UNDERFLOW);                                                          \
             return false;                                                                         \
         }                                                                                         \
@@ -775,7 +816,7 @@ param_default_validator(const struct param_spec *ps, const void *value)
         switch (ps->ps_type) {                                                                    \
             case PARAM_TYPE_INT:                                                                  \
                 if (tmp < INT_MIN || tmp > INT_MAX) {                                             \
-                    log_err(                                                                     \
+                    log_err(                                                                      \
                         "Number of bytes of %s is not within the bounds of a integer",            \
                         ps->ps_name);                                                             \
                     return false;                                                                 \
@@ -784,7 +825,7 @@ param_default_validator(const struct param_spec *ps, const void *value)
                 break;                                                                            \
             case PARAM_TYPE_I8:                                                                   \
                 if (tmp < INT8_MIN || tmp > INT8_MAX) {                                           \
-                    log_err(                                                                     \
+                    log_err(                                                                      \
                         "Number of bytes of %s is not within the bounds of a signed 8-bit "       \
                         "integer",                                                                \
                         ps->ps_name);                                                             \
@@ -794,7 +835,7 @@ param_default_validator(const struct param_spec *ps, const void *value)
                 break;                                                                            \
             case PARAM_TYPE_I16:                                                                  \
                 if (tmp < INT16_MIN || tmp > INT16_MAX) {                                         \
-                    log_err(                                                                     \
+                    log_err(                                                                      \
                         "Number of bytes of %s is not within the bounds of a signed 16-bit "      \
                         "integer",                                                                \
                         ps->ps_name);                                                             \
@@ -804,7 +845,7 @@ param_default_validator(const struct param_spec *ps, const void *value)
                 break;                                                                            \
             case PARAM_TYPE_I32:                                                                  \
                 if (tmp < INT32_MIN || tmp > INT32_MAX) {                                         \
-                    log_err(                                                                     \
+                    log_err(                                                                      \
                         "Number of bytes of %s is not within the bounds of a signed 32-bit "      \
                         "integer",                                                                \
                         ps->ps_name);                                                             \
@@ -814,7 +855,7 @@ param_default_validator(const struct param_spec *ps, const void *value)
                 break;                                                                            \
             case PARAM_TYPE_I64:                                                                  \
                 if (tmp < INT64_MIN || tmp > (double)INT64_MAX) {                                 \
-                    log_err(                                                                     \
+                    log_err(                                                                      \
                         "Number of bytes of %s is not within the bounds of a signed 64-bit "      \
                         "integer",                                                                \
                         ps->ps_name);                                                             \
@@ -824,7 +865,7 @@ param_default_validator(const struct param_spec *ps, const void *value)
                 break;                                                                            \
             case PARAM_TYPE_U8:                                                                   \
                 if (tmp < 0 || tmp > (double)UINT8_MAX) {                                         \
-                    log_err(                                                                     \
+                    log_err(                                                                      \
                         "Number of bytes of %s is not within the bounds of an unsigned 8-bit "    \
                         "integer",                                                                \
                         ps->ps_name);                                                             \
@@ -834,7 +875,7 @@ param_default_validator(const struct param_spec *ps, const void *value)
                 break;                                                                            \
             case PARAM_TYPE_U16:                                                                  \
                 if (tmp < 0 || tmp > UINT16_MAX) {                                                \
-                    log_err(                                                                     \
+                    log_err(                                                                      \
                         "Number of bytes of %s is not within the bounds of an unsigned 16-bit "   \
                         "integer",                                                                \
                         ps->ps_name);                                                             \
@@ -844,7 +885,7 @@ param_default_validator(const struct param_spec *ps, const void *value)
                 break;                                                                            \
             case PARAM_TYPE_U32:                                                                  \
                 if (tmp < 0 || tmp > UINT32_MAX) {                                                \
-                    log_err(                                                                     \
+                    log_err(                                                                      \
                         "Number of bytes of %s is not within the bounds of an unsigned 8=32-bit " \
                         "integer",                                                                \
                         ps->ps_name);                                                             \
@@ -854,7 +895,7 @@ param_default_validator(const struct param_spec *ps, const void *value)
                 break;                                                                            \
             case PARAM_TYPE_U64:                                                                  \
                 if (tmp < 0 || tmp > (double)UINT64_MAX) {                                        \
-                    log_err(                                                                     \
+                    log_err(                                                                      \
                         "Number of bytes of %s is not within the bounds of an unsigned 64-bit "   \
                         "integer",                                                                \
                         ps->ps_name);                                                             \

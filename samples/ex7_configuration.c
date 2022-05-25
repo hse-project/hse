@@ -34,6 +34,7 @@ int
 main(int argc, const char **argv)
 {
     hse_err_t        err = 0;
+    const char *     home;
     const char *     hi_paramv[] = { "logging.destination=stdout",
                                 "logging.level=3",
                                 "rest.enabled=false" };
@@ -47,7 +48,7 @@ main(int argc, const char **argv)
         return 1;
     }
 
-    const char *home = argv[1];
+    home = argv[1];
 
     err = hse_init(NULL, hi_paramc, hi_paramv);
     if (err) {

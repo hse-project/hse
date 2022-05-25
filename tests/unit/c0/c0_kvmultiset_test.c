@@ -205,6 +205,12 @@ MTF_DEFINE_UTEST_PREPOST(c0_kvmultiset_test, ingest_sk, no_fail_pre, no_fail_pos
     const int       WIDTH = 3;
     int             i, j, k;
     uint            keys[WIDTH * WIDTH * WIDTH];
+    struct c0_ingest_work *c0skwork;
+    struct bin_heap *      bh;
+    struct bonsai_kv *     bkv;
+    bool                   first_time = true;
+    struct kvs_ktuple      last_kt = { 0, 0, 0 };
+    uint16_t               last_skidx = 0;
 
     ASSERT_LT(WIDTH, 200);
 
@@ -246,13 +252,6 @@ MTF_DEFINE_UTEST_PREPOST(c0_kvmultiset_test, ingest_sk, no_fail_pre, no_fail_pos
     }
 
     c0kvms_finalize(kvms, NULL);
-
-    struct c0_ingest_work *c0skwork;
-    struct bin_heap *      bh;
-    struct bonsai_kv *     bkv;
-    bool                   first_time = true;
-    struct kvs_ktuple      last_kt = { 0, 0, 0 };
-    u16                    last_skidx = 0;
 
     c0skwork = c0kvms_ingest_work_prepare(kvms, NULL);
 

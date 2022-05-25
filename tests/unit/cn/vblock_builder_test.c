@@ -535,6 +535,8 @@ enum test_case {
 int
 run_test_case(struct mtf_test_info *lcl_ti, enum test_case tc, size_t n_vblocks)
 {
+    merr_t err;
+    struct blk_list blks;
     struct vblock_builder *vbb = 0;
 
     const size_t mblock_size = MPOOL_MBLOCK_SIZE_DEFAULT;
@@ -545,10 +547,6 @@ run_test_case(struct mtf_test_info *lcl_ti, enum test_case tc, size_t n_vblocks)
     const size_t add_count = n_vblocks * values_per_mblock;
 
     ASSERT_LE_RET(vlen, HSE_KVS_VALUE_LEN_MAX, -1);
-
-    u32             i;
-    merr_t          err;
-    struct blk_list blks;
 
     mapi_calls_clear(mapi_idx_mpool_mblock_alloc);
     mapi_calls_clear(mapi_idx_mpool_mblock_write);
@@ -578,7 +576,7 @@ run_test_case(struct mtf_test_info *lcl_ti, enum test_case tc, size_t n_vblocks)
             err = vbb_finish(vbb, &blks, &max_kobj);
             ASSERT_EQ_RET(0, err, 1);
             ASSERT_EQ_RET(blks.idc, n_vblocks, 1);
-            for (i = 0; i < n_vblocks; i++) {
+            for (uint32_t i = 0; i < n_vblocks; i++) {
                 ASSERT_EQ_RET(blks.idv[i], MPM_MBLOCK_ID_BASE + i, 1);
                 verify_vblock_footer(lcl_ti, blks.idv[i],
                                      HSE_KVS_VALUE_LEN_MAX - VBLOCK_FOOTER_LEN);

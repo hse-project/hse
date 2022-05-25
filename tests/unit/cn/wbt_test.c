@@ -209,8 +209,14 @@ cursor_verify(
 
     k = kl->buf;
     for (i = 0; i < kl->nkeys; i++) {
+        int rc;
+        uint klen;
         merr_t err;
-        int    rc;
+        char *fkey;
+        size_t fklen;
+        bool more, eof;
+        struct ref_tree_iter *iter;
+        unsigned char kbuf[HSE_KVS_KEY_LEN_MAX];
 
         kvs_ktuple_init_nohash(&kt, k->kdata, k->klen);
 
@@ -225,14 +231,6 @@ cursor_verify(
         if (found)
             wbti_prefix(wbti, &ko.ko_pfx, &ko.ko_pfx_len);
         wbti_destroy(wbti);
-
-        char *        fkey;
-        size_t        fklen;
-        unsigned char kbuf[HSE_KVS_KEY_LEN_MAX];
-        uint          klen;
-
-        struct ref_tree_iter *iter;
-        bool more, eof;
 
         iter = ref_tree_iter_create(rtree, 0, 0, reverse, 1);
         ASSERT_NE_RET(NULL, iter, 1);
@@ -286,6 +284,7 @@ get_verify(struct mtf_test_info *lcl_ti, void *tree, struct wbt_hdr_omf *hdr, st
     k = kl->buf;
     for (i = 0; i < kl->nkeys; i++) {
         merr_t err;
+        bool found;
 
         kvs_ktuple_init_nohash(&kt, k->kdata, k->klen);
         key2kobj(&ko_ref, k->kdata, k->klen);
@@ -294,7 +293,7 @@ get_verify(struct mtf_test_info *lcl_ti, void *tree, struct wbt_hdr_omf *hdr, st
         err = wbtr_read_vref(kbd.map_base, &wbd, &kt, 1, &lookup_res, NULL, &vref);
         ASSERT_EQ_RET(0, err, 1);
 
-        bool found = ref_tree_get(rtree, k->kdata, k->klen);
+        found = ref_tree_get(rtree, k->kdata, k->klen);
 
         if (found)
             ASSERT_EQ_RET(FOUND_VAL, lookup_res, 1);

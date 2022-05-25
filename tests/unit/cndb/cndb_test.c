@@ -197,9 +197,10 @@ struct cndb *cndb;
 static int
 test_pre(struct mtf_test_info *lcl_ti)
 {
+    merr_t err;
     uint64_t oid1, oid2;
     struct mpool *mp = (void *)-1;
-    merr_t err;
+    struct kvs_cparams cp = kvs_cparams_defaults();
     struct kvdb_rparams rp = kvdb_rparams_defaults();
 
     err = cndb_create(mp, 0, &oid1, &oid2);
@@ -207,8 +208,6 @@ test_pre(struct mtf_test_info *lcl_ti)
 
     err = cndb_open(mp, oid1, oid2, &rp, &cndb);
     ASSERT_EQ_RET(0, err, -1);
-
-    struct kvs_cparams cp = kvs_cparams_defaults();
 
     err = cndb_record_kvs_add(cndb, &cp, &cnid, "cndb_kvs");
     ASSERT_EQ_RET(0, err, -1);
@@ -292,17 +291,17 @@ kvset_del(struct cndb *cndb, struct cndb_txn *tx, uint64_t kvsetid)
 
 MTF_DEFINE_UTEST(cndb_test, mdc_mock_test)
 {
-    merr_t err = 0;
-    struct mpool_mdc *mdc;
+    merr_t err;
+    char buf[128];
+    size_t buflen = 0;
     uint64_t oid1, oid2;
+    struct mpool_mdc *mdc;
 
     err = mpool_mdc_alloc((void *)-1, CNDB_MAGIC, 1234, HSE_MCLASS_CAPACITY, &oid1, &oid2);
     ASSERT_EQ(0, err);
 
     err = mpool_mdc_open((void *)-1, 0, 0, false, &mdc);
     ASSERT_EQ(0, err);
-
-    char buf[128];
 
     snprintf(buf, sizeof(buf), "%s", "hello");
     err = mpool_mdc_append(mdc, buf, strlen(buf), true);
@@ -320,7 +319,6 @@ MTF_DEFINE_UTEST(cndb_test, mdc_mock_test)
 
     mpool_mdc_rewind(mdc);
 
-    size_t buflen = 0;
     err = mpool_mdc_read(mdc, buf, sizeof(buf), &buflen);
     ASSERT_NE(0, buflen);
     ASSERT_EQ(0, strcmp(buf, "hello"));
@@ -350,8 +348,9 @@ create_kvset(
     uint64_t             *vblkv,
     uint64_t             *kvsetid)
 {
-    struct cndb_txn *tx;
     merr_t err;
+    void *cookie;
+    struct cndb_txn *tx;
 
     uint64_t hblkid = ++g_mbid;
     struct kvset_meta km = {
@@ -366,7 +365,6 @@ create_kvset(
     err = cndb_record_txstart(cndb, 0, CNDB_INVAL_INGESTID, CNDB_INVAL_HORIZON, 1, 0, &tx);
     ASSERT_EQ(0, err);
 
-    void *cookie;
     err = cndb_record_kvset_add(cndb, tx, cnid, cndb_nodeid_mint(cndb), &km, *kvsetid, hblkid,
                                 kblkc, kblkv, vblkc, vblkv, &cookie);
     ASSERT_EQ(0, err);
@@ -399,17 +397,16 @@ replay_full_cb(void *ctx, struct kvset_meta *km, uint64_t kvsetid)
 
 MTF_DEFINE_UTEST_PREPOST(cndb_test, replay_full, test_pre, test_post)
 {
-    struct mpool *mp = (void *)-1;
     merr_t err;
-
-    g_mbid = 0;
-
+    void *c1, *c2;
+    void *delcookie;
+    struct cndb_txn *tx;
     uint64_t kvsetid_ingest;
+    struct mpool *mp = (void *)-1;
     uint64_t kblkv_ingest[2] = {1, 2};
     uint64_t vblkv_ingest[3] = {10, 20, 30};
-
-    create_kvset(lcl_ti, cndb, cnid, NELEM(kblkv_ingest), kblkv_ingest,
-                 NELEM(vblkv_ingest), vblkv_ingest, &kvsetid_ingest);
+    uint64_t seqno_out, ingestid_out, txhorizon_out;
+    struct kvdb_rparams rp = kvdb_rparams_defaults();
 
     /* Reuse some mblocks */
     const uint64_t hbid_left = 101;
@@ -418,7 +415,6 @@ MTF_DEFINE_UTEST_PREPOST(cndb_test, replay_full, test_pre, test_post)
     const uint64_t kvsetid_right = cndb_kvsetid_mint(cndb);
     const uint64_t src_nodeid = 10;
     const uint64_t kvsetidv[2] = { kvsetid_left, kvsetid_right };
-    void *c1, *c2;
 
     struct kvset_meta km = {
         .km_dgen_hi = 1,
@@ -427,14 +423,17 @@ MTF_DEFINE_UTEST_PREPOST(cndb_test, replay_full, test_pre, test_post)
         .km_compc = 0,
     };
 
-    struct cndb_txn *tx;
-
-    err = cndb_record_txstart(cndb, 2, 0, 0, 2, 1, &tx);
-    ASSERT_EQ(0, err);
-
     /* Reuse one kblk and all vblks */
     uint64_t kblkv_left[2] = {3, 4};
     uint64_t kblkv_right[2] = {2, 5};
+
+    g_mbid = 0;
+
+    create_kvset(lcl_ti, cndb, cnid, NELEM(kblkv_ingest), kblkv_ingest,
+                 NELEM(vblkv_ingest), vblkv_ingest, &kvsetid_ingest);
+
+    err = cndb_record_txstart(cndb, 2, 0, 0, 2, 1, &tx);
+    ASSERT_EQ(0, err);
 
     err = cndb_record_kvset_add(cndb, tx, cnid, src_nodeid, &km, kvsetid_left,
                                 hbid_left, NELEM(kblkv_left), kblkv_left, NELEM(vblkv_ingest),
@@ -446,7 +445,6 @@ MTF_DEFINE_UTEST_PREPOST(cndb_test, replay_full, test_pre, test_post)
                                 vblkv_ingest, &c2);
     ASSERT_EQ(0, err);
 
-    void *delcookie;
     err = cndb_record_kvset_del(cndb, tx, cnid, kvsetid_ingest, &delcookie);
     ASSERT_EQ(0, err);
 
@@ -466,11 +464,8 @@ MTF_DEFINE_UTEST_PREPOST(cndb_test, replay_full, test_pre, test_post)
     err = cndb_close(cndb);
     ASSERT_EQ(0, err);
 
-    struct kvdb_rparams rp = kvdb_rparams_defaults();
     err = cndb_open(mp, 0, 0, &rp, &cndb);
     ASSERT_EQ(0, err);
-
-    uint64_t seqno_out, ingestid_out, txhorizon_out;
 
     err = cndb_replay(cndb, &seqno_out, &ingestid_out, &txhorizon_out);
     ASSERT_EQ(0, err);
@@ -494,24 +489,22 @@ assert_ingest_kvset(void *ctx, struct kvset_meta *km, u64 kvsetid)
 
 MTF_DEFINE_UTEST_PREPOST(cndb_test, rollback, test_pre, test_post)
 {
-    struct mpool *mp = (void *)-1;
     merr_t err;
-
-    g_mbid = 0;
-
+    void *c1, *c2;
+    void *delcookie;
+    struct cndb_txn *tx;
     uint64_t kvsetid_ingest;
+    struct mpool *mp = (void *)-1;
     uint64_t kblkv_ingest[2] = {1, 2};
     uint64_t vblkv_ingest[3] = {10, 20, 30};
-
-    create_kvset(lcl_ti, cndb, cnid, NELEM(kblkv_ingest), kblkv_ingest,
-                 NELEM(vblkv_ingest), vblkv_ingest, &kvsetid_ingest);
+    uint64_t seqno_out, ingestid_out, txhorizon_out;
+    struct kvdb_rparams rp = kvdb_rparams_defaults();
 
     /* Reuse some mblocks */
     uint64_t hbid_left = 101;
     uint64_t hbid_right = 102;
     uint64_t kvsetid_left = cndb_kvsetid_mint(cndb);
     uint64_t kvsetid_right = cndb_kvsetid_mint(cndb);
-    void *c1, *c2;
 
     struct kvset_meta km = {
         .km_dgen_hi = 1,
@@ -520,14 +513,17 @@ MTF_DEFINE_UTEST_PREPOST(cndb_test, rollback, test_pre, test_post)
         .km_compc = 0,
     };
 
-    struct cndb_txn *tx;
-
-    err = cndb_record_txstart(cndb, 2, 0, 0, 2, 1, &tx);
-    ASSERT_EQ(0, err);
-
     /* Reuse one kblk and all vblks */
     uint64_t kblkv_left[2] = {3, 4};
     uint64_t kblkv_right[2] = {2, 5};
+
+    g_mbid = 0;
+
+    create_kvset(lcl_ti, cndb, cnid, NELEM(kblkv_ingest), kblkv_ingest,
+                 NELEM(vblkv_ingest), vblkv_ingest, &kvsetid_ingest);
+
+    err = cndb_record_txstart(cndb, 2, 0, 0, 2, 1, &tx);
+    ASSERT_EQ(0, err);
 
     err = cndb_record_kvset_add(cndb, tx, cnid, cndb_nodeid_mint(cndb), &km, kvsetid_left, hbid_left,
                                 NELEM(kblkv_left), kblkv_left, NELEM(vblkv_ingest), vblkv_ingest, &c1);
@@ -537,7 +533,6 @@ MTF_DEFINE_UTEST_PREPOST(cndb_test, rollback, test_pre, test_post)
                                 NELEM(kblkv_right), kblkv_right, NELEM(vblkv_ingest), vblkv_ingest, &c2);
     ASSERT_EQ(0, err);
 
-    void *delcookie;
     err = cndb_record_kvset_del(cndb, tx, cnid, kvsetid_ingest, &delcookie);
     ASSERT_EQ(0, err);
 
@@ -551,11 +546,8 @@ MTF_DEFINE_UTEST_PREPOST(cndb_test, rollback, test_pre, test_post)
     err = cndb_close(cndb);
     ASSERT_EQ(0, err);
 
-    struct kvdb_rparams rp = kvdb_rparams_defaults();
     err = cndb_open(mp, 0, 0, &rp, &cndb);
     ASSERT_EQ(0, err);
-
-    uint64_t seqno_out, ingestid_out, txhorizon_out;
 
     mapi_calls_clear(mapi_idx_mpool_mblock_delete);
 
@@ -587,20 +579,30 @@ assert_two_kvsets(void *ctx, struct kvset_meta *km, u64 kvsetid)
 
 MTF_DEFINE_UTEST_PREPOST(cndb_test, rollforward, test_pre, test_post)
 {
-    struct mpool *mp = (void *)-1;
     merr_t err;
+    void *cookie;
+    void *c1, *c2;
+    void *delcookie;
+    uint64_t dgen = 0;
     uint64_t seqno = 0;
     struct cndb_txn *tx;
+    uint64_t kvsetid[3];
+    uint64_t remaining[2] = { 0 };
+    struct mpool *mp = (void *)-1;
+    uint64_t seqno_out, ingestid_out, txhorizon_out;
+    struct kvdb_rparams rp = kvdb_rparams_defaults();
 
     struct t_kvset k1 = { .nid = 0, .kb = BLKS(1, 2), .vb = BLKS(10, 20, 30) };
+
+    /* Reuse one kblk and all vblks */
+    struct t_kvset k[] = {
+        { .nid = 0, .kb = BLKS(3, 4), .vb = BLKS(10, 20, 30) },
+        { .nid = 0, .kb = BLKS(2, 5), .vb = BLKS(10, 20, 30) },
+    };
 
     /* Create */
     err = cndb_record_txstart(cndb, ++seqno, 0, 0, 1, 0, &tx);
     ASSERT_EQ(0, err);
-
-    uint64_t dgen = 0;
-    uint64_t kvsetid[3];
-    void *cookie;
 
     cookie = kvset_add(cndb, tx, ++dgen, k1, &kvsetid[0]);
     ASSERT_NE(0, cookie);
@@ -609,23 +611,16 @@ MTF_DEFINE_UTEST_PREPOST(cndb_test, rollforward, test_pre, test_post)
     ASSERT_EQ(0, err);
 
     /* Test */
-    void *c1, *c2;
 
     err = cndb_record_txstart(cndb, 2, 0, 0, 2, 1, &tx);
     ASSERT_EQ(0, err);
-
-    /* Reuse one kblk and all vblks */
-    struct t_kvset k[] = {
-        { .nid = 0, .kb = BLKS(3, 4), .vb = BLKS(10, 20, 30) },
-        { .nid = 0, .kb = BLKS(2, 5), .vb = BLKS(10, 20, 30) },
-    };
 
     c1 = kvset_add(cndb, tx, ++dgen, k[0], &kvsetid[1]);
     ASSERT_NE(0, c1);
     c2 = kvset_add(cndb, tx, ++dgen, k[1], &kvsetid[2]);
     ASSERT_NE(0, c2);
 
-    void *delcookie = kvset_del(cndb, tx, kvsetid[0]);
+    delcookie = kvset_del(cndb, tx, kvsetid[0]);
     ASSERT_NE(0, delcookie);
 
     err = cndb_record_kvset_add_ack(cndb, tx, c1);
@@ -641,11 +636,8 @@ MTF_DEFINE_UTEST_PREPOST(cndb_test, rollforward, test_pre, test_post)
     err = cndb_close(cndb);
     ASSERT_EQ(0, err);
 
-    struct kvdb_rparams rp = kvdb_rparams_defaults();
     err = cndb_open(mp, 0, 0, &rp, &cndb);
     ASSERT_EQ(0, err);
-
-    uint64_t seqno_out, ingestid_out, txhorizon_out;
 
     mapi_calls_clear(mapi_idx_mpool_mblock_delete);
 
@@ -657,7 +649,8 @@ MTF_DEFINE_UTEST_PREPOST(cndb_test, rollforward, test_pre, test_post)
      */
     ASSERT_EQ(2, mapi_calls(mapi_idx_mpool_mblock_delete));
 
-    uint64_t remaining[2] = {kvsetid[1], kvsetid[2]};
+    remaining[0] = kvsetid[1];
+    remaining[1] = kvsetid[2];
 
     g_cb_ctr = 0;
     err = cndb_cn_instantiate(cndb, cnid, (void *)&remaining, (void *)assert_two_kvsets);
@@ -682,21 +675,21 @@ MTF_DEFINE_UTEST_PREPOST(cndb_test, rollforward, test_pre, test_post)
 
 MTF_DEFINE_UTEST(cndb_test, multiple_kvs)
 {
-    struct mpool *mp = (void *)-1;
     merr_t err;
+    uint64_t cnid;
     struct cndb *cndb;
     uint64_t oid1, oid2;
+    struct mpool *mp = (void *)-1;
+    struct kvs_cparams cp = kvs_cparams_defaults();
+    uint64_t seqno_out, ingestid_out, txhorizon_out;
+    struct kvdb_rparams rp = kvdb_rparams_defaults();
 
     /* Setup */
     err = cndb_create(mp, 0, &oid1, &oid2);
     ASSERT_EQ(0, err);
 
-    struct kvdb_rparams rp = kvdb_rparams_defaults();
     err = cndb_open(mp, oid1, oid2, &rp, &cndb);
     ASSERT_EQ(0, err);
-
-    uint64_t cnid;
-    struct kvs_cparams cp = kvs_cparams_defaults();
 
     /* Test */
     ASSERT_EQ(0, cndb_kvs_count(cndb));
@@ -732,8 +725,6 @@ MTF_DEFINE_UTEST(cndb_test, multiple_kvs)
     err = cndb_open(mp, oid1, oid2, &rp, &cndb);
     ASSERT_EQ(0, err);
 
-    uint64_t seqno_out, ingestid_out, txhorizon_out;
-
     err = cndb_replay(cndb, &seqno_out, &ingestid_out, &txhorizon_out);
     ASSERT_EQ(0, err);
 
@@ -749,9 +740,13 @@ MTF_DEFINE_UTEST(cndb_test, multiple_kvs)
 MTF_DEFINE_UTEST_PREPOST(cndb_test, compact_no_recovery, test_pre, test_post)
 {
     merr_t err;
+    void *c1, *c2;
+    void *delcookie;
+    uint64_t dgen = 0;
+    struct cndb_txn *tx;
     struct mpool *mp = (void *)-1;
-
-    g_mbid = 0;
+    uint64_t seqno_out, ingestid_out, txhorizon_out;
+    struct kvdb_rparams rp = kvdb_rparams_defaults();
 
     uint64_t kvsetid_ingest, kvsetid_left, kvsetid_right;
     struct t_kvset k[] = {
@@ -759,11 +754,10 @@ MTF_DEFINE_UTEST_PREPOST(cndb_test, compact_no_recovery, test_pre, test_post)
         {.nid = 2, .kb = BLKS(3, 4), .vb = BLKS(10, 20, 30)},
         {.nid = 3, .kb = BLKS(2, 5), .vb = BLKS(10, 20, 30)},
     };
-    void *c1, *c2;
-    uint64_t dgen = 0;
+
+    g_mbid = 0;
 
     /* Create */
-    struct cndb_txn *tx;
     err = txstart(cndb, 1, 0, &tx);
     ASSERT_EQ(0, err);
 
@@ -784,7 +778,7 @@ MTF_DEFINE_UTEST_PREPOST(cndb_test, compact_no_recovery, test_pre, test_post)
     c2 = kvset_add(cndb, tx, ++dgen, k[2], &kvsetid_right);
     ASSERT_NE(0, c2);
 
-    void *delcookie = kvset_del(cndb, tx, kvsetid_ingest);
+    delcookie = kvset_del(cndb, tx, kvsetid_ingest);
     ASSERT_NE(0, delcookie);
 
     err = cndb_record_kvset_add_ack(cndb, tx, c1);
@@ -824,7 +818,6 @@ MTF_DEFINE_UTEST_PREPOST(cndb_test, compact_no_recovery, test_pre, test_post)
     err = cndb_close(cndb);
     ASSERT_EQ(0, err);
 
-    struct kvdb_rparams rp = kvdb_rparams_defaults();
     err = cndb_open(mp, 0, 0, &rp, &cndb);
     ASSERT_EQ(0, err);
 
@@ -832,7 +825,6 @@ MTF_DEFINE_UTEST_PREPOST(cndb_test, compact_no_recovery, test_pre, test_post)
 
     /* All txns must be complete, no recovery necessary.
      */
-    uint64_t seqno_out, ingestid_out, txhorizon_out;
 
     err = cndb_replay(cndb, &seqno_out, &ingestid_out, &txhorizon_out);
     ASSERT_EQ(0, err);
@@ -847,8 +839,15 @@ MTF_DEFINE_UTEST_PREPOST(cndb_test, compact_no_recovery, test_pre, test_post)
 
 MTF_DEFINE_UTEST_PREPOST(cndb_test, only_deletes_rollforward, test_pre, test_post)
 {
-    struct cndb_txn *tx;
     merr_t err;
+    uint64_t dgen = 0;
+    uint64_t kvsetid[5];
+    struct cndb_txn *tx;
+    void *add_cookiev[3];
+    void *del_cookiev[2];
+    struct mpool *mp = (void *)-1;
+    uint64_t seqno_out, ingestid_out, txhorizon_out;
+    struct kvdb_rparams rp = kvdb_rparams_defaults();
 
     /* Create */
     struct t_kvset k[] = {
@@ -860,9 +859,6 @@ MTF_DEFINE_UTEST_PREPOST(cndb_test, only_deletes_rollforward, test_pre, test_pos
     err = txstart(cndb, NELEM(k), 0, &tx);
     ASSERT_EQ(0, err);
 
-    uint64_t dgen = 0;
-    uint64_t kvsetid[5];
-    void *add_cookiev[3];
 
     add_cookiev[0] = kvset_add(cndb, tx, ++dgen, k[0], &kvsetid[0]);
     ASSERT_NE(0, add_cookiev[0]);
@@ -884,8 +880,6 @@ MTF_DEFINE_UTEST_PREPOST(cndb_test, only_deletes_rollforward, test_pre, test_pos
     err = txstart(cndb, 0, 2, &tx);
     ASSERT_EQ(0, err);
 
-    void *del_cookiev[2];
-
     del_cookiev[0] = kvset_del(cndb, tx, kvsetid[1]);
     ASSERT_NE(0, del_cookiev[0]);
 
@@ -896,16 +890,12 @@ MTF_DEFINE_UTEST_PREPOST(cndb_test, only_deletes_rollforward, test_pre, test_pos
     err = cndb_close(cndb);
     ASSERT_EQ(0, err);
 
-    struct mpool *mp = (void *)-1;
-    struct kvdb_rparams rp = kvdb_rparams_defaults();
-
     err = cndb_open(mp, 0, 0, &rp, &cndb);
     ASSERT_EQ(0, err);
 
     mapi_calls_clear(mapi_idx_mpool_mblock_delete);
 
     /* Rollforward.  */
-    uint64_t seqno_out, ingestid_out, txhorizon_out;
 
     err = cndb_replay(cndb, &seqno_out, &ingestid_out, &txhorizon_out);
     ASSERT_EQ(0, err);

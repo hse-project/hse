@@ -34,16 +34,17 @@ logging_destination_converter(
     const cJSON *const             node,
     void *const                    data)
 {
-    assert(ps);
-    assert(node);
-    assert(data);
+    const char *setting;
+    enum log_destination log_dest;
+
+    INVARIANT(ps);
+    INVARIANT(node);
+    INVARIANT(data);
 
     if (!cJSON_IsString(node))
         return false;
 
-    const char *         setting = cJSON_GetStringValue(node);
-    enum log_destination log_dest;
-
+    setting = cJSON_GetStringValue(node);
     if (strcmp(setting, "stdout") == 0) {
         log_dest = LOG_DEST_STDOUT;
     } else if (strcmp(setting, "stderr") == 0) {
@@ -422,10 +423,14 @@ hse_gparams_pspecs_get(size_t *pspecs_sz)
 struct hse_gparams
 hse_gparams_defaults()
 {
-    struct hse_gparams  params;
-    const struct params p = { .p_type = PARAMS_HSE_GP, .p_params = { .as_hse_gp = &params } };
+    struct hse_gparams params;
+    const struct params p = {
+        .p_params = { .as_hse_gp = &params },
+        .p_type = PARAMS_HSE_GP,
+    };
 
     param_default_populate(pspecs, NELEM(pspecs), &p);
+
     return params;
 }
 
@@ -437,7 +442,10 @@ hse_gparams_get(
     const size_t                    buf_sz,
     size_t *const                   needed_sz)
 {
-    const struct params p = { .p_params = { .as_hse_gp = params }, .p_type = PARAMS_HSE_GP };
+    const struct params p = {
+        .p_params = { .as_hse_gp = params },
+        .p_type = PARAMS_HSE_GP,
+    };
 
     return param_get(&p, pspecs, NELEM(pspecs), param, buf, buf_sz, needed_sz);
 }
@@ -448,10 +456,13 @@ hse_gparams_set(
     const char *const               param,
     const char *const               value)
 {
+    const struct params p = {
+        .p_params = { .as_hse_gp = params },
+        .p_type = PARAMS_HSE_GP,
+    };
+
     if (!params || !param || !value)
         return merr(EINVAL);
-
-    const struct params p = { .p_params = { .as_hse_gp = params }, .p_type = PARAMS_HSE_GP };
 
     return param_set(&p, pspecs, NELEM(pspecs), param, value);
 }
@@ -459,10 +470,13 @@ hse_gparams_set(
 cJSON *
 hse_gparams_to_json(const struct hse_gparams *const params)
 {
+    const struct params p = {
+        .p_params = { .as_hse_gp = params },
+        .p_type = PARAMS_HSE_GP,
+    };
+
     if (!params)
         return NULL;
-
-    const struct params p = { .p_params = { .as_hse_gp = params }, .p_type = PARAMS_HSE_GP };
 
     return param_to_json(&p, pspecs, NELEM(pspecs));
 }

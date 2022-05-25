@@ -141,9 +141,10 @@ add_project_arguments(
     cc.get_supported_arguments([
         '-D_GNU_SOURCE',
         '-D_LGPL_SOURCE',
+        '-Wdeclaration-after-statement',
         '-Wlogical-op',
-        '-Wno-missing-field-initializers',
         '-Wmaybe-uninitialized',
+        '-Wno-missing-field-initializers',
         '-Wno-sign-compare',
         '-Wno-unused-parameter',
         '-DLOG_DEFAULT=@0@'.format(log_pri_default),

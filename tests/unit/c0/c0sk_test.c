@@ -1726,21 +1726,22 @@ release_deferred(struct c0sk *self)
 
 MTF_DEFINE_UTEST_PREPOST(c0sk_test, c0_cursor_robust, no_fail_pre, no_fail_post)
 {
-    struct kvdb_rparams   kvdb_rp;
-    struct mock_kvdb      mkvdb;
-    struct kvs_ktuple     kt;
-    struct kvs_vtuple     vt;
-    struct c0sk *         c0sk;
+    bool eof;
+    merr_t err;
+    int seeklen;
+    struct cn *cn;
+    uint16_t skidx;
+    struct c0sk *c0sk;
+    atomic_ulong seqno;
+    struct kvs_ktuple kt;
+    struct kvs_vtuple vt;
+    struct mock_kvdb mkvdb;
+    struct c0sk_impl *self;
+    struct c0_cursor *cur[5];
     struct c0_kvmultiset *kvms;
-    struct cn *           cn;
-    struct c0sk_impl *    self;
-    struct c0_cursor *    cur[5];
-    u16                   skidx;
-    char                  kbuf[64], vbuf[64], seek[64];
-    int                   seeklen;
-    merr_t                err;
-    bool                  eof;
-    atomic_ulong          seqno;
+    struct kvdb_rparams kvdb_rp;
+    struct kvs_cursor_element elem;
+    char kbuf[64], vbuf[64], seek[64];
 
 #define nkeys (100 * 1000)
 
@@ -1893,16 +1894,12 @@ MTF_DEFINE_UTEST_PREPOST(c0sk_test, c0_cursor_robust, no_fail_pre, no_fail_post)
     ASSERT_EQ(0, err);
 
     for (i = 0; i < nkeys; ++i) {
-        struct kvs_cursor_element elem;
-
         err = c0sk_cursor_read(cur[0], &elem, &eof);
         ASSERT_EQ(0, err);
         ASSERT_FALSE(eof);
 
         ASSERT_EQ(i, atoi(KOBJ2KEY(&elem.kce_kobj)));
     }
-
-    struct kvs_cursor_element elem;
 
     err = c0sk_cursor_read(cur[0], &elem, &eof);
     ASSERT_EQ(0, err);
@@ -2054,31 +2051,29 @@ MTF_DEFINE_UTEST_PREPOST(c0sk_test, c0_cursor_eagain, no_fail_pre, no_fail_post)
 
 MTF_DEFINE_UTEST_PREPOST(c0sk_test, c0_rcursor_robust, no_fail_pre, no_fail_post)
 {
-    struct kvdb_rparams   kvdb_rp;
-    struct mock_kvdb      mkvdb;
-    struct kvs_ktuple     kt;
-    struct kvs_vtuple     vt;
-    struct c0sk *         c0sk;
-    struct c0_kvmultiset *kvms;
-    struct cn *           cn;
-    struct c0sk_impl *    self;
-    struct c0_cursor *    cur[5];
-    u16                   skidx;
-    char                  kbuf[64], vbuf[64], seek[64];
-    int                   seeklen;
-    merr_t                err;
-    bool                  eof;
-    atomic_ulong          seqno;
-    u8                    pfx[HSE_KVS_KEY_LEN_MAX];
+#define nkeys (100 * 1000)
+    static int keys[nkeys];
 
+    int i, j;
+    bool eof;
+    merr_t err;
+    int seeklen;
+    struct cn *cn;
+    uint16_t skidx;
+    struct c0sk *c0sk;
+    atomic_ulong seqno;
+    struct kvs_ktuple kt;
+    struct kvs_vtuple vt;
+    struct mock_kvdb mkvdb;
+    struct c0sk_impl *self;
+    struct c0_cursor *cur[5];
+    struct c0_kvmultiset *kvms;
+    struct kvdb_rparams kvdb_rp;
     struct kvs_cursor_element elem;
+    uint8_t pfx[HSE_KVS_KEY_LEN_MAX];
+    char kbuf[64], vbuf[64], seek[64];
 
     memset(pfx, 0xFF, HSE_KVS_KEY_LEN_MAX);
-
-#define nkeys (100 * 1000)
-
-    static int keys[nkeys];
-    int        i, j;
 
     /*
      * create 100,000 int keys in order
@@ -2349,24 +2344,25 @@ MTF_DEFINE_UTEST_PREPOST(c0sk_test, c0_register, no_fail_pre, no_fail_post)
 
 MTF_DEFINE_UTEST_PREPOST(c0sk_test, c0_cursor_ptombs, no_fail_pre, no_fail_post)
 {
-    struct kvdb_rparams   kvdb_rp;
-    struct mock_kvdb      mkvdb;
-    struct kvs_ktuple     kt;
-    struct kvs_vtuple     vt;
-    struct c0sk *         c0sk;
+    int i;
+    bool eof;
+    merr_t err;
+    struct cn *cn;
+    uint16_t skidx;
+    uint32_t flags;
+    uint cnt, expcnt;
+    struct c0sk *c0sk;
+    uint kbuf[2], vbuf;
+    atomic_ulong seqno;
+    uint64_t pt_seq = -1;
+    int tot_keys = 20000;
+    struct kvs_ktuple kt;
+    struct kvs_vtuple vt;
+    struct c0_cursor *cur;
+    struct mock_kvdb mkvdb;
+    struct c0sk_impl *self;
     struct c0_kvmultiset *kvms;
-    struct cn *           cn;
-    struct c0sk_impl *    self;
-    struct c0_cursor *    cur;
-    u16                   skidx;
-    int                   tot_keys = 20000;
-    u64                   pt_seq = -1;
-    uint                  kbuf[2], vbuf;
-    merr_t                err;
-    bool                  eof;
-    uint                  cnt, expcnt;
-    int                   i;
-    atomic_ulong          seqno;
+    struct kvdb_rparams kvdb_rp;
 
     struct kvs_cursor_element elem;
 
@@ -2458,7 +2454,7 @@ MTF_DEFINE_UTEST_PREPOST(c0sk_test, c0_cursor_ptombs, no_fail_pre, no_fail_post)
     ASSERT_EQ(0, err);
 
     /* use a tree prefix length of sizeof(kbuf[0]) */
-    u32 flags = 0;
+    flags = 0;
 
     err = c0sk_cursor_update(cur, atomic_read(&seqno), &flags);
     ASSERT_EQ(0, err);

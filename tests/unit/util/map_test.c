@@ -13,23 +13,24 @@ MTF_BEGIN_UTEST_COLLECTION(map_test);
 
 MTF_DEFINE_UTEST(map_test, pointers)
 {
-    struct map *map;
+    bool found;
     merr_t err;
     uintptr_t val;
-    bool found;
+    const char *c;
+    struct map *map;
+    const char *blob1 = "hello";
+    const char *blob2 = "gaurav";
 
     map = map_create(1024);
     ASSERT_NE(NULL, map);
 
-    const char *blob1 = "hello";
     err = map_insert(map, 10, (uintptr_t)blob1);
     ASSERT_EQ(0, err);
 
-    const char *blob2 = "gaurav";
     err = map_insert(map, 11, (uintptr_t)blob2);
     ASSERT_EQ(0, err);
 
-    const char *c = map_lookup_ptr(map, 10);
+    c = map_lookup_ptr(map, 10);
     ASSERT_EQ(0, strcmp(blob1, c));
 
     c = map_lookup_ptr(map, 42);
@@ -122,9 +123,12 @@ MTF_DEFINE_UTEST(map_test, refcnt)
 
 MTF_DEFINE_UTEST(map_test, iter_test)
 {
-    struct map *map;
     merr_t err;
+    int cnt = 0;
+    uintptr_t val;
     uint64_t bm = 0;
+    struct map *map;
+    struct map_iter iter;
     uint num_keys = sizeof(bm) * 8;
 
     map = map_create(0);
@@ -135,11 +139,8 @@ MTF_DEFINE_UTEST(map_test, iter_test)
         ASSERT_EQ(0, err);
     }
 
-    struct map_iter iter;
     map_iter_init(&iter, map);
 
-    int cnt = 0;
-    uintptr_t val;
     while (map_iter_next_val(&iter, &val)) {
         uint64_t mask = 1UL << val;
 
@@ -156,7 +157,10 @@ MTF_DEFINE_UTEST(map_test, iter_test)
 
 MTF_DEFINE_UTEST(map_test, grow_memory)
 {
+    int cnt = 0;
+    uintptr_t *val;
     struct map *map;
+    struct map_iter iter;
     int num_keys = 1000 * 1000;
 
     map = map_create(100);
@@ -169,12 +173,8 @@ MTF_DEFINE_UTEST(map_test, grow_memory)
         ASSERT_EQ(0, err);
     }
 
-    struct map_iter iter;
-
     map_iter_init(&iter, map);
 
-    int cnt = 0;
-    uintptr_t *val;
     while (map_iter_next_val(&iter, &val))
         ++cnt;
 

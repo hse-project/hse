@@ -88,15 +88,14 @@ MTF_DEFINE_UTEST(xrand_test, seed_test)
  */
 MTF_DEFINE_UTEST(xrand_test, norepeat)
 {
-    u64 seedv[] = { 0, 1234 };
+    struct xrand xr;
+    uint64_t seedv[] = { 0, 1234 };
     uint seedc = sizeof(seedv) / sizeof(seedv[0]);
     uint iters = SEQUENCE_LEN;
-    u64 *values;
+    uint64_t *values;
 
     values = mapi_safe_malloc(iters * sizeof(u64));
     ASSERT_TRUE(values != NULL);
-
-    struct xrand xr;
 
     for (uint sx = 0; sx < seedc; sx++) {
 

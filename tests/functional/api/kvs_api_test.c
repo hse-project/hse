@@ -93,11 +93,14 @@ kvs_setup_with_data(struct mtf_test_info *lcl_ti)
     ASSERT_EQ_RET(0, hse_err_to_errno(err), hse_err_to_errno(err));
 
     for (int i = 0; i < NUM_ENTRIES; i++) {
-        const int key_len = snprintf(key_buf, sizeof(key_buf), KEY_FMT, i);
+        int key_len;
+        int val_len;
+
+        key_len = snprintf(key_buf, sizeof(key_buf), KEY_FMT, i);
         ASSERT_LT_RET(key_len, sizeof(key_buf) - 1, ENAMETOOLONG);
         ASSERT_GT_RET(key_len, 0, EBADMSG);
 
-        const int val_len = snprintf(val_buf, sizeof(val_buf), VALUE_FMT, i);
+        val_len = snprintf(val_buf, sizeof(val_buf), VALUE_FMT, i);
         ASSERT_LT_RET(val_len, sizeof(val_buf) - 1, ENAMETOOLONG);
         ASSERT_GT_RET(val_len, 0, EBADMSG);
 
@@ -131,11 +134,14 @@ transactional_kvs_setup_with_data(struct mtf_test_info *lcl_ti)
     ASSERT_EQ_RET(0, hse_err_to_errno(err), hse_err_to_errno(err));
 
     for (int i = 0; i < NUM_ENTRIES; i++) {
-        const int key_len = snprintf(key_buf, sizeof(key_buf), KEY_FMT, i);
+        int key_len;
+        int val_len;
+
+        key_len = snprintf(key_buf, sizeof(key_buf), KEY_FMT, i);
         ASSERT_LT_RET(key_len, sizeof(key_buf) - 1, ENAMETOOLONG);
         ASSERT_GT_RET(key_len, 0, EBADMSG);
 
-        const int val_len = snprintf(val_buf, sizeof(val_buf), VALUE_FMT, i);
+        val_len = snprintf(val_buf, sizeof(val_buf), VALUE_FMT, i);
         ASSERT_LT_RET(val_len, sizeof(val_buf) - 1, ENAMETOOLONG);
         ASSERT_GT_RET(val_len, 0, EBADMSG);
 

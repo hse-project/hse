@@ -117,10 +117,13 @@ wal_throttle_sensor_set(struct wal *wal, uint64_t bufsz, uint64_t buflen)
 static HSE_ALWAYS_INLINE void
 wal_flush_wait(struct wal *wal, struct wal_flush_stats *stats, uint8_t pct)
 {
+    uint32_t flushc;
+    uint64_t flushv[WAL_BUF_MAX];
+
     INVARIANT(wal && stats);
 
-    uint64_t flushv[WAL_BUF_MAX];
-    const uint32_t flushc = stats->bufcnt;
+    flushc = stats->bufcnt;
+
     assert(flushc <= WAL_BUF_MAX);
 
     pct = clamp_t(uint8_t, pct, 0, 100);
@@ -138,11 +141,13 @@ wal_flush_wait(struct wal *wal, struct wal_flush_stats *stats, uint8_t pct)
 static HSE_ALWAYS_INLINE bool
 wal_dirty_exceeds_threshold(struct wal *wal, const uint32_t flushc, uint64_t *flushv)
 {
+    uint32_t buf_cnt;
+    uint32_t buf_thresh;
+    uint64_t curv[WAL_BUF_MAX], tot_bytes = 0;
+
     INVARIANT(wal && flushc <= WAL_BUF_MAX);
 
-    uint64_t curv[WAL_BUF_MAX], tot_bytes = 0;
-    uint32_t buf_thresh = wal->dur_bytes / flushc;
-    uint32_t buf_cnt;
+    buf_thresh = wal->dur_bytes / flushc;
 
     buf_cnt = wal_bufset_curoff(wal->wbs, WAL_BUF_MAX, curv);
     assert(buf_cnt == flushc);

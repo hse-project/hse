@@ -433,18 +433,15 @@ bonsai_client_lcp_test(void *arg)
     char               key[KI_DLEN_MAX + 36];
     unsigned long      val;
     pthread_barrier_t *fbarrier;
-
-    struct lcp_test_arg *p = (struct lcp_test_arg *)arg;
-
-    fbarrier = p->fbarrier;
-    tid = p->tid;
-
     struct bonsai_skey skey = { 0 };
     struct bonsai_sval sval = { 0 };
-
+    struct lcp_test_arg *p = (struct lcp_test_arg *)arg;
 #ifdef BONSAI_TREE_CLIENT_VERIFY
     uint lcp, bounds;
 #endif
+
+    fbarrier = p->fbarrier;
+    tid = p->tid;
 
     /*
      * Register is not required for BP. For QSBR, it is required only for

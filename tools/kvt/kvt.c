@@ -873,11 +873,14 @@ ridlock_fini(void)
 bool
 ridlock_trylock(u_long rid)
 {
+    uint exp;
+    uint *bkt;
+
     if (!ridlockv)
         return true;
 
-    u_int *bkt = ridlockv + (rid % ridlockc);
-    u_int  exp = 0;
+    exp = 0;
+    bkt = ridlockv + (rid % ridlockc);
 
     return __atomic_compare_exchange_n(bkt, &exp, 1, false, __ATOMIC_SEQ_CST, __ATOMIC_RELAXED);
 }
@@ -885,11 +888,14 @@ ridlock_trylock(u_long rid)
 void
 ridlock_unlock(u_long rid)
 {
+    uint exp;
+    uint *bkt;
+
     if (!ridlockv)
         return;
 
-    u_int *bkt = ridlockv + (rid % ridlockc);
-    u_int  exp = 1;
+    exp = 1;
+    bkt = ridlockv + (rid % ridlockc);
 
     __atomic_compare_exchange_n(bkt, &exp, 0, false, __ATOMIC_SEQ_CST, __ATOMIC_RELAXED);
 }
@@ -1194,23 +1200,25 @@ main(int argc, char **argv)
     tsc_freq_ = 1000000000;
 
 #if __amd64__
-    FILE *fp;
+    {
+        FILE *fp;
 
-    fp = popen("lscpu | sed -En 's/^Model.*([0-9].[0-9]+.)Hz$/\\1/p'", "r");
-    if (fp) {
-        char   line[256], *end;
-        double val;
+        fp = popen("lscpu | sed -En 's/^Model.*([0-9].[0-9]+.)Hz$/\\1/p'", "r");
+        if (fp) {
+            char   line[256], *end;
+            double val;
 
-        if (fgets(line, sizeof(line), fp)) {
-            errno = 0;
-            val = strtod(line, &end);
-            if (!errno && end != line) {
-                tsc_freq_ = val * 1000000;
-                if (tolower(*end) == 'g')
-                    tsc_freq_ *= 1000;
+            if (fgets(line, sizeof(line), fp)) {
+                errno = 0;
+                val = strtod(line, &end);
+                if (!errno && end != line) {
+                    tsc_freq_ = val * 1000000;
+                    if (tolower(*end) == 'g')
+                        tsc_freq_ *= 1000;
+                }
             }
+            pclose(fp);
         }
-        pclose(fp);
     }
 #endif
 

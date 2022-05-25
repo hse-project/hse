@@ -10,10 +10,8 @@ tests = {
 foreach t, params : tests
     t_exe = executable(
         t,
-        [
-            '@0@.c'.format(t),
-            params.get('sources', []),
-        ],
+        '@0@.c'.format(t),
+        params.get('sources', []),
         c_args: params.get('c_args', []),
         include_directories: [
             hse_include_directories,

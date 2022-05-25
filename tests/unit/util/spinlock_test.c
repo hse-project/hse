@@ -83,6 +83,7 @@ spinlock_test_fini(struct thread_test *stester, void *test_data)
 void
 spinlock_test_thread(struct thread_test *stester, void *test_data, int id)
 {
+    struct thread_state *ts;
     struct spinlock_test_data *stest_data = test_data;
 
     int i;
@@ -95,7 +96,7 @@ spinlock_test_thread(struct thread_test *stester, void *test_data, int id)
     VERIFY_GE(id, 0);
     VERIFY_LT(id, MAX_THREADS);
 
-    struct thread_state *ts = stest_data->sltest_thread_state[id];
+    ts = stest_data->sltest_thread_state[id];
 
     VERIFY_GT(stest_data->sltest_iters, 0);
 

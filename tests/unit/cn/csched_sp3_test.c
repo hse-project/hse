@@ -457,8 +457,6 @@ MTF_DEFINE_UTEST_PRE(test, t_sp3_create_nomem, pre_test)
     merr_t err = merr(EBUG);
     int rc;
 
-    mapi_inject(mapi_idx_perfc_alloc_impl, 0);
-
     void run(struct mtf_test_info * lcl_ti, uint i, uint j)
     {
         err = sp3_create(kvdb_rp, mp, &health, &cs);
@@ -477,6 +475,8 @@ MTF_DEFINE_UTEST_PRE(test, t_sp3_create_nomem, pre_test)
             sp3_destroy(cs);
         cs = NULL;
     }
+
+    mapi_inject(mapi_idx_perfc_alloc_impl, 0);
 
     rc = mapi_alloc_tester(lcl_ti, run, clean);
     ASSERT_EQ(rc, 0);

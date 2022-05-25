@@ -863,13 +863,14 @@ test_put_verify(struct thread_info *ti, uint salt)
 
     last_key = opt.kstart + opt.keys;
     for (i = opt.kstart; i < last_key; i++) {
-        bool found = false;
         hse_err_t err;
+        const char *key;
+        bool found = false;
 
         if (errors >= opt.errcnt)
             break;
 
-        const char *key = (char *)ti->ref_key;
+        key = (char *)ti->ref_key;
 
         set_kv(ti, i, salt);
 

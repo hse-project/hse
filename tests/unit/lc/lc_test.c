@@ -141,23 +141,23 @@ MTF_BEGIN_UTEST_COLLECTION_PREPOST(lc_test, test_collection_setup, test_collecti
 
 MTF_DEFINE_UTEST_PREPOST(lc_test, put_get_basic, test_pre, test_post)
 {
-    merr_t         err;
-    u16            skidx = 1;
-    char *         key = "ab1";
+    merr_t err;
+    char *key = "ab1";
+    uint16_t skidx = 1;
+    struct kvs_buf vbuf;
+    enum key_lookup_res res;
+    unsigned char valbuf[32];
+
     struct kv_elem elem[] = {
         { skidx, key, { SO(10, "ab1-val") } },
     };
-
-    insert_keys(lcl_ti, NELEM(elem), elem);
 
     struct kvs_ktuple kt = {
         .kt_data = key,
         .kt_len = strlen(key),
     };
 
-    enum key_lookup_res res;
-    struct kvs_buf      vbuf;
-    unsigned char       valbuf[32];
+    insert_keys(lcl_ti, NELEM(elem), elem);
 
     kvs_buf_init(&vbuf, valbuf, sizeof(valbuf));
     err = lc_get(lc, skidx, 0, &kt, 100, 0, &res, &vbuf);
@@ -168,21 +168,21 @@ MTF_DEFINE_UTEST_PREPOST(lc_test, put_get_basic, test_pre, test_post)
 MTF_DEFINE_UTEST_PREPOST(lc_test, put_get_multiple_vals, test_pre, test_post)
 {
     merr_t err;
-    u16    skidx = 1;
+    uint16_t skidx = 1;
+    struct kvs_buf vbuf;
+    enum key_lookup_res res;
+    unsigned char valbuf[32];
 
     struct kv_elem elem[] = {
         { skidx, "ab1", { SO(10, "val1"), SO(20, "val2") } },
     };
 
-    insert_keys(lcl_ti, NELEM(elem), elem);
     struct kvs_ktuple kt = {
         .kt_data = "ab1",
         .kt_len = strlen("ab1"),
     };
 
-    enum key_lookup_res res;
-    struct kvs_buf      vbuf;
-    unsigned char       valbuf[32];
+    insert_keys(lcl_ti, NELEM(elem), elem);
 
     kvs_buf_init(&vbuf, valbuf, sizeof(valbuf));
 
@@ -206,23 +206,22 @@ MTF_DEFINE_UTEST_PREPOST(lc_test, put_get_multiple_vals, test_pre, test_post)
 MTF_DEFINE_UTEST_PREPOST(lc_test, put_get_with_ptomb, test_pre, test_post)
 {
     merr_t err;
-    u16    skidx = 1;
+    uint16_t skidx = 1;
+    struct kvs_buf vbuf;
+    enum key_lookup_res res;
+    unsigned char valbuf[32];
 
     struct kv_elem elem[] = {
         { skidx, "ab1", { SO(10, "val1"), SO(30, "val2") } },
         { skidx, "ab", { SO(20, HSE_CORE_TOMB_PFX) } },
     };
 
-    insert_keys(lcl_ti, NELEM(elem), elem);
-
     struct kvs_ktuple kt = {
         .kt_data = "ab1",
         .kt_len = strlen("ab1"),
     };
 
-    enum key_lookup_res res;
-    struct kvs_buf      vbuf;
-    unsigned char       valbuf[32];
+    insert_keys(lcl_ti, NELEM(elem), elem);
 
     kvs_buf_init(&vbuf, valbuf, sizeof(valbuf));
 
@@ -295,26 +294,25 @@ check_kv(
 
 MTF_DEFINE_UTEST_PREPOST(lc_test, cursor_fwd_basic, test_pre, test_post)
 {
-    const u16      skidx = 1;
+    const uint16_t skidx = 1;
     struct kv_elem elem[] = {
         { skidx, "ab20", { SO(1, "val4"), SO(1, "val5") } },
         { skidx, "ab10", { SO(1, "val1"), SO(2, "val2"), SO(1, "val3") } },
         { skidx, "ab30", { SO(2, "val6"), SO(1, "val7") } },
     };
 
-    insert_keys(lcl_ti, NELEM(elem), elem);
-
+    bool eof;
+    merr_t err;
     struct lc_cursor *cur;
-    merr_t            err;
-    const u64         view_seq = 11;
+    struct kvs_cursor_element e;
+    const uint64_t view_seq = 11;
+
+    insert_keys(lcl_ti, NELEM(elem), elem);
 
     rcu_read_lock();
     err = lc_cursor_create(lc, skidx, view_seq, 0, false, "ab", strlen("ab"), 0, 0, &cur);
     ASSERT_EQ(0, err);
     rcu_read_unlock();
-
-    struct kvs_cursor_element e;
-    bool                      eof;
 
     /* Read keys from the beginning */
     _lc_cursor_read(cur, &e, &eof);
@@ -327,8 +325,7 @@ MTF_DEFINE_UTEST_PREPOST(lc_test, cursor_fwd_basic, test_pre, test_post)
     check_kv(lcl_ti, &e, eof, "ab30", "val6");
 
     /* Expect eof. Repeated calls must yield eof */
-    int i;
-    for (i = 0; i < 3; i++) {
+    for (int i = 0; i < 3; i++) {
         _lc_cursor_read(cur, &e, &eof);
         ASSERT_EQ(true, eof);
     }
@@ -350,19 +347,21 @@ MTF_DEFINE_UTEST_PREPOST(lc_test, cursor_fwd_basic, test_pre, test_post)
 
 MTF_DEFINE_UTEST_PREPOST(lc_test, cursor_rev_basic, test_pre, test_post)
 {
-    const u16      skidx = 1;
+    const uint16_t skidx = 1;
     struct kv_elem elem[] = {
         { skidx, "ab20", { SO(1, "val4"), SO(1, "val5") } },
         { skidx, "ab10", { SO(1, "val1"), SO(2, "val2"), SO(1, "val3") } },
         { skidx, "ab30", { SO(2, "val6"), SO(1, "val7") } },
     };
 
-    insert_keys(lcl_ti, NELEM(elem), elem);
-
+    bool eof;
+    merr_t err;
     struct lc_cursor *cur;
-    merr_t            err;
-    const u64         view_seq = 11;
-    char              pfx[HSE_KVS_KEY_LEN_MAX];
+    const uint64_t view_seq = 11;
+    char pfx[HSE_KVS_KEY_LEN_MAX];
+    struct kvs_cursor_element e;
+
+    insert_keys(lcl_ti, NELEM(elem), elem);
 
     memset(pfx, 0xff, sizeof(pfx));
     memcpy(pfx, "ab", strlen("ab"));
@@ -371,9 +370,6 @@ MTF_DEFINE_UTEST_PREPOST(lc_test, cursor_rev_basic, test_pre, test_post)
     err = lc_cursor_create(lc, skidx, view_seq, 0, true, pfx, strlen("ab"), 0, 0, &cur);
     ASSERT_EQ(0, err);
     rcu_read_unlock();
-
-    struct kvs_cursor_element e;
-    bool                      eof;
 
     /* Read keys from the beginning */
     _lc_cursor_read(cur, &e, &eof);
@@ -386,8 +382,7 @@ MTF_DEFINE_UTEST_PREPOST(lc_test, cursor_rev_basic, test_pre, test_post)
     check_kv(lcl_ti, &e, eof, "ab10", "val2");
 
     /* Expect eof. Repeated calls must yield eof */
-    int i;
-    for (i = 0; i < 3; i++) {
+    for (int i = 0; i < 3; i++) {
         _lc_cursor_read(cur, &e, &eof);
         ASSERT_EQ(true, eof);
     }
@@ -409,7 +404,7 @@ MTF_DEFINE_UTEST_PREPOST(lc_test, cursor_rev_basic, test_pre, test_post)
 
 MTF_DEFINE_UTEST_PREPOST(lc_test, cursor_fwd_ptomb, test_pre, test_post)
 {
-    const u16      skidx = 1;
+    const uint16_t skidx = 1;
     struct kv_elem elem[] = {
         { skidx, "ab", { SO(15, HSE_CORE_TOMB_PFX), SO(10, "val2") } },
         { skidx, "ab20", { SO(10, "val4"), SO(10, "val5") } },
@@ -418,20 +413,19 @@ MTF_DEFINE_UTEST_PREPOST(lc_test, cursor_fwd_ptomb, test_pre, test_post)
         { skidx, "ab40", { SO(40, "val8") } },
     };
 
-    insert_keys(lcl_ti, NELEM(elem), elem);
-
+    bool eof;
+    merr_t err;
     struct lc_cursor *cur;
-    merr_t            err;
-    const u64         view_seq = 30;
+    struct kvs_cursor_element e;
+    const uint64_t view_seq = 30;
+
+    insert_keys(lcl_ti, NELEM(elem), elem);
 
     rcu_read_lock();
     err =
         lc_cursor_create(lc, skidx, view_seq, 0, false, "ab", strlen("ab"), strlen("ab"), 0, &cur);
     ASSERT_EQ(0, err);
     rcu_read_unlock();
-
-    struct kvs_cursor_element e;
-    bool                      eof;
 
     /* Read all keys */
     _lc_cursor_read(cur, &e, &eof);
@@ -482,7 +476,7 @@ MTF_DEFINE_UTEST_PREPOST(lc_test, cursor_fwd_ptomb, test_pre, test_post)
 
 MTF_DEFINE_UTEST_PREPOST(lc_test, cursor_rev_ptomb, test_pre, test_post)
 {
-    const u16      skidx = 1;
+    const uint16_t skidx = 1;
     struct kv_elem elem[] = {
         { skidx, "ab", { SO(15, HSE_CORE_TOMB_PFX), SO(10, "val2") } },
         { skidx, "ab10", { SO(10, "val4"), SO(10, "val5") } },
@@ -491,12 +485,14 @@ MTF_DEFINE_UTEST_PREPOST(lc_test, cursor_rev_ptomb, test_pre, test_post)
         { skidx, "ab40", { SO(40, "val9") } },
     };
 
-    insert_keys(lcl_ti, NELEM(elem), elem);
-
+    bool eof;
+    merr_t err;
     struct lc_cursor *cur;
-    merr_t            err;
-    const u64         view_seq = 30;
-    char              pfx[HSE_KVS_KEY_LEN_MAX];
+    struct kvs_cursor_element e;
+    const uint64_t view_seq = 30;
+    char pfx[HSE_KVS_KEY_LEN_MAX];
+
+    insert_keys(lcl_ti, NELEM(elem), elem);
 
     memset(pfx, 0xff, sizeof(pfx));
     memcpy(pfx, "ab", strlen("ab"));
@@ -505,9 +501,6 @@ MTF_DEFINE_UTEST_PREPOST(lc_test, cursor_rev_ptomb, test_pre, test_post)
     err = lc_cursor_create(lc, skidx, view_seq, 0, true, pfx, strlen("ab"), strlen("ab"), 0, &cur);
     ASSERT_EQ(0, err);
     rcu_read_unlock();
-
-    struct kvs_cursor_element e;
-    bool                      eof;
 
     /* Read all keys */
     _lc_cursor_read(cur, &e, &eof);
@@ -568,7 +561,14 @@ MTF_DEFINE_UTEST_PREPOST(lc_test, cursor_rev_ptomb, test_pre, test_post)
 
 MTF_DEFINE_UTEST_PREPOST(lc_test, cursor_horizon, test_pre, test_post)
 {
-    const u16      skidx = 1;
+    bool eof;
+    merr_t err;
+    bool reverse = false;
+    struct lc_cursor *cur;
+    const uint16_t skidx = 1;
+    struct kvs_cursor_element e;
+    const uint64_t view_seq = 21;
+    char pfx[HSE_KVS_KEY_LEN_MAX];
     struct kv_elem elem[] = {
         { skidx, "aa10", { SO(10, "val") } }, { skidx, "aa20", { SO(10, "val") } },
         { skidx, "bb10", { SO(10, "val") } }, { skidx, "bb20", { SO(20, "val") } },
@@ -577,14 +577,6 @@ MTF_DEFINE_UTEST_PREPOST(lc_test, cursor_horizon, test_pre, test_post)
     };
 
     insert_keys(lcl_ti, NELEM(elem), elem);
-
-    struct lc_cursor *cur;
-    merr_t            err;
-    const u64         view_seq = 21;
-    bool              reverse = false;
-
-    struct kvs_cursor_element e;
-    bool                      eof;
 
     lc_ingest_seqno_set(lc, 11); /* Set horizon seqno */
 
@@ -614,7 +606,6 @@ MTF_DEFINE_UTEST_PREPOST(lc_test, cursor_horizon, test_pre, test_post)
     lc_cursor_destroy(cur);
 
     reverse = true;
-    char pfx[HSE_KVS_KEY_LEN_MAX];
 
     memset(pfx, 0xff, sizeof(pfx));
     memcpy(pfx, "bb", strlen("bb"));

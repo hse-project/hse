@@ -99,6 +99,14 @@ main(int argc, char **argv)
     hse_err_t              err;
     unsigned               opt_help = 0;
 
+    u64              key = start;
+    u64              end = start + incr;
+    size_t           klen, vlen;
+    bool             eof;
+    time_t           t, tnext = 0;
+    char *           errmsg = 0;
+    struct sigaction sact;
+
     EVENT_TIMER(tb);
     EVENT_TIMER(ts);
     EVENT_TIMER(tr);
@@ -212,14 +220,6 @@ main(int argc, char **argv)
     //
     // should show a problem in spill
     // need a signal handler to exit loop cleanly on ctl-c
-
-    u64              key = start;
-    u64              end = start + incr;
-    size_t           klen, vlen;
-    bool             eof;
-    time_t           t, tnext = 0;
-    char *           errmsg = 0;
-    struct sigaction sact;
 
     bzero(&sact, sizeof(sact));
     sact.sa_handler = sighandler;

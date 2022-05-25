@@ -116,17 +116,18 @@ MTF_DEFINE_UTEST_PREPOST(test, t_kvset_builder_create, pre, post)
 
 MTF_DEFINE_UTEST_PREPOST(test, t_kvset_builder_add_entry1, pre, post)
 {
-    merr_t                err;
+    merr_t err;
+    int junk1 = 9;
+    char junk2[1171];
+    struct key_obj ko;
+    uint64_t seq1 = 2;
+    uint64_t seq2 = 1;
+    void *vdata1 = &junk1;
+    void *vdata2 = &junk2;
+    void *kdata = &junk1;
+    uint vlen1 = sizeof(junk1);
+    uint vlen2 = sizeof(junk2);
     struct kvset_builder *bld = 0;
-    int                   junk1 = 9;
-    char                  junk2[1171];
-    u64                   seq1 = 2;
-    u64                   seq2 = 1;
-    void *                vdata1 = &junk1;
-    void *                vdata2 = &junk2;
-    void *                kdata = &junk1;
-    uint                  vlen1 = sizeof(junk1);
-    uint                  vlen2 = sizeof(junk2);
 
     err = KVSET_BUILDER_CREATE();
     ASSERT_EQ(err, 0);
@@ -180,7 +181,6 @@ MTF_DEFINE_UTEST_PREPOST(test, t_kvset_builder_add_entry1, pre, post)
     /*
      * Add key: test various invalid params, then success case
      */
-    struct key_obj ko;
 
     err = kvset_builder_add_key(bld, 0);
     ASSERT_NE(err, 0);

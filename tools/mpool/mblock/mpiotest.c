@@ -502,6 +502,8 @@ test_start(void *arg)
             test->t_wobblemax);
 
     for (wloops = 0; wloops < mballoc_max; ++wloops) {
+        int niov;
+        char *base;
         struct mblock_props props;
         struct minfo       *minfo;
         uint64_t            objid;
@@ -531,8 +533,7 @@ test_start(void *arg)
         minfo->wobble = wobble;
         minfo->map = NULL;
 
-        char *base = wbuf + wander;
-        int   niov;
+        base = wbuf + wander;
 
         iov[0].iov_base = base;
         iov[0].iov_len = wcc + wobble;

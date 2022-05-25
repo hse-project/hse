@@ -282,9 +282,13 @@ struct kvdb_cparams
 kvdb_cparams_defaults()
 {
     struct kvdb_cparams params;
-    const struct params p = { .p_type = PARAMS_KVDB_CP, .p_params = { .as_kvdb_cp = &params } };
+    const struct params p = {
+        .p_params = { .as_kvdb_cp = &params },
+        .p_type = PARAMS_KVDB_CP,
+    };
 
     param_default_populate(pspecs, NELEM(pspecs), &p);
+
     return params;
 }
 
@@ -305,20 +309,18 @@ kvdb_storage_defaults_set(struct kvdb_cparams *params, bool pmem_only)
 merr_t
 kvdb_cparams_resolve(struct kvdb_cparams *params, const char *home, bool pmem_only)
 {
-    int i;
-
-    assert(params);
-    assert(home);
-
-    char   buf[PATH_MAX];
     merr_t err;
+    char buf[PATH_MAX];
 
     static_assert(
         sizeof(buf) == sizeof(params->storage.mclass[HSE_MCLASS_BASE].path), "mismatched buffer sizes");
 
+    assert(params);
+    assert(home);
+
     kvdb_storage_defaults_set(params, pmem_only);
 
-    for (i = HSE_MCLASS_BASE; i < HSE_MCLASS_COUNT; i++) {
+    for (int i = HSE_MCLASS_BASE; i < HSE_MCLASS_COUNT; i++) {
         err = kvdb_home_storage_path_get(home, params->storage.mclass[i].path, buf, sizeof(buf));
         if (err)
             return err;
@@ -337,7 +339,10 @@ kvdb_cparams_get(
     const size_t                     buf_sz,
     size_t *const                    needed_sz)
 {
-    const struct params p = { .p_params = { .as_kvdb_cp = params }, .p_type = PARAMS_KVDB_CP };
+    struct params p = {
+        .p_params = { .as_kvdb_cp = params },
+        .p_type = PARAMS_KVDB_CP,
+    };
 
     return param_get(&p, pspecs, NELEM(pspecs), param, buf, buf_sz, needed_sz);
 }
@@ -345,10 +350,13 @@ kvdb_cparams_get(
 cJSON *
 kvdb_cparams_to_json(const struct kvdb_cparams *const params)
 {
+    const struct params p = {
+        .p_params = { .as_kvdb_cp = params },
+        .p_type = PARAMS_KVDB_CP,
+    };
+
     if (!params)
         return NULL;
-
-    const struct params p = { .p_params = { .as_kvdb_cp = params }, .p_type = PARAMS_KVDB_CP };
 
     return param_to_json(&p, pspecs, NELEM(pspecs));
 }

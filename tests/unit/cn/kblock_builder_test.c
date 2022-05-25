@@ -88,9 +88,10 @@ add_entry(
     uint                   kmdlen,
     int                    expected_errno)
 {
-    merr_t      err;
-    const void *kdata;
+    merr_t err;
     const void *kmd;
+    const void *kdata;
+    struct key_obj ko;
 
     ASSERT_LE_RET(klen, WORK_BUF_SIZE, -1);
     ASSERT_LE_RET(kmdlen, WORK_BUF_SIZE, -1);
@@ -109,8 +110,6 @@ add_entry(
     }
 
     kmd = kmd_buf + ((7 * salt++) % (WORK_BUF_SIZE - kmdlen - 1));
-
-    struct key_obj ko;
 
     key2kobj(&ko, kdata, pfx_len + klen);
     err = kbb_add_entry(kbb, &ko, kmd, kmdlen, &key_stats);
