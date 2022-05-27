@@ -35,13 +35,17 @@ env:
 
 jobs:
   ubuntu:
-    runs-on: ${{ matrix.os }}
+    runs-on: ubuntu-latest
+    container:
+      image: ubuntu:${{ matrix.image-tag }}
     strategy:
       fail-fast: false
       matrix:
-        os: [ubuntu-18.04, ubuntu-20.04]
+        image-tag: ["18.04", "20.04"]
         toolchain: [gcc, clang]
         buildtype: [release, debug]
+    env:
+      DEBIAN_FRONTEND: noninteractive
 
     steps:
       - name: Checkout HSE
@@ -67,52 +71,73 @@ jobs:
             git -C "subprojects/$b" checkout ${{ github.head_ref }} || true
           done
 
-      - name: Get Meson on ubuntu-18.04
-        if: ${{ matrix.os == 'ubuntu-18.04' }}
-        run: |
-          sudo apt-get install python3.7
-          sudo python3.7 -m pip install meson
-
-      - name: Get Meson on ubuntu-20.04
-        if: ${{ matrix.os == 'ubuntu-20.04' }}
-        run: |
-          sudo python3 -m pip install meson
+      - name: Setup Java
+        id: setup-java
+        uses: actions/setup-java@v3
+        with:
+          distribution: adopt
+          java-version: "8"
+          cache: maven
 
       - name: Initialize
         run: |
-          sudo apt-get update
-          sudo apt-get install build-essential ninja-build pkg-config \
-            libbsd-dev libmicrohttpd-dev liburcu-dev libyaml-dev \
-            libcurl4-openssl-dev libmongoc-dev libbson-dev libssl-dev \
-            libsasl2-dev openjdk-8-jdk maven
-          sudo python3 -m pip install Cython
+          apt-get -y update
+          apt-get -y install build-essential python3 python3-pip ninja-build \
+            pkg-config gawk libbsd-dev libmicrohttpd-dev liburcu-dev \
+            libyaml-dev libcurl4-openssl-dev libmongoc-dev libbson-dev \
+            libssl-dev libsasl2-dev libncurses-dev maven
+          python3 -m pip install Cython
+
+      - name: Get Meson on ubuntu-18.04
+        if: ${{ matrix.image-tag == '18.04' }}
+        run: |
+          apt-get -y install python3.7
+          python3.7 -m pip install meson
+
+      - name: Get Meson on Ubuntu 20.04
+        if: ${{ matrix.image-tag == '20.04' }}
+        run: |
+          python3 -m pip install meson
+
+      # Download all dependencies up front if cache wasn't hit. Will keep
+      # Maven from downloading dependencies during the test phase which could
+      # cause tests to timeout.
+      - name: Download Maven Dependencies
+        if: steps.setup-java.outputs.cache-hit != 'true'
+        run: |
+          mvn --file subprojects/hse-java/pom.xml dependency:go-offline
 
       - name: Setup gcc toolchain
         if: ${{ matrix.toolchain == 'gcc' }}
         run: |
           echo "CC=gcc" >> $GITHUB_ENV
           echo "CXX=g++" >> $GITHUB_ENV
-          sudo apt-get install gcc g++
+          apt-get -y install gcc g++
 
         # Fix false warnings by installing newer version in 18.04
-        #
+      - name: Setup clang toolchain on Ubuntu 18.04
+        if: ${{ matrix.toolchain == 'clang' && matrix.image-tag == '18.04' }}
+        run: |
+          echo "CC=clang-10" >> $GITHUB_ENV
+          echo "CXX=clang++-10" >> $GITHUB_ENV
+          apt-get -y install clang-10
+
         # Ignore deprecation warnings on 20.04 due to:
         #     https://github.com/cython/cython/issues/3474
-      - name: Setup clang toolchain
-        if: ${{ matrix.toolchain == 'clang' }}
+      - name: Setup clang toolchain on Ubuntu 18.04
+        if: ${{ matrix.toolchain == 'clang' && matrix.image-tag == '20.04' }}
         run: |
           echo "CC=clang" >> $GITHUB_ENV
           echo "CXX=clang++" >> $GITHUB_ENV
-          sudo apt-get install \
-            $(if [ $(lsb_release -rs) = "18.04" ]; then echo clang-10; else clang; fi;)
-          if [ $(lsb_release -rs) = "20.04" ]; then
-            echo "CFLAGS=-Wno-deprecated ${CFLAGS}" >> $GITHUB_ENV
-          fi
+          echo "CFLAGS=-Wno-deprecated ${CFLAGS}" >> $GITHUB_ENV
+          apt-get -y install clang
 
+        # Tools are disabled due to deprecated support in Meson for CMake
+        # versions this old.
       - name: Setup
         run: |
           meson builddir --fatal-meson-warnings -Dwerror=true \
-            -Dbuildtype=${{ matrix.buildtype }} -Dtools=enabled \
+            -Dbuildtype=${{ matrix.buildtype }} -Dtools=disabled \
             -Ddocs=disabled -Dbindings=all
 
       - name: Build
@@ -127,7 +152,7 @@ jobs:
       - uses: actions/upload-artifact@v2
         if: failure()
         with:
-          name: ${{ matrix.os }}-${{ matrix.toolchain }}-${{ matrix.buildtype }}
+          name: ${{ github.job }}-${{ matrix.image-tag }}-${{ matrix.toolchain }}-${{ matrix.buildtype }}
           path: |
             builddir/meson-logs/
             /var/log/messages
@@ -168,6 +193,14 @@ jobs:
             git -C "subprojects/$b" checkout ${{ github.head_ref }} || true
           done
 
+      - name: Setup Java
+        id: setup-java
+        uses: actions/setup-java@v3
+        with:
+          distribution: adopt
+          java-version: "17"
+          cache: maven
+
       - name: Initialize
         run: |
           dnf group install -y --with-optional \
@@ -175,10 +208,17 @@ jobs:
           dnf install -y git ninja-build python-unversioned-command \
             libmicrohttpd-devel userspace-rcu-devel libyaml-devel libbsd-devel \
             libcurl-devel libpmem-devel xz mongo-c-driver libbson \
-            openssl-devel cyrus-sasl-devel ncurses-devel \
-            java-1.8.0-openjdk-devel maven python3-devel python3-Cython \
-            libxml2 libxslt
+            openssl-devel cyrus-sasl-devel ncurses-devel maven python3-devel \
+            python3-Cython libxml2 libxslt
           python3 -m pip install meson
+
+      # Download all dependencies up front if cache wasn't hit. Will keep
+      # Maven from downloading dependencies during the test phase which could
+      # cause tests to timeout.
+      - name: Download Maven Dependencies
+        if: steps.setup-java.outputs.cache-hit != 'true'
+        run: |
+          mvn --file subprojects/hse-java/pom.xml dependency:go-offline
 
       - name: Setup gcc toolchain
         if: ${{ matrix.toolchain == 'gcc' }}
@@ -253,17 +293,33 @@ jobs:
             git -C "subprojects/$b" checkout ${{ github.head_ref }} || true
           done
 
+      - name: Setup Java
+        id: setup-java
+        uses: actions/setup-java@v3
+        with:
+          distribution: adopt
+          java-version: "17"
+          cache: maven
+
       - name: Initialize
         run: |
-          dnf install -y sudo dnf-plugins-core epel-release
+          dnf install -y dnf-plugins-core epel-release
           dnf config-manager --set-enabled powertools
           dnf group install -y --with-optional "Development Tools"
           dnf install -y git ninja-build libmicrohttpd-devel \
             userspace-rcu-devel libyaml-devel libbsd-devel libcurl-devel \
             libpmem-devel xz mongo-c-driver libbson openssl-devel \
-            cyrus-sasl-devel ncurses-devel java-1.8.0-openjdk-devel maven \
-            python39 python39-devel libxml2 libxslt
+            cyrus-sasl-devel ncurses-devel maven python39 python39-devel \
+            libxml2 libxslt
           python3 -m pip install meson Cython
+
+      # Download all dependencies up front if cache wasn't hit. Will keep
+      # Maven from downloading dependencies during the test phase which could
+      # cause tests to timeout.
+      - name: Download Maven Dependencies
+        if: steps.setup-java.outputs.cache-hit != 'true'
+        run: |
+          mvn --file subprojects/hse-java/pom.xml dependency:go-offline
 
       - name: Setup gcc toolchain
         if: ${{ matrix.toolchain == 'gcc' }}
@@ -337,6 +393,14 @@ jobs:
             git -C "subprojects/$b" checkout ${{ github.head_ref }} || true
           done
 
+      - name: Setup Java
+        id: setup-java
+        uses: actions/setup-java@v3
+        with:
+          distribution: adopt
+          java-version: "17"
+          cache: maven
+
       - name: Initialize
         run: |
           dpkg --add-architecture ${{ matrix.arch }}
@@ -348,8 +412,16 @@ jobs:
             libbsd-dev:${{ matrix.arch }} libmicrohttpd-dev:${{ matrix.arch }} \
             libyaml-dev:${{ matrix.arch }} libmongoc-dev:${{ matrix.arch }} \
             libbson-dev:${{ matrix.arch }} libncurses-dev:${{ matrix.arch }} \
-            openjdk-11-jdk maven
+            maven
           python3 -m pip install meson Cython
+
+      # Download all dependencies up front if cache wasn't hit. Will keep
+      # Maven from downloading dependencies during the test phase which could
+      # cause tests to timeout.
+      - name: Download Maven Dependencies
+        if: steps.setup-java.outputs.cache-hit != 'true'
+        run: |
+          mvn --file subprojects/hse-java/pom.xml dependency:go-offline
 
       - name: Setup
         run: |
@@ -382,43 +454,22 @@ jobs:
       - name: Checkout HSE
         uses: actions/checkout@v3
 
-      - name: Checkout hse-java
-        uses: actions/checkout@v3
-        with:
-          repository: hse-project/hse-java
-          path: subprojects/hse-java
-          ref: ${{ github.base_ref || github.ref }}
-
-      - name: Checkout hse-python
-        uses: actions/checkout@v3
-        with:
-          repository: hse-project/hse-python
-          path: subprojects/hse-python
-          ref: ${{ github.base_ref || github.ref }}
-
-      - name: Post-checkout
-        run: |
-          for b in hse-java hse-python; do
-            git -C "subprojects/$b" checkout ${{ github.head_ref }} || true
-          done
-
       - name: Initialize
         run: |
           dnf group install -y --with-optional \
             "C Development Tools and Libraries"
-          dnf install -y git ninja-build python-unversioned-command \
-            libmicrohttpd-devel userspace-rcu-devel libyaml-devel libbsd-devel \
-            libcurl-devel libpmem-devel xz mongo-c-driver libbson \
-            openssl-devel cyrus-sasl-devel ncurses-devel \
-            java-1.8.0-openjdk-devel maven python3-devel python3-Cython \
-            libxml2-devel libxslt-devel libasan libubsan
+          dnf install -y git ninja-build python3-pip libmicrohttpd-devel \
+            userspace-rcu-devel libyaml-devel libbsd-devel libcurl-devel \
+            libpmem-devel xz mongo-c-driver libbson openssl-devel \
+            cyrus-sasl-devel ncurses-devel libxml2-devel libxslt-devel \
+            libasan libubsan
           python3 -m pip install meson
 
       - name: Setup
         run: |
           meson builddir -Dwerror=true -Dbuildtype=${{ matrix.buildtype }} \
             -Db_sanitize=address,undefined -Dtools=enabled -Ddocs=disabled \
-            -Dbindings=all
+            -Dbindings=none
 
       - name: Build
         run: |
@@ -440,6 +491,8 @@ jobs:
 
   subprojects:
     runs-on: ubuntu-latest
+    container:
+      image: fedora:36
 
     steps:
       - name: Checkout HSE
@@ -465,12 +518,29 @@ jobs:
             git -C "subprojects/$b" checkout ${{ github.head_ref }} || true
           done
 
+      - name: Setup Java
+        id: setup-java
+        uses: actions/setup-java@v3
+        with:
+          distribution: adopt
+          java-version: "17"
+          cache: maven
+
       - name: Initialize
         run: |
-          sudo apt-get update
-          sudo apt-get install build-essential ninja-build pkg-config \
-            openjdk-11-jdk
-          sudo python3 -m pip install meson Cython
+          dnf group install -y --with-optional \
+            "C Development Tools and Libraries"
+          dnf install -y git python3-pip ninja-build pkg-config ncurses-devel \
+            python3-devel python3-Cython maven
+          python3 -m pip install meson
+
+      # Download all dependencies up front if cache wasn't hit. Will keep
+      # Maven from downloading dependencies during the test phase which could
+      # cause tests to timeout.
+      - name: Download Maven Dependencies
+        if: steps.setup-java.outputs.cache-hit != 'true'
+        run: |
+          mvn --file subprojects/hse-java/pom.xml dependency:go-offline
 
       - name: Setup
         run: |
