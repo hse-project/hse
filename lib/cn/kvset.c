@@ -2074,13 +2074,13 @@ struct kblk_reader {
     } iores;
 
     u64 kr_mbid;
-    u16 kr_kblk_cnt;
+    u16 kr_blk_cnt;
     u16 kr_nodex;
     u16 kr_nodec;
     u16 kr_node_start_pg;
     u16 kr_kmd_start_pg;
     u16 kr_kmd_pgc;
-    u16 kr_next_kblk_idx;
+    u16 kr_next_blk_idx;
 };
 
 struct vr_buf {
@@ -2350,7 +2350,6 @@ static void
 kblk_start_read(struct kvset_iterator *iter, struct kblk_reader *kr, enum read_type read_type)
 {
     bool success       HSE_MAYBE_UNUSED;
-    struct kvset_kblk *kblk;
 
     assert(!kr->mbio.pending);
     assert(iter->workq);
@@ -2358,24 +2357,25 @@ kblk_start_read(struct kvset_iterator *iter, struct kblk_reader *kr, enum read_t
     if (kr->kr_nodex == kr->kr_nodec) {
         struct wbt_desc *wbt;
 
-        if (kr->kr_next_kblk_idx == kr->kr_kblk_cnt) {
+        if (kr->kr_next_blk_idx >= kr->kr_blk_cnt) {
             kr->kr_eof = true;
             return;
         }
 
-        /* starting a new kblock */
-        kblk = &iter->ks->ks_kblks[kr->kr_next_kblk_idx];
-
         switch (read_type) {
-        case READ_WBT:
+        case READ_WBT: {
+            struct kvset_kblk *kblk;
+
+            /* starting a new kblock */
+            kblk = &iter->ks->ks_kblks[kr->kr_next_blk_idx];
+
             wbt = &kblk->kb_wbt_desc;
             kr->kr_mbid = kblk->kb_kblk.bk_blkid;
-            kr->kr_next_kblk_idx++;
             break;
+        }
         case READ_PT:
             wbt = &iter->ks->ks_hblk.kh_ptree_desc;
             kr->kr_mbid = iter->ks->ks_hblk.kh_hblk.bk_blkid;
-            /* Reuse same kblock for next iteration since it went unused */
             break;
         }
 
@@ -2390,7 +2390,8 @@ kblk_start_read(struct kvset_iterator *iter, struct kblk_reader *kr, enum read_t
             return;
         }
 
-        iter->curr_kblk = kr->kr_next_kblk_idx;
+        iter->curr_kblk = kr->kr_next_blk_idx;
+        kr->kr_next_blk_idx++;
     }
 
     mbio_arm(&kr->mbio);
@@ -2528,7 +2529,6 @@ kvset_iter_enable_mblock_read_cmn(struct kvset_iterator *iter, struct kblk_reade
 
     kr->asyncio = iter->asyncio;
 
-    kr->kr_kblk_cnt = iter->ks->ks_st.kst_kblks;
     kr->ds = iter->ks->ks_ds;
     kr->pc = iter->pc;
 
@@ -2551,8 +2551,9 @@ kvset_iter_enable_mblock_read_pt(struct kvset_iterator *iter)
     if (ev(err))
         return err;
 
-    /* ptombs are stored in the last kblock */
-    kr->kr_next_kblk_idx = kr->kr_kblk_cnt - 1;
+    /* ptombs are stored in the singular hblock */
+    kr->kr_blk_cnt = 1;
+
     return 0;
 }
 
@@ -2633,6 +2634,8 @@ kvset_iter_enable_mblock_read(struct kvset_iterator *iter)
             vr->pc = iter->pc;
         }
     }
+
+    kr->kr_blk_cnt = iter->ks->ks_st.kst_kblks;
 
     return 0;
 
