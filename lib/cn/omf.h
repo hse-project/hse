@@ -275,21 +275,37 @@ OMF_SETGET(struct bloom_hdr_omf, bh_n_hashes, 8)
 
 /*****************************************************************
  *
- * Vblock header OMF
+ * Vblock footer OMF
  *
  ****************************************************************/
 
-#define VBLOCK_HDR_MAGIC ((u32)0xea73feed)
+#define VBLOCK_FOOTER_MAGIC UINT32_C(0xea73feed)
+#define VBLOCK_FOOTER_LEN   4096
 
-/* Version 2 header */
-struct vblock_hdr_omf {
-    uint32_t vbh_magic;
-    uint32_t vbh_version;
-    uint64_t vbh_vgroup;
+/*
+ * min_key is stored at offset VBLOCK_FOOTER_LEN - (2 * HSE_KVS_KEY_LEN_MAX)
+ * min key is inclusive in all the vblocks
+ *
+ * max_key is stored at offset VBLOCK_FOOTER_LEN - HSE_KVS_KEY_LEN_MAX
+ * max key is exclusive in all but the last vblock
+ */
+struct vblock_footer_omf {
+    uint32_t vbf_magic;
+    uint32_t vbf_version;
+    uint64_t vbf_vgroup;
+    uint16_t vbf_min_klen;
+    uint16_t vbf_max_klen;
+    uint32_t vbf_rsvd;
 } HSE_PACKED;
 
-OMF_SETGET(struct vblock_hdr_omf, vbh_magic, 32)
-OMF_SETGET(struct vblock_hdr_omf, vbh_version, 32)
-OMF_SETGET(struct vblock_hdr_omf, vbh_vgroup, 64)
+static_assert(sizeof(struct vblock_footer_omf) <= (VBLOCK_FOOTER_LEN - (2 * HSE_KVS_KEY_LEN_MAX)),
+              "Vblock footer overflow");
+
+OMF_SETGET(struct vblock_footer_omf, vbf_magic, 32)
+OMF_SETGET(struct vblock_footer_omf, vbf_version, 32)
+OMF_SETGET(struct vblock_footer_omf, vbf_vgroup, 64)
+OMF_SETGET(struct vblock_footer_omf, vbf_min_klen, 16)
+OMF_SETGET(struct vblock_footer_omf, vbf_max_klen, 16)
+OMF_SETGET(struct vblock_footer_omf, vbf_rsvd, 32)
 
 #endif

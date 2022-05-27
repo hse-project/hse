@@ -195,9 +195,10 @@ _kvset_builder_add_nonval(struct kvset_builder *self, u64 seq, enum kmd_vtype vt
 static merr_t
 _kvset_builder_add_val(
     struct kvset_builder *  self,
-    u64                     seq,
+    const struct key_obj   *kobj,
     const void *            vdata,
     uint                    vlen,
+    u64                     seq,
     uint                    complen)
 {
     VERIFY_EQ_RET(st.have.nvals, 0, __LINE__);

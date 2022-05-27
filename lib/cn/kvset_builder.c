@@ -151,10 +151,11 @@ kvset_builder_add_key(struct kvset_builder *self, const struct key_obj *kobj)
 /**
  * kvset_builder_add_val() - Add a value or a tombstone to a kvset entry.
  * @builder: Kvset builder object.
- * @seq: Sequence number of value or tombstone.
+ * @kobj: key object
  * @vdata: Pointer to @vlen bytes of uncompressed value data, @complen
  *         bytes of compressed value data, or a special tombstone pointer.
  * @vlen: Length of uncompressed value.
+ * @seq: Sequence number of value or tombstone.
  * @complen: Length of compressed value if value is compressed. Must
  *           be set to 0 if value is not compressed.
  *
@@ -174,9 +175,10 @@ kvset_builder_add_key(struct kvset_builder *self, const struct key_obj *kobj)
 merr_t
 kvset_builder_add_val(
     struct kvset_builder   *self,
-    u64                     seq,
+    const struct key_obj   *kobj,
     const void             *vdata,
     uint                    vlen,
+    u64                     seq,
     uint                    complen)
 {
     merr_t           err;
@@ -213,7 +215,7 @@ kvset_builder_add_val(
 
         /* vblock builder needs on-media length */
         omlen = complen ? complen : vlen;
-        err = vbb_add_entry(self->vbb, vdata, omlen, &vbid, &vbidx, &vboff);
+        err = vbb_add_entry(self->vbb, kobj, vdata, omlen, &vbid, &vbidx, &vboff);
         if (ev(err))
             return err;
 
@@ -361,17 +363,29 @@ kvset_mblocks_destroy(struct kvset_mblocks *blks)
 static merr_t
 kvset_builder_finish(struct kvset_builder *imp)
 {
-    merr_t err = 0;
+    merr_t err;
+    bool adopted_vbs = (imp->vblk_list.n_blks > 0);
 
     INVARIANT(imp->hbb);
     INVARIANT(imp->kbb);
     INVARIANT(imp->vbb);
 
-    err = kbb_finish(imp->kbb, &imp->kblk_list);
-    if (ev(err))
-        return err;
+    if (!kbb_is_empty(imp->kbb)) {
+        /* If we haven't adopted any vblocks previously */
+        if (!adopted_vbs) {
+            struct key_obj min_kobj = { 0 }, max_kobj = { 0 };
 
-    if (imp->kblk_list.n_blks == 0) {
+            kbb_curr_kblk_min_max_keys(imp->kbb, &min_kobj, &max_kobj);
+
+            err = vbb_finish(imp->vbb, &imp->vblk_list, &max_kobj);
+            if (err)
+                return err;
+
+            /* In the event we have vblocks, there will always be one vgroup. */
+            if (imp->vblk_list.n_blks > 0)
+                imp->vgroups = 1;
+        }
+    } else {
         /* There are no kblocks. This happens when each input key has a
          * tombstone and we are in "drop_tomb" mode. This output kvset is empty
          * and should not be created. Destroy the corresponding hblock vblock
@@ -381,32 +395,27 @@ kvset_builder_finish(struct kvset_builder *imp)
          */
         vbb_destroy(imp->vbb);
         imp->vbb = NULL;
-    } else {
-        /* If we haven't adopted any vblocks previously */
-        if (imp->vblk_list.n_blks == 0) {
-            err = vbb_finish(imp->vbb, &imp->vblk_list);
-            if (ev(err)) {
-                abort_mblocks(cn_get_dataset(imp->cn), &imp->kblk_list);
-
-                return err;
-            }
-
-            /* In the event we have vblocks, there will always be one vgroup. */
-            if (imp->vblk_list.n_blks > 0)
-                imp->vgroups = 1;
-        }
     }
 
-    err = hbb_finish(imp->hbb, &imp->hblk, imp->seqno_min, imp->seqno_max, imp->kblk_list.n_blks,
-        imp->vblk_list.n_blks, imp->vgroups, kbb_get_composite_hlog(imp->kbb));
-    if (ev(err)) {
-        abort_mblocks(cn_get_dataset(imp->cn), &imp->kblk_list);
-        abort_mblocks(cn_get_dataset(imp->cn), &imp->vblk_list);
+    err = kbb_finish(imp->kbb, &imp->kblk_list);
+    if (err) {
+        if (!adopted_vbs)
+            abort_mblocks(cn_get_dataset(imp->cn), &imp->vblk_list);
 
         return err;
     }
 
-    return err;
+    err = hbb_finish(imp->hbb, &imp->hblk, imp->seqno_min, imp->seqno_max, imp->kblk_list.n_blks,
+                     imp->vblk_list.n_blks, imp->vgroups, kbb_get_composite_hlog(imp->kbb));
+    if (err) {
+        abort_mblocks(cn_get_dataset(imp->cn), &imp->kblk_list);
+        if (!adopted_vbs)
+            abort_mblocks(cn_get_dataset(imp->cn), &imp->vblk_list);
+
+        return err;
+    }
+
+    return 0;
 }
 
 merr_t

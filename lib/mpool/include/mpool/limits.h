@@ -6,7 +6,7 @@
 #ifndef MPOOL_LIMITS_H
 #define MPOOL_LIMITS_H
 
-#define MPOOL_MBLOCK_SIZE_MIN          (1ul << MB_SHIFT)
+#define MPOOL_MBLOCK_SIZE_MIN          (2ul << MB_SHIFT)
 #define MPOOL_MBLOCK_SIZE_MAX          (1024ul << MB_SHIFT)
 #define MPOOL_MBLOCK_SIZE_DEFAULT      (32ul << MB_SHIFT)
 

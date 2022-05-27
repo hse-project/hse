@@ -197,7 +197,7 @@ hbb_finish(
     unsigned int flags = 0;
     struct hblock_hdr_omf *hdr = NULL;
     struct mblock_props props;
-    struct key_obj *min_pfx = NULL, *max_pfx = NULL;
+    struct key_obj min_pfx = { 0 }, max_pfx = { 0 };
     struct mclass_policy *policy = cn_get_mclass_policy(bld->cn);
 
     assert(min_seqno <= max_seqno);
@@ -257,7 +257,7 @@ hbb_finish(
     }
 
     make_header(hdr, min_seqno, max_seqno, bld->nptombs, num_kblocks, num_vblocks, num_vgroups,
-        ptree_pgc, 0, min_pfx, max_pfx);
+        ptree_pgc, 0, &min_pfx, &max_pfx);
 
     assert(iov_idx <= iov_max);
 

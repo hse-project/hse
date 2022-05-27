@@ -58,6 +58,7 @@ vbb_destroy(struct vblock_builder *bld);
 merr_t
 vbb_add_entry(
     struct vblock_builder *bld,
+    const struct key_obj  *kobj,
     const void *           vdata,
     uint                   vlen,
     u64 *                  vbidout,
@@ -66,7 +67,7 @@ vbb_add_entry(
 
 /* MTF_MOCK */
 merr_t
-vbb_finish(struct vblock_builder *bld, struct blk_list *vblks);
+vbb_finish(struct vblock_builder *bld, struct blk_list *vblks, const struct key_obj *max_kobj);
 
 /* MTF_MOCK */
 size_t
@@ -118,7 +119,7 @@ merr_t
 vbb_set_agegroup(struct vblock_builder *bld, enum hse_mclass_policy_age age);
 
 enum hse_mclass_policy_age
-vbb_get_agegroup(struct vblock_builder *bld);
+vbb_get_agegroup(const struct vblock_builder *bld);
 
 void
 vbb_set_merge_stats(struct vblock_builder *bld, struct cn_merge_stats *stats);

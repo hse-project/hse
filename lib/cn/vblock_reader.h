@@ -48,7 +48,7 @@ struct vbr_madvise_work {
 /**
  * struct vblock_desc - a descriptor for reading data from a vblock
  *
- * When a vblock is set up for reading, the @vblock_hdr_omf struct is read
+ * When a vblock is set up for reading, the @vblock_footer_omf struct is read
  * from media and the relevant information is stored in a @vblock_desc struct.
  */
 struct vblock_desc {

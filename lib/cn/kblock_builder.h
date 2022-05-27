@@ -125,6 +125,16 @@ kbb_set_agegroup(struct kblock_builder *bld, enum hse_mclass_policy_age age);
 void
 kbb_set_merge_stats(struct kblock_builder *bld, struct cn_merge_stats *stats);
 
+/* MTF_MOCK */
+bool
+kbb_is_empty(struct kblock_builder *bld);
+
+void
+kbb_curr_kblk_min_max_keys(
+    struct kblock_builder *bld,
+    struct key_obj        *min_kobj,
+    struct key_obj        *max_kobj);
+
 /**
  * kblock_split() - split a given kblock (@kbd) into two kblocks at @split_key
  *

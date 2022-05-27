@@ -268,7 +268,7 @@ get_values:
                     break;
                 case vtype_zval:
                 case vtype_ival:
-                    err = kvset_builder_add_val(w->cw_child[0], seq, vdata, vlen, 0);
+                    err = kvset_builder_add_val(w->cw_child[0], &curr.kobj, vdata, vlen, seq, 0);
                     break;
                 default:
                     err = kvset_builder_add_nonval(w->cw_child[0], seq, vtype);

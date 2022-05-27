@@ -55,8 +55,8 @@ static struct mapi_injection inject_list[] = {
     /* kblock builder */
     { mapi_idx_kbb_destroy, MAPI_RC_SCALAR, 0 },
     { mapi_idx_kbb_add_entry, MAPI_RC_SCALAR, 0 },
-    { mapi_idx_kbb_add_entry, MAPI_RC_SCALAR, 0 },
     { mapi_idx_kbb_finish, MAPI_RC_SCALAR, 0 },
+    { mapi_idx_kbb_is_empty, MAPI_RC_SCALAR, 1},
     /* vblock builder */
     { mapi_idx_vbb_destroy, MAPI_RC_SCALAR, 0 },
     { mapi_idx_vbb_add_entry, MAPI_RC_SCALAR, 0 },
