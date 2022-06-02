@@ -16,9 +16,6 @@ hse_cli_sources = files(
     'storage_profile.c',
 )
 
-hse_cli_c_args = [
-]
-
 hse_cli_dependencies = [
     hse_dep,
     libhse_cli_dep,
@@ -33,7 +30,6 @@ hse_cli_include_directories = [
 hse_cli = executable(
     cli_name,
     hse_cli_sources,
-    c_args: hse_cli_c_args,
     include_directories: hse_cli_include_directories,
     dependencies: hse_cli_dependencies,
     install: true,
@@ -55,13 +51,12 @@ hse_cli_symlink = custom_target(
     output: meson.project_name(),
 )
 
+install_symlink(
+    meson.project_name(),
+    pointing_to: cli_name,
+    install_dir: get_option('bindir')
+)
+
 meson.override_find_program(cli_name, hse_cli)
 
 executable_paths += meson.current_build_dir()
-
-meson.add_install_script(
-    meson.project_source_root() / 'scripts/meson-hooks/install/cli-symlink.sh',
-    get_option('bindir'),
-    fs.name(hse_cli.full_path()),
-    meson.project_name(),
-)

@@ -1,4 +1,4 @@
-if not get_option('tools').disabled()
+if get_option('tools').allowed()
     subdir('scripts')
 endif
 
@@ -284,7 +284,7 @@ tools = {
 }
 
 foreach t, params : tools
-    if not get_option('tools').disabled()
+    if get_option('tools').allowed()
         target = executable(
             t,
             params['sources'],
