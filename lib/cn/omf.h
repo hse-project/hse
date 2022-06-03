@@ -7,6 +7,7 @@
 #define HSE_KVDB_CN_OMF_H
 
 #include <stdint.h>
+#include <sys/param.h>
 
 #include <hse/limits.h>
 
@@ -31,7 +32,7 @@
  */
 #define WBT_NODE_SIZE PAGE_SIZE /* must equal system page size */
 
-#define WBT_TREE_MAGIC ((u32)0x4a3a2a1a)
+#define WBT_TREE_MAGIC ((uint32_t)0x4a3a2a1a)
 
 /* WBT header (v6) */
 struct wbt_hdr_omf {
@@ -52,8 +53,8 @@ OMF_SETGET(struct wbt_hdr_omf, wbt_leaf, 16);
 OMF_SETGET(struct wbt_hdr_omf, wbt_leaf_cnt, 16);
 OMF_SETGET(struct wbt_hdr_omf, wbt_kmd_pgc, 16);
 
-#define WBT_LFE_NODE_MAGIC ((u16)0xabc0)
-#define WBT_INE_NODE_MAGIC ((u16)0xabc1)
+#define WBT_LFE_NODE_MAGIC ((uint16_t)0xabc0)
+#define WBT_INE_NODE_MAGIC ((uint16_t)0xabc1)
 
 /* WBT node header (v6) */
 struct wbt_node_hdr_omf {
@@ -96,7 +97,7 @@ OMF_SETGET(struct wbt_lfe_omf, lfe_kmd, 16)
  *
  ****************************************************************/
 
-#define HBLOCK_HDR_MAGIC UINT32_C(0xcafedead)
+#define HBLOCK_HDR_MAGIC ((uint32_t)0xcafedead)
 
 struct hblock_hdr_omf {
     /* integrity check, version and type */
@@ -156,8 +157,10 @@ static_assert(HSE_KVS_PFX_LEN_MAX <= UINT8_MAX,
     "uint8_t is not enough to hold HSE_KVS_PFX_LEN_MAX");
 
 #define HBLOCK_HDR_PAGES \
-    (((sizeof(struct hblock_hdr_omf) + 2 * HSE_KVS_PFX_LEN_MAX) + PAGE_SIZE - 1) / PAGE_SIZE)
+    (roundup(sizeof(struct hblock_hdr_omf) + 2 * HSE_KVS_PFX_LEN_MAX, PAGE_SIZE) / PAGE_SIZE)
 #define HBLOCK_HDR_LEN (HBLOCK_HDR_PAGES * PAGE_SIZE)
+
+static_assert(HBLOCK_HDR_PAGES == 1, "Hblock header spanning more than 1 page has not been tested");
 
 /*****************************************************************
  *
@@ -165,16 +168,15 @@ static_assert(HSE_KVS_PFX_LEN_MAX <= UINT8_MAX,
  *
  ****************************************************************/
 
-#define KBLOCK_HDR_MAGIC ((u32)0xfadedfad)
+#define KBLOCK_HDR_MAGIC ((uint32_t)0xfadedfad)
 
 /* This is currently set to 1350 which is the max key size supported. However,
  * with the current header sizes, this can grow up to (3972-7*2)/2 i.e. 1979
  * bytes (to fit min/max keys in the kblock header with 8-byte alignment).
  */
-#define HSE_KBLOCK_OMF_KLEN_MAX ((u32)1350)
+#define HSE_KBLOCK_OMF_KLEN_MAX ((uint32_t)1350)
 
 struct kblock_hdr_omf {
-
     /* integrity check, version and type */
     uint32_t kbh_magic;
     uint32_t kbh_version;
@@ -191,9 +193,9 @@ struct kblock_hdr_omf {
 
     /* easily accessible copies of min and max keys */
     uint32_t kbh_min_koff;
-    uint32_t kbh_min_klen;
     uint32_t kbh_max_koff;
-    uint32_t kbh_max_klen;
+    uint16_t kbh_min_klen;
+    uint16_t kbh_max_klen;
 
     /* WBT header */
     uint32_t kbh_wbt_hoff;
@@ -216,9 +218,9 @@ OMF_SETGET(struct kblock_hdr_omf, kbh_tombs, 32)
 OMF_SETGET(struct kblock_hdr_omf, kbh_key_bytes, 32)
 OMF_SETGET(struct kblock_hdr_omf, kbh_val_bytes, 32)
 OMF_SETGET(struct kblock_hdr_omf, kbh_min_koff, 32)
-OMF_SETGET(struct kblock_hdr_omf, kbh_min_klen, 32)
+OMF_SETGET(struct kblock_hdr_omf, kbh_min_klen, 16)
 OMF_SETGET(struct kblock_hdr_omf, kbh_max_koff, 32)
-OMF_SETGET(struct kblock_hdr_omf, kbh_max_klen, 32)
+OMF_SETGET(struct kblock_hdr_omf, kbh_max_klen, 16)
 
 OMF_SETGET(struct kblock_hdr_omf, kbh_hlog_doff_pg, 32)
 OMF_SETGET(struct kblock_hdr_omf, kbh_hlog_dlen_pg, 32)
@@ -233,13 +235,20 @@ OMF_SETGET(struct kblock_hdr_omf, kbh_blm_hlen, 32)
 OMF_SETGET(struct kblock_hdr_omf, kbh_blm_doff_pg, 32)
 OMF_SETGET(struct kblock_hdr_omf, kbh_blm_dlen_pg, 32)
 
+/* Storing 2 keys in the header: min and max. */
+#define KBLOCK_HDR_PAGES \
+    (roundup(sizeof(struct kblock_hdr_omf) + 2 * HSE_KVS_KEY_LEN_MAX, PAGE_SIZE) / PAGE_SIZE)
+#define KBLOCK_HDR_LEN (KBLOCK_HDR_PAGES * PAGE_SIZE)
+
+static_assert(KBLOCK_HDR_PAGES == 1, "Kblock header spanning more than 1 page has not been tested");
+
 /*****************************************************************
  *
  * Bloom filter header OMF (part of the kblock)
  *
  ****************************************************************/
 
-#define BLOOM_OMF_MAGIC ((u32)('b' << 24 | 'l' << 16 | 'm' << 8 | 'h'))
+#define BLOOM_OMF_MAGIC ((uint32_t)('b' << 24 | 'l' << 16 | 'm' << 8 | 'h'))
 
 /**
  * struct bloom_hdr_omf -
@@ -279,8 +288,7 @@ OMF_SETGET(struct bloom_hdr_omf, bh_n_hashes, 8)
  *
  ****************************************************************/
 
-#define VBLOCK_FOOTER_MAGIC UINT32_C(0xea73feed)
-#define VBLOCK_FOOTER_LEN   4096
+#define VBLOCK_FOOTER_MAGIC ((uint32_t)0xea73feed)
 
 /*
  * min_key is stored at offset VBLOCK_FOOTER_LEN - (2 * HSE_KVS_KEY_LEN_MAX)
@@ -298,8 +306,12 @@ struct vblock_footer_omf {
     uint32_t vbf_rsvd;
 } HSE_PACKED;
 
-static_assert(sizeof(struct vblock_footer_omf) <= (VBLOCK_FOOTER_LEN - (2 * HSE_KVS_KEY_LEN_MAX)),
-              "Vblock footer overflow");
+/* Storing 2 keys in the footer: min and max. */
+#define VBLOCK_FOOTER_PAGES \
+    (roundup(sizeof(struct vblock_footer_omf) + 2 * HSE_KVS_KEY_LEN_MAX, PAGE_SIZE) / PAGE_SIZE)
+#define VBLOCK_FOOTER_LEN (VBLOCK_FOOTER_PAGES * PAGE_SIZE)
+
+static_assert(VBLOCK_FOOTER_PAGES == 1, "Vblock footer cannot span multiple pages");
 
 OMF_SETGET(struct vblock_footer_omf, vbf_magic, 32)
 OMF_SETGET(struct vblock_footer_omf, vbf_version, 32)

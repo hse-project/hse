@@ -551,7 +551,7 @@ run_test_case(struct mtf_test_info *lcl_ti, enum test_case tc, size_t n_vblocks)
     mapi_calls_clear(mapi_idx_mpool_mblock_commit);
     mapi_calls_clear(mapi_idx_mpool_mblock_delete);
 
-    log_info("Creating vbb: size %zu = %zu values x %zu bytes/value + footer %d + "
+    log_info("Creating vbb: size %zu = %zu values x %zu bytes/value + footer %lu + "
              "%ld leftover",
              mblock_size,
              values_per_mblock,
