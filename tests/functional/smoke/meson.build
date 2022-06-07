@@ -256,7 +256,7 @@ foreach t, params : tests
     run_command(
         sh,
         '-c',
-        '[ -x "@0@.sh" ]'.format(t),
+        '[ -x "@0@" ]'.format(meson.current_source_dir() / t + '.sh'),
         check: true
     )
 

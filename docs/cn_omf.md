@@ -36,9 +36,9 @@ note: max keylen == 1350 bytes
     | u32 kbh_key_bytes    |
     | u32 kbh_val_bytes    |
     | u32 kbh_min_koff     |
-    | u32 kbh_min_klen     |
     | u32 kbh_max_koff     |
-    | u32 kbh_max_klen     |
+    | u16 kbh_min_klen     |
+    | u16 kbh_max_klen     |
     | u32 kbh_wbt_hoff     |
     | u32 kbh_wbt_hlen     |
     | u32 kbh_wbt_doff_pg  |

@@ -16,6 +16,7 @@
 #include <hse_ikvdb/omf_kmd.h>
 #include <hse_ikvdb/kvset_view.h>
 
+#include "blk_list.h"
 #include "kv_iterator.h"
 
 struct kvset;
@@ -32,8 +33,6 @@ struct cn_kvdb;
 struct cn_tree;
 struct cn_merge_stats;
 struct kvset_stats;
-
-#include "blk_list.h"
 
 struct kvset_list_entry {
     struct list_head le_link;

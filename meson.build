@@ -155,7 +155,6 @@ libcurl_dep = dependency(
 libyaml_dep = dependency(
     'yaml-0.1',
     version: '>=0.1.7',
-    fallback: 'libyaml',
     default_options: [
         'default_library=static',
         'warning_level=0',
@@ -166,7 +165,6 @@ thread_dep = dependency('threads')
 liburcu_bp_dep = dependency(
     'liburcu-bp',
     version: '>=0.10.1',
-    fallback: 'userspace-rcu',
     default_options: [
         'default_library=static',
         'warning_level=0',
@@ -176,7 +174,6 @@ liburcu_bp_dep = dependency(
 libbsd_dep = dependency(
     'libbsd',
     version: '>=0.9.0',
-    fallback: 'libbsd',
     default_options: [
         'default_library=static',
         'warning_level=0',
@@ -186,7 +183,6 @@ libbsd_dep = dependency(
 liblz4_dep = dependency(
     'liblz4',
     version: '>=1.9.2',
-    fallback: ['lz4', 'liblz4_dep'],
     default_options: [
         'default_library=static',
         'warning_level=0',
@@ -196,7 +192,6 @@ liblz4_dep = dependency(
 xxhash_dep = dependency(
     'libxxhash',
     version: '>=0.8.0',
-    fallback: ['xxhash', 'xxhash_dep'],
     default_options: [
         'default_library=static',
         'warning_level=0',
@@ -208,7 +203,6 @@ xxhash_dep = dependency(
 cjson_dep = dependency(
     'libcjson',
     version: '>=1.7.14',
-    fallback: 'cjson',
     default_options: [
         'default_library=static',
         'warning_level=0',
@@ -219,7 +213,6 @@ cjson_dep = dependency(
 libmicrohttpd_dep = dependency(
     'libmicrohttpd',
     version: '>=0.9.59',
-    fallback: 'libmicrohttpd',
     default_options: [
         'default_library=static',
         'warning_level=0',

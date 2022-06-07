@@ -42,9 +42,6 @@
 
 extern struct tbkt sp3_tbkt;
 
-#define KBLOCK_HDR_PAGES 1
-#define KBLOCK_HDR_LEN ((KBLOCK_HDR_PAGES) * (PAGE_SIZE))
-
 #define HSP_HASH_MAX_KEYS (16 * 1024)
 
 /**

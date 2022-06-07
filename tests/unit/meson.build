@@ -27,11 +27,11 @@ components = {
     },
     'cn': {
         'blk_list_test': {},
-        'bloom_reader_test': {
-            'args': [
-                meson.current_source_dir() / 'cn/mblock_images',
-            ],
-        },
+        # 'bloom_reader_test': {
+        #     'args': [
+        #         meson.current_source_dir() / 'cn/mblock_images',
+        #     ],
+        # },
         'cn_api_test': {},
         'cn_tree_cursor_test': {},
         # @tristan957: The image files need to be regenerated, but since Gaurav
@@ -73,16 +73,16 @@ components = {
         'route_test': {},
         'vblock_builder_test': {},
         'vblock_reader_test': {},
-        'wbt_iterator_test': {
-            'args': [
-                meson.current_source_dir() / 'cn/mblock_images',
-            ],
-        },
-        'wbt_reader_test': {
-            'args': [
-                meson.current_source_dir() / 'cn/mblock_images',
-            ],
-        },
+        # 'wbt_iterator_test': {
+        #     'args': [
+        #         meson.current_source_dir() / 'cn/mblock_images',
+        #     ],
+        # },
+        # 'wbt_reader_test': {
+        #     'args': [
+        #         meson.current_source_dir() / 'cn/mblock_images',
+        #     ],
+        # },
         'wbt_test': {},
     },
     'config': {

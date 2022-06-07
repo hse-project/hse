@@ -48,7 +48,6 @@
  *   Each call to the wbtree builder provides an updated value for @max_pgc.
  */
 struct wbb {
-
     void *nodev;
     uint  nodev_len;
     uint  lnodec;
@@ -376,7 +375,6 @@ wbb_add_entry(
             (sizeof(u32) * wbb->cnode_key_extra_cnt) - ((wbb->cnode_nkeys + 1) * new_pfx_len);
 
     if (space > PAGE_SIZE) {
-
         /* close out current node */
         wbt_leaf_publish(wbb);
 
@@ -618,6 +616,7 @@ wbb_init(struct wbb *wbb, void *nodev, uint max_pgc, uint *wbt_pgc)
     }
 
     *wbt_pgc = wbb->lnodec;
+
     return 0;
 }
 

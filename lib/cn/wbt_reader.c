@@ -916,7 +916,7 @@ merr_t
 wbtr_read_desc(const struct wbt_hdr_omf *wbt_hdr, struct wbt_desc *desc)
 {
     if (!wbtr_hdr_valid(wbt_hdr))
-        return merr(ev(EINVAL));
+        return merr(EINVAL);
 
     desc->wbd_version = omf_wbt_version(wbt_hdr);
 
