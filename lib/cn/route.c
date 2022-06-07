@@ -41,6 +41,7 @@ route_node_key_set(
     uint32_t           nodeoff)
 {
     INVARIANT(node);
+
     if (edge_key && edge_klen > 0) {
         INVARIANT(node->rtn_keybufp);
         assert(node->rtn_keybufp != node->rtn_keybuf || edge_klen <= sizeof(node->rtn_keybuf));
@@ -52,19 +53,42 @@ route_node_key_set(
         uint fmtarg = (nodeoff + 1) * map->rtm_skip - 1;
 
         if (map->rtm_fmt) {
-            int n = snprintf((char *)node->rtn_keybuf, sizeof(node->rtn_keybuf), map->rtm_fmt,
-                             fmtarg);
+            if (!strcmp(map->rtm_fmt, "MainKvs")) {
+                uint64_t binkeybuf = cpu_to_be64(fmtarg);
 
-            if (n < 1 || n >= sizeof(node->rtn_keybuf)) {
-                log_err("overflow %u: n %d, pfxlen %u, fmt [%s], fmtarg %u",
-                        nodeoff, n, pfxlen, map->rtm_fmt, fmtarg);
-                abort();
-            }
+                memset(node->rtn_keybuf, 0, 4);
+                node->rtn_keybuf[3] = 0x0d;
 
-            if (n != pfxlen) {
-                log_err("skipping %u: n %d, pfxlen %u, fmt [%s], fmtarg %u",
-                        nodeoff, n, pfxlen, map->rtm_fmt, fmtarg);
-                return -1;
+                memcpy(node->rtn_keybuf + 4,
+                       (char *)&binkeybuf + (sizeof(binkeybuf) - pfxlen),
+                       pfxlen);
+                pfxlen += 4;
+
+                log_info("nodeoff %u, fmtarg %u, pfxlen %u, %02x %02x %02x %02x %02x %02x %02x %02x",
+                         nodeoff, fmtarg, pfxlen,
+                         ((uint8_t *)&binkeybuf)[0],
+                         ((uint8_t *)&binkeybuf)[1],
+                         ((uint8_t *)&binkeybuf)[2],
+                         ((uint8_t *)&binkeybuf)[3],
+                         ((uint8_t *)&binkeybuf)[4],
+                         ((uint8_t *)&binkeybuf)[5],
+                         ((uint8_t *)&binkeybuf)[6],
+                         ((uint8_t *)&binkeybuf)[7]);
+            } else {
+                int n = snprintf((char *)node->rtn_keybuf, sizeof(node->rtn_keybuf),
+                                 map->rtm_fmt, fmtarg);
+
+                if (n < 1 || n >= sizeof(node->rtn_keybuf)) {
+                    log_err("overflow %u: n %d, pfxlen %u, fmt [%s], fmtarg %u",
+                            nodeoff, n, pfxlen, map->rtm_fmt, fmtarg);
+                    abort();
+                }
+
+                if (n != pfxlen) {
+                    log_err("skipping %u: n %d, pfxlen %u, fmt [%s], fmtarg %u",
+                            nodeoff, n, pfxlen, map->rtm_fmt, fmtarg);
+                    return -1;
+                }
             }
         } else {
             uint64_t binkeybuf = cpu_to_be64(fmtarg);
@@ -254,11 +278,13 @@ route_map_delete(struct route_map *map, struct route_node *node)
     assert(first && last);
     if (first != (cur = rb_first(root)) && cur) {
         struct route_node *this = rb_entry(cur, struct route_node, rtn_node);
+
         this->rtn_isfirst = true;
     }
 
     if (last != (cur = rb_last(root)) && cur) {
         struct route_node *this = rb_entry(cur, struct route_node, rtn_node);
+
         this->rtn_islast = true;
     }
 }
@@ -338,7 +364,7 @@ route_node_prev(struct route_node *node)
 struct route_map *
 route_map_create(const struct kvs_cparams *cp, const char *kvsname)
 {
-    char path[128], buf[1024];
+    char path[128], buf[4096];
     uint fanout, pfxlen, skip;
     struct route_map *map;
     ssize_t cc;
@@ -383,6 +409,12 @@ route_map_create(const struct kvs_cparams *cp, const char *kvsname)
 
             free(fmt);
             fmt = NULL;
+        }
+        else if (!strcmp(fmt, "MainKvs")) {
+            if (pfxlen > sizeof(uint64_t)) {
+                log_err("pfxlen %u > %zu", pfxlen, sizeof(uint64_t));
+                return NULL;
+            }
         }
     }
 
