@@ -131,8 +131,6 @@ cn_ns_keys(const struct cn_node_stats *ns)
 static inline uint32_t
 cn_ns_hblks(const struct cn_node_stats *ns)
 {
-    assert(ns->ns_kst.kst_hblks == 1);
-
     return ns->ns_kst.kst_hblks;
 }
 

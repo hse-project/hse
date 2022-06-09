@@ -66,6 +66,7 @@
 #include "kblock_builder.h"
 #include "vblock_builder.h"
 #include "route.h"
+#include "kvset_internal.h"
 
 static struct kmem_cache *cn_node_cache HSE_READ_MOSTLY;
 
