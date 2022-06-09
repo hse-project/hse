@@ -4,6 +4,7 @@ GPATH
 GRTAGS
 GTAGS
 GTAGS.*
+.gdbinit
 cscope.*
 *.gcov
 *.prof
@@ -29,8 +30,10 @@ subprojects/*
 !subprojects/xoroshiro
 *build*/
 !scripts/build/
+tags
 .pytest_cache/
 *venv*/
 compile_commands.json
 /.cache/
 /.vscode/
+.vimrc

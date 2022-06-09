@@ -22,8 +22,6 @@ sp='[[:space:]]'
 #
 parms=(kvdb-oparms csched_rspill_params=$((0x0404)) csched_debug_mask=$((0xffff)) kvs-oparms cn_close_wait=true)
 
-set -x
-
 # Generate 8 kvsets in root node, with distinct keys
 for ((i = 0; i < 8; i++)); do
     cmd putbin -s$((i*keys)) "-c$keys" "$home" "$kvs" "${parms[@]}" cn_maint_disable=true

@@ -569,24 +569,21 @@ mdc_file_rewind(struct mdc_file *mfp)
 }
 
 merr_t
-mdc_file_stats(struct mdc_file *mfp, uint64_t *allocated, uint64_t *used)
+mdc_file_stats(struct mdc_file *mfp, uint64_t *size, uint64_t *allocated, uint64_t *used)
 {
+    struct stat sbuf = {};
+    int rc;
+
     if (!mfp)
         return merr(EINVAL);
 
-    if (allocated) {
-        struct stat sbuf = {};
-        int         rc;
+    rc = fstat(mfp->fd, &sbuf);
+    if (rc == -1)
+        return merr(errno);
 
-        rc = fstat(mfp->fd, &sbuf);
-        if (rc == -1)
-            return merr(errno);
-
-        *allocated = 512 * sbuf.st_blocks;
-    }
-
-    if (used)
-        *used = mfp->woff;
+    *allocated = 512 * sbuf.st_blocks;
+    *used = mfp->woff;
+    *size = mfp->size;
 
     return 0;
 }
@@ -743,8 +740,8 @@ mdc_file_append(struct mdc_file *mfp, void *data, size_t len, bool sync)
 
     tlen = omf_mdc_rechdr_len(mfp->lh.vers) + ALIGN(len, sizeof(uint64_t));
 
-    /* Extend file if the usage exceeds 75% of current size. */
-    if (mfp->woff + tlen > ((3 * mfp->size) / 4)) {
+    /* Extend file if the usage exceeds 90% of current size. */
+    if (mfp->woff + tlen > ((9 * mfp->size) / 10)) {
         err = mdc_file_extend(mfp, mfp->size + tlen);
         if (err)
             return err;

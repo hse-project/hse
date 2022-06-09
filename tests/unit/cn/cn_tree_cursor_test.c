@@ -266,8 +266,8 @@ MTF_DEFINE_UTEST_PREPOST(cn_tree_cursor_test, empty, pre_test, post_test)
     struct route_node *rnode;
     const char ekey = 'z';
 
-    tree.ct_route_map = route_map_create(&cp, "KVS-non-existent-routemap");
-    rnode = route_map_insert(tree.ct_route_map, &tn, &ekey, sizeof(ekey), 0);
+    tree.ct_route_map = route_map_create(cp.fanout);
+    rnode = route_map_insert(tree.ct_route_map, &tn, &ekey, sizeof(ekey));
     ASSERT_NE(NULL, rnode);
 
     err = cn_tree_cursor_create(&cur);
@@ -305,8 +305,8 @@ MTF_DEFINE_UTEST_PREPOST(cn_tree_cursor_test, basic, pre_test, post_test)
 
     struct kv kv[2];
 
-    tree.ct_route_map = route_map_create(&cp, "KVS-non-existent-routemap");
-    rnode = route_map_insert(tree.ct_route_map, &tn, &ekey, sizeof(ekey), 0);
+    tree.ct_route_map = route_map_create(cp.fanout);
+    rnode = route_map_insert(tree.ct_route_map, &tn, &ekey, sizeof(ekey));
     ASSERT_NE(NULL, rnode);
 
     kv_start();
@@ -380,8 +380,8 @@ MTF_DEFINE_UTEST_PREPOST(cn_tree_cursor_test, dups, pre_test, post_test)
     kv_add(&kv[3], "key02", 1, vtype_val);
     kv_end();
 
-    tree.ct_route_map = route_map_create(&cp, "KVS-non-existent-routemap");
-    rnode = route_map_insert(tree.ct_route_map, &tn, &ekey, sizeof(ekey), 0);
+    tree.ct_route_map = route_map_create(cp.fanout);
+    rnode = route_map_insert(tree.ct_route_map, &tn, &ekey, sizeof(ekey));
     ASSERT_NE(NULL, rnode);
 
     err = cn_tree_cursor_create(&cur);
@@ -460,8 +460,8 @@ MTF_DEFINE_UTEST_PREPOST(cn_tree_cursor_test, with_ptomb, pre_test, post_test)
     kv_add(&kv[9], "bb01", 4,  vtype_val);    /* Hidden: Does not match cursor pfx */
     kv_end();
 
-    tree.ct_route_map = route_map_create(&cp, "KVS-non-existent-routemap");
-    rnode = route_map_insert(tree.ct_route_map, &tn, &ekey, sizeof(ekey), 0);
+    tree.ct_route_map = route_map_create(cp.fanout);
+    rnode = route_map_insert(tree.ct_route_map, &tn, &ekey, sizeof(ekey));
     ASSERT_NE(NULL, rnode);
 
     err = cn_tree_cursor_create(&cur);

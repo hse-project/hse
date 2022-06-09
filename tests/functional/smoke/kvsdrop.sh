@@ -28,6 +28,9 @@ kvs_drop "$kvs2"
 # validate cndb and that cnid 1 keys exist
 cmd putbin -V "-c$keys" "$home" "$kvs"
 
-# get tree metrics
-# verify that cnid 2 is not present
-cmd cndb_log "$home" | cmd -e grep 'cnid 2'
+# verify that kvs2 has been deleted
+cmd cndb_log "$home" | cmd grep 'kvs_del'
+
+numkvs=$(hse kvdb info "$home" | sed -n '/kvslist/,$p' | wc -l)
+numkvs=$((numkvs - 1))
+[[ $numkvs == 1 ]] || err "Expected 1 kvs, found $numkvs"

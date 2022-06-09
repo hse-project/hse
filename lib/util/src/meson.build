@@ -24,6 +24,7 @@ util_sources = files(
     'key_util.c',
     'logging.c',
     'logging_util.c',
+    'map.c',
     'parse_num.c',
     'perfc.c',
     'platform.c',

@@ -14,11 +14,7 @@ enum {
 };
 
 enum {
-    CNDB_VERSION10 = 10,
-    CNDB_VERSION11 = 11,
-    CNDB_VERSION12 = 12,
-    CNDB_VERSION13 = 13,
-    CNDB_VERSION14 = 14,
+    CNDB_VERSION1 = 1,
 };
 
 enum {
@@ -72,7 +68,7 @@ enum {
  * global OMF version.
  */
 
-#define CNDB_VERSION           CNDB_VERSION14
+#define CNDB_VERSION           CNDB_VERSION1
 #define HBLOCK_HDR_VERSION     HBLOCK_HDR_VERSION1
 #define KBLOCK_HDR_VERSION     KBLOCK_HDR_VERSION6
 #define VBLOCK_FOOTER_VERSION  VBLOCK_FOOTER_VERSION1

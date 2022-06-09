@@ -12,7 +12,6 @@
 
 struct cn;
 struct cn_tree;
-struct cn_tstate;
 struct cn_kvdb;
 struct cndb;
 struct kvdb_health;
@@ -25,7 +24,6 @@ struct kvs_cparams;
  * cn_tree_create() - Create a CN_TREE and associate it with
  *                 a KBLOCK and some VBLOCKs.
  * @cn_tree: (output) newly constructed cn_tree object
- * @cn_tstate:   ptr to per-kvs dynamic state object
  * @cn_clags:    create-time flags for the cn tree
  * @cp:          ptr to kvs cparams
  * @health:      reference to kvdb health struct
@@ -98,6 +96,12 @@ cn_tree_set_initial_dgen(struct cn_tree *tree, u64 dgen);
 /* MTF_MOCK */
 merr_t
 cn_tree_insert_kvset(struct cn_tree *tree, struct kvset *kvset, uint level, uint offset);
+
+merr_t
+cn_node_insert_kvset(struct cn_tree_node *node, struct kvset *kvset);
+
+struct cn_tree_node *
+cn_node_alloc(struct cn_tree *tree, uint level, uint offset);
 
 /* MTF_MOCK */
 void

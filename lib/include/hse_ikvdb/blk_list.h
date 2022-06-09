@@ -19,8 +19,8 @@ struct kvs_block {
 
 struct blk_list {
     struct kvs_block *blks;
-    u32               n_blks;
     u32               n_alloc;
+    u32               n_blks;
 };
 
 struct kvset_mblocks {

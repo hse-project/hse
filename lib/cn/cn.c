@@ -19,6 +19,7 @@
 #include <hse_util/xrand.h>
 #include <hse_util/vlb.h>
 #include <hse_util/logging.h>
+#include <hse_util/map.h>
 
 #include <hse_util/perfc.h>
 
@@ -46,9 +47,11 @@
 #include "cn_tree_cursor.h"
 #include "cn_tree_create.h"
 #include "cn_tree_compact.h"
+#include "cn_tree_internal.h"
 #include "cn_tree_stats.h"
 #include "cn_mblocks.h"
 #include "cn_cursor.h"
+#include "route.h"
 
 #include "omf.h"
 #include "kvset.h"
@@ -373,7 +376,7 @@ cn_pfx_probe(
 
 /**
  * cn_commit_blks() - commit a set of mblocks
- * @ds:           dataset
+ * @mp:           mpool
  * @blks:         array of kvset_mblock structs
  * @n_committed:  (output) number of successfully committed mblocks by this
  *                function call.
@@ -385,13 +388,13 @@ cn_pfx_probe(
  * indicating the underlying cause of failure.
  */
 static merr_t
-cn_commit_blks(struct mpool *ds, struct blk_list *blks, u32 *n_committed)
+cn_commit_blks(struct mpool *mp, struct blk_list *blks, u32 *n_committed)
 {
     merr_t err;
     u32    bx;
 
     for (bx = 0; bx < blks->n_blks; ++bx) {
-        err = commit_mblock(ds, &blks->blks[bx]);
+        err = commit_mblock(mp, &blks->blks[bx]);
         if (ev(err))
             return err;
         *n_committed += 1;
@@ -401,53 +404,25 @@ cn_commit_blks(struct mpool *ds, struct blk_list *blks, u32 *n_committed)
 
 merr_t
 cn_mblocks_commit(
-    struct mpool *        ds,
-    struct cndb *         cndb,
-    u64                   cnid,
-    u64                   txid,
+    struct mpool         *mp,
     u32                   num_lists,
     struct kvset_mblocks *list,
     enum cn_mutation      mutation,
-    u32 *                 n_committed,
-    u64 *                 context,
-    u64 *                 tags)
+    u32                  *n_committed)
 {
     merr_t err = 0;
-    u32    lx;
+    u32    i;
 
     *n_committed = 0;
 
-    /* [HSE_REVISIT] it is possible to have no blocks here, but we must emit
-     * a C record so that the metadata is complete.  In that case, there
-     * will be no corresponding meta record, but the replay algorithm can
-     * easily anticipate this case.
-     */
-    for (lx = 0; lx < num_lists; lx++) {
-        /* If key compaction, all the vblocks are already committed
-         * and all of them need to be kept on rollback.
-         * Else all vblocks need to be
-         * committed and none will be kept on rollback.
-         */
-        err = cndb_txn_txc(
-            cndb,
-            txid,
-            cnid,
-            context,
-            &list[lx],
-            (mutation == CN_MUT_KCOMPACT) ? list[lx].vblks.n_blks : 0);
-        if (ev(err))
-            return err;
-        tags[lx] = *context;
-    }
-
-    for (lx = 0; lx < num_lists; lx++) {
+    for (i = 0; i < num_lists; i++) {
         /* If we have a valid block ID. This check is protected in
          * commit_mblock() when using a for loop where blk_list::n_blks is the
          * upper bound. If there are no blocks in the block list, no blocks are
          * committed.
          */
-        if (list[lx].hblk.bk_blkid) {
-            err = commit_mblock(ds, &list[lx].hblk);
+        if (list[i].hblk.bk_blkid) {
+            err = commit_mblock(mp, &list[i].hblk);
             if (ev(err)) {
                 return err;
             } else {
@@ -455,14 +430,14 @@ cn_mblocks_commit(
             }
         }
 
-        err = cn_commit_blks(ds, &list[lx].kblks, n_committed);
+        err = cn_commit_blks(mp, &list[i].kblks, n_committed);
         if (ev(err))
             return err;
 
         if (mutation == CN_MUT_KCOMPACT)
             continue;
 
-        err = cn_commit_blks(ds, &list[lx].vblks, n_committed);
+        err = cn_commit_blks(mp, &list[i].vblks, n_committed);
         if (ev(err))
             return err;
     }
@@ -472,7 +447,7 @@ cn_mblocks_commit(
 
 /**
  * cn_delete_blks() - delete or abort multiple mblocks
- * @ds:           dataset
+ * @mp:           mpool
  * @blks:         blk_list of mblocks to delete
  * @n_committed:  number of mblocks in list already committed
  *
@@ -480,23 +455,23 @@ cn_mblocks_commit(
  * abort the remaining N-@n_committed.
  */
 static void
-cn_delete_blks(struct mpool *ds, struct blk_list *blks, u32 n_committed)
+cn_delete_blks(struct mpool *mp, struct blk_list *blks, u32 n_committed)
 {
     u32 bx;
 
     for (bx = 0; bx < blks->n_blks; ++bx) {
         if (n_committed > 0) {
-            delete_mblock(ds, &blks->blks[bx]);
+            delete_mblock(mp, &blks->blks[bx]);
             n_committed -= 1;
         } else {
-            abort_mblock(ds, &blks->blks[bx]);
+            abort_mblock(mp, &blks->blks[bx]);
         }
     }
 }
 
 void
 cn_mblocks_destroy(
-    struct mpool *        ds,
+    struct mpool *        mp,
     u32                   num_lists,
     struct kvset_mblocks *list,
     bool                  kcompact,
@@ -505,18 +480,19 @@ cn_mblocks_destroy(
     u32 lx;
 
     for (lx = 0; lx < num_lists; lx++) {
-        cn_delete_blks(ds, &list[lx].kblks, n_committed);
+        cn_delete_blks(mp, &list[lx].kblks, n_committed);
         if (kcompact)
             continue;
-        cn_delete_blks(ds, &list[lx].vblks, n_committed);
 
-        /* Same logic as cn_delete_blks() applied to one block. Candidate for
+        cn_delete_blks(mp, &list[lx].vblks, n_committed);
+
+       /* Same logic as cn_delete_blks() applied to one block. Candidate for
         * refactor.
         */
         if (n_committed > 0) {
-            delete_mblock(ds, &list->hblk);
+            delete_mblock(mp, &list->hblk);
         } else {
-            abort_mblock(ds, &list->hblk);
+            abort_mblock(mp, &list->hblk);
         }
     }
 }
@@ -599,54 +575,38 @@ cn_mb_est_alen(size_t full_captgt, size_t mb_alloc_unit, size_t wlen, uint flags
  * cn_ingest_prep()
  * @cn:
  * @mblocks:
- * @txid:
  * @context:
  */
 static merr_t
 cn_ingest_prep(
     struct cn *           cn,
     struct kvset_mblocks *mblocks,
-    u64                   txid,
-    u64 *                 context,
-    struct kvset **       kvsetp)
+    struct cndb_txn      *txn,
+    struct kvset **       kvsetp,
+    void                **cookie)
 {
     struct kvset_meta km = {};
-    u64               dgen, tag_throwaway = 0;
+    u64               dgen;
     u32               commitc = 0;
     merr_t            err = 0;
+    uint64_t          kvsetid;
 
     if (ev(!mblocks))
         return merr(EINVAL);
+
+    assert(mblocks->hblk.bk_blkid);
 
     *kvsetp = NULL;
 
     dgen = atomic_read(&cn->cn_ingest_dgen) + 1;
 
-    /* Note: cn_mblocks_commit() creates "C" records in CNDB */
-    err = cn_mblocks_commit(
-        cn->cn_dataset,
-        cn->cn_cndb,
-        cn->cn_cnid,
-        txid,
-        1,
-        mblocks,
-        CN_MUT_INGEST,
-        &commitc,
-        context,
-        &tag_throwaway);
-    if (ev(err))
-        goto done;
-
-    /* Lend hblk, kblk and vblk lists to kvset_create().
-     * Yes, the struct copy is a bit gross, but it works and
-     * avoids unnecessary allocations of temporary lists.
-     */
     km.km_hblk = mblocks->hblk;
     km.km_kblk_list = mblocks->kblks;
     km.km_vblk_list = mblocks->vblks;
     km.km_dgen = dgen;
     km.km_node_level = 0;
     km.km_node_offset = 0;
+    km.km_nodeid = 0; /* Root node has a node id of 0 */
 
     km.km_vused = mblocks->bl_vused;
     km.km_compc = 0;
@@ -668,11 +628,21 @@ cn_ingest_prep(
         goto done;
     }
 
-    err = cndb_txn_meta(cn->cn_cndb, txid, cn->cn_cnid, *context, &km);
+    kvsetid = cndb_kvsetid_mint(cn->cn_cndb);
+
+    err = cndb_record_kvset_add(cn->cn_cndb, txn, cn->cn_cnid, km.km_nodeid, &km, kvsetid,
+                                mblocks->hblk.bk_blkid,
+                                km.km_kblk_list.n_blks, (uint64_t *)km.km_kblk_list.blks,
+                                km.km_vblk_list.n_blks, (uint64_t *)km.km_vblk_list.blks,
+                                cookie);
     if (ev(err))
         goto done;
 
-    err = kvset_create(cn->cn_tree, *context, &km, kvsetp);
+    err = cn_mblocks_commit(cn->cn_dataset, 1, mblocks, CN_MUT_INGEST, &commitc);
+    if (ev(err))
+        goto done;
+
+    err = kvset_create(cn->cn_tree, kvsetid, &km, kvsetp);
 
 done:
     if (err) {
@@ -695,13 +665,14 @@ cn_ingestv(
     u64 *                  max_seqno_out)
 {
     struct kvset **    kvsetv = NULL;
-    struct cndb *      cndb = NULL;
     struct kvset_stats kst = {};
 
+    struct cndb     *cndb = NULL;
+    struct cndb_txn *cndb_txn = NULL;
+    void **cookiev;
+
     merr_t err = 0;
-    u64    txid = 0;
     uint   i, first, last, count, check;
-    u64    context = 0; /* must be initialized to zero */
     u64    seqno_max = 0, seqno_min = UINT64_MAX;
     bool   log_ingest = false;
     u64    dgen = 0;
@@ -744,11 +715,17 @@ cn_ingestv(
 
     kvsetv = calloc(ingestc, sizeof(*kvsetv));
     if (ev(!kvsetv)) {
-        err = merr(EINVAL);
+        err = merr(ENOMEM);
         goto done;
     }
 
-    err = cndb_txn_start(cndb, &txid, count, 0, seqno_max, ingestid, txhorizon);
+    cookiev = calloc(ingestc, sizeof(*cookiev));
+    if (ev(!cookiev)) {
+        err = merr(ENOMEM);
+        goto done;
+    }
+
+    err = cndb_record_txstart(cndb, seqno_max, ingestid, txhorizon, (u16)count, 0, &cndb_txn);
     if (ev(err))
         goto nak;
 
@@ -760,7 +737,7 @@ cn_ingestv(
         if (cn[i]->rp && !log_ingest)
             log_ingest = cn[i]->rp->cn_compaction_debug & 2;
 
-        err = cn_ingest_prep(cn[i], mbv[i], txid, &context, &kvsetv[i]);
+        err = cn_ingest_prep(cn[i], mbv[i], cndb_txn, &kvsetv[i], &cookiev[i]);
         if (ev(err))
             goto nak;
 
@@ -776,9 +753,17 @@ cn_ingestv(
     /* There must not be any failure conditions after successful ACK_C
      * because the operation has been committed.
      */
-    err = cndb_txn_ack_c(cndb, txid);
-    if (ev(err))
-        goto nak;
+    for (i = first; i <= last; i++) {
+
+        if (!cn[i] || !mbv[i])
+            continue;
+
+        err = cndb_record_kvset_add_ack(cndb, cndb_txn, cookiev[i]);
+        if (ev(err))
+            goto nak;
+    }
+
+    cndb_txn = 0;
 
     for (i = first; i <= last; i++) {
         if (!cn[i] || !mbv[i] || !kvsetv[i])
@@ -822,11 +807,11 @@ cn_ingestv(
             HSE_SLOG_END);
     }
 
-    txid = 0; /* Reset txid to prevent nak */
-
 nak:
-    if (txid) {
-        merr_t err2 = cndb_txn_nak(cndb, txid);
+    free(cookiev);
+
+    if (cndb_txn) {
+        merr_t err2 = cndb_record_nak(cndb, cndb_txn);
 
         if (!err)
             err = err2;
@@ -863,37 +848,40 @@ cn_maint_task(struct work_struct *work)
                        msecs_to_jiffies(cn->rp->cn_maint_delay));
 }
 
-struct cn_kvsetmk_ctx {
-    struct cn *ckmk_cn;
-    u64 *      ckmk_dgen;
-    uint       ckmk_node_level_max;//HSE_REVISIT: remove this in hse-3
-    uint       ckmk_kvsets;
+struct cndb_cn_ctx {
+    struct cn  *cn;
+    struct map *nodemap;
 };
 
 static merr_t
-cn_kvset_mk(struct cn_kvsetmk_ctx *ctx, struct kvset_meta *km, u64 tag)
+cn_kvset_cb(struct cndb_cn_ctx *ctx, struct kvset_meta *km, u64 kvsetid)
 {
+    struct cn_tree_node *node;
     struct kvset *kvset;
-    struct cn *   cn = ctx->ckmk_cn;
-    merr_t        err;
+    struct cn *cn = ctx->cn;
+    merr_t err;
 
-    err = kvset_create(cn->cn_tree, tag, km, &kvset);
+    node = map_lookup_ptr(ctx->nodemap, km->km_nodeid);
+    if (!node) {
+        node = cn_node_alloc(cn->cn_tree, 0, 0);
+        if (ev(!node))
+            return merr(ENOMEM);
+
+        map_insert_ptr(ctx->nodemap, km->km_nodeid, node);
+    }
+
+    err = kvset_create(cn->cn_tree, kvsetid, km, &kvset);
     if (ev(err))
         return err;
 
-    err = cn_tree_insert_kvset(cn->cn_tree, kvset, km->km_node_level, km->km_node_offset);
+    err = cn_node_insert_kvset(node, kvset);
     if (ev(err)) {
         kvset_put_ref(kvset);
         return err;
     }
 
-    ctx->ckmk_kvsets++;
-
-    if (km->km_dgen > *(ctx->ckmk_dgen))
-        *(ctx->ckmk_dgen) = km->km_dgen;
-
-    if (km->km_node_level > ctx->ckmk_node_level_max)
-        ctx->ckmk_node_level_max = km->km_node_level;
+    if (km->km_dgen > cn_tree_initial_dgen(cn->cn_tree))
+        cn_tree_set_initial_dgen(cn->cn_tree, km->km_dgen);
 
     return 0;
 }
@@ -927,12 +915,11 @@ cn_open(
     merr_t      err;
     struct cn * cn;
     size_t      sz;
-    u64         dgen = 0;
     uint64_t    mperr;
 
-    struct cn_kvsetmk_ctx ctx = { 0 };
-    struct mpool_props    mpprops;
-    struct merr_info      ei;
+    struct cndb_cn_ctx ctx = { 0 };
+    struct mpool_props mpprops;
+    struct merr_info   ei;
 
     assert(cn_kvdb);
     assert(mp);
@@ -1001,9 +988,6 @@ cn_open(
 
     cn_tree_setup(cn->cn_tree, mp, cn, rp, cndb, cnid, cn->cn_kvdb);
 
-    ctx.ckmk_cn = cn;
-    ctx.ckmk_dgen = &dgen;
-
     hsz = hcnt = hshift = 0;
     ksz = kcnt = kshift = 0;
     vsz = vcnt = vshift = 0;
@@ -1018,9 +1002,67 @@ cn_open(
         vcnt = atomic_read(&cn_kvdb->cnd_vblk_cnt);
     }
 
-    err = cndb_cn_instantiate(cndb, cnid, &ctx, (void *)cn_kvset_mk);
+    ctx.cn = cn;
+    ctx.nodemap = map_create(cn->cp->fanout);
+    if (ev(!ctx.nodemap)) {
+        err = merr(ENOMEM);
+        goto err_exit;
+    }
+
+    map_insert_ptr(ctx.nodemap, 0, cn->cn_tree->ct_root);
+    cn->cn_tree->ct_root->tn_childc += 0;
+
+    /* [HSE_REVISIT] Delete this block once we have splits. cn_kvset_cb() will populate the nodemap,
+     * and then for each node in the map, fetch the max key and call route_map_insert() with it.
+     */
+    {
+        struct ekey_generator *egen;
+        uint64_t n = 0;
+
+        egen = ekgen_create(kvs_name, cn->cp);
+        assert(egen);
+
+        for (uint i = 0; i < cn->cp->fanout; i++) {
+            struct cn_tree_node *tn;
+
+            tn = cn_node_alloc(cn->cn_tree, 1, i);
+            if (!tn) {
+                err = merr(ENOMEM);
+                break;
+            }
+
+            tn->tn_nodeid = ++n;
+            tn->tn_parent = cn->cn_tree->ct_root;
+            map_insert_ptr(ctx.nodemap, tn->tn_nodeid, tn);
+
+            cn->cn_tree->ct_root->tn_childv[i] = tn;
+            cn->cn_tree->ct_root->tn_childc += 1;
+
+            if (cn->cn_tree->ct_route_map) {
+                char ekbuf[HSE_KVS_KEY_LEN_MAX];
+                size_t eklen;
+
+                eklen = ekgen_generate(egen, ekbuf, sizeof(ekbuf), i);
+                if (eklen != 0) {
+                    tn->tn_route_node = route_map_insert(cn->cn_tree->ct_route_map, tn,
+                        ekbuf, eklen);
+                }
+            }
+        }
+
+        ekgen_destroy(egen);
+    }
+
     if (ev(err))
         goto err_exit;
+
+    cn_tree_set_initial_dgen(cn->cn_tree, 0);
+    err = cndb_cn_instantiate(cndb, cnid, &ctx, (void *)cn_kvset_cb);
+    if (ev(err))
+        goto err_exit;
+
+    map_destroy(ctx.nodemap);
+    ctx.nodemap = 0;
 
     if (cn_kvdb) {
         /* [HSE_REVISIT]: This approach is not thread-safe */
@@ -1039,8 +1081,6 @@ cn_open(
         kszsuf += kshift;
         vszsuf += vshift;
     }
-
-    cn_tree_set_initial_dgen(cn->cn_tree, dgen);
 
     cn_tree_samp_init(cn->cn_tree);
 
@@ -1094,12 +1134,13 @@ cn_open(
         cn->cn_replay ? " replay" : "");
 
     /* successful exit */
-    cndb_getref(cndb);
     *cn_out = cn;
 
     return 0;
 
 err_exit:
+    map_destroy(ctx.nodemap);
+
     flush_workqueue(cn->cn_maint_wq);
     flush_workqueue(cn->cn_io_wq);
     cn_tree_destroy(cn->cn_tree);
@@ -1133,9 +1174,6 @@ cn_close(struct cn *cn)
      * This wait holds up ikvdb_close(), so it's important not to dawdle.
      */
     cn_ref_wait(cn);
-
-    cndb_cn_close(cn->cn_cndb, cn->cn_cnid);
-    cndb_putref(cn->cn_cndb);
 
     cn_tree_destroy(cn->cn_tree);
     assert(atomic_read(&cn->cn_refcnt) == 0);
@@ -1370,14 +1408,14 @@ cn_cursor_active_kvsets(struct cn_cursor *cursor, u32 *active, u32 *total)
 }
 
 merr_t
-cn_make(struct mpool *ds, const struct kvs_cparams *cp, struct kvdb_health *health)
+cn_make(struct mpool *mp, const struct kvs_cparams *cp, struct kvdb_health *health)
 {
     merr_t             err;
     struct cn_tree *   tree;
     struct kvs_rparams rp;
     struct kvs_cparams icp;
 
-    assert(ds);
+    assert(mp);
     assert(cp);
     assert(health);
 

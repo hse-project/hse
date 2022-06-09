@@ -371,7 +371,7 @@ key_obj_cmp_prefix(const struct key_obj *ko_pfx, const struct key_obj *ko_key)
     if (HSE_LIKELY(klen1 <= klen2))
         return key_obj_ncmp(ko_pfx, ko_key, klen1);
 
-    return 1;
+    return key_obj_ncmp(ko_pfx, ko_key, klen2);
 }
 
 static HSE_ALWAYS_INLINE struct key_obj *

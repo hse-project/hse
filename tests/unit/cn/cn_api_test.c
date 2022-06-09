@@ -11,7 +11,6 @@
 #include <mpool/mpool.h>
 
 #include <cn/cn_internal.h>
-#include <cn/cndb_internal.h>
 #include <cn/cn_tree.h>
 #include <cn/cn_tree_compact.h>
 #include <kvdb/kvdb_kvs.h>
@@ -30,6 +29,7 @@ pre(struct mtf_test_info *info)
     mapi_inject_clear();
 
     mapi_inject_ptr(mapi_idx_ikvdb_get_mclass_policy, (void *)5);
+    mapi_inject(mapi_idx_cndb_cn_instantiate, 0);
 
     return 0;
 }
@@ -39,8 +39,7 @@ MTF_BEGIN_UTEST_COLLECTION_PRE(cn_api, init);
 MTF_DEFINE_UTEST_PRE(cn_api, basic, pre)
 {
     struct cn *        cn;
-    struct cndb        cndb;
-    struct cndb_cn     cndbcn = cndb_cn_initializer(4, 0, 0);
+    struct cndb       *cndb = (void *)-1;
     struct cn_kvdb    *cn_kvdb;
     struct kvs_buf     vbuf;
     struct kvdb_kvs    kk = { 0 };
@@ -60,29 +59,18 @@ MTF_DEFINE_UTEST_PRE(cn_api, basic, pre)
 
     rp.cn_diag_mode = 1;
 
-    err = cndb_init(&cndb, NULL, true, 0, 0, 0, 0, &mock_health, 0);
-    ASSERT_EQ(err, 0);
-
-    cndb.cndb_cnc = 1;
-    cndb.cndb_cnv[0] = &cndbcn;
-    ASSERT_NE(cndb.cndb_workv, NULL);
-    ASSERT_NE(cndb.cndb_keepv, NULL);
-    ASSERT_NE(cndb.cndb_tagv, NULL);
-
     kk.kk_parent = (void *)&dummy_ikvdb;
     kk.kk_cparams = &cp;
     kk.kk_cparams->fanout = 4;
 
     mapi_inject(mapi_idx_ikvdb_get_csched, 0);
-    mapi_inject(mapi_idx_cndb_cn_blob_get, 0);
-    mapi_inject(mapi_idx_cndb_cn_blob_set, 0);
     mapi_inject(mapi_idx_mpool_props_get, 0);
     mapi_inject(mapi_idx_mpool_mclass_props_get, ENOENT);
 
     err = cn_kvdb_create(4, 4, &cn_kvdb);
     ASSERT_EQ(0, err);
 
-    err = cn_open(cn_kvdb, ds, &kk, &cndb, 0, &rp, "mp", "kvs", &mock_health, 0, &cn);
+    err = cn_open(cn_kvdb, ds, &kk, cndb, 0, &rp, "mp", "kvs", &mock_health, 0, &cn);
     ASSERT_EQ(err, 0);
     ASSERT_NE(cn, NULL);
 
@@ -126,10 +114,6 @@ MTF_DEFINE_UTEST_PRE(cn_api, basic, pre)
     ASSERT_EQ(err, 0);
 
     cn_kvdb_destroy(cn_kvdb);
-    free(cndb.cndb_workv);
-    free(cndb.cndb_keepv);
-    free(cndb.cndb_tagv);
-    free(cndb.cndb_cbuf);
 }
 
 MTF_END_UTEST_COLLECTION(cn_api);

@@ -15,6 +15,7 @@
 #include <hse_ikvdb/tuple.h>
 #include <hse_ikvdb/omf_kmd.h>
 #include <hse_ikvdb/kvset_view.h>
+#include <hse_ikvdb/cndb.h>
 
 #include "blk_list.h"
 #include "kv_iterator.h"
@@ -54,6 +55,7 @@ enum kvset_iter_flags {
  * @km_vused:       sum of lengths of referenced values across all vblocks
  * @km_node_offset: cn tree node offset
  * @km_node_level:  cn tree node level
+ * @km_nodeid:      cn tree node id
  * @km_compc:       compaction count (prevents repeated kvset compaction)
  * @km_capped:      cn is capped
  * @km_restored:    kvset is being restored from the cndb
@@ -64,14 +66,15 @@ struct kvset_meta {
     struct kvs_block km_hblk;
     struct blk_list km_kblk_list;
     struct blk_list km_vblk_list;
-    uint64_t km_dgen;
-    uint64_t km_vused;
-    uint32_t km_node_offset;
-    uint32_t km_scatter;
-    uint16_t km_node_level;
-    uint16_t km_compc;
-    bool km_capped;
-    bool km_restored;
+    uint64_t        km_dgen;
+    uint64_t        km_vused;
+    uint32_t        km_node_offset;
+    uint32_t        km_scatter;
+    uint16_t        km_node_level;
+    uint64_t        km_nodeid;
+    uint16_t        km_compc;
+    bool            km_capped;
+    bool            km_restored;
 };
 
 enum {
@@ -210,7 +213,7 @@ kvset_purge_vmaps(struct kvset *kvset);
 merr_t
 kvset_create2(
     struct cn_tree *   tree,
-    u64                tag,
+    uint64_t           kvsetid,
     struct kvset_meta *meta,
     uint               vbset_cnt_len,
     uint *             vbset_cnts,
@@ -219,11 +222,11 @@ kvset_create2(
 
 /* MTF_MOCK */
 merr_t
-kvset_log_d_records(struct kvset *kvset, bool keepv, u64 txid);
+kvset_delete_log_record(struct kvset *ks, struct cndb_txn *txn);
 
 /* MTF_MOCK */
 void
-kvset_mark_mblocks_for_delete(struct kvset *kvset, bool keepv, u64 txid);
+kvset_mark_mblocks_for_delete(struct kvset *kvset, bool keepv);
 
 /* MTF_MOCK */
 struct mbset **

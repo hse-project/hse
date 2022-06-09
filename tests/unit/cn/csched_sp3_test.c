@@ -155,6 +155,19 @@ new_tree(uint fanout)
 
     ttc++;
 
+    tt->tree->ct_root->tn_childc = fanout;
+
+    for (int i = 0; i < fanout; i++) {
+        struct cn_tree_node *tn;
+
+        tn = cn_node_alloc(tt->tree, 1, i);
+        if (!tn)
+            return NULL;
+
+        tn->tn_parent = tt->tree->ct_root;
+        tt->tree->ct_root->tn_childv[i] = tn;
+    }
+
     return tt;
 }
 

@@ -46,16 +46,12 @@ struct route_node {
     uint8_t            rtn_keybuf[72];
 };
 
-/*
- * TODO: The `nodeoff' parameter will be gone when we get rid of static routes
- */
 struct route_node *
 route_map_insert(
     struct route_map *map,
     void             *tnode,
     const void       *edge_key,
-    uint              edge_klen,
-    uint32_t          nodeoff);
+    uint              edge_klen);
 
 void
 route_map_delete(struct route_map *map, struct route_node *node);
@@ -81,7 +77,7 @@ struct route_node *
 route_map_lookupGT(struct route_map *map, const void *key, uint keylen);
 
 struct route_map *
-route_map_create(const struct kvs_cparams *cp, const char *kvsname);
+route_map_create(uint fanout);
 
 void
 route_map_destroy(struct route_map *map);
@@ -116,5 +112,16 @@ route_node_keycpy(struct route_node *node, void *kbuf, size_t kbuf_sz, uint *kle
     *klen = node->rtn_keylen;
     memcpy(kbuf, node->rtn_keybufp, min_t(size_t, kbuf_sz, node->rtn_keylen));
 }
+
+struct ekey_generator;
+
+struct ekey_generator *
+ekgen_create(const char *kvsname, struct kvs_cparams *cp);
+
+void
+ekgen_destroy(struct ekey_generator *egen);
+
+size_t
+ekgen_generate(struct ekey_generator *egen, void *ekbuf, size_t ekbufsz, uint32_t nodeoff);
 
 #endif /* HSE_ROUTE_H */

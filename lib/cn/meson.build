@@ -2,8 +2,6 @@ cn_sources = files(
     'blk_list.c',
     'bloom_reader.c',
     'cn.c',
-    'cndb.c',
-    'cndb_omf.c',
     'cn_kvdb.c',
     'cn_perfc.c',
     'cn_tree.c',

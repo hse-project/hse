@@ -34,14 +34,6 @@ components = {
         # },
         'cn_api_test': {},
         'cn_tree_cursor_test': {},
-        # @tristan957: The image files need to be regenerated, but since Gaurav
-        # will be tackling a cndb rewrite, I will just disable the test.
-        # 'cndb_log_test': {
-        #     'args': [
-        #         meson.current_source_dir() / 'cn/mdc_images',
-        #     ],
-        # },
-        'cndb_test': {},
         'cn_ingest_test': {},
         'cn_logging_test': {},
         'cn_make_test': {},
@@ -84,6 +76,10 @@ components = {
         #     ],
         # },
         'wbt_test': {},
+    },
+    'cndb': {
+        'cndb_test': {},
+        'cndb_txn_test': {},
     },
     'config': {
         'argv_test': {},
@@ -224,6 +220,8 @@ components = {
         'list_test': {},
         'log2_test': {},
         'logging_test': {},
+        'map_test': {},
+        'merr': {},
         'parse_num_test': {},
         'perfc_test': {},
         'printbuf_test': {},

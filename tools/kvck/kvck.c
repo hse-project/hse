@@ -21,9 +21,9 @@
 #include <tools/parm_groups.h>
 
 #include "cn/omf.h"
-#include "cn/cndb_omf.h"
-#include "cn/cndb_internal.h"
 #include "cn/kvset.h"
+
+#include "cndb/omf.h"
 
 const char *progname;
 
@@ -60,6 +60,9 @@ fatal(const char *fmt, ...)
     exit(1);
 }
 
+/* [HSE_REVISIT] Fix this with the new cndb and uncomment it.
+ */
+#if 0
 static hse_err_t
 verify_kvset(void *ctx, struct kvset_meta *km, u64 tag)
 {
@@ -82,10 +85,14 @@ verify_kvset(void *ctx, struct kvset_meta *km, u64 tag)
 
     return err;
 }
+#endif
 
 static hse_err_t
 _verify_kvs(struct cndb *cndb, int cndb_idx, struct entity *ent)
 {
+/* [HSE_REVISIT] Fix this with the new cndb and uncomment it.
+ */
+#if 0
     int                  i;
     size_t               cnt;
     struct cndb_cn **    cnv = cndb->cndb_cnv;
@@ -96,25 +103,14 @@ _verify_kvs(struct cndb *cndb, int cndb_idx, struct entity *ent)
         .errors = false,
         .ent = ent,
     };
-    void *    ptr = NULL;
-    size_t    sz = 0;
-    hse_err_t err;
-
-    err = cndb_cn_blob_get(cndb, cn->cn_cnid, &sz, &ptr);
-    if (ev(err)) {
-        log_err("Failed to retrieve key hashmap blob from cndb");
-        return EBUG;
-    }
 
     cnt = NELEM(kvs_tab);
     for (i = 0; i < cnt; i++)
         if (kvs_tab[i].kdl_cnid == cnv[cndb_idx]->cn_cnid)
             break;
 
-    if (i >= cnt) {
-        free(ptr);
+    if (i >= cnt)
         return ENOENT;
-    }
 
     printf(
         "Checking kvs %s cnid %lu fanout %u pfx_len %u sfx_len %u\n",
@@ -133,14 +129,17 @@ _verify_kvs(struct cndb *cndb, int cndb_idx, struct entity *ent)
         (hse_err_t(*)(void *, struct kvset_meta *, u64))verify_kvset);
 #pragma GCC diagnostic pop
 
-    free(ptr);
-
     return info.errors ? EILSEQ : 0;
+#endif
+    return 0;
 }
 
 static hse_err_t
 verify_kvs(struct cndb *cndb, const char *kvs, struct entity *ent)
 {
+/* [HSE_REVISIT] Fix this with the new cndb and uncomment it.
+ */
+#if 0
     int              i, cndb_idx;
     int              cnc = cndb->cndb_cnc;
     struct cndb_cn **cnv = cndb->cndb_cnv;
@@ -160,12 +159,14 @@ verify_kvs(struct cndb *cndb, const char *kvs, struct entity *ent)
         return EPROTO;
 
     return _verify_kvs(cndb, cndb_idx, ent);
+#endif
+    return 0;
 }
 
 static hse_err_t
 verify_kvdb(struct cndb *cndb)
 {
-    int  i, cnc = cndb->cndb_cnc;
+    int  i, cnc = cndb_kvs_count(cndb);
     bool errors = false;
 
     for (i = 0; i < cnc; i++) {
@@ -228,7 +229,7 @@ print_line(char *fmt, ...)
     printf("\n");
 }
 
-static int
+int
 check_blklist(struct mpool *mp, int argc, char **argv)
 {
     int              rc = 0;
@@ -295,7 +296,7 @@ main(int argc, char **argv)
     const char *        config = NULL;
     char *              mpool, *kvs = 0;
     char *              loc_buf, *loc;
-    struct mpool *      mp;
+    //struct mpool *      mp;
     struct cndb *       cndb;
     struct entity       ent;
     struct hse_kvdb *   kvdbh;
@@ -307,8 +308,10 @@ main(int argc, char **argv)
     int                 c;
     uint64_t            rc = 0;
     int                 kvscnt = 0;
-    u64                 seqno;
-    u64                 ingestid, txhorizon;
+    /* [HSE_REVISIT] Fix this with the new cndb and uncomment it.
+     */
+    //u64                 seqno;
+    //u64                 ingestid, txhorizon;
 
     loc = loc_buf = 0;
 
@@ -392,7 +395,10 @@ main(int argc, char **argv)
     if (rc || !cndb)
         fatal("cannot open cndb");
 
-    mp = cndb->cndb_mp;
+    /* [HSE_REVISIT] Fix this with the new cndb and uncomment it.
+     */
+#if 0
+    mp = cndb->mp;
 
     if (optind < argc) {
         rc = check_blklist(mp, argc - optind, &argv[optind]);
@@ -404,6 +410,7 @@ main(int argc, char **argv)
         hse_strerror(err, errbuf, sizeof(errbuf));
         fatal("cannot replay cndb: %s", errbuf);
     }
+#endif
 
     err = diag_kvdb_kvslist(kvdbh, kvs_tab, NELEM(kvs_tab), &kvscnt);
     if (err)
@@ -443,7 +450,7 @@ main(int argc, char **argv)
         fatal("Verification failed: %s", errbuf);
     }
 
-out:
+//out:
     free(loc_buf);
 
     diag_kvdb_close(kvdbh);

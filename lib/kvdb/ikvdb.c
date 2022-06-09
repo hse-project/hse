@@ -323,7 +323,6 @@ ikvdb_create(const char *kvdb_home, struct kvdb_cparams *params)
 
     struct kvdb_meta     meta;
     merr_t               err;
-    u64                  cndb_captgt;
     struct mpool *       mp = NULL;
     struct mpool_rparams mp_rparams = {};
 
@@ -361,14 +360,9 @@ ikvdb_create(const char *kvdb_home, struct kvdb_cparams *params)
     meta.km_version = KVDB_META_VERSION;
     meta.km_omf_version = GLOBAL_OMF_VERSION;
 
-    cndb_captgt = 0;
-    err = cndb_alloc(mp, &cndb_captgt, &meta.km_cndb.oid1, &meta.km_cndb.oid2);
+    err = cndb_create(mp, CNDB_DEFAULT_SIZE, &meta.km_cndb.oid1, &meta.km_cndb.oid2);
     if (ev(err))
         goto mpool_cleanup;
-
-    err = cndb_create(mp, cndb_captgt, meta.km_cndb.oid1, meta.km_cndb.oid2);
-    if (ev(err))
-        goto cndb_cleanup; /* XXXXXX: Is this a valid point to call cndb_drop()? */
 
     err = wal_create(mp, &meta.km_wal.oid1, &meta.km_wal.oid2);
     if (err)
@@ -391,7 +385,7 @@ ikvdb_create(const char *kvdb_home, struct kvdb_cparams *params)
 wal_cleanup:
     wal_destroy(mp, meta.km_wal.oid1, meta.km_wal.oid2);
 cndb_cleanup:
-    cndb_drop(mp, meta.km_cndb.oid1, meta.km_cndb.oid2);
+    cndb_destroy(mp, meta.km_cndb.oid1, meta.km_cndb.oid2);
 mpool_cleanup:
     {
         struct mpool_dparams mp_dparams;
@@ -987,38 +981,34 @@ ikvdb_diag_cndb(struct ikvdb *handle, struct cndb **cndb)
     return 0;
 }
 
+static merr_t
+kvdb_kvslist(uint64_t cnid, struct kvs_cparams *cp, const char *name, void *ctx)
+{
+    struct diag_kvdb_kvs_list **lptr = (struct diag_kvdb_kvs_list **)ctx;
+    struct diag_kvdb_kvs_list *l = *lptr;
+
+    l->kdl_cnid = cnid;
+    strlcpy(l->kdl_name, name, sizeof(l->kdl_name));
+
+    (*lptr)++;
+
+    return 0;
+}
+
 /* exposes kvs details to, e.g., kvck */
 merr_t
 ikvdb_diag_kvslist(struct ikvdb *handle, struct diag_kvdb_kvs_list *list, int len, int *kvscnt)
 {
     struct ikvdb_impl *self = ikvdb_h2r(handle);
-
-    int    i, c;
-    merr_t err;
+    struct diag_kvdb_kvs_list *l = list;
 
     if (!handle || !list || !kvscnt)
         return merr(ev(EINVAL));
 
-    err = cndb_cn_count(self->ikdb_cndb, &self->ikdb_kvs_cnt);
-    if (ev(err))
-        return err;
-
-    c = (len < self->ikdb_kvs_cnt) ? len : self->ikdb_kvs_cnt;
-
+    self->ikdb_kvs_cnt = cndb_kvs_count(self->ikdb_cndb);
     *kvscnt = self->ikdb_kvs_cnt;
 
-    for (i = 0; i < c; i++) {
-        u64 cnid = 0;
-
-        err = cndb_cn_info_idx(
-            self->ikdb_cndb, i, &cnid, NULL, NULL, list[i].kdl_name, sizeof(list[i].kdl_name));
-        if (ev(err))
-            break;
-
-        list[i].kdl_cnid = cnid;
-    }
-
-    return err;
+    return cndb_kvs_info(self->ikdb_cndb, (void *)&l, kvdb_kvslist);
 }
 
 static merr_t
@@ -1116,13 +1106,9 @@ ikvdb_diag_open(
 
     err = cndb_open(
         self->ikdb_mp,
-        self->ikdb_read_only,
-        &self->ikdb_seqno,
-        params->cndb_entries,
         self->ikdb_cndb_oid1,
         self->ikdb_cndb_oid2,
-        &self->ikdb_health,
-        &self->ikdb_rp,
+        self->ikdb_read_only,
         &self->ikdb_cndb);
     if (err)
         goto kvdb_pfxlock_cleanup;
@@ -1270,6 +1256,28 @@ kvdb_kvs_destroy(struct kvdb_kvs *kvs)
     }
 }
 
+static merr_t
+kvdb_kvs_cb(uint64_t cnid, struct kvs_cparams *cp, const char *name, void *ctx)
+{
+    struct kvdb_kvs ***kvsp = (struct kvdb_kvs ***)ctx;
+    struct kvdb_kvs **k = *kvsp;
+    struct kvdb_kvs  *kvs;
+
+    kvs = kvdb_kvs_create();
+    if (ev(!kvs))
+        return merr(ENOMEM);
+
+    kvs->kk_cnid = cnid;
+    kvs->kk_flags = cn_cp2cflags(cp);
+    kvs->kk_cparams = cp;
+    strlcpy(kvs->kk_name, name, sizeof(kvs->kk_name));
+
+    *k = kvs;
+    *kvsp = k + 1;
+
+    return 0;
+}
+
 /**
  * ikvdb_cndb_open() - instantiate multi-kvs metadata
  * @self:       self
@@ -1279,53 +1287,27 @@ kvdb_kvs_destroy(struct kvdb_kvs *kvs)
 static merr_t
 ikvdb_cndb_open(struct ikvdb_impl *self, u64 *seqno, u64 *ingestid, u64 *txhorizon)
 {
-    merr_t           err = 0;
-    int              i;
-    struct kvdb_kvs *kvs;
+    merr_t            err = 0;
+    struct kvdb_kvs **kvsp;
 
     err = cndb_open(
         self->ikdb_mp,
-        self->ikdb_read_only,
-        &self->ikdb_seqno,
-        self->ikdb_rp.cndb_entries,
         self->ikdb_cndb_oid1,
         self->ikdb_cndb_oid2,
-        &self->ikdb_health,
-        &self->ikdb_rp,
+        self->ikdb_read_only,
         &self->ikdb_cndb);
     if (ev(err))
-        goto err_exit;
+        return err;
 
     err = cndb_replay(self->ikdb_cndb, seqno, ingestid, txhorizon);
     if (ev(err))
-        goto err_exit;
+        return err;
 
-    err = cndb_cn_count(self->ikdb_cndb, &self->ikdb_kvs_cnt);
-    if (ev(err))
-        goto err_exit;
+    self->ikdb_kvs_cnt = cndb_kvs_count(self->ikdb_cndb);
 
-    for (i = 0; i < self->ikdb_kvs_cnt; i++) {
-        kvs = kvdb_kvs_create();
-        if (ev(!kvs)) {
-            err = merr(ENOMEM);
-            goto err_exit;
-        }
+    kvsp = &self->ikdb_kvs_vec[0];
+    err = cndb_kvs_info(self->ikdb_cndb, (void *)&kvsp, &kvdb_kvs_cb);
 
-        self->ikdb_kvs_vec[i] = kvs;
-
-        err = cndb_cn_info_idx(
-            self->ikdb_cndb,
-            i,
-            &kvs->kk_cnid,
-            &kvs->kk_flags,
-            &kvs->kk_cparams,
-            kvs->kk_name,
-            sizeof(kvs->kk_name));
-        if (ev(err))
-            goto err_exit;
-    }
-
-err_exit:
     return err;
 }
 
@@ -1946,14 +1928,14 @@ ikvdb_kvs_create(struct ikvdb *handle, const char *kvs_name, struct kvs_cparams 
 
     kvs->kk_flags = cn_cp2cflags(params);
 
-    err = cndb_cn_create(self->ikdb_cndb, params, &kvs->kk_cnid, kvs->kk_name);
+    err = cndb_record_kvs_add(self->ikdb_cndb, params, &kvs->kk_cnid, kvs->kk_name);
     if (ev(err))
         goto out_unlock;
 
-    kvs->kk_cparams = cndb_cn_cparams(self->ikdb_cndb, kvs->kk_cnid);
+    kvs->kk_cparams = cndb_kvs_cparams(self->ikdb_cndb, kvs->kk_cnid);
 
     if (ev(!kvs->kk_cparams)) {
-        cndb_cn_drop(self->ikdb_cndb, kvs->kk_cnid);
+        cndb_record_kvs_del(self->ikdb_cndb, kvs->kk_cnid);
         err = merr(EBUG);
         goto out_unlock;
     }
@@ -2018,7 +2000,7 @@ ikvdb_kvs_drop(struct ikvdb *handle, const char *kvs_name)
      */
     assert(atomic_read(&kvs->kk_refcnt) == 0);
 
-    err = cndb_cn_drop(self->ikdb_cndb, kvs->kk_cnid);
+    err = cndb_record_kvs_del(self->ikdb_cndb, kvs->kk_cnid);
     if (ev(err))
         goto out_unlock;
 

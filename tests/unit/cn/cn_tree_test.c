@@ -268,7 +268,7 @@ struct mapi_injection inject_list[] = {
     { mapi_idx_kvset_create, MAPI_RC_SCALAR, 0 },
     { mapi_idx_kvset_put_ref, MAPI_RC_SCALAR, 0 },
     { mapi_idx_kvset_get_ref, MAPI_RC_SCALAR, 0 },
-    { mapi_idx_kvset_log_d_records, MAPI_RC_SCALAR, 0 },
+    { mapi_idx_kvset_delete_log_record, MAPI_RC_SCALAR, 0 },
     { mapi_idx_kvset_mark_mblocks_for_delete, MAPI_RC_SCALAR, 0 },
     { mapi_idx_kvset_madvise_hblk, MAPI_RC_SCALAR, 0},
     { mapi_idx_kvset_madvise_kblks, MAPI_RC_SCALAR, 0 },
@@ -304,13 +304,12 @@ struct mapi_injection inject_list[] = {
     { mapi_idx_sts_job_done, MAPI_RC_SCALAR, 0 },
 
     /* cndb  */
-    { mapi_idx_cndb_txn_start, MAPI_RC_SCALAR, 0 },
-    { mapi_idx_cndb_txn_txc, MAPI_RC_SCALAR, 0 },
-    { mapi_idx_cndb_txn_txd, MAPI_RC_SCALAR, 0 },
-    { mapi_idx_cndb_txn_meta, MAPI_RC_SCALAR, 0 },
-    { mapi_idx_cndb_txn_ack_c, MAPI_RC_SCALAR, 0 },
-    { mapi_idx_cndb_txn_ack_d, MAPI_RC_SCALAR, 0 },
-    { mapi_idx_cndb_txn_nak, MAPI_RC_SCALAR, 0 },
+    { mapi_idx_cndb_record_txstart, MAPI_RC_SCALAR, 0 },
+    { mapi_idx_cndb_record_kvset_add, MAPI_RC_SCALAR, 0 },
+    { mapi_idx_cndb_record_kvset_del, MAPI_RC_SCALAR, 0 },
+    { mapi_idx_cndb_record_kvset_add_ack, MAPI_RC_SCALAR, 0 },
+    { mapi_idx_cndb_record_kvset_del_ack, MAPI_RC_SCALAR, 0 },
+    { mapi_idx_cndb_record_nak, MAPI_RC_SCALAR, 0 },
 
     /* hlog  */
     { mapi_idx_hlog_create, MAPI_RC_SCALAR, 0 },
@@ -608,11 +607,19 @@ test_tree_create(struct test *t)
     ASSERT_TRUE_RET(err == 0, -1);
     ASSERT_TRUE_RET(t->tree != 0, -1);
 
+    t->tree->ct_root->tn_childc = cp.fanout;
+
     for (lx = 0; lx < t->p.levels; lx++) {
         uint nodes_in_level = 1 << (t->p.fanout_bits * lx);
 
         for (nx = 0; nx < nodes_in_level; nx++) {
             uint num_kvsets_this_node = num_kvsets_in_node(lx, nx);
+            struct cn_tree_node *tn;
+
+            tn = cn_node_alloc(t->tree, 1, nx);
+            ASSERT_NE_RET(0, tn, -1);
+
+            t->tree->ct_root->tn_childv[nx] = tn;
 
             if (t->p.verbose)
                 log_info("add %3u kvsets to node (%2u,%4u)", num_kvsets_this_node, lx, nx);
