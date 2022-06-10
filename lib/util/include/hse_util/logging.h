@@ -29,6 +29,12 @@
 #define HSE_MARK            "[HSE]"
 #endif
 
+/* The name of a "type" field common to all structured log messages.  Should be
+ * somewhat unique to facilitate grepping when structured logs are emitted in
+ * non-structured format.
+ */
+#define SLOG_TYPE_IDENTIFIER "slog"
+
 /*
  * A single log instance can have no more than MAX_HSE_SPECS hse-specific
  * conversion specifiers. For that instance there can be no more than
@@ -162,41 +168,39 @@ hse_log_deregister(int code);
 bool
 hse_log_push(struct hse_log_fmt_state *state, bool indexed, const char *name, const char *value);
 
-/* Structured logging support.
+/* Public APIs for structured logging
  */
-struct slog;
+#define slog_debug(...)     slog_internal(HSE_LOGPRI_DEBUG, __VA_ARGS__, NULL)
+#define slog_info(...)      slog_internal(HSE_LOGPRI_INFO, __VA_ARGS__, NULL)
+#define slog_warn(...)      slog_internal(HSE_LOGPRI_WARN, __VA_ARGS__, NULL)
+#define slog_err(...)       slog_internal(HSE_LOGPRI_ERR, __VA_ARGS__, NULL)
+
+#define SLOG_START(type) \
+    slog_internal_validate(SLOG_TOKEN_START, "%s", (type)), SLOG_TYPE_IDENTIFIER, "%s", (type)
+
+#define SLOG_FIELD(key, fmt, val) \
+    slog_internal_validate(SLOG_TOKEN_FIELD, (fmt), (val)), (key), (fmt), (val)
+
+#define SLOG_END SLOG_TOKEN_END
+
+
+/* Structured logging internals
+ */
 
 enum slog_token {
-    _SLOG_START_TOKEN = 1,
-    _SLOG_FIELD_TOKEN,
-    _SLOG_END_TOKEN
+    SLOG_TOKEN_START = 1,
+    SLOG_TOKEN_FIELD,
+    SLOG_TOKEN_END
 };
 
-#define SLOG_TYPE_IDENTIFIER "slog"
-
-#define HSE_SLOG_START(type) \
-    slog_validate(_SLOG_START_TOKEN, "%s", (type)), SLOG_TYPE_IDENTIFIER, "%s", (type)
-
-#define HSE_SLOG_FIELD(key, fmt, val) \
-    slog_validate(_SLOG_FIELD_TOKEN, (fmt), (val)), (key), (fmt), (val)
-
-#define HSE_SLOG_END _SLOG_END_TOKEN
-
-#define slog_debug(...)     hse_slog_internal(HSE_LOGPRI_DEBUG, __VA_ARGS__, NULL)
-#define slog_info(...)      hse_slog_internal(HSE_LOGPRI_INFO, __VA_ARGS__, NULL)
-#define slog_warn(...)      hse_slog_internal(HSE_LOGPRI_WARN, __VA_ARGS__, NULL)
-#define slog_err(...)       hse_slog_internal(HSE_LOGPRI_ERR, __VA_ARGS__, NULL)
-
 void
-hse_slog_internal(hse_logpri_t priority, ...);
+slog_internal(hse_logpri_t priority, ...);
 
-/* A helper "no-op" function that tricks compiler into validating printf specifiers */
-static inline HSE_PRINTF(2, 3) int slog_validate(enum slog_token tok, char *fmt, ...)
+/* A helper function that tricks compiler into validating printf specifiers */
+static inline HSE_PRINTF(2, 3) int slog_internal_validate(enum slog_token tok, char *fmt, ...)
 {
     return tok;
 }
-
-extern FILE *hse_log_file;
 
 /* clang-format on */
 

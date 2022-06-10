@@ -434,62 +434,62 @@ sp3_log_progress(struct cn_compaction_work *w, struct cn_merge_stats *ms, bool f
      * per function call specified by the C spec (127), right?
      */
     slog_info(
-        HSE_SLOG_START("cn_comp_stats"),
-        HSE_SLOG_FIELD("type", "%s", msg_type),
-        HSE_SLOG_FIELD("job", "%u", w->cw_job.sj_id),
-        HSE_SLOG_FIELD("comp", "%s", cn_action2str(w->cw_action)),
-        HSE_SLOG_FIELD("rule", "%s", cn_comp_rule2str(w->cw_comp_rule)),
-        HSE_SLOG_FIELD("cnid", "%lu", w->cw_tree->cnid),
-        HSE_SLOG_FIELD("lvl", "%u", w->cw_node->tn_loc.node_level),
-        HSE_SLOG_FIELD("off", "%u", w->cw_node->tn_loc.node_offset),
-        HSE_SLOG_FIELD("leaf", "%u", (uint)cn_node_isleaf(w->cw_node)),
-        HSE_SLOG_FIELD("pct", "%3.1f", 100 * progress),
-        HSE_SLOG_FIELD("vrd_eff", "%.3f", vblk_read_efficiency),
+        SLOG_START("cn_comp_stats"),
+        SLOG_FIELD("type", "%s", msg_type),
+        SLOG_FIELD("job", "%u", w->cw_job.sj_id),
+        SLOG_FIELD("comp", "%s", cn_action2str(w->cw_action)),
+        SLOG_FIELD("rule", "%s", cn_comp_rule2str(w->cw_comp_rule)),
+        SLOG_FIELD("cnid", "%lu", w->cw_tree->cnid),
+        SLOG_FIELD("lvl", "%u", w->cw_node->tn_loc.node_level),
+        SLOG_FIELD("off", "%u", w->cw_node->tn_loc.node_offset),
+        SLOG_FIELD("leaf", "%u", (uint)cn_node_isleaf(w->cw_node)),
+        SLOG_FIELD("pct", "%3.1f", 100 * progress),
+        SLOG_FIELD("vrd_eff", "%.3f", vblk_read_efficiency),
 
-        HSE_SLOG_FIELD("kblk_alloc_ops", "%ld", ms->ms_kblk_alloc.op_cnt),
-        HSE_SLOG_FIELD("kblk_alloc_sz", "%ld", ms->ms_kblk_alloc.op_size),
-        HSE_SLOG_FIELD("kblk_alloc_ns", "%ld", ms->ms_kblk_alloc.op_time),
+        SLOG_FIELD("kblk_alloc_ops", "%ld", ms->ms_kblk_alloc.op_cnt),
+        SLOG_FIELD("kblk_alloc_sz", "%ld", ms->ms_kblk_alloc.op_size),
+        SLOG_FIELD("kblk_alloc_ns", "%ld", ms->ms_kblk_alloc.op_time),
 
-        HSE_SLOG_FIELD("kblk_write_ops", "%ld", ms->ms_kblk_write.op_cnt),
-        HSE_SLOG_FIELD("kblk_write_sz", "%ld", ms->ms_kblk_write.op_size),
-        HSE_SLOG_FIELD("kblk_write_ns", "%ld", ms->ms_kblk_write.op_time),
+        SLOG_FIELD("kblk_write_ops", "%ld", ms->ms_kblk_write.op_cnt),
+        SLOG_FIELD("kblk_write_sz", "%ld", ms->ms_kblk_write.op_size),
+        SLOG_FIELD("kblk_write_ns", "%ld", ms->ms_kblk_write.op_time),
 
-        HSE_SLOG_FIELD("vblk_alloc_ops", "%ld", ms->ms_vblk_alloc.op_cnt),
-        HSE_SLOG_FIELD("vblk_alloc_sz", "%ld", ms->ms_vblk_alloc.op_size),
-        HSE_SLOG_FIELD("vblk_alloc_ns", "%ld", ms->ms_vblk_alloc.op_time),
+        SLOG_FIELD("vblk_alloc_ops", "%ld", ms->ms_vblk_alloc.op_cnt),
+        SLOG_FIELD("vblk_alloc_sz", "%ld", ms->ms_vblk_alloc.op_size),
+        SLOG_FIELD("vblk_alloc_ns", "%ld", ms->ms_vblk_alloc.op_time),
 
-        HSE_SLOG_FIELD("vblk_write_ops", "%ld", ms->ms_vblk_write.op_cnt),
-        HSE_SLOG_FIELD("vblk_write_sz", "%ld", ms->ms_vblk_write.op_size),
-        HSE_SLOG_FIELD("vblk_write_ns", "%ld", ms->ms_vblk_write.op_time),
+        SLOG_FIELD("vblk_write_ops", "%ld", ms->ms_vblk_write.op_cnt),
+        SLOG_FIELD("vblk_write_sz", "%ld", ms->ms_vblk_write.op_size),
+        SLOG_FIELD("vblk_write_ns", "%ld", ms->ms_vblk_write.op_time),
 
-        HSE_SLOG_FIELD("vblk_read1_ops", "%ld", ms->ms_vblk_read1.op_cnt),
-        HSE_SLOG_FIELD("vblk_read1_sz", "%ld", ms->ms_vblk_read1.op_size),
-        HSE_SLOG_FIELD("vblk_read1_ns", "%ld", ms->ms_vblk_read1.op_time),
+        SLOG_FIELD("vblk_read1_ops", "%ld", ms->ms_vblk_read1.op_cnt),
+        SLOG_FIELD("vblk_read1_sz", "%ld", ms->ms_vblk_read1.op_size),
+        SLOG_FIELD("vblk_read1_ns", "%ld", ms->ms_vblk_read1.op_time),
 
-        HSE_SLOG_FIELD("vblk_read1wait_ops", "%ld", ms->ms_vblk_read1_wait.op_cnt),
-        HSE_SLOG_FIELD("vblk_read1wait_ns", "%ld", ms->ms_vblk_read1_wait.op_time),
+        SLOG_FIELD("vblk_read1wait_ops", "%ld", ms->ms_vblk_read1_wait.op_cnt),
+        SLOG_FIELD("vblk_read1wait_ns", "%ld", ms->ms_vblk_read1_wait.op_time),
 
-        HSE_SLOG_FIELD("vblk_read2_ops", "%ld", ms->ms_vblk_read2.op_cnt),
-        HSE_SLOG_FIELD("vblk_read2_sz", "%ld", ms->ms_vblk_read2.op_size),
-        HSE_SLOG_FIELD("vblk_read2_ns", "%ld", ms->ms_vblk_read2.op_time),
+        SLOG_FIELD("vblk_read2_ops", "%ld", ms->ms_vblk_read2.op_cnt),
+        SLOG_FIELD("vblk_read2_sz", "%ld", ms->ms_vblk_read2.op_size),
+        SLOG_FIELD("vblk_read2_ns", "%ld", ms->ms_vblk_read2.op_time),
 
-        HSE_SLOG_FIELD("vblk_read2wait_ops", "%ld", ms->ms_vblk_read2_wait.op_cnt),
-        HSE_SLOG_FIELD("vblk_read2wait_ns", "%ld", ms->ms_vblk_read2_wait.op_time),
+        SLOG_FIELD("vblk_read2wait_ops", "%ld", ms->ms_vblk_read2_wait.op_cnt),
+        SLOG_FIELD("vblk_read2wait_ns", "%ld", ms->ms_vblk_read2_wait.op_time),
 
-        HSE_SLOG_FIELD("kblk_read_ops", "%ld", ms->ms_kblk_read.op_cnt),
-        HSE_SLOG_FIELD("kblk_read_sz", "%ld", ms->ms_kblk_read.op_size),
-        HSE_SLOG_FIELD("kblk_read_ns", "%ld", ms->ms_kblk_read.op_time),
+        SLOG_FIELD("kblk_read_ops", "%ld", ms->ms_kblk_read.op_cnt),
+        SLOG_FIELD("kblk_read_sz", "%ld", ms->ms_kblk_read.op_size),
+        SLOG_FIELD("kblk_read_ns", "%ld", ms->ms_kblk_read.op_time),
 
-        HSE_SLOG_FIELD("kblk_readwait_ops", "%ld", ms->ms_kblk_read_wait.op_cnt),
-        HSE_SLOG_FIELD("kblk_readwait_ns", "%ld", ms->ms_kblk_read_wait.op_time),
+        SLOG_FIELD("kblk_readwait_ops", "%ld", ms->ms_kblk_read_wait.op_cnt),
+        SLOG_FIELD("kblk_readwait_ns", "%ld", ms->ms_kblk_read_wait.op_time),
 
-        HSE_SLOG_FIELD("vblk_dbl_reads", "%ld", ms->ms_vblk_wasted_reads),
+        SLOG_FIELD("vblk_dbl_reads", "%ld", ms->ms_vblk_wasted_reads),
 
-        HSE_SLOG_FIELD("queue_us", "%lu", qt),
-        HSE_SLOG_FIELD("prep_us", "%lu", pt),
-        HSE_SLOG_FIELD("merge_us", "%lu", bt),
-        HSE_SLOG_FIELD("commit_us", "%lu", ct),
-        HSE_SLOG_END);
+        SLOG_FIELD("queue_us", "%lu", qt),
+        SLOG_FIELD("prep_us", "%lu", pt),
+        SLOG_FIELD("merge_us", "%lu", bt),
+        SLOG_FIELD("commit_us", "%lu", ct),
+        SLOG_END);
 }
 
 static void
@@ -1073,16 +1073,16 @@ sp3_dirty_node_locked(struct sp3 *sp, struct cn_tree_node *tn)
         bool isleaf = cn_node_isleaf(tn);
 
         slog_info(
-            HSE_SLOG_START("cn_dirty_node"),
-            HSE_SLOG_FIELD("cnid", "%lu", (ulong)tn->tn_tree->cnid),
-            HSE_SLOG_FIELD("lvl", "%u", tn->tn_loc.node_level),
-            HSE_SLOG_FIELD("off", "%u", tn->tn_loc.node_offset),
-            HSE_SLOG_FIELD("isleaf", "%d", isleaf),
-            HSE_SLOG_FIELD("nd_len", "%lu", (ulong)nkvsets_total),
-            HSE_SLOG_FIELD("alen", "%lu", (ulong)cn_ns_alen(&tn->tn_ns)),
-            HSE_SLOG_FIELD("garbage", "%lu", (ulong)garbage),
-            HSE_SLOG_FIELD("scatter", "%u", scatter),
-            HSE_SLOG_END);
+            SLOG_START("cn_dirty_node"),
+            SLOG_FIELD("cnid", "%lu", (ulong)tn->tn_tree->cnid),
+            SLOG_FIELD("lvl", "%u", tn->tn_loc.node_level),
+            SLOG_FIELD("off", "%u", tn->tn_loc.node_offset),
+            SLOG_FIELD("isleaf", "%d", isleaf),
+            SLOG_FIELD("nd_len", "%lu", (ulong)nkvsets_total),
+            SLOG_FIELD("alen", "%lu", (ulong)cn_ns_alen(&tn->tn_ns)),
+            SLOG_FIELD("garbage", "%lu", (ulong)garbage),
+            SLOG_FIELD("scatter", "%u", scatter),
+            SLOG_END);
     }
 }
 
@@ -1588,26 +1588,26 @@ sp3_submit(struct sp3 *sp, struct cn_compaction_work *w, uint qnum)
         uint busycnt = atomic_read(&w->cw_node->tn_busycnt) >> 16;
 
         slog_info(
-            HSE_SLOG_START("cn_comp_start"),
-            HSE_SLOG_FIELD("job", "%u", w->cw_job.sj_id),
-            HSE_SLOG_FIELD("jcnt", "%u", spt->spt_job_cnt),
-            HSE_SLOG_FIELD("bcnt", "%u", busycnt),
-            HSE_SLOG_FIELD("qnum", "%u", w->cw_qnum),
-            HSE_SLOG_FIELD("reduce", "%d", sp->samp_reduce),
-            HSE_SLOG_FIELD("cnid", "%lu", w->cw_tree->cnid),
-            HSE_SLOG_FIELD("comp", "%s", cn_action2str(w->cw_action)),
-            HSE_SLOG_FIELD("rule", "%s", cn_comp_rule2str(w->cw_comp_rule)),
-            HSE_SLOG_FIELD("lvl", "%u", w->cw_node->tn_loc.node_level),
-            HSE_SLOG_FIELD("off", "%u", w->cw_node->tn_loc.node_offset),
-            HSE_SLOG_FIELD("c_nk", "%u", w->cw_nk),
-            HSE_SLOG_FIELD("c_nv", "%u", w->cw_nv),
-            HSE_SLOG_FIELD("c_kvsets", "%u", w->cw_kvset_cnt),
-            HSE_SLOG_FIELD("nd_kvsets", "%lu", (ulong)cn_ns_kvsets(ns)),
-            HSE_SLOG_FIELD("nd_keys", "%lu", (ulong)cn_ns_keys(ns)),
-            HSE_SLOG_FIELD("nd_hll%%", "%lu", hll_pct),
-            HSE_SLOG_FIELD("nd_clen_mb", "%lu", (ulong)cn_ns_clen(ns) >> MB_SHIFT),
-            HSE_SLOG_FIELD("samp", "%u", cn_ns_samp(ns)),
-            HSE_SLOG_END);
+            SLOG_START("cn_comp_start"),
+            SLOG_FIELD("job", "%u", w->cw_job.sj_id),
+            SLOG_FIELD("jcnt", "%u", spt->spt_job_cnt),
+            SLOG_FIELD("bcnt", "%u", busycnt),
+            SLOG_FIELD("qnum", "%u", w->cw_qnum),
+            SLOG_FIELD("reduce", "%d", sp->samp_reduce),
+            SLOG_FIELD("cnid", "%lu", w->cw_tree->cnid),
+            SLOG_FIELD("comp", "%s", cn_action2str(w->cw_action)),
+            SLOG_FIELD("rule", "%s", cn_comp_rule2str(w->cw_comp_rule)),
+            SLOG_FIELD("lvl", "%u", w->cw_node->tn_loc.node_level),
+            SLOG_FIELD("off", "%u", w->cw_node->tn_loc.node_offset),
+            SLOG_FIELD("c_nk", "%u", w->cw_nk),
+            SLOG_FIELD("c_nv", "%u", w->cw_nv),
+            SLOG_FIELD("c_kvsets", "%u", w->cw_kvset_cnt),
+            SLOG_FIELD("nd_kvsets", "%lu", (ulong)cn_ns_kvsets(ns)),
+            SLOG_FIELD("nd_keys", "%lu", (ulong)cn_ns_keys(ns)),
+            SLOG_FIELD("nd_hll%%", "%lu", hll_pct),
+            SLOG_FIELD("nd_clen_mb", "%lu", (ulong)cn_ns_clen(ns) >> MB_SHIFT),
+            SLOG_FIELD("samp", "%u", cn_ns_samp(ns)),
+            SLOG_END);
     }
 }
 
@@ -1681,20 +1681,20 @@ sp3_rb_dump(struct sp3 *sp, uint tx, uint count_max)
         tn = spn2tn(spn);
 
         slog_info(
-            HSE_SLOG_START("cn_rbt"),
-            HSE_SLOG_FIELD("rbt", "%u", tx),
-            HSE_SLOG_FIELD("item", "%u", count),
-            HSE_SLOG_FIELD("weight", "%lx", (ulong)rbe->rbe_weight),
-            HSE_SLOG_FIELD("cnid", "%lu", (ulong)tn->tn_tree->cnid),
-            HSE_SLOG_FIELD("lvl", "%u", tn->tn_loc.node_level),
-            HSE_SLOG_FIELD("off", "%u", tn->tn_loc.node_offset),
-            HSE_SLOG_FIELD("leaf", "%u", (uint)cn_node_isleaf(tn)),
-            HSE_SLOG_FIELD("len", "%ld", (long)cn_ns_kvsets(&tn->tn_ns)),
-            HSE_SLOG_FIELD("ialen_b", "%ld", (long)tn->tn_samp.i_alen),
-            HSE_SLOG_FIELD("lalen_b", "%ld", (long)tn->tn_samp.l_alen),
-            HSE_SLOG_FIELD("lgood_b", "%ld", (long)tn->tn_samp.l_good),
-            HSE_SLOG_FIELD("lgarb_b", "%ld", (long)(tn->tn_samp.l_alen - tn->tn_samp.l_good)),
-            HSE_SLOG_END);
+            SLOG_START("cn_rbt"),
+            SLOG_FIELD("rbt", "%u", tx),
+            SLOG_FIELD("item", "%u", count),
+            SLOG_FIELD("weight", "%lx", (ulong)rbe->rbe_weight),
+            SLOG_FIELD("cnid", "%lu", (ulong)tn->tn_tree->cnid),
+            SLOG_FIELD("lvl", "%u", tn->tn_loc.node_level),
+            SLOG_FIELD("off", "%u", tn->tn_loc.node_offset),
+            SLOG_FIELD("leaf", "%u", (uint)cn_node_isleaf(tn)),
+            SLOG_FIELD("len", "%ld", (long)cn_ns_kvsets(&tn->tn_ns)),
+            SLOG_FIELD("ialen_b", "%ld", (long)tn->tn_samp.i_alen),
+            SLOG_FIELD("lalen_b", "%ld", (long)tn->tn_samp.l_alen),
+            SLOG_FIELD("lgood_b", "%ld", (long)tn->tn_samp.l_good),
+            SLOG_FIELD("lgarb_b", "%ld", (long)(tn->tn_samp.l_alen - tn->tn_samp.l_good)),
+            SLOG_END);
 
         if (count++ == count_max)
             break;
@@ -1714,19 +1714,19 @@ sp3_tree_shape_log(const struct cn_tree_node *tn, bool bad, const char *category
     hll_pct = cn_ns_keys(ns) ? ((100 * ns->ns_keys_uniq) / cn_ns_keys(ns)) : 0;
 
     slog_info(
-        HSE_SLOG_START("cn_tree_shape"),
-        HSE_SLOG_FIELD("type", "%s", category),
-        HSE_SLOG_FIELD("status", "%s", bad ? "bad" : "good"),
-        HSE_SLOG_FIELD("cnid", "%lu", (ulong)tn->tn_tree->cnid),
-        HSE_SLOG_FIELD("lvl", "%u", tn->tn_loc.node_level),
-        HSE_SLOG_FIELD("off", "%u", tn->tn_loc.node_offset),
-        HSE_SLOG_FIELD("nd_kvsets", "%lu", (ulong)cn_ns_kvsets(ns)),
-        HSE_SLOG_FIELD("nd_alen_mb", "%lu", (ulong)cn_ns_alen(ns) >> MB_SHIFT),
-        HSE_SLOG_FIELD("nd_wlen_mb", "%lu", (ulong)cn_ns_alen(ns) >> MB_SHIFT),
-        HSE_SLOG_FIELD("nd_clen_mb", "%lu", (ulong)cn_ns_clen(ns) >> MB_SHIFT),
-        HSE_SLOG_FIELD("nd_hll%%", "%lu", hll_pct),
-        HSE_SLOG_FIELD("nd_samp", "%u", cn_ns_samp(ns)),
-        HSE_SLOG_END);
+        SLOG_START("cn_tree_shape"),
+        SLOG_FIELD("type", "%s", category),
+        SLOG_FIELD("status", "%s", bad ? "bad" : "good"),
+        SLOG_FIELD("cnid", "%lu", (ulong)tn->tn_tree->cnid),
+        SLOG_FIELD("lvl", "%u", tn->tn_loc.node_level),
+        SLOG_FIELD("off", "%u", tn->tn_loc.node_offset),
+        SLOG_FIELD("nd_kvsets", "%lu", (ulong)cn_ns_kvsets(ns)),
+        SLOG_FIELD("nd_alen_mb", "%lu", (ulong)cn_ns_alen(ns) >> MB_SHIFT),
+        SLOG_FIELD("nd_wlen_mb", "%lu", (ulong)cn_ns_alen(ns) >> MB_SHIFT),
+        SLOG_FIELD("nd_clen_mb", "%lu", (ulong)cn_ns_clen(ns) >> MB_SHIFT),
+        SLOG_FIELD("nd_hll%%", "%lu", hll_pct),
+        SLOG_FIELD("nd_samp", "%u", cn_ns_samp(ns)),
+        SLOG_END);
 }
 
 /**
@@ -1950,13 +1950,13 @@ sp3_qos_check(struct sp3 *sp)
         sp->qos_log_ttl = jclock_ns + NSEC_PER_SEC;
 
         slog_info(
-            HSE_SLOG_START("cn_qos_sensors"),
-            HSE_SLOG_FIELD("root_sensor", "%lu", sval),
-            HSE_SLOG_FIELD("root_maxlen", "%u", rootmax),
-            HSE_SLOG_FIELD("samp_curr", "%.3f", scale2dbl(sp->samp_curr)),
-            HSE_SLOG_FIELD("samp_targ", "%.3f", scale2dbl(sp->samp_targ)),
-            HSE_SLOG_FIELD("lpct_targ", "%.3f", scale2dbl(sp->lpct_targ)),
-            HSE_SLOG_END);
+            SLOG_START("cn_qos_sensors"),
+            SLOG_FIELD("root_sensor", "%lu", sval),
+            SLOG_FIELD("root_maxlen", "%u", rootmax),
+            SLOG_FIELD("samp_curr", "%.3f", scale2dbl(sp->samp_curr)),
+            SLOG_FIELD("samp_targ", "%.3f", scale2dbl(sp->samp_targ)),
+            SLOG_FIELD("lpct_targ", "%.3f", scale2dbl(sp->lpct_targ)),
+            SLOG_END);
     }
 }
 

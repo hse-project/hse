@@ -11,7 +11,7 @@ thread_local logging_result shared_result;
 
 /*
  * In order to allow testing the very lowest levels of the logging code, we
- * need to provide mock interfaces that will catch the calls to hse_slog_emit().
+ * need to provide mock interfaces that will catch the calls to slog_internal_emit().
  *
  * For expediency we use a global structure to communicate between the mock
  * functions and the test code.  This is thread-safe, but different threads

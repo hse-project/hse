@@ -10,6 +10,8 @@
 
 #include "logging_util.h"
 
+extern FILE *hse_log_file;
+
 void
 hse_log_backstop(const char *fmt, ...)
 {

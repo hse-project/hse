@@ -794,20 +794,20 @@ cn_ingestv(
         ulong vwlen_pct = kst.kst_valen ? 100 * kst.kst_vwlen / kst.kst_valen : 0;
 
         slog_info(
-            HSE_SLOG_START("cn_ingest"),
-            HSE_SLOG_FIELD("dgen", "%lu", (ulong)dgen),
-            HSE_SLOG_FIELD("seqno", "%lu", (ulong)ingestid),
-            HSE_SLOG_FIELD("kvsets", "%lu", (ulong)kst.kst_kvsets),
-            HSE_SLOG_FIELD("keys", "%8lu", (ulong)kst.kst_keys),
-            HSE_SLOG_FIELD("kblks", "%2lu", (ulong)kst.kst_kblks),
-            HSE_SLOG_FIELD("vblks", "%3lu", (ulong)kst.kst_vblks),
-            HSE_SLOG_FIELD("halen_mb", "%3lu", (ulong)kst.kst_halen >> MB_SHIFT),
-            HSE_SLOG_FIELD("kalen_mb", "%3lu", (ulong)kst.kst_kalen >> MB_SHIFT),
-            HSE_SLOG_FIELD("valen_mb", "%3lu", (ulong)kst.kst_valen >> MB_SHIFT),
-            HSE_SLOG_FIELD("hwlen%%", "%3lu", hwlen_pct),
-            HSE_SLOG_FIELD("kwlen%%", "%3lu", kwlen_pct),
-            HSE_SLOG_FIELD("vwlen%%", "%3lu", vwlen_pct),
-            HSE_SLOG_END);
+            SLOG_START("cn_ingest"),
+            SLOG_FIELD("dgen", "%lu", (ulong)dgen),
+            SLOG_FIELD("seqno", "%lu", (ulong)ingestid),
+            SLOG_FIELD("kvsets", "%lu", (ulong)kst.kst_kvsets),
+            SLOG_FIELD("keys", "%8lu", (ulong)kst.kst_keys),
+            SLOG_FIELD("kblks", "%2lu", (ulong)kst.kst_kblks),
+            SLOG_FIELD("vblks", "%3lu", (ulong)kst.kst_vblks),
+            SLOG_FIELD("halen_mb", "%3lu", (ulong)kst.kst_halen >> MB_SHIFT),
+            SLOG_FIELD("kalen_mb", "%3lu", (ulong)kst.kst_kalen >> MB_SHIFT),
+            SLOG_FIELD("valen_mb", "%3lu", (ulong)kst.kst_valen >> MB_SHIFT),
+            SLOG_FIELD("hwlen%%", "%3lu", hwlen_pct),
+            SLOG_FIELD("kwlen%%", "%3lu", kwlen_pct),
+            SLOG_FIELD("vwlen%%", "%3lu", vwlen_pct),
+            SLOG_END);
     }
 
 nak:

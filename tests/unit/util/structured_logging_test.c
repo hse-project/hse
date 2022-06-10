@@ -21,7 +21,7 @@
     log_pri(HSE_LOGPRI_ERR, _fmt, false, _argv, ##__VA_ARGS__)
 
 void
-hse_slog_emit(hse_logpri_t priority, const char *fmt, ...)
+slog_internal_emit(hse_logpri_t priority, const char *fmt, ...)
 {
     va_list ap;
 

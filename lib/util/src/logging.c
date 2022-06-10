@@ -124,7 +124,7 @@ static void
 hse_log_async_consume(struct hse_log_async_entry *entry)
 {
     u32 source_file_len;
-    const char *slog_prefix = hse_gparams.gp_logging.structured ? "@cee:" : "";
+    const char *prefix = hse_gparams.gp_logging.structured ? "@cee:" : "";
 
     source_file_len = strlen(entry->ae_buf);
     if (source_file_len >= (sizeof(entry->ae_buf) - 2))
@@ -133,7 +133,7 @@ hse_log_async_consume(struct hse_log_async_entry *entry)
 
     entry->ae_buf[sizeof(entry->ae_buf) - 1] = 0;
 
-    hse_slog_emit(entry->ae_priority, "%s%s\n", slog_prefix, entry->ae_buf + source_file_len + 1);
+    slog_internal_emit(entry->ae_priority, "%s%s\n", prefix, entry->ae_buf + source_file_len + 1);
 }
 
 /**
@@ -953,7 +953,7 @@ finalize_log_structure(
     int                 i, j;
     struct json_context jc = {};
     char *              msg_buf;
-    const char *        slog_prefix = "@cee:";
+    const char *        prefix = "@cee:";
 
     msg_buf = hse_log_inf.mli_nm_buf;
 
@@ -961,7 +961,7 @@ finalize_log_structure(
 
     if (!hse_gparams.gp_logging.structured) {
         jc.json_buf = msg_buf;
-        slog_prefix = "";
+        prefix = "";
         goto emit_logs;
     }
 
@@ -988,7 +988,7 @@ finalize_log_structure(
     if (async)
         hse_log_post_async(source_file, source_line, priority, jc.json_buf);
     else
-        hse_slog_emit(priority, "%s%s\n", slog_prefix, jc.json_buf);
+        slog_internal_emit(priority, "%s%s\n", prefix, jc.json_buf);
 }
 
 const char *
@@ -1044,121 +1044,107 @@ slog_tab_element_fieldv(struct slog_tab_context *pc, va_list payload)
 static void
 slog_tab_format_payload(struct slog_tab_context *pc, va_list payload)
 {
-    bool have_end_token HSE_MAYBE_UNUSED;
+    int state HSE_MAYBE_UNUSED;
     int token;
 
-    have_end_token = false;
+    state = 0;
 
     while (0 != (token = va_arg(payload, int))) {
         switch (token) {
-        case _SLOG_START_TOKEN:
+        case SLOG_TOKEN_START:
+            assert(state == 0);
+            state = 1;
             slog_tab_snprintf(pc, "%s", HSE_MARK);
             slog_tab_element_fieldv(pc, payload);
             break;
-        case _SLOG_FIELD_TOKEN:
+        case SLOG_TOKEN_FIELD:
+            assert(state == 1);
             slog_tab_element_fieldv(pc, payload);
             break;
-        case _SLOG_END_TOKEN:
-            have_end_token = true;
+        case SLOG_TOKEN_END:
+            assert(state == 1);
+            state = 2;
             break;
         }
     }
 
     /* Ensure arg list was terminated with an end token and not an errant NULL */
-    assert(have_end_token);
+    assert(state == 2);
 }
 
 static void
-json_format_payload(struct json_context *jc, va_list payload)
+slog_json_format_payload(struct json_context *jc, va_list payload)
 {
-    bool have_end_token HSE_MAYBE_UNUSED;
+    int state HSE_MAYBE_UNUSED;
     int token;
 
-    have_end_token = false;
+    state = 0;
 
     while (0 != (token = va_arg(payload, int))) {
         switch (token) {
-        case _SLOG_START_TOKEN:
+        case SLOG_TOKEN_START:
+            assert(state == 0);
+            state = 1;
             json_element_start(jc, NULL);
             json_element_fieldv(jc, payload);
             package_source_info(jc);
             json_element_start(jc, "content");
             break;
-        case _SLOG_FIELD_TOKEN:
+        case SLOG_TOKEN_FIELD:
+            assert(state == 1);
             json_element_fieldv(jc, payload);
             break;
-        case _SLOG_END_TOKEN:
+        case SLOG_TOKEN_END:
+            assert(state == 1);
+            state = 2;
             json_element_end(jc);
             json_element_end(jc);
-            have_end_token = true;
             break;
         }
     }
 
     /* Ensure arg list was terminated with an end token and not an errant NULL */
-    assert(have_end_token);
+    assert(state == 2);
 }
 
-/* The hse_slog() interface provides a simple way to build structured log
+/* The slog_info() family APIs provide a simple way to build simple structured log
  * messages. The provided macros validate the format string and return tokens
  * understood by the internal parser. Refer to the example below.
  *
- * hse_slog(
- *     HSE_NOTICE
- *     HSE_SLOG_START("example")
- *     HSE_SLOG_FIELD("hello", "%s", "world")
- *     HSE_SLOG_FIELD("foobar", "%d", 2000)
- *     HSE_SLOG_END
- * )
+ *     slog_info(
+ *         SLOG_TYPE("comp"),
+ *         SLOG_FIELD("op", "%s", w->op_name),
+ *         SLOG_FIELD("nk", "%u", w->nkblks)
+ *         SLOG_FIELD("nv", "%u", w->nvblks)
+ *         SLOG_END)
  *
- * @cee:{
- *     "slog": "example",
- *     "hse_logver": "1",
- *     "hse_version": "nfpib-r0.20191212.59d333394"
- *     "hse_branch": "nfpib",
- *     "content": {
- *         "hello": "world",
- *         "foobar": 2000,
- *     }
- * }
+ * Example output in the default name/value format:
  *
- * Note that certain fields are always packed into the final payload. Since
- * the C standard specifies up to 127 arguments in a function call, hse_slog()
- * can support at least 30 fields. However, no such limit is enforced by GCC.
+ *         "[HSE] slog comp spill nk 8 nv 32"
  *
- * When the structure is not known in advance, the message may be built
- * programmatically. Use hse_slog_create(), hse_slog_append(), and
- * hse_slog_commit() to parse tokens dynamically. The start and end tokens
- * are implictly set, so hse_slog_append() can handle fields directly. The
- * example below creates five keys-value pairs at runtime.
+ * Example output when JSON format is enabled:
  *
- * char          key[32];
- * struct slog  *logger;
+ *    @cee:{ "slog": "comp", "content": { "op": "spill", "nk": 8, "nv": 32 } }
  *
- * hse_slog_create(&logger, "example");
- *
- * for (i = 0; i < 5; i++) {
- *     snprintf(key, sizeof(key), "key_%d", i);
- *     for (j = 0; j < 5; j++)
- *         hse_slog_append(logger, HSE_SLOG_FIELD(key, "%d", j));
- * }
- *
- * hse_slog_commit(HSE_NOTICE, logger);
+ * Note that certain fields are always packed into the final payload when JSON
+ * format is used. Since the C standard specifies up to 127 arguments in a
+ * function call, slog_info() can support at least 30 fields. However, no such
+ * limit is enforced by GCC.
  *
  * 1) The hse_log and hse_alog macros resolve to the same hse_log() call.
  * Since all hse_log calls are asynchronous by default, hse_alog should be
  * removed.
  *
  * 2) The hse_log() call does duplicate work since it handles both async
- * and sync calls. The logic should be divided similar to hse_slog() and
- * hse_slog_emit().
+ * and sync calls. The logic should be divided similar to slog_info() and
+ * slog_internal_emit().
  *
  * 3) The filename and source line are placed on the circular buffer, but
  * are not logged anywhere. If they are not part of the CEE payload, they
  * should be removed from the function definition.
  *
  * 4) Standard messages are still structured but only populate the "msg"
- * field. The existing logic for hse_slog() can be used to refactor
+ * field. The existing logic for slog_info() can be used to refactor
  * hse_log().
  *
  * 5) The locks for the global logging buffer and the async circular
@@ -1172,7 +1158,7 @@ json_format_payload(struct json_context *jc, va_list payload)
  * this extra post processing .
  */
 void
-hse_slog_internal(hse_logpri_t priority, ...)
+slog_internal(hse_logpri_t priority, ...)
 {
     va_list payload;
     char *buf;
@@ -1192,7 +1178,7 @@ hse_slog_internal(hse_logpri_t priority, ...)
 
         ctx.json_buf = buf;
         ctx.json_buf_sz = buf_sz;
-        json_format_payload(&ctx, payload);
+        slog_json_format_payload(&ctx, payload);
     }
     else {
         struct slog_tab_context ctx = {};
@@ -1202,16 +1188,16 @@ hse_slog_internal(hse_logpri_t priority, ...)
         slog_tab_format_payload(&ctx, payload);
     }
 
-    hse_log_post_vasync("_hse_slog", 1, priority, buf, payload);
+    hse_log_post_vasync("slog", 1, priority, buf, payload);
 
     mutex_unlock(&hse_log_lock);
     va_end(payload);
 }
 
-/* hse_slog_emit() is overridden by all the logging unit tests.
+/* slog_internal_emit() is overridden by all the logging unit tests.
  */
 void HSE_WEAK
-hse_slog_emit(hse_logpri_t priority, const char *fmt, ...)
+slog_internal_emit(hse_logpri_t priority, const char *fmt, ...)
 {
     va_list payload;
 

@@ -189,6 +189,6 @@ bool
 add_hse_err(struct hse_log_fmt_state *state, void *object);
 
 void
-hse_slog_emit(hse_logpri_t priority, const char *fmt, ...);
+slog_internal_emit(hse_logpri_t priority, const char *fmt, ...);
 
 #endif /* HSE_LOGGING_IMPL_HEADER */
