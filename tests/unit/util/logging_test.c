@@ -562,8 +562,6 @@ MTF_DEFINE_UTEST(hse_logging_test, Test_hse_alog)
 
 MTF_DEFINE_UTEST(hse_logging_test, Test_hse_slog)
 {
-    char *argv[] = { "abc", "123", "!@#" };
-    int argc = NELEM(argv);
     int rc;
 
     hse_log_fini();
@@ -579,22 +577,6 @@ MTF_DEFINE_UTEST(hse_logging_test, Test_hse_slog)
         HSE_SLOG_START("utest"),
         HSE_SLOG_FIELD("desc", "%s", "object with field"),
         HSE_SLOG_FIELD("hello", "%s", "world"),
-        HSE_SLOG_END);
-
-    slog_info(
-        HSE_SLOG_START("utest"),
-        HSE_SLOG_FIELD("desc", "%s", "object with list"),
-        HSE_SLOG_LIST("content", "%s", argc, argv),
-        HSE_SLOG_END);
-
-    slog_info(
-        HSE_SLOG_START("utest"),
-        HSE_SLOG_FIELD("desc", "%s", "nested object"),
-        HSE_SLOG_CHILD_START("level_1"),
-        HSE_SLOG_CHILD_START("level_2"),
-        HSE_SLOG_FIELD("foobar", "%d", 2000),
-        HSE_SLOG_CHILD_END,
-        HSE_SLOG_CHILD_END,
         HSE_SLOG_END);
 
     slog_info(
@@ -700,73 +682,6 @@ MTF_DEFINE_UTEST(hse_logging_test, Test_hse_slog)
         HSE_SLOG_FIELD("xxxxxxxxxxxxxxxxxxxxxxxx_98", "%u", 98),
         HSE_SLOG_FIELD("xxxxxxxxxxxxxxxxxxxxxxxx_99", "%u", 99),
         HSE_SLOG_END);
-}
-
-MTF_DEFINE_UTEST(hse_logging_test, Test_hse_slog_dynamic)
-{
-    int                  rc, i;
-    struct slog *        logger;
-    struct json_context *jc;
-
-    struct kv_pair {
-        char *key;
-        int   val;
-    };
-
-    struct kv_pair kv_table[] = { { "answer", 42 }, { "foobar", 2000 } };
-
-    hse_log_fini();
-    rc = hse_log_init();
-    ASSERT_EQ(0, rc);
-
-    hse_slog_create(HSE_LOGPRI_NOTICE, &logger, "utest");
-
-    jc = &logger->sl_json;
-
-    hse_slog_append(logger, HSE_SLOG_FIELD("desc", "%s", "dynamic log"));
-    for (i = 0; i < 2; i++) {
-        char *key = kv_table[i].key;
-        int   val = kv_table[i].val;
-
-        hse_slog_append(logger, HSE_SLOG_FIELD(key, "%d", val));
-    }
-
-    /* check for source info */
-    ASSERT_NE(strstr(jc->json_buf, "hse_logver"), NULL);
-    ASSERT_NE(strstr(jc->json_buf, "hse_version"), NULL);
-
-    /* check for keys */
-    ASSERT_NE(strstr(jc->json_buf, "\"type\":\"utest\""), NULL);
-    ASSERT_NE(strstr(jc->json_buf, "\"desc\":\"dynamic log\""), NULL);
-    ASSERT_NE(strstr(jc->json_buf, "\"answer\":42"), NULL);
-    ASSERT_NE(strstr(jc->json_buf, "\"foobar\":2000"), NULL);
-
-    hse_slog_commit(logger);
-}
-
-MTF_DEFINE_UTEST(hse_logging_test, Test_hse_slog_dynamic_resize)
-{
-    int                  original, rc, i;
-    struct slog *        logger;
-    struct json_context *jc;
-
-    hse_log_fini();
-    rc = hse_log_init();
-    ASSERT_EQ(0, rc);
-
-    hse_slog_create(HSE_LOGPRI_NOTICE, &logger, "utest");
-
-    jc = &logger->sl_json;
-    original = jc->json_buf_sz;
-
-    hse_slog_append(logger, HSE_SLOG_FIELD("desc", "%s", "resize dynamic log"));
-
-    for (i = 0; i < 128; i++)
-        hse_slog_append(logger, HSE_SLOG_FIELD("x", "%d", i));
-
-    ASSERT_EQ(original * 2, jc->json_buf_sz);
-
-    hse_slog_commit(logger);
 }
 
 MTF_END_UTEST_COLLECTION(hse_logging_test);
