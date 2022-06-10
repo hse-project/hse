@@ -149,9 +149,10 @@ cn_ns_vblks(const struct cn_node_stats *ns)
 static inline uint
 cn_ns_samp(const struct cn_node_stats *ns)
 {
-    u64 samp = cn_ns_alen(ns) * 100 / cn_ns_clen(ns);
+    u64 alen = cn_ns_alen(ns);
+    u64 clen = cn_ns_clen(ns);
 
-    return (uint)samp;
+    return clen ? 100 * alen / clen : 0;
 }
 
 static inline u64
