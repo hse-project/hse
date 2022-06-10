@@ -103,10 +103,12 @@ cn_comp_rule2str(enum cn_comp_rule rule)
     return "unknown_rule";
 }
 
-#define CW_DEBUG_PROGRESS   0x01
-#define CW_DEBUG_ROOT       0x02 /* include ingest and root spills */
-#define CW_DEBUG_INTERNAL   0x04
-#define CW_DEBUG_LEAF       0x08
+/* compaction work debug flags */
+enum {
+    CW_DEBUG_START    = 0x01, /* enable cn_comp_start log messages */
+    CW_DEBUG_PROGRESS = 0x02, /* enable cn_comp_stats type=progress log messages */
+    CW_DEBUG_FINAL    = 0x04  /* enable cn_comp_stats type=final log messages */
+};
 
 typedef void (*cn_work_callback)(struct cn_compaction_work *w);
 
