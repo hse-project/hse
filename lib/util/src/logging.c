@@ -31,10 +31,25 @@
  * Item (3) is important to ensure that the facility is widely and uniformly
  * used through the storage engine's source code, and does not impair the
  * readability of the source code.
+ *
+ * Three output formats are supported:
+ * - unstructured logs, emitted via log_info, log_debug, etc.
+ * - json structured logs, emitted via slog_info, slog_debug, etc.
+ * - tabular structured logs, emitted via slog_info, slog_debug, etc.
+ *
+ * Structured logs use json format when HSE global param logging.structured is true,
+ * otherwise structured logs use a tabular format.
  */
 
 #define PARAM_GET_INVALID(_type, _dst, _dstsz) \
     ({ ((_dstsz) < sizeof(_type) || !(_dst) || (uintptr_t)(_dst) & (__alignof__(_type) - 1)); })
+
+/* Context for emitting structured logs in "tabular" format. */
+struct slog_tab_context {
+    char * buf;
+    size_t buf_sz;
+    size_t off;
+};
 
 /**
  * struct hse_log_async_entry - an asynchronous log message in the circular
@@ -605,8 +620,8 @@ vpreprocess_fmt_string(
 
     while (c && (tgt_pos < tgt_end)) {
         switch (parse_state) {
-            case LITERAL:
-                res = LITERAL_handler(&parse_state, state, c, src_pos, &tgt_pos, tgt_end);
+        case LITERAL:
+            res = LITERAL_handler(&parse_state, state, c, src_pos, &tgt_pos, tgt_end);
                 c = *src_pos++;
                 break;
 
@@ -936,7 +951,7 @@ finalize_log_structure(
     va_list                   args)
 {
     int                 i, j;
-    struct json_context jc = { 0 };
+    struct json_context jc = {};
     char *              msg_buf;
     const char *        slog_prefix = "@cee:";
 
@@ -1007,50 +1022,81 @@ package_source_info(struct json_context *jc)
     json_element_field(jc, "hse_version", "%s", HSE_VERSION_STRING);
 }
 
-static void
-hse_format_payload(struct json_context *jc, va_list payload)
+#define slog_tab_snprintf(pc, ...) \
+    (snprintf_append(pc->buf, pc->buf_sz, &pc->off, __VA_ARGS__))
+
+#define slog_tab_vsnprintf(pc, ...) \
+    (vsnprintf_append(pc->buf, pc->buf_sz, &pc->off, __VA_ARGS__))
+
+static
+void
+slog_tab_element_fieldv(struct slog_tab_context *pc, va_list payload)
 {
-    int   token, cnt;
     char *key, *fmt;
-    void *val;
 
-    token = va_arg(payload, int);
+    key = va_arg(payload, char *);
+    fmt = va_arg(payload, char *);
 
-    while (token) {
+    slog_tab_snprintf(pc, " %s ", key);
+    slog_tab_vsnprintf(pc, fmt, payload);
+}
+
+static void
+slog_tab_format_payload(struct slog_tab_context *pc, va_list payload)
+{
+    bool have_end_token HSE_MAYBE_UNUSED;
+    int token;
+
+    have_end_token = false;
+
+    while (0 != (token = va_arg(payload, int))) {
         switch (token) {
-            case _SLOG_START_TOKEN:
-                json_element_start(jc, NULL);
-                json_element_fieldv(jc, payload);
-                package_source_info(jc);
-                json_element_start(jc, "content");
-                break;
-            case _SLOG_CHILD_START_TOKEN:
-                key = va_arg(payload, char *);
-                json_element_start(jc, key);
-                break;
-            case _SLOG_FIELD_TOKEN:
-                json_element_fieldv(jc, payload);
-                break;
-            case _SLOG_LIST_TOKEN:
-                key = va_arg(payload, char *);
-                fmt = va_arg(payload, char *);
-                cnt = va_arg(payload, int);
-                val = va_arg(payload, void *);
-                json_element_list(jc, key, fmt, cnt, val);
-                break;
-            case _SLOG_CHILD_END_TOKEN:
-                json_element_end(jc);
-                break;
-            case _SLOG_END_TOKEN:
-                json_element_end(jc);
-                json_element_end(jc);
-                break;
-            default:
-                break;
+        case _SLOG_START_TOKEN:
+            slog_tab_snprintf(pc, "%s", HSE_MARK);
+            slog_tab_element_fieldv(pc, payload);
+            break;
+        case _SLOG_FIELD_TOKEN:
+            slog_tab_element_fieldv(pc, payload);
+            break;
+        case _SLOG_END_TOKEN:
+            have_end_token = true;
+            break;
         }
-
-        token = va_arg(payload, int);
     }
+
+    /* Ensure arg list was terminated with an end token and not an errant NULL */
+    assert(have_end_token);
+}
+
+static void
+json_format_payload(struct json_context *jc, va_list payload)
+{
+    bool have_end_token HSE_MAYBE_UNUSED;
+    int token;
+
+    have_end_token = false;
+
+    while (0 != (token = va_arg(payload, int))) {
+        switch (token) {
+        case _SLOG_START_TOKEN:
+            json_element_start(jc, NULL);
+            json_element_fieldv(jc, payload);
+            package_source_info(jc);
+            json_element_start(jc, "content");
+            break;
+        case _SLOG_FIELD_TOKEN:
+            json_element_fieldv(jc, payload);
+            break;
+        case _SLOG_END_TOKEN:
+            json_element_end(jc);
+            json_element_end(jc);
+            have_end_token = true;
+            break;
+        }
+    }
+
+    /* Ensure arg list was terminated with an end token and not an errant NULL */
+    assert(have_end_token);
 }
 
 /* The hse_slog() interface provides a simple way to build structured log
@@ -1061,24 +1107,18 @@ hse_format_payload(struct json_context *jc, va_list payload)
  *     HSE_NOTICE
  *     HSE_SLOG_START("example")
  *     HSE_SLOG_FIELD("hello", "%s", "world")
- *     HSE_SLOG_CHILD_START("data")
  *     HSE_SLOG_FIELD("foobar", "%d", 2000)
- *     HSE_SLOG_LIST("count", "%d", argc, argv)
- *     HSE_SLOG_CHILD_END
  *     HSE_SLOG_END
  * )
  *
  * @cee:{
- *     "type": "example",
+ *     "slog": "example",
  *     "hse_logver": "1",
  *     "hse_version": "nfpib-r0.20191212.59d333394"
  *     "hse_branch": "nfpib",
  *     "content": {
  *         "hello": "world",
- *         "data": {
- *             "foobar": 2000,
- *             "count": [1,2,3]
- *         }
+ *         "foobar": 2000,
  *     }
  * }
  *
@@ -1132,31 +1172,34 @@ hse_format_payload(struct json_context *jc, va_list payload)
  * this extra post processing .
  */
 void
-hse_slog_internal(hse_logpri_t priority, const char *fmt, ...)
+hse_slog_internal(hse_logpri_t priority, ...)
 {
-    va_list       payload;
-    const char *  buf;
-
-    if (!hse_gparams.gp_logging.structured)
-        return;
+    va_list payload;
+    char *buf;
+    size_t buf_sz;
 
     if (priority > hse_gparams.gp_logging.level || !hse_gparams.gp_logging.enabled)
         return;
 
-    va_start(payload, fmt);
+    va_start(payload, priority);
     mutex_lock(&hse_log_lock);
 
-    if (fmt) {
-        buf = fmt;
-    } else {
-        struct json_context jc = { 0 };
+    buf = hse_log_inf.mli_fmt_buf;
+    buf_sz = sizeof(hse_log_inf.mli_fmt_buf);
 
-        jc.json_buf = hse_log_inf.mli_fmt_buf;
-        jc.json_buf_sz = HSE_LOG_STRUCTURED_DATALEN_MAX;
+    if (hse_gparams.gp_logging.structured) {
+        struct json_context ctx = {};
 
-        hse_format_payload(&jc, payload);
+        ctx.json_buf = buf;
+        ctx.json_buf_sz = buf_sz;
+        json_format_payload(&ctx, payload);
+    }
+    else {
+        struct slog_tab_context ctx = {};
 
-        buf = hse_log_inf.mli_fmt_buf;
+        ctx.buf = buf;
+        ctx.buf_sz = buf_sz;
+        slog_tab_format_payload(&ctx, payload);
     }
 
     hse_log_post_vasync("_hse_slog", 1, priority, buf, payload);
@@ -1179,101 +1222,4 @@ hse_slog_emit(hse_logpri_t priority, const char *fmt, ...)
         vsyslog(priority, fmt, payload);
     }
     va_end(payload);
-}
-
-int
-hse_slog_create(hse_logpri_t priority, struct slog **sl, const char *type)
-{
-    struct json_context *jc;
-
-    if (!sl || !type)
-        return EINVAL;
-
-    if (priority > hse_gparams.gp_logging.level || !hse_gparams.gp_logging.enabled) {
-        *sl = NULL;
-        return 0;
-    }
-
-    *sl = calloc(1, sizeof(struct slog));
-    if (ev(!*sl))
-        return ENOMEM;
-
-    jc = &((*sl)->sl_json);
-    jc->json_buf_sz = 2048;
-
-    jc->json_buf = malloc(jc->json_buf_sz);
-    if (ev(!jc->json_buf)) {
-        free(*sl);
-        *sl = NULL;
-        return ENOMEM;
-    }
-
-    json_element_start(jc, NULL);
-    json_element_field(jc, "type", "%s", type);
-    package_source_info(jc);
-    json_element_start(jc, "content");
-
-    (*sl)->sl_priority = priority;
-    (*sl)->sl_entries = 0;
-
-    return 0;
-}
-
-int
-hse_slog_append_internal(struct slog *sl, ...)
-{
-    va_list              payload;
-    struct json_context *jc;
-
-    if (!sl)
-        return 0;
-
-    jc = &sl->sl_json;
-
-    if (jc->json_offset > (jc->json_buf_sz - jc->json_offset) / 2) {
-        char *new_buf;
-
-        new_buf = realloc(jc->json_buf, jc->json_buf_sz * 2);
-        if (ev(!new_buf))
-            goto err;
-
-        jc->json_buf = new_buf;
-        jc->json_buf_sz *= 2;
-    }
-
-    va_start(payload, sl);
-    hse_format_payload(jc, payload);
-    va_end(payload);
-
-    sl->sl_entries++;
-
-    return 0;
-err:
-    free(jc->json_buf);
-    free(sl);
-    return ENOMEM;
-}
-
-int
-hse_slog_commit(struct slog *sl)
-{
-    struct json_context *jc;
-
-    if (!sl)
-        return 0;
-
-    jc = &sl->sl_json;
-
-    json_element_end(jc);
-    json_element_end(jc);
-
-    mutex_lock(&hse_log_lock);
-    if (sl->sl_entries)
-        hse_slog_emit(sl->sl_priority, "@cee:%s\n", jc->json_buf);
-    mutex_unlock(&hse_log_lock);
-
-    free(jc->json_buf);
-    free(sl);
-
-    return 0;
 }

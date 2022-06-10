@@ -101,14 +101,21 @@
     } while (0)
 
 
-#define log_info_sync(_fmt, ...) log_pri(HSE_LOGPRI_INFO, (_fmt), false, NULL, ##__VA_ARGS__)
-
+/* Main logging APIs for HSE.  Debug, info and warn levels use async
+ * logging. Err and crit levels use synchronous logging.
+ */
 #define log_debug(_fmt, ...)    log_pri(HSE_LOGPRI_DEBUG, (_fmt), true, NULL, ##__VA_ARGS__)
 #define log_info(_fmt, ...)     log_pri(HSE_LOGPRI_INFO, (_fmt), true, NULL, ##__VA_ARGS__)
 #define log_warn(_fmt, ...)     log_pri(HSE_LOGPRI_WARN, (_fmt), true, NULL, ##__VA_ARGS__)
 #define log_err(_fmt, ...)      log_pri(HSE_LOGPRI_ERR, (_fmt), false, NULL, ##__VA_ARGS__)
 #define log_crit(_fmt, ...)     log_pri(HSE_LOGPRI_CRIT, (_fmt), false, NULL, ##__VA_ARGS__)
 
+/* A special API used in hse_init to synchronously log info level messages
+ */
+#define log_info_sync(_fmt, ...) log_pri(HSE_LOGPRI_INFO, (_fmt), false, NULL, ##__VA_ARGS__)
+
+/* Emit logs with pretty printed merr_t values
+ */
 #define log_prix(_pri, _fmt, _async, _err, ...)                         \
     do {                                                                \
         void *av[] = { &(_err), NULL };                                 \
@@ -120,15 +127,24 @@
 #define log_errx(_fmt, _err, ...)   log_prix(HSE_LOGPRI_ERR, (_fmt), false, (_err), ##__VA_ARGS__)
 
 
+/* Helper APIs used by above log macros.  Not intended to be called directly.
+ */
 void
 hse_log(struct event_counter *ev, const char *fmt, bool async, void **args, ...) HSE_PRINTF(2, 5);
 
+/* Convert a log priority level: numeric to string.
+ */
 const char *
 hse_logpri_val_to_name(hse_logpri_t val);
 
+/* Convert a log priority level: string to numeric.
+ */
 hse_logpri_t
 hse_logpri_name_to_val(const char *name);
 
+/* Support for custom "printf" format specifier such as "@@e" (for
+ * pretty printing merr_t values).
+ */
 struct hse_log_fmt_state;
 
 typedef bool
@@ -146,30 +162,25 @@ hse_log_deregister(int code);
 bool
 hse_log_push(struct hse_log_fmt_state *state, bool indexed, const char *name, const char *value);
 
+/* Structured logging support.
+ */
 struct slog;
 
 enum slog_token {
     _SLOG_START_TOKEN = 1,
-    _SLOG_CHILD_START_TOKEN,
     _SLOG_FIELD_TOKEN,
-    _SLOG_LIST_TOKEN,
-    _SLOG_CHILD_END_TOKEN,
     _SLOG_END_TOKEN
 };
 
-#define HSE_SLOG_START(type)        NULL, _SLOG_START_TOKEN, "type", "%s", (type)
-#define HSE_SLOG_CHILD_START(key)   _SLOG_CHILD_START_TOKEN, (key)
-#define HSE_SLOG_CHILD_END          _SLOG_CHILD_END_TOKEN
-#define HSE_SLOG_END                _SLOG_END_TOKEN
+#define SLOG_TYPE_IDENTIFIER "slog"
+
+#define HSE_SLOG_START(type) \
+    slog_validate(_SLOG_START_TOKEN, "%s", (type)), SLOG_TYPE_IDENTIFIER, "%s", (type)
 
 #define HSE_SLOG_FIELD(key, fmt, val) \
-    hse_slog_validate_field(fmt, val), (key), (fmt), (val)
+    slog_validate(_SLOG_FIELD_TOKEN, (fmt), (val)), (key), (fmt), (val)
 
-#define HSE_SLOG_LIST(key, fmt, cnt, val) \
-    hse_slog_validate_list(fmt, val[0]), (key), (fmt), (cnt), (val)
-
-#define hse_slog_append(_logger, ...) \
-    hse_slog_append_internal((_logger), __VA_ARGS__, NULL)
+#define HSE_SLOG_END _SLOG_END_TOKEN
 
 #define slog_debug(...)     hse_slog_internal(HSE_LOGPRI_DEBUG, __VA_ARGS__, NULL)
 #define slog_info(...)      hse_slog_internal(HSE_LOGPRI_INFO, __VA_ARGS__, NULL)
@@ -177,25 +188,12 @@ enum slog_token {
 #define slog_err(...)       hse_slog_internal(HSE_LOGPRI_ERR, __VA_ARGS__, NULL)
 
 void
-hse_slog_internal(hse_logpri_t priority, const char *fmt, ...);
+hse_slog_internal(hse_logpri_t priority, ...);
 
-int
-hse_slog_create(hse_logpri_t priority, struct slog **sl, const char *type);
-
-int
-hse_slog_append_internal(struct slog *sl, ...);
-
-int
-hse_slog_commit(struct slog *sl);
-
-static inline HSE_PRINTF(1, 2) int hse_slog_validate_field(char *fmt, ...)
+/* A helper "no-op" function that tricks compiler into validating printf specifiers */
+static inline HSE_PRINTF(2, 3) int slog_validate(enum slog_token tok, char *fmt, ...)
 {
-    return _SLOG_FIELD_TOKEN;
-}
-
-static inline HSE_PRINTF(1, 2) int hse_slog_validate_list(char *fmt, ...)
-{
-    return _SLOG_LIST_TOKEN;
+    return tok;
 }
 
 extern FILE *hse_log_file;
