@@ -788,6 +788,11 @@ cn_ingestv(
     assert(check == 0);
 
     if (log_ingest) {
+
+        ulong hwlen_pct = kst.kst_halen ? 100 * kst.kst_hwlen / kst.kst_halen : 0;
+        ulong kwlen_pct = kst.kst_kalen ? 100 * kst.kst_kwlen / kst.kst_kalen : 0;
+        ulong vwlen_pct = kst.kst_valen ? 100 * kst.kst_vwlen / kst.kst_valen : 0;
+
         slog_info(
             HSE_SLOG_START("cn_ingest"),
             HSE_SLOG_FIELD("dgen", "%lu", (ulong)dgen),
@@ -799,9 +804,9 @@ cn_ingestv(
             HSE_SLOG_FIELD("halen_mb", "%3lu", (ulong)kst.kst_halen >> MB_SHIFT),
             HSE_SLOG_FIELD("kalen_mb", "%3lu", (ulong)kst.kst_kalen >> MB_SHIFT),
             HSE_SLOG_FIELD("valen_mb", "%3lu", (ulong)kst.kst_valen >> MB_SHIFT),
-            HSE_SLOG_FIELD("kwlen%%", "%3lu", (ulong)100 * kst.kst_kwlen / kst.kst_kalen),
-            HSE_SLOG_FIELD("hwlen%%", "%3lu", (ulong)100 * kst.kst_hwlen / kst.kst_halen),
-            HSE_SLOG_FIELD("vwlen%%", "%3lu", (ulong)100 * kst.kst_vwlen / kst.kst_valen),
+            HSE_SLOG_FIELD("hwlen%%", "%3lu", hwlen_pct),
+            HSE_SLOG_FIELD("kwlen%%", "%3lu", kwlen_pct),
+            HSE_SLOG_FIELD("vwlen%%", "%3lu", vwlen_pct),
             HSE_SLOG_END);
     }
 
