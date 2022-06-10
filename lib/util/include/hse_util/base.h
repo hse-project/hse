@@ -47,7 +47,8 @@
 
 /* clang-format off */
 
-#define HSE_UTIL_DESC   "Heterogeneous-memory Storage Engine Utilities"
+#define HSE_NAME "Heterogeneous-memory Storage Engine"
+
 #define STR_SAFE(_str)  ((_str) ?: "")
 #define NELEM(_arr)     (sizeof(_arr) / sizeof((_arr)[0]))
 
