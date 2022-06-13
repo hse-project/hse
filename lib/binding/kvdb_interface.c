@@ -105,6 +105,8 @@ hse_init(const char *const config, const size_t paramc, const char *const *const
     if (HSE_UNLIKELY(paramc > 0 && !paramv))
         return merr(EINVAL);
 
+    hse_progname = program_invocation_name ?: __func__;
+
     hse_gparams = hse_gparams_defaults();
 
     err = argv_deserialize_to_hse_gparams(paramc, paramv, &hse_gparams);
@@ -112,6 +114,9 @@ hse_init(const char *const config, const size_t paramc, const char *const *const
         fprintf(stderr, "Failed to deserialize paramv for HSE gparams\n");
         return err;
     }
+
+    /* First log message w/ HSE version - after deserializing global params */
+    log_info_sync("%s: version %s, program %s", HSE_NAME, HSE_VERSION_STRING, hse_progname);
 
     err = config_from_hse_conf(config, &conf);
     if (err) {
@@ -150,8 +155,6 @@ hse_init(const char *const config, const size_t paramc, const char *const *const
             log_info("Rest server started: %s", hse_gparams.gp_socket.path);
         }
     }
-
-    log_info("%s, version %s", HSE_KVDB_DESC, HSE_VERSION_STRING);
 
     hse_initialized = true;
 

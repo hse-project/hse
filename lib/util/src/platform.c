@@ -206,8 +206,6 @@ hse_platform_init(void)
 {
     merr_t err;
 
-    hse_progname = program_invocation_name ?: __func__;
-
     if (PAGE_SIZE != getpagesize()) {
         fprintf(stderr, "%s: Compile-time PAGE_SIZE (%lu) != Run-time getpagesize (%d)",
                 __func__, PAGE_SIZE, getpagesize());
@@ -250,15 +248,12 @@ hse_platform_init(void)
     rest_url_register(NULL, 0, kmc_rest_get, NULL, "kmc");
     rest_url_register(NULL, 0, workqueue_rest_get, NULL, "ps");
 
-    log_info_sync("%s: version %s, image %s",
-                  HSE_UTIL_DESC, HSE_VERSION_STRING, hse_progname);
-
 errout:
     if (err) {
         struct merr_info info;
 
         fprintf(stderr, "%s: version %s, image %s: init failed: %s\n",
-                HSE_UTIL_DESC, HSE_VERSION_STRING, hse_progname, merr_info(err, &info));
+                HSE_NAME, HSE_VERSION_STRING, hse_progname, merr_info(err, &info));
     }
 
     return err;

@@ -46,8 +46,6 @@ enum hse_mclass;
 struct hse_kvdb_txn {
 };
 
-#define HSE_KVDB_DESC      "Heterogeneous-memory Storage Engine KVDB"
-
 /**
  * ikvdb_init() - prepare the ikvdb subsystem for use
  */
