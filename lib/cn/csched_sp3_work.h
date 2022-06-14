@@ -24,7 +24,6 @@ enum sp3_work_type {
     wtype_node_idle,    /* internal+leaf nodes: kcompact/kvcompact */
     wtype_leaf_garbage, /* leaf nodes: garbage */
     wtype_leaf_size,    /* leaf nodes: size */
-    wtype_leaf_scatter, /* leaf nodes: scatter */
 };
 
 struct sp3_thresholds {
@@ -34,7 +33,7 @@ struct sp3_thresholds {
     u8 lcomp_kvsets_max;
     u8 lcomp_pop_pct;       /* leaf node spill-by-clen percentage threshold */
     u8 lcomp_pop_keys;      /* leaf node spill-by-keys threshold (units of 4 million) */
-    u8 lscatter_pct;
+    u8 max_vgroups;
     u8 llen_runlen_min;
     u8 llen_runlen_max;
     u8 llen_idlec;
@@ -47,7 +46,6 @@ struct sp3_thresholds {
 #define SP3_RSPILL_KVSETS_MIN   ((u8)1)
 #define SP3_LCOMP_KVSETS_MIN    ((u8)2)
 #define SP3_LLEN_RUNLEN_MIN     ((u8)2)
-#define SP3_LSCAT_THRESH_MIN    ((u8)2)
 
 /* MTF_MOCK */
 merr_t

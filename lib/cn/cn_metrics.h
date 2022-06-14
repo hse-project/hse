@@ -66,12 +66,11 @@ kvset_vulen(const struct kvset_stats *kst)
 }
 
 /**
- * struct cn_node_stats - node metrics used by compacation scheduler
+ * struct cn_node_stats - node metrics used by compaction scheduler
  * @ns_hclen: estimated total hblock capacity (mpr_alloc_cap) after compaction
  * @ns_kclen: estimated total kblock capacity (mpr_alloc_cap) after compaction
  * @ns_vclen: estimated total vblock capacity (mpr_alloc_cap) after compaction
  * @ns_keys_uniq:  number of unique keys (estimated from hyperloglog)
- * @ns_scatter:   a measure of vblocks scatter
  * @ns_pcap:      current size / max size as a percentage
  * @ns_kst:       sum of kvset_stats for all kvsets in node
  */
@@ -81,7 +80,6 @@ struct cn_node_stats {
     u64                ns_hclen;
     u64                ns_kclen;
     u64                ns_vclen;
-    u32                ns_scatter;
     u16                ns_pcap;
 };
 

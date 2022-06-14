@@ -134,9 +134,8 @@ vbr_readahead(
      * and return.  This is in effort to avoid unnecessarily issuing
      * readaheads for short range scans that might never revisit the
      * bucket.  Additionally, this avoids repeated readahead for the
-     * same bucket due to vblock scatter induced bucket thrashing
-     * (i.e., vblock group ID collions and/or simply more vgroups
-     * than slots in rahv[]).
+     * same bucket due to vblock group induced bucket thrashing (i.e.,
+     * more vgroups than slots in rahv[]).
      */
     if (bkt == 0 || (rah->vgidx != vgidx && vlen < ra_len)) {
         if (HSE_UNLIKELY(ra_flags & VBR_FULLSCAN)) {

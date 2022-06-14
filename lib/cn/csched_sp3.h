@@ -14,7 +14,7 @@
 
 /* MTF_MOCK_DECL(csched_sp3) */
 
-#define RBT_MAX 6
+#define RBT_MAX 4
 #define CN_THROTTLE_MAX (THROTTLE_SENSOR_SCALE_MED + 50)
 
 struct kvdb_rparams;

@@ -132,7 +132,6 @@ cndb_txn_kvset_add(
     kvset->ck_hblkid = hblkid;
     kvset->ck_dgen = km->km_dgen;
     kvset->ck_vused = km->km_vused;
-    kvset->ck_scatter = km->km_scatter;
     kvset->ck_compc = km->km_compc;
 
     kvset->ck_kblkc = kblkc;

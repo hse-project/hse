@@ -546,7 +546,6 @@ kvset_create2(
     ks->ks_rp = rp;
     ks->ks_dgen = km->km_dgen;
     ks->ks_compc = km->km_compc;
-    ks->ks_scatter = km->km_scatter;
     ks->ks_kvsetid = kvsetid;
     ks->ks_cnid = cn_tree_get_cnid(tree);
     ks->ks_cndb = cn_tree_get_cndb(tree);
@@ -1854,24 +1853,6 @@ u64
 kvset_get_vulen(struct kvset *ks)
 {
     return ks->ks_st.kst_vulen;
-}
-
-uint
-kvset_get_scatter_score(struct kvset *ks)
-{
-    return ks->ks_scatter;
-}
-
-uint
-kvset_get_scatter_pct(struct kvset *ks)
-{
-    return ks->ks_scatter_pct;
-}
-
-void
-kvset_set_scatter_pct(struct kvset *ks, uint spct)
-{
-    ks->ks_scatter_pct = spct;
 }
 
 u64

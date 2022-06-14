@@ -531,7 +531,7 @@ cndb_record_kvset_add(
 
     if (!cndb->replaying)
         err = cndb_omf_kvset_add_write(cndb->mdc, cndb_txn_txid_get(tx), cnid, kvsetid, nodeid,
-                                       km->km_dgen, km->km_vused, km->km_scatter, km->km_compc,
+                                       km->km_dgen, km->km_vused, km->km_compc,
                                        hblkid, kblkc, kblkv, vblkc, vblkv);
 out:
     mutex_unlock(&cndb->mutex);
@@ -734,7 +734,7 @@ compact_incomplete_intents(
 
     err = cndb_omf_kvset_add_write(cndb->mdc, txid, kvset->ck_cnid, kvset->ck_kvsetid,
                                    kvset->ck_nodeid, kvset->ck_dgen, kvset->ck_vused,
-                                   kvset->ck_scatter, kvset->ck_compc, kvset->ck_hblkid,
+                                   kvset->ck_compc, kvset->ck_hblkid,
                                    kvset->ck_kblkc, kvset->ck_kblkv,
                                    kvset->ck_vblkc, kvset->ck_vblkv);
     return err;
@@ -779,7 +779,7 @@ log_full_rec(
 
     err = cndb_omf_kvset_add_write(cndb->mdc, txid, kvset->ck_cnid, kvset->ck_kvsetid,
                                    kvset->ck_nodeid, kvset->ck_dgen, kvset->ck_vused,
-                                   kvset->ck_scatter, kvset->ck_compc, kvset->ck_hblkid,
+                                   kvset->ck_compc, kvset->ck_hblkid,
                                    kvset->ck_kblkc, kvset->ck_kblkv,
                                    kvset->ck_vblkc, kvset->ck_vblkv);
     if (ev(err))
@@ -1327,7 +1327,6 @@ cndb_cn_instantiate(struct cndb *cndb, uint64_t cnid, void *ctx, cn_init_callbac
     while (map_iter_next_val(&kvset_iter, &kvset)) {
         struct kvset_meta km = {
             .km_dgen = kvset->ck_dgen,
-            .km_scatter = kvset->ck_scatter,
             .km_compc = kvset->ck_compc,
             .km_vused = kvset->ck_vused,
             .km_capped = cn->cp.kvs_ext01,

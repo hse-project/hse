@@ -137,9 +137,9 @@ cndb_print_record(struct cndb_reader *reader)
 
         cndb_omf_kvset_add_read(reader->buf, &txid, &cnid, &kvsetid, &nodeid, &hblkid,
                                 &kblkc, &kblkv, &vblkc, &vblkv, &km);
-        printf("%-8s txid %lu cnid %lu kvsetid %lu nodeid %lu dgen %lu vused %lu scatter %u "
+        printf("%-8s txid %lu cnid %lu kvsetid %lu nodeid %lu dgen %lu vused %lu "
                "compc %u hblkid %lu nkblk %u nvblk %u",
-               "txadd", txid, cnid, kvsetid, nodeid, km.km_dgen, km.km_vused, km.km_scatter,
+               "txadd", txid, cnid, kvsetid, nodeid, km.km_dgen, km.km_vused,
                km.km_compc, hblkid, kblkc, vblkc);
 
         for (int i = 0; i < kblkc; i++)

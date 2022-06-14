@@ -333,20 +333,22 @@ sp3_work_leaf_len(
 {
     struct cn_tree_node *tn = spn2tn(spn);
     struct cn_node_stats stats;
-
+    uint node_kvsets;
+    uint runlen = 0;
     uint runlen_min = thresh->llen_runlen_min;
     uint runlen_max = thresh->llen_runlen_max;
 
     cn_node_stats_get(tn, &stats);
 
+    node_kvsets = cn_ns_kvsets(&stats);
+
     /* Start from old kvsets, find first run of 'runlen_min' kvsets with
      * the same 'compc' value, then k-compact those kvsets and up to
      * 'runlen_max' newer.
      */
-    if (cn_ns_kvsets(&stats) >= runlen_min) {
+    if (node_kvsets >= runlen_min) {
         struct kvset_list_entry *le;
         struct list_head *head;
-        uint runlen = 0;
         uint compc = UINT_MAX;
         uint tmp;
 
@@ -379,16 +381,12 @@ sp3_work_leaf_len(
                     runlen = runlen_min;
                 }
             }
+        } else if (node_kvsets > runlen_min && cn_ns_vblks(&stats) < node_kvsets) {
 
-            return runlen;
-        }
-
-        /* Don't let lightweight nodes grow too long.  For the most part this only
-         * applies to "index" nodes (i.e., nodes where the values are much smaller
-         * than the keys).
-         */
-        if (cn_ns_kvsets(&stats) > runlen_min &&
-            cn_ns_vblks(&stats) < cn_ns_kvsets(&stats)) {
+            /* Don't let lightweight nodes grow too long.  For the most part
+             * this only applies to "index" nodes (i.e., nodes where the values
+             * are much smaller than the keys).
+             */
 
             le = list_last_entry(head, typeof(*le), le_link);
             compc = kvset_get_compc(le->le_kvset);
@@ -408,146 +406,29 @@ sp3_work_leaf_len(
             }
 
             *rule = CN_CR_LSHORT_LW;
-            return runlen_min;
+            runlen = runlen_min;
         }
-    }
 
-    return 0;
-}
 
-uint
-sp3_node_scatter_pct_compute(struct sp3_node *spn)
-{
-    struct list_head *       head;
-    struct kvset_list_entry *le;
-    struct cn_node_stats     stats;
-    struct cn_tree_node *    tn;
-
-    uint n_spct = 0;
-    uint n_scatter = 0;
-
-    tn = spn2tn(spn);
-    cn_node_stats_get(tn, &stats);
-
-    /* To handle a node having kvsets with zero vblocks. */
-    if (cn_ns_vblks(&stats) == 0)
-        return 0;
-
-    head = &tn->tn_kvset_list;
-    list_for_each_entry (le, head, le_link) {
-        u64  vulen;
-        uint vulen_pct;
-        uint scatter;
-        uint score;
-
-        score = kvset_get_scatter_score(le->le_kvset);
-        vulen = kvset_vulen(&le->le_kvset->ks_st);
-        vulen_pct = (vulen * 100) / cn_ns_vulen(&stats);
-        scatter = vulen_pct * score;
-        n_scatter += scatter;
-
-        /* Stash scatter temporarily in the kvset instance. */
-        kvset_set_scatter_pct(le->le_kvset, scatter);
-    }
-
-    if (n_scatter == 0)
-        return 0;
-
-    /* Loop another time and set the scatter percent for each kvset. */
-    list_for_each_entry (le, head, le_link) {
-        uint k_scatter;
-        uint k_spct;
-        uint k_score;
-
-        k_scatter = kvset_get_scatter_pct(le->le_kvset);
-
-        assert(n_scatter != 0 && k_scatter <= n_scatter);
-        k_spct = (k_scatter * 100) / n_scatter;
-        k_spct = clamp_t(uint, k_spct, 1, 100);
-        kvset_set_scatter_pct(le->le_kvset, k_spct);
-
-        /* [HSE_REVISIT]: Node's scatter percent doesn't factor in
-         * its length.
+        /* If the resulting kvset would exceed max_vgroups, convert
+         * the k-compaction to a kv-compaction
          */
-        k_score = kvset_get_scatter_score(le->le_kvset);
-        n_spct += (k_score > 1 ? k_spct : 0);
-    }
+        if (runlen > 0) {
+            uint vgroups = 0;
 
-    return clamp_t(uint, n_spct, 1, 100);
-}
-
-static uint
-sp3_work_leaf_scatter(
-    struct sp3_node *         spn,
-    struct sp3_thresholds *   thresh,
-    struct kvset_list_entry **mark,
-    enum cn_action *          action,
-    enum cn_comp_rule *       rule)
-{
-    struct list_head *       head;
-    struct cn_tree_node *    tn;
-    struct cn_node_stats     stats;
-    struct kvset_list_entry *le;
-    struct kvset *           k;
-
-    uint n_kvsets;
-    uint n_spct_tgt; /* node's target scatter pct. */
-    uint n_spct_cur; /* node's scatter pct. */
-    uint n_non_spct; /* node's non-scatter pct. */
-
-    /* If the node scatter percent doesn't exceed threshold, return. */
-    n_spct_cur = sp3_node_scatter_pct_compute(spn);
-    n_spct_tgt = thresh->lscatter_pct;
-    if (n_spct_cur <= n_spct_tgt)
-        return 0;
-
-    tn = spn2tn(spn);
-    cn_node_stats_get(tn, &stats);
-
-    head = &tn->tn_kvset_list;
-    *mark = NULL;
-    n_kvsets = 0;
-    n_non_spct = 0;
-    n_spct_cur = 0;
-
-    list_for_each_entry_reverse (le, head, le_link) {
-        uint k_spct_cur;
-        uint k_score;
-
-        k_score = kvset_get_scatter_score(le->le_kvset);
-        k_spct_cur = kvset_get_scatter_pct(le->le_kvset);
-        if (k_score > 1)
-            n_spct_cur += k_spct_cur;
-        else
-            n_non_spct += k_spct_cur;
-
-        if (n_spct_cur > n_spct_tgt) {
-            if (k_score == 1)
-                break;
-
-            *mark = *mark ?: le;
-            ++n_kvsets;
-
-            n_non_spct += k_spct_cur;
-            if (n_non_spct >= 100 - n_spct_tgt)
-                break;
+            le = *mark;
+            for (uint i = 0; i < runlen; i++) {
+                vgroups += kvset_get_vgroups(le->le_kvset);
+                if (vgroups > thresh->max_vgroups) {
+                    *action = CN_ACTION_COMPACT_KV;
+                    break;
+                }
+                le = list_prev_entry(le, le_link);
+            }
         }
     }
 
-    if (ev(!*mark))
-        return 0;
-
-    k = (*mark)->le_kvset;
-    if (n_kvsets > 1 || (n_kvsets == 1 && kvset_get_scatter_score(k) > 1 &&
-                         kvset_get_scatter_pct(k) > (100 - n_spct_tgt) / 4)) {
-
-        *action = CN_ACTION_COMPACT_KV;
-        *rule = CN_CR_LSCATTER;
-
-        return n_kvsets;
-    }
-
-    return 0;
+    return runlen;
 }
 
 /**
@@ -632,10 +513,6 @@ sp3_work(
 
         case wtype_node_len:
             n_kvsets = sp3_work_leaf_len(spn, thresh, &mark, &action, &rule);
-            break;
-
-        case wtype_leaf_scatter:
-            n_kvsets = sp3_work_leaf_scatter(spn, thresh, &mark, &action, &rule);
             break;
 
         case wtype_node_idle:

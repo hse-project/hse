@@ -69,7 +69,6 @@ struct kvset_meta {
     uint64_t        km_dgen;
     uint64_t        km_vused;
     uint32_t        km_node_offset;
-    uint32_t        km_scatter;
     uint16_t        km_node_level;
     uint64_t        km_nodeid;
     uint16_t        km_compc;
@@ -353,18 +352,6 @@ kvset_stats(const struct kvset *ks, struct kvset_stats *stats);
 /* MTF_MOCK */
 const struct kvset_stats *
 kvset_statsp(const struct kvset *ks);
-
-/* MTF_MOCK */
-uint
-kvset_get_scatter_score(struct kvset *self);
-
-/* MTF_MOCK */
-uint
-kvset_get_scatter_pct(struct kvset *self);
-
-/* MTF_MOCK */
-void
-kvset_set_scatter_pct(struct kvset *self, uint spct);
 
 /* MTF_MOCK */
 u8 *
