@@ -86,7 +86,7 @@ struct cn_kvdb *
 cn_tree_get_cnkvdb(const struct cn_tree *tree);
 
 struct mpool *
-cn_tree_get_ds(const struct cn_tree *tree);
+cn_tree_get_mp(const struct cn_tree *tree);
 
 struct kvs_rparams *
 cn_tree_get_rp(const struct cn_tree *tree);

@@ -349,14 +349,14 @@ cn_tree_destroy(struct cn_tree *tree)
 void
 cn_tree_setup(
     struct cn_tree *    tree,
-    struct mpool *      ds,
+    struct mpool *      mp,
     struct cn *         cn,
     struct kvs_rparams *rp,
     struct cndb *       cndb,
     u64                 cnid,
     struct cn_kvdb *    cn_kvdb)
 {
-    tree->ds = ds;
+    tree->mp = mp;
     tree->cn = cn;
     tree->rp = rp;
     tree->cndb = cndb;
@@ -377,9 +377,9 @@ cn_tree_get_cnkvdb(const struct cn_tree *tree)
 }
 
 struct mpool *
-cn_tree_get_ds(const struct cn_tree *tree)
+cn_tree_get_mp(const struct cn_tree *tree)
 {
-    return tree->ds;
+    return tree->mp;
 }
 
 struct kvs_rparams *

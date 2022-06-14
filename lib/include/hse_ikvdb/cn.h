@@ -222,10 +222,6 @@ cn_get_flags(const struct cn *handle);
 
 /* MTF_MOCK */
 u64
-cn_vma_mblock_max(struct cn *cn);
-
-/* MTF_MOCK */
-u64
 cn_mpool_dev_zone_alloc_unit_default(struct cn *cn, enum hse_mclass mclass);
 
 #if HSE_MOCKING

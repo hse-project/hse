@@ -53,7 +53,7 @@ cn_tree_destroy(struct cn_tree *tree);
 /**
  * cn_tree_setup() - Initialize cn tree with resources.
  * @tree: tree created with cn_tree_create()
- * @ds:   dataset
+ * @mp:   mpool
  * @cn:   cn handle
  * @rp:   runtime parameters
  * @cndb: cndb handle
@@ -63,7 +63,7 @@ cn_tree_destroy(struct cn_tree *tree);
 void
 cn_tree_setup(
     struct cn_tree *    tree,
-    struct mpool *      ds,
+    struct mpool *      mp,
     struct cn *         cn,
     struct kvs_rparams *rp,
     struct cndb *       cndb,

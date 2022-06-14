@@ -65,8 +65,6 @@
 #include "cn_perfc.h"
 #include "kvset_internal.h"
 
-#define VMA_SIZE_MAX 30
-
 struct tbkt;
 struct mclass_policy;
 
@@ -1447,22 +1445,6 @@ u64
 cn_mpool_dev_zone_alloc_unit_default(struct cn *cn, enum hse_mclass mclass)
 {
     return cn->cn_mpool_props.mclass[mclass].mc_mblocksz;
-}
-
-/*
- * [HSE_REVISIT]: Fix the callers to pass a correct mclass rather than blindly
- * passing HSE_MCLASS_CAPACITY. For now, assume a default mblock size of 32MiB
- * for all the media classes. This needs to be fixed in future when we want
- * KVDB to operate on media classes with varying mblock sizes.
- */
-u64
-cn_vma_mblock_max(struct cn *cn)
-{
-    u64 vma_size_max;
-
-    vma_size_max = 1ul << VMA_SIZE_MAX;
-
-    return vma_size_max / MPOOL_MBLOCK_SIZE_DEFAULT;
 }
 
 #if HSE_MOCKING

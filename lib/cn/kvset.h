@@ -200,14 +200,6 @@ kvset_madvise_capped(struct kvset *kvset, int advice);
 void
 kvset_madvise_vmaps(struct kvset *kvset, int advice);
 
-/**
- * kvset_purge_vmaps() - Purge kvset vblock mcache map
- * @kvset:    kvset pointer
- */
-/* MTF_MOCK */
-void
-kvset_purge_vmaps(struct kvset *kvset);
-
 /* MTF_MOCK */
 merr_t
 kvset_create2(

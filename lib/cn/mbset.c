@@ -23,7 +23,7 @@
  * Currently (early 2018), each kvset has an "mbset' containing:
  *   - vblocks
  *   - one handle for each vblock (for use with mpool_mblock_read)
- *   - one or more mcache maps (more than one if kvset has many vblocks)
+ *   - an mcache map handle
  *   - a vblock descriptor for each vblock (this is the "user data")
  *
  * Mbsets can be shared by multiple kvsets after k-compaction operations as
@@ -61,12 +61,12 @@
  */
 
 /**
- * _mbset_mblk_getprops() - get mblock propertie3s for each mblock in the mbset
+ * mbset_mblk_getprops() - get mblock properties for each mblock in the mbset
  *
  * Used by mbset constructor.
  */
 static merr_t
-_mbset_mblk_getprops(struct mbset *self, mbset_udata_init_fn *cb)
+mbset_mblk_getprops(struct mbset *self, mbset_udata_init_fn *cb)
 {
     merr_t err = 0;
     u64 *  argv;
@@ -88,7 +88,7 @@ _mbset_mblk_getprops(struct mbset *self, mbset_udata_init_fn *cb)
 
         struct mblock_props props;
 
-        err = mpool_mblock_props_get(self->mbs_ds, self->mbs_idv[i], &props);
+        err = mpool_mblock_props_get(self->mbs_mp, self->mbs_idv[i], &props);
         if (ev(err))
             break;
 
@@ -120,7 +120,7 @@ mbset_apply(struct mbset *self, mbset_udata_init_fn *cb, uint *argcp, u64 *argv)
 }
 
 /**
- * _mbset_mblk_del() - delete mblocks
+ * mbset_mblk_del() - delete mblocks
  *
  * Used by mbset destructor if mblocks have been marked for deletion.
  *
@@ -130,14 +130,14 @@ mbset_apply(struct mbset *self, mbset_udata_init_fn *cb, uint *argcp, u64 *argv)
  * and stopping immediately would do less harm.
  */
 static merr_t
-_mbset_mblk_del(struct mbset *self)
+mbset_mblk_del(struct mbset *self)
 {
     merr_t err;
     uint   i;
 
     for (i = 0; i < self->mbs_idc; i++) {
         if (self->mbs_idv[i]) {
-            err = mpool_mblock_delete(self->mbs_ds, self->mbs_idv[i]);
+            err = mpool_mblock_delete(self->mbs_mp, self->mbs_idv[i]);
             if (ev(err))
                 return err;
         }
@@ -146,46 +146,25 @@ _mbset_mblk_del(struct mbset *self)
 }
 
 /**
- * _mbset_map() - create mcache maps
+ * mbset_map() - create mcache maps
  *
  * Used by mbset constructor.
  */
 static merr_t
-_mbset_map(struct mbset *self, uint flags)
+mbset_map(struct mbset *self, uint flags)
 {
-    merr_t err = 0;
-    uint   mx = 0;
-    uint   idc = self->mbs_idc;
-    u64 *  idv = self->mbs_idv;
-
-    while (idc > 0) {
-        uint cnt = min_t(uint, idc, self->mbs_mblock_max);
-
-        assert(mx < self->mbs_mapc);
-        err = mpool_mcache_mmap(self->mbs_ds, cnt, idv, self->mbs_mapv + mx++);
-        if (ev(err))
-            break;
-        idc -= cnt;
-        idv += cnt;
-    }
-
-    return err;
+    return mpool_mcache_mmap(self->mbs_mp, self->mbs_idc, self->mbs_idv, &self->mbs_map);
 }
 
 /**
- * _mbset_unmap() - destroy mcache maps
+ * mbset_unmap() - destroy mcache maps
  *
  * Used by mbset destructor.
  */
 static void
-_mbset_unmap(struct mbset *self)
+mbset_unmap(struct mbset *self)
 {
-    uint   i;
-
-    for (i = 0; i < self->mbs_mapc; i++) {
-        if (self->mbs_mapv[i])
-            mpool_mcache_munmap(self->mbs_mapv[i]);
-    }
+    mpool_mcache_munmap(self->mbs_map);
 }
 
 /**
@@ -193,89 +172,80 @@ _mbset_unmap(struct mbset *self)
  */
 merr_t
 mbset_create(
-    struct mpool *      ds,
+    struct mpool *      mp,
     uint                idc,
     u64 *               idv,
     size_t              udata_sz,
     mbset_udata_init_fn udata_init_fn,
     uint                flags,
-    u64                 mblock_max,
     struct mbset **     handle)
 {
     struct mbset *self;
     size_t        alloc_len;
     merr_t        err;
-    uint          mapc;
 
-    if (!ds || !handle || !idv || !idc)
+    if (!mp || !handle || !idv || !idc)
         return merr(ev(EINVAL));
-
-    /* number of mcache maps needed */
-    mapc = (idc + mblock_max - 1) / mblock_max;
 
     /* one allocation for:
      * - the mbset struct
      * - array of mblock ids
-     * - array of mcache_map ptrs
      * - array of udata structs
      */
-    alloc_len =
-        (sizeof(*self) + sizeof(*self->mbs_idv) * idc +
-         sizeof(*self->mbs_mapv) * mapc + udata_sz * idc);
+    alloc_len = sizeof(*self) + (sizeof(*self->mbs_idv) * idc) + (udata_sz * idc);
 
     self = calloc(1, alloc_len);
     if (!self)
         return merr(ev(ENOMEM));
 
     self->mbs_idv = (void *)(self + 1);
-    self->mbs_mapv = (void *)(self->mbs_idv + idc);
-    self->mbs_udata = (void *)(self->mbs_mapv + mapc);
+    self->mbs_udata = (void *)(self->mbs_idv + idc);
 
     assert(((void *)self) + alloc_len == (void *)(self->mbs_udata + idc * udata_sz));
 
     memcpy(self->mbs_idv, idv, sizeof(*idv) * idc);
 
-    self->mbs_mapc = mapc;
     self->mbs_idc = idc;
-    self->mbs_ds = ds;
+    self->mbs_mp = mp;
     self->mbs_del = false;
     self->mbs_udata_sz = udata_sz;
-    self->mbs_mblock_max = mblock_max;
 
-    err = _mbset_map(self, flags);
+    err = mbset_map(self, flags);
     if (ev(err))
         goto fail;
 
     /* Must have mapped mblocks prior to this b/c the udata
      * callback uses the maps */
-    err = _mbset_mblk_getprops(self, udata_init_fn);
+    err = mbset_mblk_getprops(self, udata_init_fn);
     if (ev(err))
         goto fail;
 
     atomic_set(&self->mbs_ref, 1);
     *handle = self;
+
     return 0;
 
 fail:
-    _mbset_unmap(self);
+    mbset_unmap(self);
     free(self);
+
     return err;
 }
 
 /**
- * _mbset_destroy() - mbset destructor
+ * mbset_destroy() - mbset destructor
  */
 static void
-_mbset_destroy(struct mbset *self, bool *delete_errors)
+mbset_destroy(struct mbset *self, bool *delete_errors)
 {
     merr_t err = 0;
 
     if (ev(!self))
         return;
 
-    _mbset_unmap(self);
+    mbset_unmap(self);
     if (self->mbs_del) {
-        err = _mbset_mblk_del(self);
+        err = mbset_mblk_del(self);
         ev(err);
         *delete_errors = !!err;
     } else {
@@ -311,7 +281,7 @@ mbset_put_ref(struct mbset *self)
     if (v == 0) {
         callback = self->mbs_callback;
         rock = self->mbs_callback_rock;
-        _mbset_destroy(self, &delete_errors);
+        mbset_destroy(self, &delete_errors);
         if (callback)
             callback(rock, delete_errors);
     }
@@ -340,62 +310,10 @@ mbset_set_delete_flag(struct mbset *self)
 void
 mbset_madvise(struct mbset *self, int advice)
 {
-    size_t len = SIZE_MAX;
     merr_t err;
-    uint   i;
 
-    for (i = 0; i < self->mbs_mapc; ++i) {
-        err = mpool_mcache_madvise(self->mbs_mapv[i], 0, 0, len, advice);
-        ev(err);
-    }
-}
-
-void
-mbset_purge(struct mbset *self, const struct mpool *ds)
-{
-    merr_t err;
-    uint   i;
-
-    for (i = 0; i < self->mbs_mapc; ++i) {
-        err = mpool_mcache_purge(self->mbs_mapv[i], ds);
-        ev(err);
-    }
-}
-
-merr_t
-mbset_mincore(struct mbset *self, size_t *rss_out, size_t *vss_out)
-{
-    uint i;
-
-    if (ev(!self || (!rss_out && !vss_out)))
-        return merr(EINVAL);
-
-    if (rss_out)
-        *rss_out = 0;
-
-    if (vss_out)
-        *vss_out = 0;
-
-    for (i = 0; i < self->mbs_mapc; ++i) {
-        merr_t err;
-        size_t rss;
-        size_t vss;
-
-        rss = 0;
-        vss = 0;
-
-        err = mpool_mcache_mincore(self->mbs_mapv[i], self->mbs_ds, &rss, &vss);
-        if (ev(err))
-            return err;
-
-        if (rss_out)
-            *rss_out += rss;
-
-        if (vss_out)
-            *vss_out += vss;
-    }
-
-    return 0;
+    err = mpool_mcache_madvise(self->mbs_map, 0, 0, SIZE_MAX, advice);
+    ev(err);
 }
 
 #if HSE_MOCKING

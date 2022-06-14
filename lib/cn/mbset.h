@@ -35,12 +35,11 @@ mbset_udata_init_fn(
 
 /**
  * struct mbset - a ref counted set of mblocks
- * @mbs_mapv: vector of mcache map handles
+ * @mbs_map:  mcache map handle
  * @mbs_idv:  vector of mblock object ids
- * @mbs_mapc: length of @mbs_mapv
  * @mbs_idc:  mblock count, length of @mbs_idv
  * @mbs_ref:  reference count
- * @mbs_ds:   mpool dataset handle
+ * @mbs_mp:   mpool handle
  * @mbs_del:  if true, delete mblocks in destructor
  * @mbs_alen: sum of mblock allocated lengths
  * @mbs_wlen: sum of mblock written lengths
@@ -49,14 +48,12 @@ mbset_udata_init_fn(
  * possibly referenced by multiple kvsets (e.g., after k-compaction).
  */
 struct mbset {
-    struct mpool_mcache_map **mbs_mapv;
+    struct mpool_mcache_map  *mbs_map;
     u64 *                     mbs_idv;
     u64                       mbs_alen;
     u64                       mbs_wlen;
-    u64                       mbs_mblock_max;
-    uint                      mbs_mapc;
     uint                      mbs_idc;
-    struct mpool *            mbs_ds;
+    struct mpool *            mbs_mp;
     atomic_int                mbs_ref;
     mbset_callback *          mbs_callback;
     void *                    mbs_callback_rock;
@@ -74,7 +71,6 @@ mbset_create(
     size_t              udata_sz,
     mbset_udata_init_fn udata_init_fn,
     uint                flags,
-    u64                 mblock_max,
     struct mbset **     handle);
 
 /* MTF_MOCK */
@@ -101,17 +97,10 @@ mbset_set_delete_flag(struct mbset *self);
 void
 mbset_madvise(struct mbset *self, int advise);
 
-void
-mbset_purge(struct mbset *self, const struct mpool *ds);
-
-/* MTF_MOCK */
-merr_t
-mbset_mincore(struct mbset *self, size_t *rss_out, size_t *vss_out);
-
 static HSE_ALWAYS_INLINE struct mpool *
-mbset_get_ds(struct mbset *self)
+mbset_get_mp(struct mbset *self)
 {
-    return self->mbs_ds;
+    return self->mbs_mp;
 }
 
 static HSE_ALWAYS_INLINE u64
@@ -127,21 +116,9 @@ mbset_get_alen(struct mbset *self)
 }
 
 static HSE_ALWAYS_INLINE struct mpool_mcache_map *
-mbset_get_map(struct mbset *self, uint blk_num)
+mbset_get_map(struct mbset *self)
 {
-    bool valid = blk_num < self->mbs_idc;
-
-    assert(valid);
-    return valid ? self->mbs_mapv[blk_num / self->mbs_mblock_max] : 0;
-}
-
-static HSE_ALWAYS_INLINE uint
-mbset_get_map_idx(struct mbset *self, uint blk_num)
-{
-    bool valid = blk_num < self->mbs_idc;
-
-    assert(valid);
-    return valid ? blk_num % self->mbs_mblock_max : 0;
+    return self->mbs_map;
 }
 
 static HSE_ALWAYS_INLINE u64

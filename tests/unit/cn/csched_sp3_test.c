@@ -305,7 +305,7 @@ sp3_work_mock(
     w->cw_debug = 1;
     w->cw_tree = tn->tn_tree;
     w->cw_node = tn;
-    w->cw_ds = tn->tn_tree->ds;
+    w->cw_ds = tn->tn_tree->mp;
     w->cw_rp = tn->tn_tree->rp;
     w->cw_pfx_len = tn->tn_tree->ct_cp->pfx_len;
 

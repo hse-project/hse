@@ -71,7 +71,7 @@ struct kvset {
     struct kvset_list_entry ks_entry; /* kvset list linkage */
 
     u64           ks_dgen; /* relative age of entries */
-    struct mpool *ks_ds;
+    struct mpool *ks_mp;
     u32           ks_pfx_len; /* cn tree pfx_len */
     u32           ks_sfx_len; /* cn tree sfx_len */
     u16           ks_node_level;
@@ -110,7 +110,7 @@ struct kvset {
     struct mpool_mcache_map *ks_hmap; /* hblock mcache map */
 
     const u8 *                ks_klarge; /* large key cache */
-    struct mpool_mcache_map **ks_kmapv;
+    struct mpool_mcache_map  *ks_kmap;
     struct mbset **           ks_vbsetv;
     uint                      ks_vbsetc;
 
