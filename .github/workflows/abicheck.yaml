@@ -16,6 +16,10 @@ on:
       - .shellcheckrc
       - LICENSE
 
+concurrency:
+  group: ${{ github.workflow }}-${{ github.head_ref }}
+  cancel-in-progress: true
+
 permissions: {}
 
 jobs:
