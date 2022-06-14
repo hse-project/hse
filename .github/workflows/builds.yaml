@@ -30,6 +30,8 @@ on:
       - .shellcheckrc
       - LICENSE
 
+permissions: {}
+
 env:
   MESON_TESTTHREADS: 1
 

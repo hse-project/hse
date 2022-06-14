@@ -30,6 +30,8 @@ on:
       - .shellcheckrc
       - LICENSE
 
+permissions: {}
+
 jobs:
   ubuntu:
     runs-on: ubuntu-latest
