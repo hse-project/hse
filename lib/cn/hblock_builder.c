@@ -118,8 +118,8 @@ hbb_add_ptomb(
 
     assert(stats->nptombs > 0);
 
-    err = wbb_add_entry(bld->ptree, kobj, stats->nptombs, kmd, kmd_len, bld->max_size / PAGE_SIZE,
-        &bld->ptree_pgc, &added);
+    err = wbb_add_entry(bld->ptree, kobj, stats->nptombs, 0, kmd, kmd_len,
+        bld->max_size / PAGE_SIZE, &bld->ptree_pgc, &added);
 
     bld->nptombs += stats->nptombs;
 

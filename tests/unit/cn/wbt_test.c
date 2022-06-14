@@ -160,7 +160,7 @@ tree_construct(struct mtf_test_info *lcl_ti, void **tree_out, struct wbt_hdr_omf
 
         /* [HSE_REVISIT] mapi break initialization of added.
          */
-        wbb_add_entry(wbb, &ko, 1, kmd, kmd_used, max_pgc, &wbt_pgc, &added);
+        err = wbb_add_entry(wbb, &ko, 1, 0, kmd, kmd_used, max_pgc, &wbt_pgc, &added);
         ASSERT_TRUE_RET(added, 1);
         kmd_used = 0;
         k = key_iter_next(k);
@@ -510,7 +510,7 @@ MTF_DEFINE_UTEST_PREPOST(wbt_test, small_last_key, pre_test, post_test)
 {
     int              i, rc;
     char             buf[HSE_KVS_KEY_LEN_MAX];
-    size_t           nkeys = 3000;
+    size_t           nkeys = 2000;
     size_t           large_klen = HSE_KVS_KEY_LEN_MAX;
     const int        keys_per_node = 4;
     struct key_list *ql = &key_list; /* query list */

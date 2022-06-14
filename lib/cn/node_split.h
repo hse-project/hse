@@ -33,6 +33,6 @@ cn_tree_node_get_split_key(
     const struct cn_tree_node *node,
     void *key_buf,
     size_t key_buf_sz,
-    uint16_t *key_len) HSE_NONNULL(1);
+    unsigned int *key_len) HSE_NONNULL(1);
 
 #endif

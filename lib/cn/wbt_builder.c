@@ -63,9 +63,10 @@ struct wbb {
     void *cnode_key_stage_base;
     void *cnode_key_stage_end;
 
-    uint  cnode_nkeys;
-    uint  cnode_kmd_off;
-    uint  cnode_pfx_len;
+    uint32_t cnode_kmd_off;
+    uint64_t cnode_kvlen;
+    uint16_t cnode_nkeys;
+    uint16_t cnode_pfx_len;
     uint  cnode_sumlen;
     uint  cnode_key_stage_pgc;
     uint  cnode_key_extra_cnt;
@@ -139,8 +140,9 @@ _new_node(struct wbb *wbb)
     wbb->cnode_kmd_off = get_kmd_len(wbb);
     wbb->cnode_nkeys = 0;
     wbb->cnode_key_extra_cnt = 0;
+    wbb->cnode_kvlen = 0;
 
-    memset(wbb->cnode, 0, PAGE_SIZE);
+    memset(wbb->cnode, 0, WBT_NODE_SIZE);
     wbb->lnodec += 1;
 
     return wbb->cnode;
@@ -167,6 +169,7 @@ _new_leaf_node(struct wbb *wbb, struct key_obj *right_edge)
     omf_set_wbn_magic(node_hdr, WBT_LFE_NODE_MAGIC);
     omf_set_wbn_num_keys(node_hdr, 0);
     omf_set_wbn_kmd(node_hdr, wbb->cnode_kmd_off);
+    omf_set_wbn_kvlen(node_hdr, 0);
 
     return 0;
 }
@@ -254,6 +257,7 @@ wbt_leaf_publish(struct wbb *wbb)
 
     omf_set_wbn_num_keys(node_hdr, wbb->cnode_nkeys);
     omf_set_wbn_pfx_len(node_hdr, pfx_len);
+    omf_set_wbn_kvlen(node_hdr, wbb->cnode_kvlen);
 
     /* Use the first key to write out the prefix. */
     if (pfx_len) {
@@ -310,6 +314,7 @@ wbb_add_entry(
     struct wbb *          wbb,
     const struct key_obj *kobj,
     uint                  nvals,
+    uint64_t              vlen,
     const void *          key_kmd,
     uint                  key_kmd_len,
     uint                  max_pgc,
@@ -471,6 +476,7 @@ wbb_add_entry(
     wbb->cnode_last_klen = klen;
 
     wbb->cnode_nkeys++;
+    wbb->cnode_kvlen += key_obj_len(kobj) + vlen;
 
     *wbt_pgc = wbb->lnodec + wbb->max_inodec + get_kmd_pgc(wbb);
     *added = true;
