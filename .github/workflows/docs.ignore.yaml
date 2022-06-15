@@ -9,6 +9,10 @@ on:
       - "include/**/*.h.in"
       - .github/workflows/docs.yml
 
+concurrency:
+  group: ${{ github.workflow }}-ignore-${{ github.head_ref }}
+  cancel-in-progress: true
+
 permissions: {}
 
 jobs:
