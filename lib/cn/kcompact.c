@@ -141,7 +141,7 @@ get_next_item(
  *   - Iterator iterv[i] must contain newer entries than iterv[i+1].
  */
 static merr_t
-kcompact(struct cn_compaction_work *w)
+kcompact(struct cn_compaction_work *w, struct kvset_builder *bldr)
 {
     struct bin_heap * bh;
     struct merge_item curr;
@@ -263,15 +263,15 @@ get_values:
                 case vtype_val:
                 case vtype_cval:
                     err = kvset_builder_add_vref(
-                        w->cw_child[0], seq, vbidx + w->cw_vbmap.vbm_map[curr.src],
+                        bldr, seq, vbidx + w->cw_vbmap.vbm_map[curr.src],
                         vboff, vlen, complen);
                     break;
                 case vtype_zval:
                 case vtype_ival:
-                    err = kvset_builder_add_val(w->cw_child[0], &curr.kobj, vdata, vlen, seq, 0);
+                    err = kvset_builder_add_val(bldr, &curr.kobj, vdata, vlen, seq, 0);
                     break;
                 default:
-                    err = kvset_builder_add_nonval(w->cw_child[0], seq, vtype);
+                    err = kvset_builder_add_nonval(bldr, seq, vtype);
                     break;
             }
             if (ev(err))
@@ -332,7 +332,7 @@ get_values:
     }
 
     if (emitted_val) {
-        err = kvset_builder_add_key(w->cw_child[0], &prev_kobj);
+        err = kvset_builder_add_key(bldr, &prev_kobj);
         if (ev(err))
             goto done;
         w->cw_stats.ms_keys_out++;
@@ -358,30 +358,33 @@ done:
 merr_t
 cn_kcompact(struct cn_compaction_work *w)
 {
-    merr_t               err;
-    struct cn_tree_node *pnode;
+    merr_t                err;
+    struct cn_tree_node  *pnode;
+    struct kvset_builder *bldr;
+
+    w->cw_kvsetidv[0] = cndb_kvsetid_mint(cn_tree_get_cndb(w->cw_tree));
 
     err = kvset_builder_create(
-        &w->cw_child[0],
+        &bldr,
         cn_tree_get_cn(w->cw_tree),
         w->cw_pc,
-        w->cw_dgen_hi);
+        w->cw_kvsetidv[0]);
     if (ev(err))
         goto done;
 
     pnode = w->cw_node;
     if (pnode) {
         if (cn_node_isroot(pnode))
-            kvset_builder_set_agegroup(w->cw_child[0], HSE_MPOLICY_AGE_ROOT);
+            kvset_builder_set_agegroup(bldr, HSE_MPOLICY_AGE_ROOT);
         else if (cn_node_isleaf(pnode))
-            kvset_builder_set_agegroup(w->cw_child[0], HSE_MPOLICY_AGE_LEAF);
+            kvset_builder_set_agegroup(bldr, HSE_MPOLICY_AGE_LEAF);
         else
-            kvset_builder_set_agegroup(w->cw_child[0], HSE_MPOLICY_AGE_INTERNAL);
+            kvset_builder_set_agegroup(bldr, HSE_MPOLICY_AGE_INTERNAL);
     }
 
-    kvset_builder_set_merge_stats(w->cw_child[0], &w->cw_stats);
+    kvset_builder_set_merge_stats(bldr, &w->cw_stats);
 
-    err = kcompact(w);
+    err = kcompact(w, bldr);
     if (ev(err))
         goto done;
 
@@ -389,7 +392,7 @@ cn_kcompact(struct cn_compaction_work *w)
      * inherited from the input kvsets.
      */
     if (w->cw_vbmap.vbm_blkc > 0) {
-        kvset_builder_adopt_vblocks(w->cw_child[0], w->cw_input_vgroups, w->cw_vbmap.vbm_blkc,
+        kvset_builder_adopt_vblocks(bldr, w->cw_input_vgroups, w->cw_vbmap.vbm_blkc,
             w->cw_vbmap.vbm_blkv);
 
         w->cw_vbmap.vbm_blkv = NULL;
@@ -397,12 +400,12 @@ cn_kcompact(struct cn_compaction_work *w)
     }
 
     /* get resulting mblocks */
-    err = kvset_builder_get_mblocks(w->cw_child[0], w->cw_outv);
+    err = kvset_builder_get_mblocks(bldr, w->cw_outv);
     if (ev(err))
         goto done;
 
 done:
-    kvset_builder_destroy(w->cw_child[0]);
+    kvset_builder_destroy(bldr);
 
     return err;
 }

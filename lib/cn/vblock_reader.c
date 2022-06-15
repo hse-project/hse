@@ -74,7 +74,7 @@ vbr_desc_update(
     u64  vgroup = vblk_desc->vbd_vgroup;
     uint i;
 
-    /* Map omf vgroup IDs (i.e., dgens) to a monotonically increasing
+    /* Map omf vgroup IDs (i.e., kvset ids) to a monotonically increasing
      * sequence starting from 1.  The resulting packed indices are
      * used by vbr_readahead() to minimize history table collisions.
      */

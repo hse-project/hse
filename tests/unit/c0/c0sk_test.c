@@ -20,6 +20,7 @@
 #include <hse_ikvdb/cursor.h>
 #include <hse_ikvdb/throttle.h>
 #include <hse_ikvdb/kvdb_rparams.h>
+#include <hse_ikvdb/cndb.h>
 
 #include "cn_mock.h"
 #include <tools/key_generation.h>
@@ -90,6 +91,7 @@ static struct mapi_injection inject_list[] = {
     { mapi_idx_kvset_builder_add_vref, MAPI_RC_SCALAR, 0},
     { mapi_idx_kvset_builder_destroy, MAPI_RC_SCALAR, 0},
     { mapi_idx_kvset_mblocks_destroy, MAPI_RC_SCALAR, 0},
+    { mapi_idx_cndb_kvsetid_mint, MAPI_RC_SCALAR, 1},
     { -1 }
 };
 
