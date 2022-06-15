@@ -331,7 +331,6 @@ cn_node_stats_get_mock(const struct cn_tree_node *tn, struct cn_node_stats *s)
     memset(s, 0, sizeof(*s));
 
     s->ns_keys_uniq = 100 * 1000;
-    s->ns_scatter = 10;
 }
 
 /* Prefer the mapi_inject_list method for mocking functions over the

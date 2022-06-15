@@ -97,8 +97,6 @@ struct kvset {
 
     /* new compaction metrics */
     u8 * ks_hlog;
-    uint ks_scatter;
-    uint ks_scatter_pct;
 
     u32                   ks_vgroups;
     struct mbset_locator *ks_vblk2mbs;

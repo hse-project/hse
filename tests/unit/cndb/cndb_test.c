@@ -354,7 +354,6 @@ create_kvset(
         .km_dgen = 1,
         .km_vused = 10,
         .km_compc = 0,
-        .km_scatter = 0,
     };
 
     *kvsetid = cndb_kvsetid_mint(cndb);
@@ -405,7 +404,6 @@ MTF_DEFINE_UTEST_PREPOST(cndb_test, replay_full, test_pre, test_post)
         .km_dgen = 1,
         .km_vused = 10,
         .km_compc = 0,
-        .km_scatter = 0,
     };
 
     struct cndb_txn *tx;
@@ -492,7 +490,6 @@ MTF_DEFINE_UTEST_PREPOST(cndb_test, rollback, test_pre, test_post)
         .km_dgen = 1,
         .km_vused = 10,
         .km_compc = 0,
-        .km_scatter = 0,
     };
 
     struct cndb_txn *tx;

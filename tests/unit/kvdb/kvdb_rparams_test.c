@@ -285,23 +285,23 @@ MTF_DEFINE_UTEST_PRE(kvdb_rparams_test, csched_leaf_pct, test_pre)
     ASSERT_EQ(100, ps->ps_bounds.as_uscalar.ps_max);
 }
 
-MTF_DEFINE_UTEST_PRE(kvdb_rparams_test, csched_vb_scatter_pct, test_pre)
+MTF_DEFINE_UTEST_PRE(kvdb_rparams_test, csched_max_vgroups, test_pre)
 {
-    const struct param_spec *ps = ps_get("csched_vb_scatter_pct");
+    const struct param_spec *ps = ps_get("csched_max_vgroups");
 
     ASSERT_NE(NULL, ps);
     ASSERT_NE(NULL, ps->ps_description);
     ASSERT_EQ(PARAM_FLAG_EXPERIMENTAL | PARAM_FLAG_WRITABLE, ps->ps_flags);
     ASSERT_EQ(PARAM_TYPE_U8, ps->ps_type);
-    ASSERT_EQ(offsetof(struct kvdb_rparams, csched_vb_scatter_pct), ps->ps_offset);
+    ASSERT_EQ(offsetof(struct kvdb_rparams, csched_max_vgroups), ps->ps_offset);
     ASSERT_EQ(sizeof(uint8_t), ps->ps_size);
     ASSERT_EQ((uintptr_t)ps->ps_convert, (uintptr_t)param_default_converter);
     ASSERT_EQ((uintptr_t)ps->ps_validate, (uintptr_t)param_default_validator);
     ASSERT_EQ((uintptr_t)ps->ps_stringify, (uintptr_t)param_default_stringify);
     ASSERT_EQ((uintptr_t)ps->ps_jsonify, (uintptr_t)param_default_jsonify);
-    ASSERT_EQ(100, params.csched_vb_scatter_pct);
-    ASSERT_EQ(0, ps->ps_bounds.as_uscalar.ps_min);
-    ASSERT_EQ(100, ps->ps_bounds.as_uscalar.ps_max);
+    ASSERT_EQ(32, params.csched_max_vgroups);
+    ASSERT_EQ(1, ps->ps_bounds.as_uscalar.ps_min);
+    ASSERT_EQ(128, ps->ps_bounds.as_uscalar.ps_max);
 }
 
 MTF_DEFINE_UTEST_PRE(kvdb_rparams_test, csched_qthreads, test_pre)

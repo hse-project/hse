@@ -612,7 +612,6 @@ cn_ingest_prep(
     km.km_compc = 0;
     km.km_capped = cn_is_capped(cn);
     km.km_restored = false;
-    km.km_scatter = km.km_vused ? 1 : 0;
 
     /* It is conceivable that there is no hblock present. All it takes is
      * the creation of builders in the c0 ingest code without any keys or ptombs

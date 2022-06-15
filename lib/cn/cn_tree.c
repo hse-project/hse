@@ -1638,7 +1638,6 @@ cn_comp_commit(struct cn_compaction_work *w)
     uint *          cnts = 0;
     uint            i, alloc_len;
     bool            spill, use_mbsets;
-    uint            scatter;
     bool            kcompact = (w->cw_action == CN_ACTION_COMPACT_K);
     bool            skip_commit = false;
     void          **cookiev = 0;
@@ -1684,7 +1683,6 @@ cn_comp_commit(struct cn_compaction_work *w)
         goto done;
     }
 
-    scatter = 0;
     if (use_mbsets) {
         struct kvset_list_entry *le;
 
@@ -1700,7 +1698,6 @@ cn_comp_commit(struct cn_compaction_work *w)
         i = w->cw_kvset_cnt;
         while (i--) {
             vecs[i] = kvset_get_vbsetv(le->le_kvset, &cnts[i]);
-            scatter += (kvset_get_scatter_score(le->le_kvset));
             le = list_prev_entry(le, le_link);
         }
     }
@@ -1740,7 +1737,6 @@ cn_comp_commit(struct cn_compaction_work *w)
         km.km_vblk_list = w->cw_outv[i].vblks;
         km.km_capped = cn_is_capped(w->cw_tree->cn);
         km.km_restored = false;
-        km.km_scatter = use_mbsets ? scatter : (km.km_vused ? 1 : 0);
 
         if (spill) {
             struct cn_tree_node *node = w->cw_output_nodev[i];

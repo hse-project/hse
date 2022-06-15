@@ -274,7 +274,6 @@ struct mapi_injection inject_list[] = {
     { mapi_idx_kvset_madvise_kblks, MAPI_RC_SCALAR, 0 },
     { mapi_idx_kvset_madvise_vblks, MAPI_RC_SCALAR, 0 },
     { mapi_idx_kvset_madvise_vmaps, MAPI_RC_SCALAR, 0 },
-    { mapi_idx_kvset_get_scatter_score, MAPI_RC_SCALAR, 0 },
     { mapi_idx_kvset_get_compc, MAPI_RC_SCALAR, 0 },
     { mapi_idx_kvset_ctime, MAPI_RC_SCALAR, 929523521341 },
     { mapi_idx_kvset_kblk_start, MAPI_RC_SCALAR, KVSET_MISS_KEY_TOO_SMALL },

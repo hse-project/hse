@@ -12,7 +12,6 @@ struct cndb_kvset {
     uint64_t       ck_nodeid;
     uint64_t       ck_dgen;
     uint64_t       ck_vused;
-    uint32_t       ck_scatter;
     uint16_t       ck_compc;
     uint64_t       ck_hblkid;
     unsigned int   ck_kblkc;

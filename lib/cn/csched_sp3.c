@@ -148,8 +148,9 @@ struct mpool;
 #define RBT_L_PCAP  0 /* leaf nodes sorted by pct capacity */
 #define RBT_L_GARB  1 /* leaf nodes sorted by garbage */
 #define RBT_L_LEN   2 /* leaf nodes sorted by #kvsets */
-#define RBT_L_SCAT  3 /* leaf nodes sorted by vblock scatter */
-#define RBT_L_IDLE  4  /* leaf nodes sorted by ttl */
+#define RBT_L_IDLE  3  /* leaf nodes sorted by ttl */
+
+static_assert(RBT_L_IDLE + 1 == RBT_MAX, "RBT_MAX is too small or too large");
 
 #define CSCHED_SAMP_MAX_MIN  100
 #define CSCHED_SAMP_MAX_MAX  999
@@ -610,36 +611,6 @@ sp3_refresh_samp(struct sp3 *sp)
              scale2dbl(good_hwm));
 }
 
-static uint
-sp3_node_scatter_score_compute(struct sp3_node *spn)
-{
-    struct list_head *       head;
-    struct kvset_list_entry *le;
-    struct cn_tree_node *    tn;
-
-    uint n_score = 0;
-
-    tn = spn2tn(spn);
-    head = &tn->tn_kvset_list;
-
-    list_for_each_entry (le, head, le_link) {
-        uint k_score;
-
-        k_score = kvset_get_scatter_score(le->le_kvset);
-
-        /* [HSE_REVISIT]: A node's scatter score doesn't factor in
-         * its node length. Including the node length could allow
-         * us to merge the node length and scatter metric into one.
-         */
-        if (k_score > 1)
-            n_score += k_score;
-    }
-
-    tn->tn_ns.ns_scatter = n_score;
-
-    return n_score;
-}
-
 static void
 sp3_refresh_thresholds(struct sp3 *sp)
 {
@@ -694,45 +665,27 @@ sp3_refresh_thresholds(struct sp3 *sp)
         thresh.llen_runlen_min = max(thresh.llen_runlen_min, SP3_LLEN_RUNLEN_MIN);
     }
 
-    /* leaf node scatter settings */
-    v = sp->rp->csched_vb_scatter_pct;
-    thresh.lscatter_pct = clamp_t(u64, v, 0, 100);
+    /* max vgroups in a kvset */
+    thresh.max_vgroups = sp->rp->csched_max_vgroups;
 
+    /* If thresholds have not changed there's nothing to do.  Otherwise, need to
+     * recompute work trees.
+     */
     if (!memcmp(&thresh, &sp->thresh, sizeof(thresh)))
         return;
 
-    /* Thresholds changed so re-compute work trees...
-     */
     sp->thresh = thresh;
 
     list_for_each_entry(spn, &sp->spn_alist, spn_alink) {
         sp3_dirty_node(sp, spn2tn(spn));
     }
 
-    log_info("sp3 thresholds:"
-             " rspill: min/max %u/%u,"
-             " lcomp: min/max/pct/keys %u/%u/%u%%/%u,"
-             " llen: min/max %u/%u,"
-             " idlec: %u,"
-             " idlem: %u,"
-             " lscatter_pct: %u%%",
-
-             thresh.rspill_kvsets_min,
-             thresh.rspill_kvsets_max,
-
-             thresh.lcomp_kvsets_min,
-             thresh.lcomp_kvsets_max,
-             thresh.lcomp_pop_pct,
-             thresh.lcomp_pop_keys,
-
-             thresh.llen_runlen_min,
-             thresh.llen_runlen_max,
-
-             thresh.llen_idlec,
-             thresh.llen_idlem,
-
-             thresh.lscatter_pct);
-}
+    log_info("sp3 thresholds: rspill: min/max %u/%u, lcomp: min/max/pct/keys %u/%u/%u%%/%u,"
+        " llen: min/max %u/%u, idlec: %u, idlem: %u, max_vgroups: %u",
+        thresh.rspill_kvsets_min, thresh.rspill_kvsets_max,
+        thresh.lcomp_kvsets_min, thresh.lcomp_kvsets_max, thresh.lcomp_pop_pct,
+        thresh.lcomp_pop_keys, thresh.llen_runlen_min, thresh.llen_runlen_max,
+        thresh.llen_idlec, thresh.llen_idlem, thresh.max_vgroups); }
 
 static void
 sp3_refresh_worker_counts(struct sp3 *sp)
@@ -949,7 +902,7 @@ sp3_dirty_node_locked(struct sp3 *sp, struct cn_tree_node *tn)
 {
     struct sp3_node *spn = tn2spn(tn);
     uint64_t nkvsets_total, nkvsets, nkeys;
-    uint garbage = 0, scatter = 0, jobs;
+    uint garbage = 0, jobs;
 
     /* Skip if node hasn't changed since last time we inserted
      * it into the work trees.
@@ -1048,24 +1001,6 @@ sp3_dirty_node_locked(struct sp3 *sp, struct cn_tree_node *tn)
                 sp3_node_remove(sp, spn, RBT_L_PCAP);
             }
         }
-
-        if (sp->thresh.lscatter_pct < 100 && jobs < 1) {
-            scatter = sp3_node_scatter_score_compute(spn);
-
-            if (scatter >= SP3_LSCAT_THRESH_MIN) {
-                uint64_t weight = UINT32_MAX - (jclock_ns >> 32) - spn->spn_ttl;
-
-                /* Inserts within the same 4-second window are sorted
-                 * first by the scatter score then by number of kvsets.
-                 */
-                weight = (weight << 32) | (scatter << 16) | nkvsets;
-
-                sp3_node_insert(sp, spn, RBT_L_SCAT, weight);
-            }
-        } else {
-            sp3_node_remove(sp, spn, RBT_L_SCAT);
-        }
-
     }
 
     if (debug_dirty_node(sp)) {
@@ -1081,7 +1016,6 @@ sp3_dirty_node_locked(struct sp3 *sp, struct cn_tree_node *tn)
             SLOG_FIELD("nd_len", "%lu", (ulong)nkvsets_total),
             SLOG_FIELD("alen", "%lu", (ulong)cn_ns_alen(&tn->tn_ns)),
             SLOG_FIELD("garbage", "%lu", (ulong)garbage),
-            SLOG_FIELD("scatter", "%u", scatter),
             SLOG_END);
     }
 }
@@ -1421,9 +1355,6 @@ sp3_comp_thread_name(
             break;
         case CN_CR_LSHORT_IDLE_VG:
             r = "iv";
-            break;
-        case CN_CR_LSCATTER:
-            r = "sc";
             break;
     }
 
@@ -1972,7 +1903,6 @@ sp3_schedule(struct sp3 *sp)
         jtype_leaf_idle,
         jtype_leaf_garbage,
         jtype_leaf_size,
-        jtype_leaf_scatter,
         jtype_MAX,
     };
 
@@ -2088,21 +2018,6 @@ sp3_schedule(struct sp3 *sp)
              *   - Leaf node size rule
              */
             job = sp3_check_rb_tree(sp, RBT_L_PCAP, 0, wtype_leaf_size, qnum);
-            break;
-
-        case jtype_leaf_scatter:
-            qnum = SP3_QNUM_SHARED;
-            if (qfull(sp, qnum))
-                break;
-
-            /* Implements:
-             *   - Leaf node scatter rule
-             */
-            if (sp->thresh.lscatter_pct < 100) {
-                thresh = (UINT32_MAX - (jclock_ns >> 32)) << 32;
-
-                job = sp3_check_rb_tree(sp, RBT_L_SCAT, thresh, wtype_leaf_scatter, qnum);
-            }
             break;
         }
     }

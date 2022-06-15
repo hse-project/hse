@@ -643,7 +643,6 @@ _kvset_iter_seek(struct kv_iterator *kvi, const void *key, int len, bool *eof)
  */
 static struct mapi_injection inject_list[] = {
     { mapi_idx_kvset_kblk_start, MAPI_RC_SCALAR, 0},
-    { mapi_idx_kvset_get_scatter_score, MAPI_RC_SCALAR, 10},
     { -1 }
 };
 
