@@ -620,50 +620,44 @@ sp3_refresh_thresholds(struct sp3 *sp)
 
     /* root node spill settings */
     v = sp->rp->csched_rspill_params;
-    if (v != U64_MAX) {
-        if (v) {
-            thresh.rspill_kvsets_max = (v >> 0) & 0xff;
-            thresh.rspill_kvsets_min = (v >> 8) & 0xff;
-        } else {
-            thresh.rspill_kvsets_max = 9;
-            thresh.rspill_kvsets_min = 5;
-        }
-        thresh.rspill_kvsets_min = max(thresh.rspill_kvsets_min, SP3_RSPILL_KVSETS_MIN);
+    if (v) {
+        thresh.rspill_kvsets_max = (v >> 0) & 0xff;
+        thresh.rspill_kvsets_min = (v >> 8) & 0xff;
+    } else {
+        thresh.rspill_kvsets_max = 9;
+        thresh.rspill_kvsets_min = 5;
     }
+    thresh.rspill_kvsets_min = max(thresh.rspill_kvsets_min, SP3_RSPILL_KVSETS_MIN);
 
     /* leaf node compaction settings */
     v = sp->rp->csched_leaf_comp_params;
-    if (v != U64_MAX) {
-        if (v) {
-            thresh.lcomp_kvsets_max = (v >> 0) & 0xff;
-            thresh.lcomp_kvsets_min = (v >> 8) & 0xff;
-            thresh.lcomp_pop_pct = (v >> 16) & 0xff;
-            thresh.lcomp_pop_keys = (v >> 24) & 0xff;
-        } else {
-            thresh.lcomp_kvsets_max = 12;
-            thresh.lcomp_kvsets_min = 2;
-            thresh.lcomp_pop_pct = 100;
-            thresh.lcomp_pop_keys = 128; /* units of 4 billion */
-        }
-        thresh.lcomp_kvsets_min = max(thresh.lcomp_kvsets_min, SP3_LCOMP_KVSETS_MIN);
+    if (v) {
+        thresh.lcomp_kvsets_max = (v >> 0) & 0xff;
+        thresh.lcomp_kvsets_min = (v >> 8) & 0xff;
+        thresh.lcomp_pop_pct = (v >> 16) & 0xff;
+        thresh.lcomp_pop_keys = (v >> 24) & 0xff;
+    } else {
+        thresh.lcomp_kvsets_max = 12;
+        thresh.lcomp_kvsets_min = 2;
+        thresh.lcomp_pop_pct = 100;
+        thresh.lcomp_pop_keys = 128; /* units of 4 billion */
     }
+    thresh.lcomp_kvsets_min = max(thresh.lcomp_kvsets_min, SP3_LCOMP_KVSETS_MIN);
 
     /* leaf node length settings */
     v = sp->rp->csched_leaf_len_params;
-    if (v != U64_MAX) {
-        if (v) {
-            thresh.llen_runlen_max = (v >> 0) & 0xff;
-            thresh.llen_runlen_min = (v >> 8) & 0xff;
-            thresh.llen_idlec = (v >> 24) & 0xff;
-            thresh.llen_idlem = (v >> 32) & 0xff;
-        } else {
-            thresh.llen_runlen_max = 8;
-            thresh.llen_runlen_min = 4;
-            thresh.llen_idlec = 0; /* disabled by default */
-            thresh.llen_idlem = 10;
-        }
-        thresh.llen_runlen_min = max(thresh.llen_runlen_min, SP3_LLEN_RUNLEN_MIN);
+    if (v) {
+        thresh.llen_runlen_max = (v >> 0) & 0xff;
+        thresh.llen_runlen_min = (v >> 8) & 0xff;
+        thresh.llen_idlec = (v >> 24) & 0xff;
+        thresh.llen_idlem = (v >> 32) & 0xff;
+    } else {
+        thresh.llen_runlen_max = 8;
+        thresh.llen_runlen_min = 4;
+        thresh.llen_idlec = 0; /* disabled by default */
+        thresh.llen_idlem = 10;
     }
+    thresh.llen_runlen_min = max(thresh.llen_runlen_min, SP3_LLEN_RUNLEN_MIN);
 
     /* max vgroups in a kvset */
     thresh.max_vgroups = sp->rp->csched_max_vgroups;
