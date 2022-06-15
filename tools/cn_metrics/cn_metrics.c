@@ -320,6 +320,7 @@ rollup(struct rollup *from, struct rollup *to)
     to->km.tot_wbt_pages += from->km.tot_wbt_pages;
     to->km.tot_blm_pages += from->km.tot_blm_pages;
     to->km.tot_blm_pages += from->km.tot_blm_pages;
+    to->km.vgroups += from->km.vgroups;
 
     to->loc.node_level = max(to->loc.node_level, from->loc.node_level);
     to->loc.node_offset = max(to->loc.node_offset, from->loc.node_offset);
@@ -361,19 +362,19 @@ print_ids(
 
 const char *hdrv[] = { "H", "Loc", "Dgen", "Keys", "Tombs", "Ptombs", "AvgKlen",
                        "AvgVlen", "HbAlen", "KbAlen", "VbAlen", "HbWlen%",
-                       "KbWlen%", "VbWlen%", "VbUlen%", "Comps", "Kbs", "Vbs" };
+                       "KbWlen%", "VbWlen%", "VbUlen%", "Comps", "Vgrps", "Kbs", "Vbs" };
 
 #define FMT_HDR                        \
     "%s %-12s %5s "                    \
     "%*s %*s %*s %*s %*s %*s %*s %*s " \
     "%7s %7s %7s %7s "                 \
-    "%5s %4s %4s "
+    "%5s %5s %4s %4s"
 
 #define FMT_ROW                        \
     "%s %-12s %5lu "                   \
     "%*s %*s %*s %*s %*s %*s %*s %*s " \
     "%7.1f %7.1f %7.1f %7.1f "         \
-    "%5u %4u %4u %s"
+    "%5u %5u %4u %4u %s"
 
 #define BN(_buf, _val) bn64((_buf), sizeof((_buf)), opt.bnfmt, (_val))
 
@@ -434,6 +435,7 @@ print_row(char *tag, struct rollup *r, uint index, char *sep)
         DIVZ(100.0 * r->ks.kst_vwlen, r->ks.kst_valen),
         DIVZ(100.0 * r->ks.kst_vulen, r->ks.kst_valen),
         r->km.compc,
+        r->km.vgroups,
         r->ks.kst_kblks,
         r->ks.kst_vblks,
         sep);
@@ -470,6 +472,7 @@ print_hdr(void)
         hdrv[15],
         hdrv[16],
         hdrv[17],
+        hdrv[18],
         (opt.nodes_only ? "" : " HblockID / KblockIDs / VblockIDs"));
 }
 
