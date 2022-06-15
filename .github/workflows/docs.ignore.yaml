@@ -6,7 +6,10 @@ on:
     paths-ignore:
       - "docs/**"
       - "include/**/*.h"
+      - "include/**/*.h.in"
       - .github/workflows/docs.yml
+
+permissions: {}
 
 jobs:
   docs:

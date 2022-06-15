@@ -9,6 +9,8 @@ on:
       - .github/workflows/shellcheck.yaml
       - .shellcheckrc
 
+permissions: {}
+
 jobs:
   lint:
     runs-on: ubuntu-latest

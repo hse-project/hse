@@ -8,6 +8,8 @@ on:
         required: true
         default: "master"
 
+permissions: {}
+
 env:
   MESON_TESTTHREADS: 1
 
