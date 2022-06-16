@@ -81,22 +81,6 @@ _mpool_mcache_munmap(struct mpool_mcache_map *map)
     mapi_safe_free(map);
 }
 
-static merr_t
-_mpool_mcache_mincore(
-    struct mpool_mcache_map *map,
-    const struct mpool *     dset,
-    size_t *                 rssp,
-    size_t *                 vssp)
-{
-    if (rssp)
-        *rssp = 100;
-
-    if (vssp)
-        *vssp = 1000;
-
-    return 0;
-}
-
 HSE_MAYBE_UNUSED
 static void
 mock_unset(void)
@@ -105,7 +89,6 @@ mock_unset(void)
 
     MOCK_UNSET(mpool, _mpool_mcache_mmap);
     MOCK_UNSET(mpool, _mpool_mcache_munmap);
-    MOCK_UNSET(mpool, _mpool_mcache_mincore);
 
     mapi_inject_unset(mapi_idx_mpool_mcache_madvise);
     mapi_inject_unset(mapi_idx_mpool_mblock_delete);
@@ -118,7 +101,6 @@ mock_set(void)
 
     MOCK_SET(mpool, _mpool_mcache_mmap);
     MOCK_SET(mpool, _mpool_mcache_munmap);
-    MOCK_SET(mpool, _mpool_mcache_mincore);
 
     mapi_inject(mapi_idx_mpool_mcache_madvise, 0);
     mapi_inject(mapi_idx_mpool_mblock_delete, 0);
@@ -230,7 +212,7 @@ t_mbs_create(struct mtf_test_info *lcl_ti, uint idc, u64 **idv_out, struct mbset
     idv = idv_alloc(idc);
     ASSERT_NE_RET(idv, NULL, -1);
 
-    err = mbset_create(ds, idc, idv, usz, ufn, 0, MBLOCKS_MAX, &mbs);
+    err = mbset_create(ds, idc, idv, usz, ufn, 0, &mbs);
     ASSERT_EQ_RET(err, 0, -1);
 
     *idv_out = idv;
@@ -249,9 +231,8 @@ t_mbs_verify(struct mtf_test_info *lcl_ti, uint idc, u64 *idv, struct mbset *mbs
 
         struct udata *u;
         void *        map;
-        uint          map_idx;
 
-        ASSERT_EQ_RET(mbset_get_ds(mbs), ds, -1);
+        ASSERT_EQ_RET(mbset_get_mp(mbs), ds, -1);
 
         ASSERT_EQ_RET(mbset_get_alen(mbs), (u64)idc * mock_alloc_cap, -1);
 
@@ -267,13 +248,10 @@ t_mbs_verify(struct mtf_test_info *lcl_ti, uint idc, u64 *idv, struct mbset *mbs
         /* Get map and map index, verify the map @ map_idx is correct.
          * See the mocked mpool_mcache_map_create (above, in this file).
          */
-        map = mbset_get_map(mbs, i);
+        map = mbset_get_map(mbs);
         ASSERT_NE_RET(map, NULL, -1);
 
-        map_idx = mbset_get_map_idx(mbs, i);
-        ASSERT_EQ_RET(map_idx, i % MBLOCKS_MAX, -1);
-
-        ASSERT_EQ_RET(((u64 *)map)[map_idx], bnum2map(i), -1);
+        ASSERT_EQ_RET(((u64 *)map)[i], bnum2map(i), -1);
     }
 
     return 0;
@@ -297,7 +275,7 @@ MTF_DEFINE_UTEST_PREPOST(test, t_mbset_create_simple, pre, post)
     idv = idv_alloc(idc);
     ASSERT_NE(idv, NULL);
 
-    err = mbset_create(ds, idc, idv, usz, ufn, 0, MBLOCKS_MAX, &mbs);
+    err = mbset_create(ds, idc, idv, usz, ufn, 0, &mbs);
     ASSERT_EQ(err, 0);
     mbset_put_ref(mbs);
 
@@ -314,16 +292,16 @@ MTF_DEFINE_UTEST_PREPOST(test, t_mbset_create_invalid_params, pre, post)
     idv = idv_alloc(idc);
     ASSERT_NE(idv, NULL);
 
-    err = mbset_create(0, idc, idv, usz, ufn, 0, MBLOCKS_MAX, &mbs);
+    err = mbset_create(0, idc, idv, usz, ufn, 0, &mbs);
     ASSERT_NE(err, 0);
 
-    err = mbset_create(ds, 0, idv, usz, ufn, 0, MBLOCKS_MAX, &mbs);
+    err = mbset_create(ds, 0, idv, usz, ufn, 0, &mbs);
     ASSERT_NE(err, 0);
 
-    err = mbset_create(ds, idc, 0, usz, ufn, 0, MBLOCKS_MAX, &mbs);
+    err = mbset_create(ds, idc, 0, usz, ufn, 0, &mbs);
     ASSERT_NE(err, 0);
 
-    err = mbset_create(ds, idc, idv, usz, ufn, 0, MBLOCKS_MAX, 0);
+    err = mbset_create(ds, idc, idv, usz, ufn, 0, 0);
     ASSERT_NE(err, 0);
 
     mapi_safe_free(idv);
@@ -347,7 +325,7 @@ MTF_DEFINE_UTEST_PREPOST(test, t_mbset_create_alloc_fail, pre, post)
     num_allocs = 2;
     for (i = 0; i <= num_allocs; i++) {
         mapi_inject_once_ptr(mapi_idx_malloc, i + 1, 0);
-        err = mbset_create(ds, idc, idv, usz, ufn, 0, MBLOCKS_MAX, &mbs);
+        err = mbset_create(ds, idc, idv, usz, ufn, 0, &mbs);
         if (i < num_allocs) {
             ASSERT_EQ(merr_errno(err), ENOMEM);
         } else {
@@ -421,7 +399,7 @@ MTF_DEFINE_UTEST_PREPOST(test, t_mbset_create_fail, pre, post)
              */
             mapi_inject_unset(api);
 
-            err = mbset_create(ds, idc, idv, usz, ufn, 0, MBLOCKS_MAX, &mbs);
+            err = mbset_create(ds, idc, idv, usz, ufn, 0, &mbs);
             ASSERT_EQ(err, 0);
             num_allocs = mapi_calls(api);
 
@@ -441,7 +419,7 @@ MTF_DEFINE_UTEST_PREPOST(test, t_mbset_create_fail, pre, post)
                 else
                     mapi_inject_once(api, i + 1, rc);
 
-                err = mbset_create(ds, idc, idv, usz, ufn, 0, MBLOCKS_MAX, &mbs);
+                err = mbset_create(ds, idc, idv, usz, ufn, 0, &mbs);
 
                 if (i < num_allocs) {
                     ASSERT_NE(err, 0);
@@ -486,7 +464,7 @@ MTF_DEFINE_UTEST_PREPOST(test, t_mbset_callback, pre, post)
 
         mapi_inject(mapi_idx_mpool_mblock_delete, 0);
 
-        err = mbset_create(ds, idc, idv, usz, ufn, 0, MBLOCKS_MAX, &mbs);
+        err = mbset_create(ds, idc, idv, usz, ufn, 0, &mbs);
         ASSERT_EQ(err, 0);
 
         switch (i) {
@@ -545,56 +523,12 @@ MTF_DEFINE_UTEST_PREPOST(test, t_mbset_madvise, pre, post)
     idv = idv_alloc(idc);
     ASSERT_NE(idv, NULL);
 
-    err = mbset_create(ds, idc, idv, usz, ufn, 0, MBLOCKS_MAX, &mbs);
+    err = mbset_create(ds, idc, idv, usz, ufn, 0, &mbs);
     ASSERT_EQ(err, 0);
 
     /* This madvise will fail, but we'll get coverage...
      */
     mbset_madvise(mbs, MADV_WILLNEED);
-
-    mbset_put_ref(mbs);
-
-    mapi_safe_free(idv);
-}
-
-MTF_DEFINE_UTEST_PREPOST(test, t_mbset_mincore, pre, post)
-{
-    u64 *         idv;
-    uint          idc = 2;
-    struct mbset *mbs;
-    merr_t        err;
-    size_t        rss;
-    size_t        vss;
-
-    idv = idv_alloc(idc);
-    ASSERT_NE(idv, NULL);
-
-    err = mbset_create(ds, idc, idv, usz, ufn, 0, MBLOCKS_MAX, &mbs);
-    ASSERT_EQ(err, 0);
-
-    err = mbset_mincore(NULL, &rss, &vss);
-    ASSERT_EQ(EINVAL, merr_errno(err));
-
-    err = mbset_mincore(mbs, NULL, NULL);
-    ASSERT_EQ(EINVAL, merr_errno(err));
-
-    err = mbset_mincore(mbs, &rss, &vss);
-    ASSERT_EQ(0, err);
-    ASSERT_EQ(100, rss);
-    ASSERT_EQ(1000, vss);
-
-    err = mbset_mincore(mbs, &rss, NULL);
-    ASSERT_EQ(0, err);
-    ASSERT_EQ(100, rss);
-
-    err = mbset_mincore(mbs, NULL, &vss);
-    ASSERT_EQ(0, err);
-    ASSERT_EQ(1000, vss);
-
-    mapi_inject(mapi_idx_mpool_mcache_mincore, merr(EINVAL));
-    err = mbset_mincore(mbs, &rss, &vss);
-    ASSERT_EQ(EINVAL, merr_errno(err));
-    mapi_inject_unset(mapi_idx_mpool_mcache_mincore);
 
     mbset_put_ref(mbs);
 
@@ -613,7 +547,7 @@ MTF_DEFINE_UTEST_PREPOST(test, t_mbset_apply, pre, post)
     idv = idv_alloc(idc);
     ASSERT_NE(idv, NULL);
 
-    err = mbset_create(ds, idc, idv, usz, ufn, 0, MBLOCKS_MAX, &mbs);
+    err = mbset_create(ds, idc, idv, usz, ufn, 0, &mbs);
     ASSERT_EQ(err, 0);
 
     mbset_apply(NULL, t_udata_update, &argc, argv);

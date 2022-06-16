@@ -142,12 +142,14 @@ get_next_item(
 }
 
 static merr_t
-get_kvset_builder(struct cn_compaction_work *w, struct kvset_builder **bldr_out)
+get_kvset_builder(struct cn_compaction_work *w, uint32_t idx, struct kvset_builder **bldr_out)
 {
     struct kvset_builder *bldr = NULL;
     merr_t err;
 
-    err = kvset_builder_create(&bldr, cn_tree_get_cn(w->cw_tree), w->cw_pc, w->cw_dgen_hi);
+    w->cw_kvsetidv[idx] = cndb_kvsetid_mint(cn_tree_get_cndb(w->cw_tree));
+
+    err = kvset_builder_create(&bldr, cn_tree_get_cn(w->cw_tree), w->cw_pc, w->cw_kvsetidv[idx]);
     if (!err) {
         kvset_builder_set_merge_stats(bldr, &w->cw_stats);
         kvset_builder_set_agegroup(bldr, HSE_MPOLICY_AGE_LEAF);
@@ -295,7 +297,7 @@ cn_spill(struct cn_compaction_work *w)
         bool new_key = true;
 
         if (!child) {
-            err = get_kvset_builder(w, &child);
+            err = get_kvset_builder(w, output_nodec, &child);
             if (err)
                 break;
             assert(child);

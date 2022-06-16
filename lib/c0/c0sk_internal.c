@@ -271,11 +271,16 @@ c0sk_cningest_cb(void *rock, struct bonsai_kv *bkv, struct bonsai_val *vlist)
 
     if (!bldr) {
         assert(cn);
-        err = kvset_builder_create(&bldr, cn, cn_get_ingest_perfc(cn), get_time_ns());
+
+        ingest->c0iw_kvsetidv[skidx] = cndb_kvsetid_mint(cn_get_cndb(cn));
+
+        err = kvset_builder_create(&bldr, cn, cn_get_ingest_perfc(cn),
+                                   ingest->c0iw_kvsetidv[skidx]);
         if (ev(err))
             return err;
 
         kvset_builder_set_agegroup(bldr, HSE_MPOLICY_AGE_ROOT);
+
         kvbldrs[skidx] = bldr;
     }
 
@@ -692,7 +697,7 @@ exit_err:
         c0sk_ingest_rec_perfc(&c0sk->c0sk_pc_ingest, PERFC_DI_C0SKING_PREP, go);
         go = perfc_lat_start(&c0sk->c0sk_pc_ingest);
 
-        err = cn_ingestv(c0sk->c0sk_cnv, mbv, HSE_KVS_COUNT_MAX, kvms_gen,
+        err = cn_ingestv(c0sk->c0sk_cnv, mbv, ingest->c0iw_kvsetidv, HSE_KVS_COUNT_MAX, kvms_gen,
                          txhorizon, &cn_min, &cn_max);
         if (err) {
             kvdb_health_error(c0sk->c0sk_kvdb_health, err);

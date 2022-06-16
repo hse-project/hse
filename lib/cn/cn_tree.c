@@ -349,14 +349,14 @@ cn_tree_destroy(struct cn_tree *tree)
 void
 cn_tree_setup(
     struct cn_tree *    tree,
-    struct mpool *      ds,
+    struct mpool *      mp,
     struct cn *         cn,
     struct kvs_rparams *rp,
     struct cndb *       cndb,
     u64                 cnid,
     struct cn_kvdb *    cn_kvdb)
 {
-    tree->ds = ds;
+    tree->mp = mp;
     tree->cn = cn;
     tree->rp = rp;
     tree->cndb = cndb;
@@ -377,9 +377,9 @@ cn_tree_get_cnkvdb(const struct cn_tree *tree)
 }
 
 struct mpool *
-cn_tree_get_ds(const struct cn_tree *tree)
+cn_tree_get_mp(const struct cn_tree *tree)
 {
-    return tree->ds;
+    return tree->mp;
 }
 
 struct kvs_rparams *
@@ -1370,18 +1370,15 @@ cn_tree_prepare_compaction(struct cn_compaction_work *w)
         n_outs = 1;
 
     ins = calloc(w->cw_kvset_cnt, sizeof(*ins));
-    outs = calloc(n_outs, sizeof(*outs));
-
+    outs = calloc(n_outs, sizeof(*outs) + sizeof(*(w->cw_kvsetidv)) +
+                                                 sizeof(w->cw_output_nodev[0]));
     if (ev(!ins || !outs)) {
         err = merr(ENOMEM);
         goto err_exit;
     }
 
-    w->cw_output_nodev = calloc(n_outs, sizeof(w->cw_output_nodev[0]));
-    if (!w->cw_output_nodev) {
-        err = merr(ENOMEM);
-        goto err_exit;
-    }
+    w->cw_kvsetidv = (void *)(outs + n_outs);
+    w->cw_output_nodev = (void *)(w->cw_kvsetidv + n_outs);
 
     vra_wq = cn_get_maint_wq(node->tn_tree->cn);
 
@@ -1446,7 +1443,6 @@ err_exit:
         free(vbm.vbm_blkv);
     }
     free(outs);
-    free(w->cw_output_nodev);
 
     return err;
 }
@@ -1714,7 +1710,6 @@ cn_comp_commit(struct cn_compaction_work *w)
 
     for (i = 0; i < w->cw_outc; i++) {
         struct kvset_meta km = {};
-        uint64_t kvsetid;
         uint64_t nodeid;
         uint ncommitted;
 
@@ -1766,11 +1761,9 @@ cn_comp_commit(struct cn_compaction_work *w)
 
         /* CNDB: Log kvset add records.
          */
-        kvsetid = cndb_kvsetid_mint(w->cw_tree->cndb);
-
         w->cw_err = cndb_record_kvset_add(
                         w->cw_tree->cndb, w->cw_cndb_txn, w->cw_tree->cnid,
-                        nodeid, &km, kvsetid, km.km_hblk.bk_blkid,
+                        nodeid, &km, w->cw_kvsetidv[i], km.km_hblk.bk_blkid,
                         w->cw_outv[i].kblks.n_blks, (uint64_t *)w->cw_outv[i].kblks.blks,
                         w->cw_outv[i].vblks.n_blks, (uint64_t *)w->cw_outv[i].vblks.blks,
                         &cookiev[i]);
@@ -1790,10 +1783,10 @@ cn_comp_commit(struct cn_compaction_work *w)
         w->cw_commitc += ncommitted;
 
         if (use_mbsets) {
-            w->cw_err = kvset_create2(w->cw_tree, kvsetid, &km,
+            w->cw_err = kvset_create2(w->cw_tree, w->cw_kvsetidv[i], &km,
                                       w->cw_kvset_cnt, cnts, vecs, &kvsets[i]);
         } else {
-            w->cw_err = kvset_create(w->cw_tree, kvsetid, &km, &kvsets[i]);
+            w->cw_err = kvset_create(w->cw_tree, w->cw_kvsetidv[i], &km, &kvsets[i]);
         }
 
         if (ev(w->cw_err))
@@ -1886,7 +1879,6 @@ cn_comp_cleanup(struct cn_compaction_work *w)
 
     free(w->cw_vbmap.vbm_blkv);
     free(w->cw_cookie);
-    free(w->cw_output_nodev);
     if (w->cw_outv) {
         for (i = 0; i < w->cw_outc; i++) {
             blk_list_free(&w->cw_outv[i].kblks);

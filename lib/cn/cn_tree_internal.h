@@ -98,7 +98,7 @@ struct cn_tree {
     u16                  ct_sfx_len;
     bool                 ct_nospace;
     struct cn *          cn;
-    struct mpool *       ds;
+    struct mpool *       mp;
     struct kvs_rparams * rp;
 
     struct route_map  *ct_route_map;

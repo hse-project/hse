@@ -57,6 +57,7 @@ merr_t
 _cn_ingestv(
     struct cn **           cn,
     struct kvset_mblocks **mbv,
+    uint64_t              *kvsetidv,
     uint                   ingestc,
     u64                    ingestid,
     u64                    txhorizon,

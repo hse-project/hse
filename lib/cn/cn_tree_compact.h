@@ -218,6 +218,7 @@ struct cn_compaction_work {
     uint                  cw_level;
     uint                  cw_outc;
     bool                  cw_drop_tombs;
+    uint64_t             *cw_kvsetidv;
     struct kvset_mblocks *cw_outv;
     struct kv_iterator ** cw_inputv;
     struct kvset_vblk_map cw_vbmap;
@@ -228,7 +229,6 @@ struct cn_compaction_work {
     uint                  cw_commitc;
     bool                  cw_keep_vblks;
     void                **cw_cookie;
-    struct kvset_builder *cw_child[CN_FANOUT_MAX];
 
     /* used in cleanup if debug enabled */
     u64  cw_t0_enqueue;

@@ -47,6 +47,7 @@ struct c0_ingest_work {
     struct element_source   *c0iw_lc_sourcev[LC_SOURCE_CNT_MAX];
     struct kvset_builder    *c0iw_bldrs[HSE_KVS_COUNT_MAX];
     struct kvset_mblocks     c0iw_mblocks[HSE_KVS_COUNT_MAX];
+    uint64_t                 c0iw_kvsetidv[HSE_KVS_COUNT_MAX];
     struct c0_kvmultiset    *c0iw_c0kvms;
     u32                      c0iw_kvms_iterc;
     u32                      c0iw_lc_iterc;

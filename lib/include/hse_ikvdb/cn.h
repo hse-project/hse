@@ -143,6 +143,7 @@ merr_t
 cn_ingestv(
     struct cn **           cn,
     struct kvset_mblocks **mbv,
+    uint64_t              *kvsetidv,
     uint                   ingestc,
     u64                    ingestid,
     u64                    txhorizon,
@@ -219,10 +220,6 @@ cn_get_cn_kvdb(const struct cn *handle);
 /* MTF_MOCK */
 u32
 cn_get_flags(const struct cn *handle);
-
-/* MTF_MOCK */
-u64
-cn_vma_mblock_max(struct cn *cn);
 
 /* MTF_MOCK */
 u64

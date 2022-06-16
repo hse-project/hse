@@ -113,7 +113,7 @@ _make_common(
     merr_t                   err;
 
     memset(&tree, 0, sizeof(tree));
-    tree.ds = ds;
+    tree.mp = ds;
 
     err = kvset_create(&tree, 0, km, &kvset);
     if (err)
@@ -261,7 +261,7 @@ _kvset_create(struct cn_tree *tree, u64 tag, struct kvset_meta *km, struct kvset
     mk->stats.kst_vulen = km->km_vused;
 
     mk->dgen = km->km_dgen;
-    mk->iter_data = tree->ds;
+    mk->iter_data = tree->mp;
     mk->ref = 1; /* as in reality, kvsets are minted ref 1 */
 
     mk->ids[i++] = km->km_hblk.bk_blkid;

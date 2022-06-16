@@ -240,6 +240,7 @@ MTF_DEFINE_UTEST_PRE(cn_ingest_test, worker, test_pre)
     struct cn *           cnv[1] = { &cn };
     struct kvset_mblocks *mbv[1] = { &m[0] };
     struct kvs_cparams    cp;
+    uint64_t kvsetidv[1] = { 1 };
 
     rp = kvs_rparams_defaults();
     cn.rp = &rp;
@@ -255,7 +256,7 @@ MTF_DEFINE_UTEST_PRE(cn_ingest_test, worker, test_pre)
     /* The kblocks contain no keys, so the ingest should fail.
      */
     init_mblks(m, n_kvsets, &k, &v);
-    err = cn_ingestv(cnv, mbv, NELEM(cnv), U64_MAX, U64_MAX, NULL, NULL);
+    err = cn_ingestv(cnv, mbv, kvsetidv, NELEM(cnv), U64_MAX, U64_MAX, NULL, NULL);
     ASSERT_NE(0, err);
     free_mblks(m, n_kvsets);
 
@@ -275,6 +276,7 @@ MTF_DEFINE_UTEST_PRE(cn_ingest_test, fail_cleanup, test_pre)
 
     struct cn *           cnv[1] = { &cn };
     struct kvset_mblocks *mbv[1] = { &m[0] };
+    uint64_t kvsetidv[1] = { 1 };
 
     rp = kvs_rparams_defaults();
     cn.rp = &rp;
@@ -290,7 +292,7 @@ MTF_DEFINE_UTEST_PRE(cn_ingest_test, fail_cleanup, test_pre)
     /* kvset create failure */
     init_mblks(m, n_kvsets, &k, &v);
     mapi_inject(mapi_idx_kvset_create, merr(EBADF));
-    err = cn_ingestv(cnv, mbv, NELEM(cnv), U64_MAX, U64_MAX, NULL, NULL);
+    err = cn_ingestv(cnv, mbv, kvsetidv, NELEM(cnv), U64_MAX, U64_MAX, NULL, NULL);
     ASSERT_EQ(merr_errno(err), EBADF);
     mapi_inject(mapi_idx_kvset_create, 0);
     free_mblks(m, n_kvsets);

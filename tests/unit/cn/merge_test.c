@@ -17,6 +17,7 @@
 #include <hse_ikvdb/kvset_builder.h>
 #include <hse_ikvdb/limits.h>
 #include <hse_ikvdb/cn.h>
+#include <hse_ikvdb/cndb.h>
 
 #include <cn/cn_tree.h>
 #include <cn/cn_tree_create.h>
@@ -1080,6 +1081,7 @@ init_work(
     bool                       drop_tombs,
     struct kvset_mblocks *     outputs,
     struct cn_tree_node **     output_nodev,
+    uint64_t                  *kvsetidv,
     struct kvset_vblk_map *    vbm)
 {
     memset(w, 0, sizeof(*w));
@@ -1099,6 +1101,7 @@ init_work(
     w->cw_drop_tombs = drop_tombs;
     w->cw_outv = outputs;
     w->cw_output_nodev = output_nodev;
+    w->cw_kvsetidv = kvsetidv;
 
     if (vbm)
         w->cw_vbmap = *vbm;
@@ -1139,6 +1142,7 @@ run_testcase(struct mtf_test_info *lcl_ti, int mode, const char *info)
     u32                  shift = 0;
     struct kvset_mblocks outputs[tp.fanout];
     struct cn_tree_node *output_nodev[tp.fanout];
+    uint64_t             kvsetidv[tp.fanout];
     struct kvs_rparams   rp = kvs_rparams_defaults();
     int                  pfx_len = tp.pfx_len;
 
@@ -1190,6 +1194,7 @@ run_testcase(struct mtf_test_info *lcl_ti, int mode, const char *info)
             tp.drop_tombs,
             outputs,
             output_nodev,
+            kvsetidv,
             0);
 
         w.cw_action = CN_ACTION_SPILL;
@@ -1236,6 +1241,7 @@ run_testcase(struct mtf_test_info *lcl_ti, int mode, const char *info)
             tp.drop_tombs,
             outputs,
             output_nodev,
+            kvsetidv,
             &vbm);
 
         w.cw_action = CN_ACTION_COMPACT_K;
@@ -1402,6 +1408,8 @@ test_prehook(struct mtf_test_info *info)
     /* Neuter the following APIs */
     mapi_inject_ptr(mapi_idx_cn_tree_get_cn, NULL);
     mapi_inject(mapi_idx_kvset_builder_set_merge_stats, 0);
+    mapi_inject(mapi_idx_cndb_kvsetid_mint, 1);
+    mapi_inject(mapi_idx_cn_tree_get_cndb, 0);
 
     return 0;
 }

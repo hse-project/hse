@@ -65,8 +65,6 @@
 #include "cn_perfc.h"
 #include "kvset_internal.h"
 
-#define VMA_SIZE_MAX 30
-
 struct tbkt;
 struct mclass_policy;
 
@@ -490,9 +488,9 @@ cn_mblocks_destroy(
         * refactor.
         */
         if (n_committed > 0) {
-            delete_mblock(mp, &list->hblk);
+            delete_mblock(mp, &list[lx].hblk);
         } else {
-            abort_mblock(mp, &list->hblk);
+            abort_mblock(mp, &list[lx].hblk);
         }
     }
 }
@@ -581,6 +579,7 @@ static merr_t
 cn_ingest_prep(
     struct cn *           cn,
     struct kvset_mblocks *mblocks,
+    uint64_t              kvsetid,
     struct cndb_txn      *txn,
     struct kvset **       kvsetp,
     void                **cookie)
@@ -589,7 +588,6 @@ cn_ingest_prep(
     u64               dgen;
     u32               commitc = 0;
     merr_t            err = 0;
-    uint64_t          kvsetid;
 
     if (ev(!mblocks))
         return merr(EINVAL);
@@ -627,8 +625,6 @@ cn_ingest_prep(
         goto done;
     }
 
-    kvsetid = cndb_kvsetid_mint(cn->cn_cndb);
-
     err = cndb_record_kvset_add(cn->cn_cndb, txn, cn->cn_cnid, km.km_nodeid, &km, kvsetid,
                                 mblocks->hblk.bk_blkid,
                                 km.km_kblk_list.n_blks, (uint64_t *)km.km_kblk_list.blks,
@@ -657,6 +653,7 @@ merr_t
 cn_ingestv(
     struct cn **           cn,
     struct kvset_mblocks **mbv,
+    uint64_t              *kvsetidv,
     uint                   ingestc,
     u64                    ingestid,
     u64                    txhorizon,
@@ -736,7 +733,7 @@ cn_ingestv(
         if (cn[i]->rp && !log_ingest)
             log_ingest = cn[i]->rp->cn_compaction_debug & 2;
 
-        err = cn_ingest_prep(cn[i], mbv[i], cndb_txn, &kvsetv[i], &cookiev[i]);
+        err = cn_ingest_prep(cn[i], mbv[i], kvsetidv[i], cndb_txn, &kvsetv[i], &cookiev[i]);
         if (ev(err))
             goto nak;
 
@@ -1447,22 +1444,6 @@ u64
 cn_mpool_dev_zone_alloc_unit_default(struct cn *cn, enum hse_mclass mclass)
 {
     return cn->cn_mpool_props.mclass[mclass].mc_mblocksz;
-}
-
-/*
- * [HSE_REVISIT]: Fix the callers to pass a correct mclass rather than blindly
- * passing HSE_MCLASS_CAPACITY. For now, assume a default mblock size of 32MiB
- * for all the media classes. This needs to be fixed in future when we want
- * KVDB to operate on media classes with varying mblock sizes.
- */
-u64
-cn_vma_mblock_max(struct cn *cn)
-{
-    u64 vma_size_max;
-
-    vma_size_max = 1ul << VMA_SIZE_MAX;
-
-    return vma_size_max / MPOOL_MBLOCK_SIZE_DEFAULT;
 }
 
 #if HSE_MOCKING
