@@ -1,6 +1,6 @@
 /* SPDX-License-Identifier: Apache-2.0 */
 /*
- * Copyright (C) 2021 Micron Technology, Inc.  All rights reserved.
+ * Copyright (C) 2021-2022 Micron Technology, Inc.  All rights reserved.
  */
 
 #include <errno.h>
@@ -31,7 +31,6 @@ hse_storage_info(const char *const kvdb_home)
     char                    buf[1024];
     char                    nums[HSE_MCLASS_COUNT][2][21];
     const char *            values[NELEM(headers) * HSE_MCLASS_COUNT];
-    cJSON *                 root;
     HSE_MAYBE_UNUSED size_t n;
     bool                    mc_present[HSE_MCLASS_COUNT] = { 0 };
 
@@ -59,6 +58,7 @@ hse_storage_info(const char *const kvdb_home)
             goto out;
 
         for (int i = HSE_MCLASS_BASE; i < HSE_MCLASS_COUNT; i++) {
+            cJSON *root;
             struct hse_mclass_info *data = &info[i];
 
             memset(data, 0, sizeof(*data));
@@ -105,6 +105,8 @@ hse_storage_info(const char *const kvdb_home)
 
             if (data->mi_allocated_bytes > 0)
                 mc_present[i] = true;
+
+            cJSON_Delete(root);
         }
     } else {
         if (hse_err_to_errno(err) == ENOENT)
