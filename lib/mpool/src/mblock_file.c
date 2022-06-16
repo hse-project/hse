@@ -92,7 +92,7 @@ struct mblock_file {
     int            fileid;
     int            fd;
 
-    atomic_int *wlenv;
+    atomic_uint_least32_t *wlenv;
 
     struct mutex uniq_lock HSE_L1D_ALIGNED;
     uint32_t     uniq;
@@ -113,7 +113,7 @@ struct mblock_file {
 
 /* Forward declarations */
 static void
-mblock_file_unmapall(struct mblock_file *mbfp);
+mblock_file_unmap(struct mblock_file *mbfp);
 
 static int
 mblock_mmap_cshift(size_t mblocksz);
@@ -581,6 +581,41 @@ mblock_file_meta_log(struct mblock_file *mbfp, uint64_t *mbidv, int mbidc, bool 
  * Mblock file interfaces.
  */
 
+void
+mblock_wlen_set(struct mblock_file *mbfp, uint64_t mbid, uint32_t wlen, bool prealloc)
+{
+    INVARIANT(mbfp);
+    INVARIANT(wlen <= mbfp->mblocksz);
+
+    if (prealloc)
+        wlen |= (1U << MBLOCK_WLEN_PREALLOC_SHIFT);
+
+    atomic_set(mbfp->wlenv + block_id(mbid), wlen);
+}
+
+static HSE_ALWAYS_INLINE uint32_t
+mblock_wlen_get(const struct mblock_file *mbfp, uint64_t mbid)
+{
+    return atomic_read(mbfp->wlenv + block_id(mbid)) & MBLOCK_WLEN_MASK;
+}
+
+static HSE_ALWAYS_INLINE bool
+mblock_is_prealloc(const struct mblock_file *mbfp, uint64_t mbid)
+{
+    const uint32_t wlen = atomic_read(mbfp->wlenv + block_id(mbid));
+
+    return (wlen >> MBLOCK_WLEN_PREALLOC_SHIFT) == 1;
+}
+
+static HSE_ALWAYS_INLINE void
+mblock_wlen_add(struct mblock_file *mbfp, uint64_t mbid, uint32_t len)
+{
+    bool prealloc = mblock_is_prealloc(mbfp, mbid);
+    uint32_t wlen = mblock_wlen_get(mbfp, mbid);
+
+    mblock_wlen_set(mbfp, mbid, wlen + len, prealloc);
+}
+
 merr_t
 mblock_file_open(
     struct mblock_fset        *mbfsp,
@@ -716,7 +751,7 @@ mblock_file_close(struct mblock_file *mbfp)
 
     rgnmap->rm_cache = NULL;
 
-    mblock_file_unmapall(mbfp);
+    mblock_file_unmap(mbfp);
 
     if (mbfp->fd != -1) {
         fsync(mbfp->fd);
@@ -805,7 +840,8 @@ mblock_file_alloc(struct mblock_file *mbfp, uint32_t flags, int mbidc, uint64_t 
         int rc;
 
         rc = posix_fallocate(mbfp->fd, block_off(mbid, mbfp->mblocksz), mbfp->mblocksz);
-        ev(rc); /* advisory */
+        if (ev(rc != 0)) /* advisory */
+            prealloc = false;
     } else if (punch_hole) {
         int rc;
 
@@ -817,7 +853,7 @@ mblock_file_alloc(struct mblock_file *mbfp, uint32_t flags, int mbidc, uint64_t 
         }
     }
 
-    atomic_set(mbfp->wlenv + block - 1, 0);
+    mblock_wlen_set(mbfp, mbid, 0, prealloc);
     atomic_inc(&mbfp->mbcnt);
 
     *mbidv = mbid;
@@ -826,7 +862,7 @@ mblock_file_alloc(struct mblock_file *mbfp, uint32_t flags, int mbidc, uint64_t 
 }
 
 static merr_t
-mblock_file_meta_validate(struct mblock_file *mbfp, uint64_t *mbidv, int mbidc, bool exists)
+mblock_file_meta_validate(const struct mblock_file *mbfp, uint64_t *mbidv, int mbidc, bool exists)
 {
     struct mblock_oid_info mbinfo;
     uint32_t               block, wlen;
@@ -860,7 +896,7 @@ mblock_file_meta_validate(struct mblock_file *mbfp, uint64_t *mbidv, int mbidc, 
 }
 
 merr_t
-mblock_file_find(struct mblock_file *mbfp, uint64_t *mbidv, int mbidc, uint32_t *wlen)
+mblock_file_find(struct mblock_file *mbfp, uint64_t *mbidv, int mbidc, struct mblock_props *props)
 {
     uint32_t block;
     merr_t   err, err2;
@@ -881,8 +917,15 @@ mblock_file_find(struct mblock_file *mbfp, uint64_t *mbidv, int mbidc, uint32_t 
     }
 
     err2 = mblock_file_meta_validate(mbfp, mbidv, mbidc, !err);
-    if (!err2 && wlen)
-        *wlen = atomic_read(mbfp->wlenv + block);
+    if (!err2 && props) {
+        props->mpr_objid = *mbidv;
+        props->mpr_mclass = mcid_to_mclass(mbfp->mcid);
+        props->mpr_write_len = mblock_wlen_get(mbfp, *mbidv);
+        if (mblock_is_prealloc(mbfp, *mbidv))
+            props->mpr_alloc_cap = mbfp->mblocksz;
+        else
+            props->mpr_alloc_cap = props->mpr_write_len;
+    }
     mutex_unlock(&mbfp->meta_lock);
 
     return err2 ?: err;
@@ -914,7 +957,7 @@ mblock_file_commit(struct mblock_file *mbfp, uint64_t *mbidv, int mbidc)
     if (err)
         return err;
 
-    atomic_add(&mbfp->wlen, atomic_read(mbfp->wlenv + block));
+    atomic_add(&mbfp->wlen, mblock_wlen_get(mbfp, *mbidv));
 
     return 0;
 }
@@ -941,7 +984,7 @@ mblock_file_abrt_or_del(struct mblock_file *mbfp, uint64_t *mbidv, int mbidc, bo
     if (delete) {
         err = mblock_file_meta_log(mbfp, mbidv, mbidc, delete);
         if (!err)
-            atomic_sub(&mbfp->wlen, atomic_read(mbfp->wlenv + block));
+            atomic_sub(&mbfp->wlen, mblock_wlen_get(mbfp, *mbidv));
     } else {
         err = mblock_file_meta_validate(mbfp, mbidv, mbidc, delete);
     }
@@ -953,7 +996,7 @@ mblock_file_abrt_or_del(struct mblock_file *mbfp, uint64_t *mbidv, int mbidc, bo
                    block_off(*mbidv, mblocksz), mblocksz);
     ev(rc);
 
-    atomic_set(mbfp->wlenv + block, 0);
+    mblock_wlen_set(mbfp, *mbidv, 0, false);
     atomic_dec(&mbfp->mbcnt);
 
     err = mblock_rgn_free(&mbfp->rgnmap, block + 1);
@@ -996,18 +1039,12 @@ iov_len_get(const struct iovec *iov, int iovc, size_t *tlen)
 }
 
 merr_t
-mblock_file_read(
-    struct mblock_file *mbfp,
-    uint64_t            mbid,
-    const struct iovec *iov,
-    int                 iovc,
-    off_t               off)
+mblock_read(struct mblock_file *mbfp, uint64_t mbid, const struct iovec *iov, int iovc, off_t off)
 {
     uint32_t  block;
     off_t     roff, eoff;
     size_t    len = 0, mblocksz, wlen;
     merr_t    err;
-    atomic_int *wlenp;
 
     if (!mbfp || !iov)
         return merr(EINVAL);
@@ -1023,8 +1060,7 @@ mblock_file_read(
     if (err)
         return err;
 
-    wlenp = mbfp->wlenv + block;
-    wlen = atomic_read(wlenp);
+    wlen = mblock_wlen_get(mbfp, mbid);
 
     mblocksz = mbfp->mblocksz;
     roff = block_off(mbid, mblocksz);
@@ -1049,13 +1085,12 @@ mblock_file_read(
 }
 
 merr_t
-mblock_file_write(struct mblock_file *mbfp, uint64_t mbid, const struct iovec *iov, int iovc)
+mblock_write(struct mblock_file *mbfp, uint64_t mbid, const struct iovec *iov, int iovc)
 {
-    uint32_t  block;
-    size_t    len = 0, mblocksz;
-    off_t     woff, eoff, off;
-    merr_t    err;
-    atomic_int *wlenp;
+    uint32_t block;
+    size_t len = 0, mblocksz;
+    off_t woff, eoff, off;
+    merr_t err;
 
     if (!mbfp || !iov)
         return merr(EINVAL);
@@ -1068,8 +1103,7 @@ mblock_file_write(struct mblock_file *mbfp, uint64_t mbid, const struct iovec *i
     if (err)
         return err;
 
-    wlenp = mbfp->wlenv + block;
-    off = atomic_read(wlenp);
+    off = mblock_wlen_get(mbfp, mbid);
     assert(PAGE_ALIGNED(off));
 
     mblocksz = mbfp->mblocksz;
@@ -1092,28 +1126,9 @@ mblock_file_write(struct mblock_file *mbfp, uint64_t mbid, const struct iovec *i
     hse_wmesg_tls = "-";
 
     if (!err)
-        atomic_add(wlenp, len);
+        mblock_wlen_add(mbfp, mbid, len);
 
     return err;
-}
-
-merr_t
-mblock_file_wlen_set(struct mblock_file *mbfp, uint64_t mbid, size_t wlen)
-{
-    uint32_t block;
-    merr_t err;
-
-    if (!mbfp || wlen > mbfp->mblocksz)
-        return merr(EINVAL);
-
-    block = block_id(mbid);
-    err = mblock_rgn_find(&mbfp->rgnmap, block + 1);
-    if (err)
-        return err;
-
-    atomic_set(mbfp->wlenv + block, wlen);
-
-    return 0;
 }
 
 static HSE_ALWAYS_INLINE size_t
@@ -1153,7 +1168,7 @@ chunk_off(uint64_t mbid, size_t mblocksz)
 }
 
 merr_t
-mblock_file_map_getbase(struct mblock_file *mbfp, uint64_t mbid, char **addr_out, uint32_t *wlen)
+mblock_map_getbase(struct mblock_file *mbfp, uint64_t mbid, char **addr_out, uint32_t *wlen)
 {
     struct mblock_mmap *map;
     char               *addr;
@@ -1207,14 +1222,14 @@ exit:
 
     if (!err) {
         *addr_out = addr + off;
-        *wlen = atomic_read(mbfp->wlenv + block_id(mbid));
+        *wlen = mblock_wlen_get(mbfp, mbid);
     }
 
     return err;
 }
 
 merr_t
-mblock_file_unmap(struct mblock_file *mbfp, uint64_t mbid)
+mblock_unmap(struct mblock_file *mbfp, uint64_t mbid)
 {
     struct mblock_mmap *map;
     char               *addr;
@@ -1252,7 +1267,7 @@ mblock_file_unmap(struct mblock_file *mbfp, uint64_t mbid)
 }
 
 static void
-mblock_file_unmapall(struct mblock_file *mbfp)
+mblock_file_unmap(struct mblock_file *mbfp)
 {
     struct mblock_mmap *map;
     int                 i;
@@ -1284,7 +1299,7 @@ mblock_file_unmapall(struct mblock_file *mbfp)
 }
 
 merr_t
-mblock_file_info_get(struct mblock_file *mbfp, struct mblock_file_info *info)
+mblock_file_info_get(const struct mblock_file *mbfp, struct mblock_file_info *info)
 {
     struct stat sbuf;
     int         rc;
@@ -1303,7 +1318,7 @@ mblock_file_info_get(struct mblock_file *mbfp, struct mblock_file_info *info)
 }
 
 merr_t
-mblock_file_mbinfo_get(struct mblock_file *mbfp, uint64_t mbid, struct mblock_file_mbinfo *mbinfo)
+mblock_info_get(struct mblock_file *mbfp, uint64_t mbid, struct mblock_file_mbinfo *mbinfo)
 {
     uint32_t block;
     merr_t err;
@@ -1315,7 +1330,7 @@ mblock_file_mbinfo_get(struct mblock_file *mbfp, uint64_t mbid, struct mblock_fi
 
     mbinfo->fd = mbfp->fd;
     mbinfo->off = block_off(mbid, mbfp->mblocksz);
-    mbinfo->wlen = atomic_read(mbfp->wlenv + block);
+    mbinfo->wlen = mblock_wlen_get(mbfp, mbid);
 
     return 0;
 }

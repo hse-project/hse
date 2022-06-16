@@ -42,6 +42,13 @@
 #define MBID_RSVD_MASK   (0x00000000003f0000)
 #define MBID_BLOCK_MASK  (0x000000000000ffff)
 
+/*
+ * The most significant bit of wlen (both in-memory and on-media) indicates whether an mblock
+ * is pre-allocated (1) or not (0).
+ */
+#define MBLOCK_WLEN_PREALLOC_SHIFT (31)
+#define MBLOCK_WLEN_MASK           (0x7fffffffU)
+
 
 _Static_assert(((1 << MBID_FILEID_BITS) - 1) == (MPOOL_MCLASS_FILECNT_MAX),
 	       "MBID_FILEID_BITS and MPOOL_MCLASS_FILECNT_MAX mismatch");
@@ -226,7 +233,7 @@ merr_t
 mblock_file_delete(struct mblock_file *mbfp, uint64_t *mbidv, int mbidc);
 
 /**
- * mblock_file_read() - read an mblock object
+ * mblock_read() - read an mblock object
  *
  * @mbfp:   mblock file handle
  * @mbid:   mblock id
@@ -235,15 +242,10 @@ mblock_file_delete(struct mblock_file *mbfp, uint64_t *mbidv, int mbidc);
  * @off:    offset
  */
 merr_t
-mblock_file_read(
-    struct mblock_file *mbfp,
-    uint64_t            mbid,
-    const struct iovec *iov,
-    int                 iovc,
-    off_t               off);
+mblock_read(struct mblock_file *mbfp, uint64_t mbid, const struct iovec *iov, int iovc, off_t off);
 
 /**
- * mblock_file_write() - write an mblock object
+ * mblock_write() - write an mblock object
  *
  * @mbfp:   mblock file handle
  * @mbid:   mblock id
@@ -251,18 +253,18 @@ mblock_file_read(
  * @iovc:   iov count
  */
 merr_t
-mblock_file_write(struct mblock_file *mbfp, uint64_t mbid, const struct iovec *iov, int iovc);
+mblock_write(struct mblock_file *mbfp, uint64_t mbid, const struct iovec *iov, int iovc);
 
 /**
- * mblock_file_find() - test mblock's existence and return write length.
+ * mblock_file_find() - test mblock's existence and return props
  *
  * @mbfp:  mblock file handle
  * @mbidv: vector of mblock ids
  * @mbidc: count of mblock ids
- * @wlen:  write length (output)
+ * @props: mblock props
  */
 merr_t
-mblock_file_find(struct mblock_file *mbfp, uint64_t *mbidv, int mbidc, uint32_t *wlen);
+mblock_file_find(struct mblock_file *mbfp, uint64_t *mbidv, int mbidc, struct mblock_props *props);
 
 /**
  * mblock_file_meta_len() - return meta length to track objects in an mblock file
@@ -275,7 +277,7 @@ size_t
 mblock_file_meta_len(size_t fszmax, size_t mblocksz, uint32_t version);
 
 /**
- * mblock_file_map_getbase() - get the mapped address and wlen for the specified mblock
+ * mblock_map_getbase() - get the mapped address and wlen for the specified mblock
  *
  * @mbfp:     mblock file handle
  * @mbid:     mblock id
@@ -283,16 +285,16 @@ mblock_file_meta_len(size_t fszmax, size_t mblocksz, uint32_t version);
  * @wlen:     write length (output)
  */
 merr_t
-mblock_file_map_getbase(struct mblock_file *mbfp, uint64_t mbid, char **addr_out, uint32_t *wlen);
+mblock_map_getbase(struct mblock_file *mbfp, uint64_t mbid, char **addr_out, uint32_t *wlen);
 
 /**
- * mblock_file_unmap() - unmap the given mblock id
+ * mblock_unmap() - unmap the given mblock id
  *
  * @mbfp:   mblock file handle
  * @mbid:   mblock id
  */
 merr_t
-mblock_file_unmap(struct mblock_file *mbfp, uint64_t mbid);
+mblock_unmap(struct mblock_file *mbfp, uint64_t mbid);
 
 /**
  * mblock_file_info_get() - get mblock file info
@@ -301,26 +303,27 @@ mblock_file_unmap(struct mblock_file *mbfp, uint64_t mbid);
  * @info: mblock file info (output)
  */
 merr_t
-mblock_file_info_get(struct mblock_file *mbfp, struct mblock_file_info *info);
+mblock_file_info_get(const struct mblock_file *mbfp, struct mblock_file_info *info);
 
 /**
- * mblock_file_mbinfo_get() - get an mblock info from the mblock data file
+ * mblock_info_get() - get an mblock info from the mblock data file
  *
  * @mbfp:   mblock file handle
  * @mbid:   mblock ID
  * @mbinfo: mblock info (output)
  */
 merr_t
-mblock_file_mbinfo_get(struct mblock_file *mbfp, uint64_t mbid, struct mblock_file_mbinfo *mbinfo);
+mblock_info_get(struct mblock_file *mbfp, uint64_t mbid, struct mblock_file_mbinfo *mbinfo);
 
 /**
- * mblock_file_wlen_set() - set the write length of an mblock (used by mblock clone)
+ * mblock_wlen_set() - set the write length of an mblock (used by mblock clone)
  *
- * @mbfp: mblock file handle
- * @mbid: mblock ID
- * @wlen: write length
+ * @mbfp:     mblock file handle
+ * @mbid:     mblock ID
+ * @wlen:     write length
+ * @prealloc: preallocated mblock?
  */
-merr_t
-mblock_file_wlen_set(struct mblock_file *mbfp, uint64_t mbid, size_t wlen);
+void
+mblock_wlen_set(struct mblock_file *mbfp, uint64_t mbid, uint32_t wlen, bool prealloc);
 
 #endif /* MPOOL_MBLOCK_FILE_H */

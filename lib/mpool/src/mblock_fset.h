@@ -140,15 +140,15 @@ mblock_fset_read(
     off_t               off);
 
 /**
- * mblock_fset_find() - find an mblock and return write length
+ * mblock_fset_find() - find an mblock and return props
  *
  * @mbfsp: mblock fileset handle
  * @mbidv: mblock id
  * @mbidc: mblock count (support only mbidc == 1)
- * @wlen:  write length of the specifid mblock (output)
+ * @props: mblock props (output)
  */
 merr_t
-mblock_fset_find(struct mblock_fset *mbfsp, uint64_t *mbidv, int mbidc, uint32_t *wlen);
+mblock_fset_find(struct mblock_fset *mbfsp, uint64_t *mbidv, int mbidc, struct mblock_props *props);
 
 /**
  * mblock_fset_getbase() - get the mapped address of the specified mblock

@@ -106,6 +106,13 @@ MTF_DEFINE_UTEST_PREPOST(mblock_test, mblock_abc, mpool_test_pre, mpool_test_pos
     ASSERT_EQ(0, err);
     err = mpool_mblock_commit(mp, mbid);
     ASSERT_EQ(0, err);
+
+    err = mpool_mblock_props_get(mp, mbid, &props);
+    ASSERT_EQ(0, err);
+    ASSERT_EQ(props.mpr_objid, mbid);
+    ASSERT_EQ(props.mpr_write_len, 0);
+    ASSERT_EQ(props.mpr_alloc_cap, MPOOL_MBLOCK_SIZE_DEFAULT);
+
     err = mpool_mblock_delete(mp, mbid);
     ASSERT_EQ(0, err);
     err = mpool_info_get(mp, &info);
@@ -205,6 +212,7 @@ MTF_DEFINE_UTEST_PREPOST(mblock_test, mblock_abc, mpool_test_pre, mpool_test_pos
     ASSERT_EQ(props.mpr_objid, mbid);
     ASSERT_EQ(props.mpr_mclass, HSE_MCLASS_STAGING);
     ASSERT_EQ(props.mpr_write_len, 0);
+    ASSERT_EQ(props.mpr_alloc_cap, 0);
 
     /* deleting an uncommitted mblock returns EINVAL */
     err = mpool_mblock_delete(mp, mbid);
@@ -218,6 +226,7 @@ MTF_DEFINE_UTEST_PREPOST(mblock_test, mblock_abc, mpool_test_pre, mpool_test_pos
     ASSERT_EQ(props.mpr_objid, mbid);
     ASSERT_EQ(props.mpr_mclass, HSE_MCLASS_STAGING);
     ASSERT_EQ(props.mpr_write_len, 0);
+    ASSERT_EQ(props.mpr_alloc_cap, 0);
 
     err = mpool_mblock_delete(mp, mbid);
     ASSERT_EQ(0, err);
@@ -737,16 +746,16 @@ MTF_DEFINE_UTEST_PREPOST(mblock_test, mblock_invalid_args, mpool_test_pre, mpool
     err = mblock_file_delete(mbfp, &mbid, 2);
     ASSERT_EQ(ENOTSUP, merr_errno(err));
 
-    err = mblock_file_read(NULL, mbid, iov, 1, 0);
+    err = mblock_read(NULL, mbid, iov, 1, 0);
     ASSERT_EQ(EINVAL, merr_errno(err));
 
-    err = mblock_file_read(mbfp, mbid, NULL, 1, 0);
+    err = mblock_read(mbfp, mbid, NULL, 1, 0);
     ASSERT_EQ(EINVAL, merr_errno(err));
 
-    err = mblock_file_write(NULL, mbid, iov, 1);
+    err = mblock_write(NULL, mbid, iov, 1);
     ASSERT_EQ(EINVAL, merr_errno(err));
 
-    err = mblock_file_write(mbfp, mbid, NULL, 1);
+    err = mblock_write(mbfp, mbid, NULL, 1);
     ASSERT_EQ(EINVAL, merr_errno(err));
 
     err = mpool_mblock_abort(mp, mbid);
@@ -761,6 +770,7 @@ MTF_DEFINE_UTEST_PREPOST(mblock_test, mblock_invalid_args, mpool_test_pre, mpool
 MTF_DEFINE_UTEST_PREPOST(mblock_test, mblock_clone, mpool_test_pre, mpool_test_post)
 {
     struct mpool *mp;
+    struct mblock_props props = { 0 };
 
     uint64_t mbid, tgt_mbid;
     merr_t   err;
@@ -793,12 +803,20 @@ MTF_DEFINE_UTEST_PREPOST(mblock_test, mblock_clone, mpool_test_pre, mpool_test_p
     err = mpool_mblock_commit(mp, mbid);
     ASSERT_EQ(0, err);
 
+    err = mpool_mblock_props_get(mp, mbid, &props);
+    ASSERT_EQ(props.mpr_write_len, 32 * MB);
+    ASSERT_EQ(props.mpr_alloc_cap, props.mpr_write_len);
+
     err = mblock_rw(mp, mbid, rbuf, bufsz, 0, !write);
     ASSERT_EQ(0, err);
     ASSERT_EQ(0, memcmp(wbuf, rbuf, bufsz));
 
     err = mpool_mblock_clone(mp, mbid, 0, 4 * MB, &tgt_mbid);
     ASSERT_EQ(0, err);
+
+    err = mpool_mblock_props_get(mp, tgt_mbid, &props);
+    ASSERT_EQ(props.mpr_write_len, 4 * MB);
+    ASSERT_EQ(props.mpr_alloc_cap, props.mpr_write_len);
 
     randomize_buffer(rbuf, MB, 151);
     err = mblock_rw(mp, tgt_mbid, rbuf, 4 * MB, 0, !write);
@@ -825,6 +843,10 @@ MTF_DEFINE_UTEST_PREPOST(mblock_test, mblock_clone, mpool_test_pre, mpool_test_p
     err = mpool_mblock_clone(mp, mbid, 16 * MB, 4 * MB, &tgt_mbid);
     ASSERT_EQ(0, err);
 
+    err = mpool_mblock_props_get(mp, tgt_mbid, &props);
+    ASSERT_EQ(props.mpr_write_len, 20 * MB);
+    ASSERT_EQ(props.mpr_alloc_cap, props.mpr_write_len);
+
     randomize_buffer(rbuf, bufsz, 173);
     err = mblock_rw(mp, tgt_mbid, rbuf, 20 * MB, 0, !write);
     ASSERT_EQ(0, err);
@@ -840,6 +862,10 @@ MTF_DEFINE_UTEST_PREPOST(mblock_test, mblock_clone, mpool_test_pre, mpool_test_p
 
     err = mpool_mblock_clone(mp, mbid, 0, 0, &tgt_mbid);
     ASSERT_EQ(0, err);
+
+    err = mpool_mblock_props_get(mp, tgt_mbid, &props);
+    ASSERT_EQ(props.mpr_write_len, 32 * MB);
+    ASSERT_EQ(props.mpr_alloc_cap, props.mpr_write_len);
 
     randomize_buffer(rbuf, bufsz, 181);
     err = mblock_rw(mp, mbid, rbuf, bufsz, 0, !write);
