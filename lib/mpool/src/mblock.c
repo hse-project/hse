@@ -99,27 +99,15 @@ merr_t
 mpool_mblock_props_get(struct mpool *mp, uint64_t mbid, struct mblock_props *props)
 {
     struct media_class *mc;
-    enum hse_mclass   mclass;
-    uint32_t wlen;
-    merr_t   err;
 
     if (!mp)
         return merr(EINVAL);
 
-    mclass = mcid_to_mclass(mclassid(mbid));
-    mc = mpool_mclass_handle(mp, mclass);
-    if (ev(!mc))
+    mc = mpool_mclass_handle(mp, mcid_to_mclass(mclassid(mbid)));
+    if (!mc)
         return merr(ENOENT);
 
-    err = mblock_fset_find(mclass_fset(mc), &mbid, 1, props ? &wlen : NULL);
-    if (!err && props) {
-        props->mpr_objid = mbid;
-        props->mpr_alloc_cap = mclass_mblocksz_get(mc);
-        props->mpr_mclass = mclass;
-        props->mpr_write_len = wlen;
-    }
-
-    return ev(err);
+    return mblock_fset_find(mclass_fset(mc), &mbid, 1, props);
 }
 
 merr_t

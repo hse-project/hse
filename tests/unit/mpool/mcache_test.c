@@ -21,7 +21,7 @@
 MTF_BEGIN_UTEST_COLLECTION_PRE(mcache_test, mpool_collection_pre)
 
 static merr_t
-mblock_write(struct mpool *mp, uint64_t mbid, void *buf, size_t len)
+mblock_write_test(struct mpool *mp, uint64_t mbid, void *buf, size_t len)
 {
     struct iovec *iov;
     int           iovc;
@@ -89,7 +89,7 @@ MTF_DEFINE_UTEST_PREPOST(mcache_test, mcache_api, mpool_test_pre, mpool_test_pos
         err = mpool_mblock_alloc(mp, HSE_MCLASS_CAPACITY, 0, &mbidv[i], NULL);
         ASSERT_EQ(0, err);
 
-        err = mblock_write(mp, mbidv[i], buf, PAGE_SIZE * (i + 1));
+        err = mblock_write_test(mp, mbidv[i], buf, PAGE_SIZE * (i + 1));
         ASSERT_EQ(err, 0);
 
         err = mpool_mblock_commit(mp, mbidv[i]);
@@ -195,7 +195,7 @@ MTF_DEFINE_UTEST_PREPOST(mcache_test, mcache_api, mpool_test_pre, mpool_test_pos
                                  &mbidv[i], NULL);
         ASSERT_EQ(0, err);
 
-        err = mblock_write(mp, mbidv[i], buf, PAGE_SIZE * (i + 1));
+        err = mblock_write_test(mp, mbidv[i], buf, PAGE_SIZE * (i + 1));
         ASSERT_EQ(err, 0);
 
         err = mpool_mblock_commit(mp, mbidv[i]);
@@ -287,13 +287,13 @@ MTF_DEFINE_UTEST_PREPOST(mcache_test, mcache_invalid_args, mpool_test_pre, mpool
     err = mblock_fset_unmap(mbfsp, 0xffffffff);
     ASSERT_EQ(EINVAL, merr_errno(err));
 
-    err = mblock_file_map_getbase(NULL, mbid, &addr, NULL);
+    err = mblock_map_getbase(NULL, mbid, &addr, NULL);
     ASSERT_EQ(EINVAL, merr_errno(err));
 
-    err = mblock_file_map_getbase(mbfp, mbid, NULL, NULL);
+    err = mblock_map_getbase(mbfp, mbid, NULL, NULL);
     ASSERT_EQ(EINVAL, merr_errno(err));
 
-    err = mblock_file_unmap(NULL, mbid);
+    err = mblock_unmap(NULL, mbid);
     ASSERT_EQ(EINVAL, merr_errno(err));
 
     err = mpool_mblock_abort(mp, mbid);

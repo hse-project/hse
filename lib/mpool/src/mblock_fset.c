@@ -710,7 +710,7 @@ mblock_fset_delete(struct mblock_fset *mbfsp, uint64_t *mbidv, int mbidc)
 }
 
 merr_t
-mblock_fset_find(struct mblock_fset *mbfsp, uint64_t *mbidv, int mbidc, uint32_t *wlen)
+mblock_fset_find(struct mblock_fset *mbfsp, uint64_t *mbidv, int mbidc, struct mblock_props *props)
 {
     struct mblock_file *mbfp;
 
@@ -722,7 +722,7 @@ mblock_fset_find(struct mblock_fset *mbfsp, uint64_t *mbidv, int mbidc, uint32_t
 
     mbfp = mbfsp->filev[file_index(*mbidv)];
 
-    return mblock_file_find(mbfp, mbidv, mbidc, wlen);
+    return mblock_file_find(mbfp, mbidv, mbidc, props);
 }
 
 merr_t
@@ -735,7 +735,7 @@ mblock_fset_write(struct mblock_fset *mbfsp, uint64_t mbid, const struct iovec *
 
     mbfp = mbfsp->filev[file_index(mbid)];
 
-    return mblock_file_write(mbfp, mbid, iov, iovc);
+    return mblock_write(mbfp, mbid, iov, iovc);
 }
 
 merr_t
@@ -753,7 +753,7 @@ mblock_fset_read(
 
     mbfp = mbfsp->filev[file_index(mbid)];
 
-    return mblock_file_read(mbfp, mbid, iov, iovc, off);
+    return mblock_read(mbfp, mbid, iov, iovc, off);
 }
 
 merr_t
@@ -766,7 +766,7 @@ mblock_fset_map_getbase(struct mblock_fset *mbfsp, uint64_t mbid, char **addr_ou
 
     mbfp = mbfsp->filev[file_index(mbid)];
 
-    return mblock_file_map_getbase(mbfp, mbid, addr_out, wlen);
+    return mblock_map_getbase(mbfp, mbid, addr_out, wlen);
 }
 
 merr_t
@@ -779,7 +779,7 @@ mblock_fset_unmap(struct mblock_fset *mbfsp, uint64_t mbid)
 
     mbfp = mbfsp->filev[file_index(mbid)];
 
-    return mblock_file_unmap(mbfp, mbid);
+    return mblock_unmap(mbfp, mbid);
 }
 
 merr_t
@@ -848,7 +848,7 @@ mblock_fset_clone(
         return merr(EINVAL);
 
     src_mbfp = mbfsp->filev[file_index(src_mbid)];
-    err = mblock_file_mbinfo_get(src_mbfp, src_mbid, &src_mbinfo);
+    err = mblock_info_get(src_mbfp, src_mbid, &src_mbinfo);
     if (err)
         return err;
 
@@ -857,7 +857,7 @@ mblock_fset_clone(
         return err;
 
     tgt_mbfp = mbfsp->filev[file_index(tgt_mbid)];
-    err = mblock_file_mbinfo_get(tgt_mbfp, tgt_mbid, &tgt_mbinfo);
+    err = mblock_info_get(tgt_mbfp, tgt_mbid, &tgt_mbinfo);
     if (err)
         goto errout;
     assert(tgt_mbinfo.wlen == 0);
@@ -870,9 +870,7 @@ mblock_fset_clone(
     if (err)
         goto errout;
 
-    err = mblock_file_wlen_set(tgt_mbfp, tgt_mbid, off + len);
-    if (err)
-        goto errout;
+    mblock_wlen_set(tgt_mbfp, tgt_mbid, off + len, false);
 
     err = mblock_fset_commit(mbfsp, &tgt_mbid, 1);
     if (err)
