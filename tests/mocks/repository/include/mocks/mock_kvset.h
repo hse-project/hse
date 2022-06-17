@@ -17,7 +17,7 @@
  * @tripwire:   deliberately inaccessible pages, must be first field
  * @len:        size of mock_kvset
  * @mk_entry:   mock_kvset list linkage
- * @iter_data: kvdata from mock_make_kvi, passed as ds in kvset_create (opt)
+ * @iter_data: kvdata from mock_make_kvi, passed as ds in kvset_open() (opt)
  * @nk:    number of kblk / vblk ids
  * @nv:
  * @dgen:  increments from 1 each call (first call is oldest kvset)

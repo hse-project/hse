@@ -60,7 +60,7 @@ enum kvset_iter_flags {
  * @km_capped:      cn is capped
  * @km_restored:    kvset is being restored from the cndb
  *
- * This structure is passed between the MDC and kvset_create.
+ * This structure is passed between the MDC and kvset_open().
  */
 struct kvset_meta {
     struct kvs_block km_hblk;
@@ -116,7 +116,7 @@ void
 kvset_put_ref(struct kvset *kvset);
 
 /**
- * kvset_create() - Create a kvset
+ * kvset_open() - Open a kvset
  * @tree:  cn tree handle
  * @tag:   cndb tag for this kvset
  * @meta:  kvset_meta data -- what to create
@@ -124,7 +124,7 @@ kvset_put_ref(struct kvset *kvset);
  */
 /* MTF_MOCK */
 merr_t
-kvset_create(struct cn_tree *tree, u64 tag, struct kvset_meta *meta, struct kvset **kvset);
+kvset_open(struct cn_tree *tree, u64 tag, struct kvset_meta *meta, struct kvset **kvset);
 
 /**
  * Preload/discard hblock mcache map pages
@@ -202,7 +202,7 @@ kvset_madvise_vmaps(struct kvset *kvset, int advice);
 
 /* MTF_MOCK */
 merr_t
-kvset_create2(
+kvset_open2(
     struct cn_tree *   tree,
     uint64_t           kvsetid,
     struct kvset_meta *meta,

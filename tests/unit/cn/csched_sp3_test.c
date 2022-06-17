@@ -191,7 +191,7 @@ new_kvsets(struct test_tree *tt, int n_kvsets, int lvl, int off)
 
         for (i = 0; i < n_kvsets; i++) {
 
-            err = kvset_create(tt->tree, tt->tag, init_kvset_meta(ttv->dgen--), &kvset);
+            err = kvset_open(tt->tree, tt->tag, init_kvset_meta(ttv->dgen--), &kvset);
             if (err)
                 return err;
 

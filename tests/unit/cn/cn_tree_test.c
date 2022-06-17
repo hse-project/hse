@@ -85,13 +85,13 @@ _kvset_stats(const struct kvset *ks, struct kvset_stats *stats)
     *stats = fake_kvset_stats;
 }
 
-/* Fake kvsets are created directly by this unit test and manually placed into
- * the cn_tree.  When the code under test calls kvset_create() (e.g., from
+/* Fake kvsets are opened directly by this unit test and manually placed into
+ * the cn_tree.  When the code under test calls kvset_open() (e.g., from
  * cn_compaction_update_tree()) it will hit the mapi_inject mock that simply
  * returns 0 (success).
  */
 static struct fake_kvset *
-fake_kvset_create(struct fake_kvset **head, u64 dgen)
+fake_kvset_open(struct fake_kvset **head, u64 dgen)
 {
     struct fake_kvset *kvset;
 
@@ -116,7 +116,7 @@ fake_kvset_create(struct fake_kvset **head, u64 dgen)
 }
 
 static struct fake_kvset *
-fake_kvset_create_add(
+fake_kvset_open_add(
     struct fake_kvset **head,
     struct cn_tree *    tree,
     u32                 node_level,
@@ -126,7 +126,7 @@ fake_kvset_create_add(
     struct fake_kvset *kvset;
     merr_t             err;
 
-    kvset = fake_kvset_create(head, dgen);
+    kvset = fake_kvset_open(head, dgen);
     if (!kvset)
         return 0;
 
@@ -265,7 +265,7 @@ _kvset_iter_release(struct kv_iterator *h)
 struct mapi_injection inject_list[] = {
 
     /* kvset */
-    { mapi_idx_kvset_create, MAPI_RC_SCALAR, 0 },
+    { mapi_idx_kvset_open, MAPI_RC_SCALAR, 0 },
     { mapi_idx_kvset_put_ref, MAPI_RC_SCALAR, 0 },
     { mapi_idx_kvset_get_ref, MAPI_RC_SCALAR, 0 },
     { mapi_idx_kvset_delete_log_record, MAPI_RC_SCALAR, 0 },
@@ -475,7 +475,7 @@ MTF_DEFINE_UTEST_PRE(test, t_cn_tree_ingest_update, test_setup)
     ASSERT_EQ(err, 0);
 
     for (i = 0; i < NELEM(kvsetv); i++) {
-        kvsetv[i] = (struct kvset *)fake_kvset_create(0, 100 + i);
+        kvsetv[i] = (struct kvset *)fake_kvset_open(0, 100 + i);
         ASSERT_NE(NULL, kvsetv[i]);
 
         cn_tree_ingest_update(tree, kvsetv[i], 0, 0, 0);
@@ -623,7 +623,7 @@ test_tree_create(struct test *t)
             if (t->p.verbose)
                 log_info("add %3u kvsets to node (%2u,%4u)", num_kvsets_this_node, lx, nx);
             for (kx = 0; kx < num_kvsets_this_node; kx++) {
-                kvset = fake_kvset_create_add(&t->kvset_list, t->tree, lx, nx, 100 + kx);
+                kvset = fake_kvset_open_add(&t->kvset_list, t->tree, lx, nx, 100 + kx);
                 ASSERT_TRUE_RET(kvset != NULL, -1);
                 kvset->timestamp = kx + 1000;
                 kvset->kvsets_in_node = num_kvsets_this_node;
