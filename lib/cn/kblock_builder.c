@@ -579,6 +579,7 @@ kblock_add_entry(
         kblk->wbtree,
         kobj,
         stats->nvals,
+        stats->tot_vlen,
         kmd,
         kmd_len,
         kblk->wbt_pgc + available_pgc(kblk),

@@ -61,6 +61,7 @@ struct wbt_node_hdr_omf {
     uint16_t wbn_magic;    /* magic number, distinguishes INEs from LFEs */
     uint16_t wbn_num_keys; /* number of keys in node */
     uint32_t wbn_kmd;      /* offset in kmd region to this node's kmd */
+    uint64_t wbn_kvlen;    /* total key and value data referenced by this node */
     uint16_t wbn_pfx_len;  /* length of the longest common prefix */
     uint16_t wbn_padding;  /* unused padding */
 } HSE_PACKED;
@@ -68,6 +69,7 @@ struct wbt_node_hdr_omf {
 OMF_SETGET(struct wbt_node_hdr_omf, wbn_magic, 16)
 OMF_SETGET(struct wbt_node_hdr_omf, wbn_num_keys, 16)
 OMF_SETGET(struct wbt_node_hdr_omf, wbn_kmd, 32)
+OMF_SETGET(struct wbt_node_hdr_omf, wbn_kvlen, 64)
 OMF_SETGET(struct wbt_node_hdr_omf, wbn_pfx_len, 16)
 
 /* WBT internal node entry (v6) */

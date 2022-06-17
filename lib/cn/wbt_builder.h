@@ -43,6 +43,8 @@ wbb_entries(struct wbb *wbb);
  * wbb_add_entry() - add an entry to a wbtree
  * @wbb: builder handle
  * @kobj: key to be added
+ * @nvals: number of values
+ * @vlen: Total length of all the values
  * @key_kmd, @key_kmd_len: encoded key metadata
  * @max_pgc: (in) max allowable size of wbtree in pages
  * @wbt_pgc: (in/out) actual size (in pages) of wbtree creation
@@ -59,6 +61,7 @@ wbb_add_entry(
     struct wbb *          wbb,
     const struct key_obj *kobj,
     uint                  nvals,
+    uint64_t              vlen,
     const void *          key_kmd,
     uint                  key_kmd_len,
     uint                  max_pgc,
