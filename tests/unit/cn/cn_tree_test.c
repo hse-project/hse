@@ -712,6 +712,7 @@ cn_comp_work_init(
 
     w->cw_tree = t->tree;
     w->cw_node = tn;
+    w->cw_cndb_txn = (void *)-1;
 
     /* walk from tail (oldest), skip kvsets that are busy */
     for (le = list_last_entry(head, typeof(*le), le_link); &le->le_link != head;

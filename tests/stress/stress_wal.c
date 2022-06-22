@@ -621,6 +621,7 @@ execute_test(struct test_params *params, int argc, char *argv[])
             &params->kvs,
             true,
             params->wal_disable,
+            0,
             transactions_enable);
 
         if (status)
@@ -686,6 +687,7 @@ execute_test(struct test_params *params, int argc, char *argv[])
         &params->kvs,
         false,
         params->wal_disable,
+        0,
         transactions_enable);
 
     if (status) {

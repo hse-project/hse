@@ -138,6 +138,7 @@ kvdb_ctxn_reaper(struct work_struct *work)
     struct kvdb_ctxn_set_impl *ktn;
     u64                        now;
     u64                        ttl_ns;
+    unsigned int               abort_cnt = 0;
 
     INIT_LIST_HEAD(&alist);
 
@@ -153,11 +154,16 @@ kvdb_ctxn_reaper(struct work_struct *work)
     cds_list_for_each_entry_rcu(ctxn, &ktn->ktn_alloc_list, ctxn_alloc_link) {
         state = seqnoref_to_state(ctxn->ctxn_seqref);
         if (state == KVDB_CTXN_ACTIVE) {
-            if (now > (ctxn->ctxn_begin_ts + ttl_ns))
+            if (now > (ctxn->ctxn_begin_ts + ttl_ns)) {
                 list_add(&ctxn->ctxn_abort_link, &alist);
+                ++abort_cnt;
+            }
         }
     }
     rcu_read_unlock();
+
+    if (abort_cnt)
+        log_info("Aborting %u transactions (expired)", abort_cnt);
 
     list_for_each_entry(ctxn, &alist, ctxn_abort_link)
         kvdb_ctxn_abort(&ctxn->ctxn_inner_handle);

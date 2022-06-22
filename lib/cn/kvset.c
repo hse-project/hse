@@ -440,7 +440,6 @@ kvset_open2(
     struct mbset ***   vbset_vecs,
     struct kvset **    ks_out)
 {
-    struct kvset_kblk * lkb, *rkb;
     struct mpool *      mp;
     struct kvs_rparams *rp;
     struct cn_kvdb *    cn_kvdb;
@@ -702,6 +701,14 @@ kvset_open2(
             ks->ks_kdisc_min = ks->ks_kblks[0].kb_kdisc_min;
             ks->ks_kdisc_max = ks->ks_kblks[last_kb].kb_kdisc_max;
         }
+
+        /* Check to see if all keys in this kvset have a common prefix.
+         * If so, then remember it so that we can leverage it to reduce
+         * the amount of work required to find keys with common prefixes.
+         */
+        ks->ks_lcp = min_t(size_t, ks->ks_minklen, ks->ks_maxklen);
+        ks->ks_lcp = memlcpq(ks->ks_minkey, ks->ks_maxkey, ks->ks_lcp);
+
     } else {
         ks->ks_minkey = ks->ks_hblk.kh_pfx_min;
         ks->ks_minklen = ks->ks_hblk.kh_pfx_min_len;
@@ -711,16 +718,6 @@ kvset_open2(
         ks->ks_kdisc_min = ks->ks_hblk.kh_pfx_min_disc;
         ks->ks_kdisc_max = ks->ks_hblk.kh_pfx_max_disc;
     }
-
-    /* Check to see if all keys in this kvset have a common prefix.
-     * If so, then remember it so that we can leverage it to reduce
-     * the amount of work required to find keys with common prefixes.
-     */
-    lkb = ks->ks_kblks;
-    rkb = ks->ks_kblks + last_kb;
-
-    ks->ks_lcp = min_t(size_t, lkb->kb_klen_min, rkb->kb_klen_max);
-    ks->ks_lcp = memlcpq(lkb->kb_koff_min, rkb->kb_koff_max, ks->ks_lcp);
 
     {
         uint v = 0; /* vblock number (0..n_vblks) */

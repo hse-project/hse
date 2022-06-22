@@ -185,6 +185,7 @@ create_or_open_kvdb_and_kvs(
     struct hse_kvs ** kvs_out,
     bool              drop,
     int               wal_disable,
+    uint64_t          txn_timeout,
     int               transactions_enable)
 {
     struct hse_kvdb *kvdb;
@@ -193,16 +194,8 @@ create_or_open_kvdb_and_kvs(
     clock_t          t1, t2;
     int              status;
     char             msg[100];
-    const char *     paramv[MAX_PARAMS];
-    int              paramc = 0;
 
-    paramc = 0;
     status = 0;
-
-    if (wal_disable) {
-        paramv[paramc] = "durability.enabled=false";
-        paramc++;
-    }
 
     if (drop) {
         log_info("drop kvdb at \"%s\"", kvdb_home);
@@ -228,6 +221,10 @@ create_or_open_kvdb_and_kvs(
     t2 = clock();
 
     if (hse_err_to_errno(err) == ENOENT) {
+        char txn_timeout_buf[64];
+        const char *paramv[MAX_PARAMS];
+        int paramc = 0;
+
         log_info("kvdb \"%s\" does not exist, creating it", kvdb_home);
 
         err = hse_kvdb_create(kvdb_home, 0, NULL);
@@ -237,6 +234,14 @@ create_or_open_kvdb_and_kvs(
             hse_strerror(err, msg, sizeof(msg));
             log_error("hse_kvdb_make: error=%d msg=\"%s\"", status, msg);
             goto errout;
+        }
+
+        if (wal_disable)
+            paramv[paramc++] = "durability.enabled=false";
+
+        if (txn_timeout) {
+            snprintf(txn_timeout_buf, sizeof(txn_timeout_buf), "txn_timeout=%lu", txn_timeout);
+            paramv[paramc++] = txn_timeout_buf;
         }
 
         err = hse_kvdb_open(kvdb_home, paramc, paramv, &kvdb);

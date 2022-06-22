@@ -57,6 +57,7 @@ create_or_open_kvdb_and_kvs(
     struct hse_kvs ** kvs_out,
     bool              drop,
     int               wal_disable,
+    uint64_t          txn_timeout,
     int               transactions_enable);
 
 void

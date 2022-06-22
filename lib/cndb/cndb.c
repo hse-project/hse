@@ -1317,7 +1317,7 @@ cndb_cn_instantiate(struct cndb *cndb, uint64_t cnid, void *ctx, cn_init_callbac
     struct cndb_cn *cn = map_lookup_ptr(cndb->cn_map, cnid);
     struct cndb_kvset *kvset;
     struct map_iter kvset_iter;
-    merr_t err;
+    merr_t err = 0;
 
     if (ev(!cn))
         return merr(EINVAL);
@@ -1340,17 +1340,11 @@ cndb_cn_instantiate(struct cndb *cndb, uint64_t cnid, void *ctx, cn_init_callbac
         blk_list_init(&km.km_kblk_list);
         blk_list_init(&km.km_vblk_list);
 
-        for (i = 0; i < kvset->ck_kblkc; i++) {
+        for (i = 0; i < kvset->ck_kblkc && !err; i++)
             err = blk_list_append(&km.km_kblk_list, kvset->ck_kblkv[i]);
-            if (ev(err))
-                break;
-        }
 
-        for (i = 0; i < kvset->ck_vblkc; i++) {
+        for (i = 0; i < kvset->ck_vblkc && !err; i++)
             err = blk_list_append(&km.km_vblk_list, kvset->ck_vblkv[i]);
-            if (ev(err))
-                break;
-        }
 
         if (!err)
             err = cb(ctx, &km, kvset->ck_kvsetid);

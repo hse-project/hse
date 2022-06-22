@@ -200,8 +200,6 @@ hbb_finish(
     struct key_obj min_pfx = { 0 }, max_pfx = { 0 };
     struct mclass_policy *policy = cn_get_mclass_policy(bld->cn);
 
-    assert(min_seqno <= max_seqno);
-
     if (!hlog)
         return merr(EINVAL);
 
@@ -211,6 +209,8 @@ hbb_finish(
      */
     if (num_kblocks == 0 && !wbb_entries(bld->ptree))
         return 0;
+
+    assert(min_seqno <= max_seqno);
 
     /* Header, HyperLogLog */
     /* [HSE_TODO]: vblk idx adjust */

@@ -51,6 +51,7 @@ struct cursor_test_data {
     int              rank;
     long int         key_index;
     long int         transaction_count;
+    unsigned long    txn_timeout;
     long int         transaction_per_thread;
     long int         cursor_count;
     long int         key_count_per_thread;
@@ -107,6 +108,7 @@ print_usage(void)
            " -o <thread_count>\n"
            " -r <wal_disable>\n"
            " -s <transaction count>\n"
+           " -t <txn_timeout> (in milliseconds)\n"
            " -u <debug>\n"
            " -v <value_size>\n");
 }
@@ -849,6 +851,7 @@ execute_test(struct cursor_test_data *params)
         &params->kvs,
         true,
         params->wal_disable,
+        params->txn_timeout,
         params->cursor_test == TRANSACTIONS ? 1 : 0);
 
     params->kvdb = kvdb;
@@ -931,7 +934,7 @@ main(int argc, char *argv[])
 
     para.kvs_name = "cursor_kvs";
 
-    while ((option = getopt(argc, argv, "b:c:C:d:e:j:n:n:o:r:s:u:v:")) != -1) {
+    while ((option = getopt(argc, argv, "b:c:C:d:e:j:n:n:o:r:s:t:u:v:")) != -1) {
         switch (option) {
             case 'b':
                 para.key_size = atoi(optarg);
@@ -971,6 +974,10 @@ main(int argc, char *argv[])
 
             case 's':
                 para.transaction_count = atoi(optarg);
+                break;
+
+            case 't':
+                para.txn_timeout = atoll(optarg);
                 break;
 
             case 'u':
