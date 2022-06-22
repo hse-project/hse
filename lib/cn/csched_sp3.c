@@ -964,7 +964,7 @@ sp3_dirty_node_locked(struct sp3 *sp, struct cn_tree_node *tn)
          * Range: 0 <= rbe_weight <= 100.  If rbe_weight == 3, then
          * node has 3% garbage.
          */
-        if (garbage && tn->tn_ns.ns_pcap && jobs < 1) {
+        if (garbage > 0 && nkvsets > 1) {
             uint64_t weight = ((uint64_t)garbage << 32) | nkeys;
 
             sp3_node_insert(sp, spn, RBT_L_GARB, weight);
@@ -1009,7 +1009,7 @@ sp3_dirty_node_locked(struct sp3 *sp, struct cn_tree_node *tn)
             SLOG_FIELD("isleaf", "%d", isleaf),
             SLOG_FIELD("nd_len", "%lu", (ulong)nkvsets_total),
             SLOG_FIELD("alen", "%lu", (ulong)cn_ns_alen(&tn->tn_ns)),
-            SLOG_FIELD("garbage", "%lu", (ulong)garbage),
+            SLOG_FIELD("garbage", "%u", garbage),
             SLOG_END);
     }
 }
