@@ -172,7 +172,6 @@ struct options {
     uint bnfmt; /* big number format */
     int  nodes_only;
     int  all_blocks;
-    int  yaml_output;
     int  verbosity;
 };
 
@@ -224,10 +223,6 @@ process_options(int argc, char *argv[])
 
         case 'v':
             opt.verbosity++;
-            break;
-
-        case 'y':
-            opt.yaml_output = 1;
             break;
 
         case 'Z':
@@ -557,18 +552,6 @@ tree_walk_callback(
     return 0;
 }
 
-static void
-cn_metrics_yaml_emit(struct yaml_context *yc)
-{
-    if (yc->yaml_offset > 0) {
-#pragma GCC diagnostic push
-#pragma GCC diagnostic ignored "-Wunused-result"
-        write(1, yc->yaml_buf, yc->yaml_offset);
-#pragma GCC diagnostic pop
-        yc->yaml_offset = 0;
-    }
-}
-
 int
 main(int argc, char **argv)
 {
@@ -610,9 +593,9 @@ main(int argc, char **argv)
             break;
     }
 
-    rc = rc ?: svec_append_pg(&hse_gparm, pg, PG_HSE_GLOBAL, NULL);
-    rc = rc ?: svec_append_pg(&db_oparm, pg, PG_KVDB_OPEN, "read_only=true", NULL);
-    rc = rc ?: svec_append_pg(&kv_oparm, pg, PG_KVS_OPEN,
+    rc = rc ? rc : svec_append_pg(&hse_gparm, pg, PG_HSE_GLOBAL, NULL);
+    rc = rc ? rc : svec_append_pg(&db_oparm, pg, PG_KVDB_OPEN, "read_only=true", NULL);
+    rc = rc ? rc : svec_append_pg(&kv_oparm, pg, PG_KVS_OPEN,
                               "cn_diag_mode=true", "cn_maint_disable=true", NULL);
     if (rc)
         fatal(rc, "svec_apppend_pg failed");
@@ -635,40 +618,29 @@ main(int argc, char **argv)
         goto done;
     }
 
-    if (opt.yaml_output) {
-        char yaml_buf[4096 * 4]; /* Meant to fit at least one line of the yaml output */
-        struct yaml_context yc = {
-            .yaml_buf = yaml_buf,
-            .yaml_buf_sz = sizeof(yaml_buf),
-            .yaml_emit = cn_metrics_yaml_emit,
-        };
-
-        rc = ikvdb_kvs_query_tree(kvs, &yc, opt.all_blocks, opt.nodes_only);
-    } else {
-        cn = ikvdb_kvs_get_cn(kvs);
-        if (!cn) {
-            errmsg = "cn_open";
-            rc = EBUG;
-            goto done;
-        }
-
-        struct cn_tree *tree = cn_get_tree(cn);
-
-        /* In scalar and hex modes we must walk the tree twice:  The first time
-         * to gather totals in order to determine minimum column widths, and the
-         * second time to actually dump the tree.
-         */
-        if (opt.bnfmt == BN_SCALAR || opt.bnfmt == BN_HEX1 || opt.bnfmt == BN_HEX2) {
-            memset(&ctx, 0, sizeof(ctx));
-            ctx.print = noprint;
-            cn_tree_preorder_walk(tree, KVSET_ORDER_NEWEST_FIRST, tree_walk_callback, &ctx);
-            col2width_update(&ctx);
-        }
-
-        memset(&ctx, 0, sizeof(ctx));
-        ctx.print = printf;
-        cn_tree_preorder_walk(tree, KVSET_ORDER_NEWEST_FIRST, tree_walk_callback, &ctx);
+    cn = ikvdb_kvs_get_cn(kvs);
+    if (!cn) {
+        errmsg = "cn_open";
+        rc = EBUG;
+        goto done;
     }
+
+    struct cn_tree *tree = cn_get_tree(cn);
+
+    /* In scalar and hex modes we must walk the tree twice:  The first time
+        * to gather totals in order to determine minimum column widths, and the
+        * second time to actually dump the tree.
+        */
+    if (opt.bnfmt == BN_SCALAR || opt.bnfmt == BN_HEX1 || opt.bnfmt == BN_HEX2) {
+        memset(&ctx, 0, sizeof(ctx));
+        ctx.print = noprint;
+        cn_tree_preorder_walk(tree, KVSET_ORDER_NEWEST_FIRST, tree_walk_callback, &ctx);
+        col2width_update(&ctx);
+    }
+
+    memset(&ctx, 0, sizeof(ctx));
+    ctx.print = printf;
+    cn_tree_preorder_walk(tree, KVSET_ORDER_NEWEST_FIRST, tree_walk_callback, &ctx);
 
 done:
     if (errmsg) {

@@ -17,7 +17,6 @@
 #include <hse_util/event_counter.h>
 #include <hse_util/page.h>
 #include <hse_util/seqno.h>
-#include <hse_util/rest_api.h>
 #include <hse_util/log2.h>
 #include <hse_util/atomic.h>
 #include <hse_util/vlb.h>
@@ -238,7 +237,7 @@ ikvdb_perfc_alloc(struct ikvdb_impl *self)
 {
     char group[128];
 
-    snprintf(group, sizeof(group), "kvdb/%s", self->ikdb_alias);
+    snprintf(group, sizeof(group), "kvdbs/%s", self->ikdb_alias);
 
     perfc_alloc(ctxn_perfc_op, group, "set", self->ikdb_rp.perfc_level, &self->ikdb_ctxn_op);
     kvdb_keylock_perfc_init(self->ikdb_keylock, &self->ikdb_ctxn_op);
@@ -1173,19 +1172,9 @@ ikvdb_diag_close(struct ikvdb *handle)
 static void
 ikvdb_rest_register(struct ikvdb_impl *self, struct ikvdb *handle)
 {
-    int    i;
     merr_t err;
 
-    for (i = 0; i < self->ikdb_kvs_cnt; i++) {
-        err = kvs_rest_register(handle, self->ikdb_kvs_vec[i]->kk_name, self->ikdb_kvs_vec[i]);
-        if (err)
-            log_warnx("%s/%s REST registration failed",
-                      err,
-                      self->ikdb_home,
-                      self->ikdb_kvs_vec[i]->kk_name);
-    }
-
-    err = kvdb_rest_register(handle);
+    err = kvdb_rest_add_endpoints(handle);
     if (err)
         log_warnx("%s REST registration failed", err, self->ikdb_home);
 }
@@ -1645,12 +1634,9 @@ ikvdb_open(
     }
 
     ikvdb_wal_install_callback(self);
-
     ikvdb_perfc_alloc(self);
-
-    ikvdb_rest_register(self, &self->ikdb_handle);
-
     ikvdb_init_throttle_params(self);
+    ikvdb_rest_register(self, &self->ikdb_handle);
 
     if (!params->read_only) {
         err = kvdb_meta_upgrade(&meta, kvdb_home);
@@ -1926,14 +1912,6 @@ ikvdb_kvs_create(struct ikvdb *handle, const char *kvs_name, struct kvs_cparams 
 
     mutex_unlock(&self->ikdb_lock);
 
-    /* Register in kvs make instead of open so all KVSes can be queried for
-     * info. WARNGING: Potential for undefined behavior if KVS is created and
-     * params are queried.
-     */
-    err = kvs_rest_register(handle, self->ikdb_kvs_vec[idx]->kk_name, self->ikdb_kvs_vec[idx]);
-    if (ev(err))
-        log_warnx("rest: %s registration failed", err, self->ikdb_kvs_vec[idx]->kk_name);
-
     return 0;
 
 out_unlock:
@@ -1972,11 +1950,6 @@ ikvdb_kvs_drop(struct ikvdb *handle, const char *kvs_name)
         goto out_unlock;
     }
 
-    kvs_rest_deregister(handle, kvs->kk_name);
-
-    /* kvs_rest_deregister() waits until all active rest requests
-     * have finished. Verify that the refcnt has gone down to zero
-     */
     assert(atomic_read(&kvs->kk_refcnt) == 0);
 
     err = cndb_record_kvs_del(self->ikdb_cndb, kvs->kk_cnid);
@@ -2130,12 +2103,6 @@ ikvdb_kvs_count(struct ikvdb *handle, unsigned int *count)
 }
 
 merr_t
-ikvdb_kvs_query_tree(struct hse_kvs *kvs, struct yaml_context *yc, bool blkids, bool nodesonly)
-{
-    return kvs_rest_query_tree((struct kvdb_kvs *)kvs, yc, blkids, nodesonly);
-}
-
-merr_t
 ikvdb_kvs_open(
     struct ikvdb *      handle,
     const char *        kvs_name,
@@ -2239,6 +2206,10 @@ ikvdb_kvs_open(
     if (ev(err))
         goto out_unlock;
 
+    err = kvs_rest_add_endpoints(handle, kvs);
+    if (ev(err))
+        log_warnx("Failed to register %s REST endpoints", err, kvs->kk_name);
+
     atomic_inc(&kvs->kk_refcnt);
 
     *kvs_out = (struct hse_kvs *)kvs;
@@ -2266,9 +2237,10 @@ ikvdb_kvs_close(struct hse_kvs *handle)
     if (ev(!ikvs))
         return merr(EBADF);
 
-    /* if refcnt goes down to 1, it would mean we have the only ref.
-     * Set it to 0 and proceed
-     * if not, keep spinning
+    kvs_rest_remove_endpoints(&parent->ikdb_handle, kk);
+
+    /* If refcnt goes down to 1, it would mean we have the only ref. Set it to
+     * 0 and proceed. If not, keep spinning.
      */
     while (!atomic_cas(&kk->kk_refcnt, 1, 0))
         usleep(333);
@@ -2316,7 +2288,7 @@ ikvdb_close(struct ikvdb *handle)
     /* Deregistering this url before trying to get ikdb_lock prevents
      * a deadlock between this call and an ongoing call to ikvdb_kvs_names_get()
      */
-    kvdb_rest_deregister(handle);
+    kvdb_rest_remove_endpoints(handle);
 
     mutex_lock(&self->ikdb_lock);
 
@@ -2326,13 +2298,14 @@ ikvdb_close(struct ikvdb *handle)
         if (!kvs)
             continue;
 
-        if (kvs->kk_ikvs)
+        if (kvs->kk_ikvs) {
             atomic_dec(&kvs->kk_refcnt);
+            err = kvs_rest_remove_endpoints(handle, kvs);
+            printf("%s:%d\n", merr_file(err), merr_lineno(err));
+        }
 
-        kvs_rest_deregister(handle, kvs->kk_name);
-
-        /* kvs_rest_deregister() waits until all active rest requests
-         * have finished. Verify that the refcnt has gone down to zero
+        /* kvs_rest_remove_endpoints() waits until all active rest requests have
+         * finished. Verify that the refcnt has gone down to zero
          */
         assert(atomic_read(&kvs->kk_refcnt) == 0);
 

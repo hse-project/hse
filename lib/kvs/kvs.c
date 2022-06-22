@@ -78,12 +78,12 @@ kvs_destroy(struct ikvs *kvs);
 static void
 kvs_perfc_alloc(const char *kvdb_alias, const char *kvs_name, struct ikvs *kvs)
 {
-    char group[128];
+    char group[DT_PATH_MAX];
 
     INVARIANT(kvdb_alias);
     INVARIANT(kvs_name);
 
-    snprintf(group, sizeof(group), "kvdb/%s/kvs/%s", kvdb_alias, kvs_name);
+    snprintf(group, sizeof(group), "kvdbs/%s/kvs/%s", kvdb_alias, kvs_name);
 
     kvs_cursor_perfc_alloc(kvs->ikv_rp.perfc_level, group, &kvs->ikv_cc_pc, &kvs->ikv_cd_pc);
 

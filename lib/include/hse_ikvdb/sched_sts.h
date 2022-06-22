@@ -6,6 +6,9 @@
 #ifndef HSE_IKVDB_STS_H
 #define HSE_IKVDB_STS_H
 
+#include <cjson/cJSON.h>
+
+#include <hse/error/merr.h>
 #include <hse_util/platform.h>
 #include <hse_util/workqueue.h>
 #include <hse_util/list.h>
@@ -15,21 +18,7 @@
 struct sts;
 struct sts_job;
 
-/**
- * sts_print_fn() - rest hook job print callback
- * @job:   The job to print
- * @priv:  Ptr to 64-byte buffer
- * @buf:   Buffer into which to print
- * @bufsz: Size of %buf
- *
- * In response to a rest-get call sts will call the print function
- * once for each active job and once thereafter with job set to NULL.
- * The priv buffer is zeroed before the first callback and passed
- * unperturbed to each call thereafter.  The callback can use it
- * to maintain state between callbacks, and clean things on the
- * last callback (i.e., when job is nil).
- */
-typedef int sts_print_fn(struct sts_job *job, void *priv, char *buf, size_t bufsz);
+typedef merr_t sts_foreach_job_fn(struct sts_job *, void *arg);
 typedef void sts_job_fn(struct sts_job *job);
 
 /**
@@ -51,18 +40,20 @@ struct sts_job {
 
 /**
  * sts_create() - create a short term scheduler for kvdb compaction work
- * @name:     name (used for rest hook)
- * @nq:       minimum number of threads for running jobs
- * @print_fn: function to print jobs via rest hook
- * @sts:      (out) short term scheduler handle
+ * @fmt: format string for the workqueue name
+ * @nq: minimum number of threads for running jobs
+ * @sts: (out) short term scheduler handle
  */
 /* MTF_MOCK */
 merr_t
-sts_create(const char *name, uint nq, sts_print_fn *print_fn, struct sts **sts);
+sts_create(const char *fmt, uint nq, struct sts **sts, ...);
 
 /* MTF_MOCK */
 void
 sts_destroy(struct sts *s);
+
+merr_t
+sts_foreach_job(struct sts *s, sts_foreach_job_fn *fn, void *arg);
 
 static inline void
 sts_job_init(struct sts_job *job, sts_job_fn *job_fn, uint id)

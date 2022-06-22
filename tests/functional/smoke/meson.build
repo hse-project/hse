@@ -16,9 +16,9 @@ tests = {
     'kbdump': {
         'suites': ['smoke', 'nightly-small'],
         'depends': [
-            tool_targets['simple_client'],
-            tool_targets['cn_metrics'],
             tool_targets['cn_kbdump'],
+            tool_targets['cn_metrics'],
+            tool_targets['simple_client'],
         ],
     },
     'putget1': {
@@ -47,16 +47,16 @@ tests = {
     'longtestc0': {
         'suites': ['smoke', 'nightly-small'],
         'depends': [
-            tool_targets['longtest'],
             tool_targets['cn_metrics'],
+            tool_targets['longtest'],
         ],
     },
     'longtest-cursor': {
         'suites': ['smoke', 'nightly-small'],
         'depends': [
-            tool_targets['longtest'],
-            tool_targets['cndb_log'],
             tool_targets['cn_metrics'],
+            tool_targets['cndb_log'],
+            tool_targets['longtest'],
         ],
     },
     'samples': {
@@ -74,8 +74,8 @@ tests = {
     'droptomb1': {
         'suites': ['smoke', 'nightly-small'],
         'depends': [
-            tool_targets['putbin'],
             tool_targets['cn_metrics'],
+            tool_targets['putbin'],
         ],
     },
     'seqno_order': {
@@ -87,8 +87,8 @@ tests = {
     'droptomb2': {
         'suites': ['smoke', 'non-deterministic'],
         'depends': [
-            tool_targets['putbin'],
             tool_targets['cn_metrics'],
+            tool_targets['putbin'],
         ],
     },
     'putget2': {
@@ -100,15 +100,15 @@ tests = {
     'longtestcn': {
         'suites': ['smoke', 'nightly-small'],
         'depends': [
-            tool_targets['longtest'],
             tool_targets['cn_metrics'],
+            tool_targets['longtest'],
         ],
     },
     'longtestcn2': {
         'suites': ['smoke', 'nightly-small'],
         'depends': [
-            tool_targets['longtest'],
             tool_targets['cn_metrics'],
+            tool_targets['longtest'],
         ],
     },
     'mdc-test': {
@@ -139,9 +139,9 @@ tests = {
     'prefix-tree-shape1': {
         'suites': ['smoke', 'nightly-small'],
         'depends': [
+            tool_targets['cn_metrics'],
             tool_targets['kmt'],
             tool_targets['putbin'],
-            tool_targets['cn_metrics'],
         ],
     },
     'prefix-basic': {
@@ -154,22 +154,22 @@ tests = {
     'longtestkvmax': {
         'suites': ['smoke', 'nightly-small'],
         'depends': [
-            tool_targets['longtest'],
             tool_targets['cn_metrics'],
+            tool_targets['longtest'],
         ],
     },
     'longtest-sync-cursor': {
         'suites': ['smoke', 'nightly-small'],
         'depends': [
-            tool_targets['longtest'],
             tool_targets['cn_metrics'],
+            tool_targets['longtest'],
         ],
     },
     'longtest-sync': {
         'suites': ['smoke', 'nightly-small'],
         'depends': [
-            tool_targets['longtest'],
             tool_targets['cn_metrics'],
+            tool_targets['longtest'],
         ],
     },
     'omf_encoder_perf': {
@@ -217,8 +217,8 @@ tests = {
     'large-values1': {
         'suites': ['smoke'],
         'depends': [
-            tool_targets['kmt'],
             tool_targets['cn_metrics'],
+            tool_targets['kmt'],
             tool_targets['putbin'],
         ],
     },

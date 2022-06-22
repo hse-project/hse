@@ -18,6 +18,7 @@
  */
 
 #include <hse_util/platform.h>
+#include <hse_util/printbuf.h>
 #include <hse_util/event_counter.h>
 #include <hse_util/workqueue.h>
 #include <hse_util/timer.h>

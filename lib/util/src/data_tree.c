@@ -3,6 +3,10 @@
  * Copyright (C) 2015-2021 Micron Technology, Inc.  All rights reserved.
  */
 
+#include <errno.h>
+#include <stdarg.h>
+#include <stdio.h>
+
 #include <hse_util/assert.h>
 #include <hse_util/platform.h>
 #include <hse_util/alloc.h>
@@ -40,7 +44,7 @@ struct field_name {
 
 /* clang-format on */
 
-static size_t dt_root_emit_handler(struct dt_element *, struct yaml_context *);
+static size_t dt_root_emit_handler(struct dt_element *, cJSON *);
 
 static struct dt_element_ops dt_root_ops = {
     .dto_emit = dt_root_emit_handler,
@@ -55,7 +59,7 @@ static struct dt_tree hse_dt_tree _dt_section = {
     },
     .dt_element = {
         .dte_ops = &dt_root_ops,
-        .dte_type = DT_TYPE_ROOT,
+        .dte_is_root = true,
         .dte_file = REL_FILE(__FILE__),
         .dte_line = __LINE__,
         .dte_path = DT_PATH_ROOT,
@@ -75,13 +79,12 @@ dt_unlock(struct dt_tree *tree)
 }
 
 static size_t
-dt_root_emit_handler(struct dt_element *dte, struct yaml_context *yc)
+dt_root_emit_handler(struct dt_element *dte, cJSON *root)
 {
-    /* For some reason we require the user to supply the data tree root
+    /* TODO: For some reason we require the user to supply the data tree root
      * path when making queries, yet we never emit it...
      */
 #if 0
-    yaml_start_element_type(yc, DT_PATH_ROOT + 1);
     return 1;
 #else
     return 0;
@@ -146,8 +149,6 @@ dt_add_pending_dte(struct dt_tree *tree, struct dt_element *dte)
 {
     struct rb_node **new, *parent = NULL;
     struct rb_root *root;
-
-    assert(dte->dte_type != DT_TYPE_INVALID);
 
     root = &tree->dt_root;
     new = &root->rb_node;
@@ -219,8 +220,6 @@ dt_add(struct dt_element *dte)
 
     if (!dte || !dte->dte_ops)
         return EINVAL;
-
-    assert(dte->dte_type != DT_TYPE_INVALID);
 
     /* Check the pending list to protect against broken or malicious
      * callers trying to add the same dte more than once.  There is
@@ -335,6 +334,39 @@ dt_find_locked(struct dt_tree *tree, const char *path, int exact)
     return dte;
 }
 
+merr_t
+dt_emit(cJSON **const root, const char *const path_fmt, ...)
+{
+    int rc;
+    cJSON *tmp;
+    va_list args;
+    char path[DT_PATH_MAX];
+    union dt_iterate_parameters params;
+
+    *root = NULL;
+
+    va_start(args, path_fmt);
+    rc = vsnprintf(path, sizeof(path), path_fmt, args);
+    va_end(args);
+    if (rc >= sizeof(path))
+        return merr(ENAMETOOLONG);
+
+    if (!dt_find(path, 0))
+        return merr(ENOENT);
+
+    tmp = cJSON_CreateArray();
+    if (ev(!tmp))
+        return merr(ENOMEM);
+
+    params.root = tmp;
+
+    dt_iterate_cmd(DT_OP_EMIT, path, &params, NULL, NULL, NULL);
+
+    *root = tmp;
+
+    return 0;
+}
+
 struct dt_element *
 dt_find(const char *path, int exact)
 {
@@ -425,7 +457,7 @@ dt_fini(void)
 
 /* Assumes dt_lock is held */
 static size_t
-emit_roots_upto(struct dt_tree *tree, const char *path, struct yaml_context *yc)
+emit_roots_upto(struct dt_tree *const tree, const char *const path, cJSON *const root)
 {
     size_t count = 0;
     char my_path[DT_PATH_MAX];
@@ -448,9 +480,8 @@ emit_roots_upto(struct dt_tree *tree, const char *path, struct yaml_context *yc)
         }
 
         dte = dt_find_locked(tree, ptr, 1);
-        if (dte && (dte->dte_type == DT_TYPE_ROOT) && dte->dte_ops->dto_emit) {
-            count += dte->dte_ops->dto_emit(dte, yc);
-        }
+        if (dte && dte->dte_is_root && dte->dte_ops->dto_emit)
+            count += dte->dte_ops->dto_emit(dte, root);
     }
 
     return count;
@@ -474,10 +505,7 @@ dt_iterate_cmd(
     if (pathlen >= DT_PATH_MAX)
         return 0;
 
-    if (DT_OP_EMIT == op && (!dip || !dip->yc))
-        return 0;
-
-    if (DT_OP_SET == op && (!dip || !dip->dsp))
+    if (DT_OP_EMIT == op && (!dip || !dip->root))
         return 0;
 
     dt_lock(tree);
@@ -485,7 +513,7 @@ dt_iterate_cmd(
 
     if (DT_OP_EMIT == op) {
         /* Emit root nodes up to this path */
-        count = emit_roots_upto(tree, path, dip->yc);
+        count = emit_roots_upto(tree, path, dip->root);
     }
 
     dte = dt_find_locked(tree, path, 0);
@@ -503,16 +531,7 @@ dt_iterate_cmd(
                  ops->dto_match_selector(dte, selector_field, selector_value)) ||
                 (!selector_field && !selector)) {
 
-                count += ops->dto_emit(dte, dip->yc);
-            }
-            break;
-
-        case DT_OP_SET:
-            if (!ops->dto_set)
-                break;
-
-            if ((selector && selector(dte)) || !selector) {
-                count += ops->dto_set(dte, dip->dsp);
+                count += ops->dto_emit(dte, dip->root);
             }
             break;
 
@@ -582,10 +601,7 @@ dt_iterate_next(const char *path, struct dt_element *previous)
 static struct field_name dt_field_names[] = {
     { "odometer_timestamp", DT_FIELD_ODOMETER_TIMESTAMP },
     { "odometer", DT_FIELD_ODOMETER },
-    { "trip_odometer_timestamp", DT_FIELD_TRIP_ODOMETER_TIMESTAMP },
-    { "trip_odometer", DT_FIELD_TRIP_ODOMETER },
-    { "priority", DT_FIELD_PRIORITY },
-    { "pri", DT_FIELD_PRIORITY },
+    { "level", DT_FIELD_LEVEL },
     { "flags", DT_FIELD_FLAGS },
     { "enabled", DT_FIELD_ENABLED },
     { "clear", DT_FIELD_CLEAR },
@@ -606,58 +622,19 @@ dt_get_field(const char *field)
     return fn->field_val;
 }
 
-#if HSE_MOCKING
-#define DT_TREE_EMIT_BUFSZ (16 * 1024)
-static char dt_tree_emit_buf[DT_TREE_EMIT_BUFSZ];
-
-void
-dt_tree_emit_path(char *path)
+#ifndef NDEBUG
+static void HSE_USED
+dt_dump(struct rb_node *node)
 {
-    struct yaml_context yc = {
-        .yaml_indent = 0, .yaml_offset = 0,
-    };
-    union dt_iterate_parameters dip = {.yc = &yc };
+    struct dt_element *dte = NULL;
 
-    yc.yaml_buf = dt_tree_emit_buf;
-    yc.yaml_buf_sz = sizeof(dt_tree_emit_buf);
-    yc.yaml_emit = NULL;
+    if (!node)
+        return;
 
-    (void)dt_iterate_cmd(DT_OP_EMIT, path, &dip, NULL, NULL, NULL);
-    fprintf(stderr, "%s", dt_tree_emit_buf);
-}
+    dte = container_of(node, struct dt_element, dte_node);
+    printf("%s\n", dte->dte_path);
 
-void
-dt_tree_emit_pathbuf(char *path, char *buf, u32 buflen)
-{
-    struct yaml_context yc = {
-        .yaml_indent = 0, .yaml_offset = 0,
-    };
-    union dt_iterate_parameters dip = {.yc = &yc };
-
-    yc.yaml_buf = buf;
-    yc.yaml_buf_sz = buflen;
-    yc.yaml_emit = NULL;
-
-    (void)dt_iterate_cmd(DT_OP_EMIT, path, &dip, NULL, NULL, NULL);
-}
-
-void
-dt_tree_emit(void)
-{
-    dt_tree_emit_path(DT_PATH_ROOT);
-}
-
-void
-dt_tree_log_path(char *path, int log_level)
-{
-    union dt_iterate_parameters dip = {.log_level = log_level };
-
-    (void)dt_iterate_cmd(DT_OP_LOG, path, &dip, NULL, NULL, NULL);
-}
-
-void
-dt_tree_log(void)
-{
-    dt_tree_log_path(DT_PATH_ROOT, LOG_INFO);
+    dt_dump(node->rb_left);
+    dt_dump(node->rb_right);
 }
 #endif

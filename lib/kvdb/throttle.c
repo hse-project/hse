@@ -46,7 +46,7 @@ throttle_init(struct throttle *self, struct kvdb_rparams *rp, const char *kvdb_a
 
     assert(IS_ALIGNED((uintptr_t)self, __alignof__(*self)));
 
-    snprintf(group, sizeof(group), "kvdb/%s", kvdb_alias);
+    snprintf(group, sizeof(group), "kvdbs/%s", kvdb_alias);
 
     memset(self, 0, sizeof(*self));
     spin_lock_init(&self->thr_lock);

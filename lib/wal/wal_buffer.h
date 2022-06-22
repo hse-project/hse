@@ -1,10 +1,16 @@
 /* SPDX-License-Identifier: Apache-2.0 */
 /*
- * Copyright (C) 2021 Micron Technology, Inc.  All rights reserved.
+ * Copyright (C) 2021-2022 Micron Technology, Inc.  All rights reserved.
  */
 
 #ifndef WAL_BUFFER_H
 #define WAL_BUFFER_H
+
+#include <stdint.h>
+#include <stdatomic.h>
+
+#include <hse/error/merr.h>
+#include <hse_util/compiler.h>
 
 struct wal_fileset;
 struct wal_bufset;

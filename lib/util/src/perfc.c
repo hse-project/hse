@@ -1,11 +1,13 @@
 /* SPDX-License-Identifier: Apache-2.0 */
 /*
- * Copyright (C) 2015-2021 Micron Technology, Inc.  All rights reserved.
+ * Copyright (C) 2015-2022 Micron Technology, Inc.  All rights reserved.
  */
 
 #define MTF_MOCK_IMPL_perfc
 
 #include <bsd/string.h>
+#include <cjson/cJSON.h>
+#include <cjson/cJSON_Utils.h>
 
 #include <hse_util/platform.h>
 #include <hse_util/alloc.h>
@@ -19,165 +21,15 @@
 #include <hse/logging/logging.h>
 #include <hse_util/perfc.h>
 
-static const char * const perfc_ctr_type2name[] = {
+static const char *const perfc_ctr_type2name[] = {
     "Invalid", "Basic", "Rate", "Latency", "Distribution", "SimpleLatency",
 };
 
 struct perfc_ivl *perfc_di_ivl HSE_READ_MOSTLY;
 
-/**
- * perfc_ctrseti_clear() - Clear a counter set instance.
- * @seti:
- */
 static void
-perfc_ctrseti_clear(struct perfc_seti *seti)
+perfc_ra_emit(struct perfc_rate *const rate, cJSON *const ctr)
 {
-    const struct perfc_ivl *ivl;
-    struct perfc_ctr_hdr   *hdr;
-    struct perfc_rate      *rate;
-    struct perfc_dis       *dis;
-    struct perfc_val       *val;
-    struct perfc_bkt       *bkt;
-
-    u64 vadd, vsub, vtmp;
-    u32 cidx;
-    int i, j;
-
-    for (cidx = 0; cidx < seti->pcs_ctrc; ++cidx) {
-        hdr = &seti->pcs_ctrv[cidx].hdr;
-
-        switch (hdr->pch_type) {
-        case PERFC_TYPE_RA:
-            val = hdr->pch_val;
-            vadd = vsub = 0;
-
-            for (i = 0; i < PERFC_VALPERCNT; ++i) {
-                vtmp = atomic_read(&val->pcv_vsub);
-                atomic_sub(&val->pcv_vsub, vtmp);
-                vsub += vtmp;
-
-                vtmp = atomic_read(&val->pcv_vadd);
-                atomic_sub(&val->pcv_vadd, vtmp);
-                vadd += vtmp;
-
-                val += PERFC_VALPERCPU;
-            }
-
-            vadd = (vadd > vsub) ? (vadd - vsub) : 0;
-
-            /* Put the current value in the old one.  This is
-             * done to get a valid rate next time the counter
-             * is read.
-             */
-            rate = &seti->pcs_ctrv[cidx].rate;
-            rate->pcr_old_val = vadd;
-            rate->pcr_old_time_ns = get_time_ns();
-            break;
-
-        case PERFC_TYPE_DI:
-        case PERFC_TYPE_LT:
-            dis = &seti->pcs_ctrv[cidx].dis;
-            dis->pdi_min = 0;
-            dis->pdi_max = 0;
-
-            bkt = dis->pdi_hdr.pch_bktv;
-            ivl = dis->pdi_ivl;
-
-            for (j = 0; j < PERFC_GRP_MAX; ++j) {
-                bkt = dis->pdi_hdr.pch_bktv + (PERFC_IVL_MAX + 1) * j;
-
-                for (i = 0; i < ivl->ivl_cnt + 1; ++i, ++bkt) {
-                    vtmp = atomic_read(&bkt->pcb_vadd);
-                    atomic_sub(&bkt->pcb_vadd, vtmp);
-
-                    vtmp = atomic_read(&bkt->pcb_hits);
-                    atomic_sub(&bkt->pcb_hits, vtmp);
-                }
-            }
-            break;
-
-        case PERFC_TYPE_SL:
-        case PERFC_TYPE_BA:
-        default:
-            val = hdr->pch_val;
-
-            vtmp = atomic_read(&val->pcv_vsub);
-            atomic_sub(&val->pcv_vsub, vtmp);
-
-            vtmp = atomic_read(&val->pcv_vadd);
-            atomic_sub(&val->pcv_vadd, vtmp);
-            break;
-        }
-    }
-}
-
-static size_t
-perfc_set_handler_ctrset(struct dt_element *dte, struct dt_set_parameters *dsp)
-{
-    struct perfc_seti *seti = dte->dte_data;
-    size_t nchanged = 0;
-
-    if (dsp->field == DT_FIELD_CLEAR) {
-        perfc_ctrseti_clear(seti);
-        return seti->pcs_ctrc;
-    }
-
-    if (dsp->field == DT_FIELD_ENABLED) {
-        struct perfc_set *setp = seti->pcs_handle;
-        char *endptr = NULL;
-        ulong prio;
-
-        errno = 0;
-        prio = strtoul(dsp->value, &endptr, 0);
-
-        if (ev_err(prio == ULONG_MAX && errno))
-            return 0;
-
-        if (ev_err(endptr == dsp->value))
-            return 0;
-
-        if (endptr && !endptr[0])
-            endptr = NULL;
-
-        /* Caller can supply a list of counter or family names in addition to the
-         * priority. For example:
-         *
-         *   curl -X PUT ... data/perfc?enabled=3:PERFC_BA_C0SKING_QLEN:KVDBOP
-         */
-        for (uint cidx = 0; cidx < seti->pcs_ctrc; ++cidx) {
-            const struct perfc_ctr_hdr *pch = &seti->pcs_ctrv[cidx].hdr;
-            uint64_t mask = 1ul << cidx;
-
-            if (endptr) {
-                if (!strstr(endptr, seti->pcs_ctrnamev[cidx].pcn_name) &&
-                    !strstr(endptr, seti->pcs_famname)) {
-                    continue;
-                }
-            }
-
-            if (prio >= pch->pch_prio) {
-                nchanged += !(setp->ps_bitmap & mask);
-                setp->ps_bitmap |= mask;
-            } else {
-                nchanged += !!(setp->ps_bitmap & mask);
-                setp->ps_bitmap &= ~mask;
-            }
-        }
-    }
-
-    return nchanged;
-}
-
-static size_t
-perfc_set_handler(struct dt_element *dte, struct dt_set_parameters *dsp)
-{
-    return perfc_set_handler_ctrset(dte, dsp);
-}
-
-static void
-perfc_ra_emit(struct perfc_rate *rate, struct yaml_context *yc)
-{
-    char value[DT_PATH_MAX];
     struct perfc_val *val;
     u64  dt, dx, ops;
     u64  vadd, vsub;
@@ -210,53 +62,40 @@ perfc_ra_emit(struct perfc_rate *rate, struct yaml_context *yc)
 
     ops = dt > 0 ? (dx * NSEC_PER_SEC) / dt : 0;
 
-    u64_to_string(value, sizeof(value), dt);
-    yaml_element_field(yc, "dt_ns", value);
-
-    u64_to_string(value, sizeof(value), curr);
-    yaml_element_field(yc, "curr", value);
-
-    u64_to_string(value, sizeof(value), prev);
-    yaml_element_field(yc, "prev", value);
-
-    u64_to_string(value, sizeof(value), ops);
-    yaml_element_field(yc, "rate", value);
+    cJSON_AddNumberToObject(ctr, "delta_ns", dt);
+    cJSON_AddNumberToObject(ctr, "current", curr);
+    cJSON_AddNumberToObject(ctr, "previous", prev);
+    cJSON_AddNumberToObject(ctr, "rate", ops);
 
     if (vsub > 0) {
-        u64_to_string(value, sizeof(value), vadd);
-        yaml_element_field(yc, "vadd", value);
-
-        u64_to_string(value, sizeof(value), vsub);
-        yaml_element_field(yc, "vsub", value);
+        cJSON_AddNumberToObject(ctr, "vadd", vadd);
+        cJSON_AddNumberToObject(ctr, "vsub", vsub);
+    } else {
+        cJSON_AddNullToObject(ctr, "vadd");
+        cJSON_AddNullToObject(ctr, "vsub");
     }
 }
 
 static void
-perfc_di_emit(struct perfc_dis *dis, struct yaml_context *yc)
+perfc_di_emit(struct perfc_dis *const dis, cJSON *const ctr)
 {
+    cJSON *histogram;
+    unsigned long samples, avg, sum, bound;
     const struct perfc_ivl *ivl = dis->pdi_ivl;
 
-    size_t valoff, avgoff, hitoff, bktoff;
-    ulong  samples, avg, sum, bound;
-    char   valstr[(PERFC_IVL_MAX + 1) * 12];
-    char   hitstr[(PERFC_IVL_MAX + 1) * 12];
-    char   avgstr[(PERFC_IVL_MAX + 1) * 12];
-    char   bktstr[(PERFC_IVL_MAX + 1) * 12];
-    int    i, j;
-
-    valstr[0] = hitstr[0] = avgstr[0] = bktstr[0] = '\000';
-    valoff = avgoff = hitoff = bktoff = 0;
     samples = sum = bound = 0;
 
-    for (i = 0; i < ivl->ivl_cnt + 1; ++i) {
+    histogram = cJSON_AddArrayToObject(ctr, "histogram");
+
+    for (size_t i = 0; i < ivl->ivl_cnt + 1; ++i) {
+        ulong hits, val;
         struct perfc_bkt *bkt;
-        ulong             hits, val, largest;
-        int               width = 3;
+        cJSON *bucket = cJSON_CreateObject();
 
         bkt = dis->pdi_hdr.pch_bktv + i;
         hits = val = 0;
 
-        for (j = 0; j < PERFC_GRP_MAX; ++j) {
+        for (size_t j = 0; j < PERFC_GRP_MAX; ++j) {
             val += atomic_read(&bkt->pcb_vadd);
             hits += atomic_read(&bkt->pcb_hits);
             bkt += PERFC_IVL_MAX + 1;
@@ -264,18 +103,11 @@ perfc_di_emit(struct perfc_dis *dis, struct yaml_context *yc)
 
         avg = (hits > 0) ? val / hits : 0;
 
-        largest = max_t(ulong, hits, bound);
-        largest = max_t(ulong, largest, avg);
+        cJSON_AddNumberToObject(bucket, "hits", hits);
+        cJSON_AddNumberToObject(bucket, "average", avg);
+        cJSON_AddNumberToObject(bucket, "boundary", bound);
 
-        if (largest > 9)
-            width += ilog2(largest | 1000) * 77 / 256;
-
-        u64_append(hitstr, sizeof(hitstr), hits, width, &hitoff);
-        u64_append(bktstr, sizeof(bktstr), bound, width, &bktoff);
-        u64_append(avgstr, sizeof(avgstr), avg, width, &avgoff);
-
-        u64_append(valstr, sizeof(valstr), hits, -1, &valoff);
-        u64_append(valstr, sizeof(valstr), bound, -1, &valoff);
+        cJSON_AddItemToArray(histogram, bucket);
 
         if (i < ivl->ivl_cnt)
             bound = ivl->ivl_bound[i];
@@ -283,45 +115,23 @@ perfc_di_emit(struct perfc_dis *dis, struct yaml_context *yc)
         sum += val;
     }
 
-    /* [HSE_REVISIT] perfc_parse_ctrtype() is super brittle and requires
-     * that "distribution" come before any of the other key/value
-     * tuples produced here.
-     */
-    yaml_element_field(yc, "distribution", valstr);
-
-    u64_to_string(valstr, sizeof(valstr), dis->pdi_min);
-    yaml_element_field(yc, "min", valstr);
-
-    u64_to_string(valstr, sizeof(valstr), dis->pdi_max);
-    yaml_element_field(yc, "max", valstr);
-
+    cJSON_AddNumberToObject(ctr, "minimum", dis->pdi_min);
+    cJSON_AddNumberToObject(ctr, "maximum", dis->pdi_max);
     avg = (samples > 0) ? sum / samples : 0;
-
-    u64_to_string(valstr, sizeof(valstr), avg);
-    yaml_element_field(yc, "average", valstr);
+    cJSON_AddNumberToObject(ctr, "average", avg);
 
     /* 'sum' and 'hitcnt' field names must match here and for simple lat
      * counters
      */
-    u64_to_string(valstr, sizeof(valstr), sum);
-    yaml_element_field(yc, "sum", valstr);
-
-    u64_to_string(valstr, sizeof(valstr), samples ?: 1);
-    yaml_element_field(yc, "hitcnt", valstr);
-
-    u64_to_string(valstr, sizeof(valstr), dis->pdi_pct * 100 / PERFC_PCT_SCALE);
-    yaml_element_field(yc, "pct", valstr);
-
-    yaml_element_field(yc, "hits", hitstr);
-    yaml_element_field(yc, "avgs", avgstr);
-    yaml_element_field(yc, "bkts", bktstr);
+    cJSON_AddNumberToObject(ctr, "sum", sum);
+    cJSON_AddNumberToObject(ctr, "hits", samples ? samples : 1);
+    cJSON_AddNumberToObject(ctr, "percentage", dis->pdi_pct * 100 / (1.0 * PERFC_PCT_SCALE));
 }
 
 static void
 perfc_read_hdr(struct perfc_ctr_hdr *hdr, u64 *vadd, u64 *vsub)
 {
     struct perfc_val *val = hdr->pch_val;
-    int i;
 
     *vadd = *vsub = 0;
 
@@ -329,7 +139,7 @@ perfc_read_hdr(struct perfc_ctr_hdr *hdr, u64 *vadd, u64 *vsub)
      * from different counters are packed into cache lines.  E.g.,
      * summing over val[i].pcv_vadd would go horribly awry...
      */
-    for (i = 0; i < PERFC_VALPERCNT; ++i) {
+    for (int i = 0; i < PERFC_VALPERCNT; ++i) {
         *vadd += atomic_read(&val->pcv_vadd);
         *vsub += atomic_read(&val->pcv_vsub);
         val += PERFC_VALPERCPU;
@@ -347,83 +157,68 @@ perfc_read(struct perfc_set *pcs, const u32 cidx, u64 *vadd, u64 *vsub)
 }
 
 static size_t
-perfc_emit_handler_ctrset(struct dt_element *dte, struct yaml_context *yc)
+perfc_emit_handler_ctrset(struct dt_element *const dte, cJSON *const root)
 {
-    struct perfc_seti *   seti = dte->dte_data;
-    char                  value[DT_PATH_MAX];
+    cJSON *ctrs;
     struct perfc_ctr_hdr *ctr_hdr;
-    u32                   cidx;
+    cJSON *ctrset = cJSON_CreateObject();
+    struct perfc_seti *seti = dte->dte_data;
 
-    yaml_start_element(yc, "path", dte->dte_path);
-    yaml_element_field(yc, "name", seti->pcs_ctrseti_name);
+    INVARIANT(dte);
+    INVARIANT(cJSON_IsArray(root));
 
-    if (seti->pcs_handle) {
-        yaml_field_fmt(yc, "enabled", "0x%lx", seti->pcs_handle->ps_bitmap);
-    } else {
-        yaml_element_field(yc, "enabled", "0");
-    }
+    cJSON_AddStringToObject(ctrset, "path", dte->dte_path);
+    cJSON_AddStringToObject(ctrset, "name", seti->pcs_ctrseti_name);
+    cJSON_AddNumberToObject(ctrset, "enabled", seti->pcs_handle->ps_bitmap);
+    ctrs = cJSON_AddArrayToObject(ctrset, "counters");
 
-    yaml_start_element_type(yc, "counters");
-
-    /*
-     * Emit all the counters of the counter set instance.
-     */
-    for (cidx = 0; cidx < seti->pcs_ctrc; cidx++) {
+    /* Emit all the counters of the counter set instance. */
+    for (uint32_t cidx = 0; cidx < seti->pcs_ctrc; cidx++) {
         u64 vadd, vsub;
+        cJSON *ctr = cJSON_CreateObject();
 
         ctr_hdr = &seti->pcs_ctrv[cidx].hdr;
 
-        yaml_start_element(yc, "name", seti->pcs_ctrnamev[cidx].pcn_name);
-        yaml_element_field(yc, "header", seti->pcs_ctrnamev[cidx].pcn_hdr);
-        yaml_element_field(yc, "description", seti->pcs_ctrnamev[cidx].pcn_desc);
-        yaml_element_field(yc, "type", perfc_ctr_type2name[ctr_hdr->pch_type]);
-
-        u64_to_string(value, sizeof(value), ctr_hdr->pch_prio);
-        yaml_element_field(yc, "priority", value);
-
-        u64_to_string(value, sizeof(value), (seti->pcs_handle->ps_bitmap & (1ul << cidx)) >> cidx);
-        yaml_element_field(yc, "is_on", value);
+        cJSON_AddStringToObject(ctr, "name", seti->pcs_ctrnamev[cidx].pcn_name);
+        cJSON_AddStringToObject(ctr, "header", seti->pcs_ctrnamev[cidx].pcn_hdr);
+        cJSON_AddStringToObject(ctr, "description", seti->pcs_ctrnamev[cidx].pcn_desc);
+        cJSON_AddStringToObject(ctr, "type", perfc_ctr_type2name[ctr_hdr->pch_type]);
+        cJSON_AddNumberToObject(ctr, "level", ctr_hdr->pch_level);
+        cJSON_AddNumberToObject(ctr, "enabled", (seti->pcs_handle->ps_bitmap & (1ul << cidx))
+            >> cidx);
 
         switch (ctr_hdr->pch_type) {
         case PERFC_TYPE_BA:
             perfc_read_hdr(ctr_hdr, &vadd, &vsub);
             vadd = vadd > vsub ? vadd - vsub : 0;
 
-            u64_to_string(value, sizeof(value), vadd);
-            yaml_element_field(yc, "value", value);
+            cJSON_AddNumberToObject(ctr, "value", vadd);
             break;
 
         case PERFC_TYPE_RA:
-            perfc_ra_emit(&seti->pcs_ctrv[cidx].rate, yc);
+            perfc_ra_emit(&seti->pcs_ctrv[cidx].rate, ctr);
             break;
 
         case PERFC_TYPE_SL:
             perfc_read_hdr(ctr_hdr, &vadd, &vsub);
 
-            /* 'sum' and 'hitcnt' field names must match here and
-             * for distribution counters
-             */
-            u64_to_string(value, sizeof(value), vadd);
-            yaml_element_field(yc, "sum", value);
-
-            u64_to_string(value, sizeof(value), vsub);
-            yaml_element_field(yc, "hitcnt", value);
+            cJSON_AddNumberToObject(ctr, "sum", vadd);
+            cJSON_AddNumberToObject(ctr, "hits", vsub);
             break;
 
         case PERFC_TYPE_DI:
         case PERFC_TYPE_LT:
-            perfc_di_emit(&seti->pcs_ctrv[cidx].dis, yc);
+            perfc_di_emit(&seti->pcs_ctrv[cidx].dis, ctr);
             break;
 
         default:
             break;
         }
 
-        yaml_end_element(yc);
+        cJSON_AddItemToArray(ctrs, ctr);
     }
 
-    yaml_end_element_type(yc);
-    yaml_end_element(yc);
+    cJSON_AddItemToArray(root, ctrset);
 
     return 1;
 }
@@ -444,9 +239,9 @@ perfc_emit_handler_ctrset(struct dt_element *dte, struct yaml_context *yc)
  * Fields are indented 6 spaces.
  */
 static size_t
-perfc_emit_handler(struct dt_element *dte, struct yaml_context *yc)
+perfc_emit_handler(struct dt_element *const dte, cJSON *const ctrset)
 {
-    return perfc_emit_handler_ctrset(dte, yc);
+    return perfc_emit_handler_ctrset(dte, ctrset);
 }
 
 /**
@@ -472,15 +267,12 @@ perfc_remove_handler(struct dt_element *dte)
 
 struct dt_element_ops perfc_ops = {
     .dto_emit = perfc_emit_handler,
-    .dto_set = perfc_set_handler,
     .dto_remove = perfc_remove_handler,
 };
 
 static size_t
-perfc_root_emit_handler(struct dt_element *dte, struct yaml_context *yc)
+perfc_root_emit_handler(struct dt_element *const dte, cJSON *const root)
 {
-    yaml_start_element_type(yc, basename(dte->dte_path));
-
     return 1;
 }
 
@@ -493,7 +285,7 @@ perfc_init(void)
 {
     static struct dt_element hse_dte_perfc = {
         .dte_ops = &perfc_root_ops,
-        .dte_type = DT_TYPE_ROOT,
+        .dte_is_root = true,
         .dte_file = REL_FILE(__FILE__),
         .dte_line = __LINE__,
         .dte_func = __func__,
@@ -502,7 +294,7 @@ perfc_init(void)
     u64    boundv[PERFC_IVL_MAX];
     u64    bound;
     merr_t err;
-    int    rc, i;
+    int    rc;
 
     /* Create the bounds vector for the default latency distribution
      * histogram.  The first ten bounds run from 100ns to 1us with a
@@ -513,7 +305,7 @@ perfc_init(void)
      */
     assert(NELEM(boundv) > 9);
     bound = 100;
-    for (i = 0; i < PERFC_IVL_MAX; ++i) {
+    for (int i = 0; i < PERFC_IVL_MAX; ++i) {
         ulong b;
         ulong mult;
 
@@ -744,7 +536,6 @@ perfc_alloc_impl(
     }
 
     memset(dte, 0, sizeof(*dte));
-    dte->dte_type = DT_TYPE_PERFC;
     dte->dte_ops = &perfc_ops;
     strlcpy(dte->dte_path, path, sizeof(dte->dte_path));
 
@@ -797,10 +588,10 @@ perfc_alloc_impl(
         pch = &seti->pcs_ctrv[i].hdr;
         pch->pch_type = type;
         pch->pch_flags = entry->pcn_flags;
-        pch->pch_prio = entry->pcn_prio;
-        clamp_t(typeof(pch->pch_prio), pch->pch_prio, PERFC_LEVEL_MIN, PERFC_LEVEL_MAX);
+        pch->pch_level = entry->pcn_prio;
+        clamp_t(typeof(pch->pch_level), pch->pch_level, PERFC_LEVEL_MIN, PERFC_LEVEL_MAX);
 
-        if (prio >= pch->pch_prio)
+        if (prio >= pch->pch_level)
             setp->ps_bitmap |= (1ULL << i);
 
         if (type == PERFC_TYPE_DI || type == PERFC_TYPE_LT) {

@@ -42,6 +42,7 @@ build_config_h_data = configuration_data({
         name: '__attribute__((__sentinel__))',
     ),
     'SUPPORTS_ATTR_NONNULL': cc.has_function_attribute('nonnull'),
+    'SUPPORTS_ATTR_WARN_UNUSED_RESULT': cc.has_function_attribute('warn_unused_result'),
     'HAVE_PMEM': libpmem_dep.found(),
     'WITH_COVERAGE': get_option('b_coverage'),
     'WITH_INVARIANTS': get_option('debug'),
@@ -59,10 +60,10 @@ component_root_includes = include_directories('.')
 lib_name = '@0@-@1@'.format(meson.project_name(), hse_major_version)
 soversion = '0'
 
-subdir('include')
 subdir('util')
 subdir('error')
 subdir('logging')
+subdir('include')
 subdir('binding')
 subdir('config')
 subdir('kvs')
@@ -74,6 +75,7 @@ subdir('kvdb')
 subdir('wal')
 subdir('mpool')
 subdir('pidfile')
+subdir('rest')
 
 hse_sources = [
     build_config_h,
@@ -108,15 +110,14 @@ hse_dependencies = [
     cjson_utils_dep,
     hyperloglog_dep,
     libbsd_dep,
-    libcurl_dep,
     hse_error_dep,
     hse_logging_dep,
     hse_pidfile_dep,
-    libmicrohttpd_dep,
+    hse_rest_dep,
     liburcu_bp_dep,
     libyaml_dep,
     m_dep,
-    thread_dep,
+    threads_dep,
     rbtree_dep,
     crc32c_dep,
     xoroshiro_dep,
@@ -168,6 +169,8 @@ if get_option('tools').allowed() or get_option('tests')
         dependencies: hse_dependencies,
         variables: hse_variables
     )
+else
+    hse_internal_dep = disabler()
 endif
 
 pkg.generate(

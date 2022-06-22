@@ -59,7 +59,15 @@ alloc_workqueue(
     int          min_active, /* min number of threads servicing queue */
     int          max_active, /* max number of threads servicing queue */
     ...                      /* fmt string arguments */
-    ) HSE_PRINTF(1, 5);
+) HSE_WARN_UNUSED_RESULT HSE_PRINTF(1, 5);
+
+struct workqueue_struct *
+valloc_workqueue(
+    const char *fmt,
+    unsigned int flags,
+    int min_active,
+    int max_active,
+    va_list ap) HSE_WARN_UNUSED_RESULT;
 
 /*
  * Destroy a workqueue.  Waits until all running work has finished and

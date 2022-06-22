@@ -16,12 +16,10 @@
 #include <hse_util/page.h>
 #include <hse_util/perfc.h>
 #include <hse_util/platform.h>
-#include <hse_util/rest_api.h>
 #include <hse_util/slab.h>
 #include <hse_util/timer.h>
 #include <hse_util/vlb.h>
 
-#include "rest_dt.h"
 #include "cgroup.h"
 
 volatile unsigned long hse_tsc_freq;
@@ -32,9 +30,6 @@ const char *hse_progname HSE_READ_MOSTLY;
 /* Note: The wmesg pointer is volatile, not what it points to...
  */
 thread_local const char * volatile hse_wmesg_tls = "-";
-
-extern rest_get_t workqueue_rest_get;
-extern rest_get_t kmc_rest_get;
 
 /* usleep(3) is simple to use but made obsolete by the more cumbersome
  * nanosleep(2).  So we implement our own version built upon nanosleep
@@ -237,11 +232,6 @@ hse_platform_init(void)
     if (err)
         goto errout;
 
-    rest_init();
-    rest_url_register(NULL, 0, rest_dt_get, rest_dt_put, "data"); /* for dt */
-    rest_url_register(NULL, 0, kmc_rest_get, NULL, "kmc");
-    rest_url_register(NULL, 0, workqueue_rest_get, NULL, "ps");
-
 errout:
     if (err)
         log_errx("initialization failed", err);
@@ -252,7 +242,6 @@ errout:
 void
 hse_platform_fini(void)
 {
-    rest_destroy();
     kmem_cache_fini();
     perfc_fini();
     hse_cgroup_fini();

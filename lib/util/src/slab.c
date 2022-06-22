@@ -29,8 +29,16 @@
 #include <sys/mman.h>
 
 #include <bsd/string.h>
+#include <cjson/cJSON.h>
+#include <cjson/cJSON_Utils.h>
 
 #include <hse/logging/logging.h>
+#include <hse/rest/headers.h>
+#include <hse/rest/method.h>
+#include <hse/rest/params.h>
+#include <hse/rest/request.h>
+#include <hse/rest/response.h>
+#include <hse/rest/status.h>
 #include <hse_util/alloc.h>
 #include <hse_util/assert.h>
 #include <hse_util/atomic.h>
@@ -39,9 +47,9 @@
 #include <hse_util/minmax.h>
 #include <hse_util/mutex.h>
 #include <hse_util/page.h>
-#include <hse_util/rest_api.h>
 #include <hse_util/slab.h>
 #include <hse_util/spinlock.h>
+#include <hse_util/storage.h>
 #include <hse_util/platform.h>
 #include <hse_util/vlb.h>
 #include <hse_util/workqueue.h>
@@ -1100,187 +1108,6 @@ kmem_cache_fini(void)
     mutex_destroy(&kmc.kmc_lock);
 }
 
-static u64
-kmc_test(int which, size_t size, size_t align, void *zone, uint *alignedp)
-{
-    u64 itermax, naligned, tstart;
-    uint addrmod, addrc, i;
-    void **addrv;
-
-    itermax = clamp_t(u64, (1ul << 30) / size, 8192, 1ul << 20);
-    naligned = 0;
-
-    addrc = (itermax / 4);
-    addrv = malloc(sizeof(*addrv) * addrc);
-    if (!addrv)
-        return 0;
-
-    memset(addrv, 0, sizeof(*addrv) * addrc);
-
-    addrmod = (1u << ilog2(addrc)) - 1;
-
-    if (size > (KMC_SLAB_SZ / 2) && addrmod > 63) {
-        addrmod = 63;
-    }
-
-    tstart = get_time_ns();
-
-    for (i = 0; i < itermax; ++i) {
-        int idx = i & addrmod;
-
-        switch (which) {
-        case 1:
-            free(addrv[idx]);
-            addrv[idx] = malloc(size);
-            break;
-
-        case 2:
-            free(addrv[idx]);
-            addrv[idx] = aligned_alloc(align, size);
-            break;
-
-        case 3:
-            kmem_cache_free(zone, addrv[idx]);
-            addrv[idx] = kmem_cache_alloc(zone);
-            break;
-
-        case 4:
-            vlb_free(addrv[idx], sizeof(void *));
-            addrv[idx] = vlb_alloc(size);
-            break;
-
-        case 5:
-            vlb_free(addrv[idx], size);
-            addrv[idx] = vlb_alloc(size);
-            break;
-
-        default:
-            break;
-        }
-
-        if (((uintptr_t)addrv[idx] & (align - 1)) == 0)
-            ++naligned;
-
-        *(uintptr_t *)addrv[idx] = i;
-    }
-
-    for (i = 0; i < addrc; ++i) {
-        switch (which) {
-        case 3:
-            free(addrv[i]);
-            break;
-
-        case 4:
-            kmem_cache_free(zone, addrv[i]);
-            break;
-
-        case 5:
-            vlb_free(addrv[i], sizeof(void *));
-            break;
-
-        case 6:
-            vlb_free(addrv[i], size);
-            break;
-
-        default:
-            free(addrv[i]);
-            break;
-        }
-    }
-
-    tstart = (get_time_ns() - tstart) / itermax;
-
-    *alignedp = naligned * 100 / itermax;
-    free(addrv);
-
-    return tstart;
-}
-
-static void
-kmc_rest_get_test(
-    const char *      path,
-    struct conn_info *info,
-    const char *      url,
-    struct kv_iter *  iter,
-    void *            context)
-{
-    char         buf[128];
-    const size_t bufsz = sizeof(buf);
-    size_t       hsz, sz;
-    int          rc, n;
-
-    n = snprintf(buf, sizeof(buf), "%4s %5s %10s %14s %17s %9s\n",
-                 "cpu", "size", "malloc", "aligned_alloc",
-                 "kmem_cache_alloc", "vlb_alloc");
-    rest_write_safe(info->resp_fd, buf, n);
-
-    for (sz = 8; sz < 16ul << 20; sz *= 2) {
-        const char *suffix = "bkmg";
-        cpu_set_t omask, nmask;
-        size_t align = sz;
-        uint naligned = 0;
-        void *zone;
-        u64 nspa;
-
-        hsz = sz;
-        while (hsz / 1024 > 0) {
-            hsz /= 1024;
-            ++suffix;
-        }
-
-        CPU_ZERO(&omask);
-        CPU_ZERO(&nmask);
-        CPU_SET(hse_getcpu(NULL), &nmask);
-
-        rc = pthread_getaffinity_np(pthread_self(), sizeof(omask), &omask);
-        if (rc)
-            continue;
-
-        rc = pthread_setaffinity_np(pthread_self(), sizeof(nmask), &nmask);
-        if (rc)
-            continue;
-
-        zone = kmem_cache_create(__func__, sz, align, 0, NULL);
-
-        n = snprintf(buf, bufsz, "%4u %4zu%c", hse_getcpu(NULL), hsz, *suffix);
-        rest_write_safe(info->resp_fd, buf, n);
-
-        nspa = kmc_test(1, sz, align, NULL, &naligned);
-        nspa = kmc_test(1, sz, align, NULL, &naligned);
-        n = snprintf(buf, bufsz, " %6zu,%-3u",  nspa, naligned);
-        rest_write_safe(info->resp_fd, buf, n);
-
-        nspa = kmc_test(2, sz, align, NULL, &naligned);
-        nspa = kmc_test(2, sz, align, NULL, &naligned);
-        n = snprintf(buf, bufsz, " %10zu,%-3u",  nspa, naligned);
-        rest_write_safe(info->resp_fd, buf, n);
-
-        if (zone) {
-            nspa = kmc_test(3, sz, align, zone, &naligned);
-            nspa = kmc_test(3, sz, align, zone, &naligned);
-            n = snprintf(buf, bufsz, " %13zu,%3u %9s",  nspa, naligned, "-");
-            rest_write_safe(info->resp_fd, buf, n);
-            kmem_cache_destroy(zone);
-        } else if (sz > VLB_ALLOCSZ_MAX) {
-            nspa = kmc_test(5, sz, align, NULL, &naligned);
-            nspa = kmc_test(5, sz, align, NULL, &naligned);
-            n = snprintf(buf, bufsz, " %17s %7zu,%u,vma",  "-", nspa, naligned);
-            rest_write_safe(info->resp_fd, buf, n);
-        } else {
-            nspa = kmc_test(4, sz, align, NULL, &naligned);
-            nspa = kmc_test(4, sz, align, NULL, &naligned);
-            n = snprintf(buf, bufsz, " %17s %7zu,%u",  "-", nspa, naligned);
-            rest_write_safe(info->resp_fd, buf, n);
-        }
-
-        rest_write_safe(info->resp_fd, "\n", 1);
-
-        pthread_setaffinity_np(pthread_self(), sizeof(omask), &omask);
-
-        usleep(33 * 1000);
-    }
-}
-
 static int
 kmc_addrv_cmp(const void *lhs, const void *rhs)
 {
@@ -1293,212 +1120,148 @@ kmc_addrv_cmp(const void *lhs, const void *rhs)
     return 0;
 }
 
-static int
-kmc_snprintf(struct kmem_cache *zone, char *buf, size_t bufsz, const char *fmt)
+enum rest_status
+rest_kmc_get_vmstat(const struct rest_request *req, struct rest_response *resp, void *arg)
 {
-    ulong nempty, nchunks, nhuge;
-    int addrmax, addrc, cc, i;
-    struct list_head *head;
+    char *data;
+    merr_t err;
+    cJSON *root;
+    bool pretty;
     struct kmc_slab *slab;
-    ulong zalloc, zfree;
-    ulong iused, itotal;
-    char flagsbuf[128];
-    void **addrv;
-
-    addrmax = 1024;
-    addrv = malloc(sizeof(*addrv) * addrmax);
-    if (addrv) {
-        addrv[0] = NULL;
-        addrc = 1;
-    }
-
-    nempty = nchunks = nhuge = 0;
-    iused = itotal = 0;
-
-    kmc_zone_lock(zone);
-    head = &zone->zone_slabs;
-    zalloc = zone->zone_zalloc;
-    zfree = zone->zone_zfree;
-
-    slab = list_first_entry_or_null(head, struct kmc_slab, slab_zentry);
-    while (slab) {
-        zalloc += slab->slab_zalloc;
-        zfree += slab->slab_zfree;
-        itotal += slab->slab_imax;
-        iused += slab->slab_iused;
-        if (slab->slab_iused == 0)
-            ++nempty;
-
-        if (addrv && addrc < addrmax) {
-            if (addrv[addrc - 1] != slab->slab_chunk)
-                addrv[addrc++] = slab->slab_chunk;
-        }
-
-        slab = list_next_entry_or_null(slab, slab_zentry, head);
-    }
-
-    if (addrv) {
-        qsort(addrv, addrc, sizeof(*addrv), kmc_addrv_cmp);
-
-        /* Determine the number of unique chunks used by this zone.
-         */
-        for (i = 1; i < addrc; ++i) {
-            if (addrv[i] != addrv[i - 1]) {
-                struct kmc_chunk *chunk = addrv[i];
-
-                nhuge += chunk->ch_hugecnt;
-                ++nchunks;
-            }
-        }
-    }
-    kmc_zone_unlock(zone);
-
-    free(addrv);
-
-    snprintf(flagsbuf, sizeof(flagsbuf), "%s%s%s%s",
-             (zone->zone_flags & SLAB_HUGE) ? " huge" : "",
-             (zone->zone_flags & SLAB_DESC) ? " desc" : "",
-             (zone->zone_flags & SLAB_PACKED) ? " packed" : "",
-             (zone->zone_flags & SLAB_HWCACHE_ALIGN) ? " hwalign" : "");
-
-    cc = snprintf(
-        buf, bufsz, fmt,
-        zone->zone_name,
-        nchunks,
-        nhuge,
-        zone->zone_nslabs,
-        (KMC_SLAB_SZ * zone->zone_nslabs) / 1024,
-        nempty,
-        zone->zone_salloc,
-        zone->zone_sfree,
-        zone->zone_isize,
-        zone->zone_ialign,
-        zone->zone_iasz,
-        itotal,
-        iused,
-        zalloc,
-        zfree,
-        flagsbuf);
-
-    return cc;
-}
-
-merr_t
-kmc_rest_get_vmstat(
-    const char *      path,
-    struct conn_info *info,
-    const char *      url,
-    struct kv_iter *  iter,
-    void *            context)
-{
-    uint nchunksv[KMC_NODES_MAX * 2], nchunks;
-    uint nfragsv[KMC_NODES_MAX * 2], nfrags;
-    uint nhugev[KMC_NODES_MAX * 2], nhuge;
     struct kmem_cache *zone, *next;
-    const char *fmt;
-    char buf[256];
-    int n, i;
+    enum rest_status status = REST_STATUS_OK;
 
-    snprintf(
-        buf, sizeof(buf),
-        "%-20s %6s %4s %5s %7s %6s %6s %6s"
-        " %6s %7s %6s %8s %8s %13s %13s %s\n",
-        "NAME",
-        "CHUNKS",
-        "HUGE",
-        "SLABS",
-        "SLABKB",
-        "SEMPTY",
-        "SALLOC",
-        "SFREE",
-        "ISIZE",
-        "IALIGN",
-        "IASIZE",
-        "ITOTAL",
-        "IUSED",
-        "IALLOC",
-        "IFREE",
-        "FLAGS...");
+    err = rest_params_get(req->rr_params, "pretty", &pretty, false);
+    if (ev(err))
+        return REST_STATUS_BAD_REQUEST;
 
-    rest_write_safe(info->resp_fd, buf, strlen(buf));
-
-    fmt = "%-20.20s %6lu %4lu %5u %7u %6lu %6lu %6lu"
-        " %6u %7u %6u %8lu %8lu %13lu %13lu %s\n";
+    root = cJSON_CreateArray();
+    if (ev(!root))
+        return REST_STATUS_INTERNAL_SERVER_ERROR;
 
     mutex_lock(&kmc.kmc_lock);
+
     kmc_zone_foreach(zone, next, &kmc.kmc_zones) {
-        n = kmc_snprintf(zone, buf, sizeof(buf), fmt);
-        if (n > 0) {
-            n = min_t(int, n, sizeof(buf));
-            rest_write_safe(info->resp_fd, buf, n);
+        size_t addrc = 0;
+        bool bad = false;
+        cJSON *elem = NULL;
+        void **addrv = NULL;
+        unsigned long iused, itotal;
+        unsigned long zalloc, zfree;
+        ulong nempty, nchunks, nhuge;
+        const unsigned addr_max = 1024;
+
+        elem = cJSON_CreateObject();
+        if (ev(!elem)) {
+            status = REST_STATUS_INTERNAL_SERVER_ERROR;
+            break;
+        }
+
+        /* [HSE_TODO]: Greg, is getting a NULL value here fine? */
+        addrv = malloc(sizeof(*addrv) * addr_max);
+        if (addrv) {
+            addrv[0] = NULL;
+            addrc = 1;
+        }
+
+        kmc_zone_lock(zone);
+
+        zalloc = zone->zone_zalloc;
+        zfree = zone->zone_zfree;
+        itotal = 0;
+        iused = 0;
+        nempty = 0;
+        nchunks = 0;
+        nhuge = 0;
+
+        list_for_each_entry(slab, &zone->zone_slabs, slab_zentry) {
+            zalloc += slab->slab_zalloc;
+            zfree += slab->slab_zfree;
+            itotal += slab->slab_imax;
+            iused += slab->slab_iused;
+            if (slab->slab_iused == 0)
+                nempty++;
+
+            if (addrv && addrc < addr_max) {
+                if (addrv[addrc - 1] != slab->slab_chunk)
+                    addrv[addrc++] = slab->slab_chunk;
+            }
+        }
+
+        if (addrv) {
+            qsort(addrv, addrc, sizeof(*addrv), kmc_addrv_cmp);
+
+            /* Determine the number of unique chunks used by this zone.
+            */
+            for (size_t i = 1; i < addrc; i++) {
+                if (addrv[i] != addrv[i - 1]) {
+                    struct kmc_chunk *chunk = addrv[i];
+
+                    nhuge += chunk->ch_hugecnt;
+                    nchunks++;
+                }
+            }
+        }
+
+        free(addrv);
+
+        if (ev(!cJSON_AddItemToArray(root, elem))) {
+            status = REST_STATUS_INTERNAL_SERVER_ERROR;
+            goto out;
+        }
+
+        bad |= !cJSON_AddStringToObject(elem, "name", zone->zone_name);
+        bad |= !cJSON_AddNumberToObject(elem, "used_chunks", nchunks);
+        bad |= !cJSON_AddNumberToObject(elem, "huge_pages", nhuge);
+        bad |= !cJSON_AddNumberToObject(elem, "used_slabs", zone->zone_nslabs);
+        bad |= !cJSON_AddNumberToObject(elem, "used_slabs_size",
+                (KMC_SLAB_SZ * zone->zone_nslabs) >> KB_SHIFT);
+        bad |= !cJSON_AddNumberToObject(elem, "empty_slabs", nempty);
+        bad |= !cJSON_AddNumberToObject(elem, "allocated_slabs", zone->zone_salloc);
+        bad |= !cJSON_AddNumberToObject(elem, "free_slabs", zone->zone_sfree);
+        bad |= !cJSON_AddNumberToObject(elem, "item_size", zone->zone_isize);
+        bad |= !cJSON_AddNumberToObject(elem, "item_alignment", zone->zone_ialign);
+        bad |= !cJSON_AddNumberToObject(elem, "item_aligned_size", zone->zone_iasz);
+        bad |= !cJSON_AddNumberToObject(elem, "total_items", itotal);
+        bad |= !cJSON_AddNumberToObject(elem, "used_items", iused);
+        bad |= !cJSON_AddNumberToObject(elem, "allocations", zalloc);
+        bad |= !cJSON_AddNumberToObject(elem, "deallocations", zfree);
+        bad |= !cJSON_AddBoolToObject(elem, "packed", zone->zone_flags & SLAB_PACKED);
+        bad |= !cJSON_AddBoolToObject(elem, "hardware_cache_aligned",
+            zone->zone_flags & SLAB_HWCACHE_ALIGN);
+        bad |= !cJSON_AddBoolToObject(elem, "descriptor_convertible", zone->zone_flags & SLAB_DESC);
+
+        kmc_zone_unlock(zone);
+
+        if (ev(bad)) {
+            status = REST_STATUS_INTERNAL_SERVER_ERROR;
+            break;
         }
     }
+
     mutex_unlock(&kmc.kmc_lock);
 
-    nchunks = nhuge = nfrags = 0;
+    if (status == REST_STATUS_OK) {
+        data = (pretty ? cJSON_Print : cJSON_PrintUnformatted)(root);
+        if (ev(!data)) {
+            status = REST_STATUS_INTERNAL_SERVER_ERROR;
+            goto out;
+        }
 
-    for (i = 0; i < NELEM(kmc.kmc_nodev); ++i) {
-        struct kmc_node *node = kmc.kmc_nodev + i;
-        struct kmc_chunk *chunk, *next;
+        fputs(data, resp->rr_stream);
+        cJSON_free(data);
 
-        kmc_node_lock(node);
-        nfragsv[i] = 0;
-
-        kmc_chunk_foreach(chunk, next, &node->node_partial)
-            nfragsv[i] += (chunk->ch_basesz - KMC_CHUNK_SZ) / PAGE_SIZE;
-
-        kmc_chunk_foreach(chunk, next, &node->node_full)
-            nfragsv[i] += (chunk->ch_basesz - KMC_CHUNK_SZ) / PAGE_SIZE;
-
-        nfrags += nfragsv[i];
-
-        nchunksv[i] = node->node_nchunks;
-        nchunks += nchunksv[i];
-
-        nhugev[i] = node->node_nhuge;
-        nhuge += nhugev[i];
-        kmc_node_unlock(node);
+        err = rest_headers_set(resp->rr_headers, REST_HEADER_CONTENT_TYPE, REST_APPLICATION_JSON);
+        if (ev(err)) {
+            status = REST_STATUS_INTERNAL_SERVER_ERROR;
+            goto out;
+        }
     }
 
-    n = snprintf(buf, sizeof(buf), "SUMMARY: chunks: %u total, %u huge, %u vma frag",
-                 nchunks, nhuge, nfrags);
+out:
+    cJSON_Delete(root);
 
-    for (i = 0; i < KMC_NODES_MAX; ++i) {
-        if (n >= sizeof(buf))
-            break;
-
-        n += snprintf(buf + n, sizeof(buf) - n, ", node %u: %u %u %u",
-                      i, nchunksv[i] + nchunksv[i + KMC_NODES_MAX],
-                      nhugev[i] + nhugev[i + KMC_NODES_MAX],
-                      nfragsv[i] + nfragsv[i + KMC_NODES_MAX]);
-    }
-
-    strcat(buf + n, "\n");
-
-    rest_write_safe(info->resp_fd, buf, n + 1);
-
-    return 0;
-}
-
-merr_t
-kmc_rest_get(
-    const char *      path,
-    struct conn_info *info,
-    const char *      url,
-    struct kv_iter *  iter,
-    void *            context)
-{
-    if (strstr(path, "/vmstat")) {
-        kmc_rest_get_vmstat(path, info, url, iter, context);
-        return 0;
-    }
-
-    if (strstr(path, "/test")) {
-        kmc_rest_get_test(path, info, url, iter, context);
-        return 0;
-    }
-
-    return merr(EINVAL);
+    return status;
 }
 
 void *

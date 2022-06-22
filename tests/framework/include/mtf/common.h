@@ -63,7 +63,7 @@ struct mtf_test_coll_info {
     prepost_hook tci_pre_run_hook;
     prepost_hook tci_post_run_hook;
 
-    /* individual test cases, names, and associated pre-/pos- run hooks  */
+    /* individual test cases, names, and associated pre-/post- run hooks  */
     const char *  tci_test_names[___MTF_MAX_UTEST_INSTANCES];
     test_function tci_test_pointers[___MTF_MAX_UTEST_INSTANCES];
     prepost_hook  tci_test_prehooks[___MTF_MAX_UTEST_INSTANCES];

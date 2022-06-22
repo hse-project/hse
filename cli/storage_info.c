@@ -8,27 +8,27 @@
 #include <bsd/string.h>
 #include <cjson/cJSON.h>
 
-#include <hse/cli/tprint.h>
-
 #include <hse/hse.h>
+#include <hse/cli/rest/api.h>
+#include <hse/cli/tprint.h>
+#include <hse/pidfile/pidfile.h>
+
 #include <hse_util/assert.h>
 #include <hse_util/base.h>
-#include <hse_util/rest_client.h>
-
-#include <hse/pidfile/pidfile.h>
+#include <hse_util/compiler.h>
 
 int
 hse_storage_info(const char *const kvdb_home)
 {
     static const char *const headers[] = { "MEDIA_CLASS", "ALLOCATED_BYTES", "USED_BYTES", "PATH" };
+    static const enum tprint_justify justify[] = { TP_JUSTIFY_LEFT, TP_JUSTIFY_RIGHT,
+        TP_JUSTIFY_RIGHT, TP_JUSTIFY_LEFT };
 
     hse_err_t               err = 0;
     struct hse_kvdb *       kvdb = NULL;
     struct hse_mclass_info  info[HSE_MCLASS_COUNT];
     int                     rc = 0, rowid;
     struct pidfile          content;
-    char                    url[128];
-    char                    buf[1024];
     char                    nums[HSE_MCLASS_COUNT][2][21];
     const char *            values[NELEM(headers) * HSE_MCLASS_COUNT];
     HSE_MAYBE_UNUSED size_t n;
@@ -58,55 +58,14 @@ hse_storage_info(const char *const kvdb_home)
             goto out;
 
         for (int i = HSE_MCLASS_BASE; i < HSE_MCLASS_COUNT; i++) {
-            cJSON *root;
             struct hse_mclass_info *data = &info[i];
 
-            memset(data, 0, sizeof(*data));
-
-            rc = snprintf(
-                url, sizeof(url), "kvdb/%s/mclass/%s/info", content.alias, hse_mclass_name_get(i));
-            if (rc < 0) {
-                rc = EBADMSG;
+            err = rest_kvdb_get_mclass_info(data, content.alias, i);
+            if (hse_err_to_errno(err) == ENOENT) {
+                continue;
+            } else {
                 goto out;
             }
-
-            assert(rc < sizeof(url));
-
-            err = curl_get(url, content.socket.path, buf, sizeof(buf));
-            if (err)
-                goto out;
-
-            /* Because of issues with the REST server, and the way this
-             * curl_get() function is implemented, I cannot return what would
-             * ideally be a 404 status in which I could find out whether the
-             * media class was configured or not. To overcome this, if the
-             * following parse fails, then we assume that it is because no data
-             * was written into the buffer, meaning the media class was not
-             * configured.
-             */
-            root = cJSON_Parse(buf);
-            if (!root) {
-                if (cJSON_GetErrorPtr()) {
-                    continue;
-                } else {
-                    rc = ENOMEM;
-                    goto out;
-                }
-            }
-
-            n = strlcpy(
-                data->mi_path, cJSON_GetStringValue(cJSON_GetObjectItemCaseSensitive(root, "path")),
-                sizeof(data->mi_path));
-            assert(n < sizeof(data->mi_path));
-            data->mi_allocated_bytes = cJSON_GetNumberValue(
-                cJSON_GetObjectItemCaseSensitive(root, "allocated_bytes"));
-            data->mi_used_bytes = cJSON_GetNumberValue(
-                cJSON_GetObjectItemCaseSensitive(root, "used_bytes"));
-
-            if (data->mi_allocated_bytes > 0)
-                mc_present[i] = true;
-
-            cJSON_Delete(root);
         }
     } else {
         if (hse_err_to_errno(err) == ENOENT)
@@ -149,7 +108,7 @@ hse_storage_info(const char *const kvdb_home)
         }
     }
 
-    tprint(stdout, rowid, NELEM(headers), headers, values, NULL);
+    err = tprint(stdout, rowid, NELEM(headers), headers, values, justify, NULL);
 
 out:
     if (kvdb)

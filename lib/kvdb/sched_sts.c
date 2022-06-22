@@ -5,14 +5,13 @@
 
 #define MTF_MOCK_IMPL_sched_sts
 
+#include <hse/error/merr.h>
 #include <hse/logging/logging.h>
-
+#include <hse/rest/server.h>
 #include <hse_ikvdb/sched_sts.h>
-
 #include <hse_util/event_counter.h>
 #include <hse_util/mutex.h>
 #include <hse_util/platform.h>
-#include <hse_util/rest_api.h>
 #include <hse_util/workqueue.h>
 
 #include <bsd/string.h>
@@ -24,10 +23,8 @@ struct sts {
     struct mutex             sts_lock HSE_ACP_ALIGNED;
     struct list_head         sts_joblist;
     int                      sts_jobcnt;
-    sts_print_fn            *sts_print_fn;
     struct workqueue_struct *sts_wq;
     struct cv                sts_cv;
-    char                     sts_name[16];
 };
 
 
@@ -87,68 +84,15 @@ sts_job_done(struct sts_job *job)
     mutex_unlock(&self->sts_lock);
 }
 
-static merr_t
-sts_rest_get(
-    const char       *path,
-    struct conn_info *info,
-    const char       *url,
-    struct kv_iter   *iter,
-    void             *context)
-{
-    struct sts *self = context;
-    size_t bufsz = 128 * 128; /* jobs * columns */
-    size_t privsz = 64;
-    struct sts_job *job;
-    char *buf, *priv;
-    int n;
-
-    assert(self->sts_print_fn);
-
-    buf = calloc(bufsz, 1);
-    if (!buf)
-        return merr(ENOMEM);
-
-    priv = buf;
-    bufsz -= privsz;
-    buf += privsz;
-
-    mutex_lock(&self->sts_lock);
-    list_for_each_entry(job, &self->sts_joblist, sj_link) {
-
-        n = self->sts_print_fn(job, priv, buf, bufsz);
-        if (n > 0) {
-            if (n > bufsz)
-                n = bufsz;
-
-            bufsz -= n;
-            buf += n;
-        }
-    }
-
-    n = self->sts_print_fn(NULL, priv, buf, bufsz);
-    if (n > 0) {
-        if (n > bufsz)
-            n = bufsz;
-
-        bufsz -= n;
-        buf += n;
-    }
-    mutex_unlock(&self->sts_lock);
-
-    rest_write_safe(info->resp_fd, priv + privsz, buf - priv - privsz);
-    free(priv);
-
-    return 0;
-}
-
 merr_t
-sts_create(const char *name, uint nq, sts_print_fn *print_fn, struct sts **handle)
+sts_create(const char *fmt, uint nq, struct sts **handle, ...)
 {
+    va_list ap;
     struct sts *self;
 
-    assert(name);
-    assert(nq);
-    assert(handle);
+    INVARIANT(fmt);
+    INVARIANT(nq);
+    INVARIANT(handle);
 
     *handle = NULL;
 
@@ -160,24 +104,13 @@ sts_create(const char *name, uint nq, sts_print_fn *print_fn, struct sts **handl
     mutex_init(&self->sts_lock);
     cv_init(&self->sts_cv);
     INIT_LIST_HEAD(&self->sts_joblist);
-    self->sts_print_fn = print_fn;
-    strlcpy(self->sts_name, name, sizeof(self->sts_name));
 
-    self->sts_wq = alloc_workqueue("hse_%s", 0, nq, WQ_MAX_ACTIVE, self->sts_name);
+    va_start(ap, handle);
+    self->sts_wq = valloc_workqueue(fmt, 0, nq, WQ_MAX_ACTIVE, ap);
+    va_end(ap);
     if (!self->sts_wq) {
         free(self);
         return merr(ENOMEM);
-    }
-
-    if (print_fn) {
-        merr_t err;
-
-        err = rest_url_register(self, 0, sts_rest_get, NULL, self->sts_name);
-        if (err) {
-            log_errx("unable to register url '%s'", err, self->sts_name);
-            self->sts_print_fn = NULL;
-            assert(0);
-        }
     }
 
     *handle = self;
@@ -196,23 +129,30 @@ sts_destroy(struct sts *self)
         cv_wait(&self->sts_cv, &self->sts_lock, "jwait");
     mutex_unlock(&self->sts_lock);
 
-    if (self->sts_print_fn) {
-        merr_t err;
-
-        err = rest_url_deregister(self->sts_name);
-        if (err) {
-            log_errx("unable to deregister url '%s'", err, self->sts_name);
-            assert(0);
-        }
-
-        self->sts_print_fn = NULL;
-    }
-
     destroy_workqueue(self->sts_wq);
 
     mutex_destroy(&self->sts_lock);
     cv_destroy(&self->sts_cv);
     free(self);
+}
+
+merr_t
+sts_foreach_job(struct sts *s, sts_foreach_job_fn *fn, void *arg)
+{
+    merr_t err = 0;
+    struct sts_job *job;
+
+    mutex_lock(&s->sts_lock);
+
+    list_for_each_entry(job, &s->sts_joblist, sj_link) {
+        err = fn(job, arg);
+        if (err)
+            break;
+    }
+
+    mutex_unlock(&s->sts_lock);
+
+    return err;
 }
 
 #if HSE_MOCKING

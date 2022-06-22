@@ -1,780 +1,830 @@
 /* SPDX-License-Identifier: Apache-2.0 */
 /*
- * Copyright (C) 2015-2022 Micron Technology, Inc.  All rights reserved.
+ * Copyright (C) 2022 Micron Technology, Inc.  All rights reserved.
  */
 
-#include "mapi_idx.h"
+#include <limits.h>
+#include <stddef.h>
+#include <string.h>
+#include <unistd.h>
+
+#include <cjson/cJSON.h>
+#include <curl/curl.h>
+
+#include <hse/hse.h>
 #include <mtf/framework.h>
-#include <mock/api.h>
-
-#include <hse_util/inttypes.h>
+#include <hse/cli/rest/client.h>
 #include <hse/error/merr.h>
-#include <hse_util/rest_api.h>
-#include <hse_util/rest_client.h>
+#include <hse/rest/headers.h>
+#include <hse/rest/status.h>
+#include <hse/test/fixtures/kvdb.h>
+#include <hse/test/fixtures/kvs.h>
 
-#include <hse_ikvdb/kvs_cparams.h>
-#include <hse_ikvdb/cn_tree_view.h>
-#include <hse_ikvdb/csched.h>
 #include <hse_ikvdb/ikvdb.h>
-#include <hse_ikvdb/argv.h>
+#include <hse_util/base.h>
+#include <mpool/mpool.h>
 
-#define KVS  "kvdb_rest_kvs"
-#define KVS1 KVS "1"
-#define KVS2 KVS "2"
-#define KVS3 KVS "3"
+char socket_path[PATH_MAX];
+char socket_path_param[PATH_MAX + PATH_MAX / 2];
+char *gparams[2];
 
-#include <mocks/mock_c0cn.h>
-#include <kvdb/kvdb_rest.h>
-#include <cn/kvset.h>
-#include <cn/cn_metrics.h>
-#include <sys/un.h>
+struct hse_kvdb *kvdb;
+struct hse_kvs *kvs1, *kvs2;
 
-struct ikvdb *store;
-char          sock[sizeof(((struct sockaddr_un *)0)->sun_path)];
+void
+mtf_get_global_params(size_t *const paramc, char ***const paramv)
+{
+    snprintf(socket_path, sizeof(socket_path), "/tmp/hse-kvdb_rest_test-%d.sock", getpid());
+    snprintf(socket_path_param, sizeof(socket_path_param), "socket.path=%s", socket_path);
+
+    /* MTF defaults socket.enabled to true. */
+    gparams[0] = "socket.enabled=true";
+    gparams[1] = socket_path_param;
+
+    *paramc = NELEM(gparams);
+    *paramv = gparams;
+}
 
 static int
-set_sock(struct mtf_test_info *ti)
+collection_pre(struct mtf_test_info *const lcl_ti)
 {
-    snprintf(sock, sizeof(sock), "/tmp/hse-%d.sock", getpid());
-    return 0;
+    merr_t err;
+
+    err = fxt_kvdb_setup(mtf_kvdb_home, 0, NULL, 0, NULL, &kvdb);
+    if (err)
+        goto out;
+
+    err = fxt_kvs_setup(kvdb, "kvs1", 0, NULL, 0, NULL, &kvs1);
+    if (err)
+        goto out;
+
+    err = fxt_kvs_setup(kvdb, "kvs2", 0, NULL, 0, NULL, &kvs2);
+    if (err)
+        goto out;
+
+    err = rest_client_init(socket_path);
+
+out:
+    if (err && kvdb)
+        fxt_kvdb_teardown(mtf_kvdb_home, kvdb);
+
+    return merr_errno(err);
 }
-
-bool ct_view_two_level = false;
-bool ct_view_two_kvsets = false;
-bool ct_view_do_nothing = false;
-
-merr_t
-_cn_tree_view_create(struct cn *cn, struct table **view_out)
-{
-    struct kvset_view *v;
-    struct table *view;
-
-    if (ct_view_do_nothing) {
-        *view_out = 0;
-        return 0;
-    }
-
-    view = table_create(5, sizeof(struct kvset_view), true);
-
-    /* root node */
-    v = table_append(view);
-
-    v->kvset = NULL;
-    v->nodeid = 0;
-
-    if (ct_view_two_level) {
-        /* another node */
-        v = table_append(view);
-        v->kvset = NULL;
-        v->nodeid = 1;
-    }
-
-    /* kvset */
-    v = table_append(view);
-    v->kvset = (void *)v;
-    v->nodeid = ct_view_two_level ? 1 : 0;
-
-    /* another kvset */
-    if (ct_view_two_kvsets) {
-        v = table_append(view);
-        v->kvset = (void *)v;
-        v->nodeid = ct_view_two_level ? 1 : 0;
-    }
-
-    *view_out = view;
-
-    return 0;
-}
-
-void
-_cn_tree_view_destroy(struct table *view)
-{
-    if (ct_view_do_nothing)
-        return;
-
-    table_destroy(view);
-}
-
-void
-_kvset_get_metrics(struct kvset *kvset, struct kvset_metrics *metrics)
-{
-    struct kvset_view *v = (void *)kvset;
-
-    if (!metrics)
-        return;
-
-    metrics->num_keys = 1000000;
-    metrics->num_tombstones = 0;
-    metrics->nptombs = 0;
-    metrics->num_kblocks = 1;
-    metrics->num_vblocks = 1;
-    metrics->header_bytes = 2000000;
-    metrics->tot_key_bytes = 4000000;
-    metrics->tot_val_bytes = 8000000;
-    metrics->compc = (v->nodeid == 0) ? 0 : 3;
-    metrics->rule = (v->nodeid == 0) ? CN_RULE_INGEST : CN_RULE_RSPILL;
-    metrics->vgroups = 1;
-}
-
-void
-_hse_meminfo(ulong *freep, ulong *availp, uint shift)
-{
-    if (freep)
-        *freep = 32;
-
-    if (availp)
-        *availp = 32;
-}
-
-merr_t
-mock_mpool_mdc_read(struct mpool_mdc *mdc, void *data, size_t len, size_t *rdlen)
-{
-    *rdlen = 0;
-    return 0;
-}
-
-struct kvs_cparams kp;
-
-/* Prefer the mapi_inject_list method for mocking functions over the
- * MOCK_SET/MOCK_UNSET macros if the mock simply needs to return a
- * constant value.  The advantage of the mapi_inject_list approach is
- * less code (no need to define a replacement function) and easier
- * maintenance (will not break when the mocked function signature
- * changes).
- */
-struct mapi_injection inject_list[] = {
-    { mapi_idx_mpool_open, MAPI_RC_SCALAR, 0 },
-    { mapi_idx_mpool_close, MAPI_RC_SCALAR, 0 },
-    { mapi_idx_mpool_mdc_open, MAPI_RC_SCALAR, 0 },
-    { mapi_idx_mpool_mdc_close, MAPI_RC_SCALAR, 0 },
-    { mapi_idx_mpool_mdc_append, MAPI_RC_SCALAR, 0 },
-    { mapi_idx_mpool_mdc_cstart, MAPI_RC_SCALAR, 0 },
-    { mapi_idx_mpool_mdc_cend, MAPI_RC_SCALAR, 0 },
-    { mapi_idx_mpool_mdc_usage, MAPI_RC_SCALAR, 0 },
-    { mapi_idx_mpool_mdc_rewind, MAPI_RC_SCALAR, 0 },
-    { mapi_idx_mpool_mclass_props_get, MAPI_RC_SCALAR, ENOENT },
-    { mapi_idx_mpool_mclass_is_configured, MAPI_RC_SCALAR, true },
-
-    { mapi_idx_cn_get_tree, MAPI_RC_SCALAR, 0 },
-
-    { mapi_idx_cndb_kvs_cparams, MAPI_RC_PTR, &kp },
-    { mapi_idx_cndb_record_kvs_add, MAPI_RC_SCALAR, 0 },
-
-    { mapi_idx_wal_open, MAPI_RC_SCALAR, 0 },
-    { mapi_idx_wal_close, MAPI_RC_SCALAR, 0 },
-
-    { mapi_idx_kvset_get_hblock_id, MAPI_RC_SCALAR, 0x70310c },
-    { mapi_idx_kvset_get_num_kblocks, MAPI_RC_SCALAR, 1 },
-    { mapi_idx_kvset_get_nth_kblock_id, MAPI_RC_SCALAR, 0x70310d },
-    { mapi_idx_kvset_get_num_vblocks, MAPI_RC_SCALAR, 1 },
-    { mapi_idx_kvset_get_nth_vblock_id, MAPI_RC_SCALAR, 0x70310e },
-
-    { mapi_idx_c0_get_pfx_len, MAPI_RC_SCALAR, 0 },
-
-    { -1 }
-};
 
 static int
-test_pre(struct mtf_test_info *lcl_ti)
+collection_post(struct mtf_test_info *const lcl_ti)
 {
-    merr_t              err = 0;
-    struct hse_kvs *    kvs1 = 0;
-    struct hse_kvs *    kvs2 = 0;
-    struct kvdb_rparams params = kvdb_rparams_defaults();
-    struct kvs_rparams  kvs_rp = kvs_rparams_defaults();
-    struct kvs_cparams  kvs_cp = kvs_cparams_defaults();
-    const char * const  paramv[] = { "durability.enabled=false" };
-    const char *const   kvs_open_paramv[] = { "mclass.policy=\"capacity_only\"" };
+    merr_t err;
 
-    /* Mocks */
-    mapi_inject_clear();
+    rest_client_fini();
 
-    mapi_inject_list_set(inject_list);
+    err = fxt_kvs_teardown(kvdb, "kvs1", kvs1);
+    if (err)
+        goto out;
 
-    mock_kvdb_meta_set();
-    mock_c0cn_set();
+    err = fxt_kvs_teardown(kvdb, "kvs2", kvs2);
+    if (err)
+        goto out;
 
-    mtfm_mpool_mpool_mdc_read_set(mock_mpool_mdc_read);
+    err = fxt_kvdb_teardown(mtf_kvdb_home, kvdb);
+    if (err)
+        goto out;
 
-    MOCK_SET(ct_view, _cn_tree_view_create);
-    MOCK_SET(ct_view, _cn_tree_view_destroy);
-    ct_view_do_nothing = true;
+out:
+    return merr_errno(err);
+}
 
-    MOCK_SET(kvset_view, _kvset_get_metrics);
-    MOCK_SET(platform, _hse_meminfo);
+static merr_t
+status_to_error(const long status)
+{
+    if (status == REST_STATUS_NOT_FOUND) {
+        return merr(ENOENT);
+    } else if (status >= REST_STATUS_BAD_REQUEST) {
+        return merr(EBADMSG);
+    }
 
-    /* Rest */
-    rest_init();
+    return 0;
+}
 
-    rest_server_start(sock);
+static merr_t
+check_status_cb(
+    const long status,
+    const char *const headers,
+    const size_t headers_len,
+    const char *const output,
+    const size_t output_len,
+    void *const arg)
+{
+    const long *needed = arg;
 
-    err = argv_deserialize_to_kvdb_rparams(NELEM(paramv), paramv, &params);
-    ASSERT_EQ_RET(0, err, merr_errno(err));
+    return *needed == status ? 0 : status_to_error(status);
+}
 
-    err = ikvdb_open(mtf_kvdb_home, &params, &store);
-    ASSERT_EQ_RET(0, err, merr_errno(err));
+MTF_BEGIN_UTEST_COLLECTION_PREPOST(kvdb_rest_test, collection_pre, collection_post)
 
-    err = ikvdb_kvs_create(store, KVS1, &kvs_cp);
-    ASSERT_EQ_RET(0, err, merr_errno(err));
+static merr_t
+check_compaction_status_cb(
+    const long status,
+    const char *const headers,
+    const size_t headers_len,
+    const char *const output,
+    const size_t output_len,
+    void *const arg)
+{
+    merr_t err = 0;
+    cJSON *body, *samp_lwm_pct, *samp_hwm_pct, *samp_curr_pct, *active, *canceled;
 
-    err = ikvdb_kvs_create(store, KVS2, &kvs_cp);
-    ASSERT_EQ_RET(0, err, merr_errno(err));
+    if (status != REST_STATUS_OK)
+        return merr(EINVAL);
 
-    err = ikvdb_kvs_create(store, KVS3, &kvs_cp);
+    if (!strstr(headers, REST_MAKE_STATIC_HEADER(REST_HEADER_CONTENT_TYPE, REST_APPLICATION_JSON)))
+        return merr(EINVAL);
 
-    err = argv_deserialize_to_kvs_rparams(NELEM(kvs_open_paramv), kvs_open_paramv, &kvs_rp);
-    ASSERT_EQ_RET(0, err, merr_errno(err));
+    body = cJSON_ParseWithLength(output, output_len);
+    if (!body) {
+        if (cJSON_GetErrorPtr()) {
+            return merr(EINVAL);
+        } else {
+            return merr(ENOMEM);
+        }
+    }
 
-    err = ikvdb_kvs_open(store, KVS1, &kvs_rp, 0, &kvs1);
-    ASSERT_EQ_RET(0, err, merr_errno(err));
+    samp_lwm_pct = cJSON_GetObjectItemCaseSensitive(body, "samp_lwm_pct");
+    samp_hwm_pct = cJSON_GetObjectItemCaseSensitive(body, "samp_hwm_pct");
+    samp_curr_pct = cJSON_GetObjectItemCaseSensitive(body, "samp_curr_pct");
+    active = cJSON_GetObjectItemCaseSensitive(body, "active");
+    canceled = cJSON_GetObjectItemCaseSensitive(body, "canceled");
 
-    err = ikvdb_kvs_open(store, KVS2, &kvs_rp, 0, &kvs2);
-    ASSERT_EQ_RET(0, err, merr_errno(err));
+    if (!cJSON_IsNumber(samp_lwm_pct) || cJSON_GetNumberValue(samp_lwm_pct) != 117) {
+        err = merr(EINVAL);
+        goto out;
+    }
+
+    if (!cJSON_IsNumber(samp_hwm_pct) || cJSON_GetNumberValue(samp_hwm_pct) != 137) {
+        err = merr(EINVAL);
+        goto out;
+    }
+
+    if (!cJSON_IsNumber(samp_curr_pct) || cJSON_GetNumberValue(samp_curr_pct) != 0) {
+        err = merr(EINVAL);
+        goto out;
+    }
+
+    if (!cJSON_IsBool(active) || cJSON_IsTrue(active)) {
+        err = merr(EINVAL);
+        goto out;
+    }
+
+    if (!cJSON_IsBool(canceled) || cJSON_IsTrue(canceled)) {
+        err = merr(EINVAL);
+        goto out;
+    }
+
+out:
+    cJSON_Delete(body);
 
     return err;
 }
 
-static int
-test_post(struct mtf_test_info *ti)
+MTF_DEFINE_UTEST(kvdb_rest_test, compact)
 {
-    MOCK_UNSET(kvset_view, _kvset_get_metrics);
-
-    ikvdb_close(store);
-    store = 0;
-
-    rest_server_stop();
-    rest_destroy();
-
-    MOCK_UNSET(platform, _hse_meminfo);
-
-    mock_kvdb_meta_unset();
-
-    return 0;
-}
-
-MTF_BEGIN_UTEST_COLLECTION_PRE(kvdb_rest, set_sock);
-
-MTF_DEFINE_UTEST_PREPOST(kvdb_rest, kvs_list_test, test_pre, test_post)
-{
-    char path[64];
-    char buf[4096] = { 0 };
-    char exp[4096] = { 0 };
-
-    struct yaml_context yc = {
-        .yaml_indent = 0,
-        .yaml_offset = 0,
-        .yaml_buf = exp,
-        .yaml_buf_sz = sizeof(exp),
-        .yaml_emit = NULL,
-    };
     merr_t err;
+    long status = REST_STATUS_OK;
+    const char *alias = ikvdb_alias((struct ikvdb *)kvdb);
 
-    snprintf(path, sizeof(path), "kvdb/%s", mtfm_ikvdb_ikvdb_alias_getreal()(store));
+    err = rest_client_fetch("GET", NULL, NULL, 0, check_compaction_status_cb, NULL,
+        "/kvdbs/%s/compact", alias);
+    ASSERT_EQ(0, merr_errno(err));
 
-    yaml_start_element_type(&yc, "kvs_list");
-    yaml_element_list(&yc, KVS1);
-    yaml_element_list(&yc, KVS2);
-    yaml_element_list(&yc, KVS3);
-    yaml_end_element_type(&yc);
+    status = REST_STATUS_ACCEPTED;
+    err = rest_client_fetch("POST", NULL, NULL, 0, check_status_cb, &status,
+        "/kvdbs/%s/compact", alias);
+    ASSERT_EQ(0, merr_errno(err));
 
-    err = curl_get(path, sock, buf, sizeof(buf));
-    ASSERT_EQ(0, err);
-    ASSERT_STREQ(exp, buf);
+    status = REST_STATUS_ACCEPTED;
+    err = rest_client_fetch("DELETE", NULL, NULL, 0, check_status_cb, &status,
+        "/kvdbs/%s/compact", alias);
+    ASSERT_EQ(0, merr_errno(err));
+
+    status = REST_STATUS_BAD_REQUEST;
+    err = rest_client_fetch("GET", NULL, NULL, 0, check_status_cb, &status,
+        "/kvdbs/%s/compact?pretty=xyz", alias);
+    ASSERT_EQ(0, merr_errno(err));
 }
 
-MTF_DEFINE_UTEST_PREPOST(kvdb_rest, cn_metrics, test_pre, test_post)
+static merr_t
+check_csched_cb(
+    const long status,
+    const char *const headers,
+    const size_t headers_len,
+    const char *const output,
+    const size_t output_len,
+    void *const arg)
 {
-    char   path[128];
-    char   buf[4096];
-    char   unopened[4096] = { 0 };
-    merr_t err;
+    merr_t err = 0;
+    cJSON *body = NULL;
 
-    struct yaml_context yc = {
-        .yaml_indent = 0,
-        .yaml_offset = 0,
-        .yaml_buf = unopened,
-        .yaml_buf_sz = sizeof(unopened),
-        .yaml_emit = NULL,
-    };
+    if (status != REST_STATUS_OK)
+        return merr(EINVAL);
 
-    yaml_start_element_type(&yc, "info");
-    /* cnids are minted by cNDDB, but cNDB is mocked, so cnid will be 0 */
-    yaml_element_field(&yc, "cnid", "0");
-    yaml_element_field(&yc, "name", KVS3);
-    yaml_element_field(&yc, "open", "no");
-    yaml_end_element(&yc);
-    yaml_end_element_type(&yc); /* info */
+    if (!strstr(headers, REST_MAKE_STATIC_HEADER(REST_HEADER_CONTENT_TYPE, REST_APPLICATION_JSON)))
+        return merr(EINVAL);
 
-    /* kvs in open state */
-    snprintf(
-        path,
-        sizeof(path),
-        "kvdb/%s/kvs/%s/cn/tree",
-        mtfm_ikvdb_ikvdb_alias_getreal()(store),
-        KVS1);
-    memset(buf, 0, sizeof(buf));
-    err = curl_get(path, sock, buf, sizeof(buf));
-    ASSERT_EQ(0, err);
-
-    /* kvs in open state with several options */
-    snprintf(
-        path,
-        sizeof(path),
-        "kvdb/%s/kvs/%s/cn/tree?blkids&nodesonly&tabular",
-        mtfm_ikvdb_ikvdb_alias_getreal()(store),
-        KVS1);
-    memset(buf, 0, sizeof(buf));
-    err = curl_get(path, sock, buf, sizeof(buf));
-    ASSERT_EQ(0, err);
-
-    /* unopened kvs */
-    snprintf(
-        path,
-        sizeof(path),
-        "kvdb/%s/kvs/%s/cn/tree",
-        mtfm_ikvdb_ikvdb_alias_getreal()(store),
-        KVS3);
-    memset(buf, 0, sizeof(buf));
-    err = curl_get(path, sock, buf, sizeof(buf));
-    ASSERT_EQ(0, err);
-    ASSERT_STREQ(unopened, buf);
-
-    /* invalid arg */
-    snprintf(
-        path,
-        sizeof(path),
-        "kvdb/%s/kvs/%s/cn/tree?arg",
-        mtfm_ikvdb_ikvdb_alias_getreal()(store),
-        KVS1);
-    memset(buf, 0, sizeof(buf));
-    err = curl_get(path, sock, buf, sizeof(buf));
-    ASSERT_NE(NULL, strcasestr(buf, "invalid URI"));
-    ASSERT_EQ(0, err);
-
-    snprintf(
-        path,
-        sizeof(path),
-        "kvdb/%s/kvs/%s/cn/tree?arg=val",
-        mtfm_ikvdb_ikvdb_alias_getreal()(store),
-        KVS1);
-    memset(buf, 0, sizeof(buf));
-    err = curl_get(path, sock, buf, sizeof(buf));
-    ASSERT_NE(NULL, strcasestr(buf, "invalid URI"));
-    ASSERT_EQ(0, err);
-}
-
-MTF_DEFINE_UTEST_PREPOST(kvdb_rest, cn_tree_view_create_failure, test_pre, test_post)
-{
-    char   path[128];
-    char   buf[4096] = { 0 };
-    merr_t err;
-
-    mapi_inject(mapi_idx_cn_tree_view_create, merr(EBUG));
-    snprintf(
-        path,
-        sizeof(path),
-        "kvdb/%s/kvs/%s/cn/tree",
-        mtfm_ikvdb_ikvdb_alias_getreal()(store),
-        KVS1);
-
-    err = curl_get(path, sock, buf, sizeof(buf));
-
-    /* since the error wasn't a communication error, nor was it a failure
-     * before the server started responding, the http_code is already set to
-     * HTTP_OK.
-     * So, curl doesn't see an error.
-     */
-    ASSERT_EQ(0, err);
-    mapi_inject_unset(mapi_idx_cn_tree_view_create);
-}
-
-/* The tested non-exact paths should return an error
- */
-MTF_DEFINE_UTEST_PREPOST(kvdb_rest, unexact_paths, test_pre, test_post)
-{
-    char   path[128];
-    merr_t err;
-
-    snprintf(path, sizeof(path), "kvdb/%s/kvs/%s", mtfm_ikvdb_ikvdb_alias_getreal()(store), KVS1);
-    err = curl_get(path, sock, NULL, 0);
-    ASSERT_NE(0, err);
-
-    snprintf(path, sizeof(path), "kvdb/%s/zzz", mtfm_ikvdb_ikvdb_alias_getreal()(store));
-    err = curl_get(path, sock, NULL, 0);
-    ASSERT_NE(0, err);
-}
-
-static size_t
-strdiff(const char *s1, const char *s2)
-{
-    size_t len = strlen(s1);
-    int offset = 0;
-    int line = 1;
-
-    for (int i = 1; i <= len; ++i) {
-        if (s1[i] != s2[i]) {
-            int eol = i;
-
-            while (s1[eol] && s1[eol] != '\n' &&
-                   s2[eol] && s2[eol] != '\n') {
-                ++eol;
-            }
-
-            printf("mismatch at line %d col %d: [%*.*s] vs [%*.*s]\n",
-                   line, i - offset,
-                   eol - offset, eol - offset, s1 + offset,
-                   eol - offset, eol - offset, s2 + offset);
-            return i;
-        }
-
-        if (s1[i] == '\n') {
-            offset = i + 1;
-            ++line;
+    body = cJSON_ParseWithLength(output, output_len);
+    if (!body) {
+        if (cJSON_GetErrorPtr()) {
+            return merr(EPROTO);
+        } else {
+            return merr(ENOMEM);
         }
     }
 
+    if (!cJSON_IsArray(body)) {
+        err = merr(EINVAL);
+        goto out;
+    }
+
+out:
+    cJSON_Delete(body);
+
+    return err;
+}
+
+MTF_DEFINE_UTEST(kvdb_rest_test, csched)
+{
+    merr_t err;
+    long status = REST_STATUS_OK;
+    const char *alias = ikvdb_alias((struct ikvdb *)kvdb);
+
+    err = rest_client_fetch("GET", NULL, NULL, 0, check_csched_cb, NULL,
+        "/kvdbs/%s/csched", alias);
+    ASSERT_EQ(0, merr_errno(err));
+
+    status = REST_STATUS_BAD_REQUEST;
+    err = rest_client_fetch("GET", NULL, NULL, 0, check_status_cb, &status,
+        "/kvdbs/%s/csched?pretty=xyz", alias);
+    ASSERT_EQ(0, merr_errno(err));
+}
+
+static merr_t
+check_home_cb(
+    const long status,
+    const char *const headers,
+    const size_t headers_len,
+    const char *const output,
+    const size_t output_len,
+    void *const arg)
+{
+    merr_t err = 0;
+    cJSON *body;
+
+    if (status != REST_STATUS_OK)
+        return merr(EINVAL);
+
+    if (!strstr(headers, REST_MAKE_STATIC_HEADER(REST_HEADER_CONTENT_TYPE, REST_APPLICATION_JSON)))
+        return merr(EINVAL);
+
+    body = cJSON_ParseWithLength(output, output_len);
+    if (!body) {
+        if (cJSON_GetErrorPtr()) {
+            return merr(EPROTO);
+        } else {
+            return merr(ENOMEM);
+        }
+    }
+
+    if (!cJSON_IsString(body)) {
+        err = merr(EINVAL);
+        goto out;
+    }
+
+    if (strcmp(cJSON_GetStringValue(body), mtf_kvdb_home))
+        return merr(EINVAL);
+
+out:
+    cJSON_Delete(body);
+
+    return err;
+}
+
+MTF_DEFINE_UTEST(kvdb_rest_test, home)
+{
+    merr_t err;
+    long status = REST_STATUS_BAD_REQUEST;
+    const char *alias = ikvdb_alias((struct ikvdb *)kvdb);
+
+    err = rest_client_fetch("GET", NULL, NULL, 0, check_home_cb, NULL, "/kvdbs/%s/home",
+        alias);
+    ASSERT_EQ(0, merr_errno(err));
+
+    err = rest_client_fetch("GET", NULL, NULL, 0, check_status_cb, &status,
+        "/kvdbs/%s/home?pretty=xyz", alias);
+    ASSERT_EQ(0, merr_errno(err));
+}
+
+static merr_t
+check_kvs_cb(
+    const long status,
+    const char *const headers,
+    const size_t headers_len,
+    const char *const output,
+    const size_t output_len,
+    void *const arg)
+{
+    merr_t err = 0;
+    cJSON *body;
+    bool found[2] = { 0 }; /* 2 KVS to check for */
+
+    if (status != REST_STATUS_OK)
+        return merr(EINVAL);
+
+    if (!strstr(headers, REST_MAKE_STATIC_HEADER(REST_HEADER_CONTENT_TYPE, REST_APPLICATION_JSON)))
+        return merr(EINVAL);
+
+    body = cJSON_ParseWithLength(output, output_len);
+    if (!body) {
+        if (cJSON_GetErrorPtr()) {
+            return merr(EPROTO);
+        } else {
+            return merr(ENOMEM);
+        }
+    }
+
+    if (!cJSON_IsArray(body)) {
+        err = merr(EINVAL);
+        goto out;
+    }
+
+    if (cJSON_GetArraySize(body) != 2) {
+        err = merr(EINVAL);
+        goto out;
+    }
+
+    for (int i = 0; i < cJSON_GetArraySize(body); i++) {
+        cJSON *elem = cJSON_GetArrayItem(body, i);
+        if (!cJSON_IsString(elem)) {
+            err = merr(EINVAL);
+            goto out;
+        }
+
+        if (strcmp(cJSON_GetStringValue(elem), hse_kvs_name_get(kvs1)) == 0) {
+            if (found[0]) {
+                err = merr(EINVAL);
+                goto out;
+            }
+
+            found[0] = true;
+            continue;
+        }
+
+        if (strcmp(cJSON_GetStringValue(elem), hse_kvs_name_get(kvs2)) == 0) {
+            if (found[1]) {
+                err = merr(EINVAL);
+                goto out;
+            }
+
+            found[1] = true;
+            continue;
+        }
+    }
+
+    if (!found[0] || !found[1]) {
+        err = merr(EINVAL);
+        goto out;
+    }
+
+out:
+    cJSON_Delete(body);
+
+    return err;
+}
+
+MTF_DEFINE_UTEST(kvdb_rest_test, kvs)
+{
+    merr_t err;
+    long status = REST_STATUS_BAD_REQUEST;
+    const char *alias = ikvdb_alias((struct ikvdb *)kvdb);
+
+    err = rest_client_fetch("GET", NULL, NULL, 0, check_kvs_cb, NULL, "/kvdbs/%s/kvs",
+        alias);
+    ASSERT_EQ(0, merr_errno(err));
+
+    err = rest_client_fetch("GET", NULL, NULL, 0, check_status_cb, &status,
+        "/kvdbs/%s/kvs?pretty=xyz", alias);
+    ASSERT_EQ(0, merr_errno(err));
+}
+
+static merr_t
+check_mclass_cb(
+    const long status,
+    const char *const headers,
+    const size_t headers_len,
+    const char *const output,
+    const size_t output_len,
+    void *const arg)
+{
+    merr_t err = 0;
+    cJSON *body;
+    bool found[HSE_MCLASS_COUNT] = { 0 };
+
+    if (status != REST_STATUS_OK)
+        return merr(EINVAL);
+
+    if (!strstr(headers, REST_MAKE_STATIC_HEADER(REST_HEADER_CONTENT_TYPE, REST_APPLICATION_JSON)))
+        return merr(EINVAL);
+
+    body = cJSON_ParseWithLength(output, output_len);
+    if (!body) {
+        if (cJSON_GetErrorPtr()) {
+            return merr(EPROTO);
+        } else {
+            return merr(ENOMEM);
+        }
+    }
+
+    if (!cJSON_IsArray(body)) {
+        err = merr(EINVAL);
+        goto out;
+    }
+
+    if (cJSON_GetArraySize(body) > HSE_MCLASS_COUNT) {
+        err = merr(EINVAL);
+        goto out;
+    }
+
+    for (int i = 0; i < cJSON_GetArraySize(body); i++) {
+        cJSON *elem = cJSON_GetArrayItem(body, i);
+        if (!cJSON_IsString(elem)) {
+            err = merr(EINVAL);
+            goto out;
+        }
+
+        if (strcmp(cJSON_GetStringValue(elem), HSE_MCLASS_CAPACITY_NAME) == 0) {
+            if (found[HSE_MCLASS_CAPACITY]) {
+                err = merr(EINVAL);
+                goto out;
+            }
+
+            found[HSE_MCLASS_CAPACITY] = true;
+            continue;
+        }
+
+        if (strcmp(cJSON_GetStringValue(elem), HSE_MCLASS_STAGING_NAME) == 0) {
+            if (found[HSE_MCLASS_STAGING]) {
+                err = merr(EINVAL);
+                goto out;
+            }
+
+            found[HSE_MCLASS_STAGING] = true;
+            continue;
+        }
+
+        if (strcmp(cJSON_GetStringValue(elem), HSE_MCLASS_PMEM_NAME) == 0) {
+            if (found[HSE_MCLASS_PMEM]) {
+                err = merr(EINVAL);
+                goto out;
+            }
+
+            found[HSE_MCLASS_PMEM] = true;
+            continue;
+        }
+    }
+
+    if (!found[HSE_MCLASS_CAPACITY] || found[HSE_MCLASS_STAGING] || found[HSE_MCLASS_PMEM]) {
+        err = merr(EINVAL);
+        goto out;
+    }
+
+out:
+    cJSON_Delete(body);
+
+    return err;
+}
+
+MTF_DEFINE_UTEST(kvdb_rest_test, mclass)
+{
+    merr_t err;
+    long status = REST_STATUS_BAD_REQUEST;
+    const char *alias = ikvdb_alias((struct ikvdb *)kvdb);
+
+    err = rest_client_fetch("GET", NULL, NULL, 0, check_mclass_cb, NULL, "/kvdbs/%s/mclass", alias);
+    ASSERT_EQ(0, merr_errno(err));
+
+    err = rest_client_fetch("GET", NULL, NULL, 0, check_status_cb, &status,
+        "/kvdbs/%s/mclass?pretty=xyz", alias);
+    ASSERT_EQ(0, merr_errno(err));
+}
+
+static merr_t
+check_specific_mclass_cb(
+    const long status,
+    const char *const headers,
+    const size_t headers_len,
+    const char *const output,
+    const size_t output_len,
+    void *const arg)
+{
+    merr_t err = 0;
+    struct hse_mclass_info info;
+    cJSON *body, *path, *allocated_bytes, *used_bytes;
+    struct mpool *mp = ikvdb_mpool_get((struct ikvdb *)kvdb);
+
+    if (status != REST_STATUS_OK)
+        return merr(EINVAL);
+
+    if (!strstr(headers, REST_MAKE_STATIC_HEADER(REST_HEADER_CONTENT_TYPE, REST_APPLICATION_JSON)))
+        return merr(EINVAL);
+
+    err = mpool_mclass_info_get(mp, HSE_MCLASS_CAPACITY, &info);
+    if (err)
+        return err;
+
+    body = cJSON_ParseWithLength(output, output_len);
+    if (!body) {
+        if (cJSON_GetErrorPtr()) {
+            return merr(EPROTO);
+        } else {
+            return merr(ENOMEM);
+        }
+    }
+
+    if (!cJSON_IsObject(body)) {
+        err = merr(EINVAL);
+        goto out;
+    }
+
+    path = cJSON_GetObjectItemCaseSensitive(body, "path");
+    allocated_bytes = cJSON_GetObjectItemCaseSensitive(body, "allocated_bytes");
+    used_bytes = cJSON_GetObjectItemCaseSensitive(body, "used_bytes");
+
+    if (!cJSON_IsString(path)) {
+        err = merr(EINVAL);
+        goto out;
+    }
+
+    if (!cJSON_IsNumber(allocated_bytes)) {
+        err = merr(EINVAL);
+        goto out;
+    }
+
+    if (!cJSON_IsNumber(used_bytes)) {
+        err = merr(EINVAL);
+        goto out;
+    }
+
+    if (strcmp(cJSON_GetStringValue(path), info.mi_path)) {
+        err = merr(EINVAL);
+        goto out;
+    }
+
+    if (cJSON_GetNumberValue(allocated_bytes) != info.mi_allocated_bytes) {
+        err = merr(EINVAL);
+        goto out;
+    }
+
+    if (cJSON_GetNumberValue(used_bytes) != info.mi_used_bytes) {
+        err = merr(EINVAL);
+        goto out;
+    }
+
+out:
+    cJSON_Delete(body);
+
+    return err;
+}
+
+MTF_DEFINE_UTEST(kvdb_rest_test, mclass_specific)
+{
+    merr_t err;
+    long status = REST_STATUS_NOT_FOUND;
+    const char *alias = ikvdb_alias((struct ikvdb *)kvdb);
+
+    err = rest_client_fetch("GET", NULL, NULL, 0, check_status_cb, &status,
+        "/kvdbs/%s/mclass/" HSE_MCLASS_STAGING_NAME,
+        alias);
+    ASSERT_EQ(0, merr_errno(err));
+
+    err = rest_client_fetch("GET", NULL, NULL, 0, check_status_cb, &status,
+        "/kvdbs/%s/mclass/" HSE_MCLASS_PMEM_NAME,
+        alias);
+    ASSERT_EQ(0, merr_errno(err));
+
+    err = rest_client_fetch("GET", NULL, NULL, 0, check_specific_mclass_cb,
+        HSE_MCLASS_CAPACITY_NAME, "/kvdbs/%s/mclass/" HSE_MCLASS_CAPACITY_NAME,
+        alias);
+    ASSERT_EQ(0, merr_errno(err));
+
+    status = REST_STATUS_BAD_REQUEST;
+    err = rest_client_fetch("GET", NULL, NULL, 0, check_status_cb, &status,
+        "/kvdbs/%s/mclass/" HSE_MCLASS_CAPACITY_NAME "?pretty=xyz", alias);
+    ASSERT_EQ(0, merr_errno(err));
+}
+
+static merr_t
+params_cb(
+    const long status,
+    const char *const headers,
+    const size_t headers_len,
+    const char *const output,
+    const size_t output_len,
+    void *const arg)
+{
+    merr_t err = 0;
+    cJSON *body;
+
+    if (status != REST_STATUS_OK)
+        return merr(EINVAL);
+
+    if (!strstr(headers, REST_MAKE_STATIC_HEADER(REST_HEADER_CONTENT_TYPE, REST_APPLICATION_JSON)))
+        return merr(EINVAL);
+
+    body = cJSON_ParseWithLength(output, output_len);
+    if (!body) {
+        if (cJSON_GetErrorPtr()) {
+            return merr(EPROTO);
+        } else {
+            return merr(ENOMEM);
+        }
+    }
+
+    if (!cJSON_IsObject(body)) {
+        err = merr(EINVAL);
+        goto out;
+    }
+
+out:
+    cJSON_Delete(body);
+
+    return err;
+}
+
+MTF_DEFINE_UTEST(kvdb_rest_test, params)
+{
+    merr_t err;
+    long status = REST_STATUS_METHOD_NOT_ALLOWED;
+    const char *alias = ikvdb_alias((struct ikvdb *)kvdb);
+
+    err = rest_client_fetch("DELETE", NULL, NULL, 0, check_status_cb, &status, "/kvdbs/%s/params",
+        alias);
+    ASSERT_EQ(0, merr_errno(err));
+
+    err = rest_client_fetch("PUT", NULL, NULL, 0, check_status_cb, &status, "/kvdbs/%s/params",
+        alias);
+    ASSERT_EQ(0, merr_errno(err));
+
+    err = rest_client_fetch("GET", NULL, NULL, 0, params_cb, NULL, "/kvdbs/%s/params",
+        alias);
+    ASSERT_EQ(0, merr_errno(err));
+
+    status = REST_STATUS_BAD_REQUEST;
+    err = rest_client_fetch("GET", NULL, NULL, 0, check_status_cb, &status,
+        "/kvdbs/%s/params?pretty=xyz", alias);
+    ASSERT_EQ(0, merr_errno(err));
+}
+
+static merr_t
+read_csched_leaf_pct(
+    const long status,
+    const char *const headers,
+    const size_t headers_len,
+    const char *const output,
+    const size_t output_len,
+    void *const arg)
+{
+    if (status != REST_STATUS_OK)
+        return merr(EINVAL);
+
+    if (!strstr(headers, REST_MAKE_STATIC_HEADER(REST_HEADER_CONTENT_TYPE, REST_APPLICATION_JSON)))
+        return merr(EINVAL);
+
+    if (strncmp(output, arg, output_len) != 0)
+        return merr(EINVAL);
+
     return 0;
 }
 
-/* Tests to verify yaml output of the cn_tree
- */
-MTF_DEFINE_UTEST_PREPOST(kvdb_rest, print_tree_test, test_pre, test_post)
+MTF_DEFINE_UTEST(kvdb_rest_test, params_specific)
 {
-    char        path[128];
-    char        buf[4096] = { 0 };
-    const char *exp =
-        "nodes:\n"
-        "- loc: \n"
-        "    nodeid: 0\n"
-        "  kvsets:\n"
-        "  - index: 0\n"
-        "    dgen: 1\n"
-        "    compc: 0\n"
-        "    keys: 1000000\n"
-        "    tombs: 0\n"
-        "    ptombs: 0\n"
-        "    hlen: 2000000\n"
-        "    klen: 4000000\n"
-        "    vlen: 8000000\n"
-        "    hblks: 1\n"
-        "    kblks: 1\n"
-        "    vblks: 1\n"
-        "    vgroups: 1\n"
-        "    rule: ingest\n"
-        "    hblkid: 0x70310c\n"
-        "    kblkids:\n"
-        "      - 0x70310d\n"
-        "    vblkids:\n"
-        "      - 0x70310e\n"
-        "  info:\n"
-        "    dgen: 1\n"
-        "    compc: 0\n"
-        "    keys: 1000000\n"
-        "    tombs: 0\n"
-        "    ptombs: 0\n"
-        "    hlen: 2000000\n"
-        "    klen: 4000000\n"
-        "    vlen: 8000000\n"
-        "    hblks: 1\n"
-        "    kblks: 1\n"
-        "    vblks: 1\n"
-        "    vgroups: 1\n"
-        "    kvsets: 1\n"
-        "info:\n"
-        "  dgen: 1\n"
-        "  compc: 0\n"
-        "  keys: 1000000\n"
-        "  tombs: 0\n"
-        "  ptombs: 0\n"
-        "  hlen: 2000000\n"
-        "  klen: 4000000\n"
-        "  vlen: 8000000\n"
-        "  hblks: 1\n"
-        "  kblks: 1\n"
-        "  vblks: 1\n"
-        "  vgroups: 1\n"
-        "  kvsets: 1\n"
-        "  nodes: 1\n"
-        "  cnid: 0\n"
-        "  name: kvdb_rest_kvs1\n"
-        "  open: yes\n";
-
     merr_t err;
+    struct curl_slist *headers = NULL;
+    long status = REST_STATUS_METHOD_NOT_ALLOWED;
+    const char *alias = ikvdb_alias((struct ikvdb *)kvdb);
 
-    mapi_inject_once(mapi_idx_kvset_get_dgen, 1, 1);
+    headers = curl_slist_append(headers, REST_MAKE_STATIC_HEADER(REST_HEADER_CONTENT_TYPE,
+        REST_APPLICATION_JSON));
+    ASSERT_NE(NULL, headers);
 
-    MOCK_SET(ct_view, _cn_tree_view_create);
-    MOCK_SET(ct_view, _cn_tree_view_destroy);
+    err = rest_client_fetch("DELETE", NULL, NULL, 0, check_status_cb, &status,
+        "/kvdbs/%s/params/csched_leaf_pct", alias);
+    ASSERT_EQ(0, merr_errno(err));
 
-    ct_view_do_nothing = false;
+    err = rest_client_fetch("GET", NULL, NULL, 0, read_csched_leaf_pct, "90",
+        "/kvdbs/%s/params/csched_leaf_pct", alias);
+    ASSERT_EQ(0, merr_errno(err));
 
-    snprintf(
-        path,
-        sizeof(path),
-        "kvdb/%s/kvs/%s/cn/tree?blkids=true",
-        mtfm_ikvdb_ikvdb_alias_getreal()(store),
-        KVS1);
+    status = REST_STATUS_NOT_FOUND;
+    err = rest_client_fetch("GET", NULL, NULL, 0, check_status_cb, &status,
+        "/kvdbs/%s/params/does-not-exist",
+        alias);
+    ASSERT_EQ(0, merr_errno(err));
 
-    err = curl_get(path, sock, buf, sizeof(buf));
-    ASSERT_EQ(0, err);
+    status = REST_STATUS_BAD_REQUEST;
+    err = rest_client_fetch("PUT", headers, NULL, 0, check_status_cb, &status,
+        "/kvdbs/%s/params/csched_leaf_pct", alias);
+    ASSERT_EQ(0, merr_errno(err));
 
-    strdiff(exp, buf);
-    ASSERT_STREQ(exp, buf);
+    err = rest_client_fetch("PUT", NULL, "91", 1, check_status_cb, &status,
+        "/kvdbs/%s/params/csched_leaf_pct", alias);
+    ASSERT_EQ(0, merr_errno(err));
 
-    ct_view_do_nothing = true;
-    MOCK_UNSET(ct_view, _cn_tree_view_create);
-    MOCK_UNSET(ct_view, _cn_tree_view_destroy);
+    err = rest_client_fetch("GET", NULL, NULL, 0, check_status_cb, &status,
+        "/kvdbs/%s/params/csched_leaf_pct?pretty=xyz", alias);
+    ASSERT_EQ(0, merr_errno(err));
+
+    status = REST_STATUS_LOCKED;
+    err = rest_client_fetch("PUT", headers, "true", 4, check_status_cb, &status,
+        "/kvdbs/%s/params/read_only", alias);
+    ASSERT_EQ(0, merr_errno(err));
+
+    status = REST_STATUS_CREATED;
+    err = rest_client_fetch("PUT", headers, "91", 1, check_status_cb, &status,
+        "/kvdbs/%s/params/csched_leaf_pct", alias);
+    ASSERT_EQ(0, merr_errno(err));
+
+    err = rest_client_fetch("GET", NULL, NULL, 0, read_csched_leaf_pct, "91",
+        "/kvdbs/%s/params/csched_leaf_pct", alias);
+    ASSERT_EQ(0, merr_errno(err));
+
+    curl_slist_free_all(headers);
 }
 
-MTF_DEFINE_UTEST_PREPOST(kvdb_rest, empty_root_test, test_pre, test_post)
+static merr_t
+check_perfc_cb(
+    const long status,
+    const char *const headers,
+    const size_t headers_len,
+    const char *const output,
+    const size_t output_len,
+    void *const arg)
 {
-    char        path[128];
-    char        buf[4096] = { 0 };
-    const char *exp =
-        "nodes:\n"
-        "- loc: \n"
-        "    nodeid: 1\n"
-        "  kvsets:\n"
-        "  - index: 0\n"
-        "    dgen: 1\n"
-        "    compc: 3\n"
-        "    keys: 1000000\n"
-        "    tombs: 0\n"
-        "    ptombs: 0\n"
-        "    hlen: 2000000\n"
-        "    klen: 4000000\n"
-        "    vlen: 8000000\n"
-        "    hblks: 1\n"
-        "    kblks: 1\n"
-        "    vblks: 1\n"
-        "    vgroups: 1\n"
-        "    rule: rspill\n"
-        "    hblkid: 0x70310c\n"
-        "    kblkids:\n"
-        "      - 0x70310d\n"
-        "    vblkids:\n"
-        "      - 0x70310e\n"
-        "  info:\n"
-        "    dgen: 1\n"
-        "    compc: 3\n"
-        "    keys: 1000000\n"
-        "    tombs: 0\n"
-        "    ptombs: 0\n"
-        "    hlen: 2000000\n"
-        "    klen: 4000000\n"
-        "    vlen: 8000000\n"
-        "    hblks: 1\n"
-        "    kblks: 1\n"
-        "    vblks: 1\n"
-        "    vgroups: 1\n"
-        "    kvsets: 1\n"
-        "info:\n"
-        "  dgen: 1\n"
-        "  compc: 3\n"
-        "  keys: 1000000\n"
-        "  tombs: 0\n"
-        "  ptombs: 0\n"
-        "  hlen: 2000000\n"
-        "  klen: 4000000\n"
-        "  vlen: 8000000\n"
-        "  hblks: 1\n"
-        "  kblks: 1\n"
-        "  vblks: 1\n"
-        "  vgroups: 1\n"
-        "  kvsets: 1\n"
-        "  nodes: 2\n"
-        "  cnid: 0\n"
-        "  name: kvdb_rest_kvs2\n"
-        "  open: yes\n";
+    merr_t err = 0;
+    cJSON *body = NULL;
 
+    if (status != REST_STATUS_OK)
+        return merr(EINVAL);
+
+    if (!strstr(headers, REST_MAKE_STATIC_HEADER(REST_HEADER_CONTENT_TYPE, REST_APPLICATION_JSON)))
+        return merr(EINVAL);
+
+    body = cJSON_ParseWithLength(output, output_len);
+    if (!body) {
+        if (cJSON_GetErrorPtr()) {
+            return merr(EPROTO);
+        } else {
+            return merr(ENOMEM);
+        }
+    }
+
+    if (!cJSON_IsArray(body)) {
+        err = merr(EINVAL);
+        goto out;
+    }
+
+out:
+    cJSON_Delete(body);
+
+    return err;
+}
+
+MTF_DEFINE_UTEST(kvdb_rest_test, perfc)
+{
     merr_t err;
+    char long_path[DT_PATH_MAX + 1];
+    long status = REST_STATUS_BAD_REQUEST;
+    const char *alias = ikvdb_alias((struct ikvdb *)kvdb);
 
-    mapi_inject_once(mapi_idx_kvset_get_dgen, 1, 1);
+    memset(long_path, 'a', sizeof(long_path));
+    long_path[DT_PATH_MAX] = '\0';
 
-    MOCK_SET(ct_view, _cn_tree_view_create);
-    MOCK_SET(ct_view, _cn_tree_view_destroy);
+    err = rest_client_fetch("GET", NULL, NULL, 0, check_status_cb, &status, "/kvdbs/%s/perfc/%s",
+        alias, long_path);
+    ASSERT_EQ(0, merr_errno(err));
 
-    ct_view_two_level = true;
-    ct_view_do_nothing = false;
+    err = rest_client_fetch("GET", NULL, NULL, 0, check_status_cb, &status,
+        "/kvdbs/%s/perfc?pretty=xyz", alias);
+    ASSERT_EQ(0, merr_errno(err));
 
-    snprintf(
-        path,
-        sizeof(path),
-        "kvdb/%s/kvs/%s/cn/tree?blkids=true",
-        mtfm_ikvdb_ikvdb_alias_getreal()(store),
-        KVS2);
+    status = REST_STATUS_NOT_FOUND;
+    err = rest_client_fetch("GET", NULL, NULL, 0, check_status_cb, &status,
+        "/kvdbs/%s/perfc/does-not-exist", alias);
+    ASSERT_EQ(0, merr_errno(err));
 
-    err = curl_get(path, sock, buf, sizeof(buf));
-    ASSERT_EQ(0, err);
+    err = rest_client_fetch("GET", NULL, NULL, 0, check_perfc_cb, NULL, "/kvdbs/%s/perfc", alias);
+    ASSERT_EQ(0, merr_errno(err));
 
-    strdiff(exp, buf);
-    ASSERT_STREQ(exp, buf);
-
-    ct_view_two_level = false;
-    ct_view_do_nothing = true;
-
-    MOCK_UNSET(ct_view, _cn_tree_view_create);
-    MOCK_UNSET(ct_view, _cn_tree_view_destroy);
+    err = rest_client_fetch("GET", NULL, NULL, 0, check_perfc_cb, NULL,
+        "/kvdbs/%s/perfc/C0SKOP/set", alias);
+    ASSERT_EQ(0, merr_errno(err));
 }
 
-static int count;
-
-u64
-_kvset_get_dgen(const struct kvset *km)
-{
-    count++;
-    return 4 * (count);
-}
-
-MTF_DEFINE_UTEST_PREPOST(kvdb_rest, list_without_blkids, test_pre, test_post)
-{
-    char        path[128];
-    char        buf[4096] = { 0 };
-    const char *exp =
-        "nodes:\n"
-        "- loc: \n"
-        "    nodeid: 1\n"
-        "  kvsets:\n"
-        "  - index: 0\n"
-        "    dgen: 4\n"
-        "    compc: 3\n"
-        "    keys: 1000000\n"
-        "    tombs: 0\n"
-        "    ptombs: 0\n"
-        "    hlen: 2000000\n"
-        "    klen: 4000000\n"
-        "    vlen: 8000000\n"
-        "    hblks: 1\n"
-        "    kblks: 1\n"
-        "    vblks: 1\n"
-        "    vgroups: 1\n"
-        "    rule: rspill\n"
-        "  - index: 1\n"
-        "    dgen: 8\n"
-        "    compc: 3\n"
-        "    keys: 1000000\n"
-        "    tombs: 0\n"
-        "    ptombs: 0\n"
-        "    hlen: 2000000\n"
-        "    klen: 4000000\n"
-        "    vlen: 8000000\n"
-        "    hblks: 1\n"
-        "    kblks: 1\n"
-        "    vblks: 1\n"
-        "    vgroups: 1\n"
-        "    rule: rspill\n"
-        "  info:\n"
-        "    dgen: 8\n"
-        "    compc: 3\n"
-        "    keys: 2000000\n"
-        "    tombs: 0\n"
-        "    ptombs: 0\n"
-        "    hlen: 4000000\n"
-        "    klen: 8000000\n"
-        "    vlen: 16000000\n"
-        "    hblks: 2\n"
-        "    kblks: 2\n"
-        "    vblks: 2\n"
-        "    vgroups: 2\n"
-        "    kvsets: 2\n"
-        "info:\n"
-        "  dgen: 8\n"
-        "  compc: 3\n"
-        "  keys: 2000000\n"
-        "  tombs: 0\n"
-        "  ptombs: 0\n"
-        "  hlen: 4000000\n"
-        "  klen: 8000000\n"
-        "  vlen: 16000000\n"
-        "  hblks: 2\n"
-        "  kblks: 2\n"
-        "  vblks: 2\n"
-        "  vgroups: 2\n"
-        "  kvsets: 2\n"
-        "  nodes: 2\n"
-        "  cnid: 0\n"
-        "  name: kvdb_rest_kvs2\n"
-        "  open: yes\n";
-
-    merr_t err;
-
-    MOCK_SET(ct_view, _cn_tree_view_create);
-    MOCK_SET(ct_view, _cn_tree_view_destroy);
-
-    ct_view_two_level = true;
-    ct_view_two_kvsets = true;
-    ct_view_do_nothing = false;
-
-    MOCK_SET(kvset_view, _kvset_get_dgen);
-
-    snprintf(
-        path,
-        sizeof(path),
-        "kvdb/%s/kvs/%s/cn/tree?blkids=false",
-        mtfm_ikvdb_ikvdb_alias_getreal()(store),
-        KVS2);
-
-    err = curl_get(path, sock, buf, sizeof(buf));
-    ASSERT_EQ(0, err);
-
-    strdiff(exp, buf);
-    ASSERT_STREQ(exp, buf);
-
-    count = 0;
-    snprintf(
-        path,
-        sizeof(path),
-        "kvdb/%s/kvs/%s/cn/tree",
-        mtfm_ikvdb_ikvdb_alias_getreal()(store),
-        KVS2);
-
-    err = curl_get(path, sock, buf, sizeof(buf));
-    ASSERT_EQ(0, err);
-
-    strdiff(exp, buf);
-    ASSERT_STREQ(exp, buf);
-
-    ct_view_two_level = false;
-    ct_view_two_kvsets = false;
-    ct_view_do_nothing = true;
-
-    MOCK_UNSET(ct_view, _cn_tree_view_create);
-    MOCK_UNSET(ct_view, _cn_tree_view_destroy);
-
-    MOCK_UNSET(kvset_view, _kvset_get_dgen);
-    count = 0;
-}
-
-MTF_DEFINE_UTEST_PREPOST(kvdb_rest, kvdb_compact_test, test_pre, test_post)
-{
-    char   path[128];
-    char   buf[4096] = { 0 };
-    merr_t err;
-
-    /* Put request */
-    snprintf(
-        path, sizeof(path), "kvdb/%s/compact/request", mtfm_ikvdb_ikvdb_alias_getreal()(store));
-
-    err = curl_put(path, sock, 0, 0, buf, sizeof(buf));
-    ASSERT_EQ(0, err);
-
-    err = curl_put(path, sock, 0, 0, buf, sizeof(buf));
-    ASSERT_EQ(0, err);
-
-    snprintf(path, sizeof(path), "kvdb/%s/compact/cancel", mtfm_ikvdb_ikvdb_alias_getreal()(store));
-
-    err = curl_put(path, sock, 0, 0, buf, sizeof(buf));
-    ASSERT_EQ(0, err);
-
-    snprintf(path, sizeof(path), "kvdb/%s/compact/bob", mtfm_ikvdb_ikvdb_alias_getreal()(store));
-
-    err = curl_put(path, sock, 0, 0, buf, sizeof(buf));
-    ASSERT_EQ(0, err);
-
-    /* Get status */
-    snprintf(path, sizeof(path), "kvdb/%s/compact/status", mtfm_ikvdb_ikvdb_alias_getreal()(store));
-    err = curl_get(path, sock, buf, sizeof(buf));
-    ASSERT_EQ(0, err);
-}
-
-MTF_END_UTEST_COLLECTION(kvdb_rest)
+MTF_END_UTEST_COLLECTION(kvdb_rest_test)

@@ -3,6 +3,23 @@
  * Copyright (C) 2015-2022 Micron Technology, Inc.  All rights reserved.
  */
 
+#include <dirent.h>
+#include <pthread.h>
+#include <signal.h>
+#include <sys/types.h>
+#include <syscall.h>
+
+#include <cjson/cJSON.h>
+#include <cjson/cJSON_Utils.h>
+
+#include <hse/logging/logging.h>
+#include <hse/rest/headers.h>
+#include <hse/rest/method.h>
+#include <hse/rest/params.h>
+#include <hse/rest/request.h>
+#include <hse/rest/response.h>
+#include <hse/rest/status.h>
+
 #include <hse_util/platform.h>
 #include <hse_util/assert.h>
 #include <hse_util/mutex.h>
@@ -10,16 +27,10 @@
 #include <hse_util/minmax.h>
 #include <hse_util/event_counter.h>
 #include <hse_util/workqueue.h>
-#include <hse/logging/logging.h>
-#include <hse_util/rest_api.h>
 #include <hse_util/list.h>
 #include <hse_util/atomic.h>
 
 #include <hse_ikvdb/hse_gparams.h>
-
-#include <signal.h>
-#include <pthread.h>
-#include <syscall.h>
 
 #define WP_LATV_IDX(_wqp) ((_wqp)->wp_calls % NELEM((_wqp)->wp_latv))
 
@@ -163,12 +174,16 @@ grow_workqueue_cb(ulong arg)
 }
 
 struct workqueue_struct *
-alloc_workqueue(const char *fmt, unsigned int flags, int min_active, int max_active, ...)
+valloc_workqueue(
+    const char *const fmt,
+    const unsigned int flags,
+    int min_active,
+    int max_active,
+    va_list ap)
 {
-    struct workqueue_struct *wq;
-    pthread_t tid;
-    va_list args;
     int rc, i;
+    pthread_t tid;
+    struct workqueue_struct *wq;
 
     mutex_lock(&hse_wg.wg_lock);
     if (!hse_wg.wg_inited) {
@@ -186,9 +201,7 @@ alloc_workqueue(const char *fmt, unsigned int flags, int min_active, int max_act
         return NULL;
 
     memset(wq, 0, sizeof(*wq));
-    va_start(args, max_active);
-    vsnprintf(wq->wq_name, sizeof(wq->wq_name), fmt ? fmt : "workqueue", args);
-    va_end(args);
+    vsnprintf(wq->wq_name, sizeof(wq->wq_name), fmt, ap);
 
     mutex_init_adaptive(&wq->wq_lock);
     cv_init(&wq->wq_idle);
@@ -229,6 +242,24 @@ alloc_workqueue(const char *fmt, unsigned int flags, int min_active, int max_act
     wq->wq_tdmin = min_active;
     wq->wq_tdmax = max_active;
     mutex_unlock(&wq->wq_lock);
+
+    return wq;
+}
+
+struct workqueue_struct *
+alloc_workqueue(
+    const char *const fmt,
+    const unsigned int flags,
+    const int min_active,
+    const int max_active,
+    ...)
+{
+    va_list ap;
+    struct workqueue_struct *wq;
+
+    va_start(ap, max_active);
+    wq = valloc_workqueue(fmt ? fmt : "workqueue", flags, min_active, max_active, ap);
+    va_end(ap);
 
     return wq;
 }
@@ -605,176 +636,156 @@ begin_stats_work(void)
     priv->wp_calls++;
 }
 
-merr_t
-workqueue_rest_get(
-    const char       *path,
-    struct conn_info *info,
-    const char       *url,
-    struct kv_iter   *iter,
-    void             *context)
+enum rest_status
+rest_get_workqueues(
+    const struct rest_request *const req,
+    struct rest_response *const resp,
+    void *const arg)
 {
     static const ulong divtab[] = {
         1, 0, 1, 1, 1e3, 10, 1e6, 10, 1e9, 10, 1e9 * 3600, 2, 1e9 * 86400, 1,
         1e9 * 86400 * 365, 1, 1e9 * 86400 * 365 * 100, 1, ULONG_MAX, 1
     };
-    static const char *divsuf = "xx  nsusmss h d y c xx";
-    const size_t bufsz = 128 * 128; /* jobs * columns */
+
+    char *data;
+    merr_t err;
+    int proc_fd;
+    bool pretty;
+    cJSON *root = NULL;
     struct wq_priv *priv;
-    int dirfd, idx, n;
-    size_t buflen;
-    char *colv[4] = { "BARID", "CALLS", "TID", "TIME" };
-    ulong maxv[4];
-    int widthv[4];
-    char *buf;
+    const ulong *divisor = divtab + 2;
+    enum rest_status status = REST_STATUS_OK;
 
-    path = strchr(path, '/');
-    if (path)
-        ++path;
+    err = rest_params_get(req->rr_params, "pretty", &pretty, false);
+    if (ev(err))
+        return REST_STATUS_BAD_REQUEST;
 
-    /* Determine max column widths...
-     */
-    mutex_lock(&hse_wg.wg_lock);
-    if (!hse_wg.wg_inited) {
-        mutex_unlock(&hse_wg.wg_lock);
-        return 0;
+    proc_fd = open("/proc/self/task", O_DIRECTORY | O_RDONLY);
+    if (ev(proc_fd == -1))
+        return REST_STATUS_INTERNAL_SERVER_ERROR;
+
+    root = cJSON_CreateArray();
+    if (ev(!root)) {
+        status = REST_STATUS_INTERNAL_SERVER_ERROR;
+        goto out;
     }
-
-    memset(maxv, 0, sizeof(maxv));
-
-    list_for_each_entry(priv, &hse_wg.wg_tlist, wp_link) {
-        if (priv->wp_barid > maxv[0])
-            maxv[0] = priv->wp_barid;
-        if (priv->wp_calls > maxv[1])
-            maxv[1] = priv->wp_calls;
-        if (priv->wp_tid > maxv[2])
-            maxv[2] = priv->wp_tid;
-        if (priv->wp_tstart > maxv[3])
-            maxv[3] = priv->wp_tstart;
-    }
-    mutex_unlock(&hse_wg.wg_lock);
-
-    maxv[3] = (get_time_ns() - maxv[3]) / NSEC_PER_SEC;
-
-    for (uint i = 0; i < NELEM(widthv); ++i) {
-        widthv[i] = snprintf(NULL, 0, "%lu", maxv[i]);
-        widthv[i] = max_t(int, widthv[i], strlen(colv[i]));
-    }
-
-    buf = malloc(bufsz);
-    if (!buf)
-        return merr(ENOMEM);
-
-    dirfd = open("/proc/self/task", O_DIRECTORY | O_RDONLY);
-    buflen = 0;
-    idx = 0;
 
     mutex_lock(&hse_wg.wg_lock);
+
     list_for_each_entry(priv, &hse_wg.wg_tlist, wp_link) {
+        char *str;
+        ssize_t n;
+        uint64_t tm;
+        char tm_buf[32];
+        bool bad = false;
+        char file_buf[64];
+        cJSON *elem = NULL;
+        char line_buf[1024];
+        unsigned long latency = 0;
+        char *tid, *comm, *state, *processor;
         struct workqueue_struct *wq = priv->wp_wq;
-        char *tidstr, *commstr, *statestr, *cpustr;
-        char linebuf[1024], fnbuf[32], tmbuf[32];
-        const ulong *ldiv = divtab + 2;
-        ulong lat = 0, tm;
-        ssize_t cc;
 
-        tidstr = commstr = statestr = cpustr = NULL;
+        snprintf(file_buf, sizeof(file_buf), "%d/stat", priv->wp_tid);
 
-        snprintf(fnbuf, sizeof(fnbuf), "%d/stat", priv->wp_tid);
-
-        cc = hse_readfile(dirfd, fnbuf, linebuf, sizeof(linebuf), O_RDONLY);
-        if (cc > 0) {
-            char *str = linebuf;
-
-            str[cc - 1] = '\000';
-            tidstr = strsep(&str, " ");
-            commstr = strsep(&str, " ");
-            statestr = strsep(&str, " ");
-
-            for (uint i = 0; i < 38 - 3 && *str; /**/)
-                i += (*str++ == ' ');
-            cpustr = strsep(&str, " ");
+        n = hse_readfile(proc_fd, file_buf, line_buf, sizeof(line_buf), O_RDONLY);
+        if (n < 0) {
+            status = REST_STATUS_INTERNAL_SERVER_ERROR;
+            goto out;
         }
 
-        /* Compute the average of the most recent callback latency
-         * samples and convert from cycles to usecs.
+        str = line_buf;
+        str[n - 1] = '\000';
+
+        /* Refer to /proc/[pid]/stat in proc(5) for parsing information. */
+        tid = strsep(&str, " ");
+        comm = strsep(&str, " ");
+        state = strsep(&str, " ");
+
+        for (uint i = 0; i < 38 - 3 && *str; /**/)
+            i += (*str++ == ' ');
+        processor = strsep(&str, " ");
+
+        /* Compute the average of the most recent callback latency samples and
+         * convert from cycles to usecs.
          */
         if (priv->wp_calls > NELEM(priv->wp_latv)) {
-            for (n = 0; n < NELEM(priv->wp_latv); ++n)
-                lat += priv->wp_latv[n];
-            lat /= NELEM(priv->wp_latv);
-            lat = cycles_to_nsecs(lat);
-            while (lat >= ldiv[0] * ldiv[1])
-                ldiv += 2;
-            lat /= ldiv[-2];
+            for (size_t i = 0; i < NELEM(priv->wp_latv); i++)
+                latency += priv->wp_latv[i];
+
+            latency /= NELEM(priv->wp_latv);
+            latency = cycles_to_nsecs(latency);
+            while (latency >= divisor[0] * divisor[1])
+                divisor += 2;
+            latency /= divisor[-2];
         }
 
         tm = (get_time_ns() - priv->wp_tstart) / NSEC_PER_SEC;
         if (tm >= 3600) {
-            n = snprintf(tmbuf, sizeof(tmbuf), "%lu:%02lu:%02lu",
-                         tm / 3600, (tm / 60) % 60, tm % 60);
+            snprintf(tm_buf, sizeof(tm_buf), "%lu:%02lu:%02lu", tm / 3600, (tm / 60) % 60, tm % 60);
         } else {
-            n = snprintf(tmbuf, sizeof(tmbuf), "%lu:%02lu",
-                         (tm / 60) % 60, tm % 60);
-        }
-        if (n > widthv[3])
-            widthv[3] = n;
-
-        if (buflen == 0) {
-            n = snprintf(buf, bufsz,
-                         "%3s %-16s %3s %3s %3s %3s %3s %3s %3s"
-                         " %*s %*s %7s %8s %1s %3s"
-                         " %*s %*s %-16s\n",
-                         "IDX", "WQNAME", "REF", "MIN", "MAX", "CNT", "BSY", "WK", "DWK",
-                         widthv[0], colv[0],
-                         widthv[1], colv[1],
-                         "LATENCY", "WMESG", "S", "CPU",
-                         widthv[2], colv[2],
-                         widthv[3], colv[3],
-                         "TNAME");
-            if (n < 1 || n >= bufsz)
-                return merr(EINVAL);
-
-            buflen = n;
+            snprintf(tm_buf, sizeof(tm_buf), "%lu:%02lu", tm / 3600, (tm / 60) % 60);
         }
 
-        n = snprintf(buf + buflen, bufsz - buflen,
-                     "%3d %-16s %3d %3d %3d %3d %3d %3d %3d"
-                     " %*u %*lu %5lu%2.2s %8.8s %1s %3s"
-                     " %*s %*s %-16s\n",
-                     idx, wq->wq_name, wq->wq_refcnt,
-                     wq->wq_tdmin, wq->wq_tdmax, wq->wq_tdcnt,
-                     wq->wq_tdcnt - wq->wq_idle.cv_waiters,
-                     wq->wq_refcnt - wq->wq_dlycnt - wq->wq_tdcnt,
-                     wq->wq_dlycnt,
-                     widthv[0], wq->wq_barid,
-                     widthv[1], priv->wp_calls,
-                     lat, divsuf + (ldiv - divtab),
-                     *priv->wp_wmesgp,
-                     statestr ? statestr : "?",
-                     cpustr ? cpustr : "?",
-                     widthv[2], tidstr ? tidstr : "?",
-                     widthv[3], tmbuf,
-                     commstr ? commstr : "?");
-        if (n < 1 || n >= bufsz - buflen)
+        elem = cJSON_CreateObject();
+        if (!elem) {
+            status = REST_STATUS_INTERNAL_SERVER_ERROR;
             break;
+        }
 
-        /* Filter out lines that do not partially match
-         * the user-supplied literal pattern.
-         */
-        if (path && !strstr(buf + buflen, path))
-            continue;
+        if (ev(!cJSON_AddItemToArray(root, elem))) {
+            status = REST_STATUS_INTERNAL_SERVER_ERROR;
+            break;
+        }
 
-        buflen += n;
-        idx++;
+        bad |= !cJSON_AddStringToObject(elem, "name", wq->wq_name);
+        bad |= !cJSON_AddNumberToObject(elem, "references", wq->wq_refcnt);
+        bad |= !cJSON_AddNumberToObject(elem, "minimum_threads", wq->wq_tdmin);
+        bad |= !cJSON_AddNumberToObject(elem, "maximum_threads", wq->wq_tdmax);
+        bad |= !cJSON_AddNumberToObject(elem, "current_threads", wq->wq_tdcnt);
+        bad |= !cJSON_AddNumberToObject(elem, "busy", wq->wq_idle.cv_waiters);
+        bad |= !cJSON_AddNumberToObject(elem, "working", wq->wq_refcnt - wq->wq_dlycnt
+            - wq->wq_tdcnt);
+        bad |= !cJSON_AddNumberToObject(elem, "delayed", wq->wq_dlycnt);
+        bad |= !cJSON_AddNumberToObject(elem, "barrier_id", wq->wq_barid);
+        bad |= !cJSON_AddNumberToObject(elem, "calls", priv->wp_calls);
+        bad |= !cJSON_AddNumberToObject(elem, "latency_ns", latency);
+        bad |= !cJSON_AddStringToObject(elem, "wmesg", *priv->wp_wmesgp);
+        bad |= !cJSON_AddStringToObject(elem, "state", state);
+        bad |= !cJSON_AddNumberToObject(elem, "processor", atoi(processor));
+        bad |= !cJSON_AddStringToObject(elem, "time", tm_buf);
+        bad |= !cJSON_AddNumberToObject(elem, "thread_id", atoi(tid));
+        bad |= !cJSON_AddStringToObject(elem, "thread_name", comm);
+
+        if (ev(bad)) {
+            status = REST_STATUS_INTERNAL_SERVER_ERROR;
+            break;
+        }
     }
+
     mutex_unlock(&hse_wg.wg_lock);
+    close(proc_fd);
 
-    rest_write_safe(info->resp_fd, buf, buflen);
+    if (status == REST_STATUS_OK) {
+        data = (pretty ? cJSON_Print : cJSON_PrintUnformatted)(root);
+        if (ev(!data)) {
+            status = REST_STATUS_INTERNAL_SERVER_ERROR;
+            goto out;
+        }
 
-    close(dirfd);
-    free(buf);
+        fputs(data, resp->rr_stream);
+        cJSON_free(data);
 
-    return 0;
+        err = rest_headers_set(resp->rr_headers, REST_HEADER_CONTENT_TYPE, REST_APPLICATION_JSON);
+        if (ev(err)) {
+            status = REST_STATUS_INTERNAL_SERVER_ERROR;
+            goto out;
+        }
+    }
+
+out:
+    cJSON_Delete(root);
+
+    return status;
 }
 
 /**

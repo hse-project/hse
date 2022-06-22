@@ -8,11 +8,16 @@
 #include <bsd/string.h>
 
 #include <hse/experimental.h>
-
+#include <hse/rest/headers.h>
+#include <hse/rest/method.h>
+#include <hse/rest/params.h>
+#include <hse/rest/request.h>
+#include <hse/rest/response.h>
+#include <hse/rest/server.h>
+#include <hse/rest/status.h>
 #include <hse_util/alloc.h>
 #include <hse_util/event_counter.h>
 #include <hse_util/platform.h>
-#include <hse_util/rest_api.h>
 #include <hse_util/slab.h>
 
 #include <hse_ikvdb/cn.h>
@@ -273,7 +278,7 @@ struct sp3 {
      */
     struct workqueue_struct *mon_wq;
     struct work_struct mon_work;
-    char name[];
+    const char *kvdb_alias;
 };
 
 /* cn_tree 2 sp3_tree */
@@ -1495,80 +1500,209 @@ sp3_comp_thread_name(
     snprintf(buf, bufsz, "hse_%s_%s_%lu", a, r, nodeid);
 }
 
-/* This function is the sts job-print callback which is invoked
- * with the sts run-queue lock held and hence must not block.
- * priv is a pointer to a 64-byte block for our private use,
- * zeroed before the first call.  job is set to NULL on the
- * last call to allow us to clean up any lingering state.
- */
-static int
-sp3_job_print(struct sts_job *job, void *priv, char *buf, size_t bufsz)
+static merr_t
+sp3_job_serialize(struct sts_job *const job, void *const arg)
 {
-    struct cn_compaction_work *w = container_of(job, typeof(*w), cw_job);
-    struct job_print_state {
-        int jobwidth;
-        bool hdr;
-    } *jps = priv;
-    int n = 0, m = 0;
-    char tmbuf[32];
     ulong tm;
+    char tmbuf[32];
+    merr_t err = 0;
+    cJSON *jobs, *node;
+    struct cn_compaction_work *w;
 
-    if (!job) {
-        return (jps->hdr) ? snprintf(buf, bufsz, "\n") : 0;
-    }
+    INVARIANT(job);
+    INVARIANT(arg);
 
-    if (!jps->hdr) {
-        jps->jobwidth = snprintf(NULL, 0, "%4u", sts_job_id_get(&w->cw_job) * 10);
+    jobs = arg;
+    w = container_of(job, typeof(*w), cw_job);
 
-        n = snprintf(buf, bufsz,
-                     "%3s %5s %*s %7s %-7s"
-                     " %2s %1s %5s %6s %6s %4s"
-                     " %4s %5s %3s %3s %4s"
-                     " %6s %6s %6s"
-                     " %8s %4s %s\n",
-                     "ID", "NODE", jps->jobwidth, "JOB", "ACTION", "RULE",
-                     "Q", "T", "KVSET", "ALEN", "CLEN", "PCAP",
-                     "CC", "DGEN", "NH", "NK", "NV",
-                     "RALEN", "LALEN", "LGOOD",
-                     "WMESG", "TIME", "TNAME");
+    INVARIANT(cJSON_IsArray(jobs));
 
-        if (n < 1 || n >= bufsz)
-            return n;
-
-        jps->hdr = true;
-        bufsz -= n;
-        buf += n;
-    }
+    node = cJSON_CreateObject();
+    if (ev(!node))
+        return merr(ENOMEM);
 
     tm = (jclock_ns - w->cw_t0_enqueue) / NSEC_PER_SEC;
     snprintf(tmbuf, sizeof(tmbuf), "%lu:%02lu", (tm / 60) % 60, tm % 60);
 
-    m = snprintf(buf, bufsz,
-                 "%3lu %5lu %*u %7s %-7s"
-                 " %2u %1u %2u,%-2u %6lu %6lu %4u"
-                 " %4u %5lu %3u %3u %4u"
-                 " %6ld %6ld %6ld"
-                 " %8.8s %4s %s\n",
-                 w->cw_tree->cnid,
-                 w->cw_node->tn_nodeid,
-                 jps->jobwidth, sts_job_id_get(&w->cw_job),
-                 cn_action2str(w->cw_action), cn_rule2str(w->cw_rule),
-                 w->cw_qnum,
-                 atomic_read(&w->cw_node->tn_busycnt) >> 16,
-                 w->cw_kvset_cnt, (uint)cn_ns_kvsets(&w->cw_ns),
-                 cn_ns_alen(&w->cw_ns) >> 20,
-                 cn_ns_clen(&w->cw_ns) >> 20,
-                 w->cw_ns.ns_pcap,
-                 w->cw_compc,
-                 w->cw_dgen_hi_min,
-                 w->cw_nh, w->cw_nk, w->cw_nv,
-                 w->cw_est.cwe_samp.r_alen >> 20,
-                 w->cw_est.cwe_samp.l_alen >> 20,
-                 w->cw_est.cwe_samp.l_good >> 20,
-                 sts_job_wmesg_get(&w->cw_job),
-                 tmbuf, w->cw_threadname);
+    if (ev(!cJSON_AddNumberToObject(node, "cnid", w->cw_tree->cnid))) {
+        err = merr(ENOMEM);
+        goto out;
+    }
 
-    return (m < 1) ? m : (n + m);
+    if (ev(!cJSON_AddNumberToObject(node, "node", w->cw_node->tn_nodeid))) {
+        err = merr(ENOMEM);
+        goto out;
+    }
+
+    if (ev(!cJSON_AddNumberToObject(node, "job", sts_job_id_get(job)))) {
+        err = merr(ENOMEM);
+        goto out;
+    }
+
+    if (ev(!cJSON_AddStringToObject(node, "action", cn_action2str(w->cw_action)))) {
+        err = merr(ENOMEM);
+        goto out;
+    }
+
+    if (ev(!cJSON_AddStringToObject(node, "rule", cn_rule2str(w->cw_rule)))) {
+        err = merr(ENOMEM);
+        goto out;
+    }
+
+    if (ev(!cJSON_AddNumberToObject(node, "qnum", w->cw_qnum))) {
+        err = merr(ENOMEM);
+        goto out;
+    }
+
+    if (ev(!cJSON_AddNumberToObject(node, "busy", atomic_read(&w->cw_node->tn_busycnt) >> 16))) {
+        err = merr(ENOMEM);
+        goto out;
+    }
+
+    if (ev(!cJSON_AddNumberToObject(node, "kvsets", w->cw_kvset_cnt))) {
+        err = merr(ENOMEM);
+        goto out;
+    }
+
+    if (ev(!cJSON_AddNumberToObject(node, "allocated_length_mb",
+            cn_ns_alen(&w->cw_ns) >> MB_SHIFT))) {
+        err = merr(ENOMEM);
+        goto out;
+    }
+
+    if (ev(!cJSON_AddNumberToObject(node, "compacted_length_mb",
+            cn_ns_clen(&w->cw_ns) >> MB_SHIFT))) {
+        err = merr(ENOMEM);
+        goto out;
+    }
+
+    if (ev(!cJSON_AddNumberToObject(node, "pcap", w->cw_ns.ns_pcap))) {
+        err = merr(ENOMEM);
+        goto out;
+    }
+
+    if (ev(!cJSON_AddNumberToObject(node, "compc", w->cw_compc))) {
+        err = merr(ENOMEM);
+        goto out;
+    }
+
+    if (ev(!cJSON_AddNumberToObject(node, "dgen", w->cw_dgen_hi_min))) {
+        err = merr(ENOMEM);
+        goto out;
+    }
+
+    if (ev(!cJSON_AddNumberToObject(node, "hblocks", w->cw_nh))) {
+        err = merr(ENOMEM);
+        goto out;
+    }
+
+    if (ev(!cJSON_AddNumberToObject(node, "kblocks", w->cw_nk))) {
+        err = merr(ENOMEM);
+        goto out;
+    }
+
+    if (ev(!cJSON_AddNumberToObject(node, "vblocks", w->cw_nv))) {
+        err = merr(ENOMEM);
+        goto out;
+    }
+
+    if (ev(!cJSON_AddNumberToObject(node, "root_allocated_length_mb",
+            w->cw_est.cwe_samp.r_alen >> MB_SHIFT))) {
+        err = merr(ENOMEM);
+        goto out;
+    }
+
+    if (ev(!cJSON_AddNumberToObject(node, "leaf_allocated_length_mb",
+            w->cw_est.cwe_samp.l_alen >> MB_SHIFT))) {
+        err = merr(ENOMEM);
+        goto out;
+    }
+
+    if (ev(!cJSON_AddNumberToObject(node, "leaf_compacted_length_mb",
+            w->cw_est.cwe_samp.l_good >> MB_SHIFT))) {
+        err = merr(ENOMEM);
+        goto out;
+    }
+
+    if (ev(!cJSON_AddStringToObject(node, "wmesg", sts_job_wmesg_get(job)))) {
+        err = merr(ENOMEM);
+        goto out;
+    }
+
+    if (ev(!cJSON_AddStringToObject(node, "time", tmbuf))) {
+        err = merr(ENOMEM);
+        goto out;
+    }
+
+    if (ev(!cJSON_AddStringToObject(node, "thread_name", w->cw_threadname))) {
+        err = merr(ENOMEM);
+        goto out;
+    }
+
+    if (ev(!cJSON_AddItemToArray(jobs, node))) {
+        err = merr(ENOMEM);
+        goto out;
+    }
+
+out:
+    if (err)
+        cJSON_Delete(node);
+
+    return err;
+}
+
+static enum rest_status
+rest_csched_sp3_get(
+    const struct rest_request *const req,
+    struct rest_response *const resp,
+    void *arg)
+{
+    char *str;
+    merr_t err;
+    cJSON *root;
+    bool pretty;
+    struct sp3 *sp;
+    enum rest_status status = REST_STATUS_OK;
+
+    INVARIANT(req);
+    INVARIANT(resp);
+    INVARIANT(arg);
+
+    sp = arg;
+
+    err = rest_params_get(req->rr_params, "pretty", &pretty, false);
+    if (err)
+        return REST_STATUS_BAD_REQUEST;
+
+    root = cJSON_CreateArray();
+    if (ev(!root))
+        return REST_STATUS_INTERNAL_SERVER_ERROR;
+
+    err = sts_foreach_job(sp->sts, sp3_job_serialize, root);
+    if (ev(err)) {
+        status = REST_STATUS_INTERNAL_SERVER_ERROR;
+        goto out;
+    }
+
+    str = (pretty ? cJSON_Print : cJSON_PrintUnformatted)(root);
+    if (!str) {
+        status = REST_STATUS_INTERNAL_SERVER_ERROR;
+        goto out;
+    }
+
+    fputs(str, resp->rr_stream);
+    cJSON_free(str);
+
+    err = rest_headers_set(resp->rr_headers, REST_HEADER_CONTENT_TYPE, REST_APPLICATION_JSON);
+    if (ev(err)) {
+        status = REST_STATUS_INTERNAL_SERVER_ERROR;
+        goto out;
+    }
+
+out:
+    cJSON_Delete(root);
+
+    return status;
 }
 
 static void
@@ -2355,7 +2489,7 @@ sp3_monitor(struct work_struct *work)
         err = kvdb_health_check(sp->health, KVDB_HEALTH_FLAG_ALL);
         if (ev(err)) {
             if (sp->sp_healthy) {
-                log_errx("KVDB %s is in bad health", err, sp->name);
+                log_errx("KVDB %s is in bad health", err, sp->kvdb_alias);
                 sp->sp_healthy = false;
             }
         }
@@ -2586,6 +2720,8 @@ sp3_destroy(struct csched *handle)
     mutex_destroy(&sp->sp_dlist_lock);
     cv_destroy(&sp->mon_cv);
 
+    rest_server_remove_endpoint("/kvdbs/%s/csched", sp->kvdb_alias);
+
     free(sp->wp);
     free(sp);
 }
@@ -2600,17 +2736,18 @@ sp3_create(
     struct kvdb_health * health,
     struct csched      **handle)
 {
-    const char *restname = "csched";
+    static rest_handler *handlers[REST_METHOD_COUNT] = {
+        [REST_METHOD_GET] = rest_csched_sp3_get,
+    };
+
+    merr_t err;
     struct sp3 *sp;
-    merr_t      err;
-    size_t      name_sz, alloc_sz;
-    uint        tx;
+    size_t alloc_sz;
 
     INVARIANT(rp && kvdb_alias && handle);
 
-    /* Allocate cache aligned space for struct csched + sp->name */
-    name_sz = strlen(restname) + strlen(kvdb_alias) + 2;
-    alloc_sz = sizeof(*sp) + name_sz;
+    /* Allocate cache aligned space for struct csched */
+    alloc_sz = sizeof(*sp);
     alloc_sz = roundup(alloc_sz, __alignof__(*sp));
 
     sp = aligned_alloc(__alignof__(*sp), alloc_sz);
@@ -2618,18 +2755,18 @@ sp3_create(
         return merr(ENOMEM);
 
     memset(sp, 0, alloc_sz);
-    snprintf(sp->name, name_sz, "%s/%s", restname, kvdb_alias);
-
     sp->rp = rp;
     sp->health = health;
-    sp->sp_healthy = true;
-    sp->sp_sval_min = THROTTLE_SENSOR_SCALE / 2;
+    sp->kvdb_alias = kvdb_alias;
+
+    mutex_init(&sp->mon_lock);
+    cv_init(&sp->mon_cv);
 
     INIT_LIST_HEAD(&sp->mon_tlist);
     INIT_LIST_HEAD(&sp->spn_alist);
     INIT_LIST_HEAD(&sp->spn_rlist);
 
-    for (tx = 0; tx < NELEM(sp->rbt); tx++)
+    for (size_t tx = 0; tx < NELEM(sp->rbt); tx++)
         sp->rbt[tx] = RB_ROOT;
 
     atomic_set(&sp->running, 1);
@@ -2641,13 +2778,13 @@ sp3_create(
 
     mutex_init_adaptive(&sp->sp_dlist_lock);
     atomic_set(&sp->sp_dlist_idx, 0);
-    for (uint i = 0; i < NELEM(sp->sp_dtree_listv); ++i)
+    for (size_t i = 0; i < NELEM(sp->sp_dtree_listv); ++i)
         INIT_LIST_HEAD(&sp->sp_dtree_listv[i]);
 
     atomic_set(&sp->sp_ingest_count, 0);
     atomic_set(&sp->sp_trees_count, 0);
 
-    err = sts_create(sp->name, SP3_QNUM_MAX, sp3_job_print, &sp->sts);
+    err = sts_create("%s/%s", SP3_QNUM_MAX, &sp->sts, "hse_csched/%s", kvdb_alias);
     if (ev(err))
         goto err_exit;
 
@@ -2657,10 +2794,15 @@ sp3_create(
         goto err_exit;
     }
 
+    err = rest_server_add_endpoint(REST_ENDPOINT_EXACT, handlers, sp, "/kvdbs/%s/csched", kvdb_alias);
+    if (ev_warn(err))
+        log_warnx("Failed to add /kvdbs/%s/csched REST endpoint", err, kvdb_alias);
+
     INIT_WORK(&sp->mon_work, sp3_monitor);
     queue_work(sp->mon_wq, &sp->mon_work);
 
     *handle = (void *)sp;
+
     return 0;
 
 err_exit:

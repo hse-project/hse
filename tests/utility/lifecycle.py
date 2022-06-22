@@ -3,14 +3,15 @@
 # Copyright (C) 2021-2022 Micron Technology, Inc. All rights reserved.
 
 import errno
-import os
 from contextlib import ContextDecorator
 from types import TracebackType
-from typing import Iterable, Optional, Type, Union
+from typing import TYPE_CHECKING, Iterable, Optional, Type, Union
 
-from utility import cli
+if TYPE_CHECKING:
+    import os
 
 from hse3 import hse
+from utility import cli
 
 
 class KvdbContext(ContextDecorator):

@@ -97,23 +97,45 @@ components = {
     'kvdb': {
         'ikvdb_test': {},
         'kvdb_cparams_test': {},
+        'kvdb_ctxn_pfxlock_test': {},
         'kvdb_ctxn_test': {},
-        'kvdb_keylock_test': {},
         'kvdb_health_test': {},
         'kvdb_home_test': {},
+        'kvdb_keylock_test': {},
         'kvdb_meta_test': {
             'args': [
                 meson.current_source_dir() / 'kvdb/kvdb-meta-files',
             ],
         },
-        'kvdb_rest_test': {},
+        'kvdb_pfxlock_test': {},
+        'kvdb_rest_test': {
+            'dependencies': [
+                cjson_dep,
+                libcurl_dep,
+                libhse_cli_dep,
+                hse_fixtures_dep,
+            ],
+            'suites': ['rest'],
+        },
         'kvdb_rparams_test': {},
         'mclass_policy_test': {},
         'omf_version_test': {},
         'throttle_test': {},
         'viewset_test': {},
-        'kvdb_pfxlock_test': {},
-        'kvdb_ctxn_pfxlock_test': {},
+    },
+    'kvs': {
+        'kvs_cparams_test': {},
+        'kvs_cursor_test': {},
+        'kvs_rest_test': {
+            'dependencies': [
+                cjson_dep,
+                libcurl_dep,
+                libhse_cli_dep,
+                hse_fixtures_dep,
+            ],
+            'suites': ['rest'],
+        },
+        'kvs_rparams_test': {},
     },
     'mpool': {
         'mpool_test': {
@@ -154,10 +176,20 @@ components = {
             'args': [meson.current_source_dir() / 'pidfile'],
         },
     },
-    'kvs': {
-        'kvs_cparams_test': {},
-        'kvs_cursor_test': {},
-        'kvs_rparams_test': {},
+    'rest': {
+        'global_rest_test': {
+            'dependencies': [
+                cjson_dep,
+                libcurl_dep,
+                libhse_cli_dep,
+            ],
+        },
+        'rest_test': {
+            'dependencies': [
+                libhse_cli_dep,
+                hse_rest_dep,
+            ]
+        },
     },
     'util': {
         'allocation_test': {},
@@ -203,8 +235,6 @@ components = {
         'perfc_test': {},
         'printbuf_test': {},
         'rbtree_test': {},
-        'rest_api_test': {},
-        'rest_client_test': {},
         'seqno_test': {
             'c_args': cc.get_supported_arguments('-Wno-clobbered'),
         },

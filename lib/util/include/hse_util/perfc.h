@@ -485,7 +485,7 @@ struct perfc_bkt {
 struct perfc_ctr_hdr {
     enum perfc_type     pch_type;
     u32                 pch_flags;
-    u32                 pch_prio;
+    u32                 pch_level;
 
     union {
         struct perfc_val   *pch_val;
