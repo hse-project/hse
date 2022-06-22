@@ -1708,6 +1708,7 @@ cn_comp_commit(struct cn_compaction_work *w)
     /* Log CNDB records for all kvsets before committing the mblocks.
      */
 
+    int num_added = 0;
     for (i = 0; i < w->cw_outc; i++) {
         struct kvset_meta km = {};
         uint64_t nodeid;
@@ -1772,6 +1773,7 @@ cn_comp_commit(struct cn_compaction_work *w)
             kvdb_health_error(hp, w->cw_err);
             goto done;
         }
+        ++num_added;
 
         w->cw_err = cn_mblocks_commit(w->cw_ds, 1, &w->cw_outv[i],
                                       kcompact ? CN_MUT_KCOMPACT : CN_MUT_OTHER, &ncommitted);
@@ -1807,13 +1809,19 @@ cn_comp_commit(struct cn_compaction_work *w)
 
     /* CNDB: Ack all the kvset add records.
      */
-    for (i = 0; i < w->cw_outc; i++) {
-        if (w->cw_outv[i].kblks.n_blks == 0)
-            continue;
+    {
+        int num_acked = 0;
+        for (i = 0; i < w->cw_outc; i++) {
+            if (w->cw_outv[i].kblks.n_blks == 0)
+                continue;
 
-        w->cw_err = cndb_record_kvset_add_ack(w->cw_tree->cndb, w->cw_cndb_txn, cookiev[i]);
-        if (ev(w->cw_err))
-            goto done;
+            w->cw_err = cndb_record_kvset_add_ack(w->cw_tree->cndb, w->cw_cndb_txn, cookiev[i]);
+            if (ev(w->cw_err))
+                goto done;
+
+            ++num_acked;
+        }
+        assert(num_added == num_acked);
     }
 
     w->cw_err = spill ? cn_comp_commit_spill(w, kvsets) :
