@@ -1388,12 +1388,12 @@ sp3_job_print(struct sts_job *job, void *priv, char *buf, size_t bufsz)
         n = snprintf(buf, bufsz,
                      "%3s %6s %5s %7s %-7s"
                      " %2s %1s %5s %6s %6s %4s"
-                     " %4s %5s %3s %4s"
+                     " %4s %5s %3s %3s %4s"
                      " %6s %6s %6s %6s"
                      " %8s %4s %s\n",
                      "ID", "LOC   ", "JOB", "ACTION", "RULE",
                      "Q", "T", "KVSET", "ALEN", "CLEN", "PCAP",
-                     "CC", "DGEN", "NK", "NV",
+                     "CC", "DGEN", "NH", "NK", "NV",
                      "RALEN", "IALEN", "LALEN", "LGOOD",
                      "WMESG", "TIME", "TNAME");
 
