@@ -200,7 +200,7 @@ print_kblk(struct blk *blk)
         omf_kbh_entries(p),
         omf_kbh_tombs(p));
     printf(
-        "    metrics: keys %u tombs %u key_bytes %u val_bytes %u\n",
+        "    metrics: keys %u tombs %u key_bytes %u val_bytes %lu\n",
         omf_kbh_entries(p),
         omf_kbh_tombs(p),
         omf_kbh_key_bytes(p),

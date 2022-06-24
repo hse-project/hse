@@ -63,7 +63,8 @@ struct wbt_node_hdr_omf {
     uint32_t wbn_kmd;      /* offset in kmd region to this node's kmd */
     uint64_t wbn_kvlen;    /* total key and value data referenced by this node */
     uint16_t wbn_pfx_len;  /* length of the longest common prefix */
-    uint16_t wbn_padding;  /* unused padding */
+    uint16_t wbn_rsvd1;    /* unused padding */
+    uint32_t wbn_rsvd2;    /* unused padding */
 } HSE_PACKED;
 
 OMF_SETGET(struct wbt_node_hdr_omf, wbn_magic, 16)
@@ -130,10 +131,12 @@ struct hblock_hdr_omf {
     /* max prefix */
     uint32_t hbh_max_pfx_off;
     uint8_t hbh_max_pfx_len;
+    uint8_t hbh_rsvd1[3];
 
     /* min prefix */
     uint32_t hbh_min_pfx_off;
     uint8_t hbh_min_pfx_len;
+    uint8_t hbh_rsvd2[3];
 } HSE_PACKED;
 
 OMF_SETGET(struct hblock_hdr_omf, hbh_magic, 32)
@@ -190,14 +193,16 @@ struct kblock_hdr_omf {
     /* metrics */
     uint32_t kbh_entries;
     uint32_t kbh_tombs;
+    uint32_t kbh_rsvd1;
     uint32_t kbh_key_bytes;
-    uint32_t kbh_val_bytes;
+    uint64_t kbh_val_bytes;
 
     /* easily accessible copies of min and max keys */
     uint32_t kbh_min_koff;
     uint32_t kbh_max_koff;
     uint16_t kbh_min_klen;
     uint16_t kbh_max_klen;
+    uint32_t kbh_rsvd2;
 
     /* WBT header */
     uint32_t kbh_wbt_hoff;
@@ -218,7 +223,7 @@ OMF_SETGET(struct kblock_hdr_omf, kbh_version, 32)
 OMF_SETGET(struct kblock_hdr_omf, kbh_entries, 32)
 OMF_SETGET(struct kblock_hdr_omf, kbh_tombs, 32)
 OMF_SETGET(struct kblock_hdr_omf, kbh_key_bytes, 32)
-OMF_SETGET(struct kblock_hdr_omf, kbh_val_bytes, 32)
+OMF_SETGET(struct kblock_hdr_omf, kbh_val_bytes, 64)
 OMF_SETGET(struct kblock_hdr_omf, kbh_min_koff, 32)
 OMF_SETGET(struct kblock_hdr_omf, kbh_min_klen, 16)
 OMF_SETGET(struct kblock_hdr_omf, kbh_max_koff, 32)
