@@ -411,18 +411,22 @@ sp3_work_leaf_len(
 
 
         /* If the resulting kvset would exceed max_vgroups, convert
-         * the k-compaction to a kv-compaction
+         * the k-compaction to a kv-compaction.
          */
         if (runlen > 0) {
             uint vgroups = 0;
 
             le = *mark;
+
             for (uint i = 0; i < runlen; i++) {
                 vgroups += kvset_get_vgroups(le->le_kvset);
+
                 if (vgroups > thresh->max_vgroups) {
                     *action = CN_ACTION_COMPACT_KV;
+                    *rule = CN_CR_VGMAX;
                     break;
                 }
+
                 le = list_prev_entry(le, le_link);
             }
         }

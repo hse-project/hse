@@ -1350,6 +1350,9 @@ sp3_comp_thread_name(
         case CN_CR_LSHORT_IDLE_VG:
             r = "iv";
             break;
+        case CN_CR_VGMAX:
+            r = "vg";
+            break;
     }
 
     if (loc->node_level == 0)
