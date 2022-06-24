@@ -1118,10 +1118,11 @@ cn_open(
     }
 
     log_info(
-        "%s/%s cnid %lu fanout %u pfx_len %u"
+        "%s/%s cnid %lu fanout %u pfx_len %u vcomp %u,%lu"
         " hb %lu%c/%lu kb %lu%c/%lu vb %lu%c/%lu %s%s%s%s%s%s",
         cn->cn_kvdb_alias, cn->cn_kvsname, (ulong)cnid,
         cn->cp->fanout, cn->cp->pfx_len,
+        cn->rp->value_compression, cn->rp->vcompmin,
         hsz >> (hshift * 10), *hszsuf, hcnt,
         ksz >> (kshift * 10), *kszsuf, kcnt,
         vsz >> (vshift * 10), *vszsuf, vcnt,
