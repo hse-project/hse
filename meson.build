@@ -182,7 +182,7 @@ libbsd_dep = dependency(
 )
 liblz4_dep = dependency(
     'liblz4',
-    version: '>=1.9.2',
+    version: ['>=1.9.2', '<2.0.0'],
     default_options: [
         'default_library=static',
         'warning_level=0',
@@ -202,7 +202,7 @@ xxhash_dep = dependency(
 )
 cjson_dep = dependency(
     'libcjson',
-    version: '>=1.7.14',
+    version: ['>=1.7.14', '<2.0.0'],
     default_options: [
         'default_library=static',
         'warning_level=0',
@@ -264,8 +264,8 @@ if cmake.found() and get_option('tools').allowed() and (not HdrHistogram_c_dep.f
     HdrHistogram_c_proj = cmake.subproject('HdrHistogram_c', options: HdrHistogram_c_options)
     HdrHistogram_c_dep = HdrHistogram_c_proj.dependency('hdr_histogram_static')
 endif
-libmongoc_dep = dependency('libmongoc-1.0', version: '>=1.17.3', required: false)
-libbson_dep = dependency('libbson-1.0', version: '>=1.17.3', required: false)
+libmongoc_dep = dependency('libmongoc-1.0', version: ['>=1.17.3', '<1.21.0'], required: false)
+libbson_dep = dependency('libbson-1.0', version: ['>=1.17.3', '<1.21.0'], required: false)
 mongo_c_driver_force_fallback = get_option('wrap_mode') == 'forcefallback' or 'mongo-c-driver' in get_option('force_fallback_for')
 if cmake.found() and get_option('tools').allowed() and (not libmongoc_dep.found()
         or not libbson_dep.found() or mongo_c_driver_force_fallback)
@@ -279,7 +279,6 @@ if cmake.found() and get_option('tools').allowed() and (not libmongoc_dep.found(
         'ENABLE_BSON': not libbson_dep.found() or mongo_c_driver_force_fallback ? 'ON' : 'OFF',
         'ENABLE_STATIC': 'ON',
         'ENABLE_AUTOMATIC_INIT_AND_CLEANUP': false,
-        'BUILD_VERSION': '1.17.3',
     })
     mongo_c_driver_options.set_override_option('werror', 'false')
     mongo_c_driver_options.set_override_option('warning_level', '0')
