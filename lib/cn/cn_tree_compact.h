@@ -45,6 +45,7 @@ enum cn_comp_rule {
     CN_CR_LSHORT_LW,      /* short leaf, light weight */
     CN_CR_LSHORT_IDLE,    /* short leaf, idle */
     CN_CR_LSHORT_IDLE_VG, /* short leaf, idle, vblk groups */
+    CN_CR_VGMAX,          /* too many vgroups */
     CN_CR_END,
 };
 
@@ -95,6 +96,8 @@ cn_comp_rule2str(enum cn_comp_rule rule)
             return "idle";
         case CN_CR_LSHORT_IDLE_VG:
             return "idlevg";
+        case CN_CR_VGMAX:
+            return "vgmax";
     }
 
     return "unknown_rule";
