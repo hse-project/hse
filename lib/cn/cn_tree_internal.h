@@ -141,10 +141,6 @@ struct cn_tree {
  * @tn_busycnt:      count of jobs and kvsets being compacted/spilled
  * @tn_destroy_work: used for async destroy
  * @tn_hlog:         hyperloglog structure
- * @tn_add_cntr:
- * @tn_rem_cntr:
- * @tn_stats_add_cntr:
- * @tn_stats_rem_cntr:
  * @tn_ns:           metrics about node to guide node compaction decisions
  * @tn_loc:          location of node within tree
  * @tn_pfx_spill:    true if spills/scans from this node use the prefix hash
@@ -157,7 +153,6 @@ struct cn_tree_node {
     struct mutex     tn_rspills_lock;
     struct list_head tn_rspills;
     bool             tn_rspills_wedged;
-    uint16_t         tn_childc;
     atomic_int       tn_compacting;
     atomic_uint      tn_busycnt;
 
@@ -172,9 +167,9 @@ struct cn_tree_node {
     u64                  tn_size_max;
     u64                  tn_update_incr_dgen;
 
-    uint64_t             tn_nodeid;
-
     struct cn_node_loc   tn_loc HSE_L1D_ALIGNED;
+    uint64_t             tn_nodeid;
+    uint16_t             tn_childc;
     uint                 tn_cgen;
     struct list_head     tn_kvset_list; /* head = newest kvset */
     struct cn_tree *     tn_tree;
