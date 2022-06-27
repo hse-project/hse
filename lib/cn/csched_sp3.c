@@ -145,12 +145,13 @@ struct mpool;
  */
 
 /* Leaf Node Red-Black Trees */
-#define RBT_L_PCAP  0 /* leaf nodes sorted by pct capacity */
-#define RBT_L_GARB  1 /* leaf nodes sorted by garbage */
-#define RBT_L_LEN   2 /* leaf nodes sorted by #kvsets */
-#define RBT_L_IDLE  3  /* leaf nodes sorted by ttl */
+#define RBT_L_PCAP  0   /* leaf nodes sorted by pct capacity */
+#define RBT_L_GARB  1   /* leaf nodes sorted by garbage */
+#define RBT_L_LEN   2   /* leaf nodes sorted by #kvsets */
+#define RBT_L_IDLE  3   /* leaf nodes sorted by ttl */
+#define RBT_L_SCAT  4   /* leaf nodes sorted by vgroup scatter */
 
-static_assert(RBT_L_IDLE + 1 == RBT_MAX, "RBT_MAX is too small or too large");
+static_assert(RBT_L_SCAT + 1 == RBT_MAX, "RBT_MAX is too small or too large");
 
 #define CSCHED_SAMP_MAX_MIN  100
 #define CSCHED_SAMP_MAX_MAX  999
@@ -891,12 +892,41 @@ sp3_unlink_all_nodes(struct sp3 *sp, struct cn_tree *tree)
 static_assert(NELEM(((struct sp3_node *)0)->spn_rbe) == RBT_MAX,
               "number of elements of spn_rbe[] is not RBT_MAX");
 
+/* "Scatter" is a measurement of the contiguity in virtual memory of a kvset's
+ * values relative to its keys.  For example, a kvset with (scatter == 1) means
+ * that for every key (n), the value for key (n+1) will immediately follow the
+ * value for key (n) in virtual memory.  The probability that the preceding is
+ * true decreases as the scatter increases.  Similarly, the probability that
+ * accessing a value will incur a TLB miss or a page fault is directionally
+ * proportional to scatter.
+ *
+ * Scatter is a direct consequence of k-compaction, where each k-compaction
+ * will typically amplify scatter by 4x or more.  Conversely, a kv-compaction
+ * completely eliminates scatter, returning the measurement to 1.
+ */
+static uint
+sp3_scatter(struct cn_tree_node *tn)
+{
+    struct kvset_list_entry *le;
+    uint scatter = 0;
+
+    list_for_each_entry(le, &tn->tn_kvset_list, le_link) {
+        uint vgroups = kvset_get_vgroups(le->le_kvset);
+
+        if (vgroups > 1)
+            scatter += vgroups;
+    }
+
+    return scatter;
+}
+
 static void
 sp3_dirty_node_locked(struct sp3 *sp, struct cn_tree_node *tn)
 {
     struct sp3_node *spn = tn2spn(tn);
     uint64_t nkvsets_total, nkvsets, nkeys;
     uint garbage = 0, jobs;
+    uint scatter = 0;
 
     /* Skip if node hasn't changed since last time we inserted
      * it into the work trees.
@@ -972,6 +1002,17 @@ sp3_dirty_node_locked(struct sp3 *sp, struct cn_tree_node *tn)
             sp3_node_remove(sp, spn, RBT_L_GARB);
         }
 
+        /* RBT_L_SCAT: leaf nodes sorted by vgroup scatter and garbage.
+         */
+        scatter = sp3_scatter(tn);
+        if (scatter > 0) {
+            uint64_t weight = ((uint64_t)scatter << 32) | garbage;
+
+            sp3_node_insert(sp, spn, RBT_L_SCAT, weight);
+        } else {
+            sp3_node_remove(sp, spn, RBT_L_SCAT);
+        }
+
         /* RBT_L_PCAP: Leaf nodes sorted by pct capacity and secondarily by
          * number of keys.  If the node's size doesn't exceed the "pop_pct"
          * threshold then we check to see if the number of keys exceeds the
@@ -1010,6 +1051,7 @@ sp3_dirty_node_locked(struct sp3 *sp, struct cn_tree_node *tn)
             SLOG_FIELD("nd_len", "%lu", (ulong)nkvsets_total),
             SLOG_FIELD("alen", "%lu", (ulong)cn_ns_alen(&tn->tn_ns)),
             SLOG_FIELD("garbage", "%u", garbage),
+            SLOG_FIELD("scatter", "%u", scatter),
             SLOG_END);
     }
 }
@@ -1350,8 +1392,11 @@ sp3_comp_thread_name(
         case CN_CR_LSHORT_IDLE_VG:
             r = "iv";
             break;
-        case CN_CR_VGMAX:
-            r = "vg";
+        case CN_CR_LSCATF:
+            r = "fs";
+            break;
+        case CN_CR_LSCATP:
+            r = "ps";
             break;
     }
 
@@ -1389,7 +1434,7 @@ sp3_job_print(struct sts_job *job, void *priv, char *buf, size_t bufsz)
 
     if (!jps->hdr) {
         n = snprintf(buf, bufsz,
-                     "%3s %6s %5s %7s %-7s"
+                     "%3s %6s %7s %7s %-7s"
                      " %2s %1s %5s %6s %6s %4s"
                      " %4s %5s %3s %3s %4s"
                      " %6s %6s %6s %6s"
@@ -1412,7 +1457,7 @@ sp3_job_print(struct sts_job *job, void *priv, char *buf, size_t bufsz)
     snprintf(tmbuf, sizeof(tmbuf), "%lu:%02lu", (tm / 60) % 60, tm % 60);
 
     m = snprintf(buf, bufsz,
-                 "%3lu %u,%-4u %5u %7s %-7s"
+                 "%3lu %u,%-4u %7u %7s %-7s"
                  " %2u %1u %2u,%-2u %6lu %6lu %4u"
                  " %4u %5lu %3u %3u %4u"
                  " %6ld %6ld %6ld %6ld"
@@ -1899,6 +1944,7 @@ sp3_schedule(struct sp3 *sp)
         jtype_leaf_len,
         jtype_leaf_idle,
         jtype_leaf_garbage,
+        jtype_leaf_scatter,
         jtype_leaf_size,
         jtype_MAX,
     };
@@ -1999,6 +2045,19 @@ sp3_schedule(struct sp3 *sp)
 
                 job = sp3_check_rb_tree(sp, RBT_L_GARB, thresh, wtype_leaf_garbage, qnum);
             }
+            break;
+
+        case jtype_leaf_scatter:
+            qnum = SP3_QNUM_LSCAT;
+            if (qfull(sp, qnum)) {
+                qnum = SP3_QNUM_SHARED;
+                if (qfull(sp, qnum))
+                    break;
+            }
+
+            thresh = (uint64_t)sp->thresh.max_vgroups << 32;
+
+            job = sp3_check_rb_tree(sp, RBT_L_SCAT, thresh, wtype_leaf_scatter, qnum);
             break;
 
         case jtype_leaf_size:
