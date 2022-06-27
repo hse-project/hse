@@ -345,7 +345,7 @@ sp3_work_leaf_scatter(
 
     kvsets = cn_ns_kvsets(&tn->tn_ns);
 
-    /* Find the oldest kvset which has vgroup scatter...
+    /* Find the oldest kvset which has vgroup scatter.
      */
     list_for_each_entry_reverse(le, head, le_link) {
         if (kvset_get_vgroups(le->le_kvset) > 1) {
@@ -370,13 +370,18 @@ sp3_work_leaf_scatter(
         --kvsets;
     }
 
-    /* Trim the youngest kvsets that don't have any scatter...
+    /* Trim the youngest kvsets that don't have any scatter.  If there
+     * are no kvsets then likely what happened is that a GC operation
+     * got in ahead of us and eliminated all the scatter.
      */
-    list_for_each_entry(le, head, le_link) {
-        if (kvset_get_vgroups(le->le_kvset) > 1)
-            break;
+    if (kvsets > 1) {
+        list_for_each_entry(le, head, le_link) {
+            if (kvset_get_vgroups(le->le_kvset) > 1)
+                break;
 
-        --kvsets;
+            assert(le != *mark);
+            --kvsets;
+        }
     }
 
     return min_t(uint, kvsets, thresh->lcomp_kvsets_max);

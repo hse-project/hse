@@ -905,7 +905,7 @@ static_assert(NELEM(((struct sp3_node *)0)->spn_rbe) == RBT_MAX,
  * completely eliminates scatter, returning the measurement to 1.
  */
 static uint
-sp3_scatter(struct cn_tree_node *tn)
+sp3_scatter(const struct cn_tree_node *tn)
 {
     struct kvset_list_entry *le;
     uint scatter = 0;
