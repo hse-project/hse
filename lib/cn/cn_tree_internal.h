@@ -156,7 +156,6 @@ struct cn_tree {
 struct cn_tree_node {
     struct mutex     tn_rspills_lock;
     struct list_head tn_rspills;
-    u64              tn_biggest_kvset; /* key count */
     bool             tn_rspills_wedged;
     uint16_t         tn_childc;
     atomic_int       tn_compacting;
