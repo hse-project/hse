@@ -1812,7 +1812,7 @@ cn_comp_commit(struct cn_compaction_work *w)
     {
         int num_acked = 0;
         for (i = 0; i < w->cw_outc; i++) {
-            if (w->cw_outv[i].kblks.n_blks == 0)
+            if (!w->cw_outv[i].hblk.bk_blkid)
                 continue;
 
             w->cw_err = cndb_record_kvset_add_ack(w->cw_tree->cndb, w->cw_cndb_txn, cookiev[i]);
