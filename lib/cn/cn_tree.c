@@ -437,7 +437,6 @@ tn_samp_clear(struct cn_tree_node *tn)
     memset(&tn->tn_ns, 0, sizeof(tn->tn_ns));
     memset(&tn->tn_samp, 0, sizeof(tn->tn_samp));
 
-    tn->tn_biggest_kvset = 0;
     tn->tn_update_incr_dgen = 0;
 }
 
@@ -458,9 +457,6 @@ tn_samp_update_incr(struct cn_tree_node *tn, struct kvset *kvset, bool force)
     if (tn->tn_update_incr_dgen < dgen)
         tn->tn_update_incr_dgen = dgen;
 
-    if (tn->tn_biggest_kvset < cn_ns_keys(&tn->tn_ns))
-        tn->tn_biggest_kvset = cn_ns_keys(&tn->tn_ns);
-
     return true;
 }
 
@@ -479,9 +475,7 @@ tn_samp_update_finish(struct cn_tree_node *tn)
      */
     if (tn->tn_hlog) {
         s->ns_keys_uniq = hlog_card(tn->tn_hlog);
-        if (s->ns_keys_uniq < tn->tn_biggest_kvset)
-            s->ns_keys_uniq = tn->tn_biggest_kvset;
-        else if (s->ns_keys_uniq > num_keys)
+        if (s->ns_keys_uniq > num_keys)
             s->ns_keys_uniq = num_keys;
     } else {
         s->ns_keys_uniq = num_keys;

@@ -28,6 +28,7 @@ enum sp3_qnum {
     SP3_QNUM_ROOT,
     SP3_QNUM_LLEN,
     SP3_QNUM_LGARB,
+    SP3_QNUM_LSCAT,
     SP3_QNUM_LSIZE,
     SP3_QNUM_SHARED,
     SP3_QNUM_MAX
@@ -39,6 +40,7 @@ enum sp3_qnum {
     ((5ul << (8 * SP3_QNUM_ROOT)) |             \
      (5ul << (8 * SP3_QNUM_LLEN)) |             \
      (1ul << (8 * SP3_QNUM_LGARB)) |            \
+     (1ul << (8 * SP3_QNUM_LSCAT)) |            \
      (1ul << (8 * SP3_QNUM_LSIZE)) |            \
      (2ul << (8 * SP3_QNUM_SHARED)))
 

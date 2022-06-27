@@ -23,6 +23,7 @@ enum sp3_work_type {
     wtype_node_len,     /* all nodes: number of kvsets */
     wtype_node_idle,    /* internal+leaf nodes: kcompact/kvcompact */
     wtype_leaf_garbage, /* leaf nodes: garbage */
+    wtype_leaf_scatter, /* leaf nodes: vgroup scatter */
     wtype_leaf_size,    /* leaf nodes: size */
 };
 
