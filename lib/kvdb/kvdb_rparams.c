@@ -806,7 +806,7 @@ static const struct param_spec pspecs[] = {
         .ps_stringify = param_default_stringify,
         .ps_jsonify = param_default_jsonify,
         .ps_default_value = {
-            .as_uscalar = 32,
+            .as_uscalar = 64,
         },
         .ps_bounds = {
             .as_uscalar = {

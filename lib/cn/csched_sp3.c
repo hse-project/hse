@@ -913,7 +913,10 @@ sp3_scatter(const struct cn_tree_node *tn)
     list_for_each_entry(le, &tn->tn_kvset_list, le_link) {
         uint vgroups = kvset_get_vgroups(le->le_kvset);
 
-        if (vgroups > 1)
+        /* Include the youngest kvsets with no scatter, but exclude
+         * the oldest contiguous kvsets with no scatter.
+         */
+        if (scatter + vgroups > 1)
             scatter += vgroups;
     }
 

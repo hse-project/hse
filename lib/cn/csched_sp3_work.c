@@ -375,8 +375,10 @@ sp3_work_leaf_scatter(
      * got in ahead of us and eliminated all the scatter.
      */
     if (kvsets > 1) {
+        uint skip = thresh->llen_runlen_min;
+
         list_for_each_entry(le, head, le_link) {
-            if (kvset_get_vgroups(le->le_kvset) > 1)
+            if (kvset_get_vgroups(le->le_kvset) > 1 || !skip--)
                 break;
 
             assert(le != *mark);
@@ -410,6 +412,7 @@ sp3_work_leaf_len(
         struct kvset_list_entry *le;
         struct list_head *head;
         uint compc = UINT_MAX;
+        uint scatter = 0;
         uint runlen = 0;
         uint tmp;
 
@@ -419,6 +422,11 @@ sp3_work_leaf_len(
         *rule = CN_CR_LLONG;
 
         list_for_each_entry_reverse (le, head, le_link) {
+            uint vgroups = kvset_get_vgroups(le->le_kvset);
+
+            if (scatter + vgroups > 1)
+                scatter += vgroups; /* same as sp3_scatter() */
+
             tmp = kvset_get_compc(le->le_kvset);
             if (compc != tmp && runlen < runlen_min) {
                 compc = tmp;
@@ -429,8 +437,23 @@ sp3_work_leaf_len(
             }
         }
 
-        if (runlen >= runlen_min)
+        /* If we have a sufficiently long run of kvsets with the same compc:
+         *
+         * 1) If scatter is low then kcompact the full run length of kvsets.
+         *
+         * 2) Otherwise, if scatter is high and the run length is longer than
+         * the minimum then kcompact just the minimum run length in order to keep
+         * the node length from growing too long while awaiting a scatter job.
+         *
+         * 3) Lastly, if scatter is high then defer the kcompact in hopes that
+         * a scatter job will run and perform a kv-compaction.
+         */
+        if (runlen >= runlen_min) {
+            if (scatter >= thresh->max_vgroups)
+                runlen = (runlen > runlen_min) ? runlen_min : 0;
+
             return runlen;
+        }
 
         /* Don't let lightweight nodes grow too long.  For the most part
          * this only applies to "index" nodes (i.e., nodes where the values
