@@ -47,46 +47,31 @@ reverse_kblk_iterator_next(struct element_source *source, void **data)
     if (iter->eof)
         return false;
 
-    assert(iter->offset > 0);
+    assert(iter->offset < iter->ks->ks_st.kst_kblks);
 
-    *data = &iter->ks->ks_kblks[--iter->offset];
+    *data = &iter->ks->ks_kblks[iter->offset];
 
-    if (iter->offset == 0)
+    if (iter->offset == 0) {
         iter->eof = true;
+    } else {
+        iter->offset--;
+    }
 
     return true;
 }
 
-static merr_t
-reverse_kblk_iterator_create(
-    struct kvset *const ks,
-    struct reverse_kblk_iterator **const iter)
-{
-    struct reverse_kblk_iterator *tmp;
-
-    INVARIANT(ks);
-    INVARIANT(iter);
-
-    *iter = NULL;
-
-    tmp = calloc(1, sizeof(*tmp));
-    if (ev(!tmp))
-        return merr(ENOMEM);
-
-    tmp->ks = ks;
-    /* Using prefix decrement in next, so this is fine */
-    tmp->offset = ks->ks_st.kst_kblks;
-    tmp->es = es_make(reverse_kblk_iterator_next, NULL, NULL);
-
-    *iter = tmp;
-
-    return 0;
-}
-
 static void
-reverse_kblk_iterator_destroy(struct reverse_kblk_iterator *const iter)
+reverse_kblk_iterator_init(
+    struct reverse_kblk_iterator *const iter,
+    struct kvset *const ks)
 {
-    free(iter);
+    INVARIANT(iter);
+    INVARIANT(ks);
+
+    iter->ks = ks;
+    iter->eof = false;
+    iter->offset = ks->ks_st.kst_kblks - 1;
+    iter->es = es_make(reverse_kblk_iterator_next, NULL, NULL);
 }
 
 static int
@@ -112,7 +97,7 @@ find_inflection_point(
     struct bin_heap2 *bh;
     struct kvset_list_entry *le;
     struct kvset_kblk *kblk;
-    struct reverse_kblk_iterator **iters;
+    struct reverse_kblk_iterator *iters;
     struct element_source **srcs;
     void *buf = NULL;
     uint64_t num_kvsets;
@@ -133,7 +118,7 @@ find_inflection_point(
     /* Forgive me for I have sinned; allocate all necessary memory for managing
      * iterators and element sources in one go.
      */
-    buf = calloc(1, sizeof(void *) * 2 * num_kvsets);
+    buf = malloc(num_kvsets * (sizeof(*iters) + sizeof(void *)));
     if (ev(!buf)) {
         err = merr(ENOMEM);
         goto out;
@@ -144,17 +129,15 @@ find_inflection_point(
 
     list_for_each_entry(le, &node->tn_kvset_list, le_link) {
         struct kvset_metrics metrics;
-        struct reverse_kblk_iterator *iter = iters[kvset_idx];
+        struct reverse_kblk_iterator *iter = &iters[kvset_idx];
 
         kvset_get_metrics(le->le_kvset, &metrics);
 
         total_kvlen += metrics.tot_key_bytes + metrics.tot_val_bytes;
 
-        err = reverse_kblk_iterator_create(le->le_kvset, &iter);
-        if (err)
-            goto out;
+        reverse_kblk_iterator_init(iter, le->le_kvset);
 
-        srcs[kvset_idx] = &iter->es;
+        srcs[kvset_idx] = &(iter)->es;
 
         kvset_idx++;
     }
@@ -177,14 +160,9 @@ find_inflection_point(
      * starting positions of the element sources in the next bin heap.
      */
     for (uint64_t i = 0; i < num_kvsets; i++)
-        offsets[i] = iters[i]->offset;
+        offsets[i] = iters[i].offset;
 
 out:
-    if (buf) {
-        for (uint64_t i = 0; i < num_kvsets; i++)
-            reverse_kblk_iterator_destroy(iters[i]);
-    }
-
     free(buf);
     bin_heap2_destroy(bh);
 
@@ -211,51 +189,66 @@ forward_wbt_leaf_iterator_next(struct element_source *source, void **data)
 
     assert(iter->offset.leaf_idx < desc->wbd_leaf_cnt);
 
-    *data = kblk->kb_kblk_desc.map_base + PAGE_SIZE *
-        (desc->wbd_first_page + iter->offset.leaf_idx);
+    *data = kblk->kb_kblk_desc.map_base + desc->wbd_first_page * PAGE_SIZE +
+        iter->offset.leaf_idx * WBT_NODE_SIZE;
 
     assert(((struct wbt_node_hdr_omf *)(*data))->wbn_magic == WBT_LFE_NODE_MAGIC);
 
-    if (iter->offset.leaf_idx == desc->wbd_leaf_cnt) {
+    if (iter->offset.leaf_idx == desc->wbd_leaf_cnt - 1) {
         iter->offset.kblk_idx++;
+        iter->offset.leaf_idx = 0;
         if (iter->offset.kblk_idx == iter->ks->ks_st.kst_kblks)
             iter->eof = true;
+    } else {
+        iter->offset.leaf_idx++;
     }
 
     return true;
 }
 
-static merr_t
-forward_wbt_leaf_iterator_create(
+static void
+forward_wbt_leaf_iterator_init(
+    struct forward_wbt_leaf_iterator *const iter,
     struct kvset *const ks,
-    const uint32_t kblk_idx,
-    struct forward_wbt_leaf_iterator **const iter)
+    const uint32_t kblk_idx)
 {
-    struct forward_wbt_leaf_iterator *tmp;
-
     INVARIANT(ks);
     INVARIANT(iter);
+    INVARIANT(kblk_idx < ks->ks_st.kst_kblks);
 
-    *iter = NULL;
-
-    tmp = calloc(1, sizeof(*tmp));
-    if (ev(!tmp))
-        return merr(ENOMEM);
-
-    tmp->ks = ks;
+    iter->ks = ks;
+    iter->eof = false;
     /* Using prefix decrement in next, so this is fine */
-    tmp->offset.kblk_idx = kblk_idx;
-    tmp->es = es_make(forward_wbt_leaf_iterator_next, NULL, NULL);
-
-    *iter = tmp;
-
-    return 0;
+    iter->offset.kblk_idx = kblk_idx;
+    iter->offset.leaf_idx = 0;
+    iter->es = es_make(forward_wbt_leaf_iterator_next, NULL, NULL);
 }
 
-static void
-forward_wbt_leaf_iterator_destroy(struct forward_wbt_leaf_iterator *const iter)
+static int
+wbt_leaf_compare(const void *const a, const void *const b)
 {
-    free(iter);
+    const struct wbt_lfe_omf *lfe_a, *lfe_b;
+    struct key_obj key_a, key_b;
+    const struct wbt_node_hdr_omf *wbt_leaf_a = a, *wbt_leaf_b = b;
+
+    INVARIANT(a);
+    INVARIANT(b);
+
+    lfe_a = (void *)(wbt_leaf_a + 1) + wbt_leaf_a->wbn_pfx_len;
+    lfe_b = (void *)(wbt_leaf_b + 1) + wbt_leaf_b->wbn_pfx_len;
+
+    key_a.ko_pfx = wbt_leaf_a + 1;
+    key_a.ko_pfx_len = wbt_leaf_a->wbn_pfx_len;
+    key_a.ko_sfx = (void *)wbt_leaf_a + lfe_a->lfe_koff;
+    key_a.ko_sfx_len = WBT_NODE_SIZE - lfe_a->lfe_koff;
+
+    key_b.ko_pfx = wbt_leaf_b + 1;
+    key_b.ko_pfx_len = wbt_leaf_b->wbn_pfx_len;
+    key_b.ko_sfx = (void *)wbt_leaf_b + lfe_b->lfe_koff;
+    key_b.ko_sfx_len = WBT_NODE_SIZE - lfe_b->lfe_koff;
+
+    /* Return the WBT leaf node with the smallest key. */
+    return key_obj_cmp(&key_a, &key_b);
 }
 
 static merr_t
@@ -271,31 +264,31 @@ find_split_key(
     struct bin_heap2 *bh;
     struct kvset_list_entry *le;
     uint64_t num_kvsets;
-    struct forward_wbt_leaf_iterator **iters;
+    struct forward_wbt_leaf_iterator *iters;
     struct element_source **srcs;
-    struct wbt_node_hdr_omf *leaf;
     const struct wbt_lfe_omf *lfe;
+    struct wbt_node_hdr_omf *leaf;
     struct key_obj key;
     void *buf = NULL;
     uint64_t total_kvlen = 0;
     uint64_t kvset_idx = 0;
-    uint16_t len = 0;
 
     INVARIANT(node);
     INVARIANT(offsets);
+    INVARIANT(key_buf);
+    INVARIANT(key_buf_sz > 0);
+    INVARIANT(key_len);
 
     num_kvsets = cn_ns_kvsets(&node->tn_ns);
 
-    assert(seen_kvlen >= total_kvlen / 2);
-
-    err = bin_heap2_create(num_kvsets, kblk_compare, &bh);
+    err = bin_heap2_create(num_kvsets, wbt_leaf_compare, &bh);
     if (ev(err))
         return err;
 
     /* Forgive me for I have sinned; allocate all necessary memory for managing
      * iterators and element sources in one go.
      */
-    buf = calloc(1, sizeof(void *) * 2 * num_kvsets);
+    buf = malloc(num_kvsets * (sizeof(*iters) + sizeof(void *)));
     if (ev(!buf)) {
         err = merr(ENOMEM);
         goto out;
@@ -306,21 +299,20 @@ find_split_key(
 
     list_for_each_entry(le, &node->tn_kvset_list, le_link) {
         struct kvset_metrics metrics;
-        struct forward_wbt_leaf_iterator *iter = iters[kvset_idx];
+        struct forward_wbt_leaf_iterator *iter = &iters[kvset_idx];
 
         kvset_get_metrics(le->le_kvset, &metrics);
 
         total_kvlen += metrics.tot_key_bytes + metrics.tot_val_bytes;
 
-        err = forward_wbt_leaf_iterator_create(le->le_kvset, offsets[kvset_idx], &iter);
-        if (err)
-            goto out;
+        forward_wbt_leaf_iterator_init(iter, le->le_kvset, offsets[kvset_idx]);
 
-        srcs[kvset_idx] = &iter->es;
+        srcs[kvset_idx] = &(iter)->es;
 
         kvset_idx++;
     }
 
+    assert(seen_kvlen >= total_kvlen / 2);
     assert(kvset_idx == num_kvsets);
 
     err = bin_heap2_prepare(bh, num_kvsets, srcs);
@@ -329,7 +321,7 @@ find_split_key(
 
     while (bin_heap2_pop(bh, (void **)&leaf)) {
         seen_kvlen -= leaf->wbn_kvlen;
-        if (seen_kvlen <= total_kvlen / 2)
+        if (seen_kvlen <= (total_kvlen / 2))
             break;
     }
 
@@ -338,24 +330,16 @@ find_split_key(
     /* Get first leaf node entry */
     lfe = (void *)(leaf + 1) + leaf->wbn_pfx_len;
 
-    assert(len <= HSE_KVS_KEY_LEN_MAX);
-
     key.ko_pfx = leaf + 1;
     key.ko_pfx_len = leaf->wbn_pfx_len;
     key.ko_sfx = (void *)leaf + lfe->lfe_koff;
     key.ko_sfx_len = WBT_NODE_SIZE - lfe->lfe_koff;
 
-    if (key_buf)
-        key_obj_copy(key_buf, key_buf_sz, key_len, &key);
-    if (key_len)
-        *key_len = len;
+    key_obj_copy(key_buf, key_buf_sz, key_len, &key);
+
+    assert(*key_len <= HSE_KVS_KEY_LEN_MAX);
 
 out:
-    if (buf) {
-        for (uint64_t i = 0; i < num_kvsets; i++)
-            forward_wbt_leaf_iterator_destroy(iters[i]);
-    }
-
     free(buf);
     bin_heap2_destroy(bh);
 
@@ -378,11 +362,11 @@ cn_tree_node_get_split_key(
         return merr(ENOMEM);
 
     err = find_inflection_point(node, &kvlen, offsets);
-    if (err)
+    if (ev(err))
         goto out;
 
     err = find_split_key(node, kvlen, offsets, key_buf, key_buf_sz, key_len);
-    if (err)
+    if (ev(err))
         goto out;
 
 out:
