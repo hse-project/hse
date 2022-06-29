@@ -207,6 +207,9 @@ kvset_put_ref(struct kvset *ks)
         return;
 
     assert(atomic_read(&ks->ks_ref) == 0);
+    log_err("Delete txn %p Delete cookie %p", ks->ks_delete_txn, ks->ks_delete_cookie);
+    //assert(ks->ks_delete_txn);
+    //assert(ks->ks_delete_cookie);
 
     cn = cn_tree_get_cn(ks->ks_tree);
 

@@ -1316,10 +1316,13 @@ cn_tree_capped_compact(struct cn_tree *tree)
      * kvsets from cn and we are sure that there are at least kvset_cnt
      * kvsets in the node.
      */
-    for (le = last; le == mark; le = list_prev_entry(le, le_link)) {
+    le = mark;
+    while (1) {
         err = kvset_delete_log_record(le->le_kvset, cndb_txn);
-        if (ev(err))
+        if (ev(err) || le == last)
             break;
+
+        le = list_next_entry(le, le_link);
     }
 
     if (ev(err)) {
@@ -1799,6 +1802,7 @@ cn_comp_commit(struct cn_compaction_work *w)
      */
     for (i = 0, le = w->cw_mark; i < w->cw_kvset_cnt; i++) {
         assert(le);
+        assert(w->cw_cndb_txn);
 
         w->cw_err = kvset_delete_log_record(le->le_kvset, w->cw_cndb_txn);
         if (ev(w->cw_err))
