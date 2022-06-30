@@ -7,7 +7,7 @@ on:
       - "docs/**"
       - "include/**/*.h"
       - "include/**/*.h.in"
-      - .github/workflows/docs.yml
+      - .github/workflows/docs.yaml
 
 concurrency:
   group: ${{ github.workflow }}-ignore-${{ github.head_ref }}

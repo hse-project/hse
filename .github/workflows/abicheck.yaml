@@ -12,6 +12,7 @@ on:
       - "!.github/workflows/abicheck.yaml"
       - .clang-format
       - .gitattributes
+      - .github/dependabot.yaml
       - .gitignore
       - .shellcheckrc
       - LICENSE
