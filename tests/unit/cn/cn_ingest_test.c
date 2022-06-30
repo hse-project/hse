@@ -213,7 +213,7 @@ MTF_DEFINE_UTEST_PRE(cn_ingest_test, commit_delete, test_pre)
      */
     init_mblks(m, n_kvsets, &k, &v);
     mapi_calls_clear(mapi_idx_mpool_mblock_delete);
-    cn_mblocks_destroy(mock_ds, n_kvsets, m, 0, 1 + k + v); /* 1 for hblock */
+    cn_mblocks_destroy(mock_ds, n_kvsets, m, 0, n_kvsets * (1 + k + v)); /* 1 for hblock */
     ASSERT_EQ(mapi_calls(mapi_idx_mpool_mblock_delete), n_kvsets * (1 + k + v)); /* 1 for hblock */
     free_mblks(m, n_kvsets);
 
@@ -222,8 +222,8 @@ MTF_DEFINE_UTEST_PRE(cn_ingest_test, commit_delete, test_pre)
      */
     init_mblks(m, n_kvsets, &k, &v);
     mapi_calls_clear(mapi_idx_mpool_mblock_delete);
-    cn_mblocks_destroy(mock_ds, n_kvsets, m, 1, k + v);
-    ASSERT_EQ(mapi_calls(mapi_idx_mpool_mblock_delete), n_kvsets * k);
+    cn_mblocks_destroy(mock_ds, n_kvsets, m, 1, n_kvsets * (1 + k));
+    ASSERT_EQ(mapi_calls(mapi_idx_mpool_mblock_delete), n_kvsets * (1 + k)); /* 1 for hblock */
     free_mblks(m, n_kvsets);
 }
 
