@@ -115,7 +115,7 @@ _make_common(
     memset(&tree, 0, sizeof(tree));
     tree.mp = ds;
 
-    err = kvset_create(&tree, 0, km, &kvset);
+    err = kvset_open(&tree, 0, km, &kvset);
     if (err)
         return err;
 
@@ -218,7 +218,7 @@ mock_make_vblocks(struct kv_iterator **kvi, struct kvs_rparams *rp, int nv)
  */
 
 static merr_t
-_kvset_create(struct cn_tree *tree, u64 tag, struct kvset_meta *km, struct kvset **handle)
+_kvset_open(struct cn_tree *tree, u64 tag, struct kvset_meta *km, struct kvset **handle)
 {
     struct mock_kvset *mk;
     size_t             alloc_sz;
@@ -653,7 +653,7 @@ mock_kvset_set(void)
 
     mapi_inject_list_set(inject_list);
 
-    MOCK_SET(kvset, _kvset_create);
+    MOCK_SET(kvset, _kvset_open);
     MOCK_SET(kvset, _kvset_get_nth_vblock_len);
     MOCK_SET(kvset, _kvset_list_add);
     MOCK_SET(kvset, _kvset_list_add_tail);
@@ -680,7 +680,7 @@ mock_kvset_unset(void)
 {
     mapi_inject_list_unset(inject_list);
 
-    MOCK_UNSET(kvset, _kvset_create);
+    MOCK_UNSET(kvset, _kvset_open);
     MOCK_UNSET(kvset, _kvset_get_nth_vblock_len);
     MOCK_UNSET(kvset, _kvset_list_add);
     MOCK_UNSET(kvset, _kvset_list_add_tail);

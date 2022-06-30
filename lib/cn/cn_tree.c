@@ -1717,7 +1717,7 @@ cn_comp_commit(struct cn_compaction_work *w)
         km.km_dgen = w->cw_dgen_hi;
         km.km_vused = w->cw_outv[i].bl_vused;
 
-        /* Lend hblk, kblk, and vblk lists to kvset_create().
+        /* Lend hblk, kblk, and vblk lists to kvset_open().
          * Yes, the struct copy is a bit gross, but it works and
          * avoids unnecessary allocations of temporary lists.
          */
@@ -1777,10 +1777,10 @@ cn_comp_commit(struct cn_compaction_work *w)
         w->cw_commitc += ncommitted;
 
         if (use_mbsets) {
-            w->cw_err = kvset_create2(w->cw_tree, w->cw_kvsetidv[i], &km,
+            w->cw_err = kvset_open2(w->cw_tree, w->cw_kvsetidv[i], &km,
                                       w->cw_kvset_cnt, cnts, vecs, &kvsets[i]);
         } else {
-            w->cw_err = kvset_create(w->cw_tree, w->cw_kvsetidv[i], &km, &kvsets[i]);
+            w->cw_err = kvset_open(w->cw_tree, w->cw_kvsetidv[i], &km, &kvsets[i]);
         }
 
         if (ev(w->cw_err))

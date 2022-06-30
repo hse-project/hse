@@ -637,7 +637,7 @@ cn_ingest_prep(
     if (ev(err))
         goto done;
 
-    err = kvset_create(cn->cn_tree, kvsetid, &km, kvsetp);
+    err = kvset_open(cn->cn_tree, kvsetid, &km, kvsetp);
 
 done:
     if (err) {
@@ -869,7 +869,7 @@ cn_kvset_cb(struct cndb_cn_ctx *ctx, struct kvset_meta *km, u64 kvsetid)
         map_insert_ptr(ctx->nodemap, km->km_nodeid, node);
     }
 
-    err = kvset_create(cn->cn_tree, kvsetid, km, &kvset);
+    err = kvset_open(cn->cn_tree, kvsetid, km, &kvset);
     if (ev(err))
         return err;
 

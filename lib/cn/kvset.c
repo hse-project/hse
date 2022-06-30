@@ -85,7 +85,7 @@
  * At this point, it is possible there was a scan in progress, and the ref
  * count is greater than one.  But is no longer possible for another
  * scan to find this kvset.  The delete flag must be set while holding
- * the ref, which ensures the final put ref will call kvset_destroy
+ * the ref, which ensures the final put ref will call kvset_close()
  * and correctly handling mblock deletion.
  */
 
@@ -135,7 +135,7 @@ lvx2vbd(struct kvset *ks, uint i)
 }
 
 static void
-_kvset_destroy(struct kvset *ks);
+_kvset_close(struct kvset *ks);
 
 void
 kvset_get_ref(struct kvset *ks)
@@ -175,7 +175,7 @@ kvset_put_ref_final(struct kvset *ks)
         return;
     }
 
-    /* If 'callbacks_pending' is true, then kvset_destroy() will
+    /* If 'callbacks_pending' is true, then kvset_close() will
      * be invoked on the last mbset destructor callback.  It may
      * well happen on this call stack on the final loop iteration.
      * So once this loop is done, no more touchy the kvset.
@@ -187,7 +187,7 @@ kvset_put_ref_final(struct kvset *ks)
         mbset_put_ref(ks->ks_vbsetv[i]);
 
     if (!callbacks_pending)
-        _kvset_destroy(ks);
+        _kvset_close(ks);
 }
 
 static void
@@ -431,7 +431,7 @@ vblock_udata_update(
 }
 
 merr_t
-kvset_create2(
+kvset_open2(
     struct cn_tree *   tree,
     uint64_t           kvsetid,
     struct kvset_meta *km,
@@ -848,12 +848,12 @@ done:
     return 0;
 
 err_exit:
-    _kvset_destroy(ks);
+    _kvset_close(ks);
     return err;
 }
 
 merr_t
-kvset_create(struct cn_tree *tree, uint64_t kvsetid, struct kvset_meta *km, struct kvset **ks)
+kvset_open(struct cn_tree *tree, uint64_t kvsetid, struct kvset_meta *km, struct kvset **ks)
 {
     merr_t         err;
     uint           n_vblks = km->km_vblk_list.n_blks;
@@ -888,10 +888,10 @@ kvset_create(struct cn_tree *tree, uint64_t kvsetid, struct kvset_meta *km, stru
         vbsetc = 1;
     }
 
-    /* kvset_create2 takes its own mbset ref, must free ours
-     * unconditionally after calling kvset_create2.
+    /* kvset_open2 takes its own mbset ref, must free ours
+     * unconditionally after calling kvset_open2.
      */
-    err = kvset_create2(tree, kvsetid, km, len, &vbsetc, &vbsetv, ks);
+    err = kvset_open2(tree, kvsetid, km, len, &vbsetc, &vbsetv, ks);
     ev(err);
 
     if (n_vblks)
@@ -929,7 +929,7 @@ _kvset_mbset_destroyed(void *rock, bool mblk_delete_error)
 
     cn = cn_tree_get_cn(ks->ks_tree);
 
-    _kvset_destroy(ks);
+    _kvset_close(ks);
     cn_ref_put(cn);
 }
 
@@ -993,7 +993,7 @@ cleanup_kblocks(struct kvset *ks)
 }
 
 static void
-_kvset_destroy(struct kvset *ks)
+_kvset_close(struct kvset *ks)
 {
     assert(ks);
     assert(atomic_read(&ks->ks_ref) == 0);

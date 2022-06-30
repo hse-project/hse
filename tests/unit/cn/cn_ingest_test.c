@@ -40,7 +40,7 @@ struct injections {
 struct injections injections[] = {
 
     /* kvset */
-    { 0, mapi_idx_kvset_create },
+    { 0, mapi_idx_kvset_open },
     { 0, mapi_idx_kvset_put_ref },
     { 0, mapi_idx_kvset_get_ref },
     { 0, mapi_idx_kvset_delete_log_record },
@@ -291,10 +291,10 @@ MTF_DEFINE_UTEST_PRE(cn_ingest_test, fail_cleanup, test_pre)
 
     /* kvset create failure */
     init_mblks(m, n_kvsets, &k, &v);
-    mapi_inject(mapi_idx_kvset_create, merr(EBADF));
+    mapi_inject(mapi_idx_kvset_open, merr(EBADF));
     err = cn_ingestv(cnv, mbv, kvsetidv, NELEM(cnv), U64_MAX, U64_MAX, NULL, NULL);
     ASSERT_EQ(merr_errno(err), EBADF);
-    mapi_inject(mapi_idx_kvset_create, 0);
+    mapi_inject(mapi_idx_kvset_open, 0);
     free_mblks(m, n_kvsets);
 
     cn_tree_destroy(cn.cn_tree);
