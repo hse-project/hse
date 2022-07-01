@@ -210,6 +210,7 @@ cjson_dep = dependency(
         'tests=false',
     ],
 )
+cjson_utils_dep = dependency('libcjson_utils', version: ['>=1.7.14', '<2.0.0'])
 libmicrohttpd_dep = dependency(
     'libmicrohttpd',
     version: '>=0.9.59',
