@@ -103,6 +103,7 @@ hse_dependencies = [
     xxhash_dep,
     liblz4_dep,
     cjson_dep,
+    cjson_utils_dep,
     hyperloglog_dep,
     libbsd_dep,
     libcurl_dep,
