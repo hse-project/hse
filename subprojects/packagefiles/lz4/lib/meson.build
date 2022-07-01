@@ -18,5 +18,5 @@ liblz4_dep = declare_dependency(
     version: meson.project_version(),
     include_directories: [
         include_directories('.'),
-    ],
+    ]
 )
