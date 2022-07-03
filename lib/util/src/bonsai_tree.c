@@ -761,7 +761,7 @@ bn_reset(struct bonsai_root *tree)
     while (rcu_dereference(tree->br_gc_readyq))
         rcu_barrier();
 
-#ifndef NDEBUG
+#ifdef HSE_BUILD_DEBUG
     static thread_local uint bn_summary_calls_tls;
     char buf[384];
 

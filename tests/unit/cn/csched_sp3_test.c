@@ -344,6 +344,7 @@ struct mapi_injection inject_list[] = {
     { mapi_idx_cn_get_io_wq, MAPI_RC_PTR, NULL },
     { mapi_idx_cn_ref_get, MAPI_RC_SCALAR, 0 },
     { mapi_idx_cn_ref_put, MAPI_RC_SCALAR, 0 },
+    { mapi_idx_kvset_get_vgroups, MAPI_RC_SCALAR, 0 },
     { -1 },
 };
 

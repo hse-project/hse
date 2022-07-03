@@ -196,6 +196,25 @@ cn_node_isroot(const struct cn_tree_node *node);
 enum hse_mclass
 cn_tree_node_mclass(struct cn_tree_node *tn, enum hse_mclass_policy_dtype dtype);
 
+/**
+ * cn_tree_node_scatter()
+ * @tn: cn tree node pointer
+ *
+ * "Scatter" is a measurement of the contiguity in virtual memory of a kvset's
+ * values relative to its keys.  For example, a kvset with (scatter == 1) means
+ * that for every key (n), the value for key (n+1) will immediately follow the
+ * value for key (n) in virtual memory.  The probability that the preceding is
+ * true decreases as the scatter increases.  Similarly, the probability that
+ * accessing a value will incur a TLB miss or a page fault is directionally
+ * proportional to scatter.
+ *
+ * Scatter is a direct consequence of k-compaction, where each k-compaction
+ * will typically amplify scatter by 4x or more.  Conversely, a kv-compaction
+ * completely eliminates scatter, returning the measurement to 1.
+ */
+uint
+cn_tree_node_scatter(const struct cn_tree_node *tn);
+
 /* MTF_MOCK */
 void
 cn_comp_slice_cb(struct sts_job *job);

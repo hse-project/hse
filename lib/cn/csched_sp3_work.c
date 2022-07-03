@@ -326,65 +326,57 @@ sp3_work_leaf_garbage(
 static uint
 sp3_work_leaf_scatter(
     struct sp3_node *         spn,
-    struct sp3_thresholds *   thresh,
+    struct sp3_thresholds    *thresh,
     struct kvset_list_entry **mark,
-    enum cn_action *          action,
-    enum cn_comp_rule *       rule)
+    enum cn_action           *action,
+    enum cn_comp_rule        *rule)
 {
+    struct cn_tree_node *tn = spn2tn(spn);
     struct kvset_list_entry *le;
-    struct cn_tree_node *tn;
     struct list_head *head;
-    uint kvsets;
-
-    tn = spn2tn(spn);
+    uint runlen_max;
+    uint runlen;
 
     head = &tn->tn_kvset_list;
-    *mark = list_last_entry(head, typeof(*le), le_link);
+    *mark = list_last_entry_or_null(head, typeof(*le), le_link);
     *action = CN_ACTION_COMPACT_KV;
     *rule = CN_CR_LSCATF;
 
-    kvsets = cn_ns_kvsets(&tn->tn_ns);
+    runlen_max = thresh->lscat_runlen_max;
+    runlen = cn_ns_kvsets(&tn->tn_ns);
 
     /* Find the oldest kvset which has vgroup scatter.
      */
     list_for_each_entry_reverse(le, head, le_link) {
         if (kvset_get_vgroups(le->le_kvset) > 1) {
-            uint compc = kvset_get_compc(le->le_kvset);
-
             *mark = le;
-
-            /* Include older kvsets which have the same compc
-             * (to prevent compc misordering).
-             */
-            while (( le = list_next_entry_or_null(le, le_link, head) )) {
-                if (kvset_get_compc(le->le_kvset) > compc)
-                    break;
-
-                *mark = le;
-                ++kvsets;
-            }
             break;
         }
 
         *rule = CN_CR_LSCATP;
-        --kvsets;
+        --runlen;
     }
 
-    /* Trim the youngest kvsets that don't have any scatter.  If there
-     * are no kvsets then likely what happened is that a GC operation
-     * got in ahead of us and eliminated all the scatter.
+    /* Include the next oldest kvset if it's reasonably small
+     * (to prevent repeated scatter remediation of tiny kvsets
+     * from creating unnecessarily long nodes).
      */
-    if (kvsets > 1) {
-        list_for_each_entry(le, head, le_link) {
-            if (kvset_get_vgroups(le->le_kvset) > 1)
-                break;
+    if (runlen > 0) {
+        le = list_next_entry_or_null(*mark, le_link, head);
+        if (le) {
+            struct kvset_stats stats;
 
-            assert(le != *mark);
-            --kvsets;
+            kvset_stats(le->le_kvset, &stats);
+
+            if (stats.kst_kwlen + stats.kst_vwlen < (256ul << 20)) {
+                *mark = le;
+                ++runlen_max;
+                ++runlen;
+            }
         }
     }
 
-    return min_t(uint, kvsets, thresh->lcomp_kvsets_max);
+    return min_t(uint, runlen, runlen_max);
 }
 
 static uint
@@ -420,6 +412,7 @@ sp3_work_leaf_len(
 
         list_for_each_entry_reverse (le, head, le_link) {
             tmp = kvset_get_compc(le->le_kvset);
+
             if (compc != tmp && runlen < runlen_min) {
                 compc = tmp;
                 *mark = le;
@@ -445,16 +438,17 @@ sp3_work_leaf_len(
                 if (kvset_get_compc(le->le_kvset) >= compc)
                     break;
 
-                *mark = le;
                 ++runlen;
             }
 
             if (runlen < runlen_min) {
-                *mark = list_last_entry(head, typeof(*le), le_link);
+                le = list_last_entry(head, typeof(*le), le_link);
                 *action = CN_ACTION_COMPACT_KV;
             }
 
             *rule = CN_CR_LSHORT_LW;
+            *mark = le;
+
             return runlen_min;
         }
     }
