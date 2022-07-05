@@ -98,12 +98,12 @@ jobs:
         if: ${{ matrix.image-tag == '18.04' }}
         run: |
           apt-get -y install python3.7
-          python3.7 -m pip install meson
+          python3.7 -m pip install meson==0.62.2
 
       - name: Get Meson on Ubuntu 20.04
         if: ${{ matrix.image-tag == '20.04' }}
         run: |
-          python3 -m pip install meson
+          python3 -m pip install meson==0.62.2
 
       # Download all dependencies up front if cache wasn't hit. Will keep
       # Maven from downloading dependencies during the test phase which could
@@ -216,7 +216,7 @@ jobs:
             libcurl-devel libpmem-devel xz mongo-c-driver libbson \
             openssl-devel cyrus-sasl-devel ncurses-devel maven python3-devel \
             python3-Cython libxml2 libxslt
-          python3 -m pip install meson
+          python3 -m pip install meson==0.62.2
 
       # Download all dependencies up front if cache wasn't hit. Will keep
       # Maven from downloading dependencies during the test phase which could
@@ -317,7 +317,7 @@ jobs:
             libpmem-devel xz mongo-c-driver libbson openssl-devel \
             cyrus-sasl-devel ncurses-devel maven python39 python39-devel \
             libxml2 libxslt
-          python3 -m pip install meson Cython
+          python3 -m pip install meson==0.62.2 Cython
 
       # Download all dependencies up front if cache wasn't hit. Will keep
       # Maven from downloading dependencies during the test phase which could
@@ -419,7 +419,7 @@ jobs:
             libyaml-dev:${{ matrix.arch }} libmongoc-dev:${{ matrix.arch }} \
             libbson-dev:${{ matrix.arch }} libncurses-dev:${{ matrix.arch }} \
             maven
-          python3 -m pip install meson Cython
+          python3 -m pip install meson==0.62.2 Cython
 
       # Download all dependencies up front if cache wasn't hit. Will keep
       # Maven from downloading dependencies during the test phase which could
@@ -469,7 +469,7 @@ jobs:
             libpmem-devel xz mongo-c-driver libbson openssl-devel \
             cyrus-sasl-devel ncurses-devel libxml2-devel libxslt-devel \
             libasan libubsan
-          python3 -m pip install meson
+          python3 -m pip install meson==0.62.2
 
       - name: Setup
         run: |
@@ -538,7 +538,7 @@ jobs:
             "C Development Tools and Libraries"
           dnf install -y git python3-pip ninja-build pkg-config ncurses-devel \
             python3-devel python3-Cython maven
-          python3 -m pip install meson
+          python3 -m pip install meson==0.62.2
 
       # Download all dependencies up front if cache wasn't hit. Will keep
       # Maven from downloading dependencies during the test phase which could

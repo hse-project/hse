@@ -47,7 +47,7 @@ jobs:
             libbsd-dev openjdk-8-jdk libmicrohttpd-dev liburcu-dev libyaml-dev \
             liblz4-dev libcurl4-openssl-dev libmongoc-1.0-0 libbson-1.0-0 \
             libssl-dev libsasl2-dev
-          sudo python3 -m pip install meson Cython
+          sudo python3 -m pip install meson==0.62.2 Cython
 
       - uses: actions/checkout@v3
         with:

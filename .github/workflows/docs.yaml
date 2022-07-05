@@ -31,7 +31,7 @@ jobs:
           dnf install -y python3-pip git ninja-build libmicrohttpd-devel \
             userspace-rcu-devel libyaml-devel libbsd-devel libcurl-devel \
             libpmem-devel doxygen
-          python3 -m pip install meson
+          python3 -m pip install meson==0.62.2
 
       - name: Setup
         run: |
