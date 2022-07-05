@@ -20,8 +20,6 @@
 #include "kvset.h"
 #include "kvset_internal.h"
 
-#define SIZE_1GIB       ((size_t)1 << 30)
-
 static bool
 sp3_node_is_idle(struct cn_tree_node *tn)
 {
@@ -196,14 +194,8 @@ sp3_work_rspill(
     *action = CN_ACTION_SPILL;
     *rule = CN_CR_RSPILL;
 
-    /* Defer tiny root spills */
-    if (cn_ns_clen(&tn->tn_ns) < SIZE_1GIB) {
-
-        if (cnt < cnt_max)
-            return 0;
-
+    if (cn_ns_clen(&tn->tn_ns) < VBLOCK_MAX_SIZE)
         *rule = CN_CR_RTINY;
-    }
 
     return cnt;
 }
@@ -216,36 +208,31 @@ sp3_work_node_idle(
     enum cn_action           *action,
     enum cn_comp_rule        *rule)
 {
+    struct cn_tree_node *tn = spn2tn(spn);
     struct kvset_list_entry *le;
-    struct cn_tree_node *tn;
     struct list_head *head;
+    uint kvsets;
 
-    uint idlec = thresh->llen_idlec;
-    uint vgroups = 0;
-    uint runlen = 0;
-
-    tn = spn2tn(spn);
     head = &tn->tn_kvset_list;
-
-    /* Compact the least compacted kvsets.  Must include
-     * all kvsets compacted fewer than idlec times.
-     */
-    list_for_each_entry(le, head, le_link) {
-        if (kvset_get_compc(le->le_kvset) >= idlec)
-            break;
-
-        vgroups += kvset_get_vgroups(le->le_kvset);
-        *mark = le;
-        ++runlen;
-    }
-
-    if (runlen < SP3_LLEN_RUNLEN_MIN || runlen >= vgroups)
-        return 0;
-
+    *mark = list_last_entry_or_null(head, typeof(*le), le_link);
     *action = CN_ACTION_COMPACT_KV;
-    *rule = CN_CR_LSHORT_IDLE_VG;
+    *rule = CN_CR_LIDLE;
 
-    return runlen;
+    kvsets = cn_ns_kvsets(&tn->tn_ns);
+
+    /* Keep idle index nodes fully compacted to improve scanning
+     * (e.g., mongod index nodes that rarely change after load).
+     */
+    if (cn_ns_vblks(&tn->tn_ns) < kvsets)
+        return kvsets;
+
+    /* Otherwise, compact the node if the resulting size is smaller
+     * than a single vblock (rare, but happens).
+     */
+    if (cn_ns_clen(&tn->tn_ns) < VBLOCK_MAX_SIZE)
+        return kvsets;
+
+    return 0;
 }
 
 /**
@@ -402,8 +389,8 @@ sp3_work_leaf_len(
         struct kvset_list_entry *le;
         struct list_head *head;
         uint compc = UINT_MAX;
+        size_t vwlen = 0;
         uint runlen = 0;
-        uint tmp;
 
         head = &tn->tn_kvset_list;
         *mark = list_last_entry(head, typeof(*le), le_link);
@@ -411,45 +398,68 @@ sp3_work_leaf_len(
         *rule = CN_CR_LLONG;
 
         list_for_each_entry_reverse (le, head, le_link) {
-            tmp = kvset_get_compc(le->le_kvset);
+            if (runlen < runlen_min) {
+                uint tmp = kvset_get_compc(le->le_kvset);
 
-            if (compc != tmp && runlen < runlen_min) {
-                compc = tmp;
-                *mark = le;
-                runlen = 1;
-            } else if (++runlen >= runlen_max) {
-                break;
+                if (compc != tmp) {
+                    compc = tmp;
+                    *mark = le;
+                    runlen = 0;
+                    vwlen = 0;
+                }
             }
+
+            vwlen += kvset_get_vwlen(le->le_kvset);
+
+            if (++runlen >= runlen_max)
+                break;
         }
 
-        if (runlen >= runlen_min)
+        /* If the run is sufficiently long then fully compact (i.e.,
+         * kv-compact) all the kvsets in the run if the sum of values
+         * would fit into a single vblock.  Otherwise compact just the
+         * keys (i.e., k-compact).
+         */
+        if (runlen >= runlen_min) {
+            if (vwlen < VBLOCK_MAX_SIZE)
+                *action = CN_ACTION_COMPACT_KV;
+
             return runlen;
+        }
+
+        /* Fully compact the entire node if the resulting size is smaller
+         * than a single vblock (rare, but happens).
+         */
+        if (cn_ns_clen(&tn->tn_ns) < VBLOCK_MAX_SIZE) {
+            *mark = list_last_entry(head, typeof(*le), le_link);
+            *action = CN_ACTION_COMPACT_KV;
+            return kvsets;
+        }
 
         /* Don't let lightweight nodes grow too long.  For the most part
          * this only applies to "index" nodes (i.e., nodes where the values
          * are much smaller than the keys).
          */
         if (kvsets > runlen_min && cn_ns_vblks(&tn->tn_ns) < kvsets) {
-            le = list_last_entry(head, typeof(*le), le_link);
-            compc = kvset_get_compc(le->le_kvset);
-            runlen = 0;
+            *mark = list_last_entry(head, typeof(*le), le_link);
+            *action = CN_ACTION_COMPACT_KV;
+            *rule = CN_CR_LIDXF;
 
-            list_for_each_entry(le, head, le_link) {
-                if (kvset_get_compc(le->le_kvset) >= compc)
-                    break;
+            /* If the oldest kvset is larger than the next oldest kvset
+             * and there's not much garbage then start with the next
+             * oldest kvset, otherwise start with the oldest kvset.
+             */
+            le = list_prev_entry(*mark, le_link);
 
-                ++runlen;
+            if (kvset_get_kwlen(le->le_kvset) < kvset_get_kwlen((*mark)->le_kvset) &&
+                cn_ns_clen(&tn->tn_ns) * 100 > cn_ns_alen(&tn->tn_ns) * 85) {
+
+                *rule = CN_CR_LIDXP;
+                *mark = le;
+                return kvsets - 1;
             }
 
-            if (runlen < runlen_min) {
-                le = list_last_entry(head, typeof(*le), le_link);
-                *action = CN_ACTION_COMPACT_KV;
-            }
-
-            *rule = CN_CR_LSHORT_LW;
-            *mark = le;
-
-            return runlen_min;
+            return kvsets;
         }
     }
 

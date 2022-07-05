@@ -652,7 +652,7 @@ sp3_refresh_thresholds(struct sp3 *sp)
     } else {
         thresh.llen_runlen_max = 8;
         thresh.llen_runlen_min = 4;
-        thresh.llen_idlec = 0; /* disabled by default */
+        thresh.llen_idlec = 2;
         thresh.llen_idlem = 10;
     }
     thresh.llen_runlen_min = max(thresh.llen_runlen_min, SP3_LLEN_RUNLEN_MIN);
@@ -944,9 +944,9 @@ sp3_dirty_node_locked(struct sp3 *sp, struct cn_tree_node *tn)
          * UINT32_MAX in order to work correctly with the rb-tree
          * weight comparator logic.
          */
-        if (nkvsets >= 2 && jobs < 1) {
-            if (sp->thresh.llen_idlec > 0 && sp->thresh.llen_idlem > 0) {
-                const uint64_t ttl = sp->thresh.llen_idlem * 60;
+        if (nkvsets >= sp->thresh.llen_idlec && jobs < 1) {
+            if (sp->thresh.llen_idlem > 0) {
+                const uint64_t ttl = (sp->thresh.llen_idlem * 60) / 4;
                 uint64_t weight = UINT32_MAX - (jclock_ns >> 32) - ttl;
 
                 weight = (weight << 32) | nkvsets;
@@ -1362,14 +1362,14 @@ sp3_comp_thread_name(
         case CN_CR_LLONG:
             r = "lg";
             break;
-        case CN_CR_LSHORT_LW:
-            r = "lw";
+        case CN_CR_LIDXF:
+            r = "fx";
             break;
-        case CN_CR_LSHORT_IDLE:
+        case CN_CR_LIDXP:
+            r = "px";
+            break;
+        case CN_CR_LIDLE:
             r = "id";
-            break;
-        case CN_CR_LSHORT_IDLE_VG:
-            r = "iv";
             break;
         case CN_CR_LSCATF:
             r = "fs";

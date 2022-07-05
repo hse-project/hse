@@ -1763,6 +1763,18 @@ kvset_get_vgroups(const struct kvset *ks)
     return ks->ks_vgroups;
 }
 
+size_t
+kvset_get_kwlen(const struct kvset *ks)
+{
+    return ks->ks_st.kst_kwlen;
+}
+
+size_t
+kvset_get_vwlen(const struct kvset *ks)
+{
+    return ks->ks_st.kst_vwlen;
+}
+
 struct cn_tree *
 kvset_get_tree(struct kvset *ks)
 {

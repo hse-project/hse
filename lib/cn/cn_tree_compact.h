@@ -42,9 +42,9 @@ enum cn_comp_rule {
     CN_CR_LBIG_ONE,       /* big leaf, compact one kvset */
     CN_CR_LGARB,          /* leaf garbage (reducing space amp) */
     CN_CR_LLONG,          /* long leaf */
-    CN_CR_LSHORT_LW,      /* short leaf, light weight */
-    CN_CR_LSHORT_IDLE,    /* short leaf, idle */
-    CN_CR_LSHORT_IDLE_VG, /* short leaf, idle, vblk groups */
+    CN_CR_LIDXF,          /* short leaf, full index node compaction */
+    CN_CR_LIDXP,          /* short leaf, partial index node compaction */
+    CN_CR_LIDLE,          /* idle leaf */
     CN_CR_LSCATF,         /* vgroup scatter remediation (full node) */
     CN_CR_LSCATP,         /* vgroup scatter remediation (partial node) */
     CN_CR_END,
@@ -91,12 +91,12 @@ cn_comp_rule2str(enum cn_comp_rule rule)
             return "lgarb";
         case CN_CR_LLONG:
             return "llong";
-        case CN_CR_LSHORT_LW:
-            return "lshort";
-        case CN_CR_LSHORT_IDLE:
+        case CN_CR_LIDXF:
+            return "lidxf";
+        case CN_CR_LIDXP:
+            return "lidxp";
+        case CN_CR_LIDLE:
             return "idle";
-        case CN_CR_LSHORT_IDLE_VG:
-            return "idlevg";
         case CN_CR_LSCATF:
             return "lscatf";
         case CN_CR_LSCATP:

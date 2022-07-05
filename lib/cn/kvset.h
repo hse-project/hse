@@ -357,6 +357,12 @@ kvset_get_compc(struct kvset *km);
 uint
 kvset_get_vgroups(const struct kvset *km);
 
+size_t
+kvset_get_kwlen(const struct kvset *ks);
+
+size_t
+kvset_get_vwlen(const struct kvset *ks);
+
 /* MTF_MOCK */
 struct cn_tree *
 kvset_get_tree(struct kvset *kvset);
