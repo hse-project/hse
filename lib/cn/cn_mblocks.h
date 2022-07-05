@@ -1,10 +1,15 @@
 /* SPDX-License-Identifier: Apache-2.0 */
 /*
- * Copyright (C) 2015-2020 Micron Technology, Inc.  All rights reserved.
+ * Copyright (C) 2015-2022 Micron Technology, Inc.  All rights reserved.
  */
 
 #ifndef HSE_KVS_CN_MBLOCKS_H
 #define HSE_KVS_CN_MBLOCKS_H
+
+#include <inttypes.h>
+#include <stdbool.h>
+
+#include <hse_util/hse_err.h>
 
 /* MTF_MOCK_DECL(cn_mblocks) */
 
@@ -32,7 +37,7 @@ enum cn_mutation {
 
 /* MTF_MOCK */
 size_t
-cn_mb_est_alen(size_t max_captgt, size_t alloc_unit, size_t payload, uint flags);
+cn_mb_est_alen(size_t max_captgt, size_t alloc_unit, size_t payload, unsigned int flags);
 
 /**
  * cn_mblocks_commit()
@@ -47,7 +52,6 @@ cn_mb_est_alen(size_t max_captgt, size_t alloc_unit, size_t payload, uint flags)
  *      Ignored if the mutation is CN_MUT_KCOMPACT
  *      Else, number of vblocks already committed.
  *      If NULL, none of the vblocks are already committed.
- * @n_committed:
  * @context:
  * @tags:
  */
@@ -55,19 +59,17 @@ cn_mb_est_alen(size_t max_captgt, size_t alloc_unit, size_t payload, uint flags)
 merr_t
 cn_mblocks_commit(
     struct mpool *        ds,
-    u32                   num_lists,
+    uint32_t              num_lists,
     struct kvset_mblocks *list,
-    enum cn_mutation      mutation,
-    u32 *                 n_committed);
+    enum cn_mutation      mutation);
 
 /* MTF_MOCK */
 void
 cn_mblocks_destroy(
     struct mpool *        ds,
-    u32                   num_lists,
+    uint32_t              num_lists,
     struct kvset_mblocks *list,
-    bool                  kcompact,
-    u32                   n_committed);
+    bool                  kcompact);
 
 #if HSE_MOCKING
 #include "cn_mblocks_ut.h"

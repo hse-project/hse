@@ -40,10 +40,10 @@ MTF_DEFINE_UTEST_PREPOST(mblock_test, mblock_abc, mpool_test_pre, mpool_test_pos
     merr_t              err;
 
     err = mpool_create(mtf_kvdb_home, &tcparams);
-    ASSERT_EQ(0, err);
+    ASSERT_EQ(0, merr_errno(err));
 
     err = mpool_open(mtf_kvdb_home, &trparams, O_RDWR, &mp);
-    ASSERT_EQ(0, err);
+    ASSERT_EQ(0, merr_errno(err));
 
     err = mpool_mblock_alloc(NULL, HSE_MCLASS_CAPACITY, 0, &mbid, NULL);
     ASSERT_EQ(EINVAL, merr_errno(err));
@@ -60,17 +60,8 @@ MTF_DEFINE_UTEST_PREPOST(mblock_test, mblock_abc, mpool_test_pre, mpool_test_pos
     err = mpool_mblock_alloc(mp, HSE_MCLASS_CAPACITY, 0, &mbid, NULL);
     ASSERT_EQ(0, err);
 
-    err = mpool_mblock_abort(NULL, mbid);
-    ASSERT_EQ(EINVAL, merr_errno(err));
-
-    err = mpool_mblock_abort(mp, mbid + 1);
-    ASSERT_EQ(ENOENT, merr_errno(err));
-
-    err = mpool_mblock_abort(mp, mbid);
-    ASSERT_EQ(0, err);
-
-    err = mpool_mblock_abort(mp, mbid);
-    ASSERT_EQ(ENOENT, merr_errno(err));
+    err = mpool_mblock_delete(mp, mbid);
+    ASSERT_EQ(0, merr_errno(err));
 
     err = mpool_mblock_commit(mp, mbid);
     ASSERT_EQ(ENOENT, merr_errno(err));
@@ -82,52 +73,52 @@ MTF_DEFINE_UTEST_PREPOST(mblock_test, mblock_abc, mpool_test_pre, mpool_test_pos
     ASSERT_EQ(ENOENT, merr_errno(err));
 
     err = mpool_info_get(mp, &info);
-    ASSERT_EQ(0, err);
+    ASSERT_EQ(0, merr_errno(err));
     bpalloc = allocated_bytes_summation(&info);
 
     /* Test mblock pre-allocation */
     err = mpool_mblock_alloc(mp, HSE_MCLASS_CAPACITY, MPOOL_MBLOCK_PREALLOC, &mbid, &props);
-    ASSERT_EQ(0, err);
+    ASSERT_EQ(0, merr_errno(err));
     err = mpool_info_get(mp, &info);
-    ASSERT_EQ(0, err);
+    ASSERT_EQ(0, merr_errno(err));
     apalloc = allocated_bytes_summation(&info);
     ASSERT_GE(apalloc - bpalloc, MPOOL_MBLOCK_SIZE_DEFAULT);
 
-    /* Test if mblock abort releases pre-allocated space */
-    err = mpool_mblock_abort(mp, mbid);
-    ASSERT_EQ(0, err);
+    /* Test if mblock delete releases pre-allocated space */
+    err = mpool_mblock_delete(mp, mbid);
+    ASSERT_EQ(0, merr_errno(err));
     err = mpool_info_get(mp, &info);
-    ASSERT_EQ(0, err);
+    ASSERT_EQ(0, merr_errno(err));
     apalloc = allocated_bytes_summation(&info);
     ASSERT_EQ(bpalloc, apalloc);
 
     /* Test if mblock delete releases pre-allocated space */
     err = mpool_mblock_alloc(mp, HSE_MCLASS_CAPACITY, MPOOL_MBLOCK_PREALLOC, &mbid, &props);
-    ASSERT_EQ(0, err);
+    ASSERT_EQ(0, merr_errno(err));
     err = mpool_mblock_commit(mp, mbid);
-    ASSERT_EQ(0, err);
+    ASSERT_EQ(0, merr_errno(err));
 
     err = mpool_mblock_props_get(mp, mbid, &props);
-    ASSERT_EQ(0, err);
+    ASSERT_EQ(0, merr_errno(err));
     ASSERT_EQ(props.mpr_objid, mbid);
     ASSERT_EQ(props.mpr_write_len, 0);
     ASSERT_EQ(props.mpr_alloc_cap, MPOOL_MBLOCK_SIZE_DEFAULT);
 
     err = mpool_mblock_delete(mp, mbid);
-    ASSERT_EQ(0, err);
+    ASSERT_EQ(0, merr_errno(err));
     err = mpool_info_get(mp, &info);
-    ASSERT_EQ(0, err);
+    ASSERT_EQ(0, merr_errno(err));
     apalloc = allocated_bytes_summation(&info);
     ASSERT_EQ(bpalloc, apalloc);
 
     err = mpool_mblock_alloc(mp, HSE_MCLASS_CAPACITY, 0, &mbid, &props);
-    ASSERT_EQ(0, err);
+    ASSERT_EQ(0, merr_errno(err));
     ASSERT_EQ(props.mpr_objid, mbid);
     ASSERT_EQ(props.mpr_mclass, HSE_MCLASS_CAPACITY);
     ASSERT_EQ(props.mpr_write_len, 0);
 
     err = mpool_info_get(mp, &info);
-    ASSERT_EQ(0, err);
+    ASSERT_EQ(0, merr_errno(err));
     ASSERT_LT(allocated_bytes_summation(&info), 70 << 20);
     ASSERT_LT(used_bytes_summation(&info), 70 << 20);
     ASSERT_EQ(
@@ -140,12 +131,9 @@ MTF_DEFINE_UTEST_PREPOST(mblock_test, mblock_abc, mpool_test_pre, mpool_test_pos
     ASSERT_EQ(ENOENT, merr_errno(err));
 
     err = mpool_mblock_commit(mp, mbid);
-    ASSERT_EQ(0, err);
+    ASSERT_EQ(0, merr_errno(err));
 
     err = mpool_mblock_commit(mp, mbid);
-    ASSERT_EQ(EINVAL, merr_errno(err));
-
-    err = mpool_mblock_abort(mp, mbid);
     ASSERT_EQ(EINVAL, merr_errno(err));
 
     memset(&props, 0, sizeof(props));
@@ -157,13 +145,13 @@ MTF_DEFINE_UTEST_PREPOST(mblock_test, mblock_abc, mpool_test_pre, mpool_test_pos
     ASSERT_EQ(ENOENT, merr_errno(err));
 
     err = mpool_mblock_props_get(mp, mbid, &props);
-    ASSERT_EQ(0, err);
+    ASSERT_EQ(0, merr_errno(err));
     ASSERT_EQ(props.mpr_objid, mbid);
     ASSERT_EQ(props.mpr_mclass, HSE_MCLASS_CAPACITY);
     ASSERT_EQ(props.mpr_write_len, 0);
 
     err = mpool_info_get(mp, &info);
-    ASSERT_EQ(0, err);
+    ASSERT_EQ(0, merr_errno(err));
     ASSERT_LT(allocated_bytes_summation(&info), 70 << 20);
     ASSERT_LT(used_bytes_summation(&info), 70 << 20);
     ASSERT_EQ(
@@ -176,12 +164,9 @@ MTF_DEFINE_UTEST_PREPOST(mblock_test, mblock_abc, mpool_test_pre, mpool_test_pos
     ASSERT_EQ(ENOENT, merr_errno(err));
 
     err = mpool_mblock_delete(mp, mbid);
-    ASSERT_EQ(0, err);
+    ASSERT_EQ(0, merr_errno(err));
 
     err = mpool_mblock_delete(mp, mbid);
-    ASSERT_EQ(ENOENT, merr_errno(err));
-
-    err = mpool_mblock_abort(mp, mbid);
     ASSERT_EQ(ENOENT, merr_errno(err));
 
     err = mpool_mblock_commit(mp, mbid);
@@ -191,7 +176,7 @@ MTF_DEFINE_UTEST_PREPOST(mblock_test, mblock_abc, mpool_test_pre, mpool_test_pos
     ASSERT_EQ(ENOENT, merr_errno(err));
 
     err = mpool_close(mp);
-    ASSERT_EQ(0, err);
+    ASSERT_EQ(0, merr_errno(err));
 
     setup_mclass(HSE_MCLASS_STAGING);
 
@@ -202,24 +187,20 @@ MTF_DEFINE_UTEST_PREPOST(mblock_test, mblock_abc, mpool_test_pre, mpool_test_pos
     ASSERT_EQ(0, merr_errno(err));
 
     err = mpool_mblock_alloc(mp, HSE_MCLASS_STAGING, 0, &mbid, &props);
-    ASSERT_EQ(0, err);
+    ASSERT_EQ(0, merr_errno(err));
     ASSERT_EQ(props.mpr_objid, mbid);
     ASSERT_EQ(props.mpr_mclass, HSE_MCLASS_STAGING);
     ASSERT_EQ(props.mpr_write_len, 0);
 
     err = mpool_mblock_props_get(mp, mbid, &props);
-    ASSERT_EQ(0, err);
+    ASSERT_EQ(0, merr_errno(err));
     ASSERT_EQ(props.mpr_objid, mbid);
     ASSERT_EQ(props.mpr_mclass, HSE_MCLASS_STAGING);
     ASSERT_EQ(props.mpr_write_len, 0);
     ASSERT_EQ(props.mpr_alloc_cap, 0);
-
-    /* deleting an uncommitted mblock returns EINVAL */
-    err = mpool_mblock_delete(mp, mbid);
-    ASSERT_EQ(EINVAL, merr_errno(err));
 
     err = mpool_mblock_commit(mp, mbid);
-    ASSERT_EQ(0, err);
+    ASSERT_EQ(0, merr_errno(err));
 
     err = mpool_mblock_props_get(mp, mbid, &props);
     ASSERT_EQ(0, err);
@@ -229,10 +210,7 @@ MTF_DEFINE_UTEST_PREPOST(mblock_test, mblock_abc, mpool_test_pre, mpool_test_pos
     ASSERT_EQ(props.mpr_alloc_cap, 0);
 
     err = mpool_mblock_delete(mp, mbid);
-    ASSERT_EQ(0, err);
-
-    err = mpool_mblock_abort(mp, mbid);
-    ASSERT_EQ(ENOENT, merr_errno(err));
+    ASSERT_EQ(0, merr_errno(err));
 
     err = mpool_mblock_delete(mp, mbid);
     ASSERT_EQ(ENOENT, merr_errno(err));
@@ -244,18 +222,18 @@ MTF_DEFINE_UTEST_PREPOST(mblock_test, mblock_abc, mpool_test_pre, mpool_test_pos
     ASSERT_EQ(ENOENT, merr_errno(err));
 
     err = mpool_mblock_alloc(mp, HSE_MCLASS_STAGING, 0, &mbid, &props);
-    ASSERT_EQ(0, err);
+    ASSERT_EQ(0, merr_errno(err));
 
-    err = mpool_mblock_abort(mp, mbid);
-    ASSERT_EQ(0, err);
+    err = mpool_mblock_delete(mp, mbid);
+    ASSERT_EQ(0, merr_errno(err));
 
     for (int i = 1; i < MPOOL_MCLASS_FILECNT_DEFAULT; i++) {
         mpool_mblock_alloc(mp, HSE_MCLASS_STAGING, 0, &mbid1, NULL);
-        mpool_mblock_abort(mp, mbid1);
+        mpool_mblock_delete(mp, mbid1);
     }
 
     err = mpool_mblock_alloc(mp, HSE_MCLASS_STAGING, 0, &mbid1, &props);
-    ASSERT_EQ(0, err);
+    ASSERT_EQ(0, merr_errno(err));
     ASSERT_NE(mbid, mbid1);
     ASSERT_EQ(mbid & MBID_BLOCK_MASK, mbid1 & MBID_BLOCK_MASK);
     ASSERT_NE(
@@ -263,44 +241,44 @@ MTF_DEFINE_UTEST_PREPOST(mblock_test, mblock_abc, mpool_test_pre, mpool_test_pos
 
     /* This cannot be detected, unfortunately... */
     err = mpool_mblock_props_get(mp, mbid, &props);
-    ASSERT_EQ(0, err);
+    ASSERT_EQ(0, merr_errno(err));
 
     err = mpool_mblock_props_get(mp, mbid1, &props);
-    ASSERT_EQ(0, err);
+    ASSERT_EQ(0, merr_errno(err));
 
-    err = mpool_mblock_abort(mp, mbid1);
-    ASSERT_EQ(0, err);
+    err = mpool_mblock_delete(mp, mbid1);
+    ASSERT_EQ(0, merr_errno(err));
 
     err = mpool_mblock_alloc(mp, HSE_MCLASS_STAGING, 0, &mbid, &props);
-    ASSERT_EQ(0, err);
+    ASSERT_EQ(0, merr_errno(err));
 
-    err = mpool_mblock_abort(mp, mbid);
-    ASSERT_EQ(0, err);
+    err = mpool_mblock_delete(mp, mbid);
+    ASSERT_EQ(0, merr_errno(err));
 
     for (int i = 1; i < MPOOL_MCLASS_FILECNT_DEFAULT; i++) {
         mpool_mblock_alloc(mp, HSE_MCLASS_STAGING, 0, &mbid1, NULL);
-        mpool_mblock_abort(mp, mbid1);
+        mpool_mblock_delete(mp, mbid1);
     }
 
     err = mpool_mblock_alloc(mp, HSE_MCLASS_STAGING, 0, &mbid1, &props);
-    ASSERT_EQ(0, err);
+    ASSERT_EQ(0, merr_errno(err));
     ASSERT_NE(mbid, mbid1);
     ASSERT_EQ(mbid & MBID_BLOCK_MASK, mbid1 & MBID_BLOCK_MASK);
     ASSERT_NE(
         (mbid & MBID_UNIQ_MASK) >> MBID_UNIQ_SHIFT, (mbid1 & MBID_UNIQ_MASK) >> MBID_UNIQ_SHIFT);
 
     err = mpool_mblock_commit(mp, mbid1);
-    ASSERT_EQ(0, err);
+    ASSERT_EQ(0, merr_errno(err));
 
     err = mpool_mblock_props_get(mp, mbid, &props);
     ASSERT_EQ(ENOENT, merr_errno(err));
 
     err = mpool_mblock_props_get(mp, mbid1, &props);
-    ASSERT_EQ(0, err);
+    ASSERT_EQ(0, merr_errno(err));
     ASSERT_EQ(HSE_MCLASS_STAGING, props.mpr_mclass);
 
     err = mpool_info_get(mp, &info);
-    ASSERT_EQ(0, err);
+    ASSERT_EQ(0, merr_errno(err));
     ASSERT_LT(allocated_bytes_summation(&info), 140 << 20);
     ASSERT_LT(used_bytes_summation(&info), 140 << 20);
     ASSERT_EQ(
@@ -308,10 +286,10 @@ MTF_DEFINE_UTEST_PREPOST(mblock_test, mblock_abc, mpool_test_pre, mpool_test_pos
     ASSERT_EQ(0, strncmp(staging_path, info.mclass[HSE_MCLASS_STAGING].mi_path, sizeof(staging_path)));
 
     err = mpool_mblock_delete(mp, mbid1);
-    ASSERT_EQ(0, err);
+    ASSERT_EQ(0, merr_errno(err));
 
     err = mpool_close(mp);
-    ASSERT_EQ(0, err);
+    ASSERT_EQ(0, merr_errno(err));
 
     setup_mclass(HSE_MCLASS_PMEM);
 
@@ -332,13 +310,13 @@ MTF_DEFINE_UTEST_PREPOST(mblock_test, mblock_abc, mpool_test_pre, mpool_test_pos
     ASSERT_EQ(ENOENT, merr_errno(err));
 
     err = mpool_close(mp);
-    ASSERT_EQ(0, err);
+    ASSERT_EQ(0, merr_errno(err));
 
     err = mpool_open(mtf_kvdb_home, &trparams, O_RDWR, &mp);
     ASSERT_EQ(0, merr_errno(err));
 
     err = mpool_close(mp);
-    ASSERT_EQ(0, err);
+    ASSERT_EQ(0, merr_errno(err));
 
     mpool_destroy(mtf_kvdb_home, &tdparams);
 }
@@ -638,18 +616,6 @@ MTF_DEFINE_UTEST_PREPOST(mblock_test, mblock_invalid_args, mpool_test_pre, mpool
     err = mblock_fset_commit(mbfsp, &mbid, 2);
     ASSERT_EQ(ENOTSUP, merr_errno(err));
 
-    err = mblock_fset_abort(NULL, &mbid, 1);
-    ASSERT_EQ(EINVAL, merr_errno(err));
-
-    err = mblock_fset_abort(mbfsp, NULL, 1);
-    ASSERT_EQ(EINVAL, merr_errno(err));
-
-    err = mblock_fset_abort(mbfsp, &bad_mbid, 1);
-    ASSERT_EQ(EINVAL, merr_errno(err));
-
-    err = mblock_fset_abort(mbfsp, &mbid, 2);
-    ASSERT_EQ(ENOTSUP, merr_errno(err));
-
     err = mblock_fset_delete(NULL, &mbid, 1);
     ASSERT_EQ(EINVAL, merr_errno(err));
 
@@ -728,15 +694,6 @@ MTF_DEFINE_UTEST_PREPOST(mblock_test, mblock_invalid_args, mpool_test_pre, mpool
     err = mblock_file_commit(mbfp, &mbid, 2);
     ASSERT_EQ(ENOTSUP, merr_errno(err));
 
-    err = mblock_file_abort(NULL, &mbid, 1);
-    ASSERT_EQ(EINVAL, merr_errno(err));
-
-    err = mblock_file_abort(mbfp, NULL, 1);
-    ASSERT_EQ(EINVAL, merr_errno(err));
-
-    err = mblock_file_abort(mbfp, &mbid, 2);
-    ASSERT_EQ(ENOTSUP, merr_errno(err));
-
     err = mblock_file_delete(NULL, &mbid, 1);
     ASSERT_EQ(EINVAL, merr_errno(err));
 
@@ -758,7 +715,7 @@ MTF_DEFINE_UTEST_PREPOST(mblock_test, mblock_invalid_args, mpool_test_pre, mpool
     err = mblock_write(mbfp, mbid, NULL, 1);
     ASSERT_EQ(EINVAL, merr_errno(err));
 
-    err = mpool_mblock_abort(mp, mbid);
+    err = mpool_mblock_delete(mp, mbid);
     ASSERT_EQ(0, err);
 
     err = mpool_close(mp);

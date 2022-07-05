@@ -296,7 +296,7 @@ MTF_DEFINE_UTEST_PREPOST(mcache_test, mcache_invalid_args, mpool_test_pre, mpool
     err = mblock_unmap(NULL, mbid);
     ASSERT_EQ(EINVAL, merr_errno(err));
 
-    err = mpool_mblock_abort(mp, mbid);
+    err = mpool_mblock_delete(mp, mbid);
     ASSERT_EQ(0, err);
 
     err = mpool_close(mp);

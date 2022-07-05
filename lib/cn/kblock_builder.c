@@ -944,7 +944,7 @@ kblock_finish(struct kblock_builder *bld)
 
 errout:
     if (blkid)
-        mpool_mblock_abort(bld->ds, blkid);
+        mpool_mblock_delete(bld->ds, blkid);
     free(iov);
 
     /* unconditional reset */
@@ -1017,7 +1017,7 @@ kbb_destroy(struct kblock_builder *bld)
 
     hlog_destroy(bld->composite_hlog);
     kblock_free(&bld->curr);
-    abort_mblocks(bld->ds, &bld->finished_kblks);
+    delete_mblocks(bld->ds, &bld->finished_kblks);
     blk_list_free(&bld->finished_kblks);
     free(bld);
 }

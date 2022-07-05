@@ -1704,7 +1704,6 @@ cn_comp_commit(struct cn_compaction_work *w)
 
     for (i = 0; i < w->cw_outc; i++) {
         struct kvset_meta km = {};
-        uint ncommitted;
 
         /* [HSE_REVISIT] there may be vblks to delete!!! */
         if (!w->cw_outv[i].hblk.bk_blkid) {
@@ -1776,13 +1775,11 @@ cn_comp_commit(struct cn_compaction_work *w)
         }
 
         w->cw_err = cn_mblocks_commit(w->cw_ds, 1, &w->cw_outv[i],
-                                      kcompact ? CN_MUT_KCOMPACT : CN_MUT_OTHER, &ncommitted);
+                                      kcompact ? CN_MUT_KCOMPACT : CN_MUT_OTHER);
         if (ev(w->cw_err)) {
             kvdb_health_error(hp, w->cw_err);
             goto done;
         }
-
-        w->cw_commitc += ncommitted;
 
         if (use_mbsets) {
             w->cw_err = kvset_open2(w->cw_tree, w->cw_kvsetidv[i], &km,
@@ -1876,7 +1873,7 @@ cn_comp_cleanup(struct cn_compaction_work *w)
             w->cw_tree->ct_nospace = true;
 
         if (w->cw_outv)
-            cn_mblocks_destroy(w->cw_ds, w->cw_outc, w->cw_outv, kcompact, w->cw_commitc);
+            cn_mblocks_destroy(w->cw_ds, w->cw_outc, w->cw_outv, kcompact);
     }
 
     free(w->cw_vbmap.vbm_blkv);

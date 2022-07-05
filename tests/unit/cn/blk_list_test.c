@@ -36,7 +36,6 @@ pre(struct mtf_test_info *info)
 {
     mapi_inject(mapi_idx_mpool_mblock_delete, 0);
     mapi_inject(mapi_idx_mpool_mblock_commit, 0);
-    mapi_inject(mapi_idx_mpool_mblock_abort, 0);
     return 0;
 }
 
@@ -184,19 +183,19 @@ MTF_DEFINE_UTEST_PREPOST(blk_list_test, t_delete_mblock, pre, post)
     blk_list_free(&b);
 }
 
-MTF_DEFINE_UTEST_PREPOST(blk_list_test, t_abort_mblocks, pre, post)
+MTF_DEFINE_UTEST_PREPOST(blk_list_test, t_delete_mblocks, pre, post)
 {
     int             i, N = 5;
     merr_t          err;
     struct blk_list b;
     u32             api;
 
-    abort_mblocks(ds, 0);
+    delete_mblocks(ds, 0);
 
     blk_list_init(&b);
     err = blk_list_append(&b, BLK_ID);
     ASSERT_EQ(err, 0);
-    abort_mblocks(ds, &b);
+    delete_mblocks(ds, &b);
     blk_list_free(&b);
 
     blk_list_init(&b);
@@ -204,15 +203,15 @@ MTF_DEFINE_UTEST_PREPOST(blk_list_test, t_abort_mblocks, pre, post)
         err = blk_list_append(&b, BLK_ID + i);
         ASSERT_EQ(err, 0);
     }
-    abort_mblocks(ds, &b);
+    delete_mblocks(ds, &b);
     blk_list_free(&b);
 
-    api = mapi_idx_mpool_mblock_abort;
+    api = mapi_idx_mpool_mblock_delete;
     mapi_inject(api, merr(EINVAL));
     blk_list_init(&b);
     err = blk_list_append(&b, BLK_ID);
     ASSERT_EQ(err, 0);
-    abort_mblocks(ds, &b);
+    delete_mblocks(ds, &b);
     blk_list_free(&b);
     mapi_inject(api, 0);
 }

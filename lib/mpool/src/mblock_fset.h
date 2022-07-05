@@ -92,16 +92,6 @@ merr_t
 mblock_fset_commit(struct mblock_fset *mbfsp, uint64_t *mbidv, int mbidc);
 
 /**
- * mblock_fset_abort() - abort mblocks
- *
- * @mbfsp: mblock fileset handle
- * @mbidv: mblock id
- * @mbidc: mblock count (support only mbidc == 1)
- */
-merr_t
-mblock_fset_abort(struct mblock_fset *mbfsp, uint64_t *mbidv, int mbidc);
-
-/**
  * mblock_fset_delete() - delete mblocks
  *
  * @mbfsp: mblock fileset handle

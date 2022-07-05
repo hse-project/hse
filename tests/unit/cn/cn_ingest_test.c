@@ -78,7 +78,6 @@ struct injections injections[] = {
     /* mblocks */
     { 0, mapi_idx_mpool_mblock_commit },
     { 0, mapi_idx_mpool_mblock_delete },
-    { 0, mapi_idx_mpool_mblock_abort },
 };
 
 const struct kvset_stats fake_kvset_stats = {
@@ -188,24 +187,24 @@ MTF_DEFINE_UTEST_PRE(cn_ingest_test, commit_delete, test_pre)
     struct kvset_mblocks m[4];
     uint                 n_kvsets = NELEM(m);
 
-    u32    n, k, v;
+    u32    k, v;
     merr_t err;
 
     /*
      * Test cn_mblocks_commit w/ cndb_txn_txc set to succeed
      */
-    n = 0;
     init_mblks(m, n_kvsets, &k, &v);
-    err = cn_mblocks_commit(mock_ds, n_kvsets, m, CN_MUT_OTHER, &n);
+    mapi_calls_clear(mapi_idx_mpool_mblock_commit);
+    err = cn_mblocks_commit(mock_ds, n_kvsets, m, CN_MUT_OTHER);
     ASSERT_EQ(err, 0);
-    ASSERT_EQ(n, n_kvsets * (1 + k + v)); /* 1 for hblock */
+    ASSERT_EQ(mapi_calls(mapi_idx_mpool_mblock_commit), n_kvsets * (1 + k + v)); /* 1 for hblock */
     free_mblks(m, n_kvsets);
 
-    n = 0;
     init_mblks(m, n_kvsets, &k, &v);
-    err = cn_mblocks_commit(mock_ds, n_kvsets, m, CN_MUT_KCOMPACT, &n);
+    mapi_calls_clear(mapi_idx_mpool_mblock_commit);
+    err = cn_mblocks_commit(mock_ds, n_kvsets, m, CN_MUT_KCOMPACT);
     ASSERT_EQ(err, 0);
-    ASSERT_EQ(n, n_kvsets * (1 + k)); /* kcompact ==> does not commit vblks, 1 for hblock */
+    ASSERT_EQ(mapi_calls(mapi_idx_mpool_mblock_commit), n_kvsets * (1 + k)); /* kcompact ==> does not commit vblks, 1 for hblock */
     free_mblks(m, n_kvsets);
 
     /* Test cn_mblocks_destroy with kcompact == false.
@@ -213,7 +212,7 @@ MTF_DEFINE_UTEST_PRE(cn_ingest_test, commit_delete, test_pre)
      */
     init_mblks(m, n_kvsets, &k, &v);
     mapi_calls_clear(mapi_idx_mpool_mblock_delete);
-    cn_mblocks_destroy(mock_ds, n_kvsets, m, 0, n_kvsets * (1 + k + v)); /* 1 for hblock */
+    cn_mblocks_destroy(mock_ds, n_kvsets, m, 0);
     ASSERT_EQ(mapi_calls(mapi_idx_mpool_mblock_delete), n_kvsets * (1 + k + v)); /* 1 for hblock */
     free_mblks(m, n_kvsets);
 
@@ -222,7 +221,7 @@ MTF_DEFINE_UTEST_PRE(cn_ingest_test, commit_delete, test_pre)
      */
     init_mblks(m, n_kvsets, &k, &v);
     mapi_calls_clear(mapi_idx_mpool_mblock_delete);
-    cn_mblocks_destroy(mock_ds, n_kvsets, m, 1, n_kvsets * (1 + k));
+    cn_mblocks_destroy(mock_ds, n_kvsets, m, 1);
     ASSERT_EQ(mapi_calls(mapi_idx_mpool_mblock_delete), n_kvsets * (1 + k)); /* 1 for hblock */
     free_mblks(m, n_kvsets);
 }

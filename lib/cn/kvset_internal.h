@@ -13,6 +13,7 @@
 #include <hse_util/workqueue.h>
 #include <hse_util/key_util.h>
 
+#include <hse_ikvdb/blk_list.h>
 #include <hse_ikvdb/tuple.h>
 #include <hse_ikvdb/omf_kmd.h>
 #include <hse_ikvdb/kvset_view.h>

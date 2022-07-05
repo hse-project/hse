@@ -153,7 +153,6 @@ struct cn_work_est {
  *                       kvsets during k-compaction
  * @cw_drop_tombs:   if true, then tombstones can be dropped in the merge loop
  * @cw_work_txid:    the cndb transaction id
- * @cw_commitc:      keeps track of how many output mblocks have been committed
  * @cw_keep_vblks:   indicates whether or not vblocks should be deleted or
  *                   if they should transferred from input kvsets to
  *                   output kvets (e.g., in k-compaction).
@@ -232,7 +231,6 @@ struct cn_compaction_work {
 
     /* initialized in cn_compaction_worker() */
     struct cndb_txn      *cw_cndb_txn;
-    uint                  cw_commitc;
     bool                  cw_keep_vblks;
     void                **cw_cookie;
 

@@ -11,6 +11,7 @@
 #include <hse_util/list.h>
 #include <hse_util/perfc.h>
 
+#include <hse_ikvdb/blk_list.h>
 #include <hse_ikvdb/kvs_cparams.h>
 #include <hse_ikvdb/tuple.h>
 #include <hse_ikvdb/omf_kmd.h>
