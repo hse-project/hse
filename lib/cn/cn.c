@@ -414,10 +414,17 @@ cn_mblocks_commit(
     *n_committed = 0;
 
     for (i = 0; i < num_lists; i++) {
-        /* If we have a valid block ID. This check is protected in
-         * commit_mblock() when using a for loop where blk_list::n_blks is the
-         * upper bound. If there are no blocks in the block list, no blocks are
-         * committed.
+        /* The order of committing here, hblock, kblocks, and then vblocks is
+         * sensitive due to the n_committed argument. This argument is passed to
+         * cn_mblocks_destroy() to determine which blocks need to be aborted or
+         * deleted.
+         */
+
+        /* This check is similar to the check in cn_commit_blks() where the
+         * bounds on the for loop uses the block count of the block list. Here
+         * we always have at least 1 hblock to validate, and we do that by
+         * checking to make sure the hblock's block ID is valid prior to
+         * committing it.
          */
         if (list[i].hblk.bk_blkid) {
             err = commit_mblock(mp, &list[i].hblk);
@@ -432,12 +439,11 @@ cn_mblocks_commit(
         if (ev(err))
             return err;
 
-        if (mutation == CN_MUT_KCOMPACT)
-            continue;
-
-        err = cn_commit_blks(mp, &list[i].vblks, n_committed);
-        if (ev(err))
-            return err;
+        if (mutation != CN_MUT_KCOMPACT) {
+            err = cn_commit_blks(mp, &list[i].vblks, n_committed);
+            if (ev(err))
+                return err;
+        }
     }
 
     return 0;
@@ -453,14 +459,14 @@ cn_mblocks_commit(
  * abort the remaining N-@n_committed.
  */
 static void
-cn_delete_blks(struct mpool *mp, struct blk_list *blks, u32 n_committed)
+cn_delete_blks(struct mpool *mp, struct blk_list *blks, u32 *const n_committed)
 {
     u32 bx;
 
     for (bx = 0; bx < blks->n_blks; ++bx) {
-        if (n_committed > 0) {
+        if (*n_committed > 0) {
             delete_mblock(mp, &blks->blks[bx]);
-            n_committed -= 1;
+            *n_committed -= 1;
         } else {
             abort_mblock(mp, &blks->blks[bx]);
         }
@@ -478,21 +484,29 @@ cn_mblocks_destroy(
     u32 lx;
 
     for (lx = 0; lx < num_lists; lx++) {
-        cn_delete_blks(mp, &list[lx].kblks, n_committed);
-        if (kcompact)
-            continue;
+        /* The order of destroying here, hblock, kblocks, and then vblocks is
+         * sensitive due to the n_committed argument. This argument is passed
+         * from cn_mblocks_commit() to determine which blocks need to be aborted
+         * or deleted.
+         */
 
-        cn_delete_blks(mp, &list[lx].vblks, n_committed);
-
-       /* Same logic as cn_delete_blks() applied to one block. Candidate for
-        * refactor.
-        */
+        /* Same logic as cn_delete_blks() applied to one block. Candidate for
+         * refactor.
+         */
         if (n_committed > 0) {
             delete_mblock(mp, &list[lx].hblk);
+            n_committed--;
         } else {
             abort_mblock(mp, &list[lx].hblk);
         }
+
+        cn_delete_blks(mp, &list[lx].kblks, &n_committed);
+        if (!kcompact)
+            cn_delete_blks(mp, &list[lx].vblks, &n_committed);
     }
+
+    /* At this point, all committed mblocks, should have been deleted. */
+    assert(n_committed == 0);
 }
 
 /**
