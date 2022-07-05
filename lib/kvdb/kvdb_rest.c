@@ -569,24 +569,27 @@ print_unit(
     int                  fd,
     struct yaml_context *yc)
 {
-    yaml2fd(fd, yaml_field_fmt, yc, "dgen", "%lu", dgen);
-    yaml2fd(fd, yaml_field_fmt, yc, "nkeys", "%lu", nkeys);
-    yaml2fd(fd, yaml_field_fmt, yc, "ntombs", "%lu", ntombs);
-    yaml2fd(fd, yaml_field_fmt, yc, "nptombs", "%lu", nptombs);
-    if (type == 'k') {
+    if (type == 'k')
         yaml2fd(fd, yaml_field_fmt, yc, "compc", "%u", compc);
-        yaml2fd(fd, yaml_field_fmt, yc, "vgroups", "%u", vgroups);
-    }
+
+    yaml2fd(fd, yaml_field_fmt, yc, "dgen", "%lu", dgen);
+    yaml2fd(fd, yaml_field_fmt, yc, "keys", "%lu", nkeys);
+    yaml2fd(fd, yaml_field_fmt, yc, "tombs", "%lu", ntombs);
+    yaml2fd(fd, yaml_field_fmt, yc, "ptombs", "%lu", nptombs);
+
     yaml2fd(fd, yaml_field_fmt, yc, "hlen", "%lu", hlen);
     yaml2fd(fd, yaml_field_fmt, yc, "klen", "%lu", klen);
     yaml2fd(fd, yaml_field_fmt, yc, "vlen", "%lu", vlen);
 
-    if (nkvsets >= 0) /* do not print these fields for kvsets */
-        yaml2fd(fd, yaml_field_fmt, yc, "nkvsets", "%d", nkvsets);
+    yaml2fd(fd, yaml_field_fmt, yc, "hblks", "%d", nhblks);
+    yaml2fd(fd, yaml_field_fmt, yc, "kblks", "%d", nkblks);
+    yaml2fd(fd, yaml_field_fmt, yc, "vblks", "%d", nvblks);
 
-    yaml2fd(fd, yaml_field_fmt, yc, "nhblks", "%d", nhblks);
-    yaml2fd(fd, yaml_field_fmt, yc, "nkblks", "%d", nkblks);
-    yaml2fd(fd, yaml_field_fmt, yc, "nvblks", "%d", nvblks);
+    if (nkvsets >= 0) {
+        yaml2fd(fd, yaml_field_fmt, yc, "kvsets", "%d", nkvsets);
+    } else {
+        yaml2fd(fd, yaml_field_fmt, yc, "vgroups", "%u", vgroups);
+    }
 }
 
 static void
@@ -638,15 +641,17 @@ print_elem(
                 yc);
 
             if (ctx->list) {
-                yaml2fd(ctx->fd, yaml_field_fmt, yc, "hblk", "0x%lx", kvset_get_hblock_id(kvset));
+                yaml2fd(ctx->fd, yaml_field_fmt, yc, "hblkids", "0x%lx",
+                        kvset_get_hblock_id(kvset));
 
-                yaml2fd(ctx->fd, yaml_start_element_type, yc, "kblks");
+                yaml2fd(ctx->fd, yaml_start_element_type, yc, "kblkids");
                 print_ids(kvset, TYPE_KBLK, ctx->fd, yc);
                 yaml2fd(ctx->fd, yaml_end_element_type, yc);
 
-                yaml2fd(ctx->fd, yaml_start_element_type, yc, "vblks");
+                yaml2fd(ctx->fd, yaml_start_element_type, yc, "vblkids");
                 print_ids(kvset, TYPE_VBLK, ctx->fd, yc);
                 yaml2fd(ctx->fd, yaml_end_element_type, yc);
+                ev_debug(1);
             }
 
             yaml2fd(ctx->fd, yaml_end_element, yc); /* index */
@@ -798,9 +803,6 @@ kvs_rest_query_tree(struct kvdb_kvs *kvs, struct yaml_context *yc, int fd, bool 
 
     m = &ctx.total;
 
-    yaml2fd(ctx.fd, yaml_field_fmt, yc, "name", kvs->kk_name);
-    yaml2fd(ctx.fd, yaml_field_fmt, yc, "cnid", "%lu", kvs->kk_cnid);
-    yaml2fd(ctx.fd, yaml_field_fmt, yc, "open", "yes");
     print_unit(
         't',
         ctx.tree_dgen,
@@ -819,15 +821,10 @@ kvs_rest_query_tree(struct kvdb_kvs *kvs, struct yaml_context *yc, int fd, bool 
         ctx.fd,
         yc);
 
-    yaml2fd(
-        ctx.fd,
-        yaml_field_fmt,
-        yc,
-        "max_depth",
-        "%u",
-        ctx.tot_nodes > 0 ? ctx.max_depth + 1 : ctx.max_depth);
-
     yaml2fd(ctx.fd, yaml_field_fmt, yc, "nodes", "%u", ctx.tot_nodes);
+    yaml2fd(ctx.fd, yaml_field_fmt, yc, "cnid", "%lu", kvs->kk_cnid);
+    yaml2fd(ctx.fd, yaml_field_fmt, yc, "name", kvs->kk_name);
+    yaml2fd(ctx.fd, yaml_field_fmt, yc, "open", "yes");
 
     yaml2fd(ctx.fd, yaml_end_element, yc);
 
@@ -869,8 +866,8 @@ rest_kvs_tree(
     if (!kvs->kk_ikvs) {
         /* kvs is closed */
         yaml2fd(fd, yaml_start_element_type, &yc, "info");
-        yaml2fd(fd, yaml_field_fmt, &yc, "name", kvs->kk_name);
         yaml2fd(fd, yaml_field_fmt, &yc, "cnid", "%lu", kvs->kk_cnid);
+        yaml2fd(fd, yaml_field_fmt, &yc, "name", kvs->kk_name);
         yaml2fd(fd, yaml_field_fmt, &yc, "open", "no");
         yaml2fd(fd, yaml_end_element, &yc);
         yaml2fd(fd, yaml_end_element_type, &yc); /* info */
