@@ -795,23 +795,46 @@ static const struct param_spec pspecs[] = {
         },
     },
     {
+        /* TODO: Change this name to "csched_lscat_hwm" after we update users.
+         */
         .ps_name = "csched_max_vgroups",
-        .ps_description = "maximum number of vgroups in a single kvset",
+        .ps_description = "leaf-scatter-remediation trigger threshold",
         .ps_flags = PARAM_FLAG_EXPERIMENTAL | PARAM_FLAG_WRITABLE,
         .ps_type = PARAM_TYPE_U8,
-        .ps_offset = offsetof(struct kvdb_rparams, csched_max_vgroups),
-        .ps_size = PARAM_SZ(struct kvdb_rparams, csched_max_vgroups),
+        .ps_offset = offsetof(struct kvdb_rparams, csched_lscat_hwm),
+        .ps_size = PARAM_SZ(struct kvdb_rparams, csched_lscat_hwm),
         .ps_convert = param_default_converter,
         .ps_validate = param_default_validator,
         .ps_stringify = param_default_stringify,
         .ps_jsonify = param_default_jsonify,
         .ps_default_value = {
-            .as_uscalar = 32,
+            .as_uscalar = 64,
         },
         .ps_bounds = {
             .as_uscalar = {
                 .ps_min = 1,
-                .ps_max = 128,
+                .ps_max = 255,
+            },
+        },
+    },
+    {
+        .ps_name = "csched_lscat_runlen_max",
+        .ps_description = "leaf-scatter-remediation kvset count limit",
+        .ps_flags = PARAM_FLAG_EXPERIMENTAL | PARAM_FLAG_WRITABLE,
+        .ps_type = PARAM_TYPE_U8,
+        .ps_offset = offsetof(struct kvdb_rparams, csched_lscat_runlen_max),
+        .ps_size = PARAM_SZ(struct kvdb_rparams, csched_lscat_runlen_max),
+        .ps_convert = param_default_converter,
+        .ps_validate = param_default_validator,
+        .ps_stringify = param_default_stringify,
+        .ps_jsonify = param_default_jsonify,
+        .ps_default_value = {
+            .as_uscalar = 3,
+        },
+        .ps_bounds = {
+            .as_uscalar = {
+                .ps_min = 1,
+                .ps_max = 8,
             },
         },
     },

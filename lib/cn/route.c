@@ -113,25 +113,19 @@ ekgen_generate(struct ekey_generator *egen, void *ekbuf, size_t ekbufsz, uint32_
     if (egen->eg_fmt) {
         if (!strcmp(egen->eg_fmt, "MainKvs")) {
             uint64_t binkeybuf = cpu_to_be64(fmtarg);
+            uint8_t *ekbuf8 = ekbuf;
 
-            memset(ekbuf, 0, 4);
-            ((char *)ekbuf)[3] = 0x0d;
-
-            memcpy((char *)ekbuf + 4, (char *)&binkeybuf + (sizeof(binkeybuf) - pfxlen), pfxlen);
+            memset(ekbuf8, 0, 4);
+            ekbuf8[3] = 0x0d;
+            memcpy(ekbuf8 + 4, (uint8_t *)&binkeybuf + (sizeof(binkeybuf) - pfxlen), pfxlen);
             pfxlen += 4;
 
             log_info("nodeoff %u, fmtarg %u, pfxlen %u, %02x %02x %02x %02x %02x %02x %02x %02x",
                      nodeoff, fmtarg, pfxlen,
-                     ((uint8_t *)&binkeybuf)[0],
-                     ((uint8_t *)&binkeybuf)[1],
-                     ((uint8_t *)&binkeybuf)[2],
-                     ((uint8_t *)&binkeybuf)[3],
-                     ((uint8_t *)&binkeybuf)[4],
-                     ((uint8_t *)&binkeybuf)[5],
-                     ((uint8_t *)&binkeybuf)[6],
-                     ((uint8_t *)&binkeybuf)[7]);
+                     ekbuf8[0], ekbuf8[1], ekbuf8[2], ekbuf8[3],
+                     ekbuf8[4], ekbuf8[5], ekbuf8[6], ekbuf8[7]);
         } else {
-            int n = snprintf((char *)ekbuf, ekbufsz, egen->eg_fmt, fmtarg);
+            int n = snprintf(ekbuf, ekbufsz, egen->eg_fmt, fmtarg);
 
             if (n < 1 || n >= ekbufsz) {
                 log_err("overflow %u: n %d, pfxlen %u, fmt [%s], fmtarg %u",
@@ -148,7 +142,7 @@ ekgen_generate(struct ekey_generator *egen, void *ekbuf, size_t ekbufsz, uint32_
     } else {
         uint64_t binkeybuf = cpu_to_be64(fmtarg);
 
-        memcpy(ekbuf, (char *)&binkeybuf + (sizeof(binkeybuf) - pfxlen), pfxlen);
+        memcpy(ekbuf, (uint8_t *)&binkeybuf + (sizeof(binkeybuf) - pfxlen), pfxlen);
     }
 
     return pfxlen;

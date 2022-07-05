@@ -1704,7 +1704,6 @@ cn_comp_commit(struct cn_compaction_work *w)
 
     for (i = 0; i < w->cw_outc; i++) {
         struct kvset_meta km = {};
-        uint64_t nodeid;
         uint ncommitted;
 
         /* [HSE_REVISIT] there may be vblks to delete!!! */
@@ -1734,12 +1733,25 @@ cn_comp_commit(struct cn_compaction_work *w)
             km.km_compc = 0;
             km.km_node_level = node->tn_loc.node_level;
             km.km_node_offset = node->tn_loc.node_offset;
+            km.km_nodeid = node->tn_nodeid;
 
-            nodeid = km.km_nodeid = node->tn_nodeid;
+            /* Monotonic loads tend to create very large kvsets.  If this
+             * is the first kvset in the node and it appears to have either
+             * a lot of keys or a large vlen, then seed it with a large compc
+             * to defer it from being unnecessarily rewritten by node-length-
+             * reduction and/or scatter-remediation jobs.
+             */
+            if (cn_ns_kvsets(&node->tn_ns) == 0) {
+                if (w->cw_outv[i].kblks.n_blks > 2 || w->cw_outv[i].vblks.n_blks > 32)
+                    km.km_compc += 7;
+            }
         } else {
             struct kvset_list_entry *le = w->cw_mark;
 
             km.km_compc = w->cw_compc;
+            km.km_node_level = w->cw_node->tn_loc.node_level;
+            km.km_node_offset = w->cw_node->tn_loc.node_offset;
+            km.km_nodeid = w->cw_node->tn_nodeid;
 
             /* If we're in the middle of a run then do not increment compc
              * if it would become greater than the next older kvset.
@@ -1747,17 +1759,13 @@ cn_comp_commit(struct cn_compaction_work *w)
             le = list_next_entry_or_null(le, le_link, &w->cw_node->tn_kvset_list);
             if (!le || w->cw_compc < kvset_get_compc(le->le_kvset))
                 km.km_compc++;
-
-            km.km_node_level = w->cw_node->tn_loc.node_level;
-            km.km_node_offset = w->cw_node->tn_loc.node_offset;
-            nodeid = km.km_nodeid = w->cw_node->tn_nodeid;
         }
 
         /* CNDB: Log kvset add records.
          */
         w->cw_err = cndb_record_kvset_add(
                         w->cw_tree->cndb, w->cw_cndb_txn, w->cw_tree->cnid,
-                        nodeid, &km, w->cw_kvsetidv[i], km.km_hblk.bk_blkid,
+                        km.km_nodeid, &km, w->cw_kvsetidv[i], km.km_hblk.bk_blkid,
                         w->cw_outv[i].kblks.n_blks, (uint64_t *)w->cw_outv[i].kblks.blks,
                         w->cw_outv[i].vblks.n_blks, (uint64_t *)w->cw_outv[i].vblks.blks,
                         &cookiev[i]);
@@ -2209,6 +2217,23 @@ cn_tree_node_mclass(struct cn_tree_node *tn, enum hse_mclass_policy_dtype dtype)
         (cn_node_isroot(tn) ? HSE_MPOLICY_AGE_ROOT : HSE_MPOLICY_AGE_INTERNAL);
 
     return mclass_policy_get_type(policy, age, dtype);
+}
+
+uint
+cn_tree_node_scatter(const struct cn_tree_node *tn)
+{
+    struct kvset_list_entry *le;
+    uint scatter = 0;
+
+    list_for_each_entry_reverse(le, &tn->tn_kvset_list, le_link) {
+        const uint vgroups = kvset_get_vgroups(le->le_kvset);
+
+        /* Exclude oldest kvsets with no scatter.
+         */
+        if (scatter + vgroups > 1)
+            scatter += vgroups;
+    }
+    return scatter;
 }
 
 void

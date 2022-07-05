@@ -1758,9 +1758,21 @@ kvset_get_compc(struct kvset *ks)
 }
 
 uint
-kvset_get_vgroups(struct kvset *ks)
+kvset_get_vgroups(const struct kvset *ks)
 {
     return ks->ks_vgroups;
+}
+
+size_t
+kvset_get_kwlen(const struct kvset *ks)
+{
+    return ks->ks_st.kst_kwlen;
+}
+
+size_t
+kvset_get_vwlen(const struct kvset *ks)
+{
+    return ks->ks_st.kst_vwlen;
 }
 
 struct cn_tree *
@@ -1814,12 +1826,6 @@ kvset_stats_add(const struct kvset_stats *add, struct kvset_stats *result)
     result->kst_valen += add->kst_valen;
     result->kst_vwlen += add->kst_vwlen;
     result->kst_vulen += add->kst_vulen;
-}
-
-u64
-kvset_get_vulen(struct kvset *ks)
-{
-    return ks->ks_st.kst_vulen;
 }
 
 u64

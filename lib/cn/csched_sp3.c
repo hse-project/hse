@@ -634,16 +634,13 @@ sp3_refresh_thresholds(struct sp3 *sp)
     v = sp->rp->csched_leaf_comp_params;
     if (v) {
         thresh.lcomp_kvsets_max = (v >> 0) & 0xff;
-        thresh.lcomp_kvsets_min = (v >> 8) & 0xff;
         thresh.lcomp_pop_pct = (v >> 16) & 0xff;
         thresh.lcomp_pop_keys = (v >> 24) & 0xff;
     } else {
         thresh.lcomp_kvsets_max = 12;
-        thresh.lcomp_kvsets_min = 2;
         thresh.lcomp_pop_pct = 100;
         thresh.lcomp_pop_keys = 128; /* units of 4 billion */
     }
-    thresh.lcomp_kvsets_min = max(thresh.lcomp_kvsets_min, SP3_LCOMP_KVSETS_MIN);
 
     /* leaf node length settings */
     v = sp->rp->csched_leaf_len_params;
@@ -655,13 +652,15 @@ sp3_refresh_thresholds(struct sp3 *sp)
     } else {
         thresh.llen_runlen_max = 8;
         thresh.llen_runlen_min = 4;
-        thresh.llen_idlec = 0; /* disabled by default */
+        thresh.llen_idlec = 2;
         thresh.llen_idlem = 10;
     }
     thresh.llen_runlen_min = max(thresh.llen_runlen_min, SP3_LLEN_RUNLEN_MIN);
 
-    /* max vgroups in a kvset */
-    thresh.max_vgroups = sp->rp->csched_max_vgroups;
+    /* vgroup leaf-scatter remediation settings
+     */
+    thresh.lscat_runlen_max = sp->rp->csched_lscat_runlen_max;
+    thresh.lscat_hwm = sp->rp->csched_lscat_hwm;
 
     /* If thresholds have not changed there's nothing to do.  Otherwise, need to
      * recompute work trees.
@@ -675,12 +674,14 @@ sp3_refresh_thresholds(struct sp3 *sp)
         sp3_dirty_node(sp, spn2tn(spn));
     }
 
-    log_info("sp3 thresholds: rspill: min/max %u/%u, lcomp: min/max/pct/keys %u/%u/%u%%/%u,"
-        " llen: min/max %u/%u, idlec: %u, idlem: %u, max_vgroups: %u",
-        thresh.rspill_kvsets_min, thresh.rspill_kvsets_max,
-        thresh.lcomp_kvsets_min, thresh.lcomp_kvsets_max, thresh.lcomp_pop_pct,
-        thresh.lcomp_pop_keys, thresh.llen_runlen_min, thresh.llen_runlen_max,
-        thresh.llen_idlec, thresh.llen_idlem, thresh.max_vgroups); }
+    log_info("sp3 thresholds: rspill: min/max %u/%u, lcomp: max/pct/keys %u/%u%%/%u,"
+             " llen: min/max %u/%u, idlec: %u, idlem: %u, lscat: hwm/max %u/%u",
+             thresh.rspill_kvsets_min, thresh.rspill_kvsets_max,
+             thresh.lcomp_kvsets_max, thresh.lcomp_pop_pct,
+             thresh.lcomp_pop_keys, thresh.llen_runlen_min, thresh.llen_runlen_max,
+             thresh.llen_idlec, thresh.llen_idlem,
+             thresh.lscat_hwm, thresh.lscat_runlen_max);
+}
 
 static void
 sp3_refresh_worker_counts(struct sp3 *sp)
@@ -892,39 +893,11 @@ sp3_unlink_all_nodes(struct sp3 *sp, struct cn_tree *tree)
 static_assert(NELEM(((struct sp3_node *)0)->spn_rbe) == RBT_MAX,
               "number of elements of spn_rbe[] is not RBT_MAX");
 
-/* "Scatter" is a measurement of the contiguity in virtual memory of a kvset's
- * values relative to its keys.  For example, a kvset with (scatter == 1) means
- * that for every key (n), the value for key (n+1) will immediately follow the
- * value for key (n) in virtual memory.  The probability that the preceding is
- * true decreases as the scatter increases.  Similarly, the probability that
- * accessing a value will incur a TLB miss or a page fault is directionally
- * proportional to scatter.
- *
- * Scatter is a direct consequence of k-compaction, where each k-compaction
- * will typically amplify scatter by 4x or more.  Conversely, a kv-compaction
- * completely eliminates scatter, returning the measurement to 1.
- */
-static uint
-sp3_scatter(const struct cn_tree_node *tn)
-{
-    struct kvset_list_entry *le;
-    uint scatter = 0;
-
-    list_for_each_entry(le, &tn->tn_kvset_list, le_link) {
-        uint vgroups = kvset_get_vgroups(le->le_kvset);
-
-        if (vgroups > 1)
-            scatter += vgroups;
-    }
-
-    return scatter;
-}
-
 static void
 sp3_dirty_node_locked(struct sp3 *sp, struct cn_tree_node *tn)
 {
     struct sp3_node *spn = tn2spn(tn);
-    uint64_t nkvsets_total, nkvsets, nkeys;
+    uint64_t nkvsets_total, nkvsets;
     uint garbage = 0, jobs;
     uint scatter = 0;
 
@@ -937,32 +910,43 @@ sp3_dirty_node_locked(struct sp3 *sp, struct cn_tree_node *tn)
     spn->spn_cgen = tn->tn_cgen;
 
     jobs = atomic_read_acq(&tn->tn_busycnt);
-    nkeys = cn_ns_keys(&tn->tn_ns);
 
     nkvsets_total = cn_ns_kvsets(&tn->tn_ns);
     nkvsets = nkvsets_total - (jobs & 0xffffu);
     jobs >>= 16;
 
+    /* We disallow scheduling more than one job of any given type on
+     * any given leaf node (technically we could schedule more, but
+     * the effects have proven deleterious in practice).
+     *
+     * Similarly, we never schedule more than three jobs on any given
+     * root node (see CSCHED_QTHREADS_DEFAULT for default limits).
+     */
     if (tn->tn_parent) {
+        const uint64_t nkeys = cn_ns_keys(&tn->tn_ns);
 
-        /* RBT_LI_LEN: internal and leaf nodes sorted by number of kvsets.
+        scatter = cn_tree_node_scatter(tn);
+
+        /* RBT_L_LEN: internal and leaf nodes sorted by number of kvsets.
+         * We use inverse scatter as a secondary discriminant so as to
+         * prefer scatter jobs over kcompactions when scatter is high.
          */
         if (nkvsets >= sp->thresh.llen_runlen_min && jobs < 1) {
-            uint64_t weight = (nkvsets << 32) | nkeys;
+            const uint64_t weight = (nkvsets << 32) | (UINT32_MAX - scatter);
 
             sp3_node_insert(sp, spn, RBT_L_LEN, weight);
         } else {
             sp3_node_remove(sp, spn, RBT_L_LEN);
         }
 
-        /* RBT_LI_IDLE: Nodes sorted by idle check expiration time.
+        /* RBT_L_IDLE: Nodes sorted by idle check expiration time.
          * Time is a negative offset in 4-second intervals from
          * UINT32_MAX in order to work correctly with the rb-tree
          * weight comparator logic.
          */
-        if (nkvsets >= 2 && jobs < 1) {
-            if (sp->thresh.llen_idlec > 0 && sp->thresh.llen_idlem > 0) {
-                uint64_t ttl = sp->thresh.llen_idlem * 60;
+        if (nkvsets >= sp->thresh.llen_idlec && jobs < 1) {
+            if (sp->thresh.llen_idlem > 0) {
+                const uint64_t ttl = (sp->thresh.llen_idlem * 60) / 4;
                 uint64_t weight = UINT32_MAX - (jclock_ns >> 32) - ttl;
 
                 weight = (weight << 32) | nkvsets;
@@ -973,6 +957,55 @@ sp3_dirty_node_locked(struct sp3 *sp, struct cn_tree_node *tn)
             sp3_node_remove(sp, spn, RBT_L_IDLE);
         }
 
+        garbage = samp_pct_garbage(&tn->tn_samp, 100);
+
+        /* RBT_L_GARB: leaf nodes sorted by pct garbage.
+         * Range: 0 <= rbe_weight <= 100.  If rbe_weight == 3, then
+         * node has 3% garbage.
+         * We use alen as the secondary discriminant to prefer nodes
+         * with higher total bytes of garbage.
+         */
+        if (garbage > 0 && nkvsets > 1 && jobs < 1) {
+            const uint64_t weight = ((uint64_t)garbage << 32) | (cn_ns_alen(&tn->tn_ns) >> 20);
+
+            sp3_node_insert(sp, spn, RBT_L_GARB, weight);
+        } else {
+            sp3_node_remove(sp, spn, RBT_L_GARB);
+        }
+
+        /* RBT_L_SCAT: leaf nodes sorted by vgroup scatter and garbage.
+         */
+        if (scatter > 0 && jobs < 1) {
+            const uint64_t weight = ((uint64_t)scatter << 32) | garbage;
+
+            sp3_node_insert(sp, spn, RBT_L_SCAT, weight);
+        } else {
+            sp3_node_remove(sp, spn, RBT_L_SCAT);
+        }
+
+        /* RBT_L_PCAP: Leaf nodes sorted by pct capacity and secondarily by
+         * number of keys.  If the node's size doesn't exceed the "pop_pct"
+         * threshold then we check to see if the number of keys exceeds the
+         * "pop_keys" threshold.  If so, we insert this node into the tree
+         * with "pop_pct" capacity to ensure it gets spilled.
+         */
+        if (tn->tn_ns.ns_pcap >= sp->thresh.lcomp_pop_pct && jobs < 1) {
+            const uint64_t weight = ((uint64_t)tn->tn_ns.ns_pcap << 32) | nkeys;
+
+            sp3_node_insert(sp, spn, RBT_L_PCAP, weight);
+        } else {
+            uint64_t pop_keys = (uint64_t)sp->thresh.lcomp_pop_keys << 32;
+
+            pop_keys *= tn->tn_loc.node_level;
+
+            if (nkeys > pop_keys && jobs < 1) {
+                const uint64_t weight = ((uint64_t)sp->thresh.lcomp_pop_pct << 32) | nkeys;
+
+                sp3_node_insert(sp, spn, RBT_L_PCAP, weight);
+            } else {
+                sp3_node_remove(sp, spn, RBT_L_PCAP);
+            }
+        }
     } else {
 
         /* If this root node is ready to spill then ensure it's on the list
@@ -987,67 +1020,13 @@ sp3_dirty_node_locked(struct sp3 *sp, struct cn_tree_node *tn)
         }
     }
 
-    if (cn_node_isleaf(tn)) {
-        garbage = samp_pct_garbage(&tn->tn_samp, 100);
-
-        /* RBT_L_GARB: leaf nodes sorted by pct garbage.
-         * Range: 0 <= rbe_weight <= 100.  If rbe_weight == 3, then
-         * node has 3% garbage.
-         */
-        if (garbage > 0 && nkvsets > 1) {
-            uint64_t weight = ((uint64_t)garbage << 32) | nkeys;
-
-            sp3_node_insert(sp, spn, RBT_L_GARB, weight);
-        } else {
-            sp3_node_remove(sp, spn, RBT_L_GARB);
-        }
-
-        /* RBT_L_SCAT: leaf nodes sorted by vgroup scatter and garbage.
-         */
-        scatter = sp3_scatter(tn);
-        if (scatter > 0) {
-            uint64_t weight = ((uint64_t)scatter << 32) | garbage;
-
-            sp3_node_insert(sp, spn, RBT_L_SCAT, weight);
-        } else {
-            sp3_node_remove(sp, spn, RBT_L_SCAT);
-        }
-
-        /* RBT_L_PCAP: Leaf nodes sorted by pct capacity and secondarily by
-         * number of keys.  If the node's size doesn't exceed the "pop_pct"
-         * threshold then we check to see if the number of keys exceeds the
-         * "pop_keys" threshold.  If so, we insert this node into the tree
-         * with "pop_pct" capacity to ensure it gets spilled.
-         */
-        if (tn->tn_ns.ns_pcap >= sp->thresh.lcomp_pop_pct && jobs < 1) {
-            uint64_t weight = ((uint64_t)tn->tn_ns.ns_pcap << 32) | nkeys;
-
-            sp3_node_insert(sp, spn, RBT_L_PCAP, weight);
-        } else {
-            uint64_t pop_keys = (uint64_t)sp->thresh.lcomp_pop_keys << 32;
-
-            pop_keys *= tn->tn_loc.node_level;
-
-            if (nkeys > pop_keys && jobs < 1) {
-                uint64_t weight = ((uint64_t)sp->thresh.lcomp_pop_pct << 32) | nkeys;
-
-                sp3_node_insert(sp, spn, RBT_L_PCAP, weight);
-            } else {
-                sp3_node_remove(sp, spn, RBT_L_PCAP);
-            }
-        }
-    }
-
     if (debug_dirty_node(sp)) {
-
-        bool isleaf = cn_node_isleaf(tn);
-
         slog_info(
             SLOG_START("cn_dirty_node"),
             SLOG_FIELD("cnid", "%lu", (ulong)tn->tn_tree->cnid),
             SLOG_FIELD("lvl", "%u", tn->tn_loc.node_level),
             SLOG_FIELD("off", "%u", tn->tn_loc.node_offset),
-            SLOG_FIELD("isleaf", "%d", isleaf),
+            SLOG_FIELD("isleaf", "%d", !!tn->tn_parent),
             SLOG_FIELD("nd_len", "%lu", (ulong)nkvsets_total),
             SLOG_FIELD("alen", "%lu", (ulong)cn_ns_alen(&tn->tn_ns)),
             SLOG_FIELD("garbage", "%u", garbage),
@@ -1383,14 +1362,14 @@ sp3_comp_thread_name(
         case CN_CR_LLONG:
             r = "lg";
             break;
-        case CN_CR_LSHORT_LW:
-            r = "lw";
+        case CN_CR_LIDXF:
+            r = "fx";
             break;
-        case CN_CR_LSHORT_IDLE:
+        case CN_CR_LIDXP:
+            r = "px";
+            break;
+        case CN_CR_LIDLE:
             r = "id";
-            break;
-        case CN_CR_LSHORT_IDLE_VG:
-            r = "iv";
             break;
         case CN_CR_LSCATF:
             r = "fs";
@@ -1422,6 +1401,7 @@ sp3_job_print(struct sts_job *job, void *priv, char *buf, size_t bufsz)
 {
     struct cn_compaction_work *w = container_of(job, typeof(*w), cw_job);
     struct job_print_state {
+        int jobwidth;
         bool hdr;
     } *jps = priv;
     int n = 0, m = 0;
@@ -1433,13 +1413,17 @@ sp3_job_print(struct sts_job *job, void *priv, char *buf, size_t bufsz)
     }
 
     if (!jps->hdr) {
+        jps->jobwidth = snprintf(NULL, 0, "%3u", sts_job_id_get(&w->cw_job) * 2);
+
         n = snprintf(buf, bufsz,
-                     "%3s %6s %7s %7s %-7s"
+                     "%3s %6s %*s %7s %-7s"
                      " %2s %1s %5s %6s %6s %4s"
                      " %4s %5s %3s %3s %4s"
                      " %6s %6s %6s %6s"
                      " %8s %4s %s\n",
-                     "ID", "LOC   ", "JOB", "ACTION", "RULE",
+                     "ID", "LOC   ",
+                     jps->jobwidth, "JOB",
+                     "ACTION", "RULE",
                      "Q", "T", "KVSET", "ALEN", "CLEN", "PCAP",
                      "CC", "DGEN", "NH", "NK", "NV",
                      "RALEN", "IALEN", "LALEN", "LGOOD",
@@ -1457,14 +1441,14 @@ sp3_job_print(struct sts_job *job, void *priv, char *buf, size_t bufsz)
     snprintf(tmbuf, sizeof(tmbuf), "%lu:%02lu", (tm / 60) % 60, tm % 60);
 
     m = snprintf(buf, bufsz,
-                 "%3lu %u,%-4u %7u %7s %-7s"
+                 "%3lu %u,%-4u %*u %7s %-7s"
                  " %2u %1u %2u,%-2u %6lu %6lu %4u"
                  " %4u %5lu %3u %3u %4u"
                  " %6ld %6ld %6ld %6ld"
                  " %8.8s %4s %s\n",
                  w->cw_tree->cnid,
                  w->cw_node->tn_loc.node_level, w->cw_node->tn_loc.node_offset,
-                 sts_job_id_get(&w->cw_job),
+                 jps->jobwidth, sts_job_id_get(&w->cw_job),
                  cn_action2str(w->cw_action), cn_comp_rule2str(w->cw_comp_rule),
                  w->cw_qnum,
                  atomic_read(&w->cw_node->tn_busycnt) >> 16,
@@ -1838,19 +1822,18 @@ sp3_check_rb_tree(struct sp3 *sp, uint tx, u64 threshold, enum sp3_work_type wty
         if (sp3_work(spn, &sp->thresh, wtype, debug, &sp->wp))
             return false;
 
+        /* Remove node from future consideration of this job type
+         * until put back on the RBT by sp3_dirty_node().
+         */
+        rbn = rb_next(rbn);
+        sp3_node_remove(sp, spn, tx);
+
         have_work = sp->wp && sp->wp->cw_action != CN_ACTION_NONE;
         if (have_work) {
             sp3_submit(sp, sp->wp, qnum);
             sp->wp = NULL;
             return true;
         }
-
-        rbn = rb_next(rbn);
-
-        /* Work functions that do not produce any work need not
-         * be invoked again until the node changes shape.
-         */
-        sp3_node_remove(sp, spn, tx);
     }
 
     return false;
@@ -1993,7 +1976,7 @@ sp3_schedule(struct sp3 *sp)
             if (qfull(sp, qnum))
                 break;
 
-            /* Service RBT_LI_LEN red-black tree.
+            /* Service RBT_L_LEN red-black tree.
              * Implements:
              *   - Internal node query-shape rule
              *   - Leaf node query-shape rule
@@ -2006,7 +1989,7 @@ sp3_schedule(struct sp3 *sp)
             if (qfull(sp, qnum))
                 break;
 
-            /* Service RBT_LI_IDLE red-black tree.
+            /* Service RBT_L_IDLE red-black tree.
              * Implements:
              *   - Idle node query-shape rule
              */
@@ -2055,7 +2038,7 @@ sp3_schedule(struct sp3 *sp)
                     break;
             }
 
-            thresh = (uint64_t)sp->thresh.max_vgroups << 32;
+            thresh = (uint64_t)sp->thresh.lscat_hwm << 32;
 
             job = sp3_check_rb_tree(sp, RBT_L_SCAT, thresh, wtype_leaf_scatter, qnum);
             break;

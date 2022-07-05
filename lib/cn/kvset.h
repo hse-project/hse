@@ -55,8 +55,8 @@ enum kvset_iter_flags {
  * @km_vused:       sum of lengths of referenced values across all vblocks
  * @km_node_offset: cn tree node offset
  * @km_node_level:  cn tree node level
- * @km_nodeid:      cn tree node id
  * @km_compc:       compaction count (prevents repeated kvset compaction)
+ * @km_nodeid:      cn tree node ID
  * @km_capped:      cn is capped
  * @km_restored:    kvset is being restored from the cndb
  *
@@ -70,8 +70,8 @@ struct kvset_meta {
     uint64_t        km_vused;
     uint32_t        km_node_offset;
     uint16_t        km_node_level;
-    uint64_t        km_nodeid;
     uint16_t        km_compc;
+    uint64_t        km_nodeid;
     bool            km_capped;
     bool            km_restored;
 };
@@ -355,7 +355,13 @@ kvset_get_compc(struct kvset *km);
 
 /* MTF_MOCK */
 uint
-kvset_get_vgroups(struct kvset *km);
+kvset_get_vgroups(const struct kvset *km);
+
+size_t
+kvset_get_kwlen(const struct kvset *ks);
+
+size_t
+kvset_get_vwlen(const struct kvset *ks);
 
 /* MTF_MOCK */
 struct cn_tree *
