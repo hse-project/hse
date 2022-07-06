@@ -22,6 +22,11 @@ struct map_mem_block {
     struct map_node  mem[];
 } HSE_ALIGNED(64);
 
+/* A dictionary with uint64_t keys and uintptr_t values.
+ * Memory is allocated in blocks to amortize the allocation overhead of
+ * individual insert.  The memory is not freed until the map is destroyed, so
+ * maps that grow large and then shrink consume more memory than necessary.
+ */
 struct map {
     struct rb_root    root;
     struct list_head  memlist;
@@ -30,6 +35,7 @@ struct map {
     uintptr_t         map_node_freelist;
 };
 
+/* Return a map element to the map's free list */
 static void
 map_mem_free(struct map *map, struct map_node *m)
 {
@@ -37,6 +43,7 @@ map_mem_free(struct map *map, struct map_node *m)
     map->map_node_freelist = (uintptr_t)m;
 }
 
+/* Allocate a block of elements and add each element to the maps's free list */
 static merr_t
 map_mem_extend(struct map *map)
 {
@@ -54,6 +61,7 @@ map_mem_extend(struct map *map)
     return 0;
 }
 
+/* Get an unused map element, extending the free list if necessary. */
 static struct map_node *
 map_mem_alloc(struct map *map)
 {
@@ -75,8 +83,6 @@ map_mem_alloc(struct map *map)
 
     return m;
 }
-
-/* Public API */
 
 struct map *
 map_create(size_t initial_cnt)
@@ -117,6 +123,11 @@ map_destroy(struct map *map)
     free(map);
 }
 
+/* Insert/update map entry.
+ * - If key does not exist in map, insert (key, value) pair.
+ * - If key exists in map and update is true, update existing entry with new value.
+ * - If key exists in map and update is false, return merr(EEXIST).
+ */
 static merr_t
 map_insert_cmn(struct map *map, uint64_t key, uintptr_t value, bool allow_dups)
 {
@@ -160,12 +171,21 @@ map_insert_cmn(struct map *map, uint64_t key, uintptr_t value, bool allow_dups)
     return 0;
 }
 
+/* Insert/update map entry
+ * - If key does not exist in map, insert (key, value) pair.
+ * - If key exists in map, update existing entry with new value.
+ */
 merr_t
 map_insert(struct map *map, uint64_t key, uintptr_t value)
 {
     return map_insert_cmn(map, key, value, true);
 }
 
+/* Find address of value associated with key in map
+ * Return:
+ *   false : key not found
+ *   true  : key found, address of value returned in val_out
+ */
 bool
 map_lookup_ref(struct map *map, uint64_t key, uintptr_t **val)
 {
@@ -187,6 +207,11 @@ map_lookup_ref(struct map *map, uint64_t key, uintptr_t **val)
     return false;
 }
 
+/* Find value associated with key in map
+ * Return:
+ *   false : key not found
+ *   true  : key found, value returned in val_out
+ */
 bool
 map_lookup(struct map *map, uint64_t key, uintptr_t *val_out)
 {
@@ -200,6 +225,11 @@ map_lookup(struct map *map, uint64_t key, uintptr_t *val_out)
     return found;
 }
 
+/* Remove a key from a map and optionally return its value
+ * Return:
+ *   true : key found and removed, value returned in val if val!=NULL
+ *   false : key not found
+ */
 bool
 map_remove(struct map *map, uint64_t key, uintptr_t *val)
 {
