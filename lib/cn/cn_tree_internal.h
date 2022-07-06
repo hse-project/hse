@@ -93,6 +93,7 @@ struct cn_kle_hdr {
  */
 struct cn_tree {
     struct cn_tree_node *ct_root;
+    struct list_head     ct_leaves;
     u16                  ct_fanout;
     u16                  ct_pfx_len;
     u16                  ct_sfx_len;
@@ -153,6 +154,7 @@ struct cn_tree_node {
     struct mutex     tn_rspills_lock;
     struct list_head tn_rspills;
     bool             tn_rspills_wedged;
+    bool             tn_isroot;
     atomic_int       tn_compacting;
     atomic_uint      tn_busycnt;
 
@@ -169,13 +171,11 @@ struct cn_tree_node {
 
     struct cn_node_loc   tn_loc HSE_L1D_ALIGNED;
     uint64_t             tn_nodeid;
-    uint16_t             tn_childc;
     uint                 tn_cgen;
     struct list_head     tn_kvset_list; /* head = newest kvset */
     struct cn_tree *     tn_tree;
     struct route_node   *tn_route_node;
-    struct cn_tree_node *tn_parent;
-    struct cn_tree_node *tn_childv[];
+    struct list_head     tn_link;
 };
 
 /* cn_tree_node to sp3_node */
@@ -186,12 +186,17 @@ struct cn_tree_node {
 void
 cn_node_stats_get(const struct cn_tree_node *tn, struct cn_node_stats *stats);
 
-/* MTF_MOCK */
-bool
-cn_node_isleaf(const struct cn_tree_node *node);
+static inline bool
+cn_node_isleaf(const struct cn_tree_node *tn)
+{
+    return !tn->tn_isroot;
+}
 
-bool
-cn_node_isroot(const struct cn_tree_node *node);
+static inline bool
+cn_node_isroot(const struct cn_tree_node *tn)
+{
+    return tn->tn_isroot;
+}
 
 enum hse_mclass
 cn_tree_node_mclass(struct cn_tree_node *tn, enum hse_mclass_policy_dtype dtype);

@@ -50,7 +50,6 @@ struct cn {
 
     uint             cn_pc_shape_next;
     struct perfc_set cn_pc_shape_rnode;
-    struct perfc_set cn_pc_shape_inode;
     struct perfc_set cn_pc_shape_lnode;
     struct perfc_set cn_pc_capped;
 

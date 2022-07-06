@@ -129,7 +129,6 @@ cn_perfc_alloc(struct cn *cn, uint prio)
     perfc_alloc(cn_perfc_compact, group, "kcompact", prio, &cn->cn_pc_kcompact);
     perfc_alloc(cn_perfc_compact, group, "kvcompact", prio, &cn->cn_pc_kvcompact);
     perfc_alloc(cn_perfc_shape, group, "rnode", prio, &cn->cn_pc_shape_rnode);
-    perfc_alloc(cn_perfc_shape, group, "inode", prio, &cn->cn_pc_shape_inode);
     perfc_alloc(cn_perfc_shape, group, "lnode", prio, &cn->cn_pc_shape_lnode);
     perfc_alloc(cn_perfc_capped, group, "capped", prio, &cn->cn_pc_capped);
 }
@@ -143,7 +142,6 @@ cn_perfc_free(struct cn *cn)
     perfc_free(&cn->cn_pc_kcompact);
     perfc_free(&cn->cn_pc_kvcompact);
     perfc_free(&cn->cn_pc_shape_rnode);
-    perfc_free(&cn->cn_pc_shape_inode);
     perfc_free(&cn->cn_pc_shape_lnode);
     perfc_free(&cn->cn_pc_capped);
 }

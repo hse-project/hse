@@ -26,27 +26,11 @@ cn_tree_walk_callback_fn(
     struct kvset *       kvset);
 
 struct tree_iter {
-    struct cn_tree_node *prev;
     struct cn_tree_node *next;
-    struct cn_tree_node *end;
-    bool                 topdown;
 };
 
-/* TOPDOWN:  Pre-order traversal, visit parents before children.
- * BOTTOMUP: Post-order traversal, visit children before parents.
- */
-#define TRAVERSE_TOPDOWN 0
-#define TRAVERSE_BOTTOMUP 1
-
 void
-tree_iter_init_node(
-    struct cn_tree *     tree,
-    struct tree_iter *   iter,
-    int                  traverse_order,
-    struct cn_tree_node *node);
-
-void
-tree_iter_init(struct cn_tree *tree, struct tree_iter *iter, int traverse_order);
+tree_iter_init(struct cn_tree *tree, struct tree_iter *iter);
 
 struct cn_tree_node *
 tree_iter_next(struct cn_tree *tree, struct tree_iter *iter);

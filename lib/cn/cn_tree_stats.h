@@ -18,7 +18,6 @@ void
 cn_tree_perfc_shape_report(
     struct cn_tree *  tree,
     struct perfc_set *rnode,
-    struct perfc_set *inode,
     struct perfc_set *lnode);
 
 #if HSE_MOCKING
