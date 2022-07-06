@@ -374,20 +374,6 @@ merr_t
 mpool_mblock_commit(struct mpool *mp, uint64_t mbid);
 
 /**
- * mpool_mblock_abort() - abort an mblock
- *
- * @mp:   mpool
- * @mbid: mblock object ID
- *
- * mblock must have been allocated but not yet committed.
- *
- * Return: %0 on success, <%0 on error
- */
-/* MTF_MOCK */
-merr_t
-mpool_mblock_abort(struct mpool *mp, uint64_t mbid);
-
-/**
  * mpool_mblock_delete() - delete an committed mblock
  *
  * @mp:   mpool

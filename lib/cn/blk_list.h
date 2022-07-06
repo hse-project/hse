@@ -9,24 +9,21 @@
 #include <hse_util/inttypes.h>
 #include <hse_util/hse_err.h>
 
-#include <hse_ikvdb/blk_list.h>
-
-struct mpool;
+struct blk_list;
+struct kvs_block;
 struct mblock_props;
+struct mpool;
 
 #define BLK_LIST_PRE_ALLOC 64
 
 merr_t
-abort_mblock(struct mpool *dataset, struct kvs_block *blk);
+delete_mblock(struct mpool *mp, struct kvs_block *blk);
 
 void
-abort_mblocks(struct mpool *dataset, struct blk_list *blks);
+delete_mblocks(struct mpool *mp, struct blk_list *blk);
 
 merr_t
-delete_mblock(struct mpool *dataset, struct kvs_block *blk);
-
-merr_t
-commit_mblock(struct mpool *dataset, struct kvs_block *blk);
+commit_mblock(struct mpool *mp, struct kvs_block *blk);
 
 void
 blk_list_init(struct blk_list *blkl);

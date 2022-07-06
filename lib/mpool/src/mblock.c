@@ -62,23 +62,6 @@ mpool_mblock_commit(struct mpool *mp, uint64_t mbid)
 }
 
 merr_t
-mpool_mblock_abort(struct mpool *mp, uint64_t mbid)
-{
-    struct media_class *mc;
-    enum hse_mclass   mclass;
-
-    if (!mp)
-        return merr(EINVAL);
-
-    mclass = mcid_to_mclass(mclassid(mbid));
-    mc = mpool_mclass_handle(mp, mclass);
-    if (!mc)
-        return merr(ENOENT);
-
-    return mblock_fset_abort(mclass_fset(mc), &mbid, 1);
-}
-
-merr_t
 mpool_mblock_delete(struct mpool *mp, uint64_t mbid)
 {
     struct media_class *mc;

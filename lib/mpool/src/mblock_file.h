@@ -213,16 +213,6 @@ merr_t
 mblock_file_commit(struct mblock_file *mbfp, uint64_t *mbidv, int mbidc);
 
 /**
- * mblock_file_abort() - abort a vector of mblock objects
- *
- * @mbfp:  mblock file handle
- * @mbidv  vector of mblock ids
- * @mbidc: count of mblock ids
- */
-merr_t
-mblock_file_abort(struct mblock_file *mbfp, uint64_t *mbidv, int mbidc);
-
-/**
  * mblock_file_delete() - destroy a vector of mblock objects
  *
  * @mbfp:  mblock file handle

@@ -333,12 +333,12 @@ kvset_builder_destroy(struct kvset_builder *bld)
     if (ev(!bld))
         return;
 
-    mpool_mblock_abort(cn_get_dataset(bld->cn), bld->hblk.bk_blkid);
+    mpool_mblock_delete(cn_get_dataset(bld->cn), bld->hblk.bk_blkid);
 
-    abort_mblocks(cn_get_dataset(bld->cn), &bld->kblk_list);
+    delete_mblocks(cn_get_dataset(bld->cn), &bld->kblk_list);
     blk_list_free(&bld->kblk_list);
 
-    abort_mblocks(cn_get_dataset(bld->cn), &bld->vblk_list);
+    delete_mblocks(cn_get_dataset(bld->cn), &bld->vblk_list);
     blk_list_free(&bld->vblk_list);
 
     hbb_destroy(bld->hbb);
@@ -400,7 +400,7 @@ kvset_builder_finish(struct kvset_builder *imp)
     err = kbb_finish(imp->kbb, &imp->kblk_list);
     if (err) {
         if (!adopted_vbs)
-            abort_mblocks(cn_get_dataset(imp->cn), &imp->vblk_list);
+            delete_mblocks(cn_get_dataset(imp->cn), &imp->vblk_list);
 
         return err;
     }
@@ -408,9 +408,9 @@ kvset_builder_finish(struct kvset_builder *imp)
     err = hbb_finish(imp->hbb, &imp->hblk, imp->seqno_min, imp->seqno_max, imp->kblk_list.n_blks,
                      imp->vblk_list.n_blks, imp->vgroups, kbb_get_composite_hlog(imp->kbb));
     if (err) {
-        abort_mblocks(cn_get_dataset(imp->cn), &imp->kblk_list);
+        delete_mblocks(cn_get_dataset(imp->cn), &imp->kblk_list);
         if (!adopted_vbs)
-            abort_mblocks(cn_get_dataset(imp->cn), &imp->vblk_list);
+            delete_mblocks(cn_get_dataset(imp->cn), &imp->vblk_list);
 
         return err;
     }

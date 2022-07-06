@@ -152,12 +152,6 @@ _mpool_mblock_commit(struct mpool *mp, uint64_t id)
 }
 
 static merr_t
-_mpool_mblock_abort(struct mpool *mp, uint64_t id)
-{
-    return 0;
-}
-
-static merr_t
 _mpool_mblock_delete(struct mpool *mp, uint64_t id)
 {
     merr_t                err;
@@ -821,7 +815,6 @@ mock_mpool_set(void)
     /* Allow repeated init() w/o intervening unset() */
     mock_mpool_unset();
 
-    MOCK_SET(mpool, _mpool_mblock_abort);
     MOCK_SET(mpool, _mpool_mblock_alloc);
     MOCK_SET(mpool, _mpool_mblock_commit);
     MOCK_SET(mpool, _mpool_mblock_delete);
@@ -854,7 +847,6 @@ mock_mpool_unset(void)
 {
     int i;
 
-    MOCK_UNSET(mpool, _mpool_mblock_abort);
     MOCK_UNSET(mpool, _mpool_mblock_alloc);
     MOCK_UNSET(mpool, _mpool_mblock_commit);
     MOCK_UNSET(mpool, _mpool_mblock_delete);

@@ -547,7 +547,6 @@ run_test_case(struct mtf_test_info *lcl_ti, enum test_case tc, size_t n_vblocks)
 
     mapi_calls_clear(mapi_idx_mpool_mblock_alloc);
     mapi_calls_clear(mapi_idx_mpool_mblock_write);
-    mapi_calls_clear(mapi_idx_mpool_mblock_abort);
     mapi_calls_clear(mapi_idx_mpool_mblock_commit);
     mapi_calls_clear(mapi_idx_mpool_mblock_delete);
 
@@ -586,7 +585,6 @@ run_test_case(struct mtf_test_info *lcl_ti, enum test_case tc, size_t n_vblocks)
 
             ASSERT_EQ_RET(mapi_calls(mapi_idx_mpool_mblock_alloc), n_vblocks, 1);
             ASSERT_GT_RET(mapi_calls(mapi_idx_mpool_mblock_write), 0, 1);
-            ASSERT_EQ_RET(mapi_calls(mapi_idx_mpool_mblock_abort), 0, 1);
             ASSERT_EQ_RET(mapi_calls(mapi_idx_mpool_mblock_commit), 0, 1);
             ASSERT_EQ_RET(mapi_calls(mapi_idx_mpool_mblock_delete), 0, 1);
             break;
@@ -597,7 +595,6 @@ run_test_case(struct mtf_test_info *lcl_ti, enum test_case tc, size_t n_vblocks)
 
             ASSERT_EQ_RET(mapi_calls(mapi_idx_mpool_mblock_alloc), n_vblocks, 1);
             ASSERT_GT_RET(mapi_calls(mapi_idx_mpool_mblock_write), 0, 1);
-            ASSERT_EQ_RET(mapi_calls(mapi_idx_mpool_mblock_abort), n_vblocks, 1);
             ASSERT_EQ_RET(mapi_calls(mapi_idx_mpool_mblock_commit), 0, 1);
             ASSERT_EQ_RET(mapi_calls(mapi_idx_mpool_mblock_delete), 0, 1);
             break;

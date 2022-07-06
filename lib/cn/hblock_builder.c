@@ -284,7 +284,7 @@ hbb_finish(
 out:
     if (err) {
         if (blkid)
-            mpool_mblock_abort(bld->mpool, blkid);
+            mpool_mblock_delete(bld->mpool, blkid);
     }
 
     free(iov);

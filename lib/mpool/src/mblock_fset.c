@@ -668,22 +668,6 @@ mblock_fset_commit(struct mblock_fset *mbfsp, uint64_t *mbidv, int mbidc)
 }
 
 merr_t
-mblock_fset_abort(struct mblock_fset *mbfsp, uint64_t *mbidv, int mbidc)
-{
-    struct mblock_file *mbfp;
-
-    if (!mbfsp || !mbidv || file_id(*mbidv) > mbfsp->mhdr.fcnt)
-        return merr(EINVAL);
-
-    if (mbidc > 1)
-        return merr(ENOTSUP);
-
-    mbfp = mbfsp->filev[file_index(*mbidv)];
-
-    return mblock_file_abort(mbfp, mbidv, mbidc);
-}
-
-merr_t
 mblock_fset_delete(struct mblock_fset *mbfsp, uint64_t *mbidv, int mbidc)
 {
     struct mblock_file *mbfp;
@@ -881,7 +865,7 @@ mblock_fset_clone(
     return 0;
 
 errout:
-    mblock_fset_abort(mbfsp, &tgt_mbid, 1);
+    mblock_fset_delete(mbfsp, &tgt_mbid, 1);
 
     return err;
 }

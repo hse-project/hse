@@ -491,7 +491,7 @@ mblock_file_meta_load(struct mblock_file *mbfp, uint32_t version, bool gclose, b
 
             atomic_set(mbfp->wlenv + block_id(mbinfo.mb_oid), mbinfo.mb_wlen);
             atomic_inc(&mbfp->mbcnt);
-            atomic_add(&mbfp->wlen, mbinfo.mb_wlen);
+            atomic_add(&mbfp->wlen, mbinfo.mb_wlen & MBLOCK_WLEN_MASK);
 
             if (HSE_UNLIKELY(fh.uniq == 0))
                 mbfp->uniq = max_t(uint32_t, mbfp->uniq, uniquifier(mbinfo.mb_oid) + 1);
@@ -528,7 +528,7 @@ mblock_file_meta_load(struct mblock_file *mbfp, uint32_t version, bool gclose, b
 static inline bool
 mblock_oid_isvalid(uint64_t mbid, uint64_t omfid, uint32_t wlen, uint32_t omfwlen, bool exists)
 {
-    return (exists && mbid == omfid && wlen == omfwlen) || (!exists && 0 == omfid && 0 == omfwlen);
+    return (exists && mbid == omfid && wlen == omfwlen) || (0 == omfid && 0 == omfwlen);
 }
 
 static merr_t
@@ -917,7 +917,7 @@ mblock_file_find(struct mblock_file *mbfp, uint64_t *mbidv, int mbidc, struct mb
     }
 
     err2 = mblock_file_meta_validate(mbfp, mbidv, mbidc, !err);
-    if (!err2 && props) {
+    if (!err && !err2 && props) {
         props->mpr_objid = *mbidv;
         props->mpr_mclass = mcid_to_mclass(mbfp->mcid);
         props->mpr_write_len = mblock_wlen_get(mbfp, *mbidv);
@@ -954,16 +954,11 @@ mblock_file_commit(struct mblock_file *mbfp, uint64_t *mbidv, int mbidc)
     err = mblock_file_meta_log(mbfp, mbidv, mbidc, delete);
     hse_wmesg_tls = "-";
 
-    if (err)
-        return err;
-
-    atomic_add(&mbfp->wlen, mblock_wlen_get(mbfp, *mbidv));
-
-    return 0;
+    return err;
 }
 
-static merr_t
-mblock_file_abrt_or_del(struct mblock_file *mbfp, uint64_t *mbidv, int mbidc, bool delete)
+merr_t
+mblock_file_delete(struct mblock_file *mbfp, uint64_t *mbidv, int mbidc)
 {
     uint32_t block;
     off_t    mblocksz;
@@ -981,13 +976,7 @@ mblock_file_abrt_or_del(struct mblock_file *mbfp, uint64_t *mbidv, int mbidc, bo
     if (err)
         return err;
 
-    if (delete) {
-        err = mblock_file_meta_log(mbfp, mbidv, mbidc, delete);
-        if (!err)
-            atomic_sub(&mbfp->wlen, mblock_wlen_get(mbfp, *mbidv));
-    } else {
-        err = mblock_file_meta_validate(mbfp, mbidv, mbidc, delete);
-    }
+    err = mblock_file_meta_log(mbfp, mbidv, mbidc, true);
     if (err)
         return err;
 
@@ -996,6 +985,7 @@ mblock_file_abrt_or_del(struct mblock_file *mbfp, uint64_t *mbidv, int mbidc, bo
                    block_off(*mbidv, mblocksz), mblocksz);
     ev(rc);
 
+    atomic_sub(&mbfp->wlen, mblock_wlen_get(mbfp, *mbidv));
     mblock_wlen_set(mbfp, *mbidv, 0, false);
     atomic_dec(&mbfp->mbcnt);
 
@@ -1004,18 +994,6 @@ mblock_file_abrt_or_del(struct mblock_file *mbfp, uint64_t *mbidv, int mbidc, bo
         return err;
 
     return 0;
-}
-
-merr_t
-mblock_file_abort(struct mblock_file *mbfp, uint64_t *mbidv, int mbidc)
-{
-    return mblock_file_abrt_or_del(mbfp, mbidv, mbidc, false);
-}
-
-merr_t
-mblock_file_delete(struct mblock_file *mbfp, uint64_t *mbidv, int mbidc)
-{
-    return mblock_file_abrt_or_del(mbfp, mbidv, mbidc, true);
 }
 
 static merr_t
@@ -1125,8 +1103,10 @@ mblock_write(struct mblock_file *mbfp, uint64_t mbid, const struct iovec *iov, i
     err = mbfp->dataio.write(mbfp->fd, woff, iov, iovc, 0, NULL);
     hse_wmesg_tls = "-";
 
-    if (!err)
+    if (!err) {
         mblock_wlen_add(mbfp, mbid, len);
+        atomic_add(&mbfp->wlen, len);
+    }
 
     return err;
 }

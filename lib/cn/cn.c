@@ -382,11 +382,11 @@ cn_pfx_probe(
  * Given @N mblock IDs, attempt to commit all @N mblocks.  If all commits are
  * successful, then set @n_committed to @N and return with success status.  If
  * the @i-th commit fails, then: do not attempt to commit any more of the @N
- * mblocks, set @n_committed to @i-%1, and return with an error status
- * indicating the underlying cause of failure.
+ * mblocks and instead return with an error status indicating the underlying
+ * cause of failure.
  */
 static merr_t
-cn_commit_blks(struct mpool *mp, struct blk_list *blks, u32 *n_committed)
+cn_commit_blks(struct mpool *mp, struct blk_list *blks)
 {
     merr_t err;
     u32    bx;
@@ -395,8 +395,8 @@ cn_commit_blks(struct mpool *mp, struct blk_list *blks, u32 *n_committed)
         err = commit_mblock(mp, &blks->blks[bx]);
         if (ev(err))
             return err;
-        *n_committed += 1;
     }
+
     return 0;
 }
 
@@ -405,21 +405,12 @@ cn_mblocks_commit(
     struct mpool         *mp,
     u32                   num_lists,
     struct kvset_mblocks *list,
-    enum cn_mutation      mutation,
-    u32                  *n_committed)
+    enum cn_mutation      mutation)
 {
     merr_t err = 0;
     u32    i;
 
-    *n_committed = 0;
-
     for (i = 0; i < num_lists; i++) {
-        /* The order of committing here, hblock, kblocks, and then vblocks is
-         * sensitive due to the n_committed argument. This argument is passed to
-         * cn_mblocks_destroy() to determine which blocks need to be aborted or
-         * deleted.
-         */
-
         /* This check is similar to the check in cn_commit_blks() where the
          * bounds on the for loop uses the block count of the block list. Here
          * we always have at least 1 hblock to validate, and we do that by
@@ -430,17 +421,15 @@ cn_mblocks_commit(
             err = commit_mblock(mp, &list[i].hblk);
             if (ev(err)) {
                 return err;
-            } else {
-                *n_committed += 1;
             }
         }
 
-        err = cn_commit_blks(mp, &list[i].kblks, n_committed);
+        err = cn_commit_blks(mp, &list[i].kblks);
         if (ev(err))
             return err;
 
         if (mutation != CN_MUT_KCOMPACT) {
-            err = cn_commit_blks(mp, &list[i].vblks, n_committed);
+            err = cn_commit_blks(mp, &list[i].vblks);
             if (ev(err))
                 return err;
         }
@@ -449,64 +438,20 @@ cn_mblocks_commit(
     return 0;
 }
 
-/**
- * cn_delete_blks() - delete or abort multiple mblocks
- * @mp:           mpool
- * @blks:         blk_list of mblocks to delete
- * @n_committed:  number of mblocks in list already committed
- *
- * Given a blk_list of mblocks, delete the first @n_committed and
- * abort the remaining N-@n_committed.
- */
-static void
-cn_delete_blks(struct mpool *mp, struct blk_list *blks, u32 *const n_committed)
-{
-    u32 bx;
-
-    for (bx = 0; bx < blks->n_blks; ++bx) {
-        if (*n_committed > 0) {
-            delete_mblock(mp, &blks->blks[bx]);
-            *n_committed -= 1;
-        } else {
-            abort_mblock(mp, &blks->blks[bx]);
-        }
-    }
-}
-
 void
 cn_mblocks_destroy(
     struct mpool *        mp,
     u32                   num_lists,
     struct kvset_mblocks *list,
-    bool                  kcompact,
-    u32                   n_committed)
+    bool                  kcompact)
 {
-    u32 lx;
+    for (uint32_t i = 0; i < num_lists; i++) {
+        delete_mblock(mp, &list[i].hblk);
 
-    for (lx = 0; lx < num_lists; lx++) {
-        /* The order of destroying here, hblock, kblocks, and then vblocks is
-         * sensitive due to the n_committed argument. This argument is passed
-         * from cn_mblocks_commit() to determine which blocks need to be aborted
-         * or deleted.
-         */
-
-        /* Same logic as cn_delete_blks() applied to one block. Candidate for
-         * refactor.
-         */
-        if (n_committed > 0) {
-            delete_mblock(mp, &list[lx].hblk);
-            n_committed--;
-        } else {
-            abort_mblock(mp, &list[lx].hblk);
-        }
-
-        cn_delete_blks(mp, &list[lx].kblks, &n_committed);
+        delete_mblocks(mp, &list[i].kblks);
         if (!kcompact)
-            cn_delete_blks(mp, &list[lx].vblks, &n_committed);
+            delete_mblocks(mp, &list[i].vblks);
     }
-
-    /* At this point, all committed mblocks, should have been deleted. */
-    assert(n_committed == 0);
 }
 
 /**
@@ -600,7 +545,6 @@ cn_ingest_prep(
 {
     struct kvset_meta km = {};
     u64               dgen;
-    u32               commitc = 0;
     merr_t            err = 0;
 
     if (ev(!mblocks))
@@ -647,7 +591,7 @@ cn_ingest_prep(
     if (ev(err))
         goto done;
 
-    err = cn_mblocks_commit(cn->cn_dataset, 1, mblocks, CN_MUT_INGEST, &commitc);
+    err = cn_mblocks_commit(cn->cn_dataset, 1, mblocks, CN_MUT_INGEST);
     if (ev(err))
         goto done;
 
@@ -655,8 +599,7 @@ cn_ingest_prep(
 
 done:
     if (err) {
-        /* Delete committed mblocks, abort those not yet committed. */
-        cn_mblocks_destroy(cn->cn_dataset, 1, mblocks, 0, commitc);
+        cn_mblocks_destroy(cn->cn_dataset, 1, mblocks, 0);
         *kvsetp = NULL;
     }
 

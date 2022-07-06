@@ -157,7 +157,7 @@ vblock_start(struct vblock_builder *bld, const struct key_obj *min_kobj)
 
     err = blk_list_append(&bld->vblk_list, blkid);
     if (ev(err)) {
-        mpool_mblock_abort(bld->ds, blkid);
+        mpool_mblock_delete(bld->ds, blkid);
         return err;
     }
 
@@ -310,7 +310,7 @@ vbb_destroy(struct vblock_builder *bld)
     if (ev(!bld))
         return;
 
-    abort_mblocks(bld->ds, &bld->vblk_list);
+    delete_mblocks(bld->ds, &bld->vblk_list);
     blk_list_free(&bld->vblk_list);
 
     vlb_free(bld->wbuf, WBUF_LEN_MAX + sizeof(*bld));
