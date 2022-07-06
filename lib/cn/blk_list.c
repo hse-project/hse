@@ -24,7 +24,7 @@ commit_mblock(struct mpool *mp, struct kvs_block *blk)
 
     err = mpool_mblock_commit(mp, blk->bk_blkid);
     if (ev(err)) {
-        log_errx("commit_mblock failed: @@e, blkid 0x%lx", err, blk->bk_blkid);
+        log_errx("Failed to commit mblock: @@e, blkid 0x%lx", err, blk->bk_blkid);
         return err;
     }
 
@@ -34,18 +34,17 @@ commit_mblock(struct mpool *mp, struct kvs_block *blk)
 merr_t
 delete_mblock(struct mpool *mp, struct kvs_block *blk)
 {
-    merr_t err = 0;
-
-    if (!blk->bk_blkid)
-        return 0;
+    merr_t err;
 
     err = mpool_mblock_delete(mp, blk->bk_blkid);
     if (ev(err)) {
-        log_errx("delete_mblock failed: @@e, blkid 0x%lx", err, blk->bk_blkid);
+        log_errx("Failed to delete mblock: @@e, blkid 0x%lx", err, blk->bk_blkid);
+        return err;
     } else {
         blk->bk_blkid = 0;
     }
-    return err;
+
+    return 0;
 }
 
 void

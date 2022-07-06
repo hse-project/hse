@@ -157,6 +157,9 @@ MTF_DEFINE_UTEST_PREPOST(mblock_test, mblock_abc, mpool_test_pre, mpool_test_pos
     ASSERT_EQ(
         0, strncmp(capacity_path, info.mclass[HSE_MCLASS_CAPACITY].mi_path, sizeof(capacity_path)));
 
+    err = mpool_mblock_delete(mp, 0);
+    ASSERT_EQ(0, merr_errno(err));
+
     err = mpool_mblock_delete(NULL, mbid);
     ASSERT_EQ(EINVAL, merr_errno(err));
 
