@@ -15,6 +15,7 @@
 #include <hse_ikvdb/kvs_cparams.h>
 #include <hse_ikvdb/cn_node_loc.h>
 #include <hse_ikvdb/cn_tree_view.h>
+#include <hse_ikvdb/csched.h>
 #include <hse_ikvdb/ikvdb.h>
 #include <hse_ikvdb/argv.h>
 
@@ -45,8 +46,8 @@ bool ct_view_do_nothing = false;
 merr_t
 _cn_tree_view_create(struct cn *cn, struct table **view_out)
 {
-    struct table *     view;
     struct kvset_view *v;
+    struct table *view;
 
     if (ct_view_do_nothing) {
         *view_out = 0;
@@ -58,28 +59,28 @@ _cn_tree_view_create(struct cn *cn, struct table **view_out)
     /* root node */
     v = table_append(view);
 
-    v->kvset = 0;
+    v->kvset = NULL;
     v->node_loc.node_level = 0;
     v->node_loc.node_offset = 0;
 
     if (ct_view_two_level) {
         /* another node */
         v = table_append(view);
-        v->kvset = 0;
+        v->kvset = NULL;
         v->node_loc.node_level = 1;
         v->node_loc.node_offset = 0;
     }
 
     /* kvset */
     v = table_append(view);
-    v->kvset = (struct kvset *)-1;
+    v->kvset = (void *)v;
     v->node_loc.node_level = ct_view_two_level ? 1 : 0;
     v->node_loc.node_offset = 0;
 
     /* another kvset */
     if (ct_view_two_kvsets) {
         v = table_append(view);
-        v->kvset = (struct kvset *)-1;
+        v->kvset = (void *)v;
         v->node_loc.node_level = ct_view_two_level ? 1 : 0;
         v->node_loc.node_offset = 0;
     }
@@ -101,6 +102,8 @@ _cn_tree_view_destroy(struct table *view)
 void
 _kvset_get_metrics(struct kvset *kvset, struct kvset_metrics *metrics)
 {
+    struct kvset_view *v = (void *)kvset;
+
     if (!metrics)
         return;
 
@@ -113,6 +116,7 @@ _kvset_get_metrics(struct kvset *kvset, struct kvset_metrics *metrics)
     metrics->tot_key_bytes = 4000000;
     metrics->tot_val_bytes = 8000000;
     metrics->compc = 0;
+    metrics->comp_rule = (v->node_loc.node_level == 0) ? CN_CR_INGEST : CN_CR_RSPILL;
     metrics->vgroups = 1;
 }
 
@@ -405,6 +409,33 @@ MTF_DEFINE_UTEST_PREPOST(kvdb_rest, unexact_paths, test_pre, test_post)
     ASSERT_NE(0, err);
 }
 
+static size_t
+strdiff(const char *s1, const char *s2)
+{
+    size_t len = strlen(s1);
+    size_t offset = 0;
+    size_t line = 1;
+
+    for (size_t i = 1; i <= len; ++i) {
+        if (0 != strncmp(s1, s2, i)) {
+            int width = i - offset;
+
+            printf("mismatch at %zu:%zu: [%*.*s] vs [%*.*s]\n",
+                   line, offset,
+                   width, width, s1 + offset,
+                   width, width, s2 + offset);
+            return i;
+        }
+
+        if (s1[i] == '\n') {
+            offset = i + 1;
+            ++line;
+        }
+    }
+
+    return 0;
+}
+
 /* Tests to verify yaml output of the cn_tree
  */
 MTF_DEFINE_UTEST_PREPOST(kvdb_rest, print_tree_test, test_pre, test_post)
@@ -430,7 +461,8 @@ MTF_DEFINE_UTEST_PREPOST(kvdb_rest, print_tree_test, test_pre, test_post)
         "    kblks: 1\n"
         "    vblks: 1\n"
         "    vgroups: 1\n"
-        "    hblkids: 0x70310c\n"
+        "    rule: ingest\n"
+        "    hblkid: 0x70310c\n"
         "    kblkids:\n"
         "      - 0x70310d\n"
         "    vblkids:\n"
@@ -482,6 +514,8 @@ MTF_DEFINE_UTEST_PREPOST(kvdb_rest, print_tree_test, test_pre, test_post)
 
     err = curl_get(path, sock, buf, sizeof(buf));
     ASSERT_EQ(0, err);
+
+    strdiff(exp, buf);
     ASSERT_STREQ(exp, buf);
 
     ct_view_do_nothing = true;
@@ -527,7 +561,8 @@ MTF_DEFINE_UTEST_PREPOST(kvdb_rest, empty_root_test, test_pre, test_post)
         "    kblks: 1\n"
         "    vblks: 1\n"
         "    vgroups: 1\n"
-        "    hblkids: 0x70310c\n"
+        "    rule: rspill\n"
+        "    hblkid: 0x70310c\n"
         "    kblkids:\n"
         "      - 0x70310d\n"
         "    vblkids:\n"
@@ -635,6 +670,7 @@ MTF_DEFINE_UTEST_PREPOST(kvdb_rest, list_without_blkids, test_pre, test_post)
         "    kblks: 1\n"
         "    vblks: 1\n"
         "    vgroups: 1\n"
+        "    rule: rspill\n"
         "  - index: 1\n"
         "    compc: 0\n"
         "    dgen: 8\n"
@@ -648,6 +684,7 @@ MTF_DEFINE_UTEST_PREPOST(kvdb_rest, list_without_blkids, test_pre, test_post)
         "    kblks: 1\n"
         "    vblks: 1\n"
         "    vgroups: 1\n"
+        "    rule: rspill\n"
         "  info:\n"
         "    dgen: 8\n"
         "    keys: 2000000\n"

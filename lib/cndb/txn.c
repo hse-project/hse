@@ -133,6 +133,7 @@ cndb_txn_kvset_add(
     kvset->ck_dgen = km->km_dgen;
     kvset->ck_vused = km->km_vused;
     kvset->ck_compc = km->km_compc;
+    kvset->ck_comp_rule = km->km_comp_rule;
 
     kvset->ck_kblkc = kblkc;
     for (i = 0; i < kblkc; i++)

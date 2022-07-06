@@ -1319,75 +1319,69 @@ sp3_comp_thread_name(
 {
     const char *a = "XX";
     const char *r = "XX";
-    char        node_type;
 
     switch (action) {
+    case CN_ACTION_NONE:
+    case CN_ACTION_END:
+        break;
 
-        case CN_ACTION_NONE:
-        case CN_ACTION_END:
-            break;
+    case CN_ACTION_COMPACT_K:
+        a = "kc";
+        break;
 
-        case CN_ACTION_COMPACT_K:
-            a = "kc";
-            break;
-        case CN_ACTION_COMPACT_KV:
-            a = "kv";
-            break;
-        case CN_ACTION_SPILL:
-            a = "sp";
-            break;
+    case CN_ACTION_COMPACT_KV:
+        a = "kv";
+        break;
+
+    case CN_ACTION_SPILL:
+        a = "sp";
+        break;
     }
 
     switch (rule) {
-
-        case CN_CR_NONE:
-        case CN_CR_END:
-            break;
-
-        case CN_CR_RSPILL:
-            r = "sr";
-            break;
-        case CN_CR_RTINY:
-            r = "tr";
-            break;
-        case CN_CR_LBIG:
-            r = "bn";
-            break;
-        case CN_CR_LBIG_ONE:
-            r = "b1";
-            break;
-        case CN_CR_LGARB:
-            r = "gb";
-            break;
-        case CN_CR_LLONG:
-            r = "lg";
-            break;
-        case CN_CR_LIDXF:
-            r = "fx";
-            break;
-        case CN_CR_LIDXP:
-            r = "px";
-            break;
-        case CN_CR_LIDLE:
-            r = "id";
-            break;
-        case CN_CR_LSCATF:
-            r = "fs";
-            break;
-        case CN_CR_LSCATP:
-            r = "ps";
-            break;
+    case CN_CR_NONE:
+        r = "xx";
+        break;
+    case CN_CR_INGEST:
+        r = "s0";
+        break;
+    case CN_CR_RSPILL:
+        r = "sr";
+        break;
+    case CN_CR_RTINY:
+        r = "tr";
+        break;
+    case CN_CR_LBIG:
+        r = "bn";
+        break;
+    case CN_CR_LBIG_ONE:
+        r = "b1";
+        break;
+    case CN_CR_LGARB:
+        r = "gb";
+        break;
+    case CN_CR_LLONG:
+        r = "lg";
+        break;
+    case CN_CR_LIDXF:
+        r = "fx";
+        break;
+    case CN_CR_LIDXP:
+        r = "px";
+        break;
+    case CN_CR_LIDLE:
+        r = "id";
+        break;
+    case CN_CR_LSCATF:
+        r = "fs";
+        break;
+    case CN_CR_LSCATP:
+        r = "ps";
+        break;
     }
 
-    if (loc->node_level == 0)
-        node_type = 'r';
-    else if (leaf)
-        node_type = 'x';
-    else
-        node_type = 'i';
-
     snprintf(buf, bufsz, "hse_%c%s_%s_%u%u",
-             node_type, a, r, loc->node_level, loc->node_offset);
+             leaf ? 'r' : 'x', a, r, loc->node_level, loc->node_offset);
 }
 
 /* This function is the sts job-print callback which is invoked

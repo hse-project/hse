@@ -20,6 +20,7 @@
 #include <hse_ikvdb/cn_tree_view.h>
 #include <hse_ikvdb/kvset_view.h>
 #include <hse_ikvdb/kvdb_rparams.h>
+#include <hse_ikvdb/csched.h>
 
 #include <cjson/cJSON_Utils.h>
 
@@ -554,7 +555,8 @@ static void
 print_unit(
     int                  type,
     u64                  dgen,
-    u16                  compc,
+    uint                 compc,
+    uint                 comp_rule,
     u32                  vgroups,
     u64                  nkeys,
     u64                  ntombs,
@@ -590,6 +592,9 @@ print_unit(
     } else {
         yaml2fd(fd, yaml_field_fmt, yc, "vgroups", "%u", vgroups);
     }
+
+    if (type == 'k')
+        yaml2fd(fd, yaml_field_fmt, yc, "rule", "%s", cn_comp_rule2str(comp_rule));
 }
 
 static void
@@ -626,6 +631,7 @@ print_elem(
                 'k',
                 ctx->kvset_dgen,
                 m->compc,
+                m->comp_rule,
                 m->vgroups,
                 m->num_keys,
                 m->num_tombstones,
@@ -641,7 +647,7 @@ print_elem(
                 yc);
 
             if (ctx->list) {
-                yaml2fd(ctx->fd, yaml_field_fmt, yc, "hblkids", "0x%lx",
+                yaml2fd(ctx->fd, yaml_field_fmt, yc, "hblkid", "0x%lx",
                         kvset_get_hblock_id(kvset));
 
                 yaml2fd(ctx->fd, yaml_start_element_type, yc, "kblkids");
@@ -668,6 +674,7 @@ print_elem(
                 'n',
                 ctx->node_dgen,
                 m->compc,
+                m->comp_rule,
                 0,
                 m->num_keys,
                 m->num_tombstones,
@@ -807,6 +814,7 @@ kvs_rest_query_tree(struct kvdb_kvs *kvs, struct yaml_context *yc, int fd, bool 
         't',
         ctx.tree_dgen,
         m->compc,
+        m->comp_rule,
         0,
         m->num_keys,
         m->num_tombstones,
