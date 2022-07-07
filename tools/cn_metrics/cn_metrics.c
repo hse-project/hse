@@ -8,6 +8,7 @@
 #include <hse_ikvdb/cn.h>
 #include <hse_ikvdb/limits.h>
 #include <hse_ikvdb/ikvdb.h>
+#include <hse_ikvdb/csched.h>
 
 #include <cn/cn_metrics.h>
 #include <cn/cn_tree.h>
@@ -360,21 +361,24 @@ print_ids(
         printf(" ...");
 }
 
-const char *hdrv[] = { "H", "Loc", "Dgen", "Keys", "Tombs", "Ptombs", "AvgKlen",
-                       "AvgVlen", "HbAlen", "KbAlen", "VbAlen", "HbWlen%",
-                       "KbWlen%", "VbWlen%", "VbUlen%", "Comps", "Vgrps", "Kbs", "Vbs" };
+const char *hdrv[] = {
+    "H", "Loc", "Dgen",
+    "Keys", "Tombs", "Ptombs", "AvgKlen", "AvgVlen", "HbAlen", "KbAlen", "VbAlen",
+    "HbWlen%", "KbWlen%", "VbWlen%", "VbUlen%",
+    "Compc", "Rule", "Vgrps", "Kbs", "Vbs"
+};
 
 #define FMT_HDR                        \
     "%s %-12s %5s "                    \
     "%*s %*s %*s %*s %*s %*s %*s %*s " \
     "%7s %7s %7s %7s "                 \
-    "%5s %5s %4s %4s"
+    "%5s %6s %5s %4s %4s"
 
 #define FMT_ROW                        \
     "%s %-12s %5lu "                   \
     "%*s %*s %*s %*s %*s %*s %*s %*s " \
     "%7.1f %7.1f %7.1f %7.1f "         \
-    "%5u %5u %4u %4u %s"
+    "%5u %6s %5u %4u %4u %s"
 
 #define BN(_buf, _val) bn64((_buf), sizeof((_buf)), opt.bnfmt, (_val))
 
@@ -435,6 +439,7 @@ print_row(char *tag, struct rollup *r, uint index, char *sep)
         DIVZ(100.0 * r->ks.kst_vwlen, r->ks.kst_valen),
         DIVZ(100.0 * r->ks.kst_vulen, r->ks.kst_valen),
         r->km.compc,
+        (tag[0] == 'k') ? cn_comp_rule2str(r->km.comp_rule) : "-",
         r->km.vgroups,
         r->ks.kst_kblks,
         r->ks.kst_vblks,
@@ -473,6 +478,7 @@ print_hdr(void)
         hdrv[16],
         hdrv[17],
         hdrv[18],
+        hdrv[19],
         (opt.nodes_only ? "" : " HblockID / KblockIDs / VblockIDs"));
 }
 
@@ -633,10 +639,8 @@ main(int argc, char **argv)
     }
 
     if (opt.yaml_output) {
-        char                yaml_buf[4096]; /* Meant to fit one line of the yaml output */
+        char yaml_buf[4096 * 4]; /* Meant to fit at least one line of the yaml output */
         struct yaml_context yc = {
-            .yaml_indent = 0,
-            .yaml_offset = 0,
             .yaml_buf = yaml_buf,
             .yaml_buf_sz = sizeof(yaml_buf),
             .yaml_emit = cn_metrics_yaml_emit,
