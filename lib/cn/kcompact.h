@@ -27,7 +27,7 @@ struct cn_compaction_work;
  * in kvs_vtuple_ref into the new target vr_index in the larger kvset.
  *
  * Example:
- * 4 origin kvsets: {k0,v0,v1} {k1,v2} {k2,v3,v4,v5} {k3,v6,v7}
+ * 4 origin kvsets: {k0,v0,v1} {k1,v0} {k2,v0,v1,v2} {k3,v0,v1}
  * blkv:            [v0,v1,v2,v3,v4,v5,v6,v7]
  * map:             [0,2,3,6]
  * blkc, mapc:      8,4

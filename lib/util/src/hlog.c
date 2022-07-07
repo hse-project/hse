@@ -88,7 +88,7 @@ hlog_create(struct hlog **hlog_out, uint p)
 void
 hlog_destroy(struct hlog *hlog)
 {
-    if (ev(!hlog))
+    if (!hlog)
         return;
 
     free_aligned(hlog->regv);

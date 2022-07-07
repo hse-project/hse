@@ -18,6 +18,7 @@ struct mblock_props;
 struct mpool;
 struct mpool_mcache_map;
 struct wbt_desc;
+struct kvset_vgroup_map;
 
 struct hblk_metrics {
     size_t hm_size;
@@ -111,6 +112,25 @@ hbr_read_seqno_range(
     struct kvs_mblk_desc *mblk_desc,
     uint64_t *seqno_min,
     uint64_t *seqno_max) HSE_NONNULL(1, 2, 3);
+
+/**
+ * Return the vgroup map from the header.
+ *
+ * @param hbd hblock descriptor
+ * @param[out] vgmap vgroup map
+ * @param[out] use_vgmap set if vgmap contains non-zero index adjust for any of the vgroups
+ */
+merr_t
+hbr_read_vgroup_map(struct kvs_mblk_desc *hbd, struct kvset_vgroup_map *vgmap, bool *use_vgmap);
+
+/**
+ * Return the vgroup count from the header.
+ *
+ * @param hbd hblock descriptor
+ * @param[out] nvgroups number of vgroups
+ */
+merr_t
+hbr_read_vgroup_cnt(struct kvs_mblk_desc *hbd, uint32_t *nvgroups);
 
 #if HSE_MOCKING
 #include "hblock_reader_ut.h"

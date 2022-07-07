@@ -62,6 +62,8 @@ struct kvset_builder {
     struct vblock_builder *vbb;
     struct blk_list vblk_list;
 
+    struct kvset_vgroup_map *vgmap;
+
     uint64_t seqno_max;
     uint64_t seqno_min;
 
@@ -78,7 +80,6 @@ struct kvset_builder {
     struct key_stats key_stats;
     struct cn_merge_stats mstats;
 
-    unsigned int vgroups;
     uint8_t  last_ptomb[HSE_KVS_PFX_LEN_MAX];
     uint32_t last_ptlen;
     uint64_t last_ptseq;

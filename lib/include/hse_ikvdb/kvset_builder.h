@@ -21,6 +21,7 @@ struct kvset_builder;
 struct kvs_rparams;
 struct perfc_set;
 struct cn_merge_stats;
+struct kvset_vgroup_map;
 
 struct key_stats {
     uint nvals;
@@ -105,9 +106,9 @@ kvset_builder_add_nonval(struct kvset_builder *self, u64 seq, enum kmd_vtype vty
 void
 kvset_builder_adopt_vblocks(
     struct kvset_builder *self,
-    unsigned int vgroups,
     size_t num_vblocks,
-    struct kvs_block *vblocks);
+    struct kvs_block *vblocks,
+    struct kvset_vgroup_map *vgmap);
 
 /* MTF_MOCK */
 void

@@ -55,6 +55,10 @@ vbr_desc_read(
     vblk_desc->vbd_off = 0;
     vblk_desc->vbd_len = props->mpr_write_len - VBLOCK_FOOTER_LEN;
     vblk_desc->vbd_vgroup = vgroup;
+    vblk_desc->vbd_min_koff = vblk_desc->vbd_len + VBLOCK_FOOTER_LEN - (2 * HSE_KVS_KEY_LEN_MAX);
+    vblk_desc->vbd_min_klen = omf_vbf_min_klen(footer);
+    vblk_desc->vbd_max_koff = vblk_desc->vbd_min_koff + HSE_KVS_KEY_LEN_MAX;
+    vblk_desc->vbd_max_klen = omf_vbf_max_klen(footer);
     atomic_set(&vblk_desc->vbd_vgidx, 1);
     atomic_set(&vblk_desc->vbd_refcnt, 0);
 

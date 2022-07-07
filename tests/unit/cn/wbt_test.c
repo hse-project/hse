@@ -291,7 +291,7 @@ get_verify(struct mtf_test_info *lcl_ti, void *tree, struct wbt_hdr_omf *hdr, st
         key2kobj(&ko_ref, k->kdata, k->klen);
 
         lookup_res = NOT_FOUND;
-        err = wbtr_read_vref(kbd.map_base, &wbd, &kt, 0, 1, &lookup_res, &vref);
+        err = wbtr_read_vref(kbd.map_base, &wbd, &kt, 0, 1, &lookup_res, NULL, &vref);
         ASSERT_EQ_RET(0, err, 1);
 
         bool found = ref_tree_get(rtree, k->kdata, k->klen);

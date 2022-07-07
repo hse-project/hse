@@ -24,9 +24,12 @@
 #include <hse_util/hlog.h>
 #include <hse_util/keycmp.h>
 
+#include <cn/kvset.h>
+
 #define WORK_BUF_SIZE (100 * 1024)
 
 uint8_t *hlog;
+static struct kvset_vgroup_map *vgmap;
 
 void *key_buf;
 void *kmd_buf;
@@ -60,6 +63,10 @@ collection_pre(struct mtf_test_info *lcl_ti)
     if (!hlog)
         return ENOMEM;
 
+    vgmap = kvset_vgmap_alloc(1);
+    if (!vgmap)
+        return ENOMEM;
+
     return 0;
 }
 
@@ -68,6 +75,8 @@ collection_post(struct mtf_test_info *lcl_ti)
 {
     free(key_buf);
     free(kmd_buf);
+
+    kvset_vgmap_free(vgmap);
 
     return 0;
 }
@@ -149,7 +158,7 @@ MTF_DEFINE_UTEST_PREPOST(hblock_builder_test, add_ptomb_success, test_pre, test_
     err = hbb_create(&bld, cn);
     ASSERT_EQ(0, merr_errno(err));
 
-    err = hbb_finish(bld, &blk, 0, 1, 1, 3, 2, hlog);
+    err = hbb_finish(bld, &blk, vgmap, NULL, NULL, 0, 1, 1, 3, 0, hlog, NULL, 0);
     ASSERT_EQ(0, merr_errno(err));
 
     err = mpool_mblock_read(mpool, blk.bk_blkid, iov, NELEM(iov), 0);
@@ -159,7 +168,6 @@ MTF_DEFINE_UTEST_PREPOST(hblock_builder_test, add_ptomb_success, test_pre, test_
     ASSERT_EQ(0, omf_hbh_num_ptombs(hdr));
     ASSERT_EQ(1, omf_hbh_num_kblocks(hdr));
     ASSERT_EQ(3, omf_hbh_num_vblocks(hdr));
-    ASSERT_EQ(2, omf_hbh_num_vgroups(hdr));
 
     hbb_destroy(bld);
 
@@ -171,7 +179,7 @@ MTF_DEFINE_UTEST_PREPOST(hblock_builder_test, add_ptomb_success, test_pre, test_
     err = add_ptomb(bld, HSE_KVS_PFX_LEN_MAX, 9, &pfx);
     ASSERT_EQ(0, merr_errno(err));
 
-    err = hbb_finish(bld, &blk, 0, 1, 1, 3, 2, hlog);
+    err = hbb_finish(bld, &blk, vgmap, NULL, NULL, 0, 1, 1, 3, 1, hlog, NULL, 0);
     ASSERT_EQ(0, merr_errno(err));
 
     err = mpool_mblock_read(mpool, blk.bk_blkid, iov, NELEM(iov), 0);
@@ -181,7 +189,6 @@ MTF_DEFINE_UTEST_PREPOST(hblock_builder_test, add_ptomb_success, test_pre, test_
     ASSERT_EQ(1, omf_hbh_num_ptombs(hdr));
     ASSERT_EQ(1, omf_hbh_num_kblocks(hdr));
     ASSERT_EQ(3, omf_hbh_num_vblocks(hdr));
-    ASSERT_EQ(2, omf_hbh_num_vgroups(hdr));
     ASSERT_EQ(0, keycmp(pfx, 9, (void *)hdr + HBLOCK_HDR_LEN - 2 * HSE_KVS_PFX_LEN_MAX, 9));
     ASSERT_EQ(0, keycmp(pfx, 9, (void *)hdr + HBLOCK_HDR_LEN - HSE_KVS_PFX_LEN_MAX, 9));
 
@@ -224,7 +231,7 @@ MTF_DEFINE_UTEST_PREPOST(hblock_builder_test, add_ptomb_success, test_pre, test_
         }
     }
 
-    err = hbb_finish(bld, &blk, 0, 1, 1, 3, 2, hlog);
+    err = hbb_finish(bld, &blk, vgmap, NULL, NULL, 0, 1, 1, 3, 190, hlog, NULL, 0);
     ASSERT_EQ(0, merr_errno(err));
 
     err = mpool_mblock_read(mpool, blk.bk_blkid, iov, NELEM(iov), 0);
@@ -234,7 +241,6 @@ MTF_DEFINE_UTEST_PREPOST(hblock_builder_test, add_ptomb_success, test_pre, test_
     ASSERT_EQ(190, omf_hbh_num_ptombs(hdr));
     ASSERT_EQ(1, omf_hbh_num_kblocks(hdr));
     ASSERT_EQ(3, omf_hbh_num_vblocks(hdr));
-    ASSERT_EQ(2, omf_hbh_num_vgroups(hdr));
     ASSERT_EQ(0, keycmp(pfx_max, pfx_max_len, (void *)hdr + HBLOCK_HDR_LEN -
         2 * HSE_KVS_PFX_LEN_MAX, pfx_max_len));
     ASSERT_EQ(0, keycmp(pfx_min, pfx_min_len, (void *)hdr + HBLOCK_HDR_LEN - HSE_KVS_PFX_LEN_MAX,
@@ -255,7 +261,7 @@ MTF_DEFINE_UTEST_PREPOST(hblock_builder_test, finish_null_hlog, test_pre, test_p
     err = hbb_create(&bld, cn);
     ASSERT_EQ(0, merr_errno(err));
 
-    err = hbb_finish(bld, &blk, 0, 1, 1, 3, 2, NULL);
+    err = hbb_finish(bld, &blk, vgmap, NULL, NULL, 0, 1, 1, 3, 0, NULL, NULL, 0);
     ASSERT_EQ(EINVAL, merr_errno(err));
 
     hbb_destroy(bld);

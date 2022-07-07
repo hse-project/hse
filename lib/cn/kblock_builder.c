@@ -37,6 +37,7 @@
 #include "cn_mblocks.h"
 #include "cn_metrics.h"
 #include "cn_perfc.h"
+#include "kvs_mblk_desc.h"
 
 #include <mpool/mpool.h>
 
@@ -841,7 +842,7 @@ kblock_finish(struct kblock_builder *bld)
 
     /* Finalize the wbtree.  May increase kblk->wbt_pgc. */
     assert(kblk->wbtree);
-    wbb_hdr_init(kblk->wbtree, &wbt_hdr);
+    wbb_hdr_init(&wbt_hdr);
     if (wbb_entries(kblk->wbtree)) {
         err = wbb_freeze(
             kblk->wbtree,
@@ -1160,146 +1161,6 @@ kbb_curr_kblk_min_max_keys(
     struct key_obj        *max_kobj)
 {
     wbb_min_max_keys(bld->curr.wbtree, min_kobj, max_kobj);
-}
-
-/**
- * kblock_copy_range() - copy all keys `k' in range start < k <= end from @kbd
- *
- * @kbd:      kblock descriptor
- * @start:    start key (exclusive)
- * @end :     end key (inclusive)
- * @kbid_out: (output) output mblock ID where the keys are copied into.
- *
- * Notes:
- * (1) start == NULL implies a copy from the first key
- * (2) end == NULL implies a copy until EOF
- * (3) The output mblock in @kbid_out is not committed.
- *     It is left to the caller to either commit or abort it.
- */
-static merr_t
-kblock_copy_range(
-    struct kblock_desc   *kbd,
-    const struct key_obj *start, /* exclusive */
-    const struct key_obj *end,   /* inclusive */
-    uint64_t             *kbid_out)
-{
-    struct wbti *wbti = NULL;
-    struct kblock_builder *kbb;
-    struct key_obj cur = { 0 };
-    const void *kmd;
-    merr_t err;
-    uint64_t tot_keys = 0;
-
-    err = kbb_create(&kbb, kbd->cn, NULL);
-    if (err)
-        return err;
-
-    if (start) {
-        char kbuf[HSE_KVS_KEY_LEN_MAX];
-        struct kvs_ktuple seek;
-        uint klen;
-
-        key_obj_copy(kbuf, sizeof(kbuf), &klen, start);
-        kvs_ktuple_init_nohash(&seek, kbuf, klen);
-
-        err = wbti_create(&wbti, kbd->kd_mbd, kbd->kd_wbd, &seek, false, false);
-    } else {
-        err = wbti_create(&wbti, kbd->kd_mbd, kbd->kd_wbd, NULL, false, false);
-    }
-
-    while (!err && wbti_next(wbti, &cur.ko_sfx, &cur.ko_sfx_len, &kmd)) {
-        struct key_stats stats = { 0 };
-        size_t off = 0, kmd_cnt_off;
-        uint nvals;
-
-        wbti_prefix(wbti, &cur.ko_pfx, &cur.ko_pfx_len);
-
-        if (HSE_UNLIKELY(start && key_obj_cmp(&cur, start) == 0))
-            continue;
-        start = NULL;
-
-        if (HSE_UNLIKELY(end && key_obj_cmp(&cur, end) > 0))
-            break;
-
-        nvals = stats.nvals = kmd_count(kmd, &off);
-        kmd_cnt_off = off;
-
-        while (nvals--) {
-            struct kvs_vtuple_ref vref = { 0 };
-            u64 vseq;
-
-            wbt_read_kmd_vref(kmd, &off, &vseq, &vref);
-
-            switch (vref.vr_type) {
-            case vtype_val:
-            case vtype_cval:
-                stats.tot_vlen += (vref.vb.vr_complen ? : vref.vb.vr_len);
-                break;
-
-            case vtype_ival:
-                stats.tot_vlen += vref.vi.vr_len;
-                break;
-
-            case vtype_tomb:
-                ++stats.ntombs;
-                break;
-
-            case vtype_zval:
-                break;
-
-            case vtype_ptomb:
-            default:
-                assert(0);
-                break;
-            }
-        }
-
-        err = kbb_add_entry(kbb, &cur, kmd + kmd_cnt_off, off - kmd_cnt_off, &stats);
-        if (!err)
-            ++tot_keys;
-    }
-
-    if (!err && tot_keys > 0) {
-        struct blk_list kblk_list;
-
-        blk_list_init(&kblk_list);
-
-        err = kbb_finish(kbb, &kblk_list);
-        if (!err) {
-            assert(kblk_list.n_blks == 1);
-            *kbid_out = kblk_list.blks->bk_blkid;
-        }
-    }
-
-    wbti_destroy(wbti);
-    kbb_destroy(kbb);
-
-    return err;
-}
-
-merr_t
-kblock_split(
-    struct kblock_desc *kbd,
-    struct key_obj     *split_key,
-    uint64_t           *kbid_left,
-    uint64_t           *kbid_right)
-{
-    merr_t err;
-
-    INVARIANT(kbd && split_key && kbid_left && kbid_right);
-
-    *kbid_left = *kbid_right = 0;
-
-    err = kblock_copy_range(kbd, NULL, split_key, kbid_left);
-    if (!err) {
-        err = kblock_copy_range(kbd, split_key, NULL, kbid_right);
-        if (!err && (*kbid_left == 0 && *kbid_right == 0)) {
-            assert(*kbid_left || *kbid_right);
-            err = merr(EBUG);
-        }
-    }
-
-    return err;
 }
 
 #if HSE_MOCKING

@@ -16,6 +16,7 @@
 #include <mpool/mpool_structs.h>
 #include <mpool/mpool.h>
 
+#include "kvset.h"
 #include "hblock_reader.h"
 #include "kvs_mblk_desc.h"
 #include "omf.h"
@@ -181,6 +182,63 @@ hbr_read_seqno_range(struct kvs_mblk_desc *mblk_desc, uint64_t *seqno_min, uint6
 
     *seqno_min = omf_hbh_min_seqno(hb_hdr);
     *seqno_max = omf_hbh_max_seqno(hb_hdr);
+
+    return 0;
+}
+
+merr_t
+hbr_read_vgroup_cnt(struct kvs_mblk_desc *hbd, uint32_t *nvgroups)
+{
+    struct vgroup_map_omf *vgm_omf;
+
+    if (ev(omf_hbh_vgmap_len_pg(hbd->map_base) == 0)) {
+        *nvgroups = 0;
+        return 0; /* no vgmap present */
+    }
+
+    vgm_omf = hbd->map_base + (omf_hbh_vgmap_off_pg(hbd->map_base) * PAGE_SIZE);
+
+    if ((omf_vgm_magic(vgm_omf) != VGROUP_MAP_MAGIC) ||
+        (omf_vgm_version(vgm_omf) != VGROUP_MAP_VERSION))
+        return merr(EPROTO);
+
+    *nvgroups = omf_vgm_count(vgm_omf);
+
+    return 0;
+}
+
+merr_t
+hbr_read_vgroup_map(struct kvs_mblk_desc *hbd, struct kvset_vgroup_map *vgmap, bool *use_vgmap)
+{
+    struct vgroup_map_omf *vgm_omf;
+    struct vgroup_map_entry_omf *vgme_omf;
+    int i;
+
+    *use_vgmap = false;
+
+    if (ev(omf_hbh_vgmap_len_pg(hbd->map_base) == 0)) {
+        vgmap->nvgroups = 0;
+        return 0; /* no vgmap present */
+    }
+
+    vgm_omf = hbd->map_base + (omf_hbh_vgmap_off_pg(hbd->map_base) * PAGE_SIZE);
+
+    if ((omf_vgm_magic(vgm_omf) != VGROUP_MAP_MAGIC) ||
+        (omf_vgm_version(vgm_omf) != VGROUP_MAP_VERSION))
+        return merr(EPROTO);
+
+    vgmap->nvgroups = omf_vgm_count(vgm_omf);
+
+    vgme_omf = (void *)(vgm_omf + 1);
+
+    for (i = 0; i < vgmap->nvgroups; i++, vgme_omf++) {
+        vgmap->vbidx_out[i] = omf_vgme_vbidx(vgme_omf);
+        vgmap->vbidx_adj[i] = omf_vgme_vbadj(vgme_omf);
+        vgmap->vbidx_src[i] = vgmap->vbidx_out[i] + vgmap->vbidx_adj[i];
+
+        if (!(*use_vgmap) && vgmap->vbidx_adj[i] != 0)
+            *use_vgmap = true;
+    }
 
     return 0;
 }

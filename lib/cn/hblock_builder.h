@@ -20,6 +20,7 @@ struct hlog;
 struct key_obj;
 struct kvs_block;
 struct key_stats;
+struct kvset_vgroup_map;
 
 /* MTF_MOCK */
 merr_t
@@ -41,17 +42,25 @@ hbb_destroy(struct hblock_builder *bld);
 /* MTF_MOCK */
 merr_t
 hbb_finish(
-    struct hblock_builder *bld,
-    struct kvs_block *blkl,
-    uint64_t min_seqno,
-    uint64_t max_seqno,
-    uint32_t num_kblocks,
-    uint32_t num_vblocks,
-    uint32_t num_vgroups,
-    const uint8_t *hlog);
+    struct hblock_builder   *bld,
+    struct kvs_block        *blk,
+    struct kvset_vgroup_map *vgmap,
+    struct key_obj          *min_pfxp,
+    struct key_obj          *max_pfxp,
+    const uint64_t           min_seqno,
+    const uint64_t           max_seqno,
+    const uint32_t           num_kblocks,
+    const uint32_t           num_vblocks,
+    const uint32_t           num_ptombs,
+    const uint8_t           *hlog,
+    void                    *ptree,
+    uint32_t                 ptree_pgc);
 
 merr_t
 hbb_set_agegroup(struct hblock_builder *bld, enum hse_mclass_policy_age age) HSE_NONNULL(1);
+
+uint32_t
+hbb_get_nptombs(struct hblock_builder *const bld);
 
 #if HSE_MOCKING
 #include "hblock_builder_ut.h"

@@ -45,6 +45,7 @@
 #include "hblock_reader.h"
 #include "kvset.h"
 #include "kvset_internal.h"
+#include "kvset_split.h"
 #include "kblock_reader.h"
 #include "vblock_reader.h"
 #include "bloom_reader.h"
@@ -215,14 +216,19 @@ kvset_put_ref(struct kvset *ks)
 
 static merr_t
 kvset_hblk_init(
-    struct mpool *mpool,
-    struct mblock_props *props,
-    struct mpool_mcache_map *map,
-    uint8_t **hlog,
-    struct kvset_hblk *blk)
+    struct mpool             *mpool,
+    struct mblock_props      *props,
+    struct mpool_mcache_map  *map,
+    struct kvset_vgroup_map **vgmap,
+    uint8_t                 **hlog,
+    bool                     *use_vgmap,
+    struct kvset_hblk        *blk)
 {
-    merr_t err;
     struct kvs_mblk_desc *hbd = &blk->kh_hblk_desc;
+    uint32_t nvgroups;
+    merr_t err;
+
+    *vgmap = NULL;
 
     err = hbr_read_desc(mpool, map, props, blk->kh_hblk.bk_blkid, hbd);
     if (err)
@@ -239,6 +245,20 @@ kvset_hblk_init(
     err = hbr_read_metrics(hbd, &blk->kh_metrics);
     if (err)
         return err;
+
+    err = hbr_read_vgroup_cnt(hbd, &nvgroups);
+    if (err)
+        return err;
+
+    *vgmap = kvset_vgmap_alloc(nvgroups);
+    if (!(*vgmap))
+        return merr(ENOMEM);
+
+    err = hbr_read_vgroup_map(hbd, *vgmap, use_vgmap);
+    if (err) {
+        kvset_vgmap_free(*vgmap);
+        return err;
+    }
 
     if (omf_hbh_max_pfx_len(hbd->map_base)) {
         blk->kh_pfx_max = hbd->map_base + omf_hbh_max_pfx_off(hbd->map_base);
@@ -262,7 +282,7 @@ kvset_hblk_init(
 
     *hlog = hbd->map_base + (omf_hbh_hlog_off_pg(hbd->map_base) * PAGE_SIZE);
 
-    return err;
+    return 0;
 }
 
 static merr_t
@@ -563,7 +583,8 @@ kvset_open2(
 
         ks->ks_hblk.kh_hblk.bk_blkid = km->km_hblk.bk_blkid;
 
-        err = kvset_hblk_init(mp, &props, ks->ks_hmap, &ks->ks_hlog, &ks->ks_hblk);
+        err = kvset_hblk_init(mp, &props, ks->ks_hmap, &ks->ks_vgmap, &ks->ks_hlog,
+                              &ks->ks_use_vgmap, &ks->ks_hblk);
         if (ev(err))
             goto err_exit;
 
@@ -757,7 +778,6 @@ kvset_open2(
             mbset_apply(mbset, vblock_udata_update, &argc, argv);
         }
 
-        ks->ks_vgroups = argc;
         free(argv);
     }
 
@@ -1024,6 +1044,8 @@ _kvset_close(struct kvset *ks)
 
     free((void *)ks->ks_klarge);
 
+    kvset_vgmap_free(ks->ks_vgmap);
+
     if (ks->ks_kvset_sz > kvset_cache[0].sz)
         free_aligned(ks);
     else if (ks->ks_kvset_sz > kvset_cache[1].sz)
@@ -1194,7 +1216,8 @@ kblk_get_value_ref(
     if (!bloom_reader_lookup(&kblk->kb_blm_desc, kt->kt_hash))
         return 0;
 
-    return wbtr_read_vref(kblk->kb_kblk_desc.map_base, &kblk->kb_wbt_desc, kt, lcp, seq, result, vref);
+    return wbtr_read_vref(kblk->kb_kblk_desc.map_base, &kblk->kb_wbt_desc, kt, lcp, seq, result,
+                          ks->ks_use_vgmap ? ks->ks_vgmap : NULL, vref);
 }
 
 static merr_t
@@ -1219,6 +1242,7 @@ kvset_ptomb_lookup(
             0,
             view_seq,
             res,
+            ks->ks_use_vgmap ? ks->ks_vgmap : NULL,
             vref);
         if (ev(err))
             return err;
@@ -1629,7 +1653,7 @@ get_more:
         *res = NOT_FOUND;
         nvals = kmd_count(kmd, &off);
         while (nvals--) {
-            wbt_read_kmd_vref(kmd, &off, &vseq, &vref);
+            wbt_read_kmd_vref(kmd, ks->ks_use_vgmap ? ks->ks_vgmap : NULL, &off, &vseq, &vref);
             if (seq >= vseq) {
                 /* can't be  a ptomb, b/c they're in their own WBT */
                 assert(vref.vr_type != vtype_ptomb);
@@ -1764,7 +1788,7 @@ kvset_get_compc(struct kvset *ks)
 uint
 kvset_get_vgroups(const struct kvset *ks)
 {
-    return ks->ks_vgroups;
+    return ks->ks_vgmap->nvgroups;
 }
 
 size_t
@@ -1882,6 +1906,12 @@ kvset_get_nth_vblock_len(struct kvset *ks, u32 index)
     return vbd ? vbd->vbd_len : 0;
 }
 
+struct vblock_desc *
+kvset_get_nth_vblock_desc(struct kvset *ks, uint32_t index)
+{
+    return lvx2vbd(ks, index);
+}
+
 struct mbset **
 kvset_get_vbsetv(struct kvset *ks, uint *vbsetc)
 {
@@ -1925,7 +1955,7 @@ kvset_get_metrics(struct kvset *ks, struct kvset_metrics *m)
     m->header_bytes = ks->ks_st.kst_hwlen;
     m->compc = ks->ks_compc;
     m->comp_rule = ks->ks_comp_rule;
-    m->vgroups = ks->ks_vgroups;
+    m->vgroups = kvset_get_vgroups(ks);
     m->nptombs = ks->ks_hblk.kh_metrics.hm_nptombs;
 
     for (i = 0; i < ks->ks_st.kst_kblks; i++) {
@@ -2419,7 +2449,8 @@ kvset_iter_free_buffers(struct kvset_iterator *iter, struct kblk_reader *kr)
     vlb_free(kr->kr_buf[1].kmd_buf, kr->kr_buf[1].kmd_used_sz);
 
     if (iter->vreaders) {
-        for (i = 0; i < iter->ks->ks_vgroups; i++)
+        uint32_t nvgroups = kvset_get_vgroups(iter->ks);
+        for (i = 0; i < nvgroups; i++)
             vlb_free(iter->vreaders[i].vr_buf[0].data, iter->vreaders[i].vr_buf_sz * 2);
         free(iter->vreaders);
         iter->vreaders = 0;
@@ -2491,7 +2522,7 @@ kvset_iter_enable_mblock_read(struct kvset_iterator *iter)
     struct vblk_reader *vr;
     void *              mem;
     uint64_t            vr_buf_sz;
-    uint                i;
+    uint32_t            nvgroups;
     merr_t              err;
     uint64_t            ra_size;
 
@@ -2528,11 +2559,14 @@ kvset_iter_enable_mblock_read(struct kvset_iterator *iter)
      * produced by kcompaction will need one reader for each vgroup.
      */
     iter->vreaders = NULL;
-    if (iter->ks->ks_vgroups) {
-        iter->vreaders = calloc(iter->ks->ks_vgroups, sizeof(*iter->vreaders));
+    nvgroups = kvset_get_vgroups(iter->ks);
+    if (nvgroups > 0) {
+        int i;
+
+        iter->vreaders = calloc(nvgroups, sizeof(*iter->vreaders));
         if (ev(!iter->vreaders))
             goto nomem;
-        for (i = 0; i < iter->ks->ks_vgroups; i++) {
+        for (i = 0; i < nvgroups; i++) {
             vr = iter->vreaders + i;
 
             mbio_init(&vr->mbio, "vrmbio");
@@ -3279,6 +3313,7 @@ kvset_iter_next_vref(
     uint *                  vlen,
     uint *                  complen)
 {
+    struct kvset *ks = kvset_from_iter(handle);
     assert(vc);
     assert(vc->kmd);
 
@@ -3317,7 +3352,11 @@ kvset_iter_next_vref(
             break;
     }
 
+    if ((*vtype == vtype_val || *vtype == vtype_cval) && ks->ks_use_vgmap)
+        *vbidx = kvset_vgmap_vbidx_src2out(ks->ks_vgmap, *vbidx);
+
     vc->next++;
+
     return true;
 }
 
@@ -3564,7 +3603,6 @@ kvset_iter_release(struct kv_iterator *handle)
     merr_t                 err;
     struct kvset_iterator *iter;
     struct vblk_reader *   vr;
-    uint                   i;
 
     if (ev(!handle))
         return;
@@ -3585,7 +3623,10 @@ kvset_iter_release(struct kv_iterator *handle)
             ev(err);
         }
         if (iter->vreaders) {
-            for (i = 0; i < iter->ks->ks_vgroups; i++) {
+            uint32_t nvgroups = kvset_get_vgroups(iter->ks);
+            int i;
+
+            for (i = 0; i < nvgroups; i++) {
                 vr = iter->vreaders + i;
                 if (vr->vr_requested) {
                     err = mbio_wait(&vr->mbio, 0);
@@ -3634,6 +3675,112 @@ kvset_minkey(struct kvset *ks, const void **minkey, u16 *minklen)
 {
     *minkey = ks->ks_minkey;
     *minklen = ks->ks_minklen;
+}
+
+struct kvset_vgroup_map *
+kvset_vgmap_alloc(uint32_t nvgroups)
+{
+    struct kvset_vgroup_map *vgmap;
+    size_t sz = sizeof(*vgmap) + 3 * nvgroups * sizeof(*(vgmap->vbidx_out));
+
+    vgmap = calloc(1, sz);
+    if (vgmap) {
+        vgmap->nvgroups = nvgroups;
+        if (nvgroups > 0) {
+            vgmap->vbidx_out = (void *)(vgmap + 1);
+            vgmap->vbidx_adj = vgmap->vbidx_out + nvgroups;
+            vgmap->vbidx_src = vgmap->vbidx_adj + nvgroups;
+        }
+    }
+
+    return vgmap;
+}
+
+void
+kvset_vgmap_free(struct kvset_vgroup_map *vgmap)
+{
+    free(vgmap);
+}
+
+/* TODO: Use binary search as an optimization */
+int
+kvset_vgmap_vbidx_out2adj(struct kvset_vgroup_map *vgmap, int vbidx_out)
+{
+    int i;
+
+    for (i = 0; i < vgmap->nvgroups; i++) {
+        if (vbidx_out <= vgmap->vbidx_out[i])
+            return vgmap->vbidx_adj[i];
+    }
+
+    assert(0);
+    return -1;
+}
+
+/* TODO: Use binary search as an optimization */
+int
+kvset_vgmap_vbidx_src2out(struct kvset_vgroup_map *vgmap, int vbidx_src)
+{
+    int i;
+
+    for (i = 0; i < vgmap->nvgroups; i++) {
+        if (vbidx_src <= vgmap->vbidx_src[i]) {
+            assert(vbidx_src >= vgmap->vbidx_adj[i]);
+            return vbidx_src - vgmap->vbidx_adj[i];
+        }
+    }
+
+    assert(0);
+    return -1;
+}
+
+int
+kvset_vgmap_vbidx_out_start(struct kvset *ks, int vgidx)
+{
+    return vgidx == 0 ? 0 : ks->ks_vgmap->vbidx_out[vgidx - 1] + 1;
+}
+
+int
+kvset_vgmap_vbidx_out_end(struct kvset *ks, int vgidx)
+{
+    return ks->ks_vgmap->vbidx_out[vgidx];
+}
+
+/**
+ * vgmap_src: source vgmap
+ *     - Pass NULL if kblocs are rewritten by the compaction op (k/kv-compact, ingest, spill)
+ *     - Pass source kvset's vgmap if kblocks are not rewritten by the compaction op (kv-split)
+ *
+ * vbidx_src_out: output vblock index of the last vblock in a source kvset's vgroup
+ *
+ * vbidx_tgt: target vgroup map
+ *
+ * vbidx_tgt_out: output vblock index of the last vblock in a target kvset's vgroup
+ *
+ * vbidx_out = vbidx_tgt_out
+ * vbidx_adj = vbidx_adj(vbidx_src_out) in vgmap_src + (vbidx_src_out - vbidx_tgt_out)
+ * vbidx_src = vbidx_out + vbidx_adj
+ */
+void
+kvset_vgmap_vbidx_set(
+    struct kvset_vgroup_map *vgmap_src,
+    uint32_t                 vbidx_src_out,
+    struct kvset_vgroup_map *vgmap_tgt,
+    uint32_t                 vbidx_tgt_out,
+    uint32_t                 vgidx)
+{
+    uint32_t vbidx_src_adj;
+
+    INVARIANT(vgmap_tgt);
+    assert(vgidx < vgmap_tgt->nvgroups);
+
+    vbidx_src_adj = vgmap_src ? kvset_vgmap_vbidx_out2adj(vgmap_src, vbidx_src_out) : 0;
+
+    vgmap_tgt->vbidx_out[vgidx] = vbidx_tgt_out;
+
+    vgmap_tgt->vbidx_adj[vgidx] = vbidx_src_adj + (vbidx_src_out - vbidx_tgt_out);
+
+    vgmap_tgt->vbidx_src[vgidx] = vgmap_tgt->vbidx_out[vgidx] + vgmap_tgt->vbidx_adj[vgidx];
 }
 
 merr_t

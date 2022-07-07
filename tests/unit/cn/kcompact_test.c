@@ -72,10 +72,9 @@ init_work(
     struct kvset_mblocks *     outv,
     struct cn_tree_node **     output_nodev,
     uint64_t                  *kvsetidv,
-    struct kvset_vblk_map *    vbmap)
+    struct kvset_vblk_map     *vbmap,
+    struct kvset_vgroup_map   *vgmap)
 {
-    memset(w, 0, sizeof(*w));
-
     w->cw_ds = ds;
     w->cw_rp = rp;
     w->cw_kvset_cnt = kvset_cnt;
@@ -85,6 +84,8 @@ init_work(
     w->cw_output_nodev = output_nodev;
     w->cw_kvsetidv = kvsetidv;
     w->cw_vbmap = *vbmap;
+    w->cw_vgmap = vgmap;
+    w->cw_input_vgroups = vgmap->nvgroups;
 
     return w;
 }
@@ -220,7 +221,8 @@ MTF_DEFINE_UTEST_PRE(kcompact_test, keep, pre)
 {
 #define NITER 32
     struct kvs_rparams    rp = kvs_rparams_defaults();
-    struct kvset_vblk_map vbm = { 0 };
+    struct kvset_vblk_map vbmap = { 0 };
+    struct kvset_vgroup_map *vgmap;
     int                   i, j;
     merr_t                err;
 
@@ -230,16 +232,17 @@ MTF_DEFINE_UTEST_PRE(kcompact_test, keep, pre)
     for (i = 0; i < NITER; ++i)
         ASSERT_EQ(0, mock_make_vblocks(&itv[i], &rp, i));
 
-    err = kvset_keep_vblocks(&vbm, itv, NITER);
+    err = kvset_keep_vblocks(&vbmap, &vgmap, itv, NITER);
     ASSERT_EQ(err, 0);
 
     /* verify each map is cumulative of what came before */
     for (j = i = 0; i < NITER; ++i) {
-        ASSERT_EQ(vbm.vbm_map[i], j);
+        ASSERT_EQ(vbmap.vbm_map[i], j);
         j += i;
     }
 
-    free(vbm.vbm_blkv);
+    free(vbmap.vbm_blkv);
+    kvset_vgmap_free(vgmap);
     for (i = 0; i < NITER; ++i) {
         struct mock_kv_iterator *iter = itv[i]->kvi_context;
 
@@ -252,12 +255,13 @@ MTF_DEFINE_UTEST_PRE(kcompact_test, keep, pre)
 MTF_DEFINE_UTEST_PRE(kcompact_test, four_into_one, pre)
 {
 #define NITER 4
-    struct cn_compaction_work w;
+    struct cn_compaction_work w = { 0 };
+    struct kvset_vblk_map     vbmap = { 0 };
+    struct kvset_vgroup_map  *vgmap;
     struct kvs_rparams        rp = kvs_rparams_defaults();
     struct kvset_mblocks      output = {};
     struct cn_tree_node      *output_node = NULL;
     uint64_t                  kvsetidv = 1;
-    struct kvset_vblk_map     vbm = { 0 };
     struct nkv_tab            nkv;
     atomic_int                c;
     u64                       dgen = 0;
@@ -281,14 +285,15 @@ MTF_DEFINE_UTEST_PRE(kcompact_test, four_into_one, pre)
         ASSERT_EQ(0, mock_make_kvi(&itv[i], i, &rp, &nkv));
     }
 
-    err = kvset_keep_vblocks(&vbm, itv, NITER);
+    err = kvset_keep_vblocks(&vbmap, &vgmap, itv, NITER);
     ASSERT_EQ(0, err);
 
     st.kwant = 1;
     st.vwant = 0;
     st.src = 0; /* the lowest should always be the src */
 
-    init_work(&w, (struct mpool *)1, &rp, NITER, itv, &c, &output, &output_node, &kvsetidv, &vbm);
+    init_work(&w, (struct mpool *)1, &rp, NITER, itv, &c, &output, &output_node, &kvsetidv,
+              &vbmap, vgmap);
 
     err = cn_kcompact(&w);
     ASSERT_EQ(0, err);
@@ -309,15 +314,17 @@ MTF_DEFINE_UTEST_PRE(kcompact_test, four_into_one, pre)
         kvset_iter_release(itv[i]);
     }
 
-    free(vbm.vbm_blkv);
+    free(vbmap.vbm_blkv);
+    kvset_vgmap_free(vgmap);
 #undef NITER
 }
 
 MTF_DEFINE_UTEST_PRE(kcompact_test, all_gone, pre)
 {
-    struct cn_compaction_work w;
+    struct cn_compaction_work w = { 0 };
+    struct kvset_vblk_map vbmap = { 0 };
+    struct kvset_vgroup_map *vgmap;
     struct kvs_rparams        rp = kvs_rparams_defaults();
-    struct kvset_vblk_map     vbm = { 0 };
     struct kvset_mblocks      output = {};
     struct cn_tree_node      *output_node = NULL;
     uint64_t                  kvsetidv = 1;
@@ -348,7 +355,7 @@ MTF_DEFINE_UTEST_PRE(kcompact_test, all_gone, pre)
         ASSERT_EQ(0, mock_make_kvi(&itv[i], i, &rp, &nkv));
     }
 
-    err = kvset_keep_vblocks(&vbm, itv, 5);
+    err = kvset_keep_vblocks(&vbmap, &vgmap, itv, 5);
     ASSERT_EQ(0, err);
 
     /* HSE_REVISIT: is it possible to detect a memory overwrite here? */
@@ -357,7 +364,8 @@ MTF_DEFINE_UTEST_PRE(kcompact_test, all_gone, pre)
     st.vwant = -1; /* -1 == tombstones */
     st.src = 0;    /* the lowest should always be the src */
 
-    init_work(&w, (struct mpool *)1, &rp, 5, itv, &c, &output, &output_node, &kvsetidv, &vbm);
+    init_work(&w, (struct mpool *)1, &rp, 5, itv, &c, &output, &output_node, &kvsetidv,
+              &vbmap, vgmap);
 
     err = cn_kcompact(&w);
     ASSERT_EQ(0, err);
@@ -378,14 +386,16 @@ MTF_DEFINE_UTEST_PRE(kcompact_test, all_gone, pre)
         kvset_iter_release(itv[i]);
     }
 
-    free(vbm.vbm_blkv);
+    free(vbmap.vbm_blkv);
+    kvset_vgmap_free(vgmap);
 }
 
 MTF_DEFINE_UTEST_PREPOST(kcompact_test, all_gone_mixed, mixed_pre, mixed_post)
 {
-    struct cn_compaction_work w;
+    struct cn_compaction_work w = { 0 };
+    struct kvset_vblk_map vbmap = { 0 };
+    struct kvset_vgroup_map *vgmap;
     struct kvs_rparams        rp = kvs_rparams_defaults();
-    struct kvset_vblk_map     vbm = { 0 };
     struct kvset_mblocks      output = {};
     struct cn_tree_node      *output_node = NULL;
     uint64_t                  kvsetidv = 1;
@@ -416,7 +426,7 @@ MTF_DEFINE_UTEST_PREPOST(kcompact_test, all_gone_mixed, mixed_pre, mixed_post)
         ASSERT_EQ(0, mock_make_kvi(&itv[i], i, &rp, &nkv));
     }
 
-    err = kvset_keep_vblocks(&vbm, itv, 5);
+    err = kvset_keep_vblocks(&vbmap, &vgmap, itv, 5);
     ASSERT_EQ(0, err);
 
     /* HSE_REVISIT: is it possible to detect a memory overwrite here? */
@@ -425,7 +435,8 @@ MTF_DEFINE_UTEST_PREPOST(kcompact_test, all_gone_mixed, mixed_pre, mixed_post)
     st.vwant = -1; /* -1 == tombstones */
     st.src = 0;    /* the lowest should always be the src */
 
-    init_work(&w, (struct mpool *)1, &rp, 5, itv, &c, &output, &output_node, &kvsetidv, &vbm);
+    init_work(&w, (struct mpool *)1, &rp, 5, itv, &c, &output, &output_node, &kvsetidv,
+              &vbmap, vgmap);
 
     err = cn_kcompact(&w);
     ASSERT_EQ(0, err);
@@ -446,18 +457,20 @@ MTF_DEFINE_UTEST_PREPOST(kcompact_test, all_gone_mixed, mixed_pre, mixed_post)
         kvset_iter_release(itv[i]);
     }
 
-    free(vbm.vbm_blkv);
+    free(vbmap.vbm_blkv);
+    kvset_vgmap_free(vgmap);
 }
 
 MTF_DEFINE_UTEST_PREPOST(kcompact_test, four_into_one_mixed, mixed_pre, mixed_post)
 {
 #define NITER 4
-    struct cn_compaction_work w;
+    struct cn_compaction_work w = { 0 };
+    struct kvset_vblk_map vbmap = { 0 };
+    struct kvset_vgroup_map *vgmap;
     struct kvs_rparams        rp = kvs_rparams_defaults();
     struct kvset_mblocks      output = {};
     struct cn_tree_node      *output_node = NULL;
     uint64_t                  kvsetidv = 1;
-    struct kvset_vblk_map     vbm = { 0 };
     struct nkv_tab            nkv;
     atomic_int                c;
     u64                       dgen = 0;
@@ -481,14 +494,15 @@ MTF_DEFINE_UTEST_PREPOST(kcompact_test, four_into_one_mixed, mixed_pre, mixed_po
         ASSERT_EQ(0, mock_make_kvi(&itv[i], i, &rp, &nkv));
     }
 
-    err = kvset_keep_vblocks(&vbm, itv, NITER);
+    err = kvset_keep_vblocks(&vbmap, &vgmap, itv, NITER);
     ASSERT_EQ(0, err);
 
     st.kwant = 1;
     st.vwant = 0;
     st.src = 0; /* the lowest should always be the src */
 
-    init_work(&w, (struct mpool *)1, &rp, NITER, itv, &c, &output, &output_node, &kvsetidv, &vbm);
+    init_work(&w, (struct mpool *)1, &rp, NITER, itv, &c, &output, &output_node, &kvsetidv,
+              &vbmap, vgmap);
 
     err = cn_kcompact(&w);
     ASSERT_EQ(0, err);
@@ -505,16 +519,18 @@ MTF_DEFINE_UTEST_PREPOST(kcompact_test, four_into_one_mixed, mixed_pre, mixed_po
         kvset_iter_release(itv[i]);
     }
 
-    free(vbm.vbm_blkv);
+    free(vbmap.vbm_blkv);
+    kvset_vgmap_free(vgmap);
 #undef NITER
 }
 
 int
 run_kcompact(struct mtf_test_info *lcl_ti, int expect)
 {
-    struct cn_compaction_work w;
+    struct cn_compaction_work w = { 0 };
+    struct kvset_vblk_map vbmap = { 0 };
+    struct kvset_vgroup_map *vgmap;
     struct kvs_rparams        rp = kvs_rparams_defaults();
-    struct kvset_vblk_map     vbm = { 0 };
     struct kvset_mblocks      output = {};
     struct cn_tree_node      *output_node = NULL;
     uint64_t                  kvsetidv = 1;
@@ -545,7 +561,7 @@ run_kcompact(struct mtf_test_info *lcl_ti, int expect)
         ASSERT_EQ_RET(0, mock_make_kvi(&itv[i], i, &rp, &nkv), 1);
     }
 
-    err = kvset_keep_vblocks(&vbm, itv, 5);
+    err = kvset_keep_vblocks(&vbmap, &vgmap, itv, 5);
     ASSERT_EQ_RET(err, 0, 1);
 
     /* HSE_REVISIT: is it possible to detect a memory overwrite here? */
@@ -554,7 +570,8 @@ run_kcompact(struct mtf_test_info *lcl_ti, int expect)
     st.vwant = -1; /* -1 == tombstones */
     st.src = 0;    /* the lowest should always be the src */
 
-    init_work(&w, (struct mpool *)1, &rp, 5, itv, &c, &output, &output_node, &kvsetidv, &vbm);
+    init_work(&w, (struct mpool *)1, &rp, 5, itv, &c, &output, &output_node, &kvsetidv,
+              &vbmap, vgmap);
 
     err = cn_kcompact(&w);
 
@@ -571,7 +588,8 @@ run_kcompact(struct mtf_test_info *lcl_ti, int expect)
         kvset_iter_release(itv[i]);
     }
 
-    free(vbm.vbm_blkv);
+    free(vbmap.vbm_blkv);
+    kvset_vgmap_free(vgmap);
 
     return 0;
 }
@@ -617,6 +635,18 @@ init(struct mtf_test_info *info)
 }
 
 int
+_kvset_vgmap_vbidx_out_end(struct kvset *ks, int vgidx)
+{
+    return kvset_get_num_vblocks(ks) - 1;
+}
+
+uint
+_kvset_get_vgroups(const struct kvset *ks)
+{
+    return kvset_get_num_vblocks((struct kvset *)ks) == 0 ? 0 : 1;
+}
+
+int
 pre(struct mtf_test_info *info)
 {
     /* Default mock. */
@@ -628,6 +658,8 @@ pre(struct mtf_test_info *info)
     MOCK_SET(kvset_builder, _kvset_builder_add_val);
     MOCK_SET(kvset_builder, _kvset_builder_add_nonval);
     MOCK_SET(kvset_builder, _kvset_builder_add_vref);
+    MOCK_SET(kvset, _kvset_vgmap_vbidx_out_end);
+    MOCK_SET(kvset, _kvset_get_vgroups);
 
     /* Neuter the following APIs */
     mapi_inject(mapi_idx_cn_tree_get_cn, 0);

@@ -105,7 +105,7 @@ t_wbtr_read_vref_helper(struct mtf_test_info *lcl_ti, const char *kblock_image_f
         ktuple.kt_len = strlen(keybuf);
         ktuple.kt_data = keybuf;
 
-        wbtr_read_vref(blkdesc.map_base, &desc, &ktuple, 0, seqno, &lookup_res, &vref);
+        wbtr_read_vref(blkdesc.map_base, &desc, &ktuple, 0, seqno, &lookup_res, NULL, &vref);
         if (i < nkeys)
             ASSERT_EQ(FOUND_VAL, lookup_res);
         else

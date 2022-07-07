@@ -24,6 +24,7 @@
 #include "omf.h"
 #include "kvs_mblk_desc.h"
 #include "kblock_reader.h"
+#include "kvset.h"
 
 #define MTF_MOCK_IMPL_wbt_reader
 #include "wbt_reader.h"
@@ -35,7 +36,12 @@
 static struct kmem_cache *wbti_cache HSE_READ_MOSTLY;
 
 void
-wbt_read_kmd_vref(const void *kmd, size_t *off, u64 *seq, struct kvs_vtuple_ref *vref)
+wbt_read_kmd_vref(
+    const void              *kmd,
+    struct kvset_vgroup_map *vgmap,
+    size_t                  *off,
+    u64                     *seq,
+    struct kvs_vtuple_ref   *vref)
 {
     enum kmd_vtype vtype;
     uint           vbidx = 0;
@@ -82,6 +88,9 @@ wbt_read_kmd_vref(const void *kmd, size_t *off, u64 *seq, struct kvs_vtuple_ref 
         case vtype_ptomb:
             break;
     }
+
+    if ((vtype == vtype_val || vtype == vtype_cval) && vgmap)
+        vref->vb.vr_index = kvset_vgmap_vbidx_src2out(vgmap, vref->vb.vr_index);
 
     vref->vr_type = vtype;
 }
@@ -738,6 +747,7 @@ wbtr_read_vref(
     uint lcp,
     uint64_t seq,
     enum key_lookup_res *lookup_res,
+    struct kvset_vgroup_map *vgmap,
     struct kvs_vtuple_ref *vref)
 {
     const struct wbt_node_hdr_omf *node;
@@ -811,7 +821,7 @@ wbtr_read_vref(
             nvals = kmd_count(kmd, &off);
             assert(nvals > 0);
             while (nvals--) {
-                wbt_read_kmd_vref(kmd, &off, &vseq, vref);
+                wbt_read_kmd_vref(kmd, vgmap, &off, &vseq, vref);
                 assert(off <= wbd->wbd_kmd_pgc * PAGE_SIZE);
                 if (seq >= vseq) {
                     vref->vr_seq = vseq;
