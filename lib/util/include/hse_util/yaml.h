@@ -20,13 +20,14 @@ typedef void
 yaml_emit_t(struct yaml_context *yc);
 
 struct yaml_context {
-    char *                 yaml_buf;
+    char                  *yaml_buf;
     size_t                 yaml_buf_sz;
     size_t                 yaml_offset;
     int                    yaml_indent;
     enum yaml_context_type yaml_prev;
-    yaml_emit_t *          yaml_emit;
-    void *                 yaml_free;
+    yaml_emit_t           *yaml_emit;
+    void                  *yaml_free;
+    void                  *yaml_priv;
 };
 
 #pragma GCC visibility push(default)
@@ -54,6 +55,9 @@ yaml_element_list(struct yaml_context *yc, const char *key);
 
 void
 yaml_field_fmt(struct yaml_context *yc, const char *key, const char *valfmt, ...);
+
+void
+yaml_field_fmt_u64(struct yaml_context *yc, const char *key, uint64_t val);
 
 void
 yaml_list_fmt(struct yaml_context *yc, const char *keyfmt, ...);

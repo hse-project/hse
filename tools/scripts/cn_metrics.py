@@ -2,7 +2,7 @@
 
 # SPDX-License-Identifier: Apache-2.0
 #
-# Copyright (C) 2020-2021 Micron Technology, Inc. All rights reserved.
+# Copyright (C) 2020-2022 Micron Technology, Inc. All rights reserved.
 
 import argparse
 import subprocess as sp

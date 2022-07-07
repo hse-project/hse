@@ -557,6 +557,15 @@ tree_walk_callback(
     return 0;
 }
 
+static void
+cn_metrics_yaml_emit(struct yaml_context *yc)
+{
+    if (yc->yaml_offset > 0) {
+        write(1, yc->yaml_buf, yc->yaml_offset);
+        yc->yaml_offset = 0;
+    }
+}
+
 int
 main(int argc, char **argv)
 {
@@ -630,10 +639,10 @@ main(int argc, char **argv)
             .yaml_offset = 0,
             .yaml_buf = yaml_buf,
             .yaml_buf_sz = sizeof(yaml_buf),
-            .yaml_emit = NULL,
+            .yaml_emit = cn_metrics_yaml_emit,
         };
 
-        rc = ikvdb_kvs_query_tree(kvs, &yc, STDOUT_FILENO, opt.all_blocks);
+        rc = ikvdb_kvs_query_tree(kvs, &yc, opt.all_blocks);
     } else {
         /* derived options */
         opt.bnfw = bn_width(opt.bnfmt);

@@ -807,7 +807,7 @@ cn_tree_view_create(struct cn *cn, struct table **view_out)
             break;
         }
 
-        s->kvset = 0;
+        s->kvset = NULL;
         s->node_loc = node->tn_loc;
 
         list_for_each_entry(le, &node->tn_kvset_list, le_link) {
