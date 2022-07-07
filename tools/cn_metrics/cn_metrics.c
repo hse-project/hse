@@ -75,21 +75,26 @@ enum bn_fmt {
     BN_HEX2       /* 75bcd15   */
 };
 
+static int col2width[] = {
+    0, 0, 0, 4, 5, 6, 7, 7, 8, 11, 12,
+};
+
 int
-bn_width(enum bn_fmt fmt)
+bn_width(enum bn_fmt fmt, uint col)
 {
     switch (fmt) {
-        case BN_HEX1:
-            return 12;
-        case BN_HEX2:
-            return 12;
-        case BN_SCALAR:
-            return 14;
-        case BN_HUMAN:
-            return 7;
-        case BN_EXP:
-            return 9;
+    case BN_HEX1:
+        return 12;
+    case BN_HEX2:
+        return 12;
+    case BN_SCALAR:
+        return col2width[col];
+    case BN_HUMAN:
+        return 7;
+    case BN_EXP:
+        return 9;
     }
+
     return 12;
 }
 
@@ -229,7 +234,6 @@ struct options {
     /* derived */
     char *loc_hdr;
     char *loc_fmt;
-    int   bnfw; /* big number field width */
 };
 
 struct options opt;
@@ -330,6 +334,7 @@ rollup(struct rollup *from, struct rollup *to)
 }
 
 struct ctx {
+    int (*print)(const char *restrict format, ...);
 
     struct rollup rtotal;
     struct rollup rnode;
@@ -343,22 +348,51 @@ struct ctx {
     bool header_done;
 };
 
+static int
+noprint(const char *restrict format, ...)
+{
+    return 0;
+}
+
+void
+col2width_init(struct ctx *ctx)
+{
+    int n;
+
+    n = snprintf(NULL, 0, "%lu", (ulong)ctx->rtotal.km.num_keys);
+    if (n > col2width[3])
+        col2width[3] = n;
+
+    n = snprintf(NULL, 0, "%lu", (ulong)ctx->rtotal.km.num_tombstones);
+    if (n > col2width[4])
+        col2width[4] = n;
+
+    n = snprintf(NULL, 0, "%lu", (ulong)ctx->rtotal.km.nptombs);
+    if (n > col2width[5])
+        col2width[5] = n;
+}
+
 static void
 print_ids(
+    struct ctx *ctx,
     struct kvset *kvset,
     u32 (*get_count)(struct kvset *),
     u64 (*get_nth)(struct kvset *, u32),
     int max)
 {
-    int i, n = get_count(kvset);
+    int i, n;
 
+    if (ctx->print == noprint)
+        return;
+
+    n = get_count(kvset);
     if (max == 0 || n < max)
         max = n;
 
     for (i = 0; i < max; ++i)
-        printf(" 0x%08lx", get_nth(kvset, i));
+        ctx->print(" 0x%08lx", get_nth(kvset, i));
     if (n > max)
-        printf(" ...");
+        ctx->print(" ...");
 }
 
 const char *hdrv[] = {
@@ -385,7 +419,7 @@ const char *hdrv[] = {
 #define DIVZ(_a, _b) ((_b) ? (_a) / (_b) : 0)
 
 static void
-print_row(char *tag, struct rollup *r, uint index, char *sep)
+print_row(struct ctx *ctx, char *tag, struct rollup *r, uint index, char *sep)
 {
     char locbuf[33]; /* 3 integers + 2 commas + NUL */
 
@@ -400,6 +434,9 @@ print_row(char *tag, struct rollup *r, uint index, char *sep)
     char avg_klen[BIGNUM_BUFSZ];
     char avg_vlen[BIGNUM_BUFSZ];
 
+    if (ctx->print == noprint)
+        return;
+
     sprintf(locbuf, opt.loc_fmt, r->loc.node_level, r->loc.node_offset, index);
 
     BN(nkeys, r->ks.kst_keys);
@@ -413,27 +450,17 @@ print_row(char *tag, struct rollup *r, uint index, char *sep)
     BN(avg_klen, DIVZ(r->km.tot_key_bytes, r->km.num_keys));
     BN(avg_vlen, DIVZ(r->km.tot_val_bytes, r->km.num_keys));
 
-    printf(
+    ctx->print(
         FMT_ROW,
-        tag,
-        locbuf,
-        r->dgen,
-        opt.bnfw,
-        nkeys,
-        opt.bnfw,
-        ntombs,
-        opt.bnfw,
-        nptombs,
-        opt.bnfw,
-        avg_klen,
-        opt.bnfw,
-        avg_vlen,
-        opt.bnfw,
-        halen,
-        opt.bnfw,
-        kalen,
-        opt.bnfw,
-        valen,
+        tag, locbuf, r->dgen,
+        bn_width(opt.bnfmt, 3), nkeys,
+        bn_width(opt.bnfmt, 4), ntombs,
+        bn_width(opt.bnfmt, 5), nptombs,
+        bn_width(opt.bnfmt, 6), avg_klen,
+        bn_width(opt.bnfmt, 7), avg_vlen,
+        bn_width(opt.bnfmt, 8), halen,
+        bn_width(opt.bnfmt, 9), kalen,
+        bn_width(opt.bnfmt, 10), valen,
         DIVZ(100.0 * r->ks.kst_hwlen, r->ks.kst_halen),
         DIVZ(100.0 * r->ks.kst_kwlen, r->ks.kst_kalen),
         DIVZ(100.0 * r->ks.kst_vwlen, r->ks.kst_valen),
@@ -447,29 +474,19 @@ print_row(char *tag, struct rollup *r, uint index, char *sep)
 }
 
 static void
-print_hdr(void)
+print_hdr(struct ctx *ctx)
 {
-    printf(
+    ctx->print(
         FMT_HDR "%s\n",
-        hdrv[0],
-        opt.loc_hdr,
-        hdrv[2],
-        opt.bnfw,
-        hdrv[3],
-        opt.bnfw,
-        hdrv[4],
-        opt.bnfw,
-        hdrv[5],
-        opt.bnfw,
-        hdrv[6],
-        opt.bnfw,
-        hdrv[7],
-        opt.bnfw,
-        hdrv[8],
-        opt.bnfw,
-        hdrv[9],
-        opt.bnfw,
-        hdrv[10],
+        hdrv[0], opt.loc_hdr, hdrv[2],
+        bn_width(opt.bnfmt, 3), hdrv[3],
+        bn_width(opt.bnfmt, 4), hdrv[4],
+        bn_width(opt.bnfmt, 5), hdrv[5],
+        bn_width(opt.bnfmt, 6), hdrv[6],
+        bn_width(opt.bnfmt, 7), hdrv[7],
+        bn_width(opt.bnfmt, 8), hdrv[8],
+        bn_width(opt.bnfmt, 9), hdrv[9],
+        bn_width(opt.bnfmt, 10), hdrv[10],
         hdrv[11],
         hdrv[12],
         hdrv[13],
@@ -498,10 +515,9 @@ tree_walk_callback(
     if (!node) {
         /* Finish current tree */
         t->loc.node_level = c->tree_nodes;
-        printf("\n");
-        print_hdr();
-        print_row("t", t, c->tree_kvsets, "\n");
-        memset(t, 0, sizeof(*t));
+        c->print("\n");
+        print_hdr(c);
+        print_row(c, "t", t, c->tree_kvsets, "\n");
         return 0;
     }
 
@@ -512,12 +528,12 @@ tree_walk_callback(
         c->tree_nodes++;
         rollup(n, t);
         if (opt.nodes_only && c->tree_nodes == 1)
-            print_hdr();
-        print_row("n", n, c->node_kvsets, "\n");
+            print_hdr(c);
+        print_row(c, "n", n, c->node_kvsets, "\n");
 
         cn_node_stats_get(node, &ns);
 
-        printf(
+        c->print(
             "#Node pcap%% %u kuniq%% %6.1f "
             "HbClen%% %6.1f KbClen%% %6.1f VbClen%% %6.1f samp %6.1f\n",
             ns.ns_pcap,
@@ -543,21 +559,24 @@ tree_walk_callback(
     c->tree_kvsets++;
     c->node_kvsets++;
 
+    if (c->print == noprint)
+        return 0;
+
     if (!opt.nodes_only) {
         int limit = opt.all_blocks ? 0 : 2;
 
         if (c->node_kvsets == 1) {
             if (c->tree_kvsets > 1)
-                printf("\n");
-            print_hdr();
+                c->print("\n");
+            print_hdr(c);
         }
 
-        print_row("k", k, c->node_kvsets - 1, "");
-        printf(" 0x%08lx /", kvset_get_hblock_id(kvset));
-        print_ids(kvset, kvset_get_num_kblocks, kvset_get_nth_kblock_id, limit);
-        printf(" /");
-        print_ids(kvset, kvset_get_num_vblocks, kvset_get_nth_vblock_id, limit);
-        printf("\n");
+        print_row(c, "k", k, c->node_kvsets - 1, "");
+        c->print(" 0x%08lx /", kvset_get_hblock_id(kvset));
+        print_ids(c, kvset, kvset_get_num_kblocks, kvset_get_nth_kblock_id, limit);
+        c->print(" /");
+        print_ids(c, kvset, kvset_get_num_vblocks, kvset_get_nth_vblock_id, limit);
+        c->print("\n");
     }
 
     return 0;
@@ -649,7 +668,6 @@ main(int argc, char **argv)
         rc = ikvdb_kvs_query_tree(kvs, &yc, opt.all_blocks);
     } else {
         /* derived options */
-        opt.bnfw = bn_width(opt.bnfmt);
         if (opt.alternate_loc) {
             opt.loc_hdr = "Lvl Off Idx";
             opt.loc_fmt = "%3d %3d %3d";
@@ -667,7 +685,15 @@ main(int argc, char **argv)
 
         struct cn_tree *tree = cn_get_tree(cn);
 
+        if (opt.bnfmt == BN_SCALAR) {
+            memset(&ctx, 0, sizeof(ctx));
+            ctx.print = noprint;
+            cn_tree_preorder_walk(tree, KVSET_ORDER_NEWEST_FIRST, tree_walk_callback, &ctx);
+            col2width_init(&ctx);
+        }
+
         memset(&ctx, 0, sizeof(ctx));
+        ctx.print = printf;
         cn_tree_preorder_walk(tree, KVSET_ORDER_NEWEST_FIRST, tree_walk_callback, &ctx);
     }
 
