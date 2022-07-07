@@ -76,12 +76,13 @@ struct kvset {
     u32           ks_pfx_len; /* cn tree pfx_len */
     u32           ks_sfx_len; /* cn tree sfx_len */
     u16           ks_node_level;
-    u64           ks_nodeid;
     u16           ks_vminlvl;
+    uint16_t      ks_comp_rule;
+    u64           ks_nodeid;
     u32           ks_vmin;
     u32           ks_vmax;
     u32           ks_vra_len;
-    uint          ks_compc;
+    uint32_t      ks_compc;
 
     struct kvs_rparams *ks_rp;
     u64                 ks_seqno_max;

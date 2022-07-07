@@ -783,10 +783,9 @@ cn_tree_view_create(struct cn *cn, struct table **view_out)
     struct tree_iter         iter;
     struct cn_tree_node *    node;
     void *                   lock;
-    struct kvset_list_entry *le;
     struct cn_tree *         tree = cn_get_tree(cn);
     merr_t                   err = 0;
-    struct kvset_view *      s;
+    uint nodecnt;
 
     view = vtc_alloc();
     if (ev(!view))
@@ -794,10 +793,12 @@ cn_tree_view_create(struct cn *cn, struct table **view_out)
 
     tree_iter_init(tree, &iter, TRAVERSE_TOPDOWN);
     node = tree_iter_next(tree, &iter);
+    nodecnt = 0;
 
     rmlock_rlock(&tree->ct_lock, &lock);
     while (node) {
-        u32 level = node->tn_loc.node_level;
+        struct kvset_list_entry *le;
+        struct kvset_view *s;
 
         /* create an entry for the node */
         s = table_append(view);
@@ -806,10 +807,10 @@ cn_tree_view_create(struct cn *cn, struct table **view_out)
             break;
         }
 
-        s->kvset = 0;
+        s->kvset = NULL;
         s->node_loc = node->tn_loc;
 
-        list_for_each_entry (le, &node->tn_kvset_list, le_link) {
+        list_for_each_entry(le, &node->tn_kvset_list, le_link) {
             struct kvset *kvset = le->le_kvset;
 
             s = table_append(view);
@@ -826,7 +827,7 @@ cn_tree_view_create(struct cn *cn, struct table **view_out)
         if (err)
             break;
 
-        if (level > 0)
+        if ((nodecnt++ % 16) == 0)
             rmlock_yield(&tree->ct_lock, &lock);
 
         node = tree_iter_next(tree, &iter);
@@ -1722,6 +1723,8 @@ cn_comp_commit(struct cn_compaction_work *w)
         km.km_hblk = w->cw_outv[i].hblk;
         km.km_kblk_list = w->cw_outv[i].kblks;
         km.km_vblk_list = w->cw_outv[i].vblks;
+
+        km.km_comp_rule = w->cw_comp_rule;
         km.km_capped = cn_is_capped(w->cw_tree->cn);
         km.km_restored = false;
 

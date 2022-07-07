@@ -34,6 +34,57 @@ enum sp3_qnum {
     SP3_QNUM_MAX
 };
 
+enum cn_comp_rule {
+    CN_CR_NONE = 0u,
+    CN_CR_INGEST,         /* normal c0 spill */
+    CN_CR_RSPILL,         /* normal root spill */
+    CN_CR_RTINY,          /* tiny root spill */
+    CN_CR_LBIG,           /* big leaf (near pop threshold) */
+    CN_CR_LBIG_ONE,       /* big leaf, compact one kvset */
+    CN_CR_LGARB,          /* leaf garbage (reducing space amp) */
+    CN_CR_LLONG,          /* long leaf */
+    CN_CR_LIDXF,          /* short leaf, full index node compaction */
+    CN_CR_LIDXP,          /* short leaf, partial index node compaction */
+    CN_CR_LIDLE,          /* idle leaf */
+    CN_CR_LSCATF,         /* vgroup scatter remediation (full node) */
+    CN_CR_LSCATP,         /* vgroup scatter remediation (partial node) */
+};
+
+static inline const char *
+cn_comp_rule2str(enum cn_comp_rule rule)
+{
+    switch (rule) {
+    case CN_CR_NONE:
+        return "none";
+    case CN_CR_INGEST:
+        return "ingest";
+    case CN_CR_RSPILL:
+        return "rspill";
+    case CN_CR_RTINY:
+        return "rtiny";
+    case CN_CR_LBIG:
+        return "lbig";
+    case CN_CR_LBIG_ONE:
+        return "lbig1";
+    case CN_CR_LGARB:
+        return "lgarb";
+    case CN_CR_LLONG:
+        return "llong";
+    case CN_CR_LIDXF:
+        return "lidxf";
+    case CN_CR_LIDXP:
+        return "lidxp";
+    case CN_CR_LIDLE:
+        return "lidle";
+    case CN_CR_LSCATF:
+        return "lscatf";
+    case CN_CR_LSCATP:
+        return "lscatp";
+    }
+
+    return "invalid";
+}
+
 /* Default threads-per-queue for csched_qthreads kvdb rparam.
  */
 #define CSCHED_QTHREADS_DEFAULT                 \

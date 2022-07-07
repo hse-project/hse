@@ -2,7 +2,7 @@
 
 # SPDX-License-Identifier: Apache-2.0
 #
-# Copyright (C) 2020-2021 Micron Technology, Inc. All rights reserved.
+# Copyright (C) 2020-2022 Micron Technology, Inc. All rights reserved.
 
 import argparse
 import subprocess as sp
@@ -12,7 +12,7 @@ import time
 import json
 import pathlib
 import signal
-from typing import Any, Dict, Optional
+from typing import Any, Dict, OrderedDict, Optional
 
 desc = (
     "print cn tree shape\n\n"
@@ -43,60 +43,64 @@ PARSER.add_argument(
 )
 PARSER.add_argument("kvs", help="kvs name")
 
-def full_tree(ybuf: Optional[Dict[str, Any]], opt):
+def full_tree(ybuf: Optional[OrderedDict[str, Any]], opt):
     if not ybuf or "info" not in ybuf:
         return
 
-    print("t ", end=""),
-    oids = ["oid1", "oid2"]
+    # Vector of initial column widths (i.e., compc, dgen, keys, ...)
+    #
+    widthv = [ 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 2, 1, 1 ]
 
+    print("t -,-    -     -   ", end=""),
+
+    col = 1
     for key, val in ybuf["info"].items():
-        print(f"{key} {val} ", end="")
+        n = len(str(val)) + 1
+        if n > widthv[col]:
+            widthv[col] = n
+        width = widthv[col]
+        col += 1
+        print(f"{key} {val:<{width}} ", end="")
+    print()
     print()
 
     if ybuf["info"]["open"] == False:
         return
 
+    # Print info for each node in the kvs.
+    #
     for node in ybuf["nodes"]:
-        # print one node's info
+        if node["info"]["dgen"] == 0:
+            continue
+
         loc = node["loc"]
-        print(f"n {loc['level']},{loc['offset']:<5} -     -   ", end="")
-        for key, val in sorted(node["info"].items()):
-            if key == "vlen":
-                mib = int(int(val) / (1024 * 1024))
-                print(f"{key} {val} ({mib}m)  ", end="")
-            else:
-                print(f"{key} {val:<2}  ", end="")
+        print(f"n {loc['level']},{loc['offset']}    -     -   ", end="")
+
+        col = 1
+        for key, val in node["info"].items():
+            width = widthv[col]
+            col += 1
+            print(f"{key} {val:<{width}} ", end="")
         print()
 
         if opt.nokvsets:
             continue
 
-        if node["info"]["nkvsets"] == 0:
+        if node["info"]["kvsets"] == 0:
             print()
             continue
 
-        # print info for all kvsets in current node
+        # Print info for each kvset in the current node.
+        #
         for kvset in node["kvsets"]:
-            index = kvset["index"]
-            print(f"k {loc['level']},{loc['offset']},{index:<3} ", end="")
-            for key, val in sorted(kvset.items()):
-                if key == "vlen":
-                    mib = int(int(val) / (1024 * 1024))
-                    print(f"{key} {val} ({mib}m)  ", end="")
-                elif key == "kblks":
-                    print("ids ", end=""),
-                    for kblk in val:
-                        print(f"{hex(int(kblk))} ", end="")
-                elif key == "vblks":
-                    print("/ ", end=""),
-                    if val:
-                        for vblk in val:
-                            print(f"{hex(int(vblk))} ", end="")
-                elif key in oids:
-                    print(f"{key} {hex(int(val))} ", end="")
-                elif key != "index":
-                    print(f"{key} {val:<2}  ", end="")
+            index = kvset.pop("index")
+            print(f"k {loc['level']},{loc['offset']},{index:<2} ", end="")
+
+            col = 0;
+            for key, val in kvset.items():
+                width = widthv[col]
+                col += 1
+                print(f"{key} {val:<{width}} ", end="")
             print()
         print()
 

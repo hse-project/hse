@@ -8,6 +8,7 @@
 #include <hse_ikvdb/cn.h>
 #include <hse_ikvdb/limits.h>
 #include <hse_ikvdb/ikvdb.h>
+#include <hse_ikvdb/csched.h>
 
 #include <cn/cn_metrics.h>
 #include <cn/cn_tree.h>
@@ -34,13 +35,14 @@ usage(void)
     printf("usage: %s [options] kvdb_home kvs\n", progname);
 
     printf("-b         show all kblock/vblock IDs\n"
-           "-f FMT     set output format\n"
+           "-f fmt     set output format\n"
            "-h         show this help list\n"
-           "-l         use alternate node loc format\n"
+           "-l         use tablular node loc format\n"
            "-n         show node-level data only (skip kvsets)\n"
+           "-v         increase verbosity\n"
            "-y         output tree shape in yaml\n"
            "-Z config  path to global config file\n"
-           "FMT  h=human(default), s=scalar, x=hex, e=exp\n"
+           "fmt  h=human(default), s=scalar, x=hex, e=exp\n"
            "\n");
 
     printf("%s shows detailed cn tree metrics such as tree structure,\n"
@@ -74,138 +76,87 @@ enum bn_fmt {
     BN_HEX2       /* 75bcd15   */
 };
 
-int
-bn_width(enum bn_fmt fmt)
-{
-    switch (fmt) {
-        case BN_HEX1:
-            return 12;
-        case BN_HEX2:
-            return 12;
-        case BN_SCALAR:
-            return 14;
-        case BN_HUMAN:
-            return 7;
-        case BN_EXP:
-            return 9;
-    }
-    return 12;
-}
+/* Minimum column widths for hex and scalar output modes.
+ */
+static int col2width[] = {
+    0, 0, 5, 5, 5, 5, 6, 6, 6, 6, 4, 4, 7, 7
+};
 
 int
-bn_width_max(enum bn_fmt fmt)
+bn_width(enum bn_fmt fmt, uint col)
 {
     switch (fmt) {
-        case BN_HEX1:
-            return 18;
-        case BN_HEX2:
-            return 16;
-        case BN_SCALAR:
-            return BIGNUM_WIDTH_MAX;
-        case BN_HUMAN:
-            return 7;
-        case BN_EXP:
-            return 9;
+    case BN_HUMAN:
+        return 8;
+
+    case BN_EXP:
+        return 9;
+
+    case BN_HEX1:
+    case BN_HEX2:
+    case BN_SCALAR:
+        return col2width[col];
     }
+
     return 12;
-}
-
-char
-bn_human_sfx(uint exp)
-{
-    char sfx;
-
-    switch (exp) {
-        case 3:
-            sfx = 'k';
-            break;
-        case 6:
-            sfx = 'm';
-            break;
-        case 9:
-            sfx = 'g';
-            break;
-        case 12:
-            sfx = 't';
-            break;
-        case 15:
-            sfx = 'p';
-            break;
-        case 18:
-            sfx = 'e';
-            break;
-        case 21:
-            sfx = 'z';
-            break;
-        case 24:
-            sfx = 'y';
-            break;
-        default:
-            sfx = '?';
-            break;
-    }
-
-    return sfx;
 }
 
 char *
 bn64(char *buf, size_t buf_sz, enum bn_fmt fmt, u64 value)
 {
+    const char *suffix = "\0kmgtpezy";
     unsigned exp = 0;
     u64      pv = 0;
-
-    int n HSE_MAYBE_UNUSED;
+    int n;
 
     switch (fmt) {
-        case BN_HEX1:
-            n = snprintf(buf, buf_sz, "0x%lx", value);
+    case BN_HEX1:
+        n = snprintf(buf, buf_sz, "0x%lx", value);
+        break;
+
+    case BN_HEX2:
+        n = snprintf(buf, buf_sz, "%lx", value);
+        break;
+
+    case BN_SCALAR:
+        n = snprintf(buf, buf_sz, "%lu", value);
+        break;
+
+    default:
+        while (value >= 1000) {
+            exp += 3;
+            pv = value;
+            value /= 1000;
+            suffix++;
+        }
+
+        if (exp == 0) {
+            n = snprintf(buf, buf_sz, "%*lu", bn_width(fmt, 0), value);
             break;
+        }
 
-        case BN_HEX2:
-            n = snprintf(buf, buf_sz, "%lx", value);
-            break;
+        /* In human readable and exponential form,
+         * We use format printf("%3lu.%02lu",v,pv)
+         * to show 2 places after decimal.
+         * To get that, we do:
+         *    pv = (pv % 1000) / 10;
+         * Example:
+         *   Original value:    1,234,567
+         *   After above loop:  v=1; pv=1234; exp=3;
+         *   Want to print:     1.23k
+         *   After:  pv = (pv % 1000)/10,
+         *   Then:   pv = 23
+         *   So:     printf(v,pv,"%3lu.%02lu")
+         *   Ouput:  "1.23"
+         */
+        pv = (pv % 1000) / 10;
 
-        case BN_SCALAR:
-            n = snprintf(buf, buf_sz, "%lu", value);
-            break;
-
-        default:
-            while (value >= 1000) {
-                exp += 3;
-                pv = value;
-                value /= 1000;
-            }
-
-            if (exp == 0) {
-
-                n = snprintf(buf, buf_sz, "%*lu", bn_width_max(fmt), value);
-
-            } else {
-                /* In human readable and exponential form,
-             * We use format printf("%3lu.%02lu",v,pv)
-             * to show 2 places after decimal.
-             * To get that, we do:
-             *    pv = (pv % 1000) / 10;
-             * Example:
-             *   Original value:    1,234,567
-             *   After above loop:  v=1; pv=1234; exp=3;
-             *   Want to print:     1.23k
-             *   After:  pv = (pv % 1000)/10,
-             *   Then:   pv = 23
-             *   So:     printf(v,pv,"%3lu.%02lu")
-             *   Ouput:  "1.23"
-             */
-
-                pv = (pv % 1000) / 10;
-
-                if (fmt == BN_HUMAN) {
-                    n = snprintf(buf, buf_sz, "%3lu.%02lu%c", value, pv, bn_human_sfx(exp));
-
-                } else {
-                    n = snprintf(buf, buf_sz, "%3lu.%02lue%02u", value, pv, exp);
-                }
-            }
-            break;
+        if (fmt == BN_HUMAN) {
+            n = snprintf(buf, buf_sz, "%3lu.%02lu%c", value, pv, *suffix);
+        } else {
+            n = snprintf(buf, buf_sz, "%3lu.%02lue%02u", value, pv, exp);
+        }
+        break;
     }
 
     if (n < 1 || n >= buf_sz)
@@ -223,12 +174,12 @@ struct options {
     int  nodes_only;
     int  all_blocks;
     int  yaml_output;
-    int  alternate_loc;
+    int  tabular_loc;
+    int  verbosity;
 
     /* derived */
     char *loc_hdr;
     char *loc_fmt;
-    int   bnfw; /* big number field width */
 };
 
 struct options opt;
@@ -238,54 +189,72 @@ process_options(int argc, char *argv[])
 {
     int c;
 
-    while ((c = getopt(argc, argv, ":bf:hlnyZ:")) != -1) {
+    while ((c = getopt(argc, argv, ":bf:hlnyvZ:")) != -1) {
         switch (c) {
+        case 'h':
+            usage();
+            exit(0);
+
+        case 'b':
+            opt.all_blocks = 1;
+            if (!opt.verbosity)
+                opt.verbosity++;
+            break;
+
+        case 'l':
+            opt.tabular_loc = 1;
+            break;
+
+        case 'n':
+            opt.nodes_only = 1;
+            break;
+
+        case 'f':
+            switch (optarg[0]) {
+            case 'e':
+                opt.bnfmt = BN_EXP;
+                break;
+
             case 'h':
-                usage();
-                exit(0);
-            case 'b':
-                opt.all_blocks = 1;
-                break;
-            case 'Z':
-                opt.config = optarg;
-                break;
-            case 'l':
-                opt.alternate_loc = 1;
-                break;
-            case 'n':
-                opt.nodes_only = 1;
-                break;
-            case 'f':
-                switch (optarg[0]) {
-                    case 'h':
-                        opt.bnfmt = BN_HUMAN;
-                        break;
-                    case 'x':
-                        opt.bnfmt = BN_HEX1;
-                        break;
-                    case 's':
-                        opt.bnfmt = BN_SCALAR;
-                        break;
-                    case 'e':
-                        opt.bnfmt = BN_EXP;
-                        break;
-                }
+                opt.bnfmt = BN_HUMAN;
                 break;
 
-            case 'y':
-                opt.yaml_output = 1;
+            case 's':
+                opt.bnfmt = BN_SCALAR;
                 break;
-            case '?':
-                syntax("invalid option -%c", optopt);
-                exit(EX_USAGE);
 
-            case ':':
-                syntax("option -%c requires a parameter", optopt);
-                exit(EX_USAGE);
+            case 'x':
+                opt.bnfmt = BN_HEX1;
 
-            default:
-                syntax("option -%c ignored\n", c);
+                if (optarg[1] == 'x')
+                    opt.bnfmt = BN_HEX2;
                 break;
+            }
+            break;
+
+        case 'y':
+            opt.yaml_output = 1;
+            break;
+
+        case 'v':
+            opt.verbosity++;
+            break;
+
+        case 'Z':
+            opt.config = optarg;
+            break;
+
+        case '?':
+            syntax("invalid option -%c", optopt);
+            exit(EX_USAGE);
+
+        case ':':
+            syntax("option -%c requires a parameter", optopt);
+            exit(EX_USAGE);
+
+        default:
+            syntax("option -%c ignored\n", c);
+            break;
         }
     }
 
@@ -329,6 +298,7 @@ rollup(struct rollup *from, struct rollup *to)
 }
 
 struct ctx {
+    int (*print)(const char *restrict format, ...);
 
     struct rollup rtotal;
     struct rollup rnode;
@@ -342,46 +312,88 @@ struct ctx {
     bool header_done;
 };
 
+static int
+noprint(const char *restrict format, ...)
+{
+    return 0;
+}
+
+void
+col2width_update(struct ctx *ctx)
+{
+    const char *fmt = "%lu";
+
+    ulong valv[] = {
+        ctx->rtotal.dgen,
+        ctx->rtotal.km.num_keys,
+        ctx->rtotal.km.num_tombstones,
+        ctx->rtotal.km.nptombs,
+        ctx->rtotal.ks.kst_halen,
+        ctx->rtotal.ks.kst_kalen,
+        ctx->rtotal.ks.kst_valen,
+        ctx->rtotal.ks.kst_kblks,
+        ctx->rtotal.ks.kst_vblks,
+    };
+    int n, i;
+
+    if (opt.bnfmt == BN_HEX1)
+        fmt = "0x%lx";
+    else if (opt.bnfmt == BN_HEX2)
+        fmt = "%lx";
+
+    for (i = 0; i < NELEM(valv); ++i) {
+        n = snprintf(NULL, 0, fmt, valv[i]);
+        if (n > col2width[i + 3])
+            col2width[i + 3] = n;
+    }
+}
+
 static void
 print_ids(
+    struct ctx *ctx,
     struct kvset *kvset,
     u32 (*get_count)(struct kvset *),
     u64 (*get_nth)(struct kvset *, u32),
     int max)
 {
-    int i, n = get_count(kvset);
+    int i, n;
+
+    if (ctx->print == noprint)
+        return;
+
+    n = get_count(kvset);
 
     if (max == 0 || n < max)
         max = n;
 
     for (i = 0; i < max; ++i)
-        printf(" 0x%08lx", get_nth(kvset, i));
+        ctx->print(" 0x%08lx", get_nth(kvset, i));
     if (n > max)
-        printf(" ...");
+        ctx->print(" ...");
 }
 
-const char *hdrv[] = { "H", "Loc", "Dgen", "Keys", "Tombs", "Ptombs", "AvgKlen",
-                       "AvgVlen", "HbAlen", "KbAlen", "VbAlen", "HbWlen%",
-                       "KbWlen%", "VbWlen%", "VbUlen%", "Comps", "Vgrps", "Kbs", "Vbs" };
+const char *hdrv[] = {
+    "H", "Loc",
+    "Compc", "Dgen", "Keys", "Tombs", "Ptombs", "HbAlen", "KbAlen", "VbAlen",
+    "Kbs", "Vbs", "Vgrps", "Rule", "AvgKlen", "AvgVlen",
+};
 
-#define FMT_HDR                        \
-    "%s %-12s %5s "                    \
-    "%*s %*s %*s %*s %*s %*s %*s %*s " \
-    "%7s %7s %7s %7s "                 \
-    "%5s %5s %4s %4s"
+#define FMT_HDR                                    \
+    "%s %-12s "                                    \
+    "%*s %*s %*s %*s %*s %*s %*s %*s "             \
+    "%*s %*s %6s %7s %*s %*s"
 
-#define FMT_ROW                        \
-    "%s %-12s %5lu "                   \
-    "%*s %*s %*s %*s %*s %*s %*s %*s " \
-    "%7.1f %7.1f %7.1f %7.1f "         \
-    "%5u %5u %4u %4u %s"
+#define FMT_ROW                                         \
+    "%s %-12s "                                         \
+    "%*u %*lu %*s %*s %*s %*s %*s %*s "                 \
+    "%*u %*u %6u %7s %*s %*s"
 
 #define BN(_buf, _val) bn64((_buf), sizeof((_buf)), opt.bnfmt, (_val))
 
 #define DIVZ(_a, _b) ((_b) ? (_a) / (_b) : 0)
 
 static void
-print_row(char *tag, struct rollup *r, uint index, char *sep)
+print_row(struct ctx *ctx, char *tag, struct rollup *r, uint index, char *sep)
 {
     char locbuf[33]; /* 3 integers + 2 commas + NUL */
 
@@ -396,6 +408,9 @@ print_row(char *tag, struct rollup *r, uint index, char *sep)
     char avg_klen[BIGNUM_BUFSZ];
     char avg_vlen[BIGNUM_BUFSZ];
 
+    if (ctx->print == noprint)
+        return;
+
     sprintf(locbuf, opt.loc_fmt, r->loc.node_level, r->loc.node_offset, index);
 
     BN(nkeys, r->ks.kst_keys);
@@ -409,71 +424,64 @@ print_row(char *tag, struct rollup *r, uint index, char *sep)
     BN(avg_klen, DIVZ(r->km.tot_key_bytes, r->km.num_keys));
     BN(avg_vlen, DIVZ(r->km.tot_val_bytes, r->km.num_keys));
 
-    printf(
+    ctx->print(
         FMT_ROW,
-        tag,
-        locbuf,
-        r->dgen,
-        opt.bnfw,
-        nkeys,
-        opt.bnfw,
-        ntombs,
-        opt.bnfw,
-        nptombs,
-        opt.bnfw,
-        avg_klen,
-        opt.bnfw,
-        avg_vlen,
-        opt.bnfw,
-        halen,
-        opt.bnfw,
-        kalen,
-        opt.bnfw,
-        valen,
-        DIVZ(100.0 * r->ks.kst_hwlen, r->ks.kst_halen),
-        DIVZ(100.0 * r->ks.kst_kwlen, r->ks.kst_kalen),
-        DIVZ(100.0 * r->ks.kst_vwlen, r->ks.kst_valen),
-        DIVZ(100.0 * r->ks.kst_vulen, r->ks.kst_valen),
-        r->km.compc,
+        tag, locbuf,
+        bn_width(opt.bnfmt, 2), r->km.compc,
+        bn_width(opt.bnfmt, 3), r->dgen,
+        bn_width(opt.bnfmt, 4), nkeys,
+        bn_width(opt.bnfmt, 5), ntombs,
+        bn_width(opt.bnfmt, 6), nptombs,
+        bn_width(opt.bnfmt, 7), halen,
+        bn_width(opt.bnfmt, 8), kalen,
+        bn_width(opt.bnfmt, 9), valen,
+        bn_width(opt.bnfmt, 10), r->ks.kst_kblks,
+        bn_width(opt.bnfmt, 11), r->ks.kst_vblks,
         r->km.vgroups,
-        r->ks.kst_kblks,
-        r->ks.kst_vblks,
-        sep);
+        (tag[0] == 'k') ? cn_comp_rule2str(r->km.comp_rule) : "-",
+        bn_width(opt.bnfmt, 12), avg_klen,
+        bn_width(opt.bnfmt, 13), avg_vlen);
+
+    if (opt.verbosity > 0) {
+        ctx->print(" %7.1f %7.1f %7.1f %7.1f ",
+                   DIVZ(100.0 * r->ks.kst_hwlen, r->ks.kst_halen),
+                   DIVZ(100.0 * r->ks.kst_kwlen, r->ks.kst_kalen),
+                   DIVZ(100.0 * r->ks.kst_vwlen, r->ks.kst_valen),
+                   DIVZ(100.0 * r->ks.kst_vulen, r->ks.kst_valen));
+    }
+
+    if (sep)
+        ctx->print(sep);
 }
 
 static void
-print_hdr(void)
+print_hdr(struct ctx *ctx)
 {
-    printf(
-        FMT_HDR "%s\n",
-        hdrv[0],
-        opt.loc_hdr,
-        hdrv[2],
-        opt.bnfw,
-        hdrv[3],
-        opt.bnfw,
-        hdrv[4],
-        opt.bnfw,
-        hdrv[5],
-        opt.bnfw,
-        hdrv[6],
-        opt.bnfw,
-        hdrv[7],
-        opt.bnfw,
-        hdrv[8],
-        opt.bnfw,
-        hdrv[9],
-        opt.bnfw,
-        hdrv[10],
-        hdrv[11],
+    ctx->print(
+        FMT_HDR,
+        hdrv[0], opt.loc_hdr,
+        bn_width(opt.bnfmt, 2), hdrv[2],
+        bn_width(opt.bnfmt, 3), hdrv[3],
+        bn_width(opt.bnfmt, 4), hdrv[4],
+        bn_width(opt.bnfmt, 5), hdrv[5],
+        bn_width(opt.bnfmt, 6), hdrv[6],
+        bn_width(opt.bnfmt, 7), hdrv[7],
+        bn_width(opt.bnfmt, 8), hdrv[8],
+        bn_width(opt.bnfmt, 9), hdrv[9],
+        bn_width(opt.bnfmt, 10), hdrv[10],
+        bn_width(opt.bnfmt, 11), hdrv[11],
         hdrv[12],
         hdrv[13],
-        hdrv[14],
-        hdrv[15],
-        hdrv[16],
-        hdrv[17],
-        hdrv[18],
-        (opt.nodes_only ? "" : " HblockID / KblockIDs / VblockIDs"));
+        bn_width(opt.bnfmt, 12), hdrv[14],
+        bn_width(opt.bnfmt, 13), hdrv[15]);
+
+    if (opt.verbosity > 0) {
+        ctx->print(" %7s %7s %7s %7s  %s",
+                   "VbUlen%", "HbWlen%", "KbWlen%", "VbWlen%",
+                   (opt.nodes_only ? "" : "HblockID / KblockIDs / VblockIDs"));
+    }
+
+    ctx->print("\n");
 }
 
 static int
@@ -492,10 +500,9 @@ tree_walk_callback(
     if (!node) {
         /* Finish current tree */
         t->loc.node_level = c->tree_nodes;
-        printf("\n");
-        print_hdr();
-        print_row("t", t, c->tree_kvsets, "\n");
-        memset(t, 0, sizeof(*t));
+        c->print("\n");
+        print_hdr(c);
+        print_row(c, "t", t, c->tree_kvsets, "\n");
         return 0;
     }
 
@@ -506,20 +513,22 @@ tree_walk_callback(
         c->tree_nodes++;
         rollup(n, t);
         if (opt.nodes_only && c->tree_nodes == 1)
-            print_hdr();
-        print_row("n", n, c->node_kvsets, "\n");
+            print_hdr(c);
+        print_row(c, "n", n, c->node_kvsets, "\n");
 
         cn_node_stats_get(node, &ns);
 
-        printf(
-            "#Node pcap%% %u kuniq%% %6.1f "
-            "HbClen%% %6.1f KbClen%% %6.1f VbClen%% %6.1f samp %6.1f\n",
-            ns.ns_pcap,
-            DIVZ(1e2 * ns.ns_keys_uniq, cn_ns_keys(&ns)),
-            DIVZ(1e2 * ns.ns_hclen, n->ks.kst_halen),
-            DIVZ(1e2 * ns.ns_kclen, n->ks.kst_kalen),
-            DIVZ(1e2 * ns.ns_vclen, n->ks.kst_valen),
-            cn_ns_samp(&ns) / 1e2);
+        if (opt.verbosity > 0) {
+            c->print(
+                "#Node pcap%% %u kuniq%% %6.1f "
+                "HbClen%% %6.1f KbClen%% %6.1f VbClen%% %6.1f samp %6.1f\n",
+                ns.ns_pcap,
+                DIVZ(1e2 * ns.ns_keys_uniq, cn_ns_keys(&ns)),
+                DIVZ(1e2 * ns.ns_hclen, n->ks.kst_halen),
+                DIVZ(1e2 * ns.ns_kclen, n->ks.kst_kalen),
+                DIVZ(1e2 * ns.ns_vclen, n->ks.kst_valen),
+                cn_ns_samp(&ns) / 1e2);
+        }
 
         memset(n, 0, sizeof(*n));
         c->node_kvsets = 0;
@@ -537,24 +546,39 @@ tree_walk_callback(
     c->tree_kvsets++;
     c->node_kvsets++;
 
+    if (c->print == noprint)
+        return 0;
+
     if (!opt.nodes_only) {
         int limit = opt.all_blocks ? 0 : 2;
 
         if (c->node_kvsets == 1) {
             if (c->tree_kvsets > 1)
-                printf("\n");
-            print_hdr();
+                c->print("\n");
+            print_hdr(c);
         }
 
-        print_row("k", k, c->node_kvsets - 1, "");
-        printf(" 0x%08lx /", kvset_get_hblock_id(kvset));
-        print_ids(kvset, kvset_get_num_kblocks, kvset_get_nth_kblock_id, limit);
-        printf(" /");
-        print_ids(kvset, kvset_get_num_vblocks, kvset_get_nth_vblock_id, limit);
-        printf("\n");
+        print_row(c, "k", k, c->node_kvsets - 1, "");
+
+        if (opt.verbosity > 0) {
+            c->print(" 0x%08lx /", kvset_get_hblock_id(kvset));
+            print_ids(c, kvset, kvset_get_num_kblocks, kvset_get_nth_kblock_id, limit);
+            c->print(" /");
+            print_ids(c, kvset, kvset_get_num_vblocks, kvset_get_nth_vblock_id, limit);
+        }
+        c->print("\n");
     }
 
     return 0;
+}
+
+static void
+cn_metrics_yaml_emit(struct yaml_context *yc)
+{
+    if (yc->yaml_offset > 0) {
+        write(1, yc->yaml_buf, yc->yaml_offset);
+        yc->yaml_offset = 0;
+    }
 }
 
 int
@@ -624,20 +648,17 @@ main(int argc, char **argv)
     }
 
     if (opt.yaml_output) {
-        char                yaml_buf[4096]; /* Meant to fit one line of the yaml output */
+        char yaml_buf[4096 * 4]; /* Meant to fit at least one line of the yaml output */
         struct yaml_context yc = {
-            .yaml_indent = 0,
-            .yaml_offset = 0,
             .yaml_buf = yaml_buf,
             .yaml_buf_sz = sizeof(yaml_buf),
-            .yaml_emit = NULL,
+            .yaml_emit = cn_metrics_yaml_emit,
         };
 
-        rc = ikvdb_kvs_query_tree(kvs, &yc, STDOUT_FILENO, opt.all_blocks);
+        rc = ikvdb_kvs_query_tree(kvs, &yc, opt.all_blocks);
     } else {
         /* derived options */
-        opt.bnfw = bn_width(opt.bnfmt);
-        if (opt.alternate_loc) {
+        if (opt.tabular_loc) {
             opt.loc_hdr = "Lvl Off Idx";
             opt.loc_fmt = "%3d %3d %3d";
         } else {
@@ -654,15 +675,28 @@ main(int argc, char **argv)
 
         struct cn_tree *tree = cn_get_tree(cn);
 
+        /* In scalar and hex modes we must walk the tree twice:  The first time
+         * to gather totals in order to determine minimum column widths, and the
+         * second time to actually dump the tree.
+         */
+        if (opt.bnfmt == BN_SCALAR || opt.bnfmt == BN_HEX1 || opt.bnfmt == BN_HEX2) {
+            memset(&ctx, 0, sizeof(ctx));
+            ctx.print = noprint;
+            cn_tree_preorder_walk(tree, KVSET_ORDER_NEWEST_FIRST, tree_walk_callback, &ctx);
+            col2width_update(&ctx);
+        }
+
         memset(&ctx, 0, sizeof(ctx));
+        ctx.print = printf;
         cn_tree_preorder_walk(tree, KVSET_ORDER_NEWEST_FIRST, tree_walk_callback, &ctx);
     }
 
 done:
     if (errmsg) {
-        char errbuf[1000];
+        char errbuf[1024];
+
         hse_strerror(rc, errbuf, sizeof(errbuf));
-        fprintf(stderr, "Error: %s failed: %s\n", errmsg, errbuf);
+        fprintf(stderr, "%s: %s failed: %s\n", progname, errmsg, errbuf);
     }
 
     if (kvs)

@@ -522,6 +522,7 @@ kvset_open2(
     ks->ks_rp = rp;
     ks->ks_dgen = km->km_dgen;
     ks->ks_compc = km->km_compc;
+    ks->ks_comp_rule = km->km_comp_rule;
     ks->ks_kvsetid = kvsetid;
     ks->ks_cnid = cn_tree_get_cnid(tree);
     ks->ks_cndb = cn_tree_get_cndb(tree);
@@ -1920,6 +1921,7 @@ kvset_get_metrics(struct kvset *ks, struct kvset_metrics *m)
     m->num_vblocks = ks->ks_st.kst_vblks;
     m->header_bytes = ks->ks_st.kst_hwlen;
     m->compc = ks->ks_compc;
+    m->comp_rule = ks->ks_comp_rule;
     m->vgroups = ks->ks_vgroups;
     m->nptombs = ks->ks_hblk.kh_metrics.hm_nptombs;
 

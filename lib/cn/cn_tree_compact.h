@@ -12,6 +12,7 @@
 #include <hse_util/workqueue.h>
 #include <hse_util/perfc.h>
 
+#include <hse_ikvdb/csched.h>
 #include <hse_ikvdb/sched_sts.h>
 
 #include "cn_metrics.h"
@@ -34,22 +35,6 @@ enum cn_action {
     CN_ACTION_END,
 };
 
-enum cn_comp_rule {
-    CN_CR_NONE = 0,
-    CN_CR_RSPILL,         /* normal root spill */
-    CN_CR_RTINY,          /* tiny root spill */
-    CN_CR_LBIG,           /* big leaf (near pop threshold) */
-    CN_CR_LBIG_ONE,       /* big leaf, compact one kvset */
-    CN_CR_LGARB,          /* leaf garbage (reducing space amp) */
-    CN_CR_LLONG,          /* long leaf */
-    CN_CR_LIDXF,          /* short leaf, full index node compaction */
-    CN_CR_LIDXP,          /* short leaf, partial index node compaction */
-    CN_CR_LIDLE,          /* idle leaf */
-    CN_CR_LSCATF,         /* vgroup scatter remediation (full node) */
-    CN_CR_LSCATP,         /* vgroup scatter remediation (partial node) */
-    CN_CR_END,
-};
-
 static inline const char *
 cn_action2str(enum cn_action action)
 {
@@ -68,42 +53,6 @@ cn_action2str(enum cn_action action)
     }
 
     return "unknown_action";
-}
-
-static inline const char *
-cn_comp_rule2str(enum cn_comp_rule rule)
-{
-    switch (rule) {
-
-        case CN_CR_NONE:
-        case CN_CR_END:
-            break;
-
-        case CN_CR_RSPILL:
-            return "rspill";
-        case CN_CR_RTINY:
-            return "rtiny";
-        case CN_CR_LBIG:
-            return "lbig";
-        case CN_CR_LBIG_ONE:
-            return "lbig1";
-        case CN_CR_LGARB:
-            return "lgarb";
-        case CN_CR_LLONG:
-            return "llong";
-        case CN_CR_LIDXF:
-            return "lidxf";
-        case CN_CR_LIDXP:
-            return "lidxp";
-        case CN_CR_LIDLE:
-            return "idle";
-        case CN_CR_LSCATF:
-            return "lscatf";
-        case CN_CR_LSCATP:
-            return "lscatp";
-    }
-
-    return "unknown_rule";
 }
 
 /* compaction work debug flags */

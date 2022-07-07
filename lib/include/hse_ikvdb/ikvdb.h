@@ -610,11 +610,10 @@ ikvdb_kvdb_handle(struct ikvdb_impl *self);
  * ikvdb_kvs_query_tree() - get cn tree shape and write to fd
  * @kvs:  kvs handle
  * @yc:   yaml context
- * @fd:   output file descriptor
  * @list: whether or not to list kblock and vblock ids
  */
 merr_t
-ikvdb_kvs_query_tree(struct hse_kvs *kvs, struct yaml_context *yc, int fd, bool list);
+ikvdb_kvs_query_tree(struct hse_kvs *kvs, struct yaml_context *yc, bool list);
 
 uint32_t
 ikvdb_lowmem_scale(uint32_t memgb);

@@ -566,6 +566,7 @@ cn_ingest_prep(
 
     km.km_vused = mblocks->bl_vused;
     km.km_compc = 0;
+    km.km_comp_rule = CN_CR_INGEST;
     km.km_capped = cn_is_capped(cn);
     km.km_restored = false;
 

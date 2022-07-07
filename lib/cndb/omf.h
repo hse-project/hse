@@ -86,6 +86,7 @@ struct cndb_kvs_add_omf {
     uint32_t            kvs_add_fanout;
     uint32_t            kvs_add_pfxlen;
     uint32_t            kvs_add_flags;
+    uint32_t            kvs_add_pad;
     uint64_t            kvs_add_cnid;
     uint8_t             kvs_add_name[HSE_KVS_NAME_LEN_MAX];
 } HSE_PACKED;
@@ -124,6 +125,7 @@ struct cndb_txstart_omf {
     uint64_t            txstart_txhorizon;
     uint16_t            txstart_add_cnt;
     uint16_t            txstart_del_cnt;
+    uint32_t            txstart_del_pad;
 } HSE_PACKED;
 
 OMF_SETGET(struct cndb_txstart_omf, txstart_id, 64);
@@ -141,9 +143,10 @@ OMF_SETGET(struct cndb_txstart_omf, txstart_del_cnt, 16);
  * One record per new CN kvset created during the CN mutation.
  * This record is appended just before the kvset mblocks are committed.
  *
- * @kvset_cnid:
- * @kvset_id:
- * @kvset_kvsetid: the first such record of the transaction/CN mutation has its
+ * @kvset_add_cnid:
+ * @kvset_add_txid:
+ * @kvset_add_kvsetid:
+ *      The first such record of the transaction/CN mutation has its
  *      kvsetid equal to the transaction id. Subsequent such records in the
  *      transaction have their kvsetid incremented by 1 for each record.
  *      This kvsetid can be seen as a kvset unique id.
@@ -151,15 +154,6 @@ OMF_SETGET(struct cndb_txstart_omf, txstart_del_cnt, 16);
  *      (with CNDB_ACK_TYPE_D type) when the kvset will be deleted.
  *      It allows to correlate CNDB_TYPE_TXC and CNDB_TYPE_ACK records applying
  *      to a same kvset.
- * @kvset_keepvbc: count of vblocks to keep (do not delete them when rolling back
- *      a CN mutation). The oids of the vblocks to keep are at beginning of
- *      the array vblocks oids.
- * @kvset_kcnt:
- * @kvset_vcnt:
- * @kvset_mcnt:
- * an array of kvset_kcnt mblock OIDs appears here
- * an array of kvset_vcnt mblock OIDs appears here
- * an array of kvset_mcnt mblock OIDs appears here
  */
 struct cndb_kvset_add_omf {
     struct cndb_hdr_omf hdr;
@@ -170,7 +164,8 @@ struct cndb_kvset_add_omf {
     uint64_t            kvset_add_dgen;
     uint64_t            kvset_add_vused;
     uint32_t            kvset_add_compc;
-    uint32_t            kvset_unused; /* was scatter */
+    uint16_t            kvset_add_comp_rule;
+    uint16_t            kvset_add_pad;
     uint64_t            kvset_add_hblkid;
     uint32_t            kvset_add_kblk_cnt;
     uint32_t            kvset_add_vblk_cnt;
@@ -183,6 +178,7 @@ OMF_SETGET(struct cndb_kvset_add_omf, kvset_add_nodeid, 64);
 OMF_SETGET(struct cndb_kvset_add_omf, kvset_add_dgen, 64);
 OMF_SETGET(struct cndb_kvset_add_omf, kvset_add_vused, 64);
 OMF_SETGET(struct cndb_kvset_add_omf, kvset_add_compc, 32);
+OMF_SETGET(struct cndb_kvset_add_omf, kvset_add_comp_rule, 16);
 OMF_SETGET(struct cndb_kvset_add_omf, kvset_add_hblkid, 64);
 OMF_SETGET(struct cndb_kvset_add_omf, kvset_add_kblk_cnt, 32);
 OMF_SETGET(struct cndb_kvset_add_omf, kvset_add_vblk_cnt, 32);
@@ -245,7 +241,7 @@ struct cndb_ack_omf {
     uint64_t            ack_cnid;
     uint64_t            ack_kvsetid;
     uint32_t            ack_type;
-    uint32_t            pad_do_not_use;
+    uint32_t            ack_pad;
 } HSE_PACKED;
 
 OMF_SETGET(struct cndb_ack_omf, ack_txid, 64);
@@ -304,6 +300,7 @@ cndb_omf_kvset_add_write(
     uint64_t          dgen,
     uint64_t          vused,
     uint32_t          compc,
+    uint16_t          comp_rule,
     uint64_t          hblkid,
     uint32_t          kblkc,
     uint64_t         *kblkv,

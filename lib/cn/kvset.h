@@ -73,6 +73,7 @@ struct kvset_meta {
     uint16_t        km_node_level;
     uint16_t        km_compc;
     uint64_t        km_nodeid;
+    uint16_t        km_comp_rule;
     bool            km_capped;
     bool            km_restored;
 };

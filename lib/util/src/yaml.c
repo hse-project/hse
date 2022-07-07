@@ -307,6 +307,15 @@ yaml_field_fmt(struct yaml_context *yc, const char *key, const char *valfmt, ...
 }
 
 void
+yaml_field_fmt_u64(struct yaml_context *yc, const char *key, uint64_t val)
+{
+    char valbuf[32];
+
+    u64_to_string(valbuf, sizeof(valbuf), val);
+    yaml_element_field(yc, key, valbuf);
+}
+
+void
 yaml_list_fmt(struct yaml_context *yc, const char *keyfmt, ...)
 {
     char    key[64];

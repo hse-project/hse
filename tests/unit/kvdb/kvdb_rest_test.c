@@ -15,6 +15,7 @@
 #include <hse_ikvdb/kvs_cparams.h>
 #include <hse_ikvdb/cn_node_loc.h>
 #include <hse_ikvdb/cn_tree_view.h>
+#include <hse_ikvdb/csched.h>
 #include <hse_ikvdb/ikvdb.h>
 #include <hse_ikvdb/argv.h>
 
@@ -45,8 +46,8 @@ bool ct_view_do_nothing = false;
 merr_t
 _cn_tree_view_create(struct cn *cn, struct table **view_out)
 {
-    struct table *     view;
     struct kvset_view *v;
+    struct table *view;
 
     if (ct_view_do_nothing) {
         *view_out = 0;
@@ -58,28 +59,28 @@ _cn_tree_view_create(struct cn *cn, struct table **view_out)
     /* root node */
     v = table_append(view);
 
-    v->kvset = 0;
+    v->kvset = NULL;
     v->node_loc.node_level = 0;
     v->node_loc.node_offset = 0;
 
     if (ct_view_two_level) {
         /* another node */
         v = table_append(view);
-        v->kvset = 0;
+        v->kvset = NULL;
         v->node_loc.node_level = 1;
         v->node_loc.node_offset = 0;
     }
 
     /* kvset */
     v = table_append(view);
-    v->kvset = (struct kvset *)-1;
+    v->kvset = (void *)v;
     v->node_loc.node_level = ct_view_two_level ? 1 : 0;
     v->node_loc.node_offset = 0;
 
     /* another kvset */
     if (ct_view_two_kvsets) {
         v = table_append(view);
-        v->kvset = (struct kvset *)-1;
+        v->kvset = (void *)v;
         v->node_loc.node_level = ct_view_two_level ? 1 : 0;
         v->node_loc.node_offset = 0;
     }
@@ -101,6 +102,8 @@ _cn_tree_view_destroy(struct table *view)
 void
 _kvset_get_metrics(struct kvset *kvset, struct kvset_metrics *metrics)
 {
+    struct kvset_view *v = (void *)kvset;
+
     if (!metrics)
         return;
 
@@ -113,6 +116,7 @@ _kvset_get_metrics(struct kvset *kvset, struct kvset_metrics *metrics)
     metrics->tot_key_bytes = 4000000;
     metrics->tot_val_bytes = 8000000;
     metrics->compc = 0;
+    metrics->comp_rule = (v->node_loc.node_level == 0) ? CN_CR_INGEST : CN_CR_RSPILL;
     metrics->vgroups = 1;
 }
 
@@ -210,12 +214,16 @@ test_pre(struct mtf_test_info *lcl_ti)
 
     err = argv_deserialize_to_kvdb_rparams(NELEM(paramv), paramv, &params);
     ASSERT_EQ_RET(0, err, merr_errno(err));
+
     err = ikvdb_open(mtf_kvdb_home, &params, &store);
     ASSERT_EQ_RET(0, err, merr_errno(err));
+
     err = ikvdb_kvs_create(store, KVS1, &kvs_cp);
     ASSERT_EQ_RET(0, err, merr_errno(err));
+
     err = ikvdb_kvs_create(store, KVS2, &kvs_cp);
     ASSERT_EQ_RET(0, err, merr_errno(err));
+
     err = ikvdb_kvs_create(store, KVS3, &kvs_cp);
 
     err = argv_deserialize_to_kvs_rparams(NELEM(kvs_open_paramv), kvs_open_paramv, &kvs_rp);
@@ -294,9 +302,9 @@ MTF_DEFINE_UTEST_PREPOST(kvdb_rest, cn_metrics, test_pre, test_post)
     };
 
     yaml_start_element_type(&yc, "info");
-    yaml_element_field(&yc, "name", KVS3);
     /* cnids are minted by cNDDB, but cNDB is mocked, so cnid will be 0 */
     yaml_element_field(&yc, "cnid", "0");
+    yaml_element_field(&yc, "name", KVS3);
     yaml_element_field(&yc, "open", "no");
     yaml_end_element(&yc);
     yaml_end_element_type(&yc); /* info */
@@ -401,64 +409,92 @@ MTF_DEFINE_UTEST_PREPOST(kvdb_rest, unexact_paths, test_pre, test_post)
     ASSERT_NE(0, err);
 }
 
+static size_t
+strdiff(const char *s1, const char *s2)
+{
+    size_t len = strlen(s1);
+    size_t offset = 0;
+    size_t line = 1;
+
+    for (size_t i = 1; i <= len; ++i) {
+        if (0 != strncmp(s1, s2, i)) {
+            int width = i - offset;
+
+            printf("mismatch at %zu:%zu: [%*.*s] vs [%*.*s]\n",
+                   line, offset,
+                   width, width, s1 + offset,
+                   width, width, s2 + offset);
+            return i;
+        }
+
+        if (s1[i] == '\n') {
+            offset = i + 1;
+            ++line;
+        }
+    }
+
+    return 0;
+}
+
 /* Tests to verify yaml output of the cn_tree
  */
 MTF_DEFINE_UTEST_PREPOST(kvdb_rest, print_tree_test, test_pre, test_post)
 {
     char        path[128];
     char        buf[4096] = { 0 };
-    const char *exp = "nodes:\n"
-                      "- loc: \n"
-                      "    level: 0\n"
-                      "    offset: 0\n"
-                      "  kvsets:\n"
-                      "  - index: 0\n"
-                      "    dgen: 1\n"
-                      "    nkeys: 1000000\n"
-                      "    ntombs: 0\n"
-                      "    nptombs: 0\n"
-                      "    compc: 0\n"
-                      "    vgroups: 1\n"
-                      "    hlen: 2000000\n"
-                      "    klen: 4000000\n"
-                      "    vlen: 8000000\n"
-                      "    nhblks: 1\n"
-                      "    nkblks: 1\n"
-                      "    nvblks: 1\n"
-                      "    hblk: 0x70310c\n"
-                      "    kblks:\n"
-                      "      - 0x70310d\n"
-                      "    vblks:\n"
-                      "      - 0x70310e\n"
-                      "  info:\n"
-                      "    dgen: 1\n"
-                      "    nkeys: 1000000\n"
-                      "    ntombs: 0\n"
-                      "    nptombs: 0\n"
-                      "    hlen: 2000000\n"
-                      "    klen: 4000000\n"
-                      "    vlen: 8000000\n"
-                      "    nkvsets: 1\n"
-                      "    nhblks: 1\n"
-                      "    nkblks: 1\n"
-                      "    nvblks: 1\n"
-                      "info:\n"
-                      "  name: kvdb_rest_kvs1\n"
-                      "  cnid: 0\n"
-                      "  open: yes\n"
-                      "  dgen: 1\n"
-                      "  nkeys: 1000000\n"
-                      "  ntombs: 0\n"
-                      "  nptombs: 0\n"
-                      "  hlen: 2000000\n"
-                      "  klen: 4000000\n"
-                      "  vlen: 8000000\n"
-                      "  nkvsets: 1\n"
-                      "  nhblks: 1\n"
-                      "  nkblks: 1\n"
-                      "  nvblks: 1\n"
-                      "  max_depth: 1\n"
-                      "  nodes: 1\n";
+    const char *exp =
+        "nodes:\n"
+        "- loc: \n"
+        "    level: 0\n"
+        "    offset: 0\n"
+        "  kvsets:\n"
+        "  - index: 0\n"
+        "    compc: 0\n"
+        "    dgen: 1\n"
+        "    keys: 1000000\n"
+        "    tombs: 0\n"
+        "    ptombs: 0\n"
+        "    hlen: 2000000\n"
+        "    klen: 4000000\n"
+        "    vlen: 8000000\n"
+        "    hblks: 1\n"
+        "    kblks: 1\n"
+        "    vblks: 1\n"
+        "    vgroups: 1\n"
+        "    rule: ingest\n"
+        "    hblkid: 0x70310c\n"
+        "    kblkids:\n"
+        "      - 0x70310d\n"
+        "    vblkids:\n"
+        "      - 0x70310e\n"
+        "  info:\n"
+        "    dgen: 1\n"
+        "    keys: 1000000\n"
+        "    tombs: 0\n"
+        "    ptombs: 0\n"
+        "    hlen: 2000000\n"
+        "    klen: 4000000\n"
+        "    vlen: 8000000\n"
+        "    hblks: 1\n"
+        "    kblks: 1\n"
+        "    vblks: 1\n"
+        "    kvsets: 1\n"
+        "info:\n"
+        "  dgen: 1\n"
+        "  keys: 1000000\n"
+        "  tombs: 0\n"
+        "  ptombs: 0\n"
+        "  hlen: 2000000\n"
+        "  klen: 4000000\n"
+        "  vlen: 8000000\n"
+        "  hblks: 1\n"
+        "  kblks: 1\n"
+        "  vblks: 1\n"
+        "  kvsets: 1\n"
+        "  nodes: 1\n"
+        "  cnid: 0\n"
+        "  name: kvdb_rest_kvs1\n"
+        "  open: yes\n";
 
     merr_t err;
 
@@ -478,6 +514,8 @@ MTF_DEFINE_UTEST_PREPOST(kvdb_rest, print_tree_test, test_pre, test_post)
 
     err = curl_get(path, sock, buf, sizeof(buf));
     ASSERT_EQ(0, err);
+
+    strdiff(exp, buf);
     ASSERT_STREQ(exp, buf);
 
     ct_view_do_nothing = true;
@@ -489,73 +527,74 @@ MTF_DEFINE_UTEST_PREPOST(kvdb_rest, empty_root_test, test_pre, test_post)
 {
     char        path[128];
     char        buf[4096] = { 0 };
-    const char *exp = "nodes:\n"
-                      "- loc: \n"
-                      "    level: 0\n"
-                      "    offset: 0\n"
-                      "  info:\n"
-                      "    dgen: 0\n"
-                      "    nkeys: 0\n"
-                      "    ntombs: 0\n"
-                      "    nptombs: 0\n"
-                      "    hlen: 0\n"
-                      "    klen: 0\n"
-                      "    vlen: 0\n"
-                      "    nkvsets: 0\n"
-                      "    nhblks: 0\n"
-                      "    nkblks: 0\n"
-                      "    nvblks: 0\n"
-                      "- loc: \n"
-                      "    level: 1\n"
-                      "    offset: 0\n"
-                      "  kvsets:\n"
-                      "  - index: 0\n"
-                      "    dgen: 1\n"
-                      "    nkeys: 1000000\n"
-                      "    ntombs: 0\n"
-                      "    nptombs: 0\n"
-                      "    compc: 0\n"
-                      "    vgroups: 1\n"
-                      "    hlen: 2000000\n"
-                      "    klen: 4000000\n"
-                      "    vlen: 8000000\n"
-                      "    nhblks: 1\n"
-                      "    nkblks: 1\n"
-                      "    nvblks: 1\n"
-                      "    hblk: 0x70310c\n"
-                      "    kblks:\n"
-                      "      - 0x70310d\n"
-                      "    vblks:\n"
-                      "      - 0x70310e\n"
-                      "  info:\n"
-                      "    dgen: 1\n"
-                      "    nkeys: 1000000\n"
-                      "    ntombs: 0\n"
-                      "    nptombs: 0\n"
-                      "    hlen: 2000000\n"
-                      "    klen: 4000000\n"
-                      "    vlen: 8000000\n"
-                      "    nkvsets: 1\n"
-                      "    nhblks: 1\n"
-                      "    nkblks: 1\n"
-                      "    nvblks: 1\n"
-                      "info:\n"
-                      "  name: kvdb_rest_kvs2\n"
-                      "  cnid: 0\n"
-                      "  open: yes\n"
-                      "  dgen: 1\n"
-                      "  nkeys: 1000000\n"
-                      "  ntombs: 0\n"
-                      "  nptombs: 0\n"
-                      "  hlen: 2000000\n"
-                      "  klen: 4000000\n"
-                      "  vlen: 8000000\n"
-                      "  nkvsets: 1\n"
-                      "  nhblks: 1\n"
-                      "  nkblks: 1\n"
-                      "  nvblks: 1\n"
-                      "  max_depth: 2\n"
-                      "  nodes: 2\n";
+    const char *exp =
+        "nodes:\n"
+        "- loc: \n"
+        "    level: 0\n"
+        "    offset: 0\n"
+        "  info:\n"
+        "    dgen: 0\n"
+        "    keys: 0\n"
+        "    tombs: 0\n"
+        "    ptombs: 0\n"
+        "    hlen: 0\n"
+        "    klen: 0\n"
+        "    vlen: 0\n"
+        "    hblks: 0\n"
+        "    kblks: 0\n"
+        "    vblks: 0\n"
+        "    kvsets: 0\n"
+        "- loc: \n"
+        "    level: 1\n"
+        "    offset: 0\n"
+        "  kvsets:\n"
+        "  - index: 0\n"
+        "    compc: 0\n"
+        "    dgen: 1\n"
+        "    keys: 1000000\n"
+        "    tombs: 0\n"
+        "    ptombs: 0\n"
+        "    hlen: 2000000\n"
+        "    klen: 4000000\n"
+        "    vlen: 8000000\n"
+        "    hblks: 1\n"
+        "    kblks: 1\n"
+        "    vblks: 1\n"
+        "    vgroups: 1\n"
+        "    rule: rspill\n"
+        "    hblkid: 0x70310c\n"
+        "    kblkids:\n"
+        "      - 0x70310d\n"
+        "    vblkids:\n"
+        "      - 0x70310e\n"
+        "  info:\n"
+        "    dgen: 1\n"
+        "    keys: 1000000\n"
+        "    tombs: 0\n"
+        "    ptombs: 0\n"
+        "    hlen: 2000000\n"
+        "    klen: 4000000\n"
+        "    vlen: 8000000\n"
+        "    hblks: 1\n"
+        "    kblks: 1\n"
+        "    vblks: 1\n"
+        "    kvsets: 1\n"
+        "info:\n"
+        "  dgen: 1\n"
+        "  keys: 1000000\n"
+        "  tombs: 0\n"
+        "  ptombs: 0\n"
+        "  hlen: 2000000\n"
+        "  klen: 4000000\n"
+        "  vlen: 8000000\n"
+        "  hblks: 1\n"
+        "  kblks: 1\n"
+        "  vblks: 1\n"
+        "  kvsets: 1\n"
+        "  nodes: 2\n"
+        "  cnid: 0\n"
+        "  name: kvdb_rest_kvs2\n"
+        "  open: yes\n";
 
     merr_t err;
 
@@ -597,81 +636,83 @@ MTF_DEFINE_UTEST_PREPOST(kvdb_rest, list_without_blkids, test_pre, test_post)
 {
     char        path[128];
     char        buf[4096] = { 0 };
-    const char *exp = "nodes:\n"
-                      "- loc: \n"
-                      "    level: 0\n"
-                      "    offset: 0\n"
-                      "  info:\n"
-                      "    dgen: 0\n"
-                      "    nkeys: 0\n"
-                      "    ntombs: 0\n"
-                      "    nptombs: 0\n"
-                      "    hlen: 0\n"
-                      "    klen: 0\n"
-                      "    vlen: 0\n"
-                      "    nkvsets: 0\n"
-                      "    nhblks: 0\n"
-                      "    nkblks: 0\n"
-                      "    nvblks: 0\n"
-                      "- loc: \n"
-                      "    level: 1\n"
-                      "    offset: 0\n"
-                      "  kvsets:\n"
-                      "  - index: 0\n"
-                      "    dgen: 4\n"
-                      "    nkeys: 1000000\n"
-                      "    ntombs: 0\n"
-                      "    nptombs: 0\n"
-                      "    compc: 0\n"
-                      "    vgroups: 1\n"
-                      "    hlen: 2000000\n"
-                      "    klen: 4000000\n"
-                      "    vlen: 8000000\n"
-                      "    nhblks: 1\n"
-                      "    nkblks: 1\n"
-                      "    nvblks: 1\n"
-                      "  - index: 1\n"
-                      "    dgen: 8\n"
-                      "    nkeys: 1000000\n"
-                      "    ntombs: 0\n"
-                      "    nptombs: 0\n"
-                      "    compc: 0\n"
-                      "    vgroups: 1\n"
-                      "    hlen: 2000000\n"
-                      "    klen: 4000000\n"
-                      "    vlen: 8000000\n"
-                      "    nhblks: 1\n"
-                      "    nkblks: 1\n"
-                      "    nvblks: 1\n"
-                      "  info:\n"
-                      "    dgen: 8\n"
-                      "    nkeys: 2000000\n"
-                      "    ntombs: 0\n"
-                      "    nptombs: 0\n"
-                      "    hlen: 4000000\n"
-                      "    klen: 8000000\n"
-                      "    vlen: 16000000\n"
-                      "    nkvsets: 2\n"
-                      "    nhblks: 2\n"
-                      "    nkblks: 2\n"
-                      "    nvblks: 2\n"
-                      "info:\n"
-                      "  name: kvdb_rest_kvs2\n"
-                      "  cnid: 0\n"
-                      "  open: yes\n"
-                      "  dgen: 8\n"
-                      "  nkeys: 2000000\n"
-                      "  ntombs: 0\n"
-                      "  nptombs: 0\n"
-                      "  hlen: 4000000\n"
-                      "  klen: 8000000\n"
-                      "  vlen: 16000000\n"
-                      "  nkvsets: 2\n"
-                      "  nhblks: 2\n"
-                      "  nkblks: 2\n"
-                      "  nvblks: 2\n"
-                      "  max_depth: 2\n"
-                      "  nodes: 2\n";
+    const char *exp =
+        "nodes:\n"
+        "- loc: \n"
+        "    level: 0\n"
+        "    offset: 0\n"
+        "  info:\n"
+        "    dgen: 0\n"
+        "    keys: 0\n"
+        "    tombs: 0\n"
+        "    ptombs: 0\n"
+        "    hlen: 0\n"
+        "    klen: 0\n"
+        "    vlen: 0\n"
+        "    hblks: 0\n"
+        "    kblks: 0\n"
+        "    vblks: 0\n"
+        "    kvsets: 0\n"
+        "- loc: \n"
+        "    level: 1\n"
+        "    offset: 0\n"
+        "  kvsets:\n"
+        "  - index: 0\n"
+        "    compc: 0\n"
+        "    dgen: 4\n"
+        "    keys: 1000000\n"
+        "    tombs: 0\n"
+        "    ptombs: 0\n"
+        "    hlen: 2000000\n"
+        "    klen: 4000000\n"
+        "    vlen: 8000000\n"
+        "    hblks: 1\n"
+        "    kblks: 1\n"
+        "    vblks: 1\n"
+        "    vgroups: 1\n"
+        "    rule: rspill\n"
+        "  - index: 1\n"
+        "    compc: 0\n"
+        "    dgen: 8\n"
+        "    keys: 1000000\n"
+        "    tombs: 0\n"
+        "    ptombs: 0\n"
+        "    hlen: 2000000\n"
+        "    klen: 4000000\n"
+        "    vlen: 8000000\n"
+        "    hblks: 1\n"
+        "    kblks: 1\n"
+        "    vblks: 1\n"
+        "    vgroups: 1\n"
+        "    rule: rspill\n"
+        "  info:\n"
+        "    dgen: 8\n"
+        "    keys: 2000000\n"
+        "    tombs: 0\n"
+        "    ptombs: 0\n"
+        "    hlen: 4000000\n"
+        "    klen: 8000000\n"
+        "    vlen: 16000000\n"
+        "    hblks: 2\n"
+        "    kblks: 2\n"
+        "    vblks: 2\n"
+        "    kvsets: 2\n"
+        "info:\n"
+        "  dgen: 8\n"
+        "  keys: 2000000\n"
+        "  tombs: 0\n"
+        "  ptombs: 0\n"
+        "  hlen: 4000000\n"
+        "  klen: 8000000\n"
+        "  vlen: 16000000\n"
+        "  hblks: 2\n"
+        "  kblks: 2\n"
+        "  vblks: 2\n"
+        "  kvsets: 2\n"
+        "  nodes: 2\n"
+        "  cnid: 0\n"
+        "  name: kvdb_rest_kvs2\n"
+        "  open: yes\n";
 
     merr_t err;
 

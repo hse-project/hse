@@ -94,7 +94,7 @@ struct session {
     atomic_int           refcnt;
     struct session **    slot;
     void *               magic;
-    char                 buf[4096];
+    char                 buf[4096 * 4];
 };
 
 struct rest {
