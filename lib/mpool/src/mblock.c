@@ -70,6 +70,9 @@ mpool_mblock_delete(struct mpool *mp, uint64_t mbid)
     if (!mp)
         return merr(EINVAL);
 
+    if (!mbid)
+        return 0;
+
     mclass = mcid_to_mclass(mclassid(mbid));
     mc = mpool_mclass_handle(mp, mclass);
     if (!mc)
