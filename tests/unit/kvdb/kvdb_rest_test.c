@@ -115,7 +115,7 @@ _kvset_get_metrics(struct kvset *kvset, struct kvset_metrics *metrics)
     metrics->header_bytes = 2000000;
     metrics->tot_key_bytes = 4000000;
     metrics->tot_val_bytes = 8000000;
-    metrics->compc = 0;
+    metrics->compc = (v->node_loc.node_level == 0) ? 0 : 3;
     metrics->comp_rule = (v->node_loc.node_level == 0) ? CN_CR_INGEST : CN_CR_RSPILL;
     metrics->vgroups = 1;
 }
@@ -417,7 +417,7 @@ strdiff(const char *s1, const char *s2)
     size_t line = 1;
 
     for (size_t i = 1; i <= len; ++i) {
-        if (0 != strncmp(s1, s2, i)) {
+        if (s1[i] != s2[i]) {
             int width = i - offset;
 
             printf("mismatch at %zu:%zu: [%*.*s] vs [%*.*s]\n",
@@ -468,6 +468,7 @@ MTF_DEFINE_UTEST_PREPOST(kvdb_rest, print_tree_test, test_pre, test_post)
         "    vblkids:\n"
         "      - 0x70310e\n"
         "  info:\n"
+        "    compc: 0\n"
         "    dgen: 1\n"
         "    keys: 1000000\n"
         "    tombs: 0\n"
@@ -478,8 +479,10 @@ MTF_DEFINE_UTEST_PREPOST(kvdb_rest, print_tree_test, test_pre, test_post)
         "    hblks: 1\n"
         "    kblks: 1\n"
         "    vblks: 1\n"
+        "    vgroups: 1\n"
         "    kvsets: 1\n"
         "info:\n"
+        "  compc: 0\n"
         "  dgen: 1\n"
         "  keys: 1000000\n"
         "  tombs: 0\n"
@@ -490,6 +493,7 @@ MTF_DEFINE_UTEST_PREPOST(kvdb_rest, print_tree_test, test_pre, test_post)
         "  hblks: 1\n"
         "  kblks: 1\n"
         "  vblks: 1\n"
+        "  vgroups: 1\n"
         "  kvsets: 1\n"
         "  nodes: 1\n"
         "  cnid: 0\n"
@@ -533,6 +537,7 @@ MTF_DEFINE_UTEST_PREPOST(kvdb_rest, empty_root_test, test_pre, test_post)
         "    level: 0\n"
         "    offset: 0\n"
         "  info:\n"
+        "    compc: 0\n"
         "    dgen: 0\n"
         "    keys: 0\n"
         "    tombs: 0\n"
@@ -543,13 +548,14 @@ MTF_DEFINE_UTEST_PREPOST(kvdb_rest, empty_root_test, test_pre, test_post)
         "    hblks: 0\n"
         "    kblks: 0\n"
         "    vblks: 0\n"
+        "    vgroups: 0\n"
         "    kvsets: 0\n"
         "- loc: \n"
         "    level: 1\n"
         "    offset: 0\n"
         "  kvsets:\n"
         "  - index: 0\n"
-        "    compc: 0\n"
+        "    compc: 3\n"
         "    dgen: 1\n"
         "    keys: 1000000\n"
         "    tombs: 0\n"
@@ -568,6 +574,7 @@ MTF_DEFINE_UTEST_PREPOST(kvdb_rest, empty_root_test, test_pre, test_post)
         "    vblkids:\n"
         "      - 0x70310e\n"
         "  info:\n"
+        "    compc: 3\n"
         "    dgen: 1\n"
         "    keys: 1000000\n"
         "    tombs: 0\n"
@@ -578,8 +585,10 @@ MTF_DEFINE_UTEST_PREPOST(kvdb_rest, empty_root_test, test_pre, test_post)
         "    hblks: 1\n"
         "    kblks: 1\n"
         "    vblks: 1\n"
+        "    vgroups: 1\n"
         "    kvsets: 1\n"
         "info:\n"
+        "  compc: 3\n"
         "  dgen: 1\n"
         "  keys: 1000000\n"
         "  tombs: 0\n"
@@ -590,6 +599,7 @@ MTF_DEFINE_UTEST_PREPOST(kvdb_rest, empty_root_test, test_pre, test_post)
         "  hblks: 1\n"
         "  kblks: 1\n"
         "  vblks: 1\n"
+        "  vgroups: 1\n"
         "  kvsets: 1\n"
         "  nodes: 2\n"
         "  cnid: 0\n"
@@ -615,6 +625,8 @@ MTF_DEFINE_UTEST_PREPOST(kvdb_rest, empty_root_test, test_pre, test_post)
 
     err = curl_get(path, sock, buf, sizeof(buf));
     ASSERT_EQ(0, err);
+
+    strdiff(exp, buf);
     ASSERT_STREQ(exp, buf);
 
     ct_view_two_level = false;
@@ -642,6 +654,7 @@ MTF_DEFINE_UTEST_PREPOST(kvdb_rest, list_without_blkids, test_pre, test_post)
         "    level: 0\n"
         "    offset: 0\n"
         "  info:\n"
+        "    compc: 0\n"
         "    dgen: 0\n"
         "    keys: 0\n"
         "    tombs: 0\n"
@@ -652,13 +665,14 @@ MTF_DEFINE_UTEST_PREPOST(kvdb_rest, list_without_blkids, test_pre, test_post)
         "    hblks: 0\n"
         "    kblks: 0\n"
         "    vblks: 0\n"
+        "    vgroups: 0\n"
         "    kvsets: 0\n"
         "- loc: \n"
         "    level: 1\n"
         "    offset: 0\n"
         "  kvsets:\n"
         "  - index: 0\n"
-        "    compc: 0\n"
+        "    compc: 3\n"
         "    dgen: 4\n"
         "    keys: 1000000\n"
         "    tombs: 0\n"
@@ -672,7 +686,7 @@ MTF_DEFINE_UTEST_PREPOST(kvdb_rest, list_without_blkids, test_pre, test_post)
         "    vgroups: 1\n"
         "    rule: rspill\n"
         "  - index: 1\n"
-        "    compc: 0\n"
+        "    compc: 3\n"
         "    dgen: 8\n"
         "    keys: 1000000\n"
         "    tombs: 0\n"
@@ -686,6 +700,7 @@ MTF_DEFINE_UTEST_PREPOST(kvdb_rest, list_without_blkids, test_pre, test_post)
         "    vgroups: 1\n"
         "    rule: rspill\n"
         "  info:\n"
+        "    compc: 3\n"
         "    dgen: 8\n"
         "    keys: 2000000\n"
         "    tombs: 0\n"
@@ -696,8 +711,10 @@ MTF_DEFINE_UTEST_PREPOST(kvdb_rest, list_without_blkids, test_pre, test_post)
         "    hblks: 2\n"
         "    kblks: 2\n"
         "    vblks: 2\n"
+        "    vgroups: 2\n"
         "    kvsets: 2\n"
         "info:\n"
+        "  compc: 3\n"
         "  dgen: 8\n"
         "  keys: 2000000\n"
         "  tombs: 0\n"
@@ -708,6 +725,7 @@ MTF_DEFINE_UTEST_PREPOST(kvdb_rest, list_without_blkids, test_pre, test_post)
         "  hblks: 2\n"
         "  kblks: 2\n"
         "  vblks: 2\n"
+        "  vgroups: 2\n"
         "  kvsets: 2\n"
         "  nodes: 2\n"
         "  cnid: 0\n"
@@ -734,6 +752,8 @@ MTF_DEFINE_UTEST_PREPOST(kvdb_rest, list_without_blkids, test_pre, test_post)
 
     err = curl_get(path, sock, buf, sizeof(buf));
     ASSERT_EQ(0, err);
+
+    strdiff(exp, buf);
     ASSERT_STREQ(exp, buf);
 
     count = 0;
@@ -746,7 +766,10 @@ MTF_DEFINE_UTEST_PREPOST(kvdb_rest, list_without_blkids, test_pre, test_post)
 
     err = curl_get(path, sock, buf, sizeof(buf));
     ASSERT_EQ(0, err);
+
+    strdiff(exp, buf);
     ASSERT_STREQ(exp, buf);
+
     ct_view_two_level = false;
     ct_view_two_kvsets = false;
     ct_view_do_nothing = true;
