@@ -1,11 +1,12 @@
 /* SPDX-License-Identifier: Apache-2.0 */
 /*
- * Copyright (C) 2015-2021 Micron Technology, Inc.  All rights reserved.
+ * Copyright (C) 2015-2022 Micron Technology, Inc.  All rights reserved.
  */
 
 #include <hse_util/platform.h>
 #include <hse_util/slab.h>
 #include <hse_util/page.h>
+#include <hse_util/atomic.h>
 #include <hse_util/logging.h>
 #include <hse_util/hse_err.h>
 #include <hse_util/event_counter.h>
@@ -113,6 +114,7 @@ rest_dt_get(
     struct kv_iter *  iter,
     void *            context)
 {
+    static atomic_ulong rest_dt_get_bufsz = 128 * 1024;
     struct rest_kv *            kv = 0;
     char *                      fld, *val;
     size_t                      pathsz;
@@ -123,20 +125,23 @@ rest_dt_get(
     char                        dt_path[PATH_MAX];
 
     switch (rest_kv_count(iter)) {
-        case 0:
-            fld = val = 0;
-            break;
-        case 1:
-            kv = rest_kv_next(iter);
-            fld = kv->key;
-            val = kv->value;
-            break;
-        default:
-            return merr(ev(E2BIG));
+    case 0:
+        fld = val = 0;
+        break;
+
+    case 1:
+        kv = rest_kv_next(iter);
+        fld = kv->key;
+        val = kv->value;
+        break;
+
+    default:
+        return merr(ev(E2BIG));
     }
 
     pathsz = strlen(path) + 2;
-    bufsz = ALIGN(pathsz, 4ul << 20);
+    bufsz = rest_dt_get_bufsz;
+    bufsz = ALIGN(pathsz, bufsz);
 
     buf = malloc(bufsz);
     if (!buf)
@@ -160,6 +165,14 @@ rest_dt_get(
 
     if (dt_iterate_cmd(DT_OP_EMIT, dt_path, &dip, 0, fld, val) > 0)
         rest_write_safe(info->resp_fd, yc.yaml_buf + pathsz, yc.yaml_offset - pathsz);
+
+    /* If the yaml buf grew then try to update dt_rest_get_bufsz
+     * so that we are more likely to allocate a sufficiently sized
+     * buffer the next time we are called.
+     */
+    bufsz = rest_dt_get_bufsz;
+    if (yc.yaml_buf_sz > bufsz)
+        atomic_cas(&rest_dt_get_bufsz, bufsz, yc.yaml_buf_sz);
 
     free(yc.yaml_buf);
 
