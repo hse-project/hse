@@ -62,7 +62,7 @@ struct kvset_builder {
     struct vblock_builder *vbb;
     struct blk_list vblk_list;
 
-    struct kvset_vgroup_map *vgmap;
+    struct vgmap *vgmap;
 
     uint64_t seqno_max;
     uint64_t seqno_min;

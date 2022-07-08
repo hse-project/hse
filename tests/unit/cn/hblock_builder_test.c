@@ -29,7 +29,7 @@
 #define WORK_BUF_SIZE (100 * 1024)
 
 uint8_t *hlog;
-static struct kvset_vgroup_map *vgmap;
+static struct vgmap *vgmap;
 
 void *key_buf;
 void *kmd_buf;
@@ -63,7 +63,7 @@ collection_pre(struct mtf_test_info *lcl_ti)
     if (!hlog)
         return ENOMEM;
 
-    vgmap = kvset_vgmap_alloc(1);
+    vgmap = vgmap_alloc(1);
     if (!vgmap)
         return ENOMEM;
 
@@ -76,7 +76,7 @@ collection_post(struct mtf_test_info *lcl_ti)
     free(key_buf);
     free(kmd_buf);
 
-    kvset_vgmap_free(vgmap);
+    vgmap_free(vgmap);
 
     return 0;
 }

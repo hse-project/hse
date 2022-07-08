@@ -73,7 +73,7 @@ init_work(
     struct cn_tree_node **     output_nodev,
     uint64_t                  *kvsetidv,
     struct kvset_vblk_map     *vbmap,
-    struct kvset_vgroup_map   *vgmap)
+    struct vgmap              *vgmap)
 {
     w->cw_ds = ds;
     w->cw_rp = rp;
@@ -222,7 +222,7 @@ MTF_DEFINE_UTEST_PRE(kcompact_test, keep, pre)
 #define NITER 32
     struct kvs_rparams    rp = kvs_rparams_defaults();
     struct kvset_vblk_map vbmap = { 0 };
-    struct kvset_vgroup_map *vgmap;
+    struct vgmap *vgmap;
     int                   i, j;
     merr_t                err;
 
@@ -242,7 +242,7 @@ MTF_DEFINE_UTEST_PRE(kcompact_test, keep, pre)
     }
 
     free(vbmap.vbm_blkv);
-    kvset_vgmap_free(vgmap);
+    vgmap_free(vgmap);
     for (i = 0; i < NITER; ++i) {
         struct mock_kv_iterator *iter = itv[i]->kvi_context;
 
@@ -257,7 +257,7 @@ MTF_DEFINE_UTEST_PRE(kcompact_test, four_into_one, pre)
 #define NITER 4
     struct cn_compaction_work w = { 0 };
     struct kvset_vblk_map     vbmap = { 0 };
-    struct kvset_vgroup_map  *vgmap;
+    struct vgmap  *vgmap;
     struct kvs_rparams        rp = kvs_rparams_defaults();
     struct kvset_mblocks      output = {};
     struct cn_tree_node      *output_node = NULL;
@@ -315,7 +315,7 @@ MTF_DEFINE_UTEST_PRE(kcompact_test, four_into_one, pre)
     }
 
     free(vbmap.vbm_blkv);
-    kvset_vgmap_free(vgmap);
+    vgmap_free(vgmap);
 #undef NITER
 }
 
@@ -323,7 +323,7 @@ MTF_DEFINE_UTEST_PRE(kcompact_test, all_gone, pre)
 {
     struct cn_compaction_work w = { 0 };
     struct kvset_vblk_map vbmap = { 0 };
-    struct kvset_vgroup_map *vgmap;
+    struct vgmap *vgmap;
     struct kvs_rparams        rp = kvs_rparams_defaults();
     struct kvset_mblocks      output = {};
     struct cn_tree_node      *output_node = NULL;
@@ -387,14 +387,14 @@ MTF_DEFINE_UTEST_PRE(kcompact_test, all_gone, pre)
     }
 
     free(vbmap.vbm_blkv);
-    kvset_vgmap_free(vgmap);
+    vgmap_free(vgmap);
 }
 
 MTF_DEFINE_UTEST_PREPOST(kcompact_test, all_gone_mixed, mixed_pre, mixed_post)
 {
     struct cn_compaction_work w = { 0 };
     struct kvset_vblk_map vbmap = { 0 };
-    struct kvset_vgroup_map *vgmap;
+    struct vgmap *vgmap;
     struct kvs_rparams        rp = kvs_rparams_defaults();
     struct kvset_mblocks      output = {};
     struct cn_tree_node      *output_node = NULL;
@@ -458,7 +458,7 @@ MTF_DEFINE_UTEST_PREPOST(kcompact_test, all_gone_mixed, mixed_pre, mixed_post)
     }
 
     free(vbmap.vbm_blkv);
-    kvset_vgmap_free(vgmap);
+    vgmap_free(vgmap);
 }
 
 MTF_DEFINE_UTEST_PREPOST(kcompact_test, four_into_one_mixed, mixed_pre, mixed_post)
@@ -466,7 +466,7 @@ MTF_DEFINE_UTEST_PREPOST(kcompact_test, four_into_one_mixed, mixed_pre, mixed_po
 #define NITER 4
     struct cn_compaction_work w = { 0 };
     struct kvset_vblk_map vbmap = { 0 };
-    struct kvset_vgroup_map *vgmap;
+    struct vgmap *vgmap;
     struct kvs_rparams        rp = kvs_rparams_defaults();
     struct kvset_mblocks      output = {};
     struct cn_tree_node      *output_node = NULL;
@@ -520,7 +520,7 @@ MTF_DEFINE_UTEST_PREPOST(kcompact_test, four_into_one_mixed, mixed_pre, mixed_po
     }
 
     free(vbmap.vbm_blkv);
-    kvset_vgmap_free(vgmap);
+    vgmap_free(vgmap);
 #undef NITER
 }
 
@@ -529,7 +529,7 @@ run_kcompact(struct mtf_test_info *lcl_ti, int expect)
 {
     struct cn_compaction_work w = { 0 };
     struct kvset_vblk_map vbmap = { 0 };
-    struct kvset_vgroup_map *vgmap;
+    struct vgmap *vgmap;
     struct kvs_rparams        rp = kvs_rparams_defaults();
     struct kvset_mblocks      output = {};
     struct cn_tree_node      *output_node = NULL;
@@ -589,7 +589,7 @@ run_kcompact(struct mtf_test_info *lcl_ti, int expect)
     }
 
     free(vbmap.vbm_blkv);
-    kvset_vgmap_free(vgmap);
+    vgmap_free(vgmap);
 
     return 0;
 }
@@ -634,13 +634,13 @@ init(struct mtf_test_info *info)
     return 0;
 }
 
-int
-_kvset_vgmap_vbidx_out_end(struct kvset *ks, int vgidx)
+uint16_t
+_vgmap_vbidx_out_end(struct kvset *ks, uint32_t vgidx)
 {
     return kvset_get_num_vblocks(ks) - 1;
 }
 
-uint
+uint32_t
 _kvset_get_vgroups(const struct kvset *ks)
 {
     return kvset_get_num_vblocks((struct kvset *)ks) == 0 ? 0 : 1;
@@ -658,7 +658,7 @@ pre(struct mtf_test_info *info)
     MOCK_SET(kvset_builder, _kvset_builder_add_val);
     MOCK_SET(kvset_builder, _kvset_builder_add_nonval);
     MOCK_SET(kvset_builder, _kvset_builder_add_vref);
-    MOCK_SET(kvset, _kvset_vgmap_vbidx_out_end);
+    MOCK_SET(kvset, _vgmap_vbidx_out_end);
     MOCK_SET(kvset, _kvset_get_vgroups);
 
     /* Neuter the following APIs */

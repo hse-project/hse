@@ -1274,7 +1274,7 @@ err_exit:
                 ins[i]->kvi_ops->kvi_release(ins[i]);
         free(ins);
         free(vbm.vbm_blkv);
-        kvset_vgmap_free(w->cw_vgmap);
+        vgmap_free(w->cw_vgmap);
     }
     free(outs);
 
@@ -1715,7 +1715,7 @@ cn_comp_cleanup(struct cn_compaction_work *w)
     }
 
     free(w->cw_vbmap.vbm_blkv);
-    kvset_vgmap_free(w->cw_vgmap);
+    vgmap_free(w->cw_vgmap);
     free(w->cw_cookie);
     if (w->cw_outv) {
         for (i = 0; i < w->cw_outc; i++) {

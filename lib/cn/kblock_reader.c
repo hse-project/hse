@@ -37,12 +37,12 @@ kblock_hdr_valid(const struct kblock_hdr_omf *omf)
 
 merr_t
 kbr_get_kblock_desc(
-    struct mpool *           ds,
+    struct mpool            *mp,
     struct mpool_mcache_map *map,
     struct mblock_props     *props,
     u32                      map_idx,
     u64                      kblkid,
-    struct kvs_mblk_desc *   kblkdesc)
+    struct kvs_mblk_desc    *kblkdesc)
 {
     void *base;
 
@@ -50,7 +50,7 @@ kbr_get_kblock_desc(
     if (!base)
         return merr(ev(EINVAL));
 
-    kblkdesc->ds = ds;
+    kblkdesc->ds = mp;
     kblkdesc->mbid = kblkid;
     kblkdesc->map = map;
     kblkdesc->map_idx = map_idx;
@@ -193,23 +193,18 @@ kbr_read_metrics(struct kvs_mblk_desc *kblkdesc, struct kblk_metrics *metrics)
 }
 
 merr_t
-kbr_read_hlog(struct kvs_mblk_desc *kblk, void **hlog)
+kbr_read_hlog(struct kvs_mblk_desc *kblk, uint8_t **hlog)
 {
-    merr_t                 err;
     struct kblock_hdr_omf *hdr = NULL;
-    void *                 pg = NULL;
-    off_t                  pg_idxs[1];
 
-    pg_idxs[0] = 0;
-    err = mpool_mcache_getpages(kblk->map, 1, kblk->map_idx, pg_idxs, &pg);
-    if (ev(err))
-        return err;
+    hdr = mpool_mcache_getbase(kblk->map, kblk->map_idx);
+    if (!hdr)
+        return merr(EINVAL);
 
-    hdr = pg;
     if (!kblock_hdr_valid(hdr))
         return merr(EPROTO);
 
-    *hlog = pg + omf_kbh_hlog_doff_pg(hdr) * PAGE_SIZE;
+    *hlog = (uint8_t *)hdr + (omf_kbh_hlog_doff_pg(hdr) * PAGE_SIZE);
 
     return 0;
 }
@@ -217,11 +212,11 @@ kbr_read_hlog(struct kvs_mblk_desc *kblk, void **hlog)
 static merr_t
 kbr_madvise_region(struct kvs_mblk_desc *kblkdesc, u32 pg, u32 pg_cnt, int advice)
 {
-    merr_t err;
-    u32    pg_max = pg + pg_cnt;
+    u32 pg_max = pg + pg_cnt;
 
     while (pg < pg_max) {
         u32 chunk = min_t(u32, pg_max - pg, HSE_RA_PAGES_MAX);
+        merr_t err;
 
         err = mpool_mcache_madvise(
             kblkdesc->map, kblkdesc->map_idx, PAGE_SIZE * pg, PAGE_SIZE * chunk, advice);

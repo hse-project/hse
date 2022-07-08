@@ -46,7 +46,7 @@ struct fake_kvset {
     u64                     vused;
     u64                     workid;
     struct kvset_stats      stats;
-    struct kvset_vgroup_map *vgmap;
+    struct vgmap           *vgmap;
     char                    min_key;
     char                    max_key;
     struct fake_kvset *     next;
@@ -278,7 +278,7 @@ struct mapi_injection inject_list[] = {
     { mapi_idx_kvset_get_hlog, MAPI_RC_SCALAR, 0 },
     { mapi_idx_kvset_get_vbsetv, MAPI_RC_SCALAR, 0 },
     { mapi_idx_kvset_get_vgroups, MAPI_RC_SCALAR, 1 },
-    { mapi_idx_kvset_vgmap_vbidx_out_end, MAPI_RC_SCALAR, 0},
+    { mapi_idx_vgmap_vbidx_out_end, MAPI_RC_SCALAR, 0},
 
     /* cn */
     { mapi_idx_cn_kcompact, MAPI_RC_SCALAR, 0 },

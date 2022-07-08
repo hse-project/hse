@@ -57,12 +57,6 @@ kvset_builder_create(
     if (ev(err))
         goto out;
 
-    bld->vgmap = kvset_vgmap_alloc(1);
-    if (!bld->vgmap) {
-        err = merr(ENOMEM);
-        goto out;
-    }
-
     bld->cn = cn;
     bld->key_stats.seqno_prev = U64_MAX;
     bld->key_stats.seqno_prev_ptomb = U64_MAX;
@@ -321,10 +315,10 @@ kvset_builder_add_nonval(struct kvset_builder *self, u64 seq, enum kmd_vtype vty
 
 void
 kvset_builder_adopt_vblocks(
-    struct kvset_builder    *self,
-    size_t                   num_vblocks,
-    struct kvs_block        *vblocks,
-    struct kvset_vgroup_map *vgmap)
+    struct kvset_builder *self,
+    size_t                num_vblocks,
+    struct kvs_block     *vblocks,
+    struct vgmap         *vgmap)
 {
     assert(self->vblk_list.n_blks == 0);
 
@@ -335,7 +329,7 @@ kvset_builder_adopt_vblocks(
     /* vgroup map is adopted from the compaction worker for k-compacts.
      * This map is established in kvset_keep_vblocks().
      */
-    kvset_vgmap_free(self->vgmap);
+    assert(!self->vgmap);
     self->vgmap = vgmap;
 }
 
@@ -357,7 +351,7 @@ kvset_builder_destroy(struct kvset_builder *bld)
     kbb_destroy(bld->kbb);
     vbb_destroy(bld->vbb);
 
-    kvset_vgmap_free(bld->vgmap);
+    vgmap_free(bld->vgmap);
 
     free(bld->kblk_kmd.kmd);
     free(bld->hblk_kmd.kmd);
@@ -395,18 +389,24 @@ kvset_builder_finish(struct kvset_builder *imp)
             if (err)
                 return err;
 
+            assert(!imp->vgmap);
             /* In the event we have vblocks, there will always be one vgroup. */
             if (imp->vblk_list.n_blks > 0) {
-                struct kvset_vgroup_map *vgmap = imp->vgmap;
-                uint32_t vbidx_out = imp->vblk_list.n_blks - 1;
+                imp->vgmap = vgmap_alloc(1);
+                if (imp->vgmap) {
+                    uint32_t vbidx_out = imp->vblk_list.n_blks - 1;
+                    /* vgmap_src is passed as NULL as the kblocks are rewritten during
+                     * ingest/spill/kv-compact.
+                     */
+                    err = vgmap_vbidx_set(NULL, vbidx_out, imp->vgmap, vbidx_out, 0);
+                } else {
+                    err = merr(ENOMEM);
+                }
 
-                vgmap->nvgroups = 1;
-
-                /* vgmap_src is NULL as the kblocks are rewritten during ingest/spill/kv-compact.
-                 */
-                kvset_vgmap_vbidx_set(NULL, vbidx_out, vgmap, vbidx_out, 0);
-            } else {
-                imp->vgmap->nvgroups = 0;
+                if (err) {
+                    delete_mblocks(cn_get_dataset(imp->cn), &imp->vblk_list);
+                    return err;
+                }
             }
         }
     } else {

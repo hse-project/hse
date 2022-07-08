@@ -37,11 +37,11 @@ static struct kmem_cache *wbti_cache HSE_READ_MOSTLY;
 
 void
 wbt_read_kmd_vref(
-    const void              *kmd,
-    struct kvset_vgroup_map *vgmap,
-    size_t                  *off,
-    u64                     *seq,
-    struct kvs_vtuple_ref   *vref)
+    const void            *kmd,
+    struct vgmap          *vgmap,
+    size_t                *off,
+    u64                   *seq,
+    struct kvs_vtuple_ref *vref)
 {
     enum kmd_vtype vtype;
     uint           vbidx = 0;
@@ -89,8 +89,13 @@ wbt_read_kmd_vref(
             break;
     }
 
-    if ((vtype == vtype_val || vtype == vtype_cval) && vgmap)
-        vref->vb.vr_index = kvset_vgmap_vbidx_src2out(vgmap, vref->vb.vr_index);
+    if ((vtype == vtype_val || vtype == vtype_cval) && vgmap) {
+        merr_t err;
+
+        err = vgmap_vbidx_src2out(vgmap, vref->vb.vr_index, &vref->vb.vr_index);
+        if (err)
+            abort();
+    }
 
     vref->vr_type = vtype;
 }
@@ -741,14 +746,14 @@ wbti_reset(
 
 merr_t
 wbtr_read_vref(
-    const void *base,
-    const struct wbt_desc *wbd,
+    const void              *base,
+    const struct wbt_desc   *wbd,
     const struct kvs_ktuple *kt,
-    uint lcp,
-    uint64_t seq,
-    enum key_lookup_res *lookup_res,
-    struct kvset_vgroup_map *vgmap,
-    struct kvs_vtuple_ref *vref)
+    uint                     lcp,
+    uint64_t                 seq,
+    enum key_lookup_res     *lookup_res,
+    struct vgmap            *vgmap,
+    struct kvs_vtuple_ref   *vref)
 {
     const struct wbt_node_hdr_omf *node;
     int                      j, cmp, node_num;

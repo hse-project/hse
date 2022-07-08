@@ -105,11 +105,10 @@ make_header(
 }
 
 static void HSE_NONNULL(1)
-make_vgroup_map(struct kvset_vgroup_map *vgmap, void *outbuf)
+make_vgroup_map(const struct vgmap *vgmap, void *outbuf)
 {
     struct vgroup_map_omf *vgm_omf = outbuf;
     struct vgroup_map_entry_omf *vgme_omf;
-    int i;
 
     omf_set_vgm_magic(vgm_omf, VGROUP_MAP_MAGIC);
     omf_set_vgm_version(vgm_omf, VGROUP_MAP_VERSION);
@@ -117,7 +116,7 @@ make_vgroup_map(struct kvset_vgroup_map *vgmap, void *outbuf)
     omf_set_vgm_rsvd(vgm_omf, 0);
 
     vgme_omf = (void *)(vgm_omf + 1);
-    for (i = 0; i < vgmap->nvgroups; i++, vgme_omf++) {
+    for (uint32_t i = 0; i < vgmap->nvgroups; i++, vgme_omf++) {
         omf_set_vgme_vbidx(vgme_omf, vgmap->vbidx_out[i]);
         omf_set_vgme_vbadj(vgme_omf, vgmap->vbidx_adj[i]);
     }
@@ -196,19 +195,19 @@ hbb_destroy(struct hblock_builder *bld)
 
 merr_t
 hbb_finish(
-    struct hblock_builder   *bld,
-    struct kvs_block        *blk,
-    struct kvset_vgroup_map *vgmap,
-    struct key_obj          *min_pfxp,
-    struct key_obj          *max_pfxp,
-    const uint64_t           min_seqno,
-    const uint64_t           max_seqno,
-    const uint32_t           num_kblocks,
-    const uint32_t           num_vblocks,
-    const uint32_t           num_ptombs,
-    const uint8_t           *hlog,
-    void                    *ptree,
-    uint32_t                 ptree_pgc)
+    struct hblock_builder *bld,
+    struct kvs_block      *blk,
+    const struct vgmap    *vgmap,
+    struct key_obj        *min_pfxp,
+    struct key_obj        *max_pfxp,
+    const uint64_t         min_seqno,
+    const uint64_t         max_seqno,
+    const uint32_t         num_kblocks,
+    const uint32_t         num_vblocks,
+    const uint32_t         num_ptombs,
+    const uint8_t         *hlog,
+    const uint8_t         *ptree,
+    uint32_t               ptree_pgc)
 {
     merr_t err;
     enum hse_mclass mclass;
@@ -223,7 +222,7 @@ hbb_finish(
     struct key_obj min_pfx = { 0 }, max_pfx = { 0 };
     struct mclass_policy *policy = cn_get_mclass_policy(bld->cn);
 
-    if (!hlog || !vgmap)
+    if (!hlog)
         return merr(EINVAL);
 
     /* In the event that no kblocks were emitted and there are no entries in the
@@ -235,22 +234,28 @@ hbb_finish(
 
     assert(min_seqno <= max_seqno);
 
-    min_pfxp = min_pfxp ? : &min_pfx;
-    max_pfxp = max_pfxp ? : &max_pfx;
+    min_pfxp = min_pfxp ? min_pfxp : &min_pfx;
+    max_pfxp = max_pfxp ? max_pfxp : &max_pfx;
 
+    /* Header and HyperLogLog */
     iov_max = 2;
-    sz = sizeof(struct vgroup_map_omf) + vgmap->nvgroups * sizeof(struct vgroup_map_entry_omf);
-    vgmap_pgc = roundup(sz, PAGE_SIZE) >> PAGE_SHIFT;
-    assert(vgmap_pgc > 0);
 
-    if (ptree && ptree_pgc > 0) { /* ptree is passed in during kvset split */
+    if (vgmap) {
+        iov_max++;
+        sz = sizeof(struct vgroup_map_omf) + vgmap->nvgroups * sizeof(struct vgroup_map_entry_omf);
+        vgmap_pgc = roundup(sz, PAGE_SIZE) >> PAGE_SHIFT;
+        assert(vgmap_pgc > 0);
+    }
+
+    if (ptree && ptree_pgc > 0) {
+        /* ptree is passed in during kvset split */
         iov_max += 1;
     } else if (wbb_entries(bld->ptree)) {
         /* Prefix tombstone tree nodev, internal nodes, KMD */
         iov_max += 1 + wbb_max_inodec_get(bld->ptree) + wbb_kmd_pgc_get(bld->ptree);
     }
 
-    sz = HBLOCK_HDR_LEN + vgmap_pgc * PAGE_SIZE;
+    sz = HBLOCK_HDR_LEN + (vgmap ? (vgmap_pgc * PAGE_SIZE) : 0);
     hdr = alloc_page_aligned(sz);
     if (!hdr)
         return merr(ENOMEM);
@@ -262,17 +267,23 @@ hbb_finish(
         goto out;
     }
 
-    /* Finalize header and the vgroup map */
+    /* Finalize header */
     iov[iov_idx].iov_base = hdr;
-    iov[iov_idx++].iov_len = sz;
+    iov[iov_idx++].iov_len = HBLOCK_HDR_LEN;
+
+    if (vgmap) {
+        /* Finalize vgroup map */
+        iov[iov_idx].iov_base = (char *)hdr + HBLOCK_HDR_LEN;
+        iov[iov_idx++].iov_len = sz - HBLOCK_HDR_LEN;
+    }
 
     /* Finalize HyperLogLog */
-    iov[iov_idx].iov_base = (uint8_t *)hlog;
+    iov[iov_idx].iov_base = (void *)hlog;
     iov[iov_idx++].iov_len = HLOG_SIZE;
 
     wbb_hdr_init(&hdr->hbh_ptree_hdr);
     if (ptree && ptree_pgc > 0) {
-        iov[iov_idx].iov_base = ptree;
+        iov[iov_idx].iov_base = (void *)ptree;
         iov[iov_idx++].iov_len = ptree_pgc * PAGE_SIZE;
     } else if (wbb_entries(bld->ptree)) {
         /* Finalize prefix tombstone tree */
@@ -292,7 +303,8 @@ hbb_finish(
     make_header(hdr, min_seqno, max_seqno, num_ptombs, num_kblocks, num_vblocks,
                 ptree_pgc, vgmap_pgc, min_pfxp, max_pfxp);
 
-    make_vgroup_map(vgmap, ((char *)hdr) + HBLOCK_HDR_LEN);
+    if (vgmap)
+        make_vgroup_map(vgmap, ((char *)hdr) + HBLOCK_HDR_LEN);
 
     assert(iov_idx <= iov_max);
 
@@ -355,7 +367,7 @@ hbb_set_agegroup(struct hblock_builder *const bld, const enum hse_mclass_policy_
 }
 
 uint32_t
-hbb_get_nptombs(struct hblock_builder *const bld)
+hbb_get_nptombs(const struct hblock_builder *bld)
 {
     return bld->nptombs;
 }

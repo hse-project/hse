@@ -84,9 +84,14 @@ enum {
 };
 
 /**
- * struct kvset_vgroup_map - vgroup map
+ * struct vgmap - vgroup map
  *
- * A vgroup map stores the number of vgroups and its corresponding index mappings
+ * Vblock indexes are stored with keys in a kvset's kblocks and are used to identify
+ * which vblock in the kvset's list of vblocks holds a key's value. A vgroup map is
+ * associated with a kvset and is used to convert these indexes so they reference the
+ * correct vblock. This conversion is only necessary with kvsets that have been
+ * split because kvset split changes the vblock list but does not update the vblock
+ * indexes stored in the kblocks.
  *
  * The last vblock index from each vgroup is stored in vbidx_out.
  *
@@ -106,11 +111,11 @@ enum {
  * A vgroup map is also written for a kvset with zero vblocks with nvgroups as 0
  * and w/o any vblock index mappings.
  */
-struct kvset_vgroup_map {
-    uint32_t  nvgroups;    /* number of vgroups */
-    uint32_t *vbidx_out;   /* output index (indexes the vblock list in a kvset) */
-    uint32_t *vbidx_adj;   /* index adjust offset */
-    uint32_t *vbidx_src;   /* source index (vblock index recorded in the kblocks) */
+struct vgmap {
+    uint32_t  nvgroups;  /* number of vgroups */
+    uint16_t *vbidx_out; /* array of output indexes (indexes the vblock list in a kvset) */
+    uint16_t *vbidx_adj; /* array of index adjust offsets */
+    uint16_t *vbidx_src; /* array of source indexes (vblock index recorded in the kblocks) */
 };
 
 merr_t
@@ -532,10 +537,10 @@ kvset_iter_next_vref(
  */
 merr_t
 kvset_keep_vblocks(
-    struct kvset_vblk_map    *out,
-    struct kvset_vgroup_map **vgmap,
-    struct kv_iterator      **iv,
-    int                       niv);
+    struct kvset_vblk_map  *out,
+    struct vgmap          **vgmap,
+    struct kv_iterator    **iv,
+    int                     niv);
 
 /* MTF_MOCK */
 void
@@ -602,68 +607,60 @@ kvset_iter_next_val_direct(
     uint                bufsz);
 
 /**
- * kvset_vgmap_alloc() - Allocates a vgroup map
+ * vgmap_alloc() - Allocates a vgroup map
  * @nvgroups: number of vgroups
  */
-struct kvset_vgroup_map *
-kvset_vgmap_alloc(uint32_t nvgroups);
+struct vgmap *
+vgmap_alloc(uint32_t nvgroups);
 
 /**
- * kvset_vgmap_free() - Frees the specified vgroup map
+ * vgmap_free() - Frees the specified vgroup map
  * @vgmap: vgroup map
  */
 void
-kvset_vgmap_free(struct kvset_vgroup_map *vgmap);
+vgmap_free(struct vgmap *vgmap);
 
 /**
- * kvset_vgmap_vbidx_out2adj - returns the index adjust for a given output vblock index
- * @vgmap:     vgroup map
- * @vbidx_out: output vblock index
- */
-int
-kvset_vgmap_vbidx_out2adj(struct kvset_vgroup_map *vgmap, int vbidx_out);
-
-/**
- * kvset_vgmap_vbidx_src2out - returns the output vblock index for a given source index
+ * vgmap_vbidx_src2out - returns the output vblock index for a given source index
  * @vgmap:     vgroup map
  * @vbidx_src: source vblock index
  */
-int
-kvset_vgmap_vbidx_src2out(struct kvset_vgroup_map *vgmap, int vbidx_src);
+merr_t
+vgmap_vbidx_src2out(struct vgmap *vgmap, uint16_t vbidx_src, uint16_t *vbidx_out);
 
 /**
- * kvset_vgmap_vbidx_out_start - returns the first vblock index for a given vgmap index
+ * vgmap_vbidx_out_start - returns the first vblock index for a given vgmap index
  * @ks:    kvset handle
  * @vgidx: vgmap array index
  */
-int
-kvset_vgmap_vbidx_out_start(struct kvset *ks, int vgidx);
+uint16_t
+vgmap_vbidx_out_start(struct kvset *ks, uint32_t vgidx);
 
 /**
- * kvset_vgmap_vbidx_out_end - returns the last vblock index for a given vgmap index
+ * vgmap_vbidx_out_end - returns the last vblock index for a given vgmap index
  * @ks:    kvset handle
  * @vgidx: vgmap array index
  */
 /* MTF_MOCK */
-int
-kvset_vgmap_vbidx_out_end(struct kvset *ks, int vgidx);
+uint16_t
+vgmap_vbidx_out_end(struct kvset *ks, uint32_t vgidx);
 
 /**
- * kvset_vgmap_vbidx_set - sets the target vgroup map for a given vgmap index based on
- *                         the source vgmap, source and target output vblock indexes
+ * vgmap_vbidx_set - sets the target vgroup map for a given vgmap index based on
+ *                   the source vgmap, source and target output vblock indexes
  * @vgmap_src:     source vgroup map
  * @vbidx_src_out: output vblock index in the source vgmap
  * @vgmap_tgt:     target vgroup map (output)
  * @vbidx_tgt_out: output vblock index in the target vgmap
  * @vgidx:         vgmap_array_index
  */
-void
-kvset_vgmap_vbidx_set(
-    struct kvset_vgroup_map *vgmap_src,
-    uint32_t                 vbidx_src_out,
-    struct kvset_vgroup_map *vgmap_tgt,
-    uint32_t                 vbidx_tgt_out,
-    uint32_t                 vgidx);
+merr_t
+vgmap_vbidx_set(
+    struct vgmap *vgmap_src,
+    uint16_t      vbidx_src_out,
+    struct vgmap *vgmap_tgt,
+    uint16_t      vbidx_tgt_out,
+    uint32_t      vgidx);
 
 #if HSE_MOCKING
 #include "kvset_ut.h"

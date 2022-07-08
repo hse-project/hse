@@ -49,12 +49,12 @@ struct cn_compaction_work;
  */
 struct kvset_vblk_map {
     struct kvs_block *vbm_blkv;
-    u32               vbm_blkc;
-    u32 *             vbm_map;
-    u32               vbm_mapc;
-    u64               vbm_used;
-    u64               vbm_waste;
-    u64               vbm_tot;
+    uint32_t         *vbm_map;
+    uint32_t          vbm_blkc;
+    uint32_t          vbm_mapc;
+    uint64_t          vbm_used;
+    uint64_t          vbm_waste;
+    uint64_t          vbm_tot;
 };
 
 /**

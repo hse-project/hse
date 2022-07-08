@@ -1083,7 +1083,7 @@ init_work(
     struct cn_tree_node **     output_nodev,
     uint64_t                  *kvsetidv,
     struct kvset_vblk_map *    vbmap,
-    struct kvset_vgroup_map   *vgmap)
+    struct vgmap   *vgmap)
 {
     memset(w, 0, sizeof(*w));
 
@@ -1210,9 +1210,9 @@ run_testcase(struct mtf_test_info *lcl_ti, int mode, const char *info)
     } else {
         /* kcompact */
         struct kvset_vblk_map vbmap;
-        struct kvset_vgroup_map *vgmap;
-        u64 *                 blkv = mapi_safe_malloc(sizeof(*blkv) * iterc);
-        u32 *                 map = mapi_safe_malloc(sizeof(*map) * iterc);
+        struct vgmap *vgmap;
+        u64 *blkv = mapi_safe_malloc(sizeof(*blkv) * iterc);
+        u32 *map = mapi_safe_malloc(sizeof(*map) * iterc);
 
         ASSERT_TRUE(blkv != 0);
         ASSERT_TRUE(map != 0);
@@ -1230,7 +1230,7 @@ run_testcase(struct mtf_test_info *lcl_ti, int mode, const char *info)
         vbmap.vbm_used = 0;
         vbmap.vbm_waste = 0;
 
-        vgmap = kvset_vgmap_alloc(1);
+        vgmap = vgmap_alloc(1);
         ASSERT_NE(vgmap, NULL);
 
         init_work(
@@ -1262,7 +1262,7 @@ run_testcase(struct mtf_test_info *lcl_ti, int mode, const char *info)
         mapi_safe_free(blkv);
         mapi_safe_free(map);
 
-        kvset_vgmap_free(vgmap);
+        vgmap_free(vgmap);
     }
 
     /* Check results */

@@ -175,7 +175,7 @@ struct cn_compaction_work {
     struct kvset_mblocks    *cw_outv;
     struct kv_iterator     **cw_inputv;
     struct kvset_vblk_map    cw_vbmap;
-    struct kvset_vgroup_map *cw_vgmap; /* used only during a k-compact */
+    struct vgmap            *cw_vgmap; /* used only during a k-compact */
     struct cn_tree_node    **cw_output_nodev;
 
     /* initialized in cn_compaction_worker() */

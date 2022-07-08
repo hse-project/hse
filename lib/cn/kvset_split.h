@@ -22,14 +22,9 @@
  * struct kvset_split_res - split output
  */
 struct kvset_split_res {
-    struct kvset_mblocks     blks_left;   /* kblocks, vblocks and the hblock for the left kvset */
-    struct kvset_mblocks     blks_right;  /* kblocks, vblocks and the hblock for the right kvset */
-
-    struct blk_list          blks_purge;  /* list of mblocks in the source kvset to delete */
-    struct blk_list          blks_commit; /* list of mblocks in the target kvsets to commit */
-
-    struct kvset_vgroup_map *vgmap_left;  /* vgroup map for the left kvset */
-    struct kvset_vgroup_map *vgmap_right; /* vgroup map for the right kvset */
+    struct kvset_mblocks blks[2];     /* kblocks, vblocks and the hblock */
+    struct blk_list      blks_purge;  /* list of mblocks in the source kvset to delete */
+    struct blk_list      blks_commit; /* list of mblocks in the target kvsets to commit */
 };
 
 /**

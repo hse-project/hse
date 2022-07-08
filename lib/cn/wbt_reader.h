@@ -14,7 +14,7 @@
 struct kvs_mblk_desc;
 struct mpool;
 struct wbt_hdr_omf;
-struct kvset_vgroup_map;
+struct vgmap;
 
 /* MTF_MOCK_DECL(wbt_reader) */
 
@@ -78,7 +78,7 @@ wbtr_read_vref(
     uint lcp,
     u64 seq,
     enum key_lookup_res *lookup_res,
-    struct kvset_vgroup_map *vgmap,
+    struct vgmap *vgmap,
     struct kvs_vtuple_ref *vref);
 
 merr_t
@@ -157,7 +157,7 @@ wbti_next(struct wbti *wbti, const void **kdata, uint *klen, const void **kmd);
 void
 wbt_read_kmd_vref(
     const void *kmd,
-    struct kvset_vgroup_map *vgmap,
+    struct vgmap *vgmap,
     size_t *off,
     u64 *seq,
     struct kvs_vtuple_ref *vref);

@@ -175,12 +175,12 @@ static_assert(HBLOCK_HDR_PAGES == 1, "Hblock header spanning more than 1 page ha
 #define VGROUP_MAP_MAGIC   ((uint32_t)('v' << 24 | 'g' << 16 | 'p' << 8 | 'm'))
 
 struct vgroup_map_entry_omf {
-    uint32_t vgme_vbidx;
-    uint32_t vgme_vbadj;
+    uint16_t vgme_vbidx;
+    uint16_t vgme_vbadj;
 } HSE_PACKED;
 
-OMF_SETGET(struct vgroup_map_entry_omf, vgme_vbidx, 32)
-OMF_SETGET(struct vgroup_map_entry_omf, vgme_vbadj, 32)
+OMF_SETGET(struct vgroup_map_entry_omf, vgme_vbidx, 16)
+OMF_SETGET(struct vgroup_map_entry_omf, vgme_vbadj, 16)
 
 
 struct vgroup_map_omf {
