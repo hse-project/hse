@@ -550,47 +550,35 @@ print_ids(struct kvset *kvset, enum mb_type type, struct yaml_context *yc)
 
 static void
 print_unit(
-    int                  type,
-    u64                  dgen,
-    uint                 compc,
-    uint                 comp_rule,
-    u32                  vgroups,
-    u64                  nkeys,
-    u64                  ntombs,
-    u64                  nptombs,
-    u64                  hlen,
-    u64                  klen,
-    u64                  vlen,
-    int                  nkvsets,
-    int                  nhblks,
-    int                  nkblks,
-    int                  nvblks,
-    struct yaml_context *yc)
+    int                         type,
+    u64                         dgen,
+    int                         nkvsets,
+    int                         nhblks,
+    int                         nkblks,
+    int                         nvblks,
+    const struct kvset_metrics *m,
+    struct yaml_context        *yc)
 {
-    if (type == 'k')
-        yaml_field_fmt(yc, "compc", "%u", compc);
-
+    yaml_field_fmt(yc, "compc", "%u", m->compc);
     yaml_field_fmt_u64(yc, "dgen", dgen);
-    yaml_field_fmt_u64(yc, "keys", nkeys);
-    yaml_field_fmt_u64(yc, "tombs", ntombs);
-    yaml_field_fmt_u64(yc, "ptombs", nptombs);
+    yaml_field_fmt_u64(yc, "keys", m->num_keys);
+    yaml_field_fmt_u64(yc, "tombs", m->num_tombstones);
+    yaml_field_fmt_u64(yc, "ptombs", m->nptombs);
 
-    yaml_field_fmt_u64(yc, "hlen", hlen);
-    yaml_field_fmt_u64(yc, "klen", klen);
-    yaml_field_fmt_u64(yc, "vlen", vlen);
+    yaml_field_fmt_u64(yc, "hlen", m->header_bytes);
+    yaml_field_fmt_u64(yc, "klen", m->tot_key_bytes);
+    yaml_field_fmt_u64(yc, "vlen", m->tot_val_bytes);
 
     yaml_field_fmt(yc, "hblks", "%d", nhblks);
     yaml_field_fmt(yc, "kblks", "%d", nkblks);
     yaml_field_fmt(yc, "vblks", "%d", nvblks);
 
-    if (nkvsets >= 0) {
-        yaml_field_fmt(yc, "kvsets", "%d", nkvsets);
-    } else {
-        yaml_field_fmt(yc, "vgroups", "%u", vgroups);
-    }
+    yaml_field_fmt(yc, "vgroups", "%u", m->vgroups);
 
     if (type == 'k')
-        yaml_field_fmt(yc, "rule", "%s", cn_comp_rule2str(comp_rule));
+        yaml_field_fmt(yc, "rule", "%s", cn_comp_rule2str(m->comp_rule));
+    else
+        yaml_field_fmt(yc, "kvsets", "%d", nkvsets);
 }
 
 static void
@@ -624,20 +612,11 @@ print_elem(
         print_unit(
             'k',
             ctx->kvset_dgen,
-            m->compc,
-            m->comp_rule,
-            m->vgroups,
-            m->num_keys,
-            m->num_tombstones,
-            m->nptombs,
-            m->header_bytes,
-            m->tot_key_bytes,
-            m->tot_val_bytes,
             -1,
             1, /* always one hblock */
             ctx->num_kblks,
             ctx->num_vblks,
-            yc);
+            m, yc);
 
         if (ctx->list) {
             yaml_field_fmt(yc, "hblkid", "0x%lx",
@@ -666,20 +645,11 @@ print_elem(
         print_unit(
             'n',
             ctx->node_dgen,
-            m->compc,
-            m->comp_rule,
-            0,
-            m->num_keys,
-            m->num_tombstones,
-            m->nptombs,
-            m->header_bytes,
-            m->tot_key_bytes,
-            m->tot_val_bytes,
             ctx->kvset_idx,
             ctx->node_hblks,
             ctx->node_kblks,
             ctx->node_vblks,
-            yc);
+            m, yc);
 
         yaml_end_element(yc);
         yaml_end_element_type(yc);
@@ -741,6 +711,9 @@ print_tree(struct ctx *ctx, struct cn_node_loc *loc, struct kvset *kvset)
     ctx->node.header_bytes += km.header_bytes;
     ctx->node.tot_key_bytes += km.tot_key_bytes;
     ctx->node.tot_val_bytes += km.tot_val_bytes;
+    ctx->node.vgroups += km.vgroups;
+    if (km.compc > ctx->node.compc)
+        ctx->node.compc = km.compc;
 
     ctx->total.num_keys += km.num_keys;
     ctx->total.num_tombstones += km.num_tombstones;
@@ -750,6 +723,9 @@ print_tree(struct ctx *ctx, struct cn_node_loc *loc, struct kvset *kvset)
     ctx->total.header_bytes += km.header_bytes;
     ctx->total.tot_key_bytes += km.tot_key_bytes;
     ctx->total.tot_val_bytes += km.tot_val_bytes;
+    ctx->total.vgroups += km.vgroups;
+    if (km.compc > ctx->total.compc)
+        ctx->total.compc = km.compc;
 
     print_elem("kvset", ctx, &km, loc, kvset);
 
@@ -759,13 +735,13 @@ print_tree(struct ctx *ctx, struct cn_node_loc *loc, struct kvset *kvset)
 merr_t
 kvs_rest_query_tree(struct kvdb_kvs *kvs, struct yaml_context *yc, bool list)
 {
-    struct cn *           cn = kvs_cn(kvs->kk_ikvs);
-    struct ctx            ctx;
-    struct table *        tree_view;
     struct kvset_metrics *m;
-    int                   i;
-    merr_t                err;
+    struct table *tree_view;
+    struct ctx ctx;
+    struct cn *cn;
+    merr_t err;
 
+    cn = kvs_cn(kvs->kk_ikvs);
     if (ev(!cn))
         return merr(EINVAL);
 
@@ -780,9 +756,9 @@ kvs_rest_query_tree(struct kvdb_kvs *kvs, struct yaml_context *yc, bool list)
     if (ev(err))
         return err;
 
-    for (i = 0; i < table_len(tree_view); i++) {
-        int                rc;
+    for (size_t i = 0; i < table_len(tree_view); ++i) {
         struct kvset_view *v = table_at(tree_view, i);
+        int rc;
 
         rc = print_tree(&ctx, &v->node_loc, v->kvset);
         if (rc)
@@ -802,20 +778,11 @@ kvs_rest_query_tree(struct kvdb_kvs *kvs, struct yaml_context *yc, bool list)
     print_unit(
         't',
         ctx.tree_dgen,
-        m->compc,
-        m->comp_rule,
-        0,
-        m->num_keys,
-        m->num_tombstones,
-        m->nptombs,
-        m->header_bytes,
-        m->tot_key_bytes,
-        m->tot_val_bytes,
         ctx.tot_kvsets,
         ctx.tot_hblks,
         ctx.tot_kblks,
         ctx.tot_vblks,
-        yc);
+        m, yc);
 
     yaml_field_fmt(yc, "nodes", "%u", ctx.tot_nodes);
     yaml_field_fmt(yc, "cnid", "%lu", kvs->kk_cnid);
@@ -838,6 +805,7 @@ rest_kvs_tree(
     struct kv_iter *  iter,
     void *            context)
 {
+    static atomic_ulong rest_kvs_tree_bufsz = 128 * 1024;
     struct yaml_context yc = {
         .yaml_buf = info->buf,
         .yaml_buf_sz = info->buf_sz,
@@ -898,8 +866,38 @@ rest_kvs_tree(
         return merr(E2BIG);
     }
 
+    /* Here we try to allocate a private buffer that yaml_realloc_buf()
+     * can realloc() as necessary.  This will allow us to emit the full
+     * yaml document in one write() after we have released all the
+     * kvsets in the tree view (see kvs_rest_query_tree()).
+     */
+    yc.yaml_buf_sz = rest_kvs_tree_bufsz;
+    yc.yaml_offset = 0;
+
+    yc.yaml_buf = malloc(yc.yaml_buf_sz);
+    if (yc.yaml_buf) {
+        yc.yaml_emit = yaml_realloc_buf;
+    } else {
+        yc.yaml_buf_sz = info->buf_sz;
+        yc.yaml_buf = info->buf;
+    }
+
     kvs_rest_query_tree(kvs, &yc, list_blkid);
-    yc.yaml_emit(&yc);
+
+    kvdb_rest_yaml_emit(&yc);
+
+    /* If the yaml buf grew then try to update rest_kvs_tree_bufsz
+     * so that we are more likely to allocate a sufficiently sized
+     * buffer the next time we are called.
+     */
+    if (yc.yaml_emit == yaml_realloc_buf) {
+        size_t bufsz = rest_kvs_tree_bufsz;
+
+        if (yc.yaml_buf_sz > bufsz)
+            atomic_cas(&rest_kvs_tree_bufsz, bufsz, yc.yaml_buf_sz);
+
+        free(yc.yaml_buf);
+    }
 
     atomic_dec(&kvs->kk_refcnt);
 

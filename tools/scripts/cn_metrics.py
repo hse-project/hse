@@ -49,19 +49,19 @@ def full_tree(ybuf: Optional[OrderedDict[str, Any]], opt):
 
     # Vector of initial column widths (i.e., compc, dgen, keys, ...)
     #
-    widthv = [ 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 2, 1, 1 ]
+    widthv = [ 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 2, 1, 1 ]
 
-    print("t -,-    -     -   ", end=""),
+    line = "t -,-   "
 
-    col = 1
+    col = 0
     for key, val in ybuf["info"].items():
         n = len(str(val)) + 1
         if n > widthv[col]:
             widthv[col] = n
         width = widthv[col]
         col += 1
-        print(f"{key} {val:<{width}} ", end="")
-    print()
+        line += f" {key} {val:<{width}}"
+    print(line)
     print()
 
     if ybuf["info"]["open"] == False:
@@ -74,14 +74,14 @@ def full_tree(ybuf: Optional[OrderedDict[str, Any]], opt):
             continue
 
         loc = node["loc"]
-        print(f"n {loc['level']},{loc['offset']}    -     -   ", end="")
+        line = f"n {loc['level']},{loc['offset']}   "
 
-        col = 1
+        col = 0
         for key, val in node["info"].items():
             width = widthv[col]
             col += 1
-            print(f"{key} {val:<{width}} ", end="")
-        print()
+            line += f" {key} {val:<{width}}"
+        print(line)
 
         if opt.nokvsets:
             continue
@@ -94,14 +94,14 @@ def full_tree(ybuf: Optional[OrderedDict[str, Any]], opt):
         #
         for kvset in node["kvsets"]:
             index = kvset.pop("index")
-            print(f"k {loc['level']},{loc['offset']},{index:<2} ", end="")
+            line = f"k {loc['level']},{loc['offset']},{index:<2}"
 
             col = 0;
             for key, val in kvset.items():
                 width = widthv[col]
                 col += 1
-                print(f"{key} {val:<{width}} ", end="")
-            print()
+                line += f" {key} {val:<{width}}"
+            print(line)
         print()
 
 
