@@ -768,7 +768,7 @@ bn_reset(struct bonsai_root *tree)
     if ((tree->br_oomslab || bn_summary_calls_tls++ % 8 == 0) &&
         bn_summary(tree, buf, sizeof(buf)) > 0) {
 
-        log_info("%s", buf);
+        log_debug("%s", buf);
     }
 #endif
 
