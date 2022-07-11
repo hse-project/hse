@@ -143,7 +143,6 @@ struct cn_tree {
  * @tn_destroy_work: used for async destroy
  * @tn_hlog:         hyperloglog structure
  * @tn_ns:           metrics about node to guide node compaction decisions
- * @tn_loc:          location of node within tree
  * @tn_pfx_spill:    true if spills/scans from this node use the prefix hash
  * @tn_cgen:         incremented each time the node changes
  * @tn_tree:         ptr to tree struct
@@ -154,7 +153,6 @@ struct cn_tree_node {
     struct mutex     tn_rspills_lock;
     struct list_head tn_rspills;
     bool             tn_rspills_wedged;
-    bool             tn_isroot;
     atomic_int       tn_compacting;
     atomic_uint      tn_busycnt;
 
@@ -169,8 +167,8 @@ struct cn_tree_node {
     u64                  tn_size_max;
     u64                  tn_update_incr_dgen;
 
-    struct cn_node_loc   tn_loc HSE_L1D_ALIGNED;
-    uint64_t             tn_nodeid;
+    uint64_t             tn_nodeid HSE_L1D_ALIGNED;
+    bool                 tn_isroot;
     uint                 tn_cgen;
     struct list_head     tn_kvset_list; /* head = newest kvset */
     struct cn_tree *     tn_tree;
@@ -228,13 +226,13 @@ cn_comp_slice_cb(struct sts_job *job);
 /**
  * cn_tree_find_node() - Map a node location to a node pointer.
  *
- * @tree: tree to search
- * @loc: (input) node location
+ * @tree:   tree to search
+ * @nodeid: node ID
  *
  * Returns NULL if tree @tree has no node at location @loc.
  */
 struct cn_tree_node *
-cn_tree_find_node(struct cn_tree *tree, const struct cn_node_loc *loc);
+cn_tree_find_node(struct cn_tree *tree, uint64_t nodeid);
 
 #include "cn_tree_internal_ut.h"
 #endif /* HSE_MOCKING */

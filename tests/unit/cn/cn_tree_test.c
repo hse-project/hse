@@ -13,7 +13,6 @@
 
 #include <hse_ikvdb/kvs_rparams.h>
 #include <hse_ikvdb/limits.h>
-#include <hse_ikvdb/cn_node_loc.h>
 #include <hse_ikvdb/kvdb_health.h>
 #include <hse_ikvdb/cn.h>
 
@@ -38,8 +37,7 @@ struct kvs_rparams rp_struct, *rp;
  */
 struct fake_kvset {
     struct kvset_list_entry kle;
-    u32                     node_level;
-    u32                     node_offset;
+    uint64_t                nodeid;
     u32                     timestamp;
     u32                     kvsets_in_node;
     u32                     nk;
@@ -119,8 +117,7 @@ static struct fake_kvset *
 fake_kvset_open_add(
     struct fake_kvset **head,
     struct cn_tree *    tree,
-    u32                 node_level,
-    u32                 node_offset,
+    uint64_t            nodeid,
     u64                 dgen)
 {
     struct fake_kvset *kvset;
@@ -130,10 +127,9 @@ fake_kvset_open_add(
     if (!kvset)
         return 0;
 
-    kvset->node_level = node_level;
-    kvset->node_offset = node_offset;
+    kvset->nodeid = nodeid;
 
-    err = cn_tree_insert_kvset(tree, (struct kvset *)kvset, node_level, node_offset);
+    err = cn_tree_insert_kvset(tree, (struct kvset *)kvset, nodeid);
     if (err) {
         if (head)
             *head = kvset->next;
@@ -460,7 +456,6 @@ MTF_DEFINE_UTEST_PRE(test, t_cn_tree_ingest_update, test_setup)
 {
     struct cn_tree *         tree;
     struct cn_tree_node *    node;
-    struct cn_node_loc       loc;
     merr_t                   err;
     u32                      fanout_bits = 2;
     struct kvset *           kvsetv[4];
@@ -482,9 +477,7 @@ MTF_DEFINE_UTEST_PRE(test, t_cn_tree_ingest_update, test_setup)
     }
 
     /* we should find kvset in root node */
-    loc.node_level = 0;
-    loc.node_offset = 0;
-    node = cn_tree_find_node(tree, &loc);
+    node = cn_tree_find_node(tree, 0);
     ASSERT_NE(node, NULL);
 
     /* verify kvsets */
@@ -513,11 +506,10 @@ struct test_params {
 };
 
 struct iter_verify {
-    u32  counter;
-    u32  prev_node_level;
-    u32  prev_node_offset;
-    u32  prev_kvset_timestamp;
-    bool order_oldest_first;
+    uint32_t counter;
+    uint32_t prev_kvset_timestamp;
+    uint64_t prev_nodeid;
+    bool     order_oldest_first;
 };
 
 struct test {
@@ -536,10 +528,10 @@ test_init(struct test *t, struct test_params *params, struct mtf_test_info *lcl_
     t->mtf = lcl_ti;
 }
 
-static u32
-num_kvsets_in_node(u32 node_level, u32 node_offset)
+static uint64_t
+num_kvsets_in_node(uint64_t nodeid)
 {
-    return 1 + node_offset % 3;
+    return 1 + (nodeid % 4);
 }
 
 static int
@@ -552,26 +544,21 @@ tree_iter_callback(
     struct test          *t = rock;
     struct mtf_test_info *lcl_ti = t->mtf;
     struct fake_kvset *   kvset = (struct fake_kvset *)handle;
-    struct cn_node_loc   *loc;
 
     if (!handle)
         return 0;
 
-    loc = &node->tn_loc;
-
     if (t->p.verbose) {
-        log_info("node; level %2u, offset %4u", loc->node_level, loc->node_offset);
+        log_info("node; nodeid: %lu", node->tn_nodeid);
     }
 
-    ASSERT_EQ_RET(kvset->node_level, loc->node_level, 1);
-    ASSERT_EQ_RET(kvset->node_offset, loc->node_offset, 1);
-    ASSERT_EQ_RET(kvset->kvsets_in_node, num_kvsets_in_node(loc->node_level, loc->node_offset), 1);
+    ASSERT_EQ_RET(kvset->nodeid, node->tn_nodeid, 1);
+    ASSERT_EQ_RET(kvset->kvsets_in_node, num_kvsets_in_node(node->tn_nodeid), 1);
 
-    /* kvsets within a node must be returned in order from newest
-     * to oldest */
+    /* kvsets within a node must be returned in order from newest to oldest.
+     */
     if (t->iter.counter > 0) {
-        if (t->iter.prev_node_level == loc->node_level &&
-            t->iter.prev_node_offset == loc->node_offset) {
+        if (t->iter.prev_nodeid == node->tn_nodeid) {
             u32 prev_timestamp = t->iter.prev_kvset_timestamp;
             u32 curr_timestamp = kvset->timestamp;
 
@@ -583,8 +570,7 @@ tree_iter_callback(
         }
     }
 
-    t->iter.prev_node_level = loc->node_level;
-    t->iter.prev_node_offset = loc->node_offset;
+    t->iter.prev_nodeid = node->tn_nodeid;
     t->iter.prev_kvset_timestamp = kvset->timestamp;
 
     t->iter.counter++;
@@ -597,12 +583,12 @@ static int
 test_tree_create(struct test *t)
 {
     struct mtf_test_info *lcl_ti = t->mtf;
-
-    merr_t             err;
-    uint               lx, nx, kx;
-    struct fake_kvset *kvset;
+    uint lx, nx, kx;
+    uint64_t nodeid;
+    merr_t err;
 
     cp.fanout = 1 << t->p.fanout_bits;
+    nodeid = 0;
 
     err = cn_tree_create(&t->tree, NULL, 0, &cp, &mock_health, rp);
     ASSERT_TRUE_RET(err == 0, -1);
@@ -612,22 +598,27 @@ test_tree_create(struct test *t)
         uint nodes_in_level = 1 << (t->p.fanout_bits * lx);
 
         for (nx = 0; nx < nodes_in_level; nx++) {
-            uint num_kvsets_this_node = num_kvsets_in_node(lx, nx);
+            uint num_kvsets_this_node = num_kvsets_in_node(nodeid);
             struct cn_tree_node *tn;
+            struct fake_kvset *kvset;
 
-            tn = cn_node_alloc(t->tree, 1, nx);
+            tn = cn_node_alloc(t->tree, nodeid);
             ASSERT_NE_RET(0, tn, -1);
 
             list_add(&tn->tn_link, &t->tree->ct_leaves);
 
             if (t->p.verbose)
-                log_info("add %3u kvsets to node (%2u,%4u)", num_kvsets_this_node, lx, nx);
+                log_info("add %3u kvsets to nodeid %lu", num_kvsets_this_node, nodeid);
+
             for (kx = 0; kx < num_kvsets_this_node; kx++) {
-                kvset = fake_kvset_open_add(&t->kvset_list, t->tree, lx, nx, 100 + kx);
+                kvset = fake_kvset_open_add(&t->kvset_list, t->tree, nodeid, 100 + kx);
                 ASSERT_TRUE_RET(kvset != NULL, -1);
+
                 kvset->timestamp = kx + 1000;
                 kvset->kvsets_in_node = num_kvsets_this_node;
             }
+
+            ++nodeid;
         }
     }
 

@@ -158,7 +158,7 @@ new_tree(uint fanout)
     for (int i = 0; i < fanout; i++) {
         struct cn_tree_node *tn;
 
-        tn = cn_node_alloc(tt->tree, 1, i);
+        tn = cn_node_alloc(tt->tree, i + 1);
         if (!tn)
             return NULL;
 
@@ -192,7 +192,7 @@ new_kvsets(struct test_tree *tt, int n_kvsets, int lvl, int off)
             if (err)
                 return err;
 
-            err = cn_tree_insert_kvset(tt->tree, kvset, lvl, off);
+            err = cn_tree_insert_kvset(tt->tree, kvset, lvl + off);
             if (err) {
                 kvset_put_ref(kvset);
                 return err;
@@ -212,11 +212,10 @@ void
 job_done(struct cn_compaction_work *w, int cancel)
 {
     log_info(
-        "job %s: cnid=%lu loc=(%u,%u)",
+        "job %s: cnid=%lu nodeid=%lu",
         cancel ? "canceled" : "complete",
         w->cw_tree->cnid,
-        w->cw_node->tn_loc.node_level,
-        w->cw_node->tn_loc.node_offset);
+        w->cw_node->tn_nodeid);
 
     if (w->cw_have_token)
         cn_node_comp_token_put(w->cw_node);
@@ -306,12 +305,8 @@ sp3_work_mock(
     w->cw_rp = tn->tn_tree->rp;
     w->cw_pfx_len = tn->tn_tree->ct_cp->pfx_len;
 
-    log_debug(
-        "cnid=%lu loc=(%u,%u), action=%s",
-        tn->tn_tree->cnid,
-        tn->tn_loc.node_level,
-        tn->tn_loc.node_offset,
-        comptype);
+    log_debug("cnid=%lu nodeid=%lu, action=%s",
+              tn->tn_tree->cnid, tn->tn_nodeid, comptype);
 
     *w_out = w;
     return 0;

@@ -118,7 +118,7 @@ cn_node_size(void)
 }
 
 struct cn_tree_node *
-cn_node_alloc(struct cn_tree *tree, uint level, uint offset)
+cn_node_alloc(struct cn_tree *tree, uint64_t nodeid)
 {
     struct cn_tree_node *tn;
 
@@ -140,9 +140,8 @@ cn_node_alloc(struct cn_tree *tree, uint level, uint offset)
     atomic_init(&tn->tn_busycnt, 0);
 
     tn->tn_tree = tree;
-    tn->tn_isroot = level == 0;
-    tn->tn_loc.node_level = level;
-    tn->tn_loc.node_offset = offset;
+    tn->tn_isroot = (nodeid == 0);
+    tn->tn_nodeid = nodeid;
 
     tn->tn_size_max = tree->rp->cn_node_size_hi << 20;
 
@@ -200,13 +199,11 @@ cn_tree_create(
 
     INIT_LIST_HEAD(&tree->ct_leaves);
 
-    tree->ct_root = cn_node_alloc(tree, 0, 0);
+    tree->ct_root = cn_node_alloc(tree, 0);
     if (ev(!tree->ct_root)) {
         free_aligned(tree);
         return merr(ENOMEM);
     }
-
-    tree->ct_root->tn_nodeid = 0;
 
     if (kvsname) {
         tree->ct_route_map = route_map_create(cp->fanout);
@@ -565,29 +562,27 @@ cn_tree_samp(const struct cn_tree *tree, struct cn_samp_stats *s_out)
  * cn_tree_insert_kvset - add kvset to tree during initialization
  * @tree:  tree under construction
  * @kvset: new kvset to add to tree
- * @level: node level
- * @offset: node offset
+ * @nodeid: node ID
  *
- * This function is used during initialization to insert a kvset at the
- * correct position in node (@level,@offset) of the cn tree.
+ * This function is used during initialization to insert a kvset
+ * into the correct node of the cn tree.
  *
  * NOTE: It is not intended to be used to update a node after compaction or
  * ingest operations.
  */
 merr_t
-cn_tree_insert_kvset(struct cn_tree *tree, struct kvset *kvset, uint level, uint offset)
+cn_tree_insert_kvset(struct cn_tree *tree, struct kvset *kvset, uint64_t nodeid)
 {
     struct kvset_list_entry *entry;
     struct list_head *       head;
     struct cn_tree_node *    node;
     u64                      dgen;
 
-    if (level == 0) {
+    if (nodeid == 0) {
         node = tree->ct_root;
     } else {
-        assert(level == 1);
         list_for_each_entry(node,  &tree->ct_leaves, tn_link) {
-            if (node->tn_loc.node_offset == offset)
+            if (node->tn_nodeid == nodeid)
                 break;
         }
     }
@@ -1359,7 +1354,6 @@ cn_tree_prepare_compaction(struct cn_compaction_work *w)
     w->cw_outc = n_outs;
     w->cw_outv = outs;
     w->cw_vbmap = vbm;
-    w->cw_level = w->cw_node->tn_loc.node_level;
 
     /* Enable dropping of tombstones in merge logic if 'mark' is
      * the oldest kvset in the node and we're not spilling.
@@ -1673,8 +1667,6 @@ cn_comp_commit(struct cn_compaction_work *w)
 
             assert(node);
             km.km_compc = 0;
-            km.km_node_level = node->tn_loc.node_level;
-            km.km_node_offset = node->tn_loc.node_offset;
             km.km_nodeid = node->tn_nodeid;
 
             /* Monotonic loads tend to create very large kvsets.  If this
@@ -1691,8 +1683,6 @@ cn_comp_commit(struct cn_compaction_work *w)
             struct kvset_list_entry *le = w->cw_mark;
 
             km.km_compc = w->cw_compc;
-            km.km_node_level = w->cw_node->tn_loc.node_level;
-            km.km_node_offset = w->cw_node->tn_loc.node_offset;
             km.km_nodeid = w->cw_node->tn_nodeid;
 
             /* If we're in the middle of a run then do not increment compc
@@ -1800,14 +1790,13 @@ cn_comp_cleanup(struct cn_compaction_work *w)
          */
         if (!w->cw_canceled)
             log_errx("compaction error @@e: sts/job %u comp %s rule %s"
-                     " cnid %lu lvl %u off %u dgenlo %lu dgenhi %lu wedge %d",
+                     " cnid %lu nodeid %lu dgenlo %lu dgenhi %lu wedge %d",
                      w->cw_err,
                      sts_job_id_get(&w->cw_job),
                      cn_action2str(w->cw_action),
                      cn_comp_rule2str(w->cw_comp_rule),
                      cn_tree_get_cnid(w->cw_tree),
-                     w->cw_node->tn_loc.node_level,
-                     w->cw_node->tn_loc.node_offset,
+                     w->cw_node->tn_nodeid,
                      w->cw_dgen_lo,
                      w->cw_dgen_hi,
                      w->cw_node->tn_rspills_wedged);
@@ -2276,7 +2265,7 @@ cn_tree_fini(void)
 
 #if HSE_MOCKING
 struct cn_tree_node *
-cn_tree_find_node(struct cn_tree *tree, const struct cn_node_loc *loc)
+cn_tree_find_node(struct cn_tree *tree, uint64_t nodeid)
 {
     struct cn_tree_node *tn;
     struct tree_iter iter;
@@ -2284,10 +2273,8 @@ cn_tree_find_node(struct cn_tree *tree, const struct cn_node_loc *loc)
     tree_iter_init(tree, &iter);
 
     while (NULL != (tn = tree_iter_next(tree, &iter))) {
-        if (tn->tn_loc.node_offset == loc->node_offset &&
-            tn->tn_loc.node_level == loc->node_level) {
+        if (tn->tn_nodeid == nodeid)
             break;
-        }
     }
 
     return tn;

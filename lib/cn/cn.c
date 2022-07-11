@@ -820,7 +820,7 @@ cn_kvset_cb(struct cndb_cn_ctx *ctx, struct kvset_meta *km, u64 kvsetid)
 
     node = map_lookup_ptr(ctx->nodemap, km->km_nodeid);
     if (!node) {
-        node = cn_node_alloc(cn->cn_tree, 0, 0);
+        node = cn_node_alloc(cn->cn_tree, km->km_nodeid);
         if (ev(!node))
             return merr(ENOMEM);
 
@@ -973,7 +973,6 @@ cn_open(
      */
     {
         struct ekey_generator *egen;
-        uint64_t n = 0;
 
         egen = ekgen_create(kvs_name, cn->cp);
         assert(egen);
@@ -981,13 +980,12 @@ cn_open(
         for (uint i = 0; i < cn->cp->fanout; i++) {
             struct cn_tree_node *tn;
 
-            tn = cn_node_alloc(cn->cn_tree, 1, i);
+            tn = cn_node_alloc(cn->cn_tree, i + 1);
             if (!tn) {
                 err = merr(ENOMEM);
                 break;
             }
 
-            tn->tn_nodeid = ++n;
             map_insert_ptr(ctx.nodemap, tn->tn_nodeid, tn);
 
             list_add(&tn->tn_link, &cn->cn_tree->ct_leaves);

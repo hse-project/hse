@@ -169,7 +169,6 @@ struct cn_compaction_work {
     u64 cw_prog_interval;
 
     /* initialized in cn_tree_prepare_compaction () */
-    uint                  cw_level;
     uint                  cw_outc;
     bool                  cw_drop_tombs;
     uint64_t             *cw_kvsetidv;

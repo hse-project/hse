@@ -1,6 +1,6 @@
 /* SPDX-License-Identifier: Apache-2.0 */
 /*
- * Copyright (C) 2015-2020 Micron Technology, Inc.  All rights reserved.
+ * Copyright (C) 2015-2020,2022 Micron Technology, Inc.  All rights reserved.
  */
 
 #ifndef HSE_KVDB_CN_CN_TREE_CREATE_H
@@ -83,25 +83,24 @@ cn_tree_set_initial_dgen(struct cn_tree *tree, u64 dgen);
 
 /**
  * cn_tree_insert_kvset() - Add kvset to a tree node during tree initialization
- * @tree:  cn tree structure
- * @kvset: kvset to add
- * @level: node level
- * @offset:  node offset
+ * @tree:   cn tree structure
+ * @kvset:  kvset to add
+ * @nodeid: node ID
  *
- * Add @kvset to @tree at give node @level and @offset, creating a new node if
- * necessary.  Insert @kvset into node in correct dgen order.  This function
+ * Add @kvset to @tree into given node ID, creating a new node if necessary.
+ * Insert @kvset into node in correct dgen order.  This function
  * should only be used by cn_open() -- it should not used to add kvsets to
  * nodes after ingest or compaction operations.
  */
 /* MTF_MOCK */
 merr_t
-cn_tree_insert_kvset(struct cn_tree *tree, struct kvset *kvset, uint level, uint offset);
+cn_tree_insert_kvset(struct cn_tree *tree, struct kvset *kvset, uint64_t nodeid);
 
 merr_t
 cn_node_insert_kvset(struct cn_tree_node *node, struct kvset *kvset);
 
 struct cn_tree_node *
-cn_node_alloc(struct cn_tree *tree, uint level, uint offset);
+cn_node_alloc(struct cn_tree *tree, uint64_t nodeid);
 
 /* MTF_MOCK */
 void
