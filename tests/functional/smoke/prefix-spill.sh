@@ -43,7 +43,7 @@ for kvs in $kvs0 $kvs1 $kvs2; do
     cmd putbin -n 1000 "$home" "$kvs" kvdb-oparms csched_debug_mask=0xffffffff cn_close_wait=true csched_rspill_params=0x01ff "$rparams"
 
     # verify spill occurred
-    cmd cn_metrics "$home" "$kvs" | cmd -e grep -P '^n${sp}+0${sp}+0${sp}+'
+    cmd cn_metrics "$home" "$kvs" | cmd -e grep -P '^n\s+0\s+0\s+'
 
     # look for keys
     cmd putbin -V -c "$keys" "$home" "$kvs" "$rparams"

@@ -15,8 +15,6 @@ keys=10
 
 kvs=$(kvs_create smoke-0 fanout=2)
 
-sp='[[:space:]]'
-
 # Set rspill params to 0x0404 (min/max of 4/4) so that we generate
 # two cn root spills for each group of eight calls to putbin.
 #
@@ -40,7 +38,7 @@ cmd pscan -x "$home" "$kvs"
 cmd cn_metrics "$home" "$kvs"
 
 # verify no kvsets in level 0
-cmd cn_metrics "$home" "$kvs" | cmd -e grep -P "^k${sp}+0,0,0${sp}"
+cmd cn_metrics "$home" "$kvs" | cmd -e grep -P '^k\s+0\s0\s'
 
 # Repeat putbin, but with -D to add tombstones
 for ((i = 0; i < 8; i++)); do

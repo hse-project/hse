@@ -15,8 +15,6 @@ keys=10
 
 kvs=$(kvs_create smoke-0)
 
-sp='[[:space:]]'
-
 # Set rspill params to 0x0404 (min/max of 4/4) so that we generate
 # two cn root spills for each group of eight calls to putbin.
 #
@@ -32,7 +30,7 @@ done
 # no kvsets in level 0
 # shellcheck disable=SC2086
 cmd putbin -n 1000 "$home" "$kvs" $parms kvs-oparms cn_close_wait=true
-cmd cn_metrics "$home" "$kvs" | cmd -e grep -P "^k${sp}+0${sp}+0${sp}"
+cmd cn_metrics "$home" "$kvs" | cmd -e grep -P '^k\s+0\s+0\s'
 
 # Validate keys found in level 1, w/ maint disabled.
 # shellcheck disable=SC2086
@@ -41,7 +39,7 @@ cmd putbin -V "-c$keys" "$home" "$kvs" $parms kvs-oparms cn_maint_disable=true
 # Add tombstones, with maint disabled. Verify that one kvset is in root node.
 # shellcheck disable=SC2086
 cmd putbin -D "-c$keys" "$home" "$kvs" $parms kvs-oparms cn_maint_disable=true
-cmd cn_metrics "$home" "$kvs" | cmd grep -P "^n${sp}+0${sp}+1${sp}"
+cmd cn_metrics "$home" "$kvs" | cmd grep -P '^n\s+0\s+1\s'
 
 # Validate keys, w/ maint disabled. Expect error since tombstones block.
 # shellcheck disable=SC2086
