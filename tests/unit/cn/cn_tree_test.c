@@ -606,8 +606,6 @@ test_tree_create(struct test *t)
     ASSERT_TRUE_RET(err == 0, -1);
     ASSERT_TRUE_RET(t->tree != 0, -1);
 
-    t->tree->ct_root->tn_childc = cp.fanout;
-
     for (lx = 0; lx < t->p.levels; lx++) {
         uint nodes_in_level = 1 << (t->p.fanout_bits * lx);
 
@@ -618,7 +616,7 @@ test_tree_create(struct test *t)
             tn = cn_node_alloc(t->tree, 1, nx);
             ASSERT_NE_RET(0, tn, -1);
 
-            t->tree->ct_root->tn_childv[nx] = tn;
+            list_add(&tn->tn_link, &t->tree->ct_leaves);
 
             if (t->p.verbose)
                 log_info("add %3u kvsets to node (%2u,%4u)", num_kvsets_this_node, lx, nx);
@@ -637,8 +635,6 @@ test_tree_create(struct test *t)
 static int
 test_tree_check_with_iters(struct test *t)
 {
-    struct mtf_test_info *lcl_ti = t->mtf;
-
     /* check iter w/ order = oldest kvset first */
     memset(&t->iter, 0, sizeof(t->iter));
     t->iter.order_oldest_first = 1;
@@ -648,35 +644,6 @@ test_tree_check_with_iters(struct test *t)
     memset(&t->iter, 0, sizeof(t->iter));
     t->iter.order_oldest_first = 0;
     cn_tree_preorder_walk(t->tree, KVSET_ORDER_NEWEST_FIRST, tree_iter_callback, t);
-
-    /* check iter when created at a non-root node */
-    if (t->p.levels > 2) {
-        struct cn_tree_node *tn;
-        int                  visited, expected;
-        struct tree_iter     ti;
-        uint                 lx;
-
-        tree_iter_init(t->tree, &ti, TRAVERSE_TOPDOWN);
-
-        tn = tree_iter_next(t->tree, &ti);
-        tn = tree_iter_next(t->tree, &ti);
-        tn = tree_iter_next(t->tree, &ti);
-
-        /* create iterator at third node from the traversal */
-        tree_iter_init_node(t->tree, &ti, TRAVERSE_TOPDOWN, tn);
-
-        expected = 0;
-        for (lx = 1; lx < t->p.levels - tn->tn_loc.node_level; lx++)
-            expected += 1 << (t->p.fanout_bits * lx);
-        expected += 1;
-
-        visited = 0;
-        while ((tn = tree_iter_next(t->tree, &ti)))
-            ++visited;
-
-        /* calculate expected nodes in subtree */
-        ASSERT_TRUE_RET(expected == visited, -1);
-    }
 
     return 0;
 }
@@ -785,15 +752,15 @@ cn_comp_work_init(
 
 MTF_DEFINE_UTEST_PRE(test, t_cn_comp, test_setup)
 {
-    enum cn_action action;
-    int            use_token;
-    int            cancel;
+    enum cn_action actions[3] = { CN_ACTION_SPILL, CN_ACTION_COMPACT_KV, CN_ACTION_COMPACT_K };
 
-    for (action = CN_ACTION_NONE; action < CN_ACTION_END; action++) {
+    for (int i = 0; i < NELEM(actions); i++) {
 
-        for (use_token = 0; use_token < 2; use_token++) {
+        enum cn_action action = actions[i];
 
-            for (cancel = 0; cancel < 2; cancel++) {
+        for (int use_token = 0; use_token < 2; use_token++) {
+
+            for (int cancel = 0; cancel < 2; cancel++) {
 
                 struct test_params tp = {};
                 struct test        t = {};
@@ -813,8 +780,12 @@ MTF_DEFINE_UTEST_PRE(test, t_cn_comp, test_setup)
                 err = test_tree_check_with_iters(&t);
                 ASSERT_TRUE(err == 0);
 
-                /* Second child in level 1 has 3 kvsets */
-                tn = t.tree->ct_root->tn_childv[2];
+                if (action == CN_ACTION_SPILL)
+                    tn = t.tree->ct_root;
+                else
+                    tn = list_first_entry_or_null(&t.tree->ct_leaves, struct cn_tree_node, tn_link);
+
+                ASSERT_TRUE(tn != NULL);
 
                 cn_comp_work_init(&t, tn, &w, action, use_token);
 
@@ -850,7 +821,7 @@ MTF_DEFINE_UTEST_PRE(test, cn_node_get_minmax, test_setup)
     err = test_tree_create(&t);
     ASSERT_EQ(0, err);
 
-    tn = t.tree->ct_root->tn_childv[2];
+    tn = list_first_entry_or_null(&t.tree->ct_leaves, struct cn_tree_node, tn_link);
 
     list_for_each_entry (le, &tn->tn_kvset_list, le_link) {
         struct fake_kvset *kvset = (struct fake_kvset *)le->le_kvset;

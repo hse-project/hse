@@ -91,79 +91,22 @@ cn_node_isleaf(const struct cn_tree_node *node);
  * SECTION: CN_TREE Traversal Utilities
  */
 
-void
-tree_iter_init_node(
-    struct cn_tree *     tree,
-    struct tree_iter *   iter,
-    int                  traverse_order,
-    struct cn_tree_node *node)
-{
-    iter->topdown = (traverse_order == TRAVERSE_TOPDOWN);
-    iter->next = node;
-    iter->prev = node->tn_parent;
-    iter->end = node->tn_parent;
-}
 
 void
-tree_iter_init(struct cn_tree *tree, struct tree_iter *iter, int traverse_order)
+tree_iter_init(struct cn_tree *tree, struct tree_iter *iter)
 {
-    tree_iter_init_node(tree, iter, traverse_order, tree->ct_root);
+    iter->next = tree->ct_root;
 }
 
 struct cn_tree_node *
 tree_iter_next(struct cn_tree *tree, struct tree_iter *iter)
 {
-    struct cn_tree_node *visit = 0;
-    struct cn_tree_node *prev = iter->prev;
-    struct cn_tree_node *node = iter->next;
-    uint fanout = tree->ct_fanout;
-    uint child;
+    struct cn_tree_node *visit = iter->next;
 
-    while (node && node != iter->end && !visit) {
-        /*
-         * Use current node and previous node to figure out:
-         *  - if we should visit node, and
-         *  - where we go next.
-         *
-         * Local var 'child' indicates where to go next.
-         */
-        if (prev == node->tn_parent) {
-            /*
-             * Coming down from parent:
-             * - start search for next node at child #0, and
-             * - visit this node if in topdown mode.
-             */
-            child = 0;
-            if (iter->topdown)
-                visit = node;
-        } else {
-            /*
-             * Coming up from child (i.e., prev is a child):
-             * - start search for next node at prev's right sibling,
-             * - visit this node if in bottomup mode and
-             *   prev is the last non-null child, but defer
-             *   the decision until we know if prev is last
-             *   non-null child.
-             */
-            for (child = 1; child <= fanout; child++)
-                if (prev == node->tn_childv[child - 1])
-                    break;
-        }
-
-        /* Search for next non-null child. */
-        while (child < fanout && !node->tn_childv[child])
-            child++;
-
-        /* Now make bottomup visit decision */
-        if (!iter->topdown && child == fanout)
-            visit = node;
-
-        prev = node;
-        node = (child < fanout ? node->tn_childv[child] : node->tn_parent);
-    }
-
-    iter->prev = prev;
-    iter->next = node;
+    if (iter->next == tree->ct_root)
+        iter->next = list_first_entry_or_null(&tree->ct_leaves, struct cn_tree_node, tn_link);
+    else if (iter->next)
+        iter->next = list_next_entry_or_null(iter->next, tn_link, &tree->ct_leaves);
 
     return visit;
 }
@@ -171,12 +114,7 @@ tree_iter_next(struct cn_tree *tree, struct tree_iter *iter)
 static size_t
 cn_node_size(void)
 {
-    struct cn_tree_node *node HSE_MAYBE_UNUSED;
-    size_t                    sz;
-
-    sz = sizeof(*node) + sizeof(*node->tn_childv) * CN_FANOUT_MAX;
-
-    return ALIGN(sz, __alignof__(*node));
+    return ALIGN(sizeof(struct cn_tree_node), __alignof__(struct cn_tree_node));
 }
 
 struct cn_tree_node *
@@ -193,6 +131,7 @@ cn_node_alloc(struct cn_tree *tree, uint level, uint offset)
         return NULL;
     }
 
+    INIT_LIST_HEAD(&tn->tn_link);
     INIT_LIST_HEAD(&tn->tn_kvset_list);
     INIT_LIST_HEAD(&tn->tn_rspills);
     mutex_init(&tn->tn_rspills_lock);
@@ -201,6 +140,7 @@ cn_node_alloc(struct cn_tree *tree, uint level, uint offset)
     atomic_init(&tn->tn_busycnt, 0);
 
     tn->tn_tree = tree;
+    tn->tn_isroot = level == 0;
     tn->tn_loc.node_level = level;
     tn->tn_loc.node_offset = offset;
 
@@ -216,18 +156,6 @@ cn_node_free(struct cn_tree_node *tn)
         hlog_destroy(tn->tn_hlog);
         kmem_cache_free(cn_node_cache, tn);
     }
-}
-
-bool
-cn_node_isleaf(const struct cn_tree_node *tn)
-{
-    return tn->tn_parent && tn->tn_childc == 0;
-}
-
-bool
-cn_node_isroot(const struct cn_tree_node *tn)
-{
-    return !tn->tn_parent;
 }
 
 /**
@@ -269,6 +197,8 @@ cn_tree_create(
     tree->ct_sfx_len = cp->sfx_len;
     tree->ct_kvdb_health = health;
     tree->rp = rp;
+
+    INIT_LIST_HEAD(&tree->ct_leaves);
 
     tree->ct_root = cn_node_alloc(tree, 0, 0);
     if (ev(!tree->ct_root)) {
@@ -329,7 +259,7 @@ cn_tree_destroy(struct cn_tree *tree)
      * Bottom up traversal is safe in the sense that nodes can be
      * deleted while iterating.
      */
-    tree_iter_init(tree, &iter, TRAVERSE_BOTTOMUP);
+    tree_iter_init(tree, &iter);
 
     while (NULL != (node = tree_iter_next(tree, &iter))) {
         if (node->tn_route_node)
@@ -591,16 +521,17 @@ cn_tree_samp_update_ingest(struct cn_tree *tree, struct cn_tree_node *tn)
 static void
 cn_tree_samp_update_spill(struct cn_tree *tree, struct cn_tree_node *tn)
 {
-    uint fanout = tree->ct_cp->fanout;
-    uint i;
+    struct cn_tree_node *leaf;
 
     /* A spill is esentially a compaction with an ingest into each child */
 
+    assert(tn == tree->ct_root);
+
     cn_tree_samp_update_compact(tree, tn);
 
-    for (i = 0; i < fanout; i++)
-        if (tn->tn_childv[i])
-            cn_tree_samp_update_ingest(tree, tn->tn_childv[i]);
+    list_for_each_entry(leaf,  &tree->ct_leaves, tn_link) {
+        cn_tree_samp_update_ingest(tree, leaf);
+    }
 }
 
 /* This function must be serialized with other cn_tree_samp_* functions. */
@@ -615,7 +546,7 @@ cn_tree_samp_init(struct cn_tree *tree)
      */
     memset(&tree->ct_samp, 0, sizeof(tree->ct_samp));
 
-    tree_iter_init(tree, &iter, TRAVERSE_TOPDOWN);
+    tree_iter_init(tree, &iter);
     while (NULL != (tn = tree_iter_next(tree, &iter)))
         cn_tree_samp_update_compact(tree, tn);
 }
@@ -651,11 +582,19 @@ cn_tree_insert_kvset(struct cn_tree *tree, struct kvset *kvset, uint level, uint
     struct cn_tree_node *    node;
     u64                      dgen;
 
-    assert(level <= 1);
-    assert(tree->ct_root);
-    assert(offset < tree->ct_root->tn_childc);
+    if (level == 0) {
+        node = tree->ct_root;
+    } else {
+        assert(level == 1);
+        list_for_each_entry(node,  &tree->ct_leaves, tn_link) {
+            if (node->tn_loc.node_offset == offset)
+                break;
+        }
+    }
 
-    node = level == 0 ? tree->ct_root : tree->ct_root->tn_childv[offset];
+    assert(node);
+    if (!node)
+        return merr(EBUG);
 
     dgen = kvset_get_dgen(kvset);
 
@@ -791,7 +730,7 @@ cn_tree_view_create(struct cn *cn, struct table **view_out)
     if (ev(!view))
         return merr(ENOMEM);
 
-    tree_iter_init(tree, &iter, TRAVERSE_TOPDOWN);
+    tree_iter_init(tree, &iter);
     node = tree_iter_next(tree, &iter);
     nodecnt = 0;
 
@@ -857,7 +796,7 @@ cn_tree_preorder_walk(
     void *                   lock;
     bool                     stop = false;
 
-    tree_iter_init(tree, &iter, TRAVERSE_TOPDOWN);
+    tree_iter_init(tree, &iter);
 
     rmlock_rlock(&tree->ct_lock, &lock);
     while (NULL != (node = tree_iter_next(tree, &iter))) {
@@ -2133,12 +2072,11 @@ void
 cn_tree_perfc_shape_report(
     struct cn_tree *  tree,
     struct perfc_set *rnode,
-    struct perfc_set *inode,
     struct perfc_set *lnode)
 {
     struct cn_tree_node *tn;
     struct tree_iter     iter;
-    struct perfc_set *   pcv[3];
+    struct perfc_set *   pcv[2];
     uint                 i, n;
     void *               lock;
 
@@ -2148,25 +2086,19 @@ cn_tree_perfc_shape_report(
         u64 maxlen;
         u64 avgsize;
         u64 maxsize;
-    } ssv[3];
+    } ssv[2];
 
     memset(ssv, 0, sizeof(ssv));
 
     rmlock_rlock(&tree->ct_lock, &lock);
     n = 0;
 
-    tree_iter_init(tree, &iter, TRAVERSE_TOPDOWN);
+    tree_iter_init(tree, &iter);
 
     while (NULL != (tn = tree_iter_next(tree, &iter))) {
         u64 len, size;
 
-        if (!tn->tn_parent)
-            i = 0;
-        else if (!cn_node_isleaf(tn))
-            i = 1;
-        else
-            i = 2;
-
+        i = cn_node_isroot(tn) ? 0 : 1;
         len = cn_ns_kvsets(&tn->tn_ns);
         size = cn_ns_alen(&tn->tn_ns);
 
@@ -2182,10 +2114,9 @@ cn_tree_perfc_shape_report(
     rmlock_runlock(lock);
 
     pcv[0] = rnode;
-    pcv[1] = inode;
-    pcv[2] = lnode;
+    pcv[1] = lnode;
 
-    for (i = 0; i < 3; i++) {
+    for (i = 0; i < 2; i++) {
 
         if (ssv[i].nodec) {
             ssv[i].avglen /= ssv[i].nodec;
@@ -2243,7 +2174,7 @@ cn_tree_node_get_min_key(struct cn_tree_node *tn, void *kbuf, size_t kbuf_sz, ui
     const void *min_key = NULL;
     void *lock;
 
-    INVARIANT(kbuf && kbuf_sz > 0 && min_klen);
+    INVARIANT(tn && kbuf && kbuf_sz > 0 && min_klen);
 
     *min_klen = 0;
 
@@ -2349,7 +2280,7 @@ cn_tree_find_node(struct cn_tree *tree, const struct cn_node_loc *loc)
     struct cn_tree_node *tn;
     struct tree_iter iter;
 
-    tree_iter_init(tree, &iter, TRAVERSE_TOPDOWN);
+    tree_iter_init(tree, &iter);
 
     while (NULL != (tn = tree_iter_next(tree, &iter))) {
         if (tn->tn_loc.node_offset == loc->node_offset &&

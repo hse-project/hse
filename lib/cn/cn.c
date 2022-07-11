@@ -967,7 +967,6 @@ cn_open(
     }
 
     map_insert_ptr(ctx.nodemap, 0, cn->cn_tree->ct_root);
-    cn->cn_tree->ct_root->tn_childc += 0;
 
     /* [HSE_REVISIT] Delete this block once we have splits. cn_kvset_cb() will populate the nodemap,
      * and then for each node in the map, fetch the max key and call route_map_insert() with it.
@@ -989,11 +988,9 @@ cn_open(
             }
 
             tn->tn_nodeid = ++n;
-            tn->tn_parent = cn->cn_tree->ct_root;
             map_insert_ptr(ctx.nodemap, tn->tn_nodeid, tn);
 
-            cn->cn_tree->ct_root->tn_childv[i] = tn;
-            cn->cn_tree->ct_root->tn_childc += 1;
+            list_add(&tn->tn_link, &cn->cn_tree->ct_leaves);
 
             if (cn->cn_tree->ct_route_map) {
                 char ekbuf[HSE_KVS_KEY_LEN_MAX];
@@ -1153,10 +1150,7 @@ cn_periodic(struct cn *cn, u64 now)
 
     now /= NSEC_PER_SEC;
     if (now >= cn->cn_pc_shape_next) {
-
-        cn_tree_perfc_shape_report(
-            cn->cn_tree, &cn->cn_pc_shape_rnode, &cn->cn_pc_shape_inode, &cn->cn_pc_shape_lnode);
-
+        cn_tree_perfc_shape_report(cn->cn_tree, &cn->cn_pc_shape_rnode, &cn->cn_pc_shape_lnode);
         cn->cn_pc_shape_next = now + 60;
     }
 }

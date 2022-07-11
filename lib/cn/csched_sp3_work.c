@@ -40,7 +40,7 @@ sp3_node_is_idle(struct cn_tree_node *tn)
  * estimates the total number of mblocks bytes.
  */
 static void
-sp3_work_estimate(struct cn_compaction_work *w, uint internal_children, uint leaf_children)
+sp3_work_estimate(struct cn_compaction_work *w)
 {
     u64 keys = 0;
     u64 halen = 0;
@@ -94,20 +94,10 @@ sp3_work_estimate(struct cn_compaction_work *w, uint internal_children, uint lea
             break;
 
         case CN_ACTION_SPILL:
-            /* If any child is an internal node, then assume
-             * this operation will simply move data to other internal
-             * nodes (no net effect on samp).  Otherwise assume all data
-             * will move to leaf nodes.
-             *
-             * If we have both leaf and internal children, then data will
-             * be split between 'i_alen' and 'l_alen', but this usually
-             * happens in prefix trees where one prefix dominates, in
-             * which case most of the data will land in the internal
-             * node used by the dominant prefix.
-             */
+            assert(cn_node_isroot(w->cw_node));
             consume = halen + kalen + valen;
             percent_keep = 100 * 100 / cn_ns_samp(&w->cw_ns);
-            dst_is_leaf = cn_node_isroot(w->cw_node) || !internal_children;
+            dst_is_leaf = true;
             break;
     }
 
@@ -488,8 +478,6 @@ sp3_work(
     struct kvset_list_entry *  le;
     void *                     lock;
     uint                       i;
-    uint                       ichildc;
-    uint                       lchildc;
     bool                       have_token;
 
     uint                     n_kvsets = 0;
@@ -638,17 +626,6 @@ sp3_work(
         le = list_prev_entry(le, le_link);
     }
 
-    lchildc = 0;
-    ichildc = 0;
-    for (i = 0; i < tn->tn_tree->ct_cp->fanout; i++) {
-        if (tn->tn_childv[i]) {
-            if (cn_node_isleaf(tn->tn_childv[i]))
-                lchildc++;
-            else
-                ichildc++;
-        }
-    }
-
     cn_node_stats_get(tn, &w->cw_ns);
 
     rmlock_runlock(lock);
@@ -683,7 +660,7 @@ sp3_work(
         mutex_unlock(&tn->tn_rspills_lock);
     }
 
-    sp3_work_estimate(w, ichildc, lchildc);
+    sp3_work_estimate(w);
 
     return 0;
 

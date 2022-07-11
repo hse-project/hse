@@ -155,8 +155,6 @@ new_tree(uint fanout)
 
     ttc++;
 
-    tt->tree->ct_root->tn_childc = fanout;
-
     for (int i = 0; i < fanout; i++) {
         struct cn_tree_node *tn;
 
@@ -164,8 +162,7 @@ new_tree(uint fanout)
         if (!tn)
             return NULL;
 
-        tn->tn_parent = tt->tree->ct_root;
-        tt->tree->ct_root->tn_childv[i] = tn;
+        list_add(&tn->tn_link, &tt->tree->ct_leaves);
     }
 
     return tt;
@@ -279,7 +276,7 @@ sp3_work_mock(
     w->cw_mark = list_last_entry(&tn->tn_kvset_list, typeof(*le), le_link);
     w->cw_kvset_cnt = cn_ns_kvsets(&tn->tn_ns);
 
-    if (!tn->tn_parent) {
+    if (cn_node_isroot(tn)) {
 
         w->cw_action = CN_ACTION_SPILL;
         comptype = "rspill";

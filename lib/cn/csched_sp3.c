@@ -878,7 +878,7 @@ sp3_unlink_all_nodes(struct sp3 *sp, struct cn_tree *tree)
     struct cn_tree_node *tn;
     struct tree_iter     iter;
 
-    tree_iter_init(tree, &iter, TRAVERSE_TOPDOWN);
+    tree_iter_init(tree, &iter);
 
     while (NULL != (tn = tree_iter_next(tree, &iter))) {
         struct sp3_node *spn = tn2spn(tn);
@@ -922,7 +922,7 @@ sp3_dirty_node_locked(struct sp3 *sp, struct cn_tree_node *tn)
      * Similarly, we never schedule more than three jobs on any given
      * root node (see CSCHED_QTHREADS_DEFAULT for default limits).
      */
-    if (tn->tn_parent) {
+    if (cn_node_isleaf(tn)) {
         const uint64_t nkeys = cn_ns_keys(&tn->tn_ns);
 
         scatter = cn_tree_node_scatter(tn);
@@ -1026,7 +1026,7 @@ sp3_dirty_node_locked(struct sp3 *sp, struct cn_tree_node *tn)
             SLOG_FIELD("cnid", "%lu", (ulong)tn->tn_tree->cnid),
             SLOG_FIELD("lvl", "%u", tn->tn_loc.node_level),
             SLOG_FIELD("off", "%u", tn->tn_loc.node_offset),
-            SLOG_FIELD("isleaf", "%d", !!tn->tn_parent),
+            SLOG_FIELD("isleaf", "%d", cn_node_isleaf(tn)),
             SLOG_FIELD("nd_len", "%lu", (ulong)nkvsets_total),
             SLOG_FIELD("alen", "%lu", (ulong)cn_ns_alen(&tn->tn_ns)),
             SLOG_FIELD("garbage", "%u", garbage),
@@ -1077,29 +1077,13 @@ sp3_process_workitem(struct sp3 *sp, struct cn_compaction_work *w)
 
     rmlock_rlock(&w->cw_tree->ct_lock, &lock);
     if (w->cw_action == CN_ACTION_SPILL) {
+        struct cn_tree_node *leaf;
 
-        struct sp3_node *spn;
-        uint             fanout = w->cw_tree->ct_cp->fanout;
-        uint             i;
-        bool             newleaf = false;
+        assert(tn == w->cw_tree->ct_root);
 
-        for (i = 0; i < fanout; i++) {
-            if (tn->tn_childv[i]) {
-                spn = tn2spn(tn->tn_childv[i]);
-                if (!spn->spn_initialized) {
-                    sp3_node_init(sp, spn);
-                    newleaf = true;
-                }
-
-                sp3_dirty_node_locked(sp, tn->tn_childv[i]);
-            }
+        list_for_each_entry(leaf, &w->cw_tree->ct_leaves, tn_link) {
+            sp3_dirty_node_locked(sp, leaf);
         }
-
-        /* Unlink parent from all RB trees as this might be the
-         * first time it morphed from leaf to internal node.
-         */
-        if (newleaf)
-            sp3_node_unlink(sp, spn);
     }
 
     sp3_dirty_node_locked(sp, tn);
@@ -1108,7 +1092,7 @@ sp3_process_workitem(struct sp3 *sp, struct cn_compaction_work *w)
     if (w->cw_debug & (CW_DEBUG_PROGRESS | CW_DEBUG_FINAL))
         sp3_log_progress(w, &w->cw_stats, true);
 
-    if (!tn->tn_parent) {
+    if (cn_node_isroot(tn)) {
         u64 dt;
 
         /* Maintain an average of the root spill's build time - used for throttling.
@@ -1209,7 +1193,7 @@ sp3_process_new_trees(struct sp3 *sp)
             log_info("sp3 acquire tree cnid %lu", (ulong)tree->cnid);
 
         rmlock_rlock(&tree->ct_lock, &lock);
-        tree_iter_init(tree, &iter, TRAVERSE_TOPDOWN);
+        tree_iter_init(tree, &iter);
 
         while (NULL != (tn = tree_iter_next(tree, &iter))) {
             sp3_node_init(sp, tn2spn(tn));

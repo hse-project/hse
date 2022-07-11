@@ -1162,9 +1162,8 @@ run_testcase(struct mtf_test_info *lcl_ti, int mode, const char *info)
         ASSERT_NE(tree, NULL);
 
         cn_tree_setup(tree, NULL, NULL, &rp, NULL, 1234, 0);
-        tree->ct_root->tn_childc = cp.fanout;
 
-        for (i = 0; i < tree->ct_root->tn_childc; i++) {
+        for (i = 0; i < cp.fanout; i++) {
             struct cn_tree_node *tn;
             char ekbuf[HSE_KVS_KEY_LEN_MAX];
             size_t eklen;
@@ -1174,8 +1173,7 @@ run_testcase(struct mtf_test_info *lcl_ti, int mode, const char *info)
 
             eklen = snprintf(ekbuf, sizeof(ekbuf), "a.%08d", i);
             tn->tn_route_node = route_map_insert(tree->ct_route_map, tn, ekbuf, eklen);
-            tn->tn_parent = tree->ct_root;
-            tree->ct_root->tn_childv[i] = tn;
+            list_add(&tn->tn_link, &tree->ct_leaves);
         }
 
         init_work(
