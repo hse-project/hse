@@ -74,8 +74,8 @@ u64
 kvset_get_nth_vblock_id(struct kvset *kvset, u32 index);
 
 /* MTF_MOCK */
-u64
-kvset_get_nodeid(struct kvset *kvset);
+uint64_t
+kvset_get_nodeid(const struct kvset *kvset);
 
 /* MTF_MOCK */
 u64

@@ -42,7 +42,7 @@ cmd putbin "$home" "$kvs" -n 1000 kvs-oparms cn_close_wait=true
 
 # verify spill has occurred
 cmd cn_metrics "$home" "$kvs" > /var/tmp/metrics
-cmd cn_metrics "$home" "$kvs" | cmd egrep '^n +[1-9] '
+cmd cn_metrics "$home" "$kvs" | cmd grep -P '^n\s+[1-9] '
 
 # verify keys and values
 # shellcheck disable=SC2086

@@ -45,22 +45,22 @@ verify_keys () {
 
 verify_shape_before () {
     # verify there are 8 kvsets in root node
-    cmd cn_metrics "$home" "$kvs" | cmd egrep '^n +0 +8 '
+    cmd cn_metrics "$home" "$kvs" | cmd grep -P '^n\s+0\s+8 '
 }
 
 verify_shape_after_spill () {
     # verify there are no kvsets in root node
-    cmd cn_metrics "$home" "$kvs" | cmd -e egrep '^n +0 +0 '
+    cmd cn_metrics "$home" "$kvs" | cmd -e grep -P '^n\s+0\s+0 '
 }
 
 verify_shape_after_kv_compact () {
     # verify there is 1 kvset in root node
-    cmd cn_metrics "$home" "$kvs" | cmd egrep '^n +0 +1 '
+    cmd cn_metrics "$home" "$kvs" | cmd grep -P '^n\s+0\s+1 '
 }
 
 verify_shape_after_k_compact () {
     # verify there is 1 kvset in root node
-    cmd cn_metrics "$home" "$kvs" | cmd egrep '^n +0 +1 '
+    cmd cn_metrics "$home" "$kvs" | cmd grep -P '^n\s+0\s+1 '
 }
 
 # spill

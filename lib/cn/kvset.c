@@ -1740,8 +1740,8 @@ kvset_lookup(
     return kvset_lookup_val(ks, &vref, vbuf);
 }
 
-u64
-kvset_get_nodeid(struct kvset *ks)
+uint64_t
+kvset_get_nodeid(const struct kvset *ks)
 {
     return ks->ks_nodeid;
 }
