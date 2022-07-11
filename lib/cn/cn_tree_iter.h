@@ -1,6 +1,6 @@
 /* SPDX-License-Identifier: Apache-2.0 */
 /*
- * Copyright (C) 2015-2020 Micron Technology, Inc.  All rights reserved.
+ * Copyright (C) 2015-2020,2022 Micron Technology, Inc.  All rights reserved.
  */
 
 #ifndef HSE_KVDB_CN_CN_TREE_ITER_H
@@ -15,14 +15,12 @@
 struct cn_tree;
 struct cn_tree_node;
 struct kvset;
-struct cn_node_loc;
 
 typedef int
 cn_tree_walk_callback_fn(
     void *               rock,
     struct cn_tree *     tree,
     struct cn_tree_node *node,
-    struct cn_node_loc * loc,
     struct kvset *       kvset);
 
 struct tree_iter {

@@ -22,4 +22,4 @@ merr_t
 kvs_rest_deregister(struct ikvdb *kvdb, const char *kvs_name);
 
 merr_t
-kvs_rest_query_tree(struct kvdb_kvs *kvs, struct yaml_context *yc, bool list);
+kvs_rest_query_tree(struct kvdb_kvs *kvs, struct yaml_context *yc, bool blkids, bool nodesonly);

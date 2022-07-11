@@ -547,15 +547,17 @@ tree_iter_callback(
     void *               rock,
     struct cn_tree *     tree,
     struct cn_tree_node *node,
-    struct cn_node_loc * loc,
     struct kvset *       handle)
 {
-    struct test *         t = (struct test *)rock;
+    struct test          *t = rock;
     struct mtf_test_info *lcl_ti = t->mtf;
     struct fake_kvset *   kvset = (struct fake_kvset *)handle;
+    struct cn_node_loc   *loc;
 
     if (!handle)
         return 0;
+
+    loc = &node->tn_loc;
 
     if (t->p.verbose) {
         log_info("node; level %2u, offset %4u", loc->node_level, loc->node_offset);

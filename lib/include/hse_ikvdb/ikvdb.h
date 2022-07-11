@@ -607,13 +607,14 @@ struct ikvdb *
 ikvdb_kvdb_handle(struct ikvdb_impl *self);
 
 /**
- * ikvdb_kvs_query_tree() - get cn tree shape and write to fd
- * @kvs:  kvs handle
- * @yc:   yaml context
- * @list: whether or not to list kblock and vblock ids
+ * ikvdb_kvs_query_tree() - get cn tree shape
+ * @kvs:       kvs handle
+ * @yc:        yaml context
+ * @blkids:    include all kblock and vblock IDs if true
+ * @nodesonly: exclude kvsets if true
  */
 merr_t
-ikvdb_kvs_query_tree(struct hse_kvs *kvs, struct yaml_context *yc, bool list);
+ikvdb_kvs_query_tree(struct hse_kvs *kvs, struct yaml_context *yc, bool blkids, bool nodesonly);
 
 uint32_t
 ikvdb_lowmem_scale(uint32_t memgb);

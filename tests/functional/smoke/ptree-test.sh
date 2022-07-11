@@ -37,5 +37,5 @@ cmd cn_metrics "$home" "$kvs"
 nkvset=$(cmd cn_metrics "$home" "$kvs" | grep -c ^k)
 [[ $nkvset == 1 ]] || err "Expected only one kvset. Found $nkvset kvsets"
 
-nkblks=$(cmd cn_metrics "$home" "$kvs" | awk '$1 ~ /^k/ {print $14}')
+nkblks=$(cmd cn_metrics "$home" "$kvs" | awk '$1 ~ /^k/ {print $12}')
 [[ $nkblks == 1 ]] || err "Expected one kblock. Found $nkblks kblocks"

@@ -37,7 +37,6 @@ usage(void)
     printf("-b         show all kblock/vblock IDs\n"
            "-f fmt     set output format\n"
            "-h         show this help list\n"
-           "-l         use tablular node loc format\n"
            "-n         show node-level data only (skip kvsets)\n"
            "-v         increase verbosity\n"
            "-y         output tree shape in yaml\n"
@@ -79,7 +78,7 @@ enum bn_fmt {
 /* Minimum column widths for hex and scalar output modes.
  */
 static int col2width[] = {
-    0, 0, 5, 5, 5, 5, 6, 6, 6, 6, 4, 4, 7, 7
+    0, 5, 4, 5, 5, 5, 5, 6, 6, 6, 6, 4, 4, 5, 7, 5, 5
 };
 
 int
@@ -174,12 +173,7 @@ struct options {
     int  nodes_only;
     int  all_blocks;
     int  yaml_output;
-    int  tabular_loc;
     int  verbosity;
-
-    /* derived */
-    char *loc_hdr;
-    char *loc_fmt;
 };
 
 struct options opt;
@@ -189,24 +183,12 @@ process_options(int argc, char *argv[])
 {
     int c;
 
-    while ((c = getopt(argc, argv, ":bf:hlnyvZ:")) != -1) {
+    while ((c = getopt(argc, argv, ":bf:hnvyZ:")) != -1) {
         switch (c) {
-        case 'h':
-            usage();
-            exit(0);
-
         case 'b':
             opt.all_blocks = 1;
             if (!opt.verbosity)
                 opt.verbosity++;
-            break;
-
-        case 'l':
-            opt.tabular_loc = 1;
-            break;
-
-        case 'n':
-            opt.nodes_only = 1;
             break;
 
         case 'f':
@@ -232,12 +214,20 @@ process_options(int argc, char *argv[])
             }
             break;
 
-        case 'y':
-            opt.yaml_output = 1;
+        case 'h':
+            usage();
+            exit(0);
+
+        case 'n':
+            opt.nodes_only = 1;
             break;
 
         case 'v':
             opt.verbosity++;
+            break;
+
+        case 'y':
+            opt.yaml_output = 1;
             break;
 
         case 'Z':
@@ -270,8 +260,8 @@ process_options(int argc, char *argv[])
 struct rollup {
     struct kvset_metrics km;
     struct kvset_stats   ks;
-    struct cn_node_loc   loc;
     u64                  dgen;
+    u64                  nodeid;
 };
 
 void
@@ -290,11 +280,10 @@ rollup(struct rollup *from, struct rollup *to)
     to->km.tot_blm_pages += from->km.tot_blm_pages;
     to->km.tot_blm_pages += from->km.tot_blm_pages;
     to->km.vgroups += from->km.vgroups;
-
-    to->loc.node_level = max(to->loc.node_level, from->loc.node_level);
-    to->loc.node_offset = max(to->loc.node_offset, from->loc.node_offset);
+    to->km.compc = max(to->km.compc, from->km.compc);
 
     to->dgen = max(to->dgen, from->dgen);
+    to->nodeid = from->nodeid;
 }
 
 struct ctx {
@@ -325,6 +314,7 @@ col2width_update(struct ctx *ctx)
 
     ulong valv[] = {
         ctx->rtotal.dgen,
+        ctx->rtotal.km.compc,
         ctx->rtotal.km.num_keys,
         ctx->rtotal.km.num_tombstones,
         ctx->rtotal.km.nptombs,
@@ -373,20 +363,20 @@ print_ids(
 }
 
 const char *hdrv[] = {
-    "H", "Loc",
-    "Compc", "Dgen", "Keys", "Tombs", "Ptombs", "HbAlen", "KbAlen", "VbAlen",
-    "Kbs", "Vbs", "Vgrps", "Rule", "AvgKlen", "AvgVlen",
+    "H", "Node", "Idx",
+    "Dgen", "Comp", "Keys", "Tombs", "Ptombs", "HbAlen", "KbAlen", "VbAlen",
+    "Kbs", "Vbs", "Vgrp", "Rule", "Kavg", "Vavg",
 };
 
 #define FMT_HDR                                    \
-    "%s %-12s "                                    \
+    "%s %5s %4s "                                  \
     "%*s %*s %*s %*s %*s %*s %*s %*s "             \
-    "%*s %*s %6s %7s %*s %*s"
+    "%*s %*s %5s %7s %*s %*s"
 
 #define FMT_ROW                                         \
-    "%s %-12s "                                         \
-    "%*u %*lu %*s %*s %*s %*s %*s %*s "                 \
-    "%*u %*u %6u %7s %*s %*s"
+    "%s %5u %4u "                                       \
+    "%*lu %*u %*s %*s %*s %*s %*s %*s "                 \
+    "%*u %*u %5u %7s %*s %*s"
 
 #define BN(_buf, _val) bn64((_buf), sizeof((_buf)), opt.bnfmt, (_val))
 
@@ -395,8 +385,6 @@ const char *hdrv[] = {
 static void
 print_row(struct ctx *ctx, char *tag, struct rollup *r, uint index, char *sep)
 {
-    char locbuf[33]; /* 3 integers + 2 commas + NUL */
-
     char nkeys[BIGNUM_BUFSZ];
     char ntombs[BIGNUM_BUFSZ];
     char nptombs[BIGNUM_BUFSZ];
@@ -411,8 +399,6 @@ print_row(struct ctx *ctx, char *tag, struct rollup *r, uint index, char *sep)
     if (ctx->print == noprint)
         return;
 
-    sprintf(locbuf, opt.loc_fmt, r->loc.node_level, r->loc.node_offset, index);
-
     BN(nkeys, r->ks.kst_keys);
     BN(ntombs, r->km.num_tombstones);
     BN(nptombs, r->km.nptombs);
@@ -426,21 +412,21 @@ print_row(struct ctx *ctx, char *tag, struct rollup *r, uint index, char *sep)
 
     ctx->print(
         FMT_ROW,
-        tag, locbuf,
-        bn_width(opt.bnfmt, 2), r->km.compc,
+        tag, r->nodeid, index,
         bn_width(opt.bnfmt, 3), r->dgen,
-        bn_width(opt.bnfmt, 4), nkeys,
-        bn_width(opt.bnfmt, 5), ntombs,
-        bn_width(opt.bnfmt, 6), nptombs,
-        bn_width(opt.bnfmt, 7), halen,
-        bn_width(opt.bnfmt, 8), kalen,
-        bn_width(opt.bnfmt, 9), valen,
-        bn_width(opt.bnfmt, 10), r->ks.kst_kblks,
-        bn_width(opt.bnfmt, 11), r->ks.kst_vblks,
+        bn_width(opt.bnfmt, 4), r->km.compc,
+        bn_width(opt.bnfmt, 5), nkeys,
+        bn_width(opt.bnfmt, 6), ntombs,
+        bn_width(opt.bnfmt, 7), nptombs,
+        bn_width(opt.bnfmt, 8), halen,
+        bn_width(opt.bnfmt, 9), kalen,
+        bn_width(opt.bnfmt, 10), valen,
+        bn_width(opt.bnfmt, 11), r->ks.kst_kblks,
+        bn_width(opt.bnfmt, 12), r->ks.kst_vblks,
         r->km.vgroups,
         (tag[0] == 'k') ? cn_comp_rule2str(r->km.comp_rule) : "-",
-        bn_width(opt.bnfmt, 12), avg_klen,
-        bn_width(opt.bnfmt, 13), avg_vlen);
+        bn_width(opt.bnfmt, 15), avg_klen,
+        bn_width(opt.bnfmt, 16), avg_vlen);
 
     if (opt.verbosity > 0) {
         ctx->print(" %7.1f %7.1f %7.1f %7.1f ",
@@ -459,8 +445,7 @@ print_hdr(struct ctx *ctx)
 {
     ctx->print(
         FMT_HDR,
-        hdrv[0], opt.loc_hdr,
-        bn_width(opt.bnfmt, 2), hdrv[2],
+        hdrv[0], hdrv[1], hdrv[2],
         bn_width(opt.bnfmt, 3), hdrv[3],
         bn_width(opt.bnfmt, 4), hdrv[4],
         bn_width(opt.bnfmt, 5), hdrv[5],
@@ -470,10 +455,11 @@ print_hdr(struct ctx *ctx)
         bn_width(opt.bnfmt, 9), hdrv[9],
         bn_width(opt.bnfmt, 10), hdrv[10],
         bn_width(opt.bnfmt, 11), hdrv[11],
-        hdrv[12],
+        bn_width(opt.bnfmt, 12), hdrv[12],
         hdrv[13],
-        bn_width(opt.bnfmt, 12), hdrv[14],
-        bn_width(opt.bnfmt, 13), hdrv[15]);
+        hdrv[14],
+        bn_width(opt.bnfmt, 15), hdrv[15],
+        bn_width(opt.bnfmt, 16), hdrv[16]);
 
     if (opt.verbosity > 0) {
         ctx->print(" %7s %7s %7s %7s  %s",
@@ -489,7 +475,6 @@ tree_walk_callback(
     void *               rock,
     struct cn_tree *     tree,
     struct cn_tree_node *node,
-    struct cn_node_loc * loc,
     struct kvset *       kvset)
 {
     struct ctx *   c = (struct ctx *)rock;
@@ -499,9 +484,9 @@ tree_walk_callback(
 
     if (!node) {
         /* Finish current tree */
-        t->loc.node_level = c->tree_nodes;
         c->print("\n");
         print_hdr(c);
+        t->nodeid = c->tree_nodes;
         print_row(c, "t", t, c->tree_kvsets, "\n");
         return 0;
     }
@@ -540,7 +525,7 @@ tree_walk_callback(
     kvset_get_metrics(kvset, &k->km);
     kvset_stats(kvset, &k->ks);
     k->dgen = kvset_get_dgen(kvset);
-    k->loc = *loc;
+    k->nodeid = kvset_get_nodeid(kvset);
     rollup(k, n);
 
     c->tree_kvsets++;
@@ -655,17 +640,8 @@ main(int argc, char **argv)
             .yaml_emit = cn_metrics_yaml_emit,
         };
 
-        rc = ikvdb_kvs_query_tree(kvs, &yc, opt.all_blocks);
+        rc = ikvdb_kvs_query_tree(kvs, &yc, opt.all_blocks, opt.nodes_only);
     } else {
-        /* derived options */
-        if (opt.tabular_loc) {
-            opt.loc_hdr = "Lvl Off Idx";
-            opt.loc_fmt = "%3d %3d %3d";
-        } else {
-            opt.loc_hdr = "Loc";
-            opt.loc_fmt = "%d,%d,%d";
-        }
-
         cn = ikvdb_kvs_get_cn(kvs);
         if (!cn) {
             errmsg = "cn_open";

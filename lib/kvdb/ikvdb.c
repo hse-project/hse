@@ -2151,9 +2151,9 @@ ikvdb_kvs_count(struct ikvdb *handle, unsigned int *count)
 }
 
 merr_t
-ikvdb_kvs_query_tree(struct hse_kvs *kvs, struct yaml_context *yc, bool list)
+ikvdb_kvs_query_tree(struct hse_kvs *kvs, struct yaml_context *yc, bool blkids, bool nodesonly)
 {
-    return kvs_rest_query_tree((struct kvdb_kvs *)kvs, yc, list);
+    return kvs_rest_query_tree((struct kvdb_kvs *)kvs, yc, blkids, nodesonly);
 }
 
 merr_t

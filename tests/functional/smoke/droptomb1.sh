@@ -32,7 +32,7 @@ done
 # no kvsets in level 0
 # shellcheck disable=SC2086
 cmd putbin -n 1000 "$home" "$kvs" $parms kvs-oparms cn_close_wait=true
-cmd cn_metrics "$home" "$kvs" | cmd -e grep -P "^k${sp}+0,0,0${sp}"
+cmd cn_metrics "$home" "$kvs" | cmd -e grep -P "^k${sp}+0${sp}+0${sp}"
 
 # Validate keys found in level 1, w/ maint disabled.
 # shellcheck disable=SC2086
@@ -41,7 +41,7 @@ cmd putbin -V "-c$keys" "$home" "$kvs" $parms kvs-oparms cn_maint_disable=true
 # Add tombstones, with maint disabled. Verify that one kvset is in root node.
 # shellcheck disable=SC2086
 cmd putbin -D "-c$keys" "$home" "$kvs" $parms kvs-oparms cn_maint_disable=true
-cmd cn_metrics "$home" "$kvs" | cmd grep -P "^n${sp}+0,0,1${sp}"
+cmd cn_metrics "$home" "$kvs" | cmd grep -P "^n${sp}+0${sp}+1${sp}"
 
 # Validate keys, w/ maint disabled. Expect error since tombstones block.
 # shellcheck disable=SC2086

@@ -1741,6 +1741,12 @@ kvset_lookup(
 }
 
 u64
+kvset_get_nodeid(struct kvset *ks)
+{
+    return ks->ks_nodeid;
+}
+
+u64
 kvset_get_dgen(struct kvset *ks)
 {
     return ks->ks_dgen;
