@@ -747,7 +747,7 @@ cn_tree_view_create(struct cn *cn, struct table **view_out)
         }
 
         s->kvset = NULL;
-        s->node_loc = node->tn_loc;
+        s->nodeid = node->tn_nodeid;
 
         list_for_each_entry(le, &node->tn_kvset_list, le_link) {
             struct kvset *kvset = le->le_kvset;
@@ -760,7 +760,8 @@ cn_tree_view_create(struct cn *cn, struct table **view_out)
 
             kvset_get_ref(kvset);
             s->kvset = kvset;
-            s->node_loc = node->tn_loc;
+            s->nodeid = kvset_get_nodeid(kvset);
+            assert(s->nodeid == node->tn_nodeid);
         }
 
         if (err)
@@ -807,7 +808,7 @@ cn_tree_preorder_walk(
             /* newest first ==> head to tail */
             list_for_each_entry (le, &node->tn_kvset_list, le_link) {
                 empty_node = false;
-                stop = callback(callback_rock, tree, node, &node->tn_loc, le->le_kvset);
+                stop = callback(callback_rock, tree, node, le->le_kvset);
                 if (stop)
                     goto unlock;
             }
@@ -815,7 +816,7 @@ cn_tree_preorder_walk(
             /* oldest first ==> tail to head */
             list_for_each_entry_reverse (le, &node->tn_kvset_list, le_link) {
                 empty_node = false;
-                stop = callback(callback_rock, tree, node, &node->tn_loc, le->le_kvset);
+                stop = callback(callback_rock, tree, node, le->le_kvset);
                 if (stop)
                     goto unlock;
             }
@@ -823,7 +824,7 @@ cn_tree_preorder_walk(
 
         /* end of node */
         if (!empty_node) {
-            stop = callback(callback_rock, tree, node, &node->tn_loc, 0);
+            stop = callback(callback_rock, tree, node, NULL);
             if (stop)
                 goto unlock;
         }
@@ -832,7 +833,7 @@ cn_tree_preorder_walk(
 unlock:
     if (!stop) {
         /* end of tree */
-        callback(callback_rock, tree, 0, 0, 0);
+        callback(callback_rock, tree, NULL, NULL);
     }
 
     rmlock_runlock(lock);

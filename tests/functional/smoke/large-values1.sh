@@ -31,17 +31,18 @@ kvs_oparams="kvs-oparams cn_maint_disable=true"
 
 # ingest w spill disabled
 # shellcheck disable=SC2086
-cmd kmt -j8 "-i$KEYS" "$VLEN" -s1 -x "$home" "$kvs"
+cmd kmt -j8 "-i$KEYS" "$VLEN" -s1 -bx "$home" "$kvs"
 
 # verify keys and values
 # shellcheck disable=SC2086
-cmd kmt -j8 -c "$VLEN" "$home" -s1 -x "$kvs"
+cmd kmt -j8 -c "$VLEN" "$home" -s1 -bx "$kvs"
 
 # spill
 cmd putbin "$home" "$kvs" -n 1000 kvs-oparms cn_close_wait=true
 
 # verify spill has occurred
-cmd cn_metrics "$home" "$kvs" | cmd grep n.1,
+cmd cn_metrics "$home" "$kvs" > /var/tmp/metrics
+cmd cn_metrics "$home" "$kvs" | cmd grep -P '^n\s+[1-9] '
 
 # verify keys and values
 # shellcheck disable=SC2086

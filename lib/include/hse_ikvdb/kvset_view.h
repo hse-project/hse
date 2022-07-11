@@ -74,6 +74,10 @@ u64
 kvset_get_nth_vblock_id(struct kvset *kvset, u32 index);
 
 /* MTF_MOCK */
+uint64_t
+kvset_get_nodeid(const struct kvset *kvset);
+
+/* MTF_MOCK */
 u64
 kvset_get_dgen(struct kvset *kvset);
 
@@ -82,8 +86,8 @@ u64
 kvset_get_seqno_max(struct kvset *kvset);
 
 struct kvset_view {
-    struct kvset *     kvset;
-    struct cn_node_loc node_loc;
+    struct kvset *kvset;
+    uint64_t      nodeid;
 };
 
 #if HSE_MOCKING

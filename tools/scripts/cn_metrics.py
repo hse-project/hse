@@ -31,7 +31,9 @@ PARSER.add_argument(
     required=False,
 )
 
-PARSER.add_argument("-k", "--nokvsets", help="do not show kvsets", action="store_true")
+PARSER.add_argument("-b", "--blkids", help="show all HKV block IDs", action="store_true")
+PARSER.add_argument("-n", "--nodesonly", help="show nodes only (skip kvsets)", action="store_true")
+PARSER.add_argument("-t", "--tabular", help="tabular output", action="store_true")
 PARSER.add_argument("-y", "--yaml", help="output in yaml", action="store_true")
 
 PARSER.add_argument(
@@ -47,11 +49,11 @@ def full_tree(ybuf: Optional[OrderedDict[str, Any]], opt):
     if not ybuf or "info" not in ybuf:
         return
 
-    # Vector of initial column widths (i.e., compc, dgen, keys, ...)
+    # Vector of initial column widths (i.e., dgen, compc, keys, ...)
     #
-    widthv = [ 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 2, 1, 1 ]
+    widthv = [ 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 6, 3, 2, 1, 1 ]
 
-    line = "t -,-   "
+    line = "t -    -   "
 
     col = 0
     for key, val in ybuf["info"].items():
@@ -74,16 +76,18 @@ def full_tree(ybuf: Optional[OrderedDict[str, Any]], opt):
             continue
 
         loc = node["loc"]
-        line = f"n {loc['level']},{loc['offset']}   "
+        line = f"n {loc['nodeid']:<4} -   "
 
+        colmax = len(widthv) - 1
         col = 0
+
         for key, val in node["info"].items():
             width = widthv[col]
-            col += 1
+            col = min(col + 1, colmax)
             line += f" {key} {val:<{width}}"
         print(line)
 
-        if opt.nokvsets:
+        if opt.nodesonly:
             continue
 
         if node["info"]["kvsets"] == 0:
@@ -94,13 +98,23 @@ def full_tree(ybuf: Optional[OrderedDict[str, Any]], opt):
         #
         for kvset in node["kvsets"]:
             index = kvset.pop("index")
-            line = f"k {loc['level']},{loc['offset']},{index:<2}"
+
+            if opt.blkids:
+                hblkid = kvset.pop("hblkid")
+                kblkids = kvset.pop("kblkids")
+                vblkids = kvset.pop("vblkids")
+
+            line = f"k {loc['nodeid']:<4} {index:<4}"
 
             col = 0;
             for key, val in kvset.items():
                 width = widthv[col]
-                col += 1
+                col = min(col + 1, colmax)
                 line += f" {key} {val:<{width}}"
+
+            # TODO: Print IDs in hex and no commas...
+            if opt.blkids:
+                line += f" {hblkid} / {kblkids} / {vblkids}"
             print(line)
         print()
 
@@ -133,6 +147,21 @@ def main() -> int:
         sp.call("clear")
         pass
 
+    querypfx = "?"
+    query = ""
+
+    if opt.tabular:
+        query = querypfx + "tabular"
+        querypfx = "&"
+
+    if opt.blkids:
+        query += querypfx + "blkids"
+        querypfx = "&"
+
+    if opt.nodesonly:
+        query += querypfx + "nodesonly"
+        querypfx = "&"
+
     # [HSE_REVISIT] We need a way to map opt.home to kvdb alias.
     # For now we implement a crude scan, which will likely fail
     # miserably if there is more than one active kvdb that have
@@ -141,7 +170,7 @@ def main() -> int:
     kvdbalias = 0
 
     while True:
-        url = f"http://localhost/kvdb/{kvdbalias}/kvs/{opt.kvs}/cn/tree"
+        url = f"http://localhost/kvdb/{kvdbalias}/kvs/{opt.kvs}/cn/tree{query}"
 
         try:
             buf = sp.check_output(
@@ -162,8 +191,8 @@ def main() -> int:
                 continue
             return -1
 
-        if opt.yaml:
-            print(buf)
+        if opt.yaml or opt.tabular:
+            print(buf.decode())
         else:
             ybuf = yaml.safe_load(buf)
             full_tree(ybuf, opt)

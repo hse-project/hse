@@ -13,7 +13,6 @@
 #include <hse_util/rest_client.h>
 
 #include <hse_ikvdb/kvs_cparams.h>
-#include <hse_ikvdb/cn_node_loc.h>
 #include <hse_ikvdb/cn_tree_view.h>
 #include <hse_ikvdb/csched.h>
 #include <hse_ikvdb/ikvdb.h>
@@ -43,6 +42,7 @@ set_sock(struct mtf_test_info *ti)
 bool ct_view_two_level = false;
 bool ct_view_two_kvsets = false;
 bool ct_view_do_nothing = false;
+
 merr_t
 _cn_tree_view_create(struct cn *cn, struct table **view_out)
 {
@@ -60,29 +60,25 @@ _cn_tree_view_create(struct cn *cn, struct table **view_out)
     v = table_append(view);
 
     v->kvset = NULL;
-    v->node_loc.node_level = 0;
-    v->node_loc.node_offset = 0;
+    v->nodeid = 0;
 
     if (ct_view_two_level) {
         /* another node */
         v = table_append(view);
         v->kvset = NULL;
-        v->node_loc.node_level = 1;
-        v->node_loc.node_offset = 0;
+        v->nodeid = 1;
     }
 
     /* kvset */
     v = table_append(view);
     v->kvset = (void *)v;
-    v->node_loc.node_level = ct_view_two_level ? 1 : 0;
-    v->node_loc.node_offset = 0;
+    v->nodeid = ct_view_two_level ? 1 : 0;
 
     /* another kvset */
     if (ct_view_two_kvsets) {
         v = table_append(view);
         v->kvset = (void *)v;
-        v->node_loc.node_level = ct_view_two_level ? 1 : 0;
-        v->node_loc.node_offset = 0;
+        v->nodeid = ct_view_two_level ? 1 : 0;
     }
 
     *view_out = view;
@@ -115,8 +111,8 @@ _kvset_get_metrics(struct kvset *kvset, struct kvset_metrics *metrics)
     metrics->header_bytes = 2000000;
     metrics->tot_key_bytes = 4000000;
     metrics->tot_val_bytes = 8000000;
-    metrics->compc = (v->node_loc.node_level == 0) ? 0 : 3;
-    metrics->comp_rule = (v->node_loc.node_level == 0) ? CN_CR_INGEST : CN_CR_RSPILL;
+    metrics->compc = (v->nodeid == 0) ? 0 : 3;
+    metrics->comp_rule = (v->nodeid == 0) ? CN_CR_INGEST : CN_CR_RSPILL;
     metrics->vgroups = 1;
 }
 
@@ -320,6 +316,17 @@ MTF_DEFINE_UTEST_PREPOST(kvdb_rest, cn_metrics, test_pre, test_post)
     err = curl_get(path, sock, buf, sizeof(buf));
     ASSERT_EQ(0, err);
 
+    /* kvs in open state with several options */
+    snprintf(
+        path,
+        sizeof(path),
+        "kvdb/%s/kvs/%s/cn/tree?blkids&nodesonly&tabular",
+        mtfm_ikvdb_ikvdb_alias_getreal()(store),
+        KVS1);
+    memset(buf, 0, sizeof(buf));
+    err = curl_get(path, sock, buf, sizeof(buf));
+    ASSERT_EQ(0, err);
+
     /* unopened kvs */
     snprintf(
         path,
@@ -341,7 +348,7 @@ MTF_DEFINE_UTEST_PREPOST(kvdb_rest, cn_metrics, test_pre, test_post)
         KVS1);
     memset(buf, 0, sizeof(buf));
     err = curl_get(path, sock, buf, sizeof(buf));
-    ASSERT_EQ(0, buf[0]);
+    ASSERT_NE(NULL, strcasestr(buf, "invalid URI"));
     ASSERT_EQ(0, err);
 
     snprintf(
@@ -352,19 +359,7 @@ MTF_DEFINE_UTEST_PREPOST(kvdb_rest, cn_metrics, test_pre, test_post)
         KVS1);
     memset(buf, 0, sizeof(buf));
     err = curl_get(path, sock, buf, sizeof(buf));
-    ASSERT_EQ(0, buf[0]);
-    ASSERT_EQ(0, err);
-
-    /* too many args */
-    snprintf(
-        path,
-        sizeof(path),
-        "kvdb/%s/kvs/%s/cn/tree?kblist&arg1=val1&arg2=val2",
-        mtfm_ikvdb_ikvdb_alias_getreal()(store),
-        KVS1);
-    memset(buf, 0, sizeof(buf));
-    err = curl_get(path, sock, buf, sizeof(buf));
-    ASSERT_EQ(0, buf[0]);
+    ASSERT_NE(NULL, strcasestr(buf, "invalid URI"));
     ASSERT_EQ(0, err);
 }
 
@@ -413,17 +408,22 @@ static size_t
 strdiff(const char *s1, const char *s2)
 {
     size_t len = strlen(s1);
-    size_t offset = 0;
-    size_t line = 1;
+    int offset = 0;
+    int line = 1;
 
-    for (size_t i = 1; i <= len; ++i) {
+    for (int i = 1; i <= len; ++i) {
         if (s1[i] != s2[i]) {
-            int width = i - offset;
+            int eol = i;
 
-            printf("mismatch at %zu:%zu: [%*.*s] vs [%*.*s]\n",
-                   line, offset,
-                   width, width, s1 + offset,
-                   width, width, s2 + offset);
+            while (s1[eol] && s1[eol] != '\n' &&
+                   s2[eol] && s2[eol] != '\n') {
+                ++eol;
+            }
+
+            printf("mismatch at line %d col %d: [%*.*s] vs [%*.*s]\n",
+                   line, i - offset,
+                   eol - offset, eol - offset, s1 + offset,
+                   eol - offset, eol - offset, s2 + offset);
             return i;
         }
 
@@ -445,12 +445,11 @@ MTF_DEFINE_UTEST_PREPOST(kvdb_rest, print_tree_test, test_pre, test_post)
     const char *exp =
         "nodes:\n"
         "- loc: \n"
-        "    level: 0\n"
-        "    offset: 0\n"
+        "    nodeid: 0\n"
         "  kvsets:\n"
         "  - index: 0\n"
-        "    compc: 0\n"
         "    dgen: 1\n"
+        "    compc: 0\n"
         "    keys: 1000000\n"
         "    tombs: 0\n"
         "    ptombs: 0\n"
@@ -468,8 +467,8 @@ MTF_DEFINE_UTEST_PREPOST(kvdb_rest, print_tree_test, test_pre, test_post)
         "    vblkids:\n"
         "      - 0x70310e\n"
         "  info:\n"
-        "    compc: 0\n"
         "    dgen: 1\n"
+        "    compc: 0\n"
         "    keys: 1000000\n"
         "    tombs: 0\n"
         "    ptombs: 0\n"
@@ -482,8 +481,8 @@ MTF_DEFINE_UTEST_PREPOST(kvdb_rest, print_tree_test, test_pre, test_post)
         "    vgroups: 1\n"
         "    kvsets: 1\n"
         "info:\n"
-        "  compc: 0\n"
         "  dgen: 1\n"
+        "  compc: 0\n"
         "  keys: 1000000\n"
         "  tombs: 0\n"
         "  ptombs: 0\n"
@@ -512,7 +511,7 @@ MTF_DEFINE_UTEST_PREPOST(kvdb_rest, print_tree_test, test_pre, test_post)
     snprintf(
         path,
         sizeof(path),
-        "kvdb/%s/kvs/%s/cn/tree?list_blkid=true",
+        "kvdb/%s/kvs/%s/cn/tree?blkids=true",
         mtfm_ikvdb_ikvdb_alias_getreal()(store),
         KVS1);
 
@@ -534,29 +533,11 @@ MTF_DEFINE_UTEST_PREPOST(kvdb_rest, empty_root_test, test_pre, test_post)
     const char *exp =
         "nodes:\n"
         "- loc: \n"
-        "    level: 0\n"
-        "    offset: 0\n"
-        "  info:\n"
-        "    compc: 0\n"
-        "    dgen: 0\n"
-        "    keys: 0\n"
-        "    tombs: 0\n"
-        "    ptombs: 0\n"
-        "    hlen: 0\n"
-        "    klen: 0\n"
-        "    vlen: 0\n"
-        "    hblks: 0\n"
-        "    kblks: 0\n"
-        "    vblks: 0\n"
-        "    vgroups: 0\n"
-        "    kvsets: 0\n"
-        "- loc: \n"
-        "    level: 1\n"
-        "    offset: 0\n"
+        "    nodeid: 1\n"
         "  kvsets:\n"
         "  - index: 0\n"
-        "    compc: 3\n"
         "    dgen: 1\n"
+        "    compc: 3\n"
         "    keys: 1000000\n"
         "    tombs: 0\n"
         "    ptombs: 0\n"
@@ -574,8 +555,8 @@ MTF_DEFINE_UTEST_PREPOST(kvdb_rest, empty_root_test, test_pre, test_post)
         "    vblkids:\n"
         "      - 0x70310e\n"
         "  info:\n"
-        "    compc: 3\n"
         "    dgen: 1\n"
+        "    compc: 3\n"
         "    keys: 1000000\n"
         "    tombs: 0\n"
         "    ptombs: 0\n"
@@ -588,8 +569,8 @@ MTF_DEFINE_UTEST_PREPOST(kvdb_rest, empty_root_test, test_pre, test_post)
         "    vgroups: 1\n"
         "    kvsets: 1\n"
         "info:\n"
-        "  compc: 3\n"
         "  dgen: 1\n"
+        "  compc: 3\n"
         "  keys: 1000000\n"
         "  tombs: 0\n"
         "  ptombs: 0\n"
@@ -619,7 +600,7 @@ MTF_DEFINE_UTEST_PREPOST(kvdb_rest, empty_root_test, test_pre, test_post)
     snprintf(
         path,
         sizeof(path),
-        "kvdb/%s/kvs/%s/cn/tree?list_blkid=true",
+        "kvdb/%s/kvs/%s/cn/tree?blkids=true",
         mtfm_ikvdb_ikvdb_alias_getreal()(store),
         KVS2);
 
@@ -651,29 +632,11 @@ MTF_DEFINE_UTEST_PREPOST(kvdb_rest, list_without_blkids, test_pre, test_post)
     const char *exp =
         "nodes:\n"
         "- loc: \n"
-        "    level: 0\n"
-        "    offset: 0\n"
-        "  info:\n"
-        "    compc: 0\n"
-        "    dgen: 0\n"
-        "    keys: 0\n"
-        "    tombs: 0\n"
-        "    ptombs: 0\n"
-        "    hlen: 0\n"
-        "    klen: 0\n"
-        "    vlen: 0\n"
-        "    hblks: 0\n"
-        "    kblks: 0\n"
-        "    vblks: 0\n"
-        "    vgroups: 0\n"
-        "    kvsets: 0\n"
-        "- loc: \n"
-        "    level: 1\n"
-        "    offset: 0\n"
+        "    nodeid: 1\n"
         "  kvsets:\n"
         "  - index: 0\n"
-        "    compc: 3\n"
         "    dgen: 4\n"
+        "    compc: 3\n"
         "    keys: 1000000\n"
         "    tombs: 0\n"
         "    ptombs: 0\n"
@@ -686,8 +649,8 @@ MTF_DEFINE_UTEST_PREPOST(kvdb_rest, list_without_blkids, test_pre, test_post)
         "    vgroups: 1\n"
         "    rule: rspill\n"
         "  - index: 1\n"
-        "    compc: 3\n"
         "    dgen: 8\n"
+        "    compc: 3\n"
         "    keys: 1000000\n"
         "    tombs: 0\n"
         "    ptombs: 0\n"
@@ -700,8 +663,8 @@ MTF_DEFINE_UTEST_PREPOST(kvdb_rest, list_without_blkids, test_pre, test_post)
         "    vgroups: 1\n"
         "    rule: rspill\n"
         "  info:\n"
-        "    compc: 3\n"
         "    dgen: 8\n"
+        "    compc: 3\n"
         "    keys: 2000000\n"
         "    tombs: 0\n"
         "    ptombs: 0\n"
@@ -714,8 +677,8 @@ MTF_DEFINE_UTEST_PREPOST(kvdb_rest, list_without_blkids, test_pre, test_post)
         "    vgroups: 2\n"
         "    kvsets: 2\n"
         "info:\n"
-        "  compc: 3\n"
         "  dgen: 8\n"
+        "  compc: 3\n"
         "  keys: 2000000\n"
         "  tombs: 0\n"
         "  ptombs: 0\n"
@@ -746,7 +709,7 @@ MTF_DEFINE_UTEST_PREPOST(kvdb_rest, list_without_blkids, test_pre, test_post)
     snprintf(
         path,
         sizeof(path),
-        "kvdb/%s/kvs/%s/cn/tree?list_blkid=false",
+        "kvdb/%s/kvs/%s/cn/tree?blkids=false",
         mtfm_ikvdb_ikvdb_alias_getreal()(store),
         KVS2);
 

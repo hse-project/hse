@@ -374,7 +374,7 @@ sp3_node_init(struct sp3 *sp, struct sp3_node *spn)
     list_add_tail(&spn->spn_alink, &sp->spn_alist);
 
     ttl = sp->rp ? sp->rp->csched_node_min_ttl : 13;
-    spn->spn_ttl = (ttl << tn->tn_loc.node_level);
+    spn->spn_ttl = (ttl << (tn->tn_nodeid > 0));
 }
 
 static void
@@ -442,8 +442,7 @@ sp3_log_progress(struct cn_compaction_work *w, struct cn_merge_stats *ms, bool f
         SLOG_FIELD("comp", "%s", cn_action2str(w->cw_action)),
         SLOG_FIELD("rule", "%s", cn_comp_rule2str(w->cw_comp_rule)),
         SLOG_FIELD("cnid", "%lu", w->cw_tree->cnid),
-        SLOG_FIELD("lvl", "%u", w->cw_node->tn_loc.node_level),
-        SLOG_FIELD("off", "%u", w->cw_node->tn_loc.node_offset),
+        SLOG_FIELD("nodeid", "%lu", w->cw_node->tn_nodeid),
         SLOG_FIELD("leaf", "%u", (uint)cn_node_isleaf(w->cw_node)),
         SLOG_FIELD("pct", "%3.1f", 100 * progress),
         SLOG_FIELD("vrd_eff", "%.3f", vblk_read_efficiency),
@@ -996,8 +995,6 @@ sp3_dirty_node_locked(struct sp3 *sp, struct cn_tree_node *tn)
         } else {
             uint64_t pop_keys = (uint64_t)sp->thresh.lcomp_pop_keys << 32;
 
-            pop_keys *= tn->tn_loc.node_level;
-
             if (nkeys > pop_keys && jobs < 1) {
                 const uint64_t weight = ((uint64_t)sp->thresh.lcomp_pop_pct << 32) | nkeys;
 
@@ -1024,8 +1021,7 @@ sp3_dirty_node_locked(struct sp3 *sp, struct cn_tree_node *tn)
         slog_info(
             SLOG_START("cn_dirty_node"),
             SLOG_FIELD("cnid", "%lu", (ulong)tn->tn_tree->cnid),
-            SLOG_FIELD("lvl", "%u", tn->tn_loc.node_level),
-            SLOG_FIELD("off", "%u", tn->tn_loc.node_offset),
+            SLOG_FIELD("nodeid", "%lu", (ulong)tn->tn_nodeid),
             SLOG_FIELD("isleaf", "%d", cn_node_isleaf(tn)),
             SLOG_FIELD("nd_len", "%lu", (ulong)nkvsets_total),
             SLOG_FIELD("alen", "%lu", (ulong)cn_ns_alen(&tn->tn_ns)),
@@ -1298,7 +1294,7 @@ sp3_comp_thread_name(
     size_t              bufsz,
     enum cn_action      action,
     enum cn_comp_rule   rule,
-    struct cn_node_loc *loc,
+    uint64_t            nodeid,
     bool                leaf)
 {
     const char *a = "XX";
@@ -1364,8 +1360,7 @@ sp3_comp_thread_name(
         break;
     }
 
-    snprintf(buf, bufsz, "hse_%c%s_%s_%u%u",
-             leaf ? 'r' : 'x', a, r, loc->node_level, loc->node_offset);
+    snprintf(buf, bufsz, "hse_%s_%s_%lu", a, r, nodeid);
 }
 
 /* This function is the sts job-print callback which is invoked
@@ -1391,17 +1386,15 @@ sp3_job_print(struct sts_job *job, void *priv, char *buf, size_t bufsz)
     }
 
     if (!jps->hdr) {
-        jps->jobwidth = snprintf(NULL, 0, "%3u", sts_job_id_get(&w->cw_job) * 2);
+        jps->jobwidth = snprintf(NULL, 0, "%4u", sts_job_id_get(&w->cw_job) * 10);
 
         n = snprintf(buf, bufsz,
-                     "%3s %6s %*s %7s %-7s"
+                     "%3s %5s %*s %7s %-7s"
                      " %2s %1s %5s %6s %6s %4s"
                      " %4s %5s %3s %3s %4s"
                      " %6s %6s %6s %6s"
                      " %8s %4s %s\n",
-                     "ID", "LOC   ",
-                     jps->jobwidth, "JOB",
-                     "ACTION", "RULE",
+                     "ID", "NODE", jps->jobwidth, "JOB", "ACTION", "RULE",
                      "Q", "T", "KVSET", "ALEN", "CLEN", "PCAP",
                      "CC", "DGEN", "NH", "NK", "NV",
                      "RALEN", "IALEN", "LALEN", "LGOOD",
@@ -1419,13 +1412,13 @@ sp3_job_print(struct sts_job *job, void *priv, char *buf, size_t bufsz)
     snprintf(tmbuf, sizeof(tmbuf), "%lu:%02lu", (tm / 60) % 60, tm % 60);
 
     m = snprintf(buf, bufsz,
-                 "%3lu %u,%-4u %*u %7s %-7s"
+                 "%3lu %5lu %*u %7s %-7s"
                  " %2u %1u %2u,%-2u %6lu %6lu %4u"
                  " %4u %5lu %3u %3u %4u"
                  " %6ld %6ld %6ld %6ld"
                  " %8.8s %4s %s\n",
                  w->cw_tree->cnid,
-                 w->cw_node->tn_loc.node_level, w->cw_node->tn_loc.node_offset,
+                 w->cw_node->tn_nodeid,
                  jps->jobwidth, sts_job_id_get(&w->cw_job),
                  cn_action2str(w->cw_action), cn_comp_rule2str(w->cw_comp_rule),
                  w->cw_qnum,
@@ -1460,7 +1453,7 @@ sp3_submit(struct sp3 *sp, struct cn_compaction_work *w, uint qnum)
         sizeof(w->cw_threadname),
         w->cw_action,
         w->cw_comp_rule,
-        &tn->tn_loc,
+        tn->tn_nodeid,
         cn_node_isleaf(w->cw_node));
 
     w->cw_iter_flags = kvset_iter_flag_fullscan;
@@ -1532,8 +1525,7 @@ sp3_submit(struct sp3 *sp, struct cn_compaction_work *w, uint qnum)
             SLOG_FIELD("cnid", "%lu", w->cw_tree->cnid),
             SLOG_FIELD("comp", "%s", cn_action2str(w->cw_action)),
             SLOG_FIELD("rule", "%s", cn_comp_rule2str(w->cw_comp_rule)),
-            SLOG_FIELD("lvl", "%u", w->cw_node->tn_loc.node_level),
-            SLOG_FIELD("off", "%u", w->cw_node->tn_loc.node_offset),
+            SLOG_FIELD("nodeid", "%lu", w->cw_node->tn_nodeid),
             SLOG_FIELD("c_nk", "%u", w->cw_nk),
             SLOG_FIELD("c_nv", "%u", w->cw_nv),
             SLOG_FIELD("c_kvsets", "%u", w->cw_kvset_cnt),
@@ -1621,8 +1613,7 @@ sp3_rb_dump(struct sp3 *sp, uint tx, uint count_max)
             SLOG_FIELD("item", "%u", count),
             SLOG_FIELD("weight", "%lx", (ulong)rbe->rbe_weight),
             SLOG_FIELD("cnid", "%lu", (ulong)tn->tn_tree->cnid),
-            SLOG_FIELD("lvl", "%u", tn->tn_loc.node_level),
-            SLOG_FIELD("off", "%u", tn->tn_loc.node_offset),
+            SLOG_FIELD("nodeid", "%lu", (ulong)tn->tn_nodeid),
             SLOG_FIELD("leaf", "%u", (uint)cn_node_isleaf(tn)),
             SLOG_FIELD("len", "%ld", (long)cn_ns_kvsets(&tn->tn_ns)),
             SLOG_FIELD("ialen_b", "%ld", (long)tn->tn_samp.i_alen),
@@ -1653,8 +1644,7 @@ sp3_tree_shape_log(const struct cn_tree_node *tn, bool bad, const char *category
         SLOG_FIELD("type", "%s", category),
         SLOG_FIELD("status", "%s", bad ? "bad" : "good"),
         SLOG_FIELD("cnid", "%lu", (ulong)tn->tn_tree->cnid),
-        SLOG_FIELD("lvl", "%u", tn->tn_loc.node_level),
-        SLOG_FIELD("off", "%u", tn->tn_loc.node_offset),
+        SLOG_FIELD("nodeid", "%lu", (ulong)tn->tn_nodeid),
         SLOG_FIELD("nd_kvsets", "%lu", (ulong)cn_ns_kvsets(ns)),
         SLOG_FIELD("nd_alen_mb", "%lu", (ulong)cn_ns_alen(ns) >> MB_SHIFT),
         SLOG_FIELD("nd_wlen_mb", "%lu", (ulong)cn_ns_alen(ns) >> MB_SHIFT),

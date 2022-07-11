@@ -41,7 +41,7 @@ kvdb_rest_yaml_emit(struct yaml_context *yc)
         if (cc != yc->yaml_offset) {
             merr_t err = merr(errno);
 
-            log_errx("short rest client write (%ld < %zu): @@e",
+            log_errx("rest client short write (%ld < %zu): @@e",
                      err, cc, yc->yaml_offset);
 
             yc->yaml_priv = NULL;
@@ -487,14 +487,21 @@ kvdb_rest_deregister(struct ikvdb *const kvdb)
  * rest: get handler for kvs
  */
 enum elem_type {
-    TYPE_NODE,
-    TYPE_KVSET,
-    TYPE_BEGIN = TYPE_NODE,
+    TYPE_TREE   = 't',
+    TYPE_NODE   = 'n',
+    TYPE_KVSET  = 'k',
 };
 
 struct ctx {
     struct yaml_context *yc;
-    bool                 list; /* whether or not to print block ids */
+
+    bool yaml;      /* generate yaml if true  */
+    bool blkids;    /* print block ids if true */
+    bool nodesonly; /* skip kvsets if true */
+    bool human;     /* show large values in human-readable form */
+    int  hdrsmax;   /* max headers to emit */
+
+    const int *colwidthv; /* vector of column widths for tabular mode */
 
     struct kvset_metrics total;
     struct kvset_metrics node;
@@ -502,13 +509,14 @@ struct ctx {
     enum elem_type prev_elem;
 
     /* per node */
-    struct cn_node_loc node_loc; /* cached loc */
-    u32                node_hblks;
-    u32                node_kblks;
-    u32                node_vblks;
-    u64                node_dgen;
+    uint64_t node_nodeid;
+    uint32_t node_hblks;
+    uint32_t node_kblks;
+    uint32_t node_vblks;
+    uint64_t node_dgen;
 
     /* per kvset */
+    uint64_t kvset_nodeid;
     u64 kvset_dgen;
     u32 kvset_idx;
     u32 num_kblks;
@@ -526,135 +534,260 @@ struct ctx {
 enum mb_type { TYPE_KBLK, TYPE_VBLK };
 
 static void
-print_ids(struct kvset *kvset, enum mb_type type, struct yaml_context *yc)
+yc_snprintf(struct yaml_context *yc, const char *fmt, ...)
 {
-    int i, n = 0;
+    va_list ap;
+    int n;
+
+    if (yc->yaml_buf_sz - yc->yaml_offset < 4096)
+        yc->yaml_emit(yc);
+
+    va_start(ap, fmt);
+    n = vsnprintf(yc->yaml_buf + yc->yaml_offset, yc->yaml_buf_sz - yc->yaml_offset, fmt, ap);
+    va_end(ap);
+
+    yc->yaml_offset += (n > 0) ? n : 0;
+
+}
+
+static void
+print_blkids(struct ctx *ctx, enum mb_type type, struct kvset *kvset)
+{
+    struct yaml_context *yc = ctx->yc;
+    uint32_t n, i;
 
     switch (type) {
     case TYPE_KBLK:
         n = kvset_get_num_kblocks(kvset);
-        for (i = 0; i < n; ++i)
-            yaml_list_fmt(yc, "0x%lx", kvset_get_nth_kblock_id(kvset, i));
+        if (ctx->yaml) {
+            for (i = 0; i < n; ++i)
+                yaml_list_fmt(yc, "0x%lx", kvset_get_nth_kblock_id(kvset, i));
+
+            yaml_end_element(yc);
+        } else {
+            yc_snprintf(yc, " /");
+
+            for (i = 0; i < n; ++i)
+                yc_snprintf(yc, " 0x%lx", kvset_get_nth_kblock_id(kvset, i));
+        }
         break;
 
     case TYPE_VBLK:
         n = kvset_get_num_vblocks(kvset);
-        for (i = 0; i < n; ++i)
-            yaml_list_fmt(yc, "0x%lx", kvset_get_nth_vblock_id(kvset, i));
+        if (ctx->yaml) {
+            for (i = 0; i < n; ++i)
+                yaml_list_fmt(yc, "0x%lx", kvset_get_nth_vblock_id(kvset, i));
+
+            yaml_end_element(yc);
+        } else {
+            yc_snprintf(yc, " /");
+
+            for (i = 0; i < n; ++i)
+                yc_snprintf(yc, " 0x%lx", kvset_get_nth_vblock_id(kvset, i));
+        }
         break;
     }
+}
 
-    if (n > 0)
-        yaml_end_element(yc);
+static const char *hdrfmt = "\n# NODE  IDX %5s %5s %*s %*s %*s %*s %*s %*s %5s %5s %5s %5s %7s %s\n";
+static const char *unitfmt = " %5u %5lu %*s %*s %*s %*s %*s %*s %5d %5d %5d %5u %7s";
+
+static void
+print_hdr(struct ctx *ctx, const char *append)
+{
+    const int *width = ctx->colwidthv;
+
+    if (--ctx->hdrsmax < 0)
+        return;
+
+    yc_snprintf(ctx->yc, hdrfmt,
+                "DGEN", "COMP",
+                width[0], "KEYS",
+                width[1], "TOMBS",
+                width[2], "PTOMBS",
+                width[3], "HLEN",
+                width[4], "KLEN",
+                width[5], "VLEN",
+                "HBLK", "KBLK", "VBLK",
+                "VGRP", "RULE", append);
+}
+
+static void
+u64_to_human(char *buf, size_t bufsz, uint64_t val, uint64_t thresh)
+{
+    if (val >= thresh) {
+        const char *sep = "\0kmgtpezy";
+
+        val *= 10;
+
+        while (val >= thresh) {
+            val /= 1000;
+            ++sep;
+        }
+
+        snprintf(buf, bufsz, "%5.1lf%c", val / 10.0, *sep);
+    } else {
+        u64_to_string(buf, bufsz, val);
+    }
 }
 
 static void
 print_unit(
-    int                         type,
+    struct ctx                 *ctx,
+    enum elem_type              type,
     u64                         dgen,
+    const struct kvset_metrics *m,
     int                         nkvsets,
     int                         nhblks,
     int                         nkblks,
-    int                         nvblks,
-    const struct kvset_metrics *m,
-    struct yaml_context        *yc)
+    int                         nvblks)
 {
-    yaml_field_fmt(yc, "compc", "%u", m->compc);
-    yaml_field_fmt_u64(yc, "dgen", dgen);
-    yaml_field_fmt_u64(yc, "keys", m->num_keys);
-    yaml_field_fmt_u64(yc, "tombs", m->num_tombstones);
-    yaml_field_fmt_u64(yc, "ptombs", m->nptombs);
+    char keysbuf[32], tombsbuf[32], ptombsbuf[32];
+    char hlenbuf[32], klenbuf[32], vlenbuf[32];
+    struct yaml_context *yc = ctx->yc;
+    uint64_t thresh = ctx->human ? 10000 : UINT64_MAX;
 
-    yaml_field_fmt_u64(yc, "hlen", m->header_bytes);
-    yaml_field_fmt_u64(yc, "klen", m->tot_key_bytes);
-    yaml_field_fmt_u64(yc, "vlen", m->tot_val_bytes);
+    u64_to_human(keysbuf, sizeof(keysbuf), m->num_keys, thresh);
+    u64_to_human(tombsbuf, sizeof(tombsbuf), m->num_tombstones, thresh);
+    u64_to_human(ptombsbuf, sizeof(ptombsbuf), m->nptombs, thresh);
+    u64_to_human(hlenbuf, sizeof(hlenbuf), m->header_bytes, thresh);
+    u64_to_human(klenbuf, sizeof(klenbuf), m->tot_key_bytes, thresh);
+    u64_to_human(vlenbuf, sizeof(vlenbuf), m->tot_val_bytes, thresh);
 
-    yaml_field_fmt(yc, "hblks", "%d", nhblks);
-    yaml_field_fmt(yc, "kblks", "%d", nkblks);
-    yaml_field_fmt(yc, "vblks", "%d", nvblks);
+    if (ctx->yaml) {
+        yaml_field_fmt_u64(yc, "dgen", dgen);
+        yaml_field_fmt(yc, "compc", "%u", m->compc);
+        yaml_element_field(yc, "keys", keysbuf);
+        yaml_element_field(yc, "tombs", tombsbuf);
+        yaml_element_field(yc, "ptombs", ptombsbuf);
 
-    yaml_field_fmt(yc, "vgroups", "%u", m->vgroups);
+        yaml_element_field(yc, "hlen", hlenbuf);
+        yaml_element_field(yc, "klen", klenbuf);
+        yaml_element_field(yc, "vlen", vlenbuf);
 
-    if (type == 'k')
-        yaml_field_fmt(yc, "rule", "%s", cn_comp_rule2str(m->comp_rule));
-    else
-        yaml_field_fmt(yc, "kvsets", "%d", nkvsets);
+        yaml_field_fmt(yc, "hblks", "%d", nhblks);
+        yaml_field_fmt(yc, "kblks", "%d", nkblks);
+        yaml_field_fmt(yc, "vblks", "%d", nvblks);
+
+        yaml_field_fmt(yc, "vgroups", "%u", m->vgroups);
+
+        if (type == TYPE_KVSET)
+            yaml_field_fmt(yc, "rule", "%s", cn_comp_rule2str(m->comp_rule));
+        else
+            yaml_field_fmt(yc, "kvsets", "%d", nkvsets);
+    } else {
+        const int *width = ctx->colwidthv;
+
+        yc_snprintf(yc, unitfmt,
+                    dgen, m->compc,
+                    width[0], keysbuf,
+                    width[1], tombsbuf,
+                    width[2], ptombsbuf,
+                    width[3], hlenbuf,
+                    width[4], klenbuf,
+                    width[5], vlenbuf,
+                    nhblks, nkblks, nvblks,
+                    m->vgroups,
+                    (type == TYPE_KVSET) ? cn_comp_rule2str(m->comp_rule) : "-");
+    }
 }
 
 static void
 print_elem(
-    const char *          who,
-    struct ctx *          ctx,
+    struct ctx           *ctx,
+    enum elem_type        type,
     struct kvset_metrics *m,
-    struct cn_node_loc *  loc,
     struct kvset *        kvset)
 {
     struct yaml_context *yc = ctx->yc;
-    char idxbuf[16];
 
-    if (ctx->prev_elem == TYPE_NODE) {
-        /* This is the start of a new node */
-        yaml_start_element(yc, "loc", "");
-        yc->yaml_indent++;
-        yaml_field_fmt(yc, "level", "%u", loc->node_level);
-        yaml_field_fmt(yc, "offset", "%u", loc->node_offset);
-        yc->yaml_indent--;
-    }
+    switch (type) {
+    case TYPE_KVSET:
+        if (ctx->prev_elem == TYPE_NODE) {
+            if (ctx->yaml) {
+                yaml_start_element(yc, "loc", "");
+                yc->yaml_indent++;
+                yaml_field_fmt(yc, "nodeid", "%u", ctx->node_nodeid);
+                yc->yaml_indent--;
+            } else {
+                print_hdr(ctx, "");
+            }
 
-    switch (who[0]) {
-    case 'k':
-        if (ctx->prev_elem == TYPE_NODE)
-            yaml_start_element_type(yc, "kvsets");
-
-        snprintf(idxbuf, sizeof(idxbuf), "%u", ctx->kvset_idx++);
-        yaml_start_element(yc, "index", idxbuf);
-
-        print_unit(
-            'k',
-            ctx->kvset_dgen,
-            -1,
-            1, /* always one hblock */
-            ctx->num_kblks,
-            ctx->num_vblks,
-            m, yc);
-
-        if (ctx->list) {
-            yaml_field_fmt(yc, "hblkid", "0x%lx",
-                           kvset_get_hblock_id(kvset));
-
-            yaml_start_element_type(yc, "kblkids");
-            print_ids(kvset, TYPE_KBLK, yc);
-            yaml_end_element_type(yc);
-
-            yaml_start_element_type(yc, "vblkids");
-            print_ids(kvset, TYPE_VBLK, yc);
-            yaml_end_element_type(yc);
+            ctx->prev_elem = TYPE_KVSET;
         }
 
-        yaml_end_element(yc); /* index */
+        if (ctx->nodesonly)
+            break;
 
-        ctx->prev_elem = TYPE_KVSET;
+        if (ctx->yaml) {
+            char idxbuf[16];
+
+            if (ctx->kvset_idx == 0)
+                yaml_start_element_type(yc, "kvsets");
+
+            snprintf(idxbuf, sizeof(idxbuf), "%u", ctx->kvset_idx++);
+            yaml_start_element(yc, "index", idxbuf);
+        } else {
+            yc_snprintf(yc, "%c %4lu %4u", TYPE_KVSET, ctx->kvset_nodeid, ctx->kvset_idx++);
+        }
+
+        print_unit(ctx, TYPE_KVSET, ctx->kvset_dgen, m, -1, 1, ctx->num_kblks, ctx->num_vblks);
+
+        if (ctx->yaml) {
+            if (ctx->blkids) {
+                yaml_field_fmt(yc, "hblkid", "0x%lx",
+                               kvset_get_hblock_id(kvset));
+
+                yaml_start_element_type(yc, "kblkids");
+                print_blkids(ctx, TYPE_KBLK, kvset);
+                yaml_end_element_type(yc);
+
+                yaml_start_element_type(yc, "vblkids");
+                print_blkids(ctx, TYPE_VBLK, kvset);
+                yaml_end_element_type(yc);
+            }
+
+            yaml_end_element(yc); /* index */
+        } else {
+            if (ctx->blkids) {
+                yc_snprintf(yc, " %lx", kvset_get_hblock_id(kvset));
+                print_blkids(ctx, TYPE_KBLK, kvset);
+                print_blkids(ctx, TYPE_VBLK, kvset);
+            }
+
+            yc_snprintf(yc, "\n");
+        }
         break;
 
-    case 'n':
-        if (ctx->prev_elem == TYPE_KVSET)
-            yaml_end_element_type(yc); /* kvsets */
+    case TYPE_NODE:
+        if (ctx->prev_elem == TYPE_NODE)
+            break;
 
-        yaml_start_element_type(yc, "info");
+        if (ctx->prev_elem == TYPE_KVSET) {
+            if (ctx->yaml)
+                yaml_end_element_type(yc); /* kvsets */
 
-        print_unit(
-            'n',
-            ctx->node_dgen,
-            ctx->kvset_idx,
-            ctx->node_hblks,
-            ctx->node_kblks,
-            ctx->node_vblks,
-            m, yc);
+            ctx->prev_elem = TYPE_NODE;
+        }
 
-        yaml_end_element(yc);
-        yaml_end_element_type(yc);
+        if ((m->num_keys | m->num_tombstones | m->nptombs) == 0)
+            break;
 
-        ctx->prev_elem = TYPE_NODE;
+        if (ctx->yaml) {
+            yaml_start_element_type(yc, "info");
+        } else {
+            yc_snprintf(yc, "%c %4lu %4u", TYPE_NODE, ctx->kvset_nodeid, ctx->kvset_idx);
+        }
+
+        print_unit(ctx, TYPE_NODE, ctx->node_dgen, m,
+                   ctx->kvset_idx, ctx->node_hblks, ctx->node_kblks, ctx->node_vblks);
+
+        if (ctx->yaml) {
+            yaml_end_element(yc);
+            yaml_end_element_type(yc);
+        } else {
+            yc_snprintf(yc, "\n");
+        }
 
         /* Each node resets the kvset_idx */
         ctx->kvset_idx = 0;
@@ -667,16 +800,15 @@ print_elem(
 }
 
 static int
-print_tree(struct ctx *ctx, struct cn_node_loc *loc, struct kvset *kvset)
+print_tree(struct ctx *ctx, struct kvset *kvset)
 {
     struct kvset_metrics km;
 
     /* A null kvset is the start of a new node */
     if (!kvset) {
         if (ctx->tot_nodes > 0)
-            print_elem("node", ctx, &ctx->node, &ctx->node_loc, 0);
+            print_elem(ctx, TYPE_NODE, &ctx->node, NULL);
         memset(&ctx->node, 0, sizeof(ctx->node));
-        ctx->node_loc = *loc;
         ctx->node_hblks = 0;
         ctx->node_kblks = 0;
         ctx->node_vblks = 0;
@@ -696,6 +828,8 @@ print_tree(struct ctx *ctx, struct cn_node_loc *loc, struct kvset *kvset)
     ctx->num_vblks = kvset_get_num_vblocks(kvset);
     ctx->tot_vblks += ctx->num_vblks;
     ctx->node_vblks += ctx->num_vblks;
+
+    ctx->kvset_nodeid = kvset_get_nodeid(kvset);
 
     ctx->kvset_dgen = kvset_get_dgen(kvset);
     if (ctx->kvset_dgen > ctx->node_dgen)
@@ -727,15 +861,20 @@ print_tree(struct ctx *ctx, struct cn_node_loc *loc, struct kvset *kvset)
     if (km.compc > ctx->total.compc)
         ctx->total.compc = km.compc;
 
-    print_elem("kvset", ctx, &km, loc, kvset);
+    print_elem(ctx, TYPE_KVSET, &km, kvset);
 
     return 0;
 }
 
-merr_t
-kvs_rest_query_tree(struct kvdb_kvs *kvs, struct yaml_context *yc, bool list)
+static merr_t
+kvs_rest_query_tree_impl(
+    struct kvdb_kvs *kvs,
+    struct yaml_context *yc,
+    bool blkids,
+    bool nodesonly,
+    bool tabular,
+    bool human)
 {
-    struct kvset_metrics *m;
     struct table *tree_view;
     struct ctx ctx;
     struct cn *cn;
@@ -747,10 +886,28 @@ kvs_rest_query_tree(struct kvdb_kvs *kvs, struct yaml_context *yc, bool list)
 
     memset(&ctx, 0, sizeof(ctx));
     ctx.yc = yc;
-    ctx.prev_elem = TYPE_BEGIN;
-    ctx.list = list;
+    ctx.yaml = !tabular;
+    ctx.blkids = blkids;
+    ctx.nodesonly = nodesonly;
+    ctx.human = human;
+    ctx.hdrsmax = nodesonly ? 1 : INT_MAX;
 
-    yaml_start_element_type(yc, "nodes");
+    if (human) {
+        static const int kvs_rest_colwidthv_human[] = { 7, 7, 7, 7, 7, 7 };
+
+        ctx.colwidthv = kvs_rest_colwidthv_human;
+    } else {
+        static const int kvs_rest_colwidthv_default[] = { 11, 6, 7, 9, 12, 14 };
+
+        ctx.colwidthv = kvs_rest_colwidthv_default;
+    }
+
+    ctx.node_nodeid = UINT64_MAX;
+    ctx.prev_elem = TYPE_NODE;
+
+    if (ctx.yaml) {
+        yaml_start_element_type(yc, "nodes");
+    }
 
     err = cn_tree_view_create(cn, &tree_view);
     if (ev(err))
@@ -760,41 +917,93 @@ kvs_rest_query_tree(struct kvdb_kvs *kvs, struct yaml_context *yc, bool list)
         struct kvset_view *v = table_at(tree_view, i);
         int rc;
 
-        rc = print_tree(&ctx, &v->node_loc, v->kvset);
+        ctx.node_nodeid = v->nodeid;
+
+        rc = print_tree(&ctx, v->kvset);
         if (rc)
             break;
     }
 
     cn_tree_view_destroy(tree_view);
 
-    print_elem("node", &ctx, &ctx.node, &ctx.node_loc, 0);
+    print_elem(&ctx, TYPE_NODE, &ctx.node, NULL);
 
-    yaml_end_element_type(yc); /* nodes */
+    if (ctx.yaml) {
+        yaml_end_element_type(yc); /* nodes */
+        yaml_start_element_type(yc, "info");
+    } else {
+        print_hdr(&ctx, " CNID  NAME");
+        yc_snprintf(yc, "%c %4u %4u", TYPE_TREE, ctx.tot_nodes, ctx.tot_kvsets);
+    }
 
-    yaml_start_element_type(yc, "info");
+    print_unit(&ctx, TYPE_TREE, ctx.tree_dgen, &ctx.total,
+               ctx.tot_kvsets, ctx.tot_hblks, ctx.tot_kblks, ctx.tot_vblks);
 
-    m = &ctx.total;
+    if (ctx.yaml) {
+        yaml_field_fmt(yc, "nodes", "%u", ctx.tot_nodes);
+        yaml_field_fmt(yc, "cnid", "%lu", kvs->kk_cnid);
+        yaml_field_fmt(yc, "name", kvs->kk_name);
+        yaml_field_fmt(yc, "open", "yes");
 
-    print_unit(
-        't',
-        ctx.tree_dgen,
-        ctx.tot_kvsets,
-        ctx.tot_hblks,
-        ctx.tot_kblks,
-        ctx.tot_vblks,
-        m, yc);
-
-    yaml_field_fmt(yc, "nodes", "%u", ctx.tot_nodes);
-    yaml_field_fmt(yc, "cnid", "%lu", kvs->kk_cnid);
-    yaml_field_fmt(yc, "name", kvs->kk_name);
-    yaml_field_fmt(yc, "open", "yes");
-
-    yaml_end_element(yc);
-
-    yaml_end_element(yc);
-    yaml_end_element_type(yc); /* info */
+        yaml_end_element(yc);
+        yaml_end_element(yc);
+        yaml_end_element_type(yc); /* info */
+    } else {
+        yc_snprintf(yc, " %5lu  %s\n", kvs->kk_cnid, kvs->kk_name);
+    }
 
     return 0;
+}
+
+merr_t
+kvs_rest_query_tree(
+    struct kvdb_kvs     *kvs,
+    struct yaml_context *yc,
+    bool                 blkids,
+    bool                 nodesonly)
+{
+    return kvs_rest_query_tree_impl(kvs, yc, blkids, nodesonly, false, false);
+}
+
+bool
+rest_queryval_to_bool(const char *val, bool *result)
+{
+    const char tab[] = "&t&f&y&n&true&false&yes&no&";
+    char *begin, *end;
+
+    if (!val) {
+        *result = true;
+        return true;
+    }
+
+    while (isspace(*val))
+        ++val;
+
+    if (isdigit(*val)) {
+        unsigned long n;
+
+        errno = 0;
+        n = strtoul(val, &end, 0);
+        if (errno || (end && *end))
+            return false;
+
+        *result = !!n;
+        return true;
+    }
+
+    /* If val exactly matches any substring in tab[]
+     * then it can be converted to a bool.
+     */
+    begin = strcasestr(tab, val);
+    if (begin && begin[-1] == tab[0]) {
+        end = strchr(begin, tab[0]);
+        if (strncmp(begin, val, end - begin) == 0) {
+            *result = !strchr("fFnN", *begin);
+            return true;
+        }
+    }
+
+    return false;
 }
 
 static merr_t
@@ -813,11 +1022,14 @@ rest_kvs_tree(
         .yaml_priv = info,
     };
     struct kvdb_kvs *kvs = context;
-    struct rest_kv *kv = NULL;
-    bool list_blkid = true;
+    struct rest_kv *kv;
+    bool nodesonly = false;
+    bool tabular = false;
+    bool blkids = false;
+    bool human = false;
+    bool help = false;
 
-    /* verify that the request was exact */
-    if (ev(strcmp(path, url) != 0))
+    if (strcmp(path, url) != 0)
         return merr(E2BIG);
 
     /* HSE_REVISIT: It is not safe to make a ref out of thin air.
@@ -839,31 +1051,45 @@ rest_kvs_tree(
         return 0;
     }
 
-    switch (rest_kv_count(iter)) {
-    case 0:
-        list_blkid = false;
-        break;
-
-    case 1:
-        kv = rest_kv_next(iter);
-        if (strcmp(kv->key, "list_blkid") == 0) {
-            if (strcmp(kv->value, "false") == 0) {
-                list_blkid = false;
-            } else if (strcmp(kv->value, "true") == 0) {
-                list_blkid = true;
-            } else {
-                atomic_dec(&kvs->kk_refcnt);
-                return merr(EINVAL);
-            }
-        } else {
-            atomic_dec(&kvs->kk_refcnt);
-            return merr(EINVAL);
+    while (( kv = rest_kv_next(iter) )) {
+        if (strcasecmp(kv->key, "tabular") == 0) {
+            if (rest_queryval_to_bool(kv->value, &tabular))
+                continue;
         }
-        break;
+        else if (strcasecmp(kv->key, "blkids") == 0) {
+            if (rest_queryval_to_bool(kv->value, &blkids))
+                continue;
+        }
+        else if (strcasecmp(kv->key, "human") == 0) {
+            if (rest_queryval_to_bool(kv->value, &human)) {
+                continue;
+            }
+        }
+        else if (strcasecmp(kv->key, "nodesonly") == 0) {
+            if (rest_queryval_to_bool(kv->value, &nodesonly))
+                continue;
+        }
+        else if (strcasecmp(kv->key, "help") == 0) {
+            rest_queryval_to_bool(kv->value, &help);
+        }
 
-    default:
+        if (help) {
+            yc_snprintf(&yc, "\nURI query options:\n");
+            yc_snprintf(&yc, "  NAME       TYPE  DESCRIPTION:\n");
+            yc_snprintf(&yc, "  blkids     bool  include all HKV block IDs\n");
+            yc_snprintf(&yc, "  help       bool  this list\n");
+            yc_snprintf(&yc, "  human      bool  suffix large values with SI prefixes\n");
+            yc_snprintf(&yc, "  nodesonly  bool  skip kvsets\n");
+            yc_snprintf(&yc, "  tabular    bool  output in tabular format (default yaml)\n");
+        } else {
+            yc_snprintf(&yc, "\ninvalid URI query: %s%c%s, use ?help for more information\n",
+                        kv->key, kv->value ? '=' : ' ', kv->value ? kv->value : "null");
+        }
+        yc.yaml_emit(&yc);
+
         atomic_dec(&kvs->kk_refcnt);
-        return merr(E2BIG);
+
+        return help ? 0 : merr(EINVAL);
     }
 
     /* Here we try to allocate a private buffer that yaml_realloc_buf()
@@ -882,7 +1108,7 @@ rest_kvs_tree(
         yc.yaml_buf = info->buf;
     }
 
-    kvs_rest_query_tree(kvs, &yc, list_blkid);
+    kvs_rest_query_tree_impl(kvs, &yc, blkids, nodesonly, tabular, human);
 
     kvdb_rest_yaml_emit(&yc);
 
