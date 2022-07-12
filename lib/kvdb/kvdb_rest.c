@@ -509,7 +509,7 @@ struct ctx {
 
     uint eklen;
     uint eklen_max;
-    char ekbuf[128];
+    char ekbuf[sizeof((struct kvset_view *)0)->ekbuf * 3 + 4];
 
     struct kvset_metrics total;
     struct kvset_metrics node;

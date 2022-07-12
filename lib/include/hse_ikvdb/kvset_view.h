@@ -87,7 +87,7 @@ struct kvset_view {
     struct kvset *kvset;
     uint64_t      nodeid;
     uint          eklen;
-    char          ekbuf[64 - 20];
+    char          ekbuf[44]; /* 64 - offsetof(struct kvset_view, ekbuf) */
 };
 
 #if HSE_MOCKING
