@@ -8,8 +8,6 @@
 
 #include <hse_util/inttypes.h>
 
-#include <hse_ikvdb/cn_node_loc.h>
-
 /**
  * struct kvset_stats - kvset statistics
  * @kst_keys: number of keys

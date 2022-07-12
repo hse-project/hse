@@ -137,7 +137,7 @@ void
 cn_tree_node_get_max_key(struct cn_tree_node *tn, void *kbuf, size_t kbuf_sz, uint *max_klen);
 
 struct cn_tree_node *
-cn_node_alloc(struct cn_tree *tree, uint level, uint offset);
+cn_node_alloc(struct cn_tree *tree, uint64_t nodeid);
 
 merr_t
 cn_tree_init(void);

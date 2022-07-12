@@ -8,8 +8,6 @@
 
 #include <hse_util/table.h>
 
-#include <hse_ikvdb/cn_node_loc.h>
-
 struct cn;
 struct kvset;
 

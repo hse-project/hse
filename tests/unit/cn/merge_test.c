@@ -1094,7 +1094,6 @@ init_work(
     w->cw_horizon = horizon;
     w->cw_kvset_cnt = num_sources;
     w->cw_inputv = sources;
-    w->cw_level = 0;
     w->cw_pc = pc;
     w->cw_cancel_request = cancel;
     w->cw_outc = num_outputs;
@@ -1168,7 +1167,7 @@ run_testcase(struct mtf_test_info *lcl_ti, int mode, const char *info)
             char ekbuf[HSE_KVS_KEY_LEN_MAX];
             size_t eklen;
 
-            tn = cn_node_alloc(tree, 1, i);
+            tn = cn_node_alloc(tree, i + 1);
             ASSERT_NE(0, tn);
 
             eklen = snprintf(ekbuf, sizeof(ekbuf), "a.%08d", i);
