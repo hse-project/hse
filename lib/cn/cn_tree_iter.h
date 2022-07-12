@@ -23,16 +23,6 @@ cn_tree_walk_callback_fn(
     struct cn_tree_node *node,
     struct kvset *       kvset);
 
-struct tree_iter {
-    struct cn_tree_node *next;
-};
-
-void
-tree_iter_init(struct cn_tree *tree, struct tree_iter *iter);
-
-struct cn_tree_node *
-tree_iter_next(struct cn_tree *tree, struct tree_iter *iter);
-
 /**
  * cn_tree_preorder_walk() - Perform preorder traversal of tree.
  * @tree: tree to traverse

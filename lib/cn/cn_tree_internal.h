@@ -66,6 +66,7 @@ struct cn_kle_hdr {
 /**
  * struct cn_tree - the cn tree (tree of nodes holding kvsets)
  * @ct_root:        root node of tree
+ * @ct_nodes:       list of all tree nodes, including ct_root
  * @ct_fanout:      tree fanout
  * @ct_depth_max:   depth limit for this tree (not current depth)
  * @cn:    ptr to parent cn object
@@ -93,7 +94,7 @@ struct cn_kle_hdr {
  */
 struct cn_tree {
     struct cn_tree_node *ct_root;
-    struct list_head     ct_leaves;
+    struct list_head     ct_nodes;
     u16                  ct_fanout;
     u16                  ct_pfx_len;
     u16                  ct_sfx_len;
@@ -176,6 +177,20 @@ struct cn_tree_node {
     struct list_head     tn_link;
 };
 
+/* Iterate over all tree nodes, starting with the root node.
+ */
+#define cn_tree_node_foreach(_item, _tree)                                                      \
+    for ((_item) = (_tree)->ct_root;                                                            \
+         (_item);                                                                               \
+         (_item) = list_next_entry_or_null((_item), tn_link, &(_tree)->ct_nodes))
+
+/* Iterate over all leaf nodes (excluding root node).
+ */
+#define cn_tree_leaf_foreach(_item, _tree)                                                      \
+    for ((_item) = list_next_entry_or_null((_tree)->ct_root, tn_link, &(_tree)->ct_nodes);      \
+         (_item);                                                                               \
+         (_item) = list_next_entry_or_null((_item), tn_link, &(_tree)->ct_nodes))
+
 /* cn_tree_node to sp3_node */
 #define tn2spn(_tn) (&(_tn)->tn_sp3n)
 #define spn2tn(_spn) container_of(_spn, struct cn_tree_node, tn_sp3n)
@@ -222,18 +237,18 @@ cn_tree_node_scatter(const struct cn_tree_node *tn);
 void
 cn_comp_slice_cb(struct sts_job *job);
 
-#if HSE_MOCKING
 /**
- * cn_tree_find_node() - Map a node location to a node pointer.
+ * cn_tree_node_find() - Find a cn tree node by node ID.
  *
  * @tree:   tree to search
  * @nodeid: node ID
  *
- * Returns NULL if tree @tree has no node at location @loc.
+ * Return: Node that matches %nodeid or NULL.
  */
 struct cn_tree_node *
-cn_tree_find_node(struct cn_tree *tree, uint64_t nodeid);
+cn_tree_node_find(struct cn_tree *tree, uint64_t nodeid);
 
+#if HSE_MOCKING
 #include "cn_tree_internal_ut.h"
 #endif /* HSE_MOCKING */
 

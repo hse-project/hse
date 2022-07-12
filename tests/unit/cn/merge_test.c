@@ -1172,7 +1172,7 @@ run_testcase(struct mtf_test_info *lcl_ti, int mode, const char *info)
 
             eklen = snprintf(ekbuf, sizeof(ekbuf), "a.%08d", i);
             tn->tn_route_node = route_map_insert(tree->ct_route_map, tn, ekbuf, eklen);
-            list_add(&tn->tn_link, &tree->ct_leaves);
+            list_add_tail(&tn->tn_link, &tree->ct_nodes);
         }
 
         init_work(

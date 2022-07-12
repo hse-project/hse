@@ -875,11 +875,8 @@ static void
 sp3_unlink_all_nodes(struct sp3 *sp, struct cn_tree *tree)
 {
     struct cn_tree_node *tn;
-    struct tree_iter     iter;
 
-    tree_iter_init(tree, &iter);
-
-    while (NULL != (tn = tree_iter_next(tree, &iter))) {
+    cn_tree_node_foreach(tn, tree) {
         struct sp3_node *spn = tn2spn(tn);
 
         sp3_node_unlink(sp, spn);
@@ -1044,7 +1041,8 @@ sp3_dirty_node(struct sp3 *sp, struct cn_tree_node *tn)
 static void
 sp3_process_workitem(struct sp3 *sp, struct cn_compaction_work *w)
 {
-    struct sp3_tree *    spt = tree2spt(w->cw_tree);
+    struct cn_tree *tree = w->cw_tree;
+    struct sp3_tree *spt = tree2spt(tree);
     struct cn_tree_node *tn = w->cw_node;
     struct cn_samp_stats diff;
     void *lock;
@@ -1071,13 +1069,19 @@ sp3_process_workitem(struct sp3 *sp, struct cn_compaction_work *w)
     sp->samp_wip.l_alen -= w->cw_est.cwe_samp.l_alen;
     sp->samp_wip.l_good -= w->cw_est.cwe_samp.l_good;
 
-    rmlock_rlock(&w->cw_tree->ct_lock, &lock);
+    rmlock_rlock(&tree->ct_lock, &lock);
+
+    /* Verify that the action didn't dislodge the root node
+     * from the head of the nodes list.
+     */
+    assert(tree->ct_root == list_first_entry(&tree->ct_nodes, typeof(*tn), tn_link));
+
     if (w->cw_action == CN_ACTION_SPILL) {
         struct cn_tree_node *leaf;
 
-        assert(tn == w->cw_tree->ct_root);
+        assert(tn == tree->ct_root);
 
-        list_for_each_entry(leaf, &w->cw_tree->ct_leaves, tn_link) {
+        cn_tree_leaf_foreach(leaf, tree) {
             sp3_dirty_node_locked(sp, leaf);
         }
     }
@@ -1182,16 +1186,13 @@ sp3_process_new_trees(struct sp3 *sp)
 
         struct sp3_tree *    spt = tree2spt(tree);
         struct cn_tree_node *tn;
-        struct tree_iter     iter;
         void *lock;
 
         if (debug_tree_life(sp))
             log_info("sp3 acquire tree cnid %lu", (ulong)tree->cnid);
 
         rmlock_rlock(&tree->ct_lock, &lock);
-        tree_iter_init(tree, &iter);
-
-        while (NULL != (tn = tree_iter_next(tree, &iter))) {
+        cn_tree_node_foreach(tn, tree) {
             sp3_node_init(sp, tn2spn(tn));
             sp3_dirty_node_locked(sp, tn);
         }

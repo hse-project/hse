@@ -70,14 +70,6 @@
 
 static struct kmem_cache *cn_node_cache HSE_READ_MOSTLY;
 
-/* A struct kvstarts is-a struct kvset_view.
- */
-struct kvstarts {
-    struct kvset_view view; /* must be first field! */
-    int               start;
-};
-
-
 static void
 cn_setname(const char *name)
 {
@@ -91,25 +83,6 @@ cn_node_isleaf(const struct cn_tree_node *node);
  * SECTION: CN_TREE Traversal Utilities
  */
 
-
-void
-tree_iter_init(struct cn_tree *tree, struct tree_iter *iter)
-{
-    iter->next = tree->ct_root;
-}
-
-struct cn_tree_node *
-tree_iter_next(struct cn_tree *tree, struct tree_iter *iter)
-{
-    struct cn_tree_node *visit = iter->next;
-
-    if (iter->next == tree->ct_root)
-        iter->next = list_first_entry_or_null(&tree->ct_leaves, struct cn_tree_node, tn_link);
-    else if (iter->next)
-        iter->next = list_next_entry_or_null(iter->next, tn_link, &tree->ct_leaves);
-
-    return visit;
-}
 
 static size_t
 cn_node_size(void)
@@ -197,13 +170,15 @@ cn_tree_create(
     tree->ct_kvdb_health = health;
     tree->rp = rp;
 
-    INIT_LIST_HEAD(&tree->ct_leaves);
+    INIT_LIST_HEAD(&tree->ct_nodes);
 
     tree->ct_root = cn_node_alloc(tree, 0);
     if (ev(!tree->ct_root)) {
         free_aligned(tree);
         return merr(ENOMEM);
     }
+
+    list_add(&tree->ct_root->tn_link, &tree->ct_nodes);
 
     if (kvsname) {
         tree->ct_route_map = route_map_create(cp->fanout);
@@ -246,19 +221,18 @@ cn_node_destroy_cb(struct cn_work *work)
 void
 cn_tree_destroy(struct cn_tree *tree)
 {
-    struct cn_tree_node *node;
-    struct tree_iter iter;
+    struct cn_tree_node *node, *next;
 
     if (!tree)
         return;
 
-    /*
-     * Bottom up traversal is safe in the sense that nodes can be
-     * deleted while iterating.
+    /* Verify root node is at head of the list.
      */
-    tree_iter_init(tree, &iter);
+    assert(tree->ct_root == list_first_entry(&tree->ct_nodes, typeof(*node), tn_link));
 
-    while (NULL != (node = tree_iter_next(tree, &iter))) {
+    /* Destroy root node last via safe reverse iteration of ct_nodes.
+     */
+    list_for_each_entry_reverse_safe(node, next, &tree->ct_nodes, tn_link) {
         if (node->tn_route_node)
             route_map_delete(tree->ct_route_map, node->tn_route_node);
         cn_work_submit(tree->cn, cn_node_destroy_cb, &node->tn_destroy_work);
@@ -526,7 +500,7 @@ cn_tree_samp_update_spill(struct cn_tree *tree, struct cn_tree_node *tn)
 
     cn_tree_samp_update_compact(tree, tn);
 
-    list_for_each_entry(leaf,  &tree->ct_leaves, tn_link) {
+    cn_tree_leaf_foreach(leaf, tree) {
         cn_tree_samp_update_ingest(tree, leaf);
     }
 }
@@ -535,7 +509,6 @@ cn_tree_samp_update_spill(struct cn_tree *tree, struct cn_tree_node *tn)
 void
 cn_tree_samp_init(struct cn_tree *tree)
 {
-    struct tree_iter     iter;
     struct cn_tree_node *tn;
 
     /* cn_tree_samp_update_compact() does a full recomputation
@@ -543,9 +516,9 @@ cn_tree_samp_init(struct cn_tree *tree)
      */
     memset(&tree->ct_samp, 0, sizeof(tree->ct_samp));
 
-    tree_iter_init(tree, &iter);
-    while (NULL != (tn = tree_iter_next(tree, &iter)))
+    cn_tree_node_foreach(tn, tree) {
         cn_tree_samp_update_compact(tree, tn);
+    }
 }
 
 /* This function must be serialized with other cn_tree_samp_* functions
@@ -556,6 +529,19 @@ cn_tree_samp(const struct cn_tree *tree, struct cn_samp_stats *s_out)
 
 {
     *s_out = tree->ct_samp;
+}
+
+struct cn_tree_node *
+cn_tree_node_find(struct cn_tree *tree, uint64_t nodeid)
+{
+    struct cn_tree_node *node;
+
+    cn_tree_node_foreach(node, tree) {
+        if (node->tn_nodeid == nodeid)
+            break;
+    }
+
+    return node;
 }
 
 /**
@@ -573,36 +559,17 @@ cn_tree_samp(const struct cn_tree *tree, struct cn_samp_stats *s_out)
 merr_t
 cn_tree_insert_kvset(struct cn_tree *tree, struct kvset *kvset, uint64_t nodeid)
 {
-    struct kvset_list_entry *entry;
-    struct list_head *       head;
-    struct cn_tree_node *    node;
-    u64                      dgen;
+    struct cn_tree_node *node;
 
-    if (nodeid == 0) {
-        node = tree->ct_root;
-    } else {
-        list_for_each_entry(node,  &tree->ct_leaves, tn_link) {
-            if (node->tn_nodeid == nodeid)
-                break;
-        }
-    }
+    assert(tree->ct_root == list_first_entry(&tree->ct_nodes, typeof(*node), tn_link));
 
-    assert(node);
-    if (!node)
+    node = cn_tree_node_find(tree, nodeid);
+    if (!node) {
+        assert(0);
         return merr(EBUG);
-
-    dgen = kvset_get_dgen(kvset);
-
-    list_for_each (head, &node->tn_kvset_list) {
-        entry = list_entry(head, typeof(*entry), le_link);
-        if (dgen > kvset_get_dgen(entry->le_kvset))
-            break;
-        assert(dgen != kvset_get_dgen(entry->le_kvset));
     }
 
-    kvset_list_add_tail(kvset, head);
-
-    return 0;
+    return cn_node_insert_kvset(node, kvset);
 }
 
 merr_t
@@ -624,75 +591,6 @@ cn_node_insert_kvset(struct cn_tree_node *node, struct kvset *kvset)
 
     return 0;
 }
-/**
- * struct vtc_bkt - view table cache bucket
- * @lock:  protects all fields in the bucket
- * @cnt:   number of tables cached in the bucket
- * @max:   max number of tables in the bucket
- * @head:  ptr to singly-linked list of tables
- *
- * The view table cache consists of an array of per-cpu buckets
- * which cache large preallocated tables for use in acquiring
- * references and metadata on all the kvsets in the cn tree.
- * The tables are allocated sufficiently large to avoid table
- * grow operations during tree traversal.
- */
-struct vtc_bkt {
-    spinlock_t    lock HSE_ACP_ALIGNED;
-    uint          cnt;
-    uint          max;
-    struct table *head;
-};
-
-static struct vtc_bkt vtc[16];
-
-static struct table *
-vtc_alloc(void)
-{
-    struct vtc_bkt *bkt;
-    struct table *  tab;
-    uint            cnt;
-
-    bkt = vtc + (hse_getcpu(NULL) % NELEM(vtc));
-
-    spin_lock(&bkt->lock);
-    tab = bkt->head;
-    if (tab) {
-        bkt->head = tab->priv;
-        --bkt->cnt;
-    }
-    spin_unlock(&bkt->lock);
-
-    if (tab)
-        return table_reset(tab);
-
-    /* A 64K table should accomodate a tree with 4096 kvsets
-     * before needing to be grown.
-     */
-    cnt = (64 * 1024) / sizeof(struct kvstarts);
-
-    return table_create(cnt, sizeof(struct kvstarts), false);
-}
-
-static void
-vtc_free(struct table *tab)
-{
-    struct vtc_bkt *bkt;
-
-    bkt = vtc + (hse_getcpu(NULL) % NELEM(vtc));
-
-    spin_lock(&bkt->lock);
-    if (bkt->cnt < bkt->max) {
-        tab->priv = bkt->head;
-        bkt->head = tab;
-        tab = NULL;
-        ++bkt->cnt;
-    }
-    spin_unlock(&bkt->lock);
-
-    if (ev(tab))
-        table_destroy(tab);
-}
 
 static void
 kvset_view_free(void *arg)
@@ -707,30 +605,29 @@ void
 cn_tree_view_destroy(struct table *view)
 {
     table_apply(view, kvset_view_free);
-    vtc_free(view);
+    table_destroy(view);
 }
 
 merr_t
 cn_tree_view_create(struct cn *cn, struct table **view_out)
 {
     struct table *           view;
-    struct tree_iter         iter;
     struct cn_tree_node *    node;
     void *                   lock;
     struct cn_tree *         tree = cn_get_tree(cn);
     merr_t                   err = 0;
     uint nodecnt;
 
-    view = vtc_alloc();
+    nodecnt = (128 * 1024) / sizeof(struct kvset_view);
+
+    view = table_create(nodecnt, sizeof(struct kvset_view), false);
     if (ev(!view))
         return merr(ENOMEM);
 
-    tree_iter_init(tree, &iter);
-    node = tree_iter_next(tree, &iter);
+    rmlock_rlock(&tree->ct_lock, &lock);
     nodecnt = 0;
 
-    rmlock_rlock(&tree->ct_lock, &lock);
-    while (node) {
+    cn_tree_node_foreach(node, tree) {
         struct kvset_list_entry *le;
         struct kvset_view *s;
 
@@ -743,6 +640,10 @@ cn_tree_view_create(struct cn *cn, struct table **view_out)
 
         s->kvset = NULL;
         s->nodeid = node->tn_nodeid;
+        s->eklen = 0;
+
+        if (node->tn_route_node)
+            route_node_keycpy(node->tn_route_node, s->ekbuf, sizeof(s->ekbuf), &s->eklen);
 
         list_for_each_entry(le, &node->tn_kvset_list, le_link) {
             struct kvset *kvset = le->le_kvset;
@@ -756,6 +657,8 @@ cn_tree_view_create(struct cn *cn, struct table **view_out)
             kvset_get_ref(kvset);
             s->kvset = kvset;
             s->nodeid = kvset_get_nodeid(kvset);
+            s->eklen = 0;
+
             assert(s->nodeid == node->tn_nodeid);
         }
 
@@ -764,8 +667,6 @@ cn_tree_view_create(struct cn *cn, struct table **view_out)
 
         if ((nodecnt++ % 16) == 0)
             rmlock_yield(&tree->ct_lock, &lock);
-
-        node = tree_iter_next(tree, &iter);
     }
     rmlock_runlock(lock);
 
@@ -786,16 +687,15 @@ cn_tree_preorder_walk(
     cn_tree_walk_callback_fn *callback,
     void *                    callback_rock)
 {
-    struct tree_iter         iter;
     struct cn_tree_node *    node;
     struct kvset_list_entry *le;
     void *                   lock;
-    bool                     stop = false;
-
-    tree_iter_init(tree, &iter);
+    bool                     stop;
 
     rmlock_rlock(&tree->ct_lock, &lock);
-    while (NULL != (node = tree_iter_next(tree, &iter))) {
+    stop = false;
+
+    cn_tree_node_foreach(node, tree) {
         bool empty_node = true;
 
         if (kvset_order == KVSET_ORDER_NEWEST_FIRST) {
@@ -2065,9 +1965,7 @@ cn_tree_perfc_shape_report(
     struct perfc_set *lnode)
 {
     struct cn_tree_node *tn;
-    struct tree_iter     iter;
     struct perfc_set *   pcv[2];
-    uint                 i, n;
     void *               lock;
 
     struct {
@@ -2081,12 +1979,8 @@ cn_tree_perfc_shape_report(
     memset(ssv, 0, sizeof(ssv));
 
     rmlock_rlock(&tree->ct_lock, &lock);
-    n = 0;
-
-    tree_iter_init(tree, &iter);
-
-    while (NULL != (tn = tree_iter_next(tree, &iter))) {
-        u64 len, size;
+    cn_tree_node_foreach(tn, tree) {
+        uint64_t len, size, i;
 
         i = cn_node_isroot(tn) ? 0 : 1;
         len = cn_ns_kvsets(&tn->tn_ns);
@@ -2097,16 +1991,13 @@ cn_tree_perfc_shape_report(
         ssv[i].avgsize += size;
         ssv[i].maxlen = max(ssv[i].maxlen, len);
         ssv[i].maxsize = max(ssv[i].maxsize, size);
-
-        if ((++n % 128) == 0)
-            rmlock_yield(&tree->ct_lock, &lock);
     }
     rmlock_runlock(lock);
 
     pcv[0] = rnode;
     pcv[1] = lnode;
 
-    for (i = 0; i < 2; i++) {
+    for (size_t i = 0; i < 2; i++) {
 
         if (ssv[i].nodec) {
             ssv[i].avglen /= ssv[i].nodec;
@@ -2221,16 +2112,6 @@ merr_t
 cn_tree_init(void)
 {
     struct kmem_cache *cache;
-    int                i;
-
-    /* Initialize the view table cache.
-     */
-    for (i = 0; i < NELEM(vtc); ++i) {
-        struct vtc_bkt *bkt = vtc + i;
-
-        spin_lock_init(&bkt->lock);
-        bkt->max = 8;
-    }
 
     assert(HSE_ACP_LINESIZE >= alignof(struct cn_tree_node));
 
@@ -2247,39 +2128,11 @@ cn_tree_init(void)
 void
 cn_tree_fini(void)
 {
-    int i;
-
     kmem_cache_destroy(cn_node_cache);
     cn_node_cache = NULL;
-
-    for (i = 0; i < NELEM(vtc); ++i) {
-        struct vtc_bkt *bkt = vtc + i;
-        struct table *  tab;
-
-        while ((tab = bkt->head)) {
-            bkt->head = tab->priv;
-            table_destroy(tab);
-        }
-    }
 }
 
 #if HSE_MOCKING
-struct cn_tree_node *
-cn_tree_find_node(struct cn_tree *tree, uint64_t nodeid)
-{
-    struct cn_tree_node *tn;
-    struct tree_iter iter;
-
-    tree_iter_init(tree, &iter);
-
-    while (NULL != (tn = tree_iter_next(tree, &iter))) {
-        if (tn->tn_nodeid == nodeid)
-            break;
-    }
-
-    return tn;
-}
-
 #include "cn_tree_ut_impl.i"
 #include "cn_tree_compact_ut_impl.i"
 #include "cn_tree_create_ut_impl.i"

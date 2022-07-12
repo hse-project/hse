@@ -988,7 +988,7 @@ cn_open(
 
             map_insert_ptr(ctx.nodemap, tn->tn_nodeid, tn);
 
-            list_add(&tn->tn_link, &cn->cn_tree->ct_leaves);
+            list_add_tail(&tn->tn_link, &cn->cn_tree->ct_nodes);
 
             if (cn->cn_tree->ct_route_map) {
                 char ekbuf[HSE_KVS_KEY_LEN_MAX];
