@@ -10,12 +10,12 @@ project(
         'cpp_std=c++11',
         'buildtype=debugoptimized',
         'warning_level=2',
-    ],
+    ]
 )
 
 cpp = meson.get_compiler('cpp')
 
-hse_dep = dependency('hse-2')
+hse_dep = dependency('hse-3')
 threads_dep = dependency('threads')
 
 add_project_arguments(
@@ -40,7 +40,7 @@ db_bench = executable(
         'hse_binding/hse_kvs_cursor.cc',
         'util/histogram.cc',
         'util/status.cc',
-        'util/testutil.cc',
+        'util/testutil.cc'
     ),
     include_directories: [
         include_directories('.'),
@@ -51,5 +51,5 @@ db_bench = executable(
         threads_dep,
     ],
     install: true,
-    gnu_symbol_visibility: 'hidden',
+    gnu_symbol_visibility: 'hidden'
 )

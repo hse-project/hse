@@ -2,7 +2,7 @@
 
 # SPDX-License-Identifier: Apache-2.0
 #
-# Copyright (C) 2021 Micron Technology, Inc. All rights reserved.
+# Copyright (C) 2021-2022 Micron Technology, Inc. All rights reserved.
 
 """
 A basic test fo lc cursors
@@ -11,9 +11,9 @@ is called. This moves the data to LC. Then cursors are used to read data from LC
 """
 from contextlib import ExitStack
 
-from hse2 import hse
+from utility import cli, lifecycle
 
-from utility import lifecycle, cli
+from hse3 import hse
 
 
 def run_test(kvdb: hse.Kvdb, kvs: hse.Kvs):

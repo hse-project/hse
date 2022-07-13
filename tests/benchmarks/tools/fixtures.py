@@ -1,12 +1,12 @@
 # SPDX-License-Identifier: Apache-2.0
 #
-# Copyright (C) 2021 Micron Technology, Inc. All rights reserved.
+# Copyright (C) 2021-2022 Micron Technology, Inc. All rights reserved.
 
 import errno
 
-from hse2 import hse
-
 from tools import config
+
+from hse3 import hse
 
 
 def create_kvdb():
