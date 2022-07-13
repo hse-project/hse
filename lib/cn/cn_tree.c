@@ -415,6 +415,7 @@ tn_samp_update_finish(struct cn_tree_node *tn)
         s->ns_vclen = min(new_clen, cur_alen);
     }
 
+    s->ns_hclen = s->ns_kst.kst_halen;
     s->ns_pcap = min_t(u64, U16_MAX, 100 * cn_ns_clen(s) / tn->tn_size_max);
 
     tn->tn_samp.r_alen = 0;
@@ -1146,10 +1147,13 @@ cn_tree_capped_compact(struct cn_tree *tree)
      * kvsets from cn and we are sure that there are at least kvset_cnt
      * kvsets in the node.
      */
-    for (le = last; le == mark; le = list_prev_entry(le, le_link)) {
+    le = mark;
+    while (1) {
         err = kvset_delete_log_record(le->le_kvset, cndb_txn);
-        if (ev(err))
+        if (ev(err) || le == last)
             break;
+
+        le = list_next_entry(le, le_link);
     }
 
     if (ev(err)) {
@@ -1629,6 +1633,7 @@ cn_comp_commit(struct cn_compaction_work *w)
      */
     for (i = 0, le = w->cw_mark; i < w->cw_kvset_cnt; i++) {
         assert(le);
+        assert(w->cw_cndb_txn);
 
         w->cw_err = kvset_delete_log_record(le->le_kvset, w->cw_cndb_txn);
         if (ev(w->cw_err))
@@ -1640,7 +1645,7 @@ cn_comp_commit(struct cn_compaction_work *w)
     /* CNDB: Ack all the kvset add records.
      */
     for (i = 0; i < w->cw_outc; i++) {
-        if (w->cw_outv[i].kblks.n_blks == 0)
+        if (!w->cw_outv[i].hblk.bk_blkid)
             continue;
 
         w->cw_err = cndb_record_kvset_add_ack(w->cw_tree->cndb, w->cw_cndb_txn, cookiev[i]);

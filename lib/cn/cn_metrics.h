@@ -148,7 +148,9 @@ cn_ns_samp(const struct cn_node_stats *ns)
     u64 alen = cn_ns_alen(ns);
     u64 clen = cn_ns_clen(ns);
 
-    return clen ? 100 * alen / clen : 0;
+    assert(clen);
+
+    return clen ? 100 * alen / clen : 100;
 }
 
 static inline u64

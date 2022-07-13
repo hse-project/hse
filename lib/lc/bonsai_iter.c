@@ -34,9 +34,6 @@ bonsai_iter_init(
     iter->bi_seqref = seqnoref;
     iter->bi_reverse = reverse ? 1 : 0;
     iter->bi_is_ptomb = ptomb_tree ? 1 : 0;
-
-    if (view_seq < horizon_seq)
-        iter->bi_es.es_eof = 1;
 }
 
 void
@@ -44,9 +41,6 @@ bonsai_iter_update(struct bonsai_iter *iter, u64 view_seq, u64 horizon_seq)
 {
     iter->bi_seq_view = view_seq;
     iter->bi_seq_horizon = horizon_seq;
-
-    if (view_seq < horizon_seq)
-        iter->bi_es.es_eof = 1;
 }
 
 void

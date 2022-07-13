@@ -408,7 +408,7 @@ execute_test(struct cursor_test_data *params)
     fillrandom(params->data, sizeof(params->data));
 
     status = create_or_open_kvdb_and_kvs(
-        params->kvdb_home, params->kvs_name, &kvdb, &params->kvs, true, params->wal_disable, 1);
+        params->kvdb_home, params->kvs_name, &kvdb, &params->kvs, true, params->wal_disable, 0, 1);
 
     if (status) {
         log_fatal("kvdb+kvs open failed: errno=%d", status);
