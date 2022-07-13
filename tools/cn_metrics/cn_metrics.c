@@ -561,7 +561,10 @@ static void
 cn_metrics_yaml_emit(struct yaml_context *yc)
 {
     if (yc->yaml_offset > 0) {
+#pragma GCC diagnostic push
+#pragma GCC diagnostic ignored "-Wunused-result"
         write(1, yc->yaml_buf, yc->yaml_offset);
+#pragma GCC diagnostic pop
         yc->yaml_offset = 0;
     }
 }
