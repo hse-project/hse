@@ -500,7 +500,7 @@ cn_tree_samp_update_spill(struct cn_tree *tree, struct cn_tree_node *tn)
 
     cn_tree_samp_update_compact(tree, tn);
 
-    cn_tree_leaf_foreach(leaf, tree) {
+    cn_tree_foreach_leaf(leaf, tree) {
         cn_tree_samp_update_ingest(tree, leaf);
     }
 }
@@ -516,7 +516,7 @@ cn_tree_samp_init(struct cn_tree *tree)
      */
     memset(&tree->ct_samp, 0, sizeof(tree->ct_samp));
 
-    cn_tree_node_foreach(tn, tree) {
+    cn_tree_foreach_node(tn, tree) {
         cn_tree_samp_update_compact(tree, tn);
     }
 }
@@ -532,11 +532,11 @@ cn_tree_samp(const struct cn_tree *tree, struct cn_samp_stats *s_out)
 }
 
 struct cn_tree_node *
-cn_tree_node_find(struct cn_tree *tree, uint64_t nodeid)
+cn_tree_find_node(struct cn_tree *tree, uint64_t nodeid)
 {
     struct cn_tree_node *node;
 
-    cn_tree_node_foreach(node, tree) {
+    cn_tree_foreach_node(node, tree) {
         if (node->tn_nodeid == nodeid)
             break;
     }
@@ -563,7 +563,7 @@ cn_tree_insert_kvset(struct cn_tree *tree, struct kvset *kvset, uint64_t nodeid)
 
     assert(tree->ct_root == list_first_entry(&tree->ct_nodes, typeof(*node), tn_link));
 
-    node = cn_tree_node_find(tree, nodeid);
+    node = cn_tree_find_node(tree, nodeid);
     if (!node) {
         assert(0);
         return merr(EBUG);
@@ -627,7 +627,7 @@ cn_tree_view_create(struct cn *cn, struct table **view_out)
     rmlock_rlock(&tree->ct_lock, &lock);
     nodecnt = 0;
 
-    cn_tree_node_foreach(node, tree) {
+    cn_tree_foreach_node(node, tree) {
         struct kvset_list_entry *le;
         struct kvset_view *s;
 
@@ -695,7 +695,7 @@ cn_tree_preorder_walk(
     rmlock_rlock(&tree->ct_lock, &lock);
     stop = false;
 
-    cn_tree_node_foreach(node, tree) {
+    cn_tree_foreach_node(node, tree) {
         bool empty_node = true;
 
         if (kvset_order == KVSET_ORDER_NEWEST_FIRST) {
@@ -1979,7 +1979,7 @@ cn_tree_perfc_shape_report(
     memset(ssv, 0, sizeof(ssv));
 
     rmlock_rlock(&tree->ct_lock, &lock);
-    cn_tree_node_foreach(tn, tree) {
+    cn_tree_foreach_node(tn, tree) {
         uint64_t len, size, i;
 
         i = cn_node_isroot(tn) ? 0 : 1;

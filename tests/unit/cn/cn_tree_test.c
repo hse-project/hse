@@ -477,7 +477,7 @@ MTF_DEFINE_UTEST_PRE(test, t_cn_tree_ingest_update, test_setup)
     }
 
     /* we should find kvset in root node */
-    node = cn_tree_node_find(tree, 0);
+    node = cn_tree_find_node(tree, 0);
     ASSERT_NE(node, NULL);
 
     /* verify kvsets */

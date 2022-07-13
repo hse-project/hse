@@ -179,14 +179,14 @@ struct cn_tree_node {
 
 /* Iterate over all tree nodes, starting with the root node.
  */
-#define cn_tree_node_foreach(_item, _tree)                                                      \
+#define cn_tree_foreach_node(_item, _tree)                                                      \
     for ((_item) = (_tree)->ct_root;                                                            \
          (_item);                                                                               \
          (_item) = list_next_entry_or_null((_item), tn_link, &(_tree)->ct_nodes))
 
 /* Iterate over all leaf nodes (excluding root node).
  */
-#define cn_tree_leaf_foreach(_item, _tree)                                                      \
+#define cn_tree_foreach_leaf(_item, _tree)                                                      \
     for ((_item) = list_next_entry_or_null((_tree)->ct_root, tn_link, &(_tree)->ct_nodes);      \
          (_item);                                                                               \
          (_item) = list_next_entry_or_null((_item), tn_link, &(_tree)->ct_nodes))
@@ -238,7 +238,7 @@ void
 cn_comp_slice_cb(struct sts_job *job);
 
 /**
- * cn_tree_node_find() - Find a cn tree node by node ID.
+ * cn_tree_find_node() - Find a cn tree node by node ID.
  *
  * @tree:   tree to search
  * @nodeid: node ID
@@ -246,7 +246,7 @@ cn_comp_slice_cb(struct sts_job *job);
  * Return: Node that matches %nodeid or NULL.
  */
 struct cn_tree_node *
-cn_tree_node_find(struct cn_tree *tree, uint64_t nodeid);
+cn_tree_find_node(struct cn_tree *tree, uint64_t nodeid);
 
 #if HSE_MOCKING
 #include "cn_tree_internal_ut.h"

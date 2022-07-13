@@ -876,7 +876,7 @@ sp3_unlink_all_nodes(struct sp3 *sp, struct cn_tree *tree)
 {
     struct cn_tree_node *tn;
 
-    cn_tree_node_foreach(tn, tree) {
+    cn_tree_foreach_node(tn, tree) {
         struct sp3_node *spn = tn2spn(tn);
 
         sp3_node_unlink(sp, spn);
@@ -1081,7 +1081,7 @@ sp3_process_workitem(struct sp3 *sp, struct cn_compaction_work *w)
 
         assert(tn == tree->ct_root);
 
-        cn_tree_leaf_foreach(leaf, tree) {
+        cn_tree_foreach_leaf(leaf, tree) {
             sp3_dirty_node_locked(sp, leaf);
         }
     }
@@ -1192,7 +1192,7 @@ sp3_process_new_trees(struct sp3 *sp)
             log_info("sp3 acquire tree cnid %lu", (ulong)tree->cnid);
 
         rmlock_rlock(&tree->ct_lock, &lock);
-        cn_tree_node_foreach(tn, tree) {
+        cn_tree_foreach_node(tn, tree) {
             sp3_node_init(sp, tn2spn(tn));
             sp3_dirty_node_locked(sp, tn);
         }
