@@ -162,7 +162,7 @@ new_tree(uint fanout)
         if (!tn)
             return NULL;
 
-        list_add(&tn->tn_link, &tt->tree->ct_leaves);
+        list_add_tail(&tn->tn_link, &tt->tree->ct_nodes);
     }
 
     return tt;

@@ -10,6 +10,7 @@
 #include <hse_util/logging.h>
 #include <hse_util/hse_err.h>
 #include <hse_util/event_counter.h>
+#include <hse_util/fmt.h>
 
 #include <hse_util/rest_api.h>
 
@@ -503,6 +504,13 @@ struct ctx {
 
     const int *colwidthv; /* vector of column widths for tabular mode */
 
+    const char *kvsname;
+    uint64_t    cnid;
+
+    uint eklen;
+    uint eklen_max;
+    char ekbuf[sizeof((struct kvset_view *)0)->ekbuf * 3 + 4];
+
     struct kvset_metrics total;
     struct kvset_metrics node;
 
@@ -589,8 +597,12 @@ print_blkids(struct ctx *ctx, enum mb_type type, struct kvset *kvset)
     }
 }
 
-static const char *hdrfmt = "\n# NODE  IDX %5s %5s %*s %*s %*s %*s %*s %*s %5s %5s %5s %5s %7s %s\n";
-static const char *unitfmt = " %5u %5lu %*s %*s %*s %*s %*s %*s %5d %5d %5d %5u %7s";
+static const char *hdrfmt =
+    "\n# NODE  IDX"
+    " %5s %5s %*s %*s %*s %*s %*s %*s %5s %5s %5s %5s %7s %3s %4s  %-s\n";
+
+static const char *unitfmt =
+    " %5u %5lu %*s %*s %*s %*s %*s %*s %5d %5d %5d %5u %7s %3u %4u  %-s";
 
 static void
 print_hdr(struct ctx *ctx, const char *append)
@@ -609,7 +621,9 @@ print_hdr(struct ctx *ctx, const char *append)
                 width[4], "KLEN",
                 width[5], "VLEN",
                 "HBLK", "KBLK", "VBLK",
-                "VGRP", "RULE", append);
+                "VGRP", "RULE",
+                "ID", "EKL",
+                append);
 }
 
 static void
@@ -637,6 +651,7 @@ print_unit(
     enum elem_type              type,
     u64                         dgen,
     const struct kvset_metrics *m,
+    const char                 *trailer,
     int                         nkvsets,
     int                         nhblks,
     int                         nkblks,
@@ -688,7 +703,10 @@ print_unit(
                     width[5], vlenbuf,
                     nhblks, nkblks, nvblks,
                     m->vgroups,
-                    (type == TYPE_KVSET) ? cn_comp_rule2str(m->comp_rule) : "-");
+                    (type == TYPE_KVSET) ? cn_comp_rule2str(m->comp_rule) : "-",
+                    ctx->cnid,
+                    ctx->eklen,
+                    trailer);
     }
 }
 
@@ -710,7 +728,7 @@ print_elem(
                 yaml_field_fmt(yc, "nodeid", "%u", ctx->node_nodeid);
                 yc->yaml_indent--;
             } else {
-                print_hdr(ctx, "");
+                print_hdr(ctx, "EKHEX");
             }
 
             ctx->prev_elem = TYPE_KVSET;
@@ -731,7 +749,8 @@ print_elem(
             yc_snprintf(yc, "%c %4lu %4u", TYPE_KVSET, ctx->kvset_nodeid, ctx->kvset_idx++);
         }
 
-        print_unit(ctx, TYPE_KVSET, ctx->kvset_dgen, m, -1, 1, ctx->num_kblks, ctx->num_vblks);
+        print_unit(ctx, TYPE_KVSET, ctx->kvset_dgen, m, "-",
+                   -1, 1, ctx->num_kblks, ctx->num_vblks);
 
         if (ctx->yaml) {
             if (ctx->blkids) {
@@ -779,7 +798,7 @@ print_elem(
             yc_snprintf(yc, "%c %4lu %4u", TYPE_NODE, ctx->kvset_nodeid, ctx->kvset_idx);
         }
 
-        print_unit(ctx, TYPE_NODE, ctx->node_dgen, m,
+        print_unit(ctx, TYPE_NODE, ctx->node_dgen, m, (ctx->eklen > 0) ? ctx->ekbuf : "-",
                    ctx->kvset_idx, ctx->node_hblks, ctx->node_kblks, ctx->node_vblks);
 
         if (ctx->yaml) {
@@ -800,20 +819,33 @@ print_elem(
 }
 
 static int
-print_tree(struct ctx *ctx, struct kvset *kvset)
+print_tree(struct ctx *ctx, struct kvset_view *v)
 {
     struct kvset_metrics km;
+    struct kvset *kvset;
 
-    /* A null kvset is the start of a new node */
+    /* A null kvset is the start of a new node.
+     */
+    kvset = v->kvset;
     if (!kvset) {
         if (ctx->tot_nodes > 0)
             print_elem(ctx, TYPE_NODE, &ctx->node, NULL);
+
         memset(&ctx->node, 0, sizeof(ctx->node));
         ctx->node_hblks = 0;
         ctx->node_kblks = 0;
         ctx->node_vblks = 0;
         ctx->node_dgen = 0;
         ++ctx->tot_nodes;
+
+        ctx->node_nodeid = v->nodeid;
+        ctx->eklen = v->eklen;
+        if (ctx->eklen > 0)
+            fmt_hexp(ctx->ekbuf, sizeof(ctx->ekbuf), v->ekbuf, v->eklen, "0x", 2, ".", "");
+
+        if (ctx->eklen > ctx->eklen_max)
+            ctx->eklen_max = ctx->eklen;
+
         return 0;
     }
 
@@ -891,6 +923,7 @@ kvs_rest_query_tree_impl(
     ctx.nodesonly = nodesonly;
     ctx.human = human;
     ctx.hdrsmax = nodesonly ? 1 : INT_MAX;
+    ctx.cnid = kvs->kk_cnid;
 
     if (human) {
         static const int kvs_rest_colwidthv_human[] = { 7, 7, 7, 7, 7, 7 };
@@ -917,26 +950,26 @@ kvs_rest_query_tree_impl(
         struct kvset_view *v = table_at(tree_view, i);
         int rc;
 
-        ctx.node_nodeid = v->nodeid;
-
-        rc = print_tree(&ctx, v->kvset);
+        rc = print_tree(&ctx, v);
         if (rc)
             break;
     }
 
-    cn_tree_view_destroy(tree_view);
-
     print_elem(&ctx, TYPE_NODE, &ctx.node, NULL);
+
+    cn_tree_view_destroy(tree_view);
 
     if (ctx.yaml) {
         yaml_end_element_type(yc); /* nodes */
         yaml_start_element_type(yc, "info");
     } else {
-        print_hdr(&ctx, " CNID  NAME");
+        print_hdr(&ctx, "NAME");
         yc_snprintf(yc, "%c %4u %4u", TYPE_TREE, ctx.tot_nodes, ctx.tot_kvsets);
     }
 
-    print_unit(&ctx, TYPE_TREE, ctx.tree_dgen, &ctx.total,
+    ctx.eklen = ctx.eklen_max;
+
+    print_unit(&ctx, TYPE_TREE, ctx.tree_dgen, &ctx.total, kvs->kk_name,
                ctx.tot_kvsets, ctx.tot_hblks, ctx.tot_kblks, ctx.tot_vblks);
 
     if (ctx.yaml) {
@@ -949,7 +982,7 @@ kvs_rest_query_tree_impl(
         yaml_end_element(yc);
         yaml_end_element_type(yc); /* info */
     } else {
-        yc_snprintf(yc, " %5lu  %s\n", kvs->kk_cnid, kvs->kk_name);
+        yc_snprintf(yc, "\n");
     }
 
     return 0;

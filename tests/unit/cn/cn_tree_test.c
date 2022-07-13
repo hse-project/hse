@@ -605,7 +605,7 @@ test_tree_create(struct test *t)
             tn = cn_node_alloc(t->tree, nodeid);
             ASSERT_NE_RET(0, tn, -1);
 
-            list_add(&tn->tn_link, &t->tree->ct_leaves);
+            list_add_tail(&tn->tn_link, &t->tree->ct_nodes);
 
             if (t->p.verbose)
                 log_info("add %3u kvsets to nodeid %lu", num_kvsets_this_node, nodeid);
@@ -776,7 +776,7 @@ MTF_DEFINE_UTEST_PRE(test, t_cn_comp, test_setup)
                 if (action == CN_ACTION_SPILL)
                     tn = t.tree->ct_root;
                 else
-                    tn = list_first_entry_or_null(&t.tree->ct_leaves, struct cn_tree_node, tn_link);
+                    tn = list_first_entry_or_null(&t.tree->ct_nodes, typeof(*tn), tn_link);
 
                 ASSERT_TRUE(tn != NULL);
 
@@ -814,7 +814,7 @@ MTF_DEFINE_UTEST_PRE(test, cn_node_get_minmax, test_setup)
     err = test_tree_create(&t);
     ASSERT_EQ(0, err);
 
-    tn = list_first_entry_or_null(&t.tree->ct_leaves, struct cn_tree_node, tn_link);
+    tn = list_first_entry_or_null(&t.tree->ct_nodes, typeof(*tn), tn_link);
 
     list_for_each_entry (le, &tn->tn_kvset_list, le_link) {
         struct fake_kvset *kvset = (struct fake_kvset *)le->le_kvset;
