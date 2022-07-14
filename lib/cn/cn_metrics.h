@@ -145,11 +145,12 @@ cn_ns_vblks(const struct cn_node_stats *ns)
 static inline uint
 cn_ns_samp(const struct cn_node_stats *ns)
 {
-    u64 alen = cn_ns_alen(ns);
-    u64 clen = cn_ns_clen(ns);
+    uint64_t alen = cn_ns_alen(ns);
+    uint64_t clen = cn_ns_clen(ns);
 
-    assert(clen);
-
+    /* clen will be zero if the node is empty, in which
+     * case we return 100% (i.e., there's 0% garbage).
+     */
     return clen ? 100 * alen / clen : 100;
 }
 
