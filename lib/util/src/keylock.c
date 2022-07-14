@@ -9,7 +9,7 @@
 #include <hse_util/arch.h>
 #include <hse_util/slab.h>
 #include <hse_util/atomic.h>
-#include <hse_util/hse_err.h>
+#include <error/merr.h>
 #include <hse_util/page.h>
 #include <hse_util/minmax.h>
 #include <hse_util/mutex.h>

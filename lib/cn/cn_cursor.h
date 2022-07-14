@@ -6,7 +6,7 @@
 #ifndef HSE_KVDB_CN_CURSOR_H
 #define HSE_KVDB_CN_CURSOR_H
 
-#include <hse_util/hse_err.h>
+#include <error/merr.h>
 #include <hse_util/inttypes.h>
 #include <hse_util/bin_heap.h>
 #include <hse_util/table.h>

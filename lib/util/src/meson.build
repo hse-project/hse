@@ -17,7 +17,6 @@ util_sources = files(
     'event_timer.c',
     'fmt.c',
     'hlog.c',
-    'hse_err.c',
     'hse_log_fmt.c',
     'json.c',
     'keylock.c',

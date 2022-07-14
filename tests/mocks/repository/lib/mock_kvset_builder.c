@@ -5,7 +5,7 @@
 
 #include <mock/api.h>
 
-#include <hse_util/hse_err.h>
+#include <error/merr.h>
 
 #include <hse_ikvdb/kvset_builder.h>
 

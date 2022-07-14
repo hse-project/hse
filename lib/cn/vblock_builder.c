@@ -18,7 +18,7 @@
 #include <hse_util/logging.h>
 #include <hse_util/perfc.h>
 #include <hse_util/vlb.h>
-#include <hse_util/hse_err.h>
+#include <error/merr.h>
 
 #include <hse_ikvdb/blk_list.h>
 #include <hse_ikvdb/mclass_policy.h>

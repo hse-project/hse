@@ -13,7 +13,7 @@
 #include <hse_ikvdb/kvs_cparams.h>
 #include <hse_ikvdb/kvs_rparams.h>
 #include <hse_ikvdb/hse_gparams.h>
-#include <hse_util/hse_err.h>
+#include <error/merr.h>
 
 /**
  * Deserialize list of key=value parameters to KVDB rparams

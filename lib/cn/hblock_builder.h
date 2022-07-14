@@ -11,7 +11,7 @@
 #include <stdint.h>
 
 #include <hse_util/compiler.h>
-#include <hse_util/hse_err.h>
+#include <error/merr.h>
 
 enum hse_mclass_policy_age;
 struct cn;

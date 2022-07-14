@@ -5,7 +5,7 @@
 #ifndef HSE_UTIL_COMPRESSION_H
 #define HSE_UTIL_COMPRESSION_H
 
-#include <hse_util/hse_err.h>
+#include <error/merr.h>
 #include <hse_util/inttypes.h>
 
 typedef uint compress_op_estimate_t(

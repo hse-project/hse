@@ -405,7 +405,7 @@ hse_kvdb_open(
     if (hse_gparams.gp_socket.enabled)
         strlcpy(content.socket.path, hse_gparams.gp_socket.path, sizeof(content.socket.path));
 
-    err = merr(pidfile_serialize(pfh, &content));
+    err = pidfile_serialize(pfh, &content);
     if (err) {
         log_errx("Failed to serialize data to the KVDB pidfile (%s): @@e", err, pidfile_path);
         goto out;

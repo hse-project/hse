@@ -17,7 +17,7 @@
 
 #include <hse_util/base.h>
 #include <hse_util/inttypes.h>
-#include <hse_util/hse_err.h>
+#include <error/merr.h>
 
 #ifdef HSE_BUILD_RELEASE
 #define CHEAP_POISON_SZ 0

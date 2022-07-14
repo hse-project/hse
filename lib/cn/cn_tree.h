@@ -6,7 +6,7 @@
 #ifndef HSE_KVDB_CN_CN_TREE_H
 #define HSE_KVDB_CN_CN_TREE_H
 
-#include <hse_util/hse_err.h>
+#include <error/merr.h>
 #include <hse_util/inttypes.h>
 
 #include "cn_metrics.h"

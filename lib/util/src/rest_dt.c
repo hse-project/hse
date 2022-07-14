@@ -8,7 +8,7 @@
 #include <hse_util/page.h>
 #include <hse_util/atomic.h>
 #include <hse_util/logging.h>
-#include <hse_util/hse_err.h>
+#include <error/merr.h>
 #include <hse_util/event_counter.h>
 
 #include <hse_util/data_tree.h>

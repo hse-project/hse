@@ -11,7 +11,7 @@
 #include <hse_ikvdb/throttle.h>
 
 #include <hse_util/inttypes.h>
-#include <hse_util/hse_err.h>
+#include <error/merr.h>
 #include <hse_util/workqueue.h>
 #include <hse_util/bin_heap.h>
 #include <hse_util/condvar.h>

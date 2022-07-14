@@ -53,8 +53,8 @@ hse_storage_info(const char *const kvdb_home)
                 mc_present[i] = true;
         }
     } else if (err && hse_err_to_errno(err) == EBUSY) {
-        rc = pidfile_deserialize(kvdb_home, &content);
-        if (rc)
+        err = pidfile_deserialize(kvdb_home, &content);
+        if (err)
             goto out;
 
         for (int i = HSE_MCLASS_BASE; i < HSE_MCLASS_COUNT; i++) {

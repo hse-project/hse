@@ -3,7 +3,7 @@
  * Copyright (C) 2015-2022 Micron Technology, Inc.  All rights reserved.
  */
 
-#include <hse_util/hse_err.h>
+#include <error/merr.h>
 
 struct ikvdb;
 struct kvdb_kvs;

@@ -10,7 +10,7 @@
 
 #include <stdlib.h>
 
-#include <hse_util/hse_err.h>
+#include <error/merr.h>
 
 /* clang-format off */
 

@@ -6,7 +6,7 @@
 #ifndef HSE_KVS_CN_WBT_BUILDER_H
 #define HSE_KVS_CN_WBT_BUILDER_H
 
-#include <hse_util/hse_err.h>
+#include <error/merr.h>
 #include <hse_util/inttypes.h>
 
 struct key_obj;

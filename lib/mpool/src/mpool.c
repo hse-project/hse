@@ -17,7 +17,7 @@
 
 #include <hse_util/assert.h>
 #include <hse_util/logging.h>
-#include <hse_util/hse_err.h>
+#include <error/merr.h>
 #include <hse_util/workqueue.h>
 #include <hse_util/page.h>
 #include <hse_util/dax.h>

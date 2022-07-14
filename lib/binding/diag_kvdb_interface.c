@@ -74,7 +74,7 @@ diag_kvdb_open(
         goto close_mp;
     }
 
-    err = merr(pidfile_serialize(pfh, &content));
+    err = pidfile_serialize(pfh, &content);
     if (err)
         goto close_mp;
 

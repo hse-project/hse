@@ -6,7 +6,7 @@
 #include <mtf/framework.h>
 
 #include <hse_util/hash.h>
-#include <hse_util/hse_err.h>
+#include <error/merr.h>
 #include <hse_util/logging.h>
 
 MTF_MODULE_UNDER_TEST(hse_platform);

@@ -6,7 +6,7 @@
 #ifndef HSE_CORE_C0_KVSET_ITERATOR_H
 #define HSE_CORE_C0_KVSET_ITERATOR_H
 
-#include <hse_util/hse_err.h>
+#include <error/merr.h>
 #include <hse_util/element_source.h>
 #include <hse_util/bonsai_tree.h>
 

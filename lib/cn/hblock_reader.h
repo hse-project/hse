@@ -11,7 +11,7 @@
 #include <stdint.h>
 
 #include <hse_util/compiler.h>
-#include <hse_util/hse_err.h>
+#include <error/merr.h>
 
 struct kvs_mblk_desc;
 struct mblock_props;

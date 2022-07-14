@@ -7,7 +7,7 @@
 #include <string.h>
 #include <sys/stat.h>
 
-#include <hse_util/hse_err.h>
+#include <error/merr.h>
 #include <hse_ikvdb/kvdb_home.h>
 #include <mtf/framework.h>
 #include <pidfile/pidfile.h>

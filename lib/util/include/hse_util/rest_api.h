@@ -8,7 +8,7 @@
 
 #include <microhttpd.h>
 
-#include <hse_util/hse_err.h>
+#include <error/merr.h>
 
 #define REST_VERSION_MAJOR 0
 #define REST_VERSION_MINOR 1

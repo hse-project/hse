@@ -8,7 +8,7 @@
 
 #include <dirent.h>
 
-#include <hse_util/hse_err.h>
+#include <error/merr.h>
 
 #include <mpool/mpool_structs.h>
 

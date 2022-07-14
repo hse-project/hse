@@ -6,7 +6,7 @@
 #ifndef WAL_MDC_H
 #define WAL_MDC_H
 
-#include <hse_util/hse_err.h>
+#include <error/merr.h>
 
 struct wal;
 struct wal_mdc;

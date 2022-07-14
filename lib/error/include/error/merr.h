@@ -1,10 +1,10 @@
 /* SPDX-License-Identifier: Apache-2.0 */
 /*
- * Copyright (C) 2015-2021 Micron Technology, Inc.  All rights reserved.
+ * Copyright (C) 2015-2022 Micron Technology, Inc.  All rights reserved.
  */
 
-#ifndef HSE_PLATFORM_HSE_ERR_H
-#define HSE_PLATFORM_HSE_ERR_H
+#ifndef HSE_ERROR_MERR_H
+#define HSE_ERROR_MERR_H
 
 /*
  * The merr_t typedef is designed to enable developers to identify the line

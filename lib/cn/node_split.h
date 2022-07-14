@@ -9,7 +9,7 @@
 #include <stddef.h>
 
 #include <hse_util/compiler.h>
-#include <hse_util/hse_err.h>
+#include <error/merr.h>
 
 struct cn_tree_node;
 

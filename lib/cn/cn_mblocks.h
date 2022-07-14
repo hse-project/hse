@@ -9,7 +9,7 @@
 #include <inttypes.h>
 #include <stdbool.h>
 
-#include <hse_util/hse_err.h>
+#include <error/merr.h>
 
 /* MTF_MOCK_DECL(cn_mblocks) */
 

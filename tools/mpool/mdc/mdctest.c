@@ -7,7 +7,7 @@
 
 #include <hse_util/platform.h>
 #include <hse_util/parse_num.h>
-#include <hse_util/hse_err.h>
+#include <error/merr.h>
 #include <hse_util/page.h>
 #include <hse_util/page.h>
 

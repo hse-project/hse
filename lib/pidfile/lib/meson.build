@@ -1,3 +1,1 @@
-pidfile_sources = files(
-    'pidfile.c',
-)
+pidfile_sources = files('pidfile.c')

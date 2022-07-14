@@ -4,7 +4,7 @@
  */
 
 #include <hse_util/logging.h>
-#include <hse_util/hse_err.h>
+#include <error/merr.h>
 #include <hse_util/slab.h>
 
 #include <mtf/framework.h>

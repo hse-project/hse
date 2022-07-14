@@ -9,7 +9,7 @@
 /* MTF_MOCK_DECL(bin_heap) */
 
 #include <hse_util/inttypes.h>
-#include <hse_util/hse_err.h>
+#include <error/merr.h>
 #include <hse_util/element_source.h>
 
 struct bin_heap;

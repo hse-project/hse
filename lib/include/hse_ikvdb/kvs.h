@@ -9,7 +9,7 @@
 #include <hse_util/arch.h>
 #include <hse_util/list.h>
 #include <hse_util/inttypes.h>
-#include <hse_util/hse_err.h>
+#include <error/merr.h>
 #include <hse_util/mutex.h>
 #include <hse_util/perfc.h>
 

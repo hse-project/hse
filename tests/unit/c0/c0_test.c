@@ -6,7 +6,7 @@
 #include <mtf/framework.h>
 #include <mock/api.h>
 
-#include <hse_util/hse_err.h>
+#include <error/merr.h>
 #include <hse_util/seqno.h>
 
 #include <hse_ikvdb/c0.h>
