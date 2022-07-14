@@ -4,7 +4,7 @@ on:
   push:
     branches:
       - master
-      - v2.*
+      - v*.*
     paths-ignore:
       - "**.md"
       - ".github/ISSUE_TEMPLATE/**"
@@ -56,22 +56,45 @@ jobs:
       DEBIAN_FRONTEND: noninteractive
 
     steps:
+      - name: Initialize
+        run: |
+          apt-get -y update
+          apt-get -y install git build-essential python3 python3-pip \
+            ninja-build pkg-config gawk libbsd-dev libmicrohttpd-dev \
+            liburcu-dev libyaml-dev libcurl4-openssl-dev libmongoc-dev \
+            libbson-dev libssl-dev libsasl2-dev libncurses-dev maven
+          python3 -m pip install Cython
+
       - name: Checkout HSE
         uses: actions/checkout@v3
+
+      - name: Determine branches
+        id: determine-branches
+        run: |
+          for p in hse-java hse-python; do
+            [ "$GITHUB_EVENT_NAME" = "pull_request" ] && git ls-remote \
+              --exit-code --heads "https://github.com/hse-project/$p.git" \
+              "$GITHUB_HEAD_REF" > /dev/null
+            if [ $? -eq 0 ] && [ "$GITHUB_EVENT_NAME" = "pull_request" ]; then
+              echo "::set-output name=$p::$GITHUB_HEAD_REF"
+            else
+              echo "::set-output name=$p::master"
+            fi
+          done
 
       - name: Checkout hse-java
         uses: actions/checkout@v3
         with:
           repository: hse-project/hse-java
           path: subprojects/hse-java
-          ref: ${{ github.base_ref || github.ref }}
+          ref: ${{ steps.determine-branches.outputs.hse-java }}
 
       - name: Checkout hse-python
         uses: actions/checkout@v3
         with:
           repository: hse-project/hse-python
           path: subprojects/hse-python
-          ref: ${{ github.base_ref || github.ref }}
+          ref: ${{ steps.determine-branches.outputs.hse-python }}
 
       - name: Post-checkout
         run: |
@@ -86,15 +109,6 @@ jobs:
           distribution: adopt
           java-version: "8"
           cache: maven
-
-      - name: Initialize
-        run: |
-          apt-get -y update
-          apt-get -y install build-essential python3 python3-pip ninja-build \
-            pkg-config gawk libbsd-dev libmicrohttpd-dev liburcu-dev \
-            libyaml-dev libcurl4-openssl-dev libmongoc-dev libbson-dev \
-            libssl-dev libsasl2-dev libncurses-dev maven
-          python3 -m pip install Cython
 
       - name: Get Meson on ubuntu-18.04
         if: ${{ matrix.image-tag == '18.04' }}
@@ -178,37 +192,6 @@ jobs:
         buildtype: [release, debug]
 
     steps:
-      - name: Checkout HSE
-        uses: actions/checkout@v3
-
-      - name: Checkout hse-java
-        uses: actions/checkout@v3
-        with:
-          repository: hse-project/hse-java
-          path: subprojects/hse-java
-          ref: ${{ github.base_ref || github.ref }}
-
-      - name: Checkout hse-python
-        uses: actions/checkout@v3
-        with:
-          repository: hse-project/hse-python
-          path: subprojects/hse-python
-          ref: ${{ github.base_ref || github.ref }}
-
-      - name: Post-checkout
-        run: |
-          for b in hse-java hse-python; do
-            git -C "subprojects/$b" checkout ${{ github.head_ref }} || true
-          done
-
-      - name: Setup Java
-        id: setup-java
-        uses: actions/setup-java@v3
-        with:
-          distribution: adopt
-          java-version: "17"
-          cache: maven
-
       - name: Initialize
         run: |
           dnf group install -y --with-optional \
@@ -219,6 +202,45 @@ jobs:
             openssl-devel cyrus-sasl-devel ncurses-devel maven python3-devel \
             python3-Cython libxml2 libxslt
           python3 -m pip install meson==0.62.2
+
+      - name: Checkout HSE
+        uses: actions/checkout@v3
+
+      - name: Determine branches
+        id: determine-branches
+        run: |
+          for p in hse-java hse-python; do
+            [ "$GITHUB_EVENT_NAME" = "pull_request" ] && git ls-remote \
+              --exit-code --heads "https://github.com/hse-project/$p.git" \
+              "$GITHUB_HEAD_REF" > /dev/null
+            if [ $? -eq 0 ] && [ "$GITHUB_EVENT_NAME" = "pull_request" ]; then
+              echo "::set-output name=$p::$GITHUB_HEAD_REF"
+            else
+              echo "::set-output name=$p::master"
+            fi
+          done
+
+      - name: Checkout hse-java
+        uses: actions/checkout@v3
+        with:
+          repository: hse-project/hse-java
+          path: subprojects/hse-java
+          ref: ${{ steps.determine-branches.outputs.hse-java }}
+
+      - name: Checkout hse-python
+        uses: actions/checkout@v3
+        with:
+          repository: hse-project/hse-python
+          path: subprojects/hse-python
+          ref: ${{ steps.determine-branches.outputs.hse-python }}
+
+      - name: Setup Java
+        id: setup-java
+        uses: actions/setup-java@v3
+        with:
+          distribution: adopt
+          java-version: "17"
+          cache: maven
 
       # Download all dependencies up front if cache wasn't hit. Will keep
       # Maven from downloading dependencies during the test phase which could
@@ -278,37 +300,6 @@ jobs:
         buildtype: [release, debug]
 
     steps:
-      - name: Checkout HSE
-        uses: actions/checkout@v3
-
-      - name: Checkout hse-java
-        uses: actions/checkout@v3
-        with:
-          repository: hse-project/hse-java
-          path: subprojects/hse-java
-          ref: ${{ github.base_ref || github.ref }}
-
-      - name: Checkout hse-python
-        uses: actions/checkout@v3
-        with:
-          repository: hse-project/hse-python
-          path: subprojects/hse-python
-          ref: ${{ github.base_ref || github.ref }}
-
-      - name: Post-checkout
-        run: |
-          for b in hse-java hse-python; do
-            git -C "subprojects/$b" checkout ${{ github.head_ref }} || true
-          done
-
-      - name: Setup Java
-        id: setup-java
-        uses: actions/setup-java@v3
-        with:
-          distribution: adopt
-          java-version: "17"
-          cache: maven
-
       - name: Initialize
         run: |
           dnf install -y dnf-plugins-core epel-release
@@ -320,6 +311,45 @@ jobs:
             cyrus-sasl-devel ncurses-devel maven python39 python39-devel \
             libxml2 libxslt
           python3 -m pip install meson==0.62.2 Cython
+
+      - name: Checkout HSE
+        uses: actions/checkout@v3
+
+      - name: Determine branches
+        id: determine-branches
+        run: |
+          for p in hse-java hse-python; do
+            [ "$GITHUB_EVENT_NAME" = "pull_request" ] && git ls-remote \
+              --exit-code --heads "https://github.com/hse-project/$p.git" \
+              "$GITHUB_HEAD_REF" > /dev/null
+            if [ $? -eq 0 ] && [ "$GITHUB_EVENT_NAME" = "pull_request" ]; then
+              echo "::set-output name=$p::$GITHUB_HEAD_REF"
+            else
+              echo "::set-output name=$p::master"
+            fi
+          done
+
+      - name: Checkout hse-java
+        uses: actions/checkout@v3
+        with:
+          repository: hse-project/hse-java
+          path: subprojects/hse-java
+          ref: ${{ steps.determine-branches.outputs.hse-java }}
+
+      - name: Checkout hse-python
+        uses: actions/checkout@v3
+        with:
+          repository: hse-project/hse-python
+          path: subprojects/hse-python
+          ref: ${{ steps.determine-branches.outputs.hse-python }}
+
+      - name: Setup Java
+        id: setup-java
+        uses: actions/setup-java@v3
+        with:
+          distribution: adopt
+          java-version: "17"
+          cache: maven
 
       # Download all dependencies up front if cache wasn't hit. Will keep
       # Maven from downloading dependencies during the test phase which could
@@ -378,28 +408,50 @@ jobs:
         arch: [s390x]
 
     steps:
+      - name: Initialize
+        run: |
+          dpkg --add-architecture ${{ matrix.arch }}
+          apt-get -y update
+          apt-get -y install git python3 python3-pip pkg-config ninja-build \
+            cmake gawk build-essential crossbuild-essential-${{ matrix.arch }} \
+            libpython3-dev:${{ matrix.arch }} liburcu-dev:${{ matrix.arch }} \
+            libcurl4-openssl-dev:${{ matrix.arch }} \
+            libbsd-dev:${{ matrix.arch }} libmicrohttpd-dev:${{ matrix.arch }} \
+            libyaml-dev:${{ matrix.arch }} libmongoc-dev:${{ matrix.arch }} \
+            libbson-dev:${{ matrix.arch }} libncurses-dev:${{ matrix.arch }} \
+            maven
+          python3 -m pip install meson==0.62.2 Cython
+
       - name: Checkout HSE
         uses: actions/checkout@v3
+
+      - name: Determine branches
+        id: determine-branches
+        run: |
+          for p in hse-java hse-python; do
+            [ "$GITHUB_EVENT_NAME" = "pull_request" ] && git ls-remote \
+              --exit-code --heads "https://github.com/hse-project/$p.git" \
+              "$GITHUB_HEAD_REF" > /dev/null
+            if [ $? -eq 0 ] && [ "$GITHUB_EVENT_NAME" = "pull_request" ]; then
+              echo "::set-output name=$p::$GITHUB_HEAD_REF"
+            else
+              echo "::set-output name=$p::master"
+            fi
+          done
 
       - name: Checkout hse-java
         uses: actions/checkout@v3
         with:
           repository: hse-project/hse-java
           path: subprojects/hse-java
-          ref: ${{ github.base_ref || github.ref }}
+          ref: ${{ steps.determine-branches.outputs.hse-java }}
 
       - name: Checkout hse-python
         uses: actions/checkout@v3
         with:
           repository: hse-project/hse-python
           path: subprojects/hse-python
-          ref: ${{ github.base_ref || github.ref }}
-
-      - name: Post-checkout
-        run: |
-          for b in hse-java hse-python; do
-            git -C "subprojects/$b" checkout ${{ github.head_ref }} || true
-          done
+          ref: ${{ steps.determine-branches.outputs.hse-python }}
 
       - name: Setup Java
         id: setup-java
@@ -408,20 +460,6 @@ jobs:
           distribution: adopt
           java-version: "17"
           cache: maven
-
-      - name: Initialize
-        run: |
-          dpkg --add-architecture ${{ matrix.arch }}
-          apt-get -y update
-          apt-get -y install python3 python3-pip pkg-config ninja-build cmake \
-            gawk build-essential crossbuild-essential-${{ matrix.arch }} \
-            libpython3-dev:${{ matrix.arch }} liburcu-dev:${{ matrix.arch }} \
-            libcurl4-openssl-dev:${{ matrix.arch }} \
-            libbsd-dev:${{ matrix.arch }} libmicrohttpd-dev:${{ matrix.arch }} \
-            libyaml-dev:${{ matrix.arch }} libmongoc-dev:${{ matrix.arch }} \
-            libbson-dev:${{ matrix.arch }} libncurses-dev:${{ matrix.arch }} \
-            maven
-          python3 -m pip install meson==0.62.2 Cython
 
       # Download all dependencies up front if cache wasn't hit. Will keep
       # Maven from downloading dependencies during the test phase which could
@@ -459,9 +497,6 @@ jobs:
         buildtype: [release, debug]
 
     steps:
-      - name: Checkout HSE
-        uses: actions/checkout@v3
-
       - name: Initialize
         run: |
           dnf group install -y --with-optional \
@@ -472,6 +507,9 @@ jobs:
             cyrus-sasl-devel ncurses-devel libxml2-devel libxslt-devel \
             libasan libubsan
           python3 -m pip install meson==0.62.2
+
+      - name: Checkout HSE
+        uses: actions/checkout@v3
 
       - name: Setup
         run: |
@@ -503,28 +541,44 @@ jobs:
       image: fedora:36
 
     steps:
+      - name: Initialize
+        run: |
+          dnf group install -y --with-optional \
+            "C Development Tools and Libraries"
+          dnf install -y git python3-pip ninja-build pkg-config ncurses-devel \
+            python3-devel python3-Cython maven
+          python3 -m pip install meson==0.62.2
+
       - name: Checkout HSE
         uses: actions/checkout@v3
+
+      - name: Determine branches
+        id: determine-branches
+        run: |
+          for p in hse-java hse-python; do
+            [ "$GITHUB_EVENT_NAME" = "pull_request" ] && git ls-remote \
+              --exit-code --heads "https://github.com/hse-project/$p.git" \
+              "$GITHUB_HEAD_REF" > /dev/null
+            if [ $? -eq 0 ] && [ "$GITHUB_EVENT_NAME" = "pull_request" ]; then
+              echo "::set-output name=$p::$GITHUB_HEAD_REF"
+            else
+              echo "::set-output name=$p::master"
+            fi
+          done
 
       - name: Checkout hse-java
         uses: actions/checkout@v3
         with:
           repository: hse-project/hse-java
           path: subprojects/hse-java
-          ref: ${{ github.base_ref || github.ref }}
+          ref: ${{ steps.determine-branches.outputs.hse-java }}
 
       - name: Checkout hse-python
         uses: actions/checkout@v3
         with:
           repository: hse-project/hse-python
           path: subprojects/hse-python
-          ref: ${{ github.base_ref || github.ref }}
-
-      - name: Post-checkout
-        run: |
-          for b in hse-java hse-python; do
-            git -C "subprojects/$b" checkout ${{ github.head_ref }} || true
-          done
+          ref: ${{ steps.determine-branches.outputs.hse-python }}
 
       - name: Setup Java
         id: setup-java
@@ -533,14 +587,6 @@ jobs:
           distribution: adopt
           java-version: "17"
           cache: maven
-
-      - name: Initialize
-        run: |
-          dnf group install -y --with-optional \
-            "C Development Tools and Libraries"
-          dnf install -y git python3-pip ninja-build pkg-config ncurses-devel \
-            python3-devel python3-Cython maven
-          python3 -m pip install meson==0.62.2
 
       # Download all dependencies up front if cache wasn't hit. Will keep
       # Maven from downloading dependencies during the test phase which could

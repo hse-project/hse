@@ -2,14 +2,13 @@
 
 # SPDX-License-Identifier: Apache-2.0
 #
-# Copyright (C) 2021 Micron Technology, Inc. All rights reserved.
+# Copyright (C) 2021-2022 Micron Technology, Inc. All rights reserved.
 
 from typing import Tuple
 
-from hse2 import hse
+from utility import cli, lifecycle
 
-from utility import lifecycle, cli
-
+from hse3 import hse
 
 hse.init(cli.CONFIG)
 

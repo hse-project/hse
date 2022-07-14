@@ -2,14 +2,14 @@
 
 # SPDX-License-Identifier: Apache-2.0
 #
-# Copyright (C) 2021 Micron Technology, Inc. All rights reserved.
+# Copyright (C) 2021-2022 Micron Technology, Inc. All rights reserved.
 
 from contextlib import ExitStack
 from typing import List
 
-from hse2 import hse
+from utility import cli, lifecycle
 
-from utility import lifecycle, cli
+from hse3 import hse
 
 
 def check_keys(cursor: hse.KvsCursor, expected: List[bytes]):

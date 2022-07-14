@@ -2,7 +2,7 @@
 
 # SPDX-License-Identifier: Apache-2.0
 #
-# Copyright (C) 2021 Micron Technology, Inc. All rights reserved.
+# Copyright (C) 2021-2022 Micron Technology, Inc. All rights reserved.
 
 """
 This test checks basic ingest and get operation in LC.
@@ -13,9 +13,9 @@ It also checks if the right values are read if a txn is committed or aborted.
 
 from contextlib import ExitStack
 
-from hse2 import hse
+from utility import cli, lifecycle
 
-from utility import lifecycle, cli
+from hse3 import hse
 
 
 def run_test(kvdb: hse.Kvdb, kvs: hse.Kvs):

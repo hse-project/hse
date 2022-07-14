@@ -11,9 +11,9 @@ well as through the cursor cache: destroy + create) and verify the keys again.
 
 from contextlib import ExitStack
 
-from hse2 import hse
+from utility import cli, lifecycle
 
-from utility import lifecycle, cli
+from hse3 import hse
 
 
 def resize_c0_cursor(kvdb: hse.Kvdb, kvs: hse.Kvs):

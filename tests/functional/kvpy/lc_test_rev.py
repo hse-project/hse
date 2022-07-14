@@ -2,7 +2,7 @@
 
 # SPDX-License-Identifier: Apache-2.0
 #
-# Copyright (C) 2021 Micron Technology, Inc. All rights reserved.
+# Copyright (C) 2021-2022 Micron Technology, Inc. All rights reserved.
 
 '''
 To add keys to LC and make sure that an unintended ingest doesn't move it all to cn set these
@@ -13,9 +13,9 @@ two run time params:
 
 from contextlib import ExitStack
 
-from hse2 import hse
+from utility import cli, lifecycle
 
-from utility import lifecycle, cli
+from hse3 import hse
 
 
 def separate_keys(kvdb: hse.Kvdb, kvs: hse.Kvs):
