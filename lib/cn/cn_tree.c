@@ -1405,6 +1405,11 @@ cn_comp_update_spill(struct cn_compaction_work *work, struct kvset **kvsets)
             }
         }
 
+        /* Advance the change generation on the spill source node
+         * to ensure it is reevaluated by csched/sp3_dirty_node().
+         */
+        pnode->tn_cgen++;
+
         /* Move old kvsets from parent node to retired list.
          * Asserts:
          * - Each input kvset just spilled must still be on pnode's kvset list.
@@ -1544,10 +1549,16 @@ cn_comp_commit(struct cn_compaction_work *w)
     for (i = 0; i < w->cw_outc; i++) {
         struct kvset_meta km = {};
 
-        /* [HSE_REVISIT] there may be vblks to delete!!! */
+        /* A k-compact with sufficient tombs could annihilate all keys,
+         * in which case it will have no h or k blocks, but it may have
+         * vblocks that need to be deleted.  In this case skip_commit
+         * should be true.
+         *
+         * [HSE_REVISIT] Are there any other corner cases?
+         */
         if (!w->cw_outv[i].hblk.bk_blkid) {
             assert(w->cw_outv[i].kblks.n_blks == 0);
-            assert(w->cw_outv[i].vblks.n_blks == 0);
+            assert(skip_commit || w->cw_outv[i].vblks.n_blks == 0);
             continue;
         }
 
