@@ -24,6 +24,7 @@
 #include "omf.h"
 #include "kvs_mblk_desc.h"
 #include "kblock_reader.h"
+#include "kvset.h"
 
 #define MTF_MOCK_IMPL_wbt_reader
 #include "wbt_reader.h"
@@ -35,7 +36,12 @@
 static struct kmem_cache *wbti_cache HSE_READ_MOSTLY;
 
 void
-wbt_read_kmd_vref(const void *kmd, size_t *off, u64 *seq, struct kvs_vtuple_ref *vref)
+wbt_read_kmd_vref(
+    const void            *kmd,
+    struct vgmap          *vgmap,
+    size_t                *off,
+    u64                   *seq,
+    struct kvs_vtuple_ref *vref)
 {
     enum kmd_vtype vtype;
     uint           vbidx = 0;
@@ -81,6 +87,14 @@ wbt_read_kmd_vref(const void *kmd, size_t *off, u64 *seq, struct kvs_vtuple_ref 
         case vtype_tomb:
         case vtype_ptomb:
             break;
+    }
+
+    if ((vtype == vtype_val || vtype == vtype_cval) && vgmap) {
+        merr_t err;
+
+        err = vgmap_vbidx_src2out(vgmap, vref->vb.vr_index, &vref->vb.vr_index);
+        if (err)
+            abort();
     }
 
     vref->vr_type = vtype;
@@ -732,13 +746,14 @@ wbti_reset(
 
 merr_t
 wbtr_read_vref(
-    const void *base,
-    const struct wbt_desc *wbd,
+    const void              *base,
+    const struct wbt_desc   *wbd,
     const struct kvs_ktuple *kt,
-    uint lcp,
-    uint64_t seq,
-    enum key_lookup_res *lookup_res,
-    struct kvs_vtuple_ref *vref)
+    uint                     lcp,
+    uint64_t                 seq,
+    enum key_lookup_res     *lookup_res,
+    struct vgmap            *vgmap,
+    struct kvs_vtuple_ref   *vref)
 {
     const struct wbt_node_hdr_omf *node;
     int                      j, cmp, node_num;
@@ -811,7 +826,7 @@ wbtr_read_vref(
             nvals = kmd_count(kmd, &off);
             assert(nvals > 0);
             while (nvals--) {
-                wbt_read_kmd_vref(kmd, &off, &vseq, vref);
+                wbt_read_kmd_vref(kmd, vgmap, &off, &vseq, vref);
                 assert(off <= wbd->wbd_kmd_pgc * PAGE_SIZE);
                 if (seq >= vseq) {
                     vref->vr_seq = vseq;

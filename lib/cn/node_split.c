@@ -18,6 +18,7 @@
 #include "cn_tree_internal.h"
 #include "kvset.h"
 #include "kvset_internal.h"
+#include "wbt_internal.h"
 
 struct reverse_kblk_iterator {
     struct kvset *ks;
@@ -227,25 +228,20 @@ forward_wbt_leaf_iterator_init(
 static int
 wbt_leaf_compare(const void *const a, const void *const b)
 {
+    const struct wbt_node_hdr_omf *wbt_node_a = a, *wbt_node_b = b;
     const struct wbt_lfe_omf *lfe_a, *lfe_b;
     struct key_obj key_a, key_b;
-    const struct wbt_node_hdr_omf *wbt_leaf_a = a, *wbt_leaf_b = b;
 
     INVARIANT(a);
     INVARIANT(b);
 
-    lfe_a = (void *)(wbt_leaf_a + 1) + wbt_leaf_a->wbn_pfx_len;
-    lfe_b = (void *)(wbt_leaf_b + 1) + wbt_leaf_b->wbn_pfx_len;
+    lfe_a = wbt_lfe(wbt_node_a, 0);
+    wbt_node_pfx(wbt_node_a, &key_a.ko_pfx, &key_a.ko_pfx_len);
+    wbt_lfe_key(wbt_node_a, lfe_a, &key_a.ko_sfx, &key_a.ko_sfx_len);
 
-    key_a.ko_pfx = wbt_leaf_a + 1;
-    key_a.ko_pfx_len = wbt_leaf_a->wbn_pfx_len;
-    key_a.ko_sfx = (void *)wbt_leaf_a + lfe_a->lfe_koff;
-    key_a.ko_sfx_len = WBT_NODE_SIZE - lfe_a->lfe_koff;
-
-    key_b.ko_pfx = wbt_leaf_b + 1;
-    key_b.ko_pfx_len = wbt_leaf_b->wbn_pfx_len;
-    key_b.ko_sfx = (void *)wbt_leaf_b + lfe_b->lfe_koff;
-    key_b.ko_sfx_len = WBT_NODE_SIZE - lfe_b->lfe_koff;
+    lfe_b = wbt_lfe(wbt_node_b, 0);
+    wbt_node_pfx(wbt_node_b, &key_b.ko_pfx, &key_b.ko_pfx_len);
+    wbt_lfe_key(wbt_node_b, lfe_b, &key_b.ko_sfx, &key_b.ko_sfx_len);
 
     /* Return the WBT leaf node with the smallest key. */
     return key_obj_cmp(&key_a, &key_b);
@@ -253,7 +249,7 @@ wbt_leaf_compare(const void *const a, const void *const b)
 
 static merr_t
 find_split_key(
-    const struct cn_tree_node *const node,
+    const struct cn_tree_node *const tnode,
     uint64_t seen_kvlen,
     const uint32_t *const offsets,
     void *const key_buf,
@@ -267,19 +263,19 @@ find_split_key(
     struct forward_wbt_leaf_iterator *iters;
     struct element_source **srcs;
     const struct wbt_lfe_omf *lfe;
-    struct wbt_node_hdr_omf *leaf;
+    struct wbt_node_hdr_omf *wnode;
     struct key_obj key;
     void *buf = NULL;
     uint64_t total_kvlen = 0;
     uint64_t kvset_idx = 0;
 
-    INVARIANT(node);
+    INVARIANT(tnode);
     INVARIANT(offsets);
     INVARIANT(key_buf);
     INVARIANT(key_buf_sz > 0);
     INVARIANT(key_len);
 
-    num_kvsets = cn_ns_kvsets(&node->tn_ns);
+    num_kvsets = cn_ns_kvsets(&tnode->tn_ns);
 
     err = bin_heap2_create(num_kvsets, wbt_leaf_compare, &bh);
     if (ev(err))
@@ -297,7 +293,7 @@ find_split_key(
     iters = buf;
     srcs = buf + num_kvsets * sizeof(*iters);
 
-    list_for_each_entry(le, &node->tn_kvset_list, le_link) {
+    list_for_each_entry(le, &tnode->tn_kvset_list, le_link) {
         struct kvset_metrics metrics;
         struct forward_wbt_leaf_iterator *iter = &iters[kvset_idx];
 
@@ -319,24 +315,20 @@ find_split_key(
     if (ev(err))
         goto out;
 
-    while (bin_heap2_pop(bh, (void **)&leaf)) {
-        seen_kvlen -= leaf->wbn_kvlen;
+    while (bin_heap2_pop(bh, (void **)&wnode)) {
+        seen_kvlen -= omf_wbn_kvlen(wnode);
         if (seen_kvlen <= (total_kvlen / 2))
             break;
     }
 
-    assert(leaf->wbn_num_keys > 0);
+    assert(omf_wbn_num_keys(wnode) > 0);
 
     /* Get first leaf node entry */
-    lfe = (void *)(leaf + 1) + leaf->wbn_pfx_len;
-
-    key.ko_pfx = leaf + 1;
-    key.ko_pfx_len = leaf->wbn_pfx_len;
-    key.ko_sfx = (void *)leaf + lfe->lfe_koff;
-    key.ko_sfx_len = WBT_NODE_SIZE - lfe->lfe_koff;
+    lfe = wbt_lfe(wnode, 0);
+    wbt_node_pfx(wnode, &key.ko_pfx, &key.ko_pfx_len);
+    wbt_lfe_key(wnode, lfe, &key.ko_sfx, &key.ko_sfx_len);
 
     key_obj_copy(key_buf, key_buf_sz, key_len, &key);
-
     assert(*key_len <= HSE_KVS_KEY_LEN_MAX);
 
 out:

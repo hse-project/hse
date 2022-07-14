@@ -100,9 +100,12 @@ struct kvset {
     /* new compaction metrics */
     u8 * ks_hlog;
 
-    u32                   ks_vgroups;
+    struct vgmap *ks_vgmap;
+    bool          ks_use_vgmap; /* consult vgmap during query/compaction? */
+
     struct mbset_locator *ks_vblk2mbs;
-    u64                   ks_workid;
+
+    uint64_t ks_workid;
 
     struct key_disc ks_kdisc_max; /* max key in kvset */
     struct key_disc ks_kdisc_min; /* min key in kvset */

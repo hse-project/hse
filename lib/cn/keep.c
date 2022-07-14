@@ -13,21 +13,51 @@
 #include "kcompact.h"
 
 merr_t
-kvset_keep_vblocks(struct kvset_vblk_map *vbm, struct kv_iterator **iv, int niv)
+kvset_keep_vblocks(
+    struct kvset_vblk_map  *vbm,
+    struct vgmap          **vgm_out,
+    struct kv_iterator    **iv,
+    int                     niv)
 {
-    int               i, j, nv;
-    int               nbytes;
+    struct vgmap *vgm = NULL;
     struct kvs_block *blks;
+    uint32_t nv, nvg, vgidx;
+    size_t sz;
+    merr_t err = 0;
+
+    INVARIANT(vbm && vgm_out && iv);
+
+    *vgm_out = NULL;
 
     nv = 0;
-    for (i = 0; i < niv; ++i)
-        nv += kvset_get_num_vblocks(kvset_from_iter(iv[i]));
+    nvg = 0;
+    for (int i = 0; i < niv; ++i) {
+        struct kvset *kvset = kvset_from_iter(iv[i]);
+
+        nv += kvset_get_num_vblocks(kvset);
+        nvg += kvset_get_vgroups(kvset);
+    }
 
     /* alloc both the vblks and the vbm; 1 free does both */
-    nbytes = nv * sizeof(*vbm->vbm_blkv) + niv * sizeof(*vbm->vbm_map);
-    blks = calloc(1, nbytes);
+    sz = nv * sizeof(*vbm->vbm_blkv) + niv * sizeof(*vbm->vbm_map);
+    blks = calloc(1, sz);
     if (!blks)
         return merr(ev(ENOMEM));
+
+    if (nvg > 0) {
+        vgm = vgmap_alloc(nvg);
+        if (!vgm)
+            err = merr(ENOMEM);
+    } else {
+        assert(nv == 0);
+        if (nv > 0)
+            err = merr(EBUG);
+    }
+
+    if (err) {
+        free(blks);
+        return err;
+    }
 
     vbm->vbm_blkv = blks;
     vbm->vbm_blkc = 0;
@@ -53,20 +83,48 @@ kvset_keep_vblocks(struct kvset_vblk_map *vbm, struct kv_iterator **iv, int niv)
      */
 
     nv = 0;
-    for (i = 0; i < niv; ++i) {
+    vgidx = 0;
+    for (int i = 0; i < niv; ++i) {
         struct kvset *kvset = kvset_from_iter(iv[i]);
-        int           cnt = kvset_get_num_vblocks(kvset);
+        uint32_t cnt = kvset_get_num_vblocks(kvset);
+        uint32_t kvg = 0;
 
         vbm->vbm_map[i] = nv;
-        for (j = 0; j < cnt; ++j) {
+
+        for (uint32_t j = 0; j < cnt; ++j) {
             blks[nv].bk_blkid = kvset_get_nth_vblock_id(kvset, j);
             vbm->vbm_tot += kvset_get_nth_vblock_len(kvset, j);
+
+            if (j == vgmap_vbidx_out_end(kvset, kvg)) {
+                merr_t err;
+
+                assert(vgm);
+
+                /* vgmap_src is passed as NULL as the kblocks are rewritten during k-compact */
+                err = vgmap_vbidx_set(NULL, nv, vgm, nv, vgidx);
+                if (err) {
+                    free(vbm->vbm_blkv);
+                    vbm->vbm_blkv = NULL;
+                    free(vgm);
+
+                    return err;
+                }
+
+                vgidx++;
+                kvg++;
+            }
+
             nv++;
         }
+        assert(kvg == kvset_get_vgroups(kvset));
+
         vbm->vbm_blkc += cnt;
     }
 
+    assert(vgidx == nvg);
     assert(vbm->vbm_blkc == nv);
+
+    *vgm_out = vgm;
 
     return 0;
 }

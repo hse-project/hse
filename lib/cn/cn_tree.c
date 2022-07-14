@@ -1249,7 +1249,7 @@ cn_tree_prepare_compaction(struct cn_compaction_work *w)
      * vbm_blkv[n] is the id of the last vblock of the oldest kvset
      */
     if (w->cw_action == CN_ACTION_COMPACT_K) {
-        err = kvset_keep_vblocks(&vbm, ins, w->cw_kvset_cnt);
+        err = kvset_keep_vblocks(&vbm, &w->cw_vgmap, ins, w->cw_kvset_cnt);
         if (ev(err))
             goto err_exit;
     }
@@ -1274,6 +1274,7 @@ err_exit:
                 ins[i]->kvi_ops->kvi_release(ins[i]);
         free(ins);
         free(vbm.vbm_blkv);
+        vgmap_free(w->cw_vgmap);
     }
     free(outs);
 
@@ -1714,6 +1715,7 @@ cn_comp_cleanup(struct cn_compaction_work *w)
     }
 
     free(w->cw_vbmap.vbm_blkv);
+    vgmap_free(w->cw_vgmap);
     free(w->cw_cookie);
     if (w->cw_outv) {
         for (i = 0; i < w->cw_outc; i++) {

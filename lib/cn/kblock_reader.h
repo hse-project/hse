@@ -86,6 +86,9 @@ kbr_read_blm_pages(
 merr_t
 kbr_read_metrics(struct kvs_mblk_desc *kblock_desc, struct kblk_metrics *metrics);
 
+merr_t
+kbr_read_hlog(struct kvs_mblk_desc *kblk, uint8_t **hlog);
+
 /**
  * kbr_madvise_wbt_leaf_nodes() - advise about caching of wbtree leaf nodes
  */

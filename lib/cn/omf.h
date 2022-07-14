@@ -113,7 +113,10 @@ struct hblock_hdr_omf {
     uint32_t hbh_num_ptombs;
     uint32_t hbh_num_kblocks;
     uint32_t hbh_num_vblocks;
-    uint32_t hbh_num_vgroups;
+
+    /* vgroup map */
+    uint32_t hbh_vgmap_off_pg;
+    uint32_t hbh_vgmap_len_pg;
 
     /* HyperLogLog */
     uint32_t hbh_hlog_off_pg;
@@ -123,10 +126,6 @@ struct hblock_hdr_omf {
     struct wbt_hdr_omf hbh_ptree_hdr;
     uint32_t hbh_ptree_data_off_pg;
     uint32_t hbh_ptree_data_len_pg;
-
-    /* vblock index adjust */
-    uint32_t hbh_vblk_idx_adj_off_pg;
-    uint32_t hbh_vblk_idx_adj_len_pg;
 
     /* max prefix */
     uint32_t hbh_max_pfx_off;
@@ -146,13 +145,12 @@ OMF_SETGET(struct hblock_hdr_omf, hbh_max_seqno, 64)
 OMF_SETGET(struct hblock_hdr_omf, hbh_num_ptombs, 32)
 OMF_SETGET(struct hblock_hdr_omf, hbh_num_kblocks, 32)
 OMF_SETGET(struct hblock_hdr_omf, hbh_num_vblocks, 32)
-OMF_SETGET(struct hblock_hdr_omf, hbh_num_vgroups, 32)
+OMF_SETGET(struct hblock_hdr_omf, hbh_vgmap_off_pg, 32)
+OMF_SETGET(struct hblock_hdr_omf, hbh_vgmap_len_pg, 32)
 OMF_SETGET(struct hblock_hdr_omf, hbh_hlog_off_pg, 32)
 OMF_SETGET(struct hblock_hdr_omf, hbh_hlog_len_pg, 32)
 OMF_SETGET(struct hblock_hdr_omf, hbh_ptree_data_off_pg, 32)
 OMF_SETGET(struct hblock_hdr_omf, hbh_ptree_data_len_pg, 32)
-OMF_SETGET(struct hblock_hdr_omf, hbh_vblk_idx_adj_off_pg, 32)
-OMF_SETGET(struct hblock_hdr_omf, hbh_vblk_idx_adj_len_pg, 32)
 OMF_SETGET(struct hblock_hdr_omf, hbh_max_pfx_off, 32)
 OMF_SETGET(struct hblock_hdr_omf, hbh_max_pfx_len, 8)
 OMF_SETGET(struct hblock_hdr_omf, hbh_min_pfx_off, 32)
@@ -166,6 +164,38 @@ static_assert(HSE_KVS_PFX_LEN_MAX <= UINT8_MAX,
 #define HBLOCK_HDR_LEN (HBLOCK_HDR_PAGES * PAGE_SIZE)
 
 static_assert(HBLOCK_HDR_PAGES == 1, "Hblock header spanning more than 1 page has not been tested");
+
+
+/*****************************************************************
+ *
+ * Vgroup Map OMF
+ *
+ ****************************************************************/
+
+#define VGROUP_MAP_MAGIC   ((uint32_t)('v' << 24 | 'g' << 16 | 'p' << 8 | 'm'))
+
+struct vgroup_map_entry_omf {
+    uint16_t vgme_vbidx;
+    uint16_t vgme_vbadj;
+} HSE_PACKED;
+
+OMF_SETGET(struct vgroup_map_entry_omf, vgme_vbidx, 16)
+OMF_SETGET(struct vgroup_map_entry_omf, vgme_vbadj, 16)
+
+
+struct vgroup_map_omf {
+    uint32_t                    vgm_magic;
+    uint32_t                    vgm_version;
+    uint32_t                    vgm_count;
+    uint32_t                    vgm_rsvd;
+    struct vgroup_map_entry_omf vgm_entries[0];
+} HSE_PACKED;
+
+OMF_SETGET(struct vgroup_map_omf, vgm_magic, 32)
+OMF_SETGET(struct vgroup_map_omf, vgm_version, 32)
+OMF_SETGET(struct vgroup_map_omf, vgm_count, 32)
+OMF_SETGET(struct vgroup_map_omf, vgm_rsvd, 32)
+
 
 /*****************************************************************
  *

@@ -484,7 +484,7 @@ wbb_add_entry(
 }
 
 void
-wbb_hdr_init(struct wbb *wbb, struct wbt_hdr_omf *hdr)
+wbb_hdr_init(struct wbt_hdr_omf *hdr)
 {
     omf_set_wbt_magic(hdr, WBT_TREE_MAGIC);
     omf_set_wbt_version(hdr, WBT_TREE_VERSION);

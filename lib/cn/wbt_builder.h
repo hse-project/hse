@@ -69,7 +69,7 @@ wbb_add_entry(
     bool *                added);
 
 void
-wbb_hdr_init(struct wbb *wbb, struct wbt_hdr_omf *hdr);
+wbb_hdr_init(struct wbt_hdr_omf *hdr);
 
 /**
  * wbb_freeze() - finalize a wbtree

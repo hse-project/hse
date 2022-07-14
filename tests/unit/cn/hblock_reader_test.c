@@ -68,13 +68,12 @@ init_hdr(struct hdr *hdr)
     omf_set_hbh_num_ptombs(hdr->hblk_hdr, 22);
     omf_set_hbh_num_kblocks(hdr->hblk_hdr, 0);
     omf_set_hbh_num_vblocks(hdr->hblk_hdr, 0);
-    omf_set_hbh_num_vgroups(hdr->hblk_hdr, 0);
-    omf_set_hbh_hlog_off_pg(hdr->hblk_hdr, 1);
+    omf_set_hbh_vgmap_off_pg(hdr->hblk_hdr, 1);
+    omf_set_hbh_vgmap_len_pg(hdr->hblk_hdr, 1);
+    omf_set_hbh_hlog_off_pg(hdr->hblk_hdr, 2);
     omf_set_hbh_hlog_len_pg(hdr->hblk_hdr, HLOG_PGC);
-    omf_set_hbh_ptree_data_off_pg(hdr->hblk_hdr, 1 + HLOG_PGC);
+    omf_set_hbh_ptree_data_off_pg(hdr->hblk_hdr, 2 + HLOG_PGC);
     omf_set_hbh_ptree_data_len_pg(hdr->hblk_hdr, 3);
-    omf_set_hbh_vblk_idx_adj_off_pg(hdr->hblk_hdr, 0);
-    omf_set_hbh_vblk_idx_adj_len_pg(hdr->hblk_hdr, 0);
 
     omf_set_wbt_magic(&hdr->hblk_hdr->hbh_ptree_hdr, WBT_TREE_MAGIC);
     omf_set_wbt_version(&hdr->hblk_hdr->hbh_ptree_hdr, WBT_TREE_VERSION);

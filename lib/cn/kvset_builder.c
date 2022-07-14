@@ -27,6 +27,7 @@
 #include "vblock_reader.h"
 #include "blk_list.h"
 #include "kvset_builder_internal.h"
+#include "kvset.h"
 
 merr_t
 kvset_builder_create(
@@ -36,7 +37,7 @@ kvset_builder_create(
     u64                    vgroup)
 {
     struct kvset_builder *bld;
-    merr_t                err;
+    merr_t err;
 
     bld = calloc(1, sizeof(*bld));
     if (ev(!bld))
@@ -315,16 +316,21 @@ kvset_builder_add_nonval(struct kvset_builder *self, u64 seq, enum kmd_vtype vty
 void
 kvset_builder_adopt_vblocks(
     struct kvset_builder *self,
-    unsigned int vgroups,
-    size_t num_vblocks,
-    struct kvs_block *vblocks)
+    size_t                num_vblocks,
+    struct kvs_block     *vblocks,
+    struct vgmap         *vgmap)
 {
     assert(self->vblk_list.n_blks == 0);
 
-    self->vgroups = vgroups;
     self->vblk_list.blks = vblocks;
     self->vblk_list.n_blks = num_vblocks;
     self->vblk_list.n_alloc = num_vblocks;
+
+    /* vgroup map is adopted from the compaction worker for k-compacts.
+     * This map is established in kvset_keep_vblocks().
+     */
+    assert(!self->vgmap);
+    self->vgmap = vgmap;
 }
 
 void
@@ -344,6 +350,8 @@ kvset_builder_destroy(struct kvset_builder *bld)
     hbb_destroy(bld->hbb);
     kbb_destroy(bld->kbb);
     vbb_destroy(bld->vbb);
+
+    vgmap_free(bld->vgmap);
 
     free(bld->kblk_kmd.kmd);
     free(bld->hblk_kmd.kmd);
@@ -381,9 +389,25 @@ kvset_builder_finish(struct kvset_builder *imp)
             if (err)
                 return err;
 
+            assert(!imp->vgmap);
             /* In the event we have vblocks, there will always be one vgroup. */
-            if (imp->vblk_list.n_blks > 0)
-                imp->vgroups = 1;
+            if (imp->vblk_list.n_blks > 0) {
+                imp->vgmap = vgmap_alloc(1);
+                if (imp->vgmap) {
+                    uint32_t vbidx_out = imp->vblk_list.n_blks - 1;
+                    /* vgmap_src is passed as NULL as the kblocks are rewritten during
+                     * ingest/spill/kv-compact.
+                     */
+                    err = vgmap_vbidx_set(NULL, vbidx_out, imp->vgmap, vbidx_out, 0);
+                } else {
+                    err = merr(ENOMEM);
+                }
+
+                if (err) {
+                    delete_mblocks(cn_get_dataset(imp->cn), &imp->vblk_list);
+                    return err;
+                }
+            }
         }
     } else {
         /* There are no kblocks. This happens when each input key has a
@@ -405,8 +429,9 @@ kvset_builder_finish(struct kvset_builder *imp)
         return err;
     }
 
-    err = hbb_finish(imp->hbb, &imp->hblk, imp->seqno_min, imp->seqno_max, imp->kblk_list.n_blks,
-                     imp->vblk_list.n_blks, imp->vgroups, kbb_get_composite_hlog(imp->kbb));
+    err = hbb_finish(imp->hbb, &imp->hblk, imp->vgmap, NULL, NULL, imp->seqno_min, imp->seqno_max,
+                     imp->kblk_list.n_blks, imp->vblk_list.n_blks, hbb_get_nptombs(imp->hbb),
+                     kbb_get_composite_hlog(imp->kbb), NULL, 0);
     if (err) {
         delete_mblocks(cn_get_dataset(imp->cn), &imp->kblk_list);
         if (!adopted_vbs)

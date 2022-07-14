@@ -577,25 +577,4 @@ MTF_DEFINE_UTEST_PRE(test, t_hash_set, test_setup)
     kbb_destroy(kbb);
 }
 
-MTF_DEFINE_UTEST_PRE(test, t_kblock_split, test_setup_kbsplit)
-{
-    struct kblock_desc kdsc;
-    struct key_obj skey = { 0 };
-    uint64_t kbl, kbr;
-    merr_t err;
-    char key[4] = {0xff, 0xff, 0xff, 0xff};
-
-    skey.ko_sfx = key;
-    skey.ko_sfx_len = 4;
-
-    kdsc.cn = (void *)0x1234;
-    kdsc.kd_mbd = (void *)0x1234;
-    kdsc.kd_wbd = (void *)0x1234;
-
-    mapi_inject(mapi_idx_wbti_create, merr(ENOMEM));
-    err = kblock_split(&kdsc, &skey, &kbl, &kbr);
-    ASSERT_EQ(ENOMEM, merr_errno(err));
-    mapi_inject(mapi_idx_wbti_create, 0);
-}
-
 MTF_END_UTEST_COLLECTION(test)

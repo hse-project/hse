@@ -53,9 +53,13 @@ struct vbr_madvise_work {
  */
 struct vblock_desc {
     struct kvs_mblk_desc vbd_mblkdesc; /* underlying block descriptor */
-    u32                  vbd_off;      /* byte offset of vblock data */
-    u32                  vbd_len;      /* byte length of vblock data */
-    u64                  vbd_vgroup;   /* vblock group ID (dgen_hi) */
+    uint32_t             vbd_off;      /* byte offset of vblock data */
+    uint32_t             vbd_len;      /* byte length of vblock data */
+    uint32_t             vbd_min_koff; /* min key offset */
+    uint32_t             vbd_max_koff; /* max key offset */
+    uint16_t             vbd_min_klen; /* min key length */
+    uint16_t             vbd_max_klen; /* max key length */
+    uint64_t             vbd_vgroup;   /* vblock group ID (kvset id) */
     atomic_int           vbd_vgidx;    /* vblock group index */
     atomic_int           vbd_refcnt;   /* vbr_madvise_async() refcnt */
 };

@@ -169,13 +169,14 @@ struct cn_compaction_work {
     u64 cw_prog_interval;
 
     /* initialized in cn_tree_prepare_compaction () */
-    uint                  cw_outc;
-    bool                  cw_drop_tombs;
-    uint64_t             *cw_kvsetidv;
-    struct kvset_mblocks *cw_outv;
-    struct kv_iterator ** cw_inputv;
-    struct kvset_vblk_map cw_vbmap;
-    struct cn_tree_node **cw_output_nodev;
+    uint                     cw_outc;
+    bool                     cw_drop_tombs;
+    uint64_t                *cw_kvsetidv;
+    struct kvset_mblocks    *cw_outv;
+    struct kv_iterator     **cw_inputv;
+    struct kvset_vblk_map    cw_vbmap;
+    struct vgmap            *cw_vgmap; /* used only during a k-compact */
+    struct cn_tree_node    **cw_output_nodev;
 
     /* initialized in cn_compaction_worker() */
     struct cndb_txn      *cw_cndb_txn;
