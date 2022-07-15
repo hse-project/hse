@@ -4,7 +4,7 @@ on:
   push:
     branches:
       - master
-      - v2.*
+      - "v[0-9]+.[0-9]+"
     paths:
       - "**.md"
       - ".github/ISSUE_TEMPLATE/**"
@@ -44,7 +44,7 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        image-tag: ["18.04", "20.04"]
+        image-tag: ["18.04", "20.04", "22.04"]
         toolchain: [gcc, clang]
         buildtype: [release, debug]
 
@@ -70,9 +70,10 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        image-tag: [8]
+        image-tag: [8, 9]
         toolchain: [gcc, clang]
         buildtype: [release, debug]
+    if: ${{ github.event_name != 'release' }}
 
     steps:
       - run: |
