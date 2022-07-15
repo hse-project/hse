@@ -74,12 +74,7 @@ def full_tree(ybuf: Optional[OrderedDict[str, Any]], opt):
     if ybuf["info"]["open"] == False:
         return
 
-    # TODO: How to test if ybuf[] contain at least one "nodes" stanza?
-    #
-    try:
-        for node in ybuf["nodes"]:
-            break;
-    except:
+    if not ybuf.get("nodes", []):
         return
 
     # Print info for each node in the kvs.
