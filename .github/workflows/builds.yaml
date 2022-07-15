@@ -97,6 +97,12 @@ jobs:
           path: subprojects/hse-python
           ref: ${{ steps.determine-branches.outputs.hse-python }}
 
+      - name: Cache Meson packagecache
+        uses: actions/cache@v3
+        with:
+          path: subprojects/packagecache
+          key: meson-packagecache-ubuntu:${{ matrix.image-tag }}-${{ hashFiles('subprojects/*.wrap') }}
+
       - name: Setup Java
         id: setup-java
         uses: actions/setup-java@v3
@@ -153,8 +159,8 @@ jobs:
         # versions this old.
       - name: Setup
         run: |
-          meson builddir --fatal-meson-warnings -Dwerror=true \
-            -Dbuildtype=${{ matrix.buildtype }} -Dtools=disabled \
+          meson builddir --fatal-meson-warnings --werror \
+            --buildtype=${{ matrix.buildtype }} -Dtools=disabled \
             -Ddocs=disabled -Dbindings=all
 
       - name: Build
@@ -230,6 +236,12 @@ jobs:
           path: subprojects/hse-python
           ref: ${{ steps.determine-branches.outputs.hse-python }}
 
+      - name: Cache Meson packagecache
+        uses: actions/cache@v3
+        with:
+          path: subprojects/packagecache
+          key: meson-packagecache-fedora:${{ matrix.image-tag }}-${{ hashFiles('subprojects/*.wrap') }}
+
       - name: Setup Java
         id: setup-java
         uses: actions/setup-java@v3
@@ -262,8 +274,8 @@ jobs:
 
       - name: Setup
         run: |
-          meson builddir --fatal-meson-warnings -Dwerror=true\
-            -Dbuildtype=${{ matrix.buildtype }} -Dtools=enabled -Dpmem=enabled \
+          meson builddir --fatal-meson-warnings --werror\
+            --buildtype=${{ matrix.buildtype }} -Dtools=enabled -Dpmem=enabled \
             -Ddocs=disabled -Dbindings=all
 
       - name: Build
@@ -340,6 +352,12 @@ jobs:
           path: subprojects/hse-python
           ref: ${{ steps.determine-branches.outputs.hse-python }}
 
+      - name: Cache Meson packagecache
+        uses: actions/cache@v3
+        with:
+          path: subprojects/packagecache
+          key: meson-packagecache-almalinux:${{ matrix.image-tag }}-${{ hashFiles('subprojects/*.wrap') }}
+
       - name: Setup Java
         id: setup-java
         uses: actions/setup-java@v3
@@ -372,8 +390,8 @@ jobs:
 
       - name: Setup
         run: |
-          meson builddir --fatal-meson-warnings -Dwerror=true \
-            -Dbuildtype=${{ matrix.buildtype }} -Dtools=enabled \
+          meson builddir --fatal-meson-warnings --werror \
+            --buildtype=${{ matrix.buildtype }} -Dtools=enabled \
             -Ddocs=disabled -Dbindings=all
 
       - name: Build
@@ -451,6 +469,12 @@ jobs:
           path: subprojects/hse-python
           ref: ${{ steps.determine-branches.outputs.hse-python }}
 
+      - name: Cache Meson packagecache
+        uses: actions/cache@v3
+        with:
+          path: subprojects/packagecache
+          key: meson-packagecache-debian:11-${{ hashFiles('subprojects/*.wrap') }}
+
       - name: Setup Java
         id: setup-java
         uses: actions/setup-java@v3
@@ -469,9 +493,9 @@ jobs:
 
       - name: Setup
         run: |
-          meson builddir --fatal-meson-warnings -Dwerror=true --cross-file \
+          meson builddir --fatal-meson-warnings --werror --cross-file \
             cross/${{ matrix.arch }}.ini --cross-file cross/common.ini \
-            -Dbuildtype=${{ matrix.buildtype }} -Dtools=enabled \
+            --buildtype=${{ matrix.buildtype }} -Dtools=enabled \
             -Ddocs=disabled -Dbindings=all
 
       - name: Build
@@ -509,9 +533,15 @@ jobs:
       - name: Checkout HSE
         uses: actions/checkout@v3
 
+      - name: Cache Meson packagecache
+        uses: actions/cache@v3
+        with:
+          path: subprojects/packagecache
+          key: meson-packagecache-fedora:36-${{ hashFiles('subprojects/*.wrap') }}
+
       - name: Setup
         run: |
-          meson builddir -Dwerror=true -Dbuildtype=${{ matrix.buildtype }} \
+          meson builddir --werror --buildtype=${{ matrix.buildtype }} \
             -Db_sanitize=address,undefined -Dtools=enabled -Ddocs=disabled \
             -Dbindings=none
 
@@ -579,6 +609,12 @@ jobs:
           path: subprojects/hse-python
           ref: ${{ steps.determine-branches.outputs.hse-python }}
 
+      - name: Cache Meson packagecache
+        uses: actions/cache@v3
+        with:
+          path: subprojects/packagecache
+          key: meson-packagecache-fedora:36-${{ hashFiles('subprojects/*.wrap') }}
+
       - name: Setup Java
         id: setup-java
         uses: actions/setup-java@v3
@@ -597,7 +633,7 @@ jobs:
 
       - name: Setup
         run: |
-          meson builddir --fatal-meson-warnings -Dwerror=true \
+          meson builddir --fatal-meson-warnings --werror \
             -Dwrap_mode=forcefallback -Dtools=enabled -Ddocs=disabled \
             -Dbindings=all
 
