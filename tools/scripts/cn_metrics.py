@@ -12,7 +12,12 @@ import time
 import json
 import pathlib
 import signal
-from typing import Any, Dict, OrderedDict, Optional
+from typing import Any, Optional
+
+try:
+    from typing import OrderedDict
+except ImportError:
+    from typing import Dict as OrderedDict
 
 desc = (
     "print cn tree shape\n\n"
@@ -67,6 +72,14 @@ def full_tree(ybuf: Optional[OrderedDict[str, Any]], opt):
     print()
 
     if ybuf["info"]["open"] == False:
+        return
+
+    # TODO: How to test if ybuf[] contain at least one "nodes" stanza?
+    #
+    try:
+        for node in ybuf["nodes"]:
+            break;
+    except:
         return
 
     # Print info for each node in the kvs.
