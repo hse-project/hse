@@ -70,12 +70,13 @@ jobs:
 
       - name: Determine branches
         id: determine-branches
+        shell: sh +e {0}
         run: |
           for p in hse-java hse-python; do
             [ "$GITHUB_EVENT_NAME" = "pull_request" ] && git ls-remote \
               --exit-code --heads "https://github.com/hse-project/$p.git" \
               "$GITHUB_HEAD_REF" > /dev/null
-            if [ $? -eq 0 ] && [ "$GITHUB_EVENT_NAME" = "pull_request" ]; then
+            if [ $? -eq 0 ]; then
               echo "::set-output name=$p::$GITHUB_HEAD_REF"
             else
               echo "::set-output name=$p::master"
@@ -95,12 +96,6 @@ jobs:
           repository: hse-project/hse-python
           path: subprojects/hse-python
           ref: ${{ steps.determine-branches.outputs.hse-python }}
-
-      - name: Post-checkout
-        run: |
-          for b in hse-java hse-python; do
-            git -C "subprojects/$b" checkout ${{ github.head_ref }} || true
-          done
 
       - name: Setup Java
         id: setup-java
@@ -208,12 +203,13 @@ jobs:
 
       - name: Determine branches
         id: determine-branches
+        shell: sh +e {0}
         run: |
           for p in hse-java hse-python; do
             [ "$GITHUB_EVENT_NAME" = "pull_request" ] && git ls-remote \
               --exit-code --heads "https://github.com/hse-project/$p.git" \
               "$GITHUB_HEAD_REF" > /dev/null
-            if [ $? -eq 0 ] && [ "$GITHUB_EVENT_NAME" = "pull_request" ]; then
+            if [ $? -eq 0 ]; then
               echo "::set-output name=$p::$GITHUB_HEAD_REF"
             else
               echo "::set-output name=$p::master"
@@ -317,12 +313,13 @@ jobs:
 
       - name: Determine branches
         id: determine-branches
+        shell: sh +e {0}
         run: |
           for p in hse-java hse-python; do
             [ "$GITHUB_EVENT_NAME" = "pull_request" ] && git ls-remote \
               --exit-code --heads "https://github.com/hse-project/$p.git" \
               "$GITHUB_HEAD_REF" > /dev/null
-            if [ $? -eq 0 ] && [ "$GITHUB_EVENT_NAME" = "pull_request" ]; then
+            if [ $? -eq 0 ]; then
               echo "::set-output name=$p::$GITHUB_HEAD_REF"
             else
               echo "::set-output name=$p::master"
@@ -427,12 +424,13 @@ jobs:
 
       - name: Determine branches
         id: determine-branches
+        shell: sh +e {0}
         run: |
           for p in hse-java hse-python; do
             [ "$GITHUB_EVENT_NAME" = "pull_request" ] && git ls-remote \
               --exit-code --heads "https://github.com/hse-project/$p.git" \
               "$GITHUB_HEAD_REF" > /dev/null
-            if [ $? -eq 0 ] && [ "$GITHUB_EVENT_NAME" = "pull_request" ]; then
+            if [ $? -eq 0 ]; then
               echo "::set-output name=$p::$GITHUB_HEAD_REF"
             else
               echo "::set-output name=$p::master"
@@ -554,12 +552,13 @@ jobs:
 
       - name: Determine branches
         id: determine-branches
+        shell: sh +e {0}
         run: |
           for p in hse-java hse-python; do
             [ "$GITHUB_EVENT_NAME" = "pull_request" ] && git ls-remote \
               --exit-code --heads "https://github.com/hse-project/$p.git" \
               "$GITHUB_HEAD_REF" > /dev/null
-            if [ $? -eq 0 ] && [ "$GITHUB_EVENT_NAME" = "pull_request" ]; then
+            if [ $? -eq 0 ]; then
               echo "::set-output name=$p::$GITHUB_HEAD_REF"
             else
               echo "::set-output name=$p::master"

@@ -49,21 +49,39 @@ jobs:
             libssl-dev libsasl2-dev
           sudo python3 -m pip install meson==0.62.2 Cython
 
-      - uses: actions/checkout@v3
+      - name: Checkout HSE
+        uses: actions/checkout@v3
         with:
           ref: ${{ github.event.inputs.branch }}
+
+      - name: Determine branches
+        id: determine-branches
+        shell: sh +e {0}
+        run: |
+          for p in hse-java hse-python; do
+            git ls-remote --exit-code --heads \
+              "https://github.com/hse-project/$p.git"
+              "${{ github.event.inputs.branch }}" > /dev/null
+            if [ $? -eq 0 ]; then
+              echo "::set-output name=$p::${{ github.event.inputs.branch }}"
+            else
+              echo "::set-output name=$p::master"
+            fi
+          done
+
+      - name: Checkout hse-java
+        uses: actions/checkout@v3
+        with:
+          repository: hse-project/hse-java
+          path: subprojects/hse-java
+          ref: ${{ steps.determine-branches.outputs.hse-java }}
 
       - name: Checkout hse-python
         uses: actions/checkout@v3
         with:
           repository: hse-project/hse-python
           path: subprojects/hse-python
-
-      - name: Post-checkout
-        run: |
-          for b in hse-python; do
-            git -C "subprojects/$b" checkout ${{ github.head_ref }} || true
-          done
+          ref: ${{ steps.determine-branches.outputs.hse-python }}
 
       - name: Setup
         run: |
