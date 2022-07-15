@@ -14,7 +14,7 @@
 
 #include <cjson/cJSON.h>
 
-#include <hse_util/hse_err.h>
+#include <error/merr.h>
 #include <hse_util/logging_types.h>
 #include <hse_util/compiler.h>
 

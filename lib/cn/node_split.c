@@ -11,7 +11,7 @@
 #include <hse_ikvdb/kvset_view.h>
 #include <hse_util/element_source.h>
 #include <hse_util/event_counter.h>
-#include <hse_util/hse_err.h>
+#include <error/merr.h>
 #include <hse_util/assert.h>
 #include <hse_util/keycmp.h>
 

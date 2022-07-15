@@ -4,7 +4,7 @@
  */
 
 #include <mtf/framework.h>
-#include <hse_util/hse_err.h>
+#include <error/merr.h>
 #include <hse_util/seqno.h>
 
 MTF_BEGIN_UTEST_COLLECTION(seqno_test)

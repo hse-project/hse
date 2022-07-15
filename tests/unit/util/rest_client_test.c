@@ -10,7 +10,7 @@
 #include <mtf/framework.h>
 
 #include <hse_util/inttypes.h>
-#include <hse_util/hse_err.h>
+#include <error/merr.h>
 #include <hse_util/rest_api.h>
 #include <hse_util/rest_client.h>
 #include <hse_util/event_counter.h>

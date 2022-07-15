@@ -6,7 +6,7 @@
 #ifndef WAL_FILE_H
 #define WAL_FILE_H
 
-#include <hse_util/hse_err.h>
+#include <error/merr.h>
 
 #include <mpool/mpool.h>
 

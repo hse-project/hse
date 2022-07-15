@@ -9,7 +9,7 @@
 #include <urcu-bp.h>
 
 #include <hse_util/inttypes.h>
-#include <hse_util/hse_err.h>
+#include <error/merr.h>
 
 #include <hse_ikvdb/kvs.h>
 

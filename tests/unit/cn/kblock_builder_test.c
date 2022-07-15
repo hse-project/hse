@@ -6,7 +6,7 @@
 #include <mtf/framework.h>
 #include <mock/alloc_tester.h>
 
-#include <hse_util/hse_err.h>
+#include <error/merr.h>
 #include <hse_util/logging.h>
 
 #include <hse/limits.h>

@@ -14,7 +14,7 @@
 #include <stdio.h>
 
 #include <mpool/mpool.h>
-#include <hse_util/hse_err.h>
+#include <error/merr.h>
 
 struct kvdb_meta {
     unsigned int km_version;

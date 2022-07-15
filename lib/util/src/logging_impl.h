@@ -11,7 +11,7 @@
 #include <hse_util/workqueue.h>
 #include <hse_util/mutex.h>
 #include <hse_util/json.h>
-#include <hse_util/hse_err.h>
+#include <error/merr.h>
 
 #define HSE_LOGGING_VER "1"
 

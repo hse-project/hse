@@ -5,7 +5,7 @@
 
 #include "sample_element_source.h"
 
-#include <hse_util/hse_err.h>
+#include <error/merr.h>
 #include <hse_util/inttypes.h>
 #include <hse_util/assert.h>
 

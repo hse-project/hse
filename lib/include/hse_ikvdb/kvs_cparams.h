@@ -12,7 +12,7 @@
 #include <cjson/cJSON.h>
 
 #include <hse_util/compiler.h>
-#include <hse_util/hse_err.h>
+#include <error/merr.h>
 
 struct kvs_cparams {
     uint32_t  fanout;

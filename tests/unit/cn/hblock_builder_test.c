@@ -18,7 +18,7 @@
 #include <hse_util/alloc.h>
 #include <hse_util/assert.h>
 #include <hse_util/base.h>
-#include <hse_util/hse_err.h>
+#include <error/merr.h>
 #include <hse_util/key_util.h>
 #include <hse_util/page.h>
 #include <hse_util/hlog.h>

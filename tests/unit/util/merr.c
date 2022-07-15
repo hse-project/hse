@@ -3,7 +3,7 @@
  * Copyright (C) 2015-2020 Micron Technology, Inc.  All rights reserved.
  */
 
-#include <hse_util/hse_err.h>
+#include <error/merr.h>
 
 #include <stdlib.h>
 #include <stdio.h>

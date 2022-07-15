@@ -11,6 +11,8 @@
 
 #include <bsd/libutil.h>
 
+#include <error/merr.h>
+
 #define PIDFILE_ALIAS_LEN_MAX 32
 #define PIDFILE_NAME          "kvdb.pid"
 
@@ -22,10 +24,10 @@ struct pidfile {
     } socket;
 };
 
-int
+merr_t
 pidfile_serialize(struct pidfh *pfh, const struct pidfile *content);
 
-int
+merr_t
 pidfile_deserialize(const char *home, struct pidfile *content);
 
 #endif

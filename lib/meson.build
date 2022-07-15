@@ -60,10 +60,11 @@ lib_name = '@0@-@1@'.format(meson.project_name(), hse_major_version)
 soversion = '0'
 
 subdir('include')
+subdir('util')
+subdir('error')
 subdir('binding')
 subdir('config')
 subdir('kvs')
-subdir('util')
 subdir('c0')
 subdir('lc')
 subdir('cn')
@@ -107,6 +108,7 @@ hse_dependencies = [
     hyperloglog_dep,
     libbsd_dep,
     libcurl_dep,
+    libhse_error_dep,
     libhse_pidfile_dep,
     libmicrohttpd_dep,
     liburcu_bp_dep,

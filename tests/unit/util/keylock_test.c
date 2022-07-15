@@ -6,7 +6,7 @@
 #include <mtf/framework.h>
 #include <mock/api.h>
 
-#include <hse_util/hse_err.h>
+#include <error/merr.h>
 #include <hse_util/xrand.h>
 #include <hse_util/logging.h>
 #include <hse_util/keylock.h>

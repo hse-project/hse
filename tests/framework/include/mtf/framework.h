@@ -7,7 +7,7 @@
 
 #include <hse/hse.h>
 
-#include <hse_util/hse_err.h>
+#include <error/merr.h>
 #include <hse_ikvdb/hse_gparams.h>
 
 #if HSE_MOCKING

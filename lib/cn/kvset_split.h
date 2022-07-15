@@ -6,17 +6,19 @@
 #ifndef HSE_KVS_CN_KVSET_SPLIT_H
 #define HSE_KVS_CN_KVSET_SPLIT_H
 
-#include <hse_util/hse_err.h>
+#include <error/merr.h>
+#include <hse_ikvdb/blk_list.h>
 #include <hse_util/inttypes.h>
 #include <hse_util/hlog.h>
 #include <hse_util/key_util.h>
 
 #include "kblock_reader.h"
 #include "wbt_reader.h"
-#include "blk_list.h"
 #include "cn_tree.h"
 #include "hblock_reader.h"
 #include "hblock_builder.h"
+
+struct kvset;
 
 /**
  * struct kvset_split_res - split output

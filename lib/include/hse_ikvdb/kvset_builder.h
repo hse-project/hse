@@ -6,7 +6,7 @@
 #ifndef HSE_IKVS_KVSET_BUILDER_H
 #define HSE_IKVS_KVSET_BUILDER_H
 
-#include <hse_util/hse_err.h>
+#include <error/merr.h>
 #include <hse_util/atomic.h>
 
 #include <hse_ikvdb/tuple.h>

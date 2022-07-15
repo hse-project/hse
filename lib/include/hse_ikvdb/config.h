@@ -6,7 +6,7 @@
 #ifndef HSE_CONFIG_CONFIG_H
 #define HSE_CONFIG_CONFIG_H
 
-#include <hse_util/hse_err.h>
+#include <error/merr.h>
 
 struct config;
 struct hse_gparams;

@@ -12,7 +12,7 @@
 #include <mock/api.h>
 #include <support/random_buffer.h>
 
-#include <hse_util/hse_err.h>
+#include <error/merr.h>
 #include <hse_util/dax.h>
 
 #include <hse_ikvdb/kvs.h>

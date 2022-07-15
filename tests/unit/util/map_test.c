@@ -6,7 +6,7 @@
 #include <mtf/framework.h>
 #include <mock/api.h>
 
-#include <hse_util/hse_err.h>
+#include <error/merr.h>
 #include <hse_util/map.h>
 
 MTF_BEGIN_UTEST_COLLECTION(map_test);

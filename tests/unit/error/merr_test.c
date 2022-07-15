@@ -1,11 +1,11 @@
 /* SPDX-License-Identifier: Apache-2.0 */
 /*
- * Copyright (C) 2015-2020 Micron Technology, Inc.  All rights reserved.
+ * Copyright (C) 2015-2022 Micron Technology, Inc.  All rights reserved.
  */
 
 #include <mtf/framework.h>
 
-#include <hse_util/hse_err.h>
+#include <error/merr.h>
 
 extern uint8_t __start_hse_merr;
 extern uint8_t __stop_hse_merr;
@@ -120,7 +120,7 @@ MTF_DEFINE_UTEST(hse_err_test, no_buf)
     err = merr(EINVAL);
 
     merr_strinfo(err, NULL, 0, &needed_sz);
-    ASSERT_EQ(57, needed_sz);
+    ASSERT_EQ(55, needed_sz);
 }
 
 MTF_END_UTEST_COLLECTION(hse_err_test)

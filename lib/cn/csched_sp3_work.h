@@ -6,7 +6,7 @@
 #ifndef HSE_KVDB_CN_CSCHED_SP3_WORK_H
 #define HSE_KVDB_CN_CSCHED_SP3_WORK_H
 
-#include <hse_util/hse_err.h>
+#include <error/merr.h>
 #include <hse_util/inttypes.h>
 
 #include "csched_sp3.h"

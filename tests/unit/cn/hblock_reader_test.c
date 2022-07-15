@@ -14,7 +14,7 @@
 #include <cn/wbt_reader.h>
 
 #include <hse_util/hlog.h>
-#include <hse_util/hse_err.h>
+#include <error/merr.h>
 #include <hse_util/keycmp.h>
 #include <hse_util/page.h>
 

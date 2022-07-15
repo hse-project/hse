@@ -8,7 +8,7 @@
 
 #include <stdint.h>
 
-#include <hse_util/hse_err.h>
+#include <error/merr.h>
 #include <hse_util/key_util.h>
 #include <hse_util/seqno.h>
 

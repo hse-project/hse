@@ -8,7 +8,7 @@
 
 #include <curl/curl.h>
 
-#include <hse_util/hse_err.h>
+#include <error/merr.h>
 #include <hse_util/rest_api.h>
 
 #pragma GCC visibility push(default)

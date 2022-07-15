@@ -9,7 +9,7 @@
 #include <rbtree.h>
 
 #include <hse_util/atomic.h>
-#include <hse_util/hse_err.h>
+#include <error/merr.h>
 #include <hse_util/list.h>
 
 /* MTF_MOCK_DECL(csched_sp3) */

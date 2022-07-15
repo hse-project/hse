@@ -91,6 +91,9 @@ components = {
         'hse_gparams_test': {},
         'param_test': {},
     },
+    'error': {
+        'merr_test': {},
+    },
     'kvdb': {
         'ikvdb_test': {},
         'kvdb_cparams_test': {},
@@ -210,9 +213,6 @@ components = {
         'fmt_test': {},
         'hash_test': {},
         'hlog_unit_test': {},
-        # This test requires access to some private information, so we compile it
-        # in with hse_err.c.
-        'hse_err_test': {},
         'json_test': {},
         'keycmp_test': {},
         'keylock_test': {},
