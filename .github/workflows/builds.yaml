@@ -166,7 +166,7 @@ jobs:
           ulimit -c unlimited
           meson test -C builddir --setup=ci --print-errorlogs --no-stdsplit
 
-      - uses: actions/upload-artifact@v2
+      - uses: actions/upload-artifact@v3
         if: failure()
         with:
           name: ${{ github.job }}-${{ matrix.image-tag }}-${{ matrix.toolchain }}-${{ matrix.buildtype }}
@@ -275,7 +275,7 @@ jobs:
           ulimit -c unlimited
           meson test -C builddir --setup=ci --print-errorlogs --no-stdsplit
 
-      - uses: actions/upload-artifact@v2
+      - uses: actions/upload-artifact@v3
         if: failure()
         with:
           name: ${{ github.job }}-${{ matrix.image-tag }}-${{ matrix.toolchain }}-${{ matrix.buildtype }}
@@ -385,7 +385,7 @@ jobs:
           ulimit -c unlimited
           meson test -C builddir --setup=ci --print-errorlogs --no-stdsplit
 
-      - uses: actions/upload-artifact@v2
+      - uses: actions/upload-artifact@v3
         if: failure()
         with:
           name: ${{ github.job }}-${{ matrix.image-tag }}-${{ matrix.toolchain }}-${{ matrix.buildtype }}
@@ -478,7 +478,7 @@ jobs:
         run: |
           ninja -C builddir
 
-      - uses: actions/upload-artifact@v2
+      - uses: actions/upload-artifact@v3
         if: failure()
         with:
           name: ${{ github.job }}-${{ matrix.arch }}-${{ matrix.buildtype }}
@@ -524,7 +524,7 @@ jobs:
           ulimit -c unlimited
           meson test -C builddir --setup=ci --print-errorlogs --no-stdsplit
 
-      - uses: actions/upload-artifact@v2
+      - uses: actions/upload-artifact@v3
         if: failure()
         with:
           name: ${{ github.job }}-${{ matrix.buildtype }}
@@ -610,7 +610,7 @@ jobs:
           ulimit -c unlimited
           meson test -C builddir --setup=ci --print-errorlogs --no-stdsplit
 
-      - uses: actions/upload-artifact@v2
+      - uses: actions/upload-artifact@v3
         if: failure()
         with:
           name: ${{ github.job }}

@@ -86,7 +86,7 @@ jobs:
           abi-compliance-checker -l "libhse-${major_version}.so" \
             -new current.dump -old previous.dump
 
-      - uses: actions/upload-artifact@v2
+      - uses: actions/upload-artifact@v3
         if: failure()
         with:
           name: abi-dumps
