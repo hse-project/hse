@@ -81,12 +81,17 @@ jobs:
         with:
           repository: hse-project/hse-python
           path: subprojects/hse-python
-          ref: ${{ steps.determine-branches.outputs.hse-python }}
+
+      - name: Cache Meson packagecache
+        uses: actions/cache@v3
+        with:
+          path: subprojects/packagecache
+          key: meson-packagecache-${{ matrix.os }}-${{ hashFiles('subprojects/*.wrap') }}
 
       - name: Setup
         run: |
-          meson builddir --fatal-meson-warnings -Dwerror=true \
-            -Dbuildtype=${{ matrix.buildtype }} -Dtools=enabled \
+          meson builddir --fatal-meson-warnings --werror \
+            --buildtype=${{ matrix.buildtype }} -Dtools=enabled \
             -Ddocs=disabled -Dbindings=all
 
       - name: Test
