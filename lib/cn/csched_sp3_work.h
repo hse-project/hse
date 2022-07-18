@@ -29,24 +29,29 @@ enum sp3_work_type {
 };
 
 struct sp3_thresholds {
-    u8 rspill_kvsets_min;
-    u8 rspill_kvsets_max;
-    u8 lcomp_kvsets_max;
-    u8 lcomp_pop_pct;       /* leaf node spill-by-clen percentage threshold */
-    u8 lcomp_pop_keys;      /* leaf node spill-by-keys threshold (units of 4 million) */
-    u8 lscat_hwm;
-    u8 lscat_runlen_max;
-    u8 llen_runlen_min;
-    u8 llen_runlen_max;
-    u8 llen_idlec;
-    u8 llen_idlem;
+    uint8_t  rspill_runlen_min;
+    uint8_t  rspill_runlen_max;
+    uint16_t rspill_sizemb_max;
+    uint8_t  lcomp_runlen_max;
+    uint8_t  lcomp_pop_pct;       /* leaf node spill-by-clen percentage threshold */
+    uint8_t  lcomp_pop_keys;      /* leaf node spill-by-keys threshold (units of 4 million) */
+    uint8_t  lscat_hwm;
+    uint8_t  lscat_runlen_max;
+    uint8_t  llen_runlen_min;
+    uint8_t  llen_runlen_max;
+    uint8_t  llen_idlec;
+    uint8_t  llen_idlem;
 };
 
 /* root spill requires at least 1 kvset,
  * node length reduction requires at least 2 kvsets.
  */
-#define SP3_RSPILL_KVSETS_MIN   ((u8)1)
-#define SP3_LLEN_RUNLEN_MIN     ((u8)2)
+#define SP3_RSPILL_RUNLEN_MIN   (1u)
+#define SP3_RSPILL_RUNLEN_MAX   (16u)
+#define SP3_RSPILL_SIZEMB_MIN   (4u * 1024)
+#define SP3_RSPILL_SIZEMB_MAX   (32u * 1024)
+#define SP3_LLEN_RUNLEN_MIN     (2u)
+#define SP3_LLEN_RUNLEN_MAX     (16u)
 
 /* clang-format on */
 
