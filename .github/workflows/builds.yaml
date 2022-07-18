@@ -1,10 +1,12 @@
 name: Builds
 
 on:
+  release:
+    types: [created]
   push:
     branches:
       - master
-      - v*.*
+      - "v[0-9]+.[0-9]+"
     paths-ignore:
       - "**.md"
       - ".github/ISSUE_TEMPLATE/**"
@@ -49,14 +51,34 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        image-tag: ["18.04", "20.04"]
+        image-tag: ["18.04", "20.04", "22.04"]
         toolchain: [gcc, clang]
         buildtype: [release, debug]
     env:
       DEBIAN_FRONTEND: noninteractive
 
     steps:
+        # Let's talk about GitHub Actions for a minute, and why this has to
+        # exist. GitHub Actions doesn't support `matrix` in jobs.<job>.if or
+        # jobs.<job>.env.<var>, so we are left with this step exporting the
+        # environment variable, and then forced to add or append to
+        # jobs.<job>.steps.<step>.if. It is disgusting, and I hate it. You might
+        # ask, "Why don't you exit the job early as successful?" Reader, you're
+        # so funny. GitHub Actions doesn't support this basic feature that all
+        # other CI systems use. I can't even cancel the job. Fun system :).
+        #
+        # https://github.com/actions/runner/issues/662
+      - name: To skip or not to skip
+        id: skip
+        run: |
+          if [ "$GITHUB_EVENT_NAME" = "release" ] || [ "${{ matrix.image-tag }}" = "18.04" ]; then
+            echo "SKIP=false" >> "$GITHUB_ENV"
+          else
+            echo "SKIP=true" >> "$GITHUB_ENV"
+          fi
+
       - name: Initialize
+        if: ${{ env.SKIP == 'false' }}
         run: |
           apt-get -y update
           apt-get -y install git build-essential python3 python3-pip \
@@ -66,24 +88,41 @@ jobs:
           python3 -m pip install Cython
 
       - name: Checkout HSE
+        if: ${{ env.SKIP == 'false' }}
         uses: actions/checkout@v3
 
       - name: Determine branches
         id: determine-branches
+        if: ${{ env.SKIP == 'false' }}
         shell: sh +e {0}
         run: |
           for p in hse-java hse-python; do
-            [ "$GITHUB_EVENT_NAME" = "pull_request" ] && git ls-remote \
-              --exit-code --heads "https://github.com/hse-project/$p.git" \
-              "$GITHUB_HEAD_REF" > /dev/null
-            if [ $? -eq 0 ]; then
-              echo "::set-output name=$p::$GITHUB_HEAD_REF"
+            branch=master
+            if [ "$GITHUB_EVENT_NAME" = "pull_request" ]; then
+              git ls-remote --exit-code --heads \
+                "https://github.com/hse-project/$p.git" "$GITHUB_HEAD_REF" \
+                > /dev/null
+
+              if [ $? -eq 0 ]; then
+                branch="$GITHUB_HEAD_REF"
+              fi
+            elif [ "$GITHUB_EVENT_NAME" = "release" ]; then
+              branch=$(git rev-parse --abbrev-ref HEAD)
             else
-              echo "::set-output name=$p::master"
+              git ls-remote --exit-code --heads \
+                "https://github.com/hse-project/$p.git" "$GITHUB_REF" \
+                > /dev/null
+
+              if [ $? -eq 0 ]; then
+                branch="$GITHUB_REF"
+              fi
             fi
+
+            echo "::set-output name=$p::$branch"
           done
 
       - name: Checkout hse-java
+        if: ${{ env.SKIP == 'false' }}
         uses: actions/checkout@v3
         with:
           repository: hse-project/hse-java
@@ -91,6 +130,7 @@ jobs:
           ref: ${{ steps.determine-branches.outputs.hse-java }}
 
       - name: Checkout hse-python
+        if: ${{ env.SKIP == 'false' }}
         uses: actions/checkout@v3
         with:
           repository: hse-project/hse-python
@@ -98,6 +138,7 @@ jobs:
           ref: ${{ steps.determine-branches.outputs.hse-python }}
 
       - name: Cache Meson packagecache
+        if: ${{ env.SKIP == 'false' }}
         uses: actions/cache@v3
         with:
           path: subprojects/packagecache
@@ -105,6 +146,7 @@ jobs:
 
       - name: Setup Java
         id: setup-java
+        if: ${{ env.SKIP == 'false' }}
         uses: actions/setup-java@v3
         with:
           distribution: adopt
@@ -112,13 +154,13 @@ jobs:
           cache: maven
 
       - name: Get Meson on ubuntu-18.04
-        if: ${{ matrix.image-tag == '18.04' }}
+        if: ${{ env.SKIP == 'false' && matrix.image-tag == '18.04' }}
         run: |
           apt-get -y install python3.7
           python3.7 -m pip install meson==0.62.2
 
-      - name: Get Meson on Ubuntu 20.04
-        if: ${{ matrix.image-tag == '20.04' }}
+      - name: Get Meson on Ubuntu 20.04/22.04
+        if: ${{ env.SKIP == 'false' && matrix.image-tag != '18.04' }}
         run: |
           python3 -m pip install meson==0.62.2
 
@@ -126,54 +168,59 @@ jobs:
       # Maven from downloading dependencies during the test phase which could
       # cause tests to timeout.
       - name: Download Maven Dependencies
-        if: steps.setup-java.outputs.cache-hit != 'true'
+        if: ${{ env.SKIP == 'false' && steps.setup-java.outputs.cache-hit != 'true' }}
         run: |
           mvn --file subprojects/hse-java/pom.xml dependency:go-offline
 
       - name: Setup gcc toolchain
-        if: ${{ matrix.toolchain == 'gcc' }}
+        if: ${{ env.SKIP == 'false' && matrix.toolchain == 'gcc' }}
         run: |
-          echo "CC=gcc" >> $GITHUB_ENV
-          echo "CXX=g++" >> $GITHUB_ENV
+          echo "CC=gcc" >> "$GITHUB_ENV"
+          echo "CXX=g++" >> "$GITHUB_ENV"
           apt-get -y install gcc g++
 
         # Fix false warnings by installing newer version in 18.04
       - name: Setup clang toolchain on Ubuntu 18.04
-        if: ${{ matrix.toolchain == 'clang' && matrix.image-tag == '18.04' }}
+        if: ${{ env.SKIP == 'false' && matrix.toolchain == 'clang' && matrix.image-tag == '18.04' }}
         run: |
-          echo "CC=clang-10" >> $GITHUB_ENV
-          echo "CXX=clang++-10" >> $GITHUB_ENV
+          echo "CC=clang-10" >> "$GITHUB_ENV"
+          echo "CXX=clang++-10" >> "$GITHUB_ENV"
           apt-get -y install clang-10
 
         # Ignore deprecation warnings on 20.04 due to:
         #     https://github.com/cython/cython/issues/3474
       - name: Setup clang toolchain on Ubuntu 20.04
-        if: ${{ matrix.toolchain == 'clang' && matrix.image-tag == '20.04' }}
+        if: ${{ env.SKIP == 'false' && matrix.toolchain == 'clang' && matrix.image-tag != '18.04' }}
         run: |
-          echo "CC=clang" >> $GITHUB_ENV
-          echo "CXX=clang++" >> $GITHUB_ENV
-          echo "CFLAGS=-Wno-deprecated ${CFLAGS}" >> $GITHUB_ENV
+          echo "CC=clang" >> "$GITHUB_ENV"
+          echo "CXX=clang++" >> "$GITHUB_ENV"
+          if [ "${{ matrix.image-tag }}" = "20.04" ]; then
+            echo "CFLAGS=-Wno-deprecated ${CFLAGS}" >> "$GITHUB_ENV"
+          fi
           apt-get -y install clang
 
         # Tools are disabled due to deprecated support in Meson for CMake
         # versions this old.
       - name: Setup
+        if: ${{ env.SKIP == 'false' }}
         run: |
           meson builddir --fatal-meson-warnings --werror \
             --buildtype=${{ matrix.buildtype }} -Dtools=disabled \
             -Ddocs=disabled -Dbindings=all
 
       - name: Build
+        if: ${{ env.SKIP == 'false' }}
         run: |
           ninja -C builddir
 
       - name: Test
+        if: ${{ env.SKIP == 'false' }}
         run: |
           ulimit -c unlimited
           meson test -C builddir --setup=ci --print-errorlogs --no-stdsplit
 
       - uses: actions/upload-artifact@v3
-        if: failure()
+        if: ${{ failure() }}
         with:
           name: ${{ github.job }}-${{ matrix.image-tag }}-${{ matrix.toolchain }}-${{ matrix.buildtype }}
           path: |
@@ -212,14 +259,28 @@ jobs:
         shell: sh +e {0}
         run: |
           for p in hse-java hse-python; do
-            [ "$GITHUB_EVENT_NAME" = "pull_request" ] && git ls-remote \
-              --exit-code --heads "https://github.com/hse-project/$p.git" \
-              "$GITHUB_HEAD_REF" > /dev/null
-            if [ $? -eq 0 ]; then
-              echo "::set-output name=$p::$GITHUB_HEAD_REF"
+            branch=master
+            if [ "$GITHUB_EVENT_NAME" = "pull_request" ]; then
+              git ls-remote --exit-code --heads \
+                "https://github.com/hse-project/$p.git" "$GITHUB_HEAD_REF" \
+                > /dev/null
+
+              if [ $? -eq 0 ]; then
+                branch="$GITHUB_HEAD_REF"
+              fi
+            elif [ "$GITHUB_EVENT_NAME" = "release" ]; then
+              branch=$(git rev-parse --abbrev-ref HEAD)
             else
-              echo "::set-output name=$p::master"
+              git ls-remote --exit-code --heads \
+                "https://github.com/hse-project/$p.git" "$GITHUB_REF" \
+                > /dev/null
+
+              if [ $? -eq 0 ]; then
+                branch="$GITHUB_REF"
+              fi
             fi
+
+            echo "::set-output name=$p::$branch"
           done
 
       - name: Checkout hse-java
@@ -254,22 +315,22 @@ jobs:
       # Maven from downloading dependencies during the test phase which could
       # cause tests to timeout.
       - name: Download Maven Dependencies
-        if: steps.setup-java.outputs.cache-hit != 'true'
+        if: ${{ steps.setup-java.outputs.cache-hit != 'true' }}
         run: |
           mvn --file subprojects/hse-java/pom.xml dependency:go-offline
 
       - name: Setup gcc toolchain
         if: ${{ matrix.toolchain == 'gcc' }}
         run: |
-          echo "CC=gcc" >> $GITHUB_ENV
-          echo "CXX=g++" >> $GITHUB_ENV
+          echo "CC=gcc" >> "$GITHUB_ENV"
+          echo "CXX=g++" >> "$GITHUB_ENV"
           dnf install -y gcc gcc-c++
 
       - name: Setup clang toolchain
         if: ${{ matrix.toolchain == 'clang' }}
         run: |
-          echo "CC=clang" >> $GITHUB_ENV
-          echo "CXX=clang++" >> $GITHUB_ENV
+          echo "CC=clang" >> "$GITHUB_ENV"
+          echo "CXX=clang++" >> "$GITHUB_ENV"
           dnf install -y clang
 
       - name: Setup
@@ -288,7 +349,7 @@ jobs:
           meson test -C builddir --setup=ci --print-errorlogs --no-stdsplit
 
       - uses: actions/upload-artifact@v3
-        if: failure()
+        if: ${{ failure() }}
         with:
           name: ${{ github.job }}-${{ matrix.image-tag }}-${{ matrix.toolchain }}-${{ matrix.buildtype }}
           path: |
@@ -303,9 +364,10 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        image-tag: [8]
+        image-tag: [8, 9]
         toolchain: [gcc, clang]
         buildtype: [release, debug]
+    if: ${{ github.event_name == 'release' }}
 
     steps:
       - name: Initialize
@@ -328,14 +390,28 @@ jobs:
         shell: sh +e {0}
         run: |
           for p in hse-java hse-python; do
-            [ "$GITHUB_EVENT_NAME" = "pull_request" ] && git ls-remote \
-              --exit-code --heads "https://github.com/hse-project/$p.git" \
-              "$GITHUB_HEAD_REF" > /dev/null
-            if [ $? -eq 0 ]; then
-              echo "::set-output name=$p::$GITHUB_HEAD_REF"
+            branch=master
+            if [ "$GITHUB_EVENT_NAME" = "pull_request" ]; then
+              git ls-remote --exit-code --heads \
+                "https://github.com/hse-project/$p.git" "$GITHUB_HEAD_REF" \
+                > /dev/null
+
+              if [ $? -eq 0 ]; then
+                branch="$GITHUB_HEAD_REF"
+              fi
+            elif [ "$GITHUB_EVENT_NAME" = "release" ]; then
+              branch=$(git rev-parse --abbrev-ref HEAD)
             else
-              echo "::set-output name=$p::master"
+              git ls-remote --exit-code --heads \
+                "https://github.com/hse-project/$p.git" "$GITHUB_REF" \
+                > /dev/null
+
+              if [ $? -eq 0 ]; then
+                branch="$GITHUB_REF"
+              fi
             fi
+
+            echo "::set-output name=$p::$branch"
           done
 
       - name: Checkout hse-java
@@ -370,22 +446,22 @@ jobs:
       # Maven from downloading dependencies during the test phase which could
       # cause tests to timeout.
       - name: Download Maven Dependencies
-        if: steps.setup-java.outputs.cache-hit != 'true'
+        if: ${{ steps.setup-java.outputs.cache-hit != 'true' }}
         run: |
           mvn --file subprojects/hse-java/pom.xml dependency:go-offline
 
       - name: Setup gcc toolchain
         if: ${{ matrix.toolchain == 'gcc' }}
         run: |
-          echo "CC=gcc" >> $GITHUB_ENV
-          echo "CXX=g++" >> $GITHUB_ENV
+          echo "CC=gcc" >> "$GITHUB_ENV"
+          echo "CXX=g++" >> "$GITHUB_ENV"
           dnf install -y gcc gcc-c++
 
       - name: Setup clang toolchain
         if: ${{ matrix.toolchain == 'clang' }}
         run: |
-          echo "CC=clang" >> $GITHUB_ENV
-          echo "CXX=clang++" >> $GITHUB_ENV
+          echo "CC=clang" >> "$GITHUB_ENV"
+          echo "CXX=clang++" >> "$GITHUB_ENV"
           dnf install -y clang
 
       - name: Setup
@@ -404,7 +480,7 @@ jobs:
           meson test -C builddir --setup=ci --print-errorlogs --no-stdsplit
 
       - uses: actions/upload-artifact@v3
-        if: failure()
+        if: ${{ failure() }}
         with:
           name: ${{ github.job }}-${{ matrix.image-tag }}-${{ matrix.toolchain }}-${{ matrix.buildtype }}
           path: |
@@ -445,14 +521,28 @@ jobs:
         shell: sh +e {0}
         run: |
           for p in hse-java hse-python; do
-            [ "$GITHUB_EVENT_NAME" = "pull_request" ] && git ls-remote \
-              --exit-code --heads "https://github.com/hse-project/$p.git" \
-              "$GITHUB_HEAD_REF" > /dev/null
-            if [ $? -eq 0 ]; then
-              echo "::set-output name=$p::$GITHUB_HEAD_REF"
+            branch=master
+            if [ "$GITHUB_EVENT_NAME" = "pull_request" ]; then
+              git ls-remote --exit-code --heads \
+                "https://github.com/hse-project/$p.git" "$GITHUB_HEAD_REF" \
+                > /dev/null
+
+              if [ $? -eq 0 ]; then
+                branch="$GITHUB_HEAD_REF"
+              fi
+            elif [ "$GITHUB_EVENT_NAME" = "release" ]; then
+              branch=$(git rev-parse --abbrev-ref HEAD)
             else
-              echo "::set-output name=$p::master"
+              git ls-remote --exit-code --heads \
+                "https://github.com/hse-project/$p.git" "$GITHUB_REF" \
+                > /dev/null
+
+              if [ $? -eq 0 ]; then
+                branch="$GITHUB_REF"
+              fi
             fi
+
+            echo "::set-output name=$p::$branch"
           done
 
       - name: Checkout hse-java
@@ -487,7 +577,7 @@ jobs:
       # Maven from downloading dependencies during the test phase which could
       # cause tests to timeout.
       - name: Download Maven Dependencies
-        if: steps.setup-java.outputs.cache-hit != 'true'
+        if: ${{ steps.setup-java.outputs.cache-hit != 'true' }}
         run: |
           mvn --file subprojects/hse-java/pom.xml dependency:go-offline
 
@@ -503,7 +593,7 @@ jobs:
           ninja -C builddir
 
       - uses: actions/upload-artifact@v3
-        if: failure()
+        if: ${{ failure() }}
         with:
           name: ${{ github.job }}-${{ matrix.arch }}-${{ matrix.buildtype }}
           path: |
@@ -555,7 +645,7 @@ jobs:
           meson test -C builddir --setup=ci --print-errorlogs --no-stdsplit
 
       - uses: actions/upload-artifact@v3
-        if: failure()
+        if: ${{ failure() }}
         with:
           name: ${{ github.job }}-${{ matrix.buildtype }}
           path: |
@@ -585,14 +675,28 @@ jobs:
         shell: sh +e {0}
         run: |
           for p in hse-java hse-python; do
-            [ "$GITHUB_EVENT_NAME" = "pull_request" ] && git ls-remote \
-              --exit-code --heads "https://github.com/hse-project/$p.git" \
-              "$GITHUB_HEAD_REF" > /dev/null
-            if [ $? -eq 0 ]; then
-              echo "::set-output name=$p::$GITHUB_HEAD_REF"
+            branch=master
+            if [ "$GITHUB_EVENT_NAME" = "pull_request" ]; then
+              git ls-remote --exit-code --heads \
+                "https://github.com/hse-project/$p.git" "$GITHUB_HEAD_REF" \
+                > /dev/null
+
+              if [ $? -eq 0 ]; then
+                branch="$GITHUB_HEAD_REF"
+              fi
+            elif [ "$GITHUB_EVENT_NAME" = "release" ]; then
+              branch=$(git rev-parse --abbrev-ref HEAD)
             else
-              echo "::set-output name=$p::master"
+              git ls-remote --exit-code --heads \
+                "https://github.com/hse-project/$p.git" "$GITHUB_REF" \
+                > /dev/null
+
+              if [ $? -eq 0 ]; then
+                branch="$GITHUB_REF"
+              fi
             fi
+
+            echo "::set-output name=$p::$branch"
           done
 
       - name: Checkout hse-java
@@ -621,15 +725,6 @@ jobs:
         with:
           distribution: adopt
           java-version: "17"
-          cache: maven
-
-      # Download all dependencies up front if cache wasn't hit. Will keep
-      # Maven from downloading dependencies during the test phase which could
-      # cause tests to timeout.
-      - name: Download Maven Dependencies
-        if: steps.setup-java.outputs.cache-hit != 'true'
-        run: |
-          mvn --file subprojects/hse-java/pom.xml dependency:go-offline
 
       - name: Setup
         run: |
@@ -641,16 +736,9 @@ jobs:
         run: |
           ninja -C builddir
 
-      - name: Test
-        run: |
-          ulimit -c unlimited
-          meson test -C builddir --setup=ci --print-errorlogs --no-stdsplit
-
       - uses: actions/upload-artifact@v3
-        if: failure()
+        if: ${{ failure() }}
         with:
           name: ${{ github.job }}
           path: |
             builddir/meson-logs/
-            /var/log/messages
-            /var/log/syslog

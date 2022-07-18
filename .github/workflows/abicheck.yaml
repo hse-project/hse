@@ -4,7 +4,7 @@ on:
   pull_request:
     types: [opened, synchronize, reopened]
     branches:
-      - v*.*
+      - "v[0-9]+.[0-9]+"
     paths-ignore:
       - "**.md"
       - ".github/ISSUE_TEMPLATE/**"
@@ -87,7 +87,7 @@ jobs:
             -new current.dump -old previous.dump
 
       - uses: actions/upload-artifact@v3
-        if: failure()
+        if: ${{ failure() }}
         with:
           name: abi-dumps
           path: |
