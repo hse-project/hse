@@ -2,15 +2,12 @@
 
 # SPDX-License-Identifier: Apache-2.0
 #
-# Copyright (C) 2020-2021 Micron Technology, Inc. All rights reserved.
+# Copyright (C) 2020-2022 Micron Technology, Inc. All rights reserved.
 
-import sys
+import json
 import random
+import sys
 import time
-import struct
-import os
-import itertools
-import yaml
 
 
 def quit(*lines):
@@ -132,7 +129,7 @@ class test_collection:
         if tag in self.tests:
             quit("test {0} defined twice".format(tag))
         self.tests[tag] = test
-        test.write_yaml("{0}.yml".format(tag), "{0}.txt".format(tag))
+        test.write_json("{0}.yml".format(tag), "{0}.txt".format(tag))
 
 
 class test_case:
@@ -226,7 +223,7 @@ class test_case:
         self.merged_kvset = sorted(deduped, key=(lambda tup: tup[0]))
         self.test_kvsets = test_kvsets
 
-    def write_yaml(self, yaml_filename, text_filename):
+    def write_json(self, json_filename, text_filename):
         input_kvsets = []
         i = 0
         for kvset in self.test_kvsets:
@@ -245,8 +242,9 @@ class test_case:
         test["input_kvsets"] = input_kvsets
         test["output_kvset"] = kv
         # The next step takes an extraordinary amount of time for the big random datasets
-        with open(yaml_filename, "w") as fh:
-            yaml.safe_dump(test, stream=fh, default_flow_style=False)
+        with open(json_filename, "w") as fh:
+            data = json.dumps(test, indent="    ", sort_keys=True)
+            fh.write(data)
             pass
 
 

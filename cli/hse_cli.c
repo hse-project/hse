@@ -21,11 +21,11 @@
 #include <hse/cli/param.h>
 #include <hse/hse.h>
 #include <hse/logging/logging.h>
+#include <hse/pidfile/pidfile.h>
 #include <hse/version.h>
 
 #include <hse_util/compiler.h>
 #include <hse_util/parse_num.h>
-#include <hse_util/yaml.h>
 
 #include "cli_util.h"
 #include "storage_profile.h"
@@ -664,18 +664,8 @@ done:
 static int
 cli_hse_kvdb_info_impl(struct cli *cli, const char *const kvdb_home)
 {
+    hse_err_t err;
     const char *paramv[] = { "read_only=true" };
-    char        buf[YAML_BUF_SIZE];
-    int         rc = 0;
-    bool        exists;
-
-    struct yaml_context yc = {
-        .yaml_buf = buf,
-        .yaml_buf_sz = sizeof(buf),
-        .yaml_indent = 0,
-        .yaml_offset = 0,
-        .yaml_emit = yaml_print_and_rewind,
-    };
 
     assert(kvdb_home);
 
@@ -687,15 +677,9 @@ cli_hse_kvdb_info_impl(struct cli *cli, const char *const kvdb_home)
         return EINVAL;
     }
 
-    exists = kvdb_info_print(kvdb_home, NELEM(paramv), paramv, &yc);
-    if (!exists) {
-        fprintf(stderr, "No such KVDB (%s)\n", kvdb_home);
-        rc = -1;
-    }
+    err = kvdb_info_print(kvdb_home, NELEM(paramv), paramv);
 
-    printf("%s", buf);
-
-    return rc;
+    return hse_err_to_errno(err);
 }
 
 static int

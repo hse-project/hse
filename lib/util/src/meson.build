@@ -31,6 +31,5 @@ util_sources = files(
     'token_bucket.c',
     'vlb.c',
     'workqueue.c',
-    'xrand.c',
-    'yaml.c',
+    'xrand.c'
 )
