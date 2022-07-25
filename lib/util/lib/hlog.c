@@ -104,14 +104,14 @@ hlog_reset(struct hlog *hlog)
     memset(hlog->regv, 0, hlog->regc * sizeof(*hlog->regv));
 }
 
-uint8_t *
-hlog_data(struct hlog *hlog)
+const uint8_t *
+hlog_data(const struct hlog *hlog)
 {
     return hlog->regv;
 }
 
 uint
-hlog_precision(struct hlog *hlog)
+hlog_precision(const struct hlog *hlog)
 {
     return hlog->precision;
 }
@@ -284,7 +284,7 @@ hlog_card_data(uint8_t *regv, uint p)
 }
 
 uint64_t
-hlog_card(struct hlog *hlog)
+hlog_card(const struct hlog *hlog)
 {
     return hlog_card_data(hlog->regv, hlog->precision);
 }

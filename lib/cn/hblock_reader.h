@@ -6,8 +6,6 @@
 #ifndef CN_HBLOCK_READER_H
 #define CN_HBLOCK_READER_H
 
-/* MTF_MOCK_DECL(hblock_reader) */
-
 #include <stdbool.h>
 #include <stdint.h>
 

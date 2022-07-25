@@ -18,8 +18,6 @@
 #include <hse/util/condvar.h>
 #include <hse/util/workqueue.h>
 
-/* MTF_MOCK_DECL(c0kvms) */
-
 struct c0;
 struct cn;
 struct c0_kvmultiset_cursor;
@@ -91,9 +89,8 @@ c0kvms_getref(struct c0_kvmultiset *mset);
  * c0kvms_putref() - release a ref against a struct c0_kvmultiset
  * @mset: struct c0_kvset to release a ref against
  */
-/* MTF_MOCK */
 void
-c0kvms_putref(struct c0_kvmultiset *mset);
+c0kvms_putref(struct c0_kvmultiset *mset) HSE_MOCK;
 
 int
 c0kvms_refcnt(struct c0_kvmultiset *handle);
@@ -164,17 +161,15 @@ c0kvms_finalize(struct c0_kvmultiset *mset, struct workqueue_struct *wq);
  * @mset:  struct c0_kvmultiset
  *
  */
-/* MTF_MOCK */
 bool
-c0kvms_is_finalized(struct c0_kvmultiset *mset);
+c0kvms_is_finalized(struct c0_kvmultiset *mset) HSE_MOCK;
 
 /**
  * c0kvms_rsvd_sn_get() - get reserved seqno
  * @mset:   struct c0_kvmultiset
  */
-/* MTF_MOCK */
 uint64_t
-c0kvms_rsvd_sn_get(struct c0_kvmultiset *mset);
+c0kvms_rsvd_sn_get(struct c0_kvmultiset *mset) HSE_MOCK;
 
 /**
  * c0kvms_rsvd_sn_set() - set reserved seqno
@@ -190,9 +185,8 @@ c0kvms_rsvd_sn_get(struct c0_kvmultiset *mset);
  * it is reserved for use only by kvdb_ctxn_commit() in the context of
  * a kvms flush operation.
  */
-/* MTF_MOCK */
 void
-c0kvms_rsvd_sn_set(struct c0_kvmultiset *mset, uint64_t seqno);
+c0kvms_rsvd_sn_set(struct c0_kvmultiset *mset, uint64_t seqno) HSE_MOCK;
 
 /**
  * c0kvms_ingesting() - mark the c0_kvmultiset as ingesting
@@ -206,18 +200,16 @@ c0kvms_ingesting(struct c0_kvmultiset *mset);
  * c0kvms_ingested() - mark the c0_kvmultiset as ingested (on media)
  * @mset:  struct c0_kvmultiset
  */
-/* MTF_MOCK */
 void
-c0kvms_ingested(struct c0_kvmultiset *mset);
+c0kvms_ingested(struct c0_kvmultiset *mset) HSE_MOCK;
 
 /**
  * c0kvms_is_ingested() - return 'true' if the kvms is on media
  * @mset:  Struct c0_kvmultiset
  *
  */
-/* MTF_MOCK */
 bool
-c0kvms_is_ingested(struct c0_kvmultiset *mset);
+c0kvms_is_ingested(struct c0_kvmultiset *mset) HSE_MOCK;
 
 /**
  * c0kvms_is_ingesting() - return 'true' if the kvms is ingesting
@@ -233,9 +225,8 @@ c0kvms_is_ingested(struct c0_kvmultiset *mset);
  * ingest processing.  It may or may not be the active kvms, it may or may
  * may not be finalized, and it may or may not have been ingested.
  */
-/* MTF_MOCK */
 bool
-c0kvms_is_ingesting(struct c0_kvmultiset *mset);
+c0kvms_is_ingesting(struct c0_kvmultiset *mset) HSE_MOCK;
 
 /**
  * c0kvms_get_element_count - obtain the total number of elements

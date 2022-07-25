@@ -11,8 +11,6 @@
 
 #include <hse/error/merr.h>
 
-/* MTF_MOCK_DECL(cn_mblocks) */
-
 struct mpool;
 struct cndb;
 struct kvset_mblocks;
@@ -35,9 +33,8 @@ enum cn_mutation {
 #define CN_MB_EST_FLAGS_TRUNCATE (1u << 1) /* truncation enabled */
 #define CN_MB_EST_FLAGS_POW2     (1u << 2) /* round mblk sz to power of 2 */
 
-/* MTF_MOCK */
 size_t
-cn_mb_est_alen(size_t max_captgt, size_t alloc_unit, size_t payload, unsigned int flags);
+cn_mb_est_alen(size_t max_captgt, size_t alloc_unit, size_t payload, unsigned int flags) HSE_MOCK;
 
 /**
  * cn_mblocks_commit()
@@ -55,17 +52,16 @@ cn_mb_est_alen(size_t max_captgt, size_t alloc_unit, size_t payload, unsigned in
  * @context:
  * @tags:
  */
-/* MTF_MOCK */
 merr_t
 cn_mblocks_commit(
     struct mpool *ds,
     uint32_t num_lists,
     struct kvset_mblocks *list,
-    enum cn_mutation mutation);
+    enum cn_mutation mutation) HSE_MOCK;
 
-/* MTF_MOCK */
 void
-cn_mblocks_destroy(struct mpool *ds, uint32_t num_lists, struct kvset_mblocks *list, bool kcompact);
+cn_mblocks_destroy(struct mpool *ds, uint32_t num_lists, struct kvset_mblocks *list, bool kcompact)
+    HSE_MOCK;
 
 #if HSE_MOCKING
 #include "cn_mblocks_ut.h"

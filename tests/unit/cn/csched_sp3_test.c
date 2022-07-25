@@ -235,9 +235,9 @@ job_cb(struct sts_job *job)
 void
 sts_job_submit_mock(struct sts *self, struct sts_job *job)
 {
-    mtfm_sched_sts_sts_job_submit_fp real_fn;
+    mtfm_sched_sts_sts_job_submit_fp *real_fn;
 
-    real_fn = mtfm_sched_sts_sts_job_submit_getreal();
+    real_fn = mtfm_sched_sts_sts_job_submit_get_real();
 
     job->sj_job_fn = job_cb;
 

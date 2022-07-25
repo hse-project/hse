@@ -17,8 +17,6 @@ struct mpool;
 struct wbt_hdr_omf;
 struct vgmap;
 
-/* MTF_MOCK_DECL(wbt_reader) */
-
 #define NODE_EOF ((uint32_t)-1)
 
 /**
@@ -69,7 +67,6 @@ struct wbti {
  *              or FOUND_TMB (tombstone)
  * @vref: (output) value metadata if found
  */
-/* MTF_MOCK */
 merr_t
 wbtr_read_vref(
     const void *base,
@@ -78,7 +75,7 @@ wbtr_read_vref(
     uint64_t seq,
     enum key_lookup_res *lookup_res,
     struct vgmap *vgmap,
-    struct kvs_vtuple_ref *vref);
+    struct kvs_vtuple_ref *vref) HSE_MOCK;
 
 merr_t
 wbti_alloc(struct wbti **wbti_out);
@@ -110,7 +107,6 @@ wbti_reset(
  * @reverse: whether to iterate backwards
  * @cache: whether to cache wbt node values
  */
-/* MTF_MOCK */
 merr_t
 wbti_create(
     struct wbti **wbti,
@@ -118,16 +114,15 @@ wbti_create(
     struct wbt_desc *wbd,
     struct kvs_ktuple *seek,
     bool reverse,
-    bool cache);
+    bool cache) HSE_MOCK;
 
 /**
  * wbti_destroy() - Destroy a wbtree iterator. Does not
  *       destroy or otherwise modify any other objects.
  * @wbti: iterator to destroy
  */
-/* MTF_MOCK */
 void
-wbti_destroy(struct wbti *wbti);
+wbti_destroy(struct wbti *wbti) HSE_MOCK;
 
 /**
  * wbti_prefix() - Get the current wbt node's longest common prefix
@@ -135,9 +130,8 @@ wbti_destroy(struct wbti *wbti);
  * @pfx:    (out) longest common prefix
  * @pfx_len: (out) length of @pfx
  */
-/* MTF_MOCK */
 void
-wbti_prefix(struct wbti *self, const void **pfx, uint *pfx_len);
+wbti_prefix(struct wbti *self, const void **pfx, uint *pfx_len) HSE_MOCK;
 
 /**
  * wbti_next() - Retrieve the next entry in the WBT
@@ -148,27 +142,24 @@ wbti_prefix(struct wbti *self, const void **pfx, uint *pfx_len);
  *
  * Returns: false if EOF (outputs not valid), true otherwise (outputs valid).
  */
-/* MTF_MOCK */
 bool
-wbti_next(struct wbti *wbti, const void **kdata, uint *klen, const void **kmd);
+wbti_next(struct wbti *wbti, const void **kdata, uint *klen, const void **kmd) HSE_MOCK;
 
-/* MTF_MOCK */
 void
 wbt_read_kmd_vref(
     const void *kmd,
     struct vgmap *vgmap,
     size_t *off,
     uint64_t *seq,
-    struct kvs_vtuple_ref *vref);
+    struct kvs_vtuple_ref *vref) HSE_MOCK;
 
 merr_t
 wbti_init(void);
 void
 wbti_fini(void);
 
-/* MTF_MOCK */
 merr_t
-wbtr_read_desc(const struct wbt_hdr_omf *wbt_hdr, struct wbt_desc *desc);
+wbtr_read_desc(const struct wbt_hdr_omf *wbt_hdr, struct wbt_desc *desc) HSE_MOCK;
 
 #if HSE_MOCKING
 #include "wbt_reader_ut.h"

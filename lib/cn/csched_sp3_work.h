@@ -13,8 +13,6 @@
 
 #include <hse/error/merr.h>
 
-/* MTF_MOCK_DECL(csched_sp3_work) */
-
 /* clang-format off */
 
 /* Root spill limits.
@@ -87,14 +85,13 @@ struct sp3_thresholds {
     uint8_t split_cnt_max; /* max node splits per batch */
 };
 
-/* MTF_MOCK */
 merr_t
 sp3_work(
     struct sp3_node *spn,
     enum sp3_work_type wtype,
     struct sp3_thresholds *thresholds,
     uint debug,
-    struct cn_compaction_work **wp);
+    struct cn_compaction_work **wp) HSE_MOCK;
 
 struct cn_tree_node *
 sp3_work_joinable(struct cn_tree_node *right, const struct sp3_thresholds *thresh);

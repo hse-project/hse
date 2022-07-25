@@ -13,27 +13,23 @@
 
 struct viewset;
 
-/* MTF_MOCK_DECL(viewset) */
-
-/* MTF_MOCK */
 merr_t
-viewset_create(struct viewset **handle, atomic_ulong *kvdb_seqno_addr, atomic_ulong *tseqnop);
+viewset_create(struct viewset **handle, atomic_ulong *kvdb_seqno_addr, atomic_ulong *tseqnop)
+    HSE_MOCK;
 
-/* MTF_MOCK */
 void
-viewset_destroy(struct viewset *handle);
+viewset_destroy(struct viewset *handle) HSE_MOCK;
 
-/* MTF_MOCK */
 merr_t
-viewset_insert(struct viewset *handle, uint64_t *viewp, uint64_t *tseqnop, void **cookiep);
+viewset_insert(struct viewset *handle, uint64_t *viewp, uint64_t *tseqnop, void **cookiep) HSE_MOCK;
 
-/* MTF_MOCK */
 void
-viewset_remove(struct viewset *handle, void *cookie, uint32_t *min_changed, uint64_t *min_view_sn);
+viewset_remove(struct viewset *handle, void *cookie, uint32_t *min_changed, uint64_t *min_view_sn)
+    HSE_MOCK;
 
-/* MTF_MOCK */
 uint64_t
-viewset_horizon(struct viewset *handle);
+viewset_horizon(struct viewset *handle) HSE_MOCK;
+
 uint64_t
 viewset_min_view(struct viewset *handle);
 

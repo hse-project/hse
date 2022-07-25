@@ -12,8 +12,6 @@
 
 #include <hse/error/merr.h>
 
-/* MTF_MOCK_DECL(hlog) */
-
 struct hlog;
 
 /* Defaults use by HSE */
@@ -26,37 +24,29 @@ struct hlog;
 
 #define hlog_size(p) (1 << (p))
 
-/* MTF_MOCK */
 merr_t
-hlog_create(struct hlog **hlog_out, uint p);
+hlog_create(struct hlog **hlog_out, uint p) HSE_MOCK;
 
-/* MTF_MOCK */
 void
-hlog_destroy(struct hlog *hlog);
+hlog_destroy(struct hlog *hlog) HSE_MOCK;
 
-/* MTF_MOCK */
 void
-hlog_reset(struct hlog *hlog);
+hlog_reset(struct hlog *hlog) HSE_MOCK;
 
-/* MTF_MOCK */
-uint8_t *
-hlog_data(struct hlog *hlog);
+const uint8_t *
+hlog_data(const struct hlog *hlog) HSE_MOCK;
 
-/* MTF_MOCK */
 void
-hlog_union(struct hlog *hlog, const uint8_t *new_regv);
+hlog_union(struct hlog *hlog, const uint8_t *new_regv) HSE_MOCK;
 
-/* MTF_MOCK */
 uint
-hlog_precision(struct hlog *hlog);
+hlog_precision(const struct hlog *hlog) HSE_MOCK;
 
-/* MTF_MOCK */
 void
-hlog_add(struct hlog *hlog, uint64_t hash);
+hlog_add(struct hlog *hlog, uint64_t hash) HSE_MOCK;
 
-/* MTF_MOCK */
 uint64_t
-hlog_card(struct hlog *hlog);
+hlog_card(const struct hlog *hlog) HSE_MOCK;
 
 #if HSE_MOCKING
 #include "hlog_ut.h"

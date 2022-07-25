@@ -39,8 +39,6 @@ struct subspill {
     bool ss_is_zspill;
 };
 
-/* MTF_MOCK_DECL(spill) */
-
 /**
  * cn_subspill() - Build kvsets as part of a spill operation
  *
@@ -65,7 +63,6 @@ struct subspill {
  * Upon failure, no cleanup is necessary (any internally allocated
  * memory or mblocks will be cleaned up prior to return).
  */
-/* MTF_MOCK */
 merr_t
 cn_subspill(
     struct subspill *ss,
@@ -73,19 +70,16 @@ cn_subspill(
     struct cn_tree_node *node,
     uint64_t node_dgen,
     const void *ekey,
-    uint eklen);
+    uint eklen) HSE_MOCK;
 
-/* MTF_MOCK */
 merr_t
-cn_spill_create(struct cn_compaction_work *w, struct spillctx **sctx_out);
+cn_spill_create(struct cn_compaction_work *w, struct spillctx **sctx_out) HSE_MOCK;
 
-/* MTF_MOCK */
 void
-cn_spill_destroy(struct spillctx *ctx);
+cn_spill_destroy(struct spillctx *ctx) HSE_MOCK;
 
-/* MTF_MOCK */
 void
-cn_subspill_get_kvset_meta(struct subspill *ss, struct kvset_meta *km);
+cn_subspill_get_kvset_meta(struct subspill *ss, struct kvset_meta *km) HSE_MOCK;
 
 #if HSE_MOCKING
 #include "spill_ut.h"

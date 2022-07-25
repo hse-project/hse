@@ -6,8 +6,6 @@
 #ifndef HSE_CORE_KEYLOCK_H
 #define HSE_CORE_KEYLOCK_H
 
-/* MTF_MOCK_DECL(keylock) */
-
 #include <stdbool.h>
 #include <stdint.h>
 
@@ -21,9 +19,8 @@ struct keylock;
 
 typedef bool keylock_cb_fn(uint32_t owner, uint64_t start_seq);
 
-/* MTF_MOCK */
 merr_t
-keylock_create(keylock_cb_fn *cb_fun, struct keylock **handle_out);
+keylock_create(keylock_cb_fn *cb_fun, struct keylock **handle_out) HSE_MOCK;
 
 void
 keylock_destroy(struct keylock *handle);

@@ -427,13 +427,6 @@ rpath = get_option('rpath') ? '$ORIGIN' / bindir_to_libdir : ''
 
 includeify = find_program('scripts/build/includeify')
 
-if get_option('tests')
-    find_program('gawk')
-    mapi_idx_generate = find_program('scripts/build/mapi_idx_generate.sh')
-    ut_mock_decl_files = find_program('scripts/build/ut_mock_decl_files.sh')
-    utpp = find_program('scripts/build/utpp')
-endif
-
 subdir('include')
 if get_option('tests') or not get_option('tools').disabled()
     # need access to tools_includes for unit tests and tools

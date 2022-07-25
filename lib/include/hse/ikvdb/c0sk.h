@@ -37,8 +37,6 @@ c0sk_init(void);
 void
 c0sk_fini(void);
 
-/* MTF_MOCK_DECL(c0sk) */
-
 /*
  * Functions relating to using a struct c0sk
  */
@@ -53,7 +51,6 @@ c0sk_fini(void);
  *
  * Return: [HSE_REVISIT]
  */
-/* MTF_MOCK */
 merr_t
 c0sk_open(
     struct kvdb_rparams *kvdb_rp,
@@ -62,7 +59,7 @@ c0sk_open(
     struct kvdb_health *health,
     atomic_ulong *kvdb_seq,
     uint64_t gen,
-    struct c0sk **c0sk);
+    struct c0sk **c0sk) HSE_MOCK;
 
 /**
  * c0sk_close() - transition a struct c0sk into an offline state
@@ -70,42 +67,34 @@ c0sk_open(
  *
  * Return: [HSE_REVISIT]
  */
-/* MTF_MOCK */
 merr_t
-c0sk_close(struct c0sk *self);
+c0sk_close(struct c0sk *self) HSE_MOCK;
 
-/* MTF_MOCK */
 void
-c0sk_lc_set(struct c0sk *self, struct lc *lc);
+c0sk_lc_set(struct c0sk *self, struct lc *lc) HSE_MOCK;
 
-/* MTF_MOCK */
 void
-c0sk_ctxn_set_set(struct c0sk *handle, struct kvdb_ctxn_set *ctxn_set);
+c0sk_ctxn_set_set(struct c0sk *handle, struct kvdb_ctxn_set *ctxn_set) HSE_MOCK;
 
-/* MTF_MOCK */
 struct lc *
-c0sk_lc_get(struct c0sk *self);
+c0sk_lc_get(struct c0sk *self) HSE_MOCK;
 
-/* MTF_MOCK */
 void
-c0sk_min_seqno_set(struct c0sk *handle, uint64_t seq);
+c0sk_min_seqno_set(struct c0sk *handle, uint64_t seq) HSE_MOCK;
 
-/* MTF_MOCK */
 uint64_t
-c0sk_min_seqno_get(struct c0sk *handle);
+c0sk_min_seqno_get(struct c0sk *handle) HSE_MOCK;
 
-/* MTF_MOCK */
 uint64_t
-c0sk_ingest_order_register(struct c0sk *self);
+c0sk_ingest_order_register(struct c0sk *self) HSE_MOCK;
 
 /**
  * c0sk_throttle_sensor() - configure c0sk with a throttle sensor
  * @handle: c0sk handle
  * @sensor: throttle_sensor
  */
-/* MTF_MOCK */
 void
-c0sk_throttle_sensor(struct c0sk *self, struct throttle_sensor *sensor);
+c0sk_throttle_sensor(struct c0sk *self, struct throttle_sensor *sensor) HSE_MOCK;
 
 /**
  * c0sk_c0_register() - request an index that will be associated with a
@@ -115,9 +104,8 @@ c0sk_throttle_sensor(struct c0sk *self, struct throttle_sensor *sensor);
  *
  * Return: [HSE_REVISIT]
  */
-/* MTF_MOCK */
 merr_t
-c0sk_c0_register(struct c0sk *self, struct cn *cn, uint16_t *skidx);
+c0sk_c0_register(struct c0sk *self, struct cn *cn, uint16_t *skidx) HSE_MOCK;
 
 /**
  * c0sk_c0_deregister() - release an index that is associated with a
@@ -129,9 +117,8 @@ c0sk_c0_register(struct c0sk *self, struct cn *cn, uint16_t *skidx);
  *
  * Return: [HSE_REVISIT]
  */
-/* MTF_MOCK */
 merr_t
-c0sk_c0_deregister(struct c0sk *self, uint16_t skidx);
+c0sk_c0_deregister(struct c0sk *self, uint16_t skidx) HSE_MOCK;
 
 /**
  * c0sk_get_mhandle() - Return the c0sk mutation handle.
@@ -150,14 +137,13 @@ c0sk_get_mhandle(struct c0sk *self);
  *
  * Return: [HSE_REVISIT]
  */
-/* MTF_MOCK */
 merr_t
 c0sk_put(
     struct c0sk *self,
     uint16_t skidx,
     struct kvs_ktuple *key,
     const struct kvs_vtuple *value,
-    uintptr_t seqnoref);
+    uintptr_t seqnoref) HSE_MOCK;
 
 /**
  * c0sk_get() - retrieve the value associated with the given key
@@ -172,7 +158,6 @@ c0sk_put(
  *
  * Return: [HSE_REVISIT]
  */
-/* MTF_MOCK */
 merr_t
 c0sk_get(
     struct c0sk *self,
@@ -182,7 +167,7 @@ c0sk_get(
     uint64_t view_seq,
     uintptr_t seqref,
     enum key_lookup_res *res,
-    struct kvs_buf *vbuf);
+    struct kvs_buf *vbuf) HSE_MOCK;
 
 /**
  * c0sk_del() - delete any value associated with the given key
@@ -193,9 +178,8 @@ c0sk_get(
  *
  * Return: [HSE_REVISIT]
  */
-/* MTF_MOCK */
 merr_t
-c0sk_del(struct c0sk *self, uint16_t skidx, struct kvs_ktuple *key, uintptr_t seqnoref);
+c0sk_del(struct c0sk *self, uint16_t skidx, struct kvs_ktuple *key, uintptr_t seqnoref) HSE_MOCK;
 
 merr_t
 c0sk_pfx_probe(
@@ -220,9 +204,9 @@ c0sk_pfx_probe(
  *
  * Return: [HSE_REVISIT]
  */
-/* MTF_MOCK */
 merr_t
-c0sk_prefix_del(struct c0sk *self, uint16_t skidx, struct kvs_ktuple *key, uintptr_t seqnoref);
+c0sk_prefix_del(struct c0sk *self, uint16_t skidx, struct kvs_ktuple *key, uintptr_t seqnoref)
+    HSE_MOCK;
 
 /**
  * c0sk_rparams() - Get a ptr to c0sk kvdb rparams
@@ -239,9 +223,8 @@ c0sk_rparams(struct c0sk *self);
  * Force ingest of existing c0sk data and waits (if not asynchronous)
  * until it has been ingested by cn before returning to caller.
  */
-/* MTF_MOCK */
 merr_t
-c0sk_sync(struct c0sk *self, unsigned int flags);
+c0sk_sync(struct c0sk *self, unsigned int flags) HSE_MOCK;
 
 /**
  * c0sk_cursor_create() - create a cursor over c0
@@ -309,9 +292,8 @@ c0sk_cursor_destroy(struct c0_cursor *cur);
  *
  * Return: ptr to the first kvms on the list of kvmultisets
  */
-/* MTF_MOCK */
 struct c0_kvmultiset *
-c0sk_get_first_c0kvms(struct c0sk *handle);
+c0sk_get_first_c0kvms(struct c0sk *handle) HSE_MOCK;
 
 struct c0_kvmultiset *
 c0sk_get_last_c0kvms(struct c0sk *handle);

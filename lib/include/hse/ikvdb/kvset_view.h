@@ -33,60 +33,49 @@ struct kvset_metrics {
     uint16_t vgroups;
 };
 
-/* MTF_MOCK_DECL(kvset_view) */
-
-/* MTF_MOCK */
 void
-kvset_get_metrics(struct kvset *kvset, struct kvset_metrics *metrics);
+kvset_get_metrics(struct kvset *kvset, struct kvset_metrics *metrics) HSE_MOCK;
 
 /**
  * Return the mblock ID of the hblock
  *
  * @param ks kvset
  */
-/* MTF_MOCK */
 uint64_t
-kvset_get_hblock_id(struct kvset *ks);
+kvset_get_hblock_id(struct kvset *ks) HSE_MOCK;
 
 /**
  * kvset_get_num_kblocks() - Get number of kblocks in kvset
  */
-/* MTF_MOCK */
 uint32_t
-kvset_get_num_kblocks(struct kvset *kvset);
+kvset_get_num_kblocks(struct kvset *kvset) HSE_MOCK;
 
 /**
  * kvset_get_num_vblocks() - Get number of vblocks in kvset
  */
-/* MTF_MOCK */
 uint32_t
-kvset_get_num_vblocks(struct kvset *kvset);
+kvset_get_num_vblocks(struct kvset *kvset) HSE_MOCK;
 
 /**
  * kvset_get_nth_kblock_id() - Get mblock id of the nth kblock in kvset
  */
-/* MTF_MOCK */
 uint64_t
-kvset_get_nth_kblock_id(struct kvset *kvset, uint32_t index);
+kvset_get_nth_kblock_id(struct kvset *kvset, uint32_t index) HSE_MOCK;
 
 /**
  * kvset_get_nth_vblock_id() - Get mblock id of the nth vblock in kvset
  */
-/* MTF_MOCK */
 uint64_t
-kvset_get_nth_vblock_id(struct kvset *kvset, uint32_t index);
+kvset_get_nth_vblock_id(struct kvset *kvset, uint32_t index) HSE_MOCK;
 
-/* MTF_MOCK */
 uint64_t
-kvset_get_nodeid(const struct kvset *kvset);
+kvset_get_nodeid(const struct kvset *kvset) HSE_MOCK;
 
-/* MTF_MOCK */
 uint64_t
-kvset_get_dgen(const struct kvset *kvset);
+kvset_get_dgen(const struct kvset *kvset) HSE_MOCK;
 
-/* MTF_MOCK */
 uint64_t
-kvset_get_seqno_max(struct kvset *kvset);
+kvset_get_seqno_max(struct kvset *kvset) HSE_MOCK;
 
 #if HSE_MOCKING
 #include "kvset_view_ut.h"

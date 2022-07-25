@@ -38,8 +38,8 @@ struct mocked_api {
  * This allows similar APIs to be shared; e.g. malloc, calloc, etc. .
  */
 
-static struct mocked_api mock_tab[max_mapi_idx];
-static struct mocked_api *mock_ptrs[max_mapi_idx];
+static struct mocked_api mock_tab[MAPI_IDX_MAX + 1];
+static struct mocked_api *mock_ptrs[MAPI_IDX_MAX + 1];
 
 bool mapi_enabled;
 
@@ -49,7 +49,7 @@ mapi_init(void)
     if (mapi_enabled)
         return;
 
-    for (uint32_t i = 0; i < max_mapi_idx; ++i)
+    for (uint32_t i = 0; i <= MAPI_IDX_MAX; ++i)
         mock_ptrs[i] = &mock_tab[i];
 
     /*
@@ -79,13 +79,13 @@ mapi_init(void)
 static bool
 valid_api(uint32_t api)
 {
-    if (!mapi_enabled || api >= max_mapi_idx) {
+    if (!mapi_enabled || api > MAPI_IDX_MAX) {
         assert(mapi_enabled);
-        assert(api < max_mapi_idx);
+        assert(api <= MAPI_IDX_MAX);
         return false;
     }
 
-    return api < max_mapi_idx;
+    return api <= MAPI_IDX_MAX;
 }
 
 /* [HSE_REVISIT] The mapi_safe_* functions are no longer required.  In
@@ -212,7 +212,7 @@ mapi_inject_unset_range(uint32_t lo, uint32_t hi)
 void
 mapi_inject_clear()
 {
-    mapi_inject_unset_range(0, max_mapi_idx - 1);
+    mapi_inject_unset_range(0, MAPI_IDX_MAX);
 }
 
 /*
@@ -280,7 +280,7 @@ mapi_inject_list(struct mapi_injection *inject, bool set)
 
         int api = inject->api;
 
-        assert(0 <= api && api < max_mapi_idx);
+        assert(0 <= api && api <= MAPI_IDX_MAX);
 
         if (set) {
             switch (inject->rc_cookie) {

@@ -8,26 +8,21 @@
 
 #include <stddef.h>
 
+#include <hse/util/compiler.h>
+
 #include <hse/test/mtf/framework.h>
 
-/* MTF_MOCK_DECL(allocation) */
+void *malloc(size_t) HSE_MOCK;
 
-/* MTF_MOCK */
-void *malloc(size_t);
-
-/* MTF_MOCK */
 void
-free(void *);
+free(void *) HSE_MOCK;
 
-/* MTF_MOCK */
-void *calloc(size_t, size_t);
+void *calloc(size_t, size_t) HSE_MOCK;
 
-/* MTF_MOCK */
-void *aligned_alloc(size_t, size_t);
+void *aligned_alloc(size_t, size_t) HSE_MOCK;
 
-/* MTF_MOCK */
 int
-memcmp(const void *ptr1, const void *ptr2, size_t num);
+memcmp(const void *, const void *, size_t) HSE_MOCK;
 
 #if HSE_MOCKING
 #include "allocation_ut.h"

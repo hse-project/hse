@@ -18,8 +18,6 @@
 
 #define TOMBSPAN_MIN_WIDTH 8
 
-/* MTF_MOCK_DECL(kvs) */
-
 /*- Internal Key Value Store  -----------------------------------------------*/
 
 struct hse_kvdb_txn;
@@ -223,30 +221,23 @@ kvs_cursor_update(struct hse_kvs_cursor *cursor, struct kvdb_ctxn *ctxn, uint64_
 
 /* kvdb_kvs interfaces...
  */
-
-/* MTF_MOCK */
 struct ikvdb_impl *
-kvdb_kvs_parent(struct kvdb_kvs *kk);
+kvdb_kvs_parent(struct kvdb_kvs *kk) HSE_MOCK;
 
-/* MTF_MOCK */
 struct kvs_cparams *
-kvdb_kvs_cparams(struct kvdb_kvs *kk);
+kvdb_kvs_cparams(struct kvdb_kvs *kk) HSE_MOCK;
 
-/* MTF_MOCK */
 uint32_t
-kvdb_kvs_flags(struct kvdb_kvs *kk);
+kvdb_kvs_flags(struct kvdb_kvs *kk) HSE_MOCK;
 
-/* MTF_MOCK */
 uint64_t
-kvdb_kvs_cnid(struct kvdb_kvs *kk);
+kvdb_kvs_cnid(struct kvdb_kvs *kk) HSE_MOCK;
 
-/* MTF_MOCK */
 const char *
-kvdb_kvs_name(struct kvdb_kvs *kk);
+kvdb_kvs_name(struct kvdb_kvs *kk) HSE_MOCK;
 
-/* MTF_MOCK */
 void
-kvdb_kvs_set_ikvs(struct kvdb_kvs *kk, struct ikvs *ikvs);
+kvdb_kvs_set_ikvs(struct kvdb_kvs *kk, struct ikvs *ikvs) HSE_MOCK;
 
 #if HSE_MOCKING
 #include "kvs_ut.h"

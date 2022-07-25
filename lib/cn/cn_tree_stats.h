@@ -9,13 +9,11 @@
 #include <hse/util/perfc.h>
 #include <hse/util/platform.h>
 
-/* MTF_MOCK_DECL(cn_tree_stats) */
-
 struct cn_tree;
 
-/* MTF_MOCK */
 void
-cn_tree_perfc_shape_report(struct cn_tree *tree, struct perfc_set *rnode, struct perfc_set *lnode);
+cn_tree_perfc_shape_report(struct cn_tree *tree, struct perfc_set *rnode, struct perfc_set *lnode)
+    HSE_MOCK;
 
 #if HSE_MOCKING
 #include "cn_tree_stats.h"

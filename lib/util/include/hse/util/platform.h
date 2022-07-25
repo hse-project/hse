@@ -12,8 +12,6 @@
 #include <hse/util/arch.h>
 #include <hse/util/base.h>
 
-/* MTF_MOCK_DECL(platform) */
-
 /* Threads about to block or enter a long-running operation may
  * set hse_wmesg_tls to indicate their current status.  After
  * returning from the operation they should set it to "-".
@@ -72,9 +70,8 @@ hse_readfile(int dirfd, const char *path, void *buf, size_t bufsz, int flags);
  *
  * %freep and/or %availp may be NULL.
  */
-/* MTF_MOCK */
 void
-hse_meminfo(unsigned long *freep, unsigned long *availp, unsigned int shift);
+hse_meminfo(unsigned long *freep, unsigned long *availp, unsigned int shift) HSE_MOCK;
 
 /*
  * hse_tsc_freq is the measured frequency of the time stamp counter.

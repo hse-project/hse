@@ -18,8 +18,6 @@ struct mpool;
 struct mblock_props;
 struct mbset;
 
-/* MTF_MOCK_DECL(mbset) */
-
 typedef void
 mbset_callback(void *rock, bool mblock_delete_error);
 
@@ -46,7 +44,6 @@ struct mbset {
     bool mbs_del;
 };
 
-/* MTF_MOCK */
 merr_t
 mbset_create(
     struct mpool *ds,
@@ -54,23 +51,19 @@ mbset_create(
     uint64_t *idv,
     size_t udata_sz,
     mbset_udata_init_fn udata_init_fn,
-    struct mbset **handle);
+    struct mbset **handle) HSE_MOCK;
 
-/* MTF_MOCK */
 struct mbset *
-mbset_get_ref(struct mbset *self);
+mbset_get_ref(struct mbset *self) HSE_MOCK;
 
-/* MTF_MOCK */
 void
-mbset_put_ref(struct mbset *self);
+mbset_put_ref(struct mbset *self) HSE_MOCK;
 
-/* MTF_MOCK */
 void
-mbset_set_callback(struct mbset *self, mbset_callback *callback, void *rock);
+mbset_set_callback(struct mbset *self, mbset_callback *callback, void *rock) HSE_MOCK;
 
-/* MTF_MOCK */
 void
-mbset_set_delete_flag(struct mbset *self);
+mbset_set_delete_flag(struct mbset *self) HSE_MOCK;
 
 static HSE_ALWAYS_INLINE struct mpool *
 mbset_get_mp(const struct mbset *self)

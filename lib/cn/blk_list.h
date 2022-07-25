@@ -10,8 +10,6 @@
 
 #include <hse/error/merr.h>
 
-/* MTF_MOCK_DECL(blk_list) */
-
 struct blk_list;
 struct kvs_block;
 struct mblock_props;
@@ -19,33 +17,26 @@ struct mpool;
 
 #define BLK_LIST_PRE_ALLOC 64
 
-/* MTF_MOCK */
 void
-delete_mblock(struct mpool *mp, uint64_t mbid);
+delete_mblock(struct mpool *mp, uint64_t mbid) HSE_MOCK;
 
-/* MTF_MOCK */
 void
-delete_mblocks(struct mpool *mp, struct blk_list *blk);
+delete_mblocks(struct mpool *mp, struct blk_list *blk) HSE_MOCK;
 
-/* MTF_MOCK */
 merr_t
-commit_mblock(struct mpool *mp, uint64_t mbid);
+commit_mblock(struct mpool *mp, uint64_t mbid) HSE_MOCK;
 
-/* MTF_MOCK */
 merr_t
-commit_mblocks(struct mpool *mp, struct blk_list *blk);
+commit_mblocks(struct mpool *mp, struct blk_list *blk) HSE_MOCK;
 
-/* MTF_MOCK */
 void
-blk_list_init(struct blk_list *blkl);
+blk_list_init(struct blk_list *blkl) HSE_MOCK;
 
-/* MTF_MOCK */
 merr_t
-blk_list_append(struct blk_list *blks, uint64_t blkid);
+blk_list_append(struct blk_list *blks, uint64_t blkid) HSE_MOCK;
 
-/* MTF_MOCK */
 void
-blk_list_free(struct blk_list *blks);
+blk_list_free(struct blk_list *blks) HSE_MOCK;
 
 #if HSE_MOCKING
 #include "blk_list_ut.h"

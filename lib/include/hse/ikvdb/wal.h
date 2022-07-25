@@ -28,8 +28,6 @@
 struct wal;
 struct throttle_sensor;
 
-/* MTF_MOCK_DECL(wal) */
-
 struct wal_record {
     void *recbuf;
     uint64_t offset;
@@ -47,15 +45,12 @@ struct wal_replay_info {
     bool replay_force;
 };
 
-/* MTF_MOCK */
 merr_t
-wal_create(struct mpool *mp, uint64_t *mdcid1, uint64_t *mdcid2);
+wal_create(struct mpool *mp, uint64_t *mdcid1, uint64_t *mdcid2) HSE_MOCK;
 
-/* MTF_MOCK */
 void
-wal_destroy(struct mpool *mp, uint64_t mdcid1, uint64_t mdcid2);
+wal_destroy(struct mpool *mp, uint64_t mdcid1, uint64_t mdcid2) HSE_MOCK;
 
-/* MTF_MOCK */
 merr_t
 wal_open(
     struct mpool *mp,
@@ -63,13 +58,11 @@ wal_open(
     struct wal_replay_info *rinfo,
     struct ikvdb *ikdb,
     struct kvdb_health *health,
-    struct wal **wal_out);
+    struct wal **wal_out) HSE_MOCK;
 
-/* MTF_MOCK */
 void
-wal_close(struct wal *wal);
+wal_close(struct wal *wal) HSE_MOCK;
 
-/* MTF_MOCK */
 merr_t
 wal_put(
     struct wal *wal,
@@ -77,37 +70,33 @@ wal_put(
     struct kvs_ktuple *kt,
     struct kvs_vtuple *vt,
     uint64_t txid,
-    struct wal_record *recout);
+    struct wal_record *recout) HSE_MOCK;
 
-/* MTF_MOCK */
 merr_t
 wal_del(
     struct wal *wal,
     struct ikvs *kvs,
     struct kvs_ktuple *kt,
     uint64_t txid,
-    struct wal_record *recout);
+    struct wal_record *recout) HSE_MOCK;
 
-/* MTF_MOCK */
 merr_t
 wal_del_pfx(
     struct wal *wal,
     struct ikvs *kvs,
     struct kvs_ktuple *kt,
     uint64_t txid,
-    struct wal_record *recout);
+    struct wal_record *recout) HSE_MOCK;
 
-/* MTF_MOCK */
 merr_t
-wal_txn_begin(struct wal *wal, uint64_t txid, int64_t *cookie);
+wal_txn_begin(struct wal *wal, uint64_t txid, int64_t *cookie) HSE_MOCK;
 
-/* MTF_MOCK */
 merr_t
-wal_txn_abort(struct wal *wal, uint64_t txid, int64_t cookie);
+wal_txn_abort(struct wal *wal, uint64_t txid, int64_t cookie) HSE_MOCK;
 
-/* MTF_MOCK */
 merr_t
-wal_txn_commit(struct wal *wal, uint64_t txid, uint64_t seqno, uint64_t cid, int64_t cookie);
+wal_txn_commit(struct wal *wal, uint64_t txid, uint64_t seqno, uint64_t cid, int64_t cookie)
+    HSE_MOCK;
 
 void
 wal_op_finish(struct wal *wal, struct wal_record *rec, uint64_t seqno, uint64_t gen, int rc);

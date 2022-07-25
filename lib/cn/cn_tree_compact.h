@@ -18,8 +18,7 @@
 #include "cn_metrics.h"
 #include "kcompact.h"
 
-/* MTF_MOCK_DECL(cn_tree_compact) */
-
+struct cn_compaction_work;
 struct cn_tree;
 struct cn_tree_node;
 struct kv_iterator;
@@ -213,26 +212,22 @@ struct cn_compaction_work {
     char cw_threadname[16];
 };
 
-/* MTF_MOCK */
 void
 cn_tree_ingest_update(
     struct cn_tree *tree,
     struct kvset *kvset,
     void *ptomb,
     uint ptlen,
-    uint64_t ptseq);
+    uint64_t ptseq) HSE_MOCK;
 
-/* MTF_MOCK */
 void
-cn_tree_capped_compact(struct cn_tree *tree);
+cn_tree_capped_compact(struct cn_tree *tree) HSE_MOCK;
 
-/* MTF_MOCK */
 bool
-cn_node_comp_token_get(struct cn_tree_node *tn);
+cn_node_comp_token_get(struct cn_tree_node *tn) HSE_MOCK;
 
-/* MTF_MOCK */
 void
-cn_node_comp_token_put(struct cn_tree_node *tn);
+cn_node_comp_token_put(struct cn_tree_node *tn) HSE_MOCK;
 
 #if HSE_MOCKING
 #include "cn_tree_compact_ut.h"

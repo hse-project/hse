@@ -19,8 +19,6 @@
 #include "kv_iterator.h"
 #include "kvset.h"
 
-/* MTF_MOCK_DECL(cn_cursor) */
-
 struct cn;
 struct kvs_ktuple;
 struct kvs_kvtuple;
@@ -106,7 +104,6 @@ struct cn_cursor {
     uint64_t cncur_pt_seq;
 };
 
-/* MTF_MOCK */
 merr_t
 cn_cursor_create(
     struct cn *cn,
@@ -115,39 +112,29 @@ cn_cursor_create(
     const void *prefix,
     uint32_t len,
     struct cursor_summary *summary,
-    struct cn_cursor **cursorp);
+    struct cn_cursor **cursorp) HSE_MOCK;
 
-/* MTF_MOCK */
 merr_t
-cn_cursor_update(struct cn_cursor *cursor, uint64_t seqno, bool *updated);
+cn_cursor_update(struct cn_cursor *cursor, uint64_t seqno, bool *updated) HSE_MOCK;
 
-/* MTF_MOCK */
 merr_t
-cn_cursor_seek(
-    struct cn_cursor *cursor,
-    const void *prefix,
-    uint32_t len,
-    struct kc_filter *filter);
+cn_cursor_seek(struct cn_cursor *cursor, const void *prefix, uint32_t len, struct kc_filter *filter)
+    HSE_MOCK;
 
-/* MTF_MOCK */
 merr_t
-cn_cursor_read(struct cn_cursor *cursor, struct kvs_cursor_element *elem, bool *eof);
+cn_cursor_read(struct cn_cursor *cursor, struct kvs_cursor_element *elem, bool *eof) HSE_MOCK;
 
-/* MTF_MOCK */
 void
-cn_cursor_destroy(struct cn_cursor *cursor);
+cn_cursor_destroy(struct cn_cursor *cursor) HSE_MOCK;
 
-/* MTF_MOCK */
 merr_t
-cn_cursor_active_kvsets(struct cn_cursor *cursor, uint32_t *active, uint32_t *total);
+cn_cursor_active_kvsets(struct cn_cursor *cursor, uint32_t *active, uint32_t *total) HSE_MOCK;
 
-/* MTF_MOCK */
 struct element_source *
-cn_cursor_es_make(struct cn_cursor *cncur);
+cn_cursor_es_make(struct cn_cursor *cncur) HSE_MOCK;
 
-/* MTF_MOCK */
 struct element_source *
-cn_cursor_es_get(struct cn_cursor *cncur);
+cn_cursor_es_get(struct cn_cursor *cncur) HSE_MOCK;
 
 #if HSE_MOCKING
 #include "cn_cursor_ut.h"

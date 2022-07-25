@@ -707,7 +707,7 @@ cn_comp_work_init(
 {
     struct kvset_list_entry *le;
     struct list_head *head = &tn->tn_kvset_list;
-    struct kvset_stats *stats;
+    const struct kvset_stats *stats;
 
     memset(w, 0, sizeof(*w));
 

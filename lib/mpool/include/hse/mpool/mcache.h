@@ -34,14 +34,13 @@ struct mpool;
  * in which case it addresses the map from the given mbidx based offset
  * to the end of the map.
  */
-/* MTF_MOCK */
 merr_t
 mpool_mcache_madvise(
     struct mpool_mcache_map *map,
     uint32_t mbidx,
     off_t offset,
     size_t length,
-    int advice);
+    int advice) HSE_MOCK;
 
 /**
  * mpool_mcache_getbase() - Get the base address of a memory-mapped mblock in an mcache map
@@ -53,9 +52,8 @@ mpool_mcache_madvise(
  * user-space), return the the base address of the mapped mblock.  If the
  * pages are not contiguous, return NULL.
  */
-/* MTF_MOCK */
 void *
-mpool_mcache_getbase(struct mpool_mcache_map *map, const uint32_t mbidx);
+mpool_mcache_getbase(struct mpool_mcache_map *map, const uint32_t mbidx) HSE_MOCK;
 
 /**
  * mpool_mcache_getpages() - Get a vector of pages from a single mblock
@@ -70,14 +68,13 @@ mpool_mcache_getbase(struct mpool_mcache_map *map, const uint32_t mbidx);
  *
  * Return: %0 on success, merr_t on failure
  */
-/* MTF_MOCK */
 merr_t
 mpool_mcache_getpages(
     struct mpool_mcache_map *map,
     const uint32_t pagec,
     const uint32_t mbidx,
     const off_t offsetv[],
-    void *pagev[]);
+    void *pagev[]) HSE_MOCK;
 
 /**
  * mpool_mcache_mmap() - Create an mcache map
@@ -89,18 +86,17 @@ mpool_mcache_getpages(
  *
  * Create an mcache map for the list of given mblock IDs and returns a handle to it via *mapp.
  */
-/* MTF_MOCK */
 merr_t
-mpool_mcache_mmap(struct mpool *mp, size_t mbidc, uint64_t *mbidv, struct mpool_mcache_map **mapp);
+mpool_mcache_mmap(struct mpool *mp, size_t mbidc, uint64_t *mbidv, struct mpool_mcache_map **mapp)
+    HSE_MOCK;
 
 /**
  * mpool_mcache_munmap() - munmap an mcache mmap
  *
  * @map:
  */
-/* MTF_MOCK */
 void
-mpool_mcache_munmap(struct mpool_mcache_map *map);
+mpool_mcache_munmap(struct mpool_mcache_map *map) HSE_MOCK;
 
 /**
  * mpool_mcache_purge() - Purge map (NOT SUPPORTED)
@@ -108,9 +104,8 @@ mpool_mcache_munmap(struct mpool_mcache_map *map);
  * @map: mcache map handle
  * @mp:  mp mpool
  */
-/* MTF_MOCK */
 merr_t
-mpool_mcache_purge(struct mpool_mcache_map *map, const struct mpool *mp);
+mpool_mcache_purge(struct mpool_mcache_map *map, const struct mpool *mp) HSE_MOCK;
 
 /**
  * mpool_mcache_mincore() - Get VSS and RSS for the mcache map (NOT SUPPORTED)
@@ -123,12 +118,11 @@ mpool_mcache_purge(struct mpool_mcache_map *map, const struct mpool *mp);
  * Get the virtual and resident set sizes (in pages count)
  * for the given mcache map.
  */
-/* MTF_MOCK */
 merr_t
 mpool_mcache_mincore(
     struct mpool_mcache_map *map,
     const struct mpool *mp,
     size_t *rssp,
-    size_t *vssp);
+    size_t *vssp) HSE_MOCK;
 
 #endif /* MPOOL_MCACHE_H */

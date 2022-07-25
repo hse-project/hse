@@ -34,19 +34,16 @@ static_assert(
 
 /* Map an mblock and initialize an mblock descriptor.
  */
-/* MTF_MOCK */
 merr_t
-mblk_mmap(struct mpool *mp, uint64_t mbid, struct kvs_mblk_desc *md_out);
+mblk_mmap(struct mpool *mp, uint64_t mbid, struct kvs_mblk_desc *md_out) HSE_MOCK;
 
 /* Unmap an mblock.
  */
-/* MTF_MOCK */
 merr_t
-mblk_munmap(struct mpool *mp, struct kvs_mblk_desc *md);
+mblk_munmap(struct mpool *mp, struct kvs_mblk_desc *md) HSE_MOCK;
 
-/* MTF_MOCK */
 merr_t
-mblk_madvise_pages(const struct kvs_mblk_desc *md, size_t pg, size_t pg_cnt, int advice);
+mblk_madvise_pages(const struct kvs_mblk_desc *md, size_t pg, size_t pg_cnt, int advice) HSE_MOCK;
 
 static inline enum hse_mclass
 mblk_mclass(const struct kvs_mblk_desc *d)

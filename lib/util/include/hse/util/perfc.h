@@ -17,8 +17,6 @@
 
 /* clang-format off */
 
-/* MTF_MOCK_DECL(perfc) */
-
 /* Perf counter engagement levels
  */
 #define PERFC_LEVEL_MIN     (0)
@@ -116,9 +114,8 @@ perfc_fini(void) HSE_COLD;
  * @boudnv:   vector of interval boundardies
  * @ivlp:     ptr to ptr to bounds object
  */
-/* MTF_MOCK */
 merr_t
-perfc_ivl_create(int boundc, const uint64_t *boundv, struct perfc_ivl **ivlp);
+perfc_ivl_create(int boundc, const uint64_t *boundv, struct perfc_ivl **ivlp) HSE_MOCK;
 
 /**
  * perfc_ivl_destroy() - destroy a dis/lat counter interval object
@@ -949,7 +946,6 @@ extern struct perfc_ivl *perfc_di_ivl;
  * Note: perfc adopts ctrv[], so the caller must ensure the lifetime
  * of ctrv[] until the counter set is freed.
  */
-/* MTF_MOCK */
 merr_t
 perfc_alloc_impl(
     uint prio,
@@ -959,7 +955,7 @@ perfc_alloc_impl(
     const char *name,
     const char *file,
     int line,
-    struct perfc_set *set);
+    struct perfc_set *set) HSE_MOCK;
 
 /**
  * perfc_free() - free a counter set instance.

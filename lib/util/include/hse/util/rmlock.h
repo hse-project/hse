@@ -38,26 +38,19 @@ struct rmlock {
     struct rmlock_bkt   rm_bkt;
 };
 
-/* MTF_MOCK */
-merr_t rmlock_init(struct rmlock *lock) HSE_COLD;
+merr_t rmlock_init(struct rmlock *lock) HSE_COLD HSE_MOCK;
 
-/* MTF_MOCK */
-void rmlock_destroy(struct rmlock *lock) HSE_COLD;
+void rmlock_destroy(struct rmlock *lock) HSE_COLD HSE_MOCK;
 
-/* MTF_MOCK */
-void rmlock_rlock(struct rmlock *lock, void **cookiep);
+void rmlock_rlock(struct rmlock *lock, void **cookiep) HSE_MOCK;
 
-/* MTF_MOCK */
-void rmlock_runlock(void *cookie);
+void rmlock_runlock(void *cookie) HSE_MOCK;
 
-/* MTF_MOCK */
-void rmlock_yield(struct rmlock *lock, void **cookiep);
+void rmlock_yield(struct rmlock *lock, void **cookiep) HSE_MOCK;
 
-/* MTF_MOCK */
-void rmlock_wlock(struct rmlock *lock);
+void rmlock_wlock(struct rmlock *lock) HSE_MOCK;
 
-/* MTF_MOCK */
-void rmlock_wunlock(struct rmlock *lock);
+void rmlock_wunlock(struct rmlock *lock) HSE_MOCK;
 
 /* clang-format on */
 

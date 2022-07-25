@@ -15,8 +15,6 @@
 
 #include "csched_sp3_work.h"
 
-/* MTF_MOCK_DECL(csched_sp3) */
-
 struct kvdb_rparams;
 struct mpool;
 struct kvdb_health;
@@ -64,13 +62,12 @@ sp3_node_init(struct sp3_node *spn)
     INIT_LIST_HEAD(&spn->spn_alink);
 }
 
-/* MTF_MOCK */
 merr_t
 sp3_create(
     struct kvdb_rparams *rp,
     const char *kvdb_alias,
     struct kvdb_health *health,
-    struct csched **handle);
+    struct csched **handle) HSE_MOCK;
 
 void
 sp3_destroy(struct csched *handle);

@@ -6,8 +6,6 @@
 #ifndef HSE_KVDB_CN_CN_TREE_INTERNAL_H
 #define HSE_KVDB_CN_CN_TREE_INTERNAL_H
 
-/* MTF_MOCK_DECL(cn_tree_internal) */
-
 #include <stdint.h>
 
 #include <hse/limits.h>
@@ -204,9 +202,8 @@ struct cn_tree_node {
 #define tn2spn(_tn)  (&(_tn)->tn_sp3n)
 #define spn2tn(_spn) container_of(_spn, struct cn_tree_node, tn_sp3n)
 
-/* MTF_MOCK */
 void
-cn_node_stats_get(const struct cn_tree_node *tn, struct cn_node_stats *stats);
+cn_node_stats_get(const struct cn_tree_node *tn, struct cn_node_stats *stats) HSE_MOCK;
 
 static HSE_ALWAYS_INLINE bool
 cn_node_isroot(const struct cn_tree_node *tn)
@@ -242,13 +239,11 @@ cn_tree_node_mclass(struct cn_tree_node *tn, enum hse_mclass_policy_dtype dtype)
 uint
 cn_tree_node_scatter(const struct cn_tree_node *tn);
 
-/* MTF_MOCK */
 void
-cn_compact(struct cn_compaction_work *w);
+cn_compact(struct cn_compaction_work *w) HSE_MOCK;
 
-/* MTF_MOCK */
 struct cn_tree_node *
-cn_kvset_can_zspill(struct kvset *ks, struct route_map *map);
+cn_kvset_can_zspill(struct kvset *ks, struct route_map *map) HSE_MOCK;
 
 /**
  * cn_tree_find_node() - Find a cn tree node by node ID.

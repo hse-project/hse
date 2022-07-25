@@ -9,8 +9,6 @@
 #include <hse/util/base.h>
 #include <hse/util/page.h>
 
-/* MTF_MOCK_DECL(alloc) */
-
 #if HSE_MOCKING
 #include <hse/test/mock/allocation.h>
 

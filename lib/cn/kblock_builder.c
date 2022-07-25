@@ -848,7 +848,7 @@ kblock_finish(struct kblock_builder *bld)
     }
 
     /* Finalize HyperLogLog. */
-    iov[iov_cnt].iov_base = hlog_data(bld->curr.hlog);
+    iov[iov_cnt].iov_base = (void *)hlog_data(bld->curr.hlog);
     iov[iov_cnt].iov_len = HLOG_PGC * PAGE_SIZE;
     iov_cnt++;
 

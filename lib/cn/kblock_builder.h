@@ -26,8 +26,6 @@ struct wbti;
 enum hse_mclass;
 enum hse_mclass_policy_age;
 
-/* MTF_MOCK_DECL(kblock_builder) */
-
 /**
  * DOC: kblock builder lifecycle
  *
@@ -55,9 +53,8 @@ enum hse_mclass_policy_age;
  * @cn: cn in which kblocks will be created
  * @pc: perf counters
  */
-/* MTF_MOCK */
 merr_t
-kbb_create(struct kblock_builder **bld_out, struct cn *cn, struct perfc_set *pc);
+kbb_create(struct kblock_builder **bld_out, struct cn *cn, struct perfc_set *pc) HSE_MOCK;
 
 /**
  * kbb_destroy() - Destroy a kblock builder
@@ -66,9 +63,8 @@ kbb_create(struct kblock_builder **bld_out, struct cn *cn, struct perfc_set *pc)
  * Frees all resources and aborts all mblocks allocated internally
  * since kbb_create().
  */
-/* MTF_MOCK */
 void
-kbb_destroy(struct kblock_builder *bld);
+kbb_destroy(struct kblock_builder *bld) HSE_MOCK;
 
 /**
  * kbb_add_entry() - Store a key and a value reference in a kblock.
@@ -83,14 +79,13 @@ kbb_destroy(struct kblock_builder *bld);
  *
  * Note: the mblock is allocated and written, but not committed.
  */
-/* MTF_MOCK */
 merr_t
 kbb_add_entry(
     struct kblock_builder *bld,
     const struct key_obj *kobj,
     const void *kmd,
     uint kmd_len,
-    struct key_stats *stats);
+    struct key_stats *stats) HSE_MOCK;
 
 /**
  * kbb_finish() - ensure all kblocks have been written to media and
@@ -110,13 +105,11 @@ kbb_add_entry(
  *
  * Upon failure, the only vaild action is to call kbb_destroy().
  */
-/* MTF_MOCK */
 merr_t
-kbb_finish(struct kblock_builder *bld, struct blk_list *kblks);
+kbb_finish(struct kblock_builder *bld, struct blk_list *kblks) HSE_MOCK;
 
-/* MTF_MOCK */
 size_t
-kbb_estimate_alen(struct cn *cn, size_t wlen, enum hse_mclass mclass);
+kbb_estimate_alen(struct cn *cn, size_t wlen, enum hse_mclass mclass) HSE_MOCK;
 
 const uint8_t *
 kbb_get_composite_hlog(const struct kblock_builder *bld);
@@ -127,9 +120,8 @@ kbb_set_agegroup(struct kblock_builder *bld, enum hse_mclass_policy_age age);
 void
 kbb_set_merge_stats(struct kblock_builder *bld, struct cn_merge_stats *stats);
 
-/* MTF_MOCK */
 bool
-kbb_is_empty(struct kblock_builder *bld);
+kbb_is_empty(struct kblock_builder *bld) HSE_MOCK;
 
 void
 kbb_curr_kblk_min_max_keys(

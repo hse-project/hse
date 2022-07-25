@@ -11,8 +11,6 @@
 #include <hse/util/spinlock.h>
 #include <hse/util/time.h>
 
-/* MTF_MOCK_DECL(token_bucket) */
-
 /* Struct tbkt members should be considered private.  */
 struct tbkt {
     uint64_t tb_rate HSE_ACP_ALIGNED;
@@ -41,25 +39,20 @@ tbkt_delay(uint64_t nsec)
     nanosleep(&timespec, 0);
 }
 
-/* MTF_MOCK */
 void
-tbkt_init(struct tbkt *tb, uint64_t burst, uint64_t rate);
+tbkt_init(struct tbkt *tb, uint64_t burst, uint64_t rate) HSE_MOCK;
 
-/* MTF_MOCK */
 uint64_t
-tbkt_request(struct tbkt *tb, uint64_t tokens, uint64_t *now);
+tbkt_request(struct tbkt *tb, uint64_t tokens, uint64_t *now) HSE_MOCK;
 
-/* MTF_MOCK */
 uint64_t
-tbkt_burst_get(struct tbkt *self);
+tbkt_burst_get(struct tbkt *self) HSE_MOCK;
 
-/* MTF_MOCK */
 uint64_t
-tbkt_rate_get(struct tbkt *self);
+tbkt_rate_get(struct tbkt *self) HSE_MOCK;
 
-/* MTF_MOCK */
 void
-tbkt_adjust(struct tbkt *self, uint64_t burst, uint64_t rate);
+tbkt_adjust(struct tbkt *self, uint64_t burst, uint64_t rate) HSE_MOCK;
 
 #if HSE_MOCKING
 #include "token_bucket_ut.h"

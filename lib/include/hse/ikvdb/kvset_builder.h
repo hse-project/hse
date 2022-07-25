@@ -29,18 +29,15 @@ struct key_stats {
     uint64_t tot_vused;
 };
 
-/* MTF_MOCK_DECL(kvset_builder) */
-/* MTF_MOCK */
 merr_t
 kvset_builder_create(
     struct kvset_builder **builder_out,
     struct cn *cn,
     struct perfc_set *pc,
-    uint64_t vgroup);
+    uint64_t vgroup) HSE_MOCK;
 
-/* MTF_MOCK */
 merr_t
-kvset_builder_get_mblocks(struct kvset_builder *builder, struct kvset_mblocks *mblocks);
+kvset_builder_get_mblocks(struct kvset_builder *builder, struct kvset_mblocks *mblocks) HSE_MOCK;
 
 /**
  * kvset_builder_add_key() - start a new kvset entry
@@ -70,11 +67,9 @@ kvset_builder_get_mblocks(struct kvset_builder *builder, struct kvset_mblocks *m
  *   - There is no function to "finish" an entry (the entry is finished when
  *     kvset_builder_add_val() has been called @nvals times).
  */
-/* MTF_MOCK */
 merr_t
-kvset_builder_add_key(struct kvset_builder *builder, const struct key_obj *ko);
+kvset_builder_add_key(struct kvset_builder *builder, const struct key_obj *ko) HSE_MOCK;
 
-/* MTF_MOCK */
 merr_t
 kvset_builder_add_val(
     struct kvset_builder *self,
@@ -82,9 +77,8 @@ kvset_builder_add_val(
     const void *vdata,
     uint vlen,
     uint64_t seq,
-    uint complen);
+    uint complen) HSE_MOCK;
 
-/* MTF_MOCK */
 merr_t
 kvset_builder_add_vref(
     struct kvset_builder *self,
@@ -92,36 +86,30 @@ kvset_builder_add_vref(
     uint vbidx,
     uint vboff,
     uint vlen,
-    uint complen);
+    uint complen) HSE_MOCK;
 
-/* MTF_MOCK */
 merr_t
-kvset_builder_add_nonval(struct kvset_builder *self, uint64_t seq, enum kmd_vtype vtype);
+kvset_builder_add_nonval(struct kvset_builder *self, uint64_t seq, enum kmd_vtype vtype) HSE_MOCK;
 
-/* MTF_MOCK */
 void
 kvset_builder_adopt_vblocks(
     struct kvset_builder *self,
     size_t num_vblocks,
     uint64_t *vblock_ids,
     uint64_t vtotal,
-    struct vgmap *vgmap);
+    struct vgmap *vgmap) HSE_MOCK;
 
-/* MTF_MOCK */
 void
-kvset_builder_destroy(struct kvset_builder *builder);
+kvset_builder_destroy(struct kvset_builder *builder) HSE_MOCK;
 
-/* MTF_MOCK */
 void
-kvset_mblocks_destroy(struct kvset_mblocks *kvset);
+kvset_mblocks_destroy(struct kvset_mblocks *kvset) HSE_MOCK;
 
-/* MTF_MOCK */
 merr_t
-kvset_builder_set_agegroup(struct kvset_builder *self, enum hse_mclass_policy_age age);
+kvset_builder_set_agegroup(struct kvset_builder *self, enum hse_mclass_policy_age age) HSE_MOCK;
 
-/* MTF_MOCK */
 void
-kvset_builder_set_merge_stats(struct kvset_builder *self, struct cn_merge_stats *stats);
+kvset_builder_set_merge_stats(struct kvset_builder *self, struct cn_merge_stats *stats) HSE_MOCK;
 
 #if HSE_MOCKING
 #include "kvset_builder_ut.h"

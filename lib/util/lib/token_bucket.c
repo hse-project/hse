@@ -11,8 +11,6 @@
 #include <hse/util/timer.h>
 #include <hse/util/token_bucket.h>
 
-/* MTF_MOCK_DECL(token_bucket) */
-
 /* Notes:
  * - The token bucket uses addition modulo U64_MAX+1.
  * - If (0 <= balance <= burst), the bucket has credit of (balance) tokens.

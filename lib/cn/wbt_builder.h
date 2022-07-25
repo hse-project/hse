@@ -6,8 +6,6 @@
 #ifndef HSE_KVS_CN_WBT_BUILDER_H
 #define HSE_KVS_CN_WBT_BUILDER_H
 
-/* MTF_MOCK_DECL(wbt_builder) */
-
 #include <stdbool.h>
 #include <stdint.h>
 
@@ -28,21 +26,18 @@ struct wbt_desc;
  * - max_pgc: (in) max allowable size of wbtree in pages
  * - wbt_pgc: (in/out) actual size (in pages) of wbtree creation
  */
-/* MTF_MOCK */
 merr_t
-wbb_create(struct wbb **wbb_out, uint max_pgc, uint *wbt_pgc);
+wbb_create(struct wbb **wbb_out, uint max_pgc, uint *wbt_pgc) HSE_MOCK;
 
 /* Reset a wbtree builder so it can be reused for a new wbtree
  */
-/* MTF_MOCK */
 void
-wbb_reset(struct wbb *wbb, uint *wbt_pgc);
+wbb_reset(struct wbb *wbb, uint *wbt_pgc) HSE_MOCK;
 
 /* Destroy a wbtree builder
  */
-/* MTF_MOCK */
 void
-wbb_destroy(struct wbb *wbb);
+wbb_destroy(struct wbb *wbb) HSE_MOCK;
 
 /* Get the number of keys stored in a wbtree under construction.
  */
@@ -72,7 +67,6 @@ wbb_kvlen(const struct wbb *wbb);
  * - (rc == 0 && added == false) ==> not enough space for new entry
  * - (rc != 0)                   ==> error
  */
-/* MTF_MOCK */
 merr_t
 wbb_add_entry(
     struct wbb *wbb,
@@ -83,7 +77,7 @@ wbb_add_entry(
     uint key_kmd_len,
     uint max_pgc,
     uint *wbt_pgc,
-    bool *added);
+    bool *added) HSE_MOCK;
 
 void
 wbb_hdr_init(struct wbt_hdr_omf *hdr);
@@ -94,7 +88,6 @@ wbb_hdr_set(struct wbt_hdr_omf *hdr, struct wbt_desc *desc);
 /**
  * wbb_freeze() - finalize a wbtree
  */
-/* MTF_MOCK */
 merr_t
 wbb_freeze(
     struct wbb *wbb,
@@ -103,23 +96,21 @@ wbb_freeze(
     uint *wbt_pgc,
     struct iovec *iov,
     uint iov_max,
-    uint *iov_cnt);
+    uint *iov_cnt) HSE_MOCK;
 
 /**
  * wbb_min_max_keys() - get min/max keys from a finalized or non-finalized wbtree
  */
-/* MTF_MOCK */
 void
-wbb_min_max_keys(struct wbb *wbb, struct key_obj *first_kobj, struct key_obj *last_kobj);
+wbb_min_max_keys(struct wbb *wbb, struct key_obj *first_kobj, struct key_obj *last_kobj) HSE_MOCK;
 
 /**
  * wbb_page_cnt() - Get total number of pages consumed by wbtree and the
  *                  associated kmd region.
  * @wbb: wbtree builder
  */
-/* MTF_MOCK */
 uint
-wbb_page_cnt_get(struct wbb *wbb);
+wbb_page_cnt_get(struct wbb *wbb) HSE_MOCK;
 
 uint
 wbb_max_inodec_get(struct wbb *wbb);

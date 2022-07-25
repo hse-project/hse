@@ -6,8 +6,6 @@
 #ifndef HSE_KVDB_KVDB_META_H
 #define HSE_KVDB_KVDB_META_H
 
-/* MTF_MOCK_DECL(kvdb_meta) */
-
 #include <limits.h>
 #include <stdbool.h>
 #include <stdint.h>
@@ -37,18 +35,16 @@ struct kvdb_meta {
  *
  * @param kvdb_home: KVDB home
  */
-/* MTF_MOCK */
 merr_t
-kvdb_meta_create(const char *kvdb_home);
+kvdb_meta_create(const char *kvdb_home) HSE_MOCK;
 
 /**
  * Removes a kvdb.meta file from the KVDB home
  *
  * @param kvdb_home: KVDB home
  */
-/* MTF_MOCK */
 merr_t
-kvdb_meta_destroy(const char *kvdb_home);
+kvdb_meta_destroy(const char *kvdb_home) HSE_MOCK;
 
 /**
  * Serializes KVDB metadata into the kvdb.meta file
@@ -59,9 +55,8 @@ kvdb_meta_destroy(const char *kvdb_home);
  * @retval 0 on succes
  * @retval !0 on error
  */
-/* MTF_MOCK */
 merr_t
-kvdb_meta_serialize(const struct kvdb_meta *meta, const char *kvdb_home);
+kvdb_meta_serialize(const struct kvdb_meta *meta, const char *kvdb_home) HSE_MOCK;
 
 /**
  * Deserializes the kvdb.meta file into a KVDB metadata object
@@ -72,9 +67,8 @@ kvdb_meta_serialize(const struct kvdb_meta *meta, const char *kvdb_home);
  * @retval 0 on succes
  * @retval !0 on error
  */
-/* MTF_MOCK */
 merr_t
-kvdb_meta_deserialize(struct kvdb_meta *meta, const char *kvdb_home);
+kvdb_meta_deserialize(struct kvdb_meta *meta, const char *kvdb_home) HSE_MOCK;
 
 /**
  * Upgrade KVDB meta
@@ -85,9 +79,8 @@ kvdb_meta_deserialize(struct kvdb_meta *meta, const char *kvdb_home);
  * @retval 0 on succes
  * @retval !0 on error
  */
-/* MTF_MOCK */
 merr_t
-kvdb_meta_upgrade(struct kvdb_meta * const meta, const char * const kvdb_home);
+kvdb_meta_upgrade(struct kvdb_meta * const meta, const char * const kvdb_home) HSE_MOCK;
 
 /**
  * Add new mclass storage paths to the kvdb.meta file
@@ -99,12 +92,11 @@ kvdb_meta_upgrade(struct kvdb_meta * const meta, const char * const kvdb_home);
  * @retval 0 on succes
  * @retval !0 on error
  */
-/* MTF_MOCK */
 merr_t
 kvdb_meta_storage_add(
     struct kvdb_meta *meta,
     const char *kvdb_home,
-    const struct mpool_cparams *cparams);
+    const struct mpool_cparams *cparams) HSE_MOCK;
 
 /**
  * Appends to a KVDB meta object with media class paths
@@ -116,12 +108,11 @@ kvdb_meta_storage_add(
  * @retval 0 on succes
  * @retval !0 on error
  */
-/* MTF_MOCK */
 void
 kvdb_meta_from_mpool_cparams(
     struct kvdb_meta *meta,
     const char *kvdb_home,
-    const struct mpool_cparams *params);
+    const struct mpool_cparams *params) HSE_MOCK;
 
 /**
  * Deserializes KVDB metadata into mpool rparams
@@ -133,12 +124,11 @@ kvdb_meta_from_mpool_cparams(
  * @retval 0 on succes
  * @retval !0 on error
  */
-/* MTF_MOCK */
 merr_t
 kvdb_meta_to_mpool_rparams(
     const struct kvdb_meta *meta,
     const char *kvdb_home,
-    struct mpool_rparams *params);
+    struct mpool_rparams *params) HSE_MOCK;
 
 /**
  * Deserializes KVDB metadata into mpool dparams
@@ -150,12 +140,11 @@ kvdb_meta_to_mpool_rparams(
  * @retval 0 on succes
  * @retval !0 on error
  */
-/* MTF_MOCK */
 merr_t
 kvdb_meta_to_mpool_dparams(
     const struct kvdb_meta * const meta,
     const char * const kvdb_home,
-    struct mpool_dparams * const params);
+    struct mpool_dparams * const params) HSE_MOCK;
 
 #if HSE_MOCKING
 #include "kvdb_meta_ut.h"

@@ -132,6 +132,10 @@
 #define HSE_NORETURN
 #endif
 
+#ifndef HSE_MOCK
+#define HSE_MOCK
+#endif
+
 #if HSE_MOCKING
 #define MTF_STATIC              HSE_WEAK
 #else

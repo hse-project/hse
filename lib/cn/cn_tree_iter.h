@@ -7,8 +7,7 @@
 #define HSE_KVDB_CN_CN_TREE_ITER_H
 
 #include <hse/ikvdb/cn_tree_view.h>
-
-/* MTF_MOCK_DECL(cn_tree_iter) */
+#include <hse/util/compiler.h>
 
 struct cn_tree;
 struct cn_tree_node;
@@ -35,13 +34,12 @@ cn_tree_walk_callback_fn(
  *     - for each kvset K in node:
  *          invoke callback with kvset==K;
  */
-/* MTF_MOCK */
 void
 cn_tree_preorder_walk(
     struct cn_tree *tree,
     enum kvset_order order,
     cn_tree_walk_callback_fn *callback,
-    void *rock);
+    void *rock) HSE_MOCK;
 
 #if HSE_MOCKING
 #include "cn_tree_iter_ut.h"

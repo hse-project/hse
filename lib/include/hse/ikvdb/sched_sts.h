@@ -13,8 +13,6 @@
 #include <hse/util/platform.h>
 #include <hse/util/workqueue.h>
 
-/* MTF_MOCK_DECL(sched_sts) */
-
 struct sts;
 struct sts_job;
 
@@ -47,13 +45,11 @@ struct sts_job {
  * @nq: minimum number of threads for running jobs
  * @sts: (out) short term scheduler handle
  */
-/* MTF_MOCK */
 merr_t
-sts_create(const char *fmt, uint nq, struct sts **sts, ...);
+sts_create(const char *fmt, uint nq, struct sts **sts, ...) HSE_MOCK;
 
-/* MTF_MOCK */
 void
-sts_destroy(struct sts *s);
+sts_destroy(struct sts *s) HSE_MOCK;
 
 merr_t
 sts_foreach_job(struct sts *s, sts_foreach_job_fn *fn, void *arg);
@@ -90,9 +86,8 @@ sts_job_progress_set(struct sts_job *job, uint progress)
     job->sj_progress = progress;
 }
 
-/* MTF_MOCK */
 void
-sts_job_submit(struct sts *s, struct sts_job *job);
+sts_job_submit(struct sts *s, struct sts_job *job) HSE_MOCK;
 
 /**
  * sts_job_detach() - Detach job from callback thread context
@@ -101,9 +96,8 @@ sts_job_submit(struct sts *s, struct sts_job *job);
  * from the callback context if it intends to hand off the job to
  * another thread (e.g., enqueue it for later processing).
  */
-/* MTF_MOCK */
 void
-sts_job_detach(struct sts_job *job);
+sts_job_detach(struct sts_job *job) HSE_MOCK;
 
 /**
  * sts_job_done() - Notify scheduler that the job is done
@@ -112,9 +106,8 @@ sts_job_detach(struct sts_job *job);
  * It may be called directly from the callback context or at any
  * time from any other thread if it has been detached.
  */
-/* MTF_MOCK */
 void
-sts_job_done(struct sts_job *job);
+sts_job_done(struct sts_job *job) HSE_MOCK;
 
 #if HSE_MOCKING
 #include "sched_sts_ut.h"

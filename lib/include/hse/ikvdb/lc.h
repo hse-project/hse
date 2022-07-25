@@ -21,8 +21,6 @@ struct lc {};
 struct lc_builder;
 struct lc_cursor;
 
-/* MTF_MOCK_DECL(lc) */
-
 struct cursor_summary;
 struct kc_filter;
 struct kvs_buf;
@@ -33,31 +31,24 @@ struct kvs_cursor_element;
 struct kvdb_health;
 enum key_lookup_res;
 
-/* MTF_MOCK */
 merr_t
-lc_create(struct lc **handle, struct kvdb_health *health);
+lc_create(struct lc **handle, struct kvdb_health *health) HSE_MOCK;
 
-/* MTF_MOCK */
 void
-lc_destroy(struct lc *lc);
+lc_destroy(struct lc *lc) HSE_MOCK;
 
-/* MTF_MOCK */
 merr_t
-lc_builder_create(struct lc *lc, struct lc_builder **builder);
+lc_builder_create(struct lc *lc, struct lc_builder **builder) HSE_MOCK;
 
-/* MTF_MOCK */
 void
-lc_builder_destroy(struct lc_builder *lcb);
+lc_builder_destroy(struct lc_builder *lcb) HSE_MOCK;
 
-/* MTF_MOCK */
 merr_t
-lc_builder_add(struct lc_builder *lcb, struct bonsai_kv *kv, struct bonsai_val *val_list);
+lc_builder_add(struct lc_builder *lcb, struct bonsai_kv *kv, struct bonsai_val *val_list) HSE_MOCK;
 
-/* MTF_MOCK */
 merr_t
-lc_builder_finish(struct lc_builder *lcb);
+lc_builder_finish(struct lc_builder *lcb) HSE_MOCK;
 
-/* MTF_MOCK */
 merr_t
 lc_get(
     struct lc *handle,
@@ -67,9 +58,8 @@ lc_get(
     uint64_t view_seqno,
     uintptr_t seqnoref,
     enum key_lookup_res *res,
-    struct kvs_buf *vbuf);
+    struct kvs_buf *vbuf) HSE_MOCK;
 
-/* MTF_MOCK */
 merr_t
 lc_pfx_probe(
     struct lc *handle,
@@ -81,7 +71,7 @@ lc_pfx_probe(
     enum key_lookup_res *res,
     struct query_ctx *qctx,
     struct kvs_buf *kbuf,
-    struct kvs_buf *vbuf);
+    struct kvs_buf *vbuf) HSE_MOCK;
 
 /**
  * lc_ingest_seqno_set() - Notify the LC about the max ingested seqno once an ingest has finished.
@@ -89,18 +79,16 @@ lc_pfx_probe(
  * @handle: Handle to the LC object
  * @seq:    Highest seqno that has beenn ingested into cn
  */
-/* MTF_MOCK */
 void
-lc_ingest_seqno_set(struct lc *handle, uint64_t seq);
+lc_ingest_seqno_set(struct lc *handle, uint64_t seq) HSE_MOCK;
 
 /**
  * lc_ingest_seqno_get() - Get the min_seqno that may be ingested to cn
  *
  * @handle:    LC handle
  */
-/* MTF_MOCK */
 uint64_t
-lc_ingest_seqno_get(struct lc *handle);
+lc_ingest_seqno_get(struct lc *handle) HSE_MOCK;
 
 /**
  * lc_cursor_create() - Creates a new cursor object to iterate over LC
@@ -116,7 +104,6 @@ lc_ingest_seqno_get(struct lc *handle);
  * @summary:
  * @lccur:         (output) Cursor handle
  */
-/* MTF_MOCK */
 merr_t
 lc_cursor_create(
     struct lc *handle,
@@ -128,31 +115,27 @@ lc_cursor_create(
     size_t pfxlen,
     size_t tree_pfxlen,
     struct cursor_summary *summary,
-    struct lc_cursor **lccur);
+    struct lc_cursor **lccur) HSE_MOCK;
 
-/* MTF_MOCK */
 merr_t
-lc_cursor_destroy(struct lc_cursor *lccur);
+lc_cursor_destroy(struct lc_cursor *lccur) HSE_MOCK;
 
 /* This is an internal function, but lc_test.c uses it to avoid creating a binheap to test LC. */
 void
 lc_cursor_read(struct lc_cursor *lccur, struct kvs_cursor_element *elem, bool *eof);
 
-/* MTF_MOCK */
 merr_t
-lc_cursor_seek(struct lc_cursor *lccur, const void *seek, size_t seeklen, struct kc_filter *filter);
+lc_cursor_seek(struct lc_cursor *lccur, const void *seek, size_t seeklen, struct kc_filter *filter)
+    HSE_MOCK;
 
-/* MTF_MOCK */
 merr_t
-lc_cursor_update(struct lc_cursor *lccur, const void *key, size_t klen, uint64_t seqno);
+lc_cursor_update(struct lc_cursor *lccur, const void *key, size_t klen, uint64_t seqno) HSE_MOCK;
 
-/* MTF_MOCK */
 struct element_source *
-lc_cursor_es_make(struct lc_cursor *lccur);
+lc_cursor_es_make(struct lc_cursor *lccur) HSE_MOCK;
 
-/* MTF_MOCK */
 struct element_source *
-lc_cursor_es_get(struct lc_cursor *lccur);
+lc_cursor_es_get(struct lc_cursor *lccur) HSE_MOCK;
 
 struct lc_ingest_iter {
     struct bonsai_ingest_iter lcing_iter;
@@ -169,7 +152,6 @@ struct lc_ingest_iter {
  * @max_seq:     Max seqno of the ingest's view
  * @iter_cnt:    (output) Number of iterators initialized
  */
-/* MTF_MOCK */
 void
 lc_ingest_iterv_init(
     struct lc *lc,
@@ -177,15 +159,13 @@ lc_ingest_iterv_init(
     struct element_source **srcv,
     uint64_t min_seq,
     uint64_t max_seq,
-    uint *iter_cnt);
+    uint *iter_cnt) HSE_MOCK;
 
-/* MTF_MOCK */
 merr_t
-lc_init(void);
+lc_init(void) HSE_MOCK;
 
-/* MTF_MOCK */
 void
-lc_fini(void);
+lc_fini(void) HSE_MOCK;
 
 #if HSE_MOCKING
 #include "lc_ut.h"

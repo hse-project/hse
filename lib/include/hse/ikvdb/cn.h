@@ -16,8 +16,6 @@
 #include <hse/ikvdb/tuple.h>
 #include <hse/util/workqueue.h>
 
-/* MTF_MOCK_DECL(cn) */
-
 #define CN_CFLAG_CAPPED (1 << 0)
 
 struct cn;
@@ -33,7 +31,6 @@ struct mclass_policy;
 enum cn_action;
 enum hse_mclass;
 
-/* MTF_MOCK */
 merr_t
 cn_open(
     struct cn_kvdb *cn_kvdb,
@@ -46,72 +43,58 @@ cn_open(
     const char *kvs_name,
     struct kvdb_health *health,
     uint flags,
-    struct cn **cn_out);
+    struct cn **cn_out) HSE_MOCK;
 
-/* MTF_MOCK */
 merr_t
-cn_close(struct cn *cn);
+cn_close(struct cn *cn) HSE_MOCK;
 
-/* MTF_MOCK */
 uint32_t
-cn_cp2cflags(const struct kvs_cparams *cp);
+cn_cp2cflags(const struct kvs_cparams *cp) HSE_MOCK;
 
-/* MTF_MOCK */
 bool
-cn_is_capped(const struct cn *cn);
+cn_is_capped(const struct cn *cn) HSE_MOCK;
 
-/* MTF_MOCK */
 bool
-cn_is_replay(const struct cn *cn);
+cn_is_replay(const struct cn *cn) HSE_MOCK;
 
-/* MTF_MOCK */
 void
-cn_periodic(struct cn *cn, uint64_t now);
+cn_periodic(struct cn *cn, uint64_t now) HSE_MOCK;
 
-/* MTF_MOCK */
 merr_t
-cn_init(void);
+cn_init(void) HSE_MOCK;
 
-/* MTF_MOCK */
 void
-cn_fini(void);
+cn_fini(void) HSE_MOCK;
 
-/* MTF_MOCK */
 uint64_t
-cn_get_ingest_dgen(struct cn *cn);
+cn_get_ingest_dgen(struct cn *cn) HSE_MOCK;
 
-/* MTF_MOCK */
 void
-cn_inc_ingest_dgen(struct cn *cn);
+cn_inc_ingest_dgen(struct cn *cn) HSE_MOCK;
 
-/* MTF_MOCK */
 struct kvs_rparams *
-cn_get_rp(const struct cn *cn);
+cn_get_rp(const struct cn *cn) HSE_MOCK;
 
-/* MTF_MOCK */
 struct mpool *
-cn_get_mpool(const struct cn *cn);
+cn_get_mpool(const struct cn *cn) HSE_MOCK;
 
-/* MTF_MOCK */
 struct mclass_policy *
-cn_get_mclass_policy(const struct cn *cn);
+cn_get_mclass_policy(const struct cn *cn) HSE_MOCK;
 
-/* MTF_MOCK */
 void
-cn_disable_maint(struct cn *handle, bool onoff);
+cn_disable_maint(struct cn *handle, bool onoff) HSE_MOCK;
 
 /*
  * Note: Tombstones indicated by:
  *     return value == hse_success && res == FOUND_TOMB
  */
-/* MTF_MOCK */
 merr_t
 cn_get(
     struct cn *cn,
     struct kvs_ktuple *kt,
     uint64_t seq,
     enum key_lookup_res *res,
-    struct kvs_buf *vbuf);
+    struct kvs_buf *vbuf) HSE_MOCK;
 
 struct query_ctx;
 
@@ -135,7 +118,6 @@ cn_pfx_probe(
  *      with highest kvdb sequence number.
  * @ingestc:
  */
-/* MTF_MOCK */
 merr_t
 cn_ingestv(
     struct cn **cn,
@@ -145,78 +127,61 @@ cn_ingestv(
     uint64_t ingestid,
     uint64_t txhorizon,
     uint64_t *min_seqno_out,
-    uint64_t *max_seqno_out);
+    uint64_t *max_seqno_out) HSE_MOCK;
 
-/* MTF_MOCK */
 struct perfc_set *
-cn_get_ingest_perfc(const struct cn *cn);
+cn_get_ingest_perfc(const struct cn *cn) HSE_MOCK;
 
-/* MTF_MOCK */
 void *
-cn_get_tree(const struct cn *cn);
+cn_get_tree(const struct cn *cn) HSE_MOCK;
 
-/* MTF_MOCK */
 uint64_t
-cn_get_seqno_horizon(struct cn *cn);
+cn_get_seqno_horizon(struct cn *cn) HSE_MOCK;
 
-/* MTF_MOCK */
 void
-cn_ref_get(struct cn *cn);
+cn_ref_get(struct cn *cn) HSE_MOCK;
 
-/* MTF_MOCK */
 void
-cn_ref_put(struct cn *cn);
+cn_ref_put(struct cn *cn) HSE_MOCK;
 
 void
 cn_ref_wait(struct cn *cn);
 
-/* MTF_MOCK */
 struct workqueue_struct *
-cn_get_io_wq(struct cn *cn);
+cn_get_io_wq(struct cn *cn) HSE_MOCK;
 
-/* MTF_MOCK */
 struct workqueue_struct *
-cn_get_maint_wq(struct cn *cn);
+cn_get_maint_wq(struct cn *cn) HSE_MOCK;
 
-/* MTF_MOCK */
 struct csched *
-cn_get_sched(struct cn *cn);
+cn_get_sched(struct cn *cn) HSE_MOCK;
 
-/* MTF_MOCK */
 atomic_int *
-cn_get_cancel(struct cn *cn);
+cn_get_cancel(struct cn *cn) HSE_MOCK;
 
-/* MTF_MOCK */
 struct perfc_set *
-cn_get_perfc(struct cn *cn, enum cn_action action);
+cn_get_perfc(struct cn *cn, enum cn_action action) HSE_MOCK;
 
-/* MTF_MOCK */
 struct perfc_set *
-cn_pc_capped_get(struct cn *cn);
+cn_pc_capped_get(struct cn *cn) HSE_MOCK;
 
-/* MTF_MOCK */
 struct kvs_cparams *
-cn_get_cparams(const struct cn *handle);
+cn_get_cparams(const struct cn *handle) HSE_MOCK;
 
-/* MTF_MOCK */
 uint64_t
-cn_get_cnid(const struct cn *cn);
+cn_get_cnid(const struct cn *cn) HSE_MOCK;
 
-/* MTF_MOCK */
 struct cndb *
-cn_get_cndb(const struct cn *cn);
+cn_get_cndb(const struct cn *cn) HSE_MOCK;
 
-/* MTF_MOCK */
 struct cn_kvdb *
-cn_get_cn_kvdb(const struct cn *handle);
+cn_get_cn_kvdb(const struct cn *handle) HSE_MOCK;
 
-/* MTF_MOCK */
 uint32_t
-cn_get_flags(const struct cn *handle);
+cn_get_flags(const struct cn *handle) HSE_MOCK;
 
-/* MTF_MOCK */
 uint64_t
-cn_mpool_dev_zone_alloc_unit_default(struct cn *cn, enum hse_mclass mclass);
+cn_mpool_dev_zone_alloc_unit_default(struct cn *cn, enum hse_mclass mclass) HSE_MOCK;
 
 #if HSE_MOCKING
 #include "cn_ut.h"

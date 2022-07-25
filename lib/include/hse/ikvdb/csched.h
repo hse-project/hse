@@ -11,8 +11,7 @@
 
 #include <hse/error/merr.h>
 #include <hse/ikvdb/csched_rp.h>
-
-/* MTF_MOCK_DECL(csched) */
+#include <hse/util/compiler.h>
 
 struct csched;
 struct kvdb_rparams;
@@ -154,46 +153,38 @@ struct cn_rule_stats {
  * @health:    ptr to kvdb health object
  * @csched:    (out) handle
  */
-/* MTF_MOCK */
 merr_t
 csched_create(
     struct kvdb_rparams *rp,
     const char *kvdb_home,
     struct kvdb_health *health,
-    struct csched **csched);
+    struct csched **csched) HSE_MOCK;
 
-/* MTF_MOCK */
 void
-csched_destroy(struct csched *csched);
+csched_destroy(struct csched *csched) HSE_MOCK;
 
-/* MTF_MOCK */
 void
 csched_notify_ingest(
     struct csched *handle,
     struct cn_tree *tree,
     size_t alen,
     size_t kwlen,
-    size_t vwlen);
+    size_t vwlen) HSE_MOCK;
 
-/* MTF_MOCK */
 void
-csched_tree_add(struct csched *csched, struct cn_tree *tree);
+csched_tree_add(struct csched *csched, struct cn_tree *tree) HSE_MOCK;
 
-/* MTF_MOCK */
 void
-csched_tree_remove(struct csched *csched, struct cn_tree *tree, bool cancel);
+csched_tree_remove(struct csched *csched, struct cn_tree *tree, bool cancel) HSE_MOCK;
 
-/* MTF_MOCK */
 void
-csched_throttle_sensor(struct csched *csched, struct throttle_sensor *input);
+csched_throttle_sensor(struct csched *csched, struct throttle_sensor *input) HSE_MOCK;
 
-/* MTF_MOCK */
 void
-csched_compact_request(struct csched *handle, unsigned int flags);
+csched_compact_request(struct csched *handle, unsigned int flags) HSE_MOCK;
 
-/* MTF_MOCK */
 void
-csched_compact_status_get(struct csched *handle, struct hse_kvdb_compact_status *status);
+csched_compact_status_get(struct csched *handle, struct hse_kvdb_compact_status *status) HSE_MOCK;
 
 #if HSE_MOCKING
 #include "csched_ut.h"

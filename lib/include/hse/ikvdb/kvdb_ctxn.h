@@ -12,8 +12,6 @@
 #include <hse/ikvdb/ikvdb.h>
 #include <hse/util/keylock.h>
 
-/* MTF_MOCK_DECL(kvdb_ctxn) */
-
 struct c0;
 struct kvs_ktuple;
 struct kvs_buf;
@@ -50,7 +48,6 @@ struct kvdb_ctxn_bind {
     atomic_int b_ref;
 };
 
-/* MTF_MOCK */
 struct kvdb_ctxn *
 kvdb_ctxn_alloc(
     struct kvdb_keylock *kvdb_keylock,
@@ -60,47 +57,37 @@ kvdb_ctxn_alloc(
     struct viewset *active_txn_set,
     struct c0snr_set *c0snrset,
     struct c0sk *c0sk,
-    struct wal *wal);
+    struct wal *wal) HSE_MOCK;
 
-/* MTF_MOCK */
 void
-kvdb_ctxn_free(struct kvdb_ctxn *txn);
+kvdb_ctxn_free(struct kvdb_ctxn *txn) HSE_MOCK;
 
-/* MTF_MOCK */
 merr_t
-kvdb_ctxn_begin(struct kvdb_ctxn *txn);
+kvdb_ctxn_begin(struct kvdb_ctxn *txn) HSE_MOCK;
 
-/* MTF_MOCK */
 merr_t
-kvdb_ctxn_commit(struct kvdb_ctxn *txn);
+kvdb_ctxn_commit(struct kvdb_ctxn *txn) HSE_MOCK;
 
-/* MTF_MOCK */
 void
-kvdb_ctxn_abort(struct kvdb_ctxn *txn);
+kvdb_ctxn_abort(struct kvdb_ctxn *txn) HSE_MOCK;
 
-/* MTF_MOCK */
 enum kvdb_ctxn_state
-kvdb_ctxn_get_state(struct kvdb_ctxn *txn);
+kvdb_ctxn_get_state(struct kvdb_ctxn *txn) HSE_MOCK;
 
-/* MTF_MOCK */
 void
-kvdb_ctxn_reset(struct kvdb_ctxn *txn);
+kvdb_ctxn_reset(struct kvdb_ctxn *txn) HSE_MOCK;
 
-/* MTF_MOCK */
 merr_t
-kvdb_ctxn_get_view_seqno(struct kvdb_ctxn *txn, uint64_t *view_seqno);
+kvdb_ctxn_get_view_seqno(struct kvdb_ctxn *txn, uint64_t *view_seqno) HSE_MOCK;
 
-/* MTF_MOCK */
 bool
-kvdb_ctxn_lock_inherit(uint32_t desc, uint64_t start_seq);
+kvdb_ctxn_lock_inherit(uint32_t desc, uint64_t start_seq) HSE_MOCK;
 
 /* Exclusively lock a txn for reading (e.g., get, prefix probe)  */
-/* MTF_MOCK */
 merr_t
-kvdb_ctxn_trylock_read(struct kvdb_ctxn *handle, uintptr_t *seqref, uint64_t *view_seqno);
+kvdb_ctxn_trylock_read(struct kvdb_ctxn *handle, uintptr_t *seqref, uint64_t *view_seqno) HSE_MOCK;
 
 /* Exclusively lock a txn for write (e.g., put, delete)  */
-/* MTF_MOCK */
 merr_t
 kvdb_ctxn_trylock_write(
     struct kvdb_ctxn *handle,
@@ -109,49 +96,41 @@ kvdb_ctxn_trylock_write(
     int64_t *cookie,
     bool is_ptomb,
     uint64_t pfxhash,
-    uint64_t keyhash);
+    uint64_t keyhash) HSE_MOCK;
 
-/* MTF_MOCK */
 void
-kvdb_ctxn_unlock(struct kvdb_ctxn *handle);
+kvdb_ctxn_unlock(struct kvdb_ctxn *handle) HSE_MOCK;
 
 int64_t
 kvdb_ctxn_wal_cookie_get(struct kvdb_ctxn *handle);
 
 /* -- c0 cursor w/ txn support ------------ */
 
-/* MTF_MOCK */
 uintptr_t
-kvdb_ctxn_get_seqnoref(struct kvdb_ctxn *txn);
+kvdb_ctxn_get_seqnoref(struct kvdb_ctxn *txn) HSE_MOCK;
 
-/* MTF_MOCK */
 struct kvdb_ctxn_bind *
-kvdb_ctxn_cursor_bind(struct kvdb_ctxn *txn);
+kvdb_ctxn_cursor_bind(struct kvdb_ctxn *txn) HSE_MOCK;
 
-/* MTF_MOCK */
 void
-kvdb_ctxn_cursor_unbind(struct kvdb_ctxn_bind *bind);
+kvdb_ctxn_cursor_unbind(struct kvdb_ctxn_bind *bind) HSE_MOCK;
 
 /* -- list of allocated transactions -- */
-/* MTF_MOCK */
 merr_t
-kvdb_ctxn_set_create(struct kvdb_ctxn_set **handle_out, uint64_t txn_timeout, uint64_t msecs);
+kvdb_ctxn_set_create(struct kvdb_ctxn_set **handle_out, uint64_t txn_timeout, uint64_t msecs)
+    HSE_MOCK;
 
-/* MTF_MOCK */
 void
-kvdb_ctxn_set_wait_commits(struct kvdb_ctxn_set *handle, uint64_t head);
+kvdb_ctxn_set_wait_commits(struct kvdb_ctxn_set *handle, uint64_t head) HSE_MOCK;
 
-/* MTF_MOCK */
 void
-kvdb_ctxn_set_destroy(struct kvdb_ctxn_set *handle);
+kvdb_ctxn_set_destroy(struct kvdb_ctxn_set *handle) HSE_MOCK;
 
-/* MTF_MOCK */
 atomic_ulong *
-kvdb_ctxn_set_tseqnop_get(struct kvdb_ctxn_set *handle);
+kvdb_ctxn_set_tseqnop_get(struct kvdb_ctxn_set *handle) HSE_MOCK;
 
-/* MTF_MOCK */
 void
-kvdb_ctxn_set_tseqno_init(struct kvdb_ctxn_set *handle, uint64_t kvdb_seqno);
+kvdb_ctxn_set_tseqno_init(struct kvdb_ctxn_set *handle, uint64_t kvdb_seqno) HSE_MOCK;
 
 #if HSE_MOCKING
 #include "kvdb_ctxn_ut.h"

@@ -30,58 +30,45 @@ struct cndb_txn;
 
 #define CNDB_INVAL_KVSETID 0
 
-/* MTF_MOCK_DECL(cndb) */
-
-/* MTF_MOCK */
 merr_t
-cndb_create(struct mpool *mp, size_t size, uint64_t *oid1_out, uint64_t *oid2_out);
+cndb_create(struct mpool *mp, size_t size, uint64_t *oid1_out, uint64_t *oid2_out) HSE_MOCK;
 
-/* MTF_MOCK */
 merr_t
-cndb_destroy(struct mpool *mp, uint64_t oid1, uint64_t oid2);
+cndb_destroy(struct mpool *mp, uint64_t oid1, uint64_t oid2) HSE_MOCK;
 
-/* MTF_MOCK */
 merr_t
 cndb_open(
     struct mpool *mp,
     uint64_t oid1,
     uint64_t oid2,
     struct kvdb_rparams *rp,
-    struct cndb **cndb_out);
+    struct cndb **cndb_out) HSE_MOCK;
 
-/* MTF_MOCK */
 merr_t
-cndb_close(struct cndb *cndb);
+cndb_close(struct cndb *cndb) HSE_MOCK;
 
-/* MTF_MOCK */
 merr_t
-cndb_replay(struct cndb *cndb, uint64_t *seqno, uint64_t *ingestid, uint64_t *txhorizon);
+cndb_replay(struct cndb *cndb, uint64_t *seqno, uint64_t *ingestid, uint64_t *txhorizon) HSE_MOCK;
 
-/* MTF_MOCK */
 merr_t
-cndb_compact(struct cndb *cndb);
+cndb_compact(struct cndb *cndb) HSE_MOCK;
 
-/* MTF_MOCK */
 uint64_t
-cndb_kvsetid_mint(struct cndb *cndb);
+cndb_kvsetid_mint(struct cndb *cndb) HSE_MOCK;
 
-/* MTF_MOCK */
 uint64_t
-cndb_nodeid_mint(struct cndb *cndb);
+cndb_nodeid_mint(struct cndb *cndb) HSE_MOCK;
 
-/* MTF_MOCK */
 merr_t
 cndb_record_kvs_add(
     struct cndb *cndb,
     const struct kvs_cparams *cp,
     uint64_t *cnid_out,
-    const char *name);
+    const char *name) HSE_MOCK;
 
-/* MTF_MOCK */
 merr_t
-cndb_record_kvs_del(struct cndb *cndb, uint64_t cnid);
+cndb_record_kvs_del(struct cndb *cndb, uint64_t cnid) HSE_MOCK;
 
-/* MTF_MOCK */
 merr_t
 cndb_record_txstart(
     struct cndb *cndb,
@@ -90,9 +77,8 @@ cndb_record_txstart(
     uint64_t txhorizon,
     uint32_t add_cnt,
     uint32_t del_cnt,
-    struct cndb_txn **tx_out);
+    struct cndb_txn **tx_out) HSE_MOCK;
 
-/* MTF_MOCK */
 merr_t
 cndb_record_kvset_add(
     struct cndb *cndb,
@@ -106,18 +92,16 @@ cndb_record_kvset_add(
     uint64_t *kblkv,
     unsigned int vblkc,
     uint64_t *vblkv,
-    void **cookie);
+    void **cookie) HSE_MOCK;
 
-/* MTF_MOCK */
 merr_t
 cndb_record_kvset_del(
     struct cndb *cndb,
     struct cndb_txn *tx,
     uint64_t cnid,
     uint64_t kvsetid,
-    void **cookie);
+    void **cookie) HSE_MOCK;
 
-/* MTF_MOCK */
 merr_t
 cndb_record_kvsetv_move(
     struct cndb *cndb,
@@ -125,44 +109,37 @@ cndb_record_kvsetv_move(
     uint64_t src_nodeid,
     uint64_t tgt_nodeid,
     uint32_t kvset_idc,
-    const uint64_t *kvset_idv);
+    const uint64_t *kvset_idv) HSE_MOCK;
 
-/* MTF_MOCK */
 merr_t
-cndb_record_kvset_add_ack(struct cndb *cndb, struct cndb_txn *tx, void *cookie);
+cndb_record_kvset_add_ack(struct cndb *cndb, struct cndb_txn *tx, void *cookie) HSE_MOCK;
 
-/* MTF_MOCK */
 merr_t
-cndb_record_kvset_del_ack(struct cndb *cndb, struct cndb_txn *tx, void *cookie);
+cndb_record_kvset_del_ack(struct cndb *cndb, struct cndb_txn *tx, void *cookie) HSE_MOCK;
 
-/* MTF_MOCK */
 merr_t
-cndb_record_nak(struct cndb *cndb, struct cndb_txn *tx);
+cndb_record_nak(struct cndb *cndb, struct cndb_txn *tx) HSE_MOCK;
 
-/* MTF_MOCK */
 uint
-cndb_kvs_count(struct cndb *cndb);
+cndb_kvs_count(struct cndb *cndb) HSE_MOCK;
 
 typedef merr_t
 cndb_kvs_callback(uint64_t, struct kvs_cparams *, const char *, void *);
 
-/* MTF_MOCK */
 merr_t
-cndb_kvs_info(struct cndb *cndb, void *cb_ctx, cndb_kvs_callback *cb);
+cndb_kvs_info(struct cndb *cndb, void *cb_ctx, cndb_kvs_callback *cb) HSE_MOCK;
 
 typedef merr_t
 cn_init_callback(void *, struct kvset_meta *, uint64_t);
 
-/* MTF_MOCK */
 merr_t
-cndb_cn_instantiate(struct cndb *cndb, uint64_t cnid, void *ctx, cn_init_callback *cb);
+cndb_cn_instantiate(struct cndb *cndb, uint64_t cnid, void *ctx, cn_init_callback *cb) HSE_MOCK;
 
 merr_t
 cndb_kvset_delete(struct cndb *cndb, uint64_t cnid, uint64_t kvsetid);
 
-/* MTF_MOCK */
 struct kvs_cparams *
-cndb_kvs_cparams(struct cndb *cndb, uint64_t cnid);
+cndb_kvs_cparams(struct cndb *cndb, uint64_t cnid) HSE_MOCK;
 
 struct mpool_mdc *
 cndb_mdc_get(struct cndb *cndb);

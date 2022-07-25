@@ -9,16 +9,13 @@
 #include <hse/error/merr.h>
 #include <hse/util/base.h>
 
-/* MTF_MOCK_DECL(dax) */
-
 /**
  * dax_path_is_fsdax() - check if the given path is on a DAX filesystem
  * @path:  input path
  * @isdax: true, if the specified path is on a DAX FS; false, otherwise
  */
-/* MTF_MOCK */
 merr_t
-dax_path_is_fsdax(const char *path, bool *isdax);
+dax_path_is_fsdax(const char *path, bool *isdax) HSE_MOCK;
 
 #if HSE_MOCKING
 #include "dax_ut.h"

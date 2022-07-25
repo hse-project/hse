@@ -6,8 +6,6 @@
 #ifndef HSE_UTIL_BIN_HEAP_H
 #define HSE_UTIL_BIN_HEAP_H
 
-/* MTF_MOCK_DECL(bin_heap) */
-
 #include <stdbool.h>
 #include <stdint.h>
 
@@ -56,31 +54,26 @@ bin_heap_width(struct bin_heap *bh);
 void
 bin_heap_init(uint32_t max_width, bin_heap_compare_fn *cmp, struct bin_heap *bh);
 
-/* MTF_MOCK */
 merr_t
-bin_heap_create(uint32_t max_width, bin_heap_compare_fn *cmp, struct bin_heap **bh_out);
+bin_heap_create(uint32_t max_width, bin_heap_compare_fn *cmp, struct bin_heap **bh_out) HSE_MOCK;
 
-/* MTF_MOCK */
 void
-bin_heap_destroy(struct bin_heap *bh);
+bin_heap_destroy(struct bin_heap *bh) HSE_MOCK;
 
 merr_t
 bin_heap_reset(struct bin_heap *bh);
 
-/* MTF_MOCK */
 merr_t
-bin_heap_prepare(struct bin_heap *bh, uint32_t width, struct element_source *es[]);
+bin_heap_prepare(struct bin_heap *bh, uint32_t width, struct element_source *es[]) HSE_MOCK;
 
 merr_t
 bin_heap_prepare_list(struct bin_heap *bh, uint32_t width, struct element_source *es);
 
-/* MTF_MOCK */
 bool
-bin_heap_pop(struct bin_heap *bh, void **item);
+bin_heap_pop(struct bin_heap *bh, void **item) HSE_MOCK;
 
-/* MTF_MOCK */
 bool
-bin_heap_peek(struct bin_heap *bh, void **item);
+bin_heap_peek(struct bin_heap *bh, void **item) HSE_MOCK;
 
 bool
 bin_heap_peek_debug(struct bin_heap *bh, void **item, struct element_source **es);

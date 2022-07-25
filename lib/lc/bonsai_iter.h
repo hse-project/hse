@@ -13,8 +13,6 @@
 #include <hse/util/bonsai_tree.h>
 #include <hse/util/element_source.h>
 
-/* MTF_MOCK_DECL(bonsai_iter) */
-
 struct bonsai_iter {
     struct element_source bi_es;
     struct bonsai_root **bi_root;
@@ -30,7 +28,6 @@ struct bonsai_iter {
     uint32_t bi_is_ptomb : 1;
 };
 
-/* MTF_MOCK */
 void
 bonsai_iter_init(
     struct bonsai_iter *iter,
@@ -40,23 +37,19 @@ bonsai_iter_init(
     uint64_t horizon_seq,
     uintptr_t seqnoref,
     bool reverse,
-    bool ptomb_tree);
+    bool ptomb_tree) HSE_MOCK;
 
-/* MTF_MOCK */
 void
-bonsai_iter_position(struct bonsai_iter *iter, const void *key, size_t klen);
+bonsai_iter_position(struct bonsai_iter *iter, const void *key, size_t klen) HSE_MOCK;
 
-/* MTF_MOCK */
 void
-bonsai_iter_update(struct bonsai_iter *iter, uint64_t view_seq, uint64_t horizon_seq);
+bonsai_iter_update(struct bonsai_iter *iter, uint64_t view_seq, uint64_t horizon_seq) HSE_MOCK;
 
-/* MTF_MOCK */
 void
-bonsai_iter_seek(struct bonsai_iter *iter, const void *key, size_t klen);
+bonsai_iter_seek(struct bonsai_iter *iter, const void *key, size_t klen) HSE_MOCK;
 
-/* MTF_MOCK */
 struct element_source *
-bonsai_iter_es_make(struct bonsai_iter *iter);
+bonsai_iter_es_make(struct bonsai_iter *iter) HSE_MOCK;
 
 /* Iterator for ingesting - a simpler iterator than the cursor's */
 struct bonsai_ingest_iter {

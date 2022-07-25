@@ -6,8 +6,6 @@
 #ifndef HSE_KVS_CN_COMPACT_H
 #define HSE_KVS_CN_COMPACT_H
 
-/* MTF_MOCK_DECL(kcompact) */
-
 #include <stdint.h>
 
 #include <hse/error/merr.h>
@@ -52,9 +50,8 @@ struct kvset_vblk_map {
 
 /* Perform a k-compact operation
  */
-/* MTF_MOCK */
 merr_t
-cn_kcompact(struct cn_compaction_work *w);
+cn_kcompact(struct cn_compaction_work *w) HSE_MOCK;
 
 #if HSE_MOCKING
 #include "kcompact_ut.h"

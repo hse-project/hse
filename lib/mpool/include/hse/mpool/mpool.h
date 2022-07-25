@@ -17,8 +17,6 @@ struct mpool_mdc;  /* opaque MDC (metadata container) handle */
 struct mpool_file; /* opaque mpool file handle */
 struct iovec;
 
-/* MTF_MOCK_DECL(mpool) */
-
 /*
  * Mpool Administrative APIs...
  */
@@ -29,18 +27,16 @@ struct iovec;
  * @home:      kvdb home
  * @cparams:   mpool cparams
  */
-/* MTF_MOCK */
 merr_t
-mpool_create(const char *home, const struct mpool_cparams *cparams);
+mpool_create(const char *home, const struct mpool_cparams *cparams) HSE_MOCK;
 
 /**
  * mpool_cparams_defaults() - Init default mpool cparams
  *
  * @cparams: mpool cparams (output)
  */
-/* MTF_MOCK */
 void
-mpool_cparams_defaults(struct mpool_cparams *cparams);
+mpool_cparams_defaults(struct mpool_cparams *cparams) HSE_MOCK;
 
 /**
  * mpool_mclass_add() - Add a media class to the mpool
@@ -48,9 +44,8 @@ mpool_cparams_defaults(struct mpool_cparams *cparams);
  * @mclass   enum hse_mclass, cannot be HSE_MCLASS_CAPACITY
  * @cparams: mpool cparams
  */
-/* MTF_MOCK */
 merr_t
-mpool_mclass_add(enum hse_mclass mclass, const struct mpool_cparams *cparams);
+mpool_mclass_add(enum hse_mclass mclass, const struct mpool_cparams *cparams) HSE_MOCK;
 
 /**
  * mpool_mclass_destroy() - Destroy the specified mclass (used only during error path cleanup)
@@ -58,9 +53,8 @@ mpool_mclass_add(enum hse_mclass mclass, const struct mpool_cparams *cparams);
  * @mclass   enum hse_mclass, cannot be HSE_MCLASS_CAPACITY
  * @dparams: mpool dparams
  */
-/* MTF_MOCK */
 void
-mpool_mclass_destroy(enum hse_mclass mclass, const struct mpool_dparams *dparams);
+mpool_mclass_destroy(enum hse_mclass mclass, const struct mpool_dparams *dparams) HSE_MOCK;
 
 /**
  * mpool_open() - Open an mpool
@@ -73,22 +67,20 @@ mpool_mclass_destroy(enum hse_mclass mclass, const struct mpool_dparams *dparams
  * Flags are limited to a subset of flags allowed by open(2):
  * O_CREAT, O_RDONLY, O_WRONLY, and O_RDWR.
  */
-/* MTF_MOCK */
 merr_t
 mpool_open(
     const char *home,
     const struct mpool_rparams *rparams,
     uint32_t flags,
-    struct mpool **handle);
+    struct mpool **handle) HSE_MOCK;
 
 /**
  * mpool_close() - Close an mpool
  *
  * @mp: mpool handle
  */
-/* MTF_MOCK */
 merr_t
-mpool_close(struct mpool *mp);
+mpool_close(struct mpool *mp) HSE_MOCK;
 
 /**
  * mpool_destroy() - Destroy an mpool
@@ -96,9 +88,8 @@ mpool_close(struct mpool *mp);
  * @home:    kvdb home
  * @dparams: mpool dparams
  */
-/* MTF_MOCK */
 merr_t
-mpool_destroy(const char *home, const struct mpool_dparams *dparams);
+mpool_destroy(const char *home, const struct mpool_dparams *dparams) HSE_MOCK;
 
 /**
  * mpool_mclass_props_get() - get properties of the specified media class
@@ -110,9 +101,9 @@ mpool_destroy(const char *home, const struct mpool_dparams *dparams);
  * Returns: 0 for success
  *          non-zero(err): merr_errno(err) == ENOENT if the specified mclass is not present
  */
-/* MTF_MOCK */
 merr_t
-mpool_mclass_props_get(struct mpool *mp, enum hse_mclass mclass, struct mpool_mclass_props *props);
+mpool_mclass_props_get(struct mpool *mp, enum hse_mclass mclass, struct mpool_mclass_props *props)
+    HSE_MOCK;
 
 /**
  * mpool_mclass_info_get() - get info of the specified media class
@@ -124,9 +115,9 @@ mpool_mclass_props_get(struct mpool *mp, enum hse_mclass mclass, struct mpool_mc
  * Returns: 0 for success
  *          non-zero(err): merr_errno(err) == ENOENT if the specified mclass is not present
  */
-/* MTF_MOCK */
 merr_t
-mpool_mclass_info_get(struct mpool *mp, enum hse_mclass mclass, struct hse_mclass_info *info);
+mpool_mclass_info_get(struct mpool *mp, enum hse_mclass mclass, struct hse_mclass_info *info)
+    HSE_MOCK;
 
 /**
  * mpool_mclass_ftw() - walk files in 'mclass' and invoke cb for each file matching 'prefix'
@@ -150,9 +141,8 @@ mpool_mclass_ftw(
  *
  * @returns true if configured, false if not.
  */
-/* MTF_MOCK */
 bool
-mpool_mclass_is_configured(struct mpool *mp, enum hse_mclass mclass);
+mpool_mclass_is_configured(struct mpool *mp, enum hse_mclass mclass) HSE_MOCK;
 
 /**
  * mpool_props_get() - get mpool properties
@@ -160,9 +150,8 @@ mpool_mclass_is_configured(struct mpool *mp, enum hse_mclass mclass);
  * @mp:    mpool handle
  * @props: mpool props
  */
-/* MTF_MOCK */
 merr_t
-mpool_props_get(struct mpool *mp, struct mpool_props *props);
+mpool_props_get(struct mpool *mp, struct mpool_props *props) HSE_MOCK;
 
 /**
  * mpool_info_get() - Get mpool information.
@@ -189,7 +178,6 @@ mpool_info_get(struct mpool *mp, struct mpool_info *stats);
  * @logid1:   logid 1 (output)
  * @logid2:   logid 2 (output)
  */
-/* MTF_MOCK */
 merr_t
 mpool_mdc_alloc(
     struct mpool *mp,
@@ -197,7 +185,7 @@ mpool_mdc_alloc(
     size_t capacity,
     enum hse_mclass mclass,
     uint64_t *logid1,
-    uint64_t *logid2);
+    uint64_t *logid2) HSE_MOCK;
 
 /**
  * mpool_mdc_commit() - Commit an MDC
@@ -206,9 +194,8 @@ mpool_mdc_alloc(
  * @logid1: logid 1
  * @logid2: logid 2
  */
-/* MTF_MOCK */
 merr_t
-mpool_mdc_commit(struct mpool *mp, uint64_t logid1, uint64_t logid2);
+mpool_mdc_commit(struct mpool *mp, uint64_t logid1, uint64_t logid2) HSE_MOCK;
 
 /**
  * mpool_mdc_abort() - Abort an MDC
@@ -227,9 +214,8 @@ mpool_mdc_abort(struct mpool *mp, uint64_t logid1, uint64_t logid2);
  * @logid1: logid 1
  * @logid2: logid 2
  */
-/* MTF_MOCK */
 merr_t
-mpool_mdc_delete(struct mpool *mp, uint64_t logid1, uint64_t logid2);
+mpool_mdc_delete(struct mpool *mp, uint64_t logid1, uint64_t logid2) HSE_MOCK;
 
 /**
  * mpool_mdc_open() - Open MDC by OIDs
@@ -240,32 +226,29 @@ mpool_mdc_delete(struct mpool *mp, uint64_t logid1, uint64_t logid2);
  * @rdonly: read-only open
  * @handle: MDC handle (output)
  */
-/* MTF_MOCK */
 merr_t
 mpool_mdc_open(
     struct mpool *mp,
     uint64_t logid1,
     uint64_t logid2,
     bool rdonly,
-    struct mpool_mdc **handle);
+    struct mpool_mdc **handle) HSE_MOCK;
 
 /**
  * mpool_mdc_close() - Close MDC
  *
  * @mdc: MDC handle
  */
-/* MTF_MOCK */
 merr_t
-mpool_mdc_close(struct mpool_mdc *mdc);
+mpool_mdc_close(struct mpool_mdc *mdc) HSE_MOCK;
 
 /**
  * mpool_mdc_rewind() - Rewind MDC to first record
  *
  * @mdc: MDC handle
  */
-/* MTF_MOCK */
 merr_t
-mpool_mdc_rewind(struct mpool_mdc *mdc);
+mpool_mdc_rewind(struct mpool_mdc *mdc) HSE_MOCK;
 
 /**
  * mpool_mdc_read() - Read next record from MDC
@@ -279,9 +262,8 @@ mpool_mdc_rewind(struct mpool_mdc *mdc);
  *         "data" is too small and must be resized according to the value returned in
  *         "rdlen".
  */
-/* MTF_MOCK */
 merr_t
-mpool_mdc_read(struct mpool_mdc *mdc, void *data, size_t len, size_t *rdlen);
+mpool_mdc_read(struct mpool_mdc *mdc, void *data, size_t len, size_t *rdlen) HSE_MOCK;
 
 /**
  * mpool_mdc_append() - append record to MDC
@@ -291,35 +273,32 @@ mpool_mdc_read(struct mpool_mdc *mdc, void *data, size_t len, size_t *rdlen);
  * @len:  length of data
  * @sync: flag to defer return until IO is complete
  */
-/* MTF_MOCK */
 merr_t
-mpool_mdc_append(struct mpool_mdc *mdc, void *data, size_t len, bool sync);
+mpool_mdc_append(struct mpool_mdc *mdc, void *data, size_t len, bool sync) HSE_MOCK;
+
 /**
  * mpool_mdc_cstart() - Initiate MDC compaction
  *
  * @mdc: MDC handle
  */
-/* MTF_MOCK */
 merr_t
-mpool_mdc_cstart(struct mpool_mdc *mdc);
+mpool_mdc_cstart(struct mpool_mdc *mdc) HSE_MOCK;
 
 /**
  * mpool_mdc_cend() - End MDC compactions
  *
  * @mdc: MDC handle
  */
-/* MTF_MOCK */
 merr_t
-mpool_mdc_cend(struct mpool_mdc *mdc);
+mpool_mdc_cend(struct mpool_mdc *mdc) HSE_MOCK;
 
 /**
  * mpool_mdc_sync() - Sync the specified MDC
  *
  * @mdc: MDC handle
  */
-/* MTF_MOCK */
 merr_t
-mpool_mdc_sync(struct mpool_mdc *mdc);
+mpool_mdc_sync(struct mpool_mdc *mdc) HSE_MOCK;
 
 /**
  * mpool_mdc_usage() - Return mdc statistics
@@ -329,9 +308,9 @@ mpool_mdc_sync(struct mpool_mdc *mdc);
  * @allocated: Number of bytes allocated
  * @used:      Number of bytest used (includes overhead)
  */
-/* MTF_MOCK */
 merr_t
-mpool_mdc_usage(struct mpool_mdc *mdc, uint64_t *size, uint64_t *allocated, uint64_t *used);
+mpool_mdc_usage(struct mpool_mdc *mdc, uint64_t *size, uint64_t *allocated, uint64_t *used)
+    HSE_MOCK;
 
 /******************************** MBLOCK APIs ************************************/
 
@@ -346,14 +325,13 @@ mpool_mdc_usage(struct mpool_mdc *mdc, uint64_t *size, uint64_t *allocated, uint
  *
  * Return: %0 on success, <%0 on error
  */
-/* MTF_MOCK */
 merr_t
 mpool_mblock_alloc(
     struct mpool *mp,
     enum hse_mclass mclass,
     uint32_t flags,
     uint64_t *mbid,
-    struct mblock_props *props);
+    struct mblock_props *props) HSE_MOCK;
 
 /**
  * mpool_mblock_commit() - commit an mblock
@@ -363,9 +341,8 @@ mpool_mblock_alloc(
  *
  * Return: %0 on success, <%0 on error
  */
-/* MTF_MOCK */
 merr_t
-mpool_mblock_commit(struct mpool *mp, uint64_t mbid);
+mpool_mblock_commit(struct mpool *mp, uint64_t mbid) HSE_MOCK;
 
 /**
  * mpool_mblock_delete() - delete an committed mblock
@@ -375,9 +352,8 @@ mpool_mblock_commit(struct mpool *mp, uint64_t mbid);
  *
  * Return: %0 on success, <%0 on error
  */
-/* MTF_MOCK */
 merr_t
-mpool_mblock_delete(struct mpool *mp, uint64_t mbid);
+mpool_mblock_delete(struct mpool *mp, uint64_t mbid) HSE_MOCK;
 
 /**
  * mpool_mblock_props_get() - get properties of an mblock
@@ -388,9 +364,8 @@ mpool_mblock_delete(struct mpool *mp, uint64_t mbid);
  *
  * Return: %0 on success, <%0 on error
  */
-/* MTF_MOCK */
 merr_t
-mpool_mblock_props_get(struct mpool *mp, uint64_t mbid, struct mblock_props *props);
+mpool_mblock_props_get(struct mpool *mp, uint64_t mbid, struct mblock_props *props) HSE_MOCK;
 
 /**
  * mpool_mblock_write() - write data to an mblock synchronously
@@ -402,9 +377,8 @@ mpool_mblock_props_get(struct mpool *mp, uint64_t mbid, struct mblock_props *pro
  *
  * Return: %0 on success, <%0 on error
  */
-/* MTF_MOCK */
 merr_t
-mpool_mblock_write(struct mpool *mp, uint64_t mbid, const struct iovec *iov, int iovc);
+mpool_mblock_write(struct mpool *mp, uint64_t mbid, const struct iovec *iov, int iovc) HSE_MOCK;
 
 /**
  * mpool_mblock_read() - read data from an mblock
@@ -419,9 +393,9 @@ mpool_mblock_write(struct mpool *mp, uint64_t mbid, const struct iovec *iov, int
  * * On failure: <%0  - -ERRNO
  * * On success: >=%0 - number of bytes read
  */
-/* MTF_MOCK */
 merr_t
-mpool_mblock_read(struct mpool *mp, uint64_t mbid, const struct iovec *iov, int iovc, off_t offset);
+mpool_mblock_read(struct mpool *mp, uint64_t mbid, const struct iovec *iov, int iovc, off_t offset)
+    HSE_MOCK;
 
 /**
  * mpool_mblock_clone() - clone the specified mblock

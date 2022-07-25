@@ -17,8 +17,6 @@ struct kvs_cparams;
 #include <hse/util/keycmp.h>
 #include <hse/util/minmax.h>
 
-/* MTF_MOCK_DECL(route) */
-
 /**
  * struct route_node - tracks an edge key in the routing table
  * @rtn_node:     rb tree linkage
@@ -55,9 +53,8 @@ route_map_insert(struct route_map *map, void *tnode, const void *edge_key, uint 
 struct route_node *
 route_map_insert_by_node(struct route_map *map, struct route_node *node);
 
-/* MTF_MOCK */
 void
-route_map_delete(struct route_map *map, struct route_node *node);
+route_map_delete(struct route_map *map, struct route_node *node) HSE_MOCK;
 
 struct route_node *
 route_node_alloc(struct route_map *map, void *tnode, const void *edge_key, uint edge_klen);

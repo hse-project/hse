@@ -6,8 +6,6 @@
 #ifndef HSE_HSE_H
 #define HSE_HSE_H
 
-/* MTF_MOCK_DECL(hse) */
-
 /** @mainpage Overview
  *
  * This documentation is geared towards describing the structure of the HSE API
@@ -50,6 +48,10 @@
 #include <hse/limits.h>
 #include <hse/types.h>
 #include <hse/version.h>
+
+#ifndef HSE_MOCK
+#define HSE_MOCK
+#endif
 
 #ifdef __cplusplus
 extern "C" {
@@ -203,9 +205,8 @@ hse_kvdb_attach(
  *
  * @returns Error status.
  */
-/* MTF_MOCK */
 hse_err_t
-hse_kvdb_close(struct hse_kvdb *kvdb);
+hse_kvdb_close(struct hse_kvdb *kvdb) HSE_MOCK;
 
 /** @brief Create a KVDB.
  *
@@ -219,9 +220,8 @@ hse_kvdb_close(struct hse_kvdb *kvdb);
  *
  * @returns Error status.
  */
-/* MTF_MOCK */
 hse_err_t
-hse_kvdb_create(const char *kvdb_home, size_t paramc, const char * const *paramv);
+hse_kvdb_create(const char *kvdb_home, size_t paramc, const char * const *paramv) HSE_MOCK;
 
 /** @brief Drop a KVDB.
  *
@@ -283,9 +283,8 @@ hse_kvdb_home_get(struct hse_kvdb *kvdb);
  *
  * @returns Error status.
  */
-/* MTF_MOCK */
 hse_err_t
-hse_kvdb_kvs_names_get(struct hse_kvdb *kvdb, size_t *namec, char ***namev);
+hse_kvdb_kvs_names_get(struct hse_kvdb *kvdb, size_t *namec, char ***namev) HSE_MOCK;
 
 /** @brief Free the names collection obtained through hse_kvdb_kvs_names_get().
  *
@@ -363,13 +362,12 @@ hse_kvdb_mclass_reconfigure(const char *kvdb_home, enum hse_mclass mclass, const
  *
  * @returns Error status.
  */
-/* MTF_MOCK */
 hse_err_t
 hse_kvdb_open(
     const char *kvdb_home,
     size_t paramc,
     const char * const *paramv,
-    struct hse_kvdb **kvdb);
+    struct hse_kvdb **kvdb) HSE_MOCK;
 
 /** @brief Get a KVDB parameter.
  *
@@ -430,9 +428,8 @@ hse_kvdb_storage_add(const char *kvdb_home, size_t paramc, const char * const *p
  *
  * @returns Error status.
  */
-/* MTF_MOCK */
 hse_err_t
-hse_kvdb_sync(struct hse_kvdb *kvdb, unsigned int flags);
+hse_kvdb_sync(struct hse_kvdb *kvdb, unsigned int flags) HSE_MOCK;
 
 /** @brief Get the name of a media class.
  *
@@ -481,13 +478,12 @@ hse_kvdb_kvs_close(struct hse_kvs *kvs);
  *
  * @returns Error status.
  */
-/* MTF_MOCK */
 hse_err_t
 hse_kvdb_kvs_create(
     struct hse_kvdb *kvdb,
     const char *kvs_name,
     size_t paramc,
-    const char * const *paramv);
+    const char * const *paramv) HSE_MOCK;
 
 /** @brief Drop a KVS from the referenced KVDB.
  *
@@ -550,14 +546,13 @@ hse_kvdb_kvs_open(
  *
  * @returns Error status.
  */
-/* MTF_MOCK */
 hse_err_t
 hse_kvs_delete(
     struct hse_kvs *kvs,
     unsigned int flags,
     struct hse_kvdb_txn *txn,
     const void *key,
-    size_t key_len);
+    size_t key_len) HSE_MOCK;
 
 /** @brief Retrieve the value for a given key from the referenced KVS.
  *
@@ -590,7 +585,6 @@ hse_kvs_delete(
  *
  * @returns Error status.
  */
-/* MTF_MOCK */
 hse_err_t
 hse_kvs_get(
     struct hse_kvs *kvs,
@@ -601,7 +595,7 @@ hse_kvs_get(
     bool *found,
     void *valbuf,
     size_t valbuf_sz,
-    size_t *val_len);
+    size_t *val_len) HSE_MOCK;
 
 /** @brief Get the name of a KVS.
  *
@@ -675,14 +669,13 @@ hse_kvs_param_get(
  *
  * @returns Error status.
  */
-/* MTF_MOCK */
 hse_err_t
 hse_kvs_prefix_delete(
     struct hse_kvs *kvs,
     unsigned int flags,
     struct hse_kvdb_txn *txn,
     const void *pfx,
-    size_t pfx_len);
+    size_t pfx_len) HSE_MOCK;
 
 /** @brief Put a key-value pair into a KVS.
  *
@@ -730,7 +723,6 @@ hse_kvs_prefix_delete(
  *
  * @returns Error status
  */
-/* MTF_MOCK */
 hse_err_t
 hse_kvs_put(
     struct hse_kvs *kvs,
@@ -739,7 +731,7 @@ hse_kvs_put(
     const void *key,
     size_t key_len,
     const void *val,
-    size_t val_len);
+    size_t val_len) HSE_MOCK;
 
 /**@} KVS */
 
@@ -814,9 +806,8 @@ hse_kvs_put(
  *
  * @returns Error status.
  */
-/* MTF_MOCK */
 hse_err_t
-hse_kvdb_txn_abort(struct hse_kvdb *kvdb, struct hse_kvdb_txn *txn);
+hse_kvdb_txn_abort(struct hse_kvdb *kvdb, struct hse_kvdb_txn *txn) HSE_MOCK;
 
 /** @brief Allocate a transaction object.
  *
@@ -831,9 +822,8 @@ hse_kvdb_txn_abort(struct hse_kvdb *kvdb, struct hse_kvdb_txn *txn);
  *
  * @returns Transaction handle.
  */
-/* MTF_MOCK */
 struct hse_kvdb_txn *
-hse_kvdb_txn_alloc(struct hse_kvdb *kvdb);
+hse_kvdb_txn_alloc(struct hse_kvdb *kvdb) HSE_MOCK;
 
 /** @brief Initiate a transaction.
  *
@@ -850,9 +840,8 @@ hse_kvdb_txn_alloc(struct hse_kvdb *kvdb);
  *
  * @returns Error status.
  */
-/* MTF_MOCK */
 hse_err_t
-hse_kvdb_txn_begin(struct hse_kvdb *kvdb, struct hse_kvdb_txn *txn);
+hse_kvdb_txn_begin(struct hse_kvdb *kvdb, struct hse_kvdb_txn *txn) HSE_MOCK;
 
 /** @brief Commit all the mutations of a transaction.
  *
@@ -869,9 +858,8 @@ hse_kvdb_txn_begin(struct hse_kvdb *kvdb, struct hse_kvdb_txn *txn);
  *
  * @returns Error status
  */
-/* MTF_MOCK */
 hse_err_t
-hse_kvdb_txn_commit(struct hse_kvdb *kvdb, struct hse_kvdb_txn *txn);
+hse_kvdb_txn_commit(struct hse_kvdb *kvdb, struct hse_kvdb_txn *txn) HSE_MOCK;
 
 /** @brief Free a transaction object.
  *
@@ -889,9 +877,8 @@ hse_kvdb_txn_commit(struct hse_kvdb *kvdb, struct hse_kvdb_txn *txn);
  * @remark @p kvdb must not be NULL.
  * @remark @p txn must not be NULL.
  */
-/* MTF_MOCK */
 void
-hse_kvdb_txn_free(struct hse_kvdb *kvdb, struct hse_kvdb_txn *txn);
+hse_kvdb_txn_free(struct hse_kvdb *kvdb, struct hse_kvdb_txn *txn) HSE_MOCK;
 
 /** @brief Get the state of a transaction.
  *
@@ -905,9 +892,8 @@ hse_kvdb_txn_free(struct hse_kvdb *kvdb, struct hse_kvdb_txn *txn);
  *
  * @returns Transaction's state.
  */
-/* MTF_MOCK */
 enum hse_kvdb_txn_state
-hse_kvdb_txn_state_get(struct hse_kvdb *kvdb, struct hse_kvdb_txn *txn);
+hse_kvdb_txn_state_get(struct hse_kvdb *kvdb, struct hse_kvdb_txn *txn) HSE_MOCK;
 
 /**@} TRANSACTIONS */
 
@@ -967,7 +953,6 @@ hse_kvdb_txn_state_get(struct hse_kvdb *kvdb, struct hse_kvdb_txn *txn);
  *
  * @returns Error status
  */
-/* MTF_MOCK */
 hse_err_t
 hse_kvs_cursor_create(
     struct hse_kvs *kvs,
@@ -975,7 +960,7 @@ hse_kvs_cursor_create(
     struct hse_kvdb_txn *txn,
     const void *filter,
     size_t filter_len,
-    struct hse_kvs_cursor **cursor);
+    struct hse_kvs_cursor **cursor) HSE_MOCK;
 
 /** @brief Destroy a cursor.
  *
@@ -990,9 +975,8 @@ hse_kvs_cursor_create(
  *
  * @returns Error status.
  */
-/* MTF_MOCK */
 hse_err_t
-hse_kvs_cursor_destroy(struct hse_kvs_cursor *cursor);
+hse_kvs_cursor_destroy(struct hse_kvs_cursor *cursor) HSE_MOCK;
 
 /** @brief Iteratively access the elements pointed to by a cursor.
  *
@@ -1022,7 +1006,6 @@ hse_kvs_cursor_destroy(struct hse_kvs_cursor *cursor);
  *
  * @returns Error status
  */
-/* MTF_MOCK */
 hse_err_t
 hse_kvs_cursor_read(
     struct hse_kvs_cursor *cursor,
@@ -1031,7 +1014,7 @@ hse_kvs_cursor_read(
     size_t *key_len,
     const void **val,
     size_t *val_len,
-    bool *eof);
+    bool *eof) HSE_MOCK;
 
 /** @brief Iteratively access the elements pointed to by a cursor.
  *
@@ -1100,7 +1083,6 @@ hse_kvs_cursor_read_copy(
  *
  * @returns Error status.
  */
-/* MTF_MOCK */
 hse_err_t
 hse_kvs_cursor_seek(
     struct hse_kvs_cursor *cursor,
@@ -1108,7 +1090,7 @@ hse_kvs_cursor_seek(
     const void *key,
     size_t key_len,
     const void **found,
-    size_t *found_len);
+    size_t *found_len) HSE_MOCK;
 
 /** @brief Move a cursor to the closest match to key, gated by the given
  * filter.
@@ -1140,7 +1122,6 @@ hse_kvs_cursor_seek(
  *
  * @returns Error status.
  */
-/* MTF_MOCK */
 hse_err_t
 hse_kvs_cursor_seek_range(
     struct hse_kvs_cursor *cursor,
@@ -1150,7 +1131,7 @@ hse_kvs_cursor_seek_range(
     const void *filt_max,
     size_t filt_max_len,
     const void **found,
-    size_t *found_len);
+    size_t *found_len) HSE_MOCK;
 
 /** @brief Update the view of a cursor.
  *
@@ -1169,9 +1150,8 @@ hse_kvs_cursor_seek_range(
  *
  * @returns Error status.
  */
-/* MTF_MOCK */
 hse_err_t
-hse_kvs_cursor_update_view(struct hse_kvs_cursor *cursor, unsigned int flags);
+hse_kvs_cursor_update_view(struct hse_kvs_cursor *cursor, unsigned int flags) HSE_MOCK;
 
 /**@} CURSORS */
 

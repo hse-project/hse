@@ -16,8 +16,6 @@
 #include <hse/util/perfc.h>
 #include <hse/util/workqueue.h>
 
-/* MTF_MOCK_DECL(ikvdb) */
-
 #define HSE_KVDB_SYNC_REFWAIT HSE_KVDB_SYNC_RSVD1
 
 struct ikvdb;
@@ -223,9 +221,8 @@ ikvdb_pidfh_attach(struct ikvdb *kvdb, struct pidfh *pfh);
  * ikvdb_home() - get the home directory
  * @kvdb: kvdb handle
  */
-/* MTF_MOCK */
 const char *
-ikvdb_home(struct ikvdb *kvdb);
+ikvdb_home(struct ikvdb *kvdb) HSE_MOCK;
 
 /** @brief Get the KVDB alias.
  *
@@ -237,9 +234,8 @@ ikvdb_home(struct ikvdb *kvdb);
  *
  * @returns KVDB alias.
  */
-/* MTF_MOCK */
 const char *
-ikvdb_alias(struct ikvdb *kvdb);
+ikvdb_alias(struct ikvdb *kvdb) HSE_MOCK;
 
 /**
  * ikvdb_home() - get the config object
@@ -283,9 +279,8 @@ ikvdb_config_attach(struct ikvdb *kvdb, cJSON *config);
  *
  * @param kvdb: KVDB handle
  */
-/* MTF_MOCK */
 bool
-ikvdb_allows_user_writes(struct ikvdb *ikvdb);
+ikvdb_allows_user_writes(struct ikvdb *ikvdb) HSE_MOCK;
 
 /**
  * ikvdb_kvs_close() - close the KVS
@@ -298,30 +293,26 @@ ikvdb_kvs_close(struct hse_kvs *kvs);
  * ikvdb_get_c0sk() - get a handle to the associated structured key c0
  * @kvdb:       kvdb handle
  */
-/* MTF_MOCK */
 void
-ikvdb_get_c0sk(struct ikvdb *kvdb, struct c0sk **out);
+ikvdb_get_c0sk(struct ikvdb *kvdb, struct c0sk **out) HSE_MOCK;
 
 /**
  * ikvdb_get_sched() - get a handle to the associated scheduler
  */
-/* MTF_MOCK */
 struct csched *
-ikvdb_get_csched(struct ikvdb *handle);
+ikvdb_get_csched(struct ikvdb *handle) HSE_MOCK;
 
 /**
  * ikvdb_get_rparams()
  */
-/* MTF_MOCK */
 const struct kvdb_rparams *
-ikvdb_get_rparams(struct ikvdb *handle);
+ikvdb_get_rparams(struct ikvdb *handle) HSE_MOCK;
 
 /**
  * ikvdb_get_mclass_policy() - get a handle to the media class policy
  */
-/* MTF_MOCK */
 struct mclass_policy *
-ikvdb_get_mclass_policy(struct ikvdb *handle, const char *name);
+ikvdb_get_mclass_policy(struct ikvdb *handle, const char *name) HSE_MOCK;
 
 /**
  * ikvdb_kvs_get_cn() - retrieve a pointer to the cn
@@ -397,14 +388,13 @@ ikvdb_mpool_get(struct ikvdb *kvdb);
  * opspec->kop_index within the KVDB. Any value already associated with the key
  * is overwritten.
  */
-/* MTF_MOCK */
 merr_t
 ikvdb_kvs_put(
     struct hse_kvs *kvs,
     unsigned int flags,
     struct hse_kvdb_txn *txn,
     struct kvs_ktuple *kt,
-    struct kvs_vtuple *vt);
+    struct kvs_vtuple *vt) HSE_MOCK;
 
 /**
  * ikvdb_kvs_get() - search for the given key within the KVS. HSE allocates
@@ -423,15 +413,13 @@ ikvdb_kvs_get(
  * ikvdb_kvs_del() - remove the supplied key and associated value from the KVS
  * indexed by opspec->kop_index.
  */
-/* MTF_MOCK */
 merr_t
 ikvdb_kvs_del(
     struct hse_kvs *kvs,
     unsigned int flags,
     struct hse_kvdb_txn *txn,
-    struct kvs_ktuple *kt);
+    struct kvs_ktuple *kt) HSE_MOCK;
 
-/* MTF_MOCK */
 merr_t
 ikvdb_kvs_pfx_probe(
     struct hse_kvs *handle,
@@ -440,20 +428,19 @@ ikvdb_kvs_pfx_probe(
     struct kvs_ktuple *kt,
     enum key_lookup_res *res,
     struct kvs_buf *kbuf,
-    struct kvs_buf *vbuf);
+    struct kvs_buf *vbuf) HSE_MOCK;
 
 /**
  * ikvdb_kvs_prefix_delete() - remove all key/value pairs with the given prefix
  * from the KVS indexed by opspec->kop_index. If a prefix scan is in progress
  * for a matching prefix, the scan can fail after the kvdb_prefix_delete().
  */
-/* MTF_MOCK */
 merr_t
 ikvdb_kvs_prefix_delete(
     struct hse_kvs *kvs,
     unsigned int flags,
     struct hse_kvdb_txn *txn,
-    struct kvs_ktuple *kt);
+    struct kvs_ktuple *kt) HSE_MOCK;
 
 merr_t
 ikvdb_kvs_param_get(
@@ -603,9 +590,8 @@ ikvdb_compact_status_get(struct ikvdb *handle, struct hse_kvdb_compact_status *s
  * ikvdb_kvdb_handle()    - Convert an ikvdb reference to an ikvdb
  * @self:                 - ikvdb_imple reference
  */
-/* MTF_MOCK */
 struct ikvdb *
-ikvdb_kvdb_handle(struct ikvdb_impl *self);
+ikvdb_kvdb_handle(struct ikvdb_impl *self) HSE_MOCK;
 
 unsigned long
 ikvdb_lowmem_scale(unsigned long memgb);

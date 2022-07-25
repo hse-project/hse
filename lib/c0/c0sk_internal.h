@@ -23,8 +23,6 @@
 
 /* clang-format off */
 
-/* MTF_MOCK_DECL(c0sk_internal) */
-
 struct rcu_head;
 struct c0_kvmultiset;
 struct csched;
@@ -164,9 +162,8 @@ c0sk_install_c0kvms(struct c0sk_impl *self, struct c0_kvmultiset *old, struct c0
  * @multiset: struct c0_kvmultiset to be torn down
  *
  */
-/* MTF_MOCK */
 void
-c0sk_release_multiset(struct c0sk_impl *self, struct c0_kvmultiset *multiset);
+c0sk_release_multiset(struct c0sk_impl *self, struct c0_kvmultiset *multiset) HSE_MOCK;
 
 /**
  * sync_current_multiset() - enqueue current kvmultiset for ingest

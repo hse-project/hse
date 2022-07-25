@@ -21,17 +21,15 @@ struct vblock_builder;
 enum hse_mclass;
 enum hse_mclass_policy_age;
 
-/* MTF_MOCK_DECL(vblock_builder) */
-
 /**
  * vbb_create() - Create a vblock builder
  * @bld_out: builder handle (output)
  * @cn: cn in which vblocks will be created
  * @pc: perf counters
  */
-/* MTF_MOCK */
 merr_t
-vbb_create(struct vblock_builder **bld_out, struct cn *cn, struct perfc_set *pc, uint64_t vgroup);
+vbb_create(struct vblock_builder **bld_out, struct cn *cn, struct perfc_set *pc, uint64_t vgroup)
+    HSE_MOCK;
 
 /**
  * vbb_destroy() - Destroy a vblock builder
@@ -39,9 +37,8 @@ vbb_create(struct vblock_builder **bld_out, struct cn *cn, struct perfc_set *pc,
  *
  * Deletes all uncommitted vblocks.
  */
-/* MTF_MOCK */
 void
-vbb_destroy(struct vblock_builder *bld);
+vbb_destroy(struct vblock_builder *bld) HSE_MOCK;
 
 /**
  * vbb_add_entry() - Store a value in a vblock.
@@ -51,7 +48,6 @@ vbb_destroy(struct vblock_builder *bld);
  * @vbidxout: index of the vblock that holds the added value
  * @vboffout: offset of value into vblock
  */
-/* MTF_MOCK */
 merr_t
 vbb_add_entry(
     struct vblock_builder *bld,
@@ -60,15 +56,14 @@ vbb_add_entry(
     uint vlen,
     uint64_t *vbidout,
     uint *vbidxout,
-    uint *vboffout);
+    uint *vboffout) HSE_MOCK;
 
-/* MTF_MOCK */
 merr_t
-vbb_finish(struct vblock_builder *bld, struct blk_list *vblks, const struct key_obj *max_kobj);
+vbb_finish(struct vblock_builder *bld, struct blk_list *vblks, const struct key_obj *max_kobj)
+    HSE_MOCK;
 
-/* MTF_MOCK */
 size_t
-vbb_estimate_alen(struct cn *cn, size_t wlen, enum hse_mclass mclass);
+vbb_estimate_alen(struct cn *cn, size_t wlen, enum hse_mclass mclass) HSE_MOCK;
 
 /**
  * vbb_flush_entry() - Writes vblock contents into media

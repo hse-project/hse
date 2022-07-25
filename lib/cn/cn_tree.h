@@ -13,10 +13,9 @@
 #include <hse/error/merr.h>
 
 #include "cn_metrics.h"
-#include "kcompact.h"
+#include "cn_work.h"
 
-/* MTF_MOCK_DECL(cn_tree) */
-
+struct cn_compaction_work;
 struct cn_tree;
 struct cn_tree_node;
 enum key_lookup_res;
@@ -34,7 +33,6 @@ cn_tree_route_get(struct cn_tree *tree, const void *key, uint keylen);
 void
 cn_tree_route_put(struct cn_tree *tree, struct route_node *node);
 
-/* MTF_MOCK */
 merr_t
 cn_tree_lookup(
     struct cn_tree *tree,
@@ -43,9 +41,8 @@ cn_tree_lookup(
     uint64_t seq,
     enum key_lookup_res *res,
     struct kvs_buf *kbuf,
-    struct kvs_buf *vbuf);
+    struct kvs_buf *vbuf) HSE_MOCK;
 
-/* MTF_MOCK */
 merr_t
 cn_tree_prefix_probe(
     struct cn_tree *tree,
@@ -55,15 +52,14 @@ cn_tree_prefix_probe(
     enum key_lookup_res *res,
     struct query_ctx *qctx,
     struct kvs_buf *kbuf,
-    struct kvs_buf *vbuf);
+    struct kvs_buf *vbuf) HSE_MOCK;
 
 /* Return true if the cn_tree is capped. */
 bool
 cn_tree_is_capped(const struct cn_tree *tree);
 
-/* MTF_MOCK */
 struct cn *
-cn_tree_get_cn(const struct cn_tree *tree);
+cn_tree_get_cn(const struct cn_tree *tree) HSE_MOCK;
 
 struct cn_kvdb *
 cn_tree_get_cnkvdb(const struct cn_tree *tree);
@@ -74,9 +70,8 @@ cn_tree_get_mp(const struct cn_tree *tree);
 struct kvs_rparams *
 cn_tree_get_rp(const struct cn_tree *tree);
 
-/* MTF_MOCK */
 struct cndb *
-cn_tree_get_cndb(const struct cn_tree *tree);
+cn_tree_get_cndb(const struct cn_tree *tree) HSE_MOCK;
 
 uint64_t
 cn_tree_get_cnid(const struct cn_tree *tree);
@@ -90,13 +85,11 @@ cn_tree_get_pfx_len(const struct cn_tree *tree);
 bool
 cn_tree_is_replay(const struct cn_tree *tree);
 
-/* MTF_MOCK */
 void
-cn_tree_samp(const struct cn_tree *tree, struct cn_samp_stats *s_out);
+cn_tree_samp(const struct cn_tree *tree, struct cn_samp_stats *s_out) HSE_MOCK;
 
-/* MTF_MOCK */
 void
-cn_tree_samp_update_move(struct cn_compaction_work *w, struct cn_tree_node *tn);
+cn_tree_samp_update_move(struct cn_compaction_work *w, struct cn_tree_node *tn) HSE_MOCK;
 
 merr_t
 cn_tree_to_json(struct cn_tree *tree, bool human, bool kvsets, cJSON **root);

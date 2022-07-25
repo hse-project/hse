@@ -10,8 +10,6 @@
 
 #include <hse/util/platform.h>
 
-/* MTF_MOCK_DECL(cn_tree_create) */
-
 struct cn;
 struct cn_tree;
 struct cn_kvdb;
@@ -32,14 +30,13 @@ struct cn_tree_node;
  * @health:      reference to kvdb health struct
  * @rp:          ptr to kvs rparams
  */
-/* MTF_MOCK */
 merr_t
 cn_tree_create(
     struct cn_tree **tree,
     uint32_t cn_cflags,
     struct kvs_cparams *cp,
     struct kvdb_health *health,
-    struct kvs_rparams *rp);
+    struct kvs_rparams *rp) HSE_MOCK;
 
 /**
  * cn_tree_destroy() - Destroy a CN_TREE object.
@@ -48,9 +45,8 @@ cn_tree_create(
  * This function invokes kvset_class.destroy on each
  * kvset in the tree.
  */
-/* MTF_MOCK */
 void
-cn_tree_destroy(struct cn_tree *tree);
+cn_tree_destroy(struct cn_tree *tree) HSE_MOCK;
 
 /**
  * cn_tree_setup() - Initialize cn tree with resources.
@@ -61,7 +57,6 @@ cn_tree_destroy(struct cn_tree *tree);
  * @cndb: cndb handle
  * @cnid: cndb's identifier for this tree
  */
-/* MTF_MOCK */
 void
 cn_tree_setup(
     struct cn_tree *tree,
@@ -70,7 +65,7 @@ cn_tree_setup(
     struct kvs_rparams *rp,
     struct cndb *cndb,
     uint64_t cnid,
-    struct cn_kvdb *cn_kvdb);
+    struct cn_kvdb *cn_kvdb) HSE_MOCK;
 
 /**
  * cn_tree_insert_kvset() - Add kvset to a tree node during tree initialization
@@ -83,9 +78,8 @@ cn_tree_setup(
  * should only be used by cn_open() -- it should not used to add kvsets to
  * nodes after ingest or compaction operations.
  */
-/* MTF_MOCK */
 merr_t
-cn_tree_insert_kvset(struct cn_tree *tree, struct kvset *kvset, uint64_t nodeid);
+cn_tree_insert_kvset(struct cn_tree *tree, struct kvset *kvset, uint64_t nodeid) HSE_MOCK;
 
 merr_t
 cn_node_insert_kvset(struct cn_tree_node *node, struct kvset *kvset);
@@ -93,9 +87,8 @@ cn_node_insert_kvset(struct cn_tree_node *node, struct kvset *kvset);
 struct cn_tree_node *
 cn_node_alloc(struct cn_tree *tree, uint64_t nodeid);
 
-/* MTF_MOCK */
 void
-cn_tree_samp_init(struct cn_tree *tree);
+cn_tree_samp_init(struct cn_tree *tree) HSE_MOCK;
 
 #if HSE_MOCKING
 #include "cn_tree_create_ut.h"

@@ -6,8 +6,6 @@
 #ifndef CN_HBLOCK_BUILDER_H
 #define CN_HBLOCK_BUILDER_H
 
-/* MTF_MOCK_DECL(hblock_builder) */
-
 #include <stdint.h>
 
 #include <hse/error/merr.h>
@@ -24,24 +22,20 @@ struct vgmap;
 struct perfc_set;
 struct wbt_desc;
 
-/* MTF_MOCK */
 merr_t
 hbb_add_ptomb(
     struct hblock_builder *bld,
     const struct key_obj *kobj,
     const void *kmd,
     unsigned int kmd_len,
-    struct key_stats *stats);
+    struct key_stats *stats) HSE_MOCK;
 
-/* MTF_MOCK */
 merr_t
-hbb_create(struct hblock_builder **bld_out, const struct cn *cn, struct perfc_set *pc);
+hbb_create(struct hblock_builder **bld_out, const struct cn *cn, struct perfc_set *pc) HSE_MOCK;
 
-/* MTF_MOCK */
 void
-hbb_destroy(struct hblock_builder *bld);
+hbb_destroy(struct hblock_builder *bld) HSE_MOCK;
 
-/* MTF_MOCK */
 merr_t
 hbb_finish(
     struct hblock_builder *bld,
@@ -57,7 +51,7 @@ hbb_finish(
     const uint8_t *hlog,
     const uint8_t *ptree,
     struct wbt_desc *ptree_desc,
-    uint32_t ptree_pgc);
+    uint32_t ptree_pgc) HSE_MOCK;
 
 merr_t
 hbb_set_agegroup(struct hblock_builder *bld, enum hse_mclass_policy_age age) HSE_NONNULL(1);

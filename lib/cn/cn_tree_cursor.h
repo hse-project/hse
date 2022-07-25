@@ -13,8 +13,6 @@
 #include <hse/ikvdb/kvs.h>
 #include <hse/util/table.h>
 
-/* MTF_MOCK_DECL(cn_tree_cursor) */
-
 struct cn_cursor;
 struct cn_tree;
 struct cn_tree_node;
@@ -29,18 +27,16 @@ struct kvref {
  *
  * @cur: Cursor handle.
  */
-/* MTF_MOCK */
 merr_t
-cn_tree_cursor_create(struct cn_cursor *cur);
+cn_tree_cursor_create(struct cn_cursor *cur) HSE_MOCK;
 
 /**
  * cn_tree_cursor_update() - Update a cursor's view
  *
  * @cur:
  */
-/* MTF_MOCK */
 merr_t
-cn_tree_cursor_update(struct cn_cursor *cur);
+cn_tree_cursor_update(struct cn_cursor *cur) HSE_MOCK;
 
 /**
  * cn_tree_cursor_seek() - Position a cursor to a key.
@@ -50,9 +46,9 @@ cn_tree_cursor_update(struct cn_cursor *cur);
  * @len:    Length of %key.
  * @filter: Filter keys in the cursor's view.
  */
-/* MTF_MOCK */
 merr_t
-cn_tree_cursor_seek(struct cn_cursor *cur, const void *key, uint32_t len, struct kc_filter *filter);
+cn_tree_cursor_seek(struct cn_cursor *cur, const void *key, uint32_t len, struct kc_filter *filter)
+    HSE_MOCK;
 
 /**
  * cn_tree_cursor_read() - Read the next kv-pair according to the cursor's iteration order.
@@ -61,18 +57,16 @@ cn_tree_cursor_seek(struct cn_cursor *cur, const void *key, uint32_t len, struct
  * @elem: (output) The kv-pair that was read.
  * @eof:  (output) Whether or not the cursor is at EOF.
  */
-/* MTF_MOCK */
 merr_t
-cn_tree_cursor_read(struct cn_cursor *cur, struct kvs_cursor_element *elem, bool *eof);
+cn_tree_cursor_read(struct cn_cursor *cur, struct kvs_cursor_element *elem, bool *eof) HSE_MOCK;
 
 /**
  * cn_tree_cursor_destroy() - Destroy the resources associated with the cursor.
  *
  * @cur:
  */
-/* MTF_MOCK */
 void
-cn_tree_cursor_destroy(struct cn_cursor *cur);
+cn_tree_cursor_destroy(struct cn_cursor *cur) HSE_MOCK;
 
 /**
  * cn_tree_cursor_active_kvsets() - Retrieve information about the kvsets participating in the
@@ -82,9 +76,8 @@ cn_tree_cursor_destroy(struct cn_cursor *cur);
  * @active: Number of kvsets feeding into in the cursor's binheap.
  * @total:  Total number of kvsets in the participating nodes.
  */
-/* MTF_MOCK */
 merr_t
-cn_tree_cursor_active_kvsets(struct cn_cursor *cur, uint32_t *active, uint32_t *total);
+cn_tree_cursor_active_kvsets(struct cn_cursor *cur, uint32_t *active, uint32_t *total) HSE_MOCK;
 
 #if HSE_MOCKING
 #include "cn_tree_cursor_ut.h"

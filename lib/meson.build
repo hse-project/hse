@@ -49,6 +49,7 @@ configure_file(
 
 # Expose build_config.h globally
 add_project_arguments('-I@0@'.format(meson.current_build_dir()), language: 'c')
+add_project_arguments('-I@0@'.format(meson.current_build_dir()), language: 'c', native: true)
 # Hack since some targets reach for this, but it isn't easy to model correctly
 add_project_arguments('-I@0@'.format(meson.current_source_dir()), language: 'c')
 

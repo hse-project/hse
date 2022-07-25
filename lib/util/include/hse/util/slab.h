@@ -6,8 +6,6 @@
 #ifndef HSE_PLATFORM_SLAB_H
 #define HSE_PLATFORM_SLAB_H
 
-/* MTF_MOCK_DECL(slab) */
-
 #include <stdlib.h>
 
 #include <hse/error/merr.h>
@@ -55,35 +53,29 @@ malloc_array(size_t n, size_t size)
 struct kmem_cache;
 struct kmc_zone;
 
-/* MTF_MOCK */
 merr_t
-kmem_cache_init(void);
+kmem_cache_init(void) HSE_MOCK;
 
-/* MTF_MOCK */
 void
-kmem_cache_fini(void);
+kmem_cache_fini(void) HSE_MOCK;
 
 struct kmem_cache *
 kmem_cache_create(const char *name, size_t size, size_t align, ulong flags, void (*ctor)(void *));
 
-/* MTF_MOCK */
 void
-kmem_cache_destroy(struct kmem_cache *cache);
+kmem_cache_destroy(struct kmem_cache *cache) HSE_MOCK;
 
 unsigned int
 kmem_cache_size(struct kmem_cache *cache);
 
-/* MTF_MOCK */
 void *
-kmem_cache_alloc(struct kmem_cache *cache);
+kmem_cache_alloc(struct kmem_cache *cache) HSE_MOCK;
 
-/* MTF_MOCK */
 void
-kmem_cache_free(struct kmem_cache *cache, void *mem);
+kmem_cache_free(struct kmem_cache *cache, void *mem) HSE_MOCK;
 
-/* MTF_MOCK */
 void *
-kmem_cache_zalloc(struct kmem_cache *cache);
+kmem_cache_zalloc(struct kmem_cache *cache) HSE_MOCK;
 
 void *
 hse_page_alloc(void);

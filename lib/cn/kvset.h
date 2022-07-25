@@ -95,17 +95,14 @@ kvset_fini(void) HSE_COLD;
 uint64_t
 kvset_get_tag(struct kvset *kvset);
 
-/* MTF_MOCK_DECL(kvset) */
-
 /**
  * kvset_get_ref() - Obtain a ref on a kvset
  *
  * Caller must be holding the kvset_list_rlock or already have a
  * reference count on this kvset.
  */
-/* MTF_MOCK */
 void
-kvset_get_ref(struct kvset *kvset);
+kvset_get_ref(struct kvset *kvset) HSE_MOCK;
 
 /**
  * kvset_put_ref() - Release a ref on a kvset
@@ -116,9 +113,8 @@ kvset_get_ref(struct kvset *kvset);
  *     found to have another ref added, and
  *   - the 'struct kvset' object destructor will be called.
  */
-/* MTF_MOCK */
 void
-kvset_put_ref(struct kvset *kvset);
+kvset_put_ref(struct kvset *kvset) HSE_MOCK;
 
 /**
  * kvset_open() - Open a kvset
@@ -127,9 +123,9 @@ kvset_put_ref(struct kvset *kvset);
  * @meta:  kvset_meta data -- what to create
  * @kvset: (output) newly constructed kvset object
  */
-/* MTF_MOCK */
 merr_t
-kvset_open(struct cn_tree *tree, uint64_t tag, struct kvset_meta *meta, struct kvset **kvset);
+kvset_open(struct cn_tree *tree, uint64_t tag, struct kvset_meta *meta, struct kvset **kvset)
+    HSE_MOCK;
 
 /**
  * Preload/discard hblock memory mapped pages
@@ -146,9 +142,8 @@ kvset_open(struct cn_tree *tree, uint64_t tag, struct kvset_meta *meta, struct k
  * @param advice readahead mode for madvise(2)
  * @param leaves madvise(2) leaf nodes as well
  */
-/* MTF_MOCK */
 void
-kvset_madvise_hblk(struct kvset *kvset, int advice, bool leaves);
+kvset_madvise_hblk(struct kvset *kvset, int advice, bool leaves) HSE_MOCK;
 
 /**
  * kvset_madvise_kblks() - preload/discard kblock memory mapped pages
@@ -163,9 +158,8 @@ kvset_madvise_hblk(struct kvset *kvset, int advice, bool leaves);
  *
  * See madvise(2) for more informaation.
  */
-/* MTF_MOCK */
 void
-kvset_madvise_kblks(struct kvset *kvset, int advice, bool blooms, bool leaves);
+kvset_madvise_kblks(struct kvset *kvset, int advice, bool blooms, bool leaves) HSE_MOCK;
 
 /**
  * kvset_madvise_vblks() - preload/discard vblock memory mapped pages
@@ -180,9 +174,8 @@ kvset_madvise_kblks(struct kvset *kvset, int advice, bool blooms, bool leaves);
  *
  * See madvise(2) for more informaation.
  */
-/* MTF_MOCK */
 void
-kvset_madvise_vblks(struct kvset *kvset, int advice);
+kvset_madvise_vblks(struct kvset *kvset, int advice) HSE_MOCK;
 
 void
 kvset_madvise_capped(struct kvset *kvset, int advice);
@@ -198,11 +191,9 @@ kvset_madvise_capped(struct kvset *kvset, int advice);
  *
  * See madvise(2) for more informaation.
  */
-/* MTF_MOCK */
 void
-kvset_madvise_vmaps(struct kvset *kvset, int advice);
+kvset_madvise_vmaps(struct kvset *kvset, int advice) HSE_MOCK;
 
-/* MTF_MOCK */
 merr_t
 kvset_open2(
     struct cn_tree *tree,
@@ -211,15 +202,13 @@ kvset_open2(
     uint vbset_cnt_len,
     uint *vbset_cnts,
     struct mbset ***vbset_vecs,
-    struct kvset **kvset);
+    struct kvset **kvset) HSE_MOCK;
 
-/* MTF_MOCK */
 merr_t
-kvset_delete_log_record(struct kvset *ks, struct cndb_txn *txn);
+kvset_delete_log_record(struct kvset *ks, struct cndb_txn *txn) HSE_MOCK;
 
-/* MTF_MOCK */
 void
-kvset_mark_mblocks_for_delete(struct kvset *kvset, bool keepv);
+kvset_mark_mblocks_for_delete(struct kvset *kvset, bool keepv) HSE_MOCK;
 
 void
 kvset_mark_mbset_for_delete(struct kvset *ks, bool delete_blks);
@@ -227,17 +216,14 @@ kvset_mark_mbset_for_delete(struct kvset *ks, bool delete_blks);
 void
 kvset_purge_blklist_add(struct kvset *ks, struct blk_list *blks);
 
-/* MTF_MOCK */
 struct mbset **
-kvset_get_vbsetv(struct kvset *km, uint *vbsetc);
+kvset_get_vbsetv(struct kvset *km, uint *vbsetc) HSE_MOCK;
 
-/* MTF_MOCK */
 void
-kvset_list_add(struct kvset *kvset, struct list_head *head);
+kvset_list_add(struct kvset *kvset, struct list_head *head) HSE_MOCK;
 
-/* MTF_MOCK */
 void
-kvset_list_add_tail(struct kvset *kvset, struct list_head *head);
+kvset_list_add_tail(struct kvset *kvset, struct list_head *head) HSE_MOCK;
 
 /**
  * kvset_get_max_nonpt_key() - Get the largest key in a kvset
@@ -249,13 +235,11 @@ kvset_list_add_tail(struct kvset *kvset, struct list_head *head);
  * NOTE: @max_key is valid as long as kvset exists. Callers must copy the key, or
  * keep a ref to the kvset.
  */
-/* MTF_MOCK */
 void
-kvset_get_max_nonpt_key(struct kvset *ks, const void **max_key, uint *max_klen);
+kvset_get_max_nonpt_key(struct kvset *ks, const void **max_key, uint *max_klen) HSE_MOCK;
 
-/* MTF_MOCK */
 uint64_t
-kvset_ctime(const struct kvset *kvset);
+kvset_ctime(const struct kvset *kvset) HSE_MOCK;
 
 bool
 kvset_has_ptree(const struct kvset *ks) HSE_NONNULL(1);
@@ -272,9 +256,8 @@ kvset_has_ptree(const struct kvset *ks) HSE_NONNULL(1);
  *      KVSET_MISS_KEY_TOO_LARGE if key is larger than the max key in kvset
  * else returns the index of the kblk in the kvset kblk list.
  */
-/* MTF_MOCK */
 int
-kvset_kblk_start(struct kvset *kvset, const void *key, int len, bool reverse);
+kvset_kblk_start(struct kvset *kvset, const void *key, int len, bool reverse) HSE_MOCK;
 
 /**
  * kvset_lookup() - Search a kvset for a key and return its value
@@ -325,71 +308,58 @@ kvset_pfx_lookup(
  * - if dgen_hi(ks1) == dgen_hi(ks2), then
  *   - if dgen_lo(ks1) >= dgen_lo(ks2), then return true, else return false
  */
-/* MTF_MOCK */
 bool
-kvset_younger(const struct kvset *ks1, const struct kvset *ks2);
+kvset_younger(const struct kvset *ks1, const struct kvset *ks2) HSE_MOCK;
 
 /* Any thread may call kvset_get_work() to examine the returned value.
  * Threads holding the tree lock may dereference the value only if
  * kvset is on the tree node list.
  */
-/* MTF_MOCK */
 const void *
-kvset_get_work(struct kvset *km);
+kvset_get_work(struct kvset *km) HSE_MOCK;
 
 /* Only the monitor thread (csched) sets work from NULL to non-null (while
  * holding the tree read lock).  In some circumstances, compaction threads
  * will reset work to NULL, but only while holding the tree write lock.
  */
-/* MTF_MOCK */
 void
-kvset_set_work(struct kvset *km, const void *work);
+kvset_set_work(struct kvset *km, const void *work) HSE_MOCK;
 
-/* MTF_MOCK */
 void
-kvset_set_rule(struct kvset *ks, enum cn_rule rule);
+kvset_set_rule(struct kvset *ks, enum cn_rule rule) HSE_MOCK;
 
 /**
  * Get allocated length of useful data in nth vblock
  */
-/* MTF_MOCK */
 uint32_t
-kvset_get_nth_vblock_alen(const struct kvset *km, uint32_t index);
+kvset_get_nth_vblock_alen(const struct kvset *km, uint32_t index) HSE_MOCK;
 
 /**
  * Get written length of useful data in nth vblock
  */
-/* MTF_MOCK */
 uint32_t
-kvset_get_nth_vblock_wlen(const struct kvset *km, uint32_t index);
+kvset_get_nth_vblock_wlen(const struct kvset *km, uint32_t index) HSE_MOCK;
 
-/* MTF_MOCK */
 void
-kvset_stats(const struct kvset *ks, struct kvset_stats *stats);
+kvset_stats(const struct kvset *ks, struct kvset_stats *stats) HSE_MOCK;
 
-/* MTF_MOCK */
 const struct kvset_stats *
-kvset_statsp(const struct kvset *ks);
+kvset_statsp(const struct kvset *ks) HSE_MOCK;
 
-/* MTF_MOCK */
 uint8_t *
-kvset_get_hlog(struct kvset *km);
+kvset_get_hlog(struct kvset *km) HSE_MOCK;
 
-/* MTF_MOCK */
 uint64_t
-kvset_get_id(const struct kvset *ks);
+kvset_get_id(const struct kvset *ks) HSE_MOCK;
 
-/* MTF_MOCK */
 uint32_t
-kvset_get_compc(const struct kvset *ks);
+kvset_get_compc(const struct kvset *ks) HSE_MOCK;
 
-/* MTF_MOCK */
 void
-kvset_set_compc(struct kvset *ks, uint32_t compc);
+kvset_set_compc(struct kvset *ks, uint32_t compc) HSE_MOCK;
 
-/* MTF_MOCK */
 uint
-kvset_get_vgroups(const struct kvset *km);
+kvset_get_vgroups(const struct kvset *km) HSE_MOCK;
 
 size_t
 kvset_get_kwlen(const struct kvset *ks);
@@ -397,20 +367,17 @@ kvset_get_kwlen(const struct kvset *ks);
 size_t
 kvset_get_vwlen(const struct kvset *ks);
 
-/* MTF_MOCK */
 struct cn_tree *
-kvset_get_tree(struct kvset *kvset);
+kvset_get_tree(struct kvset *kvset) HSE_MOCK;
 
 struct vblock_desc *
 kvset_get_nth_vblock_desc(const struct kvset *ks, uint32_t index);
 
-/* MTF_MOCK */
 void
-kvset_set_nodeid(struct kvset *kvset, uint64_t nodeid);
+kvset_set_nodeid(struct kvset *kvset, uint64_t nodeid) HSE_MOCK;
 
-/* MTF_MOCK */
 uint64_t
-kvset_get_dgen_lo(const struct kvset *kvset);
+kvset_get_dgen_lo(const struct kvset *kvset) HSE_MOCK;
 
 /**
  * kvset_iter_create() - Create iterator to traverse all entries in a kvset
@@ -444,7 +411,6 @@ kvset_get_dgen_lo(const struct kvset *kvset);
  *     reference to give (cn_tree_prepare_compaction()).  In both
  *     cases kvset_iter_release() releases the adopted reference.
  */
-/* MTF_MOCK */
 merr_t
 kvset_iter_create(
     struct kvset *kvset,
@@ -452,19 +418,16 @@ kvset_iter_create(
     struct workqueue_struct *vra_wq,
     struct perfc_set *pc,
     enum kvset_iter_flags flags,
-    struct kv_iterator **kv_iter);
+    struct kv_iterator **kv_iter) HSE_MOCK;
 
-/* MTF_MOCK */
 void
-kvset_iter_release(struct kv_iterator *handle);
+kvset_iter_release(struct kv_iterator *handle) HSE_MOCK;
 
-/* MTF_MOCK */
 void
-kvset_iter_set_stats(struct kv_iterator *handle, struct cn_merge_stats *stats);
+kvset_iter_set_stats(struct kv_iterator *handle, struct cn_merge_stats *stats) HSE_MOCK;
 
-/* MTF_MOCK */
 merr_t
-kvset_iter_set_start(struct kv_iterator *kv_iter, int start);
+kvset_iter_set_start(struct kv_iterator *kv_iter, int start) HSE_MOCK;
 
 /**
  * kvset_iter_seek() - efficiently moves the iterator to starting kblk (or eof)
@@ -472,35 +435,22 @@ kvset_iter_set_start(struct kv_iterator *kv_iter, int start);
  * @key:     key to seek
  * @len:     length of key; if negative, key is a prefix
  */
-/* MTF_MOCK */
 merr_t
-kvset_iter_seek(struct kv_iterator *handle, const void *key, int len, bool *eof);
+kvset_iter_seek(struct kv_iterator *handle, const void *key, int len, bool *eof) HSE_MOCK;
 
-/* MTF_MOCK */
 void
-kvset_iter_mark_eof(struct kv_iterator *handle);
+kvset_iter_mark_eof(struct kv_iterator *handle) HSE_MOCK;
 
-/* MTF_MOCK */
-struct element_source *
-kvset_iter_es_get(struct kv_iterator *kvi);
-
-/* MTF_MOCK */
 struct kvset *
-kvset_iter_kvset_get(struct kv_iterator *handle);
+kvset_iter_kvset_get(struct kv_iterator *handle) HSE_MOCK;
 
-/* MTF_MOCK */
 void *
-kvset_from_iter(struct kv_iterator *iv);
+kvset_from_iter(struct kv_iterator *iv) HSE_MOCK;
 
-/* MTF_MOCK */
 merr_t
-kvset_iter_next_key(struct kv_iterator *handle, struct key_obj *kobj, struct kvset_iter_vctx *vc);
+kvset_iter_next_key(struct kv_iterator *handle, struct key_obj *kobj, struct kvset_iter_vctx *vc)
+    HSE_MOCK;
 
-/* MTF_MOCK */
-struct element_source *
-kvset_iter_es_get(struct kv_iterator *handle);
-
-/* MTF_MOCK */
 merr_t
 kvset_iter_val_get(
     struct kv_iterator *handle,
@@ -510,9 +460,11 @@ kvset_iter_val_get(
     uint vboff,
     const void **vdata,
     uint *vlen,
-    uint *complen);
+    uint *complen) HSE_MOCK;
 
-/* MTF_MOCK */
+struct element_source *
+kvset_iter_es_get(struct kv_iterator *handle) HSE_MOCK;
+
 bool
 kvset_iter_next_vref(
     struct kv_iterator *handle,
@@ -523,7 +475,7 @@ kvset_iter_next_vref(
     uint *vboff,
     const void **vdata,
     uint *vlen,
-    uint *complen);
+    uint *complen) HSE_MOCK;
 
 /**
  * kvset_keep_vblocks - populate a vblock map from many-to-one
@@ -547,23 +499,19 @@ kvset_keep_vblocks(
     struct kv_iterator **iv,
     int niv);
 
-/* MTF_MOCK */
 void
-kvset_maxkey(const struct kvset *ks, const void **maxkey, uint16_t *maxklen);
+kvset_maxkey(const struct kvset *ks, const void **maxkey, uint16_t *maxklen) HSE_MOCK;
 
-/* MTF_MOCK */
 void
-kvset_minkey(const struct kvset *ks, const void **minkey, uint16_t *minklen);
+kvset_minkey(const struct kvset *ks, const void **minkey, uint16_t *minklen) HSE_MOCK;
 
-/* MTF_MOCK */
 void
-kvset_max_ptkey(const struct kvset *ks, const void **max, uint16_t *maxlen);
+kvset_max_ptkey(const struct kvset *ks, const void **max, uint16_t *maxlen) HSE_MOCK;
 
 /**
  * kvset_iter_next_val_direct() -  read value via direct io
  * @handle: handle to kv iterator
  */
-/* MTF_MOCK */
 merr_t
 kvset_iter_next_val_direct(
     struct kv_iterator *handle,
@@ -572,7 +520,7 @@ kvset_iter_next_val_direct(
     uint vboff,
     void *vdata,
     uint vlen,
-    uint bufsz);
+    uint bufsz) HSE_MOCK;
 
 /**
  * vgmap_alloc() - Allocates a vgroup map
@@ -609,9 +557,8 @@ vgmap_vbidx_out_start(struct kvset *ks, uint32_t vgidx);
  * @ks:    kvset handle
  * @vgidx: vgmap array index
  */
-/* MTF_MOCK */
 uint16_t
-vgmap_vbidx_out_end(struct kvset *ks, uint32_t vgidx);
+vgmap_vbidx_out_end(struct kvset *ks, uint32_t vgidx) HSE_MOCK;
 
 /**
  * vgmap_vbidx_set - sets the target vgroup map for a given vgmap index based on
