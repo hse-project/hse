@@ -160,7 +160,12 @@ sp3_work_rspill(
     runlen = 1;
     wlen = 0;
 
-    /* look for sequence of non-busy kvsets */
+    /* Look for a contiguous sequence of non-busy kvsets.
+     *
+     * TODO: Starting with the first non-busy kvset, count the number of
+     * kvsets contiguous from the first that would all spill to the same
+     * leaf node.
+     */
     while ((le = list_prev_entry_or_null(le, le_link, &tn->tn_kvset_list))) {
         if (kvset_get_workid(le->le_kvset) != 0)
             break;
@@ -168,12 +173,21 @@ sp3_work_rspill(
         wlen += kvset_get_kwlen(le->le_kvset) + kvset_get_vwlen(le->le_kvset);
 
         /* Limit spill size once we have a sufficiently long run length.
+         *
+         * TODO: Ignore the size check if all preceding kvsets would spill
+         * to the same leaf node.
          */
         if (runlen >= runlen_min && wlen >= (sizemb_max << 20))
             break;
 
         ++runlen;
     }
+
+    /* TODO: If the number of contiguous kvsets that would all spill
+     * to the same leaf node is one or more then return that number
+     * as a zero-writeamp spill operation (e.g., CN_ACTION_ZSPILL)
+     * irrespective of runlen_min, runlen_max, and sizemb_max.
+     */
 
     if (runlen < runlen_min)
         return 0;
