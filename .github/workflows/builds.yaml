@@ -367,10 +367,19 @@ jobs:
         image-tag: [8, 9]
         toolchain: [gcc, clang]
         buildtype: [release, debug]
-    if: ${{ github.event_name == 'release' }}
 
     steps:
+      - name: To skip or not to skip
+        id: skip
+        run: |
+          if [ "$GITHUB_EVENT_NAME" = "release" ]; then
+            echo "SKIP=false" >> "$GITHUB_ENV"
+          else
+            echo "SKIP=true" >> "$GITHUB_ENV"
+          fi
+
       - name: Initialize
+        if: ${{ env.SKIP == 'false' }}
         run: |
           dnf install -y dnf-plugins-core epel-release
           dnf config-manager --set-enabled powertools
@@ -383,10 +392,12 @@ jobs:
           python3 -m pip install meson==0.62.2 Cython
 
       - name: Checkout HSE
+        if: ${{ env.SKIP == 'false' }}
         uses: actions/checkout@v3
 
       - name: Determine branches
         id: determine-branches
+        if: ${{ env.SKIP == 'false' }}
         shell: sh +e {0}
         run: |
           for p in hse-java hse-python; do
@@ -415,6 +426,7 @@ jobs:
           done
 
       - name: Checkout hse-java
+        if: ${{ env.SKIP == 'false' }}
         uses: actions/checkout@v3
         with:
           repository: hse-project/hse-java
@@ -422,6 +434,7 @@ jobs:
           ref: ${{ steps.determine-branches.outputs.hse-java }}
 
       - name: Checkout hse-python
+        if: ${{ env.SKIP == 'false' }}
         uses: actions/checkout@v3
         with:
           repository: hse-project/hse-python
@@ -429,6 +442,7 @@ jobs:
           ref: ${{ steps.determine-branches.outputs.hse-python }}
 
       - name: Cache Meson packagecache
+        if: ${{ env.SKIP == 'false' }}
         uses: actions/cache@v3
         with:
           path: subprojects/packagecache
@@ -436,6 +450,7 @@ jobs:
 
       - name: Setup Java
         id: setup-java
+        if: ${{ env.SKIP == 'false' }}
         uses: actions/setup-java@v3
         with:
           distribution: adopt
@@ -446,35 +461,38 @@ jobs:
       # Maven from downloading dependencies during the test phase which could
       # cause tests to timeout.
       - name: Download Maven Dependencies
-        if: ${{ steps.setup-java.outputs.cache-hit != 'true' }}
+        if: ${{ env.SKIP == 'false' && steps.setup-java.outputs.cache-hit != 'true' }}
         run: |
           mvn --file subprojects/hse-java/pom.xml dependency:go-offline
 
       - name: Setup gcc toolchain
-        if: ${{ matrix.toolchain == 'gcc' }}
+        if: ${{ env.SKIP == 'false' && matrix.toolchain == 'gcc' }}
         run: |
           echo "CC=gcc" >> "$GITHUB_ENV"
           echo "CXX=g++" >> "$GITHUB_ENV"
           dnf install -y gcc gcc-c++
 
       - name: Setup clang toolchain
-        if: ${{ matrix.toolchain == 'clang' }}
+        if: ${{ env.SKIP == 'false' && matrix.toolchain == 'clang' }}
         run: |
           echo "CC=clang" >> "$GITHUB_ENV"
           echo "CXX=clang++" >> "$GITHUB_ENV"
           dnf install -y clang
 
       - name: Setup
+        if: ${{ env.SKIP == 'false' }}
         run: |
           meson builddir --fatal-meson-warnings --werror \
             --buildtype=${{ matrix.buildtype }} -Dtools=enabled \
             -Ddocs=disabled -Dbindings=all
 
       - name: Build
+        if: ${{ env.SKIP == 'false' }}
         run: |
           ninja -C builddir
 
       - name: Test
+        if: ${{ env.SKIP == 'false' }}
         run: |
           ulimit -c unlimited
           meson test -C builddir --setup=ci --print-errorlogs --no-stdsplit

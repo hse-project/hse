@@ -45,7 +45,9 @@ enum cn_comp_rule {
     CN_CR_LLONG,          /* long leaf */
     CN_CR_LIDXF,          /* short leaf, full index node compaction */
     CN_CR_LIDXP,          /* short leaf, partial index node compaction */
-    CN_CR_LIDLE,          /* idle leaf */
+    CN_CR_LIDLE_IDX,      /* idle leaf, index node */
+    CN_CR_LIDLE_SIZE,     /* idle leaf, tiny node */
+    CN_CR_LIDLE_TOMB,     /* idle leaf, mostly tombs */
     CN_CR_LSCATF,         /* vgroup scatter remediation (full node) */
     CN_CR_LSCATP,         /* vgroup scatter remediation (partial node) */
 };
@@ -74,8 +76,12 @@ cn_comp_rule2str(enum cn_comp_rule rule)
         return "lidxf";
     case CN_CR_LIDXP:
         return "lidxp";
-    case CN_CR_LIDLE:
-        return "lidle";
+    case CN_CR_LIDLE_IDX:
+        return "idlidx";
+    case CN_CR_LIDLE_SIZE:
+        return "idlsiz";
+    case CN_CR_LIDLE_TOMB:
+        return "idltmb";
     case CN_CR_LSCATF:
         return "lscatf";
     case CN_CR_LSCATP:

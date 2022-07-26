@@ -124,15 +124,24 @@ sp3_work_estimate(struct cn_compaction_work *w)
     }
 }
 
+/* Handle root spill
+ */
 static uint
-sp3_work_rspill_find_kvsets(struct sp3_node *spn, uint n_max, struct kvset_list_entry **mark)
+sp3_work_rspill(
+    struct sp3_node *         spn,
+    struct sp3_thresholds    *thresh,
+    struct kvset_list_entry **mark,
+    enum cn_action *          action,
+    enum cn_comp_rule *       rule)
 {
-    uint                     n_kvsets;
+    struct cn_tree_node *tn = spn2tn(spn);
+    uint runlen_min, runlen_max, runlen;
     struct kvset_list_entry *le;
-    struct cn_tree_node *    tn;
+    size_t sizemb_max, wlen;
 
+    *action = CN_ACTION_SPILL;
+    *rule = CN_CR_RSPILL;
     *mark = NULL;
-    tn = spn2tn(spn);
 
     /* walk from tail (oldest), skip kvsets that are busy */
     list_for_each_entry_reverse(le, &tn->tn_kvset_list, le_link) {
@@ -145,49 +154,56 @@ sp3_work_rspill_find_kvsets(struct sp3_node *spn, uint n_max, struct kvset_list_
     if (!*mark)
         return 0;
 
-    n_kvsets = 1;
+    runlen_min = thresh->rspill_runlen_min;
+    runlen_max = thresh->rspill_runlen_max;
+    sizemb_max = thresh->rspill_sizemb_max;
+    runlen = 1;
+    wlen = 0;
 
-    /* look for sequence of non-busy kvsets */
+    /* Look for a contiguous sequence of non-busy kvsets.
+     *
+     * TODO: Starting with the first non-busy kvset, count the number of
+     * kvsets contiguous from the first that would all spill to the same
+     * leaf node.
+     */
     while ((le = list_prev_entry_or_null(le, le_link, &tn->tn_kvset_list))) {
-        if (n_kvsets == n_max)
-            break;
-
         if (kvset_get_workid(le->le_kvset) != 0)
             break;
 
-        n_kvsets++;
+        wlen += kvset_get_kwlen(le->le_kvset) + kvset_get_vwlen(le->le_kvset);
+
+        /* Limit spill size once we have a sufficiently long run length.
+         *
+         * TODO: Ignore the size check if all preceding kvsets would spill
+         * to the same leaf node.
+         */
+        if (runlen >= runlen_min && wlen >= (sizemb_max << 20))
+            break;
+
+        ++runlen;
     }
 
-    return n_kvsets;
-}
+    /* TODO: If the number of contiguous kvsets that would all spill
+     * to the same leaf node is one or more then return that number
+     * as a zero-writeamp spill operation (e.g., CN_ACTION_ZSPILL)
+     * irrespective of runlen_min, runlen_max, and sizemb_max.
+     */
 
-/* Handle root spill
- */
-static uint
-sp3_work_rspill(
-    struct sp3_node *         spn,
-    struct sp3_thresholds    *thresh,
-    struct kvset_list_entry **mark,
-    enum cn_action *          action,
-    enum cn_comp_rule *       rule)
-{
-    struct cn_tree_node *tn = spn2tn(spn);
-    uint cnt_min, cnt_max, cnt;
-
-    cnt_min = thresh->rspill_kvsets_min;
-    cnt_max = thresh->rspill_kvsets_max;
-
-    cnt = sp3_work_rspill_find_kvsets(spn, cnt_max, mark);
-    if (cnt < cnt_min)
+    if (runlen < runlen_min)
         return 0;
 
-    *action = CN_ACTION_SPILL;
-    *rule = CN_CR_RSPILL;
-
-    if (cn_ns_clen(&tn->tn_ns) < VBLOCK_MAX_SIZE)
+    if (wlen < VBLOCK_MAX_SIZE) {
         *rule = CN_CR_RTINY;
+        return runlen;
+    }
 
-    return cnt;
+    /* Avoid leaving behind a run too short to spill.  This helps
+     * clear the root node after a load or large ingest of tombs.
+     */
+    if (runlen > runlen_max)
+        runlen -= runlen_min;
+
+    return min_t(uint, runlen, runlen_max);
 }
 
 static uint
@@ -206,21 +222,33 @@ sp3_work_node_idle(
     head = &tn->tn_kvset_list;
     *mark = list_last_entry_or_null(head, typeof(*le), le_link);
     *action = CN_ACTION_COMPACT_KV;
-    *rule = CN_CR_LIDLE;
+    *rule = CN_CR_NONE;
 
     kvsets = cn_ns_kvsets(&tn->tn_ns);
+    ev_debug(1);
 
     /* Keep idle index nodes fully compacted to improve scanning
      * (e.g., mongod index nodes that rarely change after load).
      */
-    if (cn_ns_vblks(&tn->tn_ns) < kvsets)
+    if (cn_ns_vblks(&tn->tn_ns) < kvsets) {
+        *rule = CN_CR_LIDLE_IDX;
         return kvsets;
+    }
 
     /* Otherwise, compact the node if the resulting size is smaller
      * than a single vblock (rare, but happens).
      */
-    if (cn_ns_clen(&tn->tn_ns) < VBLOCK_MAX_SIZE)
+    if (cn_ns_clen(&tn->tn_ns) < VBLOCK_MAX_SIZE) {
+        *rule = CN_CR_LIDLE_SIZE;
         return kvsets;
+    }
+
+    /* Compact if the preponderance of keys appears to be tombs.
+     */
+    if (cn_ns_tombs(&tn->tn_ns) * 100 > cn_ns_keys_uniq(&tn->tn_ns) * 90) {
+        *rule = CN_CR_LIDLE_TOMB;
+        return kvsets;
+    }
 
     return 0;
 }
@@ -272,7 +300,7 @@ sp3_work_leaf_size(
         return 1;
     }
 
-    return min_t(uint, cn_ns_kvsets(&tn->tn_ns), thresh->lcomp_kvsets_max);
+    return min_t(uint, cn_ns_kvsets(&tn->tn_ns), thresh->lcomp_runlen_max);
 }
 
 static uint
@@ -297,7 +325,7 @@ sp3_work_leaf_garbage(
     *action = CN_ACTION_COMPACT_KV;
     *rule = CN_CR_LGARB;
 
-    return min_t(uint, kvsets, thresh->lcomp_kvsets_max);
+    return min_t(uint, kvsets, thresh->lcomp_runlen_max);
 }
 
 static uint

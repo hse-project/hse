@@ -621,22 +621,32 @@ sp3_refresh_thresholds(struct sp3 *sp)
     /* root node spill settings */
     v = sp->rp->csched_rspill_params;
     if (v) {
-        thresh.rspill_kvsets_max = (v >> 0) & 0xff;
-        thresh.rspill_kvsets_min = (v >> 8) & 0xff;
+        thresh.rspill_runlen_max = (v >> 0) & 0xff;
+        thresh.rspill_runlen_min = (v >> 8) & 0xff;
+        thresh.rspill_sizemb_max = (v >> 16) & 0xffff;
     } else {
-        thresh.rspill_kvsets_max = 9;
-        thresh.rspill_kvsets_min = 5;
+        thresh.rspill_runlen_max = 9;
+        thresh.rspill_runlen_min = 5;
+        thresh.rspill_sizemb_max = 8192;
     }
-    thresh.rspill_kvsets_min = max(thresh.rspill_kvsets_min, SP3_RSPILL_KVSETS_MIN);
+
+    thresh.rspill_runlen_max = clamp_t(uint8_t, thresh.rspill_runlen_max,
+                                       SP3_RSPILL_RUNLEN_MIN, SP3_RSPILL_RUNLEN_MAX);
+
+    thresh.rspill_runlen_min = clamp_t(uint8_t, thresh.rspill_runlen_min,
+                                       SP3_RSPILL_RUNLEN_MIN, thresh.rspill_runlen_max);
+
+    thresh.rspill_sizemb_max = clamp_t(uint16_t, thresh.rspill_sizemb_max,
+                                       SP3_RSPILL_SIZEMB_MIN, SP3_RSPILL_SIZEMB_MAX);
 
     /* leaf node compaction settings */
     v = sp->rp->csched_leaf_comp_params;
     if (v) {
-        thresh.lcomp_kvsets_max = (v >> 0) & 0xff;
+        thresh.lcomp_runlen_max = (v >> 0) & 0xff;
         thresh.lcomp_pop_pct = (v >> 16) & 0xff;
         thresh.lcomp_pop_keys = (v >> 24) & 0xff;
     } else {
-        thresh.lcomp_kvsets_max = 12;
+        thresh.lcomp_runlen_max = 12;
         thresh.lcomp_pop_pct = 100;
         thresh.lcomp_pop_keys = 128; /* units of 4 billion */
     }
@@ -654,7 +664,12 @@ sp3_refresh_thresholds(struct sp3 *sp)
         thresh.llen_idlec = 2;
         thresh.llen_idlem = 10;
     }
-    thresh.llen_runlen_min = max(thresh.llen_runlen_min, SP3_LLEN_RUNLEN_MIN);
+
+    thresh.llen_runlen_max = clamp_t(uint8_t, thresh.llen_runlen_max,
+                                     SP3_LLEN_RUNLEN_MIN, SP3_LLEN_RUNLEN_MAX);
+
+    thresh.llen_runlen_min = clamp_t(uint8_t, thresh.llen_runlen_min,
+                                     SP3_LLEN_RUNLEN_MIN, thresh.llen_runlen_max);
 
     /* vgroup leaf-scatter remediation settings
      */
@@ -673,10 +688,10 @@ sp3_refresh_thresholds(struct sp3 *sp)
         sp3_dirty_node(sp, spn2tn(spn));
     }
 
-    log_info("sp3 thresholds: rspill: min/max %u/%u, lcomp: max/pct/keys %u/%u%%/%u,"
+    log_info("sp3 thresholds: rspill: min/max/sizemb %u/%u/%u, lcomp: max/pct/keys %u/%u%%/%u,"
              " llen: min/max %u/%u, idlec: %u, idlem: %u, lscat: hwm/max %u/%u",
-             thresh.rspill_kvsets_min, thresh.rspill_kvsets_max,
-             thresh.lcomp_kvsets_max, thresh.lcomp_pop_pct,
+             thresh.rspill_runlen_min, thresh.rspill_runlen_max, thresh.rspill_sizemb_max,
+             thresh.lcomp_runlen_max, thresh.lcomp_pop_pct,
              thresh.lcomp_pop_keys, thresh.llen_runlen_min, thresh.llen_runlen_max,
              thresh.llen_idlec, thresh.llen_idlem,
              thresh.lscat_hwm, thresh.lscat_runlen_max);
@@ -1006,7 +1021,7 @@ sp3_dirty_node_locked(struct sp3 *sp, struct cn_tree_node *tn)
          * in FIFO order, retaining its current position if it's already on
          * the list.  List order is otherwise managed by sp3_check_roots().
          */
-        if (nkvsets >= sp->thresh.rspill_kvsets_min && jobs < 3) {
+        if (nkvsets >= sp->thresh.rspill_runlen_min && jobs < 3) {
             if (list_empty(&spn->spn_rlink))
                 list_add_tail(&spn->spn_rlink, &sp->spn_rlist);
         } else {
@@ -1019,9 +1034,12 @@ sp3_dirty_node_locked(struct sp3 *sp, struct cn_tree_node *tn)
             SLOG_START("cn_dirty_node"),
             SLOG_FIELD("cnid", "%lu", (ulong)tn->tn_tree->cnid),
             SLOG_FIELD("nodeid", "%lu", (ulong)tn->tn_nodeid),
-            SLOG_FIELD("isleaf", "%d", cn_node_isleaf(tn)),
-            SLOG_FIELD("nd_len", "%lu", (ulong)nkvsets_total),
+            SLOG_FIELD("kvsets", "%lu", (ulong)nkvsets_total),
+            SLOG_FIELD("keys", "%lu", (ulong)cn_ns_keys(&tn->tn_ns)),
+            SLOG_FIELD("uniq", "%lu", (ulong)cn_ns_keys_uniq(&tn->tn_ns)),
+            SLOG_FIELD("tombs", "%lu", (ulong)cn_ns_tombs(&tn->tn_ns)),
             SLOG_FIELD("alen", "%lu", (ulong)cn_ns_alen(&tn->tn_ns)),
+            SLOG_FIELD("clen", "%lu", (ulong)cn_ns_clen(&tn->tn_ns)),
             SLOG_FIELD("garbage", "%u", garbage),
             SLOG_FIELD("scatter", "%u", scatter),
             SLOG_END);
@@ -1350,8 +1368,14 @@ sp3_comp_thread_name(
     case CN_CR_LIDXP:
         r = "px";
         break;
-    case CN_CR_LIDLE:
-        r = "id";
+    case CN_CR_LIDLE_IDX:
+        r = "ii";
+        break;
+    case CN_CR_LIDLE_SIZE:
+        r = "is";
+        break;
+    case CN_CR_LIDLE_TOMB:
+        r = "it";
         break;
     case CN_CR_LSCATF:
         r = "fs";
@@ -1547,7 +1571,7 @@ sp3_check_roots(struct sp3 *sp, uint qnum)
 
     debug = csched_rp_dbg_comp(sp->rp);
 
-    /* Each node on the rspill list had at least rspill_kvsets_min kvsets
+    /* Each node on the rspill list had at least rspill_runlen_min kvsets
      * available when we scheduled this work request.
      */
     list_for_each_entry_safe(spn, next, &sp->spn_rlist, spn_rlink) {
@@ -1818,7 +1842,7 @@ sp3_qos_check(struct sp3 *sp)
     if (!sp->throttle_sensor_root)
         return;
 
-    rootmin = sp->thresh.rspill_kvsets_max;
+    rootmin = sp->thresh.rspill_runlen_max;
     rootmax = rootmin;
     sval = 0;
 

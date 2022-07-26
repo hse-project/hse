@@ -26,6 +26,7 @@
  */
 struct kvset_stats {
     uint64_t kst_keys;
+    uint64_t kst_tombs;
     uint64_t kst_halen;
     uint64_t kst_hwlen;
     uint64_t kst_kalen;
@@ -122,6 +123,18 @@ static inline u64
 cn_ns_keys(const struct cn_node_stats *ns)
 {
     return ns->ns_kst.kst_keys;
+}
+
+static inline uint64_t
+cn_ns_keys_uniq(const struct cn_node_stats *ns)
+{
+    return ns->ns_keys_uniq;
+}
+
+static inline uint64_t
+cn_ns_tombs(const struct cn_node_stats *ns)
+{
+    return ns->ns_kst.kst_tombs;
 }
 
 static inline uint32_t

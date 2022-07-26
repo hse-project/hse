@@ -638,6 +638,7 @@ kvset_open2(
         ks->ks_st.kst_kalen += props.mpr_alloc_cap;
         ks->ks_st.kst_kwlen += props.mpr_write_len;
         ks->ks_st.kst_keys += kblk->kb_metrics.num_keys;
+        ks->ks_st.kst_tombs += kblk->kb_metrics.num_tombstones;
     }
 
     /* Cache the large min/max keys from all the kblocks into a packed
@@ -1847,8 +1848,10 @@ kvset_stats(const struct kvset *ks, struct kvset_stats *stats)
 void
 kvset_stats_add(const struct kvset_stats *add, struct kvset_stats *result)
 {
-    result->kst_kvsets += add->kst_kvsets;
     result->kst_keys += add->kst_keys;
+    result->kst_tombs += add->kst_tombs;
+    result->kst_kvsets += add->kst_kvsets;
+
     result->kst_hblks += add->kst_hblks;
     result->kst_kblks += add->kst_kblks;
     result->kst_vblks += add->kst_vblks;
