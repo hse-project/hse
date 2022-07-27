@@ -207,7 +207,7 @@ struct route_info {
     char                ekey[HSE_KVS_KEY_LEN_MAX];
 };
 
-void
+static void
 cn_spill_route_get(
     struct cn_tree *tree,
     struct key_obj *kobj,
@@ -221,6 +221,7 @@ cn_spill_route_get(
      * buffer as required by the route API.
      */
     key_obj_copy(ri->ekey, sizeof(ri->ekey), &klen, kobj);
+
     ri->rnode = cn_tree_route_get(tree, ri->ekey, klen);
     assert(ri->rnode);
 
@@ -505,9 +506,9 @@ cn_spill(struct cn_compaction_work *w)
             err = kvset_builder_get_mblocks(child, &w->cw_outv[output_nodec]);
             if (err) {
                 while (output_nodec-- > 0) {
-                    delete_mblock(w->cw_ds, &w->cw_outv[output_nodec].hblk);
-                    delete_mblocks(w->cw_ds, &w->cw_outv[output_nodec].kblks);
-                    delete_mblocks(w->cw_ds, &w->cw_outv[output_nodec].vblks);
+                    delete_mblock(w->cw_mp, &w->cw_outv[output_nodec].hblk);
+                    delete_mblocks(w->cw_mp, &w->cw_outv[output_nodec].kblks);
+                    delete_mblocks(w->cw_mp, &w->cw_outv[output_nodec].vblks);
                 }
                 memset(w->cw_outv, 0, w->cw_outc * sizeof(*w->cw_outv));
             } else {

@@ -23,6 +23,7 @@ struct kblk_metrics {
     u32 num_tombstones;
     u64 tot_key_bytes;
     u64 tot_val_bytes;
+    u64 tot_vused_bytes;
     u32 tot_wbt_pages;
     u32 tot_blm_pages;
 };

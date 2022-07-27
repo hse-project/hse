@@ -20,6 +20,7 @@ struct cn_samp_stats;
 struct mpool;
 struct hse_kvdb_compact_status;
 struct kvdb_health;
+struct cn_tree_node;
 
 /* clang-format off */
 

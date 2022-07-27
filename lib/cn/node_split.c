@@ -14,9 +14,13 @@
 #include <error/merr.h>
 #include <hse_util/assert.h>
 #include <hse_util/keycmp.h>
+#include <hse_util/logging.h>
+#include <hse_util/list.h>
 
 #include "cn_tree_internal.h"
+#include "cn_tree_compact.h"
 #include "kvset.h"
+#include "kvset_split.h"
 #include "kvset_internal.h"
 #include "wbt_internal.h"
 
@@ -365,4 +369,86 @@ out:
     free(offsets);
 
     return err;
+}
+
+static void
+kvset_split_res_init(struct cn_compaction_work *w, struct kvset_split_res *result, uint ks_idx)
+{
+    memset(result, 0, sizeof(*result));
+
+    for (int i = LEFT; i <= RIGHT; i++) {
+        uint idx = (i == LEFT ? ks_idx : ks_idx + w->cw_kvset_cnt);
+
+        result->ks[i].blks = &w->cw_outv[idx];
+        blk_list_init(&result->ks[i].blks->kblks);
+        blk_list_init(&result->ks[i].blks->vblks);
+        result->ks[i].blks->bl_vused = 0;
+
+        result->ks[i].blks_commit = &w->cw_split.commit[idx];
+        blk_list_init(result->ks[i].blks_commit);
+
+        result->ks[i].vgmap = &w->cw_vgmap[idx];
+    }
+
+    result->blks_purge = &w->cw_split.purge[ks_idx];
+    blk_list_init(result->blks_purge);
+}
+
+static void
+kvset_split_res_free(struct kvset *ks, struct kvset_split_res *result)
+{
+    for (int i = LEFT; i <= RIGHT; i++) {
+        blk_list_free(&result->ks[i].blks->kblks);
+        blk_list_free(&result->ks[i].blks->vblks);
+        blk_list_free(result->ks[i].blks_commit);
+    }
+
+    blk_list_free(result->blks_purge);
+}
+
+merr_t
+cn_split(struct cn_compaction_work *w)
+{
+    struct kvset_list_entry *le;
+    struct key_obj split_kobj;
+    merr_t err;
+    uint i;
+
+    err = cn_tree_node_get_split_key(w->cw_node, w->cw_split.key, HSE_KVS_KEY_LEN_MAX,
+                                     &w->cw_split.klen);
+    if (err)
+        return err;
+
+    key2kobj(&split_kobj, w->cw_split.key, w->cw_split.klen);
+
+    for (i = 0, le = list_first_entry_or_null(&w->cw_node->tn_kvset_list, typeof(*le), le_link);
+         i < w->cw_kvset_cnt;
+         i++, le = list_next_entry(le, le_link)) {
+
+        struct kvset *ks = le->le_kvset;
+        struct kvset_split_res result = { 0 };
+        struct cndb *cndb = cn_tree_get_cndb(w->cw_tree);
+
+        if (atomic_read(w->cw_cancel_request))
+            return merr(ESHUTDOWN);
+
+        kvset_split_res_init(w, &result, i);
+
+        err = kvset_split(ks, &split_kobj, &result);
+        if (err) {
+            kvset_split_res_free(ks, &result);
+            return err;
+        }
+
+        for (int k = LEFT; k <= RIGHT; k++) {
+            uint idx = (k == LEFT ? i : i + w->cw_kvset_cnt);
+
+            if (result.ks[k].blks->hblk.bk_blkid != 0) {
+                w->cw_kvsetidv[idx] = cndb_kvsetid_mint(cndb);
+                w->cw_split.dgen[idx] = ks->ks_dgen;
+            }
+        }
+    }
+
+    return 0;
 }

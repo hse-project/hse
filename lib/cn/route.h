@@ -12,6 +12,8 @@ struct kvs_cparams;
 
 #include <hse_util/inttypes.h>
 #include <hse_util/minmax.h>
+#include <hse_util/keycmp.h>
+#include <error/merr.h>
 
 #include <stdatomic.h>
 #include <rbtree.h>
@@ -123,5 +125,18 @@ ekgen_destroy(struct ekey_generator *egen);
 
 size_t
 ekgen_generate(struct ekey_generator *egen, void *ekbuf, size_t ekbufsz, uint32_t nodeoff);
+
+merr_t
+route_node_key_modify(
+    struct route_map  *map,
+    struct route_node *node,
+    const void        *edge_key,
+    uint               edge_klen);
+
+static HSE_ALWAYS_INLINE int
+route_node_keycmp(const struct route_node *node, const void *key, uint klen)
+{
+    return keycmp(node->rtn_keybufp, node->rtn_keylen, key, klen);
+}
 
 #endif /* HSE_ROUTE_H */

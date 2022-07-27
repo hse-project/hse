@@ -186,6 +186,7 @@ kbr_read_metrics(struct kvs_mblk_desc *kblkdesc, struct kblk_metrics *metrics)
     metrics->num_tombstones = omf_kbh_tombs(hdr);
     metrics->tot_key_bytes = omf_kbh_key_bytes(hdr);
     metrics->tot_val_bytes = omf_kbh_val_bytes(hdr);
+    metrics->tot_vused_bytes = omf_kbh_vused_bytes(hdr);
     metrics->tot_wbt_pages = omf_kbh_wbt_dlen_pg(hdr);
     metrics->tot_blm_pages = omf_kbh_blm_dlen_pg(hdr);
 

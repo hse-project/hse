@@ -25,6 +25,9 @@ delete_mblocks(struct mpool *mp, struct blk_list *blk);
 merr_t
 commit_mblock(struct mpool *mp, struct kvs_block *blk);
 
+merr_t
+commit_mblocks(struct mpool *mp, struct blk_list *blk);
+
 void
 blk_list_init(struct blk_list *blkl);
 

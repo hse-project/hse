@@ -137,6 +137,7 @@ struct curr_kblock {
 
     uint64_t total_key_bytes;
     uint64_t total_val_bytes;
+    uint64_t total_vused_bytes;
     uint32_t num_keys;
     uint32_t num_tombstones;
 
@@ -492,6 +493,7 @@ kblock_reset(struct curr_kblock *kblk)
 
     kblk->total_key_bytes = 0;
     kblk->total_val_bytes = 0;
+    kblk->total_vused_bytes = 0;
     kblk->num_keys = 0;
     kblk->num_tombstones = 0;
 
@@ -594,6 +596,7 @@ kblock_add_entry(
     kblk->num_keys++;
     kblk->total_key_bytes += key_obj_len(kobj);
     kblk->total_val_bytes += stats->tot_vlen;
+    kblk->total_vused_bytes += stats->tot_vused;
     kblk->num_tombstones += stats->ntombs;
 
     return 0;
@@ -698,6 +701,7 @@ _kblock_make_header(
     omf_set_kbh_tombs(hdr, kblk->num_tombstones);
     omf_set_kbh_key_bytes(hdr, kblk->total_key_bytes);
     omf_set_kbh_val_bytes(hdr, kblk->total_val_bytes);
+    omf_set_kbh_vused_bytes(hdr, kblk->total_vused_bytes);
 
     /* wbtree header is right after kblock_hdr at an 8-byte boundary */
     off += sizeof(*hdr);

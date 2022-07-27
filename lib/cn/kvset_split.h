@@ -20,13 +20,19 @@
 
 struct kvset;
 
+enum { LEFT = 0, RIGHT = 1 };
+
 /**
  * struct kvset_split_res - split output
  */
 struct kvset_split_res {
-    struct kvset_mblocks blks[2];     /* kblocks, vblocks and the hblock */
-    struct blk_list      blks_purge;  /* list of mblocks in the source kvset to delete */
-    struct blk_list      blks_commit; /* list of mblocks in the target kvsets to commit */
+    struct {
+        struct kvset_mblocks *blks;        /* kblocks, vblocks and the hblock */
+        struct vgmap        **vgmap;       /* vgroup map */
+        struct blk_list      *blks_commit; /* list of mblocks in the target kvsets to commit */
+    } ks[2];
+
+    struct blk_list          *blks_purge;  /* list of mblocks in the source kvset to delete */
 };
 
 /**

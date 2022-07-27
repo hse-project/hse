@@ -73,9 +73,9 @@ init_work(
     struct cn_tree_node **     output_nodev,
     uint64_t                  *kvsetidv,
     struct kvset_vblk_map     *vbmap,
-    struct vgmap              *vgmap)
+    struct vgmap             **vgmap)
 {
-    w->cw_ds = ds;
+    w->cw_mp = ds;
     w->cw_rp = rp;
     w->cw_kvset_cnt = kvset_cnt;
     w->cw_inputv = inputv;
@@ -85,7 +85,7 @@ init_work(
     w->cw_kvsetidv = kvsetidv;
     w->cw_vbmap = *vbmap;
     w->cw_vgmap = vgmap;
-    w->cw_input_vgroups = vgmap->nvgroups;
+    w->cw_input_vgroups = (*vgmap)->nvgroups;
 
     return w;
 }
@@ -257,7 +257,7 @@ MTF_DEFINE_UTEST_PRE(kcompact_test, four_into_one, pre)
 #define NITER 4
     struct cn_compaction_work w = { 0 };
     struct kvset_vblk_map     vbmap = { 0 };
-    struct vgmap  *vgmap;
+    struct vgmap  *vgmap, *vgmap2;
     struct kvs_rparams        rp = kvs_rparams_defaults();
     struct kvset_mblocks      output = {};
     struct cn_tree_node      *output_node = NULL;
@@ -293,8 +293,9 @@ MTF_DEFINE_UTEST_PRE(kcompact_test, four_into_one, pre)
     st.src = 0; /* the lowest should always be the src */
 
     init_work(&w, (struct mpool *)1, &rp, NITER, itv, &c, &output, &output_node, &kvsetidv,
-              &vbmap, vgmap);
+              &vbmap, &vgmap);
 
+    vgmap2 = vgmap;
     err = cn_kcompact(&w);
     ASSERT_EQ(0, err);
 
@@ -315,7 +316,7 @@ MTF_DEFINE_UTEST_PRE(kcompact_test, four_into_one, pre)
     }
 
     free(vbmap.vbm_blkv);
-    vgmap_free(vgmap);
+    vgmap_free(vgmap2);
 #undef NITER
 }
 
@@ -323,7 +324,7 @@ MTF_DEFINE_UTEST_PRE(kcompact_test, all_gone, pre)
 {
     struct cn_compaction_work w = { 0 };
     struct kvset_vblk_map vbmap = { 0 };
-    struct vgmap *vgmap;
+    struct vgmap *vgmap, *vgmap2;
     struct kvs_rparams        rp = kvs_rparams_defaults();
     struct kvset_mblocks      output = {};
     struct cn_tree_node      *output_node = NULL;
@@ -365,8 +366,9 @@ MTF_DEFINE_UTEST_PRE(kcompact_test, all_gone, pre)
     st.src = 0;    /* the lowest should always be the src */
 
     init_work(&w, (struct mpool *)1, &rp, 5, itv, &c, &output, &output_node, &kvsetidv,
-              &vbmap, vgmap);
+              &vbmap, &vgmap);
 
+    vgmap2 = vgmap;
     err = cn_kcompact(&w);
     ASSERT_EQ(0, err);
 
@@ -387,14 +389,14 @@ MTF_DEFINE_UTEST_PRE(kcompact_test, all_gone, pre)
     }
 
     free(vbmap.vbm_blkv);
-    vgmap_free(vgmap);
+    vgmap_free(vgmap2);
 }
 
 MTF_DEFINE_UTEST_PREPOST(kcompact_test, all_gone_mixed, mixed_pre, mixed_post)
 {
     struct cn_compaction_work w = { 0 };
     struct kvset_vblk_map vbmap = { 0 };
-    struct vgmap *vgmap;
+    struct vgmap *vgmap, *vgmap2;
     struct kvs_rparams        rp = kvs_rparams_defaults();
     struct kvset_mblocks      output = {};
     struct cn_tree_node      *output_node = NULL;
@@ -436,8 +438,9 @@ MTF_DEFINE_UTEST_PREPOST(kcompact_test, all_gone_mixed, mixed_pre, mixed_post)
     st.src = 0;    /* the lowest should always be the src */
 
     init_work(&w, (struct mpool *)1, &rp, 5, itv, &c, &output, &output_node, &kvsetidv,
-              &vbmap, vgmap);
+              &vbmap, &vgmap);
 
+    vgmap2 = vgmap;
     err = cn_kcompact(&w);
     ASSERT_EQ(0, err);
 
@@ -458,7 +461,7 @@ MTF_DEFINE_UTEST_PREPOST(kcompact_test, all_gone_mixed, mixed_pre, mixed_post)
     }
 
     free(vbmap.vbm_blkv);
-    vgmap_free(vgmap);
+    vgmap_free(vgmap2);
 }
 
 MTF_DEFINE_UTEST_PREPOST(kcompact_test, four_into_one_mixed, mixed_pre, mixed_post)
@@ -466,7 +469,7 @@ MTF_DEFINE_UTEST_PREPOST(kcompact_test, four_into_one_mixed, mixed_pre, mixed_po
 #define NITER 4
     struct cn_compaction_work w = { 0 };
     struct kvset_vblk_map vbmap = { 0 };
-    struct vgmap *vgmap;
+    struct vgmap *vgmap, *vgmap2;
     struct kvs_rparams        rp = kvs_rparams_defaults();
     struct kvset_mblocks      output = {};
     struct cn_tree_node      *output_node = NULL;
@@ -502,8 +505,9 @@ MTF_DEFINE_UTEST_PREPOST(kcompact_test, four_into_one_mixed, mixed_pre, mixed_po
     st.src = 0; /* the lowest should always be the src */
 
     init_work(&w, (struct mpool *)1, &rp, NITER, itv, &c, &output, &output_node, &kvsetidv,
-              &vbmap, vgmap);
+              &vbmap, &vgmap);
 
+    vgmap2 = vgmap;
     err = cn_kcompact(&w);
     ASSERT_EQ(0, err);
 
@@ -520,7 +524,7 @@ MTF_DEFINE_UTEST_PREPOST(kcompact_test, four_into_one_mixed, mixed_pre, mixed_po
     }
 
     free(vbmap.vbm_blkv);
-    vgmap_free(vgmap);
+    vgmap_free(vgmap2);
 #undef NITER
 }
 
@@ -529,7 +533,7 @@ run_kcompact(struct mtf_test_info *lcl_ti, int expect)
 {
     struct cn_compaction_work w = { 0 };
     struct kvset_vblk_map vbmap = { 0 };
-    struct vgmap *vgmap;
+    struct vgmap *vgmap, *vgmap2;
     struct kvs_rparams        rp = kvs_rparams_defaults();
     struct kvset_mblocks      output = {};
     struct cn_tree_node      *output_node = NULL;
@@ -571,8 +575,9 @@ run_kcompact(struct mtf_test_info *lcl_ti, int expect)
     st.src = 0;    /* the lowest should always be the src */
 
     init_work(&w, (struct mpool *)1, &rp, 5, itv, &c, &output, &output_node, &kvsetidv,
-              &vbmap, vgmap);
+              &vbmap, &vgmap);
 
+    vgmap2 = vgmap;
     err = cn_kcompact(&w);
 
     if (expect == -1)
@@ -589,7 +594,7 @@ run_kcompact(struct mtf_test_info *lcl_ti, int expect)
     }
 
     free(vbmap.vbm_blkv);
-    vgmap_free(vgmap);
+    vgmap_free(vgmap2);
 
     return 0;
 }

@@ -35,4 +35,36 @@ cn_tree_node_get_split_key(
     size_t key_buf_sz,
     unsigned int *key_len) HSE_NONNULL(1);
 
+/**
+ * cn_split() - Build kvsests as part of a node split operation
+ * @w: compaction work struct
+ *
+ * NOTES:
+ *
+ * Here are some important fields used from @w during a node split operation:
+ *
+ * Let N be the number of kvsets in the source node.
+ *
+ * - cw_outv, cw_outc = 2N
+ *   [0, N - 1] : kvset_mblocks belonging to the left node after a node-split
+ *   [N, 2N - 1]; kvset_mblocks belonging to the right node after a node-split
+ *
+ *   For instance:
+ *      Input Node w/ 4 kvsets:
+ *          Ns = (s1, s2, s3, s4)
+ *      Output Nodes:
+ *          Nleft =  (s1left, s2left, s3left, s4left)
+ *          Nright = (s1right, s2right, NULL, s4right)
+ *
+ *      s3right is NULL as the kvset-split(s3) moved all the keys to the left side
+ *
+ * - cw_vgmap[2N]: vgroup map of all the valid output kvsets generated from a node split
+ *
+ * - cw_kvsetidv[2N]: kvset ID of all the valid output kvsets generated from a node split
+ *
+ * - cw_split: described in struct cn_compaction_work
+ */
+merr_t
+cn_split(struct cn_compaction_work *w);
+
 #endif

@@ -32,6 +32,7 @@ enum cn_action {
     CN_ACTION_COMPACT_K,
     CN_ACTION_COMPACT_KV,
     CN_ACTION_SPILL,
+    CN_ACTION_SPLIT,
     CN_ACTION_END,
 };
 
@@ -50,6 +51,8 @@ cn_action2str(enum cn_action action)
             return "kvcomp";
         case CN_ACTION_SPILL:
             return "spill";
+        case CN_ACTION_SPLIT:
+            return "split";
     }
 
     return "unknown_action";
@@ -127,7 +130,7 @@ struct cn_compaction_work {
     struct workqueue_struct *cw_io_workq;
     struct perfc_set *       cw_pc;
     atomic_int              *cw_cancel_request;
-    struct mpool *           cw_ds;
+    struct mpool *           cw_mp;
     struct kvs_rparams *     cw_rp;
     struct kvs_cparams *     cw_cp;
 
@@ -141,7 +144,7 @@ struct cn_compaction_work {
     uint32_t                 cw_nk;
     uint32_t                 cw_nv;
     uint                     cw_compc;
-    uint                     cw_input_vgroups;
+    uint32_t                 cw_input_vgroups;
     uint                     cw_pfx_len;
     enum cn_action           cw_action;
     enum cn_comp_rule        cw_comp_rule;
@@ -174,14 +177,24 @@ struct cn_compaction_work {
     uint64_t                *cw_kvsetidv;
     struct kvset_mblocks    *cw_outv;
     struct kv_iterator     **cw_inputv;
-    struct kvset_vblk_map    cw_vbmap;
-    struct vgmap            *cw_vgmap; /* used only during a k-compact */
     struct cn_tree_node    **cw_output_nodev;
+    struct vgmap           **cw_vgmap; /* used during k-compact and split */
+    struct kvset_vblk_map    cw_vbmap; /* used only during k-compact */
 
     /* initialized in cn_compaction_worker() */
     struct cndb_txn      *cw_cndb_txn;
     bool                  cw_keep_vblks;
     void                **cw_cookie;
+
+    /* Used only for node split */
+    struct {
+        void                 *key;       /* split key for this node */
+        struct blk_list      *commit;    /* mblocks to commit - a list per output kvset */
+        struct blk_list      *purge;     /* mblocks to purge - a list per source kvset */
+        uint64_t             *dgen;      /* dgen array - one entry per output kvset */
+        struct cn_tree_node  *nodev[2];  /* node split output nodes */
+        uint                  klen;      /* split key length */
+    } cw_split;
 
     /* used in cleanup if debug enabled */
     u64  cw_t0_enqueue;

@@ -1063,6 +1063,7 @@ sp3_process_workitem(struct sp3 *sp, struct cn_compaction_work *w)
     struct sp3_tree *spt = tree2spt(tree);
     struct cn_tree_node *tn = w->cw_node;
     struct cn_samp_stats diff;
+    bool split = (w->cw_action == CN_ACTION_SPLIT);
     void *lock;
 
     assert(spt->spt_job_cnt > 0);
@@ -1104,7 +1105,22 @@ sp3_process_workitem(struct sp3 *sp, struct cn_compaction_work *w)
         }
     }
 
-    sp3_dirty_node_locked(sp, tn);
+    if (split) {
+        for (int i = 0; i < 2; i++) {
+            struct cn_tree_node *node = w->cw_split.nodev[i];
+
+            if (node) {
+                struct sp3_node *spn = tn2spn(node);
+
+                if (!spn->spn_initialized)
+                    sp3_node_init(sp, spn);
+
+                sp3_dirty_node_locked(sp, node);
+            }
+        }
+    } else {
+        sp3_dirty_node_locked(sp, tn);
+    }
     rmlock_runlock(lock);
 
     if (w->cw_debug & (CW_DEBUG_PROGRESS | CW_DEBUG_FINAL))
@@ -1322,6 +1338,7 @@ sp3_comp_thread_name(
     switch (action) {
     case CN_ACTION_NONE:
     case CN_ACTION_END:
+    case CN_ACTION_SPLIT:
         break;
 
     case CN_ACTION_COMPACT_K:
