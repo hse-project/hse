@@ -1063,7 +1063,6 @@ sp3_process_workitem(struct sp3 *sp, struct cn_compaction_work *w)
     struct sp3_tree *spt = tree2spt(tree);
     struct cn_tree_node *tn = w->cw_node;
     struct cn_samp_stats diff;
-    bool split = (w->cw_action == CN_ACTION_SPLIT);
     void *lock;
 
     assert(spt->spt_job_cnt > 0);
@@ -1105,7 +1104,7 @@ sp3_process_workitem(struct sp3 *sp, struct cn_compaction_work *w)
         }
     }
 
-    if (split) {
+    if (w->cw_action == CN_ACTION_SPLIT) {
         for (int i = 0; i < 2; i++) {
             struct cn_tree_node *node = w->cw_split.nodev[i];
 

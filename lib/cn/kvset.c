@@ -136,7 +136,7 @@ lvx2vbd(struct kvset *ks, uint i)
 }
 
 static void
-_kvset_close(struct kvset *ks);
+kvset_close(struct kvset *ks);
 
 void
 kvset_get_ref(struct kvset *ks)
@@ -188,7 +188,7 @@ kvset_put_ref_final(struct kvset *ks)
         mbset_put_ref(ks->ks_vbsetv[i]);
 
     if (!callbacks_pending)
-        _kvset_close(ks);
+        kvset_close(ks);
 }
 
 static void
@@ -877,7 +877,7 @@ done:
     return 0;
 
 err_exit:
-    _kvset_close(ks);
+    kvset_close(ks);
     return err;
 }
 
@@ -958,20 +958,20 @@ _kvset_mbset_destroyed(void *rock, bool mblk_delete_error)
 
     cn = cn_tree_get_cn(ks->ks_tree);
 
-    _kvset_close(ks);
+    kvset_close(ks);
     cn_ref_put(cn);
 }
 
+/**
+ * This function gives each mbset a ref to kvset and a callback that drops the ref.
+ * This delays destruction of the kvset until all mbsets have been destroyed.
+ * This is needed for one reason: to ensure exactly one ack_d is issued to cndb
+ * (in the kvset destructor) after all mbset mblocks have been deleted
+ * (which occurs in the mbset destructor).
+ */
 void
 kvset_mark_mbset_for_delete(struct kvset *ks, bool delete_blks)
 {
-    /* Give each mbset a ref to kvset and a callback that drops the ref.
-     * This delays destruction of the kvset until all mbsets have been
-     * destroyed.  This is needed for one reason: to ensure exactly one
-     * ack_d is issued to cndb (in the kvset destructor) after all mbset
-     * mblocks have been deleted (which occurs in the mbset destructor).
-     */
-
     if (ks->ks_vbsetc == 0)
         return;
 
@@ -988,12 +988,13 @@ kvset_mark_mbset_for_delete(struct kvset *ks, bool delete_blks)
     }
 }
 
+/**
+ * This function is used during compaction *after* the ACK_C record,
+ * so it must not have failure conditions.
+ */
 void
 kvset_mark_mblocks_for_delete(struct kvset *ks, bool keepv)
 {
-    /* NOTE: this function is used during compaction *After* the ACK_C
-     * record, so it must not have failure conditions.
-     */
     if (keepv) {
         ks->ks_deleted = DEL_KEEPV;
     } else {
@@ -1027,7 +1028,7 @@ cleanup_kblocks(struct kvset *ks)
     if (ks->ks_deleted == DEL_NONE || ks->ks_deleted == DEL_LIST)
         return;
 
-    /* Stop deleting mblocks on the fist sign of trouble and let CNDB
+    /* Stop deleting mblocks at the first sign of trouble and let CNDB
      * finish deleting them during recovery.  We could continue to delete
      * remaining mblocks here, but a delete failure might be indicative of
      * a serious error, and stopping immediately would do less harm.
@@ -1075,7 +1076,7 @@ cleanup_purge_blklist(struct kvset *ks)
 }
 
 static void
-_kvset_close(struct kvset *ks)
+kvset_close(struct kvset *ks)
 {
     assert(ks);
     assert(atomic_read(&ks->ks_ref) == 0);

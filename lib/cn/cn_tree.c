@@ -1171,7 +1171,7 @@ cn_tree_capped_compact(struct cn_tree *tree)
 
     /* Step 4: Delete retired kvsets outside the tree write lock.
      */
-    list_for_each_entry_safe (le, next, &retired, le_link) {
+    list_for_each_entry_safe(le, next, &retired, le_link) {
         kvset_mark_mblocks_for_delete(le->le_kvset, false);
         kvset_put_ref(le->le_kvset);
     }
@@ -1186,37 +1186,54 @@ err_out:
 merr_t
 cn_tree_prepare_compaction(struct cn_compaction_work *w)
 {
-    merr_t                   err = 0;
-    struct cn_tree_node *    node = w->cw_node;
-    struct kvset_list_entry *le;
-    uint                     i;
-    struct kv_iterator **    ins = 0;
-    u32                      n_outs;
-    u32                      fanout;
-    struct kvset_mblocks *   outs = 0;
+    struct kvset_mblocks    *outs = 0;
     struct kvset_vblk_map    vbm = {};
     struct workqueue_struct *vra_wq;
-    bool kcompact = (w->cw_action == CN_ACTION_COMPACT_K);
-    bool split = (w->cw_action == CN_ACTION_SPLIT);
+    struct cn_tree_node     *node = w->cw_node;
+    struct kvset_list_entry *le;
+    struct kv_iterator     **ins = NULL;
+    merr_t err = 0;
+    size_t outsz = 0;
+    u32 n_outs;
+    u32 fanout;
+    uint i;
+    const bool kcompact = (w->cw_action == CN_ACTION_COMPACT_K);
+    const bool split = (w->cw_action == CN_ACTION_SPLIT);
 
     fanout = w->cw_tree->ct_fanout;
     n_outs = fanout;
 
     /* If we are k/kv-compacting, we only have a single output.
-     * Node split creates at most twice the number of kvsets as the source node
+     *
+     * Node split creates at most twice the number of kvsets as the source node (n_outs)
+     * The two output nodes for split are stored in cw_split.nodev[]
      */
-    if (kcompact || w->cw_action == CN_ACTION_COMPACT_KV)
-        n_outs = 1;
-    else if (split)
-        n_outs = 2 * w->cw_kvset_cnt;
+    if (split) {
+        if (cn_ns_kvsets(&w->cw_node->tn_ns) != w->cw_kvset_cnt)
+            return merr(EBUG);
 
-    ins = calloc(w->cw_kvset_cnt, sizeof(*ins));
-    outs = calloc(n_outs, sizeof(*outs) + sizeof(*(w->cw_kvsetidv)) +
-                                                 sizeof(w->cw_output_nodev[0]));
-    if (ev(!ins || !outs)) {
+        n_outs = 2 * w->cw_kvset_cnt;
+    } else {
+        if (kcompact || w->cw_action == CN_ACTION_COMPACT_KV)
+            n_outs = 1;
+
+        ins = calloc(w->cw_kvset_cnt, sizeof(*ins));
+        if (!ins)
+            return merr(ENOMEM);
+
+        outsz = sizeof(w->cw_output_nodev[0]);
+    }
+
+    outsz += (sizeof(*outs) + sizeof(*w->cw_kvsetidv));
+    outs = calloc(n_outs, outsz);
+    if (!outs) {
         err = merr(ENOMEM);
         goto err_exit;
     }
+
+    w->cw_kvsetidv = (void *)(outs + n_outs);
+    if (!split)
+        w->cw_output_nodev = (void *)(w->cw_kvsetidv + n_outs);
 
     w->cw_vgmap = NULL;
     if (kcompact || split) {
@@ -1243,9 +1260,6 @@ cn_tree_prepare_compaction(struct cn_compaction_work *w)
         }
     }
 
-    w->cw_kvsetidv = (void *)(outs + n_outs);
-    w->cw_output_nodev = (void *)(w->cw_kvsetidv + n_outs);
-
     vra_wq = cn_get_maint_wq(node->tn_tree->cn);
 
     /*
@@ -1259,7 +1273,7 @@ cn_tree_prepare_compaction(struct cn_compaction_work *w)
      * Just be careful not to try to iterate outside the range of marked
      * kvsets.
      *
-     * Node splits do not need input iterators as there's no merge loop.
+     * Node splits do not need input iterators because there's no merge loop.
      */
     for (i = 0, le = w->cw_mark; !split && i < w->cw_kvset_cnt;
          i++, le = list_prev_entry(le, le_link)) {
@@ -1393,7 +1407,7 @@ cn_comp_update_kvcompact(struct cn_compaction_work *work, struct kvset *new_kvse
     rmlock_wunlock(&tree->ct_lock);
 
     /* Delete retired kvsets. */
-    list_for_each_entry_safe (le, tmp, &retired_kvsets, le_link) {
+    list_for_each_entry_safe(le, tmp, &retired_kvsets, le_link) {
 
         assert(kvset_get_dgen(le->le_kvset) >= work->cw_dgen_lo);
         assert(kvset_get_dgen(le->le_kvset) <= work->cw_dgen_hi);
@@ -1462,7 +1476,7 @@ cn_comp_update_spill(struct cn_compaction_work *work, struct kvset **kvsets)
     rmlock_wunlock(&tree->ct_lock);
 
     /* Delete old kvsets. */
-    list_for_each_entry_safe (le, tmp, &retired_kvsets, le_link) {
+    list_for_each_entry_safe(le, tmp, &retired_kvsets, le_link) {
         kvset_mark_mblocks_for_delete(le->le_kvset, false);
         kvset_put_ref(le->le_kvset);
     }
@@ -1475,13 +1489,12 @@ static merr_t
 cn_comp_update_split(
     struct cn_compaction_work *w,
     struct kvset *const       *kvsets,
-    const uint64_t            *nodeidv)
+    const uint64_t             nodeidv[static 2])
 {
     struct cn_tree *tree = w->cw_tree;
-    struct cn_tree_node *pnode = w->cw_node;
     struct kvset_list_entry *le, *tmp;
     struct list_head retired_kvsets;
-    struct cn_tree_node *left = NULL, *right = NULL;
+    struct cn_tree_node *left = NULL, *right = w->cw_node;
     char rekey[HSE_KVS_KEY_LEN_MAX];
     uint k = 0, reklen;
     merr_t err = 0;
@@ -1508,33 +1521,27 @@ cn_comp_update_split(
     }
 
     if (nodeidv[1] != CN_TREE_INVALID_NODEID) {
-        /* pnode is protected by an exclusive compaction token, so the max key cannot
+        /* The 'right' node is protected by an exclusive compaction token, so the max key cannot
          * change while a node split is in progress
          */
-        cn_tree_node_get_max_key(pnode, rekey, sizeof(rekey), &reklen);
+        cn_tree_node_get_max_key(right, rekey, sizeof(rekey), &reklen);
     }
 
     rmlock_wlock(&tree->ct_lock);
-    {
-        /* Move all kvsets from parent node to the retired list.
-         */
-        for (k = 0; k < w->cw_kvset_cnt; k++) {
-            assert(!list_empty(&pnode->tn_kvset_list));
-            le = list_last_entry(&pnode->tn_kvset_list, struct kvset_list_entry, le_link);
-            list_del(&le->le_link);
-            list_add(&le->le_link, &retired_kvsets);
-        }
-        assert(list_empty(&pnode->tn_kvset_list));
 
-        /* Repurpose the parent node as the right node and add kvsets to it.
-         * The parent node is already part of the cN tree and is protected by a compaction
-         * token.
+    do {
+        /* Move all the source kvsets from the 'right' node to the retired list.
          */
-        right = pnode;
+        list_splice(&right->tn_kvset_list, &retired_kvsets);
+        INIT_LIST_HEAD(&right->tn_kvset_list);
+
+        /* Add the right half of the split kvsets to the 'right' node.
+         */
         if (nodeidv[1] != CN_TREE_INVALID_NODEID) {
             right->tn_nodeid = nodeidv[1];
 
-            INIT_LIST_HEAD(&right->tn_kvset_list);
+            assert(list_empty(&right->tn_kvset_list));
+
             for (k = w->cw_kvset_cnt; k < w->cw_outc; k++) {
                 if (kvsets[k])
                     kvset_list_add_tail(kvsets[k], &right->tn_kvset_list);
@@ -1551,10 +1558,8 @@ cn_comp_update_split(
                 if (ev(rc <= 0)) {
                     err = route_node_key_modify(tree->ct_route_map, right->tn_route_node,
                                                 rekey, reklen);
-                    if (err) {
-                        rmlock_wunlock(&tree->ct_lock);
-                        goto exit;
-                    }
+                    if (err)
+                        break;
                 }
             }
             assert(route_node_keycmp(right->tn_route_node, w->cw_split.key, w->cw_split.klen) > 0);
@@ -1569,9 +1574,8 @@ cn_comp_update_split(
             left->tn_route_node = route_map_insert(tree->ct_route_map, left,
                                                    w->cw_split.key, w->cw_split.klen);
             if (!left->tn_route_node) {
-                rmlock_wunlock(&tree->ct_lock);
                 err = merr(ENOMEM);
-                goto exit;
+                break;
             }
 
             list_add_tail(&left->tn_link, &tree->ct_nodes);
@@ -1585,14 +1589,21 @@ cn_comp_update_split(
             cn_tree_samp(tree, &w->cw_samp_post);
         }
 
-        atomic_sub_rel(&pnode->tn_busycnt, (1u << 16) + w->cw_kvset_cnt);
-    }
+        atomic_sub_rel(&right->tn_busycnt, (1u << 16) + w->cw_kvset_cnt);
+    } while (0);
+
     rmlock_wunlock(&tree->ct_lock);
+
+    if (err) {
+        cn_node_free(left);
+
+        return err;
+    }
 
     /* Delete retired kvsets
      */
     k = 0;
-    list_for_each_entry_safe (le, tmp, &retired_kvsets, le_link) {
+    list_for_each_entry_safe(le, tmp, &retired_kvsets, le_link) {
         struct kvset *ks = le->le_kvset;
 
         kvset_purge_blklist_add(ks, &w->cw_split.purge[k]);
@@ -1603,11 +1614,7 @@ cn_comp_update_split(
         k++;
     }
 
-exit:
-    if (err)
-        cn_node_free(left);
-
-    return err;
+    return 0;
 }
 
 static bool
@@ -1622,11 +1629,18 @@ check_valid_kvsets(const struct cn_compaction_work *w, uint start, uint end)
 }
 
 static void
-cn_split_nodeids_get(const struct cn_compaction_work *w, uint64_t *nodeidv)
+cn_split_nodeids_get(const struct cn_compaction_work *w, uint64_t nodeidv[static 2])
 {
     for (int i = 0; i < 2; i++) {
-        uint start = (i == 0) ? 0 : w->cw_kvset_cnt;
-        uint end = (i == 0) ? w->cw_kvset_cnt : w->cw_outc;
+        uint start, end;
+
+        if (i == 0) {
+            start = 0;
+            end = w->cw_kvset_cnt;
+        } else {
+            start = w->cw_kvset_cnt;
+            end = w->cw_outc;
+        }
 
         nodeidv[i] = check_valid_kvsets(w, start, end) ?
             cndb_nodeid_mint(cn_tree_get_cndb(w->cw_tree)) : CN_TREE_INVALID_NODEID;
@@ -1640,16 +1654,17 @@ cn_split_nodeids_get(const struct cn_compaction_work *w, uint64_t *nodeidv)
 static void
 cn_comp_commit(struct cn_compaction_work *w)
 {
-    struct kvset ** kvsets = 0;
+    struct kvset **kvsets = 0;
     struct mbset ***vecs = 0;
-    uint *          cnts = 0;
-    uint            i, alloc_len;
-    bool            spill, use_mbsets;
-    bool            kcompact = (w->cw_action == CN_ACTION_COMPACT_K);
-    bool            split = (w->cw_action == CN_ACTION_SPLIT);
-    bool            skip_commit = false, txn_nak = false;
-    void          **cookiev = 0;
-    uint64_t        nodeidv[2];
+    uint *cnts = 0;
+    uint i, alloc_len;
+    const bool spill = (w->cw_action == CN_ACTION_SPILL);
+    const bool split = (w->cw_action == CN_ACTION_SPLIT);
+    const bool kcompact = (w->cw_action == CN_ACTION_COMPACT_K);
+    const bool use_mbsets = kcompact;
+    bool skip_commit = false, txn_nak = false;
+    void **cookiev = 0;
+    uint64_t nodeidv[2];
 
     struct kvdb_health *hp = w->cw_tree->ct_kvdb_health;
     struct kvset_list_entry *le;
@@ -1658,8 +1673,6 @@ cn_comp_commit(struct cn_compaction_work *w)
         goto done;
 
     assert(w->cw_outc);
-    spill = (w->cw_action == CN_ACTION_SPILL);
-    use_mbsets = (w->cw_action == CN_ACTION_COMPACT_K);
 
     /* if k-compaction and no kblocks, then force keepv to false. */
     if (kcompact && w->cw_outv[0].kblks.n_blks == 0) {
@@ -1853,10 +1866,24 @@ cn_comp_commit(struct cn_compaction_work *w)
             goto done;
     }
 
-    if (split)
+    switch (w->cw_action) {
+    case CN_ACTION_NONE:
+    case CN_ACTION_END:
+        break;
+
+    case CN_ACTION_COMPACT_K:
+    case CN_ACTION_COMPACT_KV:
+        cn_comp_update_kvcompact(w, kvsets[0]);
+        break;
+
+    case CN_ACTION_SPILL:
+        cn_comp_update_spill(w, kvsets);
+        break;
+
+    case CN_ACTION_SPLIT:
         w->cw_err = cn_comp_update_split(w, kvsets, nodeidv);
-    else
-        spill ? cn_comp_update_spill(w, kvsets) : cn_comp_update_kvcompact(w, kvsets[0]);
+        break;
+    }
 
 done:
     if (w->cw_err && kvsets) {
@@ -1881,8 +1908,8 @@ done:
 static void
 cn_comp_cleanup(struct cn_compaction_work *w)
 {
-    bool kcompact = (w->cw_action == CN_ACTION_COMPACT_K);
-    bool split = (w->cw_action == CN_ACTION_SPLIT);
+    const bool kcompact = (w->cw_action == CN_ACTION_COMPACT_K);
+    const bool split = (w->cw_action == CN_ACTION_SPLIT);
 
     if (HSE_UNLIKELY(w->cw_err)) {
 
@@ -2002,11 +2029,7 @@ static void
 cn_comp_compact(struct cn_compaction_work *w)
 {
     struct kvdb_health *hp;
-
-    bool   kcompact = (w->cw_action == CN_ACTION_COMPACT_K);
-    bool   split = (w->cw_action == CN_ACTION_SPLIT);
     merr_t err;
-    u32    i;
 
     if (ev(w->cw_err))
         return;
@@ -2040,15 +2063,32 @@ cn_comp_compact(struct cn_compaction_work *w)
 
     /* cn_kcompact handles k-compaction, cn_spill handles spills
      * and kv-compaction. */
-    w->cw_keep_vblks = kcompact;
+    w->cw_keep_vblks = (w->cw_action == CN_ACTION_COMPACT_K);
 
-    err = kcompact ? cn_kcompact(w) : (split ? cn_split(w) : cn_spill(w));
+    switch (w->cw_action) {
+    case CN_ACTION_NONE:
+    case CN_ACTION_END:
+        break;
+
+    case CN_ACTION_COMPACT_K:
+        err = cn_kcompact(w);
+        break;
+
+    case CN_ACTION_COMPACT_KV:
+    case CN_ACTION_SPILL:
+        err = cn_spill(w);
+        break;
+
+    case CN_ACTION_SPLIT:
+        err = cn_split(w);
+        break;
+    }
 
     if (merr_errno(err) == ESHUTDOWN && atomic_read(w->cw_cancel_request))
         w->cw_canceled = true;
 
     /* defer status check until *after* cleanup */
-    for (i = 0; i < w->cw_kvset_cnt; i++) {
+    for (uint i = 0; i < w->cw_kvset_cnt && w->cw_inputv; i++) {
         if (w->cw_inputv[i])
             w->cw_inputv[i]->kvi_ops->kvi_release(w->cw_inputv[i]);
     }

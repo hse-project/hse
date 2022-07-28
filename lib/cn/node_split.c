@@ -411,8 +411,13 @@ cn_split(struct cn_compaction_work *w)
 {
     struct kvset_list_entry *le;
     struct key_obj split_kobj;
+    struct cndb *cndb;
     merr_t err;
     uint i;
+
+    INVARIANT(w);
+
+    cndb = cn_tree_get_cndb(w->cw_tree);
 
     err = cn_tree_node_get_split_key(w->cw_node, w->cw_split.key, HSE_KVS_KEY_LEN_MAX,
                                      &w->cw_split.klen);
@@ -421,16 +426,17 @@ cn_split(struct cn_compaction_work *w)
 
     key2kobj(&split_kobj, w->cw_split.key, w->cw_split.klen);
 
-    for (i = 0, le = list_first_entry_or_null(&w->cw_node->tn_kvset_list, typeof(*le), le_link);
+    if (atomic_read(w->cw_cancel_request))
+        return merr(ESHUTDOWN);
+
+    assert(!list_empty(&w->cw_node->tn_kvset_list));
+
+    for (i = 0, le = list_first_entry(&w->cw_node->tn_kvset_list, typeof(*le), le_link);
          i < w->cw_kvset_cnt;
          i++, le = list_next_entry(le, le_link)) {
 
         struct kvset *ks = le->le_kvset;
         struct kvset_split_res result = { 0 };
-        struct cndb *cndb = cn_tree_get_cndb(w->cw_tree);
-
-        if (atomic_read(w->cw_cancel_request))
-            return merr(ESHUTDOWN);
 
         kvset_split_res_init(w, &result, i);
 

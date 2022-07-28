@@ -36,7 +36,7 @@ cn_tree_node_get_split_key(
     unsigned int *key_len) HSE_NONNULL(1);
 
 /**
- * cn_split() - Build kvsests as part of a node split operation
+ * cn_split() - Build kvsets as part of a node split operation
  * @w: compaction work struct
  *
  * NOTES:
@@ -65,6 +65,6 @@ cn_tree_node_get_split_key(
  * - cw_split: described in struct cn_compaction_work
  */
 merr_t
-cn_split(struct cn_compaction_work *w);
+cn_split(struct cn_compaction_work *w) HSE_NONNULL(1);
 
 #endif
