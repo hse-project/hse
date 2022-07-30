@@ -135,6 +135,8 @@ struct kvset {
     size_t     ks_kvset_sz;
     u64        ks_ctime;
 
+    struct blk_list ks_purge; /* used by kvset split */
+
     struct kvset_kblk ks_kblks[] HSE_L1D_ALIGNED;
 };
 

@@ -226,6 +226,7 @@ struct kblock_hdr_omf {
     uint32_t kbh_rsvd1;
     uint32_t kbh_key_bytes;
     uint64_t kbh_val_bytes;
+    uint64_t kbh_vused_bytes;
 
     /* easily accessible copies of min and max keys */
     uint32_t kbh_min_koff;
@@ -254,6 +255,7 @@ OMF_SETGET(struct kblock_hdr_omf, kbh_entries, 32)
 OMF_SETGET(struct kblock_hdr_omf, kbh_tombs, 32)
 OMF_SETGET(struct kblock_hdr_omf, kbh_key_bytes, 32)
 OMF_SETGET(struct kblock_hdr_omf, kbh_val_bytes, 64)
+OMF_SETGET(struct kblock_hdr_omf, kbh_vused_bytes, 64)
 OMF_SETGET(struct kblock_hdr_omf, kbh_min_koff, 32)
 OMF_SETGET(struct kblock_hdr_omf, kbh_min_klen, 16)
 OMF_SETGET(struct kblock_hdr_omf, kbh_max_koff, 32)

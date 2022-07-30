@@ -23,10 +23,11 @@ MTF_DEFINE_UTEST(route_test, route_api_test)
     struct route_map *map;
     struct cn_tree_node tn;
     static const uint fanout = 16;
-    struct route_node *rnodev[2 * fanout], *rnode;
+    struct route_node *rnodev[2 * fanout], *rnode, *rnode2;
     char ekbuf[2 * fanout][sizeof(rnode->rtn_keybuf)];
     uint eklen = 5, idx;
     char ekbuf_large[sizeof(rnode->rtn_keybuf) + 1];
+    merr_t err;
 
     map = route_map_create(0);
     ASSERT_EQ(NULL, map);
@@ -102,6 +103,17 @@ MTF_DEFINE_UTEST(route_test, route_api_test)
     memset(ekbuf_large, 0xff, sizeof(ekbuf_large));
     rnode = route_map_insert(map, &tn, ekbuf_large, sizeof(ekbuf_large));
     ASSERT_NE(NULL, rnode);
+
+    rnode2 = route_map_lookup(map, ekbuf_large, eklen);
+    ASSERT_EQ(rnode, rnode2);
+
+    memset(ekbuf_large, 0xf0, sizeof(ekbuf_large));
+    err = route_node_key_modify(map, rnode, ekbuf_large, sizeof(ekbuf_large));
+    ASSERT_EQ(0, err);
+
+    rnode2 = route_map_lookup(map, ekbuf_large, eklen);
+    ASSERT_EQ(rnode, rnode2);
+
     route_map_delete(map, rnode);
 
     idx = 5;
@@ -146,6 +158,17 @@ MTF_DEFINE_UTEST(route_test, route_api_test)
     memset(ekbuf_large, 0xff, sizeof(ekbuf_large));
     rnode = route_map_insert(map, &tn, ekbuf_large, sizeof(ekbuf_large));
     ASSERT_NE(NULL, rnode);
+
+    rnode2 = route_map_lookup(map, ekbuf_large, eklen);
+    ASSERT_EQ(rnode, rnode2);
+
+    memset(ekbuf_large, 0xf0, sizeof(ekbuf_large));
+    err = route_node_key_modify(map, rnode, ekbuf_large, sizeof(ekbuf_large));
+    ASSERT_EQ(0, err);
+
+    rnode2 = route_map_lookup(map, ekbuf_large, eklen);
+    ASSERT_EQ(rnode, rnode2);
+
     route_map_delete(map, rnode);
 
     ekgen_destroy(egen);

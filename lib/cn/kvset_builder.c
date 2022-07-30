@@ -139,6 +139,7 @@ kvset_builder_add_key(struct kvset_builder *self, const struct key_obj *kobj)
     self->key_stats.nvals = 0;
     self->key_stats.ntombs = 0;
     self->key_stats.tot_vlen = 0;
+    self->key_stats.tot_vused = 0;
     self->key_stats.seqno_prev = U64_MAX;
     self->key_stats.seqno_prev_ptomb = U64_MAX;
     self->key_stats.nptombs = 0;
@@ -230,6 +231,7 @@ kvset_builder_add_val(
         /* stats (and space amp) use on-media length */
         self->vused += omlen;
         self->key_stats.tot_vlen += omlen;
+        self->key_stats.tot_vused += omlen;
     }
 
     self->seqno_max = max_t(u64, self->seqno_max, seq);
@@ -279,6 +281,7 @@ kvset_builder_add_vref(
 
     self->vused += om_len;
     self->key_stats.tot_vlen += om_len;
+    self->key_stats.tot_vused += om_len;
     self->key_stats.nvals++;
 
     self->seqno_max = max_t(u64, self->seqno_max, seq);

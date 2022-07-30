@@ -445,6 +445,7 @@ mpool_mblock_read(struct mpool *mp, uint64_t mbid, const struct iovec *iov, int 
  * - off + len must not be greater than the mblock size
  *
  * For the target mblock:
+ * - is uncommitted
  * - write_len == off + len
  * - allocated_len >= write_len
  *

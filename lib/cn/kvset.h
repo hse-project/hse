@@ -256,6 +256,12 @@ kvset_delete_log_record(struct kvset *ks, struct cndb_txn *txn);
 void
 kvset_mark_mblocks_for_delete(struct kvset *kvset, bool keepv);
 
+void
+kvset_mark_mbset_for_delete(struct kvset *ks, bool delete_blks);
+
+void
+kvset_purge_blklist_add(struct kvset *ks, struct blk_list *blks);
+
 /* MTF_MOCK */
 struct mbset **
 kvset_get_vbsetv(struct kvset *km, uint *vbsetc);

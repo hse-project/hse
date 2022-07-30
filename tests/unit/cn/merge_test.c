@@ -1083,11 +1083,11 @@ init_work(
     struct cn_tree_node **     output_nodev,
     uint64_t                  *kvsetidv,
     struct kvset_vblk_map *    vbmap,
-    struct vgmap   *vgmap)
+    struct vgmap             **vgmap)
 {
     memset(w, 0, sizeof(*w));
 
-    w->cw_ds = ds;
+    w->cw_mp = ds;
     w->cw_tree = tree;
     w->cw_rp = rp;
     w->cw_cp = tree ? cn_tree_get_cparams(tree) : 0;
@@ -1104,7 +1104,7 @@ init_work(
     w->cw_kvsetidv = kvsetidv;
 
     if (vgmap) {
-        w->cw_input_vgroups = vgmap->nvgroups;
+        w->cw_input_vgroups = (*vgmap)->nvgroups;
         w->cw_vgmap = vgmap;
     }
 
@@ -1210,7 +1210,7 @@ run_testcase(struct mtf_test_info *lcl_ti, int mode, const char *info)
     } else {
         /* kcompact */
         struct kvset_vblk_map vbmap;
-        struct vgmap *vgmap;
+        struct vgmap *vgmap, *vgmap2;
         u64 *blkv = mapi_safe_malloc(sizeof(*blkv) * iterc);
         u32 *map = mapi_safe_malloc(sizeof(*map) * iterc);
 
@@ -1251,10 +1251,11 @@ run_testcase(struct mtf_test_info *lcl_ti, int mode, const char *info)
             output_nodev,
             kvsetidv,
             &vbmap,
-            vgmap);
+            &vgmap);
 
         w.cw_action = CN_ACTION_COMPACT_K;
 
+        vgmap2 = vgmap;
         err = cn_kcompact(&w);
         ASSERT_EQ(err, 0);
 
@@ -1262,7 +1263,7 @@ run_testcase(struct mtf_test_info *lcl_ti, int mode, const char *info)
         mapi_safe_free(blkv);
         mapi_safe_free(map);
 
-        vgmap_free(vgmap);
+        vgmap_free(vgmap2);
     }
 
     /* Check results */

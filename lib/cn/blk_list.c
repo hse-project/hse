@@ -9,6 +9,7 @@
 #include <hse_util/event_counter.h>
 #include <hse_util/alloc.h>
 #include <hse_util/slab.h>
+#include <hse_util/assert.h>
 
 #include <mpool/mpool.h>
 
@@ -19,11 +20,11 @@ commit_mblock(struct mpool *mp, struct kvs_block *blk)
 {
     merr_t err;
 
-    assert(blk);
-    assert(blk->bk_blkid);
+    INVARIANT(blk);
+    INVARIANT(blk->bk_blkid);
 
     err = mpool_mblock_commit(mp, blk->bk_blkid);
-    if (ev(err)) {
+    if (err) {
         log_errx("Failed to commit mblock: @@e, blkid 0x%lx", err, blk->bk_blkid);
         return err;
     }
@@ -32,17 +33,30 @@ commit_mblock(struct mpool *mp, struct kvs_block *blk)
 }
 
 merr_t
+commit_mblocks(struct mpool *mp, struct blk_list *blks)
+{
+    if (!mp || !blks)
+        return merr(EINVAL);
+
+    for (uint32_t i = 0; i < blks->n_blks; i++) {
+        merr_t err = commit_mblock(mp, &blks->blks[i]);
+        if (err)
+            return err;
+    }
+
+    return 0;
+}
+
+merr_t
 delete_mblock(struct mpool *mp, struct kvs_block *blk)
 {
-    merr_t err;
-
-    err = mpool_mblock_delete(mp, blk->bk_blkid);
-    if (ev(err)) {
+    merr_t err = mpool_mblock_delete(mp, blk->bk_blkid);
+    if (err) {
         log_errx("Failed to delete mblock: @@e, blkid 0x%lx", err, blk->bk_blkid);
         return err;
-    } else {
-        blk->bk_blkid = 0;
     }
+
+    blk->bk_blkid = 0;
 
     return 0;
 }
@@ -54,7 +68,7 @@ delete_mblocks(struct mpool *mp, struct blk_list *blks)
         return;
 
     for (uint32_t i = 0; i < blks->n_blks; i++)
-        mpool_mblock_delete(mp, blks->blks[i].bk_blkid);
+        delete_mblock(mp, &blks->blks[i]);
 }
 
 void

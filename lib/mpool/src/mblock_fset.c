@@ -856,10 +856,6 @@ mblock_fset_clone(
 
     mblock_wlen_set(tgt_mbfp, tgt_mbid, off + len, false);
 
-    err = mblock_fset_commit(mbfsp, &tgt_mbid, 1);
-    if (err)
-        goto errout;
-
     *mbid_out = tgt_mbid;
 
     return 0;

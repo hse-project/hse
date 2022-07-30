@@ -155,22 +155,40 @@ struct route_map {
     struct route_node     rtm_nodev[] HSE_L1D_ALIGNED;
 };
 
-static int
-route_node_key_set(
-    struct route_map  *map,
-    struct route_node *node,
-    const void        *edge_key,
-    uint               edge_klen)
+static merr_t
+route_node_keybuf_alloc(struct route_node *node, uint edge_klen)
 {
-    if (!edge_key || !edge_klen)
-        return 0;
+    uint32_t kbufsz = node->rtn_keybufsz;
 
-    INVARIANT(node);
-    INVARIANT(node->rtn_keybufp);
-    assert(node->rtn_keybufp != node->rtn_keybuf || edge_klen <= sizeof(node->rtn_keybuf));
+    /* 1. If the edge key fits the inline buffer then use the inline buffer.
+     * 2. If the edge key doesn't fit the inline buffer but fits the previously allocated
+     * buffer then use the previously allocated buffer.
+     * 3. If the edge key doesn't fit both the inline and the previously allocated buffer
+     * then allocate a new larger buffer.
+     *
+     * For cases (1) and (3), free the previously allocated buffer.
+     */
+    if ((edge_klen <= sizeof(node->rtn_keybuf)) || edge_klen > kbufsz) {
+        if (kbufsz > 0) {
+            assert(node->rtn_keybufp != node->rtn_keybuf);
+            free(node->rtn_keybufp);
+            node->rtn_keybufp = node->rtn_keybuf;
+            node->rtn_keybufsz = 0;
+        }
 
-    memcpy(node->rtn_keybufp, edge_key, edge_klen);
-    node->rtn_keylen = edge_klen;
+        if (edge_klen > sizeof(node->rtn_keybuf)) {
+            size_t align = sizeof(uint64_t);
+
+            assert(edge_klen > kbufsz);
+            kbufsz = ALIGN(edge_klen, align);
+
+            node->rtn_keybufp = aligned_alloc(align, kbufsz);
+            if (!node->rtn_keybufp)
+                return merr(ENOMEM);
+
+            node->rtn_keybufsz = kbufsz;
+        }
+    }
 
     return 0;
 }
@@ -182,39 +200,11 @@ route_node_alloc(struct route_map *map, uint edge_klen)
     size_t nodesz;
 
     if (node) {
-        uint32_t kbufsz;
+        merr_t err = route_node_keybuf_alloc(node, edge_klen);
+        if (err)
+            return NULL;
 
         map->rtm_free = node->rtn_next;
-        kbufsz = node->rtn_keybufsz;
-
-        /* 1. If the edge key fits the inline buffer then use the inline buffer.
-         * 2. If the edge key doesn't fit the inline buffer but fits the previously allocated
-         * buffer then use the previously allocated buffer.
-         * 3. If the edge key doesn't fit both the inline and the previously allocated buffer
-         * then allocate a new larger buffer.
-         *
-         * For cases (1) and (3), free the previously allocated buffer.
-         */
-        if ((edge_klen <= sizeof(node->rtn_keybuf)) || edge_klen > kbufsz) {
-            if (kbufsz > 0) {
-                assert(node->rtn_keybufp != node->rtn_keybuf);
-                free(node->rtn_keybufp);
-                node->rtn_keybufp = node->rtn_keybuf;
-                node->rtn_keybufsz = 0;
-            }
-
-            if (edge_klen > sizeof(node->rtn_keybuf)) {
-                size_t align = sizeof(uint64_t);
-
-                assert(edge_klen > kbufsz);
-                kbufsz = ALIGN(edge_klen, align);
-
-                node->rtn_keybufp = aligned_alloc(align, kbufsz);
-                if (!node->rtn_keybufp)
-                    return NULL;
-                node->rtn_keybufsz = kbufsz;
-            }
-        }
 
         return node;
     }
@@ -250,7 +240,51 @@ route_node_free(struct route_map *map, struct route_node *node)
         return;
     }
 
+    if (node->rtn_keybufsz > 0) {
+        assert(node->rtn_keybufp != node->rtn_keybuf && node->rtn_keybufp != (void *)(node + 1));
+        free(node->rtn_keybufp);
+    }
+
     free(node);
+}
+
+static void
+route_node_key_set(
+    struct route_map  *map,
+    struct route_node *node,
+    const void        *edge_key,
+    uint               edge_klen)
+{
+    if (!edge_key || !edge_klen)
+        return;
+
+    INVARIANT(node);
+    INVARIANT(node->rtn_keybufp);
+    assert(node->rtn_keybufp != node->rtn_keybuf || edge_klen <= sizeof(node->rtn_keybuf));
+
+    memcpy(node->rtn_keybufp, edge_key, edge_klen);
+    node->rtn_keylen = edge_klen;
+}
+
+merr_t
+route_node_key_modify(
+    struct route_map  *map,
+    struct route_node *node,
+    const void        *edge_key,
+    uint               edge_klen)
+{
+    merr_t err;
+
+    if (!map || !node || !edge_key || !edge_klen)
+        return merr(EINVAL);
+
+    err = route_node_keybuf_alloc(node, edge_klen);
+    if (err)
+        return err;
+
+    route_node_key_set(map, node, edge_key, edge_klen);
+
+    return 0;
 }
 
 struct route_node *
@@ -265,7 +299,6 @@ route_map_insert(
     struct rb_node *parent = NULL;
     struct rb_node *first = rb_first(root), *last = rb_last(root);
     struct route_node *node;
-    int rc;
 
     INVARIANT(map && tnode);
 
@@ -278,11 +311,7 @@ route_map_insert(
     node->rtn_tnode = tnode;
     node->rtn_isfirst = node->rtn_islast = false;
 
-    rc = route_node_key_set(map, node, edge_key, edge_klen);
-    if (rc < 0) {
-        route_node_free(map, node);
-        return NULL;
-    }
+    route_node_key_set(map, node, edge_key, edge_klen);
 
     while (*link) {
         struct route_node *this;

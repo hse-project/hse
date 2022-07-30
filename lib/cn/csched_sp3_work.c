@@ -79,6 +79,7 @@ sp3_work_estimate(struct cn_compaction_work *w)
 
         case CN_ACTION_NONE:
         case CN_ACTION_END:
+        case CN_ACTION_SPLIT:
             break;
 
         case CN_ACTION_COMPACT_K:
@@ -660,7 +661,7 @@ sp3_work(
 
     w->cw_node = tn;
     w->cw_tree = tn->tn_tree;
-    w->cw_ds = tn->tn_tree->mp;
+    w->cw_mp = tn->tn_tree->mp;
     w->cw_rp = tn->tn_tree->rp;
     w->cw_cp = tn->tn_tree->ct_cp;
     w->cw_pfx_len = tn->tn_tree->ct_cp->pfx_len;

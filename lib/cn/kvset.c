@@ -90,7 +90,7 @@
  * and correctly handling mblock deletion.
  */
 
-enum { DEL_NONE = 0, DEL_KEEPV = 1, DEL_ALL = 2 };
+enum kvset_del_type { DEL_NONE = 0, DEL_KEEPV = 1, DEL_LIST = 2, DEL_ALL = 3 };
 
 struct mbset_locator {
     struct mbset *mbs;
@@ -136,7 +136,7 @@ lvx2vbd(struct kvset *ks, uint i)
 }
 
 static void
-_kvset_close(struct kvset *ks);
+kvset_close(struct kvset *ks);
 
 void
 kvset_get_ref(struct kvset *ks)
@@ -188,7 +188,7 @@ kvset_put_ref_final(struct kvset *ks)
         mbset_put_ref(ks->ks_vbsetv[i]);
 
     if (!callbacks_pending)
-        _kvset_close(ks);
+        kvset_close(ks);
 }
 
 static void
@@ -807,6 +807,8 @@ kvset_open2(
     atomic_add(&cn_kvdb->cnd_kblk_cnt, ks->ks_st.kst_kblks);
     atomic_add(&cn_kvdb->cnd_vblk_cnt, ks->ks_st.kst_vblks);
 
+    blk_list_init(&ks->ks_purge);
+
     if (cn_tree_is_replay(tree))
         goto done;
 
@@ -875,7 +877,7 @@ done:
     return 0;
 
 err_exit:
-    _kvset_close(ks);
+    kvset_close(ks);
     return err;
 }
 
@@ -956,41 +958,61 @@ _kvset_mbset_destroyed(void *rock, bool mblk_delete_error)
 
     cn = cn_tree_get_cn(ks->ks_tree);
 
-    _kvset_close(ks);
+    kvset_close(ks);
     cn_ref_put(cn);
 }
 
+/**
+ * This function gives each mbset a ref to kvset and a callback that drops the ref.
+ * This delays destruction of the kvset until all mbsets have been destroyed.
+ * This is needed for one reason: to ensure exactly one ack_d is issued to cndb
+ * (in the kvset destructor) after all mbset mblocks have been deleted
+ * (which occurs in the mbset destructor).
+ */
+void
+kvset_mark_mbset_for_delete(struct kvset *ks, bool delete_blks)
+{
+    if (ks->ks_vbsetc == 0)
+        return;
+
+    ks->ks_mbset_cb_pending = true;
+    cn_ref_get(cn_tree_get_cn(ks->ks_tree));
+
+    for (uint i = 0; i < ks->ks_vbsetc; i++) {
+        struct mbset *vbset = ks->ks_vbsetv[i];
+
+        if (delete_blks)
+            mbset_set_delete_flag(vbset);
+
+        mbset_set_callback(vbset, _kvset_mbset_destroyed, ks);
+    }
+}
+
+/**
+ * This function is used during compaction *after* the ACK_C record,
+ * so it must not have failure conditions.
+ */
 void
 kvset_mark_mblocks_for_delete(struct kvset *ks, bool keepv)
 {
-    /* NOTE: this function is used during compaction *After* the ACK_C
-     * record, so it must not have failure conditions.
-     */
-    ks->ks_deleted = keepv ? DEL_KEEPV : DEL_ALL;
+    if (keepv) {
+        ks->ks_deleted = DEL_KEEPV;
+    } else {
+        ks->ks_deleted = DEL_ALL;
+        kvset_mark_mbset_for_delete(ks, true);
+    }
+}
 
-    /* If we need to delete vblocks, then:
-     * Give each mbset a ref to kvset and a callback that drops the ref.
-     * This delays destruction of the kvset until all mbsets have been
-     * destroyed.  This is needed for one reason: to ensure exactly one
-     * ack_d is issued to cndb (in the kvset destructor) after all mbset
-     * mblocks have been deleted (which occurs in the mbset destructor).
-     */
-    if (ks->ks_deleted == DEL_ALL && ks->ks_vbsetc > 0) {
-        uint i;
+void
+kvset_purge_blklist_add(struct kvset *ks, struct blk_list *blks)
+{
+    ks->ks_deleted = DEL_LIST;
 
-        /* Acquire a reference on cn to prevent cn_close() from
-         * completing until after all in-flight mbset destroy
-         * operations have completed.  Released in the mbset
-         * callback after the kvset has been fully destroyed.
-         */
-        ks->ks_mbset_cb_pending = true;
-        cn_ref_get(cn_tree_get_cn(ks->ks_tree));
-
-        for (i = 0; i < ks->ks_vbsetc; i++) {
-            struct mbset *vbset = ks->ks_vbsetv[i];
-
-            mbset_set_delete_flag(vbset);
-            mbset_set_callback(vbset, _kvset_mbset_destroyed, ks);
+    for (uint32_t i = 0; i < blks->n_blks; i++) {
+        merr_t err = blk_list_append(&ks->ks_purge, blks->blks[i].bk_blkid);
+        if (err) {
+            atomic_inc(&ks->ks_delete_error);
+            return;
         }
     }
 }
@@ -1003,24 +1025,58 @@ cleanup_kblocks(struct kvset *ks)
 
     mpool_mcache_munmap(ks->ks_kmap);
 
-    /* Stop deleting mblocks on the fist sign of trouble and let CNDB
+    if (ks->ks_deleted == DEL_NONE || ks->ks_deleted == DEL_LIST)
+        return;
+
+    /* Stop deleting mblocks at the first sign of trouble and let CNDB
      * finish deleting them during recovery.  We could continue to delete
      * remaining mblocks here, but a delete failure might be indicative of
      * a serious error, and stopping immediately would do less harm.
      */
     for (i = 0; i < ks->ks_st.kst_kblks; i++) {
-        if (ks->ks_deleted) {
-            err = mpool_mblock_delete(ks->ks_mp, ks->ks_kblks[i].kb_kblk.bk_blkid);
-            if (ev(err)) {
-                atomic_inc(&ks->ks_delete_error);
-                return;
-            }
+        err = mpool_mblock_delete(ks->ks_mp, ks->ks_kblks[i].kb_kblk.bk_blkid);
+        if (err) {
+            atomic_inc(&ks->ks_delete_error);
+            return;
         }
     }
 }
 
 static void
-_kvset_close(struct kvset *ks)
+cleanup_hblock(struct kvset *ks)
+{
+    merr_t err;
+
+    mpool_mcache_munmap(ks->ks_hmap);
+
+    if (ks->ks_deleted == DEL_NONE || ks->ks_deleted == DEL_LIST)
+        return;
+
+    err = mpool_mblock_delete(ks->ks_mp, ks->ks_hblk.kh_hblk.bk_blkid);
+    if (err) {
+        atomic_inc(&ks->ks_delete_error);
+        return;
+    }
+}
+
+static void
+cleanup_purge_blklist(struct kvset *ks)
+{
+    assert(ks->ks_deleted == DEL_LIST);
+
+    for (uint32_t i = 0; i < ks->ks_purge.n_blks; i++) {
+        merr_t err = mpool_mblock_delete(ks->ks_mp, ks->ks_purge.blks[i].bk_blkid);
+        if (err) {
+            atomic_inc(&ks->ks_delete_error);
+            return;
+        }
+    }
+
+    blk_list_free(&ks->ks_purge);
+}
+
+static void
+kvset_close(struct kvset *ks)
 {
     assert(ks);
     assert(atomic_read(&ks->ks_ref) == 0);
@@ -1037,16 +1093,12 @@ _kvset_close(struct kvset *ks)
         atomic_sub(&cnd->cnd_vblk_size, ks->ks_st.kst_valen);
     }
 
-    mpool_mcache_munmap(ks->ks_hmap);
-    if (ks->ks_deleted) {
-        const merr_t err = mpool_mblock_delete(ks->ks_mp, ks->ks_hblk.kh_hblk.bk_blkid);
-        if (ev(err)) {
-            atomic_inc(&ks->ks_delete_error);
-            return;
-        }
-    }
+    cleanup_hblock(ks);
 
     cleanup_kblocks(ks);
+
+    if (ks->ks_deleted == DEL_LIST)
+        cleanup_purge_blklist(ks);
 
     if ((ks->ks_deleted != DEL_NONE) && !atomic_read(&ks->ks_delete_error))
         cndb_record_kvset_del_ack(ks->ks_cndb, ks->ks_delete_txn, ks->ks_delete_cookie);
@@ -1975,6 +2027,7 @@ kvset_get_metrics(struct kvset *ks, struct kvset_metrics *m)
         m->num_tombstones += p->kb_metrics.num_tombstones;
         m->tot_key_bytes += p->kb_metrics.tot_key_bytes;
         m->tot_val_bytes += p->kb_metrics.tot_val_bytes;
+        m->tot_vused_bytes += p->kb_metrics.tot_vused_bytes;
         m->tot_wbt_pages += p->kb_metrics.tot_wbt_pages;
         m->tot_blm_pages += p->kb_metrics.tot_blm_pages;
     }

@@ -221,6 +221,7 @@ cn_get_perfc(struct cn *cn, enum cn_action action)
         case CN_ACTION_SPILL:
             return &cn->cn_pc_spill;
 
+        case CN_ACTION_SPLIT:
         case CN_ACTION_NONE:
         case CN_ACTION_END:
             break;
@@ -372,34 +373,6 @@ cn_pfx_probe(
     return cn_tree_lookup(cn->cn_tree, &cn->cn_pc_get, kt, seq, res, qctx, kbuf, vbuf);
 }
 
-/**
- * cn_commit_blks() - commit a set of mblocks
- * @mp:           mpool
- * @blks:         array of kvset_mblock structs
- * @n_committed:  (output) number of successfully committed mblocks by this
- *                function call.
- *
- * Given @N mblock IDs, attempt to commit all @N mblocks.  If all commits are
- * successful, then set @n_committed to @N and return with success status.  If
- * the @i-th commit fails, then: do not attempt to commit any more of the @N
- * mblocks and instead return with an error status indicating the underlying
- * cause of failure.
- */
-static merr_t
-cn_commit_blks(struct mpool *mp, struct blk_list *blks)
-{
-    merr_t err;
-    u32    bx;
-
-    for (bx = 0; bx < blks->n_blks; ++bx) {
-        err = commit_mblock(mp, &blks->blks[bx]);
-        if (ev(err))
-            return err;
-    }
-
-    return 0;
-}
-
 merr_t
 cn_mblocks_commit(
     struct mpool         *mp,
@@ -411,7 +384,7 @@ cn_mblocks_commit(
     u32    i;
 
     for (i = 0; i < num_lists; i++) {
-        /* This check is similar to the check in cn_commit_blks() where the
+        /* This check is similar to the check in commit_mblocks() where the
          * bounds on the for loop uses the block count of the block list. Here
          * we always have at least 1 hblock to validate, and we do that by
          * checking to make sure the hblock's block ID is valid prior to
@@ -424,12 +397,12 @@ cn_mblocks_commit(
             }
         }
 
-        err = cn_commit_blks(mp, &list[i].kblks);
+        err = commit_mblocks(mp, &list[i].kblks);
         if (ev(err))
             return err;
 
         if (mutation != CN_MUT_KCOMPACT) {
-            err = cn_commit_blks(mp, &list[i].vblks);
+            err = commit_mblocks(mp, &list[i].vblks);
             if (ev(err))
                 return err;
         }
@@ -825,6 +798,8 @@ cn_kvset_cb(struct cndb_cn_ctx *ctx, struct kvset_meta *km, u64 kvsetid)
             return merr(ENOMEM);
 
         map_insert_ptr(ctx->nodemap, km->km_nodeid, node);
+
+        list_add_tail(&node->tn_link, &cn->cn_tree->ct_nodes);
     }
 
     err = kvset_open(cn->cn_tree, kvsetid, km, &kvset);

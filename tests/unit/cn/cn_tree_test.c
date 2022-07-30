@@ -710,7 +710,7 @@ cn_comp_work_init(
 
     memset(w, 0, sizeof(*w));
 
-    w->cw_ds = mock_ds;
+    w->cw_mp = mock_ds;
     w->cw_rp = rp;
 
     w->cw_tree = t->tree;
