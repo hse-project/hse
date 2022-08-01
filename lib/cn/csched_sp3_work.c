@@ -77,7 +77,6 @@ sp3_work_estimate(struct cn_compaction_work *w)
 
     switch (w->cw_action) {
     case CN_ACTION_NONE:
-    case CN_ACTION_END:
     case CN_ACTION_SPLIT:
         break;
 
@@ -565,7 +564,8 @@ sp3_work(
     if (n_kvsets == 0)
         goto locked_nowork;
 
-    if (action == CN_ACTION_SPILL) {
+    switch (action) {
+    case CN_ACTION_SPILL:
         uint jobs = atomic_read(&tn->tn_busycnt) >> 16;
 
         if (!cn_node_isroot(tn))
@@ -576,13 +576,20 @@ sp3_work(
 
         cn_node_comp_token_put(tn);
         have_token = false;
+        break;
 
-    } else {
+    case CN_ACTION_COMPACT_K:
+    case CN_ACTION_COMPACT_KV:
+    case CN_ACTION_SPLIT:
 
         /* All other actions are node-wise mutually exclusive.
          */
         if (atomic_read(&tn->tn_busycnt) > 0)
             goto locked_nowork;
+        break;
+
+    default:
+        goto locked_nowork;
     }
 
     /* The upper 16 bits of busycnt contains the count of currently
@@ -596,9 +603,6 @@ sp3_work(
     w = *wp;
 
     assert(mark);
-    assert(n_kvsets);
-    assert(action > CN_ACTION_NONE);
-    assert(action < CN_ACTION_END);
 
     /* mark the kvsets with dgen_lo */
     w->cw_dgen_lo = kvset_get_dgen(mark->le_kvset);

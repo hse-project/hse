@@ -1319,7 +1319,7 @@ sp3_comp_thread_name(
 
     switch (action) {
     case CN_ACTION_NONE:
-    case CN_ACTION_END:
+        a = "no";
         break;
 
     case CN_ACTION_COMPACT_K:

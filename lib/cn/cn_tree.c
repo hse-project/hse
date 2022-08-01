@@ -1821,7 +1821,6 @@ cn_comp_commit(struct cn_compaction_work *w)
 
     switch (w->cw_action) {
     case CN_ACTION_NONE:
-    case CN_ACTION_END:
         break;
 
     case CN_ACTION_COMPACT_K:
@@ -2024,7 +2023,7 @@ cn_comp_compact(struct cn_compaction_work *w)
 
     switch (w->cw_action) {
     case CN_ACTION_NONE:
-    case CN_ACTION_END:
+        err = merr(EINVAL);
         break;
 
     case CN_ACTION_COMPACT_K:

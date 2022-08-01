@@ -1,3 +1,4 @@
+
 /* SPDX-License-Identifier: Apache-2.0 */
 /*
  * Copyright (C) 2015-2022 Micron Technology, Inc.  All rights reserved.
@@ -33,7 +34,6 @@ enum cn_action {
     CN_ACTION_COMPACT_KV,
     CN_ACTION_SPILL,
     CN_ACTION_SPLIT,
-    CN_ACTION_END,
 };
 
 static inline const char *
@@ -41,9 +41,7 @@ cn_action2str(enum cn_action action)
 {
     switch (action) {
     case CN_ACTION_NONE:
-    case CN_ACTION_END:
-        break;
-
+        return "none";
     case CN_ACTION_COMPACT_K:
         return "kcomp";
     case CN_ACTION_COMPACT_KV:

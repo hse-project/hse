@@ -212,7 +212,6 @@ cn_get_perfc(struct cn *cn, enum cn_action action)
 {
     switch (action) {
     case CN_ACTION_NONE:
-    case CN_ACTION_END:
     case CN_ACTION_SPLIT:
         break;
 
