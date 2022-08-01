@@ -12,9 +12,10 @@
 #include <error/merr.h>
 #include <hse_util/list.h>
 
+#include "csched_sp3_work.h"
+
 /* MTF_MOCK_DECL(csched_sp3) */
 
-#define RBT_MAX 5
 #define CN_THROTTLE_MAX (THROTTLE_SENSOR_SCALE_MED + 50)
 
 struct kvdb_rparams;
@@ -31,10 +32,9 @@ struct sp3_rbe {
 };
 
 struct sp3_node {
-    struct sp3_rbe   spn_rbe[RBT_MAX];
+    struct sp3_rbe   spn_rbe[wtype_MAX - 1];
     struct list_head spn_rlink;
     struct list_head spn_alink;
-    u16              spn_ttl;
     bool             spn_initialized;
     uint             spn_cgen;
 };

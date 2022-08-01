@@ -54,8 +54,7 @@ oparms=(
     csched_qthreads=0x080808
     kvs-oparms
     cn_close_wait=true
-    cn_node_size_lo=32
-    cn_node_size_hi=32)
+    cn_split_size=32)
 
 for fanout in 2 4 8 16; do
     # shellcheck disable=SC2034

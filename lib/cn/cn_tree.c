@@ -107,8 +107,6 @@ cn_node_alloc(struct cn_tree *tree, uint64_t nodeid)
 
     INIT_LIST_HEAD(&tn->tn_link);
     INIT_LIST_HEAD(&tn->tn_kvset_list);
-    INIT_LIST_HEAD(&tn->tn_rspills);
-    mutex_init(&tn->tn_rspills_lock);
 
     atomic_init(&tn->tn_compacting, 0);
     atomic_init(&tn->tn_busycnt, 0);
@@ -117,7 +115,7 @@ cn_node_alloc(struct cn_tree *tree, uint64_t nodeid)
     tn->tn_isroot = (nodeid == 0);
     tn->tn_nodeid = nodeid;
 
-    tn->tn_size_max = tree->rp->cn_node_size_hi << 20;
+    tn->tn_split_size = (size_t)tree->rp->cn_split_size << 30;
 
     return tn;
 }
@@ -173,8 +171,12 @@ cn_tree_create(
 
     INIT_LIST_HEAD(&tree->ct_nodes);
 
+    mutex_init(&tree->ct_rspills_lock);
+    INIT_LIST_HEAD(&tree->ct_rspills_list);
+
     tree->ct_root = cn_node_alloc(tree, 0);
     if (ev(!tree->ct_root)) {
+        mutex_destroy(&tree->ct_rspills_lock);
         free_aligned(tree);
         return merr(ENOMEM);
     }
@@ -245,6 +247,7 @@ cn_tree_destroy(struct cn_tree *tree)
 
     rmlock_destroy(&tree->ct_lock);
     route_map_destroy(tree->ct_route_map);
+    mutex_destroy(&tree->ct_rspills_lock);
     free_aligned(tree);
 }
 
@@ -417,7 +420,7 @@ tn_samp_update_finish(struct cn_tree_node *tn)
     }
 
     s->ns_hclen = s->ns_kst.kst_halen;
-    s->ns_pcap = min_t(u64, U16_MAX, 100 * cn_ns_clen(s) / tn->tn_size_max);
+    s->ns_pcap = min_t(uint16_t, UINT16_MAX, 100 * cn_ns_clen(s) / tn->tn_split_size);
 
     tn->tn_samp.r_alen = 0;
     tn->tn_samp.r_wlen = 0;
@@ -969,12 +972,13 @@ cn_comp_release(struct cn_compaction_work *w)
      */
     if (w->cw_rspill_conc) {
         struct cn_compaction_work *tmp HSE_MAYBE_UNUSED;
+        struct cn_tree *tree = w->cw_tree;
 
-        mutex_lock(&w->cw_node->tn_rspills_lock);
-        tmp = list_first_entry_or_null(&w->cw_node->tn_rspills, typeof(*tmp), cw_rspill_link);
+        mutex_lock(&tree->ct_rspills_lock);
+        tmp = list_first_entry_or_null(&tree->ct_rspills_list, typeof(*tmp), cw_rspill_link);
         assert(tmp == w);
         list_del_init(&w->cw_rspill_link);
-        mutex_unlock(&w->cw_node->tn_rspills_lock);
+        mutex_unlock(&tree->ct_rspills_lock);
     }
 
     if (w->cw_err) {
@@ -989,6 +993,11 @@ cn_comp_release(struct cn_compaction_work *w)
             kvset_set_workid(le->le_kvset, 0);
             le = list_prev_entry(le, le_link);
         }
+
+        /* If cn_comp_update_XXX() was called and was successful then it will
+         * have updated busycnt.  For all errors we must do it here.
+         */
+        atomic_sub_rel(&w->cw_node->tn_busycnt, (1u << 16) + w->cw_kvset_cnt);
     }
 
     if (w->cw_have_token)
@@ -1671,6 +1680,15 @@ cn_comp_commit(struct cn_compaction_work *w)
             goto done;
     }
 
+    /* TODO: For now, do not let split proceed until we have removed
+     * and/or fixed all the fanout related code.
+     */
+    if (w->cw_action == CN_ACTION_SPLIT) {
+        w->cw_err = merr(EAGAIN);
+        ev_debug(1);
+        goto done;
+    }
+
     /* Log CNDB records for all kvsets before committing the mblocks.
      */
     for (i = 0; i < w->cw_outc; i++) {
@@ -1852,8 +1870,8 @@ cn_comp_cleanup(struct cn_compaction_work *w)
     if (HSE_UNLIKELY(w->cw_err)) {
 
         /* Failed spills cause node to become "wedged"  */
-        if (ev(w->cw_rspill_conc && !w->cw_node->tn_rspills_wedged))
-            w->cw_node->tn_rspills_wedged = 1;
+        if (ev(w->cw_rspill_conc && !w->cw_tree->ct_rspills_wedged))
+            w->cw_tree->ct_rspills_wedged = true;
 
         /* Log errors if debugging or if job was not canceled.
          * Canceled jobs are expected, so there's no need to log them
@@ -1870,7 +1888,7 @@ cn_comp_cleanup(struct cn_compaction_work *w)
                      w->cw_node->tn_nodeid,
                      w->cw_dgen_lo,
                      w->cw_dgen_hi,
-                     w->cw_node->tn_rspills_wedged);
+                     w->cw_tree->ct_rspills_wedged);
 
         if (merr_errno(w->cw_err) == ENOSPC)
             w->cw_tree->ct_nospace = true;
@@ -1922,11 +1940,12 @@ cn_comp_cleanup(struct cn_compaction_work *w)
 static struct cn_compaction_work *
 get_completed_spill(struct cn_tree_node *node)
 {
-    struct cn_compaction_work *w = 0;
+    struct cn_tree *tree = node->tn_tree;
+    struct cn_compaction_work *w;
 
-    mutex_lock(&node->tn_rspills_lock);
+    mutex_lock(&tree->ct_rspills_lock);
 
-    w = list_first_entry_or_null(&node->tn_rspills, typeof(*w), cw_rspill_link);
+    w = list_first_entry_or_null(&tree->ct_rspills_list, typeof(*w), cw_rspill_link);
     if (!w)
         goto done;
 
@@ -1948,13 +1967,13 @@ get_completed_spill(struct cn_tree_node *node)
 
     atomic_set(&w->cw_rspill_commit_in_progress, 1);
 
-    if (ev(node->tn_rspills_wedged && !w->cw_err)) {
+    if (ev(tree->ct_rspills_wedged && !w->cw_err)) {
         w->cw_err = merr(ESHUTDOWN);
         w->cw_canceled = true;
     }
 
 done:
-    mutex_unlock(&node->tn_rspills_lock);
+    mutex_unlock(&tree->ct_rspills_lock);
 
     return w;
 }

@@ -87,7 +87,9 @@ struct cn_kle_hdr {
  * @ct_last_ptlen:  length of @ct_last_ptomb
  * @ct_last_ptomb:  if cn is a capped, this holds the last (largest) ptomb in cn
  * @ct_kle_cache:   kvset list entry cache
- * @ct_lock:        read-mostly lock to protect kvset list
+ * @ct_rspills_lock:  lock to protect @ct_rspills_list
+ * @ct_rspills_list:  list of active spills from this node to its children
+ * @ct_lock:        read-mostly lock to protect tree updates
  *
  * Note: The first fields are frequently accessed in the order listed
  * (e.g., by cn_tree_lookup) and are read-only after initialization.
@@ -132,13 +134,15 @@ struct cn_tree {
 
     struct cn_kle_cache ct_kle_cache HSE_L1D_ALIGNED;
 
+    struct mutex      ct_rspills_lock;
+    struct list_head  ct_rspills_list;
+    bool              ct_rspills_wedged;
+
     struct rmlock ct_lock;
 };
 
 /**
  * struct cn_tree_node - A node in a k-way cn_tree
- * @tn_rspills_lock:  lock to protect @tn_rspills
- * @tn_rspills:       list of active spills from this node to its children
  * @tn_compacting:   true if node is being compacted
  * @tn_busycnt:      count of jobs and kvsets being compacted/spilled
  * @tn_destroy_work: used for async destroy
@@ -147,25 +151,20 @@ struct cn_tree {
  * @tn_pfx_spill:    true if spills/scans from this node use the prefix hash
  * @tn_cgen:         incremented each time the node changes
  * @tn_tree:         ptr to tree struct
- * @tn_parent:       parent node
- * @tn_child:        child nodes
  */
 struct cn_tree_node {
-    struct mutex     tn_rspills_lock;
-    struct list_head tn_rspills;
-    bool             tn_rspills_wedged;
-    atomic_int       tn_compacting;
-    atomic_uint      tn_busycnt;
+    atomic_int           tn_compacting;
+    atomic_uint          tn_busycnt;
 
     union {
-        struct sp3_node tn_sp3n;
-        struct cn_work  tn_destroy_work;
+        struct sp3_node  tn_sp3n;
+        struct cn_work   tn_destroy_work;
     };
 
     struct hlog         *tn_hlog HSE_L1D_ALIGNED;
     struct cn_node_stats tn_ns;
     struct cn_samp_stats tn_samp;
-    u64                  tn_size_max;
+    size_t               tn_split_size;
     u64                  tn_update_incr_dgen;
 
     uint64_t             tn_nodeid HSE_L1D_ALIGNED;

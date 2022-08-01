@@ -1,6 +1,6 @@
 /* SPDX-License-Identifier: Apache-2.0 */
 /*
- * Copyright (C) 2015-2021 Micron Technology, Inc.  All rights reserved.
+ * Copyright (C) 2015-2022 Micron Technology, Inc.  All rights reserved.
  */
 
 #ifndef HSE_KVS_RPARAMS_H
@@ -33,6 +33,7 @@
  */
 struct kvs_rparams {
     uint64_t kvs_cursor_ttl;
+
     bool     transactions_enable;
     bool     cn_maint_disable;
     bool     cn_close_wait;
@@ -40,27 +41,26 @@ struct kvs_rparams {
     bool     cn_verify;
     bool     read_only;
     uint8_t  perfc_level;
+    uint8_t  cn_compaction_debug; /* 1=compact, 2=ingest */
+
     uint32_t cn_maint_delay;
-    uint64_t cn_compaction_debug; /* 1=compact, 2=ingest */
+    uint32_t cn_split_size;
 
     uint64_t cn_compact_kblk_ra;
     uint64_t cn_compact_vblk_ra;
     uint64_t cn_compact_vra;
 
-    uint64_t cn_node_size_lo;
-    uint64_t cn_node_size_hi;
-
     uint64_t cn_capped_ttl;
     uint64_t cn_capped_vra;
 
+    uint64_t cn_cursor_seq;
     uint64_t cn_cursor_vra;
     bool     cn_cursor_kra;
-    uint64_t cn_cursor_seq;
 
-    uint64_t cn_mcache_wbt;
-    uint64_t cn_mcache_vmin;
-    uint64_t cn_mcache_vmax;
-    uint64_t cn_mcache_vminlvl;
+    uint8_t  cn_mcache_wbt;
+    uint8_t  cn_mcache_vminlvl;
+    uint32_t cn_mcache_vmin;
+    uint32_t cn_mcache_vmax;
 
     uint64_t cn_mcache_kra_params;
     uint64_t cn_mcache_vra_params;
@@ -74,10 +74,10 @@ struct kvs_rparams {
 
     uint64_t capped_evict_ttl;
 
-    char mclass_policy[HSE_MPOLICY_NAME_LEN_MAX];
-
-    uint64_t             vcompmin;
+    uint32_t             vcompmin;
     enum vcomp_algorithm value_compression;
+
+    char mclass_policy[HSE_MPOLICY_NAME_LEN_MAX];
 };
 
 const struct param_spec *

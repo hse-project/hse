@@ -16,32 +16,11 @@
 
 struct cn_tree;
 struct cn_tree_node;
-struct cn_cache;
-enum cn_action;
 enum key_lookup_res;
 struct kvs_buf;
 struct kvs_ktuple;
 struct perfc_set;
 struct query_ctx;
-
-struct cn_tstate_omf;
-typedef merr_t
-cn_tstate_prepare_t(struct cn_tstate_omf *omf, void *arg);
-typedef void
-cn_tstate_commit_t(const struct cn_tstate_omf *omf, void *arg);
-typedef void
-cn_tstate_abort_t(struct cn_tstate_omf *omf, void *arg);
-
-struct cn_tstate {
-    merr_t (*ts_update)(
-        struct cn_tstate *   tstate,
-        cn_tstate_prepare_t *ts_prepare,
-        cn_tstate_commit_t * ts_commit,
-        cn_tstate_abort_t *  ts_abort,
-        void *               arg);
-
-    void (*ts_get)(struct cn_tstate *tstate, u32 *genp, u16 *mapv);
-};
 
 struct cn_tree_node *
 cn_tree_node_lookup(struct cn_tree *tree, const void *key, uint keylen);

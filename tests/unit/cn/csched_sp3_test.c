@@ -246,9 +246,9 @@ sts_job_submit_mock(struct sts *self, struct sts_job *job)
 
 merr_t
 sp3_work_mock(
-    struct sp3_node *           spn,
-    struct sp3_thresholds *     thresh,
+    struct sp3_node            *spn,
     enum sp3_work_type          wtype,
+    struct sp3_thresholds      *thresh,
     uint                        debug,
     struct cn_compaction_work **w_out)
 {

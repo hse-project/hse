@@ -1,6 +1,6 @@
 /* SPDX-License-Identifier: Apache-2.0 */
 /*
- * Copyright (C) 2015-2021 Micron Technology, Inc.  All rights reserved.
+ * Copyright (C) 2015-2022 Micron Technology, Inc.  All rights reserved.
  */
 
 #include <errno.h>
@@ -29,42 +29,6 @@
  * 1. Add a new struct element to struct kvs_rparams.
  * 2. Add a new entry to pspecs.
  */
-
-static bool
-validate_cn_node_size_lo(const struct param_spec *const ps, const struct params *const p)
-{
-    assert(ps);
-    assert(p);
-    assert(p->p_params.as_kvs_rp);
-
-    if (p->p_params.as_kvs_rp->cn_node_size_lo > p->p_params.as_kvs_rp->cn_node_size_hi) {
-        log_err("Invalid KVS rparam cn_node_size_lo value: %lu, must be less"
-                " than or equal to cn_node_size_hi (%lu)",
-                p->p_params.as_kvs_rp->cn_node_size_lo,
-                p->p_params.as_kvs_rp->cn_node_size_hi);
-        return false;
-    }
-
-    return true;
-}
-
-static bool
-validate_cn_node_size_hi(const struct param_spec *ps, const struct params *const p)
-{
-    assert(ps);
-    assert(p);
-    assert(p->p_params.as_kvs_rp);
-
-    if (p->p_params.as_kvs_rp->cn_node_size_hi < p->p_params.as_kvs_rp->cn_node_size_lo) {
-        log_err("Invalid KVS rparam cn_node_size_hi value: %lu, must be greater"
-                " than or equal to cn_node_size_lo (%lu)",
-                p->p_params.as_kvs_rp->cn_node_size_hi,
-                p->p_params.as_kvs_rp->cn_node_size_lo);
-        return false;
-    }
-
-    return true;
-}
 
 static bool HSE_NONNULL(1, 2, 3) compression_value_algorithm_converter(
     const struct param_spec *const ps,
@@ -211,46 +175,23 @@ static const struct param_spec pspecs[] = {
         },
     },
     {
-        .ps_name = "cn_node_size_lo",
-        .ps_description = "low end of max node size range (MiB)",
+        .ps_name = "cn_split_size",
+        .ps_description = "node split size (GiB)",
         .ps_flags = PARAM_FLAG_EXPERIMENTAL,
-        .ps_type = PARAM_TYPE_U64,
-        .ps_offset = offsetof(struct kvs_rparams, cn_node_size_lo),
-        .ps_size = PARAM_SZ(struct kvs_rparams, cn_node_size_lo),
+        .ps_type = PARAM_TYPE_U32,
+        .ps_offset = offsetof(struct kvs_rparams, cn_split_size),
+        .ps_size = PARAM_SZ(struct kvs_rparams, cn_split_size),
         .ps_convert = param_default_converter,
         .ps_validate = param_default_validator,
         .ps_stringify = param_default_stringify,
         .ps_jsonify = param_default_jsonify,
-        .ps_validate_relations = validate_cn_node_size_lo,
         .ps_default_value = {
-            .as_uscalar = 8192 * 1024,
+            .as_uscalar = 16,
         },
         .ps_bounds = {
             .as_uscalar = {
-                .ps_min = 0,
-                .ps_max = UINT64_MAX,
-            },
-        },
-    },
-    {
-        .ps_name = "cn_node_size_hi",
-        .ps_description = "high end of max node size range (MiB)",
-        .ps_flags = PARAM_FLAG_EXPERIMENTAL,
-        .ps_type = PARAM_TYPE_U64,
-        .ps_offset = offsetof(struct kvs_rparams, cn_node_size_hi),
-        .ps_size = PARAM_SZ(struct kvs_rparams, cn_node_size_hi),
-        .ps_convert = param_default_converter,
-        .ps_validate = param_default_validator,
-        .ps_stringify = param_default_stringify,
-        .ps_jsonify = param_default_jsonify,
-        .ps_validate_relations = validate_cn_node_size_hi,
-        .ps_default_value = {
-            .as_uscalar = 9216 * 1024,
-        },
-        .ps_bounds = {
-            .as_uscalar = {
-                .ps_min = 0,
-                .ps_max = UINT64_MAX,
+                .ps_min = 4,
+                .ps_max = 1024,
             },
         },
     },
@@ -421,7 +362,7 @@ static const struct param_spec pspecs[] = {
         .ps_name = "cn_mcache_wbt",
         .ps_description = "eagerly cache wbt nodes (1:internal, 2:leaves, 3:both)",
         .ps_flags = PARAM_FLAG_EXPERIMENTAL,
-        .ps_type = PARAM_TYPE_U64,
+        .ps_type = PARAM_TYPE_U8,
         .ps_offset = offsetof(struct kvs_rparams, cn_mcache_wbt),
         .ps_size = PARAM_SZ(struct kvs_rparams, cn_mcache_wbt),
         .ps_convert = param_default_converter,
@@ -442,7 +383,7 @@ static const struct param_spec pspecs[] = {
         .ps_name = "cn_mcache_vminlvl",
         .ps_description = "node depth at/above which to read vmin length values directly from media",
         .ps_flags = PARAM_FLAG_EXPERIMENTAL,
-        .ps_type = PARAM_TYPE_U64,
+        .ps_type = PARAM_TYPE_U8,
         .ps_offset = offsetof(struct kvs_rparams, cn_mcache_vminlvl),
         .ps_size = PARAM_SZ(struct kvs_rparams, cn_mcache_vminlvl),
         .ps_convert = param_default_converter,
@@ -450,12 +391,12 @@ static const struct param_spec pspecs[] = {
         .ps_stringify = param_default_stringify,
         .ps_jsonify = param_default_jsonify,
         .ps_default_value = {
-            .as_uscalar = UINT16_MAX,
+            .as_uscalar = UINT8_MAX,
         },
         .ps_bounds = {
             .as_uscalar = {
                 .ps_min = 0,
-                .ps_max = UINT64_MAX,
+                .ps_max = UINT8_MAX,
             },
         },
     },
@@ -463,7 +404,7 @@ static const struct param_spec pspecs[] = {
         .ps_name = "cn_mcache_vmin",
         .ps_description = "value size at/above which to read values directly from media (subject to vminlvl)",
         .ps_flags = PARAM_FLAG_EXPERIMENTAL,
-        .ps_type = PARAM_TYPE_U64,
+        .ps_type = PARAM_TYPE_U32,
         .ps_offset = offsetof(struct kvs_rparams, cn_mcache_vmin),
         .ps_size = PARAM_SZ(struct kvs_rparams, cn_mcache_vmin),
         .ps_convert = param_default_converter,
@@ -476,7 +417,7 @@ static const struct param_spec pspecs[] = {
         .ps_bounds = {
             .as_uscalar = {
                 .ps_min = 0,
-                .ps_max= UINT64_MAX,
+                .ps_max= UINT32_MAX,
             },
         },
     },
@@ -484,7 +425,7 @@ static const struct param_spec pspecs[] = {
         .ps_name = "cn_mcache_vmax",
         .ps_description = "value size at/above which to always read values directly from media",
         .ps_flags = PARAM_FLAG_EXPERIMENTAL | PARAM_FLAG_WRITABLE,
-        .ps_type = PARAM_TYPE_U64,
+        .ps_type = PARAM_TYPE_U32,
         .ps_offset = offsetof(struct kvs_rparams, cn_mcache_vmax),
         .ps_size = PARAM_SZ(struct kvs_rparams, cn_mcache_vmax),
         .ps_convert = param_default_converter,
@@ -497,7 +438,7 @@ static const struct param_spec pspecs[] = {
         .ps_bounds = {
             .as_uscalar = {
                 .ps_min = 0,
-                .ps_max = UINT64_MAX,
+                .ps_max = UINT32_MAX,
             },
         },
     },
@@ -649,7 +590,7 @@ static const struct param_spec pspecs[] = {
         .ps_name = "cn_compaction_debug",
         .ps_description = "cn compaction debug flags",
         .ps_flags = PARAM_FLAG_EXPERIMENTAL | PARAM_FLAG_WRITABLE,
-        .ps_type = PARAM_TYPE_U64,
+        .ps_type = PARAM_TYPE_U8,
         .ps_offset = offsetof(struct kvs_rparams, cn_compaction_debug),
         .ps_size = PARAM_SZ(struct kvs_rparams, cn_compaction_debug),
         .ps_convert = param_default_converter,
@@ -662,7 +603,7 @@ static const struct param_spec pspecs[] = {
         .ps_bounds = {
             .as_uscalar = {
                 .ps_min = 0,
-                .ps_max = UINT64_MAX,
+                .ps_max = UINT8_MAX,
             },
         },
     },
@@ -798,7 +739,7 @@ static const struct param_spec pspecs[] = {
         .ps_name = "compression.value.min_length",
         .ps_description = "value length above which compression is considered",
         .ps_flags = 0,
-        .ps_type = PARAM_TYPE_U64,
+        .ps_type = PARAM_TYPE_U32,
         .ps_offset = offsetof(struct kvs_rparams, vcompmin),
         .ps_size = PARAM_SZ(struct kvs_rparams, vcompmin),
         .ps_convert = param_default_converter,
@@ -811,7 +752,7 @@ static const struct param_spec pspecs[] = {
         .ps_bounds = {
             .as_uscalar = {
                 .ps_min = 0,
-                .ps_max = UINT64_MAX,
+                .ps_max = UINT32_MAX,
             },
         },
     },

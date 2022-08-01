@@ -273,6 +273,8 @@ cn_spill(struct cn_compaction_work *w)
     assert(w->cw_kvset_cnt);
     assert(w->cw_inputv);
 
+    tstart = perfc_ison(w->cw_pc, PERFC_DI_CNCOMP_VGET) ? 1 : 0;
+
     if (w->cw_prog_interval && w->cw_progress)
         tprog = jiffies;
 
@@ -296,6 +298,11 @@ cn_spill(struct cn_compaction_work *w)
 
     while (!err && more) {
         bool new_key = true;
+
+        if (atomic_read(w->cw_cancel_request)) {
+            err = merr(ESHUTDOWN);
+            break;
+        }
 
         if (!child) {
             err = get_kvset_builder(w, output_nodec, &child);
@@ -322,15 +329,7 @@ cn_spill(struct cn_compaction_work *w)
             }
         }
 
-        tstart = perfc_ison(w->cw_pc, PERFC_DI_CNCOMP_VGET) ? 1 : 0;
-
-
         while (more && (kvcompact || ri.last_node || key_obj_cmp(&curr.kobj, &ri.ekobj) <= 0)) {
-
-            if (atomic_read(w->cw_cancel_request)) {
-                err = merr(ESHUTDOWN);
-                break;
-            }
 
             curr_klen = key_obj_len(&curr.kobj);
             assert(curr_klen >= w->cw_cp->sfx_len || curr.vctx.is_ptomb);

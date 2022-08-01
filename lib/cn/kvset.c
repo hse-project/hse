@@ -557,7 +557,7 @@ kvset_open2(
     ks->ks_sfx_len = cp->sfx_len;
     ks->ks_node_level = km->km_node_level;
     ks->ks_nodeid = km->km_nodeid;
-    ks->ks_vminlvl = min_t(u16, rp->cn_mcache_vminlvl, U16_MAX);
+    ks->ks_vminlvl = min_t(uint8_t, rp->cn_mcache_vminlvl, UINT8_MAX);
     ks->ks_vmin = rp->cn_mcache_vmin;
     ks->ks_vmax = rp->cn_mcache_vmax;
     ks->ks_cn_kvdb = cn_kvdb;
@@ -861,11 +861,11 @@ kvset_open2(
          */
         if (ra_willneed(vra) & 0x01) {
             kvset_madvise_vblks(ks, MADV_WILLNEED);
-            ks->ks_vminlvl = U16_MAX;
+            ks->ks_vminlvl = UINT8_MAX;
             ks->ks_vra_len = 0;
         } else if (cn_tree_is_capped(ks->ks_tree)) {
             kvset_madvise_capped(ks, MADV_WILLNEED);
-            ks->ks_vminlvl = U16_MAX;
+            ks->ks_vminlvl = UINT8_MAX;
         }
     }
 
