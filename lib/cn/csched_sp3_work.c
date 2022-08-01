@@ -566,13 +566,11 @@ sp3_work(
 
     switch (action) {
     case CN_ACTION_SPILL:
-        uint jobs = atomic_read(&tn->tn_busycnt) >> 16;
+        if ((atomic_read(&tn->tn_busycnt) >> 16) > 2)
+            goto locked_nowork;
 
         if (!cn_node_isroot(tn))
             abort();
-
-        if (jobs > 2)
-            goto locked_nowork;
 
         cn_node_comp_token_put(tn);
         have_token = false;
