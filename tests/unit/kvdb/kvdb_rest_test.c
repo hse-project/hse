@@ -112,7 +112,7 @@ _kvset_get_metrics(struct kvset *kvset, struct kvset_metrics *metrics)
     metrics->tot_key_bytes = 4000000;
     metrics->tot_val_bytes = 8000000;
     metrics->compc = (v->nodeid == 0) ? 0 : 3;
-    metrics->comp_rule = (v->nodeid == 0) ? CN_CR_INGEST : CN_CR_RSPILL;
+    metrics->rule = (v->nodeid == 0) ? CN_RULE_INGEST : CN_RULE_RSPILL;
     metrics->vgroups = 1;
 }
 

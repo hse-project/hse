@@ -1718,7 +1718,7 @@ cn_comp_commit(struct cn_compaction_work *w)
         km.km_kblk_list = w->cw_outv[i].kblks;
         km.km_vblk_list = w->cw_outv[i].vblks;
 
-        km.km_comp_rule = w->cw_comp_rule;
+        km.km_rule = w->cw_rule;
         km.km_capped = cn_is_capped(w->cw_tree->cn);
         km.km_restored = false;
 
@@ -1882,7 +1882,7 @@ cn_comp_cleanup(struct cn_compaction_work *w)
                      w->cw_err,
                      sts_job_id_get(&w->cw_job),
                      cn_action2str(w->cw_action),
-                     cn_comp_rule2str(w->cw_comp_rule),
+                     cn_rule2str(w->cw_rule),
                      cn_tree_get_cnid(w->cw_tree),
                      w->cw_node->tn_nodeid,
                      w->cw_dgen_lo,

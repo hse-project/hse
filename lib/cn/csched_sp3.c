@@ -423,7 +423,7 @@ sp3_log_progress(struct cn_compaction_work *w, struct cn_merge_stats *ms, bool f
         SLOG_FIELD("type", "%s", msg_type),
         SLOG_FIELD("job", "%u", w->cw_job.sj_id),
         SLOG_FIELD("comp", "%s", cn_action2str(w->cw_action)),
-        SLOG_FIELD("rule", "%s", cn_comp_rule2str(w->cw_comp_rule)),
+        SLOG_FIELD("rule", "%s", cn_rule2str(w->cw_rule)),
         SLOG_FIELD("cnid", "%lu", w->cw_tree->cnid),
         SLOG_FIELD("nodeid", "%lu", w->cw_node->tn_nodeid),
         SLOG_FIELD("leaf", "%u", (uint)cn_node_isleaf(w->cw_node)),
@@ -1311,7 +1311,7 @@ sp3_comp_thread_name(
     char *              buf,
     size_t              bufsz,
     enum cn_action      action,
-    enum cn_comp_rule   rule,
+    enum cn_rule        rule,
     uint64_t            nodeid)
 {
     const char *a = "XX";
@@ -1340,52 +1340,52 @@ sp3_comp_thread_name(
     }
 
     switch (rule) {
-    case CN_CR_NONE:
+    case CN_RULE_NONE:
         r = "xx";
         break;
-    case CN_CR_INGEST:
+    case CN_RULE_INGEST:
         r = "s0";
         break;
-    case CN_CR_RSPILL:
+    case CN_RULE_RSPILL:
         r = "sr";
         break;
-    case CN_CR_TSPILL:
+    case CN_RULE_TSPILL:
         r = "st";
         break;
-    case CN_CR_ZSPILL:
+    case CN_RULE_ZSPILL:
         r = "sz";
         break;
-    case CN_CR_SPLIT:
+    case CN_RULE_SPLIT:
         r = "s2";
         break;
-    case CN_CR_GARBAGE:
+    case CN_RULE_GARBAGE:
         r = "gb";
         break;
-    case CN_CR_LENGTHK:
+    case CN_RULE_LENGTHK:
         r = "lk";
         break;
-    case CN_CR_LENGTHV:
+    case CN_RULE_LENGTHV:
         r = "lv";
         break;
-    case CN_CR_INDEXF:
+    case CN_RULE_INDEXF:
         r = "fi";
         break;
-    case CN_CR_INDEXP:
+    case CN_RULE_INDEXP:
         r = "pi";
         break;
-    case CN_CR_IDLE_INDEX:
+    case CN_RULE_IDLE_INDEX:
         r = "ii";
         break;
-    case CN_CR_IDLE_SIZE:
+    case CN_RULE_IDLE_SIZE:
         r = "is";
         break;
-    case CN_CR_IDLE_TOMB:
+    case CN_RULE_IDLE_TOMB:
         r = "it";
         break;
-    case CN_CR_SCATTERF:
+    case CN_RULE_SCATTERF:
         r = "fs";
         break;
-    case CN_CR_SCATTERP:
+    case CN_RULE_SCATTERP:
         r = "ps";
         break;
     }
@@ -1450,7 +1450,7 @@ sp3_job_print(struct sts_job *job, void *priv, char *buf, size_t bufsz)
                  w->cw_tree->cnid,
                  w->cw_node->tn_nodeid,
                  jps->jobwidth, sts_job_id_get(&w->cw_job),
-                 cn_action2str(w->cw_action), cn_comp_rule2str(w->cw_comp_rule),
+                 cn_action2str(w->cw_action), cn_rule2str(w->cw_rule),
                  w->cw_qnum,
                  atomic_read(&w->cw_node->tn_busycnt) >> 16,
                  w->cw_kvset_cnt, (uint)cn_ns_kvsets(&w->cw_ns),
@@ -1482,7 +1482,7 @@ sp3_submit(struct sp3 *sp, struct cn_compaction_work *w, uint qnum)
         w->cw_threadname,
         sizeof(w->cw_threadname),
         w->cw_action,
-        w->cw_comp_rule,
+        w->cw_rule,
         tn->tn_nodeid);
 
     w->cw_iter_flags = kvset_iter_flag_fullscan;
@@ -1553,7 +1553,7 @@ sp3_submit(struct sp3 *sp, struct cn_compaction_work *w, uint qnum)
             SLOG_FIELD("reduce", "%d", sp->samp_reduce),
             SLOG_FIELD("cnid", "%lu", w->cw_tree->cnid),
             SLOG_FIELD("comp", "%s", cn_action2str(w->cw_action)),
-            SLOG_FIELD("rule", "%s", cn_comp_rule2str(w->cw_comp_rule)),
+            SLOG_FIELD("rule", "%s", cn_rule2str(w->cw_rule)),
             SLOG_FIELD("nodeid", "%lu", w->cw_node->tn_nodeid),
             SLOG_FIELD("c_nk", "%u", w->cw_nk),
             SLOG_FIELD("c_nv", "%u", w->cw_nv),

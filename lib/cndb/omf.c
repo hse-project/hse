@@ -120,7 +120,7 @@ cndb_omf_kvset_add_write(
     uint64_t          dgen,
     uint64_t          vused,
     uint32_t          compc,
-    uint16_t          comp_rule,
+    uint16_t          rule,
     uint64_t          hblkid,
     uint32_t          kblkc,
     uint64_t         *kblkv,
@@ -152,7 +152,7 @@ cndb_omf_kvset_add_write(
     omf_set_kvset_add_dgen(omf, dgen);
     omf_set_kvset_add_vused(omf, vused);
     omf_set_kvset_add_compc(omf, compc);
-    omf_set_kvset_add_comp_rule(omf, comp_rule);
+    omf_set_kvset_add_rule(omf, rule);
     omf_set_kvset_add_kblk_cnt(omf, kblkc);
     omf_set_kvset_add_vblk_cnt(omf, vblkc);
     omf_set_kvset_add_hblkid(omf, hblkid);
@@ -319,7 +319,7 @@ cndb_omf_kvset_add_read(
     km->km_dgen = omf_kvset_add_dgen(omf);
     km->km_vused = omf_kvset_add_vused(omf);
     km->km_compc = omf_kvset_add_compc(omf);
-    km->km_comp_rule = omf_kvset_add_comp_rule(omf);
+    km->km_rule = omf_kvset_add_rule(omf);
 
     *kblkc = omf_kvset_add_kblk_cnt(omf);
     *vblkc = omf_kvset_add_vblk_cnt(omf);

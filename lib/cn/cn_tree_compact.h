@@ -141,7 +141,7 @@ struct cn_compaction_work {
     uint32_t                 cw_input_vgroups;
     uint                     cw_pfx_len;
     enum cn_action           cw_action;
-    enum cn_comp_rule        cw_comp_rule;
+    enum cn_rule             cw_rule;
     bool                     cw_have_token;
     bool                     cw_rspill_conc;
     struct list_head         cw_rspill_link;

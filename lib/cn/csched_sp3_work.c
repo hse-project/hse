@@ -127,11 +127,11 @@ sp3_work_estimate(struct cn_compaction_work *w)
  */
 static uint
 sp3_work_wtype_root(
-    struct sp3_node *         spn,
+    struct sp3_node          *spn,
     struct sp3_thresholds    *thresh,
     struct kvset_list_entry **mark,
-    enum cn_action *          action,
-    enum cn_comp_rule *       rule)
+    enum cn_action           *action,
+    enum cn_rule             *rule)
 {
     struct cn_tree_node *tn = spn2tn(spn);
     uint runlen_min, runlen_max, runlen;
@@ -139,7 +139,7 @@ sp3_work_wtype_root(
     size_t sizemb_max, wlen;
 
     *action = CN_ACTION_SPILL;
-    *rule = CN_CR_RSPILL;
+    *rule = CN_RULE_RSPILL;
     *mark = NULL;
 
     /* walk from tail (oldest), skip kvsets that are busy */
@@ -192,7 +192,7 @@ sp3_work_wtype_root(
         return 0;
 
     if (wlen < VBLOCK_MAX_SIZE) {
-        *rule = CN_CR_TSPILL; /* tiny root spill */
+        *rule = CN_RULE_TSPILL; /* tiny root spill */
         return runlen;
     }
 
@@ -211,7 +211,7 @@ sp3_work_wtype_idle(
     struct sp3_thresholds    *thresh,
     struct kvset_list_entry **mark,
     enum cn_action           *action,
-    enum cn_comp_rule        *rule)
+    enum cn_rule             *rule)
 {
     struct cn_tree_node *tn = spn2tn(spn);
     struct kvset_list_entry *le;
@@ -228,7 +228,7 @@ sp3_work_wtype_idle(
      * (e.g., mongod index nodes that rarely change after load).
      */
     if (cn_ns_vblks(&tn->tn_ns) < kvsets) {
-        *rule = CN_CR_IDLE_INDEX;
+        *rule = CN_RULE_IDLE_INDEX;
         return kvsets;
     }
 
@@ -236,14 +236,14 @@ sp3_work_wtype_idle(
      * than a single vblock (rare, but happens).
      */
     if (cn_ns_clen(&tn->tn_ns) < VBLOCK_MAX_SIZE) {
-        *rule = CN_CR_IDLE_SIZE;
+        *rule = CN_RULE_IDLE_SIZE;
         return kvsets;
     }
 
     /* Compact if the preponderance of keys appears to be tombs.
      */
     if (cn_ns_tombs(&tn->tn_ns) * 100 > cn_ns_keys_uniq(&tn->tn_ns) * 90) {
-        *rule = CN_CR_IDLE_TOMB;
+        *rule = CN_RULE_IDLE_TOMB;
         return kvsets;
     }
 
@@ -256,7 +256,7 @@ sp3_work_wtype_split(
     struct sp3_thresholds    *thresh,
     struct kvset_list_entry **mark,
     enum cn_action           *action,
-    enum cn_comp_rule        *rule)
+    enum cn_rule             *rule)
 {
     struct cn_tree_node *tn = spn2tn(spn);
     struct kvset_list_entry *le;
@@ -266,7 +266,7 @@ sp3_work_wtype_split(
     *mark = list_last_entry_or_null(head, typeof(*le), le_link);
 
     *action = CN_ACTION_SPLIT;
-    *rule = CN_CR_SPLIT;
+    *rule = CN_RULE_SPLIT;
 
     ev_debug(1);
 
@@ -279,7 +279,7 @@ sp3_work_wtype_garbage(
     struct sp3_thresholds    *thresh,
     struct kvset_list_entry **mark,
     enum cn_action           *action,
-    enum cn_comp_rule        *rule)
+    enum cn_rule             *rule)
 {
     struct cn_tree_node *tn = spn2tn(spn);
     struct kvset_list_entry *le;
@@ -291,7 +291,7 @@ sp3_work_wtype_garbage(
     kvsets = cn_ns_kvsets(&tn->tn_ns);
 
     *action = CN_ACTION_COMPACT_KV;
-    *rule = CN_CR_GARBAGE;
+    *rule = CN_RULE_GARBAGE;
 
     return min_t(uint, kvsets, thresh->lcomp_runlen_max);
 }
@@ -302,7 +302,7 @@ sp3_work_wtype_scatter(
     struct sp3_thresholds    *thresh,
     struct kvset_list_entry **mark,
     enum cn_action           *action,
-    enum cn_comp_rule        *rule)
+    enum cn_rule             *rule)
 {
     struct cn_tree_node *tn = spn2tn(spn);
     struct kvset_list_entry *le;
@@ -313,7 +313,7 @@ sp3_work_wtype_scatter(
     head = &tn->tn_kvset_list;
     *mark = list_last_entry_or_null(head, typeof(*le), le_link);
     *action = CN_ACTION_COMPACT_KV;
-    *rule = CN_CR_SCATTERF;
+    *rule = CN_RULE_SCATTERF;
 
     runlen_max = thresh->lscat_runlen_max;
     runlen = cn_ns_kvsets(&tn->tn_ns);
@@ -326,7 +326,7 @@ sp3_work_wtype_scatter(
             break;
         }
 
-        *rule = CN_CR_SCATTERP;
+        *rule = CN_RULE_SCATTERP;
         --runlen;
     }
 
@@ -358,7 +358,7 @@ sp3_work_wtype_length(
     struct sp3_thresholds    *thresh,
     struct kvset_list_entry **mark,
     enum cn_action           *action,
-    enum cn_comp_rule        *rule)
+    enum cn_rule             *rule)
 {
     struct cn_tree_node *tn = spn2tn(spn);
     uint runlen_min = thresh->llen_runlen_min;
@@ -381,7 +381,7 @@ sp3_work_wtype_length(
         head = &tn->tn_kvset_list;
         *mark = list_last_entry(head, typeof(*le), le_link);
         *action = CN_ACTION_COMPACT_K;
-        *rule = CN_CR_LENGTHK;
+        *rule = CN_RULE_LENGTHK;
 
         list_for_each_entry_reverse(le, head, le_link) {
             if (runlen < runlen_min) {
@@ -409,7 +409,7 @@ sp3_work_wtype_length(
         if (runlen >= runlen_min) {
             if (vwlen < VBLOCK_MAX_SIZE) {
                 *action = CN_ACTION_COMPACT_KV;
-                *rule = CN_CR_LENGTHV;
+                *rule = CN_RULE_LENGTHV;
             }
 
             return runlen;
@@ -421,7 +421,7 @@ sp3_work_wtype_length(
         if (cn_ns_clen(&tn->tn_ns) < VBLOCK_MAX_SIZE) {
             *mark = list_last_entry(head, typeof(*le), le_link);
             *action = CN_ACTION_COMPACT_KV;
-            *rule = CN_CR_LENGTHV;
+            *rule = CN_RULE_LENGTHV;
             return kvsets;
         }
 
@@ -432,7 +432,7 @@ sp3_work_wtype_length(
         if (kvsets > runlen_min && cn_ns_vblks(&tn->tn_ns) < kvsets) {
             *mark = list_last_entry(head, typeof(*le), le_link);
             *action = CN_ACTION_COMPACT_KV;
-            *rule = CN_CR_INDEXF;
+            *rule = CN_RULE_INDEXF;
 
             /* If the oldest kvset is larger than the next oldest kvset
              * and there's not much garbage then start with the next
@@ -443,7 +443,7 @@ sp3_work_wtype_length(
             if (kvset_get_kwlen(le->le_kvset) < kvset_get_kwlen((*mark)->le_kvset) &&
                 cn_ns_clen(&tn->tn_ns) * 100 > cn_ns_alen(&tn->tn_ns) * 85) {
 
-                *rule = CN_CR_INDEXP;
+                *rule = CN_RULE_INDEXP;
                 *mark = le;
                 return kvsets - 1;
             }
@@ -481,7 +481,7 @@ sp3_work(
 
     uint                     n_kvsets = 0;
     enum cn_action           action = CN_ACTION_NONE;
-    enum cn_comp_rule        rule = CN_CR_NONE;
+    enum cn_rule             rule = CN_RULE_NONE;
     struct kvset_list_entry *mark = NULL;
 
     tn = spn2tn(spn);
@@ -633,7 +633,7 @@ sp3_work(
     w->cw_kvset_cnt = n_kvsets;
     w->cw_mark = mark;
     w->cw_action = action;
-    w->cw_comp_rule = rule;
+    w->cw_rule = rule;
     w->cw_debug = debug;
 
     w->cw_have_token = have_token;

@@ -77,7 +77,7 @@ struct kvset {
     u32           ks_sfx_len; /* cn tree sfx_len */
     uint8_t       ks_node_level;
     uint8_t       ks_vminlvl;
-    uint16_t      ks_comp_rule;
+    uint16_t      ks_rule;
     u64           ks_nodeid;
     u32           ks_vmin;
     u32           ks_vmax;

@@ -424,7 +424,7 @@ print_row(struct ctx *ctx, char *tag, struct rollup *r, uint index, char *sep)
         bn_width(opt.bnfmt, 11), r->ks.kst_kblks,
         bn_width(opt.bnfmt, 12), r->ks.kst_vblks,
         r->km.vgroups,
-        (tag[0] == 'k') ? cn_comp_rule2str(r->km.comp_rule) : "-",
+        (tag[0] == 'k') ? cn_rule2str(r->km.rule) : "-",
         bn_width(opt.bnfmt, 15), avg_klen,
         bn_width(opt.bnfmt, 16), avg_vlen);
 
