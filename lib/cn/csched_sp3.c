@@ -471,7 +471,7 @@ sp3_log_progress(struct cn_compaction_work *w, struct cn_merge_stats *ms, bool f
 
         SLOG_FIELD("queue_us", "%lu", qt),
         SLOG_FIELD("prep_us", "%lu", pt),
-        SLOG_FIELD("merge_us", "%lu", bt),
+        SLOG_FIELD("build_us", "%lu", bt),
         SLOG_FIELD("commit_us", "%lu", ct),
         SLOG_END);
 }

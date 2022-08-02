@@ -1838,6 +1838,8 @@ cn_comp_commit(struct cn_compaction_work *w)
     }
 
 done:
+    w->cw_t4_commit = get_time_ns();
+
     if (w->cw_err) {
         if (txn_nak)
             cndb_record_nak(w->cw_tree->cndb, w->cw_cndb_txn);
@@ -1877,8 +1879,9 @@ cn_comp_cleanup(struct cn_compaction_work *w)
          * unless debugging.
          */
         if (!w->cw_canceled)
-            log_errx("compaction error @@e: sts/job %u comp %s rule %s"
-                     " cnid %lu nodeid %lu dgenlo %lu dgenhi %lu wedge %d",
+            log_errx("compaction error sts/job %u action %s rule %s"
+                     " cnid %lu nodeid %lu dgenlo %lu dgenhi %lu wedge %d"
+                     " build_ms %lu: @@e",
                      w->cw_err,
                      sts_job_id_get(&w->cw_job),
                      cn_action2str(w->cw_action),
@@ -1887,7 +1890,8 @@ cn_comp_cleanup(struct cn_compaction_work *w)
                      w->cw_node->tn_nodeid,
                      w->cw_dgen_lo,
                      w->cw_dgen_hi,
-                     w->cw_tree->ct_rspills_wedged);
+                     w->cw_tree->ct_rspills_wedged,
+                     (w->cw_t3_build - w->cw_t2_prep) / 1000000);
 
         if (merr_errno(w->cw_err) == ENOSPC)
             w->cw_tree->ct_nospace = true;
@@ -2040,6 +2044,8 @@ cn_comp_compact(struct cn_compaction_work *w)
         break;
     }
 
+    w->cw_t3_build = get_time_ns();
+
     if (merr_errno(err) == ESHUTDOWN && atomic_read(w->cw_cancel_request))
         w->cw_canceled = true;
 
@@ -2056,9 +2062,6 @@ cn_comp_compact(struct cn_compaction_work *w)
             kvdb_health_error(hp, err);
         goto err_exit;
     }
-
-    w->cw_t3_build = get_time_ns();
-    w->cw_t4_commit = get_time_ns();
 
 err_exit:
     w->cw_err = err;
@@ -2108,6 +2111,7 @@ cn_comp(struct cn_compaction_work *w)
      * as it may have already been freed.
      */
     cn_ref_get(cn);
+
     if (w->cw_rspill_conc) {
         struct cn_tree_node *node;
 
