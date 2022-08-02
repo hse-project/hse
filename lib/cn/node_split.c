@@ -17,12 +17,14 @@
 #include <hse_util/logging.h>
 #include <hse_util/list.h>
 
+#include "cn_tree.h"
 #include "cn_tree_internal.h"
 #include "cn_tree_compact.h"
 #include "kvset.h"
-#include "kvset_split.h"
+#include "node_split.h"
 #include "kvset_internal.h"
 #include "wbt_internal.h"
+#include "route.h"
 
 struct reverse_kblk_iterator {
     struct kvset *ks;
@@ -457,4 +459,80 @@ cn_split(struct cn_compaction_work *w)
     }
 
     return 0;
+}
+
+static bool
+check_valid_kvsets(const struct cn_compaction_work *w, bool left)
+{
+    uint start, end;
+
+    if (left) {
+        start = 0;
+        end = w->cw_kvset_cnt;
+    } else {
+        start = w->cw_kvset_cnt;
+        end = w->cw_outc;
+    }
+
+    for (uint i = start; i < end; i++) {
+        if (w->cw_kvsetidv[i] != 0)
+            return true;
+    }
+
+    return false;
+}
+
+merr_t
+cn_split_nodes_alloc(
+    const struct cn_compaction_work *w,
+    uint64_t                         nodeidv[static 2],
+    struct cn_tree_node             *nodev[static 2])
+{
+    for (int i = LEFT; i <= RIGHT; i++) {
+        nodev[i] = NULL;
+
+        if (!check_valid_kvsets(w, i == LEFT))
+            continue;
+
+        if (i == LEFT) {
+            struct cn_tree *tree = w->cw_tree;
+
+            nodeidv[i] = cndb_nodeid_mint(cn_tree_get_cndb(w->cw_tree));
+
+            nodev[i] = cn_node_alloc(tree, nodeidv[i]);
+            if (!nodev[i])
+                return merr(ENOMEM);
+
+            /* Allocate a route node using the split key as its edge key.
+             */
+            nodev[i]->tn_route_node =
+                route_node_alloc(tree->ct_route_map, nodev[i], w->cw_split.key, w->cw_split.klen);
+            if (!nodev[i]->tn_route_node) {
+                cn_node_free(nodev[i]);
+                nodev[i] = NULL;
+
+                return merr(ENOMEM);
+            }
+        } else {
+            /* Use the source node as the right node */
+            nodeidv[i] = w->cw_node->tn_nodeid;
+            nodev[i] = w->cw_node;
+        }
+    }
+
+    return 0;
+}
+
+void
+cn_split_nodes_free(const struct cn_compaction_work *w, struct cn_tree_node *nodev[static 2])
+{
+    for (int i = LEFT; i <= RIGHT && nodev[i]; i++) {
+        /* Free only the allocated left node */
+        if (i == LEFT) {
+            route_node_free(w->cw_tree->ct_route_map, nodev[i]->tn_route_node);
+            cn_node_free(nodev[i]);
+        }
+
+        nodev[i] = NULL;
+    }
 }

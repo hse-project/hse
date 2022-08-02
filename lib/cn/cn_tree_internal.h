@@ -135,8 +135,6 @@ struct cn_tree {
     struct rmlock ct_lock;
 };
 
-#define CN_TREE_INVALID_NODEID     (UINT64_MAX)
-
 /**
  * struct cn_tree_node - A node in a k-way cn_tree
  * @tn_rspills_lock:  lock to protect @tn_rspills
