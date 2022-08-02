@@ -524,11 +524,10 @@ jobs:
           apt-get -y install git python3 python3-pip pkg-config ninja-build \
             cmake gawk build-essential crossbuild-essential-${{ matrix.arch }} \
             libpython3-dev:${{ matrix.arch }} liburcu-dev:${{ matrix.arch }} \
-            libcurl4-openssl-dev:${{ matrix.arch }} \
             libbsd-dev:${{ matrix.arch }} libmicrohttpd-dev:${{ matrix.arch }} \
             libyaml-dev:${{ matrix.arch }} libmongoc-dev:${{ matrix.arch }} \
             libbson-dev:${{ matrix.arch }} libncurses-dev:${{ matrix.arch }} \
-            maven
+            maven autoconf automake make libtool
           python3 -m pip install meson==0.62.2 Cython
 
       - name: Checkout HSE
