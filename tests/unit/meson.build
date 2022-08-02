@@ -56,6 +56,7 @@ components = {
         'kblock_reader_test': {},
         'kcompact_test': {},
         'kvset_builder_test': {},
+        'ltok_test': {},
         'mbset_test': {},
         'merge_test': {
             'args': [

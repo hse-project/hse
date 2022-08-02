@@ -17,6 +17,7 @@ mocked_headers = [
     meson.project_source_root() / 'lib/cn/kblock_builder.h',
     meson.project_source_root() / 'lib/cn/kcompact.h',
     meson.project_source_root() / 'lib/cn/kvset.h',
+    meson.project_source_root() / 'lib/cn/ltok.h',
     meson.project_source_root() / 'lib/cn/mbset.h',
     meson.project_source_root() / 'lib/cn/route.h',
     meson.project_source_root() / 'lib/cn/spill.h',
