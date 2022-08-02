@@ -27,6 +27,8 @@ struct cndb_txn;
 
 #define CNDB_INVAL_HORIZON  CNDB_INVAL_INGESTID
 
+#define CNDB_INVAL_KVSETID 0
+
 /* MTF_MOCK_DECL(cndb) */
 
 /* MTF_MOCK */

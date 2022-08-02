@@ -11,6 +11,8 @@
 #include <hse_util/compiler.h>
 #include <error/merr.h>
 
+#include "kvset_split.h"
+
 struct cn_tree_node;
 
 /**
@@ -66,5 +68,20 @@ cn_tree_node_get_split_key(
  */
 merr_t
 cn_split(struct cn_compaction_work *w) HSE_NONNULL(1);
+
+/**
+ * cn_split_nodes_alloc() - Allocate output nodes for node split
+ */
+merr_t
+cn_split_nodes_alloc(
+    const struct cn_compaction_work *w,
+    uint64_t                         nodeidv[static 2],
+    struct cn_tree_node             *nodev[static 2]);
+
+/**
+ * cn_split_nodes_alloc() - Free output nodes allocated for node split
+ */
+void
+cn_split_nodes_free(const struct cn_compaction_work *w, struct cn_tree_node *nodev[static 2]);
 
 #endif

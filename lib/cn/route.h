@@ -55,8 +55,17 @@ route_map_insert(
     const void       *edge_key,
     uint              edge_klen);
 
+merr_t
+route_map_insert_by_node(struct route_map *map, struct route_node *node);
+
 void
 route_map_delete(struct route_map *map, struct route_node *node);
+
+struct route_node *
+route_node_alloc(struct route_map *map, void *tnode, const void *edge_key, uint edge_klen);
+
+void
+route_node_free(struct route_map *map, struct route_node *node);
 
 /**
  * route_map_lookup() - Return a node for which its edge key is greater than or equal to %key

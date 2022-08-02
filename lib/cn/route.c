@@ -193,8 +193,22 @@ route_node_keybuf_alloc(struct route_node *node, uint edge_klen)
     return 0;
 }
 
-static struct route_node *
-route_node_alloc(struct route_map *map, uint edge_klen)
+static void
+route_node_key_set(struct route_node *node, const void *edge_key, uint edge_klen)
+{
+    if (!edge_key || !edge_klen)
+        return;
+
+    INVARIANT(node);
+    INVARIANT(node->rtn_keybufp);
+    assert(node->rtn_keybufp != node->rtn_keybuf || edge_klen <= sizeof(node->rtn_keybuf));
+
+    memcpy(node->rtn_keybufp, edge_key, edge_klen);
+    node->rtn_keylen = edge_klen;
+}
+
+struct route_node *
+route_node_alloc(struct route_map *map, void *tnode, const void *edge_key, uint edge_klen)
 {
     struct route_node *node = map->rtm_free;
     size_t nodesz;
@@ -205,30 +219,38 @@ route_node_alloc(struct route_map *map, uint edge_klen)
             return NULL;
 
         map->rtm_free = node->rtn_next;
+    } else {
+        /* The route_node cache is empty, allocate a new route_node.
+         * These allocated route_node entries are never cached.
+         */
+        nodesz = sizeof(*node);
+        if (edge_klen > sizeof(node->rtn_keybuf))
+            nodesz += ALIGN(edge_klen, alignof(*node));
 
-        return node;
-    }
+        node = aligned_alloc(alignof(*node), nodesz);
+        if (!node)
+            return NULL;
 
-    /* The route_node cache is empty, allocate a new route_node.
-     * These allocated route_node entries are never cached.
-     */
-    nodesz = sizeof(*node);
-    if (edge_klen > sizeof(node->rtn_keybuf))
-        nodesz += ALIGN(edge_klen, __alignof__(*node));
-
-    node = aligned_alloc(__alignof__(*node), nodesz);
-    if (node) {
         memset(node, 0, nodesz);
         node->rtn_keybufp = (nodesz > sizeof(*node)) ? (uint8_t *)(node + 1) : node->rtn_keybuf;
     }
 
+    route_node_key_set(node, edge_key, edge_klen);
+
+    node->rtn_tnode = tnode;
+
     return node;
 }
 
-static void
+void
 route_node_free(struct route_map *map, struct route_node *node)
 {
-    bool freeme = (node < map->rtm_nodev || node >= (map->rtm_nodev + map->rtm_fanout));
+    bool freeme;
+
+    if (!map || !node)
+        return;
+
+    freeme = (node < map->rtm_nodev || node >= (map->rtm_nodev + map->rtm_fanout));
 
     if (!freeme) {
         node->rtn_tnode = NULL;
@@ -248,25 +270,7 @@ route_node_free(struct route_map *map, struct route_node *node)
     free(node);
 }
 
-static void
-route_node_key_set(
-    struct route_map  *map,
-    struct route_node *node,
-    const void        *edge_key,
-    uint               edge_klen)
-{
-    if (!edge_key || !edge_klen)
-        return;
-
-    INVARIANT(node);
-    INVARIANT(node->rtn_keybufp);
-    assert(node->rtn_keybufp != node->rtn_keybuf || edge_klen <= sizeof(node->rtn_keybuf));
-
-    memcpy(node->rtn_keybufp, edge_key, edge_klen);
-    node->rtn_keylen = edge_klen;
-}
-
-merr_t
+merr_t HSE_MAYBE_UNUSED
 route_node_key_modify(
     struct route_map  *map,
     struct route_node *node,
@@ -282,36 +286,23 @@ route_node_key_modify(
     if (err)
         return err;
 
-    route_node_key_set(map, node, edge_key, edge_klen);
+    route_node_key_set(node, edge_key, edge_klen);
 
     return 0;
 }
 
-struct route_node *
-route_map_insert(
-    struct route_map *map,
-    void             *tnode,
-    const void       *edge_key,
-    uint              edge_klen)
+merr_t
+route_map_insert_by_node(struct route_map *map, struct route_node *node)
 {
     struct rb_root *root = &map->rtm_root;
     struct rb_node **link = &root->rb_node;
     struct rb_node *parent = NULL;
     struct rb_node *first = rb_first(root), *last = rb_last(root);
-    struct route_node *node;
 
-    INVARIANT(map && tnode);
+    INVARIANT(map && node);
+    INVARIANT(node->rtn_tnode);
 
-    node = route_node_alloc(map, edge_klen);
-    if (!node) {
-        log_err("route node allocation failed");
-        return NULL;
-    }
-
-    node->rtn_tnode = tnode;
     node->rtn_isfirst = node->rtn_islast = false;
-
-    route_node_key_set(map, node, edge_key, edge_klen);
 
     while (*link) {
         struct route_node *this;
@@ -328,8 +319,7 @@ route_map_insert(
             link = &(*link)->rb_right;
         } else {
             log_err("dup route detected");
-            route_node_free(map, node);
-            return NULL;
+            return merr(EEXIST);
         }
     }
 
@@ -352,6 +342,29 @@ route_map_insert(
             struct route_node *this = rb_entry(last, struct route_node, rtn_node);
             this->rtn_islast = false;
         }
+    }
+
+    return 0;
+}
+
+struct route_node *
+route_map_insert(struct route_map *map, void *tnode, const void *edge_key, uint edge_klen)
+{
+    struct route_node *node;
+    merr_t err;
+
+    INVARIANT(map && tnode);
+
+    node = route_node_alloc(map, tnode, edge_key, edge_klen);
+    if (!node) {
+        log_err("route node allocation failed");
+        return NULL;
+    }
+
+    err = route_map_insert_by_node(map, node);
+    if (err) {
+        route_node_free(map, node);
+        return NULL;
     }
 
     return node;

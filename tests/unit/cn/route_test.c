@@ -95,8 +95,11 @@ MTF_DEFINE_UTEST(route_test, route_api_test)
 
     /* Reinsert odd numbered nodes */
     for (int i = 1; i < 2 * fanout; i += 2) {
-        rnodev[i] = route_map_insert(map, &tn, ekbuf[i], eklen);
-        ASSERT_NE(NULL, rnodev[i]);
+        rnodev[i] = route_node_alloc(map, &tn, ekbuf[i], eklen);
+        ASSERT_NE(rnodev[i], NULL);
+
+        err = route_map_insert_by_node(map, rnodev[i]);
+        ASSERT_EQ(0, merr_errno(err));
     }
 
     /* Insert a node with large edge key when the node cache is empty */
