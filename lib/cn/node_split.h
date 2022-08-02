@@ -79,7 +79,7 @@ cn_split_nodes_alloc(
     struct cn_tree_node             *nodev[static 2]);
 
 /**
- * cn_split_nodes_alloc() - Free output nodes allocated for node split
+ * cn_split_nodes_free() - Free output nodes allocated for node split
  */
 void
 cn_split_nodes_free(const struct cn_compaction_work *w, struct cn_tree_node *nodev[static 2]);

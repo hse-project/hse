@@ -225,9 +225,9 @@ route_node_alloc(struct route_map *map, void *tnode, const void *edge_key, uint 
          */
         nodesz = sizeof(*node);
         if (edge_klen > sizeof(node->rtn_keybuf))
-            nodesz += ALIGN(edge_klen, alignof(*node));
+            nodesz += ALIGN(edge_klen, __alignof__(*node));
 
-        node = aligned_alloc(alignof(*node), nodesz);
+        node = aligned_alloc(__alignof__(*node), nodesz);
         if (!node)
             return NULL;
 
@@ -291,7 +291,7 @@ route_node_key_modify(
     return 0;
 }
 
-merr_t
+struct route_node *
 route_map_insert_by_node(struct route_map *map, struct route_node *node)
 {
     struct rb_root *root = &map->rtm_root;
@@ -318,8 +318,7 @@ route_map_insert_by_node(struct route_map *map, struct route_node *node)
         } else if (rc > 0) {
             link = &(*link)->rb_right;
         } else {
-            log_err("dup route detected");
-            return merr(EEXIST);
+            return this;
         }
     }
 
@@ -344,14 +343,13 @@ route_map_insert_by_node(struct route_map *map, struct route_node *node)
         }
     }
 
-    return 0;
+    return NULL;
 }
 
 struct route_node *
 route_map_insert(struct route_map *map, void *tnode, const void *edge_key, uint edge_klen)
 {
-    struct route_node *node;
-    merr_t err;
+    struct route_node *node, *dup;
 
     INVARIANT(map && tnode);
 
@@ -361,9 +359,11 @@ route_map_insert(struct route_map *map, void *tnode, const void *edge_key, uint 
         return NULL;
     }
 
-    err = route_map_insert_by_node(map, node);
-    if (err) {
+    dup = route_map_insert_by_node(map, node);
+    if (dup) {
         route_node_free(map, node);
+        log_err("dup node detected (%u %p; %u %p)", edge_klen, tnode,
+                dup->rtn_keylen, dup->rtn_tnode);
         return NULL;
     }
 

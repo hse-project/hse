@@ -55,7 +55,7 @@ route_map_insert(
     const void       *edge_key,
     uint              edge_klen);
 
-merr_t
+struct route_node *
 route_map_insert_by_node(struct route_map *map, struct route_node *node);
 
 void

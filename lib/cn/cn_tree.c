@@ -1501,6 +1501,8 @@ cn_comp_update_split(
     if (w->cw_err)
         return;
 
+    assert(left || right);
+
     INIT_LIST_HEAD(&retired_kvsets);
 
     /* Add the left half of the split kvsets to the 'left' node.
@@ -1665,10 +1667,8 @@ cn_comp_commit(struct cn_compaction_work *w)
 
     if (split) {
         w->cw_err = cn_split_nodes_alloc(w, split_nodeidv, split_nodev);
-        if (w->cw_err) {
-            kvdb_health_error(hp, w->cw_err);
+        if (w->cw_err)
             goto done;
-        }
     }
 
     /* Log CNDB records for all kvsets before committing the mblocks.
