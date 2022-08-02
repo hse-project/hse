@@ -69,7 +69,7 @@ endif
 
 git = find_program('git', required: false)
 in_git = git.found() and run_command(git, 'rev-parse', check: false).returncode() == 0
-if not meson.is_subproject() and in_git
+if in_git
     build_version = run_command(
         git,
         'describe',
