@@ -262,8 +262,16 @@ if cmake.found() and get_option('tools').allowed() and (not HdrHistogram_c_dep.f
     })
     HdrHistogram_c_options.set_override_option('werror', 'false')
     HdrHistogram_c_options.set_override_option('warning_level', '0')
-    HdrHistogram_c_proj = cmake.subproject('HdrHistogram_c', options: HdrHistogram_c_options)
-    HdrHistogram_c_dep = HdrHistogram_c_proj.dependency('hdr_histogram_static')
+    HdrHistogram_c_proj = cmake.subproject(
+        'HdrHistogram_c',
+        options: HdrHistogram_c_options,
+        required: get_option('tools')
+    )
+    if HdrHistogram_c_proj.found()
+        HdrHistogram_c_dep = HdrHistogram_c_proj.dependency('hdr_histogram_static')
+    else
+        HdrHistogram_c_dep = disabler()
+    endif
 endif
 libmongoc_dep = dependency('libmongoc-1.0', version: ['>=1.17.3', '<1.21.0'], required: false)
 libbson_dep = dependency('libbson-1.0', version: ['>=1.17.3', '<1.21.0'], required: false)
@@ -283,15 +291,27 @@ if cmake.found() and get_option('tools').allowed() and (not libmongoc_dep.found(
     })
     mongo_c_driver_options.set_override_option('werror', 'false')
     mongo_c_driver_options.set_override_option('warning_level', '0')
-    mongo_c_driver_proj = cmake.subproject('mongo-c-driver', options: mongo_c_driver_options)
+    mongo_c_driver_proj = cmake.subproject(
+        'mongo-c-driver',
+        options: mongo_c_driver_options,
+        required: get_option('tools')
+    )
     if not libmongoc_dep.found() or mongo_c_driver_force_fallback
-        libmongoc_dep = [
-            mongo_c_driver_proj.dependency('mongoc_static'),
-            cc.find_library('resolv'),
-        ]
+        if mongo_c_driver_proj.found()
+            libmongoc_dep = [
+                mongo_c_driver_proj.dependency('mongoc_static'),
+                cc.find_library('resolv'),
+            ]
+        else
+            libmongoc_dep = disabler()
+        endif
     endif
     if not libbson_dep.found() or mongo_c_driver_force_fallback
-        libbson_dep = mongo_c_driver_proj.dependency('bson_static')
+        if mongo_c_driver_proj.found()
+            libbson_dep = mongo_c_driver_proj.dependency('bson_static')
+        else
+            libbson_dep = disabler()
+        endif
     endif
 endif
 
