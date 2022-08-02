@@ -523,11 +523,9 @@ jobs:
           apt-get -y update
           apt-get -y install git python3 python3-pip pkg-config ninja-build \
             cmake gawk build-essential crossbuild-essential-${{ matrix.arch }} \
-            libpython3-dev:${{ matrix.arch }} liburcu-dev:${{ matrix.arch }} \
-            libbsd-dev:${{ matrix.arch }} libmicrohttpd-dev:${{ matrix.arch }} \
-            libyaml-dev:${{ matrix.arch }} libmongoc-dev:${{ matrix.arch }} \
-            libbson-dev:${{ matrix.arch }} libncurses-dev:${{ matrix.arch }} \
-            maven autoconf automake make libtool
+            libpython3-dev:${{ matrix.arch }} \
+            libncurses-dev:${{ matrix.arch }} maven autoconf automake make \
+            libtool
           python3 -m pip install meson==0.62.2 Cython
 
       - name: Checkout HSE
@@ -600,7 +598,7 @@ jobs:
 
       - name: Setup
         run: |
-          meson builddir --fatal-meson-warnings --werror --cross-file \
+          meson builddir --fatal-meson-warnings --cross-file \
             cross/${{ matrix.arch }}.ini --cross-file cross/common.ini \
             --buildtype=${{ matrix.buildtype }} -Dtools=enabled \
             -Ddocs=disabled -Dbindings=all
@@ -669,93 +667,3 @@ jobs:
             builddir/meson-logs/
             /var/log/messages
             /var/log/syslog
-
-  subprojects:
-    runs-on: ubuntu-latest
-    container:
-      image: fedora:36
-
-    steps:
-      - name: Initialize
-        run: |
-          dnf group install -y --with-optional \
-            "C Development Tools and Libraries"
-          dnf install -y git python3-pip ninja-build pkg-config ncurses-devel \
-            python3-devel python3-Cython maven
-          python3 -m pip install meson==0.62.2
-
-      - name: Checkout HSE
-        uses: actions/checkout@v3
-
-      - name: Determine branches
-        id: determine-branches
-        shell: sh +e {0}
-        run: |
-          for p in hse-java hse-python; do
-            branch=master
-            if [ "$GITHUB_EVENT_NAME" = "pull_request" ]; then
-              git ls-remote --exit-code --heads \
-                "https://github.com/hse-project/$p.git" "$GITHUB_HEAD_REF" \
-                > /dev/null
-
-              if [ $? -eq 0 ]; then
-                branch="$GITHUB_HEAD_REF"
-              fi
-            elif [ "$GITHUB_EVENT_NAME" = "release" ]; then
-              branch=$(git rev-parse --abbrev-ref HEAD)
-            else
-              git ls-remote --exit-code --heads \
-                "https://github.com/hse-project/$p.git" "$GITHUB_REF" \
-                > /dev/null
-
-              if [ $? -eq 0 ]; then
-                branch="$GITHUB_REF"
-              fi
-            fi
-
-            echo "::set-output name=$p::$branch"
-          done
-
-      - name: Checkout hse-java
-        uses: actions/checkout@v3
-        with:
-          repository: hse-project/hse-java
-          path: subprojects/hse-java
-          ref: ${{ steps.determine-branches.outputs.hse-java }}
-
-      - name: Checkout hse-python
-        uses: actions/checkout@v3
-        with:
-          repository: hse-project/hse-python
-          path: subprojects/hse-python
-          ref: ${{ steps.determine-branches.outputs.hse-python }}
-
-      - name: Cache Meson packagecache
-        uses: actions/cache@v3
-        with:
-          path: subprojects/packagecache
-          key: meson-packagecache-fedora:36-${{ hashFiles('subprojects/*.wrap') }}
-
-      - name: Setup Java
-        id: setup-java
-        uses: actions/setup-java@v3
-        with:
-          distribution: adopt
-          java-version: "17"
-
-      - name: Setup
-        run: |
-          meson builddir --fatal-meson-warnings --werror \
-            -Dwrap_mode=forcefallback -Dtools=enabled -Ddocs=disabled \
-            -Dbindings=all
-
-      - name: Build
-        run: |
-          ninja -C builddir
-
-      - uses: actions/upload-artifact@v3
-        if: ${{ failure() }}
-        with:
-          name: ${{ github.job }}
-          path: |
-            builddir/meson-logs/
