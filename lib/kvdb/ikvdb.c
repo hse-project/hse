@@ -1438,8 +1438,11 @@ ikvdb_open(
     mutex_init(&self->ikdb_lock);
     ikvdb_txn_init(self);
 
+    /* alias is just a static 0. Remove if HSE decides to allow more than one
+     * KVDB to be opened.
+     */
     n = snprintf(
-        self->ikdb_alias, sizeof(self->ikdb_alias), "%d", atomic_fetch_add(&kvdb_alias, 1));
+        self->ikdb_alias, sizeof(self->ikdb_alias), "%d", atomic_read(&kvdb_alias));
     if (n < 0) {
         err = merr(EBADMSG);
         goto out;

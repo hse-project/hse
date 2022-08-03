@@ -242,6 +242,34 @@ MTF_DEFINE_UTEST_PREPOST(ikvdb_test, init_fail, test_pre, test_post)
     mapi_inject_unset(mapi_idx_malloc);
 }
 
+MTF_DEFINE_UTEST_PREPOST(ikvdb_test, alias, test_pre, test_post)
+{
+    const char *        mpool = __func__;
+    struct ikvdb *      store = NULL;
+    merr_t              err;
+    const char *const   paramv[] = { "c0_diag_mode=true" };
+    struct kvdb_rparams params = kvdb_rparams_defaults();
+
+    err = argv_deserialize_to_kvdb_rparams(NELEM(paramv), paramv, &params);
+    ASSERT_EQ(0, err);
+
+    err = ikvdb_open(mpool, &params, &store);
+    ASSERT_EQ(0, err);
+    ASSERT_NE(0, store);
+    ASSERT_EQ(0, strcmp(ikvdb_alias(store), "0"));
+
+    err = ikvdb_close(store);
+    ASSERT_EQ(0, err);
+
+    err = ikvdb_open(mpool, &params, &store);
+    ASSERT_EQ(0, err);
+    ASSERT_NE(0, store);
+    ASSERT_EQ(0, strcmp(ikvdb_alias(store), "0"));
+
+    err = ikvdb_close(store);
+    ASSERT_EQ(0, err);
+}
+
 MTF_DEFINE_UTEST_PREPOST(ikvdb_test, basic_txn_alloc, test_pre, test_post)
 {
     const char *         mpool = __func__;
