@@ -14,12 +14,14 @@
 
 #include <hse/hse.h>
 
+#include <hse_util/compiler.h>
+
 int              verbose = 0;
 int              nthreads = 128;
 int              niter = 10000;
 struct hse_kvdb *kvdb;
 
-void *
+void * HSE_PRINTF(2, 3)
 tdie(int err, char *fmt, ...)
 {
     static int fail = 1;
@@ -38,7 +40,7 @@ tdie(int err, char *fmt, ...)
     return &fail;
 }
 
-void
+void HSE_PRINTF(2, 3)
 die(int err, char *fmt, ...)
 {
     char    buf[256];
@@ -95,7 +97,7 @@ parallel_cursors(void *info)
         if (slen == 0)
             return tdie(0, "cursor iter %d wanted %.3s, found eof", i, buf);
         if (slen != klen || memcmp(k, buf, klen) != 0)
-            return tdie(0, "cursor iter %d found %.*s, wanted %.3s", i, slen, k, buf);
+            return tdie(0, "cursor iter %d found %.*s, wanted %.3s", i, (int)slen, (char *)k, buf);
 
         err = hse_kvs_cursor_read(c, 0, &k, &klen, &v, &vlen, &eof);
         if (err)
@@ -103,14 +105,16 @@ parallel_cursors(void *info)
         if (eof)
             return tdie(err, "read eof cursor iter %d, key %.3s", i, buf);
         if (memcmp(k, buf, klen) != 0)
-            return tdie(0, "cursor iter %d read %.*s, wanted %.3s", i, klen, buf);
+            return tdie(0, "cursor iter %d read %.*s, wanted %.3s", i, (int)klen, (char *)k, buf);
         if (memcmp(v, buf, vlen) != 0)
             return tdie(
                 0,
                 "cursor iter %d key %.3s, read value %.*s, "
                 "wanted %.3s",
                 i,
-                vlen,
+                (char *)k,
+                (int)vlen,
+                (char *)v,
                 buf);
 
         err = hse_kvs_cursor_destroy(c);

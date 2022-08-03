@@ -247,11 +247,11 @@ bool           latency = false;
 bool           recverify = true;
 bool           keybinary = false;
 char          *fieldname_fmt = "field%u";
-uint           fieldnamew_min; /* minimum fieldname width */
-uint           fieldnamew_max; /* maximum fieldname width */
+int            fieldnamew_min; /* minimum fieldname width */
+int            fieldnamew_max; /* maximum fieldname width */
 uint           fieldcount_max = 2048;
 uint           fieldcount = 1;
-uint           fieldlength = 0;
+size_t         fieldlength = 0;
 char          *fieldnamev;
 uint           mongo = 0;
 uint           cidshift = 20;
@@ -2118,7 +2118,7 @@ rec_to_bson(struct km_rec *r, bson_t *doc)
         /* If (fieldlength == 0) then r->vlen can vary from record to record.
          * Otherwise, each field is fixed size.
          */
-        srclen = fieldlength ?: r->vlen;
+        srclen = fieldlength ? fieldlength : r->vlen;
 
         while (i-- > 0) {
             bson_append_binary(doc, name, namelen, BSON_SUBTYPE_BINARY, src, srclen);
@@ -4249,7 +4249,7 @@ usage(struct km_impl *impl)
     printf("  c0putval    %10u  c0 ingest test value length\n", c0putval);
     printf("  directio    %10u  enable/disable directIO\n", !!(dev_oflags & O_DIRECT));
     printf("  fieldcount  %10u  like ycsb fieldcount, mongo mode only\n", fieldcount);
-    printf("  fieldlength %10u  like ycsb fieldlength, mongo mode only\n", fieldlength);
+    printf("  fieldlength %10zu  like ycsb fieldlength, mongo mode only\n", fieldlength);
     printf("  keydist     %10zu  0: recmax/jobs, >0: in keydist chunks\n", keydist);
     printf("  lor           %lu:%lu:%u  set locality of reference [span:opsmax:constrain]\n",
            (ulong)km_lor.span, (ulong)km_lor.opsmax, (uint)km_lor.constrain);

@@ -70,7 +70,7 @@ get_kvs_list(struct ikvdb *ikvdb, struct yaml_context *yc)
     yaml_start_element_type(yc, "kvs_list");
 
     for (i = 0; i < kvs_cnt; i++)
-        yaml_list_fmt(yc, kvs_list[i]);
+        yaml_list_fmt(yc, "%s", kvs_list[i]);
 
     yaml_end_element_type(yc);
     yc->yaml_emit(yc);
@@ -731,7 +731,7 @@ print_elem(
             if (ctx->yaml) {
                 yaml_start_element(yc, "loc", "");
                 yc->yaml_indent++;
-                yaml_field_fmt(yc, "nodeid", "%u", ctx->node_nodeid);
+                yaml_field_fmt(yc, "nodeid", "%lu", ctx->node_nodeid);
                 yc->yaml_indent--;
             } else {
                 print_hdr(ctx, "EKHEX");
@@ -982,7 +982,7 @@ kvs_rest_query_tree_impl(
     if (ctx.yaml) {
         yaml_field_fmt(yc, "nodes", "%u", ctx.tot_nodes);
         yaml_field_fmt(yc, "cnid", "%lu", kvs->kk_cnid);
-        yaml_field_fmt(yc, "name", kvs->kk_name);
+        yaml_field_fmt(yc, "name", "%s", kvs->kk_name);
         yaml_field_fmt(yc, "open", "yes");
 
         yaml_end_element(yc);
@@ -1081,7 +1081,7 @@ rest_kvs_tree(
         /* kvs is closed */
         yaml_start_element_type(&yc, "info");
         yaml_field_fmt(&yc, "cnid", "%lu", kvs->kk_cnid);
-        yaml_field_fmt(&yc, "name", kvs->kk_name);
+        yaml_field_fmt(&yc, "name", "%s", kvs->kk_name);
         yaml_field_fmt(&yc, "open", "no");
         yaml_end_element(&yc);
         yaml_end_element_type(&yc); /* info */

@@ -133,7 +133,7 @@ run(void *p)
         }
 
         if (rc)
-            fatal(rc, test);
+            fatal(rc, "%s", test);
 
         if (ti->action == GET) {
             if (!found) {
@@ -396,7 +396,7 @@ main(int argc, char **argv)
 
     for (int i = 0; i < iter; ++i) {
         struct info *ti;
-        unsigned     stride = cnt / (tc ?: 1);
+        unsigned     stride = cnt / (tc ? tc : 1);
         int          rc;
 
         printf(
@@ -417,7 +417,7 @@ main(int argc, char **argv)
             ti->kvs = kvs;
             ti->joined = 1;
             ti->paws = paws;
-            ti->start = start + stride * c;
+            ti->start = start + (unsigned long)(stride * c);
             ti->last = c == tc - 1 ? start + cnt : ti->start + stride;
             ti->action = action;
             ti->endian = endian;
@@ -435,7 +435,7 @@ main(int argc, char **argv)
                 continue;
             rc = pthread_join(ti->tid, 0);
             if (rc)
-                warn(rc, "cannot join tid[%d]=%d: %d %s", c, ti->tid, rc, strerror(rc));
+                warn(rc, "cannot join tid[%d]=%ld: %d %s", c, ti->tid, rc, strerror(rc));
             else
                 ti->joined = 1;
         }
@@ -448,7 +448,7 @@ main(int argc, char **argv)
             }
             rc = pthread_join(ti->tid, 0);
             if (rc) {
-                warn(rc, "repeated join tid[%d]=%d: %d %s", c, ti->tid, rc, strerror(rc));
+                warn(rc, "repeated join tid[%d]=%ld: %d %s", c, ti->tid, rc, strerror(rc));
                 usleep(2000);
             } else
                 ++c;

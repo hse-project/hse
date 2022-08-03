@@ -10,6 +10,7 @@ on:
       - "**.c"
       - "**.h"
       - "**.h.in"
+      - .clang-tidy
       - .github/workflows/clang-tidy.yaml
 
 concurrency:

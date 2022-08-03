@@ -113,7 +113,7 @@ int   debug;
 volatile sig_atomic_t sigalrm;
 volatile sig_atomic_t sigint;
 
-void
+void HSE_PRINTF(1, 2)
 syntax(const char *fmt, ...)
 {
     char    msg[256];
@@ -128,7 +128,7 @@ syntax(const char *fmt, ...)
 
 /* Error print.
  */
-static void
+static void HSE_PRINTF(1, 2)
 eprint(const char *fmt, ...)
 {
     char    msg[256];
@@ -370,7 +370,7 @@ verify_with_mcache(
         err = mpool_mcache_madvise(minfo->map, i, 0, wcc, MADV_WILLNEED);
         if (err) {
             merr_strinfo(err, errbuf, sizeof(errbuf), NULL);
-            eprint("mpool_mcache_madvise failed: map=0x%lx mbid=%d: %s\n", minfo->map, i, errbuf);
+            eprint("mpool_mcache_madvise failed: map=%p mbid=%d: %s\n", (void *)minfo->map, i, errbuf);
         }
     }
 
@@ -1227,7 +1227,8 @@ main(int argc, char **argv)
 
             rc = pthread_create(&testv[i].t_td, NULL, test_start, &testv[i]);
             if (rc) {
-                eprint("pthread_create(%lx) idx=%d: %s\n", testv[i].t_td, testv[i].t_idx);
+                eprint("pthread_create(%lx) idx=%d: %s\n", testv[i].t_td, testv[i].t_idx,
+                    testv[i].t_mpname);
                 testv[i].t_td = pthread_self();
                 __sync_fetch_and_sub(&td_run, 1);
             }
@@ -1243,7 +1244,8 @@ main(int argc, char **argv)
 
             rc = pthread_join(testv[i].t_td, &val);
             if (rc) {
-                eprint("pthread_join(%lx) idx=%d: %s\n", testv[i].t_td, testv[i].t_idx);
+                eprint("pthread_join(%lx) idx=%d: %s\n", testv[i].t_td, testv[i].t_idx,
+                    testv[i].t_mpname);
             }
 
             stats_accum(&stats, &testv[i].t_stats);

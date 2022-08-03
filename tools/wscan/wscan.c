@@ -425,7 +425,7 @@ error:
     EVENT_SAMPLE(cl);
     EVENT_PRINT(cl, "hse_kvdb_close");
     if (err)
-        fatal(err, errmsg);
+        fatal(err, "%s\n", errmsg);
 
     pg_destroy(pg);
     svec_reset(&hse_gparm);

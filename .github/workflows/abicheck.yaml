@@ -29,7 +29,8 @@ jobs:
       image: ghcr.io/hse-project/ci-images/fedora-36:${{ github.base_ref }}
 
     steps:
-      - uses: actions/checkout@v3
+      - name: Checkout HSE
+        uses: actions/checkout@v3
         with:
           fetch-depth: 2
 

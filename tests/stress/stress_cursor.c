@@ -139,7 +139,7 @@ verify_cursor(struct cursor_test_data *info, struct cursor_list *cursor_list)
     char                   msg[100];
 
     log_info(
-        "begin %s: rank=%d key_index=%d cursor_count_per_thread=%d",
+        "begin %s: rank=%d key_index=%ld cursor_count_per_thread=%ld",
         __func__,
         info->rank,
         info->key_index,
@@ -165,7 +165,7 @@ verify_cursor(struct cursor_test_data *info, struct cursor_list *cursor_list)
             if (i == cursor_list[cursor_index].start) {
                 if (DEBUG) {
                     log_debug(
-                        "hse_kvs_cursor_seek: rank=%d cursor=%d key_index=%ld key=\"%s\"",
+                        "hse_kvs_cursor_seek: rank=%d cursor=%ld key_index=%ld key=\"%s\"",
                         info->rank,
                         cursor_index,
                         i,
@@ -195,21 +195,22 @@ verify_cursor(struct cursor_test_data *info, struct cursor_list *cursor_list)
             if (err) {
                 hse_strerror(err, msg, sizeof(msg));
                 log_error(
-                    "hse_kvs_cursor_read: errno=%d msg=\"%s\" rank=%d cursor=%d key_index=%ld",
+                    "hse_kvs_cursor_read: errno=%d msg=\"%s\" rank=%d cursor=%ld key_index=%ld",
                     hse_err_to_errno(err),
                     msg,
-                    cursor_index,
                     info->rank,
+                    cursor_index,
                     i);
                 ++error_count;
                 goto out;
             } else if (DEBUG) {
                 log_debug(
-                    "hse_kvs_cursor_read: rank=%d cursor=%d key_index=%ld key=\"%s\"",
+                    "hse_kvs_cursor_read: rank=%d cursor=%ld key_index=%ld key=\"%*s\"",
                     info->rank,
                     cursor_index,
                     i,
-                    cur_key);
+                    (int)cur_klen,
+                    (char *)cur_key);
             }
 
             if (eof) {
@@ -226,7 +227,7 @@ verify_cursor(struct cursor_test_data *info, struct cursor_list *cursor_list)
             if (info->key_size != cur_klen || info->val_size != cur_vlen) {
                 log_error(
                     "FAILED key length verification: "
-                    "actual_key_len=%ld expected_key_len=%ld",
+                    "actual_key_len=%ld expected_key_len=%d",
                     cur_klen,
                     info->key_size);
                 ++verification_failure_count;
@@ -234,31 +235,34 @@ verify_cursor(struct cursor_test_data *info, struct cursor_list *cursor_list)
             } else if (info->val_size != cur_vlen) {
                 log_error(
                     "FAILED value length verfication: "
-                    "actual_val_len=%ld expected_val_len=%ld",
+                    "actual_val_len=%ld expected_val_len=%d",
                     cur_vlen,
                     info->val_size);
                 ++verification_failure_count;
                 goto out;
             } else if (memcmp(expected_key_buf, cur_key, info->key_size) != 0) {
                 log_error(
-                    "FAILED key verification: start=%ld end=%ld i=%d "
-                    "key=\"%s\" expected_key=\"%s\"",
+                    "FAILED key verification: start=%ld end=%ld i=%ld "
+                    "key=\"%*s\" expected_key=\"%s\"",
                     cursor_list[cursor_index].start,
                     cursor_list[cursor_index].end,
                     i,
-                    cur_key,
+                    (int)cur_klen,
+                    (char *)cur_key,
                     expected_key_buf);
                 ++verification_failure_count;
                 goto out;
             } else if (memcmp(expected_val_buf, cur_val, info->val_size) != 0) {
                 log_error(
-                    "FAILED value verification: start=%ld end=%ld i=%d "
-                    "key=\"%s\" value=\"%s\" expected_value=\"%s\"",
+                    "FAILED value verification: start=%ld end=%ld i=%ld "
+                    "key=\"%*s\" value=\"%*s\" expected_value=\"%s\"",
                     cursor_list[cursor_index].start,
                     cursor_list[cursor_index].end,
                     i,
-                    cur_key,
-                    cur_val,
+                    (int)cur_klen,
+                    (char *)cur_key,
+                    (int)cur_vlen,
+                    (char *)cur_val,
                     expected_val_buf);
                 ++verification_failure_count;
                 goto out;
@@ -268,7 +272,7 @@ verify_cursor(struct cursor_test_data *info, struct cursor_list *cursor_list)
 
 out:
     log_info(
-        "end %s: rank=%d key_index=%d cursor_count_per_thread=%d",
+        "end %s: rank=%d key_index=%ld cursor_count_per_thread=%ld",
         __func__,
         info->rank,
         info->key_index,
@@ -292,7 +296,7 @@ insert_key_fast(void *args)
     char                     msg[100];
 
     log_info(
-        "begin %s: rank=%d key_index=%d cursor_count_per_thread=%d key_count_per_cursor=%d",
+        "begin %s: rank=%d key_index=%ld cursor_count_per_thread=%ld key_count_per_cursor=%ld",
         __func__,
         info->rank,
         info->key_index,
@@ -310,7 +314,7 @@ insert_key_fast(void *args)
 
         do {
             if (DEBUG) {
-                log_debug("hse_kvs_cursor_create: rank=%d cursor=%d", info->rank, i);
+                log_debug("hse_kvs_cursor_create: rank=%d cursor=%ld", info->rank, i);
             }
 
             err = hse_kvs_cursor_create(info->kvs, 0, NULL, NULL, 0, &CURSOR);
@@ -341,7 +345,7 @@ insert_key_fast(void *args)
 
         if (DEBUG) {
             log_debug(
-                "cursor_table: rank=%d cursor=%d start=%d end=%d",
+                "cursor_table: rank=%d cursor=%ld start=%ld end=%ld",
                 info->rank,
                 i,
                 cursor_table[i].start,
@@ -369,7 +373,7 @@ insert_key_fast(void *args)
 
             do {
                 if (DEBUG) {
-                    log_debug("hse_kvs_put: rank=%d cursor=%d key=\"%s\"", info->rank, i, key_buf);
+                    log_debug("hse_kvs_put: rank=%d cursor=%ld key=\"%s\"", info->rank, i, key_buf);
                 }
 
                 err = hse_kvs_put(
@@ -407,7 +411,7 @@ insert_key_fast(void *args)
 
         do {
             if (DEBUG) {
-                log_debug("hse_kvs_cursor_update_view: rank=%d cursor=%d", info->rank, i);
+                log_debug("hse_kvs_cursor_update_view: rank=%d cursor=%ld", info->rank, i);
             }
 
             err = hse_kvs_cursor_update_view(cursor_table[i].cursor, 0);
@@ -422,7 +426,7 @@ insert_key_fast(void *args)
             ++error_count;
             hse_strerror(err, msg, sizeof(msg));
             log_error(
-                "hse_kvs_cursor_update: errno=%d msg=\"%s\" retry=%d rank=%d idx=%d",
+                "hse_kvs_cursor_update: errno=%d msg=\"%s\" retry=%d rank=%d idx=%ld",
                 tmp_errno,
                 msg,
                 retry,
@@ -437,7 +441,7 @@ insert_key_fast(void *args)
 clean_up:
     for (i = 0; i < info->cursor_count_per_thread; i++) {
         if (DEBUG) {
-            log_debug("hse_kvs_cursor_destroy: rank=%d cursor=%d", info->rank, i);
+            log_debug("hse_kvs_cursor_destroy: rank=%d cursor=%ld", info->rank, i);
         }
 
         err = hse_kvs_cursor_destroy(cursor_table[i].cursor);
@@ -445,7 +449,7 @@ clean_up:
         if (err) {
             hse_strerror(err, msg, sizeof(msg));
             log_error(
-                "hse_kvs_cursor_destroy: errno=%d msg=\"%s\" rank=%d idx=%d",
+                "hse_kvs_cursor_destroy: errno=%d msg=\"%s\" rank=%d idx=%ld",
                 hse_err_to_errno(err),
                 msg,
                 info->rank,
@@ -457,7 +461,7 @@ clean_up:
     }
 
     log_info(
-        "end %s: rank=%d key_index=%d cursor_count_per_thread=%d key_count_per_cursor=%d",
+        "end %s: rank=%d key_index=%ld cursor_count_per_thread=%ld key_count_per_cursor=%ld",
         __func__,
         info->rank,
         info->key_index,
@@ -486,7 +490,7 @@ cursor_with_transactions(void *args)
     char                     msg[100];
 
     log_info(
-        "begin %s: rank=%d key_index=%d transaction_per_thread=%d key_count_per_cursor=%d",
+        "begin %s: rank=%d key_index=%ld transaction_per_thread=%ld key_count_per_cursor=%ld",
         __func__,
         info->rank,
         info->key_index,
@@ -503,7 +507,7 @@ cursor_with_transactions(void *args)
         cursor_table[i].end = cursor_table[i].start + info->key_count_per_cursor;
         if (DEBUG) {
             log_debug(
-                "cursor_table: i=%d start=%d end=%d",
+                "cursor_table: i=%ld start=%ld end=%ld",
                 i,
                 cursor_table[i].start,
                 cursor_table[i].end);
@@ -527,7 +531,7 @@ cursor_with_transactions(void *args)
         if (err) {
             hse_strerror(err, msg, sizeof(msg));
             log_error(
-                "hse_kvdb_txn_begin: errno=%d msg=\"%s\" rank=%d txn=%d",
+                "hse_kvdb_txn_begin: errno=%d msg=\"%s\" rank=%d txn=%ld",
                 hse_err_to_errno(err),
                 msg,
                 info->rank,
@@ -535,13 +539,13 @@ cursor_with_transactions(void *args)
 
             hse_kvdb_txn_free(info->kvdb, txn);
             if (DEBUG) {
-                log_debug("hse_kvdb_txn_free: rank=%d cursor=%d", info->rank, cursor_index);
+                log_debug("hse_kvdb_txn_free: rank=%d cursor=%ld", info->rank, cursor_index);
             }
 
             ++error_count;
             goto clean_up;
         } else if (DEBUG) {
-            log_debug("hse_kvdb_txn_begin: rank=%d txn=%d addr=%p", info->rank, txn_idx, txn);
+            log_debug("hse_kvdb_txn_begin: rank=%d txn=%ld addr=%p", info->rank, txn_idx, txn);
         }
 
         for (cursor_index_this_txn = 0; cursor_index_this_txn < info->cursor_count_per_txn;
@@ -566,7 +570,7 @@ cursor_with_transactions(void *args)
                 do {
                     if (DEBUG) {
                         log_debug(
-                            "hse_kvs_put: rank=%d txn=%d cursor=%d key_index=%ld key=\"%s\"",
+                            "hse_kvs_put: rank=%d txn=%ld cursor=%ld key_index=%ld key=\"%s\"",
                             info->rank,
                             txn_idx,
                             cursor_index,
@@ -594,7 +598,7 @@ cursor_with_transactions(void *args)
                 if (tmp_errno) {
                     hse_strerror(err, msg, sizeof(msg));
                     log_error(
-                        "hse_kvs_put: errno=%d msg=\"%s\" key=\"%s\" txn=%d cursor_idx=%d",
+                        "hse_kvs_put: errno=%d msg=\"%s\" key=\"%s\" txn=%ld cursor_idx=%ld",
                         hse_err_to_errno(err),
                         msg,
                         key_buf,
@@ -611,7 +615,7 @@ cursor_with_transactions(void *args)
             do {
                 if (DEBUG) {
                     log_debug(
-                        "hse_kvs_cursor_create: rank=%d txn=%d cursor=%d",
+                        "hse_kvs_cursor_create: rank=%d txn=%ld cursor=%ld",
                         info->rank,
                         txn_idx,
                         cursor_index);
@@ -652,14 +656,14 @@ clean_up:
             if (err) {
                 hse_strerror(err, msg, sizeof(msg));
                 log_error(
-                    "hse_kvs_cursor_destroy: errno=%d msg=\"%s\" rank=%d cursor_idx=%d",
+                    "hse_kvs_cursor_destroy: errno=%d msg=\"%s\" rank=%d cursor_idx=%ld",
                     hse_err_to_errno(err),
                     msg,
                     info->rank,
                     i);
                 ++error_count;
             } else if (DEBUG) {
-                log_debug("hse_kvs_cursor_destroy: rank=%d cursor=%d", info->rank, i);
+                log_debug("hse_kvs_cursor_destroy: rank=%d cursor=%ld", info->rank, i);
             }
         }
 
@@ -674,7 +678,7 @@ clean_up:
             if (err) {
                 hse_strerror(err, msg, sizeof(msg));
                 log_error(
-                    "hse_kvdb_txn_abort: errno=%d msg=\"%s\" rank=%d cursor_idx=%d txn_addr=%p",
+                    "hse_kvdb_txn_abort: errno=%d msg=\"%s\" rank=%d cursor_idx=%ld txn_addr=%p",
                     hse_err_to_errno(err),
                     msg,
                     info->rank,
@@ -683,20 +687,20 @@ clean_up:
                 ++error_count;
             } else if (DEBUG) {
                 log_debug(
-                    "hse_kvdb_txn_abort: rank=%d cursor_idx=%d txn_addr=%p", info->rank, i, txn);
+                    "hse_kvdb_txn_abort: rank=%d cursor_idx=%ld txn_addr=%p", info->rank, i, txn);
             }
 
             hse_kvdb_txn_free(info->kvdb, txn);
 
             if (DEBUG) {
                 log_debug(
-                    "hse_kvdb_txn_free: rank=%d cursor_idx=%d txn_addr=%p", info->rank, i, txn);
+                    "hse_kvdb_txn_free: rank=%d cursor_idx=%ld txn_addr=%p", info->rank, i, txn);
             }
         }
     }
 
     log_info(
-        "end %s: rank=%d key_index=%d key_count_per_cursor=%d",
+        "end %s: rank=%d key_index=%ld key_count_per_cursor=%ld",
         __func__,
         info->rank,
         info->key_index,
@@ -999,30 +1003,29 @@ main(int argc, char *argv[])
         exit(EXIT_FAILURE);
     }
 
-    log_info("cursor_count                  = %d", para.cursor_count);
+    log_info("cursor_count                  = %ld", para.cursor_count);
     log_info("cursor_test                   = %d", para.cursor_test);
     log_info("debug                         = %d", DEBUG);
-    log_info("key_count                     = %d", para.key_count);
+    log_info("key_count                     = %ld", para.key_count);
     log_info("key_size                      = %d", para.key_size);
     log_info("kvdb_home                     = \"%s\"", para.kvdb_home);
     log_info("kvs_name                      = \"%s\"", para.kvs_name);
     log_info("thread_count                  = %d", para.thread_count);
-    log_info("transaction_count             = %d", para.transaction_count);
+    log_info("transaction_count             = %ld", para.transaction_count);
     log_info("sync_time                     = %d", para.sync_time);
     log_info("val_size                      = %d", para.val_size);
-    log_info("wal_disable                   = %d", para.wal_disable);
-    log_info("");
+    log_info("wal_disable                   = %d\n", para.wal_disable);
 
     assert(para.key_size > 0 || para.key_count > 0 || para.val_size > 0);
 
     if (para.key_count % para.thread_count) {
         para.key_count += para.thread_count - (para.key_count % para.thread_count);
-        log_info("adjusted key_count to %d", para.key_count);
+        log_info("adjusted key_count to %ld", para.key_count);
     }
 
     if (para.cursor_count < para.thread_count) {
         para.cursor_count = para.thread_count;
-        log_info("adjusted cursor_count to %d", para.cursor_count);
+        log_info("adjusted cursor_count to %ld", para.cursor_count);
     }
 
     if (para.cursor_test == TRANSACTIONS)

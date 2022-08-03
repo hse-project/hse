@@ -46,7 +46,7 @@ struct callback_info {
     bool                 errors;
 };
 
-static void
+static void HSE_PRINTF(1, 2)
 fatal(const char *fmt, ...)
 {
     char    msg[256];
@@ -217,7 +217,7 @@ usage(bool verbose)
         progname);
 }
 
-static void
+static void HSE_PRINTF(1, 2)
 print_line(char *fmt, ...)
 {
     va_list ap;
@@ -355,10 +355,10 @@ main(int argc, char **argv)
     switch (rc) {
         case 0:
             if (optind < argc)
-                fatal(0, "unknown parameter: %s", argv[optind]);
+                fatal("unknown parameter: %s", argv[optind]);
             break;
         case EINVAL:
-            fatal(0, "missing group name (e.g. %s) before parameter %s\n",
+            fatal("missing group name (e.g. %s) before parameter %s\n",
                 PG_KVDB_OPEN, argv[optind]);
             break;
         default:
@@ -368,10 +368,10 @@ main(int argc, char **argv)
 
     rc = svec_append_pg(&hse_gparm, pg, PG_HSE_GLOBAL, NULL);
     if (rc)
-        fatal("svec_apppend_pg failed: %d", rc);
+        fatal("svec_apppend_pg failed: %d", (int)rc);
     rc = svec_append_pg(&db_oparm, pg, PG_KVDB_OPEN, NULL);
     if (rc)
-        fatal("svec_apppend_pg failed: %d", rc);
+        fatal("svec_apppend_pg failed: %d", (int)rc);
 
     kc_print_reg(verbose, (void *)print_line);
 

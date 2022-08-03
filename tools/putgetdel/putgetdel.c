@@ -1,6 +1,6 @@
 /* SPDX-License-Identifier: Apache-2.0 */
 /*
- * Copyright (C) 2015,2021 Micron Technology, Inc.  All rights reserved.
+ * Copyright (C) 2015,2021-2022 Micron Technology, Inc.  All rights reserved.
  */
 
 #include <assert.h>
@@ -109,8 +109,8 @@ struct thread_info {
     int         pfxlen;
 };
 
-static void syntax(const char *fmt, ...);
-static void quit(const char *fmt, ...);
+static void syntax(const char *fmt, ...) HSE_PRINTF(1, 2);
+static void quit(const char *fmt, ...) HSE_PRINTF(1, 2);
 static void usage(void);
 
 static void
@@ -527,7 +527,7 @@ usage(void)
            "\n");
 }
 
-static void
+static void HSE_PRINTF(1, 2)
 add_error(const char *fmt, ...)
 {
     char msg[256];
@@ -889,7 +889,7 @@ test_put_verify(struct thread_info *ti, uint salt)
             merr_quit("hse_kvs_get failed", err);
 
         if (!found) {
-            add_error("key not found: key#%d[%zu]=%.*s%s",
+            add_error("key not found: key#%lu[%zu]=%.*s%s",
                       i, ti->ref_klen,
                       key_showlen, key,
                       key_showlen < ti->ref_klen ? "..." : "");
@@ -898,7 +898,7 @@ test_put_verify(struct thread_info *ti, uint salt)
 
         if (get_vlen != ti->ref_vlen) {
             add_error("vput: key found, but value has wrong length:"
-                      " key#%d[%zu]=%.*s..."
+                      " key#%lu[%zu]=%.*s..."
                       " expected len=%zu got %zu",
                       i, ti->ref_klen,
                       key_showlen, key,
@@ -915,14 +915,14 @@ test_put_verify(struct thread_info *ti, uint salt)
         if (ti->ref_vlen > 0 &&
             memcmp(get_val, ti->ref_val, ti->ref_vlen)) {
             add_error("vput: key found, but value wrong:"
-                      " kvs %s: key#%d[%zu]=%.*s..."
+                      " kvs %s: key#%lu[%zu]=%.*s..."
                       " val[%zu]=%.*s..."
                       " expected %.*s",
                       ti->kvs_name, i, ti->ref_klen,
                       key_showlen, key,
                       ti->ref_vlen, val_showlen,
-                      ti->ref_val,
-                      val_showlen, get_val);
+                      (char *)ti->ref_val,
+                      val_showlen, (char *)get_val);
         }
 
     }
@@ -967,7 +967,7 @@ test_delete_verify(struct thread_info *ti)
 
         if (found) {
             add_error("found key after it was deleted:"
-                      "key#%d[%zu]=%.*s%s",
+                      "key#%lu[%zu]=%.*s%s",
                       i, ti->ref_klen, key_showlen,
                       (char *)ti->ref_key,
                       key_showlen < ti->ref_klen ? "..." : "");

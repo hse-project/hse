@@ -24,7 +24,7 @@ typedef int
 bin_heap_compare_fn(const void *a, const void *b);
 
 merr_t
-bin_heap_create(struct bin_heap **bh, u32 max_items, s32 item_size, bin_heap_compare_fn *compare);
+bin_heap_create(struct bin_heap **bh, size_t max_items, size_t item_size, bin_heap_compare_fn *compare);
 
 void
 bin_heap_destroy(struct bin_heap *bh);

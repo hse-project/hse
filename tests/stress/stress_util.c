@@ -1,6 +1,6 @@
 /* SPDX-License-Identifier: Apache-2.0 */
 /*
- * Copyright (C) 2021 Micron Technology, Inc.  All rights reserved.
+ * Copyright (C) 2021-2022 Micron Technology, Inc.  All rights reserved.
  */
 
 #include "stress_util.h"
@@ -207,7 +207,7 @@ create_or_open_kvdb_and_kvs(
         if (err && hse_err_to_errno(err) != ENOENT) {
             status = hse_err_to_errno(err);
             hse_strerror(err, msg, sizeof(msg));
-            log_error("hse_kvdb_drop: error=%d msg=\"%s\"");
+            log_error("hse_kvdb_drop: error=%d msg=\"%s\"", status, msg);
             goto errout;
         } else if (err == 0) {
             log_info("kvdb drop time elapsed: %f seconds", (double)(t2 - t1) / CLOCKS_PER_SEC);

@@ -749,10 +749,8 @@ kmc_addr2slab(struct kmem_cache *zone, void *mem)
      * but possible that the user will have stored these same sentinel values
      * into the item, in which case this check will misfire.
      */
-    if (*(void **)(mem + zone->zone_iasz - sizeof(void *)) == slab) {
-        assert(*((void **)mem + zone->zone_iasz - sizeof(void *)) != slab);
+    if (*(void **)(mem + zone->zone_iasz - sizeof(void *)) == slab)
         abort(); /* possible double free or slab corruption */
-    }
 #endif
 
     return slab;
@@ -1475,6 +1473,9 @@ kmc_rest_get_vmstat(
                  nchunks, nhuge, nfrags);
 
     for (i = 0; i < KMC_NODES_MAX; ++i) {
+        if (n >= sizeof(buf))
+            break;
+
         n += snprintf(buf + n, sizeof(buf) - n, ", node %u: %u %u %u",
                       i, nchunksv[i] + nchunksv[i + KMC_NODES_MAX],
                       nhugev[i] + nhugev[i + KMC_NODES_MAX],

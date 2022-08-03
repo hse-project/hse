@@ -581,8 +581,8 @@ main(
             fatal(ENOMEM, "Cannot allocate memory for thread data");
 
         /* distribute suffixes across jobs */
-        for (int i = 0; i < opts.threads; i++) {
-            ti[i].key_start = thread_share * i;
+        for (unsigned int i = 0; i < opts.threads; i++) {
+            ti[i].key_start = (uint64_t)thread_share * i;
             ti[i].key_end   = ti[i].key_start + thread_share;
 
             if (i == opts.threads - 1)

@@ -29,11 +29,12 @@
 
 #include <hse/hse.h>
 
+#include <hse_util/compiler.h>
 #include <hse_util/inttypes.h>
 
 const char *progname;
 
-void
+void HSE_PRINTF(2, 3)
 fatal(hse_err_t err, char *fmt, ...)
 {
     va_list ap;
@@ -48,7 +49,7 @@ fatal(hse_err_t err, char *fmt, ...)
     exit(1);
 }
 
-void
+void HSE_PRINTF(1, 2)
 syntax(const char *fmt, ...)
 {
     char    msg[256];
@@ -159,7 +160,7 @@ main(int argc, char **argv)
 
     rc = hse_kvdb_open(mpname, 0, NULL, &kvdb);
     if (rc)
-        fatal(rc, "cannot open kvdb %s/%s", mpname);
+        fatal(rc, "cannot open kvdb %s/%s", mpname, kvsname);
 
     rc = hse_kvdb_kvs_open(kvdb, kvsname, 0, NULL, &kvs);
     if (rc)

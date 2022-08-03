@@ -1,6 +1,6 @@
 /* SPDX-License-Identifier: Apache-2.0 */
 /*
- * Copyright (C) 2015-2017 Micron Technology, Inc.  All rights reserved.
+ * Copyright (C) 2015-2017,2022 Micron Technology, Inc.  All rights reserved.
  */
 
 #include <math.h>
@@ -57,17 +57,13 @@ increment_multifield_index(s32 *index, s32 index_width, s32 wrap)
 bool
 generate_elements(char *elements, s32 width, s32 count)
 {
-    size_t sz;
     s32    num_symbols = (int)ceil(pow((double)count, 1.0 / (double)width));
     s32 *  field_offsets;
     int    i, j;
 
-    sz = width * sizeof(s32);
-    field_offsets = (s32 *)malloc(sz);
+    field_offsets = calloc(1, width * sizeof(*field_offsets));
     if (!field_offsets)
         return false;
-
-    memset(field_offsets, 0, sz);
 
     for (i = 0; i < count; ++i) {
         for (j = 0; j < width; ++j) {
@@ -85,7 +81,6 @@ struct key_generator *
 create_key_generator(u64 key_space_sz, s32 key_width)
 {
     struct key_generator *kg;
-    size_t                sz;
     double                tmp;
 
     /* can't have 0 or negative width keys */
@@ -103,11 +98,10 @@ create_key_generator(u64 key_space_sz, s32 key_width)
         if (key_width_span < (double)key_space_sz)
             return 0;
     }
-    sz = sizeof(struct key_generator);
-    kg = (struct key_generator *)malloc(sz);
+
+    kg = calloc(1, sizeof(*kg));
     if (kg == 0)
         return 0;
-    memset(kg, 0, sz);
 
     kg->key_space_sz = key_space_sz;
     kg->key_width = key_width;
@@ -116,7 +110,7 @@ create_key_generator(u64 key_space_sz, s32 key_width)
 
     kg->elem_per_field =
         elements_per_field(kg->key_space_sz, kg->key_width, kg->field_width, sizeof(symbols));
-    kg->elems = (char *)malloc(kg->elem_per_field * kg->field_width);
+    kg->elems = malloc(kg->elem_per_field * kg->field_width);
     if (kg->elems == 0) {
         free(kg);
         return 0;

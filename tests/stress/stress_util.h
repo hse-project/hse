@@ -1,13 +1,15 @@
 /* SPDX-License-Identifier: Apache-2.0 */
 /*
- * Copyright (C) 2021 Micron Technology, Inc.  All rights reserved.
+ * Copyright (C) 2021-2022 Micron Technology, Inc.  All rights reserved.
  */
 
-#ifndef _STRESS_UTIL_H
-#define _STRESS_UTIL_H
+#ifndef STRESS_UTIL_H
+#define STRESS_UTIL_H
 
 #include <stdlib.h>
 #include <hse/hse.h>
+
+#include <hse_util/compiler.h>
 
 extern int DEBUG;
 
@@ -15,8 +17,10 @@ enum { LOG_DEBUG, LOG_INFO, LOG_WARN, LOG_ERROR, LOG_FATAL };
 
 long long
 current_timestamp_ms();
+
 void
-log_print(int level, const char *fmt, ...);
+log_print(int level, const char *fmt, ...) HSE_PRINTF(2, 3);
+
 #define log_debug(...)                     \
     if (DEBUG) {                           \
         log_print(LOG_DEBUG, __VA_ARGS__); \
@@ -28,6 +32,7 @@ log_print(int level, const char *fmt, ...);
 
 void
 gen_kvs_ext_name(char *dest, size_t dest_size, const char *base_kvs_name, long int txn, int rank);
+
 void
 fillrandom(char *dest, size_t dest_size);
 
@@ -64,7 +69,9 @@ void
 print_storage_info(struct hse_kvdb *kvdb);
 
 typedef void (*time_handler)(size_t timer_id, void *user_data);
+
 typedef enum { TIMER_SINGLE_SHOT = 0, TIMER_PERIODIC } t_timer;
+
 struct timer_node {
     int                fd;
     time_handler       callback;
@@ -73,10 +80,13 @@ struct timer_node {
     t_timer            type;
     struct timer_node *next;
 };
+
 int
 timer_initialize(void);
+
 void
 timer_finalize(void);
+
 int
 timer_start(
     unsigned int        interval,
@@ -84,6 +94,7 @@ timer_start(
     t_timer             type,
     void *              user_data,
     struct timer_node **node_out);
+
 int
 timer_stop(struct timer_node *node);
 

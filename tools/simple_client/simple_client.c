@@ -14,6 +14,8 @@
 
 #include <hse/hse.h>
 
+#include <hse_util/compiler.h>
+
 const char *kfmt = "k%u";
 uint        kmax = 100;
 
@@ -35,7 +37,7 @@ syntax(const char *fmt, ...)
     fprintf(stderr, "%s: %s, use -h for help\n", progname, msg);
 }
 
-void
+void HSE_PRINTF(2, 3)
 fatal(hse_err_t err, const char *fmt, ...)
 {
     char msgbuf[1024];
@@ -146,7 +148,7 @@ simple_client(
 
         if (xlen != vlen)
             fatal(EINVAL,
-                  "value length mismatch: key %s, exp %d, got %d",
+                  "value length mismatch: key %s, exp %zu, got %zu",
                   key, xlen, vlen);
 
         if (0 != strcmp(xval, val))

@@ -14,6 +14,7 @@ on:
       - "docs/**"
       - "!.github/workflows/builds.yaml"
       - .clang-format
+      - .clang-tidy
       - .gitattributes
       - .github/dependabot.yaml
       - .gitignore
@@ -29,6 +30,7 @@ on:
       - "!.github/workflows/builds.yaml"
       - .github/dependabot.yaml
       - .clang-format
+      - .clang-tidy
       - .gitattributes
       - .gitignore
       - .shellcheckrc
