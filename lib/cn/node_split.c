@@ -8,7 +8,6 @@
 #include <stdint.h>
 #include <stdlib.h>
 
-#include <hse_ikvdb/kvset_view.h>
 #include <hse_util/element_source.h>
 #include <hse_util/event_counter.h>
 #include <error/merr.h>
@@ -17,12 +16,17 @@
 #include <hse_util/logging.h>
 #include <hse_util/list.h>
 
+#include <hse_ikvdb/kvset_view.h>
+#include <hse_ikvdb/cndb.h>
+
+#include "cn_tree.h"
 #include "cn_tree_internal.h"
 #include "cn_tree_compact.h"
 #include "kvset.h"
-#include "kvset_split.h"
+#include "node_split.h"
 #include "kvset_internal.h"
 #include "wbt_internal.h"
+#include "route.h"
 
 struct reverse_kblk_iterator {
     struct kvset *ks;
@@ -457,4 +461,73 @@ cn_split(struct cn_compaction_work *w)
     }
 
     return 0;
+}
+
+static bool
+check_valid_kvsets(const struct cn_compaction_work *w, enum split_side side)
+{
+    uint start, end;
+
+    if (side == LEFT) {
+        start = 0;
+        end = w->cw_kvset_cnt;
+    } else {
+        start = w->cw_kvset_cnt;
+        end = w->cw_outc;
+    }
+
+    for (uint i = start; i < end; i++) {
+        if (w->cw_kvsetidv[i] != CNDB_INVAL_KVSETID)
+            return true;
+    }
+
+    return false;
+}
+
+merr_t
+cn_split_nodes_alloc(
+    const struct cn_compaction_work *w,
+    uint64_t                         nodeidv[static 2],
+    struct cn_tree_node             *nodev[static 2])
+{
+    nodev[LEFT] = nodev[RIGHT] = NULL;
+
+    if (check_valid_kvsets(w, LEFT)) {
+        struct cn_tree *tree = w->cw_tree;
+        struct cn_tree_node *node;
+        uint64_t nodeid = cndb_nodeid_mint(cn_tree_get_cndb(w->cw_tree));
+
+        node = cn_node_alloc(tree, nodeid);
+        if (!node)
+            return merr(ENOMEM);
+
+        /* Allocate a route node using the split key as its edge key.
+         */
+        node->tn_route_node =
+            route_node_alloc(tree->ct_route_map, node, w->cw_split.key, w->cw_split.klen);
+        if (!node->tn_route_node) {
+            cn_node_free(node);
+            return merr(ENOMEM);
+        }
+
+        nodeidv[LEFT] = nodeid;
+        nodev[LEFT] = node;
+    }
+
+    if (check_valid_kvsets(w, RIGHT)) {
+        /* Use the source node as the right node */
+        nodeidv[RIGHT] = w->cw_node->tn_nodeid;
+        nodev[RIGHT] = w->cw_node;
+    }
+
+    return 0;
+}
+
+void
+cn_split_nodes_free(const struct cn_compaction_work *w, struct cn_tree_node *nodev[static 2])
+{
+    route_node_free(w->cw_tree->ct_route_map, nodev[LEFT]->tn_route_node);
+    cn_node_free(nodev[LEFT]);
+
+    nodev[LEFT] = nodev[RIGHT] = NULL;
 }

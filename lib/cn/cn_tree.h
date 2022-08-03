@@ -139,6 +139,9 @@ cn_tree_node_get_max_key(struct cn_tree_node *tn, void *kbuf, size_t kbuf_sz, ui
 struct cn_tree_node *
 cn_node_alloc(struct cn_tree *tree, uint64_t nodeid);
 
+void
+cn_node_free(struct cn_tree_node *tn);
+
 merr_t
 cn_tree_init(void);
 

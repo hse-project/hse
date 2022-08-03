@@ -20,7 +20,7 @@
 
 struct kvset;
 
-enum { LEFT = 0, RIGHT = 1 };
+enum split_side { LEFT = 0, RIGHT = 1 };
 
 /**
  * struct kvset_split_res - split output

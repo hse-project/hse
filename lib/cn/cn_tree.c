@@ -1485,61 +1485,49 @@ cn_comp_update_spill(struct cn_compaction_work *work, struct kvset **kvsets)
 /**
  * cn_comp_update_split() - update tree after a node split operation
  */
-static merr_t
+static void
 cn_comp_update_split(
     struct cn_compaction_work *w,
     struct kvset *const       *kvsets,
-    const uint64_t             nodeidv[static 2])
+    struct cn_tree_node       *nodev[static 2])
 {
     struct cn_tree *tree = w->cw_tree;
     struct kvset_list_entry *le, *tmp;
     struct list_head retired_kvsets;
-    struct cn_tree_node *left = NULL, *right = w->cw_node;
-    char rekey[HSE_KVS_KEY_LEN_MAX];
-    uint k = 0, reklen;
-    merr_t err = 0;
+    struct cn_tree_node *src = w->cw_node;
+    struct cn_tree_node *left = nodev[LEFT], *right = nodev[RIGHT];
+    uint k = 0;
 
-    if (ev(w->cw_err))
-        return w->cw_err;
+    if (w->cw_err)
+        return;
+
+    assert(left || right);
 
     INIT_LIST_HEAD(&retired_kvsets);
 
-    /* Allocate a new left node and add the split output kvsets on the left to this node.
-     * This need not be done under the tree lock as this new node is not published yet.
+    /* Add the left half of the split kvsets to the 'left' node.
+     * This need not be done under the tree lock as the new left node is not published yet.
      */
-    if (nodeidv[0] != CN_TREE_INVALID_NODEID) {
-        left = cn_node_alloc(tree, nodeidv[0]);
-        if (!left)
-            return merr(ENOMEM);
-
+    if (left) {
+        assert(list_empty(&left->tn_kvset_list));
         for (k = 0; k < w->cw_kvset_cnt; k++) {
             if (kvsets[k])
                 kvset_list_add_tail(kvsets[k], &left->tn_kvset_list);
         }
 
-        w->cw_split.nodev[0] = left;
-    }
-
-    if (nodeidv[1] != CN_TREE_INVALID_NODEID) {
-        /* The 'right' node is protected by an exclusive compaction token, so the max key cannot
-         * change while a node split is in progress
-         */
-        cn_tree_node_get_max_key(right, rekey, sizeof(rekey), &reklen);
+        w->cw_split.nodev[LEFT] = left;
     }
 
     rmlock_wlock(&tree->ct_lock);
-
-    do {
-        /* Move all the source kvsets from the 'right' node to the retired list.
+    {
+        /* Move all the source kvsets from the source node to the retired list.
          */
-        list_splice(&right->tn_kvset_list, &retired_kvsets);
-        INIT_LIST_HEAD(&right->tn_kvset_list);
+        list_splice(&src->tn_kvset_list, &retired_kvsets);
+        INIT_LIST_HEAD(&src->tn_kvset_list);
 
         /* Add the right half of the split kvsets to the 'right' node.
          */
-        if (nodeidv[1] != CN_TREE_INVALID_NODEID) {
-            right->tn_nodeid = nodeidv[1];
-
+        if (right) {
             assert(list_empty(&right->tn_kvset_list));
 
             for (k = w->cw_kvset_cnt; k < w->cw_outc; k++) {
@@ -1547,36 +1535,19 @@ cn_comp_update_split(
                     kvset_list_add_tail(kvsets[k], &right->tn_kvset_list);
             }
 
-            /* The last node in the route map contains all keys that are greater than the
-             * penultimate node. Under rare circumstances the split key chosen for the last
-             * node can be lexicographically greater than its edge key. The below logic
-             * detects this situation and updates the edge key of the right node to its
-             * max key at the time of split.
-             */
-            if (route_node_islast(right->tn_route_node)) {
-                int rc = route_node_keycmp(right->tn_route_node, w->cw_split.key, w->cw_split.klen);
-                if (ev(rc <= 0)) {
-                    err = route_node_key_modify(tree->ct_route_map, right->tn_route_node,
-                                                rekey, reklen);
-                    if (err)
-                        break;
-                }
-            }
             assert(route_node_keycmp(right->tn_route_node, w->cw_split.key, w->cw_split.klen) > 0);
 
-            w->cw_split.nodev[1] = right;
+            w->cw_split.nodev[RIGHT] = right;
         }
 
         /* Update route map with the left edge and add the new left node to the cN tree list.
-         * The right node is already part of the cn tree list.
+         * The 'right' node is already part of the cn tree list.
          */
         if (left) {
-            left->tn_route_node = route_map_insert(tree->ct_route_map, left,
-                                                   w->cw_split.key, w->cw_split.klen);
-            if (!left->tn_route_node) {
-                err = merr(ENOMEM);
-                break;
-            }
+            if (route_map_insert_by_node(tree->ct_route_map, left->tn_route_node))
+                abort();
+
+            assert(route_node_keycmp(left->tn_route_node, w->cw_split.key, w->cw_split.klen) == 0);
 
             list_add_tail(&left->tn_link, &tree->ct_nodes);
         }
@@ -1589,16 +1560,9 @@ cn_comp_update_split(
             cn_tree_samp(tree, &w->cw_samp_post);
         }
 
-        atomic_sub_rel(&right->tn_busycnt, (1u << 16) + w->cw_kvset_cnt);
-    } while (0);
-
-    rmlock_wunlock(&tree->ct_lock);
-
-    if (err) {
-        cn_node_free(left);
-
-        return err;
+        atomic_sub_rel(&src->tn_busycnt, (1u << 16) + w->cw_kvset_cnt);
     }
+    rmlock_wunlock(&tree->ct_lock);
 
     /* Delete retired kvsets
      */
@@ -1612,38 +1576,6 @@ cn_comp_update_split(
         kvset_mark_mbset_for_delete(ks, false);
         kvset_put_ref(ks);
         k++;
-    }
-
-    return 0;
-}
-
-static bool
-check_valid_kvsets(const struct cn_compaction_work *w, uint start, uint end)
-{
-    for (uint i = start; i < end; i++) {
-        if (w->cw_kvsetidv[i] != 0)
-            return true;
-    }
-
-    return false;
-}
-
-static void
-cn_split_nodeids_get(const struct cn_compaction_work *w, uint64_t nodeidv[static 2])
-{
-    for (int i = 0; i < 2; i++) {
-        uint start, end;
-
-        if (i == 0) {
-            start = 0;
-            end = w->cw_kvset_cnt;
-        } else {
-            start = w->cw_kvset_cnt;
-            end = w->cw_outc;
-        }
-
-        nodeidv[i] = check_valid_kvsets(w, start, end) ?
-            cndb_nodeid_mint(cn_tree_get_cndb(w->cw_tree)) : CN_TREE_INVALID_NODEID;
     }
 }
 
@@ -1664,7 +1596,8 @@ cn_comp_commit(struct cn_compaction_work *w)
     const bool use_mbsets = kcompact;
     bool skip_commit = false, txn_nak = false;
     void **cookiev = 0;
-    uint64_t nodeidv[2];
+    struct cn_tree_node *split_nodev[2] = { 0 };
+    uint64_t split_nodeidv[2];
 
     struct kvdb_health *hp = w->cw_tree->ct_kvdb_health;
     struct kvset_list_entry *le;
@@ -1732,8 +1665,11 @@ cn_comp_commit(struct cn_compaction_work *w)
     }
     txn_nak = true;
 
-    if (split)
-        cn_split_nodeids_get(w, nodeidv);
+    if (split) {
+        w->cw_err = cn_split_nodes_alloc(w, split_nodeidv, split_nodev);
+        if (w->cw_err)
+            goto done;
+    }
 
     /* Log CNDB records for all kvsets before committing the mblocks.
      */
@@ -1787,8 +1723,7 @@ cn_comp_commit(struct cn_compaction_work *w)
             }
         } else if (split) {
             km.km_compc = w->cw_compc;
-            km.km_nodeid = nodeidv[i / w->cw_kvset_cnt];
-            assert(km.km_nodeid != CN_TREE_INVALID_NODEID);
+            km.km_nodeid = split_nodeidv[i / w->cw_kvset_cnt];
             km.km_dgen = w->cw_split.dgen[i];
         } else {
             struct kvset_list_entry *le = w->cw_mark;
@@ -1881,19 +1816,22 @@ cn_comp_commit(struct cn_compaction_work *w)
         break;
 
     case CN_ACTION_SPLIT:
-        w->cw_err = cn_comp_update_split(w, kvsets, nodeidv);
+        cn_comp_update_split(w, kvsets, split_nodev);
         break;
     }
 
 done:
-    if (w->cw_err && kvsets) {
+    if (w->cw_err) {
         if (txn_nak)
             cndb_record_nak(w->cw_tree->cndb, w->cw_cndb_txn);
 
-        for (i = 0; i < w->cw_outc; i++) {
+        for (i = 0; i < w->cw_outc && kvsets; i++) {
             if (kvsets[i])
                 kvset_put_ref(kvsets[i]);
         }
+
+        if (split)
+            cn_split_nodes_free(w, split_nodev);
     }
 
     /* always free these ptrs */
