@@ -41,36 +41,35 @@ main(int argc, char **argv)
 
     rc = hse_init(NULL, paramc, paramv);
     if (rc) {
-		error(rc, "Failed to initialize HSE");
+        error(rc, "Failed to initialize HSE");
         goto out;
     }
 
     rc = hse_kvdb_create(kvdb_home, 0, NULL);
     switch (hse_err_to_errno(rc)) {
-        case 0:
-            printf("KVDB (%s) created\n", kvdb_home);
-            break;
+    case 0:
+        printf("KVDB (%s) created\n", kvdb_home);
+        break;
 
-        case EEXIST:
-            printf("Using existing KVDB (%s)\n", kvdb_home);
-            rc = 0;
-            break;
+    case EEXIST:
+        printf("Using existing KVDB (%s)\n", kvdb_home);
+        break;
 
-        default:
-			error(rc, "Failed to create KVDB (%s)", kvdb_home);
-            goto hse_cleanup;
+    default:
+        error(rc, "Failed to create KVDB (%s)", kvdb_home);
+        goto hse_cleanup;
     }
 
     rc = hse_kvdb_open(kvdb_home, 0, NULL, &kvdb);
     if (rc) {
-		error(rc, "Failed to open KVDB (%s)", kvdb_home);
+        error(rc, "Failed to open KVDB (%s)", kvdb_home);
         goto hse_cleanup;
     }
 
     for (int i = 0; i < kvs_cnt; i++) {
         rc = hse_kvdb_kvs_create(kvdb, kvs_list[i], 0, NULL);
         if (rc) {
-			error(rc, "Failed to create KVS (%s)", kvs_list[i]);
+            error(rc, "Failed to create KVS (%s)", kvs_list[i]);
             goto kvdb_cleanup;
         }
     }
@@ -78,12 +77,12 @@ main(int argc, char **argv)
     printf("KVSes created\n");
 
 kvdb_cleanup:
-	rc2 = hse_kvdb_close(kvdb);
-	if (rc2)
-		error(rc2, "Failed to close KVDB (%s)", kvdb_home);
-	rc = rc ?: rc2;
+    rc2 = hse_kvdb_close(kvdb);
+    if (rc2)
+        error(rc2, "Failed to close KVDB (%s)", kvdb_home);
+    rc = rc ?: rc2;
 hse_cleanup:
-	hse_fini();
+    hse_fini();
 out:
     return hse_err_to_errno(rc);
 }

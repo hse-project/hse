@@ -52,7 +52,7 @@ rest_kvs_list(const char *socket_path, const char *alias, struct yaml_context *y
     next = buf;
     next[strlen(next) - 1] = '\0'; /* Get rid of the trailing newline char */
 
-    c = strsep(&next, "\n"); /* Advance next past 'kvs_list:' */
+    strsep(&next, "\n"); /* Advance next past 'kvs_list:' */
     while (next) {
         char path[128];
 
@@ -299,7 +299,7 @@ rest_params_print(const char *kvdb, const char *buf)
     const char *p, *start;
     char *      pos;
 
-    start = p = buf;
+    p = buf;
 
     snprintf(pfx, sizeof(pfx), "kvdb/");
 
