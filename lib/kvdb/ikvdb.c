@@ -6,6 +6,8 @@
 #define MTF_MOCK_IMPL_ikvdb
 #define MTF_MOCK_IMPL_kvs
 
+#include <stdbool.h>
+
 #include <hse/hse.h>
 #include <hse/flags.h>
 #include <hse/experimental.h>
@@ -104,6 +106,7 @@ thread_local char tls_vbuf[256 * 1024] HSE_ALIGNED(PAGE_SIZE);
 const size_t      tls_vbufsz = sizeof(tls_vbuf);
 
 static atomic_int kvdb_alias;
+static bool kvdb_opened = false;
 
 #define ikvdb_h2r(_ikvdb_handle) \
     container_of(_ikvdb_handle, struct ikvdb_impl, ikdb_handle)
@@ -1429,6 +1432,11 @@ ikvdb_open(
 
     *handle = NULL;
 
+    if (kvdb_opened) {
+        log_err("Can only have one KVDB open at one time");
+        return merr(EDQUOT);
+    }
+
     err = ikvdb_alloc(kvdb_home, params, &self);
     if (err) {
         log_errx("cannot open %s", err, kvdb_home);
@@ -1665,6 +1673,8 @@ ikvdb_open(
     }
 
     *handle = &self->ikdb_handle;
+
+    kvdb_opened = true;
 
 out:
     if (err) {
@@ -2402,6 +2412,8 @@ ikvdb_close(struct ikvdb *handle)
     ikvdb_perfc_free(self);
 
     free(self);
+
+    kvdb_opened = false;
 
     return ret;
 }
