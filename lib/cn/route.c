@@ -150,7 +150,7 @@ ekgen_generate(struct ekey_generator *egen, void *ekbuf, size_t ekbufsz, uint32_
 
 struct route_map {
     struct rb_root        rtm_root;
-    uint                  rtm_fanout;
+    uint                  rtm_nodec;
     struct route_node    *rtm_free;
     struct route_node     rtm_nodev[] HSE_L1D_ALIGNED;
 };
@@ -250,7 +250,7 @@ route_node_free(struct route_map *map, struct route_node *node)
     if (!map || !node)
         return;
 
-    freeme = (node < map->rtm_nodev || node >= (map->rtm_nodev + map->rtm_fanout));
+    freeme = (node < map->rtm_nodev || node >= (map->rtm_nodev + map->rtm_nodec));
 
     if (!freeme) {
         node->rtn_tnode = NULL;
@@ -473,26 +473,26 @@ route_node_prev(struct route_node *node)
 }
 
 struct route_map *
-route_map_create(uint fanout)
+route_map_create(uint nodec)
 {
     struct route_map *map;
     size_t sz;
 
-    if (ev(!fanout))
+    if (nodec == 0)
         return NULL;
 
-    sz = sizeof(*map) + sizeof(map->rtm_nodev[0]) * fanout;
+    sz = sizeof(*map) + sizeof(map->rtm_nodev[0]) * nodec;
 
     map = aligned_alloc(4096, roundup(sz, 4096));
     if (!map)
         return NULL;
 
     memset(map, 0, sz);
-    map->rtm_fanout = fanout;
+    map->rtm_nodec = nodec;
 
     /* Fill the route_node cache entries */
-    for (int i = fanout - 1; i >= 0; --i) {
-        struct route_node *node = map->rtm_nodev + i;
+    for (uint i = nodec; i > 0; --i) {
+        struct route_node *node = map->rtm_nodev + (i - 1);
 
         node->rtn_keybufp = node->rtn_keybuf;
         route_node_free(map, node);

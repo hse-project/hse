@@ -18,13 +18,11 @@ MTF_BEGIN_UTEST_COLLECTION(route_test)
 
 MTF_DEFINE_UTEST(route_test, route_api_test)
 {
-    struct kvs_cparams cp = kvs_cparams_defaults();
-    const char *kvsname = "KVS-non-existent-routemap"; /* non-existent routemap file */
     struct route_map *map;
     struct cn_tree_node tn;
-    static const uint fanout = 16;
-    struct route_node *rnodev[2 * fanout], *rnode, *rnode2;
-    char ekbuf[2 * fanout][sizeof(rnode->rtn_keybuf)];
+    static const uint nodec = 16;
+    struct route_node *rnodev[2 * nodec], *rnode = NULL, *rnode2;
+    char ekbuf[2 * nodec][sizeof(rnode->rtn_keybuf)];
     uint eklen = 5, idx;
     char ekbuf_large[sizeof(rnode->rtn_keybuf) + 1];
     merr_t err;
@@ -32,14 +30,10 @@ MTF_DEFINE_UTEST(route_test, route_api_test)
     map = route_map_create(0);
     ASSERT_EQ(NULL, map);
 
-    cp.fanout = fanout;
-    map = route_map_create(cp.fanout);
+    map = route_map_create(nodec);
     ASSERT_NE(NULL, map);
 
-    struct ekey_generator *egen = ekgen_create(kvsname, &cp);
-    ASSERT_NE(NULL, egen);
-
-    for (int i = 0; i < 2 * fanout; i++) {
+    for (uint i = 0; i < 2 * nodec; i++) {
         uint64_t ekey;
         uint skip = 1;
         uint fmtarg = (i + 1) * skip - 1;
@@ -48,19 +42,12 @@ MTF_DEFINE_UTEST(route_test, route_api_test)
         memcpy(ekbuf[i], (char *)&ekey + (sizeof(ekey) - eklen), eklen);
     }
 
-    for (int i = 0; i < 2 * fanout; i++) {
+    for (uint i = 0; i < 2 * nodec; i++) {
         char kbuf[sizeof(rnode->rtn_keybuf)];
         uint klen;
 
-        /* Test both paths in route_node_key_set() */
-        if (i % 2) {
-            klen = ekgen_generate(egen, kbuf, sizeof(kbuf), i);
-            rnodev[i] = route_map_insert(map, &tn, kbuf, klen);
-            ASSERT_NE(NULL, rnodev[i]);
-        } else {
-            rnodev[i] = route_map_insert(map, &tn, ekbuf[i], eklen);
-            ASSERT_NE(NULL, rnodev[i]);
-        }
+        rnodev[i] = route_map_insert(map, &tn, ekbuf[i], eklen);
+        ASSERT_NE(NULL, rnodev[i]);
 
         ASSERT_EQ(true, route_node_isfirst(rnodev[0]));
         ASSERT_EQ(true, route_node_islast(rnodev[i]));
@@ -76,17 +63,10 @@ MTF_DEFINE_UTEST(route_test, route_api_test)
         ASSERT_EQ(eklen, klen);
     }
 
-    char kbuf[sizeof(rnode->rtn_keybuf)];
-    size_t klen;
-    klen = ekgen_generate(egen, kbuf, sizeof(kbuf), 0);
-    rnode = route_map_insert(map, &tn, kbuf, klen);
-    ASSERT_EQ(NULL, rnode);
-
-    rnode = route_map_insert(map, &tn, ekbuf[0], eklen);
     ASSERT_EQ(NULL, rnode);
 
     /* Delete odd numbered nodes */
-    for (int i = 1; i < 2 * fanout; i += 2) {
+    for (uint i = 1; i < 2 * nodec; i += 2) {
         rnode = route_map_lookup(map, ekbuf[i], eklen);
         ASSERT_EQ(rnode, rnodev[i]);
 
@@ -94,7 +74,7 @@ MTF_DEFINE_UTEST(route_test, route_api_test)
     }
 
     /* Reinsert odd numbered nodes */
-    for (int i = 1; i < 2 * fanout; i += 2) {
+    for (uint i = 1; i < 2 * nodec; i += 2) {
         struct route_node *dup;
 
         rnodev[i] = route_node_alloc(map, &tn, ekbuf[i], eklen);
@@ -138,7 +118,7 @@ MTF_DEFINE_UTEST(route_test, route_api_test)
 
     ekbuf[idx][eklen - 2] = 0xff;
     rnode = route_map_lookup(map, ekbuf[idx], eklen - 1);
-    ASSERT_EQ(rnode, rnodev[2 * fanout - 1]);
+    ASSERT_EQ(rnode, rnodev[2 * nodec - 1]);
     ekbuf[idx][eklen - 2] = 0x00;
 
     route_map_delete(NULL, rnodev[0]);
@@ -148,15 +128,15 @@ MTF_DEFINE_UTEST(route_test, route_api_test)
     ASSERT_EQ(route_node_next(rnode), rnodev[1]);
     ASSERT_EQ(route_node_prev(rnode), NULL);
 
-    rnode = route_map_lookup(map, ekbuf[fanout - 1], eklen);
-    ASSERT_EQ(route_node_next(rnode), rnodev[fanout]);
-    ASSERT_EQ(route_node_prev(rnode), rnodev[fanout - 2]);
+    rnode = route_map_lookup(map, ekbuf[nodec - 1], eklen);
+    ASSERT_EQ(route_node_next(rnode), rnodev[nodec]);
+    ASSERT_EQ(route_node_prev(rnode), rnodev[nodec - 2]);
 
-    rnode = route_map_lookup(map, ekbuf[(2 * fanout) - 1], eklen);
+    rnode = route_map_lookup(map, ekbuf[(2 * nodec) - 1], eklen);
     ASSERT_EQ(route_node_next(rnode), NULL);
-    ASSERT_EQ(route_node_prev(rnode), rnodev[(2 * fanout) - 2]);
+    ASSERT_EQ(route_node_prev(rnode), rnodev[(2 * nodec) - 2]);
 
-    for (int i = 0; i < 2 * fanout; i++)
+    for (uint i = 0; i < 2 * nodec; i++)
         route_map_delete(map, rnodev[i]);
 
     /* Insert a node with large edge key when the node cache is non-empty */
@@ -176,7 +156,6 @@ MTF_DEFINE_UTEST(route_test, route_api_test)
 
     route_map_delete(map, rnode);
 
-    ekgen_destroy(egen);
     route_map_destroy(map);
 }
 
