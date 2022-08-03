@@ -104,7 +104,6 @@ MTF_DEFINE_UTEST_PRE(cn_api, basic, pre)
     (void)cn_get_perfc(cn, CN_ACTION_COMPACT_KV);
     (void)cn_get_perfc(cn, CN_ACTION_SPILL);
     (void)cn_get_perfc(cn, CN_ACTION_NONE);
-    (void)cn_get_perfc(cn, CN_ACTION_END);
 
     err = cn_get(cn, &kt, 0, &res, &vbuf);
     ASSERT_EQ(err, 0);

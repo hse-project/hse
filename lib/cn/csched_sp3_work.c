@@ -76,30 +76,28 @@ sp3_work_estimate(struct cn_compaction_work *w)
     dst_is_leaf = false; /* TBD below */
 
     switch (w->cw_action) {
+    case CN_ACTION_NONE:
+    case CN_ACTION_SPLIT:
+        break;
 
-        case CN_ACTION_NONE:
-        case CN_ACTION_END:
-        case CN_ACTION_SPLIT:
-            break;
+    case CN_ACTION_COMPACT_K:
+        /* Assume no garbage collection, thus percent_keep == 100 */
+        consume = halen + kalen;
+        dst_is_leaf = src_is_leaf;
+        break;
 
-        case CN_ACTION_COMPACT_K:
-            /* Assume no garbage collection, thus percent_keep == 100 */
-            consume = halen + kalen;
-            dst_is_leaf = src_is_leaf;
-            break;
+    case CN_ACTION_COMPACT_KV:
+        consume = halen + kalen + valen;
+        percent_keep = 100 * 100 / cn_ns_samp(&w->cw_ns);
+        dst_is_leaf = src_is_leaf;
+        break;
 
-        case CN_ACTION_COMPACT_KV:
-            consume = halen + kalen + valen;
-            percent_keep = 100 * 100 / cn_ns_samp(&w->cw_ns);
-            dst_is_leaf = src_is_leaf;
-            break;
-
-        case CN_ACTION_SPILL:
-            assert(cn_node_isroot(w->cw_node));
-            consume = halen + kalen + valen;
-            percent_keep = 100 * 100 / cn_ns_samp(&w->cw_ns);
-            dst_is_leaf = true;
-            break;
+    case CN_ACTION_SPILL:
+        assert(cn_node_isroot(w->cw_node));
+        consume = halen + kalen + valen;
+        percent_keep = 100 * 100 / cn_ns_samp(&w->cw_ns);
+        dst_is_leaf = true;
+        break;
     }
 
     produce = consume * percent_keep / 100;
@@ -128,12 +126,12 @@ sp3_work_estimate(struct cn_compaction_work *w)
 /* Handle root spill
  */
 static uint
-sp3_work_rspill(
-    struct sp3_node *         spn,
+sp3_work_wtype_root(
+    struct sp3_node          *spn,
     struct sp3_thresholds    *thresh,
     struct kvset_list_entry **mark,
-    enum cn_action *          action,
-    enum cn_comp_rule *       rule)
+    enum cn_action           *action,
+    enum cn_rule             *rule)
 {
     struct cn_tree_node *tn = spn2tn(spn);
     uint runlen_min, runlen_max, runlen;
@@ -141,7 +139,7 @@ sp3_work_rspill(
     size_t sizemb_max, wlen;
 
     *action = CN_ACTION_SPILL;
-    *rule = CN_CR_RSPILL;
+    *rule = CN_RULE_RSPILL;
     *mark = NULL;
 
     /* walk from tail (oldest), skip kvsets that are busy */
@@ -194,7 +192,7 @@ sp3_work_rspill(
         return 0;
 
     if (wlen < VBLOCK_MAX_SIZE) {
-        *rule = CN_CR_RTINY;
+        *rule = CN_RULE_TSPILL; /* tiny root spill */
         return runlen;
     }
 
@@ -208,12 +206,12 @@ sp3_work_rspill(
 }
 
 static uint
-sp3_work_node_idle(
+sp3_work_wtype_idle(
     struct sp3_node          *spn,
     struct sp3_thresholds    *thresh,
     struct kvset_list_entry **mark,
     enum cn_action           *action,
-    enum cn_comp_rule        *rule)
+    enum cn_rule             *rule)
 {
     struct cn_tree_node *tn = spn2tn(spn);
     struct kvset_list_entry *le;
@@ -223,16 +221,14 @@ sp3_work_node_idle(
     head = &tn->tn_kvset_list;
     *mark = list_last_entry_or_null(head, typeof(*le), le_link);
     *action = CN_ACTION_COMPACT_KV;
-    *rule = CN_CR_NONE;
 
     kvsets = cn_ns_kvsets(&tn->tn_ns);
-    ev_debug(1);
 
     /* Keep idle index nodes fully compacted to improve scanning
      * (e.g., mongod index nodes that rarely change after load).
      */
     if (cn_ns_vblks(&tn->tn_ns) < kvsets) {
-        *rule = CN_CR_LIDLE_IDX;
+        *rule = CN_RULE_IDLE_INDEX;
         return kvsets;
     }
 
@@ -240,102 +236,73 @@ sp3_work_node_idle(
      * than a single vblock (rare, but happens).
      */
     if (cn_ns_clen(&tn->tn_ns) < VBLOCK_MAX_SIZE) {
-        *rule = CN_CR_LIDLE_SIZE;
+        *rule = CN_RULE_IDLE_SIZE;
         return kvsets;
     }
 
     /* Compact if the preponderance of keys appears to be tombs.
      */
     if (cn_ns_tombs(&tn->tn_ns) * 100 > cn_ns_keys_uniq(&tn->tn_ns) * 90) {
-        *rule = CN_CR_LIDLE_TOMB;
+        *rule = CN_RULE_IDLE_TOMB;
         return kvsets;
     }
 
     return 0;
 }
 
-/**
- * Handle leaf node that exceeds or is close to max size.  If expected
- * size after spill is more than a configured percentage of max size
- * then spill.  Otherwise kv-compact if the max size has been reached.
- *
- * The "compc" check ensures that k-compacted kvsets are spilled one
- * at a time.
- *
- * Pros:
- *   - Prevent those possibly large kvsets from being spilled in giant
- *     spill operation.
- * Cons:
- *   - Smaller spills can lead to lower mblock utilization
- *   - Higher write amp due to less GC during spill operation, and
- *     more kvsets ikn child node that will then have to be
- *     k-compacted or kv-compacted.
- *   - When only one kvset is spilled, a lot of data is left behind
- *     and the leaf_pct drops.  This increases perceived space amp and
- *     creates pressure to compact leaves, which results in spilling
- *     and or kv-compacting nodes that are not yet full.  The fix for
- *     this is to not compact leaves when leaf_pct is out of spec.
- */
 static uint
-sp3_work_leaf_size(
-    struct sp3_node *         spn,
-    struct sp3_thresholds *   thresh,
+sp3_work_wtype_split(
+    struct sp3_node          *spn,
+    struct sp3_thresholds    *thresh,
     struct kvset_list_entry **mark,
-    enum cn_action *          action,
-    enum cn_comp_rule *       rule)
+    enum cn_action           *action,
+    enum cn_rule             *rule)
 {
-    struct list_head *       head;
-    struct cn_tree_node *    tn;
+    struct cn_tree_node *tn = spn2tn(spn);
     struct kvset_list_entry *le;
-
-    tn = spn2tn(spn);
+    struct list_head *head;
 
     head = &tn->tn_kvset_list;
     *mark = list_last_entry_or_null(head, typeof(*le), le_link);
 
-    *action = CN_ACTION_SPILL;
-    *rule = CN_CR_LBIG;
+    *action = CN_ACTION_SPLIT;
+    *rule = CN_RULE_SPLIT;
 
-    if (kvset_get_compc((*mark)->le_kvset) > 0) {
-        *rule = CN_CR_LBIG_ONE;
-        return 1;
-    }
+    ev_debug(1);
 
-    return min_t(uint, cn_ns_kvsets(&tn->tn_ns), thresh->lcomp_runlen_max);
+    return cn_ns_kvsets(&tn->tn_ns);
 }
 
 static uint
-sp3_work_leaf_garbage(
-    struct sp3_node *         spn,
-    struct sp3_thresholds *   thresh,
+sp3_work_wtype_garbage(
+    struct sp3_node          *spn,
+    struct sp3_thresholds    *thresh,
     struct kvset_list_entry **mark,
-    enum cn_action *          action,
-    enum cn_comp_rule *       rule)
+    enum cn_action           *action,
+    enum cn_rule             *rule)
 {
-    struct list_head *       head;
-    struct cn_tree_node *    tn;
+    struct cn_tree_node *tn = spn2tn(spn);
     struct kvset_list_entry *le;
-    uint                     kvsets;
-
-    tn = spn2tn(spn);
+    struct list_head *head;
+    uint kvsets;
 
     head = &tn->tn_kvset_list;
     *mark = list_last_entry_or_null(head, typeof(*le), le_link);
     kvsets = cn_ns_kvsets(&tn->tn_ns);
 
     *action = CN_ACTION_COMPACT_KV;
-    *rule = CN_CR_LGARB;
+    *rule = CN_RULE_GARBAGE;
 
     return min_t(uint, kvsets, thresh->lcomp_runlen_max);
 }
 
 static uint
-sp3_work_leaf_scatter(
-    struct sp3_node *         spn,
+sp3_work_wtype_scatter(
+    struct sp3_node          *spn,
     struct sp3_thresholds    *thresh,
     struct kvset_list_entry **mark,
     enum cn_action           *action,
-    enum cn_comp_rule        *rule)
+    enum cn_rule             *rule)
 {
     struct cn_tree_node *tn = spn2tn(spn);
     struct kvset_list_entry *le;
@@ -346,7 +313,7 @@ sp3_work_leaf_scatter(
     head = &tn->tn_kvset_list;
     *mark = list_last_entry_or_null(head, typeof(*le), le_link);
     *action = CN_ACTION_COMPACT_KV;
-    *rule = CN_CR_LSCATF;
+    *rule = CN_RULE_SCATTERF;
 
     runlen_max = thresh->lscat_runlen_max;
     runlen = cn_ns_kvsets(&tn->tn_ns);
@@ -359,7 +326,7 @@ sp3_work_leaf_scatter(
             break;
         }
 
-        *rule = CN_CR_LSCATP;
+        *rule = CN_RULE_SCATTERP;
         --runlen;
     }
 
@@ -386,12 +353,12 @@ sp3_work_leaf_scatter(
 }
 
 static uint
-sp3_work_leaf_len(
-    struct sp3_node *         spn,
-    struct sp3_thresholds *   thresh,
+sp3_work_wtype_length(
+    struct sp3_node          *spn,
+    struct sp3_thresholds    *thresh,
     struct kvset_list_entry **mark,
-    enum cn_action *          action,
-    enum cn_comp_rule *       rule)
+    enum cn_action           *action,
+    enum cn_rule             *rule)
 {
     struct cn_tree_node *tn = spn2tn(spn);
     uint runlen_min = thresh->llen_runlen_min;
@@ -414,9 +381,9 @@ sp3_work_leaf_len(
         head = &tn->tn_kvset_list;
         *mark = list_last_entry(head, typeof(*le), le_link);
         *action = CN_ACTION_COMPACT_K;
-        *rule = CN_CR_LLONG;
+        *rule = CN_RULE_LENGTHK;
 
-        list_for_each_entry_reverse (le, head, le_link) {
+        list_for_each_entry_reverse(le, head, le_link) {
             if (runlen < runlen_min) {
                 uint tmp = kvset_get_compc(le->le_kvset);
 
@@ -440,8 +407,10 @@ sp3_work_leaf_len(
          * keys (i.e., k-compact).
          */
         if (runlen >= runlen_min) {
-            if (vwlen < VBLOCK_MAX_SIZE)
+            if (vwlen < VBLOCK_MAX_SIZE) {
                 *action = CN_ACTION_COMPACT_KV;
+                *rule = CN_RULE_LENGTHV;
+            }
 
             return runlen;
         }
@@ -452,6 +421,7 @@ sp3_work_leaf_len(
         if (cn_ns_clen(&tn->tn_ns) < VBLOCK_MAX_SIZE) {
             *mark = list_last_entry(head, typeof(*le), le_link);
             *action = CN_ACTION_COMPACT_KV;
+            *rule = CN_RULE_LENGTHV;
             return kvsets;
         }
 
@@ -462,7 +432,7 @@ sp3_work_leaf_len(
         if (kvsets > runlen_min && cn_ns_vblks(&tn->tn_ns) < kvsets) {
             *mark = list_last_entry(head, typeof(*le), le_link);
             *action = CN_ACTION_COMPACT_KV;
-            *rule = CN_CR_LIDXF;
+            *rule = CN_RULE_INDEXF;
 
             /* If the oldest kvset is larger than the next oldest kvset
              * and there's not much garbage then start with the next
@@ -473,7 +443,7 @@ sp3_work_leaf_len(
             if (kvset_get_kwlen(le->le_kvset) < kvset_get_kwlen((*mark)->le_kvset) &&
                 cn_ns_clen(&tn->tn_ns) * 100 > cn_ns_alen(&tn->tn_ns) * 85) {
 
-                *rule = CN_CR_LIDXP;
+                *rule = CN_RULE_INDEXP;
                 *mark = le;
                 return kvsets - 1;
             }
@@ -488,20 +458,20 @@ sp3_work_leaf_len(
 /**
  * sp3_work() - determine if a given node needs maintenance
  * @tn: the cn tree node to check
- * @thresh: thresholds for work (eg, min/max kvsets)
  * @wtype: type of work to consider
+ * @thresh: thresholds for work (eg, min/max kvsets)
  * @debug: debug flag
- * @qnum_out: sts queue
  * @wp: work struct
  */
 merr_t
 sp3_work(
-    struct sp3_node *           spn,
-    struct sp3_thresholds *     thresh,
+    struct sp3_node            *spn,
     enum sp3_work_type          wtype,
+    struct sp3_thresholds      *thresh,
     uint                        debug,
     struct cn_compaction_work **wp)
 {
+    struct cn_tree *tree;
     struct cn_tree_node *      tn;
     struct cn_compaction_work *w;
     struct kvset_list_entry *  le;
@@ -511,12 +481,13 @@ sp3_work(
 
     uint                     n_kvsets = 0;
     enum cn_action           action = CN_ACTION_NONE;
-    enum cn_comp_rule        rule = CN_CR_NONE;
+    enum cn_rule             rule = CN_RULE_NONE;
     struct kvset_list_entry *mark = NULL;
 
     tn = spn2tn(spn);
+    tree = tn->tn_tree;
 
-    if (tn->tn_tree->rp->cn_maint_disable)
+    if (tree->rp->cn_maint_disable)
         return 0;
 
     if (!*wp) {
@@ -538,64 +509,54 @@ sp3_work(
      * and its stats, otherwise an asynchronously completing job could
      * morph them while they're being examined.
      */
-    rmlock_rlock(&tn->tn_tree->ct_lock, &lock);
+    rmlock_rlock(&tree->ct_lock, &lock);
 
-    if (tn->tn_rspills_wedged) {
+    if (tree->ct_rspills_wedged) {
         if (!sp3_node_is_idle(tn))
             goto locked_nowork;
 
         log_info("re-enable compaction after wedge");
-        tn->tn_rspills_wedged = false;
+        tree->ct_rspills_wedged = false;
     }
 
-    /* [HSE_REVISIT] If the node has morphed since this work request was
-     * generated then we should discard this request as it may no longer
-     * be applicable (i.e., the node's composition has changed, and may
-     * have changed from a leaf to an internal node).
-     */
     if (cn_node_isleaf(tn)) {
         switch (wtype) {
-        case wtype_leaf_size:
-            n_kvsets = sp3_work_leaf_size(spn, thresh, &mark, &action, &rule);
+        case wtype_split:
+            n_kvsets = sp3_work_wtype_split(spn, thresh, &mark, &action, &rule);
             break;
 
-        case wtype_leaf_garbage:
-            n_kvsets = sp3_work_leaf_garbage(spn, thresh, &mark, &action, &rule);
+        case wtype_garbage:
+            n_kvsets = sp3_work_wtype_garbage(spn, thresh, &mark, &action, &rule);
             break;
 
-        case wtype_leaf_scatter:
-            n_kvsets = sp3_work_leaf_scatter(spn, thresh, &mark, &action, &rule);
+        case wtype_scatter:
+            n_kvsets = sp3_work_wtype_scatter(spn, thresh, &mark, &action, &rule);
             break;
 
-        case wtype_node_len:
-            n_kvsets = sp3_work_leaf_len(spn, thresh, &mark, &action, &rule);
+        case wtype_length:
+            n_kvsets = sp3_work_wtype_length(spn, thresh, &mark, &action, &rule);
             break;
 
-        case wtype_node_idle:
-            n_kvsets = sp3_work_node_idle(spn, thresh, &mark, &action, &rule);
+        case wtype_idle:
+            n_kvsets = sp3_work_wtype_idle(spn, thresh, &mark, &action, &rule);
             break;
 
         default:
-            ev_warn(1);
             assert(0);
             break;
         }
     } else {
         switch (wtype) {
-        case wtype_rspill:
-            n_kvsets = sp3_work_rspill(spn, thresh, &mark, &action, &rule);
+        case wtype_root:
+            n_kvsets = sp3_work_wtype_root(spn, thresh, &mark, &action, &rule);
             break;
 
-        case wtype_node_len:
-            assert(0);
-            break;
-
-        case wtype_node_idle:
-            n_kvsets = sp3_work_node_idle(spn, thresh, &mark, &action, &rule);
+        case wtype_idle:
+            n_kvsets = sp3_work_wtype_idle(spn, thresh, &mark, &action, &rule);
             break;
 
         default:
-            ev_info(1); /* node morphed from leaf to internal node */
+            assert(0);
             break;
         }
     }
@@ -603,26 +564,30 @@ sp3_work(
     if (n_kvsets == 0)
         goto locked_nowork;
 
-    if (action == CN_ACTION_SPILL) {
+    switch (action) {
+    case CN_ACTION_SPILL:
+        if ((atomic_read(&tn->tn_busycnt) >> 16) > 2)
+            goto locked_nowork;
 
-        /* Restrict concurrent spills to root and internal nodes,
-         * and limit the concurrency to three jobs.
-         */
-        if (!cn_node_isleaf(tn)) {
-            uint jobs = atomic_read(&tn->tn_busycnt) >> 16;
+        if (!cn_node_isroot(tn))
+            abort();
 
-            if (jobs > 2)
-                goto locked_nowork;
+        cn_node_comp_token_put(tn);
+        have_token = false;
+        break;
 
-            cn_node_comp_token_put(tn);
-            have_token = false;
-        }
-    } else {
+    case CN_ACTION_COMPACT_K:
+    case CN_ACTION_COMPACT_KV:
+    case CN_ACTION_SPLIT:
 
         /* All other actions are node-wise mutually exclusive.
          */
         if (atomic_read(&tn->tn_busycnt) > 0)
             goto locked_nowork;
+        break;
+
+    default:
+        goto locked_nowork;
     }
 
     /* The upper 16 bits of busycnt contains the count of currently
@@ -636,9 +601,6 @@ sp3_work(
     w = *wp;
 
     assert(mark);
-    assert(n_kvsets);
-    assert(action > CN_ACTION_NONE);
-    assert(action < CN_ACTION_END);
 
     /* mark the kvsets with dgen_lo */
     w->cw_dgen_lo = kvset_get_dgen(mark->le_kvset);
@@ -660,23 +622,23 @@ sp3_work(
     rmlock_runlock(lock);
 
     w->cw_node = tn;
-    w->cw_tree = tn->tn_tree;
-    w->cw_mp = tn->tn_tree->mp;
-    w->cw_rp = tn->tn_tree->rp;
-    w->cw_cp = tn->tn_tree->ct_cp;
-    w->cw_pfx_len = tn->tn_tree->ct_cp->pfx_len;
+    w->cw_tree = tree;
+    w->cw_mp = tree->mp;
+    w->cw_rp = tree->rp;
+    w->cw_cp = tree->ct_cp;
+    w->cw_pfx_len = tree->ct_cp->pfx_len;
 
     w->cw_kvset_cnt = n_kvsets;
     w->cw_mark = mark;
     w->cw_action = action;
-    w->cw_comp_rule = rule;
+    w->cw_rule = rule;
     w->cw_debug = debug;
 
     w->cw_have_token = have_token;
     w->cw_rspill_conc = !have_token && (action == CN_ACTION_SPILL);
 
     w->cw_compc = kvset_get_compc(w->cw_mark->le_kvset);
-    w->cw_pc = cn_get_perfc(tn->tn_tree->cn, w->cw_action);
+    w->cw_pc = cn_get_perfc(tree->cn, w->cw_action);
 
     w->cw_t0_enqueue = get_time_ns();
 
@@ -684,9 +646,9 @@ sp3_work(
 
     if (w->cw_rspill_conc) {
         /* ensure concurrent root spills complete in order */
-        mutex_lock(&tn->tn_rspills_lock);
-        list_add_tail(&w->cw_rspill_link, &tn->tn_rspills);
-        mutex_unlock(&tn->tn_rspills_lock);
+        mutex_lock(&tree->ct_rspills_lock);
+        list_add_tail(&w->cw_rspill_link, &tree->ct_rspills_list);
+        mutex_unlock(&tree->ct_rspills_lock);
     }
 
     sp3_work_estimate(w);

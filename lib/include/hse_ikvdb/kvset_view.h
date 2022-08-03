@@ -25,7 +25,7 @@ struct kvset_metrics {
     uint32_t tot_wbt_pages;
     uint32_t tot_blm_pages;
     uint32_t compc;
-    uint16_t comp_rule;
+    uint16_t rule;
     uint16_t vgroups;
 };
 

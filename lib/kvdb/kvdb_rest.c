@@ -687,7 +687,7 @@ print_unit(
         yaml_field_fmt(yc, "vgroups", "%u", m->vgroups);
 
         if (type == TYPE_KVSET)
-            yaml_field_fmt(yc, "rule", "%s", cn_comp_rule2str(m->comp_rule));
+            yaml_field_fmt(yc, "rule", "%s", cn_rule2str(m->rule));
         else
             yaml_field_fmt(yc, "kvsets", "%d", nkvsets);
     } else {
@@ -703,7 +703,7 @@ print_unit(
                     width[5], vlenbuf,
                     nhblks, nkblks, nvblks,
                     m->vgroups,
-                    (type == TYPE_KVSET) ? cn_comp_rule2str(m->comp_rule) : "-",
+                    (type == TYPE_KVSET) ? cn_rule2str(m->rule) : "-",
                     ctx->cnid,
                     ctx->eklen,
                     trailer);

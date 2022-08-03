@@ -19,6 +19,7 @@ struct kvs_rparams;
 struct kvset;
 struct mpool;
 struct kvs_cparams;
+struct cn_tree_node;
 
 /**
  * cn_tree_create() - Create a CN_TREE and associate it with

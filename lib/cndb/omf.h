@@ -164,7 +164,7 @@ struct cndb_kvset_add_omf {
     uint64_t            kvset_add_dgen;
     uint64_t            kvset_add_vused;
     uint32_t            kvset_add_compc;
-    uint16_t            kvset_add_comp_rule;
+    uint16_t            kvset_add_rule;
     uint16_t            kvset_add_pad;
     uint64_t            kvset_add_hblkid;
     uint32_t            kvset_add_kblk_cnt;
@@ -178,7 +178,7 @@ OMF_SETGET(struct cndb_kvset_add_omf, kvset_add_nodeid, 64);
 OMF_SETGET(struct cndb_kvset_add_omf, kvset_add_dgen, 64);
 OMF_SETGET(struct cndb_kvset_add_omf, kvset_add_vused, 64);
 OMF_SETGET(struct cndb_kvset_add_omf, kvset_add_compc, 32);
-OMF_SETGET(struct cndb_kvset_add_omf, kvset_add_comp_rule, 16);
+OMF_SETGET(struct cndb_kvset_add_omf, kvset_add_rule, 16);
 OMF_SETGET(struct cndb_kvset_add_omf, kvset_add_hblkid, 64);
 OMF_SETGET(struct cndb_kvset_add_omf, kvset_add_kblk_cnt, 32);
 OMF_SETGET(struct cndb_kvset_add_omf, kvset_add_vblk_cnt, 32);
@@ -300,7 +300,7 @@ cndb_omf_kvset_add_write(
     uint64_t          dgen,
     uint64_t          vused,
     uint32_t          compc,
-    uint16_t          comp_rule,
+    uint16_t          rule,
     uint64_t          hblkid,
     uint32_t          kblkc,
     uint64_t         *kblkv,

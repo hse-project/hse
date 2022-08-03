@@ -47,10 +47,10 @@ MTF_DEFINE_UTEST(argv_test, deserialize_to_params_invalid_value)
 MTF_DEFINE_UTEST(argv_test, deserialize_to_params_invalid_relation_validation)
 {
     merr_t             err;
-    const char * const paramv[] = { "cn_node_size_lo=51", "cn_node_size_hi=49" };
+    const char * const paramv[] = { "cn_node_size_hi=49" };
     struct kvs_rparams params;
 
-    err = argv_deserialize_to_kvs_rparams(2, paramv, &params);
+    err = argv_deserialize_to_kvs_rparams(NELEM(paramv), paramv, &params);
     ASSERT_NE(0, err);
 }
 

@@ -27,66 +27,72 @@ struct cn_tree_node;
 /* work queues */
 enum sp3_qnum {
     SP3_QNUM_ROOT,
-    SP3_QNUM_LLEN,
-    SP3_QNUM_LGARB,
-    SP3_QNUM_LSCAT,
-    SP3_QNUM_LSIZE,
+    SP3_QNUM_LENGTH,
+    SP3_QNUM_GARBAGE,
+    SP3_QNUM_SCATTER,
+    SP3_QNUM_SPLIT,
     SP3_QNUM_SHARED,
     SP3_QNUM_MAX
 };
 
-enum cn_comp_rule {
-    CN_CR_NONE = 0u,
-    CN_CR_INGEST,         /* normal c0 spill */
-    CN_CR_RSPILL,         /* normal root spill */
-    CN_CR_RTINY,          /* tiny root spill */
-    CN_CR_LBIG,           /* big leaf (near pop threshold) */
-    CN_CR_LBIG_ONE,       /* big leaf, compact one kvset */
-    CN_CR_LGARB,          /* leaf garbage (reducing space amp) */
-    CN_CR_LLONG,          /* long leaf */
-    CN_CR_LIDXF,          /* short leaf, full index node compaction */
-    CN_CR_LIDXP,          /* short leaf, partial index node compaction */
-    CN_CR_LIDLE_IDX,      /* idle leaf, index node */
-    CN_CR_LIDLE_SIZE,     /* idle leaf, tiny node */
-    CN_CR_LIDLE_TOMB,     /* idle leaf, mostly tombs */
-    CN_CR_LSCATF,         /* vgroup scatter remediation (full node) */
-    CN_CR_LSCATP,         /* vgroup scatter remediation (partial node) */
+/* Add new rules to the end of the list because rules are persisted
+ * in the omf.
+ */
+enum cn_rule {
+    CN_RULE_NONE = 0u,
+    CN_RULE_INGEST,     /* normal c0 spill */
+    CN_RULE_RSPILL,     /* normal root spill */
+    CN_RULE_TSPILL,     /* tiny root spill */
+    CN_RULE_ZSPILL,     /* zero writeamp root spill */
+    CN_RULE_LENGTHK,    /* long leaf, k-compact */
+    CN_RULE_LENGTHV,    /* long tiny leaf, kv-compact */
+    CN_RULE_INDEXF,     /* short leaf, full index node compaction */
+    CN_RULE_INDEXP,     /* short leaf, partial index node compaction */
+    CN_RULE_IDLE_INDEX, /* idle leaf, index node */
+    CN_RULE_IDLE_SIZE,  /* idle leaf, tiny node */
+    CN_RULE_IDLE_TOMB,  /* idle leaf, mostly tombs */
+    CN_RULE_SCATTERF,   /* vgroup scatter remediation (full node) */
+    CN_RULE_SCATTERP,   /* vgroup scatter remediation (partial node) */
+    CN_RULE_GARBAGE,    /* leaf garbage (reducing space amp) */
+    CN_RULE_SPLIT,      /* big leaf (near split threshold) */
 };
 
 static inline const char *
-cn_comp_rule2str(enum cn_comp_rule rule)
+cn_rule2str(enum cn_rule rule)
 {
     switch (rule) {
-    case CN_CR_NONE:
+    case CN_RULE_NONE:
         return "none";
-    case CN_CR_INGEST:
+    case CN_RULE_INGEST:
         return "ingest";
-    case CN_CR_RSPILL:
+    case CN_RULE_RSPILL:
         return "rspill";
-    case CN_CR_RTINY:
-        return "rtiny";
-    case CN_CR_LBIG:
-        return "lbig";
-    case CN_CR_LBIG_ONE:
-        return "lbig1";
-    case CN_CR_LGARB:
-        return "lgarb";
-    case CN_CR_LLONG:
-        return "llong";
-    case CN_CR_LIDXF:
-        return "lidxf";
-    case CN_CR_LIDXP:
-        return "lidxp";
-    case CN_CR_LIDLE_IDX:
+    case CN_RULE_TSPILL:
+        return "tspill";
+    case CN_RULE_ZSPILL:
+        return "zspill";
+    case CN_RULE_LENGTHK:
+        return "lenk";
+    case CN_RULE_LENGTHV:
+        return "lenv";
+    case CN_RULE_INDEXF:
+        return "idxf";
+    case CN_RULE_INDEXP:
+        return "idxp";
+    case CN_RULE_IDLE_INDEX:
         return "idlidx";
-    case CN_CR_LIDLE_SIZE:
+    case CN_RULE_IDLE_SIZE:
         return "idlsiz";
-    case CN_CR_LIDLE_TOMB:
+    case CN_RULE_IDLE_TOMB:
         return "idltmb";
-    case CN_CR_LSCATF:
-        return "lscatf";
-    case CN_CR_LSCATP:
-        return "lscatp";
+    case CN_RULE_SCATTERF:
+        return "scatf";
+    case CN_RULE_SCATTERP:
+        return "scatp";
+    case CN_RULE_GARBAGE:
+        return "garb";
+    case CN_RULE_SPLIT:
+        return "split";
     }
 
     return "invalid";
@@ -94,12 +100,12 @@ cn_comp_rule2str(enum cn_comp_rule rule)
 
 /* Default threads-per-queue for csched_qthreads kvdb rparam.
  */
-#define CSCHED_QTHREADS_DEFAULT                 \
-    ((5ul << (8 * SP3_QNUM_ROOT)) |             \
-     (5ul << (8 * SP3_QNUM_LLEN)) |             \
-     (1ul << (8 * SP3_QNUM_LGARB)) |            \
-     (1ul << (8 * SP3_QNUM_LSCAT)) |            \
-     (1ul << (8 * SP3_QNUM_LSIZE)) |            \
+#define CSCHED_QTHREADS_DEFAULT                   \
+    ((5ul << (8 * SP3_QNUM_ROOT)) |               \
+     (5ul << (8 * SP3_QNUM_LENGTH)) |             \
+     (1ul << (8 * SP3_QNUM_GARBAGE)) |            \
+     (1ul << (8 * SP3_QNUM_SCATTER)) |            \
+     (1ul << (8 * SP3_QNUM_SPLIT)) |              \
      (2ul << (8 * SP3_QNUM_SHARED)))
 
 /* clang-format on */

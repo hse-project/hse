@@ -1,6 +1,6 @@
 /* SPDX-License-Identifier: Apache-2.0 */
 /*
- * Copyright (C) 2021 Micron Technology, Inc.  All rights reserved.
+ * Copyright (C) 2021-2022 Micron Technology, Inc.  All rights reserved.
  */
 
 #include <mtf/framework.h>
@@ -131,66 +131,37 @@ MTF_DEFINE_UTEST_PRE(kvs_rparams_test, perfc_level, test_pre)
     ASSERT_EQ(PERFC_LEVEL_MAX, ps->ps_bounds.as_uscalar.ps_max);
 }
 
-MTF_DEFINE_UTEST_PRE(kvs_rparams_test, cn_node_sisze_lo, test_pre)
+MTF_DEFINE_UTEST_PRE(kvs_rparams_test, cn_split_size, test_pre)
 {
     merr_t                   err;
-    const struct param_spec *ps = ps_get("cn_node_size_lo");
+    const struct param_spec *ps = ps_get("cn_split_size");
 
     ASSERT_NE(NULL, ps);
     ASSERT_NE(NULL, ps->ps_description);
     ASSERT_EQ(PARAM_FLAG_EXPERIMENTAL, ps->ps_flags);
-    ASSERT_EQ(PARAM_TYPE_U64, ps->ps_type);
-    ASSERT_EQ(offsetof(struct kvs_rparams, cn_node_size_lo), ps->ps_offset);
-    ASSERT_EQ(sizeof(uint64_t), ps->ps_size);
+    ASSERT_EQ(PARAM_TYPE_U32, ps->ps_type);
+    ASSERT_EQ(offsetof(struct kvs_rparams, cn_split_size), ps->ps_offset);
+    ASSERT_EQ(sizeof(uint32_t), ps->ps_size);
     ASSERT_EQ((uintptr_t)ps->ps_convert, (uintptr_t)param_default_converter);
     ASSERT_EQ((uintptr_t)ps->ps_validate, (uintptr_t)param_default_validator);
     ASSERT_EQ((uintptr_t)ps->ps_stringify, (uintptr_t)param_default_stringify);
     ASSERT_EQ((uintptr_t)ps->ps_jsonify, (uintptr_t)param_default_jsonify);
-    ASSERT_NE(NULL, ps->ps_validate_relations);
-    ASSERT_EQ(8192 * 1024, params.cn_node_size_lo);
-    ASSERT_EQ(0, ps->ps_bounds.as_uscalar.ps_min);
-    ASSERT_EQ(UINT64_MAX, ps->ps_bounds.as_uscalar.ps_max);
+    ASSERT_EQ(16, params.cn_split_size);
+    ASSERT_EQ(4, ps->ps_bounds.as_uscalar.ps_min);
+    ASSERT_EQ(1024, ps->ps_bounds.as_uscalar.ps_max);
 
     /* clang-format off */
     err = check(
-        "cn_node_size_lo=50000", true,
-        "cn_node_size_hi=40000", true,
+        "cn_split_size=3", false,
+        "cn_split_size=4", true,
+        "cn_split_size=32", true,
+        "cn_split_size=1024", true,
+        "cn_split_size=1025", false,
         NULL
     );
     /* clang-format on */
 
-    ASSERT_NE(0, merr_errno(err));
-}
-
-MTF_DEFINE_UTEST_PRE(kvs_rparams_test, cn_node_size_hi, test_pre)
-{
-    merr_t                   err;
-    const struct param_spec *ps = ps_get("cn_node_size_hi");
-
-    ASSERT_NE(NULL, ps);
-    ASSERT_NE(NULL, ps->ps_description);
-    ASSERT_EQ(PARAM_FLAG_EXPERIMENTAL, ps->ps_flags);
-    ASSERT_EQ(PARAM_TYPE_U64, ps->ps_type);
-    ASSERT_EQ(offsetof(struct kvs_rparams, cn_node_size_hi), ps->ps_offset);
-    ASSERT_EQ(sizeof(uint64_t), ps->ps_size);
-    ASSERT_EQ((uintptr_t)ps->ps_convert, (uintptr_t)param_default_converter);
-    ASSERT_EQ((uintptr_t)ps->ps_validate, (uintptr_t)param_default_validator);
-    ASSERT_EQ((uintptr_t)ps->ps_stringify, (uintptr_t)param_default_stringify);
-    ASSERT_EQ((uintptr_t)ps->ps_jsonify, (uintptr_t)param_default_jsonify);
-    ASSERT_NE(NULL, ps->ps_validate_relations);
-    ASSERT_EQ(9216 * 1024, params.cn_node_size_hi);
-    ASSERT_EQ(0, ps->ps_bounds.as_uscalar.ps_min);
-    ASSERT_EQ(UINT64_MAX, ps->ps_bounds.as_uscalar.ps_max);
-
-    /* clang-format off */
-    err = check(
-        "cn_node_size_lo=50000", true,
-        "cn_node_size_hi=40000", true,
-        NULL
-    );
-    /* clang-format on */
-
-    ASSERT_NE(0, merr_errno(err));
+    ASSERT_EQ(0, merr_errno(err));
 }
 
 MTF_DEFINE_UTEST_PRE(kvs_rparams_test, cn_compact_vblk_ra, test_pre)
@@ -350,9 +321,9 @@ MTF_DEFINE_UTEST_PRE(kvs_rparams_test, cn_mcache_wbt, test_pre)
     ASSERT_NE(NULL, ps);
     ASSERT_NE(NULL, ps->ps_description);
     ASSERT_EQ(PARAM_FLAG_EXPERIMENTAL, ps->ps_flags);
-    ASSERT_EQ(PARAM_TYPE_U64, ps->ps_type);
+    ASSERT_EQ(PARAM_TYPE_U8, ps->ps_type);
     ASSERT_EQ(offsetof(struct kvs_rparams, cn_mcache_wbt), ps->ps_offset);
-    ASSERT_EQ(sizeof(uint64_t), ps->ps_size);
+    ASSERT_EQ(sizeof(uint8_t), ps->ps_size);
     ASSERT_EQ((uintptr_t)ps->ps_convert, (uintptr_t)param_default_converter);
     ASSERT_EQ((uintptr_t)ps->ps_validate, (uintptr_t)param_default_validator);
     ASSERT_EQ((uintptr_t)ps->ps_stringify, (uintptr_t)param_default_stringify);
@@ -369,16 +340,16 @@ MTF_DEFINE_UTEST_PRE(kvs_rparams_test, cn_mcache_vminlvl, test_pre)
     ASSERT_NE(NULL, ps);
     ASSERT_NE(NULL, ps->ps_description);
     ASSERT_EQ(PARAM_FLAG_EXPERIMENTAL, ps->ps_flags);
-    ASSERT_EQ(PARAM_TYPE_U64, ps->ps_type);
+    ASSERT_EQ(PARAM_TYPE_U8, ps->ps_type);
     ASSERT_EQ(offsetof(struct kvs_rparams, cn_mcache_vminlvl), ps->ps_offset);
-    ASSERT_EQ(sizeof(uint64_t), ps->ps_size);
+    ASSERT_EQ(sizeof(uint8_t), ps->ps_size);
     ASSERT_EQ((uintptr_t)ps->ps_convert, (uintptr_t)param_default_converter);
     ASSERT_EQ((uintptr_t)ps->ps_validate, (uintptr_t)param_default_validator);
     ASSERT_EQ((uintptr_t)ps->ps_stringify, (uintptr_t)param_default_stringify);
     ASSERT_EQ((uintptr_t)ps->ps_jsonify, (uintptr_t)param_default_jsonify);
     ASSERT_EQ(UINT16_MAX, params.cn_mcache_vminlvl);
     ASSERT_EQ(0, ps->ps_bounds.as_uscalar.ps_min);
-    ASSERT_EQ(UINT64_MAX, ps->ps_bounds.as_uscalar.ps_max);
+    ASSERT_EQ(UINT8_MAX, ps->ps_bounds.as_uscalar.ps_max);
 }
 
 MTF_DEFINE_UTEST_PRE(kvs_rparams_test, cn_mcache_vmin, test_pre)
@@ -388,16 +359,16 @@ MTF_DEFINE_UTEST_PRE(kvs_rparams_test, cn_mcache_vmin, test_pre)
     ASSERT_NE(NULL, ps);
     ASSERT_NE(NULL, ps->ps_description);
     ASSERT_EQ(PARAM_FLAG_EXPERIMENTAL, ps->ps_flags);
-    ASSERT_EQ(PARAM_TYPE_U64, ps->ps_type);
+    ASSERT_EQ(PARAM_TYPE_U32, ps->ps_type);
     ASSERT_EQ(offsetof(struct kvs_rparams, cn_mcache_vmin), ps->ps_offset);
-    ASSERT_EQ(sizeof(uint64_t), ps->ps_size);
+    ASSERT_EQ(sizeof(uint32_t), ps->ps_size);
     ASSERT_EQ((uintptr_t)ps->ps_convert, (uintptr_t)param_default_converter);
     ASSERT_EQ((uintptr_t)ps->ps_validate, (uintptr_t)param_default_validator);
     ASSERT_EQ((uintptr_t)ps->ps_stringify, (uintptr_t)param_default_stringify);
     ASSERT_EQ((uintptr_t)ps->ps_jsonify, (uintptr_t)param_default_jsonify);
     ASSERT_EQ(256, params.cn_mcache_vmin);
     ASSERT_EQ(0, ps->ps_bounds.as_uscalar.ps_min);
-    ASSERT_EQ(UINT64_MAX, ps->ps_bounds.as_uscalar.ps_max);
+    ASSERT_EQ(UINT32_MAX, ps->ps_bounds.as_uscalar.ps_max);
 }
 
 MTF_DEFINE_UTEST_PRE(kvs_rparams_test, cn_mcache_vmax, test_pre)
@@ -407,16 +378,16 @@ MTF_DEFINE_UTEST_PRE(kvs_rparams_test, cn_mcache_vmax, test_pre)
     ASSERT_NE(NULL, ps);
     ASSERT_NE(NULL, ps->ps_description);
     ASSERT_EQ(PARAM_FLAG_EXPERIMENTAL | PARAM_FLAG_WRITABLE, ps->ps_flags);
-    ASSERT_EQ(PARAM_TYPE_U64, ps->ps_type);
+    ASSERT_EQ(PARAM_TYPE_U32, ps->ps_type);
     ASSERT_EQ(offsetof(struct kvs_rparams, cn_mcache_vmax), ps->ps_offset);
-    ASSERT_EQ(sizeof(uint64_t), ps->ps_size);
+    ASSERT_EQ(sizeof(uint32_t), ps->ps_size);
     ASSERT_EQ((uintptr_t)ps->ps_convert, (uintptr_t)param_default_converter);
     ASSERT_EQ((uintptr_t)ps->ps_validate, (uintptr_t)param_default_validator);
     ASSERT_EQ((uintptr_t)ps->ps_stringify, (uintptr_t)param_default_stringify);
     ASSERT_EQ((uintptr_t)ps->ps_jsonify, (uintptr_t)param_default_jsonify);
     ASSERT_EQ(4096, params.cn_mcache_vmax);
     ASSERT_EQ(0, ps->ps_bounds.as_uscalar.ps_min);
-    ASSERT_EQ(UINT64_MAX, ps->ps_bounds.as_uscalar.ps_max);
+    ASSERT_EQ(UINT32_MAX, ps->ps_bounds.as_uscalar.ps_max);
 }
 
 MTF_DEFINE_UTEST_PRE(kvs_rparams_test, cn_mcache_kra_params, test_pre)
@@ -570,16 +541,16 @@ MTF_DEFINE_UTEST_PRE(kvs_rparams_test, cn_compaction_debug, test_pre)
     ASSERT_NE(NULL, ps);
     ASSERT_NE(NULL, ps->ps_description);
     ASSERT_EQ(PARAM_FLAG_EXPERIMENTAL | PARAM_FLAG_WRITABLE, ps->ps_flags);
-    ASSERT_EQ(PARAM_TYPE_U64, ps->ps_type);
+    ASSERT_EQ(PARAM_TYPE_U8, ps->ps_type);
     ASSERT_EQ(offsetof(struct kvs_rparams, cn_compaction_debug), ps->ps_offset);
-    ASSERT_EQ(sizeof(uint64_t), ps->ps_size);
+    ASSERT_EQ(sizeof(uint8_t), ps->ps_size);
     ASSERT_EQ((uintptr_t)ps->ps_convert, (uintptr_t)param_default_converter);
     ASSERT_EQ((uintptr_t)ps->ps_validate, (uintptr_t)param_default_validator);
     ASSERT_EQ((uintptr_t)ps->ps_stringify, (uintptr_t)param_default_stringify);
     ASSERT_EQ((uintptr_t)ps->ps_jsonify, (uintptr_t)param_default_jsonify);
     ASSERT_EQ(0, params.cn_compaction_debug);
     ASSERT_EQ(0, ps->ps_bounds.as_uscalar.ps_min);
-    ASSERT_EQ(UINT64_MAX, ps->ps_bounds.as_uscalar.ps_max);
+    ASSERT_EQ(UINT8_MAX, ps->ps_bounds.as_uscalar.ps_max);
 }
 
 MTF_DEFINE_UTEST_PRE(kvs_rparams_test, cn_maint_delay, test_pre)
@@ -715,16 +686,16 @@ MTF_DEFINE_UTEST_PRE(kvs_rparams_test, compression_value_min_length, test_pre)
     ASSERT_NE(NULL, ps);
     ASSERT_NE(NULL, ps->ps_description);
     ASSERT_EQ(0, ps->ps_flags);
-    ASSERT_EQ(PARAM_TYPE_U64, ps->ps_type);
+    ASSERT_EQ(PARAM_TYPE_U32, ps->ps_type);
     ASSERT_EQ(offsetof(struct kvs_rparams, vcompmin), ps->ps_offset);
-    ASSERT_EQ(sizeof(uint64_t), ps->ps_size);
+    ASSERT_EQ(sizeof(uint32_t), ps->ps_size);
     ASSERT_EQ((uintptr_t)ps->ps_convert, (uintptr_t)param_default_converter);
     ASSERT_EQ((uintptr_t)ps->ps_validate, (uintptr_t)param_default_validator);
     ASSERT_EQ((uintptr_t)ps->ps_stringify, (uintptr_t)param_default_stringify);
     ASSERT_EQ((uintptr_t)ps->ps_jsonify, (uintptr_t)param_default_jsonify);
     ASSERT_EQ(12, params.vcompmin);
     ASSERT_EQ(0, ps->ps_bounds.as_uscalar.ps_min);
-    ASSERT_EQ(UINT64_MAX, ps->ps_bounds.as_uscalar.ps_max);
+    ASSERT_EQ(UINT32_MAX, ps->ps_bounds.as_uscalar.ps_max);
 }
 
 MTF_DEFINE_UTEST_PRE(kvs_rparams_test, compression_value_algorithm, test_pre)

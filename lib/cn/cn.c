@@ -211,23 +211,21 @@ struct perfc_set *
 cn_get_perfc(struct cn *cn, enum cn_action action)
 {
     switch (action) {
+    case CN_ACTION_NONE:
+    case CN_ACTION_SPLIT:
+        break;
 
-        case CN_ACTION_COMPACT_K:
-            return &cn->cn_pc_kcompact;
+    case CN_ACTION_COMPACT_K:
+        return &cn->cn_pc_kcompact;
 
-        case CN_ACTION_COMPACT_KV:
-            return &cn->cn_pc_kvcompact;
+    case CN_ACTION_COMPACT_KV:
+        return &cn->cn_pc_kvcompact;
 
-        case CN_ACTION_SPILL:
-            return &cn->cn_pc_spill;
-
-        case CN_ACTION_SPLIT:
-        case CN_ACTION_NONE:
-        case CN_ACTION_END:
-            break;
+    case CN_ACTION_SPILL:
+        return &cn->cn_pc_spill;
     }
 
-    return 0;
+    return NULL;
 }
 
 struct perfc_set *
@@ -539,7 +537,7 @@ cn_ingest_prep(
 
     km.km_vused = mblocks->bl_vused;
     km.km_compc = 0;
-    km.km_comp_rule = CN_CR_INGEST;
+    km.km_rule = CN_RULE_INGEST;
     km.km_capped = cn_is_capped(cn);
     km.km_restored = false;
 
@@ -1046,7 +1044,7 @@ cn_open(
     }
 
     log_info(
-        "%s/%s cnid %lu fanout %u pfx_len %u vcomp %u,%lu"
+        "%s/%s cnid %lu fanout %u pfx_len %u vcomp %u,%u"
         " hb %lu%c/%lu kb %lu%c/%lu vb %lu%c/%lu %s%s%s%s%s%s",
         cn->cn_kvdb_alias, cn->cn_kvsname, (ulong)cnid,
         cn->cp->fanout, cn->cp->pfx_len,

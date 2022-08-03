@@ -7,7 +7,6 @@
 #define HSE_KVS_CN_INTERNAL_H
 
 struct cn_tree;
-struct mpool;
 struct kvs_rparams;
 struct cndb;
 struct ikvdb;
@@ -17,7 +16,6 @@ struct csched;
 #include <hse_util/atomic.h>
 #include <hse_util/workqueue.h>
 #include <hse_util/inttypes.h>
-#include <hse_util/mutex.h>
 #include <hse_util/token_bucket.h>
 #include <hse_util/perfc.h>
 
@@ -28,7 +26,6 @@ struct cn {
     struct cn_tree *  cn_tree;
     struct perfc_set  cn_pc_get;
     struct cn_kvdb *  cn_kvdb;
-    struct cn_tstate *cn_tstate;
     struct mpool *    cn_dataset;
     struct cndb *     cn_cndb;
     struct tbkt *     cn_tbkt_maint;

@@ -1,3 +1,4 @@
+
 /* SPDX-License-Identifier: Apache-2.0 */
 /*
  * Copyright (C) 2015-2022 Micron Technology, Inc.  All rights reserved.
@@ -33,29 +34,25 @@ enum cn_action {
     CN_ACTION_COMPACT_KV,
     CN_ACTION_SPILL,
     CN_ACTION_SPLIT,
-    CN_ACTION_END,
 };
 
 static inline const char *
 cn_action2str(enum cn_action action)
 {
     switch (action) {
-
-        case CN_ACTION_NONE:
-        case CN_ACTION_END:
-            break;
-
-        case CN_ACTION_COMPACT_K:
-            return "kcomp";
-        case CN_ACTION_COMPACT_KV:
-            return "kvcomp";
-        case CN_ACTION_SPILL:
-            return "spill";
-        case CN_ACTION_SPLIT:
-            return "split";
+    case CN_ACTION_NONE:
+        return "none";
+    case CN_ACTION_COMPACT_K:
+        return "kcomp";
+    case CN_ACTION_COMPACT_KV:
+        return "kvcomp";
+    case CN_ACTION_SPILL:
+        return "spill";
+    case CN_ACTION_SPLIT:
+        return "split";
     }
 
-    return "unknown_action";
+    return "invalid";
 }
 
 /* compaction work debug flags */
@@ -118,8 +115,6 @@ struct cn_work_est {
  * @cw_t5_update:    debug stats
  */
 struct cn_compaction_work {
-
-    /* initialized in cn_compaction() */
     struct work_struct       cw_work;
     u64                      cw_horizon;
     uint                     cw_iter_flags;
@@ -134,7 +129,6 @@ struct cn_compaction_work {
     struct kvs_rparams *     cw_rp;
     struct kvs_cparams *     cw_cp;
 
-    /* initialized in constructor (cn_tree_find_compaction_candidate) */
     struct cn_tree *         cw_tree;
     struct cn_tree_node *    cw_node;
     struct kvset_list_entry *cw_mark;
@@ -147,7 +141,7 @@ struct cn_compaction_work {
     uint32_t                 cw_input_vgroups;
     uint                     cw_pfx_len;
     enum cn_action           cw_action;
-    enum cn_comp_rule        cw_comp_rule;
+    enum cn_rule             cw_rule;
     bool                     cw_have_token;
     bool                     cw_rspill_conc;
     struct list_head         cw_rspill_link;
@@ -171,7 +165,6 @@ struct cn_compaction_work {
     /* Progress tracking */
     u64 cw_prog_interval;
 
-    /* initialized in cn_tree_prepare_compaction () */
     uint                     cw_outc;
     bool                     cw_drop_tombs;
     uint64_t                *cw_kvsetidv;
@@ -181,7 +174,6 @@ struct cn_compaction_work {
     struct vgmap           **cw_vgmap; /* used during k-compact and split */
     struct kvset_vblk_map    cw_vbmap; /* used only during k-compact */
 
-    /* initialized in cn_compaction_worker() */
     struct cndb_txn      *cw_cndb_txn;
     bool                  cw_keep_vblks;
     void                **cw_cookie;
