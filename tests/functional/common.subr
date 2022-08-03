@@ -43,6 +43,10 @@ while getopts ":hC:" o; do
 done
 shift $((OPTIND-1))
 
+skip () {
+    exit 77
+}
+
 cmd () {
     # reset OPTIND from global getopts
     OPTIND=0

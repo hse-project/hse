@@ -452,6 +452,9 @@ hse_storage_profile(const char *path, bool quiet, bool verbose)
         uint32_t space_needed_mb = 1 + (max_space_needed / (1u << 20));
 
         rc = ENOSPC;
+        /* This output message is grepped by
+         * tests/function/cli/storage/profile/success.sh
+         */
         fprintf(
             stderr,
             "The profiling test needs %u MiB of free space to characterize KVDB performance.\n",
