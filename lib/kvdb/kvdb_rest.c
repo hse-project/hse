@@ -170,6 +170,7 @@ rest_kvdb_param_get(
             return merr(ENOMEM);
 
         str = cJSON_PrintUnformatted(root);
+        cJSON_Delete(root);
         if (!str)
             return merr(ENOMEM);
 
@@ -256,10 +257,15 @@ rest_kvs_param_get(
         }
 
         merged = cJSONUtils_MergePatchCaseSensitive(cp_json, rp_json);
-        assert(merged);
+        if (!merged) {
+            cJSON_Delete(cp_json);
+            cJSON_Delete(rp_json);
+            return merr(ENOMEM);
+        }
 
         str = cJSON_PrintUnformatted(merged);
         cJSON_Delete(merged);
+        cJSON_Delete(rp_json);
         if (!str) {
             return merr(ENOMEM);
         }
