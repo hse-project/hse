@@ -1017,6 +1017,7 @@ rest_param_get(
             return merr(ENOMEM);
 
         str = cJSON_PrintUnformatted(root);
+        cJSON_Delete(root);
         if (!str)
             return merr(ENOMEM);
 
