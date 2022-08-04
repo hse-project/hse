@@ -30,6 +30,7 @@ pre(struct mtf_test_info *info)
 
     mapi_inject_ptr(mapi_idx_ikvdb_get_mclass_policy, (void *)5);
     mapi_inject(mapi_idx_cndb_cn_instantiate, 0);
+    mapi_inject(mapi_idx_cndb_nodeid_mint, 1);
 
     return 0;
 }
@@ -61,7 +62,6 @@ MTF_DEFINE_UTEST_PRE(cn_api, basic, pre)
 
     kk.kk_parent = (void *)&dummy_ikvdb;
     kk.kk_cparams = &cp;
-    kk.kk_cparams->fanout = 4;
 
     mapi_inject(mapi_idx_ikvdb_get_csched, 0);
     mapi_inject(mapi_idx_mpool_props_get, 0);
@@ -76,10 +76,6 @@ MTF_DEFINE_UTEST_PRE(cn_api, basic, pre)
 
     tree = cn_get_tree(cn);
     ASSERT_NE(tree, NULL);
-
-    struct kvs_cparams *c = cn_get_cparams(cn);
-
-    ASSERT_EQ(c->fanout, 4);
 
     struct kvs_rparams *rp_out;
 

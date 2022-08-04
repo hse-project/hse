@@ -66,7 +66,7 @@ for fanout in 2 4 8 16; do
         *) exit 2;;
     esac
 
-    kvs=$(kvs_create smoke-"$fanout" prefix.length=4 fanout="$fanout")
+    kvs=$(kvs_create smoke-"$fanout" prefix.length=4)
 
 
     cmd kmt -j32 -f 'xxxx%016lx' "-l$vlen:$vlen" -s1 "-i$nkeys" "$home" "$kvs" "${oparms[@]}"

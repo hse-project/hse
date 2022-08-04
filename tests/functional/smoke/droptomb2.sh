@@ -13,7 +13,7 @@ kvdb_create
 
 keys=10
 
-kvs=$(kvs_create smoke-0 fanout=2)
+kvs=$(kvs_create smoke-0)
 
 # Set rspill params to 0x0404 (min/max of 4/4) so that we generate
 # two cn root spills for each group of eight calls to putbin.

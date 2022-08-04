@@ -131,7 +131,6 @@ create_mock_cn(
 
     mapi_inject_list_set(inject_list);
 
-    mock_cn->cp->fanout = 16;
     mock_cn->cp->pfx_len = pfx_len;
 
 

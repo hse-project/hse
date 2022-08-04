@@ -389,18 +389,13 @@ MTF_DEFINE_UTEST_PRE(test, t_create_error_paths, test_setup)
     u32                api = mapi_idx_malloc;
     struct kvs_cparams cp;
 
-    /* fanout of 0 is invalid */
     memset(&cp, 0, sizeof(cp));
     err = cn_tree_create(&tree, NULL, 0, &cp, &mock_health, rp);
-    ASSERT_TRUE(err);
+    ASSERT_EQ(0, err);
 
-    /* huge fanouts are invalid */
-    cp.fanout = CN_FANOUT_MAX + 1;
-    err = cn_tree_create(&tree, NULL, 0, &cp, &mock_health, rp);
-    ASSERT_TRUE(err);
+    cn_tree_destroy(tree);
 
     /* pfx_len greater than HSE_KVS_PFX_LEN_MAX is invalid */
-    cp.fanout = 1 << 3;
     cp.pfx_len = HSE_KVS_PFX_LEN_MAX + 1;
     err = cn_tree_create(&tree, NULL, 0, &cp, &mock_health, rp);
     ASSERT_TRUE(err);
@@ -408,14 +403,12 @@ MTF_DEFINE_UTEST_PRE(test, t_create_error_paths, test_setup)
     /* memory allocation */
     mapi_inject_once_ptr(api, 1, 0);
     memset(&cp, 0, sizeof(cp));
-    cp.fanout = 1 << 2;
     err = cn_tree_create(&tree, NULL, 0, &cp, &mock_health, rp);
     ASSERT_EQ(merr_errno(err), ENOMEM);
 
     /* memory allocation - khashmap */
     mapi_inject_once_ptr(api, 1, 0);
     memset(&cp, 0, sizeof(cp));
-    cp.fanout = 1 << 2;
     err = cn_tree_create(&tree, NULL, 0, &cp, &mock_health, rp);
     ASSERT_EQ(merr_errno(err), ENOMEM);
     mapi_inject_unset(api);
@@ -436,14 +429,13 @@ MTF_DEFINE_UTEST_PRE(test, t_simple_api, test_setup)
 
     struct cn_tree *    tree = 0;
     struct kvs_cparams *out,
-        cp = {.sfx_len = 0, .pfx_len = 12, .fanout = 8 };
+        cp = {.sfx_len = 0, .pfx_len = 12, };
 
     err = cn_tree_create(&tree, NULL, 0, &cp, &mock_health, rp);
     ASSERT_EQ(err, 0);
     ASSERT_NE(tree, NULL);
 
     out = cn_tree_get_cparams(tree);
-    ASSERT_EQ(8, out->fanout);
     ASSERT_EQ(12, out->pfx_len);
 
     ASSERT_EQ(0, cn_tree_initial_dgen(tree));
@@ -460,13 +452,11 @@ MTF_DEFINE_UTEST_PRE(test, t_cn_tree_ingest_update, test_setup)
     struct cn_tree *         tree;
     struct cn_tree_node *    node;
     merr_t                   err;
-    u32                      fanout_bits = 2;
     struct kvset *           kvsetv[4];
     struct kvset_list_entry *le;
     uint                     i;
 
     struct kvs_cparams cp = {
-        .fanout = 1 << fanout_bits,
     };
 
     err = cn_tree_create(&tree, NULL, 0, &cp, &mock_health, rp);
@@ -590,7 +580,6 @@ test_tree_create(struct test *t)
     uint64_t nodeid;
     merr_t err;
 
-    cp.fanout = 1 << t->p.fanout_bits;
     nodeid = 0;
 
     err = cn_tree_create(&t->tree, NULL, 0, &cp, &mock_health, rp);
@@ -682,7 +671,6 @@ create(struct test *t)
     struct cn_tree *      tree = 0;
 
     struct kvs_cparams cp = {
-        .fanout = 1 << t->p.fanout_bits,
     };
 
     err = cn_tree_create(&tree, NULL, 0, &cp, &mock_health, rp);
@@ -755,46 +743,43 @@ MTF_DEFINE_UTEST_PRE(test, t_cn_comp, test_setup)
 
         enum cn_action action = actions[i];
 
-        for (int use_token = 0; use_token < 2; use_token++) {
+        for (int cancel = 0; cancel < 2; cancel++) {
 
-            for (int cancel = 0; cancel < 2; cancel++) {
+            struct test_params tp = {};
+            struct test        t = {};
+            merr_t             err;
 
-                struct test_params tp = {};
-                struct test        t = {};
-                merr_t             err;
+            struct cn_tree_node *     tn;
+            struct cn_compaction_work w;
 
-                struct cn_tree_node *     tn;
-                struct cn_compaction_work w;
+            tp.fanout_bits = 4;
+            tp.levels = 2;
 
-                tp.fanout_bits = 4;
-                tp.levels = 2;
+            test_init(&t, &tp, lcl_ti);
 
-                test_init(&t, &tp, lcl_ti);
+            err = test_tree_create(&t);
+            ASSERT_TRUE(err == 0);
 
-                err = test_tree_create(&t);
-                ASSERT_TRUE(err == 0);
+            err = test_tree_check_with_iters(&t);
+            ASSERT_TRUE(err == 0);
 
-                err = test_tree_check_with_iters(&t);
-                ASSERT_TRUE(err == 0);
+            if (action == CN_ACTION_SPILL)
+                tn = t.tree->ct_root;
+            else
+                tn = list_first_entry_or_null(&t.tree->ct_nodes, typeof(*tn), tn_link);
 
-                if (action == CN_ACTION_SPILL)
-                    tn = t.tree->ct_root;
-                else
-                    tn = list_first_entry_or_null(&t.tree->ct_nodes, typeof(*tn), tn_link);
+            ASSERT_TRUE(tn != NULL);
 
-                ASSERT_TRUE(tn != NULL);
+            cn_comp_work_init(&t, tn, &w, action, action != CN_ACTION_SPILL);
 
-                cn_comp_work_init(&t, tn, &w, action, use_token);
+            /* [HSE_REVISIT] We used to call cn_comp_cancel_cb()
+             * here if (cancel > 0), but that function no longer
+             * exists.  Presumably this test is still useful
+             * to test teardown while a job is in flight?
+             */
+            cn_comp_slice_cb(&w.cw_job);
 
-                /* [HSE_REVISIT] We used to call cn_comp_cancel_cb()
-                 * here if (cancel > 0), but that function no longer
-                 * exists.  Presumably this test is still useful
-                 * to test teardown while a job is in flight?
-                 */
-                cn_comp_slice_cb(&w.cw_job);
-
-                test_tree_destroy(&t);
-            }
+            test_tree_destroy(&t);
         }
     }
 }

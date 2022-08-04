@@ -21,8 +21,8 @@ MTF_DEFINE_UTEST(route_test, route_api_test)
     struct route_map *map;
     struct cn_tree_node tn;
     static const uint nodec = 16;
-    struct route_node *rnodev[2 * nodec], *rnode = NULL, *rnode2;
-    char ekbuf[2 * nodec][sizeof(rnode->rtn_keybuf)];
+    struct route_node *rnodev[2 * nodec + 1], *rnode = NULL, *rnode2;
+    char ekbuf[2 * nodec + 1][sizeof(rnode->rtn_keybuf)];
     uint eklen = 5, idx;
     char ekbuf_large[sizeof(rnode->rtn_keybuf) + 1];
     merr_t err;
@@ -30,7 +30,7 @@ MTF_DEFINE_UTEST(route_test, route_api_test)
     map = route_map_create(0);
     ASSERT_EQ(NULL, map);
 
-    map = route_map_create(nodec);
+    map = route_map_create(nodec * 2 + 1);
     ASSERT_NE(NULL, map);
 
     for (uint i = 0; i < 2 * nodec; i++) {

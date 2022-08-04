@@ -1,6 +1,6 @@
 /* SPDX-License-Identifier: Apache-2.0 */
 /*
- * Copyright (C) 2021 Micron Technology, Inc.  All rights reserved.
+ * Copyright (C) 2021-2022 Micron Technology, Inc.  All rights reserved.
  */
 
 #include <hse_ikvdb/param.h>
@@ -14,7 +14,7 @@ MTF_BEGIN_UTEST_COLLECTION(argv_test)
 MTF_DEFINE_UTEST(argv_test, deserialize_to_params_malformed_kv_pair)
 {
     merr_t             err;
-    const char * const paramv[] = { "fanout", "fanout=" };
+    const char * const paramv[] = { "prefix.length", "prefix.length=" };
     struct kvs_cparams params;
 
     err = argv_deserialize_to_kvs_cparams(1, paramv, &params);
@@ -37,32 +37,21 @@ MTF_DEFINE_UTEST(argv_test, deserialize_to_params_invalid_param)
 MTF_DEFINE_UTEST(argv_test, deserialize_to_params_invalid_value)
 {
     merr_t             err;
-    const char * const paramv[] = { "fanout=0" };
+    const char * const paramv[] = { "prefix.length=-1" };
     struct kvs_cparams params;
 
     err = argv_deserialize_to_kvs_cparams(1, paramv, &params);
     ASSERT_NE(0, err);
 }
 
-MTF_DEFINE_UTEST(argv_test, deserialize_to_params_invalid_relation_validation)
-{
-    merr_t             err;
-    const char * const paramv[] = { "cn_node_size_hi=49" };
-    struct kvs_rparams params;
-
-    err = argv_deserialize_to_kvs_rparams(NELEM(paramv), paramv, &params);
-    ASSERT_NE(0, err);
-}
-
 MTF_DEFINE_UTEST(argv_test, deserialize_to_params)
 {
     merr_t             err;
-    const char * const paramv[] = { "fanout=8", "prefix.length=7" };
+    const char * const paramv[] = { "prefix.length=7" };
     struct kvs_cparams params;
 
-    err = argv_deserialize_to_kvs_cparams(2, paramv, &params);
+    err = argv_deserialize_to_kvs_cparams(NELEM(paramv), paramv, &params);
     ASSERT_EQ(0, err);
-    ASSERT_EQ(8, params.fanout);
     ASSERT_EQ(7, params.pfx_len);
 }
 
@@ -72,7 +61,7 @@ MTF_DEFINE_UTEST(argv_test, deserialize_overwrite)
     const char * const paramv[] = { "prefix.length=8", "prefix.length=7" };
     struct kvs_cparams params;
 
-    err = argv_deserialize_to_kvs_cparams(2, paramv, &params);
+    err = argv_deserialize_to_kvs_cparams(NELEM(paramv), paramv, &params);
     ASSERT_EQ(0, err);
     ASSERT_EQ(7, params.pfx_len);
 }

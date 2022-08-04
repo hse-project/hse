@@ -110,6 +110,7 @@ cn_node_alloc(struct cn_tree *tree, uint64_t nodeid)
 
     atomic_init(&tn->tn_compacting, 0);
     atomic_init(&tn->tn_busycnt, 0);
+    atomic_init(&tn->tn_spillsync, 0);
 
     tn->tn_tree = tree;
     tn->tn_isroot = (nodeid == 0);
@@ -151,9 +152,6 @@ cn_tree_create(
 
     assert(health);
 
-    if (ev(cp->fanout < CN_FANOUT_MIN || cp->fanout > CN_FANOUT_MAX))
-        return merr(EINVAL);
-
     if (ev(cp->pfx_len > HSE_KVS_PFX_LEN_MAX))
         return merr(EINVAL);
 
@@ -163,7 +161,6 @@ cn_tree_create(
 
     memset(tree, 0, sizeof(*tree));
     tree->ct_cp = cp;
-    tree->ct_fanout = cp->fanout;
     tree->ct_pfx_len = cp->pfx_len;
     tree->ct_sfx_len = cp->sfx_len;
     tree->ct_kvdb_health = health;
@@ -184,15 +181,13 @@ cn_tree_create(
     list_add(&tree->ct_root->tn_link, &tree->ct_nodes);
 
     if (kvsname) {
-        tree->ct_route_map = route_map_create(cp->fanout);
+        tree->ct_route_map = route_map_create(CN_FANOUT_MAX);
         if (!tree->ct_route_map) {
             cn_tree_destroy(tree);
             return merr(ENOMEM);
         }
     }
 
-    tree->ct_i_nodec = 1;
-    tree->ct_l_nodec = cp->fanout;
     tree->ct_lvl_max = 1;
 
     err = rmlock_init(&tree->ct_lock);
@@ -583,7 +578,7 @@ cn_node_insert_kvset(struct cn_tree_node *node, struct kvset *kvset)
     struct list_head *head;
     u64 dgen = kvset_get_dgen(kvset);
 
-    list_for_each (head, &node->tn_kvset_list) {
+    list_for_each(head, &node->tn_kvset_list) {
         struct kvset_list_entry *entry;
 
         entry = list_entry(head, typeof(*entry), le_link);
@@ -994,14 +989,17 @@ cn_comp_release(struct cn_compaction_work *w)
             le = list_prev_entry(le, le_link);
         }
 
+        if (w->cw_have_token)
+            cn_node_comp_token_put(w->cw_node);
+
+        if (w->cw_action == CN_ACTION_SPLIT)
+            cn_node_comp_token_put(w->cw_tree->ct_root);
+
         /* If cn_comp_update_XXX() was called and was successful then it will
          * have updated busycnt.  For all errors we must do it here.
          */
         atomic_sub_rel(&w->cw_node->tn_busycnt, (1u << 16) + w->cw_kvset_cnt);
     }
-
-    if (w->cw_have_token)
-        cn_node_comp_token_put(w->cw_node);
 
     perfc_inc(w->cw_pc, PERFC_BA_CNCOMP_FINISH);
 
@@ -1204,13 +1202,11 @@ cn_tree_prepare_compaction(struct cn_compaction_work *w)
     merr_t err = 0;
     size_t outsz = 0;
     u32 n_outs;
-    u32 fanout;
     uint i;
     const bool kcompact = (w->cw_action == CN_ACTION_COMPACT_K);
     const bool split = (w->cw_action == CN_ACTION_SPLIT);
 
-    fanout = w->cw_tree->ct_fanout;
-    n_outs = fanout;
+    n_outs = CN_FANOUT_MAX;
 
     /* If we are k/kv-compacting, we only have a single output.
      *
@@ -1254,7 +1250,8 @@ cn_tree_prepare_compaction(struct cn_compaction_work *w)
 
         if (split) {
             size_t sz = HSE_KVS_KEY_LEN_MAX +
-                n_outs * (sizeof(*(w->cw_split.commit)) + sizeof(*(w->cw_split.dgen))) +
+                n_outs * (sizeof(*(w->cw_split.commit)) + sizeof(*(w->cw_split.dgen)) +
+                          sizeof(*(w->cw_split.compc))) +
                 w->cw_kvset_cnt * sizeof(*(w->cw_split.purge));
 
             w->cw_split.key = calloc(1, sz);
@@ -1264,8 +1261,9 @@ cn_tree_prepare_compaction(struct cn_compaction_work *w)
             }
 
             w->cw_split.commit = w->cw_split.key + HSE_KVS_KEY_LEN_MAX;
-            w->cw_split.purge = w->cw_split.commit + n_outs;
-            w->cw_split.dgen = (void *)(w->cw_split.purge + w->cw_kvset_cnt);
+            w->cw_split.dgen = (void *)(w->cw_split.commit + n_outs);
+            w->cw_split.compc = (void *)(w->cw_split.dgen + n_outs);
+            w->cw_split.purge = (void *)(w->cw_split.compc + n_outs);
         }
     }
 
@@ -1412,6 +1410,8 @@ cn_comp_update_kvcompact(struct cn_compaction_work *work, struct kvset *new_kvse
 
     cn_tree_samp(tree, &work->cw_samp_post);
 
+    cn_node_comp_token_put(work->cw_node);
+
     atomic_sub_rel(&work->cw_node->tn_busycnt, (1u << 16) + work->cw_kvset_cnt);
     rmlock_wunlock(&tree->ct_lock);
 
@@ -1480,6 +1480,8 @@ cn_comp_update_spill(struct cn_compaction_work *work, struct kvset **kvsets)
 
         cn_tree_samp(tree, &work->cw_samp_post);
 
+        assert(!work->cw_have_token);
+
         atomic_sub_rel(&pnode->tn_busycnt, (1u << 16) + work->cw_kvset_cnt);
     }
     rmlock_wunlock(&tree->ct_lock);
@@ -1547,6 +1549,7 @@ cn_comp_update_split(
             assert(route_node_keycmp(right->tn_route_node, w->cw_split.key, w->cw_split.klen) > 0);
 
             w->cw_split.nodev[RIGHT] = right;
+            right->tn_cgen++;
         }
 
         /* Update route map with the left edge and add the new left node to the cN tree list.
@@ -1559,6 +1562,7 @@ cn_comp_update_split(
             assert(route_node_keycmp(left->tn_route_node, w->cw_split.key, w->cw_split.klen) == 0);
 
             list_add_tail(&left->tn_link, &tree->ct_nodes);
+            left->tn_cgen++;
         }
 
         /* Update samp stats
@@ -1568,6 +1572,9 @@ cn_comp_update_split(
             cn_tree_samp_update_compact(tree, w->cw_split.nodev[i]);
             cn_tree_samp(tree, &w->cw_samp_post);
         }
+
+        cn_node_comp_token_put(w->cw_node);
+        cn_node_comp_token_put(w->cw_tree->ct_root);
 
         atomic_sub_rel(&src->tn_busycnt, (1u << 16) + w->cw_kvset_cnt);
     }
@@ -1680,15 +1687,6 @@ cn_comp_commit(struct cn_compaction_work *w)
             goto done;
     }
 
-    /* TODO: For now, do not let split proceed until we have removed
-     * and/or fixed all the fanout related code.
-     */
-    if (w->cw_action == CN_ACTION_SPLIT) {
-        w->cw_err = merr(EAGAIN);
-        ev_debug(1);
-        goto done;
-    }
-
     /* Log CNDB records for all kvsets before committing the mblocks.
      */
     for (i = 0; i < w->cw_outc; i++) {
@@ -1728,33 +1726,13 @@ cn_comp_commit(struct cn_compaction_work *w)
             assert(node);
             km.km_compc = 0;
             km.km_nodeid = node->tn_nodeid;
-
-            /* Monotonic loads tend to create very large kvsets.  If this
-             * is the first kvset in the node and it appears to have either
-             * a lot of keys or a large vlen, then seed it with a large compc
-             * to defer it from being unnecessarily rewritten by node-length-
-             * reduction and/or scatter-remediation jobs.
-             */
-            if (cn_ns_kvsets(&node->tn_ns) == 0) {
-                if (w->cw_outv[i].kblks.n_blks > 2 || w->cw_outv[i].vblks.n_blks > 32)
-                    km.km_compc += 7;
-            }
         } else if (split) {
-            km.km_compc = w->cw_compc;
+            km.km_compc = w->cw_split.compc[i];
             km.km_nodeid = split_nodeidv[i / w->cw_kvset_cnt];
             km.km_dgen = w->cw_split.dgen[i];
         } else {
-            struct kvset_list_entry *le = w->cw_mark;
-
             km.km_compc = w->cw_compc;
             km.km_nodeid = w->cw_node->tn_nodeid;
-
-            /* If we're in the middle of a run then do not increment compc
-             * if it would become greater than the next older kvset.
-             */
-            le = list_next_entry_or_null(le, le_link, &w->cw_node->tn_kvset_list);
-            if (!le || w->cw_compc < kvset_get_compc(le->le_kvset))
-                km.km_compc++;
         }
 
         /* CNDB: Log kvset add records.
@@ -1871,8 +1849,10 @@ cn_comp_cleanup(struct cn_compaction_work *w)
     if (HSE_UNLIKELY(w->cw_err)) {
 
         /* Failed spills cause node to become "wedged"  */
-        if (ev(w->cw_rspill_conc && !w->cw_tree->ct_rspills_wedged))
+        if (ev(w->cw_rspill_conc && !w->cw_tree->ct_rspills_wedged)) {
+            log_info("root node wedged, spills disabled");
             w->cw_tree->ct_rspills_wedged = true;
+        }
 
         /* Log errors if debugging or if job was not canceled.
          * Canceled jobs are expected, so there's no need to log them

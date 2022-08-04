@@ -1,6 +1,6 @@
 /* SPDX-License-Identifier: Apache-2.0 */
 /*
- * Copyright (C) 2015-2021 Micron Technology, Inc.  All rights reserved.
+ * Copyright (C) 2015-2022 Micron Technology, Inc.  All rights reserved.
  */
 
 #ifndef HSE_KVS_CPARAMS_H
@@ -15,7 +15,6 @@
 #include <error/merr.h>
 
 struct kvs_cparams {
-    uint32_t  fanout;
     uint32_t  pfx_len;
     uint32_t  sfx_len;
     uint32_t  kvs_ext01;

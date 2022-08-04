@@ -340,10 +340,6 @@ cn_get_sfx_len(struct cn *cn)
     return cn->cp->sfx_len;
 }
 
-/*----------------------------------------------------------------
- * CN GET
- */
-
 merr_t
 cn_get(
     struct cn *          cn,
@@ -781,26 +777,33 @@ struct cndb_cn_ctx {
     struct map *nodemap;
 };
 
+/* This function is the cndb_cn_instantiate() callback.  It is called
+ * once for each kvset found in the cndb for the cn specified in the
+ * callback context.
+ */
 static merr_t
-cn_kvset_cb(struct cndb_cn_ctx *ctx, struct kvset_meta *km, u64 kvsetid)
+cn_kvset_cb(void *arg, struct kvset_meta *km, u64 kvsetid)
 {
+    struct cndb_cn_ctx *ctx = arg;
     struct cn_tree_node *node;
+    struct cn_tree *tree;
     struct kvset *kvset;
-    struct cn *cn = ctx->cn;
     merr_t err;
+
+    tree = ctx->cn->cn_tree;
 
     node = map_lookup_ptr(ctx->nodemap, km->km_nodeid);
     if (!node) {
-        node = cn_node_alloc(cn->cn_tree, km->km_nodeid);
+        node = cn_node_alloc(tree, km->km_nodeid);
         if (ev(!node))
             return merr(ENOMEM);
 
         map_insert_ptr(ctx->nodemap, km->km_nodeid, node);
 
-        list_add_tail(&node->tn_link, &cn->cn_tree->ct_nodes);
+        list_add_tail(&node->tn_link, &tree->ct_nodes);
     }
 
-    err = kvset_open(cn->cn_tree, kvsetid, km, &kvset);
+    err = kvset_open(tree, kvsetid, km, &kvset);
     if (ev(err))
         return err;
 
@@ -810,21 +813,11 @@ cn_kvset_cb(struct cndb_cn_ctx *ctx, struct kvset_meta *km, u64 kvsetid)
         return err;
     }
 
-    if (km->km_dgen > cn_tree_initial_dgen(cn->cn_tree))
-        cn_tree_set_initial_dgen(cn->cn_tree, km->km_dgen);
+    if (km->km_dgen > cn_tree_initial_dgen(tree))
+        cn_tree_set_initial_dgen(tree, km->km_dgen);
 
     return 0;
 }
-
-/*----------------------------------------------------------------
- * SECTION: perf counter initialization
- *
- * See kvs_perfc_fini() in kvs.c.
- */
-
-/*----------------------------------------------------------------
- * SECTION: open/close
- */
 
 merr_t
 cn_open(
@@ -850,6 +843,11 @@ cn_open(
     struct cndb_cn_ctx ctx = { 0 };
     struct mpool_props mpprops;
     struct merr_info   ei;
+
+    char kbuf[HSE_KVS_KEY_LEN_MAX];
+    struct cn_tree_node *tn;
+    struct route_node *rn;
+    uint klen;
 
     assert(cn_kvdb);
     assert(mp);
@@ -933,58 +931,72 @@ cn_open(
     }
 
     ctx.cn = cn;
-    ctx.nodemap = map_create(cn->cp->fanout);
+    ctx.nodemap = map_create(CN_FANOUT_MAX);
     if (ev(!ctx.nodemap)) {
         err = merr(ENOMEM);
         goto err_exit;
     }
 
+    /* cn_tree_create() always creates the root node and appends it to the
+     * list of tree nodes (i.e., tree->ct_nodes).  cn_kvset_cb() will create
+     * all leaf nodes and append them to the list in the rehydration order
+     * specified by cndb_cn_instantiate() (i.e., no particular order).
+     */
     map_insert_ptr(ctx.nodemap, 0, cn->cn_tree->ct_root);
 
-    /* [HSE_REVISIT] Delete this block once we have splits. cn_kvset_cb() will populate the nodemap,
-     * and then for each node in the map, fetch the max key and call route_map_insert() with it.
+    err = cndb_cn_instantiate(cndb, cnid, &ctx, cn_kvset_cb);
+    if (ev(err))
+        goto err_exit;
+
+    /* Walk the list of nodes created/populated by cn_kvset_cb() and insert
+     * all leaf nodes into the route map (i.e., all nodes except the root
+     * node which always has node ID 0).
      */
-    {
-        struct ekey_generator *egen;
+    list_for_each_entry(tn, &cn->cn_tree->ct_nodes, tn_link) {
+        if (tn->tn_nodeid > 0) {
+            cn_tree_node_get_max_key(tn, kbuf, sizeof(kbuf), &klen);
 
-        egen = ekgen_create(kvs_name, cn->cp);
-        assert(egen);
-
-        for (uint i = 0; i < cn->cp->fanout; i++) {
-            struct cn_tree_node *tn;
-
-            tn = cn_node_alloc(cn->cn_tree, i + 1);
-            if (!tn) {
-                err = merr(ENOMEM);
-                break;
-            }
-
-            map_insert_ptr(ctx.nodemap, tn->tn_nodeid, tn);
-
-            list_add_tail(&tn->tn_link, &cn->cn_tree->ct_nodes);
-
-            if (cn->cn_tree->ct_route_map) {
-                char ekbuf[HSE_KVS_KEY_LEN_MAX];
-                size_t eklen;
-
-                eklen = ekgen_generate(egen, ekbuf, sizeof(ekbuf), i);
-                if (eklen != 0) {
-                    tn->tn_route_node = route_map_insert(cn->cn_tree->ct_route_map, tn,
-                        ekbuf, eklen);
-                }
+            tn->tn_route_node = route_map_insert(cn->cn_tree->ct_route_map, tn, kbuf, klen);
+            if (!tn->tn_route_node) {
+                err = merr(EINVAL);
+                goto err_exit;
             }
         }
-
-        ekgen_destroy(egen);
     }
 
-    if (ev(err))
-        goto err_exit;
+    /* Initialize kbuf to the largest possible key.
+     */
+    klen = sizeof(kbuf);
+    memset(kbuf, -1, klen);
 
-    cn_tree_set_initial_dgen(cn->cn_tree, 0);
-    err = cndb_cn_instantiate(cndb, cnid, &ctx, (void *)cn_kvset_cb);
-    if (ev(err))
-        goto err_exit;
+    /* Find the node in the route map with the largest edge key and force
+     * it to the the largest possible key.  If the route map is empty then
+     * create the initial leaf node with the largest possible edge key.
+     */
+    rn = route_map_lookup(cn->cn_tree->ct_route_map, kbuf, klen);
+    if (rn) {
+        tn = route_node_tnode(rn);
+        if (!tn)
+            abort();
+
+        err = route_node_key_modify(cn->cn_tree->ct_route_map, rn, kbuf, klen);
+        if (err)
+            goto err_exit;
+    } else {
+        tn = cn_node_alloc(cn->cn_tree, cndb_nodeid_mint(cndb));
+        if (!tn) {
+            err = merr(ENOMEM);
+            goto err_exit;
+        }
+
+        list_add_tail(&tn->tn_link, &cn->cn_tree->ct_nodes);
+
+        tn->tn_route_node = route_map_insert(cn->cn_tree->ct_route_map, tn, kbuf, klen);
+        if (!tn->tn_route_node) {
+            err = merr(ENOMEM);
+            goto err_exit;
+        }
+    }
 
     map_destroy(ctx.nodemap);
     ctx.nodemap = 0;
@@ -1044,10 +1056,10 @@ cn_open(
     }
 
     log_info(
-        "%s/%s cnid %lu fanout %u pfx_len %u vcomp %u,%u"
+        "opened kvs %s/%s cnid %lu pfx_len %u vcomp %u,%u"
         " hb %lu%c/%lu kb %lu%c/%lu vb %lu%c/%lu %s%s%s%s%s%s",
         cn->cn_kvdb_alias, cn->cn_kvsname, (ulong)cnid,
-        cn->cp->fanout, cn->cp->pfx_len,
+        cn->cp->pfx_len,
         cn->rp->value_compression, cn->rp->vcompmin,
         hsz >> (hshift * 10), *hszsuf, hcnt,
         ksz >> (kshift * 10), *kszsuf, kcnt,
@@ -1342,18 +1354,11 @@ cn_make(struct mpool *mp, const struct kvs_cparams *cp, struct kvdb_health *heal
     assert(cp);
     assert(health);
 
-    if (cp->fanout < CN_FANOUT_MIN || cp->fanout > CN_FANOUT_MAX)
-        return merr(EINVAL);
-
-    if (cp->fanout != roundup_pow_of_two(cp->fanout))
-        return merr(EINVAL);
-
     /* Create and destroy a tree as a means of validating
      * prefix len, etc.
      */
     rp = kvs_rparams_defaults();
 
-    icp.fanout = cp->fanout;
     icp.pfx_len = cp->pfx_len;
     icp.sfx_len = cp->sfx_len;
 

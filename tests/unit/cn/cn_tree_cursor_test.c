@@ -261,12 +261,13 @@ MTF_DEFINE_UTEST_PREPOST(cn_tree_cursor_test, empty, pre_test, post_test)
 {
     merr_t err;
     struct cn_cursor cur = {};
-    struct kvs_cparams cp = kvs_cparams_defaults();
     struct cn_tree_node tn;
     struct route_node *rnode;
     const char ekey = 'z';
 
-    tree.ct_route_map = route_map_create(cp.fanout);
+    tree.ct_route_map = route_map_create(CN_FANOUT_MAX);
+    ASSERT_NE(NULL, tree.ct_route_map);
+
     rnode = route_map_insert(tree.ct_route_map, &tn, &ekey, sizeof(ekey));
     ASSERT_NE(NULL, rnode);
 
@@ -298,14 +299,15 @@ MTF_DEFINE_UTEST_PREPOST(cn_tree_cursor_test, basic, pre_test, post_test)
     struct cn_cursor cur = {
         .cncur_seqno = 10,
     };
-    struct kvs_cparams cp = kvs_cparams_defaults();
     struct cn_tree_node tn;
     struct route_node *rnode;
     const char ekey = 'z';
 
     struct kv kv[2];
 
-    tree.ct_route_map = route_map_create(cp.fanout);
+    tree.ct_route_map = route_map_create(CN_FANOUT_MAX);
+    ASSERT_NE(NULL, tree.ct_route_map);
+
     rnode = route_map_insert(tree.ct_route_map, &tn, &ekey, sizeof(ekey));
     ASSERT_NE(NULL, rnode);
 
@@ -366,7 +368,6 @@ MTF_DEFINE_UTEST_PREPOST(cn_tree_cursor_test, dups, pre_test, post_test)
     struct cn_cursor cur = {
         .cncur_seqno = 10,
     };
-    struct kvs_cparams cp = kvs_cparams_defaults();
     struct cn_tree_node tn;
     struct route_node *rnode;
     const char ekey = 'z';
@@ -380,7 +381,9 @@ MTF_DEFINE_UTEST_PREPOST(cn_tree_cursor_test, dups, pre_test, post_test)
     kv_add(&kv[3], "key02", 1, vtype_val);
     kv_end();
 
-    tree.ct_route_map = route_map_create(cp.fanout);
+    tree.ct_route_map = route_map_create(CN_FANOUT_MAX);
+    ASSERT_NE(NULL, tree.ct_route_map);
+
     rnode = route_map_insert(tree.ct_route_map, &tn, &ekey, sizeof(ekey));
     ASSERT_NE(NULL, rnode);
 
@@ -436,7 +439,6 @@ MTF_DEFINE_UTEST_PREPOST(cn_tree_cursor_test, with_ptomb, pre_test, post_test)
         .cncur_pfx = pfxstr,
         .cncur_pfxlen = strlen(pfxstr),
     };
-    struct kvs_cparams cp = kvs_cparams_defaults();
     struct cn_tree_node tn;
     struct route_node *rnode;
     const char ekey = 'z';
@@ -460,7 +462,9 @@ MTF_DEFINE_UTEST_PREPOST(cn_tree_cursor_test, with_ptomb, pre_test, post_test)
     kv_add(&kv[9], "bb01", 4,  vtype_val);    /* Hidden: Does not match cursor pfx */
     kv_end();
 
-    tree.ct_route_map = route_map_create(cp.fanout);
+    tree.ct_route_map = route_map_create(CN_FANOUT_MAX);
+    ASSERT_NE(NULL, tree.ct_route_map);
+
     rnode = route_map_insert(tree.ct_route_map, &tn, &ekey, sizeof(ekey));
     ASSERT_NE(NULL, rnode);
 

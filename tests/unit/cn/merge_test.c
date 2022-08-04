@@ -495,9 +495,6 @@ process_yaml(void)
     node2 = ydoc_map_lookup(doc, node, "pfx_len");
     if (node2)
         tp.pfx_len = ydoc_node_as_int(doc, node2);
-    node2 = ydoc_map_lookup(doc, node, "fanout");
-    if (node2)
-        tp.fanout = ydoc_node_as_u64(doc, node2);
 
     name = "output_kvset";
     node = ydoc_map_lookup(doc, root_node, name);
@@ -1159,7 +1156,7 @@ run_testcase(struct mtf_test_info *lcl_ti, int mode, const char *info)
         struct kvdb_health    health;
 
         struct kvs_cparams cp = {
-            .fanout = tp.fanout, .pfx_len = tp.pfx_len,
+            .pfx_len = tp.pfx_len,
         };
 
         err = cn_tree_create(&tree, "kvs", 0, &cp, &health, &rp);
@@ -1168,7 +1165,7 @@ run_testcase(struct mtf_test_info *lcl_ti, int mode, const char *info)
 
         cn_tree_setup(tree, NULL, NULL, &rp, NULL, 1234, 0);
 
-        for (i = 0; i < cp.fanout; i++) {
+        for (i = 0; i < tp.fanout; i++) {
             struct cn_tree_node *tn;
             char ekbuf[HSE_KVS_KEY_LEN_MAX];
             size_t eklen;

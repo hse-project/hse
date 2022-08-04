@@ -670,19 +670,16 @@ MTF_DEFINE_UTEST(cndb_test, multiple_kvs)
     /* Test */
     ASSERT_EQ(0, cndb_kvs_count(cndb));
 
-    cp.fanout = 1;
     err = cndb_record_kvs_add(cndb, &cp, &cnid, "kvs-01");
     ASSERT_EQ(0, err);
     ASSERT_EQ(1, cnid);
     ASSERT_EQ(1, cndb_kvs_count(cndb));
 
-    cp.fanout = 2;
     err = cndb_record_kvs_add(cndb, &cp, &cnid, "kvs-02");
     ASSERT_EQ(0, err);
     ASSERT_EQ(2, cnid);
     ASSERT_EQ(2, cndb_kvs_count(cndb));
 
-    cp.fanout = 3;
     err = cndb_record_kvs_add(cndb, &cp, &cnid, "kvs-03");
     ASSERT_EQ(0, err);
     ASSERT_EQ(3, cnid);
@@ -692,7 +689,6 @@ MTF_DEFINE_UTEST(cndb_test, multiple_kvs)
     ASSERT_EQ(0, err);
     ASSERT_EQ(2, cndb_kvs_count(cndb));
 
-    cp.fanout = 42;
     err = cndb_record_kvs_add(cndb, &cp, &cnid, "kvs-02");
     ASSERT_EQ(0, err);
     ASSERT_EQ(4, cnid);

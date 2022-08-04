@@ -124,17 +124,6 @@ route_node_keycpy(struct route_node *node, void *kbuf, size_t kbuf_sz, uint *kle
     memcpy(kbuf, node->rtn_keybufp, min_t(size_t, kbuf_sz, node->rtn_keylen));
 }
 
-struct ekey_generator;
-
-struct ekey_generator *
-ekgen_create(const char *kvsname, struct kvs_cparams *cp);
-
-void
-ekgen_destroy(struct ekey_generator *egen);
-
-size_t
-ekgen_generate(struct ekey_generator *egen, void *ekbuf, size_t ekbufsz, uint32_t nodeoff);
-
 merr_t
 route_node_key_modify(
     struct route_map  *map,

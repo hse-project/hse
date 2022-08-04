@@ -82,6 +82,7 @@ struct cn_work_est {
  *
  * @cw_work:         for linking into workqueues
  * @cw_debug:        enables debug stats
+ * @cw_resched:      csched should reschedule sp3_work() if true
  * @cw_tree:         cn tree
  * @cw_node:         node within cn tree
  * @cw_mark:         oldest kvset to be compacted
@@ -120,6 +121,7 @@ struct cn_compaction_work {
     uint                     cw_iter_flags;
     uint                     cw_debug;
     bool                     cw_canceled;
+    bool                     cw_resched;
     uint8_t                  cw_qnum;
     merr_t                   cw_err;
     struct workqueue_struct *cw_io_workq;
@@ -184,6 +186,7 @@ struct cn_compaction_work {
         struct blk_list      *commit;    /* mblocks to commit - a list per output kvset */
         struct blk_list      *purge;     /* mblocks to purge - a list per source kvset */
         uint64_t             *dgen;      /* dgen array - one entry per output kvset */
+        uint32_t             *compc;     /* compc array - one entry per output kvset */
         struct cn_tree_node  *nodev[2];  /* node split output nodes */
         uint                  klen;      /* split key length */
     } cw_split;
