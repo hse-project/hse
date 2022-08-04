@@ -3,11 +3,7 @@ tests = {
     'no-args': {},
     'unknown-arg': {},
     'unknown-command': {},
-    # Ignored because GitHub Actions only clones with a depth of 1. Unclear what
-    # the best course of action is here.
-    'version': {
-        'enabled': not ci,
-    },
+    'version': {},
 
     'kvdb/help': {},
     'kvdb/no-args': {},
