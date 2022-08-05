@@ -72,11 +72,11 @@ jobs:
               branch=$(git rev-parse --abbrev-ref HEAD)
             else
               git ls-remote --exit-code --heads \
-                "https://github.com/hse-project/$p.git" "$GITHUB_REF" \
+                "https://github.com/hse-project/$p.git" "$GITHUB_REF_NAME" \
                 > /dev/null
 
               if [ $? -eq 0 ]; then
-                branch="$GITHUB_REF"
+                branch="$GITHUB_REF_NAME"
               fi
             fi
 
