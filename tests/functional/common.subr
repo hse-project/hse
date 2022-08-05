@@ -8,6 +8,10 @@ set -u
 set -o pipefail
 set -e
 
+# https://mesonbuild.com/Unit-tests.html#skipped-tests-and-hard-errors
+# shellcheck disable=SC2034
+SKIP_STATUS=77
+
 err() {
     # reset OPTIND
     OPTIND=0
@@ -42,10 +46,6 @@ while getopts ":hC:" o; do
     esac
 done
 shift $((OPTIND-1))
-
-skip () {
-    exit 77
-}
 
 cmd () {
     # reset OPTIND from global getopts
