@@ -114,7 +114,7 @@ jobs:
                 > /dev/null
 
               if [ $? -eq 0 ]; then
-                branch="$GITHUB_REF"
+                branch="$GITHUB_REF_NAME"
               fi
             fi
 
@@ -276,7 +276,7 @@ jobs:
                 > /dev/null
 
               if [ $? -eq 0 ]; then
-                branch="$GITHUB_REF"
+                branch="$GITHUB_REF_NAME"
               fi
             fi
 
@@ -418,7 +418,7 @@ jobs:
                 > /dev/null
 
               if [ $? -eq 0 ]; then
-                branch="$GITHUB_REF"
+                branch="$GITHUB_REF_NAME"
               fi
             fi
 
@@ -553,7 +553,7 @@ jobs:
                 > /dev/null
 
               if [ $? -eq 0 ]; then
-                branch="$GITHUB_REF"
+                branch="$GITHUB_REF_NAME"
               fi
             fi
 
