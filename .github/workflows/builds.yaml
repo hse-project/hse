@@ -335,7 +335,7 @@ jobs:
 
       - name: Setup
         run: |
-          meson builddir --fatal-meson-warnings --werror\
+          meson builddir --fatal-meson-warnings --werror \
             --buildtype=${{ matrix.buildtype }} -Dtools=enabled -Dpmem=enabled \
             -Ddocs=disabled -Dbindings=all
 

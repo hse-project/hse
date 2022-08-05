@@ -1,0 +1,61 @@
+name: clang-tidy
+
+on:
+  pull_request:
+    types: [opened, synchronize, reopened]
+    paths:
+      - "**.c"
+      - "**.h"
+      - "**.h.in"
+      - .github/workflows/clang-tidy.yaml
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.head_ref }}
+  cancel-in-progress: true
+
+permissions: {}
+
+jobs:
+  clang-tidy:
+    runs-on: ubuntu-latest
+    container:
+      image: fedora:36
+    strategy:
+      fail-fast: false
+      matrix:
+        buildtype: [debug, release]
+
+    steps:
+      - name: Initialize
+        run: |
+          dnf group install -y --with-optional \
+            "C Development Tools and Libraries"
+          dnf install -y git ninja-build clang libmicrohttpd-devel \
+            userspace-rcu-devel libyaml-devel libbsd-devel libcurl-devel \
+            libpmem-devel mongo-c-driver-devel libbson-devel ncurses-devel \
+            python3-pip clang-tools-extra
+          python3 -m pip install meson==0.62.2
+
+      - name: Checkout HSE
+        uses: actions/checkout@v3
+
+      - name: Cache Meson packagecache
+        uses: actions/cache@v3
+        with:
+          path: subprojects/packagecache
+          key: meson-packagecache-fedora:36-${{ hashFiles('subprojects/*.wrap') }}
+
+      - name: Setup clang toolchain
+        run: |
+          echo "CC=clang" >> "$GITHUB_ENV"
+          echo "CXX=clang++" >> "$GITHUB_ENV"
+
+      - name: Setup
+        run: |
+          meson builddir --fatal-meson-warnings --werror \
+            --buildtype=${{ matrix.buildtype }} -Dtools=enabled -Dpmem=enabled \
+            -Ddocs=disabled -Dbindings=none
+
+      - name: Run clang-tidy
+        run: |
+          ninja -C builddir clang-tidy

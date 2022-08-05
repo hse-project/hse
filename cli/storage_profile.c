@@ -236,7 +236,7 @@ perform_profile_run(
     sigaddset(&blockset, SIGALRM);
     pthread_sigmask(SIG_BLOCK, &blockset, &origset);
 
-    work_specs = malloc(thread_cnt * sizeof(struct storage_profile_work));
+    work_specs = calloc(thread_cnt, sizeof(struct storage_profile_work));
     if (!work_specs)
         return ENOMEM;
 
@@ -257,7 +257,7 @@ perform_profile_run(
         work_specs[i].tmpfs = tmpfs;
         work_specs[i].rc = 0;
 
-        work_specs[i].samples = malloc(samples_per_thread * sizeof(double));
+        work_specs[i].samples = malloc(samples_per_thread * sizeof(*work_specs[i].samples));
         if (!work_specs[i].samples) {
             rc = ENOMEM;
             thread_cnt = i;

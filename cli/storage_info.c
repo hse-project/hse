@@ -128,8 +128,6 @@ hse_storage_info(const char *const kvdb_home)
             } else if (rc >= sizeof(nums[rowid][0])) {
                 rc = EMSGSIZE;
                 goto out;
-            } else {
-                rc = 0;
             }
             values[base + 1] = nums[rowid][0];
 

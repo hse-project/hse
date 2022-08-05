@@ -6,6 +6,8 @@
 #ifndef STORAGE_PROFILE_H
 #define STORAGE_PROFILE_H
 
+#include <stdbool.h>
+
 int
 hse_storage_profile(const char *path, bool quiet, bool verbose);
 

@@ -466,6 +466,16 @@ if not meson.is_subproject()
     endif
 endif
 
+clang_tidy = find_program('clang-tidy', required: false)
+if clang_tidy.found() and cc.get_id() == 'clang'
+    run_target(
+        'clang-tidy',
+        command: [
+            find_program('scripts/dev/clang-tidy.sh'),
+        ]
+    )
+endif
+
 shellcheck = find_program('shellcheck', required: false)
 if shellcheck.found()
     run_target(

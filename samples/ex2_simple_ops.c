@@ -56,20 +56,20 @@ main(int argc, char **argv)
     rc = hse_init(NULL, paramc, paramv);
     if (rc) {
         error(rc, "Failed to initialize KVDB (%s)", kvdb_home);
-		goto out;
-	}
+        goto out;
+    }
 
     rc = hse_kvdb_open(kvdb_home, 0, NULL, &kvdb);
     if (rc) {
         error(rc, "Cannot open KVDB (%s)", kvdb_home);
-		goto hse_cleanup;
-	}
+        goto hse_cleanup;
+    }
 
     rc = hse_kvdb_kvs_open(kvdb, kvs_name, 0, NULL, &kvs);
     if (rc) {
-		error(rc, "Cannot open KVS (%s)", kvs_name);
-		goto kvdb_cleanup;
-	}
+        error(rc, "Cannot open KVS (%s)", kvs_name);
+        goto kvdb_cleanup;
+    }
 
     /* Error handling is elided for clarity */
 
@@ -78,64 +78,64 @@ main(int argc, char **argv)
     rc = rc ?: hse_kvs_put(kvs, 0, NULL, "k2", 2, "val2", 4);
     rc = rc ?: hse_kvs_put(kvs, 0, NULL, "k3", 2, "val3", 4);
     rc = rc ?: hse_kvs_put(kvs, 0, NULL, "k4", 2, NULL, 0);
-	if (rc) {
-		error(rc, "Failed to put data into KVS (%s)", kvs_name);
-		goto kvs_cleanup;
-	}
+    if (rc) {
+        error(rc, "Failed to put data into KVS (%s)", kvs_name);
+        goto kvs_cleanup;
+    }
 
     rc = hse_kvs_get(kvs, 0, NULL, "k1", 2, &found, vbuf, sizeof(vbuf), &vlen);
-	if (rc) {
-		error(rc, "Failed to get k1 data");
-		goto kvs_cleanup;
-	}
+    if (rc) {
+        error(rc, "Failed to get k1 data");
+        goto kvs_cleanup;
+    }
     printf("k1 found = %s\n", found ? "true" : "false");
 
     rc = hse_kvs_get(kvs, 0, NULL, "k2", 2, &found, vbuf, sizeof(vbuf), &vlen);
-	if (rc) {
-		error(rc, "Failed to get k2 data");
-		goto kvs_cleanup;
-	}
+    if (rc) {
+        error(rc, "Failed to get k2 data");
+        goto kvs_cleanup;
+    }
     printf("k2 found = %s\n", found ? "true" : "false");
 
     rc = hse_kvs_get(kvs, 0, NULL, "k3", 2, &found, vbuf, sizeof(vbuf), &vlen);
-	if (rc) {
-		error(rc, "Failed to get k3 data");
-		goto kvs_cleanup;
-	}
+    if (rc) {
+        error(rc, "Failed to get k3 data");
+        goto kvs_cleanup;
+    }
     printf("k3 found = %s\n", found ? "true" : "false");
 
     rc = hse_kvs_get(kvs, 0, NULL, "k4", 2, &found, vbuf, sizeof(vbuf), &vlen);
-	if (rc) {
-		error(rc, "Failed to get k4 data");
-		goto kvs_cleanup;
-	}
+    if (rc) {
+        error(rc, "Failed to get k4 data");
+        goto kvs_cleanup;
+    }
     printf("k4 found = %s, length was %lu bytes\n", found ? "true" : "false", vlen);
 
     /* 2. Delete a key and ensure that it cannot be found by hse_kvs_get() */
     rc = hse_kvs_delete(kvs, 0, NULL, "k1", 2);
-	if (rc) {
-		error(rc, "Failed to delete k1 data");
-		goto kvs_cleanup;
-	}
+    if (rc) {
+        error(rc, "Failed to delete k1 data");
+        goto kvs_cleanup;
+    }
     printf("k1 deleted\n");
 
     rc = hse_kvs_get(kvs, 0, NULL, "k1", 2, &found, vbuf, sizeof(vbuf), &vlen);
-	if (rc) {
-		error(rc, "Failed to get k1 data");
-		goto kvs_cleanup;
-	}
+    if (rc) {
+        error(rc, "Failed to get k1 data");
+        goto kvs_cleanup;
+    }
     printf("k1 found = %s\n", found ? "true" : "false");
 
 kvs_cleanup:
-	rc2 = hse_kvdb_kvs_close(kvs);
-	if (rc2)
-		error(rc2, "Failed to close KVS (%s)", kvs_name);
-	rc = rc ?: rc2;
+    rc2 = hse_kvdb_kvs_close(kvs);
+    if (rc2)
+        error(rc2, "Failed to close KVS (%s)", kvs_name);
+    rc = rc ?: rc2;
 kvdb_cleanup:
     rc2 = hse_kvdb_close(kvdb);
-	if (rc2)
-		error(rc2, "Failed to close KVDB (%s)", kvdb_home);
-	rc = rc ?: rc2;
+    if (rc2)
+        error(rc2, "Failed to close KVDB (%s)", kvdb_home);
+    rc = rc ?: rc2;
 hse_cleanup:
     hse_fini();
 out:

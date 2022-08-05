@@ -1,0 +1,28 @@
+name: clang-tidy
+
+on:
+  pull_request:
+    types: [opened, synchronize, reopened]
+    paths-ignore:
+      - "**.c"
+      - "**.h"
+      - "**.h.in"
+      - .github/workflows/clang-tidy.yaml
+
+concurrency:
+  group: ${{ github.workflow }}-ignore-${{ github.head_ref }}
+  cancel-in-progress: true
+
+permissions: {}
+
+jobs:
+  clang-tidy:
+    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        buildtype: [debug, release]
+
+    steps:
+      - run: |
+          echo "Skipping ${{ github.workflow }}/${{ github.job }}"
