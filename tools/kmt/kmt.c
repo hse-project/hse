@@ -227,7 +227,7 @@ hse_err_to_errno(hse_err_t err);
 const char *   cf_dir = "/var/tmp";
 char           chk_path[PATH_MAX];
 char           kvdb_home_realpath[PATH_MAX];
-uint64_t       chk_recmax = 192 * 1024 * 1024;
+uint64_t       chk_recmax = 1024 * 1024 * 1024;
 struct timeval tv_init;
 const char *   progname;
 char *         randbuf;

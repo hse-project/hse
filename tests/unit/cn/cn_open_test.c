@@ -43,7 +43,6 @@ const char *       kvs;
 struct kvdb_health health, *h;
 uint               flags;
 struct kvs_cparams cp = {
-    .fanout = 16,
 };
 
 #define CN_OPEN_ARGS cn_kvdb, ds, kk, cndb, cnid, rp, mp, kvs, h, flags
@@ -67,6 +66,7 @@ struct mapi_injection inject_list[] = {
     { mapi_idx_kvdb_kvs_flags, MAPI_RC_SCALAR, 0 },
 
     { mapi_idx_cndb_cn_instantiate, MAPI_RC_SCALAR, 0 },
+    { mapi_idx_cndb_nodeid_mint, MAPI_RC_SCALAR, 1 },
 
     { mapi_idx_cn_tree_set_initial_dgen, MAPI_RC_SCALAR, 0 },
 

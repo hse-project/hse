@@ -32,7 +32,6 @@ const struct kvs_rparams mocked_rp_default = {
 };
 
 const struct kvs_cparams mocked_cp_default = {
-    .fanout = 16,
     .pfx_len = 0,
     .sfx_len = 0,
 };

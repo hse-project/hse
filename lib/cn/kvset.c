@@ -3776,37 +3776,67 @@ vgmap_free(struct vgmap *vgmap)
     free(vgmap);
 }
 
-/* TODO: Use binary search as an optimization */
+/*
+ * This is a special case of binary search in that it returns the smallest key
+ * greater than or equal to the search key.
+ */
+static uint32_t
+vgmap_bsearchGE(uint16_t *vbidx, uint32_t cnt, uint16_t key)
+{
+    uint32_t start = 0, mid, end = cnt - 1;
+
+    while (start <= end) {
+        mid = (start + end) / 2;
+
+        if (key < vbidx[mid]) {
+            if (mid == 0 || key > vbidx[mid - 1])
+                return mid;
+
+            end = mid - 1;
+        } else if (key > vbidx[mid]) {
+            start = mid + 1;
+        } else {
+            return mid;
+        }
+    }
+
+    return cnt;
+}
+
 static merr_t
 vgmap_vbidx_out2adj(struct vgmap *vgmap, uint16_t vbidx_out, uint16_t *vbidx_adj)
 {
-    for (uint32_t i = 0; i < vgmap->nvgroups; i++) {
-        if (vbidx_out <= vgmap->vbidx_out[i]) {
-            *vbidx_adj = vgmap->vbidx_adj[i];
-            return 0;
-        }
-    }
+    uint32_t pos;
 
-    assert(0);
+    pos = vgmap_bsearchGE(vgmap->vbidx_out, vgmap->nvgroups, vbidx_out);
 
-    return merr(EBUG);
+    assert(pos < vgmap->nvgroups);
+    if (HSE_UNLIKELY(pos == vgmap->nvgroups))
+        return merr(EBUG);
+
+    *vbidx_adj = vgmap->vbidx_adj[pos];
+
+    return 0;
 }
 
-/* TODO: Use binary search as an optimization */
 merr_t
 vgmap_vbidx_src2out(struct vgmap *vgmap, uint16_t vbidx_src, uint16_t *vbidx_out)
 {
-    for (uint32_t i = 0; i < vgmap->nvgroups; i++) {
-        if (vbidx_src <= vgmap->vbidx_src[i]) {
-            assert(vbidx_src >= vgmap->vbidx_adj[i]);
-            *vbidx_out = vbidx_src - vgmap->vbidx_adj[i];
-            return 0;
-        }
-    }
+    uint32_t pos;
 
-    assert(0);
+    pos = vgmap_bsearchGE(vgmap->vbidx_src, vgmap->nvgroups, vbidx_src);
 
-    return merr(EBUG);
+    assert(pos < vgmap->nvgroups);
+    if (HSE_UNLIKELY(pos == vgmap->nvgroups))
+        return merr(EBUG);
+
+    assert(vbidx_src >= vgmap->vbidx_adj[pos]);
+    if (vbidx_src < vgmap->vbidx_adj[pos])
+        return merr(EBUG);
+
+    *vbidx_out = vbidx_src - vgmap->vbidx_adj[pos];
+
+    return 0;
 }
 
 uint16_t

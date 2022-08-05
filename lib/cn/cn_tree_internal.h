@@ -67,7 +67,6 @@ struct cn_kle_hdr {
  * struct cn_tree - the cn tree (tree of nodes holding kvsets)
  * @ct_root:        root node of tree
  * @ct_nodes:       list of all tree nodes, including ct_root
- * @ct_fanout:      tree fanout
  * @ct_depth_max:   depth limit for this tree (not current depth)
  * @cn:    ptr to parent cn object
  * @ds:    dataset
@@ -76,8 +75,6 @@ struct cn_kle_hdr {
  * @cndb:  handle for cndb (the metadata journal/log)
  * @cnid:  cndb's identifier for this cn tree
  * @ct_dgen_init:
- * @ct_r_nodec:
- * @ct_l_nodec:
  * @ct_l_samp:
  * @ct_sched:
  * @ct_kvdb_health: for monitoring KDVB health
@@ -97,7 +94,6 @@ struct cn_kle_hdr {
 struct cn_tree {
     struct cn_tree_node *ct_root;
     struct list_head     ct_nodes;
-    u16                  ct_fanout;
     u16                  ct_pfx_len;
     u16                  ct_sfx_len;
     bool                 ct_nospace;
@@ -113,8 +109,6 @@ struct cn_tree {
     u64                 cnid;
     u64                 ct_dgen_init;
 
-    uint                 ct_i_nodec;
-    uint                 ct_l_nodec;
     uint                 ct_lvl_max;
     struct cn_samp_stats ct_samp;
 
@@ -143,8 +137,9 @@ struct cn_tree {
 
 /**
  * struct cn_tree_node - A node in a k-way cn_tree
- * @tn_compacting:   true if node is being compacted
+ * @tn_compacting:   true if if an exclusive job is running on this node
  * @tn_busycnt:      count of jobs and kvsets being compacted/spilled
+ * @tn_spillsync:    if non-zero only split or join jobs may be started
  * @tn_destroy_work: used for async destroy
  * @tn_hlog:         hyperloglog structure
  * @tn_ns:           metrics about node to guide node compaction decisions
@@ -155,6 +150,7 @@ struct cn_tree {
 struct cn_tree_node {
     atomic_int           tn_compacting;
     atomic_uint          tn_busycnt;
+    atomic_uint          tn_spillsync;
 
     union {
         struct sp3_node  tn_sp3n;

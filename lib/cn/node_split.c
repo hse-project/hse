@@ -530,6 +530,7 @@ cn_split(struct cn_compaction_work *w)
             if (result.ks[k].blks->hblk.bk_blkid != 0) {
                 w->cw_kvsetidv[idx] = cndb_kvsetid_mint(cndb);
                 w->cw_split.dgen[idx] = ks->ks_dgen;
+                w->cw_split.compc[idx] = ks->ks_compc;
             }
         }
     }

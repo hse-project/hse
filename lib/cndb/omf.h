@@ -83,15 +83,12 @@ OMF_SETGET(struct cndb_ver_omf, cnver_captgt, 64);
 
 struct cndb_kvs_add_omf {
     struct cndb_hdr_omf hdr;
-    uint32_t            kvs_add_fanout;
     uint32_t            kvs_add_pfxlen;
     uint32_t            kvs_add_flags;
-    uint32_t            kvs_add_pad;
     uint64_t            kvs_add_cnid;
     uint8_t             kvs_add_name[HSE_KVS_NAME_LEN_MAX];
 } HSE_PACKED;
 
-OMF_SETGET(struct cndb_kvs_add_omf, kvs_add_fanout, 32);
 OMF_SETGET(struct cndb_kvs_add_omf, kvs_add_pfxlen, 32);
 OMF_SETGET(struct cndb_kvs_add_omf, kvs_add_flags, 32);
 OMF_SETGET(struct cndb_kvs_add_omf, kvs_add_cnid, 64);

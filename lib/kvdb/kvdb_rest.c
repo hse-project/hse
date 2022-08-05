@@ -847,7 +847,8 @@ print_tree(struct ctx *ctx, struct kvset_view *v)
         ctx->node_nodeid = v->nodeid;
         ctx->eklen = v->eklen;
         if (ctx->eklen > 0)
-            fmt_hexp(ctx->ekbuf, sizeof(ctx->ekbuf), v->ekbuf, v->eklen, "0x", 2, ".", "");
+            fmt_hexp(ctx->ekbuf, sizeof(ctx->ekbuf), v->ekbuf,
+                     min_t(size_t, sizeof(v->ekbuf), v->eklen), "0x", 2, ".", "");
 
         if (ctx->eklen > ctx->eklen_max)
             ctx->eklen_max = ctx->eklen;

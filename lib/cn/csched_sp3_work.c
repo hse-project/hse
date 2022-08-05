@@ -488,7 +488,7 @@ sp3_work(
     tree = tn->tn_tree;
 
     if (tree->rp->cn_maint_disable)
-        return 0;
+        return merr(EAGAIN);
 
     if (!*wp) {
         *wp = calloc(1, sizeof(*w));
@@ -496,14 +496,22 @@ sp3_work(
             return merr(ENOMEM);
     }
 
+    /* Caller uses these fields to manage the csched work queues,
+     * so ensure they have sane defaults.
+     */
+    (*wp)->cw_action = CN_ACTION_NONE;
+    (*wp)->cw_resched = false;
+
     /* Actions requiring exclusive access to the node must acquire and hold
      * the token through completion of the action.  Actions that can run
      * concurrently must acquire the token to ensure there's not an exclusive
      * action running and then must release the token before returning.
      */
     have_token = cn_node_comp_token_get(tn);
-    if (!have_token)
+    if (!have_token) {
+        (*wp)->cw_resched = tn->tn_isroot;
         return 0;
+    }
 
     /* The tree lock must be acquired to obtain a stable view of the node
      * and its stats, otherwise an asynchronously completing job could
@@ -512,11 +520,15 @@ sp3_work(
     rmlock_rlock(&tree->ct_lock, &lock);
 
     if (tree->ct_rspills_wedged) {
-        if (!sp3_node_is_idle(tn))
+        if (!sp3_node_is_idle(tn)) {
+            (*wp)->cw_resched = tn->tn_isroot;
             goto locked_nowork;
+        }
 
-        log_info("re-enable compaction after wedge");
-        tree->ct_rspills_wedged = false;
+        if (tn->tn_isroot) {
+            log_info("root node unwedged, spills enabled");
+            tree->ct_rspills_wedged = false;
+        }
     }
 
     if (cn_node_isleaf(tn)) {
@@ -569,6 +581,11 @@ sp3_work(
         if ((atomic_read(&tn->tn_busycnt) >> 16) > 2)
             goto locked_nowork;
 
+        if (tn->tn_spillsync > 0) {
+            (*wp)->cw_resched = true;
+            goto locked_nowork;
+        }
+
         if (!cn_node_isroot(tn))
             abort();
 
@@ -584,6 +601,35 @@ sp3_work(
          */
         if (atomic_read(&tn->tn_busycnt) > 0)
             goto locked_nowork;
+
+        if (action == CN_ACTION_SPLIT) {
+            struct cn_tree_node *root = tree->ct_root;
+
+            /* If the root node is busy then (atomically) increment the split/sync
+             * counters to prevent new compaction jobs from starting in both this
+             * node and the root node (does not apply to split jobs).  Once all
+             * root jobs finish a split job will be able to run with exclusive
+             * access to this node.
+             */
+            if (atomic_read(&root->tn_busycnt) > 0) {
+                (*wp)->cw_resched = true;
+                root->tn_spillsync++;
+                tn->tn_spillsync++;
+                goto locked_nowork;
+            }
+
+            if (!cn_node_comp_token_get(root))
+                goto locked_nowork;
+
+            /* Now that we have root's compaction token we can reset
+             * the split/sync counters.
+             */
+            root->tn_spillsync = 0;
+            tn->tn_spillsync = 0;
+        } else {
+            if (tn->tn_spillsync > 0)
+                goto locked_nowork;
+        }
         break;
 
     default:
@@ -617,6 +663,16 @@ sp3_work(
         le = list_prev_entry(le, le_link);
     }
 
+    w->cw_compc = kvset_get_compc(mark->le_kvset);
+
+    /* If mark is at the end of the list or the compc of the first kvset
+     * past the mark is higher than the mark's then we can advance the
+     * compc for the new kvset.
+     */
+    le = list_next_entry_or_null(mark, le_link, &tn->tn_kvset_list);
+    if (!le || w->cw_compc < kvset_get_compc(le->le_kvset))
+        w->cw_compc++;
+
     cn_node_stats_get(tn, &w->cw_ns);
 
     rmlock_runlock(lock);
@@ -637,7 +693,6 @@ sp3_work(
     w->cw_have_token = have_token;
     w->cw_rspill_conc = !have_token && (action == CN_ACTION_SPILL);
 
-    w->cw_compc = kvset_get_compc(w->cw_mark->le_kvset);
     w->cw_pc = cn_get_perfc(tree->cn, w->cw_action);
 
     w->cw_t0_enqueue = get_time_ns();

@@ -1584,7 +1584,7 @@ sp3_check_roots(struct sp3 *sp, uint qnum)
         if (sp3_work(spn, wtype_root, &sp->thresh, debug, &sp->wp))
             return false;
 
-        have_work = sp->wp && sp->wp->cw_action != CN_ACTION_NONE;
+        have_work = sp->wp->cw_action != CN_ACTION_NONE;
         if (have_work) {
 
             /* Move to end of list to prevent this node
@@ -1600,9 +1600,12 @@ sp3_check_roots(struct sp3 *sp, uint qnum)
             return true;
         }
 
-        /* There are either too many active jobs or insufficient kvsets
-         * to spill right now so drop this work request. sp3_dirty_node()
-         * will re-assess the situation when the node composition changes.
+        if (sp->wp->cw_resched)
+            continue;
+
+        /* There are either too many active jobs or insufficient kvsets to start
+         * a new job right now so drop this work request. sp3_dirty_node() will
+         * re-assess the situation when the node composition changes.
          */
         list_del_init(&spn->spn_rlink);
     }
@@ -1806,9 +1809,9 @@ sp3_check_rb_tree(struct sp3 *sp, enum sp3_work_type wtype, uint64_t threshold, 
     rbn = rb_first(root);
 
     while (rbn) {
-        struct sp3_rbe * rbe;
         struct sp3_node *spn;
-        bool             have_work;
+        struct sp3_rbe *rbe;
+        bool have_work;
 
         rbe = rb_entry(rbn, struct sp3_rbe, rbe_node);
         spn = (void *)(rbe - wtype);
@@ -1819,18 +1822,26 @@ sp3_check_rb_tree(struct sp3 *sp, enum sp3_work_type wtype, uint64_t threshold, 
         if (sp3_work(spn, wtype, &sp->thresh, debug, &sp->wp))
             return false;
 
-        /* Remove node from future consideration of this job type
-         * until put back on the RBT by sp3_dirty_node().
-         */
-        rbn = rb_next(rbn);
-        sp3_node_remove(sp, spn, wtype);
-
-        have_work = sp->wp && sp->wp->cw_action != CN_ACTION_NONE;
+        have_work = sp->wp->cw_action != CN_ACTION_NONE;
         if (have_work) {
+            sp3_node_remove(sp, spn, wtype);
             sp3_submit(sp, sp->wp, qnum);
             sp->wp = NULL;
             return true;
         }
+
+        rbn = rb_next(rbn);
+        ev_debug(1);
+
+        if (sp->wp->cw_resched)
+            continue;
+
+        /* There are either too many active jobs or insufficient kvsets to start
+         * a new job right now so drop this work request. sp3_dirty_node() will
+         * re-assess the situation when the node composition changes.
+         */
+        sp3_node_remove(sp, spn, wtype);
+        ev_debug(1);
     }
 
     return false;

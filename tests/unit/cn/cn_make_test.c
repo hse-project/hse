@@ -48,21 +48,12 @@ MTF_DEFINE_UTEST_PREPOST(cn_make_test, cn_make1, pre, post)
 {
     struct mpool *     ds = (void *)-1;
     merr_t             err;
-    u32                i;
     struct kvs_cparams cp;
 
     cp = kvs_cparams_defaults();
 
-    for (i = CN_FANOUT_MAX - 1; i < CN_FANOUT_MAX + 1; i++) {
-        cp.fanout = i;
-
-        err = cn_make(ds, &cp, &health);
-        if (err) {
-            ASSERT_TRUE(i < CN_FANOUT_MAX || i > CN_FANOUT_MAX || (1u << ilog2(i)) != i);
-        } else {
-            ASSERT_TRUE(i >= CN_FANOUT_MIN && i <= CN_FANOUT_MAX);
-        }
-    }
+    err = cn_make(ds, &cp, &health);
+    ASSERT_EQ(0, err);
 }
 
 MTF_END_UTEST_COLLECTION(cn_make_test)

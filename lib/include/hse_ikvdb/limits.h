@@ -78,10 +78,6 @@
 #define VBLOCK_MIN_SIZE             (32ul << 20)
 #define VBLOCK_MAX_SIZE             (32ul << 20)
 
-/*
- * Min and max fanouts.
- */
-#define CN_FANOUT_MIN               (2)
 #define CN_FANOUT_MAX               (1024)
 
 #define CN_SMALL_VALUE_THRESHOLD    (8)

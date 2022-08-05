@@ -110,8 +110,8 @@ cndb_print_record(struct cndb_reader *reader)
         uint64_t cnid;
 
         cndb_omf_kvs_add_read(reader->buf, &cp, &cnid, name, sizeof(name));
-        printf("%-8s name %s cnid %lu fanout %u pfxlen %u capped %c\n",
-               "kvs_add", name, cnid, cp.fanout, cp.pfx_len, cp.kvs_ext01 ? 'y' : 'n');
+        printf("%-8s name %s cnid %lu pfxlen %u capped %c\n",
+               "kvs_add", name, cnid, cp.pfx_len, cp.kvs_ext01 ? 'y' : 'n');
 
     } else if (rec_type == CNDB_TYPE_KVS_DEL) {
         uint64_t cnid;

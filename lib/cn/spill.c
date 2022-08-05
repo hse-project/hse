@@ -299,11 +299,6 @@ cn_spill(struct cn_compaction_work *w)
     while (!err && more) {
         bool new_key = true;
 
-        if (atomic_read(w->cw_cancel_request)) {
-            err = merr(ESHUTDOWN);
-            break;
-        }
-
         if (!child) {
             err = get_kvset_builder(w, output_nodec, &child);
             if (err)
@@ -491,6 +486,11 @@ cn_spill(struct cn_compaction_work *w)
                     tprog = now;
                     w->cw_progress(w);
                 }
+            }
+
+            if (atomic_read(w->cw_cancel_request)) {
+                err = merr(ESHUTDOWN);
+                break;
             }
         }
 

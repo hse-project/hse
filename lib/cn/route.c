@@ -19,135 +19,6 @@
 #include "cn_tree_internal.h"
 #include "route.h"
 
-/*
- * TODO: Remove all this ekey_generator stuff once we have splits. Instead of calling
- * ekgen_generate(), cn_open will use the instantiated cn_tree_nodes' max keys.
- */
-struct ekey_generator {
-    uint                  eg_pfxlen;
-    uint                  eg_fanout;
-    uint                  eg_skip;
-    char                 *eg_fmt;
-};
-
-struct ekey_generator *
-ekgen_create(const char *kvsname, struct kvs_cparams *cp)
-{
-    struct ekey_generator *egen;
-    char path[128], buf[4096];
-    uint fanout, pfxlen, skip;
-    ssize_t cc;
-    char *fmt;
-    int n;
-
-    if (!cp || !kvsname)
-        return NULL;
-
-    n = snprintf(path, sizeof(path), "/var/tmp/routemap-%s", kvsname);
-    if (n < 1 || n >= sizeof(path))
-        return NULL;
-
-    cc = hse_readfile(-1, path, buf, sizeof(buf), O_RDONLY);
-    if (cc < 1) {
-        pfxlen = cp->pfx_len ? cp->pfx_len : 5;
-        if (pfxlen > sizeof(uint64_t))
-            return NULL;
-
-        /* Create binary edge keys by default with user-specified pfxlen and fanout.
-         */
-        fanout = cp->fanout;
-        skip = 1;
-        fmt = NULL;
-    } else {
-        n = sscanf(buf, "%u%u%ms%u", &fanout, &pfxlen, &fmt, &skip);
-
-        if (n < 3 || fanout != cp->fanout) {
-            log_err("fanout (%u vs %u)", fanout, cp->fanout);
-            return NULL;
-        }
-
-        if (n < 4 || skip < 1)
-            skip = 1;
-
-        if (!strcmp(fmt, "binary")) {
-            if (pfxlen > sizeof(uint64_t)) {
-                log_err("pfxlen %u > %zu", pfxlen, sizeof(uint64_t));
-                return NULL;
-            }
-
-            free(fmt);
-            fmt = NULL;
-        } else if (!strcmp(fmt, "MainKvs")) {
-            if (pfxlen > sizeof(uint64_t)) {
-                log_err("pfxlen %u > %zu", pfxlen, sizeof(uint64_t));
-                return NULL;
-            }
-        }
-    }
-
-    egen = malloc(sizeof(*egen));
-    if (ev(!egen))
-        return NULL;
-
-    egen->eg_fanout = fanout;
-    egen->eg_pfxlen = pfxlen;
-    egen->eg_fmt = fmt;
-    egen->eg_skip = skip;
-
-    return egen;
-}
-
-void
-ekgen_destroy(struct ekey_generator *egen)
-{
-    free(egen->eg_fmt);
-    free(egen);
-}
-
-size_t
-ekgen_generate(struct ekey_generator *egen, void *ekbuf, size_t ekbufsz, uint32_t nodeoff)
-{
-    uint pfxlen = egen->eg_pfxlen;
-    uint fmtarg = (nodeoff + 1) * egen->eg_skip - 1;
-
-    if (egen->eg_fmt) {
-        if (!strcmp(egen->eg_fmt, "MainKvs")) {
-            uint64_t binkeybuf = cpu_to_be64(fmtarg);
-            uint8_t *ekbuf8 = ekbuf;
-
-            memset(ekbuf8, 0, 4);
-            ekbuf8[3] = 0x0d;
-            memcpy(ekbuf8 + 4, (uint8_t *)&binkeybuf + (sizeof(binkeybuf) - pfxlen), pfxlen);
-            pfxlen += 4;
-
-            log_info("nodeoff %u, fmtarg %u, pfxlen %u, %02x %02x %02x %02x %02x %02x %02x %02x",
-                     nodeoff, fmtarg, pfxlen,
-                     ekbuf8[0], ekbuf8[1], ekbuf8[2], ekbuf8[3],
-                     ekbuf8[4], ekbuf8[5], ekbuf8[6], ekbuf8[7]);
-        } else {
-            int n = snprintf(ekbuf, ekbufsz, egen->eg_fmt, fmtarg);
-
-            if (n < 1 || n >= ekbufsz) {
-                log_err("overflow %u: n %d, pfxlen %u, fmt [%s], fmtarg %u",
-                        nodeoff, n, pfxlen, egen->eg_fmt, fmtarg);
-                abort();
-            }
-
-            if (n != pfxlen) {
-                log_err("skipping %u: n %d, pfxlen %u, fmt [%s], fmtarg %u",
-                        nodeoff, n, pfxlen, egen->eg_fmt, fmtarg);
-                return 0;
-            }
-        }
-    } else {
-        uint64_t binkeybuf = cpu_to_be64(fmtarg);
-
-        memcpy(ekbuf, (uint8_t *)&binkeybuf + (sizeof(binkeybuf) - pfxlen), pfxlen);
-    }
-
-    return pfxlen;
-}
-
 struct route_map {
     struct rb_root        rtm_root;
     uint                  rtm_nodec;
@@ -210,30 +81,18 @@ route_node_key_set(struct route_node *node, const void *edge_key, uint edge_klen
 struct route_node *
 route_node_alloc(struct route_map *map, void *tnode, const void *edge_key, uint edge_klen)
 {
-    struct route_node *node = map->rtm_free;
-    size_t nodesz;
+    struct route_node *node;
+    merr_t err;
 
-    if (node) {
-        merr_t err = route_node_keybuf_alloc(node, edge_klen);
-        if (err)
-            return NULL;
+    node = map->rtm_free;
+    if (!node)
+        return NULL;
 
-        map->rtm_free = node->rtn_next;
-    } else {
-        /* The route_node cache is empty, allocate a new route_node.
-         * These allocated route_node entries are never cached.
-         */
-        nodesz = sizeof(*node);
-        if (edge_klen > sizeof(node->rtn_keybuf))
-            nodesz += ALIGN(edge_klen, __alignof__(*node));
+    err = route_node_keybuf_alloc(node, edge_klen);
+    if (err)
+        return NULL;
 
-        node = aligned_alloc(__alignof__(*node), nodesz);
-        if (!node)
-            return NULL;
-
-        memset(node, 0, nodesz);
-        node->rtn_keybufp = (nodesz > sizeof(*node)) ? (uint8_t *)(node + 1) : node->rtn_keybuf;
-    }
+    map->rtm_free = node->rtn_next;
 
     route_node_key_set(node, edge_key, edge_klen);
 
@@ -245,29 +104,17 @@ route_node_alloc(struct route_map *map, void *tnode, const void *edge_key, uint 
 void
 route_node_free(struct route_map *map, struct route_node *node)
 {
-    bool freeme;
-
     if (!map || !node)
         return;
 
-    freeme = (node < map->rtm_nodev || node >= (map->rtm_nodev + map->rtm_nodec));
+    assert(node >= map->rtm_nodev && node < (map->rtm_nodev + map->rtm_nodec));
 
-    if (!freeme) {
-        node->rtn_tnode = NULL;
-        node->rtn_keylen = 0;
-        node->rtn_isfirst = node->rtn_islast = false;
+    node->rtn_tnode = NULL;
+    node->rtn_keylen = 0;
+    node->rtn_isfirst = node->rtn_islast = false;
 
-        node->rtn_next = map->rtm_free;
-        map->rtm_free = node;
-        return;
-    }
-
-    if (node->rtn_keybufsz > 0) {
-        assert(node->rtn_keybufp != node->rtn_keybuf && node->rtn_keybufp != (void *)(node + 1));
-        free(node->rtn_keybufp);
-    }
-
-    free(node);
+    node->rtn_next = map->rtm_free;
+    map->rtm_free = node;
 }
 
 merr_t HSE_MAYBE_UNUSED

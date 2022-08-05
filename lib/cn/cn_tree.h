@@ -81,9 +81,6 @@ struct kvs_cparams *
 cn_tree_get_cparams(const struct cn_tree *tree);
 
 uint
-cn_tree_get_fanout(const struct cn_tree *tree);
-
-uint
 cn_tree_get_pfx_len(const struct cn_tree *tree);
 
 bool

@@ -65,7 +65,6 @@ cndb_omf_kvs_add_write(
 
     cndb_hdr_omf_init(&omf.hdr, CNDB_TYPE_KVS_ADD, sizeof(omf));
 
-    omf_set_kvs_add_fanout(&omf, cp->fanout);
     omf_set_kvs_add_pfxlen(&omf, cp->pfx_len);
     omf_set_kvs_add_cnid(&omf, cnid);
     omf_set_kvs_add_flags(&omf, flags);
@@ -253,7 +252,6 @@ cndb_omf_kvs_add_read(
     char                    *namebuf,
     size_t                   namebufsz)
 {
-    cp->fanout = omf_kvs_add_fanout(omf);
     cp->pfx_len = omf_kvs_add_pfxlen(omf);
     cp->kvs_ext01 = omf_kvs_add_flags(omf) & CN_CFLAG_CAPPED;
 
