@@ -68,8 +68,6 @@ struct mapi_injection inject_list[] = {
     { mapi_idx_cndb_cn_instantiate, MAPI_RC_SCALAR, 0 },
     { mapi_idx_cndb_nodeid_mint, MAPI_RC_SCALAR, 1 },
 
-    { mapi_idx_cn_tree_set_initial_dgen, MAPI_RC_SCALAR, 0 },
-
     { mapi_idx_csched_tree_add, MAPI_RC_SCALAR, 0 },
     { mapi_idx_csched_tree_remove, MAPI_RC_SCALAR, 0 },
     { mapi_idx_ikvdb_read_only, MAPI_RC_SCALAR, 0 },

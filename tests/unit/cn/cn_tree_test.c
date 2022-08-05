@@ -438,12 +438,6 @@ MTF_DEFINE_UTEST_PRE(test, t_simple_api, test_setup)
     out = cn_tree_get_cparams(tree);
     ASSERT_EQ(12, out->pfx_len);
 
-    ASSERT_EQ(0, cn_tree_initial_dgen(tree));
-
-    cn_tree_set_initial_dgen(tree, 42);
-
-    ASSERT_EQ(42, cn_tree_initial_dgen(tree));
-
     cn_tree_destroy(tree);
 }
 

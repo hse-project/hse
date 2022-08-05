@@ -107,7 +107,6 @@ struct cn_tree {
     struct cn_kvdb *    cn_kvdb;
     struct kvs_cparams *ct_cp;
     u64                 cnid;
-    u64                 ct_dgen_init;
 
     uint                 ct_lvl_max;
     struct cn_samp_stats ct_samp;

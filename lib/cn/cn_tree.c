@@ -920,18 +920,6 @@ done:
     return err;
 }
 
-u64
-cn_tree_initial_dgen(const struct cn_tree *tree)
-{
-    return tree->ct_dgen_init;
-}
-
-void
-cn_tree_set_initial_dgen(struct cn_tree *tree, u64 dgen)
-{
-    tree->ct_dgen_init = dgen;
-}
-
 bool
 cn_tree_is_capped(const struct cn_tree *tree)
 {
