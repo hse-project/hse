@@ -31,14 +31,12 @@
 struct reverse_kblk_iterator {
     struct kvset *ks;
     struct element_source es;
-    bool eof;
     uint32_t offset;
 };
 
 struct forward_wbt_leaf_iterator {
     struct kvset *ks;
     struct element_source es;
-    bool eof;
     struct {
         uint32_t kblk_idx;
         uint32_t leaf_idx;
@@ -48,23 +46,22 @@ struct forward_wbt_leaf_iterator {
 static bool
 reverse_kblk_iterator_next(struct element_source *source, void **data)
 {
-    struct reverse_kblk_iterator *iter = container_of(source, struct reverse_kblk_iterator, es);
+    struct reverse_kblk_iterator *iter;
 
     INVARIANT(source);
     INVARIANT(data);
 
-    if (iter->eof)
+    iter = container_of(source, struct reverse_kblk_iterator, es);
+
+    /* If the offset is 0, that means we have already seen it, continuing past
+     * this point would index the array with an underflowed offset.
+     */
+    if (iter->offset == 0)
         return false;
 
-    assert(iter->offset < iter->ks->ks_st.kst_kblks);
+    assert(iter->offset <= iter->ks->ks_st.kst_kblks);
 
-    *data = &iter->ks->ks_kblks[iter->offset];
-
-    if (iter->offset == 0) {
-        iter->eof = true;
-    } else {
-        iter->offset--;
-    }
+    *data = &iter->ks->ks_kblks[--iter->offset];
 
     return true;
 }
@@ -78,8 +75,7 @@ reverse_kblk_iterator_init(
     INVARIANT(ks);
 
     iter->ks = ks;
-    iter->eof = false;
-    iter->offset = ks->ks_st.kst_kblks - 1;
+    iter->offset = ks->ks_st.kst_kblks;
     iter->es = es_make(reverse_kblk_iterator_next, NULL, NULL);
 }
 
@@ -97,15 +93,17 @@ kblk_compare(const void *const a, const void *const b)
 }
 
 static merr_t
-find_inflection_point(
+find_inflection_key(
     const struct cn_tree_node *const node,
     uint64_t *const seen_kvlen,
-    uint32_t *const offsets)
+    uint32_t *const offsets,
+    const void **const inflection_key,
+    uint16_t *const inflection_key_len)
 {
     merr_t err;
     struct bin_heap2 *bh;
     struct kvset_list_entry *le;
-    struct kvset_kblk *kblk;
+    struct kvset_kblk *inflection_kblk;
     struct reverse_kblk_iterator *iters;
     struct element_source **srcs;
     void *buf = NULL;
@@ -157,19 +155,60 @@ find_inflection_point(
     if (ev(err))
         goto out;
 
-    while (bin_heap2_pop(bh, (void **)&kblk)) {
-        kvlen += kblk->kb_metrics.tot_key_bytes + kblk->kb_metrics.tot_val_bytes;
+    while (bin_heap2_pop(bh, (void **)&inflection_kblk)) {
+        kvlen += inflection_kblk->kb_metrics.tot_key_bytes +
+            inflection_kblk->kb_metrics.tot_val_bytes;
         if (kvlen >= total_kvlen / 2)
             break;
     }
 
+    *inflection_key = inflection_kblk->kb_koff_min;
+    *inflection_key_len = inflection_kblk->kb_klen_min;
     *seen_kvlen = kvlen;
 
     /* Gather the offsets we ended at for each kvset. These will seed the
      * starting positions of the element sources in the next bin heap.
      */
-    for (uint64_t i = 0; i < num_kvsets; i++)
-        offsets[i] = iters[i].offset;
+    for (uint64_t i = 0; i < num_kvsets; i++) {
+        int res;
+        struct kvset_kblk *curr;
+        struct reverse_kblk_iterator *iter = iters + i;
+
+        curr = iter->ks->ks_kblks + iter->offset;
+
+        if (curr == inflection_kblk) {
+            offsets[i] = iter->offset;
+            continue;
+        }
+
+        res = keycmp(curr->kb_koff_min, curr->kb_klen_min, *inflection_key, *inflection_key_len);
+        if (res >= 0) {
+            offsets[i] = iter->offset;
+            continue;
+        }
+
+        /* In this case, the min key from the kblock for this iterator is less
+         * than the min key of the inflection kblock, so we need to seek this
+         * iterator forward (not reverse) in order to find the first kblock with
+         * a max key >= the min key of the inflection kblock. At this kblock,
+         * a forward WBT leaf node iterator needs to seek toward the inflection
+         * kblock's min key.
+         *
+         * In the case no kblock's max key is >= the inflection kblock's min
+         * key, then we can skip the forward WBT leaf node iteration in the next
+         * step.
+         */
+        while (++iter->offset < iter->ks->ks_st.kst_kblks) {
+            curr += 1;
+
+            res = keycmp(curr->kb_koff_max, curr->kb_klen_max, *inflection_key,
+                *inflection_key_len);
+            if (res >= 0)
+                break;
+        }
+
+        offsets[i] = iter->offset;
+    }
 
 out:
     free(buf);
@@ -188,10 +227,8 @@ forward_wbt_leaf_iterator_next(struct element_source *source, void **data)
     INVARIANT(source);
     INVARIANT(data);
 
-    if (iter->eof)
+    if (iter->offset.kblk_idx >= iter->ks->ks_st.kst_kblks)
         return false;
-
-    assert(iter->offset.kblk_idx < iter->ks->ks_st.kst_kblks);
 
     kblk = &iter->ks->ks_kblks[iter->offset.kblk_idx];
     desc = &kblk->kb_wbt_desc;
@@ -206,8 +243,6 @@ forward_wbt_leaf_iterator_next(struct element_source *source, void **data)
     if (iter->offset.leaf_idx == desc->wbd_leaf_cnt - 1) {
         iter->offset.kblk_idx++;
         iter->offset.leaf_idx = 0;
-        if (iter->offset.kblk_idx == iter->ks->ks_st.kst_kblks)
-            iter->eof = true;
     } else {
         iter->offset.leaf_idx++;
     }
@@ -219,18 +254,51 @@ static void
 forward_wbt_leaf_iterator_init(
     struct forward_wbt_leaf_iterator *const iter,
     struct kvset *const ks,
-    const uint32_t kblk_idx)
+    const uint32_t kblk_idx,
+    const void *inflection_key,
+    const uint16_t inflection_key_len)
 {
+    struct key_obj inflection_kobj;
+    struct kvset_kblk *kblk;
+    struct wbt_desc *desc;
+
     INVARIANT(ks);
     INVARIANT(iter);
-    INVARIANT(kblk_idx < ks->ks_st.kst_kblks);
 
     iter->ks = ks;
-    iter->eof = false;
-    /* Using prefix decrement in next, so this is fine */
     iter->offset.kblk_idx = kblk_idx;
     iter->offset.leaf_idx = 0;
     iter->es = es_make(forward_wbt_leaf_iterator_next, NULL, NULL);
+
+    if (iter->offset.kblk_idx >= ks->ks_st.kst_kblks)
+        return;
+
+    kblk = &iter->ks->ks_kblks[iter->offset.kblk_idx];
+    desc = &kblk->kb_wbt_desc;
+
+    key2kobj(&inflection_kobj, inflection_key, inflection_key_len);
+
+    /* Move leaf node index forward until the first key of the leaf node is >=
+     * the inflection key.
+     */
+    while (iter->offset.leaf_idx++ < desc->wbd_leaf_cnt) {
+        int res;
+        struct key_obj kobj;
+        const struct wbt_lfe_omf *lfe;
+        const struct wbt_node_hdr_omf *node;
+
+        node = kblk->kb_kblk_desc.map_base + desc->wbd_first_page * PAGE_SIZE +
+            iter->offset.leaf_idx * WBT_NODE_SIZE;
+        assert(node->wbn_magic == WBT_LFE_NODE_MAGIC);
+
+        lfe = wbt_lfe(node, 0);
+        wbt_node_pfx(node, &kobj.ko_pfx, &kobj.ko_pfx_len);
+        wbt_lfe_key(node, lfe, &kobj.ko_sfx, &kobj.ko_sfx_len);
+
+        res = key_obj_cmp(&kobj, &inflection_kobj);
+        if (res >= 0)
+            break;
+    }
 }
 
 static int
@@ -260,6 +328,8 @@ find_split_key(
     const struct cn_tree_node *const tnode,
     uint64_t seen_kvlen,
     const uint32_t *const offsets,
+    const void *const inflection_key,
+    const uint16_t inflection_key_len,
     void *const key_buf,
     const size_t key_buf_sz,
     unsigned int *const key_len)
@@ -309,7 +379,8 @@ find_split_key(
 
         total_kvlen += metrics.tot_key_bytes + metrics.tot_val_bytes;
 
-        forward_wbt_leaf_iterator_init(iter, le->le_kvset, offsets[kvset_idx]);
+        forward_wbt_leaf_iterator_init(iter, le->le_kvset, offsets[kvset_idx], inflection_key,
+            inflection_key_len);
 
         srcs[kvset_idx] = &(iter)->es;
 
@@ -356,16 +427,19 @@ cn_tree_node_get_split_key(
     merr_t err;
     uint64_t kvlen = 0;
     uint32_t *offsets = NULL;
+    const void *inflection_key = NULL;
+    uint16_t inflection_key_len = 0;
 
     offsets = malloc(cn_ns_kvsets(&node->tn_ns) * sizeof(*offsets));
     if (ev(!offsets))
         return merr(ENOMEM);
 
-    err = find_inflection_point(node, &kvlen, offsets);
+    err = find_inflection_key(node, &kvlen, offsets, &inflection_key, &inflection_key_len);
     if (ev(err))
         goto out;
 
-    err = find_split_key(node, kvlen, offsets, key_buf, key_buf_sz, key_len);
+    err = find_split_key(node, kvlen, offsets, inflection_key, inflection_key_len, key_buf,
+        key_buf_sz, key_len);
     if (ev(err))
         goto out;
 
