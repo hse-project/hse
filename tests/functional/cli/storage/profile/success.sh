@@ -15,7 +15,7 @@ status=$?
 if [ "$status" -ne 0 ]; then
     if echo "$output" | grep --quiet -P "The profiling test needs \d+ MiB of free space to characterize KVDB performance."; then
         # Skip the test since we don't have enough space to run it.
-        skip
+        exit "$SKIP_STATUS"
     else
         exit "$status"
     fi
