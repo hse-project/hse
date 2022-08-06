@@ -268,8 +268,6 @@ sp3_work_wtype_split(
     *action = CN_ACTION_SPLIT;
     *rule = CN_RULE_SPLIT;
 
-    ev_debug(1);
-
     return cn_ns_kvsets(&tn->tn_ns);
 }
 

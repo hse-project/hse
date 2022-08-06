@@ -914,7 +914,7 @@ sp3_dirty_node_locked(struct sp3 *sp, struct cn_tree_node *tn)
      * root node (see CSCHED_QTHREADS_DEFAULT for default limits).
      */
     if (cn_node_isleaf(tn)) {
-        const uint64_t nkeys = cn_ns_keys(&tn->tn_ns);
+        bool splitting = false;
 
         scatter = cn_tree_node_scatter(tn);
 
@@ -966,10 +966,10 @@ sp3_dirty_node_locked(struct sp3 *sp, struct cn_tree_node *tn)
          * with "split_pct" capacity to ensure it gets split or compacted.
          */
         if (tn->tn_ns.ns_pcap >= sp->thresh.lcomp_split_pct && jobs < 1) {
-            const uint64_t weight = ((uint64_t)tn->tn_ns.ns_pcap << 32) | nkeys;
+            const uint64_t weight = ((uint64_t)tn->tn_ns.ns_pcap << 32) | cn_ns_keys(&tn->tn_ns);
 
             sp3_node_insert(sp, spn, wtype_split, weight);
-            ev_debug(1);
+            splitting = true;
         } else {
             uint64_t split_keys = (uint64_t)sp->thresh.lcomp_split_keys << 22;
             uint64_t keys_uniq = cn_ns_keys_uniq(&tn->tn_ns);
@@ -978,10 +978,19 @@ sp3_dirty_node_locked(struct sp3 *sp, struct cn_tree_node *tn)
                 const uint64_t weight = ((uint64_t)sp->thresh.lcomp_split_pct << 32) | keys_uniq;
 
                 sp3_node_insert(sp, spn, wtype_split, weight);
-                ev_debug(1);
+                splitting = true;
             } else {
                 sp3_node_remove(sp, spn, wtype_split);
             }
+        }
+
+        /* Node splits are rare, but when a node is ready to split it needs
+         * be done as soon as possible.  Hence splits preempt all other work.
+         */
+        if (splitting) {
+            sp3_node_remove(sp, spn, wtype_length);
+            sp3_node_remove(sp, spn, wtype_garbage);
+            sp3_node_remove(sp, spn, wtype_scatter);
         }
     } else {
 
@@ -1831,7 +1840,6 @@ sp3_check_rb_tree(struct sp3 *sp, enum sp3_work_type wtype, uint64_t threshold, 
         }
 
         rbn = rb_next(rbn);
-        ev_debug(1);
 
         if (sp->wp->cw_resched)
             continue;
@@ -1841,7 +1849,6 @@ sp3_check_rb_tree(struct sp3 *sp, enum sp3_work_type wtype, uint64_t threshold, 
          * re-assess the situation when the node composition changes.
          */
         sp3_node_remove(sp, spn, wtype);
-        ev_debug(1);
     }
 
     return false;
