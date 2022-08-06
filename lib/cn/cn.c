@@ -773,37 +773,76 @@ cn_maint_task(struct work_struct *work)
 }
 
 struct cndb_cn_ctx {
-    struct cn  *cn;
-    struct map *nodemap;
+    struct cn_tree *tree;
+    struct map     *nodemap;
+    uint64_t        max_dgen;
 };
 
-/* This function is the cndb_cn_instantiate() callback.  It is called
- * once for each kvset found in the cndb for the cn specified in the
- * callback context.
+static merr_t
+cndb_cn_ctx_init(struct cndb_cn_ctx *ctx, struct cn_tree *tree, struct cn_tree_node *root)
+{
+    struct map *nodemap;
+    merr_t err;
+
+    INVARIANT(ctx);
+    INVARIANT(tree);
+    INVARIANT(root);
+
+    nodemap = map_create(CN_FANOUT_MAX);
+    if (!nodemap)
+        return merr(ENOMEM);
+
+    /* Pre-populate node map with root node, which always has ID 0. */
+    err = map_insert_ptr(nodemap, 0, root);
+    if (err) {
+        map_destroy(nodemap);
+        return err;
+    }
+
+    ctx->nodemap = nodemap;
+    ctx->tree = tree;
+    ctx->max_dgen = 0;
+
+    return 0;
+}
+
+static void
+cndb_cn_ctx_fini(struct cndb_cn_ctx *ctx)
+{
+    INVARIANT(ctx);
+    INVARIANT(ctx->nodemap);
+
+    map_destroy(ctx->nodemap);
+}
+
+/**
+ * Callback invoked by cndb_cn_instantiate() to place kvsets into tree nodes.
+ *
+ * This callback is invoked once for each kvset in a KVS.  Each callback
+ * contains a node ID, a kvset ID, and other metadata needed to open the
+ * on-media kvset.  It opens the kvsets and adds them to tree nodes, creating
+ * the tree nodes as needed.
  */
 static merr_t
-cn_kvset_cb(void *arg, struct kvset_meta *km, u64 kvsetid)
+cndb_cn_callback(void *arg, struct kvset_meta *km, u64 kvsetid)
 {
     struct cndb_cn_ctx *ctx = arg;
     struct cn_tree_node *node;
-    struct cn_tree *tree;
     struct kvset *kvset;
     merr_t err;
 
-    tree = ctx->cn->cn_tree;
-
     node = map_lookup_ptr(ctx->nodemap, km->km_nodeid);
     if (!node) {
-        node = cn_node_alloc(tree, km->km_nodeid);
+        node = cn_node_alloc(ctx->tree, km->km_nodeid);
         if (ev(!node))
             return merr(ENOMEM);
 
         map_insert_ptr(ctx->nodemap, km->km_nodeid, node);
 
-        list_add_tail(&node->tn_link, &tree->ct_nodes);
+        list_add_tail(&node->tn_link, &ctx->tree->ct_nodes);
     }
 
-    err = kvset_open(tree, kvsetid, km, &kvset);
+    err = kvset_open(ctx->tree, kvsetid, km, &kvset);
     if (ev(err))
         return err;
 
@@ -813,8 +852,8 @@ cn_kvset_cb(void *arg, struct kvset_meta *km, u64 kvsetid)
         return err;
     }
 
-    if (km->km_dgen > cn_tree_initial_dgen(tree))
-        cn_tree_set_initial_dgen(tree, km->km_dgen);
+    if (ctx->max_dgen < km->km_dgen)
+        ctx->max_dgen = km->km_dgen;
 
     return 0;
 }
@@ -840,7 +879,7 @@ cn_open(
     size_t      sz;
     uint64_t    mperr;
 
-    struct cndb_cn_ctx ctx = { 0 };
+    struct cndb_cn_ctx ctx;
     struct mpool_props mpprops;
     struct merr_info   ei;
 
@@ -930,25 +969,19 @@ cn_open(
         vcnt = atomic_read(&cn_kvdb->cnd_vblk_cnt);
     }
 
-    ctx.cn = cn;
-    ctx.nodemap = map_create(CN_FANOUT_MAX);
-    if (ev(!ctx.nodemap)) {
-        err = merr(ENOMEM);
-        goto err_exit;
-    }
-
-    /* cn_tree_create() always creates the root node and appends it to the
-     * list of tree nodes (i.e., tree->ct_nodes).  cn_kvset_cb() will create
-     * all leaf nodes and append them to the list in the rehydration order
-     * specified by cndb_cn_instantiate() (i.e., no particular order).
+    /* Add kvsets to nodes based on data stored in CNDB.
      */
-    map_insert_ptr(ctx.nodemap, 0, cn->cn_tree->ct_root);
-
-    err = cndb_cn_instantiate(cndb, cnid, &ctx, cn_kvset_cb);
+    err = cndb_cn_ctx_init(&ctx, cn->cn_tree, cn->cn_tree->ct_root);
     if (ev(err))
         goto err_exit;
 
-    /* Walk the list of nodes created/populated by cn_kvset_cb() and insert
+    err = cndb_cn_instantiate(cndb, cnid, &ctx, cndb_cn_callback);
+    atomic_set(&cn->cn_ingest_dgen, ctx.max_dgen);
+    cndb_cn_ctx_fini(&ctx);
+    if (ev(err))
+        goto err_exit;
+
+    /* Walk the list of nodes created/populated by cndb_cn_callback() and insert
      * all leaf nodes into the route map (i.e., all nodes except the root
      * node which always has node ID 0).
      */
@@ -998,9 +1031,6 @@ cn_open(
         }
     }
 
-    map_destroy(ctx.nodemap);
-    ctx.nodemap = 0;
-
     if (cn_kvdb) {
         /* [HSE_REVISIT]: This approach is not thread-safe */
         hsz = atomic_read(&cn_kvdb->cnd_hblk_size) - hsz;
@@ -1020,8 +1050,6 @@ cn_open(
     }
 
     cn_tree_samp_init(cn->cn_tree);
-
-    atomic_set(&cn->cn_ingest_dgen, cn_tree_initial_dgen(cn->cn_tree));
 
     /* Enable tree maintenance unless it's deliberately disabled
      * or we're in replay, diag, or read-only mode.
@@ -1077,8 +1105,6 @@ cn_open(
     return 0;
 
 err_exit:
-    map_destroy(ctx.nodemap);
-
     flush_workqueue(cn->cn_maint_wq);
     flush_workqueue(cn->cn_io_wq);
     cn_tree_destroy(cn->cn_tree);

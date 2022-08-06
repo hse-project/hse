@@ -43,16 +43,6 @@ cn_tree_lookup(
     struct kvs_buf *     kbuf,
     struct kvs_buf *     vbuf);
 
-/**
- * cn_tree_initial_dgen() - return most current dgen in tree
- * @tree: tree to query
- *
- * The dgen returned is the largest dgen value seen during MDC replay.
- */
-/* MTF_MOCK */
-u64
-cn_tree_initial_dgen(const struct cn_tree *tree);
-
 /* Return true if the cn_tree is capped. */
 bool
 cn_tree_is_capped(const struct cn_tree *tree);

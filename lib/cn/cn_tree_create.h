@@ -72,17 +72,6 @@ cn_tree_setup(
     struct cn_kvdb *    cn_kvdb);
 
 /**
- * cn_tree_set_initial_dgen() - set most current dgen in tree
- * @tree: tree to update
- * @dgen: new dgen
- *
- * This sets dgen in the cn_tree, used to initialize cn_ingest_dgen.
- */
-/* MTF_MOCK */
-void
-cn_tree_set_initial_dgen(struct cn_tree *tree, u64 dgen);
-
-/**
  * cn_tree_insert_kvset() - Add kvset to a tree node during tree initialization
  * @tree:   cn tree structure
  * @kvset:  kvset to add
