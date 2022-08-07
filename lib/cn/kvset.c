@@ -477,12 +477,9 @@ kvset_open2(
     size_t        alloc_len;
     struct kvset *ks;
     size_t        kcachesz;
-    ulong         mavail;
     const uint32_t n_kblks = km->km_kblk_list.n_blks;
     const uint32_t n_vblks = km->km_vblk_list.n_blks;
     uint          vbsetc;
-    u64           kvdb_halen, kvdb_kalen, kvdb_valen;
-    ulong         hra, kra, vra;
     int           last_kb;
 
     struct kvs_cparams *cp;
@@ -555,10 +552,7 @@ kvset_open2(
     ks->ks_cndb = cn_tree_get_cndb(tree);
     ks->ks_pfx_len = cp->pfx_len;
     ks->ks_sfx_len = cp->sfx_len;
-    ks->ks_node_level = km->km_node_level;
     ks->ks_nodeid = km->km_nodeid;
-    ks->ks_vminlvl = min_t(uint8_t, rp->cn_mcache_vminlvl, UINT8_MAX);
-    ks->ks_vmin = rp->cn_mcache_vmin;
     ks->ks_vmax = rp->cn_mcache_vmax;
     ks->ks_cn_kvdb = cn_kvdb;
 
@@ -794,14 +788,9 @@ kvset_open2(
     kvset_get_ref(ks);
     ks->ks_deleted = DEL_NONE;
 
-    kvdb_halen = atomic_fetch_add(&cn_kvdb->cnd_hblk_size, ks->ks_st.kst_halen);
-    kvdb_halen += ks->ks_st.kst_halen;
-
-    kvdb_kalen = atomic_fetch_add(&cn_kvdb->cnd_kblk_size, ks->ks_st.kst_kalen);
-    kvdb_kalen += ks->ks_st.kst_kalen;
-
-    kvdb_valen = atomic_fetch_add(&cn_kvdb->cnd_vblk_size, ks->ks_st.kst_valen);
-    kvdb_valen += ks->ks_st.kst_valen;
+    atomic_add(&cn_kvdb->cnd_hblk_size, ks->ks_st.kst_halen);
+    atomic_add(&cn_kvdb->cnd_kblk_size, ks->ks_st.kst_kalen);
+    atomic_add(&cn_kvdb->cnd_vblk_size, ks->ks_st.kst_valen);
 
     atomic_inc(&cn_kvdb->cnd_hblk_cnt);
     atomic_add(&cn_kvdb->cnd_kblk_cnt, ks->ks_st.kst_kblks);
@@ -809,67 +798,24 @@ kvset_open2(
 
     blk_list_init(&ks->ks_purge);
 
-    if (cn_tree_is_replay(tree))
-        goto done;
+#define ra_willneed(_ra)    ((_ra) & 0x01u)
 
-    hse_meminfo(NULL, &mavail, 30);
-
-    /* Convert from bytes to GiB for comparison w/ mavail. */
-    kvdb_halen >>= GB_SHIFT;
-    kvdb_kalen >>= GB_SHIFT;
-    kvdb_valen >>= GB_SHIFT;
-
-#define ra_lev0(_ra) ((_ra)&0xffu)
-#define ra_lev1(_ra) (((_ra) >> 8) & 0xffu)
-#define ra_pct(_ra) (((_ra) >> 16) & 0xffu)
-#define ra_willneed(_ra) (((_ra) >> 24) & 0x01u)
-
-    /* Enable mcache readahead for cn level zero k/v blocks and for
-     * non-zero level k/v blocks if the kvdb size isn't larger than
-     * the specified pct usage of system RAM.
-     * Note, we avoid doing this when we're reinstantiating a kvdb
-     * because we won't know the full size of the kvdb until after
-     * we restore all kvsets.
-     *
-     * [HSE_REVISIT]: The code below expects kvdb_kalen to be the
-     * sum of all kblock allocated lens in KVDB.  But that is only
-     * true when all KVSes are open.  During startup, KVSes are
-     * opened one at a time, so the metric will be wrong until the
-     * last kvset of the last KVS is opened.  The same issue
-     * applies to kvdb_valen and kvdb_halen.
-     */
-    hra = rp->cn_mcache_kra_params;
-    kra = rp->cn_mcache_kra_params;
-    vra = rp->cn_mcache_vra_params;
-
-    if (ks->ks_node_level < ra_lev0(kra) || (!km->km_restored && ks->ks_node_level < ra_lev1(hra) &&
-                                             kvdb_halen * 100 < ra_pct(hra) * mavail)) {
-        if (ks->ks_node_level == 0 || (ra_willneed(hra) & 0x01))
-            kvset_madvise_hblk(ks, MADV_WILLNEED, true);
-    }
-
-    if (ks->ks_node_level < ra_lev0(kra) || (!km->km_restored && ks->ks_node_level < ra_lev1(kra) &&
-                                             kvdb_kalen * 100 < ra_pct(kra) * mavail)) {
-        if (ks->ks_node_level == 0 || (ra_willneed(kra) & 0x01))
-            kvset_madvise_kblks(ks, MADV_WILLNEED, true, true);
-    }
-
-    if (ks->ks_node_level < ra_lev0(vra) || (!km->km_restored && ks->ks_node_level < ra_lev1(vra) &&
-                                             kvdb_valen * 100 < ra_pct(vra) * mavail)) {
-        /* Disable cursor vblock readahead and direct mblock
-         * reads for all vblocks in this kvset.
-         */
-        if (ra_willneed(vra) & 0x01) {
-            kvset_madvise_vblks(ks, MADV_WILLNEED);
-            ks->ks_vminlvl = UINT8_MAX;
-            ks->ks_vra_len = 0;
-        } else if (cn_tree_is_capped(ks->ks_tree)) {
+    if (!cn_tree_is_replay(tree)) {
+        if (cn_tree_is_capped(ks->ks_tree)) {
             kvset_madvise_capped(ks, MADV_WILLNEED);
-            ks->ks_vminlvl = UINT8_MAX;
+        } else {
+            if (ra_willneed(rp->cn_mcache_kra_params)) {
+                kvset_madvise_hblk(ks, MADV_WILLNEED, true);
+                kvset_madvise_kblks(ks, MADV_WILLNEED, true, true);
+            }
+
+            if (ra_willneed(rp->cn_mcache_vra_params)) {
+                kvset_madvise_vblks(ks, MADV_WILLNEED);
+                ks->ks_vra_len = 0;
+            }
         }
     }
 
-done:
     ks->ks_ctime = get_time_ns();
 
     *ks_out = ks;
@@ -899,9 +845,6 @@ kvset_open(struct cn_tree *tree, uint64_t kvsetid, struct kvset_meta *km, struct
         idv = blkid_list_to_vec(&km->km_vblk_list, NELEM(bufv), bufv);
         if (ev(!idv))
             return merr(ENOMEM);
-
-        if (km->km_node_level == 0)
-            flags |= MBSET_FLAGS_VBLK_ROOT;
 
         if (km->km_capped)
             flags |= MBSET_FLAGS_CAPPED;
@@ -1571,9 +1514,7 @@ kvset_lookup_val(struct kvset *ks, struct kvs_vtuple_ref *vref, struct kvs_buf *
     dst = vbuf->b_buf;
     copylen = min(vref->vb.vr_len, vbuf->b_buf_sz);
 
-    direct = (copylen >= ks->ks_vmax ||
-              (copylen >= ks->ks_vmin && ks->ks_node_level >= ks->ks_vminlvl)) &&
-             (vbd->vbd_mblkdesc.mclass != HSE_MCLASS_PMEM);
+    direct = (copylen >= ks->ks_vmax) && (vbd->vbd_mblkdesc.mclass != HSE_MCLASS_PMEM);
 
     if (!copylen)
         goto done;
@@ -2598,7 +2539,7 @@ kvset_iter_enable_mblock_read(struct kvset_iterator *iter)
      * check.
      */
     if (ra_size < HSE_KVS_VALUE_LEN_MAX) {
-        if (iter->ks->ks_node_level == 0)
+        if (iter->ks->ks_nodeid == 0)
             ra_size = HSE_KVS_VALUE_LEN_MAX;
         ra_size = min_t(uint64_t, ra_size, HSE_KVS_VALUE_LEN_MAX);
     }

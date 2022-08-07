@@ -75,8 +75,6 @@ struct kvset {
     struct mpool *ks_mp;
     u32           ks_pfx_len; /* cn tree pfx_len */
     u32           ks_sfx_len; /* cn tree sfx_len */
-    uint8_t       ks_node_level;
-    uint8_t       ks_vminlvl;
     uint16_t      ks_rule;
     u64           ks_nodeid;
     u32           ks_vmin;

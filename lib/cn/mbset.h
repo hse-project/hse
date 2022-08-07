@@ -17,7 +17,6 @@ struct mblock_props;
 struct mbset;
 
 #define MBSET_FLAGS_CAPPED (0x0001)
-#define MBSET_FLAGS_VBLK_ROOT (0x0002)
 
 /* MTF_MOCK_DECL(mbset) */
 

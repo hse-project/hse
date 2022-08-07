@@ -527,8 +527,6 @@ cn_ingest_prep(
     km.km_kblk_list = mblocks->kblks;
     km.km_vblk_list = mblocks->vblks;
     km.km_dgen = dgen;
-    km.km_node_level = 0;
-    km.km_node_offset = 0;
     km.km_nodeid = 0; /* Root node has a node id of 0 */
 
     km.km_vused = mblocks->bl_vused;

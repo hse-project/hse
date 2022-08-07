@@ -57,13 +57,10 @@ struct kvs_rparams {
     uint64_t cn_cursor_vra;
     bool     cn_cursor_kra;
 
+    uint8_t  cn_mcache_kra_params;
+    uint8_t  cn_mcache_vra_params;
     uint8_t  cn_mcache_wbt;
-    uint8_t  cn_mcache_vminlvl;
-    uint32_t cn_mcache_vmin;
     uint32_t cn_mcache_vmax;
-
-    uint64_t cn_mcache_kra_params;
-    uint64_t cn_mcache_vra_params;
 
     bool     cn_bloom_create;
     bool     cn_bloom_preload;
