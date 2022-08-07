@@ -815,7 +815,7 @@ cndb_cn_ctx_fini(struct cndb_cn_ctx *ctx)
     map_destroy(ctx->nodemap);
 }
 
-/**
+/*
  * Callback invoked by cndb_cn_instantiate() to place kvsets into tree nodes.
  *
  * This callback is invoked once for each kvset in a KVS.  Each callback
@@ -981,19 +981,17 @@ cn_open(
     if (ev(err))
         goto err_exit;
 
-    /* Walk the list of nodes created/populated by cndb_cn_callback() and insert
-     * all leaf nodes into the route map (i.e., all nodes except the root
+    /* Walk the list of leaf nodes created/populated by cndb_cn_callback()
+     * and insert them into the route map (i.e., all nodes except the root
      * node which always has node ID 0).
      */
-    list_for_each_entry(tn, &cn->cn_tree->ct_nodes, tn_link) {
-        if (tn->tn_nodeid > 0) {
-            cn_tree_node_get_max_key(tn, kbuf, sizeof(kbuf), &klen);
+    cn_tree_foreach_leaf(tn, cn->cn_tree) {
+        cn_tree_node_get_max_key(tn, kbuf, sizeof(kbuf), &klen);
 
-            tn->tn_route_node = route_map_insert(cn->cn_tree->ct_route_map, tn, kbuf, klen);
-            if (!tn->tn_route_node) {
-                err = merr(EINVAL);
-                goto err_exit;
-            }
+        tn->tn_route_node = route_map_insert(cn->cn_tree->ct_route_map, tn, kbuf, klen);
+        if (!tn->tn_route_node) {
+            err = merr(EINVAL);
+            goto err_exit;
         }
     }
 
@@ -1112,7 +1110,7 @@ err_exit:
         cn_perfc_free(cn);
     free_aligned(cn);
 
-    return ev(err) ?: merr(EBUG);
+    return err;
 }
 
 merr_t
