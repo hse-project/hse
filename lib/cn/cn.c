@@ -449,7 +449,6 @@ cn_mblocks_destroy(
  *    @wlen  = 10.0 GiB
  *    @flags = CN_MB_EST_FLAGS_PREALLOC;
  */
-/* MTF_MOCK */
 size_t
 cn_mb_est_alen(size_t full_captgt, size_t mb_alloc_unit, size_t wlen, uint flags)
 {

@@ -13,7 +13,6 @@
 
 #include <hse_ikvdb/cn_kvdb.h>
 
-/* MTF_MOCK */
 merr_t
 cn_kvdb_create(uint cn_maint_threads, uint cn_io_threads, struct cn_kvdb **out)
 {
