@@ -834,13 +834,13 @@ cn_tree_lookup(
     *res = NOT_FOUND;
     err = 0;
 
-    pc_cidx = PERFC_LT_CNGET_GET_L5 + 1;
+    pc_cidx = PERFC_LT_CNGET_GET_LEAF + 1;
     pc_depth = pc_nkvset = 0;
 
     pc_start = perfc_lat_startu(pc, PERFC_LT_CNGET_GET);
     if (pc_start > 0) {
-        if (perfc_ison(pc, PERFC_LT_CNGET_GET_L0))
-            pc_cidx = PERFC_LT_CNGET_GET_L0;
+        if (perfc_ison(pc, PERFC_LT_CNGET_GET_ROOT))
+            pc_cidx = PERFC_LT_CNGET_GET_ROOT;
     }
 
     wbti = NULL;
@@ -873,7 +873,7 @@ cn_tree_lookup(
                     if (err || *res != NOT_FOUND) {
                         rmlock_runlock(lock);
 
-                        if (pc_cidx < PERFC_LT_CNGET_GET_L5 + 1)
+                        if (pc_cidx < PERFC_LT_CNGET_GET_LEAF + 1)
                             perfc_lat_record(pc, pc_cidx, pc_start);
                         goto done;
                     }

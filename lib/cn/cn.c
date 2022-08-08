@@ -212,7 +212,6 @@ cn_get_perfc(struct cn *cn, enum cn_action action)
 {
     switch (action) {
     case CN_ACTION_NONE:
-    case CN_ACTION_SPLIT:
         break;
 
     case CN_ACTION_COMPACT_K:
@@ -223,6 +222,9 @@ cn_get_perfc(struct cn *cn, enum cn_action action)
 
     case CN_ACTION_SPILL:
         return &cn->cn_pc_spill;
+
+    case CN_ACTION_SPLIT:
+        return &cn->cn_pc_split;
     }
 
     return NULL;

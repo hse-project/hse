@@ -16,7 +16,7 @@
 #include <mocks/mock_mpool.h>
 
 static merr_t
-_hbb_create(struct hblock_builder **bld_out, const struct cn *cn)
+_hbb_create(struct hblock_builder **bld_out, const struct cn *cn, struct perfc_set *pc)
 {
     *bld_out = (struct hblock_builder *)0x1111;
     return 0;

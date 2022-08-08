@@ -21,6 +21,7 @@ struct key_obj;
 struct kvs_block;
 struct key_stats;
 struct vgmap;
+struct perfc_set;
 
 /* MTF_MOCK */
 merr_t
@@ -33,7 +34,7 @@ hbb_add_ptomb(
 
 /* MTF_MOCK */
 merr_t
-hbb_create(struct hblock_builder **bld_out, const struct cn *cn);
+hbb_create(struct hblock_builder **bld_out, const struct cn *cn, struct perfc_set *pc);
 
 /* MTF_MOCK */
 void

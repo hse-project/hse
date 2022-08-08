@@ -39,12 +39,14 @@ struct kvset_split_res {
  * kvset_split() - split kblocks, vblocks and the hblock of a given kvset
  * @ks:         kvset handle
  * @split_kobj: split key object
+ * @pc:         perfc_set handle
  * @result:     split result (output)
  */
 merr_t
 kvset_split(
     struct kvset           *ks,
     const struct key_obj   *split_kobj,
+    struct perfc_set       *pc,
     struct kvset_split_res *result);
 
 #endif /* HSE_KVS_CN_KVSET_SPLIT_H */

@@ -20,20 +20,23 @@
 #include <hse_util/hlog.h>
 #include <hse_util/page.h>
 #include <hse_util/storage.h>
+#include <hse_util/perfc.h>
 
 #include "hblock_builder.h"
 #include "omf.h"
 #include "wbt_builder.h"
 #include "blk_list.h"
 #include "kvset.h"
+#include "cn_perfc.h"
 
 struct hblock_builder {
-    struct mpool *mpool;
-    const struct cn *cn;
-    struct wbb *ptree;
-    unsigned int ptree_pgc;
-    uint32_t max_size;
-    uint32_t nptombs;
+    struct mpool              *mpool;
+    const struct cn           *cn;
+    struct wbb                *ptree;
+    struct perfc_set          *pc;
+    unsigned int               ptree_pgc;
+    uint32_t                   max_size;
+    uint32_t                   nptombs;
     enum hse_mclass_policy_age agegroup;
 };
 
@@ -144,7 +147,7 @@ hbb_add_ptomb(
 }
 
 merr_t
-hbb_create(struct hblock_builder **bld_out, const struct cn *const cn)
+hbb_create(struct hblock_builder **bld_out, const struct cn *const cn, struct perfc_set *pc)
 {
     merr_t err;
     struct hblock_builder *bld;
@@ -158,6 +161,7 @@ hbb_create(struct hblock_builder **bld_out, const struct cn *const cn)
     bld->nptombs = 0;
     bld->mpool = cn_get_dataset(cn);
     bld->cn = cn;
+    bld->pc = pc;
     bld->agegroup = HSE_MPOLICY_AGE_LEAF;
 
     policy = cn_get_mclass_policy(cn);
@@ -325,6 +329,9 @@ hbb_finish(
     err = mpool_mblock_write(bld->mpool, blkid, iov, iov_idx);
     if (err)
         goto out;
+
+    perfc_inc(bld->pc, PERFC_RA_CNCOMP_WREQS);
+    perfc_add(bld->pc, PERFC_RA_CNCOMP_WBYTES, wlen);
 
     blk->bk_blkid = blkid;
 
