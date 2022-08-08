@@ -870,8 +870,6 @@ cn_open(
     uint                flags,
     struct cn **        cn_out)
 {
-    ulong       hsz, hcnt, hshift, ksz, kcnt, kshift, vsz, vcnt, vshift;
-    const char *hszsuf, *kszsuf, *vszsuf;
     merr_t      err;
     struct cn * cn;
     size_t      sz;
@@ -953,20 +951,6 @@ cn_open(
 
     cn_tree_setup(cn->cn_tree, mp, cn, rp, cndb, cnid, cn->cn_kvdb);
 
-    hsz = hcnt = hshift = 0;
-    ksz = kcnt = kshift = 0;
-    vsz = vcnt = vshift = 0;
-    hszsuf = kszsuf = vszsuf = "bkmgtp";
-
-    if (cn_kvdb) {
-        hsz = atomic_read(&cn_kvdb->cnd_hblk_size);
-        hcnt = atomic_read(&cn_kvdb->cnd_hblk_cnt);
-        ksz = atomic_read(&cn_kvdb->cnd_kblk_size);
-        kcnt = atomic_read(&cn_kvdb->cnd_kblk_cnt);
-        vsz = atomic_read(&cn_kvdb->cnd_vblk_size);
-        vcnt = atomic_read(&cn_kvdb->cnd_vblk_cnt);
-    }
-
     /* Add kvsets to nodes based on data stored in CNDB.
      */
     err = cndb_cn_ctx_init(&ctx, cn->cn_tree, cn->cn_tree->ct_root);
@@ -1027,24 +1011,6 @@ cn_open(
         }
     }
 
-    if (cn_kvdb) {
-        /* [HSE_REVISIT]: This approach is not thread-safe */
-        hsz = atomic_read(&cn_kvdb->cnd_hblk_size) - hsz;
-        hcnt = atomic_read(&cn_kvdb->cnd_hblk_cnt) - hcnt;
-        ksz = atomic_read(&cn_kvdb->cnd_kblk_size) - ksz;
-        kcnt = atomic_read(&cn_kvdb->cnd_kblk_cnt) - kcnt;
-        vsz = atomic_read(&cn_kvdb->cnd_vblk_size) - vsz;
-        vcnt = atomic_read(&cn_kvdb->cnd_vblk_cnt) - vcnt;
-
-        hshift = ilog2(hsz | 1) / 10;
-        kshift = ilog2(ksz | 1) / 10;
-        vshift = ilog2(vsz | 1) / 10;
-
-        hszsuf += hshift;
-        kszsuf += kshift;
-        vszsuf += vshift;
-    }
-
     cn_tree_samp_init(cn->cn_tree);
 
     /* Enable tree maintenance unless it's deliberately disabled
@@ -1053,6 +1019,47 @@ cn_open(
     rp->cn_maint_disable = rp->cn_maint_disable || cn->cn_replay ||
         rp->cn_diag_mode || rp->read_only;
 
+    /* Roll up node stats to get KVS stats for the open kvs log message.
+     */
+    {
+        const char *suffixes = "bkmgtp";
+        struct kvset_stats kvs_stats = { 0 };
+        struct cn_node_stats ns;
+        ulong hshift, kshift, vshift;
+        char hszsuf, kszsuf, vszsuf;
+
+        cn_tree_foreach_node(tn, cn->cn_tree) {
+            cn_node_stats_get(tn, &ns);
+            kvset_stats_add(&ns.ns_kst, &kvs_stats);
+        }
+
+        hshift = ilog2(kvs_stats.kst_halen | 1) / 10;
+        kshift = ilog2(kvs_stats.kst_kalen | 1) / 10;
+        vshift = ilog2(kvs_stats.kst_valen | 1) / 10;
+
+        hszsuf = suffixes[hshift];
+        kszsuf = suffixes[kshift];
+        vszsuf = suffixes[vshift];
+
+        log_info(
+            "opened kvs %s/%s cnid %lu pfx_len %u vcomp %u,%u"
+            " hb %lu%c/%lu kb %lu%c/%lu vb %lu%c/%lu %s%s%s%s%s%s",
+            cn->cn_kvdb_alias, cn->cn_kvsname, (ulong)cnid,
+            cn->cp->pfx_len,
+            cn->rp->value_compression, cn->rp->vcompmin,
+            (ulong)kvs_stats.kst_halen >> (hshift * 10), hszsuf, (ulong)kvs_stats.kst_hblks,
+            (ulong)kvs_stats.kst_kalen >> (kshift * 10), kszsuf, (ulong)kvs_stats.kst_kblks,
+            (ulong)kvs_stats.kst_valen >> (vshift * 10), vszsuf, (ulong)kvs_stats.kst_vblks,
+            rp->mclass_policy,
+            rp->cn_maint_disable ? " !maint" : "",
+            rp->cn_diag_mode ? " diag" : "",
+            rp->read_only ? " rdonly" : "",
+            cn_is_capped(cn) ? " capped" : "",
+            cn->cn_replay ? " replay" : "");
+    }
+
+    /* Start maintenance.
+     */
     if (!rp->cn_maint_disable) {
         cn->cn_maint_wq = cn_kvdb->cn_maint_wq;
         cn->cn_io_wq = cn_kvdb->cn_io_wq;
@@ -1078,22 +1085,6 @@ cn_open(
             csched_tree_add(cn->csched, cn->cn_tree);
         }
     }
-
-    log_info(
-        "opened kvs %s/%s cnid %lu pfx_len %u vcomp %u,%u"
-        " hb %lu%c/%lu kb %lu%c/%lu vb %lu%c/%lu %s%s%s%s%s%s",
-        cn->cn_kvdb_alias, cn->cn_kvsname, (ulong)cnid,
-        cn->cp->pfx_len,
-        cn->rp->value_compression, cn->rp->vcompmin,
-        hsz >> (hshift * 10), *hszsuf, hcnt,
-        ksz >> (kshift * 10), *kszsuf, kcnt,
-        vsz >> (vshift * 10), *vszsuf, vcnt,
-        rp->mclass_policy,
-        rp->cn_maint_disable ? " !maint" : "",
-        rp->cn_diag_mode ? " diag" : "",
-        rp->read_only ? " rdonly" : "",
-        cn_is_capped(cn) ? " capped" : "",
-        cn->cn_replay ? " replay" : "");
 
     /* successful exit */
     *cn_out = cn;

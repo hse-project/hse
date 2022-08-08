@@ -788,14 +788,6 @@ kvset_open2(
     kvset_get_ref(ks);
     ks->ks_deleted = DEL_NONE;
 
-    atomic_add(&cn_kvdb->cnd_hblk_size, ks->ks_st.kst_halen);
-    atomic_add(&cn_kvdb->cnd_kblk_size, ks->ks_st.kst_kalen);
-    atomic_add(&cn_kvdb->cnd_vblk_size, ks->ks_st.kst_valen);
-
-    atomic_inc(&cn_kvdb->cnd_hblk_cnt);
-    atomic_add(&cn_kvdb->cnd_kblk_cnt, ks->ks_st.kst_kblks);
-    atomic_add(&cn_kvdb->cnd_vblk_cnt, ks->ks_st.kst_vblks);
-
     blk_list_init(&ks->ks_purge);
 
 #define ra_willneed(_ra)    ((_ra) & 0x01u)
@@ -1027,20 +1019,7 @@ kvset_close(struct kvset *ks)
     assert(ks);
     assert(atomic_read(&ks->ks_ref) == 0);
 
-    if (ks->ks_cn_kvdb) {
-        struct cn_kvdb *cnd = ks->ks_cn_kvdb;
-
-        atomic_dec(&cnd->cnd_hblk_cnt);
-        atomic_sub(&cnd->cnd_kblk_cnt, ks->ks_st.kst_kblks);
-        atomic_sub(&cnd->cnd_vblk_cnt, ks->ks_st.kst_vblks);
-
-        atomic_sub(&cnd->cnd_hblk_size, ks->ks_st.kst_halen);
-        atomic_sub(&cnd->cnd_kblk_size, ks->ks_st.kst_kalen);
-        atomic_sub(&cnd->cnd_vblk_size, ks->ks_st.kst_valen);
-    }
-
     cleanup_hblock(ks);
-
     cleanup_kblocks(ks);
 
     if (ks->ks_deleted == DEL_LIST)
