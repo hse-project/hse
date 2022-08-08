@@ -6,153 +6,160 @@
 #ifndef HSE_KVDB_CN_METRICS_H
 #define HSE_KVDB_CN_METRICS_H
 
-#include <hse_util/inttypes.h>
-
 /**
- * struct kvset_stats - kvset statistics
- * @kst_keys: number of keys
- * @kst_kvsets: number of kvsets
- * @kst_hblks: number of hblocks
- * @kst_kblks: number of kblocks
- * @kst_vblks: number of vblocks
- * @kst_halen: sum mpr_alloc_cap for all hblocks
- * @kst_hwlen: sum mpr_write_len for all hblocks
- * @kst_kalen: sum mpr_alloc_cap for all kblocks
- * @kst_kwlen: sum mpr_write_len for all kblocks
- * @kst_valen: sum mpr_alloc_cap for all vblocks
- * @kst_vwlen: sum mpr_write_len for all vblocks
- * @kst_vulen: total referenced user data in all vblocks
+ * Kvset statistics.
  *
+ * This struct is designed to be additive so it can be used for node and tree
+ * stats as well as for kvset stats.
+ *
+ * Notes:
+ * - h/k/v alen refers to allocated length on media.
+ * - h/k/v wlen refers to written length on media.
+ * - vulen refers to vblock used length and measures the amount of data in
+ *   vblocks referenced by keys.  For a kvset, vulen equals vwlen after
+ *   kv-compaction abd decreases after k-compaction).
+ *
+ * Assertions:
+ * - ulen <= wlen
+ * - wlen <= alen
  */
 struct kvset_stats {
-    uint64_t kst_keys;
-    uint64_t kst_tombs;
-    uint64_t kst_halen;
-    uint64_t kst_hwlen;
-    uint64_t kst_kalen;
-    uint64_t kst_kwlen;
-    uint64_t kst_valen;
-    uint64_t kst_vwlen;
-    uint64_t kst_vulen;
-    uint32_t kst_kvsets;
-    uint32_t kst_hblks;
-    uint32_t kst_kblks;
-    uint32_t kst_vblks;
+    uint64_t kst_keys;      //<! number of keys
+    uint64_t kst_tombs;     //<! number of tombtones
+    uint64_t kst_halen;     //<! sum of mpr_alloc_cap for all hblocks
+    uint64_t kst_hwlen;     //<! sum of mpr_write_len for all hblocks
+    uint64_t kst_kalen;     //<! sum of mpr_alloc_cap for all kblocks
+    uint64_t kst_kwlen;     //<! sum of mpr_write_len for all kblocks
+    uint64_t kst_valen;     //<! sum of mpr_alloc_cap for all vblocks
+    uint64_t kst_vwlen;     //<! sum of mpr_write_len for all vblocks
+    uint64_t kst_vulen;     //<! total referenced data in all vblocks
+    uint32_t kst_kvsets;    //<! number of kvsets (for node-level)
+    uint32_t kst_hblks;     //<! number of hblocks
+    uint32_t kst_kblks;     //<! number of kblocks
+    uint32_t kst_vblks;     //<! number of vblocks
 };
 
 /**
- * Kvset derived stats:
- *   kvset_alen()  - sum of kblock and vblock alen
- *   kvset_wlen()  - sum of kblock and vblock wlen
- *   kvset_vulen() - sum of vblock ulen (n/a for kblocks)
+ * Sum of hblock, kblock and vblock alen
  */
-static inline u64
+static inline uint64_t
 kvset_alen(const struct kvset_stats *kst)
 {
     return kst->kst_halen + kst->kst_kalen + kst->kst_valen;
 }
 
-static inline u64
+/**
+ * Sum of hblock, kblock and vblock wlen
+ */
+static inline uint64_t
 kvset_wlen(const struct kvset_stats *kst)
 {
     return kst->kst_hwlen + kst->kst_kwlen + kst->kst_vwlen;
 }
 
-static inline u64
-kvset_vulen(const struct kvset_stats *kst)
-{
-    return kst->kst_vulen;
-}
-
 /**
- * struct cn_node_stats - node metrics used by compaction scheduler
- * @ns_hclen: estimated total hblock capacity (mpr_alloc_cap) after compaction
- * @ns_kclen: estimated total kblock capacity (mpr_alloc_cap) after compaction
- * @ns_vclen: estimated total vblock capacity (mpr_alloc_cap) after compaction
- * @ns_keys_uniq:  number of unique keys (estimated from hyperloglog)
- * @ns_pcap:      current size / max size as a percentage
- * @ns_kst:       sum of kvset_stats for all kvsets in node
+ * Node metrics used by compaction scheduler
  */
 struct cn_node_stats {
-    struct kvset_stats ns_kst;
-    u64                ns_keys_uniq;
-    u64                ns_hclen;
-    u64                ns_kclen;
-    u64                ns_vclen;
-    u16                ns_pcap;
+    struct kvset_stats ns_kst; //<! Sum of kvset stats for all kvsts in node
+    uint64_t ns_keys_uniq;     //<! number of unique keys (estimated from HyperLogLog stats)
+    uint64_t ns_hclen;         //<! estimated total hblock capacity (mpr_alloc_cap) after compaction
+    uint64_t ns_kclen;         //<! estimated total kblock capacity (mpr_alloc_cap) after compaction
+    uint64_t ns_vclen;         //<! estimated total vblock capacity (mpr_alloc_cap) after compaction
+    uint16_t ns_pcap;          //<! current size / max size as a percentage (0 <= ns_pcap <= 100)
 };
 
 /**
- * Node derived stats:
- *   cn_ns_clen()  - estimated mpool capacity used by node after kv-compaction
- *   cn_ns_alen()  - current capacity used by node (sum of kvset alen)
- *   cn_ns_wlen()  - sum of kvset wlen
- *   cn_ns_vulen() - sum of kvset vblocks ulen
- *   cn_ns_keys()  - number of keys in kvset
- *   cn_ns_kblks() - number of kblocks in node
- *   cn_ns_vblks() - number of vblocks in node
+ * Sum of "alen" for all mblocks in node.
  */
-static inline u64
+static inline uint64_t
 cn_ns_alen(const struct cn_node_stats *ns)
 {
     return kvset_alen(&ns->ns_kst);
 }
 
-static inline u64
+/**
+ * Sum of "wlen" for all mblocks in node.
+ */
+static inline uint64_t
 cn_ns_wlen(const struct cn_node_stats *ns)
 {
     return kvset_wlen(&ns->ns_kst);
 }
 
-static inline u64
-cn_ns_vulen(const struct cn_node_stats *ns)
-{
-    return kvset_vulen(&ns->ns_kst);
-}
-
-static inline u64
+/**
+ * Estimated mpool capacity used by node after kv-compaction.
+ */
+static inline uint64_t
 cn_ns_clen(const struct cn_node_stats *ns)
 {
-    /* This is different than alen, wlen, and ulen because it depends
-     * on HyperLogLog stats which are only computed at the node level.
-     */
     return ns->ns_hclen + ns->ns_kclen + ns->ns_vclen;
 }
 
-static inline u64
+/**
+ * Number of keys in node (counts duplicates).
+ */
+static inline uint64_t
 cn_ns_keys(const struct cn_node_stats *ns)
 {
     return ns->ns_kst.kst_keys;
 }
 
+/**
+ * An estimate of the number of unique keys in node.
+ *
+ * Not accurate unless HyperLogLog stats are enabled on the node (for example,
+ * on the root node).
+ */
 static inline uint64_t
 cn_ns_keys_uniq(const struct cn_node_stats *ns)
 {
     return ns->ns_keys_uniq;
 }
 
+/**
+ * Number of tombstones in node.
+ */
 static inline uint64_t
 cn_ns_tombs(const struct cn_node_stats *ns)
 {
     return ns->ns_kst.kst_tombs;
 }
 
+/**
+ * Number of hblocks in node.
+ */
 static inline uint32_t
 cn_ns_hblks(const struct cn_node_stats *ns)
 {
     return ns->ns_kst.kst_hblks;
 }
 
+/**
+ * Number of kblocks in node.
+ */
 static inline uint32_t
 cn_ns_kblks(const struct cn_node_stats *ns)
 {
     return ns->ns_kst.kst_kblks;
 }
 
+/**
+ * Number of vblocks in node.
+ */
 static inline uint32_t
 cn_ns_vblks(const struct cn_node_stats *ns)
 {
     return ns->ns_kst.kst_vblks;
+}
+
+/**
+ * Number of kvses in node.
+ */
+static inline uint32_t
+cn_ns_kvsets(const struct cn_node_stats *ns)
+{
+    return ns->ns_kst.kst_kvsets;
 }
 
 static inline uint
@@ -167,20 +174,14 @@ cn_ns_samp(const struct cn_node_stats *ns)
     return clen ? 100 * alen / clen : 100;
 }
 
-static inline u64
-cn_ns_kvsets(const struct cn_node_stats *ns)
-{
-    return ns->ns_kst.kst_kvsets;
-}
-
 struct cn_merge_stats_ops {
-    u64 op_cnt;
-    u64 op_size;
-    u64 op_time;
+    uint64_t op_cnt;
+    uint64_t op_size;
+    uint64_t op_time;
 };
 
 static inline void
-count_ops(struct cn_merge_stats_ops *op, u64 count, u64 size, u64 time)
+count_ops(struct cn_merge_stats_ops *op, uint64_t count, uint64_t size, uint64_t time)
 {
     op->op_cnt += count;
     op->op_size += size;
@@ -199,23 +200,16 @@ cn_merge_stats_ops_diff(
 }
 
 /**
- * struct cn_merge_stats - statistics related to kvset merge
- * @ms_srcs:          number of input kvsets
- * @ms_keys_in:       number of input keys
- * @ms_key_bytes_in:  total length of input keys
- * @ms_keys_out:      number of output keys
- * @ms_key_bytes_out: total length of output keys
- * @ms_val_bytes_out: total length of output values
- * @ms_wbytes:        ptr to shared atomic for "realtime" I/O stats
+ * Statistics related to kvset merge
  */
 struct cn_merge_stats {
-    u64 ms_srcs;
-    u64 ms_keys_in;
-    u64 ms_keys_out;
-    u64 ms_key_bytes_in;
-    u64 ms_key_bytes_out;
-    u64 ms_val_bytes_out;
-    u64 ms_vblk_wasted_reads;
+    uint64_t ms_srcs;           //<! number of input kvsets
+    uint64_t ms_keys_in;        //<! number of input keys
+    uint64_t ms_keys_out;       //<! number of output keys
+    uint64_t ms_key_bytes_in;   //<! total length of input keys
+    uint64_t ms_key_bytes_out;  //<! total length of output keys
+    uint64_t ms_val_bytes_out;  //<! total length of output values
+    uint64_t ms_vblk_wasted_reads;
 
     struct cn_merge_stats_ops ms_hblk_alloc;
     struct cn_merge_stats_ops ms_hblk_write;
@@ -272,29 +266,20 @@ cn_merge_stats_diff(
 }
 
 /**
- * struct cn_samp_stats - metrics used to track space amp
- * @r_alen: allocated length of root node
- * @r_wlen: written length of root node
- * @i_alen: allocated length of internal nodes
- * @l_alen: allocated length of leaf nodes
- * @l_good: estimated "alen" of leaf nodes if each one were fully compacted
+ * Metrics used to track space amp
  *
  * Notes:
- * - The root node is always considered internal -- it is never a
- *   leaf.  So a single-node tree has one internal node and no leaves.
- *   The @i_alen metric includes the root node, so it is counted twice
- *   in this struct: once in @r_alen and once in @i_alen.
  * - [HSE_REVISIT] remove r_alen and r_wlen from this struct and just
  *   track them manually in sp3.
  * - [HSE_REVISIT] remove all alen/rlen from notify ingest and just
  *   look at node stats.
  */
 struct cn_samp_stats {
-    s64 r_alen;
-    s64 r_wlen;
-    s64 i_alen;
-    s64 l_alen;
-    s64 l_good;
+    int64_t r_alen; //<! allocated length of root node
+    int64_t r_wlen; //<! written length of root node
+    int64_t i_alen; //<! allocated length of internal nodes
+    int64_t l_alen; //<! allocated length of leaf nodes
+    int64_t l_good; //<! estimated "alen" of leaf nodes if each one were fully compacted
 };
 
 static inline void
