@@ -804,14 +804,17 @@ kvset_open2(
         if (cn_tree_is_capped(ks->ks_tree)) {
             kvset_madvise_capped(ks, MADV_WILLNEED);
         } else {
-            if (ra_willneed(rp->cn_mcache_kra_params)) {
+            if (!km->km_restored) {
                 kvset_madvise_hblk(ks, MADV_WILLNEED, true);
-                kvset_madvise_kblks(ks, MADV_WILLNEED, true, true);
-            }
 
-            if (ra_willneed(rp->cn_mcache_vra_params)) {
-                kvset_madvise_vblks(ks, MADV_WILLNEED);
-                ks->ks_vra_len = 0;
+                if (ra_willneed(rp->cn_mcache_kra_params)) {
+                    kvset_madvise_kblks(ks, MADV_WILLNEED, true, true);
+                }
+
+                if (ra_willneed(rp->cn_mcache_vra_params)) {
+                    kvset_madvise_vblks(ks, MADV_WILLNEED);
+                    ks->ks_vra_len = 0;
+                }
             }
         }
     }

@@ -105,7 +105,7 @@ cn_rule2str(enum cn_rule rule)
      (5ul << (8 * SP3_QNUM_LENGTH)) |             \
      (1ul << (8 * SP3_QNUM_GARBAGE)) |            \
      (1ul << (8 * SP3_QNUM_SCATTER)) |            \
-     (1ul << (8 * SP3_QNUM_SPLIT)) |              \
+     (3ul << (8 * SP3_QNUM_SPLIT)) |              \
      (2ul << (8 * SP3_QNUM_SHARED)))
 
 /* clang-format on */
