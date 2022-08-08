@@ -12,9 +12,9 @@ struct cn;
 struct kvset;
 
 struct kvset_metrics {
-    uint32_t num_keys;
-    uint32_t num_tombstones;
-    uint32_t nptombs;
+    uint64_t num_keys;
+    uint64_t num_tombstones;
+    uint64_t nptombs;
     uint32_t num_hblocks; /* this should always be one */
     uint32_t num_kblocks;
     uint32_t num_vblocks;

@@ -60,8 +60,6 @@ struct kb_info {
     /* position of current entity */
     u64 blkid;
     u32 dgen;
-    u32 level;
-    u32 offset;
 
     uint           wbt_version;
     u32            wbt_page;
@@ -899,7 +897,7 @@ kc_kvset_check(struct mpool *ds, struct kvs_cparams *cp, struct kvset_meta *km, 
 
     kblk_cnt = kblk_list->n_blks;
 
-    print_dbg("kvset %u,%u,%u", km->km_node_level, km->km_node_offset, km->km_dgen);
+    print_dbg("kvset %lu,%u", km->km_nodeid, km->km_dgen);
 
     for (i = 0; i < kblk_cnt; i++) {
         void * kb_buf = 0;
@@ -921,8 +919,6 @@ kc_kvset_check(struct mpool *ds, struct kvs_cparams *cp, struct kvset_meta *km, 
         kb_info.blk = kb_buf;
         kb_info.is_kvset = true;
         kb_info.dgen = km->km_dgen;
-        kb_info.level = km->km_node_level;
-        kb_info.offset = km->km_node_offset;
         kb_info.cp = cp;
         kb_info.tree = tree;
 

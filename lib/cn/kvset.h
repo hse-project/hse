@@ -54,10 +54,9 @@ enum kvset_iter_flags {
  * @km_vblk_list:   reference to vector of vblock ids
  * @km_dgen:        kvset generation id
  * @km_vused:       sum of lengths of referenced values across all vblocks
- * @km_node_offset: cn tree node offset
- * @km_node_level:  cn tree node level
- * @km_compc:       compaction count (prevents repeated kvset compaction)
  * @km_nodeid:      cn tree node ID
+ * @km_compc:       compaction count (prevents repeated kvset compaction)
+ * @km_rule:        compaction rule ID that created this kvset
  * @km_capped:      cn is capped
  * @km_restored:    kvset is being restored from the cndb
  *
@@ -69,10 +68,8 @@ struct kvset_meta {
     struct blk_list km_vblk_list;
     uint64_t        km_dgen;
     uint64_t        km_vused;
-    uint32_t        km_node_offset;
-    uint16_t        km_node_level;
-    uint16_t        km_compc;
     uint64_t        km_nodeid;
+    uint16_t        km_compc;
     uint16_t        km_rule;
     bool            km_capped;
     bool            km_restored;

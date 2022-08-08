@@ -223,13 +223,31 @@ sp3_work_wtype_idle(
     *action = CN_ACTION_COMPACT_KV;
 
     kvsets = cn_ns_kvsets(&tn->tn_ns);
+    if (kvsets < 2)
+        return 0;
 
     /* Keep idle index nodes fully compacted to improve scanning
      * (e.g., mongod index nodes that rarely change after load).
      */
     if (cn_ns_vblks(&tn->tn_ns) < kvsets) {
+        const ulong keys_max = (ulong)thresh->lcomp_split_keys << 21;
+
+        /* Skip oldest kvsets with enormous key counts.
+         */
+        for (le = *mark; le; le = list_prev_entry_or_null(le, le_link, head)) {
+            const struct kvset_stats *stats = kvset_statsp(le->le_kvset);
+
+            if (stats->kst_keys < keys_max)
+                break;
+
+            kvsets--;
+        }
+
+        kvsets = (kvsets > 1) ? kvsets : 0;
         *rule = CN_RULE_IDLE_INDEX;
-        return kvsets;
+        *mark = le;
+
+        return min_t(uint, kvsets, thresh->lcomp_runlen_max);
     }
 
     /* Otherwise, compact the node if the resulting size is smaller
@@ -267,8 +285,6 @@ sp3_work_wtype_split(
 
     *action = CN_ACTION_SPLIT;
     *rule = CN_RULE_SPLIT;
-
-    ev_debug(1);
 
     return cn_ns_kvsets(&tn->tn_ns);
 }
@@ -337,11 +353,9 @@ sp3_work_wtype_scatter(
     if (runlen > 0) {
         le = list_next_entry_or_null(*mark, le_link, head);
         if (le) {
-            struct kvset_stats stats;
+            const struct kvset_stats *stats = kvset_statsp(le->le_kvset);
 
-            kvset_stats(le->le_kvset, &stats);
-
-            if (stats.kst_kwlen + stats.kst_vwlen < (256ul << 20)) {
+            if (stats->kst_kwlen + stats->kst_vwlen < (256ul << 20)) {
                 *mark = le;
                 ++runlen_max;
                 ++runlen;
@@ -361,17 +375,15 @@ sp3_work_wtype_length(
     enum cn_rule             *rule)
 {
     struct cn_tree_node *tn = spn2tn(spn);
+    ulong keys_max = (ulong)thresh->lcomp_split_keys << 21;
     uint runlen_min = thresh->llen_runlen_min;
     uint runlen_max = thresh->llen_runlen_max;
     uint kvsets;
 
     kvsets = cn_ns_kvsets(&tn->tn_ns);
 
-    /* Start from old kvsets, find first run of 'runlen_min' kvsets with
-     * the same 'compc' value, then k-compact those kvsets and up to
-     * 'runlen_max' newer.
-     */
     if (kvsets >= runlen_min) {
+        const struct kvset_stats *stats = NULL;
         struct kvset_list_entry *le;
         struct list_head *head;
         uint compc = UINT_MAX;
@@ -383,11 +395,37 @@ sp3_work_wtype_length(
         *action = CN_ACTION_COMPACT_K;
         *rule = CN_RULE_LENGTHK;
 
+        /* If the node has an unexpectedly large number of uncompacted kvsets
+         * then limit keys_max to prefer kvsets with smaller key counts and
+         * hence reduce the node length as quickly as possible.
+         */
+        if (kvsets > runlen_max * 2) {
+            ulong kmax = 0;
+            uint n = 0;
+
+            list_for_each_entry(le, head, le_link) {
+                if (kvset_get_compc(le->le_kvset) > 0)
+                    break;
+
+                stats = kvset_statsp(le->le_kvset);
+                if (stats->kst_keys > kmax)
+                    kmax = stats->kst_keys;
+                ++n;
+            }
+
+            if (n > runlen_max)
+                keys_max = kmax;
+        }
+
+        /* Start from oldest kvset, find first run of 'runlen_min' kvsets
+         * with the same 'compc' value, then k-compact those kvsets and up
+         * to 'runlen_max' newer.  Skip kvsets with enormous key counts.
+         */
         list_for_each_entry_reverse(le, head, le_link) {
             if (runlen < runlen_min) {
                 uint tmp = kvset_get_compc(le->le_kvset);
 
-                if (compc != tmp) {
+                if (compc != tmp || stats->kst_keys > keys_max) {
                     compc = tmp;
                     *mark = le;
                     runlen = 0;
@@ -395,7 +433,8 @@ sp3_work_wtype_length(
                 }
             }
 
-            vwlen += kvset_get_vwlen(le->le_kvset);
+            stats = kvset_statsp(le->le_kvset);
+            vwlen += stats->kst_vwlen;
 
             if (++runlen >= runlen_max)
                 break;
@@ -429,7 +468,7 @@ sp3_work_wtype_length(
          * this only applies to "index" nodes (i.e., nodes where the values
          * are much smaller than the keys).
          */
-        if (kvsets > runlen_min && cn_ns_vblks(&tn->tn_ns) < kvsets) {
+        if (kvsets > runlen_max && cn_ns_vblks(&tn->tn_ns) < kvsets) {
             *mark = list_last_entry(head, typeof(*le), le_link);
             *action = CN_ACTION_COMPACT_KV;
             *rule = CN_RULE_INDEXF;
@@ -445,10 +484,10 @@ sp3_work_wtype_length(
 
                 *rule = CN_RULE_INDEXP;
                 *mark = le;
-                return kvsets - 1;
+                kvsets--;
             }
 
-            return kvsets;
+            return min_t(uint, kvsets, runlen_max);
         }
     }
 

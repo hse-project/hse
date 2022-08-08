@@ -380,48 +380,6 @@ static const struct param_spec pspecs[] = {
         },
     },
     {
-        .ps_name = "cn_mcache_vminlvl",
-        .ps_description = "node depth at/above which to read vmin length values directly from media",
-        .ps_flags = PARAM_FLAG_EXPERIMENTAL,
-        .ps_type = PARAM_TYPE_U8,
-        .ps_offset = offsetof(struct kvs_rparams, cn_mcache_vminlvl),
-        .ps_size = PARAM_SZ(struct kvs_rparams, cn_mcache_vminlvl),
-        .ps_convert = param_default_converter,
-        .ps_validate = param_default_validator,
-        .ps_stringify = param_default_stringify,
-        .ps_jsonify = param_default_jsonify,
-        .ps_default_value = {
-            .as_uscalar = UINT8_MAX,
-        },
-        .ps_bounds = {
-            .as_uscalar = {
-                .ps_min = 0,
-                .ps_max = UINT8_MAX,
-            },
-        },
-    },
-    {
-        .ps_name = "cn_mcache_vmin",
-        .ps_description = "value size at/above which to read values directly from media (subject to vminlvl)",
-        .ps_flags = PARAM_FLAG_EXPERIMENTAL,
-        .ps_type = PARAM_TYPE_U32,
-        .ps_offset = offsetof(struct kvs_rparams, cn_mcache_vmin),
-        .ps_size = PARAM_SZ(struct kvs_rparams, cn_mcache_vmin),
-        .ps_convert = param_default_converter,
-        .ps_validate = param_default_validator,
-        .ps_stringify = param_default_stringify,
-        .ps_jsonify = param_default_jsonify,
-        .ps_default_value = {
-            .as_uscalar = 256,
-        },
-        .ps_bounds = {
-            .as_uscalar = {
-                .ps_min = 0,
-                .ps_max= UINT32_MAX,
-            },
-        },
-    },
-    {
         .ps_name = "cn_mcache_vmax",
         .ps_description = "value size at/above which to always read values directly from media",
         .ps_flags = PARAM_FLAG_EXPERIMENTAL | PARAM_FLAG_WRITABLE,
@@ -444,9 +402,9 @@ static const struct param_spec pspecs[] = {
     },
     {
         .ps_name = "cn_mcache_kra_params",
-        .ps_description = "kblock readahead [pct][lev1][lev0]",
+        .ps_description = "kblock readahead [willneed]",
         .ps_flags = PARAM_FLAG_EXPERIMENTAL,
-        .ps_type = PARAM_TYPE_U64,
+        .ps_type = PARAM_TYPE_U8,
         .ps_offset = offsetof(struct kvs_rparams, cn_mcache_kra_params),
         .ps_size = PARAM_SZ(struct kvs_rparams, cn_mcache_kra_params),
         .ps_convert = param_default_converter,
@@ -454,20 +412,20 @@ static const struct param_spec pspecs[] = {
         .ps_stringify = param_default_stringify,
         .ps_jsonify = param_default_jsonify,
         .ps_default_value = {
-            .as_uscalar = (50u << 16) | (4u << 8) | 4u,
+            .as_uscalar = 0,
         },
         .ps_bounds = {
             .as_uscalar = {
                 .ps_min = 0,
-                .ps_max = UINT64_MAX,
+                .ps_max = UINT8_MAX,
             },
         },
     },
     {
         .ps_name = "cn_mcache_vra_params",
-        .ps_description = "vblock readahead [pct][lev1][lev0]",
+        .ps_description = "vblock readahead [willneed]",
         .ps_flags = PARAM_FLAG_EXPERIMENTAL,
-        .ps_type = PARAM_TYPE_U64,
+        .ps_type = PARAM_TYPE_U8,
         .ps_offset = offsetof(struct kvs_rparams, cn_mcache_vra_params),
         .ps_size = PARAM_SZ(struct kvs_rparams, cn_mcache_vra_params),
         .ps_convert = param_default_converter,
@@ -475,12 +433,12 @@ static const struct param_spec pspecs[] = {
         .ps_stringify = param_default_stringify,
         .ps_jsonify = param_default_jsonify,
         .ps_default_value = {
-            .as_uscalar = (40u << 16) | (2u << 8) | 1u,
+            .as_uscalar = 0,
         },
         .ps_bounds = {
             .as_uscalar = {
                 .ps_min = 0,
-                .ps_max = UINT64_MAX,
+                .ps_max = UINT8_MAX,
             },
         },
     },
