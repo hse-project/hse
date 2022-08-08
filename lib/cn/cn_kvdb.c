@@ -23,13 +23,6 @@ cn_kvdb_create(uint cn_maint_threads, uint cn_io_threads, struct cn_kvdb **out)
     if (ev(!self))
         return merr(ENOMEM);
 
-    atomic_set(&self->cnd_hblk_cnt, 0);
-    atomic_set(&self->cnd_kblk_cnt, 0);
-    atomic_set(&self->cnd_vblk_cnt, 0);
-    atomic_set(&self->cnd_hblk_size, 0);
-    atomic_set(&self->cnd_kblk_size, 0);
-    atomic_set(&self->cnd_vblk_size, 0);
-
     self->cn_maint_wq = alloc_workqueue("hse_cn_maint", 0, 3, cn_maint_threads);
     if (ev(!self->cn_maint_wq)) {
         free(self);

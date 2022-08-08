@@ -13,22 +13,9 @@
 /* MTF_MOCK_DECL(cn_kvdb) */
 
 /**
- * struct cn_kvdb - public portion of per kvdb cN object
- * @cnd_hblk_cnt:  number of cn hblocks in kvdb
- * @cnd_kblk_cnt:  number of cn kblocks in kvdb
- * @cnd_vblk_cnt:  number of cn vblocks in kvdb
- * @cnd_kblk_size: sum of on-media sizes of all cn hblocks in kvdb (bytes)
- * @cnd_kblk_size: sum of on-media sizes of all cn kblocks in kvdb (bytes)
- * @cnd_vblk_size: sum of on-media sizes of all cn vblocks in kvdb (bytes)
+ * Public portion of per kvdb cN object
  */
 struct cn_kvdb {
-    atomic_ulong cnd_hblk_cnt;
-    atomic_ulong cnd_kblk_cnt;
-    atomic_ulong cnd_vblk_cnt;
-    atomic_ulong cnd_hblk_size;
-    atomic_ulong cnd_kblk_size;
-    atomic_ulong cnd_vblk_size;
-
     struct workqueue_struct *cn_maint_wq;
     struct workqueue_struct *cn_io_wq;
 };
