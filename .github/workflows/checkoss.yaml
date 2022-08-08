@@ -11,7 +11,7 @@ concurrency:
 permissions: {}
 
 jobs:
-  check:
+  checkoss:
     runs-on: ubuntu-latest
 
     steps:

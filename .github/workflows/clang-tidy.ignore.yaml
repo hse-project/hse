@@ -3,6 +3,9 @@ name: clang-tidy
 on:
   pull_request:
     types: [opened, synchronize, reopened]
+    branches:
+      - master
+      - "v[0-9]+.[0-9]+"
     paths-ignore:
       - "**.c"
       - "**.h"
@@ -25,4 +28,4 @@ jobs:
 
     steps:
       - run: |
-          echo "Skipping ${{ github.workflow }}/${{ github.job }}"
+          echo "Skipping ${{ github.workflow }}/${{ github.job }}/${{ matrix.buildtype }}"

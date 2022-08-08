@@ -14,10 +14,11 @@
 int
 params_from_argv(const int argc, char **argv, int *idx, size_t *paramc, char ***paramv, ...)
 {
-    assert((!paramc && !paramv) || (paramc && paramv));
-
     int     rc = 0;
     va_list params;
+
+    if ((paramc && !paramv) || (!paramc && paramv))
+        return EINVAL;
 
     if (!paramc && !paramv)
         goto non_va;

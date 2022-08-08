@@ -39,57 +39,25 @@ concurrency:
 permissions: {}
 
 jobs:
-  ubuntu:
+  normal:
     runs-on: ubuntu-latest
     strategy:
       fail-fast: false
       matrix:
-        image-tag: ["18.04", "20.04", "22.04"]
+        image:
+          - almalinux-8
+          - almalinux-9
+          - cross-s390x
+          - fedora-36
+          - ubuntu-18.04
+          - ubuntu-20.04
+          - ubuntu-22.04
         toolchain: [gcc, clang]
         buildtype: [release, debug]
 
     steps:
       - run: |
-          echo "Skipping ${{ github.workflow }}/${{ github.job }}"
-
-  fedora:
-    runs-on: ubuntu-latest
-    strategy:
-      fail-fast: false
-      matrix:
-        image-tag: [36]
-        toolchain: [gcc, clang]
-        buildtype: [release, debug]
-
-    steps:
-      - run: |
-          echo "Skipping ${{ github.workflow }}/${{ github.job }}"
-
-  almalinux:
-    runs-on: ubuntu-latest
-    strategy:
-      fail-fast: false
-      matrix:
-        image-tag: [8, 9]
-        toolchain: [gcc, clang]
-        buildtype: [release, debug]
-    if: ${{ github.event_name != 'release' }}
-
-    steps:
-      - run: |
-          echo "Skipping ${{ github.workflow }}/${{ github.job }}"
-
-  architectures:
-    runs-on: ubuntu-latest
-    strategy:
-      fail-fast: false
-      matrix:
-        buildtype: [release, debug]
-        arch: [s390x]
-
-    steps:
-      - run: |
-          echo "Skipping ${{ github.workflow }}/${{ github.job }}"
+          echo "Skipping ${{ github.workflow }}/${{ github.job }}/${{ matrix.image }}/${{ matrix.toolchain }}/${{ matrix.buildtype }}"
 
   asan-ubsan:
     runs-on: ubuntu-latest
@@ -100,4 +68,4 @@ jobs:
 
     steps:
       - run: |
-          echo "Skipping ${{ github.workflow }}/${{ github.job }}"
+          echo "Skipping ${{ github.workflow }}/${{ github.job }}/${{ matrix.buildtype }}"

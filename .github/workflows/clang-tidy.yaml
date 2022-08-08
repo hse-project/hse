@@ -3,6 +3,9 @@ name: clang-tidy
 on:
   pull_request:
     types: [opened, synchronize, reopened]
+    branches:
+      - master
+      - "v[0-9]+.[0-9]+"
     paths:
       - "**.c"
       - "**.h"
@@ -19,23 +22,13 @@ jobs:
   clang-tidy:
     runs-on: ubuntu-latest
     container:
-      image: fedora:36
+      image: ghcr.io/hse-project/ci-images/fedora-36:${{ github.base_ref }}
     strategy:
       fail-fast: false
       matrix:
         buildtype: [debug, release]
 
     steps:
-      - name: Initialize
-        run: |
-          dnf group install -y --with-optional \
-            "C Development Tools and Libraries"
-          dnf install -y git ninja-build clang libmicrohttpd-devel \
-            userspace-rcu-devel libyaml-devel libbsd-devel libcurl-devel \
-            libpmem-devel mongo-c-driver-devel libbson-devel ncurses-devel \
-            python3-pip clang-tools-extra
-          python3 -m pip install meson==0.62.2
-
       - name: Checkout HSE
         uses: actions/checkout@v3
 
@@ -43,7 +36,7 @@ jobs:
         uses: actions/cache@v3
         with:
           path: subprojects/packagecache
-          key: meson-packagecache-fedora:36-${{ hashFiles('subprojects/*.wrap') }}
+          key: meson-packagecache-fedora-36-${{ hashFiles('subprojects/*.wrap') }}
 
       - name: Setup clang toolchain
         run: |
@@ -55,6 +48,10 @@ jobs:
           meson builddir --fatal-meson-warnings --werror \
             --buildtype=${{ matrix.buildtype }} -Dtools=enabled -Dpmem=enabled \
             -Ddocs=disabled -Dbindings=none
+
+      - name: Build
+        run: |
+          ninja -C builddir
 
       - name: Run clang-tidy
         run: |
