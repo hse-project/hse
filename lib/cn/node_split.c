@@ -240,6 +240,9 @@ forward_wbt_leaf_iterator_next(struct element_source *source, void **data)
 
     assert(((struct wbt_node_hdr_omf *)(*data))->wbn_magic == WBT_LFE_NODE_MAGIC);
 
+    /* Move to next kblock if we have exhausted all the WBT leaf nodes in the
+     * current kblock.
+     */
     if (iter->offset.leaf_idx == desc->wbd_leaf_cnt - 1) {
         iter->offset.kblk_idx++;
         iter->offset.leaf_idx = 0;
@@ -278,10 +281,11 @@ forward_wbt_leaf_iterator_init(
 
     key2kobj(&inflection_kobj, inflection_key, inflection_key_len);
 
-    /* Move leaf node index forward until the first key of the leaf node is >=
-     * the inflection key.
+    /* Move leaf node index forward until the last key of the leaf node is >=
+     * the inflection key. When that point is hit, we know that the current leaf
+     * node index contains the inflection key, or a key just greater than it.
      */
-    while (iter->offset.leaf_idx++ < desc->wbd_leaf_cnt) {
+    for (; iter->offset.leaf_idx < desc->wbd_leaf_cnt; iter->offset.leaf_idx++) {
         int res;
         struct key_obj kobj;
         const struct wbt_lfe_omf *lfe;
@@ -291,7 +295,7 @@ forward_wbt_leaf_iterator_init(
             iter->offset.leaf_idx * WBT_NODE_SIZE;
         assert(node->wbn_magic == WBT_LFE_NODE_MAGIC);
 
-        lfe = wbt_lfe(node, 0);
+        lfe = wbt_lfe(node, node->wbn_num_keys - 1);
         wbt_node_pfx(node, &kobj.ko_pfx, &kobj.ko_pfx_len);
         wbt_lfe_key(node, lfe, &kobj.ko_sfx, &kobj.ko_sfx_len);
 
@@ -299,6 +303,11 @@ forward_wbt_leaf_iterator_init(
         if (res >= 0)
             break;
     }
+
+    /* We already confirmed that this kblock has a max key >= to the inflection
+     * key, so the leaf index has to be valid.
+     */
+    assert(iter->offset.leaf_idx < desc->wbd_leaf_cnt);
 }
 
 static int
