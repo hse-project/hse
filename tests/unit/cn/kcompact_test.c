@@ -244,7 +244,7 @@ MTF_DEFINE_UTEST_PRE(kcompact_test, keep, pre)
     free(vbmap.vbm_blkv);
     vgmap_free(vgmap);
     for (i = 0; i < NITER; ++i) {
-        struct mock_kv_iterator *iter = itv[i]->kvi_context;
+        struct mock_kv_iterator *iter = container_of(itv[i], typeof(*iter), kvi);
 
         kvset_put_ref((struct kvset *)iter->kvset);
         kvset_iter_release(itv[i]);
@@ -309,7 +309,7 @@ MTF_DEFINE_UTEST_PRE(kcompact_test, four_into_one, pre)
 
     free(output.vblks.blks);
     for (i = 0; i < NITER; ++i) {
-        struct mock_kv_iterator *iter = itv[i]->kvi_context;
+        struct mock_kv_iterator *iter = container_of(itv[i], typeof(*iter), kvi);
 
         kvset_put_ref((struct kvset *)iter->kvset);
         kvset_iter_release(itv[i]);
@@ -382,7 +382,7 @@ MTF_DEFINE_UTEST_PRE(kcompact_test, all_gone, pre)
 
     free(output.vblks.blks);
     for (i = 0; i < 5; ++i) {
-        struct mock_kv_iterator *iter = itv[i]->kvi_context;
+        struct mock_kv_iterator *iter = container_of(itv[i], typeof(*iter), kvi);
 
         kvset_put_ref((struct kvset *)iter->kvset);
         kvset_iter_release(itv[i]);
@@ -454,7 +454,7 @@ MTF_DEFINE_UTEST_PREPOST(kcompact_test, all_gone_mixed, mixed_pre, mixed_post)
 
     free(output.vblks.blks);
     for (i = 0; i < 5; ++i) {
-        struct mock_kv_iterator *iter = itv[i]->kvi_context;
+        struct mock_kv_iterator *iter = container_of(itv[i], typeof(*iter), kvi);
 
         kvset_put_ref((struct kvset *)iter->kvset);
         kvset_iter_release(itv[i]);
@@ -517,7 +517,7 @@ MTF_DEFINE_UTEST_PREPOST(kcompact_test, four_into_one_mixed, mixed_pre, mixed_po
 
     free(output.vblks.blks);
     for (i = 0; i < NITER; ++i) {
-        struct mock_kv_iterator *iter = itv[i]->kvi_context;
+        struct mock_kv_iterator *iter = container_of(itv[i], typeof(*iter), kvi);
 
         kvset_put_ref((struct kvset *)iter->kvset);
         kvset_iter_release(itv[i]);
@@ -587,7 +587,7 @@ run_kcompact(struct mtf_test_info *lcl_ti, int expect)
 
     free(output.vblks.blks);
     for (i = 0; i < 5; ++i) {
-        struct mock_kv_iterator *iter = itv[i]->kvi_context;
+        struct mock_kv_iterator *iter = container_of(itv[i], typeof(*iter), kvi);
 
         kvset_put_ref((struct kvset *)iter->kvset);
         kvset_iter_release(itv[i]);
@@ -619,12 +619,6 @@ MTF_DEFINE_UTEST_PRE(kcompact_test, kcompact_fail, pre)
     mapi_inject_unset(api);
 
     api = mapi_idx_kvset_builder_add_nonval;
-    mapi_inject(api, 123);
-    if (run_kcompact(lcl_ti, 123))
-        return;
-    mapi_inject_unset(api);
-
-    api = mapi_idx_kvset_iter_next_key;
     mapi_inject(api, 123);
     if (run_kcompact(lcl_ti, 123))
         return;

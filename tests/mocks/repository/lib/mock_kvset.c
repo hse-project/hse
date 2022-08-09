@@ -93,7 +93,7 @@ _make_data(struct nkv_tab *nkv)
 void *
 mock_vref_to_vdata(struct kv_iterator *kvi, uint vboff)
 {
-    struct mock_kv_iterator *iter = kvi->kvi_context;
+    struct mock_kv_iterator *iter = container_of(kvi, typeof(*iter), kvi);
     struct kvdata *          d = iter->kvset->iter_data;
 
     return &d[vboff].val;
@@ -293,7 +293,7 @@ _kvset_get_num_vblocks(struct kvset *kvset)
 }
 
 static u64
-_kvset_get_dgen(struct kvset *kvset)
+_kvset_get_dgen(const struct kvset *kvset)
 {
     struct mock_kvset *mk = (void *)kvset;
 
@@ -399,7 +399,7 @@ _kvset_put_ref(struct kvset *kvset)
 void *
 _kvset_from_iter(struct kv_iterator *kvi)
 {
-    struct mock_kv_iterator *iter = kvi->kvi_context;
+    struct mock_kv_iterator *iter = container_of(kvi, typeof(*iter), kvi);
 
     return iter->kvset;
 }
@@ -407,48 +407,18 @@ _kvset_from_iter(struct kv_iterator *kvi)
 static void
 _kvset_iter_release(struct kv_iterator *kvi)
 {
-    if (kvi) {
-        free(kvi->kvi_context);
-    }
+    if (kvi)
+        free(container_of(kvi, struct mock_kv_iterator, kvi));
 }
 
 struct kv_iterator_ops mock_kvset_ops = {
     .kvi_release = _kvset_iter_release,
 };
 
-merr_t
-_kvset_iter_create(
-    struct kvset *           kvset,
-    struct workqueue_struct *workq,
-    struct workqueue_struct *vra_wq,
-    struct perfc_set *       pc,
-    enum kvset_iter_flags    flags,
-    struct kv_iterator **    handle)
-{
-    struct mock_kv_iterator *iter;
-
-    iter = calloc(1, sizeof(*iter));
-    if (!iter)
-        return merr(ENOMEM);
-
-    memset(iter->tripwire, 0xaa, sizeof(iter->tripwire));
-    iter->kvset = (struct mock_kvset *)kvset;
-    iter->src = 0;
-    iter->nextkey = 0;
-
-    iter->kvi.kvi_ops = &mock_kvset_ops;
-    iter->kvi.kvi_context = iter;
-    iter->kvi.kvi_eof = false;
-
-    *handle = &iter->kvi;
-
-    return 0;
-}
-
 static merr_t
 _kvset_iter_next_key(struct kv_iterator *kvi, struct key_obj *kobj, struct kvset_iter_vctx *vc)
 {
-    struct mock_kv_iterator *iter = kvi->kvi_context;
+    struct mock_kv_iterator *iter = container_of(kvi, typeof(*iter), kvi);
     struct kvdata *          d = iter->kvset->iter_data;
 
     if (kvi->kvi_eof || iter->nextkey == d[0].key) {
@@ -494,6 +464,35 @@ _kvset_cursor_next(struct element_source *es, void **element)
     return true;
 }
 
+merr_t
+_kvset_iter_create(
+    struct kvset *           kvset,
+    struct workqueue_struct *workq,
+    struct workqueue_struct *vra_wq,
+    struct perfc_set *       pc,
+    enum kvset_iter_flags    flags,
+    struct kv_iterator **    handle)
+{
+    struct mock_kv_iterator *iter;
+
+    iter = calloc(1, sizeof(*iter));
+    if (!iter)
+        return merr(ENOMEM);
+
+    memset(iter->tripwire, 0xaa, sizeof(iter->tripwire));
+    iter->kvset = (struct mock_kvset *)kvset;
+    iter->src = 0;
+    iter->nextkey = 0;
+
+    iter->kvi.kvi_ops = &mock_kvset_ops;
+    iter->kvi.kvi_eof = false;
+    iter->kvi.kvi_es = es_make(_kvset_cursor_next, NULL, NULL);
+
+    *handle = &iter->kvi;
+
+    return 0;
+}
+
 static int valbuf[1 + CN_SMALL_VALUE_THRESHOLD];
 
 static merr_t
@@ -507,7 +506,7 @@ _kvset_iter_val_get(
     uint *                  vlen,
     uint *                  complen)
 {
-    struct mock_kv_iterator *iter = kvi->kvi_context;
+    struct mock_kv_iterator *iter = container_of(kvi, typeof(*iter), kvi);
     struct kvdata *          entry = iter->kvset->iter_data;
     uint                     keyindex;
     static uint              u32val;
@@ -559,7 +558,7 @@ _kvset_iter_next_vref(
     uint *                  vlen,
     uint *                  complen)
 {
-    struct mock_kv_iterator *iter = kvi->kvi_context;
+    struct mock_kv_iterator *iter = container_of(kvi, typeof(*iter), kvi);
     struct kvdata *          entry = iter->kvset->iter_data;
     uint                     keyindex;
 
@@ -612,7 +611,7 @@ _kvset_iter_set_start(struct kv_iterator *kvi, int start)
 merr_t
 _kvset_iter_seek(struct kv_iterator *kvi, const void *key, int len, bool *eof)
 {
-    struct mock_kv_iterator *iter = kvi->kvi_context;
+    struct mock_kv_iterator *iter = container_of(kvi, typeof(*iter), kvi);
     struct kvdata *          d = iter->kvset->iter_data;
     size_t                   sz = sizeof(d[0].key);
     int                      i, rc, nkeys;

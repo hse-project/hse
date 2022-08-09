@@ -1,7 +1,9 @@
 /* SPDX-License-Identifier: Apache-2.0 */
 /*
- * Copyright (C) 2015-2020 Micron Technology, Inc.  All rights reserved.
+ * Copyright (C) 2015-2022 Micron Technology, Inc.  All rights reserved.
  */
+
+#define MTF_MOCK_IMPL_kcompact
 
 #include <hse_util/platform.h>
 #include <hse_util/event_counter.h>
@@ -12,13 +14,7 @@
 #include <hse_ikvdb/tuple.h>
 #include <hse_ikvdb/kvset_builder.h>
 
-/* [HSE_REVISIT] - Why is this at the top of this file? */
-
-#define MTF_MOCK_IMPL_kcompact
 #include "kcompact.h"
-#if HSE_MOCKING
-#include "kcompact_ut_impl.i"
-#endif /* HSE_MOCKING */
 
 #include "kvset.h"
 #include "cn_metrics.h"
@@ -27,111 +23,18 @@
 #include "cn_tree_internal.h"
 #include "cn_tree_compact.h"
 
-/**
- * struct merge_item -- an item in the bin_heap
- */
-struct merge_item {
-    struct key_obj         kobj;
-    struct kvset_iter_vctx vctx;
-    uint                   src;
-};
-
 static int
-merge_item_compare(const void *a_blob, const void *b_blob)
+kv_item_compare(const void *a, const void *b)
 {
-    const struct merge_item *a = a_blob;
-    const struct merge_item *b = b_blob;
-    int                      rc;
+    const struct cn_kv_item *item_a = a;
+    const struct cn_kv_item *item_b = b;
 
-    /* Tie breaker: If keycmp() return 0, the keys are equal, in this case
-     * lower numbered merge sources contain newer data and must come out
-     * of the binheap first.
+    /* In the event the keys are equal, the bin heap implementation will return
+     * the key from the earliest element source by index. We can use this as a
+     * proxy for the newest key since the element sources are ordered from
+     * newest kvset to oldest kvset.
      */
-    rc = key_obj_cmp(&a->kobj, &b->kobj);
-    if (rc)
-        return rc;
-    if (a->src < b->src)
-        return -1;
-    if (a->src > b->src)
-        return 1;
-    return 0;
-}
-
-static merr_t
-replenish(struct bin_heap *bh, struct kv_iterator **iterv, uint src, struct cn_merge_stats *stats)
-{
-    struct kv_iterator *iter = iterv[src];
-    merr_t              err;
-    struct merge_item   item;
-
-    if (HSE_UNLIKELY(iter->kvi_eof))
-        return 0;
-
-    err = kvset_iter_next_key(iter, &item.kobj, &item.vctx);
-    if (ev(err))
-        return err;
-    if (HSE_UNLIKELY(iter->kvi_eof))
-        return 0;
-
-    item.src = src;
-
-    err = bin_heap_insert(bh, &item);
-    if (ev(err))
-        return err;
-
-    stats->ms_keys_in++;
-    stats->ms_key_bytes_in += key_obj_len(&item.kobj);
-
-    return 0;
-}
-
-static merr_t
-merge_init(
-    struct bin_heap **     bh_out,
-    struct kv_iterator **  iterv,
-    u32                    iterc,
-    struct cn_merge_stats *stats)
-{
-    u32    i;
-    merr_t err;
-
-    err = bin_heap_create(bh_out, iterc, sizeof(struct merge_item), merge_item_compare);
-    if (ev(err))
-        goto err_exit1;
-
-    stats->ms_srcs = iterc;
-
-    for (i = 0; i < iterc; i++) {
-        err = replenish(*bh_out, iterv, i, stats);
-        if (ev(err))
-            goto err_exit2;
-    }
-
-    return 0;
-
-err_exit2:
-    bin_heap_destroy(*bh_out);
-err_exit1:
-    return err;
-}
-
-/* return true if item returned, false if no more items */
-static HSE_ALWAYS_INLINE bool
-get_next_item(
-    struct bin_heap *      bh,
-    struct kv_iterator **  iterv,
-    struct merge_item *    item,
-    struct cn_merge_stats *stats,
-    merr_t *               err_out)
-{
-    bool got_item;
-
-    got_item = bin_heap_get_delete(bh, item);
-    if (got_item)
-        *err_out = replenish(bh, iterv, item->src, stats);
-    else
-        *err_out = 0;
-    return got_item;
+    return key_obj_cmp(&item_a->kobj, &item_b->kobj);
 }
 
 /**
@@ -143,9 +46,10 @@ get_next_item(
 static merr_t
 kcompact(struct cn_compaction_work *w, struct kvset_builder *bldr)
 {
-    struct bin_heap * bh;
-    struct merge_item curr;
-    merr_t            err;
+    merr_t err;
+    struct cn_kv_item *curr;
+    struct bin_heap2 *bh = NULL;
+    struct element_source **sources = NULL;
 
     enum kmd_vtype vtype;
     uint           vbidx, vboff, vlen, complen;
@@ -161,7 +65,7 @@ kcompact(struct cn_compaction_work *w, struct kvset_builder *bldr)
     u64  tprog = 0;
 
     u64 dbg_prev_seq HSE_MAYBE_UNUSED;
-    uint dbg_prev_src HSE_MAYBE_UNUSED;
+    uint dbg_prev_idx HSE_MAYBE_UNUSED;
     uint dbg_nvals_this_key HSE_MAYBE_UNUSED;
     bool dbg_dup HSE_MAYBE_UNUSED;
 
@@ -175,176 +79,209 @@ kcompact(struct cn_compaction_work *w, struct kvset_builder *bldr)
     if (w->cw_prog_interval && w->cw_progress)
         tprog = jiffies;
 
-    err = merge_init(&bh, w->cw_inputv, w->cw_kvset_cnt, &w->cw_stats);
+    err = bin_heap2_create(w->cw_kvset_cnt, kv_item_compare, &bh);
     if (ev(err))
         return err;
 
-    more = get_next_item(bh, w->cw_inputv, &curr, &w->cw_stats, &err);
-    if (!more || ev(err))
-        goto done;
-
-new_key:
-
-    if (atomic_read(w->cw_cancel_request)) {
-        err = merr(ev(ESHUTDOWN));
+    sources = malloc(w->cw_kvset_cnt * sizeof(*sources));
+    if (!sources) {
+        err = merr(ENOMEM);
         goto done;
     }
 
-    if (tprog) {
-        u64 now = jiffies;
+    for (uint i = 0; i < w->cw_kvset_cnt; i++) {
+        struct kv_iterator *iter = w->cw_inputv[i];
 
-        if (now - tprog > w->cw_prog_interval) {
-            tprog = now;
-            w->cw_progress(w);
-        }
+        sources[i] = kvset_iter_es_get(iter);
     }
 
-    emitted_val = false;
-    horizon = true;
-    emitted_seq = 0;
-    emitted_seq_pt = 0;
+    err = bin_heap2_prepare(bh, w->cw_kvset_cnt, sources);
+    if (ev(err))
+        goto done;
+    /* In the event this assert fails, at least one iterator is EOF and the idea
+     * that struct element_source::es_sort will properly index the vblock map is
+     * incorrect. Kvsets won't typically exist if they have no prefix tombstones
+     * or keys.
+     */
+    assert(bin_heap2_width(bh) == w->cw_kvset_cnt);
 
-    dbg_prev_seq = 0;
-    dbg_prev_src = 0;
-    dbg_nvals_this_key = 0;
-    dbg_dup = false;
+    w->cw_stats.ms_srcs = w->cw_kvset_cnt;
 
-get_values:
-    vdata = NULL;
+    more = bin_heap2_peek(bh, (void **)&curr);
+    while (more) {
+        uint idx = curr->src->es_sort;
+        struct kv_iterator *iter = kvset_cursor_es_h2r(curr->src);
 
-    while (horizon &&
-           kvset_iter_next_vref(
-               w->cw_inputv[curr.src], &curr.vctx, &seq, &vtype, &vbidx, &vboff,
-               &vdata, &vlen, &complen))
-    {
-        bool should_emit = false;
-
-        /* Assertion logic:
-         *   if (dbg_nvals_this_key)
-         *       assert(dbg_prev_seq > seq);
-         */
-        if (HSE_UNLIKELY(dbg_nvals_this_key && dbg_prev_seq <= seq)) {
-            assert(0);
-            seqno_errcnt++;
+        if (atomic_read(w->cw_cancel_request)) {
+            err = merr(ESHUTDOWN);
+            goto done;
         }
 
-        dbg_nvals_this_key++;
-        dbg_prev_seq = seq;
+        if (tprog) {
+            const u64 now = jiffies;
 
-        if (seq <= w->cw_horizon) {
-            horizon = false;
-            if (pt_set && seq < pt_seq)
-                continue; /* skip value */
+            if (now - tprog > w->cw_prog_interval) {
+                tprog = now;
+                w->cw_progress(w);
+            }
+        }
 
-            if (vtype == vtype_ptomb) {
-                pt_set = true;
-                pt_kobj = curr.kobj;
-                assert(key_obj_len(&curr.kobj) == w->cw_pfx_len);
-                pt_seq = seq;
+        emitted_val = false;
+        horizon = true;
+        emitted_seq = 0;
+        emitted_seq_pt = 0;
+
+        dbg_prev_seq = 0;
+        dbg_prev_idx = 0;
+        dbg_nvals_this_key = 0;
+        dbg_dup = false;
+
+    values:
+        vdata = NULL;
+        w->cw_stats.ms_keys_in++;
+        w->cw_stats.ms_key_bytes_in += key_obj_len(&curr->kobj);
+
+        while (horizon && kvset_iter_next_vref(iter, &curr->vctx, &seq, &vtype, &vbidx, &vboff,
+                &vdata, &vlen, &complen)) {
+            bool should_emit = false;
+
+            /* Assertion logic:
+             *   if (dbg_nvals_this_key)
+             *       assert(dbg_prev_seq > seq);
+             */
+            if (HSE_UNLIKELY(dbg_nvals_this_key && dbg_prev_seq <= seq)) {
+                assert(0);
+                seqno_errcnt++;
             }
 
-            if (w->cw_drop_tombs && (vtype == vtype_tomb || vtype == vtype_ptomb))
-                continue; /* skip value */
-        }
+            dbg_nvals_this_key++;
+            dbg_prev_seq = seq;
 
-        if (vtype == vtype_ptomb)
-            should_emit = !emitted_seq_pt || seq < emitted_seq_pt;
-        else
-            should_emit = !emitted_seq || seq < emitted_seq;
+            if (seq <= w->cw_horizon) {
+                horizon = false;
+                if (pt_set && seq < pt_seq)
+                    continue; /* skip value */
 
-        should_emit = should_emit || !emitted_val;
+                if (vtype == vtype_ptomb) {
+                    pt_set = true;
+                    pt_kobj = curr->kobj;
+                    assert(key_obj_len(&curr->kobj) == w->cw_pfx_len);
+                    pt_seq = seq;
+                }
 
-        /* Compare seq to emitted_seq to ensure when a key has values
-         * in two kvsets with the same sequence number, that only the
-         * value from the first kvset is emitted.
-         */
-        if (should_emit) {
-            switch (vtype) {
+                if (w->cw_drop_tombs && (vtype == vtype_tomb || vtype == vtype_ptomb))
+                    continue; /* skip value */
+            }
+
+            if (vtype == vtype_ptomb)
+                should_emit = !emitted_seq_pt || seq < emitted_seq_pt;
+            else
+                should_emit = !emitted_seq || seq < emitted_seq;
+
+            should_emit = should_emit || !emitted_val;
+
+            /* Compare seq to emitted_seq to ensure when a key has values
+             * in two kvsets with the same sequence number, that only the
+             * value from the first kvset is emitted.
+             */
+            if (should_emit) {
+                switch (vtype) {
                 case vtype_val:
                 case vtype_cval:
                     err = kvset_builder_add_vref(
-                        bldr, seq, vbidx + w->cw_vbmap.vbm_map[curr.src],
-                        vboff, vlen, complen);
+                        bldr, seq, vbidx + w->cw_vbmap.vbm_map[idx], vboff, vlen, complen);
                     break;
                 case vtype_zval:
                 case vtype_ival:
-                    err = kvset_builder_add_val(bldr, &curr.kobj, vdata, vlen, seq, 0);
+                    err = kvset_builder_add_val(bldr, &curr->kobj, vdata, vlen, seq, 0);
                     break;
                 default:
                     err = kvset_builder_add_nonval(bldr, seq, vtype);
                     break;
+                }
+                if (ev(err))
+                    goto done;
+                emitted_val = true;
+
+                if (vtype == vtype_ptomb)
+                    emitted_seq_pt = seq;
+                else
+                    emitted_seq = seq;
+
+                if (complen) {
+                    w->cw_stats.ms_val_bytes_out += complen;
+                    w->cw_vbmap.vbm_used += complen;
+                } else {
+                    w->cw_stats.ms_val_bytes_out += vlen;
+                    w->cw_vbmap.vbm_used += vlen;
+                }
+            } else {
+                /* The only time we ever land here is when the same
+                 * key appears in two input kvsets with overlapping
+                 * sequence numbers.  For example:
+                 *
+                 * Kvset #1: MEAL --> [[11,BURGERS], [10,BEER]]
+                 * Kvset #2: MEAL --> [[10,SPAM], [9,FRIES]]
+                 *
+                 * We have already emitted BURGERS and BEER, are
+                 * currently processing SPAM (which must be be
+                 * discarded), and will get FRIES on the next
+                 * iteration.
+                 *
+                 * The following assertions verify that we aren't here
+                 * for other reasons (e.g., input kvsets that violate
+                 * assumptions about sequence numbers).
+                 */
+                assert(dbg_prev_idx < idx);
+                assert(seq == emitted_seq);
+                if (seq > emitted_seq)
+                    seqno_errcnt++;
+
+                assert(vdata != HSE_CORE_TOMB_PFX);
             }
+        }
+
+        prev_kobj = curr->kobj;
+
+        dbg_dup = false;
+        dbg_nvals_this_key = 0;
+        dbg_prev_idx = idx;
+
+        /* Discard the result from pop(). This bin heap is backed by a kv
+         * iterator which has a buffer (kvi_kv) which curr points to. pop()
+         * will not give us the data the we expect because of the backing
+         * buffer, so we call it in order to force all the side effects to
+         * occur, but only grab the next value after pop() calls heapify().
+         */
+        bin_heap2_pop(bh, NULL);
+        more = bin_heap2_peek(bh, (void **)&curr);
+        if (more) {
+            iter = kvset_cursor_es_h2r(curr->src);
+            idx = curr->src->es_sort;
+
+            if (key_obj_cmp(&curr->kobj, &prev_kobj) == 0) {
+                dbg_dup = true;
+                assert(dbg_prev_idx <= idx);
+                goto values;
+            }
+
+            if (pt_set && key_obj_cmp_prefix(&pt_kobj, &curr->kobj) != 0)
+                pt_set = false;
+        }
+
+        if (emitted_val) {
+            err = kvset_builder_add_key(bldr, &prev_kobj);
             if (ev(err))
                 goto done;
-            emitted_val = true;
-
-            if (vtype == vtype_ptomb)
-                emitted_seq_pt = seq;
-            else
-                emitted_seq = seq;
-
-            w->cw_stats.ms_val_bytes_out += complen ? complen : vlen;
-            w->cw_vbmap.vbm_used += complen ? complen : vlen;
-        } else {
-            /* The only time we ever land here is when the same
-             * key appears in two input kvsets with overlapping
-             * sequence numbers.  For example:
-             *
-             * Kvset #1: MEAL --> [[11,BURGERS], [10,BEER]]
-             * Kvset #2: MEAL --> [[10,SPAM], [9,FRIES]]
-             *
-             * We have already emitted BURGERS and BEER, are
-             * currently processing SPAM (which must be be
-             * discarded), and will get FRIES on the next
-             * iteration.
-             *
-             * The following assertions verify that we aren't here
-             * for other reasons (e.g., input kvsets that violate
-             * assumptions about sequence numbers).
-             */
-            assert(dbg_prev_src < curr.src);
-            assert(seq == emitted_seq);
-            if (seq > emitted_seq)
-                seqno_errcnt++;
-
-            assert(vdata != HSE_CORE_TOMB_PFX);
+            w->cw_stats.ms_keys_out++;
+            w->cw_stats.ms_key_bytes_out += key_obj_len(&prev_kobj);
         }
     }
-
-    prev_kobj = curr.kobj;
-
-    dbg_dup = false;
-    dbg_nvals_this_key = 0;
-    dbg_prev_src = curr.src;
-
-    more = get_next_item(bh, w->cw_inputv, &curr, &w->cw_stats, &err);
-    if (ev(err))
-        goto done;
-
-    if (more) {
-        if (0 == key_obj_cmp(&curr.kobj, &prev_kobj)) {
-            dbg_dup = true;
-            assert(dbg_prev_src <= curr.src);
-            goto get_values;
-        } else if (pt_set && key_obj_cmp_prefix(&pt_kobj, &curr.kobj) != 0) {
-            pt_set = false;
-        }
-    }
-
-    if (emitted_val) {
-        err = kvset_builder_add_key(bldr, &prev_kobj);
-        if (ev(err))
-            goto done;
-        w->cw_stats.ms_keys_out++;
-        w->cw_stats.ms_key_bytes_out += key_obj_len(&prev_kobj);
-    }
-
-    if (more)
-        goto new_key;
 
 done:
     w->cw_vbmap.vbm_waste = w->cw_vbmap.vbm_tot - w->cw_vbmap.vbm_used;
-    bin_heap_destroy(bh);
+    bin_heap2_destroy(bh);
+    free(sources);
 
     if (seqno_errcnt)
         log_warn("seqno errcnt %u", seqno_errcnt);
@@ -412,3 +349,7 @@ done:
 
     return err;
 }
+
+#if HSE_MOCKING
+#include "kcompact_ut_impl.i"
+#endif /* HSE_MOCKING */

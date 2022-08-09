@@ -1752,7 +1752,7 @@ kvset_get_nodeid(const struct kvset *ks)
 }
 
 u64
-kvset_get_dgen(struct kvset *ks)
+kvset_get_dgen(const struct kvset *ks)
 {
     return ks->ks_dgen;
 }
