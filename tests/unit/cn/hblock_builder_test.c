@@ -155,7 +155,7 @@ MTF_DEFINE_UTEST_PREPOST(hblock_builder_test, add_ptomb_success, test_pre, test_
 
     /* Test no ptombs */
 
-    err = hbb_create(&bld, cn);
+    err = hbb_create(&bld, cn, NULL);
     ASSERT_EQ(0, merr_errno(err));
 
     err = hbb_finish(bld, &blk, vgmap, NULL, NULL, 0, 1, 1, 3, 0, hlog, NULL, 0);
@@ -173,7 +173,7 @@ MTF_DEFINE_UTEST_PREPOST(hblock_builder_test, add_ptomb_success, test_pre, test_
 
     /* Test one ptomb */
 
-    err = hbb_create(&bld, cn);
+    err = hbb_create(&bld, cn, NULL);
     ASSERT_EQ(0, merr_errno(err));
 
     err = add_ptomb(bld, HSE_KVS_PFX_LEN_MAX, 9, &pfx);
@@ -202,7 +202,7 @@ MTF_DEFINE_UTEST_PREPOST(hblock_builder_test, add_ptomb_success, test_pre, test_
     pfx_min = NULL;
     pfx_max = NULL;
 
-    err = hbb_create(&bld, cn);
+    err = hbb_create(&bld, cn, NULL);
     ASSERT_EQ(0, merr_errno(err));
 
     for (int i = 10; i < 200; i++) {
@@ -258,7 +258,7 @@ MTF_DEFINE_UTEST_PREPOST(hblock_builder_test, finish_null_hlog, test_pre, test_p
     struct cn *cn = (void *)-1;
     struct kvs_block blk;
 
-    err = hbb_create(&bld, cn);
+    err = hbb_create(&bld, cn, NULL);
     ASSERT_EQ(0, merr_errno(err));
 
     err = hbb_finish(bld, &blk, vgmap, NULL, NULL, 0, 1, 1, 3, 0, NULL, NULL, 0);

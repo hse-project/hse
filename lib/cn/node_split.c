@@ -527,7 +527,7 @@ cn_split(struct cn_compaction_work *w)
 
         kvset_split_res_init(w, &result, i);
 
-        err = kvset_split(ks, &split_kobj, &result);
+        err = kvset_split(ks, &split_kobj, w->cw_pc, &result);
         if (err) {
             kvset_split_res_free(ks, &result);
             return err;

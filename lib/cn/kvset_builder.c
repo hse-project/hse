@@ -45,7 +45,7 @@ kvset_builder_create(
 
     bld->seqno_min = U64_MAX;
 
-    err = hbb_create(&bld->hbb, cn);
+    err = hbb_create(&bld->hbb, cn, pc);
     if (ev(err))
         goto out;
 

@@ -7,6 +7,7 @@
 #include <hse_util/assert.h>
 #include <hse_util/keycmp.h>
 #include <hse_util/logging.h>
+#include <hse_util/perfc.h>
 
 #include <hse/limits.h>
 
@@ -28,6 +29,7 @@
 #include "wbt_reader.h"
 #include "omf.h"
 #include "cn_tree.h"
+#include "cn_perfc.h"
 #include "cn_tree_internal.h"
 
 /**
@@ -40,7 +42,7 @@ struct kvset_split_work {
 };
 
 static void
-free_work(struct kvset_split_work *work)
+free_work(struct kvset_split_work work[static 2])
 {
     for (int i = LEFT; i <= RIGHT; i++) {
         hbb_destroy(work[i].hbb);
@@ -59,7 +61,7 @@ delete_blks(struct kvset *ks, struct kvset_split_res *result)
 static void
 free_all(
     struct kvset            *ks,
-    struct kvset_split_work *work,
+    struct kvset_split_work  work[static 2],
     struct kvset_split_res  *result)
 {
     free_work(work);
@@ -69,7 +71,8 @@ free_all(
 static merr_t
 alloc_work(
     struct kvset            *ks,
-    struct kvset_split_work *work)
+    struct perfc_set        *pc,
+    struct kvset_split_work  work[static 2])
 {
     struct cn *cn = cn_tree_get_cn(ks->ks_tree);
     merr_t err;
@@ -84,7 +87,7 @@ alloc_work(
             }
         }
 
-        err = hbb_create(&work[i].hbb, cn);
+        err = hbb_create(&work[i].hbb, cn, pc);
         if (err)
             goto errout;
 
@@ -242,6 +245,12 @@ kblock_split(
 
     INVARIANT(kbd && split_key && kblks);
 
+    /* Readahead source kblock regions to improve read latency when iterating over its keys
+     * inside kblock_copy_range().
+     */
+    kbr_madvise_kmd(kbd->kd_mbd, kbd->kd_wbd, MADV_WILLNEED);
+    kbr_madvise_wbt_leaf_nodes(kbd->kd_mbd, kbd->kd_wbd, MADV_WILLNEED);
+
     err = kblock_copy_range(kbd, NULL, split_key, &kblks[LEFT], &vused[LEFT]);
     if (!err) {
         err = kblock_copy_range(kbd, split_key, NULL, &kblks[RIGHT], &vused[RIGHT]);
@@ -302,7 +311,7 @@ static merr_t
 kblocks_split(
     struct kvset            *ks,
     const struct key_obj    *split_kobj,
-    struct kvset_split_work *work,
+    struct kvset_split_work  work[static 2],
     struct kvset_split_res  *result)
 {
     struct hlog *hlog_left = work[LEFT].hlog;
@@ -471,7 +480,8 @@ static merr_t
 vblocks_split(
     struct kvset            *ks,
     const struct key_obj    *split_kobj,
-    struct kvset_split_work *work,
+    struct kvset_split_work  work[static 2],
+    struct perfc_set        *pc,
     struct kvset_split_res  *result)
 {
     struct vgmap *vgmap_src = ks->ks_vgmap;
@@ -482,9 +492,10 @@ vblocks_split(
     uint16_t vbidx_left = 0, vbidx_right = 0;
     uint32_t vgidx_left = 0, vgidx_right = 0;
     char split_key[HSE_KVS_KEY_LEN_MAX];
-    uint32_t split_klen, nvgroups = kvset_get_vgroups(ks);
+    uint32_t split_klen, nvgroups = kvset_get_vgroups(ks), perfc_rwc = 0;
     bool move_left = (blks_right->kblks.n_blks == 0);
     bool move_right = (blks_left->kblks.n_blks == 0);
+    uint64_t perfc_rwb = 0;
     merr_t err;
 
     if (move_left && move_right) {
@@ -550,6 +561,15 @@ vblocks_split(
             if (err)
                 goto errout;
 
+            perfc_rwc++;
+            if (perfc_ison(pc, PERFC_RA_CNCOMP_RBYTES) || perfc_ison(pc, PERFC_RA_CNCOMP_WBYTES)) {
+                struct mblock_props props;
+
+                err = mpool_mblock_props_get(ks->ks_mp, src_mbid, &props);
+                if (!ev(err))
+                    perfc_rwb += props.mpr_write_len;
+            }
+
             vbcnt++;
             src_split++;
         }
@@ -578,6 +598,12 @@ vblocks_split(
 
         vgmap_left->nvgroups = vgidx_left;
         vgmap_right->nvgroups = vgidx_right;
+
+        if (perfc_ison(pc, PERFC_RA_CNCOMP_RBYTES))
+            perfc_add2(pc, PERFC_RA_CNCOMP_RREQS, perfc_rwc, PERFC_RA_CNCOMP_RBYTES, perfc_rwb);
+
+        if (perfc_ison(pc, PERFC_RA_CNCOMP_WBYTES))
+            perfc_add2(pc, PERFC_RA_CNCOMP_WREQS, perfc_rwc, PERFC_RA_CNCOMP_WBYTES, perfc_rwb);
     }
 
     return 0;
@@ -597,7 +623,10 @@ errout:
  *   - hlog and vgroup map
  */
 static merr_t
-hblock_split(struct kvset *ks, struct kvset_split_work *work, struct kvset_split_res *result)
+hblock_split(
+    struct kvset           *ks,
+    struct kvset_split_work work[static 2],
+    struct kvset_split_res *result)
 {
     struct kvs_block hblk;
     struct key_obj min_pfx = { 0 }, max_pfx = { 0 };
@@ -654,6 +683,7 @@ merr_t
 kvset_split(
     struct kvset           *ks,
     const struct key_obj   *split_kobj,
+    struct perfc_set       *pc,
     struct kvset_split_res *result)
 {
     struct kvset_split_work work[2] = { 0 };
@@ -661,7 +691,7 @@ kvset_split(
 
     INVARIANT(ks && split_kobj && result);
 
-    err = alloc_work(ks, work);
+    err = alloc_work(ks, pc, work);
     if (err)
         return err;
 
@@ -669,7 +699,7 @@ kvset_split(
     if (err)
         return err;
 
-    err = vblocks_split(ks, split_kobj, work, result);
+    err = vblocks_split(ks, split_kobj, work, pc, result);
     if (err)
         return err;
 
