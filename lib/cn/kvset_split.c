@@ -249,7 +249,6 @@ kblock_split(
      * inside kblock_copy_range().
      */
     kbr_madvise_kmd(kbd->kd_mbd, kbd->kd_wbd, MADV_WILLNEED);
-    kbr_madvise_wbt_int_nodes(kbd->kd_mbd, kbd->kd_wbd, MADV_WILLNEED);
     kbr_madvise_wbt_leaf_nodes(kbd->kd_mbd, kbd->kd_wbd, MADV_WILLNEED);
 
     err = kblock_copy_range(kbd, NULL, split_key, &kblks[LEFT], &vused[LEFT]);
@@ -493,9 +492,10 @@ vblocks_split(
     uint16_t vbidx_left = 0, vbidx_right = 0;
     uint32_t vgidx_left = 0, vgidx_right = 0;
     char split_key[HSE_KVS_KEY_LEN_MAX];
-    uint32_t split_klen, nvgroups = kvset_get_vgroups(ks);
+    uint32_t split_klen, nvgroups = kvset_get_vgroups(ks), perfc_rwc = 0;
     bool move_left = (blks_right->kblks.n_blks == 0);
     bool move_right = (blks_left->kblks.n_blks == 0);
+    uint64_t perfc_rwb = 0;
     merr_t err;
 
     if (move_left && move_right) {
@@ -561,16 +561,13 @@ vblocks_split(
             if (err)
                 goto errout;
 
-            perfc_inc(pc, PERFC_RA_CNCOMP_RREQS);
-            perfc_inc(pc, PERFC_RA_CNCOMP_WREQS);
+            perfc_rwc++;
             if (perfc_ison(pc, PERFC_RA_CNCOMP_RBYTES) || perfc_ison(pc, PERFC_RA_CNCOMP_WBYTES)) {
-                struct mblock_props props = { 0 };
+                struct mblock_props props;
 
                 err = mpool_mblock_props_get(ks->ks_mp, src_mbid, &props);
-                ev(err);
-
-                perfc_add(pc, PERFC_RA_CNCOMP_RBYTES, props.mpr_write_len);
-                perfc_add(pc, PERFC_RA_CNCOMP_WBYTES, props.mpr_write_len);
+                if (!ev(err))
+                    perfc_rwb += props.mpr_write_len;
             }
 
             vbcnt++;
@@ -601,6 +598,12 @@ vblocks_split(
 
         vgmap_left->nvgroups = vgidx_left;
         vgmap_right->nvgroups = vgidx_right;
+
+        if (perfc_ison(pc, PERFC_RA_CNCOMP_RBYTES))
+            perfc_add2(pc, PERFC_RA_CNCOMP_RREQS, perfc_rwc, PERFC_RA_CNCOMP_RBYTES, perfc_rwb);
+
+        if (perfc_ison(pc, PERFC_RA_CNCOMP_WBYTES))
+            perfc_add2(pc, PERFC_RA_CNCOMP_WREQS, perfc_rwc, PERFC_RA_CNCOMP_WBYTES, perfc_rwb);
     }
 
     return 0;
