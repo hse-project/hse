@@ -24,28 +24,20 @@ concurrency:
 permissions: {}
 
 jobs:
-  check:
+  abicheck:
     runs-on: ubuntu-latest
     container:
-      image: fedora:36
+      image: ghcr.io/hse-project/ci-images/fedora-36:${{ github.base_ref }}
 
     steps:
-      - name: Initialize
-        run: |
-          dnf install -y \
-            abi-compliance-checker git ninja-build pkg-config gcc \
-            libmicrohttpd-devel userspace-rcu-devel libyaml-devel lz4-devel \
-            libbsd-devel libcurl-devel libpmem-devel
-          python3 -m pip install meson==0.62.2
-
       - uses: actions/checkout@v3
         with:
           fetch-depth: 2
 
       - name: Setup current
         run: |
-          meson builddir-current --fatal-meson-warnings -Doptimization=g \
-            -Dwerror=true -Dc_args="-g3" -Dcli=false -Dtools=disabled \
+          meson builddir-current --fatal-meson-warnings --werror \
+            -Doptimization=g -Dc_args="-g3" -Dcli=false -Dtools=disabled \
             -Dsamples=false -Ddocs=disabled -Dbindings=none -Dtests=false \
             -Dtools=disabled -Dpmem=enabled
 

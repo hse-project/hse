@@ -3,6 +3,9 @@ name: Docs
 on:
   pull_request:
     types: [opened, synchronize, reopened]
+    branches:
+      - master
+      - "v[0-9]+.[0-9]+"
     paths:
       - "docs/**"
       - "include/**/*.h"
@@ -19,19 +22,10 @@ jobs:
   docs:
     runs-on: ubuntu-latest
     container:
-      image: fedora:36
+      image: ghcr.io/hse-project/ci-images/fedora-36:${{ github.base_ref }}
 
     steps:
       - uses: actions/checkout@v3
-
-      - name: Initialize
-        run: |
-          dnf group install -y --with-optional \
-            "C Development Tools and Libraries"
-          dnf install -y python3-pip git ninja-build libmicrohttpd-devel \
-            userspace-rcu-devel libyaml-devel libbsd-devel libcurl-devel \
-            libpmem-devel doxygen
-          python3 -m pip install meson==0.62.2
 
       - name: Setup
         run: |

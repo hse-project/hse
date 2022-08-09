@@ -16,7 +16,7 @@ concurrency:
 permissions: {}
 
 jobs:
-  lint:
+  shellcheck:
     runs-on: ubuntu-latest
     container:
       image: fedora:36

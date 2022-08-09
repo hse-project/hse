@@ -22,7 +22,7 @@ concurrency:
 permissions: {}
 
 jobs:
-  check:
+  abicheck:
     runs-on: ubuntu-latest
 
     steps:

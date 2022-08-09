@@ -44,18 +44,40 @@ env:
   MESON_TESTTHREADS: 1
 
 jobs:
-  ubuntu:
+  determine-tag:
     runs-on: ubuntu-latest
+    outputs:
+      tag: ${{ steps.determine-tag.outputs.tag }}
+
+    steps:
+      - name: Determine tag
+        id: determine-tag
+        run: |
+          if [ "$GITHUB_EVENT_NAME" = "pull_request" ]; then
+            echo "::set-output name=tag::$GITHUB_BASE_REF"
+          else
+            echo "::set-output name=tag::$GITHUB_REF_NAME"
+          fi
+
+  normal:
+    runs-on: ubuntu-latest
+    needs:
+      - determine-tag
     container:
-      image: ubuntu:${{ matrix.image-tag }}
+      image: ghcr.io/hse-project/ci-images/${{ matrix.image }}:${{ needs.determine-tag.outputs.tag }}
     strategy:
       fail-fast: false
       matrix:
-        image-tag: ["18.04", "20.04", "22.04"]
+        image:
+          - almalinux-8
+          - almalinux-9
+          - cross-s390x
+          - fedora-36
+          - ubuntu-18.04
+          - ubuntu-20.04
+          - ubuntu-22.04
         toolchain: [gcc, clang]
         buildtype: [release, debug]
-    env:
-      DEBIAN_FRONTEND: noninteractive
 
     steps:
         # Let's talk about GitHub Actions for a minute, and why this has to
@@ -69,31 +91,26 @@ jobs:
         #
         # https://github.com/actions/runner/issues/662
       - name: To skip or not to skip
-        id: skip
+        id: to-skip
+        shell: sh +e {0}
         run: |
-          if [ "$GITHUB_EVENT_NAME" = "release" ] || [ "${{ matrix.image-tag }}" = "18.04" ]; then
-            echo "SKIP=false" >> "$GITHUB_ENV"
-          else
-            echo "SKIP=true" >> "$GITHUB_ENV"
+          skip="false"
+          if [ "$GITHUB_EVENT_NAME" = "pull_request" ]; then
+            echo "${{ matrix.image }}" | grep -P --quiet "(almalinux-8|almalinux-9|ubuntu-20.04|ubuntu-22.04)"
+            if [ $? -eq 0 ]; then
+              skip="true"
+            fi
           fi
 
-      - name: Initialize
-        if: ${{ env.SKIP == 'false' }}
-        run: |
-          apt-get -y update
-          apt-get -y install git build-essential python3 python3-pip \
-            ninja-build pkg-config gawk libbsd-dev libmicrohttpd-dev \
-            liburcu-dev libyaml-dev libcurl4-openssl-dev libmongoc-dev \
-            libbson-dev libssl-dev libsasl2-dev libncurses-dev maven
-          python3 -m pip install Cython
+          echo "::set-output name=skip::$skip"
 
       - name: Checkout HSE
-        if: ${{ env.SKIP == 'false' }}
+        if: ${{ steps.to-skip.outputs.skip == 'false' }}
         uses: actions/checkout@v3
 
       - name: Determine branches
         id: determine-branches
-        if: ${{ env.SKIP == 'false' }}
+        if: ${{ steps.to-skip.outputs.skip == 'false' }}
         shell: sh +e {0}
         run: |
           for p in hse-java hse-python; do
@@ -122,7 +139,7 @@ jobs:
           done
 
       - name: Checkout hse-java
-        if: ${{ env.SKIP == 'false' }}
+        if: ${{ steps.to-skip.outputs.skip == 'false' }}
         uses: actions/checkout@v3
         with:
           repository: hse-project/hse-java
@@ -130,511 +147,135 @@ jobs:
           ref: ${{ steps.determine-branches.outputs.hse-java }}
 
       - name: Checkout hse-python
-        if: ${{ env.SKIP == 'false' }}
+        if: ${{ steps.to-skip.outputs.skip == 'false' }}
         uses: actions/checkout@v3
         with:
           repository: hse-project/hse-python
           path: subprojects/hse-python
           ref: ${{ steps.determine-branches.outputs.hse-python }}
 
+      - name: Export Maven local repository
+        id: maven-local-repository
+        if: ${{ steps.to-skip.outputs.skip == 'false' }}
+        run: |
+          local_repository=$(mvn --file subprojects/hse-java/pom.xml help:evaluate -Dexpression=settings.localRepository --quiet -DforceStdout)
+          echo "::set-output name=local-repository::$local_repository"
+
+      - name: Cache Maven dependencies
+        id: maven-dependencies
+        if: ${{ steps.to-skip.outputs.skip == 'false' }}
+        uses: actions/cache@v3
+        with:
+          path: ${{ steps.maven-local-repository.outputs.local-repository }}
+          key: maven-dependencies-${{ hashFiles('subprojects/hse-java/pom.xml') }}
+
+      # Download all dependencies up front if cache wasn't hit. Will keep
+      # Maven from downloading dependencies during the test phase which could
+      # cause tests to timeout.
+      - name: Download Maven dependencies
+        if: ${{ steps.to-skip.outputs.skip == 'false' && steps.maven-dependencies.outputs.cache-hit != 'true' }}
+        run: |
+          mvn --file subprojects/hse-java/pom.xml dependency:go-offline
+
       - name: Cache Meson packagecache
-        if: ${{ env.SKIP == 'false' }}
+        id: meson-packagecache
+        if: ${{ steps.to-skip.outputs.skip == 'false' }}
         uses: actions/cache@v3
         with:
           path: subprojects/packagecache
-          key: meson-packagecache-ubuntu:${{ matrix.image-tag }}-${{ hashFiles('subprojects/*.wrap') }}
+          key: meson-packagecache-${{ hashFiles('subprojects/hse/subprojects/*.wrap') }}
 
-      - name: Setup Java
-        id: setup-java
-        if: ${{ env.SKIP == 'false' }}
-        uses: actions/setup-java@v3
-        with:
-          distribution: adopt
-          java-version: "8"
-          cache: maven
-
-      - name: Get Meson on ubuntu-18.04
-        if: ${{ env.SKIP == 'false' && matrix.image-tag == '18.04' }}
+      - name: Download Meson subprojects
+        if: ${{ steps.to-skip.outputs.skip == 'false' && !steps.meson-packagecache.outputs.cache-hit }}
         run: |
-          apt-get -y install python3.7
-          python3.7 -m pip install meson==0.62.2
+          meson subprojects download
 
-      - name: Get Meson on Ubuntu 20.04/22.04
-        if: ${{ env.SKIP == 'false' && matrix.image-tag != '18.04' }}
+      # userspace-rcu leaks warnings as errors due to static inlines. Another
+      # mitigation is adding -U_LGPL_SOURCE which moves the functions out of
+      # line. Unfortunately you can no longer embed cds_list_head in structs.
+      # This seems like the easiest solution regarding WERROR.
+      - name: Export cross arguments
+        if: ${{ steps.to-skip.outputs.skip == 'false' && startsWith(matrix.image, 'cross') }}
         run: |
-          python3 -m pip install meson==0.62.2
+          image="${{ matrix.image }}"
+          echo "CROSS_ARGS=--cross-file cross/${image##*-}.ini --cross-file cross/common.ini" >> "$GITHUB_ENV"
+          echo "WERROR=" >> "$GITHUB_ENV"
+
+      - name: Export non-cross arguments
+        if: ${{ steps.to-skip.outputs.skip == 'false' && !startsWith(matrix.image, 'cross') }}
+        run: |
+          echo "WERROR=--werror" >> "$GITHUB_ENV"
 
       # Download all dependencies up front if cache wasn't hit. Will keep
       # Maven from downloading dependencies during the test phase which could
       # cause tests to timeout.
       - name: Download Maven Dependencies
-        if: ${{ env.SKIP == 'false' && steps.setup-java.outputs.cache-hit != 'true' }}
+        if: ${{ steps.to-skip.outputs.skip == 'false' && steps.setup-java.outputs.cache-hit != 'true' }}
         run: |
           mvn --file subprojects/hse-java/pom.xml dependency:go-offline
 
       - name: Setup gcc toolchain
-        if: ${{ env.SKIP == 'false' && matrix.toolchain == 'gcc' }}
+        if: ${{ steps.to-skip.outputs.skip == 'false' && matrix.toolchain == 'gcc' }}
         run: |
           echo "CC=gcc" >> "$GITHUB_ENV"
           echo "CXX=g++" >> "$GITHUB_ENV"
-          apt-get -y install gcc g++
 
         # Fix false warnings by installing newer version in 18.04
       - name: Setup clang toolchain on Ubuntu 18.04
-        if: ${{ env.SKIP == 'false' && matrix.toolchain == 'clang' && matrix.image-tag == '18.04' }}
+        if: ${{ steps.to-skip.outputs.skip == 'false' && matrix.toolchain == 'clang' }}
         run: |
-          echo "CC=clang-10" >> "$GITHUB_ENV"
-          echo "CXX=clang++-10" >> "$GITHUB_ENV"
-          apt-get -y install clang-10
+          echo "CC=clang" >> "$GITHUB_ENV"
+          echo "CXX=clang++" >> "$GITHUB_ENV"
 
         # Ignore deprecation warnings on 20.04 due to:
         #     https://github.com/cython/cython/issues/3474
       - name: Setup clang toolchain on Ubuntu 20.04
-        if: ${{ env.SKIP == 'false' && matrix.toolchain == 'clang' && matrix.image-tag != '18.04' }}
+        if: ${{ steps.to-skip.outputs.skip == 'false' && matrix.toolchain == 'clang' && matrix.image == 'ubuntu-20.04' }}
         run: |
-          echo "CC=clang" >> "$GITHUB_ENV"
-          echo "CXX=clang++" >> "$GITHUB_ENV"
           if [ "${{ matrix.image-tag }}" = "20.04" ]; then
             echo "CFLAGS=-Wno-deprecated ${CFLAGS}" >> "$GITHUB_ENV"
           fi
-          apt-get -y install clang
 
         # Tools are disabled due to deprecated support in Meson for CMake
         # versions this old.
       - name: Setup
-        if: ${{ env.SKIP == 'false' }}
+        if: ${{ steps.to-skip.outputs.skip == 'false' }}
         run: |
-          meson builddir --fatal-meson-warnings --werror \
-            --buildtype=${{ matrix.buildtype }} -Dtools=disabled \
-            -Ddocs=disabled -Dbindings=all
-
-      - name: Build
-        if: ${{ env.SKIP == 'false' }}
-        run: |
-          ninja -C builddir
-
-      - name: Test
-        if: ${{ env.SKIP == 'false' }}
-        run: |
-          ulimit -c unlimited
-          meson test -C builddir --setup=ci --print-errorlogs --no-stdsplit
-
-      - uses: actions/upload-artifact@v3
-        if: ${{ failure() }}
-        with:
-          name: ${{ github.job }}-${{ matrix.image-tag }}-${{ matrix.toolchain }}-${{ matrix.buildtype }}
-          path: |
-            builddir/meson-logs/
-            /var/log/messages
-            /var/log/syslog
-
-  fedora:
-    runs-on: ubuntu-latest
-    container:
-      image: fedora:${{ matrix.image-tag }}
-    strategy:
-      fail-fast: false
-      matrix:
-        image-tag: [36]
-        toolchain: [gcc, clang]
-        buildtype: [release, debug]
-
-    steps:
-      - name: Initialize
-        run: |
-          dnf group install -y --with-optional \
-            "C Development Tools and Libraries"
-          dnf install -y git ninja-build python-unversioned-command \
-            libmicrohttpd-devel userspace-rcu-devel libyaml-devel libbsd-devel \
-            libcurl-devel libpmem-devel xz mongo-c-driver libbson \
-            openssl-devel cyrus-sasl-devel ncurses-devel maven python3-devel \
-            python3-Cython libxml2 libxslt
-          python3 -m pip install meson==0.62.2
-
-      - name: Checkout HSE
-        uses: actions/checkout@v3
-
-      - name: Determine branches
-        id: determine-branches
-        shell: sh +e {0}
-        run: |
-          for p in hse-java hse-python; do
-            branch=master
-            if [ "$GITHUB_EVENT_NAME" = "pull_request" ]; then
-              git ls-remote --exit-code --heads \
-                "https://github.com/hse-project/$p.git" "$GITHUB_HEAD_REF" \
-                > /dev/null
-
-              if [ $? -eq 0 ]; then
-                branch="$GITHUB_HEAD_REF"
-              fi
-            elif [ "$GITHUB_EVENT_NAME" = "release" ]; then
-              branch=$(git rev-parse --abbrev-ref HEAD)
-            else
-              git ls-remote --exit-code --heads \
-                "https://github.com/hse-project/$p.git" "$GITHUB_REF" \
-                > /dev/null
-
-              if [ $? -eq 0 ]; then
-                branch="$GITHUB_REF_NAME"
-              fi
-            fi
-
-            echo "::set-output name=$p::$branch"
-          done
-
-      - name: Checkout hse-java
-        uses: actions/checkout@v3
-        with:
-          repository: hse-project/hse-java
-          path: subprojects/hse-java
-          ref: ${{ steps.determine-branches.outputs.hse-java }}
-
-      - name: Checkout hse-python
-        uses: actions/checkout@v3
-        with:
-          repository: hse-project/hse-python
-          path: subprojects/hse-python
-          ref: ${{ steps.determine-branches.outputs.hse-python }}
-
-      - name: Cache Meson packagecache
-        uses: actions/cache@v3
-        with:
-          path: subprojects/packagecache
-          key: meson-packagecache-fedora:${{ matrix.image-tag }}-${{ hashFiles('subprojects/*.wrap') }}
-
-      - name: Setup Java
-        id: setup-java
-        uses: actions/setup-java@v3
-        with:
-          distribution: adopt
-          java-version: "17"
-          cache: maven
-
-      # Download all dependencies up front if cache wasn't hit. Will keep
-      # Maven from downloading dependencies during the test phase which could
-      # cause tests to timeout.
-      - name: Download Maven Dependencies
-        if: ${{ steps.setup-java.outputs.cache-hit != 'true' }}
-        run: |
-          mvn --file subprojects/hse-java/pom.xml dependency:go-offline
-
-      - name: Setup gcc toolchain
-        if: ${{ matrix.toolchain == 'gcc' }}
-        run: |
-          echo "CC=gcc" >> "$GITHUB_ENV"
-          echo "CXX=g++" >> "$GITHUB_ENV"
-          dnf install -y gcc gcc-c++
-
-      - name: Setup clang toolchain
-        if: ${{ matrix.toolchain == 'clang' }}
-        run: |
-          echo "CC=clang" >> "$GITHUB_ENV"
-          echo "CXX=clang++" >> "$GITHUB_ENV"
-          dnf install -y clang
-
-      - name: Setup
-        run: |
-          meson builddir --fatal-meson-warnings --werror \
-            --buildtype=${{ matrix.buildtype }} -Dtools=enabled -Dpmem=enabled \
-            -Ddocs=disabled -Dbindings=all
-
-      - name: Build
-        run: |
-          ninja -C builddir
-
-      - name: Test
-        run: |
-          ulimit -c unlimited
-          meson test -C builddir --setup=ci --print-errorlogs --no-stdsplit
-
-      - uses: actions/upload-artifact@v3
-        if: ${{ failure() }}
-        with:
-          name: ${{ github.job }}-${{ matrix.image-tag }}-${{ matrix.toolchain }}-${{ matrix.buildtype }}
-          path: |
-            builddir/meson-logs/
-            /var/log/messages
-            /var/log/syslog
-
-  almalinux:
-    runs-on: ubuntu-latest
-    container:
-      image: almalinux:${{ matrix.image-tag }}
-    strategy:
-      fail-fast: false
-      matrix:
-        image-tag: [8, 9]
-        toolchain: [gcc, clang]
-        buildtype: [release, debug]
-
-    steps:
-      - name: To skip or not to skip
-        id: skip
-        run: |
-          if [ "$GITHUB_EVENT_NAME" = "release" ]; then
-            echo "SKIP=false" >> "$GITHUB_ENV"
-          else
-            echo "SKIP=true" >> "$GITHUB_ENV"
-          fi
-
-      - name: Initialize
-        if: ${{ env.SKIP == 'false' }}
-        run: |
-          dnf install -y dnf-plugins-core epel-release
-          dnf config-manager --set-enabled powertools
-          dnf group install -y --with-optional "Development Tools"
-          dnf install -y git ninja-build libmicrohttpd-devel \
-            userspace-rcu-devel libyaml-devel libbsd-devel libcurl-devel \
-            libpmem-devel xz mongo-c-driver libbson openssl-devel \
-            cyrus-sasl-devel ncurses-devel maven python39 python39-devel \
-            libxml2 libxslt
-          python3 -m pip install meson==0.62.2 Cython
-
-      - name: Checkout HSE
-        if: ${{ env.SKIP == 'false' }}
-        uses: actions/checkout@v3
-
-      - name: Determine branches
-        id: determine-branches
-        if: ${{ env.SKIP == 'false' }}
-        shell: sh +e {0}
-        run: |
-          for p in hse-java hse-python; do
-            branch=master
-            if [ "$GITHUB_EVENT_NAME" = "pull_request" ]; then
-              git ls-remote --exit-code --heads \
-                "https://github.com/hse-project/$p.git" "$GITHUB_HEAD_REF" \
-                > /dev/null
-
-              if [ $? -eq 0 ]; then
-                branch="$GITHUB_HEAD_REF"
-              fi
-            elif [ "$GITHUB_EVENT_NAME" = "release" ]; then
-              branch=$(git rev-parse --abbrev-ref HEAD)
-            else
-              git ls-remote --exit-code --heads \
-                "https://github.com/hse-project/$p.git" "$GITHUB_REF" \
-                > /dev/null
-
-              if [ $? -eq 0 ]; then
-                branch="$GITHUB_REF_NAME"
-              fi
-            fi
-
-            echo "::set-output name=$p::$branch"
-          done
-
-      - name: Checkout hse-java
-        if: ${{ env.SKIP == 'false' }}
-        uses: actions/checkout@v3
-        with:
-          repository: hse-project/hse-java
-          path: subprojects/hse-java
-          ref: ${{ steps.determine-branches.outputs.hse-java }}
-
-      - name: Checkout hse-python
-        if: ${{ env.SKIP == 'false' }}
-        uses: actions/checkout@v3
-        with:
-          repository: hse-project/hse-python
-          path: subprojects/hse-python
-          ref: ${{ steps.determine-branches.outputs.hse-python }}
-
-      - name: Cache Meson packagecache
-        if: ${{ env.SKIP == 'false' }}
-        uses: actions/cache@v3
-        with:
-          path: subprojects/packagecache
-          key: meson-packagecache-almalinux:${{ matrix.image-tag }}-${{ hashFiles('subprojects/*.wrap') }}
-
-      - name: Setup Java
-        id: setup-java
-        if: ${{ env.SKIP == 'false' }}
-        uses: actions/setup-java@v3
-        with:
-          distribution: adopt
-          java-version: "17"
-          cache: maven
-
-      # Download all dependencies up front if cache wasn't hit. Will keep
-      # Maven from downloading dependencies during the test phase which could
-      # cause tests to timeout.
-      - name: Download Maven Dependencies
-        if: ${{ env.SKIP == 'false' && steps.setup-java.outputs.cache-hit != 'true' }}
-        run: |
-          mvn --file subprojects/hse-java/pom.xml dependency:go-offline
-
-      - name: Setup gcc toolchain
-        if: ${{ env.SKIP == 'false' && matrix.toolchain == 'gcc' }}
-        run: |
-          echo "CC=gcc" >> "$GITHUB_ENV"
-          echo "CXX=g++" >> "$GITHUB_ENV"
-          dnf install -y gcc gcc-c++
-
-      - name: Setup clang toolchain
-        if: ${{ env.SKIP == 'false' && matrix.toolchain == 'clang' }}
-        run: |
-          echo "CC=clang" >> "$GITHUB_ENV"
-          echo "CXX=clang++" >> "$GITHUB_ENV"
-          dnf install -y clang
-
-      - name: Setup
-        if: ${{ env.SKIP == 'false' }}
-        run: |
-          meson builddir --fatal-meson-warnings --werror \
-            --buildtype=${{ matrix.buildtype }} -Dtools=auto \
-            -Ddocs=disabled -Dbindings=all
-
-      - name: Build
-        if: ${{ env.SKIP == 'false' }}
-        run: |
-          ninja -C builddir
-
-      - name: Test
-        if: ${{ env.SKIP == 'false' }}
-        run: |
-          ulimit -c unlimited
-          meson test -C builddir --setup=ci --print-errorlogs --no-stdsplit
-
-      - uses: actions/upload-artifact@v3
-        if: ${{ failure() }}
-        with:
-          name: ${{ github.job }}-${{ matrix.image-tag }}-${{ matrix.toolchain }}-${{ matrix.buildtype }}
-          path: |
-            builddir/meson-logs/
-            /var/log/messages
-            /var/log/syslog
-
-  architectures:
-    runs-on: ubuntu-latest
-    container:
-      image: debian:11
-    strategy:
-      fail-fast: false
-      matrix:
-        buildtype: [release, debug]
-        arch: [s390x]
-
-    steps:
-      - name: Initialize
-        run: |
-          dpkg --add-architecture ${{ matrix.arch }}
-          apt-get -y update
-          apt-get -y install git python3 python3-pip pkg-config ninja-build \
-            cmake gawk build-essential crossbuild-essential-${{ matrix.arch }} \
-            libpython3-dev:${{ matrix.arch }} \
-            libncurses-dev:${{ matrix.arch }} maven autoconf automake make \
-            libtool
-          python3 -m pip install meson==0.62.2 Cython
-
-      - name: Checkout HSE
-        uses: actions/checkout@v3
-
-      - name: Determine branches
-        id: determine-branches
-        shell: sh +e {0}
-        run: |
-          for p in hse-java hse-python; do
-            branch=master
-            if [ "$GITHUB_EVENT_NAME" = "pull_request" ]; then
-              git ls-remote --exit-code --heads \
-                "https://github.com/hse-project/$p.git" "$GITHUB_HEAD_REF" \
-                > /dev/null
-
-              if [ $? -eq 0 ]; then
-                branch="$GITHUB_HEAD_REF"
-              fi
-            elif [ "$GITHUB_EVENT_NAME" = "release" ]; then
-              branch=$(git rev-parse --abbrev-ref HEAD)
-            else
-              git ls-remote --exit-code --heads \
-                "https://github.com/hse-project/$p.git" "$GITHUB_REF" \
-                > /dev/null
-
-              if [ $? -eq 0 ]; then
-                branch="$GITHUB_REF_NAME"
-              fi
-            fi
-
-            echo "::set-output name=$p::$branch"
-          done
-
-      - name: Checkout hse-java
-        uses: actions/checkout@v3
-        with:
-          repository: hse-project/hse-java
-          path: subprojects/hse-java
-          ref: ${{ steps.determine-branches.outputs.hse-java }}
-
-      - name: Checkout hse-python
-        uses: actions/checkout@v3
-        with:
-          repository: hse-project/hse-python
-          path: subprojects/hse-python
-          ref: ${{ steps.determine-branches.outputs.hse-python }}
-
-      - name: Cache Meson packagecache
-        uses: actions/cache@v3
-        with:
-          path: subprojects/packagecache
-          key: meson-packagecache-debian:11-${{ hashFiles('subprojects/*.wrap') }}
-
-      - name: Setup Java
-        id: setup-java
-        uses: actions/setup-java@v3
-        with:
-          distribution: adopt
-          java-version: "17"
-          cache: maven
-
-      # Download all dependencies up front if cache wasn't hit. Will keep
-      # Maven from downloading dependencies during the test phase which could
-      # cause tests to timeout.
-      - name: Download Maven Dependencies
-        if: ${{ steps.setup-java.outputs.cache-hit != 'true' }}
-        run: |
-          mvn --file subprojects/hse-java/pom.xml dependency:go-offline
-
-      - name: Setup
-        run: |
-          meson builddir --fatal-meson-warnings --cross-file \
-            cross/${{ matrix.arch }}.ini --cross-file cross/common.ini \
+          meson builddir --fatal-meson-warnings $WERROR $CROSS_ARGS \
             --buildtype=${{ matrix.buildtype }} -Dtools=enabled \
             -Ddocs=disabled -Dbindings=all
 
       - name: Build
+        if: ${{ steps.to-skip.outputs.skip == 'false' }}
         run: |
           ninja -C builddir
+
+      - name: Test
+        if: ${{ steps.to-skip.outputs.skip == 'false' && !startsWith(matrix.image, 'cross') }}
+        run: |
+          meson test -C builddir --setup=ci --print-errorlogs --no-stdsplit
 
       - uses: actions/upload-artifact@v3
         if: ${{ failure() }}
         with:
-          name: ${{ github.job }}-${{ matrix.arch }}-${{ matrix.buildtype }}
+          name: ${{ github.job }}-${{ matrix.image }}-${{ matrix.toolchain }}-${{ matrix.buildtype }}
           path: |
             builddir/meson-logs/
+            /var/log/messages
+            /var/log/syslog
 
   asan-ubsan:
     runs-on: ubuntu-latest
+    needs:
+      - determine-tag
     container:
-      image: fedora:36
+      image: ghcr.io/hse-project/ci-images/fedora-36:${{ needs.determine-tag.outputs.tag }}
     strategy:
       fail-fast: false
       matrix:
         buildtype: [release, debug]
 
     steps:
-      - name: Initialize
-        run: |
-          dnf group install -y --with-optional \
-            "C Development Tools and Libraries"
-          dnf install -y git ninja-build python3-pip libmicrohttpd-devel \
-            userspace-rcu-devel libyaml-devel libbsd-devel libcurl-devel \
-            libpmem-devel xz mongo-c-driver libbson openssl-devel \
-            cyrus-sasl-devel ncurses-devel libxml2-devel libxslt-devel \
-            libasan libubsan
-          python3 -m pip install meson==0.62.2
-
       - name: Checkout HSE
         uses: actions/checkout@v3
 
@@ -642,7 +283,7 @@ jobs:
         uses: actions/cache@v3
         with:
           path: subprojects/packagecache
-          key: meson-packagecache-fedora:36-${{ hashFiles('subprojects/*.wrap') }}
+          key: meson-packagecache-${{ hashFiles('subprojects/*.wrap') }}
 
       - name: Setup
         run: |
@@ -656,7 +297,6 @@ jobs:
 
       - name: Test
         run: |
-          ulimit -c unlimited
           meson test -C builddir --setup=ci --print-errorlogs --no-stdsplit
 
       - uses: actions/upload-artifact@v3
