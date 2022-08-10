@@ -5,17 +5,16 @@ on:
     types: [opened, synchronize, reopened]
     branches:
       - "v[0-9]+.[0-9]+"
-    paths-ignore:
-      - "**.md"
-      - ".github/ISSUE_TEMPLATE/**"
-      - ".github/workflows/**"
-      - "!.github/workflows/abicheck.yaml"
-      - .clang-format
-      - .gitattributes
-      - .github/dependabot.yaml
-      - .gitignore
-      - .shellcheckrc
-      - LICENSE
+    paths:
+      - "include/**.h"
+      - "include/**.h.in"
+      - "include/**/meson.build"
+      - "lib/**.c"
+      - "lib/**.h"
+      - "lib/**/meson.build"
+      - .github/workflows/abicheck.yaml
+      - meson_options.txt
+      - VERSION
 
 concurrency:
   group: ${{ github.workflow }}-${{ github.head_ref }}
