@@ -220,8 +220,7 @@ jobs:
           echo "CC=gcc" >> "$GITHUB_ENV"
           echo "CXX=g++" >> "$GITHUB_ENV"
 
-        # Fix false warnings by installing newer version in 18.04
-      - name: Setup clang toolchain on Ubuntu 18.04
+      - name: Setup clang toolchain
         if: ${{ steps.to-skip.outputs.skip == 'false' && matrix.toolchain == 'clang' }}
         run: |
           echo "CC=clang" >> "$GITHUB_ENV"
@@ -232,9 +231,7 @@ jobs:
       - name: Setup clang toolchain on Ubuntu 20.04
         if: ${{ steps.to-skip.outputs.skip == 'false' && matrix.toolchain == 'clang' && matrix.image == 'ubuntu-20.04' }}
         run: |
-          if [ "${{ matrix.image-tag }}" = "20.04" ]; then
-            echo "CFLAGS=-Wno-deprecated ${CFLAGS}" >> "$GITHUB_ENV"
-          fi
+          echo "CFLAGS=-Wno-deprecated ${CFLAGS}" >> "$GITHUB_ENV"
 
         # Tools are disabled due to deprecated support in Meson for CMake
         # versions this old.
