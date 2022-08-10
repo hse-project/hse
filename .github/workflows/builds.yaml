@@ -46,6 +46,7 @@ env:
 jobs:
   determine-tag:
     runs-on: ubuntu-latest
+    continue-on-error: false
     outputs:
       tag: ${{ steps.determine-tag.outputs.tag }}
 
@@ -95,11 +96,9 @@ jobs:
         shell: sh +e {0}
         run: |
           skip="false"
-          if [ "$GITHUB_EVENT_NAME" = "pull_request" ]; then
-            echo "${{ matrix.image }}" | grep -P --quiet "(almalinux-8|almalinux-9|ubuntu-20.04|ubuntu-22.04)"
-            if [ $? -eq 0 ]; then
-              skip="true"
-            fi
+          echo "${{ matrix.image }}" | grep -P --quiet "(almalinux-8|almalinux-9|ubuntu-20.04|ubuntu-22.04)"
+          if [ $? -eq 0 ] && [ "$GITHUB_EVENT_NAME" != "release" ]; then
+            skip="true"
           fi
 
           echo "::set-output name=skip::$skip"
