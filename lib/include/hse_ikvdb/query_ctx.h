@@ -1,6 +1,6 @@
 /* SPDX-License-Identifier: Apache-2.0 */
 /*
- * Copyright (C) 2015-2020 Micron Technology, Inc.  All rights reserved.
+ * Copyright (C) 2015-2020,2022 Micron Technology, Inc.  All rights reserved.
  */
 
 #ifndef HSE_KVS_QCTX_H
@@ -14,11 +14,6 @@
 
 extern pthread_key_t tomb_thread_key;
 
-enum query_type {
-    QUERY_GET = 0,
-    QUERY_PROBE_PFX,
-};
-
 /**
  * struct tomb_elem - an element in the rb tree.
  * @node: rb node
@@ -30,17 +25,13 @@ struct tomb_elem {
 };
 
 /**
- * struct query_ctx - context for queries (get, probe etc.)
- * @qtype:     type of query
+ * struct query_ctx - context for special queries (pfx probe)
  * @tomb_tree: shrub for tombstones
  * @pos:       current position in the memory region backing tomb elems
  * @ntombs:    number of tombstones encountered in current query
  * @seen:      number of unique keys seen
  */
 struct query_ctx {
-    enum query_type qtype;
-
-    /* prefix probe specific context */
     int            pos;
     uint           ntombs;
     int            seen;

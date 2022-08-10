@@ -350,10 +350,7 @@ cn_get(
     enum key_lookup_res *res,
     struct kvs_buf *     vbuf)
 {
-    struct query_ctx qctx;
-
-    qctx.qtype = QUERY_GET;
-    return cn_tree_lookup(cn->cn_tree, &cn->cn_pc_get, kt, seq, res, &qctx, 0, vbuf);
+    return cn_tree_lookup(cn->cn_tree, &cn->cn_pc_get, kt, seq, res, NULL, NULL, vbuf);
 }
 
 merr_t

@@ -77,14 +77,6 @@ cn_setname(const char *name)
     pthread_setname_np(pthread_self(), name);
 }
 
-bool
-cn_node_isleaf(const struct cn_tree_node *node);
-
-/*----------------------------------------------------------------
- * SECTION: CN_TREE Traversal Utilities
- */
-
-
 static size_t
 cn_node_size(void)
 {
@@ -772,88 +764,50 @@ cn_tree_route_get(struct cn_tree *tree, const void *key, uint keylen)
  * @kt:   key to search for
  * @seq:  view sequence number
  * @res:  (output) result (found value, found tomb, or not found)
+ * @qctx: query context (if this is a prefix probe)
  * @kbuf: (output) key if this is a prefix probe
  * @vbuf: (output) value if result @res == %FOUND_VAL or %FOUND_MULTIPLE
- *
- *
- * The following table shows the how the search descends the tree for
- * non-suffixed trees.
- *
- *   is tree     kt->kt_len vs
- *   a prefix    vs
- *   tree?       tree's pfx_len          descend by hash of:
- *   --------    -----------------       -------------------
- *     no        n/a                 ==> full key
- *     yes       kt_len <  pfx_len   ==> full key [1]
- *     yes       kt_len == pfx_len   ==> full key [2]
- *     yes       kt_len >  pfx_len   ==> prefix of key, then full key [3]
- *
- * Notes:
- *  [1]: Keys that are shorter than tree's prefix len are always
- *       stored by hash of full key.
- *
- *  [2]: Keys whose length is equal to the tree's prefix len can use
- *       the prefix hash or the full hash logic.  cn_tree_lookup() uses
- *       the full hash logic to take advantage of the pre-computed hash
- *       in @kt->kt_hash.
- *
- *  [3]: Descend by prefix until a certain depth, then switch to
- *       descend by full key (spill logic, of course, must use same
- *       logic).
- *
- * If the tree is suffixed,
- *
- *  [1]: Keys have to be at least (pfx_len + sfx_len) bytes long.
- *
- *  [2]: A full key hash is replaced with a hash over (keylen - sfx_len) bytes
- *       of the key.
  */
 merr_t
 cn_tree_lookup(
     struct cn_tree *     tree,
     struct perfc_set *   pc,
     struct kvs_ktuple *  kt,
-    u64                  seq,
+    uint64_t             seq,
     enum key_lookup_res *res,
     struct query_ctx *   qctx,
     struct kvs_buf *     kbuf,
     struct kvs_buf *     vbuf)
 {
-    struct cn_tree_node *    node;
-    struct key_disc          kdisc;
-    void *                   lock;
-    merr_t                   err;
-    uint                     pc_nkvset;
-    uint                     pc_depth;
     enum kvdb_perfc_sidx_cnget pc_cidx;
-    u64                      pc_start;
-    void *                   wbti;
-
-    __builtin_prefetch(tree);
+    struct cn_tree_node *node;
+    struct key_disc kdisc;
+    uint64_t pc_start;
+    void *lock, *wbti;
+    merr_t err;
 
     *res = NOT_FOUND;
-    err = 0;
-
-    pc_cidx = PERFC_LT_CNGET_GET_LEAF + 1;
-    pc_depth = pc_nkvset = 0;
 
     pc_start = perfc_lat_startu(pc, PERFC_LT_CNGET_GET);
-    if (pc_start > 0) {
-        if (perfc_ison(pc, PERFC_LT_CNGET_GET_ROOT))
-            pc_cidx = PERFC_LT_CNGET_GET_ROOT;
-    }
+    pc_cidx = PERFC_LT_CNGET_GET_LEAF + 1;
 
-    wbti = NULL;
-    if (qctx->qtype == QUERY_PROBE_PFX) {
+    if (qctx) {
         err = kvset_wbti_alloc(&wbti);
         if (ev(err))
             return err;
+    } else {
+        if (pc_start > 0) {
+            if (perfc_ison(pc, PERFC_LT_CNGET_GET_ROOT))
+                pc_cidx = PERFC_LT_CNGET_GET_ROOT;
+        }
+        wbti = NULL;
     }
 
     key_disc_init(kt->kt_data, kt->kt_len, &kdisc);
 
     rmlock_rlock(&tree->ct_lock, &lock);
     node = tree->ct_root;
+    err = 0;
 
     while (node) {
         struct kvset_list_entry *le;
@@ -861,48 +815,32 @@ cn_tree_lookup(
         /* Search kvsets from newest to oldest (head to tail).
          * If an error occurs or a key is found, return immediately.
          */
-        list_for_each_entry (le, &node->tn_kvset_list, le_link) {
-            struct kvset *kvset;
+        list_for_each_entry(le, &node->tn_kvset_list, le_link) {
+            struct kvset *kvset = le->le_kvset;
 
-            kvset = le->le_kvset;
-            ++pc_nkvset;
+            if (qctx) {
+                err = kvset_pfx_lookup(kvset, kt, &kdisc, seq, res, wbti, kbuf, vbuf, qctx);
+                if (err || qctx->seen > 1 || *res == FOUND_PTMB)
+                    goto done;
+            } else {
+                err = kvset_lookup(kvset, kt, &kdisc, seq, res, vbuf);
+                if (err || *res != NOT_FOUND)
+                    goto done;
 
-            switch (qctx->qtype) {
-                case QUERY_GET:
-                    err = kvset_lookup(kvset, kt, &kdisc, seq, res, vbuf);
-                    if (err || *res != NOT_FOUND) {
-                        rmlock_runlock(lock);
-
-                        if (pc_cidx < PERFC_LT_CNGET_GET_LEAF + 1)
-                            perfc_lat_record(pc, pc_cidx, pc_start);
-                        goto done;
-                    }
-                    break;
-
-                case QUERY_PROBE_PFX:
-                    err = kvset_pfx_lookup(kvset, kt, &kdisc, seq, res, wbti, kbuf, vbuf, qctx);
-                    if (err || qctx->seen > 1 || *res == FOUND_PTMB) {
-                        rmlock_runlock(lock);
-
-                        ev(err);
-                        goto done;
-                    }
-                    break;
+                pc_cidx++;
             }
         }
 
-        if (node != tree->ct_root)
+        if (cn_node_isleaf(node))
             break;
 
         node = cn_tree_node_lookup(tree, kt->kt_data, kt->kt_len);
-
-        ++pc_depth;
-        ++pc_cidx;
     }
+
+  done:
     rmlock_runlock(lock);
 
-done:
-    if (wbti) {
+    if (qctx) {
         perfc_lat_record(pc, PERFC_LT_CNGET_PROBE_PFX, pc_start);
         kvset_wbti_free(wbti);
     } else {
@@ -910,8 +848,9 @@ done:
             uint pc_cidx_lt = (*res == NOT_FOUND) ? PERFC_LT_CNGET_MISS : PERFC_LT_CNGET_GET;
 
             perfc_lat_record(pc, pc_cidx_lt, pc_start);
-            perfc_rec_sample(pc, PERFC_DI_CNGET_DEPTH, pc_depth);
-            perfc_rec_sample(pc, PERFC_DI_CNGET_NKVSET, pc_nkvset);
+
+            if (pc_cidx < PERFC_LT_CNGET_GET_LEAF + 1)
+                perfc_lat_record(pc, pc_cidx, pc_start);
         }
     }
 

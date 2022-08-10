@@ -1,6 +1,6 @@
 /* SPDX-License-Identifier: Apache-2.0 */
 /*
- * Copyright (C) 2015-2021 Micron Technology, Inc.  All rights reserved.
+ * Copyright (C) 2015-2022 Micron Technology, Inc.  All rights reserved.
  */
 
 #ifndef HSE_KVDB_PERFC_API_H
@@ -99,8 +99,6 @@ enum kvdb_perfc_sidx_cnget {
     PERFC_LT_CNGET_GET_ROOT,
     PERFC_LT_CNGET_GET_LEAF,
     PERFC_LT_CNGET_PROBE_PFX,
-    PERFC_DI_CNGET_DEPTH,
-    PERFC_DI_CNGET_NKVSET,
     PERFC_LT_CNGET_MISS,
     PERFC_EN_CNGET
 };

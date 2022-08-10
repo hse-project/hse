@@ -1,6 +1,6 @@
 /* SPDX-License-Identifier: Apache-2.0 */
 /*
- * Copyright (C) 2015-2021 Micron Technology, Inc.  All rights reserved.
+ * Copyright (C) 2015-2022 Micron Technology, Inc.  All rights reserved.
  */
 
 #include <hse_util/platform.h>
@@ -28,12 +28,10 @@ struct perfc_name cn_perfc_get[] _dt_section = {
     NE(PERFC_LT_CNGET_GET_ROOT,  3, "cN root hit latency",           "l_get_r(ns)", 13),
     NE(PERFC_LT_CNGET_GET_LEAF,  3, "cN leaf hit latency",           "l_get_l(ns)", 17),
 
-    /* LT_CNGET_GET must be active for any of MISS, DEPTH, NKVSET, and PROBE_PFX to record.
+    /* LT_CNGET_GET must be active for MISS and/or PROBE_PFX to record.
      */
     NE(PERFC_LT_CNGET_GET,       3, "cN avg hit latency",            "l_get(ns)", 7),
     NE(PERFC_LT_CNGET_MISS,      3, "cN avg miss latency",           "l_mis(ns)", 7),
-    NE(PERFC_DI_CNGET_DEPTH,     3, "Dist of cN levels examined",    "d_lvl", 7),
-    NE(PERFC_DI_CNGET_NKVSET,    3, "Dist of cN kvsets examined",    "d_kvs", 7),
     NE(PERFC_LT_CNGET_PROBE_PFX, 3, "Latency of cN pfx probe",       "l_pprobe(ns)", 7),
 };
 
@@ -145,16 +143,8 @@ cn_perfc_free(struct cn *cn)
 void
 cn_perfc_init(void)
 {
-    u64 cnget_depth_bkts[] = { 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16 };
-    u64 cnget_kvset_bkts[] = { 5, 10, 15, 20, 25, 30, 35, 40, 50, 60, 70, 80, 90, 100, 200, 300 };
     u64 cncmp_vget_bkts[PERFC_IVL_MAX];
     uint sample_pct = 7;
-
-    cn_perfc_bkts_create(&cn_perfc_get[PERFC_DI_CNGET_DEPTH], NELEM(cnget_depth_bkts),
-                         cnget_depth_bkts, sample_pct);
-
-    cn_perfc_bkts_create(&cn_perfc_get[PERFC_DI_CNGET_NKVSET], NELEM(cnget_kvset_bkts),
-                         cnget_kvset_bkts, sample_pct);
 
     cncmp_vget_bkts[0] = 1;
     for (int i = 1; i < PERFC_IVL_MAX; i++)
@@ -167,7 +157,5 @@ cn_perfc_init(void)
 void
 cn_perfc_fini(void)
 {
-    cn_perfc_bkts_destroy(&cn_perfc_get[PERFC_DI_CNGET_DEPTH]);
-    cn_perfc_bkts_destroy(&cn_perfc_get[PERFC_DI_CNGET_NKVSET]);
     cn_perfc_bkts_destroy(&cn_perfc_compact[PERFC_DI_CNCOMP_VGET]);
 }
