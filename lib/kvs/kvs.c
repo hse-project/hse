@@ -545,7 +545,6 @@ kvs_pfx_probe(
         return merr(EINVAL);
     }
 
-    qctx.qtype = QUERY_PROBE_PFX;
     qctx.pos = qctx.ntombs = qctx.seen = 0;
     qctx.tomb_tree = RB_ROOT;
 
@@ -583,7 +582,7 @@ exit:
     if (ev(err))
         return err;
 
-    perfc_rec_sample(&kvs->ikv_cd_pc, PERFC_DI_CD_TOMBSPERPROBE, qctx.ntombs);
+    perfc_dis_record(&kvs->ikv_cd_pc, PERFC_DI_CD_TOMBSPERPROBE, qctx.ntombs);
 
     switch (qctx.seen) {
         case 0:

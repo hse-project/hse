@@ -378,7 +378,7 @@ cn_spill(struct cn_compaction_work *w)
                 if (tstart > 0) {
                     u64 t = get_time_ns() - tstart;
 
-                    perfc_rec_sample(w->cw_pc, PERFC_DI_CNCOMP_VGET, t);
+                    perfc_dis_record(w->cw_pc, PERFC_DI_CNCOMP_VGET, t);
                 }
 
                 if (HSE_UNLIKELY(dbg_nvals_this_key && dbg_prev_seq <= seq)) {

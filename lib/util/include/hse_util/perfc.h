@@ -1,6 +1,6 @@
 /* SPDX-License-Identifier: Apache-2.0 */
 /*
- * Copyright (C) 2015-2021 Micron Technology, Inc.  All rights reserved.
+ * Copyright (C) 2015-2022 Micron Technology, Inc.  All rights reserved.
  */
 
 #ifndef HSE_PLATFORM_PERFC_H
@@ -625,8 +625,6 @@ perfc_dis_record_impl(struct perfc_dis *dis, u64 sample);
 void
 perfc_read(struct perfc_set *pcs, const u32 cidx, u64 *vadd, u64 *vsub);
 
-
-#define perfc_rec_sample perfc_dis_record
 
 /* [HSE_REVISIT] Add unit tests for all these predicates...
  */

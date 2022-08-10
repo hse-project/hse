@@ -332,7 +332,7 @@ c0sk_ingest_rec_perfc(struct perfc_set *perfc, u32 sidx, u64 cycles)
 
     cycles = (perfc_lat_start(perfc) - cycles) / (1000 * 1000);
 
-    perfc_rec_sample(perfc, sidx, cycles);
+    perfc_dis_record(perfc, sidx, cycles);
 }
 
 static void

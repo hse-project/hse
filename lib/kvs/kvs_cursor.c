@@ -62,7 +62,7 @@ struct perfc_name kvs_cd_perfc_op[] _dt_section = {
 
     NE(PERFC_DI_CD_READPERSEEK,     5, "Cursor reads per seek",         "d_cc_readperseek", 7),
     NE(PERFC_DI_CD_TOMBSPERPROBE,   5, "Tombs seen per pfx probe",      "d_cc_tombsperprobe", 7),
-    NE(PERFC_DI_CD_ACTIVEKVSETS_CN, 2, "kvsets in cursors view",        "d_cc_activekvsets"),
+    NE(PERFC_DI_CD_ACTIVEKVSETS_CN, 3, "kvsets in cursors view",        "d_cc_activekvsets"),
 };
 
 NE_CHECK(kvs_cd_perfc_op, PERFC_EN_CD, "cursor dist perfc ops table/enum mismatch");
@@ -617,7 +617,7 @@ ikvs_cursor_save(struct kvs_cursor_impl *cur)
     u64          tstart;
 
 #ifndef HSE_BUILD_RELEASE
-    perfc_rec_sample(cur->kci_cd_pc, PERFC_DI_CD_READPERSEEK, cur->kci_summary.util);
+    perfc_dis_record(cur->kci_cd_pc, PERFC_DI_CD_READPERSEEK, cur->kci_summary.util);
     cur->kci_summary.util = 0;
 #endif
 
@@ -902,7 +902,7 @@ kvs_cursor_update(struct hse_kvs_cursor *handle, struct kvdb_ctxn *ctxn, u64 seq
         cursor->kci_summary.seqno = seqno;
         cursor->kci_summary.updated = get_time_ns();
 
-        perfc_rec_sample(cursor->kci_cd_pc, PERFC_DI_CD_READPERSEEK, cursor->kci_summary.util);
+        perfc_dis_record(cursor->kci_cd_pc, PERFC_DI_CD_READPERSEEK, cursor->kci_summary.util);
         cursor->kci_summary.util = 0;
     }
 #endif
@@ -946,14 +946,17 @@ kvs_cursor_update(struct hse_kvs_cursor *handle, struct kvdb_ctxn *ctxn, u64 seq
     perfc_lat_record(cursor->kci_cd_pc, PERFC_LT_CD_UPDATE_CN, tstart);
 
     if (updated) {
-        u32 active = 0, total;
-
         perfc_inc(cursor->kci_cc_pc, PERFC_BA_CC_UPDATED_CN);
 
-        /* [HSE_REVISIT] mapi breaks initialization of active.
-         */
-        cn_cursor_active_kvsets(cursor->kci_cncur, &active, &total);
-        perfc_rec_sample(cursor->kci_cd_pc, PERFC_DI_CD_ACTIVEKVSETS_CN, active);
+        if (perfc_ison(cursor->kci_cd_pc, PERFC_DI_CD_ACTIVEKVSETS_CN)) {
+            uint32_t active = 0, total;
+
+            /* [HSE_REVISIT] mapi breaks initialization of active by
+             * cn_cursor_active_kvsets(), so we have to do it here.
+             */
+            cn_cursor_active_kvsets(cursor->kci_cncur, &active, &total);
+            perfc_dis_record(cursor->kci_cd_pc, PERFC_DI_CD_ACTIVEKVSETS_CN, active);
+        }
     }
 
     /* Seek will re-prepare the binheap. */
@@ -1088,13 +1091,14 @@ ikvs_cursor_seek(struct kvs_cursor_impl *cursor, const void *key, size_t klen)
 
     err = bin_heap2_prepare(cursor->kci_bh, cnt, cursor->kci_esrcv);
 
-    {
-        u32 active = 0, total;
+    if (perfc_ison(cursor->kci_cd_pc, PERFC_DI_CD_ACTIVEKVSETS_CN)) {
+        uint32_t active = 0, total;
 
-        /* [HSE_REVISIT] mapi breaks initialization of active.
+        /* [HSE_REVISIT] mapi breaks initialization of active by
+         * cn_cursor_active_kvsets(), so we have to do it here.
          */
         cn_cursor_active_kvsets(cursor->kci_cncur, &active, &total);
-        perfc_rec_sample(cursor->kci_cd_pc, PERFC_DI_CD_ACTIVEKVSETS_CN, active);
+        perfc_dis_record(cursor->kci_cd_pc, PERFC_DI_CD_ACTIVEKVSETS_CN, active);
     }
 
 out:
