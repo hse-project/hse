@@ -980,6 +980,13 @@ sp3_dirty_node_locked(struct sp3 *sp, struct cn_tree_node *tn)
                 sp3_node_insert(sp, spn, wtype_split, weight);
                 splitting = true;
             } else {
+                if (tn->tn_spillsync) {
+                    log_warn("node %lu spillsync %u pcap %u busycnt %04x",
+                             tn->tn_nodeid, tn->tn_spillsync, tn->tn_ns.ns_pcap,
+                             atomic_read_acq(&tn->tn_busycnt));
+                    abort();
+                }
+
                 sp3_node_remove(sp, spn, wtype_split);
             }
         }
