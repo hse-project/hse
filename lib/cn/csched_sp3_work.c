@@ -646,18 +646,17 @@ sp3_work(
         if (action == CN_ACTION_SPLIT) {
             struct cn_tree_node *root = tree->ct_root;
 
-            /* If the root node is busy then (atomically) increment the split/sync
-             * counters to prevent new compaction jobs from starting in both this
-             * node and the root node (does not apply to split jobs).  Once all
-             * root jobs finish a split job will be able to run with exclusive
-             * access to this node.
+            /* Atomically increment the split/sync counters to prevent new compaction
+             * jobs from starting in both this node and the root node (does not apply
+             * to split jobs).  Once all root jobs finish a split job will be able to
+             * run with exclusive access to this node.
              */
-            if (atomic_read(&root->tn_busycnt) > 0) {
-                (*wp)->cw_resched = true;
-                root->tn_spillsync++;
-                tn->tn_spillsync++;
+            (*wp)->cw_resched = true;
+            root->tn_spillsync++;
+            tn->tn_spillsync++;
+
+            if (atomic_read(&root->tn_busycnt) > 0)
                 goto locked_nowork;
-            }
 
             if (!cn_node_comp_token_get(root))
                 goto locked_nowork;
