@@ -40,21 +40,23 @@ enum sp3_qnum {
  */
 enum cn_rule {
     CN_RULE_NONE = 0u,
-    CN_RULE_INGEST,     /* normal c0 spill */
-    CN_RULE_RSPILL,     /* normal root spill */
-    CN_RULE_TSPILL,     /* tiny root spill */
-    CN_RULE_ZSPILL,     /* zero writeamp root spill */
-    CN_RULE_LENGTHK,    /* long leaf, k-compact */
-    CN_RULE_LENGTHV,    /* long tiny leaf, kv-compact */
-    CN_RULE_INDEXF,     /* short leaf, full index node compaction */
-    CN_RULE_INDEXP,     /* short leaf, partial index node compaction */
-    CN_RULE_IDLE_INDEX, /* idle leaf, index node */
-    CN_RULE_IDLE_SIZE,  /* idle leaf, tiny node */
-    CN_RULE_IDLE_TOMB,  /* idle leaf, mostly tombs */
-    CN_RULE_SCATTERF,   /* vgroup scatter remediation (full node) */
-    CN_RULE_SCATTERP,   /* vgroup scatter remediation (partial node) */
-    CN_RULE_GARBAGE,    /* leaf garbage (reducing space amp) */
-    CN_RULE_SPLIT,      /* big leaf (near split threshold) */
+    CN_RULE_INGEST,         /* normal c0 spill */
+    CN_RULE_RSPILL,         /* normal root spill */
+    CN_RULE_TSPILL,         /* tiny root spill */
+    CN_RULE_ZSPILL,         /* zero writeamp root spill */
+    CN_RULE_LENGTH_MIN,     /* length >= runlen_min, k-compact */
+    CN_RULE_LENGTH_MAX,     /* length >= runlen_max, k-compact */
+    CN_RULE_LENGTH_VWLEN,   /* length >= runlen_min, tiny wlen, kv-compact */
+    CN_RULE_LENGTH_CLEN,    /* length >= runlen_min, tiny clen, kv-compact */
+    CN_RULE_INDEXF,         /* short leaf, full index node compaction */
+    CN_RULE_INDEXP,         /* short leaf, partial index node compaction */
+    CN_RULE_IDLE_INDEX,     /* idle leaf, index node */
+    CN_RULE_IDLE_SIZE,      /* idle leaf, tiny node */
+    CN_RULE_IDLE_TOMB,      /* idle leaf, mostly tombs */
+    CN_RULE_SCATTERF,       /* vgroup scatter remediation (full node) */
+    CN_RULE_SCATTERP,       /* vgroup scatter remediation (partial node) */
+    CN_RULE_GARBAGE,        /* leaf garbage (reducing space amp) */
+    CN_RULE_SPLIT,          /* big leaf (near split threshold) */
 };
 
 static inline const char *
@@ -71,10 +73,14 @@ cn_rule2str(enum cn_rule rule)
         return "tspill";
     case CN_RULE_ZSPILL:
         return "zspill";
-    case CN_RULE_LENGTHK:
-        return "lenk";
-    case CN_RULE_LENGTHV:
-        return "lenv";
+    case CN_RULE_LENGTH_MIN:
+        return "lenmin";
+    case CN_RULE_LENGTH_MAX:
+        return "lenmax";
+    case CN_RULE_LENGTH_VWLEN:
+        return "vwlen";
+    case CN_RULE_LENGTH_CLEN:
+        return "clen";
     case CN_RULE_INDEXF:
         return "idxf";
     case CN_RULE_INDEXP:

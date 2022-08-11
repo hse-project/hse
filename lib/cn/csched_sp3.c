@@ -1370,11 +1370,17 @@ sp3_comp_thread_name(
     case CN_RULE_GARBAGE:
         r = "gb";
         break;
-    case CN_RULE_LENGTHK:
-        r = "lk";
+    case CN_RULE_LENGTH_MIN:
+        r = "ls";
         break;
-    case CN_RULE_LENGTHV:
-        r = "lv";
+    case CN_RULE_LENGTH_MAX:
+        r = "ll";
+        break;
+    case CN_RULE_LENGTH_VWLEN:
+        r = "lw";
+        break;
+    case CN_RULE_LENGTH_CLEN:
+        r = "lc";
         break;
     case CN_RULE_INDEXF:
         r = "fi";
