@@ -16,6 +16,7 @@ cn_sources = files(
     'kblock_reader.c',
     'kcompact.c',
     'keep.c',
+    'kvcompact.c',
     'kvset.c',
     'kvset_builder.c',
     'kvset_split.c',

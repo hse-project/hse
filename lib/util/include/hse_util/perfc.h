@@ -398,6 +398,7 @@ perfc_ivl_destroy(struct perfc_ivl *ivl);
 
 #define PERFC_DEC_RU(_pc, _cid) \
     perfc_dec((_pc), (_cid))
+
 #endif
 
 /* GCOV_EXCL_STOP */

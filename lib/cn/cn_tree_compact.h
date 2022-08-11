@@ -132,6 +132,7 @@ struct cn_compaction_work {
     struct kvs_rparams *     cw_rp;
     struct kvs_cparams *     cw_cp;
 
+    uint64_t                 cw_sgen;
     struct cn_tree *         cw_tree;
     struct cn_tree_node *    cw_node;
     struct kvset_list_entry *cw_mark;
@@ -146,16 +147,13 @@ struct cn_compaction_work {
     enum cn_action           cw_action;
     enum cn_rule             cw_rule;
     bool                     cw_have_token;
-    bool                     cw_rspill_conc;
-    struct list_head         cw_rspill_link;
-    atomic_int               cw_rspill_done;
     atomic_int               cw_rspill_commit_in_progress;
     u64                      cw_dgen_hi;
     u64                      cw_dgen_lo;
 
     /* For scheduler */
     struct sts_job        cw_job;
-    cn_work_callback      cw_completion;
+    cn_work_callback      cw_checkpoint;
     cn_work_callback      cw_progress;
     void *                cw_sched;
     struct list_head      cw_sched_link;
@@ -176,10 +174,7 @@ struct cn_compaction_work {
     struct cn_tree_node    **cw_output_nodev;
     struct vgmap           **cw_vgmap; /* used during k-compact and split */
     struct kvset_vblk_map    cw_vbmap; /* used only during k-compact */
-
-    struct cndb_txn      *cw_cndb_txn;
-    bool                  cw_keep_vblks;
-    void                **cw_cookie;
+    bool                     cw_keep_vblks;
 
     /* Used only for node split */
     struct {
@@ -198,6 +193,7 @@ struct cn_compaction_work {
     u64  cw_t2_prep;
     u64  cw_t3_build;
     u64  cw_t4_commit;
+    u64  cw_t5_finish;
     char cw_threadname[16];
 };
 

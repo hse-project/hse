@@ -245,6 +245,8 @@ _kvset_iter_release(struct kv_iterator *h)
     mapi_safe_free(mk);
 }
 
+atomic_int g_cancel_request;
+
 /* Prefer the mapi_inject_list method for mocking functions over the
  * MOCK_SET/MOCK_UNSET macros if the mock simply needs to return a
  * constant value.  The advantage of the mapi_inject_list approach is
@@ -275,7 +277,9 @@ struct mapi_injection inject_list[] = {
 
     /* cn */
     { mapi_idx_cn_kcompact, MAPI_RC_SCALAR, 0 },
-    { mapi_idx_cn_spill, MAPI_RC_SCALAR, 0 },
+    { mapi_idx_cn_subspill, MAPI_RC_SCALAR, 0 },
+    { mapi_idx_cn_spill_init, MAPI_RC_SCALAR, 0 },
+    { mapi_idx_cn_spill_fini, MAPI_RC_SCALAR, 0 },
     { mapi_idx_cn_mblocks_commit, MAPI_RC_SCALAR, 0 },
     { mapi_idx_cn_mblocks_destroy, MAPI_RC_SCALAR, 0 },
     { mapi_idx_cn_get_flags, MAPI_RC_SCALAR, 0 },
@@ -288,6 +292,7 @@ struct mapi_injection inject_list[] = {
     { mapi_idx_cn_mpool_dev_zone_alloc_unit_default, MAPI_RC_SCALAR, 32 << 20 },
     { mapi_idx_cn_ref_get, MAPI_RC_SCALAR, 0 },
     { mapi_idx_cn_ref_put, MAPI_RC_SCALAR, 0 },
+    { mapi_idx_cn_get_cancel, MAPI_RC_PTR, &g_cancel_request },
 
     /* csched */
     { mapi_idx_csched_notify_ingest, MAPI_RC_SCALAR, 0 },
@@ -557,6 +562,7 @@ tree_iter_callback(
 }
 
 struct kvs_cparams cp;
+uint64_t g_node_sgen = 1;
 
 static int
 test_tree_create(struct test *t)
@@ -568,7 +574,7 @@ test_tree_create(struct test *t)
 
     nodeid = 0;
 
-    err = cn_tree_create(&t->tree, NULL, 0, &cp, &mock_health, rp);
+    err = cn_tree_create(&t->tree, "test_kvs", 0, &cp, &mock_health, rp);
     ASSERT_TRUE_RET(err == 0, -1);
     ASSERT_TRUE_RET(t->tree != 0, -1);
 
@@ -583,6 +589,7 @@ test_tree_create(struct test *t)
             tn = cn_node_alloc(t->tree, nodeid);
             ASSERT_NE_RET(0, tn, -1);
 
+            tn->tn_sgen = g_node_sgen;
             list_add_tail(&tn->tn_link, &t->tree->ct_nodes);
 
             if (t->p.verbose)
@@ -689,7 +696,6 @@ cn_comp_work_init(
 
     w->cw_tree = t->tree;
     w->cw_node = tn;
-    w->cw_cndb_txn = (void *)-1;
 
     /* walk from tail (oldest), skip kvsets that are busy */
     for (le = list_last_entry(head, typeof(*le), le_link); &le->le_link != head;
@@ -713,8 +719,9 @@ cn_comp_work_init(
     }
 
     cn_node_stats_get(tn, &w->cw_ns);
-    w->cw_completion = cn_comp_work_completion;
+    w->cw_checkpoint = cn_comp_work_completion;
 
+    w->cw_sgen = g_node_sgen + 1;
     w->cw_action = action;
     w->cw_have_token = use_token;
     if (w->cw_have_token)
@@ -756,6 +763,7 @@ MTF_DEFINE_UTEST_PRE(test, t_cn_comp, test_setup)
 
             ASSERT_TRUE(tn != NULL);
 
+            atomic_init(&tn->tn_sgen, g_node_sgen);
             cn_comp_work_init(&t, tn, &w, action, action != CN_ACTION_SPILL);
 
             /* [HSE_REVISIT] We used to call cn_comp_cancel_cb()
@@ -763,7 +771,7 @@ MTF_DEFINE_UTEST_PRE(test, t_cn_comp, test_setup)
              * exists.  Presumably this test is still useful
              * to test teardown while a job is in flight?
              */
-            cn_comp_slice_cb(&w.cw_job);
+            cn_compact(&w);
 
             test_tree_destroy(&t);
         }

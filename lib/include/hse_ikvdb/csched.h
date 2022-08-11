@@ -15,12 +15,14 @@
 struct csched;
 struct kvdb_rparams;
 struct cn_tree;
+struct cn_tree_node;
 struct throttle_sensor;
 struct cn_samp_stats;
 struct mpool;
 struct hse_kvdb_compact_status;
 struct kvdb_health;
 struct cn_tree_node;
+struct cn_compaction_work;
 
 /* clang-format off */
 

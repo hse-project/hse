@@ -777,20 +777,13 @@ sp3_work(
     w->cw_debug = debug;
 
     w->cw_have_token = have_token;
-    w->cw_rspill_conc = !have_token && (action == CN_ACTION_SPILL);
-
     w->cw_pc = cn_get_perfc(tree->cn, w->cw_action);
 
     w->cw_t0_enqueue = get_time_ns();
 
-    INIT_LIST_HEAD(&w->cw_rspill_link);
-
-    if (w->cw_rspill_conc) {
-        /* ensure concurrent root spills complete in order */
-        mutex_lock(&tree->ct_rspills_lock);
-        list_add_tail(&w->cw_rspill_link, &tree->ct_rspills_list);
-        mutex_unlock(&tree->ct_rspills_lock);
-    }
+    /* Ensure concurrent root spills complete in order */
+    if (w->cw_action == CN_ACTION_SPILL)
+        w->cw_sgen = ++w->cw_tree->ct_sgen;
 
     sp3_work_estimate(w);
 
