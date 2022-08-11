@@ -3,17 +3,15 @@ name: ABI
 on:
   pull_request:
     types: [opened, synchronize, reopened]
-    paths:
-      - "**.md"
-      - ".github/ISSUE_TEMPLATE/**"
-      - ".github/workflows/**"
-      - "!.github/workflows/abicheck.yaml"
-      - .clang-format
-      - .gitattributes
-      - .github/dependabot.yaml
-      - .gitignore
-      - .shellcheckrc
-      - LICENSE
+    paths-ignore:
+      - "include/**.h"
+      - "include/**.h.in"
+      - "lib/**.c"
+      - "lib/**.h"
+      - "**/meson.build"
+      - .github/workflows/abicheck.yaml
+      - meson_options.txt
+      - VERSION
 
 concurrency:
   group: ${{ github.workflow }}-ignore-${{ github.head_ref }}
