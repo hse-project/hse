@@ -393,13 +393,13 @@ sp3_work_wtype_length(
         head = &tn->tn_kvset_list;
         *mark = list_last_entry(head, typeof(*le), le_link);
         *action = CN_ACTION_COMPACT_K;
-        *rule = CN_RULE_LENGTHK;
+        *rule = CN_RULE_LENGTH_MIN;
 
         /* If the node has an unexpectedly large number of uncompacted kvsets
          * then limit keys_max to prefer kvsets with smaller key counts and
          * hence reduce the node length as quickly as possible.
          */
-        if (kvsets > runlen_max * 2) {
+        if (kvsets > runlen_max) {
             ulong kmax = 0;
             uint n = 0;
 
@@ -413,8 +413,10 @@ sp3_work_wtype_length(
                 ++n;
             }
 
-            if (n > runlen_max)
+            if (n > runlen_max) {
+                *rule = CN_RULE_LENGTH_MAX;
                 keys_max = kmax;
+            }
         }
 
         /* Start from oldest kvset, find first run of 'runlen_min' kvsets
@@ -448,7 +450,7 @@ sp3_work_wtype_length(
         if (runlen >= runlen_min) {
             if (vwlen < VBLOCK_MAX_SIZE) {
                 *action = CN_ACTION_COMPACT_KV;
-                *rule = CN_RULE_LENGTHV;
+                *rule = CN_RULE_LENGTH_VWLEN;
             }
 
             return runlen;
@@ -460,7 +462,7 @@ sp3_work_wtype_length(
         if (cn_ns_clen(&tn->tn_ns) < VBLOCK_MAX_SIZE) {
             *mark = list_last_entry(head, typeof(*le), le_link);
             *action = CN_ACTION_COMPACT_KV;
-            *rule = CN_RULE_LENGTHV;
+            *rule = CN_RULE_LENGTH_CLEN;
             return kvsets;
         }
 
