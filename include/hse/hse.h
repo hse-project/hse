@@ -653,7 +653,7 @@ hse_kvs_param_get(
  * segmented keys.
  *
  * This interface is used to delete an entire range of segmented keys. To do
- * this the caller passes a filter with a length equal to the KVSs key prefix
+ * this the caller passes a filter with a length equal to the KVS's key prefix
  * length. It is not an error if no keys exist matching the filter. If there is
  * a filtered iteration in progress, then that iteration can fail if
  * hse_kvs_prefix_delete() is called with a filter matching the iteration.
@@ -674,10 +674,9 @@ hse_kvs_param_get(
  * @param flags: Flags for operation specialization.
  * @param txn: Transaction context (optional).
  * @param pfx: Prefix of keys to delete.
- * @param pfx_len: Length of @p pfx.
+ * @param pfx_len: Length of @p pfx, must equal KVS prefix length.
  *
  * @remark @p kvs must not be NULL.
- * @remark @p pfx_len must be less than or equal to HSE_KVS_PFX_LEN_MAX.
  *
  * @returns Error status.
  */
