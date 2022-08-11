@@ -145,7 +145,7 @@ MTF_DEFINE_UTEST_PREPOST(hblock_builder_test, add_ptomb_success, test_pre, test_
     struct iovec iov[1];
     struct kvs_block blk;
     const void *pfx, *pfx_min, *pfx_max;
-    size_t pfx_min_len, pfx_max_len;
+    size_t pfx_min_len = 0, pfx_max_len = 0;
 
     char *buf = alloc_page_aligned(HBLOCK_HDR_PAGES * PAGE_SIZE);
     hdr = (struct hblock_hdr_omf *)buf;

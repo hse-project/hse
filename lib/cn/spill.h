@@ -9,7 +9,10 @@
 #include <error/merr.h>
 #include <hse_util/inttypes.h>
 
+#include "route.h"
+
 struct cn_compaction_work;
+struct spill_ctx;
 
 /* MTF_MOCK_DECL(spill) */
 
@@ -40,7 +43,20 @@ struct cn_compaction_work;
  */
 /* MTF_MOCK */
 merr_t
-cn_spill(struct cn_compaction_work *w);
+cn_spill(
+    struct cn_compaction_work *w,
+    struct spill_ctx          *ctx,
+    uint64_t                   node_dgen,
+    void                      *ekey,
+    uint                      eklen,
+    bool                      *added);
+
+
+merr_t
+cn_spill_init(struct cn_compaction_work *w, struct spill_ctx **ctx);
+
+void
+cn_spill_fini(struct spill_ctx *ctx);
 
 #if HSE_MOCKING
 #include "spill_ut.h"

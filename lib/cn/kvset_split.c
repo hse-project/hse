@@ -304,7 +304,7 @@ kblocks_split(
     bool overlap = false;
     uint32_t split_idx;
     uint8_t *hlog;
-    merr_t err;
+    merr_t err = 0;
 
     split_idx = get_kblk_split_index(ks, split_kobj, &overlap);
     assert(split_idx <= ks->ks_st.kst_kblks);

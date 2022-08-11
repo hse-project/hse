@@ -15,6 +15,7 @@
 struct csched;
 struct kvdb_rparams;
 struct cn_tree;
+struct cn_tree_node;
 struct throttle_sensor;
 struct cn_samp_stats;
 struct mpool;
@@ -160,6 +161,10 @@ csched_compact_request(struct csched *handle, int flags);
 /* MTF_MOCK */
 void
 csched_compact_status_get(struct csched *handle, struct hse_kvdb_compact_status *status);
+
+/* MTF_MOCK */
+void
+csched_node_dirty(struct csched *handle, struct cn_tree_node *node);
 
 #if HSE_MOCKING
 #include "csched_ut.h"

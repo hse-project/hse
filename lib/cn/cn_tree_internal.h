@@ -105,6 +105,8 @@ struct cn_tree {
     struct kvs_cparams *ct_cp;
     u64                 cnid;
 
+    atomic_long         ct_sgen;
+
     uint                 ct_lvl_max;
     struct cn_samp_stats ct_samp;
     atomic_ulong         ct_rspill_dt;
@@ -148,6 +150,10 @@ struct cn_tree_node {
     atomic_int           tn_compacting;
     atomic_uint          tn_busycnt;
     atomic_uint          tn_rspill_sync;
+
+    atomic_long  tn_sgen;
+    struct cv    tn_spill_cv;
+    struct mutex tn_spill_mtx;
 
     union {
         struct sp3_node  tn_sp3n;

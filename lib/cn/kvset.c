@@ -2199,8 +2199,13 @@ kvset_iter_kblock_read(struct work_struct *rock)
     if (ev(err))
         goto done;
 
+    /* [HSE_REVISIT] kr->pc belongs to cn, this thread may be running after cn_close() and
+     * accessing kr->pc would cause a segfault. Uncomment after fixing this.
+     */
+#if 0
     perfc_inc(kr->pc, PERFC_RA_CNCOMP_RREQS);
     perfc_add(kr->pc, PERFC_RA_CNCOMP_RBYTES, iov.iov_len);
+#endif
 
     /* figure out kmd range that corresponds to leaf nodes */
     hdr = iov.iov_base;
@@ -2257,8 +2262,13 @@ kvset_iter_kblock_read(struct work_struct *rock)
     if (ev(err))
         goto done;
 
+    /* [HSE_REVISIT] kr->pc belongs to cn, this thread may be running after cn_close() and
+     * accessing kr->pc would cause a segfault. Uncomment after fixing this.
+     */
+#if 0
     perfc_inc(kr->pc, PERFC_RA_CNCOMP_RREQS);
     perfc_add(kr->pc, PERFC_RA_CNCOMP_RBYTES, iov.iov_len);
+#endif
 
     /* stash results in consumable form for caller */
     kr->iores.kr_ops = 2;
@@ -2355,8 +2365,13 @@ vr_read_work(struct work_struct *rock)
     if (ev(err))
         goto done;
 
+    /* [HSE_REVISIT] vr->pc belongs to cn, this thread may be running after cn_close() and
+     * accessing vr->pc would cause a segfault. Uncomment after fixing this.
+     */
+#if 0
     perfc_inc(vr->pc, PERFC_RA_CNCOMP_RREQS);
     perfc_add(vr->pc, PERFC_RA_CNCOMP_RBYTES, iov.iov_len);
+#endif
 
     vr->vr_buf[empty].idx = vr->vr_io_vbidx;
     vr->vr_buf[empty].off = vr->vr_io_offset;
@@ -3219,6 +3234,8 @@ kvset_iter_next_key(struct kv_iterator *handle, struct key_obj *kobj, struct kvs
 {
     merr_t                 err;
     struct kvset_iterator *iter = handle_to_kvset_iter(handle);
+
+    vc->dgen = kvset_get_dgen(iter->ks);
 
     if (handle->kvi_eof || (iter->pti_meta.eof && iter->wbti_meta.eof)) {
         handle->kvi_eof = true;

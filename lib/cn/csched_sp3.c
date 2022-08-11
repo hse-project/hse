@@ -286,9 +286,6 @@ struct sp3 {
 #define debug_rbtree(_sp)      (csched_rp_dbg_rbtree((_sp)->rp))
 #define debug_tree_shape(_sp)  (csched_rp_dbg_tree_shape((_sp)->rp))
 
-static void
-sp3_dirty_node(struct sp3 *sp, struct cn_tree_node *tn);
-
 static inline bool
 qfull(struct sp3 *sp, uint qnum)
 {
@@ -665,7 +662,7 @@ sp3_refresh_thresholds(struct sp3 *sp)
     sp->thresh = thresh;
 
     list_for_each_entry(spn, &sp->spn_alist, spn_alink) {
-        sp3_dirty_node(sp, spn2tn(spn));
+        sp3_dirty_node((void *)sp, spn2tn(spn));
     }
 
     log_info("sp3 thresholds: rspill: min/max/sizemb %u/%u/%u, lcomp: max/pct/keys %u/%u%%/%u,"
@@ -889,6 +886,9 @@ sp3_dirty_node_locked(struct sp3 *sp, struct cn_tree_node *tn)
     uint garbage = 0, jobs;
     uint scatter = 0;
 
+    if (!spn->spn_initialized)
+        return;
+
     /* Skip if node hasn't changed since last time we inserted
      * it into the work trees.
      */
@@ -1036,14 +1036,14 @@ sp3_dirty_node_locked(struct sp3 *sp, struct cn_tree_node *tn)
     }
 }
 
-static void
-sp3_dirty_node(struct sp3 *sp, struct cn_tree_node *tn)
+void
+sp3_dirty_node(struct csched *handle, struct cn_tree_node *tn)
 {
-    void *lock;
+    struct sp3 *sp = (struct sp3 *)handle;
 
-    rmlock_rlock(&tn->tn_tree->ct_lock, &lock);
+    rmlock_wlock(&tn->tn_tree->ct_lock);
     sp3_dirty_node_locked(sp, tn);
-    rmlock_runlock(lock);
+    rmlock_wunlock(&tn->tn_tree->ct_lock);
 }
 
 static void
@@ -1084,22 +1084,9 @@ sp3_process_workitem(struct sp3 *sp, struct cn_compaction_work *w)
      */
     assert(tree->ct_root == list_first_entry(&tree->ct_nodes, typeof(*tn), tn_link));
 
-    if (w->cw_action == CN_ACTION_SPILL) {
-        struct cn_tree_node *leaf;
-        uint64_t dt;
-
-        assert(tn == tree->ct_root);
-
-        cn_tree_foreach_leaf(leaf, tree) {
-            sp3_dirty_node_locked(sp, leaf);
-        }
-
-        /* Maintain a per-tree average root spill time for throttling.
-         */
-        dt = get_time_ns() - w->cw_t0_enqueue;
-        tree->ct_rspill_dt = (tree->ct_rspill_dt + dt * 2) / 3;
-    }
-
+    /* If this is a root spill, the leaf nodes were marked dirty as the spill progressed. So there's
+     * nothing to do here.
+     */
     if (w->cw_action == CN_ACTION_SPLIT) {
         for (int i = 0; i < 2; i++) {
             struct cn_tree_node *node = w->cw_split.nodev[i];
@@ -1117,6 +1104,12 @@ sp3_process_workitem(struct sp3 *sp, struct cn_compaction_work *w)
         sp3_dirty_node_locked(sp, tn);
     }
     rmlock_runlock(lock);
+
+    if (w->cw_action == CN_ACTION_SPILL) {
+        uint64_t dt = get_time_ns() - w->cw_t0_enqueue;
+
+        tree->ct_rspill_dt = (tree->ct_rspill_dt + dt * 2) / 3;
+    }
 
     if (w->cw_debug & (CW_DEBUG_PROGRESS | CW_DEBUG_FINAL))
         sp3_log_progress(w, &w->cw_stats, true);
@@ -1157,7 +1150,7 @@ sp3_process_ingest(struct sp3 *sp)
             atomic_sub(&spt->spt_ingest_wlen, wlen);
             sp->samp.r_wlen += wlen;
 
-            sp3_dirty_node(sp, tree->ct_root);
+            sp3_dirty_node((void *)sp, tree->ct_root);
             ingested = true;
         }
     }

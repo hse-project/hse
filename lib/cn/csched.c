@@ -69,6 +69,12 @@ csched_compact_status_get(struct csched *handle, struct hse_kvdb_compact_status 
     sp3_compact_status_get(handle, status);
 }
 
+void
+csched_node_dirty(struct csched *handle, struct cn_tree_node *node)
+{
+    sp3_dirty_node(handle, node);
+}
+
 #if HSE_MOCKING
 #include "csched_ut_impl.i"
 #endif /* HSE_MOCKING */

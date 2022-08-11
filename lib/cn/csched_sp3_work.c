@@ -756,12 +756,9 @@ sp3_work(
 
     INIT_LIST_HEAD(&w->cw_rspill_link);
 
-    if (w->cw_rspill_conc) {
-        /* ensure concurrent root spills complete in order */
-        mutex_lock(&tree->ct_rspills_lock);
-        list_add_tail(&w->cw_rspill_link, &tree->ct_rspills_list);
-        mutex_unlock(&tree->ct_rspills_lock);
-    }
+    /* ensure concurrent root spills complete in order */
+    if (w->cw_rspill_conc)
+        w->cw_sgen = atomic_inc_return(&w->cw_tree->ct_sgen);
 
     sp3_work_estimate(w);
 

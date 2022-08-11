@@ -32,6 +32,7 @@ struct kv_iterator_ops {
  */
 struct kvset_iter_vctx {
     const void *kmd;
+    uint64_t    dgen;
     size_t      off;
     uint        nvals;
     uint        next;

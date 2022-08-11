@@ -23,6 +23,7 @@ struct mpool;
 struct kvdb_health;
 struct csched;
 struct cn_tree;
+struct cn_tree_node;
 struct throttle_sensor;
 struct hse_kvdb_compact_status;
 
@@ -67,6 +68,9 @@ sp3_compact_request(struct csched *handle, int flags);
 
 void
 sp3_compact_status_get(struct csched *handle, struct hse_kvdb_compact_status *status);
+
+void
+sp3_dirty_node(struct csched *handle, struct cn_tree_node *tn);
 
 void
 sp3_notify_ingest(struct csched *handle, struct cn_tree *tree, size_t alen, size_t wlen);
