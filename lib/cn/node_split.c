@@ -260,6 +260,12 @@ forward_wbt_leaf_iterator_next(struct element_source *source, void **data)
 
     assert(iter->offset.leaf_idx < desc->wbd_leaf_cnt);
 
+    /* Preload the cache inorder to increase performance. In testing, finding
+     * the split key became ~98.6% faster.
+     */
+    if (iter->offset.leaf_idx == 0)
+        kbr_madvise_wbt_leaf_nodes(&kblk->kb_kblk_desc, desc, MADV_WILLNEED);
+
     *data = kblk->kb_kblk_desc.map_base + desc->wbd_first_page * PAGE_SIZE +
         iter->offset.leaf_idx * WBT_NODE_SIZE;
 
