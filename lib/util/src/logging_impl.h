@@ -140,6 +140,7 @@ vpreprocess_fmt_string(
     const char *              fmt,
     char *                    new_fmt,
     s32                       new_len,
+    const char *              domain,
     void **                   hse_args,
     va_list                   args);
 

@@ -251,11 +251,16 @@ _test_add(struct hse_log_fmt_state *state, void *obj)
 
 MTF_DEFINE_UTEST(hse_logging_test, Test_string)
 {
+    char domain[64];
+    const char *dbasename = log_domain_basename(__FILE__);
     const char str[] = "A string with no special characters.";
 
     hse_log_notice("A string with no special characters.");
+    snprintf(domain, sizeof(domain), "[HSE%s%s]", dbasename ? "/" : "", dbasename ? dbasename : "");
+    printf("%s\n", shared_result.msg_buffer);
 
     ASSERT_TRUE(strstr(shared_result.msg_buffer, str));
+    ASSERT_TRUE(strstr(shared_result.msg_buffer, domain));
 }
 
 MTF_DEFINE_UTEST(hse_logging_test, Test_register)

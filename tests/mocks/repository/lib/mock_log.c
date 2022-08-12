@@ -1,6 +1,6 @@
 /* SPDX-License-Identifier: Apache-2.0 */
 /*
- * Copyright (C) 2015-2021 Micron Technology, Inc.  All rights reserved.
+ * Copyright (C) 2015-2022 Micron Technology, Inc.  All rights reserved.
  */
 
 #include "util/src/logging_impl.h"
@@ -32,7 +32,7 @@ test_preprocess_fmt_string(
 
     va_start(args, hse_args);
 
-    vpreprocess_fmt_string(state, func, fmt, new_fmt, new_len, hse_args, args);
+    vpreprocess_fmt_string(state, func, fmt, new_fmt, new_len, LOG_DOMAIN, hse_args, args);
 
     va_end(args);
 }
@@ -53,7 +53,7 @@ test_finalize_log_structure(
 
     va_start(args, hse_args);
 
-    vpreprocess_fmt_string(state, __func__, fmt, new_fmt, new_len, hse_args, args);
+    vpreprocess_fmt_string(state, __func__, fmt, new_fmt, new_len, LOG_DOMAIN, hse_args, args);
 
     va_end(args);
 

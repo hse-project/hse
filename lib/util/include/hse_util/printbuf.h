@@ -1,11 +1,12 @@
 /* SPDX-License-Identifier: Apache-2.0 */
 /*
- * Copyright (C) 2015-2020 Micron Technology, Inc.  All rights reserved.
+ * Copyright (C) 2015-2022 Micron Technology, Inc.  All rights reserved.
  */
 
 #ifndef HSE_PLATFORM_PRINTBUF_H
 #define HSE_PLATFORM_PRINTBUF_H
 
+#include <hse_util/compiler.h>
 #include <hse_util/inttypes.h>
 
 /**
@@ -32,7 +33,7 @@
  * Return: The return code from vsnprintf().
  */
 int
-snprintf_append(char *buf, size_t buf_sz, size_t *offset, const char *format, ...);
+snprintf_append(char *buf, size_t buf_sz, size_t *offset, const char *format, ...) HSE_PRINTF(4, 5);
 
 /**
  * sprintbuf - append a formatted char string to a buffer.
@@ -57,7 +58,7 @@ snprintf_append(char *buf, size_t buf_sz, size_t *offset, const char *format, ..
  * Returns: void.
  */
 void
-sprintbuf(char *buf, size_t *remainder, size_t *offset, const char *format, ...);
+sprintbuf(char *buf, size_t *remainder, size_t *offset, const char *format, ...) HSE_PRINTF(4, 5);
 
 /**
  * vsnprintf_append - append a varargs-formatted char string to a buffer.

@@ -1,6 +1,6 @@
 /* SPDX-License-Identifier: Apache-2.0 */
 /*
- * Copyright (C) 2015-2021 Micron Technology, Inc.  All rights reserved.
+ * Copyright (C) 2015-2022 Micron Technology, Inc.  All rights reserved.
  */
 
 #include <hse_util/platform.h>
@@ -459,6 +459,7 @@ hse_log(
     struct event_counter *ev, /* contains call site info and pri     */
     const char *fmt_string,   /* the platform-specific format string */
     bool        async,        /* true=>only queue in circular buffer */
+    const char *domain,       /* log domain                          */
     void **     hse_args,     /* array of pointers (or NULL)         */
     ...)                      /* variable-length argument list       */
 {
@@ -519,7 +520,7 @@ hse_log(
     va_start(args, hse_args);
     res = vpreprocess_fmt_string(
         &state, ev->ev_dte.dte_func, fmt_string, int_fmt,
-        HSE_LOG_STRUCTURED_DATALEN_MAX, hse_args, args);
+        HSE_LOG_STRUCTURED_DATALEN_MAX, domain, hse_args, args);
     va_end(args);
 
     if (res) {
@@ -572,6 +573,7 @@ vpreprocess_fmt_string(
     const char *              fmt,
     char *                    new_fmt,
     s32                       new_len,
+    const char *              domain,
     void **                   hse_args,
     va_list                   args)
 {
@@ -599,6 +601,8 @@ vpreprocess_fmt_string(
 
     const char *msg1 = "%s: extra hse conversion specifiers found\n";
 
+    INVARIANT(domain);
+
     bool  res = true;
     char *src_pos = (char *)fmt;
     char *tgt_pos = new_fmt;
@@ -610,7 +614,7 @@ vpreprocess_fmt_string(
 
     enum hse_log_fmt_parse_state parse_state = LITERAL;
 
-    tgt_pos += snprintf(tgt_pos, tgt_end - tgt_pos, "%s %s: ", HSE_MARK, func);
+    tgt_pos += snprintf(tgt_pos, tgt_end - tgt_pos, "[HSE/%s] %s: ", domain, func);
 
     /* optimization: copy until special char, if any */
     while (c && c != '%' && c != '@' && tgt_pos < tgt_end) {
@@ -1042,10 +1046,12 @@ slog_tab_element_fieldv(struct slog_tab_context *pc, va_list payload)
 }
 
 static void
-slog_tab_format_payload(struct slog_tab_context *pc, va_list payload)
+slog_tab_format_payload(struct slog_tab_context *pc, const char *domain, va_list payload)
 {
     int state HSE_MAYBE_UNUSED;
     int token;
+
+    INVARIANT(domain);
 
     state = 0;
 
@@ -1054,7 +1060,7 @@ slog_tab_format_payload(struct slog_tab_context *pc, va_list payload)
         case SLOG_TOKEN_START:
             assert(state == 0);
             state = 1;
-            slog_tab_snprintf(pc, "%s", HSE_MARK);
+            slog_tab_snprintf(pc, "[HSE/%s]", domain);
             slog_tab_element_fieldv(pc, payload);
             break;
         case SLOG_TOKEN_FIELD:
@@ -1158,7 +1164,7 @@ slog_json_format_payload(struct json_context *jc, va_list payload)
  * this extra post processing .
  */
 void
-slog_internal(hse_logpri_t priority, ...)
+slog_internal(hse_logpri_t priority, const char *domain, ...)
 {
     va_list payload;
     char *buf;
@@ -1167,7 +1173,7 @@ slog_internal(hse_logpri_t priority, ...)
     if (priority > hse_gparams.gp_logging.level || !hse_gparams.gp_logging.enabled)
         return;
 
-    va_start(payload, priority);
+    va_start(payload, domain);
     mutex_lock(&hse_log_lock);
 
     buf = hse_log_inf.mli_fmt_buf;
@@ -1185,7 +1191,7 @@ slog_internal(hse_logpri_t priority, ...)
 
         ctx.buf = buf;
         ctx.buf_sz = buf_sz;
-        slog_tab_format_payload(&ctx, payload);
+        slog_tab_format_payload(&ctx, domain, payload);
     }
 
     hse_log_post_vasync("slog", 1, priority, buf, payload);

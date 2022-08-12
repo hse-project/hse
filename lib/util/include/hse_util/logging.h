@@ -1,10 +1,12 @@
 /* SPDX-License-Identifier: Apache-2.0 */
 /*
- * Copyright (C) 2015-2021 Micron Technology, Inc.  All rights reserved.
+ * Copyright (C) 2015-2022 Micron Technology, Inc.  All rights reserved.
  */
 
 #ifndef HSE_PLATFORM_LOGGING_H
 #define HSE_PLATFORM_LOGGING_H
+
+#include <string.h>
 
 #include <hse_util/arch.h>
 #include <hse_util/inttypes.h>
@@ -21,12 +23,21 @@
 #define HSE_LOGPRI_DEFAULT  (HSE_LOGPRI_DEBUG)
 #endif
 
-/* The mark is prepended to every outgoing log message issued via
- * the non-structured logging calls (e.g., log_info()), but not
- * the structure log calls (e.g., slog_info()).
+/* Log domain is a prefix for every log statement for grepping related logs
+ * across multiple files and functions.
  */
-#ifndef HSE_MARK
-#define HSE_MARK            "[HSE]"
+#ifndef LOG_DOMAIN
+#define LOG_DOMAIN NULL
+#endif
+
+#ifdef __FILE_NAME__
+#define log_domain_basename(x) __FILE_NAME__
+#else
+#if defined(__has_builtin) && __has_builtin(__builtin_strrchr)
+#define log_domain_basename(x) (__builtin_strrchr((x), '/') ? __builtin_strrchr((x), '/') + 1 : (x))
+#else
+#define log_domain_basename(x) (strrchr((x), '/') ? strrchr((x), '/') + 1 : (x))
+#endif
 #endif
 
 /* The name of a "type" field common to all structured log messages.  Should be
@@ -85,25 +96,26 @@
 #define HSE_LOG_SQUELCH_NS_DEFAULT (0)
 #endif
 
-#define log_pri(_pri, _fmt, _async, _argv, ...)                         \
-    do {                                                                \
-        static struct event_counter hse_ev_log _dt_section = {          \
-            .ev_odometer = 0,                                           \
-            .ev_pri = (_pri),                                           \
-            .ev_flags = EV_FLAGS_HSE_LOG,                               \
-            .ev_file = __FILE__,                                        \
-            .ev_line = __LINE__,                                        \
-            .ev_dte = {                                                 \
-                .dte_data = &hse_ev_log,                                \
-                .dte_ops = &event_counter_ops,                          \
-                .dte_type = DT_TYPE_ERROR_COUNTER,                      \
-                .dte_line = __LINE__,                                   \
-                .dte_file = __FILE__,                                   \
-                .dte_func = __func__,                                   \
-            }                                                           \
-        };                                                              \
-                                                                        \
-        hse_log(&hse_ev_log, (_fmt), (_async), (_argv), ##__VA_ARGS__); \
+#define log_pri(_pri, _fmt, _async, _argv, ...)                                               \
+    do {                                                                                      \
+        static struct event_counter hse_ev_log _dt_section = {                                \
+            .ev_odometer = 0,                                                                 \
+            .ev_pri = (_pri),                                                                 \
+            .ev_flags = EV_FLAGS_HSE_LOG,                                                     \
+            .ev_file = __FILE__,                                                              \
+            .ev_line = __LINE__,                                                              \
+            .ev_dte = {                                                                       \
+                .dte_data = &hse_ev_log,                                                      \
+                .dte_ops = &event_counter_ops,                                                \
+                .dte_type = DT_TYPE_ERROR_COUNTER,                                            \
+                .dte_line = __LINE__,                                                         \
+                .dte_file = __FILE__,                                                         \
+                .dte_func = __func__,                                                         \
+            }                                                                                 \
+        };                                                                                    \
+                                                                                              \
+        hse_log(&hse_ev_log, (_fmt), (_async),                                                \
+            LOG_DOMAIN ? LOG_DOMAIN : log_domain_basename(__FILE__), (_argv), ##__VA_ARGS__); \
     } while (0)
 
 
@@ -122,11 +134,11 @@
 
 /* Emit logs with pretty printed merr_t values
  */
-#define log_prix(_pri, _fmt, _async, _err, ...)                         \
-    do {                                                                \
-        void *av[] = { &(_err), NULL };                                 \
-                                                                        \
-        log_pri((_pri), (_fmt), (_async), av, ##__VA_ARGS__);           \
+#define log_prix(_pri, _fmt, _async, _err, ...)               \
+    do {                                                      \
+        void *av[] = { &(_err), NULL };                       \
+                                                              \
+        log_pri((_pri), (_fmt), (_async), av, ##__VA_ARGS__); \
     } while (0)
 
 #define log_warnx(_fmt, _err, ...)  log_prix(HSE_LOGPRI_WARN, (_fmt), true, (_err), ##__VA_ARGS__)
@@ -136,7 +148,13 @@
 /* Helper APIs used by above log macros.  Not intended to be called directly.
  */
 void
-hse_log(struct event_counter *ev, const char *fmt, bool async, void **args, ...) HSE_PRINTF(2, 5);
+hse_log(
+    struct event_counter *ev,
+    const char *fmt,
+    bool async,
+    const char *domain,
+    void **args,
+    ...) HSE_PRINTF(2, 6);
 
 /* Convert a log priority level: numeric to string.
  */
@@ -170,10 +188,14 @@ hse_log_push(struct hse_log_fmt_state *state, bool indexed, const char *name, co
 
 /* Public APIs for structured logging
  */
-#define slog_debug(...)     slog_internal(HSE_LOGPRI_DEBUG, __VA_ARGS__, NULL)
-#define slog_info(...)      slog_internal(HSE_LOGPRI_INFO, __VA_ARGS__, NULL)
-#define slog_warn(...)      slog_internal(HSE_LOGPRI_WARN, __VA_ARGS__, NULL)
-#define slog_err(...)       slog_internal(HSE_LOGPRI_ERR, __VA_ARGS__, NULL)
+#define slog_debug(...)     slog_internal(HSE_LOGPRI_DEBUG, LOG_DOMAIN ? LOG_DOMAIN : \
+    log_domain_basename(__FILE__), __VA_ARGS__, NULL)
+#define slog_info(...)      slog_internal(HSE_LOGPRI_INFO, LOG_DOMAIN ? LOG_DOMAIN : \
+    log_domain_basename(__FILE__), __VA_ARGS__, NULL)
+#define slog_warn(...)      slog_internal(HSE_LOGPRI_WARN, LOG_DOMAIN ? LOG_DOMAIN : \
+    log_domain_basename(__FILE__), __VA_ARGS__, NULL)
+#define slog_err(...)       slog_internal(HSE_LOGPRI_ERR, LOG_DOMAIN ? LOG_DOMAIN : \
+    log_domain_basename(__FILE__), __VA_ARGS__, NULL)
 
 #define SLOG_START(type) \
     slog_internal_validate(SLOG_TOKEN_START, "%s", (type)), SLOG_TYPE_IDENTIFIER, "%s", (type)
@@ -194,10 +216,11 @@ enum slog_token {
 };
 
 void
-slog_internal(hse_logpri_t priority, ...);
+slog_internal(hse_logpri_t priority, const char *domain, ...);
 
 /* A helper function that tricks compiler into validating printf specifiers */
-static inline HSE_PRINTF(2, 3) int slog_internal_validate(enum slog_token tok, char *fmt, ...)
+static inline int HSE_PRINTF(2, 3)
+slog_internal_validate(enum slog_token tok, char *fmt, ...)
 {
     return tok;
 }
