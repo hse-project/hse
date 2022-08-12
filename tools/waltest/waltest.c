@@ -120,7 +120,7 @@ static void syntax(const char *fmt, ...);
 static void quit(const char *fmt, ...);
 static void usage(void);
 
-static void
+static void HSE_PRINTF(1, 2)
 quit(const char *fmt, ...)
 {
     char msg[256];
@@ -544,7 +544,7 @@ usage(void)
            "\n");
 }
 
-static void
+static void HSE_PRINTF(1, 2)
 add_error(const char *fmt, ...)
 {
     char msg[256];
@@ -575,7 +575,7 @@ test_kvdb_open(void)
 
     rc = svec_append_pg(&sv, pg, PG_KVDB_OPEN, NULL);
     if (rc)
-        quit("svec_append_pg: rc %d", rc);
+        quit("svec_append_pg: rc %d", (int)rc);
 
     rc = hse_kvdb_open(opt.kvdb, sv.strc, sv.strv, &kvdb);
     if (rc)
@@ -794,8 +794,7 @@ test_put(struct thread_info *ti, uint salt, bool istxn)
             if (nkeys == 1) {
                 txkey = calloc(1, ti->ref_klen);
                 if (!txkey)
-                    merr_quit("Tx calloc failed",
-                               ENOMEM);
+                    merr_quit("Tx calloc failed", merr(ENOMEM));
                 memcpy(txkey, (char *)ti->ref_key,
                        ti->ref_klen);
                 txkeyp = (uint *)txkey;
@@ -912,7 +911,7 @@ test_put_verify(struct thread_info *ti, uint salt, bool istxn)
 
         if (!found) {
             add_error("key not found: tid %d "
-                      "key#%d[%zu]=%.*s...",
+                      "key#%lu[%zu]=%.*s...",
                       ti->id, i, ti->ref_klen,
                       key_showlen, key);
             if (istxn) {
@@ -924,7 +923,7 @@ test_put_verify(struct thread_info *ti, uint salt, bool istxn)
 
         if (get_vlen != ti->ref_vlen) {
             add_error("vput: key found, but value has wrong length:"
-                      " key#%d[%zu]=%.*s..."
+                      " key#%lu[%zu]=%.*s..."
                       " expected len=%zu got %zu",
                       i, ti->ref_klen,
                       key_showlen, key,
@@ -941,14 +940,14 @@ test_put_verify(struct thread_info *ti, uint salt, bool istxn)
         if (ti->ref_vlen > 0 &&
             memcmp(get_val, ti->ref_val, ti->ref_vlen)) {
             add_error("vput: key found, but value wrong:"
-                      " kvs %s: key#%d[%zu]=%.*s..."
+                      " kvs %s: key#%lu[%zu]=%.*s..."
                       " val[%zu]=%.*s..."
                       " expected %.*s",
                       ti->kvs_name, i, ti->ref_klen,
                       key_showlen, key,
                       ti->ref_vlen, val_showlen,
-                      ti->ref_val,
-                      val_showlen, get_val);
+                      (char *)ti->ref_val,
+                      val_showlen, (char *)get_val);
         }
 
       txn_atomic:
@@ -956,8 +955,7 @@ test_put_verify(struct thread_info *ti, uint salt, bool istxn)
             if (nkeys == 1) {
                 txkey = calloc(1, ti->ref_klen);
                 if (!txkey)
-                    merr_quit("Tx alloc failed",
-                               ENOMEM);
+                    merr_quit("Tx alloc failed", merr(ENOMEM));
                 memcpy(txkey, ti->ref_key, ti->ref_klen);
                 txkeyp = (uint *)txkey;
             }
@@ -974,12 +972,12 @@ test_put_verify(struct thread_info *ti, uint salt, bool istxn)
 
             if (!found && !found_err)
                 add_error("Tx atomicity bug, key%d not found: "
-                          "key#%d[%zu]=%.*s...", nkeys,
+                          "key#%lu[%zu]=%.*s...", nkeys,
                           i, ti->ref_klen, key_showlen, txkey);
 
             if (found && found_err)
                 add_error("Tx atomicity bug, key%d found: "
-                          "key#%d[%zu]=%.*s...", nkeys,
+                          "key#%lu[%zu]=%.*s...", nkeys,
                           i, ti->ref_klen, key_showlen, txkey);
 
             if (nkeys == 2) {
@@ -1032,7 +1030,7 @@ test_delete_verify(
 
         if (found) {
             add_error("found key after it was deleted:"
-                      "key#%d[%zu]=%.*s...",
+                      "key#%lu[%zu]=%.*s...",
                       i, ti->ref_klen, key_showlen,
                       (char *)ti->ref_key);
         }

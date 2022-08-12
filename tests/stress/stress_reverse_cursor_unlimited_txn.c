@@ -173,10 +173,11 @@ cursor_read(void *args)
         } else if (DEBUG) {
             log_print(
                 LOG_DEBUG,
-                "hse_kvs_cursor_read: rank=%d key_index=%ld key=\"%s\"",
+                "hse_kvs_cursor_read: rank=%d key_index=%ld key=\"%*s\"",
                 info->rank,
                 i,
-                cur_key);
+                (int)cur_klen,
+                (char *)cur_key);
         }
 
         if (eof) {
@@ -195,7 +196,7 @@ cursor_read(void *args)
             log_print(
                 LOG_ERROR,
                 "FAILED key length verification: "
-                "actual_key_len=%ld expected_key_len=%ld",
+                "actual_key_len=%ld expected_key_len=%d",
                 cur_klen,
                 info->key_size);
             ++verification_failure_count;
@@ -204,7 +205,7 @@ cursor_read(void *args)
             log_print(
                 LOG_ERROR,
                 "FAILED value length verfication: "
-                "actual_val_len=%ld expected_val_len=%ld",
+                "actual_val_len=%ld expected_val_len=%d",
                 cur_vlen,
                 info->val_size);
             ++verification_failure_count;
@@ -212,25 +213,28 @@ cursor_read(void *args)
         } else if (memcmp(expected_key_buf, cur_key, info->key_size) != 0) {
             log_print(
                 LOG_ERROR,
-                "FAILED key verification: start=%ld end=%ld i=%d "
-                "key=\"%s\" expected_key=\"%s\"",
+                "FAILED key verification: start=%ld end=%ld i=%ld "
+                "key=\"%*s\" expected_key=\"%s\"",
                 info->start,
                 info->end,
                 i,
-                cur_key,
+                (int)cur_klen,
+                (char *)cur_key,
                 expected_key_buf);
             ++verification_failure_count;
             break;
         } else if (memcmp(expected_val_buf, cur_val, info->val_size) != 0) {
             log_print(
                 LOG_ERROR,
-                "FAILED value verification: start=%ld end=%ld i=%d "
-                "key=\"%s\" value=\"%s\" expected_value=\"%s\"",
+                "FAILED value verification: start=%ld end=%ld i=%ld "
+                "key=\"%*s\" value=\"%*s\" expected_value=\"%s\"",
                 info->start,
                 info->end,
                 i,
-                cur_key,
-                cur_val,
+                (int)cur_klen,
+                (char *)cur_key,
+                (int)cur_vlen,
+                (char *)cur_val,
                 expected_val_buf);
             ++verification_failure_count;
             break;
@@ -279,7 +283,7 @@ point_insertion(void *args)
 
     log_print(
         LOG_INFO,
-        "begin %s: rank=%d start=%d end=%d",
+        "begin %s: rank=%d start=%ld end=%ld",
         __func__,
         info->rank,
         info->start,
@@ -306,7 +310,7 @@ point_insertion(void *args)
             ++error_count;
             goto out2;
         } else if (DEBUG) {
-            log_debug("hse_kvdb_txn_begin: rank=%d i=%d", info->rank);
+            log_debug("hse_kvdb_txn_begin: rank=%d i=%ld", info->rank, i);
         }
 
         txn_size_idx = 0;
@@ -385,14 +389,14 @@ point_insertion(void *args)
                         hse_strerror(err, msg, sizeof(msg));
                         log_print(
                             LOG_ERROR,
-                            "hse_kvdb_txn_abort: errno=%d msg=\"%s\" i=%d",
+                            "hse_kvdb_txn_abort: errno=%d msg=\"%s\" i=%ld",
                             hse_err_to_errno(err),
                             msg,
                             i);
                         ++error_count;
                         goto out2;
                     } else if (DEBUG) {
-                        log_debug("hse_kvdb_txn_abort: i=%d", i);
+                        log_debug("hse_kvdb_txn_abort: i=%ld", i);
                     }
 
                     ++aborted_txn_count;
@@ -419,7 +423,7 @@ point_insertion(void *args)
             ++error_count;
             goto out2;
         } else if (DEBUG) {
-            log_debug("hse_kvdb_txn_abort: rank=%d i=%d", info->rank, i);
+            log_debug("hse_kvdb_txn_abort: rank=%d i=%ld", info->rank, i);
         }
 
         ++committed_txn_count;
@@ -435,8 +439,8 @@ out2:
     }
 
 out:
-    log_print(
-        LOG_INFO, "end %s: rank=%d start=%d end=%d", __func__, info->rank, info->start, info->end);
+    log_print(LOG_INFO, "end %s: rank=%d start=%ld end=%ld", __func__, info->rank, info->start,
+        info->end);
 
     return NULL;
 }
@@ -637,14 +641,13 @@ main(int argc, char *argv[])
         para.key_count += para.point_insertion_thread_count -
                           (para.key_count % para.point_insertion_thread_count);
         log_print(
-            LOG_INFO, "adjusted key_count to %d due to insertion thread count", para.key_count);
-        log_info("");
+            LOG_INFO, "adjusted key_count to %ld due to insertion thread count\n", para.key_count);
     }
 
     log_info("debug                         = %d", DEBUG);
     log_info("cursor_read_thread_count      = %d", para.cursor_read_thread_count);
     log_info("cursor_sleep_time             = %d", para.cursor_sleep_time);
-    log_info("key_count                     = %d", para.key_count);
+    log_info("key_count                     = %ld", para.key_count);
     log_info("key_size                      = %d", para.key_size);
     log_info("kvdb_home                    = \"%s\"", para.kvdb_home);
     log_info("point_insertion_thread_count  = %d", para.point_insertion_thread_count);

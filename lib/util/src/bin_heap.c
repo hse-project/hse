@@ -30,15 +30,15 @@ struct bin_heap {
 merr_t
 bin_heap_create(
     struct bin_heap **   bh_out,
-    u32                  max_items,
-    s32                  item_size,
+    size_t               max_items,
+    size_t               item_size,
     bin_heap_compare_fn *compare)
 {
     struct bin_heap *bh;
     int              i;
     size_t           sz;
 
-    if (ev( !bh_out || !compare || item_size <= 0 || !max_items ))
+    if (ev(!bh_out || !compare || item_size <= 0 || !max_items ))
         return merr(EINVAL);
 
     sz = sizeof(*bh);

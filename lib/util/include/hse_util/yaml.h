@@ -1,11 +1,12 @@
 /* SPDX-License-Identifier: Apache-2.0 */
 /*
- * Copyright (C) 2015-2020 Micron Technology, Inc.  All rights reserved.
+ * Copyright (C) 2015-2022 Micron Technology, Inc.  All rights reserved.
  */
 
 #ifndef HSE_PLATFORM_YAML_H
 #define HSE_PLATFORM_YAML_H
 
+#include <hse_util/compiler.h>
 #include <hse_util/printbuf.h>
 
 enum yaml_context_type {
@@ -54,13 +55,13 @@ void
 yaml_element_list(struct yaml_context *yc, const char *key);
 
 void
-yaml_field_fmt(struct yaml_context *yc, const char *key, const char *valfmt, ...);
+yaml_field_fmt(struct yaml_context *yc, const char *key, const char *valfmt, ...) HSE_PRINTF(3, 4);
 
 void
 yaml_field_fmt_u64(struct yaml_context *yc, const char *key, uint64_t val);
 
 void
-yaml_list_fmt(struct yaml_context *yc, const char *keyfmt, ...);
+yaml_list_fmt(struct yaml_context *yc, const char *keyfmt, ...) HSE_PRINTF(2, 3);
 
 /**
  * yaml_print_and_rewind() - print yaml_buf and rewind yaml_offset

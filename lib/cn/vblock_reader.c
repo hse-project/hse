@@ -98,11 +98,11 @@ vbr_desc_update(
 void
 vbr_readahead(
     struct vblock_desc *     vbd,
-    u32                      voff,
-    u32                      vlen,
-    u32                      ra_flags,
-    u32                      ra_len,
-    u32                      rahc,
+    uint32_t                 voff,
+    size_t                   vlen,
+    uint32_t                 ra_flags,
+    size_t                   ra_len,
+    uint32_t                 rahc,
     struct ra_hist *         rahv,
     struct workqueue_struct *wq)
 {

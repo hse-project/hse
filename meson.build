@@ -9,7 +9,7 @@ project(
         'c_std=gnu11',
         'buildtype=debugoptimized',
         'warning_level=2',
-        'force_fallback_for=xxhash,lz4,cjson',
+        'force_fallback_for=lz4,cjson',
     ],
     meson_version: '>=0.61.0'
 )
@@ -150,7 +150,7 @@ libcurl_dep = dependency(
         'default_library=static',
         'warning_level=0',
         'werror=false',
-    ],
+    ]
 )
 libyaml_dep = dependency(
     'yaml-0.1',
@@ -159,7 +159,7 @@ libyaml_dep = dependency(
         'default_library=static',
         'warning_level=0',
         'werror=false',
-    ],
+    ]
 )
 thread_dep = dependency('threads')
 liburcu_bp_dep = dependency(
@@ -169,7 +169,7 @@ liburcu_bp_dep = dependency(
         'default_library=static',
         'warning_level=0',
         'werror=false',
-    ],
+    ]
 )
 libbsd_dep = dependency(
     'libbsd',
@@ -178,7 +178,7 @@ libbsd_dep = dependency(
         'default_library=static',
         'warning_level=0',
         'werror=false',
-    ],
+    ]
 )
 liblz4_dep = dependency(
     'liblz4',
@@ -187,19 +187,19 @@ liblz4_dep = dependency(
         'default_library=static',
         'warning_level=0',
         'werror=false',
-    ],
+    ]
 )
-xxhash_dep = dependency(
-    'libxxhash',
-    version: '>=0.8.0',
+xxhash_proj = subproject(
+    'xxhash',
     default_options: [
         'default_library=static',
         'warning_level=0',
         'werror=false',
         'cli=false',
         'inline-all=true',
-    ],
+    ]
 )
+xxhash_dep = xxhash_proj.get_variable('xxhash_dep')
 cjson_dep = dependency(
     'libcjson',
     version: ['>=1.7.14', '<2.0.0'],
@@ -208,9 +208,18 @@ cjson_dep = dependency(
         'warning_level=0',
         'werror=false',
         'tests=false',
-    ],
+    ]
 )
-cjson_utils_dep = dependency('libcjson_utils', version: ['>=1.7.14', '<2.0.0'])
+cjson_utils_dep = dependency(
+    'libcjson_utils',
+    version: ['>=1.7.14', '<2.0.0'],
+    default_options: [
+        'default_library=static',
+        'warning_level=0',
+        'werror=false',
+        'tests=false',
+    ]
+)
 libmicrohttpd_dep = dependency(
     'libmicrohttpd',
     version: '>=0.9.59',
@@ -218,7 +227,7 @@ libmicrohttpd_dep = dependency(
         'default_library=static',
         'warning_level=0',
         'werror=false',
-    ],
+    ]
 )
 libpmem_dep = dependency('libpmem', version: '>= 1.4.0', required: get_option('pmem'))
 m_dep = cc.find_library('m')
@@ -246,13 +255,14 @@ xoroshiro_proj = subproject('xoroshiro')
 xoroshiro_dep = xoroshiro_proj.get_variable('xoroshiro_dep')
 ncurses_dep = dependency('ncurses', version: '>= 6.1.20180127', required: get_option('tools'))
 HdrHistogram_c_dep = cc.find_library('hdr_histogram', required: false, disabler: true)
-if cmake.found() and get_option('tools').allowed() and (not HdrHistogram_c_dep.found()
-        or (HdrHistogram_c_dep.found() and not cc.has_header_symbol(
-            'hdr/hdr_histogram.h',
-            'hdr_record_value_atomic',
-            dependencies: [HdrHistogram_c_dep]))
-        or get_option('wrap_mode') == 'forcefallback'
-        or 'HdrHistogram_c' in get_option('force_fallback_for'))
+if not cc.has_header_symbol(
+        'hdr/hdr_histogram.h',
+        'hdr_record_value_atomic',
+        dependencies: [HdrHistogram_c_dep])
+    HdrHistogram_c_dep = disabler()
+endif
+HdrHistogram_c_can_fallback = get_option('wrap_mode') == 'forcefallback' or get_option('wrap_mode') != 'nofallback'
+if cmake.found() and get_option('tools').allowed() and HdrHistogram_c_can_fallback and (not HdrHistogram_c_dep.found() or 'HdrHistogram_c' in get_option('force_fallback_for'))
     HdrHistogram_c_options = cmake.subproject_options()
     HdrHistogram_c_options.add_cmake_defines({
         'HDR_HISTOGRAM_BUILD_PROGRAMS': false,
@@ -273,19 +283,28 @@ if cmake.found() and get_option('tools').allowed() and (not HdrHistogram_c_dep.f
         HdrHistogram_c_dep = disabler()
     endif
 endif
-libmongoc_dep = dependency('libmongoc-1.0', version: ['>=1.17.3', '<1.21.0'], required: false)
-libbson_dep = dependency('libbson-1.0', version: ['>=1.17.3', '<1.21.0'], required: false)
-mongo_c_driver_force_fallback = get_option('wrap_mode') == 'forcefallback' or 'mongo-c-driver' in get_option('force_fallback_for')
-if cmake.found() and get_option('tools').allowed() and (not libmongoc_dep.found()
-        or not libbson_dep.found() or mongo_c_driver_force_fallback)
+libmongoc_dep = dependency(
+    'libmongoc-1.0',
+    version: ['>=1.17.3', '<1.21.0'],
+    required: false,
+    disabler: true
+)
+libbson_dep = dependency(
+    'libbson-1.0',
+    version: ['>=1.17.3', '<1.21.0'],
+    required: false,
+    disabler: true
+)
+mongo_c_driver_can_fallback = get_option('wrap_mode') == 'forcefallback' or get_option('wrap_mode') != 'nofallback'
+if cmake.found() and get_option('tools').allowed() and mongo_c_driver_can_fallback and ((not libmongoc_dep.found() or not libbson_dep.found()) or 'mongo-c-driver' in get_option('force_fallback_for'))
     mongo_c_driver_options = cmake.subproject_options()
     mongo_c_driver_options.add_cmake_defines({
         'ENABLE_TESTS': false,
         'ENABLE_EXAMPLES': false,
         'ENABLE_SSL': 'OFF',
         'ENABLE_MONGODB_AWS_AUTH': 'OFF',
-        'ENABLE_MONGOC': not libmongoc_dep.found() or mongo_c_driver_force_fallback ? 'ON' : 'OFF',
-        'ENABLE_BSON': not libbson_dep.found() or mongo_c_driver_force_fallback ? 'ON' : 'OFF',
+        'ENABLE_MONGOC': not libmongoc_dep.found() or mongo_c_driver_can_fallback ? 'ON' : 'OFF',
+        'ENABLE_BSON': not libbson_dep.found() or mongo_c_driver_can_fallback ? 'ON' : 'OFF',
         'ENABLE_STATIC': 'ON',
         'ENABLE_AUTOMATIC_INIT_AND_CLEANUP': false,
     })
@@ -296,7 +315,7 @@ if cmake.found() and get_option('tools').allowed() and (not libmongoc_dep.found(
         options: mongo_c_driver_options,
         required: get_option('tools')
     )
-    if not libmongoc_dep.found() or mongo_c_driver_force_fallback
+    if not libmongoc_dep.found() or mongo_c_driver_can_fallback
         if mongo_c_driver_proj.found()
             libmongoc_dep = [
                 mongo_c_driver_proj.dependency('mongoc_static'),
@@ -306,13 +325,16 @@ if cmake.found() and get_option('tools').allowed() and (not libmongoc_dep.found(
             libmongoc_dep = disabler()
         endif
     endif
-    if not libbson_dep.found() or mongo_c_driver_force_fallback
+    if not libbson_dep.found() or mongo_c_driver_can_fallback
         if mongo_c_driver_proj.found()
             libbson_dep = mongo_c_driver_proj.dependency('bson_static')
         else
             libbson_dep = disabler()
         endif
     endif
+else
+    libbson_dep = disabler()
+    libmongoc_dep = disabler()
 endif
 
 bindings = []
@@ -343,7 +365,7 @@ bindir_to_libdir = run_command(
         get_option('prefix') / get_option('libdir'),
         get_option('prefix') / get_option('bindir'),
     ),
-    check: true,
+    check: true
 ).stdout().strip()
 
 rpath = get_option('rpath') ? '$ORIGIN' / bindir_to_libdir : ''

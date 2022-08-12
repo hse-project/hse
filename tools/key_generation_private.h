@@ -13,11 +13,11 @@ static char symbols[] = { 'a', 'b', 'c', 'd', 'e', 'f', 'g', 'h', 'i', 'j', 'k',
                           'y', 'z', '0', '1', '2', '3', '4', '5', '6', '7', '8', '9' };
 
 struct key_generator {
-    u64   key_space_sz;
-    s32   key_width;
-    s32   field_width;
-    s32   num_fields;
-    s32   elem_per_field;
+    size_t key_space_sz;
+    size_t key_width;
+    size_t field_width;
+    s32    num_fields;
+    s32    elem_per_field;
     char *elems;
 };
 

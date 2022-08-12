@@ -130,7 +130,6 @@ MTF_DEFINE_UTEST(keylock_test, keylock_psl)
     struct keylock *handle;
     uint            table_size;
     bool            inherited;
-    int             i;
     u64             hash;
     merr_t          err;
 
@@ -144,8 +143,8 @@ MTF_DEFINE_UTEST(keylock_test, keylock_psl)
      * thereby triggering a whole lot of entry relocations and pushing
      * the probe sequence length to the max.
      */
-    for (i = 0; i < table_size + 1; i++) {
-        hash = i * table_size;
+    for (uint i = 0; i < table_size + 1; i++) {
+        hash = (u64)i * table_size;
 
         err = keylock_lock(handle, hash, 1, 0, &inherited);
         if (err) {
@@ -161,8 +160,8 @@ MTF_DEFINE_UTEST(keylock_test, keylock_psl)
         ASSERT_FALSE(inherited);
     }
 
-    for (i = 0; i < table_size; i++) {
-        hash = i * table_size;
+    for (uint i = 0; i < table_size; i++) {
+        hash = (u64)i * table_size;
 
         keylock_unlock(handle, hash, 0);
         keylock_unlock(handle, hash, 1);
