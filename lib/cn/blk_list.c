@@ -122,6 +122,6 @@ blk_list_free(struct blk_list *blks)
         return;
 
     free(blks->blks);
-    blks->blks = 0;
+    blks->blks = NULL;
     blks->n_blks = 0;
 }

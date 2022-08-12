@@ -17,9 +17,12 @@
 #include <hse_util/list.h>
 
 #include <hse_ikvdb/kvset_view.h>
+#include <hse_ikvdb/sched_sts.h>
 #include <hse_ikvdb/cndb.h>
+#include <hse_ikvdb/cn.h>
 
 #include "cn_tree.h"
+#include "cn_metrics.h"
 #include "cn_tree_internal.h"
 #include "cn_tree_compact.h"
 #include "kvset.h"
@@ -467,9 +470,14 @@ kvset_split_res_init(struct cn_compaction_work *w, struct kvset_split_res *resul
 static void
 kvset_split_res_free(struct kvset *ks, struct kvset_split_res *result)
 {
+    if (!ks)
+        return;
+
     for (int i = LEFT; i <= RIGHT; i++) {
         blk_list_free(&result->ks[i].blks->kblks);
         blk_list_free(&result->ks[i].blks->vblks);
+
+        delete_mblocks(ks->ks_mp, result->ks[i].blks_commit);
         blk_list_free(result->ks[i].blks_commit);
     }
 
@@ -479,18 +487,17 @@ kvset_split_res_free(struct kvset *ks, struct kvset_split_res *result)
 merr_t
 cn_split(struct cn_compaction_work *w)
 {
+    struct kvset_split_wargs *wargs;
+    struct workqueue_struct *wq;
     struct kvset_list_entry *le;
     struct key_obj split_kobj;
     struct cndb *cndb;
-    merr_t err;
+    merr_t err = 0;
     uint i;
 
     INVARIANT(w);
 
     cndb = cn_tree_get_cndb(w->cw_tree);
-
-    log_debug("splitting node %lu with %u kvsets", w->cw_node->tn_nodeid,
-        cn_ns_kvsets(&w->cw_node->tn_ns));
 
     err = cn_tree_node_get_split_key(w->cw_node, w->cw_split.key, HSE_KVS_KEY_LEN_MAX,
                                      &w->cw_split.klen);
@@ -504,33 +511,54 @@ cn_split(struct cn_compaction_work *w)
 
     assert(!list_empty(&w->cw_node->tn_kvset_list));
 
+    wargs = calloc(w->cw_kvset_cnt, sizeof(*wargs));
+    if (!wargs)
+        return merr(ENOMEM);
+
+    wq = cn_get_io_wq(w->cw_tree->cn);
+
     for (i = 0, le = list_first_entry(&w->cw_node->tn_kvset_list, typeof(*le), le_link);
          i < w->cw_kvset_cnt;
          i++, le = list_next_entry(le, le_link)) {
 
-        struct kvset *ks = le->le_kvset;
-        struct kvset_split_res result = { 0 };
+        INIT_WORK(&wargs[i].work, kvset_split_worker);
+        wargs[i].ks = le->le_kvset;
+        wargs[i].split_kobj = &split_kobj;
+        wargs[i].pc = w->cw_pc;
+        kvset_split_res_init(w, &wargs[i].result, i);
 
-        kvset_split_res_init(w, &result, i);
+        if (!queue_work(wq, &wargs[i].work)) {
+            err = merr(EBUG);
+            break;
+        }
+    }
 
-        err = kvset_split(ks, &split_kobj, w->cw_pc, &result);
-        if (err) {
-            kvset_split_res_free(ks, &result);
-            return err;
+    /* Wait for all the queued kvset split work to finish */
+    flush_workqueue(wq);
+
+    for (i = 0; !err && i < w->cw_kvset_cnt; i++) {
+        if (wargs[i].err) {
+            err = wargs[i].err;
+            break;
         }
 
         for (int k = LEFT; k <= RIGHT; k++) {
             uint idx = (k == LEFT ? i : i + w->cw_kvset_cnt);
 
-            if (result.ks[k].blks->hblk.bk_blkid != 0) {
+            if (wargs[i].result.ks[k].blks->hblk.bk_blkid != 0) {
                 w->cw_kvsetidv[idx] = cndb_kvsetid_mint(cndb);
-                w->cw_split.dgen[idx] = ks->ks_dgen;
-                w->cw_split.compc[idx] = ks->ks_compc;
+                w->cw_split.dgen[idx] = wargs[i].ks->ks_dgen;
+                w->cw_split.compc[idx] = wargs[i].ks->ks_compc;
             }
         }
     }
 
-    return 0;
+    for (i = 0; err && i < w->cw_kvset_cnt; i++)
+        kvset_split_res_free(wargs[i].ks, &wargs[i].result);
+
+    free(wargs);
+
+    return err;
 }
 
 static bool
@@ -596,8 +624,38 @@ cn_split_nodes_alloc(
 void
 cn_split_nodes_free(const struct cn_compaction_work *w, struct cn_tree_node *nodev[static 2])
 {
-    route_node_free(w->cw_tree->ct_route_map, nodev[LEFT]->tn_route_node);
-    cn_node_free(nodev[LEFT]);
+    if (nodev[LEFT]) {
+        route_node_free(w->cw_tree->ct_route_map, nodev[LEFT]->tn_route_node);
+        cn_node_free(nodev[LEFT]);
+    }
 
     nodev[LEFT] = nodev[RIGHT] = NULL;
+}
+
+void
+cn_split_node_stats_dump(
+    struct cn_compaction_work *w,
+    const struct cn_tree_node *node,
+    const char                *pos)
+{
+    const struct cn_node_stats *ns;
+
+    if (!node)
+        return;
+
+    ns = &node->tn_ns;
+
+    slog_info(
+            SLOG_START("split"),
+            SLOG_FIELD("job", "%u", sts_job_id_get(&w->cw_job)),
+            SLOG_FIELD("cnid", "%lu", w->cw_tree->cnid),
+            SLOG_FIELD("nodeid", "%lu", node->tn_nodeid),
+            SLOG_FIELD("node", "%s", pos),
+            SLOG_FIELD("kvsets", "%u", cn_ns_kvsets(ns)),
+            SLOG_FIELD("keys", "%lu", cn_ns_keys(ns)),
+            SLOG_FIELD("hblks", "%u", cn_ns_hblks(ns)),
+            SLOG_FIELD("kblks", "%u", cn_ns_kblks(ns)),
+            SLOG_FIELD("vblks", "%u", cn_ns_vblks(ns)),
+            SLOG_FIELD("alen", "%lu", cn_ns_alen(ns)),
+            SLOG_END);
 }

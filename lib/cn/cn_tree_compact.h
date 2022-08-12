@@ -59,7 +59,8 @@ cn_action2str(enum cn_action action)
 enum {
     CW_DEBUG_START    = 0x01, /* enable cn_comp_start log messages */
     CW_DEBUG_PROGRESS = 0x02, /* enable cn_comp_stats type=progress log messages */
-    CW_DEBUG_FINAL    = 0x04  /* enable cn_comp_stats type=final log messages */
+    CW_DEBUG_FINAL    = 0x04, /* enable cn_comp_stats type=final log messages */
+    CW_DEBUG_SPLIT    = 0x08  /* enable cn_comp_stats type=split log messages */
 };
 
 typedef void (*cn_work_callback)(struct cn_compaction_work *w);
