@@ -93,30 +93,29 @@ kblk_compare(const void *const a, const void *const b)
 }
 
 static merr_t
-find_inflection_key(
-    const struct cn_tree_node *const node,
+find_inflection_points(
+    const struct cn_tree_node *const tn,
     uint64_t *const seen_kvlen,
-    uint32_t *const offsets,
-    const void **const inflection_key,
-    uint16_t *const inflection_key_len)
+    uint32_t *const offsets)
 {
     merr_t err;
     struct bin_heap2 *bh;
     struct kvset_list_entry *le;
-    struct kvset_kblk *inflection_kblk;
+    struct kvset_kblk *inflection_kblk = NULL;
     struct reverse_kblk_iterator *iters;
     struct element_source **srcs;
     void *buf = NULL;
+    uint64_t limit;
     uint64_t num_kvsets;
     uint64_t total_kvlen = 0;
     uint64_t kvset_idx = 0;
     uint64_t kvlen = 0;
 
-    INVARIANT(node);
+    INVARIANT(tn);
     INVARIANT(seen_kvlen);
     INVARIANT(offsets);
 
-    num_kvsets = cn_ns_kvsets(&node->tn_ns);
+    num_kvsets = cn_ns_kvsets(&tn->tn_ns);
 
     err = bin_heap2_create(num_kvsets, kblk_compare, &bh);
     if (ev(err))
@@ -134,7 +133,7 @@ find_inflection_key(
     iters = buf;
     srcs = buf + num_kvsets * sizeof(*iters);
 
-    list_for_each_entry(le, &node->tn_kvset_list, le_link) {
+    list_for_each_entry(le, &tn->tn_kvset_list, le_link) {
         struct kvset_metrics metrics;
         struct reverse_kblk_iterator *iter = &iters[kvset_idx];
 
@@ -151,20 +150,24 @@ find_inflection_key(
 
     assert(kvset_idx == num_kvsets);
 
+    /* Stop when we have reached at least 50% of the node's key/value data.
+     */
+    limit = total_kvlen / 2;
+
+    log_debug("node %lu inflection limit: %lu/%lu (%lf%%)",
+        tn->tn_nodeid, limit, total_kvlen, (double)limit * 100 / total_kvlen);
+
     err = bin_heap2_prepare(bh, num_kvsets, srcs);
     if (ev(err))
         goto out;
 
-    while (bin_heap2_pop(bh, (void **)&inflection_kblk)) {
+    while (kvlen <= limit && bin_heap2_pop(bh, (void **)&inflection_kblk))
         kvlen += inflection_kblk->kb_metrics.tot_key_bytes +
             inflection_kblk->kb_metrics.tot_val_bytes;
-        if (kvlen >= total_kvlen / 2)
-            break;
-    }
+    assert(inflection_kblk);
 
-    *inflection_key = inflection_kblk->kb_koff_min;
-    *inflection_key_len = inflection_kblk->kb_klen_min;
-    *seen_kvlen = kvlen;
+    log_debug("node %lu inflection key kvlen: %lu/%lu (%lf%%)",
+        tn->tn_nodeid, kvlen, total_kvlen, (double)kvlen * 100 / total_kvlen);
 
     /* Gather the offsets we ended at for each kvset. These will seed the
      * starting positions of the element sources in the next bin heap.
@@ -177,38 +180,57 @@ find_inflection_key(
         curr = iter->ks->ks_kblks + iter->offset;
 
         if (curr == inflection_kblk) {
+            log_debug("node %lu iterator %lu inflection point (kvset, kblock): (%lu, %u)",
+                tn->tn_nodeid, i, i, iter->offset);
             offsets[i] = iter->offset;
             continue;
         }
 
-        res = keycmp(curr->kb_koff_min, curr->kb_klen_min, *inflection_key, *inflection_key_len);
+        res = keycmp(curr->kb_koff_min, curr->kb_klen_min, inflection_kblk->kb_koff_min,
+            inflection_kblk->kb_klen_min);
         if (res >= 0) {
+            log_debug("node %lu iterator %lu inflection point (kvset, kblock): (%lu, %u)",
+                tn->tn_nodeid, i, i, iter->offset);
             offsets[i] = iter->offset;
             continue;
         }
 
-        /* In this case, the min key from the kblock for this iterator is less
-         * than the min key of the inflection kblock, so we need to seek this
-         * iterator forward (not reverse) in order to find the first kblock with
-         * a max key >= the min key of the inflection kblock. At this kblock,
-         * a forward WBT leaf node iterator needs to seek toward the inflection
-         * kblock's min key.
-         *
-         * In the case no kblock's max key is >= the inflection kblock's min
-         * key, then we can skip the forward WBT leaf node iteration in the next
-         * step.
+        /* If the current kblock lies entirely to the left of the inflection
+         * key, go to the next kblock since the split key must be greater than
+         * or equal to the inflection key.
          */
-        while (++iter->offset < iter->ks->ks_st.kst_kblks) {
-            curr += 1;
-
-            res = keycmp(curr->kb_koff_max, curr->kb_klen_max, *inflection_key,
-                *inflection_key_len);
-            if (res >= 0)
-                break;
+        if (iter->offset < iter->ks->ks_st.kst_kblks - 1 &&
+                keycmp(curr->kb_koff_max, curr->kb_klen_max, inflection_kblk->kb_koff_min,
+                    inflection_kblk->kb_klen_min) <= 0) {
+            iter->offset++;
+            curr++;
         }
 
+        log_debug("node %lu iterator %lu inflection point (kvset, kblock): (%lu, %u)",
+            tn->tn_nodeid, i, i, iter->offset);
         offsets[i] = iter->offset;
     }
+
+    /* Using the iterator offsets, we can exactly calculate how much key/value
+     * data exists to the left of every iterator's kblock. This kvlen will be
+     * used as the starting point for the forward WBT leaf node iteration.
+     */
+    kvlen = 0;
+    for (uint64_t i = 0; i < num_kvsets; i++) {
+        struct reverse_kblk_iterator *iter = iters + i;
+
+        for (uint32_t j = 0; j < iter->offset; j++) {
+            const struct kvset_kblk *kblk = &iter->ks->ks_kblks[j];
+
+            kvlen += kblk->kb_metrics.tot_key_bytes + kblk->kb_metrics.tot_val_bytes;
+        }
+    }
+    assert(kvlen <= total_kvlen / 2);
+
+    log_debug("node %lu seen kvlen: %lu/%lu (%lf%%)",
+        tn->tn_nodeid, kvlen, total_kvlen, (double)kvlen * 100 / total_kvlen);
+
+    *seen_kvlen = kvlen;
 
 out:
     free(buf);
@@ -257,14 +279,8 @@ static void
 forward_wbt_leaf_iterator_init(
     struct forward_wbt_leaf_iterator *const iter,
     struct kvset *const ks,
-    const uint32_t kblk_idx,
-    const void *inflection_key,
-    const uint16_t inflection_key_len)
+    const uint32_t kblk_idx)
 {
-    struct key_obj inflection_kobj;
-    struct kvset_kblk *kblk;
-    struct wbt_desc *desc;
-
     INVARIANT(ks);
     INVARIANT(iter);
 
@@ -272,42 +288,6 @@ forward_wbt_leaf_iterator_init(
     iter->offset.kblk_idx = kblk_idx;
     iter->offset.leaf_idx = 0;
     iter->es = es_make(forward_wbt_leaf_iterator_next, NULL, NULL);
-
-    if (iter->offset.kblk_idx >= ks->ks_st.kst_kblks)
-        return;
-
-    kblk = &iter->ks->ks_kblks[iter->offset.kblk_idx];
-    desc = &kblk->kb_wbt_desc;
-
-    key2kobj(&inflection_kobj, inflection_key, inflection_key_len);
-
-    /* Move leaf node index forward until the last key of the leaf node is >=
-     * the inflection key. When that point is hit, we know that the current leaf
-     * node index contains the inflection key, or a key just greater than it.
-     */
-    for (; iter->offset.leaf_idx < desc->wbd_leaf_cnt; iter->offset.leaf_idx++) {
-        int res;
-        struct key_obj kobj;
-        const struct wbt_lfe_omf *lfe;
-        const struct wbt_node_hdr_omf *node;
-
-        node = kblk->kb_kblk_desc.map_base + desc->wbd_first_page * PAGE_SIZE +
-            iter->offset.leaf_idx * WBT_NODE_SIZE;
-        assert(node->wbn_magic == WBT_LFE_NODE_MAGIC);
-
-        lfe = wbt_lfe(node, node->wbn_num_keys - 1);
-        wbt_node_pfx(node, &kobj.ko_pfx, &kobj.ko_pfx_len);
-        wbt_lfe_key(node, lfe, &kobj.ko_sfx, &kobj.ko_sfx_len);
-
-        res = key_obj_cmp(&kobj, &inflection_kobj);
-        if (res >= 0)
-            break;
-    }
-
-    /* We already confirmed that this kblock has a max key >= to the inflection
-     * key, so the leaf index has to be valid.
-     */
-    assert(iter->offset.leaf_idx < desc->wbd_leaf_cnt);
 }
 
 static int
@@ -334,11 +314,9 @@ wbt_leaf_compare(const void *const a, const void *const b)
 
 static merr_t
 find_split_key(
-    const struct cn_tree_node *const tnode,
+    const struct cn_tree_node *const tn,
     uint64_t seen_kvlen,
     const uint32_t *const offsets,
-    const void *const inflection_key,
-    const uint16_t inflection_key_len,
     void *const key_buf,
     const size_t key_buf_sz,
     unsigned int *const key_len)
@@ -350,19 +328,20 @@ find_split_key(
     struct forward_wbt_leaf_iterator *iters;
     struct element_source **srcs;
     const struct wbt_lfe_omf *lfe;
-    struct wbt_node_hdr_omf *wnode;
     struct key_obj key;
+    uint64_t limit;
+    struct wbt_node_hdr_omf *wnode = NULL;
     void *buf = NULL;
     uint64_t total_kvlen = 0;
     uint64_t kvset_idx = 0;
 
-    INVARIANT(tnode);
+    INVARIANT(tn);
     INVARIANT(offsets);
     INVARIANT(key_buf);
     INVARIANT(key_buf_sz > 0);
     INVARIANT(key_len);
 
-    num_kvsets = cn_ns_kvsets(&tnode->tn_ns);
+    num_kvsets = cn_ns_kvsets(&tn->tn_ns);
 
     err = bin_heap2_create(num_kvsets, wbt_leaf_compare, &bh);
     if (ev(err))
@@ -380,7 +359,7 @@ find_split_key(
     iters = buf;
     srcs = buf + num_kvsets * sizeof(*iters);
 
-    list_for_each_entry(le, &tnode->tn_kvset_list, le_link) {
+    list_for_each_entry(le, &tn->tn_kvset_list, le_link) {
         struct kvset_metrics metrics;
         struct forward_wbt_leaf_iterator *iter = &iters[kvset_idx];
 
@@ -388,26 +367,33 @@ find_split_key(
 
         total_kvlen += metrics.tot_key_bytes + metrics.tot_val_bytes;
 
-        forward_wbt_leaf_iterator_init(iter, le->le_kvset, offsets[kvset_idx], inflection_key,
-            inflection_key_len);
+        forward_wbt_leaf_iterator_init(iter, le->le_kvset, offsets[kvset_idx]);
 
         srcs[kvset_idx] = &(iter)->es;
 
         kvset_idx++;
     }
 
-    assert(seen_kvlen >= total_kvlen / 2);
+    /* Stop when we have reached at least 50% of the node's key/value data.
+     */
+    limit = total_kvlen / 2;
+
+    log_debug("node %lu split limit: %lu/%lu (%lf%%)",
+        tn->tn_nodeid, limit, total_kvlen, (double)limit * 100 / total_kvlen);
+
+    assert(seen_kvlen <= total_kvlen / 2);
     assert(kvset_idx == num_kvsets);
 
     err = bin_heap2_prepare(bh, num_kvsets, srcs);
     if (ev(err))
         goto out;
 
-    while (bin_heap2_pop(bh, (void **)&wnode)) {
-        seen_kvlen -= omf_wbn_kvlen(wnode);
-        if (seen_kvlen <= (total_kvlen / 2))
-            break;
-    }
+    while (seen_kvlen <= limit && bin_heap2_pop(bh, (void **)&wnode))
+        seen_kvlen += omf_wbn_kvlen(wnode);
+    assert(wnode);
+
+    log_debug("node %lu split key kvlen: %lu/%lu (%lf%%)",
+        tn->tn_nodeid, seen_kvlen, total_kvlen, (double)seen_kvlen * 100 / total_kvlen);
 
     assert(omf_wbn_num_keys(wnode) > 0);
 
@@ -436,19 +422,16 @@ cn_tree_node_get_split_key(
     merr_t err;
     uint64_t kvlen = 0;
     uint32_t *offsets = NULL;
-    const void *inflection_key = NULL;
-    uint16_t inflection_key_len = 0;
 
     offsets = malloc(cn_ns_kvsets(&node->tn_ns) * sizeof(*offsets));
     if (ev(!offsets))
         return merr(ENOMEM);
 
-    err = find_inflection_key(node, &kvlen, offsets, &inflection_key, &inflection_key_len);
+    err = find_inflection_points(node, &kvlen, offsets);
     if (ev(err))
         goto out;
 
-    err = find_split_key(node, kvlen, offsets, inflection_key, inflection_key_len, key_buf,
-        key_buf_sz, key_len);
+    err = find_split_key(node, kvlen, offsets, key_buf, key_buf_sz, key_len);
     if (ev(err))
         goto out;
 
@@ -505,6 +488,9 @@ cn_split(struct cn_compaction_work *w)
     INVARIANT(w);
 
     cndb = cn_tree_get_cndb(w->cw_tree);
+
+    log_debug("splitting node %lu with %u kvsets", w->cw_node->tn_nodeid,
+        cn_ns_kvsets(&w->cw_node->tn_ns));
 
     err = cn_tree_node_get_split_key(w->cw_node, w->cw_split.key, HSE_KVS_KEY_LEN_MAX,
                                      &w->cw_split.klen);
