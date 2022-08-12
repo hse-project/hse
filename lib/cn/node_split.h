@@ -84,4 +84,13 @@ cn_split_nodes_alloc(
 void
 cn_split_nodes_free(const struct cn_compaction_work *w, struct cn_tree_node *nodev[static 2]);
 
+/**
+ * cn_split_node_stats_dump() - Dump node stats for split
+ */
+void
+cn_split_node_stats_dump(
+    struct cn_compaction_work *w,
+    const struct cn_tree_node *node,
+    const char                *pos);
+
 #endif

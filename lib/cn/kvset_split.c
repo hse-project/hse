@@ -51,23 +51,6 @@ free_work(struct kvset_split_work work[static 2])
     }
 }
 
-static void
-delete_blks(struct kvset *ks, struct kvset_split_res *result)
-{
-    for (int i = LEFT; i <= RIGHT; i++)
-        delete_mblocks(ks->ks_mp, result->ks[i].blks_commit);
-}
-
-static void
-free_all(
-    struct kvset            *ks,
-    struct kvset_split_work  work[static 2],
-    struct kvset_split_res  *result)
-{
-    free_work(work);
-    delete_blks(ks, result);
-}
-
 static merr_t
 alloc_work(
     struct kvset            *ks,
@@ -332,7 +315,7 @@ kblocks_split(
     for (uint32_t i = 0; i < split_idx; i++) {
         err = blk_list_append(&blks_left->kblks, ks->ks_kblks[i].kb_kblk.bk_blkid);
         if (err)
-            goto errout;
+            return err;
 
         kbr_read_hlog(&ks->ks_kblks[i].kb_kblk_desc, &hlog);
         hlog_union(hlog_left, hlog);
@@ -356,7 +339,7 @@ kblocks_split(
         /* split kblock at split_idx */
         err = kblock_split(&kbd, split_kobj, kblks, vused);
         if (err)
-            goto errout;
+            return err;
         assert(kblks[LEFT].n_blks > 0 && kblks[RIGHT].n_blks > 0);
 
         /* Append kblks[LEFT] to the left kvset, kblks[RIGHT] to the right kvset, and both
@@ -370,7 +353,7 @@ kblocks_split(
                 err = blk_list_append(result->ks[LEFT].blks_commit, blkid);
 
             if (err)
-                goto errout;
+                return err;
 
             blks_left->bl_vused += vused[LEFT];
         }
@@ -383,7 +366,7 @@ kblocks_split(
                 err = blk_list_append(result->ks[RIGHT].blks_commit, blkid);
 
             if (err)
-                goto errout;
+                return err;
 
             blks_right->bl_vused += vused[RIGHT];
         }
@@ -397,7 +380,7 @@ kblocks_split(
         /* Add the source kblock to the purge list to be destroyed later */
         err = blk_list_append(result->blks_purge, kblk->kb_kblk.bk_blkid);
         if (err)
-            goto errout;
+            return err;
 
         split_idx++;
     }
@@ -407,7 +390,7 @@ kblocks_split(
     for (uint32_t i = split_idx; i < ks->ks_st.kst_kblks; i++) {
         err = blk_list_append(&blks_right->kblks, ks->ks_kblks[i].kb_kblk.bk_blkid);
         if (err)
-            goto errout;
+            return err;
 
         kbr_read_hlog(&ks->ks_kblks[i].kb_kblk_desc, &hlog);
         hlog_union(hlog_right, hlog);
@@ -415,11 +398,6 @@ kblocks_split(
     }
 
     return 0;
-
-errout:
-    free_all(ks, work, result);
-
-    return err;
 }
 
 /**
@@ -533,15 +511,18 @@ vblocks_split(
         for (uint16_t j = src_start; j < end; j++) {
             err = blk_list_append(&blks_left->vblks, kvset_get_nth_vblock_id(ks, j));
             if (err)
-                goto errout;
+                return err;
+
             vbcnt++;
         }
 
         if (vbcnt > 0) {
             vbidx_left += vbcnt;
+
             err = vgmap_vbidx_set(vgmap_src, end - 1, vgmap_left, vbidx_left - 1, vgidx_left);
             if (err)
-                goto errout;
+                return err;
+
             vgidx_left++;
         }
 
@@ -559,7 +540,7 @@ vblocks_split(
             }
 
             if (err)
-                goto errout;
+                return err;
 
             perfc_rwc++;
             if (perfc_ison(pc, PERFC_RA_CNCOMP_RBYTES) || perfc_ison(pc, PERFC_RA_CNCOMP_WBYTES)) {
@@ -568,6 +549,8 @@ vblocks_split(
                 err = mpool_mblock_props_get(ks->ks_mp, src_mbid, &props);
                 if (!ev(err))
                     perfc_rwb += props.mpr_write_len;
+                else
+                    err = 0;
             }
 
             vbcnt++;
@@ -579,15 +562,18 @@ vblocks_split(
         for (uint16_t j = src_split; j <= src_end; j++) {
             err = blk_list_append(&blks_right->vblks, kvset_get_nth_vblock_id(ks, j));
             if (err)
-                goto errout;
+                return err;
+
             vbcnt++;
         }
 
         if (vbcnt > 0) {
             vbidx_right += vbcnt;
+
             err = vgmap_vbidx_set(vgmap_src, src_end, vgmap_right, vbidx_right - 1, vgidx_right);
             if (err)
-                goto errout;
+                return err;
+
             vgidx_right++;
         }
     }
@@ -607,11 +593,6 @@ vblocks_split(
     }
 
     return 0;
-
-errout:
-    free_all(ks, work, result);
-
-    return err;
 }
 
 /**
@@ -671,15 +652,10 @@ hblock_split(
         }
     }
 
-    if (!err)
-        err = blk_list_append(result->blks_purge, ks->ks_hblk.kh_hblk_desc.mbid);
-    else
-        free_all(ks, work, result);
-
-    return err;
+    return err ? err : blk_list_append(result->blks_purge, ks->ks_hblk.kh_hblk_desc.mbid);
 }
 
-merr_t
+static merr_t
 kvset_split(
     struct kvset           *ks,
     const struct key_obj   *split_kobj,
@@ -697,22 +673,31 @@ kvset_split(
 
     err = kblocks_split(ks, split_kobj, work, result);
     if (err)
-        return err;
+        goto errout;
 
     err = vblocks_split(ks, split_kobj, work, pc, result);
     if (err)
-        return err;
+        goto errout;
 
     err = hblock_split(ks, work, result);
     if (err)
-        return err;
+        goto errout;
 
     for (int i = 0; i < 2; i++) {
         *(result->ks[i].vgmap) = work[i].vgmap;
         work[i].vgmap = NULL;
     }
 
+errout:
     free_work(work);
 
-    return 0;
+    return err;
+}
+
+void
+kvset_split_worker(struct work_struct *work)
+{
+    struct kvset_split_wargs *wargs = container_of(work, struct kvset_split_wargs, work);
+
+    wargs->err = kvset_split(wargs->ks, wargs->split_kobj, wargs->pc, &wargs->result);
 }

@@ -77,7 +77,6 @@ sp3_work_estimate(struct cn_compaction_work *w)
 
     switch (w->cw_action) {
     case CN_ACTION_NONE:
-    case CN_ACTION_SPLIT:
         break;
 
     case CN_ACTION_COMPACT_K:
@@ -96,6 +95,12 @@ sp3_work_estimate(struct cn_compaction_work *w)
         assert(cn_node_isroot(w->cw_node));
         consume = halen + kalen + valen;
         percent_keep = 100 * 100 / cn_ns_samp(&w->cw_ns);
+        dst_is_leaf = true;
+        break;
+
+    case CN_ACTION_SPLIT:
+        consume = halen + kalen + valen;
+        percent_keep = 100;
         dst_is_leaf = true;
         break;
     }

@@ -36,17 +36,30 @@ struct kvset_split_res {
 };
 
 /**
- * kvset_split() - split kblocks, vblocks and the hblock of a given kvset
+ * struct kvset_split_wargs - split work args
+ *
+ * @work:       work struct
  * @ks:         kvset handle
  * @split_kobj: split key object
  * @pc:         perfc_set handle
+ * @err:        return status of this split work
  * @result:     split result (output)
  */
-merr_t
-kvset_split(
-    struct kvset           *ks,
-    const struct key_obj   *split_kobj,
-    struct perfc_set       *pc,
-    struct kvset_split_res *result);
+struct kvset_split_wargs {
+    struct work_struct     work;
+    struct kvset          *ks;
+    struct key_obj        *split_kobj;
+    struct perfc_set      *pc;
+    merr_t                 err;
+    struct kvset_split_res result;
+};
+
+/**
+ * kvset_split_worker() - worker function that splits a given kvset
+ *
+ * @work: split work struct
+ */
+void
+kvset_split_worker(struct work_struct *work);
 
 #endif /* HSE_KVS_CN_KVSET_SPLIT_H */

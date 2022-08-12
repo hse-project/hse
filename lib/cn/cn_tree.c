@@ -1456,6 +1456,9 @@ cn_comp_update_split(
         w->cw_split.nodev[LEFT] = left;
     }
 
+    if (w->cw_debug & CW_DEBUG_SPLIT)
+        cn_split_node_stats_dump(w, src, "source");
+
     rmlock_wlock(&tree->ct_lock);
     {
         /* Move all the source kvsets from the source node to the retired list.
@@ -1504,6 +1507,11 @@ cn_comp_update_split(
         cn_node_comp_token_put(w->cw_tree->ct_root);
 
         atomic_sub_rel(&src->tn_busycnt, (1u << 16) + w->cw_kvset_cnt);
+
+        if (w->cw_debug & CW_DEBUG_SPLIT) {
+            cn_split_node_stats_dump(w, left, "left");
+            cn_split_node_stats_dump(w, right, "right");
+        }
     }
     rmlock_wunlock(&tree->ct_lock);
 
