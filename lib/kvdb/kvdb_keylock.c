@@ -169,7 +169,7 @@ kvdb_keylock_create(struct kvdb_keylock **handle_out, u32 num_tables)
     sz += num_tables * sizeof(struct keylock *);
     sz = ALIGN(sz, __alignof__(*klock));
 
-    klock = alloc_aligned(sz, __alignof__(*klock));
+    klock = aligned_alloc(__alignof__(*klock), sz);
     if (ev(!klock))
         return merr(ENOMEM);
 
@@ -238,7 +238,7 @@ kvdb_keylock_destroy(struct kvdb_keylock *handle)
     for (i = 0; i < klock->kl_num_tables; i++)
         keylock_destroy(klock->kl_keylock[i]);
 
-    free_aligned(klock);
+    free(klock);
 }
 
 void

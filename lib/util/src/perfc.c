@@ -458,7 +458,7 @@ perfc_emit_handler(struct dt_element *dte, struct yaml_context *yc)
 static size_t
 perfc_remove_handler_ctrset(struct dt_element *dte)
 {
-    free_aligned(dte->dte_data);
+    free(dte->dte_data);
     free(dte);
 
     return 0;
@@ -581,8 +581,9 @@ perfc_ivl_create(int boundc, const u64 *boundv, struct perfc_ivl **ivlp)
 
     sz = sizeof(*ivl);
     sz += sizeof(ivl->ivl_bound[0]) * boundc;
+    sz = ALIGN(sz, HSE_ACP_LINESIZE);
 
-    ivl = alloc_aligned(sz, HSE_ACP_LINESIZE);
+    ivl = aligned_alloc(HSE_ACP_LINESIZE, sz);
     if (ev(!ivl))
         return merr(ENOMEM);
 
@@ -612,9 +613,9 @@ perfc_ivl_create(int boundc, const u64 *boundv, struct perfc_ivl **ivlp)
 }
 
 void
-perfc_ivl_destroy(const struct perfc_ivl *ivl)
+perfc_ivl_destroy(struct perfc_ivl *ivl)
 {
-    free_aligned(ivl);
+    free(ivl);
 }
 
 static enum perfc_type
@@ -763,7 +764,7 @@ perfc_alloc_impl(
 
     valdatasz = sizeof(struct perfc_val) * PERFC_VALPERCNT * PERFC_VALPERCPU * n + 1;
 
-    seti = alloc_aligned(sz + valdatasz, HSE_ACP_LINESIZE);
+    seti = aligned_alloc(HSE_ACP_LINESIZE, ALIGN(sz + valdatasz, HSE_ACP_LINESIZE));
     if (!seti) {
         err = merr(ENOMEM);
         goto errout;
@@ -842,7 +843,7 @@ perfc_alloc_impl(
                   err, group, family, ctrseti_name, file, line);
         setp->ps_bitmap = 0;
         setp->ps_seti = NULL;
-        free_aligned(seti);
+        free(seti);
         free(dte);
     }
 

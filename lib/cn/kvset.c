@@ -507,7 +507,7 @@ kvset_open2(
     alloc_len += sizeof(ks->ks_vblk2mbs[0]) * n_vblks;
 
     if (ev(alloc_len > kvset_cache[0].sz))
-        ks = alloc_aligned(alloc_len, __alignof__(*ks));
+        ks = aligned_alloc(__alignof__(*ks), alloc_len);
     else if (alloc_len > kvset_cache[1].sz)
         ks = kmem_cache_alloc(kvset_cache[0].cache);
     else if (alloc_len > kvset_cache[2].sz)
@@ -1032,7 +1032,7 @@ kvset_close(struct kvset *ks)
     vgmap_free(ks->ks_vgmap);
 
     if (ks->ks_kvset_sz > kvset_cache[0].sz)
-        free_aligned(ks);
+        free(ks);
     else if (ks->ks_kvset_sz > kvset_cache[1].sz)
         kmem_cache_free(kvset_cache[0].cache, ks);
     else if (ks->ks_kvset_sz > kvset_cache[2].sz)

@@ -190,9 +190,9 @@ get_direct_read_buf(uint len, bool aligned_voff, u32 *bufsz, void **buf)
         if (bufsz_min < *bufsz)
             *bufsz += PAGE_SIZE;
 
-        free_aligned(*buf);
+        free(*buf);
 
-        *buf = alloc_aligned(*bufsz, PAGE_SIZE);
+        *buf = aligned_alloc(PAGE_SIZE, *bufsz);
         if (!(*buf))
             return merr(ENOMEM);
     }
@@ -523,7 +523,7 @@ cn_spill(struct cn_compaction_work *w)
     }
 
     bin_heap_destroy(bh);
-    free_aligned(buf);
+    free(buf);
 
     if (seqno_errcnt)
         log_warn("seqno errcnt %u", seqno_errcnt);

@@ -128,7 +128,7 @@ viewset_tree_create(u32 max_elts, u32 index, struct viewset_tree **tree)
     sz = sizeof(*self);
     sz += sizeof(self->vst_entryv[0]) * max_elts;
 
-    self = alloc_aligned(sz, __alignof__(*self));
+    self = aligned_alloc(__alignof__(*self), sz);
     if (ev(!self))
         return merr(ENOMEM);
 
@@ -145,7 +145,7 @@ viewset_tree_create(u32 max_elts, u32 index, struct viewset_tree **tree)
 static void
 viewset_tree_destroy(struct viewset_tree *self)
 {
-    free_aligned(self);
+    free(self);
 }
 
 static struct viewset_entry *
@@ -182,7 +182,7 @@ viewset_create(struct viewset **handle, atomic_ulong *kvdb_seqno_addr, atomic_ul
 
     max_elts = HSE_VIEWSET_ELTS_MAX / VIEWSET_BKT_MAX;
 
-    self = alloc_aligned(sizeof(*self), __alignof__(*self));
+    self = aligned_alloc(__alignof__(*self), sizeof(*self));
     if (ev(!self))
         return merr(ENOMEM);
 
@@ -242,7 +242,7 @@ viewset_destroy(struct viewset *handle)
     for (i = 0; i < NELEM(self->vs_nodev); ++i)
         sem_destroy(&self->vs_nodev[i].vs_sema);
 
-    free_aligned(self);
+    free(self);
 }
 
 u64

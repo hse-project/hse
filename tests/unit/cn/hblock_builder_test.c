@@ -59,7 +59,7 @@ collection_pre(struct mtf_test_info *lcl_ti)
         for (j = 0; j < HSE_MPOLICY_DTYPE_CNT; j++)
             mocked_mpolicy.mc_table[i][j] = HSE_MCLASS_CAPACITY;
 
-    hlog = alloc_page_aligned(HLOG_SIZE);
+    hlog = aligned_alloc(PAGE_SIZE, HLOG_SIZE);
     if (!hlog)
         return ENOMEM;
 
@@ -147,7 +147,7 @@ MTF_DEFINE_UTEST_PREPOST(hblock_builder_test, add_ptomb_success, test_pre, test_
     const void *pfx, *pfx_min, *pfx_max;
     size_t pfx_min_len, pfx_max_len;
 
-    char *buf = alloc_page_aligned(HBLOCK_HDR_PAGES * PAGE_SIZE);
+    char *buf = aligned_alloc(PAGE_SIZE, HBLOCK_HDR_PAGES * PAGE_SIZE);
     hdr = (struct hblock_hdr_omf *)buf;
 
     iov[0].iov_base = buf;
@@ -248,7 +248,7 @@ MTF_DEFINE_UTEST_PREPOST(hblock_builder_test, add_ptomb_success, test_pre, test_
 
     hbb_destroy(bld);
 
-    free_aligned(buf);
+    free(buf);
 }
 
 MTF_DEFINE_UTEST_PREPOST(hblock_builder_test, finish_null_hlog, test_pre, test_post)

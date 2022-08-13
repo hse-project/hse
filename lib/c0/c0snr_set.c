@@ -179,7 +179,7 @@ c0snr_set_create(struct c0snr_set **handle)
     max_bkts = NELEM(self->css_bktv);
     max_elts = HSE_C0SNRSET_ELTS_MAX / max_bkts;
 
-    self = alloc_aligned(sizeof(*self), __alignof__(*self));
+    self = aligned_alloc(__alignof__(*self), sizeof(*self));
     if (ev(!self))
         return merr(ENOMEM);
 
@@ -220,7 +220,7 @@ c0snr_set_destroy(struct c0snr_set *handle)
         c0snr_set_list_destroy(bkt->csb_list);
     }
 
-    free_aligned(self);
+    free(self);
 }
 
 void *

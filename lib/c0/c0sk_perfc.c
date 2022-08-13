@@ -64,7 +64,7 @@ c0sk_perfc_init(void)
 void
 c0sk_perfc_fini(void)
 {
-    const struct perfc_ivl *ivl;
+    struct perfc_ivl *ivl;
 
     ivl = c0sk_perfc_ingest[PERFC_DI_C0SKING_PREP].pcn_ivl;
     if (ivl) {

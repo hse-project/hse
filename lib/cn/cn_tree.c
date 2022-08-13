@@ -148,7 +148,7 @@ cn_tree_create(
     if (ev(cp->pfx_len > HSE_KVS_PFX_LEN_MAX))
         return merr(EINVAL);
 
-    tree = alloc_aligned(sizeof(*tree), __alignof__(*tree));
+    tree = aligned_alloc(__alignof__(*tree), sizeof(*tree));
     if (ev(!tree))
         return merr(ENOMEM);
 
@@ -167,7 +167,7 @@ cn_tree_create(
     tree->ct_root = cn_node_alloc(tree, 0);
     if (ev(!tree->ct_root)) {
         mutex_destroy(&tree->ct_rspills_lock);
-        free_aligned(tree);
+        free(tree);
         return merr(ENOMEM);
     }
 
@@ -236,7 +236,7 @@ cn_tree_destroy(struct cn_tree *tree)
     rmlock_destroy(&tree->ct_lock);
     route_map_destroy(tree->ct_route_map);
     mutex_destroy(&tree->ct_rspills_lock);
-    free_aligned(tree);
+    free(tree);
 }
 
 void

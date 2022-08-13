@@ -310,7 +310,7 @@ bin_heap2_create(u32 max_width, bin_heap2_compare_fn *cmp, struct bin_heap2 **bh
 
     sz = sizeof(*bh) + sizeof(struct heap_node) * max_width;
 
-    bh = alloc_aligned(sz, HSE_ACP_LINESIZE);
+    bh = aligned_alloc(HSE_ACP_LINESIZE, ALIGN(sz, HSE_ACP_LINESIZE));
     if (!bh)
         return merr(ENOMEM);
 
@@ -324,7 +324,7 @@ bin_heap2_create(u32 max_width, bin_heap2_compare_fn *cmp, struct bin_heap2 **bh
 void
 bin_heap2_destroy(struct bin_heap2 *bh)
 {
-    free_aligned(bh);
+    free(bh);
 }
 
 merr_t

@@ -1139,21 +1139,16 @@ kmc_test(int which, size_t size, size_t align, void *zone, uint *alignedp)
             break;
 
         case 3:
-            free_aligned(addrv[idx]);
-            addrv[idx] = alloc_aligned(size, align);
-            break;
-
-        case 4:
             kmem_cache_free(zone, addrv[idx]);
             addrv[idx] = kmem_cache_alloc(zone);
             break;
 
-        case 5:
+        case 4:
             vlb_free(addrv[idx], sizeof(void *));
             addrv[idx] = vlb_alloc(size);
             break;
 
-        case 6:
+        case 5:
             vlb_free(addrv[idx], size);
             addrv[idx] = vlb_alloc(size);
             break;
@@ -1171,7 +1166,7 @@ kmc_test(int which, size_t size, size_t align, void *zone, uint *alignedp)
     for (i = 0; i < addrc; ++i) {
         switch (which) {
         case 3:
-            free_aligned(addrv[i]);
+            free(addrv[i]);
             break;
 
         case 4:
@@ -1213,9 +1208,9 @@ kmc_rest_get_test(
     size_t       hsz, sz;
     int          rc, n;
 
-    n = snprintf(buf, sizeof(buf), "%4s %5s %10s %14s %14s %17s %9s\n",
+    n = snprintf(buf, sizeof(buf), "%4s %5s %10s %14s %17s %9s\n",
                  "cpu", "size", "malloc", "aligned_alloc",
-                 "alloc_aligned", "kmem_cache_alloc", "vlb_alloc");
+                 "kmem_cache_alloc", "vlb_alloc");
     rest_write_safe(info->resp_fd, buf, n);
 
     for (sz = 8; sz < 16ul << 20; sz *= 2) {
@@ -1259,25 +1254,20 @@ kmc_rest_get_test(
         n = snprintf(buf, bufsz, " %10zu,%-3u",  nspa, naligned);
         rest_write_safe(info->resp_fd, buf, n);
 
-        nspa = kmc_test(3, sz, align, NULL, &naligned);
-        nspa = kmc_test(3, sz, align, NULL, &naligned);
-        n = snprintf(buf, bufsz, " %10zu,%-3u",  nspa, naligned);
-        rest_write_safe(info->resp_fd, buf, n);
-
         if (zone) {
-            nspa = kmc_test(4, sz, align, zone, &naligned);
-            nspa = kmc_test(4, sz, align, zone, &naligned);
+            nspa = kmc_test(3, sz, align, zone, &naligned);
+            nspa = kmc_test(3, sz, align, zone, &naligned);
             n = snprintf(buf, bufsz, " %13zu,%3u %9s",  nspa, naligned, "-");
             rest_write_safe(info->resp_fd, buf, n);
             kmem_cache_destroy(zone);
         } else if (sz > VLB_ALLOCSZ_MAX) {
-            nspa = kmc_test(6, sz, align, NULL, &naligned);
-            nspa = kmc_test(6, sz, align, NULL, &naligned);
+            nspa = kmc_test(5, sz, align, NULL, &naligned);
+            nspa = kmc_test(5, sz, align, NULL, &naligned);
             n = snprintf(buf, bufsz, " %17s %7zu,%u,vma",  "-", nspa, naligned);
             rest_write_safe(info->resp_fd, buf, n);
         } else {
-            nspa = kmc_test(5, sz, align, NULL, &naligned);
-            nspa = kmc_test(5, sz, align, NULL, &naligned);
+            nspa = kmc_test(4, sz, align, NULL, &naligned);
+            nspa = kmc_test(4, sz, align, NULL, &naligned);
             n = snprintf(buf, bufsz, " %17s %7zu,%u",  "-", nspa, naligned);
             rest_write_safe(info->resp_fd, buf, n);
         }

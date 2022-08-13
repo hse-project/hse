@@ -86,18 +86,19 @@ MTF_DEFINE_UTEST_PREPOST(kvdb_ctxn_test, alloc, mapi_pre, mapi_post)
     ASSERT_EQ(0, mapi_calls(mapi_idx_malloc));
     ASSERT_EQ(0, mapi_calls(mapi_idx_free));
 
-    mapi_inject_once_ptr(mapi_idx_alloc_aligned, 1, NULL);
+    mapi_inject_once_ptr(mapi_idx_aligned_alloc, 1, NULL);
     err = c0snr_set_create(&css);
     ASSERT_NE(0, err);
 
     err = c0snr_set_create(&css);
-    ASSERT_TRUE(err == 0);
+    ASSERT_EQ(0, err);
 
     mapi_calls_clear(mapi_idx_malloc);
     mapi_calls_clear(mapi_idx_free);
     ASSERT_EQ(0, mapi_calls(mapi_idx_malloc));
     ASSERT_EQ(0, mapi_calls(mapi_idx_free));
 
+    mapi_inject_unset(mapi_idx_aligned_alloc);
     err = kvdb_ctxn_set_create(&kvdb_ctxn_set, tn_timeout, tn_delay);
     ASSERT_EQ(err, 0);
 

@@ -891,7 +891,7 @@ cn_open(
     if (!rp)
         sz += sizeof(*rp);
 
-    cn = alloc_aligned(sz, __alignof__(*cn));
+    cn = aligned_alloc(__alignof__(*cn), sz);
     if (ev(!cn))
         return merr(ENOMEM);
 
@@ -1090,7 +1090,7 @@ err_exit:
     cn_tree_destroy(cn->cn_tree);
     if (!cn->cn_replay)
         cn_perfc_free(cn);
-    free_aligned(cn);
+    free(cn);
 
     return err;
 }
@@ -1123,7 +1123,7 @@ cn_close(struct cn *cn)
     assert(atomic_read(&cn->cn_refcnt) == 0);
 
     cn_perfc_free(cn);
-    free_aligned(cn);
+    free(cn);
 
     return 0;
 }
