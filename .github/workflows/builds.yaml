@@ -184,12 +184,7 @@ jobs:
         uses: actions/cache@v3
         with:
           path: subprojects/packagecache
-          key: meson-packagecache-${{ hashFiles('subprojects/hse/subprojects/*.wrap') }}
-
-      - name: Download Meson subprojects
-        if: ${{ steps.to-skip.outputs.skip == 'false' && !steps.meson-packagecache.outputs.cache-hit }}
-        run: |
-          meson subprojects download
+          key: meson-packagecache-${{ matrix.image }}-${{ hashFiles('subprojects/hse/subprojects/*.wrap') }}
 
       # userspace-rcu leaks warnings as errors due to static inlines. Another
       # mitigation is adding -U_LGPL_SOURCE which moves the functions out of
