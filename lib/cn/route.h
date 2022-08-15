@@ -87,6 +87,9 @@ route_map_lookup(struct route_map *map, const void *key, uint keylen);
 struct route_node *
 route_map_lookupGT(struct route_map *map, const void *key, uint keylen);
 
+struct route_node *
+route_map_last_node(struct route_map *map);
+
 struct route_map *
 route_map_create(uint nodec);
 

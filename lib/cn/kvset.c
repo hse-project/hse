@@ -1906,17 +1906,6 @@ kvset_get_vbsetv(struct kvset *ks, uint *vbsetc)
 }
 
 void
-kvset_get_min_key(struct kvset *ks, const void **min_key, uint *min_klen)
-{
-    struct kvset_kblk *kb = &ks->ks_kblks[0];
-
-    INVARIANT(min_key && min_klen);
-
-    *min_key = kb->kb_koff_min;
-    *min_klen = kb->kb_klen_min;
-}
-
-void
 kvset_get_max_key(struct kvset *ks, const void **max_key, uint *max_klen)
 {
     struct kvset_kblk *kb = &ks->ks_kblks[ks->ks_st.kst_kblks - 1];

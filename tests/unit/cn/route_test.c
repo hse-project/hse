@@ -51,6 +51,10 @@ MTF_DEFINE_UTEST(route_test, route_api_test)
 
         ASSERT_EQ(true, route_node_isfirst(rnodev[0]));
         ASSERT_EQ(true, route_node_islast(rnodev[i]));
+
+        rnode2 = route_map_last_node(map);
+        ASSERT_EQ(rnode2, rnodev[i]);
+
         if (i > 0) {
             ASSERT_EQ(false, route_node_islast(rnodev[0]));
             ASSERT_EQ(false, route_node_isfirst(rnodev[i]));

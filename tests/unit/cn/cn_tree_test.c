@@ -184,13 +184,6 @@ _kvset_get_max_key(struct kvset *ks, const void **key, uint *klen)
     *klen = 1;
 }
 
-void
-_kvset_get_min_key(struct kvset *ks, const void **key, uint *klen)
-{
-    *key = (const void *)&(((struct fake_kvset *)ks)->min_key);
-    *klen = 1;
-}
-
 enum hse_mclass
 cn_tree_node_mclass(struct cn_tree_node *tn, enum hse_mclass_policy_dtype dtype)
 {
@@ -360,7 +353,6 @@ test_setup(struct mtf_test_info *lcl_ti)
     MOCK_SET(kvset, _kvset_iter_create);
     MOCK_SET(kvset, _kvset_from_iter);
 
-    MOCK_SET(kvset, _kvset_get_min_key);
     MOCK_SET(kvset, _kvset_get_max_key);
     MOCK_SET(kvset, _kvset_statsp);
     MOCK_SET(kvset, _kvset_stats);
@@ -806,9 +798,6 @@ MTF_DEFINE_UTEST_PRE(test, cn_node_get_minmax, test_setup)
         kvset->max_key = 'p' + cnt;
         ++cnt;
     }
-
-    cn_tree_node_get_min_key(tn, kbuf, sizeof(kbuf), &klen);
-    ASSERT_EQ(0, keycmp(kbuf, klen, "a", 1));
 
     cn_tree_node_get_max_key(tn, kbuf, sizeof(kbuf), &klen);
     const char max = 'p' + cnt - 1;

@@ -2196,36 +2196,6 @@ cn_tree_node_scatter(const struct cn_tree_node *tn)
 }
 
 void
-cn_tree_node_get_min_key(struct cn_tree_node *tn, void *kbuf, size_t kbuf_sz, uint *min_klen)
-{
-    struct kvset_list_entry *le;
-    const void *min_key = NULL;
-    void *lock;
-
-    INVARIANT(tn && kbuf && kbuf_sz > 0 && min_klen);
-
-    *min_klen = 0;
-
-    rmlock_rlock(&tn->tn_tree->ct_lock, &lock);
-    list_for_each_entry (le, &tn->tn_kvset_list, le_link) {
-        struct kvset *kvset = le->le_kvset;
-        const void *key;
-        uint klen;
-
-        kvset_get_min_key(kvset, &key, &klen);
-
-        if (!min_key || keycmp(key, klen, min_key, *min_klen) < 0) {
-            min_key = key;
-            *min_klen = klen;
-        }
-    }
-    assert(min_key && *min_klen > 0);
-
-    memcpy(kbuf, min_key, min_t(size_t, kbuf_sz, *min_klen));
-    rmlock_runlock(lock);
-}
-
-void
 cn_tree_node_get_max_key(struct cn_tree_node *tn, void *kbuf, size_t kbuf_sz, uint *max_klen)
 {
     struct kvset_list_entry *le;
