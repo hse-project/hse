@@ -480,7 +480,7 @@ sp3_work_wtype_length(
             ulong keys_max = 32ul << 20;
 
             *mark = list_last_entry(head, typeof(*le), le_link);
-            *action = CN_ACTION_COMPACT_KV;
+            *action = CN_ACTION_COMPACT_K;
             *rule = CN_RULE_INDEXF;
             runlen = 0;
 
