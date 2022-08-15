@@ -272,20 +272,6 @@ void
 kvset_list_add_tail(struct kvset *kvset, struct list_head *head);
 
 /**
- * kvset_get_min_key() - Get the smallest key in a kvset
- *
- * @ks:   struct kvset handle.
- * @min_key:  (output) reference to the smallest key
- * @min_klen: (output) length of @min_key
- *
- * NOTE: @min_key is valid as long as kvset exists. Callers must copy the key, or
- * keep a ref to the kvset.
- */
-/* MTF_MOCK */
-void
-kvset_get_min_key(struct kvset *ks, const void **min_key, uint *min_klen);
-
-/**
  * kvset_get_max_key() - Get the largest key in a kvset
  *
  * @ks:   struct kvset handle.

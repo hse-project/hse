@@ -284,6 +284,21 @@ route_map_find(struct route_map *map, const void *key, uint keylen, bool gt)
 }
 
 struct route_node *
+route_map_last_node(struct route_map *map)
+{
+    struct rb_root *root = &map->rtm_root;
+    struct rb_node *node = rb_last(root);
+    struct route_node *last = NULL;
+
+    if (node) {
+        last = rb_entry(node, struct route_node, rtn_node);
+        assert(last->rtn_islast);
+    }
+
+    return last;
+}
+
+struct route_node *
 route_map_lookup(struct route_map *map, const void *key, uint keylen)
 {
     return map ? route_map_find(map, key, keylen, false) : NULL;

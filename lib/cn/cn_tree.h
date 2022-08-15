@@ -81,17 +81,6 @@ void
 cn_tree_samp(const struct cn_tree *tree, struct cn_samp_stats *s_out);
 
 /**
- * cn_tree_node_get_min_key() - Get the smallest key in a cN node
- *
- * @tn:       cn_tree_node handle
- * @kbuf:     (output) copy out buffer for storing the min key
- * @kbuf_sz:  size of kbuf
- * @min_klen: (output) length of min key
- */
-void
-cn_tree_node_get_min_key(struct cn_tree_node *tn, void *kbuf, size_t kbuf_sz, uint *min_klen);
-
-/**
  * cn_tree_node_get_max_key() - Get the largest key in a cN node
  *
  * @tn:       cn_tree_node handle

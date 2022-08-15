@@ -981,11 +981,11 @@ cn_open(
     klen = sizeof(kbuf);
     memset(kbuf, -1, klen);
 
-    /* Find the node in the route map with the largest edge key and force
-     * it to the the largest possible key.  If the route map is empty then
-     * create the initial leaf node with the largest possible edge key.
+    /* Find the last node in the route map and force it to the largest possible edge key.
+     * If the route map is empty then create the initial leaf node with the largest
+     * possible edge key.
      */
-    rn = route_map_lookup(cn->cn_tree->ct_route_map, kbuf, klen);
+    rn = route_map_last_node(cn->cn_tree->ct_route_map);
     if (rn) {
         tn = route_node_tnode(rn);
         if (!tn)
