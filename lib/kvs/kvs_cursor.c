@@ -390,9 +390,9 @@ ikvs_curcache_timer_cb(ulong arg)
  * we have to touch while walking the tree.
  */
 static HSE_ALWAYS_INLINE uint64_t
-ikvs_curcache_key(const uint64_t gen, const char *prefix, const u64 pfxhash, const bool reverse)
+ikvs_curcache_key(const uint64_t gen, const bool reverse)
 {
-    return (gen << 24) | (pfxhash & 0xfffffau) | ((!!prefix) << 1) | reverse;
+    return (gen << 63) | reverse;
 }
 
 static HSE_ALWAYS_INLINE int
@@ -579,7 +579,7 @@ ikvs_cursor_restore(struct ikvs *kvs, const void *prefix, size_t pfx_len, u64 pf
 
     tstart = perfc_lat_startl(&kvs->ikv_cd_pc, PERFC_LT_CD_RESTORE);
 
-    key = ikvs_curcache_key(kvs->ikv_gen, prefix, pfxhash, reverse);
+    key = ikvs_curcache_key(kvs->ikv_gen, reverse);
 
     cur = ikvs_curcache_remove(ikvs_curcache_td2bkt(), key, prefix, pfx_len);
     if (!cur) {
@@ -662,7 +662,7 @@ kvs_cursor_alloc(struct ikvs *kvs, const void *prefix, size_t pfx_len, bool reve
 
     memset(cur, 0, sizeof(*cur));
 
-    cur->kci_item.ci_key = ikvs_curcache_key(kvs->ikv_gen, prefix, pfxhash, reverse);
+    cur->kci_item.ci_key = ikvs_curcache_key(kvs->ikv_gen, reverse);
     cur->kci_cc_pc = PERFC_ISON(&kvs->ikv_cc_pc) ? &kvs->ikv_cc_pc : NULL;
     cur->kci_cd_pc = PERFC_ISON(&kvs->ikv_cd_pc) ? &kvs->ikv_cd_pc : NULL;
     cur->kci_kvs = kvs;

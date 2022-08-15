@@ -173,6 +173,7 @@ struct sp3_qinfo {
  * @mon_signaled: set by sp3_monitor_wake()
  * @mon_cv:       monitor thread conditional var
  * @samp_reduce:  if true, compact while samp > LWM
+ * @check_big_ns: used to stagger start of gc and scatter jobs
  * @mon_wq:       monitor thread workqueue
  * @mon_work:     monitor thread work struct
  * @name:         name for logging and data tree
@@ -229,11 +230,7 @@ struct sp3 {
     uint samp_targ;
     uint lpct_targ;
 
-    /* Throttle sensors */
-    u64         rspill_dt_prev;
-    atomic_long rspill_dt;
-
-
+    uint64_t check_big_ns;
     u64 qos_log_ttl;
 
     /* Tree shape report */
@@ -980,13 +977,6 @@ sp3_dirty_node_locked(struct sp3 *sp, struct cn_tree_node *tn)
                 sp3_node_insert(sp, spn, wtype_split, weight);
                 splitting = true;
             } else {
-                if (tn->tn_spillsync) {
-                    log_warn("node %lu spillsync %u pcap %u busycnt %04x",
-                             tn->tn_nodeid, tn->tn_spillsync, tn->tn_ns.ns_pcap,
-                             atomic_read_acq(&tn->tn_busycnt));
-                    abort();
-                }
-
                 sp3_node_remove(sp, spn, wtype_split);
             }
         }
@@ -1096,12 +1086,18 @@ sp3_process_workitem(struct sp3 *sp, struct cn_compaction_work *w)
 
     if (w->cw_action == CN_ACTION_SPILL) {
         struct cn_tree_node *leaf;
+        uint64_t dt;
 
         assert(tn == tree->ct_root);
 
         cn_tree_foreach_leaf(leaf, tree) {
             sp3_dirty_node_locked(sp, leaf);
         }
+
+        /* Maintain a per-tree average root spill time for throttling.
+         */
+        dt = get_time_ns() - w->cw_t0_enqueue;
+        tree->ct_rspill_dt = (tree->ct_rspill_dt + dt * 2) / 3;
     }
 
     if (w->cw_action == CN_ACTION_SPLIT) {
@@ -1124,16 +1120,6 @@ sp3_process_workitem(struct sp3 *sp, struct cn_compaction_work *w)
 
     if (w->cw_debug & (CW_DEBUG_PROGRESS | CW_DEBUG_FINAL))
         sp3_log_progress(w, &w->cw_stats, true);
-
-    if (cn_node_isroot(tn)) {
-        u64 dt;
-
-        /* Maintain an average of the root spill's build time - used for throttling.
-         */
-        dt = w->cw_t3_build - w->cw_t2_prep;
-        sp->rspill_dt_prev = (dt + sp->rspill_dt_prev) / 2;
-        atomic_set(&sp->rspill_dt, sp->rspill_dt_prev);
-    }
 
     sts_job_done(&w->cw_job);
     free(w);
@@ -1872,34 +1858,43 @@ sp3_qos_check(struct sp3 *sp)
 {
     struct cn_tree *tree;
     uint rootmin, rootmax;
-    u64 sval;
+    uint64_t rspill_dt_max;
+    uint64_t sval;
 
     if (!sp->throttle_sensor_root)
         return;
 
     rootmin = sp->thresh.rspill_runlen_max;
     rootmax = rootmin;
+    rspill_dt_max = 0;
     sval = 0;
 
-    list_for_each_entry (tree, &sp->mon_tlist, ct_sched.sp3t.spt_tlink) {
-        struct kvs_rparams *rp = cn_tree_get_rp(tree);
-        uint nk = cn_ns_kvsets(&tree->ct_root->tn_ns);
+    list_for_each_entry(tree, &sp->mon_tlist, ct_sched.sp3t.spt_tlink) {
+        const struct kvs_rparams *rp = cn_tree_get_rp(tree);
+        uint marked, nk;
 
-        /* The root node length counts toward the throttle sensor value
-         * only if cn maintenance mode is enabled.  Diminish the weight
-         * of long, tiny root nodes on the throttle.
+        if (rp->cn_maint_disable)
+            continue;
+
+        /* Discount kvsets currently being spilled (i.e., those that have
+         * been marked for spill by sp3_work()).
          */
-        if (cn_ns_clen(&tree->ct_root->tn_ns) < (1ul << 30))
-            nk /= 3;
+        marked = (atomic_read_acq(&tree->ct_root->tn_busycnt) & 0xffffu) / 3;
 
-        if (nk > rootmax && !rp->cn_maint_disable)
+        nk = cn_ns_kvsets(&tree->ct_root->tn_ns);
+        if (nk >= marked)
+            nk -= marked;
+
+        if (nk > rootmax) {
+            rspill_dt_max = max_t(uint64_t, rspill_dt_max, tree->ct_rspill_dt);
             rootmax = nk;
+        }
     }
 
     if (rootmax > rootmin) {
         u64 K;
         u64 r = (rootmax - rootmin) * 100;
-        u64 nsec = atomic_read(&sp->rspill_dt) / NSEC_PER_SEC;
+        u64 secs = rspill_dt_max / NSEC_PER_SEC;
         u64 min_lat = 16, max_lat = 80;
 
         /* Since, the throttling system's sensitivty to sensor values over 1000 is non-linear, the
@@ -1920,11 +1915,11 @@ sp3_qos_check(struct sp3 *sp)
          * This was tested for extremes of slow and fast drives and a latency range of 16s to 80s
          * worked well. Map a latency of [16s, 80s] to the range [500, 600]:
          *
-         *   K = (100 * nsec / 64) + 475;
+         *   K = (100 * secs / 64) + 475;
          */
 
-        nsec = clamp_t(u64, nsec, min_lat, max_lat);
-        K = ((100 * nsec) + (475 * 64)) / 64;
+        secs = clamp_t(u64, secs, min_lat, max_lat);
+        K = ((100 * secs) + (475 * 64)) / 64;
         sval = (K * r * 3) / (K + r);
     }
 
@@ -1998,6 +1993,9 @@ sp3_schedule(struct sp3 *sp)
             break;
 
         case wtype_garbage:
+            if (get_time_ns() < sp->check_big_ns)
+                break;
+
             qnum = SP3_QNUM_GARBAGE;
             if (qfull(sp, qnum)) {
                 qnum = SP3_QNUM_SHARED;
@@ -2026,10 +2024,16 @@ sp3_schedule(struct sp3 *sp)
             } else {
                 thresh = 93ul << 32;
             }
+
             job = sp3_check_rb_tree(sp, sp->rr_wtype, thresh, qnum);
+            if (job)
+                sp->check_big_ns = get_time_ns() + NSEC_PER_SEC * 7;
             break;
 
         case wtype_scatter:
+            if (get_time_ns() < sp->check_big_ns)
+                break;
+
             qnum = SP3_QNUM_SCATTER;
             if (qfull(sp, qnum)) {
                 qnum = SP3_QNUM_SHARED;
@@ -2040,12 +2044,17 @@ sp3_schedule(struct sp3 *sp)
             thresh = (uint64_t)sp->thresh.lscat_hwm << 32;
 
             job = sp3_check_rb_tree(sp, sp->rr_wtype, thresh, qnum);
+            if (job)
+                sp->check_big_ns = get_time_ns() + NSEC_PER_SEC * 5;
             break;
 
         case wtype_split:
             qnum = SP3_QNUM_SPLIT;
-            if (qfull(sp, qnum))
-                break;
+            if (qfull(sp, qnum)) {
+                qnum = SP3_QNUM_LENGTH;
+                if (qfull(sp, qnum))
+                    break;
+            }
 
             job = sp3_check_rb_tree(sp, sp->rr_wtype, 0, qnum);
             break;
