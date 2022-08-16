@@ -471,30 +471,37 @@ sp3_work_wtype_length(
             return kvsets;
         }
 
-        /* Don't let lightweight nodes grow too long.  For the most part
-         * this only applies to "index" nodes (i.e., nodes where the values
-         * are much smaller than the keys).
+        /* Repeated compaction of tiny kvsets can make a node grow long
+         * and push the run-length based k-compaction far into the future.
+         * We address that here by looking for a run of kvsets with only
+         * a small number of keys.
          */
-        if (kvsets > runlen_max && cn_ns_vblks(&tn->tn_ns) < kvsets) {
+        if (kvsets > runlen_min + runlen_max) {
+            ulong keys_max = 32ul << 20;
+
             *mark = list_last_entry(head, typeof(*le), le_link);
-            *action = CN_ACTION_COMPACT_KV;
+            *action = CN_ACTION_COMPACT_K;
             *rule = CN_RULE_INDEXF;
+            runlen = 0;
 
-            /* If the oldest kvset is larger than the next oldest kvset
-             * and there's not much garbage then start with the next
-             * oldest kvset, otherwise start with the oldest kvset.
-             */
-            le = list_prev_entry(*mark, le_link);
+            list_for_each_entry(le, head, le_link) {
+                const struct kvset_stats *stats = kvset_statsp(le->le_kvset);
 
-            if (kvset_get_kwlen(le->le_kvset) < kvset_get_kwlen((*mark)->le_kvset) &&
-                cn_ns_clen(&tn->tn_ns) * 100 > cn_ns_alen(&tn->tn_ns) * 85) {
+                if (stats->kst_keys > keys_max)
+                    break;
 
-                *rule = CN_RULE_INDEXP;
-                *mark = le;
-                kvsets--;
+                keys_max -= stats->kst_keys;
+                runlen++;
             }
 
-            return min_t(uint, kvsets, runlen_max);
+            if (runlen > runlen_min) {
+                if (runlen < kvsets) {
+                    *rule = CN_RULE_INDEXP;
+                    *mark = le;
+                }
+
+                return min_t(uint, runlen, runlen_max);
+            }
         }
     }
 
@@ -627,7 +634,7 @@ sp3_work(
         if ((atomic_read(&tn->tn_busycnt) >> 16) > 2)
             goto locked_nowork;
 
-        if (tn->tn_spillsync > 0) {
+        if (tn->tn_rspill_sync > 0) {
             (*wp)->cw_resched = true;
             goto locked_nowork;
         }
@@ -651,28 +658,33 @@ sp3_work(
         if (action == CN_ACTION_SPLIT) {
             struct cn_tree_node *root = tree->ct_root;
 
-            /* Atomically increment the split/sync counters to prevent new compaction
-             * jobs from starting in both this node and the root node (does not apply
-             * to split jobs).  Once all root jobs finish a split job will be able to
-             * run with exclusive access to this node.
+            /* If there are no splits pending and root spill is behind
+             * then wait for throttling to engage and root spill to catch
+             * up before requesting a split.
              */
-            (*wp)->cw_resched = true;
-            root->tn_spillsync++;
-            tn->tn_spillsync++;
+            if (root->tn_rspill_sync == 0 &&
+                cn_ns_kvsets(&root->tn_ns) > thresh->rspill_runlen_min * 3) {
 
-            if (atomic_read(&root->tn_busycnt) > 0)
+                (*wp)->cw_resched = true;
+                ev_debug(1);
                 goto locked_nowork;
+            }
 
-            if (!cn_node_comp_token_get(root))
-                goto locked_nowork;
-
-            /* Now that we have root's compaction token we can reset
-             * the split/sync counters.
+            /* Atomically increment the split/sync counters to prevent
+             * new compaction jobs from starting in both this node and
+             * the root node (does not apply to split jobs).  Once all
+             * root jobs complete one or more split jobs will be able
+             * to run with exclusive access to their respective nodes.
              */
-            root->tn_spillsync = 0;
-            tn->tn_spillsync = 0;
+            if (tn->tn_rspill_sync++ == 0)
+                root->tn_rspill_sync++;
+
+            if (atomic_read(&root->tn_busycnt) > 0) {
+                (*wp)->cw_resched = true;
+                goto locked_nowork;
+            }
         } else {
-            if (tn->tn_spillsync > 0)
+            if (tn->tn_rspill_sync > 0)
                 goto locked_nowork;
         }
         break;

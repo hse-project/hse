@@ -2288,7 +2288,7 @@ kblk_start_read(struct kvset_iterator *iter, struct kblk_reader *kr, enum read_t
     assert(iter->workq);
 
     if (kr->kr_nodex == kr->kr_nodec) {
-        struct wbt_desc *wbt;
+        struct wbt_desc *wbt = NULL;
 
         if (kr->kr_next_blk_idx >= kr->kr_blk_cnt) {
             kr->kr_eof = true;

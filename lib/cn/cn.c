@@ -1010,6 +1010,12 @@ cn_open(
         }
     }
 
+    /* If there's only one node then increase the split size to allow small trees
+     * to take full advantage of zspill.
+     */
+    if (route_node_isfirst(tn->tn_route_node) && route_node_islast(tn->tn_route_node))
+        tn->tn_split_size *= 2;
+
     cn_tree_samp_init(cn->cn_tree);
 
     /* Enable tree maintenance unless it's deliberately disabled

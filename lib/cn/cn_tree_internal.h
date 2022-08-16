@@ -67,19 +67,16 @@ struct cn_kle_hdr {
  * struct cn_tree - the cn tree (tree of nodes holding kvsets)
  * @ct_root:        root node of tree
  * @ct_nodes:       list of all tree nodes, including ct_root
- * @ct_depth_max:   depth limit for this tree (not current depth)
+ * @ct_nospace:     set when "disk is full"
  * @cn:    ptr to parent cn object
  * @ds:    dataset
  * @rp:    ptr to shared runtime parameters struct
  * @ct_cp:          cn create-time parameters
  * @cndb:  handle for cndb (the metadata journal/log)
  * @cnid:  cndb's identifier for this cn tree
- * @ct_dgen_init:
- * @ct_l_samp:
+ * @ct_rspill_dt:  average rspill time for this tree (nanoseconds)
  * @ct_sched:
  * @ct_kvdb_health: for monitoring KDVB health
- * @ct_nospace:     set when "disk is full"
- * @ct_iter:        iterate over tree nodes for compaction
  * @ct_last_ptseq:
  * @ct_last_ptlen:  length of @ct_last_ptomb
  * @ct_last_ptomb:  if cn is a capped, this holds the last (largest) ptomb in cn
@@ -110,6 +107,7 @@ struct cn_tree {
 
     uint                 ct_lvl_max;
     struct cn_samp_stats ct_samp;
+    atomic_ulong         ct_rspill_dt;
 
     union {
         struct sp3_tree sp3t HSE_L1D_ALIGNED;
@@ -149,7 +147,7 @@ struct cn_tree {
 struct cn_tree_node {
     atomic_int           tn_compacting;
     atomic_uint          tn_busycnt;
-    atomic_uint          tn_spillsync;
+    atomic_uint          tn_rspill_sync;
 
     union {
         struct sp3_node  tn_sp3n;

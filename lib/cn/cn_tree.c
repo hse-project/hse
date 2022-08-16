@@ -102,7 +102,7 @@ cn_node_alloc(struct cn_tree *tree, uint64_t nodeid)
 
     atomic_init(&tn->tn_compacting, 0);
     atomic_init(&tn->tn_busycnt, 0);
-    atomic_init(&tn->tn_spillsync, 0);
+    atomic_init(&tn->tn_rspill_sync, 0);
 
     tn->tn_tree = tree;
     tn->tn_isroot = (nodeid == 0);
@@ -916,16 +916,19 @@ cn_comp_release(struct cn_compaction_work *w)
             le = list_prev_entry(le, le_link);
         }
 
+        /* If cn_comp_update_XXX() was called and was successful then it will
+         * have updated tn_rspill_sync, busycnt, and the token.  For all errors
+         * we must do it here.
+         */
+        if (w->cw_action == CN_ACTION_SPLIT) {
+            w->cw_tree->ct_root->tn_rspill_sync--;
+            w->cw_node->tn_rspill_sync = 0;
+        }
+
+        atomic_sub_rel(&w->cw_node->tn_busycnt, (1u << 16) + w->cw_kvset_cnt);
+
         if (w->cw_have_token)
             cn_node_comp_token_put(w->cw_node);
-
-        if (w->cw_action == CN_ACTION_SPLIT)
-            cn_node_comp_token_put(w->cw_tree->ct_root);
-
-        /* If cn_comp_update_XXX() was called and was successful then it will
-         * have updated busycnt.  For all errors we must do it here.
-         */
-        atomic_sub_rel(&w->cw_node->tn_busycnt, (1u << 16) + w->cw_kvset_cnt);
     }
 
     perfc_inc(w->cw_pc, PERFC_BA_CNCOMP_FINISH);
@@ -1337,9 +1340,8 @@ cn_comp_update_kvcompact(struct cn_compaction_work *work, struct kvset *new_kvse
 
     cn_tree_samp(tree, &work->cw_samp_post);
 
-    cn_node_comp_token_put(work->cw_node);
-
     atomic_sub_rel(&work->cw_node->tn_busycnt, (1u << 16) + work->cw_kvset_cnt);
+    cn_node_comp_token_put(work->cw_node);
     rmlock_wunlock(&tree->ct_lock);
 
     /* Delete retired kvsets. */
@@ -1480,6 +1482,14 @@ cn_comp_update_split(
 
             w->cw_split.nodev[RIGHT] = right;
             right->tn_cgen++;
+
+            /* Vary the split size to avoid a node-split thundering herd.
+             * Note that the split size of the right node is disjoint
+             * from the split size of the left node.
+             */
+            right->tn_split_size = (size_t)tree->rp->cn_split_size << 30;
+            right->tn_split_size += (right->tn_nodeid % 3) << 30;
+            right->tn_split_size += 5ul << 30;
         }
 
         /* Update route map with the left edge and add the new left node to the cN tree list.
@@ -1493,6 +1503,11 @@ cn_comp_update_split(
 
             list_add_tail(&left->tn_link, &tree->ct_nodes);
             left->tn_cgen++;
+
+            /* Vary the split size to avoid a node-split thundering herd.
+             */
+            left->tn_split_size = (size_t)tree->rp->cn_split_size << 30;
+            left->tn_split_size += (left->tn_nodeid % 3) << 30;
         }
 
         /* Update samp stats
@@ -1503,10 +1518,11 @@ cn_comp_update_split(
             cn_tree_samp(tree, &w->cw_samp_post);
         }
 
-        cn_node_comp_token_put(w->cw_node);
-        cn_node_comp_token_put(w->cw_tree->ct_root);
+        w->cw_tree->ct_root->tn_rspill_sync--;
+        w->cw_node->tn_rspill_sync = 0;
 
         atomic_sub_rel(&src->tn_busycnt, (1u << 16) + w->cw_kvset_cnt);
+        cn_node_comp_token_put(w->cw_node);
 
         if (w->cw_debug & CW_DEBUG_SPLIT) {
             cn_split_node_stats_dump(w, left, "left");

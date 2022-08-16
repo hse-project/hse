@@ -31,7 +31,7 @@
 
 #define SP3_LCOMP_RUNLEN_MAX            (12u)
 #define SP3_LCOMP_SPLIT_PCT             (100u)
-#define SP3_LCOMP_SPLIT_KEYS            (128u) /* units of 4 million */
+#define SP3_LCOMP_SPLIT_KEYS            (64u) /* units of 4 million */
 
 /* clang-format on */
 
