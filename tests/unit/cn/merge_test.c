@@ -842,10 +842,16 @@ struct kv_spill_test_kvi {
     u32                 cursor;
 };
 
+static struct kvset *
+_kvset_iter_kvset_get(struct kv_iterator *kvi)
+{
+    return (struct kvset *)container_of(kvi, struct kv_spill_test_kvi, kvi);
+}
+
 static merr_t
 _kvset_iter_next_key(struct kv_iterator *kvi, struct key_obj *kobj, struct kvset_iter_vctx *vc)
 {
-    struct kv_spill_test_kvi *iter = (struct kv_spill_test_kvi *)kvi->kvi_context;
+    struct kv_spill_test_kvi *iter = container_of(kvi, typeof(*iter), kvi);
 
     void *vdata;
     uint  vlen;
@@ -1021,10 +1027,37 @@ _kvset_iter_val_get(
 void
 kv_spill_test_kvi_release(struct kv_iterator *kvi)
 {
-    free(kvi->kvi_context);
+    free(container_of(kvi, struct kv_spill_test_kvi, kvi));
 }
 
-struct kv_iterator_ops kvi_ops = {.kvi_release = kv_spill_test_kvi_release };
+/*----------------------------------------------------------------
+ * Kvset
+ */
+static uint64_t
+_kvset_get_dgen(const struct kvset *kvset)
+{
+    return tp.inp_kvset_nodec - 1 - ((struct kv_spill_test_kvi *)kvset)->src;
+}
+
+struct kv_iterator_ops kvi_ops = { .kvi_release = kv_spill_test_kvi_release };
+
+static bool
+_kvset_cursor_next(struct element_source *es, void **element)
+{
+    struct kv_iterator *kvi = kvset_cursor_es_h2r(es);
+    struct cn_kv_item * kv = &kvi->kvi_kv;
+
+    *element = 0;
+
+    _kvset_iter_next_key(kvi, &kv->kobj, &kv->vctx);
+    if (kvi->kvi_eof)
+        return false;
+
+    kv->src = es;
+    *element = &kvi->kvi_kv;
+
+    return true;
+}
 
 static merr_t
 kv_spill_test_kvi_create(
@@ -1045,14 +1078,9 @@ kv_spill_test_kvi_create(
     iter->kvset_node = tp->inp_kvset_nodev[src];
     iter->cursor = 0;
 
-    iter->kvi.kvi_context = iter;
     iter->kvi.kvi_ops = &kvi_ops;
+    iter->kvi.kvi_es = es_make(_kvset_cursor_next, NULL, NULL);
 
-    /*
-     * Caller will have a handle to the generic 'struct
-     * kv_iterator' object.  It is mapped back to 'struct
-     * kv_spill_test_kvi' via 'kvi->kvi_context'.
-     */
     *kvi_out = &iter->kvi;
 
     return 0;
@@ -1413,6 +1441,10 @@ test_prehook(struct mtf_test_info *info)
     MOCK_SET(kvset, _kvset_iter_next_key);
     MOCK_SET(kvset, _kvset_iter_val_get);
     MOCK_SET(kvset, _kvset_iter_next_vref);
+    MOCK_SET(kvset, _kvset_iter_kvset_get);
+
+    /* Install kvset mocks */
+    MOCK_SET(kvset_view, _kvset_get_dgen);
 
     /* Neuter the following APIs */
     mapi_inject_ptr(mapi_idx_cn_tree_get_cn, NULL);

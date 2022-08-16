@@ -34,7 +34,6 @@ input_kvsets:
     - - - 1
         - v
         - v_kvset_2_key_3
-- []
 - - - k_00000003
     - - - 1
         - v

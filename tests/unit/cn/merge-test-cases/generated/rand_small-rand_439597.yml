@@ -50,7 +50,6 @@ input_kvsets:
     - - - 1
         - v
         - v_kvset_2_key_1_DUP
-- []
 - - - k_00000013
     - - - 1
         - v

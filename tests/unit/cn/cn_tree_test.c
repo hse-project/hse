@@ -148,7 +148,7 @@ fake_kvset_destroy(struct fake_kvset *kvset)
 }
 
 static u64
-_kvset_get_dgen(struct kvset *handle)
+_kvset_get_dgen(const struct kvset *handle)
 {
     return ((struct fake_kvset *)handle)->dgen;
 }

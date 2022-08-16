@@ -248,7 +248,7 @@ bin_heap2_cmp(bin_heap2_compare_fn *cmp, struct heap_node *elts, int a, int b)
 {
     int rc = cmp(elts[a].hn_data, elts[b].hn_data);
 
-    return rc ?: elts[a].hn_es->es_sort - elts[b].hn_es->es_sort;
+    return rc ? rc : elts[a].hn_es->es_sort - elts[b].hn_es->es_sort;
 }
 
 static void
@@ -472,7 +472,7 @@ bin_heap2_insert_src(struct bin_heap2 *bh, struct element_source *es)
 {
     struct heap_node *node;
     void *            elt;
-    int               i, width;
+    int               width;
 
     /*
      * ensure the incoming src will fit and has something to contribute;
@@ -490,7 +490,7 @@ bin_heap2_insert_src(struct bin_heap2 *bh, struct element_source *es)
      * renumber everything, and append new thing
      */
     node = &bh->bh2_elts[0];
-    for (i = 0; i < width; ++i) {
+    for (int i = 0; i < width; ++i) {
         node->hn_es->es_sort++;
         ++node;
     }
@@ -500,7 +500,7 @@ bin_heap2_insert_src(struct bin_heap2 *bh, struct element_source *es)
     node->hn_es->es_sort = 0;
     ++bh->bh2_width;
 
-    for (i = bh->bh2_width / 2 - 1; i >= 0; --i)
+    for (int i = bh->bh2_width / 2 - 1; i >= 0; --i)
         bin_heap2_heapify(bh, i);
 
     return 0;
@@ -542,7 +542,8 @@ bin_heap2_pop(struct bin_heap2 *bh, void **item)
     int                    sort;
 
     if (bh->bh2_width == 0) {
-        *item = 0;
+        if (item)
+            *item = NULL;
         return false;
     }
 
@@ -562,7 +563,8 @@ bin_heap2_pop(struct bin_heap2 *bh, void **item)
 
     bin_heap2_heapify(bh, 0);
 
-    *item = node.hn_data;
+    if (item)
+        *item = node.hn_data;
 
     return true;
 }
@@ -573,7 +575,7 @@ bin_heap2_peek(struct bin_heap2 *bh, void **item)
     struct heap_node node;
 
     if (bh->bh2_width == 0) {
-        *item = 0;
+        *item = NULL;
         return false;
     }
 
@@ -588,8 +590,8 @@ bin_heap2_peek_debug(struct bin_heap2 *bh, void **item, struct element_source **
     struct heap_node node;
 
     if (bh->bh2_width == 0) {
-        *item = 0;
-        *es = 0;
+        *item = NULL;
+        *es = NULL;
         return false;
     }
 

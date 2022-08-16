@@ -618,8 +618,9 @@ MTF_DEFINE_UTEST_PREPOST(kvdb_rest, empty_root_test, test_pre, test_post)
 }
 
 static int count;
+
 u64
-_kvset_get_dgen(struct kvset *km)
+_kvset_get_dgen(const struct kvset *km)
 {
     count++;
     return 4 * (count);

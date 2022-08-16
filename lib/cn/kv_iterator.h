@@ -46,7 +46,6 @@ struct cn_kv_item {
 
 struct kv_iterator {
     struct kv_iterator_ops *kvi_ops;
-    void *                  kvi_context;
     struct kvs_rparams *    kvi_rparams;
     bool                    kvi_eof;
     struct element_source   kvi_es;

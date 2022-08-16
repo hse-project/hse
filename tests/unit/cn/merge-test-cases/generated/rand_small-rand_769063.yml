@@ -6,7 +6,6 @@ _meta:
   num_unique_keys: 36
   seed: 769063
 input_kvsets:
-- []
 - - - k_00000001
     - - - 1
         - v
@@ -15,7 +14,6 @@ input_kvsets:
     - - - 1
         - v
         - v_kvset_1_key_1
-- []
 - - - k_00000009
     - - - 1
         - v
@@ -48,7 +46,6 @@ input_kvsets:
     - - - 1
         - v
         - v_kvset_4_key_4
-- []
 - - - k_0000000e
     - - - 1
         - v

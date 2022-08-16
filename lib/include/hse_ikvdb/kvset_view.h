@@ -78,7 +78,7 @@ kvset_get_nodeid(const struct kvset *kvset);
 
 /* MTF_MOCK */
 u64
-kvset_get_dgen(struct kvset *kvset);
+kvset_get_dgen(const struct kvset *kvset);
 
 /* MTF_MOCK */
 u64
