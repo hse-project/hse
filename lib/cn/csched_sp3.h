@@ -32,7 +32,7 @@ struct sp3_rbe {
 };
 
 struct sp3_node {
-    struct sp3_rbe   spn_rbe[wtype_MAX - 1];
+    struct sp3_rbe   spn_rbe[wtype_MAX];
     struct list_head spn_rlink;
     struct list_head spn_alink;
     bool             spn_initialized;

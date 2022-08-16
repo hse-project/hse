@@ -307,7 +307,7 @@ cn_kcompact(struct cn_compaction_work *w)
         w->cw_pc,
         w->cw_kvsetidv[0]);
     if (ev(err))
-        goto done;
+        return err;
 
     pnode = w->cw_node;
     if (pnode) {

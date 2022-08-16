@@ -189,7 +189,7 @@ struct sp3 {
     atomic_int               running;
     struct sp3_qinfo         qinfo[SP3_QNUM_MAX];
 
-    struct rb_root rbt[wtype_MAX - 1] HSE_L1D_ALIGNED;
+    struct rb_root rbt[wtype_MAX] HSE_L1D_ALIGNED;
 
     struct list_head mon_tlist HSE_L1D_ALIGNED;
     struct list_head spn_rlist;

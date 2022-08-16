@@ -633,39 +633,34 @@ wbb_create(
     uint *       wbt_pgc /* in/out */
     )
 {
-    struct wbb *wbb = 0;
-    void *      nodev = 0;
-    merr_t      err = 0;
+    struct wbb *wbb;
+    void *nodev;
+    merr_t err;
 
     /* insist on something to work with... */
-    if (ev(max_pgc < 8)) {
-        err = merr(EINVAL);
-        goto err_exit;
-    }
+    if (ev(max_pgc < 8))
+        return merr(EINVAL);
 
     wbb = calloc(1, sizeof(*wbb));
     if (ev(!wbb))
-        goto err_exit;
+        return merr(ENOMEM);
 
     nodev = alloc_page_aligned(max_pgc * PAGE_SIZE);
-    if (ev(!nodev))
-        goto err_exit;
-
-    err = wbb_init(wbb, nodev, max_pgc, wbt_pgc);
-    if (err)
-        goto err_exit;
-
-    *wbb_out = wbb;
-    return 0;
-
-  err_exit:
-
-    if (wbb) {
-        free_aligned(nodev);
+    if (ev(!nodev)) {
         free(wbb);
+        return merr(ENOMEM);
     }
 
-    return err ? err : merr(ENOMEM);
+    err = wbb_init(wbb, nodev, max_pgc, wbt_pgc);
+    if (ev(err)) {
+        free_aligned(nodev);
+        free(wbb);
+        return err;
+    }
+
+    *wbb_out = wbb;
+
+    return 0;
 }
 
 void *
