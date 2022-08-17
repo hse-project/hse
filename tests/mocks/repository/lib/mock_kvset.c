@@ -3,6 +3,8 @@
  * Copyright (C) 2015-2022 Micron Technology, Inc.  All rights reserved.
  */
 
+#include <arpa/inet.h>
+
 #include <mock/api.h>
 
 #include <error/merr.h>

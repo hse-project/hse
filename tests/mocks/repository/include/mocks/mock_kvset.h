@@ -1,6 +1,6 @@
 /* SPDX-License-Identifier: Apache-2.0 */
 /*
- * Copyright (C) 2015-2021 Micron Technology, Inc.  All rights reserved.
+ * Copyright (C) 2015-2022 Micron Technology, Inc.  All rights reserved.
  */
 
 #ifndef MOCKS_MOCK_KVSET_H
@@ -8,9 +8,9 @@
 
 #include <hse_util/page.h>
 
-#include <arpa/inet.h> /* ntohl, htonl */
-
+#include <cn/cn_metrics.h>
 #include <cn/kv_iterator.h>
+#include <cn/kvset.h>
 
 /**
  * struct mock_kvset - test harness
