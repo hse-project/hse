@@ -52,9 +52,11 @@ cn_spill(
     bool                      *added);
 
 
+/* MTF_MOCK */
 merr_t
 cn_spill_init(struct cn_compaction_work *w, struct spill_ctx **ctx);
 
+/* MTF_MOCK */
 void
 cn_spill_fini(struct spill_ctx *ctx);
 

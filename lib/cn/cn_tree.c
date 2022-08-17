@@ -899,17 +899,6 @@ cn_comp_release(struct cn_compaction_work *w)
     }
 
     perfc_inc(w->cw_pc, PERFC_BA_CNCOMP_FINISH);
-
-    if (HSE_UNLIKELY(!w->cw_completion)) {
-        free(w);
-        return;
-    }
-
-    /* After this function returns the job will be disassociated
-     * from its thread and hence becomes a zombie.  Do not touch
-     * *w afterward as it may have already been freed.
-     */
-    w->cw_completion(w);
 }
 
 /**
@@ -1111,8 +1100,6 @@ cn_tree_prepare_compaction(struct cn_compaction_work *w)
     perfc_inc(w->cw_pc, PERFC_BA_CNCOMP_START);
 
     cn_setname(w->cw_threadname);
-
-    w->cw_t1_qtime = get_time_ns();
 
     /* If we are k/kv-compacting, we only have a single output.
      *
@@ -1678,8 +1665,8 @@ cn_comp_commit(struct cn_compaction_work *w)
         if (w->cw_err)
             goto done;
 
-        atomic_init(&split_nodev[0]->tn_sgen, w->cw_node->tn_sgen);
-        atomic_init(&split_nodev[1]->tn_sgen, w->cw_node->tn_sgen);
+        atomic_set(&split_nodev[0]->tn_sgen, w->cw_node->tn_sgen);
+        atomic_set(&split_nodev[1]->tn_sgen, w->cw_node->tn_sgen);
     }
 
     for (i = 0; i < num_out; i++) {
@@ -1851,7 +1838,7 @@ cn_comp_cleanup(struct cn_compaction_work *w)
     if (HSE_UNLIKELY(w->cw_err)) {
 
         /* Failed spills cause node to become "wedged"  */
-        if (ev(w->cw_rspill_conc && !w->cw_tree->ct_rspills_wedged)) {
+        if (spill && !w->cw_tree->ct_rspills_wedged) {
             log_info("root node wedged, spills disabled");
             w->cw_tree->ct_rspills_wedged = true;
         }
@@ -1993,7 +1980,7 @@ cn_comp_spill(struct cn_compaction_work *w)
 
         if (added && ready) {
             cn_comp_commit(w);
-            csched_node_dirty(cn_get_sched(tree->cn), node);
+            w->cw_checkpoint(w);
         }
 
         /* Mark this node as processed by bumping up its spill gen.
@@ -2039,7 +2026,6 @@ cn_comp_compact(struct cn_compaction_work *w)
     if (w->cw_err)
         return;
 
-    w->cw_t2_prep = get_time_ns();
     w->cw_keep_vblks = kcompact;
     hp = w->cw_tree->ct_kvdb_health;
     assert(hp);
@@ -2054,7 +2040,8 @@ cn_comp_compact(struct cn_compaction_work *w)
     w->cw_t2_prep = get_time_ns();
 
     /* cn_kcompact handles k-compaction, cn_spill handles spills
-     * and kv-compaction. */
+     * and kv-compaction.
+     */
     w->cw_keep_vblks = (w->cw_action == CN_ACTION_COMPACT_K);
 
     switch (w->cw_action) {
@@ -2115,10 +2102,10 @@ static void
 cn_comp(struct cn_compaction_work *w)
 {
     u64               tstart;
-    struct cn        *cn = w->cw_tree->cn;
     struct perfc_set *pc = w->cw_pc;
 
     tstart = perfc_lat_start(pc);
+    w->cw_t1_qtime = tstart;
 
     cn_comp_compact(w);
 
@@ -2127,8 +2114,6 @@ cn_comp(struct cn_compaction_work *w)
      * on the rspill list for some other thread to finish.
      */
     sts_job_detach(&w->cw_job);
-
-    cn_ref_get(cn);
 
     /* Commit the compaction if this isn't a spill. For a spill operation, each subspill to a child
      * was committed as the spill progressed.
@@ -2139,9 +2124,8 @@ cn_comp(struct cn_compaction_work *w)
     cn_comp_cleanup(w);
     cn_comp_release(w);
 
+    w->cw_t5_finish = get_time_ns();
     perfc_lat_record(pc, PERFC_LT_CNCOMP_TOTAL, tstart);
-
-    cn_ref_put(cn);
 }
 
 /**
@@ -2153,6 +2137,8 @@ cn_comp_slice_cb(struct sts_job *job)
     struct cn_compaction_work *w = container_of(job, typeof(*w), cw_job);
 
     cn_comp(w);
+
+    csched_notify_compact(w->cw_sched, w);
 }
 
 /**

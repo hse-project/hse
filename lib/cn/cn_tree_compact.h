@@ -147,7 +147,6 @@ struct cn_compaction_work {
     enum cn_action           cw_action;
     enum cn_rule             cw_rule;
     bool                     cw_have_token;
-    bool                     cw_rspill_conc;
     struct list_head         cw_rspill_link;
     atomic_int               cw_rspill_commit_in_progress;
     u64                      cw_dgen_hi;
@@ -155,7 +154,7 @@ struct cn_compaction_work {
 
     /* For scheduler */
     struct sts_job        cw_job;
-    cn_work_callback      cw_completion;
+    cn_work_callback      cw_checkpoint;
     cn_work_callback      cw_progress;
     void *                cw_sched;
     struct list_head      cw_sched_link;
@@ -195,6 +194,7 @@ struct cn_compaction_work {
     u64  cw_t2_prep;
     u64  cw_t3_build;
     u64  cw_t4_commit;
+    u64  cw_t5_finish;
     char cw_threadname[16];
 };
 

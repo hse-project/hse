@@ -245,6 +245,8 @@ _kvset_iter_release(struct kv_iterator *h)
     mapi_safe_free(mk);
 }
 
+atomic_int g_cancel_request;
+
 /* Prefer the mapi_inject_list method for mocking functions over the
  * MOCK_SET/MOCK_UNSET macros if the mock simply needs to return a
  * constant value.  The advantage of the mapi_inject_list approach is
@@ -276,6 +278,8 @@ struct mapi_injection inject_list[] = {
     /* cn */
     { mapi_idx_cn_kcompact, MAPI_RC_SCALAR, 0 },
     { mapi_idx_cn_spill, MAPI_RC_SCALAR, 0 },
+    { mapi_idx_cn_spill_init, MAPI_RC_SCALAR, 0 },
+    { mapi_idx_cn_spill_fini, MAPI_RC_SCALAR, 0 },
     { mapi_idx_cn_mblocks_commit, MAPI_RC_SCALAR, 0 },
     { mapi_idx_cn_mblocks_destroy, MAPI_RC_SCALAR, 0 },
     { mapi_idx_cn_get_flags, MAPI_RC_SCALAR, 0 },
@@ -288,11 +292,13 @@ struct mapi_injection inject_list[] = {
     { mapi_idx_cn_mpool_dev_zone_alloc_unit_default, MAPI_RC_SCALAR, 32 << 20 },
     { mapi_idx_cn_ref_get, MAPI_RC_SCALAR, 0 },
     { mapi_idx_cn_ref_put, MAPI_RC_SCALAR, 0 },
+    { mapi_idx_cn_get_cancel, MAPI_RC_PTR, &g_cancel_request },
 
     /* csched */
     { mapi_idx_csched_notify_ingest, MAPI_RC_SCALAR, 0 },
     { mapi_idx_sts_job_detach, MAPI_RC_SCALAR, 0 },
     { mapi_idx_sts_job_done, MAPI_RC_SCALAR, 0 },
+    { mapi_idx_sp3_work_complete, MAPI_RC_SCALAR, 0 },
 
     /* cndb  */
     { mapi_idx_cndb_record_txstart, MAPI_RC_SCALAR, 0 },
@@ -557,6 +563,7 @@ tree_iter_callback(
 }
 
 struct kvs_cparams cp;
+uint64_t g_node_sgen = 1;
 
 static int
 test_tree_create(struct test *t)
@@ -583,6 +590,7 @@ test_tree_create(struct test *t)
             tn = cn_node_alloc(t->tree, nodeid);
             ASSERT_NE_RET(0, tn, -1);
 
+            tn->tn_sgen = g_node_sgen;
             list_add_tail(&tn->tn_link, &t->tree->ct_nodes);
 
             if (t->p.verbose)
@@ -712,8 +720,9 @@ cn_comp_work_init(
     }
 
     cn_node_stats_get(tn, &w->cw_ns);
-    w->cw_completion = cn_comp_work_completion;
+    w->cw_checkpoint = cn_comp_work_completion;
 
+    w->cw_sgen = g_node_sgen + 1;
     w->cw_action = action;
     w->cw_have_token = use_token;
     if (w->cw_have_token)
@@ -755,6 +764,7 @@ MTF_DEFINE_UTEST_PRE(test, t_cn_comp, test_setup)
 
             ASSERT_TRUE(tn != NULL);
 
+            atomic_init(&tn->tn_sgen, g_node_sgen);
             cn_comp_work_init(&t, tn, &w, action, action != CN_ACTION_SPILL);
 
             /* [HSE_REVISIT] We used to call cn_comp_cancel_cb()

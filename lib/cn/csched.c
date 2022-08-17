@@ -70,9 +70,9 @@ csched_compact_status_get(struct csched *handle, struct hse_kvdb_compact_status 
 }
 
 void
-csched_node_dirty(struct csched *handle, struct cn_tree_node *node)
+csched_notify_compact(struct csched *handle, struct cn_compaction_work *w)
 {
-    sp3_dirty_node(handle, node);
+    sp3_work_complete(handle, w);
 }
 
 #if HSE_MOCKING

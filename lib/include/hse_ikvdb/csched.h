@@ -22,6 +22,7 @@ struct mpool;
 struct hse_kvdb_compact_status;
 struct kvdb_health;
 struct cn_tree_node;
+struct cn_compaction_work;
 
 /* clang-format off */
 
@@ -162,9 +163,8 @@ csched_compact_request(struct csched *handle, int flags);
 void
 csched_compact_status_get(struct csched *handle, struct hse_kvdb_compact_status *status);
 
-/* MTF_MOCK */
 void
-csched_node_dirty(struct csched *handle, struct cn_tree_node *node);
+csched_notify_compact(struct csched *handle, struct cn_compaction_work *w);
 
 #if HSE_MOCKING
 #include "csched_ut.h"

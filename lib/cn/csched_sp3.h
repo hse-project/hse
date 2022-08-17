@@ -26,6 +26,7 @@ struct cn_tree;
 struct cn_tree_node;
 struct throttle_sensor;
 struct hse_kvdb_compact_status;
+struct cn_compaction_work;
 
 struct sp3_rbe {
     struct rb_node rbe_node;
@@ -36,6 +37,7 @@ struct sp3_node {
     struct sp3_rbe   spn_rbe[wtype_MAX];
     struct list_head spn_rlink;
     struct list_head spn_alink;
+    struct list_head spn_dlink;
     bool             spn_initialized;
     uint             spn_cgen;
 };
@@ -46,6 +48,10 @@ struct sp3_tree {
     atomic_int       spt_enabled;
     atomic_ulong     spt_ingest_alen;
     atomic_ulong     spt_ingest_wlen;
+
+    /* Dirt node list */
+    struct mutex     spt_dlist_lock;
+    struct list_head spt_dlist;;
 };
 
 /* MTF_MOCK */
@@ -80,6 +86,10 @@ sp3_tree_add(struct csched *handle, struct cn_tree *tree);
 
 void
 sp3_tree_remove(struct csched *handle, struct cn_tree *tree, bool cancel);
+
+/* MTF_MOCK */
+void
+sp3_work_complete(struct csched *handle, struct cn_compaction_work *w);
 
 #if HSE_MOCKING
 #include "csched_sp3_ut.h"
