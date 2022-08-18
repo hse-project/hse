@@ -87,10 +87,6 @@ sp3_tree_add(struct csched *handle, struct cn_tree *tree);
 void
 sp3_tree_remove(struct csched *handle, struct cn_tree *tree, bool cancel);
 
-/* MTF_MOCK */
-void
-sp3_work_complete(struct csched *handle, struct cn_compaction_work *w);
-
 #if HSE_MOCKING
 #include "csched_sp3_ut.h"
 #endif /* HSE_MOCKING */

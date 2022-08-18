@@ -2092,14 +2092,10 @@ err_exit:
 }
 
 /**
- * cn_comp() - perform a cn tree compaction operation
- *
- * This function is invoked by short tern schedeler by way of callbacks
- * cn_comp_cancel_cb() and cn_comp_slice_cb().  See section comment for more
- * info.
+ * cn_compact() - perform a cn tree compaction operation
  */
-static void
-cn_comp(struct cn_compaction_work *w)
+void
+cn_compact(struct cn_compaction_work *w)
 {
     u64               tstart;
     struct perfc_set *pc = w->cw_pc;
@@ -2126,19 +2122,6 @@ cn_comp(struct cn_compaction_work *w)
 
     w->cw_t5_finish = get_time_ns();
     perfc_lat_record(pc, PERFC_LT_CNCOMP_TOTAL, tstart);
-}
-
-/**
- * cn_comp_slice_cb() - sts callback to run an sts job slice
- */
-void
-cn_comp_slice_cb(struct sts_job *job)
-{
-    struct cn_compaction_work *w = container_of(job, typeof(*w), cw_job);
-
-    cn_comp(w);
-
-    csched_notify_compact(w->cw_sched, w);
 }
 
 /**

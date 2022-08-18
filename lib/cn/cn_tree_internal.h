@@ -233,7 +233,7 @@ cn_tree_node_scatter(const struct cn_tree_node *tn);
 
 /* MTF_MOCK */
 void
-cn_comp_slice_cb(struct sts_job *job);
+cn_compact(struct cn_compaction_work *w);
 
 /**
  * cn_tree_find_node() - Find a cn tree node by node ID.

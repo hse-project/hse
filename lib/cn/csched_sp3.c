@@ -1308,7 +1308,7 @@ sp3_work_checkpoint(struct cn_compaction_work *w)
     sp3_monitor_wake(w->cw_sched);
 }
 
-void
+static void
 sp3_work_complete(struct csched *handle, struct cn_compaction_work *w)
 {
     struct sp3 *sp = (struct sp3 *)handle;
@@ -1518,6 +1518,16 @@ sp3_job_print(struct sts_job *job, void *priv, char *buf, size_t bufsz)
 }
 
 static void
+sp3_comp_slice_cb(struct sts_job *job)
+{
+    struct cn_compaction_work *w = container_of(job, typeof(*w), cw_job);
+
+    cn_compact(w);
+
+    sp3_work_complete(w->cw_sched, w);
+}
+
+static void
 sp3_submit(struct sp3 *sp, struct cn_compaction_work *w, uint qnum)
 {
     struct cn_tree_node *tn = w->cw_node;
@@ -1582,7 +1592,7 @@ sp3_submit(struct sp3 *sp, struct cn_compaction_work *w, uint qnum)
     sp->job_id++;
     sp->activity++;
 
-    sts_job_init(&w->cw_job, cn_comp_slice_cb, sp->job_id);
+    sts_job_init(&w->cw_job, sp3_comp_slice_cb, sp->job_id);
     sts_job_submit(sp->sts, &w->cw_job);
 
     if (debug_sched(sp) || (w->cw_debug & CW_DEBUG_START)) {

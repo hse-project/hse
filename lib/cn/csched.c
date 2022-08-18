@@ -69,12 +69,6 @@ csched_compact_status_get(struct csched *handle, struct hse_kvdb_compact_status 
     sp3_compact_status_get(handle, status);
 }
 
-void
-csched_notify_compact(struct csched *handle, struct cn_compaction_work *w)
-{
-    sp3_work_complete(handle, w);
-}
-
 #if HSE_MOCKING
 #include "csched_ut_impl.i"
 #endif /* HSE_MOCKING */
