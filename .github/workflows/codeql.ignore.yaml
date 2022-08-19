@@ -6,7 +6,9 @@ on:
       - "**.c"
       - "**.cc"
       - "**.h"
+      - "**.h.in"
       - "**.py"
+      - "**/meson.build"
       - .github/workflows/codeql.yaml
 
 concurrency:
