@@ -16,7 +16,7 @@
 #include <hse_ikvdb/mclass_policy.h>
 #include <hse_util/alloc.h>
 #include <hse_util/event_counter.h>
-#include <error/merr.h>
+#include <hse/error/merr.h>
 #include <hse_util/hlog.h>
 #include <hse_util/page.h>
 #include <hse_util/storage.h>

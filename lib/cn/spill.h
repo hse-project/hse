@@ -6,7 +6,7 @@
 #ifndef HSE_KVDB_CN_SPILL_H
 #define HSE_KVDB_CN_SPILL_H
 
-#include <error/merr.h>
+#include <hse/error/merr.h>
 #include <hse_util/inttypes.h>
 
 struct cn_compaction_work;

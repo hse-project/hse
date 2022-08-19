@@ -19,7 +19,7 @@
 #include <hse_util/spinlock.h>
 #include <hse_util/key_util.h>
 #include <hse_util/cursor_heap.h>
-#include <error/merr.h>
+#include <hse/error/merr.h>
 #include <hse_util/list.h>
 
 /* clang-format off */

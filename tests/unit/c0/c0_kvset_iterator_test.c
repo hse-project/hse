@@ -5,7 +5,7 @@
 
 #include <mtf/framework.h>
 
-#include <error/merr.h>
+#include <hse/error/merr.h>
 #include <hse_util/inttypes.h>
 #include <hse_util/seqno.h>
 #include <hse_util/keycmp.h>

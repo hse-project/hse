@@ -15,10 +15,10 @@
 #include <hse_util/event_counter.h>
 #include <hse_util/page.h>
 #include <hse_util/assert.h>
-#include <logging/logging.h>
+#include <hse/logging/logging.h>
 #include <hse_util/perfc.h>
 #include <hse_util/vlb.h>
-#include <error/merr.h>
+#include <hse/error/merr.h>
 
 #include <hse_ikvdb/blk_list.h>
 #include <hse_ikvdb/mclass_policy.h>

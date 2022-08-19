@@ -9,8 +9,8 @@
 
 #include <mtf/framework.h>
 
-#include <error/merr.h>
-#include <pidfile/pidfile.h>
+#include <hse/error/merr.h>
+#include <hse/pidfile/pidfile.h>
 
 const char *config_root;
 

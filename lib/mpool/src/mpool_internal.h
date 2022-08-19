@@ -6,7 +6,7 @@
 #ifndef MPOOL_INTERNAL_H
 #define MPOOL_INTERNAL_H
 
-#include <error/merr.h>
+#include <hse/error/merr.h>
 
 #include <mpool/mpool_structs.h>
 

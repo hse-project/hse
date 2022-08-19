@@ -9,11 +9,11 @@
 #include <hse_util/arch.h>
 #include <hse_util/slab.h>
 #include <hse_util/atomic.h>
-#include <error/merr.h>
+#include <hse/error/merr.h>
 #include <hse_util/page.h>
 #include <hse_util/minmax.h>
 #include <hse_util/mutex.h>
-#include <logging/logging.h>
+#include <hse/logging/logging.h>
 #include <hse_util/keylock.h>
 
 /* clang-format off */

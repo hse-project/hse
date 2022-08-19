@@ -4,7 +4,7 @@
  */
 
 #include <hse_util/event_counter.h>
-#include <logging/logging.h>
+#include <hse/logging/logging.h>
 
 #include "mpool_internal.h"
 #include "mclass.h"

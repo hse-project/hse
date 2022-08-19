@@ -22,7 +22,7 @@
 
 #include <xoroshiro.h>
 
-#include <cli/param.h>
+#include <hse/cli/param.h>
 
 #include "kvs_helper.h"
 

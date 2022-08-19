@@ -19,7 +19,7 @@
 #include <hse_util/byteorder.h>
 #include <hse_util/slab.h>
 #include <hse_util/table.h>
-#include <logging/logging.h>
+#include <hse/logging/logging.h>
 
 #include <hse_ikvdb/c0.h>
 #include <hse_ikvdb/lc.h>

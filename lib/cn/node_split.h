@@ -9,7 +9,7 @@
 #include <stddef.h>
 
 #include <hse_util/compiler.h>
-#include <error/merr.h>
+#include <hse/error/merr.h>
 
 #include "kvset_split.h"
 

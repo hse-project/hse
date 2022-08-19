@@ -8,7 +8,7 @@
 #include <bsd/string.h>
 
 #include <hse_util/event_counter.h>
-#include <logging/logging.h>
+#include <hse/logging/logging.h>
 #include <hse_util/workqueue.h>
 #include <hse_util/assert.h>
 

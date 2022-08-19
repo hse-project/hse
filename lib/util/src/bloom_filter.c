@@ -5,7 +5,7 @@
 
 #include <hse_util/bitmap.h>
 #include <hse_util/bloom_filter.h>
-#include <logging/logging.h>
+#include <hse/logging/logging.h>
 #include <hse_util/page.h>
 
 #include "bf_size2bits.i"

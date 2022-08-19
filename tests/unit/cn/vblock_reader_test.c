@@ -5,7 +5,7 @@
 
 #include <mtf/framework.h>
 
-#include <logging/logging.h>
+#include <hse/logging/logging.h>
 #include <hse_util/page.h>
 
 #include <cn/vblock_reader.h>

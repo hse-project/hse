@@ -19,8 +19,8 @@
 #include <bsd/string.h>
 #include <bsd/libutil.h>
 
-#include <error/merr.h>
-#include <pidfile/pidfile.h>
+#include <hse/error/merr.h>
+#include <hse/pidfile/pidfile.h>
 
 merr_t
 pidfile_serialize(struct pidfh *pfh, const struct pidfile *content)

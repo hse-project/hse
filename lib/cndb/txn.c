@@ -4,7 +4,7 @@
  */
 
 #include <hse_util/list.h>
-#include <error/merr.h>
+#include <hse/error/merr.h>
 #include <hse_util/event_counter.h>
 
 #include <cn/kvset.h>

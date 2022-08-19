@@ -6,7 +6,7 @@
 #define MTF_MOCK_IMPL_sched_sts
 
 #include <hse_util/platform.h>
-#include <logging/logging.h>
+#include <hse/logging/logging.h>
 #include <hse_util/workqueue.h>
 #include <hse_util/mutex.h>
 #include <hse_util/rest_api.h>

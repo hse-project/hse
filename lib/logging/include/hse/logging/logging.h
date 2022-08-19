@@ -11,7 +11,7 @@
 #include <hse_util/compiler.h>
 #include <hse_util/event_counter.h>
 
-#include <error/merr.h>
+#include <hse/error/merr.h>
 
 /* clang-format off */
 

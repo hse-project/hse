@@ -8,14 +8,14 @@
 #include <bsd/string.h>
 #include <cjson/cJSON.h>
 
-#include <cli/tprint.h>
+#include <hse/cli/tprint.h>
 
 #include <hse/hse.h>
 #include <hse_util/assert.h>
 #include <hse_util/base.h>
 #include <hse_util/rest_client.h>
 
-#include <pidfile/pidfile.h>
+#include <hse/pidfile/pidfile.h>
 
 int
 hse_storage_info(const char *const kvdb_home)

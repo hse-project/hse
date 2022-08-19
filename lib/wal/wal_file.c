@@ -9,7 +9,7 @@
 #include <hse_util/mutex.h>
 #include <hse_util/list.h>
 #include <hse_util/page.h>
-#include <logging/logging.h>
+#include <hse/logging/logging.h>
 
 #include <hse_ikvdb/cndb.h>
 

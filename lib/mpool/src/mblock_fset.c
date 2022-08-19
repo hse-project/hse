@@ -7,7 +7,7 @@
 
 #include <hse_util/assert.h>
 #include <hse_util/event_counter.h>
-#include <logging/logging.h>
+#include <hse/logging/logging.h>
 #include <hse_util/page.h>
 #include <hse_util/slab.h>
 #include <hse_util/storage.h>

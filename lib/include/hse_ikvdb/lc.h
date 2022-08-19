@@ -6,7 +6,7 @@
 #ifndef HSE_CORE_LC_H
 #define HSE_CORE_LC_H
 
-#include <error/merr.h>
+#include <hse/error/merr.h>
 #include <hse_util/inttypes.h>
 #include <hse_util/workqueue.h>
 

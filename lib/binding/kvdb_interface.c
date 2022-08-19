@@ -27,12 +27,12 @@
 
 #include <hse_util/platform.h>
 #include <hse_util/rest_api.h>
-#include <logging/logging.h>
+#include <hse/logging/logging.h>
 #include <hse_util/vlb.h>
 
 #include <bsd/libutil.h>
 #include <bsd/string.h>
-#include <pidfile/pidfile.h>
+#include <hse/pidfile/pidfile.h>
 
 /* clang-format off */
 

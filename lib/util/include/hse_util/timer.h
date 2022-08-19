@@ -8,7 +8,7 @@
 
 #include <hse_util/arch.h>
 #include <hse_util/atomic.h>
-#include <error/merr.h>
+#include <hse/error/merr.h>
 #include <hse_util/time.h>
 #include <hse_util/list.h>
 

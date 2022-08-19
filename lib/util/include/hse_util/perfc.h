@@ -10,7 +10,7 @@
 #include <hse_util/assert.h>
 #include <hse_util/atomic.h>
 #include <hse_util/timer.h>
-#include <error/merr.h>
+#include <hse/error/merr.h>
 #include <hse_util/data_tree.h>
 
 /* clang-format off */

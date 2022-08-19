@@ -7,7 +7,7 @@
 #include <urcu/rculist.h>
 
 #include <hse_util/platform.h>
-#include <error/merr.h>
+#include <hse/error/merr.h>
 #include <hse_util/event_counter.h>
 #include <hse_util/alloc.h>
 #include <hse_util/slab.h>

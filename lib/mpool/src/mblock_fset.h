@@ -6,7 +6,7 @@
 #ifndef MPOOL_MBLOCK_FSET_H
 #define MPOOL_MBLOCK_FSET_H
 
-#include <error/merr.h>
+#include <hse/error/merr.h>
 
 #include "mblock_file.h"
 

@@ -6,7 +6,7 @@
 #include <mtf/framework.h>
 
 #include <hse_util/keycmp.h>
-#include <error/merr.h>
+#include <hse/error/merr.h>
 
 MTF_MODULE_UNDER_TEST(hse_platform);
 

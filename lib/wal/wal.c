@@ -5,7 +5,7 @@
 
 #define MTF_MOCK_IMPL_wal
 
-#include <error/merr.h>
+#include <hse/error/merr.h>
 #include <hse_util/bonsai_tree.h>
 #include <hse_util/event_counter.h>
 #include <hse_util/log2.h>

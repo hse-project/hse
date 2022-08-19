@@ -11,7 +11,7 @@
 #include <hse/experimental.h>
 
 #include <hse_util/assert.h>
-#include <error/merr.h>
+#include <hse/error/merr.h>
 #include <hse_util/event_counter.h>
 #include <hse_util/page.h>
 #include <hse_util/seqno.h>
@@ -67,7 +67,7 @@
 #include "kvdb_ctxn_pfxlock.h"
 
 #include <mpool/mpool.h>
-#include <pidfile/pidfile.h>
+#include <hse/pidfile/pidfile.h>
 
 #include <xxhash.h>
 #include <cjson/cJSON.h>

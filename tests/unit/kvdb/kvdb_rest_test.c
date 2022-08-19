@@ -8,7 +8,7 @@
 #include <mock/api.h>
 
 #include <hse_util/inttypes.h>
-#include <error/merr.h>
+#include <hse/error/merr.h>
 #include <hse_util/rest_api.h>
 #include <hse_util/rest_client.h>
 

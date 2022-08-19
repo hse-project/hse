@@ -15,7 +15,7 @@
 #include <hse_util/seqno.h>
 #include <hse_util/xrand.h>
 #include <hse_util/keycmp.h>
-#include <logging/logging.h>
+#include <hse/logging/logging.h>
 
 #include <hse_ikvdb/ikvdb.h>
 #include <hse_ikvdb/lc.h>

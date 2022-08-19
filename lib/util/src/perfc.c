@@ -16,7 +16,7 @@
 #include <hse_util/log2.h>
 #include <hse_util/event_counter.h>
 #include <hse_util/xrand.h>
-#include <logging/logging.h>
+#include <hse/logging/logging.h>
 #include <hse_util/perfc.h>
 
 static const char * const perfc_ctr_type2name[] = {

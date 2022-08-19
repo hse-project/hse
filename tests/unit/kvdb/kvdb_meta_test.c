@@ -3,7 +3,7 @@
  * Copyright (C) 2021 Micron Technology, Inc.  All rights reserved.
  */
 
-#include <error/merr.h>
+#include <hse/error/merr.h>
 #include <mtf/framework.h>
 
 #include <hse_ikvdb/kvdb_meta.h>

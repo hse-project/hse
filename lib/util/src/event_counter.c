@@ -4,7 +4,7 @@
  */
 
 #include <hse_util/platform.h>
-#include <logging/logging.h>
+#include <hse/logging/logging.h>
 #include <hse_util/time.h>
 #include <hse_util/data_tree.h>
 #include <hse_util/event_counter.h>

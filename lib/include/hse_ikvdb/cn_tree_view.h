@@ -7,7 +7,7 @@
 #define HSE_KVDB_CN_CN_TREE_VIEW_H
 
 #include <hse_util/table.h>
-#include <error/merr.h>
+#include <hse/error/merr.h>
 
 /* MTF_MOCK_DECL(ct_view) */
 

@@ -5,7 +5,7 @@
  * A map library to store key-value pairs. This is not a thread safe library.
  */
 
-#include <error/merr.h>
+#include <hse/error/merr.h>
 
 #ifndef HSE_UTIL_MAP_H
 #define HSE_UTIL_MAP_H

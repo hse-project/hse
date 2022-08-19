@@ -14,12 +14,12 @@
 #include <bsd/string.h>
 
 #include <hse_util/assert.h>
-#include <error/merr.h>
+#include <hse/error/merr.h>
 #include <hse_util/inttypes.h>
 #include <hse_util/dax.h>
 
 #include <hse_ikvdb/kvdb_home.h>
-#include <pidfile/pidfile.h>
+#include <hse/pidfile/pidfile.h>
 
 static merr_t
 path_join(const char *home, const char *path, char *buf, const size_t buf_sz)

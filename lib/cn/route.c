@@ -7,7 +7,7 @@
 
 #include <hse_util/platform.h>
 #include <hse_util/alloc.h>
-#include <logging/logging.h>
+#include <hse/logging/logging.h>
 #include <hse_util/assert.h>
 #include <hse_util/keycmp.h>
 #include <hse_util/xrand.h>

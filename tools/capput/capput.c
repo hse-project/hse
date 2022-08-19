@@ -50,7 +50,7 @@
 #include <hse_util/inttypes.h>
 #include <hse_util/time.h>
 
-#include <cli/param.h>
+#include <hse/cli/param.h>
 
 #include "kvs_helper.h"
 

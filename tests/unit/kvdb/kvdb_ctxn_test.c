@@ -8,7 +8,7 @@
 
 #include <hse/hse.h>
 
-#include <error/merr.h>
+#include <hse/error/merr.h>
 #include <hse_util/atomic.h>
 #include <hse_util/seqno.h>
 #include <hse_util/keylock.h>

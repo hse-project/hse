@@ -8,7 +8,7 @@
 
 #include <dirent.h>
 
-#include <error/merr.h>
+#include <hse/error/merr.h>
 
 #include <mpool/mpool_structs.h>
 

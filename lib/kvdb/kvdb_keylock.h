@@ -6,7 +6,7 @@
 #ifndef HSE_KVDB_KEYLOCK_H
 #define HSE_KVDB_KEYLOCK_H
 
-#include <error/merr.h>
+#include <hse/error/merr.h>
 
 struct mutex;
 struct kvdb_keylock;

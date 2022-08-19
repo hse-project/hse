@@ -3,7 +3,7 @@
  * Copyright (C) 2021-2022 Micron Technology, Inc.  All rights reserved.
  */
 
-#include <logging/logging.h>
+#include <hse/logging/logging.h>
 #include <hse_util/event_counter.h>
 #include <hse_util/page.h>
 

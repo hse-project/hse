@@ -7,7 +7,7 @@
 
 #include <hse_util/platform.h>
 #include <hse_util/alloc.h>
-#include <logging/logging.h>
+#include <hse/logging/logging.h>
 #include <hse_util/map.h>
 
 #include <hse_ikvdb/cn.h>

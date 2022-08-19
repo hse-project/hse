@@ -8,8 +8,8 @@
 #define MTF_MOCK_IMPL_mpool
 
 #include <hse_util/event_counter.h>
-#include <error/merr.h>
-#include <logging/logging.h>
+#include <hse/error/merr.h>
+#include <hse/logging/logging.h>
 
 #include <mpool/mpool.h>
 

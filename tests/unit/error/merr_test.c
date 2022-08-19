@@ -5,7 +5,7 @@
 
 #include <mtf/framework.h>
 
-#include <error/merr.h>
+#include <hse/error/merr.h>
 
 extern uint8_t __start_hse_merr;
 extern uint8_t __stop_hse_merr;

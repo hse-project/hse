@@ -7,7 +7,7 @@
 #include <mock/api.h>
 #include <support/random_buffer.h>
 
-#include <error/merr.h>
+#include <hse/error/merr.h>
 #include <hse_util/minmax.h>
 #include <hse_util/page.h>
 

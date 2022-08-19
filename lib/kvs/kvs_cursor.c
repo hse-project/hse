@@ -9,7 +9,7 @@
 #include <hse_util/vlb.h>
 #include <hse_util/fmt.h>
 #include <hse_util/keycmp.h>
-#include <logging/logging.h>
+#include <hse/logging/logging.h>
 #include <hse_util/compression_lz4.h>
 
 #include <hse/kvdb_perfc.h>

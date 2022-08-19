@@ -12,7 +12,7 @@
 #include <hse_util/log2.h>
 #include <hse_util/page.h>
 #include <hse_util/seqno.h>
-#include <error/merr.h>
+#include <hse/error/merr.h>
 #include <hse_util/vlb.h>
 #include <hse_util/event_counter.h>
 

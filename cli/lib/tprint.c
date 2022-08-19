@@ -5,7 +5,7 @@
 
 #include <string.h>
 
-#include <cli/tprint.h>
+#include <hse/cli/tprint.h>
 
 void
 tprint(FILE *fp, const size_t nrow, const size_t ncol, const char *const *const headers,

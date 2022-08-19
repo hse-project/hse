@@ -3,7 +3,7 @@
  * Copyright (C) 2021 Micron Technology, Inc.  All rights reserved.
  */
 
-#include <logging/logging.h>
+#include <hse/logging/logging.h>
 #include <hse_util/page.h>
 
 #include "mpool_internal.h"

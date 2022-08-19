@@ -20,7 +20,7 @@
 
 #include <hse/version.h>
 
-#include <logging/logging.h>
+#include <hse/logging/logging.h>
 
 #include "rest_dt.h"
 #include "cgroup.h"

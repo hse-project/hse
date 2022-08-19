@@ -6,9 +6,9 @@
 #include <mtf/framework.h>
 #include <mock/alloc_tester.h>
 
-#include <error/merr.h>
+#include <hse/error/merr.h>
 #include <hse_util/inttypes.h>
-#include <logging/logging.h>
+#include <hse/logging/logging.h>
 #include <hse_util/page.h>
 
 #include <hse_ikvdb/tuple.h>

@@ -12,7 +12,7 @@
 #include <hse_util/minmax.h>
 #include <hse_util/event_counter.h>
 #include <hse_util/bin_heap.h>
-#include <logging/logging.h>
+#include <hse/logging/logging.h>
 
 #define BH_PARENT(_index)   (((_index) - 1) / 2)
 #define BH_LEFT(_index)     ((2 * (_index)) + 1)

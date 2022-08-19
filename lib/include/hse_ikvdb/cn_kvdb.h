@@ -7,7 +7,7 @@
 #define HSE_IKVS_CN_KVDB_H
 
 #include <hse_util/atomic.h>
-#include <error/merr.h>
+#include <hse/error/merr.h>
 #include <hse_util/workqueue.h>
 
 /* MTF_MOCK_DECL(cn_kvdb) */

@@ -35,7 +35,7 @@
 #include <hse_util/log2.h>
 #include <hse_util/assert.h>
 #include <hse_util/event_counter.h>
-#include <logging/logging.h>
+#include <hse/logging/logging.h>
 
 #include <hse_util/mutex.h>
 #include <hse_util/spinlock.h>

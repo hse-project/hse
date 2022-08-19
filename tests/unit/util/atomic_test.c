@@ -4,8 +4,8 @@
  */
 
 #include <hse_util/atomic.h>
-#include <error/merr.h>
-#include <logging/logging.h>
+#include <hse/error/merr.h>
+#include <hse/logging/logging.h>
 
 #include "multithreaded_tester.h"
 #include <mtf/framework.h>

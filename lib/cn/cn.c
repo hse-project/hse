@@ -11,14 +11,14 @@
 
 #include <bsd/string.h>
 
-#include <error/merr.h>
+#include <hse/error/merr.h>
 #include <hse_util/event_counter.h>
 #include <hse_util/alloc.h>
 #include <hse_util/slab.h>
 #include <hse_util/log2.h>
 #include <hse_util/xrand.h>
 #include <hse_util/vlb.h>
-#include <logging/logging.h>
+#include <hse/logging/logging.h>
 #include <hse_util/map.h>
 
 #include <hse_util/perfc.h>

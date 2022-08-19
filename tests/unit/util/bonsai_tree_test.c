@@ -4,10 +4,10 @@
  */
 
 #include <hse_util/compiler.h>
-#include <error/merr.h>
+#include <hse/error/merr.h>
 #include <hse_util/cursor_heap.h>
 #include <hse_util/atomic.h>
-#include <logging/logging.h>
+#include <hse/logging/logging.h>
 #include <hse_util/xrand.h>
 #include <hse_util/keycmp.h>
 #include <hse_util/seqno.h>

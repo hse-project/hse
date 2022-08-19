@@ -10,7 +10,7 @@
 #include <stdbool.h>
 #include <stddef.h>
 
-#include <error/merr.h>
+#include <hse/error/merr.h>
 
 /**
  * Converts the storage path to an absolute path

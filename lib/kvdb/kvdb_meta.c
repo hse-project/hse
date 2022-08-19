@@ -17,7 +17,7 @@
 #include <hse_ikvdb/kvdb_home.h>
 #include <hse_ikvdb/omf_version.h>
 #include <hse_util/assert.h>
-#include <logging/logging.h>
+#include <hse/logging/logging.h>
 
 #include <mpool/mpool.h>
 
