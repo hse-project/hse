@@ -1546,7 +1546,7 @@ cn_comp_update_split(
     }
 }
 
-static void
+void
 cn_comp_kvset_append(
     struct cn_compaction_work *work,
     struct cn_tree_node       *node,
@@ -1902,31 +1902,6 @@ cn_comp_cleanup(struct cn_compaction_work *w)
 }
 
 static merr_t
-cn_comp_kvcompact(struct cn_compaction_work *w)
-{
-    struct subspill *subspill;
-    bool added;
-    merr_t err;
-
-    err = cn_spill_init(w, &subspill);
-    if (err)
-        return err;
-
-    err = cn_spill(subspill, NULL, 0, NULL, 0, &added);
-    if (!err)
-        w->cw_output_nodev[0] = w->cw_node;
-
-    cn_spill_fini(subspill);
-
-    if (err && merr_errno(err) != ESHUTDOWN)
-        kvdb_health_error(w->cw_tree->ct_kvdb_health, err);
-
-    w->cw_t3_build = get_time_ns();
-    return err;
-}
-
-
-static merr_t
 cn_comp_spill(struct cn_compaction_work *w)
 {
     struct subspill subspill[CN_FANOUT_MAX] = {0};
@@ -1943,7 +1918,6 @@ cn_comp_spill(struct cn_compaction_work *w)
     cnum = 0;
     while (!err) {
         struct cn_tree_node *node;
-        bool added = false;
         void *lock;
         struct kvset_list_entry *le;
         uint64_t first_sgen, node_dgen = 0;
@@ -1969,22 +1943,23 @@ cn_comp_spill(struct cn_compaction_work *w)
         route_node_keycpy(rtn, ekey, sizeof(ekey), &eklen);
         rmlock_runlock(lock);
 
-        err = cn_spill(&subspill[cnum], node, node_dgen, ekey, eklen, &added);
-        if (err || !added)
-            continue;
+        err = cn_subspill(spillctx, &subspill[cnum], node, node_dgen, ekey, eklen);
+        if (err)
+            break;;
 
-        cn_spill_enqueue(&subspill[cnum], node);
-        first_sgen = cn_spill_queue_get_first(node);
+        cn_subspill_enqueue(&subspill[cnum], node);
+        first_sgen = cn_node_sgen_get(node);
         while (first_sgen == atomic_read(&node->tn_sgen) + 1) {
             err = cn_subspill_commit(&subspill[cnum]);
             if (err)
                 break;
 
             list_del(&subspill[cnum].ss_link);
-            w->cw_checkpoint(w);
+            if (subspill[cnum].added)
+                w->cw_checkpoint(w);
             atomic_inc(&node->tn_sgen);
 
-            first_sgen = cn_spill_queue_get_first(node);
+            first_sgen = cn_node_sgen_get(node);
         }
 
         ++cnum;
@@ -2055,7 +2030,7 @@ cn_comp_compact(struct cn_compaction_work *w)
         break;
 
     case CN_ACTION_COMPACT_KV:
-        err = cn_comp_kvcompact(w);
+        err = cn_kvcompact(w);
         break;
 
     case CN_ACTION_SPILL:

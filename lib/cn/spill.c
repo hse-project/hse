@@ -17,6 +17,7 @@
 #include <hse_ikvdb/kvset_builder.h>
 #include <hse_ikvdb/kvdb_perfc.h>
 #include <hse_ikvdb/cndb.h>
+#include <hse_ikvdb/cn.h>
 
 /* [HSE_REVISIT] - Why is this at the top of this file? */
 
@@ -248,22 +249,10 @@ cn_spill_fini(struct spillctx *sctx)
     free(sctx);
 }
 
-struct subspill {
-    struct list_head ss_link;
-
-    struct kvset_mblocks ss_mblks;
-    uint64_t kvsetid;
-    struct cn_tree_node *node;
-    bool added;
-
-    struct spillctx *sctx;
-    struct cn_compaction_work *w;
-};
-
 static void
 cn_subspill_kvset_meta_get(struct subspill *ss, struct kvset_meta *km)
 {
-    struct cn_compaction_work *w = ss->work;
+    struct cn_compaction_work *w = ss->w;
 
     memset(km, 0, sizeof(*km));
 
@@ -296,7 +285,7 @@ cn_subspill_enqueue(struct subspill *ss, struct cn_tree_node *tn)
     list_for_each(p, &tn->tn_mut_list) {
         entry = list_entry(p, typeof(*entry), ss_link);
 
-        if (ss->sgen < entry->sgen)
+        if (ss->ss_sgen < entry->ss_sgen)
             break;
     }
 
@@ -314,7 +303,6 @@ cn_subspill_sgen_get(struct subspill *ss)
 uint64_t
 cn_node_sgen_get(struct cn_tree_node *tn)
 {
-    struct list_head *p;
     struct subspill *entry;
     uint64_t sgen;
 
@@ -333,8 +321,7 @@ cn_subspill(
     struct cn_tree_node       *node,
     uint64_t                   node_dgen,
     void                      *ekey,
-    uint                       eklen,
-    bool                      *added)
+    uint                       eklen)
 {
     struct cn_compaction_work *w = sctx->work;
     struct bin_heap *bh = sctx->bh;
@@ -349,7 +336,6 @@ cn_subspill(
 
     u64  seq, emitted_seq = 0, emitted_seq_pt = 0;
     bool emitted_val = false, bg_val = false;
-    bool kvcompact = (w->cw_action == CN_ACTION_COMPACT_KV);
 
     u64  tstart, tprog = 0;
     u64  dbg_prev_seq = 0;
@@ -365,6 +351,8 @@ cn_subspill(
     assert(w->cw_kvset_cnt);
     assert(w->cw_inputv);
 
+    ss->ss_sgen = w->cw_sgen;
+
     if (w->cw_prog_interval && w->cw_progress)
         tprog = jiffies;
 
@@ -378,14 +366,12 @@ cn_subspill(
 
     ss->added = false;
 
-    if (!kvcompact) {
-        if (!sctx->more || key_obj_cmp(&sctx->curr.kobj, &ekobj) > 0) {
-            if (!sctx->pt_set)
-                return 0; /* Nothing to do */
-        }
+    if (!sctx->more || key_obj_cmp(&sctx->curr.kobj, &ekobj) > 0) {
+        if (!sctx->pt_set)
+            return 0; /* Nothing to do */
     }
 
-    sctx->kvsetid = cndb_kvsetid_mint(cn_tree_get_cndb(w->cw_tree));
+    ss->kvsetid = cndb_kvsetid_mint(cn_tree_get_cndb(w->cw_tree));
 
     err = get_kvset_builder(w, 0, &child);
     if (err)
@@ -415,7 +401,7 @@ cn_subspill(
 
     tstart = perfc_ison(w->cw_pc, PERFC_DI_CNCOMP_VGET) ? 1 : 0;
 
-    while (sctx->more && (kvcompact || key_obj_cmp(&sctx->curr.kobj, &ekobj) <= 0)) {
+    while (sctx->more && key_obj_cmp(&sctx->curr.kobj, &ekobj) <= 0) {
 
         if (new_key && atomic_read(w->cw_cancel_request)) {
             err = merr(ESHUTDOWN);
@@ -487,7 +473,7 @@ cn_subspill(
             dbg_nvals_this_key++;
             dbg_prev_seq = seq;
 
-            if (sctx->curr.vctx.dgen <= node_dgen && !kvcompact)
+            if (sctx->curr.vctx.dgen <= node_dgen)
                 break;
 
             bg_val = (seq <= w->cw_horizon);
@@ -593,7 +579,7 @@ cn_subspill(
             goto out;
     }
 
-    err = kvset_builder_get_mblocks(child, &sctx->ss_mblks);
+    err = kvset_builder_get_mblocks(child, &ss->ss_mblks);
 
 out:
     kvset_builder_destroy(child);
@@ -605,11 +591,17 @@ out:
     if (tprog)
         w->cw_progress(w);
 
-    if (!kvcompact &&ss->added)
-        ss->node = node;
+    ss->node = node;
 
     return err;
 }
+
+// TODO Gaurav: Ugh...
+void
+cn_comp_kvset_append(
+    struct cn_compaction_work *work,
+    struct cn_tree_node       *node,
+    struct kvset              *kvset);
 
 merr_t
 cn_subspill_commit(struct subspill *ss)
@@ -619,7 +611,7 @@ cn_subspill_commit(struct subspill *ss)
     merr_t err;
     struct cndb_txn *tx;
     struct kvset_meta km;
-    struct kvset_mblocks *mblks = ss->ss_mblks;
+    struct kvset_mblocks *mblks = &ss->ss_mblks;
     struct cn_compaction_work *w = ss->w;
     struct cndb *cndb = w->cw_tree->cndb;
 
@@ -639,10 +631,10 @@ cn_subspill_commit(struct subspill *ss)
 
     /* CNDB: Log kvset add records.
      */
-    err = cndb_record_kvset_add(cndb, tx, w->cw_tree->cnid, km.km_nodeid, &km, ss->kvsetid,
-                                km.km_hblk.bk_blkid, mblks->kblks.n_blks,
-                                (uint64_t *)mblks->kblks.blks, mblks-.vblks.n_blks,
-                                (uint64_t *)mblks->vblks.blks, &cookie);
+    err = cndb_record_kvset_add(cndb, tx, w->cw_tree->cnid, km.km_nodeid,
+                                &km, ss->kvsetid, km.km_hblk.bk_blkid,
+                                mblks->kblks.n_blks, (uint64_t *)mblks->kblks.blks,
+                                mblks->vblks.n_blks, (uint64_t *)mblks->vblks.blks, &cookie);
     if (err)
         goto done;
 
@@ -671,4 +663,258 @@ done:
     }
 
     w->cw_err = w->cw_err ?: err;
+    return w->cw_err;
+}
+
+// TODO Gaurav: Move this to a separate file, or rename file
+merr_t
+cn_kvcompact(struct cn_compaction_work *w)
+{
+    struct bin_heap *bh;
+    struct kvset_builder *bldr = NULL;
+    struct key_obj prev_kobj = { 0 };
+
+    uint vlen, complen, omlen, direct_read_len;
+    uint curr_klen HSE_MAYBE_UNUSED;
+    u32 bufsz = 0;
+    void *buf = NULL;
+    merr_t err;
+
+    u64  seq, emitted_seq = 0, emitted_seq_pt = 0;
+    bool emitted_val = false, bg_val = false;
+
+    struct key_obj pt_kobj;
+    u64 pt_seq;
+    bool pt_set;
+
+    u64  tstart, tprog = 0;
+    u64  dbg_prev_seq = 0;
+    uint dbg_prev_src HSE_MAYBE_UNUSED;
+    uint dbg_nvals_this_key HSE_MAYBE_UNUSED;
+    bool dbg_dup HSE_MAYBE_UNUSED;
+    uint seqno_errcnt = 0;
+    bool new_key;
+    bool more;
+    struct merge_item curr;
+
+    err = merge_init(&bh, w->cw_inputv, w->cw_kvset_cnt, &w->cw_stats);
+    if (err)
+        return err;
+
+    assert(w->cw_kvset_cnt);
+    assert(w->cw_inputv);
+
+    if (w->cw_prog_interval && w->cw_progress)
+        tprog = jiffies;
+
+    /* We must issue a direct read for all values that will not fit into the vblock readahead
+     * buffer.  Since all direct reads require page size alignment any value whose length is
+     * greater than the buffer size minus one page must be read directly from disk (vs from the
+     * readahead buffer).
+     */
+    direct_read_len = w->cw_rp->cn_compact_vblk_ra;
+    direct_read_len -= PAGE_SIZE;
+
+    w->cw_kvsetidv[0] = cndb_kvsetid_mint(cn_tree_get_cndb(w->cw_tree));
+
+    err = get_kvset_builder(w, 0, &bldr);
+    if (err)
+        return err;
+
+    assert(bldr);
+
+    new_key = true;
+
+    tstart = perfc_ison(w->cw_pc, PERFC_DI_CNCOMP_VGET) ? 1 : 0;
+
+    while (more) {
+
+        if (new_key && atomic_read(w->cw_cancel_request)) {
+            err = merr(ESHUTDOWN);
+            goto out;
+        }
+
+        curr_klen = key_obj_len(&curr.kobj);
+        assert(curr_klen >= w->cw_cp->sfx_len || curr.vctx.is_ptomb);
+
+        if (new_key) {
+            bg_val = false;
+            emitted_val = false;
+            emitted_seq = 0;
+            emitted_seq_pt = 0;
+
+            dbg_prev_seq = 0;
+            dbg_prev_src = 0;
+            dbg_nvals_this_key = 0;
+            dbg_dup = false;
+        }
+
+        while (!bg_val) {
+            const void *   vdata = NULL;
+            bool           should_emit = false;
+            enum kmd_vtype vtype;
+            u32            vbidx;
+            u32            vboff;
+            bool           direct;
+
+            if (tstart > 0)
+                tstart = get_time_ns();
+
+            if (!kvset_iter_next_vref(w->cw_inputv[curr.src], &curr.vctx,
+                                      &seq, &vtype, &vbidx,
+                                      &vboff, &vdata, &vlen, &complen))
+                break;
+
+            omlen = (vtype == vtype_val) ? vlen : ((vtype == vtype_cval) ? complen : 0);
+
+            direct = omlen > direct_read_len;
+            if (direct) {
+                err = get_direct_read_buf(omlen, !(vboff % PAGE_SIZE), &bufsz, &buf);
+                if (err)
+                    break;
+
+                err = kvset_iter_next_val_direct(w->cw_inputv[curr.src], vtype, vbidx,
+                                                 vboff, buf, omlen, bufsz);
+                vdata = buf;
+            } else {
+                err = kvset_iter_val_get(w->cw_inputv[curr.src], &curr.vctx, vtype, vbidx,
+                                          vboff, &vdata, &vlen, &complen);
+            }
+
+            if (err)
+                break;
+
+            if (tstart > 0) {
+                u64 t = get_time_ns() - tstart;
+
+                perfc_dis_record(w->cw_pc, PERFC_DI_CNCOMP_VGET, t);
+            }
+
+            if (HSE_UNLIKELY(dbg_nvals_this_key && dbg_prev_seq <= seq)) {
+                assert(0);
+                seqno_errcnt++;
+            }
+
+            assert(!HSE_CORE_IS_PTOMB(vdata) || !w->cw_pfx_len || w->cw_pfx_len == curr_klen);
+            dbg_nvals_this_key++;
+            dbg_prev_seq = seq;
+
+            bg_val = (seq <= w->cw_horizon);
+
+            if (bg_val && pt_set && w->cw_horizon >= pt_seq && pt_seq > seq)
+                break; /* drop val if it and pt are beyond horizon */
+
+            /* Set ptomb context irrespective of bg_val for tombstone propagation */
+            if (HSE_CORE_IS_PTOMB(vdata)) {
+                pt_set = true;
+                pt_kobj = curr.kobj;
+                pt_seq = seq;
+            }
+
+            if (HSE_CORE_IS_PTOMB(vdata))
+                should_emit = !emitted_seq_pt || seq < emitted_seq_pt;
+            else
+                should_emit = !emitted_seq || seq < emitted_seq;
+
+            should_emit = should_emit || !emitted_val;
+
+            /* Compare seq to emitted_seq to ensure when a key has values in two kvsets with
+             * the same sequence number, then only the value from the first kvset is emitted.
+             */
+            if (should_emit) {
+                if (w->cw_drop_tombs && HSE_CORE_IS_TOMB(vdata) && bg_val)
+                    continue; /* skip value */
+
+                err = kvset_builder_add_val(bldr, &curr.kobj, vdata, vlen, seq, complen);
+                if (err)
+                    break;
+
+                w->cw_stats.ms_val_bytes_out += complen ? complen : vlen;
+                emitted_val = true;
+                if (HSE_CORE_IS_PTOMB(vdata))
+                    emitted_seq_pt = seq;
+                else
+                    emitted_seq = seq;
+            } else {
+                /* The same key can appear in two input kvsets with overlapping sequence
+                 * numbers. The following assertions verify that we aren't here for other
+                 * reasons (e.g., input kvsets that violate assumptions about sequence numbers).
+                 */
+                assert(dbg_prev_src < curr.src);
+                assert(seq == emitted_seq);
+                if (seq > emitted_seq)
+                    seqno_errcnt++;
+
+                /* Two ptombs can have the same seqno only if they are part of a txn. But if
+                 * that is the case, those ptombs will never be dups. So, there can never be
+                 * duplicate ptombs with the same seqno.
+                 */
+                assert(vdata != HSE_CORE_TOMB_PFX);
+            }
+        }
+
+        if (err)
+            break;
+
+        prev_kobj = curr.kobj;
+
+        dbg_dup = false;
+        dbg_nvals_this_key = 0;
+        dbg_prev_src = curr.src;
+
+        more = get_next_item(bh, w->cw_inputv, &curr, &w->cw_stats, &err);
+        if (err)
+            break;
+
+        if (more) {
+            if (key_obj_cmp(&curr.kobj, &prev_kobj) == 0) {
+                dbg_dup = true;
+                new_key = false;
+                assert(dbg_prev_src <= curr.src);
+                continue;
+            } else if (pt_set && key_obj_cmp_prefix(&pt_kobj, &curr.kobj) != 0) {
+                pt_set = false; /* cached ptomb key is no longer valid */
+            }
+        }
+
+        if (emitted_val) {
+            err = kvset_builder_add_key(bldr, &prev_kobj);
+            if (err)
+                break;
+
+            w->cw_stats.ms_keys_out++;
+            w->cw_stats.ms_key_bytes_out += key_obj_len(&prev_kobj);
+        }
+
+        new_key = true;
+
+        if (tprog) {
+            u64 now = jiffies;
+
+            if (now - tprog > w->cw_prog_interval) {
+                tprog = now;
+                w->cw_progress(w);
+            }
+        }
+
+        if (err)
+            goto out;
+    }
+
+    err = kvset_builder_get_mblocks(bldr, &w->cw_outv[0]);
+    if (!err)
+        w->cw_output_nodev[0] = w->cw_node;
+
+out:
+    bin_heap_destroy(bh);
+    kvset_builder_destroy(bldr);
+    free_aligned(buf);
+
+    if (seqno_errcnt)
+        log_warn("seqno errcnt %u", seqno_errcnt);
+
+    if (tprog)
+        w->cw_progress(w);
+
+    return err;
 }

@@ -277,7 +277,7 @@ struct mapi_injection inject_list[] = {
 
     /* cn */
     { mapi_idx_cn_kcompact, MAPI_RC_SCALAR, 0 },
-    { mapi_idx_cn_spill, MAPI_RC_SCALAR, 0 },
+    { mapi_idx_cn_subspill, MAPI_RC_SCALAR, 0 },
     { mapi_idx_cn_spill_init, MAPI_RC_SCALAR, 0 },
     { mapi_idx_cn_spill_fini, MAPI_RC_SCALAR, 0 },
     { mapi_idx_cn_mblocks_commit, MAPI_RC_SCALAR, 0 },

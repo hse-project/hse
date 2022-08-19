@@ -1237,16 +1237,16 @@ run_testcase(struct mtf_test_info *lcl_ti, int mode, const char *info)
         w.cw_action = CN_ACTION_SPILL;
         w.cw_cp = &cp;
 
-        struct subspill *subspill;
+        struct subspill subspill = {0};
+        struct spillctx *sctx;
         unsigned char ekey[HSE_KVS_KEY_LEN_MAX];
         uint eklen = 0;
 
-        err = cn_spill_init(&w, &subspill);
+        err = cn_spill_init(&w, &sctx);
         ASSERT_EQ(0, err);
 
         while (1) {
             struct route_node *rtn;
-            bool added;
 
             rtn = route_map_lookupGT(tree->ct_route_map, ekey, eklen);
             if (!rtn)
@@ -1254,11 +1254,11 @@ run_testcase(struct mtf_test_info *lcl_ti, int mode, const char *info)
 
             route_node_keycpy(rtn, ekey, sizeof(ekey), &eklen);
 
-            err = cn_spill(subspill, 0, 0, ekey, eklen, &added);
+            err = cn_subspill(sctx, &subspill, 0, 0, ekey, eklen);
             ASSERT_EQ(0, err);
         }
 
-        cn_spill_fini(subspill);
+        cn_spill_fini(sctx);
         cn_tree_destroy(tree);
     } else {
         /* kcompact */
