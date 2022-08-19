@@ -640,9 +640,9 @@ cn_subspill_commit(struct subspill *ss)
     /* CNDB: Log kvset add records.
      */
     err = cndb_record_kvset_add(cndb, tx, w->cw_tree->cnid, km.km_nodeid, &km, ss->kvsetid,
-                                km.km_hblk.bk_blkid, mblks->.kblks.n_blks,
-                                (uint64_t *)mblks->.kblks.blks, mblks->.vblks.n_blks,
-                                (uint64_t *)mblks->.vblks.blks, &cookie);
+                                km.km_hblk.bk_blkid, mblks->kblks.n_blks,
+                                (uint64_t *)mblks->kblks.blks, mblks-.vblks.n_blks,
+                                (uint64_t *)mblks->vblks.blks, &cookie);
     if (err)
         goto done;
 
