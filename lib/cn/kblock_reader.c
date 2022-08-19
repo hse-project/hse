@@ -193,23 +193,6 @@ kbr_read_metrics(struct kvs_mblk_desc *kblkdesc, struct kblk_metrics *metrics)
     return 0;
 }
 
-merr_t
-kbr_read_hlog(struct kvs_mblk_desc *kblk, uint8_t **hlog)
-{
-    struct kblock_hdr_omf *hdr = NULL;
-
-    hdr = mpool_mcache_getbase(kblk->map, kblk->map_idx);
-    if (!hdr)
-        return merr(EINVAL);
-
-    if (!kblock_hdr_valid(hdr))
-        return merr(EPROTO);
-
-    *hlog = (uint8_t *)hdr + (omf_kbh_hlog_doff_pg(hdr) * PAGE_SIZE);
-
-    return 0;
-}
-
 static merr_t
 kbr_madvise_region(struct kvs_mblk_desc *kblkdesc, u32 pg, u32 pg_cnt, int advice)
 {

@@ -57,8 +57,9 @@ struct kvset_kblk {
     u8              kb_ksmall[64]; /* small key cache */
     struct key_disc kb_kdisc_max;  /* kdisc of largest key in kblk */
     struct key_disc kb_kdisc_min;  /* kdisc of smallest key */
-    const void *    kb_koff_max;   /* ptr to largest key in kblk */
-    const void *    kb_koff_min;   /* ptr to smallest key in kblk */
+    const uint8_t  *kb_hlog;       /* ptr to hlog region in kblk */
+    const void     *kb_koff_max;   /* ptr to largest key in kblk */
+    const void     *kb_koff_min;   /* ptr to smallest key in kblk */
     u16             kb_klen_max;   /* length of largest key */
     u16             kb_klen_min;   /* length of smallest key */
 

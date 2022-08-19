@@ -41,7 +41,7 @@ hlog_data(struct hlog *hlog);
 
 /* MTF_MOCK */
 void
-hlog_union(struct hlog *hlog, u8 *new_regv);
+hlog_union(struct hlog *hlog, const uint8_t *new_regv);
 
 /* MTF_MOCK */
 uint

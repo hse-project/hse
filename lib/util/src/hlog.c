@@ -118,7 +118,7 @@ hlog_precision(struct hlog *hlog)
 }
 
 void
-hlog_union(struct hlog *hlog, u8 *new)
+hlog_union(struct hlog *hlog, const uint8_t *new)
 {
     uint i;
 

@@ -121,6 +121,7 @@ struct curcache_entry {
  * @cb_evicted:   head of list of evicted entries
  * @cb_free:      head of list of free entries
  * @cb_active:    number of entries linked into the rb tree
+ * @cb_prunec:    number of replaced entries queued for pruning
  * @cb_entrymax:  max entries in cca_entryv[]
  * @cb_entryv:    vector of curcache entries
  */
@@ -132,6 +133,7 @@ struct curcache_bucket {
     struct kvs_cursor_impl *cb_evicted;
     struct curcache_entry  *cb_free;
     uint                    cb_active;
+    uint                    cb_prunec;
     uint                    cb_entrymax;
     struct curcache_entry   cb_entryv[] HSE_ACP_ALIGNED;
 };
@@ -171,7 +173,6 @@ struct kvs_cursor_impl {
     u32 kci_ptomb_set : 1;
 
     u32    kci_pfxlen;
-    u64    kci_pfxhash;
     merr_t kci_err; /* bad cursor, must destroy */
 
     u8  *kci_prefix;
@@ -340,6 +341,7 @@ ikvs_curcache_prune_impl(
     /* Cursors on the evicted list have already been accounted for...
      */
     bkt->cb_active -= nretired;
+    bkt->cb_prunec = 0;
     mutex_unlock(&bkt->cb_lock);
 
     while (NULL != (old = evicted)) {
@@ -452,29 +454,33 @@ ikvs_curcache_insert(struct curcache_bucket *bkt, struct kvs_cursor_impl *cur)
                 cur->kci_item.ci_next = old;
                 bkt->cb_active++;
                 *pp = cur;
+                cur = NULL;
                 break;
             }
 
             pp = &old->kci_item.ci_next;
         }
 
-        if (++entry->ce_cnt > 8 || bkt->cb_active > bkt->cb_entrymax) {
+        if (++entry->ce_cnt > 64 || bkt->cb_active > bkt->cb_entrymax) {
             cur = entry->ce_list;
             entry->ce_list = cur->kci_item.ci_next;
-            cur->kci_item.ci_next = bkt->cb_evicted;
             pp = &entry->ce_list;
 
-            bkt->cb_evicted = cur;
             bkt->cb_active--;
             --entry->ce_cnt;
+
+            if (bkt->cb_active + bkt->cb_prunec < ((bkt->cb_entrymax * 9) / 10)) {
+                cur->kci_item.ci_next = bkt->cb_evicted;
+                bkt->cb_evicted = cur;
+                bkt->cb_prunec++;
+                cur = NULL;
+            }
         }
 
         if (&entry->ce_list == pp) {
             entry->ce_oldkey = entry->ce_list->kci_item.ci_key;
             entry->ce_oldttl = entry->ce_list->kci_item.ci_ttl;
         }
-
-        cur = NULL;
     } else {
         entry = ikvs_curcache_entry_alloc(bkt);
         if (entry) {
@@ -572,7 +578,7 @@ ikvs_cursor_reset(struct kvs_cursor_impl *cursor)
 }
 
 static struct kvs_cursor_impl *
-ikvs_cursor_restore(struct ikvs *kvs, const void *prefix, size_t pfx_len, u64 pfxhash, bool reverse)
+ikvs_cursor_restore(struct ikvs *kvs, const void *prefix, size_t pfx_len, bool reverse)
 {
     struct kvs_cursor_impl *cur;
     uint64_t                key, tstart;
@@ -639,11 +645,8 @@ struct hse_kvs_cursor *
 kvs_cursor_alloc(struct ikvs *kvs, const void *prefix, size_t pfx_len, bool reverse)
 {
     struct kvs_cursor_impl *cur;
-    u64                     pfxhash;
 
-    pfxhash = (prefix && pfx_len > 0) ? key_hash64(prefix, pfx_len) : 0;
-
-    cur = ikvs_cursor_restore(kvs, prefix, pfx_len, pfxhash, reverse);
+    cur = ikvs_cursor_restore(kvs, prefix, pfx_len, reverse);
     if (cur) {
 
         /*
@@ -667,7 +670,6 @@ kvs_cursor_alloc(struct ikvs *kvs, const void *prefix, size_t pfx_len, bool reve
     cur->kci_cd_pc = PERFC_ISON(&kvs->ikv_cd_pc) ? &kvs->ikv_cd_pc : NULL;
     cur->kci_kvs = kvs;
     cur->kci_pfxlen = pfx_len;
-    cur->kci_pfxhash = pfxhash;
 
     /* Point buffer-pointers to the right memory regions */
     cur->kci_prefix = cur->kci_buf + HSE_KVS_KEY_LEN_MAX + HSE_KVS_VALUE_LEN_MAX;
