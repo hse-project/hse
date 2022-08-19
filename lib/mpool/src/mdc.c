@@ -9,7 +9,7 @@
 
 #include <hse_util/event_counter.h>
 #include <error/merr.h>
-#include <hse_util/logging.h>
+#include <logging/logging.h>
 
 #include <mpool/mpool.h>
 
@@ -223,7 +223,7 @@ mpool_mdc_open(
             if (!rdonly) {
                 err = mdc_file_erase(mfp[0], gen2 + 1);
                 if (err)
-                    log_errx("mdc file1 logid %lu erase failed, gen (%lu, %lu): @@e",
+                    log_errx("mdc file1 logid %lu erase failed, gen (%lu, %lu)",
                              err, logid1, gen1, gen2);
             }
         } else {
@@ -232,7 +232,7 @@ mpool_mdc_open(
             if (!rdonly) {
                 err = mdc_file_erase(mfp[1], gen1 + 1);
                 if (err)
-                    log_errx("mdc file2 logid %lu erase failed, gen (%lu, %lu): @@e",
+                    log_errx("mdc file2 logid %lu erase failed, gen (%lu, %lu)",
                              err, logid2, gen1, gen2);
             }
         }
@@ -385,7 +385,7 @@ mpool_mdc_read(struct mpool_mdc *mdc, void *data, size_t len, size_t *rdlen)
     err = mdc_file_read(mdc->mfpa, data, len, verify, rdlen);
     mutex_unlock(&mdc->lock);
     if (err && (merr_errno(err) != EOVERFLOW))
-        log_errx("mdc %p read failed, mdc file %p len %lu: @@e",
+        log_errx("mdc %p read failed, mdc file %p len %lu",
                  err, mdc, mdc->mfpa, len);
 
     return err;
@@ -403,7 +403,7 @@ mpool_mdc_append(struct mpool_mdc *mdc, void *data, size_t len, bool sync)
     err = mdc_file_append(mdc->mfpa, data, len, sync);
     mutex_unlock(&mdc->lock);
     if (err)
-        log_errx("mdc %p append failed, mdc file %p, len %lu sync %d: @@e",
+        log_errx("mdc %p append failed, mdc file %p, len %lu sync %d",
                  err, mdc, mdc->mfpa, len, sync);
 
     return err;

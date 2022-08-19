@@ -9,7 +9,7 @@
 
 #include <hse_util/inttypes.h>
 #include <error/merr.h>
-#include <hse_util/logging.h>
+#include <logging/logging.h>
 #include <hse_util/parse_num.h>
 #include <hse_util/data_tree.h>
 #include <hse_util/perfc.h>

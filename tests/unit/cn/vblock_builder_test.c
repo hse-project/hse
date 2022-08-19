@@ -8,7 +8,7 @@
 
 #include <error/merr.h>
 #include <hse_util/inttypes.h>
-#include <hse_util/logging.h>
+#include <logging/logging.h>
 #include <hse_util/page.h>
 
 #include <hse_ikvdb/tuple.h>

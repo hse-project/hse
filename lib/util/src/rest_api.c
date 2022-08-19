@@ -5,7 +5,7 @@
 
 #include <hse_util/platform.h>
 #include <hse_util/minmax.h>
-#include <hse_util/logging.h>
+#include <logging/logging.h>
 #include <error/merr.h>
 #include <hse_util/workqueue.h>
 #include <hse_util/event_counter.h>
@@ -509,7 +509,7 @@ url_handler(struct work_struct *w)
         err = ud->put_handler(ta->path, ta->ci, ud->name, &ta->iter, ud->context);
 
     if (ev(err))
-        log_errx("%s handler for %s failed: @@e",
+        log_errx("%s handler for %s failed",
                  err, (ta->op == URL_GET) ? "GET" : "PUT", ta->path);
 
     shutdown(ta->ci->resp_fd, SHUT_RDWR);
@@ -902,7 +902,7 @@ respond:
     }
 
     if (ev(err))
-        log_errx("rest api internal error: @@e", err);
+        log_errx("rest api internal error", err);
 
     ret = MHD_queue_response(connection, http_status, session->response);
     MHD_destroy_response(session->response);
@@ -1067,7 +1067,7 @@ rest_server_start(const char *sock_path)
 
     err = get_socket(rest.sock_name, &rest.sockfd);
     if (ev(err)) {
-        log_errx("Could not create socket %s: @@e", err, rest.sock_name);
+        log_errx("Could not create socket %s", err, rest.sock_name);
         return err;
     }
 

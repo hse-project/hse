@@ -7,7 +7,7 @@
 
 #include <hse_util/platform.h>
 #include <hse_util/log2.h>
-#include <hse_util/logging.h>
+#include <logging/logging.h>
 
 #include <hse_ikvdb/limits.h>
 

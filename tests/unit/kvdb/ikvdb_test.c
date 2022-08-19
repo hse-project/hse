@@ -1331,7 +1331,7 @@ MTF_DEFINE_UTEST_PREPOST(ikvdb_test, cursor_tombspan, test_pre_c0, test_post_c0)
             txspec.kop_flags = HSE_KVDB_KOP_FLAG_BIND_TXN;
             err = ikvdb_kvs_cursor_create(kvs_h, &txspec, 0, 0, &cur);
             if (err) {
-                log_errx("cursor create failed: @@e", err);
+                log_errx("cursor create failed", err);
                 abort();
             }
             ASSERT_EQ(err, 0);

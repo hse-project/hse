@@ -62,6 +62,7 @@ soversion = '0'
 subdir('include')
 subdir('util')
 subdir('error')
+subdir('logging')
 subdir('binding')
 subdir('config')
 subdir('kvs')
@@ -108,8 +109,9 @@ hse_dependencies = [
     hyperloglog_dep,
     libbsd_dep,
     libcurl_dep,
-    libhse_error_dep,
-    libhse_pidfile_dep,
+    hse_error_dep,
+    hse_logging_dep,
+    hse_pidfile_dep,
     libmicrohttpd_dep,
     liburcu_bp_dep,
     libyaml_dep,

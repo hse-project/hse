@@ -1,6 +1,6 @@
 /* SPDX-License-Identifier: Apache-2.0 */
 /*
- * Copyright (C) 2021 Micron Technology, Inc.  All rights reserved.
+ * Copyright (C) 2021-2022 Micron Technology, Inc.  All rights reserved.
  */
 
 #ifndef HSE_CONFIG_HSE_GPARAMS_H
@@ -15,7 +15,8 @@
 #include <cjson/cJSON.h>
 
 #include <error/merr.h>
-#include <hse_util/logging_types.h>
+#include <logging/logging.h>
+
 #include <hse_util/compiler.h>
 
 struct hse_gparams {
@@ -32,14 +33,7 @@ struct hse_gparams {
         char path[sizeof(((struct sockaddr_un *)0)->sun_path)];
     } gp_socket;
 
-    struct {
-        bool                 enabled;
-        bool                 structured;
-        hse_logpri_t         level;
-        enum log_destination destination;
-        uint64_t             squelch_ns;
-        char                 path[PATH_MAX];
-    } gp_logging;
+    struct logging_params gp_logging;
 };
 
 extern struct hse_gparams hse_gparams;

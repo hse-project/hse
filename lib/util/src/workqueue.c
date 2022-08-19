@@ -10,7 +10,7 @@
 #include <hse_util/minmax.h>
 #include <hse_util/event_counter.h>
 #include <hse_util/workqueue.h>
-#include <hse_util/logging.h>
+#include <logging/logging.h>
 #include <hse_util/rest_api.h>
 #include <hse_util/list.h>
 #include <hse_util/atomic.h>

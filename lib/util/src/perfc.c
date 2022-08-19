@@ -16,7 +16,7 @@
 #include <hse_util/log2.h>
 #include <hse_util/event_counter.h>
 #include <hse_util/xrand.h>
-#include <hse_util/logging.h>
+#include <logging/logging.h>
 #include <hse_util/perfc.h>
 
 static const char * const perfc_ctr_type2name[] = {
@@ -838,7 +838,7 @@ perfc_alloc_impl(
 
   errout:
     if (err) {
-        log_warnx("unable to alloc perf counter %s/%s/%s from %s:%d: @@e",
+        log_warnx("unable to alloc perf counter %s/%s/%s from %s:%d",
                   err, group, family, ctrseti_name, file, line);
         setp->ps_bitmap = 0;
         setp->ps_seti = NULL;

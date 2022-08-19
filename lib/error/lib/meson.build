@@ -1,1 +1,1 @@
-error_sources = files('merr.c')
+hse_error_sources = files('merr.c')

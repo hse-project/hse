@@ -14,7 +14,7 @@
 #include <hse_util/hash.h>
 #include <hse_util/bitmap.h>
 #include <hse_util/log2.h>
-#include <hse_util/logging.h>
+#include <logging/logging.h>
 
 #include <mpool/mpool.h>
 

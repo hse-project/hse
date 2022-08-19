@@ -5,7 +5,7 @@
 
 #include <mtf/framework.h>
 
-#include <hse_util/logging.h>
+#include <logging/logging.h>
 #include <hse_util/seqno.h>
 
 #include <hse_ikvdb/limits.h>
@@ -1125,7 +1125,7 @@ retry:
             ctxn_unlock(idx);
 
         if (err)
-            log_errx("c0sk_put() failed: @@e", err);
+            log_errx("c0sk_put() failed", err);
         VERIFY_EQ_RET(0, err, 0);
     }
 

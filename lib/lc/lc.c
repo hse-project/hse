@@ -86,7 +86,7 @@
 #include <hse_util/rmlock.h>
 #include <hse_util/bin_heap.h>
 #include <hse_util/bkv_collection.h>
-#include <hse_util/logging.h>
+#include <logging/logging.h>
 
 #include <c0/c0_kvset_internal.h>
 
@@ -1254,7 +1254,7 @@ lc_gc_worker(struct work_struct *work)
                 if (HSE_SQNREF_INDIRECT_P(val->bv_seqnoref)) {
                     lc->lc_err = lc_gc_c0snr_add(gc, (uintptr_t *)val->bv_seqnoref);
                     if (lc->lc_err) {
-                        log_errx("failed to add seqnoref: @@e", lc->lc_err);
+                        log_errx("failed to add seqnoref", lc->lc_err);
                         goto health_err;
                     }
                 }
@@ -1276,7 +1276,7 @@ lc_gc_worker(struct work_struct *work)
 
                 lc->lc_err = bn_delete(root, &skey);
                 if (ev(lc->lc_err)) {
-                    log_errx("failed to delete bonsai node: @@e", lc->lc_err);
+                    log_errx("failed to delete bonsai node", lc->lc_err);
                     goto health_err;
                 }
             }

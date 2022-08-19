@@ -11,7 +11,6 @@ cn_sources = files(
     'csched_sp3_work.c',
     'hblock_builder.c',
     'hblock_reader.c',
-    'hse_log_fmt.c',
     'intern_builder.c',
     'kblock_builder.c',
     'kblock_reader.c',

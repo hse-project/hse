@@ -100,7 +100,7 @@ mtf_main(int argc, char **argv, struct mtf_test_coll_info *tci)
                 exit(0);
 
             case 'l':
-                hse_gparams.gp_logging.level = atoi(optarg);
+                hse_gparams.gp_logging.lp_level = atoi(optarg);
                 break;
 
             case ':':
@@ -142,7 +142,7 @@ mtf_main(int argc, char **argv, struct mtf_test_coll_info *tci)
 
     logging_level = getenv("HSE_TEST_LOGGING_LEVEL");
     if (logging_level)
-        hse_gparams.gp_logging.level = atoi(logging_level);
+        hse_gparams.gp_logging.lp_level = atoi(logging_level);
 
     err = mtf_run_tests(tci);
     if (err) {

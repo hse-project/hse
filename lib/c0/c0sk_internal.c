@@ -719,7 +719,7 @@ exit_err:
         ingest->t9 = get_time_ns();
 
     if (err) {
-        log_errx("c0 ingest failed on kvms %p %lu: @@e", err, kvms, kvms_gen);
+        log_errx("c0 ingest failed on kvms %p %lu", err, kvms, kvms_gen);
     } else {
         int finlat;
 

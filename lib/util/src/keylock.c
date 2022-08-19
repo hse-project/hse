@@ -13,7 +13,7 @@
 #include <hse_util/page.h>
 #include <hse_util/minmax.h>
 #include <hse_util/mutex.h>
-#include <hse_util/logging.h>
+#include <logging/logging.h>
 #include <hse_util/keylock.h>
 
 /* clang-format off */

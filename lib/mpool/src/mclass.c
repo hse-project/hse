@@ -8,7 +8,7 @@
 #include <bsd/string.h>
 
 #include <hse_util/event_counter.h>
-#include <hse_util/logging.h>
+#include <logging/logging.h>
 #include <hse_util/workqueue.h>
 #include <hse_util/assert.h>
 
@@ -59,7 +59,7 @@ mclass_open(
     dirp = opendir(params->path);
     if (!dirp) {
         err = merr(errno);
-        log_errx("Opening mclass dir %s failed: @@e", err, params->path);
+        log_errx("Opening mclass dir %s failed", err, params->path);
         return err;
     }
 
@@ -88,7 +88,7 @@ mclass_open(
 
     err = mblock_fset_open(mc, params->filecnt, params->fmaxsz, flags, &mc->mbfsp);
     if (err) {
-        log_errx("Opening data files failed, mclass %d: @@e", err, mclass);
+        log_errx("Opening data files failed, mclass %d", err, mclass);
         goto err_exit1;
     }
 

@@ -7,7 +7,7 @@
 #include <hse_util/slab.h>
 #include <hse_util/page.h>
 #include <hse_util/atomic.h>
-#include <hse_util/logging.h>
+#include <logging/logging.h>
 #include <error/merr.h>
 #include <hse_util/event_counter.h>
 

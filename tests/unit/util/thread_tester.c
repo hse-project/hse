@@ -3,7 +3,7 @@
  * Copyright (C) 2015-2020 Micron Technology, Inc.  All rights reserved.
  */
 
-#include <hse_util/logging.h>
+#include <logging/logging.h>
 
 #include <mtf/conditions.h>
 

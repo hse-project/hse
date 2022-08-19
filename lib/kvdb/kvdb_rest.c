@@ -7,7 +7,7 @@
 #include <hse/flags.h>
 #include <hse/experimental.h>
 
-#include <hse_util/logging.h>
+#include <logging/logging.h>
 #include <error/merr.h>
 #include <hse_util/event_counter.h>
 #include <hse_util/fmt.h>
@@ -42,7 +42,7 @@ kvdb_rest_yaml_emit(struct yaml_context *yc)
         if (cc != yc->yaml_offset) {
             merr_t err = merr(errno);
 
-            log_errx("rest client short write (%ld < %zu): @@e",
+            log_errx("rest client short write (%ld < %zu)",
                      err, cc, yc->yaml_offset);
 
             yc->yaml_priv = NULL;

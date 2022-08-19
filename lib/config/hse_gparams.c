@@ -1,6 +1,6 @@
 /* SPDX-License-Identifier: Apache-2.0 */
 /*
- * Copyright (C) 2021 Micron Technology, Inc.  All rights reserved.
+ * Copyright (C) 2021-2022 Micron Technology, Inc.  All rights reserved.
  */
 
 #include <assert.h>
@@ -12,10 +12,11 @@
 #include <cjson/cJSON.h>
 #include <bsd/string.h>
 
+#include <logging/logging.h>
+
 #include <hse_ikvdb/hse_gparams.h>
 #include <hse_ikvdb/param.h>
 #include <hse_ikvdb/limits.h>
-#include <hse_util/logging.h>
 #include <hse_util/compiler.h>
 #include <hse_util/perfc.h>
 #include <hse_util/vlb.h>
@@ -43,13 +44,13 @@ logging_destination_converter(
     enum log_destination log_dest;
 
     if (strcmp(setting, "stdout") == 0) {
-        log_dest = LD_STDOUT;
+        log_dest = LOG_DEST_STDOUT;
     } else if (strcmp(setting, "stderr") == 0) {
-        log_dest = LD_STDERR;
+        log_dest = LOG_DEST_STDERR;
     } else if (strcmp(setting, "file") == 0) {
-        log_dest = LD_FILE;
+        log_dest = LOG_DEST_FILE;
     } else if (strcmp(setting, "syslog") == 0) {
-        log_dest = LD_SYSLOG;
+        log_dest = LOG_DEST_SYSLOG;
     } else {
         CLOG_ERR(
             "Invalid logging.destination value: %s, must be one of stdout, stderr, file, or syslog",
@@ -89,13 +90,13 @@ logging_destination_jsonify(const struct param_spec *const ps, const void *const
     assert(value);
 
     switch (*(enum log_destination *)value) {
-        case LD_STDOUT:
+        case LOG_DEST_STDOUT:
             return cJSON_CreateString("stdout");
-        case LD_STDERR:
+        case LOG_DEST_STDERR:
             return cJSON_CreateString("stderr");
-        case LD_FILE:
+        case LOG_DEST_FILE:
             return cJSON_CreateString("file");
-        case LD_SYSLOG:
+        case LOG_DEST_SYSLOG:
             return cJSON_CreateString("syslog");
         default:
             abort();
@@ -120,8 +121,8 @@ static const struct param_spec pspecs[] = {
         .ps_description = "Whether logging is enabled",
         .ps_flags = 0,
         .ps_type = PARAM_TYPE_BOOL,
-        .ps_offset = offsetof(struct hse_gparams, gp_logging.enabled),
-        .ps_size = PARAM_SZ(struct hse_gparams, gp_logging.enabled),
+        .ps_offset = offsetof(struct hse_gparams, gp_logging.lp_enabled),
+        .ps_size = PARAM_SZ(struct hse_gparams, gp_logging.lp_enabled),
         .ps_convert = param_default_converter,
         .ps_validate = param_default_validator,
         .ps_stringify = param_default_stringify,
@@ -131,38 +132,23 @@ static const struct param_spec pspecs[] = {
         },
     },
     {
-        .ps_name = "logging.structured",
-        .ps_description = "Whether logging is structured",
-        .ps_flags = 0,
-        .ps_type = PARAM_TYPE_BOOL,
-        .ps_offset = offsetof(struct hse_gparams, gp_logging.structured),
-        .ps_size = PARAM_SZ(struct hse_gparams, gp_logging.structured),
-        .ps_convert = param_default_converter,
-        .ps_validate = param_default_validator,
-        .ps_stringify = param_default_stringify,
-        .ps_jsonify = param_default_jsonify,
-        .ps_default_value = {
-            .as_bool = false,
-        },
-    },
-    {
         .ps_name = "logging.destination",
         .ps_description = "Where log messages should be written to",
         .ps_flags = 0,
         .ps_type = PARAM_TYPE_ENUM,
-        .ps_offset = offsetof(struct hse_gparams, gp_logging.destination),
-        .ps_size = PARAM_SZ(struct hse_gparams, gp_logging.destination),
+        .ps_offset = offsetof(struct hse_gparams, gp_logging.lp_destination),
+        .ps_size = PARAM_SZ(struct hse_gparams, gp_logging.lp_destination),
         .ps_convert = logging_destination_converter,
         .ps_validate = param_default_validator,
         .ps_stringify = logging_destination_stringify,
         .ps_jsonify = logging_destination_jsonify,
         .ps_default_value = {
-            .as_enum = LD_SYSLOG,
+            .as_enum = LOG_DEST_SYSLOG,
         },
         .ps_bounds = {
             .as_enum = {
-                .ps_min = LD_MIN,
-                .ps_max = LD_MAX,
+                .ps_min = LOG_DEST_MIN,
+                .ps_max = LOG_DEST_MAX,
             }
         },
     },
@@ -171,8 +157,8 @@ static const struct param_spec pspecs[] = {
         .ps_description = "Name of log file when destination == file",
         .ps_flags = 0,
         .ps_type = PARAM_TYPE_STRING,
-        .ps_offset = offsetof(struct hse_gparams, gp_logging.path),
-        .ps_size = PARAM_SZ(struct hse_gparams, gp_logging.path),
+        .ps_offset = offsetof(struct hse_gparams, gp_logging.lp_path),
+        .ps_size = PARAM_SZ(struct hse_gparams, gp_logging.lp_path),
         .ps_convert = param_default_converter,
         .ps_validate = param_default_validator,
         .ps_stringify = param_default_stringify,
@@ -182,7 +168,7 @@ static const struct param_spec pspecs[] = {
         },
         .ps_bounds = {
             .as_string = {
-                .ps_max_len = PARAM_SZ(struct hse_gparams, gp_logging.path),
+                .ps_max_len = PARAM_SZ(struct hse_gparams, gp_logging.lp_path),
             },
         },
     },
@@ -190,20 +176,20 @@ static const struct param_spec pspecs[] = {
         .ps_name = "logging.level",
         .ps_description = "Maximum log level which will be written",
         .ps_flags = 0,
-        .ps_type = PARAM_TYPE_ENUM,
-        .ps_offset = offsetof(struct hse_gparams, gp_logging.level),
-        .ps_size = sizeof(hse_logpri_t),
+        .ps_type = PARAM_TYPE_INT,
+        .ps_offset = offsetof(struct hse_gparams, gp_logging.lp_level),
+        .ps_size = sizeof(int),
         .ps_convert = param_default_converter,
         .ps_validate = param_default_validator,
         .ps_stringify = param_default_stringify,
         .ps_jsonify = param_default_jsonify,
         .ps_default_value = {
-            .as_scalar = HSE_LOGPRI_DEFAULT,
+            .as_scalar = LOG_DEFAULT,
         },
         .ps_bounds = {
             .as_scalar = {
-                .ps_min = HSE_LOGPRI_EMERG,
-                .ps_max = HSE_LOGPRI_DEBUG,
+                .ps_min = LOG_EMERG,
+                .ps_max = LOG_DEBUG,
             }
         }
     },
@@ -212,14 +198,14 @@ static const struct param_spec pspecs[] = {
         .ps_description = "drop messages repeated within nsec window",
         .ps_flags = PARAM_FLAG_EXPERIMENTAL,
         .ps_type = PARAM_TYPE_U64,
-        .ps_offset = offsetof(struct hse_gparams, gp_logging.squelch_ns),
-        .ps_size = PARAM_SZ(struct hse_gparams, gp_logging.squelch_ns),
+        .ps_offset = offsetof(struct hse_gparams, gp_logging.lp_squelch_ns),
+        .ps_size = PARAM_SZ(struct hse_gparams, gp_logging.lp_squelch_ns),
         .ps_convert = param_default_converter,
         .ps_validate = param_default_validator,
         .ps_stringify = param_default_stringify,
         .ps_jsonify = param_default_jsonify,
         .ps_default_value = {
-            .as_uscalar = HSE_LOG_SQUELCH_NS_DEFAULT,
+            .as_uscalar = LOG_SQUELCH_NS_DEFAULT,
         },
         .ps_bounds = {
             .as_uscalar = {

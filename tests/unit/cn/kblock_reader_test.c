@@ -5,7 +5,7 @@
 
 #include <mtf/framework.h>
 
-#include <hse_util/logging.h>
+#include <logging/logging.h>
 #include <hse_util/page.h>
 #include <hse_util/bloom_filter.h>
 

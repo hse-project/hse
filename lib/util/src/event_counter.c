@@ -4,7 +4,7 @@
  */
 
 #include <hse_util/platform.h>
-#include <hse_util/logging.h>
+#include <logging/logging.h>
 #include <hse_util/time.h>
 #include <hse_util/data_tree.h>
 #include <hse_util/event_counter.h>
@@ -63,7 +63,7 @@ ev_match_select_handler(struct dt_element *dte, char *field, char *value)
                 return true;
         }
     } else if (!strcmp(field, "ev_pri")) {
-        hse_logpri_t pri = hse_logpri_name_to_val(value);
+        const int pri = log_priority_from_string(value);
 
         if (ec->ev_pri <= pri)
             return true;
@@ -78,7 +78,7 @@ ev_set_handler(struct dt_element *dte, struct dt_set_parameters *dsp)
 
     switch (dsp->field) {
         case DT_FIELD_PRIORITY:
-            ec->ev_pri = hse_logpri_name_to_val(dsp->value);
+            ec->ev_pri = log_priority_from_string(dsp->value);
             break;
 
         case DT_FIELD_TRIP_ODOMETER:
@@ -124,7 +124,7 @@ ev_emit_handler(struct dt_element *dte, struct yaml_context *yc)
 
     yaml_start_element(yc, "path", dte->dte_path);
 
-    snprintf(value, sizeof(value), "%s", hse_logpri_val_to_name(ec->ev_pri));
+    snprintf(value, sizeof(value), "%s", log_priority_to_string(ec->ev_pri));
     yaml_element_field(yc, "level", value);
 
     odometer = atomic_read(&ec->ev_odometer);

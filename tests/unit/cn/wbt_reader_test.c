@@ -6,7 +6,7 @@
 #include <mtf/framework.h>
 
 #include <hse_util/inttypes.h>
-#include <hse_util/logging.h>
+#include <logging/logging.h>
 
 #include <cn/omf.h>
 #include <cn/wbt_reader.h>

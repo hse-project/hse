@@ -6,7 +6,7 @@
 #define MTF_MOCK_IMPL_sched_sts
 
 #include <hse_util/platform.h>
-#include <hse_util/logging.h>
+#include <logging/logging.h>
 #include <hse_util/workqueue.h>
 #include <hse_util/mutex.h>
 #include <hse_util/rest_api.h>
@@ -172,7 +172,7 @@ sts_create(const char *name, uint nq, sts_print_fn *print_fn, struct sts **handl
 
         err = rest_url_register(self, 0, sts_rest_get, NULL, self->sts_name);
         if (err) {
-            log_errx("unable to register url '%s': @@e", err, self->sts_name);
+            log_errx("unable to register url '%s'", err, self->sts_name);
             self->sts_print_fn = NULL;
             assert(0);
         }
@@ -199,7 +199,7 @@ sts_destroy(struct sts *self)
 
         err = rest_url_deregister(self->sts_name);
         if (err) {
-            log_errx("unable to deregister url '%s': @@e", err, self->sts_name);
+            log_errx("unable to deregister url '%s'", err, self->sts_name);
             assert(0);
         }
 

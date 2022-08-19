@@ -5,7 +5,7 @@
 
 #include <hse_util/platform.h>
 #include <hse_util/compression_lz4.h>
-#include <hse_util/logging.h>
+#include <logging/logging.h>
 
 #include <mtf/framework.h>
 
@@ -40,7 +40,7 @@ MTF_DEFINE_UTEST(compression_test, compress)
      */
     err = compress_lz4_ops.cop_compress(src, srcsz, cbuf, cbufsz, &cbuflen);
     if (err)
-        log_errx("srcsz %zu, cbufsz %zu, cbuflen %u: @@e",
+        log_errx("srcsz %zu, cbufsz %zu, cbuflen %u",
                  err, srcsz, cbufsz, cbuflen);
     ASSERT_EQ(0, err);
 
@@ -61,7 +61,7 @@ MTF_DEFINE_UTEST(compression_test, compress)
 
         err = compress_lz4_ops.cop_decompress(cbuf, cbuflen, dbuf, i, &dbuflen);
         if (err)
-            log_errx("i %u, cbuflen %u, dbuflen %u: @@e",
+            log_errx("i %u, cbuflen %u, dbuflen %u",
                      err, i, cbuflen, dbuflen);
 
         ASSERT_EQ(0, err);
@@ -80,7 +80,7 @@ MTF_DEFINE_UTEST(compression_test, compress)
 
         err = compress_lz4_ops.cop_compress(src + i, srcsz, cbuf + i, cbufsz - i, &cbuflen);
         if (err)
-            log_errx("srcsz %zu, cbufsz %zu, cbuflen %u: @@e",
+            log_errx("srcsz %zu, cbufsz %zu, cbuflen %u",
                      err, srcsz, cbufsz - i, cbuflen);
         ASSERT_EQ(0, err);
 
@@ -136,7 +136,7 @@ MTF_DEFINE_UTEST(compression_test, mongo)
      */
     err = compress_lz4_ops.cop_compress(srcv, srcsz, cbuf, cbufsz, &cbuflen);
     if (err)
-        log_errx("srcsz %zu, cbufsz %zu, cbuflen %u: @@e",
+        log_errx("srcsz %zu, cbufsz %zu, cbuflen %u",
                  err, srcsz, cbufsz, cbuflen);
     ASSERT_EQ(0, err);
 

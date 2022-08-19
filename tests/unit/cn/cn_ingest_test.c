@@ -8,7 +8,7 @@
 #include <mock/api.h>
 
 #include <hse_util/inttypes.h>
-#include <hse_util/logging.h>
+#include <logging/logging.h>
 #include <hse_util/atomic.h>
 
 #include <mpool/mpool.h>

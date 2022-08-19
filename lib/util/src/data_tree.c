@@ -658,6 +658,6 @@ dt_tree_log_path(char *path, int log_level)
 void
 dt_tree_log(void)
 {
-    dt_tree_log_path(DT_PATH_ROOT, HSE_LOGPRI_INFO);
+    dt_tree_log_path(DT_PATH_ROOT, LOG_INFO);
 }
 #endif

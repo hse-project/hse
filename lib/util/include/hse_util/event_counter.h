@@ -1,17 +1,18 @@
 /* SPDX-License-Identifier: Apache-2.0 */
 /*
- * Copyright (C) 2015-2021 Micron Technology, Inc.  All rights reserved.
+ * Copyright (C) 2015-2022 Micron Technology, Inc.  All rights reserved.
  */
 
 #ifndef HSE_PLATFORM_ERROR_COUNTER_H
 #define HSE_PLATFORM_ERROR_COUNTER_H
+
+#include <syslog.h>
 
 #include <hse_util/arch.h>
 #include <hse_util/compiler.h>
 #include <hse_util/data_tree.h>
 #include <hse_util/atomic.h>
 #include <hse_util/time.h>
-#include <hse_util/logging_types.h>
 
 /* clang-format off */
 
@@ -64,11 +65,11 @@ extern struct dt_element_ops event_counter_ops;
  * counting of hot paths.  It's about 10x faster than the other
  * forms because it never udpates the time stamp.
  */
-#define ev_debug(_expr)     ev_impl((_expr), HSE_LOGPRI_DEBUG, EV_FLAGS_NOTIME)
-#define ev_info(_expr)      ev_impl((_expr), HSE_LOGPRI_INFO, EV_FLAGS_NOTIME)
-#define ev_warn(_expr)      ev_impl((_expr), HSE_LOGPRI_WARN, 0)
-#define ev_err(_expr)       ev_impl((_expr), HSE_LOGPRI_ERR, 0)
-#define ev(_expr)           ev_impl((_expr), HSE_LOGPRI_ERR, 0)
+#define ev_debug(_expr)     ev_impl((_expr), LOG_DEBUG, EV_FLAGS_NOTIME)
+#define ev_info(_expr)      ev_impl((_expr), LOG_INFO, EV_FLAGS_NOTIME)
+#define ev_warn(_expr)      ev_impl((_expr), LOG_WARNING, 0)
+#define ev_err(_expr)       ev_impl((_expr), LOG_ERR, 0)
+#define ev(_expr)           ev_impl((_expr), LOG_ERR, 0)
 
 /* clang-format on */
 

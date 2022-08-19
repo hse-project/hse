@@ -10,7 +10,7 @@
 #include <hse_util/slab.h>
 #include <hse_util/inttypes.h>
 #include <error/merr.h>
-#include <hse_util/logging.h>
+#include <logging/logging.h>
 #include <hse_util/time.h>
 #include <hse_util/data_tree.h>
 #include <hse_util/event_counter.h>
@@ -148,7 +148,7 @@ MTF_DEFINE_UTEST(event_counter, ev_create_and_find)
     ASSERT_NE(direct, NULL);
 
     ev = (struct event_counter *)direct->dte_data;
-    ASSERT_EQ(ev->ev_pri, HSE_LOGPRI_INFO);
+    ASSERT_EQ(ev->ev_pri, LOG_INFO);
 
     /* Now, with both a priority and a rock */
     /* clang-format off */
@@ -168,7 +168,7 @@ MTF_DEFINE_UTEST(event_counter, ev_create_and_find)
     ASSERT_NE(direct, NULL);
 
     ev = (struct event_counter *)direct->dte_data;
-    ASSERT_EQ(ev->ev_pri, HSE_LOGPRI_WARN);
+    ASSERT_EQ(ev->ev_pri, LOG_WARNING);
 }
 
 /**
@@ -884,7 +884,7 @@ MTF_DEFINE_UTEST(event_counter, ev_match_select_test)
     dte.dte_data = &ec;
     dte.dte_ops = &event_counter_ops;
 
-    /* make the EC 'come from a hse_logpri_warn message' */
+    /* make the EC 'come from a LP_WARN message' */
     ec.ev_flags = EV_FLAGS_HSE_LOG;
 
     /* Should match with "hse_log" */

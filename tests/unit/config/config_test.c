@@ -48,7 +48,7 @@ MTF_DEFINE_UTEST(config_test, deserialize_hierarchical_param)
     err = config_deserialize_to_hse_gparams(conf, &params);
     config_destroy(conf);
     ASSERT_EQ(0, err);
-    ASSERT_EQ(false, params.gp_logging.enabled);
+    ASSERT_EQ(false, params.gp_logging.lp_enabled);
 }
 
 MTF_DEFINE_UTEST(config_test, deserialize_incorrect_type)

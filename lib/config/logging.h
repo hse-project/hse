@@ -9,7 +9,7 @@
 #include <stdio.h>
 
 #include <hse_ikvdb/param.h>
-#include <hse_util/logging.h>
+#include <logging/logging.h>
 
 extern bool hse_initialized;
 

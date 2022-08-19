@@ -11,7 +11,7 @@
 #include <hse_util/alloc.h>
 #include <hse_util/slab.h>
 #include <hse_util/condvar.h>
-#include <hse_util/logging.h>
+#include <logging/logging.h>
 
 #define MTF_MOCK_IMPL_c0
 
@@ -196,7 +196,7 @@ c0_open(
     new_c0 = calloc(1, sizeof(*new_c0));
     if (!new_c0) {
         err = merr(ENOMEM);
-        log_errx("Allocation failed for struct c0: @@e", err);
+        log_errx("Allocation failed for struct c0", err);
         return err;
     }
 
@@ -214,7 +214,7 @@ c0_open(
 
     err = c0sk_c0_register(new_c0->c0_c0sk, new_c0->c0_cn, &skidx);
     if (ev(err)) {
-        log_errx("c0sk_c0_register failed: @@e", err);
+        log_errx("c0sk_c0_register failed", err);
         free(new_c0);
         return err;
     }

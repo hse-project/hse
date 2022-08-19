@@ -7,7 +7,7 @@
 
 #include <error/merr.h>
 #include <hse_util/inttypes.h>
-#include <hse_util/logging.h>
+#include <logging/logging.h>
 #include <hse_util/keycmp.h>
 
 #include <hse/limits.h>
@@ -132,7 +132,7 @@ pre(struct mtf_test_info *lcl_ti)
 
     err = wbti_init();
     if (err) {
-        log_errx("%s: wbti_init failed: @@e", err, coll_info->tci_argv[0]);
+        log_errx("%s: wbti_init failed", err, coll_info->tci_argv[0]);
         return -1;
     }
 

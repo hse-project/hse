@@ -16,7 +16,7 @@
 #include <hse_ikvdb/mclass_policy.h>
 #include <hse_ikvdb/throttle.h>
 #include <error/merr.h>
-#include <hse_util/logging.h>
+#include <logging/logging.h>
 #include <hse_util/compiler.h>
 
 #include <mpool/mpool_structs.h>

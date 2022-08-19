@@ -5,7 +5,7 @@
 
 #include <hse_util/platform.h>
 #include <error/merr.h>
-#include <hse_util/logging.h>
+#include <logging/logging.h>
 #include <hse_util/perfc.h>
 
 #include <hse_ikvdb/c0sk_perfc.h>
@@ -53,7 +53,7 @@ c0sk_perfc_init(void)
 
     err = perfc_ivl_create(PERFC_IVL_MAX, boundv, &ivl);
     if (err) {
-        log_errx("unable to allocate pow2 ivl: @@e", err);
+        log_errx("unable to allocate pow2 ivl", err);
         return;
     }
 

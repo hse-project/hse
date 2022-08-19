@@ -16,7 +16,7 @@
 #include <hse/hse.h>
 
 #include <hse_util/assert.h>
-#include <hse_util/logging.h>
+#include <logging/logging.h>
 #include <error/merr.h>
 #include <hse_util/workqueue.h>
 #include <hse_util/page.h>
@@ -180,7 +180,7 @@ mpool_mclass_open(
 
     err = mclass_open(mclass, mcp, flags, mc);
     if (err) {
-        log_errx("Cannot access storage path %s for mclass %d: @@e", err, path, mclass);
+        log_errx("Cannot access storage path %s for mclass %d", err, path, mclass);
         free(path);
         return err;
     }

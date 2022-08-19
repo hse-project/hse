@@ -19,7 +19,7 @@
 #include <hse_util/byteorder.h>
 #include <hse_util/slab.h>
 #include <hse_util/table.h>
-#include <hse_util/logging.h>
+#include <logging/logging.h>
 
 #include <hse_ikvdb/c0.h>
 #include <hse_ikvdb/lc.h>
@@ -241,11 +241,11 @@ kvs_close(struct ikvs *ikvs)
 
     err = c0_close(ikvs->ikv_c0);
     if (err)
-        log_errx("c0_close(c0) failed: @@e", err);
+        log_errx("c0_close(c0) failed", err);
 
     err = cn_close(ikvs->ikv_cn);
     if (err)
-        log_errx("cn_close(cn) failed: @@e", err);
+        log_errx("cn_close(cn) failed", err);
 
     kvs_perfc_free(ikvs);
 
