@@ -19,8 +19,6 @@ vlen=1024
 nkeys=1600000
 cmd range_read "$home" "$kvs" -l "-j$nthread" "-v$vlen" "-n$nkeys"
 
-cmd kvck "$home"
-
 # Query without warmup
 duration=20 # seconds
 range=10

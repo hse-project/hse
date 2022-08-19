@@ -551,23 +551,6 @@ MTF_DEFINE_UTEST_PRE(kvs_rparams_test, cn_close_wait, test_pre)
     ASSERT_EQ(false, params.cn_close_wait);
 }
 
-MTF_DEFINE_UTEST_PRE(kvs_rparams_test, cn_verify, test_pre)
-{
-    const struct param_spec *ps = ps_get("cn_verify");
-
-    ASSERT_NE(NULL, ps);
-    ASSERT_NE(NULL, ps->ps_description);
-    ASSERT_EQ(PARAM_FLAG_EXPERIMENTAL, ps->ps_flags);
-    ASSERT_EQ(PARAM_TYPE_BOOL, ps->ps_type);
-    ASSERT_EQ(offsetof(struct kvs_rparams, cn_verify), ps->ps_offset);
-    ASSERT_EQ(sizeof(bool), ps->ps_size);
-    ASSERT_EQ((uintptr_t)ps->ps_convert, (uintptr_t)param_default_converter);
-    ASSERT_EQ((uintptr_t)ps->ps_validate, (uintptr_t)param_default_validator);
-    ASSERT_EQ((uintptr_t)ps->ps_stringify, (uintptr_t)param_default_stringify);
-    ASSERT_EQ((uintptr_t)ps->ps_jsonify, (uintptr_t)param_default_jsonify);
-    ASSERT_EQ(false, params.cn_verify);
-}
-
 MTF_DEFINE_UTEST_PRE(kvs_rparams_test, cn_kcachesz, test_pre)
 {
     const struct param_spec *ps = ps_get("cn_kcachesz");
