@@ -298,7 +298,6 @@ struct mapi_injection inject_list[] = {
     { mapi_idx_csched_notify_ingest, MAPI_RC_SCALAR, 0 },
     { mapi_idx_sts_job_detach, MAPI_RC_SCALAR, 0 },
     { mapi_idx_sts_job_done, MAPI_RC_SCALAR, 0 },
-    { mapi_idx_sp3_work_complete, MAPI_RC_SCALAR, 0 },
 
     /* cndb  */
     { mapi_idx_cndb_record_txstart, MAPI_RC_SCALAR, 0 },
@@ -772,7 +771,7 @@ MTF_DEFINE_UTEST_PRE(test, t_cn_comp, test_setup)
              * exists.  Presumably this test is still useful
              * to test teardown while a job is in flight?
              */
-            cn_comp_slice_cb(&w.cw_job);
+            cn_compact(&w);
 
             test_tree_destroy(&t);
         }

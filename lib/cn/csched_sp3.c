@@ -1148,7 +1148,7 @@ sp3_process_dirtylist(struct sp3 *sp)
         /* Verify that the action didn't dislodge the root node
          * from the head of the nodes list.
          */
-        assert(tree->ct_root == list_first_entry(&tree->ct_nodes, typeof(*tn), tn_link));
+        assert(tree->ct_root == list_first_entry(&tree->ct_nodes, struct cn_tree_node, tn_link));
 
         mutex_lock(&spt->spt_dlist_lock);
 

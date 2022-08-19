@@ -202,6 +202,9 @@ kvset_put_ref(struct kvset *ks)
 {
     struct cn *cn;
 
+    if (!ks)
+        return;
+
     assert(ks);
 
     if (atomic_dec_return(&ks->ks_ref) > 0)

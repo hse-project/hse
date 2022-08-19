@@ -12,7 +12,8 @@
 #include "route.h"
 
 struct cn_compaction_work;
-struct spill_ctx;
+struct cn_tree_node;
+struct subspill;
 
 /* MTF_MOCK_DECL(spill) */
 
@@ -44,21 +45,25 @@ struct spill_ctx;
 /* MTF_MOCK */
 merr_t
 cn_spill(
-    struct cn_compaction_work *w,
-    struct spill_ctx          *ctx,
-    uint64_t                   node_dgen,
-    void                      *ekey,
-    uint                      eklen,
-    bool                      *added);
+    struct subspill     *subspill,
+    struct cn_tree_node *node,
+    uint64_t             node_dgen,
+    void                *ekey,
+    uint                 eklen,
+    bool                *added);
 
 
 /* MTF_MOCK */
 merr_t
-cn_spill_init(struct cn_compaction_work *w, struct spill_ctx **ctx);
+cn_spill_init(struct cn_compaction_work *w, struct subspill **ctx);
 
 /* MTF_MOCK */
 void
-cn_spill_fini(struct spill_ctx *ctx);
+cn_spill_fini(struct subspill *ctx);
+
+/* MTF_MOCK */
+uint64_t
+cn_spill_enqueue(struct subspill *ss, struct cn_tree_node *tn);
 
 #if HSE_MOCKING
 #include "spill_ut.h"

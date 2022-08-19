@@ -99,6 +99,9 @@ cn_node_alloc(struct cn_tree *tree, uint64_t nodeid)
 
     INIT_LIST_HEAD(&tn->tn_link);
     INIT_LIST_HEAD(&tn->tn_kvset_list);
+    INIT_LIST_HEAD(&tn->tn_mut_list);
+
+    mutex_init(&tn->tn_mut_lock);
 
     atomic_init(&tn->tn_compacting, 0);
     atomic_init(&tn->tn_busycnt, 0);
@@ -1325,9 +1328,6 @@ cn_node_spill_wait(struct cn_compaction_work *w, struct cn_tree_node *tn)
     struct kvdb_health *hp = w->cw_tree->ct_kvdb_health;
     bool ready;
 
-    if (w->cw_err)
-        return false;
-
     mutex_lock(&tn->tn_spill_mtx);
 
     while (w->cw_sgen != atomic_read(node_sgen) + 1 &&
@@ -1341,7 +1341,6 @@ cn_node_spill_wait(struct cn_compaction_work *w, struct cn_tree_node *tn)
     mutex_unlock(&tn->tn_spill_mtx);
 
     ready = !atomic_read(w->cw_cancel_request) && !kvdb_health_check(hp, KVDB_HEALTH_FLAG_ALL);
-
     return ready;
 }
 
@@ -1362,16 +1361,12 @@ cn_input_kvsets_delete(struct cn_compaction_work *work)
     struct cn_tree_node     *pnode = work->cw_node;
     struct kvset_list_entry *le, *tmp;
     struct cndb_txn         *tx;
-    bool                     ready;
 
     assert(!work->cw_err);
 
     INIT_LIST_HEAD(&retired_kvsets);
 
-    /* Serialize root update */
-    ready = cn_node_spill_wait(work, pnode);
-    if (!ready)
-       goto done;
+    // TODO Gaurav: Serialize root update
 
     work->cw_err = cndb_record_txstart(work->cw_tree->cndb, 0, CNDB_INVAL_INGESTID, CNDB_INVAL_HORIZON,
                                        0, work->cw_kvset_cnt, &tx);
@@ -1909,19 +1904,19 @@ cn_comp_cleanup(struct cn_compaction_work *w)
 static merr_t
 cn_comp_kvcompact(struct cn_compaction_work *w)
 {
-    struct spill_ctx *spillctx;
+    struct subspill *subspill;
     bool added;
     merr_t err;
 
-    err = cn_spill_init(w, &spillctx);
+    err = cn_spill_init(w, &subspill);
     if (err)
         return err;
 
-    err = cn_spill(w, spillctx, 0, NULL, 0, &added);
+    err = cn_spill(subspill, NULL, 0, NULL, 0, &added);
     if (!err)
         w->cw_output_nodev[0] = w->cw_node;
 
-    cn_spill_fini(spillctx);
+    cn_spill_fini(subspill);
 
     if (err && merr_errno(err) != ESHUTDOWN)
         kvdb_health_error(w->cw_tree->ct_kvdb_health, err);
@@ -1930,79 +1925,85 @@ cn_comp_kvcompact(struct cn_compaction_work *w)
     return err;
 }
 
+
 static merr_t
 cn_comp_spill(struct cn_compaction_work *w)
 {
-    struct spill_ctx *spillctx;
+    struct subspill subspill[CN_FANOUT_MAX] = {0};
+    struct spillctx *spillctx;
     struct cn_tree *tree = w->cw_tree;
-
-    unsigned char ekey[HSE_KVS_KEY_LEN_MAX];
-    uint eklen = 0;
+    struct route_node *rtn = 0;
+    uint cnum;
     merr_t err;
 
     err = cn_spill_init(w, &spillctx);
     if (err)
         return err;
 
-    while (1) {
+    cnum = 0;
+    while (!err) {
         struct cn_tree_node *node;
-        struct route_node *rtn;
         bool added = false;
         void *lock;
         struct kvset_list_entry *le;
-        uint64_t node_dgen = 0;
-        bool ready = false;
+        uint64_t first_sgen, node_dgen = 0;
+        unsigned char ekey[HSE_KVS_KEY_LEN_MAX];
+        uint eklen;
 
+        // TODO Gaurav: Might have to think about this in this PR.
+        /* [HSE_REVISIT] How will the tree rmlock coexist with the leaf tokens?
+         */
         rmlock_rlock(&tree->ct_lock, &lock);
-        rtn = route_map_lookupGT(tree->ct_route_map, ekey, eklen);
+
+        rtn = rtn ? route_node_next(rtn) : route_map_first_node(tree->ct_route_map);
         if (!rtn) {
             rmlock_runlock(lock);
             break;
         }
 
         node = route_node_tnode(rtn);
-        route_node_keycpy(rtn, ekey, sizeof(ekey), &eklen);
-        rmlock_runlock(lock);
-
         le = list_first_entry_or_null(&node->tn_kvset_list, typeof(*le), le_link);
         if (le)
             node_dgen = kvset_get_dgen(le->le_kvset);
 
-        err = cn_spill(w, spillctx, node_dgen, ekey, eklen, &added);
+        route_node_keycpy(rtn, ekey, sizeof(ekey), &eklen);
+        rmlock_runlock(lock);
 
-        /* Wait for other spills to catch up, unless there's a reason to exit (error or shutdown).
-         * [HSE_REVISIT]: Enqueue and move on.
-         */
-        if (!err) {
-            w->cw_output_nodev[0] = node;
-            ready = cn_node_spill_wait(w, node);
-        }
+        err = cn_spill(&subspill[cnum], node, node_dgen, ekey, eklen, &added);
+        if (err || !added)
+            continue;
 
-        if (added && ready) {
-            cn_comp_commit(w);
+        cn_spill_enqueue(&subspill[cnum], node);
+        first_sgen = cn_spill_queue_get_first(node);
+        while (first_sgen == atomic_read(&node->tn_sgen) + 1) {
+            err = cn_subspill_commit(&subspill[cnum]);
+            if (err)
+                break;
+
+            list_del(&subspill[cnum].ss_link);
             w->cw_checkpoint(w);
+            atomic_inc(&node->tn_sgen);
+
+            first_sgen = cn_spill_queue_get_first(node);
         }
 
-        /* Mark this node as processed by bumping up its spill gen.
-         */
-        cn_node_spill_broadcast(node);
-        if (err)
-            break;
+        ++cnum;
     }
 
     cn_spill_fini(spillctx);
-
-    if (err) {
-        if (merr_errno(err) != ESHUTDOWN)
-            kvdb_health_error(tree->ct_kvdb_health, err);
-
-        return err;
-    }
-
-    cn_input_kvsets_delete(w);
     w->cw_t3_build = get_time_ns();
 
-    return 0;
+    if (err && merr_errno(err) != ESHUTDOWN)
+        kvdb_health_error(tree->ct_kvdb_health, err);
+
+    /* Serialize the deletion of input kvsets.
+     */
+    if (!err && cn_node_spill_wait(w, w->cw_node))
+        cn_input_kvsets_delete(w);
+
+    cn_node_spill_broadcast(w->cw_node);
+
+    return err;
 }
 
 /**

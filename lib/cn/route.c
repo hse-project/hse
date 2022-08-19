@@ -299,6 +299,21 @@ route_map_last_node(struct route_map *map)
 }
 
 struct route_node *
+route_map_first_node(struct route_map *map)
+{
+    struct rb_root *root = &map->rtm_root;
+    struct rb_node *node = rb_first(root);
+    struct route_node *first = NULL;
+
+    if (node) {
+        first = rb_entry(node, struct route_node, rtn_node);
+        assert(first->rtn_isfirst);
+    }
+
+    return first;
+}
+
+struct route_node *
 route_map_lookup(struct route_map *map, const void *key, uint keylen)
 {
     return map ? route_map_find(map, key, keylen, false) : NULL;
@@ -319,7 +334,7 @@ route_node_next(struct route_node *node)
         return NULL;
 
     next = rb_next(&node->rtn_node);
-    return rb_entry(next, struct route_node, rtn_node);
+    return next ? rb_entry(next, struct route_node, rtn_node) : NULL;
 }
 
 struct route_node *
@@ -331,7 +346,7 @@ route_node_prev(struct route_node *node)
         return NULL;
 
     prev = rb_prev(&node->rtn_node);
-    return rb_entry(prev, struct route_node, rtn_node);
+    return prev ? rb_entry(prev, struct route_node, rtn_node) : NULL;
 }
 
 struct route_map *

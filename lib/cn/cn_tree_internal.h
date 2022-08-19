@@ -173,6 +173,8 @@ struct cn_tree_node {
     struct cn_tree *     tn_tree;
     struct route_node   *tn_route_node;
     struct list_head     tn_link;
+    struct list_head     tn_mut_list;
+    struct mutex         tn_mut_lock;
 };
 
 /* Iterate over all tree nodes, starting with the root node.

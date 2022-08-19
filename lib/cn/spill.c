@@ -16,6 +16,7 @@
 #include <hse_ikvdb/tuple.h>
 #include <hse_ikvdb/kvset_builder.h>
 #include <hse_ikvdb/kvdb_perfc.h>
+#include <hse_ikvdb/cndb.h>
 
 /* [HSE_REVISIT] - Why is this at the top of this file? */
 
@@ -28,6 +29,7 @@
 #include "cn_tree.h"
 #include "cn_tree_internal.h"
 #include "cn_tree_compact.h"
+#include "cn_mblocks.h"
 #include "kvset.h"
 #include "cn_metrics.h"
 #include "kv_iterator.h"
@@ -147,8 +149,6 @@ get_kvset_builder(struct cn_compaction_work *w, uint32_t idx, struct kvset_build
     struct kvset_builder *bldr = NULL;
     merr_t err;
 
-    w->cw_kvsetidv[idx] = cndb_kvsetid_mint(cn_tree_get_cndb(w->cw_tree));
-
     err = kvset_builder_create(&bldr, cn_tree_get_cn(w->cw_tree), w->cw_pc, w->cw_kvsetidv[idx]);
     if (!err) {
         kvset_builder_set_merge_stats(bldr, &w->cw_stats);
@@ -200,10 +200,12 @@ get_direct_read_buf(uint len, bool aligned_voff, u32 *bufsz, void **buf)
     return 0;
 }
 
-struct spill_ctx {
-    struct bin_heap *bh;
+struct spillctx {
+    struct cn_compaction_work *work;
+    uint64_t sgen;
 
-    uint bldr_idx;
+    /* Merge Loop */
+    struct bin_heap *bh;
     bool more;
     struct merge_item curr;
 
@@ -214,9 +216,9 @@ struct spill_ctx {
 };
 
 merr_t
-cn_spill_init(struct cn_compaction_work *w, struct spill_ctx **ctx)
+cn_spill_init(struct cn_compaction_work *w, struct spillctx **ctx_out)
 {
-    struct spill_ctx *s;
+    struct spillctx *s;
     merr_t err;
 
     s = calloc(1, sizeof(*s));
@@ -229,42 +231,112 @@ cn_spill_init(struct cn_compaction_work *w, struct spill_ctx **ctx)
         return err;
     }
 
-    memset(w->cw_outv, 0, w->cw_outc * sizeof(*w->cw_outv));
-
+    s->sgen = w->cw_sgen;
     s->more = get_next_item(s->bh, w->cw_inputv, &s->curr, &w->cw_stats, &err);
 
-    *ctx = s;
+    *ctx_out = s;
     return 0;
 }
 
 void
-cn_spill_fini(struct spill_ctx *ctx)
+cn_spill_fini(struct spillctx *sctx)
 {
-    struct spill_ctx *s = ctx;
-
-    if (!ctx)
+    if (!sctx)
         return;
 
-    bin_heap_destroy(s->bh);
-    free(ctx);
+    bin_heap_destroy(sctx->bh);
+    free(sctx);
 }
 
-/**
- * cn_spill() - merge key-value streams, then spill kv-pairs one node at a time or
- *              kv-compact into a node.
- * Requirements:
- *   - Each input iterator must produce keys in sorted order.
- *   - Iterator iterv[i] must contain newer entries than iterv[i+1].
- */
+struct subspill {
+    struct list_head ss_link;
+
+    struct kvset_mblocks ss_mblks;
+    uint64_t kvsetid;
+    struct cn_tree_node *node;
+    bool added;
+
+    struct spillctx *sctx;
+    struct cn_compaction_work *w;
+};
+
+static void
+cn_subspill_kvset_meta_get(struct subspill *ss, struct kvset_meta *km)
+{
+    struct cn_compaction_work *w = ss->work;
+
+    memset(km, 0, sizeof(*km));
+
+    km->km_dgen = w->cw_dgen_hi;
+    km->km_vused = ss->ss_mblks.bl_vused;
+
+    km->km_hblk = ss->ss_mblks.hblk;
+    km->km_kblk_list = ss->ss_mblks.kblks;
+    km->km_vblk_list = ss->ss_mblks.vblks;
+
+    km->km_rule = w->cw_rule;
+    km->km_capped = cn_is_capped(w->cw_tree->cn);
+    km->km_restored = false;
+
+    km->km_compc = 0;
+    km->km_nodeid = ss->node->tn_nodeid;
+}
+
+void
+cn_subspill_enqueue(struct subspill *ss, struct cn_tree_node *tn)
+{
+    struct list_head *p;
+    struct subspill *entry;
+
+    mutex_lock(&tn->tn_mut_lock);
+
+    /* Add ss at the right position in the node's mutation list. The list is sorted by
+     * sgen - smallest to largest.
+     */
+    list_for_each(p, &tn->tn_mut_list) {
+        entry = list_entry(p, typeof(*entry), ss_link);
+
+        if (ss->sgen < entry->sgen)
+            break;
+    }
+
+    list_add_tail(&ss->ss_link, p);
+    mutex_unlock(&tn->tn_mut_lock);
+}
+
+uint64_t
+cn_subspill_sgen_get(struct subspill *ss)
+{
+    return ss->ss_sgen;
+}
+
+// TODO Gaurav: Move to cn_tree_node or wherever
+uint64_t
+cn_node_sgen_get(struct cn_tree_node *tn)
+{
+    struct list_head *p;
+    struct subspill *entry;
+    uint64_t sgen;
+
+    mutex_lock(&tn->tn_mut_lock);
+    entry = list_first_entry_or_null(&tn->tn_mut_list, typeof(*entry), ss_link);
+    sgen = entry ? cn_subspill_sgen_get(entry) : 0;
+    mutex_unlock(&tn->tn_mut_lock);
+
+    return sgen;
+}
+
 merr_t
-cn_spill(
-    struct cn_compaction_work *w,
-    struct spill_ctx          *sctx,
+cn_subspill(
+    struct spillctx           *sctx,
+    struct subspill           *ss,
+    struct cn_tree_node       *node,
     uint64_t                   node_dgen,
     void                      *ekey,
     uint                       eklen,
     bool                      *added)
 {
+    struct cn_compaction_work *w = sctx->work;
     struct bin_heap *bh = sctx->bh;
     struct kvset_builder *child = NULL;
     struct key_obj prev_kobj = { 0 };
@@ -304,7 +376,7 @@ cn_spill(
     direct_read_len = w->cw_rp->cn_compact_vblk_ra;
     direct_read_len -= PAGE_SIZE;
 
-    *added = false;
+    ss->added = false;
 
     if (!kvcompact) {
         if (!sctx->more || key_obj_cmp(&sctx->curr.kobj, &ekobj) > 0) {
@@ -312,6 +384,8 @@ cn_spill(
                 return 0; /* Nothing to do */
         }
     }
+
+    sctx->kvsetid = cndb_kvsetid_mint(cn_tree_get_cndb(w->cw_tree));
 
     err = get_kvset_builder(w, 0, &child);
     if (err)
@@ -499,7 +573,7 @@ cn_spill(
             if (err)
                 break;
 
-            *added = true;
+            ss->added = true;
             w->cw_stats.ms_keys_out++;
             w->cw_stats.ms_key_bytes_out += key_obj_len(&prev_kobj);
         }
@@ -519,7 +593,7 @@ cn_spill(
             goto out;
     }
 
-    err = kvset_builder_get_mblocks(child, &w->cw_outv[0]);
+    err = kvset_builder_get_mblocks(child, &sctx->ss_mblks);
 
 out:
     kvset_builder_destroy(child);
@@ -531,5 +605,70 @@ out:
     if (tprog)
         w->cw_progress(w);
 
+    if (!kvcompact &&ss->added)
+        ss->node = node;
+
     return err;
+}
+
+merr_t
+cn_subspill_commit(struct subspill *ss)
+{
+    struct kvset *kvset = 0;
+    void *cookie = 0;
+    merr_t err;
+    struct cndb_txn *tx;
+    struct kvset_meta km;
+    struct kvset_mblocks *mblks = ss->ss_mblks;
+    struct cn_compaction_work *w = ss->w;
+    struct cndb *cndb = w->cw_tree->cndb;
+
+    if (!ss->added)
+        return 0;
+
+    if (!mblks->hblk.bk_blkid) {
+        assert(mblks->kblks.n_blks == 0);
+        return 0;
+    }
+
+    err = cndb_record_txstart(cndb, 0, CNDB_INVAL_INGESTID, CNDB_INVAL_HORIZON, 1, 0, &tx);
+    if (err)
+        return err;
+
+    cn_subspill_kvset_meta_get(ss, &km);
+
+    /* CNDB: Log kvset add records.
+     */
+    err = cndb_record_kvset_add(cndb, tx, w->cw_tree->cnid, km.km_nodeid, &km, ss->kvsetid,
+                                km.km_hblk.bk_blkid, mblks->.kblks.n_blks,
+                                (uint64_t *)mblks->.kblks.blks, mblks->.vblks.n_blks,
+                                (uint64_t *)mblks->.vblks.blks, &cookie);
+    if (err)
+        goto done;
+
+    err = cn_mblocks_commit(w->cw_mp, 1, mblks, CN_MUT_OTHER);
+    if (err)
+        goto done;
+
+    err = kvset_open(w->cw_tree, ss->kvsetid, &km, &kvset);
+    if (err)
+        goto done;
+
+    /* CNDB: Ack kvset add record.
+     */
+    err = cndb_record_kvset_add_ack(cndb, tx, cookie);
+    if (err)
+        goto done;
+
+    cn_comp_kvset_append(w, ss->node, kvset);
+
+done:
+    w->cw_t4_commit = get_time_ns();
+
+    if (err) {
+        cndb_record_nak(cndb, tx);
+        kvset_put_ref(kvset);
+    }
+
+    w->cw_err = w->cw_err ?: err;
 }

@@ -1237,11 +1237,11 @@ run_testcase(struct mtf_test_info *lcl_ti, int mode, const char *info)
         w.cw_action = CN_ACTION_SPILL;
         w.cw_cp = &cp;
 
-        struct spill_ctx *ctx;
+        struct subspill *subspill;
         unsigned char ekey[HSE_KVS_KEY_LEN_MAX];
         uint eklen = 0;
 
-        err = cn_spill_init(&w, &ctx);
+        err = cn_spill_init(&w, &subspill);
         ASSERT_EQ(0, err);
 
         while (1) {
@@ -1254,11 +1254,11 @@ run_testcase(struct mtf_test_info *lcl_ti, int mode, const char *info)
 
             route_node_keycpy(rtn, ekey, sizeof(ekey), &eklen);
 
-            err = cn_spill(&w, ctx, 0, ekey, eklen, &added);
+            err = cn_spill(subspill, 0, 0, ekey, eklen, &added);
             ASSERT_EQ(0, err);
         }
 
-        cn_spill_fini(ctx);
+        cn_spill_fini(subspill);
         cn_tree_destroy(tree);
     } else {
         /* kcompact */
