@@ -6,11 +6,16 @@ on:
       - master
       - "v[0-9]+.[0-9]+"
   pull_request:
+    branches:
+      - master
+      - "v[0-9]+.[0-9]+"
     paths:
       - "**.c"
       - "**.cc"
       - "**.h"
+      - "**.h.in"
       - "**.py"
+      - "**/meson.build"
       - .github/workflows/codeql.yaml
   schedule:
     - cron: 0 0 * * SUN
@@ -20,7 +25,6 @@ concurrency:
   cancel-in-progress: true
 
 permissions:
-  packages: read
   security-events: write
 
 jobs:
@@ -67,7 +71,7 @@ jobs:
       # https://bugzilla.redhat.com/show_bug.cgi?id=2117773
       - name: Setup
         run: |
-          meson builddir --fatal-meson-warnings --werror \
+          meson setup builddir --fatal-meson-warnings --werror \
             -Dwrap_mode=nofallback -Dforce_fallback_for=cjson -Dbindings=none \
             -Ddocs=disabled
 
