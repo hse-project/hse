@@ -205,7 +205,7 @@ cn_subspill(
     struct kvset_builder *child = NULL;
     struct key_obj prev_kobj = { 0 };
 
-    uint vlen, complen, omlen, direct_read_len;
+    uint vlen, complen, direct_read_len;
     uint curr_klen HSE_MAYBE_UNUSED;
     u32 bufsz = 0;
     void *buf = NULL;
@@ -309,7 +309,7 @@ cn_subspill(
             enum kmd_vtype vtype;
             u32            vbidx;
             u32            vboff;
-            bool           direct;
+            uint           omlen;
 
             if (tstart > 0)
                 tstart = get_time_ns();
@@ -319,10 +319,11 @@ cn_subspill(
                                       &vboff, &vdata, &vlen, &complen))
                 break;
 
-            omlen = (vtype == vtype_val) ? vlen : ((vtype == vtype_cval) ? complen : 0);
-
-            direct = omlen > direct_read_len;
-            if (direct) {
+            /* Compute on-media length (w/o branches) to see if direct vblock read should
+             * be used. Note omlen will be 0 for vtypes that are not stored in vblocks.
+             */
+            omlen = (vtype == vtype_val) * vlen + (vtype == vtype_cval) * complen;
+            if (omlen > direct_read_len) {
                 err = get_direct_read_buf(omlen, !(vboff % PAGE_SIZE), &bufsz, &buf);
                 if (err)
                     break;
