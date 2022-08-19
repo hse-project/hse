@@ -4,7 +4,7 @@
  */
 
 #include <hse_ikvdb/blk_list.h>
-#include <hse_util/logging.h>
+#include <logging/logging.h>
 #include <error/merr.h>
 #include <hse_util/event_counter.h>
 #include <hse_util/alloc.h>
@@ -25,7 +25,7 @@ commit_mblock(struct mpool *mp, struct kvs_block *blk)
 
     err = mpool_mblock_commit(mp, blk->bk_blkid);
     if (err) {
-        log_errx("Failed to commit mblock: @@e, blkid 0x%lx", err, blk->bk_blkid);
+        log_errx("Failed to commit mblock, blkid 0x%lx", err, blk->bk_blkid);
         return err;
     }
 
@@ -52,7 +52,7 @@ delete_mblock(struct mpool *mp, struct kvs_block *blk)
 {
     merr_t err = mpool_mblock_delete(mp, blk->bk_blkid);
     if (err) {
-        log_errx("Failed to delete mblock: @@e, blkid 0x%lx", err, blk->bk_blkid);
+        log_errx("Failed to delete mblock, blkid 0x%lx", err, blk->bk_blkid);
         return err;
     }
 

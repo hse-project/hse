@@ -9,7 +9,7 @@
 
 #include <sysexits.h>
 
-#include <hse_util/logging.h>
+#include <logging/logging.h>
 #include <hse_ikvdb/kvdb_meta.h>
 
 #include <hse/hse.h>

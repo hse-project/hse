@@ -179,7 +179,7 @@ c0sk_c0_register(struct c0sk *handle, struct cn *cn, u16 *skidx)
     }
 
     err = merr(ENOSPC);
-    log_errx("Attempt to register more than %d c0's with c0sk: @@e", err, HSE_KVS_COUNT_MAX);
+    log_errx("Attempt to register more than %d c0's with c0sk", err, HSE_KVS_COUNT_MAX);
 
     return err;
 }
@@ -525,7 +525,7 @@ c0sk_open(
 
 errout:
     if (err) {
-        log_errx("c0sk_open(%s) failed: @@e", err, kvdb_alias);
+        log_errx("c0sk_open(%s) failed", err, kvdb_alias);
 
         if (c0sk) {
             destroy_workqueue(c0sk->c0sk_wq_ingest);

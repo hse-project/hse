@@ -1,24 +1,22 @@
 subdir('include')
 subdir('lib')
 
-libhse_pidfile = static_library(
+hse_pidfile = static_library(
     'hse-pidfile',
-    pidfile_sources,
+    hse_pidfile_sources,
     include_directories: [
-        pidfile_includes,
+        hse_pidfile_includes,
         component_root_includes,
     ],
     dependencies: [
         cjson_dep,
         libbsd_dep,
-        libhse_error_dep,
+        hse_error_dep,
     ],
     gnu_symbol_visibility: 'hidden'
 )
 
-libhse_pidfile_dep = declare_dependency(
-    link_with: libhse_pidfile,
-    include_directories: [
-        pidfile_includes,
-    ]
+hse_pidfile_dep = declare_dependency(
+    link_with: hse_pidfile,
+    include_directories: hse_pidfile_includes
 )

@@ -8,9 +8,9 @@
 #include <hse_util/alloc.h>
 #include <hse_util/slab.h>
 #include <hse_util/assert.h>
-#include <hse_util/logging.h>
+#include <logging/logging.h>
 #include <hse_util/bloom_filter.h>
-#include <hse_util/logging.h>
+#include <logging/logging.h>
 #include <hse_util/condvar.h>
 #include <hse_util/mutex.h>
 #include <hse_util/page.h>
@@ -1396,7 +1396,7 @@ kvset_lookup_val_direct(
 
     err = mpool_mblock_read(ks->ks_mp, mbid, &iov, 1, off);
     if (err) {
-        log_errx("off %lx, len %lx, copylen %u, vbufsz %u: @@e",
+        log_errx("off %lx, len %lx, copylen %u, vbufsz %u",
                  err, off, iov.iov_len, copylen, vbufsz);
     } else {
         if (!aligned_all) {
@@ -1448,7 +1448,7 @@ kvset_lookup_val_direct_decompress(
 
     err = mpool_mblock_read(ks->ks_mp, mbid, &iov, 1, off);
     if (err) {
-        log_errx("off %lx, len %lx, copylen %u, omlen %u: @@e",
+        log_errx("off %lx, len %lx, copylen %u, omlen %u",
                  err, off, iov.iov_len, copylen, omlen);
     } else {
         src = iov.iov_base + (vboff & ~PAGE_MASK);

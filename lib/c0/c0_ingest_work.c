@@ -4,7 +4,7 @@
  */
 
 #include <hse_util/platform.h>
-#include <hse_util/logging.h>
+#include <logging/logging.h>
 #include <hse_util/bonsai_tree.h>
 
 #include "c0_ingest_work.h"

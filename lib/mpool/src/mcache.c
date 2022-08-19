@@ -3,7 +3,7 @@
  * Copyright (C) 2021 Micron Technology, Inc.  All rights reserved.
  */
 
-#include <hse_util/logging.h>
+#include <logging/logging.h>
 #include <hse_util/page.h>
 
 #include "mpool_internal.h"
@@ -108,7 +108,7 @@ mpool_mcache_munmap(struct mpool_mcache_map *map)
 
         err = mblock_fset_unmap(mclass_fset(mc), mbid);
         if (ev(err))
-            log_errx("Unable to unmap mblock %lu, map %p: @@e", err, mbid, map);
+            log_errx("Unable to unmap mblock %lu, map %p", err, mbid, map);
     }
 
     free(map);

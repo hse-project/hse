@@ -35,7 +35,6 @@ components = {
         'cn_api_test': {},
         'cn_tree_cursor_test': {},
         'cn_ingest_test': {},
-        'cn_logging_test': {},
         'cn_make_test': {},
         'cn_mblock_test': {},
         'cn_open_test': {},
@@ -162,18 +161,10 @@ components = {
     'util': {
         'allocation_test': {},
         'atomic_test': {
-            'sources': [
-                files(
-                    'util/multithreaded_tester.c',
-                ),
-            ],
+            'sources': files('util/multithreaded_tester.c'),
         },
         'bin_heap_test': {
-            'sources': [
-                files(
-                    'util/sample_element_source.c',
-                ),
-            ],
+            'sources': files('util/sample_element_source.c'),
         },
         'bloom_filter_test': {
             'env': {
@@ -187,39 +178,25 @@ components = {
             },
          },
         'cheap_test': {
-            'sources': [
-                files(
-                    'util/cheap_testlib.c',
-                ),
-            ],
+            'sources': files('util/cheap_testlib.c'),
         },
         'compression_test': {},
         'data_tree_test': {
-            'sources': [
-                files(
-                    'util/multithreaded_tester.c',
-                ),
-            ],
+            'sources': files('util/multithreaded_tester.c'),
         },
         'element_source_test': {
-            'sources': [
-                files(
-                    'util/sample_element_source.c',
-                ),
-            ],
+            'sources': files('util/sample_element_source.c'),
         },
         'event_counter_test': {},
         'event_timer_test': {},
         'fmt_test': {},
         'hash_test': {},
         'hlog_unit_test': {},
-        'json_test': {},
         'keycmp_test': {},
         'keylock_test': {},
         'key_util_test': {},
         'list_test': {},
         'log2_test': {},
-        'logging_test': {},
         'map_test': {},
         'merr': {},
         'parse_num_test': {},
@@ -229,16 +206,11 @@ components = {
         'rest_api_test': {},
         'rest_client_test': {},
         'seqno_test': {
-            'c_args': cc.get_supported_arguments(['-Wno-clobbered']),
+            'c_args': cc.get_supported_arguments('-Wno-clobbered'),
         },
         'spinlock_test': {
-            'sources': [
-                files(
-                    'util/thread_tester.c',
-                ),
-            ],
+            'sources': files('util/thread_tester.c'),
         },
-        'structured_logging_test': {},
         'table_test': {},
         'timer_test': {},
         'token_bucket_test': {},

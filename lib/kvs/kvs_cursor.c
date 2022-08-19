@@ -9,7 +9,7 @@
 #include <hse_util/vlb.h>
 #include <hse_util/fmt.h>
 #include <hse_util/keycmp.h>
-#include <hse_util/logging.h>
+#include <logging/logging.h>
 #include <hse_util/compression_lz4.h>
 
 #include <hse/kvdb_perfc.h>
@@ -1340,7 +1340,7 @@ kvs_cursor_perfc_init(void)
 
     err = perfc_ivl_create(PERFC_IVL_MAX, boundv, &ivl);
     if (err) {
-        log_warnx("cursor perfc, unable to allocate pow2 ivl: @@e", err);
+        log_warnx("cursor perfc, unable to allocate pow2 ivl", err);
         return;
     }
 

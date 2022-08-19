@@ -3,7 +3,7 @@
  * Copyright (C) 2021-2022 Micron Technology, Inc.  All rights reserved.
  */
 
-#include <hse_util/logging.h>
+#include <logging/logging.h>
 #include <hse_util/event_counter.h>
 #include <hse_util/page.h>
 
@@ -138,7 +138,7 @@ wal_mdc_destroy(struct mpool *mp, uint64_t mdcid1, uint64_t mdcid2)
 
     err = mpool_mdc_delete(mp, mdcid1, mdcid2);
     if (err)
-        log_warnx("delete mdc %lx %lx failed: @@e", err, mdcid1, mdcid2);
+        log_warnx("delete mdc %lx %lx failed", err, mdcid1, mdcid2);
 }
 
 merr_t

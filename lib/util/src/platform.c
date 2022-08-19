@@ -5,6 +5,8 @@
 
 #define MTF_MOCK_IMPL_platform
 
+#include <hse_ikvdb/hse_gparams.h>
+
 #include <hse_util/platform.h>
 #include <hse_util/page.h>
 #include <hse_util/data_tree.h>
@@ -18,8 +20,8 @@
 
 #include <hse/version.h>
 
-#include "logging_impl.h"
-#include "logging_util.h"
+#include <logging/logging.h>
+
 #include "rest_dt.h"
 #include "cgroup.h"
 
@@ -225,11 +227,9 @@ hse_platform_init(void)
     if (err)
         goto errout;
 
-    err = hse_log_init();
+    err = logging_init(&hse_gparams.gp_logging);
     if (err)
         goto errout;
-
-    hse_log_reg_platform();
 
     err = vlb_init();
     if (err)
@@ -266,7 +266,7 @@ hse_platform_fini(void)
     kmem_cache_fini();
     perfc_fini();
     vlb_fini();
-    hse_log_fini();
+    logging_fini();
     hse_timer_fini();
     hse_cgroup_fini();
     dt_fini();

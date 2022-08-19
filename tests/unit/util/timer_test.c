@@ -10,7 +10,7 @@
 #include <hse_util/inttypes.h>
 #include <error/merr.h>
 #include <hse_util/timer.h>
-#include <hse_util/logging.h>
+#include <logging/logging.h>
 
 int
 timer_test_pre(struct mtf_test_info *lcl_ti)

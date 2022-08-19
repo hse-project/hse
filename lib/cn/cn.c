@@ -18,7 +18,7 @@
 #include <hse_util/log2.h>
 #include <hse_util/xrand.h>
 #include <hse_util/vlb.h>
-#include <hse_util/logging.h>
+#include <logging/logging.h>
 #include <hse_util/map.h>
 
 #include <hse_util/perfc.h>
@@ -70,9 +70,6 @@ struct mclass_policy;
 
 static struct kmem_cache *cn_cursor_cache;
 
-void
-hse_log_reg_cn(void);
-
 merr_t
 cn_init(void)
 {
@@ -95,8 +92,6 @@ cn_init(void)
     err = kvset_init();
     if (err)
         goto cn_tree_cleanup;
-
-    hse_log_reg_cn();
 
     sz = sizeof(struct cn_cursor);
     cache = kmem_cache_create("cn_cursor", sz, alignof(struct cn_cursor), SLAB_PACKED, NULL);
@@ -706,26 +701,19 @@ cn_ingestv(
     assert(check == 0);
 
     if (log_ingest) {
+        const ulong hwlen_pct = kst.kst_halen ? 100 * kst.kst_hwlen / kst.kst_halen : 0;
+        const ulong kwlen_pct = kst.kst_kalen ? 100 * kst.kst_kwlen / kst.kst_kalen : 0;
+        const ulong vwlen_pct = kst.kst_valen ? 100 * kst.kst_vwlen / kst.kst_valen : 0;
 
-        ulong hwlen_pct = kst.kst_halen ? 100 * kst.kst_hwlen / kst.kst_halen : 0;
-        ulong kwlen_pct = kst.kst_kalen ? 100 * kst.kst_kwlen / kst.kst_kalen : 0;
-        ulong vwlen_pct = kst.kst_valen ? 100 * kst.kst_vwlen / kst.kst_valen : 0;
-
-        slog_info(
-            SLOG_START("cn_ingest"),
-            SLOG_FIELD("dgen", "%lu", (ulong)dgen),
-            SLOG_FIELD("seqno", "%lu", (ulong)ingestid),
-            SLOG_FIELD("kvsets", "%lu", (ulong)kst.kst_kvsets),
-            SLOG_FIELD("keys", "%8lu", (ulong)kst.kst_keys),
-            SLOG_FIELD("kblks", "%2lu", (ulong)kst.kst_kblks),
-            SLOG_FIELD("vblks", "%3lu", (ulong)kst.kst_vblks),
-            SLOG_FIELD("halen_mb", "%3lu", (ulong)kst.kst_halen >> MB_SHIFT),
-            SLOG_FIELD("kalen_mb", "%3lu", (ulong)kst.kst_kalen >> MB_SHIFT),
-            SLOG_FIELD("valen_mb", "%3lu", (ulong)kst.kst_valen >> MB_SHIFT),
-            SLOG_FIELD("hwlen%%", "%3lu", hwlen_pct),
-            SLOG_FIELD("kwlen%%", "%3lu", kwlen_pct),
-            SLOG_FIELD("vwlen%%", "%3lu", vwlen_pct),
-            SLOG_END);
+        log_info(
+            "dgen=%lu seqno=%lu "
+            "kvsets=%u keys=%lu kblks=%u vblks=%u "
+            "halen_mb=%3lu kalen_mb=%3lu valen_mb=%3lu "
+            "hwlen%%=%3lu kwlen%%=%3lu vwlen%%=%3lu",
+            dgen, ingestid,
+            kst.kst_kvsets, kst.kst_keys, kst.kst_kblks, kst.kst_vblks,
+            kst.kst_halen >> MB_SHIFT, kst.kst_kalen >> MB_SHIFT, kst.kst_valen >> MB_SHIFT,
+            hwlen_pct, kwlen_pct, vwlen_pct);
     }
 
 nak:
@@ -1299,7 +1287,7 @@ cn_cursor_update(struct cn_cursor *cur, u64 seqno, bool *updated)
         *updated = true;
 
     if (err) {
-        log_errx("update failed (%p %lu): @@e", err, cur, seqno);
+        log_errx("update failed (%p %lu)", err, cur, seqno);
         cur->cncur_merr = err;
     }
 

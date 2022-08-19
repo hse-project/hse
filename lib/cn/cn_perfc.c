@@ -4,7 +4,7 @@
  */
 
 #include <hse_util/platform.h>
-#include <hse_util/logging.h>
+#include <logging/logging.h>
 
 #include <hse_ikvdb/tuple.h>
 #include <hse_ikvdb/mclass_policy.h>
@@ -89,7 +89,7 @@ cn_perfc_bkts_create(struct perfc_name *pcn, int edgec, u64 *edgev, uint sample_
 
     err = perfc_ivl_create(edgec, edgev, &ivl);
     if (err) {
-        log_errx("%s counters: perfc_ivl_create failed @@e", err, pcn->pcn_name);
+        log_errx("%s counters: perfc_ivl_create failed", err, pcn->pcn_name);
         return;
     }
 

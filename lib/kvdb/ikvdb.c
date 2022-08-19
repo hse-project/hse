@@ -425,7 +425,7 @@ ikvdb_attach(
 
     err = kvdb_meta_deserialize(&meta_src, kvdb_home_src);
     if (err) {
-        log_errx("cannot attach KVDB (%s) from KVDB (%s), deserializing source meta failed: @@e",
+        log_errx("cannot attach KVDB (%s) from KVDB (%s), deserializing source meta failed",
                  err, kvdb_home_tgt, kvdb_home_src);
         return err;
     }
@@ -461,7 +461,7 @@ ikvdb_attach(
 
     err = kvdb_meta_create(kvdb_home_tgt);
     if (err) {
-        log_errx("cannot attach KVDB (%s) from KVDB (%s), target KVDB not empty: @@e",
+        log_errx("cannot attach KVDB (%s) from KVDB (%s), target KVDB not empty",
                  err, kvdb_home_tgt, kvdb_home_src);
         return err;
     }
@@ -469,7 +469,7 @@ ikvdb_attach(
     err = kvdb_meta_serialize(&meta_tgt, kvdb_home_tgt);
     if (err) {
         kvdb_meta_destroy(kvdb_home_tgt);
-        log_errx("cannot attach KVDB (%s) from KVDB (%s), serializing target meta failed: @@e",
+        log_errx("cannot attach KVDB (%s) from KVDB (%s), serializing target meta failed",
                  err, kvdb_home_tgt, kvdb_home_src);
         return err;
     }
@@ -480,7 +480,7 @@ ikvdb_attach(
     err = ikvdb_open(kvdb_home_tgt, &rp, &kvdb);
     if (err) {
         kvdb_meta_destroy(kvdb_home_tgt);
-        log_errx("cannot attach KVDB (%s) from KVDB (%s), opening target KVDB failed: @@e",
+        log_errx("cannot attach KVDB (%s) from KVDB (%s), opening target KVDB failed",
                  err, kvdb_home_tgt, kvdb_home_src);
         return err;
     }
@@ -537,7 +537,7 @@ ikvdb_storage_add(const char *kvdb_home, struct kvdb_cparams *params)
 
     if (meta.km_version != KVDB_META_VERSION || meta.km_omf_version != GLOBAL_OMF_VERSION) {
         err = merr(EPROTO);
-        log_errx("cannot add storage to kvdb (%s), out-of-date meta/on-media versions %u/%u: @@e",
+        log_errx("cannot add storage to kvdb (%s), out-of-date meta/on-media versions %u/%u",
                  err, kvdb_home, meta.km_version, meta.km_omf_version);
         return err;
     }
@@ -693,7 +693,7 @@ ikvdb_mclass_reconfigure(const char *kvdb_home, enum hse_mclass mclass, const ch
 
     err = kvdb_meta_deserialize(&meta, kvdb_home);
     if (err) {
-        log_errx("cannot reconfigure %s mclass path for KVDB (%s), deserializing meta failed: @@e",
+        log_errx("cannot reconfigure %s mclass path for KVDB (%s), deserializing meta failed",
                  err, hse_mclass_name_get(mclass), kvdb_home);
         return err;
     }
@@ -702,14 +702,14 @@ ikvdb_mclass_reconfigure(const char *kvdb_home, enum hse_mclass mclass, const ch
     if (meta.km_version != KVDB_META_VERSION || meta.km_omf_version != GLOBAL_OMF_VERSION) {
         err = merr(EPROTO);
         log_errx("cannot reconfigure %s mclass path for KVDB (%s), "
-                 "out-of-date meta/on-media versions %u/%u: @@e",
+                 "out-of-date meta/on-media versions %u/%u",
                  err, hse_mclass_name_get(mclass), kvdb_home, meta.km_version, meta.km_omf_version);
         return err;
     }
 
     if (meta.km_storage[mclass].path[0] == '\0') {
         err = merr(ENOENT);
-        log_errx("cannot reconfigure %s mclass path for KVDB (%s), media class not configured: @@e",
+        log_errx("cannot reconfigure %s mclass path for KVDB (%s), media class not configured",
                  err, hse_mclass_name_get(mclass), kvdb_home);
         return err;
     }
@@ -725,7 +725,7 @@ ikvdb_mclass_reconfigure(const char *kvdb_home, enum hse_mclass mclass, const ch
 
     err = kvdb_meta_serialize(&meta, kvdb_home);
     if (err) {
-        log_errx("cannot reconfigure %s mclass path for KVDB (%s), serializing meta failed: @@e",
+        log_errx("cannot reconfigure %s mclass path for KVDB (%s), serializing meta failed",
                  err, hse_mclass_name_get(mclass), kvdb_home);
         return err;
     }
@@ -736,7 +736,7 @@ ikvdb_mclass_reconfigure(const char *kvdb_home, enum hse_mclass mclass, const ch
     err = ikvdb_open(kvdb_home, &rp, &kvdb);
     if (err) {
         kvdb_meta_serialize(&meta_orig, kvdb_home); /* restore original meta file */
-        log_errx("cannot reconfigure %s mclass path for KVDB (%s), KVDB open failed: @@e",
+        log_errx("cannot reconfigure %s mclass path for KVDB (%s), KVDB open failed",
                  err, hse_mclass_name_get(mclass), kvdb_home);
         return err;
     }
@@ -1067,7 +1067,7 @@ ikvdb_diag_open(
 
     err = ikvdb_pmem_only_from_meta(kvdb_home, &meta, &self->ikdb_pmem_only);
     if (err) {
-        log_errx("cannot open %s: @@e", err, kvdb_home);
+        log_errx("cannot open %s", err, kvdb_home);
         goto self_cleanup;
     }
 
@@ -1186,7 +1186,7 @@ ikvdb_rest_register(struct ikvdb_impl *self, struct ikvdb *handle)
     for (i = 0; i < self->ikdb_kvs_cnt; i++) {
         err = kvs_rest_register(handle, self->ikdb_kvs_vec[i]->kk_name, self->ikdb_kvs_vec[i]);
         if (err)
-            log_warnx("%s/%s REST registration failed: @@e",
+            log_warnx("%s/%s REST registration failed",
                       err,
                       self->ikdb_home,
                       self->ikdb_kvs_vec[i]->kk_name);
@@ -1194,7 +1194,7 @@ ikvdb_rest_register(struct ikvdb_impl *self, struct ikvdb *handle)
 
     err = kvdb_rest_register(handle);
     if (err)
-        log_warnx("%s REST registration failed: @@e", err, self->ikdb_home);
+        log_warnx("%s REST registration failed", err, self->ikdb_home);
 }
 
 /**
@@ -1431,7 +1431,7 @@ ikvdb_open(
 
     err = ikvdb_alloc(kvdb_home, params, &self);
     if (err) {
-        log_errx("cannot open %s: @@e", err, kvdb_home);
+        log_errx("cannot open %s", err, kvdb_home);
         return err;
     }
 
@@ -1453,13 +1453,13 @@ ikvdb_open(
 
     err = kvdb_meta_deserialize(&meta, kvdb_home);
     if (ev(err)) {
-        log_errx("cannot open %s: @@e", err, kvdb_home);
+        log_errx("cannot open %s", err, kvdb_home);
         goto out;
     }
 
     err = ikvdb_pmem_only_from_meta(kvdb_home, &meta, &self->ikdb_pmem_only);
     if (err) {
-        log_errx("cannot open %s: @@e", err, kvdb_home);
+        log_errx("cannot open %s", err, kvdb_home);
         goto out;
     }
 
@@ -1520,7 +1520,7 @@ ikvdb_open(
             &self->ikdb_health,
             &self->ikdb_csched);
         if (err) {
-            log_errx("cannot open %s: @@e", err, kvdb_home);
+            log_errx("cannot open %s", err, kvdb_home);
             goto out;
         }
     }
@@ -1538,7 +1538,7 @@ ikvdb_open(
     err = kvdb_ctxn_set_create(
         &self->ikdb_ctxn_set, self->ikdb_rp.txn_timeout, self->ikdb_rp.txn_wkth_delay);
     if (err) {
-        log_errx("cannot open %s: @@e", err, kvdb_home);
+        log_errx("cannot open %s", err, kvdb_home);
         goto out;
     }
 
@@ -1546,19 +1546,19 @@ ikvdb_open(
 
     err = viewset_create(&self->ikdb_txn_viewset, &self->ikdb_seqno, tseqnop);
     if (err) {
-        log_errx("cannot open %s: @@e", err, kvdb_home);
+        log_errx("cannot open %s", err, kvdb_home);
         goto out;
     }
 
     err = viewset_create(&self->ikdb_cur_viewset, &self->ikdb_seqno, tseqnop);
     if (err) {
-        log_errx("cannot open %s: @@e", err, kvdb_home);
+        log_errx("cannot open %s", err, kvdb_home);
         goto out;
     }
 
     err = kvdb_keylock_create(&self->ikdb_keylock, params->keylock_tables);
     if (err) {
-        log_errx("cannot open %s: @@e", err, kvdb_home);
+        log_errx("cannot open %s", err, kvdb_home);
         goto out;
     }
 
@@ -1571,7 +1571,7 @@ ikvdb_open(
 
     err = ikvdb_cndb_open(self, &seqno, &ingestid, &txhorizon);
     if (err) {
-        log_errx("cannot open %s: @@e", err, kvdb_home);
+        log_errx("cannot open %s", err, kvdb_home);
         goto out;
     }
 
@@ -1581,20 +1581,20 @@ ikvdb_open(
 
     err = c0snr_set_create(&self->ikdb_c0snr_set);
     if (err) {
-        log_errx("cannot open %s: @@e", err, kvdb_home);
+        log_errx("cannot open %s", err, kvdb_home);
         goto out;
     }
 
     err = cn_kvdb_create(self->ikdb_rp.cn_maint_threads, self->ikdb_rp.cn_io_threads,
                          &self->ikdb_cn_kvdb);
     if (err) {
-        log_errx("cannot open %s: @@e", err, kvdb_home);
+        log_errx("cannot open %s", err, kvdb_home);
         goto out;
     }
 
     err = lc_create(&self->ikdb_lc, &self->ikdb_health);
     if (ev(err)) {
-        log_errx("failed to create lc: @@e", err);
+        log_errx("failed to create lc", err);
         goto out;
     }
 
@@ -1610,7 +1610,7 @@ ikvdb_open(
         gen,
         &self->ikdb_c0sk);
     if (err) {
-        log_errx("cannot open %s: @@e", err, kvdb_home);
+        log_errx("cannot open %s", err, kvdb_home);
         goto out;
     }
 
@@ -1630,7 +1630,7 @@ ikvdb_open(
     err = wal_open(self->ikdb_mp, &self->ikdb_rp, &rinfo, &self->ikdb_handle, &self->ikdb_health,
                    &self->ikdb_wal);
     if (err) {
-        log_errx("cannot open %s: @@e", err, kvdb_home);
+        log_errx("cannot open %s", err, kvdb_home);
         goto out;
     }
 
@@ -1643,7 +1643,7 @@ ikvdb_open(
     if (!self->ikdb_read_only) {
         err = ikvdb_maint_start(self);
         if (err) {
-            log_errx("cannot open %s: @@e", err, kvdb_home);
+            log_errx("cannot open %s", err, kvdb_home);
             goto out;
         }
     }
@@ -1659,7 +1659,7 @@ ikvdb_open(
     if (!params->read_only) {
         err = kvdb_meta_upgrade(&meta, kvdb_home);
         if (err) {
-            log_errx("cannot upgrade %s/kvdb.meta: @@e", err, kvdb_home);
+            log_errx("cannot upgrade %s/kvdb.meta", err, kvdb_home);
             goto out;
         }
     }
@@ -1934,7 +1934,7 @@ ikvdb_kvs_create(struct ikvdb *handle, const char *kvs_name, struct kvs_cparams 
      */
     err = kvs_rest_register(handle, self->ikdb_kvs_vec[idx]->kk_name, self->ikdb_kvs_vec[idx]);
     if (ev(err))
-        log_warnx("rest: %s registration failed: @@e", err, self->ikdb_kvs_vec[idx]->kk_name);
+        log_warnx("rest: %s registration failed", err, self->ikdb_kvs_vec[idx]->kk_name);
 
     return 0;
 
@@ -3311,7 +3311,7 @@ ikvdb_wal_replay_open(struct ikvdb *ikvdb, struct ikvdb_kvs_hdl **ikvsh_out)
     for (i = 0; i < kvshc; i++) {
         err = ikvdb_kvs_open(ikvdb, knamev[i], &params, IKVS_OFLAG_REPLAY, &kvshv[i]);
         if (err) {
-            log_warnx("ikvdb_kvs_open %s: @@e", err, knamev[i]);
+            log_warnx("ikvdb_kvs_open %s", err, knamev[i]);
             break;
         }
     }

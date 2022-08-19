@@ -9,7 +9,7 @@
 #include <hse_util/mutex.h>
 #include <hse_util/list.h>
 #include <hse_util/page.h>
-#include <hse_util/logging.h>
+#include <logging/logging.h>
 
 #include <hse_ikvdb/cndb.h>
 
@@ -607,7 +607,7 @@ wal_fileset_replay(
              * TODO: Address this when adding force replay support.
              */
             log_errx("WAL replay: Need force replay support to recover data, "
-                     "gen %lu fileid %u maxgen %lu: @@e",
+                     "gen %lu fileid %u maxgen %lu",
                      err, cur->gen, cur->fileid, maxgen);
             goto exit;
         }

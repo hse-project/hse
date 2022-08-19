@@ -55,7 +55,6 @@ mocked_headers = [
     meson.project_source_root() / 'lib/util/include/hse_util/rmlock.h',
     meson.project_source_root() / 'lib/util/include/hse_util/slab.h',
     meson.project_source_root() / 'lib/util/include/hse_util/token_bucket.h',
-    meson.project_source_root() / 'lib/util/src/logging_util.h',
     meson.project_source_root() / 'tests/mocks/include/mock/allocation.h',
 ]
 

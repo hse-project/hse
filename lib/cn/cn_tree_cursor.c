@@ -18,7 +18,7 @@
 
 #include <hse_util/event_counter.h>
 #include <hse_util/page.h>
-#include <hse_util/logging.h>
+#include <logging/logging.h>
 #include <hse_util/assert.h>
 #include <hse_util/table.h>
 #include <hse_util/key_util.h>

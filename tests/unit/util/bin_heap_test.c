@@ -6,7 +6,7 @@
 #include <mtf/framework.h>
 #include <mock/api.h>
 
-#include <hse_util/logging.h>
+#include <logging/logging.h>
 #include <hse_util/xrand.h>
 #include <hse_util/bin_heap.h>
 #include <hse_util/element_source.h>

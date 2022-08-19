@@ -4,7 +4,7 @@
  */
 
 #include <hse_util/log2.h>
-#include <hse_util/logging.h>
+#include <logging/logging.h>
 
 #include "bonsai_tree_pvt.h"
 

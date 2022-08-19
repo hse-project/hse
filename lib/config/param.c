@@ -144,8 +144,9 @@ param_default_populate(
             case PARAM_TYPE_U64:
                 *(uint64_t *)data = ps.ps_default_value.as_uscalar;
                 break;
+            case PARAM_TYPE_INT:
             case PARAM_TYPE_ENUM:
-                *(uint32_t *)data = ps.ps_default_value.as_enum;
+                *(int *)data = ps.ps_default_value.as_enum;
                 break;
             case PARAM_TYPE_STRING:
                 if (ps.ps_default_value.as_string) {
@@ -159,7 +160,6 @@ param_default_populate(
                 break;
             case PARAM_TYPE_ARRAY:
             case PARAM_TYPE_OBJECT:
-            default:
                 abort();
         }
     }
@@ -191,6 +191,29 @@ param_default_converter(const struct param_spec *ps, const cJSON *node, void *va
             *(bool *)value = cJSON_IsTrue(node);
             break;
         }
+        case PARAM_TYPE_INT: {
+            assert(!(ps->ps_flags & PARAM_FLAG_NULLABLE));
+            if (!cJSON_IsNumber(node)) {
+                CLOG_ERR("Value of %s must be a number", ps->ps_name);
+                return false;
+            }
+            const double to_conv = cJSON_GetNumberValue(node);
+            if (!IS_WHOLE(to_conv)) {
+                CLOG_ERR("%s must be a whole number", ps->ps_name);
+                return false;
+            }
+            if (to_conv < INT_MIN || to_conv > INT_MAX) {
+                CLOG_ERR(
+                    "Value of %s must be greater than or equal to %d and less than or equal to "
+                    "%d",
+                    ps->ps_name,
+                    INT_MIN,
+                    INT_MAX);
+                return false;
+            }
+            *(int *)value = (int)to_conv;
+            break;
+        }
         case PARAM_TYPE_I8: {
             assert(!(ps->ps_flags & PARAM_FLAG_NULLABLE));
             if (!cJSON_IsNumber(node)) {
@@ -202,7 +225,7 @@ param_default_converter(const struct param_spec *ps, const cJSON *node, void *va
                 CLOG_ERR("Value of %s must be a whole number", ps->ps_name);
                 return false;
             }
-            if (to_conv < (double)INT8_MIN || to_conv > (double)INT8_MAX) {
+            if (to_conv < INT8_MIN || to_conv > INT8_MAX) {
                 CLOG_ERR(
                     "Value of %s must be greater than or equal to %d and less than or equal to %d",
                     ps->ps_name,
@@ -224,7 +247,7 @@ param_default_converter(const struct param_spec *ps, const cJSON *node, void *va
                 CLOG_ERR("Value of %s must be a whole number", ps->ps_name);
                 return false;
             }
-            if (to_conv < (double)INT16_MIN || to_conv > (double)INT16_MAX) {
+            if (to_conv < INT16_MIN || to_conv > INT16_MAX) {
                 CLOG_ERR(
                     "Value of %s must be greater than or equal to %d and less than or equal to %d",
                     ps->ps_name,
@@ -246,7 +269,7 @@ param_default_converter(const struct param_spec *ps, const cJSON *node, void *va
                 CLOG_ERR("Value of %s must be a whole number", ps->ps_name);
                 return false;
             }
-            if (to_conv < (double)INT32_MIN || to_conv > (double)INT32_MAX) {
+            if (to_conv < INT32_MIN || to_conv > INT32_MAX) {
                 CLOG_ERR(
                     "Value of %s must be greater than or equal to %d and less than or equal to %d",
                     ps->ps_name,
@@ -268,7 +291,7 @@ param_default_converter(const struct param_spec *ps, const cJSON *node, void *va
                 CLOG_ERR("%s must be a whole number", ps->ps_name);
                 return false;
             }
-            if (to_conv < (double)INT64_MIN || to_conv > (double)INT64_MAX) {
+            if (to_conv < INT64_MIN || to_conv > (double)INT64_MAX) {
                 CLOG_ERR(
                     "Value of %s must be greater than or equal to %ld and less than or equal to "
                     "%ld",
@@ -291,7 +314,7 @@ param_default_converter(const struct param_spec *ps, const cJSON *node, void *va
                 CLOG_ERR("Value of %s must be a number", ps->ps_name);
                 return false;
             }
-            if (to_conv < 0 || to_conv > (double)UINT8_MAX) {
+            if (to_conv < 0 || to_conv > UINT8_MAX) {
                 CLOG_ERR(
                     "Value of %s must be greater than or equal to 0 and less than or equal to %u",
                     ps->ps_name,
@@ -312,7 +335,7 @@ param_default_converter(const struct param_spec *ps, const cJSON *node, void *va
                 CLOG_ERR("Value of %s must be a whole number", ps->ps_name);
                 return false;
             }
-            if (to_conv < 0 || to_conv > (double)UINT16_MAX) {
+            if (to_conv < 0 || to_conv > UINT16_MAX) {
                 CLOG_ERR(
                     "Value of %s must be greater than or equal to 0 and less than or equal to %u",
                     ps->ps_name,
@@ -333,7 +356,7 @@ param_default_converter(const struct param_spec *ps, const cJSON *node, void *va
                 CLOG_ERR("Value of %s must be a whole number", ps->ps_name);
                 return false;
             }
-            if (to_conv < 0 || to_conv > (double)UINT32_MAX) {
+            if (to_conv < 0 || to_conv > UINT32_MAX) {
                 CLOG_ERR(
                     "Value of %s must be greater than or equal to 0 and less than or equal to %u",
                     ps->ps_name,
@@ -384,7 +407,7 @@ param_default_converter(const struct param_spec *ps, const cJSON *node, void *va
                     ps->ps_bounds.as_enum.ps_max);
                 return false;
             }
-            *(uint32_t *)value = (uint32_t)to_conv;
+            *(int *)value = (int)to_conv;
             break;
         case PARAM_TYPE_STRING:
             if (cJSON_IsNull(node)) {
@@ -408,7 +431,6 @@ param_default_converter(const struct param_spec *ps, const cJSON *node, void *va
         /* No default converter for array and object types */
         case PARAM_TYPE_ARRAY:
         case PARAM_TYPE_OBJECT:
-        default:
             abort();
     }
 
@@ -456,6 +478,7 @@ param_default_stringify(
         case PARAM_TYPE_U64:
             n = snprintf(buf, buf_sz, "%lu", *(uint64_t *)value);
             break;
+        case PARAM_TYPE_INT:
         case PARAM_TYPE_ENUM:
             n = snprintf(buf, buf_sz, "%d", *(int *)value);
             break;
@@ -504,6 +527,7 @@ param_default_jsonify(const struct param_spec *const ps, const void *const value
             return cJSON_CreateNumber(*(uint32_t *)value);
         case PARAM_TYPE_U64:
             return cJSON_CreateNumber(*(uint64_t *)value);
+        case PARAM_TYPE_INT:
         case PARAM_TYPE_ENUM:
             return cJSON_CreateNumber(*(int *)value);
         case PARAM_TYPE_STRING:
@@ -558,8 +582,19 @@ param_default_validator(const struct param_spec *ps, const void *value)
         case PARAM_TYPE_BOOL:
             /* no bounds to check for boolean values */
             return true;
+        case PARAM_TYPE_INT: {
+            const int tmp = *(int *)value;
+            if (tmp >= ps->ps_bounds.as_scalar.ps_min && tmp <= ps->ps_bounds.as_scalar.ps_max)
+                return true;
+            CLOG_ERR(
+                "Value of %s must be greater than or equal to %ld and less than or equal to %ld",
+                ps->ps_name,
+                ps->ps_bounds.as_scalar.ps_min,
+                ps->ps_bounds.as_scalar.ps_max);
+            break;
+        }
         case PARAM_TYPE_I8: {
-            const int8_t tmp = *((int8_t *)value);
+            const int8_t tmp = *(int8_t *)value;
             if (tmp >= ps->ps_bounds.as_scalar.ps_min && tmp <= ps->ps_bounds.as_scalar.ps_max)
                 return true;
             CLOG_ERR(
@@ -570,7 +605,7 @@ param_default_validator(const struct param_spec *ps, const void *value)
             break;
         }
         case PARAM_TYPE_I16: {
-            const int16_t tmp = *((int16_t *)value);
+            const int16_t tmp = *(int16_t *)value;
             if (tmp >= ps->ps_bounds.as_scalar.ps_min && tmp <= ps->ps_bounds.as_scalar.ps_max)
                 return true;
             CLOG_ERR(
@@ -581,7 +616,7 @@ param_default_validator(const struct param_spec *ps, const void *value)
             break;
         }
         case PARAM_TYPE_I32: {
-            const int32_t tmp = *((int32_t *)value);
+            const int32_t tmp = *(int32_t *)value;
             if (tmp >= ps->ps_bounds.as_scalar.ps_min && tmp <= ps->ps_bounds.as_scalar.ps_max)
                 return true;
             CLOG_ERR(
@@ -592,7 +627,7 @@ param_default_validator(const struct param_spec *ps, const void *value)
             break;
         }
         case PARAM_TYPE_I64: {
-            const int32_t tmp = *((int32_t *)value);
+            const int32_t tmp = *(int32_t *)value;
             if (tmp >= ps->ps_bounds.as_scalar.ps_min && tmp <= ps->ps_bounds.as_scalar.ps_max)
                 return true;
             CLOG_ERR(
@@ -603,7 +638,7 @@ param_default_validator(const struct param_spec *ps, const void *value)
             break;
         }
         case PARAM_TYPE_U8: {
-            const uint8_t tmp = *((uint8_t *)value);
+            const uint8_t tmp = *(uint8_t *)value;
             if (tmp >= ps->ps_bounds.as_uscalar.ps_min && tmp <= ps->ps_bounds.as_uscalar.ps_max)
                 return true;
             CLOG_ERR(
@@ -614,7 +649,7 @@ param_default_validator(const struct param_spec *ps, const void *value)
             break;
         }
         case PARAM_TYPE_U16: {
-            const uint16_t tmp = *((uint16_t *)value);
+            const uint16_t tmp = *(uint16_t *)value;
             if (tmp >= ps->ps_bounds.as_uscalar.ps_min && tmp <= ps->ps_bounds.as_uscalar.ps_max)
                 return true;
             CLOG_ERR(
@@ -625,7 +660,7 @@ param_default_validator(const struct param_spec *ps, const void *value)
             break;
         }
         case PARAM_TYPE_U32: {
-            const uint32_t tmp = *((uint32_t *)value);
+            const uint32_t tmp = *(uint32_t *)value;
             if (tmp >= ps->ps_bounds.as_uscalar.ps_min && tmp <= ps->ps_bounds.as_uscalar.ps_max)
                 return true;
             CLOG_ERR(
@@ -636,7 +671,7 @@ param_default_validator(const struct param_spec *ps, const void *value)
             break;
         }
         case PARAM_TYPE_U64: {
-            const uint64_t tmp = *((uint64_t *)value);
+            const uint64_t tmp = *(uint64_t *)value;
             if (tmp >= ps->ps_bounds.as_uscalar.ps_min && tmp <= ps->ps_bounds.as_uscalar.ps_max)
                 return true;
             CLOG_ERR(
@@ -647,7 +682,7 @@ param_default_validator(const struct param_spec *ps, const void *value)
             break;
         }
         case PARAM_TYPE_ENUM: {
-            const uint32_t tmp = *((uint32_t *)value);
+            const int tmp = *(int *)value;
             if (tmp >= ps->ps_bounds.as_enum.ps_min && tmp <= ps->ps_bounds.as_enum.ps_max)
                 return true;
             CLOG_ERR(
@@ -706,8 +741,17 @@ param_default_validator(const struct param_spec *ps, const void *value)
         }                                                                                         \
                                                                                                   \
         switch (ps->ps_type) {                                                                    \
+            case PARAM_TYPE_INT:                                                                  \
+                if (tmp < INT_MIN || tmp > INT_MAX) {                                             \
+                    CLOG_ERR(                                                                     \
+                        "Number of bytes of %s is not within the bounds of a integer",            \
+                        ps->ps_name);                                                             \
+                    return false;                                                                 \
+                }                                                                                 \
+                *(int *)value = (int)tmp;                                                         \
+                break;                                                                            \
             case PARAM_TYPE_I8:                                                                   \
-                if (tmp < (double)INT8_MIN || tmp > (double)INT8_MAX) {                           \
+                if (tmp < INT8_MIN || tmp > INT8_MAX) {                                           \
                     CLOG_ERR(                                                                     \
                         "Number of bytes of %s is not within the bounds of a signed 8-bit "       \
                         "integer",                                                                \
@@ -717,7 +761,7 @@ param_default_validator(const struct param_spec *ps, const void *value)
                 *(int8_t *)value = (int8_t)tmp;                                                   \
                 break;                                                                            \
             case PARAM_TYPE_I16:                                                                  \
-                if (tmp < (double)INT16_MIN || tmp > (double)INT16_MAX) {                         \
+                if (tmp < INT16_MIN || tmp > INT16_MAX) {                                         \
                     CLOG_ERR(                                                                     \
                         "Number of bytes of %s is not within the bounds of a signed 16-bit "      \
                         "integer",                                                                \
@@ -727,7 +771,7 @@ param_default_validator(const struct param_spec *ps, const void *value)
                 *(int16_t *)value = (int16_t)tmp;                                                 \
                 break;                                                                            \
             case PARAM_TYPE_I32:                                                                  \
-                if (tmp < (double)INT32_MIN || tmp > (double)INT32_MAX) {                         \
+                if (tmp < INT32_MIN || tmp > INT32_MAX) {                                         \
                     CLOG_ERR(                                                                     \
                         "Number of bytes of %s is not within the bounds of a signed 32-bit "      \
                         "integer",                                                                \
@@ -737,7 +781,7 @@ param_default_validator(const struct param_spec *ps, const void *value)
                 *(int32_t *)value = (int32_t)tmp;                                                 \
                 break;                                                                            \
             case PARAM_TYPE_I64:                                                                  \
-                if (tmp < (double)INT64_MIN || tmp > (double)INT64_MAX) {                         \
+                if (tmp < INT64_MIN || tmp > (double)INT64_MAX) {                                 \
                     CLOG_ERR(                                                                     \
                         "Number of bytes of %s is not within the bounds of a signed 64-bit "      \
                         "integer",                                                                \
@@ -757,7 +801,7 @@ param_default_validator(const struct param_spec *ps, const void *value)
                 *(uint8_t *)value = (uint8_t)tmp;                                                 \
                 break;                                                                            \
             case PARAM_TYPE_U16:                                                                  \
-                if (tmp < 0 || tmp > (double)UINT16_MAX) {                                        \
+                if (tmp < 0 || tmp > UINT16_MAX) {                                                \
                     CLOG_ERR(                                                                     \
                         "Number of bytes of %s is not within the bounds of an unsigned 16-bit "   \
                         "integer",                                                                \
@@ -767,7 +811,7 @@ param_default_validator(const struct param_spec *ps, const void *value)
                 *(uint16_t *)value = (uint16_t)tmp;                                               \
                 break;                                                                            \
             case PARAM_TYPE_U32:                                                                  \
-                if (tmp < 0 || tmp > (double)UINT32_MAX) {                                        \
+                if (tmp < 0 || tmp > UINT32_MAX) {                                                \
                     CLOG_ERR(                                                                     \
                         "Number of bytes of %s is not within the bounds of an unsigned 8=32-bit " \
                         "integer",                                                                \
@@ -811,6 +855,9 @@ STORAGE_CONVERTER(TB)
         int n;                                                                      \
                                                                                     \
         switch (ps->ps_type) {                                                      \
+            case PARAM_TYPE_INT:                                                    \
+                n = snprintf(buf, buf_sz, "%ld", *(int *)value / (int64_t)X);       \
+                break;                                                              \
             case PARAM_TYPE_I8:                                                     \
                 n = snprintf(buf, buf_sz, "%ld", *(int8_t *)value / (int64_t)X);    \
                 break;                                                              \
@@ -858,6 +905,8 @@ STORAGE_STRINGIFY(TB)
     cJSON *param_jsonify_bytes_to_##X(const struct param_spec *const ps, const void *const value) \
     {                                                                                             \
         switch (ps->ps_type) {                                                                    \
+            case PARAM_TYPE_INT:                                                                  \
+                return cJSON_CreateNumber(*(int *)value / (double)X);                             \
             case PARAM_TYPE_I8:                                                                   \
                 return cJSON_CreateNumber(*(int8_t *)value / (double)X);                          \
             case PARAM_TYPE_I16:                                                                  \

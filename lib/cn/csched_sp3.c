@@ -412,65 +412,36 @@ sp3_log_progress(struct cn_compaction_work *w, struct cn_merge_stats *ms, bool f
     vblk_read_efficiency =
         safe_div(1.0 * ms->ms_val_bytes_out, ms->ms_vblk_read1.op_size + ms->ms_vblk_read2.op_size);
 
-    /* [HSE_REVISIT] I think this exceeds the maximum number of arguments
-     * per function call specified by the C spec (127), right?
-     */
-    slog_info(
-        SLOG_START("cn_comp_stats"),
-        SLOG_FIELD("type", "%s", msg_type),
-        SLOG_FIELD("job", "%u", w->cw_job.sj_id),
-        SLOG_FIELD("comp", "%s", cn_action2str(w->cw_action)),
-        SLOG_FIELD("rule", "%s", cn_rule2str(w->cw_rule)),
-        SLOG_FIELD("cnid", "%lu", w->cw_tree->cnid),
-        SLOG_FIELD("nodeid", "%lu", w->cw_node->tn_nodeid),
-        SLOG_FIELD("leaf", "%u", (uint)cn_node_isleaf(w->cw_node)),
-        SLOG_FIELD("pct", "%3.1f", 100 * progress),
-        SLOG_FIELD("vrd_eff", "%.3f", vblk_read_efficiency),
-
-        SLOG_FIELD("kblk_alloc_ops", "%ld", ms->ms_kblk_alloc.op_cnt),
-        SLOG_FIELD("kblk_alloc_sz", "%ld", ms->ms_kblk_alloc.op_size),
-        SLOG_FIELD("kblk_alloc_ns", "%ld", ms->ms_kblk_alloc.op_time),
-
-        SLOG_FIELD("kblk_write_ops", "%ld", ms->ms_kblk_write.op_cnt),
-        SLOG_FIELD("kblk_write_sz", "%ld", ms->ms_kblk_write.op_size),
-        SLOG_FIELD("kblk_write_ns", "%ld", ms->ms_kblk_write.op_time),
-
-        SLOG_FIELD("vblk_alloc_ops", "%ld", ms->ms_vblk_alloc.op_cnt),
-        SLOG_FIELD("vblk_alloc_sz", "%ld", ms->ms_vblk_alloc.op_size),
-        SLOG_FIELD("vblk_alloc_ns", "%ld", ms->ms_vblk_alloc.op_time),
-
-        SLOG_FIELD("vblk_write_ops", "%ld", ms->ms_vblk_write.op_cnt),
-        SLOG_FIELD("vblk_write_sz", "%ld", ms->ms_vblk_write.op_size),
-        SLOG_FIELD("vblk_write_ns", "%ld", ms->ms_vblk_write.op_time),
-
-        SLOG_FIELD("vblk_read1_ops", "%ld", ms->ms_vblk_read1.op_cnt),
-        SLOG_FIELD("vblk_read1_sz", "%ld", ms->ms_vblk_read1.op_size),
-        SLOG_FIELD("vblk_read1_ns", "%ld", ms->ms_vblk_read1.op_time),
-
-        SLOG_FIELD("vblk_read1wait_ops", "%ld", ms->ms_vblk_read1_wait.op_cnt),
-        SLOG_FIELD("vblk_read1wait_ns", "%ld", ms->ms_vblk_read1_wait.op_time),
-
-        SLOG_FIELD("vblk_read2_ops", "%ld", ms->ms_vblk_read2.op_cnt),
-        SLOG_FIELD("vblk_read2_sz", "%ld", ms->ms_vblk_read2.op_size),
-        SLOG_FIELD("vblk_read2_ns", "%ld", ms->ms_vblk_read2.op_time),
-
-        SLOG_FIELD("vblk_read2wait_ops", "%ld", ms->ms_vblk_read2_wait.op_cnt),
-        SLOG_FIELD("vblk_read2wait_ns", "%ld", ms->ms_vblk_read2_wait.op_time),
-
-        SLOG_FIELD("kblk_read_ops", "%ld", ms->ms_kblk_read.op_cnt),
-        SLOG_FIELD("kblk_read_sz", "%ld", ms->ms_kblk_read.op_size),
-        SLOG_FIELD("kblk_read_ns", "%ld", ms->ms_kblk_read.op_time),
-
-        SLOG_FIELD("kblk_readwait_ops", "%ld", ms->ms_kblk_read_wait.op_cnt),
-        SLOG_FIELD("kblk_readwait_ns", "%ld", ms->ms_kblk_read_wait.op_time),
-
-        SLOG_FIELD("vblk_dbl_reads", "%ld", ms->ms_vblk_wasted_reads),
-
-        SLOG_FIELD("queue_us", "%lu", qt),
-        SLOG_FIELD("prep_us", "%lu", pt),
-        SLOG_FIELD("build_us", "%lu", bt),
-        SLOG_FIELD("commit_us", "%lu", ct),
-        SLOG_END);
+    log_info(
+        "type=%s job=%u comp=%s rule=%s "
+        "cnid=%lu nodeid=%lu leaf=%u pct=%3.1f "
+        "vrd_eff=%.3f "
+        "kblk_alloc_ops=%ld kblk_alloc_sz=%ld "
+        "kblk_alloc_ns=%ld kblk_write_ops=%ld kblk_write_sz=%ld "
+        "kblk_write_ns=%ld vblk_alloc_ops=%ld vblk_alloc_sz=%ld "
+        "vblk_alloc_ns=%ld vblk_write_ops=%ld vblk_write_sz=%ld "
+        "vblk_write_ns=%ld vblk_read1_ops=%ld vblk_read1_sz=%ld "
+        "vblk_read1_ns=%ld vblk_read1wait_ops=%ld vblk_read1wait_ns=%ld "
+        "vblk_read2_ops=%ld vblk_read2_sz=%ld vblk_read2_ns=%ld "
+        "vblk_read2wait_ops=%ld vblk_read2wait_ns=%ld "
+        "kblk_write_ops=%ld kblk_write_sz=%ld kblk_write_ns=%ld "
+        "kblk_readwait_ops=%ld kblk_readwait_ns=%ld "
+        "vblk_dbl_reads=%ld "
+        "queue_us=%lu prep_us=%lu build_us=%lu commit_us=%lu",
+        msg_type, w->cw_job.sj_id, cn_action2str(w->cw_action), cn_rule2str(w->cw_rule),
+        w->cw_tree->cnid, w->cw_node->tn_nodeid, (uint)cn_node_isleaf(w->cw_node), 100 * progress,
+        vblk_read_efficiency,
+        ms->ms_kblk_alloc.op_cnt, ms->ms_kblk_alloc.op_size,
+        ms->ms_kblk_alloc.op_time, ms->ms_kblk_write.op_cnt, ms->ms_kblk_write.op_size,
+        ms->ms_kblk_write.op_time, ms->ms_vblk_alloc.op_cnt, ms->ms_vblk_alloc.op_size,
+        ms->ms_vblk_alloc.op_time, ms->ms_vblk_write.op_cnt, ms->ms_vblk_write.op_size,
+        ms->ms_vblk_write.op_time, ms->ms_vblk_read1.op_cnt, ms->ms_vblk_read1.op_size,
+        ms->ms_vblk_read1.op_time, ms->ms_vblk_read1_wait.op_cnt, ms->ms_vblk_read1_wait.op_time,
+        ms->ms_vblk_read2.op_cnt, ms->ms_vblk_read2.op_size, ms->ms_vblk_read2.op_time,
+        ms->ms_vblk_read2_wait.op_cnt, ms->ms_vblk_read2_wait.op_time,
+        ms->ms_kblk_read.op_cnt, ms->ms_kblk_read.op_size, ms->ms_kblk_read.op_time,
+        ms->ms_kblk_read_wait.op_cnt, ms->ms_kblk_read_wait.op_time,
+        ms->ms_vblk_wasted_reads, qt, pt, bt, ct);
 }
 
 static void
@@ -1020,19 +991,15 @@ sp3_dirty_node_locked(struct sp3 *sp, struct cn_tree_node *tn)
     }
 
     if (debug_dirty_node(sp)) {
-        slog_info(
-            SLOG_START("cn_dirty_node"),
-            SLOG_FIELD("cnid", "%lu", (ulong)tn->tn_tree->cnid),
-            SLOG_FIELD("nodeid", "%-2lu", (ulong)tn->tn_nodeid),
-            SLOG_FIELD("kvsets", "%-2lu", (ulong)nkvsets_total),
-            SLOG_FIELD("keys", "%lu", (ulong)cn_ns_keys(&tn->tn_ns)),
-            SLOG_FIELD("uniq", "%lu", (ulong)cn_ns_keys_uniq(&tn->tn_ns)),
-            SLOG_FIELD("tombs", "%lu", (ulong)cn_ns_tombs(&tn->tn_ns)),
-            SLOG_FIELD("alen", "%lu", (ulong)cn_ns_alen(&tn->tn_ns)),
-            SLOG_FIELD("clen", "%lu", (ulong)cn_ns_clen(&tn->tn_ns)),
-            SLOG_FIELD("garbage", "%u", garbage),
-            SLOG_FIELD("scatter", "%u", scatter),
-            SLOG_END);
+        log_info(
+            "cnid=%lu nodeid=%-2lu kvsets=%-2lu "
+            "keys=%lu uniq=%lu tombs=%lu "
+            "alen=%lu clen=%lu "
+            "garbage=%u scatter=%u",
+            tn->tn_tree->cnid, tn->tn_nodeid, nkvsets_total,
+            cn_ns_keys(&tn->tn_ns), cn_ns_keys_uniq(&tn->tn_ns), cn_ns_tombs(&tn->tn_ns),
+            cn_ns_alen(&tn->tn_ns), cn_ns_clen(&tn->tn_ns),
+            garbage, scatter);
     }
 }
 
@@ -1547,31 +1514,21 @@ sp3_submit(struct sp3 *sp, struct cn_compaction_work *w, uint qnum)
     sts_job_submit(sp->sts, &w->cw_job);
 
     if (debug_sched(sp) || (w->cw_debug & CW_DEBUG_START)) {
-
         const struct cn_node_stats *ns = &w->cw_ns;
-        ulong hll_pct = cn_ns_keys(ns) ? ((100 * ns->ns_keys_uniq) / cn_ns_keys(ns)) : 0;
-        uint busycnt = atomic_read(&w->cw_node->tn_busycnt) >> 16;
+        const ulong hll_pct = cn_ns_keys(ns) ? ((100 * ns->ns_keys_uniq) / cn_ns_keys(ns)) : 0;
+        const uint busycnt = atomic_read(&w->cw_node->tn_busycnt) >> 16;
 
-        slog_info(
-            SLOG_START("cn_comp_start"),
-            SLOG_FIELD("job", "%u", w->cw_job.sj_id),
-            SLOG_FIELD("jcnt", "%u", spt->spt_job_cnt),
-            SLOG_FIELD("bcnt", "%u", busycnt),
-            SLOG_FIELD("qnum", "%u", w->cw_qnum),
-            SLOG_FIELD("reduce", "%d", sp->samp_reduce),
-            SLOG_FIELD("cnid", "%lu", w->cw_tree->cnid),
-            SLOG_FIELD("comp", "%s", cn_action2str(w->cw_action)),
-            SLOG_FIELD("rule", "%s", cn_rule2str(w->cw_rule)),
-            SLOG_FIELD("nodeid", "%lu", w->cw_node->tn_nodeid),
-            SLOG_FIELD("c_nk", "%u", w->cw_nk),
-            SLOG_FIELD("c_nv", "%u", w->cw_nv),
-            SLOG_FIELD("c_kvsets", "%u", w->cw_kvset_cnt),
-            SLOG_FIELD("nd_kvsets", "%lu", (ulong)cn_ns_kvsets(ns)),
-            SLOG_FIELD("nd_keys", "%lu", (ulong)cn_ns_keys(ns)),
-            SLOG_FIELD("nd_hll%%", "%lu", hll_pct),
-            SLOG_FIELD("nd_clen_mb", "%lu", (ulong)cn_ns_clen(ns) >> MB_SHIFT),
-            SLOG_FIELD("samp", "%u", cn_ns_samp(ns)),
-            SLOG_END);
+        log_info(
+            "job=%u jcnt=%u bcnt=%u qnum=%u reduce=%d "
+            "cnid=%lu comp=%s rule=%s nodeid=%lu "
+            "c_nk=%u c_nv=%u c_kvsets=%u "
+            "nd_kvsets=%u nd_keys=%lu nd_hll%%=%lu nd_clen_mb=%lu "
+            "samp=%u",
+            w->cw_job.sj_id, spt->spt_job_cnt, busycnt, w->cw_qnum, sp->samp_reduce,
+            w->cw_tree->cnid, cn_action2str(w->cw_action), cn_rule2str(w->cw_rule), w->cw_node->tn_nodeid,
+            w->cw_nk, w->cw_nv, w->cw_kvset_cnt,
+            cn_ns_kvsets(ns), cn_ns_keys(ns), hll_pct, cn_ns_clen(ns) >> MB_SHIFT,
+            cn_ns_samp(ns));
     }
 }
 
@@ -1647,20 +1604,10 @@ sp3_rb_dump(struct sp3 *sp, uint tx, uint count_max)
         spn = (void *)(rbe - tx);
         tn = spn2tn(spn);
 
-        slog_info(
-            SLOG_START("cn_rbt"),
-            SLOG_FIELD("rbt", "%u", tx),
-            SLOG_FIELD("item", "%u", count),
-            SLOG_FIELD("weight", "%lx", (ulong)rbe->rbe_weight),
-            SLOG_FIELD("cnid", "%lu", (ulong)tn->tn_tree->cnid),
-            SLOG_FIELD("nodeid", "%lu", (ulong)tn->tn_nodeid),
-            SLOG_FIELD("leaf", "%u", (uint)cn_node_isleaf(tn)),
-            SLOG_FIELD("len", "%ld", (long)cn_ns_kvsets(&tn->tn_ns)),
-            SLOG_FIELD("ialen_b", "%ld", (long)tn->tn_samp.i_alen),
-            SLOG_FIELD("lalen_b", "%ld", (long)tn->tn_samp.l_alen),
-            SLOG_FIELD("lgood_b", "%ld", (long)tn->tn_samp.l_good),
-            SLOG_FIELD("lgarb_b", "%ld", (long)(tn->tn_samp.l_alen - tn->tn_samp.l_good)),
-            SLOG_END);
+        log_info("cn_rbt rbt=%u item=%u weight=%lx cnid=%lu nodeid=%lu len=%u ialen_b=%ld "
+            "lalen_b=%ld lgood_b=%ld lgarb_b=%ld", tx, count, rbe->rbe_weight,
+            tn->tn_tree->cnid, tn->tn_nodeid, cn_ns_kvsets(&tn->tn_ns), tn->tn_samp.i_alen,
+            tn->tn_samp.l_alen, tn->tn_samp.l_good, tn->tn_samp.l_alen - tn->tn_samp.l_good);
 
         if (count++ == count_max)
             break;
@@ -1679,19 +1626,12 @@ sp3_tree_shape_log(const struct cn_tree_node *tn, bool bad, const char *category
     ns = &tn->tn_ns;
     hll_pct = cn_ns_keys(ns) ? ((100 * ns->ns_keys_uniq) / cn_ns_keys(ns)) : 0;
 
-    slog_info(
-        SLOG_START("cn_tree_shape"),
-        SLOG_FIELD("type", "%s", category),
-        SLOG_FIELD("status", "%s", bad ? "bad" : "good"),
-        SLOG_FIELD("cnid", "%lu", (ulong)tn->tn_tree->cnid),
-        SLOG_FIELD("nodeid", "%lu", (ulong)tn->tn_nodeid),
-        SLOG_FIELD("nd_kvsets", "%lu", (ulong)cn_ns_kvsets(ns)),
-        SLOG_FIELD("nd_alen_mb", "%lu", (ulong)cn_ns_alen(ns) >> MB_SHIFT),
-        SLOG_FIELD("nd_wlen_mb", "%lu", (ulong)cn_ns_alen(ns) >> MB_SHIFT),
-        SLOG_FIELD("nd_clen_mb", "%lu", (ulong)cn_ns_clen(ns) >> MB_SHIFT),
-        SLOG_FIELD("nd_hll%%", "%lu", hll_pct),
-        SLOG_FIELD("nd_samp", "%u", cn_ns_samp(ns)),
-        SLOG_END);
+    log_info("type=%s status=%s cnid=%lu nodeid=%lu "
+        "nd_kvsets=%u nd_alen_mb=%lu nd_wlen_mb=%lu "
+        "nd_clen_mb=%lu nd_hll%%=%lu nd_samp=%u",
+        category, bad ? "bad" : "good", tn->tn_tree->cnid, tn->tn_nodeid,
+        cn_ns_kvsets(ns), cn_ns_alen(ns) >> MB_SHIFT, cn_ns_wlen(ns) >> MB_SHIFT,
+        cn_ns_clen(ns) >> MB_SHIFT, hll_pct, cn_ns_samp(ns));
 }
 
 /**
@@ -1928,14 +1868,11 @@ sp3_qos_check(struct sp3 *sp)
     if (debug_qos(sp) && jclock_ns > sp->qos_log_ttl) {
         sp->qos_log_ttl = jclock_ns + NSEC_PER_SEC;
 
-        slog_info(
-            SLOG_START("cn_qos_sensors"),
-            SLOG_FIELD("root_sensor", "%lu", sval),
-            SLOG_FIELD("root_maxlen", "%u", rootmax),
-            SLOG_FIELD("samp_curr", "%.3f", scale2dbl(sp->samp_curr)),
-            SLOG_FIELD("samp_targ", "%.3f", scale2dbl(sp->samp_targ)),
-            SLOG_FIELD("lpct_targ", "%.3f", scale2dbl(sp->lpct_targ)),
-            SLOG_END);
+        log_info(
+            "root_sensor=%lu root_maxlen=%u "
+            "samp_curr=%.3f samp_targ=%.3f lpct_targ=%.3f",
+            sval, rootmax,
+            scale2dbl(sp->samp_curr), scale2dbl(sp->samp_targ), scale2dbl(sp->lpct_targ));
     }
 }
 
@@ -2158,7 +2095,7 @@ sp3_monitor(struct work_struct *work)
         err = kvdb_health_check(sp->health, KVDB_HEALTH_FLAG_ALL);
         if (ev(err)) {
             if (!bad_health)
-                log_errx("KVDB %s is in bad health; @@e", err, sp->name);
+                log_errx("KVDB %s is in bad health", err, sp->name);
 
             bad_health = true;
         }

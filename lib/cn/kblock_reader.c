@@ -12,7 +12,7 @@
 #include <hse_util/compiler.h>
 #include <hse_util/arch.h>
 #include <hse_util/bloom_filter.h>
-#include <hse_util/logging.h>
+#include <logging/logging.h>
 
 #include <hse_ikvdb/kvs_rparams.h>
 #include <hse_ikvdb/tuple.h>

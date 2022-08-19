@@ -7,7 +7,7 @@
 #include <mock/alloc_tester.h>
 
 #include <error/merr.h>
-#include <hse_util/logging.h>
+#include <logging/logging.h>
 
 #include <hse/limits.h>
 

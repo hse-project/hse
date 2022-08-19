@@ -200,7 +200,7 @@ tbkt_rate_get(struct tbkt *self)
  */
 
 #if HSE_TBKT_DEBUG
-#include <hse_util/logging.h>
+#include <logging/logging.h>
 
 struct tstats {
     ulong calls;

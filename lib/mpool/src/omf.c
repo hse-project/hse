@@ -5,7 +5,7 @@
 
 #include <crc32c.h>
 #include <error/merr.h>
-#include <hse_util/logging.h>
+#include <logging/logging.h>
 #include <hse_util/page.h>
 
 #include "omf.h"

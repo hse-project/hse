@@ -13,7 +13,7 @@
 #include <error/merr.h>
 #include <hse_util/assert.h>
 #include <hse_util/keycmp.h>
-#include <hse_util/logging.h>
+#include <logging/logging.h>
 #include <hse_util/list.h>
 
 #include <hse_ikvdb/kvset_view.h>
@@ -651,17 +651,13 @@ cn_split_node_stats_dump(
 
     ns = &node->tn_ns;
 
-    slog_info(
-            SLOG_START("split"),
-            SLOG_FIELD("job", "%u", sts_job_id_get(&w->cw_job)),
-            SLOG_FIELD("cnid", "%lu", w->cw_tree->cnid),
-            SLOG_FIELD("nodeid", "%lu", node->tn_nodeid),
-            SLOG_FIELD("node", "%s", pos),
-            SLOG_FIELD("kvsets", "%u", cn_ns_kvsets(ns)),
-            SLOG_FIELD("keys", "%lu", cn_ns_keys(ns)),
-            SLOG_FIELD("hblks", "%u", cn_ns_hblks(ns)),
-            SLOG_FIELD("kblks", "%u", cn_ns_kblks(ns)),
-            SLOG_FIELD("vblks", "%u", cn_ns_vblks(ns)),
-            SLOG_FIELD("alen", "%lu", cn_ns_alen(ns)),
-            SLOG_END);
+    log_info(
+        "job=%u cnid=%lu nodeid=%lu node=%s "
+        "kvsets=%u keys=%lu "
+        "hblks=%u kblks=%u vblks=%u "
+        "alen=%lu",
+        sts_job_id_get(&w->cw_job), w->cw_tree->cnid, node->tn_nodeid, pos,
+        cn_ns_kvsets(ns), cn_ns_keys(ns),
+        cn_ns_hblks(ns), cn_ns_kblks(ns), cn_ns_vblks(ns),
+        cn_ns_alen(ns));
 }

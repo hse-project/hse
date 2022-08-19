@@ -1,1 +1,1 @@
-pidfile_sources = files('pidfile.c')
+hse_pidfile_sources = files('pidfile.c')

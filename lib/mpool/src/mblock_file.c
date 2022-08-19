@@ -9,7 +9,7 @@
 #include <hse_util/assert.h>
 #include <hse_util/mutex.h>
 #include <hse_util/slab.h>
-#include <hse_util/logging.h>
+#include <logging/logging.h>
 #include <hse_util/event_counter.h>
 #include <hse_util/minmax.h>
 #include <hse_util/log2.h>

@@ -7,7 +7,7 @@
 
 #include <hse_util/platform.h>
 #include <hse_util/page.h>
-#include <hse_util/logging.h>
+#include <logging/logging.h>
 #include <hse_util/slab.h>
 #include <hse_util/list.h>
 #include <hse_util/condvar.h>

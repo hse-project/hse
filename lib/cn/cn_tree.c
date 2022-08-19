@@ -17,7 +17,7 @@
 #include <hse_util/mman.h>
 #include <hse_util/list.h>
 #include <hse_util/mutex.h>
-#include <hse_util/logging.h>
+#include <logging/logging.h>
 #include <hse_util/assert.h>
 #include <hse_util/parse_num.h>
 #include <hse_util/atomic.h>
@@ -1812,7 +1812,7 @@ cn_comp_cleanup(struct cn_compaction_work *w)
         if (!w->cw_canceled)
             log_errx("compaction error sts/job %u action %s rule %s"
                      " cnid %lu nodeid %lu dgenlo %lu dgenhi %lu wedge %d"
-                     " build_ms %lu: @@e",
+                     " build_ms %lu",
                      w->cw_err,
                      sts_job_id_get(&w->cw_job),
                      cn_action2str(w->cw_action),

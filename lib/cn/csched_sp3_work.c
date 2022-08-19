@@ -7,7 +7,7 @@
 
 #include <hse_util/platform.h>
 #include <hse_util/slab.h>
-#include <hse_util/logging.h>
+#include <logging/logging.h>
 
 #include <hse_ikvdb/cn.h>
 #include <hse_ikvdb/kvdb_rparams.h>

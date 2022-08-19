@@ -15,7 +15,7 @@
 #include <hse_util/seqno.h>
 #include <hse_util/xrand.h>
 #include <hse_util/keycmp.h>
-#include <hse_util/logging.h>
+#include <logging/logging.h>
 
 #include <hse_ikvdb/ikvdb.h>
 #include <hse_ikvdb/lc.h>
@@ -539,7 +539,7 @@ c0kvms_cursor_create(
     err = bin_heap2_create(
         HSE_C0_INGEST_WIDTH_MAX, reverse ? bn_kv_cmp_rev : bn_kv_cmp, &cur->c0mc_bh);
     if (ev(err)) {
-        log_errx("bin_heap2_create failed: @@e", err);
+        log_errx("bin_heap2_create failed", err);
         return err;
     }
 

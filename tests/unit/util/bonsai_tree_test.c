@@ -7,7 +7,7 @@
 #include <error/merr.h>
 #include <hse_util/cursor_heap.h>
 #include <hse_util/atomic.h>
-#include <hse_util/logging.h>
+#include <logging/logging.h>
 #include <hse_util/xrand.h>
 #include <hse_util/keycmp.h>
 #include <hse_util/seqno.h>
@@ -402,7 +402,7 @@ bonsai_client_producer(void *arg)
         }
 
         if (err) {
-            log_errx("bn_insert %u/%u result @@e", err, i, key_current);
+            log_errx("bn_insert %u/%u result", err, i, key_current);
             break;
         }
     }
@@ -474,7 +474,7 @@ bonsai_client_lcp_test(void *arg)
         key[KI_DLEN_MAX + 26] = 'a';
 
         if (err) {
-            log_errx("lcp_test bn_insert %u result @@e", err, i);
+            log_errx("lcp_test bn_insert %u result", err, i);
             assert(!err);
         }
     }
@@ -801,7 +801,7 @@ bonsai_client_singlethread_test(enum bonsai_alloc_mode allocm)
 
     err = bn_create(cheap, bonsai_client_insert_callback, NULL, &broot);
     if (err) {
-        log_errx("Bonsai tree create failed: @@e", err);
+        log_errx("Bonsai tree create failed", err);
         return err;
     }
 
@@ -816,7 +816,7 @@ bonsai_client_singlethread_test(enum bonsai_alloc_mode allocm)
             rcu_read_unlock();
 
             if (err) {
-                log_errx("Inserting %ld result %d: @@e", err, a[i], merr_errno(err));
+                log_errx("Inserting %ld result %d", err, a[i], merr_errno(err));
                 assert(merr_errno(err) != EEXIST);
                 break;
             }

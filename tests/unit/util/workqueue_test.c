@@ -7,7 +7,7 @@
 
 #include <hse_util/platform.h>
 #include <hse_util/workqueue.h>
-#include <hse_util/logging.h>
+#include <logging/logging.h>
 
 int verbose = 0;
 

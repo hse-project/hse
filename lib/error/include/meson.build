@@ -1,1 +1,1 @@
-error_includes = include_directories('.')
+hse_error_includes = include_directories('.')

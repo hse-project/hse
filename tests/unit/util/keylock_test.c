@@ -8,7 +8,7 @@
 
 #include <error/merr.h>
 #include <hse_util/xrand.h>
-#include <hse_util/logging.h>
+#include <logging/logging.h>
 #include <hse_util/keylock.h>
 
 int

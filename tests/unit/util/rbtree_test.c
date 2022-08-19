@@ -8,7 +8,7 @@
 #include <hse_util/xrand.h>
 
 #include <hse_util/inttypes.h>
-#include <hse_util/logging.h>
+#include <logging/logging.h>
 
 #include <mtf/framework.h>
 

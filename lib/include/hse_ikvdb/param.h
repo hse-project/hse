@@ -64,6 +64,7 @@ typedef cJSON *(*param_jsonify_t)(const struct param_spec *, const void *);
 
 enum param_type {
     PARAM_TYPE_BOOL,
+    PARAM_TYPE_INT,
     PARAM_TYPE_I8,
     PARAM_TYPE_I16,
     PARAM_TYPE_I32,

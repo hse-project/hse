@@ -6,7 +6,7 @@
 #include <crc32c.h>
 #include <bsd/string.h>
 
-#include <hse_util/logging.h>
+#include <logging/logging.h>
 #include <hse_util/event_counter.h>
 #include <hse_util/page.h>
 

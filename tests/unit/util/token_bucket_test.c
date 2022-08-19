@@ -7,7 +7,7 @@
 #include <mock/api.h>
 #include <mock/alloc_tester.h>
 
-#include <hse_util/logging.h>
+#include <logging/logging.h>
 #include <hse_util/timer.h>
 #include <hse_util/minmax.h>
 #include <hse_util/token_bucket.h>
