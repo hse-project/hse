@@ -1901,32 +1901,108 @@ cn_comp_cleanup(struct cn_compaction_work *w)
     }
 }
 
-static merr_t
-cn_comp_spill(struct cn_compaction_work *w)
+merr_t
+cn_subspill_commit(struct subspill *ss)
 {
-    struct subspill subspill[CN_FANOUT_MAX] = {0};
-    struct spillctx *spillctx;
-    struct cn_tree *tree = w->cw_tree;
-    struct route_node *rtn = 0;
-    uint cnum;
+    struct kvset *kvset = 0;
+    void *cookie = 0;
     merr_t err;
+    struct cndb_txn *tx;
+    struct kvset_meta km;
+    struct kvset_mblocks *mblks = &ss->ss_mblks;
+    struct cn_compaction_work *w = ss->w;
+    struct cndb *cndb = w->cw_tree->cndb;
 
-    err = cn_spill_init(w, &spillctx);
+    if (!ss->added)
+        return 0;
+
+    if (!mblks->hblk.bk_blkid) {
+        assert(mblks->kblks.n_blks == 0);
+        return 0;
+    }
+
+    err = cndb_record_txstart(cndb, 0, CNDB_INVAL_INGESTID, CNDB_INVAL_HORIZON, 1, 0, &tx);
     if (err)
         return err;
 
-    cnum = 0;
+    cn_subspill_kvset_meta_get(ss, &km);
+
+    /* CNDB: Log kvset add records.
+     */
+    err = cndb_record_kvset_add(cndb, tx, w->cw_tree->cnid, km.km_nodeid,
+                                &km, ss->kvsetid, km.km_hblk.bk_blkid,
+                                mblks->kblks.n_blks, (uint64_t *)mblks->kblks.blks,
+                                mblks->vblks.n_blks, (uint64_t *)mblks->vblks.blks, &cookie);
+    if (err)
+        goto done;
+
+    err = cn_mblocks_commit(w->cw_mp, 1, mblks, CN_MUT_OTHER);
+    if (err)
+        goto done;
+
+    err = kvset_open(w->cw_tree, ss->kvsetid, &km, &kvset);
+    if (err)
+        goto done;
+
+    /* CNDB: Ack kvset add record.
+     */
+    err = cndb_record_kvset_add_ack(cndb, tx, cookie);
+    if (err)
+        goto done;
+
+    cn_comp_kvset_append(w, ss->node, kvset);
+
+done:
+    w->cw_t4_commit = get_time_ns();
+
+    if (err) {
+        cndb_record_nak(cndb, tx);
+        kvset_put_ref(kvset);
+    }
+
+    return err;
+}
+
+static merr_t
+cn_node_apply_mutation(struct subspill *ss)
+{
+    struct cn_compaction_work *w = ss->w;
+    merr_t err;
+
+    err = cn_subspill_commit(ss);
+    if (err)
+        return err;
+
+    if (ss->added) {
+        w->cw_output_nodev[0] = ss->node;
+        w->cw_checkpoint(w);
+    }
+
+    return 0;
+}
+
+static merr_t
+cn_comp_spill(struct cn_compaction_work *w)
+{
+    struct subspill *ss, subspill[CN_FANOUT_MAX];
+    struct spillctx *sctx;
+    struct cn_tree *tree = w->cw_tree;
+    struct route_node *rtn = 0;
+    uint cnum = 0;
+    merr_t err;
+
+    err = cn_spill_init(w, &sctx);
+    if (err)
+        return err;
+
     while (!err) {
         struct cn_tree_node *node;
         void *lock;
         struct kvset_list_entry *le;
-        uint64_t node_dgen = 0;
+        uint64_t node_dgen;
         unsigned char ekey[HSE_KVS_KEY_LEN_MAX];
         uint eklen;
 
-        // TODO Gaurav: Might have to think about this in this PR.
-        /* [HSE_REVISIT] How will the tree rmlock coexist with the leaf tokens?
-         */
         rmlock_rlock(&tree->ct_lock, &lock);
 
         rtn = rtn ? route_node_next(rtn) : route_map_first_node(tree->ct_route_map);
@@ -1937,45 +2013,40 @@ cn_comp_spill(struct cn_compaction_work *w)
 
         node = route_node_tnode(rtn);
         le = list_first_entry_or_null(&node->tn_kvset_list, typeof(*le), le_link);
-        if (le)
-            node_dgen = kvset_get_dgen(le->le_kvset);
+        node_dgen = le ? kvset_get_dgen(le->le_kvset) : 0;
 
         route_node_keycpy(rtn, ekey, sizeof(ekey), &eklen);
         rmlock_runlock(lock);
 
-        err = cn_subspill(spillctx, &subspill[cnum], node, node_dgen, ekey, eklen);
+        ss = &subspill[cnum];
+
+        err = cn_subspill(sctx, ss, node, node_dgen, ekey, eklen);
         if (err)
             break;
 
-        cn_subspill_enqueue(&subspill[cnum], node);
-        {
-            struct subspill *s;
-            uint nprocessed = 0;
+        if (ss->ss_sgen == atomic_read(&node->tn_sgen) + 1) {
+            err = cn_node_apply_mutation(ss);
+            if (err)
+                break;
 
-            while ((s = cn_node_first_subspill(node))) {
-                err = cn_subspill_commit(s);
-                if (err)
-                    break;
+            atomic_inc(&node->tn_sgen);
+        } else {
+            cn_subspill_enqueue(ss, node);
+        }
 
-                if (s->added) {
-                    // TODO Gaurav: Get rid of this ugliness, change the callback if necessary
-                    w->cw_output_nodev[0] = s->node;
-                    w->cw_checkpoint(w);
-                }
+        /* Apply mutations to node. */
+        while ((ss = cn_node_first_subspill(node))) {
+            err = cn_node_apply_mutation(ss);
+            if (err)
+                break;
 
-                atomic_inc(&node->tn_sgen);
-                ++nprocessed;
-            }
-
-            if (nprocessed > 1)
-                log_err("gsr nprocessed %u", nprocessed);
-
+            atomic_inc(&node->tn_sgen);
         }
 
         ++cnum;
     }
 
-    cn_spill_fini(spillctx);
+    cn_spill_fini(sctx);
     w->cw_t3_build = get_time_ns();
 
     if (err && merr_errno(err) != ESHUTDOWN)

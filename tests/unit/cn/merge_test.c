@@ -1237,7 +1237,7 @@ run_testcase(struct mtf_test_info *lcl_ti, int mode, const char *info)
         w.cw_action = CN_ACTION_SPILL;
         w.cw_cp = &cp;
 
-        struct subspill subspill = {0};
+        struct subspill subspill;
         struct spillctx *sctx;
         unsigned char ekey[HSE_KVS_KEY_LEN_MAX];
         uint eklen = 0;

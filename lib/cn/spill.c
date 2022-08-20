@@ -30,7 +30,6 @@
 #include "cn_tree.h"
 #include "cn_tree_internal.h"
 #include "cn_tree_compact.h"
-#include "cn_mblocks.h"
 #include "kvset.h"
 #include "cn_metrics.h"
 #include "kv_iterator.h"
@@ -203,21 +202,21 @@ get_direct_read_buf(uint len, bool aligned_voff, u32 *bufsz, void **buf)
 
 struct spillctx {
     struct cn_compaction_work *work;
-    uint64_t sgen;
+    uint64_t                   sgen;
 
     /* Merge Loop */
-    struct bin_heap *bh;
-    bool more;
+    struct bin_heap  *bh;
+    bool              more;
     struct merge_item curr;
 
     /* Ptomb */
     struct key_obj pt_kobj;
-    u64 pt_seq; /* [HSE_REVISIT]: Maintain a list of seqnos for pt_kobj, not just one.  */
-    bool pt_set;
+    u64            pt_seq; /* [HSE_REVISIT]: Need a list of seqnos to carry all ptombs across leaves. */
+    bool           pt_set;
 };
 
 merr_t
-cn_spill_init(struct cn_compaction_work *w, struct spillctx **ctx_out)
+cn_spill_init(struct cn_compaction_work *w, struct spillctx **sctx_out)
 {
     struct spillctx *s;
     merr_t err;
@@ -236,7 +235,7 @@ cn_spill_init(struct cn_compaction_work *w, struct spillctx **ctx_out)
     s->sgen = w->cw_sgen;
     s->more = get_next_item(s->bh, w->cw_inputv, &s->curr, &w->cw_stats, &err);
 
-    *ctx_out = s;
+    *sctx_out = s;
     return 0;
 }
 
@@ -250,7 +249,7 @@ cn_spill_fini(struct spillctx *sctx)
     free(sctx);
 }
 
-static void
+void
 cn_subspill_kvset_meta_get(struct subspill *ss, struct kvset_meta *km)
 {
     struct cn_compaction_work *w = ss->w;
@@ -356,6 +355,8 @@ cn_subspill(
 
     assert(w->cw_kvset_cnt);
     assert(w->cw_inputv);
+
+    memset(ss, 0, sizeof(*ss));
 
     ss->ss_sgen = w->cw_sgen;
 
@@ -609,69 +610,6 @@ cn_comp_kvset_append(
     struct cn_compaction_work *work,
     struct cn_tree_node       *node,
     struct kvset              *kvset);
-
-merr_t
-cn_subspill_commit(struct subspill *ss)
-{
-    struct kvset *kvset = 0;
-    void *cookie = 0;
-    merr_t err;
-    struct cndb_txn *tx;
-    struct kvset_meta km;
-    struct kvset_mblocks *mblks = &ss->ss_mblks;
-    struct cn_compaction_work *w = ss->w;
-    struct cndb *cndb = w->cw_tree->cndb;
-
-    if (!ss->added)
-        return 0;
-
-    if (!mblks->hblk.bk_blkid) {
-        assert(mblks->kblks.n_blks == 0);
-        return 0;
-    }
-
-    err = cndb_record_txstart(cndb, 0, CNDB_INVAL_INGESTID, CNDB_INVAL_HORIZON, 1, 0, &tx);
-    if (err)
-        return err;
-
-    cn_subspill_kvset_meta_get(ss, &km);
-
-    /* CNDB: Log kvset add records.
-     */
-    err = cndb_record_kvset_add(cndb, tx, w->cw_tree->cnid, km.km_nodeid,
-                                &km, ss->kvsetid, km.km_hblk.bk_blkid,
-                                mblks->kblks.n_blks, (uint64_t *)mblks->kblks.blks,
-                                mblks->vblks.n_blks, (uint64_t *)mblks->vblks.blks, &cookie);
-    if (err)
-        goto done;
-
-    err = cn_mblocks_commit(w->cw_mp, 1, mblks, CN_MUT_OTHER);
-    if (err)
-        goto done;
-
-    err = kvset_open(w->cw_tree, ss->kvsetid, &km, &kvset);
-    if (err)
-        goto done;
-
-    /* CNDB: Ack kvset add record.
-     */
-    err = cndb_record_kvset_add_ack(cndb, tx, cookie);
-    if (err)
-        goto done;
-
-    cn_comp_kvset_append(w, ss->node, kvset);
-
-done:
-    w->cw_t4_commit = get_time_ns();
-
-    if (err) {
-        cndb_record_nak(cndb, tx);
-        kvset_put_ref(kvset);
-    }
-
-    w->cw_err = w->cw_err ?: err;
-    return w->cw_err;
-}
 
 // TODO Gaurav: Move this to a separate file, or rename file
 merr_t
