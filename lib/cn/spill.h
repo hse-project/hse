@@ -85,8 +85,8 @@ cn_subspill_commit(struct subspill *ss);
 merr_t
 cn_kvcompact(struct cn_compaction_work *w);
 
-uint64_t
-cn_node_sgen_get(struct cn_tree_node *tn);
+struct subspill *
+cn_node_first_subspill(struct cn_tree_node *tn);
 
 #if HSE_MOCKING
 #include "spill_ut.h"

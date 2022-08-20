@@ -1920,7 +1920,7 @@ cn_comp_spill(struct cn_compaction_work *w)
         struct cn_tree_node *node;
         void *lock;
         struct kvset_list_entry *le;
-        uint64_t first_sgen, node_dgen = 0;
+        uint64_t node_dgen = 0;
         unsigned char ekey[HSE_KVS_KEY_LEN_MAX];
         uint eklen;
 
@@ -1945,21 +1945,31 @@ cn_comp_spill(struct cn_compaction_work *w)
 
         err = cn_subspill(spillctx, &subspill[cnum], node, node_dgen, ekey, eklen);
         if (err)
-            break;;
+            break;
 
         cn_subspill_enqueue(&subspill[cnum], node);
-        first_sgen = cn_node_sgen_get(node);
-        while (first_sgen == atomic_read(&node->tn_sgen) + 1) {
-            err = cn_subspill_commit(&subspill[cnum]);
-            if (err)
-                break;
+        {
+            struct subspill *s;
+            uint nprocessed = 0;
 
-            list_del(&subspill[cnum].ss_link);
-            if (subspill[cnum].added)
-                w->cw_checkpoint(w);
-            atomic_inc(&node->tn_sgen);
+            while ((s = cn_node_first_subspill(node))) {
+                err = cn_subspill_commit(s);
+                if (err)
+                    break;
 
-            first_sgen = cn_node_sgen_get(node);
+                if (s->added) {
+                    // TODO Gaurav: Get rid of this ugliness, change the callback if necessary
+                    w->cw_output_nodev[0] = s->node;
+                    w->cw_checkpoint(w);
+                }
+
+                atomic_inc(&node->tn_sgen);
+                ++nprocessed;
+            }
+
+            if (nprocessed > 1)
+                log_err("gsr nprocessed %u", nprocessed);
+
         }
 
         ++cnum;
@@ -1973,10 +1983,8 @@ cn_comp_spill(struct cn_compaction_work *w)
 
     /* Serialize the deletion of input kvsets.
      */
-    if (!err && cn_node_spill_wait(w, w->cw_node))
+    if (!err && cn_node_spill_wait(w, w->cw_tree->ct_root))
         cn_input_kvsets_delete(w);
-
-    cn_node_spill_broadcast(w->cw_node);
 
     return err;
 }

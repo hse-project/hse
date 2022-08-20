@@ -232,6 +232,7 @@ cn_spill_init(struct cn_compaction_work *w, struct spillctx **ctx_out)
         return err;
     }
 
+    s->work = w;
     s->sgen = w->cw_sgen;
     s->more = get_next_item(s->bh, w->cw_inputv, &s->curr, &w->cw_stats, &err);
 
@@ -300,18 +301,23 @@ cn_subspill_sgen_get(struct subspill *ss)
 }
 
 // TODO Gaurav: Move to cn_tree_node or wherever
-uint64_t
-cn_node_sgen_get(struct cn_tree_node *tn)
+struct subspill *
+cn_node_first_subspill(struct cn_tree_node *tn)
 {
     struct subspill *entry;
-    uint64_t sgen;
+    bool found = false;
 
     mutex_lock(&tn->tn_mut_lock);
+
     entry = list_first_entry_or_null(&tn->tn_mut_list, typeof(*entry), ss_link);
-    sgen = entry ? cn_subspill_sgen_get(entry) : 0;
+    if (entry && entry->ss_sgen == atomic_read(&tn->tn_sgen) + 1) {
+        list_del(&entry->ss_link);
+        found = true;
+    }
+
     mutex_unlock(&tn->tn_mut_lock);
 
-    return sgen;
+    return found ? entry : NULL;
 }
 
 merr_t
@@ -365,6 +371,7 @@ cn_subspill(
     direct_read_len -= PAGE_SIZE;
 
     ss->added = false;
+    ss->w = w;
 
     if (!sctx->more || key_obj_cmp(&sctx->curr.kobj, &ekobj) > 0) {
         if (!sctx->pt_set)
@@ -684,8 +691,8 @@ cn_kvcompact(struct cn_compaction_work *w)
     bool emitted_val = false, bg_val = false;
 
     struct key_obj pt_kobj;
-    u64 pt_seq;
-    bool pt_set;
+    u64 pt_seq = 0;
+    bool pt_set = false;
 
     u64  tstart, tprog = 0;
     u64  dbg_prev_seq = 0;
@@ -717,6 +724,7 @@ cn_kvcompact(struct cn_compaction_work *w)
 
     w->cw_kvsetidv[0] = cndb_kvsetid_mint(cn_tree_get_cndb(w->cw_tree));
 
+    // TODO Gaurav: destroy binheap
     err = get_kvset_builder(w, 0, &bldr);
     if (err)
         return err;
@@ -726,6 +734,8 @@ cn_kvcompact(struct cn_compaction_work *w)
     new_key = true;
 
     tstart = perfc_ison(w->cw_pc, PERFC_DI_CNCOMP_VGET) ? 1 : 0;
+
+    more = get_next_item(bh, w->cw_inputv, &curr, &w->cw_stats, &err);
 
     while (more) {
 
