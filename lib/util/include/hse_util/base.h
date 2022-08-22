@@ -1,6 +1,6 @@
 /* SPDX-License-Identifier: Apache-2.0 */
 /*
- * Copyright (C) 2015-2021 Micron Technology, Inc.  All rights reserved.
+ * Copyright (C) 2015-2022 Micron Technology, Inc.  All rights reserved.
  */
 
 #ifndef HSE_PLATFORM_BASE_H
@@ -45,13 +45,6 @@
         (type *)((char *)_p - offsetof(type, member)); \
     })
 
-/* clang-format off */
-
-#define HSE_NAME "Heterogeneous-memory Storage Engine"
-
-#define STR_SAFE(_str)  ((_str) ?: "")
-#define NELEM(_arr)     (sizeof(_arr) / sizeof((_arr)[0]))
-
-/* clang-format on */
+#define NELEM(_arr) (sizeof(_arr) / sizeof((_arr)[0]))
 
 #endif
