@@ -462,8 +462,7 @@ sp3_work_wtype_length(
             if (wlen < VBLOCK_MAX_SIZE) {
                 *action = CN_ACTION_COMPACT_KV;
                 *rule = CN_RULE_LENGTH_WLEN;
-            }
-            else if (vwlen < VBLOCK_MAX_SIZE) {
+            } else if (vwlen < VBLOCK_MAX_SIZE) {
                 *action = CN_ACTION_COMPACT_KV;
                 *rule = CN_RULE_LENGTH_VWLEN;
             }

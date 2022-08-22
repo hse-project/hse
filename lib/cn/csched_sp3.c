@@ -1798,7 +1798,7 @@ sp3_qos_check(struct sp3 *sp)
 {
     struct cn_tree *tree;
     uint64_t rspill_dt_max;
-    int rootmin, rootmax;
+    uint32_t rootmin, rootmax;
     uint64_t sval;
 
     if (!sp->throttle_sensor_root)
@@ -1811,7 +1811,7 @@ sp3_qos_check(struct sp3 *sp)
 
     list_for_each_entry(tree, &sp->mon_tlist, ct_sched.sp3t.spt_tlink) {
         const struct kvs_rparams *rp = cn_tree_get_rp(tree);
-        int split_cnt, nk;
+        uint32_t split_cnt, nk;
 
         if (rp->cn_maint_disable)
             continue;
@@ -1871,9 +1871,9 @@ sp3_qos_check(struct sp3 *sp)
         sp->qos_log_ttl = jclock_ns + NSEC_PER_SEC;
 
         log_info(
-            "root_sensor=%lu root_maxlen=%u "
+            "root_sensor=%lu rootmax=%u rspill_dt_max=%lu "
             "samp_curr=%.3f samp_targ=%.3f lpct_targ=%.3f",
-            sval, rootmax,
+            sval, rootmax, rspill_dt_max,
             scale2dbl(sp->samp_curr), scale2dbl(sp->samp_targ), scale2dbl(sp->lpct_targ));
     }
 }
