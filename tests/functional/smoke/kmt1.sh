@@ -20,10 +20,10 @@ kvs3=$(kvs_create smoke-2)
 kvs4=$(kvs_create smoke-3)
 
 cmd kmt -i "$recmax" -t10 -c -j"$jobs" -w50 "$home" "$kvs1"
-cmd kmt -t10 -cD -j"$jobs" -w50 "$home" "$kvs1" kvs-oparms cn_verify=true
+cmd kmt -t10 -cD -j"$jobs" -w50 "$home" "$kvs1" kvs-oparms
 
 # test ingest + cn
-cmd kmt -i3m -t15 -cD -bl0 -j"$jobs" -w50 "$home" "$kvs2" kvs-oparms cn_verify=true kvdb-oparms c0_debug=1
+cmd kmt -i3m -t15 -cD -bl0 -j"$jobs" -w50 "$home" "$kvs2" kvs-oparms kvdb-oparms c0_debug=1
 
 # hammer on c0 update
 cmd kmt -i448 -t15 -cD -j"$jobs" -w50 -b "$home" "$kvs3" kvdb-oparms c0_debug=1

@@ -570,9 +570,6 @@ kvset_open2(
 
     assert(ks->ks_kvsetid != 0);
 
-    if (rp->cn_verify)
-        kc_kvset_check(mp, cp, km, tree);
-
     /* map single hblock */
     err = mpool_mcache_mmap(mp, 1, &km->km_hblk.bk_blkid, &ks->ks_hmap);
     if (ev(err))

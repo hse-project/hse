@@ -539,47 +539,6 @@ kvset_maxkey(struct kvset *ks, const void **maxkey, u16 *maxklen);
 void
 kvset_minkey(struct kvset *ks, const void **minkey, u16 *minklen);
 
-/*-  kvset checker  ---------------------------------------------------------*/
-
-struct vb_meta;
-
-typedef void
-print_cb(char *, ...);
-
-/**
- * kc_print_reg() - register a print function for kvset and kblock checkers
- * @verbose:    verbose or not
- * @print_func: callback function to be registered. If null, the registered
- *              callback function remains unchanged.
- *
- * If no function is registered, the default print function is used - which
- * prints to hse_log.
- */
-void
-kc_print_reg(bool verbose, print_cb print_func);
-
-struct vb_meta *
-kc_vblock_meta(struct mpool *ds, struct blk_list *list);
-
-/**
- * kc_kblock_check() - Verify correctness of a kblock's contents and its nodeloc
- * @ds:          handle to the kvdb dataset
- * @kblkid:      kblock id
- * @vb_meta:     vblock list and properties.
- */
-merr_t
-kc_kblock_check(struct mpool *ds, u64 kblkid, struct vb_meta *vb_meta);
-
-/**
- * kc_kvset_check() - Verify correctness of a kvset
- * @ds:     handle to the kvdb dataset
- * @cp:     kvs create-time params
- * @meta:   kvset_meta data
- * @tree:   cn tree ptr
- */
-merr_t
-kc_kvset_check(struct mpool *ds, struct kvs_cparams *cp, struct kvset_meta *meta, struct cn_tree *tree);
-
 /**
  * kvset_iter_next_val_direct() -  read value via direct io
  * @handle: handle to kv iterator

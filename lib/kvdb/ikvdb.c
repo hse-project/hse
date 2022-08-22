@@ -995,7 +995,6 @@ kvdb_kvslist(uint64_t cnid, struct kvs_cparams *cp, const char *name, void *ctx)
     return 0;
 }
 
-/* exposes kvs details to, e.g., kvck */
 merr_t
 ikvdb_diag_kvslist(struct ikvdb *handle, struct diag_kvdb_kvs_list *list, int len, int *kvscnt)
 {

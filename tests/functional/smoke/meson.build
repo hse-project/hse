@@ -222,7 +222,6 @@ tests = {
     'cursor_test2': {
         'suites': ['smoke'],
         'depends': [
-            tool_targets['kvck'],
             tool_targets['range_read'],
         ],
     },

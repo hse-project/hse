@@ -93,12 +93,6 @@ tools = {
             'parm_groups.c',
         ),
     },
-    'kvck': {
-        'sources': files(
-            'kvck/kvck.c',
-            'parm_groups.c',
-        ),
-    },
     'bnt': {
         'sources': files(
             'bnt/bnt.c',
