@@ -208,10 +208,6 @@ hse_platform_init(void)
 {
     merr_t err;
 
-    err = logging_init(&hse_gparams.gp_logging);
-    if (err)
-        return err;
-
     /* First log message w/ HSE version - after deserializing global params */
     log_info("version %s, program %s", HSE_VERSION_STRING, hse_progname);
 
@@ -219,12 +215,15 @@ hse_platform_init(void)
         log_err("compile-time PAGE_SIZE (%lu) != run-time getpagesize (%d)",
             PAGE_SIZE, getpagesize());
 
-        err = merr(EINVAL);
-        goto errout;
+        return merr(EINVAL);
     }
 
     dt_init();
     event_counter_init();
+
+    err = logging_init(&hse_gparams.gp_logging);
+    if (err)
+        return err;
 
     err = hse_cpu_init();
     if (err)
@@ -267,8 +266,8 @@ hse_platform_fini(void)
     vlb_fini();
     hse_timer_fini();
     hse_cgroup_fini();
-    dt_fini();
     logging_fini();
+    dt_fini();
 }
 
 #if HSE_MOCKING
