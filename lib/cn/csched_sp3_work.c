@@ -197,6 +197,9 @@ sp3_work_wtype_root(
         return 0;
 
     if (wlen < VBLOCK_MAX_SIZE) {
+        if (runlen < runlen_max)
+            return 0; /* defer tiny spills */
+
         *rule = CN_RULE_TSPILL; /* tiny root spill */
         return runlen;
     }
@@ -393,6 +396,7 @@ sp3_work_wtype_length(
         struct list_head *head;
         uint compc = UINT_MAX;
         size_t vwlen = 0;
+        size_t wlen = 0;
         uint runlen = 0;
 
         head = &tn->tn_kvset_list;
@@ -437,11 +441,13 @@ sp3_work_wtype_length(
                     *mark = le;
                     runlen = 0;
                     vwlen = 0;
+                    wlen = 0;
                 }
             }
 
             stats = kvset_statsp(le->le_kvset);
             vwlen += stats->kst_vwlen;
+            wlen += stats->kst_kwlen + stats->kst_vwlen;
 
             if (++runlen >= runlen_max)
                 break;
@@ -453,7 +459,10 @@ sp3_work_wtype_length(
          * keys (i.e., k-compact).
          */
         if (runlen >= runlen_min) {
-            if (vwlen < VBLOCK_MAX_SIZE) {
+            if (wlen < VBLOCK_MAX_SIZE) {
+                *action = CN_ACTION_COMPACT_KV;
+                *rule = CN_RULE_LENGTH_WLEN;
+            } else if (vwlen < VBLOCK_MAX_SIZE) {
                 *action = CN_ACTION_COMPACT_KV;
                 *rule = CN_RULE_LENGTH_VWLEN;
             }
@@ -476,13 +485,13 @@ sp3_work_wtype_length(
          * We address that here by looking for a run of kvsets with only
          * a small number of keys.
          */
-        if (kvsets > runlen_min + runlen_max) {
-            ulong keys_max = 32ul << 20;
+        if (kvsets > runlen_max) {
+            uint64_t keys_max = 32ul << 20;
 
-            *mark = list_last_entry(head, typeof(*le), le_link);
             *action = CN_ACTION_COMPACT_K;
-            *rule = CN_RULE_INDEXF;
+            *rule = CN_RULE_COMPC;
             runlen = 0;
+            vwlen = 0;
 
             list_for_each_entry(le, head, le_link) {
                 const struct kvset_stats *stats = kvset_statsp(le->le_kvset);
@@ -491,13 +500,15 @@ sp3_work_wtype_length(
                     break;
 
                 keys_max -= stats->kst_keys;
+                vwlen += stats->kst_vwlen;
+                *mark = le;
                 runlen++;
             }
 
             if (runlen > runlen_min) {
-                if (runlen < kvsets) {
-                    *rule = CN_RULE_INDEXP;
-                    *mark = le;
+                if (vwlen < VBLOCK_MAX_SIZE) {
+                    *action = CN_ACTION_COMPACT_KV;
+                    *rule = CN_RULE_INDEX;
                 }
 
                 return min_t(uint, runlen, runlen_max);
@@ -634,7 +645,7 @@ sp3_work(
         if ((atomic_read(&tn->tn_busycnt) >> 16) > 2)
             goto locked_nowork;
 
-        if (tn->tn_rspill_sync > 0) {
+        if (tn->tn_split_cnt > 0) {
             (*wp)->cw_resched = true;
             goto locked_nowork;
         }
@@ -658,16 +669,29 @@ sp3_work(
         if (action == CN_ACTION_SPLIT) {
             struct cn_tree_node *root = tree->ct_root;
 
-            /* If there are no splits pending and root spill is behind
-             * then wait for throttling to engage and root spill to catch
-             * up before requesting a split.
+            /* Set the resched flag to prevent the scheduler from dropping
+             * this request should we return "no work".
              */
-            if (root->tn_rspill_sync == 0 &&
-                cn_ns_kvsets(&root->tn_ns) > thresh->rspill_runlen_min * 3) {
+            (*wp)->cw_resched = true;
 
-                (*wp)->cw_resched = true;
-                ev_debug(1);
+            /* If there are no splits pending and root spill is behind
+             * then wait for it to catch up before requesting a split.
+             */
+            if (root->tn_split_cnt == 0 &&
+                cn_ns_kvsets(&root->tn_ns) > thresh->rspill_runlen_min * 3) {
                 goto locked_nowork;
+            }
+
+            /* Prevent this node from requesting a split if the batch limit
+             * has been reached or the delay from the last batch of splits
+             * is still in effect.
+             */
+            if (tn->tn_split_cnt == 0) {
+                if (root->tn_split_cnt >= thresh->split_cnt_max)
+                    goto locked_nowork;
+
+                if (get_time_ns() < root->tn_split_dly)
+                    goto locked_nowork;
             }
 
             /* Atomically increment the split/sync counters to prevent
@@ -676,15 +700,18 @@ sp3_work(
              * root jobs complete one or more split jobs will be able
              * to run with exclusive access to their respective nodes.
              */
-            if (tn->tn_rspill_sync++ == 0)
-                root->tn_rspill_sync++;
+            if (tn->tn_split_cnt++ == 0)
+                root->tn_split_cnt++;
 
-            if (atomic_read(&root->tn_busycnt) > 0) {
-                (*wp)->cw_resched = true;
+            if (atomic_read(&root->tn_busycnt) > 0)
                 goto locked_nowork;
-            }
+
+            /* Prevent new nodes from requesting a split until the current
+             * batch has completed and the batch delay timer has expired.
+             */
+            root->tn_split_dly = get_time_ns() + NSEC_PER_SEC * 10;
         } else {
-            if (tn->tn_rspill_sync > 0)
+            if (tn->tn_split_cnt > 0)
                 goto locked_nowork;
         }
         break;

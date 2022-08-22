@@ -226,8 +226,14 @@ tbkt_request(struct tbkt *self, u64 request, u64 *now)
 
     *now = get_time_ns();
 
-    if (HSE_UNLIKELY(!spin_trylock(&self->tb_lock)))
-        return 128;
+    /* On a busy system most attempts to acquire the lock
+     * will fail (esp. from non-local CPUs).  In that case
+     * we return half the current average delay.
+     *
+     * TODO: Make this algorithm NUMA friendly.
+     */
+    if (HSE_LIKELY(!spin_trylock(&self->tb_lock)))
+        return self->tb_delay / 2;
 
     /* Refill the bucket based on elapsed time. */
     tbkti_refill(self, *now);
@@ -240,13 +246,16 @@ tbkt_request(struct tbkt *self, u64 request, u64 *now)
     /* Make the withdrawal */
     self->tb_balance -= request;
 
-    /* Save rate and debt status for use after lock */
     rate = self->tb_rate;
     debt = tbkti_status(self, &amount);
 
+    if (debt) {
+        delay = amount * NSEC_PER_SEC / rate;
+        self->tb_delay = (self->tb_delay + delay) / 2;
+    } else {
+        self->tb_delay = delay = 0;
+    }
     spin_unlock(&self->tb_lock);
-
-    delay = debt ? amount * NSEC_PER_SEC / rate : 0;
 
 #if HSE_TBKT_DEBUG
     if (++tstats.updates % 1048576 == 0) {

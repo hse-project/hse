@@ -46,10 +46,11 @@ enum cn_rule {
     CN_RULE_ZSPILL,         /* zero writeamp root spill */
     CN_RULE_LENGTH_MIN,     /* length >= runlen_min, k-compact */
     CN_RULE_LENGTH_MAX,     /* length >= runlen_max, k-compact */
-    CN_RULE_LENGTH_VWLEN,   /* length >= runlen_min, tiny wlen, kv-compact */
+    CN_RULE_LENGTH_WLEN,    /* length >= runlen_min, tiny wlen, kv-compact */
+    CN_RULE_LENGTH_VWLEN,   /* length >= runlen_min, tiny vwlen, kv-compact */
     CN_RULE_LENGTH_CLEN,    /* length >= runlen_min, tiny clen, kv-compact */
-    CN_RULE_INDEXF,         /* short leaf, full index node compaction */
-    CN_RULE_INDEXP,         /* short leaf, partial index node compaction */
+    CN_RULE_INDEX,          /* length >= runlen_max, tiny vwlen, kvcompact */
+    CN_RULE_COMPC,          /* length >= runlen_max, heavily compacted */
     CN_RULE_IDLE_INDEX,     /* idle leaf, index node */
     CN_RULE_IDLE_SIZE,      /* idle leaf, tiny node */
     CN_RULE_IDLE_TOMB,      /* idle leaf, mostly tombs */
@@ -77,14 +78,16 @@ cn_rule2str(enum cn_rule rule)
         return "lenmin";
     case CN_RULE_LENGTH_MAX:
         return "lenmax";
+    case CN_RULE_LENGTH_WLEN:
+        return "wlen";
     case CN_RULE_LENGTH_VWLEN:
         return "vwlen";
     case CN_RULE_LENGTH_CLEN:
         return "clen";
-    case CN_RULE_INDEXF:
-        return "idxf";
-    case CN_RULE_INDEXP:
-        return "idxp";
+    case CN_RULE_INDEX:
+        return "index";
+    case CN_RULE_COMPC:
+        return "compc";
     case CN_RULE_IDLE_INDEX:
         return "idlidx";
     case CN_RULE_IDLE_SIZE:
@@ -111,7 +114,7 @@ cn_rule2str(enum cn_rule rule)
      (5ul << (8 * SP3_QNUM_LENGTH)) |             \
      (1ul << (8 * SP3_QNUM_GARBAGE)) |            \
      (1ul << (8 * SP3_QNUM_SCATTER)) |            \
-     (3ul << (8 * SP3_QNUM_SPLIT)) |              \
+     (5ul << (8 * SP3_QNUM_SPLIT)) |              \
      (2ul << (8 * SP3_QNUM_SHARED)))
 
 /* clang-format on */

@@ -136,7 +136,8 @@ struct cn_tree {
  * struct cn_tree_node - A node in a k-way cn_tree
  * @tn_compacting:   true if if an exclusive job is running on this node
  * @tn_busycnt:      count of jobs and kvsets being compacted/spilled
- * @tn_spillsync:    if non-zero only split or join jobs may be started
+ * @tn_split_cnt:    number of pending or running split jobs
+ * @tn_split_dly:    time at which a new batch of splits may be requested
  * @tn_destroy_work: used for async destroy
  * @tn_hlog:         hyperloglog structure
  * @tn_ns:           metrics about node to guide node compaction decisions
@@ -147,7 +148,8 @@ struct cn_tree {
 struct cn_tree_node {
     atomic_int           tn_compacting;
     atomic_uint          tn_busycnt;
-    atomic_uint          tn_rspill_sync;
+    atomic_uint          tn_split_cnt;
+    uint64_t             tn_split_dly;
 
     union {
         struct sp3_node  tn_sp3n;
