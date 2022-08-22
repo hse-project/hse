@@ -349,6 +349,8 @@ kvset_kblk_init(
     key_disc_init(p->kb_koff_max, p->kb_klen_max, &p->kb_kdisc_max);
     key_disc_init(p->kb_koff_min, p->kb_klen_min, &p->kb_kdisc_min);
 
+    p->kb_hlog = (uint8_t *)hdr + (omf_kbh_hlog_doff_pg(hdr) * PAGE_SIZE);
+
     /* Preload the wbtree nodes.
      */
     if (rp->cn_mcache_wbt > 0) {
@@ -678,7 +680,7 @@ kvset_open2(
              * to the kblock header in order to catch those
              * who might otherwise try to access it.
              */
-#ifndef NDEBUG
+#if defined(HSE_BUILD_DEBUG) && !defined(NDEBUG)
             mprotect(kb->kb_kblk_desc.map_base, PAGE_SIZE, PROT_NONE);
 #endif
         }

@@ -389,7 +389,7 @@ cn_lcur_advance(struct cn_level_cursor *lcur)
     if (lcur->cnlc_islast)
         return;
 
-    route_node_keycpy(rtn_ekey, &lcur->cnlc_next_ekey,
+    route_node_keycpy(rtn_ekey, lcur->cnlc_next_ekey,
                       sizeof(lcur->cnlc_next_ekey),
                       &lcur->cnlc_next_eklen);
 }

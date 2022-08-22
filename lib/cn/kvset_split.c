@@ -303,7 +303,6 @@ kblocks_split(
     struct kvset_mblocks *blks_right = result->ks[RIGHT].blks;
     bool overlap = false;
     uint32_t split_idx;
-    uint8_t *hlog;
     merr_t err;
 
     split_idx = get_kblk_split_index(ks, split_kobj, &overlap);
@@ -317,8 +316,7 @@ kblocks_split(
         if (err)
             return err;
 
-        kbr_read_hlog(&ks->ks_kblks[i].kb_kblk_desc, &hlog);
-        hlog_union(hlog_left, hlog);
+        hlog_union(hlog_left, ks->ks_kblks[i].kb_hlog);
         blks_left->bl_vused += ks->ks_kblks[i].kb_metrics.tot_vused_bytes;
     }
 
@@ -373,9 +371,8 @@ kblocks_split(
 
         /* TODO: Would it be accurate to use the left and right kblock's hlog here?
          */
-        kbr_read_hlog(&kblk->kb_kblk_desc, &hlog);
-        hlog_union(hlog_left, hlog);
-        hlog_union(hlog_right, hlog);
+        hlog_union(hlog_left, kblk->kb_hlog);
+        hlog_union(hlog_right, kblk->kb_hlog);
 
         /* Add the source kblock to the purge list to be destroyed later */
         err = blk_list_append(result->blks_purge, kblk->kb_kblk.bk_blkid);
@@ -392,8 +389,7 @@ kblocks_split(
         if (err)
             return err;
 
-        kbr_read_hlog(&ks->ks_kblks[i].kb_kblk_desc, &hlog);
-        hlog_union(hlog_right, hlog);
+        hlog_union(hlog_right, ks->ks_kblks[i].kb_hlog);
         blks_right->bl_vused += ks->ks_kblks[i].kb_metrics.tot_vused_bytes;
     }
 
