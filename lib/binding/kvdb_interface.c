@@ -115,9 +115,6 @@ hse_init(const char *const config, const size_t paramc, const char *const *const
         return err;
     }
 
-    /* First log message w/ HSE version - after deserializing global params */
-    log_info("%s: version %s, program %s", HSE_NAME, HSE_VERSION_STRING, hse_progname);
-
     err = config_from_hse_conf(config, &conf);
     if (err) {
         fprintf(stderr, "Failed to read HSE config file (%s)\n", config);
