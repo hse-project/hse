@@ -12,7 +12,7 @@
 #include <hse_util/mutex.h>
 #include <hse_util/log2.h>
 #include <hse_util/page.h>
-#include <error/merr.h>
+#include <hse/error/merr.h>
 #include <hse_util/event_counter.h>
 
 #define MTF_MOCK_IMPL_viewset

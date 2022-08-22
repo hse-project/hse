@@ -6,7 +6,7 @@
 #include <hse_util/platform.h>
 #include <hse_util/workqueue.h>
 #include <hse_util/spinlock.h>
-#include <logging/logging.h>
+#include <hse/logging/logging.h>
 #include <hse_util/timer.h>
 #include <hse_util/condvar.h>
 

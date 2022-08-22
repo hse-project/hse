@@ -6,7 +6,7 @@
 #include <hse_util/platform.h>
 #include <hse_util/inttypes.h>
 #include <hse_util/log2.h>
-#include <logging/logging.h>
+#include <hse/logging/logging.h>
 
 #include <mpool/mpool.h>
 

@@ -6,7 +6,7 @@
 #include <mtf/framework.h>
 
 #include <hse_util/slab.h>
-#include <error/merr.h>
+#include <hse/error/merr.h>
 
 #include <hse_util/yaml.h>
 

@@ -6,7 +6,7 @@
 #include <hse_util/platform.h>
 #include <hse_util/page.h>
 #include <hse_util/vlb.h>
-#include <logging/logging.h>
+#include <hse/logging/logging.h>
 #include <hse_util/xrand.h>
 #include <hse_util/slab.h>
 #include <hse_util/storage.h>

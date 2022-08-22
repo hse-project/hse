@@ -8,7 +8,7 @@
 
 #include <stdint.h>
 
-#include <error/merr.h>
+#include <hse/error/merr.h>
 #include <hse_ikvdb/omf_version.h>
 
 #include "mclass.h"

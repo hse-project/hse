@@ -8,7 +8,7 @@
 
 #include <hse_util/element_source.h>
 #include <hse_util/inttypes.h>
-#include <error/merr.h>
+#include <hse/error/merr.h>
 
 enum sample_es_mode {
     SES_LINEAR = 0,    /* linear sequence of u32 0 to N-1 */

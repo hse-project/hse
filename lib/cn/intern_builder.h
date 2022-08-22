@@ -6,7 +6,7 @@
 #ifndef HSE_KVS_INTERN_BUILDER_H
 #define HSE_KVS_INTERN_BUILDER_H
 
-#include <error/merr.h>
+#include <hse/error/merr.h>
 #include <hse_util/inttypes.h>
 
 struct wbb;

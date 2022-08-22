@@ -11,7 +11,7 @@
 #include <hse_util/minmax.h>
 #include <hse_util/mutex.h>
 
-#include <logging/logging.h>
+#include <hse/logging/logging.h>
 
 #ifdef HSE_REL_SRC_DIR
 #define SRC_FILE (__FILE__ + sizeof(HSE_REL_SRC_DIR) + 1)

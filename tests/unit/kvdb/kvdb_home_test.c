@@ -7,10 +7,10 @@
 #include <string.h>
 #include <sys/stat.h>
 
-#include <error/merr.h>
+#include <hse/error/merr.h>
 #include <hse_ikvdb/kvdb_home.h>
 #include <mtf/framework.h>
-#include <pidfile/pidfile.h>
+#include <hse/pidfile/pidfile.h>
 
 static const char *capdir = "capacity";
 static char cappath[PATH_MAX + 16];

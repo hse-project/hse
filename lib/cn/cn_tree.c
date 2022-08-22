@@ -17,7 +17,7 @@
 #include <hse_util/mman.h>
 #include <hse_util/list.h>
 #include <hse_util/mutex.h>
-#include <logging/logging.h>
+#include <hse/logging/logging.h>
 #include <hse_util/assert.h>
 #include <hse_util/parse_num.h>
 #include <hse_util/atomic.h>

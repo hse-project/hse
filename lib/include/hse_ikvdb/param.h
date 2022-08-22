@@ -15,7 +15,7 @@
 
 #include <cjson/cJSON.h>
 
-#include <error/merr.h>
+#include <hse/error/merr.h>
 
 /* PARAM_TYPE_ARRAY and PARAM_TYPE_OBJECT must have PARAM_FLAG_DEFAULT_BUILDER */
 #define PARAM_FLAG_DEVELOPER_ONLY  (1 << 1)

@@ -11,7 +11,7 @@
 #include <hse_util/arch.h>
 #include <hse_util/atomic.h>
 #include <hse_util/compiler.h>
-#include <error/merr.h>
+#include <hse/error/merr.h>
 
 #include <pthread.h>
 

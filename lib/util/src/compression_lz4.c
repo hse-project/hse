@@ -6,7 +6,7 @@
 #include <hse_util/assert.h>
 #include <hse_util/event_counter.h>
 #include <hse_util/compression_lz4.h>
-#include <logging/logging.h>
+#include <hse/logging/logging.h>
 
 #if LZ4_VERSION_NUMBER < (10000 + 900 + 2)
 #error "Need LZ4 1.9.2 or higher"

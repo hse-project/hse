@@ -6,7 +6,7 @@
 #ifndef MPOOL_IO_H
 #define MPOOL_IO_H
 
-#include <error/merr.h>
+#include <hse/error/merr.h>
 
 /**
  * struct io_ops - io operations to be implemented by different IO backends

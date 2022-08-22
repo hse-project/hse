@@ -7,7 +7,7 @@
 #include <mock/api.h>
 #include <mocks/mock_kvset_builder.h>
 
-#include <logging/logging.h>
+#include <hse/logging/logging.h>
 #include <hse_util/parse_num.h>
 
 #include <hse/limits.h>

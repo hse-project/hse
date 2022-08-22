@@ -5,9 +5,9 @@
 
 #include <stdint.h>
 
-#include <error/merr.h>
+#include <hse/error/merr.h>
 #include <hse_util/inttypes.h>
-#include <logging/logging.h>
+#include <hse/logging/logging.h>
 #include <hse_util/event_counter.h>
 #include <hse_util/page.h>
 #include <hse_util/slab.h>

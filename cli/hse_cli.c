@@ -23,7 +23,7 @@
 
 #include <hse_util/parse_num.h>
 #include <hse_util/yaml.h>
-#include <cli/param.h>
+#include <hse/cli/param.h>
 
 #include "cli_util.h"
 #include "storage_profile.h"

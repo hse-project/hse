@@ -7,7 +7,7 @@
 #define HSE_KVS_CN_BLK_LIST_H
 
 #include <hse_util/inttypes.h>
-#include <error/merr.h>
+#include <hse/error/merr.h>
 
 struct blk_list;
 struct kvs_block;

@@ -23,7 +23,7 @@
 #include <hse_ikvdb/omf_kmd.h>
 #include <hse_ikvdb/config.h>
 
-#include <cli/param.h>
+#include <hse/cli/param.h>
 
 #include <cn/omf.h>
 #include <cn/wbt_internal.h>

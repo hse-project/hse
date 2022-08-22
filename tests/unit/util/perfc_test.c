@@ -8,8 +8,8 @@
 #include <mtf/framework.h>
 
 #include <hse_util/inttypes.h>
-#include <error/merr.h>
-#include <logging/logging.h>
+#include <hse/error/merr.h>
+#include <hse/logging/logging.h>
 #include <hse_util/parse_num.h>
 #include <hse_util/data_tree.h>
 #include <hse_util/perfc.h>

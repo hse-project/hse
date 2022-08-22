@@ -5,7 +5,7 @@
 
 #include <mtf/framework.h>
 
-#include <logging/logging.h>
+#include <hse/logging/logging.h>
 #include <hse_util/bin_heap.h>
 #include <hse_util/keycmp.h>
 #include <hse_util/seqno.h>

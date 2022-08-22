@@ -7,7 +7,7 @@
 #define MPOOL_MDC_H
 
 #include <hse_util/mutex.h>
-#include <error/merr.h>
+#include <hse/error/merr.h>
 
 #define MDC_FILES_MAX        10
 #define MDC_NAME_LENGTH_MAX  128

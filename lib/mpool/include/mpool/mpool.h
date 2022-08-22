@@ -11,7 +11,7 @@
 
 #include <mpool/mpool_structs.h>
 
-#include <error/merr.h>
+#include <hse/error/merr.h>
 
 struct mpool;            /* opaque mpool handle */
 struct mpool_mdc;        /* opaque MDC (metadata container) handle */

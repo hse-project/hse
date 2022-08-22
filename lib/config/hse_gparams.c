@@ -12,7 +12,7 @@
 #include <cjson/cJSON.h>
 #include <bsd/string.h>
 
-#include <logging/logging.h>
+#include <hse/logging/logging.h>
 
 #include <hse_ikvdb/hse_gparams.h>
 #include <hse_ikvdb/param.h>

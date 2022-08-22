@@ -6,7 +6,7 @@
 #ifndef HSE_KVS_QCTX_H
 #define HSE_KVS_QCTX_H
 
-#include <error/merr.h>
+#include <hse/error/merr.h>
 
 #include <rbtree.h>
 

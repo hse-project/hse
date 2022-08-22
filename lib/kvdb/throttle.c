@@ -6,7 +6,7 @@
 #include <hse_util/minmax.h>
 #include <hse_util/assert.h>
 #include <hse_util/inttypes.h>
-#include <logging/logging.h>
+#include <hse/logging/logging.h>
 #include <hse_util/perfc.h>
 #include <hse_util/page.h>
 

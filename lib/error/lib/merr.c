@@ -5,7 +5,7 @@
 
 #include <hse_util/assert.h>
 #include <hse_util/page.h>
-#include <error/merr.h>
+#include <hse/error/merr.h>
 
 #include <assert.h>
 #include <ctype.h>

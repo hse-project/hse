@@ -6,7 +6,7 @@
 #include <hse_util/event_counter.h>
 #include <hse_util/assert.h>
 #include <hse_util/keycmp.h>
-#include <logging/logging.h>
+#include <hse/logging/logging.h>
 #include <hse_util/perfc.h>
 
 #include <hse/limits.h>

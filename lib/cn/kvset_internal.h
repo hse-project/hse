@@ -6,7 +6,7 @@
 #ifndef HSE_KVS_CN_KVSET_INTERNAL_H
 #define HSE_KVS_CN_KVSET_INTERNAL_H
 
-#include <error/merr.h>
+#include <hse/error/merr.h>
 #include <hse_util/inttypes.h>
 #include <hse_util/list.h>
 #include <hse_util/atomic.h>

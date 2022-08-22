@@ -7,7 +7,7 @@
 #include <mock/api.h>
 #include <mock/alloc_tester.h>
 
-#include <error/merr.h>
+#include <hse/error/merr.h>
 
 #include <hse_ikvdb/kvdb_rparams.h>
 #include <hse_ikvdb/kvs_rparams.h>

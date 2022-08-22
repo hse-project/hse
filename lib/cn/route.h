@@ -13,7 +13,7 @@ struct kvs_cparams;
 #include <hse_util/inttypes.h>
 #include <hse_util/minmax.h>
 #include <hse_util/keycmp.h>
-#include <error/merr.h>
+#include <hse/error/merr.h>
 
 #include <stdatomic.h>
 #include <rbtree.h>

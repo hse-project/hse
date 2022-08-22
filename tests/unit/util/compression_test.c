@@ -5,7 +5,7 @@
 
 #include <hse_util/platform.h>
 #include <hse_util/compression_lz4.h>
-#include <logging/logging.h>
+#include <hse/logging/logging.h>
 
 #include <mtf/framework.h>
 

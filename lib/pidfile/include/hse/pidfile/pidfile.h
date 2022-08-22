@@ -11,7 +11,7 @@
 
 #include <bsd/libutil.h>
 
-#include <error/merr.h>
+#include <hse/error/merr.h>
 
 #define PIDFILE_ALIAS_LEN_MAX 32
 #define PIDFILE_NAME          "kvdb.pid"

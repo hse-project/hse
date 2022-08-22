@@ -12,7 +12,7 @@
 #include <cjson/cJSON.h>
 
 #include <hse_util/compiler.h>
-#include <error/merr.h>
+#include <hse/error/merr.h>
 
 struct kvs_cparams {
     uint32_t  pfx_len;

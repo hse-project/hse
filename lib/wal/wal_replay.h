@@ -6,7 +6,7 @@
 #ifndef WAL_REPLAY_H
 #define WAL_REPLAY_H
 
-#include <error/merr.h>
+#include <hse/error/merr.h>
 #include <hse_util/spinlock.h>
 
 struct wal;

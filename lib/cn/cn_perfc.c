@@ -4,7 +4,7 @@
  */
 
 #include <hse_util/platform.h>
-#include <logging/logging.h>
+#include <hse/logging/logging.h>
 
 #include <hse_ikvdb/tuple.h>
 #include <hse_ikvdb/mclass_policy.h>

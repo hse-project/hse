@@ -8,9 +8,9 @@
 #include <hse_util/arch.h>
 #include <hse_util/slab.h>
 #include <hse_util/inttypes.h>
-#include <error/merr.h>
+#include <hse/error/merr.h>
 #include <hse_util/timer.h>
-#include <logging/logging.h>
+#include <hse/logging/logging.h>
 
 int
 timer_test_pre(struct mtf_test_info *lcl_ti)

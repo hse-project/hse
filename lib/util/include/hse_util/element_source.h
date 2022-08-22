@@ -7,7 +7,7 @@
 #define HSE_PLATFORM_ELEMENT_SOURCE_H
 
 #include <hse_util/inttypes.h>
-#include <error/merr.h>
+#include <hse/error/merr.h>
 
 struct element_source;
 

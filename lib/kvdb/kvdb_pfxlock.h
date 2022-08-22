@@ -6,7 +6,7 @@
 #ifndef HSE_KVDB_PFX_RMLOCK_H
 #define HSE_KVDB_PFX_RMLOCK_H
 
-#include <error/merr.h>
+#include <hse/error/merr.h>
 
 struct kvdb_pfxlock;
 struct kvdb_pfxlock_entry;

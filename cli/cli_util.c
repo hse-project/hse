@@ -8,7 +8,7 @@
 #include <limits.h>
 
 #include <hse_util/rest_client.h>
-#include <error/merr.h>
+#include <hse/error/merr.h>
 #include <hse_util/inttypes.h>
 #include <hse_util/yaml.h>
 #include <hse_util/rest_api.h>
@@ -18,7 +18,7 @@
 #include <hse/hse.h>
 #include <hse/experimental.h>
 
-#include <pidfile/pidfile.h>
+#include <hse/pidfile/pidfile.h>
 
 #include <bsd/string.h>
 

@@ -7,7 +7,7 @@
 #define HSE_KVDB_HEALTH_H
 
 #include <hse_util/atomic.h>
-#include <error/merr.h>
+#include <hse/error/merr.h>
 
 struct kvdb_health_stat {
     atomic_ulong khs_odometer;

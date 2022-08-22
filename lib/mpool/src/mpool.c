@@ -16,8 +16,8 @@
 #include <hse/hse.h>
 
 #include <hse_util/assert.h>
-#include <logging/logging.h>
-#include <error/merr.h>
+#include <hse/logging/logging.h>
+#include <hse/error/merr.h>
 #include <hse_util/workqueue.h>
 #include <hse_util/page.h>
 #include <hse_util/dax.h>

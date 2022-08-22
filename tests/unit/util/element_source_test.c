@@ -6,7 +6,7 @@
 #include <mtf/framework.h>
 #include <support/random_buffer.h>
 
-#include <error/merr.h>
+#include <hse/error/merr.h>
 #include <hse_util/inttypes.h>
 #include <hse_util/element_source.h>
 

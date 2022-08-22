@@ -9,7 +9,7 @@
 #include <stdint.h>
 
 #include <hse_util/compiler.h>
-#include <error/merr.h>
+#include <hse/error/merr.h>
 
 #include <mpool/mpool.h>
 

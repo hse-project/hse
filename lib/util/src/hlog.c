@@ -28,7 +28,7 @@
 #define MTF_MOCK_IMPL_hlog
 
 #include <hse_util/platform.h>
-#include <error/merr.h>
+#include <hse/error/merr.h>
 #include <hse_util/alloc.h>
 #include <hse_util/slab.h>
 #include <hse_util/page.h>

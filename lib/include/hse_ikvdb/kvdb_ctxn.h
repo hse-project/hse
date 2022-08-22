@@ -6,7 +6,7 @@
 #ifndef HSE_KVDB_CTXN_H
 #define HSE_KVDB_CTXN_H
 
-#include <error/merr.h>
+#include <hse/error/merr.h>
 #include <hse_util/keylock.h>
 
 #include <hse_ikvdb/ikvdb.h>

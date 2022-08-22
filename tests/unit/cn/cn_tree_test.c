@@ -5,8 +5,8 @@
 
 #include <mtf/framework.h>
 
-#include <error/merr.h>
-#include <logging/logging.h>
+#include <hse/error/merr.h>
+#include <hse/logging/logging.h>
 #include <hse_util/keycmp.h>
 
 #include <hse/limits.h>

@@ -10,10 +10,10 @@
 
 #include <hse_util/element_source.h>
 #include <hse_util/event_counter.h>
-#include <error/merr.h>
+#include <hse/error/merr.h>
 #include <hse_util/assert.h>
 #include <hse_util/keycmp.h>
-#include <logging/logging.h>
+#include <hse/logging/logging.h>
 #include <hse_util/list.h>
 
 #include <hse_ikvdb/kvset_view.h>

@@ -7,7 +7,7 @@
 #define HSE_PLATFORM_PARSE_NUM_H
 
 #include <hse_util/inttypes.h>
-#include <error/merr.h>
+#include <hse/error/merr.h>
 
 #pragma GCC visibility push(default)
 

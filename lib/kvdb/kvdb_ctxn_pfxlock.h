@@ -6,7 +6,7 @@
 #ifndef HSE_KVDB_PFXLOCK_H
 #define HSE_KVDB_PFXLOCK_H
 
-#include <error/merr.h>
+#include <hse/error/merr.h>
 
 #include <kvdb/kvdb_pfxlock.h>
 

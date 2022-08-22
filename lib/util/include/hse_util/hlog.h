@@ -7,7 +7,7 @@
 #define HSE_PLATFORM_HYPERLOGLOG_H
 
 #include <hse_util/inttypes.h>
-#include <error/merr.h>
+#include <hse/error/merr.h>
 
 /* MTF_MOCK_DECL(hlog) */
 

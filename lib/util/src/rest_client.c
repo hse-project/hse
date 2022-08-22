@@ -5,7 +5,7 @@
 
 #include <hse_util/platform.h>
 #include <hse_util/minmax.h>
-#include <logging/logging.h>
+#include <hse/logging/logging.h>
 #include <hse_util/rest_client.h>
 #include <hse_util/event_counter.h>
 

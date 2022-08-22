@@ -14,8 +14,8 @@
 
 #include <cjson/cJSON.h>
 
-#include <error/merr.h>
-#include <logging/logging.h>
+#include <hse/error/merr.h>
+#include <hse/logging/logging.h>
 
 #include <hse_util/compiler.h>
 

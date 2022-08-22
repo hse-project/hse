@@ -11,7 +11,7 @@
 #include <hse_util/slab.h>
 #include <hse_util/minmax.h>
 #include <hse_util/page.h>
-#include <logging/logging.h>
+#include <hse/logging/logging.h>
 
 int
 allocation_test_pre(struct mtf_test_info *lcl_ti)

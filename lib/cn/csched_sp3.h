@@ -9,7 +9,7 @@
 #include <rbtree.h>
 
 #include <hse_util/atomic.h>
-#include <error/merr.h>
+#include <hse/error/merr.h>
 #include <hse_util/list.h>
 
 #include "csched_sp3_work.h"

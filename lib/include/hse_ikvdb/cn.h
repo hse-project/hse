@@ -6,7 +6,7 @@
 #ifndef HSE_IKVS_CN_H
 #define HSE_IKVS_CN_H
 
-#include <error/merr.h>
+#include <hse/error/merr.h>
 #include <hse_util/workqueue.h>
 
 #include <hse_ikvdb/kvs_cparams.h>

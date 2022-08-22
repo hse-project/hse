@@ -7,8 +7,8 @@
 #include <hse_util/slab.h>
 #include <hse_util/page.h>
 #include <hse_util/atomic.h>
-#include <logging/logging.h>
-#include <error/merr.h>
+#include <hse/logging/logging.h>
+#include <hse/error/merr.h>
 #include <hse_util/event_counter.h>
 
 #include <hse_util/data_tree.h>

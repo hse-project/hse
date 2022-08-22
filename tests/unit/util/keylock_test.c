@@ -6,9 +6,9 @@
 #include <mtf/framework.h>
 #include <mock/api.h>
 
-#include <error/merr.h>
+#include <hse/error/merr.h>
 #include <hse_util/xrand.h>
-#include <logging/logging.h>
+#include <hse/logging/logging.h>
 #include <hse_util/keylock.h>
 
 int
