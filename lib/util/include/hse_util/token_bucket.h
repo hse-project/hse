@@ -1,6 +1,6 @@
 /* SPDX-License-Identifier: Apache-2.0 */
 /*
- * Copyright (C) 2015-2021 Micron Technology, Inc.  All rights reserved.
+ * Copyright (C) 2015-2022 Micron Technology, Inc.  All rights reserved.
  */
 
 #ifndef HSE_PLATFORM_TOKEN_BUCKET_H
@@ -19,6 +19,7 @@ struct tbkt {
     u64         tb_burst;
 
     spinlock_t  tb_lock HSE_L1D_ALIGNED;
+    u64         tb_delay;
     u64         tb_refill_time;
     u64         tb_balance;
 };

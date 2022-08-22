@@ -64,6 +64,7 @@ struct sp3_thresholds {
     uint8_t  llen_runlen_max;
     uint8_t  llen_idlec;
     uint8_t  llen_idlem;
+    uint8_t  split_cnt_max;       /* max node splits per batch */
 };
 
 /* MTF_MOCK */

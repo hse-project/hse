@@ -2657,19 +2657,13 @@ void
 td_range(struct km_inst *inst, uint64_t *startp, uint64_t *stopp)
 {
     struct km_impl *impl = inst->impl;
+    size_t dist = keydist;
 
-    if (keydist > 0) {
-        *stopp = atomic_fetch_add(&impl->keydistchunk, keydist) + keydist;
-        *startp = *stopp - keydist;
-    } else {
-        uint64_t chunk;
+    if (dist == 0)
+        dist = impl->recmax / impl->tdmax;
 
-        chunk = impl->recmax / impl->tdmax;
-        if (impl->recmax % impl->tdmax)
-            ++chunk;
-        *startp = inst->tid * chunk;
-        *stopp = *startp + chunk;
-    }
+    *stopp = atomic_fetch_add(&impl->keydistchunk, dist) + dist;
+    *startp = *stopp - dist;
 
     if (*stopp > impl->recmax)
         *stopp = impl->recmax;

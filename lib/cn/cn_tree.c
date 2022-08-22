@@ -102,7 +102,8 @@ cn_node_alloc(struct cn_tree *tree, uint64_t nodeid)
 
     atomic_init(&tn->tn_compacting, 0);
     atomic_init(&tn->tn_busycnt, 0);
-    atomic_init(&tn->tn_rspill_sync, 0);
+    atomic_init(&tn->tn_split_cnt, 0);
+    tn->tn_split_dly = 0;
 
     tn->tn_tree = tree;
     tn->tn_isroot = (nodeid == 0);
@@ -917,12 +918,12 @@ cn_comp_release(struct cn_compaction_work *w)
         }
 
         /* If cn_comp_update_XXX() was called and was successful then it will
-         * have updated tn_rspill_sync, busycnt, and the token.  For all errors
+         * have updated tn_split_cnt, busycnt, and the token.  For all errors
          * we must do it here.
          */
         if (w->cw_action == CN_ACTION_SPLIT) {
-            w->cw_tree->ct_root->tn_rspill_sync--;
-            w->cw_node->tn_rspill_sync = 0;
+            w->cw_tree->ct_root->tn_split_cnt--;
+            w->cw_node->tn_split_cnt = 0;
         }
 
         atomic_sub_rel(&w->cw_node->tn_busycnt, (1u << 16) + w->cw_kvset_cnt);
@@ -1482,14 +1483,6 @@ cn_comp_update_split(
 
             w->cw_split.nodev[RIGHT] = right;
             right->tn_cgen++;
-
-            /* Vary the split size to avoid a node-split thundering herd.
-             * Note that the split size of the right node is disjoint
-             * from the split size of the left node.
-             */
-            right->tn_split_size = (size_t)tree->rp->cn_split_size << 30;
-            right->tn_split_size += (right->tn_nodeid % 3) << 30;
-            right->tn_split_size += 5ul << 30;
         }
 
         /* Update route map with the left edge and add the new left node to the cN tree list.
@@ -1503,11 +1496,6 @@ cn_comp_update_split(
 
             list_add_tail(&left->tn_link, &tree->ct_nodes);
             left->tn_cgen++;
-
-            /* Vary the split size to avoid a node-split thundering herd.
-             */
-            left->tn_split_size = (size_t)tree->rp->cn_split_size << 30;
-            left->tn_split_size += (left->tn_nodeid % 3) << 30;
         }
 
         /* Update samp stats
@@ -1518,8 +1506,8 @@ cn_comp_update_split(
             cn_tree_samp(tree, &w->cw_samp_post);
         }
 
-        w->cw_tree->ct_root->tn_rspill_sync--;
-        w->cw_node->tn_rspill_sync = 0;
+        w->cw_tree->ct_root->tn_split_cnt--;
+        w->cw_node->tn_split_cnt = 0;
 
         atomic_sub_rel(&src->tn_busycnt, (1u << 16) + w->cw_kvset_cnt);
         cn_node_comp_token_put(w->cw_node);

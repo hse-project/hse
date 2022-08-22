@@ -627,6 +627,8 @@ sp3_refresh_thresholds(struct sp3 *sp)
     thresh.lscat_runlen_max = sp->rp->csched_lscat_runlen_max;
     thresh.lscat_hwm = sp->rp->csched_lscat_hwm;
 
+    thresh.split_cnt_max = qthreads(sp, SP3_QNUM_SPLIT);
+
     /* If thresholds have not changed there's nothing to do.  Otherwise, need to
      * recompute work trees.
      */
@@ -640,12 +642,13 @@ sp3_refresh_thresholds(struct sp3 *sp)
     }
 
     log_info("sp3 thresholds: rspill: min/max/sizemb %u/%u/%u, lcomp: max/pct/keys %u/%u%%/%u,"
-             " llen: min/max %u/%u, idlec: %u, idlem: %u, lscat: hwm/max %u/%u",
+             " llen: min/max %u/%u, idlec: %u, idlem: %u, lscat: hwm/max %u/%u split %u",
              thresh.rspill_runlen_min, thresh.rspill_runlen_max, thresh.rspill_sizemb_max,
              thresh.lcomp_runlen_max, thresh.lcomp_split_pct,
              thresh.lcomp_split_keys, thresh.llen_runlen_min, thresh.llen_runlen_max,
              thresh.llen_idlec, thresh.llen_idlem,
-             thresh.lscat_hwm, thresh.lscat_runlen_max);
+             thresh.lscat_hwm, thresh.lscat_runlen_max,
+             thresh.split_cnt_max);
 }
 
 static void
@@ -663,8 +666,8 @@ static void
 sp3_refresh_settings(struct sp3 *sp)
 {
     sp3_refresh_samp(sp);
-    sp3_refresh_thresholds(sp);
     sp3_refresh_worker_counts(sp);
+    sp3_refresh_thresholds(sp);
 }
 
 /*****************************************************************
@@ -882,6 +885,8 @@ sp3_dirty_node_locked(struct sp3 *sp, struct cn_tree_node *tn)
      * root node (see CSCHED_QTHREADS_DEFAULT for default limits).
      */
     if (cn_node_isleaf(tn)) {
+        const uint64_t keys_uniq = cn_ns_keys_uniq(&tn->tn_ns);
+        const uint64_t keys = cn_ns_keys(&tn->tn_ns);
         bool splitting = false;
 
         scatter = cn_tree_node_scatter(tn);
@@ -909,7 +914,7 @@ sp3_dirty_node_locked(struct sp3 *sp, struct cn_tree_node *tn)
          * TODO: The garbage caculation needs help:  It sometimes returns
          * a non-zero result for nodes consisting entirely of unique keys.
          */
-        if (garbage > 0 && nkvsets > 1 && jobs < 1) {
+        if (garbage > 1 && nkvsets > 1 && jobs < 1 && keys > keys_uniq) {
             const uint64_t weight = ((uint64_t)garbage << 32) | (cn_ns_alen(&tn->tn_ns) >> 20);
 
             sp3_node_insert(sp, spn, wtype_garbage, weight);
@@ -934,13 +939,12 @@ sp3_dirty_node_locked(struct sp3 *sp, struct cn_tree_node *tn)
          * with "split_pct" capacity to ensure it gets split or compacted.
          */
         if (tn->tn_ns.ns_pcap >= sp->thresh.lcomp_split_pct && jobs < 1) {
-            const uint64_t weight = ((uint64_t)tn->tn_ns.ns_pcap << 32) | cn_ns_keys(&tn->tn_ns);
+            const uint64_t weight = ((uint64_t)tn->tn_ns.ns_pcap << 32) | keys;
 
             sp3_node_insert(sp, spn, wtype_split, weight);
             splitting = true;
         } else {
             uint64_t split_keys = (uint64_t)sp->thresh.lcomp_split_keys << 22;
-            uint64_t keys_uniq = cn_ns_keys_uniq(&tn->tn_ns);
 
             if (keys_uniq > split_keys && jobs < 1) {
                 const uint64_t weight = ((uint64_t)sp->thresh.lcomp_split_pct << 32) | keys_uniq;
@@ -952,11 +956,10 @@ sp3_dirty_node_locked(struct sp3 *sp, struct cn_tree_node *tn)
             }
         }
 
-        /* Node splits are rare, but when a node is ready to split it needs
-         * be done as soon as possible.  Hence splits preempt all other work.
+        /* Node splits are rare, but when a node is ready to split it should
+         * be done as soon as possible.  Hence, splits preempt "big" jobs.
          */
         if (splitting) {
-            sp3_node_remove(sp, spn, wtype_length);
             sp3_node_remove(sp, spn, wtype_garbage);
             sp3_node_remove(sp, spn, wtype_scatter);
         }
@@ -1096,13 +1099,10 @@ static void
 sp3_process_ingest(struct sp3 *sp)
 {
     struct cn_tree *tree;
-    bool            ingested = false;
 
-    list_for_each_entry (tree, &sp->mon_tlist, ct_sched.sp3t.spt_tlink) {
-
+    list_for_each_entry(tree, &sp->mon_tlist, ct_sched.sp3t.spt_tlink) {
         struct sp3_tree *spt = tree2spt(tree);
-        long             alen;
-        long             wlen;
+        long alen, wlen;
 
         if (atomic_read_acq(&sp->sp_ingest_count) == 0)
             break;
@@ -1125,12 +1125,9 @@ sp3_process_ingest(struct sp3 *sp)
             sp->samp.r_wlen += wlen;
 
             sp3_dirty_node(sp, tree->ct_root);
-            ingested = true;
+            sp->activity++;
         }
     }
-
-    if (ingested)
-        sp->activity++;
 }
 
 static void
@@ -1336,17 +1333,20 @@ sp3_comp_thread_name(
     case CN_RULE_LENGTH_MAX:
         r = "ll";
         break;
-    case CN_RULE_LENGTH_VWLEN:
+    case CN_RULE_LENGTH_WLEN:
         r = "lw";
+        break;
+    case CN_RULE_LENGTH_VWLEN:
+        r = "lv";
         break;
     case CN_RULE_LENGTH_CLEN:
         r = "lc";
         break;
-    case CN_RULE_INDEXF:
-        r = "fi";
+    case CN_RULE_INDEX:
+        r = "li";
         break;
-    case CN_RULE_INDEXP:
-        r = "pi";
+    case CN_RULE_COMPC:
+        r = "cc";
         break;
     case CN_RULE_IDLE_INDEX:
         r = "ii";
@@ -1797,43 +1797,45 @@ static void
 sp3_qos_check(struct sp3 *sp)
 {
     struct cn_tree *tree;
-    uint rootmin, rootmax;
     uint64_t rspill_dt_max;
+    int rootmin, rootmax;
     uint64_t sval;
 
     if (!sp->throttle_sensor_root)
         return;
 
     rootmin = sp->thresh.rspill_runlen_max;
-    rootmax = rootmin;
+    rootmax = 0;
     rspill_dt_max = 0;
     sval = 0;
 
     list_for_each_entry(tree, &sp->mon_tlist, ct_sched.sp3t.spt_tlink) {
         const struct kvs_rparams *rp = cn_tree_get_rp(tree);
-        uint marked, nk;
+        int split_cnt, nk;
 
         if (rp->cn_maint_disable)
             continue;
 
-        /* Discount kvsets currently being spilled (i.e., those that have
-         * been marked for spill by sp3_work()).
-         */
-        marked = (atomic_read_acq(&tree->ct_root->tn_busycnt) & 0xffffu) / 3;
-
         nk = cn_ns_kvsets(&tree->ct_root->tn_ns);
-        if (nk >= marked)
-            nk -= marked;
 
-        if (nk > rootmax) {
-            rspill_dt_max = max_t(uint64_t, rspill_dt_max, tree->ct_rspill_dt);
-            rootmax = nk;
+        /* Increase the throttle if a split is pending or in-progress as
+         * the root spill job count is either zero or approaching zero.
+         */
+        split_cnt = tree->ct_root->tn_split_cnt;
+        if (split_cnt > 0)
+            nk += (split_cnt / 2) + 1;
+
+        if (nk > rootmin) {
+            if (tree->ct_rspill_dt * (nk - rootmin) > rspill_dt_max * rootmax) {
+                rspill_dt_max = tree->ct_rspill_dt;
+                rootmax = nk - rootmin;
+            }
         }
     }
 
-    if (rootmax > rootmin) {
+    if (rspill_dt_max > 0) {
         u64 K;
-        u64 r = (rootmax - rootmin) * 100;
+        u64 r = rootmax * 100;
         u64 secs = rspill_dt_max / NSEC_PER_SEC;
         u64 min_lat = 16, max_lat = 80;
 
@@ -1964,7 +1966,7 @@ sp3_schedule(struct sp3 *sp)
 
             job = sp3_check_rb_tree(sp, sp->rr_wtype, thresh, qnum);
             if (job)
-                sp->check_big_ns = get_time_ns() + NSEC_PER_SEC * 7;
+                sp->check_big_ns = get_time_ns() + NSEC_PER_SEC * 5;
             break;
 
         case wtype_scatter:
@@ -1987,13 +1989,17 @@ sp3_schedule(struct sp3 *sp)
 
         case wtype_split:
             qnum = SP3_QNUM_SPLIT;
-            if (qfull(sp, qnum)) {
-                qnum = SP3_QNUM_LENGTH;
-                if (qfull(sp, qnum))
-                    break;
-            }
+            if (qfull(sp, qnum))
+                break;
 
+            /* If we start a split, reset the round-robin scheduler so that
+             * the next call will check for additional split jobs first.
+             * This ensures that a batch of pending splits start with
+             * minimal intervening delay.
+             */
             job = sp3_check_rb_tree(sp, sp->rr_wtype, 0, qnum);
+            if (job)
+                sp->rr_wtype--;
             break;
         }
     }
