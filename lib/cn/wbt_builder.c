@@ -645,7 +645,7 @@ wbb_create(
     if (ev(!wbb))
         return merr(ENOMEM);
 
-    nodev = alloc_page_aligned(max_pgc * PAGE_SIZE);
+    nodev = aligned_alloc(PAGE_SIZE, max_pgc * PAGE_SIZE);
     if (ev(!nodev)) {
         free(wbb);
         return merr(ENOMEM);
@@ -653,7 +653,7 @@ wbb_create(
 
     err = wbb_init(wbb, nodev, max_pgc, wbt_pgc);
     if (ev(err)) {
-        free_aligned(nodev);
+        free(nodev);
         free(wbb);
         return err;
     }
@@ -718,7 +718,7 @@ wbb_destroy(struct wbb *wbb)
 
         for (i = 0; wbb->kmd_iov[i].iov_base; i++)
             vlb_free(wbb->kmd_iov[i].iov_base, KMD_CHUNK_LEN);
-        free_aligned(wbb->nodev);
+        free(wbb->nodev);
         free(wbb->cnode_key_stage_base);
         free(wbb);
     }

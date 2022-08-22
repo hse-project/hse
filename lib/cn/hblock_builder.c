@@ -260,7 +260,7 @@ hbb_finish(
     }
 
     sz = HBLOCK_HDR_LEN + (vgmap ? (vgmap_pgc * PAGE_SIZE) : 0);
-    hdr = alloc_page_aligned(sz);
+    hdr = aligned_alloc(PAGE_SIZE, sz);
     if (!hdr)
         return merr(ENOMEM);
     memset(hdr, 0, sz);
@@ -342,7 +342,7 @@ out:
     }
 
     free(iov);
-    free_aligned(hdr);
+    free(hdr);
 
     return err;
 }

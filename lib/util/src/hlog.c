@@ -69,7 +69,7 @@ hlog_create(struct hlog **hlog_out, uint p)
     sz = regc * sizeof(*hlog->regv);
     sz = ALIGN(sz, PAGE_SIZE);
 
-    hlog->regv = alloc_page_aligned(sz);
+    hlog->regv = aligned_alloc(PAGE_SIZE, sz);
     if (ev(!hlog->regv)) {
         free(hlog);
         return merr(ENOMEM);
@@ -91,7 +91,7 @@ hlog_destroy(struct hlog *hlog)
     if (!hlog)
         return;
 
-    free_aligned(hlog->regv);
+    free(hlog->regv);
     free(hlog);
 }
 

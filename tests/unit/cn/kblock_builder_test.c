@@ -312,7 +312,7 @@ MTF_DEFINE_UTEST_PRE(test, t_kbb_add_entry_nomem, test_setup)
 
     /* Code path under test
      * --------------------
-     *  - wbb_kmd_append -> alloc_page_aligned;
+     *  - wbb_kmd_append -> aligned_alloc(PAGE_SIZE, ...);
      *
      * This path occurs when adding N-th key, N > 1.
      * Use an extremely large kmdlen to get the append to fail.

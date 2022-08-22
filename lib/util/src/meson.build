@@ -1,5 +1,4 @@
 util_sources = files(
-    'alloc.c',
     'arch.c',
     'bin_heap.c',
     'bkv_collection.c',

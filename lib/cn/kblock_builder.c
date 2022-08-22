@@ -514,7 +514,7 @@ static void
 kblock_free(struct curr_kblock *kblk)
 {
     vlb_free(kblk->bloom, kblk->bloom_used_max);
-    free_aligned(kblk->kblk_hdr);
+    free(kblk->kblk_hdr);
 
     wbb_destroy(kblk->wbtree);
     hlog_destroy(kblk->hlog);
@@ -819,7 +819,7 @@ kblock_finish(struct kblock_builder *bld)
 
     /* Allocate kblock hdr */
     if (!kblk->kblk_hdr) {
-        kblk->kblk_hdr = alloc_page_aligned(KBLOCK_HDR_LEN);
+        kblk->kblk_hdr = aligned_alloc(PAGE_SIZE, KBLOCK_HDR_LEN);
         if (ev(!kblk->kblk_hdr)) {
             err = merr(ENOMEM);
             goto errout;

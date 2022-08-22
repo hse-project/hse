@@ -188,7 +188,7 @@ kvdb_ctxn_reaper(struct work_struct *work)
     list_for_each_entry_safe(ctxn, next, &freelist, ctxn_free_link) {
         kvdb_ctxn_cursor_unbind(ctxn->ctxn_bind);
         mutex_destroy(&ctxn->ctxn_lock);
-        free_aligned(ctxn);
+        free(ctxn);
         ev(1);
     }
 }
@@ -210,7 +210,7 @@ kvdb_ctxn_alloc(
 
     kvdb_ctxn_set = kvdb_ctxn_set_h2r(kcs_handle);
 
-    ctxn = alloc_aligned(sizeof(*ctxn), __alignof__(*ctxn));
+    ctxn = aligned_alloc(__alignof__(*ctxn), sizeof(*ctxn));
     if (ev(!ctxn))
         return NULL;
 
@@ -257,7 +257,7 @@ kvdb_ctxn_set_remove(struct kvdb_ctxn_set *handle, struct kvdb_ctxn_impl *ctxn)
     if (!delay_free) {
         kvdb_ctxn_cursor_unbind(ctxn->ctxn_bind);
         mutex_destroy(&ctxn->ctxn_lock);
-        free_aligned(ctxn);
+        free(ctxn);
     }
 }
 
@@ -699,7 +699,7 @@ kvdb_ctxn_set_create(struct kvdb_ctxn_set **handle_out, u64 txn_timeout_ms, u64 
 
     *handle_out = 0;
 
-    ktn = alloc_aligned(sizeof(*ktn), __alignof__(*ktn));
+    ktn = aligned_alloc(__alignof__(*ktn), sizeof(*ktn));
     if (ev(!ktn))
         return merr(ENOMEM);
 
@@ -707,7 +707,7 @@ kvdb_ctxn_set_create(struct kvdb_ctxn_set **handle_out, u64 txn_timeout_ms, u64 
 
     ktn->ktn_wq = alloc_workqueue("hse_ctxn_reaper", 0, 1, 1);
     if (ev(!ktn->ktn_wq)) {
-        free_aligned(ktn);
+        free(ktn);
         return merr(ENOMEM);
     }
 
@@ -757,7 +757,7 @@ kvdb_ctxn_set_destroy(struct kvdb_ctxn_set *handle)
 
     mutex_destroy(&ktn->ktn_list_mutex);
 
-    free_aligned(ktn);
+    free(ktn);
 }
 
 atomic_ulong *

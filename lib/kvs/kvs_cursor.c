@@ -1354,7 +1354,7 @@ kvs_cursor_perfc_init(void)
 void
 kvs_cursor_perfc_fini(void)
 {
-    const struct perfc_ivl *ivl;
+    struct perfc_ivl *ivl;
 
     ivl = kvs_cd_perfc_op[PERFC_DI_CD_READPERSEEK].pcn_ivl;
     if (ev(!ivl))

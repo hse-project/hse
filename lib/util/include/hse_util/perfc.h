@@ -121,7 +121,7 @@ perfc_ivl_create(int boundc, const u64 *boundv, struct perfc_ivl **ivlp);
  * @ivl:  interval object to destroy
  */
 void
-perfc_ivl_destroy(const struct perfc_ivl *ivl);
+perfc_ivl_destroy(struct perfc_ivl *ivl);
 
 /*
  *
@@ -430,13 +430,13 @@ struct perfc_ivl {
  * for all other counter types.
  */
 struct perfc_name {
-    const char *            pcn_name;
-    const char *            pcn_desc;
-    const char *            pcn_hdr;
-    uint8_t                 pcn_flags;
-    uint8_t                 pcn_prio;
-    uint32_t                pcn_samplepct;
-    const struct perfc_ivl *pcn_ivl;
+    const char *      pcn_name;
+    const char *      pcn_desc;
+    const char *      pcn_hdr;
+    uint8_t           pcn_flags;
+    uint8_t           pcn_prio;
+    uint32_t          pcn_samplepct;
+    struct perfc_ivl *pcn_ivl;
 };
 
 /**
