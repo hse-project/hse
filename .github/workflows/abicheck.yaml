@@ -36,7 +36,7 @@ jobs:
 
       - name: Setup current
         run: |
-          meson builddir-current --fatal-meson-warnings --werror \
+          meson setup builddir-current --fatal-meson-warnings --werror \
             -Doptimization=g -Dc_args="-g3" -Dcli=false -Dtools=disabled \
             -Dsamples=false -Ddocs=disabled -Dbindings=none -Dtests=false \
             -Dtools=disabled -Dpmem=enabled
@@ -57,7 +57,7 @@ jobs:
 
       - name: Setup previous
         run: |
-          meson builddir-previous --fatal-meson-warnings -Doptimization=g \
+          meson setup builddir-previous --fatal-meson-warnings -Doptimization=g \
             -Dwerror=true -Dc_args="-g3" -Dcli=false -Dtools=disabled \
             -Dsamples=false -Ddocs=disabled -Dbindings=none -Dtests=false \
             -Dtools=disabled -Dpmem=enabled
