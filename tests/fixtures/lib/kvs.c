@@ -1,12 +1,12 @@
 /* SPDX-License-Identifier: Apache-2.0 */
 /*
- * Copyright (C) 2021 Micron Technology, Inc. All rights reserved.
+ * Copyright (C) 2021-2022 Micron Technology, Inc. All rights reserved.
  */
 
 #include <errno.h>
 
 #include <hse/hse.h>
-#include <fixtures/kvs.h>
+#include <hse/test/fixtures/kvs.h>
 
 hse_err_t
 fxt_kvs_setup(

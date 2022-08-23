@@ -1,10 +1,10 @@
 /* SPDX-License-Identifier: Apache-2.0 */
 /*
- * Copyright (C) 2021 Micron Technology, Inc. All rights reserved.
+ * Copyright (C) 2021-2022 Micron Technology, Inc. All rights reserved.
  */
 
-#ifndef FIXTURES_KVDB_H
-#define FIXTURES_KVDB_H
+#ifndef HSE_TEST_FIXTURES_KVDB_H
+#define HSE_TEST_FIXTURES_KVDB_H
 
 #include <stddef.h>
 

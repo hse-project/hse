@@ -1,10 +1,10 @@
 /* SPDX-License-Identifier: Apache-2.0 */
 /*
- * Copyright (C) 2021 Micron Technology, Inc. All rights reserved.
+ * Copyright (C) 2021-2022 Micron Technology, Inc. All rights reserved.
  */
 
 #include <hse/hse.h>
-#include <fixtures/kvdb.h>
+#include <hse/test/fixtures/kvdb.h>
 
 hse_err_t
 fxt_kvdb_setup(
