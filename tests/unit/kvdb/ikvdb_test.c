@@ -209,7 +209,7 @@ MTF_BEGIN_UTEST_COLLECTION_PREPOST(ikvdb_test, collection_pre, collection_post);
 MTF_DEFINE_UTEST_PREPOST(ikvdb_test, init, test_pre, test_post)
 {
     const char *        mpool = __func__;
-    struct ikvdb *      store = NULL;
+    struct ikvdb *      store = NULL, *store2 = NULL;
     merr_t              err;
     const char *const   paramv[] = { "c0_diag_mode=true" };
     struct kvdb_rparams params = kvdb_rparams_defaults();
@@ -220,6 +220,10 @@ MTF_DEFINE_UTEST_PREPOST(ikvdb_test, init, test_pre, test_post)
     err = ikvdb_open(mpool, &params, &store);
     ASSERT_EQ(0, err);
     ASSERT_NE(0, store);
+
+    /* Test that a second KVDB can't be opened */
+    err = ikvdb_open(mpool, &params, &store2);
+    ASSERT_EQ(EDQUOT, merr_errno(err));
 
     err = ikvdb_close(store);
     ASSERT_EQ(0, err);

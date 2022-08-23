@@ -1,6 +1,6 @@
 /* SPDX-License-Identifier: Apache-2.0 */
 /*
- * Copyright (C) 2015-2021 Micron Technology, Inc.  All rights reserved.
+ * Copyright (C) 2015-2022 Micron Technology, Inc.  All rights reserved.
  */
 
 #ifndef HSE_HSE_H
@@ -137,8 +137,6 @@ hse_init(const char *config, size_t paramc, const char *const *paramv);
  *
  * @warning After invoking this function, calling any other HSE functions will
  * result in undefined behavior unless HSE is re-initialized.
- *
- * @note This function is not thread safe.
  */
 void
 hse_fini(void);
@@ -208,8 +206,6 @@ hse_kvdb_close(struct hse_kvdb *kvdb);
 
 /** @brief Create a KVDB.
  *
- * @note This function is not thread safe.
- *
  * @param kvdb_home: KVDB home directory.
  * @param paramc: Number of configuration parameters in @p paramv.
  * @param paramv: List of parameters in key=value format.
@@ -227,8 +223,6 @@ hse_kvdb_create(const char *kvdb_home, size_t paramc, const char *const *paramv)
 /** @brief Drop a KVDB.
  *
  * @warning It is an error to call this function on a KVDB that is open.
- *
- * @note This function is not thread safe.
  *
  * @param kvdb_home: KVDB home directory.
  *
@@ -348,7 +342,7 @@ hse_kvdb_mclass_reconfigure(const char *kvdb_home, enum hse_mclass mclass, const
 
 /** @brief Open a KVDB.
  *
- * @note This function is not thread safe.
+ * @note Only one KVDB can be open at any one time.
  *
  * @param kvdb_home: KVDB home directory.
  * @param paramc: Number of configuration parameters in @p paramv.
@@ -466,8 +460,6 @@ hse_kvdb_kvs_close(struct hse_kvs *kvs);
 
 /** @brief Create a KVS within the referenced KVDB.
  *
- * @note This function is not thread safe.
- *
  * @param kvdb: KVDB handle from hse_kvdb_open().
  * @param kvs_name: KVS name.
  * @param paramc: Number of configuration parameters in @p paramv.
@@ -494,8 +486,6 @@ hse_kvdb_kvs_create(
  *
  * @warning It is an error to call this function on a KVS that is open.
  *
- * @note This function is not thread safe.
- *
  * @param kvdb: KVDB handle from hse_kvdb_open().
  * @param kvs_name: KVS name.
  *
@@ -509,8 +499,6 @@ hse_err_t
 hse_kvdb_kvs_drop(struct hse_kvdb *kvdb, const char *kvs_name);
 
 /** @brief Open a KVS in a KVDB.
- *
- * This function is not thread safe.
  *
  * @param kvdb: KVDB handle from hse_kvdb_open().
  * @param kvs_name: KVS name.
