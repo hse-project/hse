@@ -106,7 +106,7 @@ _bin_heap_peek(struct bin_heap *bh, void **item)
     curr->item.vctx.next = 0;
     curr->item.vctx.nvals = 1;
     curr->item.src = &dummy_kviter.kvi_es;
-    curr->item.vctx.is_ptomb = (curr->vtype == vtype_ptomb);
+    curr->item.vctx.is_ptomb = (curr->vtype == VTYPE_PTOMB);
 
     *item = &curr->item;
     return true;
@@ -151,21 +151,21 @@ _kvset_iter_val_get(
     struct kv *kv = (void *)vc->kmd;
 
     switch (vtype) {
-    case vtype_ival:
-    case vtype_val:
-    case vtype_cval:
+    case VTYPE_IVAL:
+    case VTYPE_UCVAL:
+    case VTYPE_CVAL:
         *vdata = kv->kdata;
         *vlen = kv->klen;
         break;
-    case vtype_tomb:
+    case VTYPE_TOMB:
         *vlen = 0;
         *vdata = HSE_CORE_TOMB_REG;
         break;
-    case vtype_ptomb:
+    case VTYPE_PTOMB:
         *vlen = 0;
         *vdata = HSE_CORE_TOMB_PFX;
         break;
-    case vtype_zval:
+    case VTYPE_ZVAL:
         *vdata = 0;
         *vlen = 0;
         break;
@@ -312,8 +312,8 @@ MTF_DEFINE_UTEST_PREPOST(cn_tree_cursor_test, basic, pre_test, post_test)
     ASSERT_NE(NULL, rnode);
 
     kv_start();
-    kv_add(&kv[0], "key01", 1, vtype_val);
-    kv_add(&kv[1], "key02", 1, vtype_val);
+    kv_add(&kv[0], "key01", 1, VTYPE_UCVAL);
+    kv_add(&kv[1], "key02", 1, VTYPE_UCVAL);
     kv_end();
 
     err = cn_tree_cursor_create(&cur);
@@ -375,10 +375,10 @@ MTF_DEFINE_UTEST_PREPOST(cn_tree_cursor_test, dups, pre_test, post_test)
     struct kv kv[4];
 
     kv_start();
-    kv_add(&kv[0], "key01", 2, vtype_val);
-    kv_add(&kv[1], "key01", 1, vtype_val);
-    kv_add(&kv[2], "key02", 2, vtype_tomb);
-    kv_add(&kv[3], "key02", 1, vtype_val);
+    kv_add(&kv[0], "key01", 2, VTYPE_UCVAL);
+    kv_add(&kv[1], "key01", 1, VTYPE_UCVAL);
+    kv_add(&kv[2], "key02", 2, VTYPE_TOMB);
+    kv_add(&kv[3], "key02", 1, VTYPE_UCVAL);
     kv_end();
 
     tree.ct_route_map = route_map_create(CN_FANOUT_MAX);
@@ -450,16 +450,16 @@ MTF_DEFINE_UTEST_PREPOST(cn_tree_cursor_test, with_ptomb, pre_test, post_test)
      */
 
     kv_start();
-    kv_add(&kv[0], "ab",   4,  vtype_val);    /* Seen */
-    kv_add(&kv[1], "ab",   4,  vtype_ptomb);  /* Hidden: Not passed up the stack, only affects future keys */
-    kv_add(&kv[2], "ab",   1,  vtype_ptomb);  /* Hidden: dup pt, first pt takes precendence */
-    kv_add(&kv[3], "ab01", 3,  vtype_val);    /* Hidden */
-    kv_add(&kv[4], "ab02", 5,  vtype_val);    /* Seen:   seqno larger than ptomb seqno */
-    kv_add(&kv[5], "ab03", 11, vtype_val);    /* Hidden: seqno larger than cursor seqno */
-    kv_add(&kv[6], "ab03", 3,  vtype_val);    /* Hidden */
-    kv_add(&kv[7], "ab04", 4,  vtype_val);    /* Seen:   pt should NOT hide key */
-    kv_add(&kv[8], "ac01", 4,  vtype_val);    /* Seen:   Does not match ptomb's pfx */
-    kv_add(&kv[9], "bb01", 4,  vtype_val);    /* Hidden: Does not match cursor pfx */
+    kv_add(&kv[0], "ab",   4,  VTYPE_UCVAL);    /* Seen */
+    kv_add(&kv[1], "ab",   4,  VTYPE_PTOMB);  /* Hidden: Not passed up the stack, only affects future keys */
+    kv_add(&kv[2], "ab",   1,  VTYPE_PTOMB);  /* Hidden: dup pt, first pt takes precendence */
+    kv_add(&kv[3], "ab01", 3,  VTYPE_UCVAL);    /* Hidden */
+    kv_add(&kv[4], "ab02", 5,  VTYPE_UCVAL);    /* Seen:   seqno larger than ptomb seqno */
+    kv_add(&kv[5], "ab03", 11, VTYPE_UCVAL);    /* Hidden: seqno larger than cursor seqno */
+    kv_add(&kv[6], "ab03", 3,  VTYPE_UCVAL);    /* Hidden */
+    kv_add(&kv[7], "ab04", 4,  VTYPE_UCVAL);    /* Seen:   pt should NOT hide key */
+    kv_add(&kv[8], "ac01", 4,  VTYPE_UCVAL);    /* Seen:   Does not match ptomb's pfx */
+    kv_add(&kv[9], "bb01", 4,  VTYPE_UCVAL);    /* Hidden: Does not match cursor pfx */
     kv_end();
 
     tree.ct_route_map = route_map_create(CN_FANOUT_MAX);

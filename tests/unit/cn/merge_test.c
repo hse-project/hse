@@ -273,19 +273,19 @@ ydoc_node_as_vtype(yaml_document_t *doc, int scalar_node)
     str = ydoc_node_as_str(doc, scalar_node, 0);
 
     if (!strcmp(str, "v"))
-        return vtype_val;
+        return VTYPE_UCVAL;
 
     if (!strcmp(str, "z"))
-        return vtype_zval;
+        return VTYPE_ZVAL;
 
     if (!strcmp(str, "i"))
-        return vtype_ival;
+        return VTYPE_IVAL;
 
     if (!strcmp(str, "t"))
-        return vtype_tomb;
+        return VTYPE_TOMB;
 
     if (!strcmp(str, "pt"))
-        return vtype_ptomb;
+        return VTYPE_PTOMB;
 
     my_assert(0);
     return -1;
@@ -594,13 +594,13 @@ kvset_get_nth_val(
     *vtype_out = ydoc_node_as_vtype(&tp.doc, valv[1]);
 
     switch (*vtype_out) {
-        case vtype_val: {
+        case VTYPE_UCVAL: {
             int tmp;
             *vdata_out = ydoc_node_as_str(&tp.doc, valv[2], &tmp);
             my_assert(tmp > 0);
             *vlen_out = tmp;
             if (*vlen_out < CN_SMALL_VALUE_THRESHOLD)
-                *vtype_out = vtype_ival;
+                *vtype_out = VTYPE_IVAL;
             break;
         }
         default:
@@ -696,7 +696,7 @@ _kvset_builder_add_val_internal(
 {
     bool           ref_eof;
     u64            ref_seq = 0;
-    enum kmd_vtype ref_vtype = vtype_val;
+    enum kmd_vtype ref_vtype = VTYPE_UCVAL;
     const void *   ref_vdata = NULL;
     uint           ref_vlen = 0;
 
@@ -719,22 +719,22 @@ _kvset_builder_add_val_internal(
     if (tp.verbose >= VERBOSE_PER_KEY1) {
         char *tag = "?";
         switch (ref_vtype) {
-            case vtype_val:
+            case VTYPE_UCVAL:
                 tag = "v";
                 break;
-            case vtype_cval:
+            case VTYPE_CVAL:
                 tag = "c";
                 break;
-            case vtype_zval:
+            case VTYPE_ZVAL:
                 tag = "z";
                 break;
-            case vtype_ival:
+            case VTYPE_IVAL:
                 tag = "i";
                 break;
-            case vtype_tomb:
+            case VTYPE_TOMB:
                 tag = "t";
                 break;
-            case vtype_ptomb:
+            case VTYPE_PTOMB:
                 tag = "pt";
                 break;
         }
@@ -742,7 +742,7 @@ _kvset_builder_add_val_internal(
             ref_vdata ? (char *)ref_vdata : "");
     }
 
-    if (vtype != vtype_ptomb) {
+    if (vtype != VTYPE_PTOMB) {
         /* If the following checks fail, then more values have been
          * generated than were expected.
          */
@@ -752,7 +752,7 @@ _kvset_builder_add_val_internal(
 
     VERIFY_EQ(seq, ref_seq);
     VERIFY_EQ(vtype, ref_vtype);
-    if (vtype == vtype_val || vtype == vtype_ival) {
+    if (vtype == VTYPE_UCVAL || vtype == VTYPE_IVAL) {
         int cmp;
 
         VERIFY_EQ(vlen, ref_vlen);
@@ -810,15 +810,15 @@ _kvset_builder_add_val(
     enum kmd_vtype vtype;
 
     if (vdata == HSE_CORE_TOMB_REG)
-        vtype = vtype_tomb;
+        vtype = VTYPE_TOMB;
     else if (vdata == HSE_CORE_TOMB_PFX)
-        vtype = vtype_ptomb;
+        vtype = VTYPE_PTOMB;
     else if (!vdata || !vlen)
-        vtype = vtype_zval;
+        vtype = VTYPE_ZVAL;
     else if (!vdata || vlen < CN_SMALL_VALUE_THRESHOLD)
-        vtype = vtype_ival;
+        vtype = VTYPE_IVAL;
     else
-        vtype = vtype_val;
+        vtype = VTYPE_UCVAL;
 
     _kvset_builder_add_val_internal(self, seq, vtype, vdata, vlen);
     return 0;
@@ -928,7 +928,7 @@ _kvset_iter_next_vref(
         return false;
 
     switch (*vtype) {
-        case vtype_val:
+        case VTYPE_UCVAL:
             /* Pack data into vref:
              *   vbidx == kvset node
              *   vboff == nth_key
@@ -939,14 +939,14 @@ _kvset_iter_next_vref(
             *vboff = nth_key;
             *vlen_out = nth_val;
             break;
-        case vtype_ival:
-        case vtype_zval:
-        case vtype_tomb:
-        case vtype_ptomb:
+        case VTYPE_IVAL:
+        case VTYPE_ZVAL:
+        case VTYPE_TOMB:
+        case VTYPE_PTOMB:
             *vdata = (void *)lvdata;
             *vlen_out = vlen;
             break;
-        case vtype_cval:
+        case VTYPE_CVAL:
             /* not used by this test */
             assert(0);
             break;
@@ -984,11 +984,11 @@ _kvset_iter_val_get(
     const void *vdata;
     bool        end;
 
-    /* Need to handle vtype_val case. The rest are already provided by
+    /* Need to handle VTYPE_UCVAL case. The rest are already provided by
      * _kvset_iter_next_vref.
      */
 
-    if (vtype == vtype_val) {
+    if (vtype == VTYPE_UCVAL) {
         kvset_node = vbidx;
         nth_key = vboff;
         nth_val = *vlen_out;
@@ -1000,24 +1000,24 @@ _kvset_iter_val_get(
     }
 
     switch (vtype) {
-        case vtype_cval:
+        case VTYPE_CVAL:
             /* not used by this test */
             assert(0);
             break;
-        case vtype_val:
+        case VTYPE_UCVAL:
             *vdata_out = (void *)vdata;
             return 0;
-        case vtype_ival:
+        case VTYPE_IVAL:
             return 0;
-        case vtype_zval:
+        case VTYPE_ZVAL:
             *vdata_out = 0;
             *vlen_out = 0;
             return 0;
-        case vtype_tomb:
+        case VTYPE_TOMB:
             *vdata_out = HSE_CORE_TOMB_REG;
             *vlen_out = 0;
             return 0;
-        case vtype_ptomb:
+        case VTYPE_PTOMB:
             *vdata_out = HSE_CORE_TOMB_PFX;
             *vlen_out = 0;
             return 0;

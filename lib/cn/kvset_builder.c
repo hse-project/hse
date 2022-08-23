@@ -256,10 +256,10 @@ kvset_builder_add_val(
 }
 
 /**
- * kvset_builder_add_vref() - add a vtype_val or vtype_cval entry its a kvset
+ * kvset_builder_add_vref() - add a VTYPE_UCVAL or VTYPE_CVAL entry its a kvset
  *
- * If @complen > 0, a vtype_cval entry will written to media.
- * If @complen == 0, a vtype_val entry will written to media.
+ * If @complen > 0, a VTYPE_CVAL entry will written to media.
+ * If @complen == 0, a VTYPE_UCVAL entry will written to media.
  */
 merr_t
 kvset_builder_add_vref(
@@ -294,17 +294,17 @@ kvset_builder_add_vref(
 merr_t
 kvset_builder_add_nonval(struct kvset_builder *self, u64 seq, enum kmd_vtype vtype)
 {
-    struct kmd_info *ki = vtype == vtype_ptomb ? &self->hblk_kmd : &self->kblk_kmd;
+    struct kmd_info *ki = vtype == VTYPE_PTOMB ? &self->hblk_kmd : &self->kblk_kmd;
 
     if (reserve_kmd(ki))
         return merr(ev(ENOMEM));
 
-    assert(vtype != vtype_zval);
-    if (vtype == vtype_tomb) {
+    assert(vtype != VTYPE_ZVAL);
+    if (vtype == VTYPE_TOMB) {
         kmd_add_tomb(self->kblk_kmd.kmd, &self->kblk_kmd.kmd_used, seq);
         self->key_stats.ntombs++;
         self->key_stats.nvals++;
-    } else if (vtype == vtype_ptomb) {
+    } else if (vtype == VTYPE_PTOMB) {
         kmd_add_ptomb(self->hblk_kmd.kmd, &self->hblk_kmd.kmd_used, seq);
         self->key_stats.nptombs++;
     } else {

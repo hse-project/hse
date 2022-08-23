@@ -576,18 +576,18 @@ _kvset_iter_next_vref(
 
     if (entry->val_len == 0 && entry->val == -1) {
         *vdata = HSE_CORE_TOMB_REG;
-        *vtype = vtype_tomb;
+        *vtype = VTYPE_TOMB;
     } else {
         if (entry->val_len == 0) {
-            *vtype = vtype_zval;
+            *vtype = VTYPE_ZVAL;
             *vdata = 0;
         } else if (entry->val_len <= CN_SMALL_VALUE_THRESHOLD) {
-            *vtype = vtype_ival;
+            *vtype = VTYPE_IVAL;
             valbuf[0] = entry->val;
             *vdata = valbuf;
             *vlen = entry->val_len;
         } else {
-            *vtype = vtype_val;
+            *vtype = VTYPE_UCVAL;
             *vlen = entry->val_len;
             *vboff = vc->off;
         }

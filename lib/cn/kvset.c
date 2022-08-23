@@ -1474,17 +1474,17 @@ kvset_lookup_val(struct kvset *ks, struct kvs_vtuple_ref *vref, struct kvs_buf *
     uint                omlen, copylen;
     bool direct;
 
-    assert(vref->vr_type == vtype_ival
-        || vref->vr_type == vtype_zval
-        || vref->vr_type == vtype_val
-        || vref->vr_type == vtype_cval);
+    assert(vref->vr_type == VTYPE_IVAL
+        || vref->vr_type == VTYPE_ZVAL
+        || vref->vr_type == VTYPE_UCVAL
+        || vref->vr_type == VTYPE_CVAL);
 
-    if (HSE_UNLIKELY(vref->vr_type == vtype_zval)) {
+    if (HSE_UNLIKELY(vref->vr_type == VTYPE_ZVAL)) {
         vbuf->b_len = 0;
         return 0;
     }
 
-    if (vref->vr_type == vtype_ival)
+    if (vref->vr_type == VTYPE_IVAL)
         return kvset_get_immediate_value(vref, vbuf);
 
     vbd = lvx2vbd(ks, vref->vb.vr_index);
@@ -1642,9 +1642,9 @@ get_more:
             wbt_read_kmd_vref(kmd, ks->ks_use_vgmap ? ks->ks_vgmap : NULL, &off, &vseq, &vref);
             if (seq >= vseq) {
                 /* can't be  a ptomb, b/c they're in their own WBT */
-                assert(vref.vr_type != vtype_ptomb);
+                assert(vref.vr_type != VTYPE_PTOMB);
                 vref.vr_seq = vseq;
-                if (vref.vr_type == vtype_tomb)
+                if (vref.vr_type == VTYPE_TOMB)
                     *res = FOUND_TMB;
                 else
                     *res = FOUND_VAL;
@@ -3329,25 +3329,25 @@ kvset_iter_next_vref(
 
     kmd_type_seq(vc->kmd, &vc->off, vtype, seq);
     switch (*vtype) {
-        case vtype_val:
+        case VTYPE_UCVAL:
             kmd_val(vc->kmd, &vc->off, vbidx, vboff, vlen);
             break;
-        case vtype_cval:
+        case VTYPE_CVAL:
             kmd_cval(vc->kmd, &vc->off, vbidx, vboff, vlen, complen);
             break;
-        case vtype_ival:
+        case VTYPE_IVAL:
             kmd_ival(vc->kmd, &vc->off, vdata, vlen);
             break;
-        case vtype_zval:
-        case vtype_tomb:
-        case vtype_ptomb:
+        case VTYPE_ZVAL:
+        case VTYPE_TOMB:
+        case VTYPE_PTOMB:
             break;
         default:
             assert(0);
             break;
     }
 
-    if ((*vtype == vtype_val || *vtype == vtype_cval) && ks->ks_use_vgmap) {
+    if ((*vtype == VTYPE_UCVAL || *vtype == VTYPE_CVAL) && ks->ks_use_vgmap) {
         merr_t err;
 
         /* This ugly cast is because we use a mix of 32 and 16-bit bytes to represent
@@ -3550,26 +3550,26 @@ kvset_iter_val_get(
     uint *                  complen)
 {
     switch (vtype) {
-        case vtype_val:
+        case VTYPE_UCVAL:
             return kvset_iter_get_valptr(handle, vbidx, vboff, *vlen, vdata);
-        case vtype_cval:
+        case VTYPE_CVAL:
             return kvset_iter_get_valptr(handle, vbidx, vboff, *complen, vdata);
-        case vtype_zval:
+        case VTYPE_ZVAL:
             *vdata = 0;
             *vlen = 0;
             *complen = 0;
             return 0;
-        case vtype_tomb:
+        case VTYPE_TOMB:
             *vdata = HSE_CORE_TOMB_REG;
             *vlen = 0;
             *complen = 0;
             return 0;
-        case vtype_ptomb:
+        case VTYPE_PTOMB:
             *vdata = HSE_CORE_TOMB_PFX;
             *vlen = 0;
             *complen = 0;
             return 0;
-        case vtype_ival:
+        case VTYPE_IVAL:
             assert(*vdata);
             assert(*vlen);
             *complen = 0;

@@ -319,7 +319,7 @@ cn_subspill(
                                       &vboff, &vdata, &vlen, &complen))
                 break;
 
-            omlen = (vtype == vtype_val) ? vlen : ((vtype == vtype_cval) ? complen : 0);
+            omlen = (vtype == VTYPE_UCVAL) ? vlen : ((vtype == VTYPE_CVAL) ? complen : 0);
 
             direct = omlen > direct_read_len;
             if (direct) {

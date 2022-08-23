@@ -156,12 +156,12 @@ MTF_DEFINE_UTEST_PREPOST(test, t_kvset_builder_add_entry1, pre, post)
     /*
      * Two flavors for add_nonval
      */
-    err = kvset_builder_add_nonval(bld, seq2, vtype_tomb);
+    err = kvset_builder_add_nonval(bld, seq2, VTYPE_TOMB);
     ASSERT_EQ(err, 0);
-    err = kvset_builder_add_nonval(bld, seq2, vtype_ptomb);
+    err = kvset_builder_add_nonval(bld, seq2, VTYPE_PTOMB);
     ASSERT_EQ(err, 0);
     /* plus invalid cases */
-    err = kvset_builder_add_nonval(bld, seq2, vtype_val);
+    err = kvset_builder_add_nonval(bld, seq2, VTYPE_UCVAL);
     ASSERT_NE(err, 0);
     err = kvset_builder_add_nonval(bld, seq2, 1234);
     ASSERT_NE(err, 0);
@@ -271,7 +271,7 @@ MTF_DEFINE_UTEST_PREPOST(test, t_reserve_kmd2, pre, post)
 
     /* Repeat with kvset_builder_add_nonval */
     for (i = 0; i < 100; i++) {
-        err = kvset_builder_add_nonval(bld, seq, vtype_zval);
+        err = kvset_builder_add_nonval(bld, seq, VTYPE_ZVAL);
         if (err)
             break;
     }

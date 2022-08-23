@@ -21,7 +21,7 @@
  *
  * Supported versions:
  *     v6: Added support for compressed values. Uses a new value type
- *         (vtype_cval) which affects KMD format. Unfortunately,
+ *         (VTYPE_CVAL) which affects KMD format. Unfortunately,
  *         there is no version field for KMD, so we bump the WBTree
  *         version even though the actual WBTree header, leaf and
  *         internal nodes are no different from OMF v5.

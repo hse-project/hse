@@ -163,26 +163,26 @@ kblock_copy_range(
             wbt_read_kmd_vref(kmd, NULL, &off, &vseq, &vref);
 
             switch (vref.vr_type) {
-            case vtype_val:
-            case vtype_cval:
+            case VTYPE_UCVAL:
+            case VTYPE_CVAL:
                 omlen = (vref.vb.vr_complen ? vref.vb.vr_complen : vref.vb.vr_len);
                 stats.tot_vlen += omlen;
                 stats.tot_vused += omlen;
                 *vused += omlen;
                 break;
 
-            case vtype_ival:
+            case VTYPE_IVAL:
                 stats.tot_vlen += vref.vi.vr_len;
                 break;
 
-            case vtype_tomb:
+            case VTYPE_TOMB:
                 ++stats.ntombs;
                 break;
 
-            case vtype_zval:
+            case VTYPE_ZVAL:
                 break;
 
-            case vtype_ptomb:
+            case VTYPE_PTOMB:
                 abort();
             }
         }
