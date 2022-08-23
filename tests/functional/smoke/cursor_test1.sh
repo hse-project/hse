@@ -35,8 +35,8 @@ dur=30
 
 # regular kvs
 kvs=$(kvs_create smoke-1 prefix.length=8)
-cmd capput "$home" "$kvs" "-j$wth" "-t$rth" "-c$chunksz" "-b$batchsz" "-m$pwin" "-d$dur" -v kvs-oparms cn_split_size=32
+cmd capput "$home" "$kvs" "-j$wth" "-r$rth" "-c$chunksz" "-b$batchsz" "-m$pwin" "-d$dur" -v kvs-oparms cn_split_size=32
 
 # capped kvs
 kvs=$(kvs_create smoke-2 prefix.length=8 kvs_ext01=1)
-cmd capput "$home" "$kvs" "-j$wth" "-t$rth" "-c$chunksz" "-b$batchsz" "-m$pwin" "-d$dur" -v
+cmd capput "$home" "$kvs" "-j$wth" "-r$rth" "-c$chunksz" "-b$batchsz" "-m$pwin" "-d$dur" -v
