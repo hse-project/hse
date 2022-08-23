@@ -998,8 +998,8 @@ cn_open(
         }
     }
 
-    /* If there's only one node then increase the split size to allow small trees
-     * to take full advantage of zspill.
+    /* Increase the split size of the right-most node to allow small
+     * trees and monotonically increasing loads to leverage zspill.
      */
     if (route_node_islast(tn->tn_route_node))
         tn->tn_split_size = (tn->tn_split_size * 3) / 2;

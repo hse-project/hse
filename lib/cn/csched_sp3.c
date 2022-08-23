@@ -323,7 +323,7 @@ scale2dbl(u64 samp)
 static inline uint
 samp_est(struct cn_samp_stats *s, uint scale)
 {
-    return scale * safe_div(s->i_alen + s->l_alen, s->l_good);
+    return scale * safe_div((s->i_alen / 4) + s->l_alen, s->l_good);
 }
 
 static inline uint
@@ -887,7 +887,6 @@ sp3_dirty_node_locked(struct sp3 *sp, struct cn_tree_node *tn)
     if (cn_node_isleaf(tn)) {
         const uint64_t keys_uniq = cn_ns_keys_uniq(&tn->tn_ns);
         const uint64_t keys = cn_ns_keys(&tn->tn_ns);
-        bool splitting = false;
 
         scatter = cn_tree_node_scatter(tn);
 
@@ -932,17 +931,30 @@ sp3_dirty_node_locked(struct sp3 *sp, struct cn_tree_node *tn)
             sp3_node_remove(sp, spn, wtype_scatter);
         }
 
-        /* Leaf nodes sorted by pct capacity and secondarily by
-         * number of keys.  If the node's size doesn't exceed the "split_pct"
-         * threshold then we check to see if the number of keys exceeds the
-         * "split_keys" threshold.  If so, we insert this node into the tree
-         * with "split_pct" capacity to ensure it gets split or compacted.
+        /* Leaf nodes sorted by pct capacity and secondarily by number of keys.
+         * If the node's size doesn't exceed the "split_pct" threshold then
+         * we check to see if the number of keys exceeds the "split_keys"
+         * threshold.  If so, we insert this node into the tree using the
+         * "split_pct" capacity to ensure it gets split or compacted.
+         *
+         * Node splits are rare, but when a node is ready to split it should
+         * be done as soon as possible.  Hence, splits prevent other "big"
+         * compaction jobs from starting which could otherwise indefinitely
+         * starve a split.
          */
         if (tn->tn_ns.ns_pcap >= sp->thresh.lcomp_split_pct && jobs < 1) {
             const uint64_t weight = ((uint64_t)tn->tn_ns.ns_pcap << 32) | keys;
+            uint64_t split_keys = (uint64_t)sp->thresh.lcomp_split_keys << 22;
 
             sp3_node_insert(sp, spn, wtype_split, weight);
-            splitting = true;
+
+            if ((uint)tn->tn_ns.ns_pcap * 2 > (uint)sp->thresh.lcomp_split_pct * 3 ||
+                keys_uniq * 3 > split_keys * 2) {
+
+                sp3_node_remove(sp, spn, wtype_length);
+            }
+            sp3_node_remove(sp, spn, wtype_garbage);
+            sp3_node_remove(sp, spn, wtype_scatter);
         } else {
             uint64_t split_keys = (uint64_t)sp->thresh.lcomp_split_keys << 22;
 
@@ -950,18 +962,13 @@ sp3_dirty_node_locked(struct sp3 *sp, struct cn_tree_node *tn)
                 const uint64_t weight = ((uint64_t)sp->thresh.lcomp_split_pct << 32) | keys_uniq;
 
                 sp3_node_insert(sp, spn, wtype_split, weight);
-                splitting = true;
+
+                sp3_node_remove(sp, spn, wtype_length);
+                sp3_node_remove(sp, spn, wtype_garbage);
+                sp3_node_remove(sp, spn, wtype_scatter);
             } else {
                 sp3_node_remove(sp, spn, wtype_split);
             }
-        }
-
-        /* Node splits are rare, but when a node is ready to split it should
-         * be done as soon as possible.  Hence, splits preempt "big" jobs.
-         */
-        if (splitting) {
-            sp3_node_remove(sp, spn, wtype_garbage);
-            sp3_node_remove(sp, spn, wtype_scatter);
         }
     } else {
 

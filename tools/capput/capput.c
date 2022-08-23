@@ -76,6 +76,7 @@ struct opts {
     uint headstart;
     uint duration;
     bool verify;
+    bool tombs;
     bool wide;
 } opts = {
     .batch = ULONG_MAX,
@@ -85,6 +86,7 @@ struct opts {
     .cur_threads = 1,
     .duration = (30 * 60),
     .verify = false,
+    .tombs = false,
 };
 
 
@@ -97,7 +99,7 @@ struct thread_info {
 struct thread_info *g_ti;
 
 void
-pdel(void *arg)
+del_ptombs(void *arg)
 {
     struct thread_arg *targ = arg;
     struct hse_kvdb_txn *txn;
@@ -151,6 +153,77 @@ pdel(void *arg)
         if (err)
             fatal(err, "Failed to commit txn");
 
+        last_del++;
+    }
+
+    hse_kvdb_txn_free(targ->kvdb, txn);
+}
+
+void
+del_tombs(void *arg)
+{
+    struct thread_arg *targ = arg;
+    struct hse_kvdb_txn *txn;
+    uint64_t suffix = 1;
+    hse_err_t err;
+
+    txn = hse_kvdb_txn_alloc(targ->kvdb);
+    if (!txn)
+        fatal(ENOMEM, "Failed to allocate resources for txn");
+
+    pthread_setname_np(pthread_self(), __func__);
+
+    while (!killthreads) {
+        char key[sizeof(uint64_t) * 2];
+        uint64_t *p; /* prefix */
+        uint64_t *s; /* suffix */
+        uint64_t curr_safe;
+        uint64_t curr;
+        uint i;
+
+        /* Compute how many entries is it safe to delete */
+        curr = atomic_read(&pfx);
+        curr_safe = curr > opts.cap ? curr - opts.cap : 0;
+        if (last_del >= curr_safe) {
+            usleep(333);
+            continue;
+        }
+
+      retry:
+        err = hse_kvdb_txn_begin(targ->kvdb, txn);
+        if (err)
+            fatal(err, "Failed to begin txn");
+
+        p = (uint64_t *)key;
+        s = (uint64_t *)(key + sizeof(*p));
+
+        *p = htobe64(last_del);
+
+        for (i = 0; i < opts.chunk * opts.put_threads; ++i) {
+            *s = htobe64(suffix + i);
+
+            err = hse_kvs_delete(targ->kvs, 0, txn, key, sizeof(key));
+            if (err) {
+                if (hse_err_to_errno(err) == ECANCELED) {
+                    err = hse_kvdb_txn_abort(targ->kvdb, txn);
+                    if (err)
+                        fatal(err, "Failed to abort txn");
+                    usleep(333);
+                    goto retry;
+                }
+
+                fatal(err, "Failed to insert prefix delete");
+
+                killthreads = 1;
+                exrc = EX_DATAERR;
+            }
+        }
+
+        err = hse_kvdb_txn_commit(targ->kvdb, txn);
+        if (err)
+            fatal(err, "Failed to commit txn");
+
+        suffix += i;
         last_del++;
     }
 
@@ -213,6 +286,7 @@ txput(void *arg)
         }
 
         atomic_inc(&ti->ops);
+
         if (!err) {
             ti->state = 'c';
             err = hse_kvdb_txn_commit(targ->kvdb, txn);
@@ -483,8 +557,9 @@ usage(void)
         "-h         Print this help menu\n"
         "-j wtd     Number of writer threads\n"
         "-m pfx     How many most recent prefixes to keep alive\n"
+        "-r rtd     Number of reader threads\n"
         "-s sec     Headstart for put threads (in seconds)\n"
-        "-t rtd     Number of reader threads\n"
+        "-t         Delete via one-tomb-per-key versus using ptombs\n"
         "-v         Verify data\n"
         "-w         Wide output (i.e., show put threads state)\n"
         "-Z config  Path to global config file\n"
@@ -520,7 +595,7 @@ main(int argc, char **argv)
     if (rc)
         fatal(rc, "pg_create");
 
-    while ((c = getopt(argc, argv, ":b:c:d:hj:t:m:s:vwZ:")) != -1) {
+    while ((c = getopt(argc, argv, ":b:c:d:hj:m:r:s:tvwZ:")) != -1) {
         char *errmsg = NULL, *end = NULL;
 
         errno = 0;
@@ -545,17 +620,20 @@ main(int argc, char **argv)
             opts.put_threads = strtoul(optarg, &end, 0);
             errmsg = "invalid writer thread count";
             break;
-        case 't':
-            opts.cur_threads = strtoul(optarg, &end, 0);
-            errmsg = "invalid reader thread count";
-            break;
         case 'm':
             opts.cap = strtoul(optarg, &end, 0);
             errmsg = "invalid data size cap";
             break;
+        case 'r':
+            opts.cur_threads = strtoul(optarg, &end, 0);
+            errmsg = "invalid reader thread count";
+            break;
         case 's':
             opts.headstart = strtoul(optarg, &end, 0);
             errmsg = "invalid headstart";
+            break;
+        case 't':
+            opts.tombs = true;
             break;
         case 'v':
             opts.verify = true;
@@ -653,8 +731,12 @@ main(int argc, char **argv)
         kh_register_kvs(kvs, 0, &kvs_cparms, &kvs_oparms, &reader, &g_ti[j]);
     }
 
-    if (opts.cap)
-        kh_register_kvs(kvs, 0, &kvs_cparms, &kvs_oparms, &pdel, 0);
+    if (opts.cap) {
+        if (opts.tombs)
+            kh_register_kvs(kvs, 0, &kvs_cparms, &kvs_oparms, del_tombs, 0);
+        else
+            kh_register_kvs(kvs, 0, &kvs_cparms, &kvs_oparms, del_ptombs, 0);
+    }
 
     kh_register(0, &print_stats, NULL);
     kh_register(0, &syncme, NULL);
