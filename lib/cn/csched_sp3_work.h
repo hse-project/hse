@@ -13,25 +13,40 @@
 
 /* clang-format off */
 
+/* Root spill limits.
+ */
 #define SP3_RSPILL_RUNLEN_MIN           (1u) /* root spill requires at least 1 kvset */
 #define SP3_RSPILL_RUNLEN_MAX           (16u)
 #define SP3_RSPILL_RUNLEN_MIN_DEFAULT   (5u)
 #define SP3_RSPILL_RUNLEN_MAX_DEFAULT   (9u)
 
-#define SP3_RSPILL_SIZEMB_MIN           (4u * 1024)
-#define SP3_RSPILL_SIZEMB_MAX           (32u * 1024)
-#define SP3_RSPILL_SIZEMB_MAX_DEFAULT   (8u * 1024)
+#define SP3_RSPILL_WLEN_MIN             (4ul << 30)
+#define SP3_RSPILL_WLEN_MAX             (32ul << 30)
+#define SP3_RSPILL_WLEN_MAX_DEFAULT     (8ul << 30)
 
+/* Leaf length limits.
+ */
 #define SP3_LLEN_RUNLEN_MIN             (2u) /* length reduction requires at least 2 kvsets */
 #define SP3_LLEN_RUNLEN_MAX             (16u)
 #define SP3_LLEN_RUNLEN_MIN_DEFAULT     (4u)
 #define SP3_LLEN_RUNLEN_MAX_DEFAULT     (8u)
+
 #define SP3_LLEN_IDLEC_DEFAULT          (2u)  /* minimum number of kvsets */
 #define SP3_LLEN_IDLEM_DEFAULT          (10u) /* minimum number of minutes */
 
-#define SP3_LCOMP_RUNLEN_MAX            (12u)
-#define SP3_LCOMP_SPLIT_PCT             (100u)
-#define SP3_LCOMP_SPLIT_KEYS            (64u) /* units of 4 million */
+/* Leaf compaction limits.
+ */
+#define SP3_LCOMP_RUNLEN_MAX_MIN        (8u)
+#define SP3_LCOMP_RUNLEN_MAX_MAX        (16u)
+#define SP3_LCOMP_RUNLEN_MAX_DEFAULT    (12u)
+
+#define SP3_LCOMP_SPLIT_PCT_MIN         (50u)
+#define SP3_LCOMP_SPLIT_PCT_MAX         (200u)
+#define SP3_LCOMP_SPLIT_PCT_DEFAULT     (100u)
+
+#define SP3_LCOMP_SPLIT_KEYS_MIN        (128u << 20)
+#define SP3_LCOMP_SPLIT_KEYS_MAX        (1024 << 20)
+#define SP3_LCOMP_SPLIT_KEYS_DEFAULT    (256u << 20)
 
 /* clang-format on */
 
@@ -52,12 +67,12 @@ enum sp3_work_type {
 };
 
 struct sp3_thresholds {
+    size_t   rspill_wlen_max;
     uint8_t  rspill_runlen_min;
     uint8_t  rspill_runlen_max;
-    uint16_t rspill_sizemb_max;
     uint8_t  lcomp_runlen_max;
-    uint8_t  lcomp_split_pct;     /* leaf node split-by-clen percentage threshold */
-    uint8_t  lcomp_split_keys;    /* leaf node split-by-keys threshold (units of 4 million) */
+    uint     lcomp_split_pct;     /* leaf node split-by-clen percentage threshold */
+    uint     lcomp_split_keys;    /* leaf node split-by-keys threshold */
     uint8_t  lscat_hwm;
     uint8_t  lscat_runlen_max;
     uint8_t  llen_runlen_min;

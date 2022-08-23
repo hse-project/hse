@@ -141,7 +141,7 @@ sp3_work_wtype_root(
     struct cn_tree_node *tn = spn2tn(spn);
     uint runlen_min, runlen_max, runlen;
     struct kvset_list_entry *le;
-    size_t sizemb_max, wlen;
+    size_t rspill_wlen_max, wlen;
 
     *action = CN_ACTION_SPILL;
     *rule = CN_RULE_RSPILL;
@@ -158,9 +158,9 @@ sp3_work_wtype_root(
     if (!*mark)
         return 0;
 
+    rspill_wlen_max = thresh->rspill_wlen_max;
     runlen_min = thresh->rspill_runlen_min;
     runlen_max = thresh->rspill_runlen_max;
-    sizemb_max = thresh->rspill_sizemb_max;
     runlen = 1;
     wlen = 0;
 
@@ -181,7 +181,7 @@ sp3_work_wtype_root(
          * TODO: Ignore the size check if all preceding kvsets would spill
          * to the same leaf node.
          */
-        if (runlen >= runlen_min && wlen >= (sizemb_max << 20))
+        if (runlen >= runlen_min && wlen >= rspill_wlen_max)
             break;
 
         ++runlen;
@@ -190,7 +190,7 @@ sp3_work_wtype_root(
     /* TODO: If the number of contiguous kvsets that would all spill
      * to the same leaf node is one or more then return that number
      * as a zero-writeamp spill operation (e.g., CN_ACTION_ZSPILL)
-     * irrespective of runlen_min, runlen_max, and sizemb_max.
+     * irrespective of runlen_min, runlen_max, and rspill_wlen_max.
      */
 
     if (runlen < runlen_min)
@@ -238,7 +238,7 @@ sp3_work_wtype_idle(
      * (e.g., mongod index nodes that rarely change after load).
      */
     if (cn_ns_vblks(&tn->tn_ns) < kvsets) {
-        const ulong keys_max = (ulong)thresh->lcomp_split_keys << 21;
+        const uint keys_max = thresh->lcomp_split_keys / 2;
 
         /* Skip oldest kvsets with enormous key counts.
          */
@@ -383,7 +383,7 @@ sp3_work_wtype_length(
     enum cn_rule             *rule)
 {
     struct cn_tree_node *tn = spn2tn(spn);
-    ulong keys_max = (ulong)thresh->lcomp_split_keys << 21;
+    uint keys_max = thresh->lcomp_split_keys / 2;
     uint runlen_min = thresh->llen_runlen_min;
     uint runlen_max = thresh->llen_runlen_max;
     uint kvsets;
