@@ -141,7 +141,7 @@ sp3_work_wtype_root(
     struct cn_tree_node *tn = spn2tn(spn);
     uint runlen_min, runlen_max, runlen;
     struct kvset_list_entry *le;
-    size_t rspill_wlen_max, wlen;
+    size_t wlen_max, wlen;
 
     *action = CN_ACTION_SPILL;
     *rule = CN_RULE_RSPILL;
@@ -158,11 +158,12 @@ sp3_work_wtype_root(
     if (!*mark)
         return 0;
 
-    rspill_wlen_max = thresh->rspill_wlen_max;
+    wlen_max = thresh->rspill_wlen_max;
+    wlen = 0;
+
     runlen_min = thresh->rspill_runlen_min;
     runlen_max = thresh->rspill_runlen_max;
     runlen = 1;
-    wlen = 0;
 
     /* Look for a contiguous sequence of non-busy kvsets.
      *
@@ -181,7 +182,7 @@ sp3_work_wtype_root(
          * TODO: Ignore the size check if all preceding kvsets would spill
          * to the same leaf node.
          */
-        if (runlen >= runlen_min && wlen >= rspill_wlen_max)
+        if (runlen >= runlen_min && wlen >= wlen_max)
             break;
 
         ++runlen;
@@ -190,7 +191,7 @@ sp3_work_wtype_root(
     /* TODO: If the number of contiguous kvsets that would all spill
      * to the same leaf node is one or more then return that number
      * as a zero-writeamp spill operation (e.g., CN_ACTION_ZSPILL)
-     * irrespective of runlen_min, runlen_max, and rspill_wlen_max.
+     * irrespective of runlen_min, runlen_max, and wlen_max.
      */
 
     if (runlen < runlen_min)
