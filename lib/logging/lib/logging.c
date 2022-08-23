@@ -93,7 +93,7 @@ log_impl(
     va_list args;
     uint64_t now;
 
-    if (ev->ev_pri > log_level || !logging_initialized)
+    if (ev->ev_pri > log_level)
         return;
 
     event_counter(ev);
@@ -118,20 +118,20 @@ log_impl(
     if (rc >= sizeof(scratch_buffer)) {
         if (log_file) {
             fprintf(log_file, "[HSE] %s:%d %s: scatch buffer size too small, needed %d for \"%s\"",
-                __FILE__, __LINE__, __func__, rc, scratch_buffer);
+                SRC_FILE, __LINE__, __func__, rc, scratch_buffer);
         } else {
             syslog(LOG_ERR, "[HSE] %s:%d %s: scatch buffer size too small, needed %d for \"%s\"",
-                __FILE__, __LINE__, __func__, rc, scratch_buffer);
+                SRC_FILE, __LINE__, __func__, rc, scratch_buffer);
         }
 
         return;
     } else if (rc < 0) {
         if (log_file) {
             fprintf(log_file, "[HSE] %s:%d %s: bad printf format string: %s",
-                __FILE__, __LINE__, __func__, fmt);
+                SRC_FILE, __LINE__, __func__, fmt);
         } else {
             syslog(LOG_ERR, "[HSE] %s:%d %s: bad printf format string: %s",
-                __FILE__, __LINE__, __func__, fmt);
+                SRC_FILE, __LINE__, __func__, fmt);
         }
 
         return;
