@@ -1,6 +1,6 @@
 /* SPDX-License-Identifier: Apache-2.0 */
 /*
- * Copyright (C) 2021 Micron Technology, Inc.  All rights reserved.
+ * Copyright (C) 2021-2022 Micron Technology, Inc.  All rights reserved.
  */
 
 #include <assert.h>
@@ -9,6 +9,7 @@
 #include <stdbool.h>
 #include <stddef.h>
 #include <stdlib.h>
+#include <string.h>
 #include <unistd.h>
 
 #include <bsd/string.h>
@@ -42,7 +43,7 @@ path_join(const char *home, const char *path, char *buf, const size_t buf_sz)
         return 0;
     }
 
-    n = snprintf(buf, buf_sz, "%s%s%s", home, home[strlen(home)] == '/' ? "" : "/", path);
+    n = snprintf(buf, buf_sz, "%s%s%s", home, home[strlen(home) - 1] == '/' ? "" : "/", path);
     if (n >= buf_sz)
         return merr(ENAMETOOLONG);
     if (n < 0)

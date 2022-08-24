@@ -33,7 +33,7 @@ dax_path_is_fsdax(const char *path, bool *isdax)
 
     *isdax = false;
 
-    n = snprintf(buf, sizeof(buf), "%s/%s", path, fname);
+    n = snprintf(buf, sizeof(buf), "%s%s%s", path, path[strlen(path) - 1] == '/' ? "" : "/", fname);
     if (n >= sizeof(buf))
         return merr(ENAMETOOLONG);
 
