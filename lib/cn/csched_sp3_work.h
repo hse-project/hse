@@ -16,18 +16,18 @@
 /* Root spill limits.
  */
 #define SP3_RSPILL_RUNLEN_MIN           (1u) /* root spill requires at least 1 kvset */
-#define SP3_RSPILL_RUNLEN_MAX           (16u)
+#define SP3_RSPILL_RUNLEN_MAX           (UINT8_MAX)
 #define SP3_RSPILL_RUNLEN_MIN_DEFAULT   (5u)
 #define SP3_RSPILL_RUNLEN_MAX_DEFAULT   (9u)
 
-#define SP3_RSPILL_WLEN_MIN             (4ul << 30)
-#define SP3_RSPILL_WLEN_MAX             (32ul << 30)
+#define SP3_RSPILL_WLEN_MIN             (0u)
+#define SP3_RSPILL_WLEN_MAX             (SIZE_MAX)
 #define SP3_RSPILL_WLEN_MAX_DEFAULT     (8ul << 30)
 
 /* Leaf length limits.
  */
 #define SP3_LLEN_RUNLEN_MIN             (2u) /* length reduction requires at least 2 kvsets */
-#define SP3_LLEN_RUNLEN_MAX             (16u)
+#define SP3_LLEN_RUNLEN_MAX             (UINT8_MAX)
 #define SP3_LLEN_RUNLEN_MIN_DEFAULT     (4u)
 #define SP3_LLEN_RUNLEN_MAX_DEFAULT     (8u)
 
@@ -36,16 +36,16 @@
 
 /* Leaf compaction limits.
  */
-#define SP3_LCOMP_RUNLEN_MAX_MIN        (8u)
-#define SP3_LCOMP_RUNLEN_MAX_MAX        (16u)
+#define SP3_LCOMP_RUNLEN_MAX_MIN        (1u)
+#define SP3_LCOMP_RUNLEN_MAX_MAX        (UINT8_MAX)
 #define SP3_LCOMP_RUNLEN_MAX_DEFAULT    (12u)
 
-#define SP3_LCOMP_SPLIT_PCT_MIN         (50u)
-#define SP3_LCOMP_SPLIT_PCT_MAX         (200u)
+#define SP3_LCOMP_SPLIT_PCT_MIN         (1u)
+#define SP3_LCOMP_SPLIT_PCT_MAX         (UINT_MAX)
 #define SP3_LCOMP_SPLIT_PCT_DEFAULT     (100u)
 
-#define SP3_LCOMP_SPLIT_KEYS_MIN        (128u << 20)
-#define SP3_LCOMP_SPLIT_KEYS_MAX        (1024 << 20)
+#define SP3_LCOMP_SPLIT_KEYS_MIN        (1u)
+#define SP3_LCOMP_SPLIT_KEYS_MAX        (UINT_MAX)
 #define SP3_LCOMP_SPLIT_KEYS_DEFAULT    (256u << 20)
 
 /* clang-format on */

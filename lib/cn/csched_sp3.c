@@ -300,12 +300,9 @@ qfull(struct sp3 *sp, uint qnum)
 static inline uint
 qthreads(struct sp3 *sp, uint qnum)
 {
-    uint64_t rparam = sp->rp->csched_qthreads;
-    uint n;
+    const uint64_t rparam = sp->rp->csched_qthreads;
 
-    n = (rparam >> (qnum * 8)) & 0xff;
-
-    return clamp_t(uint, n, 1, 16);
+    return (rparam >> (qnum * 8)) & 0xff;
 }
 
 static inline double
