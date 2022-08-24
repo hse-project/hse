@@ -23,7 +23,23 @@ static int log_level;
 static FILE *log_file;
 static uint64_t log_squelch_ns;
 static bool logging_initialized;
-static thread_local char scratch_buffer[1024];
+static thread_local char log_buffer_tls[1024];
+
+static void HSE_PRINTF(2, 3)
+backstop(const int prio, const char *const fmt, ...)
+{
+    va_list args;
+
+    va_start(args, fmt);
+
+    if (log_file) {
+        vfprintf(log_file, fmt, args);
+    } else {
+        vsyslog(prio, fmt, args);
+    }
+
+    va_end(args);
+}
 
 merr_t
 logging_init(const struct logging_params *const params)
@@ -51,7 +67,7 @@ logging_init(const struct logging_params *const params)
 
             merr_strinfo(err, buf, sizeof(buf), NULL);
 
-            fprintf(stderr, "[HSE] %s:%d %s: failed to open log file (%s): %s",
+            fprintf(stderr, "[HSE] %s:%d %s: failed to open log file (%s): %s\n",
                 SRC_FILE, __LINE__, __func__, params->lp_path, buf);
             return err;
         }
@@ -109,39 +125,29 @@ log_impl(
 
         merr_strerror(err, buf, sizeof(buf));
 
-        rc = snprintf(scratch_buffer, sizeof(scratch_buffer), "[HSE] %s:%d %s: %s: %s",
+        rc = snprintf(log_buffer_tls, sizeof(log_buffer_tls), "[HSE] %s:%d %s: %s: %s",
             ev->ev_file, ev->ev_line, ev->ev_dte.dte_func, fmt, buf);
     } else {
-        rc = snprintf(scratch_buffer, sizeof(scratch_buffer), "[HSE] %s:%d %s: %s",
+        rc = snprintf(log_buffer_tls, sizeof(log_buffer_tls), "[HSE] %s:%d %s: %s",
             ev->ev_file, ev->ev_line, ev->ev_dte.dte_func, fmt);
     }
-    if (rc >= sizeof(scratch_buffer)) {
-        if (log_file) {
-            fprintf(log_file, "[HSE] %s:%d %s: scatch buffer size too small, needed %d for \"%s\"",
-                SRC_FILE, __LINE__, __func__, rc, scratch_buffer);
-        } else {
-            syslog(LOG_ERR, "[HSE] %s:%d %s: scatch buffer size too small, needed %d for \"%s\"",
-                SRC_FILE, __LINE__, __func__, rc, scratch_buffer);
-        }
+    if (rc >= sizeof(log_buffer_tls)) {
+        backstop(LOG_ERR, "[HSE] %s:%d %s: scatch buffer size too small, needed %d for %s:%d",
+            SRC_FILE, __LINE__, __func__, rc, ev->ev_file, ev->ev_line);
 
         return;
     } else if (rc < 0) {
-        if (log_file) {
-            fprintf(log_file, "[HSE] %s:%d %s: bad printf format string: %s",
-                SRC_FILE, __LINE__, __func__, fmt);
-        } else {
-            syslog(LOG_ERR, "[HSE] %s:%d %s: bad printf format string: %s",
-                SRC_FILE, __LINE__, __func__, fmt);
-        }
+        backstop(LOG_ERR, "[HSE] %s:%d %s: bad printf format string from %s:%d",
+            SRC_FILE, __LINE__, __func__, ev->ev_file, ev->ev_line);
 
         return;
     }
 
     va_start(args, fmt);
     if (log_file) {
-        vfprintf(log_file, scratch_buffer, args);
+        vfprintf(log_file, log_buffer_tls, args);
     } else {
-        vsyslog(ev->ev_pri, scratch_buffer, args);
+        vsyslog(ev->ev_pri, log_buffer_tls, args);
     }
     va_end(args);
 }
