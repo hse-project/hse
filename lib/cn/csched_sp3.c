@@ -300,12 +300,9 @@ qfull(struct sp3 *sp, uint qnum)
 static inline uint
 qthreads(struct sp3 *sp, uint qnum)
 {
-    uint64_t rparam = sp->rp->csched_qthreads;
-    uint n;
+    const uint64_t rparam = sp->rp->csched_qthreads;
 
-    n = (rparam >> (qnum * 8)) & 0xff;
-
-    return clamp_t(uint, n, 1, 16);
+    return (rparam >> (qnum * 8)) & 0xff;
 }
 
 static inline double
@@ -574,11 +571,11 @@ sp3_refresh_thresholds(struct sp3 *sp)
     if (v) {
         thresh.rspill_runlen_max = (v >> 0) & 0xff;
         thresh.rspill_runlen_min = (v >> 8) & 0xff;
-        thresh.rspill_sizemb_max = (v >> 16) & 0xffff;
+        thresh.rspill_wlen_max = ((v >> 16) & 0xffff) << 20;
     } else {
         thresh.rspill_runlen_max = SP3_RSPILL_RUNLEN_MAX_DEFAULT;
         thresh.rspill_runlen_min = SP3_RSPILL_RUNLEN_MIN_DEFAULT;
-        thresh.rspill_sizemb_max = SP3_RSPILL_SIZEMB_MAX_DEFAULT;
+        thresh.rspill_wlen_max = SP3_RSPILL_WLEN_MAX_DEFAULT;
     }
 
     thresh.rspill_runlen_max = clamp_t(uint8_t, thresh.rspill_runlen_max,
@@ -587,20 +584,29 @@ sp3_refresh_thresholds(struct sp3 *sp)
     thresh.rspill_runlen_min = clamp_t(uint8_t, thresh.rspill_runlen_min,
                                        SP3_RSPILL_RUNLEN_MIN, thresh.rspill_runlen_max);
 
-    thresh.rspill_sizemb_max = clamp_t(uint16_t, thresh.rspill_sizemb_max,
-                                       SP3_RSPILL_SIZEMB_MIN, SP3_RSPILL_SIZEMB_MAX);
+    thresh.rspill_wlen_max = clamp_t(size_t, thresh.rspill_wlen_max,
+                                     SP3_RSPILL_WLEN_MIN, SP3_RSPILL_WLEN_MAX);
 
     /* leaf node compaction settings */
     v = sp->rp->csched_leaf_comp_params;
     if (v) {
         thresh.lcomp_runlen_max = (v >> 0) & 0xff;
         thresh.lcomp_split_pct = (v >> 16) & 0xff;
-        thresh.lcomp_split_keys = (v >> 24) & 0xff;
+        thresh.lcomp_split_keys = ((v >> 24) & 0xff) << 22;
     } else {
-        thresh.lcomp_runlen_max = SP3_LCOMP_RUNLEN_MAX;
-        thresh.lcomp_split_pct = SP3_LCOMP_SPLIT_PCT;
-        thresh.lcomp_split_keys = SP3_LCOMP_SPLIT_KEYS; /* units of 4 million */
+        thresh.lcomp_runlen_max = SP3_LCOMP_RUNLEN_MAX_DEFAULT;
+        thresh.lcomp_split_pct = SP3_LCOMP_SPLIT_PCT_DEFAULT;
+        thresh.lcomp_split_keys = SP3_LCOMP_SPLIT_KEYS_DEFAULT;
     }
+
+    thresh.lcomp_runlen_max = clamp_t(uint, thresh.lcomp_runlen_max,
+                                      SP3_LCOMP_RUNLEN_MAX_MIN, SP3_LCOMP_RUNLEN_MAX_MAX);
+
+    thresh.lcomp_split_pct = clamp_t(uint, thresh.lcomp_split_pct,
+                                     SP3_LCOMP_SPLIT_PCT_MIN, SP3_LCOMP_SPLIT_PCT_MAX);
+
+    thresh.lcomp_split_keys = clamp_t(uint, thresh.lcomp_split_keys,
+                                      SP3_LCOMP_SPLIT_KEYS_MIN, SP3_LCOMP_SPLIT_KEYS_MAX);
 
     /* leaf node length settings */
     v = sp->rp->csched_leaf_len_params;
@@ -641,11 +647,11 @@ sp3_refresh_thresholds(struct sp3 *sp)
         sp3_dirty_node(sp, spn2tn(spn));
     }
 
-    log_info("sp3 thresholds: rspill: min/max/sizemb %u/%u/%u, lcomp: max/pct/keys %u/%u%%/%u,"
+    log_info("sp3 thresholds: rspill: min/max/wlenmb %u/%u/%lu, lcomp: max/pct/keys %u/%u%%/%u,"
              " llen: min/max %u/%u, idlec: %u, idlem: %u, lscat: hwm/max %u/%u split %u",
-             thresh.rspill_runlen_min, thresh.rspill_runlen_max, thresh.rspill_sizemb_max,
-             thresh.lcomp_runlen_max, thresh.lcomp_split_pct,
-             thresh.lcomp_split_keys, thresh.llen_runlen_min, thresh.llen_runlen_max,
+             thresh.rspill_runlen_min, thresh.rspill_runlen_max, thresh.rspill_wlen_max >> 20,
+             thresh.lcomp_runlen_max, thresh.lcomp_split_pct, thresh.lcomp_split_keys >> 20,
+             thresh.llen_runlen_min, thresh.llen_runlen_max,
              thresh.llen_idlec, thresh.llen_idlem,
              thresh.lscat_hwm, thresh.lscat_runlen_max,
              thresh.split_cnt_max);
@@ -943,25 +949,23 @@ sp3_dirty_node_locked(struct sp3 *sp, struct cn_tree_node *tn)
          * starve a split.
          */
         if (tn->tn_ns.ns_pcap >= sp->thresh.lcomp_split_pct && jobs < 1) {
-            const uint64_t weight = ((uint64_t)tn->tn_ns.ns_pcap << 32) | keys;
-            uint64_t split_keys = (uint64_t)sp->thresh.lcomp_split_keys << 22;
+            const uint split_keys = sp->thresh.lcomp_split_keys;
+            const uint split_pct = sp->thresh.lcomp_split_pct;
+            const uint64_t weight = tn->tn_ns.ns_pcap;
 
-            sp3_node_insert(sp, spn, wtype_split, weight);
+            sp3_node_insert(sp, spn, wtype_split, (weight << 32) | keys);
 
-            if ((uint)tn->tn_ns.ns_pcap * 2 > (uint)sp->thresh.lcomp_split_pct * 3 ||
-                keys_uniq * 3 > split_keys * 2) {
-
+            if (tn->tn_ns.ns_pcap > (split_pct * 3 / 2) || keys_uniq > (split_keys * 2) / 3)
                 sp3_node_remove(sp, spn, wtype_length);
-            }
             sp3_node_remove(sp, spn, wtype_garbage);
             sp3_node_remove(sp, spn, wtype_scatter);
         } else {
-            uint64_t split_keys = (uint64_t)sp->thresh.lcomp_split_keys << 22;
+            const uint split_keys = sp->thresh.lcomp_split_keys;
 
             if (keys_uniq > split_keys && jobs < 1) {
-                const uint64_t weight = ((uint64_t)sp->thresh.lcomp_split_pct << 32) | keys_uniq;
+                const uint64_t weight = sp->thresh.lcomp_split_pct;
 
-                sp3_node_insert(sp, spn, wtype_split, weight);
+                sp3_node_insert(sp, spn, wtype_split, (weight << 32) | keys_uniq);
 
                 sp3_node_remove(sp, spn, wtype_length);
                 sp3_node_remove(sp, spn, wtype_garbage);
