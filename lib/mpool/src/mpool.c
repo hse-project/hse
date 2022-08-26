@@ -258,7 +258,8 @@ mpool_create(const char *home, const struct mpool_cparams *cparams)
             char   path[PATH_MAX];
             size_t n;
 
-            n = snprintf(path, sizeof(path), "%s/%s", home,
+            n = snprintf(path, sizeof(path), "%s%s%s", home,
+                         home[strlen(home) - 1] == '/' ? "" : "/",
                          (i == HSE_MCLASS_CAPACITY) ? MPOOL_CAPACITY_MCLASS_DEFAULT_PATH :
                          MPOOL_PMEM_MCLASS_DEFAULT_PATH);
             if (n >= sizeof(path)) {
