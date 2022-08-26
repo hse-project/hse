@@ -109,6 +109,7 @@ kblock_copy_range(
     const struct key_obj *start, /* exclusive */
     const struct key_obj *end,   /* inclusive */
     struct blk_list      *kblks_out,
+    struct hlog          *hlog,
     uint64_t             *vused)
 {
     struct wbti *wbti = NULL;
@@ -193,8 +194,8 @@ kblock_copy_range(
 
     if (!err && tot_keys > 0) {
         err = kbb_finish(kbb, kblks_out);
-        if (ev(!err && kblks_out->n_blks > 1))
-            log_debug("output kblks %d > 1", kblks_out->n_blks);
+        if (!err)
+            hlog_union(hlog, kbb_get_composite_hlog(kbb));
     }
 
     wbti_destroy(wbti);
@@ -219,10 +220,11 @@ kblock_copy_range(
  */
 static merr_t
 kblock_split(
-    struct kblock_desc   *kbd,
-    const struct key_obj *split_key,
-    struct blk_list      *kblks,
-    uint64_t             *vused)
+    struct kblock_desc    *kbd,
+    const struct key_obj  *split_key,
+    struct blk_list       *kblks,
+    struct hlog           *hlogs[static 2],
+    uint64_t               vused[static 2])
 {
     merr_t err;
 
@@ -234,9 +236,9 @@ kblock_split(
     kbr_madvise_kmd(kbd->kd_mbd, kbd->kd_wbd, MADV_WILLNEED);
     kbr_madvise_wbt_leaf_nodes(kbd->kd_mbd, kbd->kd_wbd, MADV_WILLNEED);
 
-    err = kblock_copy_range(kbd, NULL, split_key, &kblks[LEFT], &vused[LEFT]);
+    err = kblock_copy_range(kbd, NULL, split_key, &kblks[LEFT], hlogs[LEFT], &vused[LEFT]);
     if (!err) {
-        err = kblock_copy_range(kbd, split_key, NULL, &kblks[RIGHT], &vused[RIGHT]);
+        err = kblock_copy_range(kbd, split_key, NULL, &kblks[RIGHT], hlogs[RIGHT], &vused[RIGHT]);
         if (!err && (kblks[LEFT].n_blks == 0 && kblks[RIGHT].n_blks == 0)) {
             assert(kblks[LEFT].n_blks > 0 || kblks[RIGHT].n_blks > 0);
             err = merr(EBUG);
@@ -322,6 +324,7 @@ kblocks_split(
 
     if (overlap) {
         struct kvset_kblk *kblk = &ks->ks_kblks[split_idx];
+        struct hlog *hlogs[2] = { hlog_left, hlog_right };
         struct kblock_desc kbd;
         struct blk_list kblks[2];
         uint64_t vused[2] = { 0 };
@@ -335,7 +338,7 @@ kblocks_split(
             blk_list_init(&kblks[i]);
 
         /* split kblock at split_idx */
-        err = kblock_split(&kbd, split_kobj, kblks, vused);
+        err = kblock_split(&kbd, split_kobj, kblks, hlogs, vused);
         if (err)
             return err;
         assert(kblks[LEFT].n_blks > 0 && kblks[RIGHT].n_blks > 0);
@@ -368,11 +371,6 @@ kblocks_split(
 
             blks_right->bl_vused += vused[RIGHT];
         }
-
-        /* TODO: Would it be accurate to use the left and right kblock's hlog here?
-         */
-        hlog_union(hlog_left, kblk->kb_hlog);
-        hlog_union(hlog_right, kblk->kb_hlog);
 
         /* Add the source kblock to the purge list to be destroyed later */
         err = blk_list_append(result->blks_purge, kblk->kb_kblk.bk_blkid);
