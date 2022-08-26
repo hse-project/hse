@@ -6,10 +6,12 @@
 #ifndef HSE_LOGGING_LOGGING_H
 #define HSE_LOGGING_LOGGING_H
 
+#include <limits.h>
+#include <stdbool.h>
+#include <stdint.h>
 #include <syslog.h>
 
 #include <hse_util/compiler.h>
-#include <hse_util/event_counter.h>
 
 #include <hse/error/merr.h>
 
@@ -44,29 +46,15 @@ struct logging_params {
     char lp_path[PATH_MAX];
 };
 
-#define log_pri(_pri, _err, _fmt, ...)                         \
-    do {                                                       \
-        static struct event_counter hse_ev_log _dt_section = { \
-            .ev_odometer = 0,                                  \
-            .ev_pri = (_pri),                                  \
-            .ev_flags = EV_FLAGS_HSE_LOG,                      \
-            .ev_file = __FILE__,                               \
-            .ev_line = __LINE__,                               \
-            .ev_dte = {                                        \
-                .dte_data = &hse_ev_log,                       \
-                .dte_ops = &event_counter_ops,                 \
-                .dte_type = DT_TYPE_ERROR_COUNTER,             \
-                .dte_line = __LINE__,                          \
-                .dte_file = __FILE__,                          \
-                .dte_func = __func__,                          \
-            }                                                  \
-        };                                                     \
-                                                               \
-        log_impl(&hse_ev_log, (_err), (_fmt), ##__VA_ARGS__);  \
+#define log_pri(_lvl, _err, _fmt, ...)                           \
+    do {                                                         \
+        static uint64_t log_timer = 0;                           \
+                                                                 \
+        log_impl((_lvl), REL_FILE(__FILE__), __LINE__, __func__, \
+            &log_timer, (_err), (_fmt), ##__VA_ARGS__);  \
     } while (0)
 
-/* Main logging APIs for HSE.  Debug, info and warn levels use async
- * logging. Err and crit levels use synchronous logging.
+/* Main logging APIs for HSE.
  */
 #define log_debug(_fmt, ...)    log_pri(LOG_DEBUG, 0, (_fmt), ##__VA_ARGS__)
 #define log_info(_fmt, ...)     log_pri(LOG_INFO, 0, (_fmt), ##__VA_ARGS__)
@@ -79,22 +67,33 @@ struct logging_params {
 #define log_warnx(_fmt, _err, ...)  log_pri(LOG_WARNING, (_err), (_fmt), ##__VA_ARGS__)
 #define log_errx(_fmt, _err, ...)   log_pri(LOG_ERR, (_err), (_fmt), ##__VA_ARGS__)
 
-merr_t
-logging_init(const struct logging_params *params) HSE_COLD;
+/* Helper API used by above log macros. Not intended to be called directly. */
+void
+log_impl(
+    int level,
+    const char *file,
+    int lineno,
+    const char *func,
+    uint64_t *timer,
+    merr_t err,
+    const char *fmt,
+    ...) HSE_PRINTF(7, 8);
+
+/* Convert a log level: numeric to string. */
+const char *
+log_level_to_string(int level);
+
+/* Convert a log level: string to numeric. */
+int
+log_level_from_string(const char *name);
 
 void
 logging_fini(void) HSE_COLD;
 
-/* Helper API used by above log macros. Not intended to be called directly. */
+merr_t
+logging_init(const struct logging_params *params) HSE_COLD;
+
 void
-log_impl(struct event_counter *ev, merr_t err, const char *fmt, ...) HSE_PRINTF(3, 4);
-
-/* Convert a log priority level: numeric to string. */
-const char *
-log_priority_to_string(int prio);
-
-/* Convert a log priority level: string to numeric. */
-int
-log_priority_from_string(const char *name);
+logging_set_level(int level);
 
 #endif /* HSE_LOGGING_LOGGING_H */

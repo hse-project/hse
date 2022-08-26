@@ -49,7 +49,7 @@ MTF_DEFINE_UTEST(perfc, perfc_basic_create_find_and_remove)
     ctrnames.pcn_flags = 0;
     ctrnames.pcn_prio = 1;
 
-    err = perfc_alloc_impl(1, "villains", &ctrnames, 1, "joker", __FILE__, __LINE__, &set);
+    err = perfc_alloc_impl(1, "villains", &ctrnames, 1, "joker", REL_FILE(__FILE__), __LINE__, &set);
     ASSERT_EQ(0, err);
 
     count = dt_iterate_cmd(DT_OP_COUNT, DT_PATH_PERFC, NULL, NULL, NULL, NULL);
@@ -109,7 +109,7 @@ MTF_DEFINE_UTEST(perfc, perfc_basic_set)
     ctrnames.pcn_flags = 0;
     ctrnames.pcn_prio = 1;
 
-    err = perfc_alloc_impl(1, "villains", &ctrnames, 1, "poison_ivy", __FILE__, __LINE__, &set);
+    err = perfc_alloc_impl(1, "villains", &ctrnames, 1, "poison_ivy", REL_FILE(__FILE__), __LINE__, &set);
     ASSERT_EQ(0, err);
 
     perfc_set(&set, 0, new_value);
@@ -187,7 +187,7 @@ MTF_DEFINE_UTEST(perfc, clear_counters)
     ctrnames[2].pcn_name = "PERFC_LT_FAM_TEST";
     ctrnames[3].pcn_name = "PERFC_SL_FAM_TEST";
 
-    err = perfc_alloc_impl(1, "myset", ctrnames, ctrc, "alltypes", __FILE__, __LINE__, &set);
+    err = perfc_alloc_impl(1, "myset", ctrnames, ctrc, "alltypes", REL_FILE(__FILE__), __LINE__, &set);
     ASSERT_EQ(0, err);
 
     perfc_test_ctrs(&set);
@@ -223,7 +223,7 @@ MTF_DEFINE_UTEST(perfc, enable_counters)
     ctrnames.pcn_prio = 3;
     ctrnames.pcn_name = "PERFC_BA_FAM_TEST";
 
-    err = perfc_alloc_impl(1, "myset", &ctrnames, 1, "basic", __FILE__, __LINE__, &set);
+    err = perfc_alloc_impl(1, "myset", &ctrnames, 1, "basic", REL_FILE(__FILE__), __LINE__, &set);
     ASSERT_EQ(0, err);
 
     perfc_test_ctrs(&set);
@@ -292,7 +292,7 @@ MTF_DEFINE_UTEST(perfc, perfc_ctr_name2type_fail)
     for (i = 0; i < NELEM(namev); ++i) {
         ctrv[0].pcn_name = namev[i];
 
-        err = perfc_alloc_impl(1, "mygroup", ctrv, 1, "set", __FILE__, __LINE__, &set);
+        err = perfc_alloc_impl(1, "mygroup", ctrv, 1, "set", REL_FILE(__FILE__), __LINE__, &set);
         ASSERT_NE(0, err);
     }
 }
@@ -309,7 +309,7 @@ MTF_DEFINE_UTEST(perfc, ctrset_path)
     ctrnames.pcn_flags = 0;
     ctrnames.pcn_prio = 1;
 
-    err = perfc_alloc_impl(1, "n", &ctrnames, 1, "s", __FILE__, __LINE__, &set);
+    err = perfc_alloc_impl(1, "n", &ctrnames, 1, "s", REL_FILE(__FILE__), __LINE__, &set);
     ASSERT_EQ(0, err);
     ASSERT_EQ(0, strcmp(DT_PATH_PERFC "/n/FAM/s", perfc_ctrseti_path(&set)));
 
@@ -335,7 +335,7 @@ MTF_DEFINE_UTEST(perfc, perfc_rollup)
     merr_t err;
 
     err = perfc_alloc_impl(
-        1, "rollup", perfc_rollup_op, PERFC_EN_RUTEST, "set", __FILE__, __LINE__, &perfc_rollup_pc);
+        1, "rollup", perfc_rollup_op, PERFC_EN_RUTEST, "set", REL_FILE(__FILE__), __LINE__, &perfc_rollup_pc);
     ASSERT_EQ(err, 0);
 
     for (i = 0, sum = 0; i < 1024 * 1024; ++i, sum += i) {

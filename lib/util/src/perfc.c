@@ -494,7 +494,7 @@ perfc_init(void)
     static struct dt_element hse_dte_perfc = {
         .dte_ops = &perfc_root_ops,
         .dte_type = DT_TYPE_ROOT,
-        .dte_file = __FILE__,
+        .dte_file = REL_FILE(__FILE__),
         .dte_line = __LINE__,
         .dte_func = __func__,
         .dte_path = DT_PATH_PERFC,

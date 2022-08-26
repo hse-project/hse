@@ -1,9 +1,10 @@
 /* SPDX-License-Identifier: Apache-2.0 */
 /*
- * Copyright (C) 2021 Micron Technology, Inc.  All rights reserved.
+ * Copyright (C) 2022 Micron Technology, Inc.  All rights reserved.
  */
 
 #include <fcntl.h>
+#include <stdint.h>
 
 #include <mtf/framework.h>
 #include <mock/api.h>
@@ -336,7 +337,7 @@ mdc_rw_test(
     size_t rdlen, reclen, rectot, reccnt, used, alloc, size;
     off_t  start;
     bool   sync;
-    u16    reopen_freq, sync_freq;
+    uint16_t reopen_freq, sync_freq;
 
     if (large) {
         reclen = 4 * 1024;

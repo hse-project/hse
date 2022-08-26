@@ -1,6 +1,6 @@
 /* SPDX-License-Identifier: Apache-2.0 */
 /*
- * Copyright (C) 2021 Micron Technology, Inc.  All rights reserved.
+ * Copyright (C) 2021-2022 Micron Technology, Inc.  All rights reserved.
  */
 
 #define MTF_MOCK_IMPL_mpool
@@ -13,14 +13,15 @@
 #include <linux/magic.h>
 #endif
 
+#include <hse/error/merr.h>
 #include <hse/hse.h>
+#include <hse/logging/logging.h>
 
 #include <hse_util/assert.h>
-#include <hse/logging/logging.h>
-#include <hse/error/merr.h>
-#include <hse_util/workqueue.h>
-#include <hse_util/page.h>
 #include <hse_util/dax.h>
+#include <hse_util/event_counter.h>
+#include <hse_util/page.h>
+#include <hse_util/workqueue.h>
 
 #include <mpool/mpool.h>
 #include <mpool/mpool_structs.h>

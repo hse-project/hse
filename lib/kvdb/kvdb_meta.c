@@ -6,22 +6,24 @@
 #define MTF_MOCK_IMPL_kvdb_meta
 
 #include <assert.h>
+#include <errno.h>
+#include <fcntl.h>
 #include <tgmath.h>
+#include <unistd.h>
 
 #include <bsd/string.h>
 #include <cjson/cJSON.h>
 
 #include <hse/hse.h>
+#include <hse/logging/logging.h>
 
 #include <hse_ikvdb/kvdb_meta.h>
 #include <hse_ikvdb/kvdb_home.h>
 #include <hse_ikvdb/omf_version.h>
 #include <hse_util/assert.h>
-#include <hse/logging/logging.h>
+#include <hse_util/base.h>
 
 #include <mpool/mpool.h>
-
-#include <float.h>
 
 #define KVDB_META       "kvdb.meta"
 #define KVDB_META_PERMS (S_IRUSR | S_IWUSR)

@@ -5,13 +5,15 @@
 
 #define MTF_MOCK_IMPL_sched_sts
 
-#include <hse_util/platform.h>
 #include <hse/logging/logging.h>
-#include <hse_util/workqueue.h>
-#include <hse_util/mutex.h>
-#include <hse_util/rest_api.h>
 
 #include <hse_ikvdb/sched_sts.h>
+
+#include <hse_util/event_counter.h>
+#include <hse_util/mutex.h>
+#include <hse_util/platform.h>
+#include <hse_util/rest_api.h>
+#include <hse_util/workqueue.h>
 
 #include <bsd/string.h>
 

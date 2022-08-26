@@ -1,11 +1,13 @@
 /* SPDX-License-Identifier: Apache-2.0 */
 /*
- * Copyright (C) 2015-2020 Micron Technology, Inc.  All rights reserved.
+ * Copyright (C) 2015-2022 Micron Technology, Inc.  All rights reserved.
  */
 
-#include <hse_util/atomic.h>
+#include <stdatomic.h>
+
 #include <hse/error/merr.h>
 #include <hse/logging/logging.h>
+#include <hse_util/atomic.h>
 
 #include "multithreaded_tester.h"
 #include <mtf/framework.h>
@@ -65,7 +67,7 @@ MTF_DEFINE_UTEST(atomic_test, basic64)
 {
     atomic_long v;
     long        i;
-    u64         s;
+    uint64_t    s;
 
     ASSERT_EQ(sizeof(i), 8);
     ASSERT_EQ(sizeof(v), 8);

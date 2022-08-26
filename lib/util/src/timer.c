@@ -1,17 +1,19 @@
 /* SPDX-License-Identifier: Apache-2.0 */
 /*
- * Copyright (C) 2015-2020,2022 Micron Technology, Inc.  All rights reserved.
+ * Copyright (C) 2015-2022 Micron Technology, Inc.  All rights reserved.
  */
-
-#include <hse_util/platform.h>
-#include <hse_util/workqueue.h>
-#include <hse_util/spinlock.h>
-#include <hse/logging/logging.h>
-#include <hse_util/timer.h>
-#include <hse_util/condvar.h>
 
 #include <sys/prctl.h>
 #include <sys/resource.h>
+
+#include <hse/logging/logging.h>
+
+#include <hse_util/condvar.h>
+#include <hse_util/event_counter.h>
+#include <hse_util/platform.h>
+#include <hse_util/spinlock.h>
+#include <hse_util/timer.h>
+#include <hse_util/workqueue.h>
 
 static volatile bool timer_running HSE_READ_MOSTLY;
 static struct workqueue_struct *timer_wq HSE_READ_MOSTLY;

@@ -5,22 +5,21 @@
 
 #define MTF_MOCK_IMPL_platform
 
+#include <hse/version.h>
+#include <hse/logging/logging.h>
+
 #include <hse_ikvdb/hse_gparams.h>
 
-#include <hse_util/platform.h>
-#include <hse_util/page.h>
 #include <hse_util/data_tree.h>
+#include <hse_util/event_counter.h>
+#include <hse_util/minmax.h>
+#include <hse_util/page.h>
 #include <hse_util/perfc.h>
-#include <hse_util/timer.h>
-#include <hse_util/vlb.h>
-#include <hse_util/hse_log_fmt.h>
+#include <hse_util/platform.h>
 #include <hse_util/rest_api.h>
 #include <hse_util/slab.h>
-#include <hse_util/minmax.h>
-
-#include <hse/version.h>
-
-#include <hse/logging/logging.h>
+#include <hse_util/timer.h>
+#include <hse_util/vlb.h>
 
 #include "rest_dt.h"
 #include "cgroup.h"
@@ -208,22 +207,12 @@ hse_platform_init(void)
 {
     merr_t err;
 
-    /* First log message w/ HSE version - after deserializing global params */
-    log_info("version %s, program %s", HSE_VERSION_STRING, hse_progname);
-
     if (PAGE_SIZE != getpagesize()) {
         log_err("compile-time PAGE_SIZE (%lu) != run-time getpagesize (%d)",
             PAGE_SIZE, getpagesize());
 
         return merr(EINVAL);
     }
-
-    dt_init();
-    event_counter_init();
-
-    err = logging_init(&hse_gparams.gp_logging);
-    if (err)
-        return err;
 
     err = hse_cpu_init();
     if (err)
@@ -232,6 +221,9 @@ hse_platform_init(void)
     err = hse_timer_init();
     if (err)
         goto errout;
+
+    dt_init();
+    event_counter_init();
 
     err = vlb_init();
     if (err)
@@ -252,7 +244,7 @@ hse_platform_init(void)
 
 errout:
     if (err)
-        log_errx("initialization failed\n", err);
+        log_errx("initialization failed", err);
 
     return err;
 }
@@ -263,11 +255,10 @@ hse_platform_fini(void)
     rest_destroy();
     kmem_cache_fini();
     perfc_fini();
-    vlb_fini();
-    hse_timer_fini();
     hse_cgroup_fini();
-    logging_fini();
+    vlb_fini();
     dt_fini();
+    hse_timer_fini();
 }
 
 #if HSE_MOCKING

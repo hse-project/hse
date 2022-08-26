@@ -1,7 +1,9 @@
 /* SPDX-License-Identifier: Apache-2.0 */
 /*
- * Copyright (C) 2021 Micron Technology, Inc.  All rights reserved.
+ * Copyright (C) 2021-2022 Micron Technology, Inc.  All rights reserved.
  */
+
+#include <stdint.h>
 
 #include <mtf/framework.h>
 #include <mock/api.h>
@@ -29,7 +31,7 @@ mblock_write_test(struct mpool *mp, uint64_t mbid, void *buf, size_t len)
     size_t        left;
     int           i;
     merr_t        err;
-    int           uaoff = (int)((u64)buf & (PAGE_SIZE - 1));
+    int           uaoff = (int)((uint64_t)buf & (PAGE_SIZE - 1));
 
     iovc = (len + uaoff + PAGE_SIZE - 1) / PAGE_SIZE;
 

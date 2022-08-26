@@ -1,18 +1,20 @@
 /* SPDX-License-Identifier: Apache-2.0 */
 /*
- * Copyright (C) 2015-2021 Micron Technology, Inc.  All rights reserved.
+ * Copyright (C) 2015-2022 Micron Technology, Inc.  All rights reserved.
  */
 
-#include <hse_util/compiler.h>
 #include <hse/error/merr.h>
-#include <hse_util/cursor_heap.h>
-#include <hse_util/atomic.h>
 #include <hse/logging/logging.h>
-#include <hse_util/xrand.h>
+
+#include <hse_util/atomic.h>
+#include <hse_util/bonsai_tree.h>
+#include <hse_util/compiler.h>
+#include <hse_util/cursor_heap.h>
 #include <hse_util/keycmp.h>
 #include <hse_util/seqno.h>
-#include <hse_util/bonsai_tree.h>
 #include <hse_util/storage.h>
+#include <hse_util/time.h>
+#include <hse_util/xrand.h>
 
 #include <util/src/bonsai_tree_pvt.h>
 

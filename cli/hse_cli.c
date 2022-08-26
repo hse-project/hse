@@ -1,6 +1,6 @@
 /* SPDX-License-Identifier: Apache-2.0 */
 /*
- * Copyright (C) 2016-2021 Micron Technology, Inc.  All rights reserved.
+ * Copyright (C) 2016-2022 Micron Technology, Inc.  All rights reserved.
  */
 
 #include <errno.h>
@@ -18,12 +18,14 @@
 
 #include <bsd/string.h>
 
+#include <hse/cli/param.h>
 #include <hse/hse.h>
+#include <hse/logging/logging.h>
 #include <hse/version.h>
 
+#include <hse_util/compiler.h>
 #include <hse_util/parse_num.h>
 #include <hse_util/yaml.h>
-#include <hse/cli/param.h>
 
 #include "cli_util.h"
 #include "storage_profile.h"
@@ -57,11 +59,11 @@
 
 typedef uint64_t hse_err_t;
 
-#define INTERNAL_ERROR()                                                \
-    do {                                                                \
-        fprintf(stderr, "%s:%d: internal error\n", __FILE__, __LINE__); \
-        assert(0);                                                      \
-        exit(-1);                                                       \
+#define INTERNAL_ERROR()                                                          \
+    do {                                                                          \
+        fprintf(stderr, "%s:%d: internal error\n", REL_FILE(__FILE__), __LINE__); \
+        assert(0);                                                                \
+        exit(-1);                                                                 \
     } while (0)
 
 /* Max len of any individual command.  Not enforced.  It is only used

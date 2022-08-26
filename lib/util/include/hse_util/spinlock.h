@@ -1,12 +1,15 @@
 /* SPDX-License-Identifier: Apache-2.0 */
 /*
- * Copyright (C) 2015-2020 Micron Technology, Inc.  All rights reserved.
+ * Copyright (C) 2015-2022 Micron Technology, Inc.  All rights reserved.
  */
 
 #ifndef HSE_PLATFORM_SPINLOCK_H
 #define HSE_PLATFORM_SPINLOCK_H
 
+#include <pthread.h>
+
 #include <hse_util/assert.h>
+#include <hse_util/compiler.h>
 
 typedef struct {
     pthread_spinlock_t lock;

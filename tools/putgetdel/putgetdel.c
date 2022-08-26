@@ -153,7 +153,7 @@ merr_quit_impl(const char *detail, hse_err_t err, const char *file, int line)
 }
 
 #define merr_quit(_detail, _err)                                \
-    merr_quit_impl((_detail), (_err), __FILE__, __LINE__)
+    merr_quit_impl((_detail), (_err), REL_FILE(__FILE__), __LINE__)
 
 void
 announce_header(void)
