@@ -6,6 +6,8 @@
 #ifndef HSE_KVS_CN_WBT_BUILDER_H
 #define HSE_KVS_CN_WBT_BUILDER_H
 
+/* MTF_MOCK_DECL(wbt_builder) */
+
 #include <hse/error/merr.h>
 #include <hse_util/inttypes.h>
 
@@ -13,29 +15,31 @@ struct key_obj;
 struct wbb;
 struct wbt_hdr_omf;
 
-/* MTF_MOCK_DECL(wbt_builder) */
-
-/**
- * wbb_create() - create a wbtree builder
- * @wbb_out: (output) builder handle
- * @max_pgc: (in) max allowable size of wbtree in pages
- * @wbt_pgc: (in/out) actual size (in pages) of wbtree creation
+/* Create a wbtree builder
+ *
+ * Parameters:
+ * - wbb_out: (output) builder handle
+ * - max_pgc: (in) max allowable size of wbtree in pages
+ * - wbt_pgc: (in/out) actual size (in pages) of wbtree creation
  */
 /* MTF_MOCK */
 merr_t
 wbb_create(struct wbb **wbb_out, uint max_pgc, uint *wbt_pgc);
 
+/* Reset a wbtree builder so it can be reused for a new wbtree
+ */
 /* MTF_MOCK */
 void
 wbb_reset(struct wbb *wbb, uint *wbt_pgc);
 
-/**
- * wbb_destroy() - destroy a wbtree builder
+/* Destroy a wbtree builder
  */
 /* MTF_MOCK */
 void
 wbb_destroy(struct wbb *wbb);
 
+/* Get the number of keys stored in a wbtree under construction.
+ */
 uint
 wbb_entries(struct wbb *wbb);
 

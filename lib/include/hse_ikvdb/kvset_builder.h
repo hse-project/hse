@@ -29,9 +29,6 @@ struct key_stats {
     uint nptombs;
     u64  tot_vlen;
     u64  tot_vused;
-    u64  seqno_prev;
-    u64  seqno_prev_ptomb;
-    u64  c0_vlen;
 };
 
 /* MTF_MOCK_DECL(kvset_builder) */

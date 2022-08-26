@@ -19,69 +19,53 @@
 
 struct cn;
 
+
+/* A staging buffer for holding a single key's metadata.
+ */
 struct kmd_info {
-    uint8_t *kmd;
-    uint kmd_size;
-    size_t kmd_used;
+    uint8_t *kmd;     // allocated buffer
+    uint kmd_size;    // size of allocated buffer
+    size_t kmd_used;  // length of valid data in buffer
 };
 
-/**
- * struct kvset_builder - context for holding the results of a merge operation
- * @cn:              pointer to cn struct
- * @hbb:             hblock builder (creates a single hblock)
- * @hblk:            singular hblock
- * @kbb:             kblock builder (creates multiple kblocks)
- * @kblk_list:       list of kblock ids allocated by @kbb
- * @vbb:             vblock builder (creates multiple vblocks)
- * @vblk_list:       list of vblock ids allocated by @vbb
- * @seqno_max:       max seqno present in output kvset
- * @seqno_min:       min seqno present in output kvset
- * @vused:           sum of vlen of all selected values
- * @kblk_kmd:        kmd info about the main wbtree
- * @hblk_kmd:        kmd info about the ptomb wbtree
- * @key_stats:       stats regarding the current key being added
- * @last_ptomb:      last (largest) ptomb seen while building kvset. Tracked
- *                   only if cn is a capped.
- * @last_ptlen:      length of @last_ptomb
- * @vblk_baseidx:    base index used for coalescing multiple vblock builders
+/* kvset builder object
  *
- * This struct contains the output kvset when merging multiple input kvsets
- * into one output kvset.  It is used for ingest, compaction and spill.  When
- * used for spill, there is one of these structs for each child (i.e., one for
- * each output kvset).
+ * A kvset builder creates hblocks, kblocks and vblocks that make up a kvset.
+ * The primary outputs of a build operation are the mblock IDs for the header
+ * mblock (hblock), one or more key mblocks (kblocks), and zero or more value
+ * blocks (vblocks).
  */
 struct kvset_builder {
-    struct cn *cn;
+    struct cn *cn;               // pointer to cn struct
 
-    struct hblock_builder *hbb;
-    struct kvs_block hblk;
+    struct hblock_builder *hbb;  // hblock builder
+    struct kvs_block hblk;       // hblock id
 
-    struct kblock_builder *kbb;
-    struct blk_list kblk_list;
+    struct kblock_builder *kbb;  // kblock builder
+    struct blk_list kblk_list;   // list of kblock ids
 
-    struct vblock_builder *vbb;
-    struct blk_list vblk_list;
+    struct vblock_builder *vbb;  // vblock builder
+    struct blk_list vblk_list;   // list of vblock ids
 
     struct vgmap *vgmap;
 
-    uint64_t seqno_max;
-    uint64_t seqno_min;
+    uint64_t seqno_max; // max seqno present in new kvset
+    uint64_t seqno_min; // min seqno present in new kvset
+    uint64_t vused;     // sum of len of all values in new kvset
 
-    /* vused feeds into tree compaction logic.
-     * Modify with care.
-     */
-    uint64_t vused;
+    uint64_t seqno_prev;       // for sanity checks while building kvsets
+    uint64_t seqno_prev_ptomb; // for sanity checks while building kvsets
 
-    /* state related to current key and its values */
-    struct kmd_info kblk_kmd;
-    struct kmd_info hblk_kmd;
+    struct kmd_info kblk_kmd;  // staging buffer for kblk key metadata
+    struct kmd_info hblk_kmd;  // staging buffer for hblk key metadata
 
+    struct key_stats key_stats;    // stats about current key and its values
+    struct cn_merge_stats mstats;  // stats about the builder's merge operation
 
-    struct key_stats key_stats;
-    struct cn_merge_stats mstats;
-
-    uint8_t  last_ptomb[HSE_KVS_PFX_LEN_MAX];
-    uint32_t last_ptlen;
-    uint64_t last_ptseq;
+    // for capped KVS only
+    uint8_t  last_ptomb[HSE_KVS_PFX_LEN_MAX]; // copy of largest ptomb seen (for capped KVS)
+    uint32_t last_ptlen;                      // length of last_ptomb
+    uint64_t last_ptseq;                      // seqno of last_ptomb
 };
+
 #endif

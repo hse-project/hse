@@ -602,12 +602,10 @@ kblock_add_entry(
     return 0;
 }
 
-/**
- * _kblock_finish_bloom() - finalize wbtree and Bloom filter regions
- * @blm_hdr: (output) Bloom filter header
+/* Finalize wbtree bloom filter.
  */
 static merr_t
-_kblock_finish_bloom(struct curr_kblock *kblk, struct bloom_hdr_omf *blm_hdr)
+kblock_finish_bloom(struct curr_kblock *kblk, struct bloom_hdr_omf *blm_hdr)
 {
     struct bloom_filter   bloom;
     struct hash_set_part *part;
@@ -653,30 +651,22 @@ _kblock_finish_bloom(struct curr_kblock *kblk, struct bloom_hdr_omf *blm_hdr)
     return 0;
 }
 
-/**
- * _kblock_make_header() - prepare kblock omf header for writing
- * @wbt_hdr: (input) Wbtree header
- * @blm_hdr: (input) Bloom filter header
+/* Prepare kblock header for writing to media.
  *
- * Caller must ensure the kblock is not empty.
+ * Parameters:
+ * - kblk: kblock handle
+ * - wbt_hdr: wbtree header
+ * - blm_hdr: Bloom filter header
+ * - hdr: (output) kblock header
  *
- * Kblock header layout:
- *
- *    struct kblock_hdr_omf;
- *    pad to 8 bytes;
- *    wbtree header;
- *    pad to 8 bytes;
- *    bloom filter header;
- *    pad so that min key is at end of page, min & max keys are 8-byte aligned
- *    max key;
- *    pad to 8 bytes;
- *    min key;
+ * Notes:
+ * - Caller must ensure the kblock is not empty.
  */
 static void
-_kblock_make_header(
-    struct curr_kblock *   kblk,
-    struct wbt_hdr_omf *   wbt_hdr,
-    struct bloom_hdr_omf * blm_hdr,
+kblock_make_header(
+    struct curr_kblock    *kblk,
+    struct wbt_hdr_omf    *wbt_hdr,
+    struct bloom_hdr_omf  *blm_hdr,
     struct kblock_hdr_omf *hdr)
 {
     void *          base;
@@ -864,7 +854,7 @@ kblock_finish(struct kblock_builder *bld)
     }
 
     /* Finalize Bloom filter. */
-    err = _kblock_finish_bloom(kblk, &blm_hdr);
+    err = kblock_finish_bloom(kblk, &blm_hdr);
     if (ev(err))
         goto errout;
     if (kblk->bloom_len) {
@@ -879,8 +869,7 @@ kblock_finish(struct kblock_builder *bld)
     iov_cnt++;
 
     /* Format kblock header. */
-    _kblock_make_header(
-        kblk, &wbt_hdr, &blm_hdr, kblk->kblk_hdr);
+    kblock_make_header(kblk, &wbt_hdr, &blm_hdr, kblk->kblk_hdr);
 
     assert(iov_cnt <= iov_max);
 
