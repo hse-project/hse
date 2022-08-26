@@ -638,7 +638,7 @@ cn_ingestv(
         goto done;
     }
 
-    err = cndb_record_txstart(cndb, seqno_max, ingestid, txhorizon, (u16)count, 0, &cndb_txn);
+    err = cndb_record_txstart(cndb, seqno_max, ingestid, txhorizon, count, 0, &cndb_txn);
     if (ev(err))
         goto nak;
 

@@ -24,6 +24,7 @@ struct subspill {
     uint64_t                   ss_sgen;
     struct cn_tree_node       *ss_node;
     bool                       ss_added;
+    bool                       ss_applied;
 };
 
 /* MTF_MOCK_DECL(spill) */
@@ -56,8 +57,8 @@ struct subspill {
 /* MTF_MOCK */
 merr_t
 cn_subspill(
-    struct spillctx           *sctx,
     struct subspill           *ss,
+    struct spillctx           *sctx,
     struct cn_tree_node       *node,
     uint64_t                   node_dgen,
     void                      *ekey,

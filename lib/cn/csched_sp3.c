@@ -1060,8 +1060,6 @@ sp3_process_workitem(struct sp3 *sp, struct cn_compaction_work *w)
     sp->samp_wip.l_alen -= w->cw_est.cwe_samp.l_alen;
     sp->samp_wip.l_good -= w->cw_est.cwe_samp.l_good;
 
-    /* [HSE_REVISIT] Evaluate the correct time to use once we enqueue leaf spills.
-     */
     if (w->cw_action == CN_ACTION_SPILL) {
         struct cn_tree *tree = w->cw_tree;
         uint64_t dt = w->cw_t5_finish - w->cw_t0_enqueue;

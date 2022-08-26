@@ -3,8 +3,8 @@
  * Copyright (C) 2022 Micron Technology, Inc.  All rights reserved.
  */
 
-#ifndef HSE_KVDB_CN_KVCOMP_H
-#define HSE_KVDB_CN_KVCOMP_H
+#ifndef HSE_KVDB_CN_KVCOMPACT_H
+#define HSE_KVDB_CN_KVCOMPACT_H
 
 #include <hse/error/merr.h>
 #include <hse_util/inttypes.h>

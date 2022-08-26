@@ -1254,7 +1254,7 @@ run_testcase(struct mtf_test_info *lcl_ti, int mode, const char *info)
 
             route_node_keycpy(rtn, ekey, sizeof(ekey), &eklen);
 
-            err = cn_subspill(sctx, &subspill, 0, 0, ekey, eklen);
+            err = cn_subspill(&subspill, sctx, 0, 0, ekey, eklen);
             ASSERT_EQ(0, err);
         }
 
