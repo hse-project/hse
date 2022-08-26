@@ -6,9 +6,9 @@
 #include <errno.h>
 
 #include <hse/hse.h>
+#include <hse/test/fixtures/kvdb.h>
 
 #include <mtf/framework.h>
-#include <fixtures/kvdb.h>
 
 struct hse_kvdb *kvdb_handle = NULL;
 struct hse_kvs  *kvs_handle = NULL;

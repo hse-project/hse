@@ -6,8 +6,8 @@
 #include <hse/hse.h>
 
 #include <mtf/framework.h>
-#include <fixtures/kvdb.h>
-#include <fixtures/kvs.h>
+#include <hse/test/fixtures/kvdb.h>
+#include <hse/test/fixtures/kvs.h>
 
 #include <hse_util/base.h>
 

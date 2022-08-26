@@ -8,9 +8,9 @@
 
 #include <hse/hse.h>
 #include <hse/experimental.h>
+#include <hse/test/fixtures/kvdb.h>
 
 #include <mtf/framework.h>
-#include <fixtures/kvdb.h>
 
 #include <hse_util/base.h>
 
