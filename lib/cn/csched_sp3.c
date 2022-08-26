@@ -1060,8 +1060,6 @@ sp3_process_workitem(struct sp3 *sp, struct cn_compaction_work *w)
     sp->samp_wip.l_alen -= w->cw_est.cwe_samp.l_alen;
     sp->samp_wip.l_good -= w->cw_est.cwe_samp.l_good;
 
-    /* [HSE_REVISIT] Evaluate the correct time to use once we enqueue leaf spills.
-     */
     if (w->cw_action == CN_ACTION_SPILL) {
         struct cn_tree *tree = w->cw_tree;
         uint64_t dt = w->cw_t5_finish - w->cw_t0_enqueue;
@@ -1280,10 +1278,6 @@ static void
 sp3_work_checkpoint(struct cn_compaction_work *w)
 {
     sp3_enqueue_dirty_node(w, w->cw_output_nodev[0]);
-
-    /* [HSE_REVISIT] Don't wake up the scheduler after each call.
-     */
-    //sp3_monitor_wake(w->cw_sched);
 }
 
 static void
@@ -2126,7 +2120,6 @@ sp3_monitor(struct work_struct *work)
     struct periodic_check chk_sched   = { .interval = NSEC_PER_SEC * 3 };
     struct periodic_check chk_refresh = { .interval = NSEC_PER_SEC * 10 };
     struct periodic_check chk_shape   = { .interval = NSEC_PER_SEC * 15 };
-    struct periodic_check chk_dirty   = { .interval = NSEC_PER_SEC * 5 };
 
     bool bad_health = false;
     u64 last_activity = 0;
@@ -2155,12 +2148,8 @@ sp3_monitor(struct work_struct *work)
         /* The following "process and prune" functions will increment
          * sp->activity to trigger a call (below) to sp3_schedule().
          */
-        if (now > chk_dirty.next) {
-            sp3_process_dirtylist(sp);
-            chk_dirty.next = now + chk_dirty.interval;
-        }
-
         sp3_process_worklist(sp);
+        sp3_process_dirtylist(sp);
         sp3_process_ingest(sp);
         sp3_process_new_trees(sp);
         sp3_prune_trees(sp);

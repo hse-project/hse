@@ -79,11 +79,11 @@ cndb_record_kvs_del(struct cndb *cndb, uint64_t cnid);
 merr_t
 cndb_record_txstart(
     struct cndb      *cndb,
-    u64               seqno,
-    u64               ingestid,
-    u64               txhorizon,
-    u16               add_cnt,
-    u16               del_cnt,
+    uint64_t          seqno,
+    uint64_t          ingestid,
+    uint64_t          txhorizon,
+    uint32_t          add_cnt,
+    uint32_t          del_cnt,
     struct cndb_txn **tx_out);
 
 /* MTF_MOCK */

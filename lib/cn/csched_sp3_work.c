@@ -783,7 +783,7 @@ sp3_work(
 
     /* Ensure concurrent root spills complete in order */
     if (w->cw_action == CN_ACTION_SPILL)
-        w->cw_sgen = ++w->cw_tree->ct_sgen;
+        w->cw_sgen = ++tree->ct_sgen;
 
     sp3_work_estimate(w);
 

@@ -218,7 +218,7 @@ struct spillctx {
 };
 
 merr_t
-cn_spill_init(struct cn_compaction_work *w, struct spillctx **sctx_out)
+cn_spill_create(struct cn_compaction_work *w, struct spillctx **sctx_out)
 {
     struct spillctx *s;
     merr_t err;
@@ -242,7 +242,7 @@ cn_spill_init(struct cn_compaction_work *w, struct spillctx **sctx_out)
 }
 
 void
-cn_spill_fini(struct spillctx *sctx)
+cn_spill_destroy(struct spillctx *sctx)
 {
     if (!sctx)
         return;
@@ -281,8 +281,8 @@ cn_subspill_get_kvset_meta(struct subspill *ss, struct kvset_meta *km)
 
 merr_t
 cn_subspill(
-    struct spillctx           *sctx,
     struct subspill           *ss,
+    struct spillctx           *sctx,
     struct cn_tree_node       *node,
     uint64_t                   node_dgen,
     void                      *ekey,
@@ -370,11 +370,6 @@ cn_subspill(
     tstart = perfc_ison(w->cw_pc, PERFC_DI_CNCOMP_VGET) ? 1 : 0;
 
     while (sctx->more && key_obj_cmp(&sctx->curr.kobj, &ekobj) <= 0) {
-
-        if (new_key && atomic_read(w->cw_cancel_request)) {
-            err = merr(ESHUTDOWN);
-            goto out;
-        }
 
         curr_klen = key_obj_len(&sctx->curr.kobj);
         assert(curr_klen >= w->cw_cp->sfx_len || sctx->curr.vctx.is_ptomb);
@@ -543,8 +538,10 @@ cn_subspill(
             }
         }
 
-        if (err)
+        if (atomic_read(w->cw_cancel_request)) {
+            err = merr(ESHUTDOWN);
             goto out;
+        }
     }
 
     err = kvset_builder_get_mblocks(child, &ss->ss_mblks);
