@@ -5,9 +5,10 @@
 
 #define MTF_MOCK_IMPL_cndb
 
-#include <hse_util/platform.h>
-#include <hse_util/alloc.h>
 #include <hse/logging/logging.h>
+#include <hse_util/alloc.h>
+#include <hse_util/event_counter.h>
+#include <hse_util/platform.h>
 #include <hse_util/map.h>
 
 #include <hse_ikvdb/cn.h>

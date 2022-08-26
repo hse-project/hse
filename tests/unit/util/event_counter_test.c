@@ -884,13 +884,6 @@ MTF_DEFINE_UTEST(event_counter, ev_match_select_test)
     dte.dte_data = &ec;
     dte.dte_ops = &event_counter_ops;
 
-    /* make the EC 'come from a LP_WARN message' */
-    ec.ev_flags = EV_FLAGS_HSE_LOG;
-
-    /* Should match with "hse_log" */
-    boolean = ev_match_select_handler(&dte, "source", "hse_log");
-    ASSERT_EQ(boolean, true);
-
     /* Should match with "all" */
     boolean = ev_match_select_handler(&dte, "source", "all");
     ASSERT_EQ(boolean, true);
@@ -901,33 +894,6 @@ MTF_DEFINE_UTEST(event_counter, ev_match_select_test)
 
     /* Should not match with random other string */
     boolean = ev_match_select_handler(&dte, "source", "the_moon");
-    ASSERT_EQ(boolean, false);
-
-    /* Should not match if field is not 'source' */
-    boolean = ev_match_select_handler(&dte, "src", "hse_log");
-    ASSERT_EQ(boolean, false);
-
-    /* make the EC not /come from a hse_log message' */
-    ec.ev_flags = 0;
-
-    /* Should not match with "hse_log" */
-    boolean = ev_match_select_handler(&dte, "source", "hse_log");
-    ASSERT_EQ(boolean, false);
-
-    /* Should match with "all" */
-    boolean = ev_match_select_handler(&dte, "source", "all");
-    ASSERT_EQ(boolean, true);
-
-    /* Should match with "event_counter" */
-    boolean = ev_match_select_handler(&dte, "source", "events");
-    ASSERT_EQ(boolean, true);
-
-    /* Should not match with random other string */
-    boolean = ev_match_select_handler(&dte, "source", "the_moon");
-    ASSERT_EQ(boolean, false);
-
-    /* Should not match if field is not 'source' */
-    boolean = ev_match_select_handler(&dte, "src", "hse_log");
     ASSERT_EQ(boolean, false);
 }
 

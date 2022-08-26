@@ -9,10 +9,11 @@
 
 #include <hse/experimental.h>
 
-#include <hse_util/platform.h>
 #include <hse_util/alloc.h>
-#include <hse_util/slab.h>
+#include <hse_util/event_counter.h>
+#include <hse_util/platform.h>
 #include <hse_util/rest_api.h>
+#include <hse_util/slab.h>
 
 #include <hse_ikvdb/cn.h>
 #include <hse_ikvdb/ikvdb.h>

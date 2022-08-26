@@ -3,14 +3,15 @@
  * Copyright (C) 2015-2022 Micron Technology, Inc.  All rights reserved.
  */
 
-#include <hse_util/platform.h>
-#include <hse_util/slab.h>
-#include <hse_util/page.h>
-#include <hse_util/vlb.h>
-#include <hse_util/fmt.h>
-#include <hse_util/keycmp.h>
 #include <hse/logging/logging.h>
 #include <hse_util/compression_lz4.h>
+#include <hse_util/event_counter.h>
+#include <hse_util/fmt.h>
+#include <hse_util/keycmp.h>
+#include <hse_util/page.h>
+#include <hse_util/platform.h>
+#include <hse_util/slab.h>
+#include <hse_util/vlb.h>
 
 #include <hse/kvdb_perfc.h>
 

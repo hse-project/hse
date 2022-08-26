@@ -6,12 +6,12 @@
 #ifndef HSE_PLATFORM_PERFC_H
 #define HSE_PLATFORM_PERFC_H
 
-#include <hse_util/platform.h>
+#include <hse/error/merr.h>
 #include <hse_util/assert.h>
 #include <hse_util/atomic.h>
-#include <hse_util/timer.h>
-#include <hse/error/merr.h>
 #include <hse_util/data_tree.h>
+#include <hse_util/platform.h>
+#include <hse_util/timer.h>
 
 /* clang-format off */
 
@@ -897,9 +897,9 @@ perfc_sub(struct perfc_set *pcs, const u32 cidx, const u64 val)
 
 extern struct perfc_ivl *perfc_di_ivl;
 
-#define perfc_alloc(_ctrv, _group, _name, _prio, _setp)              \
-    perfc_alloc_impl((_prio), (_group), (_ctrv), NELEM((_ctrv)),     \
-                     (_name), __FILE__, __LINE__, (_setp))
+#define perfc_alloc(_ctrv, _group, _name, _prio, _setp)                \
+    perfc_alloc_impl((_prio), (_group), (_ctrv), NELEM((_ctrv)),       \
+                     (_name), REL_FILE(__FILE__), __LINE__, (_setp))
 
 /*
  * perfc_alloc_impl() - allocate a counter set instance

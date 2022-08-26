@@ -116,6 +116,12 @@
 #define MTF_STATIC              static
 #endif
 
+#ifdef HSE_REL_SRC_DIR
+#define REL_FILE(_file) ((_file) + sizeof(HSE_REL_SRC_DIR) - 1)
+#else
+#define REL_FILE(_file) _file
+#endif
+
 /* clang-format on */
 
 #endif /* HSE_PLATFORM_COMPILER_H */

@@ -52,7 +52,7 @@ logging_destination_converter(
     } else if (strcmp(setting, "syslog") == 0) {
         log_dest = LOG_DEST_SYSLOG;
     } else {
-        CLOG_ERR(
+        log_err(
             "Invalid logging.destination value: %s, must be one of stdout, stderr, file, or syslog",
             setting);
         return false;
@@ -178,7 +178,7 @@ static const struct param_spec pspecs[] = {
         .ps_flags = 0,
         .ps_type = PARAM_TYPE_INT,
         .ps_offset = offsetof(struct hse_gparams, gp_logging.lp_level),
-        .ps_size = sizeof(int),
+        .ps_size = PARAM_SZ(struct hse_gparams, gp_logging.lp_level),
         .ps_convert = param_default_converter,
         .ps_validate = param_default_validator,
         .ps_stringify = param_default_stringify,

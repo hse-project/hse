@@ -3,21 +3,18 @@
  * Copyright (C) 2015-2022 Micron Technology, Inc.  All rights reserved.
  */
 
-#ifndef HSE_PLATFORM_ERROR_COUNTER_H
-#define HSE_PLATFORM_ERROR_COUNTER_H
+#ifndef HSE_PLATFORM_EVENT_COUNTER_H
+#define HSE_PLATFORM_EVENT_COUNTER_H
 
 #include <syslog.h>
 
-#include <hse_util/arch.h>
+#include <hse_util/atomic.h>
 #include <hse_util/compiler.h>
 #include <hse_util/data_tree.h>
-#include <hse_util/atomic.h>
-#include <hse_util/time.h>
 
 /* clang-format off */
 
-#define EV_FLAGS_HSE_LOG    (0x01u)
-#define EV_FLAGS_NOTIME     (0x02u)
+#define EV_FLAGS_NOTIME (0x01u)
 
 struct event_counter {
     atomic_ulong       ev_odometer;
@@ -26,7 +23,6 @@ struct event_counter {
     atomic_ulong       ev_odometer_timestamp;
     atomic_ulong       ev_trip_odometer_timestamp;
     ulong              ev_trip_odometer;
-    u64                ev_priv;
     const char        *ev_file;
     int                ev_line;
     struct dt_element  ev_dte;
@@ -43,14 +39,14 @@ extern struct dt_element_ops event_counter_ops;
                 .ev_odometer = 0,                               \
                 .ev_pri = (_pri),                               \
                 .ev_flags = (_flags),                           \
-                .ev_file = __FILE__,                            \
+                .ev_file = REL_FILE(__FILE__),                  \
                 .ev_line = __LINE__,                            \
                 .ev_dte = {                                     \
                     .dte_data = &hse_ev,                        \
                     .dte_ops = &event_counter_ops,              \
                     .dte_type = DT_TYPE_ERROR_COUNTER,          \
                     .dte_line = __LINE__,                       \
-                    .dte_file = __FILE__,                       \
+                    .dte_file = REL_FILE(__FILE__),             \
                     .dte_func = __func__,                       \
                 },                                              \
             };                                                  \
@@ -126,4 +122,4 @@ ev_match_select_handler(struct dt_element *dte, char *field, char *value);
 bool
 ev_root_match_select_handler(struct dt_element *dte, char *field, char *value);
 
-#endif /* HSE_PLATFORM_ERROR_COUNTER_H */
+#endif /* HSE_PLATFORM_EVENT_COUNTER_H */

@@ -5,11 +5,13 @@
 
 #include <bsd/string.h>
 
-#include <hse_util/platform.h>
-#include <hse_util/mutex.h>
-#include <hse_util/list.h>
-#include <hse_util/page.h>
 #include <hse/logging/logging.h>
+
+#include <hse_util/event_counter.h>
+#include <hse_util/list.h>
+#include <hse_util/mutex.h>
+#include <hse_util/page.h>
+#include <hse_util/platform.h>
 
 #include <hse_ikvdb/cndb.h>
 

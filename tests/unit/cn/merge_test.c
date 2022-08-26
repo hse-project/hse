@@ -36,13 +36,13 @@
 
 #include <dirent.h>
 
-#define my_assert(condition)                                                        \
-    do {                                                                            \
-        int pain = !(condition);                                                    \
-        if (pain) {                                                                 \
-            fprintf(stderr, "%s:%d: assert(%s)\n", __FILE__, __LINE__, #condition); \
-            abort();                                                                \
-        }                                                                           \
+#define my_assert(condition)                                                                  \
+    do {                                                                                      \
+        int pain = !(condition);                                                              \
+        if (pain) {                                                                           \
+            fprintf(stderr, "%s:%d: assert(%s)\n", REL_FILE(__FILE__), __LINE__, #condition); \
+            abort();                                                                          \
+        }                                                                                     \
     } while (0)
 
 #define VERBOSE_PER_FILE1 1

@@ -1,6 +1,6 @@
 /* SPDX-License-Identifier: Apache-2.0 */
 /*
- * Copyright (C) 2021 Micron Technology, Inc.  All rights reserved.
+ * Copyright (C) 2021-2022 Micron Technology, Inc.  All rights reserved.
  */
 
 #include <mtf/framework.h>
@@ -18,12 +18,13 @@
 #include <mblock_fset.h>
 #include <mpool_internal.h>
 
-#include <stdlib.h>
 #include <libgen.h>
 #include <limits.h>
 #include <fcntl.h>
-#include <sys/stat.h>
 #include <ftw.h>
+#include <stdlib.h>
+#include <stdint.h>
+#include <sys/stat.h>
 
 #include <bsd/string.h>
 
@@ -325,7 +326,7 @@ MTF_DEFINE_UTEST_PREPOST(mblock_test, mblock_abc, mpool_test_pre, mpool_test_pos
 }
 
 static merr_t
-mblock_rw(struct mpool *mp, uint64_t mbid, void *buf, size_t len, u64 boff, bool is_write)
+mblock_rw(struct mpool *mp, uint64_t mbid, void *buf, size_t len, uint64_t boff, bool is_write)
 {
     struct iovec *iov;
     int           iovc;
@@ -333,7 +334,7 @@ mblock_rw(struct mpool *mp, uint64_t mbid, void *buf, size_t len, u64 boff, bool
     size_t        left;
     int           i;
     merr_t        err;
-    int           uaoff = (int)((u64)buf & (PAGE_SIZE - 1));
+    int           uaoff = (int)((uint64_t)buf & (PAGE_SIZE - 1));
 
     iovc = (len + uaoff + PAGE_SIZE - 1) / PAGE_SIZE;
 
@@ -347,7 +348,7 @@ mblock_rw(struct mpool *mp, uint64_t mbid, void *buf, size_t len, u64 boff, bool
     iovc = 0;
 
     /* Is the caller's buffer page aligned? */
-    if ((u64)pos & (u64)(PAGE_SIZE - 1)) {
+    if ((uintptr_t)pos & (uint64_t)(PAGE_SIZE - 1)) {
         /* First iovec not page aligned */
         int small;
 

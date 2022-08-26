@@ -150,8 +150,8 @@ syntax(const char *fmt, ...)
 }
 
 
-#define merr_quit(detail, err)			\
-    quit("%s:%d: %s: %ld", __FILE__, __LINE__, (detail), (err));
+#define merr_quit(detail, err) \
+    quit("%s:%d: %s: %ld", REL_FILE(__FILE__), __LINE__, (detail), (err));
 
 void
 announce_header(void)

@@ -6,9 +6,11 @@
 #ifndef HSE_PLATFORM_TOKEN_BUCKET_H
 #define HSE_PLATFORM_TOKEN_BUCKET_H
 
-#include <hse_util/inttypes.h>
+#include <hse_util/arch.h>
 #include <hse_util/compiler.h>
+#include <hse_util/inttypes.h>
 #include <hse_util/spinlock.h>
+#include <hse_util/time.h>
 
 /* MTF_MOCK_DECL(token_bucket) */
 
@@ -24,8 +26,7 @@ struct tbkt {
     u64         tb_balance;
 };
 
-static inline
-void
+static inline void
 tbkt_delay(u64 nsec)
 {
     struct timespec timespec;

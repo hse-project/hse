@@ -1,6 +1,6 @@
 /* SPDX-License-Identifier: Apache-2.0 */
 /*
- * Copyright (C) 2015-2021 Micron Technology, Inc.  All rights reserved.
+ * Copyright (C) 2015-2022 Micron Technology, Inc.  All rights reserved.
  */
 
 #include <hse_util/platform.h>
@@ -55,15 +55,12 @@ ev_match_select_handler(struct dt_element *dte, char *field, char *value)
     if (!strcmp(field, "source")) {
         if (!strcmp(value, "all")) {
             return true;
-        } else if (ec->ev_flags & EV_FLAGS_HSE_LOG) {
-            if (!strcmp("hse_log", value))
-                return true;
         } else {
             if (!strcmp("events", value))
                 return true;
         }
     } else if (!strcmp(field, "ev_pri")) {
-        const int pri = log_priority_from_string(value);
+        const int pri = log_level_from_string(value);
 
         if (ec->ev_pri <= pri)
             return true;
@@ -78,7 +75,7 @@ ev_set_handler(struct dt_element *dte, struct dt_set_parameters *dsp)
 
     switch (dsp->field) {
         case DT_FIELD_PRIORITY:
-            ec->ev_pri = log_priority_from_string(dsp->value);
+            ec->ev_pri = log_level_from_string(dsp->value);
             break;
 
         case DT_FIELD_TRIP_ODOMETER:
@@ -124,7 +121,7 @@ ev_emit_handler(struct dt_element *dte, struct yaml_context *yc)
 
     yaml_start_element(yc, "path", dte->dte_path);
 
-    snprintf(value, sizeof(value), "%s", log_priority_to_string(ec->ev_pri));
+    snprintf(value, sizeof(value), "%s", log_level_to_string(ec->ev_pri));
     yaml_element_field(yc, "level", value);
 
     odometer = atomic_read(&ec->ev_odometer);
@@ -142,10 +139,7 @@ ev_emit_handler(struct dt_element *dte, struct yaml_context *yc)
         yaml_element_field(yc, "trip odometer timestamp", value);
     }
 
-    if (ec->ev_flags & EV_FLAGS_HSE_LOG)
-        yaml_element_field(yc, "source", "hse_log");
-    else
-        yaml_element_field(yc, "source", "events");
+    yaml_element_field(yc, "source", "events");
 
     yaml_end_element(yc);
 
@@ -186,7 +180,7 @@ event_counter_init(void)
     static struct dt_element hse_dte_event = {
         .dte_ops = &event_counter_root_ops,
         .dte_type = DT_TYPE_ROOT,
-        .dte_file = __FILE__,
+        .dte_file = REL_FILE(__FILE__),
         .dte_line = __LINE__,
         .dte_func = __func__,
         .dte_path = DT_PATH_EVENT,

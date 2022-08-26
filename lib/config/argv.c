@@ -1,6 +1,6 @@
 /* SPDX-License-Identifier: Apache-2.0 */
 /*
- * Copyright (C) 2021 Micron Technology, Inc.  All rights reserved.
+ * Copyright (C) 2021-2022 Micron Technology, Inc.  All rights reserved.
  */
 
 #include <assert.h>
@@ -40,7 +40,7 @@ argv_deserialize_to_params(
         const char *key = param;
         const char *value = strstr(param, "=");
         if (!value || value[1] == '\0') {
-            CLOG_ERR("Parameter key/value pairs must be of the form <key=value>");
+            log_err("Parameter key/value pairs must be of the form <key=value>");
             err = merr(EINVAL);
             goto out;
         }
@@ -54,7 +54,7 @@ argv_deserialize_to_params(
         }
 
         if (!ps) {
-            CLOG_ERR("Unknown parameter %s", key);
+            log_err("Unknown parameter %s", key);
             err = merr(EINVAL);
             goto out;
         }
@@ -89,7 +89,7 @@ argv_deserialize_to_params(
 
             if (!node) {
                 if (cJSON_GetErrorPtr()) {
-                    CLOG_ERR("Failed to parse %s %s: %s", params_logging_context(params), ps->ps_name, param);
+                    log_err("Failed to parse %s %s: %s", params_logging_context(params), ps->ps_name, param);
                     err = merr(EINVAL);
                 } else {
                     err = merr(ENOMEM);
@@ -98,10 +98,10 @@ argv_deserialize_to_params(
             }
         }
 
-        CLOG_DEBUG("Applying %s %s from paramv", params_logging_context(params), ps->ps_name);
+        log_debug("Applying %s %s from paramv", params_logging_context(params), ps->ps_name);
 
         if (cJSON_IsNull(node) && !(ps->ps_flags & PARAM_FLAG_NULLABLE)) {
-            CLOG_ERR("%s %s cannot be null", params_logging_context(params), ps->ps_name);
+            log_err("%s %s cannot be null", params_logging_context(params), ps->ps_name);
             cJSON_Delete(node);
             err = merr(EINVAL);
             goto out;
@@ -109,7 +109,7 @@ argv_deserialize_to_params(
 
         assert(ps->ps_convert);
         if (!ps->ps_convert(ps, node, data)) {
-            CLOG_ERR("Failed to convert %s %s", params_logging_context(params), key);
+            log_err("Failed to convert %s %s", params_logging_context(params), key);
             cJSON_Delete(node);
             err = merr(EINVAL);
             goto out;
@@ -122,7 +122,7 @@ argv_deserialize_to_params(
          * deserializing an array.
          */
         if (ps->ps_validate && !ps->ps_validate(ps, data)) {
-            CLOG_ERR("Failed to validate %s %s", params_logging_context(params), key);
+            log_err("Failed to validate %s %s", params_logging_context(params), key);
             err = merr(EINVAL);
             goto out;
         }
@@ -131,7 +131,7 @@ argv_deserialize_to_params(
     for (size_t i = 0; i < pspecs_sz; i++) {
         const struct param_spec *ps = &pspecs[i];
         if (ps->ps_validate_relations && !ps->ps_validate_relations(ps, params)) {
-            CLOG_ERR("Failed to validate parameter relationships for %s %s", params_logging_context(params), ps->ps_name);
+            log_err("Failed to validate parameter relationships for %s %s", params_logging_context(params), ps->ps_name);
             err = merr(EINVAL);
             goto out;
         }

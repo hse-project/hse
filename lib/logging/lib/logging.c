@@ -7,26 +7,29 @@
 #include <stdio.h>
 #include <syslog.h>
 
-#include <hse_util/event_counter.h>
 #include <hse_util/minmax.h>
-#include <hse_util/mutex.h>
+#include <hse_util/timer.h>
 
 #include <hse/logging/logging.h>
 
-#ifdef HSE_REL_SRC_DIR
-#define SRC_FILE (__FILE__ + sizeof(HSE_REL_SRC_DIR) + 1)
-#else
-#define SRC_FILE __FILE__
-#endif
+/* The log_xxx() APIs are allowed to be used prior to calling logging_init().
+ * In practice, this only includes code that deals with hse_gparams. That code
+ * includes error and debug statements. Ideally, we want to ignore debug logs in
+ * those sections, and only report useful information like errors to the user.
+ * By making the default log level INFO, we can easily achieve this without more
+ * intrusive solutions. Note that once logging_init() is called, the log level
+ * will change to whatever is specified by hse_gparams.
+ */
+static int log_level = LOG_INFO;
 
-static int log_level;
 static FILE *log_file;
-static uint64_t log_squelch_ns;
 static bool logging_initialized;
+static bool logging_enabled = true;
 static thread_local char log_buffer_tls[1024];
+static uint64_t log_squelch_ns = LOG_SQUELCH_NS_DEFAULT;
 
 static void HSE_PRINTF(2, 3)
-backstop(const int prio, const char *const fmt, ...)
+backstop(const int level, const char *const fmt, ...)
 {
     va_list args;
 
@@ -35,7 +38,7 @@ backstop(const int prio, const char *const fmt, ...)
     if (log_file) {
         vfprintf(log_file, fmt, args);
     } else {
-        vsyslog(prio, fmt, args);
+        vsyslog(level, fmt, args);
     }
 
     va_end(args);
@@ -49,17 +52,21 @@ logging_init(const struct logging_params *const params)
     if (!params)
         return merr(EINVAL);
 
-    if (!params->lp_enabled)
-        return 0;
-
     if (params->lp_level < LOG_EMERG || params->lp_level > LOG_DEBUG)
         return merr(EINVAL);
 
-    if (params->lp_destination == LOG_DEST_STDOUT) {
+    logging_enabled = params->lp_enabled;
+    if (!logging_enabled)
+        return 0;
+
+    switch (params->lp_destination) {
+    case LOG_DEST_STDOUT:
         fp = stdout;
-    } else if (params->lp_destination == LOG_DEST_STDERR) {
+        break;
+    case LOG_DEST_STDERR:
         fp = stderr;
-    } else if (params->lp_destination == LOG_DEST_FILE) {
+        break;
+    case LOG_DEST_FILE:
         fp = fopen(params->lp_path, "a");
         if (!fp) {
             char buf[256];
@@ -68,14 +75,15 @@ logging_init(const struct logging_params *const params)
             merr_strinfo(err, buf, sizeof(buf), NULL);
 
             fprintf(stderr, "[HSE] %s:%d %s: failed to open log file (%s): %s\n",
-                SRC_FILE, __LINE__, __func__, params->lp_path, buf);
+                REL_FILE(__FILE__), __LINE__, __func__, params->lp_path, buf);
             return err;
         }
 
         setlinebuf(fp);
-    } else {
-        if (params->lp_destination != LOG_DEST_SYSLOG)
-            return merr(EINVAL);
+    case LOG_DEST_SYSLOG:
+        break;
+    default:
+        return merr(EINVAL);
     }
 
     if (!logging_initialized) {
@@ -100,72 +108,83 @@ logging_fini(void)
 
 void
 log_impl(
-    struct event_counter *ev, /* contains call site info and pri     */
-    merr_t err,               /* error value                         */
-    const char *fmt,          /* the platform-specific format string */
-    ...)                      /* variable-length argument list       */
+    const int level,        /* log level                     */
+    const char *const file, /* file                          */
+    const int lineno,       /* line number                   */
+    const char *const func, /* function name                 */
+    uint64_t *const timer,  /* timer                         */
+    merr_t err,             /* error value                   */
+    const char *const fmt,  /* format string                 */
+    ...)                    /* variable-length argument list */
 {
     int rc;
     va_list args;
     uint64_t now;
+    FILE *output;
 
-    if (ev->ev_pri > log_level)
+    if (!logging_enabled || level > log_level)
         return;
 
-    event_counter(ev);
+    if (!logging_initialized) {
+        output = level <= LOG_WARNING ? stderr : stdout;
+    } else {
+        output = log_file;
+    }
 
     now = get_time_ns();
-    if (now < ev->ev_priv)
+    if (now < *timer)
         return;
 
-    ev->ev_priv = now + log_squelch_ns;
+    *timer = now + log_squelch_ns;
 
     if (err) {
         char buf[256];
 
         merr_strerror(err, buf, sizeof(buf));
 
-        rc = snprintf(log_buffer_tls, sizeof(log_buffer_tls), "[HSE] %s:%d %s: %s: %s",
-            ev->ev_file, ev->ev_line, ev->ev_dte.dte_func, fmt, buf);
+        rc = snprintf(log_buffer_tls, sizeof(log_buffer_tls), "[HSE] %s:%d %s: %s: %s\n",
+            file, lineno, func, fmt, buf);
     } else {
-        rc = snprintf(log_buffer_tls, sizeof(log_buffer_tls), "[HSE] %s:%d %s: %s",
-            ev->ev_file, ev->ev_line, ev->ev_dte.dte_func, fmt);
+        rc = snprintf(log_buffer_tls, sizeof(log_buffer_tls), "[HSE] %s:%d %s: %s\n",
+            file, lineno, func, fmt);
     }
     if (rc >= sizeof(log_buffer_tls)) {
-        backstop(LOG_ERR, "[HSE] %s:%d %s: scatch buffer size too small, needed %d for %s:%d",
-            SRC_FILE, __LINE__, __func__, rc, ev->ev_file, ev->ev_line);
+        backstop(LOG_ERR, "[HSE] %s:%d %s: scatch buffer size too small, needed %d for %s:%d\n",
+            REL_FILE(__FILE__), __LINE__, __func__, rc, file, lineno);
 
         return;
     } else if (rc < 0) {
-        backstop(LOG_ERR, "[HSE] %s:%d %s: bad printf format string from %s:%d",
-            SRC_FILE, __LINE__, __func__, ev->ev_file, ev->ev_line);
+        backstop(LOG_ERR, "[HSE] %s:%d %s: bad printf format string from %s:%d\n",
+            REL_FILE(__FILE__), __LINE__, __func__, file, lineno);
 
         return;
     }
 
     va_start(args, fmt);
-    if (log_file) {
-        vfprintf(log_file, log_buffer_tls, args);
+
+    if (output) {
+        vfprintf(output, log_buffer_tls, args);
     } else {
-        vsyslog(ev->ev_pri, log_buffer_tls, args);
+        vsyslog(level, log_buffer_tls, args);
     }
+
     va_end(args);
 }
 
 const char *
-log_priority_to_string(int prio)
+log_level_to_string(int level)
 {
     static const char *namev[] = {
         "EMERG", "ALERT", "CRIT", "ERR", "WARNING", "NOTICE", "INFO", "DEBUG"
     };
 
-    prio = clamp_t(int, prio, 0, NELEM(namev) - 1);
+    level = clamp_t(int, level, 0, NELEM(namev) - 1);
 
-    return namev[prio];
+    return namev[level];
 }
 
 int
-log_priority_from_string(const char *name)
+log_level_from_string(const char *name)
 {
     static const char *list = "EMERG   ALERT   CRIT    ERR     WARNING NOTICE  INFO    DEBUG   ";
 

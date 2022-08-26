@@ -162,8 +162,8 @@ _error_quit(
          err_buf);
 }
 
-#define error_quit(detail, err)			\
-    _error_quit(detail, err, __FILE__, __LINE__)
+#define error_quit(detail, err) \
+    _error_quit(detail, err, REL_FILE(__FILE__), __LINE__)
 
 void
 announce_header(void)

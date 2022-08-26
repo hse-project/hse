@@ -1,6 +1,6 @@
 /* SPDX-License-Identifier: Apache-2.0 */
 /*
- * Copyright (C) 2021 Micron Technology, Inc.  All rights reserved.
+ * Copyright (C) 2021-2022 Micron Technology, Inc.  All rights reserved.
  */
 
 #include "build_config.h"
@@ -73,7 +73,7 @@ json_walk(
     if (!bypass) {
         /* Protect against configs like { "prefix.length": 5 } */
         if (strchr(node->string, '.')) {
-            CLOG_ERR("Keys in config files cannot contain a '.'");
+            log_err("Keys in config files cannot contain a '.'");
             err = merr(EINVAL);
             goto out;
         }
@@ -120,15 +120,15 @@ json_walk(
     } else {
         /* Key not found */
         if (!ps) {
-            CLOG_ERR("Unknown parameter %s", key);
+            log_err("Unknown parameter %s", key);
             err = merr(EINVAL);
             goto out;
         }
 
-        CLOG_DEBUG("Applying %s %s from config file", params_logging_context(params), ps->ps_name);
+        log_debug("Applying %s %s from config file", params_logging_context(params), ps->ps_name);
 
         if (cJSON_IsNull(node) && !(ps->ps_flags & PARAM_FLAG_NULLABLE)) {
-            CLOG_ERR("%s %s cannot be null", params_logging_context(params), ps->ps_name);
+            log_err("%s %s cannot be null", params_logging_context(params), ps->ps_name);
             err = merr(EINVAL);
             goto out;
         }
@@ -137,7 +137,7 @@ json_walk(
 
         assert(ps->ps_convert);
         if (!ps->ps_convert(ps, node, data)) {
-            CLOG_ERR("Failed to convert %s %s", params_logging_context(params), key);
+            log_err("Failed to convert %s %s", params_logging_context(params), key);
             err = merr(EINVAL);
             goto out;
         }
@@ -147,7 +147,7 @@ json_walk(
          * deserializing an array.
          */
         if (ps->ps_validate && !ps->ps_validate(ps, data)) {
-            CLOG_ERR("Failed to validate %s %s", params_logging_context(params), key);
+            log_err("Failed to validate %s %s", params_logging_context(params), key);
             err = merr(EINVAL);
             goto out;
         }
@@ -208,7 +208,7 @@ json_deserialize(
     for (size_t i = 0; i < pspecs_sz; i++) {
         const struct param_spec *ps = &pspecs[i];
         if (ps->ps_validate_relations && !ps->ps_validate_relations(ps, params)) {
-            CLOG_ERR(
+            log_err(
                 "Failed to validate parameter relationships for %s %s",
                 params_logging_context(params),
                 ps->ps_name);
@@ -396,7 +396,7 @@ config_create(const char *path, cJSON **conf)
     *conf = cJSON_ParseWithLength(config, st.st_size + 1);
     if (!*conf) {
         if (cJSON_GetErrorPtr()) {
-            CLOG_ERR("Failed to parse file as valid JSON (%s): %s", path, cJSON_GetErrorPtr());
+            log_err("Failed to parse file as valid JSON (%s): %s", path, cJSON_GetErrorPtr());
             err = merr(EINVAL);
         } else {
             err = merr(ENOMEM);
@@ -405,7 +405,7 @@ config_create(const char *path, cJSON **conf)
     }
 
     if (!cJSON_IsObject(*conf)) {
-        CLOG_ERR("Content of file must be a JSON object (%s)", path);
+        log_err("Content of file must be a JSON object (%s)", path);
         err = merr(EINVAL);
         goto out;
     }
@@ -449,10 +449,8 @@ config_from_hse_conf(const char *const config, struct config **conf)
         return 0;
 
     err = config_create(config, &impl);
-    if (err) {
-        fprintf(stderr, "Failed to read %s\n", config);
+    if (err)
         goto out;
-    }
 
     err = hse_conf_validate(impl);
     if (err)

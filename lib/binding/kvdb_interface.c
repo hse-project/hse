@@ -13,6 +13,7 @@
 #include <hse/experimental.h>
 #include <hse/logging/logging.h>
 #include <hse/pidfile/pidfile.h>
+#include <hse/version.h>
 
 #include <hse_ikvdb/ikvdb.h>
 #include <hse_ikvdb/kvdb_ctxn.h>
@@ -25,8 +26,7 @@
 #include <hse_ikvdb/kvdb_home.h>
 #include <hse_ikvdb/kvs.h>
 
-#include <hse/version.h>
-
+#include <hse_util/event_counter.h>
 #include <hse_util/mutex.h>
 #include <hse_util/platform.h>
 #include <hse_util/rest_api.h>
@@ -50,7 +50,7 @@ static DEFINE_MUTEX(hse_lock);
  * in hse_init() and hse_fini(), which must be serialized with all other HSE
  * APIs.
  */
-bool hse_initialized = false;
+static bool hse_initialized = false;
 
 static HSE_ALWAYS_INLINE u64
 kvdb_lat_startu(const u32 cidx)
@@ -100,7 +100,7 @@ hse_init(const char *const config, const size_t paramc, const char *const *const
 {
     ulong memgb;
     merr_t err = 0;
-    struct config *conf;
+    struct config *conf = NULL;
 
     if (HSE_UNLIKELY(paramc > 0 && !paramv))
         return merr(EINVAL);
@@ -116,30 +116,36 @@ hse_init(const char *const config, const size_t paramc, const char *const *const
 
     err = argv_deserialize_to_hse_gparams(paramc, paramv, &hse_gparams);
     if (err) {
-        fprintf(stderr, "Failed to deserialize paramv for HSE gparams\n");
+        log_errx("Failed to deserialize paramv for HSE gparams\n", err);
         goto out;
     }
 
     err = config_from_hse_conf(config, &conf);
     if (err) {
-        fprintf(stderr, "Failed to read HSE config file (%s)\n", config);
+        log_errx("Failed to read HSE config file (%s)\n", err, config);
         goto out;
     }
 
     err = config_deserialize_to_hse_gparams(conf, &hse_gparams);
     config_destroy(conf);
     if (err) {
-        fprintf(stderr, "Failed to deserialize config file (%s) for HSE gparams\n", config);
+        log_errx("Failed to deserialize config file (%s) for HSE gparams\n", err, config);
         goto out;
     }
 
+    err = logging_init(&hse_gparams.gp_logging);
+    if (err)
+        return err;
+
+    /* First log message w/ HSE version - after deserializing global params */
+    log_info("version %s, program %s", HSE_VERSION_STRING, hse_progname);
+
     hse_lowmem_adjust(&memgb);
+    log_info("Memory available: %lu GiB", memgb);
 
     err = hse_platform_init();
     if (err)
         goto out;
-
-    log_info("Memory available: %lu GiB", memgb);
 
     err = ikvdb_init();
     if (err)
@@ -158,8 +164,10 @@ hse_init(const char *const config, const size_t paramc, const char *const *const
     hse_initialized = true;
 
 out:
-    if (err)
+    if (err) {
         hse_platform_fini();
+        logging_fini();
+    }
 
     mutex_unlock(&hse_lock);
 
@@ -178,6 +186,7 @@ hse_fini(void)
 
     ikvdb_fini();
     hse_platform_fini();
+    logging_fini();
     hse_initialized = false;
 
     mutex_unlock(&hse_lock);

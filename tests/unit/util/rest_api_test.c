@@ -1,14 +1,17 @@
 /* SPDX-License-Identifier: Apache-2.0 */
 /*
- * Copyright (C) 2015-2021 Micron Technology, Inc.  All rights reserved.
+ * Copyright (C) 2015-2022 Micron Technology, Inc.  All rights reserved.
  */
+
+#include <stdatomic.h>
 
 #include <mtf/framework.h>
 
-#include <hse_util/inttypes.h>
 #include <hse/error/merr.h>
 #include <hse/logging/logging.h>
+#include <hse_util/event_counter.h>
 #include <hse_util/data_tree.h>
+#include <hse_util/inttypes.h>
 #include <hse_util/rest_api.h>
 #include <hse_util/rest_client.h>
 

@@ -5,6 +5,7 @@
 
 #define MTF_MOCK_IMPL_csched_sp3_work
 
+#include <hse_util/event_counter.h>
 #include <hse_util/platform.h>
 #include <hse_util/slab.h>
 #include <hse/logging/logging.h>

@@ -3,13 +3,14 @@
  * Copyright (C) 2021-2022 Micron Technology, Inc.  All rights reserved.
  */
 
-#include <hse_util/platform.h>
-#include <hse_util/page.h>
-#include <hse_util/vlb.h>
 #include <hse/logging/logging.h>
-#include <hse_util/xrand.h>
+#include <hse_util/event_counter.h>
+#include <hse_util/page.h>
+#include <hse_util/platform.h>
 #include <hse_util/slab.h>
 #include <hse_util/storage.h>
+#include <hse_util/vlb.h>
+#include <hse_util/xrand.h>
 
 #include "wal.h"
 #include "wal_omf.h"
