@@ -55,6 +55,7 @@ struct wbb {
     uint  max_inodec;
     uint  max_pgc;
     uint  used_pgc;
+    uint64_t total_kvlen;
     bool  finalized;
 
     void *cnode;
@@ -235,8 +236,17 @@ wbb_kmd_append(struct wbb *wbb, const void *data, uint dlen, bool copy)
     return 0;
 }
 
+uint64_t
+wbb_kvlen(const struct wbb *wbb)
+{
+    /* This metric isn't accurate until the tree is finalized.
+     */
+    assert(wbb->finalized);
+    return wbb->total_kvlen;
+}
+
 uint
-wbb_entries(struct wbb *wbb)
+wbb_entries(const struct wbb *wbb)
 {
     return wbb->entries + wbb->cnode_nkeys;
 }
@@ -255,9 +265,13 @@ wbt_leaf_publish(struct wbb *wbb)
 
     struct key_stage_entry_leaf *kin = wbb->cnode_key_stage_base;
 
+    wbb->cnode_kvlen += WBT_NODE_SIZE;
+
     omf_set_wbn_num_keys(node_hdr, wbb->cnode_nkeys);
     omf_set_wbn_pfx_len(node_hdr, pfx_len);
     omf_set_wbn_kvlen(node_hdr, wbb->cnode_kvlen);
+
+    wbb->total_kvlen += wbb->cnode_kvlen;
 
     /* Use the first key to write out the prefix. */
     if (pfx_len) {
@@ -313,8 +327,8 @@ merr_t
 wbb_add_entry(
     struct wbb *          wbb,
     const struct key_obj *kobj,
-    uint                  nvals,
-    uint64_t              vlen,
+    uint                  kmd_entries,
+    uint64_t              vblk_om_vlen,
     const void *          key_kmd,
     uint                  key_kmd_len,
     uint                  max_pgc,
@@ -334,7 +348,7 @@ wbb_add_entry(
 
     *added = false;
 
-    if (*wbt_pgc > max_pgc || nvals > HG32_1024M_MAX || key_kmd_len == 0) {
+    if (*wbt_pgc > max_pgc || kmd_entries > HG32_1024M_MAX || key_kmd_len == 0) {
         assert(0);
         return merr(ev(EBUG));
     }
@@ -356,7 +370,7 @@ wbb_add_entry(
         ++wbb->cnode_key_extra_cnt;
 
     encoded_cnt_len = 0;
-    kmd_set_count(encoded_cnt, &encoded_cnt_len, nvals);
+    kmd_set_count(encoded_cnt, &encoded_cnt_len, kmd_entries);
 
     /* Calculate size of wbtree after adding key metadata.
      * Save max_pgc and used_pgc for use deeper in the call stack.
@@ -476,7 +490,7 @@ wbb_add_entry(
     wbb->cnode_last_klen = klen;
 
     wbb->cnode_nkeys++;
-    wbb->cnode_kvlen += key_obj_len(kobj) + vlen;
+    wbb->cnode_kvlen += key_kmd_len + vblk_om_vlen;
 
     *wbt_pgc = wbb->lnodec + wbb->max_inodec + get_kmd_pgc(wbb);
     *added = true;

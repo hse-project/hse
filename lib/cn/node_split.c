@@ -149,7 +149,7 @@ find_inflection_points(
 
         kvset_get_metrics(le->le_kvset, &metrics);
 
-        total_kvlen += metrics.tot_key_bytes + metrics.tot_val_bytes;
+        total_kvlen += metrics.tot_kvlen;
 
         reverse_kblk_iterator_init(iter, le->le_kvset);
 
@@ -172,8 +172,7 @@ find_inflection_points(
         goto out;
 
     while (kvlen <= limit && bin_heap_pop(bh, (void **)&inflection_kblk))
-        kvlen += inflection_kblk->kb_metrics.tot_key_bytes +
-            inflection_kblk->kb_metrics.tot_val_bytes;
+        kvlen += inflection_kblk->kb_metrics.tot_kvlen;
     assert(inflection_kblk);
 
     log_debug("node %lu inflection key kvlen: %lu/%lu (%lf%%)",
@@ -232,7 +231,7 @@ find_inflection_points(
         for (uint32_t j = 0; j < iter->offset; j++) {
             const struct kvset_kblk *kblk = &iter->ks->ks_kblks[j];
 
-            kvlen += kblk->kb_metrics.tot_key_bytes + kblk->kb_metrics.tot_val_bytes;
+            kvlen += kblk->kb_metrics.tot_kvlen;
         }
     }
     assert(kvlen <= total_kvlen / 2);
@@ -388,7 +387,7 @@ find_split_key(
 
         kvset_get_metrics(le->le_kvset, &metrics);
 
-        total_kvlen += metrics.tot_key_bytes + metrics.tot_val_bytes;
+        total_kvlen += metrics.tot_kvlen;
 
         forward_wbt_leaf_iterator_init(iter, le->le_kvset, offsets[kvset_idx]);
 

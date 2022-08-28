@@ -135,6 +135,7 @@ struct curr_kblock {
     struct kvs_cparams *cp;
     struct perfc_set *  pc;
 
+    uint64_t total_kvlen;
     uint64_t total_key_bytes;
     uint64_t total_val_bytes;
     uint64_t total_vused_bytes;
@@ -491,6 +492,7 @@ kblock_reset(struct curr_kblock *kblk)
 {
     kblk->max_pgc = kblk->max_size / PAGE_SIZE;
 
+    kblk->total_kvlen = 0;
     kblk->total_key_bytes = 0;
     kblk->total_val_bytes = 0;
     kblk->total_vused_bytes = 0;
@@ -691,6 +693,7 @@ kblock_make_header(
     omf_set_kbh_tombs(hdr, kblk->num_tombstones);
     omf_set_kbh_key_bytes(hdr, kblk->total_key_bytes);
     omf_set_kbh_val_bytes(hdr, kblk->total_val_bytes);
+    omf_set_kbh_kvlen(hdr, wbb_kvlen(kblk->wbtree));
     omf_set_kbh_vused_bytes(hdr, kblk->total_vused_bytes);
 
     /* wbtree header is right after kblock_hdr at an 8-byte boundary */
