@@ -1752,7 +1752,6 @@ cn_comp_commit(struct cn_compaction_work *w)
 
         for (uint i = 0; i < w->cw_kvset_cnt; i++) {
             assert(le);
-            assert(tx);
 
             err = kvset_delete_log_record(le->le_kvset, tx);
             if (err)

@@ -143,8 +143,6 @@ cn_kvcompact(struct cn_compaction_work *w)
     if (err)
         goto out;
 
-    assert(bldr);
-
     kvset_builder_set_merge_stats(bldr, &w->cw_stats);
     kvset_builder_set_agegroup(bldr, HSE_MPOLICY_AGE_LEAF);
 
