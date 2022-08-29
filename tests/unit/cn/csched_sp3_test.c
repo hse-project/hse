@@ -219,8 +219,8 @@ job_done(struct cn_compaction_work *w, int cancel)
     if (w->cw_have_token)
         cn_node_comp_token_put(w->cw_node);
 
-    if (w->cw_completion)
-        w->cw_completion(w);
+    if (w->cw_checkpoint)
+        w->cw_checkpoint(w);
     else
         mapi_safe_free(w);
 }

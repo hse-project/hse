@@ -9,7 +9,23 @@
 #include <hse/error/merr.h>
 #include <hse_util/inttypes.h>
 
+#include "route.h"
+
 struct cn_compaction_work;
+struct cn_tree_node;
+struct kvset_meta;
+struct spillctx;
+
+struct subspill {
+    struct list_head           ss_link;
+    struct cn_compaction_work *ss_work;
+    struct kvset_mblocks       ss_mblks;
+    uint64_t                   ss_kvsetid;
+    uint64_t                   ss_sgen;
+    struct cn_tree_node       *ss_node;
+    bool                       ss_added;
+    bool                       ss_applied;
+};
 
 /* MTF_MOCK_DECL(spill) */
 
@@ -40,7 +56,30 @@ struct cn_compaction_work;
  */
 /* MTF_MOCK */
 merr_t
-cn_spill(struct cn_compaction_work *w);
+cn_subspill(
+    struct subspill           *ss,
+    struct spillctx           *sctx,
+    struct cn_tree_node       *node,
+    uint64_t                   node_dgen,
+    void                      *ekey,
+    uint                       eklen);
+
+
+/* MTF_MOCK */
+merr_t
+cn_spill_create(struct cn_compaction_work *w, struct spillctx **sctx_out);
+
+/* MTF_MOCK */
+void
+cn_spill_destroy(struct spillctx *ctx);
+
+/* MTF_MOCK */
+struct subspill *
+cn_spill_get_nth_subspill(struct spillctx *sctx, uint n);
+
+/* MTF_MOCK */
+void
+cn_subspill_get_kvset_meta(struct subspill *ss, struct kvset_meta *km);
 
 #if HSE_MOCKING
 #include "spill_ut.h"

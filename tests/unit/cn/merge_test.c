@@ -888,6 +888,9 @@ _kvset_iter_next_key(struct kv_iterator *kvi, struct key_obj *kobj, struct kvset
     vc->nvals = 0;
     vc->off = nth_key;
     vc->next = 0;
+    /* Spill is always called with a node_dgen of 0, set the kv-pair's dgen to something larger than 0.
+     */
+    vc->dgen = 10;
     return 0;
 }
 
@@ -1201,7 +1204,12 @@ run_testcase(struct mtf_test_info *lcl_ti, int mode, const char *info)
             tn = cn_node_alloc(tree, i + 1);
             ASSERT_NE(0, tn);
 
-            eklen = snprintf(ekbuf, sizeof(ekbuf), "a.%08d", i);
+            if (i < tp.fanout - 1)
+                eklen = snprintf(ekbuf, sizeof(ekbuf), "a.%08d", i);
+            else {
+                eklen = sizeof(ekbuf);
+                memset(ekbuf, 0xff, sizeof(ekbuf));
+            }
             tn->tn_route_node = route_map_insert(tree->ct_route_map, tn, ekbuf, eklen);
             list_add_tail(&tn->tn_link, &tree->ct_nodes);
         }
@@ -1229,8 +1237,28 @@ run_testcase(struct mtf_test_info *lcl_ti, int mode, const char *info)
         w.cw_action = CN_ACTION_SPILL;
         w.cw_cp = &cp;
 
-        err = cn_spill(&w);
-        ASSERT_EQ(err, 0);
+        struct subspill subspill;
+        struct spillctx *sctx;
+        unsigned char ekey[HSE_KVS_KEY_LEN_MAX];
+        uint eklen = 0;
+
+        err = cn_spill_create(&w, &sctx);
+        ASSERT_EQ(0, err);
+
+        while (1) {
+            struct route_node *rtn;
+
+            rtn = route_map_lookupGT(tree->ct_route_map, ekey, eklen);
+            if (!rtn)
+                break;
+
+            route_node_keycpy(rtn, ekey, sizeof(ekey), &eklen);
+
+            err = cn_subspill(&subspill, sctx, 0, 0, ekey, eklen);
+            ASSERT_EQ(0, err);
+        }
+
+        cn_spill_destroy(sctx);
         cn_tree_destroy(tree);
     } else {
         /* kcompact */

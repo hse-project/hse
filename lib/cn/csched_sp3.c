@@ -349,6 +349,7 @@ sp3_node_init(struct sp3 *sp, struct sp3_node *spn)
 
     INIT_LIST_HEAD(&spn->spn_rlink);
     INIT_LIST_HEAD(&spn->spn_alink);
+    INIT_LIST_HEAD(&spn->spn_dlink);
 
     /* Append to list of all nodes from all managed trees.
      */
@@ -870,6 +871,9 @@ sp3_dirty_node_locked(struct sp3 *sp, struct cn_tree_node *tn)
     uint garbage = 0, jobs;
     uint scatter = 0;
 
+    if (!spn->spn_initialized)
+        return;
+
     /* Skip if node hasn't changed since last time we inserted
      * it into the work trees.
      */
@@ -1031,11 +1035,8 @@ sp3_dirty_node(struct sp3 *sp, struct cn_tree_node *tn)
 static void
 sp3_process_workitem(struct sp3 *sp, struct cn_compaction_work *w)
 {
-    struct cn_tree *tree = w->cw_tree;
-    struct sp3_tree *spt = tree2spt(tree);
-    struct cn_tree_node *tn = w->cw_node;
+    struct sp3_tree *spt = tree2spt(w->cw_tree);
     struct cn_samp_stats diff;
-    void *lock;
 
     assert(spt->spt_job_cnt > 0);
     assert(w->cw_qnum < SP3_QNUM_MAX);
@@ -1059,46 +1060,12 @@ sp3_process_workitem(struct sp3 *sp, struct cn_compaction_work *w)
     sp->samp_wip.l_alen -= w->cw_est.cwe_samp.l_alen;
     sp->samp_wip.l_good -= w->cw_est.cwe_samp.l_good;
 
-    rmlock_rlock(&tree->ct_lock, &lock);
-
-    /* Verify that the action didn't dislodge the root node
-     * from the head of the nodes list.
-     */
-    assert(tree->ct_root == list_first_entry(&tree->ct_nodes, typeof(*tn), tn_link));
-
     if (w->cw_action == CN_ACTION_SPILL) {
-        struct cn_tree_node *leaf;
-        uint64_t dt;
+        struct cn_tree *tree = w->cw_tree;
+        uint64_t dt = w->cw_t5_finish - w->cw_t0_enqueue;
 
-        assert(tn == tree->ct_root);
-
-        cn_tree_foreach_leaf(leaf, tree) {
-            sp3_dirty_node_locked(sp, leaf);
-        }
-
-        /* Maintain a per-tree average root spill time for throttling.
-         */
-        dt = get_time_ns() - w->cw_t0_enqueue;
         tree->ct_rspill_dt = (tree->ct_rspill_dt + dt * 2) / 3;
     }
-
-    if (w->cw_action == CN_ACTION_SPLIT) {
-        for (int i = 0; i < 2; i++) {
-            struct cn_tree_node *node = w->cw_split.nodev[i];
-
-            if (node) {
-                struct sp3_node *spn = tn2spn(node);
-
-                if (!spn->spn_initialized)
-                    sp3_node_init(sp, spn);
-
-                sp3_dirty_node_locked(sp, node);
-            }
-        }
-    } else {
-        sp3_dirty_node_locked(sp, tn);
-    }
-    rmlock_runlock(lock);
 
     if (w->cw_debug & (CW_DEBUG_PROGRESS | CW_DEBUG_FINAL))
         sp3_log_progress(w, &w->cw_stats, true);
@@ -1143,10 +1110,47 @@ sp3_process_ingest(struct sp3 *sp)
 }
 
 static void
+sp3_process_dirtylist(struct sp3 *sp)
+{
+    struct cn_tree *tree;
+
+    list_for_each_entry(tree, &sp->mon_tlist, ct_sched.sp3t.spt_tlink) {
+        struct sp3_tree *spt = tree2spt(tree);
+        struct sp3_node *spn;
+        void *lock;
+
+        rmlock_rlock(&tree->ct_lock, &lock);
+
+        /* Verify that the action didn't dislodge the root node
+         * from the head of the nodes list.
+         */
+        assert(tree->ct_root == list_first_entry(&tree->ct_nodes, struct cn_tree_node, tn_link));
+
+        mutex_lock(&spt->spt_dlist_lock);
+
+        while (NULL != (spn = list_first_entry_or_null(&spt->spt_dlist, typeof(*spn), spn_dlink))) {
+            if (!spn->spn_initialized)
+                sp3_node_init(sp, spn);
+
+            sp3_dirty_node_locked(sp, spn2tn(spn));
+
+            /* Delete from list and init spn's dlink so we can detect whether or not an spn is on
+             * the list.
+             */
+            list_del_init(&spn->spn_dlink);
+        }
+
+        mutex_unlock(&spt->spt_dlist_lock);
+
+        rmlock_runlock(lock);
+    }
+}
+
+static void
 sp3_process_worklist(struct sp3 *sp)
 {
     struct cn_compaction_work *w;
-    struct list_head           list;
+    struct list_head list;
 
     INIT_LIST_HEAD(&list);
 
@@ -1248,6 +1252,20 @@ sp3_prune_trees(struct sp3 *sp)
     }
 }
 
+static void
+sp3_enqueue_dirty_node(struct cn_compaction_work *w, struct cn_tree_node *tn)
+{
+    struct sp3_tree *spt = tree2spt(w->cw_tree);
+    struct sp3_node *spn = tn2spn(tn);
+
+    mutex_lock(&spt->spt_dlist_lock);
+
+    if (list_empty(&spn->spn_dlink))
+        list_add_tail(&spn->spn_dlink, &spt->spt_dlist);
+
+    mutex_unlock(&spt->spt_dlist_lock);
+}
+
 /**
  * sp3_work_progress() - External API: progress update
  * sp3_work_complete() - External API: notify compaction job has completed
@@ -1257,11 +1275,28 @@ sp3_prune_trees(struct sp3 *sp)
  * and is executed on an external thread.
  */
 static void
-sp3_work_complete(struct cn_compaction_work *w)
+sp3_work_checkpoint(struct cn_compaction_work *w)
 {
-    struct sp3 *sp = w->cw_sched;
+    sp3_enqueue_dirty_node(w, w->cw_output_nodev[0]);
+}
 
-    /* Put work on completion list and wake monitor. */
+static void
+sp3_work_complete(struct csched *handle, struct cn_compaction_work *w)
+{
+    struct sp3 *sp = (struct sp3 *)handle;
+
+    if (w->cw_action == CN_ACTION_SPLIT) {
+        struct sp3_node *spn = tn2spn(w->cw_split.nodev[0]);
+
+        if (!spn->spn_initialized)
+            sp3_node_init(sp, spn);
+
+        sp3_enqueue_dirty_node(w, w->cw_split.nodev[0]);
+        sp3_enqueue_dirty_node(w, w->cw_split.nodev[1]);
+    } else {
+        sp3_enqueue_dirty_node(w, w->cw_node);
+    }
+
     mutex_lock(&sp->work_list_lock);
     list_add_tail(&w->cw_sched_link, &sp->work_list);
     mutex_unlock(&sp->work_list_lock);
@@ -1458,6 +1493,16 @@ sp3_job_print(struct sts_job *job, void *priv, char *buf, size_t bufsz)
 }
 
 static void
+sp3_comp_slice_cb(struct sts_job *job)
+{
+    struct cn_compaction_work *w = container_of(job, typeof(*w), cw_job);
+
+    cn_compact(w);
+
+    sp3_work_complete(w->cw_sched, w);
+}
+
+static void
 sp3_submit(struct sp3 *sp, struct cn_compaction_work *w, uint qnum)
 {
     struct cn_tree_node *tn = w->cw_node;
@@ -1504,7 +1549,7 @@ sp3_submit(struct sp3 *sp, struct cn_compaction_work *w, uint qnum)
     }
 
     w->cw_sched = sp;
-    w->cw_completion = sp3_work_complete;
+    w->cw_checkpoint = sp3_work_checkpoint;
     w->cw_progress = sp3_work_progress;
     w->cw_prog_interval = nsecs_to_jiffies(NSEC_PER_SEC);
     w->cw_debug = csched_rp_dbg_comp(sp->rp);
@@ -1522,7 +1567,7 @@ sp3_submit(struct sp3 *sp, struct cn_compaction_work *w, uint qnum)
     sp->job_id++;
     sp->activity++;
 
-    sts_job_init(&w->cw_job, cn_comp_slice_cb, sp->job_id);
+    sts_job_init(&w->cw_job, sp3_comp_slice_cb, sp->job_id);
     sts_job_submit(sp->sts, &w->cw_job);
 
     if (debug_sched(sp) || (w->cw_debug & CW_DEBUG_START)) {
@@ -2104,6 +2149,7 @@ sp3_monitor(struct work_struct *work)
          * sp->activity to trigger a call (below) to sp3_schedule().
          */
         sp3_process_worklist(sp);
+        sp3_process_dirtylist(sp);
         sp3_process_ingest(sp);
         sp3_process_new_trees(sp);
         sp3_prune_trees(sp);
@@ -2227,6 +2273,9 @@ sp3_tree_init(struct sp3_tree *spt)
     memset(spt, 0, sizeof(*spt));
     atomic_set(&spt->spt_enabled, 1);
     INIT_LIST_HEAD(&spt->spt_tlink);
+
+    INIT_LIST_HEAD(&spt->spt_dlist);
+    mutex_init(&spt->spt_dlist_lock);
 }
 
 /**

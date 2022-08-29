@@ -105,6 +105,8 @@ struct cn_tree {
     struct kvs_cparams *ct_cp;
     u64                 cnid;
 
+    uint64_t            ct_sgen;
+
     uint                 ct_lvl_max;
     struct cn_samp_stats ct_samp;
     atomic_ulong         ct_rspill_dt;
@@ -125,8 +127,6 @@ struct cn_tree {
 
     struct cn_kle_cache ct_kle_cache HSE_L1D_ALIGNED;
 
-    struct mutex      ct_rspills_lock;
-    struct list_head  ct_rspills_list;
     bool              ct_rspills_wedged;
 
     struct rmlock ct_lock;
@@ -169,6 +169,16 @@ struct cn_tree_node {
     struct cn_tree *     tn_tree;
     struct route_node   *tn_route_node;
     struct list_head     tn_link;
+
+    /* Serializing spills in the root node */
+    atomic_long  tn_sgen;      /* The last spill gen that was added to the node */
+    struct cv    tn_spill_cv;  /* cv for serializing the deletion of input kvsets */
+    struct mutex tn_spill_mtx; /* mutex lock for the cv */
+
+    /* List of pending subspills and a mutex to serialize its access.
+     */
+    struct list_head     tn_ss_list;
+    struct mutex         tn_ss_lock;
 };
 
 /* Iterate over all tree nodes, starting with the root node.
@@ -229,7 +239,7 @@ cn_tree_node_scatter(const struct cn_tree_node *tn);
 
 /* MTF_MOCK */
 void
-cn_comp_slice_cb(struct sts_job *job);
+cn_compact(struct cn_compaction_work *w);
 
 /**
  * cn_tree_find_node() - Find a cn tree node by node ID.

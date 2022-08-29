@@ -465,11 +465,15 @@ cndb_record_txstart(
     uint64_t          seqno,
     uint64_t          ingestid,
     uint64_t          txhorizon,
-    uint16_t          add_cnt,
-    uint16_t          del_cnt,
+    uint32_t          add_cnt,
+    uint32_t          del_cnt,
     struct cndb_txn **tx_out)
 {
-    return cndb_record_txstart_inner(cndb, seqno, ingestid, txhorizon, add_cnt, del_cnt, 0, tx_out);
+    if (add_cnt > UINT16_MAX || del_cnt > UINT16_MAX)
+        return merr(EINVAL);
+
+    return cndb_record_txstart_inner(cndb, seqno, ingestid, txhorizon,
+                                     (uint16_t)add_cnt, (uint16_t)del_cnt, 0, tx_out);
 }
 
 /* [HSE_REVISIT] Do this inside cndb_record_kvset_add() and output the kvsetid to the caller.
