@@ -1,6 +1,6 @@
 /* SPDX-License-Identifier: Apache-2.0 */
 /*
- * Copyright (C) 2021 Micron Technology, Inc.  All rights reserved.
+ * Copyright (C) 2021-2022 Micron Technology, Inc.  All rights reserved.
  */
 
 #define MTF_MOCK_IMPL_kvdb_meta
@@ -661,17 +661,29 @@ kvdb_meta_from_mpool_cparams(
     const char *const                 kvdb_home,
     const struct mpool_cparams *const params)
 {
+    size_t offset;
+
     assert(meta);
     assert(kvdb_home);
     assert(params);
 
-    for (int i = HSE_MCLASS_BASE; i < HSE_MCLASS_COUNT; i++) {
-        const char *mc_path = params->mclass[i].path;
+    /* In the case that the storage paths are relative, we need to set the paths
+     * appropriately. Given a KVDB home of /path and a capacity path of
+     * /path/capacity, the storage path in the KVDB meta struct should be
+     * "capacity." In order to ensure this, we need to move the pointer forward
+     * by the length of the KVDB home and an additional character if the last
+     * character of the KVDB home isn't a '/'.
+     */
+    offset = strlen(kvdb_home);
+    if (kvdb_home[offset - 1] != '/')
+        offset++;
 
-        /* strnlen() + 1 should move us past the final trailing / */
+    for (int i = HSE_MCLASS_BASE; i < HSE_MCLASS_COUNT; i++) {
+        const char *path = params->mclass[i].path;
+
         strlcpy(meta->km_storage[i].path,
-                (mc_path[0] != '/' && strstr(mc_path, kvdb_home)) ?
-                mc_path + strnlen(kvdb_home, PATH_MAX) + 1 : mc_path,
+                strstr(path, kvdb_home) == path ?
+                path + offset : path,
                 sizeof(meta->km_storage[i].path));
     }
 }
@@ -726,22 +738,33 @@ kvdb_meta_storage_add(
     const char *                kvdb_home,
     const struct mpool_cparams *cparams)
 {
+    size_t offset;
     bool added = false;
-    int i;
 
     assert(meta);
     assert(kvdb_home);
     assert(cparams);
 
-    for (i = HSE_MCLASS_BASE; i < HSE_MCLASS_COUNT; i++) {
+    /* In the case that the storage paths are relative, we need to set the paths
+     * appropriately. Given a KVDB home of /path and a capacity path of
+     * /path/capacity, the storage path in the KVDB meta struct should be
+     * "capacity." In order to ensure this, we need to move the pointer forward
+     * by the length of the KVDB home and an additional character if the last
+     * character of the KVDB home isn't a '/'.
+     */
+    offset = strlen(kvdb_home);
+    if (kvdb_home[offset - 1] != '/')
+        offset++;
+
+    for (int i = HSE_MCLASS_BASE; i < HSE_MCLASS_COUNT; i++) {
         const char *path = cparams->mclass[i].path;
 
         if (path[0] != '\0') {
             assert(meta->km_storage[i].path[0] == '\0');
 
             strlcpy(meta->km_storage[i].path,
-                    (path[0] != '/' && strstr(path, kvdb_home)) ?
-                    path + strnlen(kvdb_home, PATH_MAX) + 1 : path,
+                    strstr(path, kvdb_home) == path ?
+                    path + offset : path,
                     sizeof(meta->km_storage[i].path));
             added = true;
         }
