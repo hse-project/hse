@@ -1,13 +1,14 @@
 /* SPDX-License-Identifier: Apache-2.0 */
 /*
- * Copyright (C) 2015-2020 Micron Technology, Inc.  All rights reserved.
+ * Copyright (C) 2015-2022 Micron Technology, Inc.  All rights reserved.
  */
+
+#include <stdint.h>
 
 #include <mtf/framework.h>
 #include <hse/test/support/random_buffer.h>
 
 #include <hse/error/merr.h>
-#include <hse/util/inttypes.h>
 #include <hse/util/element_source.h>
 
 #include "sample_element_source.h"
@@ -17,7 +18,7 @@ MTF_BEGIN_UTEST_COLLECTION(element_source_test);
 MTF_DEFINE_UTEST(element_source_test, linear_sequence)
 {
     struct sample_es *     es;
-    u32 *                  last, *n;
+    uint32_t *             last, *n;
     struct element_source *handle;
     merr_t                 err;
 
@@ -43,7 +44,7 @@ MTF_DEFINE_UTEST(element_source_test, random_sequence)
     int                    count;
     struct element_source *handle;
     merr_t                 err;
-    u32 *                  n;
+    uint32_t *             n;
     const int              COUNT = 173;
 
     err = sample_es_create(&es, COUNT, SES_RANDOM);
@@ -66,7 +67,7 @@ MTF_DEFINE_UTEST(element_source_test, random_nr_sequence)
     int                    count;
     struct element_source *handle;
     merr_t                 err;
-    u32 *                  n;
+    uint32_t *             n;
     const int              COUNT = 173;
 
     err = sample_es_create(&es, COUNT, SES_RANDOM_NR);
@@ -89,7 +90,7 @@ MTF_DEFINE_UTEST(element_source_test, empty_sequence)
     int                    count;
     struct element_source *handle;
     merr_t                 err;
-    u32 *                  n;
+    uint32_t *             n;
     const int              COUNT = 0;
 
     err = sample_es_create(&es, COUNT, SES_LINEAR);

@@ -3,6 +3,8 @@
  * Copyright (C) 2015-2022 Micron Technology, Inc.  All rights reserved.
  */
 
+#include <stdint.h>
+
 #include <mtf/framework.h>
 
 #include <hse/error/merr.h>
@@ -38,13 +40,13 @@ struct kvs_rparams rp_struct, *rp;
 struct fake_kvset {
     struct kvset_list_entry kle;
     uint64_t                nodeid;
-    u32                     timestamp;
-    u32                     kvsets_in_node;
-    u32                     nk;
-    u32                     nv;
-    u64                     dgen_hi;
-    u64                     dgen_lo;
-    u64                     vused;
+    uint32_t                timestamp;
+    uint32_t                kvsets_in_node;
+    uint32_t                nk;
+    uint32_t                nv;
+    uint64_t                dgen_hi;
+    uint64_t                dgen_lo;
+    uint64_t                vused;
     const void             *work;
     struct kvset_stats      stats;
     struct vgmap           *vgmap;
@@ -91,7 +93,7 @@ _kvset_stats(const struct kvset *ks, struct kvset_stats *stats)
  * returns 0 (success).
  */
 static struct fake_kvset *
-fake_kvset_open(struct fake_kvset **head, u64 dgen)
+fake_kvset_open(struct fake_kvset **head, uint64_t dgen)
 {
     struct fake_kvset *kvset;
 
@@ -121,7 +123,7 @@ fake_kvset_open_add(
     struct fake_kvset **head,
     struct cn_tree *    tree,
     uint64_t            nodeid,
-    u64                 dgen)
+    uint64_t            dgen)
 {
     struct fake_kvset *kvset;
     merr_t             err;
@@ -149,13 +151,13 @@ fake_kvset_destroy(struct fake_kvset *kvset)
     mapi_safe_free(kvset);
 }
 
-static u64
+static uint64_t
 _kvset_get_dgen(const struct kvset *handle)
 {
     return ((struct fake_kvset *)handle)->dgen_hi;
 }
 
-static u64
+static uint64_t
 _kvset_get_dgen_lo(const struct kvset *handle)
 {
     return ((struct fake_kvset *)handle)->dgen_lo;
@@ -182,13 +184,13 @@ _kvset_set_work(struct kvset *handle, const void *work)
     ((struct fake_kvset *)handle)->work = work;
 }
 
-static u32
+static uint32_t
 _kvset_get_num_kblocks(struct kvset *handle)
 {
     return ((struct fake_kvset *)handle)->nk;
 }
 
-static u32
+static uint32_t
 _kvset_get_num_vblocks(struct kvset *handle)
 {
     return ((struct fake_kvset *)handle)->nv;
@@ -410,7 +412,7 @@ MTF_DEFINE_UTEST_PRE(test, t_create_error_paths, test_setup)
 {
     merr_t             err;
     struct cn_tree *   tree = 0;
-    u32                api = mapi_idx_malloc;
+    uint32_t           api = mapi_idx_malloc;
     struct kvs_cparams cp;
 
     memset(&cp, 0, sizeof(cp));
@@ -511,8 +513,8 @@ MTF_DEFINE_UTEST_PRE(test, t_cn_tree_ingest_update, test_setup)
  * Support for the MY_TEST1 and MY_TEST2 macros below
  */
 struct test_params {
-    u64 fanout_bits;
-    u64 levels;
+    uint64_t fanout_bits;
+    uint64_t levels;
     int verbose;
 };
 
@@ -570,8 +572,8 @@ tree_iter_callback(
      */
     if (t->iter.counter > 0) {
         if (t->iter.prev_nodeid == node->tn_nodeid) {
-            u32 prev_timestamp = t->iter.prev_kvset_timestamp;
-            u32 curr_timestamp = kvset->timestamp;
+            uint32_t prev_timestamp = t->iter.prev_kvset_timestamp;
+            uint32_t curr_timestamp = kvset->timestamp;
 
             if (t->iter.order_oldest_first) {
                 ASSERT_LT_RET(prev_timestamp, curr_timestamp, 1);

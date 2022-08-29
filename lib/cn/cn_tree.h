@@ -6,10 +6,11 @@
 #ifndef HSE_KVDB_CN_CN_TREE_H
 #define HSE_KVDB_CN_CN_TREE_H
 
+#include <stdbool.h>
+
 #include <cjson/cJSON.h>
 
 #include <hse/error/merr.h>
-#include <hse/util/inttypes.h>
 
 #include "cn_metrics.h"
 #include "kcompact.h"
@@ -39,7 +40,7 @@ cn_tree_lookup(
     struct cn_tree *     tree,
     struct perfc_set *   pc,
     struct kvs_ktuple *  kt,
-    u64                  seq,
+    uint64_t             seq,
     enum key_lookup_res *res,
     struct kvs_buf *     kbuf,
     struct kvs_buf *     vbuf);
@@ -77,7 +78,7 @@ cn_tree_get_rp(const struct cn_tree *tree);
 struct cndb *
 cn_tree_get_cndb(const struct cn_tree *tree);
 
-u64
+uint64_t
 cn_tree_get_cnid(const struct cn_tree *tree);
 
 struct kvs_cparams *

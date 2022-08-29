@@ -3,6 +3,8 @@
  * Copyright (C) 2015-2022 Micron Technology, Inc.  All rights reserved.
  */
 
+#include <stdint.h>
+
 #include "bonsai_tree_pvt.h"
 
 static struct bonsai_slab *noslab = (void *)-1;
@@ -445,7 +447,7 @@ bn_kv_alloc(
     struct bonsai_kv *kv;
     size_t ksz, vsz;
     bool managed;
-    u16 voffset;
+    uint16_t voffset;
 
     ksz = sizeof(*kv);
     vsz = sizeof(*v);

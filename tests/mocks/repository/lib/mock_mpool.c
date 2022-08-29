@@ -6,7 +6,6 @@
 #include <stdint.h>
 
 #include <hse/error/merr.h>
-#include <hse/util/inttypes.h>
 #include <hse/logging/logging.h>
 #include <hse/util/event_counter.h>
 #include <hse/util/page.h>
@@ -27,9 +26,9 @@ struct mocked_mblock {
 };
 
 struct mocked_map {
-    u64 *mbidv;
-    int  mbidc;
-    bool mapped;
+    uint64_t *mbidv;
+    int       mbidc;
+    bool      mapped;
 };
 
 struct mocked_mdc {
@@ -43,15 +42,15 @@ struct mocked_mblock mocked_mblocks[MPM_MAX_MBLOCKS];
 struct mocked_map    mocked_maps[MPM_MAX_MAPS];
 
 /* Can only mock a single MDC */
-u64 mocked_mdc_id;
+uint64_t mocked_mdc_id;
 
 #define id2index(id)    ((id)-MPM_MBLOCK_ID_BASE)
 #define index2id(index) ((index) + MPM_MBLOCK_ID_BASE)
 
 static merr_t
-get_mblock(u64 id, struct mocked_mblock **mb)
+get_mblock(uint64_t id, struct mocked_mblock **mb)
 {
-    u64 i = id2index(id);
+    uint64_t i = id2index(id);
 
     if (i >= MPM_MAX_MBLOCKS)
         return merr(EBUG);
@@ -74,7 +73,7 @@ _mpool_mblock_alloc(
 {
     merr_t                err;
     struct mocked_mblock *mb = 0;
-    u64                   blkid;
+    uint64_t              blkid;
 
     err = mpm_mblock_alloc(KBLOCK_MAX_SIZE, &blkid);
     if (err)
@@ -212,7 +211,7 @@ _mpool_mclass_is_configured(struct mpool *const mp, const enum hse_mclass mclass
  * For writes, it is assumed the offset parameter is 0.
  */
 static merr_t
-mblock_rw(u64 id, const struct iovec *iov, int niov, size_t off, bool read)
+mblock_rw(uint64_t id, const struct iovec *iov, int niov, size_t off, bool read)
 {
     merr_t                err;
     struct mocked_mblock *mb = 0;
@@ -304,8 +303,8 @@ _mpool_mblock_write(struct mpool *mp, uint64_t id, const struct iovec *iovec, in
  */
 
 struct mpm_mdc_rechdr_default {
-    u32 type;
-    u32 len;
+    uint32_t type;
+    uint32_t len;
 };
 
 static size_t
@@ -438,7 +437,7 @@ _mpool_mdc_read(struct mpool_mdc *mdc, void *data, size_t max, size_t *dlen)
  */
 
 merr_t
-mpm_mblock_alloc(size_t capacity, u64 *id_out)
+mpm_mblock_alloc(size_t capacity, uint64_t *id_out)
 {
     struct mocked_mblock *mb = 0;
     void *                mem;
@@ -470,7 +469,7 @@ mpm_mblock_alloc(size_t capacity, u64 *id_out)
 }
 
 merr_t
-mpm_mblock_write(u64 id, const void *data, u64 off, u32 len)
+mpm_mblock_write(uint64_t id, const void *data, uint64_t off, uint32_t len)
 {
     merr_t                err;
     struct mocked_mblock *mb = 0;
@@ -490,7 +489,7 @@ mpm_mblock_write(u64 id, const void *data, u64 off, u32 len)
 }
 
 merr_t
-mpm_mblock_read(u64 id, void *data, u64 off, u32 len)
+mpm_mblock_read(uint64_t id, void *data, uint64_t off, uint32_t len)
 {
     merr_t                err;
     struct mocked_mblock *mb = 0;
@@ -587,7 +586,7 @@ mpm_read_file(void *buf, size_t bufsz, size_t *bytes_read, const char *file)
 }
 
 merr_t
-mpm_mblock_load_file(u64 id, const char *filename)
+mpm_mblock_load_file(uint64_t id, const char *filename)
 {
     struct mocked_mblock *mb = 0;
     merr_t                err;
@@ -607,10 +606,10 @@ mpm_mblock_load_file(u64 id, const char *filename)
 }
 
 merr_t
-mpm_mblock_alloc_file(u64 *id_out, const char *filename)
+mpm_mblock_alloc_file(uint64_t *id_out, const char *filename)
 {
-    u64    id;
-    merr_t err;
+    uint64_t id;
+    merr_t   err;
 
     err = mpm_mblock_alloc(VBLOCK_MAX_SIZE, &id);
     if (err)
@@ -647,7 +646,7 @@ mpm_mdc_load_file(const char *filename, char **data, int *len)
 }
 
 merr_t
-mpm_mblock_get_base(u64 id, void **data, size_t *wlen)
+mpm_mblock_get_base(uint64_t id, void **data, size_t *wlen)
 {
     struct mocked_mblock *mb = 0;
     merr_t                err;

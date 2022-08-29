@@ -3,6 +3,8 @@
  * Copyright (C) 2015-2022 Micron Technology, Inc.  All rights reserved.
  */
 
+#include <stdint.h>
+
 #include <urcu-bp.h>
 
 #include <hse/util/platform.h>
@@ -52,7 +54,7 @@ struct kvdb_keylock {
 struct kvdb_dlock {
     struct mutex     kd_lock  HSE_ACP_ALIGNED;
     struct list_head kd_list;
-    volatile u64     kd_mvs   HSE_L1D_ALIGNED;
+    volatile uint64_t kd_mvs   HSE_L1D_ALIGNED;
 };
 
 /**
@@ -69,9 +71,9 @@ struct kvdb_keylock_impl {
     struct kvdb_keylock kl_handle;
     struct kvdb_dlock   kl_dlockv[KVDB_DLOCK_MAX];
 
-    u64              kl_num_entries;
-    u32              kl_entries_per_txn;
-    u32              kl_num_tables;
+    uint64_t         kl_num_entries;
+    uint32_t         kl_entries_per_txn;
+    uint32_t         kl_num_tables;
     struct perfc_set kl_perfc_set;
     struct keylock * kl_keylock[];
 };
@@ -92,8 +94,8 @@ struct kvdb_ctxn_locks {
  */
 struct ctxn_locks_entry {
     void           *lte_next;
-    u64             lte_hash;
-    u32             lte_tindex;
+    uint64_t        lte_hash;
+    uint32_t        lte_tindex;
     bool            lte_inherited;
     struct rb_node  lte_node;
 };
@@ -130,12 +132,12 @@ struct ctxn_locks_slab {
 struct kvdb_ctxn_locks_impl {
     struct kvdb_ctxn_locks   ctxn_locks_handle;
     struct list_head         ctxn_locks_link;
-    volatile u64             ctxn_locks_end_seqno;
+    volatile uint64_t        ctxn_locks_end_seqno;
     uint32_t                 ctxn_locks_desc;
     uintptr_t                ctxn_locks_magic;
 
     struct rb_root           ctxn_locks_treev[16];
-    u32                      ctxn_locks_cnt;
+    uint32_t                 ctxn_locks_cnt;
     struct ctxn_locks_entry *ctxn_locks_entries;
     struct ctxn_locks_slab  *ctxn_locks_slab;
     struct ctxn_locks_slab   ctxn_locks_slab0[];
@@ -153,7 +155,7 @@ static struct kmem_cache *ctxn_locks_slab_cache  HSE_READ_MOSTLY;
 /* clang-format on */
 
 merr_t
-kvdb_keylock_create(struct kvdb_keylock **handle_out, u32 num_tables)
+kvdb_keylock_create(struct kvdb_keylock **handle_out, uint32_t num_tables)
 {
     struct kvdb_keylock_impl *klock;
     merr_t                    err;
@@ -163,7 +165,7 @@ kvdb_keylock_create(struct kvdb_keylock **handle_out, u32 num_tables)
 
     *handle_out = NULL;
 
-    num_tables = clamp_t(u32, num_tables, 1, 8192);
+    num_tables = clamp_t(uint32_t, num_tables, 1, 8192);
 
     sz = sizeof(*klock);
     sz += num_tables * sizeof(struct keylock *);
@@ -272,7 +274,7 @@ kvdb_keylock_list_unlock(void *cookie)
 }
 
 void
-kvdb_keylock_enqueue_locks(struct kvdb_ctxn_locks *handle, u64 end_seqno, void *cookie)
+kvdb_keylock_enqueue_locks(struct kvdb_ctxn_locks *handle, uint64_t end_seqno, void *cookie)
 {
     struct kvdb_ctxn_locks_impl *locks = kvdb_ctxn_locks_h2r(handle);
     struct kvdb_dlock *          dlock = cookie;
@@ -356,7 +358,7 @@ kvdb_keylock_prune_own_locks(struct kvdb_keylock *kl_handle, struct kvdb_ctxn_lo
  * @min_view_sn:    the new minimum view sequence number for any active txn
  */
 void
-kvdb_keylock_expire(struct kvdb_keylock *handle, u64 min_view_sn, u64 spin)
+kvdb_keylock_expire(struct kvdb_keylock *handle, uint64_t min_view_sn, uint64_t spin)
 {
     struct kvdb_keylock_impl *klock = kvdb_keylock_h2r(handle);
     uint mask, idx;
@@ -486,8 +488,8 @@ merr_t
 kvdb_keylock_lock(
     struct kvdb_keylock *   hklock,
     struct kvdb_ctxn_locks *hlocks,
-    u64                     hash,
-    u64                     start_seq)
+    uint64_t                hash,
+    uint64_t                start_seq)
 {
     struct kvdb_ctxn_locks_impl *locks = kvdb_ctxn_locks_h2r(hlocks);
     struct kvdb_keylock_impl *klock = kvdb_keylock_h2r(hklock);
@@ -498,7 +500,7 @@ kvdb_keylock_lock(
     struct rb_root *tree;
     bool inherited;
     uint32_t desc;
-    u32 tindex;
+    uint32_t tindex;
     merr_t err;
 
     tindex = hash % klock->kl_num_tables;
@@ -609,7 +611,7 @@ kvdb_ctxn_locks_create(struct kvdb_ctxn_locks **locksp)
     sz = sizeof(*impl) + sizeof(*slab);
 
     memset(impl, 0, sz);
-    impl->ctxn_locks_end_seqno = U64_MAX;
+    impl->ctxn_locks_end_seqno = UINT64_MAX;
     impl->ctxn_locks_magic = (uintptr_t)impl;
 
     impl->ctxn_locks_desc = kmem_cache_addr2desc(ctxn_locks_impl_cache, impl);
@@ -647,13 +649,13 @@ kvdb_ctxn_locks_destroy(struct kvdb_ctxn_locks *handle)
     kmem_cache_free(ctxn_locks_impl_cache, impl);
 }
 
-u64
+uint64_t
 kvdb_ctxn_locks_count(struct kvdb_ctxn_locks *locks_handle)
 {
     return kvdb_ctxn_locks_h2r(locks_handle)->ctxn_locks_cnt;
 }
 
-u64
+uint64_t
 kvdb_ctxn_locks_end_seqno(uint32_t desc)
 {
     struct kvdb_ctxn_locks *handle = kvdb_ctxn_locks_desc2locks(desc);

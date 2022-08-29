@@ -3,6 +3,8 @@
  * Copyright (C) 2015-2022 Micron Technology, Inc.  All rights reserved.
  */
 
+#include <stdint.h>
+
 #include <urcu-bp.h>
 
 #include <hse/util/platform.h>
@@ -83,7 +85,7 @@ c0_fini(void)
     c0sk_fini();
 }
 
-s32
+int32_t
 c0_get_pfx_len(struct c0 *handle)
 {
     struct c0_impl *self = c0_h2r(handle);
@@ -126,7 +128,7 @@ merr_t
 c0_get(
     struct c0 *              handle,
     const struct kvs_ktuple *kt,
-    u64                      view_seqno,
+    uint64_t                 view_seqno,
     uintptr_t                seqnoref,
     enum key_lookup_res *    res,
     struct kvs_buf *         vbuf)
@@ -144,7 +146,7 @@ merr_t
 c0_pfx_probe(
     struct c0 *              handle,
     const struct kvs_ktuple *kt,
-    u64                      view_seqno,
+    uint64_t                 view_seqno,
     uintptr_t                seqnoref,
     enum key_lookup_res *    res,
     struct query_ctx *       qctx,
@@ -239,7 +241,7 @@ c0_close(struct c0 *handle)
 merr_t
 c0_cursor_create(
     struct c0 *            handle,
-    u64                    seqno,
+    uint64_t               seqno,
     bool                   reverse,
     const void *           prefix,
     size_t                 pfx_len,
@@ -316,7 +318,7 @@ c0_cursor_es_get(struct c0_cursor *c0cur)
 }
 
 merr_t
-c0_cursor_update(struct c0_cursor *c0cur, u64 seqno, u32 *flags_out)
+c0_cursor_update(struct c0_cursor *c0cur, uint64_t seqno, uint32_t *flags_out)
 {
     return c0sk_cursor_update(c0cur, seqno, flags_out);
 }
@@ -344,7 +346,7 @@ c0_sync(struct c0 *handle)
     return c0sk_sync(self->c0_c0sk, HSE_KVDB_SYNC_REFWAIT);
 }
 
-u16
+uint16_t
 c0_index(struct c0 *handle)
 {
     struct c0_impl *self = c0_h2r(handle);

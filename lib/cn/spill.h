@@ -6,9 +6,10 @@
 #ifndef HSE_KVDB_CN_SPILL_H
 #define HSE_KVDB_CN_SPILL_H
 
+#include <stdint.h>
+
 #include <hse/error/merr.h>
 #include <hse/ikvdb/blk_list.h>
-#include <hse/util/inttypes.h>
 #include <hse/util/list.h>
 
 #include "route.h"

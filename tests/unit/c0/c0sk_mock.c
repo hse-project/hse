@@ -17,7 +17,7 @@ _c0sk_open(
     const char *         mp_name,
     struct kvdb_health * health,
     atomic_ulong        *kvdb_seq,
-    u64                  gen,
+    uint64_t             gen,
     struct c0sk **       c0sk)
 {
     return 0;
@@ -40,7 +40,7 @@ _c0sk_close(struct c0sk *self)
 }
 
 merr_t
-_c0sk_c0_register(struct c0sk *self, struct cn *cn, u16 *skidx)
+_c0sk_c0_register(struct c0sk *self, struct cn *cn, uint16_t *skidx)
 {
     struct mock_c0sk *mock_c0sk = (struct mock_c0sk *)self;
     merr_t            err = 0;
@@ -56,7 +56,7 @@ _c0sk_c0_register(struct c0sk *self, struct cn *cn, u16 *skidx)
 }
 
 merr_t
-_c0sk_c0_deregister(struct c0sk *self, u16 skidx)
+_c0sk_c0_deregister(struct c0sk *self, uint16_t skidx)
 {
     struct mock_c0sk *mock_c0sk = (struct mock_c0sk *)self;
     merr_t            err = 0;
@@ -73,7 +73,7 @@ _c0sk_c0_deregister(struct c0sk *self, u16 skidx)
 merr_t
 _c0sk_put(
     struct c0sk *            self,
-    u16                      skidx,
+    uint16_t                 skidx,
     struct kvs_ktuple       *key,
     const struct kvs_vtuple *value,
     const uintptr_t          seqno)
@@ -93,10 +93,10 @@ _c0sk_put(
 merr_t
 _c0sk_get(
     struct c0sk *            self,
-    u16                      skidx,
-    u32                      pfx_len,
+    uint16_t                 skidx,
+    uint32_t                 pfx_len,
     const struct kvs_ktuple *key,
-    u64                      view_seqno,
+    uint64_t                 view_seqno,
     uintptr_t                seqnoref,
     enum key_lookup_res *    res,
     struct kvs_buf *         vbuf)
@@ -114,7 +114,7 @@ _c0sk_get(
 }
 
 merr_t
-_c0sk_del(struct c0sk *self, u16 skidx, struct kvs_ktuple *key, const uintptr_t seqno)
+_c0sk_del(struct c0sk *self, uint16_t skidx, struct kvs_ktuple *key, const uintptr_t seqno)
 {
     struct mock_c0sk *mock_c0sk = (struct mock_c0sk *)self;
     merr_t            err = 0;
@@ -129,7 +129,7 @@ _c0sk_del(struct c0sk *self, u16 skidx, struct kvs_ktuple *key, const uintptr_t 
 }
 
 merr_t
-_c0sk_prefix_del(struct c0sk *self, u16 skidx, struct kvs_ktuple *key, const uintptr_t seqno)
+_c0sk_prefix_del(struct c0sk *self, uint16_t skidx, struct kvs_ktuple *key, const uintptr_t seqno)
 {
     struct mock_c0sk *mock_c0sk = (struct mock_c0sk *)self;
     merr_t            err = 0;

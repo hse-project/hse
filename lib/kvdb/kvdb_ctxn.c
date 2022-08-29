@@ -5,6 +5,8 @@
 
 #define MTF_MOCK_IMPL_kvdb_ctxn
 
+#include <stdint.h>
+
 #include <urcu/rculist.h>
 
 #include <hse/util/arch.h>
@@ -58,8 +60,8 @@ struct kvdb_ctxn_set {
 struct kvdb_ctxn_set_impl {
     struct kvdb_ctxn_set     ktn_handle;
     struct workqueue_struct *ktn_wq;
-    u64                      txn_wkth_delay;
-    u64                      ktn_txn_timeout;
+    uint64_t                 txn_wkth_delay;
+    uint64_t                 ktn_txn_timeout;
     struct delayed_work      ktn_dwork;
 
     atomic_ulong             ktn_tseqno_head HSE_ACP_ALIGNED;
@@ -146,8 +148,8 @@ kvdb_ctxn_reaper(struct work_struct *work)
     struct list_head           freelist, alist;
     struct kvdb_ctxn_impl *    ctxn = 0, *next = 0;
     struct kvdb_ctxn_set_impl *ktn;
-    u64                        now;
-    u64                        ttl_ns;
+    uint64_t                   now;
+    uint64_t                   ttl_ns;
     unsigned int               abort_cnt = 0;
 
     INIT_LIST_HEAD(&alist);
@@ -287,7 +289,7 @@ kvdb_ctxn_set_remove(struct kvdb_ctxn_set *handle, struct kvdb_ctxn_impl *ctxn)
  * years for head to wrap.  So we just don't worry about it...
  */
 void
-kvdb_ctxn_set_wait_commits(struct kvdb_ctxn_set *handle, u64 head)
+kvdb_ctxn_set_wait_commits(struct kvdb_ctxn_set *handle, uint64_t head)
 {
     struct kvdb_ctxn_set_impl *self = kvdb_ctxn_set_h2r(handle);
 
@@ -359,7 +361,7 @@ kvdb_ctxn_begin(struct kvdb_ctxn *handle)
 {
     struct kvdb_ctxn_impl *ctxn = kvdb_ctxn_h2r(handle);
     enum kvdb_ctxn_state   state;
-    u64                    tseqno;
+    uint64_t               tseqno;
     merr_t                 err;
 
     kvdb_ctxn_lock_impl(ctxn);
@@ -392,8 +394,8 @@ errout:
 static void
 kvdb_ctxn_deactivate(struct kvdb_ctxn_impl *ctxn)
 {
-    u32   min_changed = 0;
-    u64   new_min = U64_MAX;
+    uint32_t min_changed = 0;
+    uint64_t new_min = UINT64_MAX;
     void *cookie;
 
     ctxn->ctxn_can_insert = false;
@@ -449,7 +451,7 @@ kvdb_ctxn_abort_inner(struct kvdb_ctxn_impl *ctxn)
 
         if (kvdb_ctxn_locks_count(locks) > 0) {
             void *cookie = NULL;
-            u64 end_seq;
+            uint64_t end_seq;
 
             kvdb_keylock_list_lock(keylock, &cookie);
             end_seq = atomic_fetch_add(ctxn->ctxn_kvdb_seq_addr, 1);
@@ -647,7 +649,7 @@ kvdb_ctxn_reset(struct kvdb_ctxn *handle)
 }
 
 merr_t
-kvdb_ctxn_get_view_seqno(struct kvdb_ctxn *handle, u64 *view_seqno)
+kvdb_ctxn_get_view_seqno(struct kvdb_ctxn *handle, uint64_t *view_seqno)
 {
     struct kvdb_ctxn_impl *ctxn = kvdb_ctxn_h2r(handle);
 
@@ -698,7 +700,10 @@ kvdb_ctxn_lock_inherit(uint32_t desc, uint64_t start_seq)
 }
 
 merr_t
-kvdb_ctxn_set_create(struct kvdb_ctxn_set **handle_out, u64 txn_timeout_ms, u64 delay_msecs)
+kvdb_ctxn_set_create(
+    struct kvdb_ctxn_set **handle_out,
+    uint64_t txn_timeout_ms,
+    uint64_t delay_msecs)
 {
     struct kvdb_ctxn_set_impl *ktn;
 
@@ -805,7 +810,7 @@ kvdb_ctxn_cursor_unbind(struct kvdb_ctxn_bind *bind)
 }
 
 merr_t
-kvdb_ctxn_trylock_read(struct kvdb_ctxn *handle, uintptr_t *seqref, u64 *view_seqno)
+kvdb_ctxn_trylock_read(struct kvdb_ctxn *handle, uintptr_t *seqref, uint64_t *view_seqno)
 {
     struct kvdb_ctxn_impl *ctxn;
     merr_t                 err;
@@ -828,11 +833,11 @@ merr_t
 kvdb_ctxn_trylock_write(
     struct kvdb_ctxn *handle,
     uintptr_t *       seqref,
-    u64 *             view_seqno,
+    uint64_t *        view_seqno,
     int64_t          *cookie,
     bool              is_ptomb,
-    u64               pfxhash,
-    u64               hash)
+    uint64_t          pfxhash,
+    uint64_t          hash)
 {
     struct kvdb_ctxn_impl *ctxn;
     merr_t                 err;

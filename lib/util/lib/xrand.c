@@ -1,7 +1,10 @@
 /* SPDX-License-Identifier: Apache-2.0 */
 /*
- * Copyright (C) 2020-2021 Micron Technology, Inc.  All rights reserved.
+ * Copyright (C) 2020-2022 Micron Technology, Inc.  All rights reserved.
  */
+
+#include <stdint.h>
+#include <unistd.h>
 
 #include <hse/util/arch.h>
 #include <hse/util/xrand.h>
@@ -9,7 +12,7 @@
 thread_local struct xrand xrand_tls;
 
 void
-xrand_init(struct xrand *xr, u64 seed)
+xrand_init(struct xrand *xr, uint64_t seed)
 {
     if (!seed) {
         while (1) {
@@ -24,13 +27,13 @@ xrand_init(struct xrand *xr, u64 seed)
     xoroshiro128plus_init(xr->xr_state, seed);
 }
 
-u64
-xrand_range64(struct xrand *xr, u64 lo, u64 hi)
+uint64_t
+xrand_range64(struct xrand *xr, uint64_t lo, uint64_t hi)
 {
     /* compute rv: 0 <= rv < 1  */
-    double rand_max = (double)((u64)-1);
+    double rand_max = (double)((uint64_t)-1);
     double rv = (double)xrand64(xr) / (rand_max + 1.0);
 
     /* scale rv to the desired range */
-    return (u64)((double)lo + (double)(hi - lo) * rv);
+    return (uint64_t)((double)lo + (double)(hi - lo) * rv);
 }

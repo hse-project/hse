@@ -1,12 +1,14 @@
 /* SPDX-License-Identifier: Apache-2.0 */
 /*
- * Copyright (C) 2015-2020 Micron Technology, Inc.  All rights reserved.
+ * Copyright (C) 2015-2022 Micron Technology, Inc.  All rights reserved.
  */
 
 #ifndef HSE_KVS_CURSOR_H
 #define HSE_KVS_CURSOR_H
 
-#include <hse/util/inttypes.h>
+#include <stdbool.h>
+#include <stdint.h>
+
 #include <hse/ikvdb/tuple.h>
 
 /**
@@ -40,25 +42,25 @@
 
 struct cursor_summary {
     void *addr;     /* ikvs */
-    u64   created;  /* ikvs */
-    u64   updated;  /* ikvs */
-    u64   dgen[4];  /* cn */
-    u64   seqno;    /* ikvs */
-    u32   read_c0;  /* ikvs */
-    u32   read_cn;  /* ikvs */
-    u32   util;     /* ikvs */
-    u16   n_kvset;  /* cn */
-    u8    n_kvms;   /* c0sk */
-    u8    n_trim;   /* c0sk */
-    u8    n_bind;   /* ikvs */
-    u8    n_update; /* ikvs */
-    u8    n_dgen;   /* cn */
-    u8    skidx;    /* c0sk */
+    uint64_t created;  /* ikvs */
+    uint64_t updated;  /* ikvs */
+    uint64_t dgen[4];  /* cn */
+    uint64_t seqno;    /* ikvs */
+    uint32_t read_c0;  /* ikvs */
+    uint32_t read_cn;  /* ikvs */
+    uint32_t util;     /* ikvs */
+    uint16_t n_kvset;  /* cn */
+    uint8_t  n_kvms;   /* c0sk */
+    uint8_t  n_trim;   /* c0sk */
+    uint8_t  n_bind;   /* ikvs */
+    uint8_t  n_update; /* ikvs */
+    uint8_t  n_dgen;   /* cn */
+    uint8_t  skidx;    /* c0sk */
                     /* flags? created c0, cn, restored c0, cn? */
 };
 
 static inline void
-cursor_summary_add_dgen(struct cursor_summary *sum, u64 dgen)
+cursor_summary_add_dgen(struct cursor_summary *sum, uint64_t dgen)
 {
     if (dgen != sum->dgen[(sum->n_dgen - 1) & 3])
         sum->dgen[sum->n_dgen++ & 3] = dgen;

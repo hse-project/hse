@@ -1,12 +1,23 @@
 /* SPDX-License-Identifier: Apache-2.0 */
 /*
- * Copyright (C) 2015-2020 Micron Technology, Inc.  All rights reserved.
+ * Copyright (C) 2015-2022 Micron Technology, Inc.  All rights reserved.
  */
 
+#include <ctype.h>
+#include <errno.h>
+#include <stdlib.h>
+#include <stdint.h>
+
+#include <hse/error/merr.h>
 #include <hse/util/parse_num.h>
 
 merr_t
-parse_s64_range(const char *str, char **caller_endptr, s64 min_accept, s64 max_accept, s64 *result)
+parse_s64_range(
+    const char *str,
+    char **caller_endptr,
+    int64_t min_accept,
+    int64_t max_accept,
+    int64_t *result)
 {
     char * endptr;
     merr_t err = 0;
@@ -61,7 +72,12 @@ done:
 }
 
 merr_t
-parse_u64_range(const char *str, char **caller_endptr, u64 min_accept, u64 max_accept, u64 *result)
+parse_u64_range(
+    const char *str,
+    char **caller_endptr,
+    uint64_t min_accept,
+    uint64_t max_accept,
+    uint64_t *result)
 {
     char * endptr;
     merr_t err = 0;
@@ -116,7 +132,7 @@ done:
 }
 
 merr_t
-parse_size_range(const char *str, u64 min_accept, u64 max_accept, u64 *result)
+parse_size_range(const char *str, uint64_t min_accept, uint64_t max_accept, uint64_t *result)
 {
     char * endptr;
     merr_t err;
@@ -132,7 +148,7 @@ parse_size_range(const char *str, u64 min_accept, u64 max_accept, u64 *result)
 
     if (endptr[0]) {
 
-        u64 scale;
+        uint64_t scale;
 
         switch (tolower(*endptr)) {
             case 'k':
@@ -169,8 +185,8 @@ parse_size_range(const char *str, u64 min_accept, u64 max_accept, u64 *result)
         }
 
         /* Check overflow */
-        if (*result > U64_MAX / scale) {
-            *result = U64_MAX;
+        if (*result > UINT64_MAX / scale) {
+            *result = UINT64_MAX;
             err = merr(ERANGE);
             goto done;
         }

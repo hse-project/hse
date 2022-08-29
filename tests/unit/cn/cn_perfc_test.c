@@ -1,7 +1,9 @@
 /* SPDX-License-Identifier: Apache-2.0 */
 /*
- * Copyright (C) 2015-2021 Micron Technology, Inc.  All rights reserved.
+ * Copyright (C) 2015-2022 Micron Technology, Inc.  All rights reserved.
  */
+
+#include <stdint.h>
 
 #include <mtf/framework.h>
 
@@ -19,7 +21,7 @@ MTF_DEFINE_UTEST(test, t_cn_perfc_bkts)
         NE(PERFC_LT_FOOBAR, 3, "bar", "bar"),
     };
 
-    u64 edgev[3] = { 10, 20, 30 };
+    uint64_t edgev[3] = { 10, 20, 30 };
     int edgec = NELEM(edgev);
 
     cn_perfc_bkts_create(pcn, edgec, edgev, 7);

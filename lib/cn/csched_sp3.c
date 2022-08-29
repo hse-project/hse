@@ -6,6 +6,8 @@
 #define MTF_MOCK_IMPL_csched_sp3
 
 #include <math.h>
+#include <stdint.h>
+
 #include <bsd/string.h>
 #include <sys/resource.h>
 
@@ -217,16 +219,16 @@ struct sp3 {
     uint             jobs_finished;
     uint             jobs_max;
     uint             rr_wtype;
-    u64              job_id;
+    uint64_t         job_id;
 
     struct cn_compaction_work *wp;
 
     struct {
         /* mirror selected kvdb_rparams */
-        u64 csched_samp_max;
-        u64 csched_lo_th_pct;
-        u64 csched_hi_th_pct;
-        u64 csched_leaf_pct;
+        uint64_t csched_samp_max;
+        uint64_t csched_lo_th_pct;
+        uint64_t csched_hi_th_pct;
+        uint64_t csched_leaf_pct;
     } inputs;
 
     /* Working parameters, derived from kvdb_rparams mirrored
@@ -248,7 +250,7 @@ struct sp3 {
 
     uint64_t check_garbage_ns;
     uint64_t check_scatter_ns;
-    u64 qos_log_ttl;
+    uint64_t qos_log_ttl;
 
     uint64_t ucomp_report_ns;
     volatile bool ucomp_active;
@@ -349,7 +351,7 @@ safe_div(double numer, double denom)
 }
 
 static inline double
-scale2dbl(u64 samp)
+scale2dbl(uint64_t samp)
 {
     return (1.0 / SCALE) * samp;
 }
@@ -394,7 +396,7 @@ sp3_log_progress(struct cn_compaction_work *w, struct cn_merge_stats *ms, bool f
     double              progress;
     double              vblk_read_efficiency;
     const char *        msg_type;
-    u64                 qt, pt, bt, ct;
+    uint64_t            qt, pt, bt, ct;
 
     if (final) {
         msg_type = "final";
@@ -449,11 +451,11 @@ sp3_log_progress(struct cn_compaction_work *w, struct cn_merge_stats *ms, bool f
 static void
 sp3_refresh_samp(struct sp3 *sp)
 {
-    u64 samp, lwm, hwm, leaf, r;
-    u64 good_max, good_min;
-    u64 good_hwm, good_lwm;
-    u64 samp_hwm, samp_lwm;
-    u64 range;
+    uint64_t samp, lwm, hwm, leaf, r;
+    uint64_t good_max, good_min;
+    uint64_t good_hwm, good_lwm;
+    uint64_t samp_hwm, samp_lwm;
+    uint64_t range;
 
     bool csched_samp_max_changed = sp->inputs.csched_samp_max != sp->rp->csched_samp_max,
          csched_lo_th_pct_changed = sp->inputs.csched_lo_th_pct != sp->rp->csched_lo_th_pct,
@@ -466,8 +468,8 @@ sp3_refresh_samp(struct sp3 *sp)
         return;
 
     if (csched_samp_max_changed) {
-        const u64 new_val =
-            clamp_t(u64, sp->rp->csched_samp_max, CSCHED_SAMP_MAX_MIN, CSCHED_SAMP_MAX_MAX);
+        const uint64_t new_val =
+            clamp_t(uint64_t, sp->rp->csched_samp_max, CSCHED_SAMP_MAX_MIN, CSCHED_SAMP_MAX_MAX);
 
         log_info("sp3 kvdb_rparam csched_samp_max changed from %lu to %lu",
                  (ulong)sp->inputs.csched_samp_max,
@@ -475,8 +477,8 @@ sp3_refresh_samp(struct sp3 *sp)
         sp->inputs.csched_samp_max = new_val;
     }
     if (csched_lo_th_pct_changed) {
-        const u64 new_val =
-            clamp_t(u64, sp->rp->csched_lo_th_pct, CSCHED_LO_TH_PCT_MIN, CSCHED_LO_TH_PCT_MAX);
+        const uint64_t new_val =
+            clamp_t(uint64_t, sp->rp->csched_lo_th_pct, CSCHED_LO_TH_PCT_MIN, CSCHED_LO_TH_PCT_MAX);
 
         log_info("sp3 kvdb_rparam csched_lo_th_pct changed from %lu to %lu",
                  (ulong)sp->inputs.csched_lo_th_pct,
@@ -484,8 +486,8 @@ sp3_refresh_samp(struct sp3 *sp)
         sp->inputs.csched_lo_th_pct = new_val;
     }
     if (csched_hi_th_pct_changed) {
-        const u64 new_val =
-            clamp_t(u64, sp->rp->csched_hi_th_pct, CSCHED_HI_TH_PCT_MIN, CSCHED_HI_TH_PCT_MAX);
+        const uint64_t new_val =
+            clamp_t(uint64_t, sp->rp->csched_hi_th_pct, CSCHED_HI_TH_PCT_MIN, CSCHED_HI_TH_PCT_MAX);
 
         log_info("sp3 kvdb_rparam csched_hi_th_pct changed from %lu to %lu",
                  (ulong)sp->inputs.csched_hi_th_pct,
@@ -493,8 +495,8 @@ sp3_refresh_samp(struct sp3 *sp)
         sp->inputs.csched_hi_th_pct = new_val;
     }
     if (csched_leaf_pct_changed) {
-        const u64 new_val =
-            clamp_t(u64, sp->rp->csched_leaf_pct, CSCHED_LEAF_PCT_MIN, CSCHED_LEAF_PCT_MAX);
+        const uint64_t new_val =
+            clamp_t(uint64_t, sp->rp->csched_leaf_pct, CSCHED_LEAF_PCT_MIN, CSCHED_LEAF_PCT_MAX);
 
         log_info("sp3 kvdb_rparam csched_leaf_pct changed from %lu to %lu",
                  (ulong)sp->inputs.csched_leaf_pct,
@@ -702,7 +704,7 @@ sp3_rb_insert(struct rb_root *root, struct sp3_rbe *new_node)
 {
     struct rb_node **link = &root->rb_node;
     struct rb_node * parent = 0;
-    u64              weight = new_node->rbe_weight;
+    uint64_t         weight = new_node->rbe_weight;
 
     assert(RB_EMPTY_NODE(&new_node->rbe_node));
 
@@ -718,8 +720,8 @@ sp3_rb_insert(struct rb_root *root, struct sp3_rbe *new_node)
         else if (weight < this->rbe_weight)
             link = &(*link)->rb_right;
         else {
-            assert((u64)new_node != (u64)this);
-            if ((u64)new_node > (u64)this)
+            assert((uint64_t)new_node != (uint64_t)this);
+            if ((uint64_t)new_node > (uint64_t)this)
                 link = &(*link)->rb_left;
             else
                 link = &(*link)->rb_right;
@@ -731,7 +733,7 @@ sp3_rb_insert(struct rb_root *root, struct sp3_rbe *new_node)
 }
 
 static void
-sp3_node_insert(struct sp3 *sp, struct sp3_node *spn, uint tx, u64 weight)
+sp3_node_insert(struct sp3 *sp, struct sp3_node *spn, uint tx, uint64_t weight)
 {
     struct rb_root *root = sp->rbt + tx;
     struct sp3_rbe *rbe = spn->spn_rbe + tx;
@@ -2133,10 +2135,10 @@ sp3_qos_check(struct sp3 *sp)
     }
 
     if (rspill_dt_max * rootmax > 0) {
-        u64 K;
-        u64 r = rootmax * 100;
-        u64 secs = (rspill_dt_max * rootmax) / NSEC_PER_SEC;
-        u64 min_lat = 16, max_lat = 80;
+        uint64_t K;
+        uint64_t r = rootmax * 100;
+        uint64_t secs = (rspill_dt_max * rootmax) / NSEC_PER_SEC;
+        uint64_t min_lat = 16, max_lat = 80;
 
         /* Since, the throttling system's sensitivty to sensor values over 1000 is non-linear, the
          * sensor value is not incremented at a high rate once it gets over 1000.
@@ -2159,7 +2161,7 @@ sp3_qos_check(struct sp3 *sp)
          *   K = (100 * secs / 64) + 475;
          */
 
-        secs = clamp_t(u64, secs, min_lat, max_lat);
+        secs = clamp_t(uint64_t, secs, min_lat, max_lat);
         K = ((100 * secs) + (475 * 64)) / 64;
         sval = (K * r * 3) / (K + r);
 
@@ -2470,8 +2472,8 @@ sp3_update_samp(struct sp3 *sp)
 }
 
 struct periodic_check {
-    const u64 interval;
-    u64 next;
+    const uint64_t interval;
+    uint64_t next;
 };
 
 static void

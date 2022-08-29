@@ -27,6 +27,8 @@
 
 #define MTF_MOCK_IMPL_hlog
 
+#include <stdint.h>
+
 #include <hse/util/platform.h>
 #include <hse/error/merr.h>
 #include <hse/util/alloc.h>
@@ -79,7 +81,7 @@ hlog_create(struct hlog **hlog_out, uint p)
 
     hlog->precision = p;
     hlog->regc = regc;
-    hlog->mask = (((u64)1) << p) - 1;
+    hlog->mask = (((uint64_t)1) << p) - 1;
 
     *hlog_out = hlog;
     return 0;
@@ -131,10 +133,10 @@ hlog_union(struct hlog *hlog, const uint8_t *new)
 }
 
 void
-hlog_add(struct hlog *hlog, u64 hash)
+hlog_add(struct hlog *hlog, uint64_t hash)
 {
     uint i, cnt, nbits;
-    u64  bit;
+    uint64_t bit;
 
     hlog->nkeys++;
 
@@ -231,8 +233,8 @@ hlog_bias_adjust(double est, uint p, double *result)
     return 0;
 }
 
-static u64
-hlog_card_data(u8 *regv, uint p)
+static uint64_t
+hlog_card_data(uint8_t *regv, uint p)
 {
     double est, h;
     uint   i, v;
@@ -284,7 +286,7 @@ hlog_card_data(u8 *regv, uint p)
     return est;
 }
 
-u64
+uint64_t
 hlog_card(struct hlog *hlog)
 {
     return hlog_card_data(hlog->regv, hlog->precision);

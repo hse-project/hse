@@ -11,6 +11,8 @@
 #ifndef HSE_BONSAI_TREE_H
 #define HSE_BONSAI_TREE_H
 
+#include <stdint.h>
+
 #include <urcu-bp.h>
 
 #include <hse/util/arch.h>
@@ -79,7 +81,7 @@ enum bonsai_ior_code {
 struct bonsai_skey {
     struct key_immediate  bsk_key_imm;
     const void           *bsk_key;
-    u32                   bsk_flags;
+    uint32_t              bsk_flags;
 };
 
 /**
@@ -103,7 +105,7 @@ struct bonsai_val {
     uintptr_t          bv_seqnoref;
     struct bonsai_val *bv_next;
     void              *bv_value;
-    u64                bv_xlen;
+    uint64_t           bv_xlen;
     struct bonsai_val *bv_priv;
     struct bonsai_val *bv_free;
     char               bv_valbuf[];
@@ -163,7 +165,7 @@ bonsai_val_vlen(const struct bonsai_val *bv)
  */
 struct bonsai_sval {
     void     *bsv_val;
-    u64       bsv_xlen;
+    uint64_t  bsv_xlen;
     uintptr_t bsv_seqnoref;
 };
 
@@ -209,9 +211,9 @@ bonsai_sval_vlen(const struct bonsai_sval *bsv)
 struct bonsai_kv {
     struct key_immediate    bkv_key_imm;
     char                   *bkv_key;
-    u16                     bkv_flags;
-    u16                     bkv_voffset;
-    u32                     bkv_valcnt;
+    uint16_t                bkv_flags;
+    uint16_t                bkv_voffset;
+    uint32_t                bkv_valcnt;
     struct bonsai_val *     bkv_values;
     struct bonsai_kv *      bkv_prev;
     struct bonsai_kv *      bkv_next;
@@ -575,7 +577,12 @@ bn_finalize(struct bonsai_root *tree);
  * @skey:
  */
 static inline void
-bn_skey_init(const void *key, s32 klen, u32 flags, u16 index, struct bonsai_skey *skey)
+bn_skey_init(
+    const void *key,
+    int32_t klen,
+    uint32_t flags,
+    uint16_t index,
+    struct bonsai_skey *skey)
 {
     key_immediate_init(key, klen, index, &skey->bsk_key_imm);
     skey->bsk_key = key;
@@ -590,14 +597,14 @@ bn_skey_init(const void *key, s32 klen, u32 flags, u16 index, struct bonsai_skey
  * @sval:
  */
 static inline void
-bn_sval_init(void *val, u64 xlen, uintptr_t seqnoref, struct bonsai_sval *sval)
+bn_sval_init(void *val, uint64_t xlen, uintptr_t seqnoref, struct bonsai_sval *sval)
 {
     sval->bsv_val = val;
     sval->bsv_xlen = xlen;
     sval->bsv_seqnoref = seqnoref;
 }
 
-static inline s32
+static inline int32_t
 bn_kv_cmp(const void *lhs, const void *rhs)
 {
     const struct bonsai_kv *l = lhs;
@@ -618,7 +625,7 @@ bn_kv_cmp(const void *lhs, const void *rhs)
  * Note that the return values are inverted compared to what bn_kv_cmp()
  * returns. This way heapify can be agnositic of this logic.
  */
-static inline s32
+static inline int32_t
 bn_kv_cmp_rev(const void *lhs, const void *rhs)
 {
     const struct bonsai_kv *l = lhs;

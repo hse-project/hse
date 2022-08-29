@@ -1,16 +1,17 @@
 /* SPDX-License-Identifier: Apache-2.0 */
 /*
- * Copyright (C) 2015-2021 Micron Technology, Inc.  All rights reserved.
+ * Copyright (C) 2015-2022 Micron Technology, Inc.  All rights reserved.
  */
+
+#include <stdint.h>
 
 #include <mtf/framework.h>
 
+#include <hse/error/merr.h>
+#include <hse/logging/logging.h>
 #include <hse/util/arch.h>
 #include <hse/util/slab.h>
-#include <hse/util/inttypes.h>
-#include <hse/error/merr.h>
 #include <hse/util/timer.h>
-#include <hse/logging/logging.h>
 
 int
 timer_test_pre(struct mtf_test_info *lcl_ti)
@@ -60,7 +61,7 @@ timer_test_basic_cb(unsigned long data)
 
 MTF_DEFINE_UTEST(timer_test, timer_test_jiffies)
 {
-    u64 j;
+    uint64_t j;
 
     /* millseconds...
      */

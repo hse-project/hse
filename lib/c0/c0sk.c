@@ -3,6 +3,8 @@
  * Copyright (C) 2015-2022 Micron Technology, Inc.  All rights reserved.
  */
 
+#include <stdint.h>
+
 #include <urcu-bp.h>
 #include <urcu/rculist.h>
 
@@ -157,7 +159,7 @@
  */
 
 merr_t
-c0sk_c0_register(struct c0sk *handle, struct cn *cn, u16 *skidx)
+c0sk_c0_register(struct c0sk *handle, struct cn *cn, uint16_t *skidx)
 {
     merr_t            err;
     struct c0sk_impl *self;
@@ -185,7 +187,7 @@ c0sk_c0_register(struct c0sk *handle, struct cn *cn, u16 *skidx)
 }
 
 merr_t
-c0sk_c0_deregister(struct c0sk *handle, u16 skidx)
+c0sk_c0_deregister(struct c0sk *handle, uint16_t skidx)
 {
     struct c0sk_impl *self;
 
@@ -233,13 +235,13 @@ c0sk_fini(void)
 merr_t
 c0sk_put(
     struct c0sk *            handle,
-    u16                      skidx,
+    uint16_t                 skidx,
     struct kvs_ktuple       *kt,
     const struct kvs_vtuple *vt,
     uintptr_t                seqnoref)
 {
     struct c0sk_impl *self = c0sk_h2r(handle);
-    u64               start;
+    uint64_t          start;
     merr_t            err;
 
     start = perfc_lat_startu(&self->c0sk_pc_op, PERFC_LT_C0SKOP_PUT);
@@ -255,10 +257,10 @@ c0sk_put(
 }
 
 merr_t
-c0sk_del(struct c0sk *handle, u16 skidx, struct kvs_ktuple *kt, uintptr_t seqnoref)
+c0sk_del(struct c0sk *handle, uint16_t skidx, struct kvs_ktuple *kt, uintptr_t seqnoref)
 {
     struct c0sk_impl *self = c0sk_h2r(handle);
-    u64               start;
+    uint64_t          start;
     merr_t            err;
 
     start = perfc_lat_startu(&self->c0sk_pc_op, PERFC_LT_C0SKOP_DEL);
@@ -274,7 +276,7 @@ c0sk_del(struct c0sk *handle, u16 skidx, struct kvs_ktuple *kt, uintptr_t seqnor
 }
 
 merr_t
-c0sk_prefix_del(struct c0sk *handle, u16 skidx, struct kvs_ktuple *kt, uintptr_t seqnoref)
+c0sk_prefix_del(struct c0sk *handle, uint16_t skidx, struct kvs_ktuple *kt, uintptr_t seqnoref)
 {
     struct c0sk_impl *self = c0sk_h2r(handle);
 
@@ -288,10 +290,10 @@ c0sk_prefix_del(struct c0sk *handle, u16 skidx, struct kvs_ktuple *kt, uintptr_t
 merr_t
 c0sk_get(
     struct c0sk *            handle,
-    u16                      skidx,
-    u32                      pfx_len,
+    uint16_t                 skidx,
+    uint32_t                 pfx_len,
     const struct kvs_ktuple *kt,
-    u64                      view_seq,
+    uint64_t                 view_seq,
     uintptr_t                seqref,
     enum key_lookup_res *    res,
     struct kvs_buf *         vbuf)
@@ -299,9 +301,9 @@ c0sk_get(
     struct c0_kvmultiset *c0kvms;
     struct c0sk_impl *    self;
     uintptr_t             key_seqref = 0, ptomb_seqref = 0;
-    u64                   start;
-    u64                   pfx_seq = 0, val_seq = 0;
-    u64                   seq;
+    uint64_t              start;
+    uint64_t              pfx_seq = 0, val_seq = 0;
+    uint64_t              seq;
     merr_t                err = 0;
 
     self = c0sk_h2r(handle);
@@ -362,11 +364,11 @@ c0sk_get(
 merr_t
 c0sk_pfx_probe(
     struct c0sk *            handle,
-    u16                      skidx,
-    u32                      pfx_len,
-    u32                      sfx_len,
+    uint16_t                 skidx,
+    uint32_t                 pfx_len,
+    uint32_t                 sfx_len,
     const struct kvs_ktuple *kt,
-    u64                      view_seq,
+    uint64_t                 view_seq,
     uintptr_t                seqref,
     enum key_lookup_res *    res,
     struct query_ctx *       qctx,
@@ -376,7 +378,7 @@ c0sk_pfx_probe(
     struct c0_kvmultiset *c0kvms;
     struct c0sk_impl *    self;
     uintptr_t             ptomb_seqref = 0;
-    u64                   pfx_seq = 0;
+    uint64_t              pfx_seq = 0;
     merr_t                err = 0;
 
     self = c0sk_h2r(handle);
@@ -427,7 +429,7 @@ c0sk_open(
     const char *         kvdb_alias,
     struct kvdb_health * health,
     atomic_ulong        *kvdb_seq,
-    u64                  gen,
+    uint64_t             gen,
     struct c0sk **       c0skp)
 {
     struct c0_kvmultiset *c0kvms;
@@ -568,7 +570,7 @@ c0sk_close(struct c0sk *handle)
             cds_list_del_rcu(&first->c0ms_link);
             --self->c0sk_kvmultisets_cnt;
             perfc_set(
-                &self->c0sk_pc_ingest, PERFC_BA_C0SKING_QLEN, (u64)self->c0sk_kvmultisets_cnt);
+                &self->c0sk_pc_ingest, PERFC_BA_C0SKING_QLEN, (uint64_t)self->c0sk_kvmultisets_cnt);
 
             assert(c0kvms_get_element_count(first) == 0);
             assert(self->c0sk_kvmultisets_cnt == 0);
@@ -619,19 +621,19 @@ c0sk_lc_get(struct c0sk *handle)
 }
 
 void
-c0sk_min_seqno_set(struct c0sk *handle, u64 seq)
+c0sk_min_seqno_set(struct c0sk *handle, uint64_t seq)
 {
     atomic_set(&c0sk_h2r(handle)->c0sk_ingest_min, seq);
 }
 
-u64
+uint64_t
 c0sk_min_seqno_get(struct c0sk *handle)
 {
     assert(handle);
     return atomic_read(&c0sk_h2r(handle)->c0sk_ingest_min);
 }
 
-u64
+uint64_t
 c0sk_ingest_order_register(struct c0sk *handle)
 {
     struct c0sk_impl *self;
@@ -666,7 +668,7 @@ c0sk_rparams(struct c0sk *handle)
 }
 
 static void
-c0sk_sync_debug(struct c0sk_impl *self, u64 waiter_gen)
+c0sk_sync_debug(struct c0sk_impl *self, uint64_t waiter_gen)
 {
     log_warn("ingest %lu waiter %lu release %lu cnt %d",
              (ulong)atomic_read(&self->c0sk_ingest_gen),
@@ -883,7 +885,7 @@ c0sk_cursor_discover(struct c0_cursor *cur)
     struct c0_kvmultiset * kvms, **kvmsv;
     struct c0sk_impl *     c0sk;
     int                    i, cnt;
-    u64                    min_gen, max_gen;
+    uint64_t               min_gen, max_gen;
 
     c0sk = c0sk_h2r(cur->c0cur_c0sk);
     kvms = 0;
@@ -975,10 +977,10 @@ c0sk_cursor_discover(struct c0_cursor *cur)
 merr_t
 c0sk_cursor_create(
     struct c0sk *          handle,
-    u64                    seqno,
+    uint64_t               seqno,
     int                    skidx,
     bool                   reverse,
-    u32                    ct_pfx_len,
+    uint32_t               ct_pfx_len,
     const void *           prefix,
     size_t                 pfx_len,
     struct cursor_summary *summary,
@@ -1099,10 +1101,10 @@ c0sk_cursor_read(struct c0_cursor *cur, struct kvs_cursor_element *elem, bool *e
     while (bin_heap_pop(cur->c0cur_bh, (void **)&bkv)) {
         struct key_immediate *imm = &bkv->bkv_key_imm;
         struct bonsai_val *   val;
-        u32                   klen = key_imm_klen(imm);
+        uint32_t              klen = key_imm_klen(imm);
         bool                  is_ptomb = bkv->bkv_flags & BKV_FLAG_PTOMB;
         enum hse_seqno_state  state;
-        u64                   seqno = 0;
+        uint64_t              seqno = 0;
 
         if (cur->c0cur_pfx_len) {
             int len = min_t(int, klen, cur->c0cur_pfx_len);
@@ -1170,7 +1172,7 @@ c0sk_cursor_read(struct c0_cursor *cur, struct kvs_cursor_element *elem, bool *e
             struct bonsai_val *   dup_val;
             struct key_immediate *dupi = &dup->bkv_key_imm;
             enum hse_seqno_state  dup_state;
-            u64                   dup_seqno = 0;
+            uint64_t              dup_seqno = 0;
 
             if (key_imm_klen(imm) != key_imm_klen(dupi) ||
                 memcmp(bkv->bkv_key, dup->bkv_key, key_imm_klen(imm)))
@@ -1250,11 +1252,11 @@ c0sk_cursor_update_active(struct c0_cursor *cur)
  * address this possibility as an edge case.
  */
 merr_t
-c0sk_cursor_update(struct c0_cursor *cur, u64 seqno, u32 *flags_out)
+c0sk_cursor_update(struct c0_cursor *cur, uint64_t seqno, uint32_t *flags_out)
 {
     struct c0_kvmultiset        *kvmsv_mem[16];
     struct c0_kvmultiset       **kvmsv = kvmsv_mem;
-    u64                          min_gen, max_gen;
+    uint64_t                     min_gen, max_gen;
     struct c0_kvmultiset        *kvms = NULL;
     struct c0sk_impl *           c0sk;
     int                          cnt, width, i;
@@ -1395,7 +1397,7 @@ out:
 /* GCOV_EXCL_START */
 
 HSE_USED HSE_COLD void
-c0sk_cursor_debug_base(struct c0sk *handle, u64 seqno, const void *prefix, int pfx_len, int skidx)
+c0sk_cursor_debug_base(struct c0sk *handle, uint64_t seqno, const void *prefix, int pfx_len, int skidx)
 {
     bool eof;
     merr_t err;
@@ -1472,7 +1474,7 @@ c0sk_cursor_debug_val(struct c0_cursor *cur, uintptr_t seqnoref, struct bonsai_k
 /* GCOV_EXCL_STOP */
 
 struct cn *
-c0sk_get_cn(struct c0sk_impl *c0sk, u64 skidx)
+c0sk_get_cn(struct c0sk_impl *c0sk, uint64_t skidx)
 {
     return c0sk->c0sk_cnv[skidx];
 }

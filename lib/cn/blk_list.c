@@ -5,6 +5,8 @@
 
 #define MTF_MOCK_IMPL_blk_list
 
+#include <stdint.h>
+
 #include <hse/ikvdb/blk_list.h>
 #include <hse/logging/logging.h>
 #include <hse/error/merr.h>
@@ -86,7 +88,7 @@ blk_list_init(struct blk_list *blkl)
 }
 
 merr_t
-blk_list_append(struct blk_list *blks, u64 blkid)
+blk_list_append(struct blk_list *blks, uint64_t blkid)
 {
     assert(blks->idc <= blks->n_alloc);
 

@@ -1,7 +1,12 @@
 /* SPDX-License-Identifier: Apache-2.0 */
 /*
- * Copyright (C) 2015-2020,2020 Micron Technology, Inc.  All rights reserved.
+ * Copyright (C) 2015-2022 Micron Technology, Inc.  All rights reserved.
  */
+
+#include <byteswap.h>
+#include <getopt.h>
+#include <stdint.h>
+#include <stdio.h>
 
 #include <hse/util/platform.h>
 #include <hse/util/slab.h>
@@ -10,26 +15,22 @@
 #include <hse/ikvdb/omf_kmd.h>
 #include <hse/ikvdb/limits.h>
 
-#include <byteswap.h>
-#include <getopt.h>
-#include <stdio.h>
-
 #define GiB 1024 * 1024 * 1024
 #define MiB 1024 * 1024
 
 const size_t mem_size = 1ull * GiB;
 const unsigned long randc = 16ull * MiB;
 void *mem;
-u64 * randv;
-u32   seed;
+uint64_t *randv;
+uint32_t seed;
 
 int failed;
 
 #define ENCODER(NAME) \
-    static inline __attribute__((always_inline)) void NAME(void *base, size_t *off, u64 val)
+    static inline __attribute__((always_inline)) void NAME(void *base, size_t *off, uint64_t val)
 
 #define DECODER(NAME) \
-    static inline __attribute__((always_inline)) u64 NAME(const void *base, size_t *off)
+    static inline __attribute__((always_inline)) uint64_t NAME(const void *base, size_t *off)
 
 
 /*****************************************************************
@@ -40,54 +41,54 @@ int failed;
 
 ENCODER(encode_n8)
 {
-    u8 *p = base + *off;
-    assert(val <= U8_MAX);
+    uint8_t *p = base + *off;
+    assert(val <= UINT8_MAX);
     *off += sizeof(*p);
-    *p = (u8)val;
+    *p = (uint8_t)val;
 }
 ENCODER(encode_n16)
 {
-    u16 *p = base + *off;
-    assert(val <= U16_MAX);
+    uint16_t *p = base + *off;
+    assert(val <= UINT16_MAX);
     *off += sizeof(*p);
-    *p = (u16)val;
+    *p = (uint16_t)val;
 }
 ENCODER(encode_n32)
 {
-    u32 *p = base + *off;
-    assert(val <= U32_MAX);
+    uint32_t *p = base + *off;
+    assert(val <= UINT32_MAX);
     *off += sizeof(*p);
-    *p = (u32)val;
+    *p = (uint32_t)val;
 }
 ENCODER(encode_n64)
 {
-    u64 *p = base + *off;
-    assert(val <= U64_MAX);
+    uint64_t *p = base + *off;
+    assert(val <= UINT64_MAX);
     *off += sizeof(*p);
-    *p = (u64)val;
+    *p = (uint64_t)val;
 }
 
 DECODER(decode_n8)
 {
-    const u8 *p = base + *off;
+    const uint8_t *p = base + *off;
     *off += sizeof(*p);
     return *p;
 }
 DECODER(decode_n16)
 {
-    const u16 *p = base + *off;
+    const uint16_t *p = base + *off;
     *off += sizeof(*p);
     return *p;
 }
 DECODER(decode_n32)
 {
-    const u32 *p = base + *off;
+    const uint32_t *p = base + *off;
     *off += sizeof(*p);
     return *p;
 }
 DECODER(decode_n64)
 {
-    const u64 *p = base + *off;
+    const uint64_t *p = base + *off;
     *off += sizeof(*p);
     return *p;
 }
@@ -100,84 +101,84 @@ DECODER(decode_n64)
 
 ENCODER(encode_be16)
 {
-    u16 *p = base + *off;
-    assert(val <= U16_MAX);
+    uint16_t *p = base + *off;
+    assert(val <= UINT16_MAX);
     *off += sizeof(*p);
-    *p = htobe16((u16)val);
+    *p = htobe16((uint16_t)val);
 }
 ENCODER(encode_le16)
 {
-    u16 *p = base + *off;
-    assert(val <= U16_MAX);
+    uint16_t *p = base + *off;
+    assert(val <= UINT16_MAX);
     *off += sizeof(*p);
-    *p = htole16((u16)val);
+    *p = htole16((uint16_t)val);
 }
 
 ENCODER(encode_be32)
 {
-    u32 *p = base + *off;
-    assert(val <= U32_MAX);
+    uint32_t *p = base + *off;
+    assert(val <= UINT32_MAX);
     *off += sizeof(*p);
-    *p = htobe32((u32)val);
+    *p = htobe32((uint32_t)val);
 }
 ENCODER(encode_le32)
 {
-    u32 *p = base + *off;
-    assert(val <= U32_MAX);
+    uint32_t *p = base + *off;
+    assert(val <= UINT32_MAX);
     *off += sizeof(*p);
-    *p = htole32((u32)val);
+    *p = htole32((uint32_t)val);
 }
 
 ENCODER(encode_be64)
 {
-    u64 *p = base + *off;
-    assert(val <= U64_MAX);
+    uint64_t *p = base + *off;
+    assert(val <= UINT64_MAX);
     *off += sizeof(*p);
-    *p = htobe64((u64)val);
+    *p = htobe64((uint64_t)val);
 }
 ENCODER(encode_le64)
 {
-    u64 *p = base + *off;
-    assert(val <= U64_MAX);
+    uint64_t *p = base + *off;
+    assert(val <= UINT64_MAX);
     *off += sizeof(*p);
-    *p = htole64((u64)val);
+    *p = htole64((uint64_t)val);
 }
 
 DECODER(decode_be16)
 {
-    const u16 *p = base + *off;
+    const uint16_t *p = base + *off;
     *off += sizeof(*p);
     return be16toh(*p);
 }
 DECODER(decode_le16)
 {
-    const u16 *p = base + *off;
+    const uint16_t *p = base + *off;
     *off += sizeof(*p);
     return le16toh(*p);
 }
 
 DECODER(decode_be32)
 {
-    const u32 *p = base + *off;
+    const uint32_t *p = base + *off;
     *off += sizeof(*p);
     return be32toh(*p);
 }
 DECODER(decode_le32)
 {
-    const u32 *p = base + *off;
+    const uint32_t *p = base + *off;
     *off += sizeof(*p);
     return le32toh(*p);
 }
 
 DECODER(decode_be64)
 {
-    const u64 *p = base + *off;
+    const uint64_t *p = base + *off;
     *off += sizeof(*p);
     return be64toh(*p);
 }
 DECODER(decode_le64)
 {
-    const u64 *p = base + *off;
+    const uint64_t *p = base + *off;
     *off += sizeof(*p);
     return le64toh(*p);
 }
@@ -186,14 +187,14 @@ DECODER(decode_le64)
 #define CODEC(NAME,ENC_FN,DEC_FN)                               \
     void NAME(                                                  \
         bool encode,                                            \
-        u64 *ops_out,                                           \
-        u64 *bytes_out,                                         \
-        u64 *xor_out)                                           \
+        uint64_t *ops_out,                                      \
+        uint64_t *bytes_out,                                    \
+        uint64_t *xor_out)                                      \
     {                                                           \
-        u64 xor = 0;                                            \
-        u64 off = 0;                                            \
-        u64 ops = 0;                                            \
-        u64 val;                                                \
+        uint64_t xor = 0;                                       \
+        uint64_t off = 0;                                       \
+        uint64_t ops = 0;                                       \
+        uint64_t val;                                           \
                                                                 \
         if (encode) {                                           \
                                                                 \
@@ -307,20 +308,20 @@ report(
 
 static inline void
 test(const char *NAME,
-    void (*codec)(bool encode, u64 *ops_inout, u64 *bytes_out, u64 *xor_out),
-    u64 MAX_MASK,
+    void (*codec)(bool encode, uint64_t *ops_inout, uint64_t *bytes_out, uint64_t *xor_out),
+    uint64_t MAX_MASK,
     int MODE)
 {
     struct timeval  prev, now, diff1, diff2;
     struct xrand xr;
 
-    u64  xor1 = 0, xor2 = 0;
-    u64  ops1 = 0, ops2 = 0;
-    u64  bytes1 = 0, bytes2 = 0;
+    uint64_t  xor1 = 0, xor2 = 0;
+    uint64_t  ops1 = 0, ops2 = 0;
+    uint64_t  bytes1 = 0, bytes2 = 0;
     char tnam[256];
     char modestr[32];
-    u64  mode_mask;
-    int  mode;
+    uint64_t mode_mask;
+    int mode;
 
     xrand_init(&xr, seed);
 
@@ -329,7 +330,7 @@ test(const char *NAME,
     snprintf(modestr, sizeof(modestr), "%dbytes", mode);
 
     mode_mask = (1LL << ((mode)*8 - 2)) - 1;
-    for (u64 i = 0; i < randc; i++)
+    for (uint64_t i = 0; i < randc; i++)
         randv[i] = xrand64(&xr) & (MAX_MASK)&mode_mask;
 
     gettimeofday(&prev, NULL);
@@ -364,25 +365,25 @@ test(const char *NAME,
 }
 
 void
-run_encoder_perf(u32 seed)
+run_encoder_perf(uint32_t seed)
 {
-    test("warmup", codec_n8, U8_MAX, 1);
+    test("warmup", codec_n8, UINT8_MAX, 1);
     printf("\n");
 
-    test("native8",  codec_n8,  U8_MAX,  1);
-    test("native16", codec_n16, U16_MAX, 2);
-    test("native32", codec_n32, U32_MAX, 4);
-    test("native64", codec_n64, U64_MAX, 8);
+    test("native8",  codec_n8,  UINT8_MAX,  1);
+    test("native16", codec_n16, UINT16_MAX, 2);
+    test("native32", codec_n32, UINT32_MAX, 4);
+    test("native64", codec_n64, UINT64_MAX, 8);
     printf("\n");
 
-    test("be16", codec_be16, U16_MAX, 2);
-    test("be32", codec_be32, U32_MAX, 4);
-    test("be64", codec_be64, U64_MAX, 8);
+    test("be16", codec_be16, UINT16_MAX, 2);
+    test("be32", codec_be32, UINT32_MAX, 4);
+    test("be64", codec_be64, UINT64_MAX, 8);
     printf("\n");
 
-    test("le16", codec_le16, U16_MAX, 2);
-    test("le32", codec_le32, U32_MAX, 4);
-    test("le64", codec_le64, U64_MAX, 8);
+    test("le16", codec_le16, UINT16_MAX, 2);
+    test("le32", codec_le32, UINT32_MAX, 4);
+    test("le64", codec_le64, UINT64_MAX, 8);
     printf("\n");
 
     test("hg16_32k", codec_hg16_32k, HG16_32K_MAX, 1);
@@ -406,19 +407,19 @@ run_encoder_perf(u32 seed)
     test("hg64", codec_hg64, HG64_MAX, 8);
     printf("\n");
 
-    test("varint", codec_varint, U64_MAX, 1);
-    test("varint", codec_varint, U64_MAX, 2);
-    test("varint", codec_varint, U64_MAX, 3);
-    test("varint", codec_varint, U64_MAX, 4);
-    test("varint", codec_varint, U64_MAX, 5);
-    test("varint", codec_varint, U64_MAX, 6);
-    test("varint", codec_varint, U64_MAX, 7);
-    test("varint", codec_varint, U64_MAX, 8);
+    test("varint", codec_varint, UINT64_MAX, 1);
+    test("varint", codec_varint, UINT64_MAX, 2);
+    test("varint", codec_varint, UINT64_MAX, 3);
+    test("varint", codec_varint, UINT64_MAX, 4);
+    test("varint", codec_varint, UINT64_MAX, 5);
+    test("varint", codec_varint, UINT64_MAX, 6);
+    test("varint", codec_varint, UINT64_MAX, 7);
+    test("varint", codec_varint, UINT64_MAX, 8);
     printf("\n");
 }
 
 struct kmd_test_stats {
-    u64 nbytes, nkeys, nseqs, nvals, nivals, nzvals, ntombs, nptombs;
+    uint64_t nbytes, nkeys, nseqs, nvals, nivals, nzvals, ntombs, nptombs;
 };
 
 enum test_enc { enc_short, enc_med, enc_long };
@@ -456,7 +457,7 @@ void
 tp_next_entry(
     struct kmd_test_profile *tp,
     enum kmd_vtype *         vtype,
-    u64 *                    seq,
+    uint64_t *               seq,
     uint *                   vbidx,
     uint *                   vboff,
     const void **            vdata,
@@ -464,7 +465,7 @@ tp_next_entry(
     uint *                   clen)
 {
     static char valbuf[CN_SMALL_VALUE_THRESHOLD] = { 17, 23, 42, 211, 164, 96, 11, 7 };
-    u32         rv;
+    uint32_t    rv;
 
     *seq = xrand64(&tp->xr) & HG64_MAX;
 
@@ -478,25 +479,25 @@ tp_next_entry(
     if (tp->mix == vals_only)
         goto value;
 
-    if (rv < 3 * (U32_MAX / 100)) {
+    if (rv < 3 * (UINT32_MAX / 100)) {
         *vtype = VTYPE_ZVAL;
         *vlen = 0;
         return;
     }
 
-    if (rv < 5 * (U32_MAX / 100)) {
+    if (rv < 5 * (UINT32_MAX / 100)) {
         *vtype = VTYPE_IVAL;
         *vdata = valbuf;
         *vlen = 1 + xrand64(&tp->xr) % CN_SMALL_VALUE_THRESHOLD;
         return;
     }
 
-    if (rv < 7 * (U32_MAX / 100)) {
+    if (rv < 7 * (UINT32_MAX / 100)) {
         *vtype = VTYPE_TOMB;
         return;
     }
 
-    if (rv < 10 * (U32_MAX / 100)) {
+    if (rv < 10 * (UINT32_MAX / 100)) {
         *vtype = VTYPE_PTOMB;
         return;
     }
@@ -533,7 +534,7 @@ value:
 void
 run_kmd_write_perf(struct kmd_test_stats *s)
 {
-    u64      off, seq, rx, rval;
+    uint64_t off, seq, rx, rval;
     unsigned count;
     uint     vbidx, vboff, vlen;
 
@@ -573,7 +574,7 @@ run_kmd_write_perf(struct kmd_test_stats *s)
 void
 run_kmd_read_perf(struct kmd_test_stats *s)
 {
-    u64            off, seq, rx, rval;
+    uint64_t       off, seq, rx, rval;
     unsigned       i, count;
     enum kmd_vtype vtype;
     uint           vbidx, vboff, vlen, clen;
@@ -584,7 +585,7 @@ run_kmd_read_perf(struct kmd_test_stats *s)
 
     while (true) {
         unsigned exp_count HSE_MAYBE_UNUSED;
-        u64 exp_seq HSE_MAYBE_UNUSED;
+        uint64_t exp_seq HSE_MAYBE_UNUSED;
 
         rval = randv[(randc - 1) & rx++];
         exp_count = (rval & 3) + 1;
@@ -631,7 +632,7 @@ run_kmd_read_perf(struct kmd_test_stats *s)
 void
 run_kmd_tp(struct kmd_test_profile *tp, struct kmd_test_stats *s, bool writing)
 {
-    u64            off, seq;
+    uint64_t       off, seq;
     unsigned       count, actual_count, may_need;
     enum kmd_vtype vtype;
     uint           i, vbidx, vboff, vlen, clen;
@@ -702,7 +703,7 @@ run_kmd_tp(struct kmd_test_profile *tp, struct kmd_test_stats *s, bool writing)
                         break;
                 }
             } else {
-                u64            actual_seq;
+                uint64_t       actual_seq;
                 enum kmd_vtype actual_vtype;
                 uint           actual_vbidx;
                 uint           actual_vboff;
@@ -829,7 +830,7 @@ run_kmd_perf(void)
     struct xrand          xr;
     double                M = 1024 * 1024;
     double                rtime, wtime;
-    u64                   i;
+    uint64_t              i;
 
     xrand_init(&xr, seed);
     for (i = 0; i < randc; i++)

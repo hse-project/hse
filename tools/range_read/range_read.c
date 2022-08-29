@@ -9,9 +9,10 @@
 
 #include <endian.h>
 #include <getopt.h>
-#include <sysexits.h>
+#include <stdint.h>
 #include <stdlib.h>
 #include <sys/resource.h>
+#include <sysexits.h>
 
 #include <hdr/hdr_histogram.h>
 #include <xoroshiro.h>
@@ -21,7 +22,6 @@
 #include <hse/util/platform.h>
 #include <hse/util/atomic.h>
 #include <hse/util/compiler.h>
-#include <hse/util/inttypes.h>
 
 #include "kvs_helper.h"
 
@@ -84,13 +84,14 @@ atomic_ulong n_get HSE_ACP_ALIGNED;
 atomic_ulong n_read HSE_ACP_ALIGNED;
 
 
-u64 gtod_usec(void)
+uint64_t
+gtod_usec(void)
 {
     struct timeval ctime;
 
     gettimeofday(&ctime, 0);
-    return (u64)ctime.tv_sec * (u64)1000000
-        + (u64)ctime.tv_usec;
+    return (uint64_t)ctime.tv_sec * (uint64_t)1000000
+        + (uint64_t)ctime.tv_usec;
 }
 
 long
@@ -142,7 +143,7 @@ loader(void *arg)
     int                   i;
     char                  kbuf[HSE_KVS_KEY_LEN_MAX] = {};
     unsigned char        *val;
-    u64                   nwrite;
+    uint64_t              nwrite;
 
     val = malloc(opts.vlen);
     if (!val)
@@ -168,8 +169,8 @@ loader(void *arg)
     free(val);
 }
 
-u64
-rand_key()
+uint64_t
+rand_key(void)
 {
     return xrand64() % opts.nkeys;
 }
@@ -183,7 +184,7 @@ point_get(void *arg)
     size_t                vlen;
     char                  kbuf[HSE_KVS_KEY_LEN_MAX] = {};
 
-    u64                   nget;
+    uint64_t              nget;
     pthread_t             tid = pthread_self();
 
     xrand64_init(tid);
@@ -195,9 +196,9 @@ point_get(void *arg)
 
     nget = 0;
     while (!stopthreads) {
-        bool found;
-        u64  t_start, dt, i, key_start;
-        uint klen;
+        bool     found;
+        uint64_t t_start, dt, i, key_start;
+        uint     klen;
 
         key_start = rand_key();
 
@@ -233,7 +234,7 @@ cursor(void *arg)
     unsigned char        *vbuf;
     bool                  eof = false;
 
-    u64                   nread;
+    uint64_t              nread;
     pthread_t             tid = pthread_self();
 
     xrand64_init(tid);
@@ -245,10 +246,10 @@ cursor(void *arg)
 
     nread = 0;
     while (!stopthreads) {
-        int i;
-        u64 t_start;
-        u64 t_create, t_seek, t_read, t_full;
-        u64 key_start;
+        int      i;
+        uint64_t t_start;
+        uint64_t t_create, t_seek, t_read, t_full;
+        uint64_t key_start;
 
         struct hse_kvs_cursor *c;
 

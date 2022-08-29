@@ -49,7 +49,7 @@ kv_item_compare(const void *a, const void *b)
  * in kvset builder without this is a future opportunity.
  */
 static merr_t
-get_direct_read_buf(uint len, bool aligned_voff, u32 *bufsz, void **buf)
+get_direct_read_buf(uint len, bool aligned_voff, uint32_t *bufsz, void **buf)
 {
     uint bufsz_min = len;
 
@@ -93,19 +93,19 @@ cn_kvcompact(struct cn_compaction_work *w)
 
     uint vlen, complen, omlen, direct_read_len;
     uint curr_klen HSE_MAYBE_UNUSED;
-    u32 bufsz = 0;
+    uint32_t bufsz = 0;
     void *buf = NULL;
     merr_t err;
 
-    u64  seq, emitted_seq = 0, emitted_seq_pt = 0;
+    uint64_t seq, emitted_seq = 0, emitted_seq_pt = 0;
     bool emitted_val = false, bg_val = false;
 
     struct key_obj pt_kobj = {0};
-    u64 pt_seq = 0;
+    uint64_t pt_seq = 0;
     bool pt_set = false;
 
-    u64  tstart, tprog = 0;
-    u64  dbg_prev_seq = 0;
+    uint64_t tstart, tprog = 0;
+    uint64_t dbg_prev_seq = 0;
     uint dbg_prev_idx HSE_MAYBE_UNUSED;
     uint dbg_nvals_this_key HSE_MAYBE_UNUSED;
     bool dbg_dup HSE_MAYBE_UNUSED;
@@ -191,8 +191,8 @@ cn_kvcompact(struct cn_compaction_work *w)
             const void *   vdata = NULL;
             bool           should_emit = false;
             enum kmd_vtype vtype;
-            u32            vbidx;
-            u32            vboff;
+            uint32_t       vbidx;
+            uint32_t       vboff;
             bool           direct;
 
             if (tstart > 0)
@@ -221,7 +221,7 @@ cn_kvcompact(struct cn_compaction_work *w)
                 break;
 
             if (tstart > 0) {
-                u64 t = get_time_ns() - tstart;
+                uint64_t t = get_time_ns() - tstart;
 
                 perfc_dis_record(w->cw_pc, PERFC_DI_CNCOMP_VGET, t);
             }
@@ -335,7 +335,7 @@ cn_kvcompact(struct cn_compaction_work *w)
         new_key = true;
 
         if (tprog) {
-            u64 now = jiffies;
+            uint64_t now = jiffies;
 
             if (now - tprog > w->cw_prog_interval) {
                 tprog = now;

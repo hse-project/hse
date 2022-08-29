@@ -1,13 +1,14 @@
 /* SPDX-License-Identifier: Apache-2.0 */
 /*
- * Copyright (C) 2021 Micron Technology, Inc.  All rights reserved.
+ * Copyright (C) 2021-2022 Micron Technology, Inc.  All rights reserved.
  */
 
 #ifndef HSE_CORE_LC_H
 #define HSE_CORE_LC_H
 
+#include <stdint.h>
+
 #include <hse/error/merr.h>
-#include <hse/util/inttypes.h>
 #include <hse/util/workqueue.h>
 
 #include <lc/bonsai_iter.h>
@@ -61,10 +62,10 @@ lc_builder_finish(struct lc_builder *lcb);
 merr_t
 lc_get(
     struct lc *              handle,
-    u16                      skidx,
-    u32                      pfxlen,
+    uint16_t                 skidx,
+    uint32_t                 pfxlen,
     const struct kvs_ktuple *kt,
-    u64                      view_seqno,
+    uint64_t                 view_seqno,
     uintptr_t                seqnoref,
     enum key_lookup_res *    res,
     struct kvs_buf *         vbuf);
@@ -74,8 +75,8 @@ merr_t
 lc_pfx_probe(
     struct lc *              handle,
     const struct kvs_ktuple *kt,
-    u16                      skidx,
-    u64                      view_seqno,
+    uint16_t                 skidx,
+    uint64_t                 view_seqno,
     uintptr_t                seqnoref,
     uint                     pfxlen,
     enum key_lookup_res *    res,
@@ -91,7 +92,7 @@ lc_pfx_probe(
  */
 /* MTF_MOCK */
 void
-lc_ingest_seqno_set(struct lc *handle, u64 seq);
+lc_ingest_seqno_set(struct lc *handle, uint64_t seq);
 
 /**
  * lc_ingest_seqno_get() - Get the min_seqno that may be ingested to cn
@@ -99,7 +100,7 @@ lc_ingest_seqno_set(struct lc *handle, u64 seq);
  * @handle:    LC handle
  */
 /* MTF_MOCK */
-u64
+uint64_t
 lc_ingest_seqno_get(struct lc *handle);
 
 /**
@@ -120,8 +121,8 @@ lc_ingest_seqno_get(struct lc *handle);
 merr_t
 lc_cursor_create(
     struct lc *            handle,
-    u16                    skidx,
-    u64                    seqno,
+    uint16_t               skidx,
+    uint64_t               seqno,
     uintptr_t              seqnoref,
     bool                   reverse,
     const void *           pfx_padded,
@@ -144,7 +145,7 @@ lc_cursor_seek(struct lc_cursor *lccur, const void *seek, size_t seeklen, struct
 
 /* MTF_MOCK */
 merr_t
-lc_cursor_update(struct lc_cursor *lccur, const void *key, size_t klen, u64 seqno);
+lc_cursor_update(struct lc_cursor *lccur, const void *key, size_t klen, uint64_t seqno);
 
 /* MTF_MOCK */
 struct element_source *
@@ -175,8 +176,8 @@ lc_ingest_iterv_init(
     struct lc *             lc,
     struct lc_ingest_iter * iterv,
     struct element_source **srcv,
-    u64                     min_seq,
-    u64                     max_seq,
+    uint64_t                min_seq,
+    uint64_t                max_seq,
     uint *                  iter_cnt);
 
 /* MTF_MOCK */

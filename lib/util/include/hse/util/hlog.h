@@ -6,7 +6,9 @@
 #ifndef HSE_PLATFORM_HYPERLOGLOG_H
 #define HSE_PLATFORM_HYPERLOGLOG_H
 
-#include <hse/util/inttypes.h>
+#include <stdint.h>
+#include <sys/types.h>
+
 #include <hse/error/merr.h>
 
 /* MTF_MOCK_DECL(hlog) */
@@ -49,10 +51,10 @@ hlog_precision(struct hlog *hlog);
 
 /* MTF_MOCK */
 void
-hlog_add(struct hlog *hlog, u64 hash);
+hlog_add(struct hlog *hlog, uint64_t hash);
 
 /* MTF_MOCK */
-u64
+uint64_t
 hlog_card(struct hlog *hlog);
 
 #if HSE_MOCKING

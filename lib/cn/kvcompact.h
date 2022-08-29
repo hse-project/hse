@@ -7,7 +7,6 @@
 #define HSE_KVDB_CN_KVCOMPACT_H
 
 #include <hse/error/merr.h>
-#include <hse/util/inttypes.h>
 
 struct cn_compaction_work;
 

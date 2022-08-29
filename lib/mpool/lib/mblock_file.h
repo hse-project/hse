@@ -1,10 +1,13 @@
 /* SPDX-License-Identifier: Apache-2.0 */
 /*
- * Copyright (C) 2021 Micron Technology, Inc.  All rights reserved.
+ * Copyright (C) 2021-2022 Micron Technology, Inc.  All rights reserved.
  */
 
 #ifndef MPOOL_MBLOCK_FILE_H
 #define MPOOL_MBLOCK_FILE_H
+
+#include <stdint.h>
+#include <sys/uio.h>
 
 #include <rbtree.h>
 

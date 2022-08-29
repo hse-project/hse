@@ -3,11 +3,12 @@
  * Copyright (C) 2015-2022 Micron Technology, Inc.  All rights reserved.
  */
 
+#include <stdint.h>
+
 #include <mtf/framework.h>
 
 #include <hse/ikvdb/tuple.h>
 
-#include <hse/util/inttypes.h>
 #include <hse/logging/logging.h>
 #include <hse/util/page.h>
 #include <hse/util/bloom_filter.h>
@@ -74,7 +75,6 @@ void
 read_blooms(struct mtf_test_info *lcl_ti, char *kblock_file)
 {
     merr_t                err;
-    struct mpool *        ds = (void *)-1;
     struct bloom_desc     rgndesc = { 0 };
     struct kblock_hdr_omf kb_hdr;
     struct bloom_hdr_omf  blm_hdr;
@@ -85,8 +85,8 @@ read_blooms(struct mtf_test_info *lcl_ti, char *kblock_file)
     char                  filename[PATH_MAX];
     char                  keybuf[32];
     struct kvs_mblk_desc  blkdesc = { 0 };
-    u64                   blkid;
-    u8 *                  blm_pages;
+    uint64_t              blkid;
+    uint8_t *             blm_pages;
 
     snprintf(filename, sizeof(filename), "%s/%s", data_path, kblock_file);
 

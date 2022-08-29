@@ -3,6 +3,7 @@
  * Copyright (C) 2015-2022 Micron Technology, Inc.  All rights reserved.
  */
 
+#include <stdint.h>
 #include <sys/mman.h>
 
 #include <hse/error/merr.h>
@@ -59,9 +60,9 @@ merr_t
 vbr_desc_update_vgidx(
     struct vblock_desc *vblk_desc,
     uint               *vgroupc,
-    u64                *vgroupv)
+    uint64_t           *vgroupv)
 {
-    u64  vgroup = vblk_desc->vbd_vgroup;
+    uint64_t  vgroup = vblk_desc->vbd_vgroup;
     uint i;
 
     /* Map omf vgroup IDs (i.e., kvset ids) to a monotonically increasing
@@ -94,8 +95,8 @@ vbr_readahead(
 {
     struct ra_hist *rah;
     size_t          end;
-    u16             bkt;
-    u16             vgidx;
+    uint16_t        bkt;
+    uint16_t        vgidx;
     bool            reverse;
 
     assert(ra_len >= PAGE_SIZE);

@@ -13,14 +13,12 @@
 
 #include <bsd/string.h>
 
-#include <hse/util/assert.h>
 #include <hse/error/merr.h>
 #include <hse/config/config.h>
 #include <hse/ikvdb/kvdb_home.h>
 #include <hse/ikvdb/kvdb_rparams.h>
 #include <hse/ikvdb/kvs_rparams.h>
 #include <hse/pidfile/pidfile.h>
-#include <hse/util/inttypes.h>
 #include <hse/util/dax.h>
 
 static merr_t

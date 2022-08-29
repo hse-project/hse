@@ -38,6 +38,7 @@
 #include <stdio.h>
 #include <string.h>
 #include <unistd.h>
+#include <sys/param.h>
 #include <sys/resource.h>
 #include <sysexits.h>
 
@@ -47,7 +48,6 @@
 #include <hse/util/arch.h>
 #include <hse/util/atomic.h>
 #include <hse/util/compiler.h>
-#include <hse/util/inttypes.h>
 #include <hse/util/time.h>
 
 #include "kvs_helper.h"

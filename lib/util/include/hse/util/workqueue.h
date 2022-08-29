@@ -13,7 +13,6 @@
  *   https://github.com/torvalds/linux/blob/master/Documentation/workqueue.txt
  */
 
-#include <hse/util/inttypes.h>
 #include <hse/util/list.h>
 #include <hse/util/timer.h>
 #include <hse/util/condvar.h>

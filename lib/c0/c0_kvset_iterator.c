@@ -1,7 +1,9 @@
 /* SPDX-License-Identifier: Apache-2.0 */
 /*
- * Copyright (C) 2015-2020 Micron Technology, Inc.  All rights reserved.
+ * Copyright (C) 2015-2022 Micron Technology, Inc.  All rights reserved.
  */
+
+#include <stdint.h>
 
 #include <hse/util/platform.h>
 #include <hse/util/event_counter.h>
@@ -169,7 +171,7 @@ void
 c0_kvset_iterator_seek(
     struct c0_kvset_iterator *iter,
     const void *              seek,
-    u32                       seeklen,
+    uint32_t                  seeklen,
     struct kvs_ktuple *       kt)
 {
     struct bonsai_skey skey;

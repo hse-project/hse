@@ -4,13 +4,17 @@
  */
 
 #include <endian.h>
+#include <errno.h>
 #include <getopt.h>
 #include <malloc.h>
 #include <pthread.h>
 #include <stdbool.h>
+#include <stdint.h>
+#include <string.h>
 #include <sys/resource.h>
 #include <sys/time.h>
 #include <sysexits.h>
+#include <unistd.h>
 
 #include <hse/cli/param.h>
 #include <hse/cli/program.h>
@@ -86,7 +90,7 @@ loader(void *arg)
     char val[VLEN];
     uint64_t *p, *c, *s;
     int i, j;
-    u64 rc;
+    uint64_t rc;
 
     rc = hse_kvs_prefix_delete(ta->kvs, 0, NULL, 0, 0);
         if (err)
@@ -129,7 +133,7 @@ _pfx_probe(
     size_t          vbufsz)
 {
     size_t      klen, vlen;
-    u64         rc;
+    uint64_t    rc;
     uint64_t    start, dt;
 
     enum hse_kvs_pfx_probe_cnt  pc;

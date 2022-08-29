@@ -11,7 +11,6 @@
 #include <hse/ikvdb/tuple.h>
 #include <hse/ikvdb/diag_kvdb.h>
 
-#include <hse/util/inttypes.h>
 #include <hse/error/merr.h>
 #include <hse/util/perfc.h>
 #include <hse/util/workqueue.h>
@@ -488,14 +487,14 @@ ikvdb_sync(struct ikvdb *kvdb, unsigned int flags);
  *                   number in use by any currently active transaction,
  *                   get, or scan operation.
  */
-u64
+uint64_t
 ikvdb_horizon(struct ikvdb *store);
 
 /**
  * ikvdb_txn_horizon() - return an upper bound on the smallest view sequence
  *                   number in use by any currently active transaction.
  */
-u64
+uint64_t
 ikvdb_txn_horizon(struct ikvdb *store);
 
 /**
@@ -663,8 +662,8 @@ merr_t
 ikvdb_wal_replay_put(
     struct ikvdb         *ikvdb,
     struct ikvdb_kvs_hdl *ikvsh,
-    u64                   cnid,
-    u64                   seqno,
+    uint64_t              cnid,
+    uint64_t              seqno,
     struct kvs_ktuple    *kt,
     struct kvs_vtuple    *vt);
 
@@ -672,16 +671,16 @@ merr_t
 ikvdb_wal_replay_del(
     struct ikvdb         *ikvdb,
     struct ikvdb_kvs_hdl *ikvsh,
-    u64                   cnid,
-    u64                   seqno,
+    uint64_t              cnid,
+    uint64_t              seqno,
     struct kvs_ktuple    *kt);
 
 merr_t
 ikvdb_wal_replay_prefix_del(
     struct ikvdb         *ikvdb,
     struct ikvdb_kvs_hdl *ikvsh,
-    u64                   cnid,
-    u64                   seqno,
+    uint64_t              cnid,
+    uint64_t              seqno,
     struct kvs_ktuple    *kt);
 
 merr_t
@@ -691,7 +690,7 @@ void
 ikvdb_wal_replay_seqno_set(struct ikvdb *ikvdb, uint64_t seqno);
 
 void
-ikvdb_wal_replay_gen_set(struct ikvdb *ikvdb, u64 gen);
+ikvdb_wal_replay_gen_set(struct ikvdb *ikvdb, uint64_t gen);
 
 bool
 ikvdb_wal_replay_size_set(struct ikvdb *ikvdb, struct ikvdb_kvs_hdl *ikvsh, uint64_t mem_sz);

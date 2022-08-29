@@ -12,6 +12,7 @@
 #include <stdbool.h>
 #include <stdlib.h>
 #include <stdio.h>
+#include <stdint.h>
 #include <string.h>
 #include <sysexits.h>
 #include <sys/resource.h>
@@ -20,7 +21,6 @@
 #include <hse/cli/program.h>
 #include <hse/hse.h>
 #include <hse/util/compiler.h>
-#include <hse/util/inttypes.h>
 #include <hse/util/parse_num.h>
 
 #include <tools/parm_groups.h>
@@ -36,31 +36,31 @@
 
 
 struct opts {
-    bool    help;
-    char   *config;
-    char   *mpool;
-    char   *kvs;
-    u64     keys;
-    uint    klen;
-    uint    vlen;
-    uint    threads;
-    bool    sync;
-    bool    ckvs;
-    bool    ckvdb;
-    bool    unclean;
-    bool    show_ops;
-    bool    dryrun;
-    bool    do_all;
-    bool    do_put;
-    bool    do_vput;
-    bool    do_up;
-    bool    do_vup;
-    bool    do_del;
-    bool    do_vdel;
-    bool    do_pdel;
-    bool    binary;
-    u64     kstart;
-    u32     errcnt;
+    bool     help;
+    char    *config;
+    char    *mpool;
+    char    *kvs;
+    uint64_t keys;
+    uint     klen;
+    uint     vlen;
+    uint     threads;
+    bool     sync;
+    bool     ckvs;
+    bool     ckvdb;
+    bool     unclean;
+    bool     show_ops;
+    bool     dryrun;
+    bool     do_all;
+    bool     do_put;
+    bool     do_vput;
+    bool     do_up;
+    bool     do_vup;
+    bool     do_del;
+    bool     do_vdel;
+    bool     do_pdel;
+    bool     binary;
+    uint64_t kstart;
+    uint32_t errcnt;
 };
 
 
@@ -77,7 +77,7 @@ struct parm_groups *pg;
 const char *mode = "";
 struct timeval tv_start;
 int verbose = 0;
-u32 errors = 0;
+uint32_t errors = 0;
 
 static struct key_generator *key_gen;
 static const long key_space_size = 4000000000UL;
@@ -675,7 +675,7 @@ fmt_string(
     int max_len,
     char fill,
     char *fmt,
-    u64 fmt_arg1,
+    uint64_t fmt_arg1,
     int fmt_arg2)
 {
     int i;
@@ -696,7 +696,7 @@ fmt_key(
     int len,
     unsigned long num)
 {
-    static u32 u;
+    static uint32_t u;
     unsigned char *str = ti->ref_key;
 
     if (len < 3) {
@@ -708,7 +708,7 @@ fmt_key(
         get_key(key_gen, str, num);
         str[len-1] = 0;
     } else {
-        *(u32 *)str = ++u;
+        *(uint32_t *)str = ++u;
         for (len -= 4, str += 4; len > 0; --len)
             *str++ = u & 255;
     }
@@ -722,8 +722,8 @@ int val_showlen;
 
 void
 set_kv(
-    struct thread_info          *ti,
-    u64                        keynum,
+    struct thread_info        *ti,
+    uint64_t                   keynum,
     uint                       salt)
 {
     if (opt.binary) {
@@ -778,7 +778,7 @@ set_kv(
 void
 test_put(struct thread_info *ti, uint salt)
 {
-    u64 i, last_key;
+    uint64_t i, last_key;
     hse_err_t err;
 
     test_start_phase(ti, salt ? "Update existing keys" : "Insert new keys");
@@ -814,7 +814,7 @@ void
 test_delete(struct thread_info *ti)
 {
     uint salt = -1; /* not important for delete */
-    u64 i, last_key;
+    uint64_t i, last_key;
     hse_err_t err;
 
     test_start_phase(ti, "Delete keys");
@@ -851,7 +851,7 @@ test_delete(struct thread_info *ti)
 void
 test_put_verify(struct thread_info *ti, uint salt)
 {
-    u64         i, last_key;
+    uint64_t    i, last_key;
     size_t      get_vlen;
     void       *get_val = ti->get_val;
 
@@ -933,7 +933,7 @@ test_put_verify(struct thread_info *ti, uint salt)
 void
 test_delete_verify(struct thread_info *ti)
 {
-    u64         i, last_key;
+    uint64_t    i, last_key;
     uint        salt = -1; /* not important for delete */
     size_t      get_vlen;
     void       *get_val = ti->get_val;

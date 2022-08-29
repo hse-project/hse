@@ -1,7 +1,9 @@
 /* SPDX-License-Identifier: Apache-2.0 */
 /*
- * Copyright (C) 2015-2021 Micron Technology, Inc.  All rights reserved.
+ * Copyright (C) 2015-2022 Micron Technology, Inc.  All rights reserved.
  */
+
+#include <stdint.h>
 
 #include <hse/util/platform.h>
 #include <hse/util/perfc.h>
@@ -98,10 +100,10 @@ kvdb_perfc_init(void)
     uint prio = hse_gparams.gp_perfc_level;
     struct perfc_ivl * ivl;
     struct perfc_name *pcn;
-    const u64          usecs = 1000;
-    const u64          msecs = 1000000;
+    const uint64_t     usecs = 1000;
+    const uint64_t     msecs = 1000000;
 
-    u64 boundv[] = {
+    uint64_t boundv[] = {
         /* 10, 100, .. 800 ns */
         10,          100,         200,         400,         600,         800,
 

@@ -69,6 +69,8 @@
 
 #define MTF_MOCK_IMPL_lc
 
+#include <stdint.h>
+
 #include <hse/ikvdb/lc.h>
 #include <hse/ikvdb/tuple.h>
 #include <hse/ikvdb/limits.h>
@@ -104,7 +106,7 @@ static struct kmem_cache *lc_cursor_cache;
  * @ib_next:   Next batch
  */
 struct ingest_batch {
-    u64                  ib_seqno;
+    uint64_t             ib_seqno;
     atomic_int           ib_refcnt;
     struct ingest_batch *ib_next;
 };
@@ -117,7 +119,7 @@ struct ingest_batch {
  */
 struct lc_gc {
     struct delayed_work lgc_dwork;
-    u64                 lgc_last_horizon_incl;
+    uint64_t            lgc_last_horizon_incl;
 
     uintptr_t **lgc_c0snr_refv;
     size_t      lgc_c0snr_cnt;
@@ -158,7 +160,7 @@ struct lc_impl {
 #define lc_r2h(REAL)   (&(REAL)->lc_handle)
 
 void
-lc_ingest_seqno_set(struct lc *handle, u64 seq)
+lc_ingest_seqno_set(struct lc *handle, uint64_t seq)
 {
     struct lc_impl *     self;
     struct ingest_batch *ib;
@@ -184,12 +186,12 @@ lc_ingest_seqno_set(struct lc *handle, u64 seq)
     atomic_inc(&self->lc_ib_len);
 }
 
-static u64
+static uint64_t
 lc_ib_head_seqno(struct lc_impl *self)
 {
     struct ingest_batch *first;
     void *               lock;
-    u64                  seqno;
+    uint64_t             seqno;
 
     /* If this function is called very often, it would make sense to have an atomic in lc_impl
      * that tracks the ingest seqno and is updated after each ingest operation in
@@ -203,7 +205,7 @@ lc_ib_head_seqno(struct lc_impl *self)
     return seqno;
 }
 
-u64
+uint64_t
 lc_ingest_seqno_get(struct lc *handle)
 {
     struct lc_impl *self = lc_h2r(handle);
@@ -225,7 +227,7 @@ lc_wunlock(struct lc_impl *self)
 
 /* Cursor horizon management
  */
-static u64
+static uint64_t
 lc_horizon_register(struct lc_impl *self, void **cookie)
 {
     struct ingest_batch *first;
@@ -265,7 +267,7 @@ lc_ior_cb(
     enum hse_seqno_state state HSE_MAYBE_UNUSED;
 
     uintptr_t seqnoref;
-    u64       seqno = 0;
+    uint64_t  seqno = 0;
 
     kv->bkv_flags |= BKV_FLAG_FROM_LC;
 
@@ -475,7 +477,7 @@ static merr_t
 lc_builder_cb(void *rock, struct bonsai_kv *bkv, struct bonsai_val *vlist)
 {
     struct lc_impl *   lc = rock;
-    u16                skidx = key_immediate_index(&bkv->bkv_key_imm);
+    uint16_t           skidx = key_immediate_index(&bkv->bkv_key_imm);
     uint               klen = key_imm_klen(&bkv->bkv_key_imm);
     struct bonsai_skey skey;
     struct bonsai_val *val = vlist;
@@ -555,7 +557,7 @@ static void
 lc_get_pfx(
     struct lc_impl *    self,
     struct bonsai_skey *skey,
-    u64                 view_seqno,
+    uint64_t            view_seqno,
     uintptr_t           seqnoref,
     uintptr_t *         oseqnoref)
 {
@@ -581,7 +583,7 @@ static void
 lc_get_main(
     struct lc_impl *     self,
     struct bonsai_skey * skey,
-    u64                  view_seqno,
+    uint64_t             view_seqno,
     uintptr_t            seqnoref,
     enum key_lookup_res *res,
     struct bonsai_val ** val_out,
@@ -649,11 +651,11 @@ copy_val(struct kvs_buf *vbuf, struct bonsai_val *val)
     return 0;
 }
 
-static u64
+static uint64_t
 lc_seqnoref_to_seqno(uintptr_t seqnoref)
 {
     enum hse_seqno_state state;
-    u64                  seq = 0;
+    uint64_t             seq = 0;
 
     state = seqnoref_to_seqno(seqnoref, &seq);
     assert(state == HSE_SQNREF_STATE_UNDEFINED || state == HSE_SQNREF_STATE_DEFINED);
@@ -670,10 +672,10 @@ lc_seqnoref_to_seqno(uintptr_t seqnoref)
 merr_t
 lc_get(
     struct lc *              handle,
-    u16                      skidx,
-    u32                      pfxlen,
+    uint16_t                 skidx,
+    uint32_t                 pfxlen,
     const struct kvs_ktuple *kt,
-    u64                      view_seqno,
+    uint64_t                 view_seqno,
     uintptr_t                seqnoref,
     enum key_lookup_res *    res,
     struct kvs_buf *         vbuf)
@@ -682,7 +684,7 @@ lc_get(
     struct bonsai_val *val = NULL;
     struct bonsai_skey skey;
     merr_t             err = 0;
-    u64                pt_seq, val_seq;
+    uint64_t           pt_seq, val_seq;
     uintptr_t          oseqnoref = 0;
 
     assert(handle);
@@ -735,8 +737,8 @@ merr_t
 lc_pfx_probe(
     struct lc *              handle,
     const struct kvs_ktuple *kt,
-    u16                      skidx,
-    u64                      view_seqno,
+    uint16_t                 skidx,
+    uint64_t                 view_seqno,
     uintptr_t                seqnoref,
     uint                     pfxlen,
     enum key_lookup_res *    res,
@@ -747,7 +749,7 @@ lc_pfx_probe(
     struct lc_impl *    self;
     struct bonsai_root *root;
     merr_t              err;
-    u64                 ingested_seq, pt_seq = 0;
+    uint64_t            ingested_seq, pt_seq = 0;
 
     assert(handle);
 
@@ -782,16 +784,16 @@ lc_pfx_probe(
  */
 struct lc_cursor {
     struct lc_impl *          lcc_lc;
-    u16                       lcc_skidx;
+    uint16_t                  lcc_skidx;
     struct kvs_cursor_element lcc_elem;
     struct key_obj            lcc_filter_max;
     struct key_obj            lcc_ptomb;
-    u64                       lcc_ptomb_seq;
+    uint64_t                  lcc_ptomb_seq;
     size_t                    lcc_tree_pfxlen;
 
     /* Cursors should only read kv-tuples in (lcc_seq_horizon, lcc_seq_view] */
-    u64       lcc_seq_view;
-    u64       lcc_seq_horizon;
+    uint64_t  lcc_seq_view;
+    uint64_t  lcc_seq_horizon;
     uintptr_t lcc_seqnoref;
     void *    lcc_ib_cookie;
 
@@ -804,9 +806,9 @@ struct lc_cursor {
     struct element_source *lcc_esrcv[LC_SOURCE_CNT_MAX];
 
     /* Flags */
-    u32 lcc_reverse : 1;
-    u32 lcc_filter_set : 1;
-    u32 lcc_ptomb_set : 1;
+    uint32_t lcc_reverse : 1;
+    uint32_t lcc_filter_set : 1;
+    uint32_t lcc_ptomb_set : 1;
 
     /* Cursor's prefix. Owned by kvs_cursor_impl. */
     struct key_obj lcc_pfx;
@@ -815,8 +817,8 @@ struct lc_cursor {
 merr_t
 lc_cursor_create(
     struct lc *            handle,
-    u16                    skidx,
-    u64                    seqno,
+    uint16_t               skidx,
+    uint64_t               seqno,
     uintptr_t              seqnoref,
     bool                   reverse,
     const void *           pfx_padded,
@@ -958,7 +960,7 @@ lc_cursor_read(struct lc_cursor *cur, struct kvs_cursor_element *lc_elem, bool *
 
             if (rc == 0) {
                 enum hse_seqno_state state;
-                u64                  seqno = 0;
+                uint64_t             seqno = 0;
 
                 /* Note that c0kvs_findval() will return a value only if either
                  *   1. it has a concrete seqno or
@@ -988,7 +990,7 @@ lc_cursor_read(struct lc_cursor *cur, struct kvs_cursor_element *lc_elem, bool *
         /* Just get the first occurrence of a ptomb */
         if (is_ptomb && !cur->lcc_ptomb_set) {
             enum hse_seqno_state state;
-            u64                  seqno;
+            uint64_t             seqno;
 
             cur->lcc_ptomb = lc_elem->kce_kobj;
             cur->lcc_ptomb_set = 1;
@@ -1071,7 +1073,7 @@ lc_cursor_seek(struct lc_cursor *cur, const void *seek, size_t seeklen, struct k
 }
 
 merr_t
-lc_cursor_update(struct lc_cursor *cur, const void *key, size_t klen, u64 seqno)
+lc_cursor_update(struct lc_cursor *cur, const void *key, size_t klen, uint64_t seqno)
 {
     struct lc_impl *lc = cur->lcc_lc;
     int             i;
@@ -1101,8 +1103,8 @@ lc_ingest_iterv_init(
     struct lc *             handle,
     struct lc_ingest_iter * iterv,
     struct element_source **srcv,
-    u64                     min_seq,
-    u64                     max_seq,
+    uint64_t                min_seq,
+    uint64_t                max_seq,
     uint *                  iter_cnt)
 {
     struct lc_impl *self;
@@ -1139,12 +1141,12 @@ lc_gc_c0snr_add(struct lc_gc *gc, uintptr_t *snr)
     return 0;
 }
 
-static u64
+static uint64_t
 lc_gc_horizon(struct lc_impl *self)
 {
     struct ingest_batch *ib, *next, **prevp;
     struct ingest_batch *ib_list;
-    u64                  horizon;
+    uint64_t             horizon;
     void *               lock;
 
     rmlock_rlock(&self->lc_ib_rmlock, &lock);
@@ -1186,7 +1188,7 @@ lc_gc_worker(struct work_struct *work)
     struct lc_gc *  gc = container_of(work, struct lc_gc, lgc_dwork.work);
     struct lc_impl *lc = container_of(gc, struct lc_impl, lc_gc);
     int             i;
-    u64             horizon_incl;
+    uint64_t        horizon_incl;
 
     if (HSE_UNLIKELY(atomic_read(&lc->lc_closing)))
         goto exit;
@@ -1229,7 +1231,7 @@ lc_gc_worker(struct work_struct *work)
 
             prevp = &bkv->bkv_values;
             for (val = rcu_dereference(bkv->bkv_values); val; val = rcu_dereference(val->bv_next)) {
-                u64                  seqno;
+                uint64_t             seqno;
                 enum hse_seqno_state state;
                 bool                 keepval;
 
@@ -1269,7 +1271,7 @@ lc_gc_worker(struct work_struct *work)
             if (!bkv->bkv_valcnt) {
                 struct bonsai_skey skey;
                 uint               klen = key_imm_klen(&bkv->bkv_key_imm);
-                u16                skidx = key_immediate_index(&bkv->bkv_key_imm);
+                uint16_t           skidx = key_immediate_index(&bkv->bkv_key_imm);
 
                 bn_skey_init(bkv->bkv_key, klen, 0, skidx, &skey);
 

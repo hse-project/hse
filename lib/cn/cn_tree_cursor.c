@@ -16,6 +16,8 @@
  * Each node uses a struct cn_level_cursor to iterate over its kvsets.
  */
 
+#include <stdint.h>
+
 #include <hse/util/event_counter.h>
 #include <hse/util/page.h>
 #include <hse/logging/logging.h>
@@ -109,7 +111,7 @@ cn_tree_kvset_refs(struct cn_tree_node *node, struct cn_level_cursor *lcur)
     list_for_each_entry (le, &node->tn_kvset_list, le_link) {
         struct kvset *kvset = le->le_kvset;
         struct kvref *k;
-        u64 dgen = kvset_get_dgen(kvset);
+        uint64_t dgen = kvset_get_dgen(kvset);
 
         if (!lcur->cnlc_dgen_hi)
             lcur->cnlc_dgen_hi = dgen;
@@ -307,7 +309,7 @@ MTF_STATIC merr_t
 cn_lcur_seek(
     struct cn_level_cursor *lcur,
     const void             *key,
-    u32                     len)
+    uint32_t                len)
 {
     merr_t err;
     int i;
@@ -428,7 +430,7 @@ merr_t
 cn_tree_cursor_seek(
     struct cn_cursor * cur,
     const void *       key,
-    u32                len,
+    uint32_t           len,
     struct kc_filter * filter)
 {
     struct cn_tree *tree = cn_get_tree(cur->cncur_cn);
@@ -510,7 +512,7 @@ cn_tree_cursor_seek(
 }
 
 merr_t
-cn_tree_cursor_active_kvsets(struct cn_cursor *cur, u32 *active, u32 *total)
+cn_tree_cursor_active_kvsets(struct cn_cursor *cur, uint32_t *active, uint32_t *total)
 {
     int i;
 
@@ -656,7 +658,7 @@ merr_t
 cn_tree_cursor_read(struct cn_cursor *cur, struct kvs_cursor_element *elem, bool *eof)
 {
     struct cn_kv_item  *item;
-    u64                 seq;
+    uint64_t            seq;
     bool                found;
     const void *        vdata;
     uint                vlen;
@@ -678,8 +680,8 @@ cn_tree_cursor_read(struct cn_cursor *cur, struct kvs_cursor_element *elem, bool
 
     do {
         enum kmd_vtype vtype;
-        u32            vbidx;
-        u32            vboff;
+        uint32_t       vbidx;
+        uint32_t       vboff;
         bool           more;
 
         if (!cur->cncur_first_read) {

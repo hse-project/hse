@@ -1,7 +1,9 @@
 /* SPDX-License-Identifier: Apache-2.0 */
 /*
- * Copyright (C) 2015-2021 Micron Technology, Inc.  All rights reserved.
+ * Copyright (C) 2015-2022 Micron Technology, Inc.  All rights reserved.
  */
+
+#include <stdint.h>
 
 #include <hse/util/platform.h>
 #include <hse/error/merr.h>
@@ -42,8 +44,8 @@ c0sk_perfc_init(void)
 {
     struct perfc_ivl *ivl;
 
-    int    i;
-    u64    boundv[PERFC_IVL_MAX];
+    int i;
+    uint64_t boundv[PERFC_IVL_MAX];
     merr_t err;
 
     /* Allocate interval instance for the distribution counters (pow2). */

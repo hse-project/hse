@@ -10,7 +10,6 @@ struct cn_tree;
 struct route_map;
 struct kvs_cparams;
 
-#include <hse/util/inttypes.h>
 #include <hse/util/minmax.h>
 #include <hse/util/keycmp.h>
 #include <hse/error/merr.h>

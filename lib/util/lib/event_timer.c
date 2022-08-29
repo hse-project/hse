@@ -1,14 +1,16 @@
 /* SPDX-License-Identifier: Apache-2.0 */
 /*
- * Copyright (C) 2015-2020,2022 Micron Technology, Inc.  All rights reserved.
+ * Copyright (C) 2015-2022 Micron Technology, Inc.  All rights reserved.
  */
 
 #define USE_EVENT_TIMER
-#include <hse/util/arch.h>
-#include <hse/util/event_timer.h>
 
 #include <math.h>
 #include <sched.h>
+#include <stdio.h>
+
+#include <hse/util/arch.h>
+#include <hse/util/event_timer.h>
 
 void
 event_sample(struct event_timer *t, unsigned long t2)

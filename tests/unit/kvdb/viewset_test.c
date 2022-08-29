@@ -70,7 +70,7 @@ MTF_DEFINE_UTEST(viewset_test, t_viewset_insert)
     int             inserted;
     int             max_inserts;
     void          **cookies;
-    u64            *views, tseqno;
+    uint64_t       *views, tseqno;
 
     start_seqno = 1234;
     atomic_set(&vs_seqno, start_seqno);
@@ -116,8 +116,8 @@ MTF_DEFINE_UTEST(viewset_test, t_viewset_insert)
     ASSERT_LT(inserted, max_inserts);
 
     for (int i = 0; i < inserted; i++) {
-        u32 min_changed;
-        u64 min_view_sn;
+        uint32_t min_changed;
+        uint64_t min_view_sn;
         viewset_remove(vs, cookies[i], &min_changed, &min_view_sn);
         if (i < show)
             printf("remove %5u with view %5lu --> viewset_horizon %lu\n",

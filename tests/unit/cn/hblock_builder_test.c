@@ -3,6 +3,8 @@
  * Copyright (C) 2022 Micron Technology, Inc.  All rights reserved.
  */
 
+#include <stdint.h>
+
 #include <mtf/framework.h>
 
 #include <mocks/mock_mpool.h>
@@ -51,8 +53,8 @@ collection_pre(struct mtf_test_info *lcl_ti)
     ASSERT_TRUE_RET(kmd_buf, -1);
 
     for (i = 0; i < WORK_BUF_SIZE; i++) {
-        ((u8 *)key_buf)[i] = i;
-        ((u8 *)kmd_buf)[i] = ~i;
+        ((uint8_t *)key_buf)[i] = i;
+        ((uint8_t *)kmd_buf)[i] = ~i;
     }
 
     for (i = 0; i < HSE_MPOLICY_AGE_CNT; i++)

@@ -1,21 +1,23 @@
 /* SPDX-License-Identifier: Apache-2.0 */
 /*
- * Copyright (C) 2015-2020 Micron Technology, Inc.  All rights reserved.
+ * Copyright (C) 2015-2022 Micron Technology, Inc.  All rights reserved.
  */
 
 #ifndef HSE_KVS_CN_VBLOCK_BUILDER_H
 #define HSE_KVS_CN_VBLOCK_BUILDER_H
 
+#include <stdint.h>
+
 #include <hse/error/merr.h>
-#include <hse/util/inttypes.h>
 
 #include <hse/util/perfc.h>
 
-struct cn;
-struct vblock_builder;
 struct blk_list;
-struct kvs_rparams;
+struct cn;
 struct cn_merge_stats;
+struct key_obj;
+struct kvs_rparams;
+struct vblock_builder;
 
 enum hse_mclass;
 enum hse_mclass_policy_age;
@@ -34,7 +36,7 @@ vbb_create(
     struct vblock_builder **bld_out,
     struct cn *             cn,
     struct perfc_set *      pc,
-    u64                     vgroup);
+    uint64_t                vgroup);
 
 /**
  * vbb_destroy() - Destroy a vblock builder
@@ -61,7 +63,7 @@ vbb_add_entry(
     const struct key_obj  *kobj,
     const void *           vdata,
     uint                   vlen,
-    u64 *                  vbidout,
+    uint64_t *             vbidout,
     uint *                 vbidxout,
     uint *                 vboffout);
 
@@ -81,7 +83,12 @@ merr_t
 vbb_flush_entry(struct vblock_builder *bld);
 
 bool
-vbb_verify_entry(struct vblock_builder *bld, u32 vbidx, u64 blkid, u64 blkoff, u32 vlen);
+vbb_verify_entry(
+    struct vblock_builder *bld,
+    uint32_t vbidx,
+    uint64_t blkid,
+    uint64_t blkoff,
+    uint32_t vlen);
 
 void
 vbb_get_vblocks(struct vblock_builder *bld, struct blk_list *vblks);
@@ -92,24 +99,24 @@ vbb_add_entry_ext(
     const void *           vdata,
     uint                   vlen,
     bool                   wait,
-    u8                     index,
-    u64 *                  vbidout,
+    uint8_t                index,
+    uint64_t *             vbidout,
     uint *                 vbidxout,
     uint *                 vboffout);
 
 merr_t
-vbb_finish_entry(struct vblock_builder *bld, u8 index);
+vbb_finish_entry(struct vblock_builder *bld, uint8_t index);
 
 void
 vbb_remove_unused_vblocks(struct vblock_builder *bld);
 
-u32
+uint32_t
 vbb_get_blk_count(struct vblock_builder *bld);
 
-u32
+uint32_t
 vbb_get_blk_count_committed(struct vblock_builder *bld);
 
-u32
+uint32_t
 vbb_vblock_hdr_len(void);
 
 merr_t

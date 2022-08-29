@@ -6,9 +6,11 @@
 #ifndef HSE_IKVDB_CSCHED_H
 #define HSE_IKVDB_CSCHED_H
 
+#include <stdbool.h>
+#include <stdint.h>
+
 #include <hse/error/merr.h>
 #include <hse/ikvdb/csched_rp.h>
-#include <hse/util/inttypes.h>
 
 /* MTF_MOCK_DECL(csched) */
 
@@ -66,7 +68,7 @@ enum cn_rule {
     CN_RULE_MAX,
 };
 
-static inline const char *
+static inline const char * HSE_RETURNS_NONNULL
 cn_rule2str(enum cn_rule rule)
 {
     switch (rule) {

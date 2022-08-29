@@ -6,7 +6,8 @@
 #ifndef HSE_KVS_CN_BLOOM_READER_H
 #define HSE_KVS_CN_BLOOM_READER_H
 
-#include <hse/util/inttypes.h>
+#include <stdbool.h>
+#include <stdint.h>
 
 /**
  * struct bloom_desc - a descriptor for reading data from a Bloom filter

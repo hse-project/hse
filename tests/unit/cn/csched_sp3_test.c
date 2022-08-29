@@ -3,6 +3,8 @@
  * Copyright (C) 2015-2022 Micron Technology, Inc.  All rights reserved.
  */
 
+#include <stdint.h>
+
 #include <mtf/framework.h>
 #include <mock/api.h>
 #include <mock/alloc_tester.h>
@@ -50,10 +52,10 @@ struct cndb *        cndb;
 struct kvset_meta km;
 uint64_t          km_kblocks[4];
 uint64_t          km_vblocks[4];
-u64               mbid = 123456;
+uint64_t          mbid = 123456;
 
 static struct kvset_meta *
-init_kvset_meta(u64 dgen)
+init_kvset_meta(uint64_t dgen)
 {
     int i;
 
@@ -88,7 +90,7 @@ init_kvset_meta(u64 dgen)
  */
 struct test_tree {
     struct cn_tree *tree;
-    u64             dgen;
+    uint64_t        dgen;
     uint            fbits;
     uint            fout;
     uint            pfx_len;
@@ -378,7 +380,7 @@ reset_state(void)
     kvdb_rparams = kvdb_rparams_defaults();
     kvdb_rp = &kvdb_rparams;
 
-    kvdb_rp->csched_debug_mask = U64_MAX;
+    kvdb_rp->csched_debug_mask = UINT64_MAX;
 
     kvs_rparams = kvs_rparams_defaults();
     kvs_rp = &kvs_rparams;
@@ -399,8 +401,8 @@ pre_test(struct mtf_test_info *ti)
 void
 add_tree(struct cn_tree *tree, struct csched *cs)
 {
-    u64 cnt;
-    u32 api;
+    uint64_t cnt;
+    uint32_t api;
 
     api = mapi_idx_cn_ref_get;
     cnt = mapi_calls(api);
@@ -414,8 +416,8 @@ add_tree(struct cn_tree *tree, struct csched *cs)
 void
 remove_tree(struct cn_tree *tree, struct csched *cs)
 {
-    u64 cnt;
-    u32 api;
+    uint64_t cnt;
+    uint32_t api;
 
     api = mapi_idx_cn_ref_put;
     cnt = mapi_calls(api);

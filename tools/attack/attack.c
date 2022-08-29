@@ -29,7 +29,6 @@
 #include <hse/cli/program.h>
 #include <hse/hse.h>
 #include <hse/util/compiler.h>
-#include <hse/util/inttypes.h>
 
 void HSE_PRINTF(2, 3)
 fatal(hse_err_t err, char *fmt, ...)
@@ -78,7 +77,7 @@ usage(void)
 int
 main(int argc, char **argv)
 {
-    u64 rc;
+    uint64_t rc;
     int c, last;
     char *mpname;
     uint32_t *seq;

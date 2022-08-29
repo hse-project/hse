@@ -6,40 +6,43 @@
 #ifndef HSE_PLATFORM_BLOOM_FILTER_H
 #define HSE_PLATFORM_BLOOM_FILTER_H
 
+#include <stdbool.h>
+#include <stdint.h>
+#include <sys/param.h>
+
 #include <hse/util/arch.h>
 #include <hse/util/assert.h>
 #include <hse/util/compiler.h>
-#include <hse/util/inttypes.h>
 
 #define BYTE_SHIFT (3)
 
 struct bf_bithash_desc {
-    u32 bhd_bits_per_elt;
-    u32 bhd_num_hashes;
+    uint32_t bhd_bits_per_elt;
+    uint32_t bhd_num_hashes;
 };
 
 struct bloom_filter {
-    u8 *bf_bitmap;
-    u32 bf_bitmapsz;
-    u32 bf_modulus;
-    u32 bf_n_hashes;
-    u32 bf_bktshift;
-    u32 bf_bktmask;
-    u32 bf_rotl;
+    uint8_t *bf_bitmap;
+    uint32_t bf_bitmapsz;
+    uint32_t bf_modulus;
+    uint32_t bf_n_hashes;
+    uint32_t bf_bktshift;
+    uint32_t bf_bktmask;
+    uint32_t bf_rotl;
 };
 
 struct bloom_filter_stats {
-    u64 bfs_lookup_cnt;
-    u64 bfs_hit_cnt;
-    u64 bfs_no_hit_cnt;
-    u64 bfs_hit_failed_cnt;
-    u32 bfs_ver;
-    u32 bfs_filter_hashes;
-    u32 bfs_filter_bits;
+    uint64_t bfs_lookup_cnt;
+    uint64_t bfs_hit_cnt;
+    uint64_t bfs_no_hit_cnt;
+    uint64_t bfs_hit_failed_cnt;
+    uint32_t bfs_ver;
+    uint32_t bfs_filter_hashes;
+    uint32_t bfs_filter_bits;
 };
 
-static HSE_ALWAYS_INLINE u64
-bf_rotl(const u64 x, u32 k)
+static HSE_ALWAYS_INLINE uint64_t
+bf_rotl(const uint64_t x, uint32_t k)
 {
     return (x << k) | (x >> (64 - k));
 }
@@ -51,11 +54,11 @@ bf_rotl(const u64 x, u32 k)
  * @bktshift:   number of bits per bucket
  */
 static HSE_ALWAYS_INLINE size_t
-bf_hash2bkt(u64 hash, u32 modulus, u32 bktshift)
+bf_hash2bkt(uint64_t hash, uint32_t modulus, uint32_t bktshift)
 {
     size_t bit, bkt;
 
-    bit = (u32)(hash + (hash >> 32)) % modulus;
+    bit = (uint32_t)(hash + (hash >> 32)) % modulus;
     bkt = bit >> bktshift;
 
     return (bkt << bktshift) >> BYTE_SHIFT;
@@ -71,10 +74,10 @@ bf_hash2bkt(u64 hash, u32 modulus, u32 bktshift)
  *     Returns the bit index of *hashp within the current bucket,
  *     and then advances *hashp to the next hash for the next call.
  */
-static HSE_ALWAYS_INLINE u32
-bf_hash2bit(u64 *hashp, u32 rotl, u32 mask)
+static HSE_ALWAYS_INLINE uint32_t
+bf_hash2bit(uint64_t *hashp, uint32_t rotl, uint32_t mask)
 {
-    u64 hash = *hashp;
+    uint64_t hash = *hashp;
 
     /* Fold the upper bits into the lower bits so that subsequent
      * passes over the full hash will yield different results.
@@ -98,7 +101,7 @@ bf_hash2bit(u64 *hashp, u32 rotl, u32 mask)
  *     otherwise returns %false.
  */
 static HSE_ALWAYS_INLINE bool
-bf_lookup(u64 hash, const u8 *bitmap, s32 n, u32 rotl, u32 mask)
+bf_lookup(uint64_t hash, const uint8_t *bitmap, int32_t n, uint32_t rotl, uint32_t mask)
 {
     while (n-- > 0) {
         const uint32_t bit = bf_hash2bit(&hash, rotl, mask);
@@ -128,12 +131,12 @@ bf_lookup(u64 hash, const u8 *bitmap, s32 n, u32 rotl, u32 mask)
  * modulus, as well as being more expensive to iteratively compute.
  */
 static HSE_ALWAYS_INLINE void
-bf_populate(const struct bloom_filter *bf, u64 hash)
+bf_populate(const struct bloom_filter *bf, uint64_t hash)
 {
-    u8 *bitmap = bf->bf_bitmap;
-    u32 mask = bf->bf_bktmask;
-    u32 rotl = bf->bf_rotl;
-    s32 n = bf->bf_n_hashes;
+    uint8_t *bitmap = bf->bf_bitmap;
+    uint32_t mask = bf->bf_bktmask;
+    uint32_t rotl = bf->bf_rotl;
+    int32_t n = bf->bf_n_hashes;
 
     bitmap += bf_hash2bkt(hash, bf->bf_modulus, bf->bf_bktshift);
 
@@ -145,26 +148,26 @@ bf_populate(const struct bloom_filter *bf, u64 hash)
 }
 
 struct bf_bithash_desc
-bf_compute_bithash_est(u32 probability);
+bf_compute_bithash_est(uint32_t probability);
 
-u32
-bf_size_estimate(struct bf_bithash_desc desc, u32 num_elmnts);
+uint32_t
+bf_size_estimate(struct bf_bithash_desc desc, uint32_t num_elmnts);
 
-u32
+uint32_t
 bf_element_estimate(struct bf_bithash_desc desc, size_t size_in_bytes);
 
 void
 bf_filter_init(
     struct bloom_filter *  filter,
     struct bf_bithash_desc desc,
-    u32                    exp_elmts,
-    u8 *                   storage,
+    uint32_t                    exp_elmts,
+    uint8_t *                   storage,
     size_t                 storage_sz);
 
 void
-bf_filter_insert_by_hash(struct bloom_filter *filter, u64 hash);
+bf_filter_insert_by_hash(struct bloom_filter *filter, uint64_t hash);
 
 void
-bf_filter_insert_by_hashv(struct bloom_filter *filter, u64 *hashv, u32 len);
+bf_filter_insert_by_hashv(struct bloom_filter *filter, uint64_t *hashv, uint32_t len);
 
 #endif

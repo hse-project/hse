@@ -1,7 +1,9 @@
 /* SPDX-License-Identifier: Apache-2.0 */
 /*
- * Copyright (C) 2015-2020 Micron Technology, Inc.  All rights reserved.
+ * Copyright (C) 2015-2022 Micron Technology, Inc.  All rights reserved.
  */
+
+#include <stdint.h>
 
 #include <mtf/framework.h>
 #include <mock/api.h>
@@ -107,8 +109,8 @@ MTF_DEFINE_UTEST_PREPOST(kvdb_keylock_test, keylock_lock_one_ctxn, mapi_pre, map
     struct kvdb_keylock *   klock_handle;
     struct kvdb_ctxn_locks *locks_handle;
     merr_t                  err = 0;
-    u64                     magic = 0x12345678UL << 32;
-    u64                     hash = magic;
+    uint64_t                magic = 0x12345678UL << 32;
+    uint64_t                hash = magic;
 
     err = kvdb_keylock_create(&klock_handle, 16);
     ASSERT_EQ(0, err);
@@ -244,7 +246,7 @@ parallel_lock_helper(void *arg)
     atomic_int               *owner_thread = p->owner_thread;
     merr_t                    err = 0;
     int                       i;
-    u64                       hash = 0x12345678UL << 32;
+    uint64_t                  hash = 0x12345678UL << 32;
 
     for (i = 0; i < num_hash; i++) {
         err = kvdb_keylock_lock(klock_handle, locks_handle, hash | i, 0);
@@ -326,15 +328,15 @@ MTF_DEFINE_UTEST_PREPOST(kvdb_keylock_test, keylock_lock_multiple_ctxn, mapi_pre
 }
 
 void
-begin_ctxn(u64 *view_seqno)
+begin_ctxn(uint64_t *view_seqno)
 {
     *view_seqno = atomic_fetch_add(&kvdb_seq, 1);
 }
 
 void
-end_ctxn(bool commit, u64 *end_seqno)
+end_ctxn(bool commit, uint64_t *end_seqno)
 {
-    u64 inc = commit ? 2 : 1;
+    uint64_t inc = commit ? 2 : 1;
 
     *end_seqno = atomic_fetch_add(&kvdb_seq, inc);
 }
@@ -343,7 +345,7 @@ struct parallel_ctxn_arg {
     struct kvdb_keylock *   klock_handle;
     struct kvdb_ctxn_locks *locks_handle;
     pthread_barrier_t *     lock_barrier;
-    u64                     view_seqno;
+    uint64_t                view_seqno;
     int                     num;
 };
 
@@ -353,8 +355,8 @@ parallel_ctxn_helper(void *arg)
     struct parallel_ctxn_arg *p = (struct parallel_ctxn_arg *)arg;
     struct kvdb_keylock *     klock_handle = p->klock_handle;
     struct kvdb_ctxn_locks *  locks_handle = p->locks_handle;
-    u64                       end_seqno, view_seqno, lockcnt = 0;
-    u64                       num_hash = 100;
+    uint64_t                  end_seqno, view_seqno, lockcnt = 0;
+    uint64_t                  num_hash = 100;
     bool                      commit = true;
     void *                    cookie;
     int                       i;

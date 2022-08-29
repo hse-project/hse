@@ -3,11 +3,12 @@
  * Copyright (C) 2015-2022 Micron Technology, Inc.  All rights reserved.
  */
 
+#include <stdint.h>
+
 #include <rbtree.h>
 
 #include <mtf/framework.h>
 
-#include <hse/util/inttypes.h>
 #include <hse/error/merr.h>
 #include <hse/logging/logging.h>
 #include <hse/util/parse_num.h>
@@ -72,7 +73,7 @@ MTF_DEFINE_UTEST(perfc, perfc_basic_set)
     size_t count;
     int rc, n;
     char path[DT_PATH_MAX];
-    u64 new_value = 42;
+    uint64_t new_value = 42;
     cJSON *root;
     char *output;
 

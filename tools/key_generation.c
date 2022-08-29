@@ -3,47 +3,47 @@
  * Copyright (C) 2015-2017,2022 Micron Technology, Inc.  All rights reserved.
  */
 
-#include <math.h>
+#include <tgmath.h>
+#include <stdint.h>
 #include <stdlib.h>
 #include <string.h>
 
-#include <hse/util/inttypes.h>
 #include <tools/key_generation.h>
 
 #include "key_generation_private.h"
 
-s32
-elements_per_field(u64 key_space_sz, s32 key_width, s32 field_width, s32 sym_cnt)
+int32_t
+elements_per_field(uint64_t key_space_sz, int32_t key_width, int32_t field_width, int32_t sym_cnt)
 {
-    s32 num_fields;
-    s32 partial_fw;
-    s32 num_epf;
-    s64 rem_kss;
-    s64 pf_el_lim;
+    int32_t num_fields;
+    int32_t partial_fw;
+    int32_t num_epf;
+    int64_t rem_kss;
+    int64_t pf_el_lim;
 
     /* compute the # of fields needed */
-    num_fields = (s32)ceil((double)key_width / (double)field_width);
+    num_fields = (int32_t)ceil((double)key_width / (double)field_width);
 
     /* determine the width of the one possibly partial width field */
     partial_fw = key_width % field_width;
 
     /* compute minimum # of distinct elements per field */
-    num_epf = (s32)ceil(pow((double)key_space_sz, 1.0 / num_fields));
+    num_epf = (int32_t)ceil(pow((double)key_space_sz, 1.0 / num_fields));
 
     /* If there is a partial field, check to see if it can hold
      * the number of elements just computed.
      */
-    pf_el_lim = (s64)pow(sym_cnt, partial_fw);
+    pf_el_lim = (int64_t)pow(sym_cnt, partial_fw);
     if (partial_fw > 0 && (pf_el_lim < num_epf)) {
-        rem_kss = (s64)ceil((double)key_space_sz / (double)pf_el_lim);
-        num_epf = (s32)ceil(pow((double)rem_kss, 1.0 / (num_fields - 1)));
+        rem_kss = (int64_t)ceil((double)key_space_sz / (double)pf_el_lim);
+        num_epf = (int32_t)ceil(pow((double)rem_kss, 1.0 / (num_fields - 1)));
     }
 
     return num_epf;
 }
 
 void
-increment_multifield_index(s32 *index, s32 index_width, s32 wrap)
+increment_multifield_index(int32_t *index, int32_t index_width, int32_t wrap)
 {
     int i;
 
@@ -55,11 +55,11 @@ increment_multifield_index(s32 *index, s32 index_width, s32 wrap)
 }
 
 bool
-generate_elements(char *elements, s32 width, s32 count)
+generate_elements(char *elements, int32_t width, int32_t count)
 {
-    s32    num_symbols = (int)ceil(pow((double)count, 1.0 / (double)width));
-    s32 *  field_offsets;
-    int    i, j;
+    int32_t  num_symbols = (int)ceil(pow((double)count, 1.0 / (double)width));
+    int32_t *field_offsets;
+    int      i, j;
 
     field_offsets = calloc(1, width * sizeof(*field_offsets));
     if (!field_offsets)
@@ -78,7 +78,7 @@ generate_elements(char *elements, s32 width, s32 count)
 }
 
 struct key_generator *
-create_key_generator(u64 key_space_sz, s32 key_width)
+create_key_generator(uint64_t key_space_sz, int32_t key_width)
 {
     struct key_generator *kg;
     double                tmp;
@@ -106,7 +106,7 @@ create_key_generator(u64 key_space_sz, s32 key_width)
     kg->key_space_sz = key_space_sz;
     kg->key_width = key_width;
     kg->field_width = 4;
-    kg->num_fields = (s32)ceil((double)kg->key_width / (double)kg->field_width);
+    kg->num_fields = (int32_t)ceil((double)kg->key_width / (double)kg->field_width);
 
     kg->elem_per_field =
         elements_per_field(kg->key_space_sz, kg->key_width, kg->field_width, sizeof(symbols));
@@ -131,15 +131,15 @@ destroy_key_generator(struct key_generator *kg)
 }
 
 void
-get_key(struct key_generator *self, u8 *key_buffer, u64 key_index)
+get_key(struct key_generator *self, uint8_t *key_buffer, uint64_t key_index)
 {
-    const s32 epf = self->elem_per_field;
-    const s32 numf = self->num_fields;
-    const s32 kw = self->key_width;
-    const s32 fw = self->field_width;
-    u8 *      pos = key_buffer + kw - fw;
-    u64       offset;
-    int       i, copy_width;
+    const int32_t epf = self->elem_per_field;
+    const int32_t numf = self->num_fields;
+    const int32_t kw = self->key_width;
+    const int32_t fw = self->field_width;
+    uint8_t *     pos = key_buffer + kw - fw;
+    uint64_t      offset;
+    int           i, copy_width;
 
     copy_width = fw;
 

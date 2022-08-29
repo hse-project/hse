@@ -1,13 +1,15 @@
 /* SPDX-License-Identifier: Apache-2.0 */
 /*
- * Copyright (C) 2015-2020 Micron Technology, Inc.  All rights reserved.
+ * Copyright (C) 2015-2022 Micron Technology, Inc.  All rights reserved.
  */
+
+#include <stdint.h>
 
 #include <mtf/framework.h>
 #include <mock/allocation.h>
 
 #include <hse/util/arch.h>
-#include <hse/util/inttypes.h>
+#include <hse/util/base.h>
 #include <hse/util/slab.h>
 #include <hse/util/minmax.h>
 #include <hse/util/page.h>
@@ -145,7 +147,7 @@ MTF_DEFINE_UTEST(allocation, kmem_cache_basic)
     }
 }
 
-u64
+uint64_t
 uma_test_alloc(
     struct mtf_test_info *lcl_ti,
     size_t                size,
@@ -154,11 +156,11 @@ uma_test_alloc(
     int                   samplemax,
     void *                zone)
 {
-    u64    tstart, tstop;
-    u64    avg = 0;
-    void **memv;
-    int    memc;
-    int    i, j;
+    uint64_t tstart, tstop;
+    uint64_t avg = 0;
+    void   **memv;
+    int      memc;
+    int      i, j;
 
     memc = itermax / 15;
     ASSERT_NE_RET(0, memc, 0);
@@ -199,10 +201,10 @@ uma_test_alloc(
 
 MTF_DEFINE_UTEST(allocation, kmem_cache_test)
 {
-    int    itermax, samplemax;
-    size_t size;
-    void * zone;
-    u64    avg;
+    int      itermax, samplemax;
+    size_t   size;
+    void *   zone;
+    uint64_t avg;
 
     log_info("%16s: %8s %8s %8s", "FUNC", "SIZE", "ITERMAX", "NS/ALLOC");
 

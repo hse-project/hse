@@ -8,8 +8,10 @@
 
 /* MTF_MOCK_DECL(bin_heap) */
 
+#include <stdbool.h>
+#include <stdint.h>
+
 #include <hse/error/merr.h>
-#include <hse/util/inttypes.h>
 #include <hse/util/element_source.h>
 
 /*
@@ -48,15 +50,15 @@ struct bin_heap {
         struct heap_node bh_elts[(_bh_width)]; \
     } _bh_name
 
-u32
+uint32_t
 bin_heap_width(struct bin_heap *bh);
 
 void
-bin_heap_init(u32 max_width, bin_heap_compare_fn *cmp, struct bin_heap *bh);
+bin_heap_init(uint32_t max_width, bin_heap_compare_fn *cmp, struct bin_heap *bh);
 
 /* MTF_MOCK */
 merr_t
-bin_heap_create(u32 max_width, bin_heap_compare_fn *cmp, struct bin_heap **bh_out);
+bin_heap_create(uint32_t max_width, bin_heap_compare_fn *cmp, struct bin_heap **bh_out);
 
 /* MTF_MOCK */
 void
@@ -67,10 +69,10 @@ bin_heap_reset(struct bin_heap *bh);
 
 /* MTF_MOCK */
 merr_t
-bin_heap_prepare(struct bin_heap *bh, u32 width, struct element_source *es[]);
+bin_heap_prepare(struct bin_heap *bh, uint32_t width, struct element_source *es[]);
 
 merr_t
-bin_heap_prepare_list(struct bin_heap *bh, u32 width, struct element_source *es);
+bin_heap_prepare_list(struct bin_heap *bh, uint32_t width, struct element_source *es);
 
 /* MTF_MOCK */
 bool
@@ -105,7 +107,7 @@ bin_heap_insert_src(struct bin_heap *bh, struct element_source *es);
 merr_t
 bin_heap_replace_src(struct bin_heap *bh, struct element_source *es);
 
-s64
+int64_t
 bin_heap_age_cmp(struct element_source *es1, struct element_source *es2);
 
 #if HSE_MOCKING

@@ -1,6 +1,6 @@
 /* SPDX-License-Identifier: Apache-2.0 */
 /*
- * Copyright (C) 2015-2020 Micron Technology, Inc.  All rights reserved.
+ * Copyright (C) 2015-2022 Micron Technology, Inc.  All rights reserved.
   */
 
 #ifndef HSE_KVS_CN_COMPACT_H
@@ -8,8 +8,9 @@
 
 /* MTF_MOCK_DECL(kcompact) */
 
+#include <stdint.h>
+
 #include <hse/error/merr.h>
-#include <hse/util/inttypes.h>
 
 struct cn_compaction_work;
 

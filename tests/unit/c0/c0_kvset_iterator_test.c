@@ -1,12 +1,13 @@
 /* SPDX-License-Identifier: Apache-2.0 */
 /*
- * Copyright (C) 2015-2021 Micron Technology, Inc.  All rights reserved.
+ * Copyright (C) 2015-2022 Micron Technology, Inc.  All rights reserved.
  */
+
+#include <stdint.h>
 
 #include <mtf/framework.h>
 
 #include <hse/error/merr.h>
-#include <hse/util/inttypes.h>
 #include <hse/util/seqno.h>
 #include <hse/util/keycmp.h>
 
@@ -24,8 +25,8 @@ MTF_DEFINE_UTEST(c0_kvset_iterator_test, basic_construction)
     struct c0_kvset *        kvs;
     merr_t                   err = 0;
     struct call_rcu_data *   rcu_thrd;
-    u32                      kbuf[1], vbuf[1];
-    const u32                insert_count = 10000;
+    uint32_t                 kbuf[1], vbuf[1];
+    const uint32_t           insert_count = 10000;
     struct kvs_ktuple        kt;
     struct kvs_vtuple        vt;
     struct c0_kvset_iterator iter, riter;
@@ -68,8 +69,8 @@ MTF_DEFINE_UTEST(c0_kvset_iterator_test, element_source)
     struct c0_kvset *        kvs;
     struct c0_kvset_impl *   kvs_impl;
     struct c0_kvset_iterator iter, riter;
-    const u32                insert_count = 10000;
-    u32                      kbuf[1], vbuf[1];
+    const uint32_t           insert_count = 10000;
+    uint32_t                 kbuf[1], vbuf[1];
     struct kvs_ktuple        kt;
     struct kvs_vtuple        vt;
     int                      i;
@@ -220,8 +221,8 @@ MTF_DEFINE_UTEST(c0_kvset_iterator_test, seek)
     struct c0_kvset_iterator iter, riter;
     struct c0_kvset_iterator bkvs_iter, bkvs_riter;
     struct c0_kvset_iterator gkvs_iter, gkvs_riter;
-    const u32                insert_count = 10000;
-    u32                      kbuf[1], vbuf[1];
+    const uint32_t           insert_count = 10000;
+    uint32_t                 kbuf[1], vbuf[1];
     struct kvs_ktuple        kt;
     struct kvs_vtuple        vt;
     int                      i;

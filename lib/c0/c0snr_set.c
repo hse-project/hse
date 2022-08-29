@@ -3,6 +3,8 @@
  * Copyright (C) 2021-2022 Micron Technology, Inc.  All rights reserved.
  */
 
+#include <stdint.h>
+
 #include <hse/util/arch.h>
 #include <hse/util/alloc.h>
 #include <hse/util/slab.h>
@@ -61,7 +63,7 @@ struct c0snr_set_entry {
     atomic_int             cse_refcnt;
     volatile bool          cse_ctxn;
     struct c0snr_set_list *cse_list;
-    u64                    cse_kvms_gen;
+    uint64_t               cse_kvms_gen;
 
     union {
         uintptr_t cse_c0snr;
@@ -130,7 +132,7 @@ c0snr_set_entry_free(struct c0snr_set_list *csl, struct c0snr_set_entry *entry)
 }
 
 merr_t
-c0snr_set_list_create(u32 max_elts, u32 index, struct c0snr_set_list **tree)
+c0snr_set_list_create(uint32_t max_elts, uint32_t index, struct c0snr_set_list **tree)
 {
     struct c0snr_set_list *self;
     size_t                 sz;
@@ -172,7 +174,7 @@ merr_t
 c0snr_set_create(struct c0snr_set **handle)
 {
     struct c0snr_set_impl *self;
-    u32                    max_elts, max_bkts;
+    uint32_t               max_elts, max_bkts;
     merr_t                 err = 0;
     int                    i;
 
@@ -285,7 +287,7 @@ c0snr_clear_txn(uintptr_t *priv)
     c0snr_dropref(priv);
 }
 
-u64
+uint64_t
 c0snr_get_cgen(uintptr_t *priv)
 {
     struct c0snr_set_entry *entry;
@@ -296,7 +298,7 @@ c0snr_get_cgen(uintptr_t *priv)
 }
 
 void
-c0snr_getref(uintptr_t *priv, u64 c0ms_gen)
+c0snr_getref(uintptr_t *priv, uint64_t c0ms_gen)
 {
     struct c0snr_set_entry *entry;
 

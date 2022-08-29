@@ -3,6 +3,8 @@
  * Copyright (C) 2015-2022 Micron Technology, Inc.  All rights reserved.
  */
 
+#include <stdint.h>
+
 #include <hse/logging/logging.h>
 #include <hse/util/compression_lz4.h>
 #include <hse/util/event_counter.h>
@@ -89,7 +91,7 @@ NE_CHECK(kvs_cd_perfc_op, PERFC_EN_CD, "cursor dist perfc ops table/enum mismatc
  * @ci_next:  curcache_entry list linkage
  */
 struct curcache_item {
-    u64                     ci_ttl;
+    uint64_t                ci_ttl;
     uint64_t                ci_key;
     struct kvs_cursor_impl *ci_next;
 };
@@ -157,27 +159,27 @@ struct kvs_cursor_impl {
     /* current values for each cursor read */
     struct kvs_kvtuple kci_c0kv;
     struct kvs_kvtuple kci_cnkv;
-    u32                kci_limit_len;
+    uint32_t           kci_limit_len;
     void *             kci_limit;
 
     struct kvs_cursor_element  kci_elem_last;
     struct kvs_cursor_element  kci_ptomb;
     struct key_obj             kci_last_kobj;
     struct key_obj *           kci_last;
-    u8 *                       kci_last_kbuf;
-    u32                        kci_last_klen;
+    uint8_t *                       kci_last_kbuf;
+    uint32_t                        kci_last_klen;
 
-    u32 kci_eof : 1;
-    u32 kci_need_toss : 1;
-    u32 kci_need_seek : 1;
-    u32 kci_reverse : 1;
-    u32 kci_ptomb_set : 1;
+    uint32_t kci_eof : 1;
+    uint32_t kci_need_toss : 1;
+    uint32_t kci_need_seek : 1;
+    uint32_t kci_reverse : 1;
+    uint32_t kci_ptomb_set : 1;
 
-    u32    kci_pfxlen;
+    uint32_t kci_pfxlen;
     merr_t kci_err; /* bad cursor, must destroy */
 
-    u8  *kci_prefix;
-    u8   kci_buf[];
+    uint8_t  *kci_prefix;
+    uint8_t   kci_buf[];
 } HSE_L1D_ALIGNED;
 
 static size_t kvs_cursor_impl_alloc_sz HSE_READ_MOSTLY;
@@ -294,7 +296,7 @@ static void
 ikvs_curcache_prune_impl(
     struct curcache_bucket *bkt,
     struct ikvs *           kvs,
-    u64                     now,
+    uint64_t                now,
     uint *                  retiredp,
     uint *                  evictedp)
 {
@@ -365,7 +367,7 @@ ikvs_curcache_prune(struct ikvs *kvs)
     for (i = 0; i < ikvs_curcachec; ++i) {
         struct curcache_bucket *bkt = ikvs_curcachev + ikvs_curcache_idx2bktoff(i);
 
-        ikvs_curcache_prune_impl(bkt, kvs, kvs ? U64_MAX : jclock_ns, &nretired, &nevicted);
+        ikvs_curcache_prune_impl(bkt, kvs, kvs ? UINT64_MAX : jclock_ns, &nretired, &nevicted);
     }
 
     atomic_dec_rel(&ikvs_curcache_pruning);
@@ -621,7 +623,7 @@ static void
 ikvs_cursor_save(struct kvs_cursor_impl *cur)
 {
     struct ikvs *kvs = cur->kci_kvs;
-    u64          tstart;
+    uint64_t     tstart;
 
 #ifndef HSE_BUILD_RELEASE
     perfc_dis_record(cur->kci_cd_pc, PERFC_DI_CD_READPERSEEK, cur->kci_summary.util);
@@ -732,9 +734,9 @@ kvs_cursor_init(struct hse_kvs_cursor *cursor, struct kvdb_ctxn *ctxn)
     void *                  c0 = kvs->ikv_c0;
     void *                  lc = kvs->ikv_lc;
     void *                  cn = kvs->ikv_cn;
-    u64                     seqno = cursor->kc_seq;
+    uint64_t                seqno = cursor->kc_seq;
     merr_t                  err = 0;
-    u64                     tstart;
+    uint64_t                tstart;
     struct cursor_summary * summary = &cur->kci_summary;
     bool                    reverse = cur->kci_reverse;
     const void *            prefix = cur->kci_prefix;
@@ -763,7 +765,7 @@ kvs_cursor_init(struct hse_kvs_cursor *cursor, struct kvdb_ctxn *ctxn)
         err = c0_cursor_create(c0, seqno, reverse, prefix, pfxlen, summary, &cur->kci_c0cur);
         perfc_lat_record(cur->kci_cd_pc, PERFC_LT_CD_CREATE_C0, tstart);
     } else {
-        u32 flags = 0;
+        uint32_t flags = 0;
 
         assert(cur->kci_cncur);
 
@@ -785,8 +787,8 @@ kvs_cursor_init(struct hse_kvs_cursor *cursor, struct kvdb_ctxn *ctxn)
     assert(cur->kci_c0cur);
 
     if (!cur->kci_lccur) {
-        u16       skidx = c0_index(c0);
-        s32       tree_pfxlen = c0_get_pfx_len(c0);
+        uint16_t skidx = c0_index(c0);
+        int32_t  tree_pfxlen = c0_get_pfx_len(c0);
         uintptr_t seqnoref = ctxn ? kvdb_ctxn_get_seqnoref(ctxn) : 0;
 
         err = lc_cursor_create(
@@ -887,13 +889,13 @@ kvs_cursor_destroy(struct hse_kvs_cursor *handle)
 }
 
 merr_t
-kvs_cursor_update(struct hse_kvs_cursor *handle, struct kvdb_ctxn *ctxn, u64 seqno)
+kvs_cursor_update(struct hse_kvs_cursor *handle, struct kvdb_ctxn *ctxn, uint64_t seqno)
 {
     struct kvs_cursor_impl *cursor = (void *)handle;
     struct kvdb_ctxn_bind * bind = handle->kc_bind;
-    u32                     flags;
+    uint32_t                flags;
     bool                    updated;
-    u64                     tstart;
+    uint64_t                tstart;
 
     assert(seqno == handle->kc_seq);
 
@@ -979,7 +981,7 @@ kvs_cursor_update(struct hse_kvs_cursor *handle, struct kvdb_ctxn *ctxn, u64 seq
 static bool
 ikvs_cursor_should_drop(struct kvs_cursor_element *item, struct kvs_cursor_element *pt)
 {
-    u64                  pt_seqno = 0, elem_seqno = 0;
+    uint64_t                  pt_seqno = 0, elem_seqno = 0;
     enum hse_seqno_state pt_state, elem_state;
 
     pt_state = seqnoref_to_seqno(pt->kce_seqnoref, &pt_seqno);
@@ -1170,11 +1172,11 @@ kvs_cursor_val_copy(
         if (ev(err))
             return err;
 
-        if (ev(outlen != min_t(u64, kvs_vtuple_vlen(vt), bufsz)))
+        if (ev(outlen != min_t(uint64_t, kvs_vtuple_vlen(vt), bufsz)))
             return merr(EBUG);
 
     } else {
-        memcpy(buf, vt->vt_data, min_t(u64, kvs_vtuple_vlen(vt), bufsz));
+        memcpy(buf, vt->vt_data, min_t(uint64_t, kvs_vtuple_vlen(vt), bufsz));
     }
 
     if (val_out)
@@ -1252,9 +1254,9 @@ merr_t
 kvs_cursor_seek(
     struct hse_kvs_cursor *handle,
     const void *           key,
-    u32                    len,
+    uint32_t               len,
     const void *           limit,
-    u32                    limit_len,
+    uint32_t               limit_len,
     struct kvs_ktuple *    kt)
 {
     struct kvs_cursor_impl *cursor = (void *)handle;
@@ -1334,7 +1336,7 @@ kvs_cursor_perfc_init(void)
 {
     struct perfc_ivl *ivl;
     int               i;
-    u64               boundv[PERFC_IVL_MAX];
+    uint64_t          boundv[PERFC_IVL_MAX];
     merr_t            err;
 
     /* Allocate interval instance for the distribution counters (pow2). */

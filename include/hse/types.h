@@ -10,8 +10,8 @@
 extern "C" {
 #endif
 
-#include <inttypes.h>
 #include <limits.h>
+#include <stdint.h>
 
 /** @defgroup ERRORS Errors
  * @{

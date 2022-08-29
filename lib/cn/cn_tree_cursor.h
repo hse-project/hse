@@ -1,12 +1,13 @@
 /* SPDX-License-Identifier: Apache-2.0 */
 /*
- * Copyright (C) 2015-2020 Micron Technology, Inc.  All rights reserved.
+ * Copyright (C) 2015-2022 Micron Technology, Inc.  All rights reserved.
  */
 
 #ifndef HSE_KVDB_CN_CN_TREE_CURSOR_H
 #define HSE_KVDB_CN_CN_TREE_CURSOR_H
 
-#include <hse/util/inttypes.h>
+#include <stdint.h>
+
 #include <hse/error/merr.h>
 #include <hse/util/table.h>
 
@@ -55,7 +56,7 @@ merr_t
 cn_tree_cursor_seek(
     struct cn_cursor * cur,
     const void *       key,
-    u32                len,
+    uint32_t           len,
     struct kc_filter * filter);
 
 /**
@@ -88,7 +89,7 @@ cn_tree_cursor_destroy(struct cn_cursor *cur);
  */
 /* MTF_MOCK */
 merr_t
-cn_tree_cursor_active_kvsets(struct cn_cursor *cur, u32 *active, u32 *total);
+cn_tree_cursor_active_kvsets(struct cn_cursor *cur, uint32_t *active, uint32_t *total);
 
 #if HSE_MOCKING
 #include "cn_tree_cursor_ut.h"

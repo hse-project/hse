@@ -1,7 +1,9 @@
 /* SPDX-License-Identifier: Apache-2.0 */
 /*
- * Copyright (C) 2015-2020 Micron Technology, Inc.  All rights reserved.
+ * Copyright (C) 2015-2022 Micron Technology, Inc.  All rights reserved.
  */
+
+#include <stdint.h>
 
 #include <mtf/framework.h>
 
@@ -250,20 +252,20 @@ MTF_DEFINE_UTEST(printbuf, u64_append_test)
     int    i;
 
     offset = 0;
-    cc2 = u64_append(dst2, 8, U64_MAX, 0, &offset);
+    cc2 = u64_append(dst2, 8, UINT64_MAX, 0, &offset);
     ASSERT_EQ(0, cc2);
 
     offset = 0;
-    cc2 = u64_append(dst2, sizeof(dst2), U64_MAX, 0, &offset);
-    cc3 = snprintf(dst3, sizeof(dst3), "%lu", U64_MAX);
+    cc2 = u64_append(dst2, sizeof(dst2), UINT64_MAX, 0, &offset);
+    cc3 = snprintf(dst3, sizeof(dst3), "%lu", UINT64_MAX);
     ASSERT_EQ(cc2, cc3);
     ASSERT_EQ(cc3, offset);
 
     /* With a negative width prepend once space...
      */
     offset = 0;
-    cc2 = u64_append(dst2, sizeof(dst2), U64_MAX, -1, &offset);
-    cc3 = snprintf(dst3, sizeof(dst3), " %lu", U64_MAX);
+    cc2 = u64_append(dst2, sizeof(dst2), UINT64_MAX, -1, &offset);
+    cc3 = snprintf(dst3, sizeof(dst3), " %lu", UINT64_MAX);
     ASSERT_EQ(cc2, cc3);
     ASSERT_EQ(cc3, offset);
 
@@ -271,13 +273,13 @@ MTF_DEFINE_UTEST(printbuf, u64_append_test)
         int width = 23 + i;
 
         offset = 0;
-        cc2 = u64_append(dst2, sizeof(dst2), U64_MAX - width * 17, width, &offset);
-        cc3 = snprintf(dst3, sizeof(dst3), "%*lu", width, U64_MAX - width * 17);
+        cc2 = u64_append(dst2, sizeof(dst2), UINT64_MAX - width * 17, width, &offset);
+        cc3 = snprintf(dst3, sizeof(dst3), "%*lu", width, UINT64_MAX - width * 17);
         ASSERT_EQ(cc2, cc3);
         ASSERT_EQ(cc3, offset);
 
-        cc2 = u64_append(dst2, sizeof(dst2), U64_MAX - width * 17, 0, &offset);
-        cc3 = snprintf(dst3 + cc3, sizeof(dst3) - cc3, "%lu", U64_MAX - width * 17);
+        cc2 = u64_append(dst2, sizeof(dst2), UINT64_MAX - width * 17, 0, &offset);
+        cc3 = snprintf(dst3 + cc3, sizeof(dst3) - cc3, "%lu", UINT64_MAX - width * 17);
         ASSERT_EQ(cc2, cc3);
         ASSERT_EQ(width + cc3, offset);
 
@@ -293,11 +295,11 @@ MTF_DEFINE_UTEST(printbuf, u64_to_string_test)
     int  cc2, cc3;
     int  i;
 
-    cc2 = u64_to_string(dst2, 8, U64_MAX);
+    cc2 = u64_to_string(dst2, 8, UINT64_MAX);
     ASSERT_EQ(cc2, 0);
 
     for (i = 0; i < 64; ++i) {
-        u64 val = i > 0 ? (1UL << i) | i : 0;
+        uint64_t val = i > 0 ? (1UL << i) | i : 0;
 
         cc2 = u64_to_string(dst2, sizeof(dst2), val);
         cc3 = snprintf(dst3, sizeof(dst3), "%lu", val);

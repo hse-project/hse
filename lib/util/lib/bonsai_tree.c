@@ -3,6 +3,8 @@
  * Copyright (C) 2015-2022 Micron Technology, Inc.  All rights reserved.
  */
 
+#include <stdint.h>
+
 #include <hse/util/log2.h>
 #include <hse/logging/logging.h>
 
@@ -92,7 +94,7 @@ bn_ior_insert(
     const struct bonsai_skey   *skey,
     struct bonsai_sval         *sval,
     struct bonsai_kv           *kvlist,
-    u32                         flags)
+    uint32_t                    flags)
 {
     struct bonsai_node *node;
     struct bonsai_val  *val;
@@ -143,9 +145,9 @@ bn_ior_impl(
     struct bonsai_kv *kvlist;
     uintptr_t stack[48];
     const void *key;
-    u32 flags;
+    uint32_t flags;
     int n = 0;
-    s32 res;
+    int32_t res;
 
     key_imm = &skey->bsk_key_imm;
     key = skey->bsk_key;
@@ -230,7 +232,7 @@ bn_delete_impl(
     const void *key;
     bool right;
     int n = 0;
-    s32 res;
+    int32_t res;
 
     key_imm = &skey->bsk_key_imm;
     key = skey->bsk_key;
@@ -389,8 +391,8 @@ bn_find_next_pfx(struct bonsai_root *tree, const struct bonsai_skey *skey, enum 
     const void *                key;
 
     uint klen;
-    s32  res;
-    u32  skidx;
+    int32_t res;
+    uint32_t  skidx;
 
     /* [HSE_REVISIT] Optimize using lcp */
 
@@ -403,7 +405,7 @@ bn_find_next_pfx(struct bonsai_root *tree, const struct bonsai_skey *skey, enum 
     node_gt = node_lt = NULL;
 
     while (node) {
-        u32 node_skidx = key_immediate_index(&node->bn_kv->bkv_key_imm);
+        uint32_t node_skidx = key_immediate_index(&node->bn_kv->bkv_key_imm);
 
         res = skidx - node_skidx;
         if (res == 0)
@@ -435,7 +437,7 @@ bn_find_impl(struct bonsai_root *tree, const struct bonsai_skey *skey, enum bons
     const void *key;
     uint klen;
     int  bounds;
-    s32  res;
+    int32_t res;
 
     ki = &skey->bsk_key_imm;
     key = skey->bsk_key;
@@ -462,7 +464,7 @@ bn_find_impl(struct bonsai_root *tree, const struct bonsai_skey *skey, enum bons
 
             lcp = memlcpq(key, bkv->bkv_key, lcp);
             if (lcp > KI_DLEN_MAX) {
-                assert(key_immediate_cmp(ki, &bkv->bkv_key_imm) == S32_MIN);
+                assert(key_immediate_cmp(ki, &bkv->bkv_key_imm) == INT32_MIN);
                 goto search;
             }
         }
@@ -482,7 +484,7 @@ bn_find_impl(struct bonsai_root *tree, const struct bonsai_skey *skey, enum bons
          * return the min key for a GE get and a NULL for EQ get.
          */
         res = key_immediate_cmp(ki, &bkv->bkv_key_imm);
-        if (res < 0 && res > S32_MIN)
+        if (res < 0 && res > INT32_MIN)
             return (mtype == B_MATCH_GE) ? bkv : NULL;
     }
 
@@ -493,7 +495,7 @@ search:
     while (node) {
         res = key_immediate_cmp(ki, &node->bn_key_imm);
 
-        if (HSE_UNLIKELY(res == S32_MIN)) {
+        if (HSE_UNLIKELY(res == INT32_MIN)) {
 
             /* At this point we are assured that both keys'
              * ki_dlen are greater than KI_DLEN_MAX.
@@ -689,7 +691,7 @@ bn_finalize(struct bonsai_root *tree)
 
             lcp = memlcpq(kmin->bkv_key, kmax->bkv_key, lcp);
             if (lcp > KI_DLEN_MAX) {
-                assert(key_immediate_cmp(&kmin->bkv_key_imm, &kmax->bkv_key_imm) == S32_MIN);
+                assert(key_immediate_cmp(&kmin->bkv_key_imm, &kmax->bkv_key_imm) == INT32_MIN);
                 set_lcp = lcp;
             }
         }

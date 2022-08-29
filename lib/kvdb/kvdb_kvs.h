@@ -1,16 +1,17 @@
 /* SPDX-License-Identifier: Apache-2.0 */
 /*
- * Copyright (C) 2015-2021 Micron Technology, Inc.  All rights reserved.
+ * Copyright (C) 2015-2022 Micron Technology, Inc.  All rights reserved.
  */
 
 #ifndef HSE_IKVDB_KVS_H
 #define HSE_IKVDB_KVS_H
 
+#include <stdint.h>
+
 #include <hse/limits.h>
 
 #include <hse/ikvdb/vcomp_params.h>
 #include <hse/util/atomic.h>
-#include <hse/util/inttypes.h>
 #include <hse/util/list.h>
 #include <hse/util/mutex.h>
 #include <hse/util/compression.h>
@@ -37,11 +38,11 @@ struct kvdb_kvs {
     struct viewset         *kk_viewset;
     struct ikvdb_impl      *kk_parent;
     enum vcomp_default      kk_vcomp_default;
-    u32                     kk_vcompbnd;
+    uint32_t                kk_vcompbnd;
     compress_op_compress_t *kk_vcompress;
-    u64                     kk_cnid;
+    uint64_t                kk_cnid;
     struct kvs_cparams     *kk_cparams;
-    u32                     kk_flags;
+    uint32_t                kk_flags;
     atomic_int              kk_refcnt;
 
     char kk_name[HSE_KVS_NAME_LEN_MAX];

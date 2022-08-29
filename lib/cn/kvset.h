@@ -6,8 +6,9 @@
 #ifndef HSE_KVS_CN_KVSET_H
 #define HSE_KVS_CN_KVSET_H
 
+#include <stdint.h>
+
 #include <hse/error/merr.h>
-#include <hse/util/inttypes.h>
 #include <hse/util/list.h>
 #include <hse/util/perfc.h>
 
@@ -92,7 +93,7 @@ kvset_init(void) HSE_COLD;
 void
 kvset_fini(void) HSE_COLD;
 
-u64
+uint64_t
 kvset_get_tag(struct kvset *kvset);
 
 /* MTF_MOCK_DECL(kvset) */
@@ -129,7 +130,7 @@ kvset_put_ref(struct kvset *kvset);
  */
 /* MTF_MOCK */
 merr_t
-kvset_open(struct cn_tree *tree, u64 tag, struct kvset_meta *meta, struct kvset **kvset);
+kvset_open(struct cn_tree *tree, uint64_t tag, struct kvset_meta *meta, struct kvset **kvset);
 
 /**
  * Preload/discard hblock memory mapped pages
@@ -254,7 +255,7 @@ void
 kvset_get_max_nonpt_key(struct kvset *ks, const void **max_key, uint *max_klen);
 
 /* MTF_MOCK */
-u64
+uint64_t
 kvset_ctime(const struct kvset *kvset);
 
 bool
@@ -292,7 +293,7 @@ kvset_lookup(
     struct kvset *         kvset,
     struct kvs_ktuple *    kt,
     const struct key_disc *kdisc,
-    u64                    seq,
+    uint64_t               seq,
     enum key_lookup_res *  res,
     struct kvs_buf *       vbuf);
 
@@ -309,7 +310,7 @@ kvset_pfx_lookup(
     struct kvset *         km,
     struct kvs_ktuple *    kt,
     const struct key_disc *kdisc,
-    u64                    seq,
+    uint64_t               seq,
     enum key_lookup_res *  res,
     void *                 wbti,
     struct kvs_buf *       kbuf,
@@ -354,7 +355,7 @@ kvset_set_rule(struct kvset *ks, enum cn_rule rule);
  */
 /* MTF_MOCK */
 uint32_t
-kvset_get_nth_vblock_len(struct kvset *km, u32 index);
+kvset_get_nth_vblock_len(struct kvset *km, uint32_t index);
 
 /* MTF_MOCK */
 void
@@ -365,7 +366,7 @@ const struct kvset_stats *
 kvset_statsp(const struct kvset *ks);
 
 /* MTF_MOCK */
-u8 *
+uint8_t *
 kvset_get_hlog(struct kvset *km);
 
 /* MTF_MOCK */
@@ -510,7 +511,7 @@ bool
 kvset_iter_next_vref(
     struct kv_iterator *    handle,
     struct kvset_iter_vctx *vc,
-    u64 *                   seq,
+    uint64_t *              seq,
     enum kmd_vtype *        vtype,
     uint *                  vbidx,
     uint *                  vboff,

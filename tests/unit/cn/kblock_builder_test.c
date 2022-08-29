@@ -3,6 +3,8 @@
  * Copyright (C) 2015-2022 Micron Technology, Inc.  All rights reserved.
  */
 
+#include <stdint.h>
+
 #include <mtf/framework.h>
 #include <mock/alloc_tester.h>
 
@@ -42,7 +44,7 @@ struct mclass_policy mocked_mpolicy = {
 struct kvs_rparams mocked_rp;
 struct kvs_cparams mocked_cp;
 
-u8    key_buf_pfxed[HSE_KVS_KEY_LEN_MAX];
+uint8_t key_buf_pfxed[HSE_KVS_KEY_LEN_MAX];
 void *key_buf;
 void *kmd_buf;
 int   salt;
@@ -181,8 +183,8 @@ initial_setup(struct mtf_test_info *lcl_ti)
     ASSERT_TRUE_RET(kmd_buf, -1);
 
     for (i = 0; i < WORK_BUF_SIZE; i++) {
-        ((u8 *)key_buf)[i] = i;
-        ((u8 *)kmd_buf)[i] = ~i;
+        ((uint8_t *)key_buf)[i] = i;
+        ((uint8_t *)kmd_buf)[i] = ~i;
     }
 
     for (i = 0; i < HSE_MPOLICY_AGE_CNT; i++)
@@ -323,7 +325,7 @@ MTF_DEFINE_UTEST_PRE(test, t_kbb_add_entry_nomem, test_setup)
  */
 MTF_DEFINE_UTEST_PRE(test, t_kbb_add_entry_fail_mblock_alloc, test_setup)
 {
-    u32                    api;
+    uint32_t               api;
     merr_t                 err;
     struct kblock_builder *kbb;
 

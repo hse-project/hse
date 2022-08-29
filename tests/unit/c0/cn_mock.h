@@ -1,10 +1,12 @@
 /* SPDX-License-Identifier: Apache-2.0 */
 /*
- * Copyright (C) 2015-2020 Micron Technology, Inc.  All rights reserved.
+ * Copyright (C) 2015-2022 Micron Technology, Inc.  All rights reserved.
  */
 
 #ifndef HSE_CORE_MOCK_CN_H
 #define HSE_CORE_MOCK_CN_H
+
+#include <stdint.h>
 
 struct cn;
 
@@ -13,7 +15,7 @@ create_mock_cn(
     struct cn **cn_out,
     bool        delay_merge,
     bool        random_release,
-    u32         pfx_len);
+    uint32_t    pfx_len);
 
 void
 destroy_mock_cn(struct cn *cn);

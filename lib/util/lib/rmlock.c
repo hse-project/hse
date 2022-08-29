@@ -5,6 +5,8 @@
 
 #define MTF_MOCK_IMPL_rmlock
 
+#include <stdint.h>
+
 #include <hse/util/platform.h>
 #include <hse/util/alloc.h>
 #include <hse/util/minmax.h>
@@ -32,7 +34,7 @@ rmlock_init(struct rmlock *lock)
 
     atomic_set(&lock->rm_writer, 0);
 
-    lock->rm_bktmax = min_t(u32, get_nprocs_conf(), RMLOCK_MAX);
+    lock->rm_bktmax = min_t(uint32_t, get_nprocs_conf(), RMLOCK_MAX);
     if (lock->rm_bktmax < 2)
         lock->rm_bktmax = RMLOCK_MAX;
 
@@ -61,7 +63,7 @@ rmlock_init(struct rmlock *lock)
         return merr(rc);
     }
 
-    lock->rm_bkt.rm_rwcnt = U64_MAX;
+    lock->rm_bkt.rm_rwcnt = UINT64_MAX;
     lock->rm_bkt.rm_lockp = lock;
 
     return 0;
@@ -86,7 +88,7 @@ void
 rmlock_rlock(struct rmlock *lock, void **cookiep)
 {
     struct rmlock_bkt *bkt;
-    u64 val;
+    uint64_t val;
     int rc;
 
     bkt = lock->rm_bktv + rmlock_bktidx(lock);
@@ -113,12 +115,12 @@ void
 rmlock_runlock(void *cookie)
 {
     struct rmlock_bkt *bkt = cookie;
-    u64 val;
+    uint64_t val;
     int rc;
 
     val = bkt->rm_rwcnt;
 
-    if (val == U64_MAX) {
+    if (val == UINT64_MAX) {
         rc = pthread_rwlock_unlock(&bkt->rm_lockp->rm_rwlock);
         if (rc)
             abort();
@@ -152,9 +154,9 @@ rmlock_wlock(struct rmlock *lock)
 {
     struct rmlock_bkt *bkt;
 
-    u8   busy[RMLOCK_MAX];
+    uint8_t busy[RMLOCK_MAX];
     uint i, n, x;
-    u64  val;
+    uint64_t val;
     int rc;
 
     /* Serialize all writers on rm_rwlock, then set the write bit in
@@ -199,7 +201,7 @@ void
 rmlock_wunlock(struct rmlock *lock)
 {
     struct rmlock_bkt *bkt = lock->rm_bktv;
-    u64 val;
+    uint64_t val;
     int rc, i;
 
     for (i = 0; i < lock->rm_bktmax; ++i, ++bkt) {

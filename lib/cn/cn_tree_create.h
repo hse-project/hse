@@ -6,6 +6,8 @@
 #ifndef HSE_KVDB_CN_CN_TREE_CREATE_H
 #define HSE_KVDB_CN_CN_TREE_CREATE_H
 
+#include <stdint.h>
+
 #include <hse/util/platform.h>
 
 /* MTF_MOCK_DECL(cn_tree_create) */
@@ -34,7 +36,7 @@ struct cn_tree_node;
 merr_t
 cn_tree_create(
     struct cn_tree **   tree,
-    u32                 cn_cflags,
+    uint32_t            cn_cflags,
     struct kvs_cparams *cp,
     struct kvdb_health *health,
     struct kvs_rparams *rp);
@@ -67,7 +69,7 @@ cn_tree_setup(
     struct cn *         cn,
     struct kvs_rparams *rp,
     struct cndb *       cndb,
-    u64                 cnid,
+    uint64_t            cnid,
     struct cn_kvdb *    cn_kvdb);
 
 /**

@@ -3,11 +3,12 @@
  * Copyright (C) 2015-2022 Micron Technology, Inc.  All rights reserved.
  */
 
+#include <stdint.h>
+
 #include <mtf/framework.h>
 #include <mock/alloc_tester.h>
 
 #include <hse/error/merr.h>
-#include <hse/util/inttypes.h>
 #include <hse/logging/logging.h>
 #include <hse/util/page.h>
 
@@ -90,18 +91,16 @@ test_setup(struct mtf_test_info *lcl_ti)
 int
 initial_setup(struct mtf_test_info *lcl_ti)
 {
-    u32 i, j;
-
     workbuf = mapi_safe_malloc(WORKBUF_SIZE);
     ASSERT_TRUE_RET(workbuf, -1);
 
-    for (i = 0; i < WORKBUF_SIZE; i++)
-        ((u8 *)workbuf)[i] = i;
+    for (uint32_t i = 0; i < WORKBUF_SIZE; i++)
+        ((uint8_t *)workbuf)[i] = i;
 
     kvsrp = kvs_rparams_defaults();
 
-    for (i = 0; i < HSE_MPOLICY_AGE_CNT; i++)
-        for (j = 0; j < HSE_MPOLICY_DTYPE_CNT; j++)
+    for (uint32_t i = 0; i < HSE_MPOLICY_AGE_CNT; i++)
+        for (uint32_t j = 0; j < HSE_MPOLICY_DTYPE_CNT; j++)
             mocked_mpolicy.mc_table[i][j] = HSE_MCLASS_CAPACITY;
 
     key2kobj(&max_kobj, max_key, strlen(max_key));
@@ -473,10 +472,10 @@ check_err(struct mtf_test_info *lcl_ti, merr_t err, int expected_errno)
 static int
 add_entry(struct mtf_test_info *lcl_ti, struct vblock_builder *vbb, uint vlen, int expected_errno)
 {
-    merr_t err;
-    uint   vboff = -1;
-    uint   vbidx = -1;
-    u64    vbid = (u64)-1;
+    merr_t   err;
+    uint     vboff = -1;
+    uint     vbidx = -1;
+    uint64_t vbid = (uint64_t)-1;
 
     /* Use salt to compute an offset into the
      * workbuf so values aren't all identical.

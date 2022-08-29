@@ -3,18 +3,21 @@
  * Copyright (C) 2015-2020 Micron Technology, Inc.  All rights reserved.
  */
 
+#include <errno.h>
+#include <stdlib.h>
+
 #include "sample_element_source.h"
 
 #include <hse/error/merr.h>
-#include <hse/util/inttypes.h>
 #include <hse/util/assert.h>
+#include <hse/util/base.h>
 
 #include <hse/test/support/random_buffer.h>
 
 struct sample_es {
-    u32 *                 tes_elts;
-    u32                   tes_elt_cnt;
-    u32                   tes_idx;
+    uint32_t *            tes_elts;
+    uint32_t              tes_elt_cnt;
+    uint32_t              tes_idx;
     struct element_source tes_handle;
 };
 
@@ -45,7 +48,7 @@ sample_es_unget(struct element_source *handle)
 }
 
 merr_t
-sample_es_create(struct sample_es **es_out, u32 elt_cnt, enum sample_es_mode mode)
+sample_es_create(struct sample_es **es_out, uint32_t elt_cnt, enum sample_es_mode mode)
 {
     struct sample_es *es;
     size_t            sz;
@@ -54,7 +57,7 @@ sample_es_create(struct sample_es **es_out, u32 elt_cnt, enum sample_es_mode mod
     if (!es)
         return merr(ENOMEM);
 
-    sz = elt_cnt * sizeof(u32);
+    sz = elt_cnt * sizeof(uint32_t);
     es->tes_elts = malloc(sz);
     if (!es->tes_elts) {
         free(es);
@@ -64,20 +67,20 @@ sample_es_create(struct sample_es **es_out, u32 elt_cnt, enum sample_es_mode mod
     es->tes_idx = 0;
 
     if (mode == SES_LINEAR) {
-        u32 i, start = generate_random_u32(0, 100000);
+        uint32_t i, start = generate_random_u32(0, 100000);
 
         for (i = 0; i < es->tes_elt_cnt; ++i)
             es->tes_elts[i] = start + i;
     } else if (mode == SES_RANDOM) {
-        u32 min = generate_random_u32(0, 100000);
-        u32 max = generate_random_u32(min, min + elt_cnt + 100000);
+        uint32_t min = generate_random_u32(0, 100000);
+        uint32_t max = generate_random_u32(min, min + elt_cnt + 100000);
 
         generate_random_u32_sequence(min, max, es->tes_elts, es->tes_elt_cnt);
     } else if (mode == SES_ONE) {
         es->tes_elts[0] = elt_cnt;
         es->tes_elt_cnt = 1;
     } else {
-        u32 i, j, start = generate_random_u32(0, 100000);
+        uint32_t i, j, start = generate_random_u32(0, 100000);
 
         assert(mode == SES_RANDOM_NR);
         for (i = 0, j = 0; i < es->tes_elt_cnt; ++i) {
@@ -95,7 +98,7 @@ sample_es_create(struct sample_es **es_out, u32 elt_cnt, enum sample_es_mode mod
 }
 
 void
-sample_es_set_elt(struct sample_es *es, u32 elt)
+sample_es_set_elt(struct sample_es *es, uint32_t elt)
 {
     es->tes_elts[0] = elt;
     es->tes_idx = 0; /* rewind - so es_get_next can get replacement */
@@ -104,9 +107,9 @@ sample_es_set_elt(struct sample_es *es, u32 elt)
 merr_t
 sample_es_create_srcid(
     struct sample_es ** es_out,
-    u32                 elt_cnt,
-    u32                 start,
-    u32                 srcid,
+    uint32_t            elt_cnt,
+    uint32_t            start,
+    uint32_t            srcid,
     enum sample_es_mode mode)
 {
     struct sample_es *es;
@@ -116,7 +119,7 @@ sample_es_create_srcid(
     if (!es)
         return merr(ENOMEM);
 
-    sz = elt_cnt * sizeof(u32);
+    sz = elt_cnt * sizeof(uint32_t);
     es->tes_elts = malloc(sz);
     if (!es->tes_elts) {
         free(es);
@@ -126,7 +129,7 @@ sample_es_create_srcid(
     es->tes_idx = 0;
 
     if (mode == SES_LINEAR) {
-        u32 i, first = start;
+        uint32_t i, first = start;
 
         for (i = 0; i < es->tes_elt_cnt; ++i)
             es->tes_elts[i] = (srcid << 24) + first + i;
@@ -155,8 +158,8 @@ sample_es_destroy(struct sample_es *es)
 int
 sample_es_cmp(const void *a, const void *b)
 {
-    const u32 a_val = *((u32 *)a);
-    const u32 b_val = *((u32 *)b);
+    const uint32_t a_val = *((uint32_t *)a);
+    const uint32_t b_val = *((uint32_t *)b);
 
     if (a_val < b_val)
         return -1;
@@ -169,5 +172,5 @@ sample_es_cmp(const void *a, const void *b)
 void
 sample_es_sort(struct sample_es *es)
 {
-    qsort(es->tes_elts, es->tes_elt_cnt, sizeof(u32), sample_es_cmp);
+    qsort(es->tes_elts, es->tes_elt_cnt, sizeof(uint32_t), sample_es_cmp);
 }

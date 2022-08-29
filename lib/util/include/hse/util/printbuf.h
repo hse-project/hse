@@ -1,12 +1,14 @@
 /* SPDX-License-Identifier: Apache-2.0 */
 /*
- * Copyright (C) 2015-2020 Micron Technology, Inc.  All rights reserved.
+ * Copyright (C) 2015-2022 Micron Technology, Inc.  All rights reserved.
  */
 
 #ifndef HSE_PLATFORM_PRINTBUF_H
 #define HSE_PLATFORM_PRINTBUF_H
 
-#include <hse/util/inttypes.h>
+#include <stdarg.h>
+#include <stddef.h>
+#include <stdint.h>
 
 /**
  * snprintf_append - append a formatted char string to a buffer.
@@ -93,12 +95,12 @@ int
 strlcpy_append(char *dst, const char *src, size_t dstsz, size_t *offsetp);
 
 /**
- * u64_to_string() - very fast u64-to-string converter (base 10)
+ * u64_to_string() - very fast uint64_t-to-string converter (base 10)
  *
  * Return: The length of the resulting output string.
  */
 int
-u64_to_string(void *dst, size_t dstsz, u64 value);
+u64_to_string(void *dst, size_t dstsz, uint64_t value);
 
 /**
  * u64_append() - convert %val to a string and append to (dst + *offsetp)
@@ -121,6 +123,6 @@ u64_to_string(void *dst, size_t dstsz, u64 value);
  * Return: The length of the resulting output string.
  */
 int
-u64_append(char *dst, size_t dstsz, u64 val, int width, size_t *offsetp);
+u64_append(char *dst, size_t dstsz, uint64_t val, int width, size_t *offsetp);
 
 #endif /* HSE_PLATFORM_PRINTBUF_H */

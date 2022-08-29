@@ -5,6 +5,7 @@
 
 #include <ftw.h>
 #include <dirent.h>
+#include <stdint.h>
 
 #include <hse/flags.h>
 
@@ -151,7 +152,7 @@ _c0sk_release_multiset(struct c0sk_impl *self, struct c0_kvmultiset *c0kvms)
      * Update c0sk_release_gen (used by tombspan code).
      */
     struct c0_kvmultiset **dr = deferred_release;
-    u64                    gen;
+    uint64_t               gen;
 
     while (*dr)
         ++dr;
@@ -1013,7 +1014,7 @@ MTF_DEFINE_UTEST_PREPOST(ikvdb_test, cursor_tx, test_pre_c0, test_post_c0)
     const void *           key, *val;
     size_t                 klen, vlen;
     merr_t                 err;
-    u64                    hor1, hor2;
+    uint64_t               hor1, hor2;
     bool                   eof;
     struct kvdb_rparams    kvdb_rp = kvdb_rparams_defaults();
     struct kvs_rparams     kvs_rp = kvs_rparams_defaults();
@@ -1269,7 +1270,7 @@ MTF_DEFINE_UTEST_PREPOST(ikvdb_test, cursor_tombspan, test_pre_c0, test_post_c0)
     bool                   eof;
     int                    i, j;
     const int              LEN = 100000;
-    u64                    gen;
+    uint64_t               gen;
 
     HSE_KVDB_OPSPEC_INIT(&txspec);
     HSE_KVDB_OPSPEC_INIT(&opspec);
@@ -1449,7 +1450,7 @@ parallel_cursors(void *info)
     merr_t                 err;
 
     for (i = 0; i < 100000; ++i) {
-        u32  r = generate_random_u32(0, 10000 - 1); /* max is inclusive */
+        uint32_t r = generate_random_u32(0, 10000 - 1); /* max is inclusive */
         bool eof = true;
 
         /* create different prefixes each time */
@@ -1669,9 +1670,9 @@ MTF_DEFINE_UTEST_PREPOST(ikvdb_test, kvdb_sync_test, test_pre, test_post)
     const char *        kvs_base = "kvs";
     const char *const   kvdb_open_paramv[] = { "c0_diag_mode=true" };
     const char *const   kvs_open_paramv[] = { "mclass.policy=\"capacity_only\"" };
-    u8                  kvs_cnt = 5;
+    uint8_t             kvs_cnt = 5;
     merr_t              err;
-    u32                 i;
+    uint32_t            i;
     struct hse_kvs *    kvs_h[kvs_cnt];
     char **             list;
     struct kvdb_rparams params = kvdb_rparams_defaults();
@@ -1924,7 +1925,7 @@ MTF_DEFINE_UTEST_PREPOST(ikvdb_test, ikvdb_test_various, test_pre, test_post)
 MTF_DEFINE_UTEST(ikvdb_test, ikvdb_hash_test)
 {
     const char *data = "slartibartfast";
-    u64         hash, ref;
+    uint64_t    hash, ref;
 
     ref = hse_hash64(data, 4);
 

@@ -3,6 +3,7 @@
  * Copyright (C) 2015-2022 Micron Technology, Inc.  All rights reserved.
  */
 
+#include <stdint.h>
 #include <sys/mman.h>
 
 #include <hse/error/merr.h>
@@ -126,7 +127,7 @@ lvx2mbs_bnum(struct kvset *ks, uint i)
 }
 
 /* Map logical vblock index (as stored in KMD) to an mblock ID */
-static HSE_ALWAYS_INLINE u64
+static HSE_ALWAYS_INLINE uint64_t
 lvx2mbid(struct kvset *ks, uint i)
 {
     return mbset_get_mbid(lvx2mbs(ks, i), lvx2mbs_bnum(ks, i));
@@ -505,7 +506,7 @@ kvset_open2(
     for (uint32_t i = 0; i < n_kblks; i++) {
         struct kvset_kblk * kblk = ks->ks_kblks + i;
 
-        u64 mbid = km->km_kblk_list.idv[i];
+        uint64_t mbid = km->km_kblk_list.idv[i];
 
         err = kvset_kblk_init(rp, mp, mbid, kblk);
         if (ev(err))
@@ -532,7 +533,7 @@ kvset_open2(
      */
     kcachesz = min(kcachesz, rp->cn_kcachesz);
     if (kcachesz > 0) {
-        u8 *dst;
+        uint8_t *dst;
 
         dst = malloc(kcachesz);
         ks->ks_klarge = dst;
@@ -636,7 +637,7 @@ kvset_open2(
         uint v = 0; /* vblock number (0..n_vblks) */
         uint m = 0; /* index into mbset vector */
         uint k;
-        u64 *vgroupv;
+        uint64_t *vgroupv;
         uint vgroupc;
 
         for (uint i = 0; i < vbset_cnt_len; i++) {
@@ -967,7 +968,7 @@ kblk_plausible(
      */
     if (cmpmax) {
         const void *kmax = kblk->kb_koff_max;
-        u32         lmax = kblk->kb_klen_max;
+        uint32_t    lmax = kblk->kb_klen_max;
 
         if (len > 0)
             rc = keycmp(key, len, kmax + lcp, lmax - lcp);
@@ -980,7 +981,7 @@ kblk_plausible(
 
     if (cmpmin) {
         const void *kmin = kblk->kb_koff_min;
-        u32         lmin = kblk->kb_klen_min;
+        uint32_t    lmin = kblk->kb_klen_min;
 
         if (len > 0)
             rc = keycmp(key, len, kmin + lcp, lmin - lcp);
@@ -1072,7 +1073,7 @@ kblk_get_value_ref(
     struct kvset *         ks,
     uint                   kblk_idx,
     struct kvs_ktuple *    kt,
-    u64                    seq,
+    uint64_t               seq,
     enum key_lookup_res *  result,
     struct kvs_vtuple_ref *vref)
 {
@@ -1093,7 +1094,7 @@ static merr_t
 kvset_ptomb_lookup(
     struct kvset *         ks,
     struct kvs_ktuple *    kt,
-    u64                    view_seq,
+    uint64_t               view_seq,
     enum key_lookup_res *  res,
     struct kvs_vtuple_ref *vref)
 {
@@ -1119,13 +1120,12 @@ kvset_ptomb_lookup(
     return 0;
 }
 
-static
-merr_t
+static merr_t
 kvset_lookup_vref(
     struct kvset *         ks,
     struct kvs_ktuple *    kt,
     const struct key_disc *kdisc,
-    u64                    seq,
+    uint64_t               seq,
     enum key_lookup_res *  result,
     struct kvs_vtuple_ref *vref)
 {
@@ -1232,11 +1232,11 @@ static merr_t
 kvset_lookup_val_direct(
     struct kvset *      ks,
     struct vblock_desc *vbd,
-    u16                 vbidx,
-    u32                 vboff,
+    uint16_t            vbidx,
+    uint32_t            vboff,
     void *              vbuf,
-    u32                 vbufsz,
-    u32                 copylen)
+    uint32_t            vbufsz,
+    uint32_t            copylen)
 {
     struct iovec iov;
     bool         aligned_vbuf;
@@ -1244,7 +1244,7 @@ kvset_lookup_val_direct(
     bool         freeme;
     size_t       off;
     merr_t       err;
-    u64          mbid;
+    uint64_t     mbid;
 
     mbid = lvx2mbid(ks, vbidx);
 
@@ -1298,8 +1298,8 @@ static merr_t
 kvset_lookup_val_direct_decompress(
     struct kvset       *ks,
     struct vblock_desc *vbd,
-    u16                 vbidx,
-    u32                 vboff,
+    uint16_t            vbidx,
+    uint32_t            vboff,
     void               *vbuf,
     uint                copylen,
     uint                omlen,
@@ -1310,7 +1310,7 @@ kvset_lookup_val_direct_decompress(
     size_t       off;
     merr_t       err;
     void        *src;
-    u64          mbid;
+    uint64_t     mbid;
 
     mbid = lvx2mbid(ks, vbidx);
 
@@ -1439,7 +1439,7 @@ kvset_pfx_lookup(
     struct kvset *         ks,
     struct kvs_ktuple *    kt,
     const struct key_disc *kdisc,
-    u64                    seq,
+    uint64_t               seq,
     enum key_lookup_res *  res,
     void *                 wbti,
     struct kvs_buf *       kbuf,
@@ -1449,7 +1449,7 @@ kvset_pfx_lookup(
     struct kvs_vtuple_ref vref;
     struct kvset_kblk *   kblk;
     merr_t                err;
-    u64                   pt_seq = 0;
+    uint64_t              pt_seq = 0;
     int                   kbidx, last;
     const void *          kmd;
     unsigned char foundkey[HSE_KVS_KEY_LEN_MAX];
@@ -1503,8 +1503,8 @@ get_more:
      */
     {
         size_t off = 0;
-        u64    vseq;
-        uint   nvals;
+        uint64_t vseq;
+        uint nvals;
 
         *res = NOT_FOUND;
         nvals = kmd_count(kmd, &off);
@@ -1581,7 +1581,7 @@ kvset_lookup(
     struct kvset *         ks,
     struct kvs_ktuple *    kt,
     const struct key_disc *kdisc,
-    u64                    seq,
+    uint64_t               seq,
     enum key_lookup_res *  res,
     struct kvs_buf *       vbuf)
 {
@@ -1631,7 +1631,7 @@ kvset_younger(const struct kvset *ks1, const struct kvset *ks2)
             (hi1 == hi2 && kvset_get_dgen_lo(ks1) >= kvset_get_dgen_lo(ks2)));
 }
 
-u64
+uint64_t
 kvset_get_seqno_max(struct kvset *ks)
 {
     return ks->ks_seqno_max;
@@ -1676,7 +1676,7 @@ kvset_get_tree(struct kvset *ks)
     return ks->ks_tree;
 }
 
-u8 *
+uint8_t *
 kvset_get_hlog(struct kvset *ks)
 {
     return ks->ks_hlog;
@@ -1688,7 +1688,7 @@ kvset_get_id(const struct kvset *ks)
     return ks->ks_kvsetid;
 }
 
-u64
+uint64_t
 kvset_ctime(const struct kvset *kvset)
 {
     return kvset->ks_ctime;
@@ -1748,14 +1748,14 @@ kvset_get_hblock_id(struct kvset *ks)
     return ks->ks_hblk.kh_hblk_desc.mbid;
 }
 
-u32
+uint32_t
 kvset_get_num_kblocks(struct kvset *ks)
 {
     return ks->ks_st.kst_kblks;
 }
 
-u64
-kvset_get_nth_kblock_id(struct kvset *ks, u32 index)
+uint64_t
+kvset_get_nth_kblock_id(struct kvset *ks, uint32_t index)
 {
     return (index < ks->ks_st.kst_kblks ? ks->ks_kblks[index].kb_kblk_desc.mbid : 0);
 }
@@ -1766,14 +1766,14 @@ kvset_get_num_vblocks(struct kvset *ks)
     return ks->ks_st.kst_vblks;
 }
 
-u64
-kvset_get_nth_vblock_id(struct kvset *ks, u32 index)
+uint64_t
+kvset_get_nth_vblock_id(struct kvset *ks, uint32_t index)
 {
     return (index < ks->ks_st.kst_vblks ? lvx2mbid(ks, index) : 0);
 }
 
 uint32_t
-kvset_get_nth_vblock_len(struct kvset *ks, u32 index)
+kvset_get_nth_vblock_len(struct kvset *ks, uint32_t index)
 {
     struct vblock_desc *vbd = lvx2vbd(ks, index);
 
@@ -1821,7 +1821,7 @@ void
 kvset_get_metrics(struct kvset *ks, struct kvset_metrics *m)
 {
     struct kvset_kblk *p;
-    u32                i;
+    uint32_t           i;
 
     memset(m, 0, sizeof(*m));
 
@@ -1892,7 +1892,7 @@ struct kblk_reader {
 
     /* io buffers */
     struct kr_buf kr_buf[2];
-    u8            kr_bufx;
+    uint8_t       kr_bufx;
     bool          asyncio;
 
     /* reader state */
@@ -1909,14 +1909,14 @@ struct kblk_reader {
         uint  kr_ops;
     } iores;
 
-    u64 kr_mbid;
-    u16 kr_blk_cnt;
-    u16 kr_nodex;
-    u16 kr_nodec;
-    u16 kr_node_start_pg;
-    u16 kr_kmd_start_pg;
-    u16 kr_kmd_pgc;
-    u16 kr_next_blk_idx;
+    uint64_t kr_mbid;
+    uint16_t kr_blk_cnt;
+    uint16_t kr_nodex;
+    uint16_t kr_nodec;
+    uint16_t kr_node_start_pg;
+    uint16_t kr_kmd_start_pg;
+    uint16_t kr_kmd_pgc;
+    uint16_t kr_next_blk_idx;
 };
 
 struct vr_buf {
@@ -1939,7 +1939,7 @@ struct vblk_reader {
     uint vr_io_offset;
     uint vr_io_len;
     /* mblock properties */
-    u64  vr_mbid;
+    uint64_t vr_mbid;
     uint vr_mblk_dstart;
     uint vr_mblk_dlen;
     /* buffer */
@@ -1959,7 +1959,7 @@ enum last_src {
 
 struct iter_meta {
     const void *last_key;
-    u32         last_klen;
+    uint32_t    last_klen;
     bool        eof;
     const void *kmd;
 };
@@ -1967,10 +1967,10 @@ struct iter_meta {
 struct wb_pos {
     void *              wb_node;    /* current node */
     void *              wb_pfx;     /* node's lcp */
-    u16                 wb_pfx_len; /* length of node's lcp */
+    uint16_t            wb_pfx_len; /* length of node's lcp */
     struct wbt_lfe_omf *wb_lfe;     /* current key */
-    u16                 wb_nodec;   /* #nodes left in current buffer */
-    u16                 wb_keyc;    /* #keys left in current node */
+    uint16_t            wb_nodec;   /* #nodes left in current buffer */
+    uint16_t            wb_keyc;    /* #keys left in current node */
 
     void *wb_kmd_base;
     uint  wb_node_kmd_off_adj;
@@ -1985,8 +1985,8 @@ struct kvset_iterator {
     struct cn_merge_stats *  stats;
     uint                     curr_kblk;
     enum last_src            last;
-    u32                      vra_flags;
-    u32                      vra_len;
+    uint32_t                 vra_flags;
+    uint32_t                 vra_len;
     struct workqueue_struct *vra_wq;
     bool                     reverse;
     bool                     asyncio;
@@ -2048,7 +2048,7 @@ static merr_t
 mbio_wait(struct async_mbio *io, struct cn_merge_stats_ops *stats)
 {
     merr_t err;
-    u64    tstart = 0;
+    uint64_t tstart = 0;
 
     mutex_lock(&io->mutex);
     if (stats && io->pending)
@@ -2072,8 +2072,8 @@ kvset_iter_kblock_read(struct work_struct *rock)
     merr_t         err = 0;
     uint           node_read_cnt;
     size_t         a, b, kblk_off, rlen;
-    u32            end_node_kmd_off;
-    u32            start_node_kmd_off;
+    uint32_t       end_node_kmd_off;
+    uint32_t       start_node_kmd_off;
     bool           last_node;
     struct kr_buf *buf;
 
@@ -2581,7 +2581,7 @@ kvset_iter_create(
         iter->reverse = reverse;
     }
 
-    iter->vra_len = min_t(u32, iter->vra_len, HSE_KVS_VALUE_LEN_MAX);
+    iter->vra_len = min_t(uint32_t, iter->vra_len, HSE_KVS_VALUE_LEN_MAX);
     iter->vra_wq = vra_wq;
 
     iter->workq = io_workq;
@@ -2717,7 +2717,7 @@ void
 kvset_madvise_capped(struct kvset *ks, int advice)
 {
     struct workqueue_struct *wq;
-    u32                      vra_len;
+    uint32_t                 vra_len;
 
     assert(advice == MADV_WILLNEED || advice == MADV_DONTNEED);
 
@@ -2765,7 +2765,7 @@ kvset_iter_mark_eof(struct kv_iterator *handle)
  * NB: if len < 0, key is a prefix key
  */
 merr_t
-kvset_iter_seek(struct kv_iterator *handle, const void *key, s32 len, bool *eof)
+kvset_iter_seek(struct kv_iterator *handle, const void *key, int32_t len, bool *eof)
 {
     struct kvset_iterator *iter = handle_to_kvset_iter(handle);
     struct kvset *         ks = iter->ks;
@@ -3205,7 +3205,7 @@ bool
 kvset_iter_next_vref(
     struct kv_iterator *    handle,
     struct kvset_iter_vctx *vc,
-    u64 *                   seq,
+    uint64_t *              seq,
     enum kmd_vtype *        vtype,
     uint *                  vbidx,
     uint *                  vboff,

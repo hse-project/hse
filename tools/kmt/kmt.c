@@ -135,13 +135,15 @@
  */
 //#define XKMT
 
+#include <stdint.h>
+
+#include <hse/error/merr.h>
 #include <hse/util/arch.h>
 #include <hse/util/atomic.h>
 #include <hse/util/compiler.h>
 #include <hse/util/log2.h>
 #include <hse/util/minmax.h>
 #include <hse/util/page.h>
-#include <hse/error/merr.h>
 #include <hse/util/byteorder.h>
 
 #include <hse/ikvdb/kvs_rparams.h>
@@ -467,12 +469,12 @@ struct km_rec_ops {
  * subrange starting at %base from which record IDs are randomly generated.
  */
 struct km_lor {
-    u64 opscnt;
-    u64 opsmax;
-    u64 range;
-    u64 base;
-    u64 span;
-    u64 constrain;
+    uint64_t opscnt;
+    uint64_t opsmax;
+    uint64_t range;
+    uint64_t base;
+    uint64_t span;
+    uint64_t constrain;
 };
 
 /* The default locality-of-reference parameters specify that each thread
@@ -553,7 +555,7 @@ struct km_inst {
     pthread_t               td;
     hse_err_t               err;
     char *                  fmt;
-    u32                     tid;
+    uint32_t                tid;
     void (*func)(struct km_inst *);
     mongoc_client_t *client;
     bson_error_t     error;
@@ -911,7 +913,7 @@ bkt_wunlock(struct bkt *bkt)
     return 0;
 }
 
-static inline u64
+static inline uint64_t
 km_op_latency_init(struct km_impl *impl, enum km_op op)
 {
     if (latency)
@@ -920,7 +922,7 @@ km_op_latency_init(struct km_impl *impl, enum km_op op)
 }
 
 static inline void
-km_op_latency_record(struct km_inst *inst, enum km_op op, u64 ns)
+km_op_latency_record(struct km_inst *inst, enum km_op op, uint64_t ns)
 {
     struct km_latency *lat;
 
@@ -970,7 +972,7 @@ static void
 hse_kvdb_txn_abort(void *kvdb, void *txn){};
 
 static char *
-hse_strerror(u64 err, char *buf, size_t bufsz)
+hse_strerror(uint64_t err, char *buf, size_t bufsz)
 {
     return strerror_r(err, buf, bufsz);
 }
@@ -1689,7 +1691,7 @@ km_rec_print_cmn(struct km_inst *inst, struct km_rec *r, const char *fmt, hse_er
     static int      once;
     char            ebuf[128];
     char            vbuf[128];
-    u64             chk_hash;
+    uint64_t        chk_hash;
     char *          dst;
     int             i;
 
@@ -1782,9 +1784,9 @@ km_rec_get_kvs(struct km_inst *inst, struct km_rec *r, uint64_t rid)
     char *key = (char *)r + secsz;
     size_t          klen, vlen;
     hse_err_t       err;
-    u64             rc;
+    uint64_t        rc;
     bool            found;
-    u64             ns;
+    uint64_t        ns;
 
     if (rid >= impl->recmax)
         abort();
@@ -1841,7 +1843,7 @@ km_rec_put_kvs(struct km_inst *inst, struct km_rec *r)
 {
     struct km_impl *impl = inst->impl;
     char *key = (char *)r + secsz;
-    u64 rc, ns;
+    uint64_t rc, ns;
 
     if (r->rid >= impl->recmax)
         abort();
@@ -1875,8 +1877,8 @@ km_rec_del_kvs(struct km_inst *inst, uint64_t rid)
     struct km_impl *impl = inst->impl;
     char            key[KM_REC_KEY_MAX];
     size_t          klen;
-    u64             rc;
-    u64             ns;
+    uint64_t        rc;
+    uint64_t        ns;
 
     ns = km_op_latency_init(inst->impl, OP_KVS_DEL);
 
@@ -1904,7 +1906,7 @@ km_rec_get_ds(struct km_inst *inst, struct km_rec *r, uint64_t rid)
     struct iovec    iov[2];
     hse_err_t       err;
     uint64_t        mbid;
-    u64             ns;
+    uint64_t        ns;
 
     ns = km_op_latency_init(inst->impl, OP_KVS_GET);
 
@@ -1968,7 +1970,7 @@ km_rec_put_ds(struct km_inst *inst, struct km_rec *r)
     uint64_t     nmbid;
     uint64_t     ombid;
     hse_err_t    err;
-    u64          ns;
+    uint64_t     ns;
 
     ns = km_op_latency_init(inst->impl, OP_KVS_PUT);
 
@@ -2034,7 +2036,7 @@ km_rec_del_ds(struct km_inst *inst, uint64_t rid)
     struct km_impl *impl = inst->impl;
     uint64_t        mbid;
     hse_err_t       err;
-    u64             ns;
+    uint64_t        ns;
 
     ns = km_op_latency_init(inst->impl, OP_KVS_DEL);
 
@@ -2063,7 +2065,7 @@ km_rec_get_dev(struct km_inst *inst, struct km_rec *r, uint64_t rid)
     off_t           offset;
     ssize_t         cc;
     int             fd;
-    u64             ns;
+    uint64_t        ns;
 
     ns = km_op_latency_init(inst->impl, OP_KVS_GET);
 
@@ -2116,7 +2118,7 @@ km_rec_put_dev(struct km_inst *inst, struct km_rec *r)
     struct km_impl *impl = inst->impl;
     ssize_t         cc;
     int             fd;
-    u64             ns;
+    uint64_t        ns;
 
     ns = km_op_latency_init(inst->impl, OP_KVS_PUT);
 
@@ -2151,7 +2153,7 @@ km_rec_put_dev(struct km_inst *inst, struct km_rec *r)
 hse_err_t
 km_rec_del_dev(struct km_inst *inst, uint64_t rid)
 {
-    u64 ns;
+    uint64_t ns;
 
     ns = km_op_latency_init(inst->impl, OP_KVS_DEL);
 
@@ -2239,7 +2241,7 @@ km_rec_get_mongo(struct km_inst *inst, struct km_rec *r, uint64_t rid)
     const bson_t    *doc;
     mongoc_cursor_t *cursor;
     hse_err_t        err;
-    u64              ns;
+    uint64_t         ns;
 
     ns = km_op_latency_init(inst->impl, OP_KVS_GET);
 
@@ -2319,7 +2321,7 @@ km_rec_put_mongo(struct km_inst *inst, struct km_rec *r)
     bson_t         *opts;
     uint            cid;
     bool            rc;
-    u64             ns;
+    uint64_t        ns;
 
     ns = km_op_latency_init(inst->impl, OP_KVS_PUT);
 
@@ -2363,7 +2365,7 @@ km_rec_del_mongo(struct km_inst *inst, uint64_t rid)
     size_t     klen;
     uint       cid;
     bool       rc;
-    u64        ns;
+    uint64_t   ns;
 
     ns = km_op_latency_init(inst->impl, OP_KVS_DEL);
 
@@ -2395,7 +2397,7 @@ km_open_kvs(struct km_impl *impl)
 {
     struct hse_kvdb *kvdb;
     struct hse_kvs * kvs;
-    u64              rc;
+    uint64_t         rc;
     struct svec *    kv_oparms = kvs_txn ? &kv_oparms_txn : &kv_oparms_notxn;
 
     if (impl->kvdb || impl->kvs)
@@ -2420,7 +2422,7 @@ km_open_kvs(struct km_impl *impl)
 hse_err_t
 km_close_kvs(struct km_impl *impl)
 {
-    u64 rc = 0;
+    uint64_t rc = 0;
 
     if (stayopen)
         return 0;
@@ -4969,7 +4971,7 @@ main(int argc, char **argv)
             impl->tdmax = BKTLOCK_MAX / 2;
     }
 
-    km_lor.span = clamp_t(u64, km_lor.span, 32, impl->recmax - 1);
+    km_lor.span = clamp_t(uint64_t, km_lor.span, 32, impl->recmax - 1);
     km_lor.range = impl->recmax - km_lor.span + 1;
 
     signal_reliable(SIGALRM, sigalrm_isr);

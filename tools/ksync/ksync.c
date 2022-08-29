@@ -3,6 +3,8 @@
  * Copyright (C) 2017-2022 Micron Technology, Inc.  All rights reserved.
  */
 
+#include <errno.h>
+#include <getopt.h>
 #include <stdarg.h>
 #include <stdint.h>
 #include <stdio.h>
@@ -13,7 +15,6 @@
 
 #include <hse/cli/program.h>
 #include <hse/hse.h>
-#include <hse/util/inttypes.h>
 #include <hse/util/arch.h>
 
 #include <tools/parm_groups.h>
@@ -78,8 +79,8 @@ stuff(void)
     struct hse_kvdb *kvdb;
     struct hse_kvs * kvs;
     size_t           klen, vlen;
-    u64              key;
-    u64 *            val;
+    uint64_t         key;
+    uint64_t *       val;
     long             usecs;
     uint64_t         herr;
     uint             i;

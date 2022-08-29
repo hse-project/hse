@@ -3,14 +3,15 @@
  * Copyright (C) 2015-2022 Micron Technology, Inc.  All rights reserved.
  */
 
+#include <stdint.h>
+
 #include <rbtree.h>
 
 #include <mtf/framework.h>
 
-#include <hse/util/slab.h>
-#include <hse/util/inttypes.h>
 #include <hse/error/merr.h>
 #include <hse/logging/logging.h>
+#include <hse/util/slab.h>
 #include <hse/util/time.h>
 #include <hse/util/data_tree.h>
 #include <hse/util/event_counter.h>

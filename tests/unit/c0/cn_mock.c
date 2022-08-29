@@ -1,15 +1,15 @@
 /* SPDX-License-Identifier: Apache-2.0 */
 /*
- * Copyright (C) 2015-2021 Micron Technology, Inc.  All rights reserved.
+ * Copyright (C) 2015-2022 Micron Technology, Inc.  All rights reserved.
  */
 
-#include <hse/test/support/random_buffer.h>
+#include <stdint.h>
 
+#include <hse/ikvdb/c0_kvmultiset.h>
+#include <hse/ikvdb/cn.h>
+#include <hse/test/support/random_buffer.h>
 #include <hse/util/platform.h>
 #include <hse/util/event_counter.h>
-
-#include <hse/ikvdb/cn.h>
-#include <hse/ikvdb/c0_kvmultiset.h>
 
 #include "cn_mock.h"
 
@@ -26,7 +26,7 @@ struct mock_cn {
 };
 
 merr_t
-_cn_ingest(struct cn *cn, struct kvset_mblocks *childv, u64 txid)
+_cn_ingest(struct cn *cn, struct kvset_mblocks *childv, uint64_t txid)
 {
     struct mock_cn *mock_cn = (struct mock_cn *)cn;
 
@@ -35,7 +35,7 @@ _cn_ingest(struct cn *cn, struct kvset_mblocks *childv, u64 txid)
     if (mock_cn->delay_merge) {
 
         struct timespec delay;
-        u32             mmd_delay;
+        uint32_t        mmd_delay;
 
         if (mock_cn->random_release)
             mmd_delay = generate_random_u32(1, 2000);
@@ -56,10 +56,10 @@ _cn_ingestv(
     struct kvset_mblocks **mbv,
     uint64_t              *kvsetidv,
     uint                   ingestc,
-    u64                    ingestid,
-    u64                    txhorizon,
-    u64                   *min_seqno_out,
-    u64                   *max_seqno_out)
+    uint64_t               ingestid,
+    uint64_t               txhorizon,
+    uint64_t              *min_seqno_out,
+    uint64_t              *max_seqno_out)
 {
     int    i;
     merr_t err = 0;
@@ -119,7 +119,7 @@ create_mock_cn(
     struct cn **cn,
     bool        delay_merge,
     bool        random_release,
-    u32         pfx_len)
+    uint32_t    pfx_len)
 {
     struct mock_cn *mock_cn;
 

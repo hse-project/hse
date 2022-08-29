@@ -1,7 +1,9 @@
 /* SPDX-License-Identifier: Apache-2.0 */
 /*
- * Copyright (C) 2015-2020 Micron Technology, Inc.  All rights reserved.
+ * Copyright (C) 2015-2022 Micron Technology, Inc.  All rights reserved.
  */
+
+#include <stdint.h>
 
 #include <hse/util/err_ctx.h>
 #include <hse/util/parse_num.h>
@@ -11,7 +13,7 @@
 
 #define HSE_SUCCESS 0
 
-#define PB ((u64)1024 * TB)
+#define PB ((uint64_t)1024 * TB)
 
 struct test_u64 {
     struct {
@@ -21,7 +23,7 @@ struct test_u64 {
 
     struct {
         merr_t status;
-        u64    result;
+        uint64_t result;
     } output;
 };
 
@@ -33,7 +35,7 @@ struct test_s64 {
 
     struct {
         merr_t status;
-        s64    result;
+        int64_t    result;
     } output;
 };
 
@@ -45,7 +47,7 @@ struct test_size {
 
     struct {
         merr_t status;
-        u64    result;
+        uint64_t result;
     } output;
 };
 
@@ -119,7 +121,7 @@ MTF_BEGIN_UTEST_COLLECTION(parse_num_basic);
 
 MTF_DEFINE_UTEST(parse_num_basic, test_parse_u64_range)
 {
-    u64 result;
+    uint64_t result;
     int i;
 
     struct test_u64 tests[] = {
@@ -131,10 +133,10 @@ MTF_DEFINE_UTEST(parse_num_basic, test_parse_u64_range)
         { { "1234", NULL }, { HSE_SUCCESS, 1234 } },
 
         /* simple negative */
-        { { "-1", NULL }, { HSE_SUCCESS, (u64)-1 } },
-        { { "-2", NULL }, { HSE_SUCCESS, (u64)-2 } },
-        { { "-3", NULL }, { HSE_SUCCESS, (u64)-3 } },
-        { { "-1234", NULL }, { HSE_SUCCESS, (u64)-1234 } },
+        { { "-1", NULL }, { HSE_SUCCESS, (uint64_t)-1 } },
+        { { "-2", NULL }, { HSE_SUCCESS, (uint64_t)-2 } },
+        { { "-3", NULL }, { HSE_SUCCESS, (uint64_t)-3 } },
+        { { "-1234", NULL }, { HSE_SUCCESS, (uint64_t)-1234 } },
 
         /* +/- variations */
         { { "+0x555", NULL }, { HSE_SUCCESS, 0x555 } },
@@ -142,20 +144,20 @@ MTF_DEFINE_UTEST(parse_num_basic, test_parse_u64_range)
         { { "+555", NULL }, { HSE_SUCCESS, 555 } },
         { { "-555", NULL }, { HSE_SUCCESS, -555 } },
 
-        /* u32 boundary */
-        { { "0x0fffffffe", NULL }, { HSE_SUCCESS, ((u64)U32_MAX) - 1 } },
-        { { "0x0ffffffff", NULL }, { HSE_SUCCESS, ((u64)U32_MAX) } },
-        { { "0x100000000", NULL }, { HSE_SUCCESS, ((u64)U32_MAX) + 1 } },
+        /* uint32_t boundary */
+        { { "0x0fffffffe", NULL }, { HSE_SUCCESS, ((uint64_t)UINT32_MAX) - 1 } },
+        { { "0x0ffffffff", NULL }, { HSE_SUCCESS, ((uint64_t)UINT32_MAX) } },
+        { { "0x100000000", NULL }, { HSE_SUCCESS, ((uint64_t)UINT32_MAX) + 1 } },
 
-        /* s64 min/max */
-        { { "0x7fffffffffffffff", NULL }, { HSE_SUCCESS, (u64)S64_MAX } },
+        /* int64_t min/max */
+        { { "0x7fffffffffffffff", NULL }, { HSE_SUCCESS, (uint64_t)INT64_MAX } },
 
-        /* u64 boundary */
-        { { "0xfffffffffffffffe", NULL }, { HSE_SUCCESS, U64_MAX - 1 } },
-        { { "0xffffffffffffffff", NULL }, { HSE_SUCCESS, U64_MAX } },
-        { { "18446744073709551614", NULL }, { HSE_SUCCESS, U64_MAX - 1 } },
-        { { "18446744073709551615", NULL }, { HSE_SUCCESS, U64_MAX } },
-        { { "0x8000000000000000", NULL }, { HSE_SUCCESS, U64_MAX / 2 + 1 } },
+        /* uint64_t boundary */
+        { { "0xfffffffffffffffe", NULL }, { HSE_SUCCESS, UINT64_MAX - 1 } },
+        { { "0xffffffffffffffff", NULL }, { HSE_SUCCESS, UINT64_MAX } },
+        { { "18446744073709551614", NULL }, { HSE_SUCCESS, UINT64_MAX - 1 } },
+        { { "18446744073709551615", NULL }, { HSE_SUCCESS, UINT64_MAX } },
+        { { "0x8000000000000000", NULL }, { HSE_SUCCESS, UINT64_MAX / 2 + 1 } },
 
         /* long prefix of 0's */
         { { "0x00000000000000000000000000000000000000000000000000001", NULL }, { HSE_SUCCESS, 1 } },
@@ -164,14 +166,14 @@ MTF_DEFINE_UTEST(parse_num_basic, test_parse_u64_range)
         { { "0111", NULL }, { HSE_SUCCESS, 0111 } },
         { { "-0111", NULL }, { HSE_SUCCESS, -0111 } },
 
-        { { "01777777777777777777777", NULL }, { HSE_SUCCESS, U64_MAX } },
+        { { "01777777777777777777777", NULL }, { HSE_SUCCESS, UINT64_MAX } },
 
-        { { "000000001777777777777777777777", NULL }, { HSE_SUCCESS, U64_MAX } },
+        { { "000000001777777777777777777777", NULL }, { HSE_SUCCESS, UINT64_MAX } },
 
         /* too big */
-        { { "18446744073709551616", NULL }, { ERANGE, U64_MAX } },
-        { { "0xffffffffffffffff1", NULL }, { ERANGE, U64_MAX } },
-        { { "0x1ffffffffffffffff", NULL }, { ERANGE, U64_MAX } },
+        { { "18446744073709551616", NULL }, { ERANGE, UINT64_MAX } },
+        { { "0xffffffffffffffff1", NULL }, { ERANGE, UINT64_MAX } },
+        { { "0x1ffffffffffffffff", NULL }, { ERANGE, UINT64_MAX } },
 
         /* invalid input */
         { { "ffff", NULL }, { EINVAL, 0 } },
@@ -182,8 +184,8 @@ MTF_DEFINE_UTEST(parse_num_basic, test_parse_u64_range)
         { { "0x", NULL }, { EINVAL, 0 } },
 
         /* success with endptr */
-        { { "18446744073709551615:", ":" }, { HSE_SUCCESS, U64_MAX } },
-        { { "0xffffffffffffffff:", ":" }, { HSE_SUCCESS, U64_MAX } },
+        { { "18446744073709551615:", ":" }, { HSE_SUCCESS, UINT64_MAX } },
+        { { "0xffffffffffffffff:", ":" }, { HSE_SUCCESS, UINT64_MAX } },
         { { "10:20,30", ":" }, { HSE_SUCCESS, 10 } },
     };
 
@@ -213,7 +215,7 @@ MTF_DEFINE_UTEST(parse_num_basic, test_parse_u64_range)
 
 MTF_DEFINE_UTEST(parse_num_basic, test_parse_s64_range)
 {
-    s64 result;
+    int64_t result;
     int i;
 
     struct test_s64 tests[] = {
@@ -225,10 +227,10 @@ MTF_DEFINE_UTEST(parse_num_basic, test_parse_s64_range)
         { { "1234", NULL }, { HSE_SUCCESS, 1234 } },
 
         /* simple negative */
-        { { "-1", NULL }, { HSE_SUCCESS, (s64)-1 } },
-        { { "-2", NULL }, { HSE_SUCCESS, (s64)-2 } },
-        { { "-3", NULL }, { HSE_SUCCESS, (s64)-3 } },
-        { { "-1234", NULL }, { HSE_SUCCESS, (s64)-1234 } },
+        { { "-1", NULL }, { HSE_SUCCESS, (int64_t)-1 } },
+        { { "-2", NULL }, { HSE_SUCCESS, (int64_t)-2 } },
+        { { "-3", NULL }, { HSE_SUCCESS, (int64_t)-3 } },
+        { { "-1234", NULL }, { HSE_SUCCESS, (int64_t)-1234 } },
 
         /* +/- variations */
         { { "+0x555", NULL }, { HSE_SUCCESS, 0x555 } },
@@ -237,15 +239,15 @@ MTF_DEFINE_UTEST(parse_num_basic, test_parse_s64_range)
         { { "-555", NULL }, { HSE_SUCCESS, -555 } },
 
         /* s32 boundary */
-        { { "0x0fffffffe", NULL }, { HSE_SUCCESS, ((s64)U32_MAX) - 1 } },
-        { { "0x0ffffffff", NULL }, { HSE_SUCCESS, ((s64)U32_MAX) } },
-        { { "0x100000000", NULL }, { HSE_SUCCESS, ((s64)U32_MAX) + 1 } },
+        { { "0x0fffffffe", NULL }, { HSE_SUCCESS, ((int64_t)UINT32_MAX) - 1 } },
+        { { "0x0ffffffff", NULL }, { HSE_SUCCESS, ((int64_t)UINT32_MAX) } },
+        { { "0x100000000", NULL }, { HSE_SUCCESS, ((int64_t)UINT32_MAX) + 1 } },
 
-        /* s64 limits */
-        { { "0x7fffffffffffffff", NULL }, { HSE_SUCCESS, S64_MAX } },
-        { { "9223372036854775807", NULL }, { HSE_SUCCESS, S64_MAX } },
-        { { "-0x8000000000000000", NULL }, { HSE_SUCCESS, S64_MIN } },
-        { { "-9223372036854775808", NULL }, { HSE_SUCCESS, S64_MIN } },
+        /* int64_t limits */
+        { { "0x7fffffffffffffff", NULL }, { HSE_SUCCESS, INT64_MAX } },
+        { { "9223372036854775807", NULL }, { HSE_SUCCESS, INT64_MAX } },
+        { { "-0x8000000000000000", NULL }, { HSE_SUCCESS, INT64_MIN } },
+        { { "-9223372036854775808", NULL }, { HSE_SUCCESS, INT64_MIN } },
 
         /* long prefix of 0's */
         { { "0x00000000000000000000000000000000000000000000000000001", NULL }, { HSE_SUCCESS, 1 } },
@@ -255,14 +257,14 @@ MTF_DEFINE_UTEST(parse_num_basic, test_parse_s64_range)
         { { "-0111", NULL }, { HSE_SUCCESS, -0111 } },
 
         /* too big */
-        { { "9223372036854775808", NULL }, { ERANGE, S64_MAX } },
-        { { "-9223372036854775809", NULL }, { ERANGE, S64_MIN } },
+        { { "9223372036854775808", NULL }, { ERANGE, INT64_MAX } },
+        { { "-9223372036854775809", NULL }, { ERANGE, INT64_MIN } },
 
         /*
-         * this fails b/c it's bigger than S64_MAX and has no negative
+         * this fails b/c it's bigger than INT64_MAX and has no negative
          * sign
          */
-        { { "0x8000000000000000", NULL }, { ERANGE, S64_MAX } },
+        { { "0x8000000000000000", NULL }, { ERANGE, INT64_MAX } },
 
         /* invalid input */
         { { "ffff", NULL }, { EINVAL, 0 } },
@@ -272,7 +274,7 @@ MTF_DEFINE_UTEST(parse_num_basic, test_parse_s64_range)
         { { "0x", NULL }, { EINVAL, 0 } },
 
         /* success with endptr */
-        { { "9223372036854775807:", ":" }, { HSE_SUCCESS, S64_MAX } },
+        { { "9223372036854775807:", ":" }, { HSE_SUCCESS, INT64_MAX } },
         { { "-1:", ":" }, { HSE_SUCCESS, -1 } },
         { { "10:20,30", ":" }, { HSE_SUCCESS, 10 } },
     };
@@ -303,7 +305,7 @@ MTF_DEFINE_UTEST(parse_num_basic, test_parse_s64_range)
 
 MTF_DEFINE_UTEST(parse_num_basic, test_parse_size_range)
 {
-    u64 result;
+    uint64_t result;
     int i;
 
     struct test_size tests[] = {
@@ -324,12 +326,12 @@ MTF_DEFINE_UTEST(parse_num_basic, test_parse_size_range)
         { { "0x123m", NULL }, { HSE_SUCCESS, 0x123 * MB } },
 
         /* overflow */
-        { { "0xffffffffffffffffk", NULL }, { ERANGE, U64_MAX } },
-        { { "10000000p", NULL }, { ERANGE, U64_MAX } },
+        { { "0xffffffffffffffffk", NULL }, { ERANGE, UINT64_MAX } },
+        { { "10000000p", NULL }, { ERANGE, UINT64_MAX } },
 
         { { "18014398509481983k", NULL }, { HSE_SUCCESS, 18014398509481983ULL * 1024 } },
 
-        { { "18014398509481984k", NULL }, { ERANGE, U64_MAX } },
+        { { "18014398509481984k", NULL }, { ERANGE, UINT64_MAX } },
 
         /* invalid suffix */
         { { "0n", NULL }, { EINVAL, 0 } },
@@ -593,7 +595,7 @@ MTF_DEFINE_UTEST(parse_num_basic, test_parse_s64_range_bounds)
     const char *underflow = "-18446744073709551619";
     const char *overflow = "18446744073709551619";
     merr_t      err;
-    s64         r;
+    int64_t         r;
 
     r = 666;
     err = parse_s64_range("8", NULL, -3, 7, &r);
@@ -620,7 +622,7 @@ MTF_DEFINE_UTEST(parse_num_basic, test_parse_u64_range_bounds)
 {
     const char *overflow = "18446744073709551619";
     merr_t      err;
-    u64         r;
+    uint64_t    r;
 
     r = 666;
     err = parse_u64_range("8", NULL, 3, 7, &r);
@@ -647,7 +649,7 @@ MTF_DEFINE_UTEST(parse_num_basic, test_parse_size_range_bounds)
 {
     const char *overflow = "18446744073709551619";
     merr_t      err;
-    u64         r;
+    uint64_t    r;
 
     r = 666;
     err = parse_size_range("8", 3, 7, &r);

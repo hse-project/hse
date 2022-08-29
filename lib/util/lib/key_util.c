@@ -1,7 +1,9 @@
 /* SPDX-License-Identifier: Apache-2.0 */
 /*
- * Copyright (C) 2015-2020 Micron Technology, Inc.  All rights reserved.
+ * Copyright (C) 2015-2022 Micron Technology, Inc.  All rights reserved.
  */
+
+#include <stdint.h>
 
 #include <hse/util/platform.h>
 #include <hse/util/minmax.h>
@@ -26,7 +28,7 @@ _Static_assert(HSE_KVS_COUNT_MAX <= 256,
  * to memset nor memcpy.
  */
 void
-key_immediate_init(const void *key, size_t klen, u16 index, struct key_immediate *imm)
+key_immediate_init(const void *key, size_t klen, uint16_t index, struct key_immediate *imm)
 {
     size_t dlen = klen;
 
@@ -41,11 +43,11 @@ key_immediate_init(const void *key, size_t klen, u16 index, struct key_immediate
     imm->ki_data[2] = be64toh(imm->ki_data[2]);
     imm->ki_data[3] = be64toh(imm->ki_data[3]);
 
-    imm->ki_data[0] |= (u64)index << 56;
+    imm->ki_data[0] |= (uint64_t)index << 56;
     imm->ki_data[3] |= (dlen << 16) | klen;
 }
 
-s32
+int32_t
 key_full_cmp_noinline(
     const struct key_immediate *imm0,
     const void *                key0,

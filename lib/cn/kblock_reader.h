@@ -6,7 +6,8 @@
 #ifndef HSE_KVS_CN_KBLOCK_READER_H
 #define HSE_KVS_CN_KBLOCK_READER_H
 
-#include <hse/util/inttypes.h>
+#include <stdint.h>
+
 #include <hse/ikvdb/tuple.h>
 
 struct cn;
@@ -15,14 +16,14 @@ struct wbt_desc;
 struct kvs_mblk_desc;
 
 struct kblk_metrics {
-    u32 num_keys;
-    u32 num_tombstones;
-    u64 tot_key_bytes;
-    u64 tot_val_bytes;
-    u64 tot_kvlen;
-    u64 tot_vused_bytes;
-    u32 tot_wbt_pages;
-    u32 tot_blm_pages;
+    uint32_t num_keys;
+    uint32_t num_tombstones;
+    uint64_t tot_key_bytes;
+    uint64_t tot_val_bytes;
+    uint64_t tot_kvlen;
+    uint64_t tot_vused_bytes;
+    uint32_t tot_wbt_pages;
+    uint32_t tot_blm_pages;
 };
 
 struct kblock_desc {

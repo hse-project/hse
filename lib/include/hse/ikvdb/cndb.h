@@ -6,10 +6,11 @@
 #ifndef HSE_CNDB_H
 #define HSE_CNDB_H
 
-#include <hse/util/platform.h>
-#include <hse/util/inttypes.h>
+#include <stdint.h>
+
 #include <hse/error/merr.h>
 #include <hse/util/atomic.h>
+#include <hse/util/platform.h>
 
 struct mpool;
 struct kvset_meta;
@@ -22,8 +23,8 @@ struct cndb_txn;
 
 #define CNDB_DEFAULT_SIZE (128 * 1024 * 1024)
 
-#define CNDB_INVAL_INGESTID U64_MAX
-#define CNDB_DFLT_INGESTID (U64_MAX - 1)
+#define CNDB_INVAL_INGESTID UINT64_MAX
+#define CNDB_DFLT_INGESTID (UINT64_MAX - 1)
 
 #define CNDB_INVAL_HORIZON  CNDB_INVAL_INGESTID
 
@@ -43,8 +44,8 @@ cndb_destroy(struct mpool *mp, uint64_t oid1, uint64_t oid2);
 merr_t
 cndb_open(
     struct mpool        *mp,
-    u64                  oid1,
-    u64                  oid2,
+    uint64_t             oid1,
+    uint64_t             oid2,
     struct kvdb_rparams *rp,
     struct cndb        **cndb_out);
 
@@ -54,7 +55,7 @@ cndb_close(struct cndb *cndb);
 
 /* MTF_MOCK */
 merr_t
-cndb_replay(struct cndb *cndb, u64 *seqno, u64 *ingestid, u64 *txhorizon);
+cndb_replay(struct cndb *cndb, uint64_t *seqno, uint64_t *ingestid, uint64_t *txhorizon);
 
 /* MTF_MOCK */
 merr_t
@@ -153,18 +154,18 @@ cndb_kvs_info(
     cndb_kvs_callback   *cb);
 
 typedef merr_t
-cn_init_callback(void *, struct kvset_meta *, u64);
+cn_init_callback(void *, struct kvset_meta *, uint64_t);
 
 /* MTF_MOCK */
 merr_t
-cndb_cn_instantiate(struct cndb *cndb, u64 cnid, void *ctx, cn_init_callback *cb);
+cndb_cn_instantiate(struct cndb *cndb, uint64_t cnid, void *ctx, cn_init_callback *cb);
 
 merr_t
 cndb_kvset_delete(struct cndb *cndb, uint64_t cnid, uint64_t kvsetid);
 
 /* MTF_MOCK */
 struct kvs_cparams *
-cndb_kvs_cparams(struct cndb *cndb, u64 cnid);
+cndb_kvs_cparams(struct cndb *cndb, uint64_t cnid);
 
 struct mpool_mdc *
 cndb_mdc_get(struct cndb *cndb);

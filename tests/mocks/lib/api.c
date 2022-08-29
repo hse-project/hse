@@ -1,29 +1,30 @@
 /* SPDX-License-Identifier: Apache-2.0 */
 /*
- * Copyright (C) 2015-2017,2021 Micron Technology, Inc. All rights reserved.
+ * Copyright (C) 2015-2022 Micron Technology, Inc. All rights reserved.
  */
+
+#include <stdint.h>
 
 #include <mtf/conditions.h>
 #include <mock/api.h>
 
 #include <hse/util/arch.h>
-#include <hse/util/inttypes.h>
 #include <hse/util/assert.h>
 #include <hse/util/atomic.h>
 #include <hse/util/compiler.h>
 
 union rc {
-    u64   i;
+    uint64_t i;
     void *ptr;
 };
 
 struct mocked_api {
-    u64 start1 HSE_ACP_ALIGNED;
-    u64        stop1;
-    union rc   rc1;
+    uint64_t start1 HSE_ACP_ALIGNED;
+    uint64_t stop1;
+    union rc rc1;
 
-    u64      start2;
-    u64      stop2;
+    uint64_t start2;
+    uint64_t stop2;
     union rc rc2;
 
     atomic_ulong calls HSE_L1D_ALIGNED;
@@ -45,12 +46,10 @@ bool mapi_enabled;
 void
 mapi_init(void)
 {
-    u32 i;
-
     if (mapi_enabled)
         return;
 
-    for (i = 0; i < max_mapi_idx; ++i)
+    for (uint32_t i = 0; i < max_mapi_idx; ++i)
         mock_ptrs[i] = &mock_tab[i];
 
     /*
@@ -78,7 +77,7 @@ mapi_init(void)
 }
 
 static bool
-valid_api(u32 api)
+valid_api(uint32_t api)
 {
     if (!mapi_enabled || api >= max_mapi_idx) {
         assert(mapi_enabled);
@@ -119,16 +118,16 @@ mapi_safe_free(void *mem)
     free(mem);
 }
 
-u64
-mapi_calls(u32 api)
+uint64_t
+mapi_calls(uint32_t api)
 {
     return valid_api(api) ? atomic_read(&mock_ptrs[api]->calls) : 0;
 }
 
-u64
-mapi_calls_clear(u32 api)
+uint64_t
+mapi_calls_clear(uint32_t api)
 {
-    u64 count;
+    uint64_t count;
 
     if (!valid_api(api))
         return 0;
@@ -140,7 +139,14 @@ mapi_calls_clear(u32 api)
 }
 
 void
-mapi_inject_set(u32 api, u32 start1, u32 stop1, u64 rc1, u32 start2, u32 stop2, u64 rc2)
+mapi_inject_set(
+    uint32_t api,
+    uint32_t start1,
+    uint32_t stop1,
+    uint64_t rc1,
+    uint32_t start2,
+    uint32_t stop2,
+    uint64_t rc2)
 {
     struct mocked_api *m;
 
@@ -158,7 +164,7 @@ mapi_inject_set(u32 api, u32 start1, u32 stop1, u64 rc1, u32 start2, u32 stop2, 
 }
 
 void
-mapi_inject_set_ptr(u32 api, u32 start1, u32 stop1, void *rc1, u32 start2, u32 stop2, void *rc2)
+mapi_inject_set_ptr(uint32_t api, uint32_t start1, uint32_t stop1, void *rc1, uint32_t start2, uint32_t stop2, void *rc2)
 {
     struct mocked_api *m;
 
@@ -176,7 +182,7 @@ mapi_inject_set_ptr(u32 api, u32 start1, u32 stop1, void *rc1, u32 start2, u32 s
 }
 
 void
-mapi_inject_unset(u32 api)
+mapi_inject_unset(uint32_t api)
 {
     struct mocked_api *m;
 
@@ -188,9 +194,9 @@ mapi_inject_unset(u32 api)
 }
 
 void
-mapi_inject_unset_range(u32 lo, u32 hi)
+mapi_inject_unset_range(uint32_t lo, uint32_t hi)
 {
-    u32 api;
+    uint32_t api;
 
     for (api = lo; api <= hi; api++)
         mapi_inject_unset(api);
@@ -206,10 +212,10 @@ mapi_inject_clear()
  * inject_check - implement injectable errors based on number of calls
  */
 static bool
-inject_check(u32 api, union rc *urc)
+inject_check(uint32_t api, union rc *urc)
 {
     struct mocked_api *m;
-    u64                calls;
+    uint64_t                calls;
 
     if (!valid_api(api))
         return false;
@@ -234,7 +240,7 @@ inject_check(u32 api, union rc *urc)
  * handles ptr return values
  */
 bool
-mapi_inject_check_ptr(u32 api, void **pp)
+mapi_inject_check_ptr(uint32_t api, void **pp)
 {
     union rc urc;
     bool     rc;
@@ -249,7 +255,7 @@ mapi_inject_check_ptr(u32 api, void **pp)
  * handles integer return values
  */
 bool
-mapi_inject_check(u32 api, u64 *i)
+mapi_inject_check(uint32_t api, uint64_t *i)
 {
     union rc urc;
     bool     rc;

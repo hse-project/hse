@@ -1,7 +1,9 @@
 /* SPDX-License-Identifier: Apache-2.0 */
 /*
- * Copyright (C) 2015-2021 Micron Technology, Inc.  All rights reserved.
+ * Copyright (C) 2015-2022 Micron Technology, Inc.  All rights reserved.
  */
+
+#include <stdint.h>
 
 #include <mtf/framework.h>
 
@@ -17,7 +19,7 @@ MTF_DEFINE_UTEST(hash_test, DoesAnything)
 {
     const char *buf1 = "The cow jumped over the moon";
     const char *buf2 = "Now just wait a minute";
-    u64         val1, val2;
+    uint64_t    val1, val2;
 
     val1 = hse_hash64(buf1, strlen(buf1));
     val2 = hse_hash64(buf2, strlen(buf2));
@@ -28,7 +30,7 @@ MTF_DEFINE_UTEST(hash_test, RepeatableBasic)
 {
     const char *buf1 = "Wilbur! Wilbur!";
     const char *buf2 = "Now, that just ain't right.";
-    u64         val1, val2;
+    uint64_t    val1, val2;
 
     val1 = hse_hash64(buf1, strlen(buf1));
     val2 = hse_hash64(buf1, strlen(buf1));
@@ -42,7 +44,7 @@ MTF_DEFINE_UTEST(hash_test, RepeatableBasic)
 MTF_DEFINE_UTEST(hash_test, RepeatableEmpty)
 {
     const char *buf1 = "";
-    u64         val1, val2;
+    uint64_t    val1, val2;
 
     val1 = hse_hash64(buf1, strlen(buf1));
     val2 = hse_hash64(buf1, strlen(buf1));
@@ -53,7 +55,7 @@ MTF_DEFINE_UTEST(hash_test, FanoutDistribution)
 {
     int  d1[8] = { 0 }, d2[8] = { 0 }, d3[8] = { 0 };
     char buf[3] = { 0, 0, 1 };
-    u64  h;
+    uint64_t h;
     int  i, j, n;
 
     n = 0;
@@ -83,8 +85,8 @@ MTF_DEFINE_UTEST(hash_test, hash_seed)
 {
     const char str[] = "read me";
     size_t     sz = sizeof(str);
-    u64        val1, val2;
-    s64        i;
+    uint64_t   val1, val2;
+    int64_t    i;
 
     val1 = hse_hash64(str, sz);
     val2 = hse_hash64_seed(str, sz, 0);
@@ -118,7 +120,7 @@ MTF_DEFINE_UTEST(hash_test, split_key_test)
 {
     const char *buf1 = "The cow jumped over the moon";
     const char *buf2 = "Now just wait a darn minute. Is this sentence long enough?";
-    u64         single;
+    uint64_t         single;
     int         i;
 
     /* buf 1 */
@@ -126,7 +128,7 @@ MTF_DEFINE_UTEST(hash_test, split_key_test)
     for (i = 0; i < strlen(buf1); i++) {
         const char *p = buf1;
         const char *s = buf1 + i;
-        u64         object = 0;
+        uint64_t    object = 0;
 
         object = hse_hash64v(p, i, s, strlen(buf1) - i);
         ASSERT_EQ(single, object);
@@ -137,7 +139,7 @@ MTF_DEFINE_UTEST(hash_test, split_key_test)
     for (i = 0; i < strlen(buf2); i++) {
         const char *p = buf2;
         const char *s = buf2 + i;
-        u64         object = 0;
+        uint64_t    object = 0;
 
         object = hse_hash64v(p, i, s, strlen(buf2) - i);
         ASSERT_EQ(single, object);

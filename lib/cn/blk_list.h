@@ -1,12 +1,13 @@
 /* SPDX-License-Identifier: Apache-2.0 */
 /*
- * Copyright (C) 2015-2020 Micron Technology, Inc.  All rights reserved.
+ * Copyright (C) 2015-2022 Micron Technology, Inc.  All rights reserved.
  */
 
 #ifndef HSE_KVS_CN_BLK_LIST_H
 #define HSE_KVS_CN_BLK_LIST_H
 
-#include <hse/util/inttypes.h>
+#include <stdint.h>
+
 #include <hse/error/merr.h>
 
 /* MTF_MOCK_DECL(blk_list) */
@@ -40,7 +41,7 @@ blk_list_init(struct blk_list *blkl);
 
 /* MTF_MOCK */
 merr_t
-blk_list_append(struct blk_list *blks, u64 blkid);
+blk_list_append(struct blk_list *blks, uint64_t blkid);
 
 /* MTF_MOCK */
 void

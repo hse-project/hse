@@ -8,9 +8,13 @@
 
 /* MTF_MOCK_DECL(wbt_builder) */
 
-#include <hse/error/merr.h>
-#include <hse/util/inttypes.h>
+#include <stdbool.h>
+#include <stdint.h>
+#include <sys/types.h>
 
+#include <hse/error/merr.h>
+
+struct iovec;
 struct key_obj;
 struct wbb;
 struct wbt_hdr_omf;

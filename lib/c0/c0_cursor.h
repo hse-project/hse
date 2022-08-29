@@ -1,10 +1,12 @@
 /* SPDX-License-Identifier: Apache-2.0 */
 /*
- * Copyright (C) 2015-2021 Micron Technology, Inc.  All rights reserved.
+ * Copyright (C) 2015-2022 Micron Technology, Inc.  All rights reserved.
  */
 
 #ifndef HSE_KVS_C0_CURSOR_H
 #define HSE_KVS_C0_CURSOR_H
+
+#include <stdint.h>
 
 #include <hse/limits.h>
 
@@ -70,14 +72,14 @@ struct c0_cursor {
     struct c0sk *                 c0cur_c0sk;
     struct cursor_summary *       c0cur_summary;
     struct kvs_cursor_element     c0cur_elem;
-    u64                           c0cur_seqno;
-    u64                           c0cur_inv_gen;
-    u32                           c0cur_inv_cnt;
+    uint64_t                      c0cur_seqno;
+    uint64_t                      c0cur_inv_gen;
+    uint32_t                      c0cur_inv_cnt;
     merr_t                        c0cur_merr;
     int                           c0cur_debug;
     int                           c0cur_reverse;
     int                           c0cur_skidx;
-    u32                           c0cur_ct_pfx_len;
+    uint32_t                      c0cur_ct_pfx_len;
     int                           c0cur_pfx_len;
     int                           c0cur_cnt;
     int                           c0cur_alloc_cnt;
@@ -88,7 +90,7 @@ struct c0_cursor {
     struct c0_kvmultiset_cursor **c0cur_curv;
     void *                        c0cur_ptomb_key;
     size_t                        c0cur_ptomb_klen;
-    u64                           c0cur_ptomb_seq;
+    uint64_t                      c0cur_ptomb_seq;
     struct element_source *       c0cur_ptomb_es;
     struct kc_filter *            c0cur_filter;
 };

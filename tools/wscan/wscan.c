@@ -11,9 +11,12 @@
 
 #define USE_EVENT_TIMER
 
+#include <errno.h>
 #include <getopt.h>
 #include <pthread.h>
+#include <signal.h>
 #include <stdbool.h>
+#include <stdint.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
@@ -23,7 +26,6 @@
 #include <hse/hse.h>
 #include <hse/util/event_timer.h>
 #include <hse/util/fmt.h>
-#include <hse/util/inttypes.h>
 
 #include <tools/common.h>
 #include <tools/parm_groups.h>
@@ -37,16 +39,16 @@ showkey(const void *key, size_t klen)
     printf("%lu %s\n", klen, kbuf);
 }
 
-u32
-mk_key(char *buf, u64 key)
+uint32_t
+mk_key(char *buf, uint64_t key)
 {
-    return snprintf((char *)buf, 1000, "%08x", (u32)key);
+    return snprintf((char *)buf, 1000, "%08x", (uint32_t)key);
 }
 
-u32
-mk_val(char *buf, u64 val)
+uint32_t
+mk_val(char *buf, uint64_t val)
 {
-    *(u64 *)buf = val;
+    *(uint64_t *)buf = val;
     return sizeof(val);
 }
 
@@ -90,16 +92,16 @@ main(int argc, char **argv)
     struct hse_kvs_cursor *cur;
     struct hse_kvdb *      h;
     struct hse_kvs *       kvs;
-    u64                    start = 0;
-    u64                    incr = 100000;
+    uint64_t                    start = 0;
+    uint64_t                    incr = 100000;
     int                    update, c0, get;
     int                    c;
     int                    rc;
     hse_err_t              err;
     unsigned               opt_help = 0;
 
-    u64              key = start;
-    u64              end = start + incr;
+    uint64_t         key = start;
+    uint64_t         end = start + incr;
     size_t           klen, vlen;
     bool             eof;
     time_t           t, tnext = 0;
@@ -302,7 +304,7 @@ main(int argc, char **argv)
     key = start;
     while (!_sig && ++key < end) {
         const void *k, *v;
-        u64         n = 1;
+        uint64_t         n = 1;
 
         klen = mk_key(kbuf, key);
 
@@ -315,7 +317,7 @@ main(int argc, char **argv)
             break;
 
         if (!c0)
-            n = *(u64 *)v + 1;
+            n = *(uint64_t *)v + 1;
         vlen = mk_val(vbuf, n);
         err = hse_kvs_put(kvs, 0, NULL, kbuf, klen, vbuf, vlen);
         if (err) {
@@ -362,10 +364,10 @@ main(int argc, char **argv)
         if (errmsg)
             break;
 
-        if (*(u64 *)v != n) {
+        if (*(uint64_t *)v != n) {
             const void *x = vbuf;
 
-            printf("key %ld  val %ld  wrote %ld  expect %ld\n", key, *(u64 *)v, *(u64 *)x, n);
+            printf("key %ld  val %ld  wrote %ld  expect %ld\n", key, *(uint64_t *)v, *(uint64_t *)x, n);
             err = key;
             errmsg = "value not updated!";
             break;

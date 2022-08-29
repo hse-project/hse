@@ -23,6 +23,7 @@
 #include <hse/hse.h>
 #include <hse/logging/logging.h>
 #include <hse/pidfile/pidfile.h>
+#include <hse/util/base.h>
 #include <hse/util/compiler.h>
 #include <hse/util/parse_num.h>
 #include <hse/version.h>

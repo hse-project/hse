@@ -22,6 +22,7 @@
  */
 
 #include <getopt.h>
+#include <stdint.h>
 
 #include <bsd/string.h>
 
@@ -35,7 +36,7 @@
 #include <hse/util/parse_num.h>
 
 struct oid_pair {
-    u64 oid[2];
+    uint64_t oid[2];
 };
 
 static struct options {
@@ -48,8 +49,8 @@ static struct options {
     bool     help;
 } opt;
 
-u8         *pattern;
-u32         pattern_len;
+uint8_t *pattern;
+uint32_t pattern_len;
 
 #define MIN_SECTOR_SIZE  512
 #define SECTOR_OVERHEAD  0
@@ -59,10 +60,10 @@ u32         pattern_len;
 
 #define MAX_PATTERN_SIZE 256
 
-static u8
-c_to_n(u8 c)
+static uint8_t
+c_to_n(uint8_t c)
 {
-    u8 n = 255;
+    uint8_t n = 255;
 
     if ((c >= '0') && ('9' >= c))
         n = c - '0';
@@ -109,10 +110,10 @@ pattern_base(char *base)
 }
 
 static void
-pattern_fill(char *buf, u32 buf_sz)
+pattern_fill(char *buf, uint32_t buf_sz)
 {
-    u32 remaining = buf_sz;
-    u32 idx;
+    uint32_t remaining = buf_sz;
+    uint32_t idx;
 
     while (remaining > 0) {
         idx = buf_sz - remaining;
@@ -122,10 +123,10 @@ pattern_fill(char *buf, u32 buf_sz)
 }
 
 static int
-pattern_compare(char *buf, u32 buf_sz)
+pattern_compare(char *buf, uint32_t buf_sz)
 {
-    u32 remaining = buf_sz;
-    u32 idx;
+    uint32_t remaining = buf_sz;
+    uint32_t idx;
 
     while (remaining > 0) {
         idx = buf_sz - remaining;
@@ -156,14 +157,14 @@ struct thread_resp {
     void  *resp;
 };
 
-static u32
-calc_record_count(u64 total_size, u32 record_size)
+static uint32_t
+calc_record_count(uint64_t total_size, uint32_t record_size)
 {
-    u32 sector_cnt = total_size / MIN_SECTOR_SIZE;
-    u32 sector_overhead = sector_cnt * SECTOR_OVERHEAD;
-    u32 real_record_size;
-    u32 record_cnt;
-    u32 record_overhead;
+    uint32_t sector_cnt = total_size / MIN_SECTOR_SIZE;
+    uint32_t sector_overhead = sector_cnt * SECTOR_OVERHEAD;
+    uint32_t real_record_size;
+    uint32_t record_cnt;
+    uint32_t record_overhead;
 
     if (record_size < USABLE_SECT_SIZE)
         /* worst case a record can span two sectors */
@@ -265,26 +266,26 @@ static unsigned int mclass = HSE_MCLASS_CAPACITY;
 
 struct ml_writer_args {
     struct mpool   *mp;
-    u32             rs; /* write size in bytes */
-    u32             wc; /* write count */
+    uint32_t        rs; /* write size in bytes */
+    uint32_t        wc; /* write count */
     struct oid_pair oid;
 };
 
 struct ml_writer_resp {
     merr_t err;
-    u32    usec;
-    u64    bytes_written;
+    uint32_t usec;
+    uint64_t bytes_written;
 };
 
 static void *
 ml_writer(void *arg)
 {
     merr_t err;
-    int    i;
-    char  *buf;
-    u32    usec;
-    char   err_str[256];
-    long   written = 0;
+    int i;
+    char *buf;
+    uint32_t usec;
+    char err_str[256];
+    long written = 0;
 
     struct thread_args    *targs = (struct thread_args *)arg;
     struct ml_writer_args *args = (struct ml_writer_args *)targs->arg;
@@ -293,10 +294,10 @@ ml_writer(void *arg)
     struct timeval         start_tv, stop_tv;
     int                    id = targs->instance;
     size_t                 used, alloc, size;
-    u64                    oid1 = args->oid.oid[0];
-    u64                    oid2 = args->oid.oid[1];
-    u32                    write_cnt = args->wc;
-    u32                    write_sz = args->rs;
+    uint64_t               oid1 = args->oid.oid[0];
+    uint64_t               oid2 = args->oid.oid[1];
+    uint32_t               write_cnt = args->wc;
+    uint32_t               write_sz = args->rs;
 
     resp = calloc(1, sizeof(*resp));
     if (!resp) {
@@ -403,25 +404,25 @@ close_mdc:
 
 struct ml_reader_args {
     struct mpool   *mp;
-    u32             rs; /* read size in bytes */
-    u32             rc; /* read count */
+    uint32_t        rs; /* read size in bytes */
+    uint32_t        rc; /* read count */
     struct oid_pair oid;
 };
 
 struct ml_reader_resp {
     merr_t err;
-    u32    usec;
-    u64    read;
+    uint32_t usec;
+    uint64_t read;
 };
 
 static void *
 ml_reader(void *arg)
 {
     merr_t err;
-    int    i;
-    char  *buf;
-    u32    usec;
-    char   err_str[256];
+    int i;
+    char *buf;
+    uint32_t usec;
+    char err_str[256];
     size_t bytes_read = 0;
 
     struct thread_args    *targs = (struct thread_args *)arg;
@@ -431,9 +432,9 @@ ml_reader(void *arg)
     struct timeval         start_tv, stop_tv;
     int                    id = targs->instance;
     size_t                 used, alloc, size;
-    u64                    oid1 = args->oid.oid[0];
-    u64                    oid2 = args->oid.oid[1];
-    u32                    read_cnt = args->rc;
+    uint64_t               oid1 = args->oid.oid[0];
+    uint64_t               oid2 = args->oid.oid[1];
+    uint32_t               read_cnt = args->rc;
 
     resp = calloc(1, sizeof(*resp));
     if (!resp) {
@@ -529,15 +530,15 @@ ml_reader(void *arg)
 
 struct ml_verify_args {
     struct mpool   *mp;
-    u32             rs; /* read size in bytes */
-    u32             rc; /* read count */
+    uint32_t        rs; /* read size in bytes */
+    uint32_t        rc; /* read count */
     struct oid_pair oid;
 };
 
 struct ml_verify_resp {
     merr_t err;
-    u32    usec;
-    u64    verified;
+    uint32_t usec;
+    uint64_t verified;
 };
 
 static void *
@@ -546,7 +547,7 @@ ml_verify(void *arg)
     merr_t err;
     int    i;
     char  *buf;
-    u32    usec;
+    uint32_t usec;
     char   err_str[256];
     size_t bytes_read = 0;
     int    ret;
@@ -558,9 +559,9 @@ ml_verify(void *arg)
     struct timeval         start_tv, stop_tv;
     int                    id = targs->instance;
     size_t                 used, alloc, size;
-    u64                    oid1 = args->oid.oid[0];
-    u64                    oid2 = args->oid.oid[1];
-    u32                    read_cnt = args->rc;
+    uint64_t               oid1 = args->oid.oid[0];
+    uint64_t               oid2 = args->oid.oid[1];
+    uint32_t               read_cnt = args->rc;
 
     resp = calloc(1, sizeof(*resp));
     if (!resp) {
@@ -664,18 +665,18 @@ static merr_t
 perf_seq_writes(const char *path)
 {
     merr_t err = 0;
-    u32    tc;
-    int    i;
-    int    err_cnt;
-    char   err_str[256];
-    u32    usec;
-    u32    write_cnt;
-    u64    per_thread_size;
-    u64    bytes_written;
-    u64    bytes_read;
-    u64    bytes_verified;
+    uint32_t tc;
+    int i;
+    int err_cnt;
+    char err_str[256];
+    uint32_t usec;
+    uint32_t write_cnt;
+    uint64_t per_thread_size;
+    uint64_t bytes_written;
+    uint64_t bytes_read;
+    uint64_t bytes_verified;
     double perf;
-    int    ret;
+    int ret;
 
     struct mpool_rparams params = {0};
     struct ml_writer_resp *wr_resp;

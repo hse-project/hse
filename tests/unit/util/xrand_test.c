@@ -1,7 +1,9 @@
 /* SPDX-License-Identifier: Apache-2.0 */
 /*
- * Copyright (C) 2020 Micron Technology, Inc.  All rights reserved.
+ * Copyright (C) 2020-2022 Micron Technology, Inc.  All rights reserved.
  */
+
+#include <stdint.h>
 
 #include <hse/util/xrand.h>
 #include <hse/util/base.h>
@@ -10,8 +12,8 @@
 
 int compare_u64(const void *ptr_a, const void *ptr_b)
 {
-    u64 a = *(u64 *)ptr_a;
-    u64 b = *(u64 *)ptr_b;
+    uint64_t a = *(uint64_t *)ptr_a;
+    uint64_t b = *(uint64_t *)ptr_b;
 
     if (a < b)
         return -1;
@@ -36,12 +38,12 @@ MTF_BEGIN_UTEST_COLLECTION(xrand_test);
 
 MTF_DEFINE_UTEST(xrand_test, seed_test)
 {
-    u64 seedv[] = { 1, 2, 1234, (u64)-1234, U64_MAX, (u64)S64_MAX };
+    uint64_t seedv[] = { 1, 2, 1234, (uint64_t)-1234, UINT64_MAX, (uint64_t)INT64_MAX };
     uint seedc = sizeof(seedv) / sizeof(seedv[0]);
     uint iters = SEQUENCE_LEN;
 
     struct xrand xr1, xr2;
-    u64 v1, v2, s1, s2;
+    uint64_t v1, v2, s1, s2;
 
     /* Same seed ==> same sequence. */
     for (uint sx = 0; sx < seedc; sx++) {
@@ -94,7 +96,7 @@ MTF_DEFINE_UTEST(xrand_test, norepeat)
     uint iters = SEQUENCE_LEN;
     uint64_t *values;
 
-    values = mapi_safe_malloc(iters * sizeof(u64));
+    values = mapi_safe_malloc(iters * sizeof(uint64_t));
     ASSERT_TRUE(values != NULL);
 
     for (uint sx = 0; sx < seedc; sx++) {
@@ -106,7 +108,7 @@ MTF_DEFINE_UTEST(xrand_test, norepeat)
         for (uint i = 0; i < iters; i++)
             values[i] = xrand64(&xr);
 
-        qsort(values, iters, sizeof(u64), compare_u64);
+        qsort(values, iters, sizeof(uint64_t), compare_u64);
 
         for (uint i = 0; i + 1 < iters; i++) {
 
@@ -135,15 +137,15 @@ MTF_DEFINE_UTEST(xrand_test, norepeat)
 MTF_DEFINE_UTEST(xrand_test, tls_norepeat)
 {
     uint iters = SEQUENCE_LEN_TLS;
-    u64 *values;
+    uint64_t *values;
 
-    values = mapi_safe_malloc(iters * sizeof(u64));
+    values = mapi_safe_malloc(iters * sizeof(uint64_t));
     ASSERT_TRUE(values != NULL);
 
     for (uint i = 0; i < iters; i++)
         values[i] = xrand64_tls();
 
-    qsort(values, iters, sizeof(u64), compare_u64);
+    qsort(values, iters, sizeof(uint64_t), compare_u64);
 
     for (uint i = 0; i + 1 < iters; i++) {
 
@@ -162,7 +164,7 @@ MTF_DEFINE_UTEST(xrand_test, tls_norepeat)
 
 struct tinfo {
     pthread_t   tid;
-    u64         values[SEQUENCE_LEN_TLS];
+    uint64_t    values[SEQUENCE_LEN_TLS];
 };
 
 void *

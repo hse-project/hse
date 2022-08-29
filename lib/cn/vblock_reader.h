@@ -1,12 +1,13 @@
 /* SPDX-License-Identifier: Apache-2.0 */
 /*
- * Copyright (C) 2015-2020 Micron Technology, Inc.  All rights reserved.
+ * Copyright (C) 2015-2022 Micron Technology, Inc.  All rights reserved.
  */
 
 #ifndef HSE_KVS_CN_VBLOCK_READER_H
 #define HSE_KVS_CN_VBLOCK_READER_H
 
-#include <hse/util/inttypes.h>
+#include <stdint.h>
+
 #include <hse/util/workqueue.h>
 #include <hse/ikvdb/tuple.h>
 
@@ -26,8 +27,8 @@
  * bkt:     current or next range already read ahead
  */
 struct ra_hist {
-    u16 vgidx;
-    u16 bkt;
+    uint16_t vgidx;
+    uint16_t bkt;
 };
 
 /**
@@ -73,7 +74,7 @@ merr_t
 vbr_desc_update_vgidx(
     struct vblock_desc *vblock_desc,
     uint               *vgroupc,
-    u64                *vgroupv);
+    uint64_t           *vgroupv);
 
 /**
  * vbr_madvise_async() - initiate async vblock readahead

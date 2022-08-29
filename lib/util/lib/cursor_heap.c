@@ -3,6 +3,7 @@
  * Copyright (C) 2015-2022 Micron Technology, Inc.  All rights reserved.
  */
 
+#include <stdint.h>
 #include <sys/mman.h>
 
 #include <hse/util/arch.h>
@@ -51,7 +52,7 @@ cheap_create(size_t alignment, size_t size)
         h->magic = (uintptr_t)h;
         h->alignment = alignment;
         h->size = size - offset - halign - CHEAP_POISON_SZ;
-        h->base = (u64)h + halign;
+        h->base = (uint64_t)h + halign;
         h->cursorp = h->base;
         h->brk = PAGE_ALIGN(h->cursorp);
         h->lastp = 0;
@@ -110,14 +111,14 @@ cheap_trim(struct cheap *h, size_t rss)
     if (rss < h->cursorp - h->base)
         rss = PAGE_ALIGN(h->cursorp - h->base);
 
-    if (rss > h->brk - (u64)h->mem)
+    if (rss > h->brk - (uint64_t)h->mem)
         return;
 
-    len = h->brk - (u64)h->mem - rss;
+    len = h->brk - (uint64_t)h->mem - rss;
     if (len < PAGE_SIZE)
         return;
 
-    h->brk = (u64)h->mem + rss;
+    h->brk = (uint64_t)h->mem + rss;
 
     rc = madvise(h->mem + rss, len, MADV_FREE);
 
@@ -127,7 +128,7 @@ cheap_trim(struct cheap *h, size_t rss)
 static inline void *
 cheap_memalign_impl(struct cheap *h, size_t alignment, size_t size)
 {
-    u64 allocp;
+    uint64_t allocp;
 
     assert(h->magic == (uintptr_t)h);
 
@@ -171,7 +172,7 @@ cheap_malloc(struct cheap *h, size_t size)
 void
 cheap_free(struct cheap *h, void *addr)
 {
-    if (h->lastp && (u64)addr == h->lastp) {
+    if (h->lastp && (uint64_t)addr == h->lastp) {
         if (h->brk < h->cursorp)
             h->brk = PAGE_ALIGN(h->cursorp);
         h->cursorp = h->lastp;

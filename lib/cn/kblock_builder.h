@@ -6,8 +6,11 @@
 #ifndef HSE_KVS_CN_KBLOCK_BUILDER_H
 #define HSE_KVS_CN_KBLOCK_BUILDER_H
 
+#include <stdbool.h>
+#include <stddef.h>
+#include <stdint.h>
+
 #include <hse/error/merr.h>
-#include <hse/util/inttypes.h>
 
 #include <hse/util/perfc.h>
 #include <hse/util/key_util.h>

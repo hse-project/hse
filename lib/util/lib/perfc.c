@@ -5,6 +5,8 @@
 
 #define MTF_MOCK_IMPL_perfc
 
+#include <stdint.h>
+
 #include <bsd/string.h>
 #include <cjson/cJSON.h>
 #include <cjson/cJSON_Utils.h>
@@ -32,11 +34,11 @@ perfc_ra_emit(struct perfc_rate *const rate, cJSON *const ctr)
 {
     bool bad = false;
     struct perfc_val *val;
-    u64  dt, dx, ops;
-    u64  vadd, vsub;
-    u64  curr, prev;
-    u64  curr_ns;
-    int  i;
+    uint64_t dt, dx, ops;
+    uint64_t vadd, vsub;
+    uint64_t curr, prev;
+    uint64_t curr_ns;
+    int i;
 
     curr_ns = get_time_ns();
     dt = curr_ns - rate->pcr_old_time_ns;
@@ -152,7 +154,7 @@ out:
 }
 
 static void
-perfc_read_hdr(struct perfc_ctr_hdr *hdr, u64 *vadd, u64 *vsub)
+perfc_read_hdr(struct perfc_ctr_hdr *hdr, uint64_t *vadd, uint64_t *vsub)
 {
     struct perfc_val *val = hdr->pch_val;
 
@@ -170,7 +172,7 @@ perfc_read_hdr(struct perfc_ctr_hdr *hdr, u64 *vadd, u64 *vsub)
 }
 
 void
-perfc_read(struct perfc_set *pcs, const u32 cidx, u64 *vadd, u64 *vsub)
+perfc_read(struct perfc_set *pcs, const uint32_t cidx, uint64_t *vadd, uint64_t *vsub)
 {
     struct perfc_seti *pcsi;
 
@@ -214,7 +216,7 @@ perfc_emit_handler_ctrset(struct dt_element *const dte, cJSON *const root)
     /* Emit all the counters of the counter set instance. */
     for (uint32_t cidx = 0; cidx < seti->pcs_ctrc; cidx++) {
         cJSON *ctr;
-        u64 vadd, vsub;
+        uint64_t vadd, vsub;
 
         ctr = cJSON_CreateObject();
         if (ev(!ctr)) {
@@ -337,8 +339,8 @@ perfc_init(void)
         .dte_func = __func__,
         .dte_path = PERFC_DT_PATH,
     };
-    u64    boundv[PERFC_IVL_MAX];
-    u64    bound;
+    uint64_t boundv[PERFC_IVL_MAX];
+    uint64_t bound;
     merr_t err;
 
     /* Create the bounds vector for the default latency distribution
@@ -405,7 +407,7 @@ perfc_fini(void)
 }
 
 merr_t
-perfc_ivl_create(int boundc, const u64 *boundv, struct perfc_ivl **ivlp)
+perfc_ivl_create(int boundc, const uint64_t *boundv, struct perfc_ivl **ivlp)
 {
     struct perfc_ivl *ivl;
     size_t            sz;
@@ -505,7 +507,7 @@ perfc_alloc_impl(
     size_t valdatasz, sz;
     size_t familylen;
     merr_t err = 0;
-    u32 n, i;
+    uint32_t n, i;
     int rc;
 
     if (!group || !ctrv || ctrc < 1 || ctrc > PERFC_CTRS_MAX || !setp)
@@ -728,10 +730,10 @@ perfc_ctrseti_path(struct perfc_set *set)
 static_assert(sizeof(struct perfc_val) >= sizeof(struct perfc_bkt), "sizeof perfc_bkt too large");
 
 static HSE_ALWAYS_INLINE void
-perfc_latdis_record(struct perfc_dis *dis, u64 sample)
+perfc_latdis_record(struct perfc_dis *dis, uint64_t sample)
 {
     struct perfc_bkt *bkt;
-    u32               i;
+    uint32_t          i;
 
     if (sample > dis->pdi_max)
         dis->pdi_max = sample;
@@ -761,7 +763,7 @@ perfc_latdis_record(struct perfc_dis *dis, u64 sample)
 }
 
 void
-perfc_lat_record_impl(struct perfc_dis *dis, u64 sample)
+perfc_lat_record_impl(struct perfc_dis *dis, uint64_t sample)
 {
     assert(dis->pdi_hdr.pch_type == PERFC_TYPE_LT);
 
@@ -770,7 +772,7 @@ perfc_lat_record_impl(struct perfc_dis *dis, u64 sample)
 }
 
 void
-perfc_dis_record_impl(struct perfc_dis *dis, u64 sample)
+perfc_dis_record_impl(struct perfc_dis *dis, uint64_t sample)
 {
     assert(dis->pdi_hdr.pch_type == PERFC_TYPE_DI);
 

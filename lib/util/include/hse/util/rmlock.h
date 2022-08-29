@@ -8,6 +8,8 @@
 
 /* MTF_MOCK_DECL(rmlock) */
 
+#include <stdint.h>
+
 #include <hse/util/arch.h>
 #include <hse/util/atomic.h>
 #include <hse/util/compiler.h>
@@ -29,7 +31,7 @@ struct rmlock_bkt {
 
 struct rmlock {
     struct rmlock_bkt  *rm_bktv;
-    u32                 rm_bktmax;
+    uint32_t            rm_bktmax;
 
     atomic_int          rm_writer HSE_ALIGNED(64);
     pthread_rwlock_t    rm_rwlock;

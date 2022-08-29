@@ -3,11 +3,13 @@
  * Copyright (C) 2015-2022 Micron Technology, Inc.  All rights reserved.
  */
 
+#include <stdint.h>
+
 #include <rbtree.h>
 
+#include <hse/util/base.h>
 #include <hse/util/xrand.h>
 
-#include <hse/util/inttypes.h>
 #include <hse/logging/logging.h>
 
 #include <mtf/framework.h>
@@ -31,7 +33,7 @@ struct test_set {
 };
 
 struct test_set *
-test_set_create(int num_entries, u32 seed)
+test_set_create(int num_entries, uint32_t seed)
 {
     struct xrand     xr;
     struct test_set *ts;
@@ -69,9 +71,9 @@ test_set_create(int num_entries, u32 seed)
     }
 
     /* unbiased fisher yates */
-    for (i = 0; i < (u32)num_entries; i++) {
+    for (i = 0; i < (uint32_t)num_entries; i++) {
         int tmp;
-        u32 random_index = xrand_range64(&xr, i, (u32)num_entries);
+        const uint32_t random_index = xrand_range64(&xr, i, (uint32_t)num_entries);
 
         assert(random_index < num_entries); /* open-ended */
         tmp = ts->shuffled_keys[random_index];
@@ -386,7 +388,7 @@ MTF_DEFINE_UTEST_PREPOST(rbtree, shuffle_test, test_case_pre, test_case_post)
 {
     int i;
     int num_entries = 1000;
-    u32 seed = 1111;
+    uint32_t seed = 1111;
 
     struct rb_node * node;
     struct entry *   entry;
@@ -422,7 +424,7 @@ MTF_DEFINE_UTEST_PREPOST(rbtree, mixed, test_case_pre, test_case_post)
 {
     int i;
     int num_entries = 1000;
-    u32 seed = 2222;
+    uint32_t seed = 2222;
 
     struct rb_node * node;
     struct entry *   entry;

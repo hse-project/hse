@@ -5,6 +5,8 @@
 
 #define MTF_MOCK_IMPL_kvset_builder
 
+#include <stdint.h>
+
 #include <hse/util/platform.h>
 #include <hse/util/alloc.h>
 #include <hse/util/slab.h>
@@ -34,7 +36,7 @@ kvset_builder_create(
     struct kvset_builder **bld_out,
     struct cn *            cn,
     struct perfc_set *     pc,
-    u64                    vgroup)
+    uint64_t               vgroup)
 {
     struct kvset_builder *bld;
     merr_t err;
@@ -80,7 +82,7 @@ reserve_kmd(struct kmd_info *ki)
     uint need = 256;
     uint min_size = ki->kmd_used + need;
     uint new_size;
-    u8 * new_mem;
+    uint8_t * new_mem;
 
     if (ki->kmd_size >= min_size)
         return 0;
@@ -183,11 +185,11 @@ kvset_builder_add_val(
     const struct key_obj   *kobj,
     const void             *vdata,
     uint                    vlen,
-    u64                     seq,
+    uint64_t                seq,
     uint                    complen)
 {
     merr_t           err;
-    u64              seqno_prev;
+    uint64_t         seqno_prev;
     struct kmd_info *ki = vdata == HSE_CORE_TOMB_PFX ? &self->hblk_kmd : &self->kblk_kmd;
 
     if (ev(reserve_kmd(ki)))
@@ -211,7 +213,7 @@ kvset_builder_add_val(
     } else {
 
         uint vbidx = 0, vboff = 0;
-        u64 vbid = 0;
+        uint64_t vbid = 0;
         uint omlen; /* on media length */
 
         assert(vdata);
@@ -235,8 +237,8 @@ kvset_builder_add_val(
         self->key_stats.tot_vused += omlen;
     }
 
-    self->seqno_max = max_t(u64, self->seqno_max, seq);
-    self->seqno_min = min_t(u64, self->seqno_min, seq);
+    self->seqno_max = max_t(uint64_t, self->seqno_max, seq);
+    self->seqno_min = min_t(uint64_t, self->seqno_min, seq);
 
     if (vdata == HSE_CORE_TOMB_PFX) {
         seqno_prev = self->seqno_prev_ptomb;
@@ -264,7 +266,7 @@ kvset_builder_add_val(
 merr_t
 kvset_builder_add_vref(
     struct kvset_builder   *self,
-    u64                     seq,
+    uint64_t                seq,
     uint                    vbidx,
     uint                    vboff,
     uint                    vlen,
@@ -285,14 +287,14 @@ kvset_builder_add_vref(
     self->key_stats.tot_vused += om_len;
     self->key_stats.nvals++;
 
-    self->seqno_max = max_t(u64, self->seqno_max, seq);
-    self->seqno_min = min_t(u64, self->seqno_min, seq);
+    self->seqno_max = max_t(uint64_t, self->seqno_max, seq);
+    self->seqno_min = min_t(uint64_t, self->seqno_min, seq);
 
     return 0;
 }
 
 merr_t
-kvset_builder_add_nonval(struct kvset_builder *self, u64 seq, enum kmd_vtype vtype)
+kvset_builder_add_nonval(struct kvset_builder *self, uint64_t seq, enum kmd_vtype vtype)
 {
     struct kmd_info *ki = vtype == VTYPE_PTOMB ? &self->hblk_kmd : &self->kblk_kmd;
 
@@ -311,8 +313,8 @@ kvset_builder_add_nonval(struct kvset_builder *self, u64 seq, enum kmd_vtype vty
         return merr(ev(EBUG));
     }
 
-    self->seqno_max = max_t(u64, self->seqno_max, seq);
-    self->seqno_min = min_t(u64, self->seqno_min, seq);
+    self->seqno_max = max_t(uint64_t, self->seqno_max, seq);
+    self->seqno_min = min_t(uint64_t, self->seqno_min, seq);
 
     return 0;
 }

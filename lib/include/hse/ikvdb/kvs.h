@@ -1,15 +1,14 @@
 /* SPDX-License-Identifier: Apache-2.0 */
 /*
- * Copyright (C) 2015-2021 Micron Technology, Inc.  All rights reserved.
+ * Copyright (C) 2015-2022 Micron Technology, Inc.  All rights reserved.
  */
 
 #ifndef HSE_KVS_IKVS_H
 #define HSE_KVS_IKVS_H
 
+#include <hse/error/merr.h>
 #include <hse/util/arch.h>
 #include <hse/util/list.h>
-#include <hse/util/inttypes.h>
-#include <hse/error/merr.h>
 #include <hse/util/mutex.h>
 #include <hse/util/perfc.h>
 
@@ -47,9 +46,9 @@ struct hse_kvs_cursor {
     struct perfc_set *     kc_pkvsl_pc;
     struct kvdb_kvs *      kc_kvs;
     struct kvdb_ctxn_bind *kc_bind;
-    u64                    kc_gen;
-    u64                    kc_seq;
-    u64                    kc_create_time;
+    uint64_t               kc_gen;
+    uint64_t               kc_seq;
+    uint64_t               kc_create_time;
     volatile bool          kc_on_list;
     unsigned int           kc_flags;
     merr_t                 kc_err;
@@ -117,9 +116,9 @@ merr_t
 kvs_cursor_seek(
     struct hse_kvs_cursor *cursor,
     const void *           key,
-    u32                    len,
+    uint32_t               len,
     const void *           limit,
-    u32                    limit_len,
+    uint32_t               limit_len,
     struct kvs_ktuple *    kt);
 
 merr_t
@@ -172,35 +171,35 @@ kvs_put(
     struct hse_kvdb_txn *    txn,
     struct kvs_ktuple *      kt,
     struct kvs_vtuple       *vt,
-    u64                      seqno);
+    uint64_t                 seqno);
 
 merr_t
 kvs_get(
     struct ikvs *        ikvs,
     struct hse_kvdb_txn *txn,
     struct kvs_ktuple *  key,
-    u64                  seqno,
+    uint64_t             seqno,
     enum key_lookup_res *res,
     struct kvs_buf *     vbuf);
 
 merr_t
-kvs_del(struct ikvs *ikvs, struct hse_kvdb_txn *txn, struct kvs_ktuple *key, u64 seqno);
+kvs_del(struct ikvs *ikvs, struct hse_kvdb_txn *txn, struct kvs_ktuple *key, uint64_t seqno);
 
 merr_t
 kvs_pfx_probe(
     struct ikvs *        kvs,
     struct hse_kvdb_txn *txn,
     struct kvs_ktuple *  kt,
-    u64                  seqno,
+    uint64_t             seqno,
     enum key_lookup_res *res,
     struct kvs_buf *     kbuf,
     struct kvs_buf *     vbuf);
 
 merr_t
-kvs_prefix_del(struct ikvs *ikvs, struct hse_kvdb_txn *txn, struct kvs_ktuple *key, u64 seqno);
+kvs_prefix_del(struct ikvs *ikvs, struct hse_kvdb_txn *txn, struct kvs_ktuple *key, uint64_t seqno);
 
 void
-kvs_maint_task(struct ikvs *ikvs, u64 now);
+kvs_maint_task(struct ikvs *ikvs, uint64_t now);
 
 struct hse_kvs_cursor *
 kvs_cursor_alloc(struct ikvs *ikvs, const void *prefix, size_t pfx_len, bool reverse);
@@ -221,7 +220,7 @@ void
 kvs_cursor_reap(struct ikvs *kvs);
 
 merr_t
-kvs_cursor_update(struct hse_kvs_cursor *cursor, struct kvdb_ctxn *ctxn, u64 seqno);
+kvs_cursor_update(struct hse_kvs_cursor *cursor, struct kvdb_ctxn *ctxn, uint64_t seqno);
 
 /* kvdb_kvs interfaces...
  */
@@ -235,11 +234,11 @@ struct kvs_cparams *
 kvdb_kvs_cparams(struct kvdb_kvs *kk);
 
 /* MTF_MOCK */
-u32
+uint32_t
 kvdb_kvs_flags(struct kvdb_kvs *kk);
 
 /* MTF_MOCK */
-u64
+uint64_t
 kvdb_kvs_cnid(struct kvdb_kvs *kk);
 
 /* MTF_MOCK */

@@ -5,6 +5,8 @@
 
 #define MTF_MOCK_IMPL_kcompact
 
+#include <stdint.h>
+
 #include <hse/util/platform.h>
 #include <hse/util/event_counter.h>
 #include <hse/logging/logging.h>
@@ -56,16 +58,16 @@ kcompact(struct cn_compaction_work *w, struct kvset_builder *bldr)
     uint           vbidx, vboff, vlen, complen;
     const void *   vdata;
 
-    u64  seq, emitted_seq = 0, emitted_seq_pt = 0;
+    uint64_t seq, emitted_seq = 0, emitted_seq_pt = 0;
     bool emitted_val, horizon, more;
 
     struct key_obj prev_kobj, pt_kobj = { 0 };
 
-    bool pt_set = false;
-    u64  pt_seq = 0;
-    u64  tprog = 0;
+    bool     pt_set = false;
+    uint64_t pt_seq = 0;
+    uint64_t tprog = 0;
 
-    u64 dbg_prev_seq HSE_MAYBE_UNUSED;
+    uint64_t dbg_prev_seq HSE_MAYBE_UNUSED;
     uint dbg_prev_idx HSE_MAYBE_UNUSED;
     uint dbg_nvals_this_key HSE_MAYBE_UNUSED;
     bool dbg_dup HSE_MAYBE_UNUSED;
@@ -119,7 +121,7 @@ kcompact(struct cn_compaction_work *w, struct kvset_builder *bldr)
         }
 
         if (tprog) {
-            const u64 now = jiffies;
+            const uint64_t now = jiffies;
 
             if (now - tprog > w->cw_prog_interval) {
                 tprog = now;

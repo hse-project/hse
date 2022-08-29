@@ -6,9 +6,11 @@
 #ifndef HSE_KVS_CN_WBT_INTERNAL_H
 #define HSE_KVS_CN_WBT_INTERNAL_H
 
+#include <stdint.h>
+#include <sys/types.h>
+
 #include "kvs_mblk_desc.h"
 
-#include <hse/util/inttypes.h>
 #include <hse/util/compiler.h>
 #include <hse/util/byteorder.h>
 
@@ -38,8 +40,8 @@ wbt_lfe_key(
 {
     uint start, end;
 
-    /* Add 4 if lfe_kmd == U16_MAX, else add 0. */
-    start = omf_lfe_koff(lfe) + 4 * (omf_lfe_kmd(lfe) == U16_MAX);
+    /* Add 4 if lfe_kmd == UINT16_MAX, else add 0. */
+    start = omf_lfe_koff(lfe) + 4 * (omf_lfe_kmd(lfe) == UINT16_MAX);
 
     /* prefetch key data */
     __builtin_prefetch((void *)node + start);
@@ -57,8 +59,8 @@ wbt_lfe_kmd(const struct wbt_node_hdr_omf *node, const struct wbt_lfe_omf *lfe)
     uint32_t kmd_off = omf_lfe_kmd(lfe);
 
     /* Offset stored in front of key when its too large for 16-bits */
-    if (kmd_off == U16_MAX) {
-        const u32 *p = (void *)node + omf_lfe_koff(lfe);
+    if (kmd_off == UINT16_MAX) {
+        const uint32_t *p = (void *)node + omf_lfe_koff(lfe);
 
         kmd_off = omf32_to_cpu(*p);
     }

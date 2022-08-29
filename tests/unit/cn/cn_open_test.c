@@ -1,13 +1,14 @@
 /* SPDX-License-Identifier: Apache-2.0 */
 /*
- * Copyright (C) 2015-2021 Micron Technology, Inc.  All rights reserved.
+ * Copyright (C) 2015-2022 Micron Technology, Inc.  All rights reserved.
  */
+
+#include <stdint.h>
 
 #include <mtf/framework.h>
 #include <mock/api.h>
 
 #include <hse/error/merr.h>
-#include <hse/util/inttypes.h>
 
 #include <hse/ikvdb/kvs_cparams.h>
 #include <hse/ikvdb/cn.h>
@@ -36,7 +37,7 @@ struct cn_kvdb    *cn_kvdb;
 struct mpool *     ds;
 struct kvdb_kvs *  kk;
 struct cndb *      cndb;
-u64                cnid;
+uint64_t           cnid;
 struct kvs_rparams rp_struct, *rp;
 const char *       mp;
 const char *       kvs;
