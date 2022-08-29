@@ -1389,7 +1389,6 @@ cn_spill_delete_kvsets(struct cn_compaction_work *work)
 
     for (uint i = 0; i < work->cw_kvset_cnt; i++) {
         INVARIANT(le);
-        INVARIANT(tx);
 
         work->cw_err = kvset_delete_log_record(le->le_kvset, tx);
         if (work->cw_err)

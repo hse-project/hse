@@ -30,128 +30,18 @@
 #include "blk_list.h"
 #include "route.h"
 
-/**
- * struct merge_item -- an item in the bin_heap
- */
-struct merge_item {
-    struct key_obj         kobj;
-    struct kvset_iter_vctx vctx;
-    uint                   src;
-};
-
 static int
-merge_item_compare(const void *a_blob, const void *b_blob)
+kv_item_compare(const void *a, const void *b)
 {
-    const struct merge_item *a = a_blob;
-    const struct merge_item *b = b_blob;
-    int                      rc;
+    const struct cn_kv_item *item_a = a;
+    const struct cn_kv_item *item_b = b;
 
-    /* Tie breaker: If keycmp() return 0, the keys are equal, in this case
-     * lower numbered merge sources contain newer data and must come out
-     * of the binheap first.
+    /* In the event the keys are equal, the bin heap implementation will return
+     * the key from the earliest element source by index. We can use this as a
+     * proxy for the newest key since the element sources are ordered from
+     * newest kvset to oldest kvset.
      */
-    rc = key_obj_cmp(&a->kobj, &b->kobj);
-    if (rc)
-        return rc;
-    if (a->src < b->src)
-        return -1;
-    if (a->src > b->src)
-        return 1;
-    return 0;
-}
-
-static merr_t
-replenish(struct bin_heap *bh, struct kv_iterator **iterv, uint src, struct cn_merge_stats *stats)
-{
-    struct kv_iterator *iter = iterv[src];
-    merr_t              err;
-    struct merge_item   item;
-
-    if (HSE_UNLIKELY(iter->kvi_eof))
-        return 0;
-
-    err = kvset_iter_next_key(iter, &item.kobj, &item.vctx);
-    if (ev(err))
-        return err;
-    if (HSE_UNLIKELY(iter->kvi_eof))
-        return 0;
-
-    item.src = src;
-
-    err = bin_heap_insert(bh, &item);
-    if (ev(err))
-        return err;
-
-    stats->ms_keys_in++;
-    stats->ms_key_bytes_in += key_obj_len(&item.kobj);
-
-    return 0;
-}
-
-static merr_t
-merge_init(
-    struct bin_heap **     bh_out,
-    struct kv_iterator **  iterv,
-    u32                    iterc,
-    struct cn_merge_stats *stats)
-{
-    u32    i;
-    merr_t err;
-
-    err = bin_heap_create(bh_out, iterc, sizeof(struct merge_item), merge_item_compare);
-    if (ev(err))
-        goto err_exit1;
-
-    stats->ms_srcs = iterc;
-
-    for (i = 0; i < iterc; i++) {
-        err = replenish(*bh_out, iterv, i, stats);
-        if (ev(err))
-            goto err_exit2;
-    }
-
-    return 0;
-
-err_exit2:
-    bin_heap_destroy(*bh_out);
-err_exit1:
-    return err;
-}
-
-/* return true if item returned, false if no more items */
-static HSE_ALWAYS_INLINE bool
-get_next_item(
-    struct bin_heap *      bh,
-    struct kv_iterator **  iterv,
-    struct merge_item *    item,
-    struct cn_merge_stats *stats,
-    merr_t *               err_out)
-{
-    bool got_item;
-
-    got_item = bin_heap_get_delete(bh, item);
-    if (got_item)
-        *err_out = replenish(bh, iterv, item->src, stats);
-    else
-        *err_out = 0;
-    return got_item;
-}
-
-static merr_t
-get_kvset_builder(struct cn_compaction_work *w, uint32_t idx, struct kvset_builder **bldr_out)
-{
-    struct kvset_builder *bldr = NULL;
-    merr_t err;
-
-    err = kvset_builder_create(&bldr, cn_tree_get_cn(w->cw_tree), w->cw_pc, w->cw_kvsetidv[idx]);
-    if (!err) {
-        kvset_builder_set_merge_stats(bldr, &w->cw_stats);
-        kvset_builder_set_agegroup(bldr, HSE_MPOLICY_AGE_LEAF);
-    }
-
-    *bldr_out = bldr;
-
-    return err;
+    return key_obj_cmp(&item_a->kobj, &item_b->kobj);
 }
 
 /*
@@ -197,7 +87,7 @@ get_direct_read_buf(uint len, bool aligned_voff, u32 *bufsz, void **buf)
 merr_t
 cn_kvcompact(struct cn_compaction_work *w)
 {
-    struct bin_heap *bh;
+    struct bin_heap2 *bh = 0;
     struct kvset_builder *bldr = NULL;
     struct key_obj prev_kobj = { 0 };
 
@@ -216,20 +106,25 @@ cn_kvcompact(struct cn_compaction_work *w)
 
     u64  tstart, tprog = 0;
     u64  dbg_prev_seq = 0;
-    uint dbg_prev_src HSE_MAYBE_UNUSED;
+    uint dbg_prev_idx HSE_MAYBE_UNUSED;
     uint dbg_nvals_this_key HSE_MAYBE_UNUSED;
     bool dbg_dup HSE_MAYBE_UNUSED;
     uint seqno_errcnt = 0;
     bool new_key;
     bool more;
-    struct merge_item curr;
-
-    err = merge_init(&bh, w->cw_inputv, w->cw_kvset_cnt, &w->cw_stats);
-    if (err)
-        return err;
+    struct cn_kv_item *curr = NULL;
+    struct element_source **bh_sources;
 
     assert(w->cw_kvset_cnt);
     assert(w->cw_inputv);
+
+    bh_sources = malloc(w->cw_kvset_cnt * sizeof(*bh_sources));
+    if (!bh_sources)
+        return merr(ENOMEM);
+
+    err = bin_heap2_create(w->cw_kvset_cnt, kv_item_compare, &bh);
+    if (err)
+        goto out;
 
     if (w->cw_prog_interval && w->cw_progress)
         tprog = jiffies;
@@ -244,24 +139,31 @@ cn_kvcompact(struct cn_compaction_work *w)
 
     w->cw_kvsetidv[0] = cndb_kvsetid_mint(cn_tree_get_cndb(w->cw_tree));
 
-    err = get_kvset_builder(w, 0, &bldr);
-    if (err) {
-        bin_heap_destroy(bh);
-        return err;
-    }
+    err = kvset_builder_create(&bldr, cn_tree_get_cn(w->cw_tree), w->cw_pc, w->cw_kvsetidv[0]);
+    if (err)
+        goto out;
 
     assert(bldr);
+
+    kvset_builder_set_merge_stats(bldr, &w->cw_stats);
+    kvset_builder_set_agegroup(bldr, HSE_MPOLICY_AGE_LEAF);
 
     new_key = true;
 
     tstart = perfc_ison(w->cw_pc, PERFC_DI_CNCOMP_VGET) ? 1 : 0;
 
-    more = get_next_item(bh, w->cw_inputv, &curr, &w->cw_stats, &err);
+    more = bin_heap2_peek(bh, (void **)&curr);
+    if (curr) {
+        w->cw_stats.ms_keys_in++;
+        w->cw_stats.ms_key_bytes_in += key_obj_len(&curr->kobj);
+    }
 
     while (more) {
+        uint idx = curr->src->es_sort;
+        struct kv_iterator *iter = kvset_cursor_es_h2r(curr->src);
 
-        curr_klen = key_obj_len(&curr.kobj);
-        assert(curr_klen >= w->cw_cp->sfx_len || curr.vctx.is_ptomb);
+        curr_klen = key_obj_len(&curr->kobj);
+        assert(curr_klen >= w->cw_cp->sfx_len || curr->vctx.is_ptomb);
 
         if (new_key) {
             bg_val = false;
@@ -270,7 +172,7 @@ cn_kvcompact(struct cn_compaction_work *w)
             emitted_seq_pt = 0;
 
             dbg_prev_seq = 0;
-            dbg_prev_src = 0;
+            dbg_prev_idx = 0;
             dbg_nvals_this_key = 0;
             dbg_dup = false;
         }
@@ -286,8 +188,7 @@ cn_kvcompact(struct cn_compaction_work *w)
             if (tstart > 0)
                 tstart = get_time_ns();
 
-            if (!kvset_iter_next_vref(w->cw_inputv[curr.src], &curr.vctx,
-                                      &seq, &vtype, &vbidx,
+            if (!kvset_iter_next_vref(iter, &curr->vctx, &seq, &vtype, &vbidx,
                                       &vboff, &vdata, &vlen, &complen))
                 break;
 
@@ -299,11 +200,10 @@ cn_kvcompact(struct cn_compaction_work *w)
                 if (err)
                     break;
 
-                err = kvset_iter_next_val_direct(w->cw_inputv[curr.src], vtype, vbidx,
-                                                 vboff, buf, omlen, bufsz);
+                err = kvset_iter_next_val_direct(iter, vtype, vbidx, vboff, buf, omlen, bufsz);
                 vdata = buf;
             } else {
-                err = kvset_iter_val_get(w->cw_inputv[curr.src], &curr.vctx, vtype, vbidx,
+                err = kvset_iter_val_get(iter, &curr->vctx, vtype, vbidx,
                                           vboff, &vdata, &vlen, &complen);
             }
 
@@ -333,7 +233,7 @@ cn_kvcompact(struct cn_compaction_work *w)
             /* Set ptomb context irrespective of bg_val for tombstone propagation */
             if (HSE_CORE_IS_PTOMB(vdata)) {
                 pt_set = true;
-                pt_kobj = curr.kobj;
+                pt_kobj = curr->kobj;
                 pt_seq = seq;
             }
 
@@ -351,7 +251,7 @@ cn_kvcompact(struct cn_compaction_work *w)
                 if (w->cw_drop_tombs && HSE_CORE_IS_TOMB(vdata) && bg_val)
                     continue; /* skip value */
 
-                err = kvset_builder_add_val(bldr, &curr.kobj, vdata, vlen, seq, complen);
+                err = kvset_builder_add_val(bldr, &curr->kobj, vdata, vlen, seq, complen);
                 if (err)
                     break;
 
@@ -366,7 +266,7 @@ cn_kvcompact(struct cn_compaction_work *w)
                  * numbers. The following assertions verify that we aren't here for other
                  * reasons (e.g., input kvsets that violate assumptions about sequence numbers).
                  */
-                assert(dbg_prev_src < curr.src);
+                assert(dbg_prev_idx < idx);
                 assert(seq == emitted_seq);
                 if (seq > emitted_seq)
                     seqno_errcnt++;
@@ -382,23 +282,33 @@ cn_kvcompact(struct cn_compaction_work *w)
         if (err)
             break;
 
-        prev_kobj = curr.kobj;
+        prev_kobj = curr->kobj;
 
         dbg_dup = false;
         dbg_nvals_this_key = 0;
-        dbg_prev_src = curr.src;
+        dbg_prev_idx = idx;
 
-        more = get_next_item(bh, w->cw_inputv, &curr, &w->cw_stats, &err);
-        if (err)
-            goto out;
+        /* Discard the result from pop(). This bin heap is backed by a kv
+         * iterator which has a buffer (kvi_kv) which curr points to. pop()
+         * will not give us the data the we expect because of the backing
+         * buffer, so we call it in order to force all the side effects to
+         * occur, but only grab the next value after pop() calls heapify().
+         */
+        bin_heap2_pop(bh, NULL);
+        more = bin_heap2_peek(bh, (void **)&curr);
+
+        if (curr) {
+            w->cw_stats.ms_keys_in++;
+            w->cw_stats.ms_key_bytes_in += key_obj_len(&curr->kobj);
+        }
 
         if (more) {
-            if (key_obj_cmp(&curr.kobj, &prev_kobj) == 0) {
+            if (key_obj_cmp(&curr->kobj, &prev_kobj) == 0) {
                 dbg_dup = true;
                 new_key = false;
-                assert(dbg_prev_src <= curr.src);
+                assert(dbg_prev_idx <= curr->src->es_sort);
                 continue;
-            } else if (pt_set && key_obj_cmp_prefix(&pt_kobj, &curr.kobj) != 0) {
+            } else if (pt_set && key_obj_cmp_prefix(&pt_kobj, &curr->kobj) != 0) {
                 pt_set = false; /* cached ptomb key is no longer valid */
             }
         }
@@ -423,14 +333,10 @@ cn_kvcompact(struct cn_compaction_work *w)
             }
         }
 
-        if (err)
-            goto out;
-
         if (atomic_read(w->cw_cancel_request)) {
             err = merr(ESHUTDOWN);
             goto out;
         }
-
     }
 
     err = kvset_builder_get_mblocks(bldr, &w->cw_outv[0]);
@@ -438,8 +344,9 @@ cn_kvcompact(struct cn_compaction_work *w)
         w->cw_output_nodev[0] = w->cw_node;
 
 out:
-    bin_heap_destroy(bh);
     kvset_builder_destroy(bldr);
+    bin_heap2_destroy(bh);
+    free(bh_sources);
     free(buf);
 
     if (seqno_errcnt)

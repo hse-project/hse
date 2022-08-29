@@ -19,13 +19,8 @@
 #include <hse_ikvdb/cndb.h>
 #include <hse_ikvdb/cn.h>
 
-/* [HSE_REVISIT] - Why is this at the top of this file? */
-
 #define MTF_MOCK_IMPL_spill
 #include "spill.h"
-#if HSE_MOCKING
-#include "spill_ut_impl.i"
-#endif /* HSE_MOCKING */
 
 #include "cn_tree.h"
 #include "cn_tree_internal.h"
@@ -36,128 +31,18 @@
 #include "blk_list.h"
 #include "route.h"
 
-/**
- * struct merge_item -- an item in the bin_heap
- */
-struct merge_item {
-    struct key_obj         kobj;
-    struct kvset_iter_vctx vctx;
-    uint                   src;
-};
-
 static int
-merge_item_compare(const void *a_blob, const void *b_blob)
+kv_item_compare(const void *a, const void *b)
 {
-    const struct merge_item *a = a_blob;
-    const struct merge_item *b = b_blob;
-    int                      rc;
+    const struct cn_kv_item *item_a = a;
+    const struct cn_kv_item *item_b = b;
 
-    /* Tie breaker: If keycmp() return 0, the keys are equal, in this case
-     * lower numbered merge sources contain newer data and must come out
-     * of the binheap first.
+    /* In the event the keys are equal, the bin heap implementation will return
+     * the key from the earliest element source by index. We can use this as a
+     * proxy for the newest key since the element sources are ordered from
+     * newest kvset to oldest kvset.
      */
-    rc = key_obj_cmp(&a->kobj, &b->kobj);
-    if (rc)
-        return rc;
-    if (a->src < b->src)
-        return -1;
-    if (a->src > b->src)
-        return 1;
-    return 0;
-}
-
-static merr_t
-replenish(struct bin_heap *bh, struct kv_iterator **iterv, uint src, struct cn_merge_stats *stats)
-{
-    struct kv_iterator *iter = iterv[src];
-    merr_t              err;
-    struct merge_item   item;
-
-    if (HSE_UNLIKELY(iter->kvi_eof))
-        return 0;
-
-    err = kvset_iter_next_key(iter, &item.kobj, &item.vctx);
-    if (ev(err))
-        return err;
-    if (HSE_UNLIKELY(iter->kvi_eof))
-        return 0;
-
-    item.src = src;
-
-    err = bin_heap_insert(bh, &item);
-    if (ev(err))
-        return err;
-
-    stats->ms_keys_in++;
-    stats->ms_key_bytes_in += key_obj_len(&item.kobj);
-
-    return 0;
-}
-
-static merr_t
-merge_init(
-    struct bin_heap **     bh_out,
-    struct kv_iterator **  iterv,
-    u32                    iterc,
-    struct cn_merge_stats *stats)
-{
-    u32    i;
-    merr_t err;
-
-    err = bin_heap_create(bh_out, iterc, sizeof(struct merge_item), merge_item_compare);
-    if (ev(err))
-        goto err_exit1;
-
-    stats->ms_srcs = iterc;
-
-    for (i = 0; i < iterc; i++) {
-        err = replenish(*bh_out, iterv, i, stats);
-        if (ev(err))
-            goto err_exit2;
-    }
-
-    return 0;
-
-err_exit2:
-    bin_heap_destroy(*bh_out);
-err_exit1:
-    return err;
-}
-
-/* return true if item returned, false if no more items */
-static HSE_ALWAYS_INLINE bool
-get_next_item(
-    struct bin_heap *      bh,
-    struct kv_iterator **  iterv,
-    struct merge_item *    item,
-    struct cn_merge_stats *stats,
-    merr_t *               err_out)
-{
-    bool got_item;
-
-    got_item = bin_heap_get_delete(bh, item);
-    if (got_item)
-        *err_out = replenish(bh, iterv, item->src, stats);
-    else
-        *err_out = 0;
-    return got_item;
-}
-
-static merr_t
-get_kvset_builder(struct cn_compaction_work *w, uint32_t idx, struct kvset_builder **bldr_out)
-{
-    struct kvset_builder *bldr = NULL;
-    merr_t err;
-
-    err = kvset_builder_create(&bldr, cn_tree_get_cn(w->cw_tree), w->cw_pc, w->cw_kvsetidv[idx]);
-    if (!err) {
-        kvset_builder_set_merge_stats(bldr, &w->cw_stats);
-        kvset_builder_set_agegroup(bldr, HSE_MPOLICY_AGE_LEAF);
-    }
-
-    *bldr_out = bldr;
-
-    return err;
+    return key_obj_cmp(&item_a->kobj, &item_b->kobj);
 }
 
 /*
@@ -207,9 +92,10 @@ struct spillctx {
     struct subspill  subspill[CN_FANOUT_MAX];
 
     /* Merge Loop */
-    struct bin_heap  *bh;
-    bool              more;
-    struct merge_item curr;
+    struct bin_heap2       *bh;
+    struct element_source **bh_sources;
+    bool                    more;
+    struct cn_kv_item      *curr;
 
     /* Ptomb */
     struct key_obj pt_kobj;
@@ -221,24 +107,50 @@ merr_t
 cn_spill_create(struct cn_compaction_work *w, struct spillctx **sctx_out)
 {
     struct spillctx *s;
+    size_t sz;
     merr_t err;
 
-    s = calloc(1, sizeof(*s));
+    sz = sizeof(*s) + w->cw_kvset_cnt * sizeof(*s->bh_sources);
+
+    s = malloc(sz);
     if (!s)
         return merr(ENOMEM);
 
-    err = merge_init(&s->bh, w->cw_inputv, w->cw_kvset_cnt, &w->cw_stats);
-    if (err) {
-        free(s);
-        return err;
+    memset(s, 0, sizeof(*s));
+    s->bh_sources = (void *)(s + 1);
+
+    err = bin_heap2_create(w->cw_kvset_cnt, kv_item_compare, &s->bh);
+    if (err)
+        goto out;
+
+    for (uint i = 0; i < w->cw_kvset_cnt; i++) {
+        struct kv_iterator *iter = w->cw_inputv[i];
+
+        s->bh_sources[i] = kvset_iter_es_get(iter);
     }
+
+    err = bin_heap2_prepare(s->bh, w->cw_kvset_cnt, s->bh_sources);
+    if (err)
+        goto out;
 
     s->work = w;
     s->sgen = w->cw_sgen;
-    s->more = get_next_item(s->bh, w->cw_inputv, &s->curr, &w->cw_stats, &err);
+
+    s->more = bin_heap2_peek(s->bh, (void **)&s->curr);
+    if (s->curr) {
+        w->cw_stats.ms_keys_in++;
+        w->cw_stats.ms_key_bytes_in += key_obj_len(&s->curr->kobj);
+    }
 
     *sctx_out = s;
-    return 0;
+
+out:
+    if (err) {
+        bin_heap2_destroy(s->bh);
+        free(s);
+    }
+
+    return err;
 }
 
 void
@@ -247,7 +159,7 @@ cn_spill_destroy(struct spillctx *sctx)
     if (!sctx)
         return;
 
-    bin_heap_destroy(sctx->bh);
+    bin_heap2_destroy(sctx->bh);
     free(sctx);
 }
 
@@ -289,7 +201,7 @@ cn_subspill(
     uint                       eklen)
 {
     struct cn_compaction_work *w = sctx->work;
-    struct bin_heap *bh = sctx->bh;
+    struct bin_heap2 *bh = sctx->bh;
     struct kvset_builder *child = NULL;
     struct key_obj prev_kobj = { 0 };
 
@@ -304,7 +216,7 @@ cn_subspill(
 
     u64  tstart, tprog = 0;
     u64  dbg_prev_seq = 0;
-    uint dbg_prev_src HSE_MAYBE_UNUSED;
+    uint dbg_prev_idx HSE_MAYBE_UNUSED;
     uint dbg_nvals_this_key HSE_MAYBE_UNUSED;
     bool dbg_dup HSE_MAYBE_UNUSED;
     uint seqno_errcnt = 0;
@@ -334,18 +246,21 @@ cn_subspill(
     ss->ss_added = false;
     ss->ss_work = w;
 
-    if (!sctx->more || key_obj_cmp(&sctx->curr.kobj, &ekobj) > 0) {
+    if (!sctx->more || key_obj_cmp(&sctx->curr->kobj, &ekobj) > 0) {
         if (!sctx->pt_set)
             return 0; /* Nothing to do */
     }
 
     w->cw_kvsetidv[0] = ss->ss_kvsetid = cndb_kvsetid_mint(cn_tree_get_cndb(w->cw_tree));
 
-    err = get_kvset_builder(w, 0, &child);
+    err = kvset_builder_create(&child, cn_tree_get_cn(w->cw_tree), w->cw_pc, ss->ss_kvsetid);
     if (err)
         return err;
 
     assert(child);
+
+    kvset_builder_set_merge_stats(child, &w->cw_stats);
+    kvset_builder_set_agegroup(child, HSE_MPOLICY_AGE_LEAF);
 
     /* Add ptomb to 'child' if a ptomb context is carried forward from the
      * previous node spill, i.e., this ptomb spans across multiple children.
@@ -369,10 +284,12 @@ cn_subspill(
 
     tstart = perfc_ison(w->cw_pc, PERFC_DI_CNCOMP_VGET) ? 1 : 0;
 
-    while (sctx->more && key_obj_cmp(&sctx->curr.kobj, &ekobj) <= 0) {
+    while (sctx->more && key_obj_cmp(&sctx->curr->kobj, &ekobj) <= 0) {
+        uint idx = sctx->curr->src->es_sort;
+        struct kv_iterator *iter = kvset_cursor_es_h2r(sctx->curr->src);
 
-        curr_klen = key_obj_len(&sctx->curr.kobj);
-        assert(curr_klen >= w->cw_cp->sfx_len || sctx->curr.vctx.is_ptomb);
+        curr_klen = key_obj_len(&sctx->curr->kobj);
+        assert(curr_klen >= w->cw_cp->sfx_len || sctx->curr->vctx.is_ptomb);
 
         if (new_key) {
             bg_val = false;
@@ -381,7 +298,7 @@ cn_subspill(
             emitted_seq_pt = 0;
 
             dbg_prev_seq = 0;
-            dbg_prev_src = 0;
+            dbg_prev_idx = 0;
             dbg_nvals_this_key = 0;
             dbg_dup = false;
         }
@@ -397,7 +314,7 @@ cn_subspill(
             if (tstart > 0)
                 tstart = get_time_ns();
 
-            if (!kvset_iter_next_vref(w->cw_inputv[sctx->curr.src], &sctx->curr.vctx,
+            if (!kvset_iter_next_vref(iter, &sctx->curr->vctx,
                                       &seq, &vtype, &vbidx,
                                       &vboff, &vdata, &vlen, &complen))
                 break;
@@ -410,11 +327,11 @@ cn_subspill(
                 if (err)
                     break;
 
-                err = kvset_iter_next_val_direct(w->cw_inputv[sctx->curr.src], vtype, vbidx,
+                err = kvset_iter_next_val_direct(iter, vtype, vbidx,
                                                  vboff, buf, omlen, bufsz);
                 vdata = buf;
             } else {
-                err = kvset_iter_val_get(w->cw_inputv[sctx->curr.src], &sctx->curr.vctx, vtype, vbidx,
+                err = kvset_iter_val_get(iter, &sctx->curr->vctx, vtype, vbidx,
                                           vboff, &vdata, &vlen, &complen);
             }
 
@@ -422,7 +339,7 @@ cn_subspill(
                 break;
 
             if (tstart > 0) {
-                u64 t = get_time_ns() - tstart;
+                uint64_t t = get_time_ns() - tstart;
 
                 perfc_dis_record(w->cw_pc, PERFC_DI_CNCOMP_VGET, t);
             }
@@ -436,7 +353,7 @@ cn_subspill(
             dbg_nvals_this_key++;
             dbg_prev_seq = seq;
 
-            if (sctx->curr.vctx.dgen <= node_dgen)
+            if (sctx->curr->vctx.dgen <= node_dgen)
                 break;
 
             bg_val = (seq <= w->cw_horizon);
@@ -447,7 +364,7 @@ cn_subspill(
             /* Set ptomb context irrespective of bg_val for tombstone propagation */
             if (HSE_CORE_IS_PTOMB(vdata)) {
                 sctx->pt_set = true;
-                sctx->pt_kobj = sctx->curr.kobj;
+                sctx->pt_kobj = sctx->curr->kobj;
                 sctx->pt_seq = seq;
             }
 
@@ -465,7 +382,7 @@ cn_subspill(
                 if (w->cw_drop_tombs && HSE_CORE_IS_TOMB(vdata) && bg_val)
                     continue; /* skip value */
 
-                err = kvset_builder_add_val(child, &sctx->curr.kobj, vdata, vlen, seq, complen);
+                err = kvset_builder_add_val(child, &sctx->curr->kobj, vdata, vlen, seq, complen);
                 if (err)
                     break;
 
@@ -480,7 +397,7 @@ cn_subspill(
                  * numbers. The following assertions verify that we aren't here for other
                  * reasons (e.g., input kvsets that violate assumptions about sequence numbers).
                  */
-                assert(dbg_prev_src < sctx->curr.src);
+                assert(dbg_prev_idx < idx);
                 assert(seq == emitted_seq);
                 if (seq > emitted_seq)
                     seqno_errcnt++;
@@ -496,23 +413,33 @@ cn_subspill(
         if (err)
             break;
 
-        prev_kobj = sctx->curr.kobj;
+        prev_kobj = sctx->curr->kobj;
 
         dbg_dup = false;
         dbg_nvals_this_key = 0;
-        dbg_prev_src = sctx->curr.src;
+        dbg_prev_idx = idx;
 
-        sctx->more = get_next_item(bh, w->cw_inputv, &sctx->curr, &w->cw_stats, &err);
-        if (err)
-            break;
+        /* Discard the result from pop(). This bin heap is backed by a kv
+         * iterator which has a buffer (kvi_kv) which curr points to. pop()
+         * will not give us the data the we expect because of the backing
+         * buffer, so we call it in order to force all the side effects to
+         * occur, but only grab the next value after pop() calls heapify().
+         */
+        bin_heap2_pop(bh, NULL);
+        sctx->more = bin_heap2_peek(bh, (void **)&sctx->curr);
+
+        if (sctx->curr) {
+            w->cw_stats.ms_keys_in++;
+            w->cw_stats.ms_key_bytes_in += key_obj_len(&sctx->curr->kobj);
+        }
 
         if (sctx->more) {
-            if (key_obj_cmp(&sctx->curr.kobj, &prev_kobj) == 0) {
+            if (key_obj_cmp(&sctx->curr->kobj, &prev_kobj) == 0) {
                 dbg_dup = true;
                 new_key = false;
-                assert(dbg_prev_src <= sctx->curr.src);
+                assert(dbg_prev_idx <= sctx->curr->src->es_sort);
                 continue;
-            } else if (sctx->pt_set && key_obj_cmp_prefix(&sctx->pt_kobj, &sctx->curr.kobj) != 0) {
+            } else if (sctx->pt_set && key_obj_cmp_prefix(&sctx->pt_kobj, &sctx->curr->kobj) != 0) {
                 sctx->pt_set = false; /* cached ptomb key is no longer valid */
             }
         }
@@ -530,7 +457,7 @@ cn_subspill(
         new_key = true;
 
         if (tprog) {
-            u64 now = jiffies;
+            uint64_t now = jiffies;
 
             if (now - tprog > w->cw_prog_interval) {
                 tprog = now;
@@ -560,3 +487,7 @@ out:
 
     return err;
 }
+
+#if HSE_MOCKING
+#include "spill_ut_impl.i"
+#endif /* HSE_MOCKING */

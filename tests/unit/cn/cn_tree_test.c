@@ -306,6 +306,7 @@ struct mapi_injection inject_list[] = {
     { mapi_idx_cndb_record_kvset_add_ack, MAPI_RC_SCALAR, 0 },
     { mapi_idx_cndb_record_kvset_del_ack, MAPI_RC_SCALAR, 0 },
     { mapi_idx_cndb_record_nak, MAPI_RC_SCALAR, 0 },
+    { mapi_idx_cndb_kvsetid_mint, MAPI_RC_SCALAR, 1 },
 
     /* hlog  */
     { mapi_idx_hlog_create, MAPI_RC_SCALAR, 0 },
@@ -334,6 +335,12 @@ struct mapi_injection inject_list[] = {
     { mapi_idx_kvset_iter_next_key, MAPI_RC_SCALAR, -1 },
     { mapi_idx_kvset_iter_val_get, MAPI_RC_SCALAR, -1 },
     { mapi_idx_kvset_iter_next_vref, MAPI_RC_SCALAR, -1 },
+
+    /* kvset_builder */
+    { mapi_idx_kvset_builder_create, MAPI_RC_SCALAR, 0 },
+    { mapi_idx_kvset_builder_set_merge_stats, MAPI_RC_SCALAR, 0 },
+    { mapi_idx_kvset_builder_set_agegroup, MAPI_RC_SCALAR, 0 },
+    { mapi_idx_kvset_builder_get_mblocks, MAPI_RC_SCALAR, 0 },
 
     { -1 },
 };
