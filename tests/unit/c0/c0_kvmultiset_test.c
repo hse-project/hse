@@ -248,7 +248,7 @@ MTF_DEFINE_UTEST_PREPOST(c0_kvmultiset_test, ingest_sk, no_fail_pre, no_fail_pos
     c0kvms_finalize(kvms, NULL);
 
     struct c0_ingest_work *c0skwork;
-    struct bin_heap2 *     bh;
+    struct bin_heap *      bh;
     struct bonsai_kv *     bkv;
     bool                   first_time = true;
     struct kvs_ktuple      last_kt = { 0, 0, 0 };
@@ -256,10 +256,10 @@ MTF_DEFINE_UTEST_PREPOST(c0_kvmultiset_test, ingest_sk, no_fail_pre, no_fail_pos
 
     c0skwork = c0kvms_ingest_work_prepare(kvms, NULL);
 
-    bin_heap2_create(c0skwork->c0iw_kvms_iterc, bn_kv_cmp, &bh);
-    bin_heap2_prepare(bh, c0skwork->c0iw_kvms_iterc, c0skwork->c0iw_kvms_sourcev);
+    bin_heap_create(c0skwork->c0iw_kvms_iterc, bn_kv_cmp, &bh);
+    bin_heap_prepare(bh, c0skwork->c0iw_kvms_iterc, c0skwork->c0iw_kvms_sourcev);
 
-    while (bin_heap2_pop(bh, (void *)&bkv)) {
+    while (bin_heap_pop(bh, (void *)&bkv)) {
         struct kvs_ktuple  kt;
         struct kvs_vtuple  vt;
         struct bonsai_val *val;
@@ -308,7 +308,7 @@ MTF_DEFINE_UTEST_PREPOST(c0_kvmultiset_test, ingest_sk, no_fail_pre, no_fail_pos
         last_skidx = skidx;
     }
 
-    bin_heap2_destroy(bh);
+    bin_heap_destroy(bh);
 
     c0kvms_usage(kvms, &usage);
     ASSERT_EQ(usage.u_keys, keys_out - tombs_out);

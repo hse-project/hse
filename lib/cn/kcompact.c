@@ -48,7 +48,7 @@ kcompact(struct cn_compaction_work *w, struct kvset_builder *bldr)
 {
     merr_t err;
     struct cn_kv_item *curr;
-    struct bin_heap2 *bh = NULL;
+    struct bin_heap *bh = NULL;
     struct element_source **sources = NULL;
 
     enum kmd_vtype vtype;
@@ -79,7 +79,7 @@ kcompact(struct cn_compaction_work *w, struct kvset_builder *bldr)
     if (w->cw_prog_interval && w->cw_progress)
         tprog = jiffies;
 
-    err = bin_heap2_create(w->cw_kvset_cnt, kv_item_compare, &bh);
+    err = bin_heap_create(w->cw_kvset_cnt, kv_item_compare, &bh);
     if (ev(err))
         return err;
 
@@ -95,7 +95,7 @@ kcompact(struct cn_compaction_work *w, struct kvset_builder *bldr)
         sources[i] = kvset_iter_es_get(iter);
     }
 
-    err = bin_heap2_prepare(bh, w->cw_kvset_cnt, sources);
+    err = bin_heap_prepare(bh, w->cw_kvset_cnt, sources);
     if (ev(err))
         goto done;
     /* In the event this assert fails, at least one iterator is EOF and the idea
@@ -103,11 +103,11 @@ kcompact(struct cn_compaction_work *w, struct kvset_builder *bldr)
      * incorrect. Kvsets won't typically exist if they have no prefix tombstones
      * or keys.
      */
-    assert(bin_heap2_width(bh) == w->cw_kvset_cnt);
+    assert(bin_heap_width(bh) == w->cw_kvset_cnt);
 
     w->cw_stats.ms_srcs = w->cw_kvset_cnt;
 
-    more = bin_heap2_peek(bh, (void **)&curr);
+    more = bin_heap_peek(bh, (void **)&curr);
     while (more) {
         uint idx = curr->src->es_sort;
         struct kv_iterator *iter = kvset_cursor_es_h2r(curr->src);
@@ -253,8 +253,8 @@ kcompact(struct cn_compaction_work *w, struct kvset_builder *bldr)
          * buffer, so we call it in order to force all the side effects to
          * occur, but only grab the next value after pop() calls heapify().
          */
-        bin_heap2_pop(bh, NULL);
-        more = bin_heap2_peek(bh, (void **)&curr);
+        bin_heap_pop(bh, NULL);
+        more = bin_heap_peek(bh, (void **)&curr);
         if (more) {
             iter = kvset_cursor_es_h2r(curr->src);
             idx = curr->src->es_sort;
@@ -280,7 +280,7 @@ kcompact(struct cn_compaction_work *w, struct kvset_builder *bldr)
 
 done:
     w->cw_vbmap.vbm_waste = w->cw_vbmap.vbm_tot - w->cw_vbmap.vbm_used;
-    bin_heap2_destroy(bh);
+    bin_heap_destroy(bh);
     free(sources);
 
     if (seqno_errcnt)

@@ -87,7 +87,7 @@ get_direct_read_buf(uint len, bool aligned_voff, u32 *bufsz, void **buf)
 merr_t
 cn_kvcompact(struct cn_compaction_work *w)
 {
-    struct bin_heap2 *bh = 0;
+    struct bin_heap *bh = 0;
     struct kvset_builder *bldr = NULL;
     struct key_obj prev_kobj = { 0 };
 
@@ -122,7 +122,7 @@ cn_kvcompact(struct cn_compaction_work *w)
     if (!bh_sources)
         return merr(ENOMEM);
 
-    err = bin_heap2_create(w->cw_kvset_cnt, kv_item_compare, &bh);
+    err = bin_heap_create(w->cw_kvset_cnt, kv_item_compare, &bh);
     if (err)
         goto out;
 
@@ -150,7 +150,7 @@ cn_kvcompact(struct cn_compaction_work *w)
 
     tstart = perfc_ison(w->cw_pc, PERFC_DI_CNCOMP_VGET) ? 1 : 0;
 
-    more = bin_heap2_peek(bh, (void **)&curr);
+    more = bin_heap_peek(bh, (void **)&curr);
     if (curr) {
         w->cw_stats.ms_keys_in++;
         w->cw_stats.ms_key_bytes_in += key_obj_len(&curr->kobj);
@@ -292,8 +292,8 @@ cn_kvcompact(struct cn_compaction_work *w)
          * buffer, so we call it in order to force all the side effects to
          * occur, but only grab the next value after pop() calls heapify().
          */
-        bin_heap2_pop(bh, NULL);
-        more = bin_heap2_peek(bh, (void **)&curr);
+        bin_heap_pop(bh, NULL);
+        more = bin_heap_peek(bh, (void **)&curr);
 
         if (curr) {
             w->cw_stats.ms_keys_in++;
@@ -343,7 +343,7 @@ cn_kvcompact(struct cn_compaction_work *w)
 
 out:
     kvset_builder_destroy(bldr);
-    bin_heap2_destroy(bh);
+    bin_heap_destroy(bh);
     free(bh_sources);
     free(buf);
 

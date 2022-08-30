@@ -800,7 +800,7 @@ struct lc_cursor {
     struct element_source lcc_es;
 
     /* Binheap */
-    struct bin_heap2 *     lcc_bh;
+    struct bin_heap *      lcc_bh;
     struct bonsai_iter     lcc_it[LC_SOURCE_CNT_MAX];
     struct element_source *lcc_esrcv[LC_SOURCE_CNT_MAX];
 
@@ -855,7 +855,7 @@ lc_cursor_create(
     }
 
     /* HSE_REVISIT Consider using comparators that use key_obj_cmp_spl() */
-    err = bin_heap2_create(
+    err = bin_heap_create(
         LC_SOURCE_CNT_MAX, reverse ? kvs_cursor_cmp_rev : kvs_cursor_cmp, &cur->lcc_bh);
     if (ev(err))
         goto err_out;
@@ -883,7 +883,7 @@ lc_cursor_create(
         cur->lcc_esrcv[i] = bonsai_iter_es_make(&cur->lcc_it[i]);
     }
 
-    err = bin_heap2_prepare(cur->lcc_bh, self->lc_nsrc, cur->lcc_esrcv);
+    err = bin_heap_prepare(cur->lcc_bh, self->lc_nsrc, cur->lcc_esrcv);
     if (ev(err)) {
         rcu_read_unlock();
         goto err_out;
@@ -896,7 +896,7 @@ lc_cursor_create(
 
 err_out:
     if (cur->lcc_bh)
-        bin_heap2_destroy(cur->lcc_bh);
+        bin_heap_destroy(cur->lcc_bh);
 
     kmem_cache_free(lc_cursor_cache, cur);
     return err;
@@ -908,7 +908,7 @@ lc_cursor_destroy(struct lc_cursor *cur)
     assert(cur);
 
     assert(cur->lcc_bh);
-    bin_heap2_destroy(cur->lcc_bh);
+    bin_heap_destroy(cur->lcc_bh);
 
     lc_horizon_deregister(cur->lcc_ib_cookie);
     kmem_cache_free(lc_cursor_cache, cur);
@@ -927,7 +927,7 @@ lc_cursor_read(struct lc_cursor *cur, struct kvs_cursor_element *lc_elem, bool *
 
     cur_pfxlen = key_obj_len(&cur->lcc_pfx);
 
-    while (bin_heap2_peek(cur->lcc_bh, (void **)&elem)) {
+    while (bin_heap_peek(cur->lcc_bh, (void **)&elem)) {
         uint klen = key_obj_len(&elem->kce_kobj);
         bool is_ptomb = elem->kce_is_ptomb;
 
@@ -944,7 +944,7 @@ lc_cursor_read(struct lc_cursor *cur, struct kvs_cursor_element *lc_elem, bool *
              *   2. key is shorter than pfx, but key is NOT a ptomb.
              */
             if (HSE_UNLIKELY(rc != 0 || (len != cur_pfxlen && !is_ptomb))) {
-                bin_heap2_pop(cur->lcc_bh, (void **)&elem);
+                bin_heap_pop(cur->lcc_bh, (void **)&elem);
                 continue;
             }
         }
@@ -970,7 +970,7 @@ lc_cursor_read(struct lc_cursor *cur, struct kvs_cursor_element *lc_elem, bool *
                  */
                 state = seqnoref_to_seqno(elem->kce_seqnoref, &seqno);
                 if (state == HSE_SQNREF_STATE_DEFINED && seqno < cur->lcc_ptomb_seq) {
-                    bin_heap2_pop(cur->lcc_bh, (void **)&elem);
+                    bin_heap_pop(cur->lcc_bh, (void **)&elem);
                     continue;
                 }
 
@@ -982,7 +982,7 @@ lc_cursor_read(struct lc_cursor *cur, struct kvs_cursor_element *lc_elem, bool *
 
         /* Discard current key */
         *lc_elem = *elem;
-        bin_heap2_pop(cur->lcc_bh, (void **)&elem);
+        bin_heap_pop(cur->lcc_bh, (void **)&elem);
 
         /* Do not use elem after this point to refer to the current kv, use lc_elem. */
 
@@ -1065,7 +1065,7 @@ lc_cursor_seek(struct lc_cursor *cur, const void *seek, size_t seeklen, struct k
         bonsai_iter_seek(&cur->lcc_it[i], seek, len);
     }
 
-    err = bin_heap2_prepare(cur->lcc_bh, cur->lcc_lc->lc_nsrc, cur->lcc_esrcv);
+    err = bin_heap_prepare(cur->lcc_bh, cur->lcc_lc->lc_nsrc, cur->lcc_esrcv);
     rcu_read_unlock();
 
     return err;

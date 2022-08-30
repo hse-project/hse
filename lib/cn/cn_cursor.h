@@ -31,7 +31,7 @@ struct cursor_summary;
 struct cn_level_cursor {
     struct element_source   cnlc_es;
     struct table           *cnlc_kvref_tab;
-    struct bin_heap2       *cnlc_bh;
+    struct bin_heap        *cnlc_bh;
     size_t                  cnlc_bh_max_cnt;
     uint32_t                cnlc_iterc;
     uint                    cnlc_level;
@@ -75,7 +75,7 @@ struct cn_cursor {
     struct element_source   cncur_es;
     struct cn *             cncur_cn;
 
-    struct bin_heap2       *cncur_bh;
+    struct bin_heap *cncur_bh;
 
     struct cn_level_cursor cncur_lcur[NUM_LEVELS];
     uint32_t               cncur_iterc;

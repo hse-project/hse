@@ -3,16 +3,14 @@
  * Copyright (C) 2015-2022 Micron Technology, Inc.  All rights reserved.
  */
 
-#ifndef HSE_PLATFORM_BIN_HEAP_H
-#define HSE_PLATFORM_BIN_HEAP_H
+#ifndef HSE_UTIL_BIN_HEAP_H
+#define HSE_UTIL_BIN_HEAP_H
 
 /* MTF_MOCK_DECL(bin_heap) */
 
-#include <hse_util/inttypes.h>
 #include <hse/error/merr.h>
+#include <hse_util/inttypes.h>
 #include <hse_util/element_source.h>
-
-struct bin_heap;
 
 /*
  * The return value of bin_heap_compare_fn determines if the heap
@@ -23,110 +21,70 @@ struct bin_heap;
 typedef int
 bin_heap_compare_fn(const void *a, const void *b);
 
-merr_t
-bin_heap_create(struct bin_heap **bh, size_t max_items, size_t item_size, bin_heap_compare_fn *compare);
-
-void
-bin_heap_destroy(struct bin_heap *bh);
-
-void
-bin_heap_check(struct bin_heap *bh);
-
-void
-bin_heap_print(struct bin_heap *bh, bool verbose, void (*printer)(const void *));
-
-merr_t
-bin_heap_preallocate(struct bin_heap *bh, s32 preallocated_items);
-
-merr_t
-bin_heap_insert(struct bin_heap *bh, const void *item);
-
-bool
-bin_heap_get(struct bin_heap *bh, void *item);
-
-bool
-bin_heap_get_delete(struct bin_heap *bh, void *item);
-
-void
-bin_heap_delete_top(struct bin_heap *bh);
-
-/* ------------------------------------------------------------------------ */
-
-struct bin_heap2;
-
-/*
- * The return value of bin_heap_compare_fn determines if the heap
- * structure is a min-heap or a max-heap:
- *  - For min-heaps, it must return a negative value if A is smaller then B.
- *  - For max-heaps, it must return a negative value if A is larger than B.
- */
-typedef int
-bin_heap2_compare_fn(const void *a, const void *b);
-
 struct heap_node {
     void *                 hn_data;
     struct element_source *hn_es;
 };
 
-#define BIN_HEAP2_BODY                          \
-    struct {                                    \
-        int                   bh2_width;        \
-        int                   bh2_max_width;    \
-        bin_heap2_compare_fn *bh2_cmp;          \
+#define BIN_HEAP_BODY                      \
+    struct {                               \
+        int                  bh_width;     \
+        int                  bh_max_width; \
+        bin_heap_compare_fn *bh_cmp;       \
     }
 
-struct bin_heap2 {
-    BIN_HEAP2_BODY;
-    struct heap_node bh2_elts[];
+struct bin_heap {
+    BIN_HEAP_BODY;
+    struct heap_node bh_elts[];
 };
 
 /* This macro defines a fixed-sized bin heap that is compatible
- * with struct bin_heap2.  The primary purpose is to eliminate
+ * with struct bin_heap.  The primary purpose is to eliminate
  * indirection through a pointer to access the elements array.
  */
-#define BIN_HEAP2_DEFINE(_bh2_name, _bh2_width)     \
-    struct {                                        \
-        BIN_HEAP2_BODY;                             \
-        struct heap_node bh2_elts[(_bh2_width)];    \
-    } _bh2_name
+#define BIN_HEAP_DEFINE(_bh_name, _bh_width)   \
+    struct {                                   \
+        BIN_HEAP_BODY;                         \
+        struct heap_node bh_elts[(_bh_width)]; \
+    } _bh_name
 
 u32
-bin_heap2_width(struct bin_heap2 *bh);
+bin_heap_width(struct bin_heap *bh);
 
 void
-bin_heap2_init(u32 max_width, bin_heap2_compare_fn *cmp, struct bin_heap2 *bh);
+bin_heap_init(u32 max_width, bin_heap_compare_fn *cmp, struct bin_heap *bh);
 
 /* MTF_MOCK */
 merr_t
-bin_heap2_create(u32 max_width, bin_heap2_compare_fn *cmp, struct bin_heap2 **bh_out);
+bin_heap_create(u32 max_width, bin_heap_compare_fn *cmp, struct bin_heap **bh_out);
 
 /* MTF_MOCK */
 void
-bin_heap2_destroy(struct bin_heap2 *bh);
+bin_heap_destroy(struct bin_heap *bh);
 
 merr_t
-bin_heap2_reset(struct bin_heap2 *bh);
+bin_heap_reset(struct bin_heap *bh);
 
 /* MTF_MOCK */
 merr_t
-bin_heap2_prepare(struct bin_heap2 *bh, u32 width, struct element_source *es[]);
+bin_heap_prepare(struct bin_heap *bh, u32 width, struct element_source *es[]);
 
 merr_t
-bin_heap2_prepare_list(struct bin_heap2 *bh, u32 width, struct element_source *es);
+bin_heap_prepare_list(struct bin_heap *bh, u32 width, struct element_source *es);
 
 /* MTF_MOCK */
 bool
-bin_heap2_pop(struct bin_heap2 *bh, void **item);
+bin_heap_pop(struct bin_heap *bh, void **item);
 
 /* MTF_MOCK */
 bool
-bin_heap2_peek(struct bin_heap2 *bh, void **item);
+bin_heap_peek(struct bin_heap *bh, void **item);
 
 bool
-bin_heap2_peek_debug(struct bin_heap2 *bh, void **item, struct element_source **es);
+bin_heap_peek_debug(struct bin_heap *bh, void **item, struct element_source **es);
 
 /**
- * bin_heap2_remove_src() - Remove source from the bin heap
+ * bin_heap_remove_src() - Remove source from the bin heap
  * @bh:    handle to the bin heap structure
  * @es:    element source to be removed
  * @unget: whether or not to move the underlying iterators back by one.
@@ -136,19 +94,19 @@ bin_heap2_peek_debug(struct bin_heap2 *bh, void **item, struct element_source **
  * reference on the backing structure.
  */
 void
-bin_heap2_remove_src(struct bin_heap2 *bh, struct element_source *es, bool unget);
+bin_heap_remove_src(struct bin_heap *bh, struct element_source *es, bool unget);
 
 void
-bin_heap2_remove_all(struct bin_heap2 *bh);
+bin_heap_remove_all(struct bin_heap *bh);
 
 merr_t
-bin_heap2_insert_src(struct bin_heap2 *bh, struct element_source *es);
+bin_heap_insert_src(struct bin_heap *bh, struct element_source *es);
 
 merr_t
-bin_heap2_replace_src(struct bin_heap2 *bh, struct element_source *es);
+bin_heap_replace_src(struct bin_heap *bh, struct element_source *es);
 
 s64
-bin_heap2_age_cmp(struct element_source *es1, struct element_source *es2);
+bin_heap_age_cmp(struct element_source *es1, struct element_source *es2);
 
 #if HSE_MOCKING
 #include "bin_heap_ut.h"

@@ -102,7 +102,7 @@ find_inflection_points(
     uint32_t *const offsets)
 {
     merr_t err;
-    struct bin_heap2 *bh;
+    struct bin_heap *bh;
     struct kvset_list_entry *le;
     struct kvset_kblk *inflection_kblk = NULL;
     struct reverse_kblk_iterator *iters;
@@ -120,7 +120,7 @@ find_inflection_points(
 
     num_kvsets = cn_ns_kvsets(&tn->tn_ns);
 
-    err = bin_heap2_create(num_kvsets, kblk_compare, &bh);
+    err = bin_heap_create(num_kvsets, kblk_compare, &bh);
     if (ev(err))
         return err;
 
@@ -160,11 +160,11 @@ find_inflection_points(
     log_debug("node %lu inflection limit: %lu/%lu (%lf%%)",
         tn->tn_nodeid, limit, total_kvlen, (double)limit * 100 / total_kvlen);
 
-    err = bin_heap2_prepare(bh, num_kvsets, srcs);
+    err = bin_heap_prepare(bh, num_kvsets, srcs);
     if (ev(err))
         goto out;
 
-    while (kvlen <= limit && bin_heap2_pop(bh, (void **)&inflection_kblk))
+    while (kvlen <= limit && bin_heap_pop(bh, (void **)&inflection_kblk))
         kvlen += inflection_kblk->kb_metrics.tot_key_bytes +
             inflection_kblk->kb_metrics.tot_val_bytes;
     assert(inflection_kblk);
@@ -237,7 +237,7 @@ find_inflection_points(
 
 out:
     free(buf);
-    bin_heap2_destroy(bh);
+    bin_heap_destroy(bh);
 
     return err;
 }
@@ -331,7 +331,7 @@ find_split_key(
     unsigned int *const key_len)
 {
     merr_t err;
-    struct bin_heap2 *bh;
+    struct bin_heap *bh;
     struct kvset_list_entry *le;
     uint64_t num_kvsets;
     struct forward_wbt_leaf_iterator *iters;
@@ -352,7 +352,7 @@ find_split_key(
 
     num_kvsets = cn_ns_kvsets(&tn->tn_ns);
 
-    err = bin_heap2_create(num_kvsets, wbt_leaf_compare, &bh);
+    err = bin_heap_create(num_kvsets, wbt_leaf_compare, &bh);
     if (ev(err))
         return err;
 
@@ -393,11 +393,11 @@ find_split_key(
     assert(seen_kvlen <= total_kvlen / 2);
     assert(kvset_idx == num_kvsets);
 
-    err = bin_heap2_prepare(bh, num_kvsets, srcs);
+    err = bin_heap_prepare(bh, num_kvsets, srcs);
     if (ev(err))
         goto out;
 
-    while (seen_kvlen <= limit && bin_heap2_pop(bh, (void **)&wnode))
+    while (seen_kvlen <= limit && bin_heap_pop(bh, (void **)&wnode))
         seen_kvlen += omf_wbn_kvlen(wnode);
     assert(wnode);
 
@@ -416,7 +416,7 @@ find_split_key(
 
 out:
     free(buf);
-    bin_heap2_destroy(bh);
+    bin_heap_destroy(bh);
 
     return err;
 }
