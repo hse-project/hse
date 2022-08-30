@@ -142,8 +142,8 @@ log_impl(
 
         merr_strerror(err, buf, sizeof(buf));
 
-        rc = snprintf(log_buffer_tls, sizeof(log_buffer_tls), "[HSE] %s:%d %s: %s: %s\n",
-            file, lineno, func, fmt, buf);
+        rc = snprintf(log_buffer_tls, sizeof(log_buffer_tls), "[HSE] %s:%d %s: %s: %s (%d)\n",
+            file, lineno, func, fmt, buf, merr_errno(err));
     } else {
         rc = snprintf(log_buffer_tls, sizeof(log_buffer_tls), "[HSE] %s:%d %s: %s\n",
             file, lineno, func, fmt);

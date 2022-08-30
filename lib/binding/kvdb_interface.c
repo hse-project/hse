@@ -116,20 +116,20 @@ hse_init(const char *const config, const size_t paramc, const char *const *const
 
     err = argv_deserialize_to_hse_gparams(paramc, paramv, &hse_gparams);
     if (err) {
-        log_errx("Failed to deserialize paramv for HSE gparams\n", err);
+        log_errx("Failed to deserialize paramv for HSE gparams", err);
         goto out;
     }
 
     err = config_from_hse_conf(config, &conf);
     if (err) {
-        log_errx("Failed to read HSE config file (%s)\n", err, config);
+        log_errx("Failed to read HSE config file (%s)", err, config);
         goto out;
     }
 
     err = config_deserialize_to_hse_gparams(conf, &hse_gparams);
     config_destroy(conf);
     if (err) {
-        log_errx("Failed to deserialize config file (%s) for HSE gparams\n", err, config);
+        log_errx("Failed to deserialize config file (%s) for HSE gparams", err, config);
         goto out;
     }
 
