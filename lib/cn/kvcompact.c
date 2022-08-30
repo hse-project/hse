@@ -150,6 +150,16 @@ cn_kvcompact(struct cn_compaction_work *w)
 
     tstart = perfc_ison(w->cw_pc, PERFC_DI_CNCOMP_VGET) ? 1 : 0;
 
+    for (uint i = 0; i < w->cw_kvset_cnt; i++) {
+        struct kv_iterator *iter = w->cw_inputv[i];
+
+        bh_sources[i] = kvset_iter_es_get(iter);
+    }
+
+    err = bin_heap_prepare(bh, w->cw_kvset_cnt, bh_sources);
+    if (err)
+        goto out;
+
     more = bin_heap_peek(bh, (void **)&curr);
     if (curr) {
         w->cw_stats.ms_keys_in++;
