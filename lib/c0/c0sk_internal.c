@@ -358,7 +358,7 @@ c0sk_cningest_walcb(
 
 static merr_t
 c0sk_merge_loop(
-    struct bin_heap2 *     minheap,
+    struct bin_heap *      minheap,
     u64                    min_seqno,
     u64                    max_seqno,
     u64                    kvms_gen,
@@ -380,7 +380,7 @@ c0sk_merge_loop(
     skidx_prev = -1;
     bkv_prev = NULL;
 
-    while (bin_heap2_pop(minheap, (void **)&bkv)) {
+    while (bin_heap_pop(minheap, (void **)&bkv)) {
         struct bonsai_val *val;
         bool               from_lc = bkv->bkv_flags & BKV_FLAG_FROM_LC;
         u16                skidx = key_immediate_index(&bkv->bkv_key_imm);
@@ -528,7 +528,7 @@ c0sk_ingest_worker(struct work_struct *work)
     struct kvset_mblocks **mbv = ingest->c0iw_mbv;
     struct c0_kvmultiset * kvms = ingest->c0iw_c0kvms;
 
-    struct bin_heap2 *     kvms_minheap, *lc_minheap;
+    struct bin_heap *      kvms_minheap, *lc_minheap;
     struct bkv_collection *cn_list[2] = { 0 };
     struct lc_builder *    lc_list = { 0 };
     u64                    kvms_gen = c0kvms_gen_read(kvms);
@@ -545,8 +545,8 @@ c0sk_ingest_worker(struct work_struct *work)
 
     assert(min_seq >= lc_ingest_seqno_get(lc));
 
-    kvms_minheap = (struct bin_heap2 *)&ingest->c0iw_kvms_minheap;
-    lc_minheap = (struct bin_heap2 *)&ingest->c0iw_lc_minheap;
+    kvms_minheap = (struct bin_heap *)&ingest->c0iw_kvms_minheap;
+    lc_minheap = (struct bin_heap *)&ingest->c0iw_lc_minheap;
 
     assert(c0sk->c0sk_kvdb_health);
 
@@ -576,7 +576,7 @@ c0sk_ingest_worker(struct work_struct *work)
     if (ev(err))
         goto health_err;
 
-    err = bin_heap2_prepare(kvms_minheap, ingest->c0iw_kvms_iterc, ingest->c0iw_kvms_sourcev);
+    err = bin_heap_prepare(kvms_minheap, ingest->c0iw_kvms_iterc, ingest->c0iw_kvms_sourcev);
     if (ev(err))
         goto health_err;
 
@@ -619,7 +619,7 @@ c0sk_ingest_worker(struct work_struct *work)
      * at the first bkv that was valid at the time. So any entry added to LC (by an older ingest
      * thread) that appears before this first entry would be missed.
      */
-    err = bin_heap2_prepare(lc_minheap, ingest->c0iw_lc_iterc, ingest->c0iw_lc_sourcev);
+    err = bin_heap_prepare(lc_minheap, ingest->c0iw_lc_iterc, ingest->c0iw_lc_sourcev);
     if (!err) {
         err = c0sk_merge_loop(lc_minheap, min_seq, max_seq, kvms_gen, cn_list[1], NULL);
         if (!err) {

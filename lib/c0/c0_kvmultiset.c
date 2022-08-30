@@ -309,7 +309,7 @@ c0kvms_cursor_next(struct element_source *es, void **element)
     struct c0_kvmultiset_cursor *cur = c0_kvmultiset_cursor_es_h2r(es);
     int                          skidx = cur->c0mc_skidx;
 
-    while (bin_heap2_pop(cur->c0mc_bh, element)) {
+    while (bin_heap_pop(cur->c0mc_bh, element)) {
         struct bonsai_kv *kv = *element;
 
         if (key_immediate_index(&kv->bkv_key_imm) == skidx) {
@@ -330,19 +330,19 @@ c0kvms_cursor_unget(struct element_source *es)
     /*
      * Sources already at EOF remain at EOF - these have been removed
      * from the bin_heap already - thus we only need to unget the
-     * sources still in the bin_heap2.  A subsequent prepare will then
-     * reload the bin_heap2 with the same results for the existing
+     * sources still in the bin_heap.  A subsequent prepare will then
+     * reload the bin_heap with the same results for the existing
      * sources, and the new results for the new sources.
      */
 
-    bin_heap2_remove_all(cur->c0mc_bh);
+    bin_heap_remove_all(cur->c0mc_bh);
     return true;
 }
 
 void
 c0kvms_cursor_prepare(struct c0_kvmultiset_cursor *cur)
 {
-    bin_heap2_prepare(cur->c0mc_bh, cur->c0mc_iterc, cur->c0mc_esrcv);
+    bin_heap_prepare(cur->c0mc_bh, cur->c0mc_iterc, cur->c0mc_esrcv);
 }
 
 void
@@ -496,7 +496,7 @@ c0kvms_cursor_update(struct c0_kvmultiset_cursor *cur, u32 ct_pfx_len)
                 continue;
         }
 
-        bin_heap2_insert_src(cur->c0mc_bh, *esrc);
+        bin_heap_insert_src(cur->c0mc_bh, *esrc);
         added = true;
     }
 
@@ -536,10 +536,10 @@ c0kvms_cursor_create(
 
     c0kvms_cursor_discover(cur, self);
 
-    err = bin_heap2_create(
+    err = bin_heap_create(
         HSE_C0_INGEST_WIDTH_MAX, reverse ? bn_kv_cmp_rev : bn_kv_cmp, &cur->c0mc_bh);
     if (ev(err)) {
-        log_errx("bin_heap2_create failed", err);
+        log_errx("bin_heap_create failed", err);
         return err;
     }
 
@@ -564,19 +564,19 @@ c0kvms_cursor_debug(struct c0_kvmultiset *handle, int skidx)
     // - which bonsai trees have data (addr, index)
     // - which tree sources the data (index)
     // - when keys are skipped by skidx (do not filter above)
-    // - when a source is removed from bin_heap2
+    // - when a source is removed from bin_heap
     */
 
     err = c0kvms_cursor_create(handle, &cur, skidx, 0, 0, 0, false);
     if (ev(err))
         return;
 
-    while (bin_heap2_peek_debug(cur.c0mc_bh, &item, &es)) {
+    while (bin_heap_peek_debug(cur.c0mc_bh, &item, &es)) {
         struct bonsai_kv * kv;
         struct bonsai_val *v;
         int                len, idx;
 
-        bin_heap2_pop(cur.c0mc_bh, &item);
+        bin_heap_pop(cur.c0mc_bh, &item);
         kv = item;
         len = key_imm_klen(&kv->bkv_key_imm);
 
@@ -625,7 +625,7 @@ c0kvms_cursor_kvs_debug(struct c0_kvmultiset *handle, void *key, int klen)
 void
 c0kvms_cursor_destroy(struct c0_kvmultiset_cursor *cur)
 {
-    bin_heap2_destroy(cur->c0mc_bh);
+    bin_heap_destroy(cur->c0mc_bh);
     cur->c0mc_bh = NULL;
 }
 

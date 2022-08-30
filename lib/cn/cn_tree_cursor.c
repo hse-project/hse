@@ -190,13 +190,13 @@ cn_lcur_init(
      */
     bh_max_cnt = ALIGN(lcur->cnlc_iterc, bh_align);
     if (bh_max_cnt > lcur->cnlc_bh_max_cnt) {
-        bin_heap2_destroy(lcur->cnlc_bh);
+        bin_heap_destroy(lcur->cnlc_bh);
         lcur->cnlc_bh = 0;
 
         lcur->cnlc_bh_max_cnt = bh_max_cnt;
-        err = bin_heap2_create(lcur->cnlc_bh_max_cnt,
-                               cncur->cncur_reverse ? cn_kv_cmp_rev : cn_kv_cmp,
-                               &lcur->cnlc_bh);
+        err = bin_heap_create(lcur->cnlc_bh_max_cnt,
+                              cncur->cncur_reverse ? cn_kv_cmp_rev : cn_kv_cmp,
+                              &lcur->cnlc_bh);
         if (ev(err))
             return err;
     }
@@ -266,7 +266,7 @@ cn_tree_cursor_create(struct cn_cursor *cur)
     cur->cncur_first_read = 1;
 
     cur->cncur_dgen = lcur->cnlc_dgen_hi;
-    err = bin_heap2_create(NUM_LEVELS, cur->cncur_reverse ? cn_kv_cmp_rev : cn_kv_cmp, &cur->cncur_bh);
+    err = bin_heap_create(NUM_LEVELS, cur->cncur_reverse ? cn_kv_cmp_rev : cn_kv_cmp, &cur->cncur_bh);
 
 out:
     if (err) {
@@ -293,11 +293,11 @@ cn_tree_cursor_destroy(struct cn_cursor *cur)
         cn_lcur_kvset_release(lcur);
 
         table_destroy(lcur->cnlc_kvref_tab);
-        bin_heap2_destroy(lcur->cnlc_bh);
+        bin_heap_destroy(lcur->cnlc_bh);
         free(lcur->cnlc_esrcv);
     }
 
-    bin_heap2_destroy(cur->cncur_bh);
+    bin_heap_destroy(cur->cncur_bh);
 }
 
 MTF_STATIC merr_t
@@ -318,7 +318,7 @@ cn_lcur_seek(
             return err;
     }
 
-    err = bin_heap2_prepare(lcur->cnlc_bh, lcur->cnlc_iterc, lcur->cnlc_esrcv);
+    err = bin_heap_prepare(lcur->cnlc_bh, lcur->cnlc_iterc, lcur->cnlc_esrcv);
 
     return err;
 }
@@ -401,7 +401,7 @@ cn_lcur_read(struct element_source *es, void **element)
     struct cn_kv_item      *popme;
     bool                    more;
 
-    more = bin_heap2_peek(lcur->cnlc_bh, (void **)&popme);
+    more = bin_heap_peek(lcur->cnlc_bh, (void **)&popme);
 
     while (!more) {
         if (lcur->cnlc_level == 0 || lcur->cnlc_islast)
@@ -411,13 +411,13 @@ cn_lcur_read(struct element_source *es, void **element)
         if (ev(lcur->cnlc_cncur->cncur_merr))
             return false;
 
-        more = bin_heap2_peek(lcur->cnlc_bh, (void **)&popme);
+        more = bin_heap_peek(lcur->cnlc_bh, (void **)&popme);
     }
 
     lcur->cnlc_item = *popme;
     *element = &lcur->cnlc_item;
 
-    bin_heap2_pop(lcur->cnlc_bh, (void **)&popme);
+    bin_heap_pop(lcur->cnlc_bh, (void **)&popme);
     return true;
 }
 
@@ -503,7 +503,7 @@ cn_tree_cursor_seek(
     cur->cncur_eof = cur->cncur_iterc ? false : true;
     cur->cncur_pt_set = 0;
 
-    return bin_heap2_prepare(cur->cncur_bh, cur->cncur_iterc, cur->cncur_esrcv);
+    return bin_heap_prepare(cur->cncur_bh, cur->cncur_iterc, cur->cncur_esrcv);
 }
 
 merr_t
@@ -519,7 +519,7 @@ cn_tree_cursor_active_kvsets(struct cn_cursor *cur, u32 *active, u32 *total)
     for (i = 0; i < NUM_LEVELS; i++) {
         struct cn_level_cursor *lcur = &cur->cncur_lcur[i];
 
-        *active += bin_heap2_width(lcur->cnlc_bh);
+        *active += bin_heap_width(lcur->cnlc_bh);
         *total  += table_len(lcur->cnlc_kvref_tab);
     }
 
@@ -566,7 +566,7 @@ drop_dups(struct cn_cursor *cur, struct key_obj *kobj)
 {
     struct cn_kv_item *dup;
 
-    while (bin_heap2_peek(cur->cncur_bh, (void **)&dup)) {
+    while (bin_heap_peek(cur->cncur_bh, (void **)&dup)) {
 
         if (key_obj_cmp(&dup->kobj, kobj))
             return;
@@ -577,7 +577,7 @@ drop_dups(struct cn_cursor *cur, struct key_obj *kobj)
         if (dup->vctx.is_ptomb)
             return;
 
-        bin_heap2_pop(cur->cncur_bh, (void **)&dup);
+        bin_heap_pop(cur->cncur_bh, (void **)&dup);
     }
 }
 
@@ -614,7 +614,7 @@ cur_item_pfx_cmp(struct cn_cursor *cur, struct cn_kv_item *item)
     return rc;
 }
 
-/* When bin_heap2_pop() is called, it moves the underlying iterators forward. This could cause the
+/* When bin_heap_pop() is called, it moves the underlying iterators forward. This could cause the
  * level 1 iterator to cross nodes, which involves releasing its resources and acquiring new ones
  * for the new node. This crossover must happen before cn_tree_cursor_read() uses an item from
  * the binheap.
@@ -631,7 +631,7 @@ cn_tree_cursor_advance_safe(struct cn_cursor *cur)
     struct kvset *ks;
     struct cn_kv_item item, *popme = NULL;
 
-    bin_heap2_peek(cur->cncur_bh, (void **)&popme);
+    bin_heap_peek(cur->cncur_bh, (void **)&popme);
     assert(popme); /* This is the key read at the last cursor read. */
 
     item = *popme;
@@ -642,7 +642,7 @@ cn_tree_cursor_advance_safe(struct cn_cursor *cur)
     ks = kvset_iter_kvset_get(kvset_cursor_es_h2r(popme->src));
     kvset_get_ref(ks);
 
-    bin_heap2_pop(cur->cncur_bh, (void **)&popme); /* advance the cursor */
+    bin_heap_pop(cur->cncur_bh, (void **)&popme); /* advance the cursor */
     if (!cur->cncur_merr)
         drop_dups(cur, &item.kobj); /* push on past the duplicates */
 
@@ -687,7 +687,7 @@ cn_tree_cursor_read(struct cn_cursor *cur, struct kvs_cursor_element *elem, bool
 
         cur->cncur_first_read = 0;
 
-        more = bin_heap2_peek(cur->cncur_bh, (void **)&item);
+        more = bin_heap_peek(cur->cncur_bh, (void **)&item);
         if (!more) {
             *eof = (cur->cncur_eof = 1);
             return 0;

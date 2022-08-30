@@ -24,7 +24,7 @@ struct c0_kvmultiset_cursor {
         struct c0_kvmultiset *c0mc_kvms;
         struct c0_kvmultiset_cursor *c0mc_next;
     };
-    struct bin_heap2 *    c0mc_bh;
+    struct bin_heap *     c0mc_bh;
     int                   c0mc_iterc;
     int                   c0mc_skidx;
     int                   c0mc_reverse;
@@ -66,7 +66,7 @@ struct c0_kvmultiset_cursor {
  */
 struct c0_cursor {
     struct element_source         c0cur_es;
-    struct bin_heap2 *            c0cur_bh;
+    struct bin_heap *             c0cur_bh;
     struct c0sk *                 c0cur_c0sk;
     struct cursor_summary *       c0cur_summary;
     struct kvs_cursor_element     c0cur_elem;

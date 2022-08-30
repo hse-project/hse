@@ -92,7 +92,7 @@ struct spillctx {
     struct subspill  subspill[CN_FANOUT_MAX];
 
     /* Merge Loop */
-    struct bin_heap2       *bh;
+    struct bin_heap        *bh;
     struct element_source **bh_sources;
     bool                    more;
     struct cn_kv_item      *curr;
@@ -119,7 +119,7 @@ cn_spill_create(struct cn_compaction_work *w, struct spillctx **sctx_out)
     memset(s, 0, sizeof(*s));
     s->bh_sources = (void *)(s + 1);
 
-    err = bin_heap2_create(w->cw_kvset_cnt, kv_item_compare, &s->bh);
+    err = bin_heap_create(w->cw_kvset_cnt, kv_item_compare, &s->bh);
     if (err)
         goto out;
 
@@ -129,14 +129,14 @@ cn_spill_create(struct cn_compaction_work *w, struct spillctx **sctx_out)
         s->bh_sources[i] = kvset_iter_es_get(iter);
     }
 
-    err = bin_heap2_prepare(s->bh, w->cw_kvset_cnt, s->bh_sources);
+    err = bin_heap_prepare(s->bh, w->cw_kvset_cnt, s->bh_sources);
     if (err)
         goto out;
 
     s->work = w;
     s->sgen = w->cw_sgen;
 
-    s->more = bin_heap2_peek(s->bh, (void **)&s->curr);
+    s->more = bin_heap_peek(s->bh, (void **)&s->curr);
     if (s->curr) {
         w->cw_stats.ms_keys_in++;
         w->cw_stats.ms_key_bytes_in += key_obj_len(&s->curr->kobj);
@@ -146,7 +146,7 @@ cn_spill_create(struct cn_compaction_work *w, struct spillctx **sctx_out)
 
 out:
     if (err) {
-        bin_heap2_destroy(s->bh);
+        bin_heap_destroy(s->bh);
         free(s);
     }
 
@@ -159,7 +159,7 @@ cn_spill_destroy(struct spillctx *sctx)
     if (!sctx)
         return;
 
-    bin_heap2_destroy(sctx->bh);
+    bin_heap_destroy(sctx->bh);
     free(sctx);
 }
 
@@ -201,7 +201,7 @@ cn_subspill(
     uint                       eklen)
 {
     struct cn_compaction_work *w = sctx->work;
-    struct bin_heap2 *bh = sctx->bh;
+    struct bin_heap *bh = sctx->bh;
     struct kvset_builder *child = NULL;
     struct key_obj prev_kobj = { 0 };
 
@@ -425,8 +425,8 @@ cn_subspill(
          * buffer, so we call it in order to force all the side effects to
          * occur, but only grab the next value after pop() calls heapify().
          */
-        bin_heap2_pop(bh, NULL);
-        sctx->more = bin_heap2_peek(bh, (void **)&sctx->curr);
+        bin_heap_pop(bh, NULL);
+        sctx->more = bin_heap_peek(bh, (void **)&sctx->curr);
 
         if (sctx->curr) {
             w->cw_stats.ms_keys_in++;

@@ -151,7 +151,7 @@ struct kvs_cursor_impl {
     struct lc_cursor *      kci_lccur;
     struct cn_cursor *      kci_cncur;
     struct element_source * kci_esrcv[KVS_CURSOR_SOURCES_CNT];
-    struct bin_heap2 *      kci_bh;
+    struct bin_heap *       kci_bh;
     struct cursor_summary   kci_summary;
 
     /* current values for each cursor read */
@@ -706,7 +706,7 @@ static merr_t
 kvs_cursor_bh_create(struct hse_kvs_cursor *cursor)
 {
     struct kvs_cursor_impl *cur = cursor_h2r(cursor);
-    bin_heap2_compare_fn *  cmp;
+    bin_heap_compare_fn *cmp;
     merr_t err;
 
     cur->kci_esrcv[0] = c0_cursor_es_make(cur->kci_c0cur);
@@ -715,9 +715,9 @@ kvs_cursor_bh_create(struct hse_kvs_cursor *cursor)
 
     cmp = cur->kci_reverse ? kvs_cursor_cmp_rev : kvs_cursor_cmp;
     if (cur->kci_bh)
-        bin_heap2_destroy(cur->kci_bh);
+        bin_heap_destroy(cur->kci_bh);
 
-    err = bin_heap2_create(KVS_CURSOR_SOURCES_CNT, cmp, &cur->kci_bh);
+    err = bin_heap_create(KVS_CURSOR_SOURCES_CNT, cmp, &cur->kci_bh);
     if (ev(err))
         return err;
 
@@ -881,7 +881,7 @@ kvs_cursor_destroy(struct hse_kvs_cursor *handle)
         cn_cursor_destroy(cursor->kci_cncur);
 
     if (cursor->kci_bh)
-        bin_heap2_destroy(cursor->kci_bh);
+        bin_heap_destroy(cursor->kci_bh);
 
     vlb_free(cursor, kvs_cursor_impl_alloc_sz);
 }
@@ -1017,7 +1017,7 @@ ikvs_cursor_replenish(struct kvs_cursor_impl *cursor)
         return 0;
 
     do {
-        cursor->kci_eof = !bin_heap2_peek(cursor->kci_bh, (void **)&item);
+        cursor->kci_eof = !bin_heap_peek(cursor->kci_bh, (void **)&item);
 
         if (cursor->kci_eof)
             goto out;
@@ -1031,7 +1031,7 @@ ikvs_cursor_replenish(struct kvs_cursor_impl *cursor)
         is_ptomb = HSE_CORE_IS_PTOMB(item->kce_vt.vt_data);
 
         /* discard current kv-tuple */
-        bin_heap2_pop(cursor->kci_bh, (void **)&popme);
+        bin_heap_pop(cursor->kci_bh, (void **)&popme);
 
         if (cursor->kci_ptomb_set) {
             int rc;
@@ -1052,11 +1052,11 @@ ikvs_cursor_replenish(struct kvs_cursor_impl *cursor)
             cursor->kci_ptomb_set = 1;
         } else {
             /* drop dups */
-            while (bin_heap2_peek(cursor->kci_bh, (void **)&item)) {
+            while (bin_heap_peek(cursor->kci_bh, (void **)&item)) {
                 if (key_obj_cmp(&item->kce_kobj, cursor->kci_last))
                     break; /* not a dup */
 
-                bin_heap2_pop(cursor->kci_bh, (void **)&popme);
+                bin_heap_pop(cursor->kci_bh, (void **)&popme);
             }
         }
     } while (is_ptomb || is_tomb);
@@ -1092,7 +1092,7 @@ ikvs_cursor_seek(struct kvs_cursor_impl *cursor, const void *key, size_t klen)
     cursor->kci_esrcv[cnt++] = lc_cursor_es_get(cursor->kci_lccur);
     cursor->kci_esrcv[cnt++] = cn_cursor_es_get(cursor->kci_cncur);
 
-    err = bin_heap2_prepare(cursor->kci_bh, cnt, cursor->kci_esrcv);
+    err = bin_heap_prepare(cursor->kci_bh, cnt, cursor->kci_esrcv);
 
     if (perfc_ison(cursor->kci_cd_pc, PERFC_DI_CD_ACTIVEKVSETS_CN)) {
         uint32_t active = 0, total;

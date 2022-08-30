@@ -17,11 +17,11 @@ c0_ingest_work_init(struct c0_ingest_work *c0iw)
     memset(c0iw, 0, sizeof(*c0iw));
     c0iw->c0iw_magic = (uintptr_t)c0iw;
 
-    bin_heap2_init(HSE_C0_INGEST_WIDTH_MAX, bn_kv_cmp,
-                   (struct bin_heap2 *)&c0iw->c0iw_kvms_minheap);
+    bin_heap_init(HSE_C0_INGEST_WIDTH_MAX, bn_kv_cmp,
+                   (struct bin_heap *)&c0iw->c0iw_kvms_minheap);
 
-    bin_heap2_init(LC_SOURCE_CNT_MAX, bn_kv_cmp,
-                   (struct bin_heap2 *)&c0iw->c0iw_lc_minheap);
+    bin_heap_init(LC_SOURCE_CNT_MAX, bn_kv_cmp,
+                   (struct bin_heap *)&c0iw->c0iw_lc_minheap);
 }
 
 void

@@ -77,7 +77,7 @@ kv_end()
 }
 
 bool
-_bin_heap2_pop(struct bin_heap2 *bh, void **item)
+_bin_heap_pop(struct bin_heap *bh, void **item)
 {
     if (!curr)
         return false; /* eof */
@@ -95,7 +95,7 @@ _bin_heap2_pop(struct bin_heap2 *bh, void **item)
 }
 
 bool
-_bin_heap2_peek(struct bin_heap2 *bh, void **item)
+_bin_heap_peek(struct bin_heap *bh, void **item)
 {
     if (!curr)
         return false; /* eof */
@@ -228,12 +228,12 @@ pre_test(struct mtf_test_info *lcl_ti)
     MOCK_SET(kvset, _kvset_iter_next_vref);
     MOCK_SET(kvset, _kvset_iter_val_get);
 
-    mapi_inject(mapi_idx_bin_heap2_create, 0);
-    mapi_inject(mapi_idx_bin_heap2_destroy, 0);
-    mapi_inject(mapi_idx_bin_heap2_prepare, 0);
+    mapi_inject(mapi_idx_bin_heap_create, 0);
+    mapi_inject(mapi_idx_bin_heap_destroy, 0);
+    mapi_inject(mapi_idx_bin_heap_prepare, 0);
 
-    MOCK_SET(bin_heap, _bin_heap2_peek);
-    MOCK_SET(bin_heap, _bin_heap2_pop);
+    MOCK_SET(bin_heap, _bin_heap_peek);
+    MOCK_SET(bin_heap, _bin_heap_pop);
 
     return 0;
 }

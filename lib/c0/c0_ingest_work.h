@@ -53,8 +53,8 @@ struct c0_ingest_work {
     u32                      c0iw_lc_iterc;
     struct kvset_mblocks    *c0iw_mbv[HSE_KVS_COUNT_MAX];
 
-    BIN_HEAP2_DEFINE(c0iw_kvms_minheap, HSE_C0_INGEST_WIDTH_MAX);
-    BIN_HEAP2_DEFINE(c0iw_lc_minheap, LC_SOURCE_CNT_MAX);
+    BIN_HEAP_DEFINE(c0iw_kvms_minheap, HSE_C0_INGEST_WIDTH_MAX);
+    BIN_HEAP_DEFINE(c0iw_lc_minheap, LC_SOURCE_CNT_MAX);
 
     struct c0_usage c0iw_usage;
     u64             c0iw_tenqueued;

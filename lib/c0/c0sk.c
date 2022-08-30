@@ -947,9 +947,9 @@ c0sk_cursor_discover(struct c0_cursor *cur)
     cur->c0cur_summary->n_kvms = cnt;
     cur->c0cur_cnt = 0;
 
-    cur->c0cur_merr = bin_heap2_create(cur->c0cur_alloc_cnt,
-                                       cur->c0cur_reverse ? bn_kv_cmp_rev : bn_kv_cmp,
-                                       &cur->c0cur_bh);
+    cur->c0cur_merr = bin_heap_create(cur->c0cur_alloc_cnt,
+                                      cur->c0cur_reverse ? bn_kv_cmp_rev : bn_kv_cmp,
+                                      &cur->c0cur_bh);
     if (ev(cur->c0cur_merr)) {
         c0sk_cursor_release(cur);
         cur->c0cur_bh = NULL;
@@ -1064,7 +1064,7 @@ c0sk_cursor_destroy(struct c0_cursor *cur)
     c0sk_cursor_release(cur);
 
     if (cur->c0cur_bh)
-        bin_heap2_destroy(cur->c0cur_bh);
+        bin_heap_destroy(cur->c0cur_bh);
 
     kmem_cache_free(c0_cursor_cache, cur);
     return 0;
@@ -1080,7 +1080,7 @@ c0sk_cursor_seek(struct c0_cursor *cur, const void *seek, size_t seeklen, struct
     for (i = 0; i < cur->c0cur_cnt; i++)
         c0kvms_cursor_seek(cur->c0cur_curv[i], seek, seeklen, cur->c0cur_ct_pfx_len);
 
-    bin_heap2_prepare(cur->c0cur_bh, cur->c0cur_cnt, cur->c0cur_esrcv);
+    bin_heap_prepare(cur->c0cur_bh, cur->c0cur_cnt, cur->c0cur_esrcv);
     return 0;
 }
 
@@ -1108,7 +1108,7 @@ c0sk_cursor_read(struct c0_cursor *cur, struct kvs_cursor_element *elem, bool *e
 
     seqnoref = kvdb_ctxn_get_seqnoref(cur->c0cur_ctxn);
 
-    while (bin_heap2_pop(cur->c0cur_bh, (void **)&bkv)) {
+    while (bin_heap_pop(cur->c0cur_bh, (void **)&bkv)) {
         struct key_immediate *imm = &bkv->bkv_key_imm;
         struct bonsai_val *   val;
         u32                   klen = key_imm_klen(imm);
@@ -1178,7 +1178,7 @@ c0sk_cursor_read(struct c0_cursor *cur, struct kvs_cursor_element *elem, bool *e
          * We have a key for c0, but there may be duplicates in other kvmultisets -- this one must
          * hide all the rest.
          */
-        while (bin_heap2_peek(cur->c0cur_bh, (void **)&dup)) {
+        while (bin_heap_peek(cur->c0cur_bh, (void **)&dup)) {
             struct bonsai_val *   dup_val;
             struct key_immediate *dupi = &dup->bkv_key_imm;
             enum hse_seqno_state  dup_state;
@@ -1191,7 +1191,7 @@ c0sk_cursor_read(struct c0_cursor *cur, struct kvs_cursor_element *elem, bool *e
             /* Next key is a dup */
             dup_val = c0kvs_findval(dup, cur->c0cur_seqno, seqnoref);
             if (!dup_val) {
-                bin_heap2_pop(cur->c0cur_bh, (void **)&dup); /* No val in cursor's view */
+                bin_heap_pop(cur->c0cur_bh, (void **)&dup); /* No val in cursor's view */
                 continue;
             }
 
@@ -1207,7 +1207,7 @@ c0sk_cursor_read(struct c0_cursor *cur, struct kvs_cursor_element *elem, bool *e
                 dup_seqno > seqno)
                 break;
 
-            bin_heap2_pop(cur->c0cur_bh, (void **)&dup);
+            bin_heap_pop(cur->c0cur_bh, (void **)&dup);
         }
 
         /*
@@ -1380,11 +1380,11 @@ c0sk_cursor_update(struct c0_cursor *cur, u64 seqno, u32 *flags_out)
     }
 
     if (resize_bh) {
-        bin_heap2_destroy(cur->c0cur_bh);
+        bin_heap_destroy(cur->c0cur_bh);
 
-        cur->c0cur_merr = bin_heap2_create(cur->c0cur_alloc_cnt,
-                                           cur->c0cur_reverse ? bn_kv_cmp_rev : bn_kv_cmp,
-                                           &cur->c0cur_bh);
+        cur->c0cur_merr = bin_heap_create(cur->c0cur_alloc_cnt,
+                                          cur->c0cur_reverse ? bn_kv_cmp_rev : bn_kv_cmp,
+                                          &cur->c0cur_bh);
         if (ev(cur->c0cur_merr)) {
             c0sk_cursor_release(cur);
             cur->c0cur_bh = NULL;
