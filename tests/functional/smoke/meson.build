@@ -1,3 +1,5 @@
+jq = find_program('jq', required: false)
+
 tests = {
     # This one first
     'aloha': {
@@ -39,7 +41,8 @@ tests = {
         ],
     },
     'paths': {
-        'suites': ['smoke', 'nightly-small'],
+        'suites': ['smoke-ci', 'nightly-small'],
+        'enabled': jq.found(),
     },
     'longtestc0': {
         'suites': ['smoke', 'nightly-small'],
@@ -57,7 +60,7 @@ tests = {
         ],
     },
     'samples': {
-        'suites': ['smoke', 'nightly-small'],
+        'suites': ['smoke-ci', 'nightly-small'],
         'depends': [
             sample_targets['ex1_create'],
             sample_targets['ex2_simple_ops'],
