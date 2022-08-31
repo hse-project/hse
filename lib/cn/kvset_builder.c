@@ -43,7 +43,7 @@ kvset_builder_create(
     if (ev(!bld))
         return merr(ENOMEM);
 
-    bld->seqno_min = U64_MAX;
+    bld->seqno_min = UINT64_MAX;
 
     err = hbb_create(&bld->hbb, cn, pc);
     if (ev(err))
@@ -58,8 +58,8 @@ kvset_builder_create(
         goto out;
 
     bld->cn = cn;
-    bld->key_stats.seqno_prev = U64_MAX;
-    bld->key_stats.seqno_prev_ptomb = U64_MAX;
+    bld->seqno_prev = UINT64_MAX;
+    bld->seqno_prev_ptomb = UINT64_MAX;
 
     *bld_out = bld;
 
@@ -136,16 +136,19 @@ kvset_builder_add_key(struct kvset_builder *self, const struct key_obj *kobj)
             return err;
     }
 
+    /* Reset for next key
+     */
     self->key_stats.nvals = 0;
     self->key_stats.ntombs = 0;
     self->key_stats.tot_vlen = 0;
     self->key_stats.tot_vused = 0;
-    self->key_stats.seqno_prev = U64_MAX;
-    self->key_stats.seqno_prev_ptomb = U64_MAX;
     self->key_stats.nptombs = 0;
 
     self->kblk_kmd.kmd_used = 0;
     self->hblk_kmd.kmd_used = 0;
+
+    self->seqno_prev = UINT64_MAX;
+    self->seqno_prev_ptomb = UINT64_MAX;
 
     return ev(err);
 }
@@ -221,8 +224,6 @@ kvset_builder_add_val(
         if (ev(err))
             return err;
 
-        self->key_stats.c0_vlen += omlen;
-
         if (complen)
             kmd_add_cval(self->kblk_kmd.kmd, &self->kblk_kmd.kmd_used, seq, vbidx, vboff, vlen, complen);
         else
@@ -238,12 +239,12 @@ kvset_builder_add_val(
     self->seqno_min = min_t(u64, self->seqno_min, seq);
 
     if (vdata == HSE_CORE_TOMB_PFX) {
-        seqno_prev = self->key_stats.seqno_prev_ptomb;
-        self->key_stats.seqno_prev_ptomb = seq;
+        seqno_prev = self->seqno_prev_ptomb;
+        self->seqno_prev_ptomb = seq;
     } else {
-        seqno_prev = self->key_stats.seqno_prev;
+        seqno_prev = self->seqno_prev;
+        self->seqno_prev = seq;
         self->key_stats.nvals++;
-        self->key_stats.seqno_prev = seq;
     }
 
     assert(seq <= seqno_prev);

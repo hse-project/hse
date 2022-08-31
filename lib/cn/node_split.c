@@ -82,6 +82,17 @@ reverse_kblk_iterator_init(
     iter->es = es_make(reverse_kblk_iterator_next, NULL, NULL);
 }
 
+/* Kblock comparison function
+ *
+ * Used with the binheap to iterate over kblocks reverse sorted by each kblock's
+ * min key.  The kblock with the largest min key comes out of the binheap
+ * first, the kblock with the smallest min key comes out last.
+ *
+ * Given two kblocks A and B, the return value is:
+ *  -  0            : first key in A = first key in B
+ *  -  negative int : first key in A > first key in B
+ *  -  positive int : first key in A < first key in B
+ */
 static int
 kblk_compare(const void *const a, const void *const b)
 {
@@ -90,7 +101,6 @@ kblk_compare(const void *const a, const void *const b)
     INVARIANT(a);
     INVARIANT(b);
 
-    /* Return the kblock with the largest min key. */
     return -1 * keycmp(kblk_a->kb_koff_min, kblk_a->kb_klen_min, kblk_b->kb_koff_min,
         kblk_b->kb_klen_min);
 }
@@ -124,9 +134,6 @@ find_inflection_points(
     if (ev(err))
         return err;
 
-    /* Forgive me for I have sinned; allocate all necessary memory for managing
-     * iterators and element sources in one go.
-     */
     buf = malloc(num_kvsets * (sizeof(*iters) + sizeof(void *)));
     if (ev(!buf)) {
         err = merr(ENOMEM);
@@ -299,6 +306,13 @@ forward_wbt_leaf_iterator_init(
     iter->es = es_make(forward_wbt_leaf_iterator_next, NULL, NULL);
 }
 
+/* WBT leaf node comparison function, used by binheap
+ *
+ * Given two nodes A and B, the return value is:
+ *  -  0            : first key in A = first key in B
+ *  -  negative int : first key in A < first key in B
+ *  -  positive int : first key in A > first key in B
+ */
 static int
 wbt_leaf_compare(const void *const a, const void *const b)
 {
