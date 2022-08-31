@@ -2316,8 +2316,7 @@ cn_tree_node_mclass(struct cn_tree_node *tn, enum hse_mclass_policy_dtype dtype)
     INVARIANT(tn);
 
     policy = cn_get_mclass_policy(tn->tn_tree->cn);
-    age = cn_node_isleaf(tn) ? HSE_MPOLICY_AGE_LEAF :
-        (cn_node_isroot(tn) ? HSE_MPOLICY_AGE_ROOT : HSE_MPOLICY_AGE_INTERNAL);
+    age = cn_node_isroot(tn) ? HSE_MPOLICY_AGE_ROOT : HSE_MPOLICY_AGE_LEAF;
 
     return mclass_policy_get_type(policy, age, dtype);
 }

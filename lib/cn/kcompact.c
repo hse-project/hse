@@ -295,9 +295,8 @@ done:
 merr_t
 cn_kcompact(struct cn_compaction_work *w)
 {
-    merr_t                err;
-    struct cn_tree_node  *pnode;
     struct kvset_builder *bldr;
+    merr_t err;
 
     w->cw_kvsetidv[0] = cndb_kvsetid_mint(cn_tree_get_cndb(w->cw_tree));
 
@@ -309,16 +308,7 @@ cn_kcompact(struct cn_compaction_work *w)
     if (ev(err))
         return err;
 
-    pnode = w->cw_node;
-    if (pnode) {
-        if (cn_node_isroot(pnode))
-            kvset_builder_set_agegroup(bldr, HSE_MPOLICY_AGE_ROOT);
-        else if (cn_node_isleaf(pnode))
-            kvset_builder_set_agegroup(bldr, HSE_MPOLICY_AGE_LEAF);
-        else
-            kvset_builder_set_agegroup(bldr, HSE_MPOLICY_AGE_INTERNAL);
-    }
-
+    kvset_builder_set_agegroup(bldr, HSE_MPOLICY_AGE_LEAF);
     kvset_builder_set_merge_stats(bldr, &w->cw_stats);
 
     err = kcompact(w, bldr);
