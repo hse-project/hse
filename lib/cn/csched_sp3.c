@@ -236,7 +236,6 @@ struct sp3 {
 
     /* Tree shape report */
     bool tree_shape_bad;
-    uint lvl_max;
 
     struct cn_samp_stats samp;
     struct cn_samp_stats samp_wip;
@@ -321,7 +320,7 @@ scale2dbl(u64 samp)
 static inline uint
 samp_est(struct cn_samp_stats *s, uint scale)
 {
-    return scale * safe_div((s->i_alen / 4) + s->l_alen, s->l_good);
+    return scale * safe_div(s->i_alen + s->l_alen, s->i_alen + s->l_good);
 }
 
 static inline uint
@@ -953,27 +952,24 @@ sp3_dirty_node_locked(struct sp3 *sp, struct cn_tree_node *tn)
          * compaction jobs from starting which could otherwise indefinitely
          * starve a split.
          */
-        if (tn->tn_ns.ns_pcap >= sp->thresh.lcomp_split_pct && jobs < 1) {
-            const uint split_keys = sp->thresh.lcomp_split_keys;
-            const uint split_pct = sp->thresh.lcomp_split_pct;
-            const uint64_t weight = tn->tn_ns.ns_pcap;
+        if (cn_ns_clen(&tn->tn_ns) > tn->tn_split_size && jobs < 1) {
+            const uint64_t weight = cn_ns_clen(&tn->tn_ns);
 
             sp3_node_insert(sp, spn, wtype_split, (weight << 32) | keys);
 
-            if (tn->tn_ns.ns_pcap > (split_pct * 3 / 2) || keys_uniq > (split_keys * 2) / 3)
-                sp3_node_remove(sp, spn, wtype_length);
-            sp3_node_remove(sp, spn, wtype_garbage);
-            sp3_node_remove(sp, spn, wtype_scatter);
+            if (weight > tn->tn_tree->rp->cn_split_size) {
+                sp3_node_remove(sp, spn, wtype_garbage);
+                sp3_node_remove(sp, spn, wtype_scatter);
+            }
         } else {
             const uint split_keys = sp->thresh.lcomp_split_keys;
 
             if (keys_uniq > split_keys && jobs < 1) {
-                const uint64_t weight = sp->thresh.lcomp_split_pct;
+                const uint64_t weight = tn->tn_split_size;
 
-                sp3_node_insert(sp, spn, wtype_split, (weight << 32) | keys_uniq);
+                sp3_node_insert(sp, spn, wtype_split, (weight << 32) | keys);
 
                 sp3_node_remove(sp, spn, wtype_length);
-                sp3_node_remove(sp, spn, wtype_garbage);
                 sp3_node_remove(sp, spn, wtype_scatter);
             } else {
                 sp3_node_remove(sp, spn, wtype_split);
@@ -1062,9 +1058,11 @@ sp3_process_workitem(struct sp3 *sp, struct cn_compaction_work *w)
 
     if (w->cw_action == CN_ACTION_SPILL) {
         struct cn_tree *tree = w->cw_tree;
-        uint64_t dt = w->cw_t5_finish - w->cw_t0_enqueue;
+        uint64_t dt;
 
-        tree->ct_rspill_dt = (tree->ct_rspill_dt + dt * 2) / 3;
+        dt = (get_time_ns() - w->cw_t0_enqueue) / w->cw_kvset_cnt;
+
+        tree->ct_rspill_dt = (tree->ct_rspill_dt * 3 + dt) / 4;
     }
 
     if (w->cw_debug & (CW_DEBUG_PROGRESS | CW_DEBUG_FINAL))
@@ -1202,8 +1200,6 @@ sp3_process_new_trees(struct sp3 *sp)
         sp->samp.i_alen += tree->ct_samp.i_alen;
         sp->samp.l_alen += tree->ct_samp.l_alen;
         sp->samp.l_good += tree->ct_samp.l_good;
-
-        sp->lvl_max = max(sp->lvl_max, tree->ct_lvl_max);
 
         /* Move to the monitor's list. */
         list_del(&spt->spt_tlink);
@@ -1733,7 +1729,6 @@ sp3_tree_shape_check(struct sp3 *sp)
     bool bad;
 
     struct sp3_node *spn;
-    uint lvl_max = 0;
 
     /* [HSE_REVISIT] This function reads node state and stats without
      * holding the tree lock, so state determination and reporting
@@ -1762,8 +1757,6 @@ sp3_tree_shape_check(struct sp3 *sp)
                 rlen_node = tn;
                 rlen = len;
             }
-
-            lvl_max = max(lvl_max, tn->tn_tree->ct_lvl_max);
         } else {
             if (!ilen_node || len > ilen) {
                 ilen_node = tn;
@@ -1773,7 +1766,6 @@ sp3_tree_shape_check(struct sp3 *sp)
     }
 
     bad = rlen > rlen_thresh || ilen > ilen_thresh || llen > llen_thresh || lsiz > lsiz_thresh;
-    sp->lvl_max = lvl_max;
 
     if (sp->tree_shape_bad != bad) {
 
@@ -1861,39 +1853,37 @@ sp3_qos_check(struct sp3 *sp)
     if (!sp->throttle_sensor_root)
         return;
 
-    rootmin = sp->thresh.rspill_runlen_max;
+    rootmin = sp->thresh.rspill_runlen_min;
     rootmax = 0;
     rspill_dt_max = 0;
     sval = 0;
 
     list_for_each_entry(tree, &sp->mon_tlist, ct_sched.sp3t.spt_tlink) {
         const struct kvs_rparams *rp = cn_tree_get_rp(tree);
-        uint32_t split_cnt, nk;
+        uint32_t nk;
 
         if (rp->cn_maint_disable)
             continue;
 
         nk = cn_ns_kvsets(&tree->ct_root->tn_ns);
 
-        /* Increase the throttle if a split is pending or in-progress as
-         * the root spill job count is either zero or approaching zero.
+        /* Increase the throttle for each root spill job paused for a split
+         * (which means it could also be waiting on another spill job).
          */
-        split_cnt = tree->ct_root->tn_split_cnt;
-        if (split_cnt > 0)
-            nk += (split_cnt / 2) + 1;
+        nk += tree->ct_rspill_slp;
 
         if (nk > rootmin) {
-            if (tree->ct_rspill_dt * (nk - rootmin) > rspill_dt_max * rootmax) {
+            if (tree->ct_rspill_dt > rspill_dt_max) {
                 rspill_dt_max = tree->ct_rspill_dt;
                 rootmax = nk - rootmin;
             }
         }
     }
 
-    if (rspill_dt_max > 0) {
+    if (rspill_dt_max * rootmax > 0) {
         u64 K;
         u64 r = rootmax * 100;
-        u64 secs = rspill_dt_max / NSEC_PER_SEC;
+        u64 secs = (rspill_dt_max * rootmax) / NSEC_PER_SEC;
         u64 min_lat = 16, max_lat = 80;
 
         /* Since, the throttling system's sensitivty to sensor values over 1000 is non-linear, the
@@ -2023,7 +2013,7 @@ sp3_schedule(struct sp3 *sp)
 
             job = sp3_check_rb_tree(sp, sp->rr_wtype, thresh, qnum);
             if (job)
-                sp->check_big_ns = get_time_ns() + NSEC_PER_SEC * 5;
+                sp->check_big_ns = get_time_ns() + NSEC_PER_SEC * 3;
             break;
 
         case wtype_scatter:
@@ -2041,7 +2031,7 @@ sp3_schedule(struct sp3 *sp)
 
             job = sp3_check_rb_tree(sp, sp->rr_wtype, thresh, qnum);
             if (job)
-                sp->check_big_ns = get_time_ns() + NSEC_PER_SEC * 5;
+                sp->check_big_ns = get_time_ns() + NSEC_PER_SEC * 3;
             break;
 
         case wtype_split:
@@ -2049,14 +2039,7 @@ sp3_schedule(struct sp3 *sp)
             if (qfull(sp, qnum))
                 break;
 
-            /* If we start a split, reset the round-robin scheduler so that
-             * the next call will check for additional split jobs first.
-             * This ensures that a batch of pending splits start with
-             * minimal intervening delay.
-             */
             job = sp3_check_rb_tree(sp, sp->rr_wtype, 0, qnum);
-            if (job)
-                sp->rr_wtype--;
             break;
         }
     }

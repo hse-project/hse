@@ -43,6 +43,7 @@ struct kvset_split_res {
  * @split_kobj: split key object
  * @pc:         perfc_set handle
  * @err:        return status of this split work
+ * @inflightp:  ptr to count of inflight requests
  * @result:     split result (output)
  */
 struct kvset_split_wargs {
@@ -51,6 +52,7 @@ struct kvset_split_wargs {
     struct key_obj        *split_kobj;
     struct perfc_set      *pc;
     merr_t                 err;
+    atomic_uint           *inflightp;
     struct kvset_split_res result;
 };
 

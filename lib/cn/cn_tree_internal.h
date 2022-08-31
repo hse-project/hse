@@ -74,7 +74,10 @@ struct cn_kle_hdr {
  * @ct_cp:          cn create-time parameters
  * @cndb:  handle for cndb (the metadata journal/log)
  * @cnid:  cndb's identifier for this cn tree
- * @ct_rspill_dt:  average rspill time for this tree (nanoseconds)
+ * @ct_rspill_dt:  running average time to spill a kvset (nanoseconds)
+ * @ct_rspill_slp: number of rspill jobs waiting on a split to finish
+ * @ct_split_cnt:  number of pending or running split jobs
+ * @ct_split_dly:  time at which a new splits may be requested
  * @ct_sched:
  * @ct_kvdb_health: for monitoring KDVB health
  * @ct_last_ptseq:
@@ -94,6 +97,7 @@ struct cn_tree {
     u16                  ct_pfx_len;
     u16                  ct_sfx_len;
     bool                 ct_nospace;
+    bool                 ct_rspills_wedged;
     struct cn *          cn;
     struct mpool *       mp;
     struct kvs_rparams * rp;
@@ -105,11 +109,13 @@ struct cn_tree {
     struct kvs_cparams *ct_cp;
     u64                 cnid;
 
-    uint64_t            ct_sgen;
-
-    uint                 ct_lvl_max;
     struct cn_samp_stats ct_samp;
+
     atomic_ulong         ct_rspill_dt;
+    atomic_uint          ct_rspill_slp;
+    atomic_uint          ct_split_cnt;
+    uint64_t             ct_split_dly;
+    uint64_t             ct_sgen;
 
     union {
         struct sp3_tree sp3t HSE_L1D_ALIGNED;
@@ -127,8 +133,6 @@ struct cn_tree {
 
     struct cn_kle_cache ct_kle_cache HSE_L1D_ALIGNED;
 
-    bool              ct_rspills_wedged;
-
     struct rmlock ct_lock;
 };
 
@@ -136,8 +140,6 @@ struct cn_tree {
  * struct cn_tree_node - A node in a k-way cn_tree
  * @tn_compacting:   true if if an exclusive job is running on this node
  * @tn_busycnt:      count of jobs and kvsets being compacted/spilled
- * @tn_split_cnt:    number of pending or running split jobs
- * @tn_split_dly:    time at which a new batch of splits may be requested
  * @tn_destroy_work: used for async destroy
  * @tn_hlog:         hyperloglog structure
  * @tn_ns:           metrics about node to guide node compaction decisions
@@ -148,8 +150,6 @@ struct cn_tree {
 struct cn_tree_node {
     atomic_int           tn_compacting;
     atomic_uint          tn_busycnt;
-    atomic_uint          tn_split_cnt;
-    uint64_t             tn_split_dly;
 
     union {
         struct sp3_node  tn_sp3n;
@@ -171,14 +171,18 @@ struct cn_tree_node {
     struct list_head     tn_link;
 
     /* Serializing spills in the root node */
+    struct mutex tn_spill_mtx HSE_L1D_ALIGNED;
     atomic_long  tn_sgen;      /* The last spill gen that was added to the node */
     struct cv    tn_spill_cv;  /* cv for serializing the deletion of input kvsets */
-    struct mutex tn_spill_mtx; /* mutex lock for the cv */
 
     /* List of pending subspills and a mutex to serialize its access.
      */
+    struct mutex         tn_ss_lock HSE_L1D_ALIGNED;
     struct list_head     tn_ss_list;
-    struct mutex         tn_ss_lock;
+    atomic_uint          tn_ss_spilling;
+    atomic_bool          tn_ss_splitting;
+    uint8_t              tn_ss_visits;
+    struct cv            tn_ss_cv;
 };
 
 /* Iterate over all tree nodes, starting with the root node.
