@@ -132,9 +132,9 @@ verify(struct kvset_builder *bld)
     VERIFY_TRUE_RET(nvals == 1, __LINE__);
 
     if (st.vwant == -1) {
-        VERIFY_TRUE_RET(vtype == vtype_tomb, __LINE__);
+        VERIFY_TRUE_RET(vtype == VTYPE_TOMB, __LINE__);
     } else {
-        VERIFY_TRUE_RET((vtype == vtype_val) || (vtype == vtype_ival), __LINE__);
+        VERIFY_TRUE_RET((vtype == VTYPE_UCVAL) || (vtype == VTYPE_IVAL), __LINE__);
         if (vlen == 4)
             VERIFY_EQ_RET(st.vwant, st.have.value, __LINE__);
         if (!mixed)
@@ -173,7 +173,7 @@ _kvset_builder_add_vref(struct kvset_builder *self, u64 seq,
     VERIFY_EQ_RET(st.have.nvals, 0, __LINE__);
 
     st.have.nvals++;
-    st.have.vtype = vtype_val;
+    st.have.vtype = VTYPE_UCVAL;
     st.have.vlen = vlen;
     if (vlen == 4)
         st.have.value = *(int *)mock_vref_to_vdata(itv[vbidx], vboff);
@@ -207,7 +207,7 @@ _kvset_builder_add_val(
     VERIFY_EQ_RET(st.have.nvals, 0, __LINE__);
 
     st.have.nvals++;
-    st.have.vtype = vtype_val;
+    st.have.vtype = VTYPE_UCVAL;
     st.have.vlen = vlen;
     if (vlen == 4)
         st.have.value = *(int *)vdata;

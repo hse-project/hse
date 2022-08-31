@@ -9,6 +9,7 @@
 #include <hse_util/inttypes.h>
 
 #include <hse_ikvdb/encoders.h>
+#include <hse_ikvdb/omf_kmd_vtype.h>
 
 /*
  * KMD Entry Members and their minimum, typical and maximum widths:
@@ -56,9 +57,9 @@
  *    count = kmd_count(mem, &off);
  *    for (i = 0; i < count; i++) {
  *            kmd_type_seq(mem, &off, &vtype, &seq);
- *            if (vtype == vtype_val) {
+ *            if (vtype == VTYPE_UCVAL) {
  *                    kmd_val(mem, &off, &vbidx, &vboff, &vlen);
- *            } else if (vtype == vtype_ival) {
+ *            } else if (vtype == VTYPE_IVAL) {
  *                    kmd_ival(mem, &off, &vbase, &vlen);
  *            }
  *    }
@@ -73,15 +74,6 @@
 
 #define KMD_MAX_ENCODED_ENTRY_LEN 23
 #define KMD_MAX_ENCODED_COUNT_LEN 4
-
-enum kmd_vtype {
-    vtype_val = 0,   /* normal value            */
-    vtype_zval = 1,  /* zero-length value       */
-    vtype_tomb = 2,  /* tombstone               */
-    vtype_ptomb = 3, /* prefix tombstone        */
-    vtype_ival = 4,  /* immediate (short) value */
-    vtype_cval = 5   /* LZ4 compressed value */
-};
 
 static inline uint
 kmd_storage_max(uint count)
@@ -99,7 +91,7 @@ kmd_set_count(void *kmd, size_t *off, uint count)
 static inline void
 kmd_add_tomb(void *kmd, size_t *off, u64 seq)
 {
-    ((u8 *)kmd)[*off] = vtype_tomb;
+    ((u8 *)kmd)[*off] = VTYPE_TOMB;
     *off += 1;
     encode_hg64(kmd, off, seq);
 }
@@ -107,7 +99,7 @@ kmd_add_tomb(void *kmd, size_t *off, u64 seq)
 static inline void
 kmd_add_ptomb(void *kmd, size_t *off, u64 seq)
 {
-    ((u8 *)kmd)[*off] = vtype_ptomb;
+    ((u8 *)kmd)[*off] = VTYPE_PTOMB;
     *off += 1;
     encode_hg64(kmd, off, seq);
 }
@@ -115,7 +107,7 @@ kmd_add_ptomb(void *kmd, size_t *off, u64 seq)
 static inline void
 kmd_add_zval(void *kmd, size_t *off, u64 seq)
 {
-    ((u8 *)kmd)[*off] = vtype_zval;
+    ((u8 *)kmd)[*off] = VTYPE_ZVAL;
     *off += 1;
     encode_hg64(kmd, off, seq);
 }
@@ -123,7 +115,7 @@ kmd_add_zval(void *kmd, size_t *off, u64 seq)
 static inline void
 kmd_add_ival(void *kmd, size_t *off, u64 seq, const void *vdata, u8 vlen)
 {
-    ((u8 *)kmd)[*off] = vtype_ival;
+    ((u8 *)kmd)[*off] = VTYPE_IVAL;
     *off += 1;
     encode_hg64(kmd, off, seq);
     ((u8 *)kmd)[*off] = vlen;
@@ -137,7 +129,7 @@ kmd_add_val(void *kmd, size_t *off, u64 seq, uint vbidx, uint vboff, uint vlen)
 {
     __be32 val32;
 
-    ((u8 *)kmd)[*off] = vtype_val;
+    ((u8 *)kmd)[*off] = VTYPE_UCVAL;
     *off += 1;
     encode_hg64(kmd, off, seq);
     encode_hg16_32k(kmd, off, vbidx);
@@ -152,7 +144,7 @@ kmd_add_cval(void *kmd, size_t *off, u64 seq, uint vbidx, uint vboff, uint vlen,
 {
     __be32 val32;
 
-    ((u8 *)kmd)[*off] = vtype_cval;
+    ((u8 *)kmd)[*off] = VTYPE_CVAL;
     *off += 1;
     encode_hg64(kmd, off, seq);
     encode_hg16_32k(kmd, off, vbidx);

@@ -53,7 +53,7 @@ wbt_read_kmd_vref(
     kmd_type_seq(kmd, off, &vtype, seq);
 
     switch (vtype) {
-        case vtype_val:
+        case VTYPE_UCVAL:
             kmd_val(kmd, off, &vbidx, &vboff, &vlen);
             /* assert no truncation */
             assert(vbidx <= U16_MAX);
@@ -64,7 +64,7 @@ wbt_read_kmd_vref(
             vref->vb.vr_len = vlen;
             vref->vb.vr_complen = 0;
             break;
-        case vtype_cval:
+        case VTYPE_CVAL:
             kmd_cval(kmd, off, &vbidx, &vboff, &vlen, &complen);
             /* assert no truncation */
             assert(vbidx <= U16_MAX);
@@ -76,20 +76,20 @@ wbt_read_kmd_vref(
             vref->vb.vr_len = vlen;
             vref->vb.vr_complen = complen;
             break;
-        case vtype_ival:
+        case VTYPE_IVAL:
             kmd_ival(kmd, off, &vdata, &vlen);
             /* assert no truncation */
             assert(vlen <= U32_MAX);
             vref->vi.vr_data = vdata;
             vref->vi.vr_len = vlen;
             break;
-        case vtype_zval:
-        case vtype_tomb:
-        case vtype_ptomb:
+        case VTYPE_ZVAL:
+        case VTYPE_TOMB:
+        case VTYPE_PTOMB:
             break;
     }
 
-    if ((vtype == vtype_val || vtype == vtype_cval) && vgmap) {
+    if ((vtype == VTYPE_UCVAL || vtype == VTYPE_CVAL) && vgmap) {
         merr_t err;
 
         err = vgmap_vbidx_src2out(vgmap, vref->vb.vr_index, &vref->vb.vr_index);
@@ -830,9 +830,9 @@ wbtr_read_vref(
                 assert(off <= wbd->wbd_kmd_pgc * PAGE_SIZE);
                 if (seq >= vseq) {
                     vref->vr_seq = vseq;
-                    if (vref->vr_type == vtype_tomb)
+                    if (vref->vr_type == VTYPE_TOMB)
                         *lookup_res = FOUND_TMB;
-                    else if (vref->vr_type == vtype_ptomb)
+                    else if (vref->vr_type == VTYPE_PTOMB)
                         *lookup_res = FOUND_PTMB;
                     else
                         *lookup_res = FOUND_VAL;

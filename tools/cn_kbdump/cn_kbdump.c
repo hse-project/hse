@@ -456,7 +456,7 @@ val_get_next(void *kmd, size_t *off, struct kmd_vref *vref)
     kmd_type_seq(kmd, off, &vref->vtype, &vref->seq);
 
     switch (vref->vtype) {
-        case vtype_val:
+        case VTYPE_UCVAL:
             kmd_val(kmd, off, &vref->vbidx, &vref->vboff, &vref->vlen);
             snprintf(
                 vref->vinfo,
@@ -466,17 +466,17 @@ val_get_next(void *kmd, size_t *off, struct kmd_vref *vref)
                 vref->vboff,
                 vref->vlen);
             break;
-        case vtype_ival:
+        case VTYPE_IVAL:
             kmd_ival(kmd, off, &vdata, &vlen);
             snprintf(vref->vinfo, sizeof(vref->vinfo), "type=iv %u", vlen);
             break;
-        case vtype_zval:
+        case VTYPE_ZVAL:
             strlcpy(vref->vinfo, "type=zv", sizeof(vref->vinfo));
             break;
-        case vtype_tomb:
+        case VTYPE_TOMB:
             strlcpy(vref->vinfo, "type=t", sizeof(vref->vinfo));
             break;
-        case vtype_ptomb:
+        case VTYPE_PTOMB:
             strlcpy(vref->vinfo, "type=pt", sizeof(vref->vinfo));
             break;
         default:

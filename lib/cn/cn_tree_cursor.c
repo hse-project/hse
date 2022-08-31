@@ -731,7 +731,7 @@ cn_tree_cursor_read(struct cn_cursor *cur, struct kvs_cursor_element *elem, bool
             }
         }
 
-        if (vtype == vtype_ptomb) {
+        if (vtype == VTYPE_PTOMB) {
             found = false;
 
             /* In case of duplicate ptombs, we need just the first (newest) ptomb in the cursor's

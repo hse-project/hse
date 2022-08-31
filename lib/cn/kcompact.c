@@ -162,18 +162,18 @@ kcompact(struct cn_compaction_work *w, struct kvset_builder *bldr)
                 if (pt_set && seq < pt_seq)
                     continue; /* skip value */
 
-                if (vtype == vtype_ptomb) {
+                if (vtype == VTYPE_PTOMB) {
                     pt_set = true;
                     pt_kobj = curr->kobj;
                     assert(key_obj_len(&curr->kobj) == w->cw_pfx_len);
                     pt_seq = seq;
                 }
 
-                if (w->cw_drop_tombs && (vtype == vtype_tomb || vtype == vtype_ptomb))
+                if (w->cw_drop_tombs && (vtype == VTYPE_TOMB || vtype == VTYPE_PTOMB))
                     continue; /* skip value */
             }
 
-            if (vtype == vtype_ptomb)
+            if (vtype == VTYPE_PTOMB)
                 should_emit = !emitted_seq_pt || seq < emitted_seq_pt;
             else
                 should_emit = !emitted_seq || seq < emitted_seq;
@@ -186,13 +186,13 @@ kcompact(struct cn_compaction_work *w, struct kvset_builder *bldr)
              */
             if (should_emit) {
                 switch (vtype) {
-                case vtype_val:
-                case vtype_cval:
+                case VTYPE_UCVAL:
+                case VTYPE_CVAL:
                     err = kvset_builder_add_vref(
                         bldr, seq, vbidx + w->cw_vbmap.vbm_map[idx], vboff, vlen, complen);
                     break;
-                case vtype_zval:
-                case vtype_ival:
+                case VTYPE_ZVAL:
+                case VTYPE_IVAL:
                     err = kvset_builder_add_val(bldr, &curr->kobj, vdata, vlen, seq, 0);
                     break;
                 default:
@@ -203,7 +203,7 @@ kcompact(struct cn_compaction_work *w, struct kvset_builder *bldr)
                     goto done;
                 emitted_val = true;
 
-                if (vtype == vtype_ptomb)
+                if (vtype == VTYPE_PTOMB)
                     emitted_seq_pt = seq;
                 else
                     emitted_seq = seq;

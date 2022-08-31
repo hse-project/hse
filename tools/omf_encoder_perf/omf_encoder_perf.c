@@ -479,36 +479,36 @@ tp_next_entry(
         goto value;
 
     if (rv < 3 * (U32_MAX / 100)) {
-        *vtype = vtype_zval;
+        *vtype = VTYPE_ZVAL;
         *vlen = 0;
         return;
     }
 
     if (rv < 5 * (U32_MAX / 100)) {
-        *vtype = vtype_ival;
+        *vtype = VTYPE_IVAL;
         *vdata = valbuf;
         *vlen = 1 + xrand64(&tp->xr) % CN_SMALL_VALUE_THRESHOLD;
         return;
     }
 
     if (rv < 7 * (U32_MAX / 100)) {
-        *vtype = vtype_tomb;
+        *vtype = VTYPE_TOMB;
         return;
     }
 
     if (rv < 10 * (U32_MAX / 100)) {
-        *vtype = vtype_ptomb;
+        *vtype = VTYPE_PTOMB;
         return;
     }
 
     if (tp->mix == tombs_only) {
         /* a mix of tombs */
-        *vtype = vtype_tomb;
+        *vtype = VTYPE_TOMB;
         return;
     }
 
 value:
-    *vtype = vtype_val;
+    *vtype = VTYPE_UCVAL;
     *vboff = xrand64(&tp->xr);
     *vbidx = xrand64(&tp->xr) & HG16_32K_MAX;
     *vlen = xrand64(&tp->xr) & HG32_1024M_MAX;
@@ -523,7 +523,7 @@ value:
         *vlen &= 0xfff;
     }
     if (xrand64(&tp->xr) % 100 < 10) {
-        *vtype = vtype_cval;
+        *vtype = VTYPE_CVAL;
         *clen = *vlen / 2;
         if (!*clen)
             *clen = 1;
@@ -603,23 +603,23 @@ run_kmd_read_perf(struct kmd_test_stats *s)
             kmd_type_seq(mem, &off, &vtype, &seq);
             assert(exp_seq + i == seq);
             switch (vtype) {
-                case vtype_ival:
+                case VTYPE_IVAL:
                     kmd_ival(mem, &off, &vdata, &vlen);
                     s->nvals++;
                     break;
-                case vtype_val:
+                case VTYPE_UCVAL:
                     kmd_val(mem, &off, &vbidx, &vboff, &vlen);
                     s->nvals++;
                     break;
-                case vtype_cval:
+                case VTYPE_CVAL:
                     kmd_cval(mem, &off, &vbidx, &vboff, &vlen, &clen);
                     s->nvals++;
                     break;
-                case vtype_zval:
+                case VTYPE_ZVAL:
                     s->nvals++;
                     break;
-                case vtype_ptomb:
-                case vtype_tomb:
+                case VTYPE_PTOMB:
+                case VTYPE_TOMB:
                     s->ntombs++;
                     break;
             }
@@ -663,41 +663,41 @@ run_kmd_tp(struct kmd_test_profile *tp, struct kmd_test_stats *s, bool writing)
         for (i = 0; i < count; i++) {
             tp_next_entry(tp, &vtype, &seq, &vbidx, &vboff, &vdata, &vlen, &clen);
             switch (vtype) {
-                case vtype_tomb:
+                case VTYPE_TOMB:
                     s->ntombs++;
                     break;
-                case vtype_ptomb:
+                case VTYPE_PTOMB:
                     s->nptombs++;
                     break;
-                case vtype_zval:
+                case VTYPE_ZVAL:
                     s->nzvals++;
                     break;
-                case vtype_ival:
+                case VTYPE_IVAL:
                     s->nivals++;
                     break;
-                case vtype_cval:
-                case vtype_val:
+                case VTYPE_CVAL:
+                case VTYPE_UCVAL:
                     s->nvals++;
                     break;
             }
             if (writing) {
                 switch (vtype) {
-                    case vtype_tomb:
+                    case VTYPE_TOMB:
                         kmd_add_tomb(mem, &off, seq);
                         break;
-                    case vtype_ptomb:
+                    case VTYPE_PTOMB:
                         kmd_add_ptomb(mem, &off, seq);
                         break;
-                    case vtype_zval:
+                    case VTYPE_ZVAL:
                         kmd_add_zval(mem, &off, seq);
                         break;
-                    case vtype_ival:
+                    case VTYPE_IVAL:
                         kmd_add_ival(mem, &off, seq, vdata, vlen);
                         break;
-                    case vtype_cval:
+                    case VTYPE_CVAL:
                         kmd_add_cval(mem, &off, seq, vbidx, vboff, vlen, clen);
                         break;
-                    case vtype_val:
+                    case VTYPE_UCVAL:
                         kmd_add_val(mem, &off, seq, vbidx, vboff, vlen);
                         break;
                 }
@@ -714,26 +714,26 @@ run_kmd_tp(struct kmd_test_profile *tp, struct kmd_test_stats *s, bool writing)
                 assert(vtype == actual_vtype);
                 assert(seq == actual_seq);
                 switch (vtype) {
-                    case vtype_val:
+                    case VTYPE_UCVAL:
                         kmd_val(mem, &off, &actual_vbidx, &actual_vboff, &actual_vlen);
                         assert(actual_vbidx == vbidx);
                         assert(actual_vboff == vboff);
                         assert(actual_vlen == vlen);
                         break;
-                    case vtype_cval:
+                    case VTYPE_CVAL:
                         kmd_cval(mem, &off, &actual_vbidx, &actual_vboff, &actual_vlen, &actual_clen);
                         assert(actual_vbidx == vbidx);
                         assert(actual_vboff == vboff);
                         assert(actual_vlen == vlen);
                         assert(actual_clen == clen);
                         break;
-                    case vtype_ival:
+                    case VTYPE_IVAL:
                         kmd_ival(mem, &off, &actual_vdata, &actual_vlen);
                         assert(actual_vlen == vlen);
                         break;
-                    case vtype_tomb:
-                    case vtype_ptomb:
-                    case vtype_zval:
+                    case VTYPE_TOMB:
+                    case VTYPE_PTOMB:
+                    case VTYPE_ZVAL:
                         break;
                 }
             }
