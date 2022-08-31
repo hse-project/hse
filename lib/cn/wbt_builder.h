@@ -41,31 +41,38 @@ wbb_destroy(struct wbb *wbb);
 /* Get the number of keys stored in a wbtree under construction.
  */
 uint
-wbb_entries(struct wbb *wbb);
+wbb_entries(const struct wbb *wbb);
 
-/**
- * wbb_add_entry() - add an entry to a wbtree
- * @wbb: builder handle
- * @kobj: key to be added
- * @nvals: number of values
- * @vlen: Total length of all the values
- * @key_kmd, @key_kmd_len: encoded key metadata
- * @max_pgc: (in) max allowable size of wbtree in pages
- * @wbt_pgc: (in/out) actual size (in pages) of wbtree creation
- * @added: (output) this value is set to true if the key was added
+/* Get the current "kvlen" of a finalized wbtree.
+ */
+uint64_t
+wbb_kvlen(const struct wbb *wbb);
+
+/* Add a key and its metadata to a wbtree.
+ *
+ * Parameters:
+ * - wbb: builder handle
+ * - kobj: key to add
+ * - kmd: buffer containing omf-encoded key metadata
+ * - kmd_len: length of omf-encoded key metadata
+ * - kmd_entries: number of key metadata entries
+ * - vblk_om_vlen: on-media length of vblock values referenced by key
+ * - max_pgc: max allowable size of wbtree in pages
+ * - wbt_pgc: (in/out) current size of wbtree in pages
+ * - added: (out) set to true if entry was added
  *
  * Return:
- *  (rc == 0 && added == true)  ==> success
- *  (rc == 0 && added == false) ==> not enough space for new entry
- *  (rc != 0)                   ==> error
+ * - (rc == 0 && added == true)  ==> success
+ * - (rc == 0 && added == false) ==> not enough space for new entry
+ * - (rc != 0)                   ==> error
  */
 /* MTF_MOCK */
 merr_t
 wbb_add_entry(
     struct wbb *          wbb,
     const struct key_obj *kobj,
-    uint                  nvals,
-    uint64_t              vlen,
+    uint                  kmd_entries,
+    uint64_t              vblk_om_vlen,
     const void *          key_kmd,
     uint                  key_kmd_len,
     uint                  max_pgc,

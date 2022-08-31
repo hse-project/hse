@@ -21,6 +21,7 @@ struct kvset_metrics {
     uint64_t header_bytes;
     uint64_t tot_key_bytes;
     uint64_t tot_val_bytes;
+    uint64_t tot_kvlen;
     uint64_t tot_vused_bytes;
     uint32_t tot_wbt_pages;
     uint32_t tot_blm_pages;

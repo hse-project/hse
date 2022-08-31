@@ -1941,6 +1941,7 @@ kvset_get_metrics(struct kvset *ks, struct kvset_metrics *m)
         m->num_tombstones += p->kb_metrics.num_tombstones;
         m->tot_key_bytes += p->kb_metrics.tot_key_bytes;
         m->tot_val_bytes += p->kb_metrics.tot_val_bytes;
+        m->tot_kvlen += p->kb_metrics.tot_kvlen;
         m->tot_vused_bytes += p->kb_metrics.tot_vused_bytes;
         m->tot_wbt_pages += p->kb_metrics.tot_wbt_pages;
         m->tot_blm_pages += p->kb_metrics.tot_blm_pages;
