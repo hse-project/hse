@@ -101,6 +101,7 @@ hse_init(const char *const config, const size_t paramc, const char *const *const
     ulong memgb;
     merr_t err = 0;
     struct config *conf = NULL;
+    bool platform_initialized = false;
 
     if (HSE_UNLIKELY(paramc > 0 && !paramv))
         return merr(EINVAL);
@@ -146,6 +147,7 @@ hse_init(const char *const config, const size_t paramc, const char *const *const
     err = hse_platform_init();
     if (err)
         goto out;
+    platform_initialized = true;
 
     err = ikvdb_init();
     if (err)
@@ -165,7 +167,8 @@ hse_init(const char *const config, const size_t paramc, const char *const *const
 
 out:
     if (err) {
-        hse_platform_fini();
+        if (platform_initialized)
+            hse_platform_fini();
         logging_fini();
     }
 
