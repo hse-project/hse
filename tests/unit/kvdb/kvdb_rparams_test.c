@@ -965,8 +965,7 @@ MTF_DEFINE_UTEST_PRE(kvdb_rparams_test, mclass_policies, test_pre)
 
     err = check(
         "mclass_policies=[{\"name\":\"yolo\",\"config\":{\"leaf\":{\"keys\":\"capacity\","
-        "\"values\":\"staging\"},\"internal\":{\"keys\":\"capacity\",\"values\":"
-        "\"staging\"},\"root\":{\"keys\":\"capacity\",\"values\":\"staging\"}}}]",
+        "\"values\":\"staging\"},\"root\":{\"keys\":\"capacity\",\"values\":\"staging\"}}}]",
         true,
         NULL);
     ASSERT_EQ(0, merr_errno(err));
@@ -974,11 +973,10 @@ MTF_DEFINE_UTEST_PRE(kvdb_rparams_test, mclass_policies, test_pre)
     err = ps->ps_stringify(ps, &params.mclass_policies, buf, sizeof(buf), &needed_sz);
     ASSERT_EQ(0, merr_errno(err));
     ASSERT_STREQ(
-        "[{\"name\":\"yolo\",\"config\":{\"internal\":{\"keys\":\"capacity\","
-        "\"values\":\"staging\"},\"leaf\":{\"keys\":\"capacity\",\"values\":"
+        "[{\"name\":\"yolo\",\"config\":{\"leaf\":{\"keys\":\"capacity\",\"values\":"
         "\"staging\"},\"root\":{\"keys\":\"capacity\",\"values\":\"staging\"}}}]",
         buf);
-    ASSERT_EQ(170, needed_sz);
+    ASSERT_EQ(120, needed_sz);
 }
 
 MTF_DEFINE_UTEST(kvdb_rparams_test, get)

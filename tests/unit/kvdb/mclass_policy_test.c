@@ -28,7 +28,7 @@ MTF_DEFINE_UTEST_PRE(mclass_policy_test, mclass_policy_default, general_pre)
     struct kvdb_rparams  params = kvdb_rparams_defaults();
     struct mclass_policy dpolicies[6];
     const char * const   paramv[] = { "mclass_policies=[{\"name\": \"test_only\", \"config\": "
-                       "{\"internal\": {\"values\": \"capacity\"}}}]" };
+                       "{\"leaf\": {\"values\": \"capacity\"}}}]" };
 
     /* Capacity only media class policy, use capacity for all combinations */
     strcpy(dpolicies[0].mc_name, "capacity_only");
@@ -43,26 +43,22 @@ MTF_DEFINE_UTEST_PRE(mclass_policy_test, mclass_policy_default, general_pre)
             dpolicies[1].mc_table[i][j] = HSE_MCLASS_STAGING;
 
     /*
-     * staging_max_capacity - only internal and leaf values use capacity.
+     * staging_max_capacity - only leaf values use capacity.
      */
     strcpy(dpolicies[2].mc_name, "staging_max_capacity");
     for (i = 0; i < HSE_MPOLICY_AGE_CNT; i++)
         for (j = 0; j < HSE_MPOLICY_DTYPE_CNT; j++)
             dpolicies[2].mc_table[i][j] = HSE_MCLASS_STAGING;
-    dpolicies[2].mc_table[HSE_MPOLICY_AGE_INTERNAL][HSE_MPOLICY_DTYPE_VALUE] = HSE_MCLASS_CAPACITY;
     dpolicies[2].mc_table[HSE_MPOLICY_AGE_LEAF][HSE_MPOLICY_DTYPE_VALUE] = HSE_MCLASS_CAPACITY;
 
     /*
      * staging_min_capacity - only root nodes use staging.
      */
     strcpy(dpolicies[3].mc_name, "staging_min_capacity");
-    for (i = 0; i < HSE_MPOLICY_AGE_INTERNAL; i++)
-        for (j = 0; j < HSE_MPOLICY_DTYPE_CNT; j++)
-            dpolicies[3].mc_table[i][j] = HSE_MCLASS_STAGING;
-
-    for (i = HSE_MPOLICY_AGE_INTERNAL; i < HSE_MPOLICY_AGE_CNT; i++)
-        for (j = 0; j < HSE_MPOLICY_DTYPE_CNT; j++)
-            dpolicies[3].mc_table[i][j] = HSE_MCLASS_CAPACITY;
+    for (j = 0; j < HSE_MPOLICY_DTYPE_CNT; j++) {
+        dpolicies[3].mc_table[HSE_MPOLICY_AGE_ROOT][j] = HSE_MCLASS_STAGING;
+        dpolicies[3].mc_table[HSE_MPOLICY_AGE_LEAF][j] = HSE_MCLASS_CAPACITY;
+    }
 
     /* pmem only media class policy, use pmem for all combinations  */
     strcpy(dpolicies[4].mc_name, "pmem_only");
@@ -75,7 +71,6 @@ MTF_DEFINE_UTEST_PRE(mclass_policy_test, mclass_policy_default, general_pre)
     for (i = 0; i < HSE_MPOLICY_AGE_CNT; i++)
         for (j = 0; j < HSE_MPOLICY_DTYPE_CNT; j++)
             dpolicies[5].mc_table[i][j] = HSE_MCLASS_PMEM;
-    dpolicies[5].mc_table[HSE_MPOLICY_AGE_INTERNAL][HSE_MPOLICY_DTYPE_VALUE] = HSE_MCLASS_CAPACITY;
     dpolicies[5].mc_table[HSE_MPOLICY_AGE_LEAF][HSE_MPOLICY_DTYPE_VALUE] = HSE_MCLASS_CAPACITY;
 
     err = argv_deserialize_to_kvdb_rparams(NELEM(paramv), paramv, &params);
@@ -100,7 +95,7 @@ MTF_DEFINE_UTEST_PRE(mclass_policy_test, mclass_policy_default, general_pre)
     }
 
     /*
-     * Initialize hse params from a test policy that specifies only <internal, leaf>
+     * Initialize hse params from a test policy that specifies only leaf
      * and validate that the remaining entries are populated from the default template
      * i.e. staging_capacity_nofallback
      */
@@ -115,7 +110,7 @@ MTF_DEFINE_UTEST_PRE(mclass_policy_test, mclass_policy_default, general_pre)
 
                 hse_mtype = params.mclass_policies[6].mc_table[i][j];
 
-                if (!((i == HSE_MPOLICY_AGE_INTERNAL) && (j == HSE_MPOLICY_DTYPE_VALUE)))
+                if (!((i == HSE_MPOLICY_AGE_LEAF) && (j == HSE_MPOLICY_DTYPE_VALUE)))
                     ASSERT_EQ(hse_mtype, dpolicies[2].mc_table[i][j]);
                 else
                     ASSERT_EQ(hse_mtype, HSE_MCLASS_CAPACITY);
@@ -129,7 +124,7 @@ MTF_DEFINE_UTEST_PRE(mclass_policy_test, mclass_policy_default, general_pre)
 MTF_DEFINE_UTEST(mclass_policy_test, overwrite_default_policy)
 {
     const char *  const paramv[] = { "mclass_policies=[{\"name\": \"staging_only\", \"config\": "
-                       "{\"internal\": {\"values\": \"capacity\"}}}]" };
+                       "{\"leaf\": {\"values\": \"capacity\"}}}]" };
     struct kvdb_rparams params = kvdb_rparams_defaults();
     merr_t              err;
 
@@ -144,14 +139,14 @@ MTF_DEFINE_UTEST(mclass_policy_test, incorrect_schema)
 
     const char * const paramv_policy_unknown_key[] = {
         "mclass_policies=[{\"name\": \"staging_only\", \"hello\": \"world\", \"config\": "
-        "{\"internal\": {\"values\": \"capacity\"}}}]"
+        "{\"leaf\": {\"values\": \"capacity\"}}}]"
     };
     const char * const paramv_age_unknown_key[] = {
         "mclass_policies=[{\"name\": \"staging_only\", \"config\": {\"hello\": \"world\", "
-        "\"internal\": {\"values\": \"capacity\"}}}]"
+        "\"leaf\": {\"values\": \"capacity\"}}}]"
     };
     const char * const paramv_dtype_unknown_key[] = {
-        "mclass_policies=[{\"name\": \"staging_only\", \"config\": {\"internal\": {\"hello\": "
+        "mclass_policies=[{\"name\": \"staging_only\", \"config\": {\"leaf\": {\"hello\": "
         "\"world\", \"values\": \"capacity\"}}}]"
     };
 
@@ -167,24 +162,24 @@ MTF_DEFINE_UTEST(mclass_policy_test, incorrect_schema)
 
     const char * const paramv_mclass_policies_schema[] = { "mclass_policies={}" };
     const char * const paramv_policy_name_schema[] = {
-        "mclass_policies=[{\"name\": [], \"config\": {\"internal\": {\"values\": \"capacity\"}}}]"
+        "mclass_policies=[{\"name\": [], \"config\": {\"leaf\": {\"values\": \"capacity\"}}}]"
     };
     const char * const paramv_policy_config_schema[] = {
         "mclass_policies=[{\"name\": \"test_only\", \"config\": []}]"
     };
     const char * const paramv_age_schema[] = {
-        "mclass_policies=[{\"name\": \"test_only\", \"config\": {\"internal\": \"\"}}]"
+        "mclass_policies=[{\"name\": \"test_only\", \"config\": {\"leaf\": \"\"}}]"
     };
     const char * const paramv_dtype_schema1[] = {
-        "mclass_policies=[{\"name\": \"test_only\", \"config\": {\"internal\": {\"values\": {}}}}]"
+        "mclass_policies=[{\"name\": \"test_only\", \"config\": {\"leaf\": {\"values\": {}}}}]"
     };
     const char * const paramv_dtype_schema2[] = { "mclass_policies=[{\"name\": \"test_only\", \"config\": "
-                                     "{\"internal\": {\"values\": 2}}}]" };
+                                     "{\"leaf\": {\"values\": 2}}}]" };
     const char * const paramv_dtype_schema3[] = {
-        "mclass_policies[{\"name\": \"test_only\", \"config\": {\"internal\": {\"values\": \"\"}}}]"
+        "mclass_policies[{\"name\": \"test_only\", \"config\": {\"leaf\": {\"values\": \"\"}}}]"
     };
     const char * const paramv_dtype_schema4[] = { "mclass_policies=[{\"name\": \"test_only\", \"config\": "
-                                     "{\"internal\": {\"values\": \"test\"}}}]" };
+                                     "{\"leaf\": {\"values\": \"test\"}}}]" };
 
     err = argv_deserialize_to_kvdb_rparams(
         NELEM(paramv_mclass_policies_schema), paramv_mclass_policies_schema, &params);

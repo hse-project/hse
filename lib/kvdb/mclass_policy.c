@@ -85,7 +85,6 @@ mclass_policy_default_get(struct ikvdb *handle)
 
 static const struct mclass_policy_map agegroups[] = {
     { HSE_MPOLICY_AGE_ROOT, "root" },
-    { HSE_MPOLICY_AGE_INTERNAL, "internal" },
     { HSE_MPOLICY_AGE_LEAF, "leaf" },
 };
 

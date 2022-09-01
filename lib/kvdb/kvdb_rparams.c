@@ -41,8 +41,6 @@ mclass_policies_default_builder(const struct param_spec *ps, void *data)
     strlcpy(policy->mc_name, "capacity_only", sizeof("capacity_only"));
     policy->mc_table[HSE_MPOLICY_AGE_ROOT][HSE_MPOLICY_DTYPE_KEY] = HSE_MCLASS_CAPACITY;
     policy->mc_table[HSE_MPOLICY_AGE_ROOT][HSE_MPOLICY_DTYPE_VALUE] = HSE_MCLASS_CAPACITY;
-    policy->mc_table[HSE_MPOLICY_AGE_INTERNAL][HSE_MPOLICY_DTYPE_KEY] = HSE_MCLASS_CAPACITY;
-    policy->mc_table[HSE_MPOLICY_AGE_INTERNAL][HSE_MPOLICY_DTYPE_VALUE] = HSE_MCLASS_CAPACITY;
     policy->mc_table[HSE_MPOLICY_AGE_LEAF][HSE_MPOLICY_DTYPE_KEY] = HSE_MCLASS_CAPACITY;
     policy->mc_table[HSE_MPOLICY_AGE_LEAF][HSE_MPOLICY_DTYPE_VALUE] = HSE_MCLASS_CAPACITY;
 
@@ -51,8 +49,6 @@ mclass_policies_default_builder(const struct param_spec *ps, void *data)
     strlcpy(policy->mc_name, "staging_only", sizeof("staging_only"));
     policy->mc_table[HSE_MPOLICY_AGE_ROOT][HSE_MPOLICY_DTYPE_KEY] = HSE_MCLASS_STAGING;
     policy->mc_table[HSE_MPOLICY_AGE_ROOT][HSE_MPOLICY_DTYPE_VALUE] = HSE_MCLASS_STAGING;
-    policy->mc_table[HSE_MPOLICY_AGE_INTERNAL][HSE_MPOLICY_DTYPE_KEY] = HSE_MCLASS_STAGING;
-    policy->mc_table[HSE_MPOLICY_AGE_INTERNAL][HSE_MPOLICY_DTYPE_VALUE] = HSE_MCLASS_STAGING;
     policy->mc_table[HSE_MPOLICY_AGE_LEAF][HSE_MPOLICY_DTYPE_KEY] = HSE_MCLASS_STAGING;
     policy->mc_table[HSE_MPOLICY_AGE_LEAF][HSE_MPOLICY_DTYPE_VALUE] = HSE_MCLASS_STAGING;
 
@@ -61,8 +57,6 @@ mclass_policies_default_builder(const struct param_spec *ps, void *data)
     strlcpy(policy->mc_name, "staging_max_capacity", sizeof("staging_max_capacity"));
     policy->mc_table[HSE_MPOLICY_AGE_ROOT][HSE_MPOLICY_DTYPE_KEY] = HSE_MCLASS_STAGING;
     policy->mc_table[HSE_MPOLICY_AGE_ROOT][HSE_MPOLICY_DTYPE_VALUE] = HSE_MCLASS_STAGING;
-    policy->mc_table[HSE_MPOLICY_AGE_INTERNAL][HSE_MPOLICY_DTYPE_KEY] = HSE_MCLASS_STAGING;
-    policy->mc_table[HSE_MPOLICY_AGE_INTERNAL][HSE_MPOLICY_DTYPE_VALUE] = HSE_MCLASS_CAPACITY;
     policy->mc_table[HSE_MPOLICY_AGE_LEAF][HSE_MPOLICY_DTYPE_KEY] = HSE_MCLASS_STAGING;
     policy->mc_table[HSE_MPOLICY_AGE_LEAF][HSE_MPOLICY_DTYPE_VALUE] = HSE_MCLASS_CAPACITY;
 
@@ -71,8 +65,6 @@ mclass_policies_default_builder(const struct param_spec *ps, void *data)
     strlcpy(policy->mc_name, "staging_min_capacity", sizeof("staging_min_capacity"));
     policy->mc_table[HSE_MPOLICY_AGE_ROOT][HSE_MPOLICY_DTYPE_KEY] = HSE_MCLASS_STAGING;
     policy->mc_table[HSE_MPOLICY_AGE_ROOT][HSE_MPOLICY_DTYPE_VALUE] = HSE_MCLASS_STAGING;
-    policy->mc_table[HSE_MPOLICY_AGE_INTERNAL][HSE_MPOLICY_DTYPE_KEY] = HSE_MCLASS_CAPACITY;
-    policy->mc_table[HSE_MPOLICY_AGE_INTERNAL][HSE_MPOLICY_DTYPE_VALUE] = HSE_MCLASS_CAPACITY;
     policy->mc_table[HSE_MPOLICY_AGE_LEAF][HSE_MPOLICY_DTYPE_KEY] = HSE_MCLASS_CAPACITY;
     policy->mc_table[HSE_MPOLICY_AGE_LEAF][HSE_MPOLICY_DTYPE_VALUE] = HSE_MCLASS_CAPACITY;
 
@@ -81,8 +73,6 @@ mclass_policies_default_builder(const struct param_spec *ps, void *data)
     strlcpy(policy->mc_name, "pmem_only", sizeof("pmem_only"));
     policy->mc_table[HSE_MPOLICY_AGE_ROOT][HSE_MPOLICY_DTYPE_KEY] = HSE_MCLASS_PMEM;
     policy->mc_table[HSE_MPOLICY_AGE_ROOT][HSE_MPOLICY_DTYPE_VALUE] = HSE_MCLASS_PMEM;
-    policy->mc_table[HSE_MPOLICY_AGE_INTERNAL][HSE_MPOLICY_DTYPE_KEY] = HSE_MCLASS_PMEM;
-    policy->mc_table[HSE_MPOLICY_AGE_INTERNAL][HSE_MPOLICY_DTYPE_VALUE] = HSE_MCLASS_PMEM;
     policy->mc_table[HSE_MPOLICY_AGE_LEAF][HSE_MPOLICY_DTYPE_KEY] = HSE_MCLASS_PMEM;
     policy->mc_table[HSE_MPOLICY_AGE_LEAF][HSE_MPOLICY_DTYPE_VALUE] = HSE_MCLASS_PMEM;
 
@@ -91,8 +81,6 @@ mclass_policies_default_builder(const struct param_spec *ps, void *data)
     strlcpy(policy->mc_name, "pmem_max_capacity", sizeof("pmem_max_capacity"));
     policy->mc_table[HSE_MPOLICY_AGE_ROOT][HSE_MPOLICY_DTYPE_KEY] = HSE_MCLASS_PMEM;
     policy->mc_table[HSE_MPOLICY_AGE_ROOT][HSE_MPOLICY_DTYPE_VALUE] = HSE_MCLASS_PMEM;
-    policy->mc_table[HSE_MPOLICY_AGE_INTERNAL][HSE_MPOLICY_DTYPE_KEY] = HSE_MCLASS_PMEM;
-    policy->mc_table[HSE_MPOLICY_AGE_INTERNAL][HSE_MPOLICY_DTYPE_VALUE] = HSE_MCLASS_CAPACITY;
     policy->mc_table[HSE_MPOLICY_AGE_LEAF][HSE_MPOLICY_DTYPE_KEY] = HSE_MCLASS_PMEM;
     policy->mc_table[HSE_MPOLICY_AGE_LEAF][HSE_MPOLICY_DTYPE_VALUE] = HSE_MCLASS_CAPACITY;
 
@@ -195,8 +183,7 @@ mclass_policies_converter(const struct param_spec *ps, const cJSON *node, void *
             }
             if (agegroup == -1) {
                 log_err(
-                    "Invalid media class policy age group: %s, must be one of sync, root, "
-                    "internal, or leaf",
+                    "Invalid media class policy age group: %s, must be one of sync, root, or leaf",
                     agegroup_json->string);
                 return false;
             }
@@ -331,11 +318,7 @@ mclass_policies_jsonify(const struct param_spec *const ps, const void *const val
         cJSON *policy = cJSON_CreateObject();
         cJSON *name = cJSON_AddStringToObject(policy, "name", policies[i].mc_name);
         cJSON *config = cJSON_AddObjectToObject(policy, "config");
-        cJSON *internal = cJSON_AddObjectToObject(config, "internal");
-        cJSON *internal_k = cJSON_AddStringToObject(internal, "keys",
-            hse_mclass_name_get(policies[i].mc_table[HSE_MPOLICY_AGE_INTERNAL][HSE_MPOLICY_DTYPE_KEY]));
-        cJSON *internal_v = cJSON_AddStringToObject(internal, "values",
-            hse_mclass_name_get(policies[i].mc_table[HSE_MPOLICY_AGE_INTERNAL][HSE_MPOLICY_DTYPE_VALUE]));
+
         cJSON *leaf = cJSON_AddObjectToObject(config, "leaf");
         cJSON *leaf_k = cJSON_AddStringToObject(leaf, "keys",
             hse_mclass_name_get(policies[i].mc_table[HSE_MPOLICY_AGE_LEAF][HSE_MPOLICY_DTYPE_KEY]));
@@ -347,8 +330,8 @@ mclass_policies_jsonify(const struct param_spec *const ps, const void *const val
         cJSON *root_v = cJSON_AddStringToObject(root, "values",
             hse_mclass_name_get(policies[i].mc_table[HSE_MPOLICY_AGE_ROOT][HSE_MPOLICY_DTYPE_VALUE]));
 
-        if (!policy || !name || !config || !internal || !internal_k || !internal_v || !leaf ||
-            !leaf_k || !leaf_v || !root || !root_k || !root_v) {
+        if (!policy || !name || !config || !leaf || !leaf_k || !leaf_v ||
+            !root || !root_k || !root_v) {
             cJSON_Delete(policy);
             goto out;
         }
