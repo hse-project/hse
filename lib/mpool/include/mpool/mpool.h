@@ -458,6 +458,13 @@ mpool_mblock_read(struct mpool *mp, uint64_t mbid, const struct iovec *iov, int 
 merr_t
 mpool_mblock_clone(struct mpool *mp, uint64_t mbid, off_t off, size_t len, uint64_t *mbid_out);
 
+merr_t
+mpool_mblock_mmap(struct mpool *mp, uint64_t mbid, const void **addr_out);
+
+merr_t
+mpool_mblock_munmap(struct mpool *mp, uint64_t mbid);
+
+
 /******************************** MCACHE APIs ************************************/
 
 /**
