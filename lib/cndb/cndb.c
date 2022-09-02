@@ -741,11 +741,15 @@ compact_incomplete_intents(
     if (!isadd)
         return cndb_omf_kvset_del_write(cndb->mdc, txid, kvset->ck_cnid, kvset->ck_kvsetid);
 
+    if (cndb_txn_can_rollforward(tx))
+        return 0;
+
     err = cndb_omf_kvset_add_write(cndb->mdc, txid, kvset->ck_cnid, kvset->ck_kvsetid,
                                    kvset->ck_nodeid, kvset->ck_dgen, kvset->ck_vused,
                                    kvset->ck_compc, kvset->ck_rule, kvset->ck_hblkid,
                                    kvset->ck_kblkc, kvset->ck_kblkv,
                                    kvset->ck_vblkc, kvset->ck_vblkv);
+
     return err;
 }
 
@@ -762,6 +766,9 @@ compact_incomplete_acks(
     int type = isadd ? CNDB_ACK_TYPE_ADD : CNDB_ACK_TYPE_DEL;
 
     if (!isacked)
+        return 0;
+
+    if (isadd && cndb_txn_can_rollforward(tx))
         return 0;
 
     return cndb_omf_ack_write(cndb->mdc, txid, kvset->ck_cnid, type, kvset->ck_kvsetid);
@@ -862,9 +869,16 @@ cndb_compact(struct cndb *cndb)
     map_iter_init(&txiter, cndb->tx_map);
 
     while (map_iter_next(&txiter, &txid, (uintptr_t *)&tx)) {
+        bool can_rollforward = cndb_txn_can_rollforward(tx);
         uint16_t add_cnt, del_cnt;
 
         cndb_txn_cnt_get(tx, &add_cnt, &del_cnt);
+
+        if (can_rollforward) {
+            add_cnt = 0;
+            assert(del_cnt);
+        }
+
         err = cndb_omf_txstart_write(cndb->mdc, txid, cndb->seqno_max, cndb->ingestid_max,
                                      cndb->txhorizon_max, add_cnt, del_cnt);
         if (ev(err))
