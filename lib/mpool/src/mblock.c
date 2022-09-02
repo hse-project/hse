@@ -144,3 +144,45 @@ mpool_mblock_clone(struct mpool *mp, uint64_t mbid, off_t off, size_t len, uint6
 
     return mblock_fset_clone(mclass_fset(mc), mbid, off, len, mbid_out);
 }
+
+merr_t
+mpool_mblock_mmap(struct mpool *mp, uint64_t mbid, const void **addr_out)
+{
+    struct media_class *mc;
+    uint32_t wlen;
+    merr_t err;
+    char *addr;
+
+    if (!mp || !mbid || !addr_out)
+        return merr(EINVAL);
+
+    mc = mpool_mclass_handle(mp, mcid_to_mclass(mclassid(mbid)));
+    if (!mc)
+        return merr(ENOENT);
+
+    err = mblock_fset_map_getbase(mclass_fset(mc), mbid, &addr, &wlen);
+    if (err)
+        return err;
+
+    *addr_out = (const void *)addr;
+
+    return err;
+}
+
+merr_t
+mpool_mblock_munmap(struct mpool *mp, uint64_t mbid)
+{
+    struct media_class *mc;
+    merr_t err;
+
+    if (!mp || !mbid)
+        return merr(EINVAL);
+
+    mc = mpool_mclass_handle(mp, mcid_to_mclass(mclassid(mbid)));
+    if (!mc)
+        return merr(ENOENT);
+
+    err = mblock_fset_unmap(mclass_fset(mc), mbid);
+
+    return err;
+}
