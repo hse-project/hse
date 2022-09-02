@@ -13,6 +13,7 @@
 
 #include <hse_ikvdb/cn.h>
 #include <hse_ikvdb/cndb.h>
+#include <hse_ikvdb/kvdb_rparams.h>
 
 #include <bsd/string.h>
 
@@ -51,6 +52,7 @@ struct cndb {
     uint64_t          cndb_captgt;
     uint64_t          oid1;
     uint64_t          oid2;
+    uint32_t          cndb_hwm;
 
     /* Current id values */
     uint64_t         txid_curr;
@@ -125,7 +127,7 @@ cndb_destroy(struct mpool *mp, uint64_t oid1, uint64_t oid2)
 }
 
 merr_t
-cndb_open(struct mpool *mp, uint64_t oid1, uint64_t oid2, bool rdonly, struct cndb **cndb_out)
+cndb_open(struct mpool *mp, uint64_t oid1, uint64_t oid2, struct kvdb_rparams *rp, struct cndb **cndb_out)
 {
     struct cndb *cndb;
     merr_t err;
@@ -141,7 +143,8 @@ cndb_open(struct mpool *mp, uint64_t oid1, uint64_t oid2, bool rdonly, struct cn
     cndb->ingestid_max = 0;
     cndb->txhorizon_max = 0;
     cndb->replaying = false;
-    cndb->rdonly = rdonly;
+    cndb->cndb_hwm = rp->cndb_compact_hwm;
+    cndb->rdonly = rp->read_only;
 
     cndb->tx_map = map_create(1024);
     cndb->cn_map = map_create(HSE_KVS_COUNT_MAX);
@@ -152,7 +155,7 @@ cndb_open(struct mpool *mp, uint64_t oid1, uint64_t oid2, bool rdonly, struct cn
         goto err_out;
     }
 
-    err = mpool_mdc_open(mp, oid1, oid2, rdonly, &cndb->mdc);
+    err = mpool_mdc_open(mp, oid1, oid2, cndb->rdonly, &cndb->mdc);
     if (ev(err)) {
         map_destroy(cndb->tx_map);
         map_destroy(cndb->cn_map);
@@ -263,12 +266,13 @@ cndb_needs_compaction(struct cndb *cndb)
 {
     merr_t err;
     uint64_t size, allocated, used, hwm;
+    const uint64_t base = 100 * 100;
 
     err = mpool_mdc_usage(cndb->mdc, &size, &allocated, &used);
     if (ev(err))
         return false;
 
-    hwm = (4 * size) / 5;
+    hwm = (cndb->cndb_hwm * size) / base;
 
     return used > hwm;
 }

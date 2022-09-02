@@ -652,6 +652,27 @@ static const struct param_spec pspecs[] = {
         },
     },
     {
+        .ps_name = "cndb_compact_hwm",
+        .ps_description = "High water mark percentage (x100)",
+        .ps_flags = PARAM_FLAG_EXPERIMENTAL,
+        .ps_type = PARAM_TYPE_U32,
+        .ps_offset = offsetof(struct kvdb_rparams, cndb_compact_hwm),
+        .ps_size = PARAM_SZ(struct kvdb_rparams, cndb_compact_hwm),
+        .ps_convert = param_default_converter,
+        .ps_validate = param_default_validator,
+        .ps_stringify = param_default_stringify,
+        .ps_jsonify = param_default_jsonify,
+        .ps_default_value = {
+            .as_uscalar = HSE_CNDB_COMPACT_HWM_DEFAULT,
+        },
+        .ps_bounds = {
+            .as_uscalar = {
+                .ps_min = 0,
+                .ps_max = 100 * 100,
+            },
+        },
+    },
+    {
         .ps_name = "csched_policy",
         .ps_description = "csched (compaction scheduler) policy",
         .ps_flags = PARAM_FLAG_EXPERIMENTAL | PARAM_FLAG_WRITABLE,
@@ -1257,42 +1278,6 @@ static const struct param_spec pspecs[] = {
                 .ps_min = 0,
                 .ps_max = UINT64_MAX,
             },
-        },
-    },
-    {
-        .ps_name = "cndb_entries",
-        .ps_description = "number of entries in cndb's in-core representation (0: let system choose)",
-        .ps_flags = PARAM_FLAG_EXPERIMENTAL,
-        .ps_type = PARAM_TYPE_U32,
-        .ps_offset = offsetof(struct kvdb_rparams, cndb_entries),
-        .ps_size = PARAM_SZ(struct kvdb_rparams, cndb_entries),
-        .ps_convert = param_default_converter,
-        .ps_validate = param_default_validator,
-        .ps_stringify = param_default_stringify,
-        .ps_jsonify = param_default_jsonify,
-        .ps_default_value = {
-            .as_uscalar = 0,
-        },
-        .ps_bounds = {
-            .as_uscalar = {
-                .ps_min = 0,
-                .ps_max = UINT32_MAX,
-            },
-        },
-    },
-    {
-        .ps_name = "cndb_debug",
-        .ps_description = "enable cndb debug logs",
-        .ps_flags = PARAM_FLAG_EXPERIMENTAL,
-        .ps_type = PARAM_TYPE_BOOL,
-        .ps_offset = offsetof(struct kvdb_rparams, cndb_debug),
-        .ps_size = PARAM_SZ(struct kvdb_rparams, cndb_debug),
-        .ps_convert = param_default_converter,
-        .ps_validate = param_default_validator,
-        .ps_stringify = param_default_stringify,
-        .ps_jsonify = param_default_jsonify,
-        .ps_default_value = {
-            .as_bool = false,
         },
     },
     {

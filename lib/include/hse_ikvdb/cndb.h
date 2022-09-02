@@ -41,7 +41,7 @@ cndb_destroy(struct mpool *mp, uint64_t oid1, uint64_t oid2);
 
 /* MTF_MOCK */
 merr_t
-cndb_open(struct mpool *mp, u64 oid1, u64 oid2, bool rdonly, struct cndb **cndb_out);
+cndb_open(struct mpool *mp, u64 oid1, u64 oid2, struct kvdb_rparams *rp, struct cndb **cndb_out);
 
 /* MTF_MOCK */
 merr_t

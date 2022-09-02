@@ -16,6 +16,7 @@ tests = {
     'cache_delay': {},
     'cn_seqno': {},
     'cn_update': {},
+    'cndb_compact': {},
     'delfail': {},
     'ingested_key': {},
     'multcur_multview': {},
