@@ -45,6 +45,7 @@
 static void
 c0sk_adjust_throttling(struct c0sk_impl *self, int amt)
 {
+    const uint sensorv[] = { 0, 0, 300, 700, 900, 1000, 1100, 1300, 1500, 1700 };
     const struct kvdb_rparams *rp = self->c0sk_kvdb_rp;
     uint finlat, new;
     uint tfill = 0;
@@ -108,13 +109,7 @@ c0sk_adjust_throttling(struct c0sk_impl *self, int amt)
      * and above increase throttling, and values below 1000 decrease
      * throttling faster inversely proportional to the value.
      */
-    if (cnt < 8) {
-        uint v[] = { 0, 0, 300, 700, 900, 1000, 1100, 1300, 1500 };
-
-        new = v[cnt];
-    } else {
-        new = 1800;
-    }
+    new = (cnt < NELEM(sensorv)) ? sensorv[cnt] : 1800;
 
     throttle_sensor_set(self->c0sk_sensor, new);
 }
