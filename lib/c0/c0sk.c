@@ -467,7 +467,8 @@ c0sk_open(
     atomic_set(&c0sk->c0sk_replaying, 0);
     atomic_set(&c0sk->c0sk_ingest_gen, 0);
     atomic_set(&c0sk->c0sk_ingest_ldrcnt, 0);
-    atomic_set(&c0sk->c0sk_ingest_finlat, 30000);
+    c0sk->c0sk_ingest_finlat = UINT_MAX;
+    c0sk->c0sk_ingest_ctime = jclock_ns;
     mutex_init_adaptive(&c0sk->c0sk_kvms_mutex);
     mutex_init(&c0sk->c0sk_sync_mutex);
     cv_init(&c0sk->c0sk_kvms_cv);
@@ -640,26 +641,12 @@ c0sk_ingest_order_register(struct c0sk *handle)
     return atomic_fetch_add(&self->c0sk_ingest_order_curr, 1);
 }
 
-/* In order to adjust the throttle accurately, c0sk need to measure a few ingests
- * that run concurrently with cn I/O.  So we initialize the throttle at startup
- * to prevent a large backlog of pending c0kvms before we've had enough time
- * to gather sufficient hueristics.
- */
 void
 c0sk_throttle_sensor(struct c0sk *handle, struct throttle_sensor *sensor)
 {
     if (handle) {
         struct c0sk_impl *self = c0sk_h2r(handle);
-        uint senval = THROTTLE_SENSOR_SCALE / 2;
-        uint finlat = 30000;
 
-        if (self->c0sk_kvdb_rp->throttle_init_policy == THROTTLE_DELAY_START_LIGHT) {
-            finlat = 6000;
-            senval = 0;
-        }
-
-        atomic_set(&self->c0sk_ingest_finlat, finlat);
-        throttle_sensor_set(sensor, senval);
         self->c0sk_sensor = sensor;
     }
 }

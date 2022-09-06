@@ -202,13 +202,13 @@ cn_tree_create(
         return merr(ENOMEM);
 
     memset(tree, 0, sizeof(*tree));
-    tree->ct_cp = cp;
+    INIT_LIST_HEAD(&tree->ct_nodes);
     tree->ct_pfx_len = cp->pfx_len;
     tree->ct_sfx_len = cp->sfx_len;
-    tree->ct_kvdb_health = health;
     tree->rp = rp;
-
-    INIT_LIST_HEAD(&tree->ct_nodes);
+    tree->ct_cp = cp;
+    tree->ct_rspill_dt = 1;
+    tree->ct_kvdb_health = health;
 
     tree->ct_root = cn_node_alloc(tree, 0);
     if (ev(!tree->ct_root)) {

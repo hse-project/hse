@@ -197,6 +197,8 @@ struct sp3 {
     struct list_head spn_alist;
     atomic_int       sp_ingest_count;
     atomic_int       sp_prune_count;
+    ulong            sp_tingest;
+    uint             sp_sval_min;
     uint             activity;
     bool             idle;
     uint             jobs_started;
@@ -957,10 +959,10 @@ sp3_dirty_node_locked(struct sp3 *sp, struct cn_tree_node *tn)
 
             sp3_node_insert(sp, spn, wtype_split, (weight << 32) | keys);
 
-            if (weight > tn->tn_tree->rp->cn_split_size) {
-                sp3_node_remove(sp, spn, wtype_garbage);
-                sp3_node_remove(sp, spn, wtype_scatter);
-            }
+            if (keys_uniq > sp->thresh.lcomp_split_keys / 4)
+                sp3_node_remove(sp, spn, wtype_length);
+
+            sp3_node_remove(sp, spn, wtype_scatter);
         } else {
             const uint split_keys = sp->thresh.lcomp_split_keys;
 
@@ -971,6 +973,7 @@ sp3_dirty_node_locked(struct sp3 *sp, struct cn_tree_node *tn)
 
                 sp3_node_remove(sp, spn, wtype_length);
                 sp3_node_remove(sp, spn, wtype_scatter);
+                sp3_node_remove(sp, spn, wtype_garbage);
             } else {
                 sp3_node_remove(sp, spn, wtype_split);
             }
@@ -1061,8 +1064,10 @@ sp3_process_workitem(struct sp3 *sp, struct cn_compaction_work *w)
         uint64_t dt;
 
         dt = (get_time_ns() - w->cw_t0_enqueue) / w->cw_kvset_cnt;
+        if (tree->ct_rspill_dt == 0)
+            dt *= 2;
 
-        tree->ct_rspill_dt = (tree->ct_rspill_dt * 3 + dt) / 4;
+        tree->ct_rspill_dt = (tree->ct_rspill_dt + dt) / 2;
     }
 
     if (w->cw_debug & (CW_DEBUG_PROGRESS | CW_DEBUG_FINAL))
@@ -1847,8 +1852,9 @@ sp3_qos_check(struct sp3 *sp)
 {
     struct cn_tree *tree;
     uint64_t rspill_dt_max;
+    uint64_t clen_max;
     uint32_t rootmin, rootmax;
-    uint64_t sval;
+    uint sval;
 
     if (!sp->throttle_sensor_root)
         return;
@@ -1856,6 +1862,7 @@ sp3_qos_check(struct sp3 *sp)
     rootmin = sp->thresh.rspill_runlen_min;
     rootmax = 0;
     rspill_dt_max = 0;
+    clen_max = 0;
     sval = 0;
 
     list_for_each_entry(tree, &sp->mon_tlist, ct_sched.sp3t.spt_tlink) {
@@ -1865,7 +1872,7 @@ sp3_qos_check(struct sp3 *sp)
         if (rp->cn_maint_disable)
             continue;
 
-        nk = cn_ns_kvsets(&tree->ct_root->tn_ns);
+        nk = cn_ns_kvsets(&tree->ct_root->tn_ns) + 1;
 
         /* Increase the throttle for each root spill job paused for a split
          * (which means it could also be waiting on another spill job).
@@ -1873,9 +1880,14 @@ sp3_qos_check(struct sp3 *sp)
         nk += tree->ct_rspill_slp;
 
         if (nk > rootmin) {
-            if (tree->ct_rspill_dt > rspill_dt_max) {
+            if (tree->ct_rspill_dt * (nk - rootmin) > rspill_dt_max * rootmax) {
                 rspill_dt_max = tree->ct_rspill_dt;
                 rootmax = nk - rootmin;
+            }
+        } else {
+            if (cn_ns_clen(&tree->ct_root->tn_ns) > clen_max) {
+                clen_max = cn_ns_clen(&tree->ct_root->tn_ns);
+                ev_debug(1);
             }
         }
     }
@@ -1910,15 +1922,25 @@ sp3_qos_check(struct sp3 *sp)
         secs = clamp_t(u64, secs, min_lat, max_lat);
         K = ((100 * secs) + (475 * 64)) / 64;
         sval = (K * r * 3) / (K + r);
+
+        if (sval < sp->sp_sval_min) {
+            sp->sp_sval_min = sval;
+        }
+    } else {
+        if (clen_max > (1024ul << 20) && jclock_ns - sp->sp_tingest < NSEC_PER_SEC * 60)
+            sval = sp->sp_sval_min;
     }
 
-    throttle_sensor_set(sp->throttle_sensor_root, (uint)sval);
+    if (sval > THROTTLE_SENSOR_SCALE * 90 / 100)
+        sval = THROTTLE_SENSOR_SCALE * 90 / 100;
+
+    throttle_sensor_set(sp->throttle_sensor_root, sval);
 
     if (debug_qos(sp) && jclock_ns > sp->qos_log_ttl) {
         sp->qos_log_ttl = jclock_ns + NSEC_PER_SEC;
 
         log_info(
-            "root_sensor=%lu rootmax=%u rspill_dt_max=%lu "
+            "root_sensor=%u rootmax=%u rspill_dt_max=%lu "
             "samp_curr=%.3f samp_targ=%.3f lpct_targ=%.3f",
             sval, rootmax, rspill_dt_max,
             scale2dbl(sp->samp_curr), scale2dbl(sp->samp_targ), scale2dbl(sp->lpct_targ));
@@ -2246,6 +2268,7 @@ sp3_notify_ingest(struct csched *handle, struct cn_tree *tree, size_t alen, size
     atomic_add(&spt->spt_ingest_alen, alen);
     atomic_add(&spt->spt_ingest_wlen, wlen);
     atomic_inc_rel(&sp->sp_ingest_count);
+    sp->sp_tingest = jclock_ns;
 
     sp3_monitor_wake(sp);
 }
@@ -2408,6 +2431,7 @@ sp3_create(
     atomic_set(&sp->running, 1);
     atomic_set(&sp->sp_ingest_count, 0);
     atomic_set(&sp->sp_prune_count, 0);
+    sp->sp_sval_min = THROTTLE_SENSOR_SCALE / 3;
 
     err = sts_create(sp->name, SP3_QNUM_MAX, sp3_job_print, &sp->sts);
     if (ev(err))

@@ -1176,27 +1176,6 @@ static const struct param_spec pspecs[] = {
         },
     },
     {
-        .ps_name = "throttle_c0_hi_th",
-        .ps_description = "c0 ingest backlog sensor high-watermark (x10)",
-        .ps_flags = PARAM_FLAG_EXPERIMENTAL,
-        .ps_type = PARAM_TYPE_U32,
-        .ps_offset = offsetof(struct kvdb_rparams, throttle_c0_hi_th),
-        .ps_size = PARAM_SZ(struct kvdb_rparams, throttle_c0_hi_th),
-        .ps_convert = param_default_converter,
-        .ps_validate = param_default_validator,
-        .ps_stringify = param_default_stringify,
-        .ps_jsonify = param_default_jsonify,
-        .ps_default_value = {
-            .as_uscalar = 35,
-        },
-        .ps_bounds = {
-            .as_uscalar = {
-                .ps_min = 30,
-                .ps_max = UINT32_MAX,
-            },
-        },
-    },
-    {
         .ps_name = "throttling.init_policy",
         .ps_description = "throttle initialization policy",
         .ps_flags = 0,

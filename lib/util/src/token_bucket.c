@@ -233,7 +233,7 @@ tbkt_request(struct tbkt *self, u64 request, u64 *now)
      * TODO: Make this algorithm NUMA friendly.
      */
     if (HSE_LIKELY(!spin_trylock(&self->tb_lock)))
-        return (self->tb_delay * 3) / 4;
+        return self->tb_delay;
 
     /* Refill the bucket based on elapsed time. */
     tbkti_refill(self, *now);

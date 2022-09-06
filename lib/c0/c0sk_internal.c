@@ -42,32 +42,81 @@
  *
  * See 'struct throttle_sensor' for guidelines on setting sensor values.
  */
-int
-c0sk_adjust_throttling(struct c0sk_impl *self)
+static void
+c0sk_adjust_throttling(struct c0sk_impl *self, int amt)
 {
     const struct kvdb_rparams *rp = self->c0sk_kvdb_rp;
-    int finlat, hwm, new;
+    uint finlat, new;
+    uint tfill = 0;
+    int cnt;
 
     if (!self->c0sk_sensor)
-        return 0;
+        return;
+
+    finlat = self->c0sk_ingest_finlat;
+    cnt = self->c0sk_kvmultisets_cnt;
+
+    /* Throttle heavily until the first ingest completes.
+     */
+    if (finlat == UINT_MAX && cnt > 0) {
+        new = 1000 + ((cnt / 2) + 1) * 100;
+        throttle_sensor_set(self->c0sk_sensor, new);
+        return;
+    }
 
     /* Use the ingest finish latency (i.e., the running average time it takes
      * to process and write k/v tuples to media) to adjust the hwm to try and
      * maintain a max backlog of between 2.9 and 5.2 c0kvms (based upon the
      * default value of throttle_c0_hi_th=3.5).
      */
-    finlat = atomic_read(&self->c0sk_ingest_finlat);
-    hwm = finlat / 1000;
-    if (hwm > 23)
-        hwm = 23;
 
-    hwm = rp->throttle_c0_hi_th + (17 - hwm);
+    /* If (amt > 0) it means a new ingest was enqueued, so the time taken
+     * to fill the kvms buffer is now minus the last time we did this...
+     */
+    if (amt > 0) {
+        tfill = (jclock_ns - self->c0sk_ingest_ctime) / 1000000;
+        self->c0sk_ingest_ctime = jclock_ns;
+    }
 
-    new = (self->c0sk_kvmultisets_cnt * THROTTLE_SENSOR_SCALE * 10) / hwm;
+    /* Adjust the throttle depending upon the kvms backlog and whether we
+     * are adding to or removing from the backlog.  The backlog of inflight
+     * ingests is always (cnt - 1), where "cnt" is used to select throttle
+     * sensor.  Use the ingest finish latency (i.e., the running average
+     * time it takes to process and write k/v tuples to media) and the
+     * fill rate to increase or decrease the sensor value.
+     */
+    if ((amt < 0 && (cnt + amt) < 2) || cnt < 1) {
+        cnt = 0;
+    } else if (amt > 0 && (cnt + amt) == 2) {
+        if (tfill < finlat * 110 / 100 || finlat > 8000) {
+            if (tfill < finlat * 90 / 100) {
+                cnt = 3; /* (fill rate > ingest rate), high throttle */
+            } else {
+                cnt = 2; /* (fill rate == ingest rate), low throttle */
+            }
+        } else {
+            cnt = 0; /* (fill rate < ingest rate), disengage throttle */
+        }
+    } else {
+        cnt += amt; /* normal kvms count based throttling */
+
+        if (finlat > 8000 && cnt > rp->c0_ingest_threads)
+            cnt++;
+    }
+
+    /* Use sensor trigger values from throttle.c, where values of 1000
+     * and above increase throttling, and values below 1000 decrease
+     * throttling faster inversely proportional to the value.
+     */
+    if (cnt < 8) {
+        uint v[] = { 0, 0, 300, 700, 900, 1000, 1100, 1300, 1500 };
+
+        new = v[cnt];
+    } else {
+        new = 1800;
+    }
 
     throttle_sensor_set(self->c0sk_sensor, new);
-
-    return new;
 }
 
 static uint64_t
@@ -138,12 +187,13 @@ c0sk_install_c0kvms(struct c0sk_impl *self, struct c0_kvmultiset *old, struct c0
 
         c0kvms_cb_setup(new, self->c0sk_cb);
 
+        c0sk_adjust_throttling(self, 1);
+
         cds_list_add_rcu(&new->c0ms_link, &self->c0sk_kvmultisets);
 
         c0sk_rsvd_sn_set(self, new);
 
-        self->c0sk_kvmultisets_cnt += 1;
-        c0sk_adjust_throttling(self);
+        self->c0sk_kvmultisets_cnt++;
     }
     mutex_unlock(&self->c0sk_kvms_mutex);
 
@@ -721,17 +771,21 @@ exit_err:
     if (err) {
         log_errx("c0 ingest failed on kvms %p %lu", err, kvms, kvms_gen);
     } else {
-        int finlat;
+        const uint new = (get_time_ns() - ingest->c0iw_tenqueued) / 1000000;
+        uint old;
 
         if (atomic_read(&c0sk->c0sk_replaying) == 0)
             lc_ingest_seqno_set(lc, max_seq);
 
-        /* Compute a running average of the finish latency (weighted more
-         * heavily on previous result) for use in adjusting the throttle.
+        /* Update the running average finish latency (i.e., the time
+         * taken to ingest the kvms) for use in adjusting the throttle.
          */
-        finlat = atomic_read(&c0sk->c0sk_ingest_finlat);
-        finlat = ((ingest->t7 - ingest->t6) / 1000000 + finlat * 2) / 3;
-        atomic_set(&c0sk->c0sk_ingest_finlat, finlat);
+        mutex_lock(&c0sk->c0sk_kvms_mutex);
+        old = c0sk->c0sk_ingest_finlat;
+        if (old == UINT_MAX)
+            old = new * 7;
+        c0sk->c0sk_ingest_finlat = (old + new) / 2;
+        mutex_unlock(&c0sk->c0sk_kvms_mutex);
     }
 
     /* Releasing mblocks could take several seconds on slow or very busy
@@ -903,8 +957,8 @@ c0sk_release_multiset(struct c0sk_impl *self, struct c0_kvmultiset *multiset)
     {
         if (p == multiset) {
             cds_list_del_rcu(&p->c0ms_link);
-            self->c0sk_kvmultisets_cnt -= 1;
-            c0sk_adjust_throttling(self);
+            c0sk_adjust_throttling(self, -1);
+            self->c0sk_kvmultisets_cnt--;
             cv_broadcast(&self->c0sk_kvms_cv);
             break;
         }

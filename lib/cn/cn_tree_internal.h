@@ -69,10 +69,9 @@ struct cn_kle_hdr {
  * @ct_nodes:       list of all tree nodes, including ct_root
  * @ct_nospace:     set when "disk is full"
  * @cn:    ptr to parent cn object
- * @ds:    dataset
  * @rp:    ptr to shared runtime parameters struct
- * @ct_cp:          cn create-time parameters
  * @cndb:  handle for cndb (the metadata journal/log)
+ * @ct_cp:          cn create-time parameters
  * @cnid:  cndb's identifier for this cn tree
  * @ct_rspill_dt:  running average time to spill a kvset (nanoseconds)
  * @ct_rspill_slp: number of rspill jobs waiting on a split to finish
@@ -84,8 +83,6 @@ struct cn_kle_hdr {
  * @ct_last_ptlen:  length of @ct_last_ptomb
  * @ct_last_ptomb:  if cn is a capped, this holds the last (largest) ptomb in cn
  * @ct_kle_cache:   kvset list entry cache
- * @ct_rspills_lock:  lock to protect @ct_rspills_list
- * @ct_rspills_list:  list of active spills from this node to its children
  * @ct_lock:        read-mostly lock to protect tree updates
  *
  * Note: The first fields are frequently accessed in the order listed
@@ -98,11 +95,10 @@ struct cn_tree {
     u16                  ct_sfx_len;
     bool                 ct_nospace;
     bool                 ct_rspills_wedged;
-    struct cn *          cn;
-    struct mpool *       mp;
-    struct kvs_rparams * rp;
-
-    struct route_map  *ct_route_map;
+    struct cn           *cn;
+    struct mpool        *mp;
+    struct kvs_rparams  *rp;
+    struct route_map    *ct_route_map;
 
     struct cndb *       cndb;
     struct cn_kvdb *    cn_kvdb;

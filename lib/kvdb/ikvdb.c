@@ -813,35 +813,26 @@ static void
 ikvdb_throttle_task(struct work_struct *work)
 {
     struct ikvdb_impl *self;
-    u64                throttle_update_prev = 0;
 
     pthread_setname_np(pthread_self(), "hse_throttle");
 
     self = container_of(work, struct ikvdb_impl, ikdb_throttle_work);
 
     while (!self->ikdb_work_stop) {
+        uint64_t tstart = get_time_ns();
+        uint64_t rate;
+        uint raw;
 
-        u64 tstart = get_time_ns();
-
-        if (tstart > throttle_update_prev + self->ikdb_rp.throttle_update_ns) {
-
-            uint raw = throttle_update(&self->ikdb_throttle);
-            u64  rate = throttle_raw_to_rate(raw);
-
-            ikvdb_rate_limit_set(self, rate);
-            throttle_update_prev = tstart;
-        }
+        raw = throttle_update(&self->ikdb_throttle);
+        rate = throttle_raw_to_rate(raw);
+        ikvdb_rate_limit_set(self, rate);
 
         end_stats_work();
 
-        /* Sleep for 10ms minus processing overhead.  Does not account
-         * for sleep time variance, but does account for timer slack
-         * to minimize drift.
-         */
         tstart = get_time_ns() - tstart + timer_slack;
-        if (tstart < NSEC_PER_SEC / 100) {
+        if (tstart < self->ikdb_rp.throttle_update_ns) {
             struct timespec req = {
-                .tv_nsec = (NSEC_PER_SEC / 100 - tstart)
+                .tv_nsec = self->ikdb_rp.throttle_update_ns - tstart,
             };
 
             hse_nanosleep(&req, NULL, "throtslp");
@@ -1508,7 +1499,7 @@ ikvdb_open(
         log_info("setting throttling.init_policy to \"%s\" for KVDB(%s)",
                  self->ikdb_pmem_only ? "light" : "heavy", kvdb_home);
         self->ikdb_rp.throttle_init_policy =
-            self->ikdb_pmem_only ? THROTTLE_DELAY_START_LIGHT : THROTTLE_DELAY_START_HEAVY;
+            self->ikdb_pmem_only ? THROTTLE_DELAY_START_LIGHT : THROTTLE_DELAY_START_MEDIUM;
     }
 
     throttle_init(&self->ikdb_throttle, &self->ikdb_rp, self->ikdb_alias);
