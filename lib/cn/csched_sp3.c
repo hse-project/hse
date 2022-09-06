@@ -1854,7 +1854,7 @@ sp3_qos_check(struct sp3 *sp)
     uint64_t rspill_dt_max;
     uint64_t clen_max;
     uint32_t rootmin, rootmax;
-    uint sval;
+    uint sval, sleepers;
 
     if (!sp->throttle_sensor_root)
         return;
@@ -1863,6 +1863,7 @@ sp3_qos_check(struct sp3 *sp)
     rootmax = 0;
     rspill_dt_max = 0;
     clen_max = 0;
+    sleepers = 0;
     sval = 0;
 
     list_for_each_entry(tree, &sp->mon_tlist, ct_sched.sp3t.spt_tlink) {
@@ -1877,7 +1878,7 @@ sp3_qos_check(struct sp3 *sp)
         /* Increase the throttle for each root spill job paused for a split
          * (which means it could also be waiting on another spill job).
          */
-        nk += tree->ct_rspill_slp;
+        sleepers += tree->ct_rspill_slp;
 
         if (nk > rootmin) {
             if (tree->ct_rspill_dt * (nk - rootmin) > rspill_dt_max * rootmax) {
@@ -1887,7 +1888,6 @@ sp3_qos_check(struct sp3 *sp)
         } else {
             if (cn_ns_clen(&tree->ct_root->tn_ns) > clen_max) {
                 clen_max = cn_ns_clen(&tree->ct_root->tn_ns);
-                ev_debug(1);
             }
         }
     }
@@ -1923,7 +1923,7 @@ sp3_qos_check(struct sp3 *sp)
         K = ((100 * secs) + (475 * 64)) / 64;
         sval = (K * r * 3) / (K + r);
 
-        if (sval < sp->sp_sval_min) {
+        if (rspill_dt_max > 1 && sval < sp->sp_sval_min) {
             sp->sp_sval_min = sval;
         }
     } else {
@@ -1931,8 +1931,22 @@ sp3_qos_check(struct sp3 *sp)
             sval = sp->sp_sval_min;
     }
 
-    if (sval > THROTTLE_SENSOR_SCALE * 90 / 100)
-        sval = THROTTLE_SENSOR_SCALE * 90 / 100;
+    /* Clamp the sensor value to prevent wild oscillations in throughput as seen
+     * by the application.
+     */
+    if (rootmax > rootmin * 4 || sleepers > 0) {
+        if (sval > THROTTLE_SENSOR_SCALE * 110 / 100) {
+            sval = THROTTLE_SENSOR_SCALE * 110 / 100;
+            ev_debug(1);
+        }
+        ev_debug(1);
+    } else {
+        if (sval > THROTTLE_SENSOR_SCALE * 90 / 100) {
+            sval = THROTTLE_SENSOR_SCALE * 90 / 100;
+            ev_debug(1);
+        }
+        ev_debug(1);
+    }
 
     throttle_sensor_set(sp->throttle_sensor_root, sval);
 
@@ -2431,7 +2445,7 @@ sp3_create(
     atomic_set(&sp->running, 1);
     atomic_set(&sp->sp_ingest_count, 0);
     atomic_set(&sp->sp_prune_count, 0);
-    sp->sp_sval_min = THROTTLE_SENSOR_SCALE / 3;
+    sp->sp_sval_min = THROTTLE_SENSOR_SCALE / 2;
 
     err = sts_create(sp->name, SP3_QNUM_MAX, sp3_job_print, &sp->sts);
     if (ev(err))
