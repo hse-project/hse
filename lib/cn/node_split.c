@@ -510,6 +510,7 @@ cn_split(struct cn_compaction_work *w)
     struct workqueue_struct *wq;
     struct kvset_list_entry *le;
     struct key_obj split_kobj;
+    atomic_uint inflight;
     struct cndb *cndb;
     merr_t err = 0;
     uint i;
@@ -535,6 +536,7 @@ cn_split(struct cn_compaction_work *w)
         return merr(ENOMEM);
 
     wq = cn_get_io_wq(w->cw_tree->cn);
+    inflight = w->cw_kvset_cnt;
 
     for (i = 0, le = list_first_entry(&w->cw_node->tn_kvset_list, typeof(*le), le_link);
          i < w->cw_kvset_cnt;
@@ -544,16 +546,21 @@ cn_split(struct cn_compaction_work *w)
         wargs[i].ks = le->le_kvset;
         wargs[i].split_kobj = &split_kobj;
         wargs[i].pc = w->cw_pc;
+        wargs[i].inflightp = &inflight;
         kvset_split_res_init(w, &wargs[i].result, i);
 
         if (!queue_work(wq, &wargs[i].work)) {
             err = merr(EBUG);
+            inflight--;
             break;
         }
     }
 
-    /* Wait for all the queued kvset split work to finish */
-    flush_workqueue(wq);
+    /* Poll for all our kvset-split work to complete.  Ideally, we'd call
+     * flush_workqueue() here, but that can severely stall new requests.
+     */
+    while (inflight > 0)
+        usleep(100 * 1000);
 
     for (i = 0; !err && i < w->cw_kvset_cnt; i++) {
         if (wargs[i].err) {

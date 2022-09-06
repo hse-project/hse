@@ -54,6 +54,8 @@ struct c0sk {
  * @c0sk_release_gen:     generation count of most recently released multiset
  * @c0sk_kvmultisets_sz:  size in bytes consumed by all kvms pending ingest
  * @c0sk_kvmultisets_cnt: how many struct c0_kvmultiset's does this c0sk have
+ * @c0sk_ingest_ctime:    new/empty kvms buffer create time (milliseconds)
+ * @c0sk_ingest_finlat:   average ingest finish latency (milliseconds)
  * @c0sk_kvms_cv:         used for kvms state change signaling
  * @c0sk_rcu_pending:     list of kvmultisets pending RCU synchronization
  * @c0sk_rcu_active:      list of kvmultisets to be ingested or released
@@ -91,7 +93,8 @@ struct c0sk_impl {
     struct cds_list_head c0sk_kvmultisets;
     u64                  c0sk_release_gen;
     s32                  c0sk_kvmultisets_cnt;
-    atomic_int           c0sk_ingest_finlat;
+    uint                 c0sk_ingest_finlat;
+    ulong                c0sk_ingest_ctime;
     atomic_ulong         c0sk_ingest_order_curr;
     atomic_ulong         c0sk_ingest_order_next;
     atomic_ulong         c0sk_ingest_min;
@@ -136,13 +139,6 @@ struct c0sk_waiter {
 };
 
 /* clang-format on */
-
-/**
- * c0sk_adjust_throttling - adjust c0sk throttling
- * @self: struct c0sk for which to adjust throttling
- */
-int
-c0sk_adjust_throttling(struct c0sk_impl *self);
 
 /**
  * c0sk_install_c0kvms() - make the given new kvms the current/active kvms

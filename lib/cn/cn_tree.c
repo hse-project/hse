@@ -72,6 +72,8 @@
 
 static struct kmem_cache *cn_node_cache HSE_READ_MOSTLY;
 
+static void cn_subspill_wakeup(struct cn_tree_node *tn);
+
 static void
 cn_setname(const char *name)
 {
@@ -100,22 +102,24 @@ cn_node_alloc(struct cn_tree *tree, uint64_t nodeid)
 
     INIT_LIST_HEAD(&tn->tn_link);
     INIT_LIST_HEAD(&tn->tn_kvset_list);
-    INIT_LIST_HEAD(&tn->tn_ss_list);
-
-    mutex_init(&tn->tn_ss_lock);
 
     atomic_init(&tn->tn_compacting, 0);
     atomic_init(&tn->tn_busycnt, 0);
-    atomic_init(&tn->tn_split_cnt, 0);
-    tn->tn_split_dly = 0;
 
     tn->tn_tree = tree;
     tn->tn_isroot = (nodeid == 0);
     tn->tn_nodeid = nodeid;
 
     tn->tn_split_size = (size_t)tree->rp->cn_split_size << 30;
-    cv_init(&tn->tn_spill_cv);
+
     mutex_init(&tn->tn_spill_mtx);
+    cv_init(&tn->tn_spill_cv);
+
+    mutex_init(&tn->tn_ss_lock);
+    INIT_LIST_HEAD(&tn->tn_ss_list);
+    tn->tn_ss_spilling = 0;
+    tn->tn_ss_splitting = false;
+    cv_init(&tn->tn_ss_cv);
 
     return tn;
 }
@@ -198,13 +202,13 @@ cn_tree_create(
         return merr(ENOMEM);
 
     memset(tree, 0, sizeof(*tree));
-    tree->ct_cp = cp;
+    INIT_LIST_HEAD(&tree->ct_nodes);
     tree->ct_pfx_len = cp->pfx_len;
     tree->ct_sfx_len = cp->sfx_len;
-    tree->ct_kvdb_health = health;
     tree->rp = rp;
-
-    INIT_LIST_HEAD(&tree->ct_nodes);
+    tree->ct_cp = cp;
+    tree->ct_rspill_dt = 1;
+    tree->ct_kvdb_health = health;
 
     tree->ct_root = cn_node_alloc(tree, 0);
     if (ev(!tree->ct_root)) {
@@ -221,8 +225,6 @@ cn_tree_create(
             return merr(ENOMEM);
         }
     }
-
-    tree->ct_lvl_max = 1;
 
     err = rmlock_init(&tree->ct_lock);
     if (err) {
@@ -921,20 +923,6 @@ cn_comp_release(struct cn_compaction_work *w)
             kvset_set_workid(le->le_kvset, 0);
             le = list_prev_entry(le, le_link);
         }
-
-        /* If cn_comp_update_XXX() was called and was successful then it will
-         * have updated tn_split_cnt, busycnt, and the token.  For all errors
-         * we must do it here.
-         */
-        if (w->cw_action == CN_ACTION_SPLIT) {
-            w->cw_tree->ct_root->tn_split_cnt--;
-            w->cw_node->tn_split_cnt = 0;
-        }
-
-        atomic_sub_rel(&w->cw_node->tn_busycnt, (1u << 16) + w->cw_kvset_cnt);
-
-        if (w->cw_have_token)
-            cn_node_comp_token_put(w->cw_node);
     }
 
     perfc_inc(w->cw_pc, PERFC_BA_CNCOMP_FINISH);
@@ -1320,9 +1308,6 @@ cn_comp_update_kvcompact(struct cn_compaction_work *work, struct kvset *new_kvse
     cn_tree_samp_update_compact(tree, work->cw_node);
 
     cn_tree_samp(tree, &work->cw_samp_post);
-
-    atomic_sub_rel(&work->cw_node->tn_busycnt, (1u << 16) + work->cw_kvset_cnt);
-    cn_node_comp_token_put(work->cw_node);
     rmlock_wunlock(&tree->ct_lock);
 
     /* Delete retired kvsets. */
@@ -1420,8 +1405,6 @@ cn_spill_delete_kvsets(struct cn_compaction_work *work)
     pnode->tn_cgen++;
 
     cn_tree_samp_update_compact(tree, pnode);
-
-    atomic_sub_rel(&pnode->tn_busycnt, (1u << 16) + work->cw_kvset_cnt);
     rmlock_wunlock(&tree->ct_lock);
 
 done:
@@ -1518,12 +1501,6 @@ cn_comp_update_split(
             cn_tree_samp_update_compact(tree, w->cw_split.nodev[i]);
             cn_tree_samp(tree, &w->cw_samp_post);
         }
-
-        w->cw_tree->ct_root->tn_split_cnt--;
-        w->cw_node->tn_split_cnt = 0;
-
-        atomic_sub_rel(&src->tn_busycnt, (1u << 16) + w->cw_kvset_cnt);
-        cn_node_comp_token_put(w->cw_node);
 
         if (w->cw_debug & CW_DEBUG_SPLIT) {
             cn_split_node_stats_dump(w, left, "left");
@@ -1823,7 +1800,18 @@ cn_comp_cleanup(struct cn_compaction_work *w)
     const bool spill = (w->cw_action == CN_ACTION_SPILL);
     const bool split = (w->cw_action == CN_ACTION_SPLIT);
 
-    if (HSE_UNLIKELY(w->cw_err)) {
+    if (split) {
+        w->cw_node->tn_ss_splitting = false;
+        w->cw_tree->ct_split_cnt--;
+        cn_subspill_wakeup(w->cw_node);
+    }
+
+    atomic_sub_rel(&w->cw_node->tn_busycnt, (1u << 16) + w->cw_kvset_cnt);
+
+    if (w->cw_have_token)
+        cn_node_comp_token_put(w->cw_node);
+
+    if (w->cw_err) {
 
         /* Failed spills cause node to become "wedged"  */
         if (spill && !w->cw_tree->ct_rspills_wedged) {
@@ -1974,6 +1962,14 @@ cn_subspill_apply(struct subspill *ss)
     return 0;
 }
 
+static void
+cn_subspill_wakeup(struct cn_tree_node *tn)
+{
+    mutex_lock(&tn->tn_ss_lock);
+    cv_broadcast(&tn->tn_ss_cv);
+    mutex_unlock(&tn->tn_ss_lock);
+}
+
 static merr_t
 cn_comp_spill(struct cn_compaction_work *w)
 {
@@ -1981,6 +1977,7 @@ cn_comp_spill(struct cn_compaction_work *w)
     struct spillctx *sctx;
     struct cn_tree *tree = w->cw_tree;
     struct route_node *rtn = 0;
+    atomic_uint *spillingp = NULL;
     uint cnum = 0;
     merr_t err;
 
@@ -1988,8 +1985,9 @@ cn_comp_spill(struct cn_compaction_work *w)
     if (err)
         return err;
 
-    while (!err) {
+    while (1) {
         struct cn_tree_node *node;
+        struct route_node *rtnext;
         void *lock;
         struct kvset_list_entry *le;
         uint64_t node_dgen;
@@ -1997,14 +1995,30 @@ cn_comp_spill(struct cn_compaction_work *w)
         uint eklen;
 
         rmlock_rlock(&tree->ct_lock, &lock);
-
-        rtn = rtn ? route_node_next(rtn) : route_map_first_node(tree->ct_route_map);
-        if (!rtn) {
+        rtnext = rtn ? route_node_next(rtn) : route_map_first_node(tree->ct_route_map);
+        if (!rtnext) {
             rmlock_runlock(lock);
             break;
         }
 
-        node = route_node_tnode(rtn);
+        node = route_node_tnode(rtnext);
+
+        mutex_lock(&node->tn_ss_lock);
+        if (node->tn_ss_splitting) {
+            rmlock_runlock(lock);
+
+            tree->ct_rspill_slp++;
+            cv_wait(&node->tn_ss_cv, &node->tn_ss_lock, "splitwait");
+            tree->ct_rspill_slp--;
+            mutex_unlock(&node->tn_ss_lock);
+            continue;
+        }
+
+        spillingp = &node->tn_ss_spilling;
+        node->tn_ss_spilling++;
+        mutex_unlock(&node->tn_ss_lock);
+
+        rtn = rtnext;
 
         le = list_first_entry_or_null(&node->tn_kvset_list, typeof(*le), le_link);
         node_dgen = le ? kvset_get_dgen(le->le_kvset) : 0;
@@ -2030,6 +2044,7 @@ cn_comp_spill(struct cn_compaction_work *w)
                 break;
 
             atomic_inc(&node->tn_sgen);
+            node->tn_ss_spilling--;
         } else {
             cn_subspill_enqueue(ss, node);
         }
@@ -2038,21 +2053,31 @@ cn_comp_spill(struct cn_compaction_work *w)
         while ((ss = cn_subspill_pop(node))) {
             err = cn_subspill_apply(ss);
             if (err)
-                break;
+                goto errout;
 
             atomic_inc(&node->tn_sgen);
+            node->tn_ss_spilling--;
         }
+
+        spillingp = NULL;
     }
 
     w->cw_t3_build = get_time_ns();
 
-    if (err && merr_errno(err) != ESHUTDOWN)
-        kvdb_health_error(tree->ct_kvdb_health, err);
+  errout:
+    if (err) {
+        if (merr_errno(err) != ESHUTDOWN)
+            kvdb_health_error(tree->ct_kvdb_health, err);
 
-    /* Serialize the deletion of input kvsets.
-     */
-    if (!err && cn_node_spill_wait(w, w->cw_tree->ct_root))
-        cn_spill_delete_kvsets(w);
+        if (spillingp)
+            (*spillingp) -= 1;
+    } else {
+
+        /* Serialize the deletion of input kvsets.
+         */
+        if (cn_node_spill_wait(w, w->cw_tree->ct_root))
+            cn_spill_delete_kvsets(w);
+    }
 
     /* On error, remove any enqueued subspills */
     if (kvdb_health_check(tree->ct_kvdb_health, KVDB_HEALTH_FLAG_ALL)) {
@@ -2071,6 +2096,7 @@ cn_comp_spill(struct cn_compaction_work *w)
             }
 
             list_del(&ss->ss_link);
+            tn->tn_ss_spilling--;
 
             blk_list_free(&ss->ss_mblks.kblks);
             blk_list_free(&ss->ss_mblks.vblks);

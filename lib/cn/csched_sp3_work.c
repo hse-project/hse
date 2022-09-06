@@ -159,8 +159,8 @@ sp3_work_wtype_root(
     if (!*mark)
         return 0;
 
+    wlen = kvset_get_kwlen(le->le_kvset) + kvset_get_vwlen(le->le_kvset);
     wlen_max = thresh->rspill_wlen_max;
-    wlen = 0;
 
     runlen_min = thresh->rspill_runlen_min;
     runlen_max = thresh->rspill_runlen_max;
@@ -230,11 +230,18 @@ sp3_work_wtype_idle(
 
     head = &tn->tn_kvset_list;
     *mark = list_last_entry_or_null(head, typeof(*le), le_link);
-    *action = CN_ACTION_COMPACT_KV;
-
     kvsets = cn_ns_kvsets(&tn->tn_ns);
+
+    if (tn->tn_isroot) {
+        *action = CN_ACTION_SPILL;
+        *rule = CN_RULE_RSPILL;
+        return kvsets;
+    }
+
     if (kvsets < 2)
         return 0;
+
+    *action = CN_ACTION_COMPACT_KV;
 
     /* Keep idle index nodes fully compacted to improve scanning
      * (e.g., mongod index nodes that rarely change after load).
@@ -278,6 +285,33 @@ sp3_work_wtype_idle(
     return 0;
 }
 
+/* This function is invoked periodically for each node that needs to be
+ * split until the function returns non-zero.
+ *
+ * If conditions are favorable to split we set the "tn_ss_splitting" flag
+ * to request a split.  Until then, we must make the following checks
+ * on each invocation in order to avoid stalling a root spill:
+ *
+ * 1) Defer requesting a split if there are already "split_cnt_max" splits
+ *    active in the tree (i.e., the max number of concurrent splits), or
+ *    we are in a cool down period having recently run the max number nof
+ *    concurrent splits.
+ *
+ * 2) If the root node is too long then wait for root spill to catch up.
+ *
+ * 3) If there's an active spill to this node then defer requesting a split
+ *    in hopes we can split some other node that isn't currently undergoing
+ *    an active spill.  We try this at most a few times, because if the tree
+ *    has "split_cnt_max" nodes or fewer they might all be undergoing an
+ *    active spill (which could potentially take a very long time).
+ *
+ * If none of the above conditions hold, then we request a split by setting
+ * the "tn_ss_splitting" flag to true, which will prevent new spills into this
+ * node.  However, if this node is currently undergoing an active spill then
+ * we must return 0 to avoid starting a split.  We then re-evalutate the
+ * spilling condition on each invocation until all spills to this node have
+ * completed (i.e., tn_ss_spilling == 0).  Only then may we start the split.
+ */
 static uint
 sp3_work_wtype_split(
     struct sp3_node          *spn,
@@ -287,16 +321,52 @@ sp3_work_wtype_split(
     enum cn_rule             *rule)
 {
     struct cn_tree_node *tn = spn2tn(spn);
+    struct cn_tree *tree = tn->tn_tree;
     struct kvset_list_entry *le;
     struct list_head *head;
+    uint64_t now;
+    uint kvsets;
 
     head = &tn->tn_kvset_list;
     *mark = list_last_entry_or_null(head, typeof(*le), le_link);
+    kvsets = cn_ns_kvsets(&tn->tn_ns);
 
     *action = CN_ACTION_SPLIT;
     *rule = CN_RULE_SPLIT;
 
-    return cn_ns_kvsets(&tn->tn_ns);
+    mutex_lock(&tn->tn_ss_lock);
+    now = get_time_ns();
+
+    if (!tn->tn_ss_splitting) {
+        if (tree->ct_split_cnt >= thresh->split_cnt_max || now < tree->ct_split_dly) {
+            tn->tn_ss_visits = 0;
+            kvsets = 0;
+            ev_debug(1);
+        } else if (cn_ns_kvsets(&tree->ct_root->tn_ns) >= thresh->rspill_runlen_min * 3) {
+            tn->tn_ss_visits = 0;
+            kvsets = 0;
+            ev_debug(1);
+        } else if (tn->tn_ss_spilling && tn->tn_ss_visits < thresh->split_cnt_max) {
+            tn->tn_ss_visits++;
+            kvsets = 0;
+            ev_debug(1);
+        } else {
+            if (++tree->ct_split_cnt >= thresh->split_cnt_max)
+                tree->ct_split_dly = now + NSEC_PER_SEC * 3;
+            tn->tn_ss_splitting = true;
+            tn->tn_ss_visits = 0;
+        }
+    }
+
+    /* Defer starting the split if there are active spills to this node.
+     * This most often occurs on trees with one leaf, and rarely on trees
+     * with many leaves (but largely depends on the spill pattern).
+     */
+    if (tn->tn_ss_spilling)
+        kvsets = 0;
+    mutex_unlock(&tn->tn_ss_lock);
+
+    return kvsets;
 }
 
 static uint
@@ -562,8 +632,9 @@ sp3_work(
             return merr(ENOMEM);
     }
 
-    /* Caller uses these fields to manage the csched work queues,
-     * so ensure they have sane defaults.
+    /* Caller uses these fields to relay information back to csched,
+     * so ensure they have sane defaults.  If this function returns
+     * zero csched will drop the request unless cw_resched is true.
      */
     (*wp)->cw_action = CN_ACTION_NONE;
     (*wp)->cw_resched = false;
@@ -601,6 +672,11 @@ sp3_work(
         switch (wtype) {
         case wtype_split:
             n_kvsets = sp3_work_wtype_split(spn, thresh, &mark, &action, &rule);
+
+            /* Set the resched flag to prevent csched from dropping this request
+             * should sp3_work_wtype_split() return 0 to defer the split.
+             */
+            (*wp)->cw_resched = !n_kvsets;
             break;
 
         case wtype_garbage:
@@ -642,84 +718,18 @@ sp3_work(
     if (n_kvsets == 0)
         goto locked_nowork;
 
-    switch (action) {
-    case CN_ACTION_SPILL:
+    if (action == CN_ACTION_SPILL) {
         if ((atomic_read(&tn->tn_busycnt) >> 16) > 2)
             goto locked_nowork;
-
-        if (tn->tn_split_cnt > 0) {
-            (*wp)->cw_resched = true;
-            goto locked_nowork;
-        }
 
         if (!cn_node_isroot(tn))
             abort();
 
         cn_node_comp_token_put(tn);
         have_token = false;
-        break;
-
-    case CN_ACTION_COMPACT_K:
-    case CN_ACTION_COMPACT_KV:
-    case CN_ACTION_SPLIT:
-
-        /* All other actions are node-wise mutually exclusive.
-         */
-        if (atomic_read(&tn->tn_busycnt) > 0)
-            goto locked_nowork;
-
-        if (action == CN_ACTION_SPLIT) {
-            struct cn_tree_node *root = tree->ct_root;
-
-            /* Set the resched flag to prevent the scheduler from dropping
-             * this request should we return "no work".
-             */
-            (*wp)->cw_resched = true;
-
-            /* If there are no splits pending and root spill is behind
-             * then wait for it to catch up before requesting a split.
-             */
-            if (root->tn_split_cnt == 0 &&
-                cn_ns_kvsets(&root->tn_ns) > thresh->rspill_runlen_min * 3) {
-                goto locked_nowork;
-            }
-
-            /* Prevent this node from requesting a split if the batch limit
-             * has been reached or the delay from the last batch of splits
-             * is still in effect.
-             */
-            if (tn->tn_split_cnt == 0) {
-                if (root->tn_split_cnt >= thresh->split_cnt_max)
-                    goto locked_nowork;
-
-                if (get_time_ns() < root->tn_split_dly)
-                    goto locked_nowork;
-            }
-
-            /* Atomically increment the split/sync counters to prevent
-             * new compaction jobs from starting in both this node and
-             * the root node (does not apply to split jobs).  Once all
-             * root jobs complete one or more split jobs will be able
-             * to run with exclusive access to their respective nodes.
-             */
-            if (tn->tn_split_cnt++ == 0)
-                root->tn_split_cnt++;
-
-            if (atomic_read(&root->tn_busycnt) > 0)
-                goto locked_nowork;
-
-            /* Prevent new nodes from requesting a split until the current
-             * batch has completed and the batch delay timer has expired.
-             */
-            root->tn_split_dly = get_time_ns() + NSEC_PER_SEC * 10;
-        } else {
-            if (tn->tn_split_cnt > 0)
-                goto locked_nowork;
-        }
-        break;
-
-    default:
-        goto locked_nowork;
+    } else {
+        assert(action != CN_ACTION_NONE);
+        assert(atomic_read(&tn->tn_busycnt) == 0);
     }
 
     /* The upper 16 bits of busycnt contains the count of currently

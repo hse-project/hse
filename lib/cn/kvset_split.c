@@ -694,4 +694,6 @@ kvset_split_worker(struct work_struct *work)
     struct kvset_split_wargs *wargs = container_of(work, struct kvset_split_wargs, work);
 
     wargs->err = kvset_split(wargs->ks, wargs->split_kobj, wargs->pc, &wargs->result);
+
+    (*wargs->inflightp)--;
 }

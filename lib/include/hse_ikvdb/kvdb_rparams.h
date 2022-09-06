@@ -87,7 +87,6 @@ struct kvdb_rparams {
     uint     throttle_init_policy; /* [HSE_REVISIT]: Make this a fixed width type */
     uint32_t throttle_debug;
     uint32_t throttle_debug_intvl_s;
-    uint32_t throttle_c0_hi_th;
     uint64_t throttle_burst;
     uint64_t throttle_rate;
 
