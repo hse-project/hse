@@ -102,7 +102,9 @@ logging_fini(void)
     if (log_file && log_file != stdout && log_file != stderr)
         fclose(log_file);
     log_file = NULL;
-
+    log_level = LOG_INFO;
+    log_squelch_ns = LOG_SQUELCH_NS_DEFAULT;
+    logging_enabled = true;
     logging_initialized = false;
 }
 
