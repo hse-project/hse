@@ -1939,13 +1939,10 @@ sp3_qos_check(struct sp3 *sp)
             sval = THROTTLE_SENSOR_SCALE * 110 / 100;
             ev_debug(1);
         }
-        ev_debug(1);
     } else {
         if (sval > THROTTLE_SENSOR_SCALE * 90 / 100) {
             sval = THROTTLE_SENSOR_SCALE * 90 / 100;
-            ev_debug(1);
         }
-        ev_debug(1);
     }
 
     throttle_sensor_set(sp->throttle_sensor_root, sval);
