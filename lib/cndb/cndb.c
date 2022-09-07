@@ -869,12 +869,11 @@ cndb_compact(struct cndb *cndb)
     map_iter_init(&txiter, cndb->tx_map);
 
     while (map_iter_next(&txiter, &txid, (uintptr_t *)&tx)) {
-        bool can_rollforward = cndb_txn_can_rollforward(tx);
         uint16_t add_cnt, del_cnt;
 
         cndb_txn_cnt_get(tx, &add_cnt, &del_cnt);
 
-        if (can_rollforward) {
+        if (cndb_txn_can_rollforward(tx)) {
             add_cnt = 0;
             assert(del_cnt);
         }
