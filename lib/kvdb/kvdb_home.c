@@ -115,7 +115,7 @@ kvdb_home_pidfile_path_get(const char *home, char *buf, const size_t buf_sz)
 
     int n;
 
-    n = snprintf(buf, buf_sz, "%s/" PIDFILE_NAME, home);
+    n = snprintf(buf, buf_sz, "%s%s" PIDFILE_NAME, home, home[strlen(home) - 1] == '/' ? "" : "/");
     if (n >= buf_sz)
         return merr(ENAMETOOLONG);
     if (n < 0)
