@@ -186,13 +186,17 @@ find_inflection_points(
         int res;
         struct kvset_kblk *curr;
         struct reverse_kblk_iterator *iter = iters + i;
+        struct kvset *ks = iter->ks;
 
-        curr = iter->ks->ks_kblks + iter->offset;
+        offsets[i] = iter->offset;
 
+        if (ks->ks_st.kst_kblks == 0)
+            continue;
+
+        curr = ks->ks_kblks + iter->offset;
         if (curr == inflection_kblk) {
             log_debug("node %lu iterator %lu inflection point (kvset, kblock): (%lu, %u)",
                 tn->tn_nodeid, i, i, iter->offset);
-            offsets[i] = iter->offset;
             continue;
         }
 
@@ -201,7 +205,6 @@ find_inflection_points(
         if (res >= 0) {
             log_debug("node %lu iterator %lu inflection point (kvset, kblock): (%lu, %u)",
                 tn->tn_nodeid, i, i, iter->offset);
-            offsets[i] = iter->offset;
             continue;
         }
 
@@ -209,7 +212,7 @@ find_inflection_points(
          * key, go to the next kblock since the split key must be greater than
          * or equal to the inflection key.
          */
-        if (iter->offset < iter->ks->ks_st.kst_kblks - 1 &&
+        if (iter->offset < ks->ks_st.kst_kblks - 1 &&
                 keycmp(curr->kb_koff_max, curr->kb_klen_max, inflection_kblk->kb_koff_min,
                     inflection_kblk->kb_klen_min) <= 0) {
             iter->offset++;
@@ -228,6 +231,9 @@ find_inflection_points(
     kvlen = 0;
     for (uint64_t i = 0; i < num_kvsets; i++) {
         struct reverse_kblk_iterator *iter = iters + i;
+
+        if (iter->ks->ks_st.kst_kblks == 0)
+            continue;
 
         for (uint32_t j = 0; j < iter->offset; j++) {
             const struct kvset_kblk *kblk = &iter->ks->ks_kblks[j];
@@ -514,6 +520,7 @@ cn_split(struct cn_compaction_work *w)
     atomic_uint inflight;
     struct cndb *cndb;
     merr_t err = 0;
+    bool drop_ptomb_ks[2] = { true, true };
     uint i;
 
     INVARIANT(w);
@@ -563,22 +570,39 @@ cn_split(struct cn_compaction_work *w)
     while (inflight > 0)
         usleep(100 * 1000);
 
-    for (i = 0; !err && i < w->cw_kvset_cnt; i++) {
+    for (int64_t i = w->cw_kvset_cnt - 1; !err && i >= 0; i--) {
         if (wargs[i].err) {
             err = wargs[i].err;
             break;
         }
 
         for (int k = LEFT; k <= RIGHT; k++) {
+            struct kvset_split_res *result = &wargs[i].result;
+            struct kvset_mblocks *blks = result->ks[k].blks;
             uint idx = (k == LEFT ? i : i + w->cw_kvset_cnt);
 
-            if (wargs[i].result.ks[k].blks->hblk.bk_blkid != 0) {
-                w->cw_kvsetidv[idx] = cndb_kvsetid_mint(cndb);
-                w->cw_split.dgen[idx] = wargs[i].ks->ks_dgen;
-                w->cw_split.compc[idx] = wargs[i].ks->ks_compc;
+            if (blks->hblk.bk_blkid != 0) {
+                if (drop_ptomb_ks[k] && blks->kblks.n_blks > 0)
+                    drop_ptomb_ks[k] = false;
+
+                if (HSE_UNLIKELY(drop_ptomb_ks[k])) {
+                    /* Drop contiguous kvsets containing only ptombs, starting from the oldest.
+                     */
+                    assert(blks->vblks.n_blks == 0);
+                    assert(result->ks[k].blks_commit->n_blks == 1);
+
+                    delete_mblock(w->cw_mp, &blks->hblk);
+                    blk_list_free(result->ks[k].blks_commit);
+                } else {
+                    w->cw_kvsetidv[idx] = cndb_kvsetid_mint(cndb);
+                    w->cw_split.dgen[idx] = wargs[i].ks->ks_dgen;
+                    w->cw_split.compc[idx] = wargs[i].ks->ks_compc;
+                }
             }
         }
     }
+
+    ev(drop_ptomb_ks[0] || drop_ptomb_ks[1]);
 
     for (i = 0; err && i < w->cw_kvset_cnt; i++)
         kvset_split_res_free(wargs[i].ks, &wargs[i].result);
@@ -637,6 +661,8 @@ cn_split_nodes_alloc(
 
         nodeidv[LEFT] = nodeid;
         nodev[LEFT] = node;
+
+        atomic_set(&node->tn_sgen, w->cw_node->tn_sgen);
     }
 
     if (check_valid_kvsets(w, RIGHT)) {

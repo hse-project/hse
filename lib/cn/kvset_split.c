@@ -622,27 +622,33 @@ hblock_split(
     key2kobj(&max_pfx, ks->ks_hblk.kh_pfx_max, ks->ks_hblk.kh_pfx_max_len);
 
     hbr_read_ptree(&ks->ks_hblk.kh_hblk_desc, &ks->ks_hblk.kh_ptree_desc, &ptree, &ptree_pgc);
+    if (ptree_pgc == 0)
+        ptree = NULL;
 
     /* Add both the left and the right hblock to the commit list and add the source hblock
      * to the purge list.
      */
-    if (blks_left->kblks.n_blks > 0 || ptree_pgc > 0) {
-        err = hbb_finish(work[LEFT].hbb, &hblk, work[LEFT].vgmap,
-                         &min_pfx, &max_pfx, min_seqno, max_seqno,
-                         blks_left->kblks.n_blks, blks_left->vblks.n_blks,
-                         num_ptombs, hlog_data(work[LEFT].hlog), ptree, ptree_pgc);
+    if (blks_left->kblks.n_blks > 0 || ptree) {
+        hblk.bk_blkid = 0;
+        err = hbb_finish(work[LEFT].hbb, &hblk, work[LEFT].vgmap, &min_pfx, &max_pfx,
+                         min_seqno, max_seqno, blks_left->kblks.n_blks, blks_left->vblks.n_blks,
+                         num_ptombs, hlog_data(work[LEFT].hlog),
+                         ptree, &ks->ks_hblk.kh_ptree_desc, ptree_pgc);
         if (!err) {
+            assert(hblk.bk_blkid);
             blks_left->hblk = hblk;
             err = blk_list_append(result->ks[LEFT].blks_commit, hblk.bk_blkid);
         }
     }
 
-    if (!err && (blks_right->kblks.n_blks > 0 || ptree_pgc > 0)) {
-        err = hbb_finish(work[RIGHT].hbb, &hblk, work[RIGHT].vgmap,
-                         &min_pfx, &max_pfx, min_seqno, max_seqno,
-                         blks_right->kblks.n_blks, blks_right->vblks.n_blks,
-                         num_ptombs, hlog_data(work[RIGHT].hlog), ptree, ptree_pgc);
+    if (!err && (blks_right->kblks.n_blks > 0 || ptree)) {
+        hblk.bk_blkid = 0;
+        err = hbb_finish(work[RIGHT].hbb, &hblk, work[RIGHT].vgmap, &min_pfx, &max_pfx,
+                         min_seqno, max_seqno, blks_right->kblks.n_blks, blks_right->vblks.n_blks,
+                         num_ptombs, hlog_data(work[RIGHT].hlog),
+                         ptree, &ks->ks_hblk.kh_ptree_desc, ptree_pgc);
         if (!err) {
+            assert(hblk.bk_blkid);
             blks_right->hblk = hblk;
             err = blk_list_append(result->ks[RIGHT].blks_commit, hblk.bk_blkid);
         }

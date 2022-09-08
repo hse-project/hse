@@ -957,6 +957,10 @@ cn_open(
     cn_tree_foreach_leaf(tn, cn->cn_tree) {
         cn_tree_node_get_max_key(tn, kbuf, sizeof(kbuf), &klen);
 
+        /* TODO: Handle a ptomb-only node
+         */
+        assert(klen > 0);
+
         tn->tn_route_node = route_map_insert(cn->cn_tree->ct_route_map, tn, kbuf, klen);
         if (!tn->tn_route_node) {
             err = merr(EINVAL);

@@ -18,6 +18,7 @@
 
 #define MTF_MOCK_IMPL_wbt_builder
 #include "wbt_builder.h"
+#include "wbt_reader.h"
 #include "wbt_internal.h"
 #include "intern_builder.h"
 
@@ -502,6 +503,18 @@ wbb_hdr_init(struct wbt_hdr_omf *hdr)
 {
     omf_set_wbt_magic(hdr, WBT_TREE_MAGIC);
     omf_set_wbt_version(hdr, WBT_TREE_VERSION);
+}
+
+void
+wbb_hdr_set(struct wbt_hdr_omf *hdr, struct wbt_desc *desc)
+{
+    memset(hdr, 0, sizeof(*hdr));
+    omf_set_wbt_magic(hdr, WBT_TREE_MAGIC);
+    omf_set_wbt_version(hdr, desc->wbd_version);
+    omf_set_wbt_leaf(hdr, desc->wbd_leaf);
+    omf_set_wbt_leaf_cnt(hdr, desc->wbd_leaf_cnt);
+    omf_set_wbt_root(hdr, desc->wbd_root);
+    omf_set_wbt_kmd_pgc(hdr, desc->wbd_kmd_pgc);
 }
 
 merr_t
