@@ -896,89 +896,8 @@ sp3_dirty_node_locked(struct sp3 *sp, struct cn_tree_node *tn)
      * Similarly, we never schedule more than three jobs on any given
      * root node (see CSCHED_QTHREADS_DEFAULT for default limits).
      */
-    if (cn_node_isleaf(tn)) {
-        const uint64_t keys_uniq = cn_ns_keys_uniq(&tn->tn_ns);
-        const uint64_t keys = cn_ns_keys(&tn->tn_ns);
 
-        scatter = cn_tree_node_scatter(tn);
-
-        /* Leaf nodes sorted by number of kvsets.
-         * We use inverse scatter as a secondary discriminant so as to
-         * prefer scatter jobs over kcompactions when scatter is high.
-         */
-        if (nkvsets >= sp->thresh.llen_runlen_min && jobs < 1) {
-            const uint64_t weight = (nkvsets << 32) | (UINT32_MAX - scatter);
-
-            sp3_node_insert(sp, spn, wtype_length, weight);
-        } else {
-            sp3_node_remove(sp, spn, wtype_length);
-        }
-
-        garbage = samp_pct_garbage(&tn->tn_samp, 100);
-
-        /* Leaf nodes sorted by pct garbage.
-         * Range: 0 <= rbe_weight <= 100.  If rbe_weight == 3, then
-         * node has 3% garbage.
-         * We use alen as the secondary discriminant to prefer nodes
-         * with higher total bytes of garbage.
-         *
-         * TODO: The garbage caculation needs help:  It sometimes returns
-         * a non-zero result for nodes consisting entirely of unique keys.
-         */
-        if (garbage > 1 && nkvsets > 1 && jobs < 1 && keys > keys_uniq) {
-            const uint64_t weight = ((uint64_t)garbage << 32) | (cn_ns_alen(&tn->tn_ns) >> 20);
-
-            sp3_node_insert(sp, spn, wtype_garbage, weight);
-        } else {
-            sp3_node_remove(sp, spn, wtype_garbage);
-        }
-
-        /* Leaf nodes sorted by vgroup scatter and garbage.
-         */
-        if (scatter > 0 && jobs < 1) {
-            const uint64_t weight = ((uint64_t)scatter << 32) | garbage;
-
-            sp3_node_insert(sp, spn, wtype_scatter, weight);
-        } else {
-            sp3_node_remove(sp, spn, wtype_scatter);
-        }
-
-        /* Leaf nodes sorted by pct capacity and secondarily by number of keys.
-         * If the node's size doesn't exceed the "split_pct" threshold then
-         * we check to see if the number of keys exceeds the "split_keys"
-         * threshold.  If so, we insert this node into the tree using the
-         * "split_pct" capacity to ensure it gets split or compacted.
-         *
-         * Node splits are rare, but when a node is ready to split it should
-         * be done as soon as possible.  Hence, splits prevent other "big"
-         * compaction jobs from starting which could otherwise indefinitely
-         * starve a split.
-         */
-        if (cn_ns_clen(&tn->tn_ns) > tn->tn_split_size && jobs < 1) {
-            const uint64_t weight = cn_ns_clen(&tn->tn_ns);
-
-            sp3_node_insert(sp, spn, wtype_split, (weight << 32) | keys);
-
-            if (keys_uniq > sp->thresh.lcomp_split_keys / 4)
-                sp3_node_remove(sp, spn, wtype_length);
-
-            sp3_node_remove(sp, spn, wtype_scatter);
-        } else {
-            const uint split_keys = sp->thresh.lcomp_split_keys;
-
-            if (keys_uniq > split_keys && jobs < 1) {
-                const uint64_t weight = tn->tn_split_size;
-
-                sp3_node_insert(sp, spn, wtype_split, (weight << 32) | keys);
-
-                sp3_node_remove(sp, spn, wtype_length);
-                sp3_node_remove(sp, spn, wtype_scatter);
-                sp3_node_remove(sp, spn, wtype_garbage);
-            } else {
-                sp3_node_remove(sp, spn, wtype_split);
-            }
-        }
-    } else {
+    if (cn_node_isroot(tn)) {
 
         /* If this root node is ready to spill then ensure it's on the list
          * in FIFO order, retaining its current position if it's already on
@@ -989,6 +908,93 @@ sp3_dirty_node_locked(struct sp3 *sp, struct cn_tree_node *tn)
                 list_add_tail(&spn->spn_rlink, &sp->spn_rlist);
         } else {
             list_del_init(&spn->spn_rlink);
+        }
+    } else {
+
+        /* Node splits are rare, but once a node has committed to split it
+         * must be done as soon as possible as there could be rspill threads
+         * waiting for the split to complete.  Hence, splits prevent other
+         * compaction jobs from starting which could otherwise indefinitely
+         * starve a split.
+         */
+        if (tn->tn_ss_splitting) {
+            sp3_node_remove(sp, spn, wtype_length);
+            sp3_node_remove(sp, spn, wtype_scatter);
+            sp3_node_remove(sp, spn, wtype_garbage);
+        } else if (jobs < 1) {
+            const uint64_t keys_uniq = cn_ns_keys_uniq(&tn->tn_ns);
+            const uint64_t keys = cn_ns_keys(&tn->tn_ns);
+            uint64_t weight;
+
+            garbage = samp_pct_garbage(&tn->tn_samp, 100);
+            scatter = cn_tree_node_scatter(tn);
+
+            /* Leaf nodes sorted by number of kvsets.
+             * We use inverse scatter as a secondary discriminant so as to
+             * prefer scatter jobs over kcompactions when scatter is high.
+             */
+            if (nkvsets >= sp->thresh.llen_runlen_min) {
+                weight = (nkvsets << 32) | (UINT32_MAX - scatter);
+
+                sp3_node_insert(sp, spn, wtype_length, weight);
+            } else {
+                sp3_node_remove(sp, spn, wtype_length);
+            }
+
+            /* Leaf nodes sorted by pct garbage.
+             * Range: 0 <= rbe_weight <= 100.  If rbe_weight == 3, then
+             * node has 3% garbage.
+             * We use alen as the secondary discriminant to prefer nodes
+             * with higher total bytes of garbage.
+             *
+             * TODO: The garbage caculation needs help:  It sometimes returns
+             * a non-zero result for nodes consisting entirely of unique keys.
+             */
+            if (garbage > 1 && nkvsets > 1 && keys > keys_uniq) {
+                weight = ((uint64_t)garbage << 32) | (cn_ns_alen(&tn->tn_ns) >> 20);
+
+                sp3_node_insert(sp, spn, wtype_garbage, weight);
+            } else {
+                sp3_node_remove(sp, spn, wtype_garbage);
+            }
+
+            /* Leaf nodes sorted by vgroup scatter and garbage.
+             */
+            if (scatter > 0) {
+                weight = ((uint64_t)scatter << 32) | garbage;
+
+                sp3_node_insert(sp, spn, wtype_scatter, weight);
+            } else {
+                sp3_node_remove(sp, spn, wtype_scatter);
+            }
+
+            /* Leaf nodes sorted by split size and secondarily by number of keys.
+             */
+            if (cn_ns_clen(&tn->tn_ns) >= tn->tn_split_size) {
+                weight = ((cn_ns_clen(&tn->tn_ns) >> 20) << 32) | keys;
+
+                sp3_node_insert(sp, spn, wtype_split, weight);
+
+                /* Allow length remediation jobs to be scheduled
+                 * if the node is long.
+                 */
+                if (nkvsets <= sp->thresh.llen_runlen_max)
+                    sp3_node_remove(sp, spn, wtype_length);
+                sp3_node_remove(sp, spn, wtype_scatter);
+                sp3_node_remove(sp, spn, wtype_garbage);
+            } else {
+                if (keys_uniq >= sp->thresh.lcomp_split_keys) {
+                    weight = (((uint64_t)tn->tn_split_size >> 20) << 32) | keys;
+
+                    sp3_node_insert(sp, spn, wtype_split, weight);
+
+                    sp3_node_remove(sp, spn, wtype_length);
+                    sp3_node_remove(sp, spn, wtype_scatter);
+                    sp3_node_remove(sp, spn, wtype_garbage);
+                } else {
+                    sp3_node_remove(sp, spn, wtype_split);
+                }
+            }
         }
     }
 
@@ -1219,37 +1225,64 @@ sp3_prune_trees(struct sp3 *sp)
 {
     struct cn_tree *tree, *tmp;
 
-    list_for_each_entry_safe (tree, tmp, &sp->mon_tlist, ct_sched.sp3t.spt_tlink) {
+    if (atomic_read_acq(&sp->sp_prune_count) == 0)
+        return;
 
+    list_for_each_entry_safe(tree, tmp, &sp->mon_tlist, ct_sched.sp3t.spt_tlink) {
         struct sp3_tree *spt = tree2spt(tree);
 
-        if (atomic_read_acq(&sp->sp_prune_count) == 0)
-            break;
+        if (atomic_read(&spt->spt_enabled))
+            continue;
 
-        if (!atomic_read(&spt->spt_enabled) && spt->spt_job_cnt == 0) {
-            atomic_dec(&sp->sp_prune_count);
+        if (spt->spt_job_cnt > 0) {
+            if (spt->spt_job_cnt == tree->ct_rspill_slp) {
+                struct cn_tree_node *tn;
+                void *lock;
 
-            if (debug_tree_life(sp))
-                log_info("sp3 release tree cnid %lu", (ulong)tree->cnid);
-
-            sp3_unlink_all_nodes(sp, tree);
-            list_del_init(&spt->spt_tlink);
-
-            if (sp->samp.i_alen >= tree->ct_samp.i_alen)
-                sp->samp.i_alen -= tree->ct_samp.i_alen;
-            if (sp->samp.r_alen >= tree->ct_samp.r_alen)
-                sp->samp.r_alen -= tree->ct_samp.r_alen;
-            if (sp->samp.r_wlen >= tree->ct_samp.r_wlen)
-                sp->samp.r_wlen -= tree->ct_samp.r_wlen;
-            if (sp->samp.l_alen >= tree->ct_samp.l_alen)
-                sp->samp.l_alen -= tree->ct_samp.l_alen;
-            if (sp->samp.l_good >= tree->ct_samp.l_good)
-                sp->samp.l_good -= tree->ct_samp.l_good;
-
-            cn_ref_put(tree->cn);
-
-            sp->activity++;
+                /* The only jobs that remain are rspill jobs waiting for a split
+                 * to complete and wake them up, but that split will never occur
+                 * because the scheduler is disabled.
+                 */
+                rmlock_rlock(&tree->ct_lock, &lock);
+                cn_tree_foreach_node(tn, tree) {
+                    mutex_lock(&tn->tn_ss_lock);
+                    if (tn->tn_ss_splitting) {
+                        log_info("job cnt %u, slp %u, node %lu reset",
+                                 spt->spt_job_cnt, tree->ct_rspill_slp, tn->tn_nodeid);
+                        tn->tn_ss_splitting = false;
+                        tree->ct_split_cnt--;
+                        cv_broadcast(&tn->tn_ss_cv);
+                    }
+                    mutex_unlock(&tn->tn_ss_lock);
+                }
+                rmlock_runlock(lock);
+            }
+            continue;
         }
+
+        if (debug_tree_life(sp))
+            log_info("sp3 release tree cnid %lu", (ulong)tree->cnid);
+
+        sp3_unlink_all_nodes(sp, tree);
+        list_del_init(&spt->spt_tlink);
+
+        if (sp->samp.i_alen >= tree->ct_samp.i_alen)
+            sp->samp.i_alen -= tree->ct_samp.i_alen;
+        if (sp->samp.r_alen >= tree->ct_samp.r_alen)
+            sp->samp.r_alen -= tree->ct_samp.r_alen;
+        if (sp->samp.r_wlen >= tree->ct_samp.r_wlen)
+            sp->samp.r_wlen -= tree->ct_samp.r_wlen;
+        if (sp->samp.l_alen >= tree->ct_samp.l_alen)
+            sp->samp.l_alen -= tree->ct_samp.l_alen;
+        if (sp->samp.l_good >= tree->ct_samp.l_good)
+            sp->samp.l_good -= tree->ct_samp.l_good;
+
+        cn_ref_put(tree->cn);
+
+        sp->activity++;
+
+        if (0 == atomic_dec_return(&sp->sp_prune_count))
+            break;
     }
 }
 

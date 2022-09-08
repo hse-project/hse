@@ -73,8 +73,6 @@
 
 static struct kmem_cache *cn_node_cache HSE_READ_MOSTLY;
 
-static void cn_subspill_wakeup(struct cn_tree_node *tn);
-
 static void
 cn_setname(const char *name)
 {
@@ -1335,7 +1333,12 @@ cn_node_spill_wait(struct cn_compaction_work *w, struct cn_tree_node *tn)
            !kvdb_health_check(hp, KVDB_HEALTH_FLAG_ALL)) {
 
         long timeout_ms = 100;
-        cv_timedwait(&tn->tn_spill_cv, &tn->tn_spill_mtx, timeout_ms, "spillwait");
+
+        /* TODO: We could be waiting here for ten minutes or more when
+         * using slow media, so better to use cv_wait() and fix the
+         * shutdown path to wake up waiters.
+         */
+        cv_timedwait(&tn->tn_spill_cv, &tn->tn_spill_mtx, timeout_ms, "spilwait");
     }
 
     mutex_unlock(&tn->tn_spill_mtx);
@@ -1799,9 +1802,13 @@ cn_comp_cleanup(struct cn_compaction_work *w)
     const bool split = (w->cw_action == CN_ACTION_SPLIT);
 
     if (split) {
-        w->cw_node->tn_ss_splitting = false;
-        w->cw_tree->ct_split_cnt--;
-        cn_subspill_wakeup(w->cw_node);
+        struct cn_tree_node *tn = w->cw_node;
+
+        mutex_lock(&tn->tn_ss_lock);
+        tn->tn_ss_splitting = false;
+        tn->tn_tree->ct_split_cnt--;
+        cv_broadcast(&tn->tn_ss_cv);
+        mutex_unlock(&tn->tn_ss_lock);
     }
 
     atomic_sub_rel(&w->cw_node->tn_busycnt, (1u << 16) + w->cw_kvset_cnt);
@@ -1960,14 +1967,6 @@ cn_subspill_apply(struct subspill *ss)
     return 0;
 }
 
-static void
-cn_subspill_wakeup(struct cn_tree_node *tn)
-{
-    mutex_lock(&tn->tn_ss_lock);
-    cv_broadcast(&tn->tn_ss_cv);
-    mutex_unlock(&tn->tn_ss_lock);
-}
-
 static merr_t
 cn_comp_spill(struct cn_compaction_work *w)
 {
@@ -2006,7 +2005,7 @@ cn_comp_spill(struct cn_compaction_work *w)
             rmlock_runlock(lock);
 
             tree->ct_rspill_slp++;
-            cv_wait(&node->tn_ss_cv, &node->tn_ss_lock, "splitwait");
+            cv_wait(&node->tn_ss_cv, &node->tn_ss_lock, "spltwait");
             tree->ct_rspill_slp--;
             mutex_unlock(&node->tn_ss_lock);
             continue;
