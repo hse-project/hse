@@ -80,7 +80,7 @@ struct kvset {
     u64           ks_nodeid;
     u32           ks_vmin;
     u32           ks_vmax;
-    u32           ks_vra_len;
+    uint64_t      ks_vra_len;
     uint32_t      ks_compc;
 
     struct kvs_rparams *ks_rp;
@@ -108,7 +108,7 @@ struct kvset {
 
     struct key_disc ks_kdisc_max; /* max key in kvset */
     struct key_disc ks_kdisc_min; /* min key in kvset */
-    int             ks_lcp;       /* longest common prefix */
+    size_t          ks_lcp;       /* longest common prefix */
 
     struct kvset_hblk ks_hblk;
     struct mpool_mcache_map *ks_hmap; /* hblock mcache map */

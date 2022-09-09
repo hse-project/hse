@@ -58,7 +58,7 @@ csched_throttle_sensor(struct csched *handle, struct throttle_sensor *sensor)
 }
 
 void
-csched_compact_request(struct csched *handle, int flags)
+csched_compact_request(struct csched *handle, unsigned int flags)
 {
     sp3_compact_request(handle, flags);
 }

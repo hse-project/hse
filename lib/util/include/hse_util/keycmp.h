@@ -30,7 +30,7 @@ keycmp(const void *key1, u32 len1, const void *key2, u32 len2)
      */
     size_t len = len1 < len2 ? len1 : len2;
     int    rc = memcmp(key1, key2, len);
-    return rc == 0 ? len1 - len2 : rc;
+    return rc == 0 ? (int)(len1 - len2) : rc;
 }
 
 /*

@@ -589,7 +589,7 @@ merr_t
 ikvdb_kvs_cursor_destroy(struct hse_kvs_cursor *cursor);
 
 void
-ikvdb_compact(struct ikvdb *self, int flags);
+ikvdb_compact(struct ikvdb *self, unsigned int flags);
 
 /* [HSE_REVISIT] - the ikvdb layer needs its own struct */
 
@@ -616,8 +616,8 @@ ikvdb_kvdb_handle(struct ikvdb_impl *self);
 merr_t
 ikvdb_kvs_query_tree(struct hse_kvs *kvs, struct yaml_context *yc, bool blkids, bool nodesonly);
 
-uint32_t
-ikvdb_lowmem_scale(uint32_t memgb);
+unsigned long
+ikvdb_lowmem_scale(unsigned long memgb);
 
 merr_t
 ikvdb_pmem_only_from_cparams(

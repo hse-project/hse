@@ -1,6 +1,6 @@
 /* SPDX-License-Identifier: Apache-2.0 */
 /*
- * Copyright (C) 2015-2021 Micron Technology, Inc.  All rights reserved.
+ * Copyright (C) 2015-2022 Micron Technology, Inc.  All rights reserved.
  */
 
 #ifndef HSE_KVDB_OMF_KMD_H
@@ -155,7 +155,7 @@ kmd_add_cval(void *kmd, size_t *off, u64 seq, uint vbidx, uint vboff, uint vlen,
     encode_hg32_1024m(kmd, off, complen);
 }
 
-static inline uint
+static inline uint64_t
 kmd_count(const void *kmd, size_t *off)
 {
     return decode_hg32_1024m(kmd, off);

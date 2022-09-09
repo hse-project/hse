@@ -485,7 +485,7 @@ kvset_open2(
     const uint32_t n_kblks = km->km_kblk_list.n_blks;
     const uint32_t n_vblks = km->km_vblk_list.n_blks;
     uint          vbsetc;
-    int           last_kb;
+    uint32_t      last_kb;
 
     struct kvs_cparams *cp;
 
@@ -1194,7 +1194,6 @@ kblk_get_value_ref(
     struct kvset *         ks,
     uint                   kblk_idx,
     struct kvs_ktuple *    kt,
-    int                    lcp,
     u64                    seq,
     enum key_lookup_res *  result,
     struct kvs_vtuple_ref *vref)
@@ -1204,7 +1203,7 @@ kblk_get_value_ref(
     if (!bloom_reader_lookup(&kblk->kb_blm_desc, kt->kt_hash))
         return 0;
 
-    return wbtr_read_vref(kblk->kb_kblk_desc.map_base, &kblk->kb_wbt_desc, kt, lcp, seq, result,
+    return wbtr_read_vref(kblk->kb_kblk_desc.map_base, &kblk->kb_wbt_desc, kt, seq, result,
                           ks->ks_use_vgmap ? ks->ks_vgmap : NULL, vref);
 }
 
@@ -1227,7 +1226,6 @@ kvset_ptomb_lookup(
             ks->ks_hblk.kh_hblk_desc.map_base,
             &ks->ks_hblk.kh_ptree_desc,
             &pfx,
-            0,
             view_seq,
             res,
             ks->ks_use_vgmap ? ks->ks_vgmap : NULL,
@@ -1306,7 +1304,7 @@ search:
             continue;
         }
 
-        err = kblk_get_value_ref(ks, i, kt, lcp, seq, result, vref);
+        err = kblk_get_value_ref(ks, i, kt, seq, result, vref);
         if (ev(err))
             return err;
 
@@ -3833,7 +3831,6 @@ kvset_init(void)
 {
     struct kmem_cache *cache;
     size_t             sz;
-    int                i;
 
     sz = sizeof(struct kvset_iterator);
     assert(HSE_ACP_LINESIZE >= alignof(struct kvset_iterator));
@@ -3845,11 +3842,11 @@ kvset_init(void)
 
     kvset_iter_cache = cache;
 
-    for (i = 0; i < NELEM(kvset_cache); ++i) {
+    for (size_t i = 0; i < NELEM(kvset_cache); ++i) {
         size_t align = alignof(struct kvset);
         char   name[32];
 
-        sz = (4096 << (NELEM(kvset_cache) - (i + 1))) - align;
+        sz = (4096UL << (NELEM(kvset_cache) - (i + 1))) - align;
 
         snprintf(name, sizeof(name), "kvset%zuk", (sz + 1023) / 1024);
 
@@ -3867,9 +3864,7 @@ kvset_init(void)
 void
 kvset_fini(void)
 {
-    int i;
-
-    for (i = 0; i < NELEM(kvset_cache); ++i) {
+    for (size_t i = 0; i < NELEM(kvset_cache); ++i) {
         kmem_cache_destroy(kvset_cache[i].cache);
         kvset_cache[i].cache = NULL;
         kvset_cache[i].sz = 0;

@@ -1304,10 +1304,10 @@ ikvdb_cndb_open(struct ikvdb_impl *self, u64 *seqno, u64 *ingestid, u64 *txhoriz
     return err;
 }
 
-uint32_t
-ikvdb_lowmem_scale(uint32_t memgb)
+unsigned long
+ikvdb_lowmem_scale(unsigned long memgb)
 {
-    return max_t(uint, 1, roundup_pow_of_two(memgb) / HSE_LOWMEM_THRESHOLD_GB_MIN);
+    return max_t(unsigned long, 1, roundup_pow_of_two(memgb) / HSE_LOWMEM_THRESHOLD_GB_MIN);
 }
 
 /**
@@ -3074,7 +3074,7 @@ ikvdb_kvs_cursor_destroy(struct hse_kvs_cursor *cur)
 }
 
 void
-ikvdb_compact(struct ikvdb *handle, int flags)
+ikvdb_compact(struct ikvdb *handle, unsigned int flags)
 {
     struct ikvdb_impl *self = ikvdb_h2r(handle);
 
