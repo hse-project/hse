@@ -340,24 +340,6 @@ samp_pct_garbage(struct cn_samp_stats *s, uint scale)
 }
 
 static void
-sp3_node_init(struct sp3 *sp, struct sp3_node *spn)
-{
-    spn->spn_initialized = true;
-    spn->spn_cgen = UINT_MAX;
-
-    for (uint tx = 0; tx < NELEM(spn->spn_rbe); tx++)
-        RB_CLEAR_NODE(&spn->spn_rbe[tx].rbe_node);
-
-    INIT_LIST_HEAD(&spn->spn_rlink);
-    INIT_LIST_HEAD(&spn->spn_alink);
-    INIT_LIST_HEAD(&spn->spn_dlink);
-
-    /* Append to list of all nodes from all managed trees.
-     */
-    list_add_tail(&spn->spn_alink, &sp->spn_alist);
-}
-
-static void
 sp3_monitor_wake(struct sp3 *sp)
 {
     /* Signal monitor thread (our cv_signal requres lock to be held). */
@@ -812,6 +794,24 @@ sp3_rb_insert(struct rb_root *root, struct sp3_rbe *new_node)
 }
 
 static void
+sp3_node_init(struct sp3 *sp, struct sp3_node *spn)
+{
+    spn->spn_initialized = true;
+    spn->spn_cgen = UINT_MAX;
+
+    for (uint tx = 0; tx < NELEM(spn->spn_rbe); tx++)
+        RB_CLEAR_NODE(&spn->spn_rbe[tx].rbe_node);
+
+    INIT_LIST_HEAD(&spn->spn_rlink);
+    INIT_LIST_HEAD(&spn->spn_alink);
+    INIT_LIST_HEAD(&spn->spn_dlink);
+
+    /* Append to list of all nodes from all managed trees.
+     */
+    list_add_tail(&spn->spn_alink, &sp->spn_alist);
+}
+
+static void
 sp3_node_insert(struct sp3 *sp, struct sp3_node *spn, uint tx, u64 weight)
 {
     struct rb_root *root = sp->rbt + tx;
@@ -850,7 +850,7 @@ sp3_node_unlink(struct sp3 *sp, struct sp3_node *spn)
 
 /* Remove all nodes from all rb trees that belong to given cn_tree */
 static void
-sp3_unlink_all_nodes(struct sp3 *sp, struct cn_tree *tree)
+sp3_node_unlink_all(struct sp3 *sp, struct cn_tree *tree)
 {
     struct cn_tree_node *tn;
 
@@ -867,12 +867,13 @@ sp3_unlink_all_nodes(struct sp3 *sp, struct cn_tree *tree)
 static void
 sp3_dirty_node_locked(struct sp3 *sp, struct cn_tree_node *tn)
 {
+    struct sp3_tree *spt = tree2spt(tn->tn_tree);
     struct sp3_node *spn = tn2spn(tn);
     uint64_t nkvsets_total, nkvsets;
     uint garbage = 0, jobs;
     uint scatter = 0;
 
-    if (!spn->spn_initialized)
+    if (!atomic_read(&spt->spt_enabled) || !spn->spn_initialized)
         return;
 
     /* Skip if node hasn't changed since last time we inserted
@@ -1234,23 +1235,28 @@ sp3_prune_trees(struct sp3 *sp)
         if (atomic_read(&spt->spt_enabled))
             continue;
 
+        /* Remove all this tree's nodes from the work queues to prevent
+         * new jobs from starting.
+         */
+        sp3_node_unlink_all(sp, tree);
+
         if (spt->spt_job_cnt > 0) {
-            if (spt->spt_job_cnt == tree->ct_rspill_slp) {
+            if (spt->spt_job_cnt == atomic_read(&tree->ct_rspill_slp)) {
                 struct cn_tree_node *tn;
                 void *lock;
 
                 /* The only jobs that remain are rspill jobs waiting for a split
                  * to complete and wake them up, but that split will never occur
-                 * because the scheduler is disabled.
+                 * because the scheduler is disabled.  So we find all such nodes
+                 * in the "splitting" state, clear the state, and then wake up
+                 * up all threads waiting on the state change.
                  */
                 rmlock_rlock(&tree->ct_lock, &lock);
                 cn_tree_foreach_node(tn, tree) {
                     mutex_lock(&tn->tn_ss_lock);
                     if (tn->tn_ss_splitting) {
-                        log_info("job cnt %u, slp %u, node %lu reset",
-                                 spt->spt_job_cnt, tree->ct_rspill_slp, tn->tn_nodeid);
                         tn->tn_ss_splitting = false;
-                        tree->ct_split_cnt--;
+                        atomic_dec(&tree->ct_split_cnt);
                         cv_broadcast(&tn->tn_ss_cv);
                     }
                     mutex_unlock(&tn->tn_ss_lock);
@@ -1263,7 +1269,6 @@ sp3_prune_trees(struct sp3 *sp)
         if (debug_tree_life(sp))
             log_info("sp3 release tree cnid %lu", (ulong)tree->cnid);
 
-        sp3_unlink_all_nodes(sp, tree);
         list_del_init(&spt->spt_tlink);
 
         if (sp->samp.i_alen >= tree->ct_samp.i_alen)
@@ -1914,10 +1919,11 @@ sp3_qos_check(struct sp3 *sp)
 
         nk = cn_ns_kvsets(&tree->ct_root->tn_ns) + 1;
 
-        /* Increase the throttle for each root spill job paused for a split
-         * (which means it could also be waiting on another spill job).
+        /* If any rspill jobs are asleep awaiting a split we raise
+         * the throttle clamp above THROTTLE_SENSOR_SCARE to ensure
+         * the the throttle can increase if need be...
          */
-        sleepers += tree->ct_rspill_slp;
+        sleepers += atomic_read(&tree->ct_rspill_slp);
 
         if (nk > rootmin) {
             if (tree->ct_rspill_dt * (nk - rootmin) > rspill_dt_max * rootmax) {
@@ -2327,7 +2333,7 @@ static void
 sp3_tree_init(struct sp3_tree *spt)
 {
     memset(spt, 0, sizeof(*spt));
-    atomic_set(&spt->spt_enabled, 1);
+    atomic_set(&spt->spt_enabled, true);
     INIT_LIST_HEAD(&spt->spt_tlink);
 
     INIT_LIST_HEAD(&spt->spt_dlist);
@@ -2380,7 +2386,7 @@ sp3_tree_remove(struct csched *handle, struct cn_tree *tree, bool cancel)
     /* Disable scheduling for tree.  Monitor will remove the tree
      * out when no more jobs are pending.
      */
-    atomic_set(&spt->spt_enabled, 0);
+    atomic_set(&spt->spt_enabled, false);
     atomic_inc_rel(&sp->sp_prune_count);
 
     sp3_monitor_wake(sp);

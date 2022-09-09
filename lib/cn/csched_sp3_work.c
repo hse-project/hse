@@ -346,8 +346,10 @@ sp3_work_wtype_split(
 
     mutex_lock(&tn->tn_ss_lock);
     if (splittable) {
+        uint spilling = atomic_read(&tn->tn_ss_spilling);
+
         if (!tn->tn_ss_splitting) {
-            if (tree->ct_split_cnt >= thresh->split_cnt_max || jclock_ns < tree->ct_split_dly) {
+            if (atomic_read(&tree->ct_split_cnt) >= thresh->split_cnt_max || jclock_ns < tree->ct_split_dly) {
                 tn->tn_ss_visits = 0;
                 kvsets = 0;
                 ev_debug(1);
@@ -355,12 +357,12 @@ sp3_work_wtype_split(
                 tn->tn_ss_visits = 0;
                 kvsets = 0;
                 ev_debug(1);
-            } else if (tn->tn_ss_spilling && tn->tn_ss_visits < thresh->split_cnt_max) {
+            } else if (spilling && tn->tn_ss_visits < thresh->split_cnt_max) {
                 tn->tn_ss_visits++;
                 kvsets = 0;
                 ev_debug(1);
             } else {
-                if (++tree->ct_split_cnt >= thresh->split_cnt_max)
+                if (atomic_inc_return(&tree->ct_split_cnt) >= thresh->split_cnt_max)
                     tree->ct_split_dly = jclock_ns + NSEC_PER_SEC * 3;
 
                 /* By setting tn_ss_splitting to true we are committing
@@ -378,12 +380,12 @@ sp3_work_wtype_split(
          * This most often occurs on trees with one leaf, and rarely on trees
          * with many leaves (but largely depends on the spill pattern).
          */
-        if (tn->tn_ss_spilling)
+        if (spilling)
             kvsets = 0;
     } else {
         if (tn->tn_ss_splitting) {
             tn->tn_ss_splitting = false;
-            tree->ct_split_cnt--;
+            atomic_dec(&tree->ct_split_cnt);
             cv_broadcast(&tn->tn_ss_cv);
             ev_debug(1);
         }
@@ -756,11 +758,10 @@ sp3_work(
         goto locked_nowork;
 
     if (action == CN_ACTION_SPILL) {
+        assert(cn_node_isroot(tn));
+
         if ((atomic_read(&tn->tn_busycnt) >> 16) > 2)
             goto locked_nowork;
-
-        if (!cn_node_isroot(tn))
-            abort();
 
         cn_node_comp_token_put(tn);
         have_token = false;
@@ -768,6 +769,12 @@ sp3_work(
         assert(action != CN_ACTION_NONE);
         assert(atomic_read(&tn->tn_busycnt) == 0);
 
+        /* tn_ss_splitting is not atomic.  It is set to true only by this
+         * thread, and false only by compaction threads, and both whilst
+         * holding tn_ss_lock.  The compaction token, however, provides
+         * a full barrier which ensures we always see the most current
+         * value despite not holding the lock.
+         */
         if (action != CN_ACTION_SPLIT && tn->tn_ss_splitting) {
             ev_debug(1);
             goto locked_nowork;
