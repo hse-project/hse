@@ -157,7 +157,7 @@ put_files_as_kv(struct hse_kvdb *kvdb, struct hse_kvs *kvs, int kv_cnt, char **k
 
             snprintf(key_chunk, sizeof(key_chunk), "%s|%08x", (char *)keys[i], chunk_nr);
 
-            rc = hse_kvs_put(kvs, 0, NULL, key_chunk, strlen(key_chunk), val, len);
+            rc = hse_kvs_put(kvs, 0, NULL, key_chunk, strlen(key_chunk), val, (size_t)len);
             if (rc) {
                 error(rc, "Failed to put data into KVS");
                 err = hse_err_to_errno(rc);
@@ -244,9 +244,9 @@ main(int argc, char **argv)
     }
 
     if (extract) {
-        rc = extract_kv_to_files(kvs, argc - optind, &argv[optind]);
+        rc = (hse_err_t)extract_kv_to_files(kvs, argc - optind, &argv[optind]);
     } else {
-        rc = put_files_as_kv(kvdb, kvs, argc - optind, &argv[optind]);
+        rc = (hse_err_t)put_files_as_kv(kvdb, kvs, argc - optind, &argv[optind]);
     }
 
     rc2 = hse_kvdb_kvs_close(kvs);
