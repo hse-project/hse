@@ -3,15 +3,17 @@
  * Copyright (C) 2021-2022 Micron Technology, Inc.  All rights reserved.
  */
 
-#include <tools/parm_groups.h>
-
+#include <assert.h>
+#include <errno.h>
 #include <stdlib.h>
 #include <stdarg.h>
-#include <errno.h>
-#include <assert.h>
 #include <stdbool.h>
 
 #include <bsd/string.h>
+
+#include <hse/error/merr.h>
+
+#include <tools/parm_groups.h>
 
 struct grp {
     char        grp_name[PG_NAME_MAX];
@@ -37,8 +39,8 @@ pg_name_match(const char *match_list, const char *name)
 {
     const char *match;
     const char *match_end;
-    unsigned    match_len;
-    unsigned    name_len;
+    size_t match_len;
+    size_t name_len;
 
     if (!strcmp(name, match_list))
         return true;
@@ -47,7 +49,7 @@ pg_name_match(const char *match_list, const char *name)
     match = match_list;
     while (*match) {
         match_end = strchrnul(match, LIST_SEP_CHAR);
-        match_len = match_end - match;
+        match_len = (uintptr_t)match_end - (uintptr_t)match;
         if (match_len == name_len && !strncmp(name, match, name_len))
             return true;
         match = match_end;
@@ -75,8 +77,8 @@ pg_find_grp(struct parm_groups *self, const char *name)
     return NULL;
 }
 
-static
-int svec_add(struct svec *self, const char *str)
+static merr_t
+svec_add(struct svec *self, const char *str)
 {
     if (self->strc == self->strc_max) {
 
@@ -89,7 +91,7 @@ int svec_add(struct svec *self, const char *str)
 
         tmp = realloc(self->strv, new_max * sizeof(self->strv[0]));
         if (!tmp)
-            return ENOMEM;
+            return merr(ENOMEM);
 
         self->strv = tmp;
         self->strc_max = new_max;
@@ -138,11 +140,10 @@ svec_reset(struct svec *self)
     svec_free(self, false);
 }
 
-
-int
+merr_t
 svec_append_svec(struct svec *self, ...)
 {
-    int err = 0;
+    merr_t err = 0;
     struct svec *sv;
     size_t original_len;
     va_list ap;
@@ -164,11 +165,11 @@ svec_append_svec(struct svec *self, ...)
     return err;
 }
 
-static int
+static merr_t
 pg_add_str(struct parm_groups *self, struct svec *sv, const char *parm)
 {
+    merr_t err;
     char *parm_copy = NULL;
-    int err;
 
     parm_copy = strdup(parm);
     if (!parm_copy)
@@ -190,16 +191,16 @@ pg_add_str(struct parm_groups *self, struct svec *sv, const char *parm)
     return err;
 }
 
-int
+merr_t
 svec_append_pg_impl(struct svec *self, struct parm_groups *pg, va_list ap)
 {
-    int err = 0;
+    merr_t err = 0;
     struct svec sv;
     struct svec *sv_grp;
     void *arg;
 
     if (!pg)
-        return EINVAL;
+        return merr(EINVAL);
 
     svec_init(&sv);
 
@@ -218,10 +219,10 @@ svec_append_pg_impl(struct svec *self, struct parm_groups *pg, va_list ap)
     return err;
 }
 
-int
+merr_t
 svec_append_pg(struct svec *self, struct parm_groups *pg, ...)
 {
-    int err = 0;
+    merr_t err;
     va_list ap;
 
     va_start(ap, pg);
@@ -231,17 +232,17 @@ svec_append_pg(struct svec *self, struct parm_groups *pg, ...)
     return err;
 }
 
-int
+merr_t
 pg_create(struct parm_groups **self_out, ...)
 {
-    int err = 0;
+    merr_t err;
     va_list ap;
     const char *arg;
     struct parm_groups *self;
 
     self = calloc(1, sizeof(*self));
     if (!self)
-        return ENOMEM;
+        return merr(ENOMEM);
 
     va_start(ap, self_out);
     while (NULL != (arg = va_arg(ap, const char *))) {
@@ -257,6 +258,7 @@ pg_create(struct parm_groups **self_out, ...)
     }
 
     *self_out = self;
+
     return err;
 }
 
@@ -279,21 +281,21 @@ pg_destroy(struct parm_groups *self)
     free(self);
 }
 
-int
+merr_t
 pg_define_group(struct parm_groups *self, const char *group_name)
 {
     struct grp *g;
 
     if (pg_find_grp(self, group_name))
-        return EINVAL;
+        return merr(EINVAL);
 
     g = calloc(1, sizeof(*g));
     if (!g)
-        return ENOMEM;
+        return merr(ENOMEM);
 
     if (strlcpy(g->grp_name, group_name, sizeof(g->grp_name)) >= sizeof(g->grp_name)) {
         free(g);
-        return ENAMETOOLONG;
+        return merr(ENAMETOOLONG);
     }
 
     g->grp_next = self->pg_grps;
@@ -301,17 +303,17 @@ pg_define_group(struct parm_groups *self, const char *group_name)
     return 0;
 }
 
-int
+merr_t
 pg_set_parms(struct parm_groups *self, const char *group_name, ...)
 {
-    int err = 0;
     va_list ap;
+    merr_t err = 0;
     const char *arg;
     struct svec *sv;
 
     sv = pg_find_grp(self, group_name);
     if (!sv)
-        return EINVAL;
+        return merr(EINVAL);
 
     va_start(ap, group_name);
 
@@ -323,14 +325,14 @@ pg_set_parms(struct parm_groups *self, const char *group_name, ...)
     return err;
 }
 
-int
+merr_t
 pg_svec_alloc(
     struct parm_groups *self,
     const char *        group_name,
     struct svec *       sv,
     ...)
 {
-    int err = 0;
+    merr_t err = 0;
     struct svec sv_tmp = {};
     struct svec *sv_grp;
     va_list ap;
@@ -363,7 +365,7 @@ pg_svec_free(struct svec *sv)
     svec_free(sv, false);
 }
 
-int
+merr_t
 pg_parse_argv(struct parm_groups *self, int argc, char **argv, int *argx)
 {
     struct svec *gsv = NULL;

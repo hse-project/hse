@@ -27,8 +27,8 @@
 int errcnt = 0;
 
 struct opts {
-    uint nthread;
-    uint count;
+    ulong nthread;
+    ulong count;
     bool reverse;
 } opts = {
     .nthread  = 64,
@@ -46,16 +46,16 @@ struct thread_info {
 void
 do_work(void *arg)
 {
+    hse_err_t rc;
     struct kh_thread_arg  *targ = arg;
     struct thread_info *ti = targ->arg;
     struct hse_kvdb_txn *txn;
     unsigned int flags = 0;
-    int                 i;
     char                val[VLEN];
     char                key[sizeof(uint64_t)];
     uint64_t           *k = (void *)key;
     struct hse_kvs_cursor  *c;
-    int                 rc, cnt;
+    int                 cnt;
     const void         *kdata, *vdata;
     size_t              klen, vlen;
     bool                eof = false;
@@ -66,7 +66,7 @@ do_work(void *arg)
     memset(val, 0xfe, sizeof(val));
 
     hse_kvdb_txn_begin(targ->kvdb, txn);
-    for (i = ti->start; i < ti->end; i++) {
+    for (uint64_t i = ti->start; i < ti->end; i++) {
         *k = htobe64(i);
 
         rc = hse_kvs_put(targ->kvs, 0, txn, key, sizeof(key),
@@ -111,7 +111,7 @@ do_work(void *arg)
               be64toh(*k),
               be64toh(*(uint64_t *)kdata));
 
-    for (i = ti->start; i < ti->end; i++) {
+    for (uint64_t i = ti->start; i < ti->end; i++) {
         rc = hse_kvs_cursor_read(c, 0, &kdata, &klen, &vdata,
                      &vlen, &eof);
         if (rc || eof)
@@ -179,8 +179,7 @@ main(
 
     const char         *mpool, *kvs, *config = NULL;
     int                 c;
-    int                 i;
-    int                 rc;
+    merr_t              rc;
 
     progname_set(argv[0]);
 
@@ -261,7 +260,7 @@ main(
     if (!g_ti)
         fatal(ENOMEM, "Failed to allocate resources for threads");
 
-    for (i = 0; i < opts.nthread; i++) {
+    for (ulong i = 0; i < opts.nthread; i++) {
         uint64_t stride = opts.count / opts.nthread;
         bool     last = i == (opts.nthread - 1);
 

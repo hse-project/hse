@@ -78,16 +78,17 @@ usage(void)
 int
 main(int argc, char **argv)
 {
-    char *           mpname;
-    const char *     config = NULL;
-    const char *     kvsname;
-    char             data[4096];
-    uint32_t *       seq;
+    u64 rc;
+    int c, last;
+    char *mpname;
+    uint32_t *seq;
+    char data[4096];
+    size_t keylen, alen;
+    const char *kvsname;
+    struct hse_kvs *kvs;
     struct hse_kvdb *kvdb;
-    struct hse_kvs * kvs;
-    int              keylen, cnt, start, alen, every, rdm;
-    int              i, c, last;
-    u64              rc;
+    const char *config = NULL;
+    int cnt, start, every, rdm;
 
     progname_set(argv[0]);
 
@@ -101,7 +102,7 @@ main(int argc, char **argv)
     while ((c = getopt(argc, argv, ":a:c:e:hl:o:r:s:Z:")) != -1) {
         switch (c) {
             case 'a':
-                alen = (int)strtoul(optarg, 0, 0);
+                alen = strtoul(optarg, 0, 0);
                 break;
             case 'c':
                 cnt = (int)strtoul(optarg, 0, 0);
@@ -116,7 +117,7 @@ main(int argc, char **argv)
                 usage();
                 exit(0);
             case 'l':
-                keylen = (int)strtoul(optarg, 0, 0);
+                keylen = strtoul(optarg, 0, 0);
                 break;
             case 'r':
                 rdm = (int)strtoul(optarg, 0, 0);
@@ -164,21 +165,21 @@ main(int argc, char **argv)
     if (rc)
         fatal(rc, "cannot open kvs %s/%s", mpname, kvsname);
 
-    printf("writing %d binary keys of len %d, starting with %08x\n", cnt, keylen, start);
+    printf("writing %d binary keys of len %zu, starting with %08x\n", cnt, keylen, start);
 
-    for (i = 0; i < sizeof(data); ++i)
-        data[i] = i & 0xff;
+    for (size_t i = 0; i < sizeof(data); ++i)
+        data[i] = (char)(i & 0xff);
 
     seq = (uint32_t *)data;
 
-    srandom(getpid());
+    srandom((uint)getpid());
 
     last = start + cnt;
-    for (i = start; i < last; ++i) {
+    for (int i = start; i < last; ++i) {
         void * key, *val;
         size_t klen, vlen;
 
-        *seq = htonl(i);
+        *seq = htonl((uint32_t)i);
 
         if (rdm == 0)
             klen = i % every == 0 ? alen : keylen;

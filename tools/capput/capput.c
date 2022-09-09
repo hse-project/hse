@@ -90,9 +90,9 @@ struct opts {
 
 
 struct thread_info {
-    int           idx;
+    uint          idx;
     atomic_ulong  ops HSE_L1D_ALIGNED;
-    volatile int  state;
+    volatile char state;
 };
 
 struct thread_info *g_ti;
@@ -309,7 +309,7 @@ txput(void *arg)
             added = 0;
             rc = pthread_barrier_wait(&put_barrier1);
             if (rc > 0)
-                fatal(rc, "Failed to barrier wait");
+                fatal(merr(rc), "Failed to barrier wait");
 
             if (leader) {
                 atomic_inc(&pfx);
@@ -345,15 +345,15 @@ syncme(void *arg)
 void
 print_stats(void *arg)
 {
-    char         statev[opts.put_threads + opts.cur_threads + 1];
-    uint32_t     second = 0;
-    uint64_t     puts_last, reads_last;
-    uint64_t     puts, reads;
-    uint64_t     start;
-    long         minflt = 0;
-    long         majflt = 0;
-    int          i;
-    unsigned int keys_per_pfx = opts.chunk * opts.put_threads;
+    char     statev[opts.put_threads + opts.cur_threads + 1];
+    uint32_t second = 0;
+    uint64_t puts_last, reads_last;
+    uint64_t puts, reads;
+    uint64_t start;
+    long     minflt = 0;
+    long     majflt = 0;
+    uint     i;
+    uint     keys_per_pfx = opts.chunk * opts.put_threads;
 
     puts_last = reads_last = 0;
 
@@ -363,7 +363,7 @@ print_stats(void *arg)
         struct rusage       rusage;
         uint64_t            dt;
         double              lag;
-        unsigned int        pfx_lag;
+        ulong               pfx_lag;
 
         usleep(999 * 1000);
         getrusage(RUSAGE_SELF, &rusage);
@@ -391,7 +391,7 @@ print_stats(void *arg)
 
         pfx_lag = (puts - reads) / keys_per_pfx;
 
-        lag = (puts - reads) / (reads - reads_last + 0.000001);
+        lag = (double)(puts - reads) / ((double)(reads - reads_last) + 0.000001);
         if (lag > 99999)
             lag = 99999.99;
 
@@ -402,7 +402,7 @@ print_stats(void *arg)
                    "reads", "lag", "pfxLag", "pRate", "rRate",
                    "majflt", "minflt", "state");
 
-        printf("%8lu %8lu %8lu %10lu %10lu %8.2lf %8u %8lu %8lu %8ld %8ld %s\n",
+        printf("%8lu %8lu %8lu %10lu %10lu %8.2lf %8lu %8lu %8lu %8ld %8ld %s\n",
                dt / NSEC_PER_SEC,
                atomic_read(&pfx), next_del,
                puts, reads, lag, pfx_lag,
@@ -591,7 +591,7 @@ main(int argc, char **argv)
     size_t              sz;
     uint                i;
     int                 c;
-    int                 rc;
+    merr_t              rc;
 
     progname_set(argv[0]);
 
@@ -700,14 +700,16 @@ main(int argc, char **argv)
     rc = rc ?: svec_append_pg(&kvs_cparms, pg, PG_KVS_CREATE, NULL);
     rc = rc ?: svec_append_pg(&kvs_oparms, pg, PG_KVS_OPEN, "transactions.enabled=true", NULL);
     if (rc) {
-        fprintf(stderr, "svec_append_pg failed: %d", rc);
+        char buf[256];
+
+        fprintf(stderr, "%s\n", merr_strinfo(rc, buf, sizeof(buf), NULL, NULL));
         exit(EX_USAGE);
     }
 
     kh_init(config, mpool, &hse_gparms, &kvdb_oparms);
 
-    pthread_barrier_init(&put_barrier1, NULL, opts.put_threads);
-    pthread_barrier_init(&put_barrier2, NULL, opts.put_threads);
+    pthread_barrier_init(&put_barrier1, NULL, (uint)opts.put_threads);
+    pthread_barrier_init(&put_barrier2, NULL, (uint)opts.put_threads);
 
     sz = (opts.put_threads + opts.cur_threads) * sizeof(*g_ti);
 
@@ -726,12 +728,12 @@ main(int argc, char **argv)
     }
 
     if (opts.headstart) {
-        printf("%d second headstart...\n", opts.headstart);
+        printf("%u second headstart...\n", opts.headstart);
         sleep(opts.headstart);
     }
 
-    for (i = 0; i < opts.cur_threads; i++) {
-        int j = i + opts.put_threads;
+    for (uint i = 0; i < opts.cur_threads; i++) {
+        ulong j = i + opts.put_threads;
 
         g_ti[j].idx = i;
         atomic_set(&g_ti[j].ops, 0);

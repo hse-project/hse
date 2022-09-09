@@ -1,6 +1,6 @@
 /* SPDX-License-Identifier: Apache-2.0 */
 /*
- * Copyright (C) 2015-2017 Micron Technology, Inc. All rights reserved.
+ * Copyright (C) 2021-2022 Micron Technology, Inc. All rights reserved.
  */
 #ifndef HSE_TOOLS_PARM_GROUPS
 #define HSE_TOOLS_PARM_GROUPS
@@ -11,6 +11,8 @@
  */
 
 #include <stddef.h>
+
+#include <hse/error/merr.h>
 
 struct parm_groups;
 
@@ -41,25 +43,25 @@ svec_init(struct svec *sv);
 void
 svec_reset(struct svec *sv);
 
-int
+merr_t
 svec_append_pg(struct svec *sv, struct parm_groups *pg, ...);
 
-int
+merr_t
 svec_append(struct svec *sv, ...);
 
-int
+merr_t
 svec_append_svec(struct svec *sv, ...);
 
-int
+merr_t
 pg_create(struct parm_groups **pg, ...);
 
 void
 pg_destroy(struct parm_groups *pg);
 
-int
+merr_t
 pg_define_group(struct parm_groups *pg, const char *group_name);
 
-int
+merr_t
 pg_set_parms(struct parm_groups *self, const char *group_name, ...);
 
 /*
@@ -85,7 +87,7 @@ pg_set_parms(struct parm_groups *self, const char *group_name, ...);
  *
  * See example at top of file.
  */
-int
+merr_t
 pg_parse_argv(struct parm_groups *pg, int argc, char **argv, int *optind);
 
 #endif
