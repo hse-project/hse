@@ -570,7 +570,7 @@ cn_split(struct cn_compaction_work *w)
     while (inflight > 0)
         usleep(100 * 1000);
 
-    for (int64_t i = w->cw_kvset_cnt - 1; !err && i >= 0; i--) {
+    for (i = w->cw_kvset_cnt; !err && i-- > 0;) {
         if (wargs[i].err) {
             err = wargs[i].err;
             break;
@@ -586,11 +586,11 @@ cn_split(struct cn_compaction_work *w)
                     drop_ptomb_ks[k] = false;
 
                 if (HSE_UNLIKELY(drop_ptomb_ks[k])) {
-                    /* Drop contiguous kvsets containing only ptombs, starting from the oldest.
-                     */
                     assert(blks->vblks.n_blks == 0);
                     assert(result->ks[k].blks_commit->n_blks == 1);
 
+                    /* Drop contiguous kvsets containing only ptombs, starting from the oldest.
+                     */
                     delete_mblock(w->cw_mp, &blks->hblk);
                     blk_list_free(result->ks[k].blks_commit);
                 } else {
@@ -602,7 +602,7 @@ cn_split(struct cn_compaction_work *w)
         }
     }
 
-    ev(drop_ptomb_ks[0] || drop_ptomb_ks[1]);
+    ev_info(drop_ptomb_ks[0] || drop_ptomb_ks[1]);
 
     for (i = 0; err && i < w->cw_kvset_cnt; i++)
         kvset_split_res_free(wargs[i].ks, &wargs[i].result);

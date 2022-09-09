@@ -1910,9 +1910,10 @@ kvset_get_max_key(struct kvset *ks, const void **max_key, uint *max_klen)
 {
     struct kvset_kblk *kb;
 
-    INVARIANT(max_key && max_klen);
+    INVARIANT(ks && max_key && max_klen);
 
     if (ks->ks_st.kst_kblks == 0) {
+        *max_key = NULL;
         *max_klen = 0;
         return;
     }

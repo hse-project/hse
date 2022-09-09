@@ -957,7 +957,7 @@ cn_open(
     cn_tree_foreach_leaf(tn, cn->cn_tree) {
         cn_tree_node_get_max_key(tn, kbuf, sizeof(kbuf), &klen);
 
-        /* TODO: Handle a ptomb-only node
+        /* TODO: Handle a ptomb-only node (NFSE-5351)
          */
         assert(klen > 0);
 

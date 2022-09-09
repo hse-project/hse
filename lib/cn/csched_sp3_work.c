@@ -505,8 +505,7 @@ sp3_work_wtype_length(
         /* Start from oldest kvset, find first run of 'runlen_min' kvsets
          * with the same 'compc' value, then k-compact those kvsets and up
          * to 'runlen_max' newer.  Skip kvsets with enormous key counts.
-         * Include contiguous ptomb-only kvsets in the run if the oldest
-         * kvset is also in the run.
+         * Include contiguous ptomb-only kvsets in the run.
          */
         list_for_each_entry_reverse(le, head, le_link) {
             if (runlen < runlen_min) {
@@ -525,7 +524,7 @@ sp3_work_wtype_length(
             vwlen += stats->kst_vwlen;
             wlen += stats->kst_kwlen + stats->kst_vwlen;
 
-            if ((*mark == list_last_entry(head, typeof(*le), le_link)) && stats->kst_keys == 0)
+            if (stats->kst_keys == 0)
                 ++runlen_max;
 
             if (++runlen >= runlen_max)
