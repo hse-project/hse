@@ -142,7 +142,7 @@ buffer_sprintf(struct buffer *const buf, const char *const fmt, ...)
     if (rc >= available) {
         merr_t err;
 
-        err = buffer_grow(buf, buf->cap + rc - available);
+        err = buffer_grow(buf, buf->cap + (size_t)rc - available);
         if (err)
             return err;
 
@@ -156,7 +156,7 @@ buffer_sprintf(struct buffer *const buf, const char *const fmt, ...)
         return merr(EBADMSG);
     }
 
-    buf->len += rc;
+    buf->len += (size_t)rc;
 
     return 0;
 }

@@ -28,6 +28,7 @@ libhse_cli_sources = files(
 libhse_cli = static_library(
     'hse-cli',
     libhse_cli_sources,
+    c_args: cc.get_supported_arguments('-Wconversion'),
     include_directories: [
         cli_includes,
         component_root_includes,

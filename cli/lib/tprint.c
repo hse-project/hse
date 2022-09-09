@@ -8,6 +8,7 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
+#include <stdio.h>
 
 #include <hse/cli/tprint.h>
 #include <hse/error/merr.h>
