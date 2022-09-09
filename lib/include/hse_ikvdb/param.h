@@ -73,6 +73,7 @@ enum param_type {
     PARAM_TYPE_U16,
     PARAM_TYPE_U32,
     PARAM_TYPE_U64,
+    PARAM_TYPE_DOUBLE,
     PARAM_TYPE_ENUM,
     PARAM_TYPE_STRING,
     PARAM_TYPE_ARRAY,
@@ -101,6 +102,7 @@ struct param_spec {
         uint64_t as_uscalar;
         int64_t  as_scalar;
         uint64_t as_enum;
+        double   as_double;
         char *   as_string;
         /* Used for arrays and objects */
         param_default_builder_t as_builder;
@@ -118,6 +120,10 @@ struct param_spec {
             uint64_t ps_min;
             uint64_t ps_max;
         } as_enum;
+        struct {
+            double ps_min;
+            double ps_max;
+        } as_double;
         struct {
             size_t ps_max_len;
         } as_string;

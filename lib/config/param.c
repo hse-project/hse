@@ -148,6 +148,9 @@ param_default_populate(
             case PARAM_TYPE_ENUM:
                 *(int *)data = ps.ps_default_value.as_enum;
                 break;
+            case PARAM_TYPE_DOUBLE:
+                *(double *)data = ps.ps_default_value.as_double;
+                break;
             case PARAM_TYPE_STRING:
                 if (ps.ps_default_value.as_string) {
                     strlcpy(data, ps.ps_default_value.as_string, ps.ps_bounds.as_string.ps_max_len);
@@ -409,6 +412,14 @@ param_default_converter(const struct param_spec *ps, const cJSON *node, void *va
             }
             *(int *)value = (int)to_conv;
             break;
+        case PARAM_TYPE_DOUBLE:
+            assert(!(ps->ps_flags & PARAM_FLAG_NULLABLE));
+            if (!cJSON_IsNumber(node)) {
+                log_err("Value of %s must be a number", ps->ps_name);
+                return false;
+            }
+            *(double *)value = cJSON_GetNumberValue(node);
+            break;
         case PARAM_TYPE_STRING:
             if (cJSON_IsNull(node)) {
                 memset(value, 0, ps->ps_bounds.as_string.ps_max_len);
@@ -482,6 +493,9 @@ param_default_stringify(
         case PARAM_TYPE_ENUM:
             n = snprintf(buf, buf_sz, "%d", *(int *)value);
             break;
+        case PARAM_TYPE_DOUBLE:
+            n = snprintf(buf, buf_sz, "%f", *(double *)value);
+            break;
         case PARAM_TYPE_STRING:
             if (((char *)value)[0] == '\0') {
                 n = (int)strlcpy(buf, "null", buf_sz);
@@ -530,6 +544,8 @@ param_default_jsonify(const struct param_spec *const ps, const void *const value
         case PARAM_TYPE_INT:
         case PARAM_TYPE_ENUM:
             return cJSON_CreateNumber(*(int *)value);
+        case PARAM_TYPE_DOUBLE:
+            return cJSON_CreateNumber(*(double *)value);
         case PARAM_TYPE_STRING:
             return cJSON_CreateString(value);
         case PARAM_TYPE_ARRAY:
@@ -690,6 +706,17 @@ param_default_validator(const struct param_spec *ps, const void *value)
                 ps->ps_name,
                 ps->ps_bounds.as_uscalar.ps_min,
                 ps->ps_bounds.as_uscalar.ps_max);
+            break;
+        }
+        case PARAM_TYPE_DOUBLE: {
+            const double tmp = *((double *)value);
+            if (tmp >= ps->ps_bounds.as_double.ps_min && tmp <= ps->ps_bounds.as_double.ps_max)
+                return true;
+            log_err(
+                "Value of %s must be greater than or equal to %f and less than or equal to %f",
+                ps->ps_name,
+                ps->ps_bounds.as_double.ps_min,
+                ps->ps_bounds.as_double.ps_max);
             break;
         }
         case PARAM_TYPE_STRING: {

@@ -4144,6 +4144,10 @@ usage_parms(size_t *npsp, const struct param_spec *psv, const char *hdr)
                 snprintf(buf, sizeof(buf), "%lu", ps->ps_default_value.as_uscalar);
                 break;
 
+            case PARAM_TYPE_DOUBLE:
+                snprintf(buf, sizeof(buf), "%f", ps->ps_default_value.as_double);
+                break;
+
             case PARAM_TYPE_ENUM:
                 snprintf(buf, sizeof(buf), "%lu", ps->ps_default_value.as_uscalar);
                 break;
