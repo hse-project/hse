@@ -1,6 +1,6 @@
 /* SPDX-License-Identifier: Apache-2.0 */
 /*
- * Copyright (C) 2015-2022 Micron Technology, Inc.  All rights reserved.
+ * Copyright (C) 2015-2023 Micron Technology, Inc.  All rights reserved.
  */
 
 #include <mtf/framework.h>
@@ -16,7 +16,7 @@ MTF_MODULE_UNDER_TEST(hse_platform);
 MTF_BEGIN_UTEST_COLLECTION(hse_err_test);
 
 static const char *
-ctx_strerror(const int ctx)
+ctx_strerror(const unsigned int ctx)
 {
     switch (ctx) {
     case 1:

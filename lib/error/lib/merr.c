@@ -24,7 +24,7 @@ extern uint8_t __start_hse_merr;
 extern uint8_t __stop_hse_merr;
 
 merr_t
-merr_pack(const int errno_value, const int16_t ctx, const char *file, const int line)
+merr_pack(const int errno_value, const unsigned int ctx, const char *file, const int line)
 {
     merr_t  err = 0;
     int64_t off;

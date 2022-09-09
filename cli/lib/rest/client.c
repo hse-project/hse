@@ -1,6 +1,6 @@
 /* SPDX-License-Identifier: Apache-2.0 */
 /*
- * Copyright (C) 2022 Micron Technology, Inc.  All rights reserved.
+ * Copyright (C) 2022-2023 Micron Technology, Inc.  All rights reserved.
  */
 
 #include <errno.h>

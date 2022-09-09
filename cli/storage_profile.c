@@ -1,6 +1,6 @@
 /* SPDX-License-Identifier: Apache-2.0 */
 /*
- * Copyright (C) 2020-2021 Micron Technology, Inc. All rights reserved.
+ * Copyright (C) 2020-2023 Micron Technology, Inc. All rights reserved.
  */
 
 #include <sysexits.h>
@@ -51,8 +51,8 @@ struct storage_info {
 struct storage_profile_work {
     int       dirfd;
     pthread_t tid;
-    int       index;
-    int       thrcnt;
+    uint32_t  index;
+    uint32_t  thrcnt;
     uint32_t  num_samples;
     uint64_t  file_sz;
     uint64_t  block_sz;
@@ -114,7 +114,7 @@ get_time_ns(void)
 
     clock_gettime(CLOCK_MONOTONIC, &ts);
 
-    return (uint64_t)ts.tv_sec * 1000000000ull + ts.tv_nsec;
+    return (uint64_t)(ts.tv_sec * 1000000000 + ts.tv_nsec);
 }
 
 static void*
@@ -127,7 +127,8 @@ profile_worker(void *rock)
     void     *buf;
     uint64_t  start, stop;
     uint32_t  sample_idx;
-    int       block, num_blocks, dirfd, fd, flags;
+    int       block, dirfd, fd, flags;
+    uint64_t  num_blocks;
     char      fname[32];
     off_t     woff;
     char      errbuf[128];
@@ -174,7 +175,7 @@ profile_worker(void *rock)
         start = get_time_ns();
 
         while (iov.iov_len > 0 && !sigint && !sigalrm) {
-            size_t cc;
+            ssize_t cc;
 
             cc = pwritev(fd, &iov, 1, woff);
             if (cc == -1) {
@@ -186,7 +187,7 @@ profile_worker(void *rock)
 
             woff += cc;
             iov.iov_base += cc;
-            iov.iov_len -= cc;
+            iov.iov_len -= (size_t)cc;
         }
 
         if (work->rc != 0)
@@ -224,8 +225,8 @@ perform_profile_run(
     struct statfs sbuf;
     double tmp, var_sum, mean, sigma;
     uint64_t sum, tot_samples;
-    const uint32_t samples_per_thread = (file_sz / block_sz);
-    int i, j, rc = 0;
+    const uint64_t samples_per_thread = (file_sz / block_sz);
+    int j, rc = 0;
     bool tmpfs;
     sigset_t blockset, origset;
 
@@ -247,7 +248,7 @@ perform_profile_run(
     tmpfs = (sbuf.f_type == TMPFS_MAGIC);
 
     /* prepare the per-thread data */
-    for (i = 0; i < thread_cnt; ++i) {
+    for (uint32_t i = 0; i < thread_cnt; ++i) {
         work_specs[i].dirfd = dirfd;
         work_specs[i].index = i;
         work_specs[i].thrcnt = thread_cnt;
@@ -265,7 +266,7 @@ perform_profile_run(
     }
 
     /* launch the threads */
-    for (i = 0; i < thread_cnt; ++i) {
+    for (uint32_t i = 0; i < thread_cnt; ++i) {
         rc = pthread_create(&work_specs[i].tid, NULL, profile_worker, &work_specs[i]);
         if (rc > 0) {
             while (i-- > 0) {
@@ -280,11 +281,11 @@ perform_profile_run(
     pthread_sigmask(SIG_SETMASK, &origset, NULL);
 
     /* wait for IO to complete or timeout */
-    for (i = 0; i < thread_cnt; ++i)
+    for (uint32_t i = 0; i < thread_cnt; ++i)
         pthread_join(work_specs[i].tid, NULL);
 
     /* process any errors that occurred */
-    for (i = 0; i < thread_cnt; ++i) {
+    for (uint32_t i = 0; i < thread_cnt; ++i) {
         if (work_specs[i].rc) {
             rc = work_specs[i].rc;
             if (rc != EINTR)
@@ -298,7 +299,7 @@ perform_profile_run(
     /* process the results from the runs */
     sum = 0UL;
     tot_samples = 0;
-    for (i = 0; i < thread_cnt; ++i) {
+    for (uint32_t i = 0; i < thread_cnt; ++i) {
         for (j = 0; j < work_specs[i].num_samples; ++j)
             sum += work_specs[i].samples[j];
         tot_samples += work_specs[i].num_samples;
@@ -312,7 +313,7 @@ perform_profile_run(
     mean = (double)sum / (double)tot_samples;
 
     var_sum = 0.0;
-    for (i = 0; i < thread_cnt; ++i) {
+    for (uint32_t i = 0; i < thread_cnt; ++i) {
         for (j = 0; j < work_specs[i].num_samples; ++j) {
             tmp = (double)work_specs[i].samples[j] - mean;
             var_sum += tmp * tmp;
@@ -326,7 +327,7 @@ perform_profile_run(
     *score = score_prof_stat(&stats);
 
 err_exit:
-    for (i = 0; i < thread_cnt; ++i)
+    for (uint32_t i = 0; i < thread_cnt; ++i)
         free(work_specs[i].samples);
 
     free(work_specs);
@@ -406,7 +407,7 @@ hse_storage_profile(const char *path, bool quiet, bool verbose)
 {
     struct storage_info info = {0};
     struct itimerval timer = {0};
-    const int thread_counts[] = { 16, 20, 24, 32, 40, 48 };
+    const unsigned int thread_counts[] = { 16, 20, 24, 32, 40, 48 };
     const int num_thread_counts = sizeof(thread_counts) / sizeof(thread_counts[0]);
     double scores[num_thread_counts], avg_score;
     uint64_t max_thrds = thread_counts[num_thread_counts - 1];
@@ -440,7 +441,7 @@ hse_storage_profile(const char *path, bool quiet, bool verbose)
     max_space_needed = max_thrds * PROF_FILE_SIZE_PER_THREAD;
 
     if (info.avail_space < max_space_needed) {
-        uint32_t space_needed_mb = 1 + (max_space_needed / (1u << 20));
+        const uint64_t space_needed_mb = 1 + (max_space_needed / (1u << 20));
 
         rc = ENOSPC;
         /* This output message is grepped by
@@ -448,7 +449,7 @@ hse_storage_profile(const char *path, bool quiet, bool verbose)
          */
         fprintf(
             stderr,
-            "The profiling test needs %u MiB of free space to characterize KVDB performance.\n",
+            "The profiling test needs %lu MiB of free space to characterize KVDB performance.\n",
             space_needed_mb);
 
         goto err_exit;

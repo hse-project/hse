@@ -302,9 +302,10 @@ cmd_print_help(struct cli_cmd *cmd, FILE *fp)
     const struct name_desc *nd;
 
     bool have_subs;
-    int  i, width;
-    int  ilvl = 0; /* current indent level */
-    int  tabw = 2; /* spaces per indent level (ie, tab width) */
+    int  i;
+    int ilvl = 0; /* current indent level */
+    int tabw = 2; /* spaces per indent level (ie, tab width) */
+    size_t width;
 
     have_subs = cmd->cmd_subcommandv && cmd->cmd_subcommandv->cmd_name;
 
@@ -318,11 +319,11 @@ cmd_print_help(struct cli_cmd *cmd, FILE *fp)
     for (i = 0; nd[i].name; i++)
         width = max(width, strlen(nd[i].name));
     width += 4;
-    width = max(width, 24);
+    width = max(width, 24U);
     for (i = 0; nd[i].name; i++) {
         if (i == 0)
             fprintf(fp, "\n\n%*sOptions:\n", ilvl * tabw, "");
-        fprintf(fp, "%*s%-*s%s%s", (ilvl + 1) * tabw, "", width,
+        fprintf(fp, "%*s%-*s%s%s", (ilvl + 1) * tabw, "", (int)width,
             nd[i].name, nd[i].desc, nd[i + 1].name ? "\n" : "");
     }
 
@@ -332,11 +333,11 @@ cmd_print_help(struct cli_cmd *cmd, FILE *fp)
         width = max(width, strlen(nd[i].name));
     }
     width += 4;
-    width = max(width, 24);
+    width = max(width, 24U);
     for (i = 0; nd[i].name; i++) {
         if (i == 0)
             fprintf(fp, "\n\n%*sParameters:\n", ilvl * tabw, "");
-        fprintf(fp, "%*s%-*s%s%s", (ilvl + 1) * tabw, "", width,
+        fprintf(fp, "%*s%-*s%s%s", (ilvl + 1) * tabw, "", (int)width,
             nd[i].name, nd[i].desc, nd[i + 1].name ? "\n" : "");
     }
 
@@ -347,7 +348,7 @@ cmd_print_help(struct cli_cmd *cmd, FILE *fp)
         for (sub = cmd->cmd_subcommandv; sub->cmd_name; sub++)
             width = max(width, strlen(sub->cmd_name));
         width += 4;
-        width = max(width, 24);
+        width = max(width, 24U);
 
         fprintf(fp, "\n\n%*sCommands:\n", ilvl * tabw, "");
         for (sub = cmd->cmd_subcommandv; sub->cmd_name; sub++) {
@@ -356,7 +357,7 @@ cmd_print_help(struct cli_cmd *cmd, FILE *fp)
                 "%*s%-*s%s%s",
                 (ilvl + 1) * tabw,
                 "",
-                width,
+                (int)width,
                 sub->cmd_name,
                 sub->cmd_describe,
                 (sub + 1)->cmd_name ? "\n" : "");
@@ -418,7 +419,7 @@ cli_push(struct cli *cli, struct cli_cmd *cmd)
         const struct option *lo = cli->cmd->cmd_spec->longoptv + i;
 
         if (!lo->flag && lo->val) {
-            *s++ = lo->val;
+            *s++ = (char)lo->val;
             if (lo->has_arg > 0)
                 *s++ = ':';
             if (lo->has_arg > 1)

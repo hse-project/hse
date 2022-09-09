@@ -30,6 +30,7 @@ hse_cli_include_directories = [
 hse_cli = executable(
     cli_name,
     hse_cli_sources,
+    c_args: cc.get_supported_arguments('-Wconversion'),
     include_directories: hse_cli_include_directories,
     dependencies: hse_cli_dependencies,
     install: true,

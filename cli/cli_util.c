@@ -129,7 +129,7 @@ kvdb_compact_request(const char *kvdb_home, const char *request_type, u32 timeou
 
     /* If this process has opened the KVDB, open all KVSes too. */
     if (handle) {
-        err = hse_err_to_errno(hse_kvdb_kvs_names_get(handle, &namec, &namev));
+        err = hse_kvdb_kvs_names_get(handle, &namec, &namev);
         if (err) {
             char buf[256];
             hse_strerror(err, buf, sizeof(buf));

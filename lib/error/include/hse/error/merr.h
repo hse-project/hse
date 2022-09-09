@@ -47,7 +47,6 @@
 #include <stddef.h>
 
 #include <hse/types.h>
-
 #include <hse/util/compiler.h>
 
 #define EBUG (991)
@@ -85,7 +84,7 @@ extern char hse_merr_bug2[];
 #define MERR_ERRNO_MASK (0x000000000000fffful)
 
 typedef hse_err_t merr_t;
-typedef const char *merr_stringify(int);
+typedef const char *merr_stringify(unsigned int);
 
 /**
  * merr() - Pack given errno and call-site info into a merr_t
@@ -100,7 +99,7 @@ typedef const char *merr_stringify(int);
 /* Not a public API, called only via the merr() macro.
  */
 merr_t
-merr_pack(int error, int16_t ctx, const char *file, int line);
+merr_pack(int error, unsigned int ctx, const char *file, int line);
 
 /**
  * merr_strerror() - Format errno description from merr_t
@@ -137,10 +136,10 @@ merr_errno(merr_t merr)
 /**
  * merr_ctx() - Return the error context from given merr_t
  */
-static HSE_ALWAYS_INLINE int16_t
-merr_ctx(merr_t merr)
+static HSE_ALWAYS_INLINE unsigned int
+merr_ctx(merr_t err)
 {
-    return (merr & MERR_CTX_MASK) >> MERR_CTX_SHIFT;
+    return (err & MERR_CTX_MASK) >> MERR_CTX_SHIFT;
 }
 
 /**
