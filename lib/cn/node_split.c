@@ -7,6 +7,7 @@
 #include <stdbool.h>
 #include <stdint.h>
 #include <stdlib.h>
+#include <sys/mman.h>
 
 #include <hse_util/element_source.h>
 #include <hse_util/event_counter.h>

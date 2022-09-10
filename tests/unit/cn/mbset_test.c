@@ -3,11 +3,12 @@
  * Copyright (C) 2015-2020 Micron Technology, Inc.  All rights reserved.
  */
 
+#include <sys/mman.h>
+
 #include <mtf/framework.h>
 
 #include <hse/error/merr.h>
 #include <hse_util/inttypes.h>
-#include <hse_util/mman.h>
 
 #include <mpool/mpool.h>
 

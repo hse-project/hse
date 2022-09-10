@@ -1,16 +1,15 @@
 /* SPDX-License-Identifier: Apache-2.0 */
 /*
- * Copyright (C) 2015-2020 Micron Technology, Inc.  All rights reserved.
+ * Copyright (C) 2015-2022 Micron Technology, Inc.  All rights reserved.
  */
 
-#ifndef HSE_PLATFORM_MINMAX_H
-#define HSE_PLATFORM_MINMAX_H
+#ifndef HSE_UTIL_MINMAX_H
+#define HSE_UTIL_MINMAX_H
 
 #define min(x, y)                      \
     ({                                 \
         typeof(x) _min1 = (x);         \
         typeof(y) _min2 = (y);         \
-        (void)(&_min1 == &_min2);      \
         _min1 < _min2 ? _min1 : _min2; \
     })
 
@@ -18,7 +17,6 @@
     ({                                 \
         typeof(x) _max1 = (x);         \
         typeof(y) _max2 = (y);         \
-        (void)(&_max1 == &_max2);      \
         _max1 > _max2 ? _max1 : _max2; \
     })
 
@@ -55,4 +53,4 @@
         __val > __max ? __max : __val;         \
     })
 
-#endif /* HSE_PLATFORM_MINMAX_H */
+#endif /* HSE_UTIL_MINMAX_H */

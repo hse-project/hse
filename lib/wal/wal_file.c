@@ -3,6 +3,8 @@
  * Copyright (C) 2021-2022 Micron Technology, Inc.  All rights reserved.
  */
 
+#include <sys/mman.h>
+
 #include <bsd/string.h>
 
 #include <hse/logging/logging.h>
@@ -11,7 +13,6 @@
 #include <hse_util/list.h>
 #include <hse_util/mutex.h>
 #include <hse_util/page.h>
-#include <hse_util/platform.h>
 
 #include <hse_ikvdb/cndb.h>
 

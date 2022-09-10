@@ -1,6 +1,6 @@
 /* SPDX-License-Identifier: Apache-2.0 */
 /*
- * Copyright (C) 2021 Micron Technology, Inc.  All rights reserved.
+ * Copyright (C) 2021-2022 Micron Technology, Inc.  All rights reserved.
  */
 
 #ifndef IOV_MAX
@@ -21,9 +21,10 @@
 #error "Neither __IOV_MAX nor IOV_MAX is defined"
 #endif
 
+#include <sys/mman.h>
+
 #include <hse_util/minmax.h>
 #include <hse_util/event_counter.h>
-#include <hse_util/mman.h>
 #include <hse_util/assert.h>
 #include <hse_util/page.h>
 

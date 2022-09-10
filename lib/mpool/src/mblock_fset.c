@@ -1,17 +1,18 @@
 /* SPDX-License-Identifier: Apache-2.0 */
 /*
- * Copyright (C) 2021 Micron Technology, Inc.  All rights reserved.
+ * Copyright (C) 2021-2022 Micron Technology, Inc.  All rights reserved.
  */
 
+#include <sys/mman.h>
 #include <sys/statvfs.h>
 
+#include <hse/logging/logging.h>
 #include <hse_util/assert.h>
 #include <hse_util/event_counter.h>
-#include <hse/logging/logging.h>
+#include <hse_util/minmax.h>
 #include <hse_util/page.h>
 #include <hse_util/slab.h>
 #include <hse_util/storage.h>
-#include <hse_util/minmax.h>
 
 #include "omf.h"
 #include "mclass.h"
@@ -449,8 +450,8 @@ mblock_fset_open(
         return merr(ENOMEM);
 
     mbfsp->mc = mc;
-    mbfsp->mhdr.fcnt = fcnt ?: MPOOL_MCLASS_FILECNT_DEFAULT;
-    mbfsp->mhdr.fszmax = fszmax ?: MPOOL_MCLASS_FILESZ_DEFAULT;
+    mbfsp->mhdr.fcnt = fcnt ? fcnt : MPOOL_MCLASS_FILECNT_DEFAULT;
+    mbfsp->mhdr.fszmax = fszmax ? fszmax : MPOOL_MCLASS_FILESZ_DEFAULT;
     mbfsp->mhdr.mblksz = mclass_mblocksz_get(mc);
 
     mclass_io_ops_set(mcid_to_mclass(mclass_id(mc)), &mbfsp->io);

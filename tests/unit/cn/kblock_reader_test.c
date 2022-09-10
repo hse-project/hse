@@ -3,11 +3,13 @@
  * Copyright (C) 2015-2022 Micron Technology, Inc.  All rights reserved.
  */
 
+#include <sys/mman.h>
+
 #include <mtf/framework.h>
 
 #include <hse/logging/logging.h>
-#include <hse_util/page.h>
 #include <hse_util/bloom_filter.h>
+#include <hse_util/page.h>
 
 #include <hse_ikvdb/kvs_rparams.h>
 

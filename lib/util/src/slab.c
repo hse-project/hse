@@ -26,24 +26,25 @@
  * are then allocated directly from slabs (e.g., via kmem_cache_alloc()).
  */
 
+#include <sys/mman.h>
+
 #include <bsd/string.h>
 
-#include <hse_util/platform.h>
-#include <hse_util/alloc.h>
-#include <hse_util/vlb.h>
-#include <hse_util/atomic.h>
-#include <hse_util/log2.h>
-#include <hse_util/assert.h>
-#include <hse_util/event_counter.h>
 #include <hse/logging/logging.h>
-
-#include <hse_util/mutex.h>
-#include <hse_util/spinlock.h>
+#include <hse_util/alloc.h>
+#include <hse_util/assert.h>
+#include <hse_util/atomic.h>
+#include <hse_util/event_counter.h>
+#include <hse_util/log2.h>
 #include <hse_util/minmax.h>
-#include <hse_util/workqueue.h>
-#include <hse_util/rest_api.h>
+#include <hse_util/mutex.h>
 #include <hse_util/page.h>
+#include <hse_util/rest_api.h>
 #include <hse_util/slab.h>
+#include <hse_util/spinlock.h>
+#include <hse_util/platform.h>
+#include <hse_util/vlb.h>
+#include <hse_util/workqueue.h>
 
 /* clang-format off */
 

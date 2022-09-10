@@ -1,12 +1,13 @@
 /* SPDX-License-Identifier: Apache-2.0 */
 /*
- * Copyright (C) 2021 Micron Technology, Inc.  All rights reserved.
+ * Copyright (C) 2021-2022 Micron Technology, Inc.  All rights reserved.
  */
+
+#include <sys/mman.h>
 
 #include <hse_util/event_counter.h>
 #include <hse/error/merr.h>
 #include <hse/logging/logging.h>
-#include <hse_util/mman.h>
 
 #include "mpool_internal.h"
 #include "mclass.h"

@@ -247,7 +247,7 @@ hbb_finish(
     if (vgmap) {
         iov_max++;
         sz = sizeof(struct vgroup_map_omf) + vgmap->nvgroups * sizeof(struct vgroup_map_entry_omf);
-        vgmap_pgc = roundup(sz, PAGE_SIZE) >> PAGE_SHIFT;
+        vgmap_pgc = roundup(sz, PAGE_SIZE) / PAGE_SIZE;
         assert(vgmap_pgc > 0);
     }
 

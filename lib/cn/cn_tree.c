@@ -10,11 +10,12 @@
 #define MTF_MOCK_IMPL_cn_tree_iter
 #define MTF_MOCK_IMPL_ct_view
 
+#include <sys/mman.h>
+
 #include <hse_util/alloc.h>
 #include <hse_util/event_counter.h>
 #include <hse_util/page.h>
 #include <hse_util/slab.h>
-#include <hse_util/mman.h>
 #include <hse_util/list.h>
 #include <hse_util/mutex.h>
 #include <hse/logging/logging.h>

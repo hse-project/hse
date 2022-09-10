@@ -1,10 +1,12 @@
 /* SPDX-License-Identifier: Apache-2.0 */
 /*
- * Copyright (C) 2021 Micron Technology, Inc.  All rights reserved.
+ * Copyright (C) 2021-2022 Micron Technology, Inc.  All rights reserved.
  */
 
-#include <crc32c.h>
+#include <sys/mman.h>
+
 #include <bsd/string.h>
+#include <crc32c.h>
 
 #include <hse/logging/logging.h>
 #include <hse_util/event_counter.h>
@@ -12,8 +14,8 @@
 
 #include "mdc.h"
 #include "mdc_file.h"
-#include "omf.h"
 #include "mclass.h"
+#include "omf.h"
 #include "io.h"
 
 /**

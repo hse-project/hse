@@ -1,10 +1,12 @@
 /* SPDX-License-Identifier: Apache-2.0 */
 /*
- * Copyright (C) 2021 Micron Technology, Inc.  All rights reserved.
+ * Copyright (C) 2021-2022 Micron Technology, Inc.  All rights reserved.
  */
 
+#include <linux/mman.h>
+#include <sys/mman.h>
+
 #include <hse_util/base.h>
-#include <hse_util/mman.h>
 #include <hse_util/assert.h>
 #include <hse_util/page.h>
 

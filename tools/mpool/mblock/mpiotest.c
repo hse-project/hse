@@ -1,6 +1,6 @@
 /* SPDX-License-Identifier: Apache-2.0 */
 /*
- * Copyright (C) 2015-2021 Micron Technology, Inc.  All rights reserved.
+ * Copyright (C) 2015-2022 Micron Technology, Inc.  All rights reserved.
  */
 /*
  * This test tool exercises mpool and mcache.
@@ -14,15 +14,25 @@
  *    $ sudo mpiotest -v -j48 -i777 -l 8192 -o gpverify=0,rdverify=0 kvdb1 32m
  */
 
+#include <ctype.h>
+#include <errno.h>
+#include <fcntl.h>
+#include <getopt.h>
+#include <pthread.h>
+#include <signal.h>
+#include <stdarg.h>
+#include <stdio.h>
 #include <sysexits.h>
+#include <sys/mman.h>
+#include <sys/uio.h>
+#include <unistd.h>
 
 #include <bsd/string.h>
 
+#include <hse/error/merr.h>
+#include <hse/hse.h>
 #include <hse_util/minmax.h>
 #include <hse_util/page.h>
-#include <hse/error/merr.h>
-
-#include <hse/hse.h>
 
 #include <mpool/mpool.h>
 
