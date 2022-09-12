@@ -70,7 +70,7 @@ void
 sp3_throttle_sensor(struct csched *handle, struct throttle_sensor *sensor);
 
 void
-sp3_compact_request(struct csched *handle, int flags);
+sp3_compact_request(struct csched *handle, unsigned int flags);
 
 void
 sp3_compact_status_get(struct csched *handle, struct hse_kvdb_compact_status *status);

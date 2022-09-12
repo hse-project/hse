@@ -64,7 +64,6 @@ struct wbti {
  * @base: base address of the block
  * @wbd: wbtree descriptor
  * @kt: key to search for
- * @lcp: longest common prefix common to %kt and all keys in the kblock
  * @lookup_res: (output) one of NOT_FOUND, FOUND_VAL,
  *              or FOUND_TMB (tombstone)
  * @vref: (output) value metadata if found
@@ -75,7 +74,6 @@ wbtr_read_vref(
     const void *base,
     const struct wbt_desc *wbd,
     const struct kvs_ktuple *kt,
-    uint lcp,
     u64 seq,
     enum key_lookup_res *lookup_res,
     struct vgmap *vgmap,

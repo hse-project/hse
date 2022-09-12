@@ -160,7 +160,7 @@ csched_throttle_sensor(struct csched *csched, struct throttle_sensor *input);
 
 /* MTF_MOCK */
 void
-csched_compact_request(struct csched *handle, int flags);
+csched_compact_request(struct csched *handle, unsigned int flags);
 
 /* MTF_MOCK */
 void

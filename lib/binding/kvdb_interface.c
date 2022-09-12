@@ -75,7 +75,7 @@ hse_lowmem_adjust(unsigned long *memgb)
     hse_meminfo(NULL, &mavail, 30);
 
     if (mavail <= HSE_LOWMEM_THRESHOLD_GB_DFLT) {
-        uint32_t scale = ikvdb_lowmem_scale(mavail);
+        unsigned long scale = ikvdb_lowmem_scale(mavail);
 
         /* Scale various caches based on the available memory */
         if (hse_gparams.gp_c0kvs_ccache_sz_max == gpdef.gp_c0kvs_ccache_sz_max)

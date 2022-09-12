@@ -73,7 +73,7 @@ struct mtf_test_coll_info {
     const char *         tci_failed_tests[___MTF_MAX_UTEST_INSTANCES];
     enum mtf_test_result tci_test_results[___MTF_MAX_UTEST_INSTANCES];
     void *               tci_outbuf;
-    int                  tci_outbuf_len;
+    size_t               tci_outbuf_len;
     unsigned long        tci_outbuf_pos;
 
     void *tci_rock;
@@ -89,18 +89,18 @@ inner_mtf_print(struct mtf_test_coll_info *tci, const char *fmt_str, ...)
 {
     va_list args;
     char *  tgt = tci->tci_outbuf + tci->tci_outbuf_pos;
-    int     rem = tci->tci_outbuf_len - tci->tci_outbuf_pos;
+    size_t  rem = tci->tci_outbuf_len - tci->tci_outbuf_pos;
     int     bc;
 
     va_start(args, fmt_str);
     bc = vsnprintf(tgt, rem - 1, fmt_str, args);
     va_end(args);
 
-    if (bc >= rem) {
+    if (bc >= rem || bc < 0) {
         *tgt = 0;
         return -1;
     } else {
-        tci->tci_outbuf_pos += bc;
+        tci->tci_outbuf_pos += (size_t)bc;
         return 0;
     }
 }

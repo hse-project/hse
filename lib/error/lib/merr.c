@@ -49,7 +49,7 @@ merr_pack(int errno_value, const enum hse_err_ctx ctx, const char *file, int lin
 
     err |= ((uint64_t)line << MERR_LINE_SHIFT) & MERR_LINE_MASK;
     err |= (ctx << MERR_CTX_SHIFT) & MERR_CTX_MASK;
-    err |= errno_value & MERR_ERRNO_MASK;
+    err |= (uint64_t)errno_value & MERR_ERRNO_MASK;
 
     return err;
 }
@@ -109,21 +109,24 @@ merr_strerror(merr_t err, char *buf, size_t buf_sz)
 char *
 merr_strinfo(merr_t err, char *buf, size_t buf_sz, size_t *need_sz)
 {
-    ssize_t     sz = 0, ret = 0;
+    int ret = 0;
+    size_t sz = 0;
     const char *file = NULL;
 
     if (err) {
         file = merr_file(err);
 
-        if (file)
+        if (file) {
             ret = snprintf(buf, buf_sz, "%s:%d: ", file, merr_lineno(err));
 
-        if (ret < 0) {
-            sz = strlcpy(buf, "<failed to format error message>", buf_sz);
-            goto out;
+            if (ret < 0) {
+                sz = strlcpy(buf, "<failed to format error message>", buf_sz);
+                goto out;
+            }
+
+            sz += (size_t)ret;
         }
 
-        sz += ret;
         if (sz >= buf_sz) {
             sz += merr_strerror(err, NULL, 0);
         } else {
@@ -142,7 +145,7 @@ merr_strinfo(merr_t err, char *buf, size_t buf_sz, size_t *need_sz)
             goto out;
         }
 
-        sz += ret;
+        sz += (size_t)ret;
     } else {
         sz = strlcpy(buf, "success", buf_sz);
     }

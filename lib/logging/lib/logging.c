@@ -192,7 +192,7 @@ log_level_from_string(const char *name)
 
     name = strcasestr(list, name);
     if (name)
-        return (name - list) / 8;
+        return (int)((uintptr_t)name - (uintptr_t)list) / 8;
 
     return LOG_DEBUG;
 }

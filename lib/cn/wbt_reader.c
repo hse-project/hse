@@ -749,7 +749,6 @@ wbtr_read_vref(
     const void              *base,
     const struct wbt_desc   *wbd,
     const struct kvs_ktuple *kt,
-    uint                     lcp,
     uint64_t                 seq,
     enum key_lookup_res     *lookup_res,
     struct vgmap            *vgmap,
