@@ -1234,11 +1234,11 @@ hse_kvs_prefix_probe(
     size_t                      valbuf_sz,
     size_t *                    val_len)
 {
-    struct hse_kvs_cursor *cur;
-    bool eof;
-    const void *key;
-    size_t klen;
     merr_t err = 0;
+    struct kvs_ktuple kt;
+    enum key_lookup_res res;
+    struct kvs_buf kbuf;
+    struct kvs_buf vbuf;
 
     if (!handle || !pfx || !found || !val_len || flags != 0)
         err = merr(EINVAL);
@@ -1254,33 +1254,40 @@ hse_kvs_prefix_probe(
     if (ev(err))
         return err;
 
+    kvs_ktuple_init_nohash(&kt, pfx, pfx_len);
+
     /* If valbuf is NULL and valbuf_sz is zero, this call is meant as a
      * probe for the existence of the key and length of its value.
      */
+    kvs_buf_init(&kbuf, keybuf, keybuf_sz);
+    kvs_buf_init(&vbuf, valbuf, valbuf_sz);
 
-    err = ikvdb_kvs_cursor_create(handle, flags, txn, pfx, pfx_len, &cur);
-    if (ev(err))
+    err = ikvdb_kvs_pfx_probe(handle, flags, txn, &kt, &res, &kbuf, &vbuf);
+    if (err)
         return err;
 
-    *found = HSE_KVS_PFX_FOUND_ZERO;
-    err = ikvdb_kvs_cursor_read_copy(cur, flags, keybuf, keybuf_sz, key_len,
-                                     valbuf, valbuf_sz, val_len, &eof);
-    if (ev(err || eof))
-        goto out;
+    switch (res) {
+    case NOT_FOUND:
+    case FOUND_TMB:
+    case FOUND_PTMB:
+        *found = HSE_KVS_PFX_FOUND_ZERO;
+        break;
+    case FOUND_VAL:
+        *found = HSE_KVS_PFX_FOUND_ONE;
+        *key_len = kbuf.b_len;
+        *val_len = vbuf.b_len;
+        break;
+    case FOUND_MULTIPLE:
+        *found = HSE_KVS_PFX_FOUND_MUL;
+        *key_len = kbuf.b_len;
+        *val_len = vbuf.b_len;
+        break;
+    }
 
-    *found = HSE_KVS_PFX_FOUND_ONE;
-    err = ikvdb_kvs_cursor_read(cur, flags, &key, &klen, 0, 0, &eof);
-
-    if (ev(err || eof))
-        goto out;
-
-    *found = HSE_KVS_PFX_FOUND_MUL;
     PERFC_INCADD_RU(&kvdb_pc, PERFC_RA_KVDBOP_KVS_PFXPROBE, PERFC_RA_KVDBOP_KVS_GETB,
-                    klen + *key_len + *val_len);
+                    *key_len + *val_len);
 
-out:
-    ikvdb_kvs_cursor_destroy(cur);
-    return err;
+    return 0;
 }
 
 hse_err_t

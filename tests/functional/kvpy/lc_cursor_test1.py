@@ -98,7 +98,7 @@ try:
         kvdb = stack.enter_context(kvdb_ctx)
         kvs_ctx = (
             lifecycle.KvsContext(kvdb, "lc_cursor_test1")
-            .cparams("prefix.length=3", "suffix.length=2")
+            .cparams("prefix.length=3")
             .rparams("transactions.enabled=true")
         )
         kvs = stack.enter_context(kvs_ctx)

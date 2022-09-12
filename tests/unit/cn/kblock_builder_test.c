@@ -33,7 +33,6 @@ const struct kvs_rparams mocked_rp_default = {
 
 const struct kvs_cparams mocked_cp_default = {
     .pfx_len = 0,
-    .sfx_len = 0,
 };
 
 struct mclass_policy mocked_mpolicy = {

@@ -16,9 +16,7 @@ try:
     with ExitStack() as stack:
         kvdb_ctx = lifecycle.KvdbContext().rparams("durability.enabled=false")
         kvdb = stack.enter_context(kvdb_ctx)
-        kvs_ctx = lifecycle.KvsContext(kvdb, "sfx_test_tomb").cparams(
-            "prefix.length=1", "suffix.length=2"
-        )
+        kvs_ctx = lifecycle.KvsContext(kvdb, "sfx_test_tomb").cparams("prefix.length=1")
         kvs = stack.enter_context(kvs_ctx)
 
         kvs.put(b"AbcXX", b"1")
@@ -67,7 +65,7 @@ try:
 
         cnt, k, _, v, _ = kvs.prefix_probe(b"Abc")
         assert cnt == hse.KvsPfxProbeCnt.MUL
-        assert (k, v) == (b"AbcX4", b"1")
+        assert (k, v) == (b"AbcX9", b"1")
 
         kvs.delete(b"AbcX9")
 

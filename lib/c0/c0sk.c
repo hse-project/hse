@@ -364,7 +364,6 @@ c0sk_pfx_probe(
     struct c0sk *            handle,
     u16                      skidx,
     u32                      pfx_len,
-    u32                      sfx_len,
     const struct kvs_ktuple *kt,
     u64                      view_seq,
     uintptr_t                seqref,
@@ -404,7 +403,7 @@ c0sk_pfx_probe(
         }
 
         err = c0kvms_pfx_probe_rcu(
-            c0kvms, skidx, kt, sfx_len, view_seq, seqref, res, qctx, kbuf, vbuf, pfx_seq);
+            c0kvms, skidx, kt, view_seq, seqref, res, qctx, kbuf, vbuf, pfx_seq);
         if (ev(err))
             break;
 

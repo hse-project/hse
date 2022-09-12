@@ -781,7 +781,6 @@ c0kvs_pfx_probe_cmn(
     struct bonsai_root *     root,
     u16                      skidx,
     const struct kvs_ktuple *key,
-    u32                      sfx_len,
     u64                      view_seqno,
     uintptr_t                seqnoref,
     enum key_lookup_res *    res,
@@ -825,10 +824,8 @@ c0kvs_pfx_probe_cmn(
             !keycmp(kv->bkv_key, klen, kbuf->b_buf, min_t(size_t, kbuf->b_len, kbuf->b_buf_sz)))
             continue; /* duplicate */
 
-        /* We ensure that klen is atleast pfx_len + sfx_len bytes long during put/delete. */
-        assert(klen >= sfx_len);
         /* Skip key if there is a matching tomb */
-        if (qctx_tomb_seen(qctx, kv->bkv_key + klen - sfx_len, sfx_len))
+        if (qctx_tomb_seen(qctx, kv->bkv_key, klen))
             continue;
 
         val = c0kvs_findval(kv, view_seqno, seqnoref);
@@ -849,7 +846,7 @@ c0kvs_pfx_probe_cmn(
 
         /* add to tomblist if a tombstone was encountered */
         if (HSE_CORE_IS_TOMB(val->bv_value)) {
-            err = qctx_tomb_insert(qctx, kv->bkv_key + klen - sfx_len, sfx_len);
+            err = qctx_tomb_insert(qctx, kv->bkv_key, klen);
             if (ev(err))
                 break;
 
@@ -899,7 +896,6 @@ c0kvs_pfx_probe_excl(
     struct c0_kvset *        handle,
     u16                      skidx,
     const struct kvs_ktuple *key,
-    u32                      sfx_len,
     u64                      view_seqno,
     uintptr_t                seqnoref,
     enum key_lookup_res *    res,
@@ -912,7 +908,7 @@ c0kvs_pfx_probe_excl(
     struct bonsai_root *  root = self->c0s_broot;
 
     return c0kvs_pfx_probe_cmn(
-        root, skidx, key, sfx_len, view_seqno, seqnoref, res, qctx, kbuf, vbuf, pt_seq, 0);
+        root, skidx, key, view_seqno, seqnoref, res, qctx, kbuf, vbuf, pt_seq, 0);
 }
 
 merr_t
@@ -920,7 +916,6 @@ c0kvs_pfx_probe_rcu(
     struct c0_kvset *        handle,
     u16                      skidx,
     const struct kvs_ktuple *key,
-    u32                      sfx_len,
     u64                      view_seqno,
     uintptr_t                seqnoref,
     enum key_lookup_res *    res,
@@ -932,7 +927,7 @@ c0kvs_pfx_probe_rcu(
     assert(rcu_read_ongoing());
 
     return c0kvs_pfx_probe_excl(
-        handle, skidx, key, sfx_len, view_seqno, seqnoref, res, qctx, kbuf, vbuf, pt_seq);
+        handle, skidx, key, view_seqno, seqnoref, res, qctx, kbuf, vbuf, pt_seq);
 }
 
 /*

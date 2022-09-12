@@ -141,10 +141,17 @@ route_node_key_modify(
     uint               edge_klen);
 
 static HSE_ALWAYS_INLINE int
-route_node_keycmp(const struct route_node *node, const void *key, uint klen)
+route_node_keycmp(const void *key, uint klen, const struct route_node *node)
 {
-    return keycmp(node->rtn_keybufp, node->rtn_keylen, key, klen);
+    return keycmp(key, klen, node->rtn_keybufp, node->rtn_keylen);
 }
+
+static HSE_ALWAYS_INLINE int
+route_node_keycmp_prefix(const void *pfx, uint pfxlen, const struct route_node *node)
+{
+    return keycmp_prefix(pfx, pfxlen, node->rtn_keybufp, node->rtn_keylen);
+}
+
 
 #if HSE_MOCKING
 #include "route_ut.h"

@@ -94,7 +94,6 @@ struct cn_tree {
     struct list_head     ct_nodes;
     uint16_t             ct_fanout;
     u16                  ct_pfx_len;
-    u16                  ct_sfx_len;
     bool                 ct_nospace;
     bool                 ct_rspills_wedged;
     struct cn           *cn;

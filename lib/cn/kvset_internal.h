@@ -76,7 +76,6 @@ struct kvset {
     uint64_t      ks_dgen_lo; /* relative age of entries (lo) */
     struct mpool *ks_mp;
     u32           ks_pfx_len; /* cn tree pfx_len */
-    u32           ks_sfx_len; /* cn tree sfx_len */
     uint16_t      ks_rule;
     u64           ks_nodeid;
     u32           ks_vmin;

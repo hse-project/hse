@@ -43,7 +43,6 @@ struct c0 {
  * @c0_rp:              configuration data
  * @c0_c0sk:            handle to container poly C0, if within a poly C0
  * @c0_pfx_len:         prefix length for this c0
- * @c0_sfx_len:         suffix length for this c0
  *
  * [HSE_REVISIT]
  */
@@ -52,7 +51,6 @@ struct c0_impl {
     struct c0sk *       c0_c0sk;
     u32                 c0_index;
     s32                 c0_pfx_len;
-    u32                 c0_sfx_len;
     struct cn *         c0_cn;
     struct kvs_rparams *c0_rp; /* not owned by c0 */
 };
@@ -91,14 +89,6 @@ c0_get_pfx_len(struct c0 *handle)
     struct c0_impl *self = c0_h2r(handle);
 
     return self->c0_pfx_len;
-}
-
-u32
-c0_get_sfx_len(struct c0 *handle)
-{
-    struct c0_impl *self = c0_h2r(handle);
-
-    return self->c0_sfx_len;
 }
 
 merr_t
@@ -170,7 +160,6 @@ c0_pfx_probe(
         self->c0_c0sk,
         self->c0_index,
         self->c0_pfx_len,
-        self->c0_sfx_len,
         kt,
         view_seqno,
         seqnoref,
@@ -202,7 +191,6 @@ c0_open(
 
     assert(cn);
     new_c0->c0_pfx_len = cp->pfx_len;
-    new_c0->c0_sfx_len = cp->sfx_len;
     new_c0->c0_cn = cn;
     new_c0->c0_rp = rp;
 
