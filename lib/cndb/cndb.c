@@ -13,6 +13,7 @@
 
 #include <hse_ikvdb/cn.h>
 #include <hse_ikvdb/cndb.h>
+#include <hse_ikvdb/kvdb_rparams.h>
 
 #include <bsd/string.h>
 
@@ -51,6 +52,7 @@ struct cndb {
     uint64_t          cndb_captgt;
     uint64_t          oid1;
     uint64_t          oid2;
+    double            cndb_hwm;
 
     /* Current id values */
     uint64_t         txid_curr;
@@ -125,7 +127,7 @@ cndb_destroy(struct mpool *mp, uint64_t oid1, uint64_t oid2)
 }
 
 merr_t
-cndb_open(struct mpool *mp, uint64_t oid1, uint64_t oid2, bool rdonly, struct cndb **cndb_out)
+cndb_open(struct mpool *mp, uint64_t oid1, uint64_t oid2, struct kvdb_rparams *rp, struct cndb **cndb_out)
 {
     struct cndb *cndb;
     merr_t err;
@@ -141,7 +143,8 @@ cndb_open(struct mpool *mp, uint64_t oid1, uint64_t oid2, bool rdonly, struct cn
     cndb->ingestid_max = 0;
     cndb->txhorizon_max = 0;
     cndb->replaying = false;
-    cndb->rdonly = rdonly;
+    cndb->cndb_hwm = rp->cndb_compact_hwm_pct;
+    cndb->rdonly = rp->read_only;
 
     cndb->tx_map = map_create(1024);
     cndb->cn_map = map_create(HSE_KVS_COUNT_MAX);
@@ -152,7 +155,7 @@ cndb_open(struct mpool *mp, uint64_t oid1, uint64_t oid2, bool rdonly, struct cn
         goto err_out;
     }
 
-    err = mpool_mdc_open(mp, oid1, oid2, rdonly, &cndb->mdc);
+    err = mpool_mdc_open(mp, oid1, oid2, cndb->rdonly, &cndb->mdc);
     if (ev(err)) {
         map_destroy(cndb->tx_map);
         map_destroy(cndb->cn_map);
@@ -262,13 +265,14 @@ static bool
 cndb_needs_compaction(struct cndb *cndb)
 {
     merr_t err;
-    uint64_t size, allocated, used, hwm;
+    uint64_t size, allocated, used;
+    double hwm;
 
     err = mpool_mdc_usage(cndb->mdc, &size, &allocated, &used);
     if (ev(err))
         return false;
 
-    hwm = (4 * size) / 5;
+    hwm = (cndb->cndb_hwm * size) / 100;
 
     return used > hwm;
 }
@@ -737,11 +741,15 @@ compact_incomplete_intents(
     if (!isadd)
         return cndb_omf_kvset_del_write(cndb->mdc, txid, kvset->ck_cnid, kvset->ck_kvsetid);
 
+    if (cndb_txn_can_rollforward(tx))
+        return 0;
+
     err = cndb_omf_kvset_add_write(cndb->mdc, txid, kvset->ck_cnid, kvset->ck_kvsetid,
                                    kvset->ck_nodeid, kvset->ck_dgen, kvset->ck_vused,
                                    kvset->ck_compc, kvset->ck_rule, kvset->ck_hblkid,
                                    kvset->ck_kblkc, kvset->ck_kblkv,
                                    kvset->ck_vblkc, kvset->ck_vblkv);
+
     return err;
 }
 
@@ -758,6 +766,9 @@ compact_incomplete_acks(
     int type = isadd ? CNDB_ACK_TYPE_ADD : CNDB_ACK_TYPE_DEL;
 
     if (!isacked)
+        return 0;
+
+    if (isadd && cndb_txn_can_rollforward(tx))
         return 0;
 
     return cndb_omf_ack_write(cndb->mdc, txid, kvset->ck_cnid, type, kvset->ck_kvsetid);
@@ -861,6 +872,12 @@ cndb_compact(struct cndb *cndb)
         uint16_t add_cnt, del_cnt;
 
         cndb_txn_cnt_get(tx, &add_cnt, &del_cnt);
+
+        if (cndb_txn_can_rollforward(tx)) {
+            add_cnt = 0;
+            assert(del_cnt);
+        }
+
         err = cndb_omf_txstart_write(cndb->mdc, txid, cndb->seqno_max, cndb->ingestid_max,
                                      cndb->txhorizon_max, add_cnt, del_cnt);
         if (ev(err))

@@ -28,6 +28,9 @@
 #define HSE_C0_MAINT_THREADS_DFLT   (3)
 #define HSE_C0_MAINT_THREADS_MAX    (7)
 
+/* CNDB */
+#define HSE_CNDB_COMPACT_HWM_PCT_DEFAULT (80)
+
 /* The defines for the max number of entries in the viewset and snr
  * caches are totals for the entire cache.  Any given thread will
  * likely be able to access only a fraction of the total.

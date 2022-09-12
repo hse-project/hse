@@ -10,6 +10,8 @@
 #include <hse_util/list.h>
 
 #include <hse_ikvdb/cndb.h>
+#include <hse_ikvdb/kvdb_rparams.h>
+
 #include <mpool/mpool.h>
 
 #include <cn/kvset.h>
@@ -198,11 +200,12 @@ test_pre(struct mtf_test_info *lcl_ti)
     uint64_t oid1, oid2;
     struct mpool *mp = (void *)-1;
     merr_t err;
+    struct kvdb_rparams rp = kvdb_rparams_defaults();
 
     err = cndb_create(mp, 0, &oid1, &oid2);
     ASSERT_EQ_RET(0, err, -1);
 
-    err = cndb_open(mp, oid1, oid2, false, &cndb);
+    err = cndb_open(mp, oid1, oid2, &rp, &cndb);
     ASSERT_EQ_RET(0, err, -1);
 
     struct kvs_cparams cp = kvs_cparams_defaults();
@@ -440,7 +443,8 @@ MTF_DEFINE_UTEST_PREPOST(cndb_test, replay_full, test_pre, test_post)
     err = cndb_close(cndb);
     ASSERT_EQ(0, err);
 
-    err = cndb_open(mp, 0, 0, false, &cndb);
+    struct kvdb_rparams rp = kvdb_rparams_defaults();
+    err = cndb_open(mp, 0, 0, &rp, &cndb);
     ASSERT_EQ(0, err);
 
     uint64_t seqno_out, ingestid_out, txhorizon_out;
@@ -523,7 +527,8 @@ MTF_DEFINE_UTEST_PREPOST(cndb_test, rollback, test_pre, test_post)
     err = cndb_close(cndb);
     ASSERT_EQ(0, err);
 
-    err = cndb_open(mp, 0, 0, false, &cndb);
+    struct kvdb_rparams rp = kvdb_rparams_defaults();
+    err = cndb_open(mp, 0, 0, &rp, &cndb);
     ASSERT_EQ(0, err);
 
     uint64_t seqno_out, ingestid_out, txhorizon_out;
@@ -612,7 +617,8 @@ MTF_DEFINE_UTEST_PREPOST(cndb_test, rollforward, test_pre, test_post)
     err = cndb_close(cndb);
     ASSERT_EQ(0, err);
 
-    err = cndb_open(mp, 0, 0, false, &cndb);
+    struct kvdb_rparams rp = kvdb_rparams_defaults();
+    err = cndb_open(mp, 0, 0, &rp, &cndb);
     ASSERT_EQ(0, err);
 
     uint64_t seqno_out, ingestid_out, txhorizon_out;
@@ -639,7 +645,7 @@ MTF_DEFINE_UTEST_PREPOST(cndb_test, rollforward, test_pre, test_post)
     err = cndb_close(cndb);
     ASSERT_EQ(0, err);
 
-    err = cndb_open(mp, 0, 0, false, &cndb);
+    err = cndb_open(mp, 0, 0, &rp, &cndb);
     ASSERT_EQ(0, err);
 
     mapi_calls_clear(mapi_idx_mpool_mblock_delete);
@@ -661,7 +667,8 @@ MTF_DEFINE_UTEST(cndb_test, multiple_kvs)
     err = cndb_create(mp, 0, &oid1, &oid2);
     ASSERT_EQ(0, err);
 
-    err = cndb_open(mp, oid1, oid2, false, &cndb);
+    struct kvdb_rparams rp = kvdb_rparams_defaults();
+    err = cndb_open(mp, oid1, oid2, &rp, &cndb);
     ASSERT_EQ(0, err);
 
     uint64_t cnid;
@@ -698,7 +705,7 @@ MTF_DEFINE_UTEST(cndb_test, multiple_kvs)
     err = cndb_close(cndb);
     ASSERT_EQ(0, err);
 
-    err = cndb_open(mp, oid1, oid2, false, &cndb);
+    err = cndb_open(mp, oid1, oid2, &rp, &cndb);
     ASSERT_EQ(0, err);
 
     uint64_t seqno_out, ingestid_out, txhorizon_out;
@@ -793,7 +800,8 @@ MTF_DEFINE_UTEST_PREPOST(cndb_test, compact_no_recovery, test_pre, test_post)
     err = cndb_close(cndb);
     ASSERT_EQ(0, err);
 
-    err = cndb_open(mp, 0, 0, false, &cndb);
+    struct kvdb_rparams rp = kvdb_rparams_defaults();
+    err = cndb_open(mp, 0, 0, &rp, &cndb);
     ASSERT_EQ(0, err);
 
     mapi_calls_clear(mapi_idx_mpool_mblock_delete);
@@ -865,8 +873,9 @@ MTF_DEFINE_UTEST_PREPOST(cndb_test, only_deletes_rollforward, test_pre, test_pos
     ASSERT_EQ(0, err);
 
     struct mpool *mp = (void *)-1;
+    struct kvdb_rparams rp = kvdb_rparams_defaults();
 
-    err = cndb_open(mp, 0, 0, false, &cndb);
+    err = cndb_open(mp, 0, 0, &rp, &cndb);
     ASSERT_EQ(0, err);
 
     mapi_calls_clear(mapi_idx_mpool_mblock_delete);

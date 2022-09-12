@@ -1101,7 +1101,7 @@ ikvdb_diag_open(
         self->ikdb_mp,
         self->ikdb_cndb_oid1,
         self->ikdb_cndb_oid2,
-        self->ikdb_read_only,
+        &self->ikdb_rp,
         &self->ikdb_cndb);
     if (err)
         goto kvdb_pfxlock_cleanup;
@@ -1287,7 +1287,7 @@ ikvdb_cndb_open(struct ikvdb_impl *self, u64 *seqno, u64 *ingestid, u64 *txhoriz
         self->ikdb_mp,
         self->ikdb_cndb_oid1,
         self->ikdb_cndb_oid2,
-        self->ikdb_read_only,
+        &self->ikdb_rp,
         &self->ikdb_cndb);
     if (ev(err))
         return err;

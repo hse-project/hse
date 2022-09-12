@@ -268,13 +268,13 @@ cndb_txn_needs_rollback(struct cndb_txn *tx)
 bool
 cndb_txn_can_rollforward(struct cndb_txn *tx)
 {
-    return tx->add_cnt_seen == tx->add_ack_cnt_seen;
+    return !list_empty(&tx->kvset_list) && tx->add_cnt_seen == tx->add_ack_cnt_seen;
 }
 
 bool
 cndb_txn_is_complete(struct cndb_txn *tx)
 {
-    return tx->add_cnt_seen + tx->del_cnt_seen == tx->add_ack_cnt_seen + tx->del_ack_cnt_seen;
+    return cndb_txn_can_rollforward(tx) && tx->del_cnt_seen == tx->del_ack_cnt_seen;
 }
 
 void
