@@ -128,9 +128,9 @@ merr_file(merr_t err);
  * merr_errno() - Return the errno from given merr_t
  */
 static HSE_ALWAYS_INLINE int
-merr_errno(merr_t merr)
+merr_errno(merr_t err)
 {
-    return merr & MERR_ERRNO_MASK;
+    return err & MERR_ERRNO_MASK;
 }
 
 /**
@@ -148,7 +148,7 @@ merr_ctx(merr_t err)
 static HSE_ALWAYS_INLINE int
 merr_lineno(merr_t err)
 {
-    return (err & MERR_LINE_MASK) >> MERR_LINE_SHIFT;
+    return (int)((err & MERR_LINE_MASK) >> MERR_LINE_SHIFT);
 }
 
 #endif

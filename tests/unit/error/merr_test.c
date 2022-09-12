@@ -91,9 +91,6 @@ MTF_DEFINE_UTEST(hse_err_test, merr_test_1)
     merr_strerror(merr_errno(err), errbuf, sizeof(errbuf));
     ASSERT_EQ(0, strcmp(errbuf, "HSE software bug"));
 
-    err = -1;
-    ASSERT_EQ(NULL, merr_file(err));
-
     err = 0;
     ASSERT_EQ(0, merr_file(err));
 
