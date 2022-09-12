@@ -1,6 +1,6 @@
 /* SPDX-License-Identifier: Apache-2.0 */
 /*
- * Copyright (C) 2021 Micron Technology, Inc.  All rights reserved.
+ * Copyright (C) 2021-2022 Micron Technology, Inc.  All rights reserved.
  */
 
 #include <mtf/framework.h>
@@ -228,12 +228,23 @@ MTF_DEFINE_UTEST_PRE(hse_gparams_test, socket_enabled, test_pre)
 
 MTF_DEFINE_UTEST_PRE(hse_gparams_test, socket_path, test_pre)
 {
-    merr_t                   err;
+    merr_t err;
+    struct hse_gparams other;
+    const char *dir, *xdg_runtime_dir;
+    char buf[sizeof(params.gp_socket.path)];
     const struct param_spec *ps = ps_get("socket.path");
 
-    char buf[sizeof(params.gp_socket.path)];
+    xdg_runtime_dir = getenv("XDG_RUNTIME_DIR");
 
-    snprintf(buf, sizeof(buf), "/tmp/hse-%d.sock", getpid());
+    xdg_runtime_dir = getenv("XDG_RUNTIME_DIR");
+    if (!xdg_runtime_dir) {
+        dir = "/tmp";
+    } else {
+        dir = xdg_runtime_dir;
+    }
+
+    snprintf(buf, sizeof(buf), "%s%shse-%d.sock", dir, dir[strlen(dir) - 1] == '/' ? "" : "/",
+        getpid());
 
     ASSERT_NE(NULL, ps);
     ASSERT_NE(NULL, ps->ps_description);
@@ -250,6 +261,29 @@ MTF_DEFINE_UTEST_PRE(hse_gparams_test, socket_path, test_pre)
 
     err = check("socket.path=null", false, NULL);
     ASSERT_EQ(0, err);
+
+    if (!xdg_runtime_dir) {
+        setenv("XDG_RUNTIME_DIR", "/run/user/1000", 1);
+        dir = getenv("XDG_RUNTIME_DIR");
+        assert(dir);
+    } else {
+        dir = "/tmp";
+        unsetenv("XDG_RUNTIME_DIR");
+    }
+
+    snprintf(buf, sizeof(buf), "%s%shse-%d.sock", dir, dir[strlen(dir) - 1] == '/' ? "" : "/",
+        getpid());
+
+    other = hse_gparams_defaults();
+
+    ASSERT_STREQ(buf, other.gp_socket.path);
+
+    setenv("XDG_RUNTIME_DIR", "relative", 1);
+    snprintf(buf, sizeof(buf), "/tmp/hse-%d.sock", getpid());
+
+    other = hse_gparams_defaults();
+
+    ASSERT_STREQ(buf, other.gp_socket.path);
 }
 
 MTF_DEFINE_UTEST_PRE(hse_gparams_test, logging_enabled, test_pre)
