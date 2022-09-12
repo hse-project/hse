@@ -423,6 +423,12 @@ kvset_builder_finish(struct kvset_builder *imp)
          */
         vbb_destroy(imp->vbb);
         imp->vbb = NULL;
+
+        if (adopted_vbs) {
+            blk_list_free(&imp->vblk_list);
+            vgmap_free(imp->vgmap);
+            imp->vgmap = NULL;
+        }
     }
 
     err = kbb_finish(imp->kbb, &imp->kblk_list);
