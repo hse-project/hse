@@ -340,9 +340,9 @@ sp3_work_wtype_split(
      * an opportunity to split an rspill could have shrunk this node
      * below the split size.
      */
-    splittable = (cn_ns_clen(&tn->tn_ns) >= tn->tn_split_size) ||
-        (cn_ns_keys_uniq(&tn->tn_ns) >= thresh->lcomp_split_keys);
-    splittable &= (kvsets > 0);
+    splittable = (kvsets > 0) &&
+        (cn_ns_clen(&tn->tn_ns) >= tn->tn_split_size ||
+         cn_ns_keys_uniq(&tn->tn_ns) >= thresh->lcomp_split_keys);
 
     mutex_lock(&tn->tn_ss_lock);
     if (splittable) {
