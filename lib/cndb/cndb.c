@@ -52,7 +52,7 @@ struct cndb {
     uint64_t          cndb_captgt;
     uint64_t          oid1;
     uint64_t          oid2;
-    uint32_t          cndb_hwm;
+    double            cndb_hwm;
 
     /* Current id values */
     uint64_t         txid_curr;
@@ -143,7 +143,7 @@ cndb_open(struct mpool *mp, uint64_t oid1, uint64_t oid2, struct kvdb_rparams *r
     cndb->ingestid_max = 0;
     cndb->txhorizon_max = 0;
     cndb->replaying = false;
-    cndb->cndb_hwm = rp->cndb_compact_hwm;
+    cndb->cndb_hwm = rp->cndb_compact_hwm_pct;
     cndb->rdonly = rp->read_only;
 
     cndb->tx_map = map_create(1024);
@@ -265,14 +265,14 @@ static bool
 cndb_needs_compaction(struct cndb *cndb)
 {
     merr_t err;
-    uint64_t size, allocated, used, hwm;
-    const uint64_t base = 100 * 100;
+    uint64_t size, allocated, used;
+    double hwm;
 
     err = mpool_mdc_usage(cndb->mdc, &size, &allocated, &used);
     if (ev(err))
         return false;
 
-    hwm = (cndb->cndb_hwm * size) / base;
+    hwm = (cndb->cndb_hwm * size) / 100;
 
     return used > hwm;
 }

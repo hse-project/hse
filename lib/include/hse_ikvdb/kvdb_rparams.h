@@ -95,7 +95,7 @@ struct kvdb_rparams {
     uint32_t c0_ingest_threads;
     uint16_t cn_maint_threads;
     uint16_t cn_io_threads;
-    uint32_t cndb_compact_hwm;
+    uint32_t cndb_compact_hwm_pct;
 
     uint32_t keylock_tables;
 

@@ -44,7 +44,7 @@ hse.init(cli.CONFIG)
 
 try:
     with ExitStack() as stack:
-        kvdb_ctx = lifecycle.KvdbContext().rparams("durability.enabled=false", "c0_debug=16", "cndb_compact_hwm=2")
+        kvdb_ctx = lifecycle.KvdbContext().rparams("durability.enabled=false", "c0_debug=16", "cndb_compact_hwm_pct=0.02")
         kvdb = stack.enter_context(kvdb_ctx)
 
         nkeys = 150
