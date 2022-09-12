@@ -290,7 +290,6 @@ cn_subspill(
         struct kv_iterator *iter = kvset_cursor_es_h2r(sctx->curr->src);
 
         curr_klen = key_obj_len(&sctx->curr->kobj);
-        assert(curr_klen >= w->cw_cp->sfx_len || sctx->curr->vctx.is_ptomb);
 
         if (new_key) {
             bg_val = false;

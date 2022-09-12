@@ -7,47 +7,22 @@
 #define HSE_KVS_QCTX_H
 
 #include <hse/error/merr.h>
-
-#include <rbtree.h>
-
-#include <pthread.h>
-
-extern pthread_key_t tomb_thread_key;
-
-/**
- * struct tomb_elem - an element in the rb tree.
- * @node: rb node
- * @hash: sfx hash
- */
-struct tomb_elem {
-    struct rb_node node;
-    u64            hash;
-};
-
 /**
  * struct query_ctx - context for special queries (pfx probe)
- * @tomb_tree: shrub for tombstones
- * @pos:       current position in the memory region backing tomb elems
- * @ntombs:    number of tombstones encountered in current query
- * @seen:      number of unique keys seen
+ * @tomb_map: map for tombstones
+ * @pos:      current position in the memory region backing tomb elems
+ * @seen:     number of unique keys seen
  */
 struct query_ctx {
     int            pos;
-    uint           ntombs;
     int            seen;
-    struct rb_root tomb_tree;
+    struct map    *tomb_map;
 };
 
 merr_t
-qctx_tomb_insert(struct query_ctx *qctx, const void *sfx, size_t sfx_len);
+qctx_tomb_insert(struct query_ctx *qctx, const void *key, size_t klen);
 
 bool
-qctx_tomb_seen(struct query_ctx *qctx, const void *sfx, size_t sfx_len);
-
-void
-qctx_te_mem_reset(void);
-
-merr_t
-qctx_te_mem_init(void);
+qctx_tomb_seen(struct query_ctx *qctx, const void *key, size_t klen);
 
 #endif /* HSE_KVS_QCTX_H */

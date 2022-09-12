@@ -171,7 +171,6 @@ cn_kvcompact(struct cn_compaction_work *w)
         struct kv_iterator *iter = kvset_cursor_es_h2r(curr->src);
 
         curr_klen = key_obj_len(&curr->kobj);
-        assert(curr_klen >= w->cw_cp->sfx_len || curr->vctx.is_ptomb);
 
         if (new_key) {
             bg_val = false;

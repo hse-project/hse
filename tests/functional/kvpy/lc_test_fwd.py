@@ -37,7 +37,7 @@ def separate_keys(kvdb: hse.Kvdb, kvs: hse.Kvs):
     # Probe
     cnt, k, _, v, _ = kvs.prefix_probe(b"ab0")
     assert cnt == hse.KvsPfxProbeCnt.MUL
-    assert (k, v) == (b"ab01", b"val-cn")
+    assert (k, v) == (b"ab03", b"val-c0")
 
     # Cursor
     with kvs.cursor(filt=b"ab") as c:
@@ -101,7 +101,10 @@ def duplicate_lc_cn(kvdb: hse.Kvdb, kvs: hse.Kvs, cursor_sync: bool = False):
         # Probe
         cnt, k, _, v, _ = kvs.prefix_probe(b"ab0")
         assert cnt == hse.KvsPfxProbeCnt.MUL
-        assert (k, v) == (b"ab01", b"val-lc")
+        if cursor_sync:
+            assert (k, v) == (b"ab01", b"val-lc")
+        else:
+            assert (k, v) == (b"ab02", b"val-c0")
 
         # Read all keys
         assert c.read() == (b"ab01", b"val-lc")
@@ -161,7 +164,7 @@ def duplicate_c0_lc(kvdb: hse.Kvdb, kvs: hse.Kvs, cursor_sync: bool = False):
         # Probe
         cnt, k, _, v, _ = kvs.prefix_probe(b"ab0")
         assert cnt == hse.KvsPfxProbeCnt.MUL
-        assert (k, v) == (b"ab01", b"val-cn")
+        assert (k, v) == (b"ab02", b"val-c0")
 
         # Read all keys
         assert c.read() == (b"ab01", b"val-cn")

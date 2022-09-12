@@ -117,12 +117,12 @@ try:
 
         kvs1 = (
             lifecycle.KvsContext(kvdb, "kvs1")
-            .cparams("prefix.length=2", "suffix.length=1")
+            .cparams("prefix.length=2")
             .rparams("transactions.enabled=true")
         )
         kvs2 = (
             lifecycle.KvsContext(kvdb, "kvs2")
-            .cparams("prefix.length=2", "suffix.length=1")
+            .cparams("prefix.length=2")
             .rparams("transactions.enabled=true")
         )
 

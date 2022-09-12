@@ -199,7 +199,6 @@ cn_tree_create(
     memset(tree, 0, sizeof(*tree));
     INIT_LIST_HEAD(&tree->ct_nodes);
     tree->ct_pfx_len = cp->pfx_len;
-    tree->ct_sfx_len = cp->sfx_len;
     tree->rp = rp;
     tree->ct_cp = cp;
     mutex_init(&tree->ct_ss_lock);
@@ -795,13 +794,14 @@ cn_tree_lookup(
     uint64_t pc_start;
     void *lock, *wbti;
     merr_t err;
+    bool is_probe = !!qctx;
 
     *res = NOT_FOUND;
 
     pc_start = perfc_lat_startu(pc, PERFC_LT_CNGET_GET);
     pc_cidx = PERFC_LT_CNGET_GET_LEAF + 1;
 
-    if (qctx) {
+    if (is_probe) {
         err = kvset_wbti_alloc(&wbti);
         if (ev(err))
             return err;
@@ -820,6 +820,7 @@ cn_tree_lookup(
     err = 0;
 
     while (node) {
+        struct route_node *rn = node->tn_route_node;
         struct kvset_list_entry *le;
 
         /* Search kvsets from newest to oldest (head to tail).
@@ -828,7 +829,7 @@ cn_tree_lookup(
         list_for_each_entry(le, &node->tn_kvset_list, le_link) {
             struct kvset *kvset = le->le_kvset;
 
-            if (qctx) {
+            if (is_probe) {
                 err = kvset_pfx_lookup(kvset, kt, &kdisc, seq, res, wbti, kbuf, vbuf, qctx);
                 if (err || qctx->seen > 1 || *res == FOUND_PTMB)
                     goto done;
@@ -841,16 +842,34 @@ cn_tree_lookup(
             }
         }
 
-        if (cn_node_isleaf(node))
-            break;
+        if (cn_node_isleaf(node)) {
+            int rc;
 
-        node = cn_tree_node_lookup(tree, kt->kt_data, kt->kt_len);
+            if (!is_probe)
+                break;
+
+            rc = route_node_keycmp_prefix(kt->kt_data, kt->kt_len, rn);
+            if (rc < 0)
+                break;
+
+            assert(rc == 0);
+
+            rn = route_node_next(rn);
+            if (!rn)
+                break;
+
+            node = route_node_tnode(rn);
+
+        } else {
+
+            node = cn_tree_node_lookup(tree, kt->kt_data, kt->kt_len);
+        }
     }
 
   done:
     rmlock_runlock(lock);
 
-    if (qctx) {
+    if (is_probe) {
         perfc_lat_record(pc, PERFC_LT_CNGET_PROBE_PFX, pc_start);
         kvset_wbti_free(wbti);
     } else {
@@ -1443,7 +1462,7 @@ cn_comp_update_split(
                     kvset_list_add_tail(kvsets[k], &right->tn_kvset_list);
             }
 
-            assert(route_node_keycmp(right->tn_route_node, w->cw_split.key, w->cw_split.klen) > 0);
+            assert(route_node_keycmp(w->cw_split.key, w->cw_split.klen, right->tn_route_node) < 0);
 
             w->cw_split.nodev[RIGHT] = right;
         }
@@ -1455,7 +1474,7 @@ cn_comp_update_split(
             if (route_map_insert_by_node(tree->ct_route_map, left->tn_route_node))
                 abort();
 
-            assert(route_node_keycmp(left->tn_route_node, w->cw_split.key, w->cw_split.klen) == 0);
+            assert(route_node_keycmp(w->cw_split.key, w->cw_split.klen, left->tn_route_node) == 0);
 
             /* Insert the "left" node to the left of the node in the tree
              * nodes list from which it was split.
@@ -2025,7 +2044,7 @@ cn_kvset_can_zspill(struct kvset *ks, struct route_map *map)
     rn = route_map_lookup(map, minkey, minklen);
     assert(rn);
 
-    if (route_node_keycmp(rn, maxkey, maxklen) < 0)
+    if (route_node_keycmp(maxkey, maxklen, rn) > 0)
         return NULL;
 
     return route_node_tnode(rn);

@@ -78,7 +78,6 @@ lc_pfx_probe(
     u64                      view_seqno,
     uintptr_t                seqnoref,
     uint                     pfxlen,
-    uint                     sfxlen,
     enum key_lookup_res *    res,
     struct query_ctx *       qctx,
     struct kvs_buf *         kbuf,

@@ -12,7 +12,7 @@ from hse3 import hse
 
 hse.init(cli.CONFIG)
 
-KVS_CPARAMS: Tuple[str, ...] = ("prefix.length=2", "suffix.length=1")
+KVS_CPARAMS: Tuple[str, ...] = ("prefix.length=2",)
 
 try:
     with lifecycle.KvdbContext() as kvdb:

@@ -29,8 +29,7 @@ kvs_drop "$kvs2"
 cmd putbin -V "-c$keys" "$home" "$kvs"
 
 # verify that kvs2 has been deleted
-cmd cndb_log "$home" | cmd grep 'kvs_del'
+cmd cndump cndb "$home" | cmd grep 'kvs_del'
 
-numkvs=$(hse kvdb info "$home" | sed -n '/kvslist/,$p' | wc -l)
-numkvs=$((numkvs - 1))
+numkvs=$(hse kvdb info "$home" | wc -l)
 [[ $numkvs == 1 ]] || err "Expected 1 kvs, found $numkvs"

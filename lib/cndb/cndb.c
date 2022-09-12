@@ -312,10 +312,6 @@ cndb_record_kvs_add_inner(
     cn->cnid = *cnid;
     cn->cp = *cp;
 
-    /* [HSE_REVISIT] Instead remove sfx_len altogether, also from mongo.
-     */
-    cn->cp.sfx_len = 0;
-
     strlcpy(cn->name, name, NELEM(cn->name));
 
     cn->kvset_map = map_create(HSE_KVS_COUNT_MAX);

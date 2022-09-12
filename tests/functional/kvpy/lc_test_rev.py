@@ -349,7 +349,7 @@ try:
         kvdb_ctx = lifecycle.KvdbContext().rparams("durability.enabled=false", "c0_debug=16")
         kvdb = stack.enter_context(kvdb_ctx)
 
-        kvs_ctx = lifecycle.KvsContext(kvdb, "test_kvs").cparams("prefix.length=2", "suffix.length=1").rparams("transactions.enabled=true")
+        kvs_ctx = lifecycle.KvsContext(kvdb, "test_kvs").cparams("prefix.length=2").rparams("transactions.enabled=true")
 
         with kvs_ctx as kvs:
             separate_keys(kvdb, kvs)

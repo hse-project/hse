@@ -16,7 +16,6 @@
 
 struct kvs_cparams {
     uint32_t  pfx_len;
-    uint32_t  sfx_len;
     uint32_t  kvs_ext01;
 };
 

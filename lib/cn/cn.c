@@ -335,12 +335,6 @@ cn_get_cparams(const struct cn *handle)
     return handle->cp;
 }
 
-size_t
-cn_get_sfx_len(struct cn *cn)
-{
-    return cn->cp->sfx_len;
-}
-
 merr_t
 cn_get(
     struct cn *          cn,
@@ -1405,7 +1399,6 @@ cn_make(struct mpool *mp, const struct kvs_cparams *cp, struct kvdb_health *heal
     rp = kvs_rparams_defaults();
 
     icp.pfx_len = cp->pfx_len;
-    icp.sfx_len = cp->sfx_len;
 
     err = cn_tree_create(&tree, NULL, cn_cp2cflags(cp), &icp, health, &rp);
     if (!err)

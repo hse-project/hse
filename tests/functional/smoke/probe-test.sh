@@ -9,7 +9,7 @@
 trap kvdb_drop EXIT
 kvdb_create
 
-kvs=$(kvs_create smoke-0 prefix.length=8 suffix.length=8)
+kvs=$(kvs_create smoke-0 prefix.length=8)
 
 typeset -i p=100
 typeset -i c=50
