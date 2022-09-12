@@ -721,7 +721,7 @@ int
 parm_vec_init(void)
 {
     char *txn = testtxn ? "transactions.enabled=true" : "transactions.enabled=false";
-    char *cmp = vcomp ? "compression.value.algorithm=lz4" : "";
+    char *cmp = vcomp ? "compression.algorithm=lz4" : "";
     char rids_pfx[64] = {};
     int rc = 0;
 

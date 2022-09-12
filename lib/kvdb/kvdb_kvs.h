@@ -8,6 +8,7 @@
 
 #include <hse/limits.h>
 
+#include <hse_ikvdb/vcomp_params.h>
 #include <hse_util/atomic.h>
 #include <hse_util/inttypes.h>
 #include <hse_util/list.h>
@@ -22,7 +23,6 @@ struct kvdb_kvs;
  * struct kvdb_kvs - Describes a kvs in the kvdb - open or closed
  * @kk_ikvs:         kvs handle. NULL if closed.
  * @kk_parent:       pointer to parent kvdb_impl instance.
- * @kk_vcompmin:     value length above which compression is considered
  * @kk_vcompbnd:     compression output buffer size estimate for tls_vbuf[]
  * @kk_vcompress:    ptr to value compression function
  * @kk_cnid:         id of the cn associated with kvdb.
@@ -36,7 +36,7 @@ struct kvdb_kvs {
     struct ikvs            *kk_ikvs;
     struct viewset         *kk_viewset;
     struct ikvdb_impl      *kk_parent;
-    u32                     kk_vcompmin;
+    enum vcomp_default      kk_vcomp_default;
     u32                     kk_vcompbnd;
     compress_op_compress_t *kk_vcompress;
     u64                     kk_cnid;

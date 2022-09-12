@@ -70,8 +70,10 @@ struct kvs_rparams {
 
     uint64_t capped_evict_ttl;
 
-    uint32_t             vcompmin;
-    enum vcomp_algorithm value_compression;
+    struct {
+        enum vcomp_default deflt;
+        enum vcomp_algorithm algorithm;
+    } compression;
 
     char mclass_policy[HSE_MPOLICY_NAME_LEN_MAX];
 };

@@ -19,6 +19,7 @@ extern "C" {
 /* hse_kvs_put() flags */
 #define HSE_KVS_PUT_PRIO      (1u << 0)
 #define HSE_KVS_PUT_VCOMP_OFF (1u << 1)
+#define HSE_KVS_PUT_VCOMP_ON  (1u << 2)
 
 /* hse_kvs_cursor_create() flags */
 #define HSE_CURSOR_CREATE_REV (1u << 0)

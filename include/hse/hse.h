@@ -693,15 +693,20 @@ hse_kvs_prefix_delete(
  * issue. On the other hand, doing 1K small puts per second marked as PRIO is
  * almost certainly fine.
  *
- * If compression is enabled for the given kvs, then hse_kvs_put() will attempt
- * to compress the value unless the HSE_KVS_PUT_VCOMP_OFF flag is given.
+ * If compression is on by default for the given kvs, then hse_kvs_put() will
+ * attempt to compress the value unless the HSE_KVS_PUT_VCOMP_OFF flag is given.
  * Otherwise, the HSE_KVS_PUT_VCOMP_OFF flag is ignored.
+ *
+ * If compression is off by default for the given kvs, then hse_kvs_put() will
+ * not attempt to compress a value unless the HSE_KVS_PUT_VCOMP_ON flag is
+ * given. Otherwise, the HSE_KVS_PUT_VCOMP_ON flag is ignored.
  *
  * @note This function is thread safe.
  *
  * <b>Flags:</b>
  * @arg HSE_KVS_PUT_PRIO - Operation will not be throttled.
  * @arg HSE_KVS_PUT_VCOMP_OFF - Value will not be compressed.
+ * @arg HSE_KVS_PUT_VCOMP_ON - Value may be compressed.
  *
  * @param kvs: KVS handle from hse_kvdb_kvs_open().
  * @param flags: Flags for operation specialization.
