@@ -275,9 +275,11 @@ sp3_work_wtype_idle(
         return kvsets;
     }
 
-    /* Compact if the preponderance of keys appears to be tombs.
+    /* Compact the node if the preponderance of keys appears to be tombs or
+     * if all kvsets are ptomb-only.
      */
-    if (cn_ns_tombs(&tn->tn_ns) * 100 > cn_ns_keys_uniq(&tn->tn_ns) * 90) {
+    if ((cn_ns_tombs(&tn->tn_ns) * 100 > cn_ns_keys_uniq(&tn->tn_ns) * 90) ||
+        cn_ns_keys(&tn->tn_ns) == 0) {
         *rule = CN_RULE_IDLE_TOMB;
         return kvsets;
     }
@@ -503,6 +505,7 @@ sp3_work_wtype_length(
         /* Start from oldest kvset, find first run of 'runlen_min' kvsets
          * with the same 'compc' value, then k-compact those kvsets and up
          * to 'runlen_max' newer.  Skip kvsets with enormous key counts.
+         * Include contiguous ptomb-only kvsets in the run.
          */
         list_for_each_entry_reverse(le, head, le_link) {
             if (runlen < runlen_min) {
@@ -520,6 +523,9 @@ sp3_work_wtype_length(
             stats = kvset_statsp(le->le_kvset);
             vwlen += stats->kst_vwlen;
             wlen += stats->kst_kwlen + stats->kst_vwlen;
+
+            if (stats->kst_keys == 0)
+                ++runlen_max;
 
             if (++runlen >= runlen_max)
                 break;

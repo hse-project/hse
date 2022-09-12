@@ -14,6 +14,7 @@
 struct key_obj;
 struct wbb;
 struct wbt_hdr_omf;
+struct wbt_desc;
 
 /* Create a wbtree builder
  *
@@ -81,6 +82,9 @@ wbb_add_entry(
 
 void
 wbb_hdr_init(struct wbt_hdr_omf *hdr);
+
+void
+wbb_hdr_set(struct wbt_hdr_omf *hdr, struct wbt_desc *desc);
 
 /**
  * wbb_freeze() - finalize a wbtree

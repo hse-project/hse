@@ -158,7 +158,7 @@ MTF_DEFINE_UTEST_PREPOST(hblock_builder_test, add_ptomb_success, test_pre, test_
     err = hbb_create(&bld, cn, NULL);
     ASSERT_EQ(0, merr_errno(err));
 
-    err = hbb_finish(bld, &blk, vgmap, NULL, NULL, 0, 1, 1, 3, 0, hlog, NULL, 0);
+    err = hbb_finish(bld, &blk, vgmap, NULL, NULL, 0, 1, 1, 3, 0, hlog, NULL, NULL, 0);
     ASSERT_EQ(0, merr_errno(err));
 
     err = mpool_mblock_read(mpool, blk.bk_blkid, iov, NELEM(iov), 0);
@@ -179,7 +179,7 @@ MTF_DEFINE_UTEST_PREPOST(hblock_builder_test, add_ptomb_success, test_pre, test_
     err = add_ptomb(bld, HSE_KVS_PFX_LEN_MAX, 9, &pfx);
     ASSERT_EQ(0, merr_errno(err));
 
-    err = hbb_finish(bld, &blk, vgmap, NULL, NULL, 0, 1, 1, 3, 1, hlog, NULL, 0);
+    err = hbb_finish(bld, &blk, vgmap, NULL, NULL, 0, 1, 1, 3, 1, hlog, NULL, NULL, 0);
     ASSERT_EQ(0, merr_errno(err));
 
     err = mpool_mblock_read(mpool, blk.bk_blkid, iov, NELEM(iov), 0);
@@ -231,7 +231,7 @@ MTF_DEFINE_UTEST_PREPOST(hblock_builder_test, add_ptomb_success, test_pre, test_
         }
     }
 
-    err = hbb_finish(bld, &blk, vgmap, NULL, NULL, 0, 1, 1, 3, 190, hlog, NULL, 0);
+    err = hbb_finish(bld, &blk, vgmap, NULL, NULL, 0, 1, 1, 3, 190, hlog, NULL, NULL, 0);
     ASSERT_EQ(0, merr_errno(err));
 
     err = mpool_mblock_read(mpool, blk.bk_blkid, iov, NELEM(iov), 0);
@@ -261,7 +261,7 @@ MTF_DEFINE_UTEST_PREPOST(hblock_builder_test, finish_null_hlog, test_pre, test_p
     err = hbb_create(&bld, cn, NULL);
     ASSERT_EQ(0, merr_errno(err));
 
-    err = hbb_finish(bld, &blk, vgmap, NULL, NULL, 0, 1, 1, 3, 0, NULL, NULL, 0);
+    err = hbb_finish(bld, &blk, vgmap, NULL, NULL, 0, 1, 1, 3, 0, NULL, NULL, NULL, 0);
     ASSERT_EQ(EINVAL, merr_errno(err));
 
     hbb_destroy(bld);

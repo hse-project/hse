@@ -1589,7 +1589,7 @@ cn_comp_commit(struct cn_compaction_work *w)
         w->cw_keep_vblks = false;
 
     alloc_len = sizeof(*kvsets) * w->cw_outc;
-    if (use_mbsets) {
+    if (use_mbsets && w->cw_keep_vblks) {
         /* For k-compaction, create new kvset with references to
          * mbsets from input kvsets instead of creating new mbsets.
          * We need extra allocations for this.
@@ -1606,7 +1606,7 @@ cn_comp_commit(struct cn_compaction_work *w)
 
     cookiev = (void *)kvsets + alloc_len;
 
-    if (use_mbsets) {
+    if (use_mbsets && w->cw_keep_vblks) {
         struct kvset_list_entry *le;
         uint i;
 
@@ -1639,9 +1639,6 @@ cn_comp_commit(struct cn_compaction_work *w)
         err = cn_split_nodes_alloc(w, split_nodeidv, split_nodev);
         if (err)
             goto done;
-
-        atomic_set(&split_nodev[0]->tn_sgen, w->cw_node->tn_sgen);
-        atomic_set(&split_nodev[1]->tn_sgen, w->cw_node->tn_sgen);
     }
 
     for (i = 0; i < w->cw_outc; i++) {
@@ -1714,7 +1711,7 @@ cn_comp_commit(struct cn_compaction_work *w)
 
         if (use_mbsets) {
             err = kvset_open2(w->cw_tree, w->cw_kvsetidv[i], &km,
-                                      w->cw_kvset_cnt, cnts, vecs, &kvsets[i]);
+                              w->cw_keep_vblks ? w->cw_kvset_cnt : 0, cnts, vecs, &kvsets[i]);
         } else {
             err = kvset_open(w->cw_tree, w->cw_kvsetidv[i], &km, &kvsets[i]);
         }
@@ -2380,18 +2377,18 @@ cn_tree_node_get_max_key(struct cn_tree_node *tn, void *kbuf, size_t kbuf_sz, ui
     list_for_each_entry (le, &tn->tn_kvset_list, le_link) {
         struct kvset *kvset = le->le_kvset;
         const void *key;
-        uint klen;
+        uint klen = 0;
 
         kvset_get_max_key(kvset, &key, &klen);
 
-        if (!max_key || keycmp(key, klen, max_key, *max_klen) > 0) {
+        if (klen > 0 && (!max_key || keycmp(key, klen, max_key, *max_klen) > 0)) {
             max_key = key;
             *max_klen = klen;
         }
     }
-    assert(max_key && *max_klen > 0);
 
-    memcpy(kbuf, max_key, min_t(size_t, kbuf_sz, *max_klen));
+    if (max_key)
+        memcpy(kbuf, max_key, min_t(size_t, kbuf_sz, *max_klen));
     rmlock_runlock(lock);
 }
 

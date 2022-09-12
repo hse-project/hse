@@ -1259,6 +1259,8 @@ sp3_enqueue_dirty_node(struct cn_compaction_work *w, struct cn_tree_node *tn)
     struct sp3_tree *spt = tree2spt(w->cw_tree);
     struct sp3_node *spn = tn2spn(tn);
 
+    assert(spn->spn_initialized);
+
     mutex_lock(&spt->spt_dlist_lock);
 
     if (list_empty(&spn->spn_dlink))
@@ -1287,13 +1289,17 @@ sp3_work_complete(struct csched *handle, struct cn_compaction_work *w)
     struct sp3 *sp = (struct sp3 *)handle;
 
     if (w->cw_action == CN_ACTION_SPLIT) {
-        struct sp3_node *spn = tn2spn(w->cw_split.nodev[0]);
+        if (w->cw_split.nodev[0]) {
+            struct sp3_node *spn = tn2spn(w->cw_split.nodev[0]);
 
-        if (!spn->spn_initialized)
-            sp3_node_init(sp, spn);
+            if (!spn->spn_initialized)
+                sp3_node_init(sp, spn);
 
-        sp3_enqueue_dirty_node(w, w->cw_split.nodev[0]);
-        sp3_enqueue_dirty_node(w, w->cw_split.nodev[1]);
+            sp3_enqueue_dirty_node(w, w->cw_split.nodev[0]);
+        }
+
+        if (w->cw_split.nodev[1])
+            sp3_enqueue_dirty_node(w, w->cw_split.nodev[1]);
     } else {
         sp3_enqueue_dirty_node(w, w->cw_node);
     }

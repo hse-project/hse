@@ -22,6 +22,7 @@ struct kvs_block;
 struct key_stats;
 struct vgmap;
 struct perfc_set;
+struct wbt_desc;
 
 /* MTF_MOCK */
 merr_t
@@ -55,6 +56,7 @@ hbb_finish(
     const uint32_t         num_ptombs,
     const uint8_t         *hlog,
     const uint8_t         *ptree,
+    struct wbt_desc       *ptree_desc,
     uint32_t               ptree_pgc);
 
 merr_t

@@ -423,6 +423,12 @@ kvset_builder_finish(struct kvset_builder *imp)
          */
         vbb_destroy(imp->vbb);
         imp->vbb = NULL;
+
+        if (adopted_vbs) {
+            blk_list_free(&imp->vblk_list);
+            vgmap_free(imp->vgmap);
+            imp->vgmap = NULL;
+        }
     }
 
     err = kbb_finish(imp->kbb, &imp->kblk_list);
@@ -435,7 +441,7 @@ kvset_builder_finish(struct kvset_builder *imp)
 
     err = hbb_finish(imp->hbb, &imp->hblk, imp->vgmap, NULL, NULL, imp->seqno_min, imp->seqno_max,
                      imp->kblk_list.n_blks, imp->vblk_list.n_blks, hbb_get_nptombs(imp->hbb),
-                     kbb_get_composite_hlog(imp->kbb), NULL, 0);
+                     kbb_get_composite_hlog(imp->kbb), NULL, NULL, 0);
     if (err) {
         delete_mblocks(cn_get_dataset(imp->cn), &imp->kblk_list);
         if (!adopted_vbs)

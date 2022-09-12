@@ -211,6 +211,7 @@ hbb_finish(
     const uint32_t         num_ptombs,
     const uint8_t         *hlog,
     const uint8_t         *ptree,
+    struct wbt_desc       *ptree_desc,
     uint32_t               ptree_pgc)
 {
     merr_t err;
@@ -233,8 +234,12 @@ hbb_finish(
      * ptree, there is no data within containing kvset. Skip the allocation of
      * the hblock. This kvset will not be written to disk.
      */
-    if (num_kblocks == 0 && !wbb_entries(bld->ptree))
+    if (num_kblocks == 0 && (!wbb_entries(bld->ptree) && !ptree))
         return 0;
+
+    assert(!ptree || (ptree_desc && ptree_pgc > 0));
+    if (ptree && (!ptree_desc || ptree_pgc == 0))
+        return merr(EBUG);
 
     assert(min_seqno <= max_seqno);
 
@@ -251,7 +256,7 @@ hbb_finish(
         assert(vgmap_pgc > 0);
     }
 
-    if (ptree && ptree_pgc > 0) {
+    if (ptree) {
         /* ptree is passed in during kvset split */
         iov_max += 1;
     } else if (wbb_entries(bld->ptree)) {
@@ -286,7 +291,9 @@ hbb_finish(
     iov[iov_idx++].iov_len = HLOG_SIZE;
 
     wbb_hdr_init(&hdr->hbh_ptree_hdr);
-    if (ptree && ptree_pgc > 0) {
+    if (ptree) {
+        wbb_hdr_set(&hdr->hbh_ptree_hdr, ptree_desc);
+
         iov[iov_idx].iov_base = (void *)ptree;
         iov[iov_idx++].iov_len = ptree_pgc * PAGE_SIZE;
     } else if (wbb_entries(bld->ptree)) {
