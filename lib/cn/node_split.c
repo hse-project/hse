@@ -567,8 +567,13 @@ cn_split(struct cn_compaction_work *w)
     /* Poll for all our kvset-split work to complete.  Ideally, we'd call
      * flush_workqueue() here, but that can severely stall new requests.
      */
-    while (inflight > 0)
-        usleep(100 * 1000);
+    while (inflight > 0) {
+        const struct timespec req = {
+            .tv_nsec = 100 * 1000
+        };
+
+        hse_nanosleep(&req, NULL, "nodesplt");
+    }
 
     for (i = w->cw_kvset_cnt; !err && i-- > 0;) {
         if (wargs[i].err) {

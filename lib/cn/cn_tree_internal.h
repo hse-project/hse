@@ -176,7 +176,7 @@ struct cn_tree_node {
     struct mutex         tn_ss_lock HSE_L1D_ALIGNED;
     struct list_head     tn_ss_list;
     atomic_uint          tn_ss_spilling;
-    atomic_bool          tn_ss_splitting;
+    bool                 tn_ss_splitting;
     uint8_t              tn_ss_visits;
     struct cv            tn_ss_cv;
 };

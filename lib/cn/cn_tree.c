@@ -73,8 +73,6 @@
 
 static struct kmem_cache *cn_node_cache HSE_READ_MOSTLY;
 
-static void cn_subspill_wakeup(struct cn_tree_node *tn);
-
 static void
 cn_setname(const char *name)
 {
@@ -104,8 +102,8 @@ cn_node_alloc(struct cn_tree *tree, uint64_t nodeid)
     INIT_LIST_HEAD(&tn->tn_link);
     INIT_LIST_HEAD(&tn->tn_kvset_list);
 
-    atomic_init(&tn->tn_compacting, 0);
-    atomic_init(&tn->tn_busycnt, 0);
+    atomic_set(&tn->tn_compacting, 0);
+    atomic_set(&tn->tn_busycnt, 0);
 
     tn->tn_tree = tree;
     tn->tn_isroot = (nodeid == 0);
@@ -118,7 +116,7 @@ cn_node_alloc(struct cn_tree *tree, uint64_t nodeid)
 
     mutex_init(&tn->tn_ss_lock);
     INIT_LIST_HEAD(&tn->tn_ss_list);
-    tn->tn_ss_spilling = 0;
+    atomic_set(&tn->tn_ss_spilling, 0);
     tn->tn_ss_splitting = false;
     cv_init(&tn->tn_ss_cv);
 
@@ -209,6 +207,7 @@ cn_tree_create(
     tree->rp = rp;
     tree->ct_cp = cp;
     tree->ct_rspill_dt = 1;
+    atomic_set(&tree->ct_split_cnt, 0);
     tree->ct_kvdb_health = health;
 
     tree->ct_root = cn_node_alloc(tree, 0);
@@ -1335,7 +1334,12 @@ cn_node_spill_wait(struct cn_compaction_work *w, struct cn_tree_node *tn)
            !kvdb_health_check(hp, KVDB_HEALTH_FLAG_ALL)) {
 
         long timeout_ms = 100;
-        cv_timedwait(&tn->tn_spill_cv, &tn->tn_spill_mtx, timeout_ms, "spillwait");
+
+        /* TODO: We could be waiting here for ten minutes or more when
+         * using slow media, so better to use cv_wait() and fix the
+         * shutdown path to wake up waiters.
+         */
+        cv_timedwait(&tn->tn_spill_cv, &tn->tn_spill_mtx, timeout_ms, "spilwait");
     }
 
     mutex_unlock(&tn->tn_spill_mtx);
@@ -1799,9 +1803,13 @@ cn_comp_cleanup(struct cn_compaction_work *w)
     const bool split = (w->cw_action == CN_ACTION_SPLIT);
 
     if (split) {
-        w->cw_node->tn_ss_splitting = false;
-        w->cw_tree->ct_split_cnt--;
-        cn_subspill_wakeup(w->cw_node);
+        struct cn_tree_node *tn = w->cw_node;
+
+        mutex_lock(&tn->tn_ss_lock);
+        tn->tn_ss_splitting = false;
+        atomic_dec(&tn->tn_tree->ct_split_cnt);
+        cv_broadcast(&tn->tn_ss_cv);
+        mutex_unlock(&tn->tn_ss_lock);
     }
 
     atomic_sub_rel(&w->cw_node->tn_busycnt, (1u << 16) + w->cw_kvset_cnt);
@@ -1960,14 +1968,6 @@ cn_subspill_apply(struct subspill *ss)
     return 0;
 }
 
-static void
-cn_subspill_wakeup(struct cn_tree_node *tn)
-{
-    mutex_lock(&tn->tn_ss_lock);
-    cv_broadcast(&tn->tn_ss_cv);
-    mutex_unlock(&tn->tn_ss_lock);
-}
-
 static merr_t
 cn_comp_spill(struct cn_compaction_work *w)
 {
@@ -2005,15 +2005,15 @@ cn_comp_spill(struct cn_compaction_work *w)
         if (node->tn_ss_splitting) {
             rmlock_runlock(lock);
 
-            tree->ct_rspill_slp++;
-            cv_wait(&node->tn_ss_cv, &node->tn_ss_lock, "splitwait");
-            tree->ct_rspill_slp--;
+            atomic_inc(&tree->ct_rspill_slp);
+            cv_wait(&node->tn_ss_cv, &node->tn_ss_lock, "spltwait");
+            atomic_dec(&tree->ct_rspill_slp);
             mutex_unlock(&node->tn_ss_lock);
             continue;
         }
 
         spillingp = &node->tn_ss_spilling;
-        node->tn_ss_spilling++;
+        atomic_inc_acq(spillingp);
         mutex_unlock(&node->tn_ss_lock);
 
         rtn = rtnext;
@@ -2042,7 +2042,7 @@ cn_comp_spill(struct cn_compaction_work *w)
                 break;
 
             atomic_inc(&node->tn_sgen);
-            node->tn_ss_spilling--;
+            atomic_dec_rel(spillingp);
         } else {
             cn_subspill_enqueue(ss, node);
         }
@@ -2054,7 +2054,7 @@ cn_comp_spill(struct cn_compaction_work *w)
                 goto errout;
 
             atomic_inc(&node->tn_sgen);
-            node->tn_ss_spilling--;
+            atomic_dec_rel(spillingp);
         }
 
         spillingp = NULL;
@@ -2068,7 +2068,7 @@ cn_comp_spill(struct cn_compaction_work *w)
             kvdb_health_error(tree->ct_kvdb_health, err);
 
         if (spillingp)
-            (*spillingp) -= 1;
+            atomic_dec_rel(spillingp);
     } else {
 
         /* Serialize the deletion of input kvsets.
@@ -2094,7 +2094,7 @@ cn_comp_spill(struct cn_compaction_work *w)
             }
 
             list_del(&ss->ss_link);
-            tn->tn_ss_spilling--;
+            atomic_dec_rel(&tn->tn_ss_spilling);
 
             blk_list_free(&ss->ss_mblks.kblks);
             blk_list_free(&ss->ss_mblks.vblks);

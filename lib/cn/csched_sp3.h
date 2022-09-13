@@ -45,7 +45,7 @@ struct sp3_node {
 struct sp3_tree {
     struct list_head spt_tlink;
     uint             spt_job_cnt;
-    atomic_int       spt_enabled;
+    atomic_bool      spt_enabled;
     atomic_ulong     spt_ingest_alen;
     atomic_ulong     spt_ingest_wlen;
 

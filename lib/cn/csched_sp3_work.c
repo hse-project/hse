@@ -296,8 +296,8 @@ sp3_work_wtype_idle(
  *
  * 1) Defer requesting a split if there are already "split_cnt_max" splits
  *    active in the tree (i.e., the max number of concurrent splits), or
- *    we are in a cool down period having recently run the max number nof
- *    concurrent splits.
+ *    we are in a "cool down" period having recently run the max number
+ *    of concurrent splits.
  *
  * 2) If the root node is too long then wait for root spill to catch up.
  *
@@ -326,46 +326,82 @@ sp3_work_wtype_split(
     struct cn_tree *tree = tn->tn_tree;
     struct kvset_list_entry *le;
     struct list_head *head;
-    uint64_t now;
+    bool splittable;
     uint kvsets;
 
     head = &tn->tn_kvset_list;
     *mark = list_last_entry_or_null(head, typeof(*le), le_link);
-    kvsets = cn_ns_kvsets(&tn->tn_ns);
-
     *action = CN_ACTION_SPLIT;
     *rule = CN_RULE_SPLIT;
 
-    mutex_lock(&tn->tn_ss_lock);
-    now = get_time_ns();
+    kvsets = cn_ns_kvsets(&tn->tn_ns);
 
-    if (!tn->tn_ss_splitting) {
-        if (tree->ct_split_cnt >= thresh->split_cnt_max || now < tree->ct_split_dly) {
-            tn->tn_ss_visits = 0;
-            kvsets = 0;
-            ev_debug(1);
-        } else if (cn_ns_kvsets(&tree->ct_root->tn_ns) >= thresh->rspill_runlen_min * 3) {
-            tn->tn_ss_visits = 0;
-            kvsets = 0;
-            ev_debug(1);
-        } else if (tn->tn_ss_spilling && tn->tn_ss_visits < thresh->split_cnt_max) {
-            tn->tn_ss_visits++;
-            kvsets = 0;
-            ev_debug(1);
-        } else {
-            if (++tree->ct_split_cnt >= thresh->split_cnt_max)
-                tree->ct_split_dly = now + NSEC_PER_SEC * 3;
-            tn->tn_ss_splitting = true;
-            tn->tn_ss_visits = 0;
-        }
-    }
-
-    /* Defer starting the split if there are active spills to this node.
-     * This most often occurs on trees with one leaf, and rarely on trees
-     * with many leaves (but largely depends on the spill pattern).
+    /* Recheck to see if this node should be split, as while awaiting
+     * an opportunity to split an rspill could have shrunk this node
+     * below the split size.
      */
-    if (tn->tn_ss_spilling)
-        kvsets = 0;
+    splittable = (kvsets > 0) &&
+        (cn_ns_clen(&tn->tn_ns) >= tn->tn_split_size ||
+         cn_ns_keys_uniq(&tn->tn_ns) >= thresh->lcomp_split_keys);
+
+    mutex_lock(&tn->tn_ss_lock);
+    if (splittable) {
+        uint spilling = atomic_read(&tn->tn_ss_spilling);
+
+        if (!tn->tn_ss_splitting) {
+            if (atomic_read(&tree->ct_split_cnt) >= thresh->split_cnt_max || jclock_ns < tree->ct_split_dly) {
+                tn->tn_ss_visits = 0;
+                kvsets = 0;
+                ev_debug(1);
+            } else if (cn_ns_kvsets(&tree->ct_root->tn_ns) >= thresh->rspill_runlen_min * 3) {
+                tn->tn_ss_visits = 0;
+                kvsets = 0;
+                ev_debug(1);
+            } else if (spilling && tn->tn_ss_visits < thresh->split_cnt_max) {
+                tn->tn_ss_visits++;
+                kvsets = 0;
+                ev_debug(1);
+            } else {
+                if (atomic_inc_return(&tree->ct_split_cnt) >= thresh->split_cnt_max)
+                    tree->ct_split_dly = jclock_ns + NSEC_PER_SEC * 3;
+
+                /* By setting tn_ss_splitting to true we are committing
+                 * to split this node despite the fact that we may not
+                 * be able to start the split right now if the node is
+                 * currently being spilled.
+                 */
+                tn->tn_ss_splitting = true;
+                tn->tn_ss_visits = 0;
+                ev_debug(1);
+            }
+        }
+
+        /* Defer starting the split if there are active spills to this node.
+         * This most often occurs on trees with one leaf, and rarely on trees
+         * with many leaves (but largely depends on the spill pattern).
+         */
+        if (spilling)
+            kvsets = 0;
+    } else {
+        if (tn->tn_ss_splitting) {
+            tn->tn_ss_splitting = false;
+            atomic_dec(&tree->ct_split_cnt);
+            cv_broadcast(&tn->tn_ss_cv);
+            ev_debug(1);
+        }
+
+        /* If we simply drop this job request then no new work will be scheduled
+         * on this node until the next spill into it (which might never happen).
+         * Given that the node has shrunk in size, we instead issue a kv-compact
+         * to get this node back into the scheduler's consideration.
+         */
+        kvsets = min_t(uint, kvsets, thresh->lcomp_runlen_max);
+        tn->tn_ss_visits = 0;
+
+        *action = CN_ACTION_COMPACT_KV;
+        *rule = CN_RULE_GARBAGE;
+        ev_debug(1);
+    }
     mutex_unlock(&tn->tn_ss_lock);
 
     return kvsets;
@@ -382,16 +418,13 @@ sp3_work_wtype_garbage(
     struct cn_tree_node *tn = spn2tn(spn);
     struct kvset_list_entry *le;
     struct list_head *head;
-    uint kvsets;
 
     head = &tn->tn_kvset_list;
     *mark = list_last_entry_or_null(head, typeof(*le), le_link);
-    kvsets = cn_ns_kvsets(&tn->tn_ns);
-
     *action = CN_ACTION_COMPACT_KV;
     *rule = CN_RULE_GARBAGE;
 
-    return min_t(uint, kvsets, thresh->lcomp_runlen_max);
+    return min_t(uint, cn_ns_kvsets(&tn->tn_ns), thresh->lcomp_runlen_max);
 }
 
 static uint
@@ -682,7 +715,7 @@ sp3_work(
             /* Set the resched flag to prevent csched from dropping this request
              * should sp3_work_wtype_split() return 0 to defer the split.
              */
-            (*wp)->cw_resched = !n_kvsets;
+            (*wp)->cw_resched = mark && !n_kvsets;
             break;
 
         case wtype_garbage:
@@ -725,17 +758,27 @@ sp3_work(
         goto locked_nowork;
 
     if (action == CN_ACTION_SPILL) {
+        assert(cn_node_isroot(tn));
+
         if ((atomic_read(&tn->tn_busycnt) >> 16) > 2)
             goto locked_nowork;
-
-        if (!cn_node_isroot(tn))
-            abort();
 
         cn_node_comp_token_put(tn);
         have_token = false;
     } else {
         assert(action != CN_ACTION_NONE);
         assert(atomic_read(&tn->tn_busycnt) == 0);
+
+        /* tn_ss_splitting is not atomic.  It is set to true only by this
+         * thread, and false only by compaction threads, and both whilst
+         * holding tn_ss_lock.  The compaction token, however, provides
+         * a full barrier which ensures we always see the most current
+         * value despite not holding the lock.
+         */
+        if (action != CN_ACTION_SPLIT && tn->tn_ss_splitting) {
+            ev_debug(1);
+            goto locked_nowork;
+        }
     }
 
     /* The upper 16 bits of busycnt contains the count of currently
