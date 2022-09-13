@@ -581,6 +581,62 @@ out:
     return err;
 }
 
+merr_t
+cndb_record_kvset_move(
+    struct cndb *cndb,
+    uint64_t     cnid,
+    uint64_t     src_nodeid,
+    uint64_t     tgt_nodeid,
+    uint32_t     kvset_idc,
+    uint64_t    *kvset_idv)
+{
+    merr_t err = 0;
+
+    INVARIANT(cndb && kvset_idc > 0 && kvset_idv);
+
+    mutex_lock(&cndb->mutex);
+
+    do {
+        struct cndb_cn *cn;
+
+        cn = map_lookup_ptr(cndb->cn_map, cnid);
+        if (!cn) {
+            err = merr(EPROTO);
+            break;
+        }
+
+        for (uint32_t i = 0; i < kvset_idc; i++) {
+            struct cndb_kvset *kvset;
+
+            kvset = map_lookup_ptr(cn->kvset_map, kvset_idv[i]);
+
+            if (!kvset || kvset->ck_nodeid != src_nodeid) {
+                err = merr(EBUG);
+                break;
+            }
+
+            kvset->ck_nodeid = tgt_nodeid;
+        }
+
+        if (!err && !cndb->replaying) {
+            if (cndb_needs_compaction(cndb)) {
+                err = cndb_compact(cndb);
+                if (err)
+                    break;
+            }
+
+            err = cndb_omf_kvset_move_write(
+                    cndb->mdc, cnid, src_nodeid, tgt_nodeid, kvset_idc, kvset_idv);
+            if (err)
+                break;
+        }
+    } while (0);
+
+    mutex_unlock(&cndb->mutex);
+
+    return err;
+}
+
 static merr_t
 process_finished_add_txn_cb(
     struct cndb_txn   *tx,
@@ -1031,6 +1087,16 @@ cndb_read_record(struct cndb *cndb, struct cndb_reader *reader)
         err = cndb_record_kvset_del(cndb, txid2tx(cndb, txid), cnid, kvsetid, NULL);
         ev(err);
 
+    } else if (rec_type == CNDB_TYPE_KVSET_MOVE) {
+        uint64_t cnid, src_nodeid, tgt_nodeid, *kvset_idv;
+        uint32_t kvset_idc;
+
+        cndb_omf_kvset_move_read(
+                reader->recbuf, &cnid, &src_nodeid, &tgt_nodeid, &kvset_idc, &kvset_idv);
+
+        err = cndb_record_kvset_move(cndb, cnid, src_nodeid, tgt_nodeid, kvset_idc, kvset_idv);
+        ev(err);
+
     } else if (rec_type == CNDB_TYPE_ACK) {
         uint64_t txid, cnid, kvsetid;
         uint type;
@@ -1240,10 +1306,12 @@ recover_incomplete_txn_cb(
         struct cndb_kvset *delme;
 
         delme = map_remove_ptr(cn->kvset_map, kvset->ck_kvsetid);
-        kvset_mblock_delete(rctx->mp, rctx->mbid_map, delme);
+        if (!isacked) {
+            kvset_mblock_delete(rctx->mp, rctx->mbid_map, delme);
+            err = cndb_omf_ack_write(rctx->mdc, cndb_txn_txid_get(tx), delme->ck_cnid,
+                                     CNDB_ACK_TYPE_DEL, delme->ck_kvsetid);
+        }
 
-        err = cndb_omf_ack_write(rctx->mdc, cndb_txn_txid_get(tx), delme->ck_cnid,
-                                 CNDB_ACK_TYPE_DEL, delme->ck_kvsetid);
         free(delme);
     }
 

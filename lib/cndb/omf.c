@@ -190,6 +190,50 @@ cndb_omf_kvset_del_write(
 }
 
 merr_t
+cndb_omf_kvset_move_write(
+    struct mpool_mdc *mdc,
+    uint64_t          cnid,
+    uint64_t          src_nodeid,
+    uint64_t          tgt_nodeid,
+    uint32_t          kvset_idc,
+    uint64_t         *kvset_idv)
+{
+    struct cndb_kvset_move_omf *omf_move;
+    struct cndb_kvsetid_omf *omf_ks_idv;
+    uint8_t buf[512];
+    size_t sz;
+    merr_t err;
+
+    omf_move = (void *)buf;
+
+    sz = sizeof(*omf_move) + kvset_idc * sizeof(*omf_ks_idv);
+    if (sz > sizeof(buf)) {
+        omf_move = malloc(sz);
+        if (!omf_move)
+            return merr(ENOMEM);
+    }
+
+    omf_ks_idv = (void *)(omf_move + 1);
+
+    cndb_hdr_omf_init(&omf_move->hdr, CNDB_TYPE_KVSET_MOVE, sz);
+
+    omf_set_kvset_move_cnid(omf_move, cnid);
+    omf_set_kvset_move_src_nodeid(omf_move, src_nodeid);
+    omf_set_kvset_move_tgt_nodeid(omf_move, tgt_nodeid);
+    omf_set_kvset_move_kvset_idc(omf_move, kvset_idc);
+
+    for (uint32_t i = 0; i < kvset_idc; i++)
+        omf_set_cndb_kvsetid(&omf_ks_idv[i], kvset_idv[i]);
+
+    err = mpool_mdc_append(mdc, omf_move, sz, true);
+
+    if (sz > sizeof(buf))
+        free(omf_move);
+
+    return err;
+}
+
+merr_t
 cndb_omf_ack_write(
     struct mpool_mdc *mdc,
     uint64_t             txid,
@@ -343,6 +387,34 @@ cndb_omf_kvset_del_read(
     *txid = omf_kvset_del_txid(omf);
     *cnid = omf_kvset_del_cnid(omf);
     *kvsetid = omf_kvset_del_kvsetid(omf);
+}
+
+/* This function modifies the input buffer (omf).
+ */
+void
+cndb_omf_kvset_move_read(
+    struct cndb_kvset_move_omf *omf,
+    uint64_t                   *cnid,
+    uint64_t                   *src_nodeid,
+    uint64_t                   *tgt_nodeid,
+    uint32_t                   *kvset_idc,
+    uint64_t                  **kvset_idv)
+{
+    struct cndb_kvsetid_omf *omf_ks_idv;
+    uint64_t *idv;
+
+    *cnid = omf_kvset_move_cnid(omf);
+    *src_nodeid = omf_kvset_move_src_nodeid(omf);
+    *tgt_nodeid = omf_kvset_move_tgt_nodeid(omf);
+    *kvset_idc = omf_kvset_move_kvset_idc(omf);
+
+    omf_ks_idv = (void *)(omf + 1);
+    idv = (void *)(omf + 1); /* Reuse input buffer */
+
+    for (uint32_t i = 0; i < *kvset_idc; i++)
+        idv[i] = omf_cndb_kvsetid(&omf_ks_idv[i]);
+
+    *kvset_idv = idv;
 }
 
 void
