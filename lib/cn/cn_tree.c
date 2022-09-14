@@ -679,7 +679,7 @@ cn_tree_view_create(struct cn *cn, struct table **view_out)
         if (err)
             break;
 
-        if ((nodecnt++ % 1024) == 0)
+        if ((nodecnt++ % 16) == 0)
             rmlock_yield(&tree->ct_lock, &lock);
     }
     rmlock_runlock(lock);
@@ -1361,7 +1361,8 @@ cn_spill_delete_kvsets(struct cn_compaction_work *work)
 
     INIT_LIST_HEAD(&retired_kvsets);
 
-    work->cw_err = cndb_record_txstart(work->cw_tree->cndb, 0, CNDB_INVAL_INGESTID, CNDB_INVAL_HORIZON,
+    work->cw_err = cndb_record_txstart(work->cw_tree->cndb, 0,
+                                       CNDB_INVAL_INGESTID, CNDB_INVAL_HORIZON,
                                        0, work->cw_kvset_cnt, &tx);
     if (work->cw_err)
         goto done;
@@ -1379,14 +1380,13 @@ cn_spill_delete_kvsets(struct cn_compaction_work *work)
         le = list_prev_entry(le, le_link);
     }
 
-    rmlock_wlock(&tree->ct_lock);
-
     /* Move old kvsets from parent node to retired list.
      * Asserts:
      * - Each input kvset just spilled must still be on pnode's kvset list.
      * - The dgen of the oldest input kvset must match work struct dgen_lo
      *   (i.e., concurrent spills from a node must be committed in order).
      */
+    rmlock_wlock(&tree->ct_lock);
 
     for (uint i = 0; i < work->cw_kvset_cnt; i++) {
         assert(!list_empty(&pnode->tn_kvset_list));
@@ -1406,15 +1406,17 @@ cn_spill_delete_kvsets(struct cn_compaction_work *work)
 
 done:
     /* Advance the spill gen and signal all the waiting spill threads.
-     *
-     * TODO: Seems like we shouldn't advance tn_sgen if err is set, right?
      */
     mutex_lock(&pnode->tn_ss_lock);
-    atomic_inc(&pnode->tn_sgen);
+    if (work->cw_err)
+        kvdb_health_error(tree->ct_kvdb_health, work->cw_err);
+    else
+        atomic_inc(&pnode->tn_sgen);
     cv_broadcast(&pnode->tn_ss_cv);
     mutex_unlock(&pnode->tn_ss_lock);
 
-    /* Delete old kvsets. */
+    /* Delete old kvsets (retired_kvsets will be empty on error).
+     */
     list_for_each_entry_safe(le, tmp, &retired_kvsets, le_link) {
         kvset_mark_mblocks_for_delete(le->le_kvset, false);
         kvset_put_ref(le->le_kvset);
