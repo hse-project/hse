@@ -67,6 +67,7 @@ struct cn_kle_hdr {
  * struct cn_tree - the cn tree (tree of nodes holding kvsets)
  * @ct_root:        root node of tree
  * @ct_nodes:       list of all tree nodes, including ct_root
+ * @ct_fanout:      the number of leaf nodes on ct_nodes list
  * @ct_nospace:     set when "disk is full"
  * @cn:    ptr to parent cn object
  * @rp:    ptr to shared runtime parameters struct
@@ -91,6 +92,7 @@ struct cn_kle_hdr {
 struct cn_tree {
     struct cn_tree_node *ct_root;
     struct list_head     ct_nodes;
+    uint16_t             ct_fanout;
     u16                  ct_pfx_len;
     u16                  ct_sfx_len;
     bool                 ct_nospace;
@@ -146,6 +148,7 @@ struct cn_tree {
 struct cn_tree_node {
     atomic_int           tn_compacting;
     atomic_uint          tn_busycnt;
+    atomic_long          tn_sgen;      /* The last spill gen that was added to the node */
 
     union {
         struct sp3_node  tn_sp3n;
@@ -165,11 +168,6 @@ struct cn_tree_node {
     struct cn_tree *     tn_tree;
     struct route_node   *tn_route_node;
     struct list_head     tn_link;
-
-    /* Serializing spills in the root node */
-    struct mutex tn_spill_mtx HSE_L1D_ALIGNED;
-    atomic_long  tn_sgen;      /* The last spill gen that was added to the node */
-    struct cv    tn_spill_cv;  /* cv for serializing the deletion of input kvsets */
 
     /* List of pending subspills and a mutex to serialize its access.
      */

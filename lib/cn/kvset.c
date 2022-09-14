@@ -508,6 +508,7 @@ kvset_open2(
     alloc_len += sizeof(ks->ks_kblks[0]) * n_kblks;
     alloc_len += sizeof(ks->ks_vbsetv[0]) * vbsetc;
     alloc_len += sizeof(ks->ks_vblk2mbs[0]) * n_vblks;
+    alloc_len = ALIGN(alloc_len, __alignof__(*ks));
 
     if (ev(alloc_len > kvset_cache[0].sz))
         ks = aligned_alloc(__alignof__(*ks), alloc_len);

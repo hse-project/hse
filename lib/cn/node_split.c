@@ -544,7 +544,7 @@ cn_split(struct cn_compaction_work *w)
         return merr(ENOMEM);
 
     wq = cn_get_io_wq(w->cw_tree->cn);
-    inflight = w->cw_kvset_cnt;
+    atomic_set(&inflight, w->cw_kvset_cnt);
 
     for (i = 0, le = list_first_entry(&w->cw_node->tn_kvset_list, typeof(*le), le_link);
          i < w->cw_kvset_cnt;
@@ -558,8 +558,8 @@ cn_split(struct cn_compaction_work *w)
         kvset_split_res_init(w, &wargs[i].result, i);
 
         if (!queue_work(wq, &wargs[i].work)) {
+            atomic_dec(&inflight);
             err = merr(EBUG);
-            inflight--;
             break;
         }
     }
@@ -567,7 +567,7 @@ cn_split(struct cn_compaction_work *w)
     /* Poll for all our kvset-split work to complete.  Ideally, we'd call
      * flush_workqueue() here, but that can severely stall new requests.
      */
-    while (inflight > 0) {
+    while (atomic_read(&inflight) > 0) {
         const struct timespec req = {
             .tv_nsec = 100 * 1000
         };

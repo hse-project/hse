@@ -703,5 +703,5 @@ kvset_split_worker(struct work_struct *work)
 
     wargs->err = kvset_split(wargs->ks, wargs->split_kobj, wargs->pc, &wargs->result);
 
-    (*wargs->inflightp)--;
+    atomic_dec_rel(wargs->inflightp);
 }

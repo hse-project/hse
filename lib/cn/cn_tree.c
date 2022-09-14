@@ -111,9 +111,6 @@ cn_node_alloc(struct cn_tree *tree, uint64_t nodeid)
 
     tn->tn_split_size = (size_t)tree->rp->cn_split_size << 30;
 
-    mutex_init(&tn->tn_spill_mtx);
-    cv_init(&tn->tn_spill_cv);
-
     mutex_init(&tn->tn_ss_lock);
     INIT_LIST_HEAD(&tn->tn_ss_list);
     atomic_set(&tn->tn_ss_spilling, 0);
@@ -682,7 +679,7 @@ cn_tree_view_create(struct cn *cn, struct table **view_out)
         if (err)
             break;
 
-        if ((nodecnt++ % 16) == 0)
+        if ((nodecnt++ % 1024) == 0)
             rmlock_yield(&tree->ct_lock, &lock);
     }
     rmlock_runlock(lock);
@@ -1321,39 +1318,34 @@ cn_comp_update_kvcompact(struct cn_compaction_work *work, struct kvset *new_kvse
     }
 }
 
-static bool
-cn_node_spill_wait(struct cn_compaction_work *w, struct cn_tree_node *tn)
+static merr_t
+cn_node_spill_wait(struct cn_compaction_work *w)
 {
-    atomic_long *node_sgen = &w->cw_node->tn_sgen;
-    struct kvdb_health *hp = w->cw_tree->ct_kvdb_health;
+    struct cn_tree *tree = w->cw_tree;
+    struct cn_tree_node *root = tree->ct_root;
+    merr_t err = 0;
 
-    mutex_lock(&tn->tn_spill_mtx);
+    mutex_lock(&root->tn_ss_lock);
+    while (1) {
+        err = kvdb_health_check(tree->ct_kvdb_health, KVDB_HEALTH_FLAG_ALL);
+        if (err)
+            break;
 
-    while (w->cw_sgen != atomic_read(node_sgen) + 1 &&
-           !atomic_read(w->cw_cancel_request) &&
-           !kvdb_health_check(hp, KVDB_HEALTH_FLAG_ALL)) {
+        if (atomic_read(w->cw_cancel_request)) {
+            err = merr(ESHUTDOWN);
+            break;
+        }
 
-        long timeout_ms = 100;
+        if (w->cw_sgen == atomic_read(&w->cw_node->tn_sgen) + 1)
+            break;
 
-        /* TODO: We could be waiting here for ten minutes or more when
-         * using slow media, so better to use cv_wait() and fix the
-         * shutdown path to wake up waiters.
-         */
-        cv_timedwait(&tn->tn_spill_cv, &tn->tn_spill_mtx, timeout_ms, "spilwait");
+        atomic_inc(&tree->ct_rspill_slp);
+        cv_wait(&root->tn_ss_cv, &root->tn_ss_lock, "spilwait");
+        atomic_dec(&tree->ct_rspill_slp);
     }
+    mutex_unlock(&root->tn_ss_lock);
 
-    mutex_unlock(&tn->tn_spill_mtx);
-
-    return !atomic_read(w->cw_cancel_request) && !kvdb_health_check(hp, KVDB_HEALTH_FLAG_ALL);
-}
-
-static void
-cn_node_spill_broadcast(struct cn_tree_node *tn)
-{
-    mutex_lock(&tn->tn_spill_mtx);
-    atomic_inc(&tn->tn_sgen);
-    cv_broadcast(&tn->tn_spill_cv);
-    mutex_unlock(&tn->tn_spill_mtx);
+    return err;
 }
 
 static void
@@ -1413,15 +1405,20 @@ cn_spill_delete_kvsets(struct cn_compaction_work *work)
     rmlock_wunlock(&tree->ct_lock);
 
 done:
+    /* Advance the spill gen and signal all the waiting spill threads.
+     *
+     * TODO: Seems like we shouldn't advance tn_sgen if err is set, right?
+     */
+    mutex_lock(&pnode->tn_ss_lock);
+    atomic_inc(&pnode->tn_sgen);
+    cv_broadcast(&pnode->tn_ss_cv);
+    mutex_unlock(&pnode->tn_ss_lock);
+
     /* Delete old kvsets. */
     list_for_each_entry_safe(le, tmp, &retired_kvsets, le_link) {
         kvset_mark_mblocks_for_delete(le->le_kvset, false);
         kvset_put_ref(le->le_kvset);
     }
-
-    /* Signal all the waiting spills.
-     */
-    cn_node_spill_broadcast(pnode);
 }
 
 /**
@@ -1495,7 +1492,11 @@ cn_comp_update_split(
 
             assert(route_node_keycmp(left->tn_route_node, w->cw_split.key, w->cw_split.klen) == 0);
 
-            list_add_tail(&left->tn_link, &tree->ct_nodes);
+            /* Insert the "left" node to the left of the node in the tree
+             * nodes list from which it was split.
+             */
+            list_add_tail(&left->tn_link, &src->tn_link);
+            tree->ct_fanout++;
             left->tn_cgen++;
         }
 
@@ -1660,7 +1661,6 @@ cn_comp_commit(struct cn_compaction_work *w)
             continue;
         }
 
-        km.km_dgen = w->cw_dgen_hi;
         km.km_vused = w->cw_outv[i].bl_vused;
 
         /* Lend hblk, kblk, and vblk lists to kvset_open().
@@ -1671,7 +1671,6 @@ cn_comp_commit(struct cn_compaction_work *w)
         km.km_kblk_list = w->cw_outv[i].kblks;
         km.km_vblk_list = w->cw_outv[i].vblks;
 
-        km.km_rule = w->cw_rule;
         km.km_capped = cn_is_capped(w->cw_tree->cn);
         km.km_restored = false;
 
@@ -1679,9 +1678,12 @@ cn_comp_commit(struct cn_compaction_work *w)
             km.km_compc = w->cw_split.compc[i];
             km.km_nodeid = split_nodeidv[i / w->cw_kvset_cnt];
             km.km_dgen = w->cw_split.dgen[i];
+            km.km_rule = (i / w->cw_kvset_cnt) ? CN_RULE_RSPLIT : CN_RULE_LSPLIT;
         } else {
             km.km_compc = w->cw_compc;
             km.km_nodeid = w->cw_node->tn_nodeid;
+            km.km_dgen = w->cw_dgen_hi;
+            km.km_rule = w->cw_rule;
         }
 
         /* CNDB: Log kvset add records.
@@ -1971,12 +1973,12 @@ cn_subspill_apply(struct subspill *ss)
 static merr_t
 cn_comp_spill(struct cn_compaction_work *w)
 {
-    struct subspill *ss;
+    struct subspill *ss_saved = NULL;
+    struct subspill *ss = NULL;
     struct spillctx *sctx;
     struct cn_tree *tree = w->cw_tree;
     struct route_node *rtn = 0;
     atomic_uint *spillingp = NULL;
-    uint cnum = 0;
     merr_t err;
 
     err = cn_spill_create(w, &sctx);
@@ -2005,17 +2007,27 @@ cn_comp_spill(struct cn_compaction_work *w)
         if (node->tn_ss_splitting) {
             rmlock_runlock(lock);
 
+            /* TODO: For join we'll need a refcnt on the node (to ensure that
+             * here and elsewhere the node doesn't disappear out from under us).
+             */
             atomic_inc(&tree->ct_rspill_slp);
             cv_wait(&node->tn_ss_cv, &node->tn_ss_lock, "spltwait");
             atomic_dec(&tree->ct_rspill_slp);
+
             mutex_unlock(&node->tn_ss_lock);
             continue;
         }
-
-        spillingp = &node->tn_ss_spilling;
-        atomic_inc_acq(spillingp);
         mutex_unlock(&node->tn_ss_lock);
 
+        /* Incrementing tn_ss_spilling while holding the tree lock is sufficient
+         * to keep the node pinned while we're spilling into it.
+         */
+        spillingp = &node->tn_ss_spilling;
+        atomic_inc_acq(spillingp);
+
+        /* TODO: For join, rtn could become invalid after tn_ss_spilling drops
+         * to zero, so we'll likely need to use edge keys to find the next node.
+         */
         rtn = rtnext;
 
         le = list_first_entry_or_null(&node->tn_kvset_list, typeof(*le), le_link);
@@ -2024,27 +2036,42 @@ cn_comp_spill(struct cn_compaction_work *w)
         route_node_keycpy(rtn, ekey, sizeof(ekey), &eklen);
         rmlock_runlock(lock);
 
-        ss = cn_spill_get_nth_subspill(sctx, cnum);
-        INVARIANT(ss);
+        /* Most spills will allocate just one subspill object and reuse it
+         * for the duration of the spill.  Cleanup due to errors in the
+         * middle of a spill is not trivial.
+         */
+        if (!ss_saved) {
+            ss_saved = malloc(sizeof(*ss_saved));
+            if (!ss_saved) {
+                err = merr(ENOMEM);
+                break;
+            }
+        }
 
-        ++cnum;
+        memset(ss_saved, 0, sizeof(*ss_saved));
+        ss = ss_saved; /* do not clear ss_saved! */
 
         err = cn_subspill(ss, sctx, node, node_dgen, ekey, eklen);
-        if (err)
+        if (err) {
+            ss = NULL; /* will be freed via ss_saved */
             break;
+        }
 
-        /* Enqueue subspill only if there are older spills that need to update this node
-         * before us.
+        /* Enqueue the subspill only if there are older spills that need to update
+         * this node ahead of us.  If cn_subspill_apply() fails, then the subspill
+         * object "ss" is transferred to "ss_saved" for safe keeping and eventually
+         * cleaned up at the end of this function.
          */
         if (ss->ss_sgen == atomic_read(&node->tn_sgen) + 1) {
             err = cn_subspill_apply(ss);
             if (err)
                 break;
 
-            atomic_inc(&node->tn_sgen);
+            atomic_inc_rel(&node->tn_sgen);
             atomic_dec_rel(spillingp);
         } else {
             cn_subspill_enqueue(ss, node);
+            ss_saved = NULL;
         }
 
         /* Apply subspills that are ready. */
@@ -2053,8 +2080,11 @@ cn_comp_spill(struct cn_compaction_work *w)
             if (err)
                 goto errout;
 
-            atomic_inc(&node->tn_sgen);
+            atomic_inc_rel(&node->tn_sgen);
             atomic_dec_rel(spillingp);
+
+            if (!ss_saved)
+                ss_saved = ss;
         }
 
         spillingp = NULL;
@@ -2063,6 +2093,10 @@ cn_comp_spill(struct cn_compaction_work *w)
     w->cw_t3_build = get_time_ns();
 
   errout:
+    if (ss_saved != ss)
+        free(ss_saved);
+    ss_saved = ss;
+
     if (err) {
         if (merr_errno(err) != ESHUTDOWN)
             kvdb_health_error(tree->ct_kvdb_health, err);
@@ -2070,37 +2104,55 @@ cn_comp_spill(struct cn_compaction_work *w)
         if (spillingp)
             atomic_dec_rel(spillingp);
     } else {
+        if (ss_saved)
+            abort();
 
         /* Serialize the deletion of input kvsets.
          */
-        if (cn_node_spill_wait(w, w->cw_tree->ct_root))
+        err = cn_node_spill_wait(w);
+        if (!err)
             cn_spill_delete_kvsets(w);
     }
 
-    /* On error, remove any enqueued subspills */
-    if (kvdb_health_check(tree->ct_kvdb_health, KVDB_HEALTH_FLAG_ALL)) {
-        int i;
+    /* On error, remove all enqueued subspills.
+     */
+    if (err) {
+        struct cn_tree_node *tn;
+        void *lock;
 
-        for (i = 0; i < cnum; i++) {
-            struct cn_tree_node *tn;
+        /* Wake up all rspill threads awaiting serialization.
+         */
+        mutex_lock(&tree->ct_root->tn_ss_lock);
+        cv_broadcast(&tree->ct_root->tn_ss_cv);
+        mutex_unlock(&tree->ct_root->tn_ss_lock);
 
-            ss = cn_spill_get_nth_subspill(sctx, i);
-            tn = ss->ss_node;
+        rmlock_rlock(&tree->ct_lock, &lock);
+        if (ss_saved && ss_saved->ss_node) {
+            mutex_lock(&ss_saved->ss_node->tn_ss_lock);
+            list_add_tail(&ss_saved->ss_link, &ss_saved->ss_node->tn_ss_list);
+            mutex_unlock(&ss_saved->ss_node->tn_ss_lock);
+        }
+
+        cn_tree_foreach_leaf(tn, tree) {
+            struct list_head head;
+            struct subspill *next;
+
+            INIT_LIST_HEAD(&head);
 
             mutex_lock(&tn->tn_ss_lock);
-            if (!ss->ss_added || ss->ss_applied) {
-                mutex_unlock(&tn->tn_ss_lock);
-                continue;
-            }
-
-            list_del(&ss->ss_link);
-            atomic_dec_rel(&tn->tn_ss_spilling);
-
-            blk_list_free(&ss->ss_mblks.kblks);
-            blk_list_free(&ss->ss_mblks.vblks);
-
+            list_splice(&tn->tn_ss_list, &head);
+            INIT_LIST_HEAD(&tn->tn_ss_list);
             mutex_unlock(&tn->tn_ss_lock);
+
+            list_for_each_entry_safe(ss, next, &head, ss_link) {
+                blk_list_free(&ss->ss_mblks.kblks);
+                blk_list_free(&ss->ss_mblks.vblks);
+
+                atomic_dec_rel(&tn->tn_ss_spilling);
+                free(ss);
+            }
         }
+        rmlock_rlock(&tree->ct_lock, lock);
     }
 
     cn_spill_destroy(sctx);

@@ -89,7 +89,6 @@ struct spillctx {
     struct cn_compaction_work *work;
 
     uint64_t         sgen;
-    struct subspill  subspill[CN_FANOUT_MAX];
 
     /* Merge Loop */
     struct bin_heap        *bh;
@@ -161,12 +160,6 @@ cn_spill_destroy(struct spillctx *sctx)
 
     bin_heap_destroy(sctx->bh);
     free(sctx);
-}
-
-struct subspill *
-cn_spill_get_nth_subspill(struct spillctx *sctx, uint n)
-{
-    return n < CN_FANOUT_MAX ? &sctx->subspill[n] : NULL;
 }
 
 void
