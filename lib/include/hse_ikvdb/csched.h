@@ -59,7 +59,9 @@ enum cn_rule {
     CN_RULE_SCATTERF,       /* vgroup scatter remediation (full node) */
     CN_RULE_SCATTERP,       /* vgroup scatter remediation (partial node) */
     CN_RULE_GARBAGE,        /* leaf garbage (reducing space amp) */
-    CN_RULE_SPLIT,          /* big leaf (near split threshold) */
+    CN_RULE_SPLIT,          /* big leaf (near split threshold, split in progress) */
+    CN_RULE_LSPLIT,         /* left node kvset after a split */
+    CN_RULE_RSPLIT,         /* right ndoe kvset after a split */
 };
 
 static inline const char *
@@ -104,6 +106,10 @@ cn_rule2str(enum cn_rule rule)
         return "garb";
     case CN_RULE_SPLIT:
         return "split";
+    case CN_RULE_LSPLIT:
+        return "left";
+    case CN_RULE_RSPLIT:
+        return "right";
     }
 
     return "invalid";

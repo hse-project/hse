@@ -174,7 +174,8 @@ struct sp3_qinfo {
  * @mon_signaled: set by sp3_monitor_wake()
  * @mon_cv:       monitor thread conditional var
  * @samp_reduce:  if true, compact while samp > LWM
- * @check_big_ns: used to stagger start of gc and scatter jobs
+ * @check_garbage_ns: used to stagger start of garbage jobs
+ * @check_scatter_ns: used to stagger start of scatter jobs
  * @mon_wq:       monitor thread workqueue
  * @mon_work:     monitor thread work struct
  * @name:         name for logging and data tree
@@ -233,7 +234,8 @@ struct sp3 {
     uint samp_targ;
     uint lpct_targ;
 
-    uint64_t check_big_ns;
+    uint64_t check_garbage_ns;
+    uint64_t check_scatter_ns;
     u64 qos_log_ttl;
 
     /* Tree shape report */
@@ -922,7 +924,7 @@ sp3_dirty_node_locked(struct sp3 *sp, struct cn_tree_node *tn)
             sp3_node_remove(sp, spn, wtype_length);
             sp3_node_remove(sp, spn, wtype_scatter);
             sp3_node_remove(sp, spn, wtype_garbage);
-        } else if (jobs < 1) {
+        } else if (nkvsets > 0 && jobs < 1) {
             const uint64_t keys_uniq = cn_ns_keys_uniq(&tn->tn_ns);
             const uint64_t keys = cn_ns_keys(&tn->tn_ns);
             uint64_t weight;
@@ -947,12 +949,19 @@ sp3_dirty_node_locked(struct sp3 *sp, struct cn_tree_node *tn)
              * node has 3% garbage.
              * We use alen as the secondary discriminant to prefer nodes
              * with higher total bytes of garbage.
-             *
-             * TODO: The garbage caculation needs help:  It sometimes returns
-             * a non-zero result for nodes consisting entirely of unique keys.
              */
-            if (garbage > 1 && nkvsets > 1 && keys > keys_uniq) {
+            if (garbage > 0) {
                 weight = ((uint64_t)garbage << 32) | (cn_ns_alen(&tn->tn_ns) >> 20);
+
+                /* Accelerate GC if the preponderance of keys are tombs.
+                 * Use 97% to account for observed hlog estimation error,
+                 * but would hlog-provided error bounds be better?
+                 */
+                if (cn_ns_tombs(&tn->tn_ns) * 100 > keys_uniq * 97) {
+                    sp3_node_remove(sp, spn, wtype_length);
+                    weight *= 2;
+                    ev_debug(1);
+                }
 
                 sp3_node_insert(sp, spn, wtype_garbage, weight);
             } else {
@@ -971,7 +980,10 @@ sp3_dirty_node_locked(struct sp3 *sp, struct cn_tree_node *tn)
 
             /* Leaf nodes sorted by split size and secondarily by number of keys.
              */
-            if (cn_ns_clen(&tn->tn_ns) >= tn->tn_split_size) {
+            if (tn->tn_tree->ct_fanout >= CN_FANOUT_MAX) {
+                sp3_node_remove(sp, spn, wtype_split);
+                ev_debug(1);
+            } else if (cn_ns_clen(&tn->tn_ns) >= tn->tn_split_size) {
                 weight = ((cn_ns_clen(&tn->tn_ns) >> 20) << 32) | keys;
 
                 sp3_node_insert(sp, spn, wtype_split, weight);
@@ -1414,6 +1426,8 @@ sp3_comp_thread_name(
         r = "sz";
         break;
     case CN_RULE_SPLIT:
+    case CN_RULE_LSPLIT:
+    case CN_RULE_RSPLIT:
         r = "s2";
         break;
     case CN_RULE_GARBAGE:
@@ -1919,10 +1933,6 @@ sp3_qos_check(struct sp3 *sp)
 
         nk = cn_ns_kvsets(&tree->ct_root->tn_ns) + 1;
 
-        /* If any rspill jobs are asleep awaiting a split we raise
-         * the throttle clamp above THROTTLE_SENSOR_SCARE to ensure
-         * the the throttle can increase if need be...
-         */
         sleepers += atomic_read(&tree->ct_rspill_slp);
 
         if (nk > rootmin) {
@@ -1977,12 +1987,13 @@ sp3_qos_check(struct sp3 *sp)
     }
 
     /* Clamp the sensor value to prevent wild oscillations in throughput as seen
-     * by the application.
+     * by the application. Raise the clamp above THROTTLE_SENSOR_SCALE if there the
+     * root list is excessively long or are any rspill jobs are asleep awaiting a
+     * split or another spill to ensure the throttle can increase if need be...
      */
     if (rootmax > rootmin * 4 || sleepers > 0) {
         if (sval > THROTTLE_SENSOR_SCALE * 110 / 100) {
             sval = THROTTLE_SENSOR_SCALE * 110 / 100;
-            ev_debug(1);
         }
     } else {
         if (sval > THROTTLE_SENSOR_SCALE * 90 / 100) {
@@ -2057,7 +2068,7 @@ sp3_schedule(struct sp3 *sp)
             break;
 
         case wtype_garbage:
-            if (get_time_ns() < sp->check_big_ns)
+            if (jclock_ns < sp->check_garbage_ns)
                 break;
 
             qnum = SP3_QNUM_GARBAGE;
@@ -2080,22 +2091,21 @@ sp3_schedule(struct sp3 *sp)
              *     the threshold so we don't waste write amp compacting nodes with
              *     low garbage (we'd rather wait for leaf_pct to catch up).
              *   - If neither ucomp nor samp_reduce is active then check for nodes
-             *     with excessively high garbage (e.g., 90% is roughly 10x garbage,
-             *     93% is roughly 15x garbage, 95% is roughly 20x garbage, ...)
+             *     with garbage above the per-node threshold (default 67%).
              */
             if (sp->samp_reduce && (100 * sp->lpct_targ > 90 * rp_leaf_pct)) {
                 thresh = (sp->lpct_targ < rp_leaf_pct ? 10ul : 0ul) << 32;
             } else {
-                thresh = 93ul << 32;
+                thresh = (uint64_t)sp->rp->csched_gc_pct << 32;
             }
 
             job = sp3_check_rb_tree(sp, sp->rr_wtype, thresh, qnum);
             if (job)
-                sp->check_big_ns = get_time_ns() + NSEC_PER_SEC * 3;
+                sp->check_garbage_ns = jclock_ns + NSEC_PER_SEC * 7;
             break;
 
         case wtype_scatter:
-            if (get_time_ns() < sp->check_big_ns)
+            if (jclock_ns < sp->check_scatter_ns)
                 break;
 
             qnum = SP3_QNUM_SCATTER;
@@ -2109,7 +2119,7 @@ sp3_schedule(struct sp3 *sp)
 
             job = sp3_check_rb_tree(sp, sp->rr_wtype, thresh, qnum);
             if (job)
-                sp->check_big_ns = get_time_ns() + NSEC_PER_SEC * 3;
+                sp->check_scatter_ns = jclock_ns + NSEC_PER_SEC * 3;
             break;
 
         case wtype_split:
@@ -2186,6 +2196,11 @@ sp3_monitor(struct work_struct *work)
     u64 last_activity = 0;
 
     sp3_refresh_settings(sp);
+
+    /* Delay the initial start of big compaction jobs.
+     */
+    sp->check_garbage_ns = jclock_ns + NSEC_PER_SEC * 60;
+    sp->check_scatter_ns = jclock_ns + NSEC_PER_SEC * 30;
 
     while (atomic_read(&sp->running)) {
         uint64_t now = get_time_ns();

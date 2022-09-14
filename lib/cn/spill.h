@@ -74,10 +74,6 @@ void
 cn_spill_destroy(struct spillctx *ctx);
 
 /* MTF_MOCK */
-struct subspill *
-cn_spill_get_nth_subspill(struct spillctx *sctx, uint n);
-
-/* MTF_MOCK */
 void
 cn_subspill_get_kvset_meta(struct subspill *ss, struct kvset_meta *km);
 

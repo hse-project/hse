@@ -825,6 +825,7 @@ cndb_cn_callback(void *arg, struct kvset_meta *km, u64 kvsetid)
         map_insert_ptr(ctx->nodemap, km->km_nodeid, node);
 
         list_add_tail(&node->tn_link, &ctx->tree->ct_nodes);
+        ctx->tree->ct_fanout++;
     }
 
     err = kvset_open(ctx->tree, kvsetid, km, &kvset);
@@ -968,6 +969,20 @@ cn_open(
         }
     }
 
+    /* Put the tree's node list into edge key order.
+     */
+    rn = route_map_first_node(cn->cn_tree->ct_route_map);
+    while (rn) {
+        tn = route_node_tnode(rn);
+        if (!tn)
+            abort();
+
+        list_del(&tn->tn_link);
+        list_add_tail(&tn->tn_link, &cn->cn_tree->ct_nodes);
+
+        rn = route_node_next(rn);
+    }
+
     /* Initialize kbuf to the largest possible key.
      */
     klen = sizeof(kbuf);
@@ -994,6 +1009,7 @@ cn_open(
         }
 
         list_add_tail(&tn->tn_link, &cn->cn_tree->ct_nodes);
+        cn->cn_tree->ct_fanout++;
 
         tn->tn_route_node = route_map_insert(cn->cn_tree->ct_route_map, tn, kbuf, klen);
         if (!tn->tn_route_node) {

@@ -327,6 +327,7 @@ sp3_work_wtype_split(
     struct kvset_list_entry *le;
     struct list_head *head;
     bool splittable;
+    bool expandable;
     uint kvsets;
 
     head = &tn->tn_kvset_list;
@@ -338,29 +339,30 @@ sp3_work_wtype_split(
 
     /* Recheck to see if this node should be split, as while awaiting
      * an opportunity to split an rspill could have shrunk this node
-     * below the split size.
+     * below the split size, or we might have reached max fanout.
      */
     splittable = (kvsets > 0) &&
         (cn_ns_clen(&tn->tn_ns) >= tn->tn_split_size ||
          cn_ns_keys_uniq(&tn->tn_ns) >= thresh->lcomp_split_keys);
 
     mutex_lock(&tn->tn_ss_lock);
-    if (splittable) {
+    expandable = (tree->ct_fanout < CN_FANOUT_MAX - atomic_read(&tree->ct_split_cnt));
+
+    if (splittable && expandable) {
         uint spilling = atomic_read(&tn->tn_ss_spilling);
 
         if (!tn->tn_ss_splitting) {
-            if (atomic_read(&tree->ct_split_cnt) >= thresh->split_cnt_max || jclock_ns < tree->ct_split_dly) {
+            if (atomic_read(&tree->ct_split_cnt) >= thresh->split_cnt_max ||
+                jclock_ns < tree->ct_split_dly) {
+
                 tn->tn_ss_visits = 0;
                 kvsets = 0;
-                ev_debug(1);
             } else if (cn_ns_kvsets(&tree->ct_root->tn_ns) >= thresh->rspill_runlen_min * 3) {
                 tn->tn_ss_visits = 0;
                 kvsets = 0;
-                ev_debug(1);
             } else if (spilling && tn->tn_ss_visits < thresh->split_cnt_max) {
                 tn->tn_ss_visits++;
                 kvsets = 0;
-                ev_debug(1);
             } else {
                 if (atomic_inc_return(&tree->ct_split_cnt) >= thresh->split_cnt_max)
                     tree->ct_split_dly = jclock_ns + NSEC_PER_SEC * 3;
@@ -372,7 +374,6 @@ sp3_work_wtype_split(
                  */
                 tn->tn_ss_splitting = true;
                 tn->tn_ss_visits = 0;
-                ev_debug(1);
             }
         }
 
@@ -390,17 +391,30 @@ sp3_work_wtype_split(
             ev_debug(1);
         }
 
-        /* If we simply drop this job request then no new work will be scheduled
-         * on this node until the next spill into it (which might never happen).
-         * Given that the node has shrunk in size, we instead issue a kv-compact
-         * to get this node back into the scheduler's consideration.
-         */
-        kvsets = min_t(uint, kvsets, thresh->lcomp_runlen_max);
         tn->tn_ss_visits = 0;
 
-        *action = CN_ACTION_COMPACT_KV;
-        *rule = CN_RULE_GARBAGE;
-        ev_debug(1);
+        /* If the route map is expandable then the node size must have risen
+         * above then below the split threshold, so we issue a cheap k-compact
+         * to ensure this node gets back into the scheduler's consideration.
+         *
+         * Otherwise, we simply drop this request, meaning that no new work
+         * will be scheduled for this node until the next spill into it
+         * (which might never happen).
+         */
+        if (expandable) {
+            while (kvsets > thresh->llen_runlen_min) {
+                *mark = list_prev_entry(*mark, le_link);
+                kvsets--;
+            }
+
+            *action = CN_ACTION_COMPACT_K;
+            *rule = CN_RULE_LENGTH_MIN;
+            ev_debug(1);
+        } else {
+            *mark = NULL;
+            kvsets = 0;
+            ev_debug(1);
+        }
     }
     mutex_unlock(&tn->tn_ss_lock);
 
@@ -416,15 +430,31 @@ sp3_work_wtype_garbage(
     enum cn_rule             *rule)
 {
     struct cn_tree_node *tn = spn2tn(spn);
+    struct cn_node_stats *ns = &tn->tn_ns;
     struct kvset_list_entry *le;
     struct list_head *head;
+    uint kvsets;
 
     head = &tn->tn_kvset_list;
     *mark = list_last_entry_or_null(head, typeof(*le), le_link);
     *action = CN_ACTION_COMPACT_KV;
     *rule = CN_RULE_GARBAGE;
 
-    return min_t(uint, cn_ns_kvsets(&tn->tn_ns), thresh->lcomp_runlen_max);
+    kvsets = cn_ns_kvsets(ns);
+
+    /* If the preponderance of keys are tombs then perform a k-compaction
+     * on the entire node to avoid unnecessarily rewriting vblocks.  If
+     * this approach fails to annihilate all the keys, then it at least
+     * buys us some time (at low cost) to allow for more tombs to arrive
+     * before we perform a full kv-compaction.
+     */
+    if (kvsets > 1 && cn_ns_tombs(ns) * 100 > cn_ns_keys_uniq(ns) * 97) {
+        *action = CN_ACTION_COMPACT_K;
+        ev_debug(1);
+        return kvsets;
+    }
+
+    return min_t(uint, kvsets, thresh->lcomp_runlen_max);
 }
 
 static uint
