@@ -2091,13 +2091,12 @@ sp3_schedule(struct sp3 *sp)
              *     the threshold so we don't waste write amp compacting nodes with
              *     low garbage (we'd rather wait for leaf_pct to catch up).
              *   - If neither ucomp nor samp_reduce is active then check for nodes
-             *     with excessively high garbage (e.g., 90% is roughly 10x garbage,
-             *     93% is roughly 15x garbage, 95% is roughly 20x garbage, ...)
+             *     with garbage above the per-node threshold (default 67%).
              */
             if (sp->samp_reduce && (100 * sp->lpct_targ > 90 * rp_leaf_pct)) {
                 thresh = (sp->lpct_targ < rp_leaf_pct ? 10ul : 0ul) << 32;
             } else {
-                thresh = 93ul << 32;
+                thresh = (uint64_t)sp->rp->csched_gc_pct << 32;
             }
 
             job = sp3_check_rb_tree(sp, sp->rr_wtype, thresh, qnum);

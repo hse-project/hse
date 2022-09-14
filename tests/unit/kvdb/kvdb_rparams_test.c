@@ -285,6 +285,25 @@ MTF_DEFINE_UTEST_PRE(kvdb_rparams_test, csched_leaf_pct, test_pre)
     ASSERT_EQ(100, ps->ps_bounds.as_uscalar.ps_max);
 }
 
+MTF_DEFINE_UTEST_PRE(kvdb_rparams_test, csched_gc_pct, test_pre)
+{
+    const struct param_spec *ps = ps_get("csched_gc_pct");
+
+    ASSERT_NE(NULL, ps);
+    ASSERT_NE(NULL, ps->ps_description);
+    ASSERT_EQ(PARAM_FLAG_EXPERIMENTAL | PARAM_FLAG_WRITABLE, ps->ps_flags);
+    ASSERT_EQ(PARAM_TYPE_U8, ps->ps_type);
+    ASSERT_EQ(offsetof(struct kvdb_rparams, csched_gc_pct), ps->ps_offset);
+    ASSERT_EQ(sizeof(uint8_t), ps->ps_size);
+    ASSERT_EQ((uintptr_t)ps->ps_convert, (uintptr_t)param_default_converter);
+    ASSERT_EQ((uintptr_t)ps->ps_validate, (uintptr_t)param_default_validator);
+    ASSERT_EQ((uintptr_t)ps->ps_stringify, (uintptr_t)param_default_stringify);
+    ASSERT_EQ((uintptr_t)ps->ps_jsonify, (uintptr_t)param_default_jsonify);
+    ASSERT_EQ(67, params.csched_gc_pct);
+    ASSERT_EQ(50, ps->ps_bounds.as_uscalar.ps_min);
+    ASSERT_EQ(100, ps->ps_bounds.as_uscalar.ps_max);
+}
+
 MTF_DEFINE_UTEST_PRE(kvdb_rparams_test, csched_lscat_hwm, test_pre)
 {
     const struct param_spec *ps = ps_get("csched_max_vgroups");

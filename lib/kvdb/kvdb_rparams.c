@@ -799,8 +799,27 @@ static const struct param_spec pspecs[] = {
         },
     },
     {
-        /* TODO: Change this name to "csched_lscat_hwm" after we update users.
-         */
+        .ps_name = "csched_gc_pct",
+        .ps_description = "per-node garbage collection threshold",
+        .ps_flags = PARAM_FLAG_EXPERIMENTAL | PARAM_FLAG_WRITABLE,
+        .ps_type = PARAM_TYPE_U8,
+        .ps_offset = offsetof(struct kvdb_rparams, csched_gc_pct),
+        .ps_size = PARAM_SZ(struct kvdb_rparams, csched_gc_pct),
+        .ps_convert = param_default_converter,
+        .ps_validate = param_default_validator,
+        .ps_stringify = param_default_stringify,
+        .ps_jsonify = param_default_jsonify,
+        .ps_default_value = {
+            .as_uscalar = 67, /* 2/3 of the node is garbage */
+        },
+        .ps_bounds = {
+            .as_uscalar = {
+                .ps_min = 50,  /* half the node is garbage */
+                .ps_max = 100, /* infinite garbage */
+            },
+        },
+    },
+    {
         .ps_name = "csched_max_vgroups",
         .ps_description = "leaf-scatter-remediation trigger threshold",
         .ps_flags = PARAM_FLAG_EXPERIMENTAL | PARAM_FLAG_WRITABLE,
