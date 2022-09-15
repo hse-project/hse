@@ -711,10 +711,10 @@ cn_comp_work_init(
 
         if (!w->cw_mark) {
             w->cw_mark = le;
-            w->cw_dgen_lo = kvset_get_dgen(le->le_kvset);
+            w->cw_dgen_hi_min = kvset_get_dgen(le->le_kvset);
         }
 
-        kvset_set_workid(le->le_kvset, w->cw_dgen_lo);
+        kvset_set_workid(le->le_kvset, w->cw_dgen_hi_min);
 
         w->cw_dgen_hi = kvset_get_dgen(le->le_kvset);
 

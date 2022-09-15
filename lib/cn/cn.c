@@ -522,7 +522,8 @@ cn_ingest_prep(
     km.km_hblk = mblocks->hblk;
     km.km_kblk_list = mblocks->kblks;
     km.km_vblk_list = mblocks->vblks;
-    km.km_dgen = dgen;
+    km.km_dgen_hi = dgen;
+    km.km_dgen_lo = dgen;
     km.km_nodeid = 0; /* Root node has a node id of 0 */
 
     km.km_vused = mblocks->bl_vused;
@@ -686,7 +687,7 @@ cn_ingestv(
 
         if (log_ingest) {
             kvset_stats_add(kvset_statsp(kvsetv[i]), &kst);
-            dgen = kvsetv[i]->ks_dgen;
+            dgen = kvsetv[i]->ks_dgen_hi;
         }
 
         cn_tree_ingest_update(
@@ -840,8 +841,8 @@ cndb_cn_callback(void *arg, struct kvset_meta *km, u64 kvsetid)
         return err;
     }
 
-    if (ctx->max_dgen < km->km_dgen)
-        ctx->max_dgen = km->km_dgen;
+    if (ctx->max_dgen < km->km_dgen_hi)
+        ctx->max_dgen = km->km_dgen_hi;
 
     return 0;
 }

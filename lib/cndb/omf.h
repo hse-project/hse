@@ -168,7 +168,8 @@ struct cndb_kvset_add_omf {
     uint64_t            kvset_add_txid;
     uint64_t            kvset_add_kvsetid;
     uint64_t            kvset_add_nodeid;
-    uint64_t            kvset_add_dgen;
+    uint64_t            kvset_add_dgen_hi;
+    uint64_t            kvset_add_dgen_lo;
     uint64_t            kvset_add_vused;
     uint32_t            kvset_add_compc;
     uint16_t            kvset_add_rule;
@@ -182,7 +183,8 @@ OMF_SETGET(struct cndb_kvset_add_omf, kvset_add_cnid, 64);
 OMF_SETGET(struct cndb_kvset_add_omf, kvset_add_txid, 64);
 OMF_SETGET(struct cndb_kvset_add_omf, kvset_add_kvsetid, 64);
 OMF_SETGET(struct cndb_kvset_add_omf, kvset_add_nodeid, 64);
-OMF_SETGET(struct cndb_kvset_add_omf, kvset_add_dgen, 64);
+OMF_SETGET(struct cndb_kvset_add_omf, kvset_add_dgen_hi, 64);
+OMF_SETGET(struct cndb_kvset_add_omf, kvset_add_dgen_lo, 64);
 OMF_SETGET(struct cndb_kvset_add_omf, kvset_add_vused, 64);
 OMF_SETGET(struct cndb_kvset_add_omf, kvset_add_compc, 32);
 OMF_SETGET(struct cndb_kvset_add_omf, kvset_add_rule, 16);
@@ -324,7 +326,8 @@ cndb_omf_kvset_add_write(
     uint64_t          cnid,
     uint64_t          kvsetid,
     uint64_t          nodeid,
-    uint64_t          dgen,
+    uint64_t          dgen_hi,
+    uint64_t          dgen_lo,
     uint64_t          vused,
     uint32_t          compc,
     uint16_t          rule,

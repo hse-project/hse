@@ -169,7 +169,8 @@ cn_subspill_get_kvset_meta(struct subspill *ss, struct kvset_meta *km)
 
     memset(km, 0, sizeof(*km));
 
-    km->km_dgen = w->cw_dgen_hi;
+    km->km_dgen_hi = w->cw_dgen_hi;
+    km->km_dgen_lo = w->cw_dgen_lo;
     km->km_vused = ss->ss_mblks.bl_vused;
 
     km->km_hblk = ss->ss_mblks.hblk;

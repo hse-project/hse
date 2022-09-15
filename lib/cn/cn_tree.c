@@ -1172,7 +1172,8 @@ cn_tree_prepare_compaction(struct cn_compaction_work *w)
 
         if (split) {
             size_t sz = HSE_KVS_KEY_LEN_MAX +
-                n_outs * (sizeof(*(w->cw_split.commit)) + sizeof(*(w->cw_split.dgen)) +
+                n_outs * (sizeof(*(w->cw_split.commit)) + sizeof(*(w->cw_split.dgen_hi)) +
+                          sizeof(*(w->cw_split.dgen_lo)) +
                           sizeof(*(w->cw_split.compc))) +
                 w->cw_kvset_cnt * sizeof(*(w->cw_split.purge));
 
@@ -1183,8 +1184,9 @@ cn_tree_prepare_compaction(struct cn_compaction_work *w)
             }
 
             w->cw_split.commit = w->cw_split.key + HSE_KVS_KEY_LEN_MAX;
-            w->cw_split.dgen = (void *)(w->cw_split.commit + n_outs);
-            w->cw_split.compc = (void *)(w->cw_split.dgen + n_outs);
+            w->cw_split.dgen_hi = (void *)(w->cw_split.commit + n_outs);
+            w->cw_split.dgen_lo = (void *)(w->cw_split.dgen_hi + n_outs);
+            w->cw_split.compc = (void *)(w->cw_split.dgen_lo + n_outs);
             w->cw_split.purge = (void *)(w->cw_split.compc + n_outs);
         }
     }
@@ -1210,7 +1212,7 @@ cn_tree_prepare_compaction(struct cn_compaction_work *w)
         struct kv_iterator **iter = &ins[w->cw_kvset_cnt - 1 - i];
 
         if (i == 0)
-            assert(kvset_get_dgen(le->le_kvset) == w->cw_dgen_lo);
+            assert(kvset_get_dgen(le->le_kvset) == w->cw_dgen_hi_min);
         if (i == w->cw_kvset_cnt - 1)
             assert(kvset_get_dgen(le->le_kvset) == w->cw_dgen_hi);
 
@@ -1286,7 +1288,7 @@ cn_comp_update_kvcompact(struct cn_compaction_work *work, struct kvset *new_kvse
         return;
 
     INIT_LIST_HEAD(&retired_kvsets);
-    assert(work->cw_dgen_lo == kvset_get_workid(work->cw_mark->le_kvset));
+    assert(work->cw_dgen_hi_min == kvset_get_workid(work->cw_mark->le_kvset));
 
     rmlock_wlock(&tree->ct_lock);
     {
@@ -1315,7 +1317,7 @@ cn_comp_update_kvcompact(struct cn_compaction_work *work, struct kvset *new_kvse
     /* Delete retired kvsets. */
     list_for_each_entry_safe(le, tmp, &retired_kvsets, le_link) {
 
-        assert(kvset_get_dgen(le->le_kvset) >= work->cw_dgen_lo);
+        assert(kvset_get_dgen(le->le_kvset) >= work->cw_dgen_hi_min);
         assert(kvset_get_dgen(le->le_kvset) <= work->cw_dgen_hi);
 
         kvset_mark_mblocks_for_delete(le->le_kvset, work->cw_keep_vblks);
@@ -1395,7 +1397,7 @@ cn_spill_delete_kvsets(struct cn_compaction_work *work)
     for (uint i = 0; i < work->cw_kvset_cnt; i++) {
         assert(!list_empty(&pnode->tn_kvset_list));
         le = list_last_entry(&pnode->tn_kvset_list, struct kvset_list_entry, le_link);
-        assert(i > 0 || work->cw_dgen_lo == kvset_get_dgen(le->le_kvset));
+        assert(i > 0 || work->cw_dgen_hi_min == kvset_get_dgen(le->le_kvset));
         list_del(&le->le_link);
         list_add(&le->le_link, &retired_kvsets);
     }
@@ -1683,12 +1685,14 @@ cn_comp_commit(struct cn_compaction_work *w)
         if (is_split) {
             km.km_compc = w->cw_split.compc[i];
             km.km_nodeid = split_nodeidv[i / w->cw_kvset_cnt];
-            km.km_dgen = w->cw_split.dgen[i];
+            km.km_dgen_hi = w->cw_split.dgen_hi[i];
+            km.km_dgen_lo = w->cw_split.dgen_lo[i];
             km.km_rule = (i / w->cw_kvset_cnt) ? CN_RULE_RSPLIT : CN_RULE_LSPLIT;
         } else {
             km.km_compc = w->cw_compc;
             km.km_nodeid = w->cw_node->tn_nodeid;
-            km.km_dgen = w->cw_dgen_hi;
+            km.km_dgen_hi = w->cw_dgen_hi;
+            km.km_dgen_lo = w->cw_dgen_lo;
             km.km_rule = w->cw_rule;
         }
 
@@ -1859,7 +1863,7 @@ cn_comp_cleanup(struct cn_compaction_work *w)
                      cn_rule2str(w->cw_rule),
                      cn_tree_get_cnid(w->cw_tree),
                      w->cw_node->tn_nodeid,
-                     w->cw_dgen_lo,
+                     w->cw_dgen_hi_min,
                      w->cw_dgen_hi,
                      w->cw_tree->ct_rspills_wedged,
                      (w->cw_t3_build - w->cw_t2_prep) / 1000000);

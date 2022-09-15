@@ -1655,7 +1655,7 @@ sp3_job_print(struct sts_job *job, void *priv, char *buf, size_t bufsz)
                  cn_ns_clen(&w->cw_ns) >> 20,
                  w->cw_ns.ns_pcap,
                  w->cw_compc,
-                 w->cw_dgen_lo,
+                 w->cw_dgen_hi_min,
                  w->cw_nh, w->cw_nk, w->cw_nv,
                  w->cw_est.cwe_samp.r_alen >> 20,
                  w->cw_est.cwe_samp.i_alen >> 20,

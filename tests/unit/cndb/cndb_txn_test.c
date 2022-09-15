@@ -47,7 +47,8 @@ MTF_DEFINE_UTEST(cndb_txn_test, basic)
     ASSERT_NE(NULL, tx);
 
     struct kvset_meta km = {
-        .km_dgen = 1,
+        .km_dgen_hi = 2,
+        .km_dgen_lo = 1,
     };
 
     uint64_t kblkid = 10;

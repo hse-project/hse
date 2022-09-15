@@ -149,7 +149,8 @@ mock_make_kvi(struct kv_iterator **kvi, int src, struct kvs_rparams *rp, struct 
 
     kid = 0x1000 + nkv->key1;
     vid = 0x2000 + nkv->val1;
-    km.km_dgen = nkv->dgen;
+    km.km_dgen_hi = nkv->dgen;
+    km.km_dgen_lo = nkv->dgen;
 
     local_kblock.bk_blkid = kid;
     km.km_kblk_list.n_blks = 1;
@@ -194,7 +195,7 @@ mock_make_vblocks(struct kv_iterator **kvi, struct kvs_rparams *rp, int nv)
         ds[i].bk_blkid = 0x2000 + i;
 
     kid = 0x1000;
-    km.km_dgen = ++dgen;
+    km.km_dgen_hi = ++dgen;
     km.km_vused = nv * 1000;
 
     local_kblock.bk_blkid = kid;
@@ -262,7 +263,7 @@ _kvset_open(struct cn_tree *tree, u64 tag, struct kvset_meta *km, struct kvset *
     mk->stats.kst_vwlen = km->km_vused;
     mk->stats.kst_vulen = km->km_vused;
 
-    mk->dgen = km->km_dgen;
+    mk->dgen = km->km_dgen_hi;
     mk->iter_data = tree->mp;
     mk->ref = 1; /* as in reality, kvsets are minted ref 1 */
 

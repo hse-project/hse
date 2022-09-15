@@ -600,7 +600,8 @@ cn_split(struct cn_compaction_work *w)
                     blk_list_free(result->ks[k].blks_commit);
                 } else {
                     w->cw_kvsetidv[idx] = cndb_kvsetid_mint(cndb);
-                    w->cw_split.dgen[idx] = wargs[i].ks->ks_dgen;
+                    w->cw_split.dgen_hi[idx] = wargs[i].ks->ks_dgen_hi;
+                    w->cw_split.dgen_lo[idx] = wargs[i].ks->ks_dgen_lo;
                     w->cw_split.compc[idx] = wargs[i].ks->ks_compc;
                 }
             }

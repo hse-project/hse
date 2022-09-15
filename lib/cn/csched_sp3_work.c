@@ -997,13 +997,15 @@ sp3_work(
     assert(mark);
 
     /* mark the kvsets with dgen_lo */
-    w->cw_dgen_lo = kvset_get_dgen(mark->le_kvset);
+    w->cw_dgen_hi_min = kvset_get_dgen(mark->le_kvset);
+    w->cw_dgen_lo = UINT64_MAX;
     le = mark;
     for (i = 0; i < n_kvsets; i++) {
         assert(&le->le_link != &tn->tn_kvset_list);
         assert(kvset_get_workid(le->le_kvset) == 0);
-        kvset_set_workid(le->le_kvset, w->cw_dgen_lo);
+        kvset_set_workid(le->le_kvset, w->cw_dgen_hi_min);
         w->cw_dgen_hi = kvset_get_dgen(le->le_kvset);
+        w->cw_dgen_lo = min_t(uint64_t, w->cw_dgen_lo, kvset_get_dgen_lo(le->le_kvset));
         w->cw_nh++; /* Only ever 1 hblock per kvset */
         w->cw_nk += kvset_get_num_kblocks(le->le_kvset);
         w->cw_nv += kvset_get_num_vblocks(le->le_kvset);

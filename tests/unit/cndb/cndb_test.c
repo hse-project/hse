@@ -262,7 +262,8 @@ kvset_add(struct cndb *cndb, struct cndb_txn *tx, uint64_t dgen, struct t_kvset 
 {
     merr_t err;
     struct kvset_meta km = {
-        .km_dgen = dgen,
+        .km_dgen_hi = dgen,
+        .km_dgen_lo = dgen,
     };
 
     void *cookie;
@@ -354,7 +355,8 @@ create_kvset(
 
     uint64_t hblkid = ++g_mbid;
     struct kvset_meta km = {
-        .km_dgen = 1,
+        .km_dgen_hi = 2,
+        .km_dgen_lo = 1,
         .km_vused = 10,
         .km_compc = 0,
     };
@@ -404,7 +406,8 @@ MTF_DEFINE_UTEST_PREPOST(cndb_test, replay_full, test_pre, test_post)
     void *c1, *c2;
 
     struct kvset_meta km = {
-        .km_dgen = 1,
+        .km_dgen_hi = 1,
+        .km_dgen_lo = 1,
         .km_vused = 10,
         .km_compc = 0,
     };
@@ -491,7 +494,8 @@ MTF_DEFINE_UTEST_PREPOST(cndb_test, rollback, test_pre, test_post)
     void *c1, *c2;
 
     struct kvset_meta km = {
-        .km_dgen = 1,
+        .km_dgen_hi = 1,
+        .km_dgen_lo = 1,
         .km_vused = 10,
         .km_compc = 0,
     };

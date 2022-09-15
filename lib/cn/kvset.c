@@ -170,7 +170,7 @@ kvset_put_ref_final(struct kvset *ks)
     }
 
     if (tries >= maxtries) {
-        log_warn("kvset %lu has lingering vbd references", (ulong)ks->ks_dgen);
+        log_warn("kvset %lu has lingering vbd references", (ulong)ks->ks_dgen_hi);
 
         assert(tries < maxtries); /* leak it in release build */
         return;
@@ -550,7 +550,8 @@ kvset_open2(
 
     ks->ks_mp = mp;
     ks->ks_rp = rp;
-    ks->ks_dgen = km->km_dgen;
+    ks->ks_dgen_hi = km->km_dgen_hi;
+    ks->ks_dgen_lo = km->km_dgen_lo;
     ks->ks_compc = km->km_compc;
     ks->ks_rule = km->km_rule;
     ks->ks_kvsetid = kvsetid;
@@ -1756,7 +1757,13 @@ kvset_get_nodeid(const struct kvset *ks)
 u64
 kvset_get_dgen(const struct kvset *ks)
 {
-    return ks->ks_dgen;
+    return ks->ks_dgen_hi;
+}
+
+u64
+kvset_get_dgen_lo(const struct kvset *ks)
+{
+    return ks->ks_dgen_lo;
 }
 
 u64

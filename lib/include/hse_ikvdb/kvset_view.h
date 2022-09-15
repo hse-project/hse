@@ -83,6 +83,10 @@ kvset_get_dgen(const struct kvset *kvset);
 
 /* MTF_MOCK */
 u64
+kvset_get_dgen_lo(const struct kvset *kvset);
+
+/* MTF_MOCK */
+u64
 kvset_get_seqno_max(struct kvset *kvset);
 
 struct kvset_view {

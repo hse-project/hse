@@ -96,8 +96,9 @@ struct cn_work_est {
  * @cw_rspill_done:  if set, then root spill compaction work is done
  * @cw_rspill_busy:  if set, then root spill compaction work is done and the
  *                       tree is being updated with this work
- * @cw_dgen_hi:      the dgen of the newest kvset to be compacted
- * @cw_dgen_lo:      the dgen of the oldest kvset to be compacted
+ * @cw_dgen_hi:      the max of dgen_hi of all the compacted kvsets
+ * @cw_dgen_hi_min:  the min of dgen_hi of all the compacted kvsets
+ * @cw_dgen_lo:      the min of dgen_lo of all the compacted kvsets
  * @cw_active_count: for tracking the number of active "root" or "other" threads
  * @cw_horizon:      sequence number horizon to use while compacting
  * @cw_outc:         number of output kvsets
@@ -153,6 +154,7 @@ struct cn_compaction_work {
     bool                     cw_have_token;
     atomic_int               cw_rspill_commit_in_progress;
     u64                      cw_dgen_hi;
+    u64                      cw_dgen_hi_min;
     u64                      cw_dgen_lo;
 
     /* For scheduler */
@@ -185,7 +187,8 @@ struct cn_compaction_work {
         void                 *key;       /* split key for this node */
         struct blk_list      *commit;    /* mblocks to commit - a list per output kvset */
         struct blk_list      *purge;     /* mblocks to purge - a list per source kvset */
-        uint64_t             *dgen;      /* dgen array - one entry per output kvset */
+        uint64_t             *dgen_hi;   /* dgen_hi array - one entry per output kvset */
+        uint64_t             *dgen_lo;   /* dgen_lo array - one entry per output kvset */
         uint32_t             *compc;     /* compc array - one entry per output kvset */
         struct cn_tree_node  *nodev[2];  /* node split output nodes */
         uint                  klen;      /* split key length */
