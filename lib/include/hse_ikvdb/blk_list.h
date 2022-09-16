@@ -8,23 +8,14 @@
 
 #include <inttypes.h>
 
-/**
- * struct kvs_block - information about a mblock in a blk_list
- * @bk_blkid:  mblock id
- * @bk_handle: mblock handle
- */
-struct kvs_block {
-    uint64_t bk_blkid;
-};
-
 struct blk_list {
-    struct kvs_block *blks;
+    uint64_t *blks;
     uint32_t n_alloc;
     uint32_t n_blks;
 };
 
 struct kvset_mblocks {
-    struct kvs_block hblk;
+    uint64_t hblk_id;
     struct blk_list kblks;
     struct blk_list vblks;
     uint64_t bl_vtotal;

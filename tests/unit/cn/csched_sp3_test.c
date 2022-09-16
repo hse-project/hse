@@ -48,8 +48,8 @@ struct cndb *        cndb;
  *   - Uses counter for mblock ids.
  */
 struct kvset_meta km;
-struct kvs_block  km_kblocks[4];
-struct kvs_block  km_vblocks[4];
+uint64_t          km_kblocks[4];
+uint64_t          km_vblocks[4];
 u64               mbid = 123456;
 
 static struct kvset_meta *
@@ -68,10 +68,10 @@ init_kvset_meta(u64 dgen)
     km.km_vblk_list.blks = km_vblocks;
 
     for (i = 0; i < km.km_kblk_list.n_blks; i++)
-        km_kblocks[i].bk_blkid = mbid++;
+        km_kblocks[i] = mbid++;
 
     for (i = 0; i < km.km_vblk_list.n_blks; i++)
-        km_vblocks[i].bk_blkid = mbid++;
+        km_vblocks[i] = mbid++;
 
     km.km_vused = 1000;
     km.km_dgen_hi = dgen;

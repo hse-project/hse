@@ -105,7 +105,7 @@ void
 kvset_builder_adopt_vblocks(
     struct kvset_builder *self,
     size_t                num_vblocks,
-    struct kvs_block     *vblocks,
+    uint64_t             *vblock_ids,
     uint64_t              vtotal,
     struct vgmap         *vgmap);
 

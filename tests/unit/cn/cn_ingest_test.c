@@ -164,7 +164,7 @@ init_mblks(struct kvset_mblocks *p, uint nsets, uint *nk, uint *nv)
     memset(p, 0, nsets * sizeof(*p));
 
     for (i = 0; i < nsets; ++i) {
-        p[i].hblk.bk_blkid = mblk_id++;
+        p[i].hblk_id = mblk_id++;
 
         blk_list_init(&p[i].kblks);
         for (j = 0; j < *nk; j++)

@@ -1624,7 +1624,7 @@ cn_comp_commit(struct cn_compaction_work *w)
          *
          * [HSE_REVISIT] Are there any other corner cases?
          */
-        if (!w->cw_outv[i].hblk.bk_blkid) {
+        if (!w->cw_outv[i].hblk_id) {
             assert(w->cw_outv[i].kblks.n_blks == 0);
             continue;
         }
@@ -1636,7 +1636,7 @@ cn_comp_commit(struct cn_compaction_work *w)
          * Yes, the struct copy is a bit gross, but it works and
          * avoids unnecessary allocations of temporary lists.
          */
-        km.km_hblk = w->cw_outv[i].hblk;
+        km.km_hblk_id = w->cw_outv[i].hblk_id;
         km.km_kblk_list = w->cw_outv[i].kblks;
         km.km_vblk_list = w->cw_outv[i].vblks;
 
@@ -1661,9 +1661,9 @@ cn_comp_commit(struct cn_compaction_work *w)
          */
         err = cndb_record_kvset_add(
                         w->cw_tree->cndb, tx, w->cw_tree->cnid,
-                        km.km_nodeid, &km, w->cw_kvsetidv[i], km.km_hblk.bk_blkid,
-                        w->cw_outv[i].kblks.n_blks, (uint64_t *)w->cw_outv[i].kblks.blks,
-                        w->cw_outv[i].vblks.n_blks, (uint64_t *)w->cw_outv[i].vblks.blks,
+                        km.km_nodeid, &km, w->cw_kvsetidv[i], km.km_hblk_id,
+                        w->cw_outv[i].kblks.n_blks, w->cw_outv[i].kblks.blks,
+                        w->cw_outv[i].vblks.n_blks, w->cw_outv[i].vblks.blks,
                         &cookiev[i]);
 
         if (err) {
@@ -1716,7 +1716,7 @@ cn_comp_commit(struct cn_compaction_work *w)
     /* CNDB: Ack all the kvset add records.
      */
     for (i = 0; i < w->cw_outc; i++) {
-        if (!w->cw_outv[i].hblk.bk_blkid)
+        if (!w->cw_outv[i].hblk_id)
             continue;
 
         err = cndb_record_kvset_add_ack(w->cw_tree->cndb, tx, cookiev[i]);
@@ -1898,7 +1898,7 @@ cn_subspill_commit(struct subspill *ss)
     struct cn_compaction_work *w = ss->ss_work;
     struct cndb *cndb = w->cw_tree->cndb;
 
-    if (!mblks->hblk.bk_blkid) {
+    if (!mblks->hblk_id) {
         assert(mblks->kblks.n_blks == 0);
         return 0;
     }
@@ -1912,9 +1912,9 @@ cn_subspill_commit(struct subspill *ss)
     /* CNDB: Log kvset add records.
      */
     err = cndb_record_kvset_add(cndb, tx, w->cw_tree->cnid, km.km_nodeid,
-                                &km, ss->ss_kvsetid, km.km_hblk.bk_blkid,
-                                mblks->kblks.n_blks, (uint64_t *)mblks->kblks.blks,
-                                mblks->vblks.n_blks, (uint64_t *)mblks->vblks.blks, &cookie);
+                                &km, ss->ss_kvsetid, km.km_hblk_id,
+                                mblks->kblks.n_blks, mblks->kblks.blks,
+                                mblks->vblks.n_blks, mblks->vblks.blks, &cookie);
     if (err)
         goto done;
 

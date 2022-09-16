@@ -18,16 +18,16 @@
 #include "blk_list.h"
 
 merr_t
-commit_mblock(struct mpool *mp, struct kvs_block *blk)
+commit_mblock(struct mpool *mp, uint64_t mbid)
 {
     merr_t err;
 
-    INVARIANT(blk);
-    INVARIANT(blk->bk_blkid);
+    INVARIANT(mp);
+    INVARIANT(mbid);
 
-    err = mpool_mblock_commit(mp, blk->bk_blkid);
+    err = mpool_mblock_commit(mp, mbid);
     if (err) {
-        log_errx("Failed to commit mblock, blkid 0x%lx", err, blk->bk_blkid);
+        log_errx("Failed to commit mblock, blkid 0x%lx", err, mbid);
         return err;
     }
 
@@ -37,11 +37,13 @@ commit_mblock(struct mpool *mp, struct kvs_block *blk)
 merr_t
 commit_mblocks(struct mpool *mp, struct blk_list *blks)
 {
-    if (!mp || !blks)
-        return merr(EINVAL);
+    merr_t err;
+
+    INVARIANT(mp);
+    INVARIANT(blks);
 
     for (uint32_t i = 0; i < blks->n_blks; i++) {
-        merr_t err = commit_mblock(mp, &blks->blks[i]);
+        err = commit_mblock(mp, blks->blks[i]);
         if (err)
             return err;
     }
@@ -50,33 +52,33 @@ commit_mblocks(struct mpool *mp, struct blk_list *blks)
 }
 
 merr_t
-delete_mblock(struct mpool *mp, struct kvs_block *blk)
+delete_mblock(struct mpool *mp, uint64_t mbid)
 {
-    merr_t err = mpool_mblock_delete(mp, blk->bk_blkid);
-    if (err) {
-        log_errx("Failed to delete mblock, blkid 0x%lx", err, blk->bk_blkid);
-        return err;
-    }
+    merr_t err;
 
-    blk->bk_blkid = 0;
+    INVARIANT(mp);
 
-    return 0;
+    err = mpool_mblock_delete(mp, mbid);
+    if (err)
+        log_errx("Failed to delete mblock 0x%lx", err, mbid);
+
+    return err;
 }
 
 void
 delete_mblocks(struct mpool *mp, struct blk_list *blks)
 {
-    if (!mp || !blks)
-        return;
+    INVARIANT(mp);
+    INVARIANT(blks);
 
     for (uint32_t i = 0; i < blks->n_blks; i++)
-        delete_mblock(mp, &blks->blks[i]);
+        delete_mblock(mp, blks->blks[i]);
 }
 
 void
 blk_list_init(struct blk_list *blkl)
 {
-    assert(blkl);
+    INVARIANT(blkl);
 
     blkl->blks = NULL;
     blkl->n_alloc = 0;
@@ -92,26 +94,26 @@ blk_list_append(struct blk_list *blks, u64 blkid)
 
         size_t old_sz;
         size_t grow_sz;
-        struct kvs_block *new;
+        uint64_t *new_mbidv;
 
-        old_sz = sizeof(struct kvs_block) * blks->n_alloc;
-        grow_sz = sizeof(struct kvs_block) * BLK_LIST_PRE_ALLOC;
-        new = malloc(old_sz + grow_sz);
-        if (!new)
-            return merr(ev(ENOMEM));
+        old_sz = sizeof(blks->blks[0]) * blks->n_alloc;
+        grow_sz = sizeof(blks->blks[0]) * BLK_LIST_PRE_ALLOC;
+        new_mbidv = malloc(old_sz + grow_sz);
+        if (ev(!new_mbidv))
+            return merr(ENOMEM);
 
         blks->n_alloc += BLK_LIST_PRE_ALLOC;
 
         if (old_sz) {
             assert(blks->blks);
-            memcpy(new, blks->blks, old_sz);
+            memcpy(new_mbidv, blks->blks, old_sz);
             free(blks->blks);
         }
 
-        blks->blks = new;
+        blks->blks = new_mbidv;
     }
 
-    blks->blks[blks->n_blks].bk_blkid = blkid;
+    blks->blks[blks->n_blks] = blkid;
     blks->n_blks++;
 
     return 0;

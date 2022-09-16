@@ -6,22 +6,14 @@
 #ifndef HSE_KVS_CN_COMPACT_H
 #define HSE_KVS_CN_COMPACT_H
 
+/* MTF_MOCK_DECL(kcompact) */
+
 #include <hse/error/merr.h>
 #include <hse_util/inttypes.h>
 
 struct cn_compaction_work;
 
-/* MTF_MOCK_DECL(kcompact) */
-
-/**
- * struct kvset_vblk_map - maps vblock refs for k-compaction
- * @vbm_blkv:   vector of vblock ids
- * @vbm_blkc:   number of entries in blkv
- * @vbm_map:    map of offsets from src vr_index to new vr_index in target
- * @vbm_mapc:   number of entries in map[]
- * @vbm_used:   total bytes of used vblock space
- * @vbm_waste:  total bytes of un-used vblock space
- * @vbm_tot:    total bytes of all values in vblock space
+/* Maps vblock refs for k-compaction
  *
  * This structure is used during k-compaction to map the vr_index
  * in kvs_vtuple_ref into the new target vr_index in the larger kvset.
@@ -48,17 +40,16 @@ struct cn_compaction_work;
  * used 20M,  waste 300M, ratio: 300 / 320 = .94
  */
 struct kvset_vblk_map {
-    struct kvs_block *vbm_blkv;
-    uint32_t         *vbm_map;
-    uint32_t          vbm_blkc;
-    uint32_t          vbm_mapc;
-    uint64_t          vbm_used;
-    uint64_t          vbm_waste;
-    uint64_t          vbm_tot;
+    uint64_t         *vbm_blkv;  // vector of vblock ids
+    uint32_t         *vbm_map;   // map of offsets from src vr_index to new vr_index in target
+    uint32_t          vbm_blkc;  // number of entries in blkv
+    uint32_t          vbm_mapc;  // number of entries in map[]
+    uint64_t          vbm_used;  // total bytes of used vblock space
+    uint64_t          vbm_waste; // total bytes of un-used vblock space
+    uint64_t          vbm_tot;   // total bytes of all values in vblock space
 };
 
-/**
- * cn_kcompact - Build kvsets as part of a k-compact operation
+/* Perform a k-compact operation
  */
 /* MTF_MOCK */
 merr_t

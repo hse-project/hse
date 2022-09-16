@@ -382,8 +382,8 @@ cn_mblocks_commit(
          * checking to make sure the hblock's block ID is valid prior to
          * committing it.
          */
-        if (list[i].hblk.bk_blkid) {
-            err = commit_mblock(mp, &list[i].hblk);
+        if (list[i].hblk_id) {
+            err = commit_mblock(mp, list[i].hblk_id);
             if (ev(err)) {
                 return err;
             }
@@ -411,8 +411,7 @@ cn_mblocks_destroy(
     bool                  kcompact)
 {
     for (uint32_t i = 0; i < num_lists; i++) {
-        delete_mblock(mp, &list[i].hblk);
-
+        delete_mblock(mp, list[i].hblk_id);
         delete_mblocks(mp, &list[i].kblks);
         if (!kcompact)
             delete_mblocks(mp, &list[i].vblks);
@@ -514,13 +513,13 @@ cn_ingest_prep(
     if (ev(!mblocks))
         return merr(EINVAL);
 
-    assert(mblocks->hblk.bk_blkid);
+    assert(mblocks->hblk_id);
 
     *kvsetp = NULL;
 
     dgen = atomic_read(&cn->cn_ingest_dgen) + 1;
 
-    km.km_hblk = mblocks->hblk;
+    km.km_hblk_id = mblocks->hblk_id;
     km.km_kblk_list = mblocks->kblks;
     km.km_vblk_list = mblocks->vblks;
     km.km_dgen_hi = dgen;
@@ -542,16 +541,16 @@ cn_ingest_prep(
      * hblock, there's nothing more to do. CNDB recognizes this and realizes
      * that this is not a real kvset.
      */
-    if (!mblocks->hblk.bk_blkid) {
+    if (!mblocks->hblk_id) {
         assert(mblocks->kblks.n_blks == 0);
         assert(mblocks->vblks.n_blks == 0);
         goto done;
     }
 
     err = cndb_record_kvset_add(cn->cn_cndb, txn, cn->cn_cnid, km.km_nodeid, &km, kvsetid,
-                                mblocks->hblk.bk_blkid,
-                                km.km_kblk_list.n_blks, (uint64_t *)km.km_kblk_list.blks,
-                                km.km_vblk_list.n_blks, (uint64_t *)km.km_vblk_list.blks,
+                                mblocks->hblk_id,
+                                km.km_kblk_list.n_blks, km.km_kblk_list.blks,
+                                km.km_vblk_list.n_blks, km.km_vblk_list.blks,
                                 cookie);
     if (ev(err))
         goto done;

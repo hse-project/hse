@@ -238,7 +238,7 @@ kvset_hblk_init(
     *vgmap_out = NULL;
     *use_vgmap = false;
 
-    err = hbr_read_desc(mpool, map, props, blk->kh_hblk.bk_blkid, hbd);
+    err = hbr_read_desc(mpool, map, props, props->mpr_objid, hbd);
     if (err)
         return err;
 
@@ -309,7 +309,7 @@ kvset_kblk_init(
     struct kblock_hdr_omf *hdr;
     merr_t                 err;
 
-    err = kbr_get_kblock_desc(ds, kmap, props, idx, p->kb_kblk.bk_blkid, kbd);
+    err = kbr_get_kblock_desc(ds, kmap, props, idx, props->mpr_objid, kbd);
     if (ev(err))
         return err;
 
@@ -369,60 +369,6 @@ kvset_kblk_init(
         kbr_madvise_bloom(kbd, &p->kb_blm_desc, MADV_WILLNEED);
 
     return 0;
-}
-
-/**
- * blkid_list_to_vec()
- *
- * malloc a vector for blkids, and populate it from a blk_list.  Caller
- * must free the vector when finished.
- */
-static u64 *
-blkid_list_to_vec(struct blk_list *blkl, size_t bufc, u64 *bufv)
-{
-    u64 *v = bufv;
-    int  i;
-
-    if (blkl->n_blks > bufc) {
-        v = malloc_array(blkl->n_blks, sizeof(u64));
-        if (ev(!v))
-            return NULL;
-    }
-
-    for (i = 0; i < blkl->n_blks; i++)
-        v[i] = blkl->blks[i].bk_blkid;
-
-    return v;
-}
-
-/* This is not a general purpose function!  The caller must ensure mapv is
- * large enough, and must also cleanup on failure.
- */
-static merr_t
-kvset_map_blklist(
-    struct mpool *            mp,
-    struct blk_list *         blks,
-    struct mpool_mcache_map **mapp)
-{
-    uint    idc;
-    u64    *idv;
-    u64     bufv[64];
-    merr_t  err;
-
-    idc = blks->n_blks;
-    if (!idc)
-        return 0;
-
-    idv = blkid_list_to_vec(blks, NELEM(bufv), bufv);
-    if (ev(!idv))
-        return merr(ENOMEM);
-
-    err = mpool_mcache_mmap(mp, idc, idv, mapp);
-
-    if (idv != bufv)
-        free(idv);
-
-    return err;
 }
 
 static merr_t
@@ -490,7 +436,7 @@ kvset_open2(
     struct kvs_cparams *cp;
 
     /* need hblock, kblocks and vblocks optional */
-    assert(km->km_hblk.bk_blkid);
+    assert(km->km_hblk_id);
     last_kb = n_kblks - 1;
 
     /* number of vbsets */
@@ -577,21 +523,20 @@ kvset_open2(
     assert(ks->ks_kvsetid != 0);
 
     /* map single hblock */
-    err = mpool_mcache_mmap(mp, 1, &km->km_hblk.bk_blkid, &ks->ks_hmap);
+    err = mpool_mcache_mmap(mp, 1, &km->km_hblk_id, &ks->ks_hmap);
     if (ev(err))
         goto err_exit;
 
     {
         struct mblock_props props;
 
-        err = mpool_mblock_props_get(mp, km->km_hblk.bk_blkid, &props);
+        err = mpool_mblock_props_get(mp, km->km_hblk_id, &props);
         if (ev(err))
             goto err_exit;
 
-        ks->ks_hblk.kh_hblk.bk_blkid = km->km_hblk.bk_blkid;
-
         err = kvset_hblk_init(mp, &props, ks->ks_hmap, &ks->ks_vgmap, &ks->ks_use_vgmap,
                               &ks->ks_hlog, &ks->ks_hblk);
+
         if (ev(err))
             goto err_exit;
 
@@ -606,9 +551,11 @@ kvset_open2(
     assert(ks->ks_seqno_min <= ks->ks_seqno_max);
 
     /* map kblocks */
-    err = kvset_map_blklist(mp, &km->km_kblk_list, &ks->ks_kmap);
-    if (ev(err))
-        goto err_exit;
+    if (km->km_kblk_list.n_blks > 0) {
+        err = mpool_mcache_mmap(mp, km->km_kblk_list.n_blks, km->km_kblk_list.blks, &ks->ks_kmap);
+        if (ev(err))
+            goto err_exit;
+    }
 
     kcachesz = 0;
 
@@ -616,13 +563,11 @@ kvset_open2(
         struct kvset_kblk * kblk = ks->ks_kblks + i;
         struct mblock_props props;
 
-        u64 mbid = km->km_kblk_list.blks[i].bk_blkid;
+        u64 mbid = km->km_kblk_list.blks[i];
 
         err = mpool_mblock_props_get(mp, mbid, &props);
         if (ev(err))
             goto err_exit;
-
-        kblk->kb_kblk.bk_blkid = mbid;
 
         err = kvset_kblk_init(rp, mp, &props, ks->ks_kmap, i, kblk);
         if (ev(err))
@@ -832,38 +777,27 @@ merr_t
 kvset_open(struct cn_tree *tree, uint64_t kvsetid, struct kvset_meta *km, struct kvset **ks)
 {
     merr_t         err;
-    uint           n_vblks = km->km_vblk_list.n_blks;
+    uint32_t       idc = km->km_vblk_list.n_blks;
+    uint64_t      *idv = km->km_vblk_list.blks;
     struct mbset * vbset = 0;
     struct mbset **vbsetv = &vbset;
     uint           vbsetc = 0;
     uint           len = 0;
 
-    if (n_vblks) {
-        u64 bufv[64];
-        u64 *idv;
-
-        idv = blkid_list_to_vec(&km->km_vblk_list, NELEM(bufv), bufv);
-        if (ev(!idv))
-            return merr(ENOMEM);
-
-        err = mbset_create(cn_tree_get_mp(tree), n_vblks, idv, sizeof(struct vblock_desc),
+    if (idc) {
+        err = mbset_create(cn_tree_get_mp(tree), idc, idv, sizeof(struct vblock_desc),
                            vblock_udata_init, 0, &vbset);
-        if (idv != bufv)
-            free(idv);
-        if (ev(err))
-            return err;
-
         len = 1;
         vbsetc = 1;
     }
 
-    /* kvset_open2 takes its own mbset ref, must free ours
+    /* kvset_open2 takes its own mbset ref, must release ours
      * unconditionally after calling kvset_open2.
      */
     err = kvset_open2(tree, kvsetid, km, len, &vbsetc, &vbsetv, ks);
     ev(err);
 
-    if (n_vblks)
+    if (vbset)
         mbset_put_ref(vbset);
 
     return err;
@@ -949,7 +883,7 @@ kvset_purge_blklist_add(struct kvset *ks, struct blk_list *blks)
     ks->ks_deleted = DEL_LIST;
 
     for (uint32_t i = 0; i < blks->n_blks; i++) {
-        merr_t err = blk_list_append(&ks->ks_purge, blks->blks[i].bk_blkid);
+        merr_t err = blk_list_append(&ks->ks_purge, blks->blks[i]);
         if (err) {
             atomic_inc(&ks->ks_delete_error);
             return;
@@ -974,7 +908,7 @@ cleanup_kblocks(struct kvset *ks)
      * a serious error, and stopping immediately would do less harm.
      */
     for (i = 0; i < ks->ks_st.kst_kblks; i++) {
-        err = mpool_mblock_delete(ks->ks_mp, ks->ks_kblks[i].kb_kblk.bk_blkid);
+        err = mpool_mblock_delete(ks->ks_mp, ks->ks_kblks[i].kb_kblk_desc.mbid);
         if (err) {
             atomic_inc(&ks->ks_delete_error);
             return;
@@ -992,7 +926,7 @@ cleanup_hblock(struct kvset *ks)
     if (ks->ks_deleted == DEL_NONE || ks->ks_deleted == DEL_LIST)
         return;
 
-    err = mpool_mblock_delete(ks->ks_mp, ks->ks_hblk.kh_hblk.bk_blkid);
+    err = mpool_mblock_delete(ks->ks_mp, ks->ks_hblk.kh_hblk_desc.mbid);
     if (err) {
         atomic_inc(&ks->ks_delete_error);
         return;
@@ -1005,7 +939,7 @@ cleanup_purge_blklist(struct kvset *ks)
     assert(ks->ks_deleted == DEL_LIST);
 
     for (uint32_t i = 0; i < ks->ks_purge.n_blks; i++) {
-        merr_t err = mpool_mblock_delete(ks->ks_mp, ks->ks_purge.blks[i].bk_blkid);
+        merr_t err = mpool_mblock_delete(ks->ks_mp, ks->ks_purge.blks[i]);
         if (err) {
             atomic_inc(&ks->ks_delete_error);
             return;
@@ -1892,7 +1826,7 @@ kvset_set_workid(struct kvset *ks, u64 id)
 uint64_t
 kvset_get_hblock_id(struct kvset *ks)
 {
-    return ks->ks_hblk.kh_hblk.bk_blkid;
+    return ks->ks_hblk.kh_hblk_desc.mbid;
 }
 
 u32
@@ -1904,7 +1838,7 @@ kvset_get_num_kblocks(struct kvset *ks)
 u64
 kvset_get_nth_kblock_id(struct kvset *ks, u32 index)
 {
-    return (index < ks->ks_st.kst_kblks ? ks->ks_kblks[index].kb_kblk.bk_blkid : 0);
+    return (index < ks->ks_st.kst_kblks ? ks->ks_kblks[index].kb_kblk_desc.mbid : 0);
 }
 
 uint32_t
@@ -2363,12 +2297,12 @@ kblk_start_read(struct kvset_iterator *iter, struct kblk_reader *kr, enum read_t
             kblk = &iter->ks->ks_kblks[kr->kr_next_blk_idx];
 
             wbt = &kblk->kb_wbt_desc;
-            kr->kr_mbid = kblk->kb_kblk.bk_blkid;
+            kr->kr_mbid = kblk->kb_kblk_desc.mbid;
             break;
         }
         case READ_PT:
             wbt = &iter->ks->ks_hblk.kh_ptree_desc;
-            kr->kr_mbid = iter->ks->ks_hblk.kh_hblk.bk_blkid;
+            kr->kr_mbid = iter->ks->ks_hblk.kh_hblk_desc.mbid;
             break;
         }
 

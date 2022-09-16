@@ -1424,7 +1424,7 @@ cndb_cn_instantiate(struct cndb *cndb, uint64_t cnid, void *ctx, cn_init_callbac
             .km_vgarb = kvset->ck_vgarb,
             .km_capped = cn->cp.kvs_ext01,
             .km_nodeid = kvset->ck_nodeid,
-            .km_hblk.bk_blkid = kvset->ck_hblkid,
+            .km_hblk_id = kvset->ck_hblkid,
             .km_restored = true,
         };
 

@@ -132,7 +132,6 @@ mock_make_kvi(struct kv_iterator **kvi, int src, struct kvs_rparams *rp, struct 
     struct kvset_meta km;
     struct kvdata *   ds = 0;
     u64               kid, vid;
-    struct kvs_block  local_kblock, local_vblock;
     merr_t            err;
 
     memset(&km, 0, sizeof(km));
@@ -146,15 +145,13 @@ mock_make_kvi(struct kv_iterator **kvi, int src, struct kvs_rparams *rp, struct 
     km.km_dgen_hi = nkv->dgen;
     km.km_dgen_lo = nkv->dgen;
 
-    local_kblock.bk_blkid = kid;
     km.km_kblk_list.n_blks = 1;
     km.km_kblk_list.n_alloc = 1;
-    km.km_kblk_list.blks = &local_kblock;
+    km.km_kblk_list.blks = &kid;
 
-    local_vblock.bk_blkid = vid;
     km.km_vblk_list.n_blks = 1;
     km.km_vblk_list.n_alloc = 1;
-    km.km_vblk_list.blks = &local_vblock;
+    km.km_vblk_list.blks = &vid;
 
     err = _make_common(kvi, src, (struct mpool *)ds, rp, &km);
     if (err)
@@ -169,7 +166,7 @@ mock_make_vblocks(struct kv_iterator **kvi, struct kvs_rparams *rp, int nv)
     u64               kid;
     merr_t            err;
     int               i;
-    struct kvs_block  local_kblock, *ds;
+    uint64_t         *vblk_ids;
     struct nkv_tab    nkv;
     struct kvdata    *kvdata;
 
@@ -181,32 +178,31 @@ mock_make_vblocks(struct kv_iterator **kvi, struct kvs_rparams *rp, int nv)
     nkv.vmix = VMX_S32;
     kvdata = _make_data(&nkv);
 
-    ds = calloc(nv + 1, sizeof(*ds));
-    if (!ds)
+    vblk_ids = calloc(nv + 1, sizeof(*vblk_ids));
+    if (!vblk_ids)
         return merr(ENOMEM);
 
     for (i = 0; i < nv; ++i)
-        ds[i].bk_blkid = 0x2000 + i;
+        vblk_ids[i] = 0x2000 + i;
 
     kid = 0x1000;
     km.km_dgen_hi = ++dgen;
     km.km_dgen_lo = 1;
     km.km_vused = nv * 1000;
 
-    local_kblock.bk_blkid = kid;
     km.km_kblk_list.n_blks = 1;
     km.km_kblk_list.n_alloc = 1;
-    km.km_kblk_list.blks = &local_kblock;
+    km.km_kblk_list.blks = &kid;
 
     km.km_vblk_list.n_blks = nv;
     km.km_vblk_list.n_alloc = nv;
-    km.km_vblk_list.blks = ds;
+    km.km_vblk_list.blks = vblk_ids;
 
     err = _make_common(kvi, 0, (struct mpool *)kvdata, rp, &km);
     if (err)
         free(kvdata);
 
-    free(ds);
+    free(vblk_ids);
 
     return 0;
 }
@@ -266,12 +262,12 @@ _kvset_open(struct cn_tree *tree, uint64_t kvsetid, struct kvset_meta *km, struc
     mk->iter_data = tree->mp;
     mk->ref = 1; /* as in reality, kvsets are minted ref 1 */
 
-    mk->ids[i++] = km->km_hblk.bk_blkid;
+    mk->ids[i++] = km->km_hblk_id;
     for (i = 1; i < km->km_kblk_list.n_blks; i++)
-        mk->ids[i] = km->km_kblk_list.blks[i].bk_blkid;
+        mk->ids[i] = km->km_kblk_list.blks[i];
 
     for (j = 0; j < km->km_vblk_list.n_blks; j++, i++)
-        mk->ids[i] = km->km_vblk_list.blks[j].bk_blkid;
+        mk->ids[i] = km->km_vblk_list.blks[j];
 
     *handle = (struct kvset *)mk;
 

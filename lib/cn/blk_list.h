@@ -20,7 +20,7 @@ struct mpool;
 
 /* MTF_MOCK */
 merr_t
-delete_mblock(struct mpool *mp, struct kvs_block *blk);
+delete_mblock(struct mpool *mp, uint64_t mbid);
 
 /* MTF_MOCK */
 void
@@ -28,7 +28,7 @@ delete_mblocks(struct mpool *mp, struct blk_list *blk);
 
 /* MTF_MOCK */
 merr_t
-commit_mblock(struct mpool *mp, struct kvs_block *blk);
+commit_mblock(struct mpool *mp, uint64_t mbid);
 
 /* MTF_MOCK */
 merr_t
