@@ -56,7 +56,7 @@
 
 static atomic_ulong pfx HSE_ACP_ALIGNED;
 static atomic_ulong sfx HSE_ACP_ALIGNED;
-static uint64_t last_del HSE_ACP_ALIGNED;
+static uint64_t next_del HSE_ACP_ALIGNED;
 
 pthread_barrier_t   put_barrier1;
 pthread_barrier_t   put_barrier2;
@@ -120,7 +120,7 @@ del_ptombs(void *arg)
         /* Compute how many entries is it safe to delete */
         curr = atomic_read(&pfx);
         curr_safe = curr > opts.cap ? curr - opts.cap : 0;
-        if (last_del >= curr_safe) {
+        if (next_del >= curr_safe) {
             usleep(333);
             continue;
         }
@@ -128,7 +128,7 @@ del_ptombs(void *arg)
         /* delete a prefix */
 
         p = (uint64_t *)key;
-        *p = htobe64(last_del + 1);
+        *p = htobe64(next_del);
 
         err = hse_kvdb_txn_begin(targ->kvdb, txn);
         if (err)
@@ -153,7 +153,7 @@ del_ptombs(void *arg)
         if (err)
             fatal(err, "Failed to commit txn");
 
-        last_del++;
+        next_del++;
     }
 
     hse_kvdb_txn_free(targ->kvdb, txn);
@@ -184,7 +184,7 @@ del_tombs(void *arg)
         /* Compute how many entries is it safe to delete */
         curr = atomic_read(&pfx);
         curr_safe = curr > opts.cap ? curr - opts.cap : 0;
-        if (last_del >= curr_safe) {
+        if (next_del >= curr_safe) {
             usleep(333);
             continue;
         }
@@ -197,7 +197,7 @@ del_tombs(void *arg)
         p = (uint64_t *)key;
         s = (uint64_t *)(key + sizeof(*p));
 
-        *p = htobe64(last_del);
+        *p = htobe64(next_del);
 
         for (i = 0; i < opts.chunk * opts.put_threads; ++i) {
             *s = htobe64(suffix + i);
@@ -224,7 +224,7 @@ del_tombs(void *arg)
             fatal(err, "Failed to commit txn");
 
         suffix += i;
-        last_del++;
+        next_del++;
     }
 
     hse_kvdb_txn_free(targ->kvdb, txn);
@@ -401,7 +401,7 @@ print_stats(void *arg)
 
         printf("%8lu %8lu %8lu %10lu %10lu %8.2lf %8u %8lu %8lu %8ld %8ld %s\n",
                dt / NSEC_PER_SEC,
-               atomic_read(&pfx), last_del,
+               atomic_read(&pfx), next_del,
                puts, reads, lag, pfx_lag,
                puts - puts_last, reads - reads_last,
                rusage.ru_majflt - majflt,
@@ -466,11 +466,11 @@ reader(void *arg)
 
                 fatal(ENOENT, "Lost capped position at seek: "
                       "expected %lu-%lu found %lu-%lu "
-                      "last del %lu",
+                      "next del %lu",
                       be64toh(klast[0]), be64toh(klast[1]),
                       key ? be64toh(key64[0]) : 0,
                       key ? be64toh(key64[1]) : 0,
-                      last_del);
+                      next_del);
             }
 
             ti->state = 'r';
