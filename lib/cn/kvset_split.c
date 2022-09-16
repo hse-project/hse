@@ -316,12 +316,14 @@ kblocks_split(
      * Also generate a composite hlog for the left kvset and the right kvset
      */
     for (uint32_t i = 0; i < split_idx; i++) {
-        err = blk_list_append(&blks_left->kblks, ks->ks_kblks[i].kb_kblk.bk_blkid);
+        struct kvset_kblk *kblk = &ks->ks_kblks[i];
+
+        err = blk_list_append(&blks_left->kblks, kblk->kb_kblk_desc.mbid);
         if (err)
             return err;
 
-        hlog_union(hlog_left, ks->ks_kblks[i].kb_hlog);
-        blks_left->bl_vused += ks->ks_kblks[i].kb_metrics.tot_vused_bytes;
+        hlog_union(hlog_left, kblk->kb_hlog);
+        blks_left->bl_vused += kblk->kb_metrics.tot_vused_bytes;
     }
 
     if (overlap) {
@@ -348,7 +350,7 @@ kblocks_split(
          * kblks[LEFT] and kblks[RIGHT] to the commit list
          */
         for (uint32_t i = 0; i < kblks[LEFT].n_blks && !err; i++) {
-            uint64_t blkid = kblks[LEFT].blks[i].bk_blkid;
+            uint64_t blkid = kblks[LEFT].blks[i];
 
             err = blk_list_append(&blks_left->kblks, blkid);
             if (!err) {
@@ -360,7 +362,7 @@ kblocks_split(
         }
 
         for (uint32_t i = 0; i < kblks[RIGHT].n_blks && !err; i++) {
-            uint64_t blkid = kblks[RIGHT].blks[i].bk_blkid;
+            uint64_t blkid = kblks[RIGHT].blks[i];
 
             err = blk_list_append(&blks_right->kblks, blkid);
             if (!err) {
@@ -372,7 +374,7 @@ kblocks_split(
 
         /* Add the source kblock to the purge list to be destroyed later */
         if (!err)
-            err = blk_list_append(result->blks_purge, kblk->kb_kblk.bk_blkid);
+            err = blk_list_append(result->blks_purge, kblk->kb_kblk_desc.mbid);
 
         for (int i = LEFT; i <= RIGHT; i++)
             blk_list_free(&kblks[i]);
@@ -383,8 +385,9 @@ kblocks_split(
     /* Add kblocks in [split_idx, nkblks - 1] to the right kvset
      */
     for (uint32_t i = split_idx; i < ks->ks_st.kst_kblks && !err; i++) {
-        err = blk_list_append(&blks_right->kblks, ks->ks_kblks[i].kb_kblk.bk_blkid);
+        struct kvset_kblk *kblk = &ks->ks_kblks[i];
 
+        err = blk_list_append(&blks_right->kblks, kblk->kb_kblk_desc.mbid);
         if (!err) {
             hlog_union(hlog_right, ks->ks_kblks[i].kb_hlog);
             blks_right->bl_vused += ks->ks_kblks[i].kb_metrics.tot_vused_bytes;
@@ -606,7 +609,6 @@ hblock_split(
     struct kvset_split_work work[static 2],
     struct kvset_split_res *result)
 {
-    struct kvs_block hblk;
     struct key_obj min_pfx = { 0 }, max_pfx = { 0 };
     struct kvset_mblocks *blks_left = result->ks[LEFT].blks;
     struct kvset_mblocks *blks_right = result->ks[RIGHT].blks;
@@ -630,29 +632,21 @@ hblock_split(
      * to the purge list.
      */
     if (blks_left->kblks.n_blks > 0 || ptree) {
-        hblk.bk_blkid = 0;
-        err = hbb_finish(work[LEFT].hbb, &hblk, work[LEFT].vgmap, &min_pfx, &max_pfx,
+        err = hbb_finish(work[LEFT].hbb, &blks_left->hblk_id, work[LEFT].vgmap, &min_pfx, &max_pfx,
                          min_seqno, max_seqno, blks_left->kblks.n_blks, blks_left->vblks.n_blks,
                          num_ptombs, hlog_data(work[LEFT].hlog),
                          ptree, &ks->ks_hblk.kh_ptree_desc, ptree_pgc);
-        if (!err) {
-            assert(hblk.bk_blkid);
-            blks_left->hblk = hblk;
-            err = blk_list_append(result->ks[LEFT].blks_commit, hblk.bk_blkid);
-        }
+        if (!err)
+            err = blk_list_append(result->ks[LEFT].blks_commit, blks_left->hblk_id);
     }
 
     if (!err && (blks_right->kblks.n_blks > 0 || ptree)) {
-        hblk.bk_blkid = 0;
-        err = hbb_finish(work[RIGHT].hbb, &hblk, work[RIGHT].vgmap, &min_pfx, &max_pfx,
+        err = hbb_finish(work[RIGHT].hbb, &blks_right->hblk_id, work[RIGHT].vgmap, &min_pfx, &max_pfx,
                          min_seqno, max_seqno, blks_right->kblks.n_blks, blks_right->vblks.n_blks,
                          num_ptombs, hlog_data(work[RIGHT].hlog),
                          ptree, &ks->ks_hblk.kh_ptree_desc, ptree_pgc);
-        if (!err) {
-            assert(hblk.bk_blkid);
-            blks_right->hblk = hblk;
-            err = blk_list_append(result->ks[RIGHT].blks_commit, hblk.bk_blkid);
-        }
+        if (!err)
+            err = blk_list_append(result->ks[RIGHT].blks_commit, blks_right->hblk_id);
     }
 
     return err ? err : blk_list_append(result->blks_purge, ks->ks_hblk.kh_hblk_desc.mbid);

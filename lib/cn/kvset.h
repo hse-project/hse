@@ -66,7 +66,7 @@ enum kvset_iter_flags {
  * This structure is passed between the MDC and kvset_open().
  */
 struct kvset_meta {
-    struct kvs_block km_hblk;
+    uint64_t        km_hblk_id;
     struct blk_list km_kblk_list;
     struct blk_list km_vblk_list;
     uint64_t        km_dgen_hi;

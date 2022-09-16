@@ -39,7 +39,7 @@ struct kvset_builder {
     struct cn *cn;               // pointer to cn struct
 
     struct hblock_builder *hbb;  // hblock builder
-    struct kvs_block hblk;       // hblock id
+    uint64_t hblk_id;            // hblock id
 
     struct kblock_builder *kbb;  // kblock builder
     struct blk_list kblk_list;   // list of kblock ids
