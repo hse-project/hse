@@ -5,17 +5,27 @@
 
 #define MTF_MOCK_IMPL_dax
 
-#include <sys/mman.h>
+#include "build_config.h"
 
-#include <hse_util/platform.h>
-#include <hse_util/page.h>
-#include <hse_util/dax.h>
+#include <stdio.h>
+#include <sys/stat.h>
 
 #ifdef HAVE_PMEM
 #include <libpmem.h>
+#include <limits.h>
 #else
 #include <dirent.h>
+#include <fcntl.h>
+#include <linux/mman.h>
+#include <sys/mman.h>
+#include <sys/types.h>
+#include <unistd.h>
 #endif
+
+#include <hse/error/merr.h>
+#include <hse_util/dax.h>
+#include <hse_util/page.h>
+#include <hse_util/platform.h>
 
 merr_t
 dax_path_is_fsdax(const char *path, bool *isdax)
@@ -24,7 +34,7 @@ dax_path_is_fsdax(const char *path, bool *isdax)
 
     char buf[PATH_MAX + 16];
     const char *fname = "hse-dax-test";
-    const int fsize = 4 << 20;
+    const size_t fsize = 4 << 20;
     void *addr;
     size_t n;
     int is_pmem = 0;
