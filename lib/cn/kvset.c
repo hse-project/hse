@@ -1754,16 +1754,31 @@ kvset_get_nodeid(const struct kvset *ks)
     return ks->ks_nodeid;
 }
 
-u64
+void
+kvset_set_nodeid(struct kvset *ks, uint64_t nodeid)
+{
+    ks->ks_nodeid = nodeid;
+}
+
+uint64_t
 kvset_get_dgen(const struct kvset *ks)
 {
     return ks->ks_dgen_hi;
 }
 
-u64
+uint64_t
 kvset_get_dgen_lo(const struct kvset *ks)
 {
     return ks->ks_dgen_lo;
+}
+
+bool
+kvset_younger(const struct kvset *ks1, const struct kvset *ks2)
+{
+    uint64_t hi1 = kvset_get_dgen(ks1), hi2 = kvset_get_dgen(ks2);
+
+    return (hi1 > hi2 ||
+            (hi1 == hi2 && kvset_get_dgen_lo(ks1) >= kvset_get_dgen_lo(ks2)));
 }
 
 u64
@@ -1772,10 +1787,16 @@ kvset_get_seqno_max(struct kvset *ks)
     return ks->ks_seqno_max;
 }
 
-uint
-kvset_get_compc(struct kvset *ks)
+uint32_t
+kvset_get_compc(const struct kvset *ks)
 {
     return ks->ks_compc;
+}
+
+void
+kvset_set_compc(struct kvset *ks, uint32_t compc)
+{
+    ks->ks_compc = compc;
 }
 
 uint32_t
@@ -1809,6 +1830,12 @@ u8 *
 kvset_get_hlog(struct kvset *ks)
 {
     return ks->ks_hlog;
+}
+
+uint64_t
+kvset_get_id(const struct kvset *ks)
+{
+    return ks->ks_kvsetid;
 }
 
 u64

@@ -1451,6 +1451,25 @@ cndb_cn_instantiate(struct cndb *cndb, uint64_t cnid, void *ctx, cn_init_callbac
     return 0;
 }
 
+merr_t
+cndb_kvset_delete(struct cndb *cndb, uint64_t cnid, uint64_t kvsetid)
+{
+    struct cndb_kvset *kvset;
+    struct cndb_cn *cn;
+
+    cn = map_lookup_ptr(cndb->cn_map, cnid);
+    if (!cn)
+        return merr(EPROTO);
+
+    kvset = map_lookup_ptr(cn->kvset_map, kvsetid);
+    if (!kvset)
+        return merr(EBUG);
+
+    free(kvset);
+
+    return 0;
+}
+
 struct kvs_cparams *
 cndb_kvs_cparams(struct cndb *cndb, uint64_t cnid)
 {

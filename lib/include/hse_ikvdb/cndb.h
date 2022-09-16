@@ -111,6 +111,15 @@ cndb_record_kvset_del(
     uint64_t         kvsetid,
     void           **cookie);
 
+merr_t
+cndb_record_kvset_move(
+    struct cndb *cndb,
+    uint64_t     cnid,
+    uint64_t     src_nodeid,
+    uint64_t     tgt_nodeid,
+    uint32_t     kvset_idc,
+    uint64_t    *kvset_idv);
+
 /* MTF_MOCK */
 merr_t
 cndb_record_kvset_add_ack(struct cndb *cndb, struct cndb_txn *tx, void *cookie);
@@ -143,6 +152,9 @@ cn_init_callback(void *, struct kvset_meta *, u64);
 /* MTF_MOCK */
 merr_t
 cndb_cn_instantiate(struct cndb *cndb, u64 cnid, void *ctx, cn_init_callback *cb);
+
+merr_t
+cndb_kvset_delete(struct cndb *cndb, uint64_t cnid, uint64_t kvsetid);
 
 /* MTF_MOCK */
 struct kvs_cparams *

@@ -21,6 +21,7 @@ cn_sources = files(
     'kvset_builder.c',
     'kvset_split.c',
     'mbset.c',
+    'move.c',
     'node_split.c',
     'route.c',
     'spill.c',

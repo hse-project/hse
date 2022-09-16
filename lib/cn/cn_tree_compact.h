@@ -146,16 +146,16 @@ struct cn_compaction_work {
     uint32_t                 cw_nh;
     uint32_t                 cw_nk;
     uint32_t                 cw_nv;
-    uint                     cw_compc;
+    uint32_t                 cw_compc;
     uint32_t                 cw_input_vgroups;
     uint                     cw_pfx_len;
     enum cn_action           cw_action;
     enum cn_rule             cw_rule;
     bool                     cw_have_token;
     atomic_int               cw_rspill_commit_in_progress;
-    u64                      cw_dgen_hi;
-    u64                      cw_dgen_hi_min;
-    u64                      cw_dgen_lo;
+    uint64_t                 cw_dgen_hi;
+    uint64_t                 cw_dgen_hi_min;
+    uint64_t                 cw_dgen_lo;
 
     /* For scheduler */
     struct sts_job        cw_job;

@@ -351,6 +351,10 @@ kvset_pfx_lookup(
     struct query_ctx *     qctx);
 
 /* MTF_MOCK */
+bool
+kvset_younger(const struct kvset *ks1, const struct kvset *ks2);
+
+/* MTF_MOCK */
 u64
 kvset_get_workid(struct kvset *km);
 
@@ -377,9 +381,15 @@ kvset_statsp(const struct kvset *ks);
 u8 *
 kvset_get_hlog(struct kvset *km);
 
+uint64_t
+kvset_get_id(const struct kvset *ks);
+
 /* MTF_MOCK */
-uint
-kvset_get_compc(struct kvset *km);
+uint32_t
+kvset_get_compc(const struct kvset *ks);
+
+void
+kvset_set_compc(struct kvset *ks, uint32_t compc);
 
 /* MTF_MOCK */
 uint
@@ -397,6 +407,13 @@ kvset_get_tree(struct kvset *kvset);
 
 struct vblock_desc *
 kvset_get_nth_vblock_desc(struct kvset *ks, uint32_t index);
+
+/* MTF_MOCK */
+uint64_t
+kvset_get_dgen_lo(const struct kvset *kvset);
+
+void
+kvset_set_nodeid(struct kvset *kvset, uint64_t nodeid);
 
 /**
  * kvset_iter_create() - Create iterator to traverse all entries in a kvset

@@ -590,8 +590,9 @@ cn_split(struct cn_compaction_work *w)
                 if (drop_ptomb_ks[k] && blks->kblks.n_blks > 0)
                     drop_ptomb_ks[k] = false;
 
+                assert(blks->kblks.n_blks > 0 || blks->vblks.n_blks == 0);
+
                 if (HSE_UNLIKELY(drop_ptomb_ks[k])) {
-                    assert(blks->vblks.n_blks == 0);
                     assert(result->ks[k].blks_commit->n_blks == 1);
 
                     /* Drop contiguous kvsets containing only ptombs, starting from the oldest.

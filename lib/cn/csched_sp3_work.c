@@ -743,7 +743,7 @@ sp3_work_wtype_length(
          */
         list_for_each_entry_reverse(le, head, le_link) {
             if (runlen < runlen_min) {
-                uint tmp = kvset_get_compc(le->le_kvset);
+                uint32_t tmp = kvset_get_compc(le->le_kvset);
 
                 if (compc != tmp || stats->kst_keys > keys_max) {
                     compc = tmp;
@@ -1049,10 +1049,16 @@ sp3_work(
     if (w->cw_action == CN_ACTION_SPILL) {
         w->cw_sgen = ++tree->ct_sgen;
     } else if (w->cw_action == CN_ACTION_JOIN) {
+        uint64_t workid = 0;
 
-        /* TODO: Should we set the work ID of each kvset in cw_join?
-         */
         w->cw_join = list_prev_entry(tn, tn_link);
+
+        list_for_each_entry_reverse(le, &w->cw_join->tn_kvset_list, le_link) {
+            if (workid == 0)
+                workid = kvset_get_dgen(le->le_kvset);
+
+            kvset_set_workid(le->le_kvset, workid);
+        }
     }
 
     sp3_work_estimate(w);

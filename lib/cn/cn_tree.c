@@ -70,6 +70,7 @@
 #include "route.h"
 #include "kvset_internal.h"
 #include "node_split.h"
+#include "move.h"
 
 static struct kmem_cache *cn_node_cache HSE_READ_MOSTLY;
 
@@ -525,6 +526,16 @@ cn_tree_samp_update_ingest(struct cn_tree *tree, struct cn_tree_node *tn)
     tree->ct_samp.l_good += tn->tn_samp.l_good - orig.l_good;
 }
 
+void
+cn_tree_samp_update_move(struct cn_compaction_work *w, struct cn_tree_node *tn)
+{
+    struct cn_tree *tree = w->cw_tree;
+
+    cn_tree_samp(tree, &w->cw_samp_pre);
+    cn_tree_samp_update_compact(tree, tn);
+    cn_tree_samp(tree, &w->cw_samp_post);
+}
+
 /* This function must be serialized with other cn_tree_samp_* functions. */
 void
 cn_tree_samp_init(struct cn_tree *tree)
@@ -596,13 +607,11 @@ merr_t
 cn_node_insert_kvset(struct cn_tree_node *node, struct kvset *kvset)
 {
     struct list_head *head;
-    u64 dgen = kvset_get_dgen(kvset);
 
     list_for_each(head, &node->tn_kvset_list) {
-        struct kvset_list_entry *entry;
+        struct kvset_list_entry *entry = list_entry(head, typeof(*entry), le_link);
 
-        entry = list_entry(head, typeof(*entry), le_link);
-        if (dgen > kvset_get_dgen(entry->le_kvset))
+        if (kvset_younger(kvset, entry->le_kvset))
             break;
     }
 
@@ -911,19 +920,20 @@ cn_node_comp_token_put(struct cn_tree_node *tn)
 static void
 cn_comp_release(struct cn_compaction_work *w)
 {
+    bool join = (w->cw_action == CN_ACTION_JOIN);
     assert(w->cw_node);
 
-    if (w->cw_err) {
+    if (w->cw_err || join) {
         struct kvset_list_entry *le;
-        uint kx;
+        uint kx, cnt = join ? cn_ns_kvsets(&w->cw_node->tn_ns) : w->cw_kvset_cnt;
 
         /* unmark input kvsets */
-        le = w->cw_mark;
-        for (kx = 0; kx < w->cw_kvset_cnt; kx++) {
+        le = join ? list_last_entry(&w->cw_node->tn_kvset_list, typeof(*le), le_link) : w->cw_mark;
+        for (kx = 0; kx < cnt; kx++) {
             assert(le);
             assert(kvset_get_workid(le->le_kvset) != 0);
             kvset_set_workid(le->le_kvset, 0);
-            le = list_prev_entry(le, le_link);
+            le = list_prev_entry_or_null(le, le_link, &w->cw_node->tn_kvset_list);
         }
     }
 
@@ -1129,6 +1139,9 @@ cn_tree_prepare_compaction(struct cn_compaction_work *w)
     perfc_inc(w->cw_pc, PERFC_BA_CNCOMP_START);
 
     cn_setname(w->cw_threadname);
+
+    if (w->cw_action == CN_ACTION_JOIN)
+        return 0; /* no resources needed for join */
 
     /* If we are k/kv-compacting, we only have a single output.
      *
@@ -1781,7 +1794,8 @@ cn_comp_commit(struct cn_compaction_work *w)
         break;
 
     case CN_ACTION_JOIN:
-        abort(); /* not yet */
+        assert(0);
+        break;
     }
 
 done:
@@ -2210,7 +2224,7 @@ cn_comp_spill(struct cn_compaction_work *w)
 
 /* TODO: Nabeel will replace this function with the real cn_join().
  */
-static merr_t
+HSE_MAYBE_UNUSED static merr_t
 cn_gb_join(struct cn_compaction_work *w)
 {
     struct cn_tree *tree = w->cw_tree;
@@ -2311,7 +2325,7 @@ cn_comp_compact(struct cn_compaction_work *w)
         break;
 
     case CN_ACTION_JOIN:
-        err = cn_gb_join(w);
+        err = cn_join(w);
         break;
     }
 
@@ -2358,8 +2372,9 @@ cn_compact(struct cn_compaction_work *w)
      */
     sts_job_detach(&w->cw_job);
 
-    /* Commit the compaction if this isn't a spill.  For a spill operation,
-     * each subspill to a child was committed as the spill progressed.
+    /* Commit the compaction if this isn't a spill or join.
+     * For a spill operation, each subspill to a child was committed as the spill progressed.
+     * For a join operation, cn_move() commits the operation.
      */
     if (w->cw_action != CN_ACTION_SPILL && w->cw_action != CN_ACTION_JOIN)
         cn_comp_commit(w);

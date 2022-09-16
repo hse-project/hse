@@ -80,6 +80,9 @@ cn_tree_is_replay(const struct cn_tree *tree);
 void
 cn_tree_samp(const struct cn_tree *tree, struct cn_samp_stats *s_out);
 
+void
+cn_tree_samp_update_move(struct cn_compaction_work *w, struct cn_tree_node *tn);
+
 /**
  * cn_tree_node_get_max_key() - Get the largest key in a cN node
  *
