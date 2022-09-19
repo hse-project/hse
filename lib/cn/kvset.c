@@ -3647,11 +3647,11 @@ kvset_iter_release(struct kv_iterator *handle)
 
     wbti_destroy(iter->wbti);
     wbti_destroy(iter->pti);
-    kvset_put_ref(iter->ks);
 
     kvset_iter_free_buffers(iter, &iter->kreader);
     kvset_iter_free_buffers(iter, &iter->ptreader);
 
+    kvset_put_ref(iter->ks);
     kmem_cache_free(kvset_iter_cache, iter);
 }
 

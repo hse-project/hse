@@ -239,10 +239,14 @@ cn_subspill(
     ss->ss_added = false;
     ss->ss_work = w;
 
-    if (!sctx->more || key_obj_cmp(&sctx->curr->kobj, &ekobj) > 0) {
-        if (!sctx->pt_set)
-            return 0; /* Nothing to do */
-    }
+    if (!sctx->more)
+        return 0;
+
+    /* Proceed only if either the curr key belongs in this leaf node OR there's a ptomb that needs
+     * to be propagated to this child.
+     */
+    if (key_obj_cmp(&sctx->curr->kobj, &ekobj) > 0 && !sctx->pt_set)
+        return 0; /* curr key doesn't belong to this child AND there is no ptomb to propagate */
 
     w->cw_kvsetidv[0] = ss->ss_kvsetid = cndb_kvsetid_mint(cn_tree_get_cndb(w->cw_tree));
 
@@ -258,7 +262,8 @@ cn_subspill(
     /* Add ptomb to 'child' if a ptomb context is carried forward from the
      * previous node spill, i.e., this ptomb spans across multiple children.
      */
-    if (sctx->more && sctx->pt_set && (!w->cw_drop_tombs || sctx->pt_seq > w->cw_horizon)) {
+    assert(sctx->more);
+    if (sctx->pt_set && (!w->cw_drop_tombs || sctx->pt_seq > w->cw_horizon)) {
 
         err = kvset_builder_add_val(child, &sctx->pt_kobj, HSE_CORE_TOMB_PFX, 0, sctx->pt_seq, 0);
         if (!err)
@@ -294,6 +299,9 @@ cn_subspill(
             dbg_prev_idx = 0;
             dbg_nvals_this_key = 0;
             dbg_dup = false;
+
+            if (sctx->pt_set && key_obj_cmp_prefix(&sctx->pt_kobj, &sctx->curr->kobj) != 0)
+                sctx->pt_set = false; /* cached ptomb key is no longer valid */
         }
 
         while (!bg_val) {
@@ -432,8 +440,6 @@ cn_subspill(
                 new_key = false;
                 assert(dbg_prev_idx <= sctx->curr->src->es_sort);
                 continue;
-            } else if (sctx->pt_set && key_obj_cmp_prefix(&sctx->pt_kobj, &sctx->curr->kobj) != 0) {
-                sctx->pt_set = false; /* cached ptomb key is no longer valid */
             }
         }
 
