@@ -239,13 +239,14 @@ cn_subspill(
     ss->ss_added = false;
     ss->ss_work = w;
 
-    if (!sctx->more || key_obj_cmp(&sctx->curr->kobj, &ekobj) > 0) {
-        if (!sctx->pt_set)
-            return 0; /* Nothing to do */
-    }
+    if (!sctx->more)
+        return 0;
 
-    if (!sctx->more || (key_obj_cmp(&sctx->curr->kobj, &ekobj) > 0 && !sctx->pt_set))
-        return 0; /* Nothing to do */
+    /* Proceed only if either the curr key belongs in this leaf node OR there's a ptomb that needs
+     * to be propagated to this child.
+     */
+    if (key_obj_cmp(&sctx->curr->kobj, &ekobj) > 0 && !sctx->pt_set)
+        return 0; /* curr key doesn't belong to this child AND there is no ptomb to propagate */
 
     w->cw_kvsetidv[0] = ss->ss_kvsetid = cndb_kvsetid_mint(cn_tree_get_cndb(w->cw_tree));
 
