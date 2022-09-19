@@ -341,50 +341,48 @@ kblocks_split(
 
         /* split kblock at split_idx */
         err = kblock_split(&kbd, split_kobj, kblks, hlogs, vused);
-        if (err)
-            return err;
-        assert(kblks[LEFT].n_blks > 0 && kblks[RIGHT].n_blks > 0);
+
+        assert(err || (kblks[LEFT].n_blks > 0 && kblks[RIGHT].n_blks > 0));
 
         /* Append kblks[LEFT] to the left kvset, kblks[RIGHT] to the right kvset, and both
          * kblks[LEFT] and kblks[RIGHT] to the commit list
          */
-        for (uint32_t i = 0; i < kblks[LEFT].n_blks; i++) {
+        for (uint32_t i = 0; i < kblks[LEFT].n_blks && !err; i++) {
             uint64_t blkid = kblks[LEFT].blks[i].bk_blkid;
 
             err = blk_list_append(&blks_left->kblks, blkid);
-            if (!err)
+            if (!err) {
+                blks_left->bl_vused += vused[LEFT];
+
                 err = blk_list_append(result->ks[LEFT].blks_commit, blkid);
+            }
 
-            if (err)
-                return err;
-
-            blks_left->bl_vused += vused[LEFT];
         }
 
-        for (uint32_t i = 0; i < kblks[RIGHT].n_blks; i++) {
+        for (uint32_t i = 0; i < kblks[RIGHT].n_blks && !err; i++) {
             uint64_t blkid = kblks[RIGHT].blks[i].bk_blkid;
 
             err = blk_list_append(&blks_right->kblks, blkid);
-            if (!err)
+            if (!err) {
+                blks_right->bl_vused += vused[RIGHT];
+
                 err = blk_list_append(result->ks[RIGHT].blks_commit, blkid);
-
-            if (err)
-                return err;
-
-            blks_right->bl_vused += vused[RIGHT];
+            }
         }
 
         /* Add the source kblock to the purge list to be destroyed later */
-        err = blk_list_append(result->blks_purge, kblk->kb_kblk.bk_blkid);
-        if (err)
-            return err;
+        if (!err)
+            err = blk_list_append(result->blks_purge, kblk->kb_kblk.bk_blkid);
+
+        for (int i = LEFT; i <= RIGHT; i++)
+            blk_list_free(&kblks[i]);
 
         split_idx++;
     }
 
     /* Add kblocks in [split_idx, nkblks - 1] to the right kvset
      */
-    for (uint32_t i = split_idx; i < ks->ks_st.kst_kblks; i++) {
+    for (uint32_t i = split_idx; i < ks->ks_st.kst_kblks && !err; i++) {
         err = blk_list_append(&blks_right->kblks, ks->ks_kblks[i].kb_kblk.bk_blkid);
         if (err)
             return err;
@@ -393,7 +391,7 @@ kblocks_split(
         blks_right->bl_vused += ks->ks_kblks[i].kb_metrics.tot_vused_bytes;
     }
 
-    return 0;
+    return err;
 }
 
 /**
