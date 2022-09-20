@@ -27,6 +27,7 @@
 
 #include <hse/error/merr.h>
 #include <hse_util/atomic.h>
+#include <hse_util/err_ctx.h>
 #include <hse_util/platform.h>
 #include <hse_util/parse_num.h>
 
@@ -306,7 +307,7 @@ ml_writer(void *arg)
             "[%d]%s: Unable to allocate response struct:%s\n",
             id,
             __func__,
-            merr_strinfo(err, err_str, sizeof(err_str), NULL));
+            merr_strinfo(err, err_str, sizeof(err_str), err_ctx_strerror, NULL));
         return resp;
     }
 
@@ -317,7 +318,7 @@ ml_writer(void *arg)
             "[%d]%s: Unable to open mdc: %s\n",
             id,
             __func__,
-            merr_strinfo(err, err_str, sizeof(err_str), NULL));
+            merr_strinfo(err, err_str, sizeof(err_str), err_ctx_strerror, NULL));
         resp->err = err;
         return resp;
     }
@@ -330,7 +331,7 @@ ml_writer(void *arg)
             "[%d]%s: Unable to allocate buf: %s\n",
             id,
             __func__,
-            merr_strinfo(err, err_str, sizeof(err_str), NULL));
+            merr_strinfo(err, err_str, sizeof(err_str), err_ctx_strerror, NULL));
         goto close_mdc;
     }
     pattern_fill(buf, write_sz);
@@ -351,7 +352,7 @@ ml_writer(void *arg)
                 __func__,
                 i,
                 written,
-                merr_strinfo(err, err_str, sizeof(err_str), NULL));
+                merr_strinfo(err, err_str, sizeof(err_str), err_ctx_strerror, NULL));
             resp->err = err;
             goto free_buf;
         }
@@ -365,7 +366,7 @@ ml_writer(void *arg)
             "[%d]%s: error on append: %s\n",
             id,
             __func__,
-            merr_strinfo(err, err_str, sizeof(err_str), NULL));
+            merr_strinfo(err, err_str, sizeof(err_str), err_ctx_strerror, NULL));
         resp->err = err;
         goto free_buf;
     }
@@ -377,7 +378,7 @@ ml_writer(void *arg)
             "[%d]%s: Unable to get mdc usage: %s\n",
             id,
             __func__,
-            merr_strinfo(err, err_str, sizeof(err_str), NULL));
+            merr_strinfo(err, err_str, sizeof(err_str), err_ctx_strerror, NULL));
         resp->err = err;
         goto free_buf;
     }
@@ -443,7 +444,7 @@ ml_reader(void *arg)
             "[%d]%s: Unable to allocate response struct:%s\n",
             id,
             __func__,
-            merr_strinfo(err, err_str, sizeof(err_str), NULL));
+            merr_strinfo(err, err_str, sizeof(err_str), err_ctx_strerror, NULL));
         return resp;
     }
 
@@ -454,7 +455,7 @@ ml_reader(void *arg)
             "[%d]%s: Unable to open mdc: %s\n",
             id,
             __func__,
-            merr_strinfo(err, err_str, sizeof(err_str), NULL));
+            merr_strinfo(err, err_str, sizeof(err_str), err_ctx_strerror, NULL));
         resp->err = err;
         return resp;
     }
@@ -473,7 +474,7 @@ ml_reader(void *arg)
             "[%d]%s: Unable to get mdc usage: %s\n",
             id,
             __func__,
-            merr_strinfo(err, err_str, sizeof(err_str), NULL));
+            merr_strinfo(err, err_str, sizeof(err_str), err_ctx_strerror, NULL));
         resp->err = err;
         return resp;
     }
@@ -486,7 +487,7 @@ ml_reader(void *arg)
             "[%d]%s: Unable to allocate buf: %s\n",
             id,
             __func__,
-            merr_strinfo(err, err_str, sizeof(err_str), NULL));
+            merr_strinfo(err, err_str, sizeof(err_str), err_ctx_strerror, NULL));
         return resp;
     }
 
@@ -503,7 +504,7 @@ ml_reader(void *arg)
                 "[%d]%s: error on read:%s\n",
                 i,
                 __func__,
-                merr_strinfo(err, err_str, sizeof(err_str), NULL));
+                merr_strinfo(err, err_str, sizeof(err_str), err_ctx_strerror, NULL));
             resp->err = err;
             return resp;
         }
@@ -570,7 +571,7 @@ ml_verify(void *arg)
             "[%d]%s: Unable to allocate response struct:%s\n",
             id,
             __func__,
-            merr_strinfo(err, err_str, sizeof(err_str), NULL));
+            merr_strinfo(err, err_str, sizeof(err_str), err_ctx_strerror, NULL));
         return resp;
     }
 
@@ -581,7 +582,7 @@ ml_verify(void *arg)
             "[%d]%s: Unable to open mdc: %s\n",
             id,
             __func__,
-            merr_strinfo(err, err_str, sizeof(err_str), NULL));
+            merr_strinfo(err, err_str, sizeof(err_str), err_ctx_strerror, NULL));
         resp->err = err;
         return resp;
     }
@@ -600,7 +601,7 @@ ml_verify(void *arg)
             "[%d]%s: Unable to get mdc usage: %s\n",
             id,
             __func__,
-            merr_strinfo(err, err_str, sizeof(err_str), NULL));
+            merr_strinfo(err, err_str, sizeof(err_str), err_ctx_strerror, NULL));
         resp->err = err;
         return resp;
     }
@@ -613,7 +614,7 @@ ml_verify(void *arg)
             "[%d]%s: Unable to allocate buf: %s\n",
             id,
             __func__,
-            merr_strinfo(err, err_str, sizeof(err_str), NULL));
+            merr_strinfo(err, err_str, sizeof(err_str), err_ctx_strerror, NULL));
         return resp;
     }
 
@@ -630,7 +631,7 @@ ml_verify(void *arg)
                 "[%d]%s: error on read:%s\n",
                 i,
                 __func__,
-                merr_strinfo(err, err_str, sizeof(err_str), NULL));
+                merr_strinfo(err, err_str, sizeof(err_str), err_ctx_strerror, NULL));
             resp->err = err;
             return resp;
         }
@@ -747,7 +748,8 @@ perf_seq_writes(const char *path)
                 stderr,
                 "[%d]: Unable to alloc mdc: %s\n",
                 i,
-                merr_strinfo(err, err_str, sizeof(err_str), NULL));
+                merr_strinfo(err, err_str, sizeof(err_str), err_ctx_strerror,
+                    NULL));
             goto free_oid;
         }
 
@@ -757,7 +759,8 @@ perf_seq_writes(const char *path)
                 stderr,
                 "[%d]: Unable to commit mdc: %s\n",
                 i,
-                merr_strinfo(err, err_str, sizeof(err_str), NULL));
+                merr_strinfo(err, err_str, sizeof(err_str), err_ctx_strerror,
+                    NULL));
             goto free_oid;
         }
 
@@ -927,7 +930,7 @@ free_oid:
         if (oid[i].oid[0] || oid[i].oid[1]) {
             err = mpool_mdc_delete(mp, oid[i].oid[0], oid[i].oid[1]);
             if (err) {
-                merr_strinfo(err, err_str, sizeof(err_str), NULL);
+                merr_strinfo(err, err_str, sizeof(err_str), err_ctx_strerror, NULL);
                 fprintf(stderr, "[%d]: unable to destroy mdc: %s\n", i, err_str);
             }
         }

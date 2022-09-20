@@ -6,29 +6,29 @@
 #include <mtf/framework.h>
 
 #include <hse/error/merr.h>
+#include <hse_util/err_ctx.h>
 
 extern uint8_t __start_hse_merr;
 extern uint8_t __stop_hse_merr;
 
 MTF_MODULE_UNDER_TEST(hse_platform);
 
-int
-merr_test_pre(struct mtf_test_info *lcl_ti)
-{
-    return 0;
-}
+MTF_BEGIN_UTEST_COLLECTION(hse_err_test);
 
-int
-merr_test_post(struct mtf_test_info *lcl_ti)
+static const char *
+ctx_strerror(const int ctx)
 {
-    return 0;
+    switch (ctx) {
+    case 1:
+        return "Hello World";
+    default:
+        abort();
+    }
 }
-
-MTF_BEGIN_UTEST_COLLECTION_PREPOST(hse_err_test, merr_test_pre, merr_test_post);
 
 MTF_DEFINE_UTEST(hse_err_test, merr_test_1)
 {
-    char   errinfo[MERR_INFO_SZ];
+    char   errinfo[256];
     char   errbuf[300], *errmsg;
     const char *file;
     int    rval, i;
@@ -49,7 +49,7 @@ MTF_DEFINE_UTEST(hse_err_test, merr_test_1)
         ASSERT_EQ(sz2, strlen(errbuf));
     }
 
-    (void)merr_strinfo(err, errinfo, sizeof(errinfo), 0);
+    merr_strinfo(err, errinfo, sizeof(errinfo), ctx_strerror, NULL);
     ASSERT_EQ(0, strcmp(errinfo, "success"));
 
     rval = EINVAL;
@@ -58,7 +58,7 @@ MTF_DEFINE_UTEST(hse_err_test, merr_test_1)
     ASSERT_EQ(EINVAL, merr_errno(err));
     ASSERT_NE(NULL, strstr(_hse_merr_file, merr_file(err)));
 
-    (void)merr_strinfo(err, errinfo, sizeof(errinfo), 0);
+    merr_strinfo(err, errinfo, sizeof(errinfo), ctx_strerror, NULL);
     errmsg = strerror_r(merr_errno(err), errbuf, sizeof(errbuf));
     ASSERT_EQ(0, strncmp(strstr(errinfo, "I"), errmsg, strlen(errmsg)));
 
@@ -103,13 +103,34 @@ MTF_DEFINE_UTEST(hse_err_test, merr_test_1)
 
 MTF_DEFINE_UTEST(hse_err_test, ctx)
 {
+    int rc;
+    int ctx;
+    int line;
     merr_t err;
+    int actual_sz;
+    size_t needed_sz;
+    char actual[256], expected[256];
 
     err = merr(EUSERS);
     ASSERT_EQ(0, merr_ctx(err));
 
-    err = merrx(ERESTART, HSE_ERR_CTX_MAX);
-    ASSERT_EQ(HSE_ERR_CTX_MAX, merr_ctx(err));
+    err = merrx(ERESTART, 1); line = __LINE__;
+    rc = merr_errno(err);
+    ctx = merr_ctx(err);
+    ASSERT_EQ(ERESTART, rc);
+    ASSERT_EQ(1, ctx);
+
+    actual_sz = snprintf(expected, sizeof(expected), "%s:%d: %s (%d): %s (%u)",
+        REL_FILE(__FILE__), line, strerror(rc), rc, ctx_strerror(ctx), ctx);
+    merr_strinfo(err, actual, sizeof(actual), ctx_strerror, &needed_sz);
+    ASSERT_EQ(actual_sz, needed_sz);
+    ASSERT_STREQ(expected, actual);
+
+    actual_sz = snprintf(expected, sizeof(expected), "%s:%d: %s (%d)",
+        REL_FILE(__FILE__), line, strerror(rc), rc);
+    merr_strinfo(err, actual, sizeof(actual), NULL, &needed_sz);
+    ASSERT_STREQ(expected, actual);
+    ASSERT_EQ(actual_sz, needed_sz);
 }
 
 MTF_DEFINE_UTEST(hse_err_test, no_buf)
@@ -119,7 +140,7 @@ MTF_DEFINE_UTEST(hse_err_test, no_buf)
 
     err = merr(EINVAL);
 
-    merr_strinfo(err, NULL, 0, &needed_sz);
+    merr_strinfo(err, NULL, 0, ctx_strerror, &needed_sz);
     ASSERT_EQ(55, needed_sz);
 }
 

@@ -26,6 +26,7 @@
 #include <hse_ikvdb/kvdb_home.h>
 #include <hse_ikvdb/kvs.h>
 
+#include <hse_util/err_ctx.h>
 #include <hse_util/event_counter.h>
 #include <hse_util/mutex.h>
 #include <hse_util/platform.h>
@@ -134,7 +135,7 @@ hse_init(const char *const config, const size_t paramc, const char *const *const
         goto out;
     }
 
-    err = logging_init(&hse_gparams.gp_logging);
+    err = logging_init(&hse_gparams.gp_logging, err_ctx_strerror);
     if (err)
         return err;
 
@@ -1451,7 +1452,7 @@ hse_strerror(hse_err_t err, char *buf, size_t buf_sz)
 {
     size_t need_sz;
 
-    merr_strinfo(err, buf, buf_sz, &need_sz);
+    merr_strinfo(err, buf, buf_sz, err_ctx_strerror, &need_sz);
 
     return need_sz;
 }

@@ -198,7 +198,6 @@ components = {
         'list_test': {},
         'log2_test': {},
         'map_test': {},
-        'merr': {},
         'parse_num_test': {},
         'perfc_test': {},
         'printbuf_test': {},

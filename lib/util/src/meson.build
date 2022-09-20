@@ -12,6 +12,7 @@ util_sources = files(
     'cursor_heap.c',
     'data_tree.c',
     'dax.c',
+    'err_ctx.c',
     'event_counter.c',
     'event_timer.c',
     'fmt.c',

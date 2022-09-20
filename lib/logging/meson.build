@@ -19,5 +19,6 @@ hse_logging = static_library(
 
 hse_logging_dep = declare_dependency(
     link_with: hse_logging,
-    include_directories: hse_logging_includes
+    include_directories: hse_logging_includes,
+    dependencies: [hse_error_dep]
 )
