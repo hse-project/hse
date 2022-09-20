@@ -30,7 +30,7 @@ struct mpool_mcache_map {
     struct mpool *mp;
     size_t        mbidc;
     uint64_t     *mbidv;
-    void        **addrv;
+    const void  **addrv;
     uint32_t     *wlenv;
 };
 
@@ -141,14 +141,14 @@ mpool_mcache_madvise(struct mpool_mcache_map *map, uint mbidx, off_t off, size_t
     }
 
     do {
-        char *addr;
+        const void *addr;
         int   rc;
 
         addr = map->addrv[mbidx];
         if (!addr)
             return merr(EINVAL);
 
-        rc = madvise(addr + off, len, advice);
+        rc = madvise((void*)addr + off, len, advice);
         if (rc)
             return merr(errno);
 
@@ -162,7 +162,7 @@ mpool_mcache_madvise(struct mpool_mcache_map *map, uint mbidx, off_t off, size_t
     return 0;
 }
 
-void *
+const void *
 mpool_mcache_getbase(struct mpool_mcache_map *map, const uint mbidx)
 {
     if (!map || mbidx >= map->mbidc)
@@ -177,9 +177,9 @@ mpool_mcache_getpages(
     const uint               pagec,
     const uint               mbidx,
     const off_t              pagenumv[],
-    void                    *addrv[])
+    const void              *addrv[])
 {
-    char *addr;
+    const void *addr;
     int   i;
 
     if (!map || mbidx >= map->mbidc || !addrv)

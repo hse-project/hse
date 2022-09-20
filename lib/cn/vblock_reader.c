@@ -30,9 +30,9 @@ vbr_desc_read(
     struct mblock_props *    props,
     struct vblock_desc *     vblk_desc)
 {
-    struct vblock_footer_omf *footer;
+    const struct vblock_footer_omf *footer;
     bool     supported;
-    void    *base;
+    const void *base;
     u64      vgroup;
     uint32_t vers;
 
@@ -262,7 +262,7 @@ vbr_madvise(struct vblock_desc *vbd, uint off, uint len, int advice)
 }
 
 /* off, len version */
-void *
+const void *
 vbr_value(struct vblock_desc *vbd, uint vboff, uint vlen)
 {
     assert(vbd->vbd_mblkdesc.map_base);

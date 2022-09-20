@@ -144,7 +144,7 @@ void
 hbr_read_ptree(
     const struct kvs_mblk_desc *hbd,
     const struct wbt_desc      *ptd,
-    uint8_t                   **ptree,
+    const uint8_t             **ptree,
     uint32_t                   *ptree_pgc);
 
 #if HSE_MOCKING

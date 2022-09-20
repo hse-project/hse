@@ -106,7 +106,7 @@ hbr_read_desc(
     uint64_t blkid,
     struct kvs_mblk_desc *mblk_desc)
 {
-    void *base;
+    const void *base;
 
     /* There is only one hblock within the mcache map. */
     base = mpool_mcache_getbase(map, 0);
@@ -199,7 +199,7 @@ hblock_vgroup_map_valid(const struct vgroup_map_omf *omf)
 merr_t
 hbr_read_vgroup_cnt(const struct kvs_mblk_desc *hbd, uint32_t *nvgroups)
 {
-    struct vgroup_map_omf *vgm_omf;
+    const struct vgroup_map_omf *vgm_omf;
 
     if (ev(omf_hbh_vgmap_len_pg(hbd->map_base) == 0)) {
         *nvgroups = 0;
@@ -219,8 +219,8 @@ hbr_read_vgroup_cnt(const struct kvs_mblk_desc *hbd, uint32_t *nvgroups)
 merr_t
 hbr_read_vgroup_map(const struct kvs_mblk_desc *hbd, struct vgmap *vgmap, bool *use_vgmap)
 {
-    struct vgroup_map_omf *vgm_omf;
-    struct vgroup_map_entry_omf *vgme_omf;
+    const struct vgroup_map_omf *vgm_omf;
+    const struct vgroup_map_entry_omf *vgme_omf;
     int i;
 
     *use_vgmap = false;
@@ -255,7 +255,7 @@ void
 hbr_read_ptree(
     const struct kvs_mblk_desc *hbd,
     const struct wbt_desc      *ptd,
-    uint8_t                   **ptree,
+    const uint8_t             **ptree,
     uint32_t                   *ptree_pgc)
 {
     INVARIANT(hbd && ptd && ptree && ptree_pgc);

@@ -279,7 +279,7 @@ forward_wbt_leaf_iterator_next(struct element_source *source, void **data)
     if (iter->offset.leaf_idx == 0)
         kbr_madvise_wbt_leaf_nodes(&kblk->kb_kblk_desc, desc, MADV_WILLNEED);
 
-    *data = kblk->kb_kblk_desc.map_base + desc->wbd_first_page * PAGE_SIZE +
+    *data = (void *)kblk->kb_kblk_desc.map_base + desc->wbd_first_page * PAGE_SIZE +
         iter->offset.leaf_idx * WBT_NODE_SIZE;
 
     assert(((struct wbt_node_hdr_omf *)(*data))->wbn_magic == WBT_LFE_NODE_MAGIC);

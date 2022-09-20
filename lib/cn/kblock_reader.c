@@ -44,7 +44,7 @@ kbr_get_kblock_desc(
     u64                      kblkid,
     struct kvs_mblk_desc    *kblkdesc)
 {
-    void *base;
+    const void *base;
 
     base = mpool_mcache_getbase(map, map_idx);
     if (!base)

@@ -351,7 +351,7 @@ _mpool_mcache_munmap(struct mpool_mcache_map *handle)
     map->mapped = 0;
 }
 
-static void *
+static const void *
 _mpool_mcache_getbase(struct mpool_mcache_map *handle, u_int idx)
 {
     merr_t                err;

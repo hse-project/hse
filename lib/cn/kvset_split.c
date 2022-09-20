@@ -609,7 +609,7 @@ hblock_split(
     struct kvset_mblocks *blks_right = result->ks[RIGHT].blks;
     uint32_t num_ptombs, ptree_pgc;
     uint64_t min_seqno, max_seqno;
-    uint8_t *ptree;
+    const uint8_t *ptree;
     merr_t err = 0;
 
     min_seqno = ks->ks_hblk.kh_seqno_min;

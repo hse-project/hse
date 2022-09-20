@@ -14,7 +14,7 @@ struct mpool_mcache_map;
 struct mpool;
 
 struct kvs_mblk_desc {
-    void *                   map_base; /* base address of mcache map */
+    const void *             map_base; /* base address of mcache map */
     struct mpool_mcache_map *map;      /* mcache map */
     uint32_t                 map_idx;  /* index of mblk in map */
     enum hse_mclass          mclass;   /* media class */

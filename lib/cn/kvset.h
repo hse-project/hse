@@ -372,7 +372,7 @@ const struct kvset_stats *
 kvset_statsp(const struct kvset *ks);
 
 /* MTF_MOCK */
-u8 *
+const u8 *
 kvset_get_hlog(struct kvset *km);
 
 /* MTF_MOCK */

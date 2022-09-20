@@ -262,7 +262,7 @@ MTF_DEFINE_UTEST_PRE(vblock_reader_test, t_vbr_value, pre)
     uint                     i, vlen = 123, n_entries = 19;
     u8 *                     vblk;
     size_t                   vbsz;
-    void *                   val;
+    const void *             val;
     uint                     vboff;
     struct mblock_props      props;
     uint                     vgroups = 0;

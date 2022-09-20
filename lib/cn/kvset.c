@@ -224,7 +224,7 @@ kvset_hblk_init(
     struct mpool_mcache_map  *map,
     struct vgmap            **vgmap_out,
     bool                     *use_vgmap,
-    uint8_t                 **hlog,
+    const uint8_t           **hlog,
     struct kvset_hblk        *blk)
 {
     struct vgmap *vgmap = NULL;
@@ -306,7 +306,7 @@ kvset_kblk_init(
     struct kvset_kblk *      p)
 {
     struct kvs_mblk_desc * kbd = &p->kb_kblk_desc;
-    struct kblock_hdr_omf *hdr;
+    const struct kblock_hdr_omf *hdr;
     merr_t                 err;
 
     err = kbr_get_kblock_desc(ds, kmap, props, idx, p->kb_kblk.bk_blkid, kbd);
@@ -682,7 +682,7 @@ kvset_open2(
              * who might otherwise try to access it.
              */
 #if defined(HSE_BUILD_DEBUG) && !defined(NDEBUG)
-            mprotect(kb->kb_kblk_desc.map_base, PAGE_SIZE, PROT_NONE);
+            mprotect((void *)kb->kb_kblk_desc.map_base, PAGE_SIZE, PROT_NONE);
 #endif
         }
     }
@@ -1469,8 +1469,9 @@ kvset_lookup_val(struct kvset *ks, struct kvs_vtuple_ref *vref, struct kvs_buf *
 {
     struct vblock_desc *vbd;
     merr_t              err;
-    void               *src, *dst;
-    uint                omlen, copylen;
+    const void         *src;
+    void               *dst;
+    uint               omlen, copylen;
     bool direct;
 
     assert(vref->vr_type == VTYPE_IVAL
@@ -1797,7 +1798,7 @@ kvset_get_tree(struct kvset *ks)
     return ks->ks_tree;
 }
 
-u8 *
+const u8 *
 kvset_get_hlog(struct kvset *ks)
 {
     return ks->ks_hlog;
@@ -3503,7 +3504,7 @@ skip_read_ahead:
     return 0;
 }
 
-static void *
+static const void *
 kvset_iter_get_valptr_mcache(struct kvset_iterator *iter, uint vbidx, uint vboff, uint vlen)
 {
     struct kvset *      ks = iter->ks;

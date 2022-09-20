@@ -132,7 +132,7 @@ vbr_madvise(struct vblock_desc *vbd, uint off, uint len, int advice);
  * @vboff: offset of value within vblock
  * @vlen:  length of value
  */
-void *
+const void *
 vbr_value(struct vblock_desc *vbd, uint vboff, uint vlen);
 
 #endif

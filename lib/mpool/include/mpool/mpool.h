@@ -497,7 +497,7 @@ mpool_mcache_madvise(
  * pages are not contiguous, return NULL.
  */
 /* MTF_MOCK */
-void *
+const void *
 mpool_mcache_getbase(struct mpool_mcache_map *map, const uint32_t mbidx);
 
 /**

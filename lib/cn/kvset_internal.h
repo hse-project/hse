@@ -97,7 +97,7 @@ struct kvset {
     u64                 ks_kvsetid;
 
     /* new compaction metrics */
-    u8 * ks_hlog;
+    const u8 * ks_hlog;
 
     struct vgmap *ks_vgmap;
     bool          ks_use_vgmap; /* consult vgmap during query/compaction? */
