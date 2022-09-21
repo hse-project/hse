@@ -342,7 +342,7 @@ kblocks_split(
         /* split kblock at split_idx */
         err = kblock_split(&kbd, split_kobj, kblks, hlogs, vused);
 
-        assert(err || (kblks[LEFT].n_blks > 0 && kblks[RIGHT].n_blks > 0));
+        assert((kblks[LEFT].n_blks > 0 && kblks[RIGHT].n_blks > 0) || err);
 
         /* Append kblks[LEFT] to the left kvset, kblks[RIGHT] to the right kvset, and both
          * kblks[LEFT] and kblks[RIGHT] to the commit list
@@ -384,11 +384,11 @@ kblocks_split(
      */
     for (uint32_t i = split_idx; i < ks->ks_st.kst_kblks && !err; i++) {
         err = blk_list_append(&blks_right->kblks, ks->ks_kblks[i].kb_kblk.bk_blkid);
-        if (err)
-            return err;
 
-        hlog_union(hlog_right, ks->ks_kblks[i].kb_hlog);
-        blks_right->bl_vused += ks->ks_kblks[i].kb_metrics.tot_vused_bytes;
+        if (!err) {
+            hlog_union(hlog_right, ks->ks_kblks[i].kb_hlog);
+            blks_right->bl_vused += ks->ks_kblks[i].kb_metrics.tot_vused_bytes;
+        }
     }
 
     return err;
