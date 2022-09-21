@@ -80,6 +80,7 @@ cn_tree_is_replay(const struct cn_tree *tree);
 void
 cn_tree_samp(const struct cn_tree *tree, struct cn_samp_stats *s_out);
 
+/* MTF_MOCK */
 void
 cn_tree_samp_update_move(struct cn_compaction_work *w, struct cn_tree_node *tn);
 

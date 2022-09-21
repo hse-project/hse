@@ -743,7 +743,7 @@ sp3_work_wtype_length(
          */
         list_for_each_entry_reverse(le, head, le_link) {
             if (runlen < runlen_min) {
-                uint32_t tmp = kvset_get_compc(le->le_kvset);
+                const uint32_t tmp = kvset_get_compc(le->le_kvset);
 
                 if (compc != tmp || stats->kst_keys > keys_max) {
                     compc = tmp;

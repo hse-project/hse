@@ -198,11 +198,11 @@ cndb_omf_kvset_move_write(
     uint64_t          src_nodeid,
     uint64_t          tgt_nodeid,
     uint32_t          kvset_idc,
-    uint64_t         *kvset_idv)
+    const uint64_t   *kvset_idv)
 {
     struct cndb_kvset_move_omf *omf_move;
     struct cndb_kvsetid_omf *omf_ks_idv;
-    uint8_t buf[512];
+    uint8_t buf[sizeof(*omf_move) + 512];
     size_t sz;
     merr_t err;
 

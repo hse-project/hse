@@ -609,7 +609,7 @@ cn_node_insert_kvset(struct cn_tree_node *node, struct kvset *kvset)
     struct list_head *head;
 
     list_for_each(head, &node->tn_kvset_list) {
-        struct kvset_list_entry *entry = list_entry(head, typeof(*entry), le_link);
+        const struct kvset_list_entry *entry = list_entry(head, typeof(*entry), le_link);
 
         if (kvset_younger(kvset, entry->le_kvset))
             break;
@@ -920,20 +920,27 @@ cn_node_comp_token_put(struct cn_tree_node *tn)
 static void
 cn_comp_release(struct cn_compaction_work *w)
 {
-    bool join = (w->cw_action == CN_ACTION_JOIN);
+    const bool join = (w->cw_action == CN_ACTION_JOIN);
     assert(w->cw_node);
 
     if (w->cw_err || join) {
         struct kvset_list_entry *le;
-        uint kx, cnt = join ? cn_ns_kvsets(&w->cw_node->tn_ns) : w->cw_kvset_cnt;
+        uint cnt = join ? cn_ns_kvsets(&w->cw_node->tn_ns) : w->cw_kvset_cnt;
 
         /* unmark input kvsets */
         le = join ? list_last_entry(&w->cw_node->tn_kvset_list, typeof(*le), le_link) : w->cw_mark;
-        for (kx = 0; kx < cnt; kx++) {
+        for (uint kx = 0; kx < cnt; kx++) {
             assert(le);
             assert(kvset_get_workid(le->le_kvset) != 0);
             kvset_set_workid(le->le_kvset, 0);
             le = list_prev_entry_or_null(le, le_link, &w->cw_node->tn_kvset_list);
+        }
+
+        if (join && w->cw_err) {
+            list_for_each_entry(le, &w->cw_join->tn_kvset_list, le_link) {
+                assert(kvset_get_workid(le->le_kvset) != 0);
+                kvset_set_workid(le->le_kvset, 0);
+            }
         }
     }
 
@@ -2218,48 +2225,6 @@ cn_comp_spill(struct cn_compaction_work *w)
     }
 
     cn_spill_destroy(sctx);
-
-    return err;
-}
-
-/* TODO: Nabeel will replace this function with the real cn_join().
- */
-HSE_MAYBE_UNUSED static merr_t
-cn_gb_join(struct cn_compaction_work *w)
-{
-    struct cn_tree *tree = w->cw_tree;
-    merr_t err = merr(EAGAIN);
-
-    assert(w->cw_join);
-    assert(cn_node_isleaf(w->cw_join));
-
-    rmlock_wlock(&tree->ct_lock);
-    if (cn_ns_kvsets(&w->cw_join->tn_ns) == 0) {
-        route_map_delete(tree->ct_route_map, w->cw_join->tn_route_node);
-        w->cw_join->tn_route_node = NULL;
-        err = 0;
-    }
-    rmlock_wunlock(&tree->ct_lock);
-
-    w->cw_node->tn_cgen++;
-
-    if (err) {
-        w->cw_join->tn_cgen++;
-        w->cw_canceled = true;
-        w->cw_err = err;
-    } else {
-        struct kvset_list_entry *le = w->cw_mark;
-
-        for (uint i = 0; i < w->cw_kvset_cnt; ++i) {
-            assert(le && kvset_get_workid(le->le_kvset));
-
-            kvset_set_workid(le->le_kvset, 0);
-            le = list_prev_entry(le, le_link);
-        }
-    }
-
-    log_errx("join: %lu -> %lu",
-             err, w->cw_join->tn_nodeid, w->cw_node->tn_nodeid);
 
     return err;
 }

@@ -1775,7 +1775,7 @@ kvset_get_dgen_lo(const struct kvset *ks)
 bool
 kvset_younger(const struct kvset *ks1, const struct kvset *ks2)
 {
-    uint64_t hi1 = kvset_get_dgen(ks1), hi2 = kvset_get_dgen(ks2);
+    const uint64_t hi1 = kvset_get_dgen(ks1), hi2 = kvset_get_dgen(ks2);
 
     return (hi1 > hi2 ||
             (hi1 == hi2 && kvset_get_dgen_lo(ks1) >= kvset_get_dgen_lo(ks2)));

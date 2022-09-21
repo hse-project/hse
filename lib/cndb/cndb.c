@@ -583,19 +583,18 @@ out:
 
 merr_t
 cndb_record_kvset_move(
-    struct cndb *cndb,
-    uint64_t     cnid,
-    uint64_t     src_nodeid,
-    uint64_t     tgt_nodeid,
-    uint32_t     kvset_idc,
-    uint64_t    *kvset_idv)
+    struct cndb    *cndb,
+    uint64_t        cnid,
+    uint64_t        src_nodeid,
+    uint64_t        tgt_nodeid,
+    uint32_t        kvset_idc,
+    const uint64_t *kvset_idv)
 {
     merr_t err = 0;
 
     INVARIANT(cndb && kvset_idc > 0 && kvset_idv);
 
     mutex_lock(&cndb->mutex);
-
     do {
         struct cndb_cn *cn;
 
@@ -609,7 +608,6 @@ cndb_record_kvset_move(
             struct cndb_kvset *kvset;
 
             kvset = map_lookup_ptr(cn->kvset_map, kvset_idv[i]);
-
             if (!kvset || kvset->ck_nodeid != src_nodeid) {
                 err = merr(EBUG);
                 break;
@@ -631,7 +629,6 @@ cndb_record_kvset_move(
                 break;
         }
     } while (0);
-
     mutex_unlock(&cndb->mutex);
 
     return err;
@@ -1461,7 +1458,7 @@ cndb_kvset_delete(struct cndb *cndb, uint64_t cnid, uint64_t kvsetid)
     if (!cn)
         return merr(EPROTO);
 
-    kvset = map_lookup_ptr(cn->kvset_map, kvsetid);
+    kvset = map_remove_ptr(cn->kvset_map, kvsetid);
     if (!kvset)
         return merr(EBUG);
 

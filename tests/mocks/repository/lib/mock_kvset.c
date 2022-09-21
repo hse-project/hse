@@ -43,12 +43,6 @@ struct kvdata {
 
 int mock_kvset_verbose = 0;
 
-void
-mock_kvset_data_reset()
-{
-    dgen = 0;
-}
-
 static struct kvdata *
 _make_data(struct nkv_tab *nkv)
 {
@@ -196,6 +190,7 @@ mock_make_vblocks(struct kv_iterator **kvi, struct kvs_rparams *rp, int nv)
 
     kid = 0x1000;
     km.km_dgen_hi = ++dgen;
+    km.km_dgen_lo = 1;
     km.km_vused = nv * 1000;
 
     local_kblock.bk_blkid = kid;
@@ -221,7 +216,7 @@ mock_make_vblocks(struct kv_iterator **kvi, struct kvs_rparams *rp, int nv)
  */
 
 static merr_t
-_kvset_open(struct cn_tree *tree, u64 tag, struct kvset_meta *km, struct kvset **handle)
+_kvset_open(struct cn_tree *tree, uint64_t kvsetid, struct kvset_meta *km, struct kvset **handle)
 {
     struct mock_kvset *mk;
     size_t             alloc_sz;
@@ -263,7 +258,11 @@ _kvset_open(struct cn_tree *tree, u64 tag, struct kvset_meta *km, struct kvset *
     mk->stats.kst_vwlen = km->km_vused;
     mk->stats.kst_vulen = km->km_vused;
 
-    mk->dgen = km->km_dgen_hi;
+    mk->dgen_hi = km->km_dgen_hi;
+    mk->dgen_lo = km->km_dgen_lo;
+    mk->nodeid = km->km_nodeid;
+    mk->kvsetid = kvsetid;
+    mk->compc = km->km_compc;
     mk->iter_data = tree->mp;
     mk->ref = 1; /* as in reality, kvsets are minted ref 1 */
 
@@ -295,12 +294,45 @@ _kvset_get_num_vblocks(struct kvset *kvset)
     return mk->stats.kst_vblks;
 }
 
-static u64
+static uint64_t
 _kvset_get_dgen(const struct kvset *kvset)
 {
     struct mock_kvset *mk = (void *)kvset;
 
-    return mk->dgen;
+    return mk->dgen_hi;
+}
+
+static uint64_t
+_kvset_get_dgen_lo(const struct kvset *kvset)
+{
+    struct mock_kvset *mk = (void *)kvset;
+
+    return mk->dgen_lo;
+}
+
+static bool
+_kvset_younger(const struct kvset *ks1, const struct kvset *ks2)
+{
+    uint64_t hi1 = _kvset_get_dgen(ks1), hi2 = _kvset_get_dgen(ks2);
+
+    return (hi1 > hi2 ||
+            (hi1 == hi2 && _kvset_get_dgen_lo(ks1) >= _kvset_get_dgen_lo(ks2)));
+}
+
+static uint64_t
+_kvset_get_id(const struct kvset *kvset)
+{
+    struct mock_kvset *mk = (void *)kvset;
+
+    return mk->kvsetid;
+}
+
+static uint32_t
+_kvset_get_compc(const struct kvset *kvset)
+{
+    struct mock_kvset *mk = (void *)kvset;
+
+    return mk->compc;
 }
 
 static u64
@@ -336,6 +368,30 @@ _kvset_get_nth_vblock_len(struct kvset *kvset, u32 index)
             vcnt++;
 
     return vcnt * sizeof(int);
+}
+
+static uint64_t
+_kvset_get_nodeid(const struct kvset *kvset)
+{
+    struct mock_kvset *mk = (void *)kvset;
+
+    return mk->nodeid;
+}
+
+static void
+_kvset_set_nodeid(struct kvset *kvset, uint64_t nodeid)
+{
+    struct mock_kvset *mk = (void *)kvset;
+
+    mk->nodeid = nodeid;
+}
+
+static void
+_kvset_set_compc(struct kvset *kvset, uint32_t compc)
+{
+    struct mock_kvset *mk = (void *)kvset;
+
+    mk->compc = compc;
 }
 
 const struct kvset_stats *
@@ -661,6 +717,12 @@ mock_kvset_set(void)
     MOCK_SET(kvset, _kvset_list_add_tail);
     MOCK_SET(kvset, _kvset_get_ref);
     MOCK_SET(kvset, _kvset_put_ref);
+    MOCK_SET(kvset, _kvset_younger);
+    MOCK_SET(kvset, _kvset_get_dgen_lo);
+    MOCK_SET(kvset, _kvset_get_id);
+    MOCK_SET(kvset, _kvset_get_compc);
+    MOCK_SET(kvset, _kvset_set_compc);
+    MOCK_SET(kvset, _kvset_set_nodeid);
     MOCK_SET(kvset, _kvset_iter_set_start);
     MOCK_SET(kvset, _kvset_iter_create);
     MOCK_SET(kvset, _kvset_iter_release);
@@ -671,6 +733,7 @@ mock_kvset_set(void)
     MOCK_SET(kvset, _kvset_iter_next_vref);
 
     MOCK_SET(kvset_view, _kvset_get_dgen);
+    MOCK_SET(kvset_view, _kvset_get_nodeid);
     MOCK_SET(kvset_view, _kvset_get_num_kblocks);
     MOCK_SET(kvset_view, _kvset_get_nth_kblock_id);
     MOCK_SET(kvset_view, _kvset_get_num_vblocks);
@@ -688,6 +751,12 @@ mock_kvset_unset(void)
     MOCK_UNSET(kvset, _kvset_list_add_tail);
     MOCK_UNSET(kvset, _kvset_get_ref);
     MOCK_UNSET(kvset, _kvset_put_ref);
+    MOCK_UNSET(kvset, _kvset_younger);
+    MOCK_UNSET(kvset, _kvset_get_dgen_lo);
+    MOCK_UNSET(kvset, _kvset_get_id);
+    MOCK_UNSET(kvset, _kvset_get_compc);
+    MOCK_UNSET(kvset, _kvset_set_compc);
+    MOCK_UNSET(kvset, _kvset_set_nodeid);
     MOCK_UNSET(kvset, _kvset_iter_create);
     MOCK_UNSET(kvset, _kvset_iter_release);
     MOCK_UNSET(kvset, _kvset_from_iter);
@@ -700,5 +769,6 @@ mock_kvset_unset(void)
     MOCK_UNSET(kvset_view, _kvset_get_nth_kblock_id);
     MOCK_UNSET(kvset_view, _kvset_get_num_vblocks);
     MOCK_UNSET(kvset_view, _kvset_get_nth_vblock_id);
+    MOCK_UNSET(kvset_view, _kvset_get_nodeid);
     MOCK_UNSET(kvset_view, _kvset_get_dgen);
 }

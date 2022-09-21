@@ -375,12 +375,25 @@ create_kvset(
     ASSERT_EQ(0, err);
 }
 
+uint64_t tgt_nodeid = 20;
 uint g_cb_ctr;
 
 static merr_t
-replay_full_cb(void *ctx, struct kvset_meta *km, u64 kvsetid)
+replay_full_move_cb(void *ctx, struct kvset_meta *km, uint64_t kvsetid)
+{
+    if (km->km_nodeid != tgt_nodeid)
+        return merr(EBUG);
+
+    ++g_cb_ctr;
+
+    return 0;
+}
+
+static merr_t
+replay_full_cb(void *ctx, struct kvset_meta *km, uint64_t kvsetid)
 {
     ++g_cb_ctr;
+
     return 0;
 }
 
@@ -399,10 +412,12 @@ MTF_DEFINE_UTEST_PREPOST(cndb_test, replay_full, test_pre, test_post)
                  NELEM(vblkv_ingest), vblkv_ingest, &kvsetid_ingest);
 
     /* Reuse some mblocks */
-    uint64_t hbid_left = 101;
-    uint64_t hbid_right = 102;
-    uint64_t kvsetid_left = cndb_kvsetid_mint(cndb);
-    uint64_t kvsetid_right = cndb_kvsetid_mint(cndb);
+    const uint64_t hbid_left = 101;
+    const uint64_t hbid_right = 102;
+    const uint64_t kvsetid_left = cndb_kvsetid_mint(cndb);
+    const uint64_t kvsetid_right = cndb_kvsetid_mint(cndb);
+    const uint64_t src_nodeid = 10;
+    const uint64_t kvsetidv[2] = { kvsetid_left, kvsetid_right };
     void *c1, *c2;
 
     struct kvset_meta km = {
@@ -421,12 +436,14 @@ MTF_DEFINE_UTEST_PREPOST(cndb_test, replay_full, test_pre, test_post)
     uint64_t kblkv_left[2] = {3, 4};
     uint64_t kblkv_right[2] = {2, 5};
 
-    err = cndb_record_kvset_add(cndb, tx, cnid, cndb_nodeid_mint(cndb), &km, kvsetid_left, hbid_left,
-                                NELEM(kblkv_left), kblkv_left, NELEM(vblkv_ingest), vblkv_ingest, &c1);
+    err = cndb_record_kvset_add(cndb, tx, cnid, src_nodeid, &km, kvsetid_left,
+                                hbid_left, NELEM(kblkv_left), kblkv_left, NELEM(vblkv_ingest),
+                                vblkv_ingest, &c1);
     ASSERT_EQ(0, err);
 
-    err = cndb_record_kvset_add(cndb, tx, cnid, cndb_nodeid_mint(cndb), &km, kvsetid_right, hbid_right,
-                                NELEM(kblkv_right), kblkv_right, NELEM(vblkv_ingest), vblkv_ingest, &c2);
+    err = cndb_record_kvset_add(cndb, tx, cnid, src_nodeid, &km, kvsetid_right,
+                                hbid_right, NELEM(kblkv_right), kblkv_right, NELEM(vblkv_ingest),
+                                vblkv_ingest, &c2);
     ASSERT_EQ(0, err);
 
     void *delcookie;
@@ -440,6 +457,9 @@ MTF_DEFINE_UTEST_PREPOST(cndb_test, replay_full, test_pre, test_post)
     ASSERT_EQ(0, err);
 
     err = cndb_record_kvset_del_ack(cndb, tx, delcookie);
+    ASSERT_EQ(0, err);
+
+    err = cndb_record_kvset_move(cndb, cnid, src_nodeid, tgt_nodeid, 2, kvsetidv);
     ASSERT_EQ(0, err);
 
     /* Reopen and replay */
@@ -456,9 +476,9 @@ MTF_DEFINE_UTEST_PREPOST(cndb_test, replay_full, test_pre, test_post)
     ASSERT_EQ(0, err);
 
     g_cb_ctr = 0;
-    err = cndb_cn_instantiate(cndb, cnid, NULL, (void *)replay_full_cb);
+    err = cndb_cn_instantiate(cndb, cnid, NULL, (void *)replay_full_move_cb);
     ASSERT_EQ(0, err);
-    ASSERT_EQ(2, g_cb_ctr); /* Only one kvset needs to be instantiated */
+    ASSERT_EQ(2, g_cb_ctr);
 }
 
 static merr_t

@@ -31,7 +31,11 @@ struct mock_kvset {
     void *                  iter_data;
     int                     start;
     int                     ref;
-    u64                     dgen;
+    uint64_t                dgen_hi;
+    uint64_t                dgen_lo;
+    uint64_t                kvsetid;
+    uint64_t                nodeid;
+    uint32_t                compc;
     u64                     ids[];
 };
 
@@ -78,10 +82,6 @@ mock_vref_to_vdata(struct kv_iterator *kvi, uint vboff);
 /*
  * These mock apis exist to faciliate test data creation.
  */
-
-void
-mock_kvset_data_reset(void);
-
 struct kvset_meta;
 
 merr_t

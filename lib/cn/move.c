@@ -20,7 +20,7 @@
 #include "kvset.h"
 #include "route.h"
 
-static merr_t
+merr_t
 cn_move(
     struct cn_compaction_work *w,
     struct cn_tree_node       *src_node,
@@ -33,15 +33,12 @@ cn_move(
     struct kvset_list_entry *src, *src_end, *tgt;
     struct list_head *src_head, *tgt_head;
     uint64_t *src_ksidv = NULL;
-    uint32_t tgt_cnt;
     merr_t err;
 
     INVARIANT(w && src_node && tgt_node);
     INVARIANT((src_cnt > 0 && src_list) || (src_cnt == 0 && !src_list));
 
     tree = w->cw_tree;
-    tgt_cnt = cn_ns_kvsets(&tgt_node->tn_ns);
-
     src_head = &src_node->tn_kvset_list;
     tgt_head = &tgt_node->tn_kvset_list;
 
@@ -121,14 +118,10 @@ cn_move(
     tgt_node->tn_cgen++;
     if (src_cnt > 0)
         cn_tree_samp_update_move(w, tgt_node);
-    assert(cn_ns_kvsets(&tgt_node->tn_ns) == src_cnt + tgt_cnt);
 
     rmlock_wunlock(&tree->ct_lock);
 
     free(src_ksidv);
-
-    log_info("src %lu (%u) -> tgt %lu (%u)",
-             src_node->tn_nodeid, src_cnt, tgt_node->tn_nodeid, tgt_cnt);
 
     return 0;
 }
@@ -138,8 +131,9 @@ cn_join(struct cn_compaction_work *w)
 {
     struct cn_tree_node *src_node, *tgt_node;
     struct kvset_list_entry *src_list;
-    uint32_t src_cnt;
+    uint32_t src_cnt, tgt_cnt;
     bool src_del = true;
+    merr_t err;
 
     src_node = w->cw_join;
     tgt_node = w->cw_node;
@@ -149,6 +143,16 @@ cn_join(struct cn_compaction_work *w)
 
     src_list = list_first_entry_or_null(&src_node->tn_kvset_list, typeof(*src_list), le_link);
     src_cnt = cn_ns_kvsets(&src_node->tn_ns);
+    tgt_cnt = cn_ns_kvsets(&tgt_node->tn_ns);
 
-    return cn_move(w, src_node, src_list, src_cnt, src_del, tgt_node);
+    err = cn_move(w, src_node, src_list, src_cnt, src_del, tgt_node);
+    if (err)
+        return err;
+
+    assert(cn_ns_kvsets(&tgt_node->tn_ns) == src_cnt + tgt_cnt);
+
+    log_info("src %lu (%u) -> tgt %lu (%u)",
+             src_node->tn_nodeid, src_cnt, tgt_node->tn_nodeid, tgt_cnt);
+
+    return 0;
 }

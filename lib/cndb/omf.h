@@ -234,7 +234,7 @@ struct cndb_kvset_move_omf {
     uint64_t            kvset_move_tgt_nodeid;
     uint32_t            kvset_move_pad;
     uint32_t            kvset_move_kvset_idc;
-    uint64_t            kvset_move_kvset_idv[0];
+    uint64_t            kvset_move_kvset_idv[];
 } HSE_PACKED;
 
 OMF_SETGET(struct cndb_kvset_move_omf, kvset_move_cnid, 64);
@@ -351,7 +351,7 @@ cndb_omf_kvset_move_write(
     uint64_t          src_nodeid,
     uint64_t          tgt_nodeid,
     uint32_t          kvset_idc,
-    uint64_t         *kvset_idv);
+    const uint64_t   *kvset_idv);
 
 merr_t
 cndb_omf_ack_write(

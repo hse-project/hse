@@ -111,14 +111,15 @@ cndb_record_kvset_del(
     uint64_t         kvsetid,
     void           **cookie);
 
+/* MTF_MOCK */
 merr_t
 cndb_record_kvset_move(
-    struct cndb *cndb,
-    uint64_t     cnid,
-    uint64_t     src_nodeid,
-    uint64_t     tgt_nodeid,
-    uint32_t     kvset_idc,
-    uint64_t    *kvset_idv);
+    struct cndb    *cndb,
+    uint64_t        cnid,
+    uint64_t        src_nodeid,
+    uint64_t        tgt_nodeid,
+    uint32_t        kvset_idc,
+    const uint64_t *kvset_idv);
 
 /* MTF_MOCK */
 merr_t

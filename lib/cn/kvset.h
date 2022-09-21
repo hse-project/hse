@@ -350,6 +350,15 @@ kvset_pfx_lookup(
     struct kvs_buf *       vbuf,
     struct query_ctx *     qctx);
 
+/*
+ * kvset_younger() - returns true if ks1 is younger than ks2
+ *
+ * NOTE:
+ * - if dgen_hi(ks1) > dgen_hi(ks2), then return true
+ * - if dgen_hi(ks1) < dgen_hi(ks2), then return false
+ * - if dgen_hi(ks1) == dgen_hi(ks2), then
+ *   - if dgen_lo(ks1) >= dgen_lo(ks2), then return true, else return false
+ */
 /* MTF_MOCK */
 bool
 kvset_younger(const struct kvset *ks1, const struct kvset *ks2);
@@ -381,6 +390,7 @@ kvset_statsp(const struct kvset *ks);
 u8 *
 kvset_get_hlog(struct kvset *km);
 
+/* MTF_MOCK */
 uint64_t
 kvset_get_id(const struct kvset *ks);
 
@@ -388,6 +398,7 @@ kvset_get_id(const struct kvset *ks);
 uint32_t
 kvset_get_compc(const struct kvset *ks);
 
+/* MTF_MOCK */
 void
 kvset_set_compc(struct kvset *ks, uint32_t compc);
 
@@ -409,11 +420,12 @@ struct vblock_desc *
 kvset_get_nth_vblock_desc(struct kvset *ks, uint32_t index);
 
 /* MTF_MOCK */
-uint64_t
-kvset_get_dgen_lo(const struct kvset *kvset);
-
 void
 kvset_set_nodeid(struct kvset *kvset, uint64_t nodeid);
+
+/* MTF_MOCK */
+uint64_t
+kvset_get_dgen_lo(const struct kvset *kvset);
 
 /**
  * kvset_iter_create() - Create iterator to traverse all entries in a kvset
