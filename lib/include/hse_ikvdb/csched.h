@@ -62,6 +62,7 @@ enum cn_rule {
     CN_RULE_SPLIT,          /* big leaf (near split threshold, split in progress) */
     CN_RULE_LSPLIT,         /* left node kvset after a split */
     CN_RULE_RSPLIT,         /* right ndoe kvset after a split */
+    CN_RULE_JOIN,           /* prev node is very small */
 };
 
 static inline const char *
@@ -110,6 +111,8 @@ cn_rule2str(enum cn_rule rule)
         return "left";
     case CN_RULE_RSPLIT:
         return "right";
+    case CN_RULE_JOIN:
+        return "join";
     }
 
     return "invalid";

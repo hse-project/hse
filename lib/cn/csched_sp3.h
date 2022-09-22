@@ -16,8 +16,6 @@
 
 /* MTF_MOCK_DECL(csched_sp3) */
 
-#define CN_THROTTLE_MAX (THROTTLE_SENSOR_SCALE_MED + 50)
-
 struct kvdb_rparams;
 struct mpool;
 struct kvdb_health;
@@ -37,11 +35,14 @@ struct sp3_node {
     struct sp3_rbe   spn_rbe[wtype_MAX];
     struct list_head spn_rlink;
     struct list_head spn_alink;
-    struct list_head spn_dlink;
     bool             spn_initialized;
     uint             spn_cgen;
 };
 
+/* Each sp3_tree maintains a list of dirty nodes (spt_dnode_listv).
+ * If the dirty node list is not empty then the tree will be linked
+ * into sp's dirty tree list (sp_dtree_listv) via spt_dtree_linkv.
+ */
 struct sp3_tree {
     struct list_head spt_tlink;
     uint             spt_job_cnt;
@@ -49,9 +50,8 @@ struct sp3_tree {
     atomic_ulong     spt_ingest_alen;
     atomic_ulong     spt_ingest_wlen;
 
-    /* Dirty node list */
-    struct mutex     spt_dlist_lock;
-    struct list_head spt_dlist;;
+    struct list_head spt_dnode_listv[2] HSE_L1D_ALIGNED;
+    struct list_head spt_dtree_linkv[2];
 };
 
 /* MTF_MOCK */

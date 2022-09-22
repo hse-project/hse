@@ -596,6 +596,7 @@ kvset_open2(
         /* kvset_stats from kblocks */
         ks->ks_st.kst_halen += props.mpr_alloc_cap;
         ks->ks_st.kst_hwlen += props.mpr_write_len;
+        ks->ks_st.kst_ptombs += ks->ks_hblk.kh_metrics.hm_nptombs;
     }
 
     ks->ks_seqno_min = ks->ks_hblk.kh_seqno_min;
@@ -1826,6 +1827,7 @@ kvset_stats_add(const struct kvset_stats *add, struct kvset_stats *result)
 {
     result->kst_keys += add->kst_keys;
     result->kst_tombs += add->kst_tombs;
+    result->kst_ptombs += add->kst_ptombs;
     result->kst_kvsets += add->kst_kvsets;
 
     result->kst_hblks += add->kst_hblks;
