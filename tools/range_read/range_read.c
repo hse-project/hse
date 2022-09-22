@@ -657,7 +657,7 @@ main(
                 {.opname = "get",    .opfunc = &point_get},
             };
 
-            /* hdr_reset take a while, so reset the histograms upfront before all the op
+            /* hdr_reset takes a while, so reset the histograms upfront before all the op
              * threads are started.
              */
             for (int i = 0; i < opts.threads; i++) {
