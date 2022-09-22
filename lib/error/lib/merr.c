@@ -13,6 +13,8 @@
 #include <hse_util/assert.h>
 #include <hse_util/page.h>
 
+#define HSE_SW_BUG_MSG "HSE software bug"
+
 char hse_merr_bug0[] _merr_attributes = "hse_merr_bug0";
 char hse_merr_bug1[] _merr_attributes = "hse_merr_bug1";
 char hse_merr_bug2[] _merr_attributes = "hse_merr_bug2";
@@ -94,13 +96,21 @@ merr_strerror(const merr_t err, char *const buf, const size_t buf_sz)
     char errbuf[1024], *errmsg;
     int errno_value = merr_errno(err);
 
-    if (errno_value == EBUG)
-        return strlcpy(buf, "HSE software bug", buf_sz);
+    if (errno_value == EBUG) {
+        if (!buf)
+            return sizeof(HSE_SW_BUG_MSG) - 1;
+
+        return strlcpy(buf, HSE_SW_BUG_MSG, buf_sz);
+    }
 
     /* GNU strerror only modifies errbuf if errno_value is invalid.
      * It will only return NULL if errbuf is NULL.
      */
     errmsg = strerror_r(errno_value, errbuf, sizeof(errbuf));
+    assert(errmsg);
+
+    if (!buf)
+        return strlen(errmsg);
 
     return strlcpy(buf, errmsg, buf_sz);
 }
