@@ -130,7 +130,7 @@ merr_t
 cn_join(struct cn_compaction_work *w)
 {
     struct cn_tree_node *src_node, *tgt_node;
-    struct kvset_list_entry *src_list;
+    struct kvset_list_entry *src_list, *le;
     uint32_t src_cnt, tgt_cnt;
     bool src_del = true;
     merr_t err;
@@ -144,15 +144,27 @@ cn_join(struct cn_compaction_work *w)
     src_list = list_first_entry_or_null(&src_node->tn_kvset_list, typeof(*src_list), le_link);
     src_cnt = cn_ns_kvsets(&src_node->tn_ns);
     tgt_cnt = cn_ns_kvsets(&tgt_node->tn_ns);
+    assert(tgt_cnt == w->cw_kvset_cnt);
 
     err = cn_move(w, src_node, src_list, src_cnt, src_del, tgt_node);
-    if (err)
-        return err;
+    if (!err) {
+        assert(cn_ns_kvsets(&tgt_node->tn_ns) == src_cnt + tgt_cnt);
+        log_info("src %lu (%u) -> tgt %lu (%u)",
+                 src_node->tn_nodeid, src_cnt, tgt_node->tn_nodeid, tgt_cnt);
+    }
 
-    assert(cn_ns_kvsets(&tgt_node->tn_ns) == src_cnt + tgt_cnt);
+    /* Unmark input kvsets */
+    list_for_each_entry(le, &tgt_node->tn_kvset_list, le_link) {
+        assert(kvset_get_workid(le->le_kvset) != 0);
+        kvset_set_workid(le->le_kvset, 0);
+    }
 
-    log_info("src %lu (%u) -> tgt %lu (%u)",
-             src_node->tn_nodeid, src_cnt, tgt_node->tn_nodeid, tgt_cnt);
+    if (err) {
+        list_for_each_entry(le, &src_node->tn_kvset_list, le_link) {
+            assert(kvset_get_workid(le->le_kvset) != 0);
+            kvset_set_workid(le->le_kvset, 0);
+        }
+    }
 
-    return 0;
+    return err;
 }

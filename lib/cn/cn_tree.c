@@ -917,36 +917,6 @@ cn_node_comp_token_put(struct cn_tree_node *tn)
     assert(b);
 }
 
-static void
-cn_comp_release(struct cn_compaction_work *w)
-{
-    const bool join = (w->cw_action == CN_ACTION_JOIN);
-    assert(w->cw_node);
-
-    if (w->cw_err || join) {
-        struct kvset_list_entry *le;
-        uint cnt = join ? cn_ns_kvsets(&w->cw_node->tn_ns) : w->cw_kvset_cnt;
-
-        /* unmark input kvsets */
-        le = join ? list_last_entry(&w->cw_node->tn_kvset_list, typeof(*le), le_link) : w->cw_mark;
-        for (uint kx = 0; kx < cnt; kx++) {
-            assert(le);
-            assert(kvset_get_workid(le->le_kvset) != 0);
-            kvset_set_workid(le->le_kvset, 0);
-            le = list_prev_entry_or_null(le, le_link, &w->cw_node->tn_kvset_list);
-        }
-
-        if (join && w->cw_err) {
-            list_for_each_entry(le, &w->cw_join->tn_kvset_list, le_link) {
-                assert(kvset_get_workid(le->le_kvset) != 0);
-                kvset_set_workid(le->le_kvset, 0);
-            }
-        }
-    }
-
-    perfc_inc(w->cw_pc, PERFC_BA_CNCOMP_FINISH);
-}
-
 /**
  * cn_tree_capped_evict() - evict unneeded vblock pages
  * @tree:   cn_tree pointer
@@ -1133,12 +1103,10 @@ cn_tree_prepare_compaction(struct cn_compaction_work *w)
     struct kv_iterator     **ins = NULL;
     merr_t err = 0;
     size_t outsz = 0;
-    u32 n_outs;
+    u32 n_outs = 1;
     uint i;
     const bool kcompact = (w->cw_action == CN_ACTION_COMPACT_K);
     const bool split = (w->cw_action == CN_ACTION_SPLIT);
-
-    n_outs = 1;
 
     w->cw_horizon = cn_get_seqno_horizon(w->cw_tree->cn);
     w->cw_cancel_request = cn_get_cancel(w->cw_tree->cn);
@@ -1855,14 +1823,18 @@ cn_comp_cleanup(struct cn_compaction_work *w)
         mutex_unlock(&tree->ct_ss_lock);
     }
 
-    atomic_sub_rel(&w->cw_node->tn_busycnt, (1u << 16) + w->cw_kvset_cnt);
-
-    if (w->cw_have_token)
-        cn_node_comp_token_put(w->cw_node);
-
     if (w->cw_err) {
-        if (w->cw_join)
-            cn_node_comp_token_put(w->cw_join);
+        if (!join) {
+            struct kvset_list_entry *le = w->cw_mark;
+
+            /* unmark input kvsets */
+            for (uint kx = 0; kx < w->cw_kvset_cnt; kx++) {
+                assert(le);
+                assert(kvset_get_workid(le->le_kvset) != 0);
+                kvset_set_workid(le->le_kvset, 0);
+                le = list_prev_entry_or_null(le, le_link, &w->cw_node->tn_kvset_list);
+            }
+        }
 
         /* Failed spills cause node to become "wedged"  */
         if (spill && !w->cw_tree->ct_rspills_wedged) {
@@ -1904,7 +1876,15 @@ cn_comp_cleanup(struct cn_compaction_work *w)
         } else if (!spill) {
             cn_mblocks_destroy(w->cw_mp, w->cw_outc, w->cw_outv, kcompact);
         }
+
+        if (w->cw_join)
+            cn_node_comp_token_put(w->cw_join);
     }
+
+    atomic_sub_rel(&w->cw_node->tn_busycnt, (1u << 16) + w->cw_kvset_cnt);
+
+    if (w->cw_have_token)
+        cn_node_comp_token_put(w->cw_node);
 
     free(w->cw_vbmap.vbm_blkv);
 
@@ -1928,6 +1908,8 @@ cn_comp_cleanup(struct cn_compaction_work *w)
         }
         free(w->cw_outv);
     }
+
+    perfc_inc(w->cw_pc, PERFC_BA_CNCOMP_FINISH);
 }
 
 merr_t
@@ -2345,7 +2327,6 @@ cn_compact(struct cn_compaction_work *w)
         cn_comp_commit(w);
 
     cn_comp_cleanup(w);
-    cn_comp_release(w);
 
     w->cw_t5_finish = get_time_ns();
     perfc_lat_record(pc, PERFC_LT_CNCOMP_TOTAL, w->cw_t1_qtime);
