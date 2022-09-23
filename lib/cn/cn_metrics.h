@@ -26,6 +26,7 @@
 struct kvset_stats {
     uint64_t kst_keys;      //<! number of keys
     uint64_t kst_tombs;     //<! number of tombtones
+    uint64_t kst_ptombs;    //<! number of prefix tombtones
     uint64_t kst_halen;     //<! sum of mpr_alloc_cap for all hblocks
     uint64_t kst_hwlen;     //<! sum of mpr_write_len for all hblocks
     uint64_t kst_kalen;     //<! sum of mpr_alloc_cap for all kblocks
@@ -124,6 +125,15 @@ static inline uint64_t
 cn_ns_tombs(const struct cn_node_stats *ns)
 {
     return ns->ns_kst.kst_tombs;
+}
+
+/**
+ * Number of prefix tombstones in node.
+ */
+static inline uint64_t
+cn_ns_ptombs(const struct cn_node_stats *ns)
+{
+    return ns->ns_kst.kst_ptombs;
 }
 
 /**

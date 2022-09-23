@@ -220,6 +220,9 @@ cn_get_perfc(struct cn *cn, enum cn_action action)
 
     case CN_ACTION_SPLIT:
         return &cn->cn_pc_split;
+
+    case CN_ACTION_JOIN:
+        return &cn->cn_pc_split;
     }
 
     return NULL;
@@ -867,7 +870,7 @@ cn_open(
     struct merr_info   ei;
 
     char kbuf[HSE_KVS_KEY_LEN_MAX];
-    struct cn_tree_node *tn;
+    struct cn_tree_node *tn, *tn_next;
     struct route_node *rn;
     uint klen;
 
@@ -952,14 +955,18 @@ cn_open(
 
     /* Walk the list of leaf nodes created/populated by cndb_cn_callback()
      * and insert them into the route map (i.e., all nodes except the root
-     * node which always has node ID 0).
+     * node, which always has node ID 0).
      */
-    cn_tree_foreach_leaf(tn, cn->cn_tree) {
+    cn_tree_foreach_leaf_safe(tn, tn_next, cn->cn_tree) {
         cn_tree_node_get_max_key(tn, kbuf, sizeof(kbuf), &klen);
 
         /* TODO: Handle a ptomb-only node (NFSE-5351)
          */
-        assert(klen > 0);
+        if (klen == 0) {
+            list_del_init(&tn->tn_link);
+            cn->cn_tree->ct_fanout--;
+            continue;
+        }
 
         tn->tn_route_node = route_map_insert(cn->cn_tree->ct_route_map, tn, kbuf, klen);
         if (!tn->tn_route_node) {

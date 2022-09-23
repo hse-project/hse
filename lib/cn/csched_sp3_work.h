@@ -40,9 +40,9 @@
 #define SP3_LCOMP_RUNLEN_MAX_MAX        (UINT8_MAX)
 #define SP3_LCOMP_RUNLEN_MAX_DEFAULT    (12u)
 
-#define SP3_LCOMP_SPLIT_PCT_MIN         (1u)
-#define SP3_LCOMP_SPLIT_PCT_MAX         (UINT_MAX)
-#define SP3_LCOMP_SPLIT_PCT_DEFAULT     (100u)
+#define SP3_LCOMP_JOIN_PCT_MIN         (0u)
+#define SP3_LCOMP_JOIN_PCT_MAX         (100u)
+#define SP3_LCOMP_JOIN_PCT_DEFAULT     (75u)
 
 #define SP3_LCOMP_SPLIT_KEYS_MIN        (1u)
 #define SP3_LCOMP_SPLIT_KEYS_MAX        (UINT_MAX)
@@ -61,6 +61,7 @@ enum sp3_work_type {
     wtype_garbage,      /* leaf nodes: kv-compact to reduce garbage */
     wtype_scatter,      /* leaf nodes: kv-compact to reduce vgroup scatter */
     wtype_split,        /* leaf nodes: split to eliminate large nodes */
+    wtype_join,         /* leaf nodes: join to eliminate small nodes */
     wtype_idle,         /* root+leaf nodes: kv-compact idle nodes */
     wtype_root,         /* root node: spill to leaves */
     wtype_MAX
@@ -71,7 +72,7 @@ struct sp3_thresholds {
     uint8_t  rspill_runlen_min;
     uint8_t  rspill_runlen_max;
     uint8_t  lcomp_runlen_max;
-    uint     lcomp_split_pct;     /* leaf node split-by-clen percentage threshold */
+    uint     lcomp_join_pct;      /* leaf node join-by-wlen percentage threshold */
     uint     lcomp_split_keys;    /* leaf node split-by-keys threshold */
     uint8_t  lscat_hwm;
     uint8_t  lscat_runlen_max;
@@ -90,6 +91,13 @@ sp3_work(
     struct sp3_thresholds      *thresholds,
     uint                        debug,
     struct cn_compaction_work **wp);
+
+
+struct cn_tree_node *
+sp3_work_joinable(struct cn_tree_node *right, const struct sp3_thresholds *thresh);
+
+bool
+sp3_work_splittable(struct cn_tree_node *tn, const struct sp3_thresholds *thresh);
 
 #if HSE_MOCKING
 #include "csched_sp3_work_ut.h"

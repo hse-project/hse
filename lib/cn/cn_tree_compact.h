@@ -34,6 +34,7 @@ enum cn_action {
     CN_ACTION_COMPACT_KV,
     CN_ACTION_SPILL,
     CN_ACTION_SPLIT,
+    CN_ACTION_JOIN,
 };
 
 static inline const char *
@@ -50,6 +51,8 @@ cn_action2str(enum cn_action action)
         return "spill";
     case CN_ACTION_SPLIT:
         return "split";
+    case CN_ACTION_JOIN:
+        return "join";
     }
 
     return "invalid";
@@ -135,6 +138,7 @@ struct cn_compaction_work {
     uint64_t                 cw_sgen;
     struct cn_tree *         cw_tree;
     struct cn_tree_node *    cw_node;
+    struct cn_tree_node *    cw_join;
     struct kvset_list_entry *cw_mark;
     struct cn_node_stats     cw_ns;
     uint                     cw_kvset_cnt;

@@ -61,7 +61,7 @@ cn_subspill(
     struct spillctx           *sctx,
     struct cn_tree_node       *node,
     uint64_t                   node_dgen,
-    void                      *ekey,
+    const void                *ekey,
     uint                       eklen);
 
 

@@ -109,6 +109,9 @@ struct cn_tree {
 
     struct cn_samp_stats ct_samp;
 
+    struct mutex         ct_ss_lock HSE_L1D_ALIGNED;
+    struct cv            ct_ss_cv;
+
     atomic_ulong         ct_rspill_dt;
     atomic_uint          ct_rspill_slp;
     atomic_uint          ct_split_cnt;
@@ -138,6 +141,7 @@ struct cn_tree {
  * struct cn_tree_node - A node in a k-way cn_tree
  * @tn_compacting:   true if if an exclusive job is running on this node
  * @tn_busycnt:      count of jobs and kvsets being compacted/spilled
+ * @tn_dnode_linkv:  dirty list linkage for csched
  * @tn_destroy_work: used for async destroy
  * @tn_hlog:         hyperloglog structure
  * @tn_ns:           metrics about node to guide node compaction decisions
@@ -149,6 +153,7 @@ struct cn_tree_node {
     atomic_int           tn_compacting;
     atomic_uint          tn_busycnt;
     atomic_long          tn_sgen;      /* The last spill gen that was added to the node */
+    struct list_head     tn_dnode_linkv[2];
 
     union {
         struct sp3_node  tn_sp3n;
@@ -171,12 +176,11 @@ struct cn_tree_node {
 
     /* List of pending subspills and a mutex to serialize its access.
      */
-    struct mutex         tn_ss_lock HSE_L1D_ALIGNED;
     struct list_head     tn_ss_list;
     atomic_uint          tn_ss_spilling;
     bool                 tn_ss_splitting;
+    int8_t               tn_ss_joining;
     uint8_t              tn_ss_visits;
-    struct cv            tn_ss_cv;
 };
 
 /* Iterate over all tree nodes, starting with the root node.
@@ -192,6 +196,12 @@ struct cn_tree_node {
     for ((_item) = list_next_entry_or_null((_tree)->ct_root, tn_link, &(_tree)->ct_nodes);      \
          (_item);                                                                               \
          (_item) = list_next_entry_or_null((_item), tn_link, &(_tree)->ct_nodes))
+
+#define cn_tree_foreach_leaf_safe(_item, _next, _tree)                                          \
+    for ((_item) = list_next_entry_or_null((_tree)->ct_root, tn_link, &(_tree)->ct_nodes),         \
+             _next = (_item) ? list_next_entry_or_null((_item), tn_link, &(_tree)->ct_nodes) : NULL; \
+         (_item);                                                                                  \
+         _item = (_next), _next = (_item) ? list_next_entry_or_null((_item), tn_link, &(_tree)->ct_nodes) : NULL)
 
 /* cn_tree_node to sp3_node */
 #define tn2spn(_tn) (&(_tn)->tn_sp3n)

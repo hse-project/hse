@@ -104,6 +104,12 @@ sp3_work_estimate(struct cn_compaction_work *w)
         percent_keep = 100;
         dst_is_leaf = true;
         break;
+
+    case CN_ACTION_JOIN:
+        consume = halen + kalen + valen;
+        percent_keep = 100;
+        dst_is_leaf = true;
+        break;
     }
 
     produce = consume * percent_keep / 100;
@@ -224,13 +230,15 @@ sp3_work_wtype_idle(
     enum cn_rule             *rule)
 {
     struct cn_tree_node *tn = spn2tn(spn);
+    struct cn_node_stats *ns = &tn->tn_ns;
     struct kvset_list_entry *le;
     struct list_head *head;
+    uint64_t tombs;
     uint kvsets;
 
     head = &tn->tn_kvset_list;
     *mark = list_last_entry_or_null(head, typeof(*le), le_link);
-    kvsets = cn_ns_kvsets(&tn->tn_ns);
+    kvsets = cn_ns_kvsets(ns);
 
     if (tn->tn_isroot) {
         *action = CN_ACTION_SPILL;
@@ -238,15 +246,49 @@ sp3_work_wtype_idle(
         return kvsets;
     }
 
-    if (kvsets < 2)
-        return 0;
+    /* If the node consists entirely of ptombs then a k-compact
+     * should eliminate all kvsets.
+     */
+    if (cn_ns_keys(ns) == 0) {
+        *action = CN_ACTION_COMPACT_K;
+        *rule = CN_RULE_IDLE_TOMB;
+        ev_debug(1);
+        return kvsets;
+    }
 
-    *action = CN_ACTION_COMPACT_KV;
+    /* If the preponderance of keys are tombs then skip the youngest kvsets
+     * with no tombs and issue a k-compaction on the remainder to try and
+     * annihilate the remainder without unnecessarily rewriting any vblocks.
+     */
+    tombs = cn_ns_tombs(ns);
+    if (tombs > 0) {
+        uint64_t keys = cn_ns_keys(ns);
+        uint skip = 0;
+
+        list_for_each_entry(le, head, le_link) {
+            const struct kvset_stats *stats = kvset_statsp(le->le_kvset);
+
+            if (stats->kst_tombs > 0)
+                break;
+
+            keys -= stats->kst_keys;
+            skip++;
+        }
+
+        if (kvsets - skip > 1) {
+            if (tombs >= keys - tombs || tombs * 100 > cn_ns_keys_uniq(ns) * 95) {
+                *action = CN_ACTION_COMPACT_K;
+                *rule = CN_RULE_IDLE_TOMB;
+                ev_debug(1);
+                return kvsets - skip;
+            }
+        }
+    }
 
     /* Keep idle index nodes fully compacted to improve scanning
      * (e.g., mongod index nodes that rarely change after load).
      */
-    if (cn_ns_vblks(&tn->tn_ns) < kvsets) {
+    if (cn_ns_vblks(ns) < kvsets) {
         const uint keys_max = thresh->lcomp_split_keys / 2;
 
         /* Skip oldest kvsets with enormous key counts.
@@ -260,31 +302,57 @@ sp3_work_wtype_idle(
             kvsets--;
         }
 
-        kvsets = (kvsets > 1) ? kvsets : 0;
+        *action = CN_ACTION_COMPACT_KV;
         *rule = CN_RULE_IDLE_INDEX;
         *mark = le;
 
         return min_t(uint, kvsets, thresh->lcomp_runlen_max);
     }
 
-    /* Otherwise, compact the node if the resulting size is smaller
-     * than a single vblock (rare, but happens).
+    /* If the compacted size of the node is smaller than a single
+     * vblock then kv-compact (rare, but happens).
      */
-    if (cn_ns_clen(&tn->tn_ns) < VBLOCK_MAX_SIZE) {
+    if (cn_ns_clen(ns) < VBLOCK_MAX_SIZE) {
+        *action = CN_ACTION_COMPACT_KV;
         *rule = CN_RULE_IDLE_SIZE;
+        ev_debug(1);
         return kvsets;
     }
 
-    /* Compact the node if the preponderance of keys appears to be tombs or
-     * if all kvsets are ptomb-only.
+    /* If the node contains any ptombs then skip the youngest kvsets with
+     * no ptombs and then issue a k-compaction on the remainder to try and
+     * annihilate the remainder without unnecessarily rewriting any vblocks.
      */
-    if ((cn_ns_tombs(&tn->tn_ns) * 100 > cn_ns_keys_uniq(&tn->tn_ns) * 90) ||
-        cn_ns_keys(&tn->tn_ns) == 0) {
-        *rule = CN_RULE_IDLE_TOMB;
-        return kvsets;
+    if (cn_ns_ptombs(ns)) {
+        uint skip = 0;
+
+        list_for_each_entry(le, head, le_link) {
+            const struct kvset_stats *stats = kvset_statsp(le->le_kvset);
+
+            if (stats->kst_ptombs > 0)
+                break;
+
+            skip++;
+        }
+
+        if (kvsets - skip > 1) {
+            *action = CN_ACTION_COMPACT_K;
+            *rule = CN_RULE_IDLE_TOMB;
+            ev_debug(1);
+            return kvsets - skip;
+        }
     }
 
+    ev_debug(1);
     return 0;
+}
+
+bool
+sp3_work_splittable(struct cn_tree_node *tn, const struct sp3_thresholds *thresh)
+{
+    return !tn->tn_ss_joining && (cn_ns_kvsets(&tn->tn_ns) > 0) &&
+        (cn_ns_clen(&tn->tn_ns) >= tn->tn_split_size ||
+         cn_ns_keys_uniq(&tn->tn_ns) >= thresh->lcomp_split_keys);
 }
 
 /* This function is invoked periodically for each node that needs to be
@@ -328,24 +396,20 @@ sp3_work_wtype_split(
     struct list_head *head;
     bool splittable;
     bool expandable;
-    uint kvsets;
+    uint kvsets = 0;
 
     head = &tn->tn_kvset_list;
     *mark = list_last_entry_or_null(head, typeof(*le), le_link);
     *action = CN_ACTION_SPLIT;
     *rule = CN_RULE_SPLIT;
 
-    kvsets = cn_ns_kvsets(&tn->tn_ns);
-
     /* Recheck to see if this node should be split, as while awaiting
      * an opportunity to split an rspill could have shrunk this node
      * below the split size, or we might have reached max fanout.
      */
-    splittable = (kvsets > 0) &&
-        (cn_ns_clen(&tn->tn_ns) >= tn->tn_split_size ||
-         cn_ns_keys_uniq(&tn->tn_ns) >= thresh->lcomp_split_keys);
+    splittable = sp3_work_splittable(tn, thresh);
 
-    mutex_lock(&tn->tn_ss_lock);
+    mutex_lock(&tree->ct_ss_lock);
     expandable = (tree->ct_fanout < CN_FANOUT_MAX - atomic_read(&tree->ct_split_cnt));
 
     if (splittable && expandable) {
@@ -356,67 +420,175 @@ sp3_work_wtype_split(
                 jclock_ns < tree->ct_split_dly) {
 
                 tn->tn_ss_visits = 0;
-                kvsets = 0;
             } else if (cn_ns_kvsets(&tree->ct_root->tn_ns) >= thresh->rspill_runlen_min * 3) {
                 tn->tn_ss_visits = 0;
-                kvsets = 0;
             } else if (spilling && tn->tn_ss_visits < thresh->split_cnt_max) {
                 tn->tn_ss_visits++;
-                kvsets = 0;
             } else {
                 if (atomic_inc_return(&tree->ct_split_cnt) >= thresh->split_cnt_max)
                     tree->ct_split_dly = jclock_ns + NSEC_PER_SEC * 3;
 
-                /* By setting tn_ss_splitting to true we are committing
-                 * to split this node despite the fact that we may not
-                 * be able to start the split right now if the node is
-                 * currently being spilled.
+                /* By setting tn_ss_splitting to true we are committing to split
+                 * this node despite the fact that we cannot actually start
+                 * the split until all active spills into it completes.
                  */
                 tn->tn_ss_splitting = true;
                 tn->tn_ss_visits = 0;
             }
         }
 
-        /* Defer starting the split if there are active spills to this node.
-         * This most often occurs on trees with one leaf, and rarely on trees
-         * with many leaves (but largely depends on the spill pattern).
+        /* Start the split only if there are no active subspills in this node.
          */
-        if (spilling)
-            kvsets = 0;
+        if (tn->tn_ss_splitting && !spilling && *mark)
+            kvsets = cn_ns_kvsets(&tn->tn_ns);
     } else {
         if (tn->tn_ss_splitting) {
             tn->tn_ss_splitting = false;
             atomic_dec(&tree->ct_split_cnt);
-            cv_broadcast(&tn->tn_ss_cv);
+            cv_broadcast(&tree->ct_ss_cv);
             ev_debug(1);
         }
 
         tn->tn_ss_visits = 0;
+        *mark = NULL;
+        ev_debug(1);
+    }
+    mutex_unlock(&tree->ct_ss_lock);
 
-        /* If the route map is expandable then the node size must have risen
-         * above then below the split threshold, so we issue a cheap k-compact
-         * to ensure this node gets back into the scheduler's consideration.
-         *
-         * Otherwise, we simply drop this request, meaning that no new work
-         * will be scheduled for this node until the next spill into it
-         * (which might never happen).
-         */
-        if (expandable) {
-            while (kvsets > thresh->llen_runlen_min) {
-                *mark = list_prev_entry(*mark, le_link);
-                kvsets--;
+    return kvsets;
+}
+
+struct cn_tree_node *
+sp3_work_joinable(struct cn_tree_node *right, const struct sp3_thresholds *thresh)
+{
+    struct cn_tree_node *left;
+    size_t accum, pct;
+
+    if (!right || !tn2spn(right)->spn_initialized || right->tn_ss_splitting)
+        return NULL;
+
+    left = list_prev_entry(right, tn_link);
+    if (!left || !tn2spn(left)->spn_initialized || left->tn_ss_splitting)
+        return NULL;
+
+    /* tn_route_node will be NULL if left is the root node or was recently
+     * joined to it's right neighbor but has yet to be removed from the tree.
+     */
+    if (!left->tn_route_node)
+        return NULL;
+
+    /* sp3_work()'s primary node must contain at least one kvset.
+     */
+    if (cn_ns_kvsets(&right->tn_ns) == 0)
+        return NULL;
+
+    if (cn_ns_kvsets(&left->tn_ns) == 0)
+        return left;
+
+    pct = thresh->lcomp_join_pct;
+
+    accum = cn_ns_wlen(&left->tn_ns) + cn_ns_wlen(&right->tn_ns);
+    if (accum * 100 > right->tn_split_size * pct)
+        return NULL;
+
+    accum = cn_ns_keys(&left->tn_ns) + cn_ns_keys(&right->tn_ns);
+    if (accum * 100 > thresh->lcomp_split_keys * pct)
+        return NULL;
+
+    return left;
+}
+
+/* sp3_work_wtype_join() is similar to sp3_work_wtype_split() with a few caveats.
+ * While node-split always creates a new node to the left of the node being split
+ * (i.e., the anchor node) node-join always merges the left node of the join into
+ * right node (i.e., the anchor node).  Both nodes are returned to csched after
+ * the join operation completes, and eventually the left node is removed from
+ * the tree.
+ *
+ * Currently, sp3_work() requires that the anchor node contain at least one
+ * kvset, which means that if nodes are emptied from right-to-left then none
+ * can be joined until one or more are receive a spill.  Note, however, that
+ * all empty nodes are purged when the kvdb is re-opened.
+ */
+static uint
+sp3_work_wtype_join(
+    struct sp3_node          *spn,
+    struct sp3_thresholds    *thresh,
+    struct kvset_list_entry **mark,
+    enum cn_action           *action,
+    enum cn_rule             *rule)
+{
+    struct cn_tree_node *tn = spn2tn(spn), *left;
+    struct cn_tree *tree = tn->tn_tree;
+    struct kvset_list_entry *le;
+    struct list_head *head;
+    uint kvsets = 0;
+
+    head = &tn->tn_kvset_list;
+    *mark = list_last_entry_or_null(head, typeof(*le), le_link);
+    *action = CN_ACTION_JOIN;
+    *rule = CN_RULE_JOIN;
+
+    mutex_lock(&tree->ct_ss_lock);
+    left = sp3_work_joinable(tn, thresh);
+    if (left) {
+        uint spilling = atomic_read(&left->tn_ss_spilling) || atomic_read(&tn->tn_ss_spilling);
+
+        if (!tn->tn_ss_joining) {
+            if (atomic_read(&tree->ct_split_cnt) >= thresh->split_cnt_max ||
+                jclock_ns < tree->ct_split_dly) {
+
+                tn->tn_ss_visits = 0;
+            } else if (cn_ns_kvsets(&tree->ct_root->tn_ns) >= thresh->rspill_runlen_min * 3) {
+                tn->tn_ss_visits = 0;
+                ev_debug(1);
+            } else if (spilling && tn->tn_ss_visits < thresh->split_cnt_max) {
+                tn->tn_ss_visits++;
+                ev_debug(1);
+            } else if (!cn_node_comp_token_get(left)) {
+                tn->tn_ss_visits = 0;
+                *mark = NULL;
+                ev_debug(1);
+            } else {
+                if (atomic_inc_return(&tree->ct_split_cnt) >= thresh->split_cnt_max)
+                    tree->ct_split_dly = jclock_ns + NSEC_PER_SEC * 3;
+
+                /* By setting tn_ss_joining to non-zero we are committing to join
+                 * these nodes despite the fact that we cannot actually start
+                 * the join until all active spills into them complete.
+                 *
+                 * We set the left node to "-1" and the right node to "+1" such that
+                 * subspills arriving at the left node must wait for the join to
+                 * complete, while subspills active in the left node must complete
+                 * their subspill in the right node before join can begin.  This
+                 * is understood by cn_comp_spill().
+                 */
+                left->tn_ss_joining = -1;
+                tn->tn_ss_joining = 1;
+                tn->tn_ss_visits = 0;
+                ev_debug(1);
             }
+        }
 
-            *action = CN_ACTION_COMPACT_K;
-            *rule = CN_RULE_LENGTH_MIN;
-            ev_debug(1);
-        } else {
-            *mark = NULL;
-            kvsets = 0;
+        /* Start the join only if there are no active subspills in either node.
+         */
+        if (tn->tn_ss_joining && !spilling && *mark)
+            kvsets = cn_ns_kvsets(&tn->tn_ns);
+    } else {
+        if (tn->tn_ss_joining) {
+            left->tn_ss_joining = 0;
+            tn->tn_ss_joining = 0;
+            cn_node_comp_token_put(left);
+            atomic_dec(&tree->ct_split_cnt);
+            cv_broadcast(&tree->ct_ss_cv);
             ev_debug(1);
         }
+
+        tn->tn_ss_visits = 0;
+        *mark = NULL;
+        ev_debug(1);
     }
-    mutex_unlock(&tn->tn_ss_lock);
+    mutex_unlock(&tree->ct_ss_lock);
 
     return kvsets;
 }
@@ -430,29 +602,28 @@ sp3_work_wtype_garbage(
     enum cn_rule             *rule)
 {
     struct cn_tree_node *tn = spn2tn(spn);
-    struct cn_node_stats *ns = &tn->tn_ns;
     struct kvset_list_entry *le;
     struct list_head *head;
     uint kvsets;
 
+    /* First check to see if the idle node compaction logic
+     * can perform a lightweight garbage collection.
+     */
+    kvsets = sp3_work_wtype_idle(spn, thresh, mark, action, rule);
+    if (kvsets > 0) {
+        *rule = CN_RULE_GARBAGE;
+        ev_debug(1);
+        return kvsets;
+    }
+
+    /* There is no low-hanging fruit, so until we have zcompact
+     * we must issue a heavy-weight kv-compaction.
+     */
     head = &tn->tn_kvset_list;
     *mark = list_last_entry_or_null(head, typeof(*le), le_link);
     *action = CN_ACTION_COMPACT_KV;
     *rule = CN_RULE_GARBAGE;
-
-    kvsets = cn_ns_kvsets(ns);
-
-    /* If the preponderance of keys are tombs then perform a k-compaction
-     * on the entire node to avoid unnecessarily rewriting vblocks.  If
-     * this approach fails to annihilate all the keys, then it at least
-     * buys us some time (at low cost) to allow for more tombs to arrive
-     * before we perform a full kv-compaction.
-     */
-    if (kvsets > 1 && cn_ns_tombs(ns) * 100 > cn_ns_keys_uniq(ns) * 97) {
-        *action = CN_ACTION_COMPACT_K;
-        ev_debug(1);
-        return kvsets;
-    }
+    ev_debug(1);
 
     return min_t(uint, kvsets, thresh->lcomp_runlen_max);
 }
@@ -689,12 +860,6 @@ sp3_work(
     enum cn_rule             rule = CN_RULE_NONE;
     struct kvset_list_entry *mark = NULL;
 
-    tn = spn2tn(spn);
-    tree = tn->tn_tree;
-
-    if (tree->rp->cn_maint_disable)
-        return merr(EAGAIN);
-
     if (!*wp) {
         *wp = calloc(1, sizeof(*w));
         if (ev(!*wp))
@@ -703,10 +868,13 @@ sp3_work(
 
     /* Caller uses these fields to relay information back to csched,
      * so ensure they have sane defaults.  If this function returns
-     * zero csched will drop the request unless cw_resched is true.
+     * zero, csched will drop the request unless cw_resched is true.
      */
     (*wp)->cw_action = CN_ACTION_NONE;
     (*wp)->cw_resched = false;
+
+    tn = spn2tn(spn);
+    tree = tn->tn_tree;
 
     /* Actions requiring exclusive access to the node must acquire and hold
      * the token through completion of the action.  Actions that can run
@@ -714,10 +882,8 @@ sp3_work(
      * action running and then must release the token before returning.
      */
     have_token = cn_node_comp_token_get(tn);
-    if (!have_token) {
-        (*wp)->cw_resched = tn->tn_isroot;
+    if (!have_token)
         return 0;
-    }
 
     /* The tree lock must be acquired to obtain a stable view of the node
      * and its stats, otherwise an asynchronously completing job could
@@ -725,26 +891,42 @@ sp3_work(
      */
     rmlock_rlock(&tree->ct_lock, &lock);
 
-    if (tree->ct_rspills_wedged) {
-        if (!sp3_node_is_idle(tn)) {
-            (*wp)->cw_resched = tn->tn_isroot;
-            goto locked_nowork;
-        }
+    if (tree->rp->cn_maint_disable && !tn->tn_ss_splitting && !tn->tn_ss_joining)
+        goto locked_nowork;
 
-        if (tn->tn_isroot) {
+    if (cn_node_isroot(tn)) {
+        if (tree->ct_rspills_wedged) {
+            if (!sp3_node_is_idle(tn)) {
+                (*wp)->cw_resched = true;
+                goto locked_nowork;
+            }
+
             log_info("root node unwedged, spills enabled");
             tree->ct_rspills_wedged = false;
         }
-    }
 
-    if (cn_node_isleaf(tn)) {
+        switch (wtype) {
+        case wtype_root:
+            n_kvsets = sp3_work_wtype_root(spn, thresh, &mark, &action, &rule);
+            break;
+
+        case wtype_idle:
+            n_kvsets = sp3_work_wtype_idle(spn, thresh, &mark, &action, &rule);
+            break;
+
+        default:
+            assert(0);
+            break;
+        }
+    } else {
         switch (wtype) {
         case wtype_split:
             n_kvsets = sp3_work_wtype_split(spn, thresh, &mark, &action, &rule);
+            (*wp)->cw_resched = mark && !n_kvsets;
+            break;
 
-            /* Set the resched flag to prevent csched from dropping this request
-             * should sp3_work_wtype_split() return 0 to defer the split.
-             */
+        case wtype_join:
+            n_kvsets = sp3_work_wtype_join(spn, thresh, &mark, &action, &rule);
             (*wp)->cw_resched = mark && !n_kvsets;
             break;
 
@@ -758,20 +940,6 @@ sp3_work(
 
         case wtype_length:
             n_kvsets = sp3_work_wtype_length(spn, thresh, &mark, &action, &rule);
-            break;
-
-        case wtype_idle:
-            n_kvsets = sp3_work_wtype_idle(spn, thresh, &mark, &action, &rule);
-            break;
-
-        default:
-            assert(0);
-            break;
-        }
-    } else {
-        switch (wtype) {
-        case wtype_root:
-            n_kvsets = sp3_work_wtype_root(spn, thresh, &mark, &action, &rule);
             break;
 
         case wtype_idle:
@@ -801,11 +969,16 @@ sp3_work(
 
         /* tn_ss_splitting is not atomic.  It is set to true only by this
          * thread, and false only by compaction threads, and both whilst
-         * holding tn_ss_lock.  The compaction token, however, provides
+         * holding ct_ss_lock.  The compaction token, however, provides
          * a full barrier which ensures we always see the most current
          * value despite not holding the lock.
          */
         if (action != CN_ACTION_SPLIT && tn->tn_ss_splitting) {
+            ev_debug(1);
+            goto locked_nowork;
+        }
+
+        if (action != CN_ACTION_JOIN && tn->tn_ss_joining) {
             ev_debug(1);
             goto locked_nowork;
         }
@@ -871,8 +1044,14 @@ sp3_work(
     w->cw_t0_enqueue = get_time_ns();
 
     /* Ensure concurrent root spills complete in order */
-    if (w->cw_action == CN_ACTION_SPILL)
+    if (w->cw_action == CN_ACTION_SPILL) {
         w->cw_sgen = ++tree->ct_sgen;
+    } else if (w->cw_action == CN_ACTION_JOIN) {
+
+        /* TODO: Should we set the work ID of each kvset in cw_join?
+         */
+        w->cw_join = list_prev_entry(tn, tn_link);
+    }
 
     sp3_work_estimate(w);
 

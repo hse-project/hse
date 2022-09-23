@@ -161,6 +161,8 @@ new_tree(uint fanout)
         if (!tn)
             return NULL;
 
+        tn->tn_route_node = (void *)(-1);
+
         list_add_tail(&tn->tn_link, &tt->tree->ct_nodes);
     }
 
