@@ -625,7 +625,7 @@ sp3_work_wtype_garbage(
     *rule = CN_RULE_GARBAGE;
     ev_debug(1);
 
-    return min_t(uint, kvsets, thresh->lcomp_runlen_max);
+    return min_t(uint, cn_ns_kvsets(&tn->tn_ns), thresh->lcomp_runlen_max);
 }
 
 static uint
