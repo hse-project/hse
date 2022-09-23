@@ -152,6 +152,7 @@ struct cn_compaction_work {
     enum cn_action           cw_action;
     enum cn_rule             cw_rule;
     bool                     cw_have_token;
+    bool                     cw_maybe_zspill;
     atomic_int               cw_rspill_commit_in_progress;
     uint64_t                 cw_dgen_hi;
     uint64_t                 cw_dgen_hi_min;

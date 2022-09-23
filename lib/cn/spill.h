@@ -16,22 +16,30 @@ struct cn_tree_node;
 struct kvset_meta;
 struct spillctx;
 
+struct zspill {
+    struct kvset_list_entry *zsp_src_list;
+};
+
 struct subspill {
     struct list_head           ss_link;
     struct cn_compaction_work *ss_work;
-    struct kvset_mblocks       ss_mblks;
+
+    union {
+        struct kvset_mblocks ss_mblks;
+        struct zspill        ss_zspill;
+    };
+
     uint64_t                   ss_kvsetid;
     uint64_t                   ss_sgen;
     struct cn_tree_node       *ss_node;
     bool                       ss_added;
-    bool                       ss_applied;
+    bool                       ss_is_zspill;
 };
 
 /* MTF_MOCK_DECL(spill) */
 
 /**
- * cn_spill() - Build kvsets as part of a spill operation
- * @w: compaction work struct
+ * cn_subspill() - Build kvsets as part of a spill operation
  *
  * Notes:
  * - Each source must be ordered by key such that the first key to

@@ -187,12 +187,12 @@ cn_subspill_get_kvset_meta(struct subspill *ss, struct kvset_meta *km)
 
 merr_t
 cn_subspill(
-    struct subspill           *ss,
-    struct spillctx           *sctx,
-    struct cn_tree_node       *node,
-    uint64_t                   node_dgen,
-    const void               *ekey,
-    uint                       eklen)
+    struct subspill     *ss,
+    struct spillctx     *sctx,
+    struct cn_tree_node *node,
+    uint64_t             node_dgen,
+    const void          *ekey,
+    uint                 eklen)
 {
     struct cn_compaction_work *w = sctx->work;
     struct bin_heap *bh = sctx->bh;

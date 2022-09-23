@@ -1961,6 +1961,12 @@ kvset_get_max_key(struct kvset *ks, const void **max_key, uint *max_klen)
 }
 
 void
+kvset_set_rule(struct kvset *ks, enum cn_rule rule)
+{
+    ks->ks_rule = rule;
+}
+
+void
 kvset_get_metrics(struct kvset *ks, struct kvset_metrics *m)
 {
     struct kvset_kblk *p;
@@ -3711,8 +3717,8 @@ kvset_from_iter(struct kv_iterator *iv)
 void
 kvset_maxkey(struct kvset *ks, const void **maxkey, u16 *maxklen)
 {
-    *maxkey = ks->ks_minkey;
-    *maxklen = ks->ks_minklen;
+    *maxkey = ks->ks_maxkey;
+    *maxklen = ks->ks_maxklen;
 }
 
 void
@@ -3720,6 +3726,18 @@ kvset_minkey(struct kvset *ks, const void **minkey, u16 *minklen)
 {
     *minkey = ks->ks_minkey;
     *minklen = ks->ks_minklen;
+}
+
+void
+kvset_max_ptkey(struct kvset *ks, const void **max, u16 *maxlen)
+{
+    if (kvset_has_ptree(ks)) {
+        *max = ks->ks_hblk.kh_pfx_max;
+        *maxlen = ks->ks_hblk.kh_pfx_max_len;
+    } else {
+        *max = NULL;
+        *maxlen = 0;
+    }
 }
 
 struct vgmap *
