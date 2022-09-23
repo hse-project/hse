@@ -17,6 +17,7 @@
 #include <hse_ikvdb/omf_kmd.h>
 #include <hse_ikvdb/kvset_view.h>
 #include <hse_ikvdb/cndb.h>
+#include <hse_ikvdb/csched.h>
 
 #include "blk_list.h"
 #include "kv_iterator.h"
@@ -371,6 +372,10 @@ kvset_get_workid(struct kvset *km);
 void
 kvset_set_workid(struct kvset *km, u64 id);
 
+/* MTF_MOCK */
+void
+kvset_set_rule(struct kvset *ks, enum cn_rule rule);
+
 /**
  * kvset_get_nth_vblock_len() - Get len of useful data in nth vblock
  */
@@ -569,6 +574,10 @@ kvset_maxkey(struct kvset *ks, const void **maxkey, u16 *maxklen);
 /* MTF_MOCK */
 void
 kvset_minkey(struct kvset *ks, const void **minkey, u16 *minklen);
+
+/* MTF_MOCK */
+void
+kvset_max_ptkey(struct kvset *ks, const void **max, u16 *maxlen);
 
 /**
  * kvset_iter_next_val_direct() -  read value via direct io

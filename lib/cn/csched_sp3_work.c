@@ -132,11 +132,13 @@ static uint
 sp3_work_wtype_root(
     struct sp3_node          *spn,
     struct sp3_thresholds    *thresh,
+    struct route_map         *rmap,
     struct kvset_list_entry **mark,
     enum cn_action           *action,
     enum cn_rule             *rule)
 {
-    struct cn_tree_node *tn = spn2tn(spn);
+    struct cn_tree_node *n, *tn = spn2tn(spn);
+    struct cn_tree_node *znode = NULL;
     uint runlen_min, runlen_max, runlen;
     struct kvset_list_entry *le;
     size_t wlen_max, wlen;
@@ -164,21 +166,36 @@ sp3_work_wtype_root(
     runlen = 1;
 
     /* Look for a contiguous sequence of non-busy kvsets.
-     *
-     * TODO: Starting with the first non-busy kvset, count the number of
-     * kvsets contiguous from the first that would all spill to the same
-     * leaf node.
      */
+
+    n = cn_kvset_can_zspill(le->le_kvset, rmap);
+    if (n)
+        znode = n;
+
     while ((le = list_prev_entry_or_null(le, le_link, &tn->tn_kvset_list))) {
         if (kvset_get_workid(le->le_kvset) != 0)
             break;
 
+        if (znode) {
+            n = cn_kvset_can_zspill(le->le_kvset, rmap);
+            if (n) {
+                if (n->tn_nodeid == znode->tn_nodeid && runlen < runlen_max) {
+                    ++runlen;
+                    continue;
+                } else {
+                    assert(runlen && runlen <= runlen_max);
+                    *rule = CN_RULE_ZSPILL;
+                    return runlen;
+                }
+            }
+        }
+
+        /* TODO: Stop if we see a zspill candidate.
+         */
+
         wlen += kvset_get_kwlen(le->le_kvset) + kvset_get_vwlen(le->le_kvset);
 
         /* Limit spill size once we have a sufficiently long run length.
-         *
-         * TODO: Ignore the size check if all preceding kvsets would spill
-         * to the same leaf node.
          */
         if (runlen >= runlen_min && wlen >= wlen_max)
             break;
@@ -186,11 +203,11 @@ sp3_work_wtype_root(
         ++runlen;
     }
 
-    /* TODO: If the number of contiguous kvsets that would all spill
-     * to the same leaf node is one or more then return that number
-     * as a zero-writeamp spill operation (e.g., CN_ACTION_ZSPILL)
-     * irrespective of runlen_min, runlen_max, and wlen_max.
-     */
+    if (znode) {
+        assert(runlen && runlen <= runlen_max);
+        *rule = CN_RULE_ZSPILL;
+        return runlen;
+    }
 
     if (runlen < runlen_min)
         return 0;
@@ -898,7 +915,7 @@ sp3_work(
 
         switch (wtype) {
         case wtype_root:
-            n_kvsets = sp3_work_wtype_root(spn, thresh, &mark, &action, &rule);
+            n_kvsets = sp3_work_wtype_root(spn, thresh, tree->ct_route_map, &mark, &action, &rule);
             break;
 
         case wtype_idle:

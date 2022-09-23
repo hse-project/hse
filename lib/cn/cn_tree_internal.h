@@ -246,6 +246,10 @@ cn_tree_node_scatter(const struct cn_tree_node *tn);
 void
 cn_compact(struct cn_compaction_work *w);
 
+/* MTF_MOCK */
+struct cn_tree_node *
+cn_kvset_can_zspill(struct kvset *ks, struct route_map *map);
+
 /**
  * cn_tree_find_node() - Find a cn tree node by node ID.
  *

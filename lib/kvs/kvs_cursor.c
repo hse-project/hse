@@ -1171,7 +1171,7 @@ kvs_cursor_val_copy(
             return err;
 
         if (ev(outlen != min_t(u64, kvs_vtuple_vlen(vt), bufsz)))
-            return EBUG;
+            return merr(EBUG);
 
     } else {
         memcpy(buf, vt->vt_data, min_t(u64, kvs_vtuple_vlen(vt), bufsz));

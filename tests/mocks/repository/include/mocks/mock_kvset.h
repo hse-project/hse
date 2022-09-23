@@ -35,6 +35,7 @@ struct mock_kvset {
     uint64_t                dgen_lo;
     uint64_t                kvsetid;
     uint64_t                nodeid;
+    uint64_t                workid;
     uint32_t                compc;
     u64                     ids[];
 };
