@@ -459,7 +459,7 @@ MTF_DEFINE_UTEST_PREPOST(cndb_test, replay_full, test_pre, test_post)
     err = cndb_record_kvset_del_ack(cndb, tx, delcookie);
     ASSERT_EQ(0, err);
 
-    err = cndb_record_kvset_move(cndb, cnid, src_nodeid, tgt_nodeid, 2, kvsetidv);
+    err = cndb_record_kvsetv_move(cndb, cnid, src_nodeid, tgt_nodeid, 2, kvsetidv);
     ASSERT_EQ(0, err);
 
     /* Reopen and replay */

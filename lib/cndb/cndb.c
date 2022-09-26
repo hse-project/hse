@@ -582,7 +582,7 @@ out:
 }
 
 merr_t
-cndb_record_kvset_move(
+cndb_record_kvsetv_move(
     struct cndb    *cndb,
     uint64_t        cnid,
     uint64_t        src_nodeid,
@@ -1091,7 +1091,7 @@ cndb_read_record(struct cndb *cndb, struct cndb_reader *reader)
         cndb_omf_kvset_move_read(
                 reader->recbuf, &cnid, &src_nodeid, &tgt_nodeid, &kvset_idc, &kvset_idv);
 
-        err = cndb_record_kvset_move(cndb, cnid, src_nodeid, tgt_nodeid, kvset_idc, kvset_idv);
+        err = cndb_record_kvsetv_move(cndb, cnid, src_nodeid, tgt_nodeid, kvset_idc, kvset_idv);
         ev(err);
 
     } else if (rec_type == CNDB_TYPE_ACK) {

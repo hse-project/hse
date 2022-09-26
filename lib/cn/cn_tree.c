@@ -1103,7 +1103,7 @@ cn_tree_prepare_compaction(struct cn_compaction_work *w)
     struct kv_iterator     **ins = NULL;
     merr_t err = 0;
     size_t outsz = 0;
-    u32 n_outs = 1;
+    uint32_t n_outs = 1;
     uint i;
     const bool kcompact = (w->cw_action == CN_ACTION_COMPACT_K);
     const bool split = (w->cw_action == CN_ACTION_SPLIT);
@@ -1159,7 +1159,7 @@ cn_tree_prepare_compaction(struct cn_compaction_work *w)
         }
 
         if (split) {
-            size_t sz = HSE_KVS_KEY_LEN_MAX +
+            const size_t sz = HSE_KVS_KEY_LEN_MAX +
                 n_outs * (sizeof(*(w->cw_split.commit)) + sizeof(*(w->cw_split.dgen_hi)) +
                           sizeof(*(w->cw_split.dgen_lo)) +
                           sizeof(*(w->cw_split.compc))) +
@@ -1199,10 +1199,8 @@ cn_tree_prepare_compaction(struct cn_compaction_work *w)
 
         struct kv_iterator **iter = &ins[w->cw_kvset_cnt - 1 - i];
 
-        if (i == 0)
-            assert(kvset_get_dgen(le->le_kvset) == w->cw_dgen_hi_min);
-        if (i == w->cw_kvset_cnt - 1)
-            assert(kvset_get_dgen(le->le_kvset) == w->cw_dgen_hi);
+        assert(i > 0 || kvset_get_dgen(le->le_kvset) == w->cw_dgen_hi_min);
+        assert(i < w->cw_kvset_cnt - 1 || kvset_get_dgen(le->le_kvset) == w->cw_dgen_hi);
 
         err = kvset_iter_create(
             le->le_kvset, w->cw_io_workq, vra_wq, w->cw_pc, w->cw_iter_flags, iter);

@@ -56,8 +56,8 @@ cn_move(
         }
         src_end = src;
 
-        err = cndb_record_kvset_move(cn_get_cndb(tree->cn), tree->cnid, src_node->tn_nodeid,
-                                     tgt_node->tn_nodeid, src_cnt, src_ksidv);
+        err = cndb_record_kvsetv_move(cn_get_cndb(tree->cn), tree->cnid, src_node->tn_nodeid,
+                                      tgt_node->tn_nodeid, src_cnt, src_ksidv);
         if (err) {
             free(src_ksidv);
             return err;

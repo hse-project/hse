@@ -25,7 +25,7 @@ pre(struct mtf_test_info *info)
     mapi_inject(mapi_idx_cn_tree_get_cn, 0);
     mapi_inject(mapi_idx_cn_tree_get_cndb, 0);
     mapi_inject(mapi_idx_cn_tree_samp_update_move, 0);
-    mapi_inject(mapi_idx_cndb_record_kvset_move, 0);
+    mapi_inject(mapi_idx_cndb_record_kvsetv_move, 0);
     mapi_inject(mapi_idx_route_map_delete, 0);
 
     return 0;

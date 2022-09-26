@@ -113,7 +113,7 @@ cndb_record_kvset_del(
 
 /* MTF_MOCK */
 merr_t
-cndb_record_kvset_move(
+cndb_record_kvsetv_move(
     struct cndb    *cndb,
     uint64_t        cnid,
     uint64_t        src_nodeid,
