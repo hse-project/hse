@@ -22,7 +22,7 @@ try:
         kvs1_ctx = lifecycle.KvsContext(kvdb, kvs1_name)
         kvs1 = stack.enter_context(kvs1_ctx)
         kvs2_ctx = lifecycle.KvsContext(kvdb, kvs2_name).rparams(
-            "compression.value.algorithm=lz4"
+            "compression.algorithm=lz4"
         )
         kvs2 = stack.enter_context(kvs2_ctx)
 

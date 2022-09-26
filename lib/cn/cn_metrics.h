@@ -1,10 +1,13 @@
 /* SPDX-License-Identifier: Apache-2.0 */
 /*
- * Copyright (C) 2015-2020,2022 Micron Technology, Inc.  All rights reserved.
+ * Copyright (C) 2015-2022 Micron Technology, Inc.  All rights reserved.
  */
 
 #ifndef HSE_KVDB_CN_METRICS_H
 #define HSE_KVDB_CN_METRICS_H
+
+#include <stdint.h>
+#include <sys/types.h>
 
 /**
  * Kvset statistics.

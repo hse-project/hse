@@ -40,7 +40,8 @@
 
 #define HSE_KVDB_COMPACT_MASK  (HSE_KVDB_COMPACT_CANCEL | HSE_KVDB_COMPACT_SAMP_LWM)
 #define HSE_KVDB_SYNC_MASK     (HSE_KVDB_SYNC_ASYNC)
-#define HSE_KVS_PUT_MASK       (HSE_KVS_PUT_PRIO | HSE_KVS_PUT_VCOMP_OFF)
+#define HSE_KVS_PUT_MASK       (HSE_KVS_PUT_PRIO | HSE_KVS_PUT_VCOMP_OFF | HSE_KVS_PUT_VCOMP_ON)
+#define HSE_KVS_PUT_VCOMP_MASK (HSE_KVS_PUT_VCOMP_OFF | HSE_KVS_PUT_VCOMP_ON)
 #define HSE_CURSOR_CREATE_MASK (HSE_CURSOR_CREATE_REV)
 
 /* clang-format on */
@@ -864,7 +865,8 @@ hse_kvs_put(
     struct kvs_vtuple vt;
     merr_t            err;
 
-    if (HSE_UNLIKELY(!handle || !key || (val_len > 0 && !val) || flags & ~HSE_KVS_PUT_MASK))
+    if (HSE_UNLIKELY(!handle || !key || (val_len > 0 && !val) || flags & ~HSE_KVS_PUT_MASK ||
+            (flags & HSE_KVS_PUT_VCOMP_MASK) == HSE_KVS_PUT_VCOMP_MASK))
         return merr(EINVAL);
 
     if (HSE_UNLIKELY(key_len > HSE_KVS_KEY_LEN_MAX))

@@ -157,7 +157,7 @@ kvs_vtuple_vlen(const struct kvs_vtuple *vt)
     const uint32_t clen = vt->vt_xlen >> 32;
     const uint32_t vlen = vt->vt_xlen & 0xfffffffful;
 
-    return clen ?: vlen;
+    return clen ? clen : vlen;
 }
 
 static HSE_ALWAYS_INLINE uint32_t

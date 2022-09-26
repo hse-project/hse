@@ -1232,7 +1232,6 @@ kvdb_kvs_create(void)
     kvs = aligned_alloc(__alignof__(*kvs), sizeof(*kvs));
     if (kvs) {
         memset(kvs, 0, sizeof(*kvs));
-        kvs->kk_vcompmin = UINT_MAX;
         atomic_set(&kvs->kk_refcnt, 0);
     }
 
@@ -2208,22 +2207,18 @@ ikvdb_kvs_open(
     kvs->kk_parent = self;
     kvs->kk_viewset = self->ikdb_cur_viewset;
 
-    kvs->kk_vcompmin = UINT_MAX;
-    assert(params->value_compression >= VCOMP_ALGO_MIN &&
-        params->value_compression <= VCOMP_ALGO_MAX);
-    cops = vcomp_compress_ops[params->value_compression];
-    if (cops) {
-        assert(cops->cop_compress && cops->cop_estimate);
+    kvs->kk_vcomp_default = params->compression.deflt;
+    assert(params->compression.algorithm >= VCOMP_ALGO_MIN &&
+        params->compression.algorithm <= VCOMP_ALGO_MAX);
+    cops = vcomp_compress_ops[params->compression.algorithm];
+    assert(cops && cops->cop_compress && cops->cop_estimate);
 
-        kvs->kk_vcompress = cops->cop_compress;
-        kvs->kk_vcompmin = max_t(uint, CN_SMALL_VALUE_THRESHOLD, params->vcompmin);
+    kvs->kk_vcompress = cops->cop_compress;
+    kvs->kk_vcompbnd = cops->cop_estimate(NULL, tls_vbufsz);
+    kvs->kk_vcompbnd = tls_vbufsz - (kvs->kk_vcompbnd - tls_vbufsz);
+    assert(kvs->kk_vcompbnd < tls_vbufsz);
 
-        kvs->kk_vcompbnd = cops->cop_estimate(NULL, tls_vbufsz);
-        kvs->kk_vcompbnd = tls_vbufsz - (kvs->kk_vcompbnd - tls_vbufsz);
-        assert(kvs->kk_vcompbnd < tls_vbufsz);
-
-        assert(cops->cop_estimate(NULL, HSE_KVS_VALUE_LEN_MAX) < HSE_KVS_VALUE_LEN_MAX + PAGE_SIZE * 2);
-    }
+    assert(cops->cop_estimate(NULL, HSE_KVS_VALUE_LEN_MAX) < HSE_KVS_VALUE_LEN_MAX + PAGE_SIZE * 2);
 
     ikvdb_wal_install_callback(self); /* TODO: can this be removed? */
 
@@ -2265,10 +2260,8 @@ ikvdb_kvs_close(struct hse_kvs *handle)
 
     mutex_lock(&parent->ikdb_lock);
     ikvs = kk->kk_ikvs;
-    if (ikvs) {
-        kk->kk_vcompmin = UINT_MAX;
+    if (ikvs)
         kk->kk_ikvs = NULL;
-    }
     mutex_unlock(&parent->ikdb_lock);
 
     if (ev(!ikvs))
@@ -2448,6 +2441,13 @@ is_read_allowed(struct ikvs *kvs, struct hse_kvdb_txn *const txn)
     return txn && !kvs_txn_is_enabled(kvs) ? false : true;
 }
 
+static inline bool
+is_compression_allowed(const struct kvdb_kvs *const kk, const unsigned int flags)
+{
+    return (flags & HSE_KVS_PUT_VCOMP_ON) ||
+        (kk->kk_vcomp_default == VCOMP_DEFAULT_ON && !(flags & HSE_KVS_PUT_VCOMP_OFF));
+}
+
 merr_t
 ikvdb_kvs_put(
     struct hse_kvs *           handle,
@@ -2456,18 +2456,20 @@ ikvdb_kvs_put(
     struct kvs_ktuple *        kt,
     struct kvs_vtuple *        vt)
 {
-    struct kvdb_kvs *  kk = (struct kvdb_kvs *)handle;
+    void *vbuf;
+    merr_t err;
+    size_t vbufsz;
+    uint vlen, clen;
+    uint64_t tstart;
+    uint64_t seqnoref;
+    struct kvdb_kvs *kk;
+    struct kvs_ktuple ktbuf;
+    struct kvs_vtuple vtbuf;
     struct ikvdb_impl *parent;
-    struct kvs_ktuple  ktbuf;
-    struct kvs_vtuple  vtbuf;
-    uint64_t           seqnoref;
-    merr_t             err;
-    uint               vlen, clen;
-    size_t             vbufsz;
-    void *             vbuf;
-    uint64_t           tstart;
 
     INVARIANT(handle && kt && vt);
+
+    kk = (struct kvdb_kvs *)handle;
 
     if (HSE_UNLIKELY(!is_write_allowed(kk->kk_ikvs, txn)))
         return merr(EINVAL);
@@ -2494,7 +2496,7 @@ ikvdb_kvs_put(
     vbufsz = tls_vbufsz;
     vbuf = NULL;
 
-    if (clen == 0 && vlen > kk->kk_vcompmin && !(flags & HSE_KVS_PUT_VCOMP_OFF)) {
+    if (clen == 0 && vlen > CN_SMALL_VALUE_THRESHOLD && is_compression_allowed(kk, flags)) {
         if (vlen > kk->kk_vcompbnd) {
             vbufsz = vlen + PAGE_SIZE * 2;
             vbuf = vlb_alloc(vbufsz);
@@ -2505,6 +2507,9 @@ ikvdb_kvs_put(
         if (vbuf) {
             err = kk->kk_vcompress(vt->vt_data, vlen, vbuf, vbufsz, &clen);
 
+            /* Save space by storing the original value if the compressed length
+             * is larger than the original length.
+             */
             if (!err && clen < vlen) {
                 kvs_vtuple_cinit(vt, vbuf, vlen, clen);
                 vlen = clen;

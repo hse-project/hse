@@ -1,6 +1,6 @@
 /* SPDX-License-Identifier: Apache-2.0 */
 /*
- * Copyright (C) 2021 Micron Technology, Inc.  All rights reserved.
+ * Copyright (C) 2021-2022 Micron Technology, Inc.  All rights reserved.
  */
 
 #include <errno.h>
@@ -13,6 +13,8 @@
 #include <mtf/framework.h>
 
 #include <hse_util/base.h>
+#include <hse_ikvdb/limits.h>
+#include <hse_ikvdb/vcomp_params.h>
 
 struct hse_kvdb *kvdb_handle;
 struct hse_kvs  *kvs_handle;
@@ -749,6 +751,29 @@ MTF_DEFINE_UTEST(kvs_api_test, put_val_len_too_long)
     err = hse_kvs_put(
         (struct hse_kvs *)-1, 0, NULL, (void *)-1, 1, (void *)-1, HSE_KVS_VALUE_LEN_MAX + 1);
     ASSERT_EQ(EMSGSIZE, hse_err_to_errno(err));
+}
+
+MTF_DEFINE_UTEST_PREPOST(kvs_api_test, put_vcomp_on, kvs_setup_with_data, kvs_teardown)
+{
+    hse_err_t err;
+    char buf[CN_SMALL_VALUE_THRESHOLD];
+
+    memset(buf, 1, sizeof(buf));
+
+    err = hse_kvs_put(kvs_handle, HSE_KVS_PUT_VCOMP_ON, NULL, "vcomp", 5, buf, sizeof(buf));
+    ASSERT_EQ(0, merr_errno(err));
+}
+
+MTF_DEFINE_UTEST_PREPOST(kvs_api_test, put_vcomp_exclusivity, kvs_setup_with_data, kvs_teardown)
+{
+    hse_err_t err;
+    char buf[CN_SMALL_VALUE_THRESHOLD];
+
+    memset(buf, 1, sizeof(buf));
+
+    err = hse_kvs_put(kvs_handle, HSE_KVS_PUT_VCOMP_ON | HSE_KVS_PUT_VCOMP_OFF, NULL, "vcomp", 5,
+        buf, sizeof(buf));
+    ASSERT_EQ(EINVAL, merr_errno(err));
 }
 
 MTF_DEFINE_UTEST(kvs_api_test, prefix_probe_null_kvs)

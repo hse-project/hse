@@ -2036,10 +2036,10 @@ MTF_DEFINE_UTEST_PREPOST(ikvdb_test, get_kvs_param, test_pre, test_post)
     ASSERT_NE(NULL, kvs);
     mapi_inject_unset(mapi_idx_mpool_mclass_props_get);
 
-    err = ikvdb_kvs_param_get(kvs, "compression.value.algorithm", buf, sizeof(buf), &needed_sz);
+    err = ikvdb_kvs_param_get(kvs, "compression.algorithm", buf, sizeof(buf), &needed_sz);
     ASSERT_EQ(0, merr_errno(err));
-    ASSERT_STREQ("\"none\"", buf);
-    ASSERT_EQ(6, needed_sz);
+    ASSERT_STREQ("\"lz4\"", buf);
+    ASSERT_EQ(5, needed_sz);
 
     err = ikvdb_kvs_param_get(kvs, "prefix.length", buf, sizeof(buf), &needed_sz);
     ASSERT_EQ(0, merr_errno(err));
