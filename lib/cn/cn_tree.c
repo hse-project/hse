@@ -100,7 +100,11 @@ cn_node_alloc(struct cn_tree *tree, uint64_t nodeid)
         return NULL;
     }
 
+    tn->tn_nodeid = nodeid;
+    tn->tn_tree = tree;
     INIT_LIST_HEAD(&tn->tn_link);
+    tn->tn_split_size = (size_t)tree->rp->cn_split_size << 30;
+
     INIT_LIST_HEAD(&tn->tn_kvset_list);
 
     atomic_set(&tn->tn_compacting, 0);
@@ -109,16 +113,8 @@ cn_node_alloc(struct cn_tree *tree, uint64_t nodeid)
     for (uint i = 0; i < NELEM(tn->tn_dnode_linkv); ++i)
         INIT_LIST_HEAD(&tn->tn_dnode_linkv[i]);
 
-    tn->tn_tree = tree;
-    tn->tn_isroot = (nodeid == 0);
-    tn->tn_nodeid = nodeid;
-
-    tn->tn_split_size = (size_t)tree->rp->cn_split_size << 30;
-
     INIT_LIST_HEAD(&tn->tn_ss_list);
     atomic_set(&tn->tn_ss_spilling, 0);
-    tn->tn_ss_splitting = false;
-    tn->tn_ss_joining = 0;
 
     return tn;
 }
@@ -1289,8 +1285,6 @@ cn_comp_update_kvcompact(struct cn_compaction_work *work, struct kvset *new_kvse
 
         if (new_kvset)
             kvset_list_add(new_kvset, &le->le_link);
-
-        work->cw_node->tn_cgen++;
     }
 
     cn_tree_samp(tree, &work->cw_samp_pre);
@@ -1388,11 +1382,6 @@ cn_spill_delete_kvsets(struct cn_compaction_work *work)
         list_add(&le->le_link, &retired_kvsets);
     }
 
-    /* Advance the change generation on the spill source node
-     * to ensure it is reevaluated by csched/sp3_dirty_node().
-     */
-    pnode->tn_cgen++;
-
     cn_tree_samp_update_compact(tree, pnode);
     rmlock_wunlock(&tree->ct_lock);
 
@@ -1474,7 +1463,6 @@ cn_comp_update_split(
             assert(route_node_keycmp(right->tn_route_node, w->cw_split.key, w->cw_split.klen) > 0);
 
             w->cw_split.nodev[RIGHT] = right;
-            right->tn_cgen++;
         }
 
         /* Update route map with the left edge and add the new left node to the cN tree list.
@@ -1491,7 +1479,6 @@ cn_comp_update_split(
              */
             list_add_tail(&left->tn_link, &src->tn_link);
             tree->ct_fanout++;
-            left->tn_cgen++;
         }
 
         /* Update samp stats
@@ -1542,7 +1529,6 @@ cn_comp_update_subspill(
 
     assert(node);
     kvset_list_add(kvset, &node->tn_kvset_list);
-    node->tn_cgen++;
 
     cn_tree_samp(tree, &work->cw_samp_pre);
     cn_tree_samp_update_ingest(tree, node);
@@ -2349,7 +2335,6 @@ cn_tree_ingest_update(struct cn_tree *tree, struct kvset *kvset, void *ptomb, ui
 
     rmlock_wlock(&tree->ct_lock);
     kvset_list_add(kvset, &tree->ct_root->tn_kvset_list);
-    tree->ct_root->tn_cgen++;
 
     cn_inc_ingest_dgen(tree->cn);
 

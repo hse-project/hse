@@ -43,7 +43,13 @@
 
 extern struct tbkt sp3_tbkt;
 
-#define HSP_HASH_MAX_KEYS (16 * 1024)
+/* The max number of keys in a struct hash_set_part is sized such that the allocation
+ * size of a hash_set_part is one page less than VLB_ALLOCSZ_MAX so that vlb_free()
+ * can cache it.  This eliminates many trips into the kernel that would otherwise
+ * have to modify the address map.
+ */
+#define HSP_HASH_MAX_KEYS \
+    ((VLB_ALLOCSZ_MAX - 4096 - sizeof(struct hash_set_part)) / sizeof(((struct hash_set_part *)0))->hashvec[0])
 
 /**
  * DOC: Overview
@@ -58,26 +64,17 @@ extern struct tbkt sp3_tbkt;
  * struct hash_set_part - part of a hash set
  * @part_link: for linking multiple parts into a hash set
  * @n_hashes: number of key hashes stored in this hash set
+ * @n_maxused: max number of key hashes ever stored in this hash set
  * @hashvec: array of hash values
  *
  * This struct is used to store a subset of the key hashes used to create
  * a kblock Bloom filter.
- *
- * Sizing considerations;
- *
- * With %HSP_HASH_MAX_KEYS defined as 16K, this struct is approximately 128KB
- * in size.  Thus, every 16K keys will result in a 128KB allocation for
- * storing the key hashes.
- *
- * A max size kblock is 32MB (%KBLOCK_MAX_SIZE), and can hold about
- * 32MB/4K==8K wbtree nodes. If we pretend they're all leaf nodes, it will
- * hold about 1 million keys (8K nodes * ~128 key/node), which will require
- * 1M/16K==64 hash_set_part structs.
  */
 struct hash_set_part {
     struct list_head part_link;
-    u32              n_hashes;
-    u64              hashvec[HSP_HASH_MAX_KEYS];
+    uint32_t         n_hashes;
+    uint32_t         n_maxused;
+    uint64_t         hashvec[];
 };
 
 /**
@@ -386,10 +383,12 @@ static merr_t
 hash_set_add(struct hash_set *hs, const struct key_obj *kobj)
 {
     if (!hs->curr_part) {
-        hs->curr_part = malloc(sizeof(*hs->curr_part));
+        hs->curr_part = vlb_alloc(VLB_ALLOCSZ_MAX);
         if (ev(!hs->curr_part))
             return merr(ENOMEM);
+
         hs->curr_part->n_hashes = 0;
+        hs->curr_part->n_maxused = 0;
         list_add_tail(&hs->curr_part->part_link, &hs->part_list);
     }
 
@@ -413,6 +412,8 @@ hash_set_reset(struct hash_set *hs)
     hs->curr_part = 0;
 
     list_for_each_entry (part, &hs->part_list, part_link) {
+        if (part->n_hashes > part->n_maxused)
+            part->n_maxused = part->n_hashes;
         part->n_hashes = 0;
         if (!hs->curr_part)
             hs->curr_part = part;
@@ -422,11 +423,10 @@ hash_set_reset(struct hash_set *hs)
 void
 hash_set_free(struct hash_set *hs)
 {
-    struct hash_set_part *part;
-    struct hash_set_part *tmp;
+    struct hash_set_part *part, *next;
 
-    list_for_each_entry_safe (part, tmp, &hs->part_list, part_link)
-        free(part);
+    list_for_each_entry_safe(part, next, &hs->part_list, part_link)
+        vlb_free(part, sizeof(*part) + sizeof(part->hashvec[0]) * part->n_maxused);
 }
 
 /**

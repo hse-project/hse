@@ -240,7 +240,7 @@ cn_subspill(
     ss->ss_added = false;
     ss->ss_work = w;
 
-    if (!sctx->more)
+    if (!sctx->more && !sctx->pt_set)
         return 0;
 
     /* Proceed only if either the curr key belongs in this leaf node OR there's a ptomb that needs
@@ -263,9 +263,7 @@ cn_subspill(
     /* Add ptomb to 'child' if a ptomb context is carried forward from the
      * previous node spill, i.e., this ptomb spans across multiple children.
      */
-    assert(sctx->more);
     if (sctx->pt_set && (!w->cw_drop_tombs || sctx->pt_seq > w->cw_horizon)) {
-
         err = kvset_builder_add_val(child, &sctx->pt_kobj, HSE_CORE_TOMB_PFX, 0, sctx->pt_seq, 0);
         if (!err)
             err = kvset_builder_add_key(child, &sctx->pt_kobj);
@@ -277,6 +275,10 @@ cn_subspill(
 
         w->cw_stats.ms_keys_out++;
         w->cw_stats.ms_key_bytes_out += key_obj_len(&sctx->pt_kobj);
+
+        ss->ss_added = true;
+        if (key_obj_cmp_prefix(&sctx->pt_kobj, &ekobj) < 0)
+            sctx->pt_set = false;
     }
 
     new_key = true;

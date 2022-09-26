@@ -240,7 +240,7 @@ sp3_work_wtype_idle(
     *mark = list_last_entry_or_null(head, typeof(*le), le_link);
     kvsets = cn_ns_kvsets(ns);
 
-    if (tn->tn_isroot) {
+    if (cn_node_isroot(tn)) {
         *action = CN_ACTION_SPILL;
         *rule = CN_RULE_RSPILL;
         return kvsets;
@@ -420,8 +420,6 @@ sp3_work_wtype_split(
                 jclock_ns < tree->ct_split_dly) {
 
                 tn->tn_ss_visits = 0;
-            } else if (cn_ns_kvsets(&tree->ct_root->tn_ns) >= thresh->rspill_runlen_min * 3) {
-                tn->tn_ss_visits = 0;
             } else if (spilling && tn->tn_ss_visits < thresh->split_cnt_max) {
                 tn->tn_ss_visits++;
             } else {
@@ -495,6 +493,8 @@ sp3_work_joinable(struct cn_tree_node *right, const struct sp3_thresholds *thres
     if (accum * 100 > thresh->lcomp_split_keys * pct)
         return NULL;
 
+    ev_debug(1);
+    //return NULL; // remove before flight
     return left;
 }
 
@@ -539,13 +539,10 @@ sp3_work_wtype_join(
                 jclock_ns < tree->ct_split_dly) {
 
                 tn->tn_ss_visits = 0;
-            } else if (cn_ns_kvsets(&tree->ct_root->tn_ns) >= thresh->rspill_runlen_min * 3) {
-                tn->tn_ss_visits = 0;
-                ev_debug(1);
             } else if (spilling && tn->tn_ss_visits < thresh->split_cnt_max) {
                 tn->tn_ss_visits++;
                 ev_debug(1);
-            } else if (!cn_node_comp_token_get(left)) {
+            } else if (left->tn_ss_joining || !cn_node_comp_token_get(left)) {
                 tn->tn_ss_visits = 0;
                 *mark = NULL;
                 ev_debug(1);
@@ -576,12 +573,18 @@ sp3_work_wtype_join(
             kvsets = cn_ns_kvsets(&tn->tn_ns);
     } else {
         if (tn->tn_ss_joining) {
+            left = list_prev_entry(tn, tn_link);
+            assert(left->tn_ss_joining == -1);
+            assert(tn->tn_ss_joining == 1);
+
             left->tn_ss_joining = 0;
             tn->tn_ss_joining = 0;
             cn_node_comp_token_put(left);
             atomic_dec(&tree->ct_split_cnt);
             cv_broadcast(&tree->ct_ss_cv);
             ev_debug(1);
+        } else {
+            assert(left->tn_ss_joining >= 0);
         }
 
         tn->tn_ss_visits = 0;
