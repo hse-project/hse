@@ -624,7 +624,7 @@ MTF_DEFINE_UTEST_PRE(kvs_rparams_test, mclass_policy, test_pre)
     ASSERT_EQ(HSE_MPOLICY_NAME_LEN_MAX, ps->ps_bounds.as_string.ps_max_len);
 }
 
-MTF_DEFINE_UTEST_PRE(kvs_rparams_test, compression_value_default, test_pre)
+MTF_DEFINE_UTEST_PRE(kvs_rparams_test, compression_default, test_pre)
 {
     merr_t                   err;
     char                     buf[128];
@@ -661,7 +661,7 @@ MTF_DEFINE_UTEST_PRE(kvs_rparams_test, compression_value_default, test_pre)
     ASSERT_EQ(0, merr_errno(err));
 }
 
-MTF_DEFINE_UTEST_PRE(kvs_rparams_test, compression_value_algorithm, test_pre)
+MTF_DEFINE_UTEST_PRE(kvs_rparams_test, compression_algorithm, test_pre)
 {
     merr_t                   err;
     char                     buf[128];
