@@ -6,6 +6,7 @@
 #include <mtf/framework.h>
 
 #include <hse_util/base.h>
+#include <hse_util/err_ctx.h>
 #include <hse_ikvdb/hse_gparams.h>
 
 #include <getopt.h>
@@ -136,7 +137,7 @@ mtf_main(int argc, char **argv, struct mtf_test_coll_info *tci)
             stderr,
             "%s: hse_init failed: %s\n",
             progname,
-            merr_strinfo(err, errbuf, sizeof(errbuf), NULL));
+            merr_strinfo(err, errbuf, sizeof(errbuf), err_ctx_strerror, NULL));
         return EX_SOFTWARE;
     }
 
@@ -150,7 +151,7 @@ mtf_main(int argc, char **argv, struct mtf_test_coll_info *tci)
             stderr,
             "%s: mtf_run_tests failed: %s\n",
             progname,
-            merr_strinfo(err, errbuf, sizeof(errbuf), NULL));
+            merr_strinfo(err, errbuf, sizeof(errbuf), err_ctx_strerror, NULL));
     }
 
     hse_fini();

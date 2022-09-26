@@ -5,9 +5,10 @@
 
 #include <bsd/string.h>
 
+#include <hse/error/merr.h>
+#include <hse_util/err_ctx.h>
 #include <hse_util/platform.h>
 #include <hse_util/parse_num.h>
-#include <hse/error/merr.h>
 #include <hse_util/page.h>
 #include <hse_util/page.h>
 
@@ -59,7 +60,7 @@ mdc_correctness_simple(const char *path)
     err = mpool_open(path, &params, O_RDWR, &mp);
     if (err) {
         original_err = err;
-        merr_strinfo(err, errbuf, ERROR_BUFFER_SIZE, NULL);
+        merr_strinfo(err, errbuf, ERROR_BUFFER_SIZE, err_ctx_strerror, NULL);
         fprintf(stderr, "%s.%d: Unable to open the mpool: %s\n", __func__, __LINE__, errbuf);
         return err;
     }
@@ -70,7 +71,7 @@ mdc_correctness_simple(const char *path)
     err = mpool_mdc_alloc(mp, MDC_TEST_MAGIC, 1 << 20, mclass, &oid[0], &oid[1]);
     if (err) {
         original_err = err;
-        merr_strinfo(err, errbuf, ERROR_BUFFER_SIZE, NULL);
+        merr_strinfo(err, errbuf, ERROR_BUFFER_SIZE, err_ctx_strerror, NULL);
         fprintf(stderr, "%s.%d: Unable to alloc mdc: %s\n", __func__, __LINE__, errbuf);
         goto close_mp;
     }
@@ -78,7 +79,7 @@ mdc_correctness_simple(const char *path)
     err = mpool_mdc_abort(mp, oid[0], oid[1]);
     if (err) {
         original_err = err;
-        merr_strinfo(err, errbuf, ERROR_BUFFER_SIZE, NULL);
+        merr_strinfo(err, errbuf, ERROR_BUFFER_SIZE, err_ctx_strerror, NULL);
         fprintf(stderr, "%s.%d: Unable to abort MDC : %s\n", __func__, __LINE__, errbuf);
         goto close_mp;
     }
@@ -86,7 +87,7 @@ mdc_correctness_simple(const char *path)
     err = mpool_mdc_alloc(mp, MDC_TEST_MAGIC, 1 << 20, mclass, &oid[0], &oid[1]);
     if (err) {
         original_err = err;
-        merr_strinfo(err, errbuf, ERROR_BUFFER_SIZE, NULL);
+        merr_strinfo(err, errbuf, ERROR_BUFFER_SIZE, err_ctx_strerror, NULL);
         fprintf(stderr, "%s.%d: Unable to alloc mdc: %s\n", __func__, __LINE__, errbuf);
         goto close_mp;
     }
@@ -94,7 +95,7 @@ mdc_correctness_simple(const char *path)
     err = mpool_mdc_commit(mp, oid[0], oid[1]);
     if (err) {
         original_err = err;
-        merr_strinfo(err, errbuf, ERROR_BUFFER_SIZE, NULL);
+        merr_strinfo(err, errbuf, ERROR_BUFFER_SIZE, err_ctx_strerror, NULL);
         fprintf(stderr, "%s.%d: Unable to commit mdc: %s\n", __func__, __LINE__, errbuf);
         goto close_mp;
     }
@@ -103,7 +104,7 @@ mdc_correctness_simple(const char *path)
     err = mpool_mdc_open(mp, oid[0], oid[1], false, &mdc);
     if (err) {
         original_err = err;
-        merr_strinfo(err, errbuf, ERROR_BUFFER_SIZE, NULL);
+        merr_strinfo(err, errbuf, ERROR_BUFFER_SIZE, err_ctx_strerror, NULL);
         fprintf(stderr, "%s.%d: Unable to open MDC: %s\n", __func__, __LINE__, errbuf);
         goto destroy_mdc;
     }
@@ -112,7 +113,7 @@ mdc_correctness_simple(const char *path)
     err = mpool_mdc_close(mdc);
     if (err) {
         original_err = err;
-        merr_strinfo(err, errbuf, ERROR_BUFFER_SIZE, NULL);
+        merr_strinfo(err, errbuf, ERROR_BUFFER_SIZE, err_ctx_strerror, NULL);
         fprintf(stderr, "%s.%d: Unable to close MDC: %s\n", __func__, __LINE__, errbuf);
         goto destroy_mdc;
     }
@@ -121,7 +122,7 @@ mdc_correctness_simple(const char *path)
     err = mpool_mdc_delete(mp, oid[0], oid[1]);
     if (err) {
         original_err = err;
-        merr_strinfo(err, errbuf, ERROR_BUFFER_SIZE, NULL);
+        merr_strinfo(err, errbuf, ERROR_BUFFER_SIZE, err_ctx_strerror, NULL);
         fprintf(stderr, "%s.%d: Unable to destroy MDC: %s\n", __func__, __LINE__, errbuf);
         goto close_mp;
     }
@@ -130,7 +131,7 @@ mdc_correctness_simple(const char *path)
     err = mpool_mdc_delete(mp, oid[0], oid[1]);
     if (!err && merr_errno(err) != ENOENT) {
         original_err = (err ?: merr(EBUG));
-        merr_strinfo(err, errbuf, ERROR_BUFFER_SIZE, NULL);
+        merr_strinfo(err, errbuf, ERROR_BUFFER_SIZE, err_ctx_strerror, NULL);
         fprintf(
             stderr, "%s.%d: MDC destroy must fail with ENOENT: %s\n", __func__, __LINE__, errbuf);
         goto close_mp;
@@ -144,7 +145,7 @@ destroy_mdc:
     if (err) {
         if (!original_err)
             original_err = err;
-        merr_strinfo(err, errbuf, ERROR_BUFFER_SIZE, NULL);
+        merr_strinfo(err, errbuf, ERROR_BUFFER_SIZE, err_ctx_strerror, NULL);
         fprintf(stderr, "%s.%d: Unable to destroy MDC: %s\n", __func__, __LINE__, errbuf);
     }
 
@@ -153,7 +154,7 @@ close_mp:
     if (err) {
         if (!original_err)
             original_err = err;
-        merr_strinfo(err, errbuf, ERROR_BUFFER_SIZE, NULL);
+        merr_strinfo(err, errbuf, ERROR_BUFFER_SIZE, err_ctx_strerror, NULL);
         fprintf(stderr, "%s.%d: Unable to close mpool: %s\n", __func__, __LINE__, errbuf);
     }
 
@@ -197,7 +198,7 @@ mdc_correctness_mp_release(const char *path)
     err = mpool_open(path, &params, O_RDWR, &mp);
     if (err) {
         original_err = err;
-        merr_strinfo(err, errbuf, ERROR_BUFFER_SIZE, NULL);
+        merr_strinfo(err, errbuf, ERROR_BUFFER_SIZE, err_ctx_strerror, NULL);
         fprintf(stderr, "%s.%d: Unable to open the mpool: %s\n", __func__, __LINE__, errbuf);
         return err;
     }
@@ -208,7 +209,7 @@ mdc_correctness_mp_release(const char *path)
     err = mpool_mdc_alloc(mp, MDC_TEST_MAGIC, 1 << 20, mclass, &oid[0], &oid[1]);
     if (err) {
         original_err = err;
-        merr_strinfo(err, errbuf, ERROR_BUFFER_SIZE, NULL);
+        merr_strinfo(err, errbuf, ERROR_BUFFER_SIZE, err_ctx_strerror, NULL);
         fprintf(stderr, "%s.%d: Unable to alloc mdc: %s\n", __func__, __LINE__, errbuf);
         goto close_mp;
     }
@@ -216,7 +217,7 @@ mdc_correctness_mp_release(const char *path)
     err = mpool_mdc_commit(mp, oid[0], oid[1]);
     if (err) {
         original_err = err;
-        merr_strinfo(err, errbuf, ERROR_BUFFER_SIZE, NULL);
+        merr_strinfo(err, errbuf, ERROR_BUFFER_SIZE, err_ctx_strerror, NULL);
         fprintf(stderr, "%s.%d: Unable to commit mdc: %s\n", __func__, __LINE__, errbuf);
         goto close_mp;
     }
@@ -225,7 +226,7 @@ mdc_correctness_mp_release(const char *path)
     err = mpool_mdc_open(mp, oid[0], oid[1], false, &mdc);
     if (err) {
         original_err = err;
-        merr_strinfo(err, errbuf, ERROR_BUFFER_SIZE, NULL);
+        merr_strinfo(err, errbuf, ERROR_BUFFER_SIZE, err_ctx_strerror, NULL);
         fprintf(stderr, "%s.%d: Unable to open MDC: %s\n", __func__, __LINE__, errbuf);
         goto destroy_mdc;
     }
@@ -235,7 +236,7 @@ mdc_correctness_mp_release(const char *path)
     if (err) {
         if (!original_err)
             original_err = err;
-        merr_strinfo(err, errbuf, ERROR_BUFFER_SIZE, NULL);
+        merr_strinfo(err, errbuf, ERROR_BUFFER_SIZE, err_ctx_strerror, NULL);
         fprintf(stderr, "%s.%d: Unable to close MDC: %s\n", __func__, __LINE__, errbuf);
         goto destroy_mdc;
     }
@@ -244,7 +245,7 @@ mdc_correctness_mp_release(const char *path)
     err = mpool_close(mp);
     if (err) {
         original_err = err;
-        merr_strinfo(err, errbuf, ERROR_BUFFER_SIZE, NULL);
+        merr_strinfo(err, errbuf, ERROR_BUFFER_SIZE, err_ctx_strerror, NULL);
         fprintf(stderr, "%s.%d: Unable to close mpool: %s\n", __func__, __LINE__, errbuf);
         goto destroy_mdc;
     }
@@ -253,7 +254,7 @@ mdc_correctness_mp_release(const char *path)
     err = mpool_open(path, &params, O_RDWR, &mp);
     if (err) {
         original_err = err;
-        merr_strinfo(err, errbuf, ERROR_BUFFER_SIZE, NULL);
+        merr_strinfo(err, errbuf, ERROR_BUFFER_SIZE, err_ctx_strerror, NULL);
         fprintf(stderr, "%s.%d: Unable to open the mpool: %s\n", __func__, __LINE__, errbuf);
         goto destroy_mdc;
     }
@@ -262,7 +263,7 @@ mdc_correctness_mp_release(const char *path)
     err = mpool_mdc_open(mp, oid[0], oid[1], false, &mdc);
     if (err) {
         original_err = err;
-        merr_strinfo(err, errbuf, ERROR_BUFFER_SIZE, NULL);
+        merr_strinfo(err, errbuf, ERROR_BUFFER_SIZE, err_ctx_strerror, NULL);
         fprintf(stderr, "%s.%d: Unable to open MDC: %s\n", __func__, __LINE__, errbuf);
         goto destroy_mdc;
     }
@@ -272,7 +273,7 @@ mdc_correctness_mp_release(const char *path)
     if (err) {
         if (!original_err)
             original_err = err;
-        merr_strinfo(err, errbuf, ERROR_BUFFER_SIZE, NULL);
+        merr_strinfo(err, errbuf, ERROR_BUFFER_SIZE, err_ctx_strerror, NULL);
         fprintf(stderr, "%s.%d: Unable to close MDC: %s\n", __func__, __LINE__, errbuf);
         goto destroy_mdc;
     }
@@ -284,7 +285,7 @@ destroy_mdc:
     if (err) {
         if (!original_err)
             original_err = err;
-        merr_strinfo(err, errbuf, ERROR_BUFFER_SIZE, NULL);
+        merr_strinfo(err, errbuf, ERROR_BUFFER_SIZE, err_ctx_strerror, NULL);
         fprintf(stderr, "%s.%d: Unable to destroy MDC: %s\n", __func__, __LINE__, errbuf);
     }
 
@@ -293,7 +294,7 @@ close_mp:
     if (err) {
         if (!original_err)
             original_err = err;
-        merr_strinfo(err, errbuf, ERROR_BUFFER_SIZE, NULL);
+        merr_strinfo(err, errbuf, ERROR_BUFFER_SIZE, err_ctx_strerror, NULL);
         fprintf(stderr, "%s.%d: Unable to close mpool: %s\n", __func__, __LINE__, errbuf);
     }
 
@@ -364,7 +365,7 @@ mdc_correctness_multi_reader_single_app(const char *path)
     err = mpool_open(path, &params, O_RDWR, &mp);
     if (err) {
         original_err = err;
-        merr_strinfo(err, errbuf, ERROR_BUFFER_SIZE, NULL);
+        merr_strinfo(err, errbuf, ERROR_BUFFER_SIZE, err_ctx_strerror, NULL);
         fprintf(stderr, "%s.%d: Unable to open the mpool: %s\n", __func__, __LINE__, errbuf);
         return err;
     }
@@ -375,7 +376,7 @@ mdc_correctness_multi_reader_single_app(const char *path)
     err = mpool_mdc_alloc(mp, MDC_TEST_MAGIC, 1 << 20, mclass, &oid[0], &oid[1]);
     if (err) {
         original_err = err;
-        merr_strinfo(err, errbuf, ERROR_BUFFER_SIZE, NULL);
+        merr_strinfo(err, errbuf, ERROR_BUFFER_SIZE, err_ctx_strerror, NULL);
         fprintf(stderr, "%s.%d: Unable to alloc mdc: %s\n", __func__, __LINE__, errbuf);
         goto close_mp;
     }
@@ -383,7 +384,7 @@ mdc_correctness_multi_reader_single_app(const char *path)
     err = mpool_mdc_commit(mp, oid[0], oid[1]);
     if (err) {
         original_err = err;
-        merr_strinfo(err, errbuf, ERROR_BUFFER_SIZE, NULL);
+        merr_strinfo(err, errbuf, ERROR_BUFFER_SIZE, err_ctx_strerror, NULL);
         fprintf(stderr, "%s.%d: Unable to commit mdc: %s\n", __func__, __LINE__, errbuf);
         goto close_mp;
     }
@@ -392,7 +393,7 @@ mdc_correctness_multi_reader_single_app(const char *path)
     err = mpool_mdc_open(mp, oid[0], oid[1], false, &mdc[0]);
     if (err) {
         original_err = err;
-        merr_strinfo(err, errbuf, ERROR_BUFFER_SIZE, NULL);
+        merr_strinfo(err, errbuf, ERROR_BUFFER_SIZE, err_ctx_strerror, NULL);
         fprintf(stderr, "%s.%d: Unable to open MDC: %s\n", __func__, __LINE__, errbuf);
         goto destroy_mdc;
     }
@@ -414,7 +415,7 @@ mdc_correctness_multi_reader_single_app(const char *path)
 
         err = mpool_mdc_append(mdc[0], bufp, sz, sync);
         if (err) {
-            merr_strinfo(err, errbuf, ERROR_BUFFER_SIZE, NULL);
+            merr_strinfo(err, errbuf, ERROR_BUFFER_SIZE, err_ctx_strerror, NULL);
             fprintf(stderr, "%s.%d: Unable to append to MDC: %s\n", __func__, __LINE__, errbuf);
             mpool_mdc_close(mdc[0]);
             goto destroy_mdc;
@@ -426,7 +427,7 @@ mdc_correctness_multi_reader_single_app(const char *path)
         err = mpool_mdc_cstart(mdc[0]);
         if (err) {
             original_err = err;
-            merr_strinfo(err, errbuf, ERROR_BUFFER_SIZE, NULL);
+            merr_strinfo(err, errbuf, ERROR_BUFFER_SIZE, err_ctx_strerror, NULL);
             fprintf(stderr, "%s.%d: Unable to cstart MDC: %s\n", __func__, __LINE__, errbuf);
             goto destroy_mdc;
         }
@@ -447,7 +448,7 @@ mdc_correctness_multi_reader_single_app(const char *path)
 
             err = mpool_mdc_append(mdc[0], bufp, sz, sync);
             if (err) {
-                merr_strinfo(err, errbuf, ERROR_BUFFER_SIZE, NULL);
+                merr_strinfo(err, errbuf, ERROR_BUFFER_SIZE, err_ctx_strerror, NULL);
                 fprintf(stderr, "%s.%d: Unable to append to MDC: %s\n", __func__, __LINE__, errbuf);
                 mpool_mdc_close(mdc[0]);
                 goto destroy_mdc;
@@ -457,7 +458,7 @@ mdc_correctness_multi_reader_single_app(const char *path)
         err = mpool_mdc_cend(mdc[0]);
         if (err) {
             original_err = err;
-            merr_strinfo(err, errbuf, ERROR_BUFFER_SIZE, NULL);
+            merr_strinfo(err, errbuf, ERROR_BUFFER_SIZE, err_ctx_strerror, NULL);
             fprintf(stderr, "%s.%d: Unable to cend MDC: %s\n", __func__, __LINE__, errbuf);
             goto destroy_mdc;
         }
@@ -467,7 +468,7 @@ mdc_correctness_multi_reader_single_app(const char *path)
     err = mpool_mdc_close(mdc[0]);
     if (err) {
         original_err = err;
-        merr_strinfo(err, errbuf, ERROR_BUFFER_SIZE, NULL);
+        merr_strinfo(err, errbuf, ERROR_BUFFER_SIZE, err_ctx_strerror, NULL);
         fprintf(stderr, "%s.%d: Unable to close MDC: %s\n", __func__, __LINE__, errbuf);
         goto destroy_mdc;
     }
@@ -476,7 +477,7 @@ mdc_correctness_multi_reader_single_app(const char *path)
     err = mpool_mdc_open(mp, oid[0], oid[1], false, &mdc[0]);
     if (err) {
         original_err = err;
-        merr_strinfo(err, errbuf, ERROR_BUFFER_SIZE, NULL);
+        merr_strinfo(err, errbuf, ERROR_BUFFER_SIZE, err_ctx_strerror, NULL);
         fprintf(stderr, "%s.%d: Unable to open MDC: %s\n", __func__, __LINE__, errbuf);
         goto destroy_mdc;
     }
@@ -484,7 +485,7 @@ mdc_correctness_multi_reader_single_app(const char *path)
     /* 8. Rewind mdc[0] */
     err = mpool_mdc_rewind(mdc[0]);
     if (err) {
-        merr_strinfo(err, errbuf, ERROR_BUFFER_SIZE, NULL);
+        merr_strinfo(err, errbuf, ERROR_BUFFER_SIZE, err_ctx_strerror, NULL);
         fprintf(stderr, "%s.%d: Unable to rewind to MDC: %s\n", __func__, __LINE__, errbuf);
         goto close_mdc0;
     }
@@ -504,7 +505,7 @@ mdc_correctness_multi_reader_single_app(const char *path)
         err = mpool_mdc_read(mdc[0], bufp, sz, &read_len);
         if (err) {
             original_err = err;
-            merr_strinfo(err, errbuf, ERROR_BUFFER_SIZE, NULL);
+            merr_strinfo(err, errbuf, ERROR_BUFFER_SIZE, err_ctx_strerror, NULL);
             fprintf(stderr, "%s.%d: Unable to read from MDC: %s\n", __func__, __LINE__, errbuf);
             goto close_mdc0;
         }
@@ -533,7 +534,7 @@ mdc_correctness_multi_reader_single_app(const char *path)
     /* 10. Rewind mdc[0] */
     err = mpool_mdc_rewind(mdc[0]);
     if (err) {
-        merr_strinfo(err, errbuf, ERROR_BUFFER_SIZE, NULL);
+        merr_strinfo(err, errbuf, ERROR_BUFFER_SIZE, err_ctx_strerror, NULL);
         fprintf(stderr, "%s.%d: Unable to rewind to MDC: %s\n", __func__, __LINE__, errbuf);
         goto close_mdc0;
     }
@@ -542,7 +543,7 @@ mdc_correctness_multi_reader_single_app(const char *path)
     err = mpool_mdc_open(mp, oid[0], oid[1], false, &mdc[1]);
     if (err) {
         original_err = err;
-        merr_strinfo(err, errbuf, ERROR_BUFFER_SIZE, NULL);
+        merr_strinfo(err, errbuf, ERROR_BUFFER_SIZE, err_ctx_strerror, NULL);
         fprintf(stderr, "%s.%d: Unable to open MDC: %s\n", __func__, __LINE__, errbuf);
         goto close_mdc0;
     }
@@ -550,7 +551,7 @@ mdc_correctness_multi_reader_single_app(const char *path)
     /* 12. Rewind mdc[1] */
     err = mpool_mdc_rewind(mdc[1]);
     if (err) {
-        merr_strinfo(err, errbuf, ERROR_BUFFER_SIZE, NULL);
+        merr_strinfo(err, errbuf, ERROR_BUFFER_SIZE, err_ctx_strerror, NULL);
         fprintf(stderr, "%s.%d: Unable to rewind to MDC: %s\n", __func__, __LINE__, errbuf);
         goto close_mdc1;
     }
@@ -570,7 +571,7 @@ mdc_correctness_multi_reader_single_app(const char *path)
         err = mpool_mdc_read(mdc[1], bufp, sz, &read_len);
         if (err) {
             original_err = err;
-            merr_strinfo(err, errbuf, ERROR_BUFFER_SIZE, NULL);
+            merr_strinfo(err, errbuf, ERROR_BUFFER_SIZE, err_ctx_strerror, NULL);
             fprintf(stderr, "%s.%d: Unable to read from MDC: %s\n", __func__, __LINE__, errbuf);
             goto close_mdc1;
         }
@@ -609,7 +610,7 @@ destroy_mdc:
     if (err) {
         if (!original_err)
             original_err = err;
-        merr_strinfo(err, errbuf, ERROR_BUFFER_SIZE, NULL);
+        merr_strinfo(err, errbuf, ERROR_BUFFER_SIZE, err_ctx_strerror, NULL);
         fprintf(stderr, "%s.%d: Unable to destroy MDC: %s\n", __func__, __LINE__, errbuf);
     }
 
@@ -618,7 +619,7 @@ close_mp:
     if (err) {
         if (!original_err)
             original_err = err;
-        merr_strinfo(err, errbuf, ERROR_BUFFER_SIZE, NULL);
+        merr_strinfo(err, errbuf, ERROR_BUFFER_SIZE, err_ctx_strerror, NULL);
         fprintf(stderr, "%s.%d: Unable to close mpool: %s\n", __func__, __LINE__, errbuf);
     }
 
@@ -667,7 +668,7 @@ mdc_correctness_reader_then_writer(const char *path)
     err = mpool_open(path, &params, O_RDWR, &mp);
     if (err) {
         original_err = err;
-        merr_strinfo(err, errbuf, ERROR_BUFFER_SIZE, NULL);
+        merr_strinfo(err, errbuf, ERROR_BUFFER_SIZE, err_ctx_strerror, NULL);
         fprintf(stderr, "%s.%d: Unable to open the mpool: %s\n", __func__, __LINE__, errbuf);
         return err;
     }
@@ -678,7 +679,7 @@ mdc_correctness_reader_then_writer(const char *path)
     err = mpool_mdc_alloc(mp, MDC_TEST_MAGIC, 128 << 10, mclass, &oid[0], &oid[1]);
     if (err) {
         original_err = err;
-        merr_strinfo(err, errbuf, ERROR_BUFFER_SIZE, NULL);
+        merr_strinfo(err, errbuf, ERROR_BUFFER_SIZE, err_ctx_strerror, NULL);
         fprintf(stderr, "%s.%d: Unable to alloc mdc: %s\n", __func__, __LINE__, errbuf);
         goto close_mp;
     }
@@ -686,7 +687,7 @@ mdc_correctness_reader_then_writer(const char *path)
     err = mpool_mdc_commit(mp, oid[0], oid[1]);
     if (err) {
         original_err = err;
-        merr_strinfo(err, errbuf, ERROR_BUFFER_SIZE, NULL);
+        merr_strinfo(err, errbuf, ERROR_BUFFER_SIZE, err_ctx_strerror, NULL);
         fprintf(stderr, "%s.%d: Unable to commit mdc: %s\n", __func__, __LINE__, errbuf);
         goto close_mp;
     }
@@ -695,7 +696,7 @@ mdc_correctness_reader_then_writer(const char *path)
     err = mpool_mdc_open(mp, oid[0], oid[1], false, &mdc);
     if (err) {
         original_err = err;
-        merr_strinfo(err, errbuf, ERROR_BUFFER_SIZE, NULL);
+        merr_strinfo(err, errbuf, ERROR_BUFFER_SIZE, err_ctx_strerror, NULL);
         fprintf(stderr, "%s.%d: Unable to open MDC: %s\n", __func__, __LINE__, errbuf);
         goto destroy_mdc;
     }
@@ -718,7 +719,7 @@ mdc_correctness_reader_then_writer(const char *path)
 
         err = mpool_mdc_append(mdc, bufp, sz, sync);
         if (err) {
-            merr_strinfo(err, errbuf, ERROR_BUFFER_SIZE, NULL);
+            merr_strinfo(err, errbuf, ERROR_BUFFER_SIZE, err_ctx_strerror, NULL);
             fprintf(stderr, "%s.%d: Unable to append to MDC: %s\n", __func__, __LINE__, errbuf);
             goto close_mdc;
         }
@@ -728,7 +729,7 @@ mdc_correctness_reader_then_writer(const char *path)
         err = mpool_mdc_cstart(mdc);
         if (err) {
             original_err = err;
-            merr_strinfo(err, errbuf, ERROR_BUFFER_SIZE, NULL);
+            merr_strinfo(err, errbuf, ERROR_BUFFER_SIZE, err_ctx_strerror, NULL);
             fprintf(stderr, "%s.%d: Unable to cstart MDC: %s\n", __func__, __LINE__, errbuf);
             goto destroy_mdc;
         }
@@ -750,7 +751,7 @@ mdc_correctness_reader_then_writer(const char *path)
 
             err = mpool_mdc_append(mdc, bufp, sz, sync);
             if (err) {
-                merr_strinfo(err, errbuf, ERROR_BUFFER_SIZE, NULL);
+                merr_strinfo(err, errbuf, ERROR_BUFFER_SIZE, err_ctx_strerror, NULL);
                 fprintf(stderr, "%s.%d: Unable to append to MDC: %s\n", __func__, __LINE__, errbuf);
                 mpool_mdc_close(mdc);
                 goto destroy_mdc;
@@ -760,7 +761,7 @@ mdc_correctness_reader_then_writer(const char *path)
         err = mpool_mdc_cend(mdc);
         if (err) {
             original_err = err;
-            merr_strinfo(err, errbuf, ERROR_BUFFER_SIZE, NULL);
+            merr_strinfo(err, errbuf, ERROR_BUFFER_SIZE, err_ctx_strerror, NULL);
             fprintf(stderr, "%s.%d: Unable to cend MDC: %s\n", __func__, __LINE__, errbuf);
             goto destroy_mdc;
         }
@@ -770,7 +771,7 @@ mdc_correctness_reader_then_writer(const char *path)
     err = mpool_mdc_close(mdc);
     if (err) {
         original_err = err;
-        merr_strinfo(err, errbuf, ERROR_BUFFER_SIZE, NULL);
+        merr_strinfo(err, errbuf, ERROR_BUFFER_SIZE, err_ctx_strerror, NULL);
         fprintf(stderr, "%s.%d: Unable to close MDC: %s\n", __func__, __LINE__, errbuf);
         goto destroy_mdc;
     }
@@ -779,7 +780,7 @@ mdc_correctness_reader_then_writer(const char *path)
     err = mpool_mdc_open(mp, oid[0], oid[1], false, &mdc);
     if (err) {
         original_err = err;
-        merr_strinfo(err, errbuf, ERROR_BUFFER_SIZE, NULL);
+        merr_strinfo(err, errbuf, ERROR_BUFFER_SIZE, err_ctx_strerror, NULL);
         fprintf(stderr, "%s.%d: Unable to open MDC: %s\n", __func__, __LINE__, errbuf);
         goto destroy_mdc;
     }
@@ -787,7 +788,7 @@ mdc_correctness_reader_then_writer(const char *path)
     /* 8. Rewind mdc */
     err = mpool_mdc_rewind(mdc);
     if (err) {
-        merr_strinfo(err, errbuf, ERROR_BUFFER_SIZE, NULL);
+        merr_strinfo(err, errbuf, ERROR_BUFFER_SIZE, err_ctx_strerror, NULL);
         fprintf(stderr, "%s.%d: Unable to rewind to MDC: %s\n", __func__, __LINE__, errbuf);
         goto close_mdc;
     }
@@ -806,7 +807,7 @@ mdc_correctness_reader_then_writer(const char *path)
 
         err = mpool_mdc_read(mdc, bufp, sz, &read_len);
         if (err) {
-            merr_strinfo(err, errbuf, ERROR_BUFFER_SIZE, NULL);
+            merr_strinfo(err, errbuf, ERROR_BUFFER_SIZE, err_ctx_strerror, NULL);
             fprintf(stderr, "%s.%d: Unable to read from MDC: %s\n", __func__, __LINE__, errbuf);
             goto close_mdc;
         }
@@ -833,7 +834,7 @@ mdc_correctness_reader_then_writer(const char *path)
     /* 10. Rewind mdc */
     err = mpool_mdc_rewind(mdc);
     if (err) {
-        merr_strinfo(err, errbuf, ERROR_BUFFER_SIZE, NULL);
+        merr_strinfo(err, errbuf, ERROR_BUFFER_SIZE, err_ctx_strerror, NULL);
         fprintf(stderr, "%s.%d: Unable to rewind to MDC: %s\n", __func__, __LINE__, errbuf);
         goto close_mdc;
     }
@@ -848,7 +849,7 @@ destroy_mdc:
     if (err) {
         if (!original_err)
             original_err = err;
-        merr_strinfo(err, errbuf, ERROR_BUFFER_SIZE, NULL);
+        merr_strinfo(err, errbuf, ERROR_BUFFER_SIZE, err_ctx_strerror, NULL);
         fprintf(stderr, "%s.%d: Unable to destroy MDC: %s\n", __func__, __LINE__, errbuf);
     }
 
@@ -857,7 +858,7 @@ close_mp:
     if (err) {
         if (!original_err)
             original_err = err;
-        merr_strinfo(err, errbuf, ERROR_BUFFER_SIZE, NULL);
+        merr_strinfo(err, errbuf, ERROR_BUFFER_SIZE, err_ctx_strerror, NULL);
         fprintf(stderr, "%s.%d: Unable to close mpool: %s\n", __func__, __LINE__, errbuf);
     }
 
@@ -905,7 +906,7 @@ mdc_correctness_writer_then_reader(const char *path)
     err = mpool_open(path, &params, O_RDWR, &mp);
     if (err) {
         original_err = err;
-        merr_strinfo(err, errbuf, ERROR_BUFFER_SIZE, NULL);
+        merr_strinfo(err, errbuf, ERROR_BUFFER_SIZE, err_ctx_strerror, NULL);
         fprintf(stderr, "%s.%d: Unable to open the mpool: %s\n", __func__, __LINE__, errbuf);
         return err;
     }
@@ -916,7 +917,7 @@ mdc_correctness_writer_then_reader(const char *path)
     err = mpool_mdc_alloc(mp, MDC_TEST_MAGIC, 1 << 20, mclass, &oid[0], &oid[1]);
     if (err) {
         original_err = err;
-        merr_strinfo(err, errbuf, ERROR_BUFFER_SIZE, NULL);
+        merr_strinfo(err, errbuf, ERROR_BUFFER_SIZE, err_ctx_strerror, NULL);
         fprintf(stderr, "%s.%d: Unable to alloc mdc: %s\n", __func__, __LINE__, errbuf);
         goto close_mp;
     }
@@ -924,7 +925,7 @@ mdc_correctness_writer_then_reader(const char *path)
     err = mpool_mdc_commit(mp, oid[0], oid[1]);
     if (err) {
         original_err = err;
-        merr_strinfo(err, errbuf, ERROR_BUFFER_SIZE, NULL);
+        merr_strinfo(err, errbuf, ERROR_BUFFER_SIZE, err_ctx_strerror, NULL);
         fprintf(stderr, "%s.%d: Unable to commit mdc: %s\n", __func__, __LINE__, errbuf);
         goto close_mp;
     }
@@ -933,7 +934,7 @@ mdc_correctness_writer_then_reader(const char *path)
     err = mpool_mdc_open(mp, oid[0], oid[1], false, &mdc[0]);
     if (err) {
         original_err = err;
-        merr_strinfo(err, errbuf, ERROR_BUFFER_SIZE, NULL);
+        merr_strinfo(err, errbuf, ERROR_BUFFER_SIZE, err_ctx_strerror, NULL);
         fprintf(stderr, "%s.%d: Unable to open MDC: %s\n", __func__, __LINE__, errbuf);
         goto destroy_mdc;
     }
@@ -955,7 +956,7 @@ mdc_correctness_writer_then_reader(const char *path)
 
         err = mpool_mdc_append(mdc[0], bufp, sz, sync);
         if (err) {
-            merr_strinfo(err, errbuf, ERROR_BUFFER_SIZE, NULL);
+            merr_strinfo(err, errbuf, ERROR_BUFFER_SIZE, err_ctx_strerror, NULL);
             fprintf(stderr, "%s.%d: Unable to append to MDC: %s\n", __func__, __LINE__, errbuf);
             mpool_mdc_close(mdc[0]);
             goto destroy_mdc;
@@ -966,7 +967,7 @@ mdc_correctness_writer_then_reader(const char *path)
     err = mpool_mdc_close(mdc[0]);
     if (err) {
         original_err = err;
-        merr_strinfo(err, errbuf, ERROR_BUFFER_SIZE, NULL);
+        merr_strinfo(err, errbuf, ERROR_BUFFER_SIZE, err_ctx_strerror, NULL);
         fprintf(stderr, "%s.%d: Unable to close MDC: %s\n", __func__, __LINE__, errbuf);
         goto destroy_mdc;
     }
@@ -976,7 +977,7 @@ mdc_correctness_writer_then_reader(const char *path)
     err = mpool_mdc_open(mp, oid[0], oid[1], false, &mdc[1]);
     if (err) {
         original_err = err;
-        merr_strinfo(err, errbuf, ERROR_BUFFER_SIZE, NULL);
+        merr_strinfo(err, errbuf, ERROR_BUFFER_SIZE, err_ctx_strerror, NULL);
         fprintf(stderr, "%s.%d: Unable to open MDC: %s\n", __func__, __LINE__, errbuf);
         goto destroy_mdc;
     }
@@ -984,7 +985,7 @@ mdc_correctness_writer_then_reader(const char *path)
     /* 8. Rewind mdc[1] */
     err = mpool_mdc_rewind(mdc[1]);
     if (err) {
-        merr_strinfo(err, errbuf, ERROR_BUFFER_SIZE, NULL);
+        merr_strinfo(err, errbuf, ERROR_BUFFER_SIZE, err_ctx_strerror, NULL);
         fprintf(stderr, "%s.%d: Unable to rewind to MDC: %s\n", __func__, __LINE__, errbuf);
         goto close_mdc1;
     }
@@ -1003,7 +1004,7 @@ mdc_correctness_writer_then_reader(const char *path)
 
         err = mpool_mdc_read(mdc[1], bufp, sz, &read_len);
         if (err) {
-            merr_strinfo(err, errbuf, ERROR_BUFFER_SIZE, NULL);
+            merr_strinfo(err, errbuf, ERROR_BUFFER_SIZE, err_ctx_strerror, NULL);
             fprintf(stderr, "%s.%d: Unable to read from MDC: %s\n", __func__, __LINE__, errbuf);
             goto close_mdc1;
         }
@@ -1037,7 +1038,7 @@ destroy_mdc:
     if (err) {
         if (!original_err)
             original_err = err;
-        merr_strinfo(err, errbuf, ERROR_BUFFER_SIZE, NULL);
+        merr_strinfo(err, errbuf, ERROR_BUFFER_SIZE, err_ctx_strerror, NULL);
         fprintf(stderr, "%s.%d: Unable to destroy MDC: %s\n", __func__, __LINE__, errbuf);
     }
 
@@ -1046,7 +1047,7 @@ close_mp:
     if (err) {
         if (!original_err)
             original_err = err;
-        merr_strinfo(err, errbuf, ERROR_BUFFER_SIZE, NULL);
+        merr_strinfo(err, errbuf, ERROR_BUFFER_SIZE, err_ctx_strerror, NULL);
         fprintf(stderr, "%s.%d: Unable to close mpool: %s\n", __func__, __LINE__, errbuf);
     }
 
@@ -1103,7 +1104,7 @@ mdc_correctness_multi_mdc(const char *path)
     err = mpool_open(path, &params, O_RDWR, &mp);
     if (err) {
         original_err = err;
-        merr_strinfo(err, errbuf, ERROR_BUFFER_SIZE, NULL);
+        merr_strinfo(err, errbuf, ERROR_BUFFER_SIZE, err_ctx_strerror, NULL);
         fprintf(stderr, "%s.%d: Unable to open the mpool: %s\n", __func__, __LINE__, errbuf);
         goto freeoid;
     }
@@ -1116,7 +1117,7 @@ mdc_correctness_multi_mdc(const char *path)
             mp, MDC_TEST_MAGIC + i, 1 << 20, mclass, &oid[i].oid[0], &oid[i].oid[1]);
         if (err) {
             original_err = err;
-            merr_strinfo(err, errbuf, ERROR_BUFFER_SIZE, NULL);
+            merr_strinfo(err, errbuf, ERROR_BUFFER_SIZE, err_ctx_strerror, NULL);
             fprintf(stderr, "%s.%d: Unable to alloc mdc: %s\n", __func__, __LINE__, errbuf);
             goto freeoid;
         }
@@ -1124,7 +1125,7 @@ mdc_correctness_multi_mdc(const char *path)
         err = mpool_mdc_commit(mp, oid[i].oid[0], oid[i].oid[1]);
         if (err) {
             original_err = err;
-            merr_strinfo(err, errbuf, ERROR_BUFFER_SIZE, NULL);
+            merr_strinfo(err, errbuf, ERROR_BUFFER_SIZE, err_ctx_strerror, NULL);
             fprintf(stderr, "%s.%d: Unable to commit mdc: %s\n", __func__, __LINE__, errbuf);
             goto freeoid;
         }
@@ -1135,7 +1136,7 @@ mdc_correctness_multi_mdc(const char *path)
         err = mpool_mdc_open(mp, oid[i].oid[0], oid[i].oid[1], false, &mdc[i]);
         if (err) {
             original_err = err;
-            merr_strinfo(err, errbuf, ERROR_BUFFER_SIZE, NULL);
+            merr_strinfo(err, errbuf, ERROR_BUFFER_SIZE, err_ctx_strerror, NULL);
             fprintf(stderr, "%s.%d: Unable to open MDC %d: %s\n", __func__, __LINE__, i, errbuf);
             goto destroy_mdcs;
         }
@@ -1153,7 +1154,7 @@ mdc_correctness_multi_mdc(const char *path)
 
             err = mpool_mdc_append(mdc[i], buf, BUF_SIZE, true);
             if (err) {
-                merr_strinfo(err, errbuf, ERROR_BUFFER_SIZE, NULL);
+                merr_strinfo(err, errbuf, ERROR_BUFFER_SIZE, err_ctx_strerror, NULL);
                 fprintf(stderr, "%s.%d: Unable to append to MDC: %s\n", __func__, __LINE__, errbuf);
                 goto close_mdcs;
             }
@@ -1165,7 +1166,7 @@ mdc_correctness_multi_mdc(const char *path)
         err = mpool_mdc_close(mdc[i]);
         if (err) {
             original_err = err;
-            merr_strinfo(err, errbuf, ERROR_BUFFER_SIZE, NULL);
+            merr_strinfo(err, errbuf, ERROR_BUFFER_SIZE, err_ctx_strerror, NULL);
             fprintf(stderr, "%s.%d: Unable to close MDC: %s\n", __func__, __LINE__, errbuf);
             goto destroy_mdcs;
         }
@@ -1178,7 +1179,7 @@ mdc_correctness_multi_mdc(const char *path)
         err = mpool_mdc_open(mp, oid[i].oid[0], oid[i].oid[1], false, &mdc[i]);
         if (err) {
             original_err = err;
-            merr_strinfo(err, errbuf, ERROR_BUFFER_SIZE, NULL);
+            merr_strinfo(err, errbuf, ERROR_BUFFER_SIZE, err_ctx_strerror, NULL);
             fprintf(stderr, "%s.%d: Unable to open MDC: %s\n", __func__, __LINE__, errbuf);
             goto destroy_mdcs;
         }
@@ -1188,7 +1189,7 @@ mdc_correctness_multi_mdc(const char *path)
     for (i = 0; i < mdc_cnt; i++) {
         err = mpool_mdc_rewind(mdc[i]);
         if (err) {
-            merr_strinfo(err, errbuf, ERROR_BUFFER_SIZE, NULL);
+            merr_strinfo(err, errbuf, ERROR_BUFFER_SIZE, err_ctx_strerror, NULL);
             fprintf(stderr, "%s.%d: Unable to rewind to MDC: %s\n", __func__, __LINE__, errbuf);
             goto close_mdcs;
         }
@@ -1203,7 +1204,7 @@ mdc_correctness_multi_mdc(const char *path)
 
             err = mpool_mdc_read(mdc[i], buf_in, BUF_SIZE, &read_len);
             if (err) {
-                merr_strinfo(err, errbuf, ERROR_BUFFER_SIZE, NULL);
+                merr_strinfo(err, errbuf, ERROR_BUFFER_SIZE, err_ctx_strerror, NULL);
                 fprintf(stderr, "%s.%d: Unable to read from MDC: %s\n", __func__, __LINE__, errbuf);
                 goto close_mdcs;
             }
@@ -1242,7 +1243,7 @@ destroy_mdcs:
         if (err) {
             if (!original_err)
                 original_err = err;
-            merr_strinfo(err, errbuf, ERROR_BUFFER_SIZE, NULL);
+            merr_strinfo(err, errbuf, ERROR_BUFFER_SIZE, err_ctx_strerror, NULL);
             fprintf(stderr, "%s.%d: Unable to destroy MDC: %s\n", __func__, __LINE__, errbuf);
         }
     }
@@ -1254,7 +1255,7 @@ freeoid:
     if (err) {
         if (!original_err)
             original_err = err;
-        merr_strinfo(err, errbuf, ERROR_BUFFER_SIZE, NULL);
+        merr_strinfo(err, errbuf, ERROR_BUFFER_SIZE, err_ctx_strerror, NULL);
         fprintf(stderr, "%s.%d: Unable to close mpool: %s\n", __func__, __LINE__, errbuf);
     }
 

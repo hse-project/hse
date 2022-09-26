@@ -52,11 +52,9 @@
 
 #define EBUG (991)
 
-/* MERR_ALIGN      Alignment of _merr_file in section "hse_merr"
- * MERR_INFO_SZ    Max size of struct merr_info message buffer
+/* Alignment of _hse_merr_file in section "hse_merr"
  */
 #define MERR_ALIGN      (1 << 6)
-#define MERR_INFO_SZ    (MERR_ALIGN * 2 + 200)
 
 #define _merr_section __attribute__((section("hse_merr")))
 #define _merr_attributes _merr_section HSE_ALIGNED(MERR_ALIGN) HSE_MAYBE_UNUSED
@@ -87,10 +85,7 @@ extern char hse_merr_bug2[];
 #define MERR_ERRNO_MASK (0x000000000000fffful)
 
 typedef hse_err_t merr_t;
-
-struct merr_info {
-    char buf[MERR_INFO_SZ];
-};
+typedef const char *merr_stringify(int);
 
 /**
  * merr() - Pack given errno and call-site info into a merr_t
@@ -105,7 +100,7 @@ struct merr_info {
 /* Not a public API, called only via the merr() macro.
  */
 merr_t
-merr_pack(int error, enum hse_err_ctx ctx, const char *file, const int line);
+merr_pack(int error, int16_t ctx, const char *file, int line);
 
 /**
  * merr_strerror() - Format errno description from merr_t
@@ -114,10 +109,15 @@ size_t
 merr_strerror(merr_t err, char *buf, size_t buf_sz);
 
 /**
- * merr_strinfo() - Format file, line, and errno from merr_t
+ * merr_strinfo() - Format file, line, ctx, and errno from merr_t
  */
 char *
-merr_strinfo(merr_t err, char *buf, size_t buf_sz, size_t *need_sz);
+merr_strinfo(
+    merr_t err,
+    char *buf,
+    size_t buf_sz,
+    merr_stringify ctx_stringify,
+    size_t *need_sz);
 
 /**
  * merr_file() - Return file name ptr from merr_t
@@ -137,7 +137,7 @@ merr_errno(merr_t merr)
 /**
  * merr_ctx() - Return the error context from given merr_t
  */
-static HSE_ALWAYS_INLINE enum hse_err_ctx
+static HSE_ALWAYS_INLINE int16_t
 merr_ctx(merr_t merr)
 {
     return (merr & MERR_CTX_MASK) >> MERR_CTX_SHIFT;
@@ -150,15 +150,6 @@ static HSE_ALWAYS_INLINE int
 merr_lineno(merr_t err)
 {
     return (err & MERR_LINE_MASK) >> MERR_LINE_SHIFT;
-}
-
-/**
- * merr_info() - Format file, line, and errno into a merr_info
- */
-static HSE_ALWAYS_INLINE char *
-merr_info(merr_t err, struct merr_info *info)
-{
-    return merr_strinfo(err, info->buf, sizeof(info->buf), 0);
 }
 
 #endif

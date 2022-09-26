@@ -3,15 +3,15 @@
  * Copyright (C) 2015-2022 Micron Technology, Inc.  All rights reserved.
  */
 
-#include <hse_util/assert.h>
-#include <hse_util/page.h>
-#include <hse/error/merr.h>
-
 #include <assert.h>
 #include <stdint.h>
 #include <stdio.h>
 
 #include <bsd/string.h>
+
+#include <hse/error/merr.h>
+#include <hse_util/assert.h>
+#include <hse_util/page.h>
 
 char hse_merr_bug0[] _merr_attributes = "hse_merr_bug0";
 char hse_merr_bug1[] _merr_attributes = "hse_merr_bug1";
@@ -22,13 +22,12 @@ extern uint8_t __start_hse_merr;
 extern uint8_t __stop_hse_merr;
 
 merr_t
-merr_pack(int errno_value, const enum hse_err_ctx ctx, const char *file, int line)
+merr_pack(const int errno_value, const int16_t ctx, const char *file, const int line)
 {
     merr_t  err = 0;
     int64_t off;
 
     INVARIANT(errno_value >= 0 && errno_value <= INT16_MAX);
-    INVARIANT(ctx >= 0 && ctx <= HSE_ERR_CTX_MAX);
     INVARIANT(file);
     INVARIANT(line > 0);
 
@@ -48,14 +47,14 @@ merr_pack(int errno_value, const enum hse_err_ctx ctx, const char *file, int lin
         err = (uint64_t)off << MERR_FILE_SHIFT;
 
     err |= ((uint64_t)line << MERR_LINE_SHIFT) & MERR_LINE_MASK;
-    err |= (ctx << MERR_CTX_SHIFT) & MERR_CTX_MASK;
+    err |= ((uint64_t)ctx << MERR_CTX_SHIFT) & MERR_CTX_MASK;
     err |= (uint64_t)errno_value & MERR_ERRNO_MASK;
 
     return err;
 }
 
 const char *
-merr_file(merr_t err)
+merr_file(const merr_t err)
 {
     const char *file;
     int32_t     off;
@@ -90,7 +89,7 @@ merr_file(merr_t err)
 }
 
 size_t
-merr_strerror(merr_t err, char *buf, size_t buf_sz)
+merr_strerror(const merr_t err, char *const buf, const size_t buf_sz)
 {
     char errbuf[1024], *errmsg;
     int errno_value = merr_errno(err);
@@ -107,18 +106,23 @@ merr_strerror(merr_t err, char *buf, size_t buf_sz)
 }
 
 char *
-merr_strinfo(merr_t err, char *buf, size_t buf_sz, size_t *need_sz)
+merr_strinfo(
+    const merr_t err,
+    char *const buf,
+    const size_t buf_sz,
+    merr_stringify ctx_stringify,
+    size_t *const need_sz)
 {
     int ret = 0;
     size_t sz = 0;
     const char *file = NULL;
+    const int16_t ctx = merr_ctx(err);
 
     if (err) {
         file = merr_file(err);
 
         if (file) {
             ret = snprintf(buf, buf_sz, "%s:%d: ", file, merr_lineno(err));
-
             if (ret < 0) {
                 sz = strlcpy(buf, "<failed to format error message>", buf_sz);
                 goto out;
@@ -146,6 +150,24 @@ merr_strinfo(merr_t err, char *buf, size_t buf_sz, size_t *need_sz)
         }
 
         sz += (size_t)ret;
+
+        if (ctx != 0 && ctx_stringify) {
+            const char *msg = ctx_stringify(ctx);
+
+            if (sz >= buf_sz) {
+                ret = snprintf(NULL, 0, ": %s (%d)", msg, ctx);
+            } else {
+                ret = snprintf(buf + sz, buf_sz - sz, ": %s (%d)", msg, ctx);
+            }
+
+            if (ret < 0) {
+                /* Try to just return what we already have. */
+                buf[sz] = '\000';
+                goto out;
+            }
+
+            sz += (size_t)ret;
+        }
     } else {
         sz = strlcpy(buf, "success", buf_sz);
     }

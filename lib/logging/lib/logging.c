@@ -7,10 +7,10 @@
 #include <stdio.h>
 #include <syslog.h>
 
+#include <hse/error/merr.h>
+#include <hse/logging/logging.h>
 #include <hse_util/minmax.h>
 #include <hse_util/timer.h>
-
-#include <hse/logging/logging.h>
 
 /* The log_xxx() APIs are allowed to be used prior to calling logging_init().
  * In practice, this only includes code that deals with hse_gparams. That code
@@ -25,6 +25,7 @@ static int log_level = LOG_INFO;
 static FILE *log_file;
 static bool logging_initialized;
 static bool logging_enabled = true;
+static merr_stringify *log_err_ctx_stringify;
 static thread_local char log_buffer_tls[1024];
 static uint64_t log_squelch_ns = LOG_SQUELCH_NS_DEFAULT;
 
@@ -45,7 +46,7 @@ backstop(const int level, const char *const fmt, ...)
 }
 
 merr_t
-logging_init(const struct logging_params *const params)
+logging_init(const struct logging_params *const params, merr_stringify *const ctx_stringify)
 {
     FILE *fp = NULL;
 
@@ -72,7 +73,7 @@ logging_init(const struct logging_params *const params)
             char buf[256];
             const merr_t err = merr(errno);
 
-            merr_strinfo(err, buf, sizeof(buf), NULL);
+            merr_strinfo(err, buf, sizeof(buf), NULL, NULL);
 
             fprintf(stderr, "[HSE] %s:%d %s: failed to open log file (%s): %s\n",
                 REL_FILE(__FILE__), __LINE__, __func__, params->lp_path, buf);
@@ -87,10 +88,11 @@ logging_init(const struct logging_params *const params)
     }
 
     if (!logging_initialized) {
-        logging_initialized = true;
         log_file = fp;
         log_level = params->lp_level;
+        log_err_ctx_stringify = ctx_stringify;
         log_squelch_ns = params->lp_squelch_ns;
+        logging_initialized = true;
     }
 
     return 0;
@@ -103,6 +105,7 @@ logging_fini(void)
         fclose(log_file);
     log_file = NULL;
     log_level = LOG_INFO;
+    log_err_ctx_stringify = NULL;
     log_squelch_ns = LOG_SQUELCH_NS_DEFAULT;
     logging_enabled = true;
     logging_initialized = false;
@@ -115,7 +118,7 @@ log_impl(
     const int lineno,       /* line number                   */
     const char *const func, /* function name                 */
     uint64_t *const timer,  /* timer                         */
-    merr_t err,             /* error value                   */
+    const merr_t err,       /* error value                   */
     const char *const fmt,  /* format string                 */
     ...)                    /* variable-length argument list */
 {
@@ -140,24 +143,31 @@ log_impl(
     *timer = now + log_squelch_ns;
 
     if (err) {
+        int16_t ctx;
         char buf[256];
 
         merr_strerror(err, buf, sizeof(buf));
 
-        rc = snprintf(log_buffer_tls, sizeof(log_buffer_tls), "[HSE] %s:%d %s: %s: %s (%d)\n",
-            file, lineno, func, fmt, buf, merr_errno(err));
+        ctx = merr_ctx(err);
+        if (ctx == 0 || !log_err_ctx_stringify) {
+            rc = snprintf(log_buffer_tls, sizeof(log_buffer_tls),
+                "[HSE] %s:%d: %s: %s: %s (%d)\n",
+                file, lineno, func, fmt, buf, merr_errno(err));
+        } else {
+            rc = snprintf(log_buffer_tls, sizeof(log_buffer_tls),
+                "[HSE] %s:%d: %s: %s: %s (%d): %s (%d)\n",
+                file, lineno, func, fmt, buf, merr_errno(err), log_err_ctx_stringify(ctx), ctx);
+        }
     } else {
-        rc = snprintf(log_buffer_tls, sizeof(log_buffer_tls), "[HSE] %s:%d %s: %s\n",
+        rc = snprintf(log_buffer_tls, sizeof(log_buffer_tls), "[HSE] %s:%d: %s: %s\n",
             file, lineno, func, fmt);
     }
     if (rc >= sizeof(log_buffer_tls)) {
-        backstop(LOG_ERR, "[HSE] %s:%d %s: scatch buffer size too small, needed %d for %s:%d\n",
-            REL_FILE(__FILE__), __LINE__, __func__, rc, file, lineno);
-
-        return;
+        backstop(LOG_ERR, "[HSE] %s:%d: %s: scatch buffer size too small, needed %d for %s:%d\n",
+            REL_FILE(__FILE__), __LINE__ - 1, __func__, rc, file, lineno);
     } else if (rc < 0) {
-        backstop(LOG_ERR, "[HSE] %s:%d %s: bad printf format string from %s:%d\n",
-            REL_FILE(__FILE__), __LINE__, __func__, file, lineno);
+        backstop(LOG_ERR, "[HSE] %s:%d: %s: bad format string from %s:%d\n",
+            REL_FILE(__FILE__), __LINE__ - 1, __func__, file, lineno);
 
         return;
     }

@@ -31,6 +31,7 @@
 
 #include <hse/error/merr.h>
 #include <hse/hse.h>
+#include <hse_util/err_ctx.h>
 #include <hse_util/minmax.h>
 #include <hse_util/page.h>
 
@@ -379,7 +380,7 @@ verify_with_mcache(
     for (i = 0; i < mbidc; ++i) {
         err = mpool_mcache_madvise(minfo->map, i, 0, wcc, MADV_WILLNEED);
         if (err) {
-            merr_strinfo(err, errbuf, sizeof(errbuf), NULL);
+            merr_strinfo(err, errbuf, sizeof(errbuf), err_ctx_strerror, NULL);
             eprint("mpool_mcache_madvise failed: map=%p mbid=%d: %s\n", (void *)minfo->map, i, errbuf);
         }
     }
@@ -387,7 +388,7 @@ verify_with_mcache(
     for (i = 0; i < pagec; ++i) {
         err = mpool_mcache_getpages(minfo->map, 1, objnumv[i], offsetv + i, pagev + i);
         if (err) {
-            merr_strinfo(err, errbuf, sizeof(errbuf), NULL);
+            merr_strinfo(err, errbuf, sizeof(errbuf), err_ctx_strerror, NULL);
             eprint(
                 "mpool_mcache_getpages: %d objid=0x%lx len=%zu: %s\n",
                 test->t_idx,
@@ -410,7 +411,7 @@ verify_with_mcache(
     return 0;
 
 mcache_map_err:
-    merr_strinfo(err, errbuf, sizeof(errbuf), NULL);
+    merr_strinfo(err, errbuf, sizeof(errbuf), err_ctx_strerror, NULL);
     eprint("mpool_mcache_map_create failed: objid=0x%lx: %s\n", objid, errbuf);
 
 err_out:
@@ -519,7 +520,7 @@ test_start(void *arg)
             if (merr_errno(err) == ENOSPC)
                 break;
 
-            merr_strinfo(err, errbuf, sizeof(errbuf), NULL);
+            merr_strinfo(err, errbuf, sizeof(errbuf), err_ctx_strerror, NULL);
             eprint("mpool_mblock_alloc failed: %s\n", errbuf);
             break;
         }
@@ -549,7 +550,7 @@ test_start(void *arg)
             if (merr_errno(err) == ENOSPC)
                 break;
 
-            merr_strinfo(err, errbuf, sizeof(errbuf), NULL);
+            merr_strinfo(err, errbuf, sizeof(errbuf), err_ctx_strerror, NULL);
             eprint(
                 "mpool_mblock_write: %d objid=0x%lx len=%zu: %s\n",
                 test->t_idx,
@@ -563,7 +564,7 @@ test_start(void *arg)
 
         err = mpool_mblock_commit(mp, objid);
         if (err) {
-            merr_strinfo(err, errbuf, sizeof(errbuf), NULL);
+            merr_strinfo(err, errbuf, sizeof(errbuf), err_ctx_strerror, NULL);
             eprint("mb_mblock_commit failed: objid=0x%lx: %s\n", minfo->objid, errbuf);
             break;
         }
@@ -578,7 +579,7 @@ test_start(void *arg)
 
             err = mpool_mblock_read(mp, objid, iov, 1, 0);
             if (err) {
-                merr_strinfo(err, errbuf, sizeof(errbuf), NULL);
+                merr_strinfo(err, errbuf, sizeof(errbuf), err_ctx_strerror, NULL);
                 eprint(
                     "mpool_mblock_read: %d objid=0x%lx len=%zu: %s\n",
                     test->t_idx,
@@ -735,7 +736,7 @@ test_start(void *arg)
 
             err = mpool_mblock_read(mp, minfo->objid, iov, 1, 0);
             if (err) {
-                merr_strinfo(err, errbuf, sizeof(errbuf), NULL);
+                merr_strinfo(err, errbuf, sizeof(errbuf), err_ctx_strerror, NULL);
                 eprint("mpool_mblock_read: objid=0x%lx: %s\n", minfo->objid, errbuf);
                 ++stats->mbreaderr;
             }
@@ -760,7 +761,7 @@ test_start(void *arg)
 
         err = mpool_mblock_delete(mp, minfo->objid);
         if (err) {
-            merr_strinfo(err, errbuf, sizeof(errbuf), NULL);
+            merr_strinfo(err, errbuf, sizeof(errbuf), err_ctx_strerror, NULL);
             eprint(
                 "%3d, %8d %8d %8zu %8zu %16lx"
                 " ms_mblock_delete failed: %s\n",
@@ -1161,14 +1162,14 @@ main(int argc, char **argv)
             sizeof(rparams.mclass[HSE_MCLASS_CAPACITY].path));
     err = mpool_open(path, &rparams, oflags, &mp);
     if (err) {
-        merr_strinfo(err, errbuf, sizeof(errbuf), NULL);
+        merr_strinfo(err, errbuf, sizeof(errbuf), err_ctx_strerror, NULL);
         eprint("mpool_open(%s): %s\n", path, errbuf);
         goto err_exit;
     }
 
     err = mpool_props_get(mp, &props);
     if (err) {
-        merr_strinfo(err, errbuf, sizeof(errbuf), NULL);
+        merr_strinfo(err, errbuf, sizeof(errbuf), err_ctx_strerror, NULL);
         eprint("mpool_props_get(%s): %s\n", path, errbuf);
         goto err_exit;
     }

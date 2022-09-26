@@ -3,6 +3,7 @@
  * Copyright (C) 2015-2020 Micron Technology, Inc.  All rights reserved.
  */
 
+#include <hse_util/err_ctx.h>
 #include <hse_util/parse_num.h>
 #include <hse_util/storage.h>
 
@@ -50,9 +51,9 @@ struct test_size {
 
 #define DO_TEST(_func, _t, _i, _j, _fmt, _fmtx)                                          \
     do {                                                                                 \
-        char *           endptr;                                                         \
-        struct merr_info info;                                                           \
-        merr_t           err;                                                            \
+        merr_t err;                                                                      \
+        char *endptr;                                                                    \
+        char buf[256];                                                                   \
                                                                                          \
         printf(                                                                          \
             "test[%02d.%d]: %s(\"%s\", use_endptr=\"%s\")\n",                            \
@@ -65,6 +66,7 @@ struct test_size {
         result = ~_t->output.result;                                                     \
                                                                                          \
         err = (*_func)(_t->input.str, _t->input.endptr ? &endptr : NULL, 0, 0, &result); \
+        merr_strinfo(err, buf, sizeof(buf), err_ctx_strerror, NULL);                     \
                                                                                          \
         printf(                                                                          \
             "-> "_fmtx                                                                   \
@@ -73,7 +75,7 @@ struct test_size {
             result,                                                                      \
             result,                                                                      \
             _t->input.endptr ? endptr : "n/a",                                           \
-            merr_info(err, &info));                                                      \
+            buf);                                                                        \
                                                                                          \
         ASSERT_EQ(_t->output.status, merr_errno(err));                                   \
         if (EINVAL == merr_errno(err))                                                   \
@@ -87,14 +89,15 @@ struct test_size {
 
 #define DO_TEST_SIZE(_func, _t, _i, _j, _fmt, _fmtx)                          \
     do {                                                                      \
-        struct merr_info info;                                                \
-        merr_t           err;                                                 \
+        merr_t err;                                                           \
+        char buf[256];                                                        \
                                                                               \
         printf("test[%02d.%d]: %s(\"%s\")\n", _i, _j, #_func, _t->input.str); \
                                                                               \
         result = ~_t->output.result;                                          \
                                                                               \
         err = (*_func)(_t->input.str, 0, 0, &result);                         \
+        merr_strinfo(err, buf, sizeof(buf), err_ctx_strerror, NULL);          \
                                                                               \
         printf(                                                               \
             "-> "_fmtx                                                        \
@@ -102,7 +105,7 @@ struct test_size {
             ") %s\n",                                                         \
             result,                                                           \
             result,                                                           \
-            merr_info(err, &info));                                           \
+            buf);                                                             \
                                                                               \
         ASSERT_EQ(_t->output.status, merr_errno(err));                        \
         if (EINVAL == merr_errno(err))                                        \
@@ -359,75 +362,82 @@ MTF_DEFINE_UTEST(parse_num_basic, test_parse_size_range)
 
 MTF_DEFINE_UTEST(parse_num_basic, test_parse_u8)
 {
-    struct merr_info info;
-    const char *     input;
-    merr_t           err;
-    u8               val;
+    merr_t err;
+    uint8_t val;
+    char buf[256];
+    const char *input;
 
     printf("\nparse_u8:\n");
 
     input = "255";
     val = 0;
     err = parse_u8(input, &val);
-    printf("parse_u8(\"%s\") -> 0x%02x (%u) %s\n", input, val, val, merr_info(err, &info));
+    merr_strinfo(err, buf, sizeof(buf), err_ctx_strerror, NULL);
+    printf("parse_u8(\"%s\") -> 0x%02x (%u) %s\n", input, val, val, buf);
     ASSERT_EQ(HSE_SUCCESS, err);
     ASSERT_EQ(255, val);
 
     input = "256";
     val = 0;
     err = parse_u8(input, &val);
-    printf("parse_u8(\"%s\") -> 0x%02x (%u) %s\n", input, val, val, merr_info(err, &info));
+    merr_strinfo(err, buf, sizeof(buf), err_ctx_strerror, NULL);
+    printf("parse_u8(\"%s\") -> 0x%02x (%u) %s\n", input, val, val, buf);
     ASSERT_EQ(ERANGE, merr_errno(err));
 
     input = "100:";
     val = 0;
     err = parse_u8("100:", &val);
-    printf("parse_u8(\"%s\") -> 0x%02x (%u) %s\n", input, val, val, merr_info(err, &info));
+    merr_strinfo(err, buf, sizeof(buf), err_ctx_strerror, NULL);
+    printf("parse_u8(\"%s\") -> 0x%02x (%u) %s\n", input, val, val, buf);
     ASSERT_EQ(EINVAL, merr_errno(err));
 }
 
 MTF_DEFINE_UTEST(parse_num_basic, test_parse_s8)
 {
-    struct merr_info info;
-    const char *     input;
-    merr_t           err;
-    s8               val;
+    merr_t err;
+    int8_t val;
+    char buf[256];
+    const char *input;
 
     printf("\nparse_s8:\n");
 
     input = "127";
     val = 0;
     err = parse_s8(input, &val);
-    printf("parse_s8(\"%s\") -> 0x%02x (%d) %s\n", input, val, val, merr_info(err, &info));
+    merr_strinfo(err, buf, sizeof(buf), err_ctx_strerror, NULL);
+    printf("parse_s8(\"%s\") -> 0x%02x (%d) %s\n", input, val, val, buf);
     ASSERT_EQ(HSE_SUCCESS, err);
     ASSERT_EQ(127, val);
 
     input = "-128";
     val = 0;
     err = parse_s8(input, &val);
-    printf("parse_s8(\"%s\") -> 0x%02x (%d) %s\n", input, val, val, merr_info(err, &info));
+    merr_strinfo(err, buf, sizeof(buf), err_ctx_strerror, NULL);
+    printf("parse_s8(\"%s\") -> 0x%02x (%d) %s\n", input, val, val, buf);
     ASSERT_EQ(HSE_SUCCESS, err);
     ASSERT_EQ(-128, val);
 
     input = "128";
     val = 0;
     err = parse_s8(input, &val);
-    printf("parse_s8(\"%s\") -> 0x%02x (%d) %s\n", input, val, val, merr_info(err, &info));
+    merr_strinfo(err, buf, sizeof(buf), err_ctx_strerror, NULL);
+    printf("parse_s8(\"%s\") -> 0x%02x (%d) %s\n", input, val, val, buf);
     ASSERT_EQ(ERANGE, merr_errno(err));
 
     input = "100:";
     val = 0;
     err = parse_s8(input, &val);
-    printf("parse_s8(\"%s\") -> 0x%02x (%d) %s\n", input, val, val, merr_info(err, &info));
+    merr_strinfo(err, buf, sizeof(buf), err_ctx_strerror, NULL);
+    printf("parse_s8(\"%s\") -> 0x%02x (%d) %s\n", input, val, val, buf);
     ASSERT_EQ(EINVAL, merr_errno(err));
 }
 
 MTF_DEFINE_UTEST(parse_num_basic, test_parse_uint)
 {
-    struct merr_info info;
-    const char *     input;
-    unsigned         val;
-    merr_t           err;
+    merr_t err;
+    unsigned val;
+    char buf[256];
+    const char *input;
 
     printf("\nparse_uint:\n");
 
@@ -437,14 +447,16 @@ MTF_DEFINE_UTEST(parse_num_basic, test_parse_uint)
     input = "0xffffffff";
     val = 0;
     err = parse_uint(input, &val);
-    printf("parse_uint(\"%s\") -> 0x%x (%u) %s\n", input, val, val, merr_info(err, &info));
+    merr_strinfo(err, buf, sizeof(buf), err_ctx_strerror, NULL);
+    printf("parse_uint(\"%s\") -> 0x%x (%u) %s\n", input, val, val, buf);
     ASSERT_EQ(HSE_SUCCESS, err);
     ASSERT_EQ(UINT_MAX, val);
 
     input = "4294967295";
     val = 0;
     err = parse_uint(input, &val);
-    printf("parse_uint(\"%s\") -> 0x%x (%u) %s\n", input, val, val, merr_info(err, &info));
+    merr_strinfo(err, buf, sizeof(buf), err_ctx_strerror, NULL);
+    printf("parse_uint(\"%s\") -> 0x%x (%u) %s\n", input, val, val, buf);
     ASSERT_EQ(HSE_SUCCESS, err);
     ASSERT_EQ(UINT_MAX, val);
 
@@ -452,7 +464,8 @@ MTF_DEFINE_UTEST(parse_num_basic, test_parse_uint)
     input = "0x100000000";
     val = 0;
     err = parse_uint(input, &val);
-    printf("parse_uint(\"%s\") -> 0x%x (%u) %s\n", input, val, val, merr_info(err, &info));
+    merr_strinfo(err, buf, sizeof(buf), err_ctx_strerror, NULL);
+    printf("parse_uint(\"%s\") -> 0x%x (%u) %s\n", input, val, val, buf);
     ASSERT_EQ(ERANGE, merr_errno(err));
     ASSERT_EQ(0, val);
 
@@ -460,23 +473,25 @@ MTF_DEFINE_UTEST(parse_num_basic, test_parse_uint)
     input = "4294967296";
     val = 0;
     err = parse_uint(input, &val);
-    printf("parse_uint(\"%s\") -> 0x%x (%u) %s\n", input, val, val, merr_info(err, &info));
+    merr_strinfo(err, buf, sizeof(buf), err_ctx_strerror, NULL);
+    printf("parse_uint(\"%s\") -> 0x%x (%u) %s\n", input, val, val, buf);
     ASSERT_EQ(ERANGE, merr_errno(err));
     ASSERT_EQ(0, val);
 
     input = "100:";
     val = 0;
     err = parse_uint("100:", &val);
-    printf("parse_uint(\"%s\") -> 0x%02x (%u) %s\n", input, val, val, merr_info(err, &info));
+    merr_strinfo(err, buf, sizeof(buf), err_ctx_strerror, NULL);
+    printf("parse_uint(\"%s\") -> 0x%02x (%u) %s\n", input, val, val, buf);
     ASSERT_EQ(EINVAL, merr_errno(err));
 }
 
 MTF_DEFINE_UTEST(parse_num_basic, test_parse_int)
 {
-    struct merr_info info;
-    const char *     input;
-    int              val;
-    merr_t           err;
+    int val;
+    merr_t err;
+    char buf[256];
+    const char *input;
 
     printf("\nparse_int:\n");
 
@@ -486,14 +501,16 @@ MTF_DEFINE_UTEST(parse_num_basic, test_parse_int)
     input = "0x7fffffff";
     val = 0;
     err = parse_int(input, &val);
-    printf("parse_int(\"%s\") -> 0x%x (%u) %s\n", input, val, val, merr_info(err, &info));
+    merr_strinfo(err, buf, sizeof(buf), err_ctx_strerror, NULL);
+    printf("parse_int(\"%s\") -> 0x%x (%u) %s\n", input, val, val, buf);
     ASSERT_EQ(HSE_SUCCESS, err);
     ASSERT_EQ(INT_MAX, val);
 
     input = "2147483647";
     val = 0;
     err = parse_int(input, &val);
-    printf("parse_int(\"%s\") -> 0x%x (%u) %s\n", input, val, val, merr_info(err, &info));
+    merr_strinfo(err, buf, sizeof(buf), err_ctx_strerror, NULL);
+    printf("parse_int(\"%s\") -> 0x%x (%u) %s\n", input, val, val, buf);
     ASSERT_EQ(HSE_SUCCESS, err);
     ASSERT_EQ(INT_MAX, val);
 
@@ -501,7 +518,8 @@ MTF_DEFINE_UTEST(parse_num_basic, test_parse_int)
     input = "0x80000000";
     val = 0;
     err = parse_int(input, &val);
-    printf("parse_int(\"%s\") -> 0x%x (%u) %s\n", input, val, val, merr_info(err, &info));
+    merr_strinfo(err, buf, sizeof(buf), err_ctx_strerror, NULL);
+    printf("parse_int(\"%s\") -> 0x%x (%u) %s\n", input, val, val, buf);
     ASSERT_EQ(ERANGE, merr_errno(err));
     ASSERT_EQ(0, val);
 
@@ -509,7 +527,8 @@ MTF_DEFINE_UTEST(parse_num_basic, test_parse_int)
     input = "2147483648";
     val = 0;
     err = parse_int(input, &val);
-    printf("parse_int(\"%s\") -> 0x%x (%u) %s\n", input, val, val, merr_info(err, &info));
+    merr_strinfo(err, buf, sizeof(buf), err_ctx_strerror, NULL);
+    printf("parse_int(\"%s\") -> 0x%x (%u) %s\n", input, val, val, buf);
     ASSERT_EQ(ERANGE, merr_errno(err));
     ASSERT_EQ(0, val);
 
@@ -520,21 +539,24 @@ MTF_DEFINE_UTEST(parse_num_basic, test_parse_int)
     input = "-0x80000000";
     val = 0;
     err = parse_int(input, &val);
-    printf("parse_int(\"%s\") -> 0x%x (%u) %s\n", input, val, val, merr_info(err, &info));
+    merr_strinfo(err, buf, sizeof(buf), err_ctx_strerror, NULL);
+    printf("parse_int(\"%s\") -> 0x%x (%u) %s\n", input, val, val, buf);
     ASSERT_EQ(HSE_SUCCESS, err);
     ASSERT_EQ(INT_MIN, val);
 
     input = "0x80000000";
     val = 0;
     err = parse_int(input, &val);
-    printf("parse_int(\"%s\") -> 0x%x (%u) %s\n", input, val, val, merr_info(err, &info));
+    merr_strinfo(err, buf, sizeof(buf), err_ctx_strerror, NULL);
+    printf("parse_int(\"%s\") -> 0x%x (%u) %s\n", input, val, val, buf);
     ASSERT_EQ(ERANGE, merr_errno(err));
     ASSERT_EQ(0, val);
 
     input = "-2147483648";
     val = 0;
     err = parse_int(input, &val);
-    printf("parse_int(\"%s\") -> 0x%x (%u) %s\n", input, val, val, merr_info(err, &info));
+    merr_strinfo(err, buf, sizeof(buf), err_ctx_strerror, NULL);
+    printf("parse_int(\"%s\") -> 0x%x (%u) %s\n", input, val, val, buf);
     ASSERT_EQ(HSE_SUCCESS, err);
     ASSERT_EQ(INT_MIN, val);
 
@@ -542,7 +564,8 @@ MTF_DEFINE_UTEST(parse_num_basic, test_parse_int)
     input = "-0x80000001";
     val = 0;
     err = parse_int(input, &val);
-    printf("parse_int(\"%s\") -> 0x%x (%u) %s\n", input, val, val, merr_info(err, &info));
+    merr_strinfo(err, buf, sizeof(buf), err_ctx_strerror, NULL);
+    printf("parse_int(\"%s\") -> 0x%x (%u) %s\n", input, val, val, buf);
     ASSERT_EQ(ERANGE, merr_errno(err));
     ASSERT_EQ(0, val);
 
@@ -550,7 +573,8 @@ MTF_DEFINE_UTEST(parse_num_basic, test_parse_int)
     input = "-2147483649";
     val = 0;
     err = parse_int(input, &val);
-    printf("parse_int(\"%s\") -> 0x%x (%u) %s\n", input, val, val, merr_info(err, &info));
+    merr_strinfo(err, buf, sizeof(buf), err_ctx_strerror, NULL);
+    printf("parse_int(\"%s\") -> 0x%x (%u) %s\n", input, val, val, buf);
     ASSERT_EQ(ERANGE, merr_errno(err));
     ASSERT_EQ(0, val);
 
@@ -558,7 +582,8 @@ MTF_DEFINE_UTEST(parse_num_basic, test_parse_int)
     input = "100:";
     val = 0;
     err = parse_int("100:", &val);
-    printf("parse_int(\"%s\") -> 0x%02x (%u) %s\n", input, val, val, merr_info(err, &info));
+    merr_strinfo(err, buf, sizeof(buf), err_ctx_strerror, NULL);
+    printf("parse_int(\"%s\") -> 0x%02x (%u) %s\n", input, val, val, buf);
     ASSERT_EQ(EINVAL, merr_errno(err));
     ASSERT_EQ(0, val);
 }

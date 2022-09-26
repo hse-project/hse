@@ -863,11 +863,9 @@ cn_open(
     merr_t      err;
     struct cn * cn;
     size_t      sz;
-    uint64_t    mperr;
 
     struct cndb_cn_ctx ctx;
     struct mpool_props mpprops;
-    struct merr_info   ei;
 
     char kbuf[HSE_KVS_KEY_LEN_MAX];
     struct cn_tree_node *tn, *tn_next;
@@ -883,10 +881,10 @@ cn_open(
     assert(health);
     assert(cn_out);
 
-    mperr = mpool_props_get(mp, &mpprops);
-    if (mperr) {
-        log_err("mpool_props_get failed: %s\n", merr_info(mperr, &ei));
-        return merr_errno(mperr);
+    err = mpool_props_get(mp, &mpprops);
+    if (err) {
+        log_errx("Failed to get mpool properties", err);
+        return err;
     }
 
     /* stash rparams behind cn if caller did not provide them */
