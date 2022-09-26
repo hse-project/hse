@@ -64,7 +64,7 @@ extern struct tbkt sp3_tbkt;
  * struct hash_set_part - part of a hash set
  * @part_link: for linking multiple parts into a hash set
  * @n_hashes: number of key hashes stored in this hash set
- * @n_maxused: max number of key hashes ever stored in this hash set
+ * @vlb_mem_used: offset into vlb buffer below which memory was modified
  * @hashvec: array of hash values
  *
  * This struct is used to store a subset of the key hashes used to create
@@ -73,7 +73,7 @@ extern struct tbkt sp3_tbkt;
 struct hash_set_part {
     struct list_head part_link;
     uint32_t         n_hashes;
-    uint32_t         n_maxused;
+    size_t           vlb_mem_used;
     uint64_t         hashvec[];
 };
 
@@ -388,7 +388,7 @@ hash_set_add(struct hash_set *hs, const struct key_obj *kobj)
             return merr(ENOMEM);
 
         hs->curr_part->n_hashes = 0;
-        hs->curr_part->n_maxused = 0;
+        hs->curr_part->vlb_mem_used = sizeof(*hs->curr_part);
         list_add_tail(&hs->curr_part->part_link, &hs->part_list);
     }
 
@@ -408,12 +408,14 @@ void
 hash_set_reset(struct hash_set *hs)
 {
     struct hash_set_part *part;
+    size_t sz;
 
     hs->curr_part = 0;
 
     list_for_each_entry (part, &hs->part_list, part_link) {
-        if (part->n_hashes > part->n_maxused)
-            part->n_maxused = part->n_hashes;
+        sz = sizeof(*part) + sizeof(part->hashvec[0]) * part->n_hashes;
+        if (sz > part->vlb_mem_used)
+            part->vlb_mem_used = sz;
         part->n_hashes = 0;
         if (!hs->curr_part)
             hs->curr_part = part;
@@ -426,7 +428,7 @@ hash_set_free(struct hash_set *hs)
     struct hash_set_part *part, *next;
 
     list_for_each_entry_safe(part, next, &hs->part_list, part_link)
-        vlb_free(part, sizeof(*part) + sizeof(part->hashvec[0]) * part->n_maxused);
+        vlb_free(part, part->vlb_mem_used);
 }
 
 /**
