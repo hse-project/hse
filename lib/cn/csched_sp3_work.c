@@ -493,8 +493,6 @@ sp3_work_joinable(struct cn_tree_node *right, const struct sp3_thresholds *thres
     if (accum * 100 > thresh->lcomp_split_keys * pct)
         return NULL;
 
-    ev_debug(1);
-    //return NULL; // remove before flight
     return left;
 }
 
