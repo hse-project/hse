@@ -476,6 +476,13 @@ cn_subspill(
     err = kvset_builder_get_mblocks(child, &ss->ss_mblks);
 
 out:
+
+    /* The cached ptomb needs to be propagated only if the current node's edge key has the same
+     * prefix as the cached ptomb.
+     */
+    if (sctx->pt_set && key_obj_cmp_prefix(&sctx->pt_kobj, &ekobj) != 0)
+        sctx->pt_set = false;
+
     kvset_builder_destroy(child);
     free(buf);
 
