@@ -42,7 +42,8 @@ struct fake_kvset {
     u32                     kvsets_in_node;
     u32                     nk;
     u32                     nv;
-    u64                     dgen;
+    u64                     dgen_hi;
+    u64                     dgen_lo;
     u64                     vused;
     u64                     workid;
     struct kvset_stats      stats;
@@ -103,7 +104,8 @@ fake_kvset_open(struct fake_kvset **head, u64 dgen)
 
     kvset->nk = 1;
     kvset->nv = 1;
-    kvset->dgen = dgen;
+    kvset->dgen_hi = dgen;
+    kvset->dgen_lo = dgen;
 
     /* add to front of list */
     if (head) {
@@ -150,7 +152,22 @@ fake_kvset_destroy(struct fake_kvset *kvset)
 static u64
 _kvset_get_dgen(const struct kvset *handle)
 {
-    return ((struct fake_kvset *)handle)->dgen;
+    return ((struct fake_kvset *)handle)->dgen_hi;
+}
+
+static u64
+_kvset_get_dgen_lo(const struct kvset *handle)
+{
+    return ((struct fake_kvset *)handle)->dgen_lo;
+}
+
+static bool
+_kvset_younger(const struct kvset *ks1, const struct kvset *ks2)
+{
+    uint64_t hi1 = _kvset_get_dgen(ks1), hi2 = _kvset_get_dgen(ks2);
+
+    return (hi1 > hi2 ||
+            (hi1 == hi2 && _kvset_get_dgen_lo(ks1) >= _kvset_get_dgen_lo(ks2)));
 }
 
 static u64
@@ -372,6 +389,8 @@ test_setup(struct mtf_test_info *lcl_ti)
 
     MOCK_SET(kvset, _kvset_get_workid);
     MOCK_SET(kvset, _kvset_set_workid);
+    MOCK_SET(kvset, _kvset_get_dgen_lo);
+    MOCK_SET(kvset, _kvset_younger);
 
     MOCK_SET(kvset_view, _kvset_get_dgen);
     MOCK_SET(kvset_view, _kvset_get_num_kblocks);
@@ -711,10 +730,10 @@ cn_comp_work_init(
 
         if (!w->cw_mark) {
             w->cw_mark = le;
-            w->cw_dgen_lo = kvset_get_dgen(le->le_kvset);
+            w->cw_dgen_hi_min = kvset_get_dgen(le->le_kvset);
         }
 
-        kvset_set_workid(le->le_kvset, w->cw_dgen_lo);
+        kvset_set_workid(le->le_kvset, w->cw_dgen_hi_min);
 
         w->cw_dgen_hi = kvset_get_dgen(le->le_kvset);
 

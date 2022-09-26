@@ -61,6 +61,7 @@ components = {
                 meson.current_source_dir() / 'cn/merge-test-cases',
             ],
         },
+        'cn_move_test': {},
         'route_test': {},
         'vblock_builder_test': {},
         'vblock_reader_test': {},

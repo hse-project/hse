@@ -72,7 +72,8 @@ struct kvset_kblk {
 struct kvset {
     struct kvset_list_entry ks_entry; /* kvset list linkage */
 
-    u64           ks_dgen; /* relative age of entries */
+    uint64_t      ks_dgen_hi; /* relative age of entries (hi) */
+    uint64_t      ks_dgen_lo; /* relative age of entries (lo) */
     struct mpool *ks_mp;
     u32           ks_pfx_len; /* cn tree pfx_len */
     u32           ks_sfx_len; /* cn tree sfx_len */

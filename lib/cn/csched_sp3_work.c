@@ -743,7 +743,7 @@ sp3_work_wtype_length(
          */
         list_for_each_entry_reverse(le, head, le_link) {
             if (runlen < runlen_min) {
-                uint tmp = kvset_get_compc(le->le_kvset);
+                const uint32_t tmp = kvset_get_compc(le->le_kvset);
 
                 if (compc != tmp || stats->kst_keys > keys_max) {
                     compc = tmp;
@@ -997,13 +997,15 @@ sp3_work(
     assert(mark);
 
     /* mark the kvsets with dgen_lo */
-    w->cw_dgen_lo = kvset_get_dgen(mark->le_kvset);
+    w->cw_dgen_hi_min = kvset_get_dgen(mark->le_kvset);
+    w->cw_dgen_lo = UINT64_MAX;
     le = mark;
     for (i = 0; i < n_kvsets; i++) {
         assert(&le->le_link != &tn->tn_kvset_list);
         assert(kvset_get_workid(le->le_kvset) == 0);
-        kvset_set_workid(le->le_kvset, w->cw_dgen_lo);
+        kvset_set_workid(le->le_kvset, w->cw_dgen_hi_min);
         w->cw_dgen_hi = kvset_get_dgen(le->le_kvset);
+        w->cw_dgen_lo = min_t(uint64_t, w->cw_dgen_lo, kvset_get_dgen_lo(le->le_kvset));
         w->cw_nh++; /* Only ever 1 hblock per kvset */
         w->cw_nk += kvset_get_num_kblocks(le->le_kvset);
         w->cw_nv += kvset_get_num_vblocks(le->le_kvset);
@@ -1047,10 +1049,16 @@ sp3_work(
     if (w->cw_action == CN_ACTION_SPILL) {
         w->cw_sgen = ++tree->ct_sgen;
     } else if (w->cw_action == CN_ACTION_JOIN) {
+        uint64_t workid = 0;
 
-        /* TODO: Should we set the work ID of each kvset in cw_join?
-         */
         w->cw_join = list_prev_entry(tn, tn_link);
+
+        list_for_each_entry_reverse(le, &w->cw_join->tn_kvset_list, le_link) {
+            if (workid == 0)
+                workid = kvset_get_dgen(le->le_kvset);
+
+            kvset_set_workid(le->le_kvset, workid);
+        }
     }
 
     sp3_work_estimate(w);

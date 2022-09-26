@@ -590,8 +590,9 @@ cn_split(struct cn_compaction_work *w)
                 if (drop_ptomb_ks[k] && blks->kblks.n_blks > 0)
                     drop_ptomb_ks[k] = false;
 
+                assert(blks->kblks.n_blks > 0 || blks->vblks.n_blks == 0);
+
                 if (HSE_UNLIKELY(drop_ptomb_ks[k])) {
-                    assert(blks->vblks.n_blks == 0);
                     assert(result->ks[k].blks_commit->n_blks == 1);
 
                     /* Drop contiguous kvsets containing only ptombs, starting from the oldest.
@@ -600,7 +601,8 @@ cn_split(struct cn_compaction_work *w)
                     blk_list_free(result->ks[k].blks_commit);
                 } else {
                     w->cw_kvsetidv[idx] = cndb_kvsetid_mint(cndb);
-                    w->cw_split.dgen[idx] = wargs[i].ks->ks_dgen;
+                    w->cw_split.dgen_hi[idx] = wargs[i].ks->ks_dgen_hi;
+                    w->cw_split.dgen_lo[idx] = wargs[i].ks->ks_dgen_lo;
                     w->cw_split.compc[idx] = wargs[i].ks->ks_compc;
                 }
             }

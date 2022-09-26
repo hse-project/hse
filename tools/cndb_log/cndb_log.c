@@ -137,9 +137,9 @@ cndb_print_record(struct cndb_reader *reader)
 
         cndb_omf_kvset_add_read(reader->buf, &txid, &cnid, &kvsetid, &nodeid, &hblkid,
                                 &kblkc, &kblkv, &vblkc, &vblkv, &km);
-        printf("%-8s txid %lu cnid %lu kvsetid %lu nodeid %lu dgen %lu vused %lu "
+        printf("%-8s txid %lu cnid %lu kvsetid %lu nodeid %lu dgen_hi %lu dgen_lo %lu vused %lu "
                "compc %u hblkid %lu nkblk %u nvblk %u",
-               "txadd", txid, cnid, kvsetid, nodeid, km.km_dgen, km.km_vused,
+               "txadd", txid, cnid, kvsetid, nodeid, km.km_dgen_hi, km.km_dgen_lo, km.km_vused,
                km.km_compc, hblkid, kblkc, vblkc);
 
         for (int i = 0; i < kblkc; i++)
@@ -157,6 +157,21 @@ cndb_print_record(struct cndb_reader *reader)
 
         cndb_omf_kvset_del_read(reader->buf, &txid, &cnid, &kvsetid);
         printf("%-8s txid %lu cnid %lu kvsetid %lu\n", "txdel", txid, cnid, kvsetid);
+
+    } else if (rec_type == CNDB_TYPE_KVSET_MOVE) {
+        uint64_t cnid, src_nodeid, tgt_nodeid;
+        uint32_t kvset_idc;
+        uint64_t *kvset_idv;
+
+        cndb_omf_kvset_move_read(reader->buf, &cnid, &src_nodeid, &tgt_nodeid,
+                                 &kvset_idc, &kvset_idv);
+        printf("%-8s cnid %lu src_nodeid %lu tgt_nodeid %lu nkvsets %u kvsetids",
+               "move", cnid, src_nodeid, tgt_nodeid, kvset_idc);
+
+        for (uint32_t i = 0; i < kvset_idc; i++)
+            printf(" %lu", kvset_idv[i]);
+
+        printf("\n");
 
     } else if (rec_type == CNDB_TYPE_ACK) {
         uint64_t txid, cnid, kvsetid;

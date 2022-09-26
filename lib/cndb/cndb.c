@@ -540,8 +540,8 @@ cndb_record_kvset_add(
 
     if (!cndb->replaying)
         err = cndb_omf_kvset_add_write(cndb->mdc, cndb_txn_txid_get(tx), cnid, kvsetid, nodeid,
-                                       km->km_dgen, km->km_vused, km->km_compc, km->km_rule,
-                                       hblkid, kblkc, kblkv, vblkc, vblkv);
+                                       km->km_dgen_hi, km->km_dgen_lo, km->km_vused, km->km_compc,
+                                       km->km_rule, hblkid, kblkc, kblkv, vblkc, vblkv);
 out:
     mutex_unlock(&cndb->mutex);
 
@@ -576,6 +576,59 @@ cndb_record_kvset_del(
         err = cndb_omf_kvset_del_write(cndb->mdc, cndb_txn_txid_get(tx), cnid, kvsetid);
 
 out:
+    mutex_unlock(&cndb->mutex);
+
+    return err;
+}
+
+merr_t
+cndb_record_kvsetv_move(
+    struct cndb    *cndb,
+    uint64_t        cnid,
+    uint64_t        src_nodeid,
+    uint64_t        tgt_nodeid,
+    uint32_t        kvset_idc,
+    const uint64_t *kvset_idv)
+{
+    merr_t err = 0;
+
+    INVARIANT(cndb && kvset_idc > 0 && kvset_idv);
+
+    mutex_lock(&cndb->mutex);
+    do {
+        struct cndb_cn *cn;
+
+        cn = map_lookup_ptr(cndb->cn_map, cnid);
+        if (!cn) {
+            err = merr(EPROTO);
+            break;
+        }
+
+        for (uint32_t i = 0; i < kvset_idc; i++) {
+            struct cndb_kvset *kvset;
+
+            kvset = map_lookup_ptr(cn->kvset_map, kvset_idv[i]);
+            if (!kvset || kvset->ck_nodeid != src_nodeid) {
+                err = merr(EBUG);
+                break;
+            }
+
+            kvset->ck_nodeid = tgt_nodeid;
+        }
+
+        if (!err && !cndb->replaying) {
+            if (cndb_needs_compaction(cndb)) {
+                err = cndb_compact(cndb);
+                if (err)
+                    break;
+            }
+
+            err = cndb_omf_kvset_move_write(
+                    cndb->mdc, cnid, src_nodeid, tgt_nodeid, kvset_idc, kvset_idv);
+            if (err)
+                break;
+        }
+    } while (0);
     mutex_unlock(&cndb->mutex);
 
     return err;
@@ -745,9 +798,9 @@ compact_incomplete_intents(
         return 0;
 
     err = cndb_omf_kvset_add_write(cndb->mdc, txid, kvset->ck_cnid, kvset->ck_kvsetid,
-                                   kvset->ck_nodeid, kvset->ck_dgen, kvset->ck_vused,
-                                   kvset->ck_compc, kvset->ck_rule, kvset->ck_hblkid,
-                                   kvset->ck_kblkc, kvset->ck_kblkv,
+                                   kvset->ck_nodeid, kvset->ck_dgen_hi, kvset->ck_dgen_lo,
+                                   kvset->ck_vused, kvset->ck_compc, kvset->ck_rule,
+                                   kvset->ck_hblkid, kvset->ck_kblkc, kvset->ck_kblkv,
                                    kvset->ck_vblkc, kvset->ck_vblkv);
 
     return err;
@@ -794,9 +847,9 @@ log_full_rec(
         return err;
 
     err = cndb_omf_kvset_add_write(cndb->mdc, txid, kvset->ck_cnid, kvset->ck_kvsetid,
-                                   kvset->ck_nodeid, kvset->ck_dgen, kvset->ck_vused,
-                                   kvset->ck_compc, kvset->ck_rule, kvset->ck_hblkid,
-                                   kvset->ck_kblkc, kvset->ck_kblkv,
+                                   kvset->ck_nodeid, kvset->ck_dgen_hi, kvset->ck_dgen_lo,
+                                   kvset->ck_vused, kvset->ck_compc, kvset->ck_rule,
+                                   kvset->ck_hblkid, kvset->ck_kblkc, kvset->ck_kblkv,
                                    kvset->ck_vblkc, kvset->ck_vblkv);
     if (ev(err))
         return err;
@@ -1031,6 +1084,16 @@ cndb_read_record(struct cndb *cndb, struct cndb_reader *reader)
         err = cndb_record_kvset_del(cndb, txid2tx(cndb, txid), cnid, kvsetid, NULL);
         ev(err);
 
+    } else if (rec_type == CNDB_TYPE_KVSET_MOVE) {
+        uint64_t cnid, src_nodeid, tgt_nodeid, *kvset_idv;
+        uint32_t kvset_idc;
+
+        cndb_omf_kvset_move_read(
+                reader->recbuf, &cnid, &src_nodeid, &tgt_nodeid, &kvset_idc, &kvset_idv);
+
+        err = cndb_record_kvsetv_move(cndb, cnid, src_nodeid, tgt_nodeid, kvset_idc, kvset_idv);
+        ev(err);
+
     } else if (rec_type == CNDB_TYPE_ACK) {
         uint64_t txid, cnid, kvsetid;
         uint type;
@@ -1240,10 +1303,12 @@ recover_incomplete_txn_cb(
         struct cndb_kvset *delme;
 
         delme = map_remove_ptr(cn->kvset_map, kvset->ck_kvsetid);
-        kvset_mblock_delete(rctx->mp, rctx->mbid_map, delme);
+        if (!isacked) {
+            kvset_mblock_delete(rctx->mp, rctx->mbid_map, delme);
+            err = cndb_omf_ack_write(rctx->mdc, cndb_txn_txid_get(tx), delme->ck_cnid,
+                                     CNDB_ACK_TYPE_DEL, delme->ck_kvsetid);
+        }
 
-        err = cndb_omf_ack_write(rctx->mdc, cndb_txn_txid_get(tx), delme->ck_cnid,
-                                 CNDB_ACK_TYPE_DEL, delme->ck_kvsetid);
         free(delme);
     }
 
@@ -1348,7 +1413,8 @@ cndb_cn_instantiate(struct cndb *cndb, uint64_t cnid, void *ctx, cn_init_callbac
 
     while (map_iter_next_val(&kvset_iter, &kvset)) {
         struct kvset_meta km = {
-            .km_dgen = kvset->ck_dgen,
+            .km_dgen_hi = kvset->ck_dgen_hi,
+            .km_dgen_lo = kvset->ck_dgen_lo,
             .km_compc = kvset->ck_compc,
             .km_rule = kvset->ck_rule,
             .km_vused = kvset->ck_vused,
@@ -1378,6 +1444,25 @@ cndb_cn_instantiate(struct cndb *cndb, uint64_t cnid, void *ctx, cn_init_callbac
         if (ev(err))
             return err;
     }
+
+    return 0;
+}
+
+merr_t
+cndb_kvset_delete(struct cndb *cndb, uint64_t cnid, uint64_t kvsetid)
+{
+    struct cndb_kvset *kvset;
+    struct cndb_cn *cn;
+
+    cn = map_lookup_ptr(cndb->cn_map, cnid);
+    if (!cn)
+        return merr(EPROTO);
+
+    kvset = map_remove_ptr(cn->kvset_map, kvsetid);
+    if (!kvset)
+        return merr(EBUG);
+
+    free(kvset);
 
     return 0;
 }

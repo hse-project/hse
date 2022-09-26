@@ -74,7 +74,8 @@ init_kvset_meta(u64 dgen)
         km_vblocks[i].bk_blkid = mbid++;
 
     km.km_vused = 1000;
-    km.km_dgen = dgen;
+    km.km_dgen_hi = dgen;
+    km.km_dgen_lo = dgen;
 
     return &km;
 }
@@ -289,7 +290,7 @@ sp3_work_mock(
         comptype = "kv_compact";
     }
 
-    w->cw_dgen_lo = kvset_get_dgen(w->cw_mark->le_kvset);
+    w->cw_dgen_hi_min = kvset_get_dgen(w->cw_mark->le_kvset);
     le = w->cw_mark;
     for (i = 0; i < w->cw_kvset_cnt; i++) {
         w->cw_dgen_hi = kvset_get_dgen(le->le_kvset);

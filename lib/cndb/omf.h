@@ -38,10 +38,11 @@ enum cndb_rec_type {
     CNDB_TYPE_KVS_DEL = 5,
     CNDB_TYPE_KVSET_ADD = 6,
     CNDB_TYPE_KVSET_DEL = 7,
-    CNDB_TYPE_ACK = 8,
-    CNDB_TYPE_NAK = 9,
+    CNDB_TYPE_KVSET_MOVE = 8,
+    CNDB_TYPE_ACK = 9,
+    CNDB_TYPE_NAK = 10,
 
-    CNDB_TYPE_CNT = 9,
+    CNDB_TYPE_CNT = 10,
 };
 
 /**
@@ -52,6 +53,15 @@ struct cndb_oid_omf {
 } HSE_PACKED;
 
 OMF_SETGET(struct cndb_oid_omf, cndb_oid, 64);
+
+/**
+ * struct cndb_kvsetid_omf - Used to write kvset IDs.
+ */
+struct cndb_kvsetid_omf {
+    uint64_t cndb_kvsetid;
+} HSE_PACKED;
+
+OMF_SETGET(struct cndb_kvsetid_omf, cndb_kvsetid, 64);
 
 
 /**
@@ -158,7 +168,8 @@ struct cndb_kvset_add_omf {
     uint64_t            kvset_add_txid;
     uint64_t            kvset_add_kvsetid;
     uint64_t            kvset_add_nodeid;
-    uint64_t            kvset_add_dgen;
+    uint64_t            kvset_add_dgen_hi;
+    uint64_t            kvset_add_dgen_lo;
     uint64_t            kvset_add_vused;
     uint32_t            kvset_add_compc;
     uint16_t            kvset_add_rule;
@@ -172,7 +183,8 @@ OMF_SETGET(struct cndb_kvset_add_omf, kvset_add_cnid, 64);
 OMF_SETGET(struct cndb_kvset_add_omf, kvset_add_txid, 64);
 OMF_SETGET(struct cndb_kvset_add_omf, kvset_add_kvsetid, 64);
 OMF_SETGET(struct cndb_kvset_add_omf, kvset_add_nodeid, 64);
-OMF_SETGET(struct cndb_kvset_add_omf, kvset_add_dgen, 64);
+OMF_SETGET(struct cndb_kvset_add_omf, kvset_add_dgen_hi, 64);
+OMF_SETGET(struct cndb_kvset_add_omf, kvset_add_dgen_lo, 64);
 OMF_SETGET(struct cndb_kvset_add_omf, kvset_add_vused, 64);
 OMF_SETGET(struct cndb_kvset_add_omf, kvset_add_compc, 32);
 OMF_SETGET(struct cndb_kvset_add_omf, kvset_add_rule, 16);
@@ -209,6 +221,26 @@ OMF_SETGET(struct cndb_kvset_del_omf, kvset_del_txid, 64);
 OMF_SETGET(struct cndb_kvset_del_omf, kvset_del_cnid, 64);
 OMF_SETGET(struct cndb_kvset_del_omf, kvset_del_kvsetid, 64);
 
+/**
+ * struct cndb_kvset_move_omf
+ *
+ * A KVSET_MOVE record persists the intent to move one or more kvsets from
+ * a source node to a target node
+ */
+struct cndb_kvset_move_omf {
+    struct cndb_hdr_omf hdr;
+    uint64_t            kvset_move_cnid;
+    uint64_t            kvset_move_src_nodeid;
+    uint64_t            kvset_move_tgt_nodeid;
+    uint32_t            kvset_move_pad;
+    uint32_t            kvset_move_kvset_idc;
+    uint64_t            kvset_move_kvset_idv[];
+} HSE_PACKED;
+
+OMF_SETGET(struct cndb_kvset_move_omf, kvset_move_cnid, 64);
+OMF_SETGET(struct cndb_kvset_move_omf, kvset_move_src_nodeid, 64);
+OMF_SETGET(struct cndb_kvset_move_omf, kvset_move_tgt_nodeid, 64);
+OMF_SETGET(struct cndb_kvset_move_omf, kvset_move_kvset_idc, 32);
 
 enum {
     CNDB_ACK_TYPE_ADD = 1, /* Ack kvset create records */
@@ -294,7 +326,8 @@ cndb_omf_kvset_add_write(
     uint64_t          cnid,
     uint64_t          kvsetid,
     uint64_t          nodeid,
-    uint64_t          dgen,
+    uint64_t          dgen_hi,
+    uint64_t          dgen_lo,
     uint64_t          vused,
     uint32_t          compc,
     uint16_t          rule,
@@ -310,6 +343,15 @@ cndb_omf_kvset_del_write(
     uint64_t          txid,
     uint64_t          cnid,
     uint64_t          kvsetid);
+
+merr_t
+cndb_omf_kvset_move_write(
+    struct mpool_mdc *mdc,
+    uint64_t          cnid,
+    uint64_t          src_nodeid,
+    uint64_t          tgt_nodeid,
+    uint32_t          kvset_idc,
+    const uint64_t   *kvset_idv);
 
 merr_t
 cndb_omf_ack_write(
@@ -352,6 +394,15 @@ void
 cndb_omf_kvs_del_read(
     struct cndb_kvs_del_omf *omf,
     uint64_t                *cnid);
+
+void
+cndb_omf_kvset_move_read(
+    struct cndb_kvset_move_omf *omf,
+    uint64_t                   *cnid,
+    uint64_t                   *src_nodeid,
+    uint64_t                   *tgt_nodeid,
+    uint32_t                   *kvset_idc,
+    uint64_t                  **kvset_idv);
 
 void
 cndb_omf_txstart_read(

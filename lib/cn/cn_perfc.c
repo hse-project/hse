@@ -118,6 +118,7 @@ cn_perfc_alloc(struct cn *cn, uint prio)
     perfc_alloc(cn_perfc_compact, group, "ingest", prio, &cn->cn_pc_ingest);
     perfc_alloc(cn_perfc_compact, group, "spill", prio, &cn->cn_pc_spill);
     perfc_alloc(cn_perfc_compact, group, "split", prio, &cn->cn_pc_split);
+    perfc_alloc(cn_perfc_compact, group, "join", prio, &cn->cn_pc_join);
     perfc_alloc(cn_perfc_compact, group, "kcompact", prio, &cn->cn_pc_kcompact);
     perfc_alloc(cn_perfc_compact, group, "kvcompact", prio, &cn->cn_pc_kvcompact);
     perfc_alloc(cn_perfc_shape, group, "rnode", prio, &cn->cn_pc_shape_rnode);
@@ -132,6 +133,7 @@ cn_perfc_free(struct cn *cn)
     perfc_free(&cn->cn_pc_ingest);
     perfc_free(&cn->cn_pc_spill);
     perfc_free(&cn->cn_pc_split);
+    perfc_free(&cn->cn_pc_join);
     perfc_free(&cn->cn_pc_kcompact);
     perfc_free(&cn->cn_pc_kvcompact);
     perfc_free(&cn->cn_pc_shape_rnode);

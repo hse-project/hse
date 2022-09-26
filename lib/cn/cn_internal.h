@@ -45,6 +45,7 @@ struct cn {
     struct perfc_set cn_pc_kcompact;
     struct perfc_set cn_pc_kvcompact;
     struct perfc_set cn_pc_split;
+    struct perfc_set cn_pc_join;
 
     uint             cn_pc_shape_next;
     struct perfc_set cn_pc_shape_rnode;

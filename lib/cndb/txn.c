@@ -130,7 +130,8 @@ cndb_txn_kvset_add(
     kvset->ck_nodeid = nodeid;
     kvset->ck_kvsetid = kvsetid;
     kvset->ck_hblkid = hblkid;
-    kvset->ck_dgen = km->km_dgen;
+    kvset->ck_dgen_hi = km->km_dgen_hi;
+    kvset->ck_dgen_lo = km->km_dgen_lo;
     kvset->ck_vused = km->km_vused;
     kvset->ck_compc = km->km_compc;
     kvset->ck_rule = km->km_rule;

@@ -116,7 +116,8 @@ cndb_omf_kvset_add_write(
     uint64_t          cnid,
     uint64_t          kvsetid,
     uint64_t          nodeid,
-    uint64_t          dgen,
+    uint64_t          dgen_hi,
+    uint64_t          dgen_lo,
     uint64_t          vused,
     uint32_t          compc,
     uint16_t          rule,
@@ -148,7 +149,8 @@ cndb_omf_kvset_add_write(
     omf_set_kvset_add_cnid(omf, cnid);
     omf_set_kvset_add_kvsetid(omf, kvsetid);
     omf_set_kvset_add_nodeid(omf, nodeid);
-    omf_set_kvset_add_dgen(omf, dgen);
+    omf_set_kvset_add_dgen_hi(omf, dgen_hi);
+    omf_set_kvset_add_dgen_lo(omf, dgen_lo);
     omf_set_kvset_add_vused(omf, vused);
     omf_set_kvset_add_compc(omf, compc);
     omf_set_kvset_add_rule(omf, rule);
@@ -187,6 +189,50 @@ cndb_omf_kvset_del_write(
     omf_set_kvset_del_kvsetid(&omf, kvsetid);
 
     return mpool_mdc_append(mdc, &omf, sizeof(omf), true);
+}
+
+merr_t
+cndb_omf_kvset_move_write(
+    struct mpool_mdc *mdc,
+    uint64_t          cnid,
+    uint64_t          src_nodeid,
+    uint64_t          tgt_nodeid,
+    uint32_t          kvset_idc,
+    const uint64_t   *kvset_idv)
+{
+    struct cndb_kvset_move_omf *omf_move;
+    struct cndb_kvsetid_omf *omf_ks_idv;
+    uint8_t buf[sizeof(*omf_move) + 512];
+    size_t sz;
+    merr_t err;
+
+    omf_move = (void *)buf;
+
+    sz = sizeof(*omf_move) + kvset_idc * sizeof(*omf_ks_idv);
+    if (sz > sizeof(buf)) {
+        omf_move = malloc(sz);
+        if (!omf_move)
+            return merr(ENOMEM);
+    }
+
+    omf_ks_idv = (void *)(omf_move + 1);
+
+    cndb_hdr_omf_init(&omf_move->hdr, CNDB_TYPE_KVSET_MOVE, sz);
+
+    omf_set_kvset_move_cnid(omf_move, cnid);
+    omf_set_kvset_move_src_nodeid(omf_move, src_nodeid);
+    omf_set_kvset_move_tgt_nodeid(omf_move, tgt_nodeid);
+    omf_set_kvset_move_kvset_idc(omf_move, kvset_idc);
+
+    for (uint32_t i = 0; i < kvset_idc; i++)
+        omf_set_cndb_kvsetid(&omf_ks_idv[i], kvset_idv[i]);
+
+    err = mpool_mdc_append(mdc, omf_move, sz, true);
+
+    if (sz > sizeof(buf))
+        free(omf_move);
+
+    return err;
 }
 
 merr_t
@@ -314,7 +360,8 @@ cndb_omf_kvset_add_read(
 
     *hblkid = omf_kvset_add_hblkid(omf);
 
-    km->km_dgen = omf_kvset_add_dgen(omf);
+    km->km_dgen_hi = omf_kvset_add_dgen_hi(omf);
+    km->km_dgen_lo = omf_kvset_add_dgen_lo(omf);
     km->km_vused = omf_kvset_add_vused(omf);
     km->km_compc = omf_kvset_add_compc(omf);
     km->km_rule = omf_kvset_add_rule(omf);
@@ -343,6 +390,34 @@ cndb_omf_kvset_del_read(
     *txid = omf_kvset_del_txid(omf);
     *cnid = omf_kvset_del_cnid(omf);
     *kvsetid = omf_kvset_del_kvsetid(omf);
+}
+
+/* This function modifies the input buffer (omf).
+ */
+void
+cndb_omf_kvset_move_read(
+    struct cndb_kvset_move_omf *omf,
+    uint64_t                   *cnid,
+    uint64_t                   *src_nodeid,
+    uint64_t                   *tgt_nodeid,
+    uint32_t                   *kvset_idc,
+    uint64_t                  **kvset_idv)
+{
+    struct cndb_kvsetid_omf *omf_ks_idv;
+    uint64_t *idv;
+
+    *cnid = omf_kvset_move_cnid(omf);
+    *src_nodeid = omf_kvset_move_src_nodeid(omf);
+    *tgt_nodeid = omf_kvset_move_tgt_nodeid(omf);
+    *kvset_idc = omf_kvset_move_kvset_idc(omf);
+
+    omf_ks_idv = (void *)(omf + 1);
+    idv = (void *)(omf + 1); /* Reuse input buffer */
+
+    for (uint32_t i = 0; i < *kvset_idc; i++)
+        idv[i] = omf_cndb_kvsetid(&omf_ks_idv[i]);
+
+    *kvset_idv = idv;
 }
 
 void

@@ -222,7 +222,7 @@ cn_get_perfc(struct cn *cn, enum cn_action action)
         return &cn->cn_pc_split;
 
     case CN_ACTION_JOIN:
-        return &cn->cn_pc_split;
+        return &cn->cn_pc_join;
     }
 
     return NULL;
@@ -522,7 +522,8 @@ cn_ingest_prep(
     km.km_hblk = mblocks->hblk;
     km.km_kblk_list = mblocks->kblks;
     km.km_vblk_list = mblocks->vblks;
-    km.km_dgen = dgen;
+    km.km_dgen_hi = dgen;
+    km.km_dgen_lo = dgen;
     km.km_nodeid = 0; /* Root node has a node id of 0 */
 
     km.km_vused = mblocks->bl_vused;
@@ -686,7 +687,7 @@ cn_ingestv(
 
         if (log_ingest) {
             kvset_stats_add(kvset_statsp(kvsetv[i]), &kst);
-            dgen = kvsetv[i]->ks_dgen;
+            dgen = kvsetv[i]->ks_dgen_hi;
         }
 
         cn_tree_ingest_update(
@@ -840,8 +841,8 @@ cndb_cn_callback(void *arg, struct kvset_meta *km, u64 kvsetid)
         return err;
     }
 
-    if (ctx->max_dgen < km->km_dgen)
-        ctx->max_dgen = km->km_dgen;
+    if (ctx->max_dgen < km->km_dgen_hi)
+        ctx->max_dgen = km->km_dgen_hi;
 
     return 0;
 }
@@ -958,9 +959,23 @@ cn_open(
     cn_tree_foreach_leaf_safe(tn, tn_next, cn->cn_tree) {
         cn_tree_node_get_max_key(tn, kbuf, sizeof(kbuf), &klen);
 
-        /* TODO: Handle a ptomb-only node (NFSE-5351)
-         */
         if (klen == 0) {
+            struct kvset_list_entry *le, *tmp;
+
+            list_for_each_entry_safe(le, tmp, &tn->tn_kvset_list, le_link) {
+                struct kvset *ks = le->le_kvset;
+
+                err = cndb_kvset_delete(cndb, cnid, kvset_get_id(ks));
+                if (err)
+                    goto err_exit;
+
+                assert(kvset_get_num_kblocks(ks) == 0);
+                assert(kvset_get_num_vblocks(ks) == 0);
+
+                kvset_mark_mblocks_for_delete(ks, false);
+                kvset_put_ref(ks);
+            }
+
             list_del_init(&tn->tn_link);
             cn->cn_tree->ct_fanout--;
             continue;

@@ -18,6 +18,8 @@ struct kvs_cparams;
 #include <stdatomic.h>
 #include <rbtree.h>
 
+/* MTF_MOCK_DECL(route) */
+
 /**
  * struct route_node - tracks an edge key in the routing table
  * @rtn_node:     rb tree linkage
@@ -58,6 +60,7 @@ route_map_insert(
 struct route_node *
 route_map_insert_by_node(struct route_map *map, struct route_node *node);
 
+/* MTF_MOCK */
 void
 route_map_delete(struct route_map *map, struct route_node *node);
 
@@ -142,5 +145,9 @@ route_node_keycmp(const struct route_node *node, const void *key, uint klen)
 {
     return keycmp(node->rtn_keybufp, node->rtn_keylen, key, klen);
 }
+
+#if HSE_MOCKING
+#include "route_ut.h"
+#endif /* HSE_MOCKING */
 
 #endif /* HSE_ROUTE_H */

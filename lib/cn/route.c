@@ -3,6 +3,8 @@
  * Copyright (C) 2022 Micron Technology, Inc.  All rights reserved.
  */
 
+#define MTF_MOCK_IMPL_route
+
 #include <hse_ikvdb/kvs_cparams.h>
 
 #include <hse_util/platform.h>
@@ -411,3 +413,7 @@ route_map_destroy(struct route_map *map)
 
     free(map);
 }
+
+#if HSE_MOCKING
+#include "route_ut_impl.i"
+#endif
