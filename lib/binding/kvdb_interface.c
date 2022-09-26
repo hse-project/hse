@@ -103,7 +103,6 @@ hse_init(const char *const config, const size_t paramc, const char *const *const
     ulong memgb;
     merr_t err = 0;
     struct config *conf = NULL;
-    bool platform_initialized = false;
 
     if (HSE_UNLIKELY(paramc > 0 && !paramv))
         return merr(EINVAL);
@@ -137,8 +136,10 @@ hse_init(const char *const config, const size_t paramc, const char *const *const
     }
 
     err = logging_init(&hse_gparams.gp_logging, err_ctx_strerror);
-    if (err)
-        return err;
+    if (err) {
+        log_errx("Failed to initialize logging", err);
+        goto out;
+    }
 
     /* First log message w/ HSE version - after deserializing global params */
     log_info("version %s, program %s", HSE_VERSION_STRING, hse_progname);
@@ -149,7 +150,6 @@ hse_init(const char *const config, const size_t paramc, const char *const *const
     err = hse_platform_init();
     if (err)
         goto out;
-    platform_initialized = true;
 
     err = ikvdb_init();
     if (err)
@@ -158,20 +158,19 @@ hse_init(const char *const config, const size_t paramc, const char *const *const
     if (hse_gparams.gp_socket.enabled) {
         err = rest_server_start(hse_gparams.gp_socket.path);
         if (ev(err)) {
-            log_warn("Could not start rest server on %s", hse_gparams.gp_socket.path);
+            log_warnx("Failed to start rest server on %s", err, hse_gparams.gp_socket.path);
             err = 0;
         } else {
-            log_info("Rest server started: %s", hse_gparams.gp_socket.path);
+            log_info("Rest server started on %s", hse_gparams.gp_socket.path);
         }
     }
 
-    hse_initialized = true;
-
 out:
     if (err) {
-        if (platform_initialized)
-            hse_platform_fini();
+        hse_platform_fini();
         logging_fini();
+    } else {
+        hse_initialized = true;
     }
 
     mutex_unlock(&hse_lock);
@@ -184,15 +183,14 @@ hse_fini(void)
 {
     mutex_lock(&hse_lock);
 
-    if (!hse_initialized)
-        return;
+    if (hse_initialized) {
+        rest_server_stop();
 
-    rest_server_stop();
-
-    ikvdb_fini();
-    hse_platform_fini();
-    logging_fini();
-    hse_initialized = false;
+        ikvdb_fini();
+        hse_platform_fini();
+        logging_fini();
+        hse_initialized = false;
+    }
 
     mutex_unlock(&hse_lock);
 }
