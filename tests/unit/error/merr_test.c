@@ -139,9 +139,12 @@ MTF_DEFINE_UTEST(hse_err_test, no_buf)
     size_t needed_sz;
 
     err = merr(EINVAL);
-
     merr_strinfo(err, NULL, 0, ctx_strerror, &needed_sz);
     ASSERT_EQ(55, needed_sz);
+
+    err = merr(EBUG);
+    merr_strinfo(err, NULL, 0, ctx_strerror, &needed_sz);
+    ASSERT_EQ(56, needed_sz);
 }
 
 MTF_END_UTEST_COLLECTION(hse_err_test)

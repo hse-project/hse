@@ -1,8 +1,9 @@
 ---
 # https://clang.llvm.org/extra/clang-tidy/checks/list.html
-Checks: <-
+Checks: >
   clang-diagnostic-*,
   clang-analyzer-*,
   -clang-analyzer-valist.Uninitialized,
-  -clang-analyzer-security.insecureAPI.DeprecatedOrUnsafeBufferHandling
+  -clang-analyzer-security.insecureAPI.DeprecatedOrUnsafeBufferHandling,
+  -clang-diagnostic-unused-function
 FormatStyle: none
