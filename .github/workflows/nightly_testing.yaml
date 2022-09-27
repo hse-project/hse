@@ -1,6 +1,12 @@
 name: Nightly Testing
 
 on:
+  pull_request:
+    branches:
+      - master
+      - "v[0-9]+.[0-9]+"
+    paths:
+      - .github/workflows/nightly_testing.yaml
   workflow_dispatch:
     inputs:
       branch:
@@ -18,37 +24,34 @@ env:
   MESON_TESTTHREADS: 1
 
 jobs:
+  determine-tag:
+    runs-on: ubuntu-latest
+    continue-on-error: false
+    outputs:
+      tag: ${{ steps.determine-tag.outputs.tag }}
+
+    steps:
+      - name: Determine tag
+        id: determine-tag
+        run: |
+          if [ "$GITHUB_EVENT_NAME" = "pull_request" ]; then
+            echo "::set-output name=tag::$GITHUB_BASE_REF"
+          else
+            echo "::set-output name=tag::$GITHUB_REF_NAME"
+          fi
+
   nightly_ub:
-    runs-on: ${{ matrix.os }}
+    runs-on: ubuntu-latest
+    needs:
+      - determine-tag
+    container:
+      image: ghcr.io/hse-project/ci-images/ubuntu-20.04:${{ needs.determine-tag.outputs.tag }}
     strategy:
       fail-fast: false
       matrix:
-        os: [ubuntu-latest]
         buildtype: [release, debug]
 
     steps:
-      - name: Freeing up disk space on CI system
-        run: |
-          df -h
-          echo "Removing large packages"
-          sudo apt-get remove -y azure-cli google-cloud-sdk hhvm \
-            google-chrome-stable firefox powershell mono-devel
-          sudo apt-get autoremove -y
-          sudo apt-get clean
-          echo "Removing large directories"
-          # deleting 15GB
-          rm -rf /usr/share/dotnet/
-          df -h
-
-      - name: Initialize
-        run: |
-          sudo apt-get update
-          sudo apt-get install build-essential ninja-build pkg-config \
-            libbsd-dev openjdk-8-jdk libmicrohttpd-dev liburcu-dev libyaml-dev \
-            liblz4-dev libcurl4-openssl-dev libmongoc-1.0-0 libbson-1.0-0 \
-            libssl-dev libsasl2-dev
-          sudo python3 -m pip install meson==0.62.2 Cython
-
       - name: Checkout HSE
         uses: actions/checkout@v3
         with:
@@ -100,7 +103,7 @@ jobs:
         uses: actions/cache@v3
         with:
           path: subprojects/packagecache
-          key: meson-packagecache-${{ matrix.os }}-${{ hashFiles('subprojects/*.wrap') }}
+          key: meson-packagecache-ubuntu-20.04-${{ hashFiles('subprojects/*.wrap') }}
 
       - name: Setup
         run: |
