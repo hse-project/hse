@@ -110,12 +110,10 @@ cn_move(
         route_map_delete(tree->ct_route_map, src_node->tn_route_node);
         src_node->tn_route_node = NULL;
     } else {
-        src_node->tn_cgen++;
         if (src_cnt > 0)
             cn_tree_samp_update_move(w, src_node);
     }
 
-    tgt_node->tn_cgen++;
     if (src_cnt > 0)
         cn_tree_samp_update_move(w, tgt_node);
 

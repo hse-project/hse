@@ -146,13 +146,23 @@ struct cn_tree {
  * @tn_hlog:         hyperloglog structure
  * @tn_ns:           metrics about node to guide node compaction decisions
  * @tn_pfx_spill:    true if spills/scans from this node use the prefix hash
- * @tn_cgen:         incremented each time the node changes
  * @tn_tree:         ptr to tree struct
  */
 struct cn_tree_node {
-    atomic_int           tn_compacting;
+    uint64_t             tn_nodeid;
+    struct cn_tree      *tn_tree;
+    struct route_node   *tn_route_node;
+    struct list_head     tn_link;
+    size_t               tn_split_size;
+
+    struct list_head     tn_kvset_list HSE_L1D_ALIGNED;
+    u64                  tn_update_incr_dgen;
+    struct hlog         *tn_hlog;
+    struct cn_node_stats tn_ns;
+    struct cn_samp_stats tn_samp;
+
+    atomic_int           tn_compacting HSE_L1D_ALIGNED;
     atomic_uint          tn_busycnt;
-    atomic_long          tn_sgen;      /* The last spill gen that was added to the node */
     struct list_head     tn_dnode_linkv[2];
 
     union {
@@ -160,27 +170,14 @@ struct cn_tree_node {
         struct cn_work   tn_destroy_work;
     };
 
-    struct hlog         *tn_hlog HSE_L1D_ALIGNED;
-    struct cn_node_stats tn_ns;
-    struct cn_samp_stats tn_samp;
-    size_t               tn_split_size;
-    u64                  tn_update_incr_dgen;
-
-    uint64_t             tn_nodeid HSE_L1D_ALIGNED;
-    bool                 tn_isroot;
-    uint                 tn_cgen;
-    struct list_head     tn_kvset_list; /* head = newest kvset */
-    struct cn_tree *     tn_tree;
-    struct route_node   *tn_route_node;
-    struct list_head     tn_link;
-
-    /* List of pending subspills and a mutex to serialize its access.
+    /* Subspill synchronization.
      */
-    struct list_head     tn_ss_list;
+    struct list_head     tn_ss_list HSE_L1D_ALIGNED;
     atomic_uint          tn_ss_spilling;
     bool                 tn_ss_splitting;
     int8_t               tn_ss_joining;
     uint8_t              tn_ss_visits;
+    atomic_long          tn_sgen;      /* The last spill gen that was added to the node */
 };
 
 /* Iterate over all tree nodes, starting with the root node.
@@ -211,16 +208,16 @@ struct cn_tree_node {
 void
 cn_node_stats_get(const struct cn_tree_node *tn, struct cn_node_stats *stats);
 
-static inline bool
-cn_node_isleaf(const struct cn_tree_node *tn)
-{
-    return !tn->tn_isroot;
-}
-
-static inline bool
+static HSE_ALWAYS_INLINE bool
 cn_node_isroot(const struct cn_tree_node *tn)
 {
-    return tn->tn_isroot;
+    return (tn->tn_nodeid == 0);
+}
+
+static HSE_ALWAYS_INLINE bool
+cn_node_isleaf(const struct cn_tree_node *tn)
+{
+    return !cn_node_isroot(tn);
 }
 
 enum hse_mclass

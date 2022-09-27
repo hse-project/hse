@@ -69,6 +69,7 @@ static volatile bool exit_puts;
 
 struct opts {
     ulong batch;
+    size_t valsz;
     uint chunk;
     uint cap;
     uint put_threads;
@@ -80,6 +81,7 @@ struct opts {
     bool wide;
 } opts = {
     .batch = ULONG_MAX,
+    .valsz = 1000,
     .chunk = 2000,
     .cap = 10,
     .put_threads = 64,
@@ -230,8 +232,6 @@ del_tombs(void *arg)
     hse_kvdb_txn_free(targ->kvdb, txn);
 }
 
-#define VLEN 1024
-
 void
 txput(void *arg)
 {
@@ -245,12 +245,18 @@ txput(void *arg)
     bool leader = ti->idx == 0;
 
     char key[2 * sizeof(uint64_t)];
-    char val[VLEN] = { 0xfe };
+    char *valbuf;
 
     pthread_setname_np(pthread_self(), __func__);
 
     if (0 == getpriority(PRIO_PROCESS, 0))
         setpriority(PRIO_PROCESS, 0, 1);
+
+    valbuf = malloc(opts.valsz);
+    if (!valbuf)
+        abort();
+
+    memset(valbuf, 0xfe, opts.valsz);
 
     p = (uint64_t *)key;
     s = (uint64_t *)(key + sizeof(*p));
@@ -270,8 +276,7 @@ txput(void *arg)
             fatal(err, "Failed to begin txn");
 
         ti->state = 'p';
-        err = hse_kvs_put(targ->kvs, 0, txn, key, sizeof(key),
-                          val, sizeof(val));
+        err = hse_kvs_put(targ->kvs, 0, txn, key, sizeof(key), valbuf, opts.valsz);
         if (err) {
             if (hse_err_to_errno(err) == ECANCELED) {
                 ti->state = 'a';
@@ -323,6 +328,7 @@ txput(void *arg)
     }
 
     hse_kvdb_txn_free(targ->kvdb, txn);
+    free(valbuf);
 }
 
 void
@@ -556,6 +562,7 @@ usage(void)
         "-d dur     Duration of run (in seconds)\n"
         "-h         Print this help menu\n"
         "-j wtd     Number of writer threads\n"
+        "-l vlen    Specify value length\n"
         "-m pfx     How many most recent prefixes to keep alive\n"
         "-r rtd     Number of reader threads\n"
         "-s sec     Headstart for put threads (in seconds)\n"
@@ -595,7 +602,7 @@ main(int argc, char **argv)
     if (rc)
         fatal(rc, "pg_create");
 
-    while ((c = getopt(argc, argv, ":b:c:d:hj:m:r:s:tvwZ:")) != -1) {
+    while ((c = getopt(argc, argv, ":b:c:d:hj:l:m:r:s:tvwZ:")) != -1) {
         char *errmsg = NULL, *end = NULL;
 
         errno = 0;
@@ -619,6 +626,10 @@ main(int argc, char **argv)
         case 'j':
             opts.put_threads = strtoul(optarg, &end, 0);
             errmsg = "invalid writer thread count";
+            break;
+        case 'l':
+            opts.valsz = strtoul(optarg, &end, 0);
+            errmsg = "invalid value size";
             break;
         case 'm':
             opts.cap = strtoul(optarg, &end, 0);

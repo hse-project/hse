@@ -29,6 +29,7 @@
 #include "cn_tree_compact.h"
 #include "cn_tree_internal.h"
 #include "kvset.h"
+#include "route.h"
 
 struct mpool;
 
@@ -303,11 +304,19 @@ static void
 sp3_dirty_node(struct sp3 *sp, struct cn_tree_node *tn);
 
 static inline bool
-qfull(struct sp3 *sp, uint qnum)
+qfull(const struct sp3 *sp, uint qnum)
 {
-    struct sp3_qinfo *qi = sp->qinfo + qnum;
+    const struct sp3_qinfo *qi = sp->qinfo + qnum;
 
     return qi->qjobs >= qi->qjobs_max;
+}
+
+static inline bool
+qempty(const struct sp3 *sp, uint qnum)
+{
+    const struct sp3_qinfo *qi = sp->qinfo + qnum;
+
+    return qi->qjobs == 0;
 }
 
 static inline uint
@@ -808,7 +817,6 @@ static void
 sp3_node_init(struct sp3 *sp, struct sp3_node *spn)
 {
     spn->spn_initialized = true;
-    spn->spn_cgen = UINT_MAX;
 
     for (uint tx = 0; tx < NELEM(spn->spn_rbe); tx++)
         RB_CLEAR_NODE(&spn->spn_rbe[tx].rbe_node);
@@ -861,13 +869,11 @@ sp3_node_unlink(struct sp3 *sp, struct sp3_node *spn)
 static void
 sp3_node_unlink_all(struct sp3 *sp, struct sp3_node *spn)
 {
-    if (!spn->spn_initialized)
-        return;
+    assert(spn->spn_initialized);
 
     sp3_node_unlink(sp, spn);
     list_del_init(&spn->spn_rlink);
     list_del_init(&spn->spn_alink);
-    spn->spn_initialized = false;
 }
 
 static void
@@ -883,14 +889,7 @@ sp3_dirty_node_locked(struct sp3 *sp, struct cn_tree_node *tn)
     if (!spn->spn_initialized)
         return;
 
-    /* Skip if node hasn't changed since last time we inserted
-     * it into the work trees.
-     */
-    if (spn->spn_cgen == tn->tn_cgen)
-        return;
-
-    spn->spn_cgen = tn->tn_cgen;
-
+    ev_debug(1);
     jobs = atomic_read_acq(&tn->tn_busycnt);
 
     nkvsets_total = cn_ns_kvsets(ns);
@@ -940,18 +939,6 @@ sp3_dirty_node_locked(struct sp3 *sp, struct cn_tree_node *tn)
             garbage = samp_pct_garbage(&tn->tn_samp, 100);
             scatter = cn_tree_node_scatter(tn);
 
-            /* Leaf nodes sorted by number of kvsets.
-             * We use inverse scatter as a secondary discriminant so as to
-             * prefer scatter jobs over kcompactions when scatter is high.
-             */
-            if (nkvsets >= sp->thresh.llen_runlen_min) {
-                weight = (nkvsets << 32) | (UINT32_MAX - scatter);
-
-                sp3_node_insert(sp, spn, wtype_length, weight);
-            } else {
-                sp3_node_remove(sp, spn, wtype_length);
-            }
-
             /* Leaf nodes sorted by vgroup scatter and garbage.
              */
             if (scatter > 0) {
@@ -960,6 +947,23 @@ sp3_dirty_node_locked(struct sp3 *sp, struct cn_tree_node *tn)
                 sp3_node_insert(sp, spn, wtype_scatter, weight);
             } else {
                 sp3_node_remove(sp, spn, wtype_scatter);
+            }
+
+            /* Leaf nodes sorted by number of kvsets.
+             * We use inverse scatter as a secondary discriminant so as to
+             * prefer scatter jobs over kcompactions when scatter is high.
+             */
+            if (nkvsets >= sp->thresh.llen_runlen_min) {
+                weight = (nkvsets << 32) | (UINT32_MAX - scatter);
+
+                if (nkvsets > sp->thresh.llen_runlen_max * 2) {
+                    sp3_node_remove(sp, spn, wtype_scatter);
+                    ev_debug(scatter > 0);
+                }
+
+                sp3_node_insert(sp, spn, wtype_length, weight);
+            } else {
+                sp3_node_remove(sp, spn, wtype_length);
             }
 
             /* Leaf nodes sorted by pct garbage.  We use alen as the secondary
@@ -976,7 +980,6 @@ sp3_dirty_node_locked(struct sp3 *sp, struct cn_tree_node *tn)
                  */
                 sp3_node_unlink(sp, spn);
                 sp3_node_insert(sp, spn, wtype_garbage, weight);
-                ev_debug(1);
             } else if (garbage > 0) {
                 weight = ((uint64_t)garbage << 32) | (cn_ns_alen(ns) >> 20);
 
@@ -997,6 +1000,7 @@ sp3_dirty_node_locked(struct sp3 *sp, struct cn_tree_node *tn)
                     sp3_node_remove(sp, spn, wtype_garbage);
                 sp3_node_remove(sp, spn, wtype_scatter);
                 sp3_node_insert(sp, spn, wtype_split, keys);
+                ev_debug(1);
             } else {
                 sp3_node_remove(sp, spn, wtype_split);
             }
@@ -1261,10 +1265,8 @@ sp3_process_dirtylist(struct sp3 *sp)
             /* Update the neighbor to the right to see if it can join
              * with it's new left neighbor.
              */
-            if (right) {
-                right->tn_cgen++;
+            if (right)
                 sp3_dirty_node_locked(sp, right);
-            }
         }
         rmlock_wunlock(&tree->ct_lock);
 
@@ -1371,6 +1373,7 @@ sp3_prune_trees(struct sp3 *sp)
             struct sp3_node *spn = tn2spn(tn);
 
             if (tn->tn_ss_splitting || tn->tn_ss_joining) {
+                log_info("waiting on %lu, %d", tn->tn_nodeid, tn->tn_ss_joining);
                 busy = true;
                 continue;
             }
@@ -1890,36 +1893,40 @@ static void
 sp3_tree_shape_check(struct sp3 *sp)
 {
     const uint rlen_thresh = 48;
-    const uint ilen_thresh = 20;
     const uint llen_thresh = 20;
     const uint lsiz_thresh = 140;
 
     struct cn_tree_node *rlen_node = 0; /* longest root node */
-    struct cn_tree_node *ilen_node = 0; /* longest internal node */
     struct cn_tree_node *llen_node = 0; /* longest leaf node */
     struct cn_tree_node *lsiz_node = 0; /* largest leaf node */
 
     uint rlen = 0;
-    uint ilen = 0;
     uint llen = 0;
     uint lsiz = 0;
     uint lclen = 0;
     bool log = debug_tree_shape(sp);
     bool bad;
 
-    struct sp3_node *spn;
+    struct cn_tree *tree;
 
-    /* [HSE_REVISIT] This function reads node state and stats without
-     * holding the tree lock, so state determination and reporting
-     * may be inconsistent (e.g., node composition can chance, leaf
-     * nodes can become internal nodes, ...)
-     */
-    list_for_each_entry(spn, &sp->spn_alist, spn_alink) {
-        struct cn_tree_node *tn = spn2tn(spn);
-        uint len = cn_ns_kvsets(&tn->tn_ns);
+    list_for_each_entry(tree, &sp->mon_tlist, ct_sched.sp3t.spt_tlink) {
+        struct cn_tree_node *tn = tree->ct_root;
+        uint8_t ekbuf[HSE_KVS_KEY_LEN_MAX];
+        void *lock;
+        uint len;
 
-        if (cn_node_isleaf(tn)) {
+        rmlock_rlock(&tree->ct_lock, &lock);
+        len = cn_ns_kvsets(&tn->tn_ns);
+
+        if (!rlen_node || len > rlen) {
+            rlen_node = tn;
+            rlen = len;
+        }
+
+        cn_tree_foreach_leaf(tn, tree) {
             uint pcap = tn->tn_ns.ns_pcap;
+
+            len = cn_ns_kvsets(&tn->tn_ns);
 
             if (!llen_node || len > llen) {
                 llen_node = tn;
@@ -1931,27 +1938,69 @@ sp3_tree_shape_check(struct sp3 *sp)
                 lsiz = pcap;
                 lclen = cn_ns_clen(&tn->tn_ns) >> 20;
             }
-        } else if (cn_node_isroot(tn)) {
-            if (!rlen_node || len > rlen) {
-                rlen_node = tn;
-                rlen = len;
-            }
-        } else {
-            if (!ilen_node || len > ilen) {
-                ilen_node = tn;
-                ilen = len;
-            }
         }
+        rmlock_runlock(lock);
+
+        if (len > 0)
+            continue;
+
+        memset(ekbuf, -1, sizeof(ekbuf)); /* initialize max edge key */
+
+        /* The primary node (i.e., the anchor node) of all compaction actions
+         * must always contain at least one kvset, and in order to correctly
+         * synchronize with incremental spill the right node of a join must
+         * also always contain at least one kvset (whereas the left node of
+         * a join may be empty).
+         *
+         * Hence, if the rightmost node in the tree is empty we cannot remove
+         * it via the existing compaction apparatus.  So instead we look for
+         * for and remove all rightmost empty nodes periodically here at the
+         * end of each tree's shape check.
+         */
+        rmlock_wlock(&tree->ct_lock);
+        tn = list_last_entry_or_null(&tree->ct_nodes, typeof(*tn), tn_link);
+
+        while (tn && cn_ns_kvsets(&tn->tn_ns) == 0 && tree->ct_fanout > 1) {
+            struct cn_tree_node *left = list_prev_entry(tn, tn_link);
+
+            /* We can only remove the rightmost node if neither it nor
+             * its left neighbor are undergoing a spill (required to
+             * correctly coordinate with incremental spill).
+             */
+            mutex_lock(&tree->ct_ss_lock);
+            if (tn->tn_ss_spilling || left->tn_ss_spilling) {
+                tn = NULL;
+            } else {
+                struct route_map *map = tree->ct_route_map;
+                merr_t err;
+
+                err = route_node_key_modify(map, left->tn_route_node, ekbuf, sizeof(ekbuf));
+                if (ev(err)) {
+                    tn = NULL;
+                } else {
+                    route_map_delete(map, tn->tn_route_node);
+                    tn->tn_route_node = NULL;
+
+                    list_del(&tn->tn_link);
+                    tree->ct_fanout--;
+                    cn_node_free(tn);
+
+                    tn = left;
+                }
+            }
+            mutex_unlock(&tree->ct_ss_lock);
+        }
+        rmlock_wunlock(&tree->ct_lock);
     }
 
-    bad = rlen > rlen_thresh || ilen > ilen_thresh || llen > llen_thresh || lsiz > lsiz_thresh;
+    bad = rlen > rlen_thresh || llen > llen_thresh || lsiz > lsiz_thresh;
 
     if (sp->tree_shape_bad != bad) {
 
-        log_info("tree shape changed from %s (samp %.3f rlen %u ilen %u llen %u lsize %um)",
+        log_info("tree shape changed from %s (samp %.3f rlen %u llen %u lsize %um)",
                  bad ? "good to bad" : "bad to good",
                  scale2dbl(sp->samp_curr),
-                 rlen, ilen, llen, lclen);
+                 rlen, llen, lclen);
 
         sp->tree_shape_bad = bad;
         log = true; /* log details below */
@@ -2180,10 +2229,10 @@ sp3_schedule(struct sp3 *sp)
             break;
 
         case wtype_garbage:
-            if (jclock_ns < sp->check_garbage_ns)
+            qnum = SP3_QNUM_GARBAGE;
+            if (!qempty(sp, qnum) && jclock_ns < sp->check_garbage_ns)
                 break;
 
-            qnum = SP3_QNUM_GARBAGE;
             if (qfull(sp, qnum)) {
                 qnum = SP3_QNUM_SHARED;
                 if (qfull(sp, qnum))
@@ -2217,10 +2266,11 @@ sp3_schedule(struct sp3 *sp)
             break;
 
         case wtype_scatter:
-            if (jclock_ns < sp->check_scatter_ns)
+            qnum = SP3_QNUM_SCATTER;
+
+            if (!qempty(sp, qnum) && jclock_ns < sp->check_scatter_ns)
                 break;
 
-            qnum = SP3_QNUM_SCATTER;
             if (qfull(sp, qnum)) {
                 qnum = SP3_QNUM_SHARED;
                 if (qfull(sp, qnum))
@@ -2315,11 +2365,6 @@ sp3_monitor(struct work_struct *work)
 
     sp3_refresh_settings(sp);
 
-    /* Delay the initial start of big compaction jobs.
-     */
-    sp->check_garbage_ns = jclock_ns + NSEC_PER_SEC * 60;
-    sp->check_scatter_ns = jclock_ns + NSEC_PER_SEC * 30;
-
     while (atomic_read(&sp->running)) {
         uint64_t now = get_time_ns();
         merr_t err;
@@ -2353,22 +2398,7 @@ sp3_monitor(struct work_struct *work)
         err = kvdb_health_check(sp->health, KVDB_HEALTH_FLAG_ALL);
         if (ev(err)) {
             if (sp->sp_healthy) {
-                struct sp3_node *spn, *next;
-
                 log_errx("KVDB %s is in bad health", err, sp->name);
-
-                /* Remove scheduled work from all trees, except for pending
-                 * splits/joins which must be allowed to terminate gracefully.
-                 */
-                list_for_each_entry_safe(spn, next, &sp->spn_alist, spn_alink) {
-                    struct cn_tree_node *tn = spn2tn(spn);
-
-                    if (tn->tn_ss_splitting || tn->tn_ss_joining)
-                        continue;
-
-                    sp3_node_unlink_all(sp, spn);
-                }
-
                 sp->sp_healthy = false;
             }
         }

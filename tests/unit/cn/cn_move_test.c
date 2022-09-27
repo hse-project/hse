@@ -36,7 +36,6 @@ init_node(struct cn_tree_node *tn, uint64_t nodeid)
 {
     INIT_LIST_HEAD(&tn->tn_kvset_list);
     tn->tn_nodeid = nodeid;
-    tn->tn_cgen = 0;
     tn->tn_route_node = (void *)0x1234;
 }
 
@@ -97,16 +96,12 @@ MTF_DEFINE_UTEST_PRE(move_test, empty_to_empty, pre)
     err = cn_move(&w, &sn, NULL, 0, true, &tn);
     ASSERT_EQ(0, err);
     ASSERT_EQ(NULL, sn.tn_route_node);
-    ASSERT_EQ(0, sn.tn_cgen);
-    ASSERT_EQ(1, tn.tn_cgen);
 
     init_node(&sn, ++nodeid);
     init_node(&tn, ++nodeid);
     err = cn_move(&w, &sn, NULL, 0, false, &tn);
     ASSERT_EQ(0, err);
     ASSERT_NE(NULL, sn.tn_route_node);
-    ASSERT_EQ(1, sn.tn_cgen);
-    ASSERT_EQ(1, tn.tn_cgen);
 
     rmlock_destroy(&tree.ct_lock);
 }

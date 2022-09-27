@@ -36,7 +36,6 @@ struct sp3_node {
     struct list_head spn_rlink;
     struct list_head spn_alink;
     bool             spn_initialized;
-    uint             spn_cgen;
 };
 
 /* Each sp3_tree maintains a list of dirty nodes (spt_dnode_listv).
