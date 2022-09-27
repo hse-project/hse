@@ -3,6 +3,7 @@
  * Copyright (C) 2015-2022 Micron Technology, Inc.  All rights reserved.
  */
 
+#include <stdbool.h>
 #include <sys/mman.h>
 
 #include <hse_util/platform.h>
@@ -16,6 +17,8 @@
 
 #define VLB_NODES_MAX       (4) /* max numa nodes */
 #define VLB_BPN_MAX         (4) /* max per-cpu buckets per node */
+
+static bool vlb_initialized = false;
 
 struct vlb_cache {
     spinlock_t  lock HSE_ACP_ALIGNED;
@@ -125,10 +128,13 @@ vlb_free(void *mem, size_t used)
 merr_t
 vlb_init(void)
 {
-    int i;
+    if (vlb_initialized)
+        return 0;
 
-    for (i = 0; i < NELEM(vlbcv); ++i)
+    for (size_t i = 0; i < NELEM(vlbcv); ++i)
         spin_lock_init(&vlbcv[i].lock);
+
+    vlb_initialized = true;
 
     return 0;
 }
@@ -137,9 +143,11 @@ void
 vlb_fini(void)
 {
     void *head;
-    int i;
 
-    for (i = 0; i < NELEM(vlbcv); ++i) {
+    if (!vlb_initialized)
+        return;
+
+    for (size_t i = 0; i < NELEM(vlbcv); ++i) {
         struct vlb_cache *vlbc = vlbcv + i;
 
         spin_lock(&vlbc->lock);
@@ -156,4 +164,6 @@ vlb_fini(void)
             munmap(mem, VLB_ALLOCSZ_MAX);
         }
     }
+
+    vlb_initialized = false;
 }
