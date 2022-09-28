@@ -221,19 +221,18 @@ perform_profile_run(
 {
     struct storage_profile_work *work_specs;
     struct storage_prof_stat stats;
-    struct itimerval timer = {0};
     struct statfs sbuf;
-    const uint32_t samples_per_thread = (file_sz / block_sz);
-    int      i, j, rc = 0;
-    bool     tmpfs;
+    double tmp, var_sum, mean, sigma;
     uint64_t sum, tot_samples;
-    double   tmp, var_sum;
-    double   mean;
-    double   sigma;
+    const uint32_t samples_per_thread = (file_sz / block_sz);
+    int i, j, rc = 0;
+    bool tmpfs;
     sigset_t blockset, origset;
 
     sigemptyset(&blockset);
     sigaddset(&blockset, SIGALRM);
+    sigaddset(&blockset, SIGINT);
+    sigaddset(&blockset, SIGTERM);
     pthread_sigmask(SIG_BLOCK, &blockset, &origset);
 
     work_specs = calloc(thread_cnt, sizeof(struct storage_profile_work));
@@ -265,13 +264,6 @@ perform_profile_run(
         }
     }
 
-    timer.it_value.tv_sec = test_time_secs;
-    rc = setitimer(ITIMER_REAL, &timer, NULL);
-    if (rc) {
-        rc = errno;
-        goto err_exit;
-    }
-
     /* launch the threads */
     for (i = 0; i < thread_cnt; ++i) {
         rc = pthread_create(&work_specs[i].tid, NULL, profile_worker, &work_specs[i]);
@@ -285,8 +277,7 @@ perform_profile_run(
         }
     }
 
-    pthread_sigmask(SIG_BLOCK, &origset, NULL);
-    sighandler_install(SIGALRM, sigalrm_handler);
+    pthread_sigmask(SIG_SETMASK, &origset, NULL);
 
     /* wait for IO to complete or timeout */
     for (i = 0; i < thread_cnt; ++i)
@@ -414,16 +405,15 @@ int
 hse_storage_profile(const char *path, bool quiet, bool verbose)
 {
     struct storage_info info = {0};
-    int                i, rc;
-    int                thread_counts[] = { 16, 20, 24, 32, 40, 48 };
-    const int          num_thread_counts = sizeof(thread_counts) / sizeof(thread_counts[0]);
-    double             scores[num_thread_counts];
-    double             avg_score;
-    int                cnt_score;
-    uint64_t           max_thrds = thread_counts[num_thread_counts - 1];
-    uint64_t           max_space_needed;
-    const char        *result = "heavy";
-    char               pathbuf[PATH_MAX];
+    struct itimerval timer = {0};
+    const int thread_counts[] = { 16, 20, 24, 32, 40, 48 };
+    const int num_thread_counts = sizeof(thread_counts) / sizeof(thread_counts[0]);
+    double scores[num_thread_counts], avg_score;
+    uint64_t max_thrds = thread_counts[num_thread_counts - 1];
+    uint64_t max_space_needed;
+    int i, rc, cnt_score;
+    const char *result = "heavy";
+    char pathbuf[PATH_MAX];
 
     snprintf(pathbuf, sizeof(pathbuf), "%s/%s", path, PROF_TMP_DIR);
     path = pathbuf;
@@ -439,6 +429,7 @@ hse_storage_profile(const char *path, bool quiet, bool verbose)
     sighandler_install(SIGINT, sigint_handler);
     sighandler_install(SIGTERM, sigint_handler);
     sighandler_install(SIGHUP, sigint_handler);
+    sighandler_install(SIGALRM, sigalrm_handler);
 
     rc = get_storage_info(path, &info);
     if (rc) {
@@ -465,6 +456,13 @@ hse_storage_profile(const char *path, bool quiet, bool verbose)
 
     for (i = 0; i < num_thread_counts; i++)
         scores[i] = NAN;
+
+    timer.it_value.tv_sec = test_time_secs;
+    rc = setitimer(ITIMER_REAL, &timer, NULL);
+    if (rc) {
+        fprintf(stderr, "Profiling failed, unable to arm internal timer: %s\n", strerror(rc));
+        goto err_exit;
+    }
 
     if (!quiet)
         printf("Profiling in progress, will complete in 60 seconds...\n");
