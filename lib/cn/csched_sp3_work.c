@@ -120,8 +120,6 @@ sp3_work_estimate(struct cn_compaction_work *w)
 
     if (src_is_leaf)
         w->cw_est.cwe_samp.l_alen -= consume;
-    else
-        w->cw_est.cwe_samp.i_alen -= consume;
 
     if (dst_is_leaf) {
         /* Optimistic assumption: spilling to leaf creates no garbage.
@@ -130,8 +128,6 @@ sp3_work_estimate(struct cn_compaction_work *w)
          */
         w->cw_est.cwe_samp.l_alen += produce;
         w->cw_est.cwe_samp.l_good += produce;
-    } else {
-        w->cw_est.cwe_samp.i_alen += produce;
     }
 }
 

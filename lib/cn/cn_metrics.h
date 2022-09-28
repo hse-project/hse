@@ -290,7 +290,6 @@ cn_merge_stats_diff(
 struct cn_samp_stats {
     int64_t r_alen; //<! allocated length of root node
     int64_t r_wlen; //<! written length of root node
-    int64_t i_alen; //<! allocated length of internal nodes
     int64_t l_alen; //<! allocated length of leaf nodes
     int64_t l_good; //<! estimated "alen" of leaf nodes if each one were fully compacted
 };
@@ -303,7 +302,6 @@ cn_samp_diff(
 {
     out->r_alen = new->r_alen - old->r_alen;
     out->r_wlen = new->r_wlen - old->r_wlen;
-    out->i_alen = new->i_alen - old->i_alen;
     out->l_alen = new->l_alen - old->l_alen;
     out->l_good = new->l_good - old->l_good;
 }

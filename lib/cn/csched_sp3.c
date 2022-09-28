@@ -342,13 +342,13 @@ scale2dbl(u64 samp)
 static inline uint
 samp_est(struct cn_samp_stats *s, uint scale)
 {
-    return scale * safe_div(s->i_alen + s->l_alen, s->i_alen + s->l_good);
+    return scale * safe_div(s->l_alen, s->l_good);
 }
 
 static inline uint
 samp_pct_leaves(struct cn_samp_stats *s, uint scale)
 {
-    return scale * safe_div(s->l_alen, s->i_alen + s->l_alen);
+    return scale * safe_div(s->l_alen, s->l_alen);
 }
 
 static inline uint
@@ -383,7 +383,6 @@ sp3_tree_is_managed(struct cn_tree *tree)
 static void
 sp3_samp_target(struct sp3 *sp, struct cn_samp_stats *ss)
 {
-    ss->i_alen = sp->samp.i_alen + sp->samp_wip.i_alen;
     ss->l_alen = sp->samp.l_alen + sp->samp_wip.l_alen;
     ss->l_good = sp->samp.l_good + sp->samp_wip.l_good;
 }
@@ -1108,11 +1107,9 @@ sp3_process_workitem(struct sp3 *sp, struct cn_compaction_work *w)
 
     sp->samp.r_alen += diff.r_alen;
     sp->samp.r_wlen += diff.r_wlen;
-    sp->samp.i_alen += diff.i_alen;
     sp->samp.l_alen += diff.l_alen;
     sp->samp.l_good += diff.l_good;
 
-    sp->samp_wip.i_alen -= w->cw_est.cwe_samp.i_alen;
     sp->samp_wip.l_alen -= w->cw_est.cwe_samp.l_alen;
     sp->samp_wip.l_good -= w->cw_est.cwe_samp.l_good;
 
@@ -1157,7 +1154,6 @@ sp3_process_ingest(struct sp3 *sp)
             atomic_dec(&sp->sp_ingest_count);
 
             atomic_sub(&spt->spt_ingest_alen, alen);
-            sp->samp.i_alen += alen;
             sp->samp.r_alen += alen;
 
             atomic_sub(&spt->spt_ingest_wlen, wlen);
@@ -1333,7 +1329,6 @@ sp3_process_new_trees(struct sp3 *sp)
 
         sp->samp.r_alen += tree->ct_samp.r_alen;
         sp->samp.r_wlen += tree->ct_samp.r_wlen;
-        sp->samp.i_alen += tree->ct_samp.i_alen;
         sp->samp.l_alen += tree->ct_samp.l_alen;
         sp->samp.l_good += tree->ct_samp.l_good;
 
@@ -1390,8 +1385,6 @@ sp3_prune_trees(struct sp3 *sp)
 
         list_del_init(&spt->spt_tlink);
 
-        if (sp->samp.i_alen >= tree->ct_samp.i_alen)
-            sp->samp.i_alen -= tree->ct_samp.i_alen;
         if (sp->samp.r_alen >= tree->ct_samp.r_alen)
             sp->samp.r_alen -= tree->ct_samp.r_alen;
         if (sp->samp.r_wlen >= tree->ct_samp.r_wlen)
@@ -1622,12 +1615,12 @@ sp3_job_print(struct sts_job *job, void *priv, char *buf, size_t bufsz)
                      "%3s %5s %*s %7s %-7s"
                      " %2s %1s %5s %6s %6s %4s"
                      " %4s %5s %3s %3s %4s"
-                     " %6s %6s %6s %6s"
+                     " %6s %6s %6s"
                      " %8s %4s %s\n",
                      "ID", "NODE", jps->jobwidth, "JOB", "ACTION", "RULE",
                      "Q", "T", "KVSET", "ALEN", "CLEN", "PCAP",
                      "CC", "DGEN", "NH", "NK", "NV",
-                     "RALEN", "IALEN", "LALEN", "LGOOD",
+                     "RALEN", "LALEN", "LGOOD",
                      "WMESG", "TIME", "TNAME");
 
         if (n < 1 || n >= bufsz)
@@ -1645,7 +1638,7 @@ sp3_job_print(struct sts_job *job, void *priv, char *buf, size_t bufsz)
                  "%3lu %5lu %*u %7s %-7s"
                  " %2u %1u %2u,%-2u %6lu %6lu %4u"
                  " %4u %5lu %3u %3u %4u"
-                 " %6ld %6ld %6ld %6ld"
+                 " %6ld %6ld %6ld"
                  " %8.8s %4s %s\n",
                  w->cw_tree->cnid,
                  w->cw_node->tn_nodeid,
@@ -1661,7 +1654,6 @@ sp3_job_print(struct sts_job *job, void *priv, char *buf, size_t bufsz)
                  w->cw_dgen_hi_min,
                  w->cw_nh, w->cw_nk, w->cw_nv,
                  w->cw_est.cwe_samp.r_alen >> 20,
-                 w->cw_est.cwe_samp.i_alen >> 20,
                  w->cw_est.cwe_samp.l_alen >> 20,
                  w->cw_est.cwe_samp.l_good >> 20,
                  sts_job_wmesg_get(&w->cw_job),
@@ -1733,7 +1725,6 @@ sp3_submit(struct sp3 *sp, struct cn_compaction_work *w, uint qnum)
     w->cw_debug = csched_rp_dbg_comp(sp->rp);
     w->cw_qnum = qnum;
 
-    sp->samp_wip.i_alen += w->cw_est.cwe_samp.i_alen;
     sp->samp_wip.l_alen += w->cw_est.cwe_samp.l_alen;
     sp->samp_wip.l_good += w->cw_est.cwe_samp.l_good;
 
@@ -1839,9 +1830,9 @@ sp3_rb_dump(struct sp3 *sp, uint tx, uint count_max)
         spn = (void *)(rbe - tx);
         tn = spn2tn(spn);
 
-        log_info("cn_rbt rbt=%u item=%u weight=%lx cnid=%lu nodeid=%lu len=%u ialen_b=%ld "
+        log_info("cn_rbt rbt=%u item=%u weight=%lx cnid=%lu nodeid=%lu len=%u "
             "lalen_b=%ld lgood_b=%ld lgarb_b=%ld", tx, count, rbe->rbe_weight,
-            tn->tn_tree->cnid, tn->tn_nodeid, cn_ns_kvsets(&tn->tn_ns), tn->tn_samp.i_alen,
+            tn->tn_tree->cnid, tn->tn_nodeid, cn_ns_kvsets(&tn->tn_ns),
             tn->tn_samp.l_alen, tn->tn_samp.l_good, tn->tn_samp.l_alen - tn->tn_samp.l_good);
 
         if (count++ == count_max)

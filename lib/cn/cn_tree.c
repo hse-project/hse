@@ -455,11 +455,9 @@ tn_samp_update_finish(struct cn_tree_node *tn)
     tn->tn_samp.r_wlen = 0;
 
     if (cn_node_isleaf(tn)) {
-        tn->tn_samp.i_alen = 0;
         tn->tn_samp.l_alen = cn_ns_alen(s);
         tn->tn_samp.l_good = cn_ns_clen(s);
     } else {
-        tn->tn_samp.i_alen = cn_ns_alen(s);
         tn->tn_samp.l_alen = 0;
         tn->tn_samp.l_good = 0;
 
@@ -489,7 +487,6 @@ cn_tree_samp_update_compact(struct cn_tree *tree, struct cn_tree_node *tn)
 
     tree->ct_samp.r_alen += tn->tn_samp.r_alen - orig.r_alen;
     tree->ct_samp.r_wlen += tn->tn_samp.r_wlen - orig.r_wlen;
-    tree->ct_samp.i_alen += tn->tn_samp.i_alen - orig.i_alen;
     tree->ct_samp.l_alen += tn->tn_samp.l_alen - orig.l_alen;
     tree->ct_samp.l_good += tn->tn_samp.l_good - orig.l_good;
 }
@@ -517,7 +514,6 @@ cn_tree_samp_update_ingest(struct cn_tree *tree, struct cn_tree_node *tn)
 
     tree->ct_samp.r_alen += tn->tn_samp.r_alen - orig.r_alen;
     tree->ct_samp.r_wlen += tn->tn_samp.r_wlen - orig.r_wlen;
-    tree->ct_samp.i_alen += tn->tn_samp.i_alen - orig.i_alen;
     tree->ct_samp.l_alen += tn->tn_samp.l_alen - orig.l_alen;
     tree->ct_samp.l_good += tn->tn_samp.l_good - orig.l_good;
 }
@@ -2350,7 +2346,6 @@ cn_tree_ingest_update(struct cn_tree *tree, struct kvset *kvset, void *ptomb, ui
     cn_tree_samp_update_ingest(tree, tree->ct_root);
     cn_tree_samp(tree, &post);
 
-    assert(post.i_alen >= pre.i_alen);
     assert(post.r_wlen >= pre.r_wlen);
     assert(post.l_alen == pre.l_alen);
     assert(post.l_good == pre.l_good);
