@@ -113,8 +113,8 @@ jobs:
 
       - name: Test
         run: |
-          meson test -C builddir --suite=nightly-small --print-errorlogs \
-            --no-stdsplit
+          meson test -C builddir --suite=nightly-small --suite=hse-java \
+            --suite=hse-python --print-errorlogs --no-stdsplit
 
       - uses: actions/upload-artifact@v3
         if: failure()
