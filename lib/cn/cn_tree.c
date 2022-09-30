@@ -1978,6 +1978,9 @@ cn_kvset_can_zspill(struct kvset *ks, struct route_map *map)
     uint16_t maxklen, maxptklen, minklen;
     struct route_node *minnode;
 
+    maxklen = minklen = maxptklen = 0;
+    maxptkey = NULL;
+
     kvset_minkey(ks, &minkey, &minklen);
     kvset_maxkey(ks, &maxkey, &maxklen);
     kvset_max_ptkey(ks, &maxptkey, &maxptklen);
