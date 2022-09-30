@@ -1951,24 +1951,10 @@ cn_subspill_apply(struct subspill *ss)
         return 0;
 
     if (ss->ss_is_zspill) {
-        struct kvset_list_entry *le;
-
         err = cn_move(w, w->cw_node, ss->ss_zspill.zsp_src_list,
                       w->cw_kvset_cnt, delete_node, ss->ss_node);
 
         w->cw_output_nodev = &outnode;
-
-        if (err) {
-            uint i = 0;
-
-            list_for_each_entry(le, &w->cw_node->tn_kvset_list, le_link) {
-                assert(kvset_get_workid(le->le_kvset) != 0);
-                kvset_set_workid(le->le_kvset, 0);
-
-                if (++i >= w->cw_kvset_cnt)
-                    break;
-            }
-        }
 
     } else {
         err = cn_subspill_commit(ss);
@@ -1990,13 +1976,24 @@ cn_kvset_can_zspill(struct kvset *ks, struct route_map *map)
     unsigned char maxkbuf[HSE_KVS_KEY_LEN_MAX];
     const void *maxkey, *maxptkey, *minkey;
     uint16_t maxklen, maxptklen, minklen;
-
     struct route_node *minnode;
 
     kvset_minkey(ks, &minkey, &minklen);
     kvset_maxkey(ks, &maxkey, &maxklen);
     kvset_max_ptkey(ks, &maxptkey, &maxptklen);
 
+
+    /* There are 3 possiblities regarding the max key of the kvset.
+     *  1. maxkey = maxptkey
+     *  2. maxkey > maxptkey && pfx(maxkey) == maxptkey
+     *  3. maxkey > maxptkey && pfx(maxkey) > maxptkey
+     *
+     * In cases 1 and 2, in addition to checking that the min and max key both map to the same
+     * child node, we should also ensure that the ptomb will not need to be propagated to any other
+     * children.
+     *
+     * This is done by padding the maxptkey with 0xff and using that as the max key of the kvset.
+     */
     if (maxptkey && keycmp_prefix(maxptkey, maxptklen, maxkey, maxklen) >= 0) {
         maxklen = maxptklen;
 
