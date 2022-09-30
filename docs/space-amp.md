@@ -15,8 +15,9 @@ There are two sources of space amp: overhead and garbage.
 Overhead space amp includes metadata and fragmentation.  Each storage layer
 has its own overhead, for example:
 
-- HSE overhead: mpool metadata, KVDB write ahead log, CNDB, kvset hblocks,
-  kblock headers, wbtree leaf nodes, key and value metadata.
+- HSE overhead: mpool metadata, KVDB metadata, KVDB write ahead log, CNDB, kvset
+  hblocks, kblock headers, bloom filters, hyperloglog data, wbtree internal
+  nodes, key and value metadata.
 - Filesystem overhead: metadata, fragmentation.
 
 Overhead space amp is determined by HSE's on-media data structures. As a result,
