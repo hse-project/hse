@@ -248,7 +248,10 @@ struct sp3 {
     u64 qos_log_ttl;
 
     /* Tree shape report */
-    bool tree_shape_bad;
+    bool shape_rlen_bad;
+    bool shape_llen_bad;
+    bool shape_lsiz_bad;
+    bool shape_samp_bad;
 
     struct cn_samp_stats samp;
     struct cn_samp_stats samp_wip;
@@ -342,13 +345,13 @@ scale2dbl(u64 samp)
 static inline uint
 samp_est(struct cn_samp_stats *s, uint scale)
 {
-    return scale * safe_div(s->i_alen + s->l_alen, s->i_alen + s->l_good);
+    return scale * safe_div(s->l_alen, s->l_good);
 }
 
 static inline uint
 samp_pct_leaves(struct cn_samp_stats *s, uint scale)
 {
-    return scale * safe_div(s->l_alen, s->i_alen + s->l_alen);
+    return scale * safe_div(s->l_alen, s->r_alen + s->l_alen);
 }
 
 static inline uint
@@ -383,9 +386,8 @@ sp3_tree_is_managed(struct cn_tree *tree)
 static void
 sp3_samp_target(struct sp3 *sp, struct cn_samp_stats *ss)
 {
-    ss->i_alen = sp->samp.i_alen + sp->samp_wip.i_alen;
-    ss->l_alen = sp->samp.l_alen + sp->samp_wip.l_alen;
-    ss->l_good = sp->samp.l_good + sp->samp_wip.l_good;
+    *ss = sp->samp;
+    cn_samp_add(ss, &sp->samp_wip);
 }
 
 static void
@@ -889,7 +891,6 @@ sp3_dirty_node_locked(struct sp3 *sp, struct cn_tree_node *tn)
     if (!spn->spn_initialized)
         return;
 
-    ev_debug(1);
     jobs = atomic_read_acq(&tn->tn_busycnt);
 
     nkvsets_total = cn_ns_kvsets(ns);
@@ -980,12 +981,15 @@ sp3_dirty_node_locked(struct sp3 *sp, struct cn_tree_node *tn)
                  */
                 sp3_node_unlink(sp, spn);
                 sp3_node_insert(sp, spn, wtype_garbage, weight);
+                ev_debug(1);
             } else if (garbage > 0) {
                 weight = ((uint64_t)garbage << 32) | (cn_ns_alen(ns) >> 20);
 
                 sp3_node_insert(sp, spn, wtype_garbage, weight);
+                ev_debug(1);
             } else {
                 sp3_node_remove(sp, spn, wtype_garbage);
+                ev_debug(1);
             }
 
             /* Schedule a split if this node is splittable and there is
@@ -996,8 +1000,10 @@ sp3_dirty_node_locked(struct sp3 *sp, struct cn_tree_node *tn)
             if (sp3_work_splittable(tn, &sp->thresh) && tree->ct_fanout < CN_FANOUT_MAX) {
                 if (keys > (32ul << 20))
                     sp3_node_remove(sp, spn, wtype_length);
-                if (garbage < 100)
+                if (garbage < 100) {
                     sp3_node_remove(sp, spn, wtype_garbage);
+                    ev_debug(1);
+                }
                 sp3_node_remove(sp, spn, wtype_scatter);
                 sp3_node_insert(sp, spn, wtype_split, keys);
                 ev_debug(1);
@@ -1092,7 +1098,6 @@ static void
 sp3_process_workitem(struct sp3 *sp, struct cn_compaction_work *w)
 {
     struct sp3_tree *spt = tree2spt(w->cw_tree);
-    struct cn_samp_stats diff;
 
     assert(spt->spt_job_cnt > 0);
     assert(w->cw_qnum < SP3_QNUM_MAX);
@@ -1104,21 +1109,25 @@ sp3_process_workitem(struct sp3 *sp, struct cn_compaction_work *w)
     sp->qinfo[w->cw_qnum].qjobs--;
     sp->jobs_finished++;
 
-    cn_samp_diff(&diff, &w->cw_samp_post, &w->cw_samp_pre);
+    /* pre and post should be zero on error, except
+     * for committed subspills.
+     */
+    cn_samp_add(&sp->samp, &w->cw_samp_post);
+    cn_samp_sub(&sp->samp, &w->cw_samp_pre);
 
-    sp->samp.r_alen += diff.r_alen;
-    sp->samp.r_wlen += diff.r_wlen;
-    sp->samp.i_alen += diff.i_alen;
-    sp->samp.l_alen += diff.l_alen;
-    sp->samp.l_good += diff.l_good;
-
-    sp->samp_wip.i_alen -= w->cw_est.cwe_samp.i_alen;
-    sp->samp_wip.l_alen -= w->cw_est.cwe_samp.l_alen;
-    sp->samp_wip.l_good -= w->cw_est.cwe_samp.l_good;
+    cn_samp_sub(&sp->samp_wip, &w->cw_est.cwe_samp);
 
     if (w->cw_action == CN_ACTION_SPILL) {
         struct cn_tree *tree = w->cw_tree;
         uint64_t dt;
+
+        /* r_alen is negative to balance the addition made by ingest.
+         * Do not apply on error because while one or more subspills
+         * may have been committed, no kvsets will have been removed
+         * from the root node.
+         */
+        if (!w->cw_err)
+            sp->samp.r_alen += w->cw_est.cwe_samp.r_alen;
 
         dt = (get_time_ns() - w->cw_t0_enqueue) / w->cw_kvset_cnt;
         if (tree->ct_rspill_dt == 0)
@@ -1141,27 +1150,17 @@ sp3_process_ingest(struct sp3 *sp)
 
     list_for_each_entry(tree, &sp->mon_tlist, ct_sched.sp3t.spt_tlink) {
         struct sp3_tree *spt = tree2spt(tree);
-        long alen, wlen;
+        long alen;
 
         if (atomic_read_acq(&sp->sp_ingest_count) == 0)
             break;
 
-        /* [HSE_REVISIT] Given inopportune concurrency with sp3_op_notify_ingest()
-         * there's a small window where alen and wlen could be acquired relatively
-         * inconsistently.  The discrepancy will be reflected in samp until after
-         * the next ingest in which we can acquire a stable view.
-         */
         alen = atomic_read(&spt->spt_ingest_alen);
-        wlen = atomic_read(&spt->spt_ingest_wlen);
         if (alen) {
             atomic_dec(&sp->sp_ingest_count);
 
             atomic_sub(&spt->spt_ingest_alen, alen);
-            sp->samp.i_alen += alen;
             sp->samp.r_alen += alen;
-
-            atomic_sub(&spt->spt_ingest_wlen, wlen);
-            sp->samp.r_wlen += wlen;
 
             sp3_dirty_node(sp, tree->ct_root);
             sp->activity++;
@@ -1331,11 +1330,7 @@ sp3_process_new_trees(struct sp3 *sp)
         }
         rmlock_runlock(lock);
 
-        sp->samp.r_alen += tree->ct_samp.r_alen;
-        sp->samp.r_wlen += tree->ct_samp.r_wlen;
-        sp->samp.i_alen += tree->ct_samp.i_alen;
-        sp->samp.l_alen += tree->ct_samp.l_alen;
-        sp->samp.l_good += tree->ct_samp.l_good;
+        cn_samp_add(&sp->samp, &tree->ct_samp);
 
         /* Move to the monitor's list. */
         list_del(&spt->spt_tlink);
@@ -1390,16 +1385,11 @@ sp3_prune_trees(struct sp3 *sp)
 
         list_del_init(&spt->spt_tlink);
 
-        if (sp->samp.i_alen >= tree->ct_samp.i_alen)
-            sp->samp.i_alen -= tree->ct_samp.i_alen;
-        if (sp->samp.r_alen >= tree->ct_samp.r_alen)
-            sp->samp.r_alen -= tree->ct_samp.r_alen;
-        if (sp->samp.r_wlen >= tree->ct_samp.r_wlen)
-            sp->samp.r_wlen -= tree->ct_samp.r_wlen;
-        if (sp->samp.l_alen >= tree->ct_samp.l_alen)
-            sp->samp.l_alen -= tree->ct_samp.l_alen;
-        if (sp->samp.l_good >= tree->ct_samp.l_good)
-            sp->samp.l_good -= tree->ct_samp.l_good;
+        assert(sp->samp.r_alen >= tree->ct_samp.r_alen);
+        assert(sp->samp.l_alen >= tree->ct_samp.l_alen);
+        assert(sp->samp.l_good >= tree->ct_samp.l_good);
+
+        cn_samp_sub(&sp->samp, &tree->ct_samp);
 
         cn_ref_put(tree->cn);
 
@@ -1622,12 +1612,12 @@ sp3_job_print(struct sts_job *job, void *priv, char *buf, size_t bufsz)
                      "%3s %5s %*s %7s %-7s"
                      " %2s %1s %5s %6s %6s %4s"
                      " %4s %5s %3s %3s %4s"
-                     " %6s %6s %6s %6s"
+                     " %6s %6s %6s"
                      " %8s %4s %s\n",
                      "ID", "NODE", jps->jobwidth, "JOB", "ACTION", "RULE",
                      "Q", "T", "KVSET", "ALEN", "CLEN", "PCAP",
                      "CC", "DGEN", "NH", "NK", "NV",
-                     "RALEN", "IALEN", "LALEN", "LGOOD",
+                     "RALEN", "LALEN", "LGOOD",
                      "WMESG", "TIME", "TNAME");
 
         if (n < 1 || n >= bufsz)
@@ -1645,7 +1635,7 @@ sp3_job_print(struct sts_job *job, void *priv, char *buf, size_t bufsz)
                  "%3lu %5lu %*u %7s %-7s"
                  " %2u %1u %2u,%-2u %6lu %6lu %4u"
                  " %4u %5lu %3u %3u %4u"
-                 " %6ld %6ld %6ld %6ld"
+                 " %6ld %6ld %6ld"
                  " %8.8s %4s %s\n",
                  w->cw_tree->cnid,
                  w->cw_node->tn_nodeid,
@@ -1661,7 +1651,6 @@ sp3_job_print(struct sts_job *job, void *priv, char *buf, size_t bufsz)
                  w->cw_dgen_hi_min,
                  w->cw_nh, w->cw_nk, w->cw_nv,
                  w->cw_est.cwe_samp.r_alen >> 20,
-                 w->cw_est.cwe_samp.i_alen >> 20,
                  w->cw_est.cwe_samp.l_alen >> 20,
                  w->cw_est.cwe_samp.l_good >> 20,
                  sts_job_wmesg_get(&w->cw_job),
@@ -1733,9 +1722,7 @@ sp3_submit(struct sp3 *sp, struct cn_compaction_work *w, uint qnum)
     w->cw_debug = csched_rp_dbg_comp(sp->rp);
     w->cw_qnum = qnum;
 
-    sp->samp_wip.i_alen += w->cw_est.cwe_samp.i_alen;
-    sp->samp_wip.l_alen += w->cw_est.cwe_samp.l_alen;
-    sp->samp_wip.l_good += w->cw_est.cwe_samp.l_good;
+    cn_samp_add(&sp->samp_wip, &w->cw_est.cwe_samp);
 
     spt->spt_job_cnt++;
 
@@ -1839,9 +1826,9 @@ sp3_rb_dump(struct sp3 *sp, uint tx, uint count_max)
         spn = (void *)(rbe - tx);
         tn = spn2tn(spn);
 
-        log_info("cn_rbt rbt=%u item=%u weight=%lx cnid=%lu nodeid=%lu len=%u ialen_b=%ld "
+        log_info("cn_rbt rbt=%u item=%u weight=%lx cnid=%lu nodeid=%lu len=%u "
             "lalen_b=%ld lgood_b=%ld lgarb_b=%ld", tx, count, rbe->rbe_weight,
-            tn->tn_tree->cnid, tn->tn_nodeid, cn_ns_kvsets(&tn->tn_ns), tn->tn_samp.i_alen,
+                 tn->tn_tree->cnid, tn->tn_nodeid, cn_ns_kvsets(&tn->tn_ns),
             tn->tn_samp.l_alen, tn->tn_samp.l_good, tn->tn_samp.l_alen - tn->tn_samp.l_good);
 
         if (count++ == count_max)
@@ -1861,12 +1848,12 @@ sp3_tree_shape_log(const struct cn_tree_node *tn, bool bad, const char *category
     ns = &tn->tn_ns;
     hll_pct = cn_ns_keys(ns) ? ((100 * ns->ns_keys_uniq) / cn_ns_keys(ns)) : 0;
 
-    log_info("type=%s status=%s cnid=%lu nodeid=%lu "
-        "nd_kvsets=%u nd_alen_mb=%lu nd_wlen_mb=%lu "
-        "nd_clen_mb=%lu nd_hll%%=%lu nd_samp=%u",
-        category, bad ? "bad" : "good", tn->tn_tree->cnid, tn->tn_nodeid,
-        cn_ns_kvsets(ns), cn_ns_alen(ns) >> MB_SHIFT, cn_ns_wlen(ns) >> MB_SHIFT,
-        cn_ns_clen(ns) >> MB_SHIFT, hll_pct, cn_ns_samp(ns));
+    log_info("%4s %s cnid=%lu nodeid=%-3lu "
+             "kvsets=%-2u alen=%lum wlen=%lum "
+             "clen=%lum hll%%=%lu samp=%u",
+             bad ? "bad" : "good", category, tn->tn_tree->cnid, tn->tn_nodeid,
+             cn_ns_kvsets(ns), cn_ns_alen(ns) >> MB_SHIFT, cn_ns_wlen(ns) >> MB_SHIFT,
+             cn_ns_clen(ns) >> MB_SHIFT, hll_pct, cn_ns_samp(ns));
 }
 
 /**
@@ -1886,26 +1873,23 @@ sp3_tree_shape_log(const struct cn_tree_node *tn, bool bad, const char *category
  *   means a tree might be flagged as bad and the scheduler won't
  *   purposefully fix it (e.g., there's no rule to directly limit the
  *   length of a leaf node).
- * - Largest internal node is not tracked because the scheduler
- *   doesn't manage internal nodes by size.
  */
 static void
 sp3_tree_shape_check(struct sp3 *sp)
 {
-    const uint rlen_thresh = 48;
-    const uint llen_thresh = 20;
+    const struct cn_tree_node *rlen_node = NULL; /* longest root node */
+    const struct cn_tree_node *llen_node = NULL; /* longest leaf node */
+    const struct cn_tree_node *lsiz_node = NULL; /* largest leaf node */
+
+    const uint rlen_thresh = sp->thresh.rspill_runlen_max * 3;
+    const uint llen_thresh = sp->thresh.lcomp_runlen_max * 3;
     const uint lsiz_thresh = 140;
 
-    struct cn_tree_node *rlen_node = 0; /* longest root node */
-    struct cn_tree_node *llen_node = 0; /* longest leaf node */
-    struct cn_tree_node *lsiz_node = 0; /* largest leaf node */
-
-    uint rlen = 0;
-    uint llen = 0;
-    uint lsiz = 0;
-    uint lclen = 0;
+    uint rlen = sp->shape_rlen_bad ? 0 : rlen_thresh;
+    uint llen = sp->shape_llen_bad ? 0 : llen_thresh;
+    uint lsiz = sp->shape_lsiz_bad ? 0 : lsiz_thresh;
+    bool rlen_bad, llen_bad, lsiz_bad, samp_bad;
     bool log = debug_tree_shape(sp);
-    bool bad;
 
     struct cn_tree *tree;
 
@@ -1918,7 +1902,7 @@ sp3_tree_shape_check(struct sp3 *sp)
         rmlock_rlock(&tree->ct_lock, &lock);
         len = cn_ns_kvsets(&tn->tn_ns);
 
-        if (!rlen_node || len > rlen) {
+        if (len > rlen) {
             rlen_node = tn;
             rlen = len;
         }
@@ -1928,15 +1912,16 @@ sp3_tree_shape_check(struct sp3 *sp)
 
             len = cn_ns_kvsets(&tn->tn_ns);
 
-            if (!llen_node || len > llen) {
+            if (len > llen) {
                 llen_node = tn;
                 llen = len;
             }
 
-            if (!lsiz_node || pcap > lsiz) {
-                lsiz_node = tn;
-                lsiz = pcap;
-                lclen = cn_ns_clen(&tn->tn_ns) >> 20;
+            if (pcap > lsiz) {
+                if (pcap < lsiz_thresh || (pcap >= lsiz_thresh && !tn->tn_ss_splitting)) {
+                    lsiz_node = tn;
+                    lsiz = pcap;
+                }
             }
         }
         rmlock_runlock(lock);
@@ -1993,23 +1978,34 @@ sp3_tree_shape_check(struct sp3 *sp)
         rmlock_wunlock(&tree->ct_lock);
     }
 
-    bad = rlen > rlen_thresh || llen > llen_thresh || lsiz > lsiz_thresh;
+    rlen_bad = rlen > rlen_thresh;
+    llen_bad = llen > llen_thresh;
+    lsiz_bad = lsiz > lsiz_thresh;
 
-    if (sp->tree_shape_bad != bad) {
-
-        log_info("tree shape changed from %s (samp %.3f rlen %u llen %u lsize %um)",
-                 bad ? "good to bad" : "bad to good",
-                 scale2dbl(sp->samp_curr),
-                 rlen, llen, lclen);
-
-        sp->tree_shape_bad = bad;
-        log = true; /* log details below */
+    if (log || sp->shape_rlen_bad != rlen_bad) {
+        sp3_tree_shape_log(rlen_node, rlen_bad, "longest_root");
+        sp->shape_rlen_bad = rlen_bad;
     }
 
-    if (log) {
-        sp3_tree_shape_log(rlen_node, rlen > rlen_thresh, "longest_root");
-        sp3_tree_shape_log(llen_node, llen > llen_thresh, "longest_leaf");
-        sp3_tree_shape_log(lsiz_node, lsiz > lsiz_thresh, "largest_leaf");
+    if (log || sp->shape_llen_bad != llen_bad) {
+        sp3_tree_shape_log(llen_node, llen_bad, "longest_leaf");
+        sp->shape_llen_bad = llen_bad;
+    }
+
+    if (log || sp->shape_lsiz_bad != lsiz_bad) {
+        sp3_tree_shape_log(lsiz_node, lsiz_bad, "largest_leaf");
+        sp->shape_lsiz_bad = lsiz_bad;
+    }
+
+    samp_bad = sp->samp_curr > sp->samp_max;
+
+    if (log || sp->shape_samp_bad != samp_bad || samp_bad) {
+        log_info("current samp %.3lf is %s max %.3lf (targeting %.3lf)",
+                 scale2dbl(sp->samp_curr),
+                 samp_bad ? "above" : "below",
+                 scale2dbl(sp->samp_max),
+                 scale2dbl(sp->samp_targ));
+        sp->shape_samp_bad = samp_bad;
     }
 }
 
@@ -2332,16 +2328,14 @@ sp3_update_samp(struct sp3 *sp)
     if (sp->samp_reduce) {
         if (sp->samp_targ < sp->samp_lwm) {
             sp->samp_reduce = false;
-            log_info("sp3 expected samp %u below lwm %u, disable samp reduction",
-                     sp->samp_targ * 100 / SCALE,
-                     sp->samp_lwm * 100 / SCALE);
+            log_info("expected samp %.3lf is below lwm %.3lf, disable samp reduction",
+                     scale2dbl(sp->samp_targ), scale2dbl(sp->samp_lwm));
         }
     } else {
         if (sp->samp_targ > sp->samp_hwm) {
             sp->samp_reduce = true;
-            log_info("sp3 expected samp %u above hwm %u, enable samp reduction",
-                     sp->samp_targ * 100 / SCALE,
-                     sp->samp_hwm * 100 / SCALE);
+            log_info("expected samp %.3lf is above hwm %.3lf, enable samp reduction",
+                     scale2dbl(sp->samp_targ), scale2dbl(sp->samp_hwm));
         }
     }
 }
@@ -2360,7 +2354,7 @@ sp3_monitor(struct work_struct *work)
     struct periodic_check chk_qos     = { .interval = NSEC_PER_SEC / 3 };
     struct periodic_check chk_sched   = { .interval = NSEC_PER_SEC * 3 };
     struct periodic_check chk_refresh = { .interval = NSEC_PER_SEC * 10 };
-    struct periodic_check chk_shape   = { .interval = NSEC_PER_SEC * 15 };
+    struct periodic_check chk_shape   = { .interval = NSEC_PER_SEC * 20 };
     u64 last_activity = 0;
 
     sp3_refresh_settings(sp);
@@ -2490,7 +2484,7 @@ sp3_compact_status_get(struct csched *handle, struct hse_kvdb_compact_status *st
  * sp3_notify_ingest() - External API: notify ingest job has completed
  */
 void
-sp3_notify_ingest(struct csched *handle, struct cn_tree *tree, size_t alen, size_t wlen)
+sp3_notify_ingest(struct csched *handle, struct cn_tree *tree, size_t alen)
 {
     struct sp3 *sp = (struct sp3 *)handle;
     struct sp3_tree *spt = tree2spt(tree);
@@ -2498,12 +2492,14 @@ sp3_notify_ingest(struct csched *handle, struct cn_tree *tree, size_t alen, size
     if (!sp)
         return;
 
-    if (alen + wlen == 0)
+    if (alen == 0)
         abort();
 
-    atomic_add(&spt->spt_ingest_alen, alen);
-    atomic_add(&spt->spt_ingest_wlen, wlen);
-    atomic_inc_rel(&sp->sp_ingest_count);
+    if (atomic_add_return(&spt->spt_ingest_alen, alen) == 0) {
+        atomic_inc_rel(&sp->sp_ingest_count);
+        ev_debug(1);
+    }
+    ev_debug(1);
     sp->sp_ingest_ns = jclock_ns;
 
     sp3_monitor_wake(sp);
@@ -2581,7 +2577,6 @@ void
 sp3_destroy(struct csched *handle)
 {
     struct sp3 *sp = (struct sp3 *)handle;
-    uint        tx;
 
     if (!sp)
         return;
@@ -2594,8 +2589,12 @@ sp3_destroy(struct csched *handle)
     assert(list_empty(&sp->mon_tlist));
     assert(list_empty(&sp->work_list));
 
-    for (tx = 0; tx < NELEM(sp->rbt); tx++)
+    for (size_t tx = 0; tx < NELEM(sp->rbt); tx++)
         assert(!rb_first(sp->rbt + tx));
+
+    assert(sp->samp.r_alen == 0);
+    assert(sp->samp.l_alen == 0);
+    assert(sp->samp.l_good == 0);
 
     atomic_set(&sp->running, 0);
     sp3_monitor_wake(sp);

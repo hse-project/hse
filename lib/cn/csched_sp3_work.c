@@ -43,27 +43,20 @@ sp3_node_is_idle(struct cn_tree_node *tn)
 static void
 sp3_work_estimate(struct cn_compaction_work *w)
 {
-    u64 keys = 0;
-    u64 halen = 0;
-    u64 kalen = 0;
-    u64 valen = 0;
-
-    bool src_is_leaf;
-    bool dst_is_leaf;
-    s64  consume;
-    s64  produce;
-    uint percent_keep;
-    uint i;
-
     struct kvset_list_entry *le;
+    uint64_t keys, halen, kalen, valen;
+    int64_t consume, produce;
+    bool src_is_leaf, dst_is_leaf;
+    uint percent_keep;
 
+    keys = halen = kalen = valen = 0;
     le = w->cw_mark;
-    for (i = 0; i < w->cw_kvset_cnt; i++) {
 
+    for (uint i = 0; i < w->cw_kvset_cnt; i++) {
         const struct kvset_stats *stats = kvset_statsp(le->le_kvset);
 
         keys += stats->kst_keys;
-        halen += stats->kst_kalen;
+        halen += stats->kst_halen;
         kalen += stats->kst_kalen;
         valen += stats->kst_valen;
 
@@ -118,11 +111,6 @@ sp3_work_estimate(struct cn_compaction_work *w)
     w->cw_est.cwe_read_sz += consume;
     w->cw_est.cwe_write_sz += produce;
 
-    if (src_is_leaf)
-        w->cw_est.cwe_samp.l_alen -= consume;
-    else
-        w->cw_est.cwe_samp.i_alen -= consume;
-
     if (dst_is_leaf) {
         /* Optimistic assumption: spilling to leaf creates no garbage.
          * This prevents spikes in our samp estimate, which in turn
@@ -130,9 +118,12 @@ sp3_work_estimate(struct cn_compaction_work *w)
          */
         w->cw_est.cwe_samp.l_alen += produce;
         w->cw_est.cwe_samp.l_good += produce;
-    } else {
-        w->cw_est.cwe_samp.i_alen += produce;
     }
+
+    if (src_is_leaf)
+        w->cw_est.cwe_samp.l_alen -= consume;
+    else
+        w->cw_est.cwe_samp.r_alen -= consume;
 }
 
 /* Handle root spill
@@ -343,7 +334,6 @@ sp3_work_wtype_idle(
         }
     }
 
-    ev_debug(1);
     return 0;
 }
 

@@ -1,6 +1,6 @@
 /* SPDX-License-Identifier: Apache-2.0 */
 /*
- * Copyright (C) 2015-2020 Micron Technology, Inc.  All rights reserved.
+ * Copyright (C) 2015-2020,2022 Micron Technology, Inc.  All rights reserved.
  */
 
 #ifndef HSE_KVDB_CN_CSCHED_OPS_H
@@ -21,7 +21,7 @@ struct csched_ops {
 
     void (*cs_tree_remove)(struct csched_ops *, struct cn_tree *, bool);
 
-    void (*cs_notify_ingest)(struct csched_ops *, struct cn_tree *, size_t, size_t);
+    void (*cs_notify_ingest)(struct csched_ops *, struct cn_tree *, size_t alen);
 
     void (*cs_throttle_sensor)(struct csched_ops *, struct throttle_sensor *);
 

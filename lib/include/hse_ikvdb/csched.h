@@ -153,7 +153,7 @@ csched_destroy(struct csched *csched);
 
 /* MTF_MOCK */
 void
-csched_notify_ingest(struct csched *handle, struct cn_tree *tree, size_t alen, size_t wlen);
+csched_notify_ingest(struct csched *handle, struct cn_tree *tree, size_t alen);
 
 /* MTF_MOCK */
 void

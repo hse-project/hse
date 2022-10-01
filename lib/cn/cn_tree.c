@@ -451,22 +451,14 @@ tn_samp_update_finish(struct cn_tree_node *tn)
     s->ns_hclen = s->ns_kst.kst_halen;
     s->ns_pcap = min_t(uint16_t, UINT16_MAX, 100 * cn_ns_clen(s) / tn->tn_split_size);
 
-    tn->tn_samp.r_alen = 0;
-    tn->tn_samp.r_wlen = 0;
-
     if (cn_node_isleaf(tn)) {
-        tn->tn_samp.i_alen = 0;
+        tn->tn_samp.r_alen = 0;
         tn->tn_samp.l_alen = cn_ns_alen(s);
         tn->tn_samp.l_good = cn_ns_clen(s);
     } else {
-        tn->tn_samp.i_alen = cn_ns_alen(s);
+        tn->tn_samp.r_alen = cn_ns_alen(s);
         tn->tn_samp.l_alen = 0;
         tn->tn_samp.l_good = 0;
-
-        if (cn_node_isroot(tn)) {
-            tn->tn_samp.r_alen = cn_ns_alen(s);
-            tn->tn_samp.r_wlen = cn_ns_wlen(s);
-        }
     }
 }
 
@@ -474,24 +466,20 @@ tn_samp_update_finish(struct cn_tree_node *tn)
 static void
 cn_tree_samp_update_compact(struct cn_tree *tree, struct cn_tree_node *tn)
 {
-    bool                     need_finish = false;
-    struct cn_samp_stats     orig = tn->tn_samp;
     struct kvset_list_entry *le;
+    bool need_finish = false;
 
+    cn_samp_sub(&tree->ct_samp, &tn->tn_samp);
     tn_samp_clear(tn);
 
-    list_for_each_entry (le, &tn->tn_kvset_list, le_link)
+    list_for_each_entry(le, &tn->tn_kvset_list, le_link)
         if (tn_samp_update_incr(tn, le->le_kvset, true))
             need_finish = true;
 
     if (need_finish)
         tn_samp_update_finish(tn);
 
-    tree->ct_samp.r_alen += tn->tn_samp.r_alen - orig.r_alen;
-    tree->ct_samp.r_wlen += tn->tn_samp.r_wlen - orig.r_wlen;
-    tree->ct_samp.i_alen += tn->tn_samp.i_alen - orig.i_alen;
-    tree->ct_samp.l_alen += tn->tn_samp.l_alen - orig.l_alen;
-    tree->ct_samp.l_good += tn->tn_samp.l_good - orig.l_good;
+    cn_samp_add(&tree->ct_samp, &tn->tn_samp);
 }
 
 /* This function must be serialized with other cn_tree_samp_* functions.
@@ -501,25 +489,18 @@ cn_tree_samp_update_compact(struct cn_tree *tree, struct cn_tree_node *tn)
 static void
 cn_tree_samp_update_ingest(struct cn_tree *tree, struct cn_tree_node *tn)
 {
-    struct cn_samp_stats     orig;
     struct kvset_list_entry *le;
-
-    orig = tn->tn_samp;
 
     le = list_first_entry_or_null(&tn->tn_kvset_list, typeof(*le), le_link);
     if (!le)
         return;
 
-    orig = tn->tn_samp;
+    cn_samp_sub(&tree->ct_samp, &tn->tn_samp);
 
     if (tn_samp_update_incr(tn, le->le_kvset, false))
         tn_samp_update_finish(tn);
 
-    tree->ct_samp.r_alen += tn->tn_samp.r_alen - orig.r_alen;
-    tree->ct_samp.r_wlen += tn->tn_samp.r_wlen - orig.r_wlen;
-    tree->ct_samp.i_alen += tn->tn_samp.i_alen - orig.i_alen;
-    tree->ct_samp.l_alen += tn->tn_samp.l_alen - orig.l_alen;
-    tree->ct_samp.l_good += tn->tn_samp.l_good - orig.l_good;
+    cn_samp_add(&tree->ct_samp, &tn->tn_samp);
 }
 
 void
@@ -527,9 +508,7 @@ cn_tree_samp_update_move(struct cn_compaction_work *w, struct cn_tree_node *tn)
 {
     struct cn_tree *tree = w->cw_tree;
 
-    cn_tree_samp(tree, &w->cw_samp_pre);
     cn_tree_samp_update_compact(tree, tn);
-    cn_tree_samp(tree, &w->cw_samp_post);
 }
 
 /* This function must be serialized with other cn_tree_samp_* functions. */
@@ -1288,10 +1267,9 @@ cn_comp_update_kvcompact(struct cn_compaction_work *work, struct kvset *new_kvse
     }
 
     cn_tree_samp(tree, &work->cw_samp_pre);
-
     cn_tree_samp_update_compact(tree, work->cw_node);
-
     cn_tree_samp(tree, &work->cw_samp_post);
+
     rmlock_wunlock(&tree->ct_lock);
 
     /* Delete retired kvsets. */
@@ -1483,11 +1461,10 @@ cn_comp_update_split(
 
         /* Update samp stats
          */
-        for (int i = 0; i < 2 && w->cw_split.nodev[i]; i++) {
-            cn_tree_samp(tree, &w->cw_samp_pre);
+        cn_tree_samp(tree, &w->cw_samp_pre);
+        for (int i = 0; i < 2 && w->cw_split.nodev[i]; i++)
             cn_tree_samp_update_compact(tree, w->cw_split.nodev[i]);
-            cn_tree_samp(tree, &w->cw_samp_post);
-        }
+        cn_tree_samp(tree, &w->cw_samp_post);
 
         if (w->cw_debug & CW_DEBUG_SPLIT) {
             cn_split_node_stats_dump(w, left, "left");
@@ -1518,6 +1495,7 @@ cn_comp_update_subspill(
     struct kvset              *kvset)
 {
     struct cn_tree *tree = work->cw_tree;
+    struct cn_samp_stats pre, post;
 
     if (work->cw_err)
         return;
@@ -1526,15 +1504,19 @@ cn_comp_update_subspill(
     INVARIANT(kvset);
 
     rmlock_wlock(&tree->ct_lock);
-
-    assert(node);
     kvset_list_add(kvset, &node->tn_kvset_list);
 
-    cn_tree_samp(tree, &work->cw_samp_pre);
+    cn_tree_samp(tree, &pre);
     cn_tree_samp_update_ingest(tree, node);
-    cn_tree_samp(tree, &work->cw_samp_post);
-
+    cn_tree_samp(tree, &post);
     rmlock_wunlock(&tree->ct_lock);
+
+    /* Accumulate each subspill delta so that csched can apply
+     * them to sp->samp in sp3_process_workitem() after the spill
+     * job finishes (regardless of error).
+     */
+    cn_samp_sub(&post, &pre);
+    cn_samp_add(&work->cw_samp_post, &post);
 }
 
 /**
@@ -2350,15 +2332,13 @@ cn_tree_ingest_update(struct cn_tree *tree, struct kvset *kvset, void *ptomb, ui
     cn_tree_samp_update_ingest(tree, tree->ct_root);
     cn_tree_samp(tree, &post);
 
-    assert(post.i_alen >= pre.i_alen);
-    assert(post.r_wlen >= pre.r_wlen);
+    assert(post.r_alen >= pre.r_alen);
     assert(post.l_alen == pre.l_alen);
     assert(post.l_good == pre.l_good);
 
     rmlock_wunlock(&tree->ct_lock);
 
-    csched_notify_ingest(
-        cn_get_sched(tree->cn), tree, post.r_alen - pre.r_alen, post.r_wlen - pre.r_wlen);
+    csched_notify_ingest(cn_get_sched(tree->cn), tree, post.r_alen - pre.r_alen);
 }
 
 void

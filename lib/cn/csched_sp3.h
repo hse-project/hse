@@ -75,7 +75,7 @@ void
 sp3_compact_status_get(struct csched *handle, struct hse_kvdb_compact_status *status);
 
 void
-sp3_notify_ingest(struct csched *handle, struct cn_tree *tree, size_t alen, size_t wlen);
+sp3_notify_ingest(struct csched *handle, struct cn_tree *tree, size_t alen);
 
 void
 sp3_tree_add(struct csched *handle, struct cn_tree *tree);
