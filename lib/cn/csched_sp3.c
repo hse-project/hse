@@ -171,7 +171,6 @@ struct sp3_qinfo {
  * @mon_tlist:    monitored trees
  * @spn_rlist:    list of all nodes ready for rspill
  * @spn_alist:    list of all nodes from all monitored trees
- * @new_tlist_lock: lock for list of new trees
  * @new_tlist:    list of new trees
  * @mon_lock:     mutex used with @mon_cv
  * @mon_signaled: set by sp3_monitor_wake()
@@ -193,17 +192,11 @@ struct sp3 {
     atomic_int               running;
     struct sp3_qinfo         qinfo[SP3_QNUM_MAX];
 
-    struct rb_root rbt[wtype_MAX] HSE_L1D_ALIGNED;
+    struct rb_root rbt[wtype_MAX];
 
-    struct mutex     sp_dlist_lock HSE_L1D_ALIGNED;
-    atomic_uint      sp_dlist_idx;
-    struct list_head sp_dtree_listv[2];
-
-    struct list_head mon_tlist HSE_L1D_ALIGNED;
+    struct list_head mon_tlist;
     struct list_head spn_rlist;
     struct list_head spn_alist;
-    atomic_int       sp_ingest_count;
-    atomic_int       sp_prune_count;
     bool             sp_healthy;
     bool             idle;
     ulong            sp_ingest_ns;
@@ -245,6 +238,10 @@ struct sp3 {
     uint64_t check_scatter_ns;
     u64 qos_log_ttl;
 
+    u64  ucomp_prev_report_ns;
+    bool ucomp_active;
+    bool ucomp_canceled;
+
     /* Tree shape report */
     bool shape_rlen_bad;
     bool shape_llen_bad;
@@ -256,21 +253,22 @@ struct sp3 {
     struct perfc_set     sched_pc;
 
     /* Accessed by monitor and infrequently by open/close threads */
-    struct mutex     new_tlist_lock HSE_L1D_ALIGNED;
-    struct list_head new_tlist;
-
     /* Accessed by monitor, open/close, ingest and jobs threads */
     struct mutex     mon_lock HSE_L1D_ALIGNED;
     bool             mon_signaled;
     struct cv        mon_cv;
 
+    atomic_int       sp_ingest_count;
+    atomic_int       sp_prune_count;
+    struct list_head new_tlist;
+
+    struct mutex     sp_dlist_lock HSE_L1D_ALIGNED;
+    atomic_uint      sp_dlist_idx;
+    struct list_head sp_dtree_listv[2];
+
     /* Accessed monitor and infrequently by job threads */
     struct mutex     work_list_lock HSE_L1D_ALIGNED;
     struct list_head work_list;
-
-    u64  ucomp_prev_report_ns HSE_L1D_ALIGNED;
-    bool ucomp_active;
-    bool ucomp_canceled;
 
     /* The following fields are rarely touched.
      */
@@ -1308,10 +1306,10 @@ sp3_process_new_trees(struct sp3 *sp)
     INIT_LIST_HEAD(&list);
 
     /* Move new trees from shared list to private list */
-    mutex_lock(&sp->new_tlist_lock);
+    mutex_lock(&sp->mon_lock);
     list_splice_tail(&sp->new_tlist, &list);
     INIT_LIST_HEAD(&sp->new_tlist);
-    mutex_unlock(&sp->new_tlist_lock);
+    mutex_unlock(&sp->mon_lock);
 
     list_for_each_entry_safe(tree, tmp, &list, ct_sched.sp3t.spt_tlink) {
         struct sp3_tree *spt = tree2spt(tree);
@@ -2537,9 +2535,9 @@ sp3_tree_add(struct csched *handle, struct cn_tree *tree)
 
     sp3_tree_init(spt);
 
-    mutex_lock(&sp->new_tlist_lock);
+    mutex_lock(&sp->mon_lock);
     list_add(&spt->spt_tlink, &sp->new_tlist);
-    mutex_unlock(&sp->new_tlist_lock);
+    mutex_unlock(&sp->mon_lock);
 
     sp3_monitor_wake(sp);
 }
@@ -2603,7 +2601,6 @@ sp3_destroy(struct csched *handle)
     sts_destroy(sp->sts);
 
     mutex_destroy(&sp->work_list_lock);
-    mutex_destroy(&sp->new_tlist_lock);
     mutex_destroy(&sp->mon_lock);
     mutex_destroy(&sp->sp_dlist_lock);
     cv_destroy(&sp->mon_cv);
@@ -2647,12 +2644,6 @@ sp3_create(
     sp->rp = rp;
     sp->health = health;
 
-    mutex_init(&sp->new_tlist_lock);
-    mutex_init(&sp->work_list_lock);
-
-    mutex_init(&sp->mon_lock);
-    cv_init(&sp->mon_cv);
-
     INIT_LIST_HEAD(&sp->mon_tlist);
     INIT_LIST_HEAD(&sp->new_tlist);
     INIT_LIST_HEAD(&sp->work_list);
@@ -2663,6 +2654,10 @@ sp3_create(
         sp->rbt[tx] = RB_ROOT;
 
     atomic_set(&sp->running, 1);
+
+    mutex_init(&sp->mon_lock);
+    cv_init(&sp->mon_cv);
+    mutex_init(&sp->work_list_lock);
     atomic_set(&sp->sp_ingest_count, 0);
     atomic_set(&sp->sp_prune_count, 0);
 
@@ -2694,10 +2689,9 @@ sp3_create(
 err_exit:
     sts_destroy(sp->sts);
 
-    mutex_destroy(&sp->work_list_lock);
-    mutex_destroy(&sp->new_tlist_lock);
     mutex_destroy(&sp->mon_lock);
     cv_destroy(&sp->mon_cv);
+    mutex_destroy(&sp->work_list_lock);
 
     free(sp);
 
