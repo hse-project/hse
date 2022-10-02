@@ -1511,7 +1511,6 @@ ikvdb_open(
 
     if (!self->ikdb_read_only) {
         err = csched_create(
-            self->ikdb_mp,
             &self->ikdb_rp,
             self->ikdb_alias,
             &self->ikdb_health,

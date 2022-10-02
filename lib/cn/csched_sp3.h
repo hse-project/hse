@@ -56,7 +56,6 @@ struct sp3_tree {
 /* MTF_MOCK */
 merr_t
 sp3_create(
-    struct mpool *       ds,
     struct kvdb_rparams *rp,
     const char *         kvdb_alias,
     struct kvdb_health * health,

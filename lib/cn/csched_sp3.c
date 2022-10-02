@@ -162,7 +162,6 @@ struct sp3_qinfo {
 
 /**
  * struct sp3 - kvdb scheduler policy
- * @ds:           to access mpool qos
  * @rp:           kvb run-time params
  * @sts:          short term scheduler
  * @running:      set to false by sp3_destroy
@@ -186,7 +185,6 @@ struct sp3_qinfo {
  */
 struct sp3 {
     /* Accessed only by monitor thread */
-    struct mpool            *ds;
     struct kvdb_rparams     *rp;
     struct sts              *sts;
     struct sp3_thresholds    thresh;
@@ -2620,7 +2618,6 @@ sp3_destroy(struct csched *handle)
  */
 merr_t
 sp3_create(
-    struct mpool *       ds,
     struct kvdb_rparams *rp,
     const char *         kvdb_alias,
     struct kvdb_health * health,
@@ -2645,7 +2642,6 @@ sp3_create(
         return merr(ENOMEM);
 
     memset(sp, 0, alloc_sz);
-    sp->ds = ds;
     snprintf(sp->name, name_sz, "%s/%s", restname, kvdb_alias);
 
     sp->rp = rp;

@@ -16,7 +16,6 @@
 
 merr_t
 csched_create(
-    struct mpool *       ds,
     struct kvdb_rparams *rp,
     const char *         kvdb_alias,
     struct kvdb_health * health,
@@ -24,7 +23,7 @@ csched_create(
 {
     assert(rp && kvdb_alias && handle);
 
-    return sp3_create(ds, rp, kvdb_alias, health, handle);
+    return sp3_create(rp, kvdb_alias, health, handle);
 }
 
 void
