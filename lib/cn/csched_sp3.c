@@ -164,26 +164,29 @@ struct sp3_qinfo {
  * struct sp3 - kvdb scheduler policy
  * @rp:           kvb run-time params
  * @sts:          short term scheduler
- * @running:      set to false by sp3_destroy
- * @sp_dlist_lock:  dirty-node/dirty-tree list lock
- * @sp_dlist_idx:   the current active dirty-node/dirty-tree list
- * @sp_dtree_listv: vector of lists of dirty trees with dirty nodes
- * @mon_tlist:    monitored trees
+ * @running:      set to false by sp3_destroy()
+ * @mon_tlist:    list of all monitored trees
  * @spn_rlist:    list of all nodes ready for rspill
  * @spn_alist:    list of all nodes from all monitored trees
- * @add_tlist:    list of new trees
- * @mon_lock:     mutex used with @mon_cv
- * @mon_signaled: set by sp3_monitor_wake()
- * @mon_cv:       monitor thread conditional var
  * @samp_reduce:  if true, compact while samp > LWM
  * @check_garbage_ns: used to stagger start of garbage jobs
  * @check_scatter_ns: used to stagger start of scatter jobs
+ * @mon_lock:     mutex used with @mon_cv
+ * @mon_signaled: set via sp3_monitor_wakeup()
+ * @mon_cv:       monitor thread conditional var
+ * @add_tlist:    list of new trees
+ * @sp_dlist_lock:  dirty-node/dirty-tree list lock
+ * @sp_dlist_idx:   the current active dirty-node/dirty-tree list
+ * @sp_dtree_listv: vector of lists of dirty trees with dirty nodes
  * @mon_wq:       monitor thread workqueue
  * @mon_work:     monitor thread work struct
  * @name:         name for logging and data tree
+ *
+ * Note: External threads must never access fields of struct sp3
+ * not explicitly designated (i.e., the two groups of fields so
+ * noted at the end of the struct).
  */
 struct sp3 {
-    /* Accessed only by monitor thread */
     struct kvdb_rparams     *rp;
     struct sts              *sts;
     struct sp3_thresholds    thresh;
@@ -250,25 +253,22 @@ struct sp3 {
 
     struct cn_samp_stats samp;
     struct cn_samp_stats samp_wip;
-    struct perfc_set     sched_pc;
 
-    /* Accessed by monitor and infrequently by open/close threads */
-    /* Accessed by monitor, open/close, ingest and jobs threads */
-    struct mutex     mon_lock HSE_L1D_ALIGNED;
+    /* Accessed by monitor, compaction, and external threads.
+     */
+    struct mutex     mon_lock HSE_ACP_ALIGNED;
     bool             mon_signaled;
+    struct list_head work_list;
+    struct list_head add_tlist;
     struct cv        mon_cv;
 
-    atomic_int       sp_ingest_count;
-    atomic_int       sp_trees_count;
-    struct list_head add_tlist;
-
+    /* Accessed by monitor and compaction threads.
+     */
     struct mutex     sp_dlist_lock HSE_L1D_ALIGNED;
     atomic_uint      sp_dlist_idx;
     struct list_head sp_dtree_listv[2];
-
-    /* Accessed monitor and infrequently by job threads */
-    struct mutex     work_list_lock HSE_L1D_ALIGNED;
-    struct list_head work_list;
+    atomic_int       sp_ingest_count;
+    atomic_int       sp_trees_count;
 
     /* The following fields are rarely touched.
      */
@@ -359,12 +359,17 @@ samp_pct_garbage(struct cn_samp_stats *s, uint scale)
 }
 
 static void
-sp3_monitor_wake(struct sp3 *sp)
+sp3_monitor_wakeup_locked(struct sp3 *sp)
 {
-    /* Signal monitor thread (our cv_signal requres lock to be held). */
-    mutex_lock(&sp->mon_lock);
     sp->mon_signaled = true;
     cv_signal(&sp->mon_cv);
+}
+
+static void
+sp3_monitor_wakeup(struct sp3 *sp)
+{
+    mutex_lock(&sp->mon_lock);
+    sp3_monitor_wakeup_locked(sp);
     mutex_unlock(&sp->mon_lock);
 }
 
@@ -1170,8 +1175,6 @@ sp3_process_dirtylist(struct sp3 *sp)
     struct sp3_tree *spt, *spt_next;
     uint idx;
 
-    ev_debug(1);
-
     /* Swap the active and stable dirty lists so that we can operate
      * on the stable lists without the lock.
      */
@@ -1192,7 +1195,6 @@ sp3_process_dirtylist(struct sp3 *sp)
          * sp3_dirty_node_enqueue() can detect whether or not spt is on the list.
          */
         list_del_init(&spt->spt_dtree_linkv[idx]);
-        ev_debug(1);
 
         INIT_LIST_HEAD(&joined);
         ndirty = 0;
@@ -1272,26 +1274,14 @@ sp3_process_dirtylist(struct sp3 *sp)
         list_for_each_entry_safe(tn, tn_next, &joined, tn_dnode_linkv[idx])
             cn_node_free(tn);
     }
-
-    ev_debug(1);
 }
 
 static void
-sp3_process_worklist(struct sp3 *sp)
+sp3_process_worklist(struct sp3 *sp, struct list_head *listp)
 {
     struct cn_compaction_work *w, *next;
-    struct list_head list;
 
-    INIT_LIST_HEAD(&list);
-
-    /* Move completed work from shared list to private list */
-    mutex_lock(&sp->work_list_lock);
-    list_splice_tail(&sp->work_list, &list);
-    INIT_LIST_HEAD(&sp->work_list);
-    mutex_unlock(&sp->work_list_lock);
-
-    list_for_each_entry_safe(w, next, &list, cw_sched_link) {
-        list_del(&w->cw_sched_link);
+    list_for_each_entry_safe(w, next, listp, cw_sched_link) {
         sp3_process_workitem(sp, w);
         sp->activity++;
     }
@@ -1459,11 +1449,10 @@ sp3_work_complete(struct cn_compaction_work *w)
         sp3_dirty_node_enqueue(sp, w->cw_node);
     }
 
-    mutex_lock(&sp->work_list_lock);
+    mutex_lock(&sp->mon_lock);
     list_add_tail(&w->cw_sched_link, &sp->work_list);
-    mutex_unlock(&sp->work_list_lock);
-
-    sp3_monitor_wake(sp);
+    sp3_monitor_wakeup_locked(sp);
+    mutex_unlock(&sp->mon_lock);
 }
 
 static void
@@ -2364,6 +2353,7 @@ sp3_monitor(struct work_struct *work)
 
     while (atomic_read(&sp->running)) {
         uint64_t now = get_time_ns();
+        struct list_head work_list;
         merr_t err;
 
         mutex_lock(&sp->mon_lock);
@@ -2377,14 +2367,19 @@ sp3_monitor(struct work_struct *work)
             now = get_time_ns();
         }
 
+        /* Move completed work from shared list to private list.
+         */
         begin_stats_work();
+        INIT_LIST_HEAD(&work_list);
+        list_splice_tail(&sp->work_list, &work_list);
+        INIT_LIST_HEAD(&sp->work_list);
         sp->mon_signaled = false;
         mutex_unlock(&sp->mon_lock);
 
         /* If any of the following "process" functions do work they will
          * increment sp->activity to trigger a call (below) to sp3_schedule().
          */
-        sp3_process_worklist(sp);
+        sp3_process_worklist(sp, &work_list);
         sp3_process_dirtylist(sp);
         sp3_process_ingest(sp);
         sp3_process_trees(sp);
@@ -2499,7 +2494,7 @@ sp3_notify_ingest(struct csched *handle, struct cn_tree *tree, size_t alen)
 
     if (atomic_add_return(&spt->spt_ingest_alen, alen) == 0) {
         atomic_inc_rel(&sp->sp_ingest_count);
-        sp3_monitor_wake(sp);
+        sp3_monitor_wakeup(sp);
     }
 
     sp->sp_ingest_ns = jclock_ns;
@@ -2542,9 +2537,8 @@ sp3_tree_add(struct csched *handle, struct cn_tree *tree)
     mutex_lock(&sp->mon_lock);
     list_add(&spt->spt_tlink, &sp->add_tlist);
     atomic_inc_rel(&sp->sp_trees_count);
+    sp3_monitor_wakeup_locked(sp);
     mutex_unlock(&sp->mon_lock);
-
-    sp3_monitor_wake(sp);
 }
 
 /**
@@ -2568,7 +2562,7 @@ sp3_tree_remove(struct csched *handle, struct cn_tree *tree, bool cancel)
     atomic_set(&spt->spt_enabled, false);
     atomic_inc_rel(&sp->sp_trees_count);
 
-    sp3_monitor_wake(sp);
+    sp3_monitor_wakeup(sp);
 }
 
 /**
@@ -2582,13 +2576,19 @@ sp3_destroy(struct csched *handle)
     if (!sp)
         return;
 
+    atomic_set(&sp->running, 0);
+    sp3_monitor_wakeup(sp);
+
+    /* This is like a pthread_join for the monitor thread */
+    destroy_workqueue(sp->mon_wq);
+
     /* Destroy shouldn't be invoked until all cn trees been removed and
      * all cn refs have been returned wih cn_ref_put.  If that is true
      * then we should have empty lists, rb trees, job counts, etc.
      */
-    assert(list_empty(&sp->add_tlist));
     assert(list_empty(&sp->mon_tlist));
     assert(list_empty(&sp->work_list));
+    assert(list_empty(&sp->add_tlist));
 
     for (size_t tx = 0; tx < NELEM(sp->rbt); tx++)
         assert(!rb_first(sp->rbt + tx));
@@ -2597,20 +2597,12 @@ sp3_destroy(struct csched *handle)
     assert(sp->samp.l_alen == 0);
     assert(sp->samp.l_good == 0);
 
-    atomic_set(&sp->running, 0);
-    sp3_monitor_wake(sp);
-
-    /* This is like a pthread_join for the monitor thread */
-    destroy_workqueue(sp->mon_wq);
-
     sts_destroy(sp->sts);
 
-    mutex_destroy(&sp->work_list_lock);
     mutex_destroy(&sp->mon_lock);
     mutex_destroy(&sp->sp_dlist_lock);
     cv_destroy(&sp->mon_cv);
 
-    perfc_free(&sp->sched_pc);
     free(sp->wp);
     free(sp);
 }
@@ -2626,7 +2618,6 @@ sp3_create(
     struct csched      **handle)
 {
     const char *restname = "csched";
-    char group[128];
     struct sp3 *sp;
     merr_t      err;
     size_t      name_sz, alloc_sz;
@@ -2648,10 +2639,10 @@ sp3_create(
 
     sp->rp = rp;
     sp->health = health;
+    sp->sp_healthy = true;
+    sp->sp_sval_min = THROTTLE_SENSOR_SCALE / 2;
 
     INIT_LIST_HEAD(&sp->mon_tlist);
-    INIT_LIST_HEAD(&sp->add_tlist);
-    INIT_LIST_HEAD(&sp->work_list);
     INIT_LIST_HEAD(&sp->spn_alist);
     INIT_LIST_HEAD(&sp->spn_rlist);
 
@@ -2661,17 +2652,17 @@ sp3_create(
     atomic_set(&sp->running, 1);
 
     mutex_init(&sp->mon_lock);
+    INIT_LIST_HEAD(&sp->work_list);
+    INIT_LIST_HEAD(&sp->add_tlist);
     cv_init(&sp->mon_cv);
-    mutex_init(&sp->work_list_lock);
-    atomic_set(&sp->sp_ingest_count, 0);
-    atomic_set(&sp->sp_trees_count, 0);
 
     mutex_init_adaptive(&sp->sp_dlist_lock);
     atomic_set(&sp->sp_dlist_idx, 0);
     for (uint i = 0; i < NELEM(sp->sp_dtree_listv); ++i)
         INIT_LIST_HEAD(&sp->sp_dtree_listv[i]);
-    sp->sp_healthy = true;
-    sp->sp_sval_min = THROTTLE_SENSOR_SCALE / 2;
+
+    atomic_set(&sp->sp_ingest_count, 0);
+    atomic_set(&sp->sp_trees_count, 0);
 
     err = sts_create(sp->name, SP3_QNUM_MAX, sp3_job_print, &sp->sts);
     if (ev(err))
@@ -2682,8 +2673,6 @@ sp3_create(
         err = merr(ENOMEM);
         goto err_exit;
     }
-
-    snprintf(group, sizeof(group), "kvdb/%s", sp->name);
 
     INIT_WORK(&sp->mon_work, sp3_monitor);
     queue_work(sp->mon_wq, &sp->mon_work);
@@ -2696,7 +2685,6 @@ err_exit:
 
     mutex_destroy(&sp->mon_lock);
     cv_destroy(&sp->mon_cv);
-    mutex_destroy(&sp->work_list_lock);
 
     free(sp);
 
