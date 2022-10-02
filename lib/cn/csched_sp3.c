@@ -171,7 +171,7 @@ struct sp3_qinfo {
  * @mon_tlist:    monitored trees
  * @spn_rlist:    list of all nodes ready for rspill
  * @spn_alist:    list of all nodes from all monitored trees
- * @new_tlist:    list of new trees
+ * @add_tlist:    list of new trees
  * @mon_lock:     mutex used with @mon_cv
  * @mon_signaled: set by sp3_monitor_wake()
  * @mon_cv:       monitor thread conditional var
@@ -259,8 +259,8 @@ struct sp3 {
     struct cv        mon_cv;
 
     atomic_int       sp_ingest_count;
-    atomic_int       sp_prune_count;
-    struct list_head new_tlist;
+    atomic_int       sp_trees_count;
+    struct list_head add_tlist;
 
     struct mutex     sp_dlist_lock HSE_L1D_ALIGNED;
     atomic_uint      sp_dlist_idx;
@@ -1155,7 +1155,7 @@ sp3_process_ingest(struct sp3 *sp)
         if (alen) {
             atomic_dec(&sp->sp_ingest_count);
 
-            atomic_sub(&spt->spt_ingest_alen, alen);
+            atomic_sub_rel(&spt->spt_ingest_alen, alen);
             sp->samp.r_alen += alen;
 
             sp3_dirty_node(sp, tree->ct_root);
@@ -1298,7 +1298,7 @@ sp3_process_worklist(struct sp3 *sp)
 }
 
 static void
-sp3_process_new_trees(struct sp3 *sp)
+sp3_trees_add(struct sp3 *sp)
 {
     struct cn_tree * tree, *tmp;
     struct list_head list;
@@ -1307,8 +1307,8 @@ sp3_process_new_trees(struct sp3 *sp)
 
     /* Move new trees from shared list to private list */
     mutex_lock(&sp->mon_lock);
-    list_splice_tail(&sp->new_tlist, &list);
-    INIT_LIST_HEAD(&sp->new_tlist);
+    list_splice_tail(&sp->add_tlist, &list);
+    INIT_LIST_HEAD(&sp->add_tlist);
     mutex_unlock(&sp->mon_lock);
 
     list_for_each_entry_safe(tree, tmp, &list, ct_sched.sp3t.spt_tlink) {
@@ -1337,12 +1337,9 @@ sp3_process_new_trees(struct sp3 *sp)
 }
 
 static void
-sp3_prune_trees(struct sp3 *sp)
+sp3_trees_prune(struct sp3 *sp)
 {
     struct cn_tree *tree, *tmp;
-
-    if (atomic_read_acq(&sp->sp_prune_count) == 0)
-        return;
 
     list_for_each_entry_safe(tree, tmp, &sp->mon_tlist, ct_sched.sp3t.spt_tlink) {
         struct sp3_tree *spt = tree2spt(tree);
@@ -1391,9 +1388,19 @@ sp3_prune_trees(struct sp3 *sp)
 
         sp->activity++;
 
-        if (0 == atomic_dec_return(&sp->sp_prune_count))
+        if (0 == atomic_dec_return(&sp->sp_trees_count))
             break;
     }
+}
+
+static void
+sp3_process_trees(struct sp3 *sp)
+{
+    if (atomic_read_acq(&sp->sp_trees_count) == 0)
+        return;
+
+    sp3_trees_add(sp);
+    sp3_trees_prune(sp);
 }
 
 static void
@@ -2374,14 +2381,13 @@ sp3_monitor(struct work_struct *work)
         sp->mon_signaled = false;
         mutex_unlock(&sp->mon_lock);
 
-        /* The following "process and prune" functions will increment
-         * sp->activity to trigger a call (below) to sp3_schedule().
+        /* If any of the following "process" functions do work they will
+         * increment sp->activity to trigger a call (below) to sp3_schedule().
          */
         sp3_process_worklist(sp);
         sp3_process_dirtylist(sp);
         sp3_process_ingest(sp);
-        sp3_process_new_trees(sp);
-        sp3_prune_trees(sp);
+        sp3_process_trees(sp);
 
         sp3_update_samp(sp);
 
@@ -2493,12 +2499,10 @@ sp3_notify_ingest(struct csched *handle, struct cn_tree *tree, size_t alen)
 
     if (atomic_add_return(&spt->spt_ingest_alen, alen) == 0) {
         atomic_inc_rel(&sp->sp_ingest_count);
-        ev_debug(1);
+        sp3_monitor_wake(sp);
     }
-    ev_debug(1);
-    sp->sp_ingest_ns = jclock_ns;
 
-    sp3_monitor_wake(sp);
+    sp->sp_ingest_ns = jclock_ns;
 }
 
 static void
@@ -2536,7 +2540,8 @@ sp3_tree_add(struct csched *handle, struct cn_tree *tree)
     sp3_tree_init(spt);
 
     mutex_lock(&sp->mon_lock);
-    list_add(&spt->spt_tlink, &sp->new_tlist);
+    list_add(&spt->spt_tlink, &sp->add_tlist);
+    atomic_inc_rel(&sp->sp_trees_count);
     mutex_unlock(&sp->mon_lock);
 
     sp3_monitor_wake(sp);
@@ -2561,7 +2566,7 @@ sp3_tree_remove(struct csched *handle, struct cn_tree *tree, bool cancel)
      * out when no more jobs are pending.
      */
     atomic_set(&spt->spt_enabled, false);
-    atomic_inc_rel(&sp->sp_prune_count);
+    atomic_inc_rel(&sp->sp_trees_count);
 
     sp3_monitor_wake(sp);
 }
@@ -2581,7 +2586,7 @@ sp3_destroy(struct csched *handle)
      * all cn refs have been returned wih cn_ref_put.  If that is true
      * then we should have empty lists, rb trees, job counts, etc.
      */
-    assert(list_empty(&sp->new_tlist));
+    assert(list_empty(&sp->add_tlist));
     assert(list_empty(&sp->mon_tlist));
     assert(list_empty(&sp->work_list));
 
@@ -2645,7 +2650,7 @@ sp3_create(
     sp->health = health;
 
     INIT_LIST_HEAD(&sp->mon_tlist);
-    INIT_LIST_HEAD(&sp->new_tlist);
+    INIT_LIST_HEAD(&sp->add_tlist);
     INIT_LIST_HEAD(&sp->work_list);
     INIT_LIST_HEAD(&sp->spn_alist);
     INIT_LIST_HEAD(&sp->spn_rlist);
@@ -2659,7 +2664,7 @@ sp3_create(
     cv_init(&sp->mon_cv);
     mutex_init(&sp->work_list_lock);
     atomic_set(&sp->sp_ingest_count, 0);
-    atomic_set(&sp->sp_prune_count, 0);
+    atomic_set(&sp->sp_trees_count, 0);
 
     mutex_init_adaptive(&sp->sp_dlist_lock);
     atomic_set(&sp->sp_dlist_idx, 0);
