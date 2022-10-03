@@ -1032,6 +1032,10 @@ sp3_process_workitem(struct sp3 *sp, struct cn_compaction_work *w)
     cn_samp_add(&sp->samp, &w->cw_samp_post);
     cn_samp_sub(&sp->samp, &w->cw_samp_pre);
 
+    assert(sp->samp.r_alen >= 0);
+    assert(sp->samp.l_alen >= 0);
+    assert(sp->samp.l_good >= 0);
+
     cn_samp_sub(&sp->samp_wip, &w->cw_est.cwe_samp);
 
     if (w->cw_action == CN_ACTION_SPILL) {
@@ -1067,7 +1071,7 @@ sp3_process_ingest(struct sp3 *sp)
 
     list_for_each_entry(tree, &sp->mon_tlist, ct_sched.sp3t.spt_tlink) {
         struct sp3_tree *spt = tree2spt(tree);
-        long alen;
+        ulong alen;
 
         if (atomic_read_acq(&sp->sp_ingest_count) == 0)
             break;
