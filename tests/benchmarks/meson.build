@@ -42,17 +42,7 @@ tests = {
             'HSE_TEST_RUNNER_RUNNER': 'python',
             'LD_LIBRARY_PATH': hse_java.found() ? fs.parent(hsejni.full_path()) : '',
         })
-    },
-    'test_dbbench': {
-        'suite': 'dbbench',
-        'timeout': 0,
-        'depends': [
-            db_bench,
-        ],
-        'env': environment({
-            'HSE_TEST_RUNNER_RUNNER': 'python',
-        })
-    },
+    }
 }
 
 foreach t, params : tests
