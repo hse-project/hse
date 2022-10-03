@@ -1,6 +1,6 @@
 /* SPDX-License-Identifier: Apache-2.0 */
 /*
- * Copyright (C) 2021 Micron Technology, Inc.  All rights reserved.
+ * Copyright (C) 2021-2022 Micron Technology, Inc.  All rights reserved.
  */
 
 #ifndef HSE_PIDFILE_PIDFILE_H
@@ -20,8 +20,8 @@ struct pidfile {
     pid_t pid;
     char  alias[PIDFILE_ALIAS_LEN_MAX];
     struct {
-        char path[sizeof(((struct sockaddr_un *)0)->sun_path)];
-    } socket;
+        char socket_path[sizeof(((struct sockaddr_un *)NULL)->sun_path)];
+    } rest;
 };
 
 merr_t

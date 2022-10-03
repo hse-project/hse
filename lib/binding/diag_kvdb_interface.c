@@ -67,8 +67,9 @@ diag_kvdb_open(
         goto close_mp;
 
     content.pid = getpid();
-    n = strlcpy(content.socket.path, hse_gparams.gp_socket.path, sizeof(content.socket.path));
-    if (n >= sizeof(content.socket.path)) {
+    n = strlcpy(content.rest.socket_path, hse_gparams.gp_rest.socket_path,
+        sizeof(content.rest.socket_path));
+    if (n >= sizeof(content.rest.socket_path)) {
         err = merr(ENAMETOOLONG);
         goto close_mp;
     }

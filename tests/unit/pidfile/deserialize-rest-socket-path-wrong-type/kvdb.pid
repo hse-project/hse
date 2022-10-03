@@ -1,5 +1,7 @@
 {
   "pid": 2505647,
   "alias": "0",
-  "socket": []
+  "rest": {
+    "socket_path": 0
+  }
 }

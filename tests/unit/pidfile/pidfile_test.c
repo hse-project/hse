@@ -108,25 +108,25 @@ MTF_DEFINE_UTEST(pidfile_test, deserialize_missing_pid)
     ASSERT_EQ(EINVAL, merr_errno(err));
 }
 
-MTF_DEFINE_UTEST(pidfile_test, deserialize_missing_socket)
+MTF_DEFINE_UTEST(pidfile_test, deserialize_missing_rest)
 {
     merr_t err;
     char home[PATH_MAX];
     struct pidfile content;
 
-    snprintf(home, sizeof(home), "%s/deserialize-missing-socket", config_root);
+    snprintf(home, sizeof(home), "%s/deserialize-missing-rest", config_root);
 
     err = pidfile_deserialize(home, &content);
     ASSERT_EQ(EINVAL, merr_errno(err));
 }
 
-MTF_DEFINE_UTEST(pidfile_test, deserialize_missing_socket_path)
+MTF_DEFINE_UTEST(pidfile_test, deserialize_missing_rest_socket_path)
 {
     merr_t err;
     char home[PATH_MAX];
     struct pidfile content;
 
-    snprintf(home, sizeof(home), "%s/deserialize-missing-socket-path", config_root);
+    snprintf(home, sizeof(home), "%s/deserialize-missing-rest-socket-path", config_root);
 
     err = pidfile_deserialize(home, &content);
     ASSERT_EQ(EINVAL, merr_errno(err));
@@ -168,25 +168,25 @@ MTF_DEFINE_UTEST(pidfile_test, deserialize_pid_wrong_type)
     ASSERT_EQ(EINVAL, merr_errno(err));
 }
 
-MTF_DEFINE_UTEST(pidfile_test, deserialize_socket_wrong_type)
+MTF_DEFINE_UTEST(pidfile_test, deserialize_rest_wrong_type)
 {
     merr_t err;
     char home[PATH_MAX];
     struct pidfile content;
 
-    snprintf(home, sizeof(home), "%s/deserialize-socket-wrong-type", config_root);
+    snprintf(home, sizeof(home), "%s/deserialize-rest-wrong-type", config_root);
 
     err = pidfile_deserialize(home, &content);
     ASSERT_EQ(EINVAL, merr_errno(err));
 }
 
-MTF_DEFINE_UTEST(pidfile_test, deserialize_socket_path_wrong_type)
+MTF_DEFINE_UTEST(pidfile_test, deserialize_rest_socket_path_wrong_type)
 {
     merr_t err;
     char home[PATH_MAX];
     struct pidfile content;
 
-    snprintf(home, sizeof(home), "%s/deserialize-socket-path-wrong-type", config_root);
+    snprintf(home, sizeof(home), "%s/deserialize-rest-socket-path-wrong-type", config_root);
 
     err = pidfile_deserialize(home, &content);
     ASSERT_EQ(EINVAL, merr_errno(err));

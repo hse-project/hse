@@ -30,8 +30,8 @@ struct hse_gparams {
 
     struct {
         bool enabled;
-        char path[sizeof(((struct sockaddr_un *)0)->sun_path)];
-    } gp_socket;
+        char socket_path[sizeof(((struct sockaddr_un *)NULL)->sun_path)];
+    } gp_rest;
 
     struct logging_params gp_logging;
 };

@@ -66,7 +66,7 @@ mtf_time_delta_in_ms(unsigned long start, unsigned long stop)
 void HSE_WEAK
 mtf_get_global_params(size_t *const paramc, char ***const paramv)
 {
-    static char *gparams[] = { "socket.enabled=false" };
+    static char *gparams[] = { "rest.enabled=false" };
 
     *paramc = NELEM(gparams);
     *paramv = gparams;

@@ -50,19 +50,19 @@ kvdb_info_props(
         if (err) {
             fprintf(
                 stderr,
-                "Failed to find the UNIX socket for the KVDB (%s). Ensure the KVDB is open in a "
-                "process.\n",
+                "Failed to find the REST UNIX socket for the KVDB (%s). Ensure the KVDB is open in "
+                "a process.\n",
                 kvdb_home);
             goto exit;
         }
 
-        if (content.socket.path[0] == '\0') {
+        if (content.rest.socket_path[0] == '\0') {
             err = ENOENT;
             fprintf(stderr, "HSE socket is disabled in PID %d\n", content.pid);
             goto exit;
         }
 
-        err = rest_client_init(content.socket.path);
+        err = rest_client_init(content.rest.socket_path);
         if (err) {
             fprintf(stderr, "Failed to initialize the rest client\n");
             goto exit;
@@ -211,19 +211,19 @@ kvdb_compact_request(const char *kvdb_home, const char *request_type, u32 timeou
     if (err) {
         fprintf(
             stderr,
-            "Failed to find the UNIX socket for the KVDB (%s). Ensure the KVDB is open in a "
+            "Failed to find the REST UNIX socket for the KVDB (%s). Ensure the KVDB is open in a "
             "process.\n",
             kvdb_home);
         goto err_out;
     }
 
-    if (content.socket.path[0] == '\0') {
+    if (content.rest.socket_path[0] == '\0') {
         err = ENOENT;
         fprintf(stderr, "HSE socket is disabled in PID %d\n", content.pid);
         goto err_out;
     }
 
-    err = rest_client_init(content.socket.path);
+    err = rest_client_init(content.rest.socket_path);
     if (err) {
         fprintf(stderr, "Failed to initialize the rest client\n");
         goto err_out;
