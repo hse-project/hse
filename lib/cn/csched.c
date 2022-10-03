@@ -16,7 +16,6 @@
 
 merr_t
 csched_create(
-    struct mpool *       ds,
     struct kvdb_rparams *rp,
     const char *         kvdb_alias,
     struct kvdb_health * health,
@@ -24,7 +23,7 @@ csched_create(
 {
     assert(rp && kvdb_alias && handle);
 
-    return sp3_create(ds, rp, kvdb_alias, health, handle);
+    return sp3_create(rp, kvdb_alias, health, handle);
 }
 
 void
@@ -34,9 +33,9 @@ csched_destroy(struct csched *handle)
 }
 
 void
-csched_notify_ingest(struct csched *handle, struct cn_tree *tree, size_t alen, size_t wlen)
+csched_notify_ingest(struct csched *handle, struct cn_tree *tree, size_t alen)
 {
-    sp3_notify_ingest(handle, tree, alen, wlen);
+    sp3_notify_ingest(handle, tree, alen);
 }
 
 void

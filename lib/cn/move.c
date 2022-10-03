@@ -109,13 +109,12 @@ cn_move(
         assert(list_empty(src_head));
         route_map_delete(tree->ct_route_map, src_node->tn_route_node);
         src_node->tn_route_node = NULL;
-    } else {
-        if (src_cnt > 0)
-            cn_tree_samp_update_move(w, src_node);
     }
 
-    if (src_cnt > 0)
-        cn_tree_samp_update_move(w, tgt_node);
+    cn_tree_samp(tree, &w->cw_samp_pre);
+    cn_tree_samp_update_move(w, src_node);
+    cn_tree_samp_update_move(w, tgt_node);
+    cn_tree_samp(tree, &w->cw_samp_post);
 
     rmlock_wunlock(&tree->ct_lock);
 

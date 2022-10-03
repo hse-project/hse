@@ -132,16 +132,14 @@ cn_rule2str(enum cn_rule rule)
 
 /**
  * csched_create() - create a scheduler for kvdb compaction work
- * @ds:      dataset handle to access mpool qos
- * @rp:      kvdb run-time parameters
+ * @rp:        kvdb run-time parameters
  * @kvdb_home: kvdb home
- * @db_name: kvdb home
- * @csched:     (out) handle
+ * @health:    ptr to kvdb health object
+ * @csched:    (out) handle
  */
 /* MTF_MOCK */
 merr_t
 csched_create(
-    struct mpool *       ds,
     struct kvdb_rparams *rp,
     const char *         kvdb_home,
     struct kvdb_health  *health,
@@ -153,7 +151,7 @@ csched_destroy(struct csched *csched);
 
 /* MTF_MOCK */
 void
-csched_notify_ingest(struct csched *handle, struct cn_tree *tree, size_t alen, size_t wlen);
+csched_notify_ingest(struct csched *handle, struct cn_tree *tree, size_t alen);
 
 /* MTF_MOCK */
 void

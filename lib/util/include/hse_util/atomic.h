@@ -86,7 +86,10 @@
 #define atomic_dec_return(_ptr) \
     (atomic_fetch_sub((_ptr), 1) - 1)
 
-#define atomic_cmpxchg(_ptr, _oldp, _new) \
+#define atomic_add_return(_ptr, _val) \
+    atomic_fetch_add((_ptr), (_val))
+
+#define atomic_cmpxchg(_ptr, _oldp, _new)                   \
     atomic_compare_exchange_strong((_ptr), (_oldp), (_new))
 
 #define atomic_cas(_ptr, _old, _new)                            \
