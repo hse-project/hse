@@ -182,9 +182,8 @@ struct sp3_qinfo {
  * @mon_work:     monitor thread work struct
  * @name:         name for logging and data tree
  *
- * Note: External threads must never access fields of struct sp3
- * not explicitly designated (i.e., the two groups of fields so
- * noted at the end of the struct).
+ * Note: Only the monitor thread may safely access fields that
+ * are neither protected by a lock, atomic, nor volatile.
  */
 struct sp3 {
     struct kvdb_rparams     *rp;
@@ -201,7 +200,6 @@ struct sp3 {
     struct list_head spn_rlist;
     struct list_head spn_alist;
     bool             sp_healthy;
-    bool             idle;
     ulong            sp_ingest_ns;
     uint             sp_sval_min;
     uint             activity;
@@ -227,6 +225,7 @@ struct sp3 {
     uint samp_max;
     uint samp_hwm;
     uint samp_lwm;
+    uint samp_lpct;
 
     /* Current and target values for space amp and leaf percent.
      * Target refers the expected values after all active
@@ -241,9 +240,9 @@ struct sp3 {
     uint64_t check_scatter_ns;
     u64 qos_log_ttl;
 
-    u64  ucomp_prev_report_ns;
-    bool ucomp_active;
-    bool ucomp_canceled;
+    uint64_t ucomp_report_ns;
+    volatile bool ucomp_active;
+    volatile bool ucomp_canceled;
 
     /* Tree shape report */
     bool shape_rlen_bad;
@@ -254,7 +253,7 @@ struct sp3 {
     struct cn_samp_stats samp;
     struct cn_samp_stats samp_wip;
 
-    /* Accessed by monitor, compaction, and external threads.
+    /* Shared, accessed by monitor, compaction, and external threads.
      */
     struct mutex     mon_lock HSE_ACP_ALIGNED;
     bool             mon_signaled;
@@ -262,7 +261,7 @@ struct sp3 {
     struct list_head add_tlist;
     struct cv        mon_cv;
 
-    /* Accessed by monitor and compaction threads.
+    /* Shared, accessed by monitor and compaction threads.
      */
     struct mutex     sp_dlist_lock HSE_L1D_ALIGNED;
     atomic_uint      sp_dlist_idx;
@@ -555,6 +554,7 @@ sp3_refresh_samp(struct sp3 *sp)
     sp->samp_lwm = samp_lwm;
     sp->samp_hwm = samp_hwm;
     sp->samp_max = samp;
+    sp->samp_lpct = leaf;
 
     log_info("sp3 samp derived params:"
              " samp lo/hi/max: %.3f %.3f %.3f"
@@ -682,90 +682,6 @@ sp3_refresh_settings(struct sp3 *sp)
     sp3_refresh_samp(sp);
     sp3_refresh_worker_counts(sp);
     sp3_refresh_thresholds(sp);
-}
-
-/*****************************************************************
- *
- * SP3 user-initiated compaction (ucomp)
- *
- */
-
-static void
-sp3_ucomp_cancel(struct sp3 *sp)
-{
-    if (!sp->ucomp_active) {
-        log_info("ignoring request to cancel user-initiated"
-                 " compaction because there is no active request");
-        return;
-    }
-
-    log_info("canceling user-initiated compaction");
-
-    sp->ucomp_active = false;
-    sp->ucomp_canceled = true;
-}
-
-static void
-sp3_ucomp_start(struct sp3 *sp)
-{
-    if (sp->ucomp_active)
-        log_info("restarting user-initiated compaction (was already active)");
-    else
-        log_info("starting user-initiated compaction");
-
-    sp->ucomp_active = true;
-    sp->ucomp_canceled = false;
-    sp->samp_reduce = true;
-}
-
-static void
-sp3_ucomp_report(struct sp3 *sp, bool final)
-{
-    uint curr = samp_est(&sp->samp, 100);
-
-    if (final) {
-
-        log_info("user-initiated compaction complete: space_amp %u.%02u",
-                 curr / 100, curr % 100);
-
-    } else {
-
-        u64  started = sp->jobs_started;
-        u64  finished = sp->jobs_finished;
-        uint goal = sp->samp_lwm * 100 / SCALE;
-
-        log_info("user-initiated compaction in progress:"
-                 " jobs: active %lu, started %lu, finished %lu;"
-                 " space_amp: current %u.%02u, goal %u.%02u;",
-                 started - finished,
-                 started,
-                 finished,
-                 curr / 100,
-                 curr % 100,
-                 goal / 100,
-                 goal % 100);
-    }
-}
-
-static void
-sp3_ucomp_check(struct sp3 *sp)
-{
-    if (sp->ucomp_active) {
-
-        bool completed = sp->idle || sp->samp_curr < sp->samp_lwm;
-        u64  now = get_time_ns();
-        bool report = now > sp->ucomp_prev_report_ns + 5 * NSEC_PER_SEC;
-
-        if (completed) {
-            sp->ucomp_active = false;
-            sp->ucomp_canceled = false;
-        }
-
-        if (completed || report) {
-            sp->ucomp_prev_report_ns = now;
-            sp3_ucomp_report(sp, completed);
-        }
-    }
 }
 
 /*****************************************************************
@@ -1992,7 +1908,7 @@ sp3_tree_shape_check(struct sp3 *sp)
     samp_bad = sp->samp_curr > sp->samp_max;
 
     if (log || sp->shape_samp_bad != samp_bad || samp_bad) {
-        log_info("current samp %.3lf is %s max %.3lf (targeting %.3lf)",
+        log_info("current samp %.3lf is %s max %.3lf (target %.3lf)",
                  scale2dbl(sp->samp_curr),
                  samp_bad ? "above" : "below",
                  scale2dbl(sp->samp_max),
@@ -2183,8 +2099,8 @@ sp3_schedule(struct sp3 *sp)
     }
 
     for (uint rr = 0; rr < wtype_MAX && !job; rr++) {
-        uint rp_leaf_pct, qnum;
         uint64_t thresh;
+        uint qnum;
 
         /* round robin between job types */
         sp->rr_wtype = (sp->rr_wtype + 1) % wtype_MAX;
@@ -2227,25 +2143,26 @@ sp3_schedule(struct sp3 *sp)
                     break;
             }
 
-            /* convert rparam to internal scale */
-            rp_leaf_pct = (uint)sp->inputs.csched_leaf_pct * SCALE / EXT_SCALE;
-
-            /* Implements:
-             *   - Leaf node space amp rule
-             * Notes:
-             *   - Check for garbage if ucomp is active OR samp_reduce mode is enabled
-             *     and leaf percent is somewhat caught up (ie, current leaf pct (lpct_targ)
-             *     is within 90% of rparam setting (rp_leaf_pct)).
-             *   - When checking for garbage, if leaf percent is behind, then bump up
-             *     the threshold so we don't waste write amp compacting nodes with
-             *     low garbage (we'd rather wait for leaf_pct to catch up).
-             *   - If neither ucomp nor samp_reduce is active then check for nodes
-             *     with garbage above the per-node threshold (default 67%).
+            /* If the percent of data in the leaves is less than 90% and there
+             * is at least one root spill running then let the spill finish
+             * before starting garbage collection.
              */
-            if (sp->samp_reduce && (100 * sp->lpct_targ > 90 * rp_leaf_pct)) {
-                thresh = (sp->lpct_targ < rp_leaf_pct ? 10ul : 0ul) << 32;
+            if (100 * sp->lpct_targ < 90 * sp->samp_lpct) {
+                if (!qempty(sp, SP3_QNUM_ROOT))
+                    break;
+            }
+
+            /* In samp-reduce mode, start a new job only if the estimated space-amp
+             * target (i.e., sp->samp_targ) is above the low watermark.  Each job
+             * started further reduces the estimation, so this approach prevents
+             * starting more jobs than necessary to reach the low watermark.
+             */
+            if (sp->samp_reduce && sp->samp_targ >= sp->samp_lwm) {
+                thresh = 0;
+                ev_debug(1);
             } else {
                 thresh = (uint64_t)sp->rp->csched_gc_pct << 32;
+                ev_debug(1);
             }
 
             job = sp3_check_rb_tree(sp, sp->rr_wtype, thresh, qnum);
@@ -2261,7 +2178,7 @@ sp3_schedule(struct sp3 *sp)
 
             if (qfull(sp, qnum)) {
                 qnum = SP3_QNUM_SHARED;
-                if (qfull(sp, qnum))
+                if (sp->samp_reduce || qfull(sp, qnum))
                     break;
             }
 
@@ -2291,6 +2208,45 @@ sp3_schedule(struct sp3 *sp)
     }
 }
 
+static void
+sp3_ucomp_report(struct sp3 *sp, bool final)
+{
+    if (final) {
+        log_info("user-initiated compaction %s: space_amp %.3lf",
+                 sp->ucomp_canceled ? "canceled" : "finished",
+                 scale2dbl(sp->samp_curr));
+
+    } else {
+        uint started = sp->jobs_started;
+        uint finished = sp->jobs_finished;
+
+        log_info("user-initiated compaction in progress:"
+                 " jobs: active %u, started %u, finished %u;"
+                 " space_amp: current %.3lf, goal %.3lf, target %.3lf;",
+                 started - finished, started, finished,
+                 scale2dbl(sp->samp_curr),
+                 scale2dbl(sp->samp_lwm),
+                 scale2dbl(sp->samp_targ));
+    }
+}
+
+static void
+sp3_ucomp_check(struct sp3 *sp)
+{
+    if (sp->ucomp_active) {
+        const bool completed = sp->ucomp_canceled || !sp->samp_reduce;
+        const ulong now = jclock_ns;
+
+        if (completed)
+            sp->ucomp_active = false;
+
+        if (completed || (now >= sp->ucomp_report_ns)) {
+            sp->ucomp_report_ns = now + NSEC_PER_SEC * 7;
+            sp3_ucomp_report(sp, completed);
+        }
+    }
+}
+
 /*
  * sp3_update_samp() - update internal space amp metrics
  *
@@ -2314,22 +2270,38 @@ sp3_update_samp(struct sp3 *sp)
 
     sp->samp_curr = samp_est(&sp->samp, SCALE);
 
-    sp3_ucomp_check(sp);
-
     /* Use low/high water marks to enable/disable garbage collection. */
     if (sp->samp_reduce) {
-        if (sp->samp_targ < sp->samp_lwm) {
+        uint lwm = 0;
+
+        if (sp->samp_curr < sp->samp_lwm) {
             sp->samp_reduce = false;
-            log_info("expected samp %.3lf is below lwm %.3lf, disable samp reduction",
-                     scale2dbl(sp->samp_targ), scale2dbl(sp->samp_lwm));
+            lwm = sp->samp_lwm;
+        } else if (sp->samp_curr < sp->samp_hwm && sp->ucomp_active && sp->ucomp_canceled) {
+            sp->samp_reduce = false;
+            lwm = sp->samp_hwm;
+        }
+
+        if (!sp->samp_reduce) {
+            log_info("current samp %.3lf is below %s %.3lf, %s samp reduction disabled",
+                     scale2dbl(sp->samp_curr),
+                     lwm > sp->samp_lwm ? "hwm" : "lwm", scale2dbl(lwm),
+                     sp->ucomp_active ? "user-initiated" : "automatic");
         }
     } else {
-        if (sp->samp_targ > sp->samp_hwm) {
+        const uint hwm = sp->ucomp_active ? sp->samp_lwm : sp->samp_hwm;
+
+        if (sp->samp_curr >= hwm) {
+            log_info("current samp %.3lf is above %s %.3lf, %s samp reduction enabled",
+                     scale2dbl(sp->samp_curr),
+                     hwm < sp->samp_hwm ? "lwm" : "hwm",
+                     scale2dbl(hwm),
+                     hwm < sp->samp_hwm ? "user-initiated" : "automatic");
             sp->samp_reduce = true;
-            log_info("expected samp %.3lf is above hwm %.3lf, enable samp reduction",
-                     scale2dbl(sp->samp_targ), scale2dbl(sp->samp_hwm));
         }
     }
+
+    sp3_ucomp_check(sp);
 }
 
 struct periodic_check {
@@ -2347,7 +2319,6 @@ sp3_monitor(struct work_struct *work)
     struct periodic_check chk_sched   = { .interval = NSEC_PER_SEC * 3 };
     struct periodic_check chk_refresh = { .interval = NSEC_PER_SEC * 10 };
     struct periodic_check chk_shape   = { .interval = NSEC_PER_SEC * 20 };
-    u64 last_activity = 0;
 
     sp3_refresh_settings(sp);
 
@@ -2367,14 +2338,23 @@ sp3_monitor(struct work_struct *work)
             now = get_time_ns();
         }
 
+        sp->mon_signaled = false;
+        begin_stats_work();
+
         /* Move completed work from shared list to private list.
          */
-        begin_stats_work();
         INIT_LIST_HEAD(&work_list);
         list_splice_tail(&sp->work_list, &work_list);
         INIT_LIST_HEAD(&sp->work_list);
-        sp->mon_signaled = false;
         mutex_unlock(&sp->mon_lock);
+
+        err = kvdb_health_check(sp->health, KVDB_HEALTH_FLAG_ALL);
+        if (ev(err)) {
+            if (sp->sp_healthy) {
+                log_errx("KVDB %s is in bad health", err, sp->name);
+                sp->sp_healthy = false;
+            }
+        }
 
         /* If any of the following "process" functions do work they will
          * increment sp->activity to trigger a call (below) to sp3_schedule().
@@ -2386,45 +2366,32 @@ sp3_monitor(struct work_struct *work)
 
         sp3_update_samp(sp);
 
-        err = kvdb_health_check(sp->health, KVDB_HEALTH_FLAG_ALL);
-        if (ev(err)) {
-            if (sp->sp_healthy) {
-                log_errx("KVDB %s is in bad health", err, sp->name);
-                sp->sp_healthy = false;
-            }
-        }
-
         if (now > chk_sched.next || sp->activity) {
-            if (sp->activity) {
-                last_activity = now + NSEC_PER_SEC * 5;
-                sp->activity = 0;
-            }
+            chk_sched.next = now + chk_sched.interval;
+            sp->activity = 0;
 
             sp3_schedule(sp);
-
-            chk_sched.next = now + chk_sched.interval;
         }
 
         if (now > chk_refresh.next) {
-            sp3_refresh_settings(sp);
             chk_refresh.next = now + chk_refresh.interval;
+            sp3_refresh_settings(sp);
         }
 
         if (now > chk_qos.next) {
-            sp3_qos_check(sp);
             chk_qos.next = now + chk_qos.interval;
+            sp3_qos_check(sp);
         }
 
         if (now > chk_shape.next) {
+            chk_shape.next = now + chk_shape.interval;
             sp3_tree_shape_check(sp);
+
             if (debug_rbtree(sp)) {
                 for (uint tx = 0; tx < NELEM(sp->rbt); tx++)
                     sp3_rb_dump(sp, tx, 25);
             }
-            chk_shape.next = now + chk_shape.interval;
         }
-
-        sp->idle = now > last_activity && sp->jobs_started == sp->jobs_finished;
     }
 }
 
@@ -2449,17 +2416,26 @@ void
 sp3_compact_request(struct csched *handle, unsigned int flags)
 {
     struct sp3 *sp = (struct sp3 *)handle;
+    const char *msg = "request invalid";
 
     if (!sp)
         return;
 
     if (flags & HSE_KVDB_COMPACT_CANCEL) {
-        sp3_ucomp_cancel(sp);
+        msg = "cancelation ignored (not active)";
+
+        if (sp->ucomp_active) {
+            sp->ucomp_canceled = true;
+            msg = "stopping...";
+        }
     } else if (flags & HSE_KVDB_COMPACT_SAMP_LWM) {
-        sp3_ucomp_start(sp);
-    } else {
-        log_info("invalid user-initiated compaction request: flags 0x%x", flags);
+        msg = sp->ucomp_active ? "restarting..." : "starting...";
+
+        sp->ucomp_canceled = false;
+        sp->ucomp_active = true;
     }
+
+    log_info("user-initiated compaction %s", msg);
 }
 
 void
@@ -2470,9 +2446,12 @@ sp3_compact_status_get(struct csched *handle, struct hse_kvdb_compact_status *st
     if (!sp)
         return;
 
+    /* Sample the current state.  Results may be inconsistent as the monitor thread
+     * can modify these variables at any time.
+     */
     status->kvcs_active = sp->ucomp_active;
     status->kvcs_canceled = sp->ucomp_canceled;
-    status->kvcs_samp_curr = samp_est(&sp->samp, 100);
+    status->kvcs_samp_curr = sp->samp_curr * 100 / SCALE;
     status->kvcs_samp_lwm = sp->samp_lwm * 100 / SCALE;
     status->kvcs_samp_hwm = sp->samp_hwm * 100 / SCALE;
 }
