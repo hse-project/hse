@@ -1047,14 +1047,6 @@ sp3_process_workitem(struct sp3 *sp, struct cn_compaction_work *w)
         struct cn_tree *tree = w->cw_tree;
         uint64_t dt;
 
-        /* r_alen is negative to balance the addition made by ingest.
-         * Do not apply on error because while one or more subspills
-         * may have been committed, no kvsets will have been removed
-         * from the root node.
-         */
-        if (!w->cw_err)
-            sp->samp.r_alen += w->cw_est.cwe_samp.r_alen;
-
         dt = (get_time_ns() - w->cw_t0_enqueue) / w->cw_kvset_cnt;
         if (tree->ct_rspill_dt == 0)
             dt *= 2;

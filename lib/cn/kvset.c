@@ -1943,7 +1943,7 @@ kvset_get_vbsetv(struct kvset *ks, uint *vbsetc)
 }
 
 void
-kvset_get_max_key(struct kvset *ks, const void **max_key, uint *max_klen)
+kvset_get_max_nonpt_key(struct kvset *ks, const void **max_key, uint *max_klen)
 {
     struct kvset_kblk *kb;
 
@@ -3714,22 +3714,45 @@ kvset_from_iter(struct kv_iterator *iv)
     return ((struct kvset_iterator *)iv)->ks;
 }
 
+/**
+ * kvset_maxkey() - Return the largest key in the kvset. It's the larger of the largest ptomb
+ * and the largest non-ptomb key.
+ *
+ * @ks:      Kvset handle
+ * @maxkey:  (output) pointer to the max key
+ * @maxklen: (output) length of @maxkey
+ */
 void
-kvset_maxkey(struct kvset *ks, const void **maxkey, u16 *maxklen)
+kvset_maxkey(struct kvset *ks, const void **maxkey, uint16_t *maxklen)
 {
     *maxkey = ks->ks_maxkey;
     *maxklen = ks->ks_maxklen;
 }
 
+/**
+ * kvset_minkey() - Return the smallest key in the kvset. It's the smaller of the smallest ptomb
+ * and the smallest non-ptomb key.
+ *
+ * @ks:      Kvset handle
+ * @minkey:  (output) pointer to the min key
+ * @minklen: (output) length of @minkey
+ */
 void
-kvset_minkey(struct kvset *ks, const void **minkey, u16 *minklen)
+kvset_minkey(struct kvset *ks, const void **minkey, uint16_t *minklen)
 {
     *minkey = ks->ks_minkey;
     *minklen = ks->ks_minklen;
 }
 
+/**
+ * kvset_max_ptkey() - Return the largest ptomb in a kvset if one exists.
+ *
+ * @ks:     Kvset handle
+ * @max:    (output) pointer to the max ptomb key
+ * @maxlen: (output) length of @max
+ */
 void
-kvset_max_ptkey(struct kvset *ks, const void **max, u16 *maxlen)
+kvset_max_ptkey(struct kvset *ks, const void **max, uint16_t *maxlen)
 {
     if (kvset_has_ptree(ks)) {
         *max = ks->ks_hblk.kh_pfx_max;

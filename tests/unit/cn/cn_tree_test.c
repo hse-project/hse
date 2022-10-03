@@ -195,7 +195,7 @@ _kvset_get_num_vblocks(struct kvset *handle)
 }
 
 void
-_kvset_get_max_key(struct kvset *ks, const void **key, uint *klen)
+_kvset_get_max_nonpt_key(struct kvset *ks, const void **key, uint *klen)
 {
     *key = (const void *)&(((struct fake_kvset *)ks)->max_key);
     *klen = 1;
@@ -383,7 +383,7 @@ test_setup(struct mtf_test_info *lcl_ti)
     MOCK_SET(kvset, _kvset_iter_create);
     MOCK_SET(kvset, _kvset_from_iter);
 
-    MOCK_SET(kvset, _kvset_get_max_key);
+    MOCK_SET(kvset, _kvset_get_max_nonpt_key);
     MOCK_SET(kvset, _kvset_statsp);
     MOCK_SET(kvset, _kvset_stats);
 

@@ -195,6 +195,12 @@ struct cn_compaction_work {
         uint                  klen;      /* split key length */
     } cw_split;
 
+    /* Used only for zspill */
+    struct {
+        struct cn_tree_node     *znode;
+        struct kvset_list_entry *kvset_list;
+    } cw_zspill;
+
     /* used in cleanup if debug enabled */
     u64  cw_t0_enqueue;
     u64  cw_t1_qtime;

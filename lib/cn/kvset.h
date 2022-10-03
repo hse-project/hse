@@ -275,7 +275,7 @@ void
 kvset_list_add_tail(struct kvset *kvset, struct list_head *head);
 
 /**
- * kvset_get_max_key() - Get the largest key in a kvset
+ * kvset_get_max_nonpt_key() - Get the largest key in a kvset
  *
  * @ks:   struct kvset handle.
  * @max_key:  (output) reference to the largest key
@@ -286,7 +286,7 @@ kvset_list_add_tail(struct kvset *kvset, struct list_head *head);
  */
 /* MTF_MOCK */
 void
-kvset_get_max_key(struct kvset *ks, const void **max_key, uint *max_klen);
+kvset_get_max_nonpt_key(struct kvset *ks, const void **max_key, uint *max_klen);
 
 /* MTF_MOCK */
 u64
@@ -569,15 +569,15 @@ kvset_keep_vblocks(
 
 /* MTF_MOCK */
 void
-kvset_maxkey(struct kvset *ks, const void **maxkey, u16 *maxklen);
+kvset_maxkey(struct kvset *ks, const void **maxkey, uint16_t *maxklen);
 
 /* MTF_MOCK */
 void
-kvset_minkey(struct kvset *ks, const void **minkey, u16 *minklen);
+kvset_minkey(struct kvset *ks, const void **minkey, uint16_t *minklen);
 
 /* MTF_MOCK */
 void
-kvset_max_ptkey(struct kvset *ks, const void **max, u16 *maxlen);
+kvset_max_ptkey(struct kvset *ks, const void **max, uint16_t *maxlen);
 
 /**
  * kvset_iter_next_val_direct() -  read value via direct io

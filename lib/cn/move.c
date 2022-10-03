@@ -124,13 +124,16 @@ cn_move(
         list_for_each_entry(le, &tgt_node->tn_kvset_list, le_link) {
             bool from_src = kvset_get_nodeid(le->le_kvset) == src_nodeid;
 
+            /* If source node was deleted, update all kvsets in tgt, otherwise only update the
+             * kvsets that were moved from src.
+             */
             if (src_del || from_src) {
                 assert(kvset_get_workid(le->le_kvset) != 0);
                 kvset_set_workid(le->le_kvset, 0);
-            }
 
-            kvset_set_nodeid(le->le_kvset, tgt_node->tn_nodeid);
-            kvset_set_rule(le->le_kvset, w->cw_rule);
+                kvset_set_rule(le->le_kvset, w->cw_rule);
+                kvset_set_nodeid(le->le_kvset, tgt_node->tn_nodeid);
+            }
         }
     }
 
