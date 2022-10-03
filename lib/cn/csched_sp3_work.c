@@ -137,7 +137,7 @@ sp3_work_wtype_root(
     enum cn_action           *action,
     enum cn_rule             *rule)
 {
-    struct cn_tree_node *n, *tn = spn2tn(spn);
+    struct cn_tree_node *tn = spn2tn(spn);
     struct cn_tree_node *znode = NULL;
     uint runlen_min, runlen_max, runlen;
     struct kvset_list_entry *le;
@@ -165,19 +165,17 @@ sp3_work_wtype_root(
     runlen_max = thresh->rspill_runlen_max;
     runlen = 1;
 
+    znode = cn_kvset_can_zspill(le->le_kvset, rmap);
+
     /* Look for a contiguous sequence of non-busy kvsets.
      */
-
-    n = cn_kvset_can_zspill(le->le_kvset, rmap);
-    if (n)
-        znode = n;
-
     while ((le = list_prev_entry_or_null(le, le_link, &tn->tn_kvset_list))) {
         if (kvset_get_workid(le->le_kvset) != 0)
             break;
 
         if (znode) {
-            n = cn_kvset_can_zspill(le->le_kvset, rmap);
+            struct cn_tree_node *n = cn_kvset_can_zspill(le->le_kvset, rmap);
+
             if (n) {
                 if (n->tn_nodeid == znode->tn_nodeid && runlen < runlen_max) {
                     ++runlen;

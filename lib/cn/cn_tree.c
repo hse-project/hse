@@ -2100,7 +2100,7 @@ cn_zspill(struct cn_compaction_work *w, bool *zspilled)
             ss = list_last_entry_or_null(&n->tn_ss_list, typeof(*ss), ss_link);
 
 
-            /* It was established upfront that the znode is not undergoing a spill or a join.
+            /* It was established upfront that znode is not undergoing a spill or a join. So
              */
             if (n->tn_nodeid != znode->tn_nodeid && (!ss || w->cw_sgen > ss->ss_sgen)) {
                 char *wmesg = n->tn_ss_splitting ? "spltwait" : "joinwait";
