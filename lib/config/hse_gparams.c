@@ -6,6 +6,7 @@
 #include <assert.h>
 #include <stdbool.h>
 #include <stddef.h>
+#include <stdlib.h>
 #include <string.h>
 #include <unistd.h>
 
@@ -103,15 +104,27 @@ logging_destination_jsonify(const struct param_spec *const ps, const void *const
     }
 }
 
-void
+static void
 socket_path_default(const struct param_spec *ps, void *value)
 {
-    assert(ps);
-    assert(value);
-
+    const char *dir;
     HSE_MAYBE_UNUSED int n;
 
-    n = snprintf(value, sizeof(hse_gparams.gp_socket.path), "/tmp/hse-%d.sock", getpid());
+    INVARIANT(ps);
+    INVARIANT(value);
+
+    /* All paths set in these environment variables must be absolute. If an
+     * implementation encounters a relative path in any of these variables it
+     * should consider the path invalid and ignore it.
+     *
+     * https://specifications.freedesktop.org/basedir-spec/basedir-spec-latest.html
+     */
+    dir = getenv("XDG_RUNTIME_DIR");
+    if (!dir || *dir != '/')
+        dir = "/tmp";
+
+    n = snprintf(value, sizeof(hse_gparams.gp_socket.path), "%s%shse-%d.sock", dir,
+        dir[strlen(dir) - 1] == '/' ? "" : "/", getpid());
     assert(n < sizeof(hse_gparams.gp_socket.path) && n > 0);
 }
 
