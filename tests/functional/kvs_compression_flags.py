@@ -34,7 +34,7 @@ try:
         kvs1_sz = kvdb.storage_info.used_bytes - original_sz
 
         for i in range(100000):
-            kvs2.put(str(i).encode(), 500 * b"A", flags=hse.KvsPutFlag.VCOMP_OFF)
+            kvs2.put(str(i).encode(), 500 * b"A", flags=hse.KvsPutFlags.VCOMP_OFF)
 
         kvdb.compact()
         kvdb.sync()
