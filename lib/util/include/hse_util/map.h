@@ -5,7 +5,12 @@
  * A map library to store key-value pairs. This is not a thread safe library.
  */
 
+#include <inttypes.h>
+#include <stdbool.h>
+
 #include <hse/error/merr.h>
+
+#include <hse_util/compiler.h>
 
 #ifndef HSE_UTIL_MAP_H
 #define HSE_UTIL_MAP_H
@@ -57,7 +62,7 @@ map_remove_ptr(struct map *map, uint64_t key)
 void
 map_reset(struct map *map);
 
-uint
+unsigned int
 map_count_get(struct map *map);
 
 struct map_iter {

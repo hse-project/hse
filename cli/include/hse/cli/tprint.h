@@ -10,8 +10,15 @@
 #include <stddef.h>
 #include <stdio.h>
 
-void
+#include <hse/error/merr.h>
+
+enum tprint_justify {
+    TP_JUSTIFY_LEFT,
+    TP_JUSTIFY_RIGHT,
+};
+
+merr_t
 tprint(FILE *fp, size_t nrow, size_t ncol, const char *const *headers,
-    const char **values, const bool *enabled);
+    const char **values, const enum tprint_justify *justify, const bool *enabled);
 
 #endif

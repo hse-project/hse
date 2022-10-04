@@ -1,0 +1,23 @@
+/* SPDX-License-Identifier: Apache-2.0 */
+/*
+ * Copyright (C) 2022 Micron Technology, Inc.  All rights reserved.
+ */
+
+#ifndef HSE_REST_STATUS_H
+#define HSE_REST_STATUS_H
+
+enum rest_status {
+    REST_STATUS_OK = 200,
+    REST_STATUS_CREATED = 201,
+    REST_STATUS_ACCEPTED = 202,
+    REST_STATUS_BAD_REQUEST = 400,
+    REST_STATUS_FORBIDDEN = 403,
+    REST_STATUS_NOT_FOUND = 404,
+    REST_STATUS_METHOD_NOT_ALLOWED = 405,
+    REST_STATUS_LOCKED = 423,
+    REST_STATUS_INTERNAL_SERVER_ERROR = 500,
+    REST_STATUS_NOT_IMPLEMENTED = 501,
+    REST_STATUS_SERVICE_UNAVAILABLE = 503,
+};
+
+#endif

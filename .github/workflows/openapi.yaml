@@ -1,0 +1,27 @@
+name: OpenAPI
+
+on:
+  pull_request:
+    types: [opened, synchronize, reopened]
+    paths:
+      - .github/workflows/openapi.yaml
+      - .spectral.yaml
+      - docs/openapi.json
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.head_ref }}
+  cancel-in-progress: true
+
+permissions:
+  checks: write
+
+jobs:
+  lint:
+    runs-on: ubuntu-latest
+
+    steps:
+      - uses: actions/checkout@v3
+
+      - uses: stoplightio/spectral-action@v0.8.8
+        with:
+          file_glob: docs/openapi.json

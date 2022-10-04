@@ -23,7 +23,6 @@
 
 #include <hse_util/event_counter.h>
 #include <hse_util/platform.h>
-#include <hse_util/rest_api.h>
 
 #include <bsd/string.h>
 

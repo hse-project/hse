@@ -14,32 +14,24 @@
 #include <hse_util/data_tree.h>
 #include <hse_util/perfc.h>
 
-char yamlbuf[128 * 1024];
-
-int
-platform_pre(struct mtf_test_info *ti)
-{
-    return 0;
-}
-
 MTF_MODULE_UNDER_TEST(hse_platform);
 
-MTF_BEGIN_UTEST_COLLECTION_PRE(perfc, platform_pre);
+MTF_BEGIN_UTEST_COLLECTION(perfc);
 
 MTF_DEFINE_UTEST(perfc, perfc_basic_create_find_and_remove)
 {
-    size_t              count;
-    struct yaml_context yc = {
-        .yaml_indent = 0, .yaml_offset = 0,
-    };
-    union dt_iterate_parameters dip = {.yc = &yc };
-    struct dt_element *         dte;
-    int                         rc, n;
-    char                        path[128];
-    struct perfc_name           ctrnames = { 0 };
-    struct perfc_set            set = { 0 };
-    size_t                      before;
-    merr_t                      err;
+    size_t count;
+    struct dt_element *dte;
+    int rc, n;
+    char path[DT_PATH_MAX];
+    struct perfc_name ctrnames = { 0 };
+    struct perfc_set set = { 0 };
+    size_t before;
+    merr_t err;
+    cJSON *root = cJSON_CreateArray();
+    union dt_iterate_parameters dip = { .root = root };
+
+    ASSERT_NE(NULL, root);
 
     before = dt_iterate_cmd(DT_OP_COUNT, DT_PATH_PERFC, NULL, NULL, NULL, NULL);
 
@@ -54,10 +46,6 @@ MTF_DEFINE_UTEST(perfc, perfc_basic_create_find_and_remove)
 
     count = dt_iterate_cmd(DT_OP_COUNT, DT_PATH_PERFC, NULL, NULL, NULL, NULL);
     ASSERT_EQ(before + 1, count);
-
-    yc.yaml_buf = yamlbuf;
-    yc.yaml_buf_sz = sizeof(yamlbuf);
-    yc.yaml_emit = NULL;
 
     count = dt_iterate_cmd(DT_OP_EMIT, DT_PATH_PERFC, &dip, NULL, NULL, NULL);
 
@@ -82,19 +70,20 @@ MTF_DEFINE_UTEST(perfc, perfc_basic_create_find_and_remove)
 
     dte = dt_find(path, 1);
     ASSERT_EQ(dte, NULL);
+
+    cJSON_Delete(root);
 }
 
 MTF_DEFINE_UTEST(perfc, perfc_basic_set)
 {
-    size_t              count;
-    struct yaml_context yc = {
-        .yaml_indent = 0, .yaml_offset = 0,
-    };
+    size_t count;
     union dt_iterate_parameters dip;
-    struct dt_element *         dte;
-    int                         rc, n;
-    char                        path[128];
-    u64                         new_value = 42;
+    struct dt_element *dte;
+    int rc, n;
+    char path[DT_PATH_MAX];
+    u64 new_value = 42;
+    cJSON *root;
+    char *output;
 
     struct perfc_name ctrnames = { 0 };
     struct perfc_set  set = { 0 };
@@ -124,16 +113,18 @@ MTF_DEFINE_UTEST(perfc, perfc_basic_set)
         "poison_ivy");
     ASSERT_TRUE(n > 0 && n < sizeof(path));
 
-    dip.yc = &yc;
-    yc.yaml_buf = yamlbuf;
-    yc.yaml_buf_sz = sizeof(yamlbuf);
-    yc.yaml_emit = NULL;
+    root = cJSON_CreateArray();
+    ASSERT_NE(NULL, root);
+
+    dip.root = root;
     count = dt_iterate_cmd(DT_OP_EMIT, DT_PATH_PERFC, &dip, NULL, NULL, NULL);
 
     /* 3, for /data/perfc, /data/perfc/poison_ivy */
     ASSERT_EQ(before + 1, count);
 
-    ASSERT_NE(NULL, strstr(yamlbuf, "value: 42"));
+    output = cJSON_PrintUnformatted(root);
+    ASSERT_NE(NULL, output);
+    ASSERT_NE(NULL, strstr(output, "\"value\":42"));
 
     dte = dt_find(path, 1);
     ASSERT_NE(dte, NULL);
@@ -143,122 +134,9 @@ MTF_DEFINE_UTEST(perfc, perfc_basic_set)
 
     dte = dt_find(path, 1);
     ASSERT_EQ(dte, NULL);
-}
 
-static inline void
-perfc_test_ctrs(struct perfc_set *set)
-{
-    perfc_set(set, 0, 0);
-    perfc_add(set, 0, 10);
-    perfc_inc(set, 0);
-    perfc_dec(set, 0);
-    perfc_sub(set, 0, 2);
-    perfc_sub(set, 0, 10);
-    perfc_sub(set, 0, 8);
-    perfc_dec(set, 0);
-}
-
-MTF_DEFINE_UTEST(perfc, clear_counters)
-{
-    struct perfc_name *         ctrnames;
-    struct perfc_set            set = { 0 };
-    merr_t                      err;
-    struct dt_set_parameters    dsp;
-    union dt_iterate_parameters dip;
-    char *                      name;
-    int                         i, ctrc = 4;
-    int                         count;
-
-    ctrnames = calloc(ctrc, sizeof(*ctrnames) + 32);
-    ASSERT_NE(0, ctrnames);
-    name = (void *)(ctrnames + ctrc);
-
-    for (i = 0; i < ctrc; i++) {
-        snprintf(name, 32, "mycounter-%d", i);
-        ctrnames[i].pcn_desc = name;
-        ctrnames[i].pcn_flags = 0;
-        ctrnames[i].pcn_prio = 1;
-        ctrnames[i].pcn_hdr = "mycounterhdr";
-        name += 32;
-    }
-
-    ctrnames[0].pcn_name = "PERFC_BA_FAM_TEST";
-    ctrnames[1].pcn_name = "PERFC_RA_FAM_TEST";
-    ctrnames[2].pcn_name = "PERFC_LT_FAM_TEST";
-    ctrnames[3].pcn_name = "PERFC_SL_FAM_TEST";
-
-    err = perfc_alloc_impl(1, "myset", ctrnames, ctrc, "alltypes", REL_FILE(__FILE__), __LINE__, &set);
-    ASSERT_EQ(0, err);
-
-    perfc_test_ctrs(&set);
-
-    perfc_ctrseti_path(&set);
-
-    dsp.path = DT_PATH_PERFC "/myset/FAM/alltypes";
-    dsp.value = "1";
-    dsp.value_len = strlen(dsp.value);
-    dsp.field = DT_FIELD_CLEAR;
-    dip.dsp = &dsp;
-
-    count = dt_iterate_cmd(DT_OP_SET, dsp.path, &dip, NULL, NULL, NULL);
-    ASSERT_EQ(ctrc, count);
-
-    perfc_free(&set);
-    free(ctrnames);
-}
-
-MTF_DEFINE_UTEST(perfc, enable_counters)
-{
-    struct perfc_name           ctrnames = { 0 };
-    struct perfc_set            set = { 0 };
-    merr_t                      err;
-    struct dt_set_parameters    dsp;
-    union dt_iterate_parameters dip;
-    size_t                      count;
-    char *                      path;
-
-    ctrnames.pcn_desc = "mycounter";
-    ctrnames.pcn_hdr = "mycounterhdr";
-    ctrnames.pcn_flags = 0;
-    ctrnames.pcn_prio = 3;
-    ctrnames.pcn_name = "PERFC_BA_FAM_TEST";
-
-    err = perfc_alloc_impl(1, "myset", &ctrnames, 1, "basic", REL_FILE(__FILE__), __LINE__, &set);
-    ASSERT_EQ(0, err);
-
-    perfc_test_ctrs(&set);
-
-    path = perfc_ctrseti_path(&set);
-    ASSERT_EQ(0, strcmp(path, DT_PATH_PERFC "/myset/FAM/basic"));
-
-    dsp.path = path;
-    dsp.value = "1";
-    dsp.value_len = strlen(dsp.value);
-    dsp.field = DT_FIELD_ENABLED;
-    dip.dsp = &dsp;
-
-    count = dt_iterate_cmd(DT_OP_SET, dsp.path, &dip, NULL, NULL, NULL);
-    ASSERT_EQ(0, count);
-
-    dsp.value = "3";
-    count = dt_iterate_cmd(DT_OP_SET, dsp.path, &dip, NULL, NULL, NULL);
-    ASSERT_EQ(1, count);
-
-    dsp.value = "0";
-    count = dt_iterate_cmd(DT_OP_SET, dsp.path, &dip, NULL, NULL, NULL);
-    ASSERT_EQ(1, count);
-
-    dsp.value = "3:foo";
-    dsp.value_len = strlen(dsp.value);
-    count = dt_iterate_cmd(DT_OP_SET, dsp.path, &dip, NULL, NULL, NULL);
-    ASSERT_EQ(0, count);
-
-    dsp.value = "3:PERFC_BA_FAM_TEST";
-    dsp.value_len = strlen(dsp.value);
-    count = dt_iterate_cmd(DT_OP_SET, dsp.path, &dip, NULL, NULL, NULL);
-    ASSERT_EQ(1, count);
-
-    perfc_free(&set);
+    free(output);
+    cJSON_Delete(root);
 }
 
 MTF_DEFINE_UTEST(perfc, perfc_ctr_name2type_fail)

@@ -7,12 +7,20 @@
 
 #include "build_config.h"
 
+#include <string.h>
+
 #include <mpool/mpool.h>
 
 #include <hse/hse.h>
 #include <hse/experimental.h>
 #include <hse/logging/logging.h>
 #include <hse/pidfile/pidfile.h>
+#include <hse/rest/headers.h>
+#include <hse/rest/params.h>
+#include <hse/rest/request.h>
+#include <hse/rest/response.h>
+#include <hse/rest/server.h>
+#include <hse/rest/status.h>
 #include <hse/version.h>
 
 #include <hse_ikvdb/ikvdb.h>
@@ -30,7 +38,6 @@
 #include <hse_util/event_counter.h>
 #include <hse_util/mutex.h>
 #include <hse_util/platform.h>
-#include <hse_util/rest_api.h>
 #include <hse_util/vlb.h>
 
 #include <bsd/libutil.h>
@@ -53,6 +60,12 @@ static DEFINE_MUTEX(hse_lock);
  * APIs.
  */
 static bool hse_initialized = false;
+
+extern enum rest_status
+rest_get_workqueues(const struct rest_request *req, struct rest_response *resp, void *arg);
+
+extern enum rest_status
+rest_kmc_get_vmstat(const struct rest_request *req, struct rest_response *resp, void *arg);
 
 static HSE_ALWAYS_INLINE u64
 kvdb_lat_startu(const u32 cidx)
@@ -95,6 +108,188 @@ hse_lowmem_adjust(unsigned long *memgb)
 
     assert(memgb);
     *memgb = mavail;
+}
+
+static enum rest_status
+rest_get_dt(
+    const struct rest_request *const req,
+    struct rest_response *const resp,
+    void *const ctx)
+{
+    char *data;
+    merr_t err;
+    cJSON *root;
+    bool pretty;
+    enum rest_status status = REST_STATUS_OK;
+
+    err = rest_params_get(req->rr_params, "pretty", &pretty, false);
+    if (err)
+        return REST_STATUS_BAD_REQUEST;
+
+    err = dt_emit(&root, "%s%s", DT_PATH_ROOT, req->rr_actual);
+    if (err) {
+        switch (merr_errno(err)) {
+        case ENAMETOOLONG:
+            return REST_STATUS_BAD_REQUEST;
+        case ENOENT:
+            return REST_STATUS_NOT_FOUND;
+        default:
+            return REST_STATUS_INTERNAL_SERVER_ERROR;
+        }
+    }
+
+    data = (pretty ? cJSON_Print : cJSON_PrintUnformatted)(root);
+    if (ev(!data)) {
+        status = REST_STATUS_INTERNAL_SERVER_ERROR;
+        goto out;
+    }
+
+    fputs(data, resp->rr_stream);
+    cJSON_free(data);
+
+    err = rest_headers_set(resp->rr_headers, REST_HEADER_CONTENT_TYPE, REST_APPLICATION_JSON);
+    if (ev(err)) {
+        status = REST_STATUS_INTERNAL_SERVER_ERROR;
+        goto out;
+    }
+
+out:
+    cJSON_Delete(root);
+
+    return status;
+}
+
+static enum rest_status
+rest_global_params_get(
+    const struct rest_request *const req,
+    struct rest_response *const resp,
+    void *const ctx)
+{
+    merr_t err;
+    bool pretty;
+
+    err = rest_params_get(req->rr_params, "pretty", &pretty, false);
+    if (err)
+        return REST_STATUS_BAD_REQUEST;
+
+    /* Check for single parameter or all parameters */
+    if (strcmp(req->rr_matched, req->rr_actual)) {
+        char *tmp;
+        char *buf;
+        merr_t err;
+        size_t needed_sz;
+        const char *param;
+        size_t buf_sz = 128;
+
+        buf = malloc(buf_sz * sizeof(*buf));
+        if (ev(!buf))
+            return REST_STATUS_INTERNAL_SERVER_ERROR;
+
+        /* move past the final '/' */
+        param = req->rr_actual + strlen(req->rr_matched) + 1;
+
+        err = hse_gparams_get(&hse_gparams, param, buf, buf_sz, &needed_sz);
+        if (ev(err)) {
+            log_errx("Failed to read HSE global param (%s): @@e", err, param);
+            free(buf);
+
+            switch (merr_errno(err)) {
+            case EINVAL:
+                return REST_STATUS_NOT_FOUND;
+            case EROFS:
+                return REST_STATUS_LOCKED;
+            default:
+                return REST_STATUS_INTERNAL_SERVER_ERROR;
+            }
+        }
+
+        if (needed_sz >= buf_sz) {
+            buf_sz = needed_sz + 1;
+            tmp = realloc(buf, buf_sz);
+            if (ev(!tmp)) {
+#if !defined(__clang__) && defined(__GNUC__) && __GNUC__ >= 12
+#pragma GCC diagnostic push
+#pragma GCC diagnostic ignored "-Wuse-after-free"
+#endif
+                free(buf);
+#if !defined(__clang__) && defined(__GNUC__) && __GNUC__ >= 12
+#pragma GCC diagnostic pop
+#endif
+                return REST_STATUS_INTERNAL_SERVER_ERROR;
+            }
+
+            buf = tmp;
+
+            err = hse_gparams_get(&hse_gparams, param, buf, buf_sz, NULL);
+            assert(err == 0);
+        }
+
+        /* No way to support pretty printing here. API might need to be
+         * expanded. We could also just re-parse the buffer to JSON.
+         */
+        fputs(buf, resp->rr_stream);
+        free(buf);
+    } else {
+        char *data;
+        cJSON *root;
+
+        root = hse_gparams_to_json(&hse_gparams);
+        if (ev(!root))
+            return REST_STATUS_INTERNAL_SERVER_ERROR;
+
+        data = (pretty ? cJSON_Print : cJSON_PrintUnformatted)(root);
+        cJSON_Delete(root);
+        if (ev(!data))
+            return REST_STATUS_INTERNAL_SERVER_ERROR;
+
+        fputs(data, resp->rr_stream);
+        cJSON_free(data);
+    }
+
+    err = rest_headers_set(resp->rr_headers, REST_HEADER_CONTENT_TYPE, REST_APPLICATION_JSON);
+    if (ev(err))
+        return REST_STATUS_INTERNAL_SERVER_ERROR;
+
+    return REST_STATUS_OK;
+}
+
+static enum rest_status
+rest_global_params_put(
+    const struct rest_request *const req,
+    struct rest_response *const resp,
+    void *const ctx)
+{
+    merr_t err;
+    const char *param;
+    const char *content_type;
+    const bool has_param = strcmp(req->rr_matched, req->rr_actual);
+
+    /* Check for case when no parameter is specified, /params */
+    if (!has_param)
+        return REST_STATUS_METHOD_NOT_ALLOWED;
+
+    content_type = rest_headers_get(req->rr_headers, REST_HEADER_CONTENT_TYPE);
+    if (!content_type || strcmp(content_type, REST_APPLICATION_JSON) != 0)
+        return REST_STATUS_BAD_REQUEST;
+
+    /* move past the final '/' */
+    param = req->rr_actual + strlen(req->rr_matched) + 1;
+
+    err = hse_gparams_set(&hse_gparams, param, req->rr_data);
+    if (ev(err)) {
+        log_errx("Failed to set HSE global parameter (%s): @@e", err, param);
+
+        switch (merr_errno(err)) {
+        case ENOMEM:
+            return REST_STATUS_INTERNAL_SERVER_ERROR;
+        case EROFS:
+            return REST_STATUS_LOCKED;
+        default:
+            return REST_STATUS_BAD_REQUEST;
+        }
+    }
+
+    return REST_STATUS_CREATED;
 }
 
 hse_err_t
@@ -156,12 +351,51 @@ hse_init(const char *const config, const size_t paramc, const char *const *const
         goto out;
 
     if (hse_gparams.gp_socket.enabled) {
+        static rest_handler *handlers[][REST_METHOD_COUNT] = {
+            {
+                [REST_METHOD_GET] = rest_get_dt,
+            },
+            {
+                [REST_METHOD_GET] = rest_kmc_get_vmstat,
+            },
+            {
+                [REST_METHOD_GET] = rest_global_params_get,
+                [REST_METHOD_PUT] = rest_global_params_put,
+            },
+            {
+                [REST_METHOD_GET] = rest_get_workqueues,
+            },
+        };
+
         err = rest_server_start(hse_gparams.gp_socket.path);
-        if (ev(err)) {
-            log_warnx("Failed to start rest server on %s", err, hse_gparams.gp_socket.path);
+        if (ev_warn(err)) {
+            log_warnx("Could not start rest server on %s", err, hse_gparams.gp_socket.path);
             err = 0;
         } else {
             log_info("Rest server started on %s", hse_gparams.gp_socket.path);
+
+            err = rest_server_add_endpoint(0, handlers[0], NULL, "/events");
+            if (ev_warn(err))
+                log_warnx("Failed to register endpoint (/events)", err);
+
+            err = rest_server_add_endpoint(REST_ENDPOINT_EXACT, handlers[1], NULL, "/kmc/vmstat");
+            if (ev_warn(err))
+                log_warnx("Failed to register route (/kmc/vmstat)", err);
+
+            err = rest_server_add_endpoint(0, handlers[2], &hse_gparams, "/params");
+            if (ev_warn(err))
+                log_warnx("Failed to register route (/params)", err);
+
+            err = rest_server_add_endpoint(0, handlers[0], NULL, "/perfc");
+            if (ev_warn(err))
+                log_warnx("Failed to register endpoint (/perfc)", err);
+
+            err = rest_server_add_endpoint(REST_ENDPOINT_EXACT, handlers[3], NULL, "/workqueues");
+            if (ev_warn(err))
+                log_warnx("Failed to register endpoint (/workqueue)", err);
+
+            if (err)
+                log_warn("Stopping REST server due to previous issues");
         }
     }
 
@@ -184,8 +418,12 @@ hse_fini(void)
     mutex_lock(&hse_lock);
 
     if (hse_initialized) {
+        rest_server_remove_endpoint("/events");
+        rest_server_remove_endpoint("/kmc/vmstat");
+        rest_server_remove_endpoint("/params");
+        rest_server_remove_endpoint("/perfc");
+        rest_server_remove_endpoint("/workqueues");
         rest_server_stop();
-
         ikvdb_fini();
         hse_platform_fini();
         logging_fini();

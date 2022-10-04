@@ -33,45 +33,34 @@ MTF_BEGIN_UTEST_COLLECTION_PREPOST(event_counter, ev_test_pre, ev_test_post);
 
 MTF_DEFINE_UTEST(event_counter, ev_create_and_search)
 {
-    const char          path[] = DT_PATH_EVENT;
-    struct yaml_context yc = {
-        .yaml_indent = 0, .yaml_offset = 0,
-    };
-    union dt_iterate_parameters dip = {.yc = &yc };
+    cJSON *root;
+    const char *path = DT_PATH_EVENT;
+    union dt_iterate_parameters dip;
 
     char *dbg_lvl = "DEBUG";
     char *err_lvl = "ERR";
     size_t dbg_before, dbg_after;
     size_t err_before, err_after;
-    char * buf;
 
-    buf = calloc(1, 32768);
-    ASSERT_NE(buf, NULL);
+    root = cJSON_CreateArray();
+    ASSERT_NE(NULL, root);
 
-    yc.yaml_buf = buf;
-    yc.yaml_buf_sz = 32768;
-    yc.yaml_emit = NULL;
+    dip.root = root;
 
-    dbg_before = dt_iterate_cmd(DT_OP_EMIT, path, &dip, NULL, "ev_pri", dbg_lvl);
-    printf("%s: %s before, %zu items ---->\n%s\n<----\n", __func__, dbg_lvl, dbg_before, buf);
-
-    err_before = dt_iterate_cmd(DT_OP_EMIT, path, &dip, NULL, "ev_pri", err_lvl);
-    printf("%s: %s before, %zu items ---->\n%s\n<----\n", __func__, err_lvl, err_before, buf);
+    dbg_before = dt_iterate_cmd(DT_OP_EMIT, path, &dip, NULL, "level", dbg_lvl);
+    err_before = dt_iterate_cmd(DT_OP_EMIT, path, &dip, NULL, "level", err_lvl);
 
     ev_info(1);
     ev_warn(1);
     ev_err(1);
 
-    dbg_after = dt_iterate_cmd(DT_OP_EMIT, path, &dip, NULL, "ev_pri", dbg_lvl);
-    printf("%s: %s before, %zu items ---->\n%s\n<----\n", __func__, dbg_lvl, dbg_after, buf);
-
-    err_after = dt_iterate_cmd(DT_OP_EMIT, path, &dip, NULL, "ev_pri", err_lvl);
-    printf("%s: %s before, %zu items ---->\n%s\n<----\n", __func__, err_lvl, err_after, buf);
+    dbg_after = dt_iterate_cmd(DT_OP_EMIT, path, &dip, NULL, "level", dbg_lvl);
+    err_after = dt_iterate_cmd(DT_OP_EMIT, path, &dip, NULL, "level", err_lvl);
 
     ASSERT_EQ(dbg_after - dbg_before, 3);
     ASSERT_EQ(err_after - err_before, 1);
 
-    free(buf);
+    cJSON_Delete(root);
 }
 
 /* 1. Test that the Event Counter macro creates an event counter that is
@@ -148,7 +137,7 @@ MTF_DEFINE_UTEST(event_counter, ev_create_and_find)
     ASSERT_NE(direct, NULL);
 
     ev = (struct event_counter *)direct->dte_data;
-    ASSERT_EQ(ev->ev_pri, LOG_INFO);
+    ASSERT_EQ(ev->ev_level, LOG_INFO);
 
     /* Now, with both a priority and a rock */
     /* clang-format off */
@@ -168,7 +157,7 @@ MTF_DEFINE_UTEST(event_counter, ev_create_and_find)
     ASSERT_NE(direct, NULL);
 
     ev = (struct event_counter *)direct->dte_data;
-    ASSERT_EQ(ev->ev_pri, LOG_WARNING);
+    ASSERT_EQ(ev->ev_level, LOG_WARNING);
 }
 
 /**
@@ -353,242 +342,52 @@ MTF_DEFINE_UTEST(event_counter, ev_timestamp_advance)
     }
 }
 
-/* 5. Test trip odometer timestamp
- */
-MTF_DEFINE_UTEST(event_counter, ev_trip_odometer_timestamp)
+merr_t
+validate(
+    cJSON *const root,
+    const char *const phile,
+    const char *const func,
+    const int line,
+    struct event_counter *const ec)
 {
-    char                        direct_path[DT_PATH_MAX];
-    struct event_counter *      ec;
-    struct dt_element *         direct;
-    atomic_ulong                before, after;
-    const char *                phile = basename(__FILE__);
-    size_t                      count;
-    int                         line;
-    int                         ret;
-    struct dt_set_parameters    dsp;
-    union dt_iterate_parameters dip = {.dsp = &dsp };
+    cJSON *elem;
+    char buf[DT_PATH_MAX];
 
-    /* Create an EC using the macro. */
-    /* clang-format off */
-    ev(1); line = __LINE__;
-    /* clang-format on */
+    elem = cJSON_GetArrayItem(root, 0);
 
-    /* Try to find the EC with a direct find */
-    snprintf(
-        direct_path,
-        sizeof(direct_path),
-        "%s/%s/%s/%d",
-        DT_PATH_EVENT,
-        phile,
-        __func__,
-        line);
-    direct = dt_find(direct_path, 1);
-    ASSERT_NE(direct, NULL);
+    snprintf(buf, sizeof(buf), "%s/%s/%s/%d", DT_PATH_EVENT, phile, func, line);
+    if (strcmp(cJSON_GetStringValue(cJSON_GetObjectItemCaseSensitive(elem, "path")), buf) != 0)
+        return merr(EINVAL);
 
-    ec = direct->dte_data;
-    ASSERT_NE(ec, NULL);
+    if (strcmp(cJSON_GetStringValue(cJSON_GetObjectItemCaseSensitive(elem, "level")), "INFO") != 0)
+        return merr(EINVAL);
 
-    /* Trip odometer should be zeroed */
-    ASSERT_EQ(ec->ev_trip_odometer, 0);
+    if (cJSON_GetNumberValue(cJSON_GetObjectItemCaseSensitive(elem, "odometer"))
+            != atomic_read(&ec->ev_odometer))
+        return merr(EINVAL);
 
-    /* Take a "before" time reading. */
-    ev_get_timestamp(&before);
-    ev_get_timestamp(&after);
+    snprintf_timestamp(buf, sizeof(buf), &ec->ev_odometer_timestamp);
+    if (strcmp(cJSON_GetStringValue(cJSON_GetObjectItemCaseSensitive(elem, "odometer_timestamp")),
+            buf) != 0)
+        return merr(EINVAL);
 
-    /* Now, execute the "Set" command, which should set the
-     * trip odometer to equal the odometer, and initialize the
-     * trip odometer's timestamp.
-     */
-    dsp.field = DT_FIELD_TRIP_ODOMETER;
-    count = dt_iterate_cmd(DT_OP_SET, direct_path, &dip, NULL, NULL, NULL);
-    ASSERT_EQ(count, 1);
-
-    /* Take an "after" time reading. */
-    ev_get_timestamp(&after);
-
-    /* Make sure that the trip odometer's timestamp is between the
-     * before and after time readings that we took.
-     *
-     * Note, the granularity of the clock we are reading is such that
-     * two cousecutive time reads may be equal, so, cannot check for
-     * absolutely before or after, just equal or before, and equal or
-     * after.
-     */
-    ret = timestamp_compare(&before, &ec->ev_trip_odometer_timestamp);
-    ASSERT_TRUE(ret <= 0);
-
-    ret = timestamp_compare(&after, &ec->ev_trip_odometer_timestamp);
-    ASSERT_TRUE(ret >= 0);
-
-    /* The trip odometer should now be set to 1 (copy of the odometer's
-     * value at the time of the set operation.
-     */
-    ASSERT_EQ(ec->ev_trip_odometer, 1);
+    return 0;
 }
 
-/* 6. Test trip odometer counter
- */
-MTF_DEFINE_UTEST(event_counter, ev_trip_odometer_counter)
-{
-    char                        direct_path[DT_PATH_MAX];
-    struct event_counter *      ec;
-    struct dt_element *         direct;
-    const char *                phile = basename(__FILE__);
-    int                         line;
-    int                         count;
-    int                         i;
-    struct dt_set_parameters    dsp;
-    union dt_iterate_parameters dip = {.dsp = &dsp };
-
-    /* Loop 10 times over the macro. Sleep a little between each
-     * invocation, and watch that the timestamp advances correctly.
-     */
-    for (i = 0; i < 10; i++) {
-
-        /* clang-format off */
-        ev(1); line = __LINE__;
-        /* clang-format on */
-
-        /* Try to find the EC with a direct find */
-        snprintf(
-            direct_path,
-            sizeof(direct_path),
-            "%s/%s/%s/%d",
-            DT_PATH_EVENT,
-            phile,
-            __func__,
-            line);
-
-        direct = dt_find(direct_path, 1);
-        ASSERT_NE(direct, NULL);
-
-        ec = direct->dte_data;
-        ASSERT_NE(ec, NULL);
-
-        /* Counter should be equal to i+ */
-        ASSERT_EQ(atomic_read(&ec->ev_odometer), i + 1);
-
-        if (i % 2) {
-            /* Now, execute the "Set" command, which should set
-             * the trip odometer to equal the odometer, and
-             * update the trip odometer's timestamp.
-             */
-            dsp.field = DT_FIELD_TRIP_ODOMETER;
-            count = dt_iterate_cmd(DT_OP_SET, direct_path, &dip, NULL, NULL, NULL);
-            ASSERT_EQ(count, 1);
-
-            ASSERT_EQ(ec->ev_trip_odometer, i + 1);
-        } else {
-            /* The trip_odometer should lag by 1 */
-            ASSERT_EQ(ec->ev_trip_odometer, i);
-        }
-    }
-}
-
-#define MY_BUF_SIZE 512
-int
-validate_buf(
-    const char *          buf,
-    size_t                bytes_in_buf,
-    const char *          phile,
-    const char *          func,
-    int                   line,
-    struct event_counter *ec)
-{
-    char        my_buf[MY_BUF_SIZE], *mb = my_buf;
-    const char *b = buf;
-    size_t      offset = 0;
-    size_t      remaining;
-    int         ret;
-    int         i;
-
-    memset(my_buf, 0, MY_BUF_SIZE);
-
-    remaining = MY_BUF_SIZE - offset;
-
-    offset += snprintf(my_buf + offset, remaining, "%s:\n",
-                       &DT_PATH_EVENT[strlen(DT_PATH_ROOT) + 1]);
-    remaining = MY_BUF_SIZE - offset;
-
-    offset += snprintf(my_buf + offset, remaining,
-                       "- path: %s/%s/%s/%d\n", DT_PATH_EVENT, phile, func, line);
-    remaining = MY_BUF_SIZE - offset;
-
-    offset += snprintf(my_buf + offset, remaining, "  level: INFO\n");
-    remaining = MY_BUF_SIZE - offset;
-
-    offset +=
-        snprintf(my_buf + offset, remaining, "  odometer: %lu\n", atomic_read(&ec->ev_odometer));
-    remaining = MY_BUF_SIZE - offset;
-
-    offset += snprintf(my_buf + offset, remaining, "  odometer timestamp: ");
-    remaining = MY_BUF_SIZE - offset;
-
-    offset += snprintf_timestamp(my_buf + offset, remaining, &ec->ev_odometer_timestamp);
-    remaining = MY_BUF_SIZE - offset;
-
-    offset += snprintf(my_buf + offset, remaining, "\n");
-    remaining = MY_BUF_SIZE - offset;
-
-    if (ec->ev_trip_odometer != 0) {
-        offset += snprintf(
-            my_buf + offset,
-            remaining,
-            "  trip odometer: %lu\n",
-            atomic_read(&ec->ev_odometer) - ec->ev_trip_odometer);
-        remaining = MY_BUF_SIZE - offset;
-
-        offset += snprintf(my_buf + offset, remaining, "  trip odometer timestamp: ");
-        remaining = MY_BUF_SIZE - offset;
-
-        offset += snprintf_timestamp(my_buf + offset, remaining, &ec->ev_trip_odometer_timestamp);
-        remaining = MY_BUF_SIZE - offset;
-
-        offset += snprintf(my_buf + offset, remaining, "\n");
-        remaining = MY_BUF_SIZE - offset;
-    }
-
-    offset += snprintf(my_buf + offset, remaining, "  source: events\n");
-
-    i = 0;
-    while (mb && b && *mb && *b && (*mb == *b)) {
-        i++;
-        mb++;
-        b++;
-    }
-    if (i != bytes_in_buf) {
-        printf("failed at byte %d\n", i);
-        ret = -1;
-    } else {
-        /* Compared successfully */
-        ret = 0;
-    }
-    printf("********************************************\n");
-    printf("%s", buf);
-    printf("********************************************\n");
-    printf("%s", my_buf);
-    printf("********************************************\n");
-    return ret;
-}
-
-#define EV_EMIT_BUF_SIZE 512
-/* 7. Test emit functionality
+/* 5. Test emit functionality
  */
 MTF_DEFINE_UTEST(event_counter, ev_emit)
 {
-    const char *        phile = basename(__FILE__);
-    char                direct_path[DT_PATH_MAX];
-    struct yaml_context yc = {
-        .yaml_indent = 0, .yaml_offset = 0,
-    };
-    union dt_iterate_parameters dip = {.yc = &yc };
-    char *                      buf;
-    struct dt_element *         direct;
-    struct event_counter *      ec;
-    size_t                      count;
-    int                         line;
-    int                         ret;
-    bool                        rbool;
+    merr_t err;
+    cJSON *root;
+    const char *phile = basename(__FILE__);
+    char direct_path[DT_PATH_MAX];
+    union dt_iterate_parameters dip;
+    struct dt_element *direct;
+    struct event_counter *ec;
+    size_t count;
+    int line;
+    bool rbool;
 
     /* Create an EC using the macro.
      *
@@ -610,31 +409,30 @@ MTF_DEFINE_UTEST(event_counter, ev_emit)
         __func__,
         line);
     direct = dt_find(direct_path, 1);
-    ASSERT_NE(direct, NULL);
+    ASSERT_NE(NULL, direct);
 
     ec = direct->dte_data;
-    ASSERT_NE(ec, NULL);
+    ASSERT_NE(NULL, ec);
 
-    buf = calloc(1, EV_EMIT_BUF_SIZE);
-    ASSERT_NE(buf, NULL);
-    yc.yaml_buf = buf;
-    yc.yaml_buf_sz = EV_EMIT_BUF_SIZE;
-    yc.yaml_emit = NULL;
+    root = cJSON_CreateArray();
+    ASSERT_NE(NULL, root);
+
+    dip.root = root;
 
     /* Generate an emit command with dt_iterate_cmd */
     count = dt_iterate_cmd(DT_OP_EMIT, direct_path, &dip, NULL, NULL, NULL);
-    ASSERT_EQ(count, 2);
+    ASSERT_EQ(2, count);
 
-    ret = validate_buf(buf, yc.yaml_offset, phile, __func__, line, ec);
-    ASSERT_EQ(ret, 0);
+    err = validate(root, phile, __func__, line, ec);
+    ASSERT_EQ(0, merr_errno(err));
 
-    free(buf);
+    cJSON_Delete(root);
 
     rbool = ev_root_match_select_handler(NULL, NULL, NULL);
-    ASSERT_EQ(rbool, true);
+    ASSERT_EQ(true, rbool);
 }
 
-/* 8. Test count functionality
+/* 6. Test count functionality
  */
 MTF_DEFINE_UTEST(event_counter, ev_counts)
 {
@@ -661,7 +459,7 @@ MTF_DEFINE_UTEST(event_counter, ev_counts)
     ASSERT_EQ(count, 4);
 }
 
-/* 13. Show that EC cannot be deleted.
+/* 7. Show that EC cannot be deleted.
  */
 MTF_DEFINE_UTEST(event_counter, ev_delete_protect)
 {
@@ -700,22 +498,18 @@ MTF_DEFINE_UTEST(event_counter, ev_delete_protect)
 #define EV_EMIT_OVERFLOW_BUF_SIZE 20
 #define FALSE_OFFSET 100
 
-/* 15. Test emit overflow protection
+/* 8. Test emit overflow protection
  */
 MTF_DEFINE_UTEST(event_counter, ev_emit_overflow)
 {
-    const char *        phile = basename(__FILE__);
-    char                direct_path[DT_PATH_MAX];
-    struct yaml_context yc = {
-        .yaml_indent = 0, .yaml_offset = 0,
-    };
-    union dt_iterate_parameters dip = {.yc = &yc };
-    char *                      buf, *false_buf;
-    struct dt_element *         direct;
-    struct event_counter *      ec;
-    size_t                      count;
-    int                         line;
-    int                         i;
+    cJSON *root;
+    const char *phile = basename(__FILE__);
+    char direct_path[DT_PATH_MAX];
+    union dt_iterate_parameters dip;
+    struct dt_element *direct;
+    struct event_counter *ec;
+    size_t count;
+    int line;
 
     /* Create an EC using the macro.
      *
@@ -737,164 +531,22 @@ MTF_DEFINE_UTEST(event_counter, ev_emit_overflow)
         __func__,
         line);
     direct = dt_find(direct_path, 1);
-    ASSERT_NE(direct, NULL);
+    ASSERT_NE(NULL, direct);
 
     ec = direct->dte_data;
-    ASSERT_NE(ec, NULL);
+    ASSERT_NE(NULL, ec);
 
-    /* Allocate a large buffer, and we will seed it with a known
-     * value. We'll tell emit to use a small part of it, then
-     * we'll check that the emit hasn't corrupted the out-lying
-     * buffer.
-     */
-    buf = calloc(1, EV_EMIT_BUF_SIZE);
-    ASSERT_NE(buf, NULL);
+    root = cJSON_CreateArray();
+    ASSERT_NE(NULL, root);
 
-    memset(buf, 42, EV_EMIT_BUF_SIZE);
-    false_buf = buf + FALSE_OFFSET;
-    yc.yaml_buf = false_buf;
-    yc.yaml_buf_sz = EV_EMIT_OVERFLOW_BUF_SIZE;
-    yc.yaml_emit = NULL;
+    dip.root = root;
 
     /* Generate an emit command with dt_iterate_cmd */
     count = dt_iterate_cmd(DT_OP_EMIT, direct_path, &dip, NULL, NULL, NULL);
-    ASSERT_EQ(count, 2);
+    ASSERT_EQ(2, count);
+    ASSERT_EQ(1, cJSON_GetArraySize(root));
 
-    for (i = 0; i < FALSE_OFFSET; i++) {
-        if (buf[i] != 42) {
-            fprintf(stderr, "%s: event at byte %d\n", __func__, i);
-            ASSERT_TRUE(0);
-        }
-    }
-
-    for (i = FALSE_OFFSET + EV_EMIT_OVERFLOW_BUF_SIZE; i < EV_EMIT_BUF_SIZE; i++) {
-        if (buf[i] != 42) {
-            fprintf(stderr, "%s: event at byte %d\n", __func__, i);
-            ASSERT_TRUE(0);
-        }
-    }
-
-    free(buf);
-}
-
-/* 17. Test fields that haven't been
- * implemented or are invalid
- */
-MTF_DEFINE_UTEST(event_counter, ev_put_invalid_field)
-{
-    char                        direct_path[DT_PATH_MAX];
-    const char *                phile = basename(__FILE__);
-    int                         line;
-    int                         count;
-    struct dt_element *         direct, *dte;
-    struct dt_set_parameters    dsp;
-    union dt_iterate_parameters dip = {.dsp = &dsp };
-
-    /* clang-format off */
-    ev(1); line = __LINE__;
-    /* clang-format on */
-
-    /* Try to find the EC with a direct find */
-    snprintf(
-        direct_path,
-        sizeof(direct_path),
-        "%s/%s/%s/%d",
-        DT_PATH_EVENT,
-        phile,
-        __func__,
-        line);
-
-    /* Get the current dt element struct
-     * to use as reference for later comparisons
-     */
-    direct = dt_find(direct_path, 1);
-    ASSERT_NE(direct, NULL);
-
-    /* For each field val, test the following:
-     * 1. the count is zero - i.e. SET didn't do anything
-     *    on any of the nodes encountered.
-     * 2. get the dte, and verify that it is not NULL
-     * 3. Compare the retreived dte with direct (reference dt element)
-     */
-    dsp.field = DT_FIELD_CLEAR;
-    dsp.value = "somevalue";
-    count = dt_iterate_cmd(DT_OP_SET, direct_path, &dip, NULL, NULL, NULL);
-    ASSERT_EQ(count, 0);
-    dte = dt_find(direct_path, 1);
-    ASSERT_NE(dte, NULL);
-    if (dte)
-        ASSERT_EQ(0, memcmp(dte, direct, sizeof(struct dt_element)));
-
-    dsp.field = DT_FIELD_ODOMETER_TIMESTAMP;
-    dsp.value = "somevalue";
-    count = dt_iterate_cmd(DT_OP_SET, direct_path, &dip, NULL, NULL, NULL);
-    ASSERT_EQ(count, 0);
-    dte = dt_find(direct_path, 1);
-    ASSERT_NE(dte, NULL);
-    if (dte)
-        ASSERT_EQ(0, memcmp(dte, direct, sizeof(struct dt_element)));
-
-    dsp.field = DT_FIELD_TRIP_ODOMETER_TIMESTAMP;
-    dsp.value = "somevalue";
-    count = dt_iterate_cmd(DT_OP_SET, direct_path, &dip, NULL, NULL, NULL);
-    ASSERT_EQ(count, 0);
-    dte = dt_find(direct_path, 1);
-    ASSERT_NE(dte, NULL);
-    if (dte)
-        ASSERT_EQ(0, memcmp(dte, direct, sizeof(struct dt_element)));
-
-    dsp.field = DT_FIELD_ODOMETER;
-    dsp.value = "somevalue";
-    count = dt_iterate_cmd(DT_OP_SET, direct_path, &dip, NULL, NULL, NULL);
-    ASSERT_EQ(count, 0);
-    dte = dt_find(direct_path, 1);
-    ASSERT_NE(dte, NULL);
-    if (dte)
-        ASSERT_EQ(0, memcmp(dte, direct, sizeof(struct dt_element)));
-
-    dsp.field = DT_FIELD_INVALID;
-    dsp.value = "somevalue";
-    count = dt_iterate_cmd(DT_OP_SET, direct_path, &dip, NULL, NULL, NULL);
-    ASSERT_EQ(count, 0);
-    dte = dt_find(direct_path, 1);
-    ASSERT_NE(dte, NULL);
-    if (dte)
-        ASSERT_EQ(0, memcmp(dte, direct, sizeof(struct dt_element)));
-
-    dsp.field = -2;
-    dsp.value = "somevalue";
-    count = dt_iterate_cmd(DT_OP_SET, direct_path, &dip, NULL, NULL, NULL);
-    ASSERT_EQ(count, 0);
-    dte = dt_find(direct_path, 1);
-    ASSERT_NE(dte, NULL);
-    if (dte)
-        ASSERT_EQ(0, memcmp(dte, direct, sizeof(struct dt_element)));
-}
-
-/* 18. Test the match_select handlers
- */
-MTF_DEFINE_UTEST(event_counter, ev_match_select_test)
-{
-    struct dt_element    dte;
-    struct event_counter ec;
-    bool                 boolean;
-
-    memset(&dte, 0, sizeof(dte));
-    memset(&ec, 0, sizeof(ec));
-    dte.dte_data = &ec;
-    dte.dte_ops = &event_counter_ops;
-
-    /* Should match with "all" */
-    boolean = ev_match_select_handler(&dte, "source", "all");
-    ASSERT_EQ(boolean, true);
-
-    /* Should not match with "event_counter" */
-    boolean = ev_match_select_handler(&dte, "source", "event_counter");
-    ASSERT_EQ(boolean, false);
-
-    /* Should not match with random other string */
-    boolean = ev_match_select_handler(&dte, "source", "the_moon");
-    ASSERT_EQ(boolean, false);
+    cJSON_Delete(root);
 }
 
 MTF_END_UTEST_COLLECTION(event_counter)

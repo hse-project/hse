@@ -1,0 +1,23 @@
+name: OpenAPI
+
+on:
+  pull_request:
+    types: [opened, synchronize, reopened]
+    paths-ignore:
+      - .github/workflows/openapi.yaml
+      - .spectral.yaml
+      - docs/openapi.json
+
+concurrency:
+  group: ${{ github.workflow }}-ignore-${{ github.head_ref }}
+  cancel-in-progress: true
+
+permissions: {}
+
+jobs:
+  lint:
+    runs-on: ubuntu-latest
+
+    steps:
+      - run: |
+          echo "Skipping ${{ github.workflow }}/${{ github.job }}"

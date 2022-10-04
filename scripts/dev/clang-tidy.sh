@@ -17,8 +17,8 @@ fi
 source_root=$(realpath "$(dirname "$(dirname "$(dirname "$0")")")")
 
 files=$(find "$source_root/include" "$source_root/cli" "$source_root/samples" \
-    "$source_root/lib/error" "$source_root/lib/logging" -name "*.[ch]" -type f \
-    -print0 | xargs --null)
+    "$source_root/lib/error" "$source_root/lib/logging" \
+    "$source_root/lib/rest" -name "*.[ch]" -type f -print0 | xargs --null)
 
 # shellcheck disable=SC2086 disable=SC2154 # Need word splitting for $files
 clang-tidy -p $MESON_BUILD_ROOT --warnings-as-errors \

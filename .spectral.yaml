@@ -1,0 +1,145 @@
+# Used for validating the docs/openapi.json file
+extends: [[spectral:oas, recommended]]
+rules:
+  operation-id-format:
+    description: Operation IDs must be kebab case.
+    message: "{{description}} {{error}}"
+    given: "$.paths[*][get,put,post,delete,options,head,patch,trace]"
+    severity: error
+    then:
+      field: operationId
+      function: casing
+      functionOptions:
+        type: kebab
+  operation-tags-allowed:
+    description: Only certain tags are allowed.
+    message: "{{description}} {{error}}"
+    given: "$.paths[*][get,put,post,delete,options,head,patch,trace]"
+    severity: error
+    then:
+      field: tags
+      function: schema
+      functionOptions:
+        schema:
+          type: array
+          minItems: 1
+          maxItems: 1
+          items:
+            type: string
+            enum:
+              - global
+              - kvdb
+              - kvs
+  operations-must-have-x-options:
+    description: Operations must have x-options.
+    message: "{{description}} {{error}}"
+    given: "$.paths[*][get,put,post,delete,options,head,patch,trace]"
+    severity: error
+    then:
+      field: x-options
+      function: truthy
+  x-options-schema:
+    description: x-options must have the correct schema.
+    message: "{{description}} {{error}}"
+    given: "$.paths[*][get,put,post,delete,options,head,patch,trace]"
+    severity: error
+    then:
+      field: x-options
+      function: schema
+      functionOptions:
+        schema:
+          type: array
+          items:
+            type: object
+            properties:
+              long:
+                type: string
+              short:
+                type: string
+                minLength: 1
+                maxLength: 1
+              description:
+                type: string
+              requires-arguments:
+                type: boolean
+              parameter:
+                type: string
+                pattern: "^#\/[a-zA-Z0-9]+[a-zA-Z0-9\/]"
+            required:
+              - long
+              - short
+              - description
+  x-formats-schema:
+    description: x-formats must have the correct schema.
+    message: "{{description}} {{error}}"
+    given: "$.paths[*][get,put,post,delete,options,head,patch,trace].x-formats"
+    severity: error
+    then:
+      function: schema
+      functionOptions:
+        schema:
+          type: object
+          minProperties: 1
+          properties:
+            json:
+              type: object
+              maxProperties: 0
+            plain:
+              type: object
+              maxProperties: 0
+            tab:
+              type: object
+              oneOf:
+                - properties:
+                    type:
+                      type: string
+                      enum:
+                        - array
+                    config:
+                      type: object
+                      properties:
+                        columns:
+                          type: object
+                          patternProperties:
+                            "[A-Z_]+":
+                              type: object
+                              properties:
+                                pointer:
+                                  type: string
+                                  pattern: "^\/[a-zA-Z0-9\/]+"
+                                justify:
+                                  type: string
+                                  enum:
+                                    - left
+                                    - right
+                              required:
+                                - pointer
+                                - justify
+                      required:
+                        - columns
+                  required:
+                    - type
+                    - config
+                - properties:
+                    type:
+                      type: string
+                      enum:
+                        - custom
+                  required:
+                    - type
+                - properties:
+                    type:
+                      type: string
+                      enum:
+                        - flattened
+                    config:
+                      type: object
+                      properties:
+                        columns:
+                          type: array
+                          maxItems: 2
+                          items:
+                            type: string
+                  required:
+                    - type
+                    - config

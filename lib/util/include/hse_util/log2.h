@@ -20,13 +20,6 @@ ilog2(unsigned long n)
 }
 
 static HSE_ALWAYS_INLINE HSE_CONST
-bool
-is_power_of_2(unsigned long n)
-{
-    return n > 0 && !(n & (n - 1));
-}
-
-static HSE_ALWAYS_INLINE HSE_CONST
 unsigned long
 roundup_pow_of_two(unsigned long n)
 {

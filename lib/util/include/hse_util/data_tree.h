@@ -1,37 +1,27 @@
 /* SPDX-License-Identifier: Apache-2.0 */
 /*
- * Copyright (C) 2015-2021 Micron Technology, Inc.  All rights reserved.
+ * Copyright (C) 2015-2022 Micron Technology, Inc.  All rights reserved.
  */
 
 #ifndef HSE_PLATFORM_DATA_TREE_H
 #define HSE_PLATFORM_DATA_TREE_H
 
+#include <stdbool.h>
+
+#include <cjson/cJSON.h>
+#include <rbtree.h>
+
+#include <hse/error/merr.h>
+
 #include <hse_util/compiler.h>
 #include <hse_util/inttypes.h>
 #include <hse_util/list.h>
-#include <hse_util/yaml.h>
-
-#include <rbtree.h>
-
-typedef enum {
-    DT_TYPE_INVALID,
-    DT_TYPE_DONT_CARE,
-    DT_TYPE_ROOT,
-    DT_TYPE_ERROR_COUNTER,
-    DT_TYPE_PERFC,
-    DT_TYPE_WP_KVDB,
-    DT_TYPE_WP_KVS,
-    DT_TYPE_PMD,
-    DT_TYPE_TEST_ELEMENT,
-} dt_type_t;
 
 typedef enum {
     DT_FIELD_INVALID,
     DT_FIELD_ODOMETER_TIMESTAMP,
     DT_FIELD_ODOMETER,
-    DT_FIELD_TRIP_ODOMETER_TIMESTAMP,
-    DT_FIELD_TRIP_ODOMETER,
-    DT_FIELD_PRIORITY,
+    DT_FIELD_LEVEL,
     DT_FIELD_FLAGS,
     DT_FIELD_ENABLED,
     DT_FIELD_CLEAR,
@@ -39,7 +29,7 @@ typedef enum {
 } dt_field_t;
 
 /* Operations */
-enum { DT_OP_INVALID, DT_OP_EMIT, DT_OP_SET, DT_OP_COUNT, DT_OP_LOG };
+enum { DT_OP_EMIT, DT_OP_COUNT };
 
 /* clang-format on */
 
@@ -53,7 +43,6 @@ enum { DT_OP_INVALID, DT_OP_EMIT, DT_OP_SET, DT_OP_COUNT, DT_OP_LOG };
 #define DT_PATH_ROOT              "/data"
 #define DT_PATH_EVENT             "/data/events"
 #define DT_PATH_PERFC             "/data/perfc"
-#define DT_PATH_TEST              "/data/test"
 
 #define _dt_section               __attribute__((section("hse_dt")))
 
@@ -64,7 +53,7 @@ struct dt_element {
     };
     void                   *dte_data;
     struct dt_element_ops  *dte_ops;
-    dt_type_t               dte_type;
+    bool                    dte_is_root;
     uint32_t                dte_flags;
     int                     dte_line;
     const char             *dte_file;
@@ -93,23 +82,22 @@ struct dt_set_parameters {
 };
 
 union dt_iterate_parameters {
-    struct yaml_context *     yc;
+    cJSON *root;
     struct dt_set_parameters *dsp;
-    int                       log_level;
+    int log_level;
 };
 
 /* The real definition of struct dt_tree is in data_tree.c */
 struct dt_tree;
 
 typedef size_t dt_remove_handler_t(struct dt_element *);
-typedef size_t dt_emit_handler_t(struct dt_element *, struct yaml_context *);
+typedef size_t dt_emit_handler_t(struct dt_element *, cJSON *);
 typedef size_t dt_set_handler_t(struct dt_element *, struct dt_set_parameters *);
 typedef bool dt_match_handler_t(struct dt_element *, char *, char *);
 
 struct dt_element_ops {
     dt_remove_handler_t *dto_remove;
     dt_emit_handler_t   *dto_emit;
-    dt_set_handler_t    *dto_set;
     dt_match_handler_t  *dto_match_selector;
 };
 
@@ -205,6 +193,15 @@ dt_remove_by_name(char *path);
  */
 int
 dt_remove_recursive(char *path);
+
+/**
+ * Emit the content of the data tree from the given path.
+ *
+ * @param[out] root Pointer to set to allocated JSON object.
+ * @param path_format Format string to create path.
+ */
+merr_t
+dt_emit(cJSON **root, const char *path_format, ...) HSE_PRINTF(2, 3);
 
 /**
  * dt_find - Find a dte within the data tree

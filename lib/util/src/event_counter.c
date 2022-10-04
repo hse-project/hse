@@ -3,8 +3,12 @@
  * Copyright (C) 2015-2022 Micron Technology, Inc.  All rights reserved.
  */
 
-#include <hse_util/platform.h>
+#include <cjson/cJSON.h>
+#include <cjson/cJSON_Utils.h>
+
 #include <hse/logging/logging.h>
+#include <hse_util/assert.h>
+#include <hse_util/platform.h>
 #include <hse_util/time.h>
 #include <hse_util/data_tree.h>
 #include <hse_util/event_counter.h>
@@ -35,7 +39,7 @@ snprintf_timestamp(char *buf, size_t buf_sz, atomic_ulong *timestamp)
     ret = snprintf(
         buf,
         buf_sz,
-        "%04ld-%02d-%02d %02d:%02d:%02d.%03ld",
+        "%04ld-%02d-%02dT%02d:%02d:%02d.%03ld",
         (long)(tm.tm_year + 1900),
         tm.tm_mon + 1,
         tm.tm_mday,
@@ -52,47 +56,14 @@ ev_match_select_handler(struct dt_element *dte, char *field, char *value)
 {
     struct event_counter *ec = dte->dte_data;
 
-    if (!strcmp(field, "source")) {
-        if (!strcmp(value, "all")) {
-            return true;
-        } else {
-            if (!strcmp("events", value))
-                return true;
-        }
-    } else if (!strcmp(field, "ev_pri")) {
-        const int pri = log_level_from_string(value);
+    if (!strcmp(field, "level")) {
+        const int level = log_level_from_string(value);
 
-        if (ec->ev_pri <= pri)
+        if (ec->ev_level <= level)
             return true;
     }
+
     return false;
-}
-
-static size_t
-ev_set_handler(struct dt_element *dte, struct dt_set_parameters *dsp)
-{
-    struct event_counter *ec = dte->dte_data;
-
-    switch (dsp->field) {
-        case DT_FIELD_PRIORITY:
-            ec->ev_pri = log_level_from_string(dsp->value);
-            break;
-
-        case DT_FIELD_TRIP_ODOMETER:
-            ec->ev_trip_odometer = atomic_read(&ec->ev_odometer);
-            ev_get_timestamp(&ec->ev_trip_odometer_timestamp);
-            break;
-
-        case DT_FIELD_CLEAR:
-        case DT_FIELD_ODOMETER_TIMESTAMP:
-        case DT_FIELD_TRIP_ODOMETER_TIMESTAMP:
-        case DT_FIELD_ODOMETER:
-        case DT_FIELD_INVALID:
-        default:
-            return 0;
-    };
-
-    return 1;
 }
 
 /**
@@ -113,42 +84,29 @@ ev_set_handler(struct dt_element *dte, struct dt_set_parameters *dsp)
  * Fields are indented 6 spaces.
  */
 static size_t
-ev_emit_handler(struct dt_element *dte, struct yaml_context *yc)
+ev_emit_handler(struct dt_element *const dte, cJSON *const root)
 {
+    char value[128];
+    cJSON *elem = cJSON_CreateObject();
     struct event_counter *ec = dte->dte_data;
-    char                  value[128];
-    ulong                 odometer;
+    const unsigned long odometer = atomic_read(&ec->ev_odometer);
 
-    yaml_start_element(yc, "path", dte->dte_path);
+    INVARIANT(dte);
+    INVARIANT(cJSON_IsArray(root));
 
-    snprintf(value, sizeof(value), "%s", log_level_to_string(ec->ev_pri));
-    yaml_element_field(yc, "level", value);
-
-    odometer = atomic_read(&ec->ev_odometer);
-    u64_to_string(value, sizeof(value), odometer);
-    yaml_element_field(yc, "odometer", value);
-
+    cJSON_AddStringToObject(elem, "path", dte->dte_path);
+    cJSON_AddStringToObject(elem, "level", log_level_to_string(ec->ev_level));
+    cJSON_AddNumberToObject(elem, "odometer", odometer);
     snprintf_timestamp(value, sizeof(value), &ec->ev_odometer_timestamp);
-    yaml_element_field(yc, "odometer timestamp", value);
+    cJSON_AddStringToObject(elem, "odometer_timestamp", value);
 
-    if (ec->ev_trip_odometer != 0) {
-        u64_to_string(value, sizeof(value), odometer - ec->ev_trip_odometer);
-        yaml_element_field(yc, "trip odometer", value);
-
-        snprintf_timestamp(value, sizeof(value), &ec->ev_trip_odometer_timestamp);
-        yaml_element_field(yc, "trip odometer timestamp", value);
-    }
-
-    yaml_element_field(yc, "source", "events");
-
-    yaml_end_element(yc);
+    cJSON_AddItemToArray(root, elem);
 
     return 1;
 }
 
 struct dt_element_ops event_counter_ops = {
     .dto_emit = ev_emit_handler,
-    .dto_set = ev_set_handler,
     .dto_match_selector = ev_match_select_handler,
 };
 
@@ -159,10 +117,8 @@ ev_root_match_select_handler(struct dt_element *dte, char *field, char *value)
 }
 
 static size_t
-ev_root_emit_handler(struct dt_element *dte, struct yaml_context *yc)
+ev_root_emit_handler(struct dt_element *dte, cJSON *root)
 {
-    yaml_start_element_type(yc, basename(dte->dte_path));
-
     return 1;
 }
 
@@ -179,7 +135,7 @@ event_counter_init(void)
 {
     static struct dt_element hse_dte_event = {
         .dte_ops = &event_counter_root_ops,
-        .dte_type = DT_TYPE_ROOT,
+        .dte_is_root = true,
         .dte_file = REL_FILE(__FILE__),
         .dte_line = __LINE__,
         .dte_func = __func__,

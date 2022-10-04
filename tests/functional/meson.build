@@ -1,7 +1,7 @@
+subdir('api')
 subdir('cli')
 subdir('kvpy')
 subdir('smoke')
-subdir('api')
 
 tests = {
     'kvs_compare_full_and_pfx': {
@@ -21,7 +21,7 @@ tests = {
         'depends': hse_python_depends,
     },
     # [HSE_TODO]: Invalid tests; I think this is because of compaction not being
-    # synchonous.
+    # synchronous.
     # 'kvs_compressed_values_take_less_space': {
     #     'suites': ['hse-python', 'short'],
     #     'depends': hse_python_depends,

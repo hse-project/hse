@@ -77,9 +77,9 @@ void
 c0sk_perfc_alloc(struct c0sk_impl *self)
 {
     struct kvdb_rparams *rp = self->c0sk_kvdb_rp;
-    char group[128];
+    char group[DT_PATH_MAX];
 
-    snprintf(group, sizeof(group), "kvdb/%s", self->c0sk_kvdb_alias);
+    snprintf(group, sizeof(group), "kvdbs/%s", self->c0sk_kvdb_alias);
 
     perfc_alloc(c0sk_perfc_op, group, "set", rp->perfc_level, &self->c0sk_pc_op);
     perfc_alloc(c0sk_perfc_ingest, group, "set", rp->perfc_level, &self->c0sk_pc_ingest);

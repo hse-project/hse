@@ -31,30 +31,15 @@ fxt_kvdb_setup(
 hse_err_t
 fxt_kvdb_teardown(const char *const kvdb_home, struct hse_kvdb *const kvdb)
 {
-    hse_err_t err, rc = 0;
-    size_t    kvs_namec;
-    char **   kvs_namev = NULL;
+    hse_err_t err;
 
-    err = hse_kvdb_kvs_names_get(kvdb, &kvs_namec, &kvs_namev);
-    if (err) {
-        rc = err;
-    } else {
-        for (size_t i = 0; i < kvs_namec; i++) {
-            err = hse_kvdb_kvs_drop(kvdb, kvs_namev[i]);
-            if (err && !rc)
-                rc = err;
-        }
+    if (kvdb) {
+        err = hse_kvdb_close(kvdb);
+        if (err)
+            return err;
     }
 
-    hse_kvdb_kvs_names_free(kvdb, kvs_namev);
-
-    err = hse_kvdb_close(kvdb);
-    if (err && !rc)
-        rc = err;
-
     err = hse_kvdb_drop(kvdb_home);
-    if (err && !rc)
-        rc = err;
 
-    return rc;
+    return err;
 }

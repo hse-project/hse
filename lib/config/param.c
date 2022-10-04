@@ -1,6 +1,6 @@
 /* SPDX-License-Identifier: Apache-2.0 */
 /*
- * Copyright (C) 2021 Micron Technology, Inc.  All rights reserved.
+ * Copyright (C) 2021-2022 Micron Technology, Inc.  All rights reserved.
  */
 
 #include <fenv.h>
@@ -10,8 +10,9 @@
 #include <string.h>
 #include <tgmath.h>
 
-#include <cjson/cJSON.h>
 #include <bsd/string.h>
+#include <cjson/cJSON.h>
+#include <cjson/cJSON_Utils.h>
 
 #include <hse_ikvdb/param.h>
 #include <hse_ikvdb/hse_gparams.h>
@@ -55,20 +56,24 @@ param_to_json(
             goto out;
 
         item = ps->ps_jsonify(ps, data);
-        if (!item)
+        if (!item) {
+            free(dup);
             goto out;
+        }
 
         while (check) {
-            cJSON *   stash;
-            const int idx = (uintptr_t)(check - key);
+            cJSON *stash;
+            const ptrdiff_t idx = (uintptr_t)check - (uintptr_t)key;
 
             key[idx] = '\0';
             stash = node;
             node = cJSON_GetObjectItemCaseSensitive(stash, key);
             if (!node)
                 node = cJSON_AddObjectToObject(stash, key);
-            if (!node)
+            if (!node) {
+                free(dup);
                 goto out;
+            }
             key[idx] = '.';
 
             /* Move past the dot */
@@ -1053,7 +1058,7 @@ param_set(
 
     if (!(ps->ps_flags & PARAM_FLAG_WRITABLE)) {
         log_err("%s is not writable", param);
-        err = merr(EINVAL);
+        err = merr(EROFS);
         goto out;
     }
 

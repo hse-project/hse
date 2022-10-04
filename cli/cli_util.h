@@ -1,6 +1,6 @@
 /* SPDX-License-Identifier: Apache-2.0 */
 /*
- * Copyright (C) 2016-2021 Micron Technology, Inc.  All rights reserved.
+ * Copyright (C) 2016-2022 Micron Technology, Inc.  All rights reserved.
  */
 
 #ifndef CLI_UTIL_H
@@ -10,9 +10,6 @@
 #include <stddef.h>
 
 struct yaml_context;
-
-int
-hse_kvdb_params(const char *kvdb_home, bool get);
 
 bool
 kvdb_info_print(

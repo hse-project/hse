@@ -92,7 +92,7 @@ pidfile_deserialize(const char *home, struct pidfile *content)
     struct stat st;
 
     if (!home || !content)
-        return EINVAL;
+        return merr(EINVAL);
 
     n = snprintf(pidfile_path, sizeof(pidfile_path), "%s/" PIDFILE_NAME, home);
     if (n >= sizeof(pidfile_path))

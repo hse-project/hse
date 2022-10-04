@@ -1189,7 +1189,7 @@ MTF_DEFINE_UTEST_PRE(param_test, set, test_pre)
 
     /* Test not WRITABLE */
     err = param_set(&p, pspecs, NELEM(pspecs), "test_uint16", "10");
-    ASSERT_EQ(EINVAL, merr_errno(err));
+    ASSERT_EQ(EROFS, merr_errno(err));
     ASSERT_EQ(3, params.test_uint16); /* value set from above */
 
     /* Fail to parse */

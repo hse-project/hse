@@ -1,12 +1,13 @@
 /* SPDX-License-Identifier: Apache-2.0 */
 /*
- * Copyright (C) 2021 Micron Technology, Inc.  All rights reserved.
+ * Copyright (C) 2021-2022 Micron Technology, Inc.  All rights reserved.
  */
 
 #ifndef HSE_PLATFORM_CGROUP_H
 #define HSE_PLATFORM_CGROUP_H
 
 #include <hse_util/base.h>
+#include <hse_util/compiler.h>
 
 /**
  * hse_meminfo_cgroup() - Get memory usage for the cgroup if configured

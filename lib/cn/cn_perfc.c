@@ -111,7 +111,7 @@ cn_perfc_alloc(struct cn *cn, uint prio)
 {
     char group[128];
 
-    snprintf(group, sizeof(group), "kvdb/%s/kvs/%s", cn->cn_kvdb_alias, cn->cn_kvsname);
+    snprintf(group, sizeof(group), "kvdbs/%s/kvs/%s", cn->cn_kvdb_alias, cn->cn_kvsname);
 
     /* Not considered fatal if perfc fails */
     perfc_alloc(cn_perfc_get, group, "cnget", prio, &cn->cn_pc_get);

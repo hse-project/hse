@@ -93,7 +93,4 @@ logging_fini(void) HSE_COLD;
 merr_t
 logging_init(const struct logging_params *params, merr_stringify *ctx_stringify) HSE_COLD;
 
-void
-logging_set_level(int level);
-
 #endif /* HSE_LOGGING_LOGGING_H */

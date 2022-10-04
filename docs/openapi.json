@@ -1,0 +1,2899 @@
+{
+  "openapi": "3.0.3",
+  "servers": [
+    {
+      "url": "http://localhost"
+    }
+  ],
+  "info": {
+    "title": "HSE REST API",
+    "version": "3.0",
+    "description": "API description for the HSE REST server.",
+    "contact": {
+      "url": "https://github.com/hse-project/hse/discussions"
+    },
+    "license": {
+      "name": "Apache-2.0",
+      "url": "http://www.apache.org/licenses/LICENSE-2.0.html"
+    }
+  },
+  "paths": {
+    "/events": {
+      "description": "Interact with event counter information.",
+      "get": {
+        "description": "Get all event counter information.",
+        "operationId": "events-get",
+        "x-options": [
+          {
+            "$ref": "#/components/x-options/format"
+          },
+          {
+            "$ref": "#/components/x-options/help"
+          },
+          {
+            "$ref": "#/components/x-options/pretty"
+          }
+        ],
+        "x-formats": {
+          "json": {},
+          "tab": {
+            "type": "array",
+            "config": {
+              "columns": {
+                "PATH": {
+                  "pointer": "/path",
+                  "justify": "left"
+                },
+                "LEVEL": {
+                  "pointer": "/level",
+                  "justify": "left"
+                },
+                "ODOM": {
+                  "pointer": "/odometer",
+                  "justify": "right"
+                },
+                "ODOM_TS": {
+                  "pointer": "/odometer_timestamp",
+                  "justify": "left"
+                }
+              }
+            }
+          }
+        },
+        "parameters": [
+          {
+            "$ref": "#/components/parameters/pretty"
+          }
+        ],
+        "tags": [
+          "global"
+        ],
+        "responses": {
+          "200": {
+            "description": "Successfully retrieved event counter information.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/events"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/events/{file}": {
+      "description": "Interact with event counter information for file.",
+      "parameters": [
+        {
+          "$ref": "#/components/parameters/file"
+        }
+      ],
+      "get": {
+        "description": "Get all event counter information for file.",
+        "operationId": "events-in-file-get",
+        "x-options": [
+          {
+            "$ref": "#/components/x-options/format"
+          },
+          {
+            "$ref": "#/components/x-options/help"
+          },
+          {
+            "$ref": "#/components/x-options/pretty"
+          }
+        ],
+        "x-formats": {
+          "json": {},
+          "tab": {
+            "type": "array",
+            "config": {
+              "columns": {
+                "PATH": {
+                  "pointer": "/path",
+                  "justify": "left"
+                },
+                "LEVEL": {
+                  "pointer": "/level",
+                  "justify": "left"
+                },
+                "ODOM": {
+                  "pointer": "/odometer",
+                  "justify": "right"
+                },
+                "ODOM_TS": {
+                  "pointer": "/odometer_timestamp",
+                  "justify": "left"
+                }
+              }
+            }
+          }
+        },
+        "parameters": [
+          {
+            "$ref": "#/components/parameters/pretty"
+          }
+        ],
+        "tags": [
+          "global"
+        ],
+        "responses": {
+          "200": {
+            "description": "Successfully retrieved event counter information.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/events"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/events/{file}/{function}": {
+      "description": "Interact with event counter information for function in file.",
+      "parameters": [
+        {
+          "$ref": "#/components/parameters/file"
+        },
+        {
+          "$ref": "#/components/parameters/function"
+        }
+      ],
+      "get": {
+        "description": "Get all event counter information for function in file.",
+        "operationId": "events-in-file-in-function-get",
+        "x-options": [
+          {
+            "$ref": "#/components/x-options/format"
+          },
+          {
+            "$ref": "#/components/x-options/help"
+          },
+          {
+            "$ref": "#/components/x-options/pretty"
+          }
+        ],
+        "x-formats": {
+          "json": {},
+          "tab": {
+            "type": "array",
+            "config": {
+              "columns": {
+                "PATH": {
+                  "pointer": "/path",
+                  "justify": "left"
+                },
+                "LEVEL": {
+                  "pointer": "/level",
+                  "justify": "left"
+                },
+                "ODOM": {
+                  "pointer": "/odometer",
+                  "justify": "right"
+                },
+                "ODOM_TS": {
+                  "pointer": "/odometer_timestamp",
+                  "justify": "left"
+                }
+              }
+            }
+          }
+        },
+        "parameters": [
+          {
+            "$ref": "#/components/parameters/pretty"
+          }
+        ],
+        "tags": [
+          "global"
+        ],
+        "responses": {
+          "200": {
+            "description": "Successfully retrieved event counter information.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/events"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/events/{file}/{function}/{lineno}": {
+      "description": "Interact with event counter information for function on line number of file.",
+      "parameters": [
+        {
+          "$ref": "#/components/parameters/file"
+        },
+        {
+          "$ref": "#/components/parameters/function"
+        },
+        {
+          "$ref": "#/components/parameters/lineno"
+        }
+      ],
+      "get": {
+        "description": "Get all event counter information for function on line number of file.",
+        "operationId": "events-in-file-in-function-on-lineno-get",
+        "x-options": [
+          {
+            "$ref": "#/components/x-options/format"
+          },
+          {
+            "$ref": "#/components/x-options/help"
+          },
+          {
+            "$ref": "#/components/x-options/pretty"
+          }
+        ],
+        "x-formats": {
+          "json": {},
+          "tab": {
+            "type": "array",
+            "config": {
+              "columns": {
+                "PATH": {
+                  "pointer": "/path",
+                  "justify": "left"
+                },
+                "LEVEL": {
+                  "pointer": "/level",
+                  "justify": "left"
+                },
+                "ODOM": {
+                  "pointer": "/odometer",
+                  "justify": "right"
+                },
+                "ODOM_TS": {
+                  "pointer": "/odometer_timestamp",
+                  "justify": "left"
+                }
+              }
+            }
+          }
+        },
+        "parameters": [
+          {
+            "$ref": "#/components/parameters/pretty"
+          }
+        ],
+        "tags": [
+          "global"
+        ],
+        "responses": {
+          "200": {
+            "description": "Successfully retrieved event counter information.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/events"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/kmc/vmstat": {
+      "description": "Interact with virtual memory statistics.",
+      "get": {
+        "description": "Get virtual memory statistics.",
+        "operationId": "kmc-vmstat-get",
+        "x-options": [
+          {
+            "$ref": "#/components/x-options/format"
+          },
+          {
+            "$ref": "#/components/x-options/help"
+          },
+          {
+            "$ref": "#/components/x-options/pretty"
+          }
+        ],
+        "x-formats": {
+          "json": {},
+          "tab": {
+            "type": "array",
+            "config": {
+              "columns": {
+                "NAME": {
+                  "pointer": "/name",
+                  "justify": "left"
+                },
+                "CHUNKS": {
+                  "pointer": "/used_chunks",
+                  "justify": "right"
+                },
+                "PAGES": {
+                  "pointer": "/huge_pages",
+                  "justify": "right"
+                },
+                "SUSED": {
+                  "pointer": "/used_slabs",
+                  "justify": "right"
+                },
+                "SUSEDSZ": {
+                  "pointer": "/used_slabs_size",
+                  "justify": "right"
+                },
+                "SEMPTY": {
+                  "pointer": "/empty_slabs",
+                  "justify": "right"
+                },
+                "SALLOC": {
+                  "pointer": "/allocated_slabs",
+                  "justify": "right"
+                },
+                "SFREE": {
+                  "pointer": "/free_slabs",
+                  "justify": "right"
+                },
+                "ISIZE": {
+                  "pointer": "/item_size",
+                  "justify": "right"
+                },
+                "IALIGN": {
+                  "pointer": "/item_alignment",
+                  "justify": "right"
+                },
+                "IASIZE": {
+                  "pointer": "/item_aligned_size",
+                  "justify": "right"
+                },
+                "ITOTAL": {
+                  "pointer": "/total_items",
+                  "justify": "right"
+                },
+                "IUSED": {
+                  "pointer": "/used_items",
+                  "justify": "right"
+                },
+                "IALLOC": {
+                  "pointer": "/allocations",
+                  "justify": "right"
+                },
+                "IFREE": {
+                  "pointer": "/deallocations",
+                  "justify": "right"
+                },
+                "HUGE": {
+                  "pointer": "/huge",
+                  "justify": "right"
+                },
+                "PACKED": {
+                  "pointer": "/packed",
+                  "justify": "right"
+                },
+                "HWALIGN": {
+                  "pointer": "/hardware_cache_aligned",
+                  "justify": "right"
+                },
+                "DESC": {
+                  "pointer": "/descriptor_convertible",
+                  "justify": "right"
+                }
+              }
+            }
+          }
+        },
+        "parameters": [
+          {
+            "$ref": "#/components/parameters/pretty"
+          }
+        ],
+        "tags": [
+          "global"
+        ],
+        "responses": {
+          "200": {
+            "description": "Successfully retrieved virtual memory statistics.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "array",
+                  "nullable": false,
+                  "items": {
+                    "type": "object",
+                    "nullable": false,
+                    "properties": {
+                      "name": {
+                        "type": "string",
+                        "nullable": false
+                      },
+                      "used_chunks": {
+                        "type": "integer",
+                        "nullable": false
+                      },
+                      "huge_pages": {
+                        "type": "integer",
+                        "nullable": false
+                      },
+                      "used_slabs": {
+                        "type": "integer",
+                        "nullable": false
+                      },
+                      "used_slabs_size": {
+                        "type": "number",
+                        "nullable": false
+                      },
+                      "empty_slabs": {
+                        "type": "integer",
+                        "nullable": false
+                      },
+                      "allocated_slabs": {
+                        "type": "integer",
+                        "nullable": false
+                      },
+                      "free_slabs": {
+                        "type": "integer",
+                        "nullable": false
+                      },
+                      "item_size": {
+                        "type": "integer",
+                        "nullable": false
+                      },
+                      "item_alignment": {
+                        "type": "integer",
+                        "nullable": false
+                      },
+                      "item_aligned_size": {
+                        "type": "integer",
+                        "nullable": false
+                      },
+                      "total_items": {
+                        "type": "integer",
+                        "nullable": false
+                      },
+                      "used_items": {
+                        "type": "integer",
+                        "nullable": false
+                      },
+                      "allocations": {
+                        "type": "integer",
+                        "nullable": false
+                      },
+                      "deallocations": {
+                        "type": "integer",
+                        "nullable": false
+                      },
+                      "huge": {
+                        "type": "boolean",
+                        "nullable": false
+                      },
+                      "packed": {
+                        "type": "boolean",
+                        "nullable": false
+                      },
+                      "hardware_cache_aligned": {
+                        "type": "boolean",
+                        "nullable": false
+                      },
+                      "descriptor_convertible": {
+                        "type": "boolean",
+                        "nullable": false
+                      }
+                    }
+                  }
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/params": {
+      "description": "Interact with global parameters.",
+      "get": {
+        "description": "Get all global parameters.",
+        "operationId": "params-get",
+        "x-options": [
+          {
+            "$ref": "#/components/x-options/format"
+          },
+          {
+            "$ref": "#/components/x-options/help"
+          },
+          {
+            "$ref": "#/components/x-options/pretty"
+          }
+        ],
+        "x-formats": {
+          "json": {},
+          "tab": {
+            "type": "flattened",
+            "config": {
+              "columns": [
+                "NAME",
+                "VALUE"
+              ]
+            }
+          }
+        },
+        "parameters": [
+          {
+            "$ref": "#/components/parameters/pretty"
+          }
+        ],
+        "tags": [
+          "global"
+        ],
+        "responses": {
+          "200": {
+            "$ref": "#/components/responses/paramsRetrieved"
+          }
+        }
+      }
+    },
+    "/params/{param}": {
+      "description": "Interact with a specific global parameter.",
+      "parameters": [
+        {
+          "$ref": "#/components/parameters/param"
+        }
+      ],
+      "get": {
+        "description": "Get the value of the global parameter.",
+        "operationId": "param-get",
+        "x-options": [
+          {
+            "$ref": "#/components/x-options/format"
+          },
+          {
+            "$ref": "#/components/x-options/help"
+          },
+          {
+            "$ref": "#/components/x-options/pretty"
+          }
+        ],
+        "x-formats": {
+          "json": {}
+        },
+        "parameters": [
+          {
+            "$ref": "#/components/parameters/pretty"
+          }
+        ],
+        "tags": [
+          "global"
+        ],
+        "responses": {
+          "200": {
+            "$ref": "#/components/responses/paramRetrieved"
+          },
+          "404": {
+            "$ref": "#/components/responses/notFound"
+          }
+        }
+      },
+      "put": {
+        "description": "Set the value of the global parameter.",
+        "operationId": "param-set",
+        "x-options": [
+          {
+            "$ref": "#/components/x-options/help"
+          }
+        ],
+        "tags": [
+          "global"
+        ],
+        "requestBody": {
+          "$ref": "#/components/requestBodies/paramValue"
+        },
+        "responses": {
+          "201": {
+            "$ref": "#/components/responses/paramSet"
+          },
+          "404": {
+            "$ref": "#/components/responses/notFound"
+          }
+        }
+      }
+    },
+    "/perfc": {
+      "description": "Interact with performance counter information.",
+      "get": {
+        "description": "Get all performance counter information.",
+        "operationId": "perfc-get",
+        "x-options": [
+          {
+            "$ref": "#/components/x-options/format"
+          },
+          {
+            "$ref": "#/components/x-options/help"
+          },
+          {
+            "$ref": "#/components/x-options/pretty"
+          }
+        ],
+        "x-formats": {
+          "json": {}
+        },
+        "parameters": [
+          {
+            "$ref": "#/components/parameters/pretty"
+          }
+        ],
+        "tags": [
+          "global"
+        ],
+        "responses": {
+          "200": {
+            "description": "Successfully retrieved performance counter information.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/performanceCounters"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/perfc/{group}": {
+      "description": "Interact with performance counter information for group.",
+      "parameters": [
+        {
+          "$ref": "#/components/parameters/group"
+        }
+      ],
+      "get": {
+        "description": "Get all performance counter information for group.",
+        "operationId": "perfc-in-group-get",
+        "x-options": [
+          {
+            "$ref": "#/components/x-options/format"
+          },
+          {
+            "$ref": "#/components/x-options/help"
+          },
+          {
+            "$ref": "#/components/x-options/pretty"
+          }
+        ],
+        "x-formats": {
+          "json": {}
+        },
+        "parameters": [
+          {
+            "$ref": "#/components/parameters/pretty"
+          }
+        ],
+        "tags": [
+          "global"
+        ],
+        "responses": {
+          "200": {
+            "description": "Successfully retrieved event counter information for group.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/performanceCounters"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/perfc/{group}/{set}": {
+      "description": "Interact with performance counter information for group in set.",
+      "parameters": [
+        {
+          "$ref": "#/components/parameters/group"
+        },
+        {
+          "$ref": "#/components/parameters/set"
+        }
+      ],
+      "get": {
+        "description": "Get all performance counter information for group in set.",
+        "operationId": "perfc-in-group-in-set-get",
+        "x-options": [
+          {
+            "$ref": "#/components/x-options/format"
+          },
+          {
+            "$ref": "#/components/x-options/help"
+          },
+          {
+            "$ref": "#/components/x-options/pretty"
+          }
+        ],
+        "x-formats": {
+          "json": {}
+        },
+        "parameters": [
+          {
+            "$ref": "#/components/parameters/pretty"
+          }
+        ],
+        "tags": [
+          "global"
+        ],
+        "responses": {
+          "200": {
+            "description": "Successfully retrieved event counter information for group in set.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/performanceCounters"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/perfc/{group}/{set}/{counterName}": {
+      "description": "Interact with performance counter information for group in set with name.",
+      "parameters": [
+        {
+          "$ref": "#/components/parameters/group"
+        },
+        {
+          "$ref": "#/components/parameters/set"
+        },
+        {
+          "$ref": "#/components/parameters/counterName"
+        }
+      ],
+      "get": {
+        "description": "Get all performance counter information for group in set with name.",
+        "operationId": "perfc-in-group-in-set-with-name-get",
+        "x-options": [
+          {
+            "$ref": "#/components/x-options/format"
+          },
+          {
+            "$ref": "#/components/x-options/help"
+          },
+          {
+            "$ref": "#/components/x-options/pretty"
+          }
+        ],
+        "x-formats": {
+          "json": {}
+        },
+        "parameters": [
+          {
+            "$ref": "#/components/parameters/pretty"
+          }
+        ],
+        "tags": [
+          "global"
+        ],
+        "responses": {
+          "200": {
+            "description": "Successfully retrieved event counter information for group in set with name.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/performanceCounters"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/workqueues": {
+      "description": "Interact with the process' `/proc/self/task/[tid]/stat` information.",
+      "get": {
+        "description": "Get the process' `/proc/self/task/[tid]/stat` information.",
+        "operationId": "workqueues-get",
+        "x-options": [
+          {
+            "$ref": "#/components/x-options/format"
+          },
+          {
+            "$ref": "#/components/x-options/help"
+          },
+          {
+            "$ref": "#/components/x-options/pretty"
+          }
+        ],
+        "x-formats": {
+          "json": {},
+          "tab": {
+            "type": "array",
+            "config": {
+              "columns": {
+                "WQNAME": {
+                  "pointer": "/name",
+                  "justify": "left"
+                },
+                "REFS": {
+                  "pointer": "/references",
+                  "justify": "right"
+                },
+                "MIN": {
+                  "pointer": "/minimum_threads",
+                  "justify": "right"
+                },
+                "MAX": {
+                  "pointer": "/maximum_threads",
+                  "justify": "right"
+                },
+                "CURR": {
+                  "pointer": "/current_threads",
+                  "justify": "right"
+                },
+                "BSY": {
+                  "pointer": "/busy",
+                  "justify": "right"
+                },
+                "WK": {
+                  "pointer": "/working",
+                  "justify": "right"
+                },
+                "DLYD": {
+                  "pointer": "/delayed",
+                  "justify": "right"
+                },
+                "BARID": {
+                  "pointer": "/barrier_id",
+                  "justify": "right"
+                },
+                "CALLS": {
+                  "pointer": "/calls",
+                  "justify": "right"
+                },
+                "LAT": {
+                  "pointer": "/latency_ns",
+                  "justify": "right"
+                },
+                "WMESG": {
+                  "pointer": "/wmesg",
+                  "justify": "left"
+                },
+                "ST": {
+                  "pointer": "/state",
+                  "justify": "left"
+                },
+                "PROC": {
+                  "pointer": "/processor",
+                  "justify": "right"
+                },
+                "TIME": {
+                  "pointer": "/time",
+                  "justify": "left"
+                },
+                "TID": {
+                  "pointer": "/thread_id",
+                  "justify": "right"
+                },
+                "TNAME": {
+                  "pointer": "/thread_name",
+                  "justify": "left"
+                }
+              }
+            }
+          }
+        },
+        "parameters": [
+          {
+            "$ref": "#/components/parameters/pretty"
+          }
+        ],
+        "tags": [
+          "global"
+        ],
+        "responses": {
+          "200": {
+            "description": "Successfully retrieved all workqueue information.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "array",
+                  "nullable": false,
+                  "items": {
+                    "type": "object",
+                    "description": "Refer to /proc/[pid]/stat.",
+                    "externalDocs": {
+                      "url": "https://man7.org/linux/man-pages/man5/proc.5.html"
+                    },
+                    "nullable": false,
+                    "properties": {
+                      "name": {
+                        "type": "string",
+                        "nullable": false
+                      },
+                      "references": {
+                        "type": "integer",
+                        "nullable": false
+                      },
+                      "minimum_threads": {
+                        "type": "integer",
+                        "nullable": false
+                      },
+                      "maximum_threads": {
+                        "type": "integer",
+                        "nullable": false
+                      },
+                      "current_threads": {
+                        "type": "integer",
+                        "nullable": false
+                      },
+                      "busy": {
+                        "type": "integer",
+                        "nullable": false
+                      },
+                      "working": {
+                        "type": "integer",
+                        "nullable": false
+                      },
+                      "delayed": {
+                        "type": "integer",
+                        "nullable": false
+                      },
+                      "barrier_id": {
+                        "type": "integer",
+                        "nullable": false
+                      },
+                      "calls": {
+                        "type": "integer",
+                        "nullable": false
+                      },
+                      "latency_ns": {
+                        "type": "integer",
+                        "nullable": false
+                      },
+                      "wmesg": {
+                        "type": "string",
+                        "nullable": false
+                      },
+                      "state": {
+                        "type": "string",
+                        "nullable": false,
+                        "enum": [
+                          "R",
+                          "S",
+                          "D",
+                          "Z",
+                          "T",
+                          "t",
+                          "W",
+                          "X",
+                          "x",
+                          "K",
+                          "P"
+                        ]
+                      },
+                      "processor": {
+                        "type": "integer",
+                        "nullable": false
+                      },
+                      "time": {
+                        "type": "string",
+                        "nullable": false
+                      },
+                      "thread_id": {
+                        "type": "integer",
+                        "nullable": false
+                      },
+                      "thread_name": {
+                        "type": "string",
+                        "nullable": false
+                      }
+                    }
+                  }
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/kvdbs/{alias}/compact": {
+      "description": "Interact with KVDB compactions.",
+      "parameters": [
+        {
+          "$ref": "#/components/parameters/alias"
+        }
+      ],
+      "get": {
+        "description": "Get the current KVDB compaction status.",
+        "operationId": "kvdb-compact-status-get",
+        "x-options": [
+          {
+            "$ref": "#/components/x-options/help"
+          },
+          {
+            "$ref": "#/components/x-options/pretty"
+          }
+        ],
+        "x-formats": {
+          "json": {}
+        },
+        "parameters": [
+          {
+            "$ref": "#/components/parameters/pretty"
+          }
+        ],
+        "tags": [
+          "kvdb"
+        ],
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "nullable": false,
+                  "properties": {
+                    "samp_lwm_pct": {
+                      "type": "integer",
+                      "nullable": false,
+                      "minimum": 0,
+                      "maximum": 100,
+                      "example": 33
+                    },
+                    "samp_hwm_pct": {
+                      "type": "integer",
+                      "nullable": false,
+                      "minimum": 0,
+                      "maximum": 100,
+                      "example": 66
+                    },
+                    "samp_curr_pct": {
+                      "type": "integer",
+                      "nullable": false,
+                      "minimum": 0,
+                      "maximum": 100,
+                      "example": 50
+                    },
+                    "active": {
+                      "type": "boolean",
+                      "nullable": false,
+                      "example": true
+                    },
+                    "canceled": {
+                      "type": "boolean",
+                      "nullable": false,
+                      "example": false
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "404": {
+            "$ref": "#/components/responses/notFound"
+          }
+        }
+      },
+      "post": {
+        "description": "Create a KVDB compaction request.",
+        "operationId": "kvdb-compact-request",
+        "x-options": [
+          {
+            "$ref": "#/components/x-options/help"
+          }
+        ],
+        "tags": [
+          "kvdb"
+        ],
+        "responses": {
+          "202": {
+            "description": "Created"
+          },
+          "404": {
+            "$ref": "#/components/responses/notFound"
+          }
+        }
+      },
+      "delete": {
+        "description": "Cancel a KVDB compaction request.",
+        "operationId": "kvdb-compact-cancel",
+        "x-options": [
+          {
+            "$ref": "#/components/x-options/help"
+          }
+        ],
+        "tags": [
+          "kvdb"
+        ],
+        "responses": {
+          "202": {
+            "description": "Accepted"
+          },
+          "404": {
+            "$ref": "#/components/responses/notFound"
+          }
+        }
+      }
+    },
+    "/kvdbs/{alias}/csched": {
+      "description": "Interact with the KVDB compaction scheduler.",
+      "parameters": [
+        {
+          "$ref": "#/components/parameters/alias"
+        }
+      ],
+      "get": {
+        "description": "Get information about all current KVDB compaction jobs.",
+        "operationId": "kvdb-csched-get",
+        "x-options": [
+          {
+            "$ref": "#/components/x-options/format"
+          },
+          {
+            "$ref": "#/components/x-options/help"
+          },
+          {
+            "$ref": "#/components/x-options/pretty"
+          }
+        ],
+        "x-formats": {
+          "json": {},
+          "tab": {
+            "type": "array",
+            "config": {
+              "columns": {
+                "CNID": {
+                  "pointer": "/cnid",
+                  "justify": "right"
+                },
+                "NODE": {
+                  "pointer": "/node",
+                  "justify": "right"
+                },
+                "JOB": {
+                  "pointer": "/job",
+                  "justify": "right"
+                },
+                "ACTION": {
+                  "pointer": "/action",
+                  "justify": "left"
+                },
+                "RULE": {
+                  "pointer": "/rule",
+                  "justify": "left"
+                },
+                "QNUM": {
+                  "pointer": "/qnum",
+                  "justify": "right"
+                },
+                "BUSY": {
+                  "pointer": "/busy",
+                  "justify": "right"
+                },
+                "KVSETS": {
+                  "pointer": "/kvsets",
+                  "justify": "right"
+                },
+                "ALEN": {
+                  "pointer": "/allocated_length_mb",
+                  "justify": "right"
+                },
+                "CLEN": {
+                  "pointer": "/compacted_length_mb",
+                  "justify": "right"
+                },
+                "PCAP": {
+                  "pointer": "/pcap",
+                  "justify": "right"
+                },
+                "COMPC": {
+                  "pointer": "/compc",
+                  "justify": "right"
+                },
+                "DGEN": {
+                  "pointer": "/dgen",
+                  "justify": "right"
+                },
+                "HBLKS": {
+                  "pointer": "/hblocks",
+                  "justify": "right"
+                },
+                "KBLKS": {
+                  "pointer": "/kblocks",
+                  "justify": "right"
+                },
+                "VBLKS": {
+                  "pointer": "/vblocks",
+                  "justify": "right"
+                },
+                "RALEN": {
+                  "pointer": "/root_allocated_length_mb",
+                  "justify": "right"
+                },
+                "LALEN": {
+                  "pointer": "/leaf_allocated_length_mb",
+                  "justify": "right"
+                },
+                "LCLEN": {
+                  "pointer": "/leaf_compacted_length_mb",
+                  "justify": "right"
+                },
+                "WMESG": {
+                  "pointer": "/wmesg",
+                  "justify": "left"
+                },
+                "TIME": {
+                  "pointer": "/time",
+                  "justify": "right"
+                },
+                "TNAME": {
+                  "pointer": "/thread_name",
+                  "justify": "left"
+                }
+              }
+            }
+          }
+        },
+        "parameters": [
+          {
+            "$ref": "#/components/parameters/pretty"
+          }
+        ],
+        "tags": [
+          "kvdb"
+        ],
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "array",
+                  "nullable": false,
+                  "description": "All current compaction jobs running within this KVDB.",
+                  "items": {
+                    "type": "object",
+                    "nullable": false,
+                    "description": "Job status.",
+                    "properties": {
+                      "cnid": {
+                        "type": "integer",
+                        "nullable": false
+                      },
+                      "node": {
+                        "type": "integer",
+                        "nullable": false
+                      },
+                      "job": {
+                        "type": "integer",
+                        "nullable": false
+                      },
+                      "action": {
+                        "type": "integer",
+                        "nullable": false
+                      },
+                      "rule": {
+                        "type": "integer",
+                        "nullable": false
+                      },
+                      "qnum": {
+                        "type": "integer",
+                        "nullable": false
+                      },
+                      "busy": {
+                        "type": "integer",
+                        "nullable": false
+                      },
+                      "kvsets": {
+                        "type": "integer",
+                        "nullable": false
+                      },
+                      "allocated_length_mb": {
+                        "type": "integer",
+                        "nullable": false
+                      },
+                      "compacted_length_mb": {
+                        "type": "integer",
+                        "nullable": false
+                      },
+                      "pcap": {
+                        "type": "integer",
+                        "nullable": false
+                      },
+                      "compc": {
+                        "type": "integer",
+                        "nullable": false
+                      },
+                      "dgen": {
+                        "type": "integer",
+                        "nullable": false
+                      },
+                      "hblocks": {
+                        "type": "integer",
+                        "nullable": false
+                      },
+                      "kblocks": {
+                        "type": "integer",
+                        "nullable": false
+                      },
+                      "vblocks": {
+                        "type": "integer",
+                        "nullable": false
+                      },
+                      "root_allocated_length_mb": {
+                        "type": "integer",
+                        "nullable": false
+                      },
+                      "leaf_allocated_length_mb": {
+                        "type": "integer",
+                        "nullable": false
+                      },
+                      "leaf_compacted_length_mb": {
+                        "type": "integer",
+                        "nullable": false
+                      },
+                      "wmesg": {
+                        "type": "string",
+                        "nullable": false
+                      },
+                      "time": {
+                        "type": "string",
+                        "nullable": false
+                      },
+                      "thread_name": {
+                        "type": "string",
+                        "nullable": false
+                      }
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "404": {
+            "$ref": "#/components/responses/notFound"
+          }
+        }
+      }
+    },
+    "/kvdbs/{alias}/home": {
+      "description": "Get the home directory for a KVDB.",
+      "parameters": [
+        {
+          "$ref": "#/components/parameters/alias"
+        }
+      ],
+      "get": {
+        "description": "Get KVDB home.",
+        "operationId": "kvdb-home-get",
+        "x-options": [
+          {
+            "$ref": "#/components/x-options/format"
+          },
+          {
+            "$ref": "#/components/x-options/help"
+          },
+          {
+            "$ref": "#/components/x-options/pretty"
+          }
+        ],
+        "x-formats": {
+          "json": {},
+          "plain": {}
+        },
+        "parameters": [
+          {
+            "$ref": "#/components/parameters/pretty"
+          }
+        ],
+        "tags": [
+          "kvdb"
+        ],
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "example": "/var/lib/hse/kvdb0",
+                "schema": {
+                  "type": "string",
+                  "nullable": false
+                }
+              }
+            }
+          },
+          "404": {
+            "$ref": "#/components/responses/notFound"
+          }
+        }
+      }
+    },
+    "/kvdbs/{alias}/params": {
+      "description": "Interact with KVDB parameters.",
+      "parameters": [
+        {
+          "$ref": "#/components/parameters/alias"
+        }
+      ],
+      "get": {
+        "description": "Get all KVDB parameters.",
+        "operationId": "kvdb-params-get",
+        "x-options": [
+          {
+            "$ref": "#/components/x-options/format"
+          },
+          {
+            "$ref": "#/components/x-options/help"
+          },
+          {
+            "$ref": "#/components/x-options/pretty"
+          }
+        ],
+        "x-formats": {
+          "json": {},
+          "tab": {
+            "type": "flattened",
+            "config": {
+              "columns": [
+                "NAME",
+                "VALUE"
+              ]
+            }
+          }
+        },
+        "parameters": [
+          {
+            "$ref": "#/components/parameters/pretty"
+          }
+        ],
+        "tags": [
+          "kvdb"
+        ],
+        "responses": {
+          "200": {
+            "$ref": "#/components/responses/paramsRetrieved"
+          },
+          "404": {
+            "$ref": "#/components/responses/notFound"
+          }
+        }
+      }
+    },
+    "/kvdbs/{alias}/params/{param}": {
+      "description": "Interact with a specific KVDB parameter.",
+      "parameters": [
+        {
+          "$ref": "#/components/parameters/alias"
+        },
+        {
+          "$ref": "#/components/parameters/param"
+        }
+      ],
+      "get": {
+        "description": "Get the value of the KVDB parameter.",
+        "operationId": "kvdb-param-get",
+        "x-options": [
+          {
+            "$ref": "#/components/x-options/format"
+          },
+          {
+            "$ref": "#/components/x-options/help"
+          },
+          {
+            "$ref": "#/components/x-options/pretty"
+          }
+        ],
+        "x-formats": {
+          "json": {}
+        },
+        "parameters": [
+          {
+            "$ref": "#/components/parameters/pretty"
+          }
+        ],
+        "tags": [
+          "kvdb"
+        ],
+        "responses": {
+          "200": {
+            "$ref": "#/components/responses/paramRetrieved"
+          },
+          "404": {
+            "$ref": "#/components/responses/notFound"
+          }
+        }
+      },
+      "put": {
+        "description": "Set the value of the KVDB parameter.",
+        "operationId": "kvdb-param-set",
+        "x-options": [
+          {
+            "$ref": "#/components/x-options/help"
+          }
+        ],
+        "tags": [
+          "kvdb"
+        ],
+        "requestBody": {
+          "$ref": "#/components/requestBodies/paramValue"
+        },
+        "responses": {
+          "201": {
+            "$ref": "#/components/responses/paramSet"
+          },
+          "404": {
+            "$ref": "#/components/responses/notFound"
+          }
+        }
+      }
+    },
+    "/kvdbs/{alias}/mclass": {
+      "description": "KVDB media class information.",
+      "parameters": [
+        {
+          "$ref": "#/components/parameters/alias"
+        }
+      ],
+      "get": {
+        "description": "Get list of configured media classes and their paths.",
+        "operationId": "kvdb-media-classes-get",
+        "x-options": [
+          {
+            "$ref": "#/components/x-options/format"
+          },
+          {
+            "$ref": "#/components/x-options/help"
+          },
+          {
+            "$ref": "#/components/x-options/pretty"
+          }
+        ],
+        "x-formats": {
+          "json": {},
+          "plain": {}
+        },
+        "parameters": [
+          {
+            "$ref": "#/components/parameters/pretty"
+          }
+        ],
+        "tags": [
+          "kvdb"
+        ],
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "array",
+                  "uniqueItems": true,
+                  "items": {
+                    "$ref": "#/components/schemas/mclass"
+                  }
+                }
+              }
+            }
+          },
+          "404": {
+            "$ref": "#/components/responses/notFound"
+          }
+        }
+      }
+    },
+    "/kvdbs/{alias}/mclass/{mclass}": {
+      "description": "Information about a media class.",
+      "parameters": [
+        {
+          "$ref": "#/components/parameters/alias"
+        },
+        {
+          "$ref": "#/components/parameters/mclass"
+        }
+      ],
+      "get": {
+        "description": "Get information about a media class.",
+        "operationId": "kvdb-media-class-get",
+        "x-options": [
+          {
+            "$ref": "#/components/x-options/format"
+          },
+          {
+            "$ref": "#/components/x-options/help"
+          },
+          {
+            "$ref": "#/components/x-options/pretty"
+          }
+        ],
+        "x-formats": {
+          "json": {}
+        },
+        "parameters": [
+          {
+            "$ref": "#/components/parameters/pretty"
+          }
+        ],
+        "tags": [
+          "kvdb"
+        ],
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "allocated_bytes": {
+                      "type": "integer",
+                      "nullable": false,
+                      "example": 320000
+                    },
+                    "used_bytes": {
+                      "type": "integer",
+                      "nullable": false,
+                      "example": 167983
+                    },
+                    "path": {
+                      "type": "string",
+                      "nullable": false,
+                      "example": "/var/lib/hse/kvdb0/capacity"
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "404": {
+            "$ref": "#/components/responses/notFound"
+          }
+        }
+      }
+    },
+    "/kvdbs/{alias}/kvs": {
+      "description": "Get the list of KVS owned by this KVDB.",
+      "parameters": [
+        {
+          "$ref": "#/components/parameters/alias"
+        }
+      ],
+      "get": {
+        "description": "Get all KVS names.",
+        "operationId": "kvdb-kvs-get",
+        "x-options": [
+          {
+            "$ref": "#/components/x-options/format"
+          },
+          {
+            "$ref": "#/components/x-options/help"
+          },
+          {
+            "$ref": "#/components/x-options/pretty"
+          }
+        ],
+        "x-formats": {
+          "json": {},
+          "plain": {}
+        },
+        "parameters": [
+          {
+            "$ref": "#/components/parameters/pretty"
+          }
+        ],
+        "tags": [
+          "kvdb"
+        ],
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "array",
+                  "description": "Array of KVS names.",
+                  "nullable": false,
+                  "uniqueItems": true,
+                  "items": {
+                    "type": "string"
+                  }
+                },
+                "example": [
+                  "kvs1",
+                  "kvs2"
+                ]
+              }
+            }
+          },
+          "404": {
+            "$ref": "#/components/responses/notFound"
+          }
+        }
+      }
+    },
+    "/kvdbs/{alias}/perfc": {
+      "description": "Interact with performance counter information.",
+      "parameters": [
+        {
+          "$ref": "#/components/parameters/alias"
+        }
+      ],
+      "get": {
+        "description": "Get all performance counter information.",
+        "operationId": "kvdb-perfc-get",
+        "x-options": [
+          {
+            "$ref": "#/components/x-options/format"
+          },
+          {
+            "$ref": "#/components/x-options/help"
+          },
+          {
+            "$ref": "#/components/x-options/pretty"
+          }
+        ],
+        "x-formats": {
+          "json": {}
+        },
+        "parameters": [
+          {
+            "$ref": "#/components/parameters/pretty"
+          }
+        ],
+        "tags": [
+          "kvdb"
+        ],
+        "responses": {
+          "200": {
+            "description": "Successfully retrieved performance counter information.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/performanceCounters"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/kvdbs/{alias}/perfc/{set}": {
+      "description": "Interact with performance counter information.",
+      "parameters": [
+        {
+          "$ref": "#/components/parameters/alias"
+        },
+        {
+          "$ref": "#/components/parameters/set"
+        }
+      ],
+      "get": {
+        "description": "Get all performance counter information.",
+        "operationId": "kvdb-perfc-in-set-get",
+        "x-options": [
+          {
+            "$ref": "#/components/x-options/format"
+          },
+          {
+            "$ref": "#/components/x-options/help"
+          },
+          {
+            "$ref": "#/components/x-options/pretty"
+          }
+        ],
+        "x-formats": {
+          "json": {}
+        },
+        "parameters": [
+          {
+            "$ref": "#/components/parameters/pretty"
+          }
+        ],
+        "tags": [
+          "kvdb"
+        ],
+        "responses": {
+          "200": {
+            "description": "Successfully retrieved performance counter information.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/performanceCounters"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/kvdbs/{alias}/perfc/{set}/{counterName}": {
+      "description": "Interact with performance counter information.",
+      "parameters": [
+        {
+          "$ref": "#/components/parameters/alias"
+        },
+        {
+          "$ref": "#/components/parameters/set"
+        },
+        {
+          "$ref": "#/components/parameters/counterName"
+        }
+      ],
+      "get": {
+        "description": "Get all performance counter information.",
+        "operationId": "kvdb-perfc-in-set-with-name-get",
+        "x-options": [
+          {
+            "$ref": "#/components/x-options/format"
+          },
+          {
+            "$ref": "#/components/x-options/help"
+          },
+          {
+            "$ref": "#/components/x-options/pretty"
+          }
+        ],
+        "x-formats": {
+          "json": {}
+        },
+        "parameters": [
+          {
+            "$ref": "#/components/parameters/pretty"
+          }
+        ],
+        "tags": [
+          "kvdb"
+        ],
+        "responses": {
+          "200": {
+            "description": "Successfully retrieved performance counter information.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/performanceCounters"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/kvdbs/{alias}/kvs/{kvsName}/cn/tree": {
+      "description": "Interact with the KVS's cN tree.",
+      "parameters": [
+        {
+          "$ref": "#/components/parameters/alias"
+        },
+        {
+          "$ref": "#/components/parameters/kvsName"
+        }
+      ],
+      "get": {
+        "description": "Get information about the KVS's cN tree.",
+        "operationId": "kvs-cn-tree-get",
+        "x-options": [
+          {
+            "$ref": "#/components/x-options/format"
+          },
+          {
+            "$ref": "#/components/x-options/help"
+          },
+          {
+            "$ref": "#/components/x-options/human"
+          },
+          {
+            "$ref": "#/components/x-options/kvsets"
+          },
+          {
+            "$ref": "#/components/x-options/pretty"
+          }
+        ],
+        "x-formats": {
+          "json": {},
+          "tab": {
+            "type": "custom"
+          }
+        },
+        "parameters": [
+          {
+            "$ref": "#/components/parameters/human"
+          },
+          {
+            "$ref": "#/components/parameters/kvsets"
+          },
+          {
+            "$ref": "#/components/parameters/pretty"
+          }
+        ],
+        "tags": [
+          "kvs"
+        ],
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "nullable": false,
+                  "allOf": [
+                    {
+                      "$ref": "#/components/schemas/cnStatistics"
+                    },
+                    {
+                      "type": "object",
+                      "description": "cN tree.",
+                      "nullable": false,
+                      "properties": {
+                        "kvsets": {
+                          "type": "integer",
+                          "nullable": false
+                        },
+                        "nodes": {
+                          "type": "array",
+                          "description": "List of tree nodes.",
+                          "nullable": false,
+                          "items": {
+                            "type": "object",
+                            "description": "Tree node.",
+                            "nullable": false,
+                            "allOf": [
+                              {
+                                "$ref": "#/components/schemas/cnStatistics"
+                              },
+                              {
+                                "type": "object",
+                                "nullable": false,
+                                "properties": {
+                                  "id": {
+                                    "type": "integer",
+                                    "nullable": false
+                                  },
+                                  "edge_key": {
+                                    "type": "string",
+                                    "nullable": true
+                                  },
+                                  "kvsets": {
+                                    "oneOf": [
+                                      {
+                                        "type": "integer",
+                                        "nullable": false
+                                      },
+                                      {
+                                        "type": "array",
+                                        "nullable": false,
+                                        "items": {
+                                          "type": "object",
+                                          "description": "Kvset.",
+                                          "nullable": false,
+                                          "allOf": [
+                                            {
+                                              "$ref": "#/components/schemas/cnStatistics"
+                                            },
+                                            {
+                                              "type": "object",
+                                              "nullable": false,
+                                              "properties": {
+                                                "compc": {
+                                                  "type": "integer",
+                                                  "nullable": false
+                                                },
+                                                "vgroups": {
+                                                  "type": "integer",
+                                                  "nullable": false
+                                                },
+                                                "rule": {
+                                                  "type": "string",
+                                                  "nullable": false
+                                                }
+                                              }
+                                            }
+                                          ]
+                                        }
+                                      }
+                                    ]
+                                  }
+                                }
+                              }
+                            ]
+                          }
+                        }
+                      }
+                    }
+                  ]
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/kvdbs/{alias}/kvs/{kvsName}/params": {
+      "description": "Interact with KVS parameters.",
+      "parameters": [
+        {
+          "$ref": "#/components/parameters/alias"
+        },
+        {
+          "$ref": "#/components/parameters/kvsName"
+        }
+      ],
+      "get": {
+        "description": "Get all KVS parameters.",
+        "operationId": "kvs-params-get",
+        "x-options": [
+          {
+            "$ref": "#/components/x-options/format"
+          },
+          {
+            "$ref": "#/components/x-options/help"
+          },
+          {
+            "$ref": "#/components/x-options/pretty"
+          }
+        ],
+        "x-formats": {
+          "json": {},
+          "tab": {
+            "type": "flattened",
+            "config": {
+              "columns": [
+                "NAME",
+                "VALUE"
+              ]
+            }
+          }
+        },
+        "parameters": [
+          {
+            "$ref": "#/components/parameters/pretty"
+          }
+        ],
+        "tags": [
+          "kvs"
+        ],
+        "responses": {
+          "200": {
+            "$ref": "#/components/responses/paramsRetrieved"
+          },
+          "404": {
+            "$ref": "#/components/responses/notFound"
+          }
+        }
+      }
+    },
+    "/kvdbs/{alias}/kvs/{kvsName}/params/{param}": {
+      "description": "Interact with a specific KVS parameter.",
+      "parameters": [
+        {
+          "$ref": "#/components/parameters/alias"
+        },
+        {
+          "$ref": "#/components/parameters/kvsName"
+        },
+        {
+          "$ref": "#/components/parameters/param"
+        }
+      ],
+      "get": {
+        "description": "Get the value of the KVS parameter.",
+        "operationId": "kvs-param-get",
+        "x-options": [
+          {
+            "$ref": "#/components/x-options/format"
+          },
+          {
+            "$ref": "#/components/x-options/help"
+          },
+          {
+            "$ref": "#/components/x-options/pretty"
+          }
+        ],
+        "x-formats": {
+          "json": {}
+        },
+        "parameters": [
+          {
+            "$ref": "#/components/parameters/pretty"
+          }
+        ],
+        "tags": [
+          "kvs"
+        ],
+        "responses": {
+          "200": {
+            "$ref": "#/components/responses/paramRetrieved"
+          },
+          "404": {
+            "$ref": "#/components/responses/notFound"
+          }
+        }
+      },
+      "put": {
+        "description": "Set the value of the KVS parameter.",
+        "operationId": "kvs-param-set",
+        "x-options": [
+          {
+            "$ref": "#/components/x-options/help"
+          }
+        ],
+        "tags": [
+          "kvs"
+        ],
+        "requestBody": {
+          "$ref": "#/components/requestBodies/paramValue"
+        },
+        "responses": {
+          "201": {
+            "$ref": "#/components/responses/paramSet"
+          },
+          "404": {
+            "$ref": "#/components/responses/notFound"
+          }
+        }
+      }
+    },
+    "/kvdbs/{alias}/kvs/{kvsName}/perfc": {
+      "description": "Interact with performance counter information.",
+      "parameters": [
+        {
+          "$ref": "#/components/parameters/alias"
+        },
+        {
+          "$ref": "#/components/parameters/kvsName"
+        }
+      ],
+      "get": {
+        "description": "Get all performance counter information.",
+        "operationId": "kvs-perfc-get",
+        "x-options": [
+          {
+            "$ref": "#/components/x-options/format"
+          },
+          {
+            "$ref": "#/components/x-options/help"
+          },
+          {
+            "$ref": "#/components/x-options/pretty"
+          }
+        ],
+        "x-formats": {
+          "json": {}
+        },
+        "parameters": [
+          {
+            "$ref": "#/components/parameters/pretty"
+          }
+        ],
+        "tags": [
+          "kvs"
+        ],
+        "responses": {
+          "200": {
+            "description": "Successfully retrieved performance counter information.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/performanceCounters"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/kvdbs/{alias}/kvs/{kvsName}/perfc/{set}": {
+      "description": "Interact with performance counter information.",
+      "parameters": [
+        {
+          "$ref": "#/components/parameters/alias"
+        },
+        {
+          "$ref": "#/components/parameters/kvsName"
+        },
+        {
+          "$ref": "#/components/parameters/set"
+        }
+      ],
+      "get": {
+        "description": "Get all performance counter information.",
+        "operationId": "kvs-perfc-in-set-get",
+        "x-options": [
+          {
+            "$ref": "#/components/x-options/format"
+          },
+          {
+            "$ref": "#/components/x-options/help"
+          },
+          {
+            "$ref": "#/components/x-options/pretty"
+          }
+        ],
+        "x-formats": {
+          "json": {}
+        },
+        "parameters": [
+          {
+            "$ref": "#/components/parameters/pretty"
+          }
+        ],
+        "tags": [
+          "kvs"
+        ],
+        "responses": {
+          "200": {
+            "description": "Successfully retrieved performance counter information.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/performanceCounters"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/kvdbs/{alias}/kvs/{kvsName}/perfc/{set}/{counterName}": {
+      "description": "Interact with performance counter information.",
+      "parameters": [
+        {
+          "$ref": "#/components/parameters/alias"
+        },
+        {
+          "$ref": "#/components/parameters/kvsName"
+        },
+        {
+          "$ref": "#/components/parameters/set"
+        },
+        {
+          "$ref": "#/components/parameters/counterName"
+        }
+      ],
+      "get": {
+        "description": "Get all performance counter information.",
+        "operationId": "kvs-perfc-in-set-with-name-get",
+        "x-options": [
+          {
+            "$ref": "#/components/x-options/format"
+          },
+          {
+            "$ref": "#/components/x-options/help"
+          },
+          {
+            "$ref": "#/components/x-options/pretty"
+          }
+        ],
+        "x-formats": {
+          "json": {}
+        },
+        "parameters": [
+          {
+            "$ref": "#/components/parameters/pretty"
+          }
+        ],
+        "tags": [
+          "kvs"
+        ],
+        "responses": {
+          "200": {
+            "description": "Successfully retrieved performance counter information.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/performanceCounters"
+                }
+              }
+            }
+          }
+        }
+      }
+    }
+  },
+  "tags": [
+    {
+      "name": "global",
+      "description": "Related to global information about the storage engine."
+    },
+    {
+      "name": "kvdb",
+      "description": "Related to KVDB-specific information."
+    },
+    {
+      "name": "kvs",
+      "description": "Related to KVS-specific information."
+    }
+  ],
+  "components": {
+    "parameters": {
+      "alias": {
+        "name": "alias",
+        "in": "path",
+        "required": true,
+        "description": "Alias for a KVDB.",
+        "example": "0",
+        "schema": {
+          "type": "string"
+        }
+      },
+      "counterName": {
+        "name": "counterName",
+        "in": "path",
+        "required": true,
+        "description": "Performance counter name.",
+        "example": "kcompact",
+        "schema": {
+          "type": "string"
+        }
+      },
+      "file": {
+        "name": "file",
+        "in": "path",
+        "required": true,
+        "description": "Basename of file.",
+        "example": "cn.c",
+        "schema": {
+          "type": "string"
+        }
+      },
+      "function": {
+        "name": "function",
+        "in": "path",
+        "required": true,
+        "description": "Function name.",
+        "example": "table_create",
+        "schema": {
+          "type": "string"
+        }
+      },
+      "group": {
+        "name": "group",
+        "in": "path",
+        "required": true,
+        "description": "Performance counter group.",
+        "example": "global",
+        "schema": {
+          "type": "string"
+        }
+      },
+      "human": {
+        "name": "human",
+        "in": "query",
+        "required": false,
+        "description": "Humanize certain values.",
+        "example": false,
+        "schema": {
+          "type": "boolean"
+        }
+      },
+      "kvsets": {
+        "name": "kvsets",
+        "in": "query",
+        "required": false,
+        "description": "Include kvset details in output.",
+        "example": true,
+        "schema": {
+          "type": "boolean"
+        }
+      },
+      "kvsName": {
+        "name": "kvsName",
+        "in": "path",
+        "required": true,
+        "description": "Name of the KVS.",
+        "example": "kvs1",
+        "schema": {
+          "type": "string"
+        }
+      },
+      "lineno": {
+        "name": "lineno",
+        "in": "path",
+        "required": true,
+        "description": "Line number.",
+        "example": "420",
+        "schema": {
+          "type": "string"
+        }
+      },
+      "mclass": {
+        "name": "mclass",
+        "in": "path",
+        "required": true,
+        "description": "Media class name.",
+        "example": "capacity",
+        "schema": {
+          "$ref": "#/components/schemas/mclass"
+        }
+      },
+      "param": {
+        "name": "param",
+        "in": "path",
+        "required": true,
+        "description": "Parameter to interact with.",
+        "example": "logging.enabled",
+        "schema": {
+          "type": "string"
+        }
+      },
+      "pretty": {
+        "name": "pretty",
+        "in": "query",
+        "required": false,
+        "description": "Pretty print the response body.",
+        "example": false,
+        "schema": {
+          "default": false,
+          "type": "boolean"
+        }
+      },
+      "set": {
+        "name": "set",
+        "in": "path",
+        "required": true,
+        "description": "Performance counter set.",
+        "example": "CNCOMP",
+        "schema": {
+          "type": "string"
+        }
+      }
+    },
+    "requestBodies": {
+      "paramValue": {
+        "description": "Value to set a parameter to.",
+        "required": true,
+        "content": {
+          "application/json": {
+            "schema": {
+              "oneOf": [
+                {
+                  "type": "object"
+                },
+                {
+                  "type": "array"
+                },
+                {
+                  "type": "number"
+                },
+                {
+                  "type": "integer"
+                },
+                {
+                  "type": "string"
+                }
+              ]
+            }
+          }
+        }
+      }
+    },
+    "responses": {
+      "notFound": {
+        "description": "Entity not found."
+      },
+      "paramsRetrieved": {
+        "description": "OK",
+        "content": {
+          "application/json": {
+            "schema": {
+              "oneOf": [
+                {
+                  "type": "object"
+                },
+                {
+                  "type": "array"
+                },
+                {
+                  "type": "number"
+                },
+                {
+                  "type": "integer"
+                },
+                {
+                  "type": "string"
+                }
+              ]
+            }
+          }
+        }
+      },
+      "paramRetrieved": {
+        "description": "OK",
+        "content": {
+          "application/json": {
+            "schema": {
+              "oneOf": [
+                {
+                  "type": "object"
+                },
+                {
+                  "type": "array"
+                },
+                {
+                  "type": "number"
+                },
+                {
+                  "type": "integer"
+                },
+                {
+                  "type": "string"
+                }
+              ]
+            }
+          }
+        }
+      },
+      "paramSet": {
+        "description": "Created"
+      }
+    },
+    "schemas": {
+      "cnStatistics": {
+        "type": "object",
+        "nullable": false,
+        "properties": {
+          "dgen": {
+            "type": "integer",
+            "nullable": false
+          },
+          "keys": {
+            "type": "integer",
+            "nullable": false
+          },
+          "tombs": {
+            "type": "integer",
+            "nullable": false
+          },
+          "ptombs": {
+            "type": "integer",
+            "nullable": false
+          },
+          "hlen": {
+            "oneOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "number"
+              }
+            ],
+            "nullable": false
+          },
+          "klen": {
+            "oneOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "number"
+              }
+            ],
+            "nullable": false
+          },
+          "vlen": {
+            "oneOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "number"
+              }
+            ],
+            "nullable": false
+          },
+          "hblocks": {
+            "type": "integer",
+            "nullable": false
+          },
+          "kblocks": {
+            "type": "integer",
+            "nullable": false
+          },
+          "vblocks": {
+            "type": "integer",
+            "nullable": false
+          }
+        }
+      },
+      "events": {
+        "type": "array",
+        "nullable": false,
+        "items": {
+          "type": "object",
+          "nullable": false,
+          "properties": {
+            "path": {
+              "type": "string",
+              "nullable": false
+            },
+            "level": {
+              "type": "string",
+              "nullable": false,
+              "enum": [
+                "EMERG",
+                "ALERT",
+                "CRIT",
+                "ERR",
+                "WARNING",
+                "NOTICE",
+                "INFO",
+                "DEBUG"
+              ]
+            },
+            "odometer": {
+              "type": "integer",
+              "nullable": false
+            },
+            "odometer_timestamp": {
+              "type": "string",
+              "nullable": false
+            }
+          }
+        }
+      },
+      "mclass": {
+        "type": "string",
+        "description": "Media class.",
+        "nullable": false,
+        "enum": [
+          "capacity",
+          "staging",
+          "pmem"
+        ]
+      },
+      "performanceCounter": {
+        "type": "object",
+        "description": "Common performance counter information.",
+        "nullable": false,
+        "properties": {
+          "name": {
+            "type": "string",
+            "nullable": false
+          },
+          "header": {
+            "type": "string",
+            "nullable": false
+          },
+          "description": {
+            "type": "string",
+            "nullable": false
+          },
+          "type": {
+            "type": "string",
+            "nullable": false,
+            "enum": [
+              "invalid",
+              "basic",
+              "rate",
+              "latency",
+              "distribution",
+              "simple_latency"
+            ]
+          },
+          "level": {
+            "type": "integer",
+            "nullable": false
+          },
+          "enabled": {
+            "type": "integer",
+            "nullable": false
+          }
+        }
+      },
+      "performanceCounters": {
+        "type": "array",
+        "nullable": false,
+        "items": {
+          "type": "object",
+          "nullable": false,
+          "properties": {
+            "path": {
+              "type": "string",
+              "nullable": false
+            },
+            "name": {
+              "type": "string",
+              "nullable": false
+            },
+            "enabled": {
+              "type": "integer",
+              "nullable": false
+            },
+            "counters": {
+              "type": "array",
+              "nullable": false,
+              "items": {
+                "anyOf": [
+                  {
+                    "$ref": "#/components/schemas/performanceCounter"
+                  },
+                  {
+                    "description": "Basic performance counter information.",
+                    "nullable": false,
+                    "allOf": [
+                      {
+                        "$ref": "#/components/schemas/performanceCounter"
+                      },
+                      {
+                        "type": "object",
+                        "properties": {
+                          "value": {
+                            "type": "integer",
+                            "nullable": false
+                          }
+                        }
+                      }
+                    ]
+                  },
+                  {
+                    "description": "Rate performance counter information.",
+                    "allOf": [
+                      {
+                        "$ref": "#/components/schemas/performanceCounter"
+                      },
+                      {
+                        "type": "object",
+                        "nullable": false,
+                        "properties": {
+                          "delta_ns": {
+                            "type": "integer",
+                            "nullable": false
+                          },
+                          "current": {
+                            "type": "integer",
+                            "nullable": false
+                          },
+                          "previous": {
+                            "type": "integer",
+                            "nullable": false
+                          },
+                          "rate": {
+                            "type": "integer",
+                            "nullable": false
+                          },
+                          "vadd": {
+                            "type": "integer",
+                            "nullable": true
+                          },
+                          "vsub": {
+                            "type": "integer",
+                            "nullable": true
+                          }
+                        }
+                      }
+                    ]
+                  },
+                  {
+                    "description": "Simple latency performance counter information.",
+                    "allOf": [
+                      {
+                        "$ref": "#/components/schemas/performanceCounter"
+                      },
+                      {
+                        "type": "object",
+                        "properties": {
+                          "sum": {
+                            "type": "integer",
+                            "nullable": false
+                          },
+                          "hits": {
+                            "type": "integer",
+                            "nullable": false
+                          }
+                        }
+                      }
+                    ]
+                  },
+                  {
+                    "description": "Latency performance counter information.",
+                    "allOf": [
+                      {
+                        "$ref": "#/components/schemas/performanceCounter"
+                      },
+                      {
+                        "type": "object",
+                        "nullable": false,
+                        "properties": {
+                          "minimum": {
+                            "type": "integer",
+                            "nullable": false
+                          },
+                          "maximum": {
+                            "type": "integer",
+                            "nullable": false
+                          },
+                          "average": {
+                            "type": "integer",
+                            "nullable": false
+                          },
+                          "sum": {
+                            "type": "integer",
+                            "nullable": false
+                          },
+                          "hits": {
+                            "type": "integer",
+                            "nullable": false
+                          },
+                          "percentage": {
+                            "type": "number",
+                            "nullable": false
+                          },
+                          "histogram": {
+                            "type": "array",
+                            "nullable": false,
+                            "items": {
+                              "type": "object",
+                              "nullable": false,
+                              "properties": {
+                                "hits": {
+                                  "type": "integer",
+                                  "nullable": false
+                                },
+                                "average": {
+                                  "type": "integer",
+                                  "nullable": false
+                                },
+                                "boundary": {
+                                  "type": "integer",
+                                  "nullable": false
+                                }
+                              }
+                            }
+                          }
+                        }
+                      }
+                    ]
+                  }
+                ]
+              }
+            }
+          }
+        }
+      }
+    },
+    "x-options": {
+      "format": {
+        "long": "format",
+        "short": "f",
+        "description": "Select the output format.",
+        "requires-argument": true
+      },
+      "human": {
+        "long": "human",
+        "short": "u",
+        "description": "Humanize certain values.",
+        "parameter": "#/components/parameters/human"
+      },
+      "help": {
+        "long": "help",
+        "short": "h",
+        "description": "Print this help output."
+      },
+      "kvsets": {
+        "long": "kvsets",
+        "short": "k",
+        "description": "Include kvset details in output.",
+        "parameter": "#/components/parameters/kvsets"
+      },
+      "pretty": {
+        "long": "pretty",
+        "short": "p",
+        "description": "Request a pretty HTTP response.",
+        "parameter": "#/components/parameters/pretty"
+      }
+    }
+  }
+}

@@ -17,6 +17,7 @@ on:
       - .github/dependabot.yaml
       - .gitignore
       - .shellcheckrc
+      - .spectral.yaml
       - LICENSE
   pull_request:
     types: [opened, synchronize, reopened]
@@ -32,6 +33,7 @@ on:
       - .github/dependabot.yaml
       - .gitignore
       - .shellcheckrc
+      - .spectral.yaml
       - LICENSE
 
 concurrency:

@@ -1,6 +1,6 @@
 /* SPDX-License-Identifier: Apache-2.0 */
 /*
- * Copyright (C) 2015-2021 Micron Technology, Inc.  All rights reserved.
+ * Copyright (C) 2015-2022 Micron Technology, Inc.  All rights reserved.
  */
 
 #ifndef HSE_PLATFORM_COMPILER_H
@@ -104,10 +104,15 @@
 #endif
 
 #ifdef SUPPORTS_ATTR_NONNULL
-/* HSE_NONNULL(...) cannot go at the end of the function definition */
 #define HSE_NONNULL(...)        __attribute__((__nonnull__(__VA_ARGS__)))
 #else
 #define HSE_NONNULL(...)
+#endif
+
+#ifdef SUPPORTS_ATTR_WARN_UNUSED_RESULT
+#define HSE_WARN_USUSED_RESULT  __attribute__((warn_unused_result))
+#else
+#define HSE_WARN_UNUSED_RESULT
 #endif
 
 #if HSE_MOCKING

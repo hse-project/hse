@@ -1,6 +1,6 @@
 /* SPDX-License-Identifier: Apache-2.0 */
 /*
- * Copyright (C) 2015-2020 Micron Technology, Inc.  All rights reserved.
+ * Copyright (C) 2015-2022 Micron Technology, Inc.  All rights reserved.
  */
 
 #include <mtf/framework.h>
@@ -10,15 +10,11 @@
 
 #include "multithreaded_tester.h"
 
-int
-platform_pre(struct mtf_test_info *lcl_ti)
-{
-    return 0;
-}
+#define DT_PATH_TEST "/data/test"
 
 MTF_MODULE_UNDER_TEST(hse_platform);
 
-MTF_BEGIN_UTEST_COLLECTION_PRE(data_tree, platform_pre);
+MTF_BEGIN_UTEST_COLLECTION(data_tree);
 
 struct test_element {
     int num;
@@ -48,29 +44,16 @@ test_element_remove_handler(struct dt_element *element)
     return 0;
 }
 
-#define FIXED_EMIT_SIZE 50
 size_t
-test_element_emit_handler(struct dt_element *element, struct yaml_context *yc)
+test_element_emit_handler(struct dt_element *element, cJSON *root)
 {
+    cJSON *elem = cJSON_CreateObject();
+
     test_element_emit_handler_hit++;
 
-    if (FIXED_EMIT_SIZE > yc->yaml_buf_sz - yc->yaml_offset) {
-        /* Would overflow */
-        yc->yaml_offset = yc->yaml_buf_sz;
-    } else {
-        /* will fit */
-        yc->yaml_offset += FIXED_EMIT_SIZE;
-    }
-    return 1;
-}
+    cJSON_AddStringToObject(elem, "path", element->dte_path);
 
-static int test_element_alt_emit_handler_hit;
-size_t
-test_element_alt_emit_handler(struct dt_element *element, struct yaml_context *yc)
-{
-    test_element_alt_emit_handler_hit++;
-    yaml_start_element(yc, "path", element->dte_path);
-    yaml_end_element(yc);
+    cJSON_AddItemToArray(root, elem);
 
     return 1;
 }
@@ -85,13 +68,11 @@ test_element_set_handler(struct dt_element *element, struct dt_set_parameters *d
 struct dt_element_ops test_element_ops = {
     .dto_remove = test_element_remove_handler,
     .dto_emit = test_element_emit_handler,
-    .dto_set = test_element_set_handler,
 };
 
 struct dt_element_ops test_element_alt_ops = {
     .dto_remove = test_element_remove_handler,
-    .dto_emit = test_element_alt_emit_handler,
-    .dto_set = test_element_set_handler,
+    .dto_emit = test_element_emit_handler,
 };
 
 MTF_DEFINE_UTEST(data_tree, tree_create_and_add)
@@ -110,7 +91,6 @@ MTF_DEFINE_UTEST(data_tree, tree_create_and_add)
     snprintf(element->dte_path, sizeof(element->dte_path), "%s/test_element/one", DT_PATH_TEST);
     element->dte_data = te;
     element->dte_ops = &test_element_ops;
-    element->dte_type = DT_TYPE_TEST_ELEMENT;
 
     rc = dt_add(NULL);
     ASSERT_EQ(rc, EINVAL);
@@ -137,7 +117,6 @@ add_test_element(char *path, int num)
     snprintf(element->dte_path, sizeof(element->dte_path), "%s%s", DT_PATH_TEST, path);
     element->dte_data = te;
     element->dte_ops = &test_element_ops;
-    element->dte_type = DT_TYPE_TEST_ELEMENT;
     te->num = num;
 
     dt_add(element);
@@ -145,16 +124,12 @@ add_test_element(char *path, int num)
     return element;
 }
 
-#define TEST_ELEMENT_OPS_BUF_SIZE 4096
 MTF_DEFINE_UTEST(data_tree, test_element_ops_function)
 {
-    struct dt_element * element;
-    struct yaml_context yc = {
-        .yaml_offset = 0, .yaml_indent = 0,
-    };
+    int ret;
+    cJSON *root;
+    struct dt_element *element;
     struct dt_set_parameters dsp;
-    int                      ret;
-    char *                   buf;
 
     clear_handler_counts();
     dsp.value = "foo";
@@ -163,21 +138,14 @@ MTF_DEFINE_UTEST(data_tree, test_element_ops_function)
     /* Now add a test_element */
     element = add_test_element("/test_element/one", 1);
 
-    buf = calloc(TEST_ELEMENT_OPS_BUF_SIZE, 1);
-    ASSERT_NE(buf, NULL);
-    yc.yaml_buf = buf;
-    yc.yaml_buf_sz = TEST_ELEMENT_OPS_BUF_SIZE;
-    yc.yaml_emit = NULL;
+    root = cJSON_CreateArray();
+    ASSERT_NE(NULL, root);
 
     /* Test Emit Handler */
-    ret = element->dte_ops->dto_emit(element, &yc);
+    ret = element->dte_ops->dto_emit(element, root);
 
     ASSERT_EQ(test_element_emit_handler_hit, 1);
-    ASSERT_EQ(yc.yaml_offset, FIXED_EMIT_SIZE);
-
-    /* Test Set Handler */
-    ret = element->dte_ops->dto_set(element, &dsp);
-    ASSERT_EQ(test_element_set_handler_hit, 1);
+    ASSERT_EQ(1, cJSON_GetArraySize(root));
 
     /* Test Remove Handler */
     ret = dt_remove(element);
@@ -186,24 +154,22 @@ MTF_DEFINE_UTEST(data_tree, test_element_ops_function)
 
     dt_remove_recursive(DT_PATH_TEST);
 
-    free(buf);
+    cJSON_Delete(root);
 }
 
-#define TEST_ELEMENT_OPS_SHORT_BUF_SIZE 128
 MTF_DEFINE_UTEST(data_tree, test_emit_overflow_protection)
 {
+    cJSON *root;
     struct dt_element * element[3];
-    struct yaml_context yc = {
-        .yaml_offset = 0, .yaml_indent = 0,
-    };
-    union dt_iterate_parameters dip = {.yc = &yc };
-    char *                      buf;
-    int                         i;
+    union dt_iterate_parameters dip;
+
+    root = cJSON_CreateArray();
+    ASSERT_NE(NULL, root);
 
     clear_handler_counts();
 
     /* Now add several test_elements */
-    for (i = 0; i < 3; i++) {
+    for (int i = 0; i < 3; i++) {
         char name[32];
 
         snprintf(name, sizeof(name), "/test%d", i);
@@ -211,20 +177,16 @@ MTF_DEFINE_UTEST(data_tree, test_emit_overflow_protection)
         ASSERT_NE(element[i], NULL);
     }
 
-    buf = calloc(TEST_ELEMENT_OPS_SHORT_BUF_SIZE, 1);
-    ASSERT_NE(buf, NULL);
-    yc.yaml_buf = buf;
-    yc.yaml_buf_sz = TEST_ELEMENT_OPS_SHORT_BUF_SIZE;
-    yc.yaml_emit = NULL;
+    dip.root = root;
 
     /* Try to overflow */
     dt_iterate_cmd(DT_OP_EMIT, DT_PATH_TEST, &dip, NULL, NULL, NULL);
 
-    ASSERT_EQ(yc.yaml_offset, TEST_ELEMENT_OPS_SHORT_BUF_SIZE);
+    ASSERT_EQ(3, cJSON_GetArraySize(root));
 
     dt_remove_recursive(DT_PATH_TEST);
 
-    free(buf);
+    cJSON_Delete(root);
 }
 
 MTF_DEFINE_UTEST(data_tree, test_find)
@@ -452,20 +414,16 @@ static int fail_line;
 static void
 worker(void *context, int id)
 {
-    struct test *       test = context;
+    struct test *test = context;
     struct test_worker *work = &(test->worker[id]);
-    struct dt_element * dte, *prev, *found;
-    int                 i, loop;
-    struct yaml_context yc = {
-        .yaml_offset = 0, .yaml_indent = 0,
-    };
-    union dt_iterate_parameters dip = {.yc = &yc };
+    struct dt_element *dte, *prev, *found;
+    union dt_iterate_parameters dip;
 
     mtest_barrier(mtest);
 
-    for (loop = 0; loop < work->loop_count; loop++) {
+    for (int loop = 0; loop < work->loop_count; loop++) {
         if (work->work_type & WORK_TYPE_ADD) {
-            for (i = 0; i < test->worker[id].count_per_loop; i++) {
+            for (int i = 0; i < test->worker[id].count_per_loop; i++) {
                 dte = calloc(1, sizeof(*dte));
                 if (!dte) {
                     fail_line = __LINE__;
@@ -475,12 +433,11 @@ worker(void *context, int id)
 
                 sprintf(dte->dte_path, "%s/worker%d/node%d", DT_PATH_TEST, id, i);
                 dte->dte_ops = &test_element_alt_ops;
-                dte->dte_type = DT_TYPE_DONT_CARE;
                 dt_add(dte);
             }
         }
         if (work->work_type & WORK_TYPE_FIND) {
-            for (i = 0; i < work->count_per_loop; i++) {
+            for (int i = 0; i < work->count_per_loop; i++) {
                 char path[DT_PATH_MAX];
 
                 sprintf(path, "%s/worker%d/node%d", DT_PATH_TEST, id, i);
@@ -493,26 +450,29 @@ worker(void *context, int id)
             }
         }
         if (work->work_type & WORK_TYPE_ITER) {
+            cJSON *root;
             char   path[DT_PATH_MAX];
-            char * buf;
-            size_t buf_sz;
             size_t iter_count = 0;
 
-            buf_sz = (work->count_per_loop + 1) * sizeof(path);
-            buf = calloc(1, buf_sz);
-            yc.yaml_buf = buf;
-            yc.yaml_buf_sz = buf_sz;
-            yc.yaml_emit = NULL;
+            root = cJSON_CreateArray();
+            if (!root) {
+                fail_line = __LINE__;
+                fail_err = ENOMEM;
+                return;
+            }
+
+            dip.root = root;
 
             sprintf(path, "%s/worker%d", DT_PATH_TEST, id);
             iter_count = dt_iterate_cmd(DT_OP_EMIT, path, &dip, NULL, NULL, NULL);
-            /* Plus 1 for root (i.e. "/test" */
             if (iter_count != work->count_per_loop) {
+                printf("%lu %d\n", iter_count, work->count_per_loop);
                 fail_line = __LINE__;
                 fail_err = EINVAL;
                 return;
             }
-            free(buf);
+
+            cJSON_Delete(root);
         }
         if (work->work_type & WORK_TYPE_DEL) {
             char path[DT_PATH_MAX];
@@ -539,12 +499,12 @@ report(void *context, double elapsed_time)
 {
     struct test *test = (struct test *)context;
     int          count = 0;
-    int          i;
 
     /* Count up how many to expect */
-    for (i = 0; i < test->worker_count; i++) {
+    for (int i = 0; i < test->worker_count; i++) {
         count += test->worker[i].count_per_loop * test->worker[i].loop_count;
     }
+
     printf("%s: expected count %d\n", __func__, count);
 }
 

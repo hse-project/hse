@@ -62,13 +62,9 @@ void
 test_runtime(u64 val, struct testparms *parm, struct mtf_test_info *lcl_ti)
 {
     u32  res;
-    bool pow2;
 
     res = ilog2(val);
     ASSERT_EQ(parm->e_log2, res);
-
-    pow2 = is_power_of_2(val);
-    ASSERT_EQ(parm->e_pow2, pow2);
 
     res = roundup_pow_of_two(val);
     ASSERT_EQ(parm->e_rup2, res);
@@ -156,12 +152,6 @@ static __attribute__((const, used)) u32
 ilog2_test(u64 n)
 {
     return ilog2(n);
-}
-
-static __attribute__((const, used)) bool
-is_power_of_2_test(u64 n)
-{
-    return is_power_of_2(n);
 }
 
 static __attribute__((const, used)) u64

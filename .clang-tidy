@@ -3,7 +3,11 @@
 Checks: >
   clang-diagnostic-*,
   clang-analyzer-*,
-  -clang-analyzer-valist.Uninitialized,
   -clang-analyzer-security.insecureAPI.DeprecatedOrUnsafeBufferHandling,
+  -clang-analyzer-valist.Uninitialized,
   -clang-diagnostic-unused-function
+WarningsAsErrors: >
+  clang-analyzer-core.CallAndMessage,
+  clang-analyzer-core.NonNullParamChecker,
+  clang-analyzer-unix.cstring.NullArg
 FormatStyle: none

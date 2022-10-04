@@ -1,17 +1,17 @@
 /* SPDX-License-Identifier: Apache-2.0 */
 /*
- * Copyright (C) 2015-2021 Micron Technology, Inc.  All rights reserved.
+ * Copyright (C) 2015-2022 Micron Technology, Inc.  All rights reserved.
  */
 
 #include <assert.h>
 #include <errno.h>
 #include <limits.h>
 
-#include <hse_util/rest_client.h>
+#include <hse/cli/rest/api.h>
+#include <hse/cli/rest/client.h>
 #include <hse/error/merr.h>
 #include <hse_util/inttypes.h>
 #include <hse_util/yaml.h>
-#include <hse_util/rest_api.h>
 #include <hse_util/arch.h>
 #include <hse_util/parse_num.h>
 
@@ -21,54 +21,6 @@
 #include <hse/pidfile/pidfile.h>
 
 #include <bsd/string.h>
-
-static int
-rest_kvs_list(const char *socket_path, const char *alias, struct yaml_context *yc)
-{
-    char      url[64];
-    char *    buf, *next;
-    size_t    bufsz = (32 * 1024);
-    char *    c;
-    int       n;
-    hse_err_t err;
-
-    n = snprintf(url, sizeof(url), "kvdb/%s", alias);
-    if (n < 0) {
-        return EBADMSG;
-    } else if (n >= sizeof(url)) {
-        return ENAMETOOLONG;
-    }
-
-    buf = calloc(1, bufsz);
-    if (!buf)
-        return ENOMEM;
-
-    err = curl_get(url, socket_path, buf, bufsz);
-    if (err) {
-        free(buf);
-        return hse_err_to_errno(err);
-    }
-
-    next = buf;
-    next[strlen(next) - 1] = '\0'; /* Get rid of the trailing newline char */
-
-    strsep(&next, "\n"); /* Advance next past 'kvs_list:' */
-    while (next) {
-        char path[128];
-
-        c = strsep(&next, "\n");
-        while (*c != '-')
-            c++;
-
-        snprintf(path, sizeof(path), "%s", c + 2);
-        yaml_element_list(yc, path);
-    }
-
-    yaml_end_element(yc);
-    free(buf);
-
-    return 0;
-}
 
 static hse_err_t
 kvdb_info_props(
@@ -83,6 +35,7 @@ kvdb_info_props(
     hse_err_t        err;
     int              i;
     struct pidfile   content;
+    bool used_rest = false;
 
     err = hse_kvdb_open(kvdb_home, paramc, paramv, &hdl);
     if (err && hse_err_to_errno(err) != EEXIST && hse_err_to_errno(err) != ENODATA &&
@@ -109,16 +62,23 @@ kvdb_info_props(
             goto exit;
         }
 
-        yaml_start_element_type(yc, "kvslist");
-        err = rest_kvs_list(content.socket.path, content.alias, yc);
-        yaml_end_element_type(yc);
-        goto exit;
-    }
+        err = rest_client_init(content.socket.path);
+        if (err) {
+            fprintf(stderr, "Failed to initialize the rest client\n");
+            goto exit;
+        }
 
-    err = hse_kvdb_kvs_names_get(hdl, &kvs_cnt, &kvs_list);
-    if (err) {
-        hse_kvdb_close(hdl);
-        goto exit;
+        err = rest_kvdb_get_kvs_names(&kvs_cnt, &kvs_list, content.alias);
+        if (err)
+            goto exit;
+
+        used_rest = true;
+    } else {
+        err = hse_kvdb_kvs_names_get(hdl, &kvs_cnt, &kvs_list);
+        if (err) {
+            hse_kvdb_close(hdl);
+            goto exit;
+        }
     }
 
     yaml_start_element_type(yc, "kvslist");
@@ -129,13 +89,20 @@ kvdb_info_props(
     yaml_end_element(yc);
     yaml_end_element_type(yc); /* kvslist */
 
-    hse_kvdb_kvs_names_free(hdl, kvs_list);
+    if (!used_rest) {
+        hse_kvdb_kvs_names_free(hdl, kvs_list);
+    } else {
+        rest_kvdb_free_kvs_names(kvs_list);
+    }
 
     hse_kvdb_close(hdl);
 
 exit:
     yaml_end_element(yc);
     yaml_end_element_type(yc); /* kvdb */
+
+    if (used_rest)
+        rest_client_fini();
 
     return err;
 }
@@ -161,187 +128,6 @@ kvdb_info_print(
     }
 
     return true;
-}
-
-static hse_err_t
-rest_kvdb_comp(const char *socket_path, const char *alias, const char *policy)
-{
-    char      url[PATH_MAX];
-    char *    buf;
-    size_t    bufsz = (4 * 1024);
-    hse_err_t err;
-
-    snprintf(url, sizeof(url), "kvdb/%s/compact/request?policy=%s", alias, policy);
-
-    buf = calloc(1, bufsz);
-    if (!buf)
-        return ENOMEM;
-
-    err = curl_put(url, socket_path, 0, 0, buf, bufsz);
-    free(buf);
-
-    return err;
-}
-
-static hse_err_t
-rest_kvdb_status(const char *socket_path, const char *alias, size_t bufsz, char *buf)
-{
-    char      url[64];
-    int       n;
-    hse_err_t err;
-
-    n = snprintf(url, sizeof(url), "kvdb/%s/compact/status", alias);
-    if (n < 0) {
-        return EBADMSG;
-    } else if (n >= sizeof(url)) {
-        return ENAMETOOLONG;
-    }
-
-    err = curl_get(url, socket_path, buf, bufsz);
-    if (err)
-        return err;
-
-    return 0UL;
-}
-
-static hse_err_t
-rest_kvdb_params(const char *socket_path, size_t bufsz, char *buf)
-{
-    char      url[PATH_MAX];
-    hse_err_t err;
-
-    snprintf(url, sizeof(url), "data/config/kvdb");
-
-    err = curl_get(url, socket_path, buf, bufsz);
-    if (err)
-        return err;
-
-    return 0UL;
-}
-
-/**
- * rest_status_parse() - A simple parser for converting status from yaml
- *                       struct hse_kvdb_compact_status.
- * @buf:    input buffer containing yaml.
- * @status: output status struct.
- */
-static int
-rest_status_parse(const char *buf, struct hse_kvdb_compact_status *status)
-{
-    /* Example contents of 'buf':
-     *
-     *   status:
-     *   samp_lwm_pct: 117
-     *   samp_hwm_pct: 137
-     *   samp_curr_pct: 1371
-     *   request_active: 0
-     */
-
-    struct {
-        const char *  name;
-        unsigned int *value;
-    } items[] = {
-        { "samp_lwm_pct:", &status->kvcs_samp_lwm },
-        { "samp_hwm_pct:", &status->kvcs_samp_hwm },
-        { "samp_curr_pct:", &status->kvcs_samp_curr },
-        { "request_active:", &status->kvcs_active },
-        { "request_canceled:", &status->kvcs_canceled },
-    };
-
-    hse_err_t err;
-
-    memset(status, 0, sizeof(*status));
-
-    for (int i = 0; i < NELEM(items); i++) {
-
-        const char *p;
-        char *      end;
-        size_t      n;
-        u64         v;
-
-        p = strstr(buf, items[i].name);
-
-        if (!p)
-            return -1;
-
-        /* name should be at buf[0] or preceded by whitespace */
-        if (p != buf && p[-1] != '\n')
-            return -2;
-
-        /* skip over white space after name */
-        n = strlen(items[i].name);
-        p += n;
-        p += strspn(p, " ");
-
-        /* parse an integer */
-        err = parse_u64_range(p, &end, 0, UINT_MAX, &v);
-        if (err)
-            return -3;
-        if (*end != '\0' && *end != '\n')
-            return -4;
-
-        *items[i].value = (unsigned int)v;
-    }
-
-    return 0;
-}
-
-/**
- * rest_params_print() - Print the KVDB params
- * @kvdb:  kvdb home
- * @buf:   input buffer containing yaml
- */
-static void
-rest_params_print(const char *kvdb, const char *buf)
-{
-    char        pfx[PATH_MAX], key[PATH_MAX];
-    char        value[32];
-    const char *p, *start;
-    char *      pos;
-
-    p = buf;
-
-    snprintf(pfx, sizeof(pfx), "kvdb/");
-
-    while (*p != '\0') {
-        start = strstr(p, "path:");
-        if (!start)
-            return;
-
-        start += strlen("path:");
-        start += strspn(start, " ");
-        start += strlen(pfx);
-
-        p = start;
-
-        while (*p != '\0' && *p != ' ' && *p != '\n')
-            p++;
-
-        snprintf(key, sizeof(key), "%.*s", (int)(p - start), start);
-        pos = strchr(key, '/');
-        if (pos) {
-            *pos = '.';
-            printf("kvs.%s", key);
-        } else {
-            printf("kvdb.%s", key);
-        }
-
-        if (*p != '\0') {
-            start = strstr(p, "current:");
-            if (!start)
-                return;
-
-            start += strlen("current:");
-            start += strspn(start, " ");
-            p = start;
-
-            while (*p != '\0' && *p != '\n')
-                p++;
-
-            snprintf(value, sizeof(value), "%.*s", (int)(p - start), start);
-            printf(": %s\n", value);
-        }
-    }
 }
 
 static void
@@ -437,10 +223,14 @@ kvdb_compact_request(const char *kvdb_home, const char *request_type, u32 timeou
         goto err_out;
     }
 
-    if (strcmp(request_type, "request") == 0) {
-        const char *policy = "samp_lwm";
+    err = rest_client_init(content.socket.path);
+    if (err) {
+        fprintf(stderr, "Failed to initialize the rest client\n");
+        goto err_out;
+    }
 
-        err = rest_kvdb_comp(content.socket.path, content.alias, policy);
+    if (strcmp(request_type, "request") == 0) {
+        err = rest_kvdb_compact(content.alias);
         if (err) {
             char buf[256];
             hse_strerror(err, buf, sizeof(buf));
@@ -448,15 +238,13 @@ kvdb_compact_request(const char *kvdb_home, const char *request_type, u32 timeou
             goto err_out;
         }
 
-        err = rest_kvdb_status(content.socket.path, content.alias, sizeof(stat_buf), stat_buf);
+        err = rest_kvdb_get_compaction_status(&status, content.alias);
         if (err) {
             char buf[256];
             hse_strerror(err, buf, sizeof(buf));
-            fprintf(stderr, "Failed to retrieve current compaction status of the KVDB (%s): %s\n", kvdb_home, buf);
+            fprintf(stderr, "Compaction request failed for the KVDB (%s): %s\n", kvdb_home, buf);
             goto err_out;
         }
-
-        rest_status_parse(stat_buf, &status);
 
         if (!status.kvcs_active) {
             printf("No active compaction request for KVDB (%s) in progress\n", kvdb_home);
@@ -466,16 +254,13 @@ kvdb_compact_request(const char *kvdb_home, const char *request_type, u32 timeou
 
         stop_ts = get_time_ns() + (timeout_sec * 1000ul * 1000ul * 1000ul);
         while (status.kvcs_active) {
-
-            err = rest_kvdb_status(content.socket.path, content.alias, sizeof(stat_buf), stat_buf);
+            err = rest_kvdb_get_compaction_status(&status, content.alias);
             if (err) {
                 char buf[256];
                 hse_strerror(err, buf, sizeof(buf));
-                fprintf(stderr, "Failed to retrieve current compaction status of the KVDB (%s): %s\n", kvdb_home, buf);
+                fprintf(stderr, "Compaction request failed for the KVDB (%s): %s\n", kvdb_home, buf);
                 goto err_out;
             }
-
-            rest_status_parse(stat_buf, &status);
 
             if (status.kvcs_active)
                 sleep(sleep_secs);
@@ -483,7 +268,7 @@ kvdb_compact_request(const char *kvdb_home, const char *request_type, u32 timeou
             if (get_time_ns() > stop_ts) {
                 fprintf(stderr, "Compaction request timed out for the KVDB (%s)\n", kvdb_home);
 
-                err = rest_kvdb_comp(content.socket.path, content.alias, "cancel");
+                err = rest_kvdb_cancel_compaction(content.alias);
                 if (err) {
                     char buf[256];
                     hse_strerror(err, buf, sizeof(buf));
@@ -491,13 +276,14 @@ kvdb_compact_request(const char *kvdb_home, const char *request_type, u32 timeou
                 } else {
                     err = ETIMEDOUT;
                 }
+
                 goto err_out;
             }
         }
 
         printf("Compaction request was %s for KVDB (%s)\n", status.kvcs_canceled ? "canceled" : "successful", kvdb_home);
     } else if (strcmp(request_type, "cancel") == 0) {
-        err = rest_kvdb_comp(content.socket.path, content.alias, "cancel");
+        err = rest_kvdb_cancel_compaction(content.alias);
         if (err) {
             char buf[256];
             hse_strerror(err, buf, sizeof(buf));
@@ -507,7 +293,7 @@ kvdb_compact_request(const char *kvdb_home, const char *request_type, u32 timeou
 
         printf("Successfully canceled the compaction request for the KVDB (%s)\n", kvdb_home);
     } else if (strcmp(request_type, "status") == 0) {
-        err = rest_kvdb_status(content.socket.path, content.alias, sizeof(stat_buf), stat_buf);
+        err = rest_kvdb_get_compaction_status(&status, content.alias);
         if (err) {
             char buf[256];
             hse_strerror(err, buf, sizeof(buf));
@@ -515,69 +301,18 @@ kvdb_compact_request(const char *kvdb_home, const char *request_type, u32 timeou
             goto err_out;
         }
 
-        rest_status_parse(stat_buf, &status);
-
         rest_status_yaml(&status, stat_buf, sizeof(stat_buf));
 
         printf("%s", stat_buf);
     }
 
 err_out:
+    rest_client_fini();
+
     if (handle) {
         hse_kvdb_kvs_names_free(handle, kvs_list);
         hse_kvdb_close(handle);
     }
-
-    return hse_err_to_errno(err);
-}
-
-int
-hse_kvdb_params(const char *kvdb_home, bool get)
-{
-    hse_err_t      err = 0;
-    char *         buf;
-    size_t         bufsz = (32 * 1024);
-    struct pidfile content;
-
-    buf = calloc(1, bufsz);
-    if (!buf)
-        return ENOMEM;
-
-    err = pidfile_deserialize(kvdb_home, &content);
-    if (err) {
-        fprintf(
-            stderr,
-            "Failed to find the UNIX socket for the KVDB (%s). Ensure the KVDB is open in a "
-            "process.\n",
-            kvdb_home);
-        goto err_out;
-    }
-
-    if (content.socket.path[0] == '\0') {
-        err = ENOENT;
-        fprintf(stderr, "HSE socket is disabled in PID %d\n", content.pid);
-        goto err_out;
-    }
-
-    if (get) {
-        err = rest_kvdb_params(content.socket.path, bufsz, buf);
-        if (err) {
-            char buf[256];
-            hse_strerror(err, buf, sizeof(buf));
-            fprintf(
-                stderr,
-                "Failed to retrieve parameters for the KVDB (%s): %s\n"
-                "Ensure the KVDB is open in a process before querying its params.\n",
-                kvdb_home,
-                buf);
-            goto err_out;
-        }
-
-        rest_params_print(kvdb_home, buf);
-    }
-
-err_out:
-    free(buf);
 
     return hse_err_to_errno(err);
 }

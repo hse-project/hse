@@ -45,7 +45,7 @@ relative_dir = run_command(
         meson.project_source_root(),
         meson.global_build_root(),
     ),
-    check: true,
+    check: true
 ).stdout().strip()
 
 # Strip relative path prefixes from the code if possible, otherwise hide them.
@@ -92,20 +92,20 @@ if get_option('debug')
                 '-DDEBUG_RCU',
                 '-fstack-protector-all',
             ]),
-            language: 'c',
+            language: 'c'
         )
     endif
 
     add_project_arguments(
         '-DHSE_BUILD_DEBUG',
-        language: 'c',
+        language: 'c'
     )
 else
     log_pri_default = 6
 
     add_project_arguments(
         '-DHSE_BUILD_RELEASE',
-        language: 'c',
+        language: 'c'
     )
 endif
 
@@ -153,16 +153,6 @@ add_project_arguments(
     language: 'c'
 )
 
-libcurl_dep = dependency(
-    'libcurl',
-    version: '>=7.58.0',
-    fallback: 'curl',
-    default_options: [
-        'default_library=static',
-        'warning_level=0',
-        'werror=false',
-    ]
-)
 libyaml_dep = dependency(
     'yaml-0.1',
     version: '>=0.1.7',
@@ -172,7 +162,7 @@ libyaml_dep = dependency(
         'werror=false',
     ]
 )
-thread_dep = dependency('threads')
+threads_dep = dependency('threads')
 liburcu_bp_dep = dependency(
     'liburcu-bp',
     version: '>=0.10.1',
@@ -231,17 +221,45 @@ cjson_utils_dep = dependency(
         'tests=false',
     ]
 )
-libmicrohttpd_dep = dependency(
-    'libmicrohttpd',
-    version: '>=0.9.59',
-    default_options: [
-        'default_library=static',
-        'warning_level=0',
-        'werror=false',
-    ]
-)
-libpmem_dep = dependency('libpmem', version: '>= 1.4.0', required: get_option('pmem'))
+libpmem_dep = dependency('libpmem', version: '>=1.4.0', required: get_option('pmem'))
 m_dep = cc.find_library('m')
+libevent_can_fallback = get_option('wrap_mode') == 'forcefallback' or get_option('wrap_mode') != 'nofallback'
+libevent_dep = dependency(
+    'libevent',
+    required: not libevent_can_fallback,
+    disabler: true,
+    allow_fallback: false)
+libevent_pthreads_dep = dependency(
+    'libevent_pthreads',
+    required: not libevent_can_fallback,
+    disabler: true,
+    allow_fallback: false
+)
+if cmake.found() and libevent_can_fallback and ((
+        not libevent_dep.found() or
+        not libevent_pthreads_dep.found())
+        or 'libevent' in get_option('force_fallback_for'))
+    libevent_options = cmake.subproject_options()
+    libevent_options.add_cmake_defines({
+        'CMAKE_POSITION_INDEPENDENT_CODE': true,
+        'EVENT__DISABLE_OPENSSL': true,
+        'EVENT__DISABLE_MBEDTLS': true,
+        'EVENT__DISABLE_BENCHMARK': true,
+        'EVENT__DISABLE_TESTS': true,
+        'EVENT__DISABLE_REGRESS': true,
+        'EVENT__DISABLE_SAMPLES': true,
+        'EVENT__LIBRARY_TYPE': 'static',
+    })
+    libevent_options.set_override_option('werror', 'false')
+    libevent_options.set_override_option('warning_level', '0')
+    libevent_proj = cmake.subproject('libevent', options: libevent_options)
+    if not libevent_dep.found() or libevent_can_fallback
+        libevent_dep = libevent_proj.dependency('event_static')
+    endif
+    if not libevent_pthreads_dep.found() or libevent_can_fallback
+        libevent_pthreads_dep = libevent_proj.dependency('event_pthreads_static')
+    endif
+endif
 crc32c_proj = subproject(
     'crc32c',
     default_options: [
@@ -264,8 +282,17 @@ rbtree_proj = subproject(
 rbtree_dep = rbtree_proj.get_variable('rbtree_dep')
 xoroshiro_proj = subproject('xoroshiro')
 xoroshiro_dep = xoroshiro_proj.get_variable('xoroshiro_dep')
-ncurses_dep = dependency('ncurses', version: '>= 6.1.20180127', required: get_option('tools'))
-HdrHistogram_c_dep = cc.find_library('hdr_histogram', required: false, disabler: true)
+ncurses_dep = dependency(
+    'ncurses',
+    version: '>=6.1.20180127',
+    required: get_option('tools'),
+    disabler: true
+)
+HdrHistogram_c_dep = cc.find_library(
+    'hdr_histogram',
+    required: false,
+    disabler: true
+)
 if not cc.has_header_symbol(
         'hdr/hdr_histogram.h',
         'hdr_record_value_atomic',
@@ -273,7 +300,8 @@ if not cc.has_header_symbol(
     HdrHistogram_c_dep = disabler()
 endif
 HdrHistogram_c_can_fallback = get_option('wrap_mode') == 'forcefallback' or get_option('wrap_mode') != 'nofallback'
-if cmake.found() and get_option('tools').allowed() and HdrHistogram_c_can_fallback and (not HdrHistogram_c_dep.found() or 'HdrHistogram_c' in get_option('force_fallback_for'))
+if cmake.found() and get_option('tools').allowed() and HdrHistogram_c_can_fallback and (
+        not HdrHistogram_c_dep.found() or 'HdrHistogram_c' in get_option('force_fallback_for'))
     HdrHistogram_c_options = cmake.subproject_options()
     HdrHistogram_c_options.add_cmake_defines({
         'HDR_HISTOGRAM_BUILD_PROGRAMS': false,
@@ -298,16 +326,19 @@ libmongoc_dep = dependency(
     'libmongoc-1.0',
     version: ['>=1.17.3', '<1.21.0'],
     required: false,
-    disabler: true
+    disabler: true,
+    allow_fallback: false
 )
 libbson_dep = dependency(
     'libbson-1.0',
     version: ['>=1.17.3', '<1.21.0'],
     required: false,
-    disabler: true
+    disabler: true,
+    allow_fallback: false
 )
 mongo_c_driver_can_fallback = get_option('wrap_mode') == 'forcefallback' or get_option('wrap_mode') != 'nofallback'
-if cmake.found() and get_option('tools').allowed() and mongo_c_driver_can_fallback and ((not libmongoc_dep.found() or not libbson_dep.found()) or 'mongo-c-driver' in get_option('force_fallback_for'))
+if cmake.found() and get_option('tools').allowed() and mongo_c_driver_can_fallback and (
+        (not libmongoc_dep.found() or not libbson_dep.found()) or 'mongo-c-driver' in get_option('force_fallback_for'))
     mongo_c_driver_options = cmake.subproject_options()
     mongo_c_driver_options.add_cmake_defines({
         'ENABLE_TESTS': false,
@@ -317,7 +348,7 @@ if cmake.found() and get_option('tools').allowed() and mongo_c_driver_can_fallba
         'ENABLE_MONGOC': not libmongoc_dep.found() or mongo_c_driver_can_fallback ? 'ON' : 'OFF',
         'ENABLE_BSON': not libbson_dep.found() or mongo_c_driver_can_fallback ? 'ON' : 'OFF',
         'ENABLE_STATIC': 'ON',
-        'ENABLE_AUTOMATIC_INIT_AND_CLEANUP': false,
+        'ENABLE_AUTOMATIC_INIT_AND_CLEANUP': false
     })
     mongo_c_driver_options.set_override_option('werror', 'false')
     mongo_c_driver_options.set_override_option('warning_level', '0')
@@ -374,12 +405,14 @@ bindir_to_libdir = run_command(
     '-c',
     'import os; print("{}/".format(os.path.relpath("@0@", "@1@")))'.format(
         get_option('prefix') / get_option('libdir'),
-        get_option('prefix') / get_option('bindir'),
+        get_option('prefix') / get_option('bindir')
     ),
     check: true
 ).stdout().strip()
 
 rpath = get_option('rpath') ? '$ORIGIN' / bindir_to_libdir : ''
+
+includeify = find_program('scripts/build/includeify')
 
 if get_option('tests')
     find_program('gawk')
@@ -396,7 +429,9 @@ endif
 subdir('lib')
 subdir('cli')
 subdir('samples')
-subdir('docs')
+if get_option('docs').allowed()
+    subdir('docs')
+endif
 
 # Environment in which various run_targets and tests will run in
 run_env = environment()

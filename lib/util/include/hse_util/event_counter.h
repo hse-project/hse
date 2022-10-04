@@ -19,10 +19,8 @@
 struct event_counter {
     atomic_ulong       ev_odometer;
     u32                ev_flags;
-    int                ev_pri;
+    int                ev_level;
     atomic_ulong       ev_odometer_timestamp;
-    atomic_ulong       ev_trip_odometer_timestamp;
-    ulong              ev_trip_odometer;
     const char        *ev_file;
     int                ev_line;
     struct dt_element  ev_dte;
@@ -30,21 +28,20 @@ struct event_counter {
 
 extern struct dt_element_ops event_counter_ops;
 
-#define ev_impl(_expr, _pri, _flags)                            \
+#define ev_impl(_expr, _level, _flags)                          \
     ({                                                          \
         typeof(_expr) _tmp = (_expr);                           \
                                                                 \
         if (HSE_UNLIKELY(_tmp)) {                               \
             static struct event_counter hse_ev _dt_section = {  \
                 .ev_odometer = 0,                               \
-                .ev_pri = (_pri),                               \
+                .ev_level = (_level),                           \
                 .ev_flags = (_flags),                           \
                 .ev_file = REL_FILE(__FILE__),                  \
                 .ev_line = __LINE__,                            \
                 .ev_dte = {                                     \
                     .dte_data = &hse_ev,                        \
                     .dte_ops = &event_counter_ops,              \
-                    .dte_type = DT_TYPE_ERROR_COUNTER,          \
                     .dte_line = __LINE__,                       \
                     .dte_file = REL_FILE(__FILE__),             \
                     .dte_func = __func__,                       \

@@ -60,15 +60,36 @@ mtf_time_delta_in_ms(unsigned long start, unsigned long stop)
     return (int)((stop - start) / 1000000);
 }
 
+/**
+ * Override in the event a test needs custom global parameters.
+ */
+void HSE_WEAK
+mtf_get_global_params(size_t *const paramc, char ***const paramv)
+{
+    static char *gparams[] = { "socket.enabled=false" };
+
+    *paramc = NELEM(gparams);
+    *paramv = gparams;
+}
+
+/**
+ * Override in the event a test needs to cleanup global parameters.
+ */
+void HSE_WEAK
+mtf_cleanup_global_params(char **const paramv)
+{
+}
+
 int
 mtf_main(int argc, char **argv, struct mtf_test_coll_info *tci)
 {
+    int c;
+    size_t paramc;
+    char **paramv;
+    char errbuf[1024];
+    hse_err_t err;
     const char *progname = program_invocation_short_name;
-    const char *paramv[] = { "socket.enabled=false" };
-    char *      logging_level, *config = NULL, *argv_home = NULL;
-    char        errbuf[1024];
-    hse_err_t   err;
-    int         c;
+    char *logging_level, *config = NULL, *argv_home = NULL;
 
     static const struct option long_options[] = {
         { "logging-level", required_argument, NULL, 'l' }, { "help", no_argument, NULL, 'h' },
@@ -90,8 +111,8 @@ mtf_main(int argc, char **argv, struct mtf_test_coll_info *tci)
 
             case 'c':
                 /* [HSE_REVISIT] cheap_test uses -c, so this is a bit wonky
-             * (note that we can only get here via --config).
-             */
+                 * (note that we can only get here via --config).
+                 */
                 config = optarg;
                 break;
 
@@ -131,7 +152,9 @@ mtf_main(int argc, char **argv, struct mtf_test_coll_info *tci)
         return EX_OSERR;
     }
 
-    err = hse_init(config, NELEM(paramv), paramv);
+    mtf_get_global_params(&paramc, &paramv);
+
+    err = hse_init(config, paramc, (const char **)paramv);
     if (err) {
         fprintf(
             stderr,
@@ -155,6 +178,8 @@ mtf_main(int argc, char **argv, struct mtf_test_coll_info *tci)
     }
 
     hse_fini();
+
+    mtf_cleanup_global_params(paramv);
 
     return err ? EX_SOFTWARE : 0;
 }

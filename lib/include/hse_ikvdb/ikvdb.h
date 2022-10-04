@@ -606,16 +606,6 @@ ikvdb_compact_status_get(struct ikvdb *handle, struct hse_kvdb_compact_status *s
 struct ikvdb *
 ikvdb_kvdb_handle(struct ikvdb_impl *self);
 
-/**
- * ikvdb_kvs_query_tree() - get cn tree shape
- * @kvs:       kvs handle
- * @yc:        yaml context
- * @blkids:    include all kblock and vblock IDs if true
- * @nodesonly: exclude kvsets if true
- */
-merr_t
-ikvdb_kvs_query_tree(struct hse_kvs *kvs, struct yaml_context *yc, bool blkids, bool nodesonly);
-
 unsigned long
 ikvdb_lowmem_scale(unsigned long memgb);
 
@@ -624,7 +614,6 @@ ikvdb_pmem_only_from_cparams(
     const char                *kvdb_home,
     const struct kvdb_cparams *cparams,
     bool                      *pmem_only);
-
 
 /*
  * [HSE_REVISIT] - This whole callback setup up needs to be reworked.
@@ -639,7 +628,7 @@ ikvdb_pmem_only_from_cparams(
 struct kvdb_callback {
     struct ikvdb *kc_cbarg;
     void (*kc_cningest_cb)(struct ikvdb *ikdb, uint64_t seqno, uint64_t gen,
-			   uint64_t txhorizon, bool post_ingest);
+        uint64_t txhorizon, bool post_ingest);
     void (*kc_bufrel_cb)(struct ikvdb *ikdb, uint64_t gen);
 };
 
