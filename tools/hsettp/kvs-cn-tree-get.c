@@ -137,21 +137,21 @@ parse_common(
         return merr(ENOMEM);
     *offset += 1;
 
-    item = cJSON_GetObjectItemCaseSensitive(elem, "hblks");
+    item = cJSON_GetObjectItemCaseSensitive(elem, "hblocks");
     assert(cJSON_IsNumber(item));
     values[*offset] = rawify(item);
     if (!values[*offset])
         return merr(ENOMEM);
     *offset += 1;
 
-    item = cJSON_GetObjectItemCaseSensitive(elem, "kblks");
+    item = cJSON_GetObjectItemCaseSensitive(elem, "kblocks");
     assert(cJSON_IsNumber(item));
     values[*offset] = rawify(item);
     if (!values[*offset])
         return merr(ENOMEM);
     *offset += 1;
 
-    item = cJSON_GetObjectItemCaseSensitive(elem, "vblks");
+    item = cJSON_GetObjectItemCaseSensitive(elem, "vblocks");
     assert(cJSON_IsNumber(item));
     values[*offset] = rawify(item);
     if (!values[*offset])
