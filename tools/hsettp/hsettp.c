@@ -1356,6 +1356,10 @@ append_query_parameters(cJSON *const method, struct buffer *const endpoint)
         name = cJSON_GetObjectItemCaseSensitive(param, "name");
         assert(cJSON_IsString(name));
 
+        value = options_map_get(options_map, cJSON_GetStringValue(name));
+        if (!value)
+            continue;
+
         if (endpoint->data[endpoint->len - 1] != '?') {
             err = buffer_putc(endpoint, '&');
             if (err) {
@@ -1363,10 +1367,6 @@ append_query_parameters(cJSON *const method, struct buffer *const endpoint)
                 return EX_OSERR;
             }
         }
-
-        value = options_map_get(options_map, cJSON_GetStringValue(name));
-        if (!value)
-            continue;
 
         err = buffer_sprintf(endpoint, "%s=%s", param->string, value);
         if (err) {

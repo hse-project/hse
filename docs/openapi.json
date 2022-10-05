@@ -337,7 +337,7 @@
                   "justify": "right"
                 },
                 "SUSEDSZ": {
-                  "pointer": "/used_slabs_size",
+                  "pointer": "/used_slabs_size_kb",
                   "justify": "right"
                 },
                 "SEMPTY": {
@@ -869,7 +869,7 @@
                 },
                 "WMESG": {
                   "pointer": "/wmesg",
-                  "justify": "left"
+                  "justify": "right"
                 },
                 "ST": {
                   "pointer": "/state",
@@ -1170,11 +1170,11 @@
                 },
                 "ACTION": {
                   "pointer": "/action",
-                  "justify": "left"
+                  "justify": "right"
                 },
                 "RULE": {
                   "pointer": "/rule",
-                  "justify": "left"
+                  "justify": "right"
                 },
                 "QNUM": {
                   "pointer": "/qnum",
@@ -1234,7 +1234,7 @@
                 },
                 "WMESG": {
                   "pointer": "/wmesg",
-                  "justify": "left"
+                  "justify": "right"
                 },
                 "TIME": {
                   "pointer": "/time",

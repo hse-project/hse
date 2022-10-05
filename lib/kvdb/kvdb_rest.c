@@ -1237,15 +1237,15 @@ rest_kvs_cn_tree(
     kvs = ctx;
 
     err = rest_params_get(req->rr_params, "pretty", &pretty, false);
-    if (err)
+    if (ev(err))
         return REST_STATUS_BAD_REQUEST;
 
     err = rest_params_get(req->rr_params, "human", &human, false);
-    if (err)
+    if (ev(err))
         return REST_STATUS_BAD_REQUEST;
 
     err = rest_params_get(req->rr_params, "kvsets", &kvsets, false);
-    if (err)
+    if (ev(err))
         return REST_STATUS_BAD_REQUEST;
 
     err = kvs_query_tree(kvs, human, kvsets, &root);
