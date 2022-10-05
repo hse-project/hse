@@ -31,7 +31,7 @@ jobs:
         run: |
           meson setup builddir --fatal-meson-warnings -Dwerror=true -Ddocs=enabled \
             -Dtests=false -Dtools=disabled -Dbindings=none -Dcli=false \
-            -Dsamples=false -Ddb_bench=false
+            -Dsamples=false
 
       - name: Build
         run: |

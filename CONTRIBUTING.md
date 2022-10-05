@@ -78,7 +78,7 @@ The following HSE-specific build options are recommended for distributing HSE:
 
 ```shell
 meson setup build -Dbuildtype=release -Dexperimental=false -Dtools=disabled \
-    -Ddb_bench=false -Dsamples=false -Dbindings=none
+    -Dsamples=false -Dbindings=none
 ```
 
 #### Sanitized Builds
