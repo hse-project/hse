@@ -673,11 +673,11 @@ rest_get_workqueues(
     mutex_lock(&hse_wg.wg_lock);
 
     list_for_each_entry(priv, &hse_wg.wg_tlist, wp_link) {
+        bool bad;
         char *str;
         ssize_t n;
         uint64_t tm;
         char tm_buf[32];
-        bool bad = false;
         char file_buf[64];
         cJSON *elem = NULL;
         char line_buf[1024];
@@ -737,7 +737,7 @@ rest_get_workqueues(
             break;
         }
 
-        bad |= !cJSON_AddStringToObject(elem, "name", wq->wq_name);
+        bad = !cJSON_AddStringToObject(elem, "name", wq->wq_name);
         bad |= !cJSON_AddNumberToObject(elem, "references", wq->wq_refcnt);
         bad |= !cJSON_AddNumberToObject(elem, "minimum_threads", wq->wq_tdmin);
         bad |= !cJSON_AddNumberToObject(elem, "maximum_threads", wq->wq_tdmax);
