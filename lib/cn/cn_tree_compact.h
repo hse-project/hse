@@ -33,6 +33,7 @@ enum cn_action {
     CN_ACTION_COMPACT_K,
     CN_ACTION_COMPACT_KV,
     CN_ACTION_SPILL,
+    CN_ACTION_ZSPILL,
     CN_ACTION_SPLIT,
     CN_ACTION_JOIN,
 };
@@ -49,6 +50,8 @@ cn_action2str(enum cn_action action)
         return "kvcomp";
     case CN_ACTION_SPILL:
         return "spill";
+    case CN_ACTION_ZSPILL:
+        return "zspill";
     case CN_ACTION_SPLIT:
         return "split";
     case CN_ACTION_JOIN:

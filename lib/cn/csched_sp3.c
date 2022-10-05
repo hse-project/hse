@@ -1043,7 +1043,7 @@ sp3_process_workitem(struct sp3 *sp, struct cn_compaction_work *w)
 
     cn_samp_sub(&sp->samp_wip, &w->cw_est.cwe_samp);
 
-    if (w->cw_action == CN_ACTION_SPILL) {
+    if (w->cw_action == CN_ACTION_SPILL || w->cw_action == CN_ACTION_ZSPILL) {
         struct cn_tree *tree = w->cw_tree;
         uint64_t dt;
 
@@ -1409,6 +1409,10 @@ sp3_comp_thread_name(
 
     case CN_ACTION_COMPACT_KV:
         a = "kv";
+        break;
+
+    case CN_ACTION_ZSPILL:
+        a = "zs";
         break;
 
     case CN_ACTION_SPILL:

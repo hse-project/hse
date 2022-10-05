@@ -1202,7 +1202,7 @@ cn_tree_prepare_compaction(struct cn_compaction_work *w)
     /* Enable dropping of tombstones in merge logic if 'mark' is
      * the oldest kvset in the node and we're not spilling.
      */
-    w->cw_drop_tombs = (w->cw_action != CN_ACTION_SPILL) &&
+    w->cw_drop_tombs = (w->cw_action != CN_ACTION_SPILL) && (w->cw_action != CN_ACTION_ZSPILL) &&
         (w->cw_mark == list_last_entry(&node->tn_kvset_list, struct kvset_list_entry, le_link));
 
     return 0;
@@ -1549,7 +1549,7 @@ cn_comp_commit(struct cn_compaction_work *w)
 
     struct kvdb_health *hp = w->cw_tree->ct_kvdb_health;
 
-    assert(w->cw_action != CN_ACTION_SPILL);
+    assert(w->cw_action != CN_ACTION_SPILL && w->cw_action != CN_ACTION_ZSPILL);
 
     if (w->cw_err)
         goto done;
@@ -1731,6 +1731,7 @@ cn_comp_commit(struct cn_compaction_work *w)
         cn_comp_update_kvcompact(w, kvsets[0]);
         break;
 
+    case CN_ACTION_ZSPILL:
     case CN_ACTION_SPILL:
         assert(0);
         break;
@@ -1774,7 +1775,7 @@ static void
 cn_comp_cleanup(struct cn_compaction_work *w)
 {
     const bool kcompact = (w->cw_action == CN_ACTION_COMPACT_K);
-    const bool spill = (w->cw_action == CN_ACTION_SPILL);
+    const bool spill = (w->cw_action == CN_ACTION_SPILL || w->cw_action == CN_ACTION_ZSPILL);
     const bool split = (w->cw_action == CN_ACTION_SPLIT);
     const bool join = (w->cw_action == CN_ACTION_JOIN);
 
@@ -2116,8 +2117,8 @@ cn_comp_spill(struct cn_compaction_work *w)
     struct route_node *rtn = NULL;
     atomic_uint *spillingp = NULL;
     struct spillctx *sctx = NULL;
-    merr_t err;
-    bool is_zspill = w->cw_action == CN_ACTION_SPILL && w->cw_rule == CN_RULE_ZSPILL;
+    merr_t err = 0;
+    bool is_zspill = w->cw_action == CN_ACTION_ZSPILL;
     struct cn_tree_node *znode = NULL;
 
     if (is_zspill) {
@@ -2368,7 +2369,6 @@ cn_comp_compact(struct cn_compaction_work *w)
     bool kcompact = (w->cw_action == CN_ACTION_COMPACT_K);
     struct kvdb_health *hp = w->cw_tree->ct_kvdb_health;
     bool can_zspill = false;
-    bool need_prepare = true;
 
     merr_t err = 0;
 
@@ -2385,7 +2385,7 @@ cn_comp_compact(struct cn_compaction_work *w)
     hp = w->cw_tree->ct_kvdb_health;
     assert(hp);
 
-    if (w->cw_action == CN_ACTION_SPILL && w->cw_rule == CN_RULE_ZSPILL) {
+    if (w->cw_action == CN_ACTION_ZSPILL) {
 
         w->cw_horizon = cn_get_seqno_horizon(w->cw_tree->cn);
         w->cw_cancel_request = cn_get_cancel(w->cw_tree->cn);
@@ -2398,13 +2398,13 @@ cn_comp_compact(struct cn_compaction_work *w)
         if (w->cw_err)
             return;
 
-        if (can_zspill)
-            need_prepare = false;
-        else
+        if (!can_zspill) {
+            w->cw_action = CN_ACTION_SPILL;
             w->cw_rule = CN_RULE_RSPILL;
+        }
     }
 
-    if (need_prepare) {
+    if (w->cw_action != CN_ACTION_ZSPILL) {
         w->cw_err = cn_tree_prepare_compaction(w);
         if (w->cw_err) {
             if (merr_errno(w->cw_err) != ESHUTDOWN)
@@ -2433,6 +2433,7 @@ cn_comp_compact(struct cn_compaction_work *w)
         err = cn_kvcompact(w);
         break;
 
+    case CN_ACTION_ZSPILL:
     case CN_ACTION_SPILL:
         err = cn_comp_spill(w);
         break;
@@ -2446,7 +2447,7 @@ cn_comp_compact(struct cn_compaction_work *w)
         break;
     }
 
-    if (w->cw_action == CN_ACTION_SPILL && can_zspill)
+    if (w->cw_action == CN_ACTION_ZSPILL)
         goto done;
 
     w->cw_t3_build = get_time_ns();
@@ -2496,8 +2497,12 @@ cn_compact(struct cn_compaction_work *w)
      * For a spill operation, each subspill to a child was committed as the spill progressed.
      * For a join operation, cn_move() commits the operation.
      */
-    if (w->cw_action != CN_ACTION_SPILL && w->cw_action != CN_ACTION_JOIN)
+    if (w->cw_action != CN_ACTION_SPILL &&
+        w->cw_action != CN_ACTION_ZSPILL &&
+        w->cw_action != CN_ACTION_JOIN) {
+
         cn_comp_commit(w);
+    }
 
     cn_comp_cleanup(w);
 

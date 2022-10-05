@@ -85,6 +85,7 @@ sp3_work_estimate(struct cn_compaction_work *w)
         dst_is_leaf = src_is_leaf;
         break;
 
+    case CN_ACTION_ZSPILL:
     case CN_ACTION_SPILL:
         assert(cn_node_isroot(w->cw_node));
         consume = halen + kalen + valen;
@@ -134,10 +135,10 @@ sp3_work_wtype_root(
     struct sp3_thresholds    *thresh,
     struct kvset_list_entry **mark,
     enum cn_action           *action,
-    enum cn_rule             *rule,
-    struct route_map         *rmap)
+    enum cn_rule             *rule)
 {
     struct cn_tree_node *tn = spn2tn(spn);
+    struct route_map *rmap = tn->tn_tree->ct_route_map;
     struct cn_tree_node *znode = NULL;
     uint runlen_min, runlen_max, runlen;
     struct kvset_list_entry *le;
@@ -182,6 +183,7 @@ sp3_work_wtype_root(
                     continue;
                 } else {
                     assert(runlen && runlen <= runlen_max);
+                    *action = CN_ACTION_ZSPILL;
                     *rule = CN_RULE_ZSPILL;
                     return runlen;
                 }
@@ -203,6 +205,7 @@ sp3_work_wtype_root(
 
     if (znode) {
         assert(runlen && runlen <= runlen_max);
+        *action = CN_ACTION_ZSPILL;
         *rule = CN_RULE_ZSPILL;
         return runlen;
     }
@@ -913,7 +916,7 @@ sp3_work(
 
         switch (wtype) {
         case wtype_root:
-            n_kvsets = sp3_work_wtype_root(spn, thresh, &mark, &action, &rule, tree->ct_route_map);
+            n_kvsets = sp3_work_wtype_root(spn, thresh, &mark, &action, &rule);
             break;
 
         case wtype_idle:
@@ -961,7 +964,7 @@ sp3_work(
     if (n_kvsets == 0)
         goto locked_nowork;
 
-    if (action == CN_ACTION_SPILL) {
+    if (action == CN_ACTION_SPILL || action == CN_ACTION_ZSPILL) {
         assert(cn_node_isroot(tn));
 
         if ((atomic_read(&tn->tn_busycnt) >> 16) > 2)
@@ -1052,7 +1055,7 @@ sp3_work(
     w->cw_t0_enqueue = get_time_ns();
 
     /* Ensure concurrent root spills complete in order */
-    if (w->cw_action == CN_ACTION_SPILL) {
+    if (w->cw_action == CN_ACTION_SPILL || w->cw_action == CN_ACTION_ZSPILL) {
         w->cw_sgen = ++tree->ct_sgen;
     } else if (w->cw_action == CN_ACTION_JOIN) {
         uint64_t workid = 0;
