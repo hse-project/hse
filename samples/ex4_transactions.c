@@ -46,7 +46,7 @@ main(int argc, char **argv)
 
     const char * hi_paramv[] = { "logging.destination=stdout",
                              "logging.level=3",
-                             "socket.enabled=false" };
+                             "rest.enabled=false" };
     const size_t hi_paramc = sizeof(hi_paramv) / sizeof(hi_paramv[0]);
 
     const char * kvs_paramv[] = { "transactions.enabled=true" };

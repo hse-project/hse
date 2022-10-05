@@ -21,18 +21,18 @@
 #include <hse_util/event_counter.h>
 
 char socket_path[PATH_MAX];
-char socket_path_param[PATH_MAX + PATH_MAX / 2];
+char rest_socket_path_param[PATH_MAX + PATH_MAX / 2];
 char *gparams[2];
 
 void
 mtf_get_global_params(size_t *const paramc, char ***const paramv)
 {
     snprintf(socket_path, sizeof(socket_path), "/tmp/hse-global_rest_test-%d.sock", getpid());
-    snprintf(socket_path_param, sizeof(socket_path_param), "socket.path=%s", socket_path);
+    snprintf(rest_socket_path_param, sizeof(rest_socket_path_param), "rest.socket_path=%s",
+        socket_path);
 
-    /* MTF defaults socket.enabled to true. */
-    gparams[0] = "socket.enabled=true";
-    gparams[1] = socket_path_param;
+    gparams[0] = "rest.enabled=true";
+    gparams[1] = rest_socket_path_param;
 
     *paramc = NELEM(gparams);
     *paramv = gparams;
@@ -291,7 +291,7 @@ MTF_DEFINE_UTEST(global_rest_test, params_specific)
     ASSERT_NE(NULL, headers);
 
     err = rest_client_fetch("DELETE", NULL, NULL, 0, check_status_cb, &status,
-        "/params/socket.enabled");
+        "/params/rest.enabled");
     ASSERT_EQ(0, merr_errno(err));
 
     err = rest_client_fetch("GET", NULL, NULL, 0, check_logging_level_cb, "true",

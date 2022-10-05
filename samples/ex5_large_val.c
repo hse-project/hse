@@ -202,7 +202,7 @@ main(int argc, char **argv)
     hse_err_t        rc, rc2;
     const char *     paramv[] = { "logging.destination=stdout",
                                   "logging.level=3",
-                                  "socket.enabled=false" };
+                                  "rest.enabled=false" };
     const size_t     paramc = sizeof(paramv) / sizeof(paramv[0]);
 
     progname = argv[0];

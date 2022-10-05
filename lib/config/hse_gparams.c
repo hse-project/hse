@@ -105,7 +105,7 @@ logging_destination_jsonify(const struct param_spec *const ps, const void *const
 }
 
 static void
-socket_path_default(const struct param_spec *ps, void *value)
+rest_socket_path_default(const struct param_spec *ps, void *value)
 {
     const char *dir;
     HSE_MAYBE_UNUSED int n;
@@ -123,9 +123,9 @@ socket_path_default(const struct param_spec *ps, void *value)
     if (!dir || *dir != '/')
         dir = "/tmp";
 
-    n = snprintf(value, sizeof(hse_gparams.gp_socket.path), "%s%shse-%d.sock", dir,
+    n = snprintf(value, sizeof(hse_gparams.gp_rest.socket_path), "%s%shse-%d.sock", dir,
         dir[strlen(dir) - 1] == '/' ? "" : "/", getpid());
-    assert(n < sizeof(hse_gparams.gp_socket.path) && n > 0);
+    assert(n < sizeof(hse_gparams.gp_rest.socket_path) && n > 0);
 }
 
 static const struct param_spec pspecs[] = {
@@ -375,12 +375,12 @@ static const struct param_spec pspecs[] = {
         },
     },
     {
-        .ps_name = "socket.enabled",
+        .ps_name = "rest.enabled",
         .ps_description = "Enable the REST server",
         .ps_flags = 0,
         .ps_type = PARAM_TYPE_BOOL,
-        .ps_offset = offsetof(struct hse_gparams, gp_socket.enabled),
-        .ps_size = PARAM_SZ(struct hse_gparams, gp_socket.enabled),
+        .ps_offset = offsetof(struct hse_gparams, gp_rest.enabled),
+        .ps_size = PARAM_SZ(struct hse_gparams, gp_rest.enabled),
         .ps_convert = param_default_converter,
         .ps_validate = param_default_validator,
         .ps_stringify = param_default_stringify,
@@ -390,22 +390,22 @@ static const struct param_spec pspecs[] = {
         }
     },
     {
-        .ps_name = "socket.path",
-        .ps_description = "UNIX socket path",
+        .ps_name = "rest.socket_path",
+        .ps_description = "UNIX socket path to start REST server on",
         .ps_flags = PARAM_FLAG_DEFAULT_BUILDER,
         .ps_type = PARAM_TYPE_STRING,
-        .ps_offset = offsetof(struct hse_gparams, gp_socket.path),
-        .ps_size = PARAM_SZ(struct hse_gparams, gp_socket.path),
+        .ps_offset = offsetof(struct hse_gparams, gp_rest.socket_path),
+        .ps_size = PARAM_SZ(struct hse_gparams, gp_rest.socket_path),
         .ps_convert = param_default_converter,
         .ps_validate = param_default_validator,
         .ps_stringify = param_default_stringify,
         .ps_jsonify = param_default_jsonify,
         .ps_default_value = {
-            .as_builder = socket_path_default,
+            .as_builder = rest_socket_path_default,
         },
         .ps_bounds = {
             .as_string = {
-                .ps_max_len = PARAM_SZ(struct hse_gparams, gp_socket.path),
+                .ps_max_len = PARAM_SZ(struct hse_gparams, gp_rest.socket_path),
             },
         },
     },

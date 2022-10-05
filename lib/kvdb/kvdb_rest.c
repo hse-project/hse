@@ -1297,7 +1297,7 @@ kvs_rest_add_endpoints(struct ikvdb *const kvdb, struct kvdb_kvs *const kvs)
     if (!kvdb || !kvs)
         return merr(EINVAL);
 
-    if (!hse_gparams.gp_socket.enabled)
+    if (!hse_gparams.gp_rest.enabled)
         goto out;
 
     alias = ikvdb_alias(kvdb);
@@ -1347,7 +1347,7 @@ kvs_rest_remove_endpoints(struct ikvdb *const kvdb, struct kvdb_kvs *const kvs)
     if (!kvdb || !kvs)
         return merr(ev(EINVAL));
 
-    if (!hse_gparams.gp_socket.enabled)
+    if (!hse_gparams.gp_rest.enabled)
         goto out;
 
     alias = ikvdb_alias(kvdb);

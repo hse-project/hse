@@ -36,7 +36,7 @@ main(int argc, const char **argv)
     hse_err_t        err = 0;
     const char *     hi_paramv[] = { "logging.destination=stdout",
                                 "logging.level=3",
-                                "socket.enabled=false" };
+                                "rest.enabled=false" };
     const size_t     hi_paramc = sizeof(hi_paramv) / sizeof(hi_paramv[0]);
     const char *     kvdb_paramv[] = { "read_only=true" };
     const size_t     kvdb_paramc = sizeof(kvdb_paramv) / sizeof(kvdb_paramv[0]);

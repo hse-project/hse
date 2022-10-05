@@ -350,7 +350,7 @@ hse_init(const char *const config, const size_t paramc, const char *const *const
     if (err)
         goto out;
 
-    if (hse_gparams.gp_socket.enabled) {
+    if (hse_gparams.gp_rest.enabled) {
         static rest_handler *handlers[][REST_METHOD_COUNT] = {
             {
                 [REST_METHOD_GET] = rest_get_dt,
@@ -367,12 +367,12 @@ hse_init(const char *const config, const size_t paramc, const char *const *const
             },
         };
 
-        err = rest_server_start(hse_gparams.gp_socket.path);
+        err = rest_server_start(hse_gparams.gp_rest.socket_path);
         if (ev_warn(err)) {
-            log_warnx("Could not start rest server on %s", err, hse_gparams.gp_socket.path);
+            log_warnx("Could not start rest server on %s", err, hse_gparams.gp_rest.socket_path);
             err = 0;
         } else {
-            log_info("Rest server started on %s", hse_gparams.gp_socket.path);
+            log_info("Rest server started on %s", hse_gparams.gp_rest.socket_path);
 
             err = rest_server_add_endpoint(0, handlers[0], NULL, "/events");
             if (ev_warn(err))
@@ -644,16 +644,15 @@ hse_kvdb_open(
 
     content.pid = getpid();
     static_assert(
-        sizeof(content.socket.path) == sizeof(hse_gparams.gp_socket.path),
-        "Unequal socket buffer sizes");
+        sizeof(content.rest.socket_path) == sizeof(hse_gparams.gp_rest.socket_path),
+        "Unequal REST socket path buffer sizes");
 
     /* Infallible since the buffers are the same size. */
     n = strlcpy(content.alias, ikvdb_alias(ikvdb), sizeof(content.alias));
     assert(n < sizeof(content.alias));
-    static_assert(
-        sizeof(content.socket.path) == sizeof(hse_gparams.gp_socket.path), "Unequal buffer sizes");
-    if (hse_gparams.gp_socket.enabled)
-        strlcpy(content.socket.path, hse_gparams.gp_socket.path, sizeof(content.socket.path));
+    if (hse_gparams.gp_rest.enabled)
+        strlcpy(content.rest.socket_path, hse_gparams.gp_rest.socket_path,
+            sizeof(content.rest.socket_path));
 
     err = pidfile_serialize(pfh, &content);
     if (err) {

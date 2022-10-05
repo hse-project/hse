@@ -1,6 +1,6 @@
 /* SPDX-License-Identifier: Apache-2.0 */
 /*
- * Copyright (C) 2021 Micron Technology, Inc.  All rights reserved.
+ * Copyright (C) 2021-2022 Micron Technology, Inc.  All rights reserved.
  */
 
 #include <assert.h>
@@ -26,8 +26,8 @@ merr_t
 pidfile_serialize(struct pidfh *pfh, const struct pidfile *content)
 {
     merr_t err = 0;
-    cJSON *root = NULL, *socket = NULL;
     char * str = NULL;
+    cJSON *root = NULL, *rest = NULL;
 
     if (!pfh || !content)
         return merr(EINVAL);
@@ -44,18 +44,18 @@ pidfile_serialize(struct pidfh *pfh, const struct pidfile *content)
         err = merr(ENOMEM);
         goto out;
     }
-    socket = cJSON_AddObjectToObject(root, "socket");
-    if (!socket) {
+    rest = cJSON_AddObjectToObject(root, "rest");
+    if (!rest) {
         err = merr(ENOMEM);
         goto out;
     }
-    if (content->socket.path[0] == '\0') {
-        if (!cJSON_AddNullToObject(socket, "path")) {
+    if (content->rest.socket_path[0] == '\0') {
+        if (!cJSON_AddNullToObject(rest, "socket_path")) {
             err = merr(ENOMEM);
             goto out;
         }
     } else {
-        if (!cJSON_AddStringToObject(socket, "path", content->socket.path)) {
+        if (!cJSON_AddStringToObject(rest, "socket_path", content->rest.socket_path)) {
             err = merr(ENOMEM);
             goto out;
         }
@@ -82,14 +82,14 @@ out:
 merr_t
 pidfile_deserialize(const char *home, struct pidfile *content)
 {
+    int fd;
+    size_t n = 0;
     merr_t err = 0;
-    FILE *      pidf = NULL;
-    cJSON *     root = NULL, *pid = NULL, *alias = NULL, *socket = NULL, *socket_path = NULL;
-    char *      str = NULL;
-    int         fd;
-    size_t      n = 0;
-    char        pidfile_path[PATH_MAX];
     struct stat st;
+    FILE *pidf = NULL;
+    char *str = NULL;
+    char pidfile_path[PATH_MAX];
+    cJSON *root = NULL, *pid = NULL, *alias = NULL, *rest = NULL, *socket_path = NULL;
 
     if (!home || !content)
         return merr(EINVAL);
@@ -148,12 +148,12 @@ pidfile_deserialize(const char *home, struct pidfile *content)
         err = merr(EINVAL);
         goto out;
     }
-    socket = cJSON_GetObjectItemCaseSensitive(root, "socket");
-    if (!socket || !cJSON_IsObject(socket)) {
+    rest = cJSON_GetObjectItemCaseSensitive(root, "rest");
+    if (!rest || !cJSON_IsObject(rest)) {
         err = merr(EINVAL);
         goto out;
     }
-    socket_path = cJSON_GetObjectItemCaseSensitive(socket, "path");
+    socket_path = cJSON_GetObjectItemCaseSensitive(rest, "socket_path");
     if (!socket_path || !(cJSON_IsString(socket_path) || cJSON_IsNull(socket_path))) {
         err = merr(EINVAL);
         goto out;
@@ -166,11 +166,11 @@ pidfile_deserialize(const char *home, struct pidfile *content)
         goto out;
     }
     if (cJSON_IsNull(socket_path)) {
-        memset(content->socket.path, 0, sizeof(content->socket.path));
+        memset(content->rest.socket_path, 0, sizeof(content->rest.socket_path));
     } else {
         n = strlcpy(
-            content->socket.path, cJSON_GetStringValue(socket_path), sizeof(content->socket.path));
-        if (n >= sizeof(content->socket.path)) {
+            content->rest.socket_path, cJSON_GetStringValue(socket_path), sizeof(content->rest.socket_path));
+        if (n >= sizeof(content->rest.socket_path)) {
             err = merr(ENAMETOOLONG);
             goto out;
         }

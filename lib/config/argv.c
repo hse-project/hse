@@ -69,7 +69,7 @@ argv_deserialize_to_params(
             /* If we couldn't successfully parse the value plainly, then convert
              * it to a string by sticking the value in between two quote
              * characters. This happens when we have unquoted strings like
-             * 'kvdb.socket.path=/tmp' or malformed JSON like dropping a
+             * 'rest.socket_path=/tmp' or malformed JSON like dropping a
              * bracket in an array declaration. When this config string
              * eventually gets deserialized into params objects, we will find
              * the error if one exists after string conversion.

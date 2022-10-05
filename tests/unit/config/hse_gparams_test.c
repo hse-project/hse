@@ -211,19 +211,19 @@ MTF_DEFINE_UTEST_PRE(hse_gparams_test, perfc_level, test_pre)
 
 MTF_DEFINE_UTEST_PRE(hse_gparams_test, socket_enabled, test_pre)
 {
-    const struct param_spec *ps = ps_get("socket.enabled");
+    const struct param_spec *ps = ps_get("rest.enabled");
 
     ASSERT_NE(NULL, ps);
     ASSERT_NE(NULL, ps->ps_description);
     ASSERT_EQ(0, ps->ps_flags);
     ASSERT_EQ(PARAM_TYPE_BOOL, ps->ps_type);
-    ASSERT_EQ(offsetof(struct hse_gparams, gp_socket.enabled), ps->ps_offset);
+    ASSERT_EQ(offsetof(struct hse_gparams, gp_rest.enabled), ps->ps_offset);
     ASSERT_EQ(sizeof(bool), ps->ps_size);
     ASSERT_EQ((uintptr_t)ps->ps_convert, (uintptr_t)param_default_converter);
     ASSERT_EQ((uintptr_t)ps->ps_validate, (uintptr_t)param_default_validator);
     ASSERT_EQ((uintptr_t)ps->ps_stringify, (uintptr_t)param_default_stringify);
     ASSERT_EQ((uintptr_t)ps->ps_jsonify, (uintptr_t)param_default_jsonify);
-    ASSERT_EQ(true, params.gp_socket.enabled);
+    ASSERT_EQ(true, params.gp_rest.enabled);
 }
 
 MTF_DEFINE_UTEST_PRE(hse_gparams_test, socket_path, test_pre)
@@ -231,8 +231,8 @@ MTF_DEFINE_UTEST_PRE(hse_gparams_test, socket_path, test_pre)
     merr_t err;
     struct hse_gparams other;
     const char *dir, *xdg_runtime_dir;
-    char buf[sizeof(params.gp_socket.path)];
-    const struct param_spec *ps = ps_get("socket.path");
+    char buf[sizeof(params.gp_rest.socket_path)];
+    const struct param_spec *ps = ps_get("rest.socket_path");
 
     xdg_runtime_dir = getenv("XDG_RUNTIME_DIR");
 
@@ -250,16 +250,16 @@ MTF_DEFINE_UTEST_PRE(hse_gparams_test, socket_path, test_pre)
     ASSERT_NE(NULL, ps->ps_description);
     ASSERT_EQ(PARAM_FLAG_DEFAULT_BUILDER, ps->ps_flags);
     ASSERT_EQ(PARAM_TYPE_STRING, ps->ps_type);
-    ASSERT_EQ(offsetof(struct hse_gparams, gp_socket.path), ps->ps_offset);
+    ASSERT_EQ(offsetof(struct hse_gparams, gp_rest.socket_path), ps->ps_offset);
     ASSERT_EQ(sizeof(((struct sockaddr_un *)0)->sun_path), ps->ps_size);
     ASSERT_EQ((uintptr_t)ps->ps_convert, (uintptr_t)param_default_converter);
     ASSERT_EQ((uintptr_t)ps->ps_validate, (uintptr_t)param_default_validator);
     ASSERT_EQ((uintptr_t)ps->ps_stringify, (uintptr_t)param_default_stringify);
     ASSERT_EQ((uintptr_t)ps->ps_jsonify, (uintptr_t)param_default_jsonify);
-    ASSERT_STREQ(buf, params.gp_socket.path);
+    ASSERT_STREQ(buf, params.gp_rest.socket_path);
     ASSERT_EQ(sizeof(((struct sockaddr_un *)0)->sun_path), ps->ps_bounds.as_string.ps_max_len);
 
-    err = check("socket.path=null", false, NULL);
+    err = check("rest.socket_path=null", false, NULL);
     ASSERT_EQ(0, err);
 
     if (!xdg_runtime_dir) {
@@ -276,14 +276,14 @@ MTF_DEFINE_UTEST_PRE(hse_gparams_test, socket_path, test_pre)
 
     other = hse_gparams_defaults();
 
-    ASSERT_STREQ(buf, other.gp_socket.path);
+    ASSERT_STREQ(buf, other.gp_rest.socket_path);
 
     setenv("XDG_RUNTIME_DIR", "relative", 1);
     snprintf(buf, sizeof(buf), "/tmp/hse-%d.sock", getpid());
 
     other = hse_gparams_defaults();
 
-    ASSERT_STREQ(buf, other.gp_socket.path);
+    ASSERT_STREQ(buf, other.gp_rest.socket_path);
 }
 
 MTF_DEFINE_UTEST_PRE(hse_gparams_test, logging_enabled, test_pre)
@@ -300,7 +300,7 @@ MTF_DEFINE_UTEST_PRE(hse_gparams_test, logging_enabled, test_pre)
     ASSERT_EQ((uintptr_t)ps->ps_validate, (uintptr_t)param_default_validator);
     ASSERT_EQ((uintptr_t)ps->ps_stringify, (uintptr_t)param_default_stringify);
     ASSERT_EQ((uintptr_t)ps->ps_jsonify, (uintptr_t)param_default_jsonify);
-    ASSERT_EQ(true, params.gp_socket.enabled);
+    ASSERT_EQ(true, params.gp_rest.enabled);
 }
 
 MTF_DEFINE_UTEST_PRE(hse_gparams_test, logging_destination, test_pre)
@@ -409,25 +409,25 @@ MTF_DEFINE_UTEST(hse_gparams_test, get)
 
     const struct hse_gparams p = hse_gparams_defaults();
 
-    err = hse_gparams_get(&p, "socket.enabled", buf, sizeof(buf), &needed_sz);
+    err = hse_gparams_get(&p, "rest.enabled", buf, sizeof(buf), &needed_sz);
     ASSERT_EQ(0, merr_errno(err));
     ASSERT_STREQ("true", buf);
     ASSERT_EQ(4, needed_sz);
 
-    err = hse_gparams_get(&p, "socket.enabled", buf, sizeof(buf), NULL);
+    err = hse_gparams_get(&p, "rest.enabled", buf, sizeof(buf), NULL);
     ASSERT_EQ(0, merr_errno(err));
     ASSERT_STREQ("true", buf);
 
     err = hse_gparams_get(&p, "does.not.exist", buf, sizeof(buf), &needed_sz);
     ASSERT_EQ(EINVAL, merr_errno(err));
 
-    err = hse_gparams_get(NULL, "socket.enabled", buf, sizeof(buf), NULL);
+    err = hse_gparams_get(NULL, "rest.enabled", buf, sizeof(buf), NULL);
     ASSERT_EQ(EINVAL, merr_errno(err));
 
     err = hse_gparams_get(&p, NULL, buf, sizeof(buf), NULL);
     ASSERT_EQ(EINVAL, merr_errno(err));
 
-    err = hse_gparams_get(&p, "socket.enabled", NULL, 0, &needed_sz);
+    err = hse_gparams_get(&p, "rest.enabled", NULL, 0, &needed_sz);
     ASSERT_EQ(0, merr_errno(err));
     ASSERT_EQ(4, needed_sz);
 }
@@ -442,7 +442,7 @@ MTF_DEFINE_UTEST(hse_gparams_test, set)
     err = hse_gparams_set(&p, NULL, "false");
     ASSERT_EQ(EINVAL, merr_errno(err));
 
-    err = hse_gparams_set(&p, "socket.enabled", NULL);
+    err = hse_gparams_set(&p, "rest.enabled", NULL);
     ASSERT_EQ(EINVAL, merr_errno(err));
 
     err = hse_gparams_set(&p, "does.not.exist", "5");

@@ -28,7 +28,7 @@ main(int argc, const char **argv)
     hse_err_t    err = 0;
     const char * paramv[] = { "logging.destination=stdout",
                              "logging.level=3",
-                             "socket.enabled=false" };
+                             "rest.enabled=false" };
     const size_t paramc = sizeof(paramv) / sizeof(paramv[0]);
 
     err = hse_init(NULL, paramc, paramv);
