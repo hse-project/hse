@@ -3341,7 +3341,7 @@ status(
 
     printf(
         "%-6s %*d %6s %*lu %*lu %*lu %*lu %*lu %*lu %*lu %*lu %*lu %*lu %6lu %*ld %*lu %*ld"
-        " %5.1lf %5.1lf\n",
+        " %5.2lf %5.2lf\n",
         instv->mode,
         width_td, nthreads,
         "all",

@@ -19,7 +19,7 @@
 merr_t
 flatten(cJSON *const in, const char *const prefix, cJSON *const out)
 {
-    merr_t err;
+    merr_t err = 0;
     char *tmp = NULL;
 
     INVARIANT(in);

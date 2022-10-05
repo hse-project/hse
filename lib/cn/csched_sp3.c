@@ -2757,14 +2757,13 @@ sp3_create(
     memset(sp, 0, alloc_sz);
     sp->rp = rp;
     sp->health = health;
-    sp->kvdb_alias = kvdb_alias;
-
-    mutex_init(&sp->mon_lock);
-    cv_init(&sp->mon_cv);
 
     INIT_LIST_HEAD(&sp->mon_tlist);
-    INIT_LIST_HEAD(&sp->spn_alist);
     INIT_LIST_HEAD(&sp->spn_rlist);
+    INIT_LIST_HEAD(&sp->spn_alist);
+
+    sp->sp_healthy = true;
+    sp->sp_sval_min = THROTTLE_SENSOR_SCALE / 2;
 
     for (size_t tx = 0; tx < NELEM(sp->rbt); tx++)
         sp->rbt[tx] = RB_ROOT;
@@ -2784,7 +2783,7 @@ sp3_create(
     atomic_set(&sp->sp_ingest_count, 0);
     atomic_set(&sp->sp_trees_count, 0);
 
-    err = sts_create("%s/%s", SP3_QNUM_MAX, &sp->sts, "hse_csched/%s", kvdb_alias);
+    err = sts_create("hse_csched/%s", SP3_QNUM_MAX, &sp->sts, kvdb_alias);
     if (ev(err))
         goto err_exit;
 
@@ -2793,6 +2792,8 @@ sp3_create(
         err = merr(ENOMEM);
         goto err_exit;
     }
+
+    sp->kvdb_alias = kvdb_alias;
 
     err = rest_server_add_endpoint(REST_ENDPOINT_EXACT, handlers, sp, "/kvdbs/%s/csched", kvdb_alias);
     if (ev_warn(err))

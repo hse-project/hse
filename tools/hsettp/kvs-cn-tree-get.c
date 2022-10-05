@@ -62,7 +62,7 @@ enum tprint_justify kvs_cn_tree_get_justify[NUM_HEADERS] = {
     TP_JUSTIFY_RIGHT,
     TP_JUSTIFY_RIGHT,
     TP_JUSTIFY_RIGHT,
-    TP_JUSTIFY_LEFT,
+    TP_JUSTIFY_RIGHT,
     TP_JUSTIFY_LEFT,
 };
 

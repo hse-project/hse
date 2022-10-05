@@ -1214,7 +1214,7 @@ rest_kmc_get_vmstat(const struct rest_request *req, struct rest_response *resp, 
         bad |= !cJSON_AddNumberToObject(elem, "used_chunks", nchunks);
         bad |= !cJSON_AddNumberToObject(elem, "huge_pages", nhuge);
         bad |= !cJSON_AddNumberToObject(elem, "used_slabs", zone->zone_nslabs);
-        bad |= !cJSON_AddNumberToObject(elem, "used_slabs_size",
+        bad |= !cJSON_AddNumberToObject(elem, "used_slabs_size_kb",
                 (KMC_SLAB_SZ * zone->zone_nslabs) >> KB_SHIFT);
         bad |= !cJSON_AddNumberToObject(elem, "empty_slabs", nempty);
         bad |= !cJSON_AddNumberToObject(elem, "allocated_slabs", zone->zone_salloc);
@@ -1226,6 +1226,7 @@ rest_kmc_get_vmstat(const struct rest_request *req, struct rest_response *resp, 
         bad |= !cJSON_AddNumberToObject(elem, "used_items", iused);
         bad |= !cJSON_AddNumberToObject(elem, "allocations", zalloc);
         bad |= !cJSON_AddNumberToObject(elem, "deallocations", zfree);
+        bad |= !cJSON_AddBoolToObject(elem, "huge", zone->zone_flags & SLAB_HUGE);
         bad |= !cJSON_AddBoolToObject(elem, "packed", zone->zone_flags & SLAB_PACKED);
         bad |= !cJSON_AddBoolToObject(elem, "hardware_cache_aligned",
             zone->zone_flags & SLAB_HWCACHE_ALIGN);
