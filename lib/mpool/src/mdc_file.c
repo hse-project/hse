@@ -598,7 +598,7 @@ mdc_file_read(struct mdc_file *mfp, void *data, size_t len, bool verify, size_t 
     int               rhlen, rc;
     merr_t            err;
 
-    if (!mfp || !data)
+    if (!mfp || (len && !data))
         return merr(EINVAL);
 
     if (mfp->roff == MDC_LOGHDR_LEN) { /* First read */

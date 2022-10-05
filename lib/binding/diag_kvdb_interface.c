@@ -63,8 +63,10 @@ diag_kvdb_open(
         goto close_mp;
 
     pfh = pidfile_open(pidfile_path, S_IRUSR | S_IWUSR, NULL);
-    if (!pfh)
+    if (!pfh) {
+        err = merr(errno);
         goto close_mp;
+    }
 
     content.pid = getpid();
     n = strlcpy(content.rest.socket_path, hse_gparams.gp_rest.socket_path,

@@ -378,7 +378,7 @@ mpool_mdc_read(struct mpool_mdc *mdc, void *data, size_t len, size_t *rdlen)
     merr_t err;
     bool   verify = false;
 
-    if (!mdc || !data)
+    if (!mdc)
         return merr(EINVAL);
 
     mutex_lock(&mdc->lock);
