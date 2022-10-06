@@ -6,13 +6,12 @@ HSE has the following dependencies[^1]:
 
 * [cJSON](https://github.com/DaveGamble/cJSON) `>= 1.7.14`
 * [libbsd](https://libbsd.freedesktop.org/wiki/) `>= 0.9.0`
-* [libcurl](https://github.com/curl/curl) `>=7.58.0`
-* [libmicrohttpd](https://www.gnu.org/software/libmicrohttpd/) `>= 0.9.59`
-* [libyaml](https://github.com/yaml/libyaml) `>= 1.7`
+* [libcurl](https://github.com/curl/curl)[^2] `>= 7.58.0`
+* [libevent](https://libevent.org/) `>= 0.9.59`
 * [lz4](https://github.com/lz4/lz4) `>= 1.9.2`
 * [userspace-rcu](https://liburcu.org/) `>= 0.10.1`
-* [xxHash](https://github.com/Cyan4973/xxHash) `>= 0.8`
-* [libpmem](https://github.com/pmem/pmdk)[^2] `>= 1.4`
+* [xxHash](https://github.com/Cyan4973/xxHash) `>= 0.8.0`
+* [libpmem](https://github.com/pmem/pmdk)[^3] `>= 1.4.0`
 
 Note that by default cJSON, lz4, and xxHash are built as a part of HSE using
 Meson subprojects for performance and embedding reasons. To use system pacakges
@@ -25,7 +24,7 @@ meson setup build -Dforce_fallback_for=
 Depending on the build configuration, HSE has the following additional
 dependencies for various internal tools and documentation:
 
-* [mongo-c-driver](https://github.com/mongodb/mongo-c-driver) `>= 1.17.3`
+* [mongo-c-driver](https://github.com/mongodb/mongo-c-driver) `>= 1.17.3, <1.21.0`
 * [ncurses](https://invisible-island.net/ncurses/announce.html) `>= 6.1.20180127`
 * [HdrHistogram_c](https://github.com/HdrHistogram/HdrHistogram_c) `>= 0.11.2`
 * [doxygen](https://www.doxygen.nl/index.html)
@@ -47,10 +46,9 @@ To obtain these from you system's package manager:
 ### RHEL 8
 
 ```shell
-sudo dnf install libcurl-devel libyaml-devel userspace-rcu-devel \
-    libmicrohttpd-devel libbsd-devel
+sudo dnf install libcurl-devel userspace-rcu-devel libevent-devel libbsd-devel
 # Optionally, depending on the your build configuration
-sudo dnf install cjson-devel lz4-devel xxhash-devel mongo-c-driver-devel \
+sudo dnf install cjson-devel lz4-devel mongo-c-driver-devel \
     ncurses-devel HdrHistogram_c-devel doxygen
 # For optimal persistent memory (pmem) media class support on x86 architecture
 sudo dnf install libpmem-devel
@@ -64,8 +62,7 @@ subproject. cJSON, xxHash, and HdrHistogram_c aren't packaged for this
 distribution.
 
 ```shell
-sudo apt install libcurl4-openssl-dev libyaml-dev liburcu-dev \
-    libmicrohttpd-dev
+sudo apt install libcurl4-openssl-dev liburcu-dev libevent-dev
 # Optionally, depending on the your build configuration.
 sudo apt install liblz4-dev libncurses-dev doxygen
 # For optimal persistent memory (pmem) media class support on x86 architecture
@@ -88,5 +85,6 @@ like `autoconf` and `libtool`.
 [^1]: _The minimum versions of some dependencies may be lower than what is listed.
 The listed versions are what we know works and test against._
 
-[^2]: _Only required if you intend to make use of persistent memory on
-`x86`._
+[^2]: _CLI/tools only_
+
+[^3]: _Only required if you intend to make use of persistent memory on `x86`._
