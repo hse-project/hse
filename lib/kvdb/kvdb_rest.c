@@ -33,6 +33,7 @@
 #include <hse_ikvdb/cn.h>
 #include <hse_ikvdb/cn_tree_view.h>
 #include <hse_ikvdb/kvset_view.h>
+#include <hse_ikvdb/kvdb_cparams.h>
 #include <hse_ikvdb/kvdb_rparams.h>
 #include <hse_ikvdb/csched.h>
 #include <hse_ikvdb/hse_gparams.h>
@@ -244,7 +245,7 @@ rest_kvdb_params_get(
 
         err = ikvdb_param_get(kvdb, param, buf, buf_sz, &needed_sz);
         if (ev(err)) {
-            log_errx("Failed to read KVDB param (%s): @@e", err, param);
+            log_errx("Failed to read KVDB param (%s)", err, param);
             free(buf);
 
             switch (merr_errno(err)) {
@@ -283,14 +284,32 @@ rest_kvdb_params_get(
         free(buf);
     } else {
         char *data;
-        cJSON *root;
+        struct kvdb_cparams cparams;
+        cJSON *merged, *cp_json, *rp_json;
 
-        root = kvdb_rparams_to_json(ikvdb_rparams(kvdb));
-        if (ev(!root))
+        err = ikvdb_cparams(kvdb, &cparams);
+        assert(err == 0);
+
+        cp_json = kvdb_cparams_to_json(&cparams);
+        if (ev(!cp_json))
             return REST_STATUS_INTERNAL_SERVER_ERROR;
 
-        data = (pretty ? cJSON_Print : cJSON_PrintUnformatted)(root);
-        cJSON_Delete(root);
+        rp_json = kvdb_rparams_to_json(ikvdb_rparams(kvdb));
+        if (ev(!rp_json)) {
+            cJSON_Delete(cp_json);
+            return REST_STATUS_INTERNAL_SERVER_ERROR;
+        }
+
+        merged = cJSONUtils_MergePatchCaseSensitive(cp_json, rp_json);
+        if (ev(!merged)) {
+            cJSON_Delete(cp_json);
+            cJSON_Delete(rp_json);
+            return REST_STATUS_INTERNAL_SERVER_ERROR;
+        }
+
+        data = (pretty ? cJSON_Print : cJSON_PrintUnformatted)(merged);
+        cJSON_Delete(merged);
+        cJSON_Delete(rp_json);
         if (ev(!data))
             return REST_STATUS_INTERNAL_SERVER_ERROR;
 

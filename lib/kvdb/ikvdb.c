@@ -1735,6 +1735,39 @@ ikvdb_rparams(struct ikvdb *const kvdb)
     return &self->ikdb_rp;
 }
 
+merr_t
+ikvdb_cparams(struct ikvdb *const kvdb, struct kvdb_cparams *const cparams)
+{
+    merr_t err;
+    struct ikvdb_impl *self;
+    struct mpool_props mprops;
+
+    INVARIANT(kvdb);
+
+    self = ikvdb_h2r(kvdb);
+
+    *cparams = kvdb_cparams_defaults();
+
+    err = mpool_props_get(self->ikdb_mp, &mprops);
+    if (err)
+        return err;
+
+    for (int i = HSE_MCLASS_BASE; i < HSE_MCLASS_COUNT; i++) {
+        cparams->storage.mclass[i].fmaxsz = mprops.mclass[i].mc_fmaxsz;
+        cparams->storage.mclass[i].mblocksz = mprops.mclass[i].mc_mblocksz;
+        cparams->storage.mclass[i].filecnt = mprops.mclass[i].mc_filecnt;
+        static_assert(
+            sizeof(cparams->storage.mclass[i].path) == sizeof(mprops.mclass[i].mc_path),
+            "Mismatched buffer sizes");
+        strlcpy(
+            cparams->storage.mclass[i].path,
+            mprops.mclass[i].mc_path,
+            sizeof(cparams->storage.mclass[i].path));
+    }
+
+    return 0;
+}
+
 void
 ikvdb_config_attach(struct ikvdb *kvdb, struct config *conf)
 {
@@ -1972,41 +2005,23 @@ ikvdb_param_get(
     const size_t        buf_sz,
     size_t *const       needed_sz)
 {
-    merr_t             err;
-    struct ikvdb_impl *self = ikvdb_h2r(handle);
+    merr_t err;
+    struct ikvdb_impl *self;
+    struct kvdb_cparams cparams;
 
     INVARIANT(handle);
     INVARIANT(param);
     INVARIANT(!(buf_sz > 0 && !buf));
 
+    self = ikvdb_h2r(handle);
+
     err = kvdb_rparams_get(&self->ikdb_rp, param, buf, buf_sz, needed_sz);
     if (!err)
         return err;
 
-    struct mpool_props  props;
-
-    /* There is no current way to access a pre-existing kvdb_cparams struct. In
-     * order to overcome this, we just construct it on the fly. There is room
-     * for improvement here in the future should this ever become a bottleneck.
-     */
-    struct kvdb_cparams cparams = kvdb_cparams_defaults();
-
-    err = mpool_props_get(self->ikdb_mp, &props);
+    err = ikvdb_cparams(handle, &cparams);
     if (err)
         return err;
-
-    for (int i = HSE_MCLASS_BASE; i < HSE_MCLASS_COUNT; i++) {
-        cparams.storage.mclass[i].fmaxsz = props.mclass[i].mc_fmaxsz;
-        cparams.storage.mclass[i].mblocksz = props.mclass[i].mc_mblocksz;
-        cparams.storage.mclass[i].filecnt = props.mclass[i].mc_filecnt;
-        static_assert(
-            sizeof(cparams.storage.mclass[i].path) == sizeof(props.mclass[i].mc_path),
-            "Mismatched buffer sizes");
-        strlcpy(
-            cparams.storage.mclass[i].path,
-            props.mclass[i].mc_path,
-            sizeof(cparams.storage.mclass[i].path));
-    }
 
     return kvdb_cparams_get(&cparams, param, buf, buf_sz, needed_sz);
 }
@@ -2301,7 +2316,6 @@ ikvdb_close(struct ikvdb *handle)
         if (kvs->kk_ikvs) {
             atomic_dec(&kvs->kk_refcnt);
             err = kvs_rest_remove_endpoints(handle, kvs);
-            printf("%s:%d\n", merr_file(err), merr_lineno(err));
         }
 
         /* kvs_rest_remove_endpoints() waits until all active rest requests have
