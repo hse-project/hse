@@ -351,7 +351,7 @@ capitalized_method(const char *const method)
     abort();
 }
 
-static cJSON * HSE_RETURNS_NONNULL
+static cJSON *
 follow_ref(cJSON *const obj)
 {
     cJSON *ref;
