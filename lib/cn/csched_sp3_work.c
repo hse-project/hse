@@ -175,7 +175,7 @@ sp3_work_wtype_root(
             break;
 
         if (znode) {
-            struct cn_tree_node *n = cn_kvset_can_zspill(le->le_kvset, rmap);
+            const struct cn_tree_node *n = cn_kvset_can_zspill(le->le_kvset, rmap);
 
             if (n) {
                 if (n->tn_nodeid == znode->tn_nodeid && runlen < runlen_max) {
@@ -189,9 +189,6 @@ sp3_work_wtype_root(
                 }
             }
         }
-
-        /* TODO: Stop if we see a zspill candidate.
-         */
 
         wlen += kvset_get_kwlen(le->le_kvset) + kvset_get_vwlen(le->le_kvset);
 

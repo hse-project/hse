@@ -569,15 +569,15 @@ kvset_keep_vblocks(
 
 /* MTF_MOCK */
 void
-kvset_maxkey(struct kvset *ks, const void **maxkey, uint16_t *maxklen);
+kvset_maxkey(const struct kvset *ks, const void **maxkey, uint16_t *maxklen);
 
 /* MTF_MOCK */
 void
-kvset_minkey(struct kvset *ks, const void **minkey, uint16_t *minklen);
+kvset_minkey(const struct kvset *ks, const void **minkey, uint16_t *minklen);
 
 /* MTF_MOCK */
 void
-kvset_max_ptkey(struct kvset *ks, const void **max, uint16_t *maxlen);
+kvset_max_ptkey(const struct kvset *ks, const void **max, uint16_t *maxlen);
 
 /**
  * kvset_iter_next_val_direct() -  read value via direct io

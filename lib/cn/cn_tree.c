@@ -1967,28 +1967,27 @@ cn_subspill_apply(struct subspill *ss)
         err = cn_subspill_commit(ss);
     }
 
-    if (err)
-        return err;
+    if (!err) {
+        w->cw_output_nodev[0] = ss->ss_node;
+        w->cw_checkpoint(w);
+    }
 
-    w->cw_output_nodev[0] = ss->ss_node;
-    w->cw_checkpoint(w);
-
-    return 0;
+    return err;
 }
 
 /*
-* Determine if a kvset in the root node can be "zspilled" to a leaf node.
-*
-* A zspill is allowed if the following conditions are met:
-*  1. The min and max keys of the kvset should map to the same leaf node, and
-*  2. There should be no ptomb that would span multiple nodes and hence need to be propagated.
-*
-* Returns the target leaf node if zspill is possible, NULL if not.
-*
-* Notes:
-* - Tree must be locked when function this is called, so the route map
-*   doesn't mutate.
-*/
+ * Determine if a kvset in the root node can be "zspilled" to a leaf node.
+ *
+ * A zspill is allowed if the following conditions are met:
+ *  1. The min and max keys of the kvset should map to the same leaf node.
+ *  2. There should be no ptomb that would span multiple nodes and hence need to be propagated.
+ *
+ * Returns the target leaf node if zspill is possible, NULL if not.
+ *
+ * Notes:
+ * - Tree must be locked when this function is called, so the route map
+ *   doesn't mutate.
+ */
 struct cn_tree_node *
 cn_kvset_can_zspill(struct kvset *ks, struct route_map *map)
 {
@@ -2045,7 +2044,7 @@ cn_node_can_zspill(
 
     /* Confirm that the operation can still be a zspill.
      */
-    for (int i = 0; i < w->cw_kvset_cnt; ++i) {
+    for (uint32_t i = 0; i < w->cw_kvset_cnt; ++i) {
         struct cn_tree_node *tn;
 
         first = le;
@@ -2163,12 +2162,12 @@ cn_comp_spill(struct cn_compaction_work *w)
          */
         mutex_lock(&tree->ct_ss_lock);
         if (tn->tn_ss_splitting || tn->tn_ss_joining < 0) {
-            bool should_wait = !is_zspill || (tn->tn_nodeid != znode->tn_nodeid);
+            const bool should_wait = !is_zspill || (tn->tn_nodeid != znode->tn_nodeid);
 
             ss = list_last_entry_or_null(&tn->tn_ss_list, typeof(*ss), ss_link);
 
             if (should_wait && (!ss || w->cw_sgen > ss->ss_sgen)) {
-                char *wmesg;
+                const char *wmesg;
 
                 rmlock_runlock(lock);
 
@@ -2191,7 +2190,7 @@ cn_comp_spill(struct cn_compaction_work *w)
             atomic_dec_rel(spillingp);
 
         /* Incrementing tn_ss_spilling while holding the tree lock is sufficient
-         * to keep both the route and tree tn pinned across the subspill.  This
+         * to keep both the route and tree node pinned across the subspill.  This
          * works because csched will never schedule a job that changes routes for
          * for nodes undergoing a spill.
          */

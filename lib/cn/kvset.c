@@ -3723,7 +3723,7 @@ kvset_from_iter(struct kv_iterator *iv)
  * @maxklen: (output) length of @maxkey
  */
 void
-kvset_maxkey(struct kvset *ks, const void **maxkey, uint16_t *maxklen)
+kvset_maxkey(const struct kvset *ks, const void **maxkey, uint16_t *maxklen)
 {
     *maxkey = ks->ks_maxkey;
     *maxklen = ks->ks_maxklen;
@@ -3738,7 +3738,7 @@ kvset_maxkey(struct kvset *ks, const void **maxkey, uint16_t *maxklen)
  * @minklen: (output) length of @minkey
  */
 void
-kvset_minkey(struct kvset *ks, const void **minkey, uint16_t *minklen)
+kvset_minkey(const struct kvset *ks, const void **minkey, uint16_t *minklen)
 {
     *minkey = ks->ks_minkey;
     *minklen = ks->ks_minklen;
@@ -3752,7 +3752,7 @@ kvset_minkey(struct kvset *ks, const void **minkey, uint16_t *minklen)
  * @maxlen: (output) length of @max
  */
 void
-kvset_max_ptkey(struct kvset *ks, const void **max, uint16_t *maxlen)
+kvset_max_ptkey(const struct kvset *ks, const void **max, uint16_t *maxlen)
 {
     if (kvset_has_ptree(ks)) {
         *max = ks->ks_hblk.kh_pfx_max;
