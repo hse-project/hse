@@ -684,12 +684,12 @@ vblock_dump(struct dump_mblock *mblk)
     printf("  magic 0x%x vers %u\n", magic, version);
 
     if (magic != VBLOCK_FOOTER_MAGIC) {
-        printf("  BAD MAGIC (expected 0x%x)\n", VBLOCK_FOOTER_MAGIC);
+        printf("  BAD MAGIC: found 0x%x, expected 0x%x\n", magic, VBLOCK_FOOTER_MAGIC);
         return;
     }
 
     if (version != VBLOCK_FOOTER_VERSION) {
-        printf("  unsupported version (expected %u)\n", VBLOCK_FOOTER_VERSION);
+        printf("  UNSUPPORTED VERSION: found %u, expected %u\n", version, VBLOCK_FOOTER_VERSION);
         return;
     }
 
@@ -711,10 +711,8 @@ vblock_dump(struct dump_mblock *mblk)
         max_koff, max_klen,
         fmt_data(&buf, &bufsz, mblk->data + max_koff, max_klen, opts.klen, opts.penc));
 
-
     free(buf);
 }
-
 
 static void
 mblock_dump(struct dump_mblock *mblk)
@@ -928,7 +926,7 @@ kvset_cmd(int argc, char **argv)
 void
 mblock_cmd(int argc, char **argv)
 {
-    const char *paramv[] = { "socket.enabled=false" };
+    const char *paramv[] = { "rest.enabled=false" };
     struct hse_kvdb *kvdb;
     struct mpool *mp;
     struct dump_mblock mblk = { 0 };

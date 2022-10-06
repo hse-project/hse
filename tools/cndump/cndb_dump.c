@@ -9,7 +9,6 @@
 #include <stdlib.h>
 #include <unistd.h>
 
-
 #include <hse/hse.h>
 
 #include <hse_ikvdb/diag_kvdb.h>
@@ -94,7 +93,7 @@ parse_args(int argc, char **argv)
 void
 cndb_cmd(int argc, char **argv)
 {
-    const char *paramv[] = { "socket.enabled=false" };
+    const char *paramv[] = { "rest.enabled=false" };
     struct cndb_dump_reader reader;
     struct cndb_rec rec;
     struct hse_kvdb *kvdb;
