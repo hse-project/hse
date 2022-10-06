@@ -33,6 +33,7 @@ cn_move(
     struct kvset_list_entry *src, *src_end, *tgt;
     struct list_head *src_head, *tgt_head;
     uint64_t *src_ksidv = NULL;
+    uint64_t src_nodeid;
     merr_t err;
 
     INVARIANT(w && src_node && tgt_node);
@@ -69,6 +70,7 @@ cn_move(
     /* The cn_move operation has been commited to cNDB.
      * There must be no failures beyond this point.
      */
+    src_nodeid = src_node->tn_nodeid;
     src = src_list;
     tgt = list_first_entry_or_null(tgt_head, typeof(*tgt), le_link);
 
@@ -97,7 +99,6 @@ cn_move(
             }
 
             kvset_set_compc(src->le_kvset, compc);
-            kvset_set_nodeid(src->le_kvset, tgt_node->tn_nodeid);
 
             src = src_next;
         } else {
@@ -115,6 +116,26 @@ cn_move(
     cn_tree_samp_update_move(w, src_node);
     cn_tree_samp_update_move(w, tgt_node);
     cn_tree_samp(tree, &w->cw_samp_post);
+
+    /* Unmark input kvsets */
+    {
+        struct kvset_list_entry *le;
+
+        list_for_each_entry(le, &tgt_node->tn_kvset_list, le_link) {
+            bool from_src = kvset_get_nodeid(le->le_kvset) == src_nodeid;
+
+            /* If source node was deleted, update all kvsets in tgt, otherwise only update the
+             * kvsets that were moved from src.
+             */
+            if (src_del || from_src) {
+                assert(kvset_get_workid(le->le_kvset) != 0);
+                kvset_set_workid(le->le_kvset, 0);
+
+                kvset_set_rule(le->le_kvset, w->cw_rule);
+                kvset_set_nodeid(le->le_kvset, tgt_node->tn_nodeid);
+            }
+        }
+    }
 
     rmlock_wunlock(&tree->ct_lock);
 
@@ -148,12 +169,6 @@ cn_join(struct cn_compaction_work *w)
         assert(cn_ns_kvsets(&tgt_node->tn_ns) == src_cnt + tgt_cnt);
         log_info("src %lu (%u) -> tgt %lu (%u)",
                  src_node->tn_nodeid, src_cnt, tgt_node->tn_nodeid, tgt_cnt);
-    }
-
-    /* Unmark input kvsets */
-    list_for_each_entry(le, &tgt_node->tn_kvset_list, le_link) {
-        assert(kvset_get_workid(le->le_kvset) != 0);
-        kvset_set_workid(le->le_kvset, 0);
     }
 
     if (err) {

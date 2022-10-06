@@ -1043,17 +1043,9 @@ sp3_process_workitem(struct sp3 *sp, struct cn_compaction_work *w)
 
     cn_samp_sub(&sp->samp_wip, &w->cw_est.cwe_samp);
 
-    if (w->cw_action == CN_ACTION_SPILL) {
+    if (w->cw_action == CN_ACTION_SPILL || w->cw_action == CN_ACTION_ZSPILL) {
         struct cn_tree *tree = w->cw_tree;
         uint64_t dt;
-
-        /* r_alen is negative to balance the addition made by ingest.
-         * Do not apply on error because while one or more subspills
-         * may have been committed, no kvsets will have been removed
-         * from the root node.
-         */
-        if (!w->cw_err)
-            sp->samp.r_alen += w->cw_est.cwe_samp.r_alen;
 
         dt = (get_time_ns() - w->cw_t0_enqueue) / w->cw_kvset_cnt;
         if (tree->ct_rspill_dt == 0)
@@ -1417,6 +1409,10 @@ sp3_comp_thread_name(
 
     case CN_ACTION_COMPACT_KV:
         a = "kv";
+        break;
+
+    case CN_ACTION_ZSPILL:
+        a = "zs";
         break;
 
     case CN_ACTION_SPILL:

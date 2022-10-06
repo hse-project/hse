@@ -159,7 +159,6 @@ cn_subspill_pop(struct cn_tree_node *tn)
     entry = list_first_entry_or_null(&tn->tn_ss_list, typeof(*entry), ss_link);
     if (entry && entry->ss_sgen == atomic_read(&tn->tn_sgen) + 1) {
         list_del(&entry->ss_link);
-        entry->ss_applied = true;
         found = true;
     }
 
@@ -1007,7 +1006,7 @@ cn_tree_capped_compact(struct cn_tree *tree)
 
         /* [HSE_REVISIT] mapi breaks initialization of max_key.
          */
-        kvset_get_max_key(le->le_kvset, &max_key, &max_klen);
+        kvset_get_max_nonpt_key(le->le_kvset, &max_key, &max_klen);
 
         if (max_key && (!pt_len || kvset_get_seqno_max(le->le_kvset) >= horizon ||
                         keycmp_prefix(pt_key, pt_len, max_key, max_klen) < 0))
@@ -1203,7 +1202,7 @@ cn_tree_prepare_compaction(struct cn_compaction_work *w)
     /* Enable dropping of tombstones in merge logic if 'mark' is
      * the oldest kvset in the node and we're not spilling.
      */
-    w->cw_drop_tombs = (w->cw_action != CN_ACTION_SPILL) &&
+    w->cw_drop_tombs = (w->cw_action != CN_ACTION_SPILL) && (w->cw_action != CN_ACTION_ZSPILL) &&
         (w->cw_mark == list_last_entry(&node->tn_kvset_list, struct kvset_list_entry, le_link));
 
     return 0;
@@ -1319,6 +1318,7 @@ cn_spill_delete_kvsets(struct cn_compaction_work *work)
     struct cn_tree          *tree = work->cw_tree;
     struct cn_tree_node     *pnode = work->cw_node;
     struct kvset_list_entry *le, *tmp;
+    struct cn_samp_stats     pre, post;
     struct cndb_txn         *tx;
 
     assert(!work->cw_err);
@@ -1360,8 +1360,13 @@ cn_spill_delete_kvsets(struct cn_compaction_work *work)
         list_add(&le->le_link, &retired_kvsets);
     }
 
+    cn_tree_samp(tree, &pre);
     cn_tree_samp_update_compact(tree, pnode);
+    cn_tree_samp(tree, &post);
     rmlock_wunlock(&tree->ct_lock);
+
+    cn_samp_sub(&post, &pre);
+    cn_samp_add(&work->cw_samp_post, &post);
 
 done:
     /* Advance the spill gen and signal all the waiting spill threads.
@@ -1544,7 +1549,7 @@ cn_comp_commit(struct cn_compaction_work *w)
 
     struct kvdb_health *hp = w->cw_tree->ct_kvdb_health;
 
-    assert(w->cw_action != CN_ACTION_SPILL);
+    assert(w->cw_action != CN_ACTION_SPILL && w->cw_action != CN_ACTION_ZSPILL);
 
     if (w->cw_err)
         goto done;
@@ -1726,6 +1731,7 @@ cn_comp_commit(struct cn_compaction_work *w)
         cn_comp_update_kvcompact(w, kvsets[0]);
         break;
 
+    case CN_ACTION_ZSPILL:
     case CN_ACTION_SPILL:
         assert(0);
         break;
@@ -1769,7 +1775,7 @@ static void
 cn_comp_cleanup(struct cn_compaction_work *w)
 {
     const bool kcompact = (w->cw_action == CN_ACTION_COMPACT_K);
-    const bool spill = (w->cw_action == CN_ACTION_SPILL);
+    const bool spill = (w->cw_action == CN_ACTION_SPILL || w->cw_action == CN_ACTION_ZSPILL);
     const bool split = (w->cw_action == CN_ACTION_SPLIT);
     const bool join = (w->cw_action == CN_ACTION_JOIN);
 
@@ -1878,7 +1884,7 @@ cn_comp_cleanup(struct cn_compaction_work *w)
     perfc_inc(w->cw_pc, PERFC_BA_CNCOMP_FINISH);
 }
 
-merr_t
+static merr_t
 cn_subspill_commit(struct subspill *ss)
 {
     struct kvset *kvset = 0;
@@ -1889,9 +1895,6 @@ cn_subspill_commit(struct subspill *ss)
     struct kvset_mblocks *mblks = &ss->ss_mblks;
     struct cn_compaction_work *w = ss->ss_work;
     struct cndb *cndb = w->cw_tree->cndb;
-
-    if (!ss->ss_added)
-        return 0;
 
     if (!mblks->hblk.bk_blkid) {
         assert(mblks->kblks.n_blks == 0);
@@ -1947,16 +1950,160 @@ static merr_t
 cn_subspill_apply(struct subspill *ss)
 {
     struct cn_compaction_work *w = ss->ss_work;
-    merr_t err;
+    merr_t err = 0;
+    bool delete_node = false;
+    struct cn_tree_node *outnode;
 
-    err = cn_subspill_commit(ss);
-    if (err)
-        return err;
+    if (!ss->ss_added)
+        return 0;
 
-    if (ss->ss_added) {
+    if (ss->ss_is_zspill) {
+        err = cn_move(w, w->cw_node, ss->ss_zspill.zsp_src_list,
+                      w->cw_kvset_cnt, delete_node, ss->ss_node);
+
+        w->cw_output_nodev = &outnode;
+
+    } else {
+        err = cn_subspill_commit(ss);
+    }
+
+    if (!err) {
         w->cw_output_nodev[0] = ss->ss_node;
         w->cw_checkpoint(w);
     }
+
+    return err;
+}
+
+/*
+ * Determine if a kvset in the root node can be "zspilled" to a leaf node.
+ *
+ * A zspill is allowed if the following conditions are met:
+ *  1. The min and max keys of the kvset should map to the same leaf node.
+ *  2. There should be no ptomb that would span multiple nodes and hence need to be propagated.
+ *
+ * Returns the target leaf node if zspill is possible, NULL if not.
+ *
+ * Notes:
+ * - Tree must be locked when this function is called, so the route map
+ *   doesn't mutate.
+ */
+struct cn_tree_node *
+cn_kvset_can_zspill(struct kvset *ks, struct route_map *map)
+{
+    unsigned char maxkbuf[HSE_KVS_KEY_LEN_MAX];
+    const void *maxkey, *maxptkey, *minkey;
+    uint16_t maxklen, maxptklen, minklen;
+    struct route_node *rn;
+
+    maxptkey = 0;
+    maxklen = minklen = maxptklen = 0;
+
+    kvset_minkey(ks, &minkey, &minklen);
+    kvset_maxkey(ks, &maxkey, &maxklen);
+    kvset_max_ptkey(ks, &maxptkey, &maxptklen);
+
+    /* There are 3 possiblities regarding the max ptkey of the kvset.
+     *  1. maxptkey == maxkey
+     *  2. maxptkey <  maxkey && maxptkey == pfx(maxkey)
+     *  3. maxptkey <  maxkey && maxptkey <  pfx(maxkey)
+     *
+     * In cases 1 and 2, in addition to checking that the min and max key both map to the same
+     * child node, we should also ensure that the ptomb will not need to be propagated to any other
+     * children.
+     *
+     * This is done by padding the maxptkey with 0xff and using that as the max key of the kvset.
+     */
+    if (maxptkey && keycmp_prefix(maxptkey, maxptklen, maxkey, maxklen) == 0) {
+        maxklen = maxptklen;
+
+        memcpy(maxkbuf, maxptkey, maxptklen);
+        memset(maxkbuf + maxptklen, 0xff, sizeof(maxkbuf) - maxptklen);
+        maxkey = maxkbuf;
+    }
+
+    rn = route_map_lookup(map, minkey, minklen);
+    assert(rn);
+
+    if (route_node_keycmp(rn, maxkey, maxklen) < 0)
+        return NULL;
+
+    return route_node_tnode(rn);
+}
+
+static bool
+cn_node_can_zspill(
+    struct cn_compaction_work *w,
+    struct kvset_list_entry  **kvset_list,
+    struct cn_tree_node      **znode_out)
+{
+    struct cn_tree_node *znode = NULL;
+    struct kvset_list_entry *first, *le;
+
+    first = le = w->cw_mark;
+
+    /* Confirm that the operation can still be a zspill.
+     */
+    for (uint32_t i = 0; i < w->cw_kvset_cnt; ++i) {
+        struct cn_tree_node *tn;
+
+        first = le;
+
+        assert(kvset_get_workid(le->le_kvset) != 0);
+        tn = cn_kvset_can_zspill(le->le_kvset, w->cw_tree->ct_route_map);
+        if (!tn)
+            return false;
+
+        if (!znode)
+            znode = tn;
+        else if (tn->tn_nodeid != znode->tn_nodeid)
+            return false;
+
+        le = list_prev_entry(le, le_link);
+    }
+
+    *znode_out = znode;
+    *kvset_list = first;
+
+    return true;
+}
+
+static merr_t
+cn_comp_zspill(struct cn_compaction_work *w, bool *can_zspill)
+{
+    struct cn_tree *tree = w->cw_tree;
+    struct cn_tree_node *znode;
+    void *lock;
+
+    *can_zspill = false;
+
+    rmlock_rlock(&tree->ct_lock, &lock);
+
+    /* Confirm that the input kvsets still map to the same child node.
+     */
+    if (!cn_node_can_zspill(w, &w->cw_zspill.kvset_list, &znode)) {
+        rmlock_runlock(lock);
+        return 0;
+    }
+
+    /* Confirm that znode is not undergoing a split or a join.
+     */
+    mutex_lock(&tree->ct_ss_lock);
+    if (znode->tn_ss_splitting || znode->tn_ss_joining) {
+        mutex_unlock(&tree->ct_ss_lock);
+        rmlock_runlock(lock);
+        return 0;
+    }
+
+    /* Since znode is neither splitting nor joining, the operation can continue as a zspill.
+     * Increment znode's spill ref to prevent split/join until after the zspill has completed.
+     */
+    atomic_inc_acq(&znode->tn_ss_spilling);
+    mutex_unlock(&tree->ct_ss_lock);
+    rmlock_runlock(lock);
+
+    *can_zspill = true;
+    w->cw_zspill.znode = znode;
 
     return 0;
 }
@@ -1968,20 +2115,25 @@ cn_comp_spill(struct cn_compaction_work *w)
     struct cn_tree *tree = w->cw_tree;
     struct route_node *rtn = NULL;
     atomic_uint *spillingp = NULL;
-    struct spillctx *sctx;
-    merr_t err;
+    struct spillctx *sctx = NULL;
+    merr_t err = 0;
+    bool is_zspill = w->cw_action == CN_ACTION_ZSPILL;
+    struct cn_tree_node *znode = NULL;
 
-    err = cn_spill_create(w, &sctx);
-    if (err)
-        return err;
+    if (is_zspill) {
+        znode = w->cw_zspill.znode;
+    } else {
+        err = cn_spill_create(w, &sctx);
+        if (err)
+            return err;
+    }
 
     while (1) {
         uint8_t ekey[HSE_KVS_KEY_LEN_MAX];
         struct kvset_list_entry *le;
-        struct cn_tree_node *node;
+        struct cn_tree_node *tn;
         struct route_node *rtnext;
         uint64_t node_dgen;
-        char *wmesg;
         void *lock;
         uint eklen;
 
@@ -1992,8 +2144,8 @@ cn_comp_spill(struct cn_compaction_work *w)
             break;
         }
 
-        node = route_node_tnode(rtnext);
-        if (!node->tn_route_node)
+        tn = route_node_tnode(rtnext);
+        if (!tn->tn_route_node)
             abort();
 
         /* If there is a pending split or this is the left node of a pending
@@ -2009,13 +2161,17 @@ cn_comp_spill(struct cn_compaction_work *w)
          * previous spill pinned throughout the sleep.
          */
         mutex_lock(&tree->ct_ss_lock);
-        if (node->tn_ss_splitting || node->tn_ss_joining < 0) {
-            ss = list_last_entry_or_null(&node->tn_ss_list, typeof(*ss), ss_link);
+        if (tn->tn_ss_splitting || tn->tn_ss_joining < 0) {
+            const bool should_wait = !is_zspill || (tn->tn_nodeid != znode->tn_nodeid);
 
-            if (!ss || w->cw_sgen > ss->ss_sgen) {
+            ss = list_last_entry_or_null(&tn->tn_ss_list, typeof(*ss), ss_link);
+
+            if (should_wait && (!ss || w->cw_sgen > ss->ss_sgen)) {
+                const char *wmesg;
+
                 rmlock_runlock(lock);
 
-                wmesg = node->tn_ss_splitting ? "spltwait" : "joinwait";
+                wmesg = tn->tn_ss_splitting ? "spltwait" : "joinwait";
 
                 atomic_inc(&tree->ct_rspill_slp);
                 cv_wait(&tree->ct_ss_cv, &tree->ct_ss_lock, wmesg);
@@ -2038,14 +2194,14 @@ cn_comp_spill(struct cn_compaction_work *w)
          * works because csched will never schedule a job that changes routes for
          * for nodes undergoing a spill.
          */
-        spillingp = &node->tn_ss_spilling;
+        spillingp = &tn->tn_ss_spilling;
         atomic_inc_acq(spillingp);
         mutex_unlock(&tree->ct_ss_lock);
 
         rtn = rtnext;
         route_node_keycpy(rtn, ekey, sizeof(ekey), &eklen);
 
-        le = list_first_entry_or_null(&node->tn_kvset_list, typeof(*le), le_link);
+        le = list_first_entry_or_null(&tn->tn_kvset_list, typeof(*le), le_link);
         node_dgen = le ? kvset_get_dgen(le->le_kvset) : 0;
         rmlock_runlock(lock);
 
@@ -2064,10 +2220,23 @@ cn_comp_spill(struct cn_compaction_work *w)
         memset(ss_saved, 0, sizeof(*ss_saved));
         ss = ss_saved; /* do not clear ss_saved! */
 
-        err = cn_subspill(ss, sctx, node, node_dgen, ekey, eklen);
-        if (err) {
-            ss = NULL; /* will be freed via ss_saved */
-            break;
+        if (is_zspill) {
+            ss->ss_work = w;
+            ss->ss_sgen = w->cw_sgen;
+            ss->ss_node = tn;
+            ss->ss_is_zspill = true;
+
+            if (tn->tn_nodeid == znode->tn_nodeid) {
+                ss->ss_added = true;
+                ss->ss_zspill.zsp_src_list = w->cw_zspill.kvset_list;
+            }
+
+        } else {
+            err = cn_subspill(ss, sctx, tn, node_dgen, ekey, eklen);
+            if (err) {
+                ss = NULL; /* will be freed via ss_saved */
+                break;
+            }
         }
 
         /* Enqueue the subspill only if there are older spills that need to update
@@ -2077,27 +2246,27 @@ cn_comp_spill(struct cn_compaction_work *w)
          * If cn_subspill_apply() fails, then the subspill object "ss" is transferred
          * to "ss_saved" and eventually cleaned up at the end of this function.
          */
-        if (ss->ss_sgen == atomic_read(&node->tn_sgen) + 1) {
+        if (ss->ss_sgen == atomic_read(&tn->tn_sgen) + 1) {
             err = cn_subspill_apply(ss);
             if (err)
                 break;
 
-            atomic_inc_rel(&node->tn_sgen);
+            atomic_inc_rel(&tn->tn_sgen);
         } else {
             atomic_inc(spillingp);
-            cn_subspill_enqueue(ss, node);
+            cn_subspill_enqueue(ss, tn);
             ss_saved = NULL;
         }
 
         /* Apply subspills that are ready. */
-        while ((ss = cn_subspill_pop(node))) {
+        while ((ss = cn_subspill_pop(tn))) {
             err = cn_subspill_apply(ss);
             if (err) {
                 atomic_dec_rel(spillingp);
                 goto errout;
             }
 
-            atomic_inc_rel(&node->tn_sgen);
+            atomic_inc_rel(&tn->tn_sgen);
             atomic_dec_rel(spillingp);
 
             if (!ss_saved)
@@ -2129,8 +2298,18 @@ cn_comp_spill(struct cn_compaction_work *w)
         /* Serialize the deletion of input kvsets.
          */
         err = cn_node_spill_wait(w);
-        if (!err)
-            cn_spill_delete_kvsets(w);
+        if (!err) {
+            if (is_zspill) {
+                mutex_lock(&tree->ct_ss_lock);
+                atomic_inc(&w->cw_node->tn_sgen);
+                cv_broadcast(&tree->ct_ss_cv);
+                mutex_unlock(&tree->ct_ss_lock);
+
+                atomic_dec_rel(&znode->tn_ss_spilling);
+            } else {
+                cn_spill_delete_kvsets(w);
+            }
+        }
     }
 
     /* On error, remove all enqueued subspills.
@@ -2162,8 +2341,10 @@ cn_comp_spill(struct cn_compaction_work *w)
             mutex_unlock(&tree->ct_ss_lock);
 
             list_for_each_entry_safe(ss, next, &head, ss_link) {
-                blk_list_free(&ss->ss_mblks.kblks);
-                blk_list_free(&ss->ss_mblks.vblks);
+                if (!is_zspill) {
+                    blk_list_free(&ss->ss_mblks.kblks);
+                    blk_list_free(&ss->ss_mblks.vblks);
+                }
 
                 atomic_dec_rel(&tn->tn_ss_spilling);
                 free(ss);
@@ -2180,12 +2361,13 @@ cn_comp_spill(struct cn_compaction_work *w)
 /**
  * cn_comp_compact() - perform the actual compaction operation
  * See section comment for more info.
-*/
+ */
 static void
 cn_comp_compact(struct cn_compaction_work *w)
 {
     bool kcompact = (w->cw_action == CN_ACTION_COMPACT_K);
     struct kvdb_health *hp = w->cw_tree->ct_kvdb_health;
+    bool can_zspill = false;
 
     merr_t err = 0;
 
@@ -2202,11 +2384,32 @@ cn_comp_compact(struct cn_compaction_work *w)
     hp = w->cw_tree->ct_kvdb_health;
     assert(hp);
 
-    w->cw_err = cn_tree_prepare_compaction(w);
-    if (w->cw_err) {
-        if (merr_errno(w->cw_err) != ESHUTDOWN)
-            kvdb_health_error(hp, w->cw_err);
-        return;
+    if (w->cw_action == CN_ACTION_ZSPILL) {
+
+        w->cw_horizon = cn_get_seqno_horizon(w->cw_tree->cn);
+        w->cw_cancel_request = cn_get_cancel(w->cw_tree->cn);
+
+        perfc_inc(w->cw_pc, PERFC_BA_CNCOMP_START);
+
+        cn_setname(w->cw_threadname);
+
+        w->cw_err = cn_comp_zspill(w, &can_zspill);
+        if (w->cw_err)
+            return;
+
+        if (!can_zspill) {
+            w->cw_action = CN_ACTION_SPILL;
+            w->cw_rule = CN_RULE_RSPILL;
+        }
+    }
+
+    if (w->cw_action != CN_ACTION_ZSPILL) {
+        w->cw_err = cn_tree_prepare_compaction(w);
+        if (w->cw_err) {
+            if (merr_errno(w->cw_err) != ESHUTDOWN)
+                kvdb_health_error(hp, w->cw_err);
+            return;
+        }
     }
 
     w->cw_t2_prep = get_time_ns();
@@ -2229,6 +2432,7 @@ cn_comp_compact(struct cn_compaction_work *w)
         err = cn_kvcompact(w);
         break;
 
+    case CN_ACTION_ZSPILL:
     case CN_ACTION_SPILL:
         err = cn_comp_spill(w);
         break;
@@ -2241,6 +2445,9 @@ cn_comp_compact(struct cn_compaction_work *w)
         err = cn_join(w);
         break;
     }
+
+    if (w->cw_action == CN_ACTION_ZSPILL)
+        goto done;
 
     w->cw_t3_build = get_time_ns();
 
@@ -2258,10 +2465,10 @@ cn_comp_compact(struct cn_compaction_work *w)
     if (ev(err)) {
         if (!w->cw_canceled)
             kvdb_health_error(hp, err);
-        goto err_exit;
+        goto done;
     }
 
-err_exit:
+done:
     w->cw_err = err;
     if (w->cw_canceled && !w->cw_err)
         w->cw_err = merr(ESHUTDOWN);
@@ -2289,8 +2496,12 @@ cn_compact(struct cn_compaction_work *w)
      * For a spill operation, each subspill to a child was committed as the spill progressed.
      * For a join operation, cn_move() commits the operation.
      */
-    if (w->cw_action != CN_ACTION_SPILL && w->cw_action != CN_ACTION_JOIN)
+    if (w->cw_action != CN_ACTION_SPILL &&
+        w->cw_action != CN_ACTION_ZSPILL &&
+        w->cw_action != CN_ACTION_JOIN) {
+
         cn_comp_commit(w);
+    }
 
     cn_comp_cleanup(w);
 
@@ -2447,7 +2658,7 @@ cn_tree_node_get_max_key(struct cn_tree_node *tn, void *kbuf, size_t kbuf_sz, ui
         const void *key;
         uint klen = 0;
 
-        kvset_get_max_key(kvset, &key, &klen);
+        kvset_get_max_nonpt_key(kvset, &key, &klen);
 
         if (klen > 0 && (!max_key || keycmp(key, klen, max_key, *max_klen) > 0)) {
             max_key = key;

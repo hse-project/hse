@@ -33,6 +33,7 @@ enum cn_action {
     CN_ACTION_COMPACT_K,
     CN_ACTION_COMPACT_KV,
     CN_ACTION_SPILL,
+    CN_ACTION_ZSPILL,
     CN_ACTION_SPLIT,
     CN_ACTION_JOIN,
 };
@@ -49,6 +50,8 @@ cn_action2str(enum cn_action action)
         return "kvcomp";
     case CN_ACTION_SPILL:
         return "spill";
+    case CN_ACTION_ZSPILL:
+        return "zspill";
     case CN_ACTION_SPLIT:
         return "split";
     case CN_ACTION_JOIN:
@@ -152,6 +155,7 @@ struct cn_compaction_work {
     enum cn_action           cw_action;
     enum cn_rule             cw_rule;
     bool                     cw_have_token;
+    bool                     cw_maybe_zspill;
     atomic_int               cw_rspill_commit_in_progress;
     uint64_t                 cw_dgen_hi;
     uint64_t                 cw_dgen_hi_min;
@@ -193,6 +197,12 @@ struct cn_compaction_work {
         struct cn_tree_node  *nodev[2];  /* node split output nodes */
         uint                  klen;      /* split key length */
     } cw_split;
+
+    /* Used only for zspill */
+    struct {
+        struct cn_tree_node     *znode;
+        struct kvset_list_entry *kvset_list;
+    } cw_zspill;
 
     /* used in cleanup if debug enabled */
     u64  cw_t0_enqueue;

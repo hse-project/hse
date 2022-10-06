@@ -85,6 +85,7 @@ sp3_work_estimate(struct cn_compaction_work *w)
         dst_is_leaf = src_is_leaf;
         break;
 
+    case CN_ACTION_ZSPILL:
     case CN_ACTION_SPILL:
         assert(cn_node_isroot(w->cw_node));
         consume = halen + kalen + valen;
@@ -137,6 +138,8 @@ sp3_work_wtype_root(
     enum cn_rule             *rule)
 {
     struct cn_tree_node *tn = spn2tn(spn);
+    struct route_map *rmap = tn->tn_tree->ct_route_map;
+    struct cn_tree_node *znode = NULL;
     uint runlen_min, runlen_max, runlen;
     struct kvset_list_entry *le;
     size_t wlen_max, wlen;
@@ -163,22 +166,33 @@ sp3_work_wtype_root(
     runlen_max = thresh->rspill_runlen_max;
     runlen = 1;
 
+    znode = cn_kvset_can_zspill(le->le_kvset, rmap);
+
     /* Look for a contiguous sequence of non-busy kvsets.
-     *
-     * TODO: Starting with the first non-busy kvset, count the number of
-     * kvsets contiguous from the first that would all spill to the same
-     * leaf node.
      */
     while ((le = list_prev_entry_or_null(le, le_link, &tn->tn_kvset_list))) {
         if (kvset_get_workid(le->le_kvset) != 0)
             break;
 
+        if (znode) {
+            const struct cn_tree_node *n = cn_kvset_can_zspill(le->le_kvset, rmap);
+
+            if (n) {
+                if (n->tn_nodeid == znode->tn_nodeid && runlen < runlen_max) {
+                    ++runlen;
+                    continue;
+                } else {
+                    assert(runlen && runlen <= runlen_max);
+                    *action = CN_ACTION_ZSPILL;
+                    *rule = CN_RULE_ZSPILL;
+                    return runlen;
+                }
+            }
+        }
+
         wlen += kvset_get_kwlen(le->le_kvset) + kvset_get_vwlen(le->le_kvset);
 
         /* Limit spill size once we have a sufficiently long run length.
-         *
-         * TODO: Ignore the size check if all preceding kvsets would spill
-         * to the same leaf node.
          */
         if (runlen >= runlen_min && wlen >= wlen_max)
             break;
@@ -186,11 +200,12 @@ sp3_work_wtype_root(
         ++runlen;
     }
 
-    /* TODO: If the number of contiguous kvsets that would all spill
-     * to the same leaf node is one or more then return that number
-     * as a zero-writeamp spill operation (e.g., CN_ACTION_ZSPILL)
-     * irrespective of runlen_min, runlen_max, and wlen_max.
-     */
+    if (znode) {
+        assert(runlen && runlen <= runlen_max);
+        *action = CN_ACTION_ZSPILL;
+        *rule = CN_RULE_ZSPILL;
+        return runlen;
+    }
 
     if (runlen < runlen_min)
         return 0;
@@ -946,7 +961,7 @@ sp3_work(
     if (n_kvsets == 0)
         goto locked_nowork;
 
-    if (action == CN_ACTION_SPILL) {
+    if (action == CN_ACTION_SPILL || action == CN_ACTION_ZSPILL) {
         assert(cn_node_isroot(tn));
 
         if ((atomic_read(&tn->tn_busycnt) >> 16) > 2)
@@ -1037,7 +1052,7 @@ sp3_work(
     w->cw_t0_enqueue = get_time_ns();
 
     /* Ensure concurrent root spills complete in order */
-    if (w->cw_action == CN_ACTION_SPILL) {
+    if (w->cw_action == CN_ACTION_SPILL || w->cw_action == CN_ACTION_ZSPILL) {
         w->cw_sgen = ++tree->ct_sgen;
     } else if (w->cw_action == CN_ACTION_JOIN) {
         uint64_t workid = 0;

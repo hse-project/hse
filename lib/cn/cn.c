@@ -215,6 +215,7 @@ cn_get_perfc(struct cn *cn, enum cn_action action)
     case CN_ACTION_COMPACT_KV:
         return &cn->cn_pc_kvcompact;
 
+    case CN_ACTION_ZSPILL:
     case CN_ACTION_SPILL:
         return &cn->cn_pc_spill;
 
