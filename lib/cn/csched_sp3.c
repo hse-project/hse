@@ -1499,6 +1499,7 @@ sp3_comp_thread_name(
 static merr_t
 sp3_job_serialize(struct sts_job *const job, void *const arg)
 {
+    bool bad;
     ulong tm;
     char tmbuf[32];
     merr_t err = 0;
@@ -1520,127 +1521,38 @@ sp3_job_serialize(struct sts_job *const job, void *const arg)
     tm = (jclock_ns - w->cw_t0_enqueue) / NSEC_PER_SEC;
     snprintf(tmbuf, sizeof(tmbuf), "%lu:%02lu", (tm / 60) % 60, tm % 60);
 
-    if (ev(!cJSON_AddNumberToObject(node, "cnid", w->cw_tree->cnid))) {
-        err = merr(ENOMEM);
-        goto out;
-    }
+    bad = !cJSON_AddNumberToObject(node, "cnid", w->cw_tree->cnid);
+    bad |= !cJSON_AddNumberToObject(node, "node", w->cw_node->tn_nodeid);
+    bad |= !cJSON_AddNumberToObject(node, "job", sts_job_id_get(job));
+    bad |= !cJSON_AddStringToObject(node, "action", cn_action2str(w->cw_action));
+    bad |= !cJSON_AddStringToObject(node, "rule", cn_rule2str(w->cw_rule));
+    bad |= !cJSON_AddNumberToObject(node, "qnum", w->cw_qnum);
+    bad |= !cJSON_AddNumberToObject(node, "busy", atomic_read(&w->cw_node->tn_busycnt) >> 16);
+    bad |= !cJSON_AddNumberToObject(node, "kvsets", w->cw_kvset_cnt);
+    bad |= !cJSON_AddNumberToObject(node, "allocated_length_mb",
+            cn_ns_alen(&w->cw_ns) >> MB_SHIFT);
+    bad |= !cJSON_AddNumberToObject(node, "compacted_length_mb",
+            cn_ns_clen(&w->cw_ns) >> MB_SHIFT);
+    bad |= !cJSON_AddNumberToObject(node, "pcap", w->cw_ns.ns_pcap);
+    bad |= !cJSON_AddNumberToObject(node, "compc", w->cw_compc);
+    bad |= !cJSON_AddNumberToObject(node, "dgen", w->cw_dgen_hi_min);
+    bad |= !cJSON_AddNumberToObject(node, "hblocks", w->cw_nh);
+    bad |= !cJSON_AddNumberToObject(node, "kblocks", w->cw_nk);
+    bad |= !cJSON_AddNumberToObject(node, "vblocks", w->cw_nv);
+    bad |= !cJSON_AddNumberToObject(node, "root_allocated_length_mb",
+            w->cw_est.cwe_samp.r_alen >> MB_SHIFT);
+    bad |= !cJSON_AddNumberToObject(node, "leaf_allocated_length_mb",
+            w->cw_est.cwe_samp.l_alen >> MB_SHIFT);
+    bad |= !cJSON_AddNumberToObject(node, "leaf_compacted_length_mb",
+            w->cw_est.cwe_samp.l_good >> MB_SHIFT);
+    bad |= !cJSON_AddStringToObject(node, "wmesg", sts_job_wmesg_get(job));
+    bad |= !cJSON_AddStringToObject(node, "time", tmbuf);
+    bad |= !cJSON_AddStringToObject(node, "thread_name", w->cw_threadname);
+    bad |= !cJSON_AddItemToArray(jobs, node);
 
-    if (ev(!cJSON_AddNumberToObject(node, "node", w->cw_node->tn_nodeid))) {
+    if (ev(bad))
         err = merr(ENOMEM);
-        goto out;
-    }
 
-    if (ev(!cJSON_AddNumberToObject(node, "job", sts_job_id_get(job)))) {
-        err = merr(ENOMEM);
-        goto out;
-    }
-
-    if (ev(!cJSON_AddStringToObject(node, "action", cn_action2str(w->cw_action)))) {
-        err = merr(ENOMEM);
-        goto out;
-    }
-
-    if (ev(!cJSON_AddStringToObject(node, "rule", cn_rule2str(w->cw_rule)))) {
-        err = merr(ENOMEM);
-        goto out;
-    }
-
-    if (ev(!cJSON_AddNumberToObject(node, "qnum", w->cw_qnum))) {
-        err = merr(ENOMEM);
-        goto out;
-    }
-
-    if (ev(!cJSON_AddNumberToObject(node, "busy", atomic_read(&w->cw_node->tn_busycnt) >> 16))) {
-        err = merr(ENOMEM);
-        goto out;
-    }
-
-    if (ev(!cJSON_AddNumberToObject(node, "kvsets", w->cw_kvset_cnt))) {
-        err = merr(ENOMEM);
-        goto out;
-    }
-
-    if (ev(!cJSON_AddNumberToObject(node, "allocated_length_mb",
-            cn_ns_alen(&w->cw_ns) >> MB_SHIFT))) {
-        err = merr(ENOMEM);
-        goto out;
-    }
-
-    if (ev(!cJSON_AddNumberToObject(node, "compacted_length_mb",
-            cn_ns_clen(&w->cw_ns) >> MB_SHIFT))) {
-        err = merr(ENOMEM);
-        goto out;
-    }
-
-    if (ev(!cJSON_AddNumberToObject(node, "pcap", w->cw_ns.ns_pcap))) {
-        err = merr(ENOMEM);
-        goto out;
-    }
-
-    if (ev(!cJSON_AddNumberToObject(node, "compc", w->cw_compc))) {
-        err = merr(ENOMEM);
-        goto out;
-    }
-
-    if (ev(!cJSON_AddNumberToObject(node, "dgen", w->cw_dgen_hi_min))) {
-        err = merr(ENOMEM);
-        goto out;
-    }
-
-    if (ev(!cJSON_AddNumberToObject(node, "hblocks", w->cw_nh))) {
-        err = merr(ENOMEM);
-        goto out;
-    }
-
-    if (ev(!cJSON_AddNumberToObject(node, "kblocks", w->cw_nk))) {
-        err = merr(ENOMEM);
-        goto out;
-    }
-
-    if (ev(!cJSON_AddNumberToObject(node, "vblocks", w->cw_nv))) {
-        err = merr(ENOMEM);
-        goto out;
-    }
-
-    if (ev(!cJSON_AddNumberToObject(node, "root_allocated_length_mb",
-            w->cw_est.cwe_samp.r_alen >> MB_SHIFT))) {
-        err = merr(ENOMEM);
-        goto out;
-    }
-
-    if (ev(!cJSON_AddNumberToObject(node, "leaf_allocated_length_mb",
-            w->cw_est.cwe_samp.l_alen >> MB_SHIFT))) {
-        err = merr(ENOMEM);
-        goto out;
-    }
-
-    if (ev(!cJSON_AddNumberToObject(node, "leaf_compacted_length_mb",
-            w->cw_est.cwe_samp.l_good >> MB_SHIFT))) {
-        err = merr(ENOMEM);
-        goto out;
-    }
-
-    if (ev(!cJSON_AddStringToObject(node, "wmesg", sts_job_wmesg_get(job)))) {
-        err = merr(ENOMEM);
-        goto out;
-    }
-
-    if (ev(!cJSON_AddStringToObject(node, "time", tmbuf))) {
-        err = merr(ENOMEM);
-        goto out;
-    }
-
-    if (ev(!cJSON_AddStringToObject(node, "thread_name", w->cw_threadname))) {
-        err = merr(ENOMEM);
-        goto out;
-    }
-
-    if (ev(!cJSON_AddItemToArray(jobs, node))) {
-        err = merr(ENOMEM);
-        goto out;
-    }
-
-out:
     if (err)
         cJSON_Delete(node);
 

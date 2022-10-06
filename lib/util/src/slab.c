@@ -1142,8 +1142,8 @@ rest_kmc_get_vmstat(const struct rest_request *req, struct rest_response *resp, 
     mutex_lock(&kmc.kmc_lock);
 
     kmc_zone_foreach(zone, next, &kmc.kmc_zones) {
+        bool bad;
         size_t addrc = 0;
-        bool bad = false;
         cJSON *elem = NULL;
         void **addrv = NULL;
         unsigned long iused, itotal;
@@ -1210,7 +1210,7 @@ rest_kmc_get_vmstat(const struct rest_request *req, struct rest_response *resp, 
             goto out;
         }
 
-        bad |= !cJSON_AddStringToObject(elem, "name", zone->zone_name);
+        bad = !cJSON_AddStringToObject(elem, "name", zone->zone_name);
         bad |= !cJSON_AddNumberToObject(elem, "used_chunks", nchunks);
         bad |= !cJSON_AddNumberToObject(elem, "huge_pages", nhuge);
         bad |= !cJSON_AddNumberToObject(elem, "used_slabs", zone->zone_nslabs);

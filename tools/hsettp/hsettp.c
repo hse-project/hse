@@ -1554,19 +1554,27 @@ main(const int argc, char **const argv)
     /* Validate number of remaining arguments */
     operation_arguments = count_operation_arguments(path, method, &request_body);
     switch (request_body) {
+    case REQUEST_BODY_OPTIONAL:
+        if (argc - optind != operation_arguments || argc - optind != operation_arguments + 1) {
+            fprintf(stderr, "Wrong number of arguments provided\n");
+            operation_usage(stderr, operation_id, path, method);
+            rc = EX_USAGE;
+            goto out;
+        }
+
+        break;
     case REQUEST_BODY_REQUIRED:
         operation_arguments++;
         /* fallthrough */
-    case REQUEST_BODY_OPTIONAL:
     case REQUEST_BODY_EMPTY:
+        if (argc - optind != operation_arguments) {
+            fprintf(stderr, "Wrong number of arguments provided\n");
+            operation_usage(stderr, operation_id, path, method);
+            rc = EX_USAGE;
+            goto out;
+        }
+
         break;
-    }
-    if (argc - optind != operation_arguments &&
-            !(request_body == REQUEST_BODY_OPTIONAL && argc - optind != operation_arguments + 1)) {
-        fprintf(stderr, "Wrong number of arguments provided\n");
-        operation_usage(stderr, operation_id, path, method);
-        rc = EX_USAGE;
-        goto out;
     }
 
     /* Setup the buffer */

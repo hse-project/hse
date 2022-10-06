@@ -774,11 +774,11 @@ rest_kvdb_compact_status_get(
     struct rest_response *const resp,
     void *const ctx)
 {
+    bool bad;
     char *data;
     merr_t err;
     cJSON *root;
     bool pretty;
-    bool bad = false;
     struct ikvdb *kvdb;
     enum rest_status status = REST_STATUS_OK;
     struct hse_kvdb_compact_status compact_status = { 0 };
@@ -799,7 +799,7 @@ rest_kvdb_compact_status_get(
     if (ev(!root))
         return REST_STATUS_INTERNAL_SERVER_ERROR;
 
-    bad |= !cJSON_AddNumberToObject(root, "samp_lwm_pct", compact_status.kvcs_samp_lwm);
+    bad = !cJSON_AddNumberToObject(root, "samp_lwm_pct", compact_status.kvcs_samp_lwm);
     bad |= !cJSON_AddNumberToObject(root, "samp_hwm_pct", compact_status.kvcs_samp_hwm);
     bad |= !cJSON_AddNumberToObject(root, "samp_hwm_pct", compact_status.kvcs_samp_hwm);
     bad |= !cJSON_AddNumberToObject(root, "samp_curr_pct", compact_status.kvcs_samp_curr);
@@ -984,13 +984,13 @@ u64_to_human(char *buf, size_t bufsz, uint64_t val, uint64_t thresh)
 static merr_t HSE_NONNULL(1, 2)
 stats_add_to_object(const struct stats *const stats, cJSON *const object, const bool human)
 {
+    bool bad;
     char buf[64];
-    bool bad = false;
 
     INVARIANT(stats);
     INVARIANT(object);
 
-    bad |= !cJSON_AddNumberToObject(object, "dgen", stats->dgen);
+    bad = !cJSON_AddNumberToObject(object, "dgen", stats->dgen);
     bad |= !cJSON_AddNumberToObject(object, "compc", stats->compc);
     bad |= !cJSON_AddNumberToObject(object, "vgroups", stats->vgroups);
     bad |= !cJSON_AddNumberToObject(object, "keys", stats->nkeys);
