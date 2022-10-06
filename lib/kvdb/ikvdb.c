@@ -2301,7 +2301,6 @@ ikvdb_close(struct ikvdb *handle)
         if (kvs->kk_ikvs) {
             atomic_dec(&kvs->kk_refcnt);
             err = kvs_rest_remove_endpoints(handle, kvs);
-            printf("%s:%d\n", merr_file(err), merr_lineno(err));
         }
 
         /* kvs_rest_remove_endpoints() waits until all active rest requests have

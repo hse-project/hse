@@ -264,5 +264,3 @@ cndb_rec_print(const struct cndb_rec *rec, bool oneline)
     }
     }
 }
-
-
