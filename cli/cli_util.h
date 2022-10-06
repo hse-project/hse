@@ -9,22 +9,21 @@
 #include <stdbool.h>
 #include <stddef.h>
 
-struct yaml_context;
+#include <hse/types.h>
 
-bool
+hse_err_t
 kvdb_info_print(
     const char *         kvdb_home,
     const size_t         paramc,
-    const char *const *  paramv,
-    struct yaml_context *yc);
+    const char *const *  paramv);
 
 bool
 kvdb_storage_info_print(
     const char *         kvdb_home,
     const size_t         paramc,
-    const char *const *  paramv,
-    struct yaml_context *yc);
+    const char *const *  paramv);
 
 int
 kvdb_compact_request(const char *kvdb_home, const char *request_type, unsigned timeout_sec);
+
 #endif

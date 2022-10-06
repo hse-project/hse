@@ -153,15 +153,6 @@ add_project_arguments(
     language: 'c'
 )
 
-libyaml_dep = dependency(
-    'yaml-0.1',
-    version: '>=0.1.7',
-    default_options: [
-        'default_library=static',
-        'warning_level=0',
-        'werror=false',
-    ]
-)
 threads_dep = dependency('threads')
 liburcu_bp_dep = dependency(
     'liburcu-bp',

@@ -3,7 +3,7 @@ components = {
         'c0_kvmultiset_test': {},
         'c0_kvset_iterator_test': {},
         'c0_kvset_test': {
-            'c_args': cc.get_supported_arguments(['-Wno-clobbered']),
+            'c_args': cc.get_supported_arguments('-Wno-clobbered'),
         },
         'c0_test': {
             'sources': [
@@ -17,7 +17,7 @@ components = {
             'sources': [
                 files(
                     'c0/cn_mock.c',
-                    meson.project_source_root() / 'tools/key_generation.c',
+                    meson.project_source_root() / 'tools/key_generation.c'
                 ),
             ],
         },
@@ -247,7 +247,6 @@ components = {
         'vlb_test': {},
         'workqueue_test': {},
         'xrand_test': {},
-        'yaml_test': {},
     },
 }
 
@@ -269,7 +268,7 @@ foreach c, tests : components
                 hse_test_framework_dep,
                 params.get('dependencies', []),
             ],
-            gnu_symbol_visibility: 'hidden',
+            gnu_symbol_visibility: 'hidden'
         )
         unit_test_exes += t_exe
 
@@ -284,7 +283,7 @@ foreach c, tests : components
                     env: params.get('env', environment()),
                     is_parallel: params.get('is_parallel', true),
                     suite: ['unit', c] + params.get('suites', []),
-                    timeout: 300,
+                    timeout: 300
                 )
             endforeach
         else
@@ -295,7 +294,7 @@ foreach c, tests : components
                 env: params.get('env', environment()),
                 is_parallel: params.get('is_parallel', true),
                 suite: ['unit', c] + params.get('suites', []),
-                timeout: 300,
+                timeout: 300
             )
         endif
     endforeach

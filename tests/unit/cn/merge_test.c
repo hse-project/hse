@@ -3,6 +3,9 @@
  * Copyright (C) 2015-2022 Micron Technology, Inc.  All rights reserved.
  */
 
+#include <bsd/string.h>
+#include <cjson/cJSON.h>
+
 #include <mtf/framework.h>
 #include <mock/api.h>
 #include <mocks/mock_kvset_builder.h>
@@ -32,8 +35,6 @@
 #include <cn/route.h>
 #include <cn/omf.h>
 
-#include <yaml.h>
-
 #include <dirent.h>
 
 #define my_assert(condition)                                                                  \
@@ -59,17 +60,17 @@ static struct test_params {
     int   test_filec;
     int   verbose;
 
-    /* Initialized with each new yaml file */
-    yaml_document_t doc;
-    char            group[256];
-    int             out_kvset_node;
-    int             out_kvset_nkeys;
-    int *           inp_kvset_nodev;
-    int             inp_kvset_nodec;
-    int             test_number;
-    u64             horizon;
-    bool            drop_tombs;
-    int             fanout;
+    /* Initialized with each new JSON file */
+    cJSON *doc;
+    char group[256];
+    cJSON *out_kvset_node;
+    int out_kvset_nkeys;
+    cJSON *inp_kvset_nodev;
+    int inp_kvset_nodec;
+    int test_number;
+    u64 horizon;
+    bool drop_tombs;
+    int fanout;
 
     /* Initialized with each mode (spill, kcompact, etc) */
     int pfx_len;
@@ -101,7 +102,6 @@ search_dir(const char *path)
     my_assert(dir_path);
 
     while (NULL != (ent = readdir(dir))) {
-
         if (!strcmp(ent->d_name, ".") || !strcmp(ent->d_name, ".."))
             continue;
 
@@ -115,11 +115,11 @@ search_dir(const char *path)
         if (ent->d_type != DT_REG)
             continue;
 
-        if (!strcmp(ent->d_name, ".checkfiles.yml"))
+        if (!strcmp(ent->d_name, ".checkfiles.json"))
             continue;
 
         len = strlen(ent->d_name);
-        if (len <= 4 || strcmp(ent->d_name + len - 4, ".yml"))
+        if (len <= 4 || strcmp(ent->d_name + len - 5, ".json"))
             continue;
 
         if (tp.test_filec == MAX_TEST_FILES) {
@@ -164,113 +164,12 @@ get_test_files(const char *path)
     exit(-1);
 }
 
-static yaml_node_t *
-ydoc_node(yaml_document_t *doc, int nx, yaml_node_type_t type)
-{
-    yaml_node_t *node;
-
-    node = yaml_document_get_node(doc, nx);
-    my_assert(node);
-    if (type)
-        my_assert(type == node->type);
-    return node;
-}
-
-static yaml_node_type_t
-ydoc_node_type(yaml_document_t *doc, int nx)
-{
-    return ydoc_node(doc, nx, 0)->type;
-}
-
-static const char *
-ydoc_node_type_str(yaml_document_t *doc, int nx)
-{
-    switch (ydoc_node_type(doc, nx)) {
-        case YAML_NO_NODE:
-            break;
-        case YAML_MAPPING_NODE:
-            return "<map>";
-        case YAML_SCALAR_NODE:
-            return "<scalar>";
-        case YAML_SEQUENCE_NODE:
-            return "<sequence>";
-    }
-    return "<unknown_node_type>";
-}
-
-static void
-ydoc_node_as_map(yaml_document_t *doc, int map_node, yaml_node_pair_t **vec, int *veclen)
-{
-    yaml_node_t *node;
-
-    node = ydoc_node(doc, map_node, YAML_MAPPING_NODE);
-    *vec = node->data.mapping.pairs.start;
-    *veclen = node->data.mapping.pairs.top - *vec;
-}
-
-static void
-ydoc_node_as_seq(yaml_document_t *doc, int seq_node, yaml_node_item_t **vec, int *veclen)
-{
-    yaml_node_t *node;
-
-    node = ydoc_node(doc, seq_node, YAML_SEQUENCE_NODE);
-    *vec = node->data.sequence.items.start;
-    *veclen = node->data.sequence.items.top - *vec;
-}
-
-static const char *
-ydoc_node_as_str(yaml_document_t *doc, int scalar_node, int *len)
-{
-    yaml_node_t *node;
-
-    node = ydoc_node(doc, scalar_node, YAML_SCALAR_NODE);
-    if (len)
-        *len = node->data.scalar.length;
-    my_assert(node->data.scalar.value);
-    return (const char *)node->data.scalar.value;
-}
-
-static u64
-ydoc_node_as_u64(yaml_document_t *doc, int scalar_node)
-{
-    const char *str;
-    int         err;
-    u64         result = 0;
-
-    str = ydoc_node_as_str(doc, scalar_node, 0);
-    err = parse_u64(str, &result);
-    my_assert(!err);
-    return result;
-}
-
-static int
-ydoc_node_as_int(yaml_document_t *doc, int scalar_node)
-{
-    const char *str;
-    int         err;
-    int         result = 0;
-
-    str = ydoc_node_as_str(doc, scalar_node, 0);
-    err = parse_s32(str, &result);
-    my_assert(!err);
-    return result;
-}
-
-static bool
-ydoc_node_as_bool(yaml_document_t *doc, int scalar_node)
-{
-    const char *str;
-
-    str = ydoc_node_as_str(doc, scalar_node, 0);
-    return (!strcasecmp(str, "true") || !strcasecmp(str, "yes") || !strcasecmp(str, "1"));
-}
-
 static enum kmd_vtype
-ydoc_node_as_vtype(yaml_document_t *doc, int scalar_node)
+ydoc_node_as_vtype(cJSON *node)
 {
     const char *str;
 
-    str = ydoc_node_as_str(doc, scalar_node, 0);
+    str = cJSON_GetStringValue(node);
 
     if (!strcmp(str, "v"))
         return VTYPE_UCVAL;
@@ -291,314 +190,158 @@ ydoc_node_as_vtype(yaml_document_t *doc, int scalar_node)
     return -1;
 }
 
-static int
-ydoc_seq_len(yaml_document_t *doc, int node)
-{
-    int               veclen;
-    yaml_node_item_t *vec;
-
-    ydoc_node_as_seq(doc, node, &vec, &veclen);
-    return veclen;
-}
-
-/*
- * Given document node @map_node of type YAML_MAPPING_NODE, Return @value_node
- * where (@key_node, @value_node) is in the map defined by @map_node, and the
- * scalar value of key_node is @needle.  If no such pair exists, return 0
- * (which is an invalid node index).
- */
-static int
-ydoc_map_lookup(yaml_document_t *doc, int map_node, const char *needle)
-{
-    yaml_node_pair_t *vec;
-    int               veclen, i;
-    const char *      key;
-
-    ydoc_node_as_map(doc, map_node, &vec, &veclen);
-    for (i = 0; i < veclen; i++) {
-        key = ydoc_node_as_str(doc, vec[i].key, 0);
-        if (!strcmp(needle, key))
-            return vec[i].value;
-    }
-    return 0;
-}
-
-static bool
-ydoc_map_get_nth(yaml_document_t *doc, int map_node, int nth, const char **key, int *value_node)
-{
-    yaml_node_pair_t *vec;
-    int               cnt;
-
-    ydoc_node_as_map(doc, map_node, &vec, &cnt);
-    if (nth < 0 || nth >= cnt)
-        return false;
-    *key = ydoc_node_as_str(doc, vec[nth].key, 0);
-    *value_node = vec[nth].value;
-    return true;
-}
-
-static bool
-ydoc_seq_get_nth(yaml_document_t *doc, int seq_node, int nth, int *item_node)
-{
-    yaml_node_item_t *vec;
-    int               veclen;
-
-    ydoc_node_as_seq(doc, seq_node, &vec, &veclen);
-    if (nth < 0 || nth >= veclen)
-        return false;
-    *item_node = vec[nth]; /* yaml_node_item_t is an int */
-    return true;
-}
-
-static void
-ydoc_map_print(yaml_document_t *doc, const char *prefix, int map_node)
-{
-    const char *key;
-    const char *val;
-    int         i, val_node;
-
-    for (i = 0; ydoc_map_get_nth(doc, map_node, i, &key, &val_node); i++) {
-        if (ydoc_node_type(doc, val_node) == YAML_SCALAR_NODE)
-            val = ydoc_node_as_str(doc, val_node, 0);
-        else
-            val = ydoc_node_type_str(doc, val_node);
-        printf("%s.%s = %s\n", prefix, key, val);
-    }
-}
-
 static bool
 ydoc_kvset_get_nth(
-    yaml_document_t *  doc,
-    int                kvset_node,
-    int                nth,
-    const char **      kdata,
-    int *              klen,
-    yaml_node_item_t **vec,
-    int *              veclen)
+    cJSON *kvset_node,
+    int nth,
+    cJSON **key,
+    cJSON **vec)
 {
-    int  key_node;
-    int  entry_node;
-    int  values_node;
-    bool found;
+    cJSON *entry_node;
 
-    /* no error if nth is out of range, just return false */
-    if (!ydoc_seq_get_nth(doc, kvset_node, nth, &entry_node))
-        return false;
+    entry_node = cJSON_GetArrayItem(kvset_node, nth);
+    if (!entry_node)
+        return true;
+    my_assert(cJSON_IsArray(entry_node));
 
     /* Get key and list of values.  If no key or no values,
      * then assert due to invalid yaml document schema.
      *
      *  entry_node = [ key, [[seq,vtype,val],...] ]
      */
-    found = ydoc_seq_get_nth(doc, entry_node, 0, &key_node);
-    my_assert(found);
 
-    *kdata = ydoc_node_as_str(doc, key_node, klen);
-    my_assert(*kdata);
+    *key = cJSON_GetArrayItem(entry_node, 0);
+    my_assert(cJSON_IsString(*key));
 
-    found = ydoc_seq_get_nth(doc, entry_node, 1, &values_node);
-    my_assert(found);
+    *vec = cJSON_GetArrayItem(entry_node, 1);
+    my_assert(cJSON_IsArray(*vec));
 
-    ydoc_node_as_seq(doc, values_node, vec, veclen);
-    my_assert(*veclen > 0);
-
-    return true;
+    return false;
 }
 
 static void
-ydoc_kvset_print(yaml_document_t *doc, int kvset_node, const char *prefix)
+process_json(void)
 {
-    const char *      kdata;
-    int               klen;
-    yaml_node_item_t *values, *value;
-    int               i, j, nvals, cnt;
-    int               nkeys;
-
-    nkeys = ydoc_seq_len(doc, kvset_node);
-
-    printf("%s: start: %d keys\n", prefix, nkeys);
-    i = 0;
-    while (ydoc_kvset_get_nth(doc, kvset_node, i, &kdata, &klen, &values, &nvals)) {
-
-        printf("%s: key[%d]=%s\n", prefix, i, kdata);
-        for (j = 0; j < nvals; ++j) {
-            ydoc_node_as_seq(doc, values[j], &value, &cnt);
-            printf(
-                "%s:   v[%d]=[ %s, %s, %s ]\n",
-                prefix,
-                j,
-                ydoc_node_as_str(doc, value[0], 0),
-                ydoc_node_as_str(doc, value[1], 0),
-                ydoc_node_as_str(doc, value[2], 0));
-        }
-        ++i;
-    }
-}
-
-static void
-print_meta(void)
-{
-    yaml_document_t *doc = &tp.doc;
-    int              root_node = 1;
-    int              node;
-    const char *     key = "_meta";
-
-    node = ydoc_map_lookup(doc, root_node, key);
-    my_assert(node);
-    ydoc_map_print(doc, key, node);
-}
-
-static void
-print_input_kvsets(void)
-{
-    int  i;
-    char prefix[64];
-
-    for (i = 0; i < tp.inp_kvset_nodec; ++i) {
-        snprintf(prefix, sizeof(prefix), "in_kvset_%d", i);
-        ydoc_kvset_print(&tp.doc, tp.inp_kvset_nodev[i], prefix);
-    }
-}
-
-static void
-print_ouput_kvset(void)
-{
-    ydoc_kvset_print(&tp.doc, tp.out_kvset_node, "out_kvset");
-}
-
-static void
-process_yaml(void)
-{
-    yaml_document_t * doc = &tp.doc;
-    int               root_node = 1;
-    int               node, node2;
-    char *            name;
-    yaml_node_item_t *vec;
-    int               veclen;
+    cJSON *node, *node2;
+    char *name;
 
     name = "_meta";
-    node = ydoc_map_lookup(doc, root_node, name);
-    my_assert(node);
-    my_assert(ydoc_node_type(doc, node) == YAML_MAPPING_NODE);
+    node = cJSON_GetObjectItemCaseSensitive(tp.doc, name);
+    my_assert(cJSON_IsObject(node));
 
     tp.horizon = 0;
     tp.drop_tombs = 0;
     tp.pfx_len = -1;
     tp.fanout = 4;
 
-    node2 = ydoc_map_lookup(doc, node, "horizon");
+    node2 = cJSON_GetObjectItemCaseSensitive(node, "horizon");
     if (node2)
-        tp.horizon = ydoc_node_as_u64(doc, node2);
-    node2 = ydoc_map_lookup(doc, node, "drop_tombs");
+        tp.horizon = cJSON_GetNumberValue(node2);
+    node2 = cJSON_GetObjectItemCaseSensitive(node, "drop_tombs");
     if (node2)
-        tp.drop_tombs = ydoc_node_as_bool(doc, node2);
-    node2 = ydoc_map_lookup(doc, node, "pfx_len");
+        tp.drop_tombs = cJSON_IsTrue(node2);
+    node2 = cJSON_GetObjectItemCaseSensitive(node, "pfx_len");
     if (node2)
-        tp.pfx_len = ydoc_node_as_int(doc, node2);
+        tp.pfx_len = cJSON_GetNumberValue(node2);
+    node2 = cJSON_GetObjectItemCaseSensitive(node, "fanout");
+    if (node2)
+        tp.fanout = cJSON_GetNumberValue(node2);
 
-    name = "output_kvset";
-    node = ydoc_map_lookup(doc, root_node, name);
-    my_assert(node);
-    my_assert(ydoc_node_type(doc, node) == YAML_SEQUENCE_NODE);
+    node = cJSON_GetObjectItemCaseSensitive(tp.doc, "output_kvset");
+    my_assert(cJSON_IsArray(node));
 
     tp.out_kvset_node = node;
-    tp.out_kvset_nkeys = ydoc_seq_len(doc, node);
+    tp.out_kvset_nkeys = cJSON_GetArraySize(node);
 
-    name = "input_kvsets";
-    node = ydoc_map_lookup(doc, root_node, name);
-    my_assert(node);
-    my_assert(ydoc_node_type(doc, node) == YAML_SEQUENCE_NODE);
+    node = cJSON_GetObjectItemCaseSensitive(tp.doc, "input_kvsets");
+    my_assert(cJSON_IsArray(node));
 
-    ydoc_node_as_seq(doc, node, &vec, &veclen);
-
-    tp.inp_kvset_nodev = vec;
-    tp.inp_kvset_nodec = veclen;
+    tp.inp_kvset_nodev = node;
+    tp.inp_kvset_nodec = cJSON_GetArraySize(node);
 }
 
 static void
-load_yaml(struct mtf_test_info *lcl_ti)
+load_json(struct mtf_test_info *lcl_ti)
 {
-    FILE *        fp;
-    yaml_parser_t parser;
-    int           rc, err;
+    FILE *fp;
+    struct stat st;
+    int rc;
+    char *buf;
 
     fp = fopen(tp.test_filev[tp.test_number], "rb");
     ASSERT_NE(fp, NULL);
 
-    rc = yaml_parser_initialize(&parser);
-    ASSERT_NE(rc, 0);
+    rc = fstat(fileno(fp), &st);
+    ASSERT_NE(-1, rc);
 
-    yaml_parser_set_input_file(&parser, fp);
+    buf = malloc(st.st_size + 1);
+    ASSERT_NE(NULL, buf);
+    buf[st.st_size] = '\0';
 
-    err = !yaml_parser_load(&parser, &tp.doc);
-    ASSERT_EQ(err, 0);
+    rc = fread(buf, st.st_size, 1, fp);
+    ASSERT_EQ(1, rc);
 
-    yaml_parser_delete(&parser);
+    tp.doc = cJSON_ParseWithLength(buf, st.st_size);
+    ASSERT_NE(NULL, tp.doc);
+
+    free(buf);
     fclose(fp);
 }
 
-static void
+static bool
 kvset_get_nth_key(
-    int    kvset_node,
-    int    nth,
-    bool * eof_out,
-    void **kdata_out,
-    uint * klen_out,
-    uint * nvals_out)
+    cJSON *kvset_node,
+    int nth,
+    cJSON **key,
+    uint *nvals_out)
 {
-    const char *      kdata;
-    int               klen;
-    yaml_node_item_t *vec;
-    int               veclen;
+    bool eof;
+    cJSON *vec;
 
-    *eof_out = !ydoc_kvset_get_nth(&tp.doc, kvset_node, nth, &kdata, &klen, &vec, &veclen);
-    if (!*eof_out) {
-        *kdata_out = (void *)kdata;
-        *klen_out = klen;
-        *nvals_out = veclen;
-    }
+    eof = ydoc_kvset_get_nth(kvset_node, nth, key, &vec);
+    if (!eof)
+        *nvals_out = cJSON_GetArraySize(vec);
+
+    return eof;
 }
 
-static void
+static bool
 kvset_get_nth_val(
-    int             kvset_node,
-    int             nth_key,
-    int             nth_value,
-    bool *          eof_out,
-    u64 *           seq_out,
+    cJSON *kvset_node,
+    int nth_key,
+    int nth_value,
+    u64 *seq_out,
     enum kmd_vtype *vtype_out,
-    const void **   vdata_out,
-    uint *          vlen_out)
+    const void **vdata_out,
+    uint *vlen_out)
 {
-    const char *      kdata;
-    int               klen;
-    yaml_node_item_t *vec;
-    int               veclen;
-    yaml_node_item_t *valv;
-    int               valc;
+    bool eof;
+    cJSON *key;
+    cJSON *vec;
+    cJSON *entry;
 
-    *eof_out = !ydoc_kvset_get_nth(&tp.doc, kvset_node, nth_key, &kdata, &klen, &vec, &veclen);
+    eof = ydoc_kvset_get_nth(kvset_node, nth_key, &key, &vec);
     /* nth_key is expected to be in range. */
-    my_assert(!*eof_out);
+    my_assert(!eof);
 
-    /* nth_value might be out of range. */
-    *eof_out = (nth_value < 0 || nth_value >= veclen);
-    if (*eof_out)
-        return;
+    if (nth_value >= cJSON_GetArraySize(vec))
+        return true;
 
     /* Values are stored as a list of lists;
      *   [ [ seq, vtype, value ], [ seq, vtype, value ], ... ]
      */
-    ydoc_node_as_seq(&tp.doc, vec[nth_value], &valv, &valc);
-    *seq_out = ydoc_node_as_u64(&tp.doc, valv[0]);
-    *vtype_out = ydoc_node_as_vtype(&tp.doc, valv[1]);
+    my_assert(cJSON_IsArray(vec));
+    entry = cJSON_GetArrayItem(vec, nth_value);
+    my_assert(cJSON_IsArray(entry));
+    *seq_out = cJSON_GetNumberValue(cJSON_GetArrayItem(entry, 0));
+    *vtype_out = ydoc_node_as_vtype(cJSON_GetArrayItem(entry, 1));
 
     switch (*vtype_out) {
         case VTYPE_UCVAL: {
-            int tmp;
-            *vdata_out = ydoc_node_as_str(&tp.doc, valv[2], &tmp);
-            my_assert(tmp > 0);
-            *vlen_out = tmp;
+            cJSON *value = cJSON_GetArrayItem(entry, 2);
+            my_assert(cJSON_IsString(value));
+            *vdata_out = cJSON_GetStringValue(value);
+            *vlen_out = strlen(*vdata_out);
             if (*vlen_out < CN_SMALL_VALUE_THRESHOLD)
                 *vtype_out = VTYPE_IVAL;
             break;
@@ -607,39 +350,37 @@ kvset_get_nth_val(
             *vdata_out = 0;
             *vlen_out = 0;
     }
+
+    return eof;
 }
 
-static void
+static bool
 kvset_get_nth(
-    int          kvset_node,
-    int          nth,
-    bool *       eof,
+    cJSON *kvset_node,
+    int nth,
     const void **key,
-    uint *       key_len,
-    void **      val,
-    uint *       val_len)
+    uint *key_len,
+    void **val,
+    uint *val_len)
 {
-    const char *      kdata;
-    int               klen;
-    const char *      vdata;
-    int               vlen;
-    yaml_node_item_t *vec;
-    int               veclen;
+    cJSON *key_node;
+    cJSON *value_nodes;
+    cJSON *value_node;
+    bool eof;
 
-    *eof = !ydoc_kvset_get_nth(&tp.doc, kvset_node, nth, &kdata, &klen, &vec, &veclen);
-    if (!*eof) {
+    eof = ydoc_kvset_get_nth(kvset_node, nth, &key_node, &value_nodes);
+    if (!eof) {
+        my_assert(cJSON_IsString(key_node));
+        *key = cJSON_GetStringValue(key_node);
+        *key_len = strlen(*key);
 
-        yaml_node_item_t *valv;
-        int               valc;
-
-        ydoc_node_as_seq(&tp.doc, vec[0], &valv, &valc);
-        vdata = ydoc_node_as_str(&tp.doc, valv[2], &vlen);
-
-        *key = (void *)kdata;
-        *key_len = klen;
-        *val = (void *)vdata;
-        *val_len = vlen;
+        value_node = cJSON_GetArrayItem(cJSON_GetArrayItem(value_nodes, 0), 2);
+        my_assert(cJSON_IsString(value_node));
+        *val = cJSON_GetStringValue(value_node);
+        *val_len = strlen(*val);
     }
+
+    return eof;
 }
 
 /*----------------------------------------------------------------
@@ -649,8 +390,7 @@ kvset_get_nth(
 static merr_t
 _kvset_builder_add_key(struct kvset_builder *builder, const struct key_obj *kobj)
 {
-    void *ref_kdata;
-    uint  ref_klen;
+    cJSON *key;
     uint  ref_nvals;
     bool  eof;
     u8    kdata[HSE_KVS_KEY_LEN_MAX];
@@ -667,17 +407,16 @@ _kvset_builder_add_key(struct kvset_builder *builder, const struct key_obj *kobj
     /* Get the next reference and compare */
     VERIFY_TRUE_RET(tp.next_output_key < tp.out_kvset_nkeys, __LINE__);
 
-    eof = -1;
-    kvset_get_nth_key(
-        tp.out_kvset_node, tp.next_output_key, &eof, &ref_kdata, &ref_klen, &ref_nvals);
+    eof = kvset_get_nth_key(
+        tp.out_kvset_node, tp.next_output_key, &key, &ref_nvals);
     VERIFY_TRUE_RET(!eof, __LINE__);
 
     /* check for same number of values */
     VERIFY_TRUE_RET(tp.next_output_val == ref_nvals, __LINE__);
 
     /* check for same key */
-    VERIFY_TRUE_RET(klen == ref_klen, __LINE__);
-    VERIFY_TRUE_RET(!memcmp(kdata, ref_kdata, klen), __LINE__);
+    VERIFY_TRUE_RET(klen == strlen(cJSON_GetStringValue(key)), __LINE__);
+    VERIFY_TRUE_RET(!memcmp(kdata, cJSON_GetStringValue(key), klen), __LINE__);
 
     /* reset for next key */
     tp.next_output_key++;
@@ -700,11 +439,10 @@ _kvset_builder_add_val_internal(
     const void *   ref_vdata = NULL;
     uint           ref_vlen = 0;
 
-    kvset_get_nth_val(
+    ref_eof = kvset_get_nth_val(
         tp.out_kvset_node,
         tp.next_output_key,
         tp.next_output_val,
-        &ref_eof,
         &ref_seq,
         &ref_vtype,
         &ref_vdata,
@@ -772,12 +510,13 @@ _kvset_builder_add_vref(
     uint                  vlen_nth_val,
     uint                  complen)
 {
-    u64            tmp_seq;
+    u64 tmp_seq;
     enum kmd_vtype vtype;
-    const void *   vdata;
-    uint           vlen;
-    int            kvset_node, nth_key, nth_val;
-    bool           eof;
+    const void *vdata;
+    uint vlen;
+    cJSON *kvset_node;
+    uint nth_key, nth_val;
+    bool eof;
 
     /* Unpack data from vref:
      *   vbidx == kvset node
@@ -786,12 +525,11 @@ _kvset_builder_add_vref(
      *
      * See also _kvset_iter_next_vref(), which packs this data.
      */
-    kvset_node = vbidx_kvset_node;
+    kvset_node = cJSON_GetArrayItem(tp.inp_kvset_nodev, vbidx_kvset_node);
     nth_key = vboff_nth_key;
     nth_val = vlen_nth_val;
 
-    eof = -1;
-    kvset_get_nth_val(kvset_node, nth_key, nth_val, &eof, &tmp_seq, &vtype, &vdata, &vlen);
+    eof = kvset_get_nth_val(kvset_node, nth_key, nth_val, &tmp_seq, &vtype, &vdata, &vlen);
     my_assert(!eof);
 
     _kvset_builder_add_val_internal(self, seq, vtype, vdata, vlen);
@@ -837,9 +575,9 @@ _kvset_builder_add_nonval(struct kvset_builder *self, u64 seq, enum kmd_vtype vt
 struct kv_spill_test_kvi {
     struct kv_iterator  kvi;
     struct test_params *test;
-    int                 kvset_node;
-    u32                 src;
-    u32                 cursor;
+    cJSON *kvset_node;
+    u32 src;
+    u32 cursor;
 };
 
 static struct kvset *
@@ -859,8 +597,8 @@ _kvset_iter_next_key(struct kv_iterator *kvi, struct key_obj *kobj, struct kvset
 
     kobj->ko_pfx = 0;
     kobj->ko_pfx_len = 0;
-    kvset_get_nth(
-        iter->kvset_node, nth_key, &kvi->kvi_eof, &kobj->ko_sfx, &kobj->ko_sfx_len, &vdata, &vlen);
+    kvi->kvi_eof = kvset_get_nth(iter->kvset_node, nth_key, &kobj->ko_sfx, &kobj->ko_sfx_len,
+        &vdata, &vlen);
     if (kvi->kvi_eof) {
         if (tp.verbose >= VERBOSE_PER_KEY2)
             printf("iter_next_key src %d ent %d EOF\n", iter->src, nth_key);
@@ -884,7 +622,7 @@ _kvset_iter_next_key(struct kv_iterator *kvi, struct key_obj *kobj, struct kvset
      *
      * See also _kvset_iter_next_vref, which unpacks this data.
      */
-    vc->kmd = (void *)(uintptr_t)iter->kvset_node;
+    vc->kmd = (void *)iter->kvset_node;
     vc->nvals = 0;
     vc->off = nth_key;
     vc->next = 0;
@@ -914,7 +652,7 @@ _kvset_iter_next_vref(
      *
      * See also _kvset_iter_next_key(), which packs this data.
      */
-    int kvset_node = (int)(uintptr_t)vc->kmd;
+    cJSON *kvset_node = (cJSON *)vc->kmd;
     int nth_key = vc->off;
     int nth_val = vc->next;
 
@@ -922,8 +660,7 @@ _kvset_iter_next_vref(
     const void *lvdata;
     uint        vlen;
 
-    eof = -1;
-    kvset_get_nth_val(kvset_node, nth_key, nth_val, &eof, seq, vtype, &lvdata, &vlen);
+    eof = kvset_get_nth_val(kvset_node, nth_key, nth_val, seq, vtype, &lvdata, &vlen);
     if (eof)
         return false;
 
@@ -935,7 +672,13 @@ _kvset_iter_next_vref(
              *   vlen_out == nth_val
              * See also _kvset_builder_add_vref(), which unpacks this data.
              */
-            *vbidx = kvset_node;
+            for (int i = 0; i < cJSON_GetArraySize(tp.inp_kvset_nodev); i++) {
+                if (cJSON_GetArrayItem(tp.inp_kvset_nodev, i) == kvset_node) {
+                    *vbidx = i;
+                    break;
+                }
+            }
+
             *vboff = nth_key;
             *vlen_out = nth_val;
             break;
@@ -976,7 +719,7 @@ _kvset_iter_val_get(
      * See _kvset_iter_val_get() which supplies the location of value
      * See also _kvset_iter_next_key(), which packs this data.
      */
-    int kvset_node;
+    cJSON* kvset_node;
     int nth_key;
     int nth_val;
     u64 seq;
@@ -989,12 +732,11 @@ _kvset_iter_val_get(
      */
 
     if (vtype == VTYPE_UCVAL) {
-        kvset_node = vbidx;
+        kvset_node = cJSON_GetArrayItem(tp.inp_kvset_nodev, vbidx);
         nth_key = vboff;
         nth_val = *vlen_out;
 
-        end = false;
-        kvset_get_nth_val(kvset_node, nth_key, nth_val, &end, &seq, &vtype, &vdata, vlen_out);
+        end = kvset_get_nth_val(kvset_node, nth_key, nth_val, &seq, &vtype, &vdata, vlen_out);
         if (end)
             return 0;
     }
@@ -1078,7 +820,7 @@ kv_spill_test_kvi_create(
 
     iter->test = tp;
     iter->src = src;
-    iter->kvset_node = tp->inp_kvset_nodev[src];
+    iter->kvset_node = cJSON_GetArrayItem(tp->inp_kvset_nodev, src);
     iter->cursor = 0;
 
     iter->kvi.kvi_ops = &kvi_ops;
@@ -1331,37 +1073,27 @@ run_testcase(struct mtf_test_info *lcl_ti, int mode, const char *info)
 static void
 setup_tcase(struct mtf_test_info *lcl_ti)
 {
-    load_yaml(lcl_ti);
-    process_yaml();
+    load_json(lcl_ti);
+    process_json();
 }
 
 static void
 teardown_tcase(struct mtf_test_info *lcl_ti)
 {
-    yaml_document_delete(&tp.doc);
-    memset(&tp.doc, 0, sizeof(tp.doc));
+    cJSON_Delete(tp.doc);
+    tp.doc = NULL;
 }
 
 static void
 run_all_tcases(struct mtf_test_info *lcl_ti)
 {
-    int i;
-
-    for (i = 0; i < tp.test_filec; i++) {
-
+    for (int i = 0; i < tp.test_filec; i++) {
         tp.test_number = i;
 
         if (tp.verbose >= VERBOSE_PER_FILE1)
             printf("Test File: %s\n", tp.test_filev[i]);
 
         setup_tcase(lcl_ti);
-
-        if (tp.verbose >= VERBOSE_PER_FILE2)
-            print_meta();
-        if (tp.verbose >= VERBOSE_MAX) {
-            print_input_kvsets();
-            print_ouput_kvset();
-        }
 
         tp.pfx_len = tp.pfx_len >= 0 ? tp.pfx_len : 0;
         run_testcase(lcl_ti, MODE_SPILL, "spill");

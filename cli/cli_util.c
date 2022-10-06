@@ -7,43 +7,34 @@
 #include <errno.h>
 #include <limits.h>
 
+#include <cjson/cJSON.h>
+
+#include <hse/hse.h>
 #include <hse/cli/rest/api.h>
 #include <hse/cli/rest/client.h>
 #include <hse/error/merr.h>
+#include <hse/experimental.h>
+#include <hse/pidfile/pidfile.h>
 #include <hse_util/inttypes.h>
-#include <hse_util/yaml.h>
 #include <hse_util/arch.h>
 #include <hse_util/parse_num.h>
-
-#include <hse/hse.h>
-#include <hse/experimental.h>
-
-#include <hse/pidfile/pidfile.h>
-
-#include <bsd/string.h>
 
 static hse_err_t
 kvdb_info_props(
     const char          *kvdb_home,
     const size_t         paramc,
-    const char *const   *paramv,
-    struct yaml_context *yc)
+    const char *const   *paramv)
 {
+    size_t namec;
+    char **namev;
+    hse_err_t err;
     struct hse_kvdb *hdl;
-    size_t           kvs_cnt;
-    char **          kvs_list;
-    hse_err_t        err;
-    int              i;
-    struct pidfile   content;
+    struct pidfile content;
     bool used_rest = false;
 
     err = hse_kvdb_open(kvdb_home, paramc, paramv, &hdl);
-    if (err && hse_err_to_errno(err) != EEXIST && hse_err_to_errno(err) != ENODATA &&
-        hse_err_to_errno(err) != EBUSY)
+    if (err && hse_err_to_errno(err) != EBUSY)
         return err;
-
-    yaml_start_element_type(yc, "kvdb");
-    yaml_start_element(yc, "home", kvdb_home);
 
     if (err) {
         err = pidfile_deserialize(kvdb_home, &content);
@@ -53,108 +44,63 @@ kvdb_info_props(
                 "Failed to find the REST UNIX socket for the KVDB (%s). Ensure the KVDB is open in "
                 "a process.\n",
                 kvdb_home);
-            goto exit;
+            return err;
         }
 
         if (content.rest.socket_path[0] == '\0') {
             err = ENOENT;
             fprintf(stderr, "HSE socket is disabled in PID %d\n", content.pid);
-            goto exit;
+            return err;
         }
 
         err = rest_client_init(content.rest.socket_path);
         if (err) {
             fprintf(stderr, "Failed to initialize the rest client\n");
-            goto exit;
+            return err;
         }
-
-        err = rest_kvdb_get_kvs_names(&kvs_cnt, &kvs_list, content.alias);
-        if (err)
-            goto exit;
 
         used_rest = true;
+
+        err = rest_kvdb_get_kvs_names(&namec, &namev, content.alias);
+        if (err)
+            goto out;
     } else {
-        err = hse_kvdb_kvs_names_get(hdl, &kvs_cnt, &kvs_list);
-        if (err) {
-            hse_kvdb_close(hdl);
-            goto exit;
-        }
+        err = hse_kvdb_kvs_names_get(hdl, &namec, &namev);
+        if (err)
+            goto out;
     }
 
-    yaml_start_element_type(yc, "kvslist");
+    for (size_t i = 0; i < namec; i++)
+        printf("%s\n", namev[i]);
 
-    for (i = 0; i < kvs_cnt; i++)
-        yaml_element_list(yc, kvs_list[i]);
-
-    yaml_end_element(yc);
-    yaml_end_element_type(yc); /* kvslist */
-
+out:
     if (!used_rest) {
-        hse_kvdb_kvs_names_free(hdl, kvs_list);
+        hse_kvdb_kvs_names_free(hdl, namev);
+        hse_kvdb_close(hdl);
     } else {
-        rest_kvdb_free_kvs_names(kvs_list);
-    }
-
-    hse_kvdb_close(hdl);
-
-exit:
-    yaml_end_element(yc);
-    yaml_end_element_type(yc); /* kvdb */
-
-    if (used_rest)
+        rest_kvdb_free_kvs_names(namev);
         rest_client_fini();
+    }
 
     return err;
 }
 
-bool
+hse_err_t
 kvdb_info_print(
     const char *         kvdb_home,
     const size_t         paramc,
-    const char *const *  paramv,
-    struct yaml_context *yc)
+    const char *const *  paramv)
 {
     hse_err_t err;
 
-    err = kvdb_info_props(kvdb_home, paramc, paramv, yc);
+    err = kvdb_info_props(kvdb_home, paramc, paramv);
     if (err) {
         char buf[256];
-
-        if (hse_err_to_errno(err) == ENOENT)
-            return false;
-
         hse_strerror(err, buf, sizeof(buf));
-        yaml_field_fmt(yc, "error", "\"kvdb_info_props failed: %s\"", buf);
+        fprintf(stderr, "Failed to get KVDB (%s) info: %s\n", kvdb_home, buf);
     }
 
-    return true;
-}
-
-static void
-rest_status_yaml(struct hse_kvdb_compact_status *status, char *buf, size_t bufsz)
-{
-    struct yaml_context yc = {
-        .yaml_indent = 0,
-        .yaml_offset = 0,
-        .yaml_buf = buf,
-        .yaml_buf_sz = bufsz,
-        .yaml_emit = NULL,
-    };
-
-    uint lwm = status->kvcs_samp_lwm;
-    uint hwm = status->kvcs_samp_hwm;
-    uint cur = status->kvcs_samp_curr;
-
-    yaml_start_element_type(&yc, "compact_status");
-
-    yaml_field_fmt(&yc, "samp_lwm", "%u.%02u", lwm / 100, lwm % 100);
-    yaml_field_fmt(&yc, "samp_hwm", "%u.%02u", hwm / 100, hwm % 100);
-    yaml_field_fmt(&yc, "samp_curr", "%u.%02u", cur / 100, cur % 100);
-    yaml_field_fmt(&yc, "request_active", "%u", status->kvcs_active);
-    yaml_field_fmt(&yc, "request_canceled", "%u", status->kvcs_canceled);
-
-    yaml_end_element(&yc);
-    yaml_end_element_type(&yc);
+    return err;
 }
 
 int
@@ -165,11 +111,10 @@ kvdb_compact_request(const char *kvdb_home, const char *request_type, u32 timeou
     struct hse_kvdb_compact_status status;
     struct pidfile                 content;
 
-    char   stat_buf[256];
     u64    stop_ts;
     uint   sleep_secs = 2;
-    char **kvs_list;
-    size_t kvs_cnt;
+    char **namev;
+    size_t namec;
 
     err = hse_kvdb_open(kvdb_home, 0, NULL, &handle);
     if (err) {
@@ -184,9 +129,7 @@ kvdb_compact_request(const char *kvdb_home, const char *request_type, u32 timeou
 
     /* If this process has opened the KVDB, open all KVSes too. */
     if (handle) {
-        int i;
-
-        err = hse_err_to_errno(hse_kvdb_kvs_names_get(handle, &kvs_cnt, &kvs_list));
+        err = hse_err_to_errno(hse_kvdb_kvs_names_get(handle, &namec, &namev));
         if (err) {
             char buf[256];
             hse_strerror(err, buf, sizeof(buf));
@@ -194,14 +137,15 @@ kvdb_compact_request(const char *kvdb_home, const char *request_type, u32 timeou
             goto err_out;
         }
 
-        for (i = 0; i < kvs_cnt; i++) {
+        for (size_t i = 0; i < namec; i++) {
             struct hse_kvs *k;
 
-            err = hse_kvdb_kvs_open(handle, kvs_list[i], 0, NULL, &k);
+            err = hse_kvdb_kvs_open(handle, namev[i], 0, NULL, &k);
             if (err) {
                 char buf[256];
                 hse_strerror(err, buf, sizeof(buf));
-                fprintf(stderr, "Failed to open the KVS (%s) within the KVDB (%s): %s\n", kvs_list[i], kvdb_home, buf);
+                fprintf(stderr, "Failed to open the KVS (%s) within the KVDB (%s): %s\n", namev[i],
+                    kvdb_home, buf);
                 goto err_out;
             }
         }
@@ -301,16 +245,24 @@ kvdb_compact_request(const char *kvdb_home, const char *request_type, u32 timeou
             goto err_out;
         }
 
-        rest_status_yaml(&status, stat_buf, sizeof(stat_buf));
-
-        printf("%s", stat_buf);
+        printf(
+            "samp_lwm: %u.%03u\n"
+            "samp_hwm: %u.%03u\n"
+            "samp_curr: %u.%03u\n"
+            "active: %s\n"
+            "canceled: %s\n",
+            status.kvcs_samp_lwm / 100, status.kvcs_samp_lwm % 100,
+            status.kvcs_samp_hwm / 100, status.kvcs_samp_hwm % 100,
+            status.kvcs_samp_curr / 100, status.kvcs_samp_curr % 100,
+            status.kvcs_active ? "true" : "false",
+            status.kvcs_canceled ? "true" : "false");
     }
 
 err_out:
     rest_client_fini();
 
     if (handle) {
-        hse_kvdb_kvs_names_free(handle, kvs_list);
+        hse_kvdb_kvs_names_free(handle, namev);
         hse_kvdb_close(handle);
     }
 

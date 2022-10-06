@@ -115,7 +115,6 @@ hse_dependencies = [
     hse_pidfile_dep,
     hse_rest_dep,
     liburcu_bp_dep,
-    libyaml_dep,
     m_dep,
     threads_dep,
     rbtree_dep,

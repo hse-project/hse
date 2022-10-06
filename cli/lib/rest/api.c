@@ -298,9 +298,9 @@ kvdb_get_kvs_names_cb(
 {
     int len;
     merr_t err;
+    char *name;
     cJSON *body;
-    char **namev;
-    char *buf = NULL;
+    char **namev = NULL;
     const struct kvdb_get_kvs_names_arg *inputs = arg;
 
     err = status_to_error(status);
@@ -319,22 +319,23 @@ kvdb_get_kvs_names_cb(
     assert(cJSON_IsArray(body));
 
     len = cJSON_GetArraySize(body);
-    buf = calloc(len, sizeof(*namev) + HSE_KVS_NAME_LEN_MAX);
-    if (!buf) {
+    namev = calloc(len, sizeof(*namev) + HSE_KVS_NAME_LEN_MAX);
+    if (!namev) {
         err = merr(ENOMEM);
         goto out;
     }
 
-    namev = &buf;
+    /* Seek to start of the section holding the strings */
+    name = (char *)(namev + len);
     for (int i = 0; i < len; i++) {
         cJSON *elem;
 
         elem = cJSON_GetArrayItem(body, i);
-        namev[i] = buf + i * HSE_KVS_NAME_LEN_MAX;
-
         assert(cJSON_IsString(elem));
 
-        strlcpy(namev[i], cJSON_GetStringValue(elem), HSE_KVS_NAME_LEN_MAX);
+        strlcpy(name, cJSON_GetStringValue(elem), HSE_KVS_NAME_LEN_MAX);
+        namev[i] = name;
+        name += HSE_KVS_NAME_LEN_MAX;
     }
 
     *inputs->namec = len;
@@ -342,7 +343,7 @@ kvdb_get_kvs_names_cb(
 
 out:
     if (err)
-        free(buf);
+        free(namev);
 
     cJSON_Delete(body);
 

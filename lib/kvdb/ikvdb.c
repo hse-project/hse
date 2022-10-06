@@ -2066,7 +2066,7 @@ ikvdb_kvs_names_get(struct ikvdb *handle, size_t *namec, char ***namev)
 
     kvsv = calloc(HSE_KVS_COUNT_MAX, sizeof(*kvsv) + HSE_KVS_NAME_LEN_MAX);
     if (!kvsv)
-        return merr(ev(ENOMEM));
+        return merr(ENOMEM);
 
     mutex_lock(&self->ikdb_lock);
 
@@ -2077,9 +2077,8 @@ ikvdb_kvs_names_get(struct ikvdb *handle, size_t *namec, char ***namev)
         goto out;
     }
 
-    /* seek to start of the section holding the strings */
-    name = (char *)&kvsv[self->ikdb_kvs_cnt];
-
+    /* Seek to start of the section holding the strings */
+    name = (char *)(kvsv + self->ikdb_kvs_cnt);
     for (i = 0; i < HSE_KVS_COUNT_MAX; i++) {
         struct kvdb_kvs *kvs = self->ikdb_kvs_vec[i];
 
