@@ -24,6 +24,14 @@
 size_t
 fmt_pe(void *dst, size_t dst_len, const void *src, size_t src_len);
 
+/* Return max buffer size needed to format @len bytes of data */
+static inline size_t
+fmt_pe_buf_size(size_t len)
+{
+    return 3 * len + 1;
+}
+
+
 /**
  * fmt_hexp - format binary data as a null-terminated printable hex string
  * @dst:     output buffer
@@ -55,10 +63,18 @@ fmt_hexp(
     const char *grp_sep,
     const char *suffix);
 
-static inline int
+static inline size_t
 fmt_hex(char *dst, size_t dst_len, const void *src, size_t src_len)
 {
     return fmt_hexp(dst, dst_len, src, src_len, "0x", 8, "-", "");
+}
+
+/* Return max buffer size needed to format @len bytes of data */
+static inline size_t
+fmt_hex_buf_size(size_t len)
+{
+    /* "0x" + hex_bytes + dashes + NULL */
+    return 2 + 2 * len + (len / 8) + 1;
 }
 
 #endif

@@ -37,7 +37,7 @@ tests = {
         'suites': ['smoke', 'nightly-small'],
         'depends': [
             tool_targets['putbin'],
-            tool_targets['cndb_log'],
+            tool_targets['cndump'],
         ],
     },
     'paths': {
@@ -55,7 +55,7 @@ tests = {
         'suites': ['smoke', 'nightly-small'],
         'depends': [
             tool_targets['cn_metrics'],
-            tool_targets['cndb_log'],
+            tool_targets['cndump'],
             tool_targets['longtest'],
         ],
     },

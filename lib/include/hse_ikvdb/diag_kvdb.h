@@ -9,6 +9,8 @@
 #include <hse/limits.h>
 #include <hse/types.h>
 
+#include <hse/error/merr.h>
+
 /* Opaque handles */
 struct kvdb;
 struct cndb;

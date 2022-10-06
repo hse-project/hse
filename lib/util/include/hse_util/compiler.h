@@ -115,6 +115,13 @@
 #define HSE_WARN_UNUSED_RESULT
 #endif
 
+#if defined(__has_include) && __has_include(<stdnoreturn.h>)
+#include <stdnoreturn.h>
+#define HSE_NORETURN noreturn
+#else
+#define HSE_NORETURN
+#endif
+
 #if HSE_MOCKING
 #define MTF_STATIC              HSE_WEAK
 #else

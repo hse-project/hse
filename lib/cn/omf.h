@@ -350,6 +350,7 @@ struct vblock_footer_omf {
 /* Storing 2 keys in the footer: min and max. */
 #define VBLOCK_FOOTER_PAGES \
     (roundup(sizeof(struct vblock_footer_omf) + 2 * HSE_KVS_KEY_LEN_MAX, PAGE_SIZE) / PAGE_SIZE)
+
 #define VBLOCK_FOOTER_LEN (VBLOCK_FOOTER_PAGES * PAGE_SIZE)
 
 static_assert(VBLOCK_FOOTER_PAGES == 1, "Vblock footer cannot span multiple pages");

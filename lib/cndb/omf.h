@@ -6,8 +6,15 @@
 #ifndef HSE_KVS_CNDB_OMF_H
 #define HSE_KVS_CNDB_OMF_H
 
+#include <stdint.h>
+
 #include <hse_util/omf.h>
+#include <hse_util/compiler.h>
 #include <hse/limits.h>
+#include <hse/error/merr.h>
+
+struct mpool_mdc;
+struct kvs_cparams;
 
 /*****************************************************************
  *

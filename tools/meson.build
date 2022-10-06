@@ -51,9 +51,16 @@ tools = {
             'parm_groups.c'
         ),
     },
-     'cndb_log': {
+     'cndump': {
         'dependencies': [hse_internal_dep],
-        'sources': files('cndb_log/cndb_log.c', 'parm_groups.c'),
+         'sources': files(
+             'cndump/cndb_dump.c',
+             'cndump/cndb_reader.c',
+             'cndump/cndb_record.c',
+             'cndump/cndump.c',
+             'cndump/fatal.c',
+             'cndump/kvset_dump.c',
+         ),
      },
     'ctxn_validation': {
         'dependencies': [
