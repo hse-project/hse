@@ -766,19 +766,8 @@ cn_tree_route_get(struct cn_tree *tree, const void *key, uint keylen)
     return node;
 }
 
-/**
- * cn_tree_lookup() - search cn tree for a key
- * @tree: cn tree
- * @pc:   perf counters
- * @kt:   key to search for
- * @seq:  view sequence number
- * @res:  (output) result (found value, found tomb, or not found)
- * @qctx: query context (if this is a prefix probe)
- * @kbuf: (output) key if this is a prefix probe
- * @vbuf: (output) value if result @res == %FOUND_VAL or %FOUND_MULTIPLE
- */
 merr_t
-cn_tree_lookup(
+cn_tree_prefix_probe(
     struct cn_tree *     tree,
     struct perfc_set *   pc,
     struct kvs_ktuple *  kt,
@@ -788,30 +777,19 @@ cn_tree_lookup(
     struct kvs_buf *     kbuf,
     struct kvs_buf *     vbuf)
 {
-    enum kvdb_perfc_sidx_cnget pc_cidx;
     struct cn_tree_node *node;
     struct key_disc kdisc;
     uint64_t pc_start;
     void *lock, *wbti;
     merr_t err;
-    bool is_probe = !!qctx;
 
     *res = NOT_FOUND;
 
     pc_start = perfc_lat_startu(pc, PERFC_LT_CNGET_GET);
-    pc_cidx = PERFC_LT_CNGET_GET_LEAF + 1;
 
-    if (is_probe) {
-        err = kvset_wbti_alloc(&wbti);
-        if (ev(err))
-            return err;
-    } else {
-        if (pc_start > 0) {
-            if (perfc_ison(pc, PERFC_LT_CNGET_GET_ROOT))
-                pc_cidx = PERFC_LT_CNGET_GET_ROOT;
-        }
-        wbti = NULL;
-    }
+    err = kvset_wbti_alloc(&wbti);
+    if (ev(err))
+        return err;
 
     key_disc_init(kt->kt_data, kt->kt_len, &kdisc);
 
@@ -820,7 +798,6 @@ cn_tree_lookup(
     err = 0;
 
     while (node) {
-        struct route_node *rn = node->tn_route_node;
         struct kvset_list_entry *le;
 
         /* Search kvsets from newest to oldest (head to tail).
@@ -829,24 +806,15 @@ cn_tree_lookup(
         list_for_each_entry(le, &node->tn_kvset_list, le_link) {
             struct kvset *kvset = le->le_kvset;
 
-            if (is_probe) {
-                err = kvset_pfx_lookup(kvset, kt, &kdisc, seq, res, wbti, kbuf, vbuf, qctx);
-                if (err || qctx->seen > 1 || *res == FOUND_PTMB)
-                    goto done;
-            } else {
-                err = kvset_lookup(kvset, kt, &kdisc, seq, res, vbuf);
-                if (err || *res != NOT_FOUND)
-                    goto done;
+            err = kvset_pfx_lookup(kvset, kt, &kdisc, seq, res, wbti, kbuf, vbuf, qctx);
+            if (err || qctx->seen > 1 || *res == FOUND_PTMB)
+                goto done;
 
-                pc_cidx++;
-            }
         }
 
         if (cn_node_isleaf(node)) {
             int rc;
-
-            if (!is_probe)
-                break;
+            struct route_node *rn = node->tn_route_node;
 
             rc = route_node_keycmp_prefix(kt->kt_data, kt->kt_len, rn);
             if (rc < 0)
@@ -869,18 +837,90 @@ cn_tree_lookup(
   done:
     rmlock_runlock(lock);
 
-    if (is_probe) {
-        perfc_lat_record(pc, PERFC_LT_CNGET_PROBE_PFX, pc_start);
-        kvset_wbti_free(wbti);
-    } else {
-        if (pc_start > 0) {
-            uint pc_cidx_lt = (*res == NOT_FOUND) ? PERFC_LT_CNGET_MISS : PERFC_LT_CNGET_GET;
+    perfc_lat_record(pc, PERFC_LT_CNGET_PROBE_PFX, pc_start);
+    kvset_wbti_free(wbti);
 
-            perfc_lat_record(pc, pc_cidx_lt, pc_start);
+    perfc_inc(pc, *res);
 
-            if (pc_cidx < PERFC_LT_CNGET_GET_LEAF + 1)
-                perfc_lat_record(pc, pc_cidx, pc_start);
+    return err;
+}
+
+/**
+ * cn_tree_lookup() - search cn tree for a key
+ * @tree: cn tree
+ * @pc:   perf counters
+ * @kt:   key to search for
+ * @seq:  view sequence number
+ * @res:  (output) result (found value, found tomb, or not found)
+ * @qctx: query context (if this is a prefix probe)
+ * @kbuf: (output) key if this is a prefix probe
+ * @vbuf: (output) value if result @res == %FOUND_VAL or %FOUND_MULTIPLE
+ */
+merr_t
+cn_tree_lookup(
+    struct cn_tree *     tree,
+    struct perfc_set *   pc,
+    struct kvs_ktuple *  kt,
+    uint64_t             seq,
+    enum key_lookup_res *res,
+    struct kvs_buf *     kbuf,
+    struct kvs_buf *     vbuf)
+{
+    enum kvdb_perfc_sidx_cnget pc_cidx;
+    struct cn_tree_node *node;
+    struct key_disc kdisc;
+    uint64_t pc_start;
+    void *lock;
+    merr_t err;
+
+    *res = NOT_FOUND;
+
+    pc_start = perfc_lat_startu(pc, PERFC_LT_CNGET_GET);
+    pc_cidx = PERFC_LT_CNGET_GET_LEAF + 1;
+
+    if (pc_start > 0) {
+        if (perfc_ison(pc, PERFC_LT_CNGET_GET_ROOT))
+            pc_cidx = PERFC_LT_CNGET_GET_ROOT;
+    }
+
+    key_disc_init(kt->kt_data, kt->kt_len, &kdisc);
+
+    rmlock_rlock(&tree->ct_lock, &lock);
+    node = tree->ct_root;
+    err = 0;
+
+    while (node) {
+        struct kvset_list_entry *le;
+
+        /* Search kvsets from newest to oldest (head to tail).
+         * If an error occurs or a key is found, return immediately.
+         */
+        list_for_each_entry(le, &node->tn_kvset_list, le_link) {
+            struct kvset *kvset = le->le_kvset;
+
+            err = kvset_lookup(kvset, kt, &kdisc, seq, res, vbuf);
+            if (err || *res != NOT_FOUND)
+                goto done;
+
+            pc_cidx++;
         }
+
+        if (cn_node_isleaf(node))
+            break;
+
+        node = cn_tree_node_lookup(tree, kt->kt_data, kt->kt_len);
+    }
+
+  done:
+    rmlock_runlock(lock);
+
+    if (pc_start > 0) {
+        uint pc_cidx_lt = (*res == NOT_FOUND) ? PERFC_LT_CNGET_MISS : PERFC_LT_CNGET_GET;
+
+        perfc_lat_record(pc, pc_cidx_lt, pc_start);
+
+        if (pc_cidx < PERFC_LT_CNGET_GET_LEAF + 1)
+            perfc_lat_record(pc, pc_cidx, pc_start);
     }
 
     perfc_inc(pc, *res);
@@ -1821,7 +1861,12 @@ cn_comp_cleanup(struct cn_compaction_work *w)
             /* unmark input kvsets */
             for (uint kx = 0; kx < w->cw_kvset_cnt; kx++) {
                 assert(le);
-                assert(kvset_get_workid(le->le_kvset) != 0);
+
+                /* A zspill may have been interrupted after moving kvsets to its znode. In which
+                 * case cn_move() has already reset the workid in the kvsets.
+                 */
+                assert(w->cw_action == CN_ACTION_ZSPILL || kvset_get_workid(le->le_kvset) != 0);
+
                 kvset_set_workid(le->le_kvset, 0);
                 le = list_prev_entry_or_null(le, le_link, &w->cw_node->tn_kvset_list);
             }

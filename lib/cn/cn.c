@@ -343,7 +343,7 @@ cn_get(
     enum key_lookup_res *res,
     struct kvs_buf *     vbuf)
 {
-    return cn_tree_lookup(cn->cn_tree, &cn->cn_pc_get, kt, seq, res, NULL, NULL, vbuf);
+    return cn_tree_lookup(cn->cn_tree, &cn->cn_pc_get, kt, seq, res, NULL, vbuf);
 }
 
 merr_t
@@ -356,7 +356,7 @@ cn_pfx_probe(
     struct kvs_buf *     kbuf,
     struct kvs_buf *     vbuf)
 {
-    return cn_tree_lookup(cn->cn_tree, &cn->cn_pc_get, kt, seq, res, qctx, kbuf, vbuf);
+    return cn_tree_prefix_probe(cn->cn_tree, &cn->cn_pc_get, kt, seq, res, qctx, kbuf, vbuf);
 }
 
 merr_t
