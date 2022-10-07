@@ -478,7 +478,7 @@ kvs_pfx_probe(
     struct lc *       lc = kvs->ikv_lc;
     struct cn *       cn = kvs->ikv_cn;
     uintptr_t         seqnoref = 0;
-    struct query_ctx  qctx = {0};
+    struct query_ctx  qctx = { 0 };
     u64               tstart;
     merr_t            err;
 

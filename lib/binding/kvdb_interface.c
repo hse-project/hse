@@ -1274,18 +1274,22 @@ hse_kvs_prefix_probe(
         break;
     case FOUND_VAL:
         *found = HSE_KVS_PFX_FOUND_ONE;
-        *key_len = kbuf.b_len;
-        *val_len = vbuf.b_len;
+        if (key_len)
+            *key_len = kbuf.b_len;
+        if (val_len)
+            *val_len = vbuf.b_len;
         break;
     case FOUND_MULTIPLE:
         *found = HSE_KVS_PFX_FOUND_MUL;
-        *key_len = kbuf.b_len;
-        *val_len = vbuf.b_len;
+        if (key_len)
+            *key_len = kbuf.b_len;
+        if (val_len)
+            *val_len = vbuf.b_len;
         break;
     }
 
     PERFC_INCADD_RU(&kvdb_pc, PERFC_RA_KVDBOP_KVS_PFXPROBE, PERFC_RA_KVDBOP_KVS_GETB,
-                    *key_len + *val_len);
+                    kbuf.b_len + vbuf.b_len);
 
     return 0;
 }
