@@ -13,24 +13,30 @@ kvdb_create
 
 keys=10
 
-kvs=$(kvs_create smoke-0)
+kvs1=$(kvs_create smoke-0)
 kvs2=$(kvs_create smoke-1)
 
-cmd putbin "-c$keys" "$home" "$kvs"
+cmd hse kvdb info "$home" | cmd grep "$kvs1"
+cmd hse kvdb info "$home" | cmd grep "$kvs2"
+
+# load kvs1 and kvs2
+cmd putbin "-c$keys" "$home" "$kvs1"
 cmd putbin "-c$keys" "$home" "$kvs2"
 
-# validate
-cmd putbin -V "-c$keys" "$home" "$kvs"
-cmd putbin -V "-c$keys" "$home" "$kvs2"
+# verify kvs1
+cmd putbin -V "-c$keys" "$home" "$kvs1"
+cmd hse kvdb info "$home" | cmd grep "$kvs1"
 
+# verify kvs2
+cmd putbin -V "-c$keys" "$home" "$kvs2"
+cmd hse kvdb info "$home" | cmd grep "$kvs2"
+
+# drop kvs2
 kvs_drop "$kvs2"
 
-# validate cndb and that cnid 1 keys exist
-cmd putbin -V "-c$keys" "$home" "$kvs"
+# verify kvs1
+cmd putbin -V "-c$keys" "$home" "$kvs1"
+cmd hse kvdb info "$home" | cmd grep "$kvs1"
 
-# verify that kvs2 has been deleted
-cmd cndb_log "$home" | cmd grep 'kvs_del'
-
-numkvs=$(hse kvdb info "$home" | sed -n '/kvslist/,$p' | wc -l)
-numkvs=$((numkvs - 1))
-[[ $numkvs == 1 ]] || err "Expected 1 kvs, found $numkvs"
+# Verify kvs2 does not exist
+cmd hse kvdb info "$home" | cmd -e grep "$kvs2"

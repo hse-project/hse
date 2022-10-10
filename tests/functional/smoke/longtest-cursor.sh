@@ -22,5 +22,4 @@ kmin=6
 kmax=8
 
 cmd longtest "$home" "$kvs" -t "$threads" -i "$iter" -c "$keys" "--kmin=$kmin" "--kmax=$kmax" --cursor
-# cmd cndb_log -c "$home"
 cmd cn_metrics "$home" "$kvs"
