@@ -10,6 +10,7 @@
 
 #include <hse/hse.h>
 #include <hse/cli/rest/api.h>
+#include <hse/cli/rest/client.h>
 #include <hse/cli/tprint.h>
 #include <hse/pidfile/pidfile.h>
 
@@ -33,6 +34,8 @@ hse_storage_info(const char *const kvdb_home)
     const char *            values[NELEM(headers) * HSE_MCLASS_COUNT];
     HSE_MAYBE_UNUSED size_t n;
     bool                    mc_present[HSE_MCLASS_COUNT] = { 0 };
+    bool                    used_rest = false;
+    char                    buf[256];
 
     INVARIANT(kvdb_home);
 
@@ -45,7 +48,6 @@ hse_storage_info(const char *const kvdb_home)
                     err = 0;
                     continue;
                 }
-
                 goto out;
             }
 
@@ -57,20 +59,41 @@ hse_storage_info(const char *const kvdb_home)
         if (err)
             goto out;
 
-        for (int i = HSE_MCLASS_BASE; i < HSE_MCLASS_COUNT; i++) {
-            struct hse_mclass_info *data = &info[i];
+        if (content.rest.socket_path[0] == '\0') {
+            err = ENOENT;
+            fprintf(stderr, "HSE socket is disabled in PID %d\n", content.pid);
+            goto out;
+        }
 
-            err = rest_kvdb_get_mclass_info(data, content.alias, i);
-            if (hse_err_to_errno(err) == ENOENT) {
-                continue;
-            } else {
+        err = rest_client_init(content.rest.socket_path);
+        if (err) {
+            fprintf(stderr, "Failed to initialize the rest client\n");
+            goto out;
+        }
+
+        used_rest = true;
+
+        for (int i = HSE_MCLASS_BASE; i < HSE_MCLASS_COUNT; i++) {
+            err = rest_kvdb_get_mclass_info(&info[i], content.alias, i);
+            if (err) {
+                if (hse_err_to_errno(err) == ENOENT) {
+                    err = 0;
+                    continue;
+                }
                 goto out;
             }
+
+            if (info[i].mi_allocated_bytes > 0)
+                mc_present[i] = true;
         }
     } else {
         if (hse_err_to_errno(err) == ENOENT)
             fprintf(stderr, "No such KVDB (%s)\n", kvdb_home);
-        return hse_err_to_errno(err);
+        else {
+            hse_strerror(err, buf, sizeof(buf));
+            fprintf(stderr, "Unable to open KVDB, %s\n", buf);
+        }
+        goto out;
     }
 
     rowid = 0;
@@ -111,6 +134,9 @@ hse_storage_info(const char *const kvdb_home)
     err = tprint(stdout, rowid, NELEM(headers), headers, values, justify, NULL);
 
 out:
+    if (used_rest)
+        rest_client_fini();
+
     if (kvdb)
         hse_kvdb_close(kvdb);
 
