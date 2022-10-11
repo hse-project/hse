@@ -410,7 +410,7 @@ kvset_builder_finish(struct kvset_builder *imp)
                 }
 
                 if (!err) {
-                    imp->vtotal = vbb_wlen_get(imp->vbb);
+                    imp->vtotal = vbb_vlen_get(imp->vbb);
                 } else {
                     delete_mblocks(cn_get_dataset(imp->cn), &imp->vblk_list);
                     return err;
