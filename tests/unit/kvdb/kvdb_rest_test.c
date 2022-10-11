@@ -155,12 +155,12 @@ check_compaction_status_cb(
     active = cJSON_GetObjectItemCaseSensitive(body, "active");
     canceled = cJSON_GetObjectItemCaseSensitive(body, "canceled");
 
-    if (!cJSON_IsNumber(samp_lwm_pct) || cJSON_GetNumberValue(samp_lwm_pct) != 117) {
+    if (!cJSON_IsNumber(samp_lwm_pct) || cJSON_GetNumberValue(samp_lwm_pct) != 1178) {
         err = merr(EINVAL);
         goto out;
     }
 
-    if (!cJSON_IsNumber(samp_hwm_pct) || cJSON_GetNumberValue(samp_hwm_pct) != 137) {
+    if (!cJSON_IsNumber(samp_hwm_pct) || cJSON_GetNumberValue(samp_hwm_pct) != 1375) {
         err = merr(EINVAL);
         goto out;
     }

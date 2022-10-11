@@ -102,6 +102,7 @@ struct vblock_builder {
     off_t                      wbuf_off;
     unsigned int               wbuf_len;
     uint64_t                   vgroup;
+    uint64_t                   tot_wlen;
     bool                       destruct;
     uint32_t                   cur_minklen;
     char                       cur_minkey[HSE_KVS_KEY_LEN_MAX];
@@ -252,6 +253,8 @@ vblock_finish(struct vblock_builder *bld, const struct key_obj *max_kobj)
     buflen = bld->wbuf_len;
     bld->wbuf_len = bld->wbuf_off + VBLOCK_FOOTER_LEN;
     err = vblock_write(bld);
+    if (!err)
+        bld->tot_wlen += (bld->wbuf_len - VBLOCK_FOOTER_LEN);
     bld->wbuf_len = buflen;
 
     bld->blkid = 0;
@@ -373,6 +376,7 @@ vbb_add_entry(
             err = vblock_write(bld);
             if (ev(err))
                 return err;
+            bld->tot_wlen += bld->wbuf_len;
         }
     }
 
@@ -443,6 +447,12 @@ void
 vbb_set_merge_stats(struct vblock_builder *bld, struct cn_merge_stats *stats)
 {
     bld->mstats = stats;
+}
+
+uint64_t
+vbb_wlen_get(const struct vblock_builder *bld)
+{
+    return bld->tot_wlen;
 }
 
 #if HSE_MOCKING

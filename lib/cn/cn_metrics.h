@@ -37,6 +37,7 @@ struct kvset_stats {
     uint64_t kst_valen;     //<! sum of mpr_alloc_cap for all vblocks
     uint64_t kst_vwlen;     //<! sum of mpr_write_len for all vblocks
     uint64_t kst_vulen;     //<! total referenced data in all vblocks
+    uint64_t kst_vgarb;     //<! total unreferenced data in all vblocks
     uint32_t kst_kvsets;    //<! number of kvsets (for node-level)
     uint32_t kst_hblks;     //<! number of hblocks
     uint32_t kst_kblks;     //<! number of kblocks

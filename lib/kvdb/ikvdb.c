@@ -2433,6 +2433,12 @@ is_compression_allowed(const struct kvdb_kvs *const kk, const unsigned int flags
         (kk->kk_vcomp_default == VCOMP_DEFAULT_ON && !(flags & HSE_KVS_PUT_VCOMP_OFF));
 }
 
+#if CN_SMALL_VALUE_THRESHOLD > 15
+#define VCOMP_VALUE_THRESHOLD   (CN_SMALL_VALUE_THRESHOLD)
+#else
+#define VCOMP_VALUE_THRESHOLD   (15)
+#endif
+
 merr_t
 ikvdb_kvs_put(
     struct hse_kvs *           handle,
@@ -2481,7 +2487,7 @@ ikvdb_kvs_put(
     vbufsz = tls_vbufsz;
     vbuf = NULL;
 
-    if (clen == 0 && vlen > CN_SMALL_VALUE_THRESHOLD && is_compression_allowed(kk, flags)) {
+    if (clen == 0 && vlen > VCOMP_VALUE_THRESHOLD && is_compression_allowed(kk, flags)) {
         if (vlen > kk->kk_vcompbnd) {
             vbufsz = vlen + PAGE_SIZE * 2;
             vbuf = vlb_alloc(vbufsz);

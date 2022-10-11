@@ -18,27 +18,26 @@
 
 #include "utils.h"
 
-#define IGNORE_ME "-"
-
 #pragma GCC visibility push(default)
 
 const char *kvs_cn_tree_get_headers[] = {
-    "T", /* If this index moves, change the free func */
+    "T",
     "NODE",
-    "KVSET",
+    "IDX",
     "DGEN",
-    "COMPC",
-    "VGRPS",
+    "COMP",
     "KEYS",
     "TOMBS",
     "PTOMBS",
     "HLEN",
     "KLEN",
     "VLEN",
+    "VGARB",
     "HBLKS",
     "KBLKS",
     "VBLKS",
-    "RULE", /* If this index moves, change the free func */
+    "VGRPS",
+    "RULE",
     "EKEY",
 };
 
@@ -63,8 +62,44 @@ enum tprint_justify kvs_cn_tree_get_justify[NUM_HEADERS] = {
     TP_JUSTIFY_RIGHT,
     TP_JUSTIFY_RIGHT,
     TP_JUSTIFY_RIGHT,
+    TP_JUSTIFY_RIGHT,
     TP_JUSTIFY_LEFT,
 };
+
+/* strv_base[] is an easily extensible list of common strings used
+ * to build the tabular output array.  It helps reduce the number
+ * of calls to malloc/free, and simplifies the task of detecting
+ * that these strings must not be freed.
+ *
+ * The alignment of strv_base[] must be a power-of-two greater than
+ * or equal to its size in order for strv_contains() to work properly.
+ */
+static char strv_base[] HSE_ALIGNED(16) = {
+    'k', '\000',
+    'n', '\000',
+    't', '\000',
+    '-', '\000',
+    '-', '\n', '\000'
+};
+
+/* Named constant strings from strv_base[] for use
+ * in building the tabular output array.
+ */
+static char * const strv_kvset = strv_base;
+static char * const strv_node = strv_base + 2;
+static char * const strv_tree = strv_base + 4;
+static char * const strv_dash = strv_base + 6;
+static char * const strv_dashnl = strv_base + 8;
+
+static inline bool
+strv_contains(void *addr)
+{
+    const uintptr_t mask = __alignof__(strv_base) - 1;
+
+    /* Return true it addr resides within strv_base[].
+     */
+    return ((uintptr_t)addr & ~mask) == (uintptr_t)strv_base;
+}
 
 static merr_t
 parse_common(
@@ -88,29 +123,22 @@ parse_common(
         return merr(ENOMEM);
     *offset += 1;
 
-    item = cJSON_GetObjectItemCaseSensitive(elem, "vgroups");
-    assert(cJSON_IsNumber(item));
-    values[*offset] = rawify(item);
-    if (!values[*offset])
-        return merr(ENOMEM);
-    *offset += 1;
-
     item = cJSON_GetObjectItemCaseSensitive(elem, "keys");
-    assert(cJSON_IsNumber(item));
+    assert(cJSON_IsNumber(item) || cJSON_IsString(item));
     values[*offset] = rawify(item);
     if (!values[*offset])
         return merr(ENOMEM);
     *offset += 1;
 
     item = cJSON_GetObjectItemCaseSensitive(elem, "tombs");
-    assert(cJSON_IsNumber(item));
+    assert(cJSON_IsNumber(item) || cJSON_IsString(item));
     values[*offset] = rawify(item);
     if (!values[*offset])
         return merr(ENOMEM);
     *offset += 1;
-    item = cJSON_GetObjectItemCaseSensitive(elem, "ptombs");
-    assert(cJSON_IsNumber(item));
 
+    item = cJSON_GetObjectItemCaseSensitive(elem, "ptombs");
+    assert(cJSON_IsNumber(item) || cJSON_IsString(item));
     values[*offset] = rawify(item);
     if (!values[*offset])
         return merr(ENOMEM);
@@ -131,6 +159,13 @@ parse_common(
     *offset += 1;
 
     item = cJSON_GetObjectItemCaseSensitive(elem, "vlen");
+    assert(cJSON_IsNumber(item) || cJSON_IsString(item));
+    values[*offset] = rawify(item);
+    if (!values[*offset])
+        return merr(ENOMEM);
+    *offset += 1;
+
+    item = cJSON_GetObjectItemCaseSensitive(elem, "vgarb");
     assert(cJSON_IsNumber(item) || cJSON_IsString(item));
     values[*offset] = rawify(item);
     if (!values[*offset])
@@ -158,29 +193,37 @@ parse_common(
         return merr(ENOMEM);
     *offset += 1;
 
+    item = cJSON_GetObjectItemCaseSensitive(elem, "vgroups");
+    assert(cJSON_IsNumber(item));
+    values[*offset] = rawify(item);
+    if (!values[*offset])
+        return merr(ENOMEM);
+    *offset += 1;
+
     return 0;
 }
 
 void
 kvs_cn_tree_get_free_values(const int len, char **const values)
 {
-    if (!values)
+    if (len < 1 || !values)
         return;
 
-    for (int row = 0; row < len; row++) {
-        /* First column is a pointer to a ROM string. DO NOT FREE. */
-        for (size_t col = 1; col < kvs_cn_tree_get_columnc; col++) {
-            if ((col == 15 || col == 16) &&
-                    strcmp(values[row * kvs_cn_tree_get_columnc + col], IGNORE_ME) == 0)
-                continue;
+    assert(kvs_cn_tree_get_columnc < SIZE_MAX / len);
 
-            free(values[row * kvs_cn_tree_get_columnc + col]);
-        }
+    for (size_t n = 0; n < kvs_cn_tree_get_columnc * len; ++n) {
+        if (!strv_contains(values[n]))
+            free(values[n]);
     }
 
     free(values);
 }
 
+/* This function is called to produce a tabular representation of the tree
+ * from the JSON produced by kvs_query_tree() in kvdb_rest.c.  There are no
+ * direct callers of this function.  Instead, it is invoked through function
+ * pointers obtained via dlsym() by setup_tabular_custom().
+ */
 merr_t
 kvs_cn_tree_get_parse_values(cJSON *const body, int *const len, char ***const values)
 {
@@ -202,7 +245,7 @@ kvs_cn_tree_get_parse_values(cJSON *const body, int *const len, char ***const va
     nodes = cJSON_GetObjectItemCaseSensitive(body, "nodes");
     assert(cJSON_IsArray(nodes));
 
-    for (cJSON *n = nodes->child; n; n = n->next, (*len)++, nodec++) {
+    for (cJSON *n = nodes->child; n; n = n->next, (*len)++) {
         cJSON *kvsets;
 
         kvsets = cJSON_GetObjectItemCaseSensitive(n, "kvsets");
@@ -218,6 +261,7 @@ kvs_cn_tree_get_parse_values(cJSON *const body, int *const len, char ***const va
 
     for (cJSON *n = nodes->child; n; n = n->next) {
         cJSON *kvsets, *id, *entry;
+        uint idx = 0;
 
         kvsets = cJSON_GetObjectItemCaseSensitive(n, "kvsets");
         assert(cJSON_IsNumber(kvsets) || cJSON_IsArray(kvsets));
@@ -226,14 +270,34 @@ kvs_cn_tree_get_parse_values(cJSON *const body, int *const len, char ***const va
         assert(cJSON_IsNumber(id));
 
         if (cJSON_IsArray(kvsets)) {
-            node_kvsetc += cJSON_GetArraySize(kvsets);
+            uint prev_kvsetc = node_kvsetc;
+
+            node_kvsetc = cJSON_GetArraySize(kvsets);
+
+            /* If either this node or the previous node contained one
+             * or more kvsets then append a newline to the edge key
+             * of the previous node.
+             */
+            if ((node_kvsetc > 0 || prev_kvsetc > 0) && offset > 0) {
+                char *addr = (*values)[offset - 1];
+
+                if (strv_contains(addr)) {
+                    (*values)[offset - 1] = strv_dashnl;
+                } else {
+                    size_t len = strlen(addr);
+
+                    /* rawify() ensures there is sufficent space
+                     * to append a newline.
+                     */
+                    addr[len++] = '\n';
+                    addr[len] = '\000';
+                }
+            }
 
             for (cJSON *k = kvsets ? kvsets->child : NULL; k; k = k->next) {
                 cJSON *entry;
 
-                (*values)[offset] = "k";
-                if (!(*values)[offset])
-                    return merr(ENOMEM);
+                (*values)[offset] = strv_kvset;
                 offset += 1;
 
                 (*values)[offset] = rawify(id);
@@ -241,7 +305,7 @@ kvs_cn_tree_get_parse_values(cJSON *const body, int *const len, char ***const va
                     return merr(ENOMEM);
                 offset += 1;
 
-                rc = snprintf(buf, sizeof(buf), "%u", node_kvsetc);
+                rc = snprintf(buf, sizeof(buf), "%u", idx++);
                 assert(rc <= sizeof(buf) && rc > 0);
                 (*values)[offset] = strdup(buf);
                 if (!(*values)[offset])
@@ -259,22 +323,20 @@ kvs_cn_tree_get_parse_values(cJSON *const body, int *const len, char ***const va
                     return merr(ENOMEM);
                 offset += 1;
 
-                (*values)[offset] = IGNORE_ME;
+                (*values)[offset] = strv_dash;
                 offset += 1;
             }
         } else {
-            node_kvsetc += cJSON_GetNumberValue(kvsets);
+            node_kvsetc = cJSON_GetNumberValue(kvsets);
         }
 
-        (*values)[offset] = "n";
-        if (!(*values)[offset])
-            return merr(ENOMEM);
+        (*values)[offset] = strv_node;
         offset += 1;
 
         (*values)[offset] = rawify(id);
-            if (!(*values)[offset])
-                return merr(ENOMEM);
-            offset += 1;
+        if (!(*values)[offset])
+            return merr(ENOMEM);
+        offset += 1;
 
         rc = snprintf(buf, sizeof(buf), "%u", node_kvsetc);
         assert(rc <= sizeof(buf) && rc > 0);
@@ -287,22 +349,40 @@ kvs_cn_tree_get_parse_values(cJSON *const body, int *const len, char ***const va
         if (err)
             return err;
 
-        (*values)[offset] = IGNORE_ME;
+        (*values)[offset] = strv_dash;
         offset += 1;
 
         entry = cJSON_GetObjectItemCaseSensitive(n, "edge_key");
         assert(cJSON_IsString(entry) || cJSON_IsNull(entry));
-        (*values)[offset] = cJSON_IsString(entry) ? rawify(entry) : IGNORE_ME;
+        (*values)[offset] = cJSON_IsString(entry) ? rawify(entry) : strv_dash;
         if (!(*values)[offset])
             return merr(ENOMEM);
         offset += 1;
 
         tree_kvsetc += node_kvsetc;
+        nodec++;
     }
 
-    (*values)[offset] = "t";
-    if (!(*values)[offset])
-        return merr(ENOMEM);
+    /* If the previous node contained one or more kvsets then append
+     * a newline to the edge key of the previous node.
+     */
+    if (node_kvsetc > 0 && offset > 0) {
+        char *addr = (*values)[offset - 1];
+
+        if (strv_contains(addr)) {
+            (*values)[offset - 1] = strv_dashnl;
+        } else {
+            size_t len = strlen(addr);
+
+            /* rawify() ensures there is sufficent space
+             * to append a newline.
+             */
+            addr[len++] = '\n';
+            addr[len] = '\000';
+        }
+    }
+
+    (*values)[offset] = strv_tree;
     offset += 1;
 
     rc = snprintf(buf, sizeof(buf), "%u", nodec);
@@ -323,10 +403,10 @@ kvs_cn_tree_get_parse_values(cJSON *const body, int *const len, char ***const va
     if (err)
         return err;
 
-    (*values)[offset] = IGNORE_ME;
+    (*values)[offset] = strv_dash;
     offset += 1;
 
-    (*values)[offset] = IGNORE_ME;
+    (*values)[offset] = strv_dash;
     offset += 1;
 
     return 0;

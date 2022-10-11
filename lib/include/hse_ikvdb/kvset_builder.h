@@ -106,6 +106,7 @@ kvset_builder_adopt_vblocks(
     struct kvset_builder *self,
     size_t                num_vblocks,
     struct kvs_block     *vblocks,
+    uint64_t              vtotal,
     struct vgmap         *vgmap);
 
 /* MTF_MOCK */

@@ -871,11 +871,11 @@
                   "pointer": "/wmesg",
                   "justify": "right"
                 },
-                "ST": {
+                "S": {
                   "pointer": "/state",
                   "justify": "left"
                 },
-                "PROC": {
+                "CPU": {
                   "pointer": "/processor",
                   "justify": "right"
                 },
@@ -1176,11 +1176,11 @@
                   "pointer": "/rule",
                   "justify": "right"
                 },
-                "QNUM": {
+                "Q": {
                   "pointer": "/qnum",
                   "justify": "right"
                 },
-                "BUSY": {
+                "BSY": {
                   "pointer": "/busy",
                   "justify": "right"
                 },
@@ -1200,7 +1200,7 @@
                   "pointer": "/pcap",
                   "justify": "right"
                 },
-                "COMPC": {
+                "COMP": {
                   "pointer": "/compc",
                   "justify": "right"
                 },
@@ -2550,15 +2550,36 @@
             "nullable": false
           },
           "keys": {
-            "type": "integer",
+            "oneOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "number"
+              }
+            ],
             "nullable": false
           },
           "tombs": {
-            "type": "integer",
+            "oneOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "number"
+              }
+            ],
             "nullable": false
           },
           "ptombs": {
-            "type": "integer",
+            "oneOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "number"
+              }
+            ],
             "nullable": false
           },
           "hlen": {
@@ -2584,6 +2605,17 @@
             "nullable": false
           },
           "vlen": {
+            "oneOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "number"
+              }
+            ],
+            "nullable": false
+          },
+          "vgarb": {
             "oneOf": [
               {
                 "type": "string"

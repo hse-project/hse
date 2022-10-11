@@ -540,8 +540,9 @@ cndb_record_kvset_add(
 
     if (!cndb->replaying)
         err = cndb_omf_kvset_add_write(cndb->mdc, cndb_txn_txid_get(tx), cnid, kvsetid, nodeid,
-                                       km->km_dgen_hi, km->km_dgen_lo, km->km_vused, km->km_compc,
-                                       km->km_rule, hblkid, kblkc, kblkv, vblkc, vblkv);
+                                       km->km_dgen_hi, km->km_dgen_lo, km->km_vused, km->km_vgarb,
+                                       km->km_compc, km->km_rule,
+                                       hblkid, kblkc, kblkv, vblkc, vblkv);
 out:
     mutex_unlock(&cndb->mutex);
 
@@ -799,7 +800,8 @@ compact_incomplete_intents(
 
     err = cndb_omf_kvset_add_write(cndb->mdc, txid, kvset->ck_cnid, kvset->ck_kvsetid,
                                    kvset->ck_nodeid, kvset->ck_dgen_hi, kvset->ck_dgen_lo,
-                                   kvset->ck_vused, kvset->ck_compc, kvset->ck_rule,
+                                   kvset->ck_vused, kvset->ck_vgarb,
+                                   kvset->ck_compc, kvset->ck_rule,
                                    kvset->ck_hblkid, kvset->ck_kblkc, kvset->ck_kblkv,
                                    kvset->ck_vblkc, kvset->ck_vblkv);
 
@@ -848,7 +850,8 @@ log_full_rec(
 
     err = cndb_omf_kvset_add_write(cndb->mdc, txid, kvset->ck_cnid, kvset->ck_kvsetid,
                                    kvset->ck_nodeid, kvset->ck_dgen_hi, kvset->ck_dgen_lo,
-                                   kvset->ck_vused, kvset->ck_compc, kvset->ck_rule,
+                                   kvset->ck_vused, kvset->ck_vgarb,
+                                   kvset->ck_compc, kvset->ck_rule,
                                    kvset->ck_hblkid, kvset->ck_kblkc, kvset->ck_kblkv,
                                    kvset->ck_vblkc, kvset->ck_vblkv);
     if (ev(err))
@@ -1418,6 +1421,7 @@ cndb_cn_instantiate(struct cndb *cndb, uint64_t cnid, void *ctx, cn_init_callbac
             .km_compc = kvset->ck_compc,
             .km_rule = kvset->ck_rule,
             .km_vused = kvset->ck_vused,
+            .km_vgarb = kvset->ck_vgarb,
             .km_capped = cn->cp.kvs_ext01,
             .km_nodeid = kvset->ck_nodeid,
             .km_hblk.bk_blkid = kvset->ck_hblkid,

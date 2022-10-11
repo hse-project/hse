@@ -25,6 +25,7 @@ struct kvset_metrics {
     uint64_t tot_vused_bytes;
     uint32_t tot_wbt_pages;
     uint32_t tot_blm_pages;
+    uint64_t vgarb_bytes;
     uint32_t compc;
     uint16_t rule;
     uint16_t vgroups;
@@ -89,7 +90,7 @@ struct kvset_view {
     struct kvset *kvset;
     uint64_t      nodeid;
     uint          eklen;
-    char          ekbuf[28];
+    char          ekbuf[20];
 };
 
 #if HSE_MOCKING

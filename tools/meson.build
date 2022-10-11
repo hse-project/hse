@@ -87,6 +87,7 @@ tools = {
             hse_error_dep,
             libbsd_dep,
             libhse_cli_dep,
+	    hse_pidfile_dep,
             threads_dep,
         ],
         'export_dynamic': true,

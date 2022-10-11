@@ -13,6 +13,7 @@ struct cndb_kvset {
     uint64_t       ck_dgen_hi;
     uint64_t       ck_dgen_lo;
     uint64_t       ck_vused;
+    uint64_t       ck_vgarb;
     uint32_t       ck_compc;
     uint16_t       ck_rule;
     uint64_t       ck_hblkid;

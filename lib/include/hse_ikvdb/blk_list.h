@@ -27,6 +27,7 @@ struct kvset_mblocks {
     struct kvs_block hblk;
     struct blk_list kblks;
     struct blk_list vblks;
+    uint64_t bl_vtotal;
     uint64_t bl_vused;
     uint64_t bl_seqno_max;
     uint64_t bl_seqno_min;

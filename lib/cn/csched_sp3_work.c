@@ -168,25 +168,34 @@ sp3_work_wtype_root(
 
     znode = cn_kvset_can_zspill(le->le_kvset, rmap);
 
-    /* Look for a contiguous sequence of non-busy kvsets.
+    /* Look for a contiguous sequence of non-busy kvsets.  If le is zspillable,
+     * then terminate the search if/when we encounter a kvset that cannot be
+     * zspilled into znode.  If le is not zspillable, then terminate the search
+     * if/when we encounter a kvset that is zspillable.
      */
     while ((le = list_prev_entry_or_null(le, le_link, &tn->tn_kvset_list))) {
+        const struct cn_tree_node *zn = cn_kvset_can_zspill(le->le_kvset, rmap);
+
         if (kvset_get_workid(le->le_kvset) != 0)
             break;
 
         if (znode) {
-            const struct cn_tree_node *n = cn_kvset_can_zspill(le->le_kvset, rmap);
-
-            if (n) {
-                if (n->tn_nodeid == znode->tn_nodeid && runlen < runlen_max) {
+            if (zn) {
+                if (zn->tn_nodeid == znode->tn_nodeid && runlen < runlen_max) {
                     ++runlen;
                     continue;
-                } else {
-                    assert(runlen && runlen <= runlen_max);
-                    *action = CN_ACTION_ZSPILL;
-                    *rule = CN_RULE_ZSPILL;
-                    return runlen;
                 }
+            }
+
+            *action = CN_ACTION_ZSPILL;
+            *rule = CN_RULE_ZSPILL;
+            return runlen;
+        } else {
+            if (zn) {
+                if (wlen < VBLOCK_MAX_SIZE)
+                    *rule = CN_RULE_TSPILL; /* tiny root spill */
+                ev_debug(1);
+                return runlen;
             }
         }
 
@@ -356,7 +365,7 @@ bool
 sp3_work_splittable(struct cn_tree_node *tn, const struct sp3_thresholds *thresh)
 {
     return !tn->tn_ss_joining && (cn_ns_kvsets(&tn->tn_ns) > 0) &&
-        (cn_ns_clen(&tn->tn_ns) >= tn->tn_split_size ||
+        (cn_ns_wlen(&tn->tn_ns) >= tn->tn_split_size ||
          cn_ns_keys_uniq(&tn->tn_ns) >= thresh->lcomp_split_keys);
 }
 
@@ -586,8 +595,6 @@ sp3_work_wtype_join(
             atomic_dec(&tree->ct_split_cnt);
             cv_broadcast(&tree->ct_ss_cv);
             ev_debug(1);
-        } else {
-            assert(left->tn_ss_joining >= 0);
         }
 
         tn->tn_ss_visits = 0;
@@ -631,7 +638,13 @@ sp3_work_wtype_garbage(
     *rule = CN_RULE_GARBAGE;
     ev_debug(1);
 
-    return min_t(uint, cn_ns_kvsets(&tn->tn_ns), thresh->lcomp_runlen_max);
+    kvsets = cn_ns_kvsets(&tn->tn_ns);
+    if (kvsets > thresh->lcomp_runlen_max) {
+        *action = CN_ACTION_COMPACT_K;
+        ev_debug(1);
+    }
+
+    return min_t(uint, kvsets, thresh->lcomp_runlen_max);
 }
 
 static uint

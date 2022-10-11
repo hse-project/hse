@@ -124,6 +124,9 @@ vbb_get_agegroup(const struct vblock_builder *bld);
 void
 vbb_set_merge_stats(struct vblock_builder *bld, struct cn_merge_stats *stats);
 
+uint64_t
+vbb_wlen_get(const struct vblock_builder *bld);
+
 #if HSE_MOCKING
 #include "vblock_builder_ut.h"
 #endif /* HSE_MOCKING */
