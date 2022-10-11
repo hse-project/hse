@@ -538,6 +538,7 @@ kvset_open2(
 
     ks->ks_st.kst_kvsets = 1;
     ks->ks_st.kst_vulen = km->km_vused;
+    ks->ks_st.kst_vgarb = km->km_vgarb;
     ks->ks_st.kst_hblks = 1;
     ks->ks_st.kst_kblks = n_kblks;
     ks->ks_st.kst_vblks = n_vblks;
@@ -1877,6 +1878,7 @@ kvset_stats_add(const struct kvset_stats *add, struct kvset_stats *result)
     result->kst_valen += add->kst_valen;
     result->kst_vwlen += add->kst_vwlen;
     result->kst_vulen += add->kst_vulen;
+    result->kst_vgarb += add->kst_vgarb;
 }
 
 u64
@@ -1978,6 +1980,7 @@ kvset_get_metrics(struct kvset *ks, struct kvset_metrics *m)
     m->num_kblocks = ks->ks_st.kst_kblks;
     m->num_vblocks = ks->ks_st.kst_vblks;
     m->header_bytes = ks->ks_st.kst_hwlen;
+    m->vgarb_bytes = ks->ks_st.kst_vgarb;
     m->compc = ks->ks_compc;
     m->rule = ks->ks_rule;
     m->vgroups = kvset_get_vgroups(ks);

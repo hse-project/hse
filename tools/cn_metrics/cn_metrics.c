@@ -78,7 +78,7 @@ enum bn_fmt {
 /* Minimum column widths for hex and scalar output modes.
  */
 static int col2width[] = {
-    0, 5, 4, 5, 5, 5, 5, 6, 6, 6, 6, 4, 4, 5, 7, 5, 5
+    0, 5, 4, 5, 5, 5, 5, 6, 6, 6, 6, 6, 4, 4, 5, 7, 5, 5
 };
 
 int
@@ -274,6 +274,7 @@ rollup(struct rollup *from, struct rollup *to)
     to->km.tot_wbt_pages += from->km.tot_wbt_pages;
     to->km.tot_blm_pages += from->km.tot_blm_pages;
     to->km.tot_blm_pages += from->km.tot_blm_pages;
+    to->km.vgarb_bytes += from->km.vgarb_bytes;
     to->km.vgroups += from->km.vgroups;
     to->km.compc = max(to->km.compc, from->km.compc);
 
@@ -316,6 +317,7 @@ col2width_update(struct ctx *ctx)
         ctx->rtotal.ks.kst_halen,
         ctx->rtotal.ks.kst_kalen,
         ctx->rtotal.ks.kst_valen,
+        ctx->rtotal.ks.kst_vgarb,
         ctx->rtotal.ks.kst_kblks,
         ctx->rtotal.ks.kst_vblks,
     };
@@ -359,18 +361,18 @@ print_ids(
 
 const char *hdrv[] = {
     "H", "Node", "Idx",
-    "Dgen", "Comp", "Keys", "Tombs", "Ptombs", "HbAlen", "KbAlen", "VbAlen",
+    "Dgen", "Comp", "Keys", "Tombs", "Ptombs", "HbAlen", "KbAlen", "VbAlen", "VbGarb",
     "Kbs", "Vbs", "Vgrp", "Rule", "Kavg", "Vavg",
 };
 
 #define FMT_HDR                                    \
     "%s %5s %4s "                                  \
-    "%*s %*s %*s %*s %*s %*s %*s %*s "             \
+    "%*s %*s %*s %*s %*s %*s %*s %*s %*s "         \
     "%*s %*s %5s %7s %*s %*s"
 
 #define FMT_ROW                                         \
     "%s %5u %4u "                                       \
-    "%*lu %*u %*s %*s %*s %*s %*s %*s "                 \
+    "%*lu %*u %*s %*s %*s %*s %*s %*s %*s "             \
     "%*u %*u %5u %7s %*s %*s"
 
 #define BN(_buf, _val) bn64((_buf), sizeof((_buf)), opt.bnfmt, (_val))
@@ -387,6 +389,7 @@ print_row(struct ctx *ctx, char *tag, struct rollup *r, uint index, char *sep)
     char halen[BIGNUM_BUFSZ];
     char kalen[BIGNUM_BUFSZ];
     char valen[BIGNUM_BUFSZ];
+    char vgarb[BIGNUM_BUFSZ];
 
     char avg_klen[BIGNUM_BUFSZ];
     char avg_vlen[BIGNUM_BUFSZ];
@@ -401,6 +404,7 @@ print_row(struct ctx *ctx, char *tag, struct rollup *r, uint index, char *sep)
     BN(halen, r->ks.kst_halen);
     BN(kalen, r->ks.kst_kalen);
     BN(valen, r->ks.kst_valen);
+    BN(vgarb, r->ks.kst_vgarb);
 
     BN(avg_klen, DIVZ(r->km.tot_key_bytes, r->km.num_keys));
     BN(avg_vlen, DIVZ(r->km.tot_val_bytes, r->km.num_keys));
@@ -416,12 +420,13 @@ print_row(struct ctx *ctx, char *tag, struct rollup *r, uint index, char *sep)
         bn_width(opt.bnfmt, 8), halen,
         bn_width(opt.bnfmt, 9), kalen,
         bn_width(opt.bnfmt, 10), valen,
-        bn_width(opt.bnfmt, 11), r->ks.kst_kblks,
-        bn_width(opt.bnfmt, 12), r->ks.kst_vblks,
+        bn_width(opt.bnfmt, 11), vgarb,
+        bn_width(opt.bnfmt, 12), r->ks.kst_kblks,
+        bn_width(opt.bnfmt, 13), r->ks.kst_vblks,
         r->km.vgroups,
         (tag[0] == 'k') ? cn_rule2str(r->km.rule) : "-",
-        bn_width(opt.bnfmt, 15), avg_klen,
-        bn_width(opt.bnfmt, 16), avg_vlen);
+        bn_width(opt.bnfmt, 16), avg_klen,
+        bn_width(opt.bnfmt, 17), avg_vlen);
 
     if (opt.verbosity > 0) {
         ctx->print(" %7.1f %7.1f %7.1f %7.1f ",
@@ -451,10 +456,11 @@ print_hdr(struct ctx *ctx)
         bn_width(opt.bnfmt, 10), hdrv[10],
         bn_width(opt.bnfmt, 11), hdrv[11],
         bn_width(opt.bnfmt, 12), hdrv[12],
-        hdrv[13],
+        bn_width(opt.bnfmt, 13), hdrv[13],
         hdrv[14],
-        bn_width(opt.bnfmt, 15), hdrv[15],
-        bn_width(opt.bnfmt, 16), hdrv[16]);
+        hdrv[15],
+        bn_width(opt.bnfmt, 16), hdrv[16],
+        bn_width(opt.bnfmt, 17), hdrv[17]);
 
     if (opt.verbosity > 0) {
         ctx->print(" %7s %7s %7s %7s  %s",

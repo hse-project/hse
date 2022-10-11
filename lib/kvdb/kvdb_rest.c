@@ -963,6 +963,7 @@ struct stats {
     uint64_t hlen;
     uint64_t klen;
     uint64_t vlen;
+    uint64_t vgarb;
 };
 
 static void
@@ -970,6 +971,7 @@ u64_to_human(char *buf, size_t bufsz, uint64_t val, uint64_t thresh)
 {
     if (val >= thresh) {
         const char *sep = "\0kmgtpezy";
+
         val *= 10;
         while (val >= thresh) {
             val /= 1000;
@@ -985,45 +987,52 @@ static merr_t HSE_NONNULL(1, 2)
 stats_add_to_object(const struct stats *const stats, cJSON *const object, const bool human)
 {
     bool bad;
-    char buf[64];
 
     INVARIANT(stats);
     INVARIANT(object);
 
     bad = !cJSON_AddNumberToObject(object, "dgen", stats->dgen);
     bad |= !cJSON_AddNumberToObject(object, "compc", stats->compc);
-    bad |= !cJSON_AddNumberToObject(object, "vgroups", stats->vgroups);
-    bad |= !cJSON_AddNumberToObject(object, "keys", stats->nkeys);
-    bad |= !cJSON_AddNumberToObject(object, "tombs", stats->ntombs);
-    bad |= !cJSON_AddNumberToObject(object, "ptombs", stats->nptombs);
 
     if (human) {
-        u64_to_human(buf, sizeof(buf), stats->hlen, 10000);
+        char kbuf[64], tbuf[64], pbuf[64];
 
-        bad |= !cJSON_AddStringToObject(object, "hlen", buf);
+        u64_to_human(kbuf, sizeof(kbuf), stats->nkeys, 10000);
+        u64_to_human(tbuf, sizeof(tbuf), stats->ntombs, 10000);
+        u64_to_human(pbuf, sizeof(pbuf), stats->nptombs, 10000);
+
+        bad |= !cJSON_AddStringToObject(object, "keys", kbuf);
+        bad |= !cJSON_AddStringToObject(object, "tombs", tbuf);
+        bad |= !cJSON_AddStringToObject(object, "ptombs", pbuf);
+    } else {
+        bad |= !cJSON_AddNumberToObject(object, "keys", stats->nkeys);
+        bad |= !cJSON_AddNumberToObject(object, "tombs", stats->ntombs);
+        bad |= !cJSON_AddNumberToObject(object, "ptombs", stats->nptombs);
+    }
+
+    if (human) {
+        char hbuf[64], kbuf[64], vbuf[64], gbuf[64];
+
+        u64_to_human(hbuf, sizeof(hbuf), stats->hlen, 10000);
+        u64_to_human(kbuf, sizeof(kbuf), stats->klen, 10000);
+        u64_to_human(vbuf, sizeof(vbuf), stats->vlen, 10000);
+        u64_to_human(gbuf, sizeof(gbuf), stats->vgarb, 10000);
+
+        bad |= !cJSON_AddStringToObject(object, "hlen", hbuf);
+        bad |= !cJSON_AddStringToObject(object, "klen", kbuf);
+        bad |= !cJSON_AddStringToObject(object, "vlen", vbuf);
+        bad |= !cJSON_AddStringToObject(object, "vgarb", gbuf);
     } else {
         bad |= !cJSON_AddNumberToObject(object, "hlen", stats->hlen);
-    }
-
-    if (human) {
-        u64_to_human(buf, sizeof(buf), stats->klen, 10000);
-
-        bad |= !cJSON_AddStringToObject(object, "klen", buf);
-    } else {
         bad |= !cJSON_AddNumberToObject(object, "klen", stats->klen);
-    }
-
-    if (human) {
-        u64_to_human(buf, sizeof(buf), stats->vlen, 10000);
-
-        bad |= !cJSON_AddStringToObject(object, "vlen", buf);
-    } else {
         bad |= !cJSON_AddNumberToObject(object, "vlen", stats->vlen);
+        bad |= !cJSON_AddNumberToObject(object, "vgarb", stats->vgarb);
     }
 
     bad |= !cJSON_AddNumberToObject(object, "hblocks", stats->nhblks);
     bad |= !cJSON_AddNumberToObject(object, "kblocks", stats->nkblks);
     bad |= !cJSON_AddNumberToObject(object, "vblocks", stats->nvblks);
+    bad |= !cJSON_AddNumberToObject(object, "vgroups", stats->vgroups);
 
     return bad ? merr(ENOMEM) : 0;
 }
@@ -1042,7 +1051,6 @@ kvs_query_tree(
     struct table *tree_view;
     uint64_t num_tree_kvsets = 0;
     struct stats tree_stats = { 0 };
-    char kbuf[sizeof(((struct kvset_view *)NULL)->ekbuf) + 1];
 
     INVARIANT(kvs);
     INVARIANT(tree);
@@ -1093,8 +1101,10 @@ kvs_query_tree(
         }
 
         if (view->eklen > 0) {
-            for (size_t i = 0; i < sizeof(view->ekbuf); i++)
-                snprintf(kbuf + i, sizeof(kbuf) - i, "%x", view->ekbuf[i]);
+            char kbuf[sizeof(view->ekbuf) * 3 + 1];
+
+            fmt_hexp(kbuf, sizeof(kbuf), view->ekbuf,
+                     min_t(size_t, view->eklen, sizeof(view->ekbuf)), "", 2, ".", "");
             bad |= !cJSON_AddStringToObject(node, "edge_key", kbuf);
         } else {
             bad |= !cJSON_AddNullToObject(node, "edge_key");
@@ -1104,7 +1114,6 @@ kvs_query_tree(
          * original node after this point.
          */
         for (i += 1; i < table_len(tree_view); i++, num_node_kvsets++) {
-            char buf[64];
             cJSON *kvset;
             uint64_t dgen;
             struct kvset_metrics metrics;
@@ -1116,7 +1125,8 @@ kvs_query_tree(
             dgen = kvset_get_dgen(view->kvset);
             kvset_get_metrics(view->kvset, &metrics);
 
-            node_stats.compc += metrics.compc;
+            if (node_stats.compc < metrics.compc)
+                node_stats.compc = metrics.compc;
             node_stats.vgroups += metrics.vgroups;
             node_stats.nkeys += metrics.num_keys;
             node_stats.ntombs += metrics.num_tombstones;
@@ -1127,6 +1137,7 @@ kvs_query_tree(
             node_stats.hlen += metrics.header_bytes;
             node_stats.klen += metrics.tot_key_bytes;
             node_stats.vlen += metrics.tot_val_bytes;
+            node_stats.vgarb += metrics.vgarb_bytes;
             if (node_stats.dgen < dgen)
                 node_stats.dgen = dgen;
 
@@ -1146,38 +1157,46 @@ kvs_query_tree(
 
             bad |= !cJSON_AddNumberToObject(kvset, "dgen", dgen);
             bad |= !cJSON_AddNumberToObject(kvset, "compc", metrics.compc);
-            bad |= !cJSON_AddNumberToObject(kvset, "vgroups", metrics.vgroups);
-            bad |= !cJSON_AddNumberToObject(kvset, "keys", metrics.num_keys);
-            bad |= !cJSON_AddNumberToObject(kvset, "tombs", metrics.num_tombstones);
-            bad |= !cJSON_AddNumberToObject(kvset, "ptombs", metrics.nptombs);
 
             if (human) {
-                u64_to_human(buf, sizeof(buf), metrics.header_bytes, 10000);
+                char kbuf[64], tbuf[64], pbuf[64];
 
-                bad |= !cJSON_AddStringToObject(kvset, "hlen", buf);
+                u64_to_human(kbuf, sizeof(kbuf), metrics.num_keys, 10000);
+                u64_to_human(tbuf, sizeof(tbuf), metrics.num_tombstones, 10000);
+                u64_to_human(pbuf, sizeof(pbuf), metrics.nptombs, 10000);
+
+                bad |= !cJSON_AddStringToObject(kvset, "keys", kbuf);
+                bad |= !cJSON_AddStringToObject(kvset, "tombs", tbuf);
+                bad |= !cJSON_AddStringToObject(kvset, "ptombs", pbuf);
+            } else {
+                bad |= !cJSON_AddNumberToObject(kvset, "keys", metrics.num_keys);
+                bad |= !cJSON_AddNumberToObject(kvset, "tombs", metrics.num_tombstones);
+                bad |= !cJSON_AddNumberToObject(kvset, "ptombs", metrics.nptombs);
+            }
+
+            if (human) {
+                char hbuf[64], kbuf[64], vbuf[64], gbuf[64];
+
+                u64_to_human(hbuf, sizeof(hbuf), metrics.header_bytes, 10000);
+                u64_to_human(kbuf, sizeof(kbuf), metrics.tot_key_bytes, 10000);
+                u64_to_human(vbuf, sizeof(vbuf), metrics.tot_val_bytes, 10000);
+                u64_to_human(gbuf, sizeof(gbuf), metrics.vgarb_bytes, 10000);
+
+                bad |= !cJSON_AddStringToObject(kvset, "hlen", hbuf);
+                bad |= !cJSON_AddStringToObject(kvset, "klen", kbuf);
+                bad |= !cJSON_AddStringToObject(kvset, "vlen", vbuf);
+                bad |= !cJSON_AddStringToObject(kvset, "vgarb", gbuf);
             } else {
                 bad |= !cJSON_AddNumberToObject(kvset, "hlen", metrics.header_bytes);
-            }
-
-            if (human) {
-                u64_to_human(buf, sizeof(buf), metrics.tot_key_bytes, 10000);
-
-                bad |= !cJSON_AddStringToObject(kvset, "klen", buf);
-            } else {
                 bad |= !cJSON_AddNumberToObject(kvset, "klen", metrics.tot_key_bytes);
-            }
-
-            if (human) {
-                u64_to_human(buf, sizeof(buf), metrics.tot_val_bytes, 10000);
-
-                bad |= !cJSON_AddStringToObject(kvset, "vlen", buf);
-            } else {
                 bad |= !cJSON_AddNumberToObject(kvset, "vlen", metrics.tot_val_bytes);
+                bad |= !cJSON_AddNumberToObject(kvset, "vgarb", metrics.vgarb_bytes);
             }
 
             bad |= !cJSON_AddNumberToObject(kvset, "hblocks", metrics.num_hblocks);
             bad |= !cJSON_AddNumberToObject(kvset, "kblocks", metrics.num_kblocks);
             bad |= !cJSON_AddNumberToObject(kvset, "vblocks", metrics.num_vblocks);
+            bad |= !cJSON_AddNumberToObject(kvset, "vgroups", metrics.vgroups);
             bad |= !cJSON_AddStringToObject(kvset, "rule", cn_rule2str(metrics.rule));
 
             if (ev(bad)) {
@@ -1196,7 +1215,8 @@ kvs_query_tree(
         tree_stats.nkeys += node_stats.nkeys;
         tree_stats.ntombs += node_stats.ntombs;
         tree_stats.nptombs += node_stats.nptombs;
-        tree_stats.compc += node_stats.compc;
+        if (tree_stats.compc < node_stats.compc)
+            tree_stats.compc = node_stats.compc;
         tree_stats.vgroups += node_stats.vgroups;
         tree_stats.nhblks += node_stats.nhblks;
         tree_stats.nkblks += node_stats.nkblks;
@@ -1204,6 +1224,7 @@ kvs_query_tree(
         tree_stats.hlen += node_stats.hlen;
         tree_stats.klen += node_stats.klen;
         tree_stats.vlen += node_stats.vlen;
+        tree_stats.vgarb += node_stats.vgarb;
         if (tree_stats.dgen < node_stats.dgen)
             tree_stats.dgen = node_stats.dgen;
 

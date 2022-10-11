@@ -508,6 +508,7 @@ vblocks_split(
                 return err;
 
             vbcnt++;
+            blks_left->bl_vtotal += kvset_get_nth_vblock_len(ks, j);
         }
 
         if (vbcnt > 0) {
@@ -548,6 +549,7 @@ vblocks_split(
             }
 
             vbcnt++;
+            blks_right->bl_vtotal += kvset_get_nth_vblock_len(ks, src_split);
             src_split++;
         }
 
@@ -559,6 +561,7 @@ vblocks_split(
                 return err;
 
             vbcnt++;
+            blks_right->bl_vtotal += kvset_get_nth_vblock_len(ks, j);
         }
 
         if (vbcnt > 0) {

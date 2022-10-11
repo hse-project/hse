@@ -56,6 +56,7 @@ enum kvset_iter_flags {
  * @km_dgen_hi:     kvset high generation id
  * @km_dgen_lo:     kvset low generation id
  * @km_vused:       sum of lengths of referenced values across all vblocks
+ * @km_vgarb:       sum of lengths of all unreferenced values across all vblocks
  * @km_nodeid:      cn tree node ID
  * @km_compc:       compaction count (prevents repeated kvset compaction)
  * @km_rule:        compaction rule ID that created this kvset
@@ -71,6 +72,7 @@ struct kvset_meta {
     uint64_t        km_dgen_hi;
     uint64_t        km_dgen_lo;
     uint64_t        km_vused;
+    uint64_t        km_vgarb;
     uint64_t        km_nodeid;
     uint16_t        km_compc;
     uint16_t        km_rule;

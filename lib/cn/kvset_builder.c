@@ -322,6 +322,7 @@ kvset_builder_adopt_vblocks(
     struct kvset_builder *self,
     size_t                num_vblocks,
     struct kvs_block     *vblocks,
+    uint64_t              vtotal,
     struct vgmap         *vgmap)
 {
     assert(self->vblk_list.n_blks == 0);
@@ -329,6 +330,7 @@ kvset_builder_adopt_vblocks(
     self->vblk_list.blks = vblocks;
     self->vblk_list.n_blks = num_vblocks;
     self->vblk_list.n_alloc = num_vblocks;
+    self->vtotal = vtotal;
 
     /* vgroup map is adopted from the compaction worker for k-compacts.
      * This map is established in kvset_keep_vblocks().
@@ -407,7 +409,9 @@ kvset_builder_finish(struct kvset_builder *imp)
                     err = merr(ENOMEM);
                 }
 
-                if (err) {
+                if (!err) {
+                    imp->vtotal = vbb_vlen_get(imp->vbb);
+                } else {
                     delete_mblocks(cn_get_dataset(imp->cn), &imp->vblk_list);
                     return err;
                 }
@@ -481,6 +485,7 @@ kvset_builder_get_mblocks(struct kvset_builder *self, struct kvset_mblocks *mblk
     list->blks = 0;
     list->n_blks = 0;
 
+    mblks->bl_vtotal = self->vtotal;
     mblks->bl_vused = self->vused;
     mblks->bl_seqno_max = self->seqno_max;
     mblks->bl_seqno_min = self->seqno_min;

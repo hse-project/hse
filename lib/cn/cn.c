@@ -528,6 +528,7 @@ cn_ingest_prep(
     km.km_nodeid = 0; /* Root node has a node id of 0 */
 
     km.km_vused = mblocks->bl_vused;
+    km.km_vgarb = mblocks->bl_vtotal - km.km_vused;
     km.km_compc = 0;
     km.km_rule = CN_RULE_INGEST;
     km.km_capped = cn_is_capped(cn);
@@ -1038,13 +1039,12 @@ cn_open(
         }
     }
 
-    /* Increase the split size of the right-most node to allow small
-     * trees and monotonically increasing loads to leverage zspill.
-     */
-    if (route_node_islast(tn->tn_route_node))
-        tn->tn_split_size = (tn->tn_split_size * 3) / 2;
-
     cn_tree_samp_init(cn->cn_tree);
+
+    /* Increase the split size of the rightmost node to allow small
+     * tree on monotonically increasing load to leverage zspill.
+     */
+    tn->tn_split_size = (tn->tn_split_size * 3) / 2;
 
     /* Enable tree maintenance unless it's deliberately disabled
      * or we're in replay, diag, or read-only mode.

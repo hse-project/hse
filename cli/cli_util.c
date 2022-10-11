@@ -246,14 +246,14 @@ kvdb_compact_request(const char *kvdb_home, const char *request_type, u32 timeou
         }
 
         printf(
-            "samp_lwm: %u.%03u\n"
-            "samp_hwm: %u.%03u\n"
-            "samp_curr: %u.%03u\n"
+            "samp_lwm: %.3lf\n"
+            "samp_hwm: %.3lf\n"
+            "samp_curr: %.3lf\n"
             "active: %s\n"
             "canceled: %s\n",
-            status.kvcs_samp_lwm / 100, status.kvcs_samp_lwm % 100,
-            status.kvcs_samp_hwm / 100, status.kvcs_samp_hwm % 100,
-            status.kvcs_samp_curr / 100, status.kvcs_samp_curr % 100,
+            status.kvcs_samp_lwm / 1000.0,
+            status.kvcs_samp_hwm / 1000.0,
+            status.kvcs_samp_curr / 1000.0,
             status.kvcs_active ? "true" : "false",
             status.kvcs_canceled ? "true" : "false");
     }

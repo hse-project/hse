@@ -52,6 +52,7 @@ struct kvset_builder {
     uint64_t seqno_max; // max seqno present in new kvset
     uint64_t seqno_min; // min seqno present in new kvset
     uint64_t vused;     // sum of len of all values in new kvset
+    uint64_t vtotal;    // sum of written lengths of all vblocks (excluding vblock footer)
 
     uint64_t seqno_prev;       // for sanity checks while building kvsets
     uint64_t seqno_prev_ptomb; // for sanity checks while building kvsets

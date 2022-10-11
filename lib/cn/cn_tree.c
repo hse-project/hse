@@ -1629,6 +1629,7 @@ cn_comp_commit(struct cn_compaction_work *w)
         }
 
         km.km_vused = w->cw_outv[i].bl_vused;
+        km.km_vgarb = w->cw_outv[i].bl_vtotal - km.km_vused;
 
         /* Lend hblk, kblk, and vblk lists to kvset_open().
          * Yes, the struct copy is a bit gross, but it works and

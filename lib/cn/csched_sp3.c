@@ -828,12 +828,13 @@ sp3_dirty_node_locked(struct sp3 *sp, struct cn_tree_node *tn)
      */
 
     if (cn_node_isroot(tn)) {
+        uint jobs_max = sp->samp_reduce ? 1 : 3;
 
         /* If this root node is ready to spill then ensure it's on the list
          * in FIFO order, retaining its current position if it's already on
          * the list.  List order is otherwise managed by sp3_check_roots().
          */
-        if (nkvsets >= sp->thresh.rspill_runlen_min && jobs < 3) {
+        if (nkvsets >= sp->thresh.rspill_runlen_min && jobs < jobs_max) {
             if (list_empty(&spn->spn_rlink))
                 list_add_tail(&spn->spn_rlink, &sp->spn_rlist);
         } else {
@@ -2102,7 +2103,7 @@ sp3_qos_check(struct sp3 *sp)
      * root list is excessively long or are any rspill jobs are asleep awaiting a
      * split or another spill to ensure the throttle can increase if need be...
      */
-    if (rootmax > rootmin * 4 || sleepers > 0) {
+    if (rootmax > rootmin * 4 || sleepers > 0 || sp->samp_reduce) {
         if (sval > THROTTLE_SENSOR_SCALE * 110 / 100) {
             sval = THROTTLE_SENSOR_SCALE * 110 / 100;
         }
@@ -2497,9 +2498,9 @@ sp3_compact_status_get(struct csched *handle, struct hse_kvdb_compact_status *st
      */
     status->kvcs_active = sp->ucomp_active;
     status->kvcs_canceled = sp->ucomp_canceled;
-    status->kvcs_samp_curr = sp->samp_curr * 100 / SCALE;
-    status->kvcs_samp_lwm = sp->samp_lwm * 100 / SCALE;
-    status->kvcs_samp_hwm = sp->samp_hwm * 100 / SCALE;
+    status->kvcs_samp_curr = sp->samp_curr * 1000 / SCALE;
+    status->kvcs_samp_lwm = sp->samp_lwm * 1000 / SCALE;
+    status->kvcs_samp_hwm = sp->samp_hwm * 1000 / SCALE;
 }
 
 /**

@@ -67,27 +67,21 @@ out:
 char *
 rawify(cJSON *const node)
 {
-    char *data;
     char *printed;
-    size_t printed_len;
-
-    if (!cJSON_IsString(node))
-        return cJSON_PrintUnformatted(node);
+    size_t len;
 
     printed = cJSON_PrintUnformatted(node);
-    printed_len = strlen(printed) - 1;
 
-    data = malloc(printed_len * sizeof(*data));
-    if (!data) {
-        cJSON_free(printed);
-        return NULL;
+    if (cJSON_IsString(node)) {
+        len = strlen(printed) - 2;
+
+        /* Remove double quote from each end.
+         */
+        memmove(printed, printed + 1, len);
+        printed[len] = '\000';
     }
 
-    strlcpy(data, printed + 1, printed_len);
-
-    free(printed);
-
-    return data;
+    return printed;
 }
 
 unsigned int

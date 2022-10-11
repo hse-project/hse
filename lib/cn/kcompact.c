@@ -322,7 +322,8 @@ cn_kcompact(struct cn_compaction_work *w)
         struct vgmap *vgmap = w->cw_vgmap[0];
 
         assert(vgmap && w->cw_input_vgroups == vgmap->nvgroups);
-        kvset_builder_adopt_vblocks(bldr, w->cw_vbmap.vbm_blkc, w->cw_vbmap.vbm_blkv, vgmap);
+        kvset_builder_adopt_vblocks(bldr, w->cw_vbmap.vbm_blkc, w->cw_vbmap.vbm_blkv,
+                                    w->cw_vbmap.vbm_tot, vgmap);
         w->cw_vgmap[0] = NULL; /* reset after adopting the vgmap to the kvset builder */
 
         w->cw_vbmap.vbm_blkv = NULL;
