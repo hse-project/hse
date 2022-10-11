@@ -103,7 +103,7 @@ struct thread_info *g_ti;
 void
 del_ptombs(void *arg)
 {
-    struct thread_arg *targ = arg;
+    struct kh_thread_arg *targ = arg;
     struct hse_kvdb_txn *txn;
     hse_err_t err;
 
@@ -164,7 +164,7 @@ del_ptombs(void *arg)
 void
 del_tombs(void *arg)
 {
-    struct thread_arg *targ = arg;
+    struct kh_thread_arg *targ = arg;
     struct hse_kvdb_txn *txn;
     uint64_t suffix = 1;
     hse_err_t err;
@@ -235,7 +235,7 @@ del_tombs(void *arg)
 void
 txput(void *arg)
 {
-    struct thread_arg *targ = arg;
+    struct kh_thread_arg *targ = arg;
     struct thread_info *ti = targ->arg;
     struct hse_kvdb_txn    *txn;
     uint64_t *p = 0; /* prefix */
@@ -334,7 +334,7 @@ txput(void *arg)
 void
 syncme(void *arg)
 {
-    struct thread_arg *targ = arg;
+    struct kh_thread_arg *targ = arg;
 
     pthread_setname_np(pthread_self(), __func__);
 
@@ -426,7 +426,7 @@ print_stats(void *arg)
 void
 reader(void *arg)
 {
-    struct thread_arg  *targ = arg;
+    struct kh_thread_arg  *targ = arg;
     struct thread_info *ti = targ->arg;
     struct hse_kvdb_txn *txn;
     struct hse_kvs_cursor  *c;

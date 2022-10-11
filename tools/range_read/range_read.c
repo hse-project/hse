@@ -141,7 +141,7 @@ make_key(int idx, char *kbuf, size_t kbufsz)
 void
 loader(void *arg)
 {
-    struct thread_arg    *targ = arg;
+    struct kh_thread_arg    *targ = arg;
     struct thread_info   *ti = targ->arg;
     int                   i;
     char                  kbuf[HSE_KVS_KEY_LEN_MAX] = {};
@@ -181,7 +181,7 @@ rand_key()
 void
 point_get(void *arg)
 {
-    struct thread_arg    *targ = arg;
+    struct kh_thread_arg    *targ = arg;
     struct lat_hist      *lat = targ->arg;
     unsigned char        *vbuf;
     size_t                vlen;
@@ -230,7 +230,7 @@ point_get(void *arg)
 void
 cursor(void *arg)
 {
-    struct thread_arg    *targ = arg;
+    struct kh_thread_arg    *targ = arg;
     struct lat_hist      *lat = targ->arg;
     char                  kbuf[HSE_KVS_KEY_LEN_MAX] = {};
     uint                  kbuf_klen;

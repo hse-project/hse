@@ -1093,8 +1093,8 @@ kvs_query_tree(
         }
 
         if (view->eklen > 0) {
-            for (size_t i = 0; i < sizeof(view->ekbuf); i++)
-                snprintf(kbuf + i, sizeof(kbuf) - i, "%x", view->ekbuf[i]);
+            fmt_hex(kbuf, sizeof(kbuf), view->ekbuf, view->eklen);
+            printf("edge: %s\n", kbuf);
             bad |= !cJSON_AddStringToObject(node, "edge_key", kbuf);
         } else {
             bad |= !cJSON_AddNullToObject(node, "edge_key");

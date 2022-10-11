@@ -70,7 +70,7 @@ struct thread_info *g_ti;
 void
 do_things(void *arg)
 {
-    struct thread_arg *targ = arg;
+    struct kh_thread_arg *targ = arg;
     struct thread_info *ti = targ->arg;
     uint64_t *key = 0;
     uint i;

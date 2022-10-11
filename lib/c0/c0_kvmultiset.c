@@ -376,17 +376,23 @@ c0kvms_pfx_probe_rcu(
     struct kvs_buf *         vbuf,
     u64                      pt_seqno)
 {
-    struct c0_kvmultiset_impl *self = c0_kvmultiset_h2r(handle);
     merr_t err = 0;
 
     /* Skip over the ptomb c0_kvset by starting at index 1.
      */
+#if 0
+    struct c0_kvmultiset_impl *self = c0_kvmultiset_h2r(handle);
     for (uint i = 1; i < self->c0ms_num_sets; i++) {
         err = c0kvs_pfx_probe_excl(self->c0ms_sets[i], skidx, kt, view_seqno, seqref, res,
                                    qctx, kbuf, vbuf, pt_seqno);
         if (err || qctx->seen > 1)
             break;
     }
+#else
+    struct c0_kvset *c0kvs = c0kvms_get_hashed_c0kvset(handle, kt->kt_hash);
+    err = c0kvs_pfx_probe_excl(c0kvs, skidx, kt, view_seqno, seqref, res,
+                               qctx, kbuf, vbuf, pt_seqno);
+#endif
 
     return err;
 }
