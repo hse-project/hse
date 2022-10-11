@@ -160,6 +160,7 @@ c0_pfx_probe(
         self->c0_c0sk,
         self->c0_index,
         self->c0_pfx_len,
+        self->c0_rp->kvs_sfxlen,
         kt,
         view_seqno,
         seqnoref,

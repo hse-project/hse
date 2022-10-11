@@ -29,7 +29,7 @@ static bool killthreads;
 void
 flush_kvs(void *arg)
 {
-	struct thread_arg *targ = arg;
+	struct kh_thread_arg *targ = arg;
 
 	while (!killthreads) {
 		hse_kvdb_sync(targ->kvdb, HSE_KVDB_SYNC_ASYNC);
@@ -40,7 +40,7 @@ flush_kvs(void *arg)
 void
 put(void *arg)
 {
-	struct thread_arg *targ = arg;
+	struct kh_thread_arg *targ = arg;
 	uint64_t p = 0;
 	int rc;
 
@@ -61,7 +61,7 @@ put(void *arg)
 void
 seq_inc(void *arg)
 {
-	struct thread_arg  *targ = arg;
+	struct kh_thread_arg  *targ = arg;
 	struct hse_kvdb_txn    *txn = hse_kvdb_txn_alloc(targ->kvdb);
 
 	while (!killthreads) {

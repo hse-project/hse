@@ -281,7 +281,8 @@ kvs_put(
 
     tstart = perfc_lat_start(pkvsl_pc);
 
-    kt->kt_hash = key_hash64(kt->kt_data, kt->kt_len);
+    assert(kt->kt_len >= kvs->ikv_rp.kvs_sfxlen);
+    kt->kt_hash = key_hash64(kt->kt_data, kt->kt_len - kvs->ikv_rp.kvs_sfxlen);
     seqno = 0;
     rec.cookie = -1;
 
@@ -340,7 +341,8 @@ kvs_get(
 
     tstart = perfc_lat_start(pkvsl_pc);
 
-    kt->kt_hash = key_hash64(kt->kt_data, kt->kt_len);
+    assert(kt->kt_len >= kvs->ikv_rp.kvs_sfxlen);
+    kt->kt_hash = key_hash64(kt->kt_data, kt->kt_len - kvs->ikv_rp.kvs_sfxlen);
 
     /* Exclusively lock txn for query.
      * seqnoref is invalid ater lock is released.
@@ -379,7 +381,8 @@ kvs_del(struct ikvs *kvs, struct hse_kvdb_txn *const txn, struct kvs_ktuple *kt,
 
     tstart = perfc_lat_start(pkvsl_pc);
 
-    kt->kt_hash = key_hash64(kt->kt_data, kt->kt_len);
+    assert(kt->kt_len >= kvs->ikv_rp.kvs_sfxlen);
+    kt->kt_hash = key_hash64(kt->kt_data, kt->kt_len - kvs->ikv_rp.kvs_sfxlen);
     seqno = 0;
     rec.cookie = -1;
 
@@ -484,8 +487,7 @@ kvs_pfx_probe(
 
     tstart = perfc_lat_start(pkvsl_pc);
 
-    if (!kt->kt_hash)
-        kt->kt_hash = key_hash64(kt->kt_data, kt->kt_len);
+    kt->kt_hash = key_hash64(kt->kt_data, kt->kt_len);
 
     /* Exclusively lock txn for query.
      * seqnoref is invalid after lock is released.

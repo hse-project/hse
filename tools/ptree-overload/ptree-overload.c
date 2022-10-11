@@ -34,7 +34,7 @@ struct _opts {
 void
 dostuff(void *arg)
 {
-    struct thread_arg *targ = arg;
+    struct kh_thread_arg *targ = arg;
     uint64_t i;
     int rc;
 

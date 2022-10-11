@@ -342,6 +342,18 @@ tools = {
             'parm_groups.c'
         )
     },
+    'upsert': {
+        'dependencies': [
+            hse_internal_dep,
+            threads_dep,
+        ],
+        'sources': files(
+            'upsert/upsert.c',
+            'common.c',
+            'kvs_helper.c',
+            'parm_groups.c'
+        ),
+    },
     'waltest': {
         'dependencies': [
             hse_internal_dep,

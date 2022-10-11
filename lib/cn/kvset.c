@@ -1198,8 +1198,12 @@ kblk_get_value_ref(
     struct kvs_vtuple_ref *vref)
 {
     struct kvset_kblk *kblk = ks->ks_kblks + kblk_idx;
+    uint64_t hash = kt->kt_hash;
 
-    if (!bloom_reader_lookup(&kblk->kb_blm_desc, kt->kt_hash))
+    if (ks->ks_rp->kvs_sfxlen)
+        hash = key_hash64(kt->kt_data, kt->kt_len);
+
+    if (!bloom_reader_lookup(&kblk->kb_blm_desc, hash))
         return 0;
 
     return wbtr_read_vref(kblk->kb_kblk_desc.map_base, &kblk->kb_wbt_desc, kt, seq, result,

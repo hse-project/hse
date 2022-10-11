@@ -204,6 +204,7 @@ c0sk_pfx_probe(
     struct c0sk *            handle,
     u16                      skidx,
     u32                      pfx_len,
+    u32                      sfx_len,
     const struct kvs_ktuple *kt,
     u64                      view_seq,
     uintptr_t                seqref,

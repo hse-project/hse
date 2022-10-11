@@ -69,6 +69,8 @@ try:
 
         kvs.delete(b"AbcX9")
 
+        # The only remaining keys are in cn. A prefix probe in a cn kvset will see keys in order.
+        # So a probe can expect the smallest key in the cn kvset.
         cnt, k, _, v, _ = kvs.prefix_probe(b"Abc")
         assert cnt == hse.KvsPfxProbeCnt.MUL
         assert (k, v) == (b"AbcX4", b"1")

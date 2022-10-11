@@ -271,6 +271,7 @@ c0kvms_pfx_probe_rcu(
     const struct kvs_ktuple *key,
     u64                      view_seqno,
     uintptr_t                seqref,
+    uint32_t                 sfxlen,
     enum key_lookup_res *    res,
     struct query_ctx *       qctx,
     struct kvs_buf *         kbuf,

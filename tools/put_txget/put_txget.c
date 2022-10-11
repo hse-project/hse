@@ -29,7 +29,7 @@ static bool killthreads;
 void
 put(void *arg)
 {
-	struct thread_arg *targ = arg;
+	struct kh_thread_arg *targ = arg;
 	uint64_t p = 0;
 
 	while (!killthreads) {
@@ -42,7 +42,7 @@ put(void *arg)
 void
 txget(void *arg)
 {
-	struct thread_arg  *targ = arg;
+	struct kh_thread_arg  *targ = arg;
 	struct hse_kvdb_txn    *txn = hse_kvdb_txn_alloc(targ->kvdb);
 	uint64_t            val1, val2;
 	bool                found;
