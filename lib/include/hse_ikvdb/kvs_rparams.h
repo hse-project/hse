@@ -44,6 +44,7 @@ struct kvs_rparams {
 
     uint32_t cn_maint_delay;
     uint32_t cn_split_size;
+    uint32_t kvs_sfxlen;
 
     uint64_t cn_compact_kblk_ra;
     uint64_t cn_compact_vblk_ra;

@@ -218,6 +218,27 @@ static const struct param_spec pspecs[] = {
         },
     },
     {
+        .ps_name = "kvs_sfx_len",
+        .ps_description = "Suffix length (used by prefix probe)",
+        .ps_flags = PARAM_FLAG_EXPERIMENTAL,
+        .ps_type = PARAM_TYPE_U32,
+        .ps_offset = offsetof(struct kvs_rparams, kvs_sfxlen),
+        .ps_size = PARAM_SZ(struct kvs_rparams, kvs_sfxlen),
+        .ps_convert = param_default_converter,
+        .ps_validate = param_default_validator,
+        .ps_stringify = param_default_stringify,
+        .ps_jsonify = param_default_jsonify,
+        .ps_default_value = {
+            .as_uscalar = 0,
+        },
+        .ps_bounds = {
+            .as_uscalar = {
+                .ps_min = 0,
+                .ps_max = HSE_KVS_KEY_LEN_MAX,
+            },
+        },
+    },
+    {
         .ps_name = "transactions.enabled",
         .ps_description = "enable transactions for the kvs",
         .ps_flags = 0,
