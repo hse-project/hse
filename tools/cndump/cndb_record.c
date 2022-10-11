@@ -17,7 +17,7 @@ cndb_rec_type_name(enum cndb_rec_type rtype)
     case CNDB_TYPE_META:        return "meta";
     case CNDB_TYPE_TXSTART:     return "txstart";
     case CNDB_TYPE_KVS_ADD:     return "kvs_add";
-    case CNDB_TYPE_KVS_DEL:     return "kvs_add";
+    case CNDB_TYPE_KVS_DEL:     return "kvs_del";
     case CNDB_TYPE_KVSET_ADD:   return "kvset_add";
     case CNDB_TYPE_KVSET_DEL:   return "kvset_del";
     case CNDB_TYPE_KVSET_MOVE:  return "kvset_move";
