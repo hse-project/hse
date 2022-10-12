@@ -852,7 +852,7 @@ dkvset_fini(struct dump_kvset *kvset)
 void
 kvset_cmd(int argc, char **argv)
 {
-    const char *paramv[] = { "socket.enabled=false" };
+    const char *paramv[] = { "rest.enabled=false" };
     struct cndb_dump_reader reader;
     struct cndb_rec rec;
     struct dump_kvset kvset;
