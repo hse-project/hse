@@ -113,10 +113,8 @@ struct kvset {
     size_t          ks_lcp;       /* longest common prefix */
 
     struct kvset_hblk ks_hblk;
-    struct mpool_mcache_map *ks_hmap; /* hblock mcache map */
 
     const u8 *                ks_klarge; /* large key cache */
-    struct mpool_mcache_map  *ks_kmap;
     struct mbset **           ks_vbsetv;
     uint                      ks_vbsetc;
 

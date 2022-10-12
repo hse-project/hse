@@ -428,7 +428,7 @@ get_vblk_split_index(
 
     for (v = start; v <= end; v++) {
         struct vblock_desc *vbd = kvset_get_nth_vblock_desc(ks, v);
-        const void *min_key = vbd->vbd_mblkdesc.map_base + vbd->vbd_min_koff;
+        const void *min_key = vbd->vbd_mblkdesc->map_base + vbd->vbd_min_koff;
 
         if (keycmp(split_key, split_klen, min_key, vbd->vbd_min_klen) < 0)
             break;
@@ -436,7 +436,7 @@ get_vblk_split_index(
 
     if (v > start) {
         struct vblock_desc *vbd = kvset_get_nth_vblock_desc(ks, v - 1);
-        const void *max_key = vbd->vbd_mblkdesc.map_base + vbd->vbd_max_koff;
+        const void *max_key = vbd->vbd_mblkdesc->map_base + vbd->vbd_max_koff;
 
         if (keycmp(split_key, split_klen, max_key, vbd->vbd_max_klen) < 0) {
             *overlap = true;

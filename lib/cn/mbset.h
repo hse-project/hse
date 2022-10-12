@@ -11,7 +11,8 @@
 
 #include <mpool/mpool.h>
 
-struct mpool_mcache_map;
+#include "cn/kvs_mblk_desc.h"
+
 struct mpool;
 struct mblock_props;
 struct mbset;
@@ -22,36 +23,21 @@ typedef void
 mbset_callback(void *rock, bool mblock_delete_error);
 
 typedef merr_t
-mbset_udata_init_fn(
-    struct mbset *       mbs,
-    uint                 bnum,
-    uint *               argcp,
-    u64 *                argv,
-    struct mblock_props *props,
-    void *               rock);
+mbset_udata_init_fn(const struct kvs_mblk_desc *mblk, void *rock);
 
-/**
- * struct mbset - a ref counted set of mblocks
- * @mbs_map:  mcache map handle
- * @mbs_idv:  vector of mblock object ids
- * @mbs_idc:  mblock count, length of @mbs_idv
- * @mbs_ref:  reference count
- * @mbs_mp:   mpool handle
- * @mbs_del:  if true, delete mblocks in destructor
- * @mbs_alen: sum of mblock allocated lengths
- * @mbs_wlen: sum of mblock written lengths
+/*
+ * A ref counted set of mblocks
  *
- * An "mbset" is a set of kblocks (or vblocks) owned by a single kvset and
+ * An "mbset" is a set of vblocks owned by a single kvset and
  * possibly referenced by multiple kvsets (e.g., after k-compaction).
  */
 struct mbset {
-    struct mpool_mcache_map  *mbs_map;
-    u64 *                     mbs_idv;
-    u64                       mbs_alen;
-    u64                       mbs_wlen;
-    uint                      mbs_idc;
-    struct mpool *            mbs_mp;
+    struct kvs_mblk_desc *    mbs_mblkv;
+    uint64_t                  mbs_alen;
+    uint64_t                  mbs_wlen;
+    uint                      mbs_mblkc;
     atomic_int                mbs_ref;
+    struct mpool *            mbs_mp;
     mbset_callback *          mbs_callback;
     void *                    mbs_callback_rock;
     void *                    mbs_udata;
@@ -67,7 +53,6 @@ mbset_create(
     u64 *               idv,
     size_t              udata_sz,
     mbset_udata_init_fn udata_init_fn,
-    uint                flags,
     struct mbset **     handle);
 
 /* MTF_MOCK */
@@ -84,15 +69,7 @@ mbset_set_callback(struct mbset *self, mbset_callback *callback, void *rock);
 
 /* MTF_MOCK */
 void
-mbset_apply(struct mbset *self, mbset_udata_init_fn fn, uint *argcp, u64 *argv);
-
-/* MTF_MOCK */
-void
 mbset_set_delete_flag(struct mbset *self);
-
-/* MTF_MOCK */
-void
-mbset_madvise(struct mbset *self, int advise);
 
 static HSE_ALWAYS_INLINE struct mpool *
 mbset_get_mp(struct mbset *self)
@@ -112,31 +89,25 @@ mbset_get_alen(struct mbset *self)
     return self->mbs_alen;
 }
 
-static HSE_ALWAYS_INLINE struct mpool_mcache_map *
-mbset_get_map(struct mbset *self)
-{
-    return self->mbs_map;
-}
-
 static HSE_ALWAYS_INLINE u64
 mbset_get_mbid(struct mbset *self, uint blk_num)
 {
-    bool valid = blk_num < self->mbs_idc;
+    bool valid = blk_num < self->mbs_mblkc;
 
     assert(valid);
-    return valid ? self->mbs_idv[blk_num] : 0;
+    return valid ? self->mbs_mblkv[blk_num].mbid : 0;
 }
 
 static HSE_ALWAYS_INLINE uint
 mbset_get_blkc(struct mbset *self)
 {
-    return self->mbs_idc;
+    return self->mbs_mblkc;
 }
 
 static HSE_ALWAYS_INLINE void *
 mbset_get_udata(struct mbset *self, uint blk_num)
 {
-    bool valid = blk_num < self->mbs_idc;
+    bool valid = blk_num < self->mbs_mblkc;
 
     assert(valid);
     return (valid && self->mbs_udata_sz ? self->mbs_udata + self->mbs_udata_sz * blk_num : 0);

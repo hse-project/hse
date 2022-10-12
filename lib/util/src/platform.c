@@ -107,6 +107,8 @@ hse_meminfo(ulong *freep, ulong *availp, uint shift)
     char buf[256], *str;
     ssize_t cc;
 
+    ev(1); /* monitor usage, don't call this function too often */
+
     if (hse_meminfo_cgroup(freep, availp, shift))
         return;
 
@@ -139,8 +141,6 @@ hse_meminfo(ulong *freep, ulong *availp, uint shift)
 
     if (ev(availp))
         *availp = 0;
-
-    ev(1); /* monitor usage, don't call this function too often */
 }
 
 /* For amd64 based machines we use the TSC to measure the latency

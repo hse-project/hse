@@ -12,14 +12,6 @@
 #include <hse_util/inttypes.h>
 #include <hse_util/bitmap.h>
 
-/* [HSE_REVISIT] This block bloom implementation is less of an abstraction
- * than it is a loose collection of parts from which a client may construct
- * and manage a bloom filter.  Going forward, we should endeavor to move
- * the implementation toward a self-managed object.  For simple, RAM buffer
- * based blooms that is trivial, but mcache based blooms will likely require
- * hooks and such that if not done right could impose significant overhead.
- */
-
 /* BF_BKTSHIFT defines the number of bits per bucket for newly created
  * bloom filters (i.e. 2^n bits per bucket, where n is BF_BKTSHIFT).
  * May not exceed one page worth of bits.

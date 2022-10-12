@@ -1,16 +1,19 @@
 /* SPDX-License-Identifier: Apache-2.0 */
 /*
- * Copyright (C) 2015-2020 Micron Technology, Inc.  All rights reserved.
+ * Copyright (C) 2015-2022 Micron Technology, Inc.  All rights reserved.
  */
+
+#define MTF_MOCK_IMPL_mbset
 
 #include <hse_util/alloc.h>
 #include <hse_util/slab.h>
 #include <hse_util/minmax.h>
 #include <hse_util/event_counter.h>
 
-#define MTF_MOCK_IMPL_mbset
+#include <hse/logging/logging.h>
 
 #include "mbset.h"
+#include "kvs_mblk_desc.h"
 
 /*
  * An "mbset" is a reference counted set of mblocks with associated object
@@ -23,7 +26,6 @@
  * Currently (early 2018), each kvset has an "mbset' containing:
  *   - vblocks
  *   - one handle for each vblock (for use with mpool_mblock_read)
- *   - an mcache map handle
  *   - a vblock descriptor for each vblock (this is the "user data")
  *
  * Mbsets can be shared by multiple kvsets after k-compaction operations as
@@ -34,7 +36,7 @@
  *   4. Cursor update operation takes a ref on kvset S1.
  *   5. k-compaction completes, creating kvset S3.
  *   6. Recall k-compaction passes vblocks from input to output.  Instead of
- *      re-creating mcache maps, it is more efficient to share the mbset.  As
+ *      re-creating memory maps, it is more efficient to share the mbset.  As
  *      such, kvset S3 takes a ref on mbset M1 and M2, and then drops refs on
  *      S1 and S2.
  *   7. S2 is destroyed, but S1 lingers because the cursor is using it.
@@ -61,65 +63,6 @@
  */
 
 /**
- * mbset_mblk_getprops() - get mblock properties for each mblock in the mbset
- *
- * Used by mbset constructor.
- */
-static merr_t
-mbset_mblk_getprops(struct mbset *self, mbset_udata_init_fn *cb)
-{
-    merr_t err = 0;
-    u64 *  argv;
-    uint   argc;
-    uint   i;
-
-    /* Create some scratch space for the callback.  Currrently only used
-     * by vblock_udata_init() to compute the number of vgroups.
-     */
-    argc = 0;
-    argv = malloc(sizeof(*argv) * (self->mbs_idc + 1));
-    if (ev(!argv))
-        return merr(ENOMEM);
-
-    self->mbs_alen = 0;
-    self->mbs_wlen = 0;
-
-    for (i = 0; i < self->mbs_idc; i++) {
-
-        struct mblock_props props;
-
-        err = mpool_mblock_props_get(self->mbs_mp, self->mbs_idv[i], &props);
-        if (ev(err))
-            break;
-
-        if (cb) {
-            err = cb(self, i, &argc, argv, &props, mbset_get_udata(self, i));
-            if (ev(err))
-                break;
-        }
-
-        self->mbs_alen += props.mpr_alloc_cap;
-        self->mbs_wlen += props.mpr_write_len;
-    }
-
-    free(argv);
-
-    return err;
-}
-
-void
-mbset_apply(struct mbset *self, mbset_udata_init_fn *cb, uint *argcp, u64 *argv)
-{
-    uint i;
-
-    if (!self || !cb)
-        return;
-
-    for (i = 0; i < self->mbs_idc; i++)
-        cb(self, i, argcp, argv, NULL, mbset_get_udata(self, i));
-}
-
-/**
  * mbset_mblk_del() - delete mblocks
  *
  * Used by mbset destructor if mblocks have been marked for deletion.
@@ -132,39 +75,78 @@ mbset_apply(struct mbset *self, mbset_udata_init_fn *cb, uint *argcp, u64 *argv)
 static merr_t
 mbset_mblk_del(struct mbset *self)
 {
-    merr_t err;
-    uint   i;
+    merr_t err_report = 0, err;
+    uint64_t mbid_report = 0, mbid;
+    uint count = 0;
 
-    for (i = 0; i < self->mbs_idc; i++) {
-        if (self->mbs_idv[i]) {
-            err = mpool_mblock_delete(self->mbs_mp, self->mbs_idv[i]);
-            if (ev(err))
-                return err;
+    for (uint i = 0; i < self->mbs_mblkc; i++) {
+        mbid = self->mbs_mblkv[i].mbid;
+        if (mbid) {
+            err = mpool_mblock_delete(self->mbs_mp, mbid);
+            if (err) {
+                count++;
+                if (!err_report) {
+                    err_report = err;
+                    mbid_report = mbid;
+                }
+            }
         }
     }
+
+    if (err_report)
+        log_errx("%u of %u mblocks could not be deleted, mbid 0x%lx",
+            err_report, count, self->mbs_mblkc, mbid_report);
+
+    return err_report;
+}
+
+static merr_t
+mbset_mmap(struct mbset *self, uint idc, uint64_t *idv)
+{
+    uint64_t alen_pages = 0;
+    uint64_t wlen_pages = 0;
+    merr_t err;
+
+    self->mbs_mblkc = idc;
+
+    for (uint i = 0; i < idc; i++) {
+        err = mblk_mmap(self->mbs_mp, idv[i], &self->mbs_mblkv[i]);
+        if (err)
+            return err;
+        alen_pages += self->mbs_mblkv[i].alen_pages;
+        wlen_pages += self->mbs_mblkv[i].wlen_pages;
+    }
+
+    self->mbs_alen = alen_pages * PAGE_SIZE;
+    self->mbs_wlen = wlen_pages * PAGE_SIZE;
+
     return 0;
 }
 
-/**
- * mbset_map() - create mcache maps
- *
- * Used by mbset constructor.
- */
-static merr_t
-mbset_map(struct mbset *self, uint flags)
-{
-    return mpool_mcache_mmap(self->mbs_mp, self->mbs_idc, self->mbs_idv, &self->mbs_map);
-}
-
-/**
- * mbset_unmap() - destroy mcache maps
- *
- * Used by mbset destructor.
- */
 static void
-mbset_unmap(struct mbset *self)
+mbset_munmap(struct mbset *self)
 {
-    mpool_mcache_munmap(self->mbs_map);
+    merr_t err_report = 0, err;
+    uint64_t mbid_report = 0, mbid;
+    uint count = 0;
+
+    for (uint i = 0; i < self->mbs_mblkc; i++) {
+        mbid = self->mbs_mblkv[i].mbid;
+        if (mbid) {
+            err = mblk_munmap(self->mbs_mp, &self->mbs_mblkv[i]);
+            if (err) {
+                count++;
+                if (!err_report) {
+                    err_report = err;
+                    mbid_report = mbid;
+                }
+            }
+        }
+    }
+
+    if (err_report)
+        log_errx("%u of %u mblocks could not be unmapped, mbid 0x%lx",
+            err_report, count, self->mbs_mblkc, mbid_report);
 }
 
 /**
@@ -174,51 +156,48 @@ merr_t
 mbset_create(
     struct mpool *      mp,
     uint                idc,
-    u64 *               idv,
+    uint64_t *          idv,
     size_t              udata_sz,
-    mbset_udata_init_fn udata_init_fn,
-    uint                flags,
+    mbset_udata_init_fn udata_init,
     struct mbset **     handle)
 {
     struct mbset *self;
     size_t        alloc_len;
     merr_t        err;
 
-    if (!mp || !handle || !idv || !idc)
-        return merr(ev(EINVAL));
+    if (ev(!mp || !handle || !idv || !idc))
+        return merr(EINVAL);
 
     /* one allocation for:
      * - the mbset struct
-     * - array of mblock ids
-     * - array of udata structs
+     * - array of kvs_mblk_desc
+     * - array of udata elements
      */
-    alloc_len = sizeof(*self) + (sizeof(*self->mbs_idv) * idc) + (udata_sz * idc);
+    alloc_len  = sizeof(*self);
+    alloc_len += idc * sizeof(*self->mbs_mblkv);
+    alloc_len += idc * udata_sz;
 
     self = calloc(1, alloc_len);
-    if (!self)
-        return merr(ev(ENOMEM));
+    if (ev(!self))
+        return merr(ENOMEM);
 
-    self->mbs_idv = (void *)(self + 1);
-    self->mbs_udata = (void *)(self->mbs_idv + idc);
+    self->mbs_mblkv = (void *)(self + 1);
+    self->mbs_udata = (void *)(self->mbs_mblkv + idc);
 
-    assert(((void *)self) + alloc_len == (void *)(self->mbs_udata + idc * udata_sz));
-
-    memcpy(self->mbs_idv, idv, sizeof(*idv) * idc);
-
-    self->mbs_idc = idc;
+    self->mbs_mblkc = idc;
     self->mbs_mp = mp;
     self->mbs_del = false;
     self->mbs_udata_sz = udata_sz;
 
-    err = mbset_map(self, flags);
-    if (ev(err))
+    err = mbset_mmap(self, idc, idv);
+    if (err)
         goto fail;
 
-    /* Must have mapped mblocks prior to this b/c the udata
-     * callback uses the maps */
-    err = mbset_mblk_getprops(self, udata_init_fn);
-    if (ev(err))
-        goto fail;
+    for (uint i = 0; i < idc; i++) {
+        err = udata_init(&self->mbs_mblkv[i], mbset_get_udata(self, i));
+        if (ev(err))
+            goto fail;
+    }
 
     atomic_set(&self->mbs_ref, 1);
     *handle = self;
@@ -226,7 +205,8 @@ mbset_create(
     return 0;
 
 fail:
-    mbset_unmap(self);
+
+    mbset_munmap(self);
     free(self);
 
     return err;
@@ -240,13 +220,13 @@ mbset_destroy(struct mbset *self, bool *delete_errors)
 {
     merr_t err = 0;
 
-    if (ev(!self))
+    if (!self)
         return;
 
-    mbset_unmap(self);
+    mbset_munmap(self);
+
     if (self->mbs_del) {
         err = mbset_mblk_del(self);
-        ev(err);
         *delete_errors = !!err;
     } else {
         *delete_errors = false;
@@ -305,15 +285,6 @@ void
 mbset_set_delete_flag(struct mbset *self)
 {
     self->mbs_del = true;
-}
-
-void
-mbset_madvise(struct mbset *self, int advice)
-{
-    merr_t err;
-
-    err = mpool_mcache_madvise(self->mbs_map, 0, 0, SIZE_MAX, advice);
-    ev(err);
 }
 
 #if HSE_MOCKING

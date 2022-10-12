@@ -42,7 +42,6 @@ table_create(uint capacity, size_t elemsz, bool zerofill)
     tab->data = mem;
     tab->zerofill = zerofill;
     tab->priv = NULL;
-    ev(1);
 
     return tab;
 }

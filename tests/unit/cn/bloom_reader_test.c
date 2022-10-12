@@ -75,7 +75,7 @@ read_blooms(struct mtf_test_info *lcl_ti, char *kblock_file)
 {
     merr_t                err;
     struct mpool *        ds = (void *)-1;
-    struct bloom_desc     rgndesc = {};
+    struct bloom_desc     rgndesc = { 0 };
     struct kblock_hdr_omf kb_hdr;
     struct bloom_hdr_omf  blm_hdr;
     struct kvs_ktuple     ktuple;
@@ -84,7 +84,7 @@ read_blooms(struct mtf_test_info *lcl_ti, char *kblock_file)
     char *                endptr;
     char                  filename[PATH_MAX];
     char                  keybuf[32];
-    struct kvs_mblk_desc  blkdesc;
+    struct kvs_mblk_desc  blkdesc = { 0 };
     u64                   blkid;
     u8 *                  blm_pages;
 
@@ -95,10 +95,6 @@ read_blooms(struct mtf_test_info *lcl_ti, char *kblock_file)
     err = mpm_mblock_alloc_file(&blkid, filename);
     ASSERT_EQ(0, err);
     blkdesc.mbid = blkid;
-    blkdesc.map_idx = 0;
-
-    err = mpool_mcache_mmap(ds, 1, &blkdesc.mbid, &blkdesc.map);
-    ASSERT_EQ(0, err);
 
     mpm_mblock_read(blkid, &kb_hdr, 0, sizeof(struct kblock_hdr_omf));
     ASSERT_EQ(sizeof(struct bloom_hdr_omf), omf_kbh_blm_hlen(&kb_hdr));
@@ -161,8 +157,6 @@ read_blooms(struct mtf_test_info *lcl_ti, char *kblock_file)
     /* Something's horriby wrong if the false positive rate high.
      */
     ASSERT_LT((fpc * 1000) / cnt, 25); /* < 2.5% */
-
-    mpool_mcache_munmap(blkdesc.map);
 
     free(blm_pages);
 }

@@ -1654,30 +1654,29 @@ sp3_submit(struct sp3 *sp, struct cn_compaction_work *w, uint qnum)
     w->cw_io_workq = NULL;
 
     switch (csched_rp_kvset_iter(sp->rp)) {
-        case csched_rp_kvset_iter_sync:
-            /* synchronous mblock read */
-            break;
+    case csched_rp_kvset_iter_sync:
+        /* synchronous mblock read */
+        break;
 
-        case csched_rp_kvset_iter_mcache:
-            /* mache maps */
-            w->cw_iter_flags |= kvset_iter_flag_mcache;
-            break;
+    case csched_rp_kvset_iter_mmap:
+        w->cw_iter_flags |= kvset_iter_flag_mmap;
+        break;
 
-        case csched_rp_kvset_iter_async:
-        default:
-            /* async mblock read */
-            w->cw_io_workq = cn_get_io_wq(w->cw_tree->cn);
-            break;
+    case csched_rp_kvset_iter_async:
+    default:
+        /* async mblock read */
+        w->cw_io_workq = cn_get_io_wq(w->cw_tree->cn);
+        break;
     }
 
-    /* Force compaction reads to use mcache if the value blocks for this node reside on
+    /* Force compaction reads to use memory maps if the value blocks for this node reside on
      * the pmem media class. This is not accurate if the mclass policy is changed during
      * subsequent kvs opens, which results in a mix of media classes for the k/vblocks
      * in this node. However, this is not a correctness issue and will recover on its own
      * after a series of compaction operations.
      */
     if (cn_tree_node_mclass(tn, HSE_MPOLICY_DTYPE_VALUE) == HSE_MCLASS_PMEM) {
-        w->cw_iter_flags |= kvset_iter_flag_mcache;
+        w->cw_iter_flags |= kvset_iter_flag_mmap;
         w->cw_io_workq = NULL;
     }
 

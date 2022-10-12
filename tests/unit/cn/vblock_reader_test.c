@@ -13,120 +13,152 @@
 #include <cn/vblock_reader.h>
 #include <cn/omf.h>
 
-#include <mocks/mock_mpool.h>
-
 struct workqueue_struct *vbr_wq;
-
-int
-test_collection_setup(struct mtf_test_info *info)
-{
-    return 0;
-}
-
-int
-test_collection_teardown(struct mtf_test_info *info)
-{
-    mock_mpool_unset();
-    return 0;
-}
 
 int
 pre(struct mtf_test_info *info)
 {
-    mock_mpool_set();
     return 0;
 }
 
-MTF_BEGIN_UTEST_COLLECTION_PREPOST(
-    vblock_reader_test,
-    test_collection_setup,
-    test_collection_teardown);
+uint64_t blkid_counter = 1000;
+uint8_t mblock_data[8<<20];
+struct kvs_mblk_desc mblk;
 
-static void
-set_props(struct mblock_props *props, u64 blkid, uint vlen)
+merr_t
+mock_mblk_init(size_t alen, uint64_t *blkid)
 {
-    memset(props, 0, sizeof(*props));
-    props->mpr_objid = blkid;
-    props->mpr_write_len = vlen;
+    if (alen > sizeof(mblock_data))
+        return merr(EINVAL);
+
+    *blkid = blkid_counter++;
+
+    memset(mblock_data, 0, sizeof(mblock_data));
+    memset(&mblk, 0, sizeof(mblk));
+
+    mblk.map_base = mblock_data;
+    mblk.wlen_pages = 0;
+    mblk.alen_pages = (alen + PAGE_SIZE - 1) / PAGE_SIZE;
+    mblk.mbid = *blkid;
+    mblk.mclass = 1;
+
+    return 0;
 }
+
+merr_t
+mock_mblk_write(void *src, size_t off, size_t len)
+{
+    uint32_t wlen_pages = (off + len + PAGE_SIZE - 1) / PAGE_SIZE;
+
+    if (wlen_pages > mblk.alen_pages)
+        return merr(EINVAL);
+
+    memcpy(mblk.map_base + off, src, len);
+
+    if (wlen_pages > mblk.wlen_pages)
+        mblk.wlen_pages = wlen_pages;
+
+    return 0;
+}
+
+merr_t
+mock_mblk_setup_impl(size_t value_bytes, uint32_t magic, uint32_t version)
+{
+    struct vblock_footer_omf vbf = { 0 };
+    size_t footer_offset;
+    size_t alen;
+    merr_t err;
+    uint64_t id;
+
+    if (!value_bytes)
+        return merr(EINVAL);
+
+    footer_offset = ALIGN(value_bytes, PAGE_SIZE);
+    alen = footer_offset + VBLOCK_FOOTER_PAGES;
+
+    err = mock_mblk_init(alen, &id);
+    if (err)
+        return err;
+
+    omf_set_vbf_magic(&vbf, magic);
+    omf_set_vbf_version(&vbf, version);
+    omf_set_vbf_min_klen(&vbf, 17);
+    omf_set_vbf_max_klen(&vbf, 18);
+    omf_set_vbf_vgroup(&vbf, 19);
+
+    err = mock_mblk_write(&vbf, footer_offset, sizeof(vbf));
+
+    return err;
+}
+
+
+merr_t
+mock_mblk_setup(size_t value_bytes)
+{
+    return mock_mblk_setup_impl(value_bytes, VBLOCK_FOOTER_MAGIC, VBLOCK_FOOTER_VERSION);
+}
+
+merr_t
+mock_mblk_setup_magic(size_t value_bytes, uint32_t magic)
+{
+    return mock_mblk_setup_impl(value_bytes, magic, VBLOCK_FOOTER_VERSION);
+}
+
+merr_t
+mock_mblk_setup_version(size_t value_bytes, uint32_t version)
+{
+    return mock_mblk_setup_impl(value_bytes, VBLOCK_FOOTER_MAGIC, version);
+}
+
+
+
+MTF_BEGIN_UTEST_COLLECTION(vblock_reader_test);
 
 MTF_DEFINE_UTEST_PRE(vblock_reader_test, t_vbr_desc_read, pre)
 {
     merr_t                   err;
-    struct mpool *           ds = (void *)-1;
-    struct mpool_mcache_map *map;
     struct vblock_desc       vblk_desc;
-    struct vblock_footer_omf vbftr;
-    u64                      blkid;
-    struct mblock_props      props;
-    uint                     vgroups = 0;
-    u64                      argv[1];
-    uint                     vbsz = 2 * PAGE_SIZE;
+    size_t                   value_bytes;
 
-    err = mpm_mblock_alloc(vbsz, &blkid);
+    value_bytes = 12345;
+
+    err = mock_mblk_setup(value_bytes);
     ASSERT_EQ(0, err);
 
-    omf_set_vbf_magic(&vbftr, VBLOCK_FOOTER_MAGIC);
-    omf_set_vbf_version(&vbftr, VBLOCK_FOOTER_VERSION);
-    omf_set_vbf_vgroup(&vbftr, get_time_ns());
-    set_props(&props, blkid, vbsz);
-
-    err = mpm_mblock_write(blkid, (void *)&vbftr, PAGE_SIZE, sizeof(vbftr));
+    err = vbr_desc_read(&mblk, &vblk_desc);
     ASSERT_EQ(0, err);
 
-    err = mpool_mcache_mmap(ds, 1, &blkid, &map);
-    ASSERT_EQ(0, err);
-
-    argv[0] = 0xdeadbeefdeadbeef;
-
-    err = vbr_desc_read(ds, map, 0, &vgroups, argv, &props, &vblk_desc);
-    ASSERT_EQ(0, err);
-    ASSERT_EQ(blkid, vblk_desc.vbd_mblkdesc.mbid);
+    ASSERT_EQ(mblk.mbid, vblk_desc.vbd_mblkdesc->mbid);
     ASSERT_EQ(0, vblk_desc.vbd_off);
-    ASSERT_EQ(vbsz - VBLOCK_FOOTER_LEN, vblk_desc.vbd_len);
-    ASSERT_EQ(0, vgroups);
+    ASSERT_EQ(17, vblk_desc.vbd_min_klen);
+    ASSERT_EQ(18, vblk_desc.vbd_max_klen);
+    ASSERT_EQ(19, vblk_desc.vbd_vgroup);
+    ASSERT_EQ(ALIGN(value_bytes, PAGE_SIZE), vblk_desc.vbd_len);
     ASSERT_EQ(1, atomic_read(&vblk_desc.vbd_vgidx));
-    ASSERT_EQ(argv[0], 0xdeadbeefdeadbeef);
-
-    mpool_mcache_munmap(map);
 }
 
 MTF_DEFINE_UTEST_PRE(vblock_reader_test, t_vbr_desc_update, pre)
 {
     merr_t                   err;
-    struct mpool *           ds = (void *)-1;
-    struct mpool_mcache_map *map;
     struct vblock_desc       vblk_desc;
-    struct vblock_footer_omf vbftr;
-    u64                      blkid;
-    struct mblock_props      props;
     uint                     vgroups = 0;
     u64                      argv[2];
-    uint                     vbsz = 2 * PAGE_SIZE;
 
-    err = mpm_mblock_alloc(vbsz, &blkid);
+    err = mock_mblk_setup(8323);
     ASSERT_EQ(0, err);
 
-    omf_set_vbf_magic(&vbftr, VBLOCK_FOOTER_MAGIC);
-    omf_set_vbf_version(&vbftr, VBLOCK_FOOTER_VERSION);
-    omf_set_vbf_vgroup(&vbftr, get_time_ns());
-    set_props(&props, blkid, vbsz);
-
-    err = mpm_mblock_write(blkid, (void *)&vbftr, PAGE_SIZE, sizeof(vbftr));
-    ASSERT_EQ(0, err);
-
-    err = mpool_mcache_mmap(ds, 1, &blkid, &map);
+    err = vbr_desc_read(&mblk, &vblk_desc);
     ASSERT_EQ(0, err);
 
     argv[0] = 0xdeadbeefdeadbeef;
-    err = vbr_desc_update(ds, map, 0, &vgroups, argv, &props, &vblk_desc);
+    err = vbr_desc_update_vgidx(&vblk_desc, &vgroups, argv);
     ASSERT_EQ(0, err);
     ASSERT_EQ(1, vgroups);
     ASSERT_EQ(1, atomic_read(&vblk_desc.vbd_vgidx));
     ASSERT_EQ(argv[0], vblk_desc.vbd_vgroup);
 
     argv[0] += 1;
-    err = vbr_desc_update(ds, map, 0, &vgroups, argv, &props, &vblk_desc);
+    err = vbr_desc_update_vgidx(&vblk_desc, &vgroups, argv);
     ASSERT_EQ(0, err);
     ASSERT_EQ(2, vgroups);
     ASSERT_EQ(2, atomic_read(&vblk_desc.vbd_vgidx));
@@ -135,224 +167,72 @@ MTF_DEFINE_UTEST_PRE(vblock_reader_test, t_vbr_desc_update, pre)
 
     argv[0] = argv[1];
     argv[1] += 1;
-    err = vbr_desc_update(ds, map, 0, &vgroups, argv, &props, &vblk_desc);
+    err = vbr_desc_update_vgidx(&vblk_desc, &vgroups, argv);
     ASSERT_EQ(0, err);
     ASSERT_EQ(2, vgroups);
     ASSERT_EQ(1, atomic_read(&vblk_desc.vbd_vgidx));
     ASSERT_EQ(argv[0], vblk_desc.vbd_vgroup);
     ASSERT_NE(argv[1], vblk_desc.vbd_vgroup);
-
-    mpool_mcache_munmap(map);
-}
-
-MTF_DEFINE_UTEST_PRE(vblock_reader_test, t_vbr_desc_read_errors, pre)
-{
-    merr_t                   err;
-    struct mpool *           ds = (void *)-1;
-    struct mpool_mcache_map *map;
-    struct vblock_desc       vblk_desc;
-    struct vblock_footer_omf vbftr;
-    u64                      blkid;
-    struct mblock_props      props;
-    uint                     vgroups = 0;
-    u64                      argv[1];
-    uint                     vbsz = 2 * PAGE_SIZE;
-
-    err = mpm_mblock_alloc(vbsz, &blkid);
-    ASSERT_EQ(0, err);
-
-    omf_set_vbf_magic(&vbftr, VBLOCK_FOOTER_MAGIC);
-    omf_set_vbf_version(&vbftr, VBLOCK_FOOTER_VERSION);
-    omf_set_vbf_vgroup(&vbftr, get_time_ns());
-    set_props(&props, blkid, vbsz);
-
-    err = mpm_mblock_write(blkid, (void *)&vbftr, PAGE_SIZE, sizeof(vbftr));
-    ASSERT_EQ(0, err);
-
-    err = mpool_mcache_mmap(ds, 1, &blkid, &map);
-    ASSERT_EQ(0, err);
-
-    /* vbr_desc_reaad -> mpool_mblock_getbase error */
-    mapi_inject_ptr(mapi_idx_mpool_mcache_getbase, 0);
-    err = vbr_desc_read(ds, map, 0, &vgroups, argv, &props, &vblk_desc);
-    ASSERT_NE(err, 0);
-    mapi_inject_unset(mapi_idx_mpool_mcache_getbase);
-
-    mpool_mcache_munmap(map);
 }
 
 MTF_DEFINE_UTEST_PRE(vblock_reader_test, t_detect_bad_magic, pre)
 {
-    merr_t                   err;
-    struct mpool *           ds = (void *)-1;
-    struct mpool_mcache_map *map;
-    struct vblock_desc       vblk_desc;
-    struct vblock_footer_omf vbftr;
-    u64                      blkid;
-    struct mblock_props      props;
-    uint                     vbsz = 2 * PAGE_SIZE;
+    struct vblock_desc vblk_desc;
+    merr_t err;
 
-    err = mpm_mblock_alloc(vbsz, &blkid);
+    err = mock_mblk_setup_magic(1436, 1);
     ASSERT_EQ(0, err);
 
-    omf_set_vbf_magic(&vbftr, -1);
-    omf_set_vbf_version(&vbftr, VBLOCK_FOOTER_VERSION);
-    omf_set_vbf_vgroup(&vbftr, get_time_ns());
-    set_props(&props, blkid, vbsz);
-
-    err = mpm_mblock_write(blkid, (void *)&vbftr, PAGE_SIZE, sizeof(vbftr));
-    ASSERT_EQ(0, err);
-
-    err = mpool_mcache_mmap(ds, 1, &blkid, &map);
-    ASSERT_EQ(0, err);
-
-    err = vbr_desc_read(ds, map, 0, NULL, NULL, &props, &vblk_desc);
+    err = vbr_desc_read(&mblk, &vblk_desc);
     ASSERT_EQ(EPROTO, merr_errno(err));
-
-    mpool_mcache_munmap(map);
 }
 
 MTF_DEFINE_UTEST_PRE(vblock_reader_test, t_detect_bad_version, pre)
 {
-    merr_t                   err;
-    struct mpool *           ds = (void *)-1;
-    struct mpool_mcache_map *map;
-    struct vblock_desc       vblk_desc;
-    struct vblock_footer_omf vbftr;
-    u64                      blkid;
-    struct mblock_props      props;
-    uint                     vgroups = 0;
-    u64                      argv[1];
-    int                      i;
-    uint                     vbsz = 2 * PAGE_SIZE;
+    struct vblock_desc vblk_desc;
+    merr_t err;
 
-    err = mpm_mblock_alloc(vbsz, &blkid);
+    err = mock_mblk_setup_version(1436, -1);
     ASSERT_EQ(0, err);
 
-    for (i = -1; i <= VBLOCK_FOOTER_VERSION + 1; i++) {
-        if (i != VBLOCK_FOOTER_VERSION) {
-            omf_set_vbf_magic(&vbftr, VBLOCK_FOOTER_MAGIC);
-            /* vbf_version is wrong, and should be detected in vbr_desc_read */
-            omf_set_vbf_version(&vbftr, i);
-            omf_set_vbf_vgroup(&vbftr, get_time_ns());
-            set_props(&props, blkid, vbsz);
-
-            err = mpm_mblock_write(blkid, (void *)&vbftr, PAGE_SIZE, sizeof(vbftr));
-            ASSERT_EQ(0, err);
-
-            err = mpool_mcache_mmap(ds, 1, &blkid, &map);
-            ASSERT_EQ(0, err);
-
-            err = vbr_desc_read(ds, map, 0, &vgroups, argv, &props, &vblk_desc);
-            ASSERT_EQ(EPROTO, merr_errno(err));
-
-            mpool_mcache_munmap(map);
-        }
-    }
+    err = vbr_desc_read(&mblk, &vblk_desc);
+    ASSERT_EQ(EPROTO, merr_errno(err));
 }
 
 MTF_DEFINE_UTEST_PRE(vblock_reader_test, t_vbr_value, pre)
 {
-    merr_t                   err;
-    struct mpool *           ds = (void *)-1;
-    struct mpool_mcache_map *map;
-    struct vblock_desc       vblk_desc;
-    struct vblock_footer_omf *ftr;
-    u64                      blkid;
-    uint                     i, vlen = 123, n_entries = 19;
-    u8 *                     vblk;
-    size_t                   vbsz;
-    void *                   val;
-    uint                     vboff;
-    struct mblock_props      props;
-    uint                     vgroups = 0;
-    u64                      argv[1];
+    struct vblock_desc vblk_desc;
+    merr_t err;
+    void *val;
 
-    vbsz = 2 * PAGE_SIZE + n_entries * vlen;
+    err = mock_mblk_setup(1964);
+    ASSERT_EQ(0, err);
 
-    vblk = mapi_safe_malloc(vbsz);
-    ASSERT_TRUE(vblk != 0);
-    memset(vblk, 0, vbsz);
-
-    err = mpm_mblock_alloc(vbsz, &blkid);
-    ASSERT_EQ(err, 0);
-
-    for (i = 0; i < vbsz; i++)
-        vblk[i] = i;
-
-    ftr = (struct vblock_footer_omf *)(vblk + vbsz - PAGE_SIZE);
-    omf_set_vbf_magic(ftr, VBLOCK_FOOTER_MAGIC);
-    omf_set_vbf_version(ftr, VBLOCK_FOOTER_VERSION);
-    omf_set_vbf_vgroup(ftr, get_time_ns());
-    set_props(&props, blkid, vbsz);
-
-    err = mpm_mblock_write(blkid, vblk, 0, vbsz);
-    ASSERT_EQ(err, 0);
-
-    err = mpool_mcache_mmap(ds, 1, &blkid, &map);
-    ASSERT_EQ(err, 0);
-
-    err = vbr_desc_read(ds, map, 0, &vgroups, argv, &props, &vblk_desc);
+    err = vbr_desc_read(&mblk, &vblk_desc);
     ASSERT_EQ(err, 0);
 
     /* Now, for the actual test */
-    vboff = 2 * vlen;
-    val = vbr_value(&vblk_desc, vboff, vlen);
-    ASSERT_NE(val, NULL);
-
-    mpool_mcache_munmap(map);
-
-    mapi_safe_free(vblk);
+    val = vbr_value(&vblk_desc, 117, 20);
+    ASSERT_EQ(val, mblk.map_base + 117);
 }
 
 MTF_DEFINE_UTEST_PRE(vblock_reader_test, t_vbr_read_ahead, pre)
 {
     merr_t                   err;
-    struct mpool *           ds = (void *)-1;
-    struct mpool_mcache_map *map;
     struct vblock_desc       vblk_desc;
-    struct vblock_footer_omf *ftr;
-    u64                      blkid;
-    u32                      i, vlen = 123, n_entries = 19;
-    u8 *                     vblk;
-    size_t                   vbsz;
     u32                      ra_len;
-    struct mblock_props      props;
     off_t                    off;
     size_t                   len;
     struct ra_hist           rahv[1] = { { 0 } };
-    uint                     vgroups = 0;
-    u64                      argv[1];
 
-    vbsz = 2 * PAGE_SIZE + n_entries * vlen;
+    err = mock_mblk_setup(4000000);
+    ASSERT_EQ(0, err);
 
-    vblk = mapi_safe_malloc(vbsz);
-    ASSERT_TRUE(vblk != 0);
-    memset(vblk, 0, vbsz);
-
-    err = mpm_mblock_alloc(vbsz, &blkid);
-    ASSERT_EQ(err, 0);
-
-    for (i = 0; i < vbsz; i++)
-        vblk[i] = i;
-
-    ftr = (struct vblock_footer_omf *)(vblk + vbsz - PAGE_SIZE);
-    omf_set_vbf_magic(ftr, VBLOCK_FOOTER_MAGIC);
-    omf_set_vbf_version(ftr, VBLOCK_FOOTER_VERSION);
-    omf_set_vbf_vgroup(ftr, get_time_ns());
-    set_props(&props, blkid, vbsz);
-
-    err = mpm_mblock_write(blkid, vblk, 0, vbsz);
-    ASSERT_EQ(err, 0);
-
-    err = mpool_mcache_mmap(ds, 1, &blkid, &map);
+    err = vbr_desc_read(&mblk, &vblk_desc);
     ASSERT_EQ(err, 0);
 
     ra_len = 4096;
     len = 17;
-
-    err = vbr_desc_read(ds, map, 0, &vgroups, argv, &props, &vblk_desc);
-    ASSERT_EQ(err, 0);
 
     /* read forward (normal path in vbr_readahead) */
     for (off = 1000; off < 5000; off += len) {
@@ -374,74 +254,30 @@ MTF_DEFINE_UTEST_PRE(vblock_reader_test, t_vbr_read_ahead, pre)
         vbr_readahead(&vblk_desc, off, len, VBR_REVERSE, ra_len, 1, rahv, NULL);
         ASSERT_EQ(rahv->vgidx, atomic_read(&vblk_desc.vbd_vgidx));
     }
-
-    /* new descriptor (to reset read ahead state).
-       read forward, but inject failure */
-    err = vbr_desc_read(ds, map, 0, &vgroups, argv, &props, &vblk_desc);
-    ASSERT_EQ(err, 0);
-
-    mapi_inject_once(mapi_idx_mpool_mcache_madvise, 1, 123);
-    vbr_readahead(&vblk_desc, 200, 10, 0, ra_len, 1, rahv, NULL);
-
-    mpool_mcache_munmap(map);
-
-    mapi_safe_free(vblk);
 }
 
 MTF_DEFINE_UTEST_PRE(vblock_reader_test, t_vbr_madvise_async, pre)
 {
     struct workqueue_struct *vbr_wq;
     merr_t                   err;
-    struct mpool *           ds = (void *)-1;
-    struct mpool_mcache_map *map;
     struct vblock_desc       vblk_desc;
-    struct vblock_footer_omf *ftr;
-    u64                      blkid;
-    u32                      i, vlen = 1024, n_entries = 1024;
-    u8 *                     vblk;
-    size_t                   vbsz;
     u32                      ra_len;
-    struct mblock_props      props;
-    struct ra_hist           rahv[8] = { { 0 } };
-    uint                     vgroups = 0;
-    u64                      argv[1];
+    struct ra_hist           rahv[8] = { 0 };
     int                      rc;
+
+    err = mock_mblk_setup(4000000);
+    ASSERT_EQ(0, err);
+
+    err = vbr_desc_read(&mblk, &vblk_desc);
+    ASSERT_EQ(err, 0);
 
     vbr_wq = alloc_workqueue("vbr", 0, 0, 0);
     ASSERT_NE(NULL, vbr_wq);
 
-    vbsz = 2 * PAGE_SIZE + n_entries * vlen;
-
-    vblk = mapi_safe_malloc(vbsz);
-    ASSERT_TRUE(vblk != 0);
-    memset(vblk, 0, vbsz);
-
-    err = mpm_mblock_alloc(vbsz, &blkid);
-    ASSERT_EQ(err, 0);
-
-    for (i = 0; i < vbsz; i++)
-        vblk[i] = i;
-
-    ftr = (struct vblock_footer_omf *)(vblk + vbsz - PAGE_SIZE);
-    omf_set_vbf_magic(ftr, VBLOCK_FOOTER_MAGIC);
-    omf_set_vbf_version(ftr, VBLOCK_FOOTER_VERSION);
-    omf_set_vbf_vgroup(ftr, get_time_ns());
-    set_props(&props, blkid, vbsz);
-
-    err = mpm_mblock_write(blkid, vblk, 0, vbsz);
-    ASSERT_EQ(err, 0);
-
-    err = mpool_mcache_mmap(ds, 1, &blkid, &map);
-    ASSERT_EQ(err, 0);
-
     ra_len = 128 * 1024;
 
-    err = vbr_desc_read(ds, map, 0, &vgroups, argv, &props, &vblk_desc);
-    ASSERT_EQ(err, 0);
-
-    for (i = 0; i < NELEM(rahv); ++i) {
+    for (uint i = 0; i < NELEM(rahv); ++i)
         vbr_readahead(&vblk_desc, ra_len * i, ra_len, 0, ra_len, NELEM(rahv), rahv, vbr_wq);
-    }
 
     flush_workqueue(vbr_wq);
     ASSERT_EQ(0, atomic_read(&vblk_desc.vbd_refcnt));
@@ -458,10 +294,6 @@ MTF_DEFINE_UTEST_PRE(vblock_reader_test, t_vbr_madvise_async, pre)
 
     destroy_workqueue(vbr_wq);
     ASSERT_EQ(0, atomic_read(&vblk_desc.vbd_refcnt));
-
-    mpool_mcache_munmap(map);
-
-    mapi_safe_free(vblk);
 }
 
 MTF_END_UTEST_COLLECTION(vblock_reader_test)

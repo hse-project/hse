@@ -11,7 +11,7 @@
 
 #define csched_rp_kvset_iter_async 0
 #define csched_rp_kvset_iter_sync 1
-#define csched_rp_kvset_iter_mcache 2
+#define csched_rp_kvset_iter_mmap 2
 
 /* Compaction stats */
 #define csched_rp_dbg_comp(_rp)       ((uint)((_rp)->csched_debug_mask & 0x000f))

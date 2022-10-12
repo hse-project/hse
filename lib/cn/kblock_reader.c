@@ -36,46 +36,12 @@ kblock_hdr_valid(const struct kblock_hdr_omf *omf)
 }
 
 merr_t
-kbr_get_kblock_desc(
-    struct mpool            *mp,
-    struct mpool_mcache_map *map,
-    struct mblock_props     *props,
-    u32                      map_idx,
-    u64                      kblkid,
-    struct kvs_mblk_desc    *kblkdesc)
-{
-    void *base;
-
-    base = mpool_mcache_getbase(map, map_idx);
-    if (!base)
-        return merr(ev(EINVAL));
-
-    kblkdesc->ds = mp;
-    kblkdesc->mbid = kblkid;
-    kblkdesc->map = map;
-    kblkdesc->map_idx = map_idx;
-    kblkdesc->map_base = base;
-    kblkdesc->mclass = props->mpr_mclass;
-
-    return 0;
-}
-
-merr_t
 kbr_read_wbt_region_desc(struct kvs_mblk_desc *kblkdesc, struct wbt_desc *desc)
 {
+    const struct kblock_hdr_omf *kb_hdr = kblkdesc->map_base;
+    const struct wbt_hdr_omf *wbt_hdr;
     merr_t err;
-    void * pg;
-    struct wbt_hdr_omf *wbt_hdr;
-    off_t  pg_idxs[1];
 
-    struct kblock_hdr_omf *kb_hdr;
-
-    pg_idxs[0] = 0;
-    err = mpool_mcache_getpages(kblkdesc->map, 1, kblkdesc->map_idx, pg_idxs, &pg);
-    if (ev(err))
-        return err;
-
-    kb_hdr = pg;
     if (!kblock_hdr_valid(kb_hdr))
         return merr(EINVAL);
 
@@ -93,11 +59,8 @@ kbr_read_wbt_region_desc(struct kvs_mblk_desc *kblkdesc, struct wbt_desc *desc)
 merr_t
 kbr_read_blm_region_desc(struct kvs_mblk_desc *kbd, struct bloom_desc *desc)
 {
-    merr_t                 err;
-    struct kblock_hdr_omf *hdr;
-    struct bloom_hdr_omf * blm_omf = NULL;
-    void *                 pg = NULL;
-    off_t                  pg_idxs[1];
+    const struct kblock_hdr_omf *hdr = kbd->map_base;
+    const struct bloom_hdr_omf *blm_omf = NULL;
     ulong                  mbid;
     u32                    magic;
     u32                    version;
@@ -105,16 +68,10 @@ kbr_read_blm_region_desc(struct kvs_mblk_desc *kbd, struct bloom_desc *desc)
     memset(desc, 0, sizeof(*desc));
     mbid = kbd->mbid;
 
-    pg_idxs[0] = 0;
-    err = mpool_mcache_getpages(kbd->map, 1, kbd->map_idx, pg_idxs, &pg);
-    if (ev(err))
-        return err;
-
-    hdr = pg;
     if (!kblock_hdr_valid(hdr))
         return merr(EINVAL);
 
-    blm_omf = (struct bloom_hdr_omf *)(pg + omf_kbh_blm_hoff(hdr));
+    blm_omf = (void *)hdr + omf_kbh_blm_hoff(hdr);
 
     magic = omf_bh_magic(blm_omf);
     if (ev(magic != BLOOM_OMF_MAGIC)) {
@@ -143,42 +100,19 @@ kbr_read_blm_region_desc(struct kvs_mblk_desc *kbd, struct bloom_desc *desc)
     desc->bd_rotl = omf_bh_rotl(blm_omf);
     desc->bd_bktmask = (1u << desc->bd_bktshift) - 1;
 
+    if (desc->bd_n_pages)
+        desc->bd_bitmap = (void *)kbd->map_base + desc->bd_first_page * PAGE_SIZE;
+    else
+        desc->bd_bitmap = NULL;
+
     return 0;
-}
-
-merr_t
-kbr_read_blm_pages(
-    struct kvs_mblk_desc *kbd,
-    struct bloom_desc *   desc)
-{
-    off_t pgnumv[] = { desc->bd_first_page };
-
-    desc->bd_bitmap = NULL;
-
-    if (!desc->bd_n_pages)
-        return 0;
-
-    /* Issue an mpool_mcache_getpages() on just the first page to get
-     * the base address of the bloom filter - which we assume is
-     * contiguous in virtual address space.
-     */
-    return mpool_mcache_getpages(kbd->map, 1, kbd->map_idx, pgnumv, (void **)&desc->bd_bitmap);
 }
 
 merr_t
 kbr_read_metrics(struct kvs_mblk_desc *kblkdesc, struct kblk_metrics *metrics)
 {
-    merr_t                 err;
-    struct kblock_hdr_omf *hdr = NULL;
-    void *                 pg = NULL;
-    off_t                  pg_idxs[1];
+    const struct kblock_hdr_omf *hdr = kblkdesc->map_base;
 
-    pg_idxs[0] = 0;
-    err = mpool_mcache_getpages(kblkdesc->map, 1, kblkdesc->map_idx, pg_idxs, &pg);
-    if (ev(err))
-        return err;
-
-    hdr = pg;
     if (!kblock_hdr_valid(hdr))
         return merr(EINVAL);
 
@@ -194,70 +128,54 @@ kbr_read_metrics(struct kvs_mblk_desc *kblkdesc, struct kblk_metrics *metrics)
     return 0;
 }
 
-static merr_t
-kbr_madvise_region(struct kvs_mblk_desc *kblkdesc, u32 pg, u32 pg_cnt, int advice)
+void
+kbr_madvise_kmd(struct kvs_mblk_desc *md, struct wbt_desc *wbd, int advice)
 {
-    u32 pg_max = pg + pg_cnt;
+    merr_t err;
+    uint32_t pg = wbd->wbd_first_page + wbd->wbd_root + 1;
+    uint32_t pg_cnt = wbd->wbd_kmd_pgc;
 
-    while (pg < pg_max) {
-        u32 chunk = min_t(u32, pg_max - pg, HSE_RA_PAGES_MAX);
-        merr_t err;
-
-        err = mpool_mcache_madvise(
-            kblkdesc->map, kblkdesc->map_idx, PAGE_SIZE * pg, PAGE_SIZE * chunk, advice);
-        if (ev(err))
-            return err;
-
-        pg += chunk;
+    if (pg_cnt) {
+        err = mblk_madvise_pages(md, pg, pg_cnt, advice);
+        ev(err);
     }
-
-    return 0;
 }
 
 void
-kbr_madvise_kmd(struct kvs_mblk_desc *kblkdesc, struct wbt_desc *desc, int advice)
+kbr_madvise_wbt_leaf_nodes(struct kvs_mblk_desc *md, struct wbt_desc *wbd, int advice)
 {
     merr_t err;
-    u32    pg = desc->wbd_first_page + desc->wbd_root + 1;
-    u32    pg_cnt = desc->wbd_kmd_pgc;
+    uint32_t pg = wbd->wbd_first_page;
+    uint32_t pg_cnt = wbd->wbd_leaf_cnt;
 
-    err = kbr_madvise_region(kblkdesc, pg, pg_cnt, advice);
-
-    ev(err);
+    if (pg_cnt) {
+        err = mblk_madvise_pages(md, pg, pg_cnt, advice);
+        ev(err);
+    }
 }
 
 void
-kbr_madvise_wbt_leaf_nodes(struct kvs_mblk_desc *kblkdesc, struct wbt_desc *desc, int advice)
+kbr_madvise_wbt_int_nodes(struct kvs_mblk_desc *md, struct wbt_desc *wbd, int advice)
 {
     merr_t err;
-    u32    pg = desc->wbd_first_page;
-    u32    pg_cnt = desc->wbd_leaf_cnt;
+    uint32_t pg = wbd->wbd_first_page + wbd->wbd_leaf_cnt;
+    uint32_t pg_cnt = wbd->wbd_n_pages - wbd->wbd_leaf_cnt - wbd->wbd_kmd_pgc;
 
-    err = kbr_madvise_region(kblkdesc, pg, pg_cnt, advice);
-
-    ev(err);
+    if (pg_cnt) {
+        err = mblk_madvise_pages(md, pg, pg_cnt, advice);
+        ev(err);
+    }
 }
 
 void
-kbr_madvise_wbt_int_nodes(struct kvs_mblk_desc *kblkdesc, struct wbt_desc *desc, int advice)
+kbr_madvise_bloom(struct kvs_mblk_desc *md, struct bloom_desc *wbd, int advice)
 {
     merr_t err;
-    u32    pg = desc->wbd_first_page + desc->wbd_leaf_cnt;
-    u32    pg_cnt = (desc->wbd_n_pages - desc->wbd_leaf_cnt - desc->wbd_kmd_pgc);
+    uint32_t pg     = wbd->bd_first_page;
+    uint32_t pg_cnt = wbd->bd_n_pages;
 
-    err = kbr_madvise_region(kblkdesc, pg, pg_cnt, advice);
-
-    ev(err);
-}
-
-void
-kbr_madvise_bloom(struct kvs_mblk_desc *kblkdesc, struct bloom_desc *desc, int advice)
-{
-    merr_t err;
-    u32    pg = desc->bd_first_page;
-    u32    pg_cnt = desc->bd_n_pages;
-
-    err = kbr_madvise_region(kblkdesc, pg, pg_cnt, advice);
-
-    ev(err);
+    if (pg_cnt) {
+        err = mblk_madvise_pages(md, pg, pg_cnt, advice);
+        ev(err);
+    }
 }

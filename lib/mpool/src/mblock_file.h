@@ -7,7 +7,9 @@
 #define MPOOL_MBLOCK_FILE_H
 
 #include <rbtree.h>
+
 #include <hse/error/merr.h>
+#include <hse_util/compiler.h>
 
 #include "mclass.h"
 

@@ -79,13 +79,9 @@ t_wbtr_read_vref_helper(struct mtf_test_info *lcl_ti, const char *kblock_image_f
     err = mpm_mblock_alloc_file(&blkid, filename);
     ASSERT_EQ(err, 0);
     blkdesc.mbid = blkid;
-    blkdesc.map_idx = 0;
 
-    err = mpool_mcache_mmap(mp_ds, 1, &blkdesc.mbid, &blkdesc.map);
-    ASSERT_EQ(err, 0);
-
-    blkdesc.map_base = mpool_mcache_getbase(blkdesc.map, blkdesc.map_idx);
-    ASSERT_NE(blkdesc.map_base, NULL);
+    err = mpm_mblock_get_base(blkdesc.mbid, &blkdesc.map_base, NULL);
+    ASSERT_NE(err, NULL);
 
     wbt_hdr = blkdesc.map_base + omf_kbh_wbt_hoff(blkdesc.map_base);
 
@@ -131,8 +127,6 @@ t_wbtr_read_vref_helper(struct mtf_test_info *lcl_ti, const char *kblock_image_f
 
     ASSERT_EQ(nkeys, cnt);
     wbti_destroy(wbti);
-
-    mpool_mcache_munmap(blkdesc.map);
 }
 
 MTF_BEGIN_UTEST_COLLECTION_PREPOST(

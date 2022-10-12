@@ -11,10 +11,6 @@
 
 /* clang-format off */
 
-/* Max readahead pages offered by mcache.
- */
-#define HSE_RA_PAGES_MAX        ((128 * 1024) / PAGE_SIZE)
-
 #if (LEVEL1_DCACHE_LINESIZE > 64)
 #define HSE_L1D_LINESIZE        (LEVEL1_DCACHE_LINESIZE)
 #else

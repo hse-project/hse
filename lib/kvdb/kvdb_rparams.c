@@ -756,7 +756,7 @@ static const struct param_spec pspecs[] = {
         .ps_bounds = {
             .as_uscalar = {
                 .ps_min = csched_rp_kvset_iter_async,
-                .ps_max = csched_rp_kvset_iter_mcache,
+                .ps_max = csched_rp_kvset_iter_mmap,
             },
         },
     },

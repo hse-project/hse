@@ -195,7 +195,7 @@ MTF_DEFINE_UTEST_PRE(kvdb_rparams_test, csched_policy, test_pre)
     ASSERT_EQ((uintptr_t)ps->ps_jsonify, (uintptr_t)param_default_jsonify);
     ASSERT_EQ(csched_rp_kvset_iter_async, params.csched_policy);
     ASSERT_EQ(csched_rp_kvset_iter_async, ps->ps_bounds.as_uscalar.ps_min);
-    ASSERT_EQ(csched_rp_kvset_iter_mcache, ps->ps_bounds.as_uscalar.ps_max);
+    ASSERT_EQ(csched_rp_kvset_iter_mmap, ps->ps_bounds.as_uscalar.ps_max);
 }
 
 MTF_DEFINE_UTEST_PRE(kvdb_rparams_test, csched_debug_mask, test_pre)

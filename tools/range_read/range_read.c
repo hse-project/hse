@@ -623,7 +623,7 @@ main(
             warmup_nkeys = warmup_nkeys < opts.nkeys ? warmup_nkeys : opts.nkeys;
             warmup_nkeys = (warmup_nkeys * 3) / 2;
 
-            /* 1. Warm up mcache using point gets */
+            /* 1. Warm up memory cache using point gets */
             printf("System memory %lu\n", tot_mem);
             printf("Warmup keycnt %u\n", warmup_nkeys);
             opts.range=1;
