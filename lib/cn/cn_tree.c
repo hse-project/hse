@@ -454,10 +454,12 @@ tn_samp_update_finish(struct cn_tree_node *tn)
         tn->tn_samp.r_alen = 0;
         tn->tn_samp.l_alen = cn_ns_alen(s);
         tn->tn_samp.l_good = cn_ns_clen(s);
+        tn->tn_samp.l_vgarb = cn_ns_vgarb(s);
     } else {
         tn->tn_samp.r_alen = cn_ns_alen(s);
         tn->tn_samp.l_alen = 0;
         tn->tn_samp.l_good = 0;
+        tn->tn_samp.l_vgarb = 0;
     }
 }
 
@@ -531,7 +533,6 @@ cn_tree_samp_init(struct cn_tree *tree)
  */
 void
 cn_tree_samp(const struct cn_tree *tree, struct cn_samp_stats *s_out)
-
 {
     *s_out = tree->ct_samp;
 }

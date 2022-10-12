@@ -43,13 +43,13 @@ sp3_node_is_idle(struct cn_tree_node *tn)
 static void
 sp3_work_estimate(struct cn_compaction_work *w)
 {
+    uint64_t keys, halen, kalen, valen, vgarb;
     struct kvset_list_entry *le;
-    uint64_t keys, halen, kalen, valen;
     int64_t consume, produce;
     bool src_is_leaf, dst_is_leaf;
     uint percent_keep;
 
-    keys = halen = kalen = valen = 0;
+    keys = halen = kalen = valen = vgarb = 0;
     le = w->cw_mark;
 
     for (uint i = 0; i < w->cw_kvset_cnt; i++) {
@@ -59,6 +59,7 @@ sp3_work_estimate(struct cn_compaction_work *w)
         halen += stats->kst_halen;
         kalen += stats->kst_kalen;
         valen += stats->kst_valen;
+        vgarb += stats->kst_vgarb;
 
         le = list_prev_entry(le, le_link);
     }
@@ -83,13 +84,21 @@ sp3_work_estimate(struct cn_compaction_work *w)
         consume = halen + kalen + valen;
         percent_keep = 100 * 100 / cn_ns_samp(&w->cw_ns);
         dst_is_leaf = src_is_leaf;
+        w->cw_est.cwe_samp.l_vgarb = -vgarb;
         break;
 
-    case CN_ACTION_ZSPILL:
     case CN_ACTION_SPILL:
         assert(cn_node_isroot(w->cw_node));
         consume = halen + kalen + valen;
         percent_keep = 100 * 100 / cn_ns_samp(&w->cw_ns);
+        dst_is_leaf = true;
+        w->cw_est.cwe_samp.l_vgarb = -vgarb;
+        break;
+
+    case CN_ACTION_ZSPILL:
+        assert(cn_node_isroot(w->cw_node));
+        consume = halen + kalen + valen;
+        percent_keep = 100;
         dst_is_leaf = true;
         break;
 
