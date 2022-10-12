@@ -42,8 +42,8 @@ commit_mblocks(struct mpool *mp, struct blk_list *blks)
     INVARIANT(mp);
     INVARIANT(blks);
 
-    for (uint32_t i = 0; i < blks->n_blks; i++) {
-        err = commit_mblock(mp, blks->blks[i]);
+    for (uint32_t i = 0; i < blks->idc; i++) {
+        err = commit_mblock(mp, blks->idv[i]);
         if (err)
             return err;
     }
@@ -75,8 +75,8 @@ delete_mblocks(struct mpool *mp, struct blk_list *blks)
     INVARIANT(mp);
     INVARIANT(blks);
 
-    for (uint32_t i = 0; i < blks->n_blks; i++)
-        delete_mblock(mp, blks->blks[i]);
+    for (uint32_t i = 0; i < blks->idc; i++)
+        delete_mblock(mp, blks->idv[i]);
 }
 
 void
@@ -84,24 +84,24 @@ blk_list_init(struct blk_list *blkl)
 {
     INVARIANT(blkl);
 
-    blkl->blks = NULL;
+    blkl->idv = NULL;
     blkl->n_alloc = 0;
-    blkl->n_blks = 0;
+    blkl->idc = 0;
 }
 
 merr_t
 blk_list_append(struct blk_list *blks, u64 blkid)
 {
-    assert(blks->n_blks <= blks->n_alloc);
+    assert(blks->idc <= blks->n_alloc);
 
-    if (blks->n_blks == blks->n_alloc) {
+    if (blks->idc == blks->n_alloc) {
 
         size_t old_sz;
         size_t grow_sz;
         uint64_t *new_mbidv;
 
-        old_sz = sizeof(blks->blks[0]) * blks->n_alloc;
-        grow_sz = sizeof(blks->blks[0]) * BLK_LIST_PRE_ALLOC;
+        old_sz = sizeof(blks->idv[0]) * blks->n_alloc;
+        grow_sz = sizeof(blks->idv[0]) * BLK_LIST_PRE_ALLOC;
         new_mbidv = malloc(old_sz + grow_sz);
         if (!new_mbidv)
             return merr(ev(ENOMEM));
@@ -109,16 +109,16 @@ blk_list_append(struct blk_list *blks, u64 blkid)
         blks->n_alloc += BLK_LIST_PRE_ALLOC;
 
         if (old_sz) {
-            assert(blks->blks);
-            memcpy(new_mbidv, blks->blks, old_sz);
-            free(blks->blks);
+            assert(blks->idv);
+            memcpy(new_mbidv, blks->idv, old_sz);
+            free(blks->idv);
         }
 
-        blks->blks = new_mbidv;
+        blks->idv = new_mbidv;
     }
 
-    blks->blks[blks->n_blks] = blkid;
-    blks->n_blks++;
+    blks->idv[blks->idc] = blkid;
+    blks->idc++;
 
     return 0;
 }
@@ -129,9 +129,9 @@ blk_list_free(struct blk_list *blks)
     if (!blks)
         return;
 
-    free(blks->blks);
-    blks->blks = NULL;
-    blks->n_blks = 0;
+    free(blks->idv);
+    blks->idv = NULL;
+    blks->idc = 0;
 }
 
 #if HSE_MOCKING

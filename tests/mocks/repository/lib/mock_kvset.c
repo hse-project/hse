@@ -145,13 +145,13 @@ mock_make_kvi(struct kv_iterator **kvi, int src, struct kvs_rparams *rp, struct 
     km.km_dgen_hi = nkv->dgen;
     km.km_dgen_lo = nkv->dgen;
 
-    km.km_kblk_list.n_blks = 1;
+    km.km_kblk_list.idc = 1;
     km.km_kblk_list.n_alloc = 1;
-    km.km_kblk_list.blks = &kid;
+    km.km_kblk_list.idv = &kid;
 
-    km.km_vblk_list.n_blks = 1;
+    km.km_vblk_list.idc = 1;
     km.km_vblk_list.n_alloc = 1;
-    km.km_vblk_list.blks = &vid;
+    km.km_vblk_list.idv = &vid;
 
     err = _make_common(kvi, src, (struct mpool *)ds, rp, &km);
     if (err)
@@ -190,13 +190,13 @@ mock_make_vblocks(struct kv_iterator **kvi, struct kvs_rparams *rp, int nv)
     km.km_dgen_lo = 1;
     km.km_vused = nv * 1000;
 
-    km.km_kblk_list.n_blks = 1;
+    km.km_kblk_list.idc = 1;
     km.km_kblk_list.n_alloc = 1;
-    km.km_kblk_list.blks = &kid;
+    km.km_kblk_list.idv = &kid;
 
-    km.km_vblk_list.n_blks = nv;
+    km.km_vblk_list.idc = nv;
     km.km_vblk_list.n_alloc = nv;
-    km.km_vblk_list.blks = vblk_ids;
+    km.km_vblk_list.idv = vblk_ids;
 
     err = _make_common(kvi, 0, (struct mpool *)kvdata, rp, &km);
     if (err)
@@ -219,7 +219,7 @@ _kvset_open(struct cn_tree *tree, uint64_t kvsetid, struct kvset_meta *km, struc
     int                i = 0, j;
 
     /* +1 for the singular hblock */
-    alloc_sz = sizeof(*mk) + (sizeof(u64) * (1 + km->km_kblk_list.n_blks + km->km_vblk_list.n_blks));
+    alloc_sz = sizeof(*mk) + (sizeof(u64) * (1 + km->km_kblk_list.idc + km->km_vblk_list.idc));
     alloc_sz = ALIGN(alloc_sz, PAGE_SIZE);
 
     mk = mmap(NULL, alloc_sz, PROT_READ | PROT_WRITE, MAP_ANON | MAP_PRIVATE, -1, 0);
@@ -241,8 +241,8 @@ _kvset_open(struct cn_tree *tree, uint64_t kvsetid, struct kvset_meta *km, struc
     mk->stats.kst_kvsets = 1;
 
     mk->stats.kst_hblks = 1;
-    mk->stats.kst_kblks = km->km_kblk_list.n_blks;
-    mk->stats.kst_vblks = km->km_vblk_list.n_blks;
+    mk->stats.kst_kblks = km->km_kblk_list.idc;
+    mk->stats.kst_vblks = km->km_vblk_list.idc;
 
     mk->stats.kst_halen = 32 * 1024 * 1024;
     mk->stats.kst_hwlen = 30 * 1024 * 1024;
@@ -263,11 +263,11 @@ _kvset_open(struct cn_tree *tree, uint64_t kvsetid, struct kvset_meta *km, struc
     mk->ref = 1; /* as in reality, kvsets are minted ref 1 */
 
     mk->ids[i++] = km->km_hblk_id;
-    for (i = 1; i < km->km_kblk_list.n_blks; i++)
-        mk->ids[i] = km->km_kblk_list.blks[i];
+    for (i = 1; i < km->km_kblk_list.idc; i++)
+        mk->ids[i] = km->km_kblk_list.idv[i];
 
-    for (j = 0; j < km->km_vblk_list.n_blks; j++, i++)
-        mk->ids[i] = km->km_vblk_list.blks[j];
+    for (j = 0; j < km->km_vblk_list.idc; j++, i++)
+        mk->ids[i] = km->km_vblk_list.idv[j];
 
     *handle = (struct kvset *)mk;
 

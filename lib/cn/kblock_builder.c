@@ -1095,7 +1095,7 @@ kbb_finish(struct kblock_builder *bld, struct blk_list *kblks)
 
     /* In the event we have no keys, return no kblocks to the caller. */
     if (bld->curr.num_keys == 0) {
-        assert(bld->finished_kblks.n_blks == 0);
+        assert(bld->finished_kblks.idc == 0);
 
         return 0;
     }

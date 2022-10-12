@@ -72,14 +72,14 @@ MTF_DEFINE_UTEST_PREPOST(blk_list_test, t_blk_list_append, pre, post)
         err = blk_list_append(&b, blkid++);
         ASSERT_EQ(err, 0);
     }
-    ASSERT_EQ(b.n_blks, add);
+    ASSERT_EQ(b.idc, add);
     for (i = 0; i < add; i++)
-        ASSERT_EQ(b.blks[i], blkid_start + i);
+        ASSERT_EQ(b.idv[i], blkid_start + i);
 
     /* A common pattern is to reset blk count to reuse a blk_list
      * without having to re-allocate the array of mblock IDs.
      */
-    b.n_blks = 0;
+    b.idc = 0;
 
     add = 2 * BLK_LIST_PRE_ALLOC + 10;
     blkid_start = blkid;
@@ -87,9 +87,9 @@ MTF_DEFINE_UTEST_PREPOST(blk_list_test, t_blk_list_append, pre, post)
         err = blk_list_append(&b, blkid++);
         ASSERT_EQ(err, 0);
     }
-    ASSERT_EQ(b.n_blks, add);
+    ASSERT_EQ(b.idc, add);
     for (i = 0; i < add; i++)
-        ASSERT_EQ(b.blks[i], blkid_start + i);
+        ASSERT_EQ(b.idv[i], blkid_start + i);
 
     blk_list_free(&b);
 
@@ -133,7 +133,7 @@ MTF_DEFINE_UTEST_PREPOST(blk_list_test, t_commit_mblock, pre, post)
     blk_list_init(&b);
     err = blk_list_append(&b, BLK_ID);
     ASSERT_EQ(err, 0);
-    err = commit_mblock(ds, b.blks[0]);
+    err = commit_mblock(ds, b.idv[0]);
     ASSERT_EQ(err, 0);
     blk_list_free(&b);
 
@@ -143,7 +143,7 @@ MTF_DEFINE_UTEST_PREPOST(blk_list_test, t_commit_mblock, pre, post)
     blk_list_init(&b);
     err = blk_list_append(&b, BLK_ID);
     ASSERT_EQ(err, 0);
-    err = commit_mblock(ds, b.blks[0]);
+    err = commit_mblock(ds, b.idv[0]);
     ASSERT_NE(err, 0);
     blk_list_free(&b);
     mapi_inject(api, 0);
@@ -159,7 +159,7 @@ MTF_DEFINE_UTEST_PREPOST(blk_list_test, t_delete_mblock, pre, post)
     blk_list_init(&b);
     err = blk_list_append(&b, BLK_ID);
     ASSERT_EQ(err, 0);
-    err = delete_mblock(ds, b.blks[0]);
+    err = delete_mblock(ds, b.idv[0]);
     ASSERT_EQ(err, 0);
     blk_list_free(&b);
 
@@ -169,7 +169,7 @@ MTF_DEFINE_UTEST_PREPOST(blk_list_test, t_delete_mblock, pre, post)
     blk_list_init(&b);
     err = blk_list_append(&b, BLK_ID);
     ASSERT_EQ(err, 0);
-    err = delete_mblock(ds, b.blks[0]);
+    err = delete_mblock(ds, b.idv[0]);
     ASSERT_NE(err, 0);
     blk_list_free(&b);
     mapi_inject(api, 0);
@@ -178,7 +178,7 @@ MTF_DEFINE_UTEST_PREPOST(blk_list_test, t_delete_mblock, pre, post)
     blk_list_init(&b);
     err = blk_list_append(&b, BLK_ID);
     ASSERT_EQ(err, 0);
-    err = delete_mblock(ds, b.blks[0]);
+    err = delete_mblock(ds, b.idv[0]);
     ASSERT_EQ(err, 0);
     blk_list_free(&b);
 }

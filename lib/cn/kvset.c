@@ -428,8 +428,8 @@ kvset_open2(
     size_t        alloc_len;
     struct kvset *ks;
     size_t        kcachesz;
-    const uint32_t n_kblks = km->km_kblk_list.n_blks;
-    const uint32_t n_vblks = km->km_vblk_list.n_blks;
+    const uint32_t n_kblks = km->km_kblk_list.idc;
+    const uint32_t n_vblks = km->km_vblk_list.idc;
     uint          vbsetc;
     uint32_t      last_kb;
 
@@ -551,7 +551,7 @@ kvset_open2(
     assert(ks->ks_seqno_min <= ks->ks_seqno_max);
 
     /* map kblocks */
-    err = mpool_mcache_mmap(mp, km->km_kblk_list.n_blks, km->km_kblk_list.blks, &ks->ks_kmap);
+    err = mpool_mcache_mmap(mp, km->km_kblk_list.idc, km->km_kblk_list.idv, &ks->ks_kmap);
     if (ev(err))
         goto err_exit;
 
@@ -561,7 +561,7 @@ kvset_open2(
         struct kvset_kblk * kblk = ks->ks_kblks + i;
         struct mblock_props props;
 
-        u64 mbid = km->km_kblk_list.blks[i];
+        u64 mbid = km->km_kblk_list.idv[i];
 
         err = mpool_mblock_props_get(mp, mbid, &props);
         if (ev(err))
@@ -775,8 +775,8 @@ merr_t
 kvset_open(struct cn_tree *tree, uint64_t kvsetid, struct kvset_meta *km, struct kvset **ks)
 {
     merr_t         err;
-    uint32_t       idc = km->km_vblk_list.n_blks;
-    uint64_t      *idv = km->km_vblk_list.blks;
+    uint32_t       idc = km->km_vblk_list.idc;
+    uint64_t      *idv = km->km_vblk_list.idv;
     struct mbset * vbset = 0;
     struct mbset **vbsetv = &vbset;
     uint           vbsetc = 0;
@@ -880,8 +880,8 @@ kvset_purge_blklist_add(struct kvset *ks, struct blk_list *blks)
 {
     ks->ks_deleted = DEL_LIST;
 
-    for (uint32_t i = 0; i < blks->n_blks; i++) {
-        merr_t err = blk_list_append(&ks->ks_purge, blks->blks[i]);
+    for (uint32_t i = 0; i < blks->idc; i++) {
+        merr_t err = blk_list_append(&ks->ks_purge, blks->idv[i]);
         if (err) {
             atomic_inc(&ks->ks_delete_error);
             return;
@@ -936,8 +936,8 @@ cleanup_purge_blklist(struct kvset *ks)
 {
     assert(ks->ks_deleted == DEL_LIST);
 
-    for (uint32_t i = 0; i < ks->ks_purge.n_blks; i++) {
-        merr_t err = mpool_mblock_delete(ks->ks_mp, ks->ks_purge.blks[i]);
+    for (uint32_t i = 0; i < ks->ks_purge.idc; i++) {
+        merr_t err = mpool_mblock_delete(ks->ks_mp, ks->ks_purge.idv[i]);
         if (err) {
             atomic_inc(&ks->ks_delete_error);
             return;

@@ -61,16 +61,16 @@ init_kvset_meta(u64 dgen)
     memset(&km_kblocks, 0, sizeof(km_kblocks));
     memset(&km_vblocks, 0, sizeof(km_vblocks));
 
-    km.km_kblk_list.n_blks = NELEM(km_kblocks);
-    km.km_vblk_list.n_blks = NELEM(km_vblocks);
+    km.km_kblk_list.idc = NELEM(km_kblocks);
+    km.km_vblk_list.idc = NELEM(km_vblocks);
 
-    km.km_kblk_list.blks = km_kblocks;
-    km.km_vblk_list.blks = km_vblocks;
+    km.km_kblk_list.idv = km_kblocks;
+    km.km_vblk_list.idv = km_vblocks;
 
-    for (i = 0; i < km.km_kblk_list.n_blks; i++)
+    for (i = 0; i < km.km_kblk_list.idc; i++)
         km_kblocks[i] = mbid++;
 
-    for (i = 0; i < km.km_vblk_list.n_blks; i++)
+    for (i = 0; i < km.km_vblk_list.idc; i++)
         km_vblocks[i] = mbid++;
 
     km.km_vused = 1000;

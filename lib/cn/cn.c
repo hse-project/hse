@@ -542,15 +542,15 @@ cn_ingest_prep(
      * that this is not a real kvset.
      */
     if (!mblocks->hblk_id) {
-        assert(mblocks->kblks.n_blks == 0);
-        assert(mblocks->vblks.n_blks == 0);
+        assert(mblocks->kblks.idc == 0);
+        assert(mblocks->vblks.idc == 0);
         goto done;
     }
 
     err = cndb_record_kvset_add(cn->cn_cndb, txn, cn->cn_cnid, km.km_nodeid, &km, kvsetid,
                                 mblocks->hblk_id,
-                                km.km_kblk_list.n_blks, km.km_kblk_list.blks,
-                                km.km_vblk_list.n_blks, km.km_vblk_list.blks,
+                                km.km_kblk_list.idc, km.km_kblk_list.idv,
+                                km.km_vblk_list.idc, km.km_vblk_list.idv,
                                 cookie);
     if (ev(err))
         goto done;
