@@ -62,6 +62,12 @@ kvset_wlen(const struct kvset_stats *kst)
     return kst->kst_hwlen + kst->kst_kwlen + kst->kst_vwlen;
 }
 
+static inline uint64_t
+kvset_vgarb(const struct kvset_stats *kst)
+{
+    return kst->kst_vgarb;
+}
+
 /**
  * Node metrics used by compaction scheduler
  */
@@ -90,6 +96,12 @@ static inline uint64_t
 cn_ns_wlen(const struct cn_node_stats *ns)
 {
     return kvset_wlen(&ns->ns_kst);
+}
+
+static inline uint64_t
+cn_ns_vgarb(const struct cn_node_stats *ns)
+{
+    return kvset_vgarb(&ns->ns_kst);
 }
 
 /**
@@ -281,17 +293,12 @@ cn_merge_stats_diff(
 
 /**
  * Metrics used to track space amp
- *
- * Notes:
- * - [HSE_REVISIT] remove r_alen and r_wlen from this struct and just
- *   track them manually in sp3.
- * - [HSE_REVISIT] remove all alen/rlen from notify ingest and just
- *   look at node stats.
  */
 struct cn_samp_stats {
     int64_t r_alen; //<! allocated length of root node
     int64_t l_alen; //<! allocated length of leaf nodes
     int64_t l_good; //<! estimated "alen" of leaf nodes if each one were fully compacted
+    int64_t l_vgarb; //<! length of vblock garbage in leaf nodes
 };
 
 static inline void
@@ -302,6 +309,7 @@ cn_samp_add(
     lhs->r_alen += rhs->r_alen;
     lhs->l_alen += rhs->l_alen;
     lhs->l_good += rhs->l_good;
+    lhs->l_vgarb += rhs->l_vgarb;
 }
 
 static inline void
@@ -312,6 +320,7 @@ cn_samp_sub(
     lhs->r_alen -= rhs->r_alen;
     lhs->l_alen -= rhs->l_alen;
     lhs->l_good -= rhs->l_good;
+    lhs->l_vgarb -= rhs->l_vgarb;
 }
 
 void

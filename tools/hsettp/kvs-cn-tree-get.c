@@ -231,6 +231,7 @@ kvs_cn_tree_get_parse_values(cJSON *const body, int *const len, char ***const va
     merr_t err;
     cJSON *nodes;
     char buf[128];
+    unsigned int prev_kvsetc = 0;
     unsigned int offset = 0, nodec = 0, tree_kvsetc = 0, node_kvsetc = 0;
 
     INVARIANT(cJSON_IsObject(body));
@@ -270,8 +271,6 @@ kvs_cn_tree_get_parse_values(cJSON *const body, int *const len, char ***const va
         assert(cJSON_IsNumber(id));
 
         if (cJSON_IsArray(kvsets)) {
-            uint prev_kvsetc = node_kvsetc;
-
             node_kvsetc = cJSON_GetArraySize(kvsets);
 
             /* If either this node or the previous node contained one
@@ -293,6 +292,8 @@ kvs_cn_tree_get_parse_values(cJSON *const body, int *const len, char ***const va
                     addr[len] = '\000';
                 }
             }
+
+            prev_kvsetc = node_kvsetc;
 
             for (cJSON *k = kvsets ? kvsets->child : NULL; k; k = k->next) {
                 cJSON *entry;
@@ -328,6 +329,7 @@ kvs_cn_tree_get_parse_values(cJSON *const body, int *const len, char ***const va
             }
         } else {
             node_kvsetc = cJSON_GetNumberValue(kvsets);
+            prev_kvsetc = 0;
         }
 
         (*values)[offset] = strv_node;
@@ -366,7 +368,7 @@ kvs_cn_tree_get_parse_values(cJSON *const body, int *const len, char ***const va
     /* If the previous node contained one or more kvsets then append
      * a newline to the edge key of the previous node.
      */
-    if (node_kvsetc > 0 && offset > 0) {
+    if (prev_kvsetc > 0 && offset > 0) {
         char *addr = (*values)[offset - 1];
 
         if (strv_contains(addr)) {

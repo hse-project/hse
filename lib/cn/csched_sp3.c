@@ -345,7 +345,7 @@ scale2dbl(u64 samp)
 static inline uint
 samp_est(struct cn_samp_stats *s, uint scale)
 {
-    return scale * safe_div(s->l_alen, s->l_good);
+    return scale * safe_div(s->l_alen + s->l_vgarb, s->l_good);
 }
 
 static inline uint
@@ -359,7 +359,7 @@ samp_pct_garbage(struct cn_samp_stats *s, uint scale)
 {
     assert(s->l_alen >= s->l_good);
 
-    return scale * safe_div(s->l_alen - s->l_good, s->l_alen);
+    return scale * safe_div(s->l_alen + s->l_vgarb - s->l_good, s->l_alen + s->l_vgarb);
 }
 
 static void
@@ -998,11 +998,11 @@ sp3_dirty_node_locked(struct sp3 *sp, struct cn_tree_node *tn)
         log_info(
             "cnid=%lu nodeid=%-2lu kvsets=%-2lu "
             "keys=%lu uniq=%lu tombs=%lu ptombs=%lu "
-            "alen=%lu clen=%lu "
+            "alen=%lu clen=%lu vgarb=%lu "
             "garbage=%u scatter=%u",
             tn->tn_tree->cnid, tn->tn_nodeid, nkvsets_total,
             cn_ns_keys(ns), cn_ns_keys_uniq(ns), cn_ns_tombs(ns), cn_ns_ptombs(ns),
-            cn_ns_alen(ns), cn_ns_clen(ns),
+            cn_ns_alen(ns), cn_ns_clen(ns), cn_ns_vgarb(ns),
             garbage, scatter);
     }
 }
@@ -1041,6 +1041,7 @@ sp3_process_workitem(struct sp3 *sp, struct cn_compaction_work *w)
     assert(sp->samp.r_alen >= 0);
     assert(sp->samp.l_alen >= 0);
     assert(sp->samp.l_good >= 0);
+    assert(sp->samp.l_vgarb >= 0);
 
     cn_samp_sub(&sp->samp_wip, &w->cw_est.cwe_samp);
 
@@ -1289,6 +1290,7 @@ sp3_trees_prune(struct sp3 *sp)
         assert(sp->samp.r_alen >= tree->ct_samp.r_alen);
         assert(sp->samp.l_alen >= tree->ct_samp.l_alen);
         assert(sp->samp.l_good >= tree->ct_samp.l_good);
+        assert(sp->samp.l_vgarb >= tree->ct_samp.l_vgarb);
 
         cn_samp_sub(&sp->samp, &tree->ct_samp);
 
@@ -2622,6 +2624,7 @@ sp3_destroy(struct csched *handle)
     assert(sp->samp.r_alen == 0);
     assert(sp->samp.l_alen == 0);
     assert(sp->samp.l_good == 0);
+    assert(sp->samp.l_vgarb == 0);
 
     sts_destroy(sp->sts);
 
