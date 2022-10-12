@@ -13,12 +13,11 @@ tests = {
             tool_targets['simple_client'],
         ],
     },
-    'kbdump': {
+    'cndump': {
         'suites': ['smoke', 'nightly-small'],
         'depends': [
-            tool_targets['cn_kbdump'],
-            tool_targets['cn_metrics'],
-            tool_targets['simple_client'],
+            tool_targets['cndump'],
+            tool_targets['putbin'],
         ],
     },
     'putget1': {
@@ -37,7 +36,6 @@ tests = {
         'suites': ['smoke', 'nightly-small'],
         'depends': [
             tool_targets['putbin'],
-            tool_targets['cndump'],
         ],
     },
     'paths': {
@@ -54,8 +52,6 @@ tests = {
     'longtest-cursor': {
         'suites': ['smoke', 'nightly-small'],
         'depends': [
-            tool_targets['cn_metrics'],
-            tool_targets['cndump'],
             tool_targets['longtest'],
         ],
     },
