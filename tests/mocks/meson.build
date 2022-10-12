@@ -2,6 +2,7 @@
 mocked_headers = [
     meson.project_source_root() / 'include/hse/hse.h',
     meson.project_source_root() / 'lib/c0/c0sk_internal.h',
+    meson.project_source_root() / 'lib/cn/blk_list.h',
     meson.project_source_root() / 'lib/cn/cn_cursor.h',
     meson.project_source_root() / 'lib/cn/cn_mblocks.h',
     meson.project_source_root() / 'lib/cn/cn_tree_compact.h',

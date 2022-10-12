@@ -76,6 +76,11 @@ test_setup(struct mtf_test_info *lcl_ti)
     mapi_inject(mapi_idx_cn_get_dataset, 0);
     mapi_inject(mapi_idx_cn_get_flags, 0);
 
+    mapi_inject(mapi_idx_delete_mblock, 0);
+    mapi_inject(mapi_idx_delete_mblocks, 0);
+    mapi_inject(mapi_idx_commit_mblock, 0);
+    mapi_inject(mapi_idx_commit_mblocks, 0);
+
     return 0;
 }
 
