@@ -325,10 +325,10 @@ kvset_builder_adopt_vblocks(
     uint64_t              vtotal,
     struct vgmap         *vgmap)
 {
-    assert(self->vblk_list.n_blks == 0);
+    assert(self->vblk_list.idc == 0);
 
-    self->vblk_list.blks = vblock_ids;
-    self->vblk_list.n_blks = num_vblocks;
+    self->vblk_list.idv = vblock_ids;
+    self->vblk_list.idc = num_vblocks;
     self->vblk_list.n_alloc = num_vblocks;
     self->vtotal = vtotal;
 
@@ -378,7 +378,7 @@ static merr_t
 kvset_builder_finish(struct kvset_builder *imp)
 {
     merr_t err;
-    bool adopted_vbs = (imp->vblk_list.n_blks > 0);
+    bool adopted_vbs = (imp->vblk_list.idc > 0);
 
     INVARIANT(imp->hbb);
     INVARIANT(imp->kbb);
@@ -397,10 +397,10 @@ kvset_builder_finish(struct kvset_builder *imp)
 
             assert(!imp->vgmap);
             /* In the event we have vblocks, there will always be one vgroup. */
-            if (imp->vblk_list.n_blks > 0) {
+            if (imp->vblk_list.idc > 0) {
                 imp->vgmap = vgmap_alloc(1);
                 if (imp->vgmap) {
-                    uint32_t vbidx_out = imp->vblk_list.n_blks - 1;
+                    uint32_t vbidx_out = imp->vblk_list.idc - 1;
                     /* vgmap_src is passed as NULL as the kblocks are rewritten during
                      * ingest/spill/kv-compact.
                      */
@@ -444,7 +444,7 @@ kvset_builder_finish(struct kvset_builder *imp)
     }
 
     err = hbb_finish(imp->hbb, &imp->hblk_id, imp->vgmap, NULL, NULL, imp->seqno_min, imp->seqno_max,
-                     imp->kblk_list.n_blks, imp->vblk_list.n_blks, hbb_get_nptombs(imp->hbb),
+                     imp->kblk_list.idc, imp->vblk_list.idc, hbb_get_nptombs(imp->hbb),
                      kbb_get_composite_hlog(imp->kbb), NULL, NULL, 0);
     if (err) {
         delete_mblocks(cn_get_dataset(imp->cn), &imp->kblk_list);
@@ -473,17 +473,17 @@ kvset_builder_get_mblocks(struct kvset_builder *self, struct kvset_mblocks *mblk
 
     /* transfer kblock ids to caller */
     list = &self->kblk_list;
-    mblks->kblks.blks = list->blks;
-    mblks->kblks.n_blks = list->n_blks;
-    list->blks = 0;
-    list->n_blks = 0;
+    mblks->kblks.idv = list->idv;
+    mblks->kblks.idc = list->idc;
+    list->idv = 0;
+    list->idc = 0;
 
     /* transfer vblock ids to caller */
     list = &self->vblk_list;
-    mblks->vblks.blks = list->blks;
-    mblks->vblks.n_blks = list->n_blks;
-    list->blks = 0;
-    list->n_blks = 0;
+    mblks->vblks.idv = list->idv;
+    mblks->vblks.idc = list->idc;
+    list->idv = 0;
+    list->idc = 0;
 
     mblks->bl_vtotal = self->vtotal;
     mblks->bl_vused = self->vused;

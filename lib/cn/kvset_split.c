@@ -241,8 +241,8 @@ kblock_split(
     err = kblock_copy_range(kbd, NULL, split_key, &kblks[LEFT], hlogs[LEFT], &vused[LEFT]);
     if (!err) {
         err = kblock_copy_range(kbd, split_key, NULL, &kblks[RIGHT], hlogs[RIGHT], &vused[RIGHT]);
-        if (!err && (kblks[LEFT].n_blks == 0 && kblks[RIGHT].n_blks == 0)) {
-            assert(kblks[LEFT].n_blks > 0 || kblks[RIGHT].n_blks > 0);
+        if (!err && (kblks[LEFT].idc == 0 && kblks[RIGHT].idc == 0)) {
+            assert(kblks[LEFT].idc > 0 || kblks[RIGHT].idc > 0);
             err = merr(EBUG);
         }
     }
@@ -344,13 +344,13 @@ kblocks_split(
         /* split kblock at split_idx */
         err = kblock_split(&kbd, split_kobj, kblks, hlogs, vused);
 
-        assert((kblks[LEFT].n_blks > 0 && kblks[RIGHT].n_blks > 0) || err);
+        assert((kblks[LEFT].idc > 0 && kblks[RIGHT].idc > 0) || err);
 
         /* Append kblks[LEFT] to the left kvset, kblks[RIGHT] to the right kvset, and both
          * kblks[LEFT] and kblks[RIGHT] to the commit list
          */
-        for (uint32_t i = 0; i < kblks[LEFT].n_blks && !err; i++) {
-            uint64_t blkid = kblks[LEFT].blks[i];
+        for (uint32_t i = 0; i < kblks[LEFT].idc && !err; i++) {
+            uint64_t blkid = kblks[LEFT].idv[i];
 
             err = blk_list_append(&blks_left->kblks, blkid);
             if (!err) {
@@ -361,8 +361,8 @@ kblocks_split(
 
         }
 
-        for (uint32_t i = 0; i < kblks[RIGHT].n_blks && !err; i++) {
-            uint64_t blkid = kblks[RIGHT].blks[i];
+        for (uint32_t i = 0; i < kblks[RIGHT].idc && !err; i++) {
+            uint64_t blkid = kblks[RIGHT].idv[i];
 
             err = blk_list_append(&blks_right->kblks, blkid);
             if (!err) {
@@ -468,8 +468,8 @@ vblocks_split(
     uint32_t vgidx_left = 0, vgidx_right = 0;
     char split_key[HSE_KVS_KEY_LEN_MAX];
     uint32_t split_klen, nvgroups = kvset_get_vgroups(ks), perfc_rwc = 0;
-    bool move_left = (blks_right->kblks.n_blks == 0);
-    bool move_right = (blks_left->kblks.n_blks == 0);
+    bool move_left = (blks_right->kblks.idc == 0);
+    bool move_right = (blks_left->kblks.idc == 0);
     uint64_t perfc_rwb = 0;
     merr_t err;
 
@@ -631,18 +631,18 @@ hblock_split(
     /* Add both the left and the right hblock to the commit list and add the source hblock
      * to the purge list.
      */
-    if (blks_left->kblks.n_blks > 0 || ptree) {
+    if (blks_left->kblks.idc > 0 || ptree) {
         err = hbb_finish(work[LEFT].hbb, &blks_left->hblk_id, work[LEFT].vgmap, &min_pfx, &max_pfx,
-                         min_seqno, max_seqno, blks_left->kblks.n_blks, blks_left->vblks.n_blks,
+                         min_seqno, max_seqno, blks_left->kblks.idc, blks_left->vblks.idc,
                          num_ptombs, hlog_data(work[LEFT].hlog),
                          ptree, &ks->ks_hblk.kh_ptree_desc, ptree_pgc);
         if (!err)
             err = blk_list_append(result->ks[LEFT].blks_commit, blks_left->hblk_id);
     }
 
-    if (!err && (blks_right->kblks.n_blks > 0 || ptree)) {
+    if (!err && (blks_right->kblks.idc > 0 || ptree)) {
         err = hbb_finish(work[RIGHT].hbb, &blks_right->hblk_id, work[RIGHT].vgmap, &min_pfx, &max_pfx,
-                         min_seqno, max_seqno, blks_right->kblks.n_blks, blks_right->vblks.n_blks,
+                         min_seqno, max_seqno, blks_right->kblks.idc, blks_right->vblks.idc,
                          num_ptombs, hlog_data(work[RIGHT].hlog),
                          ptree, &ks->ks_hblk.kh_ptree_desc, ptree_pgc);
         if (!err)

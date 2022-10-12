@@ -9,9 +9,9 @@
 #include <inttypes.h>
 
 struct blk_list {
-    uint64_t *blks;
+    uint64_t *idv;
+    uint32_t idc;
     uint32_t n_alloc;
-    uint32_t n_blks;
 };
 
 struct kvset_mblocks {

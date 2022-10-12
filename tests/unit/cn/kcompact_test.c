@@ -307,7 +307,7 @@ MTF_DEFINE_UTEST_PRE(kcompact_test, four_into_one, pre)
     ASSERT_EQ(w.cw_stats.ms_keys_out, 10);
     ASSERT_EQ(w.cw_stats.ms_val_bytes_out, 10 * sizeof(int));
 
-    free(output.vblks.blks);
+    free(output.vblks.idv);
     for (i = 0; i < NITER; ++i) {
         struct mock_kv_iterator *iter = container_of(itv[i], typeof(*iter), kvi);
 
@@ -380,7 +380,7 @@ MTF_DEFINE_UTEST_PRE(kcompact_test, all_gone, pre)
     ASSERT_EQ(w.cw_stats.ms_keys_out, 10);
     ASSERT_EQ(w.cw_stats.ms_val_bytes_out, 0);
 
-    free(output.vblks.blks);
+    free(output.vblks.idv);
     for (i = 0; i < 5; ++i) {
         struct mock_kv_iterator *iter = container_of(itv[i], typeof(*iter), kvi);
 
@@ -452,7 +452,7 @@ MTF_DEFINE_UTEST_PREPOST(kcompact_test, all_gone_mixed, mixed_pre, mixed_post)
     ASSERT_EQ(w.cw_stats.ms_keys_out, 10);
     ASSERT_EQ(w.cw_stats.ms_val_bytes_out, 0);
 
-    free(output.vblks.blks);
+    free(output.vblks.idv);
     for (i = 0; i < 5; ++i) {
         struct mock_kv_iterator *iter = container_of(itv[i], typeof(*iter), kvi);
 
@@ -515,7 +515,7 @@ MTF_DEFINE_UTEST_PREPOST(kcompact_test, four_into_one_mixed, mixed_pre, mixed_po
     ASSERT_EQ(w.cw_stats.ms_keys_in, 200 * NITER);
     ASSERT_EQ(w.cw_stats.ms_keys_out, 200);
 
-    free(output.vblks.blks);
+    free(output.vblks.idv);
     for (i = 0; i < NITER; ++i) {
         struct mock_kv_iterator *iter = container_of(itv[i], typeof(*iter), kvi);
 
@@ -585,7 +585,7 @@ run_kcompact(struct mtf_test_info *lcl_ti, int expect)
     else
         ASSERT_EQ_RET(err, expect, 1);
 
-    free(output.vblks.blks);
+    free(output.vblks.idv);
     for (i = 0; i < 5; ++i) {
         struct mock_kv_iterator *iter = container_of(itv[i], typeof(*iter), kvi);
 
