@@ -20,6 +20,7 @@ cn_sources = files(
     'kvset.c',
     'kvset_builder.c',
     'kvset_split.c',
+    'kvs_mblk_desc.c',
     'mbset.c',
     'move.c',
     'node_split.c',
