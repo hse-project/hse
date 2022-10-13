@@ -16,8 +16,6 @@ struct mpool;
 struct mblock_props;
 struct mbset;
 
-#define MBSET_FLAGS_CAPPED (0x0001)
-
 /* MTF_MOCK_DECL(mbset) */
 
 typedef void

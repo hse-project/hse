@@ -837,7 +837,6 @@ kvset_open(struct cn_tree *tree, uint64_t kvsetid, struct kvset_meta *km, struct
     struct mbset **vbsetv = &vbset;
     uint           vbsetc = 0;
     uint           len = 0;
-    uint           flags = 0;
 
     if (n_vblks) {
         u64 bufv[64];
@@ -847,11 +846,8 @@ kvset_open(struct cn_tree *tree, uint64_t kvsetid, struct kvset_meta *km, struct
         if (ev(!idv))
             return merr(ENOMEM);
 
-        if (km->km_capped)
-            flags |= MBSET_FLAGS_CAPPED;
-
         err = mbset_create(cn_tree_get_mp(tree), n_vblks, idv, sizeof(struct vblock_desc),
-                           vblock_udata_init, flags, &vbset);
+                           vblock_udata_init, 0, &vbset);
         if (idv != bufv)
             free(idv);
         if (ev(err))
