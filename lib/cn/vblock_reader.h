@@ -52,9 +52,9 @@ struct vbr_madvise_work {
  * from media and the relevant information is stored in a @vblock_desc struct.
  */
 struct vblock_desc {
-    struct kvs_mblk_desc vbd_mblkdesc; /* underlying block descriptor */
-    uint32_t             vbd_off;      /* byte offset of vblock data */
-    uint32_t             vbd_len;      /* byte length of vblock data */
+    const struct kvs_mblk_desc *vbd_mblkdesc; /* underlying block descriptor */
+    uint32_t             vbd_off;      /* byte offset of vblock data (always 0!) */
+    uint32_t             vbd_len;      /* byte length of vblock data (not including footer) */
     uint32_t             vbd_min_koff; /* min key offset */
     uint32_t             vbd_max_koff; /* max key offset */
     uint16_t             vbd_min_klen; /* min key length */
@@ -70,23 +70,14 @@ struct vblock_desc {
  */
 merr_t
 vbr_desc_read(
-    struct mpool *           ds,
-    struct mpool_mcache_map *map,
-    uint                     maxidx,
-    uint *                   vgroupsp,
-    u64 *                    argv,
-    struct mblock_props *    props,
-    struct vblock_desc *     vblock_desc);
+    const struct kvs_mblk_desc *mblk,
+    struct vblock_desc *vblk_desc);
 
 merr_t
-vbr_desc_update(
-    struct mpool *           ds,
-    struct mpool_mcache_map *map,
-    uint                     maxidx,
-    uint *                   vgroupsp,
-    u64 *                    argv,
-    struct mblock_props *    props,
-    struct vblock_desc *     vblock_desc);
+vbr_desc_update_vgidx(
+    struct vblock_desc *vblock_desc,
+    uint               *vgroupc,
+    u64                *vgroupv);
 
 /**
  * vbr_madvise_async() - initiate async vblock readahead

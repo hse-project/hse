@@ -19,48 +19,36 @@
 
 #include "omf.h"
 #include "vblock_reader.h"
+#include "kvs_mblk_desc.h"
 
 merr_t
 vbr_desc_read(
-    struct mpool *           ds,
-    struct mpool_mcache_map *map,
-    uint                     idx,
-    uint *                   vgroupsp,
-    u64 *                    argv,
-    struct mblock_props *    props,
-    struct vblock_desc *     vblk_desc)
+    const struct kvs_mblk_desc *mblk,
+    struct vblock_desc *vblk_desc)
 {
     struct vblock_footer_omf *footer;
-    bool     supported;
-    void    *base;
-    u64      vgroup;
-    uint32_t vers;
+    uint32_t wlen;
 
-    base = mpool_mcache_getbase(map, idx);
-    if (ev(!base))
-        return merr(EINVAL);
+    wlen = mblk->wlen_pages * PAGE_SIZE;
+    footer = mblk->map_base + wlen - VBLOCK_FOOTER_LEN;
 
-    footer = base + props->mpr_write_len - VBLOCK_FOOTER_LEN;
-    vgroup = omf_vbf_vgroup(footer);
-    vers = omf_vbf_version(footer);
+    if (ev(omf_vbf_magic(footer) != VBLOCK_FOOTER_MAGIC))
+        return merr(EPROTO);
 
-    supported = (omf_vbf_magic(footer) == VBLOCK_FOOTER_MAGIC && vers == VBLOCK_FOOTER_VERSION);
-    if (ev(!supported))
+    if (ev(omf_vbf_version(footer) != VBLOCK_FOOTER_VERSION))
         return merr(EPROTO);
 
     memset(vblk_desc, 0, sizeof(*vblk_desc));
-    vblk_desc->vbd_mblkdesc.map_base = base;
-    vblk_desc->vbd_mblkdesc.mbid = props->mpr_objid;
-    vblk_desc->vbd_mblkdesc.map = map;
-    vblk_desc->vbd_mblkdesc.map_idx = idx;
-    vblk_desc->vbd_mblkdesc.mclass = props->mpr_mclass;
+
+    vblk_desc->vbd_mblkdesc = mblk;
     vblk_desc->vbd_off = 0;
-    vblk_desc->vbd_len = props->mpr_write_len - VBLOCK_FOOTER_LEN;
-    vblk_desc->vbd_vgroup = vgroup;
+    vblk_desc->vbd_len = wlen - VBLOCK_FOOTER_LEN;
+    vblk_desc->vbd_vgroup = omf_vbf_vgroup(footer);
     vblk_desc->vbd_min_koff = vblk_desc->vbd_len + VBLOCK_FOOTER_LEN - (2 * HSE_KVS_KEY_LEN_MAX);
     vblk_desc->vbd_min_klen = omf_vbf_min_klen(footer);
     vblk_desc->vbd_max_koff = vblk_desc->vbd_min_koff + HSE_KVS_KEY_LEN_MAX;
     vblk_desc->vbd_max_klen = omf_vbf_max_klen(footer);
+
     atomic_set(&vblk_desc->vbd_vgidx, 1);
     atomic_set(&vblk_desc->vbd_refcnt, 0);
 
@@ -68,14 +56,10 @@ vbr_desc_read(
 }
 
 merr_t
-vbr_desc_update(
-    struct mpool *           ds,
-    struct mpool_mcache_map *map,
-    uint                     idx,
-    uint *                   vgroupsp,
-    u64 *                    argv,
-    struct mblock_props *    props,
-    struct vblock_desc *     vblk_desc)
+vbr_desc_update_vgidx(
+    struct vblock_desc *vblk_desc,
+    uint               *vgroupc,
+    u64                *vgroupv)
 {
     u64  vgroup = vblk_desc->vbd_vgroup;
     uint i;
@@ -84,12 +68,12 @@ vbr_desc_update(
      * sequence starting from 1.  The resulting packed indices are
      * used by vbr_readahead() to minimize history table collisions.
      */
-    for (i = 0; i < *vgroupsp && argv[i] != vgroup; ++i)
+    for (i = 0; i < *vgroupc && vgroupv[i] != vgroup; ++i)
         ; /* do nothing */
 
-    if (i >= *vgroupsp) {
-        argv[i] = vgroup;
-        *vgroupsp = i + 1;
+    if (i >= *vgroupc) {
+        vgroupv[i] = vgroup;
+        *vgroupc = i + 1;
     }
 
     atomic_set(&vblk_desc->vbd_vgidx, i + 1);
@@ -237,35 +221,14 @@ vbr_madvise_async(
 void
 vbr_madvise(struct vblock_desc *vbd, uint off, uint len, int advice)
 {
-    u32    pg, pg_cnt, pg_len, pg_max;
-    merr_t err;
-
-    pg = (vbd->vbd_off + off) / PAGE_SIZE;
-    pg_cnt = len / PAGE_SIZE;
-    pg_len = 0;
-
-    if (ev(pg_cnt < 2))
-        return;
-
-    for (pg_max = pg + pg_cnt; pg < pg_max; pg += pg_len) {
-        pg_len = min_t(u32, pg_max - pg, HSE_RA_PAGES_MAX);
-
-        err = mpool_mcache_madvise(
-            vbd->vbd_mblkdesc.map,
-            vbd->vbd_mblkdesc.map_idx,
-            PAGE_SIZE * pg,
-            PAGE_SIZE * pg_len,
-            advice);
-        if (ev(err))
-            break;
-    }
+    mblk_madvise(vbd->vbd_mblkdesc, off, len, advice);
 }
 
 /* off, len version */
 void *
 vbr_value(struct vblock_desc *vbd, uint vboff, uint vlen)
 {
-    assert(vbd->vbd_mblkdesc.map_base);
+    assert(vbd->vbd_mblkdesc->map_base);
     assert(vboff + vlen <= vbd->vbd_len);
-    return vbd->vbd_mblkdesc.map_base + vbd->vbd_off + vboff;
+    return vbd->vbd_mblkdesc->map_base + vbd->vbd_off + vboff;
 }

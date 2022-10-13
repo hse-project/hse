@@ -31,6 +31,7 @@
 #include <hse_ikvdb/kvs_rparams.h>
 
 #include "kvs_mblk_desc.h"
+#include "vblock_reader.h"
 
 /* functions are declared in two files - kvset.h and kvset_view.h */
 #define MTF_MOCK_IMPL_kvset
@@ -124,12 +125,14 @@ lvx2mbs_bnum(struct kvset *ks, uint i)
     return ks->ks_vblk2mbs[i].idx;
 }
 
+/* Map logical vblock index (as stored in KMD) to an mblock ID */
 static HSE_ALWAYS_INLINE u64
 lvx2mbid(struct kvset *ks, uint i)
 {
     return mbset_get_mbid(lvx2mbs(ks, i), lvx2mbs_bnum(ks, i));
 }
 
+/* Map logical vblock index (as stored in KMD) to a vblock descriptor */
 static HSE_ALWAYS_INLINE struct vblock_desc *
 lvx2vbd(struct kvset *ks, uint i)
 {
@@ -367,41 +370,9 @@ kvset_kblk_init(
 }
 
 static merr_t
-vblock_udata_init(
-    struct mbset *       mbs,
-    uint                 bnum,
-    uint *               argcp,
-    u64 *                argv,
-    struct mblock_props *props,
-    void *               rock)
+vblock_udata_init(const struct kvs_mblk_desc *mblk, void *rock)
 {
-    return vbr_desc_read(
-        mbset_get_mp(mbs),
-        mbset_get_map(mbs),
-        bnum,
-        argcp,
-        argv,
-        props,
-        rock);
-}
-
-static merr_t
-vblock_udata_update(
-    struct mbset *       mbs,
-    uint                 bnum,
-    uint *               argcp,
-    u64 *                argv,
-    struct mblock_props *props,
-    void *               rock)
-{
-    return vbr_desc_update(
-        mbset_get_mp(mbs),
-        mbset_get_map(mbs),
-        bnum,
-        argcp,
-        argv,
-        props,
-        rock);
+    return vbr_desc_read(mblk, rock);
 }
 
 merr_t
@@ -435,7 +406,7 @@ kvset_open2(
 
     /* number of vbsets */
     vbsetc = 0;
-    for (i = 0; i < vbset_cnt_len; i++)
+    for (uint i = 0; i < vbset_cnt_len; i++)
         vbsetc += vbset_cnts[i];
 
     /* one allocation for:
@@ -666,11 +637,11 @@ kvset_open2(
         uint v = 0; /* vblock number (0..n_vblks) */
         uint m = 0; /* index into mbset vector */
         uint k;
-        u64 *argv;
-        uint argc;
+        u64 *vgroupv;
+        uint vgroupc;
 
-        for (i = 0; i < vbset_cnt_len; i++) {
-            for (j = 0; j < vbset_cnts[i]; j++, m++) {
+        for (uint i = 0; i < vbset_cnt_len; i++) {
+            for (uint j = 0; j < vbset_cnts[i]; j++, m++) {
                 /* set up refs to mbset #j */
                 struct mbset *mbset = vbset_vecs[i][j];
                 uint          blks_in_mbset = mbset_get_blkc(mbset);
@@ -689,18 +660,21 @@ kvset_open2(
 
         /* Compute vgroup indices and tally the number of vgroups.
          */
-        argc = 0;
-        argv = malloc(sizeof(*argv) * (v + 1));
-        if (ev(!argv))
+        vgroupc = 0;
+        vgroupv = malloc(sizeof(*vgroupv) * (v + 1));
+        if (ev(!vgroupv))
             goto err_exit;
 
-        for (i = 0; i < m; ++i) {
+        for (uint i = 0; i < m; ++i) {
             struct mbset *mbset = ks->ks_vbsetv[i];
 
-            mbset_apply(mbset, vblock_udata_update, &argc, argv);
+            for (uint j = 0; j < mbset->mbs_mblkc; j++) {
+                vbr_desc_update_vgidx(mbset_get_udata(mbset, j), &vgroupc, vgroupv);
+                assert(vgroupc < v + 1);
+            }
         }
 
-        free(argv);
+        free(vgroupv);
     }
 
     /* begin life with one ref and not deleting */
@@ -754,7 +728,7 @@ kvset_open(struct cn_tree *tree, uint64_t kvsetid, struct kvset_meta *km, struct
 
     if (idc) {
         err = mbset_create(cn_tree_get_mp(tree), idc, idv, sizeof(struct vblock_desc),
-                           vblock_udata_init, 0, &vbset);
+            vblock_udata_init, &vbset);
         len = 1;
         vbsetc = 1;
     }
@@ -1401,7 +1375,7 @@ kvset_lookup_val(struct kvset *ks, struct kvs_vtuple_ref *vref, struct kvs_buf *
     dst = vbuf->b_buf;
     copylen = min(vref->vb.vr_len, vbuf->b_buf_sz);
 
-    direct = (copylen >= ks->ks_vmax) && (vbd->vbd_mblkdesc.mclass != HSE_MCLASS_PMEM);
+    direct = (copylen >= ks->ks_vmax) && (vbd->vbd_mblkdesc->mclass != HSE_MCLASS_PMEM);
 
     if (!copylen)
         goto done;
@@ -2757,7 +2731,7 @@ kvset_madvise_vblks(struct kvset *ks, int advice)
         struct mbset *v = ks->ks_vbsetv[i];
         int           j;
 
-        for (j = 0; j < v->mbs_idc; j++) {
+        for (j = 0; j < v->mbs_mblkc; j++) {
             struct vblock_desc *vbd = mbset_get_udata(v, j);
 
             vbr_madvise_async(vbd, 0, vbd->vbd_len, advice, wq);
@@ -2770,18 +2744,16 @@ kvset_madvise_capped(struct kvset *ks, int advice)
 {
     struct workqueue_struct *wq;
     u32                      vra_len;
-    int                      i;
 
     assert(advice == MADV_WILLNEED || advice == MADV_DONTNEED);
 
     wq = cn_get_maint_wq(ks->ks_tree->cn);
     vra_len = ks->ks_vra_len;
 
-    for (i = 0; i < ks->ks_vbsetc; i++) {
+    for (uint i = 0; i < ks->ks_vbsetc; i++) {
         struct mbset *v = ks->ks_vbsetv[i];
-        int           j;
 
-        for (j = 0; j < v->mbs_idc; j++) {
+        for (uint j = 0; j < v->mbs_mblkc; j++) {
             struct vblock_desc *vbd = mbset_get_udata(v, j);
 
             vbr_madvise_async(vbd, 0, vra_len, advice, wq);
@@ -2792,12 +2764,17 @@ kvset_madvise_capped(struct kvset *ks, int advice)
 void
 kvset_madvise_vmaps(struct kvset *ks, int advice)
 {
-    uint i;
-
     assert(advice == MADV_DONTNEED || advice == MADV_RANDOM);
 
-    for (i = 0; i < ks->ks_vbsetc; ++i)
-        mbset_madvise(ks->ks_vbsetv[i], advice);
+    for (uint i = 0; i < ks->ks_vbsetc; i++) {
+        struct mbset *v = ks->ks_vbsetv[i];
+
+        for (uint j = 0; j < v->mbs_mblkc; j++) {
+            struct vblock_desc *vbd = mbset_get_udata(v, j);
+
+            vbr_madvise(vbd, 0, vbd->vbd_len, advice);
+        }
+    }
 }
 
 void
