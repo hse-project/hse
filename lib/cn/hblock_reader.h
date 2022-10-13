@@ -64,23 +64,6 @@ hbr_madvise_kmd(
     int advice) HSE_NONNULL(1, 2);
 
 /**
- * Get the mblock descriptor for the given mblock.
- *
- * @param mpool mpool containing the mblock
- * @param map mcache
- * @param props properties of the mblock
- * @param blkid mblock id referencing the mblock
- * @param[in,out] mblk_desc mblock descriptor
- */
-merr_t
-hbr_read_desc(
-    struct mpool *mpool,
-    struct mpool_mcache_map *map,
-    struct mblock_props *props,
-    uint64_t blkid,
-    struct kvs_mblk_desc *mblk_desc) HSE_NONNULL(1, 2, 3, 5);
-
-/**
  * Read various metrics about an hblock.
  *
  * @param hblk_desc hblock descriptor

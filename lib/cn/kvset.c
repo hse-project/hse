@@ -221,8 +221,7 @@ kvset_put_ref(struct kvset *ks)
 static merr_t
 kvset_hblk_init(
     struct mpool             *mpool,
-    struct mblock_props      *props,
-    struct mpool_mcache_map  *map,
+    uint64_t                  mbid,
     struct vgmap            **vgmap_out,
     bool                     *use_vgmap,
     uint8_t                 **hlog,
@@ -233,14 +232,15 @@ kvset_hblk_init(
     uint32_t nvgroups;
     merr_t err;
 
-    INVARIANT(mpool && props && vgmap_out && hlog && use_vgmap && blk);
+    INVARIANT(mpool && mbid && vgmap_out && hlog && use_vgmap && blk);
+
 
     hbd = &blk->kh_hblk_desc;
     *vgmap_out = NULL;
     *use_vgmap = false;
 
-    err = hbr_read_desc(mpool, map, props, props->mpr_objid, hbd);
-    if (err)
+    err = mblk_mmap(mpool, mbid, hbd);
+    if (ev(err))
         return err;
 
     err = hbr_read_seqno_range(hbd, &blk->kh_seqno_min, &blk->kh_seqno_max);
@@ -523,29 +523,15 @@ kvset_open2(
 
     assert(ks->ks_kvsetid != 0);
 
-    /* map single hblock */
-    err = mpool_mcache_mmap(mp, 1, &km->km_hblk_id, &ks->ks_hmap);
+    err = kvset_hblk_init(mp, km->km_hblk_id, &ks->ks_vgmap, &ks->ks_use_vgmap,
+        &ks->ks_hlog, &ks->ks_hblk);
     if (ev(err))
         goto err_exit;
 
-    {
-        struct mblock_props props;
-
-        err = mpool_mblock_props_get(mp, km->km_hblk_id, &props);
-        if (ev(err))
-            goto err_exit;
-
-        err = kvset_hblk_init(mp, &props, ks->ks_hmap, &ks->ks_vgmap, &ks->ks_use_vgmap,
-                              &ks->ks_hlog, &ks->ks_hblk);
-
-        if (ev(err))
-            goto err_exit;
-
-        /* kvset_stats from kblocks */
-        ks->ks_st.kst_halen += props.mpr_alloc_cap;
-        ks->ks_st.kst_hwlen += props.mpr_write_len;
-        ks->ks_st.kst_ptombs += ks->ks_hblk.kh_metrics.hm_nptombs;
-    }
+    /* kvset_stats from hblocks */
+    ks->ks_st.kst_halen += ks->ks_hblk.kh_hblk_desc.alen_pages * PAGE_SIZE;
+    ks->ks_st.kst_hwlen += ks->ks_hblk.kh_hblk_desc.wlen_pages * PAGE_SIZE;
+    ks->ks_st.kst_ptombs += ks->ks_hblk.kh_metrics.hm_nptombs;
 
     ks->ks_seqno_min = ks->ks_hblk.kh_seqno_min;
     ks->ks_seqno_max = ks->ks_hblk.kh_seqno_max;
@@ -920,7 +906,8 @@ cleanup_hblock(struct kvset *ks)
 {
     merr_t err;
 
-    mpool_mcache_munmap(ks->ks_hmap);
+    err = mblk_munmap(ks->ks_mp, &ks->ks_hblk.kh_hblk_desc);
+    ev(err);
 
     if (ks->ks_deleted == DEL_NONE || ks->ks_deleted == DEL_LIST)
         return;

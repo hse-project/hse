@@ -74,6 +74,10 @@ make_header(
     omf_set_hbh_vgmap_len_pg(hdr, vgmap_pgc);
     omf_set_hbh_hlog_off_pg(hdr, HBLOCK_HDR_PAGES + vgmap_pgc);
     omf_set_hbh_hlog_len_pg(hdr, HLOG_PGC);
+
+    /* Note: if ptree_pgc==0, then data_off_pg > 0 but data_len_pg == 0, which seems
+     * contradictory but it works.
+     */
     omf_set_hbh_ptree_data_off_pg(hdr, HBLOCK_HDR_PAGES + vgmap_pgc + HLOG_PGC);
     omf_set_hbh_ptree_data_len_pg(hdr, ptree_pgc);
 

@@ -21,29 +21,135 @@
 #include <hse_util/keycmp.h>
 #include <hse_util/page.h>
 
-#include <mpool/mpool_structs.h>
-
-#include <mocks/mock_mpool.h>
-
 /* 1 header page, HLOG_PGC hlog pages, 3 ptree pages */
-#define FAKE_BLOCK_SIZE ((HBLOCK_HDR_PAGES + HLOG_PGC + 3) * PAGE_SIZE)
+#define FAKE_HBLOCK_SIZE ((HBLOCK_HDR_PAGES + HLOG_PGC + 3) * PAGE_SIZE)
 #define PFX_MAX "BBBB"
 #define PFX_MAX_LEN 4
 #define PFX_MIN "AAAA"
 #define PFX_MIN_LEN 4
 
-struct hdr {
-    struct hblock_hdr_omf *hblk_hdr;
 
-    uint8_t data[HBLOCK_HDR_LEN];
+size_t madvise_advice;
+size_t madvise_off;
+size_t madvise_len;
+uint8_t hblock[FAKE_HBLOCK_SIZE];
+struct kvs_mblk_desc mblk;
+
+const struct hblk_metrics met = {
+    .hm_size = 0,
+    .hm_nptombs = 1,
 };
 
-const uint8_t fake_mblock_buf[FAKE_BLOCK_SIZE];
+const struct hblock_hdr_omf hbh_ro = {
+    .hbh_magic = HBLOCK_HDR_MAGIC,
+    .hbh_version = HBLOCK_HDR_VERSION,
+
+    .hbh_min_seqno = 11,
+    .hbh_max_seqno = 101,
+
+    .hbh_num_ptombs = 22,
+    .hbh_num_kblocks = 1,
+    .hbh_num_vblocks = 4,
+
+    .hbh_vgmap_off_pg = 1,
+    .hbh_vgmap_len_pg = 1,
+
+    .hbh_hlog_off_pg = 2,
+    .hbh_hlog_len_pg = HLOG_PGC,
+
+    .hbh_ptree_data_off_pg = 2 + HLOG_PGC,
+    .hbh_ptree_data_len_pg = 3,
+
+    .hbh_max_pfx_off = HBLOCK_HDR_LEN - 2 * HSE_KVS_PFX_LEN_MAX,
+    .hbh_max_pfx_len = PFX_MAX_LEN,
+
+    .hbh_min_pfx_off = HBLOCK_HDR_LEN - 1 * HSE_KVS_PFX_LEN_MAX,
+    .hbh_min_pfx_len = PFX_MIN_LEN,
+
+    .hbh_ptree_hdr = {
+        .wbt_magic = WBT_TREE_MAGIC,
+        .wbt_version = WBT_TREE_VERSION,
+        .wbt_root = 20,
+        .wbt_leaf = 0,
+        .wbt_leaf_cnt = 10,
+        .wbt_kmd_pgc = 5
+    },
+};
+
+void
+init_hblock(struct hblock_hdr_omf *hbh)
+{
+    struct vgroup_map_omf *vgm = (void *)hbh + PAGE_SIZE * hbh_ro.hbh_vgmap_off_pg;
+
+    omf_set_hbh_magic(hbh, hbh_ro.hbh_magic);
+    omf_set_hbh_version(hbh, hbh_ro.hbh_version);
+
+    omf_set_hbh_min_seqno(hbh, hbh_ro.hbh_min_seqno);
+    omf_set_hbh_max_seqno(hbh, hbh_ro.hbh_max_seqno);
+    omf_set_hbh_num_ptombs(hbh, hbh_ro.hbh_num_ptombs);
+    omf_set_hbh_num_kblocks(hbh, hbh_ro.hbh_num_kblocks);
+    omf_set_hbh_num_vblocks(hbh, hbh_ro.hbh_num_vblocks);
+    omf_set_hbh_vgmap_off_pg(hbh, hbh_ro.hbh_vgmap_off_pg);
+    omf_set_hbh_vgmap_len_pg(hbh, hbh_ro.hbh_vgmap_len_pg);
+    omf_set_hbh_hlog_off_pg(hbh, hbh_ro.hbh_hlog_off_pg);
+    omf_set_hbh_hlog_len_pg(hbh, hbh_ro.hbh_hlog_len_pg);
+    omf_set_hbh_ptree_data_off_pg(hbh, hbh_ro.hbh_ptree_data_off_pg);
+    omf_set_hbh_ptree_data_len_pg(hbh, hbh_ro.hbh_ptree_data_len_pg);
+
+    omf_set_wbt_magic(&hbh->hbh_ptree_hdr,    hbh_ro.hbh_ptree_hdr.wbt_magic);
+    omf_set_wbt_version(&hbh->hbh_ptree_hdr,  hbh_ro.hbh_ptree_hdr.wbt_version);
+    omf_set_wbt_root(&hbh->hbh_ptree_hdr,     hbh_ro.hbh_ptree_hdr.wbt_root);
+    omf_set_wbt_leaf(&hbh->hbh_ptree_hdr,     hbh_ro.hbh_ptree_hdr.wbt_leaf);
+    omf_set_wbt_leaf_cnt(&hbh->hbh_ptree_hdr, hbh_ro.hbh_ptree_hdr.wbt_leaf_cnt);
+    omf_set_wbt_kmd_pgc(&hbh->hbh_ptree_hdr,  hbh_ro.hbh_ptree_hdr.wbt_kmd_pgc);
+
+    omf_set_vgm_magic(vgm, VGROUP_MAP_MAGIC);
+    omf_set_vgm_version(vgm, VGROUP_MAP_VERSION);
+    omf_set_vgm_count(vgm, 2);
+
+    memcpy((void *)hbh + HBLOCK_HDR_LEN - 2 * HSE_KVS_PFX_LEN_MAX, PFX_MAX, PFX_MAX_LEN);
+    memcpy((void *)hbh + HBLOCK_HDR_LEN - HSE_KVS_PFX_LEN_MAX, PFX_MIN, PFX_MIN_LEN);
+}
+
+merr_t
+mock_mblk_madvise(const struct kvs_mblk_desc *md, size_t off, size_t len, int advice)
+{
+    madvise_off = off;
+    madvise_len = len;
+    madvise_advice = advice;
+    return 0;
+}
+
+merr_t
+mock_mblk_madvise_pages(const struct kvs_mblk_desc *md, size_t pg_off, size_t pg_cnt, int advice)
+{
+    madvise_off = pg_off * PAGE_SIZE;
+    madvise_len = pg_cnt * PAGE_SIZE;
+    madvise_advice = advice;
+    return 0;
+}
 
 int
 test_pre(struct mtf_test_info *info)
 {
-    mock_mpool_set();
+    memset(hblock, 0, sizeof(hblock));
+    memset(&mblk, 0, sizeof(mblk));
+
+    mblk.map_base = hblock;
+
+    mblk.alen_pages = FAKE_HBLOCK_SIZE / PAGE_SIZE;
+    mblk.wlen_pages = FAKE_HBLOCK_SIZE / PAGE_SIZE;
+    mblk.mbid = 123;
+    mblk.mclass = 1;
+
+    init_hblock(mblk.map_base);
+
+    madvise_off = 12345;
+    madvise_len = 12345;
+    madvise_advice = 12345;
+
+    MOCK_SET_FN(mblk_desc, mblk_madvise, mock_mblk_madvise);
+    MOCK_SET_FN(mblk_desc, mblk_madvise_pages, mock_mblk_madvise_pages);
 
     return 0;
 }
@@ -51,429 +157,154 @@ test_pre(struct mtf_test_info *info)
 int
 test_post(struct mtf_test_info *info)
 {
-    mock_mpool_unset();
-
     return 0;
-}
-
-void
-init_hdr(struct hdr *hdr)
-{
-    memset(hdr->data, 0, sizeof(hdr->data));
-
-    hdr->hblk_hdr = (struct hblock_hdr_omf *)hdr->data;
-
-    omf_set_hbh_magic(hdr->hblk_hdr, HBLOCK_HDR_MAGIC);
-    omf_set_hbh_version(hdr->hblk_hdr, HBLOCK_HDR_VERSION);
-    /* fake seqnos */
-    omf_set_hbh_min_seqno(hdr->hblk_hdr, 11);
-    omf_set_hbh_max_seqno(hdr->hblk_hdr, 101);
-    omf_set_hbh_num_ptombs(hdr->hblk_hdr, 22);
-    omf_set_hbh_num_kblocks(hdr->hblk_hdr, 0);
-    omf_set_hbh_num_vblocks(hdr->hblk_hdr, 0);
-    omf_set_hbh_vgmap_off_pg(hdr->hblk_hdr, 1);
-    omf_set_hbh_vgmap_len_pg(hdr->hblk_hdr, 1);
-    omf_set_hbh_hlog_off_pg(hdr->hblk_hdr, 2);
-    omf_set_hbh_hlog_len_pg(hdr->hblk_hdr, HLOG_PGC);
-    omf_set_hbh_ptree_data_off_pg(hdr->hblk_hdr, 2 + HLOG_PGC);
-    omf_set_hbh_ptree_data_len_pg(hdr->hblk_hdr, 3);
-
-    omf_set_wbt_magic(&hdr->hblk_hdr->hbh_ptree_hdr, WBT_TREE_MAGIC);
-    omf_set_wbt_version(&hdr->hblk_hdr->hbh_ptree_hdr, WBT_TREE_VERSION);
-    omf_set_wbt_root(&hdr->hblk_hdr->hbh_ptree_hdr, 0);
-    omf_set_wbt_leaf(&hdr->hblk_hdr->hbh_ptree_hdr, 0);
-    omf_set_wbt_leaf_cnt(&hdr->hblk_hdr->hbh_ptree_hdr, 0);
-
-    memcpy((void *)hdr->hblk_hdr + HBLOCK_HDR_LEN - 2 * HSE_KVS_PFX_LEN_MAX, PFX_MAX, PFX_MAX_LEN);
-    memcpy((void *)hdr->hblk_hdr + HBLOCK_HDR_LEN - HSE_KVS_PFX_LEN_MAX, PFX_MIN, PFX_MIN_LEN);
 }
 
 MTF_BEGIN_UTEST_COLLECTION(hblock_reader_test)
 
-MTF_DEFINE_UTEST_PREPOST(hblock_reader_test, madvise_wbt_int_nodes_success, test_pre, test_post)
+MTF_DEFINE_UTEST_PREPOST(hblock_reader_test, t_hbr_read_metrics, test_pre, test_post)
 {
     merr_t err;
-    struct hdr hdr;
-    struct mpool *mpool = (void *)-1;
-    struct kvs_mblk_desc blk_desc;
-    struct wbt_desc wbt_desc;
-    uint64_t blkid;
+    struct hblk_metrics s;
 
-    init_hdr(&hdr);
-
-    err = mpm_mblock_alloc(FAKE_BLOCK_SIZE, &blkid);
-    ASSERT_EQ(0, merr_errno(err));
-    blk_desc.mbid = blkid;
-
-    err = mpm_mblock_write(blkid, fake_mblock_buf, 0, FAKE_BLOCK_SIZE);
-    ASSERT_EQ(0, merr_errno(err));
-
-    err = mpool_mcache_mmap(mpool, 1, &blk_desc.mbid, &blk_desc.map);
-    ASSERT_EQ(0, merr_errno(err));
-
-    err = mpm_mblock_write(blk_desc.mbid, hdr.data, 0, PAGE_SIZE);
-    ASSERT_EQ(0, merr_errno(err));
-
-    hbr_madvise_wbt_int_nodes(&blk_desc, &wbt_desc, MADV_WILLNEED);
-
-    wbt_desc.wbd_n_pages = 0;
-    wbt_desc.wbd_leaf_cnt = 0;
-    hbr_madvise_wbt_int_nodes(&blk_desc, &wbt_desc, MADV_WILLNEED);
-
-    mpool_mcache_munmap(blk_desc.map);
-
-    err = mpool_mblock_delete(mpool, blkid);
-    ASSERT_EQ(0, merr_errno(err));
+    err = hbr_read_metrics(&mblk, &s);
+    ASSERT_EQ(err, 0);
 }
 
-MTF_DEFINE_UTEST_PREPOST(hblock_reader_test, madvise_kmd_success, test_pre, test_post)
+MTF_DEFINE_UTEST_PREPOST(hblock_reader_test, t_hbr_read_ptree_region_desc, test_pre, test_post)
 {
     merr_t err;
-    struct hdr hdr;
-    struct mpool *mpool = (void *)-1;
-    struct kvs_mblk_desc blk_desc;
-    struct wbt_desc wbt_desc;
-    uint64_t blkid;
+    struct wbt_desc s;
 
-    init_hdr(&hdr);
+    err = hbr_read_ptree_region_desc(&mblk, &s);
+    ASSERT_EQ(err, 0);
 
-    err = mpm_mblock_alloc(FAKE_BLOCK_SIZE, &blkid);
-    ASSERT_EQ(0, merr_errno(err));
-    blk_desc.mbid = blkid;
+    ASSERT_EQ(s.wbd_first_page, hbh_ro.hbh_ptree_data_off_pg);
+    ASSERT_EQ(s.wbd_n_pages,    hbh_ro.hbh_ptree_data_len_pg);
 
-    err = mpm_mblock_write(blkid, fake_mblock_buf, 0, FAKE_BLOCK_SIZE);
-    ASSERT_EQ(0, merr_errno(err));
-
-    err = mpool_mcache_mmap(mpool, 1, &blk_desc.mbid, &blk_desc.map);
-    ASSERT_EQ(0, merr_errno(err));
-
-    err = mpm_mblock_write(blk_desc.mbid, hdr.data, 0, PAGE_SIZE);
-    ASSERT_EQ(0, merr_errno(err));
-
-    hbr_madvise_kmd(&blk_desc, &wbt_desc, MADV_WILLNEED);
-
-    wbt_desc.wbd_n_pages = 0;
-    wbt_desc.wbd_leaf_cnt = 0;
-    hbr_madvise_kmd(&blk_desc, &wbt_desc, MADV_WILLNEED);
-
-    mpool_mcache_munmap(blk_desc.map);
-
-    err = mpool_mblock_delete(mpool, blkid);
-    ASSERT_EQ(0, merr_errno(err));
+    ASSERT_EQ(s.wbd_version,    hbh_ro.hbh_ptree_hdr.wbt_version);
+    ASSERT_EQ(s.wbd_root,       hbh_ro.hbh_ptree_hdr.wbt_root);
+    ASSERT_EQ(s.wbd_leaf,       hbh_ro.hbh_ptree_hdr.wbt_leaf);
+    ASSERT_EQ(s.wbd_leaf_cnt,   hbh_ro.hbh_ptree_hdr.wbt_leaf_cnt);
+    ASSERT_EQ(s.wbd_kmd_pgc,    hbh_ro.hbh_ptree_hdr.wbt_kmd_pgc);
 }
 
-MTF_DEFINE_UTEST_PREPOST(hblock_reader_test, madvise_wbt_leaf_nodes_success, test_pre, test_post)
+MTF_DEFINE_UTEST_PREPOST(hblock_reader_test, t_hbr_read_seqno_range, test_pre, test_post)
 {
     merr_t err;
-    struct hdr hdr;
-    struct mpool *mpool = (void *)-1;
-    struct kvs_mblk_desc blk_desc;
-    struct wbt_desc wbt_desc;
-    uint64_t blkid;
-
-    err = mpm_mblock_alloc(FAKE_BLOCK_SIZE, &blkid);
-    ASSERT_EQ(0, merr_errno(err));
-    blk_desc.mbid = blkid;
-
-    err = mpm_mblock_write(blkid, fake_mblock_buf, 0, FAKE_BLOCK_SIZE);
-    ASSERT_EQ(0, merr_errno(err));
-
-    err = mpool_mcache_mmap(mpool, 1, &blk_desc.mbid, &blk_desc.map);
-    ASSERT_EQ(0, merr_errno(err));
-
-    init_hdr(&hdr);
-    err = mpm_mblock_write(blk_desc.mbid, hdr.data, 0, HBLOCK_HDR_PAGES * PAGE_SIZE);
-    ASSERT_EQ(0, merr_errno(err));
-
-    hbr_madvise_wbt_leaf_nodes(&blk_desc, &wbt_desc, MADV_WILLNEED);
-
-    wbt_desc.wbd_n_pages = 0;
-    wbt_desc.wbd_leaf_cnt = 0;
-    hbr_madvise_wbt_leaf_nodes(&blk_desc, &wbt_desc, MADV_WILLNEED);
-
-    mpool_mcache_munmap(blk_desc.map);
-
-    err = mpool_mblock_delete(mpool, blkid);
-    ASSERT_EQ(0, merr_errno(err));
-}
-
-MTF_DEFINE_UTEST_PREPOST(hblock_reader_test, read_desc_error, test_pre, test_post)
-{
-    merr_t err;
-    struct mpool *mpool = (void *)-1;
-    struct mpool_mcache_map *map = (void *)-1;
-    const uint64_t blkid = 0xffff;
-    struct kvs_mblk_desc desc;
-    struct mblock_props props;
-
-    mapi_inject_ptr(mapi_idx_mpool_mcache_getbase, NULL);
-
-    err = hbr_read_desc(mpool, map, &props, blkid, &desc);
-    ASSERT_NE(0, merr_errno(err));
-
-    mapi_inject_unset(mapi_idx_mpool_mcache_getbase);
-}
-
-MTF_DEFINE_UTEST_PREPOST(hblock_reader_test, read_desc_success, test_pre, test_post)
-{
-    merr_t err;
-    struct mpool *mpool = (void *)-1;
-    struct mpool_mcache_map *map;
-    struct hdr hdr;
-    uint64_t blkid;
-    struct kvs_mblk_desc desc;
-    struct mblock_props props;
-    struct hblk_metrics metrics;
-
-    err = mpm_mblock_alloc(FAKE_BLOCK_SIZE, &blkid);
-    ASSERT_EQ(0, merr_errno(err));
-
-    err = mpm_mblock_write(blkid, fake_mblock_buf, 0, FAKE_BLOCK_SIZE);
-    ASSERT_EQ(0, merr_errno(err));
-
-    err = mpool_mcache_mmap(mpool, 1, &blkid, &map);
-    ASSERT_EQ(0, merr_errno(err));
-
-    err = mpool_mblock_props_get(mpool, blkid, &props);
-    ASSERT_EQ(0, merr_errno(err));
-
-    init_hdr(&hdr);
-    err = mpm_mblock_write(blkid, hdr.data, 0, HBLOCK_HDR_PAGES * PAGE_SIZE);
-    ASSERT_EQ(0, merr_errno(err));
-
-    err = hbr_read_desc(mpool, map, &props, blkid, &desc);
-    ASSERT_EQ(0, merr_errno(err));
-    ASSERT_EQ(HBLOCK_HDR_MAGIC, omf_hbh_magic(desc.map_base));
-    ASSERT_EQ(0, keycmp(desc.map_base + HBLOCK_HDR_LEN - 2 * HSE_KVS_PFX_LEN_MAX, PFX_MAX_LEN,
-        PFX_MAX, PFX_MAX_LEN));
-    ASSERT_EQ(0, keycmp(desc.map_base + HBLOCK_HDR_LEN - HSE_KVS_PFX_LEN_MAX, PFX_MIN_LEN,
-        PFX_MIN, PFX_MIN_LEN));
-
-    err = hbr_read_metrics(&desc, &metrics);
-    ASSERT_EQ(0, merr_errno(err));
-    ASSERT_EQ(props.mpr_write_len, metrics.hm_size);
-    ASSERT_EQ(22, metrics.hm_nptombs);
-
-    err = mpool_mblock_delete(mpool, blkid);
-    ASSERT_EQ(0, merr_errno(err));
-}
-
-MTF_DEFINE_UTEST_PREPOST(hblock_reader_test, read_ptree_region_desc_error, test_pre, test_post)
-{
-    merr_t err, expected;
-    struct mpool *mpool = (void *)-1;
-    struct hdr hdr;
-    struct kvs_mblk_desc blk_desc = {};
-    struct wbt_desc wbt_desc;
-    uint64_t blkid;
-
-    err = mpm_mblock_alloc(FAKE_BLOCK_SIZE, &blkid);
-    ASSERT_EQ(0, merr_errno(err));
-    blk_desc.mbid = blkid;
-
-    err = mpm_mblock_write(blkid, fake_mblock_buf, 0, FAKE_BLOCK_SIZE);
-    ASSERT_EQ(0, merr_errno(err));
-
-    err = mpool_mcache_mmap(mpool, 1, &blk_desc.mbid, &blk_desc.map);
-    ASSERT_EQ(0, merr_errno(err));
-
-    init_hdr(&hdr);
-    err = mpm_mblock_write(blk_desc.mbid, hdr.data, 0, HBLOCK_HDR_PAGES * PAGE_SIZE);
-    ASSERT_EQ(0, merr_errno(err));
-
-    expected = __LINE__;
-    mapi_inject(mapi_idx_mpool_mcache_getpages, expected);
-    err = hbr_read_ptree_region_desc(&blk_desc, &wbt_desc);
-    ASSERT_EQ(expected, merr_errno(err));
-
-    mapi_inject_unset(mapi_idx_mpool_mcache_getpages);
-
-    expected = __LINE__;
-    mapi_inject(mapi_idx_wbtr_read_desc, expected);
-    err = hbr_read_ptree_region_desc(&blk_desc, &wbt_desc);
-    ASSERT_EQ(expected, merr_errno(err));
-
-    err = mpool_mblock_delete(mpool, blkid);
-    ASSERT_EQ(0, merr_errno(err));
-}
-
-MTF_DEFINE_UTEST_PREPOST(hblock_reader_test, read_ptree_region_desc_success, test_pre, test_post)
-{
-    merr_t err;
-    struct mpool *mpool = (void *)-1;
-    struct hdr hdr;
-    struct kvs_mblk_desc blk_desc = {};
-    struct wbt_desc wbt_desc;
-    uint64_t blkid;
     uint64_t min_seqno, max_seqno;
 
-    err = mpm_mblock_alloc(FAKE_BLOCK_SIZE, &blkid);
-    ASSERT_EQ(0, merr_errno(err));
-    blk_desc.mbid = blkid;
-
-    err = mpm_mblock_write(blkid, fake_mblock_buf, 0, FAKE_BLOCK_SIZE);
-    ASSERT_EQ(0, merr_errno(err));
-
-    err = mpool_mcache_mmap(mpool, 1, &blk_desc.mbid, &blk_desc.map);
-    ASSERT_EQ(0, merr_errno(err));
-
-    init_hdr(&hdr);
-    err = mpm_mblock_write(blk_desc.mbid, hdr.data, 0, HBLOCK_HDR_PAGES * PAGE_SIZE);
-    ASSERT_EQ(0, merr_errno(err));
-
-    mapi_inject(mapi_idx_wbtr_read_desc, 0);
-
-    err = hbr_read_ptree_region_desc(&blk_desc, &wbt_desc);
-    ASSERT_EQ(0, merr_errno(err));
-    ASSERT_EQ(omf_hbh_ptree_data_off_pg(hdr.hblk_hdr), wbt_desc.wbd_first_page);
-    ASSERT_EQ(omf_hbh_ptree_data_len_pg(hdr.hblk_hdr), wbt_desc.wbd_n_pages);
-
-    mapi_inject_unset(mapi_idx_wbtr_read_desc);
-
-    err = hbr_read_seqno_range(&blk_desc, &min_seqno, &max_seqno);
-    ASSERT_EQ(0, merr_errno(err));
-    ASSERT_EQ(omf_hbh_min_seqno(hdr.hblk_hdr), min_seqno);
-    ASSERT_EQ(omf_hbh_max_seqno(hdr.hblk_hdr), max_seqno);
-
-    err = mpool_mblock_delete(mpool, blkid);
-    ASSERT_EQ(0, merr_errno(err));
+    err = hbr_read_seqno_range(&mblk, &min_seqno, &max_seqno);
+    ASSERT_EQ(err, 0);
+    ASSERT_EQ(min_seqno, hbh_ro.hbh_min_seqno);
+    ASSERT_EQ(max_seqno, hbh_ro.hbh_max_seqno);
 }
 
-MTF_DEFINE_UTEST_PREPOST(hblock_reader_test, read_seqno_range_desc_error, test_pre, test_post)
-{
-    merr_t err, expected;
-    struct mpool *mpool = (void *)-1;
-    struct hdr hdr;
-    struct kvs_mblk_desc blk_desc = {};
-    uint64_t blkid;
-    uint64_t min_seqno, max_seqno;
-
-    err = mpm_mblock_alloc(FAKE_BLOCK_SIZE, &blkid);
-    ASSERT_EQ(0, merr_errno(err));
-    blk_desc.mbid = blkid;
-
-    err = mpm_mblock_write(blkid, fake_mblock_buf, 0, FAKE_BLOCK_SIZE);
-    ASSERT_EQ(0, merr_errno(err));
-
-    err = mpool_mcache_mmap(mpool, 1, &blk_desc.mbid, &blk_desc.map);
-    ASSERT_EQ(0, merr_errno(err));
-
-    init_hdr(&hdr);
-    err = mpm_mblock_write(blk_desc.mbid, hdr.data, 0, HBLOCK_HDR_PAGES * PAGE_SIZE);
-    ASSERT_EQ(0, merr_errno(err));
-
-    expected = __LINE__;
-    mapi_inject(mapi_idx_mpool_mcache_getpages, expected);
-
-    err = hbr_read_seqno_range(&blk_desc, &min_seqno, &max_seqno);
-    ASSERT_EQ(expected, merr_errno(err));
-
-    mapi_inject_unset(mapi_idx_mpool_mcache_getpages);
-
-    err = mpool_mblock_delete(mpool, blkid);
-    ASSERT_EQ(0, merr_errno(err));
-}
-
-MTF_DEFINE_UTEST_PREPOST(hblock_reader_test, read_seqno_range_success, test_pre, test_post)
+MTF_DEFINE_UTEST_PREPOST(hblock_reader_test, t_hbr_read_vgroup_cnt, test_pre, test_post)
 {
     merr_t err;
-    struct mpool *mpool = (void *)-1;
-    struct hdr hdr;
-    struct kvs_mblk_desc blk_desc = {};
-    uint64_t blkid;
-    uint64_t min_seqno, max_seqno;
+    uint32_t nvgroups;
 
-    err = mpm_mblock_alloc(FAKE_BLOCK_SIZE, &blkid);
-    ASSERT_EQ(0, merr_errno(err));
-    blk_desc.mbid = blkid;
-
-    err = mpm_mblock_write(blkid, fake_mblock_buf, 0, FAKE_BLOCK_SIZE);
-    ASSERT_EQ(0, merr_errno(err));
-
-    err = mpool_mcache_mmap(mpool, 1, &blk_desc.mbid, &blk_desc.map);
-    ASSERT_EQ(0, merr_errno(err));
-
-    init_hdr(&hdr);
-    err = mpm_mblock_write(blk_desc.mbid, hdr.data, 0, HBLOCK_HDR_PAGES * PAGE_SIZE);
-    ASSERT_EQ(0, merr_errno(err));
-
-    err = hbr_read_seqno_range(&blk_desc, &min_seqno, &max_seqno);
-    ASSERT_EQ(0, merr_errno(err));
-    ASSERT_EQ(omf_hbh_min_seqno(hdr.hblk_hdr), min_seqno);
-    ASSERT_EQ(omf_hbh_max_seqno(hdr.hblk_hdr), max_seqno);
-
-    err = mpool_mblock_delete(mpool, blkid);
-    ASSERT_EQ(0, merr_errno(err));
+    err = hbr_read_vgroup_cnt(&mblk, &nvgroups);
+    ASSERT_EQ(err, 0);
+    ASSERT_EQ(nvgroups, 2);
 }
 
-MTF_DEFINE_UTEST_PREPOST(hblock_reader_test, corrupt_magic, test_pre, test_post)
+MTF_DEFINE_UTEST_PREPOST(hblock_reader_test, t_hbr_read_vgroup_map, test_pre, test_post)
 {
     merr_t err;
-    struct mpool *mpool = (void *)-1;
-    struct hdr hdr;
-    struct kvs_mblk_desc blk_desc = {};
-    struct wbt_desc wbt_desc;
-    uint64_t blkid;
-    uint64_t min_seqno, max_seqno;
+    bool use_vgmap;
+    struct vgmap *vgmap;
+    uint32_t nvgroups;
 
-    err = mpm_mblock_alloc(FAKE_BLOCK_SIZE, &blkid);
-    ASSERT_EQ(0, merr_errno(err));
-    blk_desc.mbid = blkid;
+    err = hbr_read_vgroup_cnt(&mblk, &nvgroups);
+    ASSERT_EQ(err, 0);
+    ASSERT_EQ(nvgroups, 2);
 
-    err = mpm_mblock_write(blkid, fake_mblock_buf, 0, FAKE_BLOCK_SIZE);
-    ASSERT_EQ(0, merr_errno(err));
+    vgmap = vgmap_alloc(nvgroups);
+    ASSERT_NE(vgmap, NULL);
 
-    err = mpool_mcache_mmap(mpool, 1, &blk_desc.mbid, &blk_desc.map);
-    ASSERT_EQ(0, merr_errno(err));
+    err = hbr_read_vgroup_map(&mblk, vgmap, &use_vgmap);
+    ASSERT_EQ(err, 0);
+    ASSERT_FALSE(use_vgmap);
 
-    init_hdr(&hdr);
-    omf_set_hbh_magic(hdr.hblk_hdr, ~HBLOCK_HDR_MAGIC);
-    err = mpm_mblock_write(blk_desc.mbid, hdr.data, 0, HBLOCK_HDR_PAGES * PAGE_SIZE);
-    ASSERT_EQ(0, merr_errno(err));
-
-    err = hbr_read_ptree_region_desc(&blk_desc, &wbt_desc);
-    ASSERT_EQ(EPROTO, merr_errno(err));
-
-    err = hbr_read_seqno_range(&blk_desc, &min_seqno, &max_seqno);
-    ASSERT_EQ(EPROTO, merr_errno(err));
-
-    err = mpool_mblock_delete(mpool, blkid);
-    ASSERT_EQ(0, merr_errno(err));
+    free(vgmap);
 }
 
-MTF_DEFINE_UTEST_PREPOST(hblock_reader_test, corrupt_version, test_pre, test_post)
+MTF_DEFINE_UTEST_PREPOST(hblock_reader_test, t_hbr_read_ptree, test_pre, test_post)
 {
     merr_t err;
-    struct mpool *mpool = (void *)-1;
-    struct hdr hdr;
-    struct kvs_mblk_desc blk_desc = {};
-    struct wbt_desc wbt_desc;
-    uint64_t blkid;
-    uint64_t min_seqno, max_seqno;
+    uint8_t *ptree;
+    uint32_t ptree_pgc;
+    struct wbt_desc s;
 
-    err = mpm_mblock_alloc(FAKE_BLOCK_SIZE, &blkid);
-    ASSERT_EQ(0, merr_errno(err));
-    blk_desc.mbid = blkid;
+    err = hbr_read_ptree_region_desc(&mblk, &s);
+    ASSERT_EQ(err, 0);
 
-    err = mpm_mblock_write(blkid, fake_mblock_buf, 0, FAKE_BLOCK_SIZE);
-    ASSERT_EQ(0, merr_errno(err));
+    hbr_read_ptree(&mblk, &s, &ptree, &ptree_pgc);
+    ASSERT_EQ(ptree, mblk.map_base + s.wbd_first_page * PAGE_SIZE);
+    ASSERT_EQ(ptree_pgc, s.wbd_n_pages);
+}
 
-    err = mpool_mcache_mmap(mpool, 1, &blk_desc.mbid, &blk_desc.map);
-    ASSERT_EQ(0, merr_errno(err));
+MTF_DEFINE_UTEST_PREPOST(hblock_reader_test, t_hbr_madvise_kmd, test_pre, test_post)
+{
+    merr_t err;
+    struct wbt_desc s;
+    uint32_t pg, pg_cnt;
+    int adv = __LINE__;
 
-    init_hdr(&hdr);
-    omf_set_hbh_version(hdr.hblk_hdr, ~HBLOCK_HDR_VERSION);
-    err = mpm_mblock_write(blk_desc.mbid, hdr.data, 0, HBLOCK_HDR_PAGES * PAGE_SIZE);
-    ASSERT_EQ(0, merr_errno(err));
+    err = hbr_read_ptree_region_desc(&mblk, &s);
+    ASSERT_EQ(err, 0);
 
-    err = hbr_read_ptree_region_desc(&blk_desc, &wbt_desc);
-    ASSERT_EQ(EPROTO, merr_errno(err));
+    pg = s.wbd_first_page + s.wbd_root + 1;
+    pg_cnt = s.wbd_kmd_pgc;
 
-    err = hbr_read_seqno_range(&blk_desc, &min_seqno, &max_seqno);
-    ASSERT_EQ(EPROTO, merr_errno(err));
+    hbr_madvise_kmd(&mblk, &s, adv);
 
-    err = mpool_mblock_delete(mpool, blkid);
-    ASSERT_EQ(0, merr_errno(err));
+    ASSERT_EQ(madvise_advice, adv);
+    ASSERT_EQ(madvise_off, PAGE_SIZE * pg);
+    ASSERT_EQ(madvise_len, PAGE_SIZE * pg_cnt);
+}
+
+MTF_DEFINE_UTEST_PREPOST(hblock_reader_test, t_hbr_madvise_wbt_leaf_nodes, test_pre, test_post)
+{
+    merr_t err;
+    struct wbt_desc s;
+    uint32_t pg, pg_cnt;
+    int adv = __LINE__;
+
+    err = hbr_read_ptree_region_desc(&mblk, &s);
+    ASSERT_EQ(err, 0);
+
+    pg = s.wbd_first_page;
+    pg_cnt = s.wbd_leaf_cnt;
+
+    hbr_madvise_wbt_leaf_nodes(&mblk, &s, adv);
+
+    ASSERT_EQ(madvise_advice, adv);
+    ASSERT_EQ(madvise_off, PAGE_SIZE * pg);
+    ASSERT_EQ(madvise_len, PAGE_SIZE * pg_cnt);
+}
+
+MTF_DEFINE_UTEST_PREPOST(hblock_reader_test, t_hbr_madvise_wbt_int_nodes, test_pre, test_post)
+{
+    merr_t err;
+    struct wbt_desc s;
+    uint32_t pg, pg_cnt;
+    int adv = __LINE__;
+
+    err = hbr_read_ptree_region_desc(&mblk, &s);
+    ASSERT_EQ(err, 0);
+
+    pg = s.wbd_first_page + s.wbd_leaf_cnt;
+    pg_cnt = s.wbd_n_pages - s.wbd_leaf_cnt - s.wbd_kmd_pgc;
+
+    hbr_madvise_wbt_int_nodes(&mblk, &s, adv);
+
+    ASSERT_EQ(madvise_advice, adv);
+    ASSERT_EQ(madvise_off, PAGE_SIZE * pg);
+    ASSERT_EQ(madvise_len, PAGE_SIZE * pg_cnt);
+
 }
 
 MTF_END_UTEST_COLLECTION(hblock_reader_test)
