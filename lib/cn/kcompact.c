@@ -22,6 +22,7 @@
 #include "cn_tree.h"
 #include "cn_tree_internal.h"
 #include "cn_tree_compact.h"
+#include "vgmap.h"
 
 static int
 kv_item_compare(const void *a, const void *b)

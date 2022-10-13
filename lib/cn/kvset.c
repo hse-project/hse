@@ -59,6 +59,7 @@
 #include "mbset.h"
 #include "cn_tree.h"
 #include "cn_tree_internal.h"
+#include "vgmap.h"
 
 /*
  * kvset deferred deletes

@@ -13,6 +13,8 @@
 #include <cn/kvs_mblk_desc.h>
 #include <cn/omf.h>
 #include <cn/wbt_reader.h>
+#include <cn/vgmap.h>
+#include <cn/kvset.h>
 
 #include <hse_util/hlog.h>
 #include <hse/error/merr.h>
