@@ -419,7 +419,7 @@ wbt_dump_impl(struct dump_mblock *mblk, const struct wbt_hdr_omf *wbt)
     uint wbt_doff = omf_kbh_wbt_doff_pg(kbh);
     const uint8_t *kmd = p + pgoff(wbt_doff + omf_wbt_root(wbt) + 1);
 
-    printf("  wbthdr: magic 0x%08x  ver %d  root %d  leaf1 %d  nleaf %d kmdpgc %d\n",
+    printf("  wbthdr: magic 0x%08x  ver %d  root %d  leaf %d  leaf_cnt %d kmd_pgc %d\n",
         omf_wbt_magic(wbt), omf_wbt_version(wbt), omf_wbt_root(wbt),
         omf_wbt_leaf(wbt), omf_wbt_leaf_cnt(wbt), omf_wbt_kmd_pgc(wbt));
 
@@ -537,8 +537,6 @@ bloom_dump(struct dump_mblock *mblk)
     printf("  bloom bucket size:   %5lu (%lu bits)\n", bktsz, bitsperbkt);
     printf("  bloom empty buckets: %5u\n", cntempty);
     printf("  bloom full buckets:  %5u\n", cntfull);
-    printf("  bloom dist    min:  %6.3lf (%u / %zu)\n",
-        (double)cntv[0] / bitsperbkt, cntv[0], bitsperbkt);
 
     printf("  bloom dist    min:  %6.3lf (%u / %zu)\n",
         (double)cntv[0] / bitsperbkt, cntv[0], bitsperbkt);
@@ -585,6 +583,7 @@ hblock_dump(struct dump_mblock *mblk)
 {
     const void *p = mblk->data;
     const struct hblock_hdr_omf *hbh = p;
+    uint pg, pgc;
 
     printf("\nhblock: ");
 
@@ -595,9 +594,17 @@ hblock_dump(struct dump_mblock *mblk)
         omf_hbh_min_seqno(hbh), omf_hbh_min_seqno(hbh),
         omf_hbh_num_ptombs(hbh), omf_hbh_num_kblocks(hbh), omf_hbh_num_vblocks(hbh));
 
-    printf("  vgmap page off/len %u %u, hlog page off/len %u %u\n",
-        omf_hbh_vgmap_off_pg(hbh), omf_hbh_vgmap_len_pg(hbh),
-        omf_hbh_hlog_off_pg(hbh), omf_hbh_hlog_len_pg(hbh));
+    pg  = omf_hbh_vgmap_off_pg(hbh);
+    pgc = omf_hbh_vgmap_len_pg(hbh);
+    printf("  vgmap pages [%u..%u], pgc %u\n", pg, pg + pgc - 1, pgc);
+
+    pg  = omf_hbh_hlog_off_pg(hbh);
+    pgc = omf_hbh_hlog_len_pg(hbh);
+    printf("  hlog  pages [%u..%u], pgc %u\n", pg, pg + pgc - 1, pgc);
+
+    pg  = omf_hbh_ptree_data_off_pg(hbh);
+    pgc = omf_hbh_ptree_data_len_pg(hbh);
+    printf("  ptree pages [%u..%u], pgc %u\n", pg, pg + pgc - 1, pgc);
 
     printf("  max_ptomb byte off/len %u %u, min_ptomb off/len %u %u\n",
         omf_hbh_max_pfx_off(hbh),
