@@ -30,81 +30,29 @@
 #define bnum2map(bnum) id2map(bnum2id(bnum))
 
 struct udata {
-    uint bnum;
-    u64  id;
+    u64  mbid;
     int  return_code;
 };
 
-#define ufn ((mbset_udata_init_fn *)t_udata_init)
+#define ufn t_udata_init
 #define usz sizeof(struct udata)
 
-/*
- * Mock mpool interfaces used by mbset.
- */
-static merr_t
-_mpool_mblock_props_get(struct mpool *dsp, uint64_t objid, struct mblock_props *props)
+merr_t
+mocked_mblk_mmap(struct mpool *mp, uint64_t mbid, struct kvs_mblk_desc *md)
 {
-    memset(props, 0, sizeof(*props));
-
-    props->mpr_objid = objid;
-    props->mpr_alloc_cap = mock_alloc_cap;
-    props->mpr_write_len = mock_write_len;
+    md->map_base = (void *)0x1111;
+    md->mbid = mbid;
+    md->alen_pages = 16;
+    md->wlen_pages = 10;
+    md->mclass = 1;
     return 0;
 }
 
-static merr_t
-_mpool_mcache_mmap(
-    struct mpool *            dsp,
-    size_t                    idc,
-    uint64_t *                idv,
-    struct mpool_mcache_map **map)
+merr_t
+mocked_mblk_munmap(struct mpool *mp, struct kvs_mblk_desc *md)
 {
-    size_t i;
-    u64 *  m;
-
-    /* In this mock, an mcache map of COUNT mblocks is an array
-     * of COUNT u64 values where value is a simple reversible obfuscation
-     * of the mblock id.
-     */
-    m = mapi_safe_malloc(sizeof(*m) * idc);
-    VERIFY_NE_RET(m, 0, -1);
-
-    for (i = 0; i < idc; i++)
-        m[i] = id2map(idv[i]);
-
-    *map = (struct mpool_mcache_map *)m;
+    md->map_base = (void *)0x2222;
     return 0;
-}
-
-static void
-_mpool_mcache_munmap(struct mpool_mcache_map *map)
-{
-    mapi_safe_free(map);
-}
-
-HSE_MAYBE_UNUSED
-static void
-mock_unset(void)
-{
-    MOCK_UNSET(mpool, _mpool_mblock_props_get);
-
-    MOCK_UNSET(mpool, _mpool_mcache_mmap);
-    MOCK_UNSET(mpool, _mpool_mcache_munmap);
-
-    mapi_inject_unset(mapi_idx_mpool_mcache_madvise);
-    mapi_inject_unset(mapi_idx_mpool_mblock_delete);
-}
-
-static void
-mock_set(void)
-{
-    MOCK_SET(mpool, _mpool_mblock_props_get);
-
-    MOCK_SET(mpool, _mpool_mcache_mmap);
-    MOCK_SET(mpool, _mpool_mcache_munmap);
-
-    mapi_inject(mapi_idx_mpool_mcache_madvise, 0);
-    mapi_inject(mapi_idx_mpool_mblock_delete, 0);
 }
 
 static int
@@ -122,7 +70,11 @@ fini(struct mtf_test_info *mtf)
 static int
 pre(struct mtf_test_info *mtf)
 {
-    mock_set();
+    mapi_inject(mapi_idx_mpool_mblock_delete, 0);
+    mapi_inject(mapi_idx_mblk_madvise, 0);
+    MOCK_SET_FN(mblk_desc, mblk_mmap, mocked_mblk_mmap);
+    MOCK_SET_FN(mblk_desc, mblk_munmap, mocked_mblk_munmap);
+
     return 0;
 }
 
@@ -132,8 +84,22 @@ post(struct mtf_test_info *mtf)
     return 0;
 }
 
+typedef merr_t
+mbset_udata_init_fn(const struct kvs_mblk_desc *mblk, void *rock);
+
+static merr_t
+t_udata_init(const struct kvs_mblk_desc *mblk, void *rock)
+{
+    struct udata *u = rock;
+
+    u->mbid = mblk->mbid;
+    return u->return_code;
+}
+
+
 MTF_BEGIN_UTEST_COLLECTION_PREPOST(test, init, fini);
 
+#if 0
 struct t_callback_info {
     uint invoked;
     uint delete_error_detected;
@@ -150,42 +116,12 @@ t_callback(void *rock, bool mblock_delete_error)
 }
 
 static merr_t
-t_udata_init(
-    struct mbset *       mbs,
-    uint                 bnum,
-    uint *               argcp,
-    u64 *                argv,
-    struct mblock_props *props,
-    void *               rock)
-{
-    struct udata *u = rock;
-
-    u->bnum = bnum;
-    u->id = props->mpr_objid;
-    return u->return_code;
-}
-
-static merr_t
 t_udata_update(
-    struct mbset *       mbs,
-    uint                 bnum,
-    uint *               argcp,
-    u64 *                argv,
-    struct mblock_props *props,
-    void *               rock)
+    struct udata   *u,
+    uint           *vgroupc,
+    u64            *vgroupv)
 {
-    struct udata *u = rock;
-    int           i;
-
-    for (i = 0; i < *argcp; ++i) {
-        if (argv[i] == u->id)
-            return u->return_code;
-    }
-
-    argv[i] = u->id;
-    *argcp = i + 1;
-
-    return u->return_code;
+    return 0;
 }
 
 static u64 *
@@ -213,7 +149,7 @@ t_mbs_create(struct mtf_test_info *lcl_ti, uint idc, u64 **idv_out, struct mbset
     idv = idv_alloc(idc);
     ASSERT_NE_RET(idv, NULL, -1);
 
-    err = mbset_create(ds, idc, idv, usz, ufn, 0, &mbs);
+    err = mbset_create(ds, idc, idv, usz, ufn, &mbs);
     ASSERT_EQ_RET(err, 0, -1);
 
     *idv_out = idv;
@@ -265,24 +201,30 @@ t_mbs_destroy(struct mtf_test_info *lcl_ti, u64 *idv, struct mbset *mbs)
     mbset_put_ref(mbs);
     return 0;
 }
+#endif
+
+void
+idv_init(uint64_t *idv, uint idc)
+{
+    for (uint i = 0; i < idc; i++)
+        idv[i] = i;
+}
 
 MTF_DEFINE_UTEST_PREPOST(test, t_mbset_create_simple, pre, post)
 {
-    u64 *         idv;
-    uint          idc = 2;
+    u64 idv[32];
+    uint idc = NELEM(idv);
     struct mbset *mbs;
     merr_t        err;
 
-    idv = idv_alloc(idc);
-    ASSERT_NE(idv, NULL);
+    idv_init(idv, idc);
 
-    err = mbset_create(ds, idc, idv, usz, ufn, 0, &mbs);
+    err = mbset_create(ds, idc, idv, usz, ufn, &mbs);
     ASSERT_EQ(err, 0);
     mbset_put_ref(mbs);
-
-    mapi_safe_free(idv);
 }
 
+#if 0
 MTF_DEFINE_UTEST_PREPOST(test, t_mbset_create_invalid_params, pre, post)
 {
     u64 *         idv;
@@ -567,5 +509,6 @@ MTF_DEFINE_UTEST_PREPOST(test, t_mbset_apply, pre, post)
 
     mapi_safe_free(idv);
 }
+#endif
 
 MTF_END_UTEST_COLLECTION(test);
