@@ -21,6 +21,7 @@
 #include "kvs_mblk_desc.h"
 #include "omf.h"
 #include "wbt_reader.h"
+#include "vgmap.h"
 
 static bool HSE_NONNULL(1)
 hblock_hdr_valid(const struct hblock_hdr_omf *omf)
