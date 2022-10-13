@@ -3,6 +3,8 @@
  * Copyright (C) 2015-2022 Micron Technology, Inc.  All rights reserved.
  */
 
+#define MTF_MOCK_IMPL_blk_list
+
 #include <hse_ikvdb/blk_list.h>
 #include <hse/logging/logging.h>
 #include <hse/error/merr.h>
@@ -125,3 +127,7 @@ blk_list_free(struct blk_list *blks)
     blks->blks = NULL;
     blks->n_blks = 0;
 }
+
+#if HSE_MOCKING
+#include "blk_list_ut_impl.i"
+#endif

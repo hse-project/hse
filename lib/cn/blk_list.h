@@ -9,6 +9,8 @@
 #include <hse_util/inttypes.h>
 #include <hse/error/merr.h>
 
+/* MTF_MOCK_DECL(blk_list) */
+
 struct blk_list;
 struct kvs_block;
 struct mblock_props;
@@ -16,28 +18,36 @@ struct mpool;
 
 #define BLK_LIST_PRE_ALLOC 64
 
+/* MTF_MOCK */
 merr_t
 delete_mblock(struct mpool *mp, struct kvs_block *blk);
 
+/* MTF_MOCK */
 void
 delete_mblocks(struct mpool *mp, struct blk_list *blk);
 
+/* MTF_MOCK */
 merr_t
 commit_mblock(struct mpool *mp, struct kvs_block *blk);
 
+/* MTF_MOCK */
 merr_t
 commit_mblocks(struct mpool *mp, struct blk_list *blk);
 
+/* MTF_MOCK */
 void
 blk_list_init(struct blk_list *blkl);
 
+/* MTF_MOCK */
 merr_t
 blk_list_append(struct blk_list *blks, u64 blkid);
 
-merr_t
-blk_list_append_ext(struct blk_list *blks, u64 blkid, bool valid, bool needs_commit);
-
+/* MTF_MOCK */
 void
 blk_list_free(struct blk_list *blks);
+
+#if HSE_MOCKING
+#include "blk_list_ut.h"
+#endif
 
 #endif
