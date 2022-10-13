@@ -112,7 +112,6 @@ struct kvset {
     struct kvset_hblk ks_hblk;
 
     const u8 *                ks_klarge; /* large key cache */
-    struct mpool_mcache_map  *ks_kmap;
     struct mbset **           ks_vbsetv;
     uint                      ks_vbsetc;
 

@@ -301,16 +301,14 @@ static merr_t
 kvset_kblk_init(
     struct kvs_rparams *     rp,
     struct mpool *           ds,
-    struct mblock_props     *props,
-    struct mpool_mcache_map *kmap,
-    u32                      idx,
+    uint64_t                 mbid,
     struct kvset_kblk *      p)
 {
     struct kvs_mblk_desc * kbd = &p->kb_kblk_desc;
     struct kblock_hdr_omf *hdr;
     merr_t                 err;
 
-    err = kbr_get_kblock_desc(ds, kmap, props, idx, props->mpr_objid, kbd);
+    err = mblk_mmap(ds, mbid, kbd);
     if (ev(err))
         return err;
 
@@ -319,10 +317,6 @@ kvset_kblk_init(
         return err;
 
     err = kbr_read_blm_region_desc(kbd, &p->kb_blm_desc);
-    if (ev(err))
-        return err;
-
-    err = kbr_read_blm_pages(kbd, &p->kb_blm_desc);
     if (ev(err))
         return err;
 
@@ -425,7 +419,6 @@ kvset_open2(
     struct cn_kvdb *    cn_kvdb;
 
     merr_t        err;
-    uint          i, j;
     size_t        alloc_len;
     struct kvset *ks;
     size_t        kcachesz;
@@ -537,24 +530,14 @@ kvset_open2(
     ks->ks_seqno_max = ks->ks_hblk.kh_seqno_max;
     assert(ks->ks_seqno_min <= ks->ks_seqno_max);
 
-    /* map kblocks */
-    err = mpool_mcache_mmap(mp, km->km_kblk_list.idc, km->km_kblk_list.idv, &ks->ks_kmap);
-    if (ev(err))
-        goto err_exit;
-
     kcachesz = 0;
 
-    for (i = 0; i < n_kblks; i++) {
+    for (uint i = 0; i < n_kblks; i++) {
         struct kvset_kblk * kblk = ks->ks_kblks + i;
-        struct mblock_props props;
 
         u64 mbid = km->km_kblk_list.idv[i];
 
-        err = mpool_mblock_props_get(mp, mbid, &props);
-        if (ev(err))
-            goto err_exit;
-
-        err = kvset_kblk_init(rp, mp, &props, ks->ks_kmap, i, kblk);
+        err = kvset_kblk_init(rp, mp, mbid, kblk);
         if (ev(err))
             goto err_exit;
 
@@ -565,8 +548,8 @@ kvset_open2(
             kcachesz += kblk->kb_klen_max + kblk->kb_klen_min;
 
         /* kvset_stats from kblocks */
-        ks->ks_st.kst_kalen += props.mpr_alloc_cap;
-        ks->ks_st.kst_kwlen += props.mpr_write_len;
+        ks->ks_st.kst_halen += kblk->kb_kblk_desc.alen_pages * PAGE_SIZE;
+        ks->ks_st.kst_hwlen += kblk->kb_kblk_desc.wlen_pages * PAGE_SIZE;
         ks->ks_st.kst_keys += kblk->kb_metrics.num_keys;
         ks->ks_st.kst_tombs += kblk->kb_metrics.num_tombstones;
     }
@@ -584,7 +567,7 @@ kvset_open2(
         dst = malloc(kcachesz);
         ks->ks_klarge = dst;
 
-        for (i = dst ? 0 : UINT_MAX; i < n_kblks; ++i) {
+        for (uint i = dst ? 0 : UINT_MAX; i < n_kblks; ++i) {
             struct kvset_kblk *kb = ks->ks_kblks + i;
 
             /* Ignore these keys if they've already been cached
@@ -880,9 +863,11 @@ static void
 cleanup_kblocks(struct kvset *ks)
 {
     merr_t err = 0;
-    uint   i;
 
-    mpool_mcache_munmap(ks->ks_kmap);
+    for (uint i = 0; i < ks->ks_st.kst_kblks; i++) {
+        err = mblk_munmap(ks->ks_mp, &ks->ks_kblks[i].kb_kblk_desc);
+        ev(err);
+    }
 
     if (ks->ks_deleted == DEL_NONE || ks->ks_deleted == DEL_LIST)
         return;
@@ -892,7 +877,7 @@ cleanup_kblocks(struct kvset *ks)
      * remaining mblocks here, but a delete failure might be indicative of
      * a serious error, and stopping immediately would do less harm.
      */
-    for (i = 0; i < ks->ks_st.kst_kblks; i++) {
+    for (uint i = 0; i < ks->ks_st.kst_kblks; i++) {
         err = mpool_mblock_delete(ks->ks_mp, ks->ks_kblks[i].kb_kblk_desc.mbid);
         if (err) {
             atomic_inc(&ks->ks_delete_error);
