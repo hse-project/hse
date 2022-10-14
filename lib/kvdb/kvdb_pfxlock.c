@@ -63,8 +63,8 @@ struct kvdb_pfxlock_tree {
     struct rb_root             kplt_root HSE_L1X_ALIGNED;
     struct kvdb_pfxlock_entry *kplt_ecache;
     volatile uint              kplt_entry_cnt;
-    uint                       kplt_mcache_cnt;
-    struct kvdb_pfxlock_entry *kplt_mcache;
+    uint                       kplt_cache_cnt;
+    struct kvdb_pfxlock_entry *kplt_cache;
 
     struct kvdb_pfxlock_entry  kplt_ecachev[30];
 };
@@ -96,10 +96,10 @@ kvdb_pfxlock_entry_free(struct kvdb_pfxlock_tree *tree, struct kvdb_pfxlock_entr
         return;
     }
 
-    if (tree->kplt_mcache_cnt < KVDB_PFXLOCK_CACHE_MAX) {
-        entry->kple_next = tree->kplt_mcache;
-        tree->kplt_mcache = entry;
-        tree->kplt_mcache_cnt++;
+    if (tree->kplt_cache_cnt < KVDB_PFXLOCK_CACHE_MAX) {
+        entry->kple_next = tree->kplt_cache;
+        tree->kplt_cache = entry;
+        tree->kplt_cache_cnt++;
         return;
     }
 
@@ -117,10 +117,10 @@ kvdb_pfxlock_entry_alloc(struct kvdb_pfxlock_tree *tree)
         return e;
     }
 
-    e = tree->kplt_mcache;
+    e = tree->kplt_cache;
     if (e) {
-        tree->kplt_mcache = e->kple_next;
-        tree->kplt_mcache_cnt--;
+        tree->kplt_cache = e->kple_next;
+        tree->kplt_cache_cnt--;
         return e;
     }
 
@@ -193,8 +193,8 @@ kvdb_pfxlock_destroy(struct kvdb_pfxlock *pfxlock)
         }
 
         /* Cleanup cache */
-        while (( entry = tree->kplt_mcache )) {
-            tree->kplt_mcache = *(void **)entry;
+        while (( entry = tree->kplt_cache )) {
+            tree->kplt_cache = *(void **)entry;
             free(entry);
         }
     }

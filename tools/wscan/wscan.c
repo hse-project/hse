@@ -175,7 +175,7 @@ main(int argc, char **argv)
     rc = rc ?: svec_append_pg(&hse_gparm, pg, PG_HSE_GLOBAL, NULL);
     rc = rc ?: svec_append_pg(&db_oparm, pg, PG_KVDB_OPEN, NULL);
     rc = rc ?: svec_append_pg(&kv_oparm, pg, PG_KVS_OPEN,
-                              "cn_mcache_wbt=0", "cn_bloom_lookup=0", NULL);
+                              "cn_mmap_wbt=0", "cn_bloom_lookup=0", NULL);
     if (rc)
         fatal(rc, "svec_apppend_pg failed");
 

@@ -356,10 +356,10 @@ kvset_kblk_init(
 
     /* Preload the wbtree nodes.
      */
-    if (rp->cn_mcache_wbt > 0) {
+    if (rp->cn_mmap_wbt > 0) {
         kbr_madvise_wbt_int_nodes(kbd, &p->kb_wbt_desc, MADV_WILLNEED);
 
-        if (rp->cn_mcache_wbt > 1)
+        if (rp->cn_mmap_wbt > 1)
             kbr_madvise_wbt_leaf_nodes(kbd, &p->kb_wbt_desc, MADV_WILLNEED);
     }
 
@@ -506,7 +506,7 @@ kvset_open2(
     ks->ks_cndb = cn_tree_get_cndb(tree);
     ks->ks_pfx_len = cp->pfx_len;
     ks->ks_nodeid = km->km_nodeid;
-    ks->ks_vmax = rp->cn_mcache_vmax;
+    ks->ks_vmax = rp->cn_mmap_vmax;
     ks->ks_cn_kvdb = cn_kvdb;
 
     /* initialize atomics */
@@ -749,11 +749,11 @@ kvset_open2(
             if (!km->km_restored) {
                 kvset_madvise_hblk(ks, MADV_WILLNEED, true);
 
-                if (ra_willneed(rp->cn_mcache_kra_params)) {
+                if (ra_willneed(rp->cn_mmap_kra_params)) {
                     kvset_madvise_kblks(ks, MADV_WILLNEED, true, true);
                 }
 
-                if (ra_willneed(rp->cn_mcache_vra_params)) {
+                if (ra_willneed(rp->cn_mmap_vra_params)) {
                     kvset_madvise_vblks(ks, MADV_WILLNEED);
                     ks->ks_vra_len = 0;
                 }
