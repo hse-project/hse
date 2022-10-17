@@ -453,7 +453,7 @@ MTF_DEFINE_UTEST_PRE(test, t_simple_api, test_setup)
 
     struct cn_tree *    tree = 0;
     struct kvs_cparams *out,
-        cp = {.pfx_len = 12, };
+        cp = { .pfx_len = 12 };
 
     err = cn_tree_create(&tree, NULL, 0, &cp, &mock_health, rp);
     ASSERT_EQ(err, 0);

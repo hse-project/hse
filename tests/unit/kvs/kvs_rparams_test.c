@@ -95,6 +95,25 @@ MTF_DEFINE_UTEST_PRE(kvs_rparams_test, kvs_cursor_ttl, test_pre)
     ASSERT_EQ(UINT64_MAX, ps->ps_bounds.as_uscalar.ps_max);
 }
 
+MTF_DEFINE_UTEST_PRE(kvs_rparams_test, kvs_sfx_len, test_pre)
+{
+    const struct param_spec *ps = ps_get("kvs_sfx_len");
+
+    ASSERT_NE(NULL, ps);
+    ASSERT_NE(NULL, ps->ps_description);
+    ASSERT_EQ(PARAM_FLAG_EXPERIMENTAL, ps->ps_flags);
+    ASSERT_EQ(PARAM_TYPE_U32, ps->ps_type);
+    ASSERT_EQ(offsetof(struct kvs_rparams, kvs_sfxlen), ps->ps_offset);
+    ASSERT_EQ(sizeof(uint32_t), ps->ps_size);
+    ASSERT_EQ((uintptr_t)ps->ps_convert, (uintptr_t)param_default_converter);
+    ASSERT_EQ((uintptr_t)ps->ps_validate, (uintptr_t)param_default_validator);
+    ASSERT_EQ((uintptr_t)ps->ps_stringify, (uintptr_t)param_default_stringify);
+    ASSERT_EQ((uintptr_t)ps->ps_jsonify, (uintptr_t)param_default_jsonify);
+    ASSERT_EQ(0, params.kvs_sfxlen);
+    ASSERT_EQ(0, ps->ps_bounds.as_uscalar.ps_min);
+    ASSERT_EQ(HSE_KVS_KEY_LEN_MAX, ps->ps_bounds.as_uscalar.ps_max);
+}
+
 MTF_DEFINE_UTEST_PRE(kvs_rparams_test, transactions_enabled, test_pre)
 {
     const struct param_spec *ps = ps_get("transactions.enabled");

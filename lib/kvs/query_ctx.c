@@ -12,7 +12,7 @@
 merr_t
 qctx_tomb_insert(struct query_ctx *qctx, const void *key, size_t klen)
 {
-    uint64_t hash = hse_hash64(key, klen);
+    const uint64_t hash = hse_hash64(key, klen);
 
     if (!qctx->tomb_map) {
         qctx->tomb_map = map_create(16);
@@ -26,7 +26,7 @@ qctx_tomb_insert(struct query_ctx *qctx, const void *key, size_t klen)
 bool
 qctx_tomb_seen(struct query_ctx *qctx, const void *key, size_t klen)
 {
-    uint64_t hash = hse_hash64(key, klen);
+    const uint64_t hash = hse_hash64(key, klen);
 
     if (!qctx->tomb_map)
         return false;

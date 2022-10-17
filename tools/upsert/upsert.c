@@ -3,24 +3,24 @@
  * Copyright (C) 2022 Micron Technology, Inc.  All rights reserved.
  */
 
+#include <hse_util/atomic.h>
+#include <hse_util/mutex.h>
+
 #include <endian.h>
 #include <errno.h>
-#include <stdio.h>
-#include <stdarg.h>
-#include <unistd.h>
-#include <stdint.h>
 #include <getopt.h>
+#include <pthread.h>
+#include <stdarg.h>
+#include <stdint.h>
+#include <stdio.h>
 #include <string.h>
 #include <sys/resource.h>
 #include <sys/time.h>
 #include <sysexits.h>
-#include <pthread.h>
+#include <unistd.h>
 
-#include <hse_util/mutex.h>
-#include <hse_util/atomic.h>
-
-#include <hse/hse.h>
 #include <hse/experimental.h>
+#include <hse/hse.h>
 
 #include <xoroshiro.h>
 
@@ -216,7 +216,7 @@ print_stats(void *arg)
     }
 }
 
-void
+void HSE_PRINTF(1, 2)
 syntax(const char *fmt, ...)
 {
     char    msg[256];
