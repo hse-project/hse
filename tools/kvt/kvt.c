@@ -720,9 +720,9 @@ rsignal(int signo, __sighandler_t func)
 int
 parm_vec_init(void)
 {
-    char *txn = testtxn ? "transactions.enabled=true" : "transactions.enabled=false";
-    char *cmp = vcomp ? "compression.algorithm=lz4" : "";
-    char rids_pfx[64] = {};
+    const char *txn = testtxn ? "transactions.enabled=true" : "transactions.enabled=false";
+    const char *cmp = vcomp ? "compression.default=on" : "compression.default=off";
+    char rids_pfx[64] = { 0 };
     int rc = 0;
 
     if (ridpfxlen)

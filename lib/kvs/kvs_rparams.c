@@ -113,88 +113,6 @@ compression_default_jsonify(const struct param_spec *const ps, const void *const
     abort();
 }
 
-static bool HSE_NONNULL(1, 2, 3)
-compression_algorithm_converter(
-    const struct param_spec *const ps,
-    const cJSON *const             node,
-    void *const                    data)
-{
-    static const char *algos[VCOMP_ALGO_COUNT] = {
-        VCOMP_PARAM_LZ4
-    };
-
-    assert(ps);
-    assert(node);
-    assert(data);
-
-    if (!cJSON_IsString(node))
-        return false;
-
-    const char *value = cJSON_GetStringValue(node);
-
-    for (size_t i = VCOMP_ALGO_MIN; i < VCOMP_ALGO_COUNT; i++) {
-        if (!strcmp(algos[i], value)) {
-            *(enum vcomp_algorithm *)data = i;
-            return true;
-        }
-    }
-
-    log_err("Unknown compression algorithm: %s", value);
-
-    return false;
-}
-
-static merr_t
-compression_algorithm_stringify(
-    const struct param_spec *const ps,
-    const void *const              value,
-    char *const                    buf,
-    const size_t                   buf_sz,
-    size_t *const                  needed_sz)
-{
-    int         n;
-    const char *param = NULL;
-
-    INVARIANT(ps);
-    INVARIANT(value);
-    INVARIANT(buf);
-
-    const enum vcomp_algorithm algo = *(enum vcomp_algorithm *)value;
-
-    switch (algo) {
-        case VCOMP_ALGO_LZ4:
-            param = VCOMP_PARAM_LZ4;
-            break;
-    }
-
-    assert(param);
-
-    n = snprintf(buf, buf_sz, "\"%s\"", param);
-    if (n < 0)
-        return merr(EBADMSG);
-
-    if (needed_sz)
-        *needed_sz = n;
-
-    return 0;
-}
-
-static cJSON *
-compression_algorithm_jsonify(const struct param_spec *const ps, const void *const value)
-{
-    INVARIANT(ps);
-    INVARIANT(value);
-
-    const enum vcomp_algorithm algo = *(enum vcomp_algorithm *)value;
-
-    switch (algo) {
-        case VCOMP_ALGO_LZ4:
-            return cJSON_CreateString(VCOMP_PARAM_LZ4);
-    }
-
-    abort();
-}
-
 static const struct param_spec pspecs[] = {
     {
         .ps_name = "kvs_cursor_ttl",
@@ -766,27 +684,6 @@ static const struct param_spec pspecs[] = {
             .as_uscalar = {
                 .ps_min = VCOMP_DEFAULT_OFF,
                 .ps_max = VCOMP_DEFAULT_ON,
-            },
-        },
-    },
-    {
-        .ps_name = "compression.algorithm",
-        .ps_description = "Value compression algorithm (lz4)",
-        .ps_flags = 0,
-        .ps_type = PARAM_TYPE_ENUM,
-        .ps_offset = offsetof(struct kvs_rparams, compression.algorithm),
-        .ps_size = PARAM_SZ(struct kvs_rparams, compression.algorithm),
-        .ps_convert = compression_algorithm_converter,
-        .ps_validate = param_default_validator,
-        .ps_stringify = compression_algorithm_stringify,
-        .ps_jsonify = compression_algorithm_jsonify,
-        .ps_default_value = {
-            .as_enum = VCOMP_ALGO_LZ4,
-        },
-        .ps_bounds = {
-            .as_enum = {
-                .ps_min = VCOMP_ALGO_MIN,
-                .ps_max = VCOMP_ALGO_MAX,
             },
         },
     },

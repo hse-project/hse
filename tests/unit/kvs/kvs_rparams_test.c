@@ -646,42 +646,6 @@ MTF_DEFINE_UTEST_PRE(kvs_rparams_test, compression_default, test_pre)
     ASSERT_EQ(0, merr_errno(err));
 }
 
-MTF_DEFINE_UTEST_PRE(kvs_rparams_test, compression_algorithm, test_pre)
-{
-    merr_t                   err;
-    char                     buf[128];
-    size_t                   needed_sz;
-    const struct param_spec *ps = ps_get("compression.algorithm");
-
-    ASSERT_NE(NULL, ps);
-    ASSERT_NE(NULL, ps->ps_description);
-    ASSERT_EQ(0, ps->ps_flags);
-    ASSERT_EQ(PARAM_TYPE_ENUM, ps->ps_type);
-    ASSERT_EQ(offsetof(struct kvs_rparams, compression.algorithm), ps->ps_offset);
-    ASSERT_EQ(sizeof(enum vcomp_algorithm), ps->ps_size);
-    ASSERT_NE((uintptr_t)ps->ps_convert, (uintptr_t)param_default_converter);
-    ASSERT_EQ((uintptr_t)ps->ps_validate, (uintptr_t)param_default_validator);
-    ASSERT_NE((uintptr_t)ps->ps_stringify, (uintptr_t)param_default_stringify);
-    ASSERT_NE((uintptr_t)ps->ps_jsonify, (uintptr_t)param_default_jsonify);
-    ASSERT_EQ(VCOMP_ALGO_LZ4, params.compression.algorithm);
-    ASSERT_EQ(VCOMP_ALGO_MIN, ps->ps_bounds.as_uscalar.ps_min);
-    ASSERT_EQ(VCOMP_ALGO_MAX, ps->ps_bounds.as_uscalar.ps_max);
-
-    ps->ps_stringify(ps, &params.compression.algorithm, buf, sizeof(buf), &needed_sz);
-    ASSERT_STREQ("\"lz4\"", buf);
-    ASSERT_EQ(5, needed_sz);
-
-    /* clang-format off */
-    err = check(
-        "compression.algorithm=lz4", true,
-        "compression.algorithm=does-not-exist", false,
-        NULL
-    );
-    /* clang-format on */
-
-    ASSERT_EQ(0, merr_errno(err));
-}
-
 MTF_DEFINE_UTEST(kvs_rparams_test, get)
 {
     merr_t err;
