@@ -155,7 +155,8 @@ merr_strinfo(
 
         if (ret < 0) {
             /* Try to just return what we already have. */
-            buf[sz] = '\000';
+            if (buf_sz > 0)
+                buf[sz - 1] = '\000';
             goto out;
         }
 

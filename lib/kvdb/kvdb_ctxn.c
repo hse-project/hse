@@ -82,7 +82,7 @@ kvdb_ctxn_trylock_impl(struct kvdb_ctxn_impl *ctxn)
 
     if (HSE_UNLIKELY(seqnoref_to_state(ctxn->ctxn_seqref) != KVDB_CTXN_ACTIVE)) {
         mutex_unlock(&ctxn->ctxn_lock);
-        return merr(ECANCELED);
+        return merrx(ECANCELED, ctxn->ctxn_expired ? HSE_ERR_CTX_TXN_EXPIRED : 0);
     }
 
     return 0;
@@ -175,8 +175,10 @@ kvdb_ctxn_reaper(struct work_struct *work)
     if (abort_cnt)
         log_info("Aborting %u transactions (expired)", abort_cnt);
 
-    list_for_each_entry(ctxn, &alist, ctxn_abort_link)
+    list_for_each_entry(ctxn, &alist, ctxn_abort_link) {
         kvdb_ctxn_abort(&ctxn->ctxn_inner_handle);
+        ctxn->ctxn_expired = true;
+    }
 
     atomic_store(&ktn->ktn_reading, 0);
 
@@ -373,6 +375,7 @@ kvdb_ctxn_begin(struct kvdb_ctxn *handle)
     ctxn->ctxn_can_insert = 0;
     ctxn->ctxn_seqref = HSE_SQNREF_UNDEFINED;
     ctxn->ctxn_bind.b_ctxn = &ctxn->ctxn_inner_handle;
+    ctxn->ctxn_expired = false;
 
     err = viewset_insert(ctxn->ctxn_viewset, &ctxn->ctxn_view_seqno, &tseqno, &ctxn->ctxn_viewset_cookie);
     if (ev(err))
@@ -639,6 +642,7 @@ kvdb_ctxn_reset(struct kvdb_ctxn *handle)
     struct kvdb_ctxn_impl *ctxn = kvdb_ctxn_h2r(handle);
 
     ctxn->ctxn_seqref = HSE_SQNREF_INVALID;
+    ctxn->ctxn_expired = false;
 }
 
 merr_t
@@ -647,7 +651,7 @@ kvdb_ctxn_get_view_seqno(struct kvdb_ctxn *handle, u64 *view_seqno)
     struct kvdb_ctxn_impl *ctxn = kvdb_ctxn_h2r(handle);
 
     if (ev(seqnoref_to_state(ctxn->ctxn_seqref) != KVDB_CTXN_ACTIVE))
-        return merr(EPROTO);
+        return merrx(EPROTO, ctxn->ctxn_expired ? HSE_ERR_CTX_TXN_EXPIRED : 0);
 
     *view_seqno = ctxn->ctxn_view_seqno;
 
