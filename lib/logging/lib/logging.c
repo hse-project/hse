@@ -143,21 +143,15 @@ log_impl(
     *timer = now + log_squelch_ns;
 
     if (err) {
-        int16_t ctx;
         char buf[256];
+        size_t needed_sz HSE_MAYBE_UNUSED;
 
-        merr_strerror(err, buf, sizeof(buf));
+        merr_strinfo(err, buf, sizeof(buf), log_err_ctx_stringify, &needed_sz);
+        assert(needed_sz < sizeof(buf));
 
-        ctx = merr_ctx(err);
-        if (ctx == 0 || !log_err_ctx_stringify) {
-            rc = snprintf(log_buffer_tls, sizeof(log_buffer_tls),
-                "[HSE] %s:%d: %s: %s: %s (%d)\n",
-                file, lineno, func, fmt, buf, merr_errno(err));
-        } else {
-            rc = snprintf(log_buffer_tls, sizeof(log_buffer_tls),
-                "[HSE] %s:%d: %s: %s: %s (%d): %s (%d)\n",
-                file, lineno, func, fmt, buf, merr_errno(err), log_err_ctx_stringify(ctx), ctx);
-        }
+        rc = snprintf(log_buffer_tls, sizeof(log_buffer_tls),
+            "[HSE] %s:%d: %s: %s: %s\n",
+            file, lineno, func, fmt, buf);
     } else {
         rc = snprintf(log_buffer_tls, sizeof(log_buffer_tls), "[HSE] %s:%d: %s: %s\n",
             file, lineno, func, fmt);
