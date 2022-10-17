@@ -47,7 +47,6 @@ struct kvset_hblk {
     uint64_t kh_seqno_max; /* max seqno */
 
     struct hblk_metrics kh_metrics;
-    struct kvs_block kh_hblk;
 };
 
 struct kvset_kblk {
@@ -66,7 +65,6 @@ struct kvset_kblk {
     struct bloom_desc kb_blm_desc;  /* Bloom descriptor */
 
     struct kblk_metrics kb_metrics; /* kblock metrics */
-    struct kvs_block    kb_kblk;    /* blkid and handle */
 };
 
 struct kvset {

@@ -143,7 +143,7 @@ MTF_DEFINE_UTEST_PREPOST(hblock_builder_test, add_ptomb_success, test_pre, test_
     struct mpool *mpool = (void *)-1;
     struct cn *cn = (void *)-1;
     struct iovec iov[1];
-    struct kvs_block blk;
+    uint64_t mbid;
     const void *pfx, *pfx_min, *pfx_max;
     size_t pfx_min_len = 0, pfx_max_len = 0;
 
@@ -158,10 +158,10 @@ MTF_DEFINE_UTEST_PREPOST(hblock_builder_test, add_ptomb_success, test_pre, test_
     err = hbb_create(&bld, cn, NULL);
     ASSERT_EQ(0, merr_errno(err));
 
-    err = hbb_finish(bld, &blk, vgmap, NULL, NULL, 0, 1, 1, 3, 0, hlog, NULL, NULL, 0);
+    err = hbb_finish(bld, &mbid, vgmap, NULL, NULL, 0, 1, 1, 3, 0, hlog, NULL, NULL, 0);
     ASSERT_EQ(0, merr_errno(err));
 
-    err = mpool_mblock_read(mpool, blk.bk_blkid, iov, NELEM(iov), 0);
+    err = mpool_mblock_read(mpool, mbid, iov, NELEM(iov), 0);
     ASSERT_EQ(0, merr_errno(err));
     ASSERT_EQ(0, omf_hbh_min_seqno(hdr));
     ASSERT_EQ(1, omf_hbh_max_seqno(hdr));
@@ -179,10 +179,10 @@ MTF_DEFINE_UTEST_PREPOST(hblock_builder_test, add_ptomb_success, test_pre, test_
     err = add_ptomb(bld, HSE_KVS_PFX_LEN_MAX, 9, &pfx);
     ASSERT_EQ(0, merr_errno(err));
 
-    err = hbb_finish(bld, &blk, vgmap, NULL, NULL, 0, 1, 1, 3, 1, hlog, NULL, NULL, 0);
+    err = hbb_finish(bld, &mbid, vgmap, NULL, NULL, 0, 1, 1, 3, 1, hlog, NULL, NULL, 0);
     ASSERT_EQ(0, merr_errno(err));
 
-    err = mpool_mblock_read(mpool, blk.bk_blkid, iov, NELEM(iov), 0);
+    err = mpool_mblock_read(mpool, mbid, iov, NELEM(iov), 0);
     ASSERT_EQ(0, merr_errno(err));
     ASSERT_EQ(0, omf_hbh_min_seqno(hdr));
     ASSERT_EQ(1, omf_hbh_max_seqno(hdr));
@@ -231,10 +231,10 @@ MTF_DEFINE_UTEST_PREPOST(hblock_builder_test, add_ptomb_success, test_pre, test_
         }
     }
 
-    err = hbb_finish(bld, &blk, vgmap, NULL, NULL, 0, 1, 1, 3, 190, hlog, NULL, NULL, 0);
+    err = hbb_finish(bld, &mbid, vgmap, NULL, NULL, 0, 1, 1, 3, 190, hlog, NULL, NULL, 0);
     ASSERT_EQ(0, merr_errno(err));
 
-    err = mpool_mblock_read(mpool, blk.bk_blkid, iov, NELEM(iov), 0);
+    err = mpool_mblock_read(mpool, mbid, iov, NELEM(iov), 0);
     ASSERT_EQ(0, merr_errno(err));
     ASSERT_EQ(0, omf_hbh_min_seqno(hdr));
     ASSERT_EQ(1, omf_hbh_max_seqno(hdr));
@@ -256,12 +256,12 @@ MTF_DEFINE_UTEST_PREPOST(hblock_builder_test, finish_null_hlog, test_pre, test_p
     merr_t err;
     struct hblock_builder *bld;
     struct cn *cn = (void *)-1;
-    struct kvs_block blk;
+    uint64_t mbid;
 
     err = hbb_create(&bld, cn, NULL);
     ASSERT_EQ(0, merr_errno(err));
 
-    err = hbb_finish(bld, &blk, vgmap, NULL, NULL, 0, 1, 1, 3, 0, NULL, NULL, NULL, 0);
+    err = hbb_finish(bld, &mbid, vgmap, NULL, NULL, 0, 1, 1, 3, 0, NULL, NULL, NULL, 0);
     ASSERT_EQ(EINVAL, merr_errno(err));
 
     hbb_destroy(bld);

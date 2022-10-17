@@ -235,7 +235,7 @@ MTF_DEFINE_UTEST_PRE(test, t_vbb_finish_exact, test_setup)
     ASSERT_EQ(err, 0);
     ASSERT_GE(blks.n_blks, 1);
 
-    verify_vblock_footer(lcl_ti, blks.blks->bk_blkid, HSE_KVS_VALUE_LEN_MAX - VBLOCK_FOOTER_LEN);
+    verify_vblock_footer(lcl_ti, blks.blks[0], HSE_KVS_VALUE_LEN_MAX - VBLOCK_FOOTER_LEN);
 
     blk_list_free(&blks);
     vbb_destroy(vbb);
@@ -327,8 +327,8 @@ MTF_DEFINE_UTEST_PRE(test, t_vbb_add_entry_exact, test_setup)
     ASSERT_EQ(err, 0);
     ASSERT_EQ(blks.n_blks, 2); /* verify 1 vblock */
 
-    verify_vblock_footer(lcl_ti, blks.blks[0].bk_blkid, HSE_KVS_VALUE_LEN_MAX - VBLOCK_FOOTER_LEN);
-    verify_vblock_footer(lcl_ti, blks.blks[1].bk_blkid, PAGE_SIZE);
+    verify_vblock_footer(lcl_ti, blks.blks[0], HSE_KVS_VALUE_LEN_MAX - VBLOCK_FOOTER_LEN);
+    verify_vblock_footer(lcl_ti, blks.blks[1], PAGE_SIZE);
 
     blk_list_free(&blks);
     vbb_destroy(vbb);
@@ -579,8 +579,8 @@ run_test_case(struct mtf_test_info *lcl_ti, enum test_case tc, size_t n_vblocks)
             ASSERT_EQ_RET(0, err, 1);
             ASSERT_EQ_RET(blks.n_blks, n_vblocks, 1);
             for (i = 0; i < n_vblocks; i++) {
-                ASSERT_EQ_RET(blks.blks[i].bk_blkid, MPM_MBLOCK_ID_BASE + i, 1);
-                verify_vblock_footer(lcl_ti, blks.blks[i].bk_blkid,
+                ASSERT_EQ_RET(blks.blks[i], MPM_MBLOCK_ID_BASE + i, 1);
+                verify_vblock_footer(lcl_ti, blks.blks[i],
                                      HSE_KVS_VALUE_LEN_MAX - VBLOCK_FOOTER_LEN);
             }
 

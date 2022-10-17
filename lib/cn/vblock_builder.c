@@ -384,7 +384,7 @@ vbb_add_entry(
 
     *vboffout = bld->vblk_off;
     *vbidxout = bld->vblk_list.n_blks - 1;
-    *vbidout = bld->vblk_list.blks[*vbidxout].bk_blkid;
+    *vbidout = bld->vblk_list.blks[*vbidxout];
 
     bld->vblk_off += vlen;
     bld->vsize += vlen;

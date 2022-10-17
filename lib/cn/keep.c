@@ -20,7 +20,7 @@ kvset_keep_vblocks(
     int                     niv)
 {
     struct vgmap *vgm = NULL;
-    struct kvs_block *blks;
+    void *mem;
     uint32_t nv, nvg, vgidx;
     size_t sz;
     merr_t err = 0;
@@ -40,8 +40,8 @@ kvset_keep_vblocks(
 
     /* alloc both the vblks and the vbm; 1 free does both */
     sz = nv * sizeof(*vbm->vbm_blkv) + niv * sizeof(*vbm->vbm_map);
-    blks = calloc(1, sz);
-    if (!blks)
+    mem = calloc(1, sz);
+    if (ev(!mem))
         return merr(ev(ENOMEM));
 
     if (nvg > 0) {
@@ -55,13 +55,13 @@ kvset_keep_vblocks(
     }
 
     if (err) {
-        free(blks);
+        free(mem);
         return err;
     }
 
-    vbm->vbm_blkv = blks;
+    vbm->vbm_blkv = mem;
     vbm->vbm_blkc = 0;
-    vbm->vbm_map = (u32 *)(blks + nv);
+    vbm->vbm_map = (uint32_t *)(vbm->vbm_blkv + nv);
     vbm->vbm_mapc = niv;
     vbm->vbm_used = 0;
     vbm->vbm_waste = 0;
@@ -92,7 +92,7 @@ kvset_keep_vblocks(
         vbm->vbm_map[i] = nv;
 
         for (uint32_t j = 0; j < cnt; ++j) {
-            blks[nv].bk_blkid = kvset_get_nth_vblock_id(kvset, j);
+            vbm->vbm_blkv[nv] = kvset_get_nth_vblock_id(kvset, j);
             vbm->vbm_tot += kvset_get_nth_vblock_len(kvset, j);
 
             if (j == vgmap_vbidx_out_end(kvset, kvg)) {

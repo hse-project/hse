@@ -586,7 +586,7 @@ cn_split(struct cn_compaction_work *w)
             struct kvset_mblocks *blks = result->ks[k].blks;
             uint idx = (k == LEFT ? i : i + w->cw_kvset_cnt);
 
-            if (blks->hblk.bk_blkid != 0) {
+            if (blks->hblk_id != 0) {
                 if (drop_ptomb_ks[k] && blks->kblks.n_blks > 0)
                     drop_ptomb_ks[k] = false;
 
@@ -597,7 +597,7 @@ cn_split(struct cn_compaction_work *w)
 
                     /* Drop contiguous kvsets containing only ptombs, starting from the oldest.
                      */
-                    delete_mblock(w->cw_mp, &blks->hblk);
+                    delete_mblock(w->cw_mp, blks->hblk_id);
                     blk_list_free(result->ks[k].blks_commit);
                 } else {
                     w->cw_kvsetidv[idx] = cndb_kvsetid_mint(cndb);

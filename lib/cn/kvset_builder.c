@@ -321,13 +321,13 @@ void
 kvset_builder_adopt_vblocks(
     struct kvset_builder *self,
     size_t                num_vblocks,
-    struct kvs_block     *vblocks,
+    uint64_t             *vblock_ids,
     uint64_t              vtotal,
     struct vgmap         *vgmap)
 {
     assert(self->vblk_list.n_blks == 0);
 
-    self->vblk_list.blks = vblocks;
+    self->vblk_list.blks = vblock_ids;
     self->vblk_list.n_blks = num_vblocks;
     self->vblk_list.n_alloc = num_vblocks;
     self->vtotal = vtotal;
@@ -345,7 +345,7 @@ kvset_builder_destroy(struct kvset_builder *bld)
     if (ev(!bld))
         return;
 
-    mpool_mblock_delete(cn_get_dataset(bld->cn), bld->hblk.bk_blkid);
+    mpool_mblock_delete(cn_get_dataset(bld->cn), bld->hblk_id);
 
     delete_mblocks(cn_get_dataset(bld->cn), &bld->kblk_list);
     blk_list_free(&bld->kblk_list);
@@ -368,7 +368,7 @@ void
 kvset_mblocks_destroy(struct kvset_mblocks *blks)
 {
     if (blks) {
-        memset(&blks->hblk, 0, sizeof(blks->hblk));
+        blks->hblk_id = 0;
         blk_list_free(&blks->kblks);
         blk_list_free(&blks->vblks);
     }
@@ -443,7 +443,7 @@ kvset_builder_finish(struct kvset_builder *imp)
         return err;
     }
 
-    err = hbb_finish(imp->hbb, &imp->hblk, imp->vgmap, NULL, NULL, imp->seqno_min, imp->seqno_max,
+    err = hbb_finish(imp->hbb, &imp->hblk_id, imp->vgmap, NULL, NULL, imp->seqno_min, imp->seqno_max,
                      imp->kblk_list.n_blks, imp->vblk_list.n_blks, hbb_get_nptombs(imp->hbb),
                      kbb_get_composite_hlog(imp->kbb), NULL, NULL, 0);
     if (err) {
@@ -468,8 +468,8 @@ kvset_builder_get_mblocks(struct kvset_builder *self, struct kvset_mblocks *mblk
         return err;
 
     /* transfer hblock to caller */
-    mblks->hblk = self->hblk;
-    self->hblk.bk_blkid = 0;
+    mblks->hblk_id = self->hblk_id;
+    self->hblk_id = 0;
 
     /* transfer kblock ids to caller */
     list = &self->kblk_list;

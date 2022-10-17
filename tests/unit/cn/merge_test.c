@@ -1016,7 +1016,7 @@ run_testcase(struct mtf_test_info *lcl_ti, int mode, const char *info)
         vbmap.vbm_blkv = mapi_safe_malloc(sizeof(*vbmap.vbm_blkv) * iterc);
 
         for (i = 0; i < iterc; i++) {
-            vbmap.vbm_blkv[i].bk_blkid = 1000 + i;
+            vbmap.vbm_blkv[i] = 1000 + i;
             map[i] = 0;
         }
         vbmap.vbm_map = map;

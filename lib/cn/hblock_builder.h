@@ -45,7 +45,7 @@ hbb_destroy(struct hblock_builder *bld);
 merr_t
 hbb_finish(
     struct hblock_builder *bld,
-    struct kvs_block      *blk,
+    uint64_t              *hblk_id_out,
     const struct vgmap    *vgmap,
     struct key_obj        *min_pfxp,
     struct key_obj        *max_pfxp,

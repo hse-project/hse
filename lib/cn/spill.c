@@ -174,7 +174,7 @@ cn_subspill_get_kvset_meta(struct subspill *ss, struct kvset_meta *km)
     km->km_vused = ss->ss_mblks.bl_vused;
     km->km_vgarb = ss->ss_mblks.bl_vtotal - km->km_vused;
 
-    km->km_hblk = ss->ss_mblks.hblk;
+    km->km_hblk_id = ss->ss_mblks.hblk_id;
     km->km_kblk_list = ss->ss_mblks.kblks;
     km->km_vblk_list = ss->ss_mblks.vblks;
 
