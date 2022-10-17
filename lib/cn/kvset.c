@@ -559,7 +559,6 @@ kvset_open2(
     ks->ks_cnid = cn_tree_get_cnid(tree);
     ks->ks_cndb = cn_tree_get_cndb(tree);
     ks->ks_pfx_len = cp->pfx_len;
-    ks->ks_sfx_len = cp->sfx_len;
     ks->ks_nodeid = km->km_nodeid;
     ks->ks_vmax = rp->cn_mcache_vmax;
     ks->ks_cn_kvdb = cn_kvdb;
@@ -1199,8 +1198,12 @@ kblk_get_value_ref(
     struct kvs_vtuple_ref *vref)
 {
     struct kvset_kblk *kblk = ks->ks_kblks + kblk_idx;
+    uint64_t hash = kt->kt_hash;
 
-    if (!bloom_reader_lookup(&kblk->kb_blm_desc, kt->kt_hash))
+    if (ks->ks_rp->kvs_sfxlen)
+        hash = key_hash64(kt->kt_data, kt->kt_len);
+
+    if (!bloom_reader_lookup(&kblk->kb_blm_desc, hash))
         return 0;
 
     return wbtr_read_vref(kblk->kb_kblk_desc.map_base, &kblk->kb_wbt_desc, kt, seq, result,
@@ -1570,11 +1573,11 @@ kvset_pfx_lookup(
     u64                   pt_seq = 0;
     int                   kbidx, last;
     const void *          kmd;
+    unsigned char foundkey[HSE_KVS_KEY_LEN_MAX];
+    uint foundklen;
+
 
     struct key_obj kobj, kt_obj, kbuf_obj;
-
-    u8          curr_sfx_data[HSE_KVS_KEY_LEN_MAX];
-    const void *curr_sfx;
 
     key2kobj(&kt_obj, kt->kt_data, kt->kt_len);
 
@@ -1594,16 +1597,6 @@ kvset_pfx_lookup(
 
 next_kblk:
     kblk = &ks->ks_kblks[kbidx];
-
-    /* kvset_kblk_start() has positioned the iterator at the first
-     * kblock that may have the key (based on min/max ranges).  If
-     * the bloom filter finds that the soft prefix doesn't exist
-     * in this kblock it most definitely doesn't exist in any
-     * subsequent kblock.  It is thus safe to stop looking at
-     * this kvset once there's a bloom miss.
-     */
-    if (!bloom_reader_lookup(&kblk->kb_blm_desc, kt->kt_hash))
-        goto done;
 
     wbti_reset(wbti, kblk->kb_kblk_desc.map_base, &kblk->kb_wbt_desc, kt, 0, 0);
 
@@ -1657,29 +1650,10 @@ get_more:
             goto get_more; /* key is hidden behind ptomb; skip */
     }
 
-    if (!kobj.ko_sfx_len) {
-        assert(kobj.ko_pfx_len > ks->ks_sfx_len);
-        curr_sfx = kobj.ko_pfx + kobj.ko_pfx_len - ks->ks_sfx_len;
-    } else if (kobj.ko_sfx_len >= ks->ks_sfx_len) {
-        curr_sfx = kobj.ko_sfx + kobj.ko_sfx_len - ks->ks_sfx_len;
-    } else {
-        /* copy out suffix */
-        uint  slen = kobj.ko_sfx_len;
-        uint  plen = kobj.ko_pfx_len;
-        uint  remaining;
-        void *p;
-
-        p = curr_sfx_data + ks->ks_sfx_len - slen;
-        memcpy(p, kobj.ko_sfx, slen);
-
-        remaining = ks->ks_sfx_len - slen;
-        p = (void *)(kobj.ko_pfx + plen - remaining);
-        memcpy(curr_sfx_data, p, remaining);
-        curr_sfx = curr_sfx_data;
-    }
+    key_obj_copy(foundkey, sizeof(foundkey), &foundklen, &kobj);
 
     if (*res == FOUND_TMB) {
-        err = qctx_tomb_insert(qctx, curr_sfx, ks->ks_sfx_len);
+        err = qctx_tomb_insert(qctx, foundkey, foundklen);
         if (ev(err))
             return err;
 
@@ -1695,7 +1669,7 @@ get_more:
             goto get_more; /* duplicate */
     }
 
-    if (qctx_tomb_seen(qctx, curr_sfx, ks->ks_sfx_len))
+    if (qctx_tomb_seen(qctx, foundkey, foundklen))
         goto get_more; /* skip key. There's a matching tomb. */
 
     /* This kv-pair counts towards the query's matches. Copy out kv if this

@@ -403,8 +403,8 @@ c0sk_pfx_probe(
             pfx_seq = HSE_SQNREF_TO_ORDNL(ptomb_seqref);
         }
 
-        err = c0kvms_pfx_probe_rcu(
-            c0kvms, skidx, kt, sfx_len, view_seq, seqref, res, qctx, kbuf, vbuf, pfx_seq);
+        err = c0kvms_pfx_probe_rcu(c0kvms, skidx, kt, view_seq, seqref,
+                                   sfx_len, res, qctx, kbuf, vbuf, pfx_seq);
         if (ev(err))
             break;
 

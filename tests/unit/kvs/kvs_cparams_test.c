@@ -78,25 +78,6 @@ MTF_DEFINE_UTEST_PRE(kvs_cparams_test, kvs_ext01, test_pre)
     ASSERT_EQ(UINT32_MAX, ps->ps_bounds.as_uscalar.ps_max);
 }
 
-MTF_DEFINE_UTEST_PRE(kvs_cparams_test, suffix_length, test_pre)
-{
-    const struct param_spec *ps = ps_get("suffix.length");
-
-    ASSERT_NE(NULL, ps);
-    ASSERT_NE(NULL, ps->ps_description);
-    ASSERT_EQ(PARAM_FLAG_EXPERIMENTAL, ps->ps_flags);
-    ASSERT_EQ(PARAM_TYPE_U32, ps->ps_type);
-    ASSERT_EQ(offsetof(struct kvs_cparams, sfx_len), ps->ps_offset);
-    ASSERT_EQ(sizeof(uint32_t), ps->ps_size);
-    ASSERT_EQ((uintptr_t)ps->ps_convert, (uintptr_t)param_default_converter);
-    ASSERT_EQ((uintptr_t)ps->ps_validate, (uintptr_t)param_default_validator);
-    ASSERT_EQ((uintptr_t)ps->ps_stringify, (uintptr_t)param_default_stringify);
-    ASSERT_EQ((uintptr_t)ps->ps_jsonify, (uintptr_t)param_default_jsonify);
-    ASSERT_EQ(0, params.sfx_len);
-    ASSERT_EQ(0, ps->ps_bounds.as_uscalar.ps_min);
-    ASSERT_EQ(UINT32_MAX, ps->ps_bounds.as_uscalar.ps_max);
-}
-
 MTF_DEFINE_UTEST(kvs_cparams_test, get)
 {
     merr_t err;

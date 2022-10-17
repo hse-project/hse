@@ -554,7 +554,6 @@ kblock_add_entry(
     *added = false;
 
     if (kblk->rp->cn_bloom_create) {
-        size_t tree_sfx_len = kblk->cp->sfx_len;
 
         /* Ensure we have enough pages reserved for bloom filters. */
         if (kblk->num_keys + 1 > kblk->blm_elt_cap) {
@@ -564,18 +563,9 @@ kblock_add_entry(
             kblk->blm_elt_cap = bf_element_estimate(kblk->desc, kblk->blm_pgc * PAGE_SIZE);
         }
 
-        /* Add key's hash to hash_set. Hash only on the soft prefix. */
-        if (tree_sfx_len) {
-            struct key_obj ko = *kobj;
-            size_t         min_sfx_len;
-
-            min_sfx_len = min_t(size_t, tree_sfx_len, ko.ko_sfx_len);
-            ko.ko_sfx_len -= min_sfx_len;
-            ko.ko_pfx_len -= tree_sfx_len - min_sfx_len;
-            err = hash_set_add(&kblk->hash_set, (const void *)&ko);
-        } else {
-            err = hash_set_add(&kblk->hash_set, kobj);
-        }
+        /* Add key's hash to hash_set.
+         */
+        err = hash_set_add(&kblk->hash_set, kobj);
 
         if (ev(err))
             return err;

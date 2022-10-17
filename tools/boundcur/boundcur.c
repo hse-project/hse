@@ -48,7 +48,7 @@ struct thread_info {
 void
 do_work(void *arg)
 {
-    struct thread_arg  *targ = arg;
+    struct kh_thread_arg  *targ = arg;
     struct thread_info *ti = targ->arg;
     struct hse_kvdb_txn *txn;
     unsigned int flags = 0;

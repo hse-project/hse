@@ -202,10 +202,6 @@ struct kvs_cparams *
 cn_get_cparams(const struct cn *handle);
 
 /* MTF_MOCK */
-size_t
-cn_get_sfx_len(struct cn *cn);
-
-/* MTF_MOCK */
 u64
 cn_get_cnid(const struct cn *cn);
 

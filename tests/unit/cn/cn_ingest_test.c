@@ -247,7 +247,6 @@ MTF_DEFINE_UTEST_PRE(cn_ingest_test, worker, test_pre)
     atomic_set(&cn.cn_ingest_dgen, 41);
 
     cp.pfx_len = 0;
-    cp.sfx_len = 0;
     err = cn_tree_create(&cn.cn_tree, NULL, 0, &cp, &mock_health, &rp);
     ASSERT_EQ(err, 0);
 
@@ -282,7 +281,6 @@ MTF_DEFINE_UTEST_PRE(cn_ingest_test, fail_cleanup, test_pre)
     atomic_set(&cn.cn_ingest_dgen, 41);
 
     cp.pfx_len = 0;
-    cp.sfx_len = 0;
     err = cn_tree_create(&cn.cn_tree, NULL, 0, &cp, &mock_health, &rp);
     ASSERT_EQ(err, 0);
 

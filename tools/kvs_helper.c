@@ -33,7 +33,7 @@ struct thread_info {
 	pthread_t           tid;
 	enum kh_flags       flags;
 	kh_func            *func;
-	struct thread_arg  *targ;
+	struct kh_thread_arg  *targ;
 	struct thread_info *next;
 	struct hse_kvs     *idx_kvs;
 };
@@ -198,7 +198,7 @@ kh_register_kvs(
 	 * all threads. This function should only prep the threads.
 	 */
 
-	ti = malloc(sizeof(struct thread_arg) + sizeof(*ti));
+	ti = malloc(sizeof(struct kh_thread_arg) + sizeof(*ti));
 	if (!ti) {
 		fatal(ENOMEM, "kvs_helper: cannot allocate memory for threads");
 	}
@@ -206,7 +206,7 @@ kh_register_kvs(
 	ti->func = func;
 	ti->next = 0;
 
-	ti->targ       = (struct thread_arg *)(ti + 1);
+	ti->targ       = (struct kh_thread_arg *)(ti + 1);
 	ti->targ->arg  = arg;
 	ti->targ->kvdb = test.kvdb;
 	ti->targ->kvs  = kvs ? kh_get_kvs(kvs, kvs_cparms, kvs_oparms) : 0;

@@ -39,6 +39,17 @@ cn_tree_lookup(
     struct kvs_ktuple *  kt,
     u64                  seq,
     enum key_lookup_res *res,
+    struct kvs_buf *     kbuf,
+    struct kvs_buf *     vbuf);
+
+/* MTF_MOCK */
+merr_t
+cn_tree_prefix_probe(
+    struct cn_tree *     tree,
+    struct perfc_set *   pc,
+    struct kvs_ktuple *  kt,
+    uint64_t             seq,
+    enum key_lookup_res *res,
     struct query_ctx *   qctx,
     struct kvs_buf *     kbuf,
     struct kvs_buf *     vbuf);

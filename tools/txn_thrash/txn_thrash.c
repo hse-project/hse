@@ -41,7 +41,7 @@ void
 txn_puts(
     void *arg)
 {
-    struct thread_arg *targ = arg;
+    struct kh_thread_arg *targ = arg;
     struct thread_info *ti = targ->arg;
     struct hse_kvdb_txn    *txn;
     char key[64] = {0};

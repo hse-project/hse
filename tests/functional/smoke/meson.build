@@ -236,6 +236,12 @@ tests = {
             tool_targets['kvt'],
         ],
     },
+    'upsert-test': {
+        'suites': ['smoke'],
+        'depends': [
+            tool_targets['upsert'],
+        ],
+    },
 
     #
     # These tests started failing around 2021-03-10:

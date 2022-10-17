@@ -368,47 +368,36 @@ c0kvms_pfx_probe_rcu(
     struct c0_kvmultiset *   handle,
     u16                      skidx,
     const struct kvs_ktuple *kt,
-    u32                      sfx_len,
     u64                      view_seqno,
     uintptr_t                seqref,
+    uint32_t                 sfxlen,
     enum key_lookup_res *    res,
     struct query_ctx *       qctx,
     struct kvs_buf *         kbuf,
     struct kvs_buf *         vbuf,
     u64                      pt_seqno)
 {
-    struct c0_kvset *c0kvs;
-    merr_t           err;
+    merr_t err = 0;
 
-    c0kvs = c0kvms_get_hashed_c0kvset(handle, kt->kt_hash);
+    if (sfxlen) {
+        struct c0_kvset *c0kvs = c0kvms_get_hashed_c0kvset(handle, kt->kt_hash);
 
-    err = c0kvs_pfx_probe_rcu(
-        c0kvs, skidx, kt, sfx_len, view_seqno, seqref, res, qctx, kbuf, vbuf, pt_seqno);
-    return ev(err);
-}
+        err = c0kvs_pfx_probe_excl(c0kvs, skidx, kt, view_seqno, seqref, res,
+                                   qctx, kbuf, vbuf, pt_seqno);
+    } else {
+        struct c0_kvmultiset_impl *self = c0_kvmultiset_h2r(handle);
 
-merr_t
-c0kvms_pfx_probe_excl(
-    struct c0_kvmultiset *   handle,
-    u16                      skidx,
-    const struct kvs_ktuple *kt,
-    u32                      sfx_len,
-    u64                      view_seqno,
-    uintptr_t                seqref,
-    enum key_lookup_res *    res,
-    struct query_ctx *       qctx,
-    struct kvs_buf *         kbuf,
-    struct kvs_buf *         vbuf,
-    u64                      pt_seqno)
-{
-    struct c0_kvset *c0kvs;
-    merr_t           err;
+        /* Skip over the ptomb c0_kvset by starting at index 1.
+         */
+        for (uint i = 1; i < self->c0ms_num_sets; i++) {
+            err = c0kvs_pfx_probe_excl(self->c0ms_sets[i], skidx, kt, view_seqno, seqref, res,
+                                       qctx, kbuf, vbuf, pt_seqno);
+            if (err || qctx->seen > 1)
+                break;
+        }
+    }
 
-    c0kvs = c0kvms_get_hashed_c0kvset(handle, kt->kt_hash);
-
-    err = c0kvs_pfx_probe_excl(
-        c0kvs, skidx, kt, sfx_len, view_seqno, seqref, res, qctx, kbuf, vbuf, pt_seqno);
-    return ev(err);
+    return err;
 }
 
 static inline bool

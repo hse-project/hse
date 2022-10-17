@@ -15,7 +15,7 @@
 
 typedef void kh_func(void *);
 
-struct thread_arg {
+struct kh_thread_arg {
 	void         *arg;
 	struct hse_kvdb  *kvdb;
 	struct hse_kvs   *kvs;

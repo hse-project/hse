@@ -84,7 +84,7 @@ xrand(void)
 void
 loader(void *arg)
 {
-	struct thread_arg  *ta = arg;
+	struct kh_thread_arg  *ta = arg;
 	struct thread_info *ti = ta->arg;
 	char key[sizeof(ti->pfx) + sizeof(ti->core) + sizeof(ti->sfx)];
 	char val[VLEN];
@@ -212,7 +212,7 @@ done:
 void
 reader(void *arg)
 {
-	struct thread_arg  *ta = arg;
+	struct kh_thread_arg  *ta = arg;
 	char pfxbuf[2 * sizeof(uint64_t)];
 	uint64_t *p, *c;
 
@@ -258,7 +258,7 @@ reader(void *arg)
 void
 syncme(void *arg)
 {
-	struct thread_arg  *ta = arg;
+	struct kh_thread_arg  *ta = arg;
 
 	while (!killthreads) {
 		hse_kvdb_sync(ta->kvdb, 0);

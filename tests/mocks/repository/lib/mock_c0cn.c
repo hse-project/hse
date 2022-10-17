@@ -653,7 +653,6 @@ static struct mapi_injection cn_inject_list[] = {
 
     { mapi_idx_cn_make,              MAPI_RC_SCALAR, 0 },
     { mapi_idx_cn_ingestv,           MAPI_RC_SCALAR, 0 },
-    { mapi_idx_cn_get_sfx_len,       MAPI_RC_SCALAR, 0 },
     { mapi_idx_cn_periodic,          MAPI_RC_SCALAR, 0 },
     { mapi_idx_cn_is_capped,         MAPI_RC_SCALAR, 0 },
     { mapi_idx_cn_disable_maint,     MAPI_RC_SCALAR, 0 },

@@ -18,7 +18,7 @@
 #include <hse_util/fmt.h>
 #include <hse_util/byteorder.h>
 #include <hse_util/slab.h>
-#include <hse_util/table.h>
+#include <hse_util/map.h>
 #include <hse/logging/logging.h>
 
 #include <hse_ikvdb/c0.h>
@@ -185,11 +185,6 @@ kvs_open(
         goto err_exit;
 
     ikvs->ikv_pfx_len = c0_get_pfx_len(ikvs->ikv_c0);
-    ikvs->ikv_sfx_len = cn_get_sfx_len(ikvs->ikv_cn);
-
-    err = qctx_te_mem_init();
-    if (ev(err))
-        goto err_exit;
 
     kvs_perfc_alloc(ikvdb_alias(kvdb), kvs_name, ikvs);
 
@@ -280,33 +275,14 @@ kvs_put(
     struct kvdb_ctxn *ctxn = txn ? kvdb_ctxn_h2h(txn) : 0;
     struct perfc_set *pkvsl_pc = kvs_perfc_pkvsl(kvs);
     struct wal_record rec;
-    size_t            sfx_len;
-    size_t            hashlen;
     u64               tstart;
     u64               seqno;
     merr_t            err;
 
     tstart = perfc_lat_start(pkvsl_pc);
 
-    sfx_len = kvs->ikv_sfx_len;
-    hashlen = kt->kt_len - sfx_len;
-
-    /* Assert that either
-     *  1. This is NOT a suffixed tree, OR
-     *  2. keylen is at least pfx_len + sfx_len
-     */
-    if (HSE_UNLIKELY(sfx_len && kt->kt_len < sfx_len + kvs->ikv_pfx_len)) {
-#ifndef HSE_BUILD_RELEASE
-        log_err("suffixed kvs %s %lu min key length is pfx_len(%u) + sfx_len(%u)",
-                kvs->ikv_kvs_name,
-                kvs->ikv_cnid,
-                kvs->ikv_pfx_len,
-                kvs->ikv_sfx_len);
-#endif
-        return merr(EINVAL);
-    }
-
-    kt->kt_hash = key_hash64(kt->kt_data, hashlen);
+    assert(kt->kt_len >= kvs->ikv_rp.kvs_sfxlen);
+    kt->kt_hash = key_hash64(kt->kt_data, kt->kt_len - kvs->ikv_rp.kvs_sfxlen);
     seqno = 0;
     rec.cookie = -1;
 
@@ -320,9 +296,6 @@ kvs_put(
     if (ctxn) {
         u64 hash = kt->kt_hash ^ kvs->ikv_gen;
         u64 pfxhash = 0;
-
-        if (sfx_len > 0)
-            hash = key_hash64_seed(kt->kt_data, kt->kt_len, kvs->ikv_gen);
 
         if (kvs->ikv_pfx_len && kt->kt_len >= kvs->ikv_pfx_len)
             pfxhash = key_hash64_seed(kt->kt_data, kvs->ikv_pfx_len, kvs->ikv_gen);
@@ -363,14 +336,13 @@ kvs_get(
     struct lc *       lc = kvs->ikv_lc;
     struct cn *       cn = kvs->ikv_cn;
     uintptr_t         seqnoref = 0;
-    size_t            hashlen;
     u64               tstart;
     merr_t            err;
 
     tstart = perfc_lat_start(pkvsl_pc);
 
-    hashlen = kt->kt_len - kvs->ikv_sfx_len;
-    kt->kt_hash = key_hash64(kt->kt_data, hashlen);
+    assert(kt->kt_len >= kvs->ikv_rp.kvs_sfxlen);
+    kt->kt_hash = key_hash64(kt->kt_data, kt->kt_len - kvs->ikv_rp.kvs_sfxlen);
 
     /* Exclusively lock txn for query.
      * seqnoref is invalid ater lock is released.
@@ -403,33 +375,14 @@ kvs_del(struct ikvs *kvs, struct hse_kvdb_txn *const txn, struct kvs_ktuple *kt,
     struct perfc_set *pkvsl_pc = kvs_perfc_pkvsl(kvs);
     struct kvdb_ctxn *ctxn = txn ? kvdb_ctxn_h2h(txn) : 0;
     struct wal_record rec;
-    size_t            sfx_len;
-    size_t            hashlen;
     u64               tstart;
     u64               seqno;
     merr_t            err;
 
     tstart = perfc_lat_start(pkvsl_pc);
 
-    sfx_len = kvs->ikv_sfx_len;
-    hashlen = kt->kt_len - sfx_len;
-
-    /* Assert that either
-     *  1. This is NOT a suffixed tree, OR
-     *  2. keylen is at least pfx_len + sfx_len
-     */
-    if (HSE_UNLIKELY(sfx_len && kt->kt_len < sfx_len + kvs->ikv_pfx_len)) {
-#ifndef HSE_BUILD_RELEASE
-        log_err("suffixed kvs %s %lu min key length is pfx_len(%u) + sfx_len(%u)",
-                kvs->ikv_kvs_name,
-                kvs->ikv_cnid,
-                kvs->ikv_pfx_len,
-                kvs->ikv_sfx_len);
-#endif
-        return merr(EINVAL);
-    }
-
-    kt->kt_hash = key_hash64(kt->kt_data, hashlen);
+    assert(kt->kt_len >= kvs->ikv_rp.kvs_sfxlen);
+    kt->kt_hash = key_hash64(kt->kt_data, kt->kt_len - kvs->ikv_rp.kvs_sfxlen);
     seqno = 0;
     rec.cookie = -1;
 
@@ -438,9 +391,6 @@ kvs_del(struct ikvs *kvs, struct hse_kvdb_txn *const txn, struct kvs_ktuple *kt,
     if (ctxn) {
         u64 hash = kt->kt_hash ^ kvs->ikv_gen;
         u64 pfxhash = 0;
-
-        if (sfx_len > 0)
-            hash = key_hash64_seed(kt->kt_data, kt->kt_len, kvs->ikv_gen);
 
         if (kvs->ikv_pfx_len && kt->kt_len >= kvs->ikv_pfx_len)
             pfxhash = key_hash64_seed(kt->kt_data, kvs->ikv_pfx_len, kvs->ikv_gen);
@@ -531,25 +481,13 @@ kvs_pfx_probe(
     struct lc *       lc = kvs->ikv_lc;
     struct cn *       cn = kvs->ikv_cn;
     uintptr_t         seqnoref = 0;
-    struct query_ctx  qctx;
+    struct query_ctx  qctx = { 0 };
     u64               tstart;
     merr_t            err;
 
     tstart = perfc_lat_start(pkvsl_pc);
 
-    if (HSE_UNLIKELY(kvs->ikv_sfx_len == 0)) {
-#ifndef HSE_BUILD_RELEASE
-        log_err("unsuffixed kvs %s %lu does not support prefix probe",
-                kvs->ikv_kvs_name, kvs->ikv_cnid);
-#endif
-        return merr(EINVAL);
-    }
-
-    qctx.pos = qctx.ntombs = qctx.seen = 0;
-    qctx.tomb_tree = RB_ROOT;
-
-    if (!kt->kt_hash)
-        kt->kt_hash = key_hash64(kt->kt_data, kt->kt_len);
+    kt->kt_hash = key_hash64(kt->kt_data, kt->kt_len);
 
     /* Exclusively lock txn for query.
      * seqnoref is invalid after lock is released.
@@ -565,7 +503,7 @@ kvs_pfx_probe(
         goto exit;
 
     err = lc_pfx_probe(lc, kt, c0_index(c0), seqno, seqnoref, c0_get_pfx_len(c0),
-                       c0_get_sfx_len(c0), res, &qctx, kbuf, vbuf);
+                       res, &qctx, kbuf, vbuf);
     if (err || *res == FOUND_PTMB || qctx.seen > 1)
         goto exit;
 
@@ -573,16 +511,19 @@ kvs_pfx_probe(
     if (err || *res == FOUND_PTMB || qctx.seen > 1)
         goto exit;
 
-    qctx_te_mem_reset();
-
 exit:
     if (ctxn)
         kvdb_ctxn_unlock(ctxn);
 
+    /* If any tombstone was encountered, a tomb_map is created. Free the tomb_map.
+     */
+    map_destroy(qctx.tomb_map);
+
     if (ev(err))
         return err;
 
-    perfc_dis_record(&kvs->ikv_cd_pc, PERFC_DI_CD_TOMBSPERPROBE, qctx.ntombs);
+    perfc_dis_record(&kvs->ikv_cd_pc, PERFC_DI_CD_TOMBSPERPROBE,
+                     qctx.tomb_map ? map_count_get(qctx.tomb_map) : 0);
 
     switch (qctx.seen) {
         case 0:

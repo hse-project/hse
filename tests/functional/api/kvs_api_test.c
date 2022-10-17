@@ -53,7 +53,7 @@ kvs_setup(struct mtf_test_info *lcl_ti)
 {
     hse_err_t   err;
     char        prefix_length_param[32];
-    const char *cparamv[] = { prefix_length_param, "suffix.length=1" };
+    const char *cparamv[] = { prefix_length_param };
 
     snprintf(prefix_length_param, sizeof(prefix_length_param), "prefix.length=%lu", PFX_LEN);
 
@@ -67,7 +67,7 @@ transactional_kvs_setup(struct mtf_test_info *lcl_ti)
 {
     hse_err_t   err;
     char        prefix_length_param[32];
-    const char *cparamv[] = { prefix_length_param, "suffix.length=1" };
+    const char *cparamv[] = { prefix_length_param };
     const char *rparamv[] = { "transactions.enabled=true" };
 
     snprintf(prefix_length_param, sizeof(prefix_length_param), "prefix.length=%lu", PFX_LEN);
@@ -84,7 +84,7 @@ kvs_setup_with_data(struct mtf_test_info *lcl_ti)
 {
     hse_err_t   err;
     char        prefix_length_param[32];
-    const char *cparamv[] = { prefix_length_param, "suffix.length=1" };
+    const char *cparamv[] = { prefix_length_param };
     char        key_buf[8], val_buf[8];
 
     snprintf(prefix_length_param, sizeof(prefix_length_param), "prefix.length=%lu", PFX_LEN);
@@ -113,7 +113,7 @@ transactional_kvs_setup_with_data(struct mtf_test_info *lcl_ti)
 {
     hse_err_t            err;
     char                 prefix_length_param[32];
-    const char          *cparamv[] = { prefix_length_param, "suffix.length=1" };
+    const char          *cparamv[] = { prefix_length_param };
     const char          *rparamv[] = { "transactions.enabled=true" };
     char                 key_buf[8], val_buf[8];
     struct hse_kvdb_txn *txn;
@@ -1004,8 +1004,13 @@ MTF_DEFINE_UTEST_PREPOST(kvs_api_test, prefix_probe_success, kvs_setup, kvs_tear
         &val_len);
     ASSERT_EQ(0, hse_err_to_errno(err));
     ASSERT_EQ(HSE_KVS_PFX_FOUND_MUL, found);
-    ASSERT_EQ(0, memcmp(key_buf, "key0", key_len));
-    ASSERT_EQ(0, memcmp(val_buf, "value0", val_len));
+
+    if (memcmp(key_buf, "key0", key_len) == 0)
+        ASSERT_EQ(0, memcmp(val_buf, "value0", val_len));
+    else if (memcmp(key_buf, "key1", key_len) == 0)
+        ASSERT_EQ(0, memcmp(val_buf, "value1", val_len));
+    else
+        ASSERT_TRUE(0);
 
     err = hse_kvs_prefix_probe(
         kvs_handle,
@@ -1092,8 +1097,13 @@ MTF_DEFINE_UTEST_PREPOST(
         &val_len);
     ASSERT_EQ(0, hse_err_to_errno(err));
     ASSERT_EQ(HSE_KVS_PFX_FOUND_MUL, found);
-    ASSERT_EQ(0, memcmp(key_buf, "key0", key_len));
-    ASSERT_EQ(0, memcmp(val_buf, "value0", val_len));
+
+    if (memcmp(key_buf, "key0", key_len) == 0)
+        ASSERT_EQ(0, memcmp(val_buf, "value0", val_len));
+    else if (memcmp(key_buf, "key1", key_len) == 0)
+        ASSERT_EQ(0, memcmp(val_buf, "value1", val_len));
+    else
+        ASSERT_TRUE(0);
 
     err = hse_kvs_prefix_probe(
         kvs_handle,
