@@ -871,38 +871,54 @@ kvdb_rest_add_endpoints(struct ikvdb *const kvdb)
     alias = ikvdb_alias(kvdb);
 
     status = rest_server_add_endpoint(0, handlers[0], kvdb, "/kvdbs/%s/compact", alias);
-    if (ev(status) && !err)
+    if (ev(status) && !err) {
+        log_warnx("Failed to add REST endpoint (/kvdbs/%s/compact)", status, alias);
         err = status;
+    }
 
     status = rest_server_add_endpoint(
         REST_ENDPOINT_EXACT, handlers[1], kvdb, "/kvdbs/%s/home", alias);
-    if (ev(status) && !err)
+    if (ev(status) && !err) {
+        log_warnx("Failed to add REST endpoint (/kvdbs/%s/home)", status, alias);
         err = status;
+    }
 
     status =
         rest_server_add_endpoint(REST_ENDPOINT_EXACT, handlers[2], kvdb, "/kvdbs/%s/kvs", alias);
-    if (ev(status) && !err)
+    if (ev(status) && !err) {
+        log_warnx("Failed to add REST endpoint (/kvdbs/%s/kvs)", status, alias);
         err = status;
+    }
 
     status = rest_server_add_endpoint(
         REST_ENDPOINT_EXACT, handlers[3], kvdb, "/kvdbs/%s/mclass", alias);
-    if (ev(status) && !err)
+    if (ev(status) && !err) {
+        log_warnx("Failed to add REST endpoint (/kvdbs/%s/mclass)", status, alias);
         err = status;
+    }
 
     for (int i = HSE_MCLASS_BASE; i < HSE_MCLASS_COUNT; i++) {
+        const char *mclass = hse_mclass_name_get(i);
+
         status = rest_server_add_endpoint(REST_ENDPOINT_EXACT, handlers[4], kvdb,
-            "/kvdbs/%s/mclass/%s", alias, hse_mclass_name_get(i));
-        if (ev(status) && !err)
+            "/kvdbs/%s/mclass/%s", alias, mclass);
+        if (ev(status) && !err) {
+            log_warnx("Failed to add REST endpoint (/kvdbs/%s/mclass/%s)", status, alias, mclass);
             err = status;
+        }
     }
 
     status = rest_server_add_endpoint(0, handlers[5], kvdb, "/kvdbs/%s/params", alias);
-    if (ev(status) && !err)
+    if (ev(status) && !err) {
+        log_warnx("Failed to add REST endpoint (/kvdbs/%s/params)", status, alias);
         err = status;
+    }
 
     status = rest_server_add_endpoint(0, handlers[6], kvdb, "/kvdbs/%s/perfc", alias);
-    if (ev(status) && !err)
+    if (ev(status) && !err) {
+        log_warnx("Failed to add REST endpoint (/kvdbs/%s/perfc)", status, alias);
         err = status;
+    }
 
     return err;
 }
@@ -1349,8 +1365,11 @@ kvs_rest_add_endpoints(struct ikvdb *const kvdb, struct kvdb_kvs *const kvs)
         "/kvdbs/%s/kvs/%s/cn/tree",
         alias,
         kvs->kk_name);
-    if (ev(err2) && !err1)
+    if (ev(err2) && !err1) {
+        log_warnx("Failed to add REST endpoint (/kvdbs/%s/kvs/%s/cn/tree)", err1,
+            alias, kvs->kk_name);
         err1 = err2;
+    }
 
     err2 = rest_server_add_endpoint(
         0,
@@ -1359,8 +1378,11 @@ kvs_rest_add_endpoints(struct ikvdb *const kvdb, struct kvdb_kvs *const kvs)
         "/kvdbs/%s/kvs/%s/params",
         alias,
         kvs->kk_name);
-    if (ev(err2) && !err1)
+    if (ev(err2) && !err1) {
+        log_warnx("Failed to add REST endpoint (/kvdbs/%s/kvs/%s/params)", err1,
+            alias, kvs->kk_name);
         err1 = err2;
+    }
 
     err2 = rest_server_add_endpoint(
         0,
@@ -1369,8 +1391,11 @@ kvs_rest_add_endpoints(struct ikvdb *const kvdb, struct kvdb_kvs *const kvs)
         "/kvdbs/%s/kvs/%s/perfc",
         alias,
         kvs->kk_name);
-    if (ev(err2) && !err1)
+    if (ev(err2) && !err1) {
+        log_warnx("Failed to add REST endpoint (/kvdbs/%s/kvs/%s/perfc)", err1,
+            alias, kvs->kk_name);
         err1 = err2;
+    }
 
 out:
     atomic_inc(&kvs->kk_refcnt);
