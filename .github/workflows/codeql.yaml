@@ -39,9 +39,9 @@ jobs:
         id: determine-tag
         run: |
           if [ "$GITHUB_EVENT_NAME" = "pull_request" ]; then
-            echo "::set-output name=tag::$GITHUB_BASE_REF"
+            echo "tag=$GITHUB_BASE_REF" >> "$GITHUB_OUTPUT"
           else
-            echo "::set-output name=tag::$GITHUB_REF_NAME"
+            echo "tag=$GITHUB_REF_NAME" >> "$GITHUB_OUTPUT"
           fi
 
   codeql:

@@ -35,12 +35,12 @@ jobs:
         id: determine-tag
         run: |
           if [ "$GITHUB_EVENT_NAME" = "pull_request" ]; then
-            echo "::set-output name=tag::$GITHUB_BASE_REF"
+            echo "tag=$GITHUB_BASE_REF" >> "$GITHUB_OUTPUT"
           else
-            echo "::set-output name=tag::$GITHUB_REF_NAME"
+            echo "tag=$GITHUB_REF_NAME" >> "$GITHUB_OUTPUT"
           fi
 
-  nightly_ub:
+  nightly:
     runs-on: ubuntu-latest
     needs:
       - determine-tag
@@ -83,7 +83,7 @@ jobs:
               fi
             fi
 
-            echo "::set-output name=$p::$branch"
+            echo "$p=$branch" >> "$GITHUB_OUTPUT"
           done
 
       - name: Checkout hse-java
