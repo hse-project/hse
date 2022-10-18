@@ -17,6 +17,7 @@
 #include <cn/kcompact.h>
 #include <cn/kvset.h>
 #include <cn/cn_metrics.h>
+#include <cn/vgmap.h>
 
 #include <mocks/mock_kvset.h>
 #include <mocks/mock_kvset_builder.h>

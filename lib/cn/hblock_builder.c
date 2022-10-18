@@ -28,6 +28,7 @@
 #include "blk_list.h"
 #include "kvset.h"
 #include "cn_perfc.h"
+#include "vgmap.h"
 
 struct hblock_builder {
     struct mpool              *mpool;

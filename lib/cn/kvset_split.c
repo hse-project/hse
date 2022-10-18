@@ -33,6 +33,7 @@
 #include "cn_tree.h"
 #include "cn_perfc.h"
 #include "cn_tree_internal.h"
+#include "vgmap.h"
 
 /**
  * struct kvset_split_work - work struct for kvset split

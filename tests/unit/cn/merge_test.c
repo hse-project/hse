@@ -34,6 +34,7 @@
 #include <cn/kvset.h>
 #include <cn/route.h>
 #include <cn/omf.h>
+#include <cn/vgmap.h>
 
 #include <dirent.h>
 
