@@ -587,13 +587,13 @@ cn_split(struct cn_compaction_work *w)
             uint idx = (k == LEFT ? i : i + w->cw_kvset_cnt);
 
             if (blks->hblk_id != 0) {
-                if (drop_ptomb_ks[k] && blks->kblks.n_blks > 0)
+                if (drop_ptomb_ks[k] && blks->kblks.idc > 0)
                     drop_ptomb_ks[k] = false;
 
-                assert(blks->kblks.n_blks > 0 || blks->vblks.n_blks == 0);
+                assert(blks->kblks.idc > 0 || blks->vblks.idc == 0);
 
                 if (HSE_UNLIKELY(drop_ptomb_ks[k])) {
-                    assert(result->ks[k].blks_commit->n_blks == 1);
+                    assert(result->ks[k].blks_commit->idc == 1);
 
                     /* Drop contiguous kvsets containing only ptombs, starting from the oldest.
                      */

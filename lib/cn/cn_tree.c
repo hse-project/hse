@@ -1617,7 +1617,7 @@ cn_comp_commit(struct cn_compaction_work *w)
     assert(w->cw_outc);
 
     /* if k-compaction and no kblocks, then force keepv to false. */
-    if (is_kcompact && w->cw_outv[0].kblks.n_blks == 0)
+    if (is_kcompact && w->cw_outv[0].kblks.idc == 0)
         w->cw_keep_vblks = false;
 
     alloc_len = sizeof(*kvsets) * w->cw_outc;
@@ -1684,7 +1684,7 @@ cn_comp_commit(struct cn_compaction_work *w)
          * [HSE_REVISIT] Are there any other corner cases?
          */
         if (!w->cw_outv[i].hblk_id) {
-            assert(w->cw_outv[i].kblks.n_blks == 0);
+            assert(w->cw_outv[i].kblks.idc == 0);
             continue;
         }
 
@@ -1721,8 +1721,8 @@ cn_comp_commit(struct cn_compaction_work *w)
         err = cndb_record_kvset_add(
                         w->cw_tree->cndb, tx, w->cw_tree->cnid,
                         km.km_nodeid, &km, w->cw_kvsetidv[i], km.km_hblk_id,
-                        w->cw_outv[i].kblks.n_blks, w->cw_outv[i].kblks.blks,
-                        w->cw_outv[i].vblks.n_blks, w->cw_outv[i].vblks.blks,
+                        w->cw_outv[i].kblks.idc, w->cw_outv[i].kblks.idv,
+                        w->cw_outv[i].vblks.idc, w->cw_outv[i].vblks.idv,
                         &cookiev[i]);
 
         if (err) {
@@ -1963,7 +1963,7 @@ cn_subspill_commit(struct subspill *ss)
     struct cndb *cndb = w->cw_tree->cndb;
 
     if (!mblks->hblk_id) {
-        assert(mblks->kblks.n_blks == 0);
+        assert(mblks->kblks.idc == 0);
         return 0;
     }
 
@@ -1977,8 +1977,8 @@ cn_subspill_commit(struct subspill *ss)
      */
     err = cndb_record_kvset_add(cndb, tx, w->cw_tree->cnid, km.km_nodeid,
                                 &km, ss->ss_kvsetid, km.km_hblk_id,
-                                mblks->kblks.n_blks, mblks->kblks.blks,
-                                mblks->vblks.n_blks, mblks->vblks.blks, &cookie);
+                                mblks->kblks.idc, mblks->kblks.idv,
+                                mblks->vblks.idc, mblks->vblks.idv, &cookie);
     if (err)
         goto done;
 

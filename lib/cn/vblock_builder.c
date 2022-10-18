@@ -383,8 +383,8 @@ vbb_add_entry(
     assert(bld->wbuf_off < bld->wbuf_len);
 
     *vboffout = bld->vblk_off;
-    *vbidxout = bld->vblk_list.n_blks - 1;
-    *vbidout = bld->vblk_list.blks[*vbidxout];
+    *vbidxout = bld->vblk_list.idc - 1;
+    *vbidout = bld->vblk_list.idv[*vbidxout];
 
     bld->vblk_off += vlen;
     bld->vsize += vlen;
