@@ -2709,7 +2709,7 @@ sp3_create(
 
     err = rest_server_add_endpoint(REST_ENDPOINT_EXACT, handlers, sp, "/kvdbs/%s/csched", kvdb_alias);
     if (ev_warn(err))
-        log_warnx("Failed to add /kvdbs/%s/csched REST endpoint", err, kvdb_alias);
+        log_warnx("Failed to add REST endpoint (/kvdbs/%s/csched)", err, kvdb_alias);
 
     INIT_WORK(&sp->mon_work, sp3_monitor);
     queue_work(sp->mon_wq, &sp->mon_work);

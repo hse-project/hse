@@ -376,23 +376,23 @@ hse_init(const char *const config, const size_t paramc, const char *const *const
 
             err = rest_server_add_endpoint(0, handlers[0], NULL, "/events");
             if (ev_warn(err))
-                log_warnx("Failed to register endpoint (/events)", err);
+                log_warnx("Failed to add REST endpoint (/events)", err);
 
             err = rest_server_add_endpoint(REST_ENDPOINT_EXACT, handlers[1], NULL, "/kmc/vmstat");
             if (ev_warn(err))
-                log_warnx("Failed to register route (/kmc/vmstat)", err);
+                log_warnx("Failed to add REST endpoint (/kmc/vmstat)", err);
 
             err = rest_server_add_endpoint(0, handlers[2], &hse_gparams, "/params");
             if (ev_warn(err))
-                log_warnx("Failed to register route (/params)", err);
+                log_warnx("Failed to add REST endpoint (/params)", err);
 
             err = rest_server_add_endpoint(0, handlers[0], NULL, "/perfc");
             if (ev_warn(err))
-                log_warnx("Failed to register endpoint (/perfc)", err);
+                log_warnx("Failed to add REST endpoint (/perfc)", err);
 
             err = rest_server_add_endpoint(REST_ENDPOINT_EXACT, handlers[3], NULL, "/workqueues");
             if (ev_warn(err))
-                log_warnx("Failed to register endpoint (/workqueue)", err);
+                log_warnx("Failed to add REST endpoint (/workqueue)", err);
 
             if (err)
                 log_warn("Stopping REST server due to previous issues");
