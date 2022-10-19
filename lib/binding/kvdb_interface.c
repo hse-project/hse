@@ -53,6 +53,12 @@
 
 /* clang-format on */
 
+#define ENDPOINT_FMT_EVENTS      "/events"
+#define ENDPOINT_FMT_KMC_VMSTAT  "/kmc/vmstat"
+#define ENDPOINT_FMT_PARAMS      "/params"
+#define ENDPOINT_FMT_PERFC       "/perfc"
+#define ENDPOINT_FMT_WORKQUEUES  "/workqueues"
+
 static DEFINE_MUTEX(hse_lock);
 
 /* Accessing hse_initialized is not thread safe, but it is only used
@@ -292,6 +298,74 @@ rest_global_params_put(
     return REST_STATUS_CREATED;
 }
 
+static void
+remove_global_endpoints(void)
+{
+    rest_server_remove_endpoint(ENDPOINT_FMT_EVENTS);
+    rest_server_remove_endpoint(ENDPOINT_FMT_KMC_VMSTAT);
+    rest_server_remove_endpoint(ENDPOINT_FMT_PARAMS);
+    rest_server_remove_endpoint(ENDPOINT_FMT_PERFC);
+    rest_server_remove_endpoint(ENDPOINT_FMT_WORKQUEUES);
+}
+
+static merr_t
+add_global_endpoints(void)
+{
+    static rest_handler *handlers[][REST_METHOD_COUNT] = {
+        {
+            [REST_METHOD_GET] = rest_get_dt,
+        },
+        {
+            [REST_METHOD_GET] = rest_kmc_get_vmstat,
+        },
+        {
+            [REST_METHOD_GET] = rest_global_params_get,
+            [REST_METHOD_PUT] = rest_global_params_put,
+        },
+        {
+            [REST_METHOD_GET] = rest_get_workqueues,
+        },
+    };
+
+    merr_t err;
+
+    err = rest_server_add_endpoint(0, handlers[0], NULL, ENDPOINT_FMT_EVENTS);
+    if (err) {
+        log_errx("Failed to add REST endpoint (" ENDPOINT_FMT_EVENTS ")", err);
+        goto out;
+    }
+
+    err = rest_server_add_endpoint(REST_ENDPOINT_EXACT, handlers[1], NULL, ENDPOINT_FMT_KMC_VMSTAT);
+    if (err) {
+        log_errx("Failed to add REST endpoint (" ENDPOINT_FMT_KMC_VMSTAT ")", err);
+        goto out;
+    }
+
+    err = rest_server_add_endpoint(0, handlers[2], &hse_gparams, ENDPOINT_FMT_PARAMS);
+    if (err) {
+        log_errx("Failed to add REST endpoint (" ENDPOINT_FMT_PARAMS ")", err);
+        goto out;
+    }
+
+    err = rest_server_add_endpoint(0, handlers[0], NULL, ENDPOINT_FMT_PERFC);
+    if (err) {
+        log_errx("Failed to add REST endpoint (" ENDPOINT_FMT_PERFC ")", err);
+        goto out;
+    }
+
+    err = rest_server_add_endpoint(REST_ENDPOINT_EXACT, handlers[3], NULL, ENDPOINT_FMT_WORKQUEUES);
+    if (err) {
+        log_errx("Failed to add REST endpoint (" ENDPOINT_FMT_WORKQUEUES ")", err);
+        goto out;
+    }
+
+out:
+    if (err)
+        remove_global_endpoints();
+
+    return err;
+}
+
 hse_err_t
 hse_init(const char *const config, const size_t paramc, const char *const *const paramv)
 {
@@ -351,51 +425,18 @@ hse_init(const char *const config, const size_t paramc, const char *const *const
         goto out;
 
     if (hse_gparams.gp_rest.enabled) {
-        static rest_handler *handlers[][REST_METHOD_COUNT] = {
-            {
-                [REST_METHOD_GET] = rest_get_dt,
-            },
-            {
-                [REST_METHOD_GET] = rest_kmc_get_vmstat,
-            },
-            {
-                [REST_METHOD_GET] = rest_global_params_get,
-                [REST_METHOD_PUT] = rest_global_params_put,
-            },
-            {
-                [REST_METHOD_GET] = rest_get_workqueues,
-            },
-        };
-
         err = rest_server_start(hse_gparams.gp_rest.socket_path);
-        if (ev_warn(err)) {
-            log_warnx("Could not start rest server on %s", err, hse_gparams.gp_rest.socket_path);
-            err = 0;
+        if (err) {
+            log_errx("Failed to start rest server on %s", err, hse_gparams.gp_rest.socket_path);
+            goto out;
         } else {
             log_info("Rest server started on %s", hse_gparams.gp_rest.socket_path);
 
-            err = rest_server_add_endpoint(0, handlers[0], NULL, "/events");
-            if (ev_warn(err))
-                log_warnx("Failed to add REST endpoint (/events)", err);
-
-            err = rest_server_add_endpoint(REST_ENDPOINT_EXACT, handlers[1], NULL, "/kmc/vmstat");
-            if (ev_warn(err))
-                log_warnx("Failed to add REST endpoint (/kmc/vmstat)", err);
-
-            err = rest_server_add_endpoint(0, handlers[2], &hse_gparams, "/params");
-            if (ev_warn(err))
-                log_warnx("Failed to add REST endpoint (/params)", err);
-
-            err = rest_server_add_endpoint(0, handlers[0], NULL, "/perfc");
-            if (ev_warn(err))
-                log_warnx("Failed to add REST endpoint (/perfc)", err);
-
-            err = rest_server_add_endpoint(REST_ENDPOINT_EXACT, handlers[3], NULL, "/workqueues");
-            if (ev_warn(err))
-                log_warnx("Failed to add REST endpoint (/workqueue)", err);
-
-            if (err)
-                log_warn("Stopping REST server due to previous issues");
+            err = add_global_endpoints();
+            if (err) {
+                rest_server_stop();
+                goto out;
+            }
         }
     }
 
@@ -418,11 +459,8 @@ hse_fini(void)
     mutex_lock(&hse_lock);
 
     if (hse_initialized) {
-        rest_server_remove_endpoint("/events");
-        rest_server_remove_endpoint("/kmc/vmstat");
-        rest_server_remove_endpoint("/params");
-        rest_server_remove_endpoint("/perfc");
-        rest_server_remove_endpoint("/workqueues");
+        if (hse_gparams.gp_rest.enabled)
+            remove_global_endpoints();
         rest_server_stop();
         ikvdb_fini();
         hse_platform_fini();

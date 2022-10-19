@@ -11,11 +11,11 @@ struct kvdb_kvs;
 merr_t
 kvdb_rest_add_endpoints(struct ikvdb *kvdb);
 
-merr_t
+void
 kvdb_rest_remove_endpoints(struct ikvdb *kvdb);
 
 merr_t
 kvs_rest_add_endpoints(struct ikvdb *kvdb, struct kvdb_kvs *kvs);
 
-merr_t
+void
 kvs_rest_remove_endpoints(struct ikvdb *kvdb, struct kvdb_kvs *kvs);

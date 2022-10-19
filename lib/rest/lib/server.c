@@ -386,7 +386,7 @@ rest_server_remove_endpoint(const char *const path_fmt, ...)
     }
 
     if (!deleted) {
-        err = merr(EINVAL);
+        err = merr(ENOENT);
         goto out;
     }
 

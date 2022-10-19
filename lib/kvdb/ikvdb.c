@@ -1160,26 +1160,6 @@ ikvdb_diag_close(struct ikvdb *handle)
 }
 
 /**
- * ikvdb_rest_register() - install rest handlers for KVSes and the kvs list
- *
- * This function is undefined behavior galore. Why do we register KVS REST
- * routes on KVDB open when KVS hasn't been opened? Do NOT query KVS
- * parameters until after opening the KVS.
- *
- * @self:       self
- * @handle:     ikvdb handle
- */
-static void
-ikvdb_rest_register(struct ikvdb_impl *self, struct ikvdb *handle)
-{
-    merr_t err;
-
-    err = kvdb_rest_add_endpoints(handle);
-    if (err)
-        log_warnx("%s REST registration failed", err, self->ikdb_home);
-}
-
-/**
  * ikvdb_maint_start() - start maintenance work queue
  * @self:       self
  */
@@ -1636,7 +1616,14 @@ ikvdb_open(
     ikvdb_wal_install_callback(self);
     ikvdb_perfc_alloc(self);
     ikvdb_init_throttle_params(self);
-    ikvdb_rest_register(self, &self->ikdb_handle);
+
+    if (hse_gparams.gp_rest.enabled) {
+        err = kvdb_rest_add_endpoints(&self->ikdb_handle);
+        if (err) {
+            log_errx("REST setup failed for KVDB (%s)", err, self->ikdb_home);
+            goto out;
+        }
+    }
 
     if (!params->read_only) {
         err = kvdb_meta_upgrade(&meta, kvdb_home);
@@ -1652,6 +1639,8 @@ ikvdb_open(
 
 out:
     if (err) {
+        if (hse_gparams.gp_rest.enabled)
+            kvdb_rest_remove_endpoints(&self->ikdb_handle);
         c0sk_close(self->ikdb_c0sk);
         lc_destroy(self->ikdb_lc);
         self->ikdb_work_stop = true;
@@ -2220,9 +2209,13 @@ ikvdb_kvs_open(
     if (ev(err))
         goto out_unlock;
 
-    err = kvs_rest_add_endpoints(handle, kvs);
-    if (ev(err))
-        log_warnx("Failed to register %s REST endpoints", err, kvs->kk_name);
+    if (hse_gparams.gp_rest.enabled) {
+        err = kvs_rest_add_endpoints(handle, kvs);
+        if (err) {
+            log_warnx("Failed to register %s REST endpoints", err, kvs->kk_name);
+            goto out_unlock;
+        }
+    }
 
     atomic_inc(&kvs->kk_refcnt);
 
@@ -2251,7 +2244,8 @@ ikvdb_kvs_close(struct hse_kvs *handle)
     if (ev(!ikvs))
         return merr(EBADF);
 
-    kvs_rest_remove_endpoints(&parent->ikdb_handle, kk);
+    if (hse_gparams.gp_rest.enabled)
+        kvs_rest_remove_endpoints(&parent->ikdb_handle, kk);
 
     /* If refcnt goes down to 1, it would mean we have the only ref. Set it to
      * 0 and proceed. If not, keep spinning.
@@ -2285,7 +2279,6 @@ merr_t
 ikvdb_close(struct ikvdb *handle)
 {
     struct ikvdb_impl *self = ikvdb_h2r(handle);
-    unsigned int       i;
     merr_t             err;
     merr_t             ret = 0; /* store the first error encountered */
 
@@ -2299,14 +2292,15 @@ ikvdb_close(struct ikvdb *handle)
         destroy_workqueue(self->ikdb_workqueue);
     }
 
-    /* Deregistering this url before trying to get ikdb_lock prevents
-     * a deadlock between this call and an ongoing call to ikvdb_kvs_names_get()
+    /* Removing the endpoints before trying to get ikdb_lock prevents deadlock
+     * between this call and an ongoing call to ikvdb_kvs_names_get().
      */
-    kvdb_rest_remove_endpoints(handle);
+    if (hse_gparams.gp_rest.enabled)
+        kvdb_rest_remove_endpoints(handle);
 
     mutex_lock(&self->ikdb_lock);
 
-    for (i = 0; i < HSE_KVS_COUNT_MAX; i++) {
+    for (unsigned int i = 0; i < HSE_KVS_COUNT_MAX; i++) {
         struct kvdb_kvs *kvs = self->ikdb_kvs_vec[i];
 
         if (!kvs)
@@ -2314,12 +2308,10 @@ ikvdb_close(struct ikvdb *handle)
 
         if (kvs->kk_ikvs) {
             atomic_dec(&kvs->kk_refcnt);
-            err = kvs_rest_remove_endpoints(handle, kvs);
+            if (hse_gparams.gp_rest.enabled)
+                kvs_rest_remove_endpoints(handle, kvs);
         }
 
-        /* kvs_rest_remove_endpoints() waits until all active rest requests have
-         * finished. Verify that the refcnt has gone down to zero
-         */
         assert(atomic_read(&kvs->kk_refcnt) == 0);
 
         if (kvs->kk_ikvs) {

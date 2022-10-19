@@ -10,11 +10,10 @@
 #include <cjson/cJSON.h>
 #include <cjson/cJSON_Utils.h>
 
-#include <hse/hse.h>
-#include <hse/flags.h>
-#include <hse/experimental.h>
-
 #include <hse/error/merr.h>
+#include <hse/experimental.h>
+#include <hse/flags.h>
+#include <hse/hse.h>
 #include <hse/logging/logging.h>
 #include <hse/rest/headers.h>
 #include <hse/rest/method.h>
@@ -40,6 +39,17 @@
 
 #include "kvdb_rest.h"
 #include "kvdb_kvs.h"
+
+#define ENDPOINT_FMT_KVDB_COMPACT  "/kvdbs/%s/compact"
+#define ENDPOINT_FMT_KVDB_HOME     "/kvdbs/%s/home"
+#define ENDPOINT_FMT_KVDB_KVS      "/kvdbs/%s/kvs"
+#define ENDPOINT_FMT_KVDB_MCLASSES "/kvdbs/%s/mclass"
+#define ENDPOINT_FMT_KVDB_MCLASS   "/kvdbs/%s/mclass/%s"
+#define ENDPOINT_FMT_KVDB_PARAMS   "/kvdbs/%s/params"
+#define ENDPOINT_FMT_KVDB_PERFC    "/kvdbs/%s/perfc"
+#define ENDPOINT_FMT_KVS_CN_TREE   "/kvdbs/%s/kvs/%s/cn/tree"
+#define ENDPOINT_FMT_KVS_PARAMS    "/kvdbs/%s/kvs/%s/params"
+#define ENDPOINT_FMT_KVS_PERFC     "/kvdbs/%s/kvs/%s/perfc"
 
 #define HUMAN_THRESHOLD 10000
 
@@ -862,7 +872,7 @@ kvdb_rest_add_endpoints(struct ikvdb *const kvdb)
         },
     };
 
-    merr_t status, err = 0;
+    merr_t err = 0;
     const char *alias;
 
     if (ev(!kvdb))
@@ -870,96 +880,77 @@ kvdb_rest_add_endpoints(struct ikvdb *const kvdb)
 
     alias = ikvdb_alias(kvdb);
 
-    status = rest_server_add_endpoint(0, handlers[0], kvdb, "/kvdbs/%s/compact", alias);
-    if (ev(status) && !err) {
-        log_warnx("Failed to add REST endpoint (/kvdbs/%s/compact)", status, alias);
-        err = status;
+    err = rest_server_add_endpoint(0, handlers[0], kvdb, ENDPOINT_FMT_KVDB_COMPACT, alias);
+    if (err) {
+        log_errx("Failed to add REST endpoint (" ENDPOINT_FMT_KVDB_COMPACT ")", err, alias);
+        return err;
     }
 
-    status = rest_server_add_endpoint(
-        REST_ENDPOINT_EXACT, handlers[1], kvdb, "/kvdbs/%s/home", alias);
-    if (ev(status) && !err) {
-        log_warnx("Failed to add REST endpoint (/kvdbs/%s/home)", status, alias);
-        err = status;
+    err = rest_server_add_endpoint(REST_ENDPOINT_EXACT, handlers[1], kvdb, ENDPOINT_FMT_KVDB_HOME,
+        alias);
+    if (err) {
+        log_errx("Failed to add REST endpoint (" ENDPOINT_FMT_KVDB_HOME ")", err, alias);
+        return err;
     }
 
-    status =
-        rest_server_add_endpoint(REST_ENDPOINT_EXACT, handlers[2], kvdb, "/kvdbs/%s/kvs", alias);
-    if (ev(status) && !err) {
-        log_warnx("Failed to add REST endpoint (/kvdbs/%s/kvs)", status, alias);
-        err = status;
+    err = rest_server_add_endpoint(REST_ENDPOINT_EXACT, handlers[2], kvdb, ENDPOINT_FMT_KVDB_KVS,
+        alias);
+    if (err) {
+        log_errx("Failed to add REST endpoint (" ENDPOINT_FMT_KVDB_KVS ")", err, alias);
+        return err;
     }
 
-    status = rest_server_add_endpoint(
-        REST_ENDPOINT_EXACT, handlers[3], kvdb, "/kvdbs/%s/mclass", alias);
-    if (ev(status) && !err) {
-        log_warnx("Failed to add REST endpoint (/kvdbs/%s/mclass)", status, alias);
-        err = status;
+    err = rest_server_add_endpoint(
+        REST_ENDPOINT_EXACT, handlers[3], kvdb, ENDPOINT_FMT_KVDB_MCLASSES, alias);
+    if (err) {
+        log_errx("Failed to add REST endpoint (" ENDPOINT_FMT_KVDB_MCLASSES ")", err, alias);
+        return err;
     }
 
     for (int i = HSE_MCLASS_BASE; i < HSE_MCLASS_COUNT; i++) {
         const char *mclass = hse_mclass_name_get(i);
 
-        status = rest_server_add_endpoint(REST_ENDPOINT_EXACT, handlers[4], kvdb,
-            "/kvdbs/%s/mclass/%s", alias, mclass);
-        if (ev(status) && !err) {
-            log_warnx("Failed to add REST endpoint (/kvdbs/%s/mclass/%s)", status, alias, mclass);
-            err = status;
+        err = rest_server_add_endpoint(REST_ENDPOINT_EXACT, handlers[4], kvdb,
+            ENDPOINT_FMT_KVDB_MCLASS, alias, mclass);
+        if (err) {
+            log_errx("Failed to add REST endpoint (" ENDPOINT_FMT_KVDB_MCLASS ")", err,
+                alias, mclass);
+            return err;
         }
     }
 
-    status = rest_server_add_endpoint(0, handlers[5], kvdb, "/kvdbs/%s/params", alias);
-    if (ev(status) && !err) {
-        log_warnx("Failed to add REST endpoint (/kvdbs/%s/params)", status, alias);
-        err = status;
+    err = rest_server_add_endpoint(0, handlers[5], kvdb, ENDPOINT_FMT_KVDB_PARAMS, alias);
+    if (err) {
+        log_errx("Failed to add REST endpoint (" ENDPOINT_FMT_KVDB_PARAMS ")", err, alias);
+        return err;
     }
 
-    status = rest_server_add_endpoint(0, handlers[6], kvdb, "/kvdbs/%s/perfc", alias);
-    if (ev(status) && !err) {
-        log_warnx("Failed to add REST endpoint (/kvdbs/%s/perfc)", status, alias);
-        err = status;
+    err = rest_server_add_endpoint(0, handlers[6], kvdb, ENDPOINT_FMT_KVDB_PERFC, alias);
+    if (err) {
+        log_errx("Failed to add REST endpoint (" ENDPOINT_FMT_KVDB_PERFC ")", err, alias);
+        return err;
     }
 
-    return err;
+    return 0;
 }
 
-merr_t
+void
 kvdb_rest_remove_endpoints(struct ikvdb *const kvdb)
 {
-    merr_t err1 = 0, err2;
-    const char *alias = ikvdb_alias(kvdb);
+    const char *alias;
 
-    err2 = rest_server_remove_endpoint("/kvdbs/%s/compact", alias);
-    if (ev(err2) && !err1)
-        err1 = err2;
+    INVARIANT(kvdb);
 
-    err2 = rest_server_remove_endpoint("/kvdbs/%s/home", alias);
-    if (ev(err2) && !err1)
-        err1 = err2;
+    alias = ikvdb_alias(kvdb);
 
-    err2 = rest_server_remove_endpoint("/kvdbs/%s/kvs", alias);
-    if (ev(err2) && !err1)
-        err1 = err2;
-
-    err2 = rest_server_remove_endpoint("/kvdbs/%s/mclass", alias);
-    if (ev(err2) && !err1)
-        err1 = err2;
-
-    for (int i = HSE_MCLASS_BASE; i < HSE_MCLASS_COUNT; i++) {
-        err2 = rest_server_remove_endpoint("/kvdbs/%s/mclass/%s", alias, hse_mclass_name_get(i));
-        if (ev(err2) && !err1)
-        err1 = err2;
-    }
-
-    err2 = rest_server_remove_endpoint("/kvdbs/%s/params", alias);
-    if (ev(err2) && !err1)
-        err1 = err2;
-
-    err2 = rest_server_remove_endpoint("/kvdbs/%s/perfc", alias);
-    if (ev(err2) && !err1)
-        err1 = err2;
-
-    return err1;
+    rest_server_remove_endpoint(ENDPOINT_FMT_KVDB_COMPACT, alias);
+    rest_server_remove_endpoint(ENDPOINT_FMT_KVDB_HOME, alias);
+    rest_server_remove_endpoint(ENDPOINT_FMT_KVDB_KVS, alias);
+    rest_server_remove_endpoint(ENDPOINT_FMT_KVDB_MCLASSES, alias);
+    for (int i = HSE_MCLASS_BASE; i < HSE_MCLASS_COUNT; i++)
+        rest_server_remove_endpoint(ENDPOINT_FMT_KVDB_MCLASS, alias, hse_mclass_name_get(i));
+    rest_server_remove_endpoint(ENDPOINT_FMT_KVDB_PARAMS, alias);
+    rest_server_remove_endpoint(ENDPOINT_FMT_KVDB_PERFC, alias);
 }
 
 /*---------------------------------------------------------------
@@ -1347,90 +1338,61 @@ kvs_rest_add_endpoints(struct ikvdb *const kvdb, struct kvdb_kvs *const kvs)
         },
     };
 
-    merr_t err1 = 0, err2;
+    merr_t err;
     const char *alias;
 
-    if (!kvdb || !kvs)
-        return merr(EINVAL);
-
-    if (!hse_gparams.gp_rest.enabled)
-        goto out;
+    INVARIANT(kvdb);
+    INVARIANT(kvs);
 
     alias = ikvdb_alias(kvdb);
 
-    err2 = rest_server_add_endpoint(
-        REST_ENDPOINT_EXACT,
-        handlers[0],
-        kvs,
-        "/kvdbs/%s/kvs/%s/cn/tree",
-        alias,
-        kvs->kk_name);
-    if (ev(err2) && !err1) {
-        log_warnx("Failed to add REST endpoint (/kvdbs/%s/kvs/%s/cn/tree)", err1,
+    err = rest_server_add_endpoint(REST_ENDPOINT_EXACT,  handlers[0], kvs,
+        "/kvdbs/%s/kvs/%s/cn/tree", alias, kvs->kk_name);
+    if (err) {
+        log_errx("Failed to add REST endpoint (" ENDPOINT_FMT_KVS_CN_TREE ")", err,
             alias, kvs->kk_name);
-        err1 = err2;
+        goto out;
     }
 
-    err2 = rest_server_add_endpoint(
-        0,
-        handlers[1],
-        kvs,
-        "/kvdbs/%s/kvs/%s/params",
-        alias,
-        kvs->kk_name);
-    if (ev(err2) && !err1) {
-        log_warnx("Failed to add REST endpoint (/kvdbs/%s/kvs/%s/params)", err1,
+    err = rest_server_add_endpoint(0, handlers[1], kvs, ENDPOINT_FMT_KVS_PARAMS,
+        alias, kvs->kk_name);
+    if (err) {
+        log_errx("Failed to add REST endpoint (" ENDPOINT_FMT_KVS_PARAMS ")", err,
             alias, kvs->kk_name);
-        err1 = err2;
+        goto out;
     }
 
-    err2 = rest_server_add_endpoint(
-        0,
-        handlers[2],
-        kvs,
-        "/kvdbs/%s/kvs/%s/perfc",
-        alias,
-        kvs->kk_name);
-    if (ev(err2) && !err1) {
-        log_warnx("Failed to add REST endpoint (/kvdbs/%s/kvs/%s/perfc)", err1,
+    err = rest_server_add_endpoint(0, handlers[2], kvs, ENDPOINT_FMT_KVS_PERFC,
+        alias, kvs->kk_name);
+    if (err) {
+        log_errx("Failed to add REST endpoint (" ENDPOINT_FMT_KVS_PERFC ")", err,
             alias, kvs->kk_name);
-        err1 = err2;
+        goto out;
     }
 
 out:
-    atomic_inc(&kvs->kk_refcnt);
+    if (err) {
+        kvs_rest_remove_endpoints(kvdb, kvs);
+    } else {
+        atomic_inc(&kvs->kk_refcnt);
+    }
 
-    return err1;
+    return err;
 }
 
-merr_t
+void
 kvs_rest_remove_endpoints(struct ikvdb *const kvdb, struct kvdb_kvs *const kvs)
 {
-    merr_t err1 = 0, err2;
     const char *alias;
 
-    if (!kvdb || !kvs)
-        return merr(ev(EINVAL));
-
-    if (!hse_gparams.gp_rest.enabled)
-        goto out;
+    INVARIANT(kvdb);
+    INVARIANT(kvs);
 
     alias = ikvdb_alias(kvdb);
 
-    err2 = rest_server_remove_endpoint("/kvdbs/%s/kvs/%s/cn/tree", alias, kvs->kk_name);
-    if (ev(err2) && !err1)
-        err1 = err2;
+    rest_server_remove_endpoint(ENDPOINT_FMT_KVS_CN_TREE, alias, kvs->kk_name);
+    rest_server_remove_endpoint(ENDPOINT_FMT_KVS_PARAMS, alias, kvs->kk_name);
+    rest_server_remove_endpoint(ENDPOINT_FMT_KVS_PERFC, alias, kvs->kk_name);
 
-    err2 = rest_server_remove_endpoint("/kvdbs/%s/kvs/%s/params", alias, kvs->kk_name);
-    if (ev(err2) && !err1)
-        err1 = err2;
-
-    err2 = rest_server_remove_endpoint("/kvdbs/%s/kvs/%s/perfc", alias, kvs->kk_name);
-    if (ev(err2) && !err1)
-        err1 = err2;
-
-out:
     atomic_dec(&kvs->kk_refcnt);
-
-    return err1;
 }
