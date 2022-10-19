@@ -87,6 +87,7 @@ kvs_open(
     struct kvs_rparams *rp,
     struct kvdb_health *health,
     struct cn_kvdb *    cn_kvdb,
+    bool                rdonly,
     uint                kvs_oflags);
 
 merr_t

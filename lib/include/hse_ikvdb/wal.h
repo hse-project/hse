@@ -63,6 +63,7 @@ wal_open(
     struct wal_replay_info *rinfo,
     struct ikvdb           *ikdb,
     struct kvdb_health     *health,
+    bool                    rdonly,
     struct wal            **wal_out);
 
 /* MTF_MOCK */

@@ -32,9 +32,6 @@ _cn_ingest(struct cn *cn, struct kvset_mblocks *childv, u64 txid)
 
     assert(mock_cn->integrity_check == INTEGRITY_CHECK);
 
-    if (mock_cn->rp.cn_diag_mode)
-        return merr(ev(EROFS));
-
     if (mock_cn->delay_merge) {
 
         struct timespec delay;
@@ -86,6 +83,14 @@ _cn_get_cparams(const struct cn *cn)
     return mock_cn->cp;
 }
 
+struct kvs_rparams *
+_cn_get_rp(const struct cn *cn)
+{
+    struct mock_cn *mock_cn = (struct mock_cn *)cn;
+
+    return &mock_cn->rp;
+}
+
 unsigned
 mock_cn_best_ingest_count(struct cn *cn, unsigned avg_key_len)
 {
@@ -104,7 +109,6 @@ mock_cn_best_ingest_count(struct cn *cn, unsigned avg_key_len)
 struct mapi_injection inject_list[] = {
     { mapi_idx_cn_disable_maint, MAPI_RC_SCALAR, 0},
     { mapi_idx_cn_get_cnid, MAPI_RC_SCALAR, 1},
-    { mapi_idx_cn_get_rp, MAPI_RC_SCALAR, 0},
     { mapi_idx_cn_disable_maint, MAPI_RC_SCALAR, 0},
     { -1 }
 };
@@ -112,11 +116,10 @@ struct mapi_injection inject_list[] = {
 
 merr_t
 create_mock_cn(
-    struct cn **        cn,
-    bool                delay_merge,
-    bool                random_release,
-    struct kvs_rparams *rp,
-    u32                 pfx_len)
+    struct cn **cn,
+    bool        delay_merge,
+    bool        random_release,
+    u32         pfx_len)
 {
     struct mock_cn *mock_cn;
 
@@ -128,11 +131,11 @@ create_mock_cn(
 
     MOCK_SET(cn, _cn_ingestv);
     MOCK_SET(cn, _cn_get_cparams);
+    MOCK_SET(cn, _cn_get_rp);
 
     mapi_inject_list_set(inject_list);
 
     mock_cn->cp->pfx_len = pfx_len;
-
 
     mock_cn->integrity_check = INTEGRITY_CHECK;
     mock_cn->delay_merge = delay_merge;

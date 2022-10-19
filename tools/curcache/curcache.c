@@ -176,9 +176,6 @@ stress(char *mp, char *kv)
         die(err, "cannot open kvdb");
     }
 
-    /* ingest after a delay of 10ms */
-    /* rp.cn_diag_mode = (0x2112L << 48) | 10*1000; */
-
     err = hse_kvdb_kvs_open(kvdb, kv, 0, NULL, &kvs);
     if (err && err != ENOENT) {
         die(err, "cannot open kvs");

@@ -37,22 +37,22 @@ struct c0 {
 
 /**
  * struct c0_impl - private representation of c0
- * @c0_handle:          opaque handle for users of a struct c0
- * @c0_index:           index assigned to this C0
- * @c0_cn:              struct cn to ingest into
- * @c0_rp:              configuration data
- * @c0_c0sk:            handle to container poly C0, if within a poly C0
- * @c0_pfx_len:         prefix length for this c0
- *
- * [HSE_REVISIT]
+ * @c0_handle:   opaque handle for users of a struct c0
+ * @c0_c0sk:     handle to container poly C0, if within a poly C0
+ * @c0_cn:       struct cn to ingest into
+ * @c0_index:    index assigned to this C0
+ * @c0_sfx_len:  suffix length for this c0
+ * @c0_pfx_len:  prefix length for this c0
+ * @c0_rdonly:   rdonly open?
  */
 struct c0_impl {
-    struct c0           c0_handle;
-    struct c0sk *       c0_c0sk;
-    u32                 c0_index;
-    s32                 c0_pfx_len;
-    struct cn *         c0_cn;
-    struct kvs_rparams *c0_rp; /* not owned by c0 */
+    struct c0    c0_handle;
+    struct c0sk *c0_c0sk;
+    struct cn   *c0_cn;
+    uint32_t     c0_index;
+    uint32_t     c0_sfx_len;
+    int32_t      c0_pfx_len;
+    bool         c0_rdonly;
 };
 
 HSE_COLD merr_t
@@ -160,7 +160,7 @@ c0_pfx_probe(
         self->c0_c0sk,
         self->c0_index,
         self->c0_pfx_len,
-        self->c0_rp->kvs_sfxlen,
+        self->c0_sfx_len,
         kt,
         view_seqno,
         seqnoref,
@@ -172,16 +172,16 @@ c0_pfx_probe(
 
 merr_t
 c0_open(
-    struct ikvdb *      kvdb,
-    struct kvs_rparams *rp,
-    struct cn *         cn,
-    struct mpool *      mp_dataset,
-    struct c0 **        c0)
+    struct ikvdb  *kvdb,
+    struct cn     *cn,
+    bool           rdonly,
+    struct c0    **c0)
 {
-    struct c0_impl *    new_c0 = 0;
-    merr_t              err;
-    u16                 skidx;
     struct kvs_cparams *cp = cn_get_cparams(cn);
+    struct kvs_rparams *rp = cn_get_rp(cn);
+    struct c0_impl *new_c0;
+    merr_t err;
+    uint16_t skidx;
 
     new_c0 = calloc(1, sizeof(*new_c0));
     if (!new_c0) {
@@ -192,8 +192,9 @@ c0_open(
 
     assert(cn);
     new_c0->c0_pfx_len = cp->pfx_len;
+    new_c0->c0_sfx_len = rp->kvs_sfxlen;
     new_c0->c0_cn = cn;
-    new_c0->c0_rp = rp;
+    new_c0->c0_rdonly = rdonly;
 
     ikvdb_get_c0sk(kvdb, &new_c0->c0_c0sk);
     if (ev(!new_c0->c0_c0sk)) {
@@ -341,7 +342,7 @@ c0_sync(struct c0 *handle)
 {
     struct c0_impl *self = c0_h2r(handle);
 
-    if (self->c0_rp->read_only)
+    if (self->c0_rdonly)
         return 0;
 
     return c0sk_sync(self->c0_c0sk, HSE_KVDB_SYNC_REFWAIT);

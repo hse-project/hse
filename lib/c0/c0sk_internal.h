@@ -85,6 +85,7 @@ struct c0sk_impl {
     atomic_ulong            *c0sk_kvdb_seq;
     bool                     c0sk_closing;
     bool                     c0sk_syncing;
+    bool                     c0sk_rdonly;
     atomic_int               c0sk_replaying;
     struct perfc_set         c0sk_pc_op;
     struct perfc_set         c0sk_pc_ingest;

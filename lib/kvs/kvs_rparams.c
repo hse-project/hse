@@ -543,21 +543,6 @@ static const struct param_spec pspecs[] = {
         },
     },
     {
-        .ps_name = "cn_diag_mode",
-        .ps_description = "enable/disable cn diag mode",
-        .ps_flags = PARAM_FLAG_EXPERIMENTAL,
-        .ps_type = PARAM_TYPE_BOOL,
-        .ps_offset = offsetof(struct kvs_rparams, cn_diag_mode),
-        .ps_size = PARAM_SZ(struct kvs_rparams, cn_diag_mode),
-        .ps_convert = param_default_converter,
-        .ps_validate = param_default_validator,
-        .ps_stringify = param_default_stringify,
-        .ps_jsonify = param_default_jsonify,
-        .ps_default_value = {
-            .as_bool = false,
-        },
-    },
-    {
         .ps_name = "cn_maint_disable",
         .ps_description = "disable cn maintenance",
         .ps_flags = PARAM_FLAG_EXPERIMENTAL | PARAM_FLAG_WRITABLE,
@@ -741,21 +726,6 @@ static const struct param_spec pspecs[] = {
                 .ps_min = 0,
                 .ps_max = UINT64_MAX,
             },
-        },
-    },
-    {
-        .ps_name = "read_only",
-        .ps_description = "open kvs in read-only mode",
-        .ps_flags = PARAM_FLAG_EXPERIMENTAL,
-        .ps_type = PARAM_TYPE_BOOL,
-        .ps_offset = offsetof(struct kvs_rparams, read_only),
-        .ps_size = PARAM_SZ(struct kvs_rparams, read_only),
-        .ps_convert = param_default_converter,
-        .ps_validate = param_default_validator,
-        .ps_stringify = param_default_stringify,
-        .ps_jsonify = param_default_jsonify,
-        .ps_default_value = {
-            .as_bool = false,
         },
     },
     {

@@ -57,6 +57,7 @@ struct wal {
     atomic_int closing;
     bool       clean;
     bool       read_only;
+    bool       diag_open;
     bool       timer_running;
     bool       sync_notifier_running;
     struct work_struct timer_work;
@@ -632,6 +633,7 @@ wal_open(
     struct wal_replay_info *rinfo,
     struct ikvdb           *ikdb,
     struct kvdb_health     *health,
+    bool                    rdonly,
     struct wal            **wal_out)
 {
     struct wal *wal;
@@ -651,7 +653,8 @@ wal_open(
     wal->version = WAL_VERSION;
     wal->mp = mp;
     wal->health = health;
-    wal->read_only = rp->read_only;
+    wal->diag_open = (rp->mode == KVDB_MODE_DIAG);
+    wal->read_only = rdonly;
     wal->ikvdb = ikdb;
     wal->buf_managed = rp->dur_buf_managed;
     wal->buf_flags = wal->buf_managed ? HSE_BTF_MANAGED : 0;
@@ -906,6 +909,12 @@ bool
 wal_is_read_only(struct wal *wal)
 {
     return wal->read_only;
+}
+
+bool
+wal_is_diag_open(struct wal *wal)
+{
+    return wal->diag_open;
 }
 
 bool

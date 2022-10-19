@@ -87,6 +87,12 @@ tests = {
             tool_targets['putbin'],
         ],
     },
+    'modes': {
+        'suites': ['smoke-ci', 'nightly-small'],
+        'depends': [
+            tool_targets['kvt'],
+        ],
+    },
     'putget2': {
         'suites': ['smoke', 'nightly-small'],
         'depends': [

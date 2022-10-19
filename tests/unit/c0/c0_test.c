@@ -66,23 +66,19 @@ MTF_BEGIN_UTEST_COLLECTION_PREPOST(c0_test, test_collection_setup, test_collecti
 
 MTF_DEFINE_UTEST(c0_test, basic_open_close)
 {
-    struct kvs_rparams rp;
-    struct c0 *        c0;
-    struct cn *        cn;
-    struct c0sk *      c0sk;
-    struct mpool *     ds = NULL;
-    merr_t             err;
+    struct c0 *c0;
+    struct cn *cn;
+    struct c0sk *c0sk;
+    merr_t err;
 
-    rp = kvs_rparams_defaults();
-
-    err = create_mock_cn(&cn, false, false, &rp, 0);
+    err = create_mock_cn(&cn, false, false, 0);
     ASSERT_EQ(0, err);
     err = create_mock_c0sk(&c0sk);
     ASSERT_EQ(0, err);
 
     ikvdb_get_c0sk_gv_c0sk = c0sk;
 
-    err = c0_open((void *)0x1234, &rp, cn, ds, &c0);
+    err = c0_open((void *)0x1234, cn, false, &c0);
     ASSERT_EQ(0, err);
     ASSERT_NE((struct c0 *)0, c0);
     ASSERT_EQ(1, mapi_calls(mapi_idx_c0sk_c0_register));
@@ -97,17 +93,13 @@ MTF_DEFINE_UTEST(c0_test, basic_open_close)
 
 MTF_DEFINE_UTEST(c0_test, open_error_paths)
 {
-    struct kvs_rparams rp;
-    struct c0 *        c0 = 0;
-    struct cn *        cn;
-    struct c0sk *      c0sk;
-    struct mock_c0sk * mock_c0sk;
-    struct mpool *     ds = NULL;
-    merr_t             err;
+    struct c0 *c0 = 0;
+    struct cn *cn;
+    struct c0sk *c0sk;
+    struct mock_c0sk *mock_c0sk;
+    merr_t err;
 
-    rp = kvs_rparams_defaults();
-
-    err = create_mock_cn(&cn, false, false, &rp, 0);
+    err = create_mock_cn(&cn, false, false, 0);
     ASSERT_EQ(0, err);
     err = create_mock_c0sk(&c0sk);
     ASSERT_EQ(0, err);
@@ -118,14 +110,14 @@ MTF_DEFINE_UTEST(c0_test, open_error_paths)
     /* allocation failure */
     ikvdb_get_c0sk_gv_c0sk = c0sk;
     mapi_inject_once_ptr(mapi_idx_malloc, 1, 0);
-    err = c0_open((void *)0x1234, &rp, cn, ds, &c0);
+    err = c0_open((void *)0x1234, cn, false, &c0);
     ASSERT_EQ(ENOMEM, merr_errno(err));
     ASSERT_EQ((struct c0 *)0, c0);
     ASSERT_EQ(0, mapi_calls(mapi_idx_c0sk_c0_register));
 
     /* get backing c0sk failure */
     ikvdb_get_c0sk_gv_c0sk = 0;
-    err = c0_open((void *)0x1234, &rp, cn, ds, &c0);
+    err = c0_open((void *)0x1234, cn, false, &c0);
     ASSERT_EQ(EINVAL, merr_errno(err));
     ASSERT_EQ((struct c0 *)0, c0);
     ASSERT_EQ(0, mapi_calls(mapi_idx_c0sk_c0_register));
@@ -133,7 +125,7 @@ MTF_DEFINE_UTEST(c0_test, open_error_paths)
     /* c0sk register failure */
     ikvdb_get_c0sk_gv_c0sk = c0sk;
     mapi_inject_once(mapi_idx_c0sk_c0_register, 1, merr(ENOSPC));
-    err = c0_open((void *)0x1234, &rp, cn, ds, &c0);
+    err = c0_open((void *)0x1234, cn, false, &c0);
     ASSERT_EQ(ENOSPC, merr_errno(err));
     ASSERT_EQ((struct c0 *)0, c0);
     ASSERT_EQ(1, mapi_calls(mapi_idx_c0sk_c0_register));
@@ -144,17 +136,13 @@ MTF_DEFINE_UTEST(c0_test, open_error_paths)
 
 MTF_DEFINE_UTEST(c0_test, close_error_paths)
 {
-    struct kvs_rparams rp;
-    struct c0 *        c0 = 0;
-    struct cn *        cn;
-    struct c0sk *      c0sk;
-    struct mock_c0sk * mock_c0sk;
-    struct mpool *     ds = NULL;
-    merr_t             err;
+    struct c0 *c0 = 0;
+    struct cn *cn;
+    struct c0sk *c0sk;
+    struct mock_c0sk *mock_c0sk;
+    merr_t err;
 
-    rp = kvs_rparams_defaults();
-
-    err = create_mock_cn(&cn, false, false, &rp, 0);
+    err = create_mock_cn(&cn, false, false, 0);
     ASSERT_EQ(0, err);
     err = create_mock_c0sk(&c0sk);
     ASSERT_EQ(0, err);
@@ -168,14 +156,14 @@ MTF_DEFINE_UTEST(c0_test, close_error_paths)
     ASSERT_EQ(EINVAL, merr_errno(err));
 
     /* c0_sync fails */
-    err = c0_open((void *)0x1234, &rp, cn, ds, &c0);
+    err = c0_open((void *)0x1234, cn, false, &c0);
     mapi_inject_once(mapi_idx_c0sk_sync, 1, EDOM);
     err = c0_close(c0);
     ASSERT_EQ(EDOM, merr_errno(err));
     mapi_inject_clear();
 
     /* c0sk_c0_deregister fails */
-    err = c0_open((void *)0x1234, &rp, cn, ds, &c0);
+    err = c0_open((void *)0x1234, cn, false, &c0);
     mapi_inject_once(mapi_idx_c0sk_c0_deregister, 1, EDOM);
     err = c0_close(c0);
     ASSERT_EQ(EDOM, merr_errno(err));
@@ -184,7 +172,7 @@ MTF_DEFINE_UTEST(c0_test, close_error_paths)
     /* c0_sync fails, followed by a failure in c0sk_c0_deregister. The
      * first error should be the one returned.
      */
-    err = c0_open((void *)0x1234, &rp, cn, ds, &c0);
+    err = c0_open((void *)0x1234, cn, false, &c0);
     mapi_inject_once(mapi_idx_c0sk_sync, 1, EDOM);
     mapi_inject_once(mapi_idx_c0sk_c0_deregister, 1, EAGAIN);
     err = c0_close(c0);
@@ -197,28 +185,24 @@ MTF_DEFINE_UTEST(c0_test, close_error_paths)
 
 MTF_DEFINE_UTEST(c0_test, basic_ops)
 {
-    struct kvs_rparams  rp;
-    struct c0 *         c0;
-    struct cn *         cn;
-    struct c0sk *       c0sk;
-    struct mpool *      ds = NULL;
-    merr_t              err;
-    struct kvs_ktuple   kt;
-    struct kvs_vtuple   vt;
-    const uintptr_t     seqno = 17;
+    struct kvs_ktuple kt;
+    struct kvs_vtuple vt;
+    struct kvs_buf vbuf;
+    struct c0 *c0;
+    struct cn *cn;
+    struct c0sk *c0sk;
+    const uintptr_t seqno = 17;
     enum key_lookup_res res;
-    struct kvs_buf      vbuf;
+    merr_t err;
 
-    rp = kvs_rparams_defaults();
-
-    err = create_mock_cn(&cn, false, false, &rp, 3);
+    err = create_mock_cn(&cn, false, false, 3);
     ASSERT_EQ(0, err);
     err = create_mock_c0sk(&c0sk);
     ASSERT_EQ(0, err);
 
     ikvdb_get_c0sk_gv_c0sk = c0sk;
 
-    err = c0_open((void *)0x1234, &rp, cn, ds, &c0);
+    err = c0_open((void *)0x1234, cn, false, &c0);
     ASSERT_EQ(0, err);
     ASSERT_NE((struct c0 *)0, c0);
 

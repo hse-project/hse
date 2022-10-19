@@ -10,11 +10,10 @@ struct cn;
 
 merr_t
 create_mock_cn(
-    struct cn **        cn_out,
-    bool                delay_merge,
-    bool                random_release,
-    struct kvs_rparams *rp,
-    u32                 pfx_len);
+    struct cn **cn_out,
+    bool        delay_merge,
+    bool        random_release,
+    u32         pfx_len);
 
 void
 destroy_mock_cn(struct cn *cn);

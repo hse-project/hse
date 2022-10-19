@@ -428,6 +428,7 @@ c0sk_open(
     struct kvdb_health * health,
     atomic_ulong        *kvdb_seq,
     u64                  gen,
+    bool                 rdonly,
     struct c0sk **       c0skp)
 {
     struct c0_kvmultiset *c0kvms;
@@ -449,6 +450,7 @@ c0sk_open(
     c0sk->c0sk_kvdb_rp = kvdb_rp;
     c0sk->c0sk_ds = mp_dataset;
     c0sk->c0sk_kvdb_health = health;
+    c0sk->c0sk_rdonly = rdonly;
 
     c0sk->c0sk_kvdb_seq = kvdb_seq;
 
@@ -701,7 +703,7 @@ c0sk_sync(struct c0sk *handle, const unsigned int flags)
 
     self = c0sk_h2r(handle);
 
-    if (self->c0sk_kvdb_rp->read_only)
+    if (self->c0sk_rdonly && !atomic_read(&self->c0sk_replaying))
         return 0;
 
     /**

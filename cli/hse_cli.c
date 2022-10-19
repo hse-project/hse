@@ -665,7 +665,7 @@ static int
 cli_hse_kvdb_info_impl(struct cli *cli, const char *const kvdb_home)
 {
     hse_err_t err;
-    const char *paramv[] = { "read_only=true" };
+    const char *paramv[] = { "mode=diag" };
 
     assert(kvdb_home);
 

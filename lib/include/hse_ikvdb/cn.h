@@ -44,6 +44,7 @@ cn_open(
     const char *        kvdb_home,
     const char *        kvs_name,
     struct kvdb_health *health,
+    bool                rdonly,
     uint                flags,
     struct cn **        cn_out);
 

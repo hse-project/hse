@@ -62,7 +62,6 @@ test_pre(struct mtf_test_info *ti)
     g_kvs_cp = kvs_cparams_defaults();
     mapi_inject_ptr(mapi_idx_cndb_kvs_cparams, &g_kvs_cp);
 
-    mapi_inject(mapi_idx_cn_get_rp, 0);
     mapi_inject(mapi_idx_cn_get_cnid, 0);
     mapi_inject(mapi_idx_cn_get_ingest_perfc, 0);
 
@@ -86,7 +85,6 @@ test_post(struct mtf_test_info *ti)
     mock_c0cn_unset();
     mock_wal_unset();
 
-    mapi_inject_unset(mapi_idx_cn_get_rp);
     mapi_inject_unset(mapi_idx_cn_get_cnid);
     mapi_inject_unset(mapi_idx_cn_get_ingest_perfc);
 
@@ -1981,26 +1979,26 @@ MTF_DEFINE_UTEST_PREPOST(ikvdb_test, get_param, test_pre, test_post)
     ASSERT_EQ(0, err);
     ASSERT_NE(NULL, kvdb);
 
-    err = ikvdb_param_get(kvdb, "read_only", buf, sizeof(buf), &needed_sz);
+    err = ikvdb_param_get(kvdb, "mode", buf, sizeof(buf), &needed_sz);
     ASSERT_EQ(0, merr_errno(err));
-    ASSERT_STREQ("false", buf);
-    ASSERT_EQ(5, needed_sz);
+    ASSERT_STREQ("\"rdwr\"", buf);
+    ASSERT_EQ(6, needed_sz);
 
     err = ikvdb_param_get(kvdb, "storage.capacity.path", buf, sizeof(buf), &needed_sz);
     ASSERT_EQ(0, merr_errno(err));
     ASSERT_STREQ("\"capacity\"", buf);
     ASSERT_EQ(10, needed_sz);
 
-    err = ikvdb_param_get(kvdb, "read_only", buf, sizeof(buf), NULL);
+    err = ikvdb_param_get(kvdb, "mode", buf, sizeof(buf), NULL);
     ASSERT_EQ(0, merr_errno(err));
-    ASSERT_STREQ("false", buf);
+    ASSERT_STREQ("\"rdwr\"", buf);
 
     err = ikvdb_param_get(kvdb, "does.not.exist", buf, sizeof(buf), NULL);
     ASSERT_EQ(EINVAL, merr_errno(err));
 
-    err = ikvdb_param_get(kvdb, "read_only", NULL, 0, &needed_sz);
+    err = ikvdb_param_get(kvdb, "mode", NULL, 0, &needed_sz);
     ASSERT_EQ(0, merr_errno(err));
-    ASSERT_EQ(5, needed_sz);
+    ASSERT_EQ(6, needed_sz);
 
     err = ikvdb_close(kvdb);
     ASSERT_EQ(0, err);

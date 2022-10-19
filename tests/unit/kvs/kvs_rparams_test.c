@@ -409,23 +409,6 @@ MTF_DEFINE_UTEST_PRE(kvs_rparams_test, cn_mcache_vra_params, test_pre)
     ASSERT_EQ(UINT8_MAX, ps->ps_bounds.as_uscalar.ps_max);
 }
 
-MTF_DEFINE_UTEST_PRE(kvs_rparams_test, cn_diag_mode, test_pre)
-{
-    const struct param_spec *ps = ps_get("cn_diag_mode");
-
-    ASSERT_NE(NULL, ps);
-    ASSERT_NE(NULL, ps->ps_description);
-    ASSERT_EQ(PARAM_FLAG_EXPERIMENTAL, ps->ps_flags);
-    ASSERT_EQ(PARAM_TYPE_BOOL, ps->ps_type);
-    ASSERT_EQ(offsetof(struct kvs_rparams, cn_diag_mode), ps->ps_offset);
-    ASSERT_EQ(sizeof(bool), ps->ps_size);
-    ASSERT_EQ((uintptr_t)ps->ps_convert, (uintptr_t)param_default_converter);
-    ASSERT_EQ((uintptr_t)ps->ps_validate, (uintptr_t)param_default_validator);
-    ASSERT_EQ((uintptr_t)ps->ps_stringify, (uintptr_t)param_default_stringify);
-    ASSERT_EQ((uintptr_t)ps->ps_jsonify, (uintptr_t)param_default_jsonify);
-    ASSERT_EQ(false, params.cn_diag_mode);
-}
-
 MTF_DEFINE_UTEST_PRE(kvs_rparams_test, cn_maint_disable, test_pre)
 {
     const struct param_spec *ps = ps_get("cn_maint_disable");
@@ -606,23 +589,6 @@ MTF_DEFINE_UTEST_PRE(kvs_rparams_test, capped_evict_ttl, test_pre)
     ASSERT_EQ(120, params.capped_evict_ttl);
     ASSERT_EQ(0, ps->ps_bounds.as_uscalar.ps_min);
     ASSERT_EQ(UINT64_MAX, ps->ps_bounds.as_uscalar.ps_max);
-}
-
-MTF_DEFINE_UTEST_PRE(kvs_rparams_test, read_only, test_pre)
-{
-    const struct param_spec *ps = ps_get("read_only");
-
-    ASSERT_NE(NULL, ps);
-    ASSERT_NE(NULL, ps->ps_description);
-    ASSERT_EQ(PARAM_FLAG_EXPERIMENTAL, ps->ps_flags);
-    ASSERT_EQ(PARAM_TYPE_BOOL, ps->ps_type);
-    ASSERT_EQ(offsetof(struct kvs_rparams, read_only), ps->ps_offset);
-    ASSERT_EQ(sizeof(bool), ps->ps_size);
-    ASSERT_EQ((uintptr_t)ps->ps_convert, (uintptr_t)param_default_converter);
-    ASSERT_EQ((uintptr_t)ps->ps_validate, (uintptr_t)param_default_validator);
-    ASSERT_EQ((uintptr_t)ps->ps_stringify, (uintptr_t)param_default_stringify);
-    ASSERT_EQ((uintptr_t)ps->ps_jsonify, (uintptr_t)param_default_jsonify);
-    ASSERT_EQ(false, params.read_only);
 }
 
 MTF_DEFINE_UTEST_PRE(kvs_rparams_test, mclass_policy, test_pre)

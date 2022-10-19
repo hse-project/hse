@@ -18,6 +18,7 @@ _c0sk_open(
     struct kvdb_health * health,
     atomic_ulong        *kvdb_seq,
     u64                  gen,
+    bool                 rdonly,
     struct c0sk **       c0sk)
 {
     return 0;

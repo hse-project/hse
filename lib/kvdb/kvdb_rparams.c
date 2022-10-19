@@ -515,20 +515,115 @@ throttle_init_policy_jsonify(const struct param_spec *const ps, const void *cons
     }
 }
 
+static bool HSE_NONNULL(1, 2, 3)
+kvdb_open_mode_converter(
+    const struct param_spec *const ps,
+    const cJSON *const             node,
+    void *const                    data)
+{
+    assert(ps);
+    assert(node);
+    assert(data);
+
+    if (!cJSON_IsString(node))
+        return false;
+
+    const char *value = cJSON_GetStringValue(node);
+    if (!strcmp(value, "rdonly")) {
+        *(uint *)data = KVDB_MODE_RDONLY;
+    } else if (!strcmp(value, "diag")) {
+        *(uint *)data = KVDB_MODE_DIAG;
+    } else if (!strcmp(value, "rdonly_replay")) {
+        *(uint *)data = KVDB_MODE_RDONLY_REPLAY;
+    } else if (!strcmp(value, "rdwr")) {
+        *(uint *)data = KVDB_MODE_RDWR;
+    } else {
+        log_err("Invalid value: %s, must be one of rdonly, diag, rdonly_replay or rdwr", value);
+        return false;
+    }
+
+    return true;
+}
+
+static merr_t
+kvdb_open_mode_stringify(
+    const struct param_spec *const ps,
+    const void *const              value,
+    char *const                    buf,
+    const size_t                   buf_sz,
+    size_t *const                  needed_sz)
+{
+    size_t      n;
+    const char *param;
+
+    INVARIANT(ps);
+    INVARIANT(value);
+
+    switch (*(uint *)value) {
+        case KVDB_MODE_RDONLY:
+            param = "\"rdonly\"";
+            break;
+        case KVDB_MODE_DIAG:
+            param = "\"diag\"";
+            break;
+        case KVDB_MODE_RDONLY_REPLAY:
+            param = "\"rdonly_replay\"";
+            break;
+        case KVDB_MODE_RDWR:
+            param = "\"rdwr\"";
+            break;
+        default:
+            abort();
+    }
+
+    n = strlcpy(buf, param, buf_sz);
+
+    if (needed_sz)
+        *needed_sz = n;
+
+    return 0;
+}
+
+static cJSON * HSE_NONNULL(1, 2)
+kvdb_open_mode_jsonify(const struct param_spec *const ps, const void *const value)
+{
+    INVARIANT(ps);
+    INVARIANT(value);
+
+    switch (*(uint *)value) {
+        case KVDB_MODE_RDONLY:
+            return cJSON_CreateString("rdonly");
+        case KVDB_MODE_DIAG:
+            return cJSON_CreateString("diag");
+        case KVDB_MODE_RDONLY_REPLAY:
+            return cJSON_CreateString("rdonly_replay");
+        case KVDB_MODE_RDWR:
+            return cJSON_CreateString("rdwr");
+        default:
+            abort();
+    }
+}
+
 static const struct param_spec pspecs[] = {
     {
-        .ps_name = "read_only",
-        .ps_description = "readonly flag",
+        .ps_name = "mode",
+        .ps_description = "KVDB open mode",
         .ps_flags = 0,
-        .ps_type = PARAM_TYPE_BOOL,
-        .ps_offset = offsetof(struct kvdb_rparams, read_only),
-        .ps_size = PARAM_SZ(struct kvdb_rparams, read_only),
-        .ps_convert = param_default_converter,
+        .ps_type = PARAM_TYPE_ENUM,
+        .ps_offset = offsetof(struct kvdb_rparams, mode),
+        .ps_size = PARAM_SZ(struct kvdb_rparams, mode),
+        .ps_convert = kvdb_open_mode_converter,
         .ps_validate = param_default_validator,
-        .ps_stringify = param_default_stringify,
-        .ps_jsonify = param_default_jsonify,
+        .ps_stringify = kvdb_open_mode_stringify,
+        .ps_jsonify = kvdb_open_mode_jsonify,
         .ps_default_value = {
-            .as_bool = false,
+            .as_enum = KVDB_MODE_RDWR,
+        },
+        .ps_bounds = {
+            .as_enum = {
+                .ps_min = KVDB_MODE_RDONLY,
+                .ps_max = KVDB_MODE_RDWR,
+            },
         },
     },
     {

@@ -925,6 +925,7 @@ cn_open(
     const char *        kvdb_alias,
     const char *        kvs_name,
     struct kvdb_health *health,
+    bool                rdonly,
     uint                flags,
     struct cn **        cn_out)
 {
@@ -1117,8 +1118,7 @@ cn_open(
     /* Enable tree maintenance unless it's deliberately disabled
      * or we're in replay, diag, or read-only mode.
      */
-    rp->cn_maint_disable = rp->cn_maint_disable || cn->cn_replay ||
-        rp->cn_diag_mode || rp->read_only;
+    rp->cn_maint_disable = rp->cn_maint_disable || cn->cn_replay || rdonly;
 
     /* Roll up node stats to get KVS stats for the open kvs log message.
      */
@@ -1144,7 +1144,7 @@ cn_open(
 
         log_info(
             "opened kvs %s/%s cnid %lu pfx_len %u vcomp %u"
-            " hb %lu%c/%lu kb %lu%c/%lu vb %lu%c/%lu %s%s%s%s%s%s",
+            " hb %lu%c/%lu kb %lu%c/%lu vb %lu%c/%lu %s%s%s%s%s",
             cn->cn_kvdb_alias, cn->cn_kvs_name, (ulong)cnid,
             cn->cp->pfx_len, cn->rp->compression.algorithm,
             (ulong)kvs_stats.kst_halen >> (hshift * 10), hszsuf, (ulong)kvs_stats.kst_hblks,
@@ -1152,8 +1152,7 @@ cn_open(
             (ulong)kvs_stats.kst_valen >> (vshift * 10), vszsuf, (ulong)kvs_stats.kst_vblks,
             rp->mclass_policy,
             rp->cn_maint_disable ? " !maint" : "",
-            rp->cn_diag_mode ? " diag" : "",
-            rp->read_only ? " rdonly" : "",
+            rdonly ? " rdonly" : "",
             cn_is_capped(cn) ? " capped" : "",
             cn->cn_replay ? " replay" : "");
     }

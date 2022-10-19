@@ -514,6 +514,12 @@ hse_kvdb_create(const char *kvdb_home, size_t paramc, const char *const *const p
         return merr(EINVAL);
     }
 
+    err = kvdb_home_access_check(kvdb_home, KVDB_MODE_RDWR);
+    if (err) {
+        log_errx("Failed access check for KVDB (%s)", err, kvdb_home);
+        return err;
+    }
+
     tstart = perfc_lat_start(&kvdb_pkvdbl_pc);
     perfc_inc(&kvdb_pc, PERFC_RA_KVDBOP_KVDB_CREATE);
 
@@ -577,6 +583,12 @@ hse_kvdb_drop(const char *kvdb_home)
     } else if (n == 0) {
         log_err("KVDB home must be a non-zero length path");
         return merr(EINVAL);
+    }
+
+    err = kvdb_home_access_check(kvdb_home, KVDB_MODE_RDWR);
+    if (err) {
+        log_errx("Failed access check for KVDB (%s)", err, kvdb_home);
+        return err;
     }
 
     err = kvdb_home_pidfile_path_get(kvdb_home, pidfile_path, sizeof(pidfile_path));
@@ -658,6 +670,12 @@ hse_kvdb_open(
     err = config_deserialize_to_kvdb_rparams(conf, &params);
     if (ev(err)) {
         log_errx("Failed to deserialize config file for KVDB (%s) rparams", err, kvdb_home);
+        goto out;
+    }
+
+    err = kvdb_home_access_check(kvdb_home, params.mode);
+    if (err) {
+        log_errx("Failed access check for KVDB (%s)", err, kvdb_home);
         goto out;
     }
 
@@ -771,6 +789,18 @@ hse_kvdb_attach(
     }
 
     mutex_lock(&hse_lock);
+
+    err = kvdb_home_access_check(kvdb_home_src, KVDB_MODE_RDONLY);
+    if (err) {
+        log_errx("Failed access check for source KVDB (%s)", err, kvdb_home_src);
+        goto out;
+    }
+
+    err = kvdb_home_access_check(kvdb_home_tgt, KVDB_MODE_RDWR);
+    if (err) {
+        log_errx("Failed access check for target KVDB (%s)", err, kvdb_home_tgt);
+        goto out;
+    }
 
     /* Keep both the source and target kvdb busy during the attach operation */
     err = kvdb_home_pidfile_path_get(kvdb_home_tgt, pidfile_path, sizeof(pidfile_path));
@@ -887,6 +917,12 @@ hse_kvdb_mclass_reconfigure(const char *kvdb_home, enum hse_mclass mclass, const
         log_err("Cannot reconfigure %s mclass path for the KVDB (%s) if path is NULL",
                 hse_mclass_name_get(mclass), kvdb_home);
         return merr(EINVAL);
+    }
+
+    err = kvdb_home_access_check(kvdb_home, KVDB_MODE_RDWR);
+    if (err) {
+        log_errx("Failed access check for KVDB (%s)", err, kvdb_home);
+        return err;
     }
 
     err = kvdb_home_pidfile_path_get(kvdb_home, pidfile_path, sizeof(pidfile_path));
@@ -1072,6 +1108,12 @@ hse_kvdb_storage_add(const char *kvdb_home, size_t paramc, const char *const *co
     if (n == 0) {
         log_err("KVDB home must be a non-zero length path");
         return merr(EINVAL);
+    }
+
+    err = kvdb_home_access_check(kvdb_home, KVDB_MODE_RDWR);
+    if (err) {
+        log_errx("Failed access check for KVDB (%s)", err, kvdb_home);
+        return err;
     }
 
     err = argv_deserialize_to_kvdb_cparams(paramc, paramv, &cparams);

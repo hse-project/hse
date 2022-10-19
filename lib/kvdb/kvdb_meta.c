@@ -29,11 +29,10 @@
 #define KVDB_META_PERMS (S_IRUSR | S_IWUSR)
 
 static merr_t
-kvdb_meta_open(const char *const kvdb_home, FILE **meta_file)
+kvdb_meta_open(const char *const kvdb_home, FILE **meta_file, bool rdonly)
 {
-    char   buf[PATH_MAX];
-    int    meta_fd;
-    int    n;
+    char buf[PATH_MAX];
+    int meta_fd, n, flags;
     merr_t err = 0;
 
     assert(kvdb_home);
@@ -47,11 +46,12 @@ kvdb_meta_open(const char *const kvdb_home, FILE **meta_file)
     if (n < 0)
         return merr(EBADMSG);
 
-    meta_fd = open(buf, O_RDWR | O_SYNC, KVDB_META_PERMS);
+    flags = rdonly ? O_RDONLY : O_RDWR | O_SYNC;
+    meta_fd = open(buf, flags, KVDB_META_PERMS);
     if (meta_fd == -1)
         return merr(errno);
 
-    *meta_file = fdopen(meta_fd, "r+");
+    *meta_file = fdopen(meta_fd, rdonly ? "r" : "r+");
     if (!*meta_file)
         return merr(errno);
 
@@ -192,7 +192,7 @@ kvdb_meta_serialize(const struct kvdb_meta *const meta, const char *const kvdb_h
     }
     str_sz = strlen(str);
 
-    err = kvdb_meta_open(kvdb_home, &meta_file);
+    err = kvdb_meta_open(kvdb_home, &meta_file, false);
     if (err)
         goto out;
 
@@ -522,7 +522,7 @@ kvdb_meta_deserialize(struct kvdb_meta *const meta, const char *const kvdb_home)
     assert(kvdb_home);
     assert(meta);
 
-    err = kvdb_meta_open(kvdb_home, &meta_file);
+    err = kvdb_meta_open(kvdb_home, &meta_file, true);
     if (err)
         goto out;
 

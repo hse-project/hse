@@ -38,7 +38,7 @@ main(int argc, const char **argv)
                                 "logging.level=3",
                                 "rest.enabled=false" };
     const size_t     hi_paramc = sizeof(hi_paramv) / sizeof(hi_paramv[0]);
-    const char *     kvdb_paramv[] = { "read_only=true" };
+    const char *     kvdb_paramv[] = { "mode=rdonly" };
     const size_t     kvdb_paramc = sizeof(kvdb_paramv) / sizeof(kvdb_paramv[0]);
     struct hse_kvdb *kvdb;
 

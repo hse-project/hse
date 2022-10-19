@@ -630,12 +630,12 @@ wal_replay_core(struct wal_replay *rep)
          */
         if (ikvdb_wal_replay_size_set(ikvdb, rep->r_ikvsh, cur->rg_bytes)) {
             need_sync = true;
-            ikvdb_sync(ikvdb, 0);
+            ikvdb_wal_replay_sync(ikvdb, 0);
         }
     }
 
     list_for_each_entry_safe(cur, next, &rep->r_head, rg_link) {
-        bool   flush = false, last_entry;
+        bool flush = false, last_entry;
 
         /* Ensure that WAL replays in increasing order of c0kvms gen */
         if (cur->rg_gen <= last_gen) {
@@ -658,8 +658,8 @@ wal_replay_core(struct wal_replay *rep)
         last_entry = !next;
 
         if (flush || cur->rg_krcnt || last_entry) {
-            err = ikvdb_sync(ikvdb,
-                             (last_entry || rep->r_info->replay_force) ? 0 : HSE_KVDB_SYNC_ASYNC);
+            err = ikvdb_wal_replay_sync(
+                    ikvdb, (last_entry || rep->r_info->replay_force) ? 0 : HSE_KVDB_SYNC_ASYNC);
             if (err) {
                 if (rep->r_info->replay_force) {
                     err = 0;
@@ -683,7 +683,7 @@ wal_replay_core(struct wal_replay *rep)
      * gen rollback.
      */
     if (need_sync) {
-        err = ikvdb_sync(ikvdb, 0);
+        err = ikvdb_wal_replay_sync(ikvdb, 0);
         if (err)
             goto errout;
     }
@@ -695,7 +695,8 @@ wal_replay_core(struct wal_replay *rep)
 
     ikvdb_wal_replay_size_reset(rep->r_ikvsh);
 
-    return ikvdb_sync(ikvdb, 0); /* Sync a final time after restoring all replay settings */
+    /* Sync a final time after restoring all replay settings */
+    return ikvdb_wal_replay_sync(ikvdb, 0);
 
 errout:
     ikvdb_wal_replay_disable(ikvdb);
@@ -1044,8 +1045,12 @@ wal_replay(struct wal *wal, struct wal_replay_info *rinfo)
         return 0; /* clean shutdown, nothing to do */
 
     if (wal_is_read_only(wal)) {
+        if (wal_is_diag_open(wal))
+            return 0;
+
         log_err("WAL is dirty, cannot replay in read-only mode");
-        return merr(EPERM);
+
+        return merr(EUCLEAN);
     }
 
     err = wal_replay_open(wal, rinfo, &rep);

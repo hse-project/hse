@@ -13,6 +13,7 @@
 
 #include <cjson/cJSON.h>
 
+#include <hse_ikvdb/ikvdb.h>
 #include <hse_ikvdb/mclass_policy.h>
 #include <hse_ikvdb/throttle.h>
 #include <hse/error/merr.h>
@@ -29,7 +30,6 @@
 
 /**
  * struct kvdb_rparams -
- * @read_only:        readonly flag
  * @throttle_disable: disable put/del throttling
  * @perfc_level:      perf counter engagement level
  * @c0_diag_mode:     disable c0 spill
@@ -45,7 +45,7 @@
  * fields towards the end.
  */
 struct kvdb_rparams {
-    bool    read_only;
+    enum kvdb_open_mode mode;
     bool    throttle_disable;
     uint8_t perfc_level;
     uint8_t perfc_enable;

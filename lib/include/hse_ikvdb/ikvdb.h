@@ -47,6 +47,23 @@ struct hse_kvdb_txn {
 };
 
 /**
+ * KVDB open mode behavior:
+ *
+ * Mode             Dirty-WAL    Dirty-cNDB    Writes?    Compact?    Queries?    RO FS/Vol
+ * ----------------------------------------------------------------------------------------
+ * rdonly           EUCLEAN      Mem replay    No         No          Yes         Yes
+ * diag             Ignore       Mem replay    No         No          Yes         Yes
+ * rdonly_replay    Replay       Full replay   No         No          Yes         Error
+ * rw (default)     Replay       Full replay   Yes        Yes         Yes         Error
+ */
+enum kvdb_open_mode {
+    KVDB_MODE_RDONLY        = 0,
+    KVDB_MODE_DIAG          = 1,
+    KVDB_MODE_RDONLY_REPLAY = 2,
+    KVDB_MODE_RDWR          = 3,
+};
+
+/**
  * ikvdb_init() - prepare the ikvdb subsystem for use
  */
 extern merr_t
@@ -678,6 +695,9 @@ ikvdb_wal_replay_prefix_del(
     u64                   cnid,
     u64                   seqno,
     struct kvs_ktuple    *kt);
+
+merr_t
+ikvdb_wal_replay_sync(struct ikvdb *handle, const unsigned int flags);
 
 void
 ikvdb_wal_replay_seqno_set(struct ikvdb *ikvdb, uint64_t seqno);
