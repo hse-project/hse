@@ -83,7 +83,6 @@ kvdb_ctxn_bind_putref(struct kvdb_ctxn_bind *bind)
     assert(refcnt >= 0);
     if (refcnt == 0)
         bind->b_ctxn = NULL;
-
 }
 
 static inline void
