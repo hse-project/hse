@@ -47,23 +47,6 @@ struct hse_kvdb_txn {
 };
 
 /**
- * KVDB open mode behavior:
- *
- * Mode             Dirty-WAL    Dirty-cNDB    Writes?    Compact?    Queries?    RO FS/Vol
- * ----------------------------------------------------------------------------------------
- * rdonly           EUCLEAN      Mem replay    No         No          Yes         Yes
- * diag             Ignore       Mem replay    No         No          Yes         Yes
- * rdonly_replay    Replay       Full replay   No         No          Yes         Error
- * rw (default)     Replay       Full replay   Yes        Yes         Yes         Error
- */
-enum kvdb_open_mode {
-    KVDB_MODE_RDONLY        = 0,
-    KVDB_MODE_DIAG          = 1,
-    KVDB_MODE_RDONLY_REPLAY = 2,
-    KVDB_MODE_RDWR          = 3,
-};
-
-/**
  * ikvdb_init() - prepare the ikvdb subsystem for use
  */
 extern merr_t
@@ -308,12 +291,13 @@ void
 ikvdb_config_attach(struct ikvdb *kvdb, struct config *conf);
 
 /**
- * ikvdb_read_only() - is the KVDB read only?
- * @kvdb:       kvdb handle
+ * ikvdb_allows_user_writes() - checks whether puts/dels are allowed on the specified kvdb
+ *
+ * @param kvdb: KVDB handle
  */
 /* MTF_MOCK */
 bool
-ikvdb_read_only(struct ikvdb *kvdb);
+ikvdb_allows_user_writes(struct ikvdb *ikvdb);
 
 /**
  * ikvdb_kvs_close() - close the KVS
@@ -336,6 +320,13 @@ ikvdb_get_c0sk(struct ikvdb *kvdb, struct c0sk **out);
 /* MTF_MOCK */
 struct csched *
 ikvdb_get_csched(struct ikvdb *handle);
+
+/**
+ * ikvdb_get_rparams()
+ */
+/* MTF_MOCK */
+const struct kvdb_rparams *
+ikvdb_get_rparams(struct ikvdb *handle);
 
 /**
  * ikvdb_get_mclass_policy() - get a handle to the media class policy

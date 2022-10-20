@@ -13,7 +13,10 @@
 
 #include <rbtree.h>
 
+#include <hse_ikvdb/ikvdb.h>
+#include <hse_ikvdb/kvdb_rparams.h>
 #include <hse_ikvdb/cndb.h>
+#include <hse_ikvdb/kvdb_modes.h>
 
 #include "wal.h"
 #include "wal_replay.h"
@@ -1044,11 +1047,16 @@ wal_replay(struct wal *wal, struct wal_replay_info *rinfo)
     if (wal_is_clean(wal))
         return 0; /* clean shutdown, nothing to do */
 
-    if (wal_is_read_only(wal)) {
-        if (wal_is_diag_open(wal))
-            return 0;
+    if (!wal_allows_write(wal)) {
+        const struct kvdb_rparams *rp = ikvdb_get_rparams(wal_ikvdb(wal));
 
-        log_err("WAL is dirty, cannot replay in read-only mode");
+        if (wal_ignores_replay(wal)) {
+            log_info("WAL is dirty, skipping replay in KVDB open mode %s",
+                     kvdb_mode_to_string(rp->mode));
+            return 0;
+        }
+
+        log_err("WAL is dirty, cannot replay in KVDB open mode %s", kvdb_mode_to_string(rp->mode));
 
         return merr(EUCLEAN);
     }

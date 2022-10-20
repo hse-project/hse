@@ -521,6 +521,9 @@ kvdb_open_mode_converter(
     const cJSON *const             node,
     void *const                    data)
 {
+    enum kvdb_open_mode mode;
+    const char *mode_str;
+
     assert(ps);
     assert(node);
     assert(data);
@@ -528,19 +531,15 @@ kvdb_open_mode_converter(
     if (!cJSON_IsString(node))
         return false;
 
-    const char *value = cJSON_GetStringValue(node);
-    if (!strcmp(value, "rdonly")) {
-        *(uint *)data = KVDB_MODE_RDONLY;
-    } else if (!strcmp(value, "diag")) {
-        *(uint *)data = KVDB_MODE_DIAG;
-    } else if (!strcmp(value, "rdonly_replay")) {
-        *(uint *)data = KVDB_MODE_RDONLY_REPLAY;
-    } else if (!strcmp(value, "rdwr")) {
-        *(uint *)data = KVDB_MODE_RDWR;
-    } else {
-        log_err("Invalid value: %s, must be one of rdonly, diag, rdonly_replay or rdwr", value);
+    mode_str = cJSON_GetStringValue(node);
+    mode = kvdb_mode_string_to_value(mode_str);
+
+    if (kvdb_mode_is_invalid(mode)) {
+        log_err("Invalid value: %s, must be one of: %s", mode_str, KVDB_MODE_LIST_STR);
         return false;
     }
+
+    *((enum kvdb_open_mode *)data) = mode;
 
     return true;
 }
@@ -553,30 +552,14 @@ kvdb_open_mode_stringify(
     const size_t                   buf_sz,
     size_t *const                  needed_sz)
 {
-    size_t      n;
-    const char *param;
+    int n;
 
     INVARIANT(ps);
     INVARIANT(value);
 
-    switch (*(uint *)value) {
-        case KVDB_MODE_RDONLY:
-            param = "\"rdonly\"";
-            break;
-        case KVDB_MODE_DIAG:
-            param = "\"diag\"";
-            break;
-        case KVDB_MODE_RDONLY_REPLAY:
-            param = "\"rdonly_replay\"";
-            break;
-        case KVDB_MODE_RDWR:
-            param = "\"rdwr\"";
-            break;
-        default:
-            abort();
-    }
-
-    n = strlcpy(buf, param, buf_sz);
+    n = snprintf(buf, buf_sz, "\"%s\"", kvdb_mode_to_string(*((enum kvdb_open_mode *)value)));
+    if (n < 0)
+        return merr(EBADMSG);
 
     if (needed_sz)
         *needed_sz = n;
@@ -590,24 +573,13 @@ kvdb_open_mode_jsonify(const struct param_spec *const ps, const void *const valu
     INVARIANT(ps);
     INVARIANT(value);
 
-    switch (*(uint *)value) {
-        case KVDB_MODE_RDONLY:
-            return cJSON_CreateString("rdonly");
-        case KVDB_MODE_DIAG:
-            return cJSON_CreateString("diag");
-        case KVDB_MODE_RDONLY_REPLAY:
-            return cJSON_CreateString("rdonly_replay");
-        case KVDB_MODE_RDWR:
-            return cJSON_CreateString("rdwr");
-        default:
-            abort();
-    }
+    return cJSON_CreateString(kvdb_mode_to_string(*((enum kvdb_open_mode *)value)));
 }
 
 static const struct param_spec pspecs[] = {
     {
         .ps_name = "mode",
-        .ps_description = "KVDB open mode",
+        .ps_description = "open mode",
         .ps_flags = 0,
         .ps_type = PARAM_TYPE_ENUM,
         .ps_offset = offsetof(struct kvdb_rparams, mode),
@@ -621,8 +593,8 @@ static const struct param_spec pspecs[] = {
         },
         .ps_bounds = {
             .as_enum = {
-                .ps_min = KVDB_MODE_RDONLY,
-                .ps_max = KVDB_MODE_RDWR,
+                .ps_min = KVDB_MODE_MIN,
+                .ps_max = KVDB_MODE_MAX,
             },
         },
     },

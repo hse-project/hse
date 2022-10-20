@@ -117,6 +117,9 @@ kvdb_home_pidfile_path_get(const char *home, char *buf, const size_t buf_sz)
     char namebuf[32];
     int n, rc;
 
+    /* If user does not have write access on 'home', then fallback to XDG_RUNTIME_DIR.
+     * If XDG_RUNTIME_DIR is not defined or is a relative path, then fallback to /tmp.
+     */
     rc = access(home, W_OK);
     if (rc == -1) {
         dir = getenv("XDG_RUNTIME_DIR");
@@ -151,11 +154,11 @@ kvdb_home_is_fsdax(const char *home, bool *isdax)
 }
 
 merr_t
-kvdb_home_access_check(const char *home, enum kvdb_open_mode mode)
+kvdb_home_check_access(const char *home, enum kvdb_open_mode mode)
 {
     int rc;
 
-    if (mode == KVDB_MODE_RDONLY_REPLAY || mode == KVDB_MODE_RDWR)
+    if (kvdb_mode_allows_media_writes(mode))
         rc = access(home, R_OK | W_OK | X_OK);
     else
         rc = access(home, R_OK | X_OK);

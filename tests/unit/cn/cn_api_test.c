@@ -68,7 +68,7 @@ MTF_DEFINE_UTEST_PRE(cn_api, basic, pre)
     err = cn_kvdb_create(4, 4, &cn_kvdb);
     ASSERT_EQ(0, err);
 
-    err = cn_open(cn_kvdb, ds, &kk, cndb, 0, &rp, "mp", "kvs", &mock_health, false, 0, &cn);
+    err = cn_open(cn_kvdb, ds, &kk, cndb, 0, &rp, "mp", "kvs", &mock_health, 0, &cn);
     ASSERT_EQ(err, 0);
     ASSERT_NE(cn, NULL);
 

@@ -325,6 +325,68 @@ MTF_DEFINE_UTEST(kvdb_api_test, reopen)
     ASSERT_EQ(0, hse_err_to_errno(err));
 }
 
+MTF_DEFINE_UTEST(kvdb_api_test, mode)
+{
+    hse_err_t err;
+    const char *paramv = "mode=rdonly";
+    size_t needed_sz;
+    char buf[32];
+
+    err = hse_kvdb_close(kvdb_handle);
+    ASSERT_EQ(0, hse_err_to_errno(err));
+
+    err = hse_kvdb_open(mtf_kvdb_home, 1, &paramv, &kvdb_handle);
+    ASSERT_EQ(0, hse_err_to_errno(err));
+
+    err = hse_kvdb_sync(kvdb_handle, 0);
+    ASSERT_EQ(EROFS, hse_err_to_errno(err));
+
+    err = hse_kvdb_param_get(kvdb_handle, "mode", buf, sizeof(buf), &needed_sz);
+    ASSERT_EQ(0, hse_err_to_errno(err));
+    ASSERT_STREQ("\"rdonly\"", buf);
+    ASSERT_EQ(8, needed_sz);
+
+    err = hse_kvdb_close(kvdb_handle);
+    ASSERT_EQ(0, hse_err_to_errno(err));
+
+    paramv = "mode=diag";
+    err = hse_kvdb_open(mtf_kvdb_home, 1, &paramv, &kvdb_handle);
+    ASSERT_EQ(0, hse_err_to_errno(err));
+
+    err = hse_kvdb_sync(kvdb_handle, 0);
+    ASSERT_EQ(EROFS, hse_err_to_errno(err));
+
+    err = hse_kvdb_param_get(kvdb_handle, "mode", buf, sizeof(buf), &needed_sz);
+    ASSERT_EQ(0, hse_err_to_errno(err));
+    ASSERT_STREQ("\"diag\"", buf);
+    ASSERT_EQ(6, needed_sz);
+
+    err = hse_kvdb_close(kvdb_handle);
+    ASSERT_EQ(0, hse_err_to_errno(err));
+
+    paramv = "mode=rdonly_replay";
+    err = hse_kvdb_open(mtf_kvdb_home, 1, &paramv, &kvdb_handle);
+    ASSERT_EQ(0, hse_err_to_errno(err));
+
+    err = hse_kvdb_sync(kvdb_handle, 0);
+    ASSERT_EQ(EROFS, hse_err_to_errno(err));
+
+    err = hse_kvdb_param_get(kvdb_handle, "mode", buf, sizeof(buf), &needed_sz);
+    ASSERT_EQ(0, hse_err_to_errno(err));
+    ASSERT_STREQ("\"rdonly_replay\"", buf);
+    ASSERT_EQ(15, needed_sz);
+
+    err = hse_kvdb_close(kvdb_handle);
+    ASSERT_EQ(0, hse_err_to_errno(err));
+
+    paramv = "mode=abc";
+    err = hse_kvdb_open(mtf_kvdb_home, 1, &paramv, &kvdb_handle);
+    ASSERT_EQ(EINVAL, hse_err_to_errno(err));
+
+    err = hse_kvdb_open(mtf_kvdb_home, 0, NULL, &kvdb_handle);
+    ASSERT_EQ(0, hse_err_to_errno(err));
+}
+
 MTF_DEFINE_UTEST(kvdb_api_test, param_null_kvdb)
 {
     hse_err_t err;

@@ -182,7 +182,7 @@ MTF_DEFINE_UTEST_PREPOST(kvdb_ctxn_test, begin, mapi_pre, mapi_post)
 
     /* Note that c0 is mocked and these calls redirect to _c0_open().
      */
-    err = c0_open(NULL, NULL, NULL, &c0);
+    err = c0_open(NULL, NULL, &c0);
     ASSERT_EQ(0, err);
     ASSERT_NE(NULL, c0);
 
@@ -269,7 +269,7 @@ MTF_DEFINE_UTEST_PREPOST(kvdb_ctxn_test, basic_commit, mapi_pre, mapi_post)
 
     /* Note that c0 is mocked and these calls redirect to _c0_open().
      */
-    err = c0_open(NULL, NULL, NULL, &c0);
+    err = c0_open(NULL, NULL, &c0);
     ASSERT_EQ(0, err);
     ASSERT_NE(NULL, c0);
 
@@ -338,7 +338,7 @@ MTF_DEFINE_UTEST_PREPOST(kvdb_ctxn_test, basic_commit_twice, mapi_pre, mapi_post
 
     /* Note that c0 is mocked and these calls redirect to _c0_open().
      */
-    err = c0_open(NULL, NULL, NULL, &c0);
+    err = c0_open(NULL, NULL, &c0);
     ASSERT_EQ(0, err);
     ASSERT_NE(NULL, c0);
 
@@ -394,7 +394,7 @@ MTF_DEFINE_UTEST_PREPOST(kvdb_ctxn_test, basic_commit_proto, mapi_pre, mapi_post
 
     /* Note that c0 is mocked and these calls redirect to _c0_open().
      */
-    err = c0_open(NULL, NULL, NULL, &c0);
+    err = c0_open(NULL, NULL, &c0);
     ASSERT_EQ(0, err);
     ASSERT_NE(NULL, c0);
 
@@ -456,7 +456,7 @@ MTF_DEFINE_UTEST_PREPOST(kvdb_ctxn_test, basic_commit_seqno, mapi_pre, mapi_post
 
     /* Note that c0 is mocked and these calls redirect to _c0_open().
      */
-    err = c0_open(NULL, NULL, NULL, &c0);
+    err = c0_open(NULL, NULL, &c0);
     ASSERT_EQ(0, err);
     ASSERT_NE(NULL, c0);
 
@@ -506,7 +506,7 @@ MTF_DEFINE_UTEST_PREPOST(kvdb_ctxn_test, basic_abort, mapi_pre, mapi_post)
 
     /* Note that c0 is mocked and these calls redirect to _c0_open().
      */
-    err = c0_open(NULL, NULL, NULL, &c0);
+    err = c0_open(NULL, NULL, &c0);
     ASSERT_EQ(0, err);
     ASSERT_NE(NULL, c0);
 
@@ -558,7 +558,7 @@ MTF_DEFINE_UTEST_PREPOST(kvdb_ctxn_test, basic_abort_twice, mapi_pre, mapi_post)
 
     /* Note that c0 is mocked and these calls redirect to _c0_open().
      */
-    err = c0_open(NULL, NULL, NULL, &c0);
+    err = c0_open(NULL, NULL, &c0);
     ASSERT_EQ(0, err);
     ASSERT_NE(NULL, c0);
 
@@ -614,7 +614,7 @@ MTF_DEFINE_UTEST_PREPOST(kvdb_ctxn_test, get_view_seqno, mapi_pre, mapi_post)
 
     /* Note that c0 is mocked and these calls redirect to _c0_open().
      */
-    err = c0_open(NULL, NULL, NULL, &c0);
+    err = c0_open(NULL, NULL, &c0);
     ASSERT_EQ(0, err);
     ASSERT_NE(NULL, c0);
 
@@ -676,7 +676,7 @@ MTF_DEFINE_UTEST_PREPOST(kvdb_ctxn_test, get_state, mapi_pre, mapi_post)
 
     /* Note that c0 is mocked and these calls redirect to _c0_open().
      */
-    err = c0_open(NULL, NULL, NULL, &c0);
+    err = c0_open(NULL, NULL, &c0);
     ASSERT_EQ(0, err);
     ASSERT_NE(NULL, c0);
 
@@ -756,7 +756,7 @@ MTF_DEFINE_UTEST_PREPOST(kvdb_ctxn_test, put_get_del, mapi_pre, mapi_post)
 
     /* Note that c0 is mocked and these calls redirect to _c0_open().
      */
-    err = c0_open(NULL, NULL, NULL, &c0);
+    err = c0_open(NULL, NULL, &c0);
     ASSERT_EQ(0, err);
     ASSERT_NE(NULL, c0);
 
@@ -881,7 +881,7 @@ MTF_DEFINE_UTEST_PREPOST(kvdb_ctxn_test, put_get_pdel, mapi_pre, mapi_post)
 
     /* Note that c0 is mocked and these calls redirect to _c0_open().
      */
-    err = c0_open(NULL, NULL, NULL, &c0);
+    err = c0_open(NULL, NULL, &c0);
     ASSERT_EQ(0, err);
     ASSERT_NE(NULL, c0);
 
@@ -974,7 +974,7 @@ MTF_DEFINE_UTEST_PREPOST(kvdb_ctxn_test, txn_timeout, mapi_pre, mapi_post)
 
     /* Note that c0 is mocked and these calls redirect to _c0_open().
      */
-    err = c0_open(NULL, NULL, NULL, &c0);
+    err = c0_open(NULL, NULL, &c0);
     ASSERT_EQ(0, err);
     ASSERT_NE(NULL, c0);
 
@@ -1057,7 +1057,7 @@ MTF_DEFINE_UTEST_PREPOST(kvdb_ctxn_test, txn_cleanup, mapi_pre, mapi_post)
 
     /* Note that c0 is mocked and these calls redirect to _c0_open().
      */
-    err = c0_open(NULL, NULL, NULL, &c0);
+    err = c0_open(NULL, NULL, &c0);
     ASSERT_EQ(0, err);
     ASSERT_NE(NULL, c0);
 
@@ -1118,7 +1118,7 @@ MTF_DEFINE_UTEST_PREPOST(kvdb_ctxn_test, txn_hash, mapi_pre, mapi_post)
 
     /* Note that c0 is mocked and these calls redirect to _c0_open().
      */
-    err = c0_open(NULL, NULL, NULL, &c0);
+    err = c0_open(NULL, NULL, &c0);
     ASSERT_EQ(0, err);
     ASSERT_NE(NULL, c0);
 
@@ -1183,11 +1183,11 @@ MTF_DEFINE_UTEST_PREPOST(kvdb_ctxn_test, txn_independence, mapi_pre, mapi_post)
 
     /* Note that c0 is mocked and these calls redirect to _c0_open().
      */
-    err = c0_open(NULL, NULL, NULL, &c0a);
+    err = c0_open(NULL, NULL, &c0a);
     ASSERT_EQ(0, err);
     ASSERT_NE(NULL, c0a);
 
-    err = c0_open(NULL, NULL, NULL, &c0b);
+    err = c0_open(NULL, NULL, &c0b);
     ASSERT_EQ(0, err);
     ASSERT_NE(NULL, c0b);
 
@@ -1313,7 +1313,7 @@ MTF_DEFINE_UTEST_PREPOST(kvdb_ctxn_test, txn_seq, mapi_pre, mapi_post)
     err = c0snr_set_create(&css);
     ASSERT_TRUE(err == 0);
 
-    err = c0_open(NULL, NULL, NULL, &c0);
+    err = c0_open(NULL, NULL, &c0);
     ASSERT_EQ(0, err);
     ASSERT_NE(NULL, c0);
 
@@ -1387,7 +1387,7 @@ parallel_ctxn_helper(void *arg)
 
 //    kvs_vtuple_init(&vt, vbuf, sizeof(vbuf));
 
-    err = c0_open(NULL, NULL, NULL, &c0);
+    err = c0_open(NULL, NULL, &c0);
     VERIFY_EQ_RET(0, err, 0);
     VERIFY_NE_RET(NULL, c0, 0);
 
@@ -1454,7 +1454,7 @@ MTF_DEFINE_UTEST_PREPOST(kvdb_ctxn_test, multiple_ctxn_commit, mapi_pre, mapi_po
     err = c0snr_set_create(&css);
     ASSERT_TRUE(err == 0);
 
-    err = c0_open(NULL, NULL, NULL, &c0);
+    err = c0_open(NULL, NULL, &c0);
     ASSERT_EQ(0, err);
     ASSERT_NE(NULL, c0);
 

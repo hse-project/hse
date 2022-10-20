@@ -27,7 +27,7 @@ wal_mdc_open(
     struct mpool    *mp,
     uint64_t         mdcid1,
     uint64_t         mdcid2,
-    bool             rdonly,
+    bool             allow_writes,
     struct wal_mdc **handle);
 
 merr_t

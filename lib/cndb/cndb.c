@@ -45,7 +45,7 @@ struct cndb {
     struct map          *cn_map;
 
     bool                 replaying;
-    bool                 rdonly;
+    bool                 allow_writes;
 
     /* Mpool and mdc. */
     struct mpool     *mp;
@@ -133,7 +133,6 @@ cndb_open(
     uint64_t             oid1,
     uint64_t             oid2,
     struct kvdb_rparams *rp,
-    bool                 rdonly,
     struct cndb        **cndb_out)
 {
     struct cndb *cndb;
@@ -151,7 +150,7 @@ cndb_open(
     cndb->txhorizon_max = 0;
     cndb->replaying = false;
     cndb->cndb_hwm = rp->cndb_compact_hwm_pct;
-    cndb->rdonly = rdonly;
+    cndb->allow_writes = kvdb_mode_allows_media_writes(rp->mode);
 
     cndb->tx_map = map_create(1024);
     cndb->cn_map = map_create(HSE_KVS_COUNT_MAX);
@@ -162,7 +161,7 @@ cndb_open(
         goto err_out;
     }
 
-    err = mpool_mdc_open(mp, oid1, oid2, cndb->rdonly, &cndb->mdc);
+    err = mpool_mdc_open(mp, oid1, oid2, !cndb->allow_writes, &cndb->mdc);
     if (ev(err)) {
         map_destroy(cndb->tx_map);
         map_destroy(cndb->cn_map);
@@ -1130,7 +1129,7 @@ struct recovery_ctx {
     struct map       *cn_map;
     struct map       *mbid_map;
     bool              is_rollback;
-    bool              is_rdonly;
+    bool              allow_writes;
 };
 
 static bool
@@ -1276,7 +1275,7 @@ recover_incomplete_txn_cb(
     struct recovery_ctx *rctx = ctx;
     merr_t err = 0;
     struct cndb_cn *cn;
-    bool rdonly = rctx->is_rdonly;
+    bool allow_writes = rctx->allow_writes;
 
     cn = map_lookup_ptr(rctx->cn_map, kvset->ck_cnid);
     if (ev(!cn))
@@ -1292,7 +1291,7 @@ recover_incomplete_txn_cb(
         }
 
         if (rctx->is_rollback) {
-            if (!rdonly)
+            if (allow_writes)
                 err = kvset_mblock_delete(rctx->mp, rctx->mbid_map, kvset);
             free(kvset);
         } else {
@@ -1312,7 +1311,7 @@ recover_incomplete_txn_cb(
         struct cndb_kvset *delme;
 
         delme = map_remove_ptr(cn->kvset_map, kvset->ck_kvsetid);
-        if (!isacked && !rdonly) {
+        if (!isacked && allow_writes) {
             kvset_mblock_delete(rctx->mp, rctx->mbid_map, delme);
             err = cndb_omf_ack_write(rctx->mdc, cndb_txn_txid_get(tx), delme->ck_cnid,
                                      CNDB_ACK_TYPE_DEL, delme->ck_kvsetid);
@@ -1376,11 +1375,11 @@ cndb_replay(struct cndb *cndb, uint64_t *seqno, uint64_t *ingestid, uint64_t *tx
             .mbid_map = mbid_map,
             .cn_map = cndb->cn_map,
             .is_rollback = cndb_txn_needs_rollback(tx),
-            .is_rdonly = cndb->rdonly,
+            .allow_writes = cndb->allow_writes,
         };
 
         err = cndb_txn_apply(tx, &recover_incomplete_txn_cb, &rctx);
-        if (!err && rctx.is_rollback && !cndb->rdonly)
+        if (!err && rctx.is_rollback && cndb->allow_writes)
             err = cndb_omf_nak_write(cndb->mdc, txid);
 
         map_remove(cndb->tx_map, cndb_txn_txid_get(tx), NULL);

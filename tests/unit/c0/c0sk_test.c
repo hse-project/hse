@@ -194,7 +194,7 @@ MTF_DEFINE_UTEST_PREPOST(c0sk_test, basic, no_fail_pre, no_fail_post)
     kvdb_rp = kvdb_rparams_defaults();
 
     atomic_set(&seqno, 0);
-    err = c0sk_open(&kvdb_rp, 0, "mock_mp", &mock_health, &seqno, 0, false, &mkvdb.ikdb_c0sk);
+    err = c0sk_open(&kvdb_rp, 0, "mock_mp", &mock_health, &seqno, 0, &mkvdb.ikdb_c0sk);
     ASSERT_EQ(0, err);
     ASSERT_NE((struct c0sk *)0, mkvdb.ikdb_c0sk);
 
@@ -222,7 +222,7 @@ MTF_DEFINE_UTEST_PREPOST(c0sk_test, ingest, no_fail_pre, no_fail_post)
     kvdb_rp.c0_ingest_width = 2;
 
     atomic_set(&seqno, 0);
-    err = c0sk_open(&kvdb_rp, 0, "mock_mp", &mock_health, &seqno, 0, false, &mkvdb.ikdb_c0sk);
+    err = c0sk_open(&kvdb_rp, 0, "mock_mp", &mock_health, &seqno, 0, &mkvdb.ikdb_c0sk);
     ASSERT_EQ(0, err);
     ASSERT_NE((struct c0sk *)0, mkvdb.ikdb_c0sk);
 
@@ -287,7 +287,7 @@ MTF_DEFINE_UTEST_PREPOST(c0sk_test, ingest_debug, no_fail_pre, no_fail_post)
     kvdb_rp.c0_debug = -1;
 
     atomic_set(&seqno, 0);
-    err = c0sk_open(&kvdb_rp, 0, "mock_mp", &mock_health, &seqno, 0, false, &mkvdb.ikdb_c0sk);
+    err = c0sk_open(&kvdb_rp, 0, "mock_mp", &mock_health, &seqno, 0, &mkvdb.ikdb_c0sk);
     ASSERT_EQ(0, err);
     ASSERT_NE((struct c0sk *)0, mkvdb.ikdb_c0sk);
 
@@ -408,7 +408,7 @@ MTF_DEFINE_UTEST_PREPOST(c0sk_test, t_sync, no_fail_pre, no_fail_post)
     kvdb_rp.c0_ingest_width = 2;
 
     atomic_set(&seqno, 0);
-    err = c0sk_open(&kvdb_rp, 0, "mock_mp", &mock_health, &seqno, 0, false, &mkvdb.ikdb_c0sk);
+    err = c0sk_open(&kvdb_rp, 0, "mock_mp", &mock_health, &seqno, 0, &mkvdb.ikdb_c0sk);
     ASSERT_EQ(0, err);
     ASSERT_NE((struct c0sk *)0, mkvdb.ikdb_c0sk);
 
@@ -462,7 +462,7 @@ MTF_DEFINE_UTEST_PREPOST(c0sk_test, various, no_fail_pre, no_fail_post)
     kvdb_rp.c0_ingest_width = 2;
 
     atomic_set(&seqno, 0);
-    err = c0sk_open(&kvdb_rp, 0, "mock_mp", &mock_health, &seqno, 0, false, &mkvdb.ikdb_c0sk);
+    err = c0sk_open(&kvdb_rp, 0, "mock_mp", &mock_health, &seqno, 0, &mkvdb.ikdb_c0sk);
     ASSERT_EQ(0, err);
     ASSERT_NE((struct c0sk *)0, mkvdb.ikdb_c0sk);
 
@@ -500,7 +500,7 @@ MTF_DEFINE_UTEST_PREPOST(c0sk_test, ingest_fail, no_fail_pre, no_fail_post)
     kvdb_rp.c0_ingest_width = 2;
 
     atomic_set(&seqno, 0);
-    err = c0sk_open(&kvdb_rp, 0, "mock_mp", &mock_health, &seqno, 0, false, &mkvdb.ikdb_c0sk);
+    err = c0sk_open(&kvdb_rp, 0, "mock_mp", &mock_health, &seqno, 0, &mkvdb.ikdb_c0sk);
     ASSERT_EQ(0, err);
     ASSERT_NE((struct c0sk *)0, mkvdb.ikdb_c0sk);
 
@@ -554,7 +554,7 @@ MTF_DEFINE_UTEST_PREPOST(c0sk_test, open_test, no_fail_pre, no_fail_post)
     kvdb_rp = kvdb_rparams_defaults();
 
     atomic_set(&seqno, 0);
-    err = c0sk_open(&kvdb_rp, 0, "mock_mp", &mock_health, &seqno, 0, false, &mkvdb.ikdb_c0sk);
+    err = c0sk_open(&kvdb_rp, 0, "mock_mp", &mock_health, &seqno, 0, &mkvdb.ikdb_c0sk);
     ASSERT_EQ(0, err);
     ASSERT_NE((struct c0sk *)0, mkvdb.ikdb_c0sk);
 
@@ -583,7 +583,7 @@ MTF_DEFINE_UTEST_PREPOST(c0sk_test, open_test, no_fail_pre, no_fail_post)
     mapi_inject_once_ptr(mapi_idx_malloc, 1, NULL);
     mkvdb.ikdb_c0sk = NULL;
 
-    err = c0sk_open(&kvdb_rp, 0, "mock_mp", &mock_health, &seqno, 0, false, &mkvdb.ikdb_c0sk);
+    err = c0sk_open(&kvdb_rp, 0, "mock_mp", &mock_health, &seqno, 0, &mkvdb.ikdb_c0sk);
     ASSERT_EQ(ENOMEM, merr_errno(err));
     ASSERT_EQ(NULL, mkvdb.ikdb_c0sk);
 
@@ -618,7 +618,7 @@ MTF_DEFINE_UTEST_PREPOST(c0sk_test, serial_put1, no_fail_pre, no_fail_post)
     kvdb_rp.c0_ingest_width = 2;
 
     atomic_set(&seqno, 0);
-    err = c0sk_open(&kvdb_rp, 0, "mock_mp", &mock_health, &seqno, 0, false, &mkvdb.ikdb_c0sk);
+    err = c0sk_open(&kvdb_rp, 0, "mock_mp", &mock_health, &seqno, 0, &mkvdb.ikdb_c0sk);
     ASSERT_EQ(0, err);
     ASSERT_NE((struct c0sk *)0, mkvdb.ikdb_c0sk);
 
@@ -701,7 +701,7 @@ MTF_DEFINE_UTEST_PREPOST(c0sk_test, serial_put2, no_fail_pre, no_fail_post)
     kvdb_rp.c0_ingest_width = 2;
 
     atomic_set(&seqno, 0);
-    err = c0sk_open(&kvdb_rp, 0, "mock_mp", &mock_health, &seqno, 0, false, &mkvdb.ikdb_c0sk);
+    err = c0sk_open(&kvdb_rp, 0, "mock_mp", &mock_health, &seqno, 0, &mkvdb.ikdb_c0sk);
     ASSERT_EQ(0, err);
     ASSERT_NE((struct c0sk *)0, mkvdb.ikdb_c0sk);
 
@@ -833,7 +833,7 @@ MTF_DEFINE_UTEST_PREPOST(c0sk_test, ctxn_put, no_fail_ctxn_pre, no_fail_post)
     kvdb_rp.c0_ingest_width = 2;
 
     atomic_set(&seqno, 0);
-    err = c0sk_open(&kvdb_rp, 0, "mock_mp", &mock_health, &seqno, 0, false, &mkvdb.ikdb_c0sk);
+    err = c0sk_open(&kvdb_rp, 0, "mock_mp", &mock_health, &seqno, 0, &mkvdb.ikdb_c0sk);
     ASSERT_EQ(0, err);
     ASSERT_NE((struct c0sk *)0, mkvdb.ikdb_c0sk);
 
@@ -1037,7 +1037,7 @@ MTF_DEFINE_UTEST_PREPOST(c0sk_test, parallel_put1, no_fail_pre, no_fail_post)
     kvdb_rp.c0_ingest_width = 2;
 
     atomic_set(&seqno, 0);
-    err = c0sk_open(&kvdb_rp, 0, "mock_mp", &mock_health, &seqno, 0, false, &mkvdb.ikdb_c0sk);
+    err = c0sk_open(&kvdb_rp, 0, "mock_mp", &mock_health, &seqno, 0, &mkvdb.ikdb_c0sk);
     ASSERT_EQ(0, err);
     ASSERT_NE((struct c0sk *)0, mkvdb.ikdb_c0sk);
 
@@ -1122,7 +1122,7 @@ MTF_DEFINE_UTEST_PREPOST(c0sk_test, parallel_put2, no_fail_pre, no_fail_post)
     kvdb_rp.c0_ingest_width = 2;
 
     atomic_set(&seqno, 0);
-    err = c0sk_open(&kvdb_rp, 0, "mock_mp", &mock_health, &seqno, 0, false, &mkvdb.ikdb_c0sk);
+    err = c0sk_open(&kvdb_rp, 0, "mock_mp", &mock_health, &seqno, 0, &mkvdb.ikdb_c0sk);
     ASSERT_EQ(0, err);
     ASSERT_NE((struct c0sk *)0, mkvdb.ikdb_c0sk);
 
@@ -1207,7 +1207,7 @@ MTF_DEFINE_UTEST_PREPOST(c0sk_test, parallel_put3, no_fail_pre, no_fail_post)
     kvdb_rp.c0_ingest_width = num_threads;
 
     atomic_set(&seqno, 0);
-    err = c0sk_open(&kvdb_rp, 0, "mock_mp", &mock_health, &seqno, 0, false, &mkvdb.ikdb_c0sk);
+    err = c0sk_open(&kvdb_rp, 0, "mock_mp", &mock_health, &seqno, 0, &mkvdb.ikdb_c0sk);
     ASSERT_EQ(0, err);
     ASSERT_NE((struct c0sk *)0, mkvdb.ikdb_c0sk);
 
@@ -1293,7 +1293,7 @@ MTF_DEFINE_UTEST_PREPOST(c0sk_test, parallel_ctxn_put, no_fail_ctxn_pre, no_fail
     kvdb_rp.c0_ingest_width = num_threads;
 
     atomic_set(&seqno, 0);
-    err = c0sk_open(&kvdb_rp, 0, "mock_mp", &mock_health, &seqno, 0, false, &mkvdb.ikdb_c0sk);
+    err = c0sk_open(&kvdb_rp, 0, "mock_mp", &mock_health, &seqno, 0, &mkvdb.ikdb_c0sk);
     ASSERT_EQ(0, err);
     ASSERT_NE((struct c0sk *)0, mkvdb.ikdb_c0sk);
 
@@ -1408,7 +1408,7 @@ MTF_DEFINE_UTEST_PREPOST(c0sk_test, parallel_put_cheap, no_fail_pre, no_fail_pos
     kvdb_rp.c0_ingest_width = 8;
 
     atomic_set(&seqno, 0);
-    err = c0sk_open(&kvdb_rp, 0, "mock_mp", &mock_health, &seqno, 0, false, &mkvdb.ikdb_c0sk);
+    err = c0sk_open(&kvdb_rp, 0, "mock_mp", &mock_health, &seqno, 0, &mkvdb.ikdb_c0sk);
     ASSERT_EQ(0, err);
     ASSERT_NE((struct c0sk *)0, mkvdb.ikdb_c0sk);
 
@@ -1542,7 +1542,7 @@ MTF_DEFINE_UTEST_PREPOST(c0sk_test, parallel_get_put, no_fail_pre, no_fail_post)
     kvdb_rp.c0_ingest_width = 16;
 
     atomic_set(&seqno, 0);
-    err = c0sk_open(&kvdb_rp, 0, "mock_mp", &mock_health, &seqno, 0, false, &mkvdb.ikdb_c0sk);
+    err = c0sk_open(&kvdb_rp, 0, "mock_mp", &mock_health, &seqno, 0, &mkvdb.ikdb_c0sk);
     ASSERT_EQ(0, err);
     ASSERT_NE((struct c0sk *)0, mkvdb.ikdb_c0sk);
 
@@ -1638,7 +1638,7 @@ MTF_DEFINE_UTEST_PREPOST(c0sk_test, c0sk_get_test, no_fail_pre, no_fail_post)
     kvdb_rp.c0_ingest_width = 16;
 
     atomic_set(&seqno, 0);
-    err = c0sk_open(&kvdb_rp, 0, "mock_mp", &mock_health, &seqno, 0, false, &mkvdb.ikdb_c0sk);
+    err = c0sk_open(&kvdb_rp, 0, "mock_mp", &mock_health, &seqno, 0, &mkvdb.ikdb_c0sk);
     ASSERT_EQ(0, err);
     ASSERT_NE((struct c0sk *)0, mkvdb.ikdb_c0sk);
 
@@ -1784,7 +1784,7 @@ MTF_DEFINE_UTEST_PREPOST(c0sk_test, c0_cursor_robust, no_fail_pre, no_fail_post)
     kvdb_rp.c0_diag_mode = 1; /* prevent ingest worker from working */
 
     atomic_set(&seqno, 0);
-    err = c0sk_open(&kvdb_rp, 0, "mock_mp", &mock_health, &seqno, 0, false, &mkvdb.ikdb_c0sk);
+    err = c0sk_open(&kvdb_rp, 0, "mock_mp", &mock_health, &seqno, 0, &mkvdb.ikdb_c0sk);
     ASSERT_EQ(0, err);
     ASSERT_NE((struct c0sk *)0, mkvdb.ikdb_c0sk);
 
@@ -1985,7 +1985,7 @@ MTF_DEFINE_UTEST_PREPOST(c0sk_test, c0_cursor_eagain, no_fail_pre, no_fail_post)
     kvdb_rp.c0_diag_mode = 1;
 
     atomic_set(&seqno, 0);
-    err = c0sk_open(&kvdb_rp, 0, "mock_mp", &mock_health, &seqno, 0, false, &mkvdb.ikdb_c0sk);
+    err = c0sk_open(&kvdb_rp, 0, "mock_mp", &mock_health, &seqno, 0, &mkvdb.ikdb_c0sk);
     ASSERT_EQ(0, err);
     ASSERT_NE((struct c0sk *)0, mkvdb.ikdb_c0sk);
 
@@ -2117,7 +2117,7 @@ MTF_DEFINE_UTEST_PREPOST(c0sk_test, c0_rcursor_robust, no_fail_pre, no_fail_post
     kvdb_rp.c0_diag_mode = 1; /* prevent ingest worker from working */
 
     atomic_set(&seqno, 0);
-    err = c0sk_open(&kvdb_rp, 0, "mock_mp", &mock_health, &seqno, 0, false, &mkvdb.ikdb_c0sk);
+    err = c0sk_open(&kvdb_rp, 0, "mock_mp", &mock_health, &seqno, 0, &mkvdb.ikdb_c0sk);
     ASSERT_EQ(0, err);
     ASSERT_NE((struct c0sk *)0, mkvdb.ikdb_c0sk);
 
@@ -2309,7 +2309,7 @@ MTF_DEFINE_UTEST_PREPOST(c0sk_test, c0_register, no_fail_pre, no_fail_post)
     kvdb_rp = kvdb_rparams_defaults();
 
     atomic_set(&seqno, 0);
-    err = c0sk_open(&kvdb_rp, 0, "mock_mp", &mock_health, &seqno, 0, false, &mkvdb.ikdb_c0sk);
+    err = c0sk_open(&kvdb_rp, 0, "mock_mp", &mock_health, &seqno, 0, &mkvdb.ikdb_c0sk);
     ASSERT_EQ(0, err);
     ASSERT_NE((struct c0sk *)0, mkvdb.ikdb_c0sk);
 
@@ -2376,7 +2376,7 @@ MTF_DEFINE_UTEST_PREPOST(c0sk_test, c0_cursor_ptombs, no_fail_pre, no_fail_post)
     kvdb_rp.c0_diag_mode = 1; /* prevent ingest worker from working */
 
     atomic_set(&seqno, 0);
-    err = c0sk_open(&kvdb_rp, 0, "mock_mp", &mock_health, &seqno, 0, false, &mkvdb.ikdb_c0sk);
+    err = c0sk_open(&kvdb_rp, 0, "mock_mp", &mock_health, &seqno, 0, &mkvdb.ikdb_c0sk);
     ASSERT_EQ(0, err);
     ASSERT_NE((struct c0sk *)0, mkvdb.ikdb_c0sk);
 
@@ -2548,7 +2548,7 @@ MTF_DEFINE_UTEST_PREPOST(c0sk_test, c0_deregister, no_fail_pre, no_fail_post)
     kvdb_rp = kvdb_rparams_defaults();
 
     atomic_set(&seqno, 0);
-    err = c0sk_open(&kvdb_rp, 0, "mock_mp", &mock_health, &seqno, 0, false, &mkvdb.ikdb_c0sk);
+    err = c0sk_open(&kvdb_rp, 0, "mock_mp", &mock_health, &seqno, 0, &mkvdb.ikdb_c0sk);
     ASSERT_EQ(0, err);
     ASSERT_NE((struct c0sk *)0, mkvdb.ikdb_c0sk);
 

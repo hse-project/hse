@@ -12,7 +12,7 @@
 
 #include <hse/error/merr.h>
 
-#include <hse_ikvdb/ikvdb.h>
+#include <hse_ikvdb/kvdb_modes.h>
 
 /**
  * Converts the storage path to an absolute path
@@ -76,6 +76,6 @@ kvdb_home_is_fsdax(const char *home, bool *isdax);
  * @param mode: kvdb open mode
  */
 merr_t
-kvdb_home_access_check(const char *home, enum kvdb_open_mode mode);
+kvdb_home_check_access(const char *home, enum kvdb_open_mode mode);
 
 #endif

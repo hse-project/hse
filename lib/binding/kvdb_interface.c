@@ -514,7 +514,7 @@ hse_kvdb_create(const char *kvdb_home, size_t paramc, const char *const *const p
         return merr(EINVAL);
     }
 
-    err = kvdb_home_access_check(kvdb_home, KVDB_MODE_RDWR);
+    err = kvdb_home_check_access(kvdb_home, KVDB_MODE_RDWR);
     if (err) {
         log_errx("Failed access check for KVDB (%s)", err, kvdb_home);
         return err;
@@ -585,7 +585,7 @@ hse_kvdb_drop(const char *kvdb_home)
         return merr(EINVAL);
     }
 
-    err = kvdb_home_access_check(kvdb_home, KVDB_MODE_RDWR);
+    err = kvdb_home_check_access(kvdb_home, KVDB_MODE_RDWR);
     if (err) {
         log_errx("Failed access check for KVDB (%s)", err, kvdb_home);
         return err;
@@ -673,7 +673,7 @@ hse_kvdb_open(
         goto out;
     }
 
-    err = kvdb_home_access_check(kvdb_home, params.mode);
+    err = kvdb_home_check_access(kvdb_home, params.mode);
     if (err) {
         log_errx("Failed access check for KVDB (%s)", err, kvdb_home);
         goto out;
@@ -790,13 +790,13 @@ hse_kvdb_attach(
 
     mutex_lock(&hse_lock);
 
-    err = kvdb_home_access_check(kvdb_home_src, KVDB_MODE_RDONLY);
+    err = kvdb_home_check_access(kvdb_home_src, KVDB_MODE_RDONLY);
     if (err) {
         log_errx("Failed access check for source KVDB (%s)", err, kvdb_home_src);
         goto out;
     }
 
-    err = kvdb_home_access_check(kvdb_home_tgt, KVDB_MODE_RDWR);
+    err = kvdb_home_check_access(kvdb_home_tgt, KVDB_MODE_RDWR);
     if (err) {
         log_errx("Failed access check for target KVDB (%s)", err, kvdb_home_tgt);
         goto out;
@@ -919,7 +919,7 @@ hse_kvdb_mclass_reconfigure(const char *kvdb_home, enum hse_mclass mclass, const
         return merr(EINVAL);
     }
 
-    err = kvdb_home_access_check(kvdb_home, KVDB_MODE_RDWR);
+    err = kvdb_home_check_access(kvdb_home, KVDB_MODE_RDWR);
     if (err) {
         log_errx("Failed access check for KVDB (%s)", err, kvdb_home);
         return err;
@@ -1110,7 +1110,7 @@ hse_kvdb_storage_add(const char *kvdb_home, size_t paramc, const char *const *co
         return merr(EINVAL);
     }
 
-    err = kvdb_home_access_check(kvdb_home, KVDB_MODE_RDWR);
+    err = kvdb_home_check_access(kvdb_home, KVDB_MODE_RDWR);
     if (err) {
         log_errx("Failed access check for KVDB (%s)", err, kvdb_home);
         return err;

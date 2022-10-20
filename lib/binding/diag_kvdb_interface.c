@@ -60,7 +60,7 @@ diag_kvdb_open(
 
     params.mode = KVDB_MODE_DIAG; /* override mode param to DIAG */
 
-    err = kvdb_home_access_check(kvdb_home, params.mode);
+    err = kvdb_home_check_access(kvdb_home, params.mode);
     if (err)
         goto close_mp;
 

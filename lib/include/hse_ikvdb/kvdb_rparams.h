@@ -14,6 +14,7 @@
 #include <cjson/cJSON.h>
 
 #include <hse_ikvdb/ikvdb.h>
+#include <hse_ikvdb/kvdb_modes.h>
 #include <hse_ikvdb/mclass_policy.h>
 #include <hse_ikvdb/throttle.h>
 #include <hse/error/merr.h>

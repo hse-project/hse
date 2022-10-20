@@ -38,10 +38,12 @@ test_pre(struct mtf_test_info *lcl_ti)
 
     lc_ingest_seqno_set(lc, 1);
 
+    mapi_inject(mapi_idx_ikvdb_allows_user_writes, 1);
     mapi_inject_ptr(mapi_idx_ikvdb_alias, "0");
-    err = kvs_open(dummy, &kvdb_kvs, dummy, dummy, lc, NULL, &rp, dummy, dummy, false, 0);
+    err = kvs_open(dummy, &kvdb_kvs, dummy, dummy, lc, NULL, &rp, dummy, dummy, 0);
     ASSERT_EQ_RET(0, err, -1);
     mapi_inject_unset(mapi_idx_ikvdb_alias);
+    mapi_inject_unset(mapi_idx_ikvdb_allows_user_writes);
 
     kvs = kvdb_kvs.kk_ikvs;
     return 0;

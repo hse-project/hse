@@ -45,7 +45,7 @@ uint               flags;
 struct kvs_cparams cp = {
 };
 
-#define CN_OPEN_ARGS cn_kvdb, ds, kk, cndb, cnid, rp, mp, kvs, h, false, flags
+#define CN_OPEN_ARGS cn_kvdb, ds, kk, cndb, cnid, rp, mp, kvs, h, flags
 
 /* Prefer the mapi_inject_list method for mocking functions over the
  * MOCK_SET/MOCK_UNSET macros if the mock simply needs to return a
@@ -70,7 +70,6 @@ struct mapi_injection inject_list[] = {
 
     { mapi_idx_csched_tree_add, MAPI_RC_SCALAR, 0 },
     { mapi_idx_csched_tree_remove, MAPI_RC_SCALAR, 0 },
-    { mapi_idx_ikvdb_read_only, MAPI_RC_SCALAR, 0 },
 
     { -1 }
 };

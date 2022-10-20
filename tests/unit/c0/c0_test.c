@@ -29,10 +29,17 @@ _ikvdb_get_c0sk(struct ikvdb *handle, struct c0sk **out)
     *out = ikvdb_get_c0sk_gv_c0sk;
 }
 
+bool
+_ikvdb_allows_user_writes(struct ikvdb *handle)
+{
+    return true;
+}
+
 static void
 mock_unset()
 {
     MOCK_UNSET(ikvdb, _ikvdb_get_c0sk);
+    MOCK_UNSET(ikvdb, _ikvdb_allows_user_writes);
 }
 
 static void
@@ -44,6 +51,7 @@ mock_set(struct mtf_test_info *info)
     mapi_inject_clear();
 
     MOCK_SET(ikvdb, _ikvdb_get_c0sk);
+    MOCK_SET(ikvdb, _ikvdb_allows_user_writes);
 }
 
 int
@@ -78,7 +86,7 @@ MTF_DEFINE_UTEST(c0_test, basic_open_close)
 
     ikvdb_get_c0sk_gv_c0sk = c0sk;
 
-    err = c0_open((void *)0x1234, cn, false, &c0);
+    err = c0_open((void *)0x1234, cn, &c0);
     ASSERT_EQ(0, err);
     ASSERT_NE((struct c0 *)0, c0);
     ASSERT_EQ(1, mapi_calls(mapi_idx_c0sk_c0_register));
@@ -110,14 +118,14 @@ MTF_DEFINE_UTEST(c0_test, open_error_paths)
     /* allocation failure */
     ikvdb_get_c0sk_gv_c0sk = c0sk;
     mapi_inject_once_ptr(mapi_idx_malloc, 1, 0);
-    err = c0_open((void *)0x1234, cn, false, &c0);
+    err = c0_open((void *)0x1234, cn, &c0);
     ASSERT_EQ(ENOMEM, merr_errno(err));
     ASSERT_EQ((struct c0 *)0, c0);
     ASSERT_EQ(0, mapi_calls(mapi_idx_c0sk_c0_register));
 
     /* get backing c0sk failure */
     ikvdb_get_c0sk_gv_c0sk = 0;
-    err = c0_open((void *)0x1234, cn, false, &c0);
+    err = c0_open((void *)0x1234, cn, &c0);
     ASSERT_EQ(EINVAL, merr_errno(err));
     ASSERT_EQ((struct c0 *)0, c0);
     ASSERT_EQ(0, mapi_calls(mapi_idx_c0sk_c0_register));
@@ -125,7 +133,7 @@ MTF_DEFINE_UTEST(c0_test, open_error_paths)
     /* c0sk register failure */
     ikvdb_get_c0sk_gv_c0sk = c0sk;
     mapi_inject_once(mapi_idx_c0sk_c0_register, 1, merr(ENOSPC));
-    err = c0_open((void *)0x1234, cn, false, &c0);
+    err = c0_open((void *)0x1234, cn, &c0);
     ASSERT_EQ(ENOSPC, merr_errno(err));
     ASSERT_EQ((struct c0 *)0, c0);
     ASSERT_EQ(1, mapi_calls(mapi_idx_c0sk_c0_register));
@@ -156,14 +164,14 @@ MTF_DEFINE_UTEST(c0_test, close_error_paths)
     ASSERT_EQ(EINVAL, merr_errno(err));
 
     /* c0_sync fails */
-    err = c0_open((void *)0x1234, cn, false, &c0);
+    err = c0_open((void *)0x1234, cn, &c0);
     mapi_inject_once(mapi_idx_c0sk_sync, 1, EDOM);
     err = c0_close(c0);
     ASSERT_EQ(EDOM, merr_errno(err));
     mapi_inject_clear();
 
     /* c0sk_c0_deregister fails */
-    err = c0_open((void *)0x1234, cn, false, &c0);
+    err = c0_open((void *)0x1234, cn, &c0);
     mapi_inject_once(mapi_idx_c0sk_c0_deregister, 1, EDOM);
     err = c0_close(c0);
     ASSERT_EQ(EDOM, merr_errno(err));
@@ -172,7 +180,7 @@ MTF_DEFINE_UTEST(c0_test, close_error_paths)
     /* c0_sync fails, followed by a failure in c0sk_c0_deregister. The
      * first error should be the one returned.
      */
-    err = c0_open((void *)0x1234, cn, false, &c0);
+    err = c0_open((void *)0x1234, cn, &c0);
     mapi_inject_once(mapi_idx_c0sk_sync, 1, EDOM);
     mapi_inject_once(mapi_idx_c0sk_c0_deregister, 1, EAGAIN);
     err = c0_close(c0);
@@ -202,7 +210,7 @@ MTF_DEFINE_UTEST(c0_test, basic_ops)
 
     ikvdb_get_c0sk_gv_c0sk = c0sk;
 
-    err = c0_open((void *)0x1234, cn, false, &c0);
+    err = c0_open((void *)0x1234, cn, &c0);
     ASSERT_EQ(0, err);
     ASSERT_NE((struct c0 *)0, c0);
 

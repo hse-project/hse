@@ -56,8 +56,8 @@ struct wal {
     atomic_long error HSE_L1D_ALIGNED;
     atomic_int closing;
     bool       clean;
-    bool       read_only;
-    bool       diag_open;
+    bool       allow_writes;
+    bool       ignore_replay;
     bool       timer_running;
     bool       sync_notifier_running;
     struct work_struct timer_work;
@@ -604,7 +604,7 @@ wal_create(struct mpool *mp, uint64_t *mdcid1, uint64_t *mdcid2)
     if (err)
         return err;
 
-    err = wal_mdc_open(mp, *mdcid1, *mdcid2, false, &mdc);
+    err = wal_mdc_open(mp, *mdcid1, *mdcid2, true, &mdc);
     if (err) {
         wal_mdc_destroy(mp, *mdcid1, *mdcid2);
         return err;
@@ -633,7 +633,6 @@ wal_open(
     struct wal_replay_info *rinfo,
     struct ikvdb           *ikdb,
     struct kvdb_health     *health,
-    bool                    rdonly,
     struct wal            **wal_out)
 {
     struct wal *wal;
@@ -653,8 +652,8 @@ wal_open(
     wal->version = WAL_VERSION;
     wal->mp = mp;
     wal->health = health;
-    wal->diag_open = (rp->mode == KVDB_MODE_DIAG);
-    wal->read_only = rdonly;
+    wal->ignore_replay = kvdb_mode_ignores_wal_replay(rp->mode);
+    wal->allow_writes = kvdb_mode_allows_media_writes(rp->mode);
     wal->ikvdb = ikdb;
     wal->buf_managed = rp->dur_buf_managed;
     wal->buf_flags = wal->buf_managed ? HSE_BTF_MANAGED : 0;
@@ -671,7 +670,7 @@ wal_open(
     INIT_LIST_HEAD(&wal->sync_waiters);
     wal->sync_pending = false;
 
-    err = wal_mdc_open(mp, rinfo->mdcid1, rinfo->mdcid2, wal->read_only, &wal->mdc);
+    err = wal_mdc_open(mp, rinfo->mdcid1, rinfo->mdcid2, wal->allow_writes, &wal->mdc);
     if (err)
         goto errout;
 
@@ -695,7 +694,7 @@ wal_open(
         return 0;
     }
 
-    if (wal->read_only) {
+    if (!wal->allow_writes) {
         *wal_out = wal;
         return 0;
     }
@@ -823,7 +822,7 @@ wal_close(struct wal *wal)
 
     /* Write a close record to indicate graceful shutdown if there's no health error */
     err = kvdb_health_check(wal->health, KVDB_HEALTH_FLAG_ALL);
-    if (!err && !wal->read_only)
+    if (!err && wal->allow_writes)
         wal_mdc_close_write(wal->mdc);
     wal_mdc_close(wal->mdc);
 
@@ -906,43 +905,43 @@ wal_clean_set(struct wal *wal)
 }
 
 bool
-wal_is_read_only(struct wal *wal)
+wal_allows_write(const struct wal *wal)
 {
-    return wal->read_only;
+    return wal->allow_writes;
 }
 
 bool
-wal_is_diag_open(struct wal *wal)
+wal_ignores_replay(const struct wal *wal)
 {
-    return wal->diag_open;
+    return wal->ignore_replay;
 }
 
 bool
-wal_is_clean(struct wal *wal)
+wal_is_clean(const struct wal *wal)
 {
     return wal->clean;
 }
 
 struct ikvdb *
-wal_ikvdb(struct wal *wal)
+wal_ikvdb(const struct wal *wal)
 {
     return wal->ikvdb;
 }
 
 struct wal_fileset *
-wal_fset(struct wal *wal)
+wal_fset(const struct wal *wal)
 {
     return wal->wfset;
 }
 
 struct wal_mdc *
-wal_mdc(struct wal *wal)
+wal_mdc(const struct wal *wal)
 {
     return wal->mdc;
 }
 
 struct kvdb_health *
-wal_health(struct wal *wal)
+wal_health(const struct wal *wal)
 {
     return wal->health;
 }

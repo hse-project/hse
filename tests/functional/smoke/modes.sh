@@ -2,7 +2,7 @@
 
 # SPDX-License-Identifier: Apache-2.0
 #
-# Copyright (C) 2021-2022 Micron Technology, Inc. All rights reserved.
+# Copyright (C) 2022 Micron Technology, Inc. All rights reserved.
 
 #doc: test behavior of kvdb open modes (rdonly, rdonly_replay, diag, rdwr)
 

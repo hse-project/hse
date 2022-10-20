@@ -133,7 +133,6 @@ kvs_open(
     struct kvs_rparams *rp,
     struct kvdb_health *health,
     struct cn_kvdb *    cn_kvdb,
-    bool                rdonly,
     uint                flags)
 {
     merr_t       err;
@@ -143,6 +142,9 @@ kvs_open(
 
     assert(kvdb);
     assert(health);
+
+    if (!ikvdb_allows_user_writes(kvdb))
+        rp->cn_maint_disable = true;
 
     err = kvs_create(&ikvs, rp);
     if (ev(err))
@@ -176,13 +178,12 @@ kvs_open(
         ikvdb_alias(kvdb),
         kvs_name,
         health,
-        rdonly,
         flags,
         &ikvs->ikv_cn);
     if (ev(err))
         goto err_exit;
 
-    err = c0_open(kvdb, ikvs->ikv_cn, rdonly, &ikvs->ikv_c0);
+    err = c0_open(kvdb, ikvs->ikv_cn, &ikvs->ikv_c0);
     if (ev(err))
         goto err_exit;
 

@@ -80,24 +80,24 @@ void
 wal_clean_set(struct wal *wal);
 
 bool
-wal_is_read_only(struct wal *wal);
+wal_allows_write(const struct wal *wal);
 
 bool
-wal_is_diag_open(struct wal *wal);
+wal_ignores_replay(const struct wal *wal);
 
 bool
-wal_is_clean(struct wal *wal);
+wal_is_clean(const struct wal *wal);
 
 struct ikvdb *
-wal_ikvdb(struct wal *wal);
+wal_ikvdb(const struct wal *wal);
 
 struct wal_fileset *
-wal_fset(struct wal *wal);
+wal_fset(const struct wal *wal);
 
 struct wal_mdc *
-wal_mdc(struct wal *wal);
+wal_mdc(const struct wal *wal);
 
 struct kvdb_health *
-wal_health(struct wal *wal);
+wal_health(const struct wal *wal);
 
 #endif /* WAL_INTERNAL_H */

@@ -46,7 +46,6 @@ cndb_open(
     u64                  oid1,
     u64                  oid2,
     struct kvdb_rparams *rp,
-    bool                 rdonly,
     struct cndb        **cndb_out);
 
 /* MTF_MOCK */

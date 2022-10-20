@@ -37,13 +37,13 @@ struct c0 {
 
 /**
  * struct c0_impl - private representation of c0
- * @c0_handle:   opaque handle for users of a struct c0
- * @c0_c0sk:     handle to container poly C0, if within a poly C0
- * @c0_cn:       struct cn to ingest into
- * @c0_index:    index assigned to this C0
- * @c0_sfx_len:  suffix length for this c0
- * @c0_pfx_len:  prefix length for this c0
- * @c0_rdonly:   rdonly open?
+ * @c0_handle:       opaque handle for users of a struct c0
+ * @c0_c0sk:         handle to container poly C0, if within a poly C0
+ * @c0_cn:           struct cn to ingest into
+ * @c0_index:        index assigned to this C0
+ * @c0_sfx_len:      suffix length for this c0
+ * @c0_pfx_len:      prefix length for this c0
+ * @c0_allow_writes: allow puts/dels
  */
 struct c0_impl {
     struct c0    c0_handle;
@@ -52,7 +52,7 @@ struct c0_impl {
     uint32_t     c0_index;
     uint32_t     c0_sfx_len;
     int32_t      c0_pfx_len;
-    bool         c0_rdonly;
+    bool         c0_allow_writes;
 };
 
 HSE_COLD merr_t
@@ -171,11 +171,7 @@ c0_pfx_probe(
 }
 
 merr_t
-c0_open(
-    struct ikvdb  *kvdb,
-    struct cn     *cn,
-    bool           rdonly,
-    struct c0    **c0)
+c0_open(struct ikvdb *kvdb, struct cn *cn, struct c0 **c0)
 {
     struct kvs_cparams *cp = cn_get_cparams(cn);
     struct kvs_rparams *rp = cn_get_rp(cn);
@@ -194,7 +190,7 @@ c0_open(
     new_c0->c0_pfx_len = cp->pfx_len;
     new_c0->c0_sfx_len = rp->kvs_sfxlen;
     new_c0->c0_cn = cn;
-    new_c0->c0_rdonly = rdonly;
+    new_c0->c0_allow_writes = ikvdb_allows_user_writes(kvdb);
 
     ikvdb_get_c0sk(kvdb, &new_c0->c0_c0sk);
     if (ev(!new_c0->c0_c0sk)) {
@@ -342,7 +338,7 @@ c0_sync(struct c0 *handle)
 {
     struct c0_impl *self = c0_h2r(handle);
 
-    if (self->c0_rdonly)
+    if (!self->c0_allow_writes)
         return 0;
 
     return c0sk_sync(self->c0_c0sk, HSE_KVDB_SYNC_REFWAIT);
