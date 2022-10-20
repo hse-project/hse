@@ -142,7 +142,7 @@ new_tree(uint fanout)
 
     cp.pfx_len = pfx_len;
 
-    err = cn_tree_create(&tt->tree, NULL, 0, &cp, &health, kvs_rp);
+    err = cn_tree_create(&tt->tree, 0, &cp, &health, kvs_rp);
     if (err)
         return 0;
 

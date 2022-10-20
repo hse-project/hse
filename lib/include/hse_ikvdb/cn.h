@@ -34,10 +34,6 @@ enum hse_mclass;
 
 /* MTF_MOCK */
 merr_t
-cn_make(struct mpool *ds, const struct kvs_cparams *cp, struct kvdb_health *health);
-
-/* MTF_MOCK */
-merr_t
 cn_open(
     struct cn_kvdb *    cn_kvdb,
     struct mpool *      mp,

@@ -178,7 +178,6 @@ cn_subspill_pop(struct cn_tree_node *tn)
 merr_t
 cn_tree_create(
     struct cn_tree **   handle,
-    const char         *kvsname,
     u32                 cn_cflags,
     struct kvs_cparams *cp,
     struct kvdb_health *health,
@@ -217,12 +216,10 @@ cn_tree_create(
 
     list_add(&tree->ct_root->tn_link, &tree->ct_nodes);
 
-    if (kvsname) {
-        tree->ct_route_map = route_map_create(CN_FANOUT_MAX);
-        if (!tree->ct_route_map) {
-            cn_tree_destroy(tree);
-            return merr(ENOMEM);
-        }
+    tree->ct_route_map = route_map_create(CN_FANOUT_MAX);
+    if (!tree->ct_route_map) {
+        cn_tree_destroy(tree);
+        return merr(ENOMEM);
     }
 
     err = rmlock_init(&tree->ct_lock);

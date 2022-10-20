@@ -929,7 +929,7 @@ cn_open(
     if (!cn->cn_replay)
         cn_perfc_alloc(cn, rp->perfc_level);
 
-    err = cn_tree_create(&cn->cn_tree, cn->cn_kvsname, cn->cn_cflags, cn->cp, health, rp);
+    err = cn_tree_create(&cn->cn_tree, cn->cn_cflags, cn->cp, health, rp);
     if (ev(err))
         goto err_exit;
 
@@ -1378,32 +1378,6 @@ merr_t
 cn_cursor_active_kvsets(struct cn_cursor *cursor, u32 *active, u32 *total)
 {
     return cn_tree_cursor_active_kvsets(cursor, active, total);
-}
-
-merr_t
-cn_make(struct mpool *mp, const struct kvs_cparams *cp, struct kvdb_health *health)
-{
-    merr_t             err;
-    struct cn_tree *   tree;
-    struct kvs_rparams rp;
-    struct kvs_cparams icp;
-
-    assert(mp);
-    assert(cp);
-    assert(health);
-
-    /* Create and destroy a tree as a means of validating
-     * prefix len, etc.
-     */
-    rp = kvs_rparams_defaults();
-
-    icp.pfx_len = cp->pfx_len;
-
-    err = cn_tree_create(&tree, NULL, cn_cp2cflags(cp), &icp, health, &rp);
-    if (!err)
-        cn_tree_destroy(tree);
-
-    return err;
 }
 
 u64
