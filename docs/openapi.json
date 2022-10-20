@@ -1999,25 +1999,31 @@
                                                   "type": "string",
                                                   "nullable": false
                                                 },
-                                                "job_id": {
-                                                  "type": "integer",
-                                                  "nullable": true
-                                                },
-                                                "job_action": {
-                                                  "type": "string",
-                                                  "nullable": true
-                                                },
-                                                "job_rule": {
-                                                  "type": "string",
-                                                  "nullable": true
-                                                },
-                                                "job_wmesg": {
-                                                  "type": "string",
-                                                  "nullable": true
-                                                },
-                                                "job_time": {
-                                                  "type": "integer",
-                                                  "nullable": true
+                                                "job": {
+                                                  "type": "object",
+                                                  "nullable": true,
+                                                  "properties": {
+                                                    "id": {
+                                                      "type": "integer",
+                                                      "nullable": false
+                                                    },
+                                                    "action": {
+                                                      "type": "string",
+                                                      "nullable": false
+                                                    },
+                                                    "rule": {
+                                                      "type": "string",
+                                                      "nullable": false
+                                                    },
+                                                    "wmesg": {
+                                                      "type": "string",
+                                                      "nullable": false
+                                                    },
+                                                    "time": {
+                                                      "type": "integer",
+                                                      "nullable": false
+                                                    }
+                                                  }
                                                 }
                                               }
                                             }

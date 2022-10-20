@@ -1571,7 +1571,7 @@ main(const int argc, char **const argv)
 {
     const struct option program_opts[] = {
         { "help", no_argument, NULL, 'h' },
-        { "socket", required_argument, NULL, 's' },
+        { "socket", required_argument, NULL, 'C' },
         { "verbosity", no_argument, NULL, 'v' },
         { NULL },
     };

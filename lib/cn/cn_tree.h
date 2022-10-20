@@ -1,10 +1,12 @@
 /* SPDX-License-Identifier: Apache-2.0 */
 /*
- * Copyright (C) 2015-2020,2022 Micron Technology, Inc.  All rights reserved.
+ * Copyright (C) 2015-2022 Micron Technology, Inc.  All rights reserved.
  */
 
 #ifndef HSE_KVDB_CN_CN_TREE_H
 #define HSE_KVDB_CN_CN_TREE_H
+
+#include <cjson/cJSON.h>
 
 #include <hse/error/merr.h>
 #include <hse_util/inttypes.h>
@@ -94,6 +96,9 @@ cn_tree_samp(const struct cn_tree *tree, struct cn_samp_stats *s_out);
 /* MTF_MOCK */
 void
 cn_tree_samp_update_move(struct cn_compaction_work *w, struct cn_tree_node *tn);
+
+merr_t
+cn_tree_to_json(struct cn_tree *tree, bool human, bool kvsets, cJSON **root);
 
 /**
  * cn_tree_node_get_max_key() - Get the largest key in a cN node

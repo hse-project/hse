@@ -16,7 +16,7 @@ permissions:
   checks: write
 
 jobs:
-  lint:
+  openapi:
     runs-on: ubuntu-latest
 
     steps:

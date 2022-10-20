@@ -611,10 +611,13 @@ u64_to_human(char *buf, size_t bufsz, uint64_t val, uint64_t thresh)
 }
 
 static bool HSE_NONNULL(1, 2)
-cn_tree_query_common(
-    cJSON * const object,
+cn_tree_common_to_json(
+    cJSON *const object,
     const struct kvset_stats *stats,
-    uint64_t dgen, uint32_t compc, uint32_t vgroups, const bool human)
+    const uint64_t dgen,
+    const uint32_t compc,
+    const uint32_t vgroups,
+    const bool human)
 {
     bool bad;
 
@@ -668,41 +671,50 @@ cn_tree_query_common(
 }
 
 merr_t
-cn_tree_query(
+cn_tree_to_json(
     struct cn_tree *tree,
     const bool human,
     const bool kvsets,
-    cJSON *root)
+    cJSON **const root_out)
 {
-    struct hse_kvdb_compact_status status;
-    struct kvset_stats tree_stats = { 0 };
-    struct cn_tree_node *tn;
-    uint32_t tree_vgroups = 0;
-    uint32_t tree_kvsets = 0;
-    uint32_t tree_compc = 0;
-    uint64_t tree_dgen = 0;
+    void *lock;
+    cJSON *root;
     cJSON *nodes;
     merr_t err = 0;
     bool bad = false;
-    void *lock;
+    uint64_t tree_dgen = 0;
+    uint32_t tree_compc = 0;
+    struct cn_tree_node *tn;
+    uint32_t tree_kvsets = 0;
+    uint32_t tree_vgroups = 0;
+    struct kvset_stats tree_stats = { 0 };
+    struct hse_kvdb_compact_status status;
 
-    INVARIANT(tree && root);
+    INVARIANT(tree && root_out);
+
+    *root_out = NULL;
+
+    root = cJSON_CreateObject();
+    if (ev(!root))
+        return merr(ENOMEM);
 
     nodes = cJSON_AddArrayToObject(root, "nodes");
-    if (!nodes)
-        return merr(ENOMEM);
+    if (!nodes) {
+        err = merr(ENOMEM);
+        goto out;
+    }
 
     rmlock_rlock(&tree->ct_lock, &lock);
     cn_tree_foreach_node(tn, tree) {
-        struct kvset_list_entry *le;
-        cJSON *node, *kvsetv = NULL;
-        uint32_t node_vgroups = 0;
-        uint32_t node_kvsets = 0;
-        uint32_t node_compc = 0;
-        uint64_t node_dgen = 0;
+        ulong now;
         char ekbuf[24];
         uint eklen = 0;
-        ulong now;
+        uint64_t node_dgen = 0;
+        uint32_t node_compc = 0;
+        uint32_t node_kvsets = 0;
+        uint32_t node_vgroups = 0;
+        struct kvset_list_entry *le;
+        cJSON *node, *kvsetv = NULL;
 
         node = cJSON_CreateObject();
         if (!node || !cJSON_AddItemToArray(nodes, node)) {
@@ -736,10 +748,10 @@ cn_tree_query(
         now = jclock_ns;
 
         list_for_each_entry(le, &tn->tn_kvset_list, le_link) {
-            const struct cn_compaction_work *w;
-            uint32_t vgroups, compc;
-            uint64_t dgen;
             cJSON *kvset;
+            uint64_t dgen;
+            uint32_t vgroups, compc;
+            const struct cn_compaction_work *w;
 
             dgen = kvset_get_dgen(le->le_kvset);
             if (node_dgen < dgen)
@@ -763,21 +775,29 @@ cn_tree_query(
                 break;
             }
 
-            bad |= cn_tree_query_common(kvset, kvset_statsp(le->le_kvset),
-                                        dgen, compc, vgroups, human);
-
+            bad |= cn_tree_common_to_json(kvset, kvset_statsp(le->le_kvset), dgen, compc,
+                vgroups, human);
             bad |= !cJSON_AddStringToObject(kvset, "rule", cn_rule2str(le->le_kvset->ks_rule));
 
             w = kvset_get_work(le->le_kvset);
             if (w) {
+                cJSON *job;
                 const char *wmesg = sts_job_wmesg_get(&w->cw_job);
-                ulong tm = (now - w->cw_t0_enqueue) / NSEC_PER_SEC;
+                const uint64_t tm = (now - w->cw_t0_enqueue) / NSEC_PER_SEC;
 
-                bad |= !cJSON_AddNumberToObject(kvset, "job_id", sts_job_id_get(&w->cw_job));
-                bad |= !cJSON_AddStringToObject(kvset, "job_action", cn_action2str(w->cw_action));
-                bad |= !cJSON_AddStringToObject(kvset, "job_rule", cn_rule2str(w->cw_rule));
-                bad |= !cJSON_AddNumberToObject(kvset, "job_time", tm);
-                bad |= !cJSON_AddStringToObject(kvset, "job_wmesg", wmesg);
+                job = cJSON_AddObjectToObject(kvset, "job");
+                if (!job) {
+                    err = merr(ENOMEM);
+                    break;
+                }
+
+                bad |= !cJSON_AddNumberToObject(job, "id", sts_job_id_get(&w->cw_job));
+                bad |= !cJSON_AddStringToObject(job, "action", cn_action2str(w->cw_action));
+                bad |= !cJSON_AddStringToObject(job, "rule", cn_rule2str(w->cw_rule));
+                bad |= !cJSON_AddNumberToObject(job, "time", tm);
+                bad |= !cJSON_AddStringToObject(job, "wmesg", wmesg);
+            } else {
+                bad |= !cJSON_AddNullToObject(kvset, "job");
             }
         }
 
@@ -787,8 +807,8 @@ cn_tree_query(
         if (!kvsets)
             bad |= !cJSON_AddNumberToObject(node, "kvsets", node_kvsets);
 
-        bad |= cn_tree_query_common(node, &tn->tn_ns.ns_kst,
-                                    node_dgen, node_compc, node_vgroups, human);
+        bad |= cn_tree_common_to_json(node, &tn->tn_ns.ns_kst, node_dgen, node_compc,
+            node_vgroups, human);
 
         kvset_stats_add(&tn->tn_ns.ns_kst, &tree_stats);
 
@@ -802,8 +822,11 @@ cn_tree_query(
     }
     rmlock_runlock(lock);
 
-    if (err)
+out:
+    if (err) {
+        cJSON_Delete(root);
         return err;
+    }
 
     bad |= !cJSON_AddNumberToObject(root, "cnid", tree->cnid);
     bad |= !cJSON_AddNumberToObject(root, "fanout", tree->ct_fanout);
@@ -811,10 +834,16 @@ cn_tree_query(
 
     csched_compact_status_get(cn_get_sched(tree->cn), &status);
     bad |= !cJSON_AddNumberToObject(root, "samp_curr", status.kvcs_samp_curr);
+    bad |= cn_tree_common_to_json(root, &tree_stats, tree_dgen, tree_compc, tree_vgroups, human);
 
-    bad |= cn_tree_query_common(root, &tree_stats, tree_dgen, tree_compc, tree_vgroups, human);
+    if (ev(bad)) {
+        cJSON_Delete(root);
+        return merr(ENOMEM);
+    }
 
-    return ev(bad) ? merr(ENOMEM) : 0;
+    *root_out = root;
+
+    return 0;
 }
 
 void

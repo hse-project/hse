@@ -10,33 +10,38 @@
 #define MTF_MOCK_IMPL_cn_internal
 
 #include <bsd/string.h>
+#include <cjson/cJSON.h>
 
 #include <hse/error/merr.h>
-#include <hse_util/event_counter.h>
-#include <hse_util/alloc.h>
-#include <hse_util/slab.h>
-#include <hse_util/log2.h>
-#include <hse_util/xrand.h>
-#include <hse_util/vlb.h>
-#include <hse/logging/logging.h>
-#include <hse_util/map.h>
-
-#include <hse_util/perfc.h>
-
 #include <hse/limits.h>
+#include <hse/logging/logging.h>
+#include <hse/rest/headers.h>
+#include <hse/rest/params.h>
+#include <hse/rest/request.h>
+#include <hse/rest/response.h>
+#include <hse/rest/server.h>
+#include <hse/rest/status.h>
+#include <hse_util/alloc.h>
+#include <hse_util/event_counter.h>
+#include <hse_util/log2.h>
+#include <hse_util/map.h>
+#include <hse_util/perfc.h>
+#include <hse_util/slab.h>
+#include <hse_util/vlb.h>
+#include <hse_util/xrand.h>
 
 #include <hse_ikvdb/cn.h>
+#include <hse_ikvdb/cn_kvdb.h>
 #include <hse_ikvdb/cndb.h>
 #include <hse_ikvdb/cursor.h>
-#include <hse_ikvdb/kvset_builder.h>
-#include <hse_ikvdb/kvs.h>
-#include <hse_ikvdb/limits.h>
+#include <hse_ikvdb/csched.h>
+#include <hse_ikvdb/hse_gparams.h>
 #include <hse_ikvdb/ikvdb.h>
 #include <hse_ikvdb/kvdb_health.h>
-#include <hse_ikvdb/cn_kvdb.h>
+#include <hse_ikvdb/kvs.h>
 #include <hse_ikvdb/kvs_cparams.h>
-
-#include <hse_ikvdb/csched.h>
+#include <hse_ikvdb/kvset_builder.h>
+#include <hse_ikvdb/limits.h>
 
 #include <mpool/mpool.h>
 
@@ -64,6 +69,8 @@
 #include "bloom_reader.h"
 #include "cn_perfc.h"
 #include "kvset_internal.h"
+
+#define ENDPOINT_FMT_CN_TREE "/kvdbs/%s/kvs/%s/cn/tree"
 
 struct tbkt;
 struct mclass_policy;
@@ -325,7 +332,7 @@ cn_disable_maint(struct cn *cn, bool onoff)
     if (cn->rp->cn_maint_disable != onoff) {
         cn->rp->cn_maint_disable = onoff;
 
-        log_info("%s: background compaction %s", cn->cn_kvsname, onoff ? "disabled" : "enabled");
+        log_info("%s: background compaction %s", cn->cn_kvs_name, onoff ? "disabled" : "enabled");
     }
 }
 
@@ -842,6 +849,71 @@ cndb_cn_callback(void *arg, struct kvset_meta *km, u64 kvsetid)
     return 0;
 }
 
+static enum rest_status
+rest_cn_tree(
+    const struct rest_request *const req,
+    struct rest_response *const resp,
+    void *const ctx)
+{
+    char *data;
+    merr_t err;
+    cJSON *root;
+    bool pretty;
+    bool human;
+    bool kvsets;
+    struct cn *cn;
+    enum rest_status status = REST_STATUS_OK;
+
+    INVARIANT(req);
+    INVARIANT(resp);
+    INVARIANT(ctx);
+
+    cn = ctx;
+
+    err = rest_params_get(req->rr_params, "pretty", &pretty, false);
+    if (ev(err))
+        return REST_STATUS_BAD_REQUEST;
+
+    err = rest_params_get(req->rr_params, "human", &human, false);
+    if (ev(err))
+        return REST_STATUS_BAD_REQUEST;
+
+    err = rest_params_get(req->rr_params, "kvsets", &kvsets, false);
+    if (ev(err))
+        return REST_STATUS_BAD_REQUEST;
+
+    err = cn_tree_to_json(cn->cn_tree, human, kvsets, &root);
+    if (ev(err)) {
+        status = REST_STATUS_INTERNAL_SERVER_ERROR;
+        goto out;
+    }
+
+    if (!cJSON_AddStringToObject(root, "name", cn->cn_kvs_name)) {
+        status = REST_STATUS_INTERNAL_SERVER_ERROR;
+        goto out;
+    }
+
+    data = (pretty ? cJSON_Print : cJSON_PrintUnformatted)(root);
+    if (ev(!data)) {
+        status = REST_STATUS_INTERNAL_SERVER_ERROR;
+        goto out;
+    }
+
+    fputs(data, resp->rr_stream);
+    cJSON_free(data);
+
+    err = rest_headers_set(resp->rr_headers, REST_HEADER_CONTENT_TYPE, REST_APPLICATION_JSON);
+    if (ev(err)) {
+        status = REST_STATUS_INTERNAL_SERVER_ERROR;
+        goto out;
+    }
+
+out:
+    cJSON_Delete(root);
+
+    return status;
+}
+
 merr_t
 cn_open(
     struct cn_kvdb *    cn_kvdb,
@@ -856,6 +928,10 @@ cn_open(
     uint                flags,
     struct cn **        cn_out)
 {
+    static rest_handler *handlers[REST_METHOD_COUNT] = {
+        [REST_METHOD_GET] = rest_cn_tree,
+    };
+
     merr_t      err;
     struct cn * cn;
     size_t      sz;
@@ -899,9 +975,6 @@ cn_open(
         *rp = kvs_rparams_defaults();
     }
 
-    cn->cn_kvdb_alias = kvdb_alias;
-    strlcpy(cn->cn_kvsname, kvs_name, sizeof(cn->cn_kvsname));
-
     cn->cn_kvdb = cn_kvdb;
     cn->rp = rp;
     cn->cp = kvdb_kvs_cparams(kvs);
@@ -912,6 +985,8 @@ cn_open(
     cn->cn_cflags = kvdb_kvs_flags(kvs);
     cn->cn_kvdb_health = health;
     cn->cn_mpool_props = mpprops;
+    cn->cn_kvdb_alias = kvdb_alias;
+    cn->cn_kvs_name = kvs_name;
 
     if (cn_is_capped(cn))
         rp->kvs_cursor_ttl = rp->cn_capped_ttl;
@@ -919,7 +994,7 @@ cn_open(
     cn->cn_mpolicy = ikvdb_get_mclass_policy(cn->ikvdb, rp->mclass_policy);
     if (ev(!cn->cn_mpolicy)) {
         err = merr(EINVAL);
-        log_err("%s: invalid media class policy %s", cn->cn_kvsname, rp->mclass_policy);
+        log_err("%s: invalid media class policy %s", cn->cn_kvs_name, rp->mclass_policy);
         goto err_exit;
     }
 
@@ -1070,7 +1145,7 @@ cn_open(
         log_info(
             "opened kvs %s/%s cnid %lu pfx_len %u vcomp %u"
             " hb %lu%c/%lu kb %lu%c/%lu vb %lu%c/%lu %s%s%s%s%s%s",
-            cn->cn_kvdb_alias, cn->cn_kvsname, (ulong)cnid,
+            cn->cn_kvdb_alias, cn->cn_kvs_name, (ulong)cnid,
             cn->cp->pfx_len, cn->rp->compression.algorithm,
             (ulong)kvs_stats.kst_halen >> (hshift * 10), hszsuf, (ulong)kvs_stats.kst_hblks,
             (ulong)kvs_stats.kst_kalen >> (kshift * 10), kszsuf, (ulong)kvs_stats.kst_kblks,
@@ -1111,7 +1186,16 @@ cn_open(
         }
     }
 
-    /* successful exit */
+    if (hse_gparams.gp_rest.enabled) {
+        err = rest_server_add_endpoint(REST_ENDPOINT_EXACT,  handlers, cn,
+            ENDPOINT_FMT_CN_TREE, kvdb_alias, kvs_name);
+        if (err) {
+            log_errx("Failed to add REST endpoint (" ENDPOINT_FMT_CN_TREE ")", err,
+                kvdb_alias, kvs_name);
+            goto err_exit;
+        }
+    }
+
     *cn_out = cn;
 
     return 0;
@@ -1145,6 +1229,9 @@ cn_close(struct cn *cn)
     }
 
     csched_tree_remove(cn->csched, cn->cn_tree, cancel);
+
+    if (hse_gparams.gp_rest.enabled)
+        rest_server_remove_endpoint(ENDPOINT_FMT_CN_TREE, cn->cn_kvdb_alias, cn->cn_kvs_name);
 
     /* Wait for all compaction jobs and async kvset destroys to complete.
      * This wait holds up ikvdb_close(), so it's important not to dawdle.

@@ -420,10 +420,6 @@ hse_init(const char *const config, const size_t paramc, const char *const *const
     if (err)
         goto out;
 
-    err = ikvdb_init();
-    if (err)
-        goto out;
-
     if (hse_gparams.gp_rest.enabled) {
         err = rest_server_start(hse_gparams.gp_rest.socket_path);
         if (err) {
@@ -439,6 +435,10 @@ hse_init(const char *const config, const size_t paramc, const char *const *const
             }
         }
     }
+
+    err = ikvdb_init();
+    if (err)
+        goto out;
 
 out:
     if (err) {
