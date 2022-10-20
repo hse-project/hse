@@ -102,7 +102,11 @@ struct kvset {
 
     struct mbset_locator *ks_vblk2mbs;
 
-    uint64_t ks_workid;
+    /* csched uses ks_work to mark busy all the kvsets within a compaction
+     * operation (by stashing the address of the cn_compaction_work object
+     * into ks_work).
+     */
+    const void * _Atomic ks_work;
 
     struct key_disc ks_kdisc_max; /* max key in kvset */
     struct key_disc ks_kdisc_min; /* min key in kvset */

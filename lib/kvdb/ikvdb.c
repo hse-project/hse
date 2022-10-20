@@ -1485,7 +1485,7 @@ ikvdb_open(
 
     if (self->ikdb_rp.throttle_init_policy == THROTTLE_DELAY_START_AUTO) {
         log_info("setting throttling.init_policy to \"%s\" for KVDB(%s)",
-                 self->ikdb_pmem_only ? "light" : "heavy", kvdb_home);
+                 self->ikdb_pmem_only ? "light" : "medium", kvdb_home);
         self->ikdb_rp.throttle_init_policy =
             self->ikdb_pmem_only ? THROTTLE_DELAY_START_LIGHT : THROTTLE_DELAY_START_MEDIUM;
     }

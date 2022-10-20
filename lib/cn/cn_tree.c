@@ -11,6 +11,11 @@
 #define MTF_MOCK_IMPL_ct_view
 
 #include <sys/mman.h>
+#include <bsd/string.h>
+
+#include <bsd/stdlib.h>
+#include <cjson/cJSON.h>
+#include <cjson/cJSON_Utils.h>
 
 #include <hse_util/alloc.h>
 #include <hse_util/event_counter.h>
@@ -27,8 +32,11 @@
 #include <hse_util/keycmp.h>
 #include <hse_util/bin_heap.h>
 #include <hse_util/log2.h>
+#include <hse_util/fmt.h>
+#include <hse_util/printbuf.h>
 #include <hse_util/workqueue.h>
 #include <hse_util/compression_lz4.h>
+#include <hse/experimental.h>
 
 #include <mpool/mpool.h>
 
@@ -73,12 +81,6 @@
 #include "move.h"
 
 static struct kmem_cache *cn_node_cache HSE_READ_MOSTLY;
-
-static void
-cn_setname(const char *name)
-{
-    pthread_setname_np(pthread_self(), name);
-}
 
 static size_t
 cn_node_size(void)
@@ -595,91 +597,227 @@ cn_node_insert_kvset(struct cn_tree_node *node, struct kvset *kvset)
 }
 
 static void
-kvset_view_free(void *arg)
+u64_to_human(char *buf, size_t bufsz, uint64_t val, uint64_t thresh)
 {
-    struct kvset_view *v = arg;
+    if (val >= thresh) {
+        const char *sep = "\0kmgtpezy";
 
-    if (v->kvset)
-        kvset_put_ref(v->kvset);
+        val *= 10;
+        while (val >= thresh) {
+            val /= 1000;
+            ++sep;
+        }
+        snprintf(buf, bufsz, "%5.1lf%c", val / 10.0, *sep);
+    } else {
+        u64_to_string(buf, bufsz, val);
+    }
 }
 
-void
-cn_tree_view_destroy(struct table *view)
+static bool HSE_NONNULL(1, 2)
+cn_tree_query_common(
+    cJSON * const object,
+    const struct kvset_stats *stats,
+    uint64_t dgen, uint32_t compc, uint32_t vgroups, const bool human)
 {
-    table_apply(view, kvset_view_free);
-    table_destroy(view);
+    bool bad;
+
+    INVARIANT(object);
+    INVARIANT(stats);
+
+    bad = !cJSON_AddNumberToObject(object, "dgen", dgen);
+    bad |= !cJSON_AddNumberToObject(object, "compc", compc);
+
+    if (human) {
+        char kbuf[64], tbuf[64], pbuf[64];
+
+        u64_to_human(kbuf, sizeof(kbuf), stats->kst_keys, 10000);
+        u64_to_human(tbuf, sizeof(tbuf), stats->kst_tombs, 10000);
+        u64_to_human(pbuf, sizeof(pbuf), stats->kst_ptombs, 10000);
+
+        bad |= !cJSON_AddStringToObject(object, "keys", kbuf);
+        bad |= !cJSON_AddStringToObject(object, "tombs", tbuf);
+        bad |= !cJSON_AddStringToObject(object, "ptombs", pbuf);
+    } else {
+        bad |= !cJSON_AddNumberToObject(object, "keys", stats->kst_keys);
+        bad |= !cJSON_AddNumberToObject(object, "tombs", stats->kst_tombs);
+        bad |= !cJSON_AddNumberToObject(object, "ptombs", stats->kst_ptombs);
+    }
+
+    if (human) {
+        char hbuf[64], kbuf[64], vbuf[64], gbuf[64];
+
+        u64_to_human(hbuf, sizeof(hbuf), stats->kst_hwlen, 10000);
+        u64_to_human(kbuf, sizeof(kbuf), stats->kst_kwlen, 10000);
+        u64_to_human(vbuf, sizeof(vbuf), stats->kst_vwlen, 10000);
+        u64_to_human(gbuf, sizeof(gbuf), stats->kst_vgarb, 10000);
+
+        bad |= !cJSON_AddStringToObject(object, "hlen", hbuf);
+        bad |= !cJSON_AddStringToObject(object, "klen", kbuf);
+        bad |= !cJSON_AddStringToObject(object, "vlen", vbuf);
+        bad |= !cJSON_AddStringToObject(object, "vgarb", gbuf);
+    } else {
+        bad |= !cJSON_AddNumberToObject(object, "hlen", stats->kst_hwlen);
+        bad |= !cJSON_AddNumberToObject(object, "klen", stats->kst_kwlen);
+        bad |= !cJSON_AddNumberToObject(object, "vlen", stats->kst_vwlen);
+        bad |= !cJSON_AddNumberToObject(object, "vgarb", stats->kst_vgarb);
+    }
+
+    bad |= !cJSON_AddNumberToObject(object, "hblocks", stats->kst_hblks);
+    bad |= !cJSON_AddNumberToObject(object, "kblocks", stats->kst_kblks);
+    bad |= !cJSON_AddNumberToObject(object, "vblocks", stats->kst_vblks);
+    bad |= !cJSON_AddNumberToObject(object, "vgroups", vgroups);
+
+    return bad;
 }
 
 merr_t
-cn_tree_view_create(struct cn *cn, struct table **view_out)
+cn_tree_query(
+    struct cn_tree *tree,
+    const bool human,
+    const bool kvsets,
+    cJSON *root)
 {
-    struct table *           view;
-    struct cn_tree_node *    node;
-    void *                   lock;
-    struct cn_tree *         tree = cn_get_tree(cn);
-    merr_t                   err = 0;
-    uint nodecnt;
+    struct hse_kvdb_compact_status status;
+    struct kvset_stats tree_stats = { 0 };
+    struct cn_tree_node *tn;
+    uint32_t tree_vgroups = 0;
+    uint32_t tree_kvsets = 0;
+    uint32_t tree_compc = 0;
+    uint64_t tree_dgen = 0;
+    cJSON *nodes;
+    merr_t err = 0;
+    bool bad = false;
+    void *lock;
 
-    nodecnt = (128 * 1024) / sizeof(struct kvset_view);
+    INVARIANT(tree && root);
 
-    view = table_create(nodecnt, sizeof(struct kvset_view), false);
-    if (ev(!view))
+    nodes = cJSON_AddArrayToObject(root, "nodes");
+    if (!nodes)
         return merr(ENOMEM);
 
     rmlock_rlock(&tree->ct_lock, &lock);
-    nodecnt = 0;
-
-    cn_tree_foreach_node(node, tree) {
+    cn_tree_foreach_node(tn, tree) {
         struct kvset_list_entry *le;
-        struct kvset_view *s;
+        cJSON *node, *kvsetv = NULL;
+        uint32_t node_vgroups = 0;
+        uint32_t node_kvsets = 0;
+        uint32_t node_compc = 0;
+        uint64_t node_dgen = 0;
+        char ekbuf[24];
+        uint eklen = 0;
+        ulong now;
 
-        /* create an entry for the node */
-        s = table_append(view);
-        if (ev(!s)) {
+        node = cJSON_CreateObject();
+        if (!node || !cJSON_AddItemToArray(nodes, node)) {
             err = merr(ENOMEM);
             break;
         }
 
-        s->kvset = NULL;
-        s->nodeid = node->tn_nodeid;
-        s->eklen = 0;
+        bad |= !cJSON_AddNumberToObject(node, "id", tn->tn_nodeid);
 
-        if (node->tn_route_node)
-            route_node_keycpy(node->tn_route_node, s->ekbuf, sizeof(s->ekbuf), &s->eklen);
+        if (kvsets) {
+            kvsetv = cJSON_AddArrayToObject(node, "kvsets");
+            if (ev(!kvsetv)) {
+                err = merr(ENOMEM);
+                break;
+            }
+        }
 
-        list_for_each_entry(le, &node->tn_kvset_list, le_link) {
-            struct kvset *kvset = le->le_kvset;
+        if (tn->tn_route_node)
+            route_node_keycpy(tn->tn_route_node, ekbuf, sizeof(ekbuf), &eklen);
 
-            s = table_append(view);
-            if (ev(!s)) {
+        if (eklen > 0) {
+            char kbuf[sizeof(ekbuf) * 3 + 1];
+
+            fmt_hexp(kbuf, sizeof(kbuf), ekbuf,
+                     min_t(size_t, eklen, sizeof(ekbuf)), "", 2, ".", "");
+            bad |= !cJSON_AddStringToObject(node, "edge_key", kbuf);
+        } else {
+            bad |= !cJSON_AddNullToObject(node, "edge_key");
+        }
+
+        now = jclock_ns;
+
+        list_for_each_entry(le, &tn->tn_kvset_list, le_link) {
+            const struct cn_compaction_work *w;
+            uint32_t vgroups, compc;
+            uint64_t dgen;
+            cJSON *kvset;
+
+            dgen = kvset_get_dgen(le->le_kvset);
+            if (node_dgen < dgen)
+                node_dgen = dgen;
+
+            compc = kvset_get_compc(le->le_kvset);
+            if (node_compc < compc)
+                node_compc = compc;
+
+            vgroups = kvset_get_vgroups(le->le_kvset);
+            node_vgroups += vgroups;
+
+            node_kvsets++;
+
+            if (!kvsetv)
+                continue;
+
+            kvset = cJSON_CreateObject();
+            if (!kvset || !cJSON_AddItemToArray(kvsetv, kvset)) {
                 err = merr(ENOMEM);
                 break;
             }
 
-            kvset_get_ref(kvset);
-            s->kvset = kvset;
-            s->nodeid = kvset_get_nodeid(kvset);
-            s->eklen = 0;
+            bad |= cn_tree_query_common(kvset, kvset_statsp(le->le_kvset),
+                                        dgen, compc, vgroups, human);
 
-            assert(s->nodeid == node->tn_nodeid);
+            bad |= !cJSON_AddStringToObject(kvset, "rule", cn_rule2str(le->le_kvset->ks_rule));
+
+            w = kvset_get_work(le->le_kvset);
+            if (w) {
+                const char *wmesg = sts_job_wmesg_get(&w->cw_job);
+                ulong tm = (now - w->cw_t0_enqueue) / NSEC_PER_SEC;
+
+                bad |= !cJSON_AddNumberToObject(kvset, "job_id", sts_job_id_get(&w->cw_job));
+                bad |= !cJSON_AddStringToObject(kvset, "job_action", cn_action2str(w->cw_action));
+                bad |= !cJSON_AddStringToObject(kvset, "job_rule", cn_rule2str(w->cw_rule));
+                bad |= !cJSON_AddNumberToObject(kvset, "job_time", tm);
+                bad |= !cJSON_AddStringToObject(kvset, "job_wmesg", wmesg);
+            }
         }
 
         if (err)
             break;
 
-        if ((nodecnt++ % 16) == 0)
-            rmlock_yield(&tree->ct_lock, &lock);
+        if (!kvsets)
+            bad |= !cJSON_AddNumberToObject(node, "kvsets", node_kvsets);
+
+        bad |= cn_tree_query_common(node, &tn->tn_ns.ns_kst,
+                                    node_dgen, node_compc, node_vgroups, human);
+
+        kvset_stats_add(&tn->tn_ns.ns_kst, &tree_stats);
+
+        if (tree_dgen < node_dgen)
+            tree_dgen = node_dgen;
+        if (tree_compc < node_compc)
+            tree_compc = node_compc;
+        tree_vgroups += node_vgroups;
+
+        tree_kvsets += node_kvsets;
     }
     rmlock_runlock(lock);
 
-    if (err) {
-        cn_tree_view_destroy(view);
-        view = NULL;
-    }
+    if (err)
+        return err;
 
-    *view_out = view;
+    bad |= !cJSON_AddNumberToObject(root, "cnid", tree->cnid);
+    bad |= !cJSON_AddNumberToObject(root, "fanout", tree->ct_fanout);
+    bad |= !cJSON_AddNumberToObject(root, "kvsets", tree_kvsets);
 
-    return err;
+    csched_compact_status_get(cn_get_sched(tree->cn), &status);
+    bad |= !cJSON_AddNumberToObject(root, "samp_curr", status.kvcs_samp_curr);
+
+    bad |= cn_tree_query_common(root, &tree_stats, tree_dgen, tree_compc, tree_vgroups, human);
+
+    return ev(bad) ? merr(ENOMEM) : 0;
 }
 
 void
@@ -1126,7 +1264,7 @@ err_out:
     return;
 }
 
-merr_t
+static merr_t
 cn_tree_prepare_compaction(struct cn_compaction_work *w)
 {
     struct kvset_mblocks    *outs = 0;
@@ -1142,15 +1280,8 @@ cn_tree_prepare_compaction(struct cn_compaction_work *w)
     const bool kcompact = (w->cw_action == CN_ACTION_COMPACT_K);
     const bool split = (w->cw_action == CN_ACTION_SPLIT);
 
-    w->cw_horizon = cn_get_seqno_horizon(w->cw_tree->cn);
-    w->cw_cancel_request = cn_get_cancel(w->cw_tree->cn);
-
-    perfc_inc(w->cw_pc, PERFC_BA_CNCOMP_START);
-
-    cn_setname(w->cw_threadname);
-
-    if (w->cw_action == CN_ACTION_JOIN)
-        return 0; /* no resources needed for join */
+    if (w->cw_action == CN_ACTION_ZSPILL || w->cw_action == CN_ACTION_JOIN)
+        return 0; /* no resources needed for zspill/join */
 
     /* If we are k/kv-compacting, we only have a single output.
      *
@@ -1308,13 +1439,14 @@ cn_comp_update_kvcompact(struct cn_compaction_work *work, struct kvset *new_kvse
         return;
 
     INIT_LIST_HEAD(&retired_kvsets);
-    assert(work->cw_dgen_hi_min == kvset_get_workid(work->cw_mark->le_kvset));
 
     rmlock_wlock(&tree->ct_lock);
     {
-        assert(!list_empty(&work->cw_node->tn_kvset_list));
         le = work->cw_mark;
         for (i = 0; i < work->cw_kvset_cnt; i++) {
+            assert(&le->le_link != &work->cw_node->tn_kvset_list);
+            assert(kvset_get_work(le->le_kvset) == work);
+
             tmp = list_prev_entry(le, le_link);
             list_del(&le->le_link);
             list_add(&le->le_link, &retired_kvsets);
@@ -1413,8 +1545,10 @@ cn_spill_delete_kvsets(struct cn_compaction_work *work)
     rmlock_wlock(&tree->ct_lock);
 
     for (uint i = 0; i < work->cw_kvset_cnt; i++) {
-        assert(!list_empty(&pnode->tn_kvset_list));
         le = list_last_entry(&pnode->tn_kvset_list, struct kvset_list_entry, le_link);
+        assert(&le->le_link != &pnode->tn_kvset_list);
+        assert(kvset_get_work(le->le_kvset) == work);
+
         assert(i > 0 || work->cw_dgen_hi_min == kvset_get_dgen(le->le_kvset));
         list_del(&le->le_link);
         list_add(&le->le_link, &retired_kvsets);
@@ -1543,6 +1677,8 @@ cn_comp_update_split(
     k = 0;
     list_for_each_entry_safe(le, tmp, &retired_kvsets, le_link) {
         struct kvset *ks = le->le_kvset;
+
+        assert(kvset_get_work(le->le_kvset) == w);
 
         kvset_purge_blklist_add(ks, &w->cw_split.purge[k]);
         blk_list_free(&w->cw_split.purge[k]);
@@ -1858,26 +1994,39 @@ cn_comp_cleanup(struct cn_compaction_work *w)
 
     if (w->cw_err) {
         if (!join) {
-            struct kvset_list_entry *le = w->cw_mark;
+            struct cn_tree *tree = w->cw_tree;
 
             /* unmark input kvsets */
-            for (uint kx = 0; kx < w->cw_kvset_cnt; kx++) {
-                assert(le);
 
-                /* A zspill may have been interrupted after moving kvsets to its znode. In which
-                 * case cn_move() has already reset the workid in the kvsets.
+            rmlock_wlock(&tree->ct_lock);
+            if (w->cw_action == CN_ACTION_ZSPILL) {
+                struct kvset_list_entry *le;
+
+                /* A zspill may have been interrupted after moving kvsets to its znode,
+                 * in which case cn_move() has already reset the workid in the kvsets.
                  */
-                assert(w->cw_action == CN_ACTION_ZSPILL || kvset_get_workid(le->le_kvset) != 0);
+                list_for_each_entry_reverse(le, &w->cw_node->tn_kvset_list, le_link) {
+                    if (kvset_get_work(le->le_kvset) == w)
+                        kvset_set_work(le->le_kvset, NULL);
+                }
+            } else {
+                struct kvset_list_entry *le = w->cw_mark;
 
-                kvset_set_workid(le->le_kvset, 0);
-                le = list_prev_entry_or_null(le, le_link, &w->cw_node->tn_kvset_list);
+                for (uint kx = 0; kx < w->cw_kvset_cnt; kx++) {
+                    assert(&le->le_link != &w->cw_node->tn_kvset_list);
+                    assert(kvset_get_work(le->le_kvset) == w);
+
+                    kvset_set_work(le->le_kvset, NULL);
+                    le = list_prev_entry(le, le_link);
+                }
             }
-        }
 
-        /* Failed spills cause node to become "wedged"  */
-        if (spill && !w->cw_tree->ct_rspills_wedged) {
-            log_info("root node wedged, spills disabled");
-            w->cw_tree->ct_rspills_wedged = true;
+            /* Failed spills cause node to become "wedged"  */
+            if (spill && !tree->ct_rspills_wedged) {
+                log_errx("root node wedged, spills disabled (cnid %lu)", w->cw_err, tree->cnid);
+                tree->ct_rspills_wedged = true;
+            }
+            rmlock_wunlock(&tree->ct_lock);
         }
 
         /* Log errors if debugging or if job was not canceled.
@@ -1898,9 +2047,6 @@ cn_comp_cleanup(struct cn_compaction_work *w)
                      w->cw_dgen_hi,
                      w->cw_tree->ct_rspills_wedged,
                      (w->cw_t3_build - w->cw_t2_prep) / 1000000);
-
-        if (merr_errno(w->cw_err) == ENOSPC)
-            w->cw_tree->ct_nospace = true;
 
         if (split) {
             for (uint i = 0; i < w->cw_outc && w->cw_split.commit; i++) {
@@ -2113,9 +2259,11 @@ cn_node_can_zspill(
     for (uint32_t i = 0; i < w->cw_kvset_cnt; ++i) {
         struct cn_tree_node *tn;
 
+        assert(&le->le_link != &w->cw_node->tn_kvset_list);
+        assert(kvset_get_work(le->le_kvset) == w);
+
         first = le;
 
-        assert(kvset_get_workid(le->le_kvset) != 0);
         tn = cn_kvset_can_zspill(le->le_kvset, w->cw_tree->ct_route_map);
         if (!tn)
             return false;
@@ -2134,14 +2282,12 @@ cn_node_can_zspill(
     return true;
 }
 
-static merr_t
-cn_comp_zspill(struct cn_compaction_work *w, bool *can_zspill)
+static bool
+cn_comp_zspill(struct cn_compaction_work *w)
 {
     struct cn_tree *tree = w->cw_tree;
     struct cn_tree_node *znode;
     void *lock;
-
-    *can_zspill = false;
 
     rmlock_rlock(&tree->ct_lock, &lock);
 
@@ -2149,7 +2295,7 @@ cn_comp_zspill(struct cn_compaction_work *w, bool *can_zspill)
      */
     if (!cn_node_can_zspill(w, &w->cw_zspill.kvset_list, &znode)) {
         rmlock_runlock(lock);
-        return 0;
+        return false;
     }
 
     /* Confirm that znode is not undergoing a split or a join.
@@ -2158,7 +2304,7 @@ cn_comp_zspill(struct cn_compaction_work *w, bool *can_zspill)
     if (znode->tn_ss_splitting || znode->tn_ss_joining) {
         mutex_unlock(&tree->ct_ss_lock);
         rmlock_runlock(lock);
-        return 0;
+        return false;
     }
 
     /* Since znode is neither splitting nor joining, the operation can continue as a zspill.
@@ -2168,10 +2314,9 @@ cn_comp_zspill(struct cn_compaction_work *w, bool *can_zspill)
     mutex_unlock(&tree->ct_ss_lock);
     rmlock_runlock(lock);
 
-    *can_zspill = true;
     w->cw_zspill.znode = znode;
 
-    return 0;
+    return true;
 }
 
 static merr_t
@@ -2427,63 +2572,49 @@ cn_comp_spill(struct cn_compaction_work *w)
 /**
  * cn_comp_compact() - perform the actual compaction operation
  * See section comment for more info.
+ *
+ * [HSE_REVISIT] If a spill/zspill action leaves this function too early
+ * it will prevent proper advance of the spill gen and potentially leave
+ * ongoing and/or future spill threads stuck in cn_node_spill_wait().
  */
 static void
 cn_comp_compact(struct cn_compaction_work *w)
 {
-    bool kcompact = (w->cw_action == CN_ACTION_COMPACT_K);
     struct kvdb_health *hp = w->cw_tree->ct_kvdb_health;
-    bool can_zspill = false;
-
     merr_t err = 0;
 
-    if (w->cw_err)
-        return;
-
     assert(hp);
+    assert(!w->cw_err);
 
-    w->cw_err = kvdb_health_check(hp, KVDB_HEALTH_FLAG_ALL);
-    if (w->cw_err)
-        return;
+    w->cw_keep_vblks = (w->cw_action == CN_ACTION_COMPACT_K);
 
-    w->cw_keep_vblks = kcompact;
-    hp = w->cw_tree->ct_kvdb_health;
-    assert(hp);
+    w->cw_horizon = cn_get_seqno_horizon(w->cw_tree->cn);
+    w->cw_cancel_request = cn_get_cancel(w->cw_tree->cn);
+
+    perfc_inc(w->cw_pc, PERFC_BA_CNCOMP_START);
 
     if (w->cw_action == CN_ACTION_ZSPILL) {
+        bool can_zspill;
 
-        w->cw_horizon = cn_get_seqno_horizon(w->cw_tree->cn);
-        w->cw_cancel_request = cn_get_cancel(w->cw_tree->cn);
-
-        perfc_inc(w->cw_pc, PERFC_BA_CNCOMP_START);
-
-        cn_setname(w->cw_threadname);
-
-        w->cw_err = cn_comp_zspill(w, &can_zspill);
-        if (w->cw_err)
-            return;
-
+        /* If the conditions for zspill are no longer true then we must
+         * downgrade the operation to an rspill in order to properly
+         * advance the spill gen.
+         */
+        can_zspill = cn_comp_zspill(w);
         if (!can_zspill) {
             w->cw_action = CN_ACTION_SPILL;
             w->cw_rule = CN_RULE_RSPILL;
         }
     }
 
-    if (w->cw_action != CN_ACTION_ZSPILL) {
-        w->cw_err = cn_tree_prepare_compaction(w);
-        if (w->cw_err) {
-            if (merr_errno(w->cw_err) != ESHUTDOWN)
-                kvdb_health_error(hp, w->cw_err);
-            return;
-        }
+    w->cw_err = cn_tree_prepare_compaction(w);
+    if (w->cw_err) {
+        if (merr_errno(w->cw_err) != ESHUTDOWN)
+            kvdb_health_error(hp, w->cw_err);
+        return;
     }
 
     w->cw_t2_prep = get_time_ns();
-
-    /* cn_kcompact handles k-compaction, cn_spill handles spills
-     * and kv-compaction.
-     */
-    w->cw_keep_vblks = (w->cw_action == CN_ACTION_COMPACT_K);
 
     switch (w->cw_action) {
     case CN_ACTION_NONE:
@@ -2512,32 +2643,28 @@ cn_comp_compact(struct cn_compaction_work *w)
         break;
     }
 
-    if (w->cw_action == CN_ACTION_ZSPILL)
-        goto done;
-
     w->cw_t3_build = get_time_ns();
 
     if (merr_errno(err) == ESHUTDOWN && atomic_read(w->cw_cancel_request))
         w->cw_canceled = true;
 
     /* defer status check until *after* cleanup */
-    for (uint i = 0; i < w->cw_kvset_cnt && w->cw_inputv; i++) {
-        if (w->cw_inputv[i])
-            w->cw_inputv[i]->kvi_ops->kvi_release(w->cw_inputv[i]);
+    if (w->cw_inputv) {
+        for (uint i = 0; i < w->cw_kvset_cnt; i++) {
+            if (w->cw_inputv[i])
+                w->cw_inputv[i]->kvi_ops->kvi_release(w->cw_inputv[i]);
+        }
+
+        free(w->cw_inputv);
     }
 
-    free(w->cw_inputv);
-
-    if (ev(err)) {
-        if (!w->cw_canceled)
+    if (w->cw_canceled) {
+        w->cw_err = err ? err : merr(ESHUTDOWN);
+    } else {
+        if (err)
             kvdb_health_error(hp, err);
-        goto done;
+        w->cw_err = err;
     }
-
-done:
-    w->cw_err = err;
-    if (w->cw_canceled && !w->cw_err)
-        w->cw_err = merr(ESHUTDOWN);
 }
 
 /**
@@ -2551,12 +2678,6 @@ cn_compact(struct cn_compaction_work *w)
     w->cw_t1_qtime = perfc_lat_start(pc);
 
     cn_comp_compact(w);
-
-    /* Detach this job from the callback thread as we're about
-     * to either hand it off to the monitor thread or leave it
-     * on the rspill list for some other thread to finish.
-     */
-    sts_job_detach(&w->cw_job);
 
     /* Commit the compaction if this isn't a spill or join.
      * For a spill operation, each subspill to a child was committed as the spill progressed.

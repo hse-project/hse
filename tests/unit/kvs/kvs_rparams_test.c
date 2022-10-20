@@ -235,7 +235,7 @@ MTF_DEFINE_UTEST_PRE(kvs_rparams_test, cn_compact_kblk_ra, test_pre)
     ASSERT_EQ((uintptr_t)ps->ps_validate, (uintptr_t)param_default_validator);
     ASSERT_EQ((uintptr_t)ps->ps_stringify, (uintptr_t)param_default_stringify);
     ASSERT_EQ((uintptr_t)ps->ps_jsonify, (uintptr_t)param_default_jsonify);
-    ASSERT_EQ(512 << KB_SHIFT, params.cn_compact_kblk_ra);
+    ASSERT_EQ(128 << KB_SHIFT, params.cn_compact_kblk_ra);
     ASSERT_EQ(32 << KB_SHIFT, ps->ps_bounds.as_uscalar.ps_min);
     ASSERT_EQ(2 << MB_SHIFT, ps->ps_bounds.as_uscalar.ps_max);
 }

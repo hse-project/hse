@@ -68,7 +68,6 @@ struct cn_kle_hdr {
  * @ct_root:        root node of tree
  * @ct_nodes:       list of all tree nodes, including ct_root
  * @ct_fanout:      the number of leaf nodes on ct_nodes list
- * @ct_nospace:     set when "disk is full"
  * @cn:    ptr to parent cn object
  * @rp:    ptr to shared runtime parameters struct
  * @cndb:  handle for cndb (the metadata journal/log)
@@ -94,7 +93,6 @@ struct cn_tree {
     struct list_head     ct_nodes;
     uint16_t             ct_fanout;
     u16                  ct_pfx_len;
-    bool                 ct_nospace;
     bool                 ct_rspills_wedged;
     struct cn           *cn;
     struct mpool        *mp;

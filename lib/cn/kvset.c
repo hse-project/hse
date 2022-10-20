@@ -1786,16 +1786,16 @@ kvset_stats_add(const struct kvset_stats *add, struct kvset_stats *result)
     result->kst_vgarb += add->kst_vgarb;
 }
 
-u64
-kvset_get_workid(struct kvset *ks)
+const void *
+kvset_get_work(struct kvset *ks)
 {
-    return ks->ks_workid;
+    return ks->ks_work;
 }
 
 void
-kvset_set_workid(struct kvset *ks, u64 id)
+kvset_set_work(struct kvset *ks, const void *work)
 {
-    ks->ks_workid = id;
+    ks->ks_work = work;
 }
 
 uint64_t

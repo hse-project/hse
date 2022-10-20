@@ -360,7 +360,7 @@ print_ids(
 }
 
 const char *hdrv[] = {
-    "H", "Node", "Idx",
+    "T", "Node", "Idx",
     "Dgen", "Comp", "Keys", "Tombs", "Ptombs", "HbAlen", "KbAlen", "VbAlen", "VbGarb",
     "Kbs", "Vbs", "Vgrp", "Rule", "Kavg", "Vavg",
 };

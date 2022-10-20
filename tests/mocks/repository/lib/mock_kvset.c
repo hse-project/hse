@@ -274,20 +274,20 @@ _kvset_open(struct cn_tree *tree, uint64_t kvsetid, struct kvset_meta *km, struc
     return 0;
 }
 
-u64
-_kvset_get_workid(struct kvset *kvset)
+const void *
+_kvset_get_work(struct kvset *kvset)
 {
     struct mock_kvset *mk = (void *)kvset;
 
-    return mk->workid;
+    return mk->work;
 }
 
 void
-_kvset_set_workid(struct kvset *kvset, u64 id)
+_kvset_set_work(struct kvset *kvset, const void *work)
 {
     struct mock_kvset *mk = (void *)kvset;
 
-    mk->workid = id;
+    mk->work = work;
 }
 
 
@@ -726,8 +726,8 @@ mock_kvset_set(void)
     mapi_inject_list_set(inject_list);
 
     MOCK_SET(kvset, _kvset_open);
-    MOCK_SET(kvset, _kvset_set_workid);
-    MOCK_SET(kvset, _kvset_get_workid);
+    MOCK_SET(kvset, _kvset_set_work);
+    MOCK_SET(kvset, _kvset_get_work);
     MOCK_SET(kvset, _kvset_get_nth_vblock_len);
     MOCK_SET(kvset, _kvset_list_add);
     MOCK_SET(kvset, _kvset_list_add_tail);

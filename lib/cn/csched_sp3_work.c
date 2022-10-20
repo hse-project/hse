@@ -29,8 +29,8 @@ sp3_node_is_idle(struct cn_tree_node *tn)
 
     /* Node is idle IFF no kvsets are marked. */
     head = &tn->tn_kvset_list;
-    list_for_each_entry (le, head, le_link) {
-        if (kvset_get_workid(le->le_kvset) != 0)
+    list_for_each_entry(le, head, le_link) {
+        if (kvset_get_work(le->le_kvset))
             return false;
     }
 
@@ -159,7 +159,7 @@ sp3_work_wtype_root(
 
     /* walk from tail (oldest), skip kvsets that are busy */
     list_for_each_entry_reverse(le, &tn->tn_kvset_list, le_link) {
-        if (kvset_get_workid(le->le_kvset) == 0) {
+        if (!kvset_get_work(le->le_kvset)) {
             *mark = le;
             break;
         }
@@ -168,14 +168,22 @@ sp3_work_wtype_root(
     if (!*mark)
         return 0;
 
+    znode = cn_kvset_can_zspill(le->le_kvset, rmap);
+
+    /* Don't start a zspill if there the older busy kvsets.  This avoids
+     * tying up a spill thread that will just end up waiting on an rspill.
+     */
+    if (znode && list_next_entry_or_null(le, le_link, &tn->tn_kvset_list)) {
+        ev_debug(1);
+        return 0;
+    }
+
     wlen = kvset_get_kwlen(le->le_kvset) + kvset_get_vwlen(le->le_kvset);
     wlen_max = thresh->rspill_wlen_max;
 
     runlen_min = thresh->rspill_runlen_min;
     runlen_max = thresh->rspill_runlen_max;
     runlen = 1;
-
-    znode = cn_kvset_can_zspill(le->le_kvset, rmap);
 
     /* Look for a contiguous sequence of non-busy kvsets.  If le is zspillable,
      * then terminate the search if/when we encounter a kvset that cannot be
@@ -185,27 +193,31 @@ sp3_work_wtype_root(
     while ((le = list_prev_entry_or_null(le, le_link, &tn->tn_kvset_list))) {
         const struct cn_tree_node *zn = cn_kvset_can_zspill(le->le_kvset, rmap);
 
-        if (kvset_get_workid(le->le_kvset) != 0)
+        if (kvset_get_work(le->le_kvset))
             break;
 
         if (znode) {
             if (zn) {
-                if (zn->tn_nodeid == znode->tn_nodeid && runlen < runlen_max) {
+                if (zn->tn_nodeid == znode->tn_nodeid && runlen < runlen_min) {
                     ++runlen;
                     continue;
                 }
             }
 
-            *action = CN_ACTION_ZSPILL;
-            *rule = CN_RULE_ZSPILL;
+            /* At this point we have runlen kvsets that can be zspilled,
+             * possibly followed by a kvset that cannot be zspilled.
+             */
+            break;
+        }
+
+        /* If zn is not nil then we have runlen kvsets that cannot be zspilled
+         * followed by at least one kvset (zn) that can be zspilled.
+         */
+        if (zn) {
+            if (wlen < VBLOCK_MAX_SIZE)
+                *rule = CN_RULE_TSPILL;
+            ev_debug(1);
             return runlen;
-        } else {
-            if (zn) {
-                if (wlen < VBLOCK_MAX_SIZE)
-                    *rule = CN_RULE_TSPILL; /* tiny root spill */
-                ev_debug(1);
-                return runlen;
-            }
         }
 
         wlen += kvset_get_kwlen(le->le_kvset) + kvset_get_vwlen(le->le_kvset);
@@ -218,21 +230,35 @@ sp3_work_wtype_root(
         ++runlen;
     }
 
+    /* If runlen is zspillable but znode is busy then defer starting the zspill.
+     * This makes it unlikely that the zspill will be downgraded to an rspill
+     * by cn_comp_compact().
+     */
     if (znode) {
-        assert(runlen && runlen <= runlen_max);
+        if (znode->tn_ss_joining || znode->tn_ss_splitting) {
+            ev_debug(1);
+            return 0;
+        }
+
         *action = CN_ACTION_ZSPILL;
         *rule = CN_RULE_ZSPILL;
+        ev_debug(1);
         return runlen;
     }
 
-    if (runlen < runlen_min)
+    if (runlen < runlen_min) {
+        *mark = NULL; /* prevent resched */
         return 0;
+    }
 
     if (wlen < VBLOCK_MAX_SIZE) {
-        if (runlen < runlen_max)
+        if (runlen < runlen_max) {
+            *mark = NULL; /* prevent resched */
             return 0; /* defer tiny spills */
+        }
 
         *rule = CN_RULE_TSPILL; /* tiny root spill */
+        ev_debug(1);
         return runlen;
     }
 
@@ -242,6 +268,7 @@ sp3_work_wtype_root(
     if (runlen > runlen_max)
         runlen -= runlen_min;
 
+    ev_debug(1);
     return min_t(uint, runlen, runlen_max);
 }
 
@@ -265,9 +292,11 @@ sp3_work_wtype_idle(
     kvsets = cn_ns_kvsets(ns);
 
     if (cn_node_isroot(tn)) {
-        *action = CN_ACTION_SPILL;
-        *rule = CN_RULE_RSPILL;
-        return kvsets;
+        struct sp3_thresholds ith = *thresh;
+
+        ith.rspill_runlen_min = SP3_RSPILL_RUNLEN_MIN;
+
+        return sp3_work_wtype_root(spn, &ith, mark, action, rule);
     }
 
     /* If the node consists entirely of ptombs then a k-compact
@@ -651,6 +680,7 @@ sp3_work_wtype_garbage(
     if (kvsets > thresh->lcomp_runlen_max) {
         *action = CN_ACTION_COMPACT_K;
         ev_debug(1);
+        return min_t(uint, kvsets, thresh->llen_runlen_max);
     }
 
     return min_t(uint, kvsets, thresh->lcomp_runlen_max);
@@ -929,13 +959,14 @@ sp3_work(
                 goto locked_nowork;
             }
 
-            log_info("root node unwedged, spills enabled");
+            log_info("root node unwedged, spills enabled (cnid %lu)", tree->cnid);
             tree->ct_rspills_wedged = false;
         }
 
         switch (wtype) {
         case wtype_root:
             n_kvsets = sp3_work_wtype_root(spn, thresh, &mark, &action, &rule);
+            (*wp)->cw_resched = mark && !n_kvsets;
             break;
 
         case wtype_idle:
@@ -1024,14 +1055,22 @@ sp3_work(
 
     assert(mark);
 
+    /* Initialize fields used by cn_tree_query() before
+     * we call kvset_set_work().
+     */
+    w->cw_action = action;
+    w->cw_rule = rule;
+    w->cw_t0_enqueue = get_time_ns();
+
     /* mark the kvsets with dgen_lo */
     w->cw_dgen_hi_min = kvset_get_dgen(mark->le_kvset);
     w->cw_dgen_lo = UINT64_MAX;
     le = mark;
     for (i = 0; i < n_kvsets; i++) {
         assert(&le->le_link != &tn->tn_kvset_list);
-        assert(kvset_get_workid(le->le_kvset) == 0);
-        kvset_set_workid(le->le_kvset, w->cw_dgen_hi_min);
+        assert(kvset_get_work(le->le_kvset) == NULL);
+        kvset_set_work(le->le_kvset, w);
+
         w->cw_dgen_hi = kvset_get_dgen(le->le_kvset);
         w->cw_dgen_lo = min_t(uint64_t, w->cw_dgen_lo, kvset_get_dgen_lo(le->le_kvset));
         w->cw_nh++; /* Only ever 1 hblock per kvset */
@@ -1039,6 +1078,16 @@ sp3_work(
         w->cw_nv += kvset_get_num_vblocks(le->le_kvset);
         w->cw_input_vgroups += kvset_get_vgroups(le->le_kvset);
         le = list_prev_entry(le, le_link);
+    }
+
+    if (action == CN_ACTION_JOIN) {
+        w->cw_join = list_prev_entry(tn, tn_link);
+        assert(cn_node_isleaf(w->cw_join));
+
+        list_for_each_entry_reverse(le, &w->cw_join->tn_kvset_list, le_link) {
+            assert(kvset_get_work(le->le_kvset) == NULL);
+            kvset_set_work(le->le_kvset, w);
+        }
     }
 
     w->cw_compc = kvset_get_compc(mark->le_kvset);
@@ -1064,29 +1113,14 @@ sp3_work(
 
     w->cw_kvset_cnt = n_kvsets;
     w->cw_mark = mark;
-    w->cw_action = action;
-    w->cw_rule = rule;
     w->cw_debug = debug;
 
     w->cw_have_token = have_token;
     w->cw_pc = cn_get_perfc(tree->cn, w->cw_action);
 
-    w->cw_t0_enqueue = get_time_ns();
-
     /* Ensure concurrent root spills complete in order */
     if (w->cw_action == CN_ACTION_SPILL || w->cw_action == CN_ACTION_ZSPILL) {
         w->cw_sgen = ++tree->ct_sgen;
-    } else if (w->cw_action == CN_ACTION_JOIN) {
-        uint64_t workid = 0;
-
-        w->cw_join = list_prev_entry(tn, tn_link);
-
-        list_for_each_entry_reverse(le, &w->cw_join->tn_kvset_list, le_link) {
-            if (workid == 0)
-                workid = kvset_get_dgen(le->le_kvset);
-
-            kvset_set_workid(le->le_kvset, workid);
-        }
     }
 
     sp3_work_estimate(w);

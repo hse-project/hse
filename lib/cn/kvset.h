@@ -332,13 +332,21 @@ kvset_pfx_lookup(
 bool
 kvset_younger(const struct kvset *ks1, const struct kvset *ks2);
 
+/* Any thread may call kvset_get_work() to examine the returned value.
+ * Threads holding the tree lock may dereference the value only if
+ * kvset is on the tree node list.
+ */
 /* MTF_MOCK */
-u64
-kvset_get_workid(struct kvset *km);
+const void *
+kvset_get_work(struct kvset *km);
 
+/* Only the monitor thread (csched) sets work from NULL to non-null (while
+ * holding the tree read lock).  In some circumstances, compaction threads
+ * will reset work to NULL, but only while holding the tree write lock.
+ */
 /* MTF_MOCK */
 void
-kvset_set_workid(struct kvset *km, u64 id);
+kvset_set_work(struct kvset *km, const void *work);
 
 /* MTF_MOCK */
 void

@@ -1,6 +1,6 @@
 /* SPDX-License-Identifier: Apache-2.0 */
 /*
- * Copyright (C) 2015-2021 Micron Technology, Inc.  All rights reserved.
+ * Copyright (C) 2015-2022 Micron Technology, Inc.  All rights reserved.
  */
 
 #ifndef MOCKS_MOCK_KVSET_H
@@ -35,7 +35,7 @@ struct mock_kvset {
     uint64_t                dgen_lo;
     uint64_t                kvsetid;
     uint64_t                nodeid;
-    uint64_t                workid;
+    const void             *work;
     uint32_t                compc;
     u64                     ids[];
 };

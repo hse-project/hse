@@ -86,13 +86,6 @@ kvset_get_dgen(const struct kvset *kvset);
 u64
 kvset_get_seqno_max(struct kvset *kvset);
 
-struct kvset_view {
-    struct kvset *kvset;
-    uint64_t      nodeid;
-    uint          eklen;
-    char          ekbuf[20];
-};
-
 #if HSE_MOCKING
 #include "kvset_view_ut.h"
 #endif /* HSE_MOCKING */
