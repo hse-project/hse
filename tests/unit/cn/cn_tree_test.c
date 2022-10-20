@@ -414,26 +414,26 @@ MTF_DEFINE_UTEST_PRE(test, t_create_error_paths, test_setup)
     struct kvs_cparams cp;
 
     memset(&cp, 0, sizeof(cp));
-    err = cn_tree_create(&tree, NULL, 0, &cp, &mock_health, rp);
+    err = cn_tree_create(&tree, 0, &cp, &mock_health, rp);
     ASSERT_EQ(0, err);
 
     cn_tree_destroy(tree);
 
     /* pfx_len greater than HSE_KVS_PFX_LEN_MAX is invalid */
     cp.pfx_len = HSE_KVS_PFX_LEN_MAX + 1;
-    err = cn_tree_create(&tree, NULL, 0, &cp, &mock_health, rp);
+    err = cn_tree_create(&tree, 0, &cp, &mock_health, rp);
     ASSERT_TRUE(err);
 
     /* memory allocation */
     mapi_inject_once_ptr(api, 1, 0);
     memset(&cp, 0, sizeof(cp));
-    err = cn_tree_create(&tree, NULL, 0, &cp, &mock_health, rp);
+    err = cn_tree_create(&tree, 0, &cp, &mock_health, rp);
     ASSERT_EQ(merr_errno(err), ENOMEM);
 
     /* memory allocation - khashmap */
     mapi_inject_once_ptr(api, 1, 0);
     memset(&cp, 0, sizeof(cp));
-    err = cn_tree_create(&tree, NULL, 0, &cp, &mock_health, rp);
+    err = cn_tree_create(&tree, 0, &cp, &mock_health, rp);
     ASSERT_EQ(merr_errno(err), ENOMEM);
     mapi_inject_unset(api);
 }
@@ -455,7 +455,7 @@ MTF_DEFINE_UTEST_PRE(test, t_simple_api, test_setup)
     struct kvs_cparams *out,
         cp = { .pfx_len = 12 };
 
-    err = cn_tree_create(&tree, NULL, 0, &cp, &mock_health, rp);
+    err = cn_tree_create(&tree, 0, &cp, &mock_health, rp);
     ASSERT_EQ(err, 0);
     ASSERT_NE(tree, NULL);
 
@@ -477,7 +477,7 @@ MTF_DEFINE_UTEST_PRE(test, t_cn_tree_ingest_update, test_setup)
     struct kvs_cparams cp = {
     };
 
-    err = cn_tree_create(&tree, NULL, 0, &cp, &mock_health, rp);
+    err = cn_tree_create(&tree, 0, &cp, &mock_health, rp);
     ASSERT_EQ(err, 0);
 
     for (i = 0; i < NELEM(kvsetv); i++) {
@@ -601,7 +601,7 @@ test_tree_create(struct test *t)
 
     nodeid = 0;
 
-    err = cn_tree_create(&t->tree, "test_kvs", 0, &cp, &mock_health, rp);
+    err = cn_tree_create(&t->tree, 0, &cp, &mock_health, rp);
     ASSERT_TRUE_RET(err == 0, -1);
     ASSERT_TRUE_RET(t->tree != 0, -1);
 
@@ -693,7 +693,7 @@ create(struct test *t)
     struct kvs_cparams cp = {
     };
 
-    err = cn_tree_create(&tree, NULL, 0, &cp, &mock_health, rp);
+    err = cn_tree_create(&tree, 0, &cp, &mock_health, rp);
     ASSERT_TRUE(err == 0);
 
     cn_tree_destroy(tree);

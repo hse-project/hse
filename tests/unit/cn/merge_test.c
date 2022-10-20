@@ -933,7 +933,7 @@ run_testcase(struct mtf_test_info *lcl_ti, int mode, const char *info)
             .pfx_len = tp.pfx_len,
         };
 
-        err = cn_tree_create(&tree, "kvs", 0, &cp, &health, &rp);
+        err = cn_tree_create(&tree, 0, &cp, &health, &rp);
         ASSERT_EQ(err, 0);
         ASSERT_NE(tree, NULL);
 

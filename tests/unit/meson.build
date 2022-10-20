@@ -35,7 +35,6 @@ components = {
         'cn_api_test': {},
         'cn_tree_cursor_test': {},
         'cn_ingest_test': {},
-        'cn_make_test': {},
         'cn_mblock_test': {},
         'cn_open_test': {},
         'cn_perfc_test': {},
