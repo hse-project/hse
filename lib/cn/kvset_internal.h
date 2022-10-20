@@ -106,7 +106,7 @@ struct kvset {
      * operation (by stashing the address of the cn_compaction_work object
      * into ks_work).
      */
-    _Atomic const void *ks_work;
+    const void * _Atomic ks_work;
 
     struct key_disc ks_kdisc_max; /* max key in kvset */
     struct key_disc ks_kdisc_min; /* min key in kvset */
