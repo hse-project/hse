@@ -29,54 +29,62 @@ cn_move(
     bool                       src_del,
     struct cn_tree_node       *tgt_node)
 {
-    struct cn_tree *tree;
-    struct kvset_list_entry *src, *src_end, *tgt;
+    struct kvset_list_entry *src, *tgt;
     struct list_head *src_head, *tgt_head;
-    uint64_t *src_ksidv = NULL;
+    struct cn_tree *tree;
     uint64_t src_nodeid;
-    merr_t err;
 
     INVARIANT(w && src_node && tgt_node);
-    INVARIANT((src_cnt > 0 && src_list) || (src_cnt == 0 && !src_list));
+    INVARIANT(!src_cnt == !src_list);
 
     tree = w->cw_tree;
     src_head = &src_node->tn_kvset_list;
     tgt_head = &tgt_node->tn_kvset_list;
 
     src = src_list;
-    src_end = NULL;
     if (src) {
+        uint64_t *src_ksidv;
+        merr_t err;
+        void *lock;
+
         src_ksidv = malloc(sizeof(*src_ksidv) * src_cnt);
         if (!src_ksidv)
             return merr(ENOMEM);
 
+        /* Must hold the tree lock while iterating over the kvset list
+         * (because if src_node is the cn root node it could change).
+         */
+        rmlock_rlock(&tree->ct_lock, &lock);
         for (uint32_t i = 0; i < src_cnt; i++) {
             assert(src);
+            assert(kvset_get_work(src->le_kvset) == w);
+
             src_ksidv[i] = kvset_get_id(src->le_kvset);
             src = list_next_entry_or_null(src, le_link, src_head);
         }
-        src_end = src;
+
+        assert(!src_del || !src);
+        rmlock_runlock(lock);
 
         err = cndb_record_kvsetv_move(cn_get_cndb(tree->cn), tree->cnid, src_node->tn_nodeid,
                                       tgt_node->tn_nodeid, src_cnt, src_ksidv);
-        if (err) {
-            free(src_ksidv);
+
+        free(src_ksidv);
+
+        if (err)
             return err;
-        }
     }
 
-    assert(!src_del || !src_end);
-
-    /* The cn_move operation has been commited to cNDB.
+    /* The cn_move operation has been committed to cNDB.
      * There must be no failures beyond this point.
      */
     src_nodeid = src_node->tn_nodeid;
     src = src_list;
-    tgt = list_first_entry_or_null(tgt_head, typeof(*tgt), le_link);
 
     rmlock_wlock(&tree->ct_lock);
+    tgt = list_first_entry_or_null(tgt_head, typeof(*tgt), le_link);
 
-    while (src != src_end) {
+    while (src_cnt > 0) {
         if (!tgt || kvset_younger(src->le_kvset, tgt->le_kvset)) {
             struct kvset_list_entry *src_next, *tgt_prev;
             uint32_t compc = kvset_get_compc(src->le_kvset), pcompc;
@@ -101,6 +109,7 @@ cn_move(
             kvset_set_compc(src->le_kvset, compc);
 
             src = src_next;
+            src_cnt--;
         } else {
             tgt = list_next_entry_or_null(tgt, le_link, tgt_head);
         }
@@ -128,8 +137,8 @@ cn_move(
              * kvsets that were moved from src.
              */
             if (src_del || from_src) {
-                assert(kvset_get_workid(le->le_kvset) != 0);
-                kvset_set_workid(le->le_kvset, 0);
+                assert(kvset_get_work(le->le_kvset) == w);
+                kvset_set_work(le->le_kvset, NULL);
 
                 kvset_set_rule(le->le_kvset, w->cw_rule);
                 kvset_set_nodeid(le->le_kvset, tgt_node->tn_nodeid);
@@ -138,8 +147,6 @@ cn_move(
     }
 
     rmlock_wunlock(&tree->ct_lock);
-
-    free(src_ksidv);
 
     return 0;
 }
@@ -173,8 +180,8 @@ cn_join(struct cn_compaction_work *w)
 
     if (err) {
         list_for_each_entry(le, &src_node->tn_kvset_list, le_link) {
-            assert(kvset_get_workid(le->le_kvset) != 0);
-            kvset_set_workid(le->le_kvset, 0);
+            assert(kvset_get_work(le->le_kvset) == w);
+            kvset_set_work(le->le_kvset, NULL);
         }
     }
 

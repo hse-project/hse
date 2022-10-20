@@ -33,6 +33,8 @@ sts_job_run(struct work_struct *work)
 {
     struct sts_job *job = container_of(work, struct sts_job, sj_work);
 
+    /* Reassociate sj_wmesgp to point into caller's thread-local storage.
+     */
     job->sj_wmesgp = &hse_wmesg_tls;
 
     /* Do not touch *job after this function returns
@@ -49,6 +51,10 @@ sts_job_submit(struct sts *self, struct sts_job *job)
     assert(self && job);
     assert(job->sj_job_fn);
 
+    /* Initialize sjwmesgp to point into global storage.  sts_job_run()
+     * will reassociate sj_wmesgp to point into the calling thread's
+     * thread-local storage.
+     */
     job->sj_sts = self;
     job->sj_wmesgp = &sts_wmesg_submit;
 
@@ -67,6 +73,9 @@ sts_job_detach(struct sts_job *job)
     static const char *sts_wmesg_detach = "detached";
     struct sts *self = job->sj_sts;
 
+    /* Disassociate sj_wmesgp from the thread that called sts_job_run()
+     * by pointing it into global storage.
+     */
     mutex_lock(&self->sts_lock);
     job->sj_wmesgp = &sts_wmesg_detach;
     mutex_unlock(&self->sts_lock);

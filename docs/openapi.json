@@ -1998,6 +1998,26 @@
                                                 "rule": {
                                                   "type": "string",
                                                   "nullable": false
+                                                },
+                                                "job_id": {
+                                                  "type": "integer",
+                                                  "nullable": true
+                                                },
+                                                "job_action": {
+                                                  "type": "string",
+                                                  "nullable": true
+                                                },
+                                                "job_rule": {
+                                                  "type": "string",
+                                                  "nullable": true
+                                                },
+                                                "job_wmesg": {
+                                                  "type": "string",
+                                                  "nullable": true
+                                                },
+                                                "job_time": {
+                                                  "type": "integer",
+                                                  "nullable": true
                                                 }
                                               }
                                             }

@@ -834,7 +834,7 @@ sp3_dirty_node_locked(struct sp3 *sp, struct cn_tree_node *tn)
          * in FIFO order, retaining its current position if it's already on
          * the list.  List order is otherwise managed by sp3_check_roots().
          */
-        if (nkvsets >= sp->thresh.rspill_runlen_min && jobs < jobs_max) {
+        if (nkvsets >= 1 && jobs < jobs_max) {
             if (list_empty(&spn->spn_rlink))
                 list_add_tail(&spn->spn_rlink, &sp->spn_rlist);
         } else {
@@ -1573,12 +1573,13 @@ rest_csched_sp3_get(
     cJSON *root;
     bool pretty;
     struct sp3 *sp;
-    enum rest_status status = REST_STATUS_OK;
+    enum rest_status status;
 
     INVARIANT(req);
     INVARIANT(resp);
     INVARIANT(arg);
 
+    status = REST_STATUS_INTERNAL_SERVER_ERROR;
     sp = arg;
 
     err = rest_params_get(req->rr_params, "pretty", &pretty, false);
@@ -1590,25 +1591,21 @@ rest_csched_sp3_get(
         return REST_STATUS_INTERNAL_SERVER_ERROR;
 
     err = sts_foreach_job(sp->sts, sp3_job_serialize, root);
-    if (ev(err)) {
-        status = REST_STATUS_INTERNAL_SERVER_ERROR;
+    if (ev(err))
         goto out;
-    }
 
     str = (pretty ? cJSON_Print : cJSON_PrintUnformatted)(root);
-    if (!str) {
-        status = REST_STATUS_INTERNAL_SERVER_ERROR;
+    if (!str)
         goto out;
-    }
 
     fputs(str, resp->rr_stream);
     cJSON_free(str);
 
     err = rest_headers_set(resp->rr_headers, REST_HEADER_CONTENT_TYPE, REST_APPLICATION_JSON);
-    if (ev(err)) {
-        status = REST_STATUS_INTERNAL_SERVER_ERROR;
+    if (ev(err))
         goto out;
-    }
+
+    status = REST_STATUS_OK;
 
 out:
     cJSON_Delete(root);
@@ -1621,8 +1618,17 @@ sp3_comp_slice_cb(struct sts_job *job)
 {
     struct cn_compaction_work *w = container_of(job, typeof(*w), cw_job);
 
+    pthread_setname_np(pthread_self(), w->cw_threadname);
+
     cn_compact(w);
 
+    /* Disassociate job from the current thread.
+     */
+    sts_job_detach(job);
+
+    /* Do not touch w after this function returns as it
+     * may have already been freed.
+     */
     sp3_work_complete(w);
 }
 

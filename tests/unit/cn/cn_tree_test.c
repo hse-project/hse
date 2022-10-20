@@ -45,7 +45,7 @@ struct fake_kvset {
     u64                     dgen_hi;
     u64                     dgen_lo;
     u64                     vused;
-    u64                     workid;
+    const void             *work;
     struct kvset_stats      stats;
     struct vgmap           *vgmap;
     char                    min_key;
@@ -170,16 +170,16 @@ _kvset_younger(const struct kvset *ks1, const struct kvset *ks2)
             (hi1 == hi2 && _kvset_get_dgen_lo(ks1) >= _kvset_get_dgen_lo(ks2)));
 }
 
-static u64
-_kvset_get_workid(struct kvset *handle)
+static const void *
+_kvset_get_work(struct kvset *handle)
 {
-    return ((struct fake_kvset *)handle)->workid;
+    return ((struct fake_kvset *)handle)->work;
 }
 
 static void
-_kvset_set_workid(struct kvset *handle, u64 id)
+_kvset_set_work(struct kvset *handle, const void *work)
 {
-    ((struct fake_kvset *)handle)->workid = id;
+    ((struct fake_kvset *)handle)->work = work;
 }
 
 static u32
@@ -387,8 +387,8 @@ test_setup(struct mtf_test_info *lcl_ti)
     MOCK_SET(kvset, _kvset_statsp);
     MOCK_SET(kvset, _kvset_stats);
 
-    MOCK_SET(kvset, _kvset_get_workid);
-    MOCK_SET(kvset, _kvset_set_workid);
+    MOCK_SET(kvset, _kvset_get_work);
+    MOCK_SET(kvset, _kvset_set_work);
     MOCK_SET(kvset, _kvset_get_dgen_lo);
     MOCK_SET(kvset, _kvset_younger);
 
@@ -733,7 +733,7 @@ cn_comp_work_init(
             w->cw_dgen_hi_min = kvset_get_dgen(le->le_kvset);
         }
 
-        kvset_set_workid(le->le_kvset, w->cw_dgen_hi_min);
+        kvset_set_work(le->le_kvset, w);
 
         w->cw_dgen_hi = kvset_get_dgen(le->le_kvset);
 

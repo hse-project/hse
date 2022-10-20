@@ -129,7 +129,7 @@ MTF_DEFINE_UTEST_PRE(move_test, empty_to_non_empty, pre)
     ASSERT_EQ(0, err);
 
     kvset_list_add_tail(ks, &tn.tn_kvset_list);
-    kvset_set_workid(ks, 1);
+    kvset_set_work(ks, &w);
 
     err = cn_move(&w, &sn, NULL, 0, true, &tn);
     ASSERT_EQ(0, err);
@@ -163,7 +163,7 @@ MTF_DEFINE_UTEST_PRE(move_test, non_empty_to_empty, pre)
         err = create_kvset(&tree, &sn, ++kvsetid, dgen_hi - i, dgen_lo - i, compc + i, &ks[i]);
         ASSERT_EQ(0, err);
         kvset_list_add_tail(ks[i], &sn.tn_kvset_list);
-        kvset_set_workid(ks[i], 1);
+        kvset_set_work(ks[i], &w);
     }
 
     /* Move 1 kvset from sn -> tn */
@@ -175,7 +175,7 @@ MTF_DEFINE_UTEST_PRE(move_test, non_empty_to_empty, pre)
 
     /* Reset workid */
     for (uint32_t i = 0; i < num_kvsets; i++)
-        kvset_set_workid(ks[i], 1);
+        kvset_set_work(ks[i], &w);
 
     /* Move 1 kvset from sn -> tn */
     src = list_first_entry_or_null(&sn.tn_kvset_list, typeof(*src), le_link);
@@ -186,7 +186,7 @@ MTF_DEFINE_UTEST_PRE(move_test, non_empty_to_empty, pre)
 
     /* Reset workid */
     for (uint32_t i = 0; i < num_kvsets; i++)
-        kvset_set_workid(ks[i], 1);
+        kvset_set_work(ks[i], &w);
 
     /* Move 2 kvsets from tn -> sn */
     src = list_first_entry_or_null(&tn.tn_kvset_list, typeof(*src), le_link);
@@ -231,7 +231,7 @@ MTF_DEFINE_UTEST_PRE(move_test, non_empty_to_non_empty, pre)
         err = create_kvset(&tree, &sn, ++kvsetid, dgen_hi, dgen_lo, compc, &ks[i]);
         ASSERT_EQ(0, err);
         kvset_list_add_tail(ks[i], &sn.tn_kvset_list);
-        kvset_set_workid(ks[i], 1);
+        kvset_set_work(ks[i], &w);
     }
 
     for (uint32_t i = num_kvsets / 2; i < num_kvsets; i++) {
@@ -242,7 +242,7 @@ MTF_DEFINE_UTEST_PRE(move_test, non_empty_to_non_empty, pre)
         err = create_kvset(&tree, &tn, ++kvsetid, dgen_hi, dgen_lo, compc, &ks[i]);
         ASSERT_EQ(0, err);
         kvset_list_add_tail(ks[i], &tn.tn_kvset_list);
-        kvset_set_workid(ks[i], 1);
+        kvset_set_work(ks[i], &w);
     }
 
     /* Move 2 kvsets from sn -> tn */
@@ -254,7 +254,7 @@ MTF_DEFINE_UTEST_PRE(move_test, non_empty_to_non_empty, pre)
 
     /* Reset workid */
     for (uint32_t i = 0; i < num_kvsets; i++)
-        kvset_set_workid(ks[i], 1);
+        kvset_set_work(ks[i], &w);
 
     /* Move 4 kvsets from tn -> sn */
     src = list_first_entry_or_null(&tn.tn_kvset_list, typeof(*src), le_link);
@@ -297,7 +297,7 @@ MTF_DEFINE_UTEST_PRE(move_test, dgen_compc_order, pre)
         err = create_kvset(&tree, &sn, ++kvsetid, dgen_hi, dgen_lo, compc, &ks[i]);
         ASSERT_EQ(0, err);
         kvset_list_add_tail(ks[i], &sn.tn_kvset_list);
-        kvset_set_workid(ks[i], 1);
+        kvset_set_work(ks[i], &w);
     }
 
     dgen_hi = 100;
@@ -307,7 +307,7 @@ MTF_DEFINE_UTEST_PRE(move_test, dgen_compc_order, pre)
         err = create_kvset(&tree, &tn, ++kvsetid, dgen_hi, dgen_lo, compc, &ks[i]);
         ASSERT_EQ(0, err);
         kvset_list_add_tail(ks[i], &tn.tn_kvset_list);
-        kvset_set_workid(ks[i], 1);
+        kvset_set_work(ks[i], &w);
     }
 
     /* Move 2 kvsets from sn -> tn */
@@ -319,7 +319,7 @@ MTF_DEFINE_UTEST_PRE(move_test, dgen_compc_order, pre)
 
     /* Reset workid */
     for (uint32_t i = 0; i < num_kvsets; i++)
-        kvset_set_workid(ks[i], 1);
+        kvset_set_work(ks[i], &w);
 
     /* Move the remaining 1 kvset from sn -> tn */
     src = list_first_entry_or_null(&sn.tn_kvset_list, typeof(*src), le_link);

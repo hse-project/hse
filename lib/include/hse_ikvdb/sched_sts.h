@@ -63,15 +63,15 @@ sts_job_init(struct sts_job *job, sts_job_fn *job_fn, uint id)
 }
 
 static inline uint
-sts_job_id_get(struct sts_job *job)
+sts_job_id_get(const struct sts_job *job)
 {
     return job->sj_id;
 }
 
 static inline const char *
-sts_job_wmesg_get(struct sts_job *job)
+sts_job_wmesg_get(const struct sts_job *job)
 {
-    return *job->sj_wmesgp;
+    return job->sj_wmesgp ? *job->sj_wmesgp : "?";
 }
 
 /* MTF_MOCK */

@@ -349,7 +349,7 @@ static const struct param_spec pspecs[] = {
         .ps_stringify = param_default_stringify,
         .ps_jsonify = param_default_jsonify,
         .ps_default_value = {
-            .as_uscalar = 512 << KB_SHIFT,
+            .as_uscalar = 128 << KB_SHIFT,
         },
         .ps_bounds = {
             .as_uscalar = {
