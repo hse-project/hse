@@ -120,7 +120,7 @@ MTF_DEFINE_UTEST_PREPOST(rest_test, remove_endpoint, test_pre, test_post)
 
     /* Endpoint does not exist */
     err = rest_server_remove_endpoint("test");
-    ASSERT_EQ(EINVAL, merr_errno(err));
+    ASSERT_EQ(ENOENT, merr_errno(err));
 }
 
 struct response_ctx

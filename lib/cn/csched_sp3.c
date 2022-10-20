@@ -27,6 +27,7 @@
 #include <hse_ikvdb/sched_sts.h>
 #include <hse_ikvdb/throttle.h>
 #include <hse_ikvdb/kvdb_rparams.h>
+#include <hse_ikvdb/hse_gparams.h>
 
 #include "csched_sp3.h"
 #include "csched_sp3_work.h"
@@ -35,6 +36,8 @@
 #include "cn_tree_internal.h"
 #include "kvset.h"
 #include "route.h"
+
+#define ENDPOINT_FMT_KVDB_CSCED "/kvdbs/%s/csched"
 
 struct mpool;
 
@@ -2638,7 +2641,7 @@ sp3_destroy(struct csched *handle)
     mutex_destroy(&sp->sp_dlist_lock);
     cv_destroy(&sp->mon_cv);
 
-    rest_server_remove_endpoint("/kvdbs/%s/csched", sp->kvdb_alias);
+    rest_server_remove_endpoint(ENDPOINT_FMT_KVDB_CSCED, sp->kvdb_alias);
 
     free(sp->wp);
     free(sp);
@@ -2713,9 +2716,14 @@ sp3_create(
 
     sp->kvdb_alias = kvdb_alias;
 
-    err = rest_server_add_endpoint(REST_ENDPOINT_EXACT, handlers, sp, "/kvdbs/%s/csched", kvdb_alias);
-    if (ev_warn(err))
-        log_warnx("Failed to add REST endpoint (/kvdbs/%s/csched)", err, kvdb_alias);
+    if (hse_gparams.gp_rest.enabled) {
+        err = rest_server_add_endpoint(REST_ENDPOINT_EXACT, handlers, sp, ENDPOINT_FMT_KVDB_CSCED,
+            kvdb_alias);
+        if (err) {
+            log_errx("Failed to add REST endpoint (" ENDPOINT_FMT_KVDB_CSCED ")", err, kvdb_alias);
+            goto err_exit;
+        }
+    }
 
     INIT_WORK(&sp->mon_work, sp3_monitor);
     queue_work(sp->mon_wq, &sp->mon_work);
@@ -2725,6 +2733,7 @@ sp3_create(
     return 0;
 
 err_exit:
+    destroy_workqueue(sp->mon_wq);
     sts_destroy(sp->sts);
 
     mutex_destroy(&sp->mon_lock);
