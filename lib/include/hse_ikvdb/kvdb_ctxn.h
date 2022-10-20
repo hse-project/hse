@@ -44,17 +44,12 @@ struct kvdb_ctxn {
  * @b_gen:      generation count; if mismatch, must update
  * @b_ref:      reference counts; last one in frees
  * @b_update:   updated by cursor when it changes the tombspan
- * @b_preserve: updated by transaction when it ends
- *              committed transactions preserve the tombspan
- *              aborted transactions don't preserve it, if there were puts/dels
- *              (potentially uncommitted tombstones)
  */
 struct kvdb_ctxn_bind {
     struct kvdb_ctxn *b_ctxn;
     atomic_ulong      b_gen;
     atomic_int        b_ref;
     bool              b_update;
-    bool              b_preserve;
 };
 
 /* MTF_MOCK */

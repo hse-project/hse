@@ -47,7 +47,6 @@ struct hse_kvs_cursor {
     struct perfc_set *     kc_pkvsl_pc;
     struct kvdb_kvs *      kc_kvs;
     struct kvdb_ctxn_bind *kc_bind;
-    struct kvdb_ctxn *     kc_ctxn;
     u64                    kc_gen;
     u64                    kc_seq;
     u64                    kc_create_time;

@@ -78,11 +78,12 @@ struct kvdb_ctxn_set_impl {
 static inline void
 kvdb_ctxn_bind_putref(struct kvdb_ctxn_bind *bind)
 {
-    if (atomic_dec_return(&bind->b_ref) == 0) {
-        if (bind->b_ctxn)
-            kvdb_ctxn_h2r(bind->b_ctxn)->ctxn_bind = 0;
-        free(bind);
-    }
+    int refcnt = atomic_dec_return(&bind->b_ref);
+
+    assert(refcnt >= 0);
+    if (refcnt == 0)
+        bind->b_ctxn = NULL;
+
 }
 
 static inline void
@@ -98,9 +99,8 @@ kvdb_ctxn_bind_invalidate(struct kvdb_ctxn_bind *bind)
 }
 
 static inline void
-kvdb_ctxn_bind_cancel(struct kvdb_ctxn_bind *bind, bool preserve)
+kvdb_ctxn_bind_cancel(struct kvdb_ctxn_bind *bind)
 {
-    bind->b_preserve = preserve;
     bind->b_ctxn = 0;
 }
 
@@ -186,7 +186,7 @@ kvdb_ctxn_reaper(struct work_struct *work)
      * to finish reading.
      */
     list_for_each_entry_safe(ctxn, next, &freelist, ctxn_free_link) {
-        kvdb_ctxn_cursor_unbind(ctxn->ctxn_bind);
+        kvdb_ctxn_cursor_unbind(&ctxn->ctxn_bind);
         mutex_destroy(&ctxn->ctxn_lock);
         free(ctxn);
         ev(1);
@@ -255,7 +255,7 @@ kvdb_ctxn_set_remove(struct kvdb_ctxn_set *handle, struct kvdb_ctxn_impl *ctxn)
     mutex_unlock(&kvdb_ctxn_set->ktn_list_mutex);
 
     if (!delay_free) {
-        kvdb_ctxn_cursor_unbind(ctxn->ctxn_bind);
+        kvdb_ctxn_cursor_unbind(&ctxn->ctxn_bind);
         mutex_destroy(&ctxn->ctxn_lock);
         free(ctxn);
     }
@@ -298,7 +298,6 @@ kvdb_ctxn_free(struct kvdb_ctxn *handle)
 
     ctxn = kvdb_ctxn_h2r(handle);
 
-    assert(!ctxn->ctxn_bind);
     assert(!ctxn->ctxn_locks_handle);
     assert(!ctxn->ctxn_pfxlock_handle);
 
@@ -363,7 +362,7 @@ kvdb_ctxn_begin(struct kvdb_ctxn *handle)
     ctxn->ctxn_begin_ts = get_time_ns();
     ctxn->ctxn_can_insert = 0;
     ctxn->ctxn_seqref = HSE_SQNREF_UNDEFINED;
-    ctxn->ctxn_bind = NULL;
+    ctxn->ctxn_bind.b_ctxn = &ctxn->ctxn_inner_handle;
 
     err = viewset_insert(ctxn->ctxn_viewset, &ctxn->ctxn_view_seqno, &tseqno, &ctxn->ctxn_viewset_cookie);
     if (ev(err))
@@ -407,10 +406,7 @@ kvdb_ctxn_deactivate(struct kvdb_ctxn_impl *ctxn)
 static void
 kvdb_ctxn_abort_inner(struct kvdb_ctxn_impl *ctxn)
 {
-    if (ctxn->ctxn_bind) {
-        kvdb_ctxn_bind_cancel(ctxn->ctxn_bind, !ctxn->ctxn_can_insert);
-        ctxn->ctxn_bind = NULL;
-    }
+    kvdb_ctxn_bind_cancel(&ctxn->ctxn_bind);
 
     if (ctxn->ctxn_can_insert) {
         uintptr_t *priv = (uintptr_t *)ctxn->ctxn_seqref;
@@ -475,7 +471,7 @@ merr_t
 kvdb_ctxn_commit(struct kvdb_ctxn *handle)
 {
     struct kvdb_ctxn_impl * ctxn = kvdb_ctxn_h2r(handle);
-    struct kvdb_ctxn_bind * bind = ctxn->ctxn_bind;
+    struct kvdb_ctxn_bind * bind = &ctxn->ctxn_bind;
     struct kvdb_ctxn_locks *locks;
     void *                  cookie;
     uintptr_t *             priv;
@@ -496,10 +492,7 @@ kvdb_ctxn_commit(struct kvdb_ctxn *handle)
      * care of that.
      */
     if (!ctxn->ctxn_can_insert) {
-        if (bind) {
-            kvdb_ctxn_bind_cancel(bind, true);
-            ctxn->ctxn_bind = 0;
-        }
+        kvdb_ctxn_bind_cancel(bind);
 
         ctxn->ctxn_seqref = HSE_ORDNL_TO_SQNREF(ctxn->ctxn_view_seqno);
         kvdb_ctxn_deactivate(ctxn);
@@ -609,10 +602,7 @@ kvdb_ctxn_commit(struct kvdb_ctxn *handle)
     if (locks)
         kvdb_ctxn_locks_destroy(locks);
 
-    if (bind) {
-        kvdb_ctxn_bind_cancel(bind, true);
-        ctxn->ctxn_bind = 0;
-    }
+    kvdb_ctxn_bind_cancel(bind);
 
     err = wal_txn_commit(ctxn->ctxn_wal, ctxn->ctxn_view_seqno, commit_sn, head,
                          ctxn->ctxn_wal_cookie);
@@ -781,34 +771,13 @@ struct kvdb_ctxn_bind *
 kvdb_ctxn_cursor_bind(struct kvdb_ctxn *handle)
 {
     struct kvdb_ctxn_impl *ctxn = kvdb_ctxn_h2r(handle);
-    struct kvdb_ctxn_bind *bind = ctxn->ctxn_bind;
+    struct kvdb_ctxn_bind *bind;
 
     if (seqnoref_to_state(ctxn->ctxn_seqref) != KVDB_CTXN_ACTIVE)
-        return 0;
+        return NULL;
 
-    if (!bind) {
-        intptr_t old = 0;
-
-        /* HSE_REVISIT Consider using a cache for this */
-        bind = calloc(1, sizeof(*bind));
-        if (!bind)
-            return 0;
-
-        bind->b_ctxn = handle;
-
-        if (!atomic_cmpxchg((atomic_intptr_t *)&ctxn->ctxn_bind, &old, (intptr_t)bind)) {
-            free(bind);
-            bind = ctxn->ctxn_bind;
-        }
-    }
-
-    /* HSE_REVISIT: race here if allow multi-threading cursor+txn */
-
-    if (bind) {
-        bind->b_update = false;
-        bind->b_preserve = false;
-        kvdb_ctxn_bind_getref(bind);
-    }
+    bind = &ctxn->ctxn_bind;
+    kvdb_ctxn_bind_getref(bind);
 
     return bind;
 }
@@ -816,7 +785,7 @@ kvdb_ctxn_cursor_bind(struct kvdb_ctxn *handle)
 void
 kvdb_ctxn_cursor_unbind(struct kvdb_ctxn_bind *bind)
 {
-    if (bind)
+    if (bind->b_ctxn)
         kvdb_ctxn_bind_putref(bind);
 }
 
@@ -888,8 +857,8 @@ kvdb_ctxn_trylock_write(
             goto errout;
     }
 
-    if (ctxn->ctxn_bind)
-        kvdb_ctxn_bind_invalidate(ctxn->ctxn_bind);
+    if (ctxn->ctxn_bind.b_ctxn)
+        kvdb_ctxn_bind_invalidate(&ctxn->ctxn_bind);
 
     *view_seqno = ctxn->ctxn_view_seqno;
     *seqref = ctxn->ctxn_seqref;

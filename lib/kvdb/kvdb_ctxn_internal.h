@@ -49,7 +49,7 @@ struct kvdb_ctxn_impl {
     struct kvdb_pfxlock      *ctxn_kvdb_pfxlock;
     struct kvdb_ctxn_pfxlock *ctxn_pfxlock_handle;
 
-    struct kvdb_ctxn_bind  *ctxn_bind;
+    struct kvdb_ctxn_bind   ctxn_bind;
     struct c0sk            *ctxn_c0sk;
     struct kvdb_ctxn_set   *ctxn_kvdb_ctxn_set;
     atomic_ulong           *ctxn_kvdb_seq_addr;
