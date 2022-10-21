@@ -146,7 +146,7 @@ wal_mdc_open(
     struct mpool    *mp,
     uint64_t         mdcid1,
     uint64_t         mdcid2,
-    bool             rdonly,
+    bool             allow_writes,
     struct wal_mdc **handle)
 {
     struct wal_mdc   *mdc;
@@ -157,7 +157,7 @@ wal_mdc_open(
     if (!mp || !handle)
         return merr(EINVAL);
 
-    err = mpool_mdc_open(mp, mdcid1, mdcid2, rdonly, &mp_mdc);
+    err = mpool_mdc_open(mp, mdcid1, mdcid2, !allow_writes, &mp_mdc);
     if (err)
         return err;
 

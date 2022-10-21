@@ -37,8 +37,6 @@ struct kvs_rparams {
     bool     transactions_enable;
     bool     cn_maint_disable;
     bool     cn_close_wait;
-    bool     cn_diag_mode;
-    bool     read_only;
     uint8_t  perfc_level;
     uint8_t  cn_compaction_debug; /* 1=compact, 2=ingest */
 

@@ -106,6 +106,7 @@ components = {
                 meson.current_source_dir() / 'kvdb/kvdb-meta-files',
             ],
         },
+        'kvdb_modes_test': {},
         'kvdb_pfxlock_test': {},
         'kvdb_rest_test': {
             'dependencies': [

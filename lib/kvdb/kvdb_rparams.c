@@ -515,20 +515,87 @@ throttle_init_policy_jsonify(const struct param_spec *const ps, const void *cons
     }
 }
 
+static bool HSE_NONNULL(1, 2, 3)
+kvdb_open_mode_converter(
+    const struct param_spec *const ps,
+    const cJSON *const             node,
+    void *const                    data)
+{
+    enum kvdb_open_mode mode;
+    const char *mode_str;
+
+    assert(ps);
+    assert(node);
+    assert(data);
+
+    if (!cJSON_IsString(node))
+        return false;
+
+    mode_str = cJSON_GetStringValue(node);
+    mode = kvdb_mode_string_to_value(mode_str);
+
+    if (kvdb_mode_is_invalid(mode)) {
+        log_err("Invalid value: %s, must be one of: %s", mode_str, KVDB_MODE_LIST_STR);
+        return false;
+    }
+
+    *((enum kvdb_open_mode *)data) = mode;
+
+    return true;
+}
+
+static merr_t
+kvdb_open_mode_stringify(
+    const struct param_spec *const ps,
+    const void *const              value,
+    char *const                    buf,
+    const size_t                   buf_sz,
+    size_t *const                  needed_sz)
+{
+    int n;
+
+    INVARIANT(ps);
+    INVARIANT(value);
+
+    n = snprintf(buf, buf_sz, "\"%s\"", kvdb_mode_to_string(*((enum kvdb_open_mode *)value)));
+    if (n < 0)
+        return merr(EBADMSG);
+
+    if (needed_sz)
+        *needed_sz = n;
+
+    return 0;
+}
+
+static cJSON * HSE_NONNULL(1, 2)
+kvdb_open_mode_jsonify(const struct param_spec *const ps, const void *const value)
+{
+    INVARIANT(ps);
+    INVARIANT(value);
+
+    return cJSON_CreateString(kvdb_mode_to_string(*((enum kvdb_open_mode *)value)));
+}
+
 static const struct param_spec pspecs[] = {
     {
-        .ps_name = "read_only",
-        .ps_description = "readonly flag",
+        .ps_name = "mode",
+        .ps_description = "open mode",
         .ps_flags = 0,
-        .ps_type = PARAM_TYPE_BOOL,
-        .ps_offset = offsetof(struct kvdb_rparams, read_only),
-        .ps_size = PARAM_SZ(struct kvdb_rparams, read_only),
-        .ps_convert = param_default_converter,
+        .ps_type = PARAM_TYPE_ENUM,
+        .ps_offset = offsetof(struct kvdb_rparams, mode),
+        .ps_size = PARAM_SZ(struct kvdb_rparams, mode),
+        .ps_convert = kvdb_open_mode_converter,
         .ps_validate = param_default_validator,
-        .ps_stringify = param_default_stringify,
-        .ps_jsonify = param_default_jsonify,
+        .ps_stringify = kvdb_open_mode_stringify,
+        .ps_jsonify = kvdb_open_mode_jsonify,
         .ps_default_value = {
-            .as_bool = false,
+            .as_enum = KVDB_MODE_RDWR,
+        },
+        .ps_bounds = {
+            .as_enum = {
+                .ps_min = KVDB_MODE_MIN,
+                .ps_max = KVDB_MODE_MAX,
+            },
         },
     },
     {

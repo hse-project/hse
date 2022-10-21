@@ -78,21 +78,29 @@ check(const char *const arg, ...)
     return err;
 }
 
-MTF_DEFINE_UTEST_PRE(kvdb_rparams_test, read_only, test_pre)
+MTF_DEFINE_UTEST_PRE(kvdb_rparams_test, kvdb_open_mode, test_pre)
 {
-    const struct param_spec *ps = ps_get("read_only");
+    char                     buf[128];
+    size_t                   needed_sz;
+    const struct param_spec *ps = ps_get("mode");
 
     ASSERT_NE(NULL, ps);
     ASSERT_NE(NULL, ps->ps_description);
     ASSERT_EQ(0, ps->ps_flags);
-    ASSERT_EQ(PARAM_TYPE_BOOL, ps->ps_type);
-    ASSERT_EQ(offsetof(struct kvdb_rparams, read_only), ps->ps_offset);
-    ASSERT_EQ(sizeof(bool), ps->ps_size);
-    ASSERT_EQ((uintptr_t)ps->ps_convert, (uintptr_t)param_default_converter);
+    ASSERT_EQ(PARAM_TYPE_ENUM, ps->ps_type);
+    ASSERT_EQ(offsetof(struct kvdb_rparams, mode), ps->ps_offset);
+    ASSERT_EQ(sizeof(uint), ps->ps_size);
+    ASSERT_NE((uintptr_t)ps->ps_convert, (uintptr_t)param_default_converter);
     ASSERT_EQ((uintptr_t)ps->ps_validate, (uintptr_t)param_default_validator);
-    ASSERT_EQ((uintptr_t)ps->ps_stringify, (uintptr_t)param_default_stringify);
-    ASSERT_EQ((uintptr_t)ps->ps_jsonify, (uintptr_t)param_default_jsonify);
-    ASSERT_EQ(false, params.read_only);
+    ASSERT_NE((uintptr_t)ps->ps_stringify, (uintptr_t)param_default_stringify);
+    ASSERT_NE((uintptr_t)ps->ps_jsonify, (uintptr_t)param_default_jsonify);
+    ASSERT_EQ(KVDB_MODE_RDWR, params.mode);
+    ASSERT_EQ(KVDB_MODE_RDONLY, ps->ps_bounds.as_uscalar.ps_min);
+    ASSERT_EQ(KVDB_MODE_RDWR, ps->ps_bounds.as_uscalar.ps_max);
+
+    ps->ps_stringify(ps, &params.mode, buf, sizeof(buf), &needed_sz);
+    ASSERT_STREQ("\"rdwr\"", buf);
+    ASSERT_EQ(6, needed_sz);
 }
 
 MTF_DEFINE_UTEST_PRE(kvdb_rparams_test, perfc_level, test_pre)
@@ -951,27 +959,27 @@ MTF_DEFINE_UTEST(kvdb_rparams_test, get)
 
     const struct kvdb_rparams p = kvdb_rparams_defaults();
 
-    err = kvdb_rparams_get(&p, "read_only", buf, sizeof(buf), &needed_sz);
+    err = kvdb_rparams_get(&p, "mode", buf, sizeof(buf), &needed_sz);
     ASSERT_EQ(0, merr_errno(err));
-    ASSERT_STREQ("false", buf);
-    ASSERT_EQ(5, needed_sz);
+    ASSERT_STREQ("\"rdwr\"", buf);
+    ASSERT_EQ(6, needed_sz);
 
-    err = kvdb_rparams_get(&p, "read_only", buf, sizeof(buf), NULL);
+    err = kvdb_rparams_get(&p, "mode", buf, sizeof(buf), NULL);
     ASSERT_EQ(0, merr_errno(err));
-    ASSERT_STREQ("false", buf);
+    ASSERT_STREQ("\"rdwr\"", buf);
 
     err = kvdb_rparams_get(&p, "does.not.exist", buf, sizeof(buf), NULL);
     ASSERT_EQ(EINVAL, merr_errno(err));
 
-    err = kvdb_rparams_get(NULL, "read_only", buf, sizeof(buf), NULL);
+    err = kvdb_rparams_get(NULL, "mode", buf, sizeof(buf), NULL);
     ASSERT_EQ(EINVAL, merr_errno(err));
 
     err = kvdb_rparams_get(&p, NULL, buf, sizeof(buf), NULL);
     ASSERT_EQ(EINVAL, merr_errno(err));
 
-    err = kvdb_rparams_get(&p, "read_only", NULL, 0, &needed_sz);
+    err = kvdb_rparams_get(&p, "mode", NULL, 0, &needed_sz);
     ASSERT_EQ(0, merr_errno(err));
-    ASSERT_EQ(5, needed_sz);
+    ASSERT_EQ(6, needed_sz);
 }
 
 MTF_DEFINE_UTEST(kvdb_rparams_test, set)

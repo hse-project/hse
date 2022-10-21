@@ -131,7 +131,7 @@ static atomic_uint ikvdb_txn_idx;
 /**
  * struct ikvdb_impl - private representation of a kvdb
  * @ikdb_handle:        handle for users of struct ikvdb_impl's
- * @ikdb_read_only:        bool indicating read-only mode
+ * @ikdb_allow_writes:  bool indicating whether puts and dels are allowed
  * @ikdb_work_stop:     used to control maint and throttle threads
  * @ikdb_tb_dbg:        token bucket debug flags
  * @ikdb_ctxn_set:      kvdb transaction set
@@ -162,7 +162,7 @@ static atomic_uint ikvdb_txn_idx;
  */
 struct ikvdb_impl {
     struct ikvdb            ikdb_handle;
-    bool                    ikdb_read_only;
+    bool                    ikdb_allow_writes;
     bool                    ikdb_work_stop;
     u32                     ikdb_tb_dbg;
     bool                    ikdb_pmem_only;
@@ -917,7 +917,7 @@ ikvdb_maint_task(struct work_struct *work)
 static void
 ikvdb_init_throttle_params(struct ikvdb_impl *self)
 {
-    if (self->ikdb_read_only)
+    if (!self->ikdb_allow_writes)
         return;
 
     /* Hand out throttle sensors */
@@ -1024,7 +1024,7 @@ ikvdb_alloc(
 
     memset(self, 0, sz);
     self->ikdb_rp = *params;
-    self->ikdb_read_only = params->read_only;
+    self->ikdb_allow_writes = kvdb_mode_allows_user_writes(params->mode);
     strcpy((char *)self->ikdb_home, kvdb_home);
 
     *impl = self;
@@ -1044,7 +1044,6 @@ ikvdb_diag_open(
     struct kvdb_meta     meta;
     struct mpool_rparams mparams;
     merr_t err;
-    int    flags;
 
     err = ikvdb_alloc(kvdb_home, params, &self);
     if (err)
@@ -1057,12 +1056,6 @@ ikvdb_diag_open(
     if (ev(err))
         goto self_cleanup;
 
-    err = ikvdb_pmem_only_from_meta(kvdb_home, &meta, &self->ikdb_pmem_only);
-    if (err) {
-        log_errx("cannot open %s", err, kvdb_home);
-        goto self_cleanup;
-    }
-
     err = kvdb_meta_to_mpool_rparams(&meta, kvdb_home, &mparams);
     if (ev(err))
         goto self_cleanup;
@@ -1070,8 +1063,7 @@ ikvdb_diag_open(
     for (int i = HSE_MCLASS_BASE; i < HSE_MCLASS_COUNT; i++)
         mparams.mclass[i].dio_disable = !params->dio_enable[i];
 
-    flags = params->read_only ? O_RDONLY : O_RDWR;
-    err = mpool_open(kvdb_home, &mparams, flags, &self->ikdb_mp);
+    err = mpool_open(kvdb_home, &mparams, O_RDONLY, &self->ikdb_mp);
     if (ev(err))
         goto self_cleanup;
 
@@ -1104,9 +1096,6 @@ ikvdb_diag_open(
         &self->ikdb_cndb);
     if (err)
         goto kvdb_pfxlock_cleanup;
-
-    if (!params->read_only)
-        err = kvdb_meta_upgrade(&meta, kvdb_home);
 
     if (!err) {
         *handle = &self->ikdb_handle;
@@ -1371,18 +1360,18 @@ ikvdb_open(
     struct kvdb_rparams *params,
     struct ikvdb **      handle)
 {
-    merr_t                 err;
-    struct ikvdb_impl *    self = NULL;
-    atomic_ulong          *tseqnop;
-    u64                    seqno = 0; /* required by unit test */
-    ulong                  mavail;
-    size_t                 sz;
-    int                    i, n;
-    uint32_t               flags;
-    u64                    ingestid, gen = 0, txhorizon = 0;
     struct wal_replay_info rinfo = {0};
-    struct mpool_rparams   mparams;
-    struct kvdb_meta       meta;
+    struct mpool_rparams mparams;
+    struct kvdb_meta meta;
+    struct ikvdb_impl *self = NULL;
+    atomic_ulong *tseqnop;
+    uint64_t ingestid, gen = 0, txhorizon = 0;
+    uint64_t seqno = 0; /* required by unit test */
+    ulong mavail;
+    size_t sz;
+    int i, n;
+    bool allow_media_writes;
+    merr_t err;
 
     assert(kvdb_home);
     assert(params);
@@ -1394,6 +1383,8 @@ ikvdb_open(
         log_err("Can only have one KVDB open at one time");
         return merr(EDQUOT);
     }
+
+    allow_media_writes = kvdb_mode_allows_media_writes(params->mode);
 
     err = ikvdb_alloc(kvdb_home, params, &self);
     if (err) {
@@ -1423,10 +1414,12 @@ ikvdb_open(
         goto out;
     }
 
-    err = ikvdb_pmem_only_from_meta(kvdb_home, &meta, &self->ikdb_pmem_only);
-    if (err) {
-        log_errx("cannot open %s", err, kvdb_home);
-        goto out;
+    if (allow_media_writes) {
+        err = ikvdb_pmem_only_from_meta(kvdb_home, &meta, &self->ikdb_pmem_only);
+        if (err) {
+            log_errx("cannot open %s", err, kvdb_home);
+            goto out;
+        }
     }
 
     err = kvdb_meta_to_mpool_rparams(&meta, kvdb_home, &mparams);
@@ -1436,8 +1429,7 @@ ikvdb_open(
     for (i = HSE_MCLASS_BASE; i < HSE_MCLASS_COUNT; i++)
         mparams.mclass[i].dio_disable = !params->dio_enable[i];
 
-    flags = params->read_only ? O_RDONLY : O_RDWR;
-    err = mpool_open(kvdb_home, &mparams, flags, &self->ikdb_mp);
+    err = mpool_open(kvdb_home, &mparams, allow_media_writes ? O_RDWR : O_RDONLY, &self->ikdb_mp);
     if (ev(err))
         goto out;
 
@@ -1478,7 +1470,7 @@ ikvdb_open(
 
     ikvdb_tb_configure(self, self->ikdb_tb_burst, self->ikdb_tb_rate, true);
 
-    if (!self->ikdb_read_only) {
+    if (self->ikdb_allow_writes) {
         err = csched_create(
             &self->ikdb_rp,
             self->ikdb_alias,
@@ -1605,7 +1597,7 @@ ikvdb_open(
 
     *handle = &self->ikdb_handle;
 
-    if (!self->ikdb_read_only) {
+    if (self->ikdb_allow_writes) {
         err = ikvdb_maint_start(self);
         if (err) {
             log_errx("cannot open %s", err, kvdb_home);
@@ -1625,7 +1617,7 @@ ikvdb_open(
         }
     }
 
-    if (!params->read_only) {
+    if (allow_media_writes) {
         err = kvdb_meta_upgrade(&meta, kvdb_home);
         if (err) {
             log_errx("cannot upgrade %s/kvdb.meta", err, kvdb_home);
@@ -1770,11 +1762,11 @@ ikvdb_config_attach(struct ikvdb *kvdb, struct config *conf)
 }
 
 bool
-ikvdb_read_only(struct ikvdb *handle)
+ikvdb_allows_user_writes(struct ikvdb *ikvdb)
 {
-    struct ikvdb_impl *self = ikvdb_h2r(handle);
+    INVARIANT(ikvdb);
 
-    return self->ikdb_read_only;
+    return ikvdb_h2r(ikvdb)->ikdb_allow_writes;
 }
 
 void
@@ -1789,6 +1781,14 @@ struct csched *
 ikvdb_get_csched(struct ikvdb *handle)
 {
     return handle ? ikvdb_h2r(handle)->ikdb_csched : 0;
+}
+
+const struct kvdb_rparams *
+ikvdb_get_rparams(struct ikvdb *ikvdb)
+{
+    INVARIANT(ikvdb);
+
+    return &ikvdb_h2r(ikvdb)->ikdb_rp;
 }
 
 struct mclass_policy *
@@ -1886,7 +1886,7 @@ ikvdb_kvs_create(struct ikvdb *handle, const char *kvs_name, struct kvs_cparams 
     assert(params);
 
     self = ikvdb_h2r(handle);
-    if (self->ikdb_read_only)
+    if (!self->ikdb_allow_writes)
         return 0;
 
     err = validate_kvs_name(kvs_name);
@@ -1952,7 +1952,7 @@ ikvdb_kvs_drop(struct ikvdb *handle, const char *kvs_name)
     int                idx;
     merr_t             err;
 
-    if (self->ikdb_rp.read_only) {
+    if (!self->ikdb_allow_writes) {
         err = merr(ev(EROFS));
         goto out_immediate;
     }
@@ -2130,8 +2130,6 @@ ikvdb_kvs_open(
     if (ev(err))
         return err;
 
-    params->read_only = self->ikdb_rp.read_only; /* inherit from kvdb */
-
     if (!strcmp(params->mclass_policy, HSE_MPOLICY_AUTO_NAME)) {
         const char *policy = mclass_policy_default_get(handle);
 
@@ -2287,7 +2285,7 @@ ikvdb_close(struct ikvdb *handle)
 
     /* Shutdown workqueue
      */
-    if (!self->ikdb_read_only) {
+    if (self->ikdb_allow_writes) {
         self->ikdb_work_stop = true;
         destroy_workqueue(self->ikdb_workqueue);
     }
@@ -2458,7 +2456,7 @@ ikvdb_kvs_put(
         return merr(EINVAL);
 
     parent = kk->kk_parent;
-    if (HSE_UNLIKELY(parent->ikdb_read_only))
+    if (HSE_UNLIKELY(!parent->ikdb_allow_writes))
         return merr(EROFS);
 
     err = kvdb_health_check(&parent->ikdb_health, KVDB_HEALTH_FLAG_ALL);
@@ -2605,7 +2603,7 @@ ikvdb_kvs_del(
         return merr(EINVAL);
 
     parent = kk->kk_parent;
-    if (ev(parent->ikdb_read_only))
+    if (!parent->ikdb_allow_writes)
         return merr(EROFS);
 
     err = kvdb_health_check(&parent->ikdb_health, KVDB_HEALTH_FLAG_ALL);
@@ -2637,7 +2635,7 @@ ikvdb_kvs_prefix_delete(
         return merr(EINVAL);
 
     parent = kk->kk_parent;
-    if (ev(parent->ikdb_read_only))
+    if (!parent->ikdb_allow_writes)
         return merr(EROFS);
 
     err = kvdb_health_check(&parent->ikdb_health, KVDB_HEALTH_FLAG_ALL);
@@ -3067,7 +3065,7 @@ ikvdb_compact(struct ikvdb *handle, unsigned int flags)
 {
     struct ikvdb_impl *self = ikvdb_h2r(handle);
 
-    if (ev(self->ikdb_read_only))
+    if (ev(!self->ikdb_allow_writes))
         return;
 
     csched_compact_request(self->ikdb_csched, flags);
@@ -3078,7 +3076,7 @@ ikvdb_compact_status_get(struct ikvdb *handle, struct hse_kvdb_compact_status *s
 {
     struct ikvdb_impl *self = ikvdb_h2r(handle);
 
-    if (ev(self->ikdb_read_only))
+    if (ev(!self->ikdb_allow_writes))
         return;
 
     csched_compact_status_get(self->ikdb_csched, status);
@@ -3089,7 +3087,7 @@ ikvdb_sync(struct ikvdb *handle, const unsigned int flags)
 {
     struct ikvdb_impl *self = ikvdb_h2r(handle);
 
-    if (ev(self->ikdb_read_only))
+    if (!self->ikdb_allow_writes)
         return merr(EROFS);
 
     if (self->ikdb_wal)
@@ -3428,6 +3426,14 @@ ikvdb_wal_replay_prefix_del(
         ikvdb_wal_replay_seqno_set(ikvdb, seqno);
 
     return err;
+}
+
+merr_t
+ikvdb_wal_replay_sync(struct ikvdb *handle, const unsigned int flags)
+{
+    struct ikvdb_impl *self = ikvdb_h2r(handle);
+
+    return c0sk_sync(self->ikdb_c0sk, flags);
 }
 
 void

@@ -128,7 +128,7 @@ static struct kvs_cparams mocked_kvs_cparams;
  * so this code must establish the link.
  */
 static merr_t
-_c0_open(struct ikvdb *kvdb, struct kvs_rparams *rp, struct cn *cn, struct mpool *ds, struct c0 **h)
+_c0_open(struct ikvdb *kvdb, struct cn *cn, struct c0 **h)
 {
     struct mock_cn *mn = (void *)cn;
     struct mock_c0 *m0;

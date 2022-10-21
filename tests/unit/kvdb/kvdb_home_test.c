@@ -59,14 +59,4 @@ MTF_DEFINE_UTEST_PREPOST(kvdb_home_test, storage_realpath, test_pre, test_post)
     ASSERT_STREQ(cappath, buf);
 }
 
-MTF_DEFINE_UTEST(kvdb_home_test, pidfile_path)
-{
-	merr_t err;
-	char   buf[PATH_MAX];
-
-	err = kvdb_home_pidfile_path_get("/var/run/hse", buf, sizeof(buf));
-	ASSERT_EQ(0, err);
-	ASSERT_EQ(0, strncmp(buf, "/var/run/hse/" PIDFILE_NAME, sizeof(buf)));
-}
-
 MTF_END_UTEST_COLLECTION(kvdb_home_test)

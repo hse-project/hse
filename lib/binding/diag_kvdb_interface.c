@@ -58,6 +58,12 @@ diag_kvdb_open(
     if (err)
         goto close_mp;
 
+    params.mode = KVDB_MODE_DIAG; /* override mode param to DIAG */
+
+    err = kvdb_home_check_access(kvdb_home, params.mode);
+    if (err)
+        goto close_mp;
+
     err = kvdb_home_pidfile_path_get(kvdb_home, pidfile_path, sizeof(pidfile_path));
     if (err)
         goto close_mp;

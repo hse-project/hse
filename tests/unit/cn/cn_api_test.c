@@ -58,8 +58,6 @@ MTF_DEFINE_UTEST_PRE(cn_api, basic, pre)
     kt.kt_data = "123";
     kt.kt_len = 3;
 
-    rp.cn_diag_mode = 1;
-
     kk.kk_parent = (void *)&dummy_ikvdb;
     kk.kk_cparams = &cp;
 

@@ -291,12 +291,13 @@ void
 ikvdb_config_attach(struct ikvdb *kvdb, struct config *conf);
 
 /**
- * ikvdb_read_only() - is the KVDB read only?
- * @kvdb:       kvdb handle
+ * ikvdb_allows_user_writes() - checks whether puts/dels are allowed on the specified kvdb
+ *
+ * @param kvdb: KVDB handle
  */
 /* MTF_MOCK */
 bool
-ikvdb_read_only(struct ikvdb *kvdb);
+ikvdb_allows_user_writes(struct ikvdb *ikvdb);
 
 /**
  * ikvdb_kvs_close() - close the KVS
@@ -319,6 +320,13 @@ ikvdb_get_c0sk(struct ikvdb *kvdb, struct c0sk **out);
 /* MTF_MOCK */
 struct csched *
 ikvdb_get_csched(struct ikvdb *handle);
+
+/**
+ * ikvdb_get_rparams()
+ */
+/* MTF_MOCK */
+const struct kvdb_rparams *
+ikvdb_get_rparams(struct ikvdb *handle);
 
 /**
  * ikvdb_get_mclass_policy() - get a handle to the media class policy
@@ -678,6 +686,9 @@ ikvdb_wal_replay_prefix_del(
     u64                   cnid,
     u64                   seqno,
     struct kvs_ktuple    *kt);
+
+merr_t
+ikvdb_wal_replay_sync(struct ikvdb *handle, const unsigned int flags);
 
 void
 ikvdb_wal_replay_seqno_set(struct ikvdb *ikvdb, uint64_t seqno);

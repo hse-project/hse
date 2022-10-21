@@ -174,8 +174,8 @@ cn_join(struct cn_compaction_work *w)
     err = cn_move(w, src_node, src_list, src_cnt, src_del, tgt_node);
     if (!err) {
         assert(cn_ns_kvsets(&tgt_node->tn_ns) == src_cnt + tgt_cnt);
-        log_info("src %lu (%u) -> tgt %lu (%u)",
-                 src_node->tn_nodeid, src_cnt, tgt_node->tn_nodeid, tgt_cnt);
+        log_debug("src %lu (%u) -> tgt %lu (%u)",
+                  src_node->tn_nodeid, src_cnt, tgt_node->tn_nodeid, tgt_cnt);
     }
 
     if (err) {

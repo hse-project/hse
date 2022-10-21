@@ -89,23 +89,34 @@ mclass_params_init(
 }
 
 static merr_t
-mclass_path_check(enum hse_mclass mclass, const char *path)
+mclass_path_check(enum hse_mclass mclass, const char *path, bool rdonly)
 {
     merr_t err;
     bool isdax;
+    int rc;
 
     if (path[0] == '\0')
         return 0;
 
-    err = dax_path_is_fsdax(path, &isdax);
-    if (err)
-        return err;
+    if (rdonly)
+        rc = access(path, R_OK | X_OK);
+    else
+        rc = access(path, R_OK | W_OK | X_OK);
 
-    if (isdax != (mclass == HSE_MCLASS_PMEM)) {
-        log_err("%s mclass path (%s) %s reside on a DAX filesystem",
-                hse_mclass_name_get(mclass), path,
-                isdax ? "must not" : "must");
-        return merr(ENOTSUP);
+    if (rc == -1)
+        return merr(errno);
+
+    if (!rdonly) {
+        err = dax_path_is_fsdax(path, &isdax);
+        if (err)
+            return err;
+
+        if (isdax != (mclass == HSE_MCLASS_PMEM)) {
+            log_err("%s mclass path (%s) %s reside on a DAX filesystem",
+                    hse_mclass_name_get(mclass), path,
+                    isdax ? "must not" : "must");
+            return merr(ENOTSUP);
+        }
     }
 
     return 0;
@@ -206,11 +217,12 @@ mpool_mclass_add(enum hse_mclass mclass, const struct mpool_cparams *cparams)
     if (err)
         return err;
 
-    err = mclass_path_check(mclass, mcp.path);
+    flags |= (O_CREAT | O_RDWR);
+
+    err = mclass_path_check(mclass, mcp.path, false);
     if (err)
         return err;
 
-    flags |= (O_CREAT | O_RDWR);
     err = mclass_open(mclass, &mcp, flags, &mc);
     if (!err)
         mclass_close(mc);
@@ -292,7 +304,7 @@ mpool_create(const char *home, const struct mpool_cparams *cparams)
         if (err)
             goto errout;
 
-        err = mclass_path_check(i, mcp.path);
+        err = mclass_path_check(i, mcp.path, false);
         if (err)
             goto errout;
 
@@ -367,6 +379,10 @@ mpool_open(
                 log_info("Disabling direct I/O access as the mclass (%d) path (%s) is on a tmpfs",
                          i, mcp.path);
         }
+
+        err = mclass_path_check(i, mcp.path, (oflags & O_ACCMODE) == O_RDONLY);
+        if (err)
+            goto errout;
 
         err = mpool_mclass_open(mp, i, &mcp, oflags, &mp->mc[i]);
         if (err)

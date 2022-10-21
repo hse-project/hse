@@ -113,9 +113,29 @@ kvdb_home_pidfile_path_get(const char *home, char *buf, const size_t buf_sz)
     INVARIANT(buf);
     INVARIANT(buf_sz > 0);
 
-    int n;
+    const char *dir, *name;
+    char namebuf[32];
+    int n, rc;
 
-    n = snprintf(buf, buf_sz, "%s%s" PIDFILE_NAME, home, home[strlen(home) - 1] == '/' ? "" : "/");
+    /* If user does not have write access on 'home', then fallback to XDG_RUNTIME_DIR.
+     * If XDG_RUNTIME_DIR is not defined or is a relative path, then fallback to /tmp.
+     */
+    rc = access(home, W_OK);
+    if (rc == -1) {
+        dir = getenv("XDG_RUNTIME_DIR");
+        if (!dir || *dir != '/')
+            dir = "/tmp";
+
+        n = snprintf(namebuf, sizeof(namebuf), "hse-%d.pid", getpid());
+        assert(n > 0 && n < sizeof(namebuf));
+
+        name = namebuf;
+    } else {
+        dir = home;
+        name = PIDFILE_NAME;
+    }
+
+    n = snprintf(buf, buf_sz, "%s%s%s", dir, dir[strlen(dir) - 1] == '/' ? "" : "/", name);
     if (n >= buf_sz)
         return merr(ENAMETOOLONG);
     if (n < 0)
@@ -131,4 +151,17 @@ kvdb_home_is_fsdax(const char *home, bool *isdax)
     INVARIANT(isdax);
 
     return dax_path_is_fsdax(home, isdax);
+}
+
+merr_t
+kvdb_home_check_access(const char *home, enum kvdb_open_mode mode)
+{
+    int rc;
+
+    if (kvdb_mode_allows_media_writes(mode))
+        rc = access(home, R_OK | W_OK | X_OK);
+    else
+        rc = access(home, R_OK | X_OK);
+
+    return (rc == -1) ? merr(errno) : 0;
 }

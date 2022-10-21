@@ -46,22 +46,15 @@ c0_fini(void);
 
 /**
  * c0_open() - create and prepare a c0 for use
- * @kvdb:  KVDB handle
- * @rp:    KVS runtime parameters
- * @cn:    struct cn that the struct c0 should consider as its backing store
- * @mp_dataset
- * @c0:    (out) pointer to created struct c0 on success, unchanged otherwise
+ * @kvdb:   KVDB handle
+ * @cn:     struct cn that the struct c0 should consider as its backing store
+ * @c0:     (out) pointer to created struct c0 on success, unchanged otherwise
  *
  * Return: [HSE_REVISIT]
  */
 /* MTF_MOCK */
 merr_t
-c0_open(
-    struct ikvdb *      kvdb,
-    struct kvs_rparams *rp,
-    struct cn *         cn,
-    struct mpool *      mp_dataset,
-    struct c0 **        c0);
+c0_open(struct ikvdb *kvdb, struct cn *cn, struct c0 **c0);
 
 /**
  * c0_close() - transition a struct c0 into an offline state

@@ -741,11 +741,6 @@ MTF_DEFINE_UTEST(kvdb_rest_test, params_specific)
         "/kvdbs/%s/params/csched_leaf_pct?pretty=xyz", alias);
     ASSERT_EQ(0, merr_errno(err));
 
-    status = REST_STATUS_LOCKED;
-    err = rest_client_fetch("PUT", headers, "true", 4, check_status_cb, &status,
-        "/kvdbs/%s/params/read_only", alias);
-    ASSERT_EQ(0, merr_errno(err));
-
     status = REST_STATUS_CREATED;
     err = rest_client_fetch("PUT", headers, "91", 1, check_status_cb, &status,
         "/kvdbs/%s/params/csched_leaf_pct", alias);

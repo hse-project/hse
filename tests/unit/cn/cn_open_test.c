@@ -70,7 +70,6 @@ struct mapi_injection inject_list[] = {
 
     { mapi_idx_csched_tree_add, MAPI_RC_SCALAR, 0 },
     { mapi_idx_csched_tree_remove, MAPI_RC_SCALAR, 0 },
-    { mapi_idx_ikvdb_read_only, MAPI_RC_SCALAR, 0 },
 
     { -1 }
 };

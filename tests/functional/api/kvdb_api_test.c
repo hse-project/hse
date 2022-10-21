@@ -325,11 +325,73 @@ MTF_DEFINE_UTEST(kvdb_api_test, reopen)
     ASSERT_EQ(0, hse_err_to_errno(err));
 }
 
+MTF_DEFINE_UTEST(kvdb_api_test, mode)
+{
+    hse_err_t err;
+    const char *paramv = "mode=rdonly";
+    size_t needed_sz;
+    char buf[32];
+
+    err = hse_kvdb_close(kvdb_handle);
+    ASSERT_EQ(0, hse_err_to_errno(err));
+
+    err = hse_kvdb_open(mtf_kvdb_home, 1, &paramv, &kvdb_handle);
+    ASSERT_EQ(0, hse_err_to_errno(err));
+
+    err = hse_kvdb_sync(kvdb_handle, 0);
+    ASSERT_EQ(EROFS, hse_err_to_errno(err));
+
+    err = hse_kvdb_param_get(kvdb_handle, "mode", buf, sizeof(buf), &needed_sz);
+    ASSERT_EQ(0, hse_err_to_errno(err));
+    ASSERT_STREQ("\"rdonly\"", buf);
+    ASSERT_EQ(8, needed_sz);
+
+    err = hse_kvdb_close(kvdb_handle);
+    ASSERT_EQ(0, hse_err_to_errno(err));
+
+    paramv = "mode=diag";
+    err = hse_kvdb_open(mtf_kvdb_home, 1, &paramv, &kvdb_handle);
+    ASSERT_EQ(0, hse_err_to_errno(err));
+
+    err = hse_kvdb_sync(kvdb_handle, 0);
+    ASSERT_EQ(EROFS, hse_err_to_errno(err));
+
+    err = hse_kvdb_param_get(kvdb_handle, "mode", buf, sizeof(buf), &needed_sz);
+    ASSERT_EQ(0, hse_err_to_errno(err));
+    ASSERT_STREQ("\"diag\"", buf);
+    ASSERT_EQ(6, needed_sz);
+
+    err = hse_kvdb_close(kvdb_handle);
+    ASSERT_EQ(0, hse_err_to_errno(err));
+
+    paramv = "mode=rdonly_replay";
+    err = hse_kvdb_open(mtf_kvdb_home, 1, &paramv, &kvdb_handle);
+    ASSERT_EQ(0, hse_err_to_errno(err));
+
+    err = hse_kvdb_sync(kvdb_handle, 0);
+    ASSERT_EQ(EROFS, hse_err_to_errno(err));
+
+    err = hse_kvdb_param_get(kvdb_handle, "mode", buf, sizeof(buf), &needed_sz);
+    ASSERT_EQ(0, hse_err_to_errno(err));
+    ASSERT_STREQ("\"rdonly_replay\"", buf);
+    ASSERT_EQ(15, needed_sz);
+
+    err = hse_kvdb_close(kvdb_handle);
+    ASSERT_EQ(0, hse_err_to_errno(err));
+
+    paramv = "mode=abc";
+    err = hse_kvdb_open(mtf_kvdb_home, 1, &paramv, &kvdb_handle);
+    ASSERT_EQ(EINVAL, hse_err_to_errno(err));
+
+    err = hse_kvdb_open(mtf_kvdb_home, 0, NULL, &kvdb_handle);
+    ASSERT_EQ(0, hse_err_to_errno(err));
+}
+
 MTF_DEFINE_UTEST(kvdb_api_test, param_null_kvdb)
 {
     hse_err_t err;
 
-    err = hse_kvdb_param_get(NULL, "read_only", NULL, 0, NULL);
+    err = hse_kvdb_param_get(NULL, "mode", NULL, 0, NULL);
     ASSERT_EQ(EINVAL, hse_err_to_errno(err));
 }
 
@@ -345,7 +407,7 @@ MTF_DEFINE_UTEST(kvdb_api_test, param_mismatched_buf_buf_sz)
 {
     hse_err_t err;
 
-    err = hse_kvdb_param_get(kvdb_handle, "read_only", NULL, 8, NULL);
+    err = hse_kvdb_param_get(kvdb_handle, "mode", NULL, 8, NULL);
     ASSERT_EQ(EINVAL, hse_err_to_errno(err));
 }
 
@@ -355,14 +417,14 @@ MTF_DEFINE_UTEST(kvdb_api_test, param_success)
     size_t    needed_sz;
     char      buf[8];
 
-    err = hse_kvdb_param_get(kvdb_handle, "read_only", NULL, 0, &needed_sz);
+    err = hse_kvdb_param_get(kvdb_handle, "mode", NULL, 0, &needed_sz);
     ASSERT_EQ(0, hse_err_to_errno(err));
-    ASSERT_EQ(5, needed_sz);
+    ASSERT_EQ(6, needed_sz);
 
-    err = hse_kvdb_param_get(kvdb_handle, "read_only", buf, sizeof(buf), &needed_sz);
+    err = hse_kvdb_param_get(kvdb_handle, "mode", buf, sizeof(buf), &needed_sz);
     ASSERT_EQ(0, hse_err_to_errno(err));
-    ASSERT_STREQ("false", buf);
-    ASSERT_EQ(5, needed_sz);
+    ASSERT_STREQ("\"rdwr\"", buf);
+    ASSERT_EQ(6, needed_sz);
 }
 
 MTF_DEFINE_UTEST(kvdb_api_test, storage_add_null_home)

@@ -736,7 +736,7 @@ exit_err:
     if (!err)
         err = kvdb_health_check(c0sk->c0sk_kvdb_health, KVDB_HEALTH_FLAG_ALL);
 
-    if (!err && HSE_LIKELY(!c0sk->c0sk_kvdb_rp->read_only)) {
+    if (HSE_LIKELY(!err && c0sk_allows_ingest(c0sk))) {
         u64 cn_min = 0, cn_max = 0;
 
         c0sk_ingest_rec_perfc(&c0sk->c0sk_pc_ingest, PERFC_DI_C0SKING_PREP, go);
