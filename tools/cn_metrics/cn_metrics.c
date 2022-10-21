@@ -23,7 +23,7 @@
 #include <tools/parm_groups.h>
 #include <tools/common.h>
 
-#include <mpool/mpool.h>
+#include <hse/mpool/mpool.h>
 
 #include <sysexits.h>
 

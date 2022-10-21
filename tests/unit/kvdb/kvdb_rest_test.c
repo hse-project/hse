@@ -22,7 +22,7 @@
 
 #include <hse_ikvdb/ikvdb.h>
 #include <hse_util/base.h>
-#include <mpool/mpool.h>
+#include <hse/mpool/mpool.h>
 
 char socket_path[PATH_MAX];
 char rest_socket_path_param[PATH_MAX + PATH_MAX / 2];

@@ -8,7 +8,7 @@
 #include <hse_ikvdb/cn.h>
 #include <hse_ikvdb/cn_kvdb.h>
 #include <hse_ikvdb/kvdb_health.h>
-#include <mpool/mpool.h>
+#include <hse/mpool/mpool.h>
 
 #include <cn/cn_internal.h>
 #include <cn/cn_tree.h>

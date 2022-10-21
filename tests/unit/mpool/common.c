@@ -16,7 +16,7 @@
 
 #include <mtf/common.h>
 #include <mtf/framework.h>
-#include <mpool/mpool.h>
+#include <hse/mpool/mpool.h>
 
 #include "common.h"
 

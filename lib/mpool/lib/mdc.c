@@ -11,7 +11,7 @@
 #include <hse/error/merr.h>
 #include <hse/logging/logging.h>
 
-#include <mpool/mpool.h>
+#include <hse/mpool/mpool.h>
 
 #include "mpool_internal.h"
 #include "mclass.h"

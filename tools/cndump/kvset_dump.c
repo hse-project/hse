@@ -18,8 +18,8 @@
 #include <hse_util/parse_num.h>
 #include <hse_util/fmt.h>
 
-#include <mpool/mpool_structs.h>
-#include <mpool/mpool.h>
+#include <hse/mpool/mpool_structs.h>
+#include <hse/mpool/mpool.h>
 
 #include <cn/omf.h>
 #include <cn/wbt_internal.h>

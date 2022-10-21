@@ -10,7 +10,7 @@
 
 #include <hse/error/merr.h>
 
-#include <mpool/mpool_structs.h>
+#include <hse/mpool/mpool_structs.h>
 
 #define MCLASS_MAX         (1 << 2) /* 2-bit for mclass-id */
 #define MP_DESTROY_THREADS 8

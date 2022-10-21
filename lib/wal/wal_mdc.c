@@ -9,7 +9,7 @@
 
 #include <hse_ikvdb/omf_version.h>
 
-#include <mpool/mpool.h>
+#include <hse/mpool/mpool.h>
 
 #include "wal.h"
 #include "wal_omf.h"

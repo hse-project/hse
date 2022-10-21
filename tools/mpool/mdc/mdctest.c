@@ -14,7 +14,7 @@
 
 #include <hse/hse.h>
 
-#include <mpool/mpool.h>
+#include <hse/mpool/mpool.h>
 
 #define BUF_SIZE 1024
 #define BUF_CNT  512

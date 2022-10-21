@@ -13,7 +13,7 @@
 #include <stdint.h>
 #include <stdio.h>
 
-#include <mpool/mpool.h>
+#include <hse/mpool/mpool.h>
 #include <hse/error/merr.h>
 
 struct kvdb_meta {

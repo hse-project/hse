@@ -13,7 +13,7 @@
 
 #include <hse_ikvdb/omf_version.h>
 
-#include <mpool/mpool.h>
+#include <hse/mpool/mpool.h>
 #include <mblock_file.h>
 #include <mblock_fset.h>
 #include <mpool_internal.h>

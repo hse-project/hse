@@ -29,7 +29,7 @@
 
 #include <hse/limits.h>
 #include <hse/kvdb_perfc.h>
-#include <mpool/mpool.h>
+#include <hse/mpool/mpool.h>
 
 #include "vblock_builder.h"
 #include "omf.h"

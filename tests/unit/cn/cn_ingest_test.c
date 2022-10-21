@@ -11,7 +11,7 @@
 #include <hse/logging/logging.h>
 #include <hse_util/atomic.h>
 
-#include <mpool/mpool.h>
+#include <hse/mpool/mpool.h>
 
 #include <hse_ikvdb/cn.h>
 #include <hse_ikvdb/kvset_builder.h>

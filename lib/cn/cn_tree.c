@@ -38,7 +38,7 @@
 #include <hse_util/compression_lz4.h>
 #include <hse/experimental.h>
 
-#include <mpool/mpool.h>
+#include <hse/mpool/mpool.h>
 
 #include <hse/limits.h>
 

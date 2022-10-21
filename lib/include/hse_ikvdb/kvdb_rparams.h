@@ -21,7 +21,7 @@
 #include <hse/logging/logging.h>
 #include <hse_util/compiler.h>
 
-#include <mpool/mpool_structs.h>
+#include <hse/mpool/mpool_structs.h>
 
 /*
  * Steps to add a new KVDB parameter:

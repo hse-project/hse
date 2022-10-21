@@ -18,7 +18,7 @@
 #include <hse_ikvdb/cndb.h>
 #include <hse_ikvdb/kvset_builder.h>
 
-#include <mpool/mpool.h>
+#include <hse/mpool/mpool.h>
 
 #include "kvs_mblk_desc.h"
 #include "kvset.h"

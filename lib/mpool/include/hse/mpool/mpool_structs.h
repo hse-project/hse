@@ -9,7 +9,7 @@
 #include <stdbool.h>
 #include <stdint.h>
 
-#include <mpool/limits.h>
+#include <hse/mpool/limits.h>
 
 #include <hse/types.h>
 

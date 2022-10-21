@@ -6,7 +6,7 @@
 #include <limits.h>
 
 #include <hse/logging/logging.h>
-#include <mpool/mpool_structs.h>
+#include <hse/mpool/mpool_structs.h>
 
 extern char capacity_path[PATH_MAX];
 extern char staging_path[PATH_MAX];

@@ -43,7 +43,7 @@
 #include <hse_ikvdb/kvset_builder.h>
 #include <hse_ikvdb/limits.h>
 
-#include <mpool/mpool.h>
+#include <hse/mpool/mpool.h>
 
 #include "cn_internal.h"
 

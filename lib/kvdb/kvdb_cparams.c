@@ -16,7 +16,7 @@
 #include <hse_ikvdb/kvdb_cparams.h>
 #include <hse_ikvdb/param.h>
 #include <hse_ikvdb/wal.h>
-#include <mpool/mpool.h>
+#include <hse/mpool/mpool.h>
 
 static const struct param_spec pspecs[] = {
     {

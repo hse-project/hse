@@ -13,7 +13,7 @@
 #include <hse_util/slab.h>
 #include <hse_util/assert.h>
 
-#include <mpool/mpool.h>
+#include <hse/mpool/mpool.h>
 
 #include "blk_list.h"
 

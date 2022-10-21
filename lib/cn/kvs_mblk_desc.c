@@ -7,8 +7,8 @@
 
 #include <sys/mman.h>
 
-#include <mpool/mpool_structs.h>
-#include <mpool/mpool.h>
+#include <hse/mpool/mpool_structs.h>
+#include <hse/mpool/mpool.h>
 
 #include <hse/error/merr.h>
 

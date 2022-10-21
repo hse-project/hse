@@ -18,7 +18,7 @@
 
 #include <hse_ikvdb/kvdb_rparams.h>
 
-#include <mpool/mpool.h>
+#include <hse/mpool/mpool.h>
 
 #include <semaphore.h>
 

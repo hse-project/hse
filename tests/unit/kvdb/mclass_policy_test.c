@@ -8,7 +8,7 @@
 #include <hse_ikvdb/argv.h>
 #include <hse_ikvdb/mclass_policy.h>
 #include <hse_ikvdb/kvdb_rparams.h>
-#include <mpool/mpool.h>
+#include <hse/mpool/mpool.h>
 
 /*
  * Pre and Post Functions

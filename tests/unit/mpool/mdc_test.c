@@ -13,7 +13,7 @@
 #include <hse/error/merr.h>
 #include <hse_util/minmax.h>
 
-#include <mpool/mpool.h>
+#include <hse/mpool/mpool.h>
 #include <mdc.h>
 #include <mdc_file.h>
 

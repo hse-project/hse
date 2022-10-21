@@ -9,7 +9,7 @@
 #include <hse_util/platform.h>
 #include <hse_util/atomic.h>
 
-#include <mpool/mpool.h>
+#include <hse/mpool/mpool.h>
 
 #include "cn/kvs_mblk_desc.h"
 

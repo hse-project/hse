@@ -8,7 +8,7 @@
 
 #include <hse/error/merr.h>
 
-#include <mpool/mpool_structs.h>
+#include <hse/mpool/mpool_structs.h>
 
 struct media_class;
 struct mpool;
