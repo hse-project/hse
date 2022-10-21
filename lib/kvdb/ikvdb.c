@@ -2806,7 +2806,6 @@ ikvdb_kvs_cursor_create(
 
     cur->kc_kvs = kk;
     cur->kc_gen = 0;
-    cur->kc_ctxn = ctxn;
     cur->kc_bind = ctxn ? kvdb_ctxn_cursor_bind(ctxn) : NULL;
 
     /* Temporarily lock a view until this cursor gets refs on cn kvsets. */
@@ -2855,8 +2854,10 @@ ikvdb_kvs_cursor_update_view(struct hse_kvs_cursor *cur, unsigned int flags)
     if (ev(cur->kc_err))
         return cur->kc_err;
 
-    if (ev(cur->kc_ctxn))
-        return merr(EINVAL);
+    /* This is a no-op for a transaction cursor.
+     */
+    if (cur->kc_bind)
+        return 0;
 
     cur->kc_seq = HSE_SQNREF_UNDEFINED;
 

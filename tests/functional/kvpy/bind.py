@@ -83,5 +83,6 @@ try:
             cursor2.destroy()
 
         cursor1.destroy()
+
 finally:
     hse.fini()
