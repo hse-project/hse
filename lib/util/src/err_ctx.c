@@ -11,6 +11,8 @@ err_ctx_strerror(const int ctx)
     switch ((enum hse_err_ctx)ctx) {
     case HSE_ERR_CTX_NONE:
         return "No context";
+    case HSE_ERR_CTX_TXN_EXPIRED:
+        return "Transaction expired";
     }
 
     return "Undefined";

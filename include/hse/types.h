@@ -55,6 +55,7 @@ typedef uint64_t hse_err_t;
 /** @brief Error context values */
 enum hse_err_ctx {
     HSE_ERR_CTX_NONE, /**< No context */
+    HSE_ERR_CTX_TXN_EXPIRED, /**< Transaction timed out */
 };
 
 /** @brief Smallest error context value */

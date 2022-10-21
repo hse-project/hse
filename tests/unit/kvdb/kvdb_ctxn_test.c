@@ -1,7 +1,10 @@
 /* SPDX-License-Identifier: Apache-2.0 */
 /*
- * Copyright (C) 2015-2021 Micron Technology, Inc.  All rights reserved.
+ * Copyright (C) 2015-2022 Micron Technology, Inc.  All rights reserved.
  */
+
+#include <pthread.h>
+#include <unistd.h>
 
 #include <mtf/framework.h>
 #include <mock/api.h>
@@ -19,7 +22,6 @@
 #include <hse_ikvdb/c0_kvmultiset.h>
 #include <hse_ikvdb/kvdb_ctxn.h>
 #include <hse_ikvdb/limits.h>
-#include <pthread.h>
 
 #include <tools/key_generation.h>
 #include <hse_ikvdb/tuple.h>
@@ -1484,5 +1486,60 @@ MTF_DEFINE_UTEST_PREPOST(kvdb_ctxn_test, multiple_ctxn_commit, mapi_pre, mapi_po
     kvdb_keylock_destroy(klock);
 }
 #endif
+
+MTF_DEFINE_UTEST_PREPOST(kvdb_ctxn_test, expired, mapi_pre, mapi_post)
+{
+    merr_t err;
+    uint64_t seqno;
+    struct viewset *vs;
+    struct kvdb_ctxn *handle;
+    struct kvdb_ctxn_impl *ctxn;
+    struct c0snr_set *css;
+    struct kvdb_ctxn_set *set;
+    atomic_ulong kvdb_seq, tseqno;
+    enum kvdb_ctxn_state state;
+
+    atomic_set(&kvdb_seq, 1);
+    atomic_set(&tseqno, 0);
+
+    err = viewset_create(&vs, &kvdb_seq, &tseqno);
+    ASSERT_TRUE(err == 0);
+
+    /* 1 second timeout with a 1 second delay */
+    err = kvdb_ctxn_set_create(&set, 1000, 1000);
+    ASSERT_EQ(0, merr_errno(err));
+
+    err = c0snr_set_create(&css);
+    ASSERT_EQ(0, merr_errno(err));
+
+    handle = kvdb_ctxn_alloc(NULL, NULL, &kvdb_seq, set, vs, css, NULL, NULL);
+    ASSERT_NE(NULL, handle);
+
+    ctxn = kvdb_ctxn_h2r(handle);
+
+    err = kvdb_ctxn_begin(handle);
+    ASSERT_EQ(0, merr_errno(err));
+
+    /* Force the transaction to get internally aborted due to timeout. */
+    while (true) {
+        state = kvdb_ctxn_get_state(handle);
+        if (state != KVDB_CTXN_ABORTED) {
+            sleep(2);
+            continue;
+        }
+
+        ASSERT_TRUE(ctxn->ctxn_expired);
+        break;
+    }
+
+    err = kvdb_ctxn_get_view_seqno(handle, &seqno);
+    ASSERT_EQ(EPROTO, merr_errno(err));
+    ASSERT_EQ(HSE_ERR_CTX_TXN_EXPIRED, merr_ctx(err));
+
+    kvdb_ctxn_free(handle);
+    kvdb_ctxn_set_destroy(set);
+    c0snr_set_destroy(css);
+    viewset_destroy(vs);
+}
 
 MTF_END_UTEST_COLLECTION(kvdb_ctxn_test);

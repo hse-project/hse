@@ -64,6 +64,7 @@ struct kvdb_ctxn_impl {
     struct list_head        ctxn_free_link;
     struct list_head        ctxn_abort_link;
     u64                     ctxn_begin_ts;
+    bool                    ctxn_expired;
 };
 
 /* clang-format on */
