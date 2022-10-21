@@ -339,6 +339,7 @@ struct mapi_injection inject_list[] = {
     { mapi_idx_cn_ref_get, MAPI_RC_SCALAR, 0 },
     { mapi_idx_cn_ref_put, MAPI_RC_SCALAR, 0 },
     { mapi_idx_kvset_get_vgroups, MAPI_RC_SCALAR, 0 },
+    { mapi_idx_route_map_delete, MAPI_RC_SCALAR, 0 },
     { -1 },
 };
 
@@ -352,9 +353,7 @@ mock_init(void)
     mapi_inject_list_set(inject_list);
 
     MOCK_SET_FN(csched_sp3_work, sp3_work, sp3_work_mock);
-
     MOCK_SET_FN(sched_sts, sts_job_submit, sts_job_submit_mock);
-
     MOCK_SET_FN(cn_tree_internal, cn_node_stats_get, cn_node_stats_get_mock);
 }
 
