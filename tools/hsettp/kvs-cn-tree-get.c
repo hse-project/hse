@@ -220,19 +220,19 @@ kvs_cn_tree_get_free_values(const int len, char **const values)
 }
 
 /* This function is called to produce a tabular representation of the tree
- * from the JSON produced by kvs_query_tree() in kvdb_rest.c.  There are no
+ * from the JSON produced by cn_tree_serialize() in cn.c.  There are no
  * direct callers of this function.  Instead, it is invoked through function
  * pointers obtained via dlsym() by setup_tabular_custom().
  */
 merr_t
 kvs_cn_tree_get_parse_values(cJSON *const body, int *const len, char ***const values)
 {
-    int rc HSE_MAYBE_UNUSED;
     merr_t err;
     char buf[128];
     uint64_t cnid = 0;
     double samp_curr = 0;
     cJSON *nodes, *entry;
+    int rc HSE_MAYBE_UNUSED;
     unsigned int prev_kvsetc = 0;
     unsigned int offset = 0, nodec = 0, tree_kvsetc = 0, node_kvsetc = 0;
 
@@ -263,8 +263,8 @@ kvs_cn_tree_get_parse_values(cJSON *const body, int *const len, char ***const va
         return merr(ENOMEM);
 
     for (cJSON *n = nodes->child; n; n = n->next) {
-        cJSON *kvsets, *id;
         uint idx = 0;
+        cJSON *kvsets, *id;
 
         kvsets = cJSON_GetObjectItemCaseSensitive(n, "kvsets");
         assert(cJSON_IsNumber(kvsets) || cJSON_IsArray(kvsets));
@@ -298,9 +298,6 @@ kvs_cn_tree_get_parse_values(cJSON *const body, int *const len, char ***const va
             prev_kvsetc = node_kvsetc;
 
             for (cJSON *k = kvsets ? kvsets->child : NULL; k; k = k->next) {
-                ulong job_time = 0;
-                uint job_id = 0;
-
                 (*values)[offset] = strv_kvset;
                 offset += 1;
 
@@ -327,42 +324,44 @@ kvs_cn_tree_get_parse_values(cJSON *const body, int *const len, char ***const va
                     return merr(ENOMEM);
                 offset += 1;
 
-                entry = cJSON_GetObjectItemCaseSensitive(k, "job_id");
-                if (entry && cJSON_IsNumber(id)) {
-                    const char *job_action = "-";
-                    const char *job_rule = "-";
-                    const char *job_wmesg = "-";
+                entry = cJSON_GetObjectItemCaseSensitive(k, "job");
+                assert(cJSON_IsNull(entry) || cJSON_IsObject(entry));
+                if (cJSON_IsObject(entry)) {
+                    uint id;
+                    ulong time;
+                    const char *rule;
+                    const char *wmesg;
+                    const char *action;
 
-                    job_id = cJSON_GetNumberValue(entry);
+                    entry = cJSON_GetObjectItemCaseSensitive(k, "id");
+                    assert(cJSON_IsNumber(entry));
+                    id = cJSON_GetNumberValue(entry);
 
-                    entry = cJSON_GetObjectItemCaseSensitive(k, "job_action");
-                    if (cJSON_IsString(entry))
-                        job_action = entry->valuestring;
+                    entry = cJSON_GetObjectItemCaseSensitive(k, "action");
+                    assert(cJSON_IsString(entry));
+                    action = cJSON_GetStringValue(entry);
 
-                    entry = cJSON_GetObjectItemCaseSensitive(k, "job_rule");
-                    if (cJSON_IsString(entry))
-                        job_rule = entry->valuestring;
+                    entry = cJSON_GetObjectItemCaseSensitive(k, "rule");
+                    assert(cJSON_IsString(entry));
+                    rule = cJSON_GetStringValue(entry);
 
-                    entry = cJSON_GetObjectItemCaseSensitive(k, "job_wmesg");
-                    if (cJSON_IsString(entry))
-                        job_wmesg = entry->valuestring;
+                    entry = cJSON_GetObjectItemCaseSensitive(k, "wmesg");
+                    assert(cJSON_IsString(entry));
+                    wmesg = cJSON_GetStringValue(entry);
 
-                    entry = cJSON_GetObjectItemCaseSensitive(k, "job_time");
-                    if (cJSON_IsNumber(id))
-                        job_time = cJSON_GetNumberValue(entry);
+                    entry = cJSON_GetObjectItemCaseSensitive(k, "time");
+                    assert(cJSON_IsNumber(entry));
+                    time = cJSON_GetNumberValue(entry);
 
                     rc = snprintf(buf, sizeof(buf), "- %u %s/%s %lu:%02lu %s",
-                                  job_id,
-                                  job_action,
-                                  job_rule,
-                                  (job_time / 60) % 60, job_time % 60,
-                                  job_wmesg);
-                    if (rc > 0)
-                        (*values)[offset] = strdup(buf);
-                }
-
-                if (!(*values)[offset])
+                        id, action, rule, (time / 60) % 60, time % 60, wmesg);
+                    assert(rc > 0);
+                    (*values)[offset] = strdup(buf);
+                    if (!(*values)[offset])
+                        return merr(ENOMEM);
+                } else {
                     (*values)[offset] = strv_dash;
+                }
                 offset += 1;
             }
         } else {
@@ -414,9 +413,7 @@ kvs_cn_tree_get_parse_values(cJSON *const body, int *const len, char ***const va
         } else {
             size_t len = strlen(addr);
 
-            /* rawify() ensures there is sufficent space
-             * to append a newline.
-             */
+            /* rawify() ensures there is sufficent space to append a newline. */
             addr[len++] = '\n';
             addr[len] = '\000';
         }
@@ -457,16 +454,14 @@ kvs_cn_tree_get_parse_values(cJSON *const body, int *const len, char ***const va
         samp_curr = cJSON_GetNumberValue(entry);
 
     entry = cJSON_GetObjectItemCaseSensitive(body, "name");
-    if (cJSON_IsString(entry)) {
-        rc = snprintf(buf, sizeof(buf), "- %lu %s %.3lf",
-                      cnid, entry->valuestring, samp_curr / 1000);
-        assert(rc > 0);
+    assert(cJSON_IsString(entry));
 
-        (*values)[offset] = strdup(buf);
-    }
-
+    rc = snprintf(buf, sizeof(buf), "- %lu %s %.3lf",
+        cnid, cJSON_GetStringValue(entry), samp_curr / 1000);
+    assert(rc > 0);
+    (*values)[offset] = strdup(buf);
     if (!(*values)[offset])
-        (*values)[offset] = strv_dash;
+        return merr(ENOMEM);
     offset += 1;
 
     return 0;

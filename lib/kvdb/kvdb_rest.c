@@ -47,7 +47,6 @@
 #define ENDPOINT_FMT_KVDB_MCLASS   "/kvdbs/%s/mclass/%s"
 #define ENDPOINT_FMT_KVDB_PARAMS   "/kvdbs/%s/params"
 #define ENDPOINT_FMT_KVDB_PERFC    "/kvdbs/%s/perfc"
-#define ENDPOINT_FMT_KVS_CN_TREE   "/kvdbs/%s/kvs/%s/cn/tree"
 #define ENDPOINT_FMT_KVS_PARAMS    "/kvdbs/%s/kvs/%s/params"
 #define ENDPOINT_FMT_KVS_PERFC     "/kvdbs/%s/kvs/%s/perfc"
 
@@ -964,82 +963,10 @@ cn_tree_query(
     const bool kvsets,
     cJSON *root);
 
-static enum rest_status
-rest_kvs_cn_tree(
-    const struct rest_request *const req,
-    struct rest_response *const resp,
-    void *const ctx)
-{
-    char *data;
-    merr_t err;
-    cJSON *root;
-    bool pretty;
-    bool human;
-    bool kvsets;
-    struct kvdb_kvs *kvs;
-    enum rest_status status = REST_STATUS_OK;
-
-    INVARIANT(req);
-    INVARIANT(resp);
-    INVARIANT(ctx);
-
-    kvs = ctx;
-
-    err = rest_params_get(req->rr_params, "pretty", &pretty, false);
-    if (ev(err))
-        return REST_STATUS_BAD_REQUEST;
-
-    err = rest_params_get(req->rr_params, "human", &human, false);
-    if (ev(err))
-        return REST_STATUS_BAD_REQUEST;
-
-    err = rest_params_get(req->rr_params, "kvsets", &kvsets, false);
-    if (ev(err))
-        return REST_STATUS_BAD_REQUEST;
-
-    root = cJSON_CreateObject();
-    if (ev(!root))
-        return REST_STATUS_INTERNAL_SERVER_ERROR;
-
-    err = cn_tree_query(cn_get_tree(kvs_cn(kvs->kk_ikvs)), human, kvsets, root);
-    if (ev(err)) {
-        status = REST_STATUS_INTERNAL_SERVER_ERROR;
-        goto out;
-    }
-
-    if (!cJSON_AddStringToObject(root, "name", kvs->kk_name)) {
-        status = REST_STATUS_INTERNAL_SERVER_ERROR;
-        goto out;
-    }
-
-    data = (pretty ? cJSON_Print : cJSON_PrintUnformatted)(root);
-    if (ev(!data)) {
-        status = REST_STATUS_INTERNAL_SERVER_ERROR;
-        goto out;
-    }
-
-    fputs(data, resp->rr_stream);
-    cJSON_free(data);
-
-    err = rest_headers_set(resp->rr_headers, REST_HEADER_CONTENT_TYPE, REST_APPLICATION_JSON);
-    if (ev(err)) {
-        status = REST_STATUS_INTERNAL_SERVER_ERROR;
-        goto out;
-    }
-
-out:
-    cJSON_Delete(root);
-
-    return status;
-}
-
 merr_t
 kvs_rest_add_endpoints(struct ikvdb *const kvdb, struct kvdb_kvs *const kvs)
 {
     static rest_handler *handlers[][REST_METHOD_COUNT] = {
-        {
-            [REST_METHOD_GET] = rest_kvs_cn_tree,
-        },
         {
             [REST_METHOD_GET] = rest_kvs_params_get,
             [REST_METHOD_PUT] = rest_kvs_params_put,
@@ -1057,15 +984,7 @@ kvs_rest_add_endpoints(struct ikvdb *const kvdb, struct kvdb_kvs *const kvs)
 
     alias = ikvdb_alias(kvdb);
 
-    err = rest_server_add_endpoint(REST_ENDPOINT_EXACT,  handlers[0], kvs,
-        "/kvdbs/%s/kvs/%s/cn/tree", alias, kvs->kk_name);
-    if (err) {
-        log_errx("Failed to add REST endpoint (" ENDPOINT_FMT_KVS_CN_TREE ")", err,
-            alias, kvs->kk_name);
-        goto out;
-    }
-
-    err = rest_server_add_endpoint(0, handlers[1], kvs, ENDPOINT_FMT_KVS_PARAMS,
+    err = rest_server_add_endpoint(0, handlers[0], kvs, ENDPOINT_FMT_KVS_PARAMS,
         alias, kvs->kk_name);
     if (err) {
         log_errx("Failed to add REST endpoint (" ENDPOINT_FMT_KVS_PARAMS ")", err,
@@ -1073,7 +992,7 @@ kvs_rest_add_endpoints(struct ikvdb *const kvdb, struct kvdb_kvs *const kvs)
         goto out;
     }
 
-    err = rest_server_add_endpoint(0, handlers[2], kvs, ENDPOINT_FMT_KVS_PERFC,
+    err = rest_server_add_endpoint(0, handlers[1], kvs, ENDPOINT_FMT_KVS_PERFC,
         alias, kvs->kk_name);
     if (err) {
         log_errx("Failed to add REST endpoint (" ENDPOINT_FMT_KVS_PERFC ")", err,
@@ -1101,7 +1020,6 @@ kvs_rest_remove_endpoints(struct ikvdb *const kvdb, struct kvdb_kvs *const kvs)
 
     alias = ikvdb_alias(kvdb);
 
-    rest_server_remove_endpoint(ENDPOINT_FMT_KVS_CN_TREE, alias, kvs->kk_name);
     rest_server_remove_endpoint(ENDPOINT_FMT_KVS_PARAMS, alias, kvs->kk_name);
     rest_server_remove_endpoint(ENDPOINT_FMT_KVS_PERFC, alias, kvs->kk_name);
 

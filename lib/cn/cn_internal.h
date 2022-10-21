@@ -68,7 +68,7 @@ struct cn {
     u32 cn_cflags;
 
     const char *cn_kvdb_alias;
-    char        cn_kvsname[HSE_KVS_NAME_LEN_MAX];
+    const char *cn_kvs_name;
 
     struct mpool_props cn_mpool_props;
 };
