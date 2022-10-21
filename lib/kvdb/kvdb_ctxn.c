@@ -75,34 +75,6 @@ struct kvdb_ctxn_set_impl {
 
 /* clang-format on */
 
-static inline void
-kvdb_ctxn_bind_putref(struct kvdb_ctxn_bind *bind)
-{
-    int refcnt = atomic_dec_return(&bind->b_ref);
-
-    assert(refcnt >= 0);
-    if (refcnt == 0)
-        bind->b_ctxn = NULL;
-}
-
-static inline void
-kvdb_ctxn_bind_getref(struct kvdb_ctxn_bind *bind)
-{
-    atomic_inc(&bind->b_ref);
-}
-
-static inline void
-kvdb_ctxn_bind_invalidate(struct kvdb_ctxn_bind *bind)
-{
-    atomic_inc(&bind->b_gen);
-}
-
-static inline void
-kvdb_ctxn_bind_cancel(struct kvdb_ctxn_bind *bind)
-{
-    bind->b_ctxn = 0;
-}
-
 static HSE_ALWAYS_INLINE merr_t
 kvdb_ctxn_trylock_impl(struct kvdb_ctxn_impl *ctxn)
 {
@@ -126,6 +98,45 @@ static HSE_ALWAYS_INLINE void
 kvdb_ctxn_unlock_impl(struct kvdb_ctxn_impl *ctxn)
 {
     mutex_unlock(&ctxn->ctxn_lock);
+}
+
+static inline void
+kvdb_ctxn_bind_putref(struct kvdb_ctxn_bind *bind)
+{
+    int refcnt;
+    struct kvdb_ctxn *bind_ctxn = bind->b_ctxn;
+
+    if (kvdb_ctxn_trylock_impl(kvdb_ctxn_h2r(bind->b_ctxn)) != 0)
+        return;
+
+    refcnt = atomic_dec_return(&bind->b_ref);
+    assert(refcnt >= 0);
+    if (refcnt == 0)
+        bind->b_ctxn = NULL;
+
+    kvdb_ctxn_unlock_impl(kvdb_ctxn_h2r(bind_ctxn));
+}
+
+static inline void
+kvdb_ctxn_bind_getref(struct kvdb_ctxn_bind *bind)
+{
+    if (kvdb_ctxn_trylock_impl(kvdb_ctxn_h2r(bind->b_ctxn)) != 0)
+        return;
+
+    atomic_inc(&bind->b_ref);
+    kvdb_ctxn_unlock_impl(kvdb_ctxn_h2r(bind->b_ctxn));
+}
+
+static inline void
+kvdb_ctxn_bind_invalidate(struct kvdb_ctxn_bind *bind)
+{
+    atomic_inc(&bind->b_gen);
+}
+
+static inline void
+kvdb_ctxn_bind_cancel(struct kvdb_ctxn_bind *bind)
+{
+    bind->b_ctxn = 0;
 }
 
 static void
@@ -772,11 +783,9 @@ kvdb_ctxn_cursor_bind(struct kvdb_ctxn *handle)
     struct kvdb_ctxn_impl *ctxn = kvdb_ctxn_h2r(handle);
     struct kvdb_ctxn_bind *bind;
 
-    if (seqnoref_to_state(ctxn->ctxn_seqref) != KVDB_CTXN_ACTIVE)
-        return NULL;
-
     bind = &ctxn->ctxn_bind;
-    kvdb_ctxn_bind_getref(bind);
+    if (bind->b_ctxn)
+        kvdb_ctxn_bind_getref(bind);
 
     return bind;
 }
@@ -784,7 +793,9 @@ kvdb_ctxn_cursor_bind(struct kvdb_ctxn *handle)
 void
 kvdb_ctxn_cursor_unbind(struct kvdb_ctxn_bind *bind)
 {
-    if (bind->b_ctxn)
+    bool x = !!bind->b_ctxn;
+
+    if (x)
         kvdb_ctxn_bind_putref(bind);
 }
 
