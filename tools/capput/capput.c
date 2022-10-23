@@ -104,7 +104,7 @@ void
 del_ptombs(void *arg)
 {
     struct kh_thread_arg *targ = arg;
-    struct hse_kvdb_txn *txn;
+    struct hse_txn *txn;
     hse_err_t err;
 
     txn = hse_kvdb_txn_alloc(targ->kvdb);
@@ -132,14 +132,14 @@ del_ptombs(void *arg)
         p = (uint64_t *)key;
         *p = htobe64(next_del);
 
-        err = hse_kvdb_txn_begin(targ->kvdb, txn);
+        err = hse_txn_begin(targ->kvdb, txn);
         if (err)
             fatal(err, "Failed to begin txn");
 
         err = hse_kvs_prefix_delete(targ->kvs, 0, txn, key, sizeof(*p));
         if (err) {
             if (hse_err_to_errno(err) == ECANCELED) {
-                err = hse_kvdb_txn_abort(targ->kvdb, txn);
+                err = hse_txn_abort(targ->kvdb, txn);
                 if (err)
                     fatal(err, "Failed to abort txn");
                 continue;
@@ -151,7 +151,7 @@ del_ptombs(void *arg)
             exrc = EX_DATAERR;
         }
 
-        err = hse_kvdb_txn_commit(targ->kvdb, txn);
+        err = hse_txn_commit(targ->kvdb, txn);
         if (err)
             fatal(err, "Failed to commit txn");
 
@@ -165,7 +165,7 @@ void
 del_tombs(void *arg)
 {
     struct kh_thread_arg *targ = arg;
-    struct hse_kvdb_txn *txn;
+    struct hse_txn *txn;
     uint64_t suffix = 1;
     hse_err_t err;
 
@@ -192,7 +192,7 @@ del_tombs(void *arg)
         }
 
       retry:
-        err = hse_kvdb_txn_begin(targ->kvdb, txn);
+        err = hse_txn_begin(targ->kvdb, txn);
         if (err)
             fatal(err, "Failed to begin txn");
 
@@ -207,7 +207,7 @@ del_tombs(void *arg)
             err = hse_kvs_delete(targ->kvs, 0, txn, key, sizeof(key));
             if (err) {
                 if (hse_err_to_errno(err) == ECANCELED) {
-                    err = hse_kvdb_txn_abort(targ->kvdb, txn);
+                    err = hse_txn_abort(targ->kvdb, txn);
                     if (err)
                         fatal(err, "Failed to abort txn");
                     usleep(333);
@@ -221,7 +221,7 @@ del_tombs(void *arg)
             }
         }
 
-        err = hse_kvdb_txn_commit(targ->kvdb, txn);
+        err = hse_txn_commit(targ->kvdb, txn);
         if (err)
             fatal(err, "Failed to commit txn");
 
@@ -237,7 +237,7 @@ txput(void *arg)
 {
     struct kh_thread_arg *targ = arg;
     struct thread_info *ti = targ->arg;
-    struct hse_kvdb_txn    *txn;
+    struct hse_txn    *txn;
     uint64_t *p = 0; /* prefix */
     uint64_t *s = 0; /* suffix */
     hse_err_t err;
@@ -271,7 +271,7 @@ txput(void *arg)
         *s = htobe64(atomic_inc_return(&sfx)); /* suffix */
 
         ti->state = 'b';
-        err = hse_kvdb_txn_begin(targ->kvdb, txn);
+        err = hse_txn_begin(targ->kvdb, txn);
         if (err)
             fatal(err, "Failed to begin txn");
 
@@ -280,7 +280,7 @@ txput(void *arg)
         if (err) {
             if (hse_err_to_errno(err) == ECANCELED) {
                 ti->state = 'a';
-                err = hse_kvdb_txn_abort(targ->kvdb, txn);
+                err = hse_txn_abort(targ->kvdb, txn);
                 if (err)
                     fatal(err, "Failed to abort txn");
                 usleep(1000);
@@ -294,13 +294,13 @@ txput(void *arg)
 
         if (!err) {
             ti->state = 'c';
-            err = hse_kvdb_txn_commit(targ->kvdb, txn);
+            err = hse_txn_commit(targ->kvdb, txn);
             if (err)
                 fatal(err, "Failed to commit txn");
             added++;
         } else {
             ti->state = 'A';
-            err = hse_kvdb_txn_abort(targ->kvdb, txn);
+            err = hse_txn_abort(targ->kvdb, txn);
             if (err)
                 fatal(err, "Failed to abort txn");
         }
@@ -428,7 +428,7 @@ reader(void *arg)
 {
     struct kh_thread_arg  *targ = arg;
     struct thread_info *ti = targ->arg;
-    struct hse_kvdb_txn *txn;
+    struct hse_txn *txn;
     struct hse_kvs_cursor  *c;
     uint32_t            cnt;
     bool                eof = false;
@@ -446,7 +446,7 @@ reader(void *arg)
         uint64_t last_safe_pfx = atomic_read(&pfx) - 1;
 
         ti->state = 'b';
-        err = hse_kvdb_txn_begin(targ->kvdb, txn);
+        err = hse_txn_begin(targ->kvdb, txn);
         if (err)
             fatal(err, "Failed to begin txn");
 
@@ -524,7 +524,7 @@ reader(void *arg)
 
         /* Abort txn: This was a read-only txn */
         ti->state = 'a';
-        err = hse_kvdb_txn_abort(targ->kvdb, txn);
+        err = hse_txn_abort(targ->kvdb, txn);
         if (err)
             fatal(err, "Failed to abort txn");
 

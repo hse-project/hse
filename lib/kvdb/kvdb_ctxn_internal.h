@@ -3,8 +3,8 @@
  * Copyright (C) 2015-2022 Micron Technology, Inc.  All rights reserved.
  */
 
-#ifndef HSE_KVDB_TXN_INTERNAL_H
-#define HSE_KVDB_TXN_INTERNAL_H
+#ifndef HSE_KVDB_CTXN_INTERNAL_H
+#define HSE_KVDB_CTXN_INTERNAL_H
 
 #include <urcu-bp.h>
 

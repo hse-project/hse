@@ -54,7 +54,7 @@ MTF_BEGIN_UTEST_COLLECTION_PREPOST(
 
 MTF_DEFINE_UTEST(transaction_api_test, alloc_null_kvdb)
 {
-    struct hse_kvdb_txn *txn;
+    struct hse_txn *txn;
 
     txn = hse_kvdb_txn_alloc(NULL);
 
@@ -64,68 +64,68 @@ MTF_DEFINE_UTEST(transaction_api_test, alloc_null_kvdb)
 MTF_DEFINE_UTEST(transaction_api_test, state_transitions)
 {
     hse_err_t               err;
-    struct hse_kvdb_txn    *txn;
-    enum hse_kvdb_txn_state state;
+    struct hse_txn    *txn;
+    enum hse_txn_state state;
 
     txn = hse_kvdb_txn_alloc(kvdb_handle);
     ASSERT_NE(NULL, txn);
 
-    state = hse_kvdb_txn_state_get(kvdb_handle, txn);
-    ASSERT_EQ(HSE_KVDB_TXN_INVALID, state);
+    state = hse_txn_state_get(kvdb_handle, txn);
+    ASSERT_EQ(HSE_TXN_INVALID, state);
 
-    err = hse_kvdb_txn_begin(kvdb_handle, txn);
+    err = hse_txn_begin(kvdb_handle, txn);
     ASSERT_EQ(0, hse_err_to_errno(err));
 
-    state = hse_kvdb_txn_state_get(kvdb_handle, txn);
-    ASSERT_EQ(HSE_KVDB_TXN_ACTIVE, state);
+    state = hse_txn_state_get(kvdb_handle, txn);
+    ASSERT_EQ(HSE_TXN_ACTIVE, state);
 
-    err = hse_kvdb_txn_abort(kvdb_handle, txn);
+    err = hse_txn_abort(kvdb_handle, txn);
     ASSERT_EQ(0, hse_err_to_errno(err));
 
-    state = hse_kvdb_txn_state_get(kvdb_handle, txn);
-    ASSERT_EQ(HSE_KVDB_TXN_ABORTED, state);
+    state = hse_txn_state_get(kvdb_handle, txn);
+    ASSERT_EQ(HSE_TXN_ABORTED, state);
 
-    err = hse_kvdb_txn_begin(kvdb_handle, txn);
+    err = hse_txn_begin(kvdb_handle, txn);
     ASSERT_EQ(0, hse_err_to_errno(err));
 
-    err = hse_kvdb_txn_commit(kvdb_handle, txn);
+    err = hse_txn_commit(kvdb_handle, txn);
     ASSERT_EQ(0, hse_err_to_errno(err));
 
-    state = hse_kvdb_txn_state_get(kvdb_handle, txn);
-    ASSERT_EQ(HSE_KVDB_TXN_COMMITTED, state);
+    state = hse_txn_state_get(kvdb_handle, txn);
+    ASSERT_EQ(HSE_TXN_COMMITTED, state);
 
     hse_kvdb_txn_free(kvdb_handle, txn);
 }
 
 MTF_DEFINE_UTEST(transaction_api_test, state_get_null_kvdb)
 {
-    struct hse_kvdb_txn    *txn;
-    enum hse_kvdb_txn_state state;
+    struct hse_txn    *txn;
+    enum hse_txn_state state;
 
     txn = hse_kvdb_txn_alloc(kvdb_handle);
     ASSERT_NE(NULL, txn);
 
-    state = hse_kvdb_txn_state_get(NULL, txn);
-    ASSERT_EQ(HSE_KVDB_TXN_INVALID, state);
+    state = hse_txn_state_get(NULL, txn);
+    ASSERT_EQ(HSE_TXN_INVALID, state);
 }
 
 MTF_DEFINE_UTEST(transaction_api_test, state_get_null_txn)
 {
-    enum hse_kvdb_txn_state state;
+    enum hse_txn_state state;
 
-    state = hse_kvdb_txn_state_get(kvdb_handle, NULL);
-    ASSERT_EQ(HSE_KVDB_TXN_INVALID, state);
+    state = hse_txn_state_get(kvdb_handle, NULL);
+    ASSERT_EQ(HSE_TXN_INVALID, state);
 }
 
 MTF_DEFINE_UTEST(transaction_api_test, begin_null_kvdb)
 {
     hse_err_t            err;
-    struct hse_kvdb_txn *txn;
+    struct hse_txn *txn;
 
     txn = hse_kvdb_txn_alloc(kvdb_handle);
     ASSERT_NE(NULL, txn);
 
-    err = hse_kvdb_txn_begin(NULL, txn);
+    err = hse_txn_begin(NULL, txn);
     ASSERT_EQ(EINVAL, hse_err_to_errno(err));
 }
 
@@ -133,19 +133,19 @@ MTF_DEFINE_UTEST(transaction_api_test, begin_null_txn)
 {
     hse_err_t err;
 
-    err = hse_kvdb_txn_begin(kvdb_handle, NULL);
+    err = hse_txn_begin(kvdb_handle, NULL);
     ASSERT_EQ(EINVAL, hse_err_to_errno(err));
 }
 
 MTF_DEFINE_UTEST(transaction_api_test, commit_null_kvdb)
 {
     hse_err_t            err;
-    struct hse_kvdb_txn *txn;
+    struct hse_txn *txn;
 
     txn = hse_kvdb_txn_alloc(kvdb_handle);
     ASSERT_NE(NULL, txn);
 
-    err = hse_kvdb_txn_commit(NULL, txn);
+    err = hse_txn_commit(NULL, txn);
     ASSERT_EQ(EINVAL, hse_err_to_errno(err));
 }
 
@@ -153,19 +153,19 @@ MTF_DEFINE_UTEST(transaction_api_test, commit_null_txn)
 {
     hse_err_t err;
 
-    err = hse_kvdb_txn_commit(kvdb_handle, NULL);
+    err = hse_txn_commit(kvdb_handle, NULL);
     ASSERT_EQ(EINVAL, hse_err_to_errno(err));
 }
 
 MTF_DEFINE_UTEST(transaction_api_test, abort_null_kvdb)
 {
     hse_err_t            err;
-    struct hse_kvdb_txn *txn;
+    struct hse_txn *txn;
 
     txn = hse_kvdb_txn_alloc(kvdb_handle);
     ASSERT_NE(NULL, txn);
 
-    err = hse_kvdb_txn_abort(NULL, txn);
+    err = hse_txn_abort(NULL, txn);
     ASSERT_EQ(EINVAL, hse_err_to_errno(err));
 
     hse_kvdb_txn_free(kvdb_handle, txn);
@@ -175,19 +175,19 @@ MTF_DEFINE_UTEST(transaction_api_test, abort_null_txn)
 {
     hse_err_t err;
 
-    err = hse_kvdb_txn_abort(kvdb_handle, NULL);
+    err = hse_txn_abort(kvdb_handle, NULL);
     ASSERT_EQ(EINVAL, hse_err_to_errno(err));
 }
 
 MTF_DEFINE_UTEST(transaction_api_test, commit_without_begin)
 {
     hse_err_t            err;
-    struct hse_kvdb_txn *txn;
+    struct hse_txn *txn;
 
     txn = hse_kvdb_txn_alloc(kvdb_handle);
     ASSERT_NE(NULL, txn);
 
-    err = hse_kvdb_txn_commit(kvdb_handle, txn);
+    err = hse_txn_commit(kvdb_handle, txn);
     ASSERT_EQ(ECANCELED, hse_err_to_errno(err));
 
     hse_kvdb_txn_free(kvdb_handle, txn);
@@ -196,12 +196,12 @@ MTF_DEFINE_UTEST(transaction_api_test, commit_without_begin)
 MTF_DEFINE_UTEST(transaction_api_test, abort_without_begin)
 {
     hse_err_t            err;
-    struct hse_kvdb_txn *txn;
+    struct hse_txn *txn;
 
     txn = hse_kvdb_txn_alloc(kvdb_handle);
     ASSERT_NE(NULL, txn);
 
-    err = hse_kvdb_txn_commit(kvdb_handle, txn);
+    err = hse_txn_commit(kvdb_handle, txn);
     ASSERT_EQ(ECANCELED, hse_err_to_errno(err));
 
     hse_kvdb_txn_free(kvdb_handle, txn);
@@ -210,13 +210,13 @@ MTF_DEFINE_UTEST(transaction_api_test, abort_without_begin)
 MTF_DEFINE_UTEST(transaction_api_test, expired)
 {
     hse_err_t err;
-    struct hse_kvdb_txn *txn;
-    enum hse_kvdb_txn_state state;
+    struct hse_txn *txn;
+    enum hse_txn_state state;
 
     txn = hse_kvdb_txn_alloc(kvdb_handle);
     ASSERT_NE(NULL, txn);
 
-    err = hse_kvdb_txn_begin(kvdb_handle, txn);
+    err = hse_txn_begin(kvdb_handle, txn);
     ASSERT_EQ(0, hse_err_to_errno(err));
 
     while (true) {
@@ -225,8 +225,8 @@ MTF_DEFINE_UTEST(transaction_api_test, expired)
         struct hse_kvs_cursor *cursor;
         char val_buf[HSE_KVS_VALUE_LEN_MAX];
 
-        state = hse_kvdb_txn_state_get(kvdb_handle, txn);
-        if (state != HSE_KVDB_TXN_ABORTED) {
+        state = hse_txn_state_get(kvdb_handle, txn);
+        if (state != HSE_TXN_ABORTED) {
             sleep(5);
             continue;
         }

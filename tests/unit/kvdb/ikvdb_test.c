@@ -274,7 +274,7 @@ MTF_DEFINE_UTEST_PREPOST(ikvdb_test, basic_txn_alloc, test_pre, test_post)
 {
     const char *         mpool = __func__;
     struct ikvdb *       store;
-    struct hse_kvdb_txn *txn1, *txn2;
+    struct hse_txn *txn1, *txn2;
     merr_t               err;
     const char *const    paramv[] = { "c0_diag_mode=true" };
     struct kvdb_rparams  params = kvdb_rparams_defaults();
@@ -304,7 +304,7 @@ MTF_DEFINE_UTEST_PREPOST(ikvdb_test, basic_lifecycle, test_pre, test_post)
 {
     const char *         mpool = __func__;
     struct ikvdb *       store;
-    struct hse_kvdb_txn *txn1, *txn2;
+    struct hse_txn *txn1, *txn2;
     const char *const    paramv[] = { "c0_diag_mode=true" };
     merr_t               err;
     struct kvdb_rparams  params = kvdb_rparams_defaults();
@@ -382,7 +382,7 @@ MTF_DEFINE_UTEST_PREPOST(ikvdb_test, basic_lifecycle, test_pre, test_post)
     ikvdb_txn_free(store, txn2);
 
     // At this point one of the previous txns will be recycled for txn3
-    struct hse_kvdb_txn *txn3 = ikvdb_txn_alloc(store);
+    struct hse_txn *txn3 = ikvdb_txn_alloc(store);
     ASSERT_EQ(KVDB_CTXN_INVALID, ikvdb_txn_state(store, txn3));
     ikvdb_txn_free(store, txn3);
 
@@ -533,7 +533,7 @@ MTF_DEFINE_UTEST_PREPOST(ikvdb_test, txn_del_test, test_pre, test_post)
     const char *const    kvs_open_paramv[] =
     { "transactions.enabled=true", "mclass.policy=\"capacity_only\"" };
     merr_t               err;
-    struct hse_kvdb_txn *txn;
+    struct hse_txn *txn;
     struct kvs_ktuple    kt;
     struct kvs_vtuple    vt;
     struct kvs_buf       vbuf;
@@ -618,7 +618,7 @@ parallel_transactions(void *info)
     char                 kbuf[16];
     struct kvs_ktuple    kt;
     struct kvs_vtuple    vt;
-    struct hse_kvdb_txn *txn;
+    struct hse_txn *txn;
     struct kvs_buf       val;
     enum key_lookup_res  found;
     char                 vbuf[100];
@@ -725,7 +725,7 @@ MTF_DEFINE_UTEST_PREPOST(ikvdb_test, aborted_txn_bind, test_pre, test_post)
     const char *const      kvs_open_paramv[] =
     { "transactions.enabled=true", "mclass.policy=\"capacity_only\"" };
     merr_t                 err;
-    struct hse_kvdb_txn *  txn;
+    struct hse_txn *  txn;
     struct hse_kvs_cursor *cur;
     struct kvdb_rparams    kvdb_rp = kvdb_rparams_defaults();
     struct kvs_rparams     kvs_rp = kvs_rparams_defaults();
@@ -780,7 +780,7 @@ MTF_DEFINE_UTEST_PREPOST(ikvdb_test, cursor_0, test_pre, test_post)
     const char *const      kvdb_open_paramv[] = { "c0_debug=16", "c0_diag_mode=true" };
     const char *const      kvs_open_paramv[] = { "mclass.policy=\"capacity_only\"" };
     merr_t                 err;
-    struct hse_kvdb_txn *  txn = NULL;
+    struct hse_txn *  txn = NULL;
     struct hse_kvs_cursor *cur;
     const void *           key, *val;
     size_t                 klen, vlen;
@@ -843,7 +843,7 @@ MTF_DEFINE_UTEST_PREPOST(ikvdb_test, cursor_1, test_pre_c0, test_post_c0)
     const char *           kvs = "kvs";
     const char *const      kvdb_open_paramv[] = { "c0_diag_mode=true" };
     const char *const      kvs_open_paramv[] = { "mclass.policy=\"capacity_only\"" };
-    struct hse_kvdb_txn *  txn = NULL;
+    struct hse_txn *  txn = NULL;
     struct hse_kvs_cursor *cur;
     struct kvs_ktuple      kt = { 0 };
     struct kvs_vtuple      vt = { 0 };
@@ -1004,9 +1004,9 @@ MTF_DEFINE_UTEST_PREPOST(ikvdb_test, cursor_tx, test_pre_c0, test_post_c0)
     struct mpool *         ds = (struct mpool *)-1;
     const char *const      kvdb_open_paramv[] = { "c0_diag_mode=true" };
     const char *const      kvs_open_paramv[] = { "transactions.enabled=true" };
-    struct hse_kvdb_txn *  txn1;
+    struct hse_txn *  txn1;
     unsigned int           flags1 = 0;
-    struct hse_kvdb_txn *  txn2;
+    struct hse_txn *  txn2;
     unsigned int           flags2 = 0;
     struct hse_kvs_cursor *cur, *spam, *bound;
     struct kvs_ktuple      kt = { 0 };

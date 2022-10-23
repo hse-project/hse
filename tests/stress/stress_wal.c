@@ -47,7 +47,7 @@ atomic_int error_count;
 atomic_int verification_failure_count;
 
 struct txn_info {
-    struct hse_kvdb_txn *txn;
+    struct hse_txn *txn;
     struct hse_kvs *     kvs;
 };
 
@@ -107,7 +107,7 @@ do_inserts(void *args)
     long int             txn_idx, i, key_index_offset;
     long int             keys_per_txn;
     long int             transactions_per_thread;
-    struct hse_kvdb_txn *txn;
+    struct hse_txn *txn;
     struct hse_kvs *     kvs;
     char                 kvs_name[31];
     int                  key_len;
@@ -162,11 +162,11 @@ do_inserts(void *args)
                 break;
             }
 
-            err = hse_kvdb_txn_begin(params->kvdb, txn);
+            err = hse_txn_begin(params->kvdb, txn);
             if (err) {
                 hse_strerror(err, msg, sizeof(msg));
                 log_error(
-                    "hse_kvdb_txn_begin: errno=%d msg=\"%s\" rank=%d txn=%ld",
+                    "hse_txn_begin: errno=%d msg=\"%s\" rank=%d txn=%ld",
                     hse_err_to_errno(err),
                     msg,
                     params->rank,
@@ -178,7 +178,7 @@ do_inserts(void *args)
                 ++error_count;
                 goto clean_up;
             } else {
-                log_debug("hse_kvdb_txn_begin: rank=%d txn=%ld", params->rank, txn_idx);
+                log_debug("hse_txn_begin: rank=%d txn=%ld", params->rank, txn_idx);
             }
 
             txn_table[txn_idx].txn = txn;
@@ -254,32 +254,32 @@ clean_up:
 
         if (txn != NULL) {
             if (params->transaction == INTERLEAVE_ABORTED_TXN && (txn_idx % 2) == 0) {
-                err = hse_kvdb_txn_abort(params->kvdb, txn);
+                err = hse_txn_abort(params->kvdb, txn);
                 if (err) {
                     hse_strerror(err, msg, sizeof(msg));
                     log_error(
-                        "hse_kvdb_txn_abort: errno=%d msg=\"%s\" rank=%d txn=%ld",
+                        "hse_txn_abort: errno=%d msg=\"%s\" rank=%d txn=%ld",
                         hse_err_to_errno(err),
                         msg,
                         params->rank,
                         txn_idx);
                     ++error_count;
                 } else {
-                    log_debug("hse_kvdb_txn_abort: rank=%d txn=%ld", params->rank, txn_idx);
+                    log_debug("hse_txn_abort: rank=%d txn=%ld", params->rank, txn_idx);
                 }
             } else {
-                err = hse_kvdb_txn_commit(params->kvdb, txn);
+                err = hse_txn_commit(params->kvdb, txn);
                 if (err) {
                     hse_strerror(err, msg, sizeof(msg));
                     log_error(
-                        "hse_kvdb_txn_commit: errno=%d msg=\"%s\" rank=%d txn=%ld",
+                        "hse_txn_commit: errno=%d msg=\"%s\" rank=%d txn=%ld",
                         hse_err_to_errno(err),
                         msg,
                         params->rank,
                         txn_idx);
                     ++error_count;
                 } else {
-                    log_debug("hse_kvdb_txn_commit: rank=%d txn=%ld", params->rank, txn_idx);
+                    log_debug("hse_txn_commit: rank=%d txn=%ld", params->rank, txn_idx);
                 }
             }
 

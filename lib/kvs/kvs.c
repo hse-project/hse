@@ -270,7 +270,7 @@ kvs_txn_is_enabled(struct ikvs *kvs)
 merr_t
 kvs_put(
     struct ikvs *              kvs,
-    struct hse_kvdb_txn *const txn,
+    struct hse_txn *const txn,
     struct kvs_ktuple *        kt,
     struct kvs_vtuple *        vt,
     uintptr_t                  seqnoref)
@@ -327,7 +327,7 @@ kvs_put(
 merr_t
 kvs_get(
     struct ikvs *              kvs,
-    struct hse_kvdb_txn *const txn,
+    struct hse_txn *const txn,
     struct kvs_ktuple *        kt,
     u64                        seqno,
     enum key_lookup_res *      res,
@@ -373,7 +373,7 @@ kvs_get(
 }
 
 merr_t
-kvs_del(struct ikvs *kvs, struct hse_kvdb_txn *const txn, struct kvs_ktuple *kt, uintptr_t seqnoref)
+kvs_del(struct ikvs *kvs, struct hse_txn *const txn, struct kvs_ktuple *kt, uintptr_t seqnoref)
 {
     struct perfc_set *pkvsl_pc = kvs_perfc_pkvsl(kvs);
     struct kvdb_ctxn *ctxn = txn ? kvdb_ctxn_h2h(txn) : 0;
@@ -421,7 +421,7 @@ kvs_del(struct ikvs *kvs, struct hse_kvdb_txn *const txn, struct kvs_ktuple *kt,
 merr_t
 kvs_prefix_del(
     struct ikvs               *kvs,
-    struct hse_kvdb_txn *const txn,
+    struct hse_txn *const txn,
     struct kvs_ktuple         *kt,
     uintptr_t                  seqnoref)
 {
@@ -471,7 +471,7 @@ kvs_prefix_del(
 merr_t
 kvs_pfx_probe(
     struct ikvs *              kvs,
-    struct hse_kvdb_txn *const txn,
+    struct hse_txn *const txn,
     struct kvs_ktuple *        kt,
     u64                        seqno,
     enum key_lookup_res *      res,

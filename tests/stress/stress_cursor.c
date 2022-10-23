@@ -478,8 +478,8 @@ cursor_with_transactions(void *args)
     long int                 txn_idx, i;
     char                     key_buf[info->key_size];
     char                     val_buf[info->val_size];
-    struct hse_kvdb_txn *    txn = NULL;
-    struct hse_kvdb_txn *    txn_table[info->transaction_per_thread];
+    struct hse_txn *    txn = NULL;
+    struct hse_txn *    txn_table[info->transaction_per_thread];
     struct hse_kvs_cursor *  CURSOR;
     struct cursor_list       cursor_table[info->cursor_count_per_thread];
     long int                 cursor_index, cursor_index_this_txn;
@@ -526,12 +526,12 @@ cursor_with_transactions(void *args)
             break;
         }
 
-        err = hse_kvdb_txn_begin(info->kvdb, txn);
+        err = hse_txn_begin(info->kvdb, txn);
 
         if (err) {
             hse_strerror(err, msg, sizeof(msg));
             log_error(
-                "hse_kvdb_txn_begin: errno=%d msg=\"%s\" rank=%d txn=%ld",
+                "hse_txn_begin: errno=%d msg=\"%s\" rank=%d txn=%ld",
                 hse_err_to_errno(err),
                 msg,
                 info->rank,
@@ -545,7 +545,7 @@ cursor_with_transactions(void *args)
             ++error_count;
             goto clean_up;
         } else if (DEBUG) {
-            log_debug("hse_kvdb_txn_begin: rank=%d txn=%ld addr=%p", info->rank, txn_idx, txn);
+            log_debug("hse_txn_begin: rank=%d txn=%ld addr=%p", info->rank, txn_idx, txn);
         }
 
         for (cursor_index_this_txn = 0; cursor_index_this_txn < info->cursor_count_per_txn;
@@ -673,12 +673,12 @@ clean_up:
     for (i = 0; i < info->transaction_per_thread; i++) {
         txn = txn_table[i];
         if (NULL != txn) {
-            err = hse_kvdb_txn_abort(info->kvdb, txn);
+            err = hse_txn_abort(info->kvdb, txn);
 
             if (err) {
                 hse_strerror(err, msg, sizeof(msg));
                 log_error(
-                    "hse_kvdb_txn_abort: errno=%d msg=\"%s\" rank=%d cursor_idx=%ld txn_addr=%p",
+                    "hse_txn_abort: errno=%d msg=\"%s\" rank=%d cursor_idx=%ld txn_addr=%p",
                     hse_err_to_errno(err),
                     msg,
                     info->rank,
@@ -687,7 +687,7 @@ clean_up:
                 ++error_count;
             } else if (DEBUG) {
                 log_debug(
-                    "hse_kvdb_txn_abort: rank=%d cursor_idx=%ld txn_addr=%p", info->rank, i, txn);
+                    "hse_txn_abort: rank=%d cursor_idx=%ld txn_addr=%p", info->rank, i, txn);
             }
 
             hse_kvdb_txn_free(info->kvdb, txn);

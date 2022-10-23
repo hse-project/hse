@@ -548,7 +548,7 @@ hse_err_t
 hse_kvs_delete(
     struct hse_kvs *     kvs,
     unsigned int         flags,
-    struct hse_kvdb_txn *txn,
+    struct hse_txn *txn,
     const void *         key,
     size_t               key_len);
 
@@ -588,7 +588,7 @@ hse_err_t
 hse_kvs_get(
     struct hse_kvs *     kvs,
     unsigned int         flags,
-    struct hse_kvdb_txn *txn,
+    struct hse_txn *txn,
     const void *         key,
     size_t               key_len,
     bool *               found,
@@ -673,7 +673,7 @@ hse_err_t
 hse_kvs_prefix_delete(
     struct hse_kvs *     kvs,
     unsigned int         flags,
-    struct hse_kvdb_txn *txn,
+    struct hse_txn *txn,
     const void *         pfx,
     size_t               pfx_len);
 
@@ -728,7 +728,7 @@ hse_err_t
 hse_kvs_put(
     struct hse_kvs *     kvs,
     unsigned int         flags,
-    struct hse_kvdb_txn *txn,
+    struct hse_txn *txn,
     const void *         key,
     size_t               key_len,
     const void *         val,
@@ -769,11 +769,11 @@ hse_kvs_put(
  *        +-----------+                 +----------+
  *
  * When a transaction is initially allocated, it starts in the INVALID state.
- * When hse_kvdb_txn_begin() is called with transaction in the INVALID,
+ * When hse_txn_begin() is called with transaction in the INVALID,
  * COMMITTED, or ABORTED states, it moves to the ACTIVE state. It is an error to
- * call the hse_kvdb_txn_begin() function on a transaction in the ACTIVE state.
+ * call the hse_txn_begin() function on a transaction in the ACTIVE state.
  * For a transaction in the ACTIVE state, only the functions
- * hse_kvdb_txn_commit(), hse_kvdb_txn_abort(), or hse_kvdb_txn_free() may be
+ * hse_txn_commit(), hse_txn_abort(), or hse_kvdb_txn_free() may be
  * called (with the last doing an abort prior to the free).
  *
  * When a transaction becomes ACTIVE, it establishes an ephemeral snapshot view
@@ -800,7 +800,7 @@ hse_kvs_put(
  * @note This function is thread safe with different transactions.
  *
  * @param kvdb: KVDB handle from hse_kvdb_open().
- * @param txn: KVDB transaction handle from hse_kvdb_txn_alloc().
+ * @param txn: Transaction handle from hse_kvdb_txn_alloc().
  *
  * @remark @p kvdb must not be NULL.
  * @remark @p txn must not be NULL.
@@ -809,7 +809,7 @@ hse_kvs_put(
  */
 /* MTF_MOCK */
 hse_err_t
-hse_kvdb_txn_abort(struct hse_kvdb *kvdb, struct hse_kvdb_txn *txn);
+hse_txn_abort(struct hse_kvdb *kvdb, struct hse_txn *txn);
 
 /** @brief Allocate transaction object.
  *
@@ -825,7 +825,7 @@ hse_kvdb_txn_abort(struct hse_kvdb *kvdb, struct hse_kvdb_txn *txn);
  * @returns The allocated transaction structure.
  */
 /* MTF_MOCK */
-struct hse_kvdb_txn *
+struct hse_txn *
 hse_kvdb_txn_alloc(struct hse_kvdb *kvdb);
 
 /** @brief Initiate transaction.
@@ -836,7 +836,7 @@ hse_kvdb_txn_alloc(struct hse_kvdb *kvdb);
  * @note This function is thread safe with different transactions.
  *
  * @param kvdb: KVDB handle from hse_kvdb_open().
- * @param txn: KVDB transaction handle from hse_kvdb_txn_alloc().
+ * @param txn: Transaction handle from hse_kvdb_txn_alloc().
  *
  * @remark @p kvdb must not be NULL.
  * @remark @p txn must not be NULL.
@@ -845,7 +845,7 @@ hse_kvdb_txn_alloc(struct hse_kvdb *kvdb);
  */
 /* MTF_MOCK */
 hse_err_t
-hse_kvdb_txn_begin(struct hse_kvdb *kvdb, struct hse_kvdb_txn *txn);
+hse_txn_begin(struct hse_kvdb *kvdb, struct hse_txn *txn);
 
 /** @brief Commit all the mutations of the referenced transaction.
  *
@@ -855,7 +855,7 @@ hse_kvdb_txn_begin(struct hse_kvdb *kvdb, struct hse_kvdb_txn *txn);
  * @note This function is thread safe with different transactions.
  *
  * @param kvdb: KVDB handle from hse_kvdb_open().
- * @param txn: KVDB transaction handle from hse_kvdb_txn_alloc().
+ * @param txn: Transaction handle from hse_kvdb_txn_alloc().
  *
  * @remark @p kvdb must not be NULL.
  * @remark @p txn must not be NULL.
@@ -864,7 +864,7 @@ hse_kvdb_txn_begin(struct hse_kvdb *kvdb, struct hse_kvdb_txn *txn);
  */
 /* MTF_MOCK */
 hse_err_t
-hse_kvdb_txn_commit(struct hse_kvdb *kvdb, struct hse_kvdb_txn *txn);
+hse_txn_commit(struct hse_kvdb *kvdb, struct hse_txn *txn);
 
 /** @brief Free transaction object.
  *
@@ -877,21 +877,21 @@ hse_kvdb_txn_commit(struct hse_kvdb *kvdb, struct hse_kvdb_txn *txn);
  * @note This function is thread safe with different transactions.
  *
  * @param kvdb: KVDB handle from hse_kvdb_open().
- * @param txn: KVDB transaction handle.
+ * @param txn: Transaction handle from hse_kvdb_txn_alloc().
  *
  * @remark @p kvdb must not be NULL.
  * @remark @p txn must not be NULL.
  */
 /* MTF_MOCK */
 void
-hse_kvdb_txn_free(struct hse_kvdb *kvdb, struct hse_kvdb_txn *txn);
+hse_kvdb_txn_free(struct hse_kvdb *kvdb, struct hse_txn *txn);
 
 /** @brief Retrieve the state of the referenced transaction.
  *
  * This function is thread safe with different transactions.
  *
  * @param kvdb: KVDB handle from hse_kvdb_open().
- * @param txn: KVDB transaction handle from hse_kvdb_txn_alloc().
+ * @param txn: Transaction handle from hse_kvdb_txn_alloc().
  *
  * @remark @p kvdb must not be NULL.
  * @remark @p txn must not be NULL.
@@ -899,8 +899,8 @@ hse_kvdb_txn_free(struct hse_kvdb *kvdb, struct hse_kvdb_txn *txn);
  * @returns Transaction's state.
  */
 /* MTF_MOCK */
-enum hse_kvdb_txn_state
-hse_kvdb_txn_state_get(struct hse_kvdb *kvdb, struct hse_kvdb_txn *txn);
+enum hse_txn_state
+hse_txn_state_get(struct hse_kvdb *kvdb, struct hse_txn *txn);
 
 /**@} TRANSACTIONS */
 
@@ -976,7 +976,7 @@ hse_err_t
 hse_kvs_cursor_create(
     struct hse_kvs *        kvs,
     unsigned int            flags,
-    struct hse_kvdb_txn *   txn,
+    struct hse_txn *   txn,
     const void *            filter,
     size_t                  filter_len,
     struct hse_kvs_cursor **cursor);

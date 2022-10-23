@@ -2402,7 +2402,7 @@ ikvdb_throttle(struct ikvdb_impl *self, u64 bytes, u64 tstart)
 }
 
 static inline bool
-is_write_allowed(struct ikvs *kvs, struct hse_kvdb_txn *const txn)
+is_write_allowed(struct ikvs *kvs, struct hse_txn *const txn)
 {
     const bool kvs_is_txn = kvs_txn_is_enabled(kvs);
     const bool op_is_txn = txn;
@@ -2411,7 +2411,7 @@ is_write_allowed(struct ikvs *kvs, struct hse_kvdb_txn *const txn)
 }
 
 static inline bool
-is_read_allowed(struct ikvs *kvs, struct hse_kvdb_txn *const txn)
+is_read_allowed(struct ikvs *kvs, struct hse_txn *const txn)
 {
     return txn && !kvs_txn_is_enabled(kvs) ? false : true;
 }
@@ -2433,7 +2433,7 @@ merr_t
 ikvdb_kvs_put(
     struct hse_kvs *           handle,
     const unsigned int         flags,
-    struct hse_kvdb_txn *const txn,
+    struct hse_txn *const txn,
     struct kvs_ktuple *        kt,
     struct kvs_vtuple *        vt)
 {
@@ -2515,7 +2515,7 @@ merr_t
 ikvdb_kvs_pfx_probe(
     struct hse_kvs *           handle,
     const unsigned int         flags,
-    struct hse_kvdb_txn *const txn,
+    struct hse_txn *const txn,
     struct kvs_ktuple *        kt,
     enum key_lookup_res *      res,
     struct kvs_buf *           kbuf,
@@ -2552,7 +2552,7 @@ merr_t
 ikvdb_kvs_get(
     struct hse_kvs *           handle,
     const unsigned int         flags,
-    struct hse_kvdb_txn *const txn,
+    struct hse_txn *const txn,
     struct kvs_ktuple *        kt,
     enum key_lookup_res *      res,
     struct kvs_buf *           vbuf)
@@ -2588,7 +2588,7 @@ merr_t
 ikvdb_kvs_del(
     struct hse_kvs *           handle,
     const unsigned int         flags,
-    struct hse_kvdb_txn *const txn,
+    struct hse_txn *const txn,
     struct kvs_ktuple *        kt)
 {
     struct kvdb_kvs *  kk = (struct kvdb_kvs *)handle;
@@ -2619,7 +2619,7 @@ merr_t
 ikvdb_kvs_prefix_delete(
     struct hse_kvs *           handle,
     const unsigned int         flags,
-    struct hse_kvdb_txn *const txn,
+    struct hse_txn *const txn,
     struct kvs_ktuple *        kt)
 {
     struct kvdb_kvs *  kk = (struct kvdb_kvs *)handle;
@@ -2748,7 +2748,7 @@ merr_t
 ikvdb_kvs_cursor_create(
     struct hse_kvs *           handle,
     const unsigned int         flags,
-    struct hse_kvdb_txn *const txn,
+    struct hse_txn *const txn,
     const void *               prefix,
     size_t                     pfx_len,
     struct hse_kvs_cursor **   cursorp)
@@ -3143,7 +3143,7 @@ ikvdb_txn_tid2bkt(struct ikvdb_impl *self)
     return self->ikdb_ctxn_cache + (tls_txn_idx % NELEM(self->ikdb_ctxn_cache));
 }
 
-struct hse_kvdb_txn *
+struct hse_txn *
 ikvdb_txn_alloc(struct ikvdb *handle)
 {
     struct ikvdb_impl *   self = ikvdb_h2r(handle);
@@ -3178,7 +3178,7 @@ ikvdb_txn_alloc(struct ikvdb *handle)
 }
 
 void
-ikvdb_txn_free(struct ikvdb *handle, struct hse_kvdb_txn *txn)
+ikvdb_txn_free(struct ikvdb *handle, struct hse_txn *txn)
 {
     struct ikvdb_impl *   self = ikvdb_h2r(handle);
     struct kvdb_ctxn_bkt *bkt = ikvdb_txn_tid2bkt(self);
@@ -3205,7 +3205,7 @@ ikvdb_txn_free(struct ikvdb *handle, struct hse_kvdb_txn *txn)
 }
 
 merr_t
-ikvdb_txn_begin(struct ikvdb *handle, struct hse_kvdb_txn *txn)
+ikvdb_txn_begin(struct ikvdb *handle, struct hse_txn *txn)
 {
     struct ikvdb_impl *self = ikvdb_h2r(handle);
     struct kvdb_ctxn * ctxn = kvdb_ctxn_h2h(txn);
@@ -3222,7 +3222,7 @@ ikvdb_txn_begin(struct ikvdb *handle, struct hse_kvdb_txn *txn)
 }
 
 merr_t
-ikvdb_txn_commit(struct ikvdb *handle, struct hse_kvdb_txn *txn)
+ikvdb_txn_commit(struct ikvdb *handle, struct hse_txn *txn)
 {
     struct ikvdb_impl *self = ikvdb_h2r(handle);
     struct kvdb_ctxn * ctxn = kvdb_ctxn_h2h(txn);
@@ -3241,7 +3241,7 @@ ikvdb_txn_commit(struct ikvdb *handle, struct hse_kvdb_txn *txn)
 }
 
 merr_t
-ikvdb_txn_abort(struct ikvdb *handle, struct hse_kvdb_txn *txn)
+ikvdb_txn_abort(struct ikvdb *handle, struct hse_txn *txn)
 {
     struct ikvdb_impl *self = ikvdb_h2r(handle);
     struct kvdb_ctxn * ctxn = kvdb_ctxn_h2h(txn);
@@ -3256,7 +3256,7 @@ ikvdb_txn_abort(struct ikvdb *handle, struct hse_kvdb_txn *txn)
 }
 
 enum kvdb_ctxn_state
-ikvdb_txn_state(struct ikvdb *handle, struct hse_kvdb_txn *txn)
+ikvdb_txn_state(struct ikvdb *handle, struct hse_txn *txn)
 {
     return kvdb_ctxn_get_state(kvdb_ctxn_h2h(txn));
 }

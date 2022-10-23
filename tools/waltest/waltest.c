@@ -752,7 +752,7 @@ test_put(struct thread_info *ti, uint salt, bool istxn)
     hse_err_t err;
     u64       i, last_key;
 
-    struct hse_kvdb_txn    *txn = NULL;
+    struct hse_txn    *txn = NULL;
 
     test_start_phase(ti, salt ? "Update existing keys" : "Insert new keys");
 
@@ -780,7 +780,7 @@ test_put(struct thread_info *ti, uint salt, bool istxn)
             continue;
 
         if (istxn)
-            hse_kvdb_txn_begin(ti->kvdb, txn);
+            hse_txn_begin(ti->kvdb, txn);
 
         err = hse_kvs_put(ti->kvs, 0, txn, (char *)ti->ref_key, ti->ref_klen,
                           (char *)ti->ref_val, ti->ref_vlen);
@@ -811,7 +811,7 @@ test_put(struct thread_info *ti, uint salt, bool istxn)
         }
 
         if (istxn)
-            hse_kvdb_txn_commit(ti->kvdb, txn);
+            hse_txn_commit(ti->kvdb, txn);
     }
 
     test_end_phase(ti, false);
@@ -827,7 +827,7 @@ test_delete(
     u64 i, last_key;
     uint salt = -1; /* not important for delete */
 
-    struct hse_kvdb_txn    *txn = NULL;
+    struct hse_txn    *txn = NULL;
 
     test_start_phase(ti, prefix ? "Prefix delete keys" : "Delete keys");
 
@@ -846,7 +846,7 @@ test_delete(
             continue;
 
         if (istxn)
-            hse_kvdb_txn_begin(ti->kvdb, txn);
+            hse_txn_begin(ti->kvdb, txn);
 
         if (!prefix) {
             err = hse_kvs_delete(ti->kvs, 0, txn, (char *)ti->ref_key, ti->ref_klen);
@@ -861,7 +861,7 @@ test_delete(
         atomic_inc(&del_cnt);
 
         if (istxn)
-            hse_kvdb_txn_commit(ti->kvdb, txn);
+            hse_txn_commit(ti->kvdb, txn);
     }
 
     test_end_phase(ti, false);

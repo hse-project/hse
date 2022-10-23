@@ -138,7 +138,7 @@ hse_err_t
 hse_kvs_prefix_probe(
     struct hse_kvs *            kvs,
     unsigned int                flags,
-    struct hse_kvdb_txn        *txn,
+    struct hse_txn        *txn,
     const void *                pfx,
     size_t                      pfx_len,
     enum hse_kvs_pfx_probe_cnt *found,

@@ -526,7 +526,7 @@ struct km_inst {
     mongoc_write_concern_t *wcmaj;
     void *                  tdval;
     unsigned int            flags;
-    struct hse_kvdb_txn *   txn;
+    struct hse_txn *   txn;
     char                    mode[32];
     pthread_t               td;
     hse_err_t                  err;
@@ -613,7 +613,7 @@ struct hse_kvs {
 };
 
 struct hse_kvdb;
-struct hse_kvdb_txn;
+struct hse_txn;
 
 struct hse_kvs *kvs;
 #endif /* XKMT */
@@ -924,19 +924,19 @@ static void
 hse_kvdb_txn_free(void *kvdb, void *txn){};
 
 static int
-hse_kvdb_txn_begin(void *kvdb, void *txn)
+hse_txn_begin(void *kvdb, void *txn)
 {
     return EINVAL;
 };
 
 static int
-hse_kvdb_txn_commit(void *kvdb, void *txn)
+hse_txn_commit(void *kvdb, void *txn)
 {
     return EINVAL;
 };
 
 static void
-hse_kvdb_txn_abort(void *kvdb, void *txn){};
+hse_txn_abort(void *kvdb, void *txn){};
 
 static char *
 hse_strerror(u64 err, char *buf, size_t bufsz)
@@ -2894,7 +2894,7 @@ td_test(struct km_inst *inst)
     struct km_rec *        recx, *recy;
     uint64_t               ridx, ridy;
     struct km_impl *       impl;
-    struct hse_kvdb_txn *  txn;
+    struct hse_txn *  txn;
     struct km_lor          lor;
     hse_err_t                 err;
     int                    rc;
@@ -2958,7 +2958,7 @@ td_test(struct km_inst *inst)
             inst->stats.op = OP_TXN_BEGIN;
             inst->stats.begin++;
 
-            rc = hse_kvdb_txn_begin(impl->kvdb, txn);
+            rc = hse_txn_begin(impl->kvdb, txn);
             if (rc) {
                 inst->fmt = "txn begin failed: %s";
                 err = rc;
@@ -2983,7 +2983,7 @@ td_test(struct km_inst *inst)
                 inst->stats.op = OP_TXN_ABORT;
                 inst->stats.abort++;
 
-                hse_kvdb_txn_abort(impl->kvdb, txn);
+                hse_txn_abort(impl->kvdb, txn);
             }
             goto unlock;
         }
@@ -2996,7 +2996,7 @@ td_test(struct km_inst *inst)
                 inst->stats.op = OP_TXN_ABORT;
                 inst->stats.abort++;
 
-                hse_kvdb_txn_abort(impl->kvdb, txn);
+                hse_txn_abort(impl->kvdb, txn);
                 err = 0;
             } else {
                 inst->fmt = inst->fmt ?: "put 1 failed: %s";
@@ -3010,7 +3010,7 @@ td_test(struct km_inst *inst)
                 inst->stats.op = OP_TXN_ABORT;
                 inst->stats.abort++;
 
-                hse_kvdb_txn_abort(impl->kvdb, txn);
+                hse_txn_abort(impl->kvdb, txn);
                 err = 0;
             } else {
                 inst->fmt = inst->fmt ?: "put 2 failed: %s";
@@ -3028,7 +3028,7 @@ td_test(struct km_inst *inst)
             inst->stats.op = OP_TXN_COMMIT;
             inst->stats.commit++;
 
-            rc = hse_kvdb_txn_commit(impl->kvdb, txn);
+            rc = hse_txn_commit(impl->kvdb, txn);
             if (rc) {
                 inst->fmt = "txn commit failed: %s";
                 err = rc;
@@ -3047,7 +3047,7 @@ td_test(struct km_inst *inst)
     }
 
     if (txn) {
-        hse_kvdb_txn_abort(impl->kvdb, txn);
+        hse_txn_abort(impl->kvdb, txn);
         hse_kvdb_txn_free(impl->kvdb, txn);
         inst->txn = NULL;
     }

@@ -133,18 +133,18 @@ struct hse_kvs_cursor;
  * @{
  */
 
-/** @struct hse_kvdb_txn
+/** @struct hse_txn
  * @brief Opaque structure, a pointer to which is a handle to a transaction
  * within a KVDB.
  */
-struct hse_kvdb_txn;
+struct hse_txn;
 
 /** @brief Transaction state. */
-enum hse_kvdb_txn_state {
-    HSE_KVDB_TXN_INVALID = 0,   /**< invalid state */
-    HSE_KVDB_TXN_ACTIVE = 1,    /**< active state */
-    HSE_KVDB_TXN_COMMITTED = 2, /**< committed state */
-    HSE_KVDB_TXN_ABORTED = 3,   /**< aborted state */
+enum hse_txn_state {
+    HSE_TXN_INVALID = 0,   /**< invalid state */
+    HSE_TXN_ACTIVE = 1,    /**< active state */
+    HSE_TXN_COMMITTED = 2, /**< committed state */
+    HSE_TXN_ABORTED = 3,   /**< aborted state */
 };
 
 /** @} TRANSACTIONS */

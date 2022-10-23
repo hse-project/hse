@@ -172,7 +172,7 @@ stuff(void)
     }
 
     if (ktxn > 0) {
-        struct hse_kvdb_txn *  txn;
+        struct hse_txn *  txn;
 
         gettimeofday(&tstart, NULL);
 
@@ -181,9 +181,9 @@ stuff(void)
             abort();
 
         for (i = 0; i < ktxn; ++i) {
-            herr = hse_kvdb_txn_begin(kvdb, txn);
+            herr = hse_txn_begin(kvdb, txn);
             if (herr) {
-                herr_print(herr, "hse_kvdb_txn_begin() failed: ");
+                herr_print(herr, "hse_txn_begin() failed: ");
                 abort();
             }
 
@@ -200,9 +200,9 @@ stuff(void)
                 }
             }
 
-            herr = hse_kvdb_txn_commit(kvdb, txn);
+            herr = hse_txn_commit(kvdb, txn);
             if (herr) {
-                herr_print(herr, "hse_kvdb_txn_commit() failed: ");
+                herr_print(herr, "hse_txn_commit() failed: ");
                 break;
             }
         }

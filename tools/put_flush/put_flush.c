@@ -62,12 +62,12 @@ void
 seq_inc(void *arg)
 {
 	struct kh_thread_arg  *targ = arg;
-	struct hse_kvdb_txn    *txn = hse_kvdb_txn_alloc(targ->kvdb);
+	struct hse_txn    *txn = hse_kvdb_txn_alloc(targ->kvdb);
 
 	while (!killthreads) {
 
-		hse_kvdb_txn_begin(targ->kvdb, txn);
-		hse_kvdb_txn_abort(targ->kvdb, txn);
+		hse_txn_begin(targ->kvdb, txn);
+		hse_txn_abort(targ->kvdb, txn);
 	}
 
 	hse_kvdb_txn_free(targ->kvdb, txn);

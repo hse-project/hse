@@ -24,7 +24,7 @@
 
 /*- Internal Key Value Store  -----------------------------------------------*/
 
-struct hse_kvdb_txn;
+struct hse_txn;
 struct kvdb_ctxn;
 struct kvdb_kvs;
 struct cndb;
@@ -169,7 +169,7 @@ kvs_perfc_pkvsl(struct ikvs *ikvs);
 merr_t
 kvs_put(
     struct ikvs *            ikvs,
-    struct hse_kvdb_txn *    txn,
+    struct hse_txn *    txn,
     struct kvs_ktuple *      kt,
     struct kvs_vtuple       *vt,
     u64                      seqno);
@@ -177,19 +177,19 @@ kvs_put(
 merr_t
 kvs_get(
     struct ikvs *        ikvs,
-    struct hse_kvdb_txn *txn,
+    struct hse_txn *txn,
     struct kvs_ktuple *  key,
     u64                  seqno,
     enum key_lookup_res *res,
     struct kvs_buf *     vbuf);
 
 merr_t
-kvs_del(struct ikvs *ikvs, struct hse_kvdb_txn *txn, struct kvs_ktuple *key, u64 seqno);
+kvs_del(struct ikvs *ikvs, struct hse_txn *txn, struct kvs_ktuple *key, u64 seqno);
 
 merr_t
 kvs_pfx_probe(
     struct ikvs *        kvs,
-    struct hse_kvdb_txn *txn,
+    struct hse_txn *txn,
     struct kvs_ktuple *  kt,
     u64                  seqno,
     enum key_lookup_res *res,
@@ -197,7 +197,7 @@ kvs_pfx_probe(
     struct kvs_buf *     vbuf);
 
 merr_t
-kvs_prefix_del(struct ikvs *ikvs, struct hse_kvdb_txn *txn, struct kvs_ktuple *key, u64 seqno);
+kvs_prefix_del(struct ikvs *ikvs, struct hse_txn *txn, struct kvs_ktuple *key, u64 seqno);
 
 void
 kvs_maint_task(struct ikvs *ikvs, u64 now);

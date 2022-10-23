@@ -50,7 +50,7 @@ do_work(void *arg)
 {
     struct kh_thread_arg  *targ = arg;
     struct thread_info *ti = targ->arg;
-    struct hse_kvdb_txn *txn;
+    struct hse_txn *txn;
     unsigned int flags = 0;
     int                 i;
     char                val[VLEN];
@@ -67,7 +67,7 @@ do_work(void *arg)
 
     memset(val, 0xfe, sizeof(val));
 
-    hse_kvdb_txn_begin(targ->kvdb, txn);
+    hse_txn_begin(targ->kvdb, txn);
     for (i = ti->start; i < ti->end; i++) {
         *k = htobe64(i);
 
@@ -92,7 +92,7 @@ do_work(void *arg)
     if (rc)
         fatal(rc, "Failed to create cursor");
 
-    hse_kvdb_txn_commit(targ->kvdb, txn);
+    hse_txn_commit(targ->kvdb, txn);
     hse_kvdb_txn_free(targ->kvdb, txn);
 
     cnt = 0;

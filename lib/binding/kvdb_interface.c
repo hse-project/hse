@@ -1170,7 +1170,7 @@ hse_err_t
 hse_kvs_put(
     struct hse_kvs *           handle,
     const unsigned int         flags,
-    struct hse_kvdb_txn *const txn,
+    struct hse_txn *const txn,
     const void *               key,
     size_t                     key_len,
     const void *               val,
@@ -1210,7 +1210,7 @@ hse_err_t
 hse_kvs_get(
     struct hse_kvs *           handle,
     const unsigned int         flags,
-    struct hse_kvdb_txn *const txn,
+    struct hse_txn *const txn,
     const void *               key,
     size_t                     key_len,
     bool *                     found,
@@ -1272,7 +1272,7 @@ hse_err_t
 hse_kvs_delete(
     struct hse_kvs *           handle,
     const unsigned int         flags,
-    struct hse_kvdb_txn *const txn,
+    struct hse_txn *const txn,
     const void *               key,
     size_t                     key_len)
 {
@@ -1303,7 +1303,7 @@ hse_err_t
 hse_kvs_prefix_probe(
     struct hse_kvs *            handle,
     const unsigned int          flags,
-    struct hse_kvdb_txn *const  txn,
+    struct hse_txn *const  txn,
     const void *                pfx,
     size_t                      pfx_len,
     enum hse_kvs_pfx_probe_cnt *found,
@@ -1378,7 +1378,7 @@ hse_err_t
 hse_kvs_prefix_delete(
     struct hse_kvs *           handle,
     const unsigned int         flags,
-    struct hse_kvdb_txn *const txn,
+    struct hse_txn *const txn,
     const void *               pfx,
     size_t                     pfx_len)
 {
@@ -1441,7 +1441,7 @@ hse_mclass_name_get(const enum hse_mclass mclass)
     return NULL;
 }
 
-struct hse_kvdb_txn *
+struct hse_txn *
 hse_kvdb_txn_alloc(struct hse_kvdb *handle)
 {
     if (HSE_UNLIKELY(!handle))
@@ -1453,7 +1453,7 @@ hse_kvdb_txn_alloc(struct hse_kvdb *handle)
 }
 
 void
-hse_kvdb_txn_free(struct hse_kvdb *handle, struct hse_kvdb_txn *txn)
+hse_kvdb_txn_free(struct hse_kvdb *handle, struct hse_txn *txn)
 {
     if (HSE_UNLIKELY(!handle || !txn))
         return;
@@ -1464,7 +1464,7 @@ hse_kvdb_txn_free(struct hse_kvdb *handle, struct hse_kvdb_txn *txn)
 }
 
 hse_err_t
-hse_kvdb_txn_begin(struct hse_kvdb *handle, struct hse_kvdb_txn *txn)
+hse_txn_begin(struct hse_kvdb *handle, struct hse_txn *txn)
 {
     merr_t err;
     u64    tstart;
@@ -1484,7 +1484,7 @@ hse_kvdb_txn_begin(struct hse_kvdb *handle, struct hse_kvdb_txn *txn)
 }
 
 hse_err_t
-hse_kvdb_txn_commit(struct hse_kvdb *handle, struct hse_kvdb_txn *txn)
+hse_txn_commit(struct hse_kvdb *handle, struct hse_txn *txn)
 {
     merr_t err;
     u64    tstart;
@@ -1504,7 +1504,7 @@ hse_kvdb_txn_commit(struct hse_kvdb *handle, struct hse_kvdb_txn *txn)
 }
 
 hse_err_t
-hse_kvdb_txn_abort(struct hse_kvdb *handle, struct hse_kvdb_txn *txn)
+hse_txn_abort(struct hse_kvdb *handle, struct hse_txn *txn)
 {
     merr_t err;
     u64    tstart;
@@ -1523,15 +1523,15 @@ hse_kvdb_txn_abort(struct hse_kvdb *handle, struct hse_kvdb_txn *txn)
     return err;
 }
 
-enum hse_kvdb_txn_state
-hse_kvdb_txn_state_get(struct hse_kvdb *handle, struct hse_kvdb_txn *txn)
+enum hse_txn_state
+hse_txn_state_get(struct hse_kvdb *handle, struct hse_txn *txn)
 {
-    enum hse_kvdb_txn_state state = 0;
+    enum hse_txn_state state = 0;
     enum kvdb_ctxn_state    istate;
     struct kvdb_ctxn *      ctxn;
 
     if (HSE_UNLIKELY(!handle || !txn))
-        return HSE_KVDB_TXN_INVALID;
+        return HSE_TXN_INVALID;
 
     ctxn = kvdb_ctxn_h2h(txn);
 
@@ -1541,19 +1541,19 @@ hse_kvdb_txn_state_get(struct hse_kvdb *handle, struct hse_kvdb_txn *txn)
 
     switch (istate) {
         case KVDB_CTXN_ACTIVE:
-            state = HSE_KVDB_TXN_ACTIVE;
+            state = HSE_TXN_ACTIVE;
             break;
 
         case KVDB_CTXN_COMMITTED:
-            state = HSE_KVDB_TXN_COMMITTED;
+            state = HSE_TXN_COMMITTED;
             break;
 
         case KVDB_CTXN_ABORTED:
-            state = HSE_KVDB_TXN_ABORTED;
+            state = HSE_TXN_ABORTED;
             break;
 
         default:
-            state = HSE_KVDB_TXN_INVALID;
+            state = HSE_TXN_INVALID;
             break;
     }
 
@@ -1566,7 +1566,7 @@ hse_err_t
 hse_kvs_cursor_create(
     struct hse_kvs *           handle,
     const unsigned int         flags,
-    struct hse_kvdb_txn *const txn,
+    struct hse_txn *const txn,
     const void *               prefix,
     size_t                     pfx_len,
     struct hse_kvs_cursor **   cursor)

@@ -43,7 +43,7 @@ struct kvs;
 struct ikvdb_kvs_hdl;
 enum hse_mclass;
 
-struct hse_kvdb_txn {
+struct hse_txn {
 };
 
 /**
@@ -419,7 +419,7 @@ merr_t
 ikvdb_kvs_put(
     struct hse_kvs *         kvs,
     unsigned int             flags,
-    struct hse_kvdb_txn *    txn,
+    struct hse_txn *    txn,
     struct kvs_ktuple *      kt,
     struct kvs_vtuple       *vt);
 
@@ -431,7 +431,7 @@ merr_t
 ikvdb_kvs_get(
     struct hse_kvs *     kvs,
     unsigned int         flags,
-    struct hse_kvdb_txn *txn,
+    struct hse_txn *txn,
     struct kvs_ktuple *  kt,
     enum key_lookup_res *res,
     struct kvs_buf *     vbuf);
@@ -445,7 +445,7 @@ merr_t
 ikvdb_kvs_del(
     struct hse_kvs *     kvs,
     unsigned int         flags,
-    struct hse_kvdb_txn *txn,
+    struct hse_txn *txn,
     struct kvs_ktuple *  kt);
 
 /* MTF_MOCK */
@@ -453,7 +453,7 @@ merr_t
 ikvdb_kvs_pfx_probe(
     struct hse_kvs *     handle,
     unsigned int         flags,
-    struct hse_kvdb_txn *txn,
+    struct hse_txn *txn,
     struct kvs_ktuple *  kt,
     enum key_lookup_res *res,
     struct kvs_buf *     kbuf,
@@ -469,7 +469,7 @@ merr_t
 ikvdb_kvs_prefix_delete(
     struct hse_kvs *     kvs,
     unsigned int         flags,
-    struct hse_kvdb_txn *txn,
+    struct hse_txn *txn,
     struct kvs_ktuple *  kt);
 
 merr_t
@@ -504,40 +504,40 @@ ikvdb_txn_horizon(struct ikvdb *store);
 /**
  * ikvdb_txn_alloc() - allocate space for a transaction
  */
-struct hse_kvdb_txn *
+struct hse_txn *
 ikvdb_txn_alloc(struct ikvdb *kvdb);
 
 /**
  * ikvdb_txn_free() - free space for a transaction
  */
 void
-ikvdb_txn_free(struct ikvdb *kvdb, struct hse_kvdb_txn *txn);
+ikvdb_txn_free(struct ikvdb *kvdb, struct hse_txn *txn);
 
 /**
  * ikvdb_txn_begin() - initiate a transaction. txn->kt_seq_num identifies it.
  */
 merr_t
-ikvdb_txn_begin(struct ikvdb *kvdb, struct hse_kvdb_txn *txn);
+ikvdb_txn_begin(struct ikvdb *kvdb, struct hse_txn *txn);
 
 /**
  * ikvdb_txn_commit() - publish all mutations performed in the context of txn.
  */
 merr_t
-ikvdb_txn_commit(struct ikvdb *kvdb, struct hse_kvdb_txn *txn);
+ikvdb_txn_commit(struct ikvdb *kvdb, struct hse_txn *txn);
 
 /**
  * ikvdb_txn_abort() - abort all mutations performed in the context of txn,
  * such that they are not visible in any subsequent access.
  */
 merr_t
-ikvdb_txn_abort(struct ikvdb *kvdb, struct hse_kvdb_txn *txn);
+ikvdb_txn_abort(struct ikvdb *kvdb, struct hse_txn *txn);
 
 /**
  * ikvdb_txn_state() - retrieve the state of a transaction.
  *
  */
 enum kvdb_ctxn_state
-ikvdb_txn_state(struct ikvdb *kvdb, struct hse_kvdb_txn *txn);
+ikvdb_txn_state(struct ikvdb *kvdb, struct hse_txn *txn);
 
 /**
  * ikvdb_kvs_create_cursor() - return a cursor that may be used to iterate
@@ -548,7 +548,7 @@ merr_t
 ikvdb_kvs_cursor_create(
     struct hse_kvs *        kvs,
     unsigned int            flags,
-    struct hse_kvdb_txn *   txn,
+    struct hse_txn *   txn,
     const void *            prefix,
     size_t                  pfx_len,
     struct hse_kvs_cursor **cursor);

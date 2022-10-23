@@ -263,7 +263,7 @@ struct hse_kvs_cursor *
 kh_cursor_create(
 	struct hse_kvs *     kvs,
 	unsigned int         flags,
-	struct hse_kvdb_txn *txn,
+	struct hse_txn *txn,
 	void *               pfx,
 	size_t               pfxlen)
 {

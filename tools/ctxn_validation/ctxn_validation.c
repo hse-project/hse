@@ -77,7 +77,7 @@ struct tdargs {
     spawn_cb_t             *func;
     ulong                   keybase;
     ulong                   viter;
-    struct hse_kvdb_txn    *txn;
+    struct hse_txn    *txn;
     pthread_barrier_t      *barriers;
     cpu_set_t               cpuset;
     struct stats            stats;
@@ -185,7 +185,7 @@ ctxn_validation_init_c0(void)
     u64         rc;
     size_t      klen;
     char        key[1024];
-    struct hse_kvdb_txn *txn;
+    struct hse_txn *txn;
 
     if (keybase_random)
         keybase = xrand();
@@ -194,9 +194,9 @@ ctxn_validation_init_c0(void)
     if (!txn)
         fatal(ENOMEM, "hse_kvdb_txn_alloc");
 
-    rc = hse_kvdb_txn_begin(kvdb, txn);
+    rc = hse_txn_begin(kvdb, txn);
     if (rc)
-        fatal(rc, "hse_kvdb_txn_begin");
+        fatal(rc, "hse_txn_begin");
 
     /* First, load c0 with a bunch of unique k/v tuples (each key
      * and value are unique).
@@ -212,9 +212,9 @@ ctxn_validation_init_c0(void)
         ++stats.puts_c0;
     }
 
-    rc = hse_kvdb_txn_commit(kvdb, txn);
+    rc = hse_txn_commit(kvdb, txn);
     if (rc)
-        fatal(rc, "hse_kvdb_txn_commit");
+        fatal(rc, "hse_txn_commit");
 
     hse_kvdb_txn_free(kvdb, txn);
 }
@@ -223,7 +223,7 @@ void *
 basic_collision_main(void *arg)
 {
     struct tdargs          *tdargs = arg;
-    struct hse_kvdb_txn    *txn = tdargs->txn;
+    struct hse_txn    *txn = tdargs->txn;
     pthread_barrier_t      *barriers = tdargs->barriers;
     struct stats           *stats = &tdargs->stats;
     int                     i;
@@ -232,9 +232,9 @@ basic_collision_main(void *arg)
     char                    key[256];
     u32                     vtxn;
 
-    rc = hse_kvdb_txn_begin(kvdb, txn);
+    rc = hse_txn_begin(kvdb, txn);
     if (rc)
-        fatal(rc, "hse_kvdb_txn_begin");
+        fatal(rc, "hse_txn_begin");
 
     pthread_barrier_wait(&barriers[0]);
 
@@ -268,14 +268,14 @@ basic_collision_main(void *arg)
     pthread_barrier_wait(&barriers[3]);
 
     if (xrand() % 10 < 8) {
-        rc = hse_kvdb_txn_commit(kvdb, txn);
+        rc = hse_txn_commit(kvdb, txn);
         if (rc)
-            fatal(rc, "hse_kvdb_txn_commit");
+            fatal(rc, "hse_txn_commit");
         ++stats->commits;
     } else {
-        rc = hse_kvdb_txn_abort(kvdb, txn);
+        rc = hse_txn_abort(kvdb, txn);
         if (rc)
-            fatal(rc, "hse_kvdb_txn_abort");
+            fatal(rc, "hse_txn_abort");
         ++stats->aborts;
     }
 
@@ -285,7 +285,7 @@ basic_collision_main(void *arg)
 void
 ctxn_validation_basic_collision(void)
 {
-    struct hse_kvdb_txn    *txn[jobsmax];
+    struct hse_txn    *txn[jobsmax];
     struct tdargs          *tdargsv;
     pthread_barrier_t       barriers[4];
     int                     i;
@@ -314,9 +314,9 @@ ctxn_validation_basic_collision(void)
     for (i = 0; i < 4; i++)
         pthread_barrier_init(&barriers[i], NULL, jobsmax);
 
-    rc = hse_kvdb_txn_begin(kvdb, txn[0]);
+    rc = hse_txn_begin(kvdb, txn[0]);
     if (rc)
-        fatal(rc, "hse_kvdb_txn_begin");
+        fatal(rc, "hse_txn_begin");
 
     /* Load txn0 with a set of key-value pairs. */
     for (i = 0; i < keymax; ++i) {
@@ -345,9 +345,9 @@ ctxn_validation_basic_collision(void)
     pthread_barrier_wait(&barriers[1]);
 
     /* Commit txn0, the keys must remain locked until all others finish. */
-    rc = hse_kvdb_txn_commit(kvdb, txn[0]);
+    rc = hse_txn_commit(kvdb, txn[0]);
     if (rc)
-        fatal(rc, "hse_kvdb_txn_commit");
+        fatal(rc, "hse_txn_commit");
 
     ++stats.commits;
 
@@ -367,9 +367,9 @@ ctxn_validation_basic_collision(void)
     }
 
     /* Begin a new transaction, its puts should go through */
-    rc = hse_kvdb_txn_begin(kvdb, txn[1]);
+    rc = hse_txn_begin(kvdb, txn[1]);
     if (rc)
-        fatal(rc, "hse_kvdb_txn_begin");
+        fatal(rc, "hse_txn_begin");
 
     for (i = 0; i < keymax; ++i) {
         klen = snprintf(key, sizeof(key), keybase_fmt, keybase + i);
@@ -382,7 +382,7 @@ ctxn_validation_basic_collision(void)
         ++stats.puts_txn;
     }
 
-    hse_kvdb_txn_abort(kvdb, txn[1]);
+    hse_txn_abort(kvdb, txn[1]);
 
     for (i = 0; i < jobsmax; i++)
         hse_kvdb_txn_free(kvdb, txn[i]);
@@ -395,7 +395,7 @@ ctxn_validation_perf(
     struct tdargs *tdargs)
 {
     struct stats           *stats = &tdargs->stats;
-    struct hse_kvdb_txn    *txn;
+    struct hse_txn    *txn;
     int                     i;
     u64                     rc;
     u64                     vtxn = 0;
@@ -412,14 +412,14 @@ ctxn_validation_perf(
         tdargs->txn = txn;
     }
 
-    rc = hse_kvdb_txn_begin(kvdb, txn);
+    rc = hse_txn_begin(kvdb, txn);
     if (rc) {
         ++stats->begin_fail;
         if (hse_err_to_errno(rc) == ENOMEM) {
             usleep(333 * 1000);
             return;
         }
-        fatal(rc, "hse_kvdb_txn_begin");
+        fatal(rc, "hse_txn_begin");
     }
 
     if (mode_put) {
@@ -455,15 +455,15 @@ ctxn_validation_perf(
     }
 
     if (commit) {
-        rc = hse_kvdb_txn_commit(kvdb, txn);
+        rc = hse_txn_commit(kvdb, txn);
         if (rc)
-            fatal(rc, "hse_kvdb_txn_commit");
+            fatal(rc, "hse_txn_commit");
 
         ++stats->commits;
     } else {
-        rc = hse_kvdb_txn_abort(kvdb, txn);
+        rc = hse_txn_abort(kvdb, txn);
         if (rc)
-            fatal(rc, "hse_kvdb_txn_abort");
+            fatal(rc, "hse_txn_abort");
 
         ++stats->aborts;
     }
@@ -479,7 +479,7 @@ ctxn_validation_stress(
     struct tdargs *tdargs)
 {
     struct stats           *stats = &tdargs->stats;
-    struct hse_kvdb_txn    *txn;
+    struct hse_txn    *txn;
 
     size_t      klen, vlen, vcurlen, vtxnlen;
     u64         val, vcur, vtxn;
@@ -496,14 +496,14 @@ ctxn_validation_stress(
         tdargs->txn = txn;
     }
 
-    rc = hse_kvdb_txn_begin(kvdb, txn);
+    rc = hse_txn_begin(kvdb, txn);
     if (rc) {
         ++stats->begin_fail;
         if (hse_err_to_errno(rc) == ENOMEM) {
             usleep(333 * 1000);
             return;
         }
-        fatal(rc, "hse_kvdb_txn_begin 1");
+        fatal(rc, "hse_txn_begin 1");
     }
 
     tdargs->keybase = keybase;
@@ -526,18 +526,18 @@ ctxn_validation_stress(
         ++stats->puts_c0;
     }
 
-    rc = hse_kvdb_txn_commit(kvdb, txn);
+    rc = hse_txn_commit(kvdb, txn);
     if (rc)
-        fatal(rc, "hse_kvdb_txn_commit");
+        fatal(rc, "hse_txn_commit");
 
-    rc = hse_kvdb_txn_begin(kvdb, txn);
+    rc = hse_txn_begin(kvdb, txn);
     if (rc) {
         ++stats->begin_fail;
         if (hse_err_to_errno(rc) == ENOMEM) {
             usleep(333 * 1000);
             return;
         }
-        fatal(rc, "hse_kvdb_txn_begin 2");
+        fatal(rc, "hse_txn_begin 2");
     }
 
     /* Next, load txn with the same set of unique keys from above,
@@ -550,7 +550,7 @@ ctxn_validation_stress(
         vtxn = ++tdargs->viter;
         rc = hse_kvs_put(kvs, 0, txn, key, klen, &vtxn, sizeof(vtxn));
         if (rc == ECANCELED) {
-            hse_kvdb_txn_abort(kvdb, txn);
+            hse_txn_abort(kvdb, txn);
 
             if (!reusetxn) {
                 hse_kvdb_txn_free(kvdb, txn);
@@ -602,9 +602,9 @@ ctxn_validation_stress(
             fatal(EINVAL, "isolation error (vtxn)");
     }
 
-    rc = hse_kvdb_txn_commit(kvdb, txn);
+    rc = hse_txn_commit(kvdb, txn);
     if (rc)
-        fatal(rc, "hse_kvdb_txn_commit");
+        fatal(rc, "hse_txn_commit");
 
     ++stats->commits;
 
@@ -643,7 +643,7 @@ ctxn_validation_stress(
 void
 ctxn_validation_basic(void)
 {
-    struct hse_kvdb_txn    *txn;
+    struct hse_txn    *txn;
 
     size_t      klen, klen_lg = 0, vlen, vcurlen, vtxnlen;
     char        key[64], key_lg[64];
@@ -659,9 +659,9 @@ ctxn_validation_basic(void)
     if (!txn)
         fatal(ENOMEM, "hse_kvdb_txn_alloc");
 
-    rc = hse_kvdb_txn_begin(kvdb, txn);
+    rc = hse_txn_begin(kvdb, txn);
     if (rc)
-        fatal(rc, "hse_kvdb_txn_begin");
+        fatal(rc, "hse_txn_begin");
 
     klen = snprintf(key, sizeof(key), "key.%09lu", keybase);
     if (mixed_sz)
@@ -672,15 +672,15 @@ ctxn_validation_basic(void)
     if (rc)
         fatal(rc, "kvdb_put 1");
 
-    rc = hse_kvdb_txn_commit(kvdb, txn);
+    rc = hse_txn_commit(kvdb, txn);
     if (rc)
-        fatal(rc, "hse_kvdb_txn_commit");
+        fatal(rc, "hse_txn_commit");
 
     ++stats.puts_c0;
 
-    rc = hse_kvdb_txn_begin(kvdb, txn);
+    rc = hse_txn_begin(kvdb, txn);
     if (rc)
-        fatal(rc, "hse_kvdb_txn_begin");
+        fatal(rc, "hse_txn_begin");
 
     vtxn = ++viter;
     rc = hse_kvs_put(kvs, 0, txn, key, klen, &vtxn, sizeof(vtxn));
@@ -729,9 +729,9 @@ ctxn_validation_basic(void)
     if (vtxn != viter)
         fatal(EINVAL, "isolation error (vtxn)");
 
-    rc = hse_kvdb_txn_commit(kvdb, txn);
+    rc = hse_txn_commit(kvdb, txn);
     if (rc)
-        fatal(rc, "hse_kvdb_txn_commit");
+        fatal(rc, "hse_txn_commit");
 
     ++stats.commits;
 

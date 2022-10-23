@@ -100,7 +100,7 @@ transactional_kvs_setup_with_data(struct mtf_test_info *lcl_ti)
     hse_err_t            err;
     char                 key_buf[8], val_buf[8];
     const char          *rparamv[] = { "transactions.enabled=true" };
-    struct hse_kvdb_txn *txn;
+    struct hse_txn *txn;
 
     err = fxt_kvs_setup(kvdb_handle, kvs_name, NELEM(rparamv), rparamv, 0, NULL, &kvs_handle);
     ASSERT_EQ_RET(0, hse_err_to_errno(err), hse_err_to_errno(err));
@@ -108,7 +108,7 @@ transactional_kvs_setup_with_data(struct mtf_test_info *lcl_ti)
     txn = hse_kvdb_txn_alloc(kvdb_handle);
     ASSERT_NE_RET(NULL, txn, EINVAL);
 
-    err = hse_kvdb_txn_begin(kvdb_handle, txn);
+    err = hse_txn_begin(kvdb_handle, txn);
     ASSERT_EQ_RET(0, hse_err_to_errno(err), hse_err_to_errno(err));
 
     for (int i = 0; i < NUM_ENTRIES; i++) {
@@ -124,7 +124,7 @@ transactional_kvs_setup_with_data(struct mtf_test_info *lcl_ti)
         ASSERT_EQ_RET(0, hse_err_to_errno(err), hse_err_to_errno(err));
     }
 
-    err = hse_kvdb_txn_commit(kvdb_handle, txn);
+    err = hse_txn_commit(kvdb_handle, txn);
     ASSERT_EQ_RET(0, hse_err_to_errno(err), hse_err_to_errno(err));
 
     return hse_err_to_errno(err);
@@ -235,7 +235,7 @@ MTF_DEFINE_UTEST_PREPOST(
 {
     hse_err_t              err;
     struct hse_kvs_cursor *cursor;
-    struct hse_kvdb_txn   *txn;
+    struct hse_txn   *txn;
 
     txn = hse_kvdb_txn_alloc(kvdb_handle);
     ASSERT_NE(NULL, txn);
@@ -254,12 +254,12 @@ MTF_DEFINE_UTEST_PREPOST(
 {
     hse_err_t              err;
     struct hse_kvs_cursor *cursor;
-    struct hse_kvdb_txn   *txn;
+    struct hse_txn   *txn;
 
     txn = hse_kvdb_txn_alloc(kvdb_handle);
     ASSERT_NE(NULL, txn);
 
-    err = hse_kvdb_txn_begin(kvdb_handle, txn);
+    err = hse_txn_begin(kvdb_handle, txn);
     ASSERT_EQ(0, hse_err_to_errno(err));
 
     err = hse_kvs_cursor_create(kvs_handle, 0, txn, NULL, 0, &cursor);
@@ -276,12 +276,12 @@ MTF_DEFINE_UTEST_PREPOST(
 {
     hse_err_t              err;
     struct hse_kvs_cursor *cursor;
-    struct hse_kvdb_txn   *txn;
+    struct hse_txn   *txn;
 
     txn = hse_kvdb_txn_alloc(kvdb_handle);
     ASSERT_NE(NULL, txn);
 
-    err = hse_kvdb_txn_begin(kvdb_handle, txn);
+    err = hse_txn_begin(kvdb_handle, txn);
     ASSERT_EQ(0, hse_err_to_errno(err));
 
     err = hse_kvs_cursor_create(kvs_handle, 0, txn, NULL, 0, &cursor);
@@ -375,12 +375,12 @@ MTF_DEFINE_UTEST_PREPOST(
     size_t                 key_len, val_len;
     bool                   eof;
     char                   key_buf[8], val_buf[8];
-    struct hse_kvdb_txn   *txn;
+    struct hse_txn   *txn;
 
     txn = hse_kvdb_txn_alloc(kvdb_handle);
     ASSERT_NE(NULL, txn);
 
-    err = hse_kvdb_txn_begin(kvdb_handle, txn);
+    err = hse_txn_begin(kvdb_handle, txn);
     ASSERT_EQ(0, hse_err_to_errno(err));
 
     err = hse_kvs_cursor_create(kvs_handle, HSE_CURSOR_CREATE_REV, txn, NULL, 0, &cursor);
@@ -491,12 +491,12 @@ MTF_DEFINE_UTEST_PREPOST(
     size_t                 key_len, val_len;
     bool                   eof;
     char                   key_buf[8], val_buf[8];
-    struct hse_kvdb_txn   *txn;
+    struct hse_txn   *txn;
 
     txn = hse_kvdb_txn_alloc(kvdb_handle);
     ASSERT_NE(NULL, txn);
 
-    err = hse_kvdb_txn_begin(kvdb_handle, txn);
+    err = hse_txn_begin(kvdb_handle, txn);
     ASSERT_EQ(0, hse_err_to_errno(err));
 
     err =
@@ -608,12 +608,12 @@ MTF_DEFINE_UTEST_PREPOST(
     size_t                 key_len, val_len;
     bool                   eof;
     char                   key_buf[8], val_buf[8];
-    struct hse_kvdb_txn   *txn;
+    struct hse_txn   *txn;
 
     txn = hse_kvdb_txn_alloc(kvdb_handle);
     ASSERT_NE(NULL, txn);
 
-    err = hse_kvdb_txn_begin(kvdb_handle, txn);
+    err = hse_txn_begin(kvdb_handle, txn);
     ASSERT_EQ(0, hse_err_to_errno(err));
 
     err =
@@ -1263,12 +1263,12 @@ MTF_DEFINE_UTEST_PREPOST(
     const void            *key, *val;
     size_t                 key_len, val_len;
     bool                   eof;
-    struct hse_kvdb_txn   *txn;
+    struct hse_txn   *txn;
 
     txn = hse_kvdb_txn_alloc(kvdb_handle);
     ASSERT_NE(NULL, txn);
 
-    err = hse_kvdb_txn_begin(kvdb_handle, txn);
+    err = hse_txn_begin(kvdb_handle, txn);
 
     err = hse_kvs_cursor_create(kvs_handle, 0, txn, NULL, 0, &cursor);
     ASSERT_EQ(0, hse_err_to_errno(err));

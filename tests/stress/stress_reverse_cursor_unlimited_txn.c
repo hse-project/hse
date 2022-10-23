@@ -272,7 +272,7 @@ void *
 point_insertion(void *args)
 {
     struct cursor_test_data *info = (struct cursor_test_data *)args;
-    struct hse_kvdb_txn *    txn;
+    struct hse_txn *    txn;
     long int                 i = 0;
     long int                 txn_size_idx = 0;
     char                     key_buf[info->key_size];
@@ -301,16 +301,16 @@ point_insertion(void *args)
     }
 
     for (i = info->start; i < info->end; i++) {
-        err = hse_kvdb_txn_begin(info->kvdb, txn);
+        err = hse_txn_begin(info->kvdb, txn);
 
         if (err) {
             hse_strerror(err, msg, sizeof(msg));
             log_print(
-                LOG_ERROR, "hse_kvdb_txn_begin: errno=%d msg=\"%s\"", hse_err_to_errno(err), msg);
+                LOG_ERROR, "hse_txn_begin: errno=%d msg=\"%s\"", hse_err_to_errno(err), msg);
             ++error_count;
             goto out2;
         } else if (DEBUG) {
-            log_debug("hse_kvdb_txn_begin: rank=%d i=%ld", info->rank, i);
+            log_debug("hse_txn_begin: rank=%d i=%ld", info->rank, i);
         }
 
         txn_size_idx = 0;
@@ -343,14 +343,14 @@ point_insertion(void *args)
                     sleep(10);
                     retry++;
                 } else if (hse_err_to_errno(err) == ECANCELED) {
-                    err = hse_kvdb_txn_abort(info->kvdb, txn);
+                    err = hse_txn_abort(info->kvdb, txn);
                     ++aborted_txn_count;
 
                     if (err) {
                         hse_strerror(err, msg, sizeof(msg));
                         log_print(
                             LOG_ERROR,
-                            "hse_kvdb_txn_abort: errno=%d msg=\"%s\"",
+                            "hse_txn_abort: errno=%d msg=\"%s\"",
                             hse_err_to_errno(err),
                             msg);
                         ++error_count;
@@ -359,13 +359,13 @@ point_insertion(void *args)
 
                     srand(time(0));
                     sleep((rand() % 10) / 1000);
-                    err = hse_kvdb_txn_begin(info->kvdb, txn);
+                    err = hse_txn_begin(info->kvdb, txn);
 
                     if (err) {
                         hse_strerror(err, msg, sizeof(msg));
                         log_print(
                             LOG_ERROR,
-                            "hse_kvdb_txn_begin: errno=%d msg=\"%s\"",
+                            "hse_txn_begin: errno=%d msg=\"%s\"",
                             hse_err_to_errno(err),
                             msg);
                         ++error_count;
@@ -383,20 +383,20 @@ point_insertion(void *args)
                         msg,
                         key_buf);
 
-                    err = hse_kvdb_txn_abort(info->kvdb, txn);
+                    err = hse_txn_abort(info->kvdb, txn);
 
                     if (err) {
                         hse_strerror(err, msg, sizeof(msg));
                         log_print(
                             LOG_ERROR,
-                            "hse_kvdb_txn_abort: errno=%d msg=\"%s\" i=%ld",
+                            "hse_txn_abort: errno=%d msg=\"%s\" i=%ld",
                             hse_err_to_errno(err),
                             msg,
                             i);
                         ++error_count;
                         goto out2;
                     } else if (DEBUG) {
-                        log_debug("hse_kvdb_txn_abort: i=%ld", i);
+                        log_debug("hse_txn_abort: i=%ld", i);
                     }
 
                     ++aborted_txn_count;
@@ -410,12 +410,12 @@ point_insertion(void *args)
         }
 
     commit:
-        err = hse_kvdb_txn_commit(info->kvdb, txn);
+        err = hse_txn_commit(info->kvdb, txn);
         if (err) {
             hse_strerror(err, msg, sizeof(msg));
             log_print(
                 LOG_ERROR,
-                "hse_kvdb_txn_commit: error=%d msg=\"%s\" rank=%d",
+                "hse_txn_commit: error=%d msg=\"%s\" rank=%d",
                 hse_err_to_errno(err),
                 msg,
                 info->rank);
@@ -423,7 +423,7 @@ point_insertion(void *args)
             ++error_count;
             goto out2;
         } else if (DEBUG) {
-            log_debug("hse_kvdb_txn_abort: rank=%d i=%ld", info->rank, i);
+            log_debug("hse_txn_abort: rank=%d i=%ld", info->rank, i);
         }
 
         ++committed_txn_count;

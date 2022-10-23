@@ -107,8 +107,8 @@ do_things(void *arg)
     }
 
     if (opts.load) {
-        struct hse_kvdb_txn *txn = hse_kvdb_txn_alloc(targ->kvdb);
-        hse_kvdb_txn_begin(targ->kvdb, txn);
+        struct hse_txn *txn = hse_kvdb_txn_alloc(targ->kvdb);
+        hse_txn_begin(targ->kvdb, txn);
         i = ti->start;
         for (i = ti->start; i < ti->end; i++) {
             *key = htobe64(i); /* key */
@@ -119,7 +119,7 @@ do_things(void *arg)
 
             atomic_inc(&ti->puts);
         }
-        hse_kvdb_txn_commit(targ->kvdb, txn);
+        hse_txn_commit(targ->kvdb, txn);
         hse_kvdb_txn_free(targ->kvdb, txn);
     }
 

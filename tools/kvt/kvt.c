@@ -392,7 +392,7 @@ static void *
 kvt_test_main(void *arg);
 
 static int
-kvt_test_impl(struct tdargs *args, unsigned int flags, struct hse_kvdb_txn *txn, u_long rid);
+kvt_test_impl(struct tdargs *args, unsigned int flags, struct hse_txn *txn, u_long rid);
 
 static thread_local uint64_t xrand64_state[2];
 
@@ -2284,23 +2284,23 @@ kvt_init(const char *keyfile, const char *keyfmt, u_long keymax, bool dump)
                     ridmax, ridkeybase, kvs_inodesc, kvs_datac, hash0);
 
     if (testtxn) {
-        struct hse_kvdb_txn *txn;
+        struct hse_txn *txn;
 
         txn = hse_kvdb_txn_alloc(kvdb);
         if (!txn)
             eprint(ENOMEM, "Could not allocate txn");
 
-        err = hse_kvdb_txn_begin(kvdb, txn);
+        err = hse_txn_begin(kvdb, txn);
         if (err)
-            eprint(err, "hse_kvdb_txn_begin");
+            eprint(err, "hse_txn_begin");
 
         err = hse_kvs_put(kvs_rids, 0, txn, key, klen, val, vlen);
         if (err)
             eprint(err, "put root key=%s val=%s", key, val);
 
-        err = hse_kvdb_txn_commit(kvdb, txn);
+        err = hse_txn_commit(kvdb, txn);
         if (err)
-            eprint(err, "hse_kvdb_txn_commit");
+            eprint(err, "hse_txn_commit");
 
         hse_kvdb_txn_free(kvdb, txn);
         if (err)
@@ -2346,7 +2346,7 @@ kvt_init_main(void *arg)
     hse_err_t      err;
     char *         databuf;
     u_long         flags;
-    struct hse_kvdb_txn *txn = NULL;
+    struct hse_txn *txn = NULL;
 
     job = args->job;
     xrand64_init(args->seed);
@@ -2483,9 +2483,9 @@ kvt_init_main(void *arg)
             continue;
 
         if (testtxn) {
-            err = hse_kvdb_txn_begin(kvdb, txn);
+            err = hse_txn_begin(kvdb, txn);
             if (err)
-                eprint(err, "hse_kvdb_txn_begin");
+                eprint(err, "hse_txn_begin");
         }
 
         err = hse_kvs_put(rid2data_kvs(datarid), 0, testtxn ? txn : NULL, key, klen, datasrc, cc);
@@ -2513,9 +2513,9 @@ kvt_init_main(void *arg)
         }
 
         if (testtxn) {
-            hse_kvdb_txn_commit(kvdb, txn);
+            hse_txn_commit(kvdb, txn);
             if (err)
-                eprint(err, "hse_kvdb_txn_commit");
+                eprint(err, "hse_txn_commit");
         }
 
         if (args->dump) {
@@ -3264,7 +3264,7 @@ static void *
 kvt_test_main(void *arg)
 {
     struct tdargs *        args = arg;
-    struct hse_kvdb_txn *  txn;
+    struct hse_txn *  txn;
     hse_err_t              err;
     tsi_t                  tstart;
     int                    rc;
@@ -3318,9 +3318,9 @@ kvt_test_main(void *arg)
                 }
             }
 
-            err = hse_kvdb_txn_begin(kvdb, txn);
+            err = hse_txn_begin(kvdb, txn);
             if (err) {
-                eprint(err, "hse_kvdb_txn_begin");
+                eprint(err, "hse_txn_begin");
                 rc = EX_SOFTWARE;
                 break;
             }
@@ -3329,7 +3329,7 @@ kvt_test_main(void *arg)
         rc = kvt_test_impl(args, 0, txn, rid);
         if (rc) {
             if (txn) {
-                hse_kvdb_txn_abort(kvdb, txn);
+                hse_txn_abort(kvdb, txn);
 
                 if (rc != EAGAIN)
                     ++args->stats.aborts;
@@ -3360,9 +3360,9 @@ kvt_test_main(void *arg)
                 usleep(MIN(avglat * 10, 500000));
             }
 
-            err = hse_kvdb_txn_commit(kvdb, txn);
+            err = hse_txn_commit(kvdb, txn);
             if (err) {
-                eprint(err, "hse_kvdb_txn_commit");
+                eprint(err, "hse_txn_commit");
                 rc = EX_SOFTWARE;
                 break;
             }
@@ -3391,7 +3391,7 @@ kvt_test_main(void *arg)
     args->stats.usecs = tsi_delta(&tstart);
 
     if (txn) {
-        hse_kvdb_txn_abort(kvdb, txn);
+        hse_txn_abort(kvdb, txn);
         hse_kvdb_txn_free(kvdb, txn);
     }
     free(args->databuf);
@@ -3400,7 +3400,7 @@ kvt_test_main(void *arg)
 }
 
 static int
-kvt_test_impl(struct tdargs *args, unsigned int oflags, struct hse_kvdb_txn *txn, u_long rid)
+kvt_test_impl(struct tdargs *args, unsigned int oflags, struct hse_txn *txn, u_long rid)
 {
     char            fnrec[512], key[128], fn[HSE_KVS_KEY_LEN_MAX * 2];
     struct hse_kvs *kvs_inodes_src, *kvs_inodes_dst;

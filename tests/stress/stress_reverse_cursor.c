@@ -212,7 +212,7 @@ point_insertion(void *args)
 {
     struct cursor_test_data *info = (struct cursor_test_data *)args;
     long int                 i = 0;
-    struct hse_kvdb_txn *    txn;
+    struct hse_txn *    txn;
     struct hse_kvs_cursor *  CURSOR;
     char                     key_buf[info->key_size];
     char                     val_buf[info->val_size];
@@ -231,19 +231,19 @@ point_insertion(void *args)
         goto out;
     }
 
-    err = hse_kvdb_txn_begin(info->kvdb, txn);
+    err = hse_txn_begin(info->kvdb, txn);
 
     if (err) {
         hse_strerror(err, msg, sizeof(msg));
         log_error(
-            "hse_kvdb_txn_begin: errno=%d msg=\"%s\" rank=%d",
+            "hse_txn_begin: errno=%d msg=\"%s\" rank=%d",
             hse_err_to_errno(err),
             msg,
             info->rank);
         ++error_count;
         goto out2;
     } else if (DEBUG) {
-        log_debug("hse_kvdb_txn_begin: rank=%d", info->rank);
+        log_debug("hse_txn_begin: rank=%d", info->rank);
     }
 
     for (i = info->start; i < info->end; i++) {
@@ -296,19 +296,19 @@ point_insertion(void *args)
     }
 
     if (!info->uncommitted) {
-        err = hse_kvdb_txn_commit(info->kvdb, txn);
+        err = hse_txn_commit(info->kvdb, txn);
 
         if (err) {
             hse_strerror(err, msg, sizeof(msg));
             log_error(
-                "hse_kvdb_txn_commit: errno=%d msg=\"%s\" rank=%d",
+                "hse_txn_commit: errno=%d msg=\"%s\" rank=%d",
                 hse_err_to_errno(err),
                 msg,
                 info->rank);
             ++error_count;
             goto out3;
         } else if (DEBUG) {
-            log_debug("hse_kvdb_txn_commit: rank=%d", info->rank);
+            log_debug("hse_txn_commit: rank=%d", info->rank);
         }
     }
 

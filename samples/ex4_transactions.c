@@ -54,7 +54,7 @@ main(int argc, char **argv)
 
     struct hse_kvdb *    kvdb;
     struct hse_kvs *     kvs1 = NULL, *kvs2 = NULL;
-    struct hse_kvdb_txn *txn;
+    struct hse_txn *txn;
 
     char      vbuf[64];
     size_t    vlen;
@@ -96,7 +96,7 @@ main(int argc, char **argv)
     txn = hse_kvdb_txn_alloc(kvdb);
 
     /* txn 1 */
-    rc = hse_kvdb_txn_begin(kvdb, txn);
+    rc = hse_txn_begin(kvdb, txn);
     if (rc) {
         error(rc, "Failed to being transaction");
         goto txn_cleanup;
@@ -129,14 +129,14 @@ main(int argc, char **argv)
     }
     printf("k1 from outside txn: found = %s\n", found ? "true" : "false");
 
-    rc = hse_kvdb_txn_commit(kvdb, txn);
+    rc = hse_txn_commit(kvdb, txn);
     if (rc) {
         error(rc, "Failed to commit the transaction");
         goto txn_cleanup;
     }
 
     /* txn 2. Reuse txn object from the first allocation */
-    rc = hse_kvdb_txn_begin(kvdb, txn);
+    rc = hse_txn_begin(kvdb, txn);
     if (rc) {
         error(rc, "Failed to begin the transaction");
         goto txn_cleanup;
@@ -153,7 +153,7 @@ main(int argc, char **argv)
         goto txn_cleanup;
     }
 
-    rc = hse_kvdb_txn_abort(kvdb, txn);
+    rc = hse_txn_abort(kvdb, txn);
     if (rc) {
         error(rc, "Failed to abort the transaction");
         goto txn_cleanup;

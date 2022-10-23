@@ -43,7 +43,7 @@ txn_puts(
 {
     struct kh_thread_arg *targ = arg;
     struct thread_info *ti = targ->arg;
-    struct hse_kvdb_txn    *txn;
+    struct hse_txn    *txn;
     char key[64] = {0};
     char val[1024];
     uint64_t *k; /* key */
@@ -58,7 +58,7 @@ txn_puts(
         fatal(ENOMEM, "Failed to allocate resources for txn");
 
     printf("Loading keys\n");
-    hse_kvdb_txn_begin(targ->kvdb, txn);
+    hse_txn_begin(targ->kvdb, txn);
     for (i = 0, kid = ti->kidx; i < opts.count; i++) {
         *k = htobe64(++kid);
 
@@ -68,10 +68,10 @@ txn_puts(
             fatal(rc, "Put failure");
     }
 
-    rc = hse_kvdb_txn_commit(targ->kvdb, txn);
+    rc = hse_txn_commit(targ->kvdb, txn);
     if (rc) {
         fatal(rc, "TX Commit failure");
-        hse_kvdb_txn_abort(targ->kvdb, txn);
+        hse_txn_abort(targ->kvdb, txn);
     }
 
     hse_kvdb_txn_free(targ->kvdb, txn);

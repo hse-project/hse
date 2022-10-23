@@ -43,7 +43,7 @@ void
 txget(void *arg)
 {
 	struct kh_thread_arg  *targ = arg;
-	struct hse_kvdb_txn    *txn = hse_kvdb_txn_alloc(targ->kvdb);
+	struct hse_txn    *txn = hse_kvdb_txn_alloc(targ->kvdb);
 	uint64_t            val1, val2;
 	bool                found;
 	size_t              vlen;
@@ -51,7 +51,7 @@ txget(void *arg)
 	while (!killthreads) {
 		val1 = val2 = 0;
 
-		hse_kvdb_txn_begin(targ->kvdb, txn);
+		hse_txn_begin(targ->kvdb, txn);
 		hse_kvs_get(targ->kvs, 0, txn, "abc", 3, &found, &val1,
 			sizeof(val1), &vlen);
 		if (!found)
@@ -68,7 +68,7 @@ txget(void *arg)
 			return;
 		}
 
-		hse_kvdb_txn_abort(targ->kvdb, txn);
+		hse_txn_abort(targ->kvdb, txn);
 	}
 
 	hse_kvdb_txn_free(targ->kvdb, txn);

@@ -32,7 +32,7 @@ enum kvdb_ctxn_state {
 };
 
 struct kvdb_ctxn {
-    struct hse_kvdb_txn ctxn_handle;
+    struct hse_txn ctxn_handle;
 };
 
 #define kvdb_ctxn_h2h(handle) container_of(handle, struct kvdb_ctxn, ctxn_handle)
