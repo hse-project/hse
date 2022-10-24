@@ -433,7 +433,8 @@ reader(void *arg)
     uint32_t            cnt;
     bool                eof = false;
     uint64_t            klast[2] = { 0 };
-    const void         *key, *val;
+    char                key[HSE_KVS_KEY_LEN_MAX];
+    char                val[HSE_KVS_VALUE_LEN_MAX];
     const uint64_t     *key64;
     size_t              klen, vlen;
     hse_err_t           err;
@@ -463,24 +464,24 @@ reader(void *arg)
             klen = 0;
 
             ti->state = 's';
-            err = hse_kvs_cursor_seek(c, 0, klast, sizeof(klast), &key, &klen);
+            err = hse_kvs_cursor_seek(c, 0, klast, sizeof(klast), key, sizeof(key), &klen);
             if (err)
                 fatal(err, "hse_kvs_cursor_seek failure");
 
             if (klen != sizeof(klast) || memcmp(klast, key, klen)) {
-                key64 = key;
+                key64 = (uint64_t *)&key;
 
                 fatal(ENOENT, "Lost capped position at seek: "
                       "expected %lu-%lu found %lu-%lu "
                       "next del %lu",
                       be64toh(klast[0]), be64toh(klast[1]),
-                      key ? be64toh(key64[0]) : 0,
-                      key ? be64toh(key64[1]) : 0,
+                      klen > 0 ? be64toh(key64[0]) : 0,
+                      klen > 0 ? be64toh(key64[1]) : 0,
                       next_del);
             }
 
             ti->state = 'r';
-            err = hse_kvs_cursor_read(c, 0, &key, &klen, &val, &vlen, &eof);
+            err = hse_kvs_cursor_read(c, 0, key, sizeof(key), &klen, val, sizeof(val), &vlen, &eof);
             if (err)
                 fatal(err, "Failed to read from the cursor");
         }
@@ -490,12 +491,12 @@ reader(void *arg)
 
         while (cnt < opts.batch) {
             ti->state = 'R';
-            err = hse_kvs_cursor_read(c, 0, &key, &klen, &val, &vlen, &eof);
+            err = hse_kvs_cursor_read(c, 0, key, sizeof(key), &klen, val, sizeof(val), &vlen, &eof);
             if (err)
                 fatal(err, "Failed to read from the cursor");
 
             ti->state = 'v';
-            key64 = key;
+            key64 = (uint64_t *)&key;
             if (eof || be64toh(key64[0]) > last_safe_pfx)
                 break;
 

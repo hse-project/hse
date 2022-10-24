@@ -253,30 +253,31 @@ main(int argc, char **argv)
         }                                                      \
     } while (0)
 
-#define seek()                                                          \
-    do {                                                                \
-        EVENT_START(ts);                                                \
-        err = hse_kvs_cursor_seek(cur, 0, kbuf, klen, &k, &vlen); \
-        EVENT_SAMPLE(ts);                                               \
-        if (err) {                                                      \
-            errmsg = "cannot seek";                                     \
-            break;                                                      \
-        }                                                               \
-                                                                        \
-        if (vlen != klen || memcmp(kbuf, k, vlen) != 0) {               \
-            printf("wanted: ");                                         \
-            showkey(kbuf, klen);                                        \
-            printf("found: ");                                          \
-            showkey(k, vlen);                                           \
-            errmsg = "seek did not return match";                       \
-            break;                                                      \
-        }                                                               \
+#define seek()                                                              \
+    do {                                                                    \
+        EVENT_START(ts);                                                    \
+        err = hse_kvs_cursor_seek(cur, 0, kbuf, klen, k, sizeof(k), &vlen); \
+        EVENT_SAMPLE(ts);                                                   \
+        if (err) {                                                          \
+            errmsg = "cannot seek";                                         \
+            break;                                                          \
+        }                                                                   \
+                                                                            \
+        if (vlen != klen || memcmp(kbuf, k, vlen) != 0) {                   \
+            printf("wanted: ");                                             \
+            showkey(kbuf, klen);                                            \
+            printf("found: ");                                              \
+            showkey(k, vlen);                                               \
+            errmsg = "seek did not return match";                           \
+            break;                                                          \
+        }                                                                   \
     } while (0)
 
 #define cread()                                                        \
     do {                                                               \
         EVENT_START(tr);                                               \
-        err = hse_kvs_cursor_read(cur, 0, &k, &klen, &v, &vlen, &eof); \
+        err = hse_kvs_cursor_read(cur, 0, k, sizeof(k), &klen, v,      \
+            sizeof(v), &vlen, &eof);                                   \
         EVENT_SAMPLE(tr);                                              \
         if (err) {                                                     \
             errmsg = "cannot read cursor";                             \
@@ -301,8 +302,9 @@ main(int argc, char **argv)
 
     key = start;
     while (!_sig && ++key < end) {
-        const void *k, *v;
-        u64         n = 1;
+        char k[HSE_KVS_KEY_LEN_MAX];
+        char v[HSE_KVS_VALUE_LEN_MAX];
+        u64  n = 1;
 
         klen = mk_key(kbuf, key);
 

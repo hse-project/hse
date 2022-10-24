@@ -573,7 +573,7 @@ ikvdb_kvs_cursor_seek(
     size_t                 key_len,
     const void *           limit,
     size_t                 limit_len,
-    struct kvs_ktuple *    kt);
+    struct kvs_buf *       found_buf);
 
 /**
  * ikvdb_kvs_cursor_read() - iteratively access the elements pointed to by
@@ -581,16 +581,6 @@ ikvdb_kvs_cursor_seek(
  */
 merr_t
 ikvdb_kvs_cursor_read(
-    struct hse_kvs_cursor *cursor,
-    unsigned int           flags,
-    const void **          key,
-    size_t *               key_len,
-    const void **          val,
-    size_t *               val_len,
-    bool *                 eof);
-
-merr_t
-ikvdb_kvs_cursor_read_copy(
     struct hse_kvs_cursor *cur,
     unsigned int           flags,
     void *                 keybuf,

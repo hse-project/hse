@@ -152,7 +152,7 @@ do_things(void *arg)
 
             *key = htobe64(start); /* seek key */
             err = hse_kvs_cursor_seek(cursorv[i], 0, kbuf,
-                         sizeof(kbuf), 0, 0);
+                         sizeof(kbuf), NULL, 0, NULL);
             if (err)
                 fatal(err, "Failed to seek cursor");
 
@@ -161,12 +161,13 @@ do_things(void *arg)
                 end = ti->end;
 
             for (j = start; j < end; j++) {
-                const void  *cur_key, *cur_val;
-                size_t       cur_klen, cur_vlen;
+                char   cur_key[HSE_KVS_KEY_LEN_MAX];
+                char   cur_val[HSE_KVS_VALUE_LEN_MAX];
+                size_t cur_klen, cur_vlen;
 
                 err = hse_kvs_cursor_read(cursorv[i], 0,
-                             &cur_key, &cur_klen,
-                             &cur_val, &cur_vlen, &eof);
+                    cur_key, sizeof(cur_key), &cur_klen,
+                    cur_val, sizeof(cur_val), &cur_vlen, &eof);
                 if (err || eof)
                     break;
 

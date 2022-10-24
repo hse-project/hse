@@ -352,8 +352,7 @@ kh_cursor_read(
 }
 
 void
-kh_cursor_destroy(
-	struct hse_kvs_cursor    *cur)
+kh_cursor_destroy(struct hse_kvs_cursor *cur)
 {
 	hse_err_t err;
 

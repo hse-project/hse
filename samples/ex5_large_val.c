@@ -1,6 +1,6 @@
 /* SPDX-License-Identifier: Apache-2.0 */
 /*
- * Copyright (C) 2015-2021 Micron Technology, Inc.  All rights reserved.
+ * Copyright (C) 2015-2022 Micron Technology, Inc.  All rights reserved.
  */
 
 /*
@@ -62,7 +62,8 @@ extract_kv_to_files(struct hse_kvs *kvs, int file_cnt, char **files)
     for (i = 0; i < file_cnt; i++) {
         char        pfx[HSE_KVS_KEY_LEN_MAX];
         char        outfile[NAME_MAX + 8]; /* Extra bytes for '.out' suffix */
-        const void *key, *val;
+        char        key_buf[HSE_KVS_KEY_LEN_MAX];
+        char        val_buf[HSE_KVS_VALUE_LEN_MAX];
         size_t      klen, vlen;
         bool        eof;
         bool        data_found = false;
@@ -86,7 +87,8 @@ extract_kv_to_files(struct hse_kvs *kvs, int file_cnt, char **files)
         }
 
         do {
-            rc = hse_kvs_cursor_read(cur, 0, &key, &klen, &val, &vlen, &eof);
+            rc = hse_kvs_cursor_read(cur, 0, key_buf, sizeof(key_buf), &klen, val_buf,
+                sizeof(val_buf), &vlen, &eof);
             if (rc) {
                 error(rc, "Failed to read from cursor");
                 err = hse_err_to_errno(rc);
@@ -98,7 +100,7 @@ extract_kv_to_files(struct hse_kvs *kvs, int file_cnt, char **files)
             if (eof)
                 break;
 
-            if (write(fd, val, vlen) != vlen) {
+            if (write(fd, val_buf, vlen) != vlen) {
                 err = errno;
                 goto cursor_cleanup;
             }

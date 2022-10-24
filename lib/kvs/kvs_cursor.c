@@ -177,7 +177,6 @@ struct kvs_cursor_impl {
     merr_t kci_err; /* bad cursor, must destroy */
 
     u8  *kci_prefix;
-    u8   kci_buf[];
 } HSE_L1D_ALIGNED;
 
 static size_t kvs_cursor_impl_alloc_sz HSE_READ_MOSTLY;
@@ -673,7 +672,6 @@ kvs_cursor_alloc(struct ikvs *kvs, const void *prefix, size_t pfx_len, bool reve
     cur->kci_pfxlen = pfx_len;
 
     /* Point buffer-pointers to the right memory regions */
-    cur->kci_prefix = cur->kci_buf + HSE_KVS_KEY_LEN_MAX + HSE_KVS_VALUE_LEN_MAX;
     cur->kci_last_kbuf = cur->kci_prefix + HSE_KVS_KEY_LEN_MAX;
     cur->kci_limit = cur->kci_last_kbuf + HSE_KVS_KEY_LEN_MAX;
 
@@ -1120,11 +1118,6 @@ kvs_cursor_key_copy(
     uint                    klen;
     void                   *key;
 
-    if (!buf) {
-        buf = cur->kci_buf;
-        bufsz = HSE_KVS_KEY_LEN_MAX;
-    }
-
     key = key_obj_copy(buf, bufsz, &klen, cur->kci_last);
 
     if (klen_out)
@@ -1157,11 +1150,6 @@ kvs_cursor_val_copy(
 
     if (!buf && !val_out)
         goto out;
-
-    if (!buf) {
-        buf = cur->kci_buf + HSE_KVS_KEY_LEN_MAX;
-        bufsz = HSE_KVS_VALUE_LEN_MAX;
-    }
 
     if (clen) {
         uint outlen;
@@ -1196,11 +1184,10 @@ kvs_cursor_read(struct hse_kvs_cursor *handle, unsigned int flags, bool *eofp)
         return cursor->kci_err;
 
     if (cursor->kci_need_seek) {
-        struct kvs_ktuple key = { 0 };
         bool              toss = cursor->kci_need_toss;
 
         cursor->kci_err = kvs_cursor_seek(
-            &cursor->kci_handle, cursor->kci_last_kbuf, cursor->kci_last_klen, 0, 0, &key);
+            &cursor->kci_handle, cursor->kci_last_kbuf, cursor->kci_last_klen, 0, 0, NULL);
 
         if (ev(cursor->kci_err))
             return cursor->kci_err;
@@ -1255,7 +1242,7 @@ kvs_cursor_seek(
     u32                    len,
     const void *           limit,
     u32                    limit_len,
-    struct kvs_ktuple *    kt)
+    struct kvs_buf *       found_buf)
 {
     struct kvs_cursor_impl *cursor = (void *)handle;
 
@@ -1290,9 +1277,9 @@ kvs_cursor_seek(
 
     /* Peek at the next key and optionally copy into kt */
     ikvs_cursor_replenish(cursor);
-    if (kt && !cursor->kci_eof)
-        kt->kt_data =
-            key_obj_copy(cursor->kci_buf, HSE_KVS_KEY_LEN_MAX, (uint *)&kt->kt_len, cursor->kci_last);
+    if (found_buf && !cursor->kci_eof)
+        key_obj_copy(found_buf->b_buf, found_buf->b_buf_sz, (uint *)&found_buf->b_len,
+            cursor->kci_last);
     cursor->kci_need_toss = 0;
     cursor->kci_need_seek = 0;
 
@@ -1307,8 +1294,8 @@ kvs_cursor_seek(
             cursor->kci_last = &cursor->kci_last_kobj;
         }
 
-        if (kt)
-            kt->kt_len = 0;
+        if (found_buf)
+            found_buf->b_len = 0;
         return cursor->kci_err;
     }
 
@@ -1379,8 +1366,7 @@ kvs_curcache_init(void)
     assert(!ikvs_curcachev);
 
     sz = sizeof(*kci);
-    sz += (HSE_KVS_KEY_LEN_MAX + HSE_KVS_VALUE_LEN_MAX); /* For kci_buf */
-    sz += (HSE_KVS_KEY_LEN_MAX * 3);                /* For prefix, last_key and limit */
+    sz += (HSE_KVS_KEY_LEN_MAX * 3); /* For prefix, last_key and limit */
     kvs_cursor_impl_alloc_sz = sz;
 
     ikvs_curcachec = clamp_t(uint, (get_nprocs() / 2), 16, 48);

@@ -782,7 +782,8 @@ MTF_DEFINE_UTEST_PREPOST(ikvdb_test, cursor_0, test_pre, test_post)
     merr_t                 err;
     struct hse_kvdb_txn *  txn = NULL;
     struct hse_kvs_cursor *cur;
-    const void *           key, *val;
+    char                   key[HSE_KVS_KEY_LEN_MAX];
+    char                   val[HSE_KVS_VALUE_LEN_MAX];
     size_t                 klen, vlen;
     bool                   eof;
     struct kvdb_rparams    params = kvdb_rparams_defaults();
@@ -817,11 +818,11 @@ MTF_DEFINE_UTEST_PREPOST(ikvdb_test, cursor_0, test_pre, test_post)
     ASSERT_EQ(0, err);
     ASSERT_NE(NULL, cur);
 
-    err = ikvdb_kvs_cursor_read(cur, 0, &key, &klen, &val, &vlen, &eof);
+    err = ikvdb_kvs_cursor_read(cur, 0, key, sizeof(key), &klen, val, sizeof(val), &vlen, &eof);
     ASSERT_EQ(0, err);
     ASSERT_TRUE(eof);
 
-    err = ikvdb_kvs_cursor_read(cur, 0, &key, &klen, &val, &vlen, &eof);
+    err = ikvdb_kvs_cursor_read(cur, 0, key, sizeof(key), &klen, val, sizeof(val), &vlen, &eof);
     ASSERT_EQ(0, err);
     ASSERT_TRUE(eof);
 
@@ -845,9 +846,12 @@ MTF_DEFINE_UTEST_PREPOST(ikvdb_test, cursor_1, test_pre_c0, test_post_c0)
     const char *const      kvs_open_paramv[] = { "mclass.policy=\"capacity_only\"" };
     struct hse_kvdb_txn *  txn = NULL;
     struct hse_kvs_cursor *cur;
+    struct kvs_buf         fbuf;
     struct kvs_ktuple      kt = { 0 };
     struct kvs_vtuple      vt = { 0 };
-    const void *           key, *val;
+    char                   key[HSE_KVS_KEY_LEN_MAX];
+    char                   val[HSE_KVS_VALUE_LEN_MAX];
+    char                   found[HSE_KVS_KEY_LEN_MAX];
     size_t                 klen, vlen;
     merr_t                 err;
     bool                   eof;
@@ -868,6 +872,9 @@ MTF_DEFINE_UTEST_PREPOST(ikvdb_test, cursor_1, test_pre_c0, test_post_c0)
         { "AA", "AA_1" }, { "AAA", "AAA_1" },   { "AABB", "AABB_1" }, { "AABC", "AABC_1" },
         { "AB", "AB_1" }, { "ABAA", "ABAA_1" }, { "ABC", "ABC_1" },   { "AC", "AC_1" },
     };
+
+    fbuf.b_buf = found;
+    fbuf.b_buf_sz = sizeof(found);
 
     err = argv_deserialize_to_kvdb_rparams(NELEM(kvdb_open_paramv), kvdb_open_paramv, &params);
     ASSERT_EQ(0, err);
@@ -912,7 +919,7 @@ MTF_DEFINE_UTEST_PREPOST(ikvdb_test, cursor_1, test_pre_c0, test_post_c0)
      */
     eof = 0;
     for (i = 0;; ++i) {
-        err = ikvdb_kvs_cursor_read(cur, 0, &key, &klen, &val, &vlen, &eof);
+        err = ikvdb_kvs_cursor_read(cur, 0, key, sizeof(key), &klen, val, sizeof(val), &vlen, &eof);
         ASSERT_EQ(err, 0);
         if (eof)
             break;
@@ -935,24 +942,24 @@ MTF_DEFINE_UTEST_PREPOST(ikvdb_test, cursor_1, test_pre_c0, test_post_c0)
     ASSERT_EQ(0, err);
     ASSERT_NE(NULL, cur);
 
-    key = sorted[3].key;
-    klen = strlen(key);
-    err = ikvdb_kvs_cursor_seek(cur, 0, key, klen, 0, 0, &kt);
+    klen = strlen(sorted[3].key);
+    memcpy(key, sorted[3].key, klen);
+    err = ikvdb_kvs_cursor_seek(cur, 0, key, klen, 0, 0, &fbuf);
     ASSERT_EQ(0, err);
-    ASSERT_EQ(kt.kt_len, klen);
+    ASSERT_EQ(fbuf.b_len, klen);
     ASSERT_EQ(0, memcmp(kt.kt_data, key, klen));
 
-    err = ikvdb_kvs_cursor_read(cur, 0, &key, &klen, &val, &vlen, &eof);
+    err = ikvdb_kvs_cursor_read(cur, 0, key, sizeof(key), &klen, val, sizeof(val), &vlen, &eof);
     ASSERT_EQ(0, err);
     ASSERT_FALSE(eof);
     ASSERT_EQ(0, memcmp(key, sorted[3].key, klen));
     ASSERT_EQ(0, memcmp(val, sorted[3].val, vlen));
 
-    err = ikvdb_kvs_cursor_seek(cur, 0, "ZZZ", 3, 0, 0, &kt);
+    err = ikvdb_kvs_cursor_seek(cur, 0, "ZZZ", 3, 0, 0, &fbuf);
     ASSERT_EQ(0, err);
-    ASSERT_EQ(0, kt.kt_len); /* eof */
+    ASSERT_EQ(0, fbuf.b_len); /* eof */
 
-    err = ikvdb_kvs_cursor_read(cur, 0, &key, &klen, &val, &vlen, &eof);
+    err = ikvdb_kvs_cursor_read(cur, 0, key, sizeof(key), &klen, val, sizeof(val), &vlen, &eof);
     ASSERT_EQ(0, err);
     ASSERT_TRUE(eof);
 
@@ -967,7 +974,7 @@ MTF_DEFINE_UTEST_PREPOST(ikvdb_test, cursor_1, test_pre_c0, test_post_c0)
 
     /* This code knows prefix AB is at offset 4..7 */
     for (i = 4;; ++i) {
-        err = ikvdb_kvs_cursor_read(cur, 0, &key, &klen, &val, &vlen, &eof);
+        err = ikvdb_kvs_cursor_read(cur, 0, key, sizeof(key), &klen, val, sizeof(val), &vlen, &eof);
         ASSERT_EQ(0, err);
         if (eof)
             break;
@@ -1442,12 +1449,17 @@ parallel_cursors(void *info)
 {
     struct cursor_info *   ci = info;
     struct hse_kvs_cursor *c;
-    struct kvs_ktuple      kt;
     char                   buf[32];
-    const void *           k, *v;
+    char                   k[HSE_KVS_KEY_LEN_MAX];
+    char                   v[HSE_KVS_VALUE_LEN_MAX];
     size_t                 klen, vlen;
+    char                   found[HSE_KVS_KEY_LEN_MAX];
+    struct kvs_buf         fbuf;
     int                    i;
     merr_t                 err;
+
+    fbuf.b_buf = found;
+    fbuf.b_buf_sz = sizeof(buf);
 
     for (i = 0; i < 100000; ++i) {
         u32  r = generate_random_u32(0, 10000 - 1); /* max is inclusive */
@@ -1466,12 +1478,12 @@ parallel_cursors(void *info)
         VERIFY_EQ_RET(err, 0, 0);
 
         klen = strlen(buf);
-        err = ikvdb_kvs_cursor_seek(c, 0, buf, klen, 0, 0, &kt);
+        err = ikvdb_kvs_cursor_seek(c, 0, buf, klen, 0, 0, &fbuf);
         VERIFY_EQ_RET(0, err, 0);
-        VERIFY_EQ_RET(kt.kt_len, klen, 0);
-        VERIFY_EQ_RET(0, memcmp(kt.kt_data, buf, klen), 0);
+        VERIFY_EQ_RET(fbuf.b_len, klen, 0);
+        VERIFY_EQ_RET(0, memcmp(fbuf.b_buf, buf, klen), 0);
 
-        err = ikvdb_kvs_cursor_read(c, 0, &k, &klen, &v, &vlen, &eof);
+        err = ikvdb_kvs_cursor_read(c, 0, k, sizeof(k), &klen, v, sizeof(v), &vlen, &eof);
         VERIFY_EQ_RET(0, err, 0);
         VERIFY_FALSE_RET(eof, 0);
         VERIFY_EQ_RET(0, memcmp(k, buf, klen), 0);

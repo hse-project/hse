@@ -120,7 +120,7 @@ kvs_cursor_seek(
     u32                    len,
     const void *           limit,
     u32                    limit_len,
-    struct kvs_ktuple *    kt);
+    struct kvs_buf *       found_buf);
 
 merr_t
 kvs_cursor_read(struct hse_kvs_cursor *cursor, unsigned int flags, bool *eof);

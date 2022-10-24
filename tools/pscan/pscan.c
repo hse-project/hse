@@ -374,7 +374,7 @@ main(int argc, char **argv)
 
     if (seeklen) {
         EVENT_START(ts);
-        err = hse_kvs_cursor_seek(cursor, 0, seek, seeklen, 0, 0);
+        err = hse_kvs_cursor_seek(cursor, 0, seek, seeklen, 0, 0, 0);
         EVENT_SAMPLE(ts);
         if (err)
             fatal(err, "cannot seek to %.*s", seeklen, seek);
@@ -396,16 +396,18 @@ main(int argc, char **argv)
     eof = false;
 
     for (iter = 0; iter < max_iter; iter++) {
-        const void *key, *val;
-        size_t      klen, vlen;
+        char   key[HSE_KVS_KEY_LEN_MAX];
+        char   val[HSE_KVS_VALUE_LEN_MAX];
+        size_t klen, vlen;
 
         if (stats)
             EVENT_START(tr);
 
         if (countem && !cksum)
-            err = hse_kvs_cursor_read(cursor, 0, &key, &klen, NULL, NULL, &eof);
+            err = hse_kvs_cursor_read(cursor, 0, key, sizeof(key), &klen, NULL, 0, NULL, &eof);
         else
-            err = hse_kvs_cursor_read(cursor, 0, &key, &klen, &val, &vlen, &eof);
+            err = hse_kvs_cursor_read(cursor, 0, key, sizeof(key), &klen, val, sizeof(val), &vlen,
+                &eof);
 
         if (stats)
             EVENT_SAMPLE(tr);

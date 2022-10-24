@@ -2918,7 +2918,7 @@ ikvdb_kvs_cursor_seek(
     size_t                 len,
     const void *           limit,
     size_t                 limit_len,
-    struct kvs_ktuple *    kt)
+    struct kvs_buf *       buf)
 {
     merr_t err;
     u64    tstart;
@@ -2938,7 +2938,7 @@ ikvdb_kvs_cursor_seek(
     }
 
     /* errors on seek are not fatal */
-    err = kvs_cursor_seek(cur, key, (u32)len, limit, (u32)limit_len, kt);
+    err = kvs_cursor_seek(cur, key, (u32)len, limit, (u32)limit_len, buf);
 
     perfc_lat_record(cur->kc_pkvsl_pc, PERFC_LT_PKVSL_KVS_CURSOR_SEEK, tstart);
 
@@ -2947,50 +2947,6 @@ ikvdb_kvs_cursor_seek(
 
 merr_t
 ikvdb_kvs_cursor_read(
-    struct hse_kvs_cursor *cur,
-    unsigned int           flags,
-    const void **          key,
-    size_t *               key_len,
-    const void **          val,
-    size_t *               val_len,
-    bool *                 eof)
-{
-    merr_t             err;
-    u64                tstart;
-
-    tstart = perfc_lat_start(cur->kc_pkvsl_pc);
-
-    if (ev(cur->kc_err))
-        return cur->kc_err;
-
-    if (cur->kc_bind) {
-        cur->kc_err = cursor_refresh(cur);
-        if (ev(cur->kc_err))
-            return cur->kc_err;
-    }
-
-    err = kvs_cursor_read(cur, flags, eof);
-    if (ev(err))
-        return err;
-    if (*eof)
-        return 0;
-
-    kvs_cursor_key_copy(cur, NULL, 0, key, key_len);
-    err = kvs_cursor_val_copy(cur, NULL, 0, val, val_len);
-    if (ev(err))
-        return err;
-
-    perfc_lat_record(
-        cur->kc_pkvsl_pc,
-        cur->kc_flags & HSE_CURSOR_CREATE_REV ? PERFC_LT_PKVSL_KVS_CURSOR_READREV
-                                                : PERFC_LT_PKVSL_KVS_CURSOR_READFWD,
-        tstart);
-
-    return 0;
-}
-
-merr_t
-ikvdb_kvs_cursor_read_copy(
     struct hse_kvs_cursor *cur,
     unsigned int           flags,
     void *                 keybuf,

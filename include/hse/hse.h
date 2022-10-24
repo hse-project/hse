@@ -1001,45 +1001,6 @@ hse_kvs_cursor_destroy(struct hse_kvs_cursor *cursor);
 /** @brief Iteratively access the elements pointed to by the cursor.
  *
  * Read a key-value pair from the cursor, advancing the cursor past its current
- * location. If the argument @p val is NULL, only the key is read.
- *
- * @note If the cursor is at EOF, attempts to read from it will not change the
- * state of the cursor.
- * @note Cursor objects are not thread safe.
- *
- * <b>Flags:</b>
- * @arg 0 - Reserved for future use.
- *
- * @param cursor: Cursor handle from hse_kvs_cursor_create().
- * @param flags: Flags for operation specialization.
- * @param[out] key: Next key in sequence.
- * @param[out] key_len: Length of @p key.
- * @param[out] val: Next value in sequence.
- * @param[out] val_len: Length of @p val.
- * @param[out] eof: If true, no more key-value pairs in sequence.
- *
- * @remark @p cursor must not be NULL.
- * @remark @p key must not be NULL.
- * @remark @p key_len must not be NULL.
- * @remark @p val_len must not be NULL.
- * @remark @p eof must not be NULL.
- *
- * @returns Error status
- */
-/* MTF_MOCK */
-hse_err_t
-hse_kvs_cursor_read(
-    struct hse_kvs_cursor *cursor,
-    unsigned int           flags,
-    const void **          key,
-    size_t *               key_len,
-    const void **          val,
-    size_t *               val_len,
-    bool *                 eof);
-
-/** @brief Iteratively access the elements pointed to by the cursor.
- *
- * Read a key-value pair from the cursor, advancing the cursor past its current
  * location. The key-value pair will be copied into the user's buffer(s). If the
  * argument @p valbuf is NULL, only the key is read.
  *
@@ -1069,7 +1030,7 @@ hse_kvs_cursor_read(
  * @returns Error status
  */
 hse_err_t
-hse_kvs_cursor_read_copy(
+hse_kvs_cursor_read(
     struct hse_kvs_cursor *cursor,
     unsigned int           flags,
     void *                 keybuf,
@@ -1095,10 +1056,9 @@ hse_kvs_cursor_read_copy(
  * @param flags: Flags for operation specialization.
  * @param key: Key to find.
  * @param key_len: Length of @p key.
- * @param[out] found: If non-NULL, referent point to next key in sequence
- * (optional).
- * @param found_len: If @p found is non-NULL, referent is length of @p found
- * key.
+ * @param[out] found_buf: If non-NULL, stores next key in sequence (optional).
+ * @param found_buf_sz: Size of @p found_buf.
+ * @param[out] found_len: Actual length of @p found_buf key (optional).
  *
  * @remark @p cursor must not be NULL.
  *
@@ -1111,7 +1071,8 @@ hse_kvs_cursor_seek(
     unsigned int           flags,
     const void *           key,
     size_t                 key_len,
-    const void **          found,
+    void *                 found_buf,
+    size_t                 found_buf_sz,
     size_t *               found_len);
 
 /** @brief Move the cursor to the closest match to key, gated by the given
@@ -1135,10 +1096,9 @@ hse_kvs_cursor_seek(
  * @param filt_min_len: Length of @p filt_min.
  * @param filt_max: Filter maximum.
  * @param filt_max_len: Length of @p filt_max.
- * @param[out] found: If non-NULL, referent points to next key in sequence
- * (optional).
- * @param[out] found_len: If non-NULL, referent is length of @p found key
- * (optional).
+ * @param[out] found_buf: If non-NULL, stores next key in sequence (optional).
+ * @param found_buf_sz: Size of @p found_buf.
+ * @param[out] found_len: Actual length of @p found_buf key (optional).
  *
  * @remark @p cursor must not be NULL.
  *
@@ -1153,7 +1113,8 @@ hse_kvs_cursor_seek_range(
     size_t                 filt_min_len,
     const void *           filt_max,
     size_t                 filt_max_len,
-    const void **          found,
+    void *                 found_buf,
+    size_t                 found_buf_sz,
     size_t *               found_len);
 
 /** @brief Update a the cursor view.

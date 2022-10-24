@@ -1612,27 +1612,31 @@ hse_kvs_cursor_seek(
     const unsigned int     flags,
     const void *           key,
     size_t                 len,
-    const void **          found,
-    size_t *               flen)
+    void *                 found_buf,
+    size_t                 found_buf_sz,
+    size_t *               found_len)
 {
-    struct kvs_ktuple kt;
-    merr_t            err;
+    struct kvs_buf fbuf;
+    merr_t         err;
 
     if (HSE_UNLIKELY(!cursor || flags != 0))
         return merr(EINVAL);
 
     PERFC_INC_RU(&kvdb_pc, PERFC_RA_KVDBOP_KVS_CURSOR_SEEK);
 
-    kt.kt_len = 0;
-    err = ikvdb_kvs_cursor_seek(cursor, flags, key, len, 0, 0, found ? &kt : 0);
-    ev(err);
+    fbuf.b_buf = found_buf;
+    fbuf.b_buf_sz = found_buf_sz;
+    err = ikvdb_kvs_cursor_seek(cursor, flags, key, len, 0, 0, found_buf ? &fbuf : NULL);
+    if (ev(err))
+        return err;
 
-    if (found && flen && !err) {
-        *found = kt.kt_data;
-        *flen = kt.kt_len;
-    }
+    /* If the key is found then vbuf.b_len contains the length of the found key
+     * stored in the kvs.  We expect it to fit into output buffer.
+     */
+    if (found_len)
+        *found_len = fbuf.b_len;
 
-    return err;
+    return 0;
 }
 
 hse_err_t
@@ -1643,64 +1647,36 @@ hse_kvs_cursor_seek_range(
     size_t                 key_len,
     const void *           limit,
     size_t                 limit_len,
-    const void **          found,
-    size_t *               flen)
+    void *                 found_buf,
+    size_t                 found_buf_sz,
+    size_t *               found_len)
 {
-    struct kvs_ktuple kt;
-    merr_t            err;
+    struct kvs_buf fbuf;
+    merr_t         err;
 
     if (HSE_UNLIKELY(!cursor || flags != 0))
         return merr(EINVAL);
 
     PERFC_INC_RU(&kvdb_pc, PERFC_RA_KVDBOP_KVS_CURSOR_SEEK);
 
-    kt.kt_len = 0;
-    err = ikvdb_kvs_cursor_seek(cursor, flags, key, key_len, limit, limit_len, found ? &kt : 0);
-    ev(err);
+    fbuf.b_buf = found_buf;
+    fbuf.b_buf_sz = found_buf_sz;
+    err = ikvdb_kvs_cursor_seek(cursor, flags, key, key_len, limit, limit_len,
+        found_buf ? &fbuf : 0);
+    if (ev(err))
+        return err;
 
-    if (found && flen && !err) {
-        *found = kt.kt_data;
-        *flen = kt.kt_len;
-    }
+    /* If the key is found then vbuf.b_len contains the length of the found key
+     * stored in the kvs.  We expect it to fit into output buffer.
+     */
+    if (found_len)
+        *found_len = fbuf.b_len;
 
-    return err;
+    return 0;
 }
 
 hse_err_t
 hse_kvs_cursor_read(
-    struct hse_kvs_cursor *cursor,
-    unsigned int           flags,
-    const void **          key,
-    size_t *               klen,
-    const void **          val,
-    size_t *               vlen,
-    bool *                 eof)
-{
-    merr_t err;
-
-    if (HSE_UNLIKELY(!cursor || !key || !klen || !eof || flags != 0))
-        return merr(EINVAL);
-
-    if (HSE_UNLIKELY(!!val ^ !!vlen))
-        return merr(EINVAL);
-
-    err = ikvdb_kvs_cursor_read(cursor, flags, key, klen, val, vlen, eof);
-    ev(err);
-
-    if (!err && !*eof) {
-        size_t len = *klen;
-
-        if (vlen)
-            len += *vlen;
-
-        PERFC_INCADD_RU(&kvdb_pc, PERFC_RA_KVDBOP_KVS_CURSOR_READ, PERFC_RA_KVDBOP_KVS_GETB, len);
-    }
-
-    return err;
-}
-
-hse_err_t
-hse_kvs_cursor_read_copy(
     struct hse_kvs_cursor *cursor,
     unsigned int           flags,
     void *                 keybuf,
@@ -1719,7 +1695,7 @@ hse_kvs_cursor_read_copy(
     if (HSE_UNLIKELY(!valbuf && valbuf_sz > 0))
         return merr(EINVAL);
 
-    err = ikvdb_kvs_cursor_read_copy(cursor, flags, keybuf, keybuf_sz, key_len,
+    err = ikvdb_kvs_cursor_read(cursor, flags, keybuf, keybuf_sz, key_len,
         valbuf, valbuf_sz, val_len, eof);
     ev(err);
 
@@ -1734,7 +1710,6 @@ hse_kvs_cursor_read_copy(
 
     return err;
 }
-
 
 hse_err_t
 hse_kvs_cursor_destroy(struct hse_kvs_cursor *cursor)

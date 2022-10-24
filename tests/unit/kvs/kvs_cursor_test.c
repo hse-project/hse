@@ -125,7 +125,11 @@ void verify_range(struct mtf_test_info *lcl_ti, const char *pfx, int start, int 
     merr_t err;
 
     struct hse_kvs_cursor *cur;
-    struct kvs_ktuple kt;
+    struct kvs_buf fbuf;
+    char found[HSE_KVS_KEY_LEN_MAX];
+
+    fbuf.b_buf = found;
+    fbuf.b_buf_sz = sizeof(found);
 
     cur = kvs_cursor_alloc(kvs, pfx, strlen(pfx), false);
     ASSERT_NE(NULL, cur);
@@ -135,11 +139,11 @@ void verify_range(struct mtf_test_info *lcl_ti, const char *pfx, int start, int 
 
     if (start) {
         construct_key(buf, sizeof(buf), pfx, start);
-        err = kvs_cursor_seek(cur, buf, strlen(buf), NULL, 0, &kt);
+        err = kvs_cursor_seek(cur, buf, strlen(buf), NULL, 0, &fbuf);
         ASSERT_EQ(0, err);
 
-        expect_pfx(lcl_ti, kt.kt_data, kt.kt_len, pfx);
-        expect_key(lcl_ti, kt.kt_data, kt.kt_len, buf);
+        expect_pfx(lcl_ti, fbuf.b_buf, fbuf.b_len, pfx);
+        expect_key(lcl_ti, fbuf.b_buf, fbuf.b_len, buf);
     }
 
     for (i = start;; i++) {

@@ -1,6 +1,6 @@
 /* SPDX-License-Identifier: Apache-2.0 */
 /*
- * Copyright (C) 2015-2021 Micron Technology, Inc.  All rights reserved.
+ * Copyright (C) 2015-2022 Micron Technology, Inc.  All rights reserved.
  */
 
 #include <stdio.h>
@@ -37,8 +37,8 @@ main(int argc, char **argv)
     struct hse_kvs_cursor *cursor = NULL;
 
     const char * paramv[] = { "logging.destination=stdout",
-                             "logging.level=3",
-                             "rest.enabled=false" };
+                              "logging.level=3",
+                              "rest.enabled=false" };
     const size_t paramc = sizeof(paramv) / sizeof(paramv[0]);
 
     char key[64], val[64];
@@ -46,9 +46,7 @@ main(int argc, char **argv)
     int       i, cnt = 15;
     bool      eof = false;
     hse_err_t rc, rc2;
-
-    const void *cur_key, *cur_val;
-    size_t      cur_klen, cur_vlen;
+    size_t    key_len, val_len;
 
     if (argc != 3)
         return usage(argv[0]);
@@ -93,7 +91,8 @@ main(int argc, char **argv)
     }
 
     while (!eof) {
-        rc = hse_kvs_cursor_read(cursor, 0, &cur_key, &cur_klen, &cur_val, &cur_vlen, &eof);
+        rc = hse_kvs_cursor_read(cursor, 0, key, sizeof(key), &key_len, val, sizeof(val), &val_len,
+            &eof);
         if (rc) {
             error(rc, "Failed to read from cursor");
             goto cursor_cleanup;
@@ -102,18 +101,19 @@ main(int argc, char **argv)
         if (!eof)
             printf(
                 "key:%.*s\tval:%.*s\n",
-                (int)cur_klen,
-                (char *)cur_key,
-                (int)cur_vlen,
-                (char *)cur_val);
+                (int)key_len,
+                (char *)key,
+                (int)val_len,
+                (char *)val);
     }
 
-    rc = hse_kvs_cursor_seek(cursor, 0, "key010", 6, NULL, NULL);
+    rc = hse_kvs_cursor_seek(cursor, 0, "key010", 6, NULL, 0, NULL);
     if (rc) {
         error(rc, "Failed to seek cursor to key010");
         goto cursor_cleanup;
     }
-    rc = hse_kvs_cursor_read(cursor, 0, &cur_key, &cur_klen, &cur_val, &cur_vlen, &eof);
+    rc = hse_kvs_cursor_read(cursor, 0, key, sizeof(key), &key_len, val, sizeof(val), &val_len,
+        &eof);
     if (rc) {
         error(rc, "Failed to read from cursor");
         goto cursor_cleanup;
@@ -121,8 +121,8 @@ main(int argc, char **argv)
 
     printf("After seek to key010:\n");
     printf("expected: key:%s\tval:%s\n", "key010", "val010");
-    printf("found:    key:%.*s\tval:%.*s\n", (int)cur_klen, (char *)cur_key,
-           (int)cur_vlen, (char *)cur_val);
+    printf("found:    key:%.*s\tval:%.*s\n", (int)key_len, (char *)key,
+           (int)val_len, (char *)val);
 
 cursor_cleanup:
     rc2 = hse_kvs_cursor_destroy(cursor);
