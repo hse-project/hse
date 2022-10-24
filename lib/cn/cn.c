@@ -1142,10 +1142,9 @@ cn_open(
         vszsuf = suffixes[vshift];
 
         log_info(
-            "opened kvs %s/%s cnid %lu pfx_len %u vcomp %u"
+            "opened kvs %s/%s cnid %lu pfx_len %u"
             " hb %lu%c/%lu kb %lu%c/%lu vb %lu%c/%lu %s%s%s%s",
-            cn->cn_kvdb_alias, cn->cn_kvs_name, (ulong)cnid,
-            cn->cp->pfx_len, cn->rp->compression.algorithm,
+            cn->cn_kvdb_alias, cn->cn_kvs_name, (ulong)cnid, cn->cp->pfx_len,
             (ulong)kvs_stats.kst_halen >> (hshift * 10), hszsuf, (ulong)kvs_stats.kst_hblks,
             (ulong)kvs_stats.kst_kalen >> (kshift * 10), kszsuf, (ulong)kvs_stats.kst_kblks,
             (ulong)kvs_stats.kst_valen >> (vshift * 10), vszsuf, (ulong)kvs_stats.kst_vblks,

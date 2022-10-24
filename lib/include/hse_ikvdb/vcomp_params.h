@@ -10,7 +10,6 @@
 
 #define VCOMP_PARAM_OFF "off"
 #define VCOMP_PARAM_ON  "on"
-#define VCOMP_PARAM_LZ4 "lz4"
 
 enum vcomp_default {
     VCOMP_DEFAULT_OFF,

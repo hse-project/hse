@@ -71,7 +71,6 @@ struct kvs_rparams {
 
     struct {
         enum vcomp_default deflt;
-        enum vcomp_algorithm algorithm;
     } compression;
 
     char mclass_policy[HSE_MPOLICY_NAME_LEN_MAX];

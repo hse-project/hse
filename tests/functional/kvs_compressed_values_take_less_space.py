@@ -21,9 +21,7 @@ try:
         kvdb = stack.enter_context(kvdb_ctx)
         kvs1_ctx = lifecycle.KvsContext(kvdb, kvs1_name)
         kvs1 = stack.enter_context(kvs1_ctx)
-        kvs2_ctx = lifecycle.KvsContext(kvdb, kvs2_name).rparams(
-            "compression.algorithm=lz4"
-        )
+        kvs2_ctx = lifecycle.KvsContext(kvdb, kvs2_name)
         kvs2 = stack.enter_context(kvs2_ctx)
 
         original_sz = kvdb.storage_info.used_bytes
