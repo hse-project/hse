@@ -59,7 +59,7 @@
 #define _merr_section __attribute__((section("hse_merr")))
 #define _merr_attributes _merr_section HSE_ALIGNED(MERR_ALIGN) HSE_MAYBE_UNUSED
 
-static char _hse_merr_file[] _merr_attributes = __BASE_FILE__;
+static char _hse_merr_file[MERR_ALIGN] _merr_attributes = __BASE_FILE__;
 
 extern char hse_merr_base[];
 extern char hse_merr_bug0[];

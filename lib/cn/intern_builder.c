@@ -29,7 +29,7 @@ struct intern_node {
 struct intern_key {
     uint          child_idx;
     uint          klen;
-    unsigned char kdata[];
+    unsigned char kdata[] HSE_ALIGNED(HSE_KVS_KEY_CPE_ALIGNMENT);
 };
 
 /**
@@ -56,20 +56,11 @@ struct intern_level {
     struct intern_node     *node_head;
     struct intern_node     *node_curr;
     unsigned char          *sbuf;
-    uint                    sbuf_sz;
-    uint                    sbuf_used;
+    size_t                  sbuf_sz;
+    size_t                  sbuf_used;
     struct intern_level    *parent;
     struct intern_builder  *ibldr;
 };
-
-/* Max sizes of objects embedded into struct intern_builder.
- */
-#define IB_ENODEV_MAX       NELEM(((struct intern_builder *)0)->nodev)
-#define IB_ELEVELV_MAX      NELEM(((struct intern_builder *)0)->levelv)
-#define IB_ESBUFSZ_MAX                                                  \
-    roundup(                                                            \
-        ((8192 - sizeof(struct intern_builder) - 16) / IB_ELEVELV_MAX), \
-        alignof(struct intern_key))
 
 /**
  * struct intern_buiilder -
@@ -92,16 +83,35 @@ struct intern_builder {
     u_char                 *sbufs;
     uint                    nodec;
     uint                    levelc;
-    struct intern_level     levelv[5];
+    struct intern_level     levelv[2];
     struct intern_node      nodev[48];
     u_char                  sbufv[];
 };
 
-/* If you increase the size of IB_ESBUFSZ_MAX or HSE_KVS_KEY_LEN_MAX then
- * you probably need to increase the buffer grow size in ib_sbuf_key_add().
+/* Max sizes of objects embedded into struct intern_builder.  For release
+ * builds, the initial embedded buffer size is large enough that calls to
+ * realloc() should rare for keys of reasonable length (i.e. < 64 bytes).
+ * We make it smaller for non-release builds in order to better exercise
+ * the realloc() path.
  */
-static_assert(IB_ESBUFSZ_MAX < 4096, "adjust grow size in ib_sbuf_key_add()");
-static_assert(HSE_KVS_KEY_LEN_MAX < 4096, "adjust grow size in ib_sbuf_key_add()");
+#ifdef HSE_BUILD_RELEASE
+#define IB_ESBUFSZ_KMC      (1u << 16) /* 64K ibldr kmem cache size */
+#else
+#define IB_ESBUFSZ_KMC      (1u << 13) /* 8K ibldr kmem cache size */
+#endif
+
+#define IB_ENODEV_MAX       NELEM(((struct intern_builder *)0)->nodev)
+#define IB_ELEVELV_MAX      NELEM(((struct intern_builder *)0)->levelv)
+#define IB_ESBUFSZ_MAX                                                               \
+    roundup(                                                                         \
+        ((IB_ESBUFSZ_KMC - sizeof(struct intern_builder)) / IB_ELEVELV_MAX),         \
+          alignof(struct intern_key))
+
+static_assert(IB_ESBUFSZ_KMC > IB_ESBUFSZ_MAX,
+              "IB_ESBUFSZ_MAX must not be larger than the allocation size");
+
+static_assert(IB_ESBUFSZ_MAX > HSE_KVS_KEY_LEN_MAX + sizeof(struct intern_key),
+              "IB_ESBUFSZ_MAX too small for max key length");
 
 
 static struct kmem_cache *ib_node_cache HSE_READ_MOSTLY;
@@ -110,19 +120,12 @@ static struct kmem_cache *ib_cache HSE_READ_MOSTLY;
 merr_t
 ib_init(void)
 {
-    size_t sz;
-
-    sz = sizeof(struct intern_node);
-
-    ib_node_cache = kmem_cache_create("ibnode", sz, 0, 0, NULL);
+    ib_node_cache = kmem_cache_create("ibnode", sizeof(struct intern_node), 0, 0, NULL);
     if (ev(!ib_node_cache)) {
         return merr(ENOMEM);
     }
 
-    sz = sizeof(struct intern_builder);
-    sz += IB_ESBUFSZ_MAX * IB_ELEVELV_MAX;
-
-    ib_cache = kmem_cache_create("ibldr", sz, 0, 0, NULL);
+    ib_cache = kmem_cache_create("ibldr", IB_ESBUFSZ_KMC, 0, 0, NULL);
     if (ev(!ib_cache)) {
         kmem_cache_destroy(ib_node_cache);
         ib_node_cache = NULL;
@@ -178,17 +181,20 @@ ib_lcp_len(struct intern_level *ib, const struct key_obj *ko)
     old_pfxlen = ib->node_lcp_len;
     assert(old_pfxlen <= k->klen);
 
+    if (old_pfxlen < 1)
+        return 0;
+
     if (old_pfxlen < ko->ko_pfx_len)
-        return memlcp(k->kdata, ko->ko_pfx, old_pfxlen);
+        return memlcp_cpe(k->kdata, ko->ko_pfx, old_pfxlen);
 
     /* old_pfxlen >= ko->ko_pfx_len */
-    new_pfxlen = memlcp(k->kdata, ko->ko_pfx, ko->ko_pfx_len);
+    new_pfxlen = memlcp_cpe(k->kdata, ko->ko_pfx, ko->ko_pfx_len);
     if (new_pfxlen == ko->ko_pfx_len) {
         void *p = k->kdata + new_pfxlen;
         uint  cmplen = old_pfxlen - new_pfxlen;
 
         assert(old_pfxlen >= new_pfxlen);
-        new_pfxlen += memlcp(p, ko->ko_sfx, cmplen);
+        new_pfxlen += memlcp_cpe(p, ko->ko_sfx, cmplen);
     }
 
     return new_pfxlen;
@@ -199,7 +205,7 @@ ib_sbuf_key_add(struct intern_level *l, uint child_idx, struct key_obj *kobj)
 {
     struct intern_key *k;
     uint klen = key_obj_len(kobj);
-    uint newsz;
+    size_t newsz;
 
     /* Grow scratch buffer, if necessary.  On entry l->sbuf is almost always
      * pointing to an embedded scratch buffer, it might be NULL if the level
@@ -211,7 +217,7 @@ ib_sbuf_key_add(struct intern_level *l, uint child_idx, struct key_obj *kobj)
     if (HSE_UNLIKELY(newsz > l->sbuf_sz)) {
         void *sbuf = NULL;
 
-        newsz = roundup(newsz, 4096) * 2;
+        newsz = roundup(newsz, IB_ESBUFSZ_KMC) * 2;
 
         if (l->sbuf_sz > IB_ESBUFSZ_MAX)
             sbuf = l->sbuf;
@@ -223,8 +229,15 @@ ib_sbuf_key_add(struct intern_level *l, uint child_idx, struct key_obj *kobj)
             sbuf = realloc(sbuf, newsz);
             if (!sbuf)
                 return merr(ENOMEM);
+
+            /* It should be rare to see this event counter in release builds.
+             */
+            ev_info(1);
         }
 
+        /* If the initial embedded buffer was too small
+         * then we must copy it into the new buffer.
+         */
         if (l->sbuf_sz == IB_ESBUFSZ_MAX)
             memcpy(sbuf, l->sbuf, l->sbuf_used);
 
@@ -238,7 +251,7 @@ ib_sbuf_key_add(struct intern_level *l, uint child_idx, struct key_obj *kobj)
     k->child_idx = child_idx;
     key_obj_copy(k->kdata, l->sbuf_sz - l->sbuf_used, &k->klen, kobj);
 
-    l->sbuf_used += sizeof(*k) + roundup(k->klen, __alignof__(*k));
+    l->sbuf_used += roundup(sizeof(*k) + k->klen, __alignof__(*k));
 
     return 0;
 }
@@ -289,7 +302,7 @@ ib_node_publish(struct intern_level *ib, uint last_child)
         assert((void *)entry < sfxp);
 
         entry++;
-        k = (void *)k + sizeof(*k) + roundup(k->klen, __alignof__(*k));
+        k = (void *)k + roundup(sizeof(*k) + k->klen, __alignof__(*k));
     }
 
     /* should have space for this last entry */
@@ -352,6 +365,7 @@ ib_level_create(struct intern_builder *ib, uint level)
         l = calloc(1, sizeof(*l));
         if (!l)
             return NULL;
+        ev_warn(1); // dead code?
     }
 
     l->level = level;

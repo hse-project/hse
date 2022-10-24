@@ -15,10 +15,10 @@
 
 #define HSE_SW_BUG_MSG "HSE software bug"
 
-char hse_merr_bug0[] _merr_attributes = "hse_merr_bug0";
-char hse_merr_bug1[] _merr_attributes = "hse_merr_bug1";
-char hse_merr_bug2[] _merr_attributes = "hse_merr_bug2";
-char hse_merr_base[] _merr_attributes = "hse_merr_base";
+char hse_merr_bug0[MERR_ALIGN] _merr_attributes = "hse_merr_bug0";
+char hse_merr_bug1[MERR_ALIGN] _merr_attributes = "hse_merr_bug1";
+char hse_merr_bug2[MERR_ALIGN] _merr_attributes = "hse_merr_bug2";
+char hse_merr_base[MERR_ALIGN] _merr_attributes = "hse_merr_base";
 
 extern uint8_t __start_hse_merr;
 extern uint8_t __stop_hse_merr;
