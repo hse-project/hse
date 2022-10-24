@@ -27,9 +27,10 @@ static const char *const perfc_ctr_type2name[] = {
 
 struct perfc_ivl *perfc_di_ivl HSE_READ_MOSTLY;
 
-static void
+static bool
 perfc_ra_emit(struct perfc_rate *const rate, cJSON *const ctr)
 {
+    bool bad = false;
     struct perfc_val *val;
     u64  dt, dx, ops;
     u64  vadd, vsub;
@@ -62,23 +63,26 @@ perfc_ra_emit(struct perfc_rate *const rate, cJSON *const ctr)
 
     ops = dt > 0 ? (dx * NSEC_PER_SEC) / dt : 0;
 
-    cJSON_AddNumberToObject(ctr, "delta_ns", dt);
-    cJSON_AddNumberToObject(ctr, "current", curr);
-    cJSON_AddNumberToObject(ctr, "previous", prev);
-    cJSON_AddNumberToObject(ctr, "rate", ops);
+    bad |= !cJSON_AddNumberToObject(ctr, "delta_ns", dt);
+    bad |= !cJSON_AddNumberToObject(ctr, "current", curr);
+    bad |= !cJSON_AddNumberToObject(ctr, "previous", prev);
+    bad |= !cJSON_AddNumberToObject(ctr, "rate", ops);
 
     if (vsub > 0) {
-        cJSON_AddNumberToObject(ctr, "vadd", vadd);
-        cJSON_AddNumberToObject(ctr, "vsub", vsub);
+        bad |= !cJSON_AddNumberToObject(ctr, "vadd", vadd);
+        bad |= !cJSON_AddNumberToObject(ctr, "vsub", vsub);
     } else {
-        cJSON_AddNullToObject(ctr, "vadd");
-        cJSON_AddNullToObject(ctr, "vsub");
+        bad |= !cJSON_AddNullToObject(ctr, "vadd");
+        bad |= !cJSON_AddNullToObject(ctr, "vsub");
     }
+
+    return !bad;
 }
 
-static void
+static bool
 perfc_di_emit(struct perfc_dis *const dis, cJSON *const ctr)
 {
+    bool bad = false;
     cJSON *histogram;
     unsigned long samples, avg, sum, bound;
     const struct perfc_ivl *ivl = dis->pdi_ivl;
@@ -86,11 +90,19 @@ perfc_di_emit(struct perfc_dis *const dis, cJSON *const ctr)
     samples = sum = bound = 0;
 
     histogram = cJSON_AddArrayToObject(ctr, "histogram");
+    if (ev(!histogram))
+        return merr(ENOMEM);
 
     for (size_t i = 0; i < ivl->ivl_cnt + 1; ++i) {
+        cJSON *bucket;
         ulong hits, val;
         struct perfc_bkt *bkt;
-        cJSON *bucket = cJSON_CreateObject();
+
+        bucket = cJSON_CreateObject();
+        if (ev(!bucket)) {
+            bad = true;
+            goto out;
+        }
 
         bkt = dis->pdi_hdr.pch_bktv + i;
         hits = val = 0;
@@ -103,11 +115,14 @@ perfc_di_emit(struct perfc_dis *const dis, cJSON *const ctr)
 
         avg = (hits > 0) ? val / hits : 0;
 
-        cJSON_AddNumberToObject(bucket, "hits", hits);
-        cJSON_AddNumberToObject(bucket, "average", avg);
-        cJSON_AddNumberToObject(bucket, "boundary", bound);
+        bad |= !cJSON_AddNumberToObject(bucket, "hits", hits);
+        bad |= !cJSON_AddNumberToObject(bucket, "average", avg);
+        bad |= !cJSON_AddNumberToObject(bucket, "boundary", bound);
 
-        cJSON_AddItemToArray(histogram, bucket);
+        if (bad || !cJSON_AddItemToArray(histogram, bucket)) {
+            cJSON_Delete(bucket);
+            goto out;
+        }
 
         if (i < ivl->ivl_cnt)
             bound = ivl->ivl_bound[i];
@@ -115,17 +130,25 @@ perfc_di_emit(struct perfc_dis *const dis, cJSON *const ctr)
         sum += val;
     }
 
-    cJSON_AddNumberToObject(ctr, "minimum", dis->pdi_min);
-    cJSON_AddNumberToObject(ctr, "maximum", dis->pdi_max);
     avg = (samples > 0) ? sum / samples : 0;
-    cJSON_AddNumberToObject(ctr, "average", avg);
+
+    bad |= !cJSON_AddNumberToObject(ctr, "minimum", dis->pdi_min);
+    bad |= !cJSON_AddNumberToObject(ctr, "maximum", dis->pdi_max);
+    bad |= !cJSON_AddNumberToObject(ctr, "average", avg);
 
     /* 'sum' and 'hitcnt' field names must match here and for simple lat
      * counters
      */
-    cJSON_AddNumberToObject(ctr, "sum", sum);
-    cJSON_AddNumberToObject(ctr, "hits", samples ? samples : 1);
-    cJSON_AddNumberToObject(ctr, "percentage", dis->pdi_pct * 100 / (1.0 * PERFC_PCT_SCALE));
+    bad |= !cJSON_AddNumberToObject(ctr, "sum", sum);
+    bad |= !cJSON_AddNumberToObject(ctr, "hits", samples ? samples : 1);
+    bad |= !cJSON_AddNumberToObject(ctr, "percentage",
+        dis->pdi_pct * 100 / (1.0 * PERFC_PCT_SCALE));
+
+out:
+    if (bad)
+        cJSON_Delete(ctr);
+
+    return !bad;
 }
 
 static void
@@ -160,67 +183,101 @@ static size_t
 perfc_emit_handler_ctrset(struct dt_element *const dte, cJSON *const root)
 {
     cJSON *ctrs;
+    cJSON *ctrset;
+    merr_t err = 0;
+    bool bad = false;
     struct perfc_ctr_hdr *ctr_hdr;
-    cJSON *ctrset = cJSON_CreateObject();
     struct perfc_seti *seti = dte->dte_data;
 
     INVARIANT(dte);
     INVARIANT(cJSON_IsArray(root));
 
-    cJSON_AddStringToObject(ctrset, "path", dte->dte_path);
-    cJSON_AddStringToObject(ctrset, "name", seti->pcs_ctrseti_name);
-    cJSON_AddNumberToObject(ctrset, "enabled", seti->pcs_handle->ps_bitmap);
+    ctrset = cJSON_CreateObject();
+    if (ev(!ctrset))
+        return merr(ENOMEM);
+
+    bad |= !cJSON_AddStringToObject(ctrset, "path", dte->dte_path);
+    bad |= !cJSON_AddStringToObject(ctrset, "name", seti->pcs_ctrseti_name);
+    bad |= !cJSON_AddNumberToObject(ctrset, "enabled", seti->pcs_handle->ps_bitmap);
+
+    if (ev(bad)) {
+        err = merr(ENOMEM);
+        goto out;
+    }
+
     ctrs = cJSON_AddArrayToObject(ctrset, "counters");
+    if (ev(!ctrs)) {
+        err = merr(ENOMEM);
+        goto out;
+    }
 
     /* Emit all the counters of the counter set instance. */
     for (uint32_t cidx = 0; cidx < seti->pcs_ctrc; cidx++) {
+        cJSON *ctr;
         u64 vadd, vsub;
-        cJSON *ctr = cJSON_CreateObject();
+
+        ctr = cJSON_CreateObject();
+        if (ev(!ctr)) {
+            err = merr(ENOMEM);
+            goto out;
+        }
 
         ctr_hdr = &seti->pcs_ctrv[cidx].hdr;
 
-        cJSON_AddStringToObject(ctr, "name", seti->pcs_ctrnamev[cidx].pcn_name);
-        cJSON_AddStringToObject(ctr, "header", seti->pcs_ctrnamev[cidx].pcn_hdr);
-        cJSON_AddStringToObject(ctr, "description", seti->pcs_ctrnamev[cidx].pcn_desc);
-        cJSON_AddStringToObject(ctr, "type", perfc_ctr_type2name[ctr_hdr->pch_type]);
-        cJSON_AddNumberToObject(ctr, "level", ctr_hdr->pch_level);
-        cJSON_AddNumberToObject(ctr, "enabled", (seti->pcs_handle->ps_bitmap & (1ul << cidx))
-            >> cidx);
+        bad |= !cJSON_AddStringToObject(ctr, "name", seti->pcs_ctrnamev[cidx].pcn_name);
+        bad |= !cJSON_AddStringToObject(ctr, "header", seti->pcs_ctrnamev[cidx].pcn_hdr);
+        bad |= !cJSON_AddStringToObject(ctr, "description", seti->pcs_ctrnamev[cidx].pcn_desc);
+        bad |= !cJSON_AddStringToObject(ctr, "type", perfc_ctr_type2name[ctr_hdr->pch_type]);
+        bad |= !cJSON_AddNumberToObject(ctr, "level", ctr_hdr->pch_level);
+        bad |= !cJSON_AddNumberToObject(ctr, "enabled",
+            (seti->pcs_handle->ps_bitmap & (1ul << cidx)) >> cidx);
 
         switch (ctr_hdr->pch_type) {
         case PERFC_TYPE_BA:
             perfc_read_hdr(ctr_hdr, &vadd, &vsub);
             vadd = vadd > vsub ? vadd - vsub : 0;
 
-            cJSON_AddNumberToObject(ctr, "value", vadd);
+            bad |= !cJSON_AddNumberToObject(ctr, "value", vadd);
+
             break;
 
         case PERFC_TYPE_RA:
-            perfc_ra_emit(&seti->pcs_ctrv[cidx].rate, ctr);
+            bad |= !perfc_ra_emit(&seti->pcs_ctrv[cidx].rate, ctr);
+
             break;
 
         case PERFC_TYPE_SL:
             perfc_read_hdr(ctr_hdr, &vadd, &vsub);
 
-            cJSON_AddNumberToObject(ctr, "sum", vadd);
-            cJSON_AddNumberToObject(ctr, "hits", vsub);
+            bad |= !cJSON_AddNumberToObject(ctr, "sum", vadd);
+            bad |= !cJSON_AddNumberToObject(ctr, "hits", vsub);
+
             break;
 
         case PERFC_TYPE_DI:
         case PERFC_TYPE_LT:
-            perfc_di_emit(&seti->pcs_ctrv[cidx].dis, ctr);
+            bad |= !perfc_di_emit(&seti->pcs_ctrv[cidx].dis, ctr);
+
             break;
 
         default:
             break;
         }
 
-        cJSON_AddItemToArray(ctrs, ctr);
+        if (bad || !cJSON_AddItemToArray(ctrs, ctr)) {
+            err = merr(ENOMEM);
+            goto out;
+        }
     }
 
-    cJSON_AddItemToArray(root, ctrset);
+out:
+    if (ev(err)) {
+        cJSON_Delete(ctrset);
+    } else {
+        cJSON_AddItemToArray(root, ctrset);
+    }
 
-    return 1;
+    return err;
 }
 
 /**
@@ -238,7 +295,7 @@ perfc_emit_handler_ctrset(struct dt_element *const dte, cJSON *const root)
  *
  * Fields are indented 6 spaces.
  */
-static size_t
+static merr_t
 perfc_emit_handler(struct dt_element *const dte, cJSON *const ctrset)
 {
     return perfc_emit_handler_ctrset(dte, ctrset);
@@ -250,19 +307,17 @@ perfc_emit_handler(struct dt_element *const dte, cJSON *const ctrset)
  *
  * Handle called by the tree to free a counter set instance.
  */
-static size_t
+static void
 perfc_remove_handler_ctrset(struct dt_element *dte)
 {
     free(dte->dte_data);
     free(dte);
-
-    return 0;
 }
 
-static size_t
+static void
 perfc_remove_handler(struct dt_element *dte)
 {
-    return perfc_remove_handler_ctrset(dte);
+    perfc_remove_handler_ctrset(dte);
 }
 
 struct dt_element_ops perfc_ops = {
@@ -270,31 +325,21 @@ struct dt_element_ops perfc_ops = {
     .dto_remove = perfc_remove_handler,
 };
 
-static size_t
-perfc_root_emit_handler(struct dt_element *const dte, cJSON *const root)
-{
-    return 1;
-}
-
-static struct dt_element_ops perfc_root_ops = {
-    .dto_emit = perfc_root_emit_handler,
-};
+static struct dt_element_ops perfc_root_ops = { 0 };
 
 merr_t
 perfc_init(void)
 {
     static struct dt_element hse_dte_perfc = {
         .dte_ops = &perfc_root_ops,
-        .dte_is_root = true,
         .dte_file = REL_FILE(__FILE__),
         .dte_line = __LINE__,
         .dte_func = __func__,
-        .dte_path = DT_PATH_PERFC,
+        .dte_path = PERFC_DT_PATH,
     };
     u64    boundv[PERFC_IVL_MAX];
     u64    bound;
     merr_t err;
-    int    rc;
 
     /* Create the bounds vector for the default latency distribution
      * histogram.  The first ten bounds run from 100ns to 1us with a
@@ -340,11 +385,11 @@ perfc_init(void)
     if (ev(err))
         return err;
 
-    rc = dt_add(&hse_dte_perfc);
-    if (ev(rc)) {
+    err = dt_add(&hse_dte_perfc);
+    if (ev(err)) {
         perfc_ivl_destroy(perfc_di_ivl);
         perfc_di_ivl = NULL;
-        return merr(rc);
+        return err;
     }
 
     return 0;
@@ -353,7 +398,7 @@ perfc_init(void)
 void
 perfc_fini(void)
 {
-    dt_remove_recursive(DT_PATH_PERFC);
+    dt_remove_recursive(PERFC_DT_PATH);
 
     perfc_ivl_destroy(perfc_di_ivl);
     perfc_di_ivl = NULL;
@@ -426,6 +471,18 @@ perfc_ctr_name2type(const char *ctrname, char *type, char *family, char *mean)
     }
 
     return PERFC_TYPE_INVAL;
+}
+
+static merr_t
+perfc_access_dte(void *data, void *ctx)
+{
+    struct perfc_set *setp = ctx;
+    struct perfc_seti *seti = data;
+
+    seti->pcs_handle = setp;
+    setp->ps_seti = seti;
+
+    return 0;
 }
 
 merr_t
@@ -511,21 +568,20 @@ perfc_alloc_impl(
     assert(familylen > 0);
 
     sz = snprintf(path, sizeof(path), "%s/%s/%s/%s",
-                  DT_PATH_PERFC, group, family, ctrseti_name);
+                  PERFC_DT_PATH, group, family, ctrseti_name);
     if (sz >= sizeof(path)) {
         err = merr(EINVAL);
         goto errout;
     }
 
-    dte = dt_find(path, 1 /*exact*/);
-    if (dte) {
-        seti = (struct perfc_seti *)dte->dte_data;
+    err = dt_access(path, perfc_access_dte, setp);
+    if (ev(err)) {
+        if (merr_errno(err) != ENOENT)
+            goto errout;
 
-        /* [HSE_REVISIT] Fix me: mp_test.c abuses this... */
-        ev(seti->pcs_handle != NULL);
-
-        seti->pcs_handle = setp;
-        setp->ps_seti = seti;
+        /* Reset because we will allocate the new data tree element. */
+        err = 0;
+    } else {
         return 0;
     }
 
@@ -653,7 +709,7 @@ perfc_free(struct perfc_set *set)
         return;
 
     /* The remove handler will free anything hanging from the counter set */
-    dt_remove_by_name(seti->pcs_path);
+    dt_remove(seti->pcs_path);
     set->ps_seti = NULL;
 }
 

@@ -32,7 +32,7 @@ clear_handler_counts(void)
     test_element_remove_handler_hit = 0;
 }
 
-size_t
+void
 test_element_remove_handler(struct dt_element *element)
 {
     test_element_remove_handler_hit++;
@@ -40,29 +40,26 @@ test_element_remove_handler(struct dt_element *element)
         /* Free the underlying data object */
         free(element->dte_data);
     }
+
     free(element);
-    return 0;
 }
 
-size_t
+merr_t
 test_element_emit_handler(struct dt_element *element, cJSON *root)
 {
-    cJSON *elem = cJSON_CreateObject();
+    cJSON *elem;
+    bool bad = false;
+
+    elem = cJSON_CreateObject();
+    if (!elem)
+        return merr(ENOMEM);
 
     test_element_emit_handler_hit++;
 
-    cJSON_AddStringToObject(elem, "path", element->dte_path);
+    bad |= !cJSON_AddStringToObject(elem, "path", element->dte_path);
+    bad |= !cJSON_AddItemToArray(root, elem);
 
-    cJSON_AddItemToArray(root, elem);
-
-    return 1;
-}
-
-size_t
-test_element_set_handler(struct dt_element *element, struct dt_set_parameters *dsp)
-{
-    test_element_set_handler_hit++;
-    return 1;
+    return bad ? merr(ENOMEM) : 0;
 }
 
 struct dt_element_ops test_element_ops = {
@@ -83,7 +80,7 @@ MTF_DEFINE_UTEST(data_tree, tree_create_and_add)
 
     /* Now add a test_element */
     element = calloc(1, sizeof(*element));
-    ASSERT_NE(element, NULL);
+    ASSERT_NE(NULL, element);
 
     te = calloc(1, sizeof(*te));
     ASSERT_NE(te, NULL);
@@ -126,31 +123,29 @@ add_test_element(char *path, int num)
 
 MTF_DEFINE_UTEST(data_tree, test_element_ops_function)
 {
-    int ret;
+    merr_t err;
     cJSON *root;
     struct dt_element *element;
-    struct dt_set_parameters dsp;
 
     clear_handler_counts();
-    dsp.value = "foo";
-    dsp.value_len = strlen(dsp.value);
 
     /* Now add a test_element */
     element = add_test_element("/test_element/one", 1);
+    ASSERT_NE(NULL, element);
 
     root = cJSON_CreateArray();
     ASSERT_NE(NULL, root);
 
     /* Test Emit Handler */
-    ret = element->dte_ops->dto_emit(element, root);
+    err = element->dte_ops->dto_emit(element, root);
 
     ASSERT_EQ(test_element_emit_handler_hit, 1);
     ASSERT_EQ(1, cJSON_GetArraySize(root));
 
     /* Test Remove Handler */
-    ret = dt_remove(element);
-    ASSERT_EQ(ret, 0);
-    ASSERT_EQ(test_element_remove_handler_hit, 1);
+    err = dt_remove(element->dte_path);
+    ASSERT_EQ(0, merr_errno(err));
+    ASSERT_EQ(1, test_element_remove_handler_hit);
 
     dt_remove_recursive(DT_PATH_TEST);
 
@@ -159,12 +154,9 @@ MTF_DEFINE_UTEST(data_tree, test_element_ops_function)
 
 MTF_DEFINE_UTEST(data_tree, test_emit_overflow_protection)
 {
+    merr_t err;
     cJSON *root;
-    struct dt_element * element[3];
-    union dt_iterate_parameters dip;
-
-    root = cJSON_CreateArray();
-    ASSERT_NE(NULL, root);
+    struct dt_element *element[3];
 
     clear_handler_counts();
 
@@ -177,11 +169,9 @@ MTF_DEFINE_UTEST(data_tree, test_emit_overflow_protection)
         ASSERT_NE(element[i], NULL);
     }
 
-    dip.root = root;
-
     /* Try to overflow */
-    dt_iterate_cmd(DT_OP_EMIT, DT_PATH_TEST, &dip, NULL, NULL, NULL);
-
+    err = dt_emit(DT_PATH_TEST, &root);
+    ASSERT_EQ(0, merr_errno(err));
     ASSERT_EQ(3, cJSON_GetArraySize(root));
 
     dt_remove_recursive(DT_PATH_TEST);
@@ -191,8 +181,8 @@ MTF_DEFINE_UTEST(data_tree, test_emit_overflow_protection)
 
 MTF_DEFINE_UTEST(data_tree, test_find)
 {
+    merr_t err;
     struct dt_element *element1, *element2, *element4;
-    struct dt_element *found;
 
     clear_handler_counts();
 
@@ -206,22 +196,19 @@ MTF_DEFINE_UTEST(data_tree, test_find)
     ASSERT_NE(element4, NULL);
 
     /* Find each element by exact search */
-    found = dt_find(DT_PATH_TEST "/test1/one", 1);
-    ASSERT_EQ(found, element1);
+    err = dt_access(DT_PATH_TEST "/test1/one", NULL, NULL);
+    ASSERT_EQ(0, merr_errno(err));
 
-    found = dt_find(DT_PATH_TEST "/test1/one/two", 1);
-    ASSERT_EQ(found, element2);
+    err = dt_access(DT_PATH_TEST "/test1/one/two", NULL, NULL);
+    ASSERT_EQ(0, merr_errno(err));
 
-    found = dt_find(DT_PATH_TEST "/test1/one/two/three/four", 1);
-    ASSERT_EQ(found, element4);
+    err = dt_access(DT_PATH_TEST "/test1/one/two/three/four", NULL, NULL);
+    ASSERT_EQ(0, merr_errno(err));
 
     /* Try to find 'three' and prove that exact search doesn't find it */
-    found = dt_find(DT_PATH_TEST "/test1/one/two/three", 1);
-    ASSERT_EQ(found, NULL);
 
-    /* Now find element4 with a fuzzy search starting at '.../three' */
-    found = dt_find(DT_PATH_TEST "/test1/one/two/three", 0);
-    ASSERT_EQ(found, element4);
+    err = dt_access(DT_PATH_TEST "/test1/one/two/three", NULL, NULL);
+    ASSERT_EQ(ENOENT, merr_errno(err));
 
     dt_remove_recursive(DT_PATH_TEST);
 }
@@ -234,121 +221,26 @@ MTF_DEFINE_UTEST(data_tree, test_iterate_with_command)
     clear_handler_counts();
 
     element0 = add_test_element("/test1", 0);
-    ASSERT_NE(element0, NULL);
+    ASSERT_NE(NULL, element0);
 
     element1 = add_test_element("/test1/one", 1);
-    ASSERT_NE(element1, NULL);
+    ASSERT_NE(NULL, element1);
 
     element2 = add_test_element("/test1/one/two", 2);
-    ASSERT_NE(element2, NULL);
+    ASSERT_NE(NULL, element2);
 
     element4 = add_test_element("/test1/one/two/three/four", 4);
-    ASSERT_NE(element4, NULL);
+    ASSERT_NE(NULL, element4);
 
     /* Now iterate starting at the top and make sure you see
      * four elements (root + the 3 new elements.
      */
-    ret = dt_iterate_cmd(DT_OP_COUNT, DT_PATH_TEST "/test1", NULL, NULL, NULL, NULL);
-    ASSERT_EQ(ret, 4);
+    ret = dt_count(DT_PATH_TEST "/test1");
+    ASSERT_EQ(4, ret);
 
     /* Now iterate starting in the middle, should see two */
-    ret = dt_iterate_cmd(DT_OP_COUNT, DT_PATH_TEST "/test1/one/two", NULL, NULL, NULL, NULL);
-    ASSERT_EQ(ret, 2);
-
-    dt_remove_recursive(DT_PATH_TEST);
-}
-
-static int
-select_for_0(struct dt_element *element)
-{
-    struct test_element *te = element->dte_data;
-
-    return (te && te->num == 0) ? 1 : 0;
-}
-
-static int
-select_for_1(struct dt_element *element)
-{
-    struct test_element *te = element->dte_data;
-
-    return (te && te->num == 1) ? 1 : 0;
-}
-
-MTF_DEFINE_UTEST(data_tree, test_selection_callback)
-{
-    struct dt_element *element1, *element2, *element3, *element4;
-    int                ret;
-
-    clear_handler_counts();
-
-    element1 = add_test_element("/one", 0);
-    ASSERT_NE(element1, NULL);
-
-    element2 = add_test_element("/two", 1);
-    ASSERT_NE(element2, NULL);
-
-    element3 = add_test_element("/three", 1);
-    ASSERT_NE(element3, NULL);
-
-    element4 = add_test_element("/four", 1);
-    ASSERT_NE(element4, NULL);
-
-    /* Now, select for (te->num == 1)
-     */
-    ret = dt_iterate_cmd(DT_OP_COUNT, DT_PATH_TEST, NULL, select_for_0, NULL, NULL);
-    ASSERT_EQ(ret, 1);
-
-    ret = dt_iterate_cmd(DT_OP_COUNT, DT_PATH_TEST, NULL, select_for_1, NULL, NULL);
-    ASSERT_EQ(ret, 3);
-
-    dt_remove_recursive(DT_PATH_TEST);
-}
-
-MTF_DEFINE_UTEST(data_tree, test_iterate)
-{
-    struct dt_element *element[4];
-    struct dt_element *found;
-    int                found_count;
-
-    clear_handler_counts();
-
-    element[0] = add_test_element("/a", 1);
-    ASSERT_NE(element[0], NULL);
-
-    element[1] = add_test_element("/a/b", 1);
-    ASSERT_NE(element[1], NULL);
-
-    element[2] = add_test_element("/a/b/d", 1);
-    ASSERT_NE(element[2], NULL);
-
-    element[3] = add_test_element("/a/c", 1);
-    ASSERT_NE(element[3], NULL);
-
-    /* Should find all 4 elements plus the root if I start at /test */
-    found_count = 0;
-    found = NULL;
-    do {
-        found = dt_iterate_next(DT_PATH_TEST "/a", found);
-        if (found) {
-            ASSERT_EQ(found, element[found_count]);
-            found_count++;
-        }
-    } while (found != NULL);
-
-    ASSERT_EQ(found_count, 4);
-
-    /* Should find all 2 elements if I start at /test/one/two */
-    found_count = 0;
-    found = NULL;
-    do {
-        found = dt_iterate_next(DT_PATH_TEST "/a/b", found);
-        if (found) {
-            ASSERT_EQ(found, element[found_count + 1]);
-            found_count++;
-        }
-    } while (found != NULL);
-
-    ASSERT_EQ(found_count, 2);
+    ret = dt_count(DT_PATH_TEST "/test1/one/two");
+    ASSERT_EQ(2, ret);
 
     dt_remove_recursive(DT_PATH_TEST);
 }
@@ -375,35 +267,36 @@ struct test {
 
 MTF_DEFINE_UTEST(data_tree, remove_recursive)
 {
+    int ret;
+    merr_t err;
     struct dt_element *element;
-    int                ret;
 
     element = add_test_element("/A/one", 1);
-    ASSERT_NE(element, NULL);
+    ASSERT_NE(NULL, element);
 
     element = add_test_element("/A/two", 1);
-    ASSERT_NE(element, NULL);
+    ASSERT_NE(NULL, element);
 
     element = add_test_element("/A/B/three", 1);
-    ASSERT_NE(element, NULL);
+    ASSERT_NE(NULL, element);
 
     element = add_test_element("/A/B/four", 1);
-    ASSERT_NE(element, NULL);
+    ASSERT_NE(NULL, element);
 
     element = add_test_element("/C/five", 1);
-    ASSERT_NE(element, NULL);
+    ASSERT_NE(NULL, element);
 
     /* Now iterate starting at the top and make sure you see six elements */
-    ret = dt_iterate_cmd(DT_OP_COUNT, DT_PATH_TEST, NULL, NULL, NULL, NULL);
-    ASSERT_EQ(ret, 5);
+    ret = dt_count(DT_PATH_TEST);
+    ASSERT_EQ(5, ret);
 
     /* Now recursively remove the /test/A sub-tree */
-    ret = dt_remove_recursive(DT_PATH_TEST "/A");
-    ASSERT_EQ(ret, 0);
+    err = dt_remove_recursive(DT_PATH_TEST "/A");
+    ASSERT_EQ(0, merr_errno(err));
 
     /* Now there should be two items left */
-    ret = dt_iterate_cmd(DT_OP_COUNT, DT_PATH_TEST, NULL, NULL, NULL, NULL);
-    ASSERT_EQ(ret, 1);
+    ret = dt_count(DT_PATH_TEST);
+    ASSERT_EQ(1, ret);
 
     dt_remove_recursive(DT_PATH_TEST);
 }
@@ -416,8 +309,7 @@ worker(void *context, int id)
 {
     struct test *test = context;
     struct test_worker *work = &(test->worker[id]);
-    struct dt_element *dte, *prev, *found;
-    union dt_iterate_parameters dip;
+    struct dt_element *dte;
 
     mtest_barrier(mtest);
 
@@ -438,11 +330,13 @@ worker(void *context, int id)
         }
         if (work->work_type & WORK_TYPE_FIND) {
             for (int i = 0; i < work->count_per_loop; i++) {
+                merr_t err;
                 char path[DT_PATH_MAX];
 
-                sprintf(path, "%s/worker%d/node%d", DT_PATH_TEST, id, i);
-                dte = dt_find(path, 1);
-                if (!dte) {
+                snprintf(path, sizeof(path), "%s/worker%d/node%d", DT_PATH_TEST, id, i);
+
+                err = dt_access(path, NULL, NULL);
+                if (err) {
                     fail_line = __LINE__;
                     fail_err = ENOENT;
                     return;
@@ -450,46 +344,25 @@ worker(void *context, int id)
             }
         }
         if (work->work_type & WORK_TYPE_ITER) {
-            cJSON *root;
-            char   path[DT_PATH_MAX];
             size_t iter_count = 0;
+            char   path[DT_PATH_MAX];
 
-            root = cJSON_CreateArray();
-            if (!root) {
-                fail_line = __LINE__;
-                fail_err = ENOMEM;
-                return;
-            }
+            snprintf(path, sizeof(path), "%s/worker%d", DT_PATH_TEST, id);
 
-            dip.root = root;
-
-            sprintf(path, "%s/worker%d", DT_PATH_TEST, id);
-            iter_count = dt_iterate_cmd(DT_OP_EMIT, path, &dip, NULL, NULL, NULL);
+            iter_count = dt_count(path);
             if (iter_count != work->count_per_loop) {
                 printf("%lu %d\n", iter_count, work->count_per_loop);
                 fail_line = __LINE__;
                 fail_err = EINVAL;
                 return;
             }
-
-            cJSON_Delete(root);
         }
         if (work->work_type & WORK_TYPE_DEL) {
             char path[DT_PATH_MAX];
 
             sprintf(path, "%s/worker%d", DT_PATH_TEST, id);
-            found = dt_iterate_next(path, NULL);
-            do {
-                prev = found;
-                if (prev == NULL) {
-                    /* There is an error here, this should not be needed, we should
-                     * break at the while(). But we are not.
-                     */
-                    break;
-                }
-                found = dt_iterate_next(path, found);
-                dt_remove(prev);
-            } while (found);
+
+            dt_remove_recursive(path);
         }
     }
 }

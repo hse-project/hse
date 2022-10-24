@@ -394,6 +394,7 @@ rest_kvdb_get_perfc(
     const char *alias;
     const char *filter;
     struct ikvdb *kvdb;
+    char dt_path[DT_PATH_MAX];
     enum rest_status status = REST_STATUS_OK;
 
     INVARIANT(req);
@@ -409,8 +410,10 @@ rest_kvdb_get_perfc(
     if (err)
         return REST_STATUS_BAD_REQUEST;
 
-    err = dt_emit(&root, DT_PATH_PERFC "/kvdbs/%s%s%s", alias, filtered ? "/" : "",
-        filtered ? filter : "");
+    snprintf(dt_path, sizeof(dt_path), PERFC_DT_PATH "/kvdbs/%s%s%s",
+        alias, filtered ? "/" : "", filtered ? filter : "");
+
+    err = dt_emit(dt_path, &root);
     if (err) {
         switch (merr_errno(err)) {
         case ENAMETOOLONG:
@@ -618,6 +621,7 @@ rest_kvs_get_perfc(
     const char *filter;
     struct ikvdb *kvdb;
     struct kvdb_kvs *kvs;
+    char dt_path[DT_PATH_MAX];
     enum rest_status status = REST_STATUS_OK;
 
     INVARIANT(req);
@@ -634,8 +638,11 @@ rest_kvs_get_perfc(
     if (err)
         return REST_STATUS_BAD_REQUEST;
 
-    err = dt_emit(&root, DT_PATH_PERFC "/kvdbs/%s/kvs/%s%s%s", alias, kvs->kk_ikvs->ikv_kvs_name,
+    snprintf(dt_path, sizeof(dt_path), PERFC_DT_PATH "/kvdbs/%s/kvs/%s%s%s",
+        alias, kvs->kk_ikvs->ikv_kvs_name,
         filtered ? "/" : "", filtered ? filter : "");
+
+    err = dt_emit(dt_path, &root);
     if (err) {
         switch (merr_errno(err)) {
         case ENAMETOOLONG:

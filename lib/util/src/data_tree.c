@@ -1,6 +1,6 @@
 /* SPDX-License-Identifier: Apache-2.0 */
 /*
- * Copyright (C) 2015-2021 Micron Technology, Inc.  All rights reserved.
+ * Copyright (C) 2015-2022 Micron Technology, Inc.  All rights reserved.
  */
 
 #include <errno.h>
@@ -23,23 +23,13 @@
 /* clang-format off */
 
 struct dt_tree {
-    struct mutex        dt_lock HSE_ACP_ALIGNED;
-    struct rb_root      dt_root;
+    struct mutex dt_lock HSE_ACP_ALIGNED;
+    struct rb_root dt_root;
 
-    struct mutex        dt_pending_lock HSE_L1X_ALIGNED;
-    struct list_head    dt_pending_list;
+    struct mutex dt_pending_lock HSE_L1X_ALIGNED;
+    struct list_head dt_pending_list;
 
-    struct dt_element   dt_element HSE_L1D_ALIGNED;
-};
-
-/**
- * struct field_name - A table mapping field names to their enum values
- * @field_name:
- * @field_val:
- */
-struct field_name {
-    const char *field_name;
-    dt_field_t  field_val;
+    struct dt_element dt_element HSE_L1D_ALIGNED;
 };
 
 /* clang-format on */
@@ -59,7 +49,6 @@ static struct dt_tree hse_dt_tree _dt_section = {
     },
     .dt_element = {
         .dte_ops = &dt_root_ops,
-        .dte_is_root = true,
         .dte_file = REL_FILE(__FILE__),
         .dte_line = __LINE__,
         .dte_path = DT_PATH_ROOT,
@@ -67,15 +56,15 @@ static struct dt_tree hse_dt_tree _dt_section = {
 };
 
 static HSE_ALWAYS_INLINE void
-dt_lock(struct dt_tree *tree)
+dt_lock(void)
 {
-    mutex_lock(&tree->dt_lock);
+    mutex_lock(&hse_dt_tree.dt_lock);
 }
 
 static HSE_ALWAYS_INLINE void
-dt_unlock(struct dt_tree *tree)
+dt_unlock(void)
 {
-    mutex_unlock(&tree->dt_lock);
+    mutex_unlock(&hse_dt_tree.dt_lock);
 }
 
 static size_t
@@ -183,74 +172,75 @@ dt_add_pending_dte(struct dt_tree *tree, struct dt_element *dte)
 /* Caller must hold dt_lock.
  */
 static void
-dt_add_pending(struct dt_tree *tree)
+dt_add_pending(void)
 {
+    int rc;
     struct dt_element *dte;
     struct list_head list;
-    int rc;
 
     INIT_LIST_HEAD(&list);
 
-    mutex_lock(&tree->dt_pending_lock);
-    list_splice(&tree->dt_pending_list, &list);
-    INIT_LIST_HEAD(&tree->dt_pending_list);
-    mutex_unlock(&tree->dt_pending_lock);
+    mutex_lock(&hse_dt_tree.dt_pending_lock);
+    list_splice(&hse_dt_tree.dt_pending_list, &list);
+    INIT_LIST_HEAD(&hse_dt_tree.dt_pending_list);
+    mutex_unlock(&hse_dt_tree.dt_pending_lock);
 
     while (!list_empty(&list)) {
         dte = list_first_entry(&list, typeof(*dte), dte_list);
         list_del(&dte->dte_list);
 
-        rc = dt_add_pending_dte(tree, dte);
+        rc = dt_add_pending_dte(&hse_dt_tree, dte);
 
-        /* Failure to add likely means that the caller tried to
-         * install mulitple counters with identical paths.  This
-         * shouldn't happen outside development of new counters.
+        /* Failure to add likely means that the caller tried to install mulitple
+         * elements with identical paths. This shouldn't happen outside
+         * development of new elements.
          */
         assert(rc == 0);
         ev_warn(rc);
     }
 }
 
-int
+merr_t
 dt_add(struct dt_element *dte)
 {
-    struct dt_tree *tree = &hse_dt_tree;
+    merr_t err = 0;
     struct dt_element *item;
-    int rc = 0;
 
     if (!dte || !dte->dte_ops)
-        return EINVAL;
+        return merr(EINVAL);
 
-    /* Check the pending list to protect against broken or malicious
-     * callers trying to add the same dte more than once.  There is
-     * still a case where the new dte is in the active rb tree so
-     * async attempts by dt_add_pending() to insert it will fail.
-     * In this case we assert if assert is enabled, otherwise we
-     * we simply record the event with an event counter.
+    if (strlen(dte->dte_path) >= DT_PATH_MAX)
+        return merr(ENAMETOOLONG);
+
+    mutex_lock(&hse_dt_tree.dt_pending_lock);
+
+    /* Check the pending list to protect against broken or malicious callers
+     * trying to add the same dte more than once.
      */
-    mutex_lock(&tree->dt_pending_lock);
-    list_for_each_entry(item, &tree->dt_pending_list, dte_list) {
+    list_for_each_entry(item, &hse_dt_tree.dt_pending_list, dte_list) {
         if (item == dte || 0 == strcmp(item->dte_path, dte->dte_path)) {
-            rc = EEXIST;
+            err = merr(EEXIST);
             break;
         }
     }
 
-    if (!rc)
-        list_add(&dte->dte_list, &tree->dt_pending_list);
-    mutex_unlock(&tree->dt_pending_lock);
+    if (!err)
+        list_add(&dte->dte_list, &hse_dt_tree.dt_pending_list);
 
-    return rc;
+    mutex_unlock(&hse_dt_tree.dt_pending_lock);
+
+    return err;
 }
 
-static int
-dt_remove_locked(struct dt_tree *tree, struct dt_element *dte, int force)
+/* Caller must hold tree lock. */
+static merr_t
+dt_remove_impl(struct dt_element *dte, bool force)
 {
     if (dte->dte_ops->dto_remove || force)
-        rb_erase(&dte->dte_node, &tree->dt_root);
+        rb_erase(&dte->dte_node, &hse_dt_tree.dt_root);
 
     if (!dte->dte_ops->dto_remove)
-        return EACCES;
+        return merr(EACCES);
 
     /* Invoke the remove handler for cleanup of the
      * data tree and data object structures.
@@ -260,24 +250,9 @@ dt_remove_locked(struct dt_tree *tree, struct dt_element *dte, int force)
     return 0;
 }
 
-int
-dt_remove(struct dt_element *dte)
-{
-    struct dt_tree *tree = &hse_dt_tree;
-    int ret;
-
-    dt_lock(tree);
-    dt_add_pending(tree);
-
-    ret = dt_remove_locked(tree, dte, 0);
-    dt_unlock(tree);
-
-    return ret;
-}
-
 /* Assumes that dt_lock is held */
 static struct dt_element *
-dt_find_locked(struct dt_tree *tree, const char *path, int exact)
+dt_find(const char *const path, const size_t path_len, const bool exact)
 {
     struct rb_root *   root;
     struct rb_node *   node;
@@ -285,23 +260,18 @@ dt_find_locked(struct dt_tree *tree, const char *path, int exact)
     struct dt_element *last_valid = NULL;
     int                result;
     int                prev = 0;
-    int                pathlen;
 
-    dt_add_pending(tree);
+    dt_add_pending();
 
-    root = &tree->dt_root;
+    root = &hse_dt_tree.dt_root;
     node = root->rb_node;
-
-    pathlen = strnlen(path, DT_PATH_MAX);
-    if (pathlen >= DT_PATH_MAX)
-        return NULL;
 
     while (node) {
         dte = container_of(node, struct dt_element, dte_node);
 
         result = strcmp(path, dte->dte_path);
 
-        if (!strncmp(path, dte->dte_path, pathlen)) {
+        if (!strncmp(path, dte->dte_path, path_len)) {
             /* Keep this one in case the next is off our path */
             last_valid = dte;
         }
@@ -331,100 +301,8 @@ dt_find_locked(struct dt_tree *tree, const char *path, int exact)
         /* We've passed what we were looking for */
         dte = last_valid;
     }
+
     return dte;
-}
-
-merr_t
-dt_emit(cJSON **const root, const char *const path_fmt, ...)
-{
-    int rc;
-    cJSON *tmp;
-    va_list args;
-    char path[DT_PATH_MAX];
-    union dt_iterate_parameters params;
-
-    *root = NULL;
-
-    va_start(args, path_fmt);
-    rc = vsnprintf(path, sizeof(path), path_fmt, args);
-    va_end(args);
-    if (rc >= sizeof(path))
-        return merr(ENAMETOOLONG);
-
-    if (!dt_find(path, 0))
-        return merr(ENOENT);
-
-    tmp = cJSON_CreateArray();
-    if (ev(!tmp))
-        return merr(ENOMEM);
-
-    params.root = tmp;
-
-    dt_iterate_cmd(DT_OP_EMIT, path, &params, NULL, NULL, NULL);
-
-    *root = tmp;
-
-    return 0;
-}
-
-struct dt_element *
-dt_find(const char *path, int exact)
-{
-    struct dt_tree *tree = &hse_dt_tree;
-    struct dt_element *ret;
-
-    dt_lock(tree);
-    ret = dt_find_locked(tree, path, exact);
-    dt_unlock(tree);
-
-    return ret;
-}
-
-int
-dt_remove_by_name(char *path)
-{
-    struct dt_tree *tree = &hse_dt_tree;
-    struct dt_element *dte;
-    int                ret = 0;
-
-    dt_lock(tree);
-    dte = dt_find_locked(tree, path, 1);
-    if (dte)
-        ret = dt_remove_locked(tree, dte, 1);
-    dt_unlock(tree);
-
-    return ret;
-}
-
-int
-dt_remove_recursive(char *path)
-{
-    struct dt_tree *tree = &hse_dt_tree;
-    struct dt_element *dte;
-    struct rb_node *   node;
-    int                ret = 0;
-    int                pathlen;
-
-    pathlen = strnlen(path, DT_PATH_MAX);
-    if (pathlen >= DT_PATH_MAX)
-        return ENAMETOOLONG;
-
-    dt_lock(tree);
-    dte = dt_find_locked(tree, path, 0);
-    while (dte) {
-        node = rb_next(&dte->dte_node);
-        ret = dt_remove_locked(tree, dte, 1);
-
-        dte = container_of(node, struct dt_element, dte_node);
-        if (dte && strncmp(path, dte->dte_path, pathlen)) {
-            /* We've hit the first thing that doesn't include
-             * the search path. That means we're done. */
-            break;
-        }
-    }
-    dt_unlock(tree);
-
-    return ret;
 }
 
 void
@@ -438,203 +316,247 @@ dt_init(void)
 void
 dt_fini(void)
 {
-    struct dt_tree *tree = &hse_dt_tree;
     struct dt_element *dte;
     struct rb_root *root;
 
-    dt_lock(tree);
-    dt_add_pending(tree);
+    dt_lock();
+    dt_add_pending();
 
-    root = &tree->dt_root;
+    root = &hse_dt_tree.dt_root;
 
     while (root->rb_node) {
         dte = container_of(root->rb_node, typeof(*dte), dte_node);
-        dt_remove_locked(tree, dte, 1);
+        dt_remove_impl(dte, 1);
     }
 
-    dt_unlock(tree);
+    dt_unlock();
 }
 
-/* Assumes dt_lock is held */
-static size_t
-emit_roots_upto(struct dt_tree *const tree, const char *const path, cJSON *const root)
+merr_t
+dt_access(const char *const path, dt_access_t access, void *const ctx)
 {
-    size_t count = 0;
-    char my_path[DT_PATH_MAX];
-    char *saveptr = NULL;
-    int pathlen;
+    merr_t err = 0;
+    size_t path_len;
+    struct dt_element *dte;
 
-    pathlen = strlcpy(my_path, path, DT_PATH_MAX);
-    if (pathlen >= sizeof(my_path))
+    if (!path)
+        return merr(EINVAL);
+
+    path_len = strlen(path);
+    if (path_len >= DT_PATH_MAX)
+        return merr(ENAMETOOLONG);
+
+    dt_lock();
+
+    dte = dt_find(path, path_len, 1);
+    if (!dte) {
+        err = merr(ENOENT);
+        goto out;
+    }
+
+    if (access)
+        err = access(dte->dte_data, ctx);
+
+out:
+    dt_unlock();
+
+    return err;
+}
+
+unsigned int
+dt_count(const char *const path)
+{
+    size_t path_len;
+    unsigned int count = 0;
+    struct dt_element *dte;
+
+    if (!path)
+        return merr(EINVAL);
+
+    path_len = strlen(path);
+    if (path_len >= DT_PATH_MAX)
+        return merr(ENAMETOOLONG);
+
+    dt_lock();
+
+    dte = dt_find(path, path_len, false);
+    while (dte) {
+        struct rb_node *node;
+
+        count++;
+
+        node = rb_next(&dte->dte_node);
+        dte = container_of(node, struct dt_element, dte_node);
+        if (dte && strncmp(path, dte->dte_path, path_len)) {
+            /* We've hit the first thing that doesn't include
+             * the search path. That means we're done. */
+            break;
+        }
+    }
+
+    dt_unlock();
+
+    return count;
+}
+
+/* Assumes data tree lock is held */
+static merr_t
+emit_roots_upto(const char *const path, cJSON *const root)
+{
+    merr_t err = 0;
+    size_t path_len;
+    char *saveptr = NULL;
+    char my_path[DT_PATH_MAX];
+
+    path_len = strlcpy(my_path, path, sizeof(my_path));
+    if (path_len >= sizeof(my_path))
         return 0;
 
     while (1) {
-        struct dt_element *dte;
         char *ptr;
+        size_t ptr_len;
+        struct dt_element *dte;
 
         ptr = dt_build_pathname(my_path, &saveptr);
-        if (strlen(ptr) >= pathlen) {
+        ptr_len = strlen(ptr);
+        if (ptr_len >= path_len) {
             /* stop _before_ eating the whole path,
              * the normal iterator will take it from here */
             break;
         }
 
-        dte = dt_find_locked(tree, ptr, 1);
-        if (dte && dte->dte_is_root && dte->dte_ops->dto_emit)
-            count += dte->dte_ops->dto_emit(dte, root);
+        dte = dt_find(ptr, ptr_len, true);
+        if (dte && dte->dte_ops->dto_emit) {
+            err = dte->dte_ops->dto_emit(dte, root);
+            if (err)
+                break;
+        }
     }
 
-    return count;
+    return err;
 }
 
-size_t
-dt_iterate_cmd(
-    int                          op,
-    const char *                 path,
-    union dt_iterate_parameters *dip,
-    dt_selector_t *              selector,
-    char *                       selector_field,
-    char *                       selector_value)
+merr_t
+dt_emit(const char *const path, cJSON **const root)
 {
-    struct dt_tree *tree = &hse_dt_tree;
+    merr_t err;
+    cJSON *tmp;
+    size_t path_len;
     struct dt_element *dte;
-    size_t count = 0;
-    int pathlen;
 
-    pathlen = strnlen(path, DT_PATH_MAX);
-    if (pathlen >= DT_PATH_MAX)
-        return 0;
+    if (!path || !root)
+        return merr(EINVAL);
 
-    if (DT_OP_EMIT == op && (!dip || !dip->root))
-        return 0;
+    *root = NULL;
 
-    dt_lock(tree);
-    dt_add_pending(tree);
+    if (!path)
+        return merr(EINVAL);
 
-    if (DT_OP_EMIT == op) {
-        /* Emit root nodes up to this path */
-        count = emit_roots_upto(tree, path, dip->root);
-    }
+    path_len = strlen(path);
+    if (path_len >= DT_PATH_MAX)
+        return merr(ENAMETOOLONG);
 
-    dte = dt_find_locked(tree, path, 0);
+    tmp = cJSON_CreateArray();
+    if (ev(!tmp))
+        return merr(ENOMEM);
+
+    dt_lock();
+
+    err = emit_roots_upto(path, tmp);
+    if (ev(err))
+        goto out;
+
+    dte = dt_find(path, path_len, false);
     while (dte) {
-        struct dt_element_ops *ops = dte->dte_ops;
         struct rb_node *node;
 
-        switch (op) {
-        case DT_OP_EMIT:
-            if (!ops->dto_emit)
-                break;
-
-            if ((selector && selector(dte)) ||
-                (selector_field && selector_value && ops->dto_match_selector &&
-                 ops->dto_match_selector(dte, selector_field, selector_value)) ||
-                (!selector_field && !selector)) {
-
-                count += ops->dto_emit(dte, dip->root);
-            }
-            break;
-
-        case DT_OP_COUNT:
-            if ((selector && selector(dte)) ||
-                (selector_field && selector_value && ops->dto_match_selector &&
-                 ops->dto_match_selector(dte, selector_field, selector_value)) ||
-                (!selector_field && !selector)) {
-
-                ++count;
-            }
-            break;
-
-        default:
-            break;
+        if (dte->dte_ops->dto_emit) {
+            err = dte->dte_ops->dto_emit(dte, tmp);
+            if (err)
+                goto out;
         }
 
         node = rb_next(&dte->dte_node);
         dte = container_of(node, struct dt_element, dte_node);
-        if (dte && strncmp(path, dte->dte_path, pathlen)) {
+        if (dte && strncmp(path, dte->dte_path, path_len)) {
             /* We've hit the first thing that doesn't include
              * the search path. That means we're done. */
             break;
         }
     }
-    dt_unlock(tree);
 
-    return count;
+out:
+    dt_unlock();
+
+    if (err) {
+        cJSON_Delete(tmp);
+    } else {
+        *root = tmp;
+    }
+
+    return err;
 }
 
-struct dt_element *
-dt_iterate_next(const char *path, struct dt_element *previous)
+merr_t
+dt_remove(const char *const path)
 {
-    struct dt_tree *tree = &hse_dt_tree;
+    merr_t err = 0;
+    size_t path_len;
     struct dt_element *dte;
-    struct rb_node *   node;
-    int                pathlen;
 
-    pathlen = strnlen(path, DT_PATH_MAX);
-    if (pathlen >= DT_PATH_MAX)
-        return NULL;
+    if (!path)
+        return merr(EINVAL);
 
-    dt_lock(tree);
-    if (previous == NULL) {
-        dte = dt_find_locked(tree, path, 0);
-        dt_unlock(tree);
-        return dte;
+    path_len = strlen(path);
+    if (path_len >= DT_PATH_MAX)
+        return merr(ENAMETOOLONG);
+
+    dt_lock();
+
+    dte = dt_find(path, path_len, true);
+    if (!dte) {
+        err = merr(ENOENT);
+    } else {
+        err = dt_remove_impl(dte, false);
     }
 
-    dt_add_pending(tree);
+    dt_unlock();
 
-    dte = previous;
-    if (dte) {
+    return err;
+}
+
+merr_t
+dt_remove_recursive(const char *const path)
+{
+    merr_t err = 0;
+    size_t path_len;
+    struct dt_element *dte;
+
+    if (!path)
+        return merr(EINVAL);
+
+    path_len = strlen(path);
+    if (path_len >= DT_PATH_MAX)
+        return merr(ENAMETOOLONG);
+
+    dt_lock();
+
+    dte = dt_find(path, path_len, false);
+    while (dte) {
+        struct rb_node *node;
+
         node = rb_next(&dte->dte_node);
+        err = dt_remove_impl(dte, true);
+
         dte = container_of(node, struct dt_element, dte_node);
-        if (dte && strncmp(path, dte->dte_path, pathlen)) {
+        if (dte && strncmp(path, dte->dte_path, path_len)) {
             /* We've hit the first thing that doesn't include
              * the search path. That means we're done. */
-            dte = NULL;
+            break;
         }
     }
-    dt_unlock(tree);
 
-    return dte;
+    dt_unlock();
+
+    return err;
 }
-
-static struct field_name dt_field_names[] = {
-    { "odometer_timestamp", DT_FIELD_ODOMETER_TIMESTAMP },
-    { "odometer", DT_FIELD_ODOMETER },
-    { "level", DT_FIELD_LEVEL },
-    { "flags", DT_FIELD_FLAGS },
-    { "enabled", DT_FIELD_ENABLED },
-    { "clear", DT_FIELD_CLEAR },
-    { "data", DT_FIELD_DATA },
-    { NULL, DT_FIELD_INVALID }
-};
-
-dt_field_t
-dt_get_field(const char *field)
-{
-    struct field_name *fn;
-
-    for (fn = dt_field_names; fn->field_name; ++fn) {
-        if (!strcmp(fn->field_name, field))
-            break;
-    }
-
-    return fn->field_val;
-}
-
-#ifndef NDEBUG
-static void HSE_USED
-dt_dump(struct rb_node *node)
-{
-    struct dt_element *dte = NULL;
-
-    if (!node)
-        return;
-
-    dte = container_of(node, struct dt_element, dte_node);
-    printf("%s\n", dte->dte_path);
-
-    dt_dump(node->rb_left);
-    dt_dump(node->rb_right);
-}
-#endif

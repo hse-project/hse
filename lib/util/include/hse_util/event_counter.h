@@ -6,6 +6,7 @@
 #ifndef HSE_PLATFORM_EVENT_COUNTER_H
 #define HSE_PLATFORM_EVENT_COUNTER_H
 
+#include <stdint.h>
 #include <syslog.h>
 
 #include <hse_util/atomic.h>
@@ -16,9 +17,11 @@
 
 #define EV_FLAGS_NOTIME (0x01u)
 
+#define EV_DT_PATH      "/data/events"
+
 struct event_counter {
     atomic_ulong       ev_odometer;
-    u32                ev_flags;
+    uint32_t           ev_flags;
     int                ev_level;
     atomic_ulong       ev_odometer_timestamp;
     const char        *ev_file;
@@ -66,13 +69,6 @@ extern struct dt_element_ops event_counter_ops;
 
 /* clang-format on */
 
-/* NON-API Functions */
-void
-ev_get_timestamp(atomic_ulong *timestamp);
-
-size_t
-snprintf_timestamp(char *buf, size_t buf_sz, atomic_ulong *timestamp);
-
 /* API Functions */
 /**
  * event_counter_init() - create data_tree framework for Event Counters
@@ -95,28 +91,5 @@ event_counter_init(void) HSE_COLD;
  */
 void
 event_counter(struct event_counter *ec);
-
-/**
- * ev_match_select_handler - Support data_tree's match select option
- * @dte:    struct dt_element *
- * @field:  char *, name of a field in the event_counter structure
- * @value:  char *, stringified value for comparison
- *
- * Returns true if dte->ec->field == value, else false
- */
-bool
-ev_match_select_handler(struct dt_element *dte, char *field, char *value);
-
-/**
- * ev_root_match_select_handler - Support data_tree's match select option
- * @dte:    struct dt_element *
- * @field:  char *, name of a field in the event_counter structure
- * @value:  char *, stringified value for comparison
- *
- * Always returns true. This may seem silly, but we always need the root
- * elements in the yaml output.
- */
-bool
-ev_root_match_select_handler(struct dt_element *dte, char *field, char *value);
 
 #endif /* HSE_PLATFORM_EVENT_COUNTER_H */

@@ -39,6 +39,8 @@
 #define PERFC_PCT_SCALE     (1u << 20)
 #define PERFC_CTRS_MAX      (64)
 
+#define PERFC_DT_PATH       "/data/perfc"
+
 /* If you perturb perfc_type in any way then be certain to update
  * perfc_ctr_name2type() and perfc_ctr_type2name[] to match.
  */

@@ -126,13 +126,16 @@ rest_get_dt(
     merr_t err;
     cJSON *root;
     bool pretty;
+    char dt_path[DT_PATH_MAX];
     enum rest_status status = REST_STATUS_OK;
 
     err = rest_params_get(req->rr_params, "pretty", &pretty, false);
     if (err)
         return REST_STATUS_BAD_REQUEST;
 
-    err = dt_emit(&root, "%s%s", DT_PATH_ROOT, req->rr_actual);
+    snprintf(dt_path, sizeof(dt_path), DT_PATH_ROOT "%s", req->rr_actual);
+
+    err = dt_emit(dt_path, &root);
     if (err) {
         switch (merr_errno(err)) {
         case ENAMETOOLONG:
