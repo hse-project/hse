@@ -16,8 +16,11 @@
 #include <hse_util/page.h>
 
 #include <mpool/mpool.h>
+#include <mpool/mcache.h>
+
 #include <mblock_file.h>
 #include <mblock_fset.h>
+#include <mclass.h>
 #include <mpool_internal.h>
 
 #include "common.h"

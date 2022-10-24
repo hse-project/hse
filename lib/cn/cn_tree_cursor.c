@@ -246,7 +246,7 @@ cn_tree_cursor_create(struct cn_cursor *cur)
         }
     }
 
-    cur->cncur_flags = kvset_iter_flag_mcache;
+    cur->cncur_flags = kvset_iter_flag_mmap;
     if (cur->cncur_reverse)
         cur->cncur_flags |= kvset_iter_flag_reverse;
 

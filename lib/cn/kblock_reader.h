@@ -9,14 +9,10 @@
 #include <hse_util/inttypes.h>
 #include <hse_ikvdb/tuple.h>
 
-struct mpool;
 struct cn;
-struct mpool_mcache_map;
-struct mblock_props;
 struct bloom_desc;
 struct wbt_desc;
 struct kvs_mblk_desc;
-struct kvs_rparams;
 
 struct kblk_metrics {
     u32 num_keys;
@@ -36,21 +32,6 @@ struct kblock_desc {
 };
 
 /**
- * kbr_get_kblock_desc() - Get the mblock descriptor for the given
- *                     KBLOCK ID.
- * @kblock_id:      KBLOCK ID for KBLOCK to read
- * @kblock_desc:    (output) KVBLOCK_DESC for KBLOCK
- */
-merr_t
-kbr_get_kblock_desc(
-    struct mpool *           ds,
-    struct mpool_mcache_map *map,
-    struct mblock_props     *props,
-    u32                      map_idx,
-    u64                      kblock_id,
-    struct kvs_mblk_desc *   kblock_desc);
-
-/**
  * kbr_read_wbt_region_desc() - Read the WBT region descriptor for
  *                          the given KBLOCK ID.
  * @kblock_desc:    KVBLOCK_DESC for KBLOCK to read
@@ -68,16 +49,6 @@ kbr_read_wbt_region_desc(struct kvs_mblk_desc *kblock_desc, struct wbt_desc *wbt
  */
 merr_t
 kbr_read_blm_region_desc(struct kvs_mblk_desc *kblock_desc, struct bloom_desc *blm_desc);
-
-/**
- * kbr_read_blm_pages() - Get base address of bloom filter bitmap
- * @kblock_desc:    KVBLOCK_DESC for KBLOCK to read
- * @blm_desc:       bloom region descriptor
- */
-merr_t
-kbr_read_blm_pages(
-    struct kvs_mblk_desc *kblock_desc,
-    struct bloom_desc *   blm_desc);
 
 /**
  * kbr_read_metrics() - Read kblock header to obtain metrics.

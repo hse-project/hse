@@ -44,7 +44,7 @@ struct kvset_list_entry {
 };
 
 enum kvset_iter_flags {
-    kvset_iter_flag_mcache = (1u << 0),
+    kvset_iter_flag_mmap = (1u << 0),
     kvset_iter_flag_reverse = (1u << 1),
     kvset_iter_flag_fullscan = (1u << 2),
 };
@@ -132,10 +132,10 @@ merr_t
 kvset_open(struct cn_tree *tree, u64 tag, struct kvset_meta *meta, struct kvset **kvset);
 
 /**
- * Preload/discard hblock mcache map pages
+ * Preload/discard hblock memory mapped pages
  *
  * This function is used to either preload or discard pages from @p kvset
- * kvset's mcache mapped hblock, depending upon @p madvice:
+ * kvset's memory mapped hblock, depending upon @p madvice:
  *
  * @p MADV_WILLNEED: Initiate readahead preloading of all the pages
  * @p MADV_DONTNEED: Mark all the pages as currently unneeded
@@ -151,12 +151,12 @@ void
 kvset_madvise_hblk(struct kvset *kvset, int advice, bool leaves);
 
 /**
- * kvset_madvise_kblks() - preload/discard kblock mcache map pages
+ * kvset_madvise_kblks() - preload/discard kblock memory mapped pages
  * @kvset:    kvset pointer
  * @advice:   readahead mode for madvise()
  *
  * This function is used to either preload or discard pages from all
- * the given kvset's mcache mapped kblocks, depending upon %madvice:
+ * the given kvset's memory mapped kblocks, depending upon %madvice:
  *
  *  %MADV_WILLNEED:  Initiate readahead preloading of all the pages
  *  %MADV_DONTNEED:  Mark all the pages as currently unneeded
@@ -168,12 +168,12 @@ void
 kvset_madvise_kblks(struct kvset *kvset, int advice, bool blooms, bool leaves);
 
 /**
- * kvset_madvise_vblks() - preload/discard vblock mcache map pages
+ * kvset_madvise_vblks() - preload/discard vblock memory mapped pages
  * @kvset:    kvset pointer
  * @advice:   readahead mode for madvise()
  *
  * This function is used to either preload or dicsard pages from all
- * the given kvset's mcache mapped vblocks, depending upon %madvice:
+ * the given kvset's memory mapped vblocks, depending upon %madvice:
  *
  *  %MADV_WILLNEED:  Initiate readahead preloading of all the pages
  *  %MADV_DONTNEED:  Mark all the pages as currently unneeded
@@ -188,16 +188,13 @@ void
 kvset_madvise_capped(struct kvset *kvset, int advice);
 
 /**
- * kvset_madvise_vmaps() - Change kvset vblock mcache map memory use mode
+ * kvset_madvise_vmaps() - Change kvset vblock memory mapped pages use mode
  * @kvset:    kvset pointer
  * @advice:   readahead mode for madvise()
  *
- * This function is used to change the mcache map readahead mode for all
- * mcache maps in the given kvset's vblocks, where %adivce may be one
+ * This function is used to change the memory map readahead mode for all
+ * memory maps in the given kvset's vblocks, where %adivce may be one
  * of the following:  %MADV_RANDOM, %MADV_DONTNEED
- *
- * Note that the default mode for mcache maps is %MADV_RANDOM, which
- * effectively disables readahead.
  *
  * See madvise(2) for more informaation.
  */
@@ -419,12 +416,12 @@ kvset_get_dgen_lo(const struct kvset *kvset);
  *
  * Flags:
  *   - %kvset_iter_flag_reverse: Iterate over keys in reverse.  Can only
- *     be used with mcache map based iteration.
- *   - %kvset_iter_flag_mcache: If set, use mcache maps to access
+ *     be used with memory map based iteration.
+ *   - %kvset_iter_flag_mmap: If set, use memory maps to access
  *     mblock data.  If not set, access data with mblock read.
  *
  * Notes:
- *   - @io_workq is ignored when iterating with mcache maps.
+ *   - @io_workq is ignored when iterating with memory maps.
  *   - With read-based compaction, if @io_workq is NULL, then mblock reads are
  *     issued synchronously using a single buffer.  If @io_workq is provided,
  *     then double buffering is used to overlap reads with iteration work.

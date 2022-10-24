@@ -629,7 +629,7 @@ mdc_file_read(struct mdc_file *mfp, void *data, size_t len, bool verify, size_t 
     if (rdlen)
         *rdlen = rh.size;
 
-    if (ev(rh.size > len))
+    if (rh.size > len)
         return merr(EOVERFLOW);
 
     rhlen = omf_mdc_rechdr_len(mfp->lh.vers);

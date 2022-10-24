@@ -46,6 +46,9 @@ mpm_mblock_alloc_file(u64 *blkid, const char *filename);
 merr_t
 mpm_mdc_load_file(const char *filename, char **data, int *len);
 
+merr_t
+mpm_mblock_get_base(u64 id, void **data, size_t *wlen);
+
 /* provide a function which can interpret a buffer and return
  * the length of the next record for a particular MDC
  */

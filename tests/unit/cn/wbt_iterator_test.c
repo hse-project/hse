@@ -174,15 +174,9 @@ load_kblock(
 
     /* create mmap for mblock */
     kblk_desc->mbid = blkid;
-    kblk_desc->map_idx = 0;
-    kblk_desc->map_base = 0;
-    kblk_desc->ds = (struct mpool *)-1;
 
-    err = mpool_mcache_mmap(kblk_desc->ds, 1, &blkid, &kblk_desc->map);
+    err = mpm_mblock_get_base(blkid, &kblk_desc->map_base, NULL);
     ASSERT_EQ_RET(err, 0, -1);
-
-    kblk_desc->map_base = mpool_mcache_getbase(kblk_desc->map, kblk_desc->map_idx);
-    ASSERT_NE_RET(kblk_desc->map_base, NULL, -1);
 
     wbt_hdr = kblk_desc->map_base + omf_kbh_wbt_hoff(kblk_desc->map_base);
     desc->wbd_first_page = omf_kbh_wbt_doff_pg(kblk_desc->map_base);
@@ -190,8 +184,6 @@ load_kblock(
 
     err = wbtr_read_desc(wbt_hdr, desc);
     ASSERT_EQ_RET(err, 0, -1);
-
-    mpool_mcache_munmap(kblk_desc->map);
 
     return 0;
 }

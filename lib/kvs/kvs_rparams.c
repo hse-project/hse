@@ -236,7 +236,7 @@ static const struct param_spec pspecs[] = {
     },
     {
         .ps_name = "cn_compact_vra",
-        .ps_description = "compaction vblk read-ahead via mcache",
+        .ps_description = "compaction vblk memory map read-ahead",
         .ps_flags = PARAM_FLAG_EXPERIMENTAL,
         .ps_type = PARAM_TYPE_U64,
         .ps_offset = offsetof(struct kvs_rparams, cn_compact_vra),
@@ -320,7 +320,7 @@ static const struct param_spec pspecs[] = {
     },
     {
         .ps_name = "cn_cursor_vra",
-        .ps_description = "compaction vblk read-ahead via mcache",
+        .ps_description = "cursor vblk memory map read-ahead",
         .ps_flags = PARAM_FLAG_EXPERIMENTAL,
         .ps_type = PARAM_TYPE_U64,
         .ps_offset = offsetof(struct kvs_rparams, cn_cursor_vra),
@@ -492,7 +492,7 @@ static const struct param_spec pspecs[] = {
     },
     {
         .ps_name = "cn_bloom_preload",
-        .ps_description = "preload mcache bloom filters",
+        .ps_description = "preload memory mapped bloom filters",
         .ps_flags = PARAM_FLAG_EXPERIMENTAL,
         .ps_type = PARAM_TYPE_BOOL,
         .ps_offset = offsetof(struct kvs_rparams, cn_bloom_preload),

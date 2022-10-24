@@ -36,6 +36,7 @@
 #include <hse_util/page.h>
 
 #include <mpool/mpool.h>
+#include <mpool/mcache.h>
 
 #define MBLOCK_SIZE_MB_DEFAULT (32 << 20)
 #define WANDERMAX              (1024 * 128)

@@ -383,10 +383,8 @@ c0snr_droprefv(int refc, uintptr_t **refv)
             *bkt->tailp = csl->act_cache;
             csl->act_cache = bkt->head;
             spin_unlock(&csl->act_lock);
-            ev(1);
         }
     }
-    ev(1);
 }
 
 bool

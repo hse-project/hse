@@ -49,26 +49,6 @@ u64 mocked_mdc_id;
 #define index2id(index) ((index) + MPM_MBLOCK_ID_BASE)
 
 static merr_t
-get_mocked_map(struct mpool_mcache_map *map, struct mocked_map **mocked)
-{
-    uintptr_t addr = (uintptr_t)map;
-    uintptr_t base = (uintptr_t)&mocked_maps[0];
-
-    if (base > addr)
-        return merr(EBUG);
-
-    if (addr >= (base + sizeof(mocked_maps)))
-        return merr(EBUG);
-
-    if (((addr - base) % sizeof(mocked_maps[0])))
-        return merr(EBUG);
-
-    *mocked = (struct mocked_map *)addr;
-
-    return 0;
-}
-
-static merr_t
 get_mblock(u64 id, struct mocked_mblock **mb)
 {
     u64 i = id2index(id);
@@ -288,134 +268,6 @@ mblock_rw(u64 id, const struct iovec *iov, int niov, size_t off, bool read)
 
     if (!read)
         mb->mb_write_len = total_len;
-
-    return 0;
-}
-
-static merr_t
-_mpool_mcache_mmap(
-    struct mpool *            mp,
-    size_t                    mbidc,
-    uint64_t *                mbidv,
-    struct mpool_mcache_map **handle)
-{
-    struct mocked_map *map = 0;
-    int                i;
-
-    if (!handle)
-        return merr(EBUG);
-
-    if (!mbidc)
-        return merr(EBUG);
-
-    if (!mbidv)
-        return merr(EBUG);
-
-    for (i = 0; i < MPM_MAX_MAPS; i++) {
-        if (!mocked_maps[i].mapped) {
-            map = &mocked_maps[i];
-            break;
-        }
-    }
-
-    if (!map)
-        return merr(EBUG);
-
-    map->mbidv = mapi_safe_malloc(mbidc * sizeof(*mbidv));
-    if (!map->mbidv)
-        return merr(EBUG);
-
-    for (i = 0; i < mbidc; i++)
-        map->mbidv[i] = mbidv[i];
-
-    map->mapped = 1;
-    map->mbidc = mbidc;
-
-    *handle = (struct mpool_mcache_map *)map;
-
-    return 0;
-}
-
-static void
-_mpool_mcache_munmap(struct mpool_mcache_map *handle)
-{
-    HSE_MAYBE_UNUSED merr_t err;
-    struct mocked_map *map = NULL;
-
-    err = get_mocked_map(handle, &map);
-    assert(err == 0);
-
-    free(map->mbidv);
-    map->mbidv = 0;
-    map->mbidc = 0;
-    map->mapped = 0;
-}
-
-static void *
-_mpool_mcache_getbase(struct mpool_mcache_map *handle, u_int idx)
-{
-    merr_t                err;
-    struct mocked_map *   map = NULL;
-    struct mocked_mblock *mb = 0;
-
-    err = get_mocked_map(handle, &map);
-    if (err)
-        return NULL;
-
-    if (idx >= map->mbidv[idx])
-        return NULL;
-
-    err = get_mblock(map->mbidv[idx], &mb);
-    if (err)
-        return NULL;
-
-    return mb->mb_base;
-}
-
-static merr_t
-_mpool_mcache_madvise(
-    struct mpool_mcache_map *map,
-    uint                     mbidx,
-    off_t                    offset,
-    size_t                   length,
-    int                      advice)
-{
-    return 0;
-}
-
-static merr_t
-_mpool_mcache_getpages(
-    struct mpool_mcache_map *handle,
-    u_int                    pagec,
-    u_int                    idx,
-    const off_t              offsets[],
-    void *                   pagev[])
-{
-    struct mocked_map *map = NULL;
-    merr_t             err;
-    u_int              i;
-
-    err = get_mocked_map(handle, &map);
-    if (err)
-        return err;
-
-    if (idx >= map->mbidc)
-        return merr(EBUG);
-
-    for (i = 0; i < pagec; i++) {
-        struct iovec iov;
-
-        iov.iov_len = PAGE_SIZE;
-        iov.iov_base = hse_page_alloc();
-        if (!iov.iov_base)
-            return merr(EBUG);
-
-        err = mblock_rw(map->mbidv[idx], &iov, 1, offsets[i] * PAGE_SIZE, true);
-        if (err)
-            return err;
-
-        pagev[i] = iov.iov_base;
-    }
 
     return 0;
 }
@@ -795,6 +647,21 @@ mpm_mdc_load_file(const char *filename, char **data, int *len)
 }
 
 merr_t
+mpm_mblock_get_base(u64 id, void **data, size_t *wlen)
+{
+    struct mocked_mblock *mb = 0;
+    merr_t                err;
+
+    err = get_mblock(id, &mb);
+    if (err)
+        return err;
+
+    *data = mb->mb_base;
+    *wlen = mb->mb_write_len;
+    return 0;
+}
+
+merr_t
 mpm_mdc_get_written(struct mpool_mdc *mdc, char **data, int *len)
 {
     struct mocked_mdc *m = (void *)mdc;
@@ -822,12 +689,6 @@ mock_mpool_set(void)
     MOCK_SET(mpool, _mpool_mblock_read);
     MOCK_SET(mpool, _mpool_mblock_write);
 
-    MOCK_SET(mpool, _mpool_mcache_getbase);
-    MOCK_SET(mpool, _mpool_mcache_getpages);
-    MOCK_SET(mpool, _mpool_mcache_mmap);
-    MOCK_SET(mpool, _mpool_mcache_munmap);
-    MOCK_SET(mpool, _mpool_mcache_madvise);
-
     MOCK_SET(mpool, _mpool_mdc_append);
     MOCK_SET(mpool, _mpool_mdc_cend);
     MOCK_SET(mpool, _mpool_mdc_close);
@@ -853,12 +714,6 @@ mock_mpool_unset(void)
     MOCK_UNSET(mpool, _mpool_mblock_props_get);
     MOCK_UNSET(mpool, _mpool_mblock_read);
     MOCK_UNSET(mpool, _mpool_mblock_write);
-
-    MOCK_UNSET(mpool, _mpool_mcache_getbase);
-    MOCK_UNSET(mpool, _mpool_mcache_getpages);
-    MOCK_UNSET(mpool, _mpool_mcache_mmap);
-    MOCK_UNSET(mpool, _mpool_mcache_munmap);
-    MOCK_UNSET(mpool, _mpool_mcache_madvise);
 
     MOCK_UNSET(mpool, _mpool_mdc_append);
     MOCK_UNSET(mpool, _mpool_mdc_cend);

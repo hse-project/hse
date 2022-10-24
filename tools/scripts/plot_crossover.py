@@ -137,8 +137,8 @@ def main():
     <p>
     This set of plots compares get performance with cursor performance as it varies with the burst length.<br>
     The keys in the kvs is evenly distributed across 64 prefixes. At each stage the test adds more suffixes<br>
-    for each prefix and this load is followed by warming up mcache and then performing get and cursor operation<br>
-    for various burstlens.<br>
+    for each prefix and this load is followed by warming up the page cache and then performing get and<br>
+    cursor operation for various burstlens.<br>
     </p>
 
     <p>
