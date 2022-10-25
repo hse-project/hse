@@ -32,10 +32,10 @@ struct wbt_desc;
  * but can be faster if keys have long common prefixes.  It has no known issues
  * with alignment.
  */
-static_assert(HSE_KVS_KEY_CPE_ALIGNMENT == 4 || HSE_KVS_KEY_CPE_ALIGNMENT == 8,
+static_assert(HSE_KEY_CPE_ALIGNMENT == 4 || HSE_KEY_CPE_ALIGNMENT == 8,
               "invalid alignment for structs key_state_entry_leaf and intern_key");
 
-#if HSE_KVS_KEY_CPE_ALIGNMENT == 8
+#if HSE_KEY_CPE_ALIGNMENT == 8
 #define memlcp_cpe      memlcpq
 #else
 #define memlcp_cpe      memlcp

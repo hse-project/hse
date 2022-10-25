@@ -29,7 +29,7 @@ struct intern_node {
 struct intern_key {
     uint          child_idx;
     uint          klen;
-    unsigned char kdata[] HSE_ALIGNED(HSE_KVS_KEY_CPE_ALIGNMENT);
+    unsigned char kdata[] HSE_ALIGNED(HSE_KEY_CPE_ALIGNMENT);
 };
 
 /**

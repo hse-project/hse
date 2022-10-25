@@ -24,10 +24,28 @@
 #define HSE_LIKELY(_expr)       __builtin_expect(!!(_expr), 1)
 #define HSE_UNLIKELY(_expr)     __builtin_expect(!!(_expr), 0)
 
+#ifdef SUPPORTS_ATTR_ALIGNED
+#define HSE_ALIGNED(_size)      __attribute__((__aligned__(_size)))
+#else
+#define HSE_ALIGNED(_size)
+#endif
+
 #ifdef SUPPORTS_ATTR_ALWAYS_INLINE
 #define HSE_ALWAYS_INLINE       inline __attribute__((__always_inline__))
 #else
 #define HSE_ALWAYS_INLINE       inline
+#endif
+
+#ifdef SUPPORTS_ATTR_COLD
+#define HSE_COLD                __attribute__((__cold__))
+#else
+#define HSE_COLD
+#endif
+
+#ifdef SUPPORTS_ATTR_CONST
+#define HSE_CONST               __attribute__((__const__))
+#else
+#define HSE_CONST
 #endif
 
 #ifdef SUPPORTS_ATTR_FORMAT
@@ -37,16 +55,34 @@
 #define HSE_PRINTF(_fmtidx, _argidx)
 #endif
 
+#ifdef SUPPORTS_ATTR_HOT
+#define HSE_HOT                 __attribute__((__hot__))
+#else
+#define HSE_HOT
+#endif
+
+#ifdef SUPPORTS_ATTR_NOINLINE
+#define HSE_NOINLINE            __attribute__((__noinline__))
+#else
+#define HSE_NOINLINE
+#endif
+
+#ifdef SUPPORTS_ATTR_NONNULL
+#define HSE_NONNULL(...)        __attribute__((__nonnull__(__VA_ARGS__)))
+#else
+#define HSE_NONNULL(...)
+#endif
+
 #ifdef SUPPORTS_ATTR_PACKED
 #define HSE_PACKED              __attribute__((__packed__))
 #else
 #define HSE_PACKED
 #endif
 
-#ifdef SUPPORTS_ATTR_ALIGNED
-#define HSE_ALIGNED(_size)      __attribute__((__aligned__(_size)))
+#ifdef SUPPORTS_ATTR_RETURNS_NONNULL
+#define HSE_RETURNS_NONNULL     __attribute__((__returns_nonnull__))
 #else
-#define HSE_ALIGNED(_size)
+#define HSE_RETURNS_NONNULL
 #endif
 
 #ifdef SUPPORTS_ATTR_SECTION
@@ -67,28 +103,16 @@
 #define HSE_USED
 #endif
 
-#ifdef SUPPORTS_ATTR_HOT
-#define HSE_HOT                 __attribute__((__hot__))
+#ifdef SUPPORTS_ATTR_SENTINEL
+#define HSE_SENTINEL            __attribute__((__sentinel__))
 #else
-#define HSE_HOT
+#define HSE_SENTINEL
 #endif
 
-#ifdef SUPPORTS_ATTR_COLD
-#define HSE_COLD                __attribute__((__cold__))
+#ifdef SUPPORTS_ATTR_WARN_UNUSED_RESULT
+#define HSE_WARN_UNUSED_RESULT  __attribute__((__warn_unused_result__))
 #else
-#define HSE_COLD
-#endif
-
-#ifdef SUPPORTS_ATTR_RETURNS_NONNULL
-#define HSE_RETURNS_NONNULL     __attribute__((__returns_nonnull__))
-#else
-#define HSE_RETURNS_NONNULL
-#endif
-
-#ifdef SUPPORTS_ATTR_CONST
-#define HSE_CONST               __attribute__((__const__))
-#else
-#define HSE_CONST
+#define HSE_WARN_UNUSED_RESULT
 #endif
 
 #ifdef SUPPORTS_ATTR_WEAK
@@ -97,27 +121,13 @@
 #define HSE_WEAK
 #endif
 
-#ifdef SUPPORTS_ATTR_SENTINEL
-#define HSE_SENTINEL            __attribute__((__sentinel__))
-#else
-#define HSE_SENTINEL
-#endif
-
-#ifdef SUPPORTS_ATTR_NONNULL
-#define HSE_NONNULL(...)        __attribute__((__nonnull__(__VA_ARGS__)))
-#else
-#define HSE_NONNULL(...)
-#endif
-
-#ifdef SUPPORTS_ATTR_WARN_UNUSED_RESULT
-#define HSE_WARN_USUSED_RESULT  __attribute__((warn_unused_result))
-#else
-#define HSE_WARN_UNUSED_RESULT
-#endif
-
-#if defined(__has_include) && __has_include(<stdnoreturn.h>)
+#if defined(__has_include)
+#if __has_include(<stdnoreturn.h>)
 #include <stdnoreturn.h>
 #define HSE_NORETURN noreturn
+#else
+#define HSE_NORETURN
+#endif
 #else
 #define HSE_NORETURN
 #endif
