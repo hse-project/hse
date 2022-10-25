@@ -749,6 +749,12 @@ void
 run_kmd_profile(struct kmd_test_profile *tp)
 {
     static int headers;
+    double ents_per_key;
+    double bytes_per_seq;
+    double bytes_per_key;
+    double tot_ents;
+    double tot_tombs;
+    double pct_tombs;
 
     struct kmd_test_stats  read = {}, write = {};
     struct kmd_test_stats *s;
@@ -762,13 +768,13 @@ run_kmd_profile(struct kmd_test_profile *tp)
     run_kmd_tp(tp, &read, true);
 
     s = &write;
-    double ents_per_key = 1.0 * s->nseqs / s->nkeys;
-    double bytes_per_seq = 1.0 * s->nbytes / s->nseqs;
-    double bytes_per_key = 1.0 * s->nbytes / s->nkeys;
+    ents_per_key = 1.0 * s->nseqs / s->nkeys;
+    bytes_per_seq = 1.0 * s->nbytes / s->nseqs;
+    bytes_per_key = 1.0 * s->nbytes / s->nkeys;
 
-    double tot_ents = s->ntombs + s->nptombs + s->nzvals + s->nvals;
-    double tot_tombs = s->ntombs + s->nptombs + s->nzvals;
-    double pct_tombs = 100.0 * (tot_tombs / tot_ents);
+    tot_ents = s->ntombs + s->nptombs + s->nzvals + s->nvals;
+    tot_tombs = s->ntombs + s->nptombs + s->nzvals;
+    pct_tombs = 100.0 * (tot_tombs / tot_ents);
 
     if (!headers) {
         headers = 1;

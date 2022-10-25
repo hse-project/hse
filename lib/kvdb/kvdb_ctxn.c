@@ -483,15 +483,16 @@ kvdb_ctxn_abort(struct kvdb_ctxn *handle)
 merr_t
 kvdb_ctxn_commit(struct kvdb_ctxn *handle)
 {
-    struct kvdb_ctxn_impl * ctxn = kvdb_ctxn_h2r(handle);
-    struct kvdb_ctxn_bind * bind = &ctxn->ctxn_bind;
+    merr_t err;
+    void *cookie;
+    uint64_t head;
+    uintptr_t ref;
+    uintptr_t *priv;
+    uint64_t commit_sn;
     struct kvdb_ctxn_locks *locks;
-    void *                  cookie;
-    uintptr_t *             priv;
-    uintptr_t               ref;
-    u64                     commit_sn;
-    u64                     head;
-    merr_t                  err;
+    struct kvdb_ctxn_set_impl *kcs;
+    struct kvdb_ctxn_impl *ctxn = kvdb_ctxn_h2r(handle);
+    struct kvdb_ctxn_bind *bind = &ctxn->ctxn_bind;
 
     err = kvdb_ctxn_trylock_impl(ctxn);
     if (err)
@@ -552,7 +553,7 @@ kvdb_ctxn_commit(struct kvdb_ctxn *handle)
      *     so that a commit execution will reap its own collection.
      */
 
-    struct kvdb_ctxn_set_impl *kcs = kvdb_ctxn_set_h2r(ctxn->ctxn_kvdb_ctxn_set);
+    kcs = kvdb_ctxn_set_h2r(ctxn->ctxn_kvdb_ctxn_set);
 
     /* Prefetch priv to try and avoid a cache miss whithin the critsec.
      */

@@ -255,10 +255,8 @@ foreach c, tests : components
     foreach t, params : tests
         t_exe = executable(
             t,
-            [
-                c / '@0@.c'.format(t),
-                params.get('sources', []),
-            ],
+            c / '@0@.c'.format(t),
+            params.get('sources', []),
             c_args: params.get('c_args', []),
             include_directories: params.get('include_directories', []),
             dependencies: [

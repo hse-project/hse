@@ -1515,6 +1515,10 @@ int
 km_rec_keygen_cmn(void *key, uint64_t rid)
 {
     int len;
+    char *left;
+    char *right;
+    uint64_t value;
+    const uint base = 10;
 
     if (keyfmt)
         return snprintf(key, KM_REC_KEY_MAX, keyfmt, rid, rid, rid);
@@ -1531,10 +1535,8 @@ km_rec_keygen_cmn(void *key, uint64_t rid)
 
     /* Fast uint to string.
      */
-    const uint base = 10;
-    uint64_t   value = rid;
-    char *     right = key;
-    char *     left;
+    value = rid;
+    right = key;
 
     do {
         uint64_t tmp = value;
@@ -3115,6 +3117,7 @@ status(
     int    nthreads;
     bool   show, txn;
     char   errmsg[128];
+    long   iters;
 
     gettimeofday(&tv_now, NULL);
 
@@ -3163,7 +3166,7 @@ status(
     if (verbosity > 1)
         width_td = 8;
 
-    const long iters = atomic_read(&impl->km_sync_latency.km_sync_iterations);
+    iters = atomic_read(&impl->km_sync_latency.km_sync_iterations);
     if (iters != 0) {
         avg_sync_latency_us =
             atomic_read(&impl->km_sync_latency.km_total_sync_latency_us) / iters;

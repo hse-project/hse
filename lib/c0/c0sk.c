@@ -1397,11 +1397,12 @@ out:
 HSE_USED HSE_COLD void
 c0sk_cursor_debug_base(struct c0sk *handle, u64 seqno, const void *prefix, int pfx_len, int skidx)
 {
-    struct cursor_summary summary;
-    struct c0_cursor *    cur;
-
-    bool   eof;
+    bool eof;
     merr_t err;
+    struct c0_cursor *cur;
+    struct cursor_summary summary;
+    struct kvs_cursor_element elem;
+
 
     err = c0sk_cursor_create(handle, seqno, skidx, 0, 0, prefix, pfx_len, &summary, &cur);
     if (ev(err))
@@ -1422,7 +1423,6 @@ c0sk_cursor_debug_base(struct c0sk *handle, u64 seqno, const void *prefix, int p
     }
 
     cur->c0cur_debug = 1;
-    struct kvs_cursor_element elem;
     while (!c0sk_cursor_read(cur, &elem, &eof) && !eof) {
         struct kvs_vtuple *vt = &elem.kce_vt;
         uint               klen;

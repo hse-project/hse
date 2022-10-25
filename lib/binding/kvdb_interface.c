@@ -630,6 +630,10 @@ hse_kvdb_open(
     struct pidfile content = {};
     struct kvdb_rparams params = kvdb_rparams_defaults();
 
+    static_assert(
+        sizeof(content.rest.socket_path) == sizeof(hse_gparams.gp_rest.socket_path),
+        "Unequal REST socket path buffer sizes");
+
     if (!kvdb_home) {
         log_err("A KVDB home must be provided");
         return merr(EINVAL);
@@ -699,9 +703,6 @@ hse_kvdb_open(
         goto out;
 
     content.pid = getpid();
-    static_assert(
-        sizeof(content.rest.socket_path) == sizeof(hse_gparams.gp_rest.socket_path),
-        "Unequal REST socket path buffer sizes");
 
     /* Infallible since the buffers are the same size. */
     n = strlcpy(content.alias, ikvdb_alias(ikvdb), sizeof(content.alias));

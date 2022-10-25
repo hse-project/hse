@@ -754,6 +754,11 @@ bn_reset_impl(struct bonsai_root *tree)
 void
 bn_reset(struct bonsai_root *tree)
 {
+#ifdef HSE_BUILD_DEBUG
+    static thread_local uint bn_summary_calls_tls;
+    char buf[384];
+#endif
+
     assert(tree->br_magic == (uint)(uintptr_t)tree);
 
     /* Wait for all rcu callbacks to complete.
@@ -762,9 +767,6 @@ bn_reset(struct bonsai_root *tree)
         rcu_barrier();
 
 #ifdef HSE_BUILD_DEBUG
-    static thread_local uint bn_summary_calls_tls;
-    char buf[384];
-
     if ((tree->br_oomslab || bn_summary_calls_tls++ % 8 == 0) &&
         bn_summary(tree, buf, sizeof(buf)) > 0) {
 
@@ -784,7 +786,7 @@ bn_reset(struct bonsai_root *tree)
     atomic_set(&tree->br_gc_rcugen_done, 1);
     INIT_LIST_HEAD(&tree->br_gc_holdq);
 
-    for (int i = 0; i < NELEM(tree->br_slabinfov); ++i) {
+    for (size_t i = 0; i < NELEM(tree->br_slabinfov); ++i) {
         struct bonsai_slabinfo *slabinfo = tree->br_slabinfov + i;
 
         spin_lock_init(&slabinfo->bsi_lock);

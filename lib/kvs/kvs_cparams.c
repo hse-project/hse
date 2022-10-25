@@ -69,9 +69,13 @@ struct kvs_cparams
 kvs_cparams_defaults()
 {
     struct kvs_cparams  params;
-    const struct params p = { .p_type = PARAMS_KVS_CP, .p_params = { .as_kvs_cp = &params } };
+    const struct params p = {
+        .p_params = { .as_kvs_cp = &params },
+        .p_type = PARAMS_KVS_CP,
+    };
 
     param_default_populate(pspecs, NELEM(pspecs), &p);
+
     return params;
 }
 
@@ -83,7 +87,10 @@ kvs_cparams_get(
     const size_t                    buf_sz,
     size_t *const                   needed_sz)
 {
-    const struct params p = { .p_params = { .as_kvs_cp = params }, .p_type = PARAMS_KVS_CP };
+    const struct params p = {
+        .p_params = { .as_kvs_cp = params },
+        .p_type = PARAMS_KVS_CP,
+    };
 
     return param_get(&p, pspecs, NELEM(pspecs), param, buf, buf_sz, needed_sz);
 }
@@ -91,10 +98,13 @@ kvs_cparams_get(
 cJSON *
 kvs_cparams_to_json(const struct kvs_cparams *const params)
 {
+    const struct params p = {
+        .p_params = { .as_kvs_cp = params },
+        .p_type = PARAMS_KVS_CP,
+    };
+
     if (!params)
         return NULL;
-
-    const struct params p = { .p_params = { .as_kvs_cp = params }, .p_type = PARAMS_KVS_CP };
 
     return param_to_json(&p, pspecs, NELEM(pspecs));
 }

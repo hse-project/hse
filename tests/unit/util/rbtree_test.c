@@ -1,6 +1,6 @@
 /* SPDX-License-Identifier: Apache-2.0 */
 /*
- * Copyright (C) 2015-2020 Micron Technology, Inc.  All rights reserved.
+ * Copyright (C) 2015-2022 Micron Technology, Inc.  All rights reserved.
  */
 
 #include <rbtree.h>
@@ -231,9 +231,11 @@ lookup(int key, bool expect_success, struct mtf_test_info *lcl_ti)
 static void
 replace(int key, int new_value, struct mtf_test_info *lcl_ti)
 {
+    bool found = false;
+    struct entry *new_entry;
+    struct rb_node *new_node;
+    struct entry *entry = NULL;
     struct rb_node *node = tree.rb_node;
-    struct entry *  entry = NULL;
-    bool            found = false;
 
     if (verbose)
         log_info("replace %d\n", key);
@@ -253,8 +255,8 @@ replace(int key, int new_value, struct mtf_test_info *lcl_ti)
 
     ASSERT_EQ(found, true);
 
-    struct entry *  new_entry = create_entry(key, new_value);
-    struct rb_node *new_node = &new_entry->entry_node;
+    new_entry = create_entry(key, new_value);
+    new_node = &new_entry->entry_node;
 
     rb_replace_node(node, new_node, &tree);
 

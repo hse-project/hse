@@ -601,6 +601,7 @@ main(
     }
 
     if (opts.phase & EXEC) {
+        char *s;
         struct lat_hist *lat;
 
         lat = aligned_alloc(HSE_ACP_LINESIZE, sizeof(*lat) * opts.threads);
@@ -643,7 +644,7 @@ main(
         /* 2. Start actual test */
         printf("Starting test\n");
 
-        char *s = strsep(&opts.blens, ",.;:/");
+        s = strsep(&opts.blens, ",.;:/");
         while (s) {
             uint duration;
             unsigned long get_cnt= 0;

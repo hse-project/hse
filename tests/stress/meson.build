@@ -171,7 +171,8 @@ programs = {
 foreach p, p_params: programs
     e = executable(
         p,
-        ['@0@.c'.format(p), 'stress_util.c'],
+        '@0@.c'.format(p),
+        'stress_util.c',
         dependencies: [hse_internal_dep, hse_dependencies],
     )
 

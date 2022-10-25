@@ -264,6 +264,9 @@ MTF_DEFINE_UTEST_PREPOST(cn_tree_cursor_test, empty, pre_test, post_test)
     struct cn_tree_node tn;
     struct route_node *rnode;
     const char ekey = 'z';
+    struct kvs_cursor_element elem;
+    bool eof = false;
+    const char *key = "key01";
 
     tree.ct_route_map = route_map_create(CN_FANOUT_MAX);
     ASSERT_NE(NULL, tree.ct_route_map);
@@ -274,13 +277,8 @@ MTF_DEFINE_UTEST_PREPOST(cn_tree_cursor_test, empty, pre_test, post_test)
     err = cn_tree_cursor_create(&cur);
     ASSERT_EQ(0, err);
 
-    const char *key = "key01";
-
     err = cn_tree_cursor_seek(&cur, key, strlen(key), NULL);
     ASSERT_EQ(0, err);
-
-    struct kvs_cursor_element elem;
-    bool eof = false;
 
     err = cn_tree_cursor_read(&cur, &elem, &eof);
     ASSERT_EQ(0, err);
@@ -302,6 +300,9 @@ MTF_DEFINE_UTEST_PREPOST(cn_tree_cursor_test, basic, pre_test, post_test)
     struct cn_tree_node tn;
     struct route_node *rnode;
     const char ekey = 'z';
+    struct kvs_cursor_element elem;
+    bool eof = false;
+    const char *seek = "key";
 
     struct kv kv[2];
 
@@ -319,10 +320,6 @@ MTF_DEFINE_UTEST_PREPOST(cn_tree_cursor_test, basic, pre_test, post_test)
     err = cn_tree_cursor_create(&cur);
     ASSERT_EQ(0, err);
 
-    struct kvs_cursor_element elem;
-    bool eof = false;
-
-    const char *seek = "key";
     err = cn_tree_cursor_seek(&cur, seek, strlen(seek), NULL);
     ASSERT_EQ(0, err);
 
@@ -371,6 +368,9 @@ MTF_DEFINE_UTEST_PREPOST(cn_tree_cursor_test, dups, pre_test, post_test)
     struct cn_tree_node tn;
     struct route_node *rnode;
     const char ekey = 'z';
+    struct kvs_cursor_element elem;
+    bool eof = false;
+    const char *seek = "key02";
 
     struct kv kv[4];
 
@@ -390,9 +390,6 @@ MTF_DEFINE_UTEST_PREPOST(cn_tree_cursor_test, dups, pre_test, post_test)
     err = cn_tree_cursor_create(&cur);
     ASSERT_EQ(0, err);
 
-    struct kvs_cursor_element elem;
-    bool eof = false;
-
     err = cn_tree_cursor_read(&cur, &elem, &eof);
     ASSERT_EQ(0, err);
     ASSERT_EQ(0, cmp(kv[0].kdata, &elem));
@@ -409,7 +406,6 @@ MTF_DEFINE_UTEST_PREPOST(cn_tree_cursor_test, dups, pre_test, post_test)
     ASSERT_EQ(0, err);
     ASSERT_TRUE(eof);
 
-    const char *seek = "key02";
     err = cn_tree_cursor_seek(&cur, seek, strlen(seek), NULL);
     ASSERT_EQ(0, err);
 
@@ -442,6 +438,8 @@ MTF_DEFINE_UTEST_PREPOST(cn_tree_cursor_test, with_ptomb, pre_test, post_test)
     struct cn_tree_node tn;
     struct route_node *rnode;
     const char ekey = 'z';
+    struct kvs_cursor_element elem;
+    bool eof = false;
 
     /* memory for the kv tuples */
     struct kv kv[10];
@@ -470,9 +468,6 @@ MTF_DEFINE_UTEST_PREPOST(cn_tree_cursor_test, with_ptomb, pre_test, post_test)
 
     err = cn_tree_cursor_create(&cur);
     ASSERT_EQ(0, err);
-
-    struct kvs_cursor_element elem;
-    bool eof = false;
 
     err = cn_tree_cursor_read(&cur, &elem, &eof);
     ASSERT_EQ(0, err);

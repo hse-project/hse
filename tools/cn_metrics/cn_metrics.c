@@ -564,6 +564,7 @@ main(int argc, char **argv)
     const char *       errmsg = NULL;
     struct ctx         ctx;
     struct cn *        cn = NULL;
+    struct cn_tree *   tree;
     struct hse_kvdb *  kd = NULL;
     struct hse_kvs *   kvs = NULL;
     hse_err_t          rc;
@@ -630,7 +631,7 @@ main(int argc, char **argv)
         goto done;
     }
 
-    struct cn_tree *tree = cn_get_tree(cn);
+    tree = cn_get_tree(cn);
 
     /* In scalar and hex modes we must walk the tree twice:  The first time
         * to gather totals in order to determine minimum column widths, and the

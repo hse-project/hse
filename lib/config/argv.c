@@ -33,19 +33,25 @@ argv_deserialize_to_params(
     assert(pspecs);
 
     for (size_t i = 0; i < paramc; i++) {
-        const char *param = paramv[i];
+        void *data;
+        cJSON *node;
+        const char *key;
+        const char *value;
+        const char *param;
+        const struct param_spec *ps = NULL;
+
+        param = paramv[i];
         if (!param || *param == '\0')
             continue;
 
-        const char *key = param;
-        const char *value = strstr(param, "=");
+        key = param;
+        value = strstr(param, "=");
         if (!value || value[1] == '\0') {
             log_err("Parameter key/value pairs must be of the form <key=value>");
             err = merr(EINVAL);
             goto out;
         }
 
-        const struct param_spec *ps = NULL;
         for (size_t j = 0; j < pspecs_sz; j++) {
             if (!strncmp(pspecs[j].ps_name, key, value - key)) {
                 ps = &pspecs[j];
@@ -62,9 +68,9 @@ argv_deserialize_to_params(
         /* Point value at one character past the '=' */
         value++;
 
-        void *data = ((char *)params->p_params.as_generic) + ps->ps_offset;
+        data = ((char *)params->p_params.as_generic) + ps->ps_offset;
 
-        cJSON *node = cJSON_Parse(value);
+        node = cJSON_Parse(value);
         if (!node) {
             /* If we couldn't successfully parse the value plainly, then convert
              * it to a string by sticking the value in between two quote

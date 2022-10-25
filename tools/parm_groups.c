@@ -142,7 +142,7 @@ svec_reset(struct svec *self)
 int
 svec_append_svec(struct svec *self, ...)
 {
-    int err = 0;;
+    int err = 0;
     struct svec *sv;
     size_t original_len;
     va_list ap;
@@ -330,7 +330,7 @@ pg_svec_alloc(
     struct svec *       sv,
     ...)
 {
-    int err = 0;;
+    int err = 0;
     struct svec sv_tmp = {};
     struct svec *sv_grp;
     va_list ap;
@@ -369,7 +369,7 @@ pg_parse_argv(struct parm_groups *self, int argc, char **argv, int *argx)
     struct svec *gsv = NULL;
 
     while (*argx < argc) {
-
+        int err;
         const char *arg = argv[*argx];
         struct svec *tmp = pg_find_grp(self, arg);
 
@@ -387,7 +387,7 @@ pg_parse_argv(struct parm_groups *self, int argc, char **argv, int *argx)
             return EINVAL;
 
         /* add to group svec and consume arg */
-        int err = pg_add_str(self, gsv, arg);
+        err = pg_add_str(self, gsv, arg);
         if (err)
             return err;
 

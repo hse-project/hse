@@ -120,6 +120,7 @@ do_inserts(void *args)
     char                 msg[100];
     int                  status;
     int                  transactions_enable;
+    struct txn_info *txn_table;
 
     if (params->transaction) {
         transactions_enable = 1;
@@ -131,8 +132,11 @@ do_inserts(void *args)
         keys_per_txn = params->key_count_per_thread;
     }
 
-    struct txn_info txn_table[transactions_per_thread];
-    memset(txn_table, 0, sizeof(txn_table));
+    txn_table = calloc(transactions_per_thread, sizeof(*txn_table));
+    if (!txn_table) {
+        log_error("Failed to allocate memory");
+        return NULL;
+    }
 
     key_index_offset = params->thread_start_key_index;
     kvs = params->kvs;
@@ -305,6 +309,8 @@ clean_up:
             }
         }
     }
+
+    free(txn_table);
 
     return NULL;
 }

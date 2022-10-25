@@ -36,6 +36,8 @@ compression_default_converter(
     const cJSON *const             node,
     void *const                    data)
 {
+    const char *value;
+
     INVARIANT(ps);
     INVARIANT(node);
     INVARIANT(data);
@@ -43,8 +45,7 @@ compression_default_converter(
     if (!cJSON_IsString(node))
         return false;
 
-    const char *value = cJSON_GetStringValue(node);
-
+    value = cJSON_GetStringValue(node);
     if (strcmp(value, VCOMP_PARAM_OFF) == 0) {
         *(enum vcomp_default *)data = VCOMP_DEFAULT_OFF;
     } else if (strcmp(value, VCOMP_PARAM_ON) == 0) {
@@ -65,14 +66,15 @@ compression_default_stringify(
     const size_t                   buf_sz,
     size_t *const                  needed_sz)
 {
-    int         n;
+    int n;
+    enum vcomp_default deflt;
     const char *param = NULL;
 
     INVARIANT(ps);
     INVARIANT(value);
     INVARIANT(buf);
 
-    const enum vcomp_default deflt = *(enum vcomp_default *)value;
+    deflt = *(enum vcomp_default *)value;
 
     switch (deflt) {
     case VCOMP_DEFAULT_OFF:
@@ -98,10 +100,12 @@ compression_default_stringify(
 static cJSON *
 compression_default_jsonify(const struct param_spec *const ps, const void *const value)
 {
+    enum vcomp_default deflt;
+
     INVARIANT(ps);
     INVARIANT(value);
 
-    const enum vcomp_default deflt = *(enum vcomp_default *)value;
+    deflt = *(enum vcomp_default *)value;
 
     switch (deflt) {
         case VCOMP_DEFAULT_OFF:
@@ -701,9 +705,13 @@ struct kvs_rparams
 kvs_rparams_defaults()
 {
     struct kvs_rparams  params;
-    const struct params p = { .p_type = PARAMS_KVS_RP, .p_params = { .as_kvs_rp = &params } };
+    const struct params p = {
+        .p_params = { .as_kvs_rp = &params },
+        .p_type = PARAMS_KVS_RP,
+    };
 
     param_default_populate(pspecs, NELEM(pspecs), &p);
+
     return params;
 }
 
@@ -715,7 +723,10 @@ kvs_rparams_get(
     const size_t                    buf_sz,
     size_t *const                   needed_sz)
 {
-    const struct params p = { .p_params = { .as_kvs_rp = params }, .p_type = PARAMS_KVS_RP };
+    const struct params p = {
+        .p_params = { .as_kvs_rp = params },
+        .p_type = PARAMS_KVS_RP,
+    };
 
     return param_get(&p, pspecs, NELEM(pspecs), param, buf, buf_sz, needed_sz);
 }
@@ -726,10 +737,13 @@ kvs_rparams_set(
     const char *const               param,
     const char *const               value)
 {
+    const struct params p = {
+        .p_params = { .as_kvs_rp = params },
+        .p_type = PARAMS_KVS_RP,
+    };
+
     if (!params || !param || !value)
         return merr(EINVAL);
-
-    const struct params p = { .p_params = { .as_kvs_rp = params }, .p_type = PARAMS_KVS_RP };
 
     return param_set(&p, pspecs, NELEM(pspecs), param, value);
 }
@@ -737,10 +751,13 @@ kvs_rparams_set(
 cJSON *
 kvs_rparams_to_json(const struct kvs_rparams *const params)
 {
+    const struct params p = {
+        .p_params = { .as_kvs_rp = params },
+        .p_type = PARAMS_KVS_RP,
+    };
+
     if (!params)
         return NULL;
-
-    const struct params p = { .p_params = { .as_kvs_rp = params }, .p_type = PARAMS_KVS_RP };
 
     return param_to_json(&p, pspecs, NELEM(pspecs));
 }

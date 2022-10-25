@@ -2,7 +2,7 @@ subdir('include')
 subdir('lib')
 
 hse_rest = static_library(
-    'hse-rest',
+    '@0@-rest'.format(meson.project_name()),
     rest_sources,
     include_directories: [
         component_root_includes,

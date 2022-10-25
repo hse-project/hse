@@ -118,6 +118,8 @@ json_walk(
                 goto out;
         }
     } else {
+        void *data;
+
         /* Key not found */
         if (!ps) {
             log_err("Unknown parameter %s", key);
@@ -133,7 +135,7 @@ json_walk(
             goto out;
         }
 
-        void *data = ((char *)params->p_params.as_generic) + ps->ps_offset;
+        data = ((char *)params->p_params.as_generic) + ps->ps_offset;
 
         assert(ps->ps_convert);
         if (!ps->ps_convert(ps, node, data)) {
@@ -182,16 +184,16 @@ json_deserialize(
     const size_t               num_providers,
     ...)
 {
+    size_t j = 0;
     merr_t err = 0;
+    va_list providers;
 
     INVARIANT(pspecs);
     INVARIANT(pspecs_sz > 0);
 
-    va_list providers;
     va_start(providers, num_providers);
 
     /* Walk each provider to set params which will overwrite the previous provider */
-    size_t j = 0;
     while (j < num_providers) {
         const cJSON *provider = va_arg(providers, const cJSON *);
         if (!provider || cJSON_IsNull(provider))
@@ -219,6 +221,7 @@ json_deserialize(
 
 va_cleanup:
     va_end(providers);
+
     return err;
 }
 
@@ -307,12 +310,13 @@ config_deserialize_to_kvs_rparams(
     const char *         kvs_name,
     struct kvs_rparams * params)
 {
-    merr_t                   err = 0;
-    cJSON *                  kvs = NULL;
-    cJSON *                  named_kvs = NULL, *default_kvs = NULL;
-    size_t                   rpspecs_sz;
+    merr_t err = 0;
+    cJSON *kvs = NULL;
+    size_t rpspecs_sz;
+    size_t num_providers;
+    cJSON *named_kvs = NULL, *default_kvs = NULL;
     const struct param_spec *rpspecs = kvs_rparams_pspecs_get(&rpspecs_sz);
-    const struct params      p = { .p_type = PARAMS_KVS_RP, .p_params = { .as_kvs_rp = params } };
+    const struct params p = { .p_type = PARAMS_KVS_RP, .p_params = { .as_kvs_rp = params } };
 
     if (!kvs_name || !params)
         return merr(EINVAL);
@@ -327,7 +331,7 @@ config_deserialize_to_kvs_rparams(
     if (err || !kvs)
         return err;
 
-    size_t num_providers = 0;
+    num_providers = 0;
     err = default_kvs_node_get(kvs, &default_kvs);
     if (err)
         return err;
@@ -486,10 +490,12 @@ kvdb_conf_validate(const cJSON *const root)
         return err;
 
     for (cJSON *block = kvs->child; block; block = block->next) {
+        struct kvs_rparams kvs_rp;
+
         if (!strcmp(block->string, DEFAULT_KEY))
             continue;
 
-        struct kvs_rparams kvs_rp = kvs_rparams_defaults();
+        kvs_rp = kvs_rparams_defaults();
 
         num_kvs++;
 

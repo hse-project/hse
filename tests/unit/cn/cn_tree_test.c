@@ -815,6 +815,7 @@ MTF_DEFINE_UTEST_PRE(test, cn_node_get_minmax, test_setup)
     int cnt = 0;
     merr_t err;
     char kbuf[4];
+    char max;
 
     tp.fanout_bits = 3;
     tp.levels = 2;
@@ -835,7 +836,7 @@ MTF_DEFINE_UTEST_PRE(test, cn_node_get_minmax, test_setup)
     }
 
     cn_tree_node_get_max_key(tn, kbuf, sizeof(kbuf), &klen);
-    const char max = 'p' + cnt - 1;
+    max = 'p' + cnt - 1;
     ASSERT_EQ(0, keycmp(kbuf, klen, &max, 1));
 
     test_tree_destroy(&t);

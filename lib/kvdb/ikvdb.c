@@ -320,13 +320,13 @@ ikvdb_pmem_only_from_cparams(
 merr_t
 ikvdb_create(const char *kvdb_home, struct kvdb_cparams *params)
 {
-    assert(kvdb_home);
-    assert(params);
-
     struct kvdb_meta     meta;
     merr_t               err;
     struct mpool *       mp = NULL;
-    struct mpool_rparams mp_rparams = {};
+    struct mpool_rparams mp_rparams = { 0 };
+
+    assert(kvdb_home);
+    assert(params);
 
     err = mpool_create(kvdb_home, &params->storage);
     if (ev(err))
@@ -556,16 +556,16 @@ ikvdb_storage_add(const char *kvdb_home, struct kvdb_cparams *params)
 
     for (i = HSE_MCLASS_BASE; i < HSE_MCLASS_COUNT; i++) {
         if (params->storage.mclass[i].path[0] != '\0') {
-            char buf[PATH_MAX];
             int j;
+            char buf[PATH_MAX];
+
+            static_assert(sizeof(buf) == sizeof(params->storage.mclass[HSE_MCLASS_BASE].path),
+                          "mismatched buffer sizes");
 
             if (meta.km_storage[i].path[0] != '\0') {
                 err = merr(EEXIST);
                 goto errout;
             }
-
-            static_assert(sizeof(buf) == sizeof(params->storage.mclass[HSE_MCLASS_BASE].path),
-                          "mismatched buffer sizes");
 
             err = kvdb_home_storage_path_get(kvdb_home, params->storage.mclass[i].path,
                                              buf, sizeof(buf));
@@ -1734,12 +1734,13 @@ ikvdb_cparams(struct ikvdb *const kvdb, struct kvdb_cparams *const cparams)
         return err;
 
     for (int i = HSE_MCLASS_BASE; i < HSE_MCLASS_COUNT; i++) {
-        cparams->storage.mclass[i].fmaxsz = mprops.mclass[i].mc_fmaxsz;
-        cparams->storage.mclass[i].mblocksz = mprops.mclass[i].mc_mblocksz;
-        cparams->storage.mclass[i].filecnt = mprops.mclass[i].mc_filecnt;
         static_assert(
             sizeof(cparams->storage.mclass[i].path) == sizeof(mprops.mclass[i].mc_path),
             "Mismatched buffer sizes");
+
+        cparams->storage.mclass[i].fmaxsz = mprops.mclass[i].mc_fmaxsz;
+        cparams->storage.mclass[i].mblocksz = mprops.mclass[i].mc_mblocksz;
+        cparams->storage.mclass[i].filecnt = mprops.mclass[i].mc_filecnt;
         strlcpy(
             cparams->storage.mclass[i].path,
             mprops.mclass[i].mc_path,

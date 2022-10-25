@@ -2,7 +2,7 @@ subdir('include')
 subdir('lib')
 
 hse_pidfile = static_library(
-    'hse-pidfile',
+    '@0@-pidfile'.format(meson.project_name()),
     hse_pidfile_sources,
     include_directories: [
         hse_pidfile_includes,

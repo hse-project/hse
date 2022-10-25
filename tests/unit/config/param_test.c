@@ -128,11 +128,14 @@ array_stringify(
 cJSON *
 array_jsonify(const struct param_spec *const ps, const void *const value)
 {
-    cJSON *node = cJSON_CreateArray();
+    cJSON *node;
+    const struct test_arr_type *arr;
+
+    node = cJSON_CreateArray();
     if (!node)
         return NULL;
 
-    const struct test_arr_type *arr = (struct test_arr_type *)value;
+    arr = (struct test_arr_type *)value;
 
     for (int i = 0; i < 2; i++) {
         cJSON *n = cJSON_CreateObject();
@@ -1108,12 +1111,14 @@ MTF_DEFINE_UTEST_PRE(param_test, roundup_pow2, test_pre)
 
 MTF_DEFINE_UTEST_PRE(param_test, jsonify, test_pre)
 {
+    char *str;
+    cJSON *root;
     const struct params p = { .p_params = { .as_generic = &params }, .p_type = PARAMS_GEN };
 
-    cJSON *root = param_to_json(&p, pspecs, NELEM(pspecs));
+    root = param_to_json(&p, pspecs, NELEM(pspecs));
     ASSERT_NE(NULL, root);
 
-    char *str = cJSON_PrintUnformatted(root);
+    str = cJSON_PrintUnformatted(root);
     ASSERT_NE(NULL, str);
 
     cJSON_Delete(root);

@@ -110,8 +110,9 @@ add_ptomb(
     uint kmdlen,
     const void **pfx)
 {
-    const void *kdata;
     const void *kmd;
+    const void *kdata;
+    struct key_obj ko;
 
     struct key_stats key_stats = { .nptombs = 1 };
 
@@ -124,7 +125,6 @@ add_ptomb(
     kdata = key_buf + ((7 * salt++) % (WORK_BUF_SIZE - klen - 1));
     kmd = kmd_buf + ((7 * salt++) % (WORK_BUF_SIZE - kmdlen - 1));
 
-    struct key_obj ko;
     key2kobj(&ko, kdata, klen);
 
     if (pfx)

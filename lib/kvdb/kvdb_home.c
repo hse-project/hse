@@ -25,12 +25,12 @@
 static merr_t
 path_join(const char *home, const char *path, char *buf, const size_t buf_sz)
 {
+    int n;
+
     INVARIANT(home);
     INVARIANT(path);
     INVARIANT(buf);
     INVARIANT(buf_sz > 0);
-
-    int n;
 
     if (path[0] == '\0') {
         memset(buf, '\0', buf_sz);
@@ -109,13 +109,13 @@ kvdb_home_storage_realpath_get(
 merr_t
 kvdb_home_pidfile_path_get(const char *home, char *buf, const size_t buf_sz)
 {
+    int n, rc;
+    char namebuf[32];
+    const char *dir, *name;
+
     INVARIANT(home);
     INVARIANT(buf);
     INVARIANT(buf_sz > 0);
-
-    const char *dir, *name;
-    char namebuf[32];
-    int n, rc;
 
     /* If user does not have write access on 'home', then fallback to XDG_RUNTIME_DIR.
      * If XDG_RUNTIME_DIR is not defined or is a relative path, then fallback to /tmp.

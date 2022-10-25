@@ -134,21 +134,41 @@ MTF_DEFINE_UTEST(mclass_policy_test, overwrite_default_policy)
 
 MTF_DEFINE_UTEST(mclass_policy_test, incorrect_schema)
 {
+    merr_t err;
     struct kvdb_rparams params = kvdb_rparams_defaults();
-    merr_t              err;
-
-    const char * const paramv_policy_unknown_key[] = {
+    const char *const paramv_policy_unknown_key[] = {
         "mclass_policies=[{\"name\": \"staging_only\", \"hello\": \"world\", \"config\": "
         "{\"leaf\": {\"values\": \"capacity\"}}}]"
     };
-    const char * const paramv_age_unknown_key[] = {
+    const char *const paramv_age_unknown_key[] = {
         "mclass_policies=[{\"name\": \"staging_only\", \"config\": {\"hello\": \"world\", "
         "\"leaf\": {\"values\": \"capacity\"}}}]"
     };
-    const char * const paramv_dtype_unknown_key[] = {
+    const char *const paramv_dtype_unknown_key[] = {
         "mclass_policies=[{\"name\": \"staging_only\", \"config\": {\"leaf\": {\"hello\": "
         "\"world\", \"values\": \"capacity\"}}}]"
     };
+    const char *const paramv_mclass_policies_schema[] = { "mclass_policies={}" };
+    const char *const paramv_policy_name_schema[] = {
+        "mclass_policies=[{\"name\": [], \"config\": {\"leaf\": {\"values\": \"capacity\"}}}]"
+    };
+    const char *const paramv_policy_config_schema[] = {
+        "mclass_policies=[{\"name\": \"test_only\", \"config\": []}]"
+    };
+    const char *const paramv_age_schema[] = {
+        "mclass_policies=[{\"name\": \"test_only\", \"config\": {\"leaf\": \"\"}}]"
+    };
+    const char *const paramv_dtype_schema1[] = {
+        "mclass_policies=[{\"name\": \"test_only\", \"config\": {\"leaf\": {\"values\": {}}}}]"
+    };
+    const char *const paramv_dtype_schema2[] = {
+        "mclass_policies=[{\"name\": \"test_only\", \"config\": {\"leaf\": {\"values\": 2}}}]" };
+    const char *const paramv_dtype_schema3[] = {
+        "mclass_policies[{\"name\": \"test_only\", \"config\": {\"leaf\": {\"values\": \"\"}}}]"
+    };
+    const char *const paramv_dtype_schema4[] = {
+        "mclass_policies=[{\"name\": \"test_only\", \"config\": "
+        "{\"leaf\": {\"values\": \"test\"}}}]" };
 
     err = argv_deserialize_to_kvdb_rparams(
         NELEM(paramv_policy_unknown_key), paramv_policy_unknown_key, &params);
@@ -159,27 +179,6 @@ MTF_DEFINE_UTEST(mclass_policy_test, incorrect_schema)
     err = argv_deserialize_to_kvdb_rparams(
         NELEM(paramv_dtype_unknown_key), paramv_dtype_unknown_key, &params);
     ASSERT_NE(err, 0);
-
-    const char * const paramv_mclass_policies_schema[] = { "mclass_policies={}" };
-    const char * const paramv_policy_name_schema[] = {
-        "mclass_policies=[{\"name\": [], \"config\": {\"leaf\": {\"values\": \"capacity\"}}}]"
-    };
-    const char * const paramv_policy_config_schema[] = {
-        "mclass_policies=[{\"name\": \"test_only\", \"config\": []}]"
-    };
-    const char * const paramv_age_schema[] = {
-        "mclass_policies=[{\"name\": \"test_only\", \"config\": {\"leaf\": \"\"}}]"
-    };
-    const char * const paramv_dtype_schema1[] = {
-        "mclass_policies=[{\"name\": \"test_only\", \"config\": {\"leaf\": {\"values\": {}}}}]"
-    };
-    const char * const paramv_dtype_schema2[] = { "mclass_policies=[{\"name\": \"test_only\", \"config\": "
-                                     "{\"leaf\": {\"values\": 2}}}]" };
-    const char * const paramv_dtype_schema3[] = {
-        "mclass_policies[{\"name\": \"test_only\", \"config\": {\"leaf\": {\"values\": \"\"}}}]"
-    };
-    const char * const paramv_dtype_schema4[] = { "mclass_policies=[{\"name\": \"test_only\", \"config\": "
-                                     "{\"leaf\": {\"values\": \"test\"}}}]" };
 
     err = argv_deserialize_to_kvdb_rparams(
         NELEM(paramv_mclass_policies_schema), paramv_mclass_policies_schema, &params);

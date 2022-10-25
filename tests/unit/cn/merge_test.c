@@ -888,12 +888,23 @@ init_work(
 static void
 run_testcase(struct mtf_test_info *lcl_ti, int mode, const char *info)
 {
-    merr_t                    err;
-    u32                       iterc;
-    struct kv_iterator **     iterv;
-    u32                       i;
-    atomic_int                cancel;
+    merr_t err;
+    uint32_t i;
+    uint32_t iterc;
+    uint eklen = 0;
+    uint32_t shift = 0;
+    atomic_int cancel;
+    struct spillctx *sctx;
+    int pfx_len = tp.pfx_len;
+    struct subspill subspill;
+    struct kv_iterator **iterv;
     struct cn_compaction_work w;
+    uint64_t kvsetidv[tp.fanout];
+    struct kvset_mblocks outputs[tp.fanout];
+    unsigned char ekey[HSE_KVS_KEY_LEN_MAX];
+    struct mpool *ds = (struct mpool *)lcl_ti;
+    struct cn_tree_node *output_nodev[tp.fanout];
+    struct kvs_rparams   rp = kvs_rparams_defaults();
 
     if (tp.verbose >= VERBOSE_PER_FILE2)
         printf("Mode: %s\n", info);
@@ -913,14 +924,6 @@ run_testcase(struct mtf_test_info *lcl_ti, int mode, const char *info)
 
     for (i = 0; i < iterc; i++)
         err = kv_spill_test_kvi_create(&iterv[i], &tp, i, lcl_ti);
-
-    struct mpool *       ds = (struct mpool *)lcl_ti;
-    u32                  shift = 0;
-    struct kvset_mblocks outputs[tp.fanout];
-    struct cn_tree_node *output_nodev[tp.fanout];
-    uint64_t             kvsetidv[tp.fanout];
-    struct kvs_rparams   rp = kvs_rparams_defaults();
-    int                  pfx_len = tp.pfx_len;
 
     memset(outputs, 0, sizeof(outputs));
     memset(output_nodev, 0, sizeof(output_nodev));
@@ -979,11 +982,6 @@ run_testcase(struct mtf_test_info *lcl_ti, int mode, const char *info)
 
         w.cw_action = CN_ACTION_SPILL;
         w.cw_cp = &cp;
-
-        struct subspill subspill;
-        struct spillctx *sctx;
-        unsigned char ekey[HSE_KVS_KEY_LEN_MAX];
-        uint eklen = 0;
 
         err = cn_spill_create(&w, &sctx);
         ASSERT_EQ(0, err);

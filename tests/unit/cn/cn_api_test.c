@@ -39,20 +39,22 @@ MTF_BEGIN_UTEST_COLLECTION_PRE(cn_api, init);
 
 MTF_DEFINE_UTEST_PRE(cn_api, basic, pre)
 {
-    struct cn *        cn;
-    struct cndb       *cndb = (void *)-1;
-    struct cn_kvdb    *cn_kvdb;
-    struct kvs_buf     vbuf;
-    struct kvdb_kvs    kk = { 0 };
-    u64                dummy_ikvdb[32] = { 0 };
-    struct mpool *     ds = (void *)-1;
-    struct kvs_cparams cp = {};
-
+    void *tree;
     merr_t err;
-    void * tree;
+    uint64_t cnid;
+    struct cn *cn;
+    uint32_t cn_flags;
+    struct kvs_buf vbuf;
+    struct cn_kvdb *cn_kvdb;
+    struct kvdb_kvs kk = { 0 };
+    struct kvs_cparams cp = { 0 };
+    struct mpool *ds = (void *)-1;
+    struct cndb *cndb = (void *)-1;
+    uint64_t dummy_ikvdb[32] = { 0 };
 
-    struct kvs_ktuple   kt = {};
     enum key_lookup_res res;
+    struct kvs_rparams *rp_out;
+    struct kvs_ktuple   kt = { 0 };
     struct kvs_rparams  rp = { 0 };
 
     kt.kt_data = "123";
@@ -75,17 +77,11 @@ MTF_DEFINE_UTEST_PRE(cn_api, basic, pre)
     tree = cn_get_tree(cn);
     ASSERT_NE(tree, NULL);
 
-    struct kvs_rparams *rp_out;
-
     rp_out = cn_get_rp(cn);
     ASSERT_EQ(&rp, rp_out);
 
-    u32 cn_flags = (u32)-1;
-
     cn_flags = cn_get_flags(cn);
     ASSERT_EQ(0, cn_flags);
-
-    u64 cnid = (u64)-1;
 
     cnid = cn_get_cnid(cn);
     ASSERT_EQ(0, cnid);

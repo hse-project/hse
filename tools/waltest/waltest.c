@@ -887,11 +887,12 @@ test_put_verify(struct thread_info *ti, uint salt, bool istxn)
         bool  found_err = false;
         uint *txkeyp = NULL, nkeys = 0;
         char *txkey = NULL;
+        const char *key;
 
         if (atomic_read(&errors) >= opt.errcnt)
             break;
 
-        const char *key = (char *)ti->ref_key;
+        key = (char *)ti->ref_key;
 
         set_kv(ti, i, salt);
 

@@ -181,6 +181,7 @@ MTF_DEFINE_UTEST_PREPOST(c0_kvset_test, basic_put_get, no_fail_pre, no_fail_post
 
 MTF_DEFINE_UTEST_PREPOST(c0_kvset_test, basic_put_get_fail, no_fail_pre, no_fail_post)
 {
+    uint64_t key;
     struct c0_kvset * kvs;
     struct kvs_ktuple kt;
     struct kvs_vtuple vt;
@@ -248,7 +249,7 @@ MTF_DEFINE_UTEST_PREPOST(c0_kvset_test, basic_put_get_fail, no_fail_pre, no_fail
 
     /* Fill up the kvs.
      */
-    u64 key = get_cycles();
+    key = get_cycles();
 
     while (1) {
         kvs_ktuple_init(&kt, &key, sizeof(key));
