@@ -10,12 +10,11 @@
 
 /* GCOV_EXCL_START */
 
-#if __amd64__
+#if __amd64__ && defined(SUPPORTS_ATTR_NOINLINE)
 
-/* Use noinline to try to prevent -flto from inlining assembly.
+/* Use noinline to try to prevent LTO from inlining assembly.
  */
-__attribute__((__noinline__))
-size_t
+HSE_NOINLINE size_t
 memlcp(const void *s1, const void *s2, size_t len)
 {
     size_t rc;
@@ -39,8 +38,7 @@ memlcp(const void *s1, const void *s2, size_t len)
 
 /* Use noinline to try to prevent -flto from inlining assembly.
  */
-__attribute__((__noinline__))
-size_t
+HSE_NOINLINE size_t
 memlcpq(const void *s1, const void *s2, size_t len)
 {
     size_t rc;

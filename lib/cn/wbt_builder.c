@@ -91,7 +91,7 @@ struct wbb {
 struct key_stage_entry_leaf {
     uint32_t kmd_off;
     uint16_t klen;
-    uint8_t  kdata[] HSE_ALIGNED(HSE_KVS_KEY_CPE_ALIGNMENT);
+    uint8_t  kdata[] HSE_ALIGNED(HSE_KEY_CPE_ALIGNMENT);
 };
 
 static HSE_ALWAYS_INLINE size_t

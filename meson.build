@@ -139,12 +139,12 @@ endif
 
 if get_option('key-cpe') == 'size'
     add_project_arguments(
-        '-DHSE_KVS_KEY_CPE_ALIGNMENT=4',
+        '-DHSE_KEY_CPE_ALIGNMENT=4',
         language: 'c'
-	)
+    )
 elif get_option('key-cpe') == 'speed'
     add_project_arguments(
-        '-DHSE_KVS_KEY_CPE_ALIGNMENT=8',
+        '-DHSE_KEY_CPE_ALIGNMENT=8',
         language: 'c'
     )
 else

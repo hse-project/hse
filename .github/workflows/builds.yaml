@@ -302,3 +302,48 @@ jobs:
             builddir/meson-logs/
             /var/log/messages
             /var/log/syslog
+
+  lto:
+    runs-on: ubuntu-latest
+    needs:
+      - determine-tag
+    container:
+      image: ghcr.io/hse-project/ci-images/fedora-36:${{ needs.determine-tag.outputs.tag }}
+    strategy:
+      fail-fast: false
+      matrix:
+        buildtype: [release, debug]
+
+    steps:
+      - name: Checkout HSE
+        uses: actions/checkout@v3
+
+      - name: Cache Meson packagecache
+        uses: actions/cache@v3
+        with:
+          path: subprojects/packagecache
+          key: meson-packagecache-${{ hashFiles('subprojects/*.wrap') }}
+
+        # HSE doesn't work with gcc LTO at the moment, only clang.
+      - name: Setup
+        run: |
+          CC=clang CXX=clang++ meson setup builddir --werror \
+            --buildtype=${{ matrix.buildtype }} -Db_lto=true -Dtools=enabled \
+            -Ddocs=disabled -Dbindings=none
+
+      - name: Build
+        run: |
+          ninja -C builddir
+
+      - name: Test
+        run: |
+          meson test -C builddir --setup=ci --print-errorlogs --no-stdsplit
+
+      - uses: actions/upload-artifact@v3
+        if: ${{ failure() }}
+        with:
+          name: ${{ github.job }}-${{ matrix.buildtype }}
+          path: |
+            builddir/meson-logs/
+            /var/log/messages
+            /var/log/syslog

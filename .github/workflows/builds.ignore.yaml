@@ -73,3 +73,14 @@ jobs:
     steps:
       - run: |
           echo "Skipping ${{ github.workflow }}/${{ github.job }}/${{ matrix.buildtype }}"
+
+  lto:
+    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        buildtype: [release, debug]
+
+    steps:
+      - run: |
+          echo "Skipping ${{ github.workflow }}/${{ github.job }}/${{ matrix.buildtype }}"

@@ -8,25 +8,28 @@
 
 #define BUILD_CONFIG (@build_config@)
 
-#mesondefine SUPPORTS_ATTR_ALWAYS_INLINE
-#mesondefine SUPPORTS_ATTR_FORMAT
-#mesondefine SUPPORTS_ATTR_PACKED
 #mesondefine SUPPORTS_ATTR_ALIGNED
+#mesondefine SUPPORTS_ATTR_ALWAYS_INLINE
+#mesondefine SUPPORTS_ATTR_COLD
+#mesondefine SUPPORTS_ATTR_CONST
+#mesondefine SUPPORTS_ATTR_FORMAT
+#mesondefine SUPPORTS_ATTR_HOT
+#mesondefine SUPPORTS_ATTR_NOINLINE
+#mesondefine SUPPORTS_ATTR_NONNULL
+#mesondefine SUPPORTS_ATTR_PACKED
+#mesondefine SUPPORTS_ATTR_RETURNS_NONNULL
 #mesondefine SUPPORTS_ATTR_SECTION
+#mesondefine SUPPORTS_ATTR_SENTINEL
 #mesondefine SUPPORTS_ATTR_UNUSED
 #mesondefine SUPPORTS_ATTR_USED
-#mesondefine SUPPORTS_ATTR_HOT
-#mesondefine SUPPORTS_ATTR_COLD
-#mesondefine SUPPORTS_ATTR_RETURNS_NONNULL
-#mesondefine SUPPORTS_ATTR_CONST
+#mesondefine SUPPORTS_ATTR_WARN_UNUSED_RESULT
 #mesondefine SUPPORTS_ATTR_WEAK
-#mesondefine SUPPORTS_ATTR_SENTINEL
-#mesondefine SUPPORTS_ATTR_NONNULL
 
 #mesondefine HAVE_PMEM
 
 #mesondefine WITH_COVERAGE
 #mesondefine WITH_INVARIANTS
+#mesondefine WITH_LTO
 #mesondefine WITH_UBSAN
 
 #endif

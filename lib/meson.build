@@ -14,23 +14,22 @@ endif
 
 build_config_h_data = configuration_data({
     'build_config': '"@0@"'.format(' '.join(build_opts)),
-    'SUPPORTS_ATTR_ALWAYS_INLINE': cc.has_function_attribute('always_inline'),
-    'SUPPORTS_ATTR_FORMAT': cc.has_function_attribute('format'),
-    'SUPPORTS_ATTR_PACKED': true,
     'SUPPORTS_ATTR_ALIGNED': cc.has_function_attribute('aligned'),
+    'SUPPORTS_ATTR_ALWAYS_INLINE': cc.has_function_attribute('always_inline'),
+    'SUPPORTS_ATTR_COLD': cc.has_function_attribute('cold'),
+    'SUPPORTS_ATTR_CONST': cc.has_function_attribute('const'),
+    'SUPPORTS_ATTR_FORMAT': cc.has_function_attribute('format'),
+    'SUPPORTS_ATTR_HOT': cc.has_function_attribute('hot'),
+    'SUPPORTS_ATTR_NOINLINE': cc.has_function_attribute('noinline'),
+    'SUPPORTS_ATTR_NONNULL': cc.has_function_attribute('nonnull'),
+    'SUPPORTS_ATTR_PACKED': true,
+    'SUPPORTS_ATTR_RETURNS_NONNULL': cc.has_function_attribute('returns_nonnull'),
     'SUPPORTS_ATTR_SECTION': cc.compiles(
         '''
         int x __attribute__((__section__(".read_mostly"))) = 0;
         ''',
         name: '__attribute__((__section__(".read_mostly")))',
     ),
-    'SUPPORTS_ATTR_UNUSED': cc.has_function_attribute('unused'),
-    'SUPPORTS_ATTR_USED': cc.has_function_attribute('used'),
-    'SUPPORTS_ATTR_HOT': cc.has_function_attribute('hot'),
-    'SUPPORTS_ATTR_COLD': cc.has_function_attribute('cold'),
-    'SUPPORTS_ATTR_RETURNS_NONNULL': cc.has_function_attribute('returns_nonnull'),
-    'SUPPORTS_ATTR_CONST': cc.has_function_attribute('const'),
-    'SUPPORTS_ATTR_WEAK': cc.has_function_attribute('weak'),
     'SUPPORTS_ATTR_SENTINEL': cc.compiles(
         '''
         int __attribute__((__sentinel__))
@@ -41,11 +40,14 @@ build_config_h_data = configuration_data({
         ''',
         name: '__attribute__((__sentinel__))',
     ),
-    'SUPPORTS_ATTR_NONNULL': cc.has_function_attribute('nonnull'),
+    'SUPPORTS_ATTR_UNUSED': cc.has_function_attribute('unused'),
+    'SUPPORTS_ATTR_USED': cc.has_function_attribute('used'),
     'SUPPORTS_ATTR_WARN_UNUSED_RESULT': cc.has_function_attribute('warn_unused_result'),
+    'SUPPORTS_ATTR_WEAK': cc.has_function_attribute('weak'),
     'HAVE_PMEM': libpmem_dep.found(),
     'WITH_COVERAGE': get_option('b_coverage'),
     'WITH_INVARIANTS': get_option('debug'),
+    'WITH_LTO': get_option('b_lto'),
     'WITH_UBSAN': get_option('b_sanitize').contains('undefined'),
 })
 
