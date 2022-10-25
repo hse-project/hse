@@ -137,6 +137,20 @@ if get_option('omf-byte-order') != 'native'
     )
 endif
 
+if get_option('key-cpe') == 'size'
+    add_project_arguments(
+        '-DHSE_KVS_KEY_CPE_ALIGNMENT=4',
+        language: 'c'
+	)
+elif get_option('key-cpe') == 'speed'
+    add_project_arguments(
+        '-DHSE_KVS_KEY_CPE_ALIGNMENT=8',
+        language: 'c'
+    )
+else
+    error('Unhandled key-cpe value')
+endif
+
 add_project_arguments(
     cc.get_supported_arguments([
         '-D_GNU_SOURCE',

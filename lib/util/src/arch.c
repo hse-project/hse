@@ -1,6 +1,6 @@
 /* SPDX-License-Identifier: Apache-2.0 */
 /*
- * Copyright (C) 2015-2020 Micron Technology, Inc.  All rights reserved.
+ * Copyright (C) 2015-2022 Micron Technology, Inc.  All rights reserved.
  */
 
 #include <hse_util/arch.h>
@@ -12,6 +12,9 @@
 
 #if __amd64__
 
+/* Use noinline to try to prevent -flto from inlining assembly.
+ */
+__attribute__((__noinline__))
 size_t
 memlcp(const void *s1, const void *s2, size_t len)
 {
@@ -34,6 +37,9 @@ memlcp(const void *s1, const void *s2, size_t len)
     return rc;
 }
 
+/* Use noinline to try to prevent -flto from inlining assembly.
+ */
+__attribute__((__noinline__))
 size_t
 memlcpq(const void *s1, const void *s2, size_t len)
 {
@@ -80,9 +86,6 @@ memlcpq(const void *s1, const void *s2, size_t len)
     const uint64_t *s2q = s2;
     const uint64_t *end;
 
-    if (((uintptr_t)s1q | (uintptr_t)s2q) & 0x03ul)
-        return memlcp(s1, s2, len);
-
     end = s1q + (len / 8);
 
     while (s1q < end && *s1q == *s2q++)
@@ -111,7 +114,7 @@ static thread_local struct hse_getcpu_tls hse_getcpu_tls;
 uint
 hse_getcpu(uint *node)
 {
-#if __amd64__ || __s390x__ || __ppc__
+#if __s390x__ || __ppc__
     if (hse_getcpu_tls.cnt++ % 32 == 0) {
         syscall(__NR_getcpu, &hse_getcpu_tls.vcpu, &hse_getcpu_tls.node, NULL);
     }

@@ -298,6 +298,8 @@ kvs_cn_tree_get_parse_values(cJSON *const body, int *const len, char ***const va
             prev_kvsetc = node_kvsetc;
 
             for (cJSON *k = kvsets ? kvsets->child : NULL; k; k = k->next) {
+                cJSON *job;
+
                 (*values)[offset] = strv_kvset;
                 offset += 1;
 
@@ -324,32 +326,31 @@ kvs_cn_tree_get_parse_values(cJSON *const body, int *const len, char ***const va
                     return merr(ENOMEM);
                 offset += 1;
 
-                entry = cJSON_GetObjectItemCaseSensitive(k, "job");
-                assert(cJSON_IsNull(entry) || cJSON_IsObject(entry));
-                if (cJSON_IsObject(entry)) {
+                job = cJSON_GetObjectItemCaseSensitive(k, "job");
+                if (cJSON_IsObject(job)) {
                     uint id;
                     ulong time;
                     const char *rule;
                     const char *wmesg;
                     const char *action;
 
-                    entry = cJSON_GetObjectItemCaseSensitive(k, "id");
+                    entry = cJSON_GetObjectItemCaseSensitive(job, "id");
                     assert(cJSON_IsNumber(entry));
                     id = cJSON_GetNumberValue(entry);
 
-                    entry = cJSON_GetObjectItemCaseSensitive(k, "action");
+                    entry = cJSON_GetObjectItemCaseSensitive(job, "action");
                     assert(cJSON_IsString(entry));
                     action = cJSON_GetStringValue(entry);
 
-                    entry = cJSON_GetObjectItemCaseSensitive(k, "rule");
+                    entry = cJSON_GetObjectItemCaseSensitive(job, "rule");
                     assert(cJSON_IsString(entry));
                     rule = cJSON_GetStringValue(entry);
 
-                    entry = cJSON_GetObjectItemCaseSensitive(k, "wmesg");
+                    entry = cJSON_GetObjectItemCaseSensitive(job, "wmesg");
                     assert(cJSON_IsString(entry));
                     wmesg = cJSON_GetStringValue(entry);
 
-                    entry = cJSON_GetObjectItemCaseSensitive(k, "time");
+                    entry = cJSON_GetObjectItemCaseSensitive(job, "time");
                     assert(cJSON_IsNumber(entry));
                     time = cJSON_GetNumberValue(entry);
 
@@ -360,6 +361,7 @@ kvs_cn_tree_get_parse_values(cJSON *const body, int *const len, char ***const va
                     if (!(*values)[offset])
                         return merr(ENOMEM);
                 } else {
+                    assert(cJSON_IsNull(job));
                     (*values)[offset] = strv_dash;
                 }
                 offset += 1;
