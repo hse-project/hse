@@ -14,7 +14,7 @@
 #include <hse_ikvdb/omf_kmd.h>
 #include <hse_ikvdb/mclass_policy.h>
 
-#include <mpool/mpool.h>
+#include <hse/mpool/mpool.h>
 
 struct cn;
 struct kvset_builder;

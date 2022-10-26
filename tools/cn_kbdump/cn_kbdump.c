@@ -15,7 +15,7 @@
 #include <hse_util/event_counter.h>
 #include <hse_util/bloom_filter.h>
 
-#include <mpool/mpool.h>
+#include <hse/mpool/mpool.h>
 
 #include <hse/hse.h>
 

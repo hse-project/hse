@@ -12,7 +12,7 @@
 #include <hse/error/merr.h>
 #include <hse_util/mutex.h>
 
-#include <mpool/mpool.h>
+#include <hse/mpool/mpool.h>
 
 #include <hse_ikvdb/kvs.h>
 #include <hse_ikvdb/tuple.h>

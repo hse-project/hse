@@ -8,7 +8,7 @@
 
 #include <hse_ikvdb/kvdb_meta.h>
 #include <hse_ikvdb/omf_version.h>
-#include <mpool/mpool.h>
+#include <hse/mpool/mpool.h>
 
 #include <bsd/string.h>
 

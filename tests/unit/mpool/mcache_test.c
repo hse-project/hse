@@ -15,8 +15,8 @@
 #include <hse_util/minmax.h>
 #include <hse_util/page.h>
 
-#include <mpool/mpool.h>
-#include <mpool/mcache.h>
+#include <hse/mpool/mpool.h>
+#include <hse/mpool/mcache.h>
 
 #include <mblock_file.h>
 #include <mblock_fset.h>

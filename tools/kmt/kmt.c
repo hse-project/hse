@@ -144,7 +144,7 @@
 #include <hse_ikvdb/kvs_rparams.h>
 #include <hse_ikvdb/kvs_cparams.h>
 
-#include <mpool/mpool.h>
+#include <hse/mpool/mpool.h>
 
 #include <xoroshiro.h>
 

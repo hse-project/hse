@@ -8,7 +8,7 @@
 #include <hse_util/inttypes.h>
 #include <hse_util/event_counter.h>
 
-#include <mpool/mpool.h>
+#include <hse/mpool/mpool.h>
 
 #include <hse_ikvdb/mclass_policy.h>
 #include <hse_ikvdb/ikvdb.h>

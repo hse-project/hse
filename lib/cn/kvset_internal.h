@@ -18,7 +18,7 @@
 #include <hse_ikvdb/omf_kmd.h>
 #include <hse_ikvdb/kvset_view.h>
 
-#include <mpool/mpool.h>
+#include <hse/mpool/mpool.h>
 
 #include "cn_work.h"
 

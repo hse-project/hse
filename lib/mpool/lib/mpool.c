@@ -23,8 +23,8 @@
 #include <hse_util/page.h>
 #include <hse_util/workqueue.h>
 
-#include <mpool/mpool.h>
-#include <mpool/mpool_structs.h>
+#include <hse/mpool/mpool.h>
+#include <hse/mpool/mpool_structs.h>
 
 #include "mpool_internal.h"
 #include "mblock_fset.h"

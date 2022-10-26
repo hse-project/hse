@@ -1,2 +1,2 @@
 subdir('include')
-subdir('src')
+subdir('lib')

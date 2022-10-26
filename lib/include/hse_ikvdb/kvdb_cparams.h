@@ -12,7 +12,7 @@
 
 #include <hse_util/compiler.h>
 #include <hse/error/merr.h>
-#include <mpool/mpool_structs.h>
+#include <hse/mpool/mpool_structs.h>
 
 struct kvdb_cparams {
     struct mpool_cparams storage;

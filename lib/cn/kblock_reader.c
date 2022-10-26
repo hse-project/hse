@@ -17,7 +17,7 @@
 #include <hse_ikvdb/kvs_rparams.h>
 #include <hse_ikvdb/tuple.h>
 
-#include <mpool/mpool.h>
+#include <hse/mpool/mpool.h>
 
 #include "omf.h"
 #include "bloom_reader.h"

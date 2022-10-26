@@ -10,7 +10,7 @@
 #include <hse/error/merr.h>
 #include <hse_util/inttypes.h>
 
-#include <mpool/mpool.h>
+#include <hse/mpool/mpool.h>
 
 #include <cn/mbset.h>
 

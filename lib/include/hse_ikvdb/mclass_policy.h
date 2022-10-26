@@ -11,7 +11,7 @@
 #include <hse_util/compiler.h>
 #include <hse/error/merr.h>
 
-#include <mpool/mpool.h>
+#include <hse/mpool/mpool.h>
 
 struct ikvdb;
 

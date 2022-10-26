@@ -5,7 +5,7 @@
 
 #define MTF_MOCK_IMPL_hse
 
-#include <mpool/mpool.h>
+#include <hse/mpool/mpool.h>
 
 #include <hse_ikvdb/ikvdb.h>
 #include <hse_ikvdb/diag_kvdb.h>

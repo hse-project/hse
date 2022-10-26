@@ -23,7 +23,7 @@
 #include <hse_util/assert.h>
 #include <hse_util/base.h>
 
-#include <mpool/mpool.h>
+#include <hse/mpool/mpool.h>
 
 #define KVDB_META       "kvdb.meta"
 #define KVDB_META_PERMS (S_IRUSR | S_IWUSR)

@@ -39,7 +39,7 @@
 #include "cn_perfc.h"
 #include "kvs_mblk_desc.h"
 
-#include <mpool/mpool.h>
+#include <hse/mpool/mpool.h>
 
 extern struct tbkt sp3_tbkt;
 

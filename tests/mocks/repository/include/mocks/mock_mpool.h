@@ -8,7 +8,7 @@
 
 #include <mock/api.h>
 
-#include <mpool/mpool.h>
+#include <hse/mpool/mpool.h>
 
 #include <hse_util/platform.h>
 

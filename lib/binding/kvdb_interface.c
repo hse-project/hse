@@ -9,7 +9,7 @@
 
 #include <string.h>
 
-#include <mpool/mpool.h>
+#include <hse/mpool/mpool.h>
 
 #include <hse/hse.h>
 #include <hse/experimental.h>

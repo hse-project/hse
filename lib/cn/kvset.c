@@ -39,7 +39,7 @@
 
 #include <hse_ikvdb/cndb.h>
 
-#include <mpool/mpool.h>
+#include <hse/mpool/mpool.h>
 
 #include <hse_util/hlog.h>
 

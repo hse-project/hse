@@ -67,7 +67,7 @@
 #include "kvdb_pfxlock.h"
 #include "kvdb_ctxn_pfxlock.h"
 
-#include <mpool/mpool.h>
+#include <hse/mpool/mpool.h>
 #include <hse/pidfile/pidfile.h>
 
 #include <xxhash.h>

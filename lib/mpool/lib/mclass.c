@@ -12,7 +12,7 @@
 #include <hse_util/workqueue.h>
 #include <hse_util/assert.h>
 
-#include <mpool/mpool_structs.h>
+#include <hse/mpool/mpool_structs.h>
 
 #include "mclass.h"
 #include "mdc.h"

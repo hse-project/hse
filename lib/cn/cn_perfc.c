@@ -9,7 +9,7 @@
 #include <hse_ikvdb/tuple.h>
 #include <hse_ikvdb/mclass_policy.h>
 
-#include <mpool/mpool.h>
+#include <hse/mpool/mpool.h>
 
 #include "cn_internal.h"
 #include "cn_perfc_internal.h"

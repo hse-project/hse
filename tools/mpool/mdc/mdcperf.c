@@ -32,7 +32,7 @@
 #include <hse_util/parse_num.h>
 
 #include <hse/hse.h>
-#include <mpool/mpool.h>
+#include <hse/mpool/mpool.h>
 
 struct oid_pair {
     u64 oid[2];

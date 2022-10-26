@@ -9,7 +9,7 @@
 #include <mtf/framework.h>
 #include <mock/api.h>
 
-#include <mpool/mpool.h>
+#include <hse/mpool/mpool.h>
 #include <mpool_internal.h>
 #include <mclass.h>
 #include <mblock_fset.h>

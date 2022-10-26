@@ -12,7 +12,7 @@
 #include <hse_ikvdb/cndb.h>
 #include <hse_ikvdb/kvdb_rparams.h>
 
-#include <mpool/mpool.h>
+#include <hse/mpool/mpool.h>
 
 #include <cn/kvset.h>
 

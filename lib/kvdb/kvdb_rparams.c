@@ -15,7 +15,7 @@
 
 #include <hse/hse.h>
 
-#include <mpool/mpool.h>
+#include <hse/mpool/mpool.h>
 #include <hse_ikvdb/mclass_policy.h>
 #include <hse_ikvdb/param.h>
 #include <hse_ikvdb/kvdb_rparams.h>

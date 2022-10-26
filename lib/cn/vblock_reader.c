@@ -13,7 +13,7 @@
 #include <hse_util/assert.h>
 #include <hse_util/arch.h>
 
-#include <mpool/mpool.h>
+#include <hse/mpool/mpool.h>
 
 #include <hse_ikvdb/tuple.h>
 

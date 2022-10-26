@@ -9,7 +9,7 @@
 #include <stdbool.h>
 #include <stdlib.h>
 
-#include <mpool/mpool_structs.h>
+#include <hse/mpool/mpool_structs.h>
 
 #include <hse/error/merr.h>
 
