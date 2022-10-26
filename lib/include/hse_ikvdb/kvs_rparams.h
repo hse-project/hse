@@ -70,8 +70,10 @@ struct kvs_rparams {
     uint64_t capped_evict_ttl;
 
     struct {
-        enum vcomp_default deflt;
-    } compression;
+        struct {
+            enum vcomp_default dflt;
+        } compression;
+    } value;
 
     char mclass_policy[HSE_MPOLICY_NAME_LEN_MAX];
 };
@@ -80,7 +82,7 @@ const struct param_spec *
 kvs_rparams_pspecs_get(size_t *pspecs_sz) HSE_RETURNS_NONNULL;
 
 struct kvs_rparams
-kvs_rparams_defaults() HSE_CONST;
+kvs_rparams_defaults(void) HSE_CONST;
 
 merr_t
 kvs_rparams_get(

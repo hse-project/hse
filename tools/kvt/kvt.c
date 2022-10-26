@@ -721,7 +721,7 @@ int
 parm_vec_init(void)
 {
     const char *txn = testtxn ? "transactions.enabled=true" : "transactions.enabled=false";
-    const char *cmp = vcomp ? "compression.default=on" : "compression.default=off";
+    const char *cmp = vcomp ? "value.compression.default=on" : "value.compression.default=off";
     char rids_pfx[64] = { 0 };
     int rc = 0;
 
