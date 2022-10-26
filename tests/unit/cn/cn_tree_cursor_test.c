@@ -5,8 +5,8 @@
 
 #include <mtf/framework.h>
 
-#include <hse_util/base.h>
-#include <hse_util/keycmp.h>
+#include <hse/util/base.h>
+#include <hse/util/keycmp.h>
 
 #include <hse_ikvdb/cn.h>
 #include <hse_ikvdb/omf_kmd.h>

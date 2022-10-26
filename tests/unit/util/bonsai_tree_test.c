@@ -6,17 +6,17 @@
 #include <hse/error/merr.h>
 #include <hse/logging/logging.h>
 
-#include <hse_util/atomic.h>
-#include <hse_util/bonsai_tree.h>
-#include <hse_util/compiler.h>
-#include <hse_util/cursor_heap.h>
-#include <hse_util/keycmp.h>
-#include <hse_util/seqno.h>
-#include <hse_util/storage.h>
-#include <hse_util/time.h>
-#include <hse_util/xrand.h>
+#include <hse/util/atomic.h>
+#include <hse/util/bonsai_tree.h>
+#include <hse/util/compiler.h>
+#include <hse/util/cursor_heap.h>
+#include <hse/util/keycmp.h>
+#include <hse/util/seqno.h>
+#include <hse/util/storage.h>
+#include <hse/util/time.h>
+#include <hse/util/xrand.h>
 
-#include <util/src/bonsai_tree_pvt.h>
+#include <util/lib/bonsai_tree_pvt.h>
 
 #include <mtf/framework.h>
 

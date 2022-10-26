@@ -17,7 +17,7 @@
 #include <hse/error/merr.h>
 #include <hse/logging/logging.h>
 
-#include <hse_util/compiler.h>
+#include <hse/util/compiler.h>
 
 struct hse_gparams {
     uint64_t gp_c0kvs_ccache_sz_max;

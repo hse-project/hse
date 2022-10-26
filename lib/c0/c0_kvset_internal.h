@@ -6,7 +6,7 @@
 #ifndef HSE_CORE_C0_KVSET_INTERNAL_H
 #define HSE_CORE_C0_KVSET_INTERNAL_H
 
-#include <hse_util/bonsai_tree.h>
+#include <hse/util/bonsai_tree.h>
 
 #define c0_kvset_h2r(handle) container_of(handle, struct c0_kvset_impl, c0s_handle)
 

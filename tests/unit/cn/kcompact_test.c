@@ -6,8 +6,8 @@
 #include <mtf/framework.h>
 #include <mock/api.h>
 
-#include <hse_util/platform.h>
-#include <hse_util/slab.h>
+#include <hse/util/platform.h>
+#include <hse/util/slab.h>
 
 #include <hse_ikvdb/tuple.h>
 #include <hse_ikvdb/kvs_rparams.h>

@@ -6,8 +6,8 @@
 #include "sample_element_source.h"
 
 #include <hse/error/merr.h>
-#include <hse_util/inttypes.h>
-#include <hse_util/assert.h>
+#include <hse/util/inttypes.h>
+#include <hse/util/assert.h>
 
 #include <support/random_buffer.h>
 

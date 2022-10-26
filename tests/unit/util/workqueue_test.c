@@ -5,8 +5,8 @@
 
 #include <mtf/framework.h>
 
-#include <hse_util/platform.h>
-#include <hse_util/workqueue.h>
+#include <hse/util/platform.h>
+#include <hse/util/workqueue.h>
 #include <hse/logging/logging.h>
 
 int verbose = 0;

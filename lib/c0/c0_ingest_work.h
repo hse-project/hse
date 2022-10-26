@@ -8,7 +8,7 @@
 
 #include <hse/limits.h>
 
-#include <hse_util/platform.h>
+#include <hse/util/platform.h>
 
 #include <hse_ikvdb/c0_kvset.h>
 #include <hse_ikvdb/limits.h>

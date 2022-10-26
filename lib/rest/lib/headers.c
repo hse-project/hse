@@ -12,7 +12,7 @@
 
 #include <hse/error/merr.h>
 #include <hse/rest/headers.h>
-#include <hse_util/compiler.h>
+#include <hse/util/compiler.h>
 
 const char *
 rest_headers_get(const struct rest_headers *const headers, const char *const key)

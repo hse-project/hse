@@ -6,7 +6,7 @@
 #ifndef MOCKS_MOCK_KVSET_H
 #define MOCKS_MOCK_KVSET_H
 
-#include <hse_util/page.h>
+#include <hse/util/page.h>
 
 #include <arpa/inet.h> /* ntohl, htonl */
 

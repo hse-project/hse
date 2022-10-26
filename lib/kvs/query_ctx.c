@@ -3,9 +3,9 @@
  * Copyright (C) 2015-2020 Micron Technology, Inc.  All rights reserved.
  */
 
-#include <hse_util/hash.h>
-#include <hse_util/event_counter.h>
-#include <hse_util/map.h>
+#include <hse/util/hash.h>
+#include <hse/util/event_counter.h>
+#include <hse/util/map.h>
 
 #include <hse_ikvdb/query_ctx.h>
 

@@ -7,7 +7,7 @@
 #include <unistd.h>
 
 #include <hse/hse.h>
-#include <hse_util/base.h>
+#include <hse/util/base.h>
 #include <hse/test/fixtures/kvdb.h>
 #include <hse/test/fixtures/kvs.h>
 

@@ -132,14 +132,14 @@
  */
 //#define XKMT
 
-#include <hse_util/arch.h>
-#include <hse_util/atomic.h>
-#include <hse_util/compiler.h>
-#include <hse_util/log2.h>
-#include <hse_util/minmax.h>
-#include <hse_util/page.h>
+#include <hse/util/arch.h>
+#include <hse/util/atomic.h>
+#include <hse/util/compiler.h>
+#include <hse/util/log2.h>
+#include <hse/util/minmax.h>
+#include <hse/util/page.h>
 #include <hse/error/merr.h>
-#include <hse_util/byteorder.h>
+#include <hse/util/byteorder.h>
 
 #include <hse_ikvdb/kvs_rparams.h>
 #include <hse_ikvdb/kvs_cparams.h>

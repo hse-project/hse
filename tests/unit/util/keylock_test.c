@@ -7,9 +7,9 @@
 #include <mock/api.h>
 
 #include <hse/error/merr.h>
-#include <hse_util/xrand.h>
+#include <hse/util/xrand.h>
 #include <hse/logging/logging.h>
-#include <hse_util/keylock.h>
+#include <hse/util/keylock.h>
 
 int
 test_collection_pre(struct mtf_test_info *lcl_ti)

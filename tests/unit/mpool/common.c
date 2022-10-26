@@ -12,7 +12,7 @@
 
 #include <bsd/string.h>
 
-#include <hse_util/storage.h>
+#include <hse/util/storage.h>
 
 #include <mtf/common.h>
 #include <mtf/framework.h>

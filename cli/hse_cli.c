@@ -24,8 +24,8 @@
 #include <hse/pidfile/pidfile.h>
 #include <hse/version.h>
 
-#include <hse_util/compiler.h>
-#include <hse_util/parse_num.h>
+#include <hse/util/compiler.h>
+#include <hse/util/parse_num.h>
 
 #include "cli_util.h"
 #include "storage_profile.h"

@@ -8,8 +8,8 @@
 #include <mtf/framework.h>
 
 #include <hse/logging/logging.h>
-#include <hse_util/bloom_filter.h>
-#include <hse_util/page.h>
+#include <hse/util/bloom_filter.h>
+#include <hse/util/page.h>
 
 #include <cn/omf.h>
 #include <cn/kblock_reader.h>

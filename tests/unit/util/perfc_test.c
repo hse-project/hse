@@ -7,12 +7,12 @@
 
 #include <mtf/framework.h>
 
-#include <hse_util/inttypes.h>
+#include <hse/util/inttypes.h>
 #include <hse/error/merr.h>
 #include <hse/logging/logging.h>
-#include <hse_util/parse_num.h>
-#include <hse_util/data_tree.h>
-#include <hse_util/perfc.h>
+#include <hse/util/parse_num.h>
+#include <hse/util/data_tree.h>
+#include <hse/util/perfc.h>
 
 MTF_MODULE_UNDER_TEST(hse_platform);
 

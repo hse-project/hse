@@ -6,7 +6,7 @@
 #ifndef HSE_KVDB_OMF_KMD_H
 #define HSE_KVDB_OMF_KMD_H
 
-#include <hse_util/inttypes.h>
+#include <hse/util/inttypes.h>
 
 #include <hse_ikvdb/encoders.h>
 #include <hse_ikvdb/omf_kmd_vtype.h>

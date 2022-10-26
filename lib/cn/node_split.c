@@ -9,13 +9,13 @@
 #include <stdlib.h>
 #include <sys/mman.h>
 
-#include <hse_util/element_source.h>
-#include <hse_util/event_counter.h>
+#include <hse/util/element_source.h>
+#include <hse/util/event_counter.h>
 #include <hse/error/merr.h>
-#include <hse_util/assert.h>
-#include <hse_util/keycmp.h>
+#include <hse/util/assert.h>
+#include <hse/util/keycmp.h>
 #include <hse/logging/logging.h>
-#include <hse_util/list.h>
+#include <hse/util/list.h>
 
 #include <hse_ikvdb/kvset_view.h>
 #include <hse_ikvdb/sched_sts.h>

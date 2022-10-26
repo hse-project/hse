@@ -13,7 +13,7 @@
 #include <support/random_buffer.h>
 
 #include <hse/error/merr.h>
-#include <hse_util/dax.h>
+#include <hse/util/dax.h>
 
 #include <hse_ikvdb/kvs.h>
 #include <hse_ikvdb/ikvdb.h>

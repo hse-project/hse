@@ -15,9 +15,9 @@
 #include <hse/hse.h>
 #include <hse/version.h>
 
-#include <hse_util/atomic.h>
-#include <hse_util/inttypes.h>
-#include <hse_util/parse_num.h>
+#include <hse/util/atomic.h>
+#include <hse/util/inttypes.h>
+#include <hse/util/parse_num.h>
 
 #include <tools/parm_groups.h>
 

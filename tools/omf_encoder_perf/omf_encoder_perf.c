@@ -3,9 +3,9 @@
  * Copyright (C) 2015-2020,2020 Micron Technology, Inc.  All rights reserved.
  */
 
-#include <hse_util/platform.h>
-#include <hse_util/slab.h>
-#include <hse_util/xrand.h>
+#include <hse/util/platform.h>
+#include <hse/util/slab.h>
+#include <hse/util/xrand.h>
 
 #include <hse_ikvdb/omf_kmd.h>
 #include <hse_ikvdb/limits.h>

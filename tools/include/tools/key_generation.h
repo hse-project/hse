@@ -6,7 +6,7 @@
 #ifndef HSE_KEY_GENERATOR_H
 #define HSE_KEY_GENERATOR_H
 
-#include <hse_util/inttypes.h>
+#include <hse/util/inttypes.h>
 
 struct key_generator;
 

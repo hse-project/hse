@@ -6,10 +6,10 @@
 #ifndef HSE_CNDB_H
 #define HSE_CNDB_H
 
-#include <hse_util/platform.h>
-#include <hse_util/inttypes.h>
+#include <hse/util/platform.h>
+#include <hse/util/inttypes.h>
 #include <hse/error/merr.h>
-#include <hse_util/atomic.h>
+#include <hse/util/atomic.h>
 
 struct mpool;
 struct kvset_meta;

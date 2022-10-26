@@ -18,7 +18,7 @@
 
 #include <hse/hse.h>
 
-#include <hse_util/parse_num.h>
+#include <hse/util/parse_num.h>
 
 #include <tools/parm_groups.h>
 #include <tools/common.h>

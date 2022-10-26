@@ -5,7 +5,7 @@
 
 #define MTF_MOCK_IMPL_csched
 
-#include <hse_util/platform.h>
+#include <hse/util/platform.h>
 
 #include <hse_ikvdb/csched.h>
 #include <hse_ikvdb/sched_sts.h>

@@ -9,7 +9,7 @@
 #include <hse/test/fixtures/kvdb.h>
 #include <hse/test/fixtures/kvs.h>
 
-#include <hse_util/base.h>
+#include <hse/util/base.h>
 
 struct hse_kvdb *kvdb_handle = NULL;
 struct hse_kvs  *kvs_handle = NULL;

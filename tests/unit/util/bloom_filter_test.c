@@ -6,11 +6,11 @@
 #include <mtf/framework.h>
 
 #include <hse/error/merr.h>
-#include <hse_util/inttypes.h>
-#include <hse_util/hash.h>
-#include <hse_util/page.h>
-#include <hse_util/bitmap.h>
-#include <hse_util/bloom_filter.h>
+#include <hse/util/inttypes.h>
+#include <hse/util/hash.h>
+#include <hse/util/page.h>
+#include <hse/util/bitmap.h>
+#include <hse/util/bloom_filter.h>
 
 MTF_BEGIN_UTEST_COLLECTION(bloom_filter_basic);
 

@@ -12,7 +12,7 @@
 
 #include <mtf/framework.h>
 
-#include <hse_util/base.h>
+#include <hse/util/base.h>
 
 struct hse_kvdb *kvdb_handle;
 

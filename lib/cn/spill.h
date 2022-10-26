@@ -7,7 +7,7 @@
 #define HSE_KVDB_CN_SPILL_H
 
 #include <hse/error/merr.h>
-#include <hse_util/inttypes.h>
+#include <hse/util/inttypes.h>
 
 #include "route.h"
 

@@ -19,9 +19,9 @@
 
 #include <hse/hse.h>
 
-#include <hse_util/compiler.h>
-#include <hse_util/inttypes.h>
-#include <hse_util/parse_num.h>
+#include <hse/util/compiler.h>
+#include <hse/util/inttypes.h>
+#include <hse/util/parse_num.h>
 
 #include <tools/parm_groups.h>
 

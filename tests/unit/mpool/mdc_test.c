@@ -11,7 +11,7 @@
 #include <support/random_buffer.h>
 
 #include <hse/error/merr.h>
-#include <hse_util/minmax.h>
+#include <hse/util/minmax.h>
 
 #include <hse/mpool/mpool.h>
 #include <mdc.h>

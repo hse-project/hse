@@ -7,13 +7,13 @@
 
 #include <mtf/framework.h>
 
-#include <hse_util/slab.h>
-#include <hse_util/inttypes.h>
+#include <hse/util/slab.h>
+#include <hse/util/inttypes.h>
 #include <hse/error/merr.h>
 #include <hse/logging/logging.h>
-#include <hse_util/time.h>
-#include <hse_util/data_tree.h>
-#include <hse_util/event_counter.h>
+#include <hse/util/time.h>
+#include <hse/util/data_tree.h>
+#include <hse/util/event_counter.h>
 
 int
 ev_test_pre(struct mtf_test_info *lcl_ti)

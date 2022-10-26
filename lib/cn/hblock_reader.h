@@ -10,7 +10,7 @@
 
 #include <stdint.h>
 
-#include <hse_util/compiler.h>
+#include <hse/util/compiler.h>
 #include <hse/error/merr.h>
 
 struct kvs_mblk_desc;

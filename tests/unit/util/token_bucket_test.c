@@ -8,9 +8,9 @@
 #include <mock/alloc_tester.h>
 
 #include <hse/logging/logging.h>
-#include <hse_util/timer.h>
-#include <hse_util/minmax.h>
-#include <hse_util/token_bucket.h>
+#include <hse/util/timer.h>
+#include <hse/util/minmax.h>
+#include <hse/util/token_bucket.h>
 
 #define K (1024L)
 #define M (1024L * 1024)

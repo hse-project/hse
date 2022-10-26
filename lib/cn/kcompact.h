@@ -9,7 +9,7 @@
 /* MTF_MOCK_DECL(kcompact) */
 
 #include <hse/error/merr.h>
-#include <hse_util/inttypes.h>
+#include <hse/util/inttypes.h>
 
 struct cn_compaction_work;
 

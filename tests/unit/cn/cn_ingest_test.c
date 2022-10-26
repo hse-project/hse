@@ -7,9 +7,9 @@
 #include <mtf/framework.h>
 #include <mock/api.h>
 
-#include <hse_util/inttypes.h>
+#include <hse/util/inttypes.h>
 #include <hse/logging/logging.h>
-#include <hse_util/atomic.h>
+#include <hse/util/atomic.h>
 
 #include <hse/mpool/mpool.h>
 

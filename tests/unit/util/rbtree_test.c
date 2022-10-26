@@ -5,9 +5,9 @@
 
 #include <rbtree.h>
 
-#include <hse_util/xrand.h>
+#include <hse/util/xrand.h>
 
-#include <hse_util/inttypes.h>
+#include <hse/util/inttypes.h>
 #include <hse/logging/logging.h>
 
 #include <mtf/framework.h>

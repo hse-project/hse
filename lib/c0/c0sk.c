@@ -6,17 +6,17 @@
 #include <urcu-bp.h>
 #include <urcu/rculist.h>
 
-#include <hse_util/platform.h>
+#include <hse/util/platform.h>
 #include <hse/error/merr.h>
-#include <hse_util/event_counter.h>
-#include <hse_util/alloc.h>
-#include <hse_util/slab.h>
-#include <hse_util/condvar.h>
-#include <hse_util/bin_heap.h>
-#include <hse_util/table.h>
-#include <hse_util/fmt.h>
-#include <hse_util/keycmp.h>
-#include <hse_util/bonsai_tree.h>
+#include <hse/util/event_counter.h>
+#include <hse/util/alloc.h>
+#include <hse/util/slab.h>
+#include <hse/util/condvar.h>
+#include <hse/util/bin_heap.h>
+#include <hse/util/table.h>
+#include <hse/util/fmt.h>
+#include <hse/util/keycmp.h>
+#include <hse/util/bonsai_tree.h>
 
 #define MTF_MOCK_IMPL_c0sk
 

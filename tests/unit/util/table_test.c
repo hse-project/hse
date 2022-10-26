@@ -6,7 +6,7 @@
 #include <mtf/framework.h>
 #include <mock/api.h>
 
-#include <hse_util/table.h>
+#include <hse/util/table.h>
 
 MTF_MODULE_UNDER_TEST(hse_platform);
 

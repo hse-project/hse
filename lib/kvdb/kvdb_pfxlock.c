@@ -17,13 +17,13 @@
  * acquire the prefix lock from each and every tree within the range.
  */
 
-#include <hse_util/platform.h>
-#include <hse_util/printbuf.h>
-#include <hse_util/event_counter.h>
-#include <hse_util/workqueue.h>
-#include <hse_util/timer.h>
-#include <hse_util/mutex.h>
-#include <hse_util/slab.h>
+#include <hse/util/platform.h>
+#include <hse/util/printbuf.h>
+#include <hse/util/event_counter.h>
+#include <hse/util/workqueue.h>
+#include <hse/util/timer.h>
+#include <hse/util/mutex.h>
+#include <hse/util/slab.h>
 #include <hse/logging/logging.h>
 
 #include <rbtree.h>

@@ -6,8 +6,8 @@
 #ifndef HSE_KVDB_CN_MBSET_H
 #define HSE_KVDB_CN_MBSET_H
 
-#include <hse_util/platform.h>
-#include <hse_util/atomic.h>
+#include <hse/util/platform.h>
+#include <hse/util/atomic.h>
 
 #include <hse/mpool/mpool.h>
 

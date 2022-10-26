@@ -21,7 +21,7 @@
 #include <hse/test/fixtures/kvs.h>
 
 #include <hse_ikvdb/ikvdb.h>
-#include <hse_util/base.h>
+#include <hse/util/base.h>
 #include <hse/mpool/mpool.h>
 
 char socket_path[PATH_MAX];

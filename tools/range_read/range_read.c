@@ -7,10 +7,10 @@
  * DB is the product of number of prefixes and suffixes.
  */
 
-#include <hse_util/platform.h>
-#include <hse_util/atomic.h>
-#include <hse_util/compiler.h>
-#include <hse_util/inttypes.h>
+#include <hse/util/platform.h>
+#include <hse/util/atomic.h>
+#include <hse/util/compiler.h>
+#include <hse/util/inttypes.h>
 
 #include <xoroshiro.h>
 

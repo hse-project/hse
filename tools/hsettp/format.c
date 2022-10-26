@@ -10,7 +10,7 @@
 
 #include <bsd/stringlist.h>
 
-#include <hse_util/base.h>
+#include <hse/util/base.h>
 
 #include "format.h"
 

@@ -6,8 +6,8 @@
 #ifndef HSE_KVS_CN_WBT_READER_H
 #define HSE_KVS_CN_WBT_READER_H
 
-#include <hse_util/inttypes.h>
-#include <hse_util/key_util.h>
+#include <hse/util/inttypes.h>
+#include <hse/util/key_util.h>
 
 #include <hse_ikvdb/tuple.h>
 

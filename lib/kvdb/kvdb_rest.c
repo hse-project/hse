@@ -22,9 +22,9 @@
 #include <hse/rest/response.h>
 #include <hse/rest/server.h>
 #include <hse/rest/status.h>
-#include <hse_util/event_counter.h>
-#include <hse_util/fmt.h>
-#include <hse_util/printbuf.h>
+#include <hse/util/event_counter.h>
+#include <hse/util/fmt.h>
+#include <hse/util/printbuf.h>
 
 #include <hse_ikvdb/ikvdb.h>
 #include <hse_ikvdb/kvs.h>

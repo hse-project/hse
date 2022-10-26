@@ -6,7 +6,7 @@
 #ifndef HSE_KVS_CURSOR_H
 #define HSE_KVS_CURSOR_H
 
-#include <hse_util/inttypes.h>
+#include <hse/util/inttypes.h>
 #include <hse_ikvdb/tuple.h>
 
 /**

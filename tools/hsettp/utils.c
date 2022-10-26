@@ -14,7 +14,7 @@
 
 #include <hse/error/merr.h>
 
-#include <hse_util/assert.h>
+#include <hse/util/assert.h>
 
 merr_t
 flatten(cJSON *const in, const char *const prefix, cJSON *const out)

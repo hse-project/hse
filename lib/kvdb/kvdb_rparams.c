@@ -23,9 +23,9 @@
 #include <hse_ikvdb/limits.h>
 #include <hse_ikvdb/kvdb_home.h>
 #include <hse_ikvdb/wal.h>
-#include <hse_util/assert.h>
-#include <hse_util/storage.h>
-#include <hse_util/compiler.h>
+#include <hse/util/assert.h>
+#include <hse/util/storage.h>
+#include <hse/util/compiler.h>
 #include <hse_ikvdb/csched.h>
 
 static void

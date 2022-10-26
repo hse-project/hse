@@ -5,8 +5,8 @@
 
 #include <mtf/framework.h>
 
-#include <hse_util/base.h>
-#include <hse_util/err_ctx.h>
+#include <hse/util/base.h>
+#include <hse/util/err_ctx.h>
 #include <hse_ikvdb/hse_gparams.h>
 
 #include <getopt.h>

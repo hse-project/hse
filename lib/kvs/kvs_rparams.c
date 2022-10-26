@@ -10,12 +10,12 @@
 
 #include <bsd/string.h>
 
-#include <hse_util/assert.h>
-#include <hse_util/compiler.h>
+#include <hse/util/assert.h>
+#include <hse/util/compiler.h>
 #include <hse/logging/logging.h>
-#include <hse_util/perfc.h>
-#include <hse_util/storage.h>
-#include <hse_util/storage.h>
+#include <hse/util/perfc.h>
+#include <hse/util/storage.h>
+#include <hse/util/storage.h>
 
 #include <hse_ikvdb/mclass_policy.h>
 #include <hse_ikvdb/ikvdb.h>

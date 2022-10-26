@@ -12,7 +12,7 @@
 
 #include <mtf/framework.h>
 
-#include <hse_util/base.h>
+#include <hse/util/base.h>
 #include <hse_ikvdb/limits.h>
 #include <hse_ikvdb/vcomp_params.h>
 

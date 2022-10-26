@@ -9,8 +9,8 @@
 #include <stdint.h>
 
 #include <hse/error/merr.h>
-#include <hse_util/key_util.h>
-#include <hse_util/seqno.h>
+#include <hse/util/key_util.h>
+#include <hse/util/seqno.h>
 
 #include <hse_ikvdb/key_hash.h>
 #include <hse_ikvdb/omf_kmd.h>

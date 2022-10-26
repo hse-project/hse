@@ -3,13 +3,13 @@
  * Copyright (C) 2015-2022 Micron Technology, Inc.  All rights reserved.
  */
 
-#include <hse_util/slab.h>
-#include <hse_util/log2.h>
-#include <hse_util/fmt.h>
-#include <hse_util/keycmp.h>
-#include <hse_util/bonsai_tree.h>
-#include <hse_util/compression_lz4.h>
-#include <hse_util/event_counter.h>
+#include <hse/util/slab.h>
+#include <hse/util/log2.h>
+#include <hse/util/fmt.h>
+#include <hse/util/keycmp.h>
+#include <hse/util/bonsai_tree.h>
+#include <hse/util/compression_lz4.h>
+#include <hse/util/event_counter.h>
 
 #include <hse_ikvdb/limits.h>
 #include <hse_ikvdb/c0_kvset.h>

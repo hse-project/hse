@@ -9,8 +9,8 @@
 #include <crc32c.h>
 
 #include <hse/logging/logging.h>
-#include <hse_util/event_counter.h>
-#include <hse_util/page.h>
+#include <hse/util/event_counter.h>
+#include <hse/util/page.h>
 
 #include "mdc.h"
 #include "mdc_file.h"

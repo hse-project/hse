@@ -7,8 +7,8 @@
 #include <sys/poll.h>
 
 #define USE_EVENT_TIMER
-#include <hse_util/event_timer.h>
-#include <hse_util/platform.h>
+#include <hse/util/event_timer.h>
+#include <hse/util/platform.h>
 
 MTF_MODULE_UNDER_TEST(hse_platform);
 

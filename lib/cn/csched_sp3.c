@@ -15,10 +15,10 @@
 #include <hse/rest/response.h>
 #include <hse/rest/server.h>
 #include <hse/rest/status.h>
-#include <hse_util/alloc.h>
-#include <hse_util/event_counter.h>
-#include <hse_util/platform.h>
-#include <hse_util/slab.h>
+#include <hse/util/alloc.h>
+#include <hse/util/event_counter.h>
+#include <hse/util/platform.h>
+#include <hse/util/slab.h>
 
 #include <hse_ikvdb/cn.h>
 #include <hse_ikvdb/ikvdb.h>

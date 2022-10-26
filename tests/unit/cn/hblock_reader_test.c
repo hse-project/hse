@@ -16,10 +16,10 @@
 #include <cn/vgmap.h>
 #include <cn/kvset.h>
 
-#include <hse_util/hlog.h>
+#include <hse/util/hlog.h>
 #include <hse/error/merr.h>
-#include <hse_util/keycmp.h>
-#include <hse_util/page.h>
+#include <hse/util/keycmp.h>
+#include <hse/util/page.h>
 
 /* 1 header page, HLOG_PGC hlog pages, 3 ptree pages */
 #define FAKE_HBLOCK_SIZE ((HBLOCK_HDR_PAGES + HLOG_PGC + 3) * PAGE_SIZE)

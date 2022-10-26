@@ -6,9 +6,9 @@
 #ifndef HSE_KVDB_CN_ENCODERS_H
 #define HSE_KVDB_CN_ENCODERS_H
 
-#include <hse_util/inttypes.h>
-#include <hse_util/byteorder.h>
-#include <hse_util/assert.h>
+#include <hse/util/inttypes.h>
+#include <hse/util/byteorder.h>
+#include <hse/util/assert.h>
 
 /* HG16_32K encoding
  *

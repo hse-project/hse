@@ -4,14 +4,14 @@
  */
 
 #include <hse/logging/logging.h>
-#include <hse_util/compression_lz4.h>
-#include <hse_util/event_counter.h>
-#include <hse_util/fmt.h>
-#include <hse_util/keycmp.h>
-#include <hse_util/page.h>
-#include <hse_util/platform.h>
-#include <hse_util/slab.h>
-#include <hse_util/vlb.h>
+#include <hse/util/compression_lz4.h>
+#include <hse/util/event_counter.h>
+#include <hse/util/fmt.h>
+#include <hse/util/keycmp.h>
+#include <hse/util/page.h>
+#include <hse/util/platform.h>
+#include <hse/util/slab.h>
+#include <hse/util/vlb.h>
 
 #include <hse/kvdb_perfc.h>
 

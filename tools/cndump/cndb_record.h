@@ -12,7 +12,7 @@
 #include <hse/limits.h>
 
 #include <hse_ikvdb/kvs_cparams.h>
-#include <hse_util/compiler.h>
+#include <hse/util/compiler.h>
 
 #include <cndb/omf.h>
 #include <cn/kvset.h>

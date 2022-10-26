@@ -6,8 +6,8 @@
 #ifndef HSE_KVS_CN_VBLOCK_READER_H
 #define HSE_KVS_CN_VBLOCK_READER_H
 
-#include <hse_util/inttypes.h>
-#include <hse_util/workqueue.h>
+#include <hse/util/inttypes.h>
+#include <hse/util/workqueue.h>
 #include <hse_ikvdb/tuple.h>
 
 #include "kvs_mblk_desc.h"

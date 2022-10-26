@@ -6,9 +6,9 @@
 #include <mtf/framework.h>
 
 #include <hse/error/merr.h>
-#include <hse_util/inttypes.h>
-#include <hse_util/seqno.h>
-#include <hse_util/keycmp.h>
+#include <hse/util/inttypes.h>
+#include <hse/util/seqno.h>
+#include <hse/util/keycmp.h>
 
 #include <support/random_buffer.h>
 #include <hse_ikvdb/limits.h>

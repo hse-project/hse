@@ -7,8 +7,8 @@
 #define HSE_CORE_BONSAI_ITER_H
 
 #include <hse/error/merr.h>
-#include <hse_util/element_source.h>
-#include <hse_util/bonsai_tree.h>
+#include <hse/util/element_source.h>
+#include <hse/util/bonsai_tree.h>
 
 #include <hse_ikvdb/cursor.h>
 

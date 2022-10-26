@@ -11,10 +11,10 @@
 #include <hse_ikvdb/tuple.h>
 #include <hse_ikvdb/diag_kvdb.h>
 
-#include <hse_util/inttypes.h>
+#include <hse/util/inttypes.h>
 #include <hse/error/merr.h>
-#include <hse_util/perfc.h>
-#include <hse_util/workqueue.h>
+#include <hse/util/perfc.h>
+#include <hse/util/workqueue.h>
 
 #include <bsd/libutil.h>
 

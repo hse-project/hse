@@ -16,18 +16,18 @@
 #include <hse_ikvdb/cn.h>
 #include <hse_ikvdb/kvs_rparams.h>
 
-#include <hse_util/alloc.h>
-#include <hse_util/slab.h>
-#include <hse_util/page.h>
-#include <hse_util/assert.h>
-#include <hse_util/bloom_filter.h>
-#include <hse_util/event_counter.h>
-#include <hse_util/perfc.h>
-#include <hse_util/hlog.h>
-#include <hse_util/log2.h>
-#include <hse_util/vlb.h>
+#include <hse/util/alloc.h>
+#include <hse/util/slab.h>
+#include <hse/util/page.h>
+#include <hse/util/assert.h>
+#include <hse/util/bloom_filter.h>
+#include <hse/util/event_counter.h>
+#include <hse/util/perfc.h>
+#include <hse/util/hlog.h>
+#include <hse/util/log2.h>
+#include <hse/util/vlb.h>
 #include <hse/logging/logging.h>
-#include <hse_util/keycmp.h>
+#include <hse/util/keycmp.h>
 
 #include "omf.h"
 #include "blk_list.h"

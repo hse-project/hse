@@ -7,13 +7,13 @@
 
 #include <hse/logging/logging.h>
 
-#include <hse_util/condvar.h>
-#include <hse_util/event_counter.h>
-#include <hse_util/list.h>
-#include <hse_util/mutex.h>
-#include <hse_util/platform.h>
-#include <hse_util/page.h>
-#include <hse_util/slab.h>
+#include <hse/util/condvar.h>
+#include <hse/util/event_counter.h>
+#include <hse/util/list.h>
+#include <hse/util/mutex.h>
+#include <hse/util/platform.h>
+#include <hse/util/page.h>
+#include <hse/util/slab.h>
 
 #include "wal.h"
 #include "wal_file.h"

@@ -7,8 +7,8 @@
 #define HSE_CORE_LC_H
 
 #include <hse/error/merr.h>
-#include <hse_util/inttypes.h>
-#include <hse_util/workqueue.h>
+#include <hse/util/inttypes.h>
+#include <hse/util/workqueue.h>
 
 #include <lc/bonsai_iter.h>
 

@@ -11,7 +11,7 @@
 
 #include <cjson/cJSON.h>
 
-#include <hse_util/compiler.h>
+#include <hse/util/compiler.h>
 #include <hse/error/merr.h>
 
 struct kvs_cparams {

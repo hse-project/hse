@@ -15,8 +15,8 @@
 
 #include <hse/hse.h>
 
-#include <hse_util/fmt.h>
-#include <hse_util/minmax.h>
+#include <hse/util/fmt.h>
+#include <hse/util/minmax.h>
 
 #include <tools/common.h>
 

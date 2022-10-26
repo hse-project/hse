@@ -9,9 +9,9 @@
 #include <hse_ikvdb/c0_kvset.h>
 #include <hse_ikvdb/cursor.h>
 
-#include <hse_util/bonsai_tree.h>
-#include <hse_util/element_source.h>
-#include <hse_util/key_util.h>
+#include <hse/util/bonsai_tree.h>
+#include <hse/util/element_source.h>
+#include <hse/util/key_util.h>
 
 #include "bonsai_iter.h"
 

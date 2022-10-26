@@ -19,7 +19,7 @@
 #include <hse_ikvdb/throttle.h>
 #include <hse/error/merr.h>
 #include <hse/logging/logging.h>
-#include <hse_util/compiler.h>
+#include <hse/util/compiler.h>
 
 #include <hse/mpool/mpool_structs.h>
 

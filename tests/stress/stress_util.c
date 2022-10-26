@@ -18,7 +18,7 @@
 #include <unistd.h>
 
 #include <hse/experimental.h>
-#include <hse_util/compiler.h>
+#include <hse/util/compiler.h>
 
 int DEBUG = 0;
 

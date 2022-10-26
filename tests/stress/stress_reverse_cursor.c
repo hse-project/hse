@@ -14,7 +14,7 @@
 #include <time.h>
 
 #include <hse/hse.h>
-#include <hse_util/compiler.h>
+#include <hse/util/compiler.h>
 #include "stress_util.h"
 
 #define MAX_KEY_LEN HSE_KVS_KLEN_MAX

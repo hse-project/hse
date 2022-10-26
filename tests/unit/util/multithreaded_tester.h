@@ -14,7 +14,7 @@
  * work in the kernel.
  */
 
-#include <hse_util/base.h>
+#include <hse/util/base.h>
 
 #include <mtf/common.h>
 

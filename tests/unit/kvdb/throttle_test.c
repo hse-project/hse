@@ -5,10 +5,10 @@
 
 #include <mtf/framework.h>
 #include <mock/api.h>
-#include <hse_util/xrand.h>
+#include <hse/util/xrand.h>
 #include <mock/alloc_tester.h>
 
-#include <hse_util/platform.h>
+#include <hse/util/platform.h>
 
 #include <hse_ikvdb/throttle.h>
 #include <hse_ikvdb/throttle_perfc.h>

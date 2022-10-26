@@ -6,11 +6,11 @@
 #include <bsd/string.h>
 
 #include <hse/error/merr.h>
-#include <hse_util/err_ctx.h>
-#include <hse_util/platform.h>
-#include <hse_util/parse_num.h>
-#include <hse_util/page.h>
-#include <hse_util/page.h>
+#include <hse/util/err_ctx.h>
+#include <hse/util/platform.h>
+#include <hse/util/parse_num.h>
+#include <hse/util/page.h>
+#include <hse/util/page.h>
 
 #include <hse/hse.h>
 

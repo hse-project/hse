@@ -4,13 +4,13 @@
  */
 
 #include <hse/logging/logging.h>
-#include <hse_util/event_counter.h>
-#include <hse_util/page.h>
-#include <hse_util/platform.h>
-#include <hse_util/slab.h>
-#include <hse_util/storage.h>
-#include <hse_util/vlb.h>
-#include <hse_util/xrand.h>
+#include <hse/util/event_counter.h>
+#include <hse/util/page.h>
+#include <hse/util/platform.h>
+#include <hse/util/slab.h>
+#include <hse/util/storage.h>
+#include <hse/util/vlb.h>
+#include <hse/util/xrand.h>
 
 #include "wal.h"
 #include "wal_omf.h"

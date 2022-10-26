@@ -4,7 +4,7 @@
  */
 
 #include <hse/error/merr.h>
-#include <hse_util/inttypes.h>
+#include <hse/util/inttypes.h>
 
 #include <mock/api.h>
 

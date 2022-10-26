@@ -6,7 +6,7 @@
 #include <hse_ikvdb/c0sk.h>
 #include <support/random_buffer.h>
 
-#include <hse_util/platform.h>
+#include <hse/util/platform.h>
 
 #include "c0sk_mock.h"
 

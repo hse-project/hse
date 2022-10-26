@@ -6,7 +6,7 @@
 #include <crc32c.h>
 #include <hse/error/merr.h>
 #include <hse/logging/logging.h>
-#include <hse_util/page.h>
+#include <hse/util/page.h>
 
 #include "omf.h"
 #include "mblock_file.h"

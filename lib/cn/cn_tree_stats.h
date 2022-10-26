@@ -6,8 +6,8 @@
 #ifndef HSE_KVDB_CN_CN_TREE_STATS_H
 #define HSE_KVDB_CN_CN_TREE_STATS_H
 
-#include <hse_util/platform.h>
-#include <hse_util/perfc.h>
+#include <hse/util/platform.h>
+#include <hse/util/perfc.h>
 
 /* MTF_MOCK_DECL(cn_tree_stats) */
 

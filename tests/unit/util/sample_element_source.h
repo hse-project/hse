@@ -6,8 +6,8 @@
 #ifndef HSE_PLATFORM_SAMPLE_ELEMENT_SOURCE_H
 #define HSE_PLATFORM_SAMPLE_ELEMENT_SOURCE_H
 
-#include <hse_util/element_source.h>
-#include <hse_util/inttypes.h>
+#include <hse/util/element_source.h>
+#include <hse/util/inttypes.h>
 #include <hse/error/merr.h>
 
 enum sample_es_mode {

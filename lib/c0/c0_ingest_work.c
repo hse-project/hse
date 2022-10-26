@@ -3,9 +3,9 @@
  * Copyright (C) 2015-2020 Micron Technology, Inc.  All rights reserved.
  */
 
-#include <hse_util/platform.h>
+#include <hse/util/platform.h>
 #include <hse/logging/logging.h>
-#include <hse_util/bonsai_tree.h>
+#include <hse/util/bonsai_tree.h>
 
 #include "c0_ingest_work.h"
 

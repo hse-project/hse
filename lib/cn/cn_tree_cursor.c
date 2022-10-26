@@ -16,14 +16,14 @@
  * Each node uses a struct cn_level_cursor to iterate over its kvsets.
  */
 
-#include <hse_util/event_counter.h>
-#include <hse_util/page.h>
+#include <hse/util/event_counter.h>
+#include <hse/util/page.h>
 #include <hse/logging/logging.h>
-#include <hse_util/assert.h>
-#include <hse_util/table.h>
-#include <hse_util/key_util.h>
-#include <hse_util/keycmp.h>
-#include <hse_util/bin_heap.h>
+#include <hse/util/assert.h>
+#include <hse/util/table.h>
+#include <hse/util/key_util.h>
+#include <hse/util/keycmp.h>
+#include <hse/util/bin_heap.h>
 
 #include <hse_ikvdb/cn.h>
 

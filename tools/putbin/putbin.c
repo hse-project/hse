@@ -24,7 +24,7 @@
 
 #include <hse/hse.h>
 
-#include <hse_util/event_timer.h>
+#include <hse/util/event_timer.h>
 
 #include <tools/common.h>
 #include <tools/parm_groups.h>

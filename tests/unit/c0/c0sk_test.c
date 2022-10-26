@@ -6,7 +6,7 @@
 #include <mtf/framework.h>
 
 #include <hse/logging/logging.h>
-#include <hse_util/seqno.h>
+#include <hse/util/seqno.h>
 
 #include <hse_ikvdb/limits.h>
 #include <hse_ikvdb/c0.h>

@@ -5,7 +5,7 @@
 
 #include <mtf/framework.h>
 
-#include <hse_util/fmt.h>
+#include <hse/util/fmt.h>
 
 MTF_MODULE_UNDER_TEST(hse_platform);
 

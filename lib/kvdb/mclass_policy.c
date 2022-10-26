@@ -3,10 +3,10 @@
  * Copyright (C) 2021 Micron Technology, Inc.  All rights reserved.
  */
 
-#include <hse_util/assert.h>
-#include <hse_util/base.h>
-#include <hse_util/inttypes.h>
-#include <hse_util/event_counter.h>
+#include <hse/util/assert.h>
+#include <hse/util/base.h>
+#include <hse/util/inttypes.h>
+#include <hse/util/event_counter.h>
 
 #include <hse/mpool/mpool.h>
 

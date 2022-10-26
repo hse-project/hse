@@ -7,8 +7,8 @@
 #include <mock/api.h>
 
 #include <hse/error/merr.h>
-#include <hse_util/atomic.h>
-#include <hse_util/keylock.h>
+#include <hse/util/atomic.h>
+#include <hse/util/keylock.h>
 
 #include <hse_ikvdb/limits.h>
 #include <hse_ikvdb/tuple.h>

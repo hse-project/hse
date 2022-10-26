@@ -19,7 +19,7 @@
 
 #include <hse/hse.h>
 
-#include <hse_util/arch.h>
+#include <hse/util/arch.h>
 
 #include <hse/cli/param.h>
 

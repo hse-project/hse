@@ -3,9 +3,9 @@
  * Copyright (C) 2015-2020 Micron Technology, Inc.  All rights reserved.
  */
 
-#include <hse_util/platform.h>
-#include <hse_util/event_counter.h>
-#include <hse_util/slab.h>
+#include <hse/util/platform.h>
+#include <hse/util/event_counter.h>
+#include <hse/util/slab.h>
 #include <hse_ikvdb/limits.h>
 #include <hse_ikvdb/tuple.h>
 #include <hse_ikvdb/c0_kvset_iterator.h>

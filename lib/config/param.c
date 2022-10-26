@@ -21,9 +21,9 @@
 #include <hse_ikvdb/kvs_cparams.h>
 #include <hse_ikvdb/kvs_rparams.h>
 
-#include <hse_util/assert.h>
-#include <hse_util/storage.h>
-#include <hse_util/log2.h>
+#include <hse/util/assert.h>
+#include <hse/util/storage.h>
+#include <hse/util/log2.h>
 
 #include "logging.h"
 

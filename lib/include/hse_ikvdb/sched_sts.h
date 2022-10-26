@@ -9,9 +9,9 @@
 #include <cjson/cJSON.h>
 
 #include <hse/error/merr.h>
-#include <hse_util/platform.h>
-#include <hse_util/workqueue.h>
-#include <hse_util/list.h>
+#include <hse/util/platform.h>
+#include <hse/util/workqueue.h>
+#include <hse/util/list.h>
 
 /* MTF_MOCK_DECL(sched_sts) */
 

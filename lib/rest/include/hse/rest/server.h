@@ -10,7 +10,7 @@
 #include <hse/rest/forward.h>
 #include <hse/rest/method.h>
 
-#include <hse_util/compiler.h>
+#include <hse/util/compiler.h>
 
 #define REST_ENDPOINT_EXACT (1U << 1)
 

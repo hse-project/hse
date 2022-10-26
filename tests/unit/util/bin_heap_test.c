@@ -7,9 +7,9 @@
 #include <mtf/framework.h>
 
 #include <hse/logging/logging.h>
-#include <hse_util/bin_heap.h>
-#include <hse_util/element_source.h>
-#include <hse_util/xrand.h>
+#include <hse/util/bin_heap.h>
+#include <hse/util/element_source.h>
+#include <hse/util/xrand.h>
 
 #include "sample_element_source.h"
 

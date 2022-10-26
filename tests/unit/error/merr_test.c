@@ -6,7 +6,7 @@
 #include <mtf/framework.h>
 
 #include <hse/error/merr.h>
-#include <hse_util/err_ctx.h>
+#include <hse/util/err_ctx.h>
 
 extern uint8_t __start_hse_merr;
 extern uint8_t __stop_hse_merr;

@@ -44,11 +44,11 @@
 
 #include <hse/hse.h>
 
-#include <hse_util/arch.h>
-#include <hse_util/atomic.h>
-#include <hse_util/compiler.h>
-#include <hse_util/inttypes.h>
-#include <hse_util/time.h>
+#include <hse/util/arch.h>
+#include <hse/util/atomic.h>
+#include <hse/util/compiler.h>
+#include <hse/util/inttypes.h>
+#include <hse/util/time.h>
 
 #include <hse/cli/param.h>
 

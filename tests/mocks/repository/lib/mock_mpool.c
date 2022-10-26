@@ -6,13 +6,13 @@
 #include <stdint.h>
 
 #include <hse/error/merr.h>
-#include <hse_util/inttypes.h>
+#include <hse/util/inttypes.h>
 #include <hse/logging/logging.h>
-#include <hse_util/event_counter.h>
-#include <hse_util/page.h>
-#include <hse_util/slab.h>
-#include <hse_util/minmax.h>
-#include <hse_util/compiler.h>
+#include <hse/util/event_counter.h>
+#include <hse/util/page.h>
+#include <hse/util/slab.h>
+#include <hse/util/minmax.h>
+#include <hse/util/compiler.h>
 
 #include <hse_ikvdb/limits.h>
 

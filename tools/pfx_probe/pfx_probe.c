@@ -16,9 +16,9 @@
 #include <hse/hse.h>
 #include <hse/experimental.h>
 
-#include <hse_util/arch.h>
-#include <hse_util/atomic.h>
-#include <hse_util/compiler.h>
+#include <hse/util/arch.h>
+#include <hse/util/atomic.h>
+#include <hse/util/compiler.h>
 
 #include <xoroshiro.h>
 

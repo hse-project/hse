@@ -34,11 +34,11 @@
 #include <hse_ikvdb/kvdb_home.h>
 #include <hse_ikvdb/kvs.h>
 
-#include <hse_util/err_ctx.h>
-#include <hse_util/event_counter.h>
-#include <hse_util/mutex.h>
-#include <hse_util/platform.h>
-#include <hse_util/vlb.h>
+#include <hse/util/err_ctx.h>
+#include <hse/util/event_counter.h>
+#include <hse/util/mutex.h>
+#include <hse/util/platform.h>
+#include <hse/util/vlb.h>
 
 #include <bsd/libutil.h>
 #include <bsd/string.h>

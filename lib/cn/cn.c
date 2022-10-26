@@ -21,14 +21,14 @@
 #include <hse/rest/response.h>
 #include <hse/rest/server.h>
 #include <hse/rest/status.h>
-#include <hse_util/alloc.h>
-#include <hse_util/event_counter.h>
-#include <hse_util/log2.h>
-#include <hse_util/map.h>
-#include <hse_util/perfc.h>
-#include <hse_util/slab.h>
-#include <hse_util/vlb.h>
-#include <hse_util/xrand.h>
+#include <hse/util/alloc.h>
+#include <hse/util/event_counter.h>
+#include <hse/util/log2.h>
+#include <hse/util/map.h>
+#include <hse/util/perfc.h>
+#include <hse/util/slab.h>
+#include <hse/util/vlb.h>
+#include <hse/util/xrand.h>
 
 #include <hse_ikvdb/cn.h>
 #include <hse_ikvdb/cn_kvdb.h>

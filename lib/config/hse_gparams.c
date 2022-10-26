@@ -18,9 +18,9 @@
 #include <hse_ikvdb/hse_gparams.h>
 #include <hse_ikvdb/param.h>
 #include <hse_ikvdb/limits.h>
-#include <hse_util/compiler.h>
-#include <hse_util/perfc.h>
-#include <hse_util/vlb.h>
+#include <hse/util/compiler.h>
+#include <hse/util/perfc.h>
+#include <hse/util/vlb.h>
 
 #include <hse_ikvdb/limits.h>
 

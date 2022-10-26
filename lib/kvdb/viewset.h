@@ -6,8 +6,8 @@
 #ifndef HSE_KVDB_VIEWSET_H
 #define HSE_KVDB_VIEWSET_H
 
-#include <hse_util/inttypes.h>
-#include <hse_util/atomic.h>
+#include <hse/util/inttypes.h>
+#include <hse/util/atomic.h>
 #include <hse/error/merr.h>
 
 struct viewset;

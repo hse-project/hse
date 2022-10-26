@@ -8,7 +8,7 @@
 
 #include <hse/kvdb_perfc.h>
 
-#include <hse_util/perfc.h>
+#include <hse/util/perfc.h>
 
 /*
  * KVDB operation performance counter families.

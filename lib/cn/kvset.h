@@ -7,9 +7,9 @@
 #define HSE_KVS_CN_KVSET_H
 
 #include <hse/error/merr.h>
-#include <hse_util/inttypes.h>
-#include <hse_util/list.h>
-#include <hse_util/perfc.h>
+#include <hse/util/inttypes.h>
+#include <hse/util/list.h>
+#include <hse/util/perfc.h>
 
 #include <hse_ikvdb/blk_list.h>
 #include <hse_ikvdb/kvs_cparams.h>

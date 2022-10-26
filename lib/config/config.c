@@ -17,7 +17,7 @@
 #include <cjson/cJSON.h>
 #include <bsd/string.h>
 
-#include <hse_util/assert.h>
+#include <hse/util/assert.h>
 #include <hse/error/merr.h>
 #include <hse_ikvdb/config.h>
 #include <hse_ikvdb/param.h>

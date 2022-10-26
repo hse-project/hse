@@ -6,7 +6,7 @@
 #include <mtf/framework.h>
 #include <mock/api.h>
 
-#include <hse_util/platform.h>
+#include <hse/util/platform.h>
 
 #include <cn/cn_tree_compact.h>
 #include <cn/cn_tree_internal.h>

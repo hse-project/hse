@@ -10,7 +10,7 @@
 
 #include <hse/mpool/mpool.h>
 
-#include <hse_util/platform.h>
+#include <hse/util/platform.h>
 
 #define MPM_MAX_MAPS 1024
 #define MPM_MAX_MBLOCKS 1024

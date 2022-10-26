@@ -78,14 +78,14 @@
 #include <hse_ikvdb/c0snr_set.h>
 #include <hse_ikvdb/kvdb_health.h>
 
-#include <hse_util/alloc.h>
-#include <hse_util/slab.h>
-#include <hse_util/vlb.h>
-#include <hse_util/bonsai_tree.h>
-#include <hse_util/compression_lz4.h>
-#include <hse_util/rmlock.h>
-#include <hse_util/bin_heap.h>
-#include <hse_util/bkv_collection.h>
+#include <hse/util/alloc.h>
+#include <hse/util/slab.h>
+#include <hse/util/vlb.h>
+#include <hse/util/bonsai_tree.h>
+#include <hse/util/compression_lz4.h>
+#include <hse/util/rmlock.h>
+#include <hse/util/bin_heap.h>
+#include <hse/util/bkv_collection.h>
 #include <hse/logging/logging.h>
 
 #include <c0/c0_kvset_internal.h>

@@ -6,13 +6,13 @@
 #ifndef HSE_KVDB_THROTTLE_H
 #define HSE_KVDB_THROTTLE_H
 
-#include <hse_util/atomic.h>
-#include <hse_util/inttypes.h>
-#include <hse_util/compiler.h>
-#include <hse_util/arch.h>
-#include <hse_util/spinlock.h>
-#include <hse_util/perfc.h>
-#include <hse_util/condvar.h>
+#include <hse/util/atomic.h>
+#include <hse/util/inttypes.h>
+#include <hse/util/compiler.h>
+#include <hse/util/arch.h>
+#include <hse/util/spinlock.h>
+#include <hse/util/perfc.h>
+#include <hse/util/condvar.h>
 
 /* clang-format off */
 

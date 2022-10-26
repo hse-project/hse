@@ -7,9 +7,9 @@
 #include <mock/alloc_tester.h>
 
 #include <hse/error/merr.h>
-#include <hse_util/inttypes.h>
+#include <hse/util/inttypes.h>
 #include <hse/logging/logging.h>
-#include <hse_util/page.h>
+#include <hse/util/page.h>
 
 #include <hse_ikvdb/tuple.h>
 #include <hse_ikvdb/limits.h>

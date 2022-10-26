@@ -15,8 +15,8 @@
 #include <hse_ikvdb/ikvdb.h>
 #include <hse_ikvdb/omf_kmd.h>
 
-#include <hse_util/parse_num.h>
-#include <hse_util/fmt.h>
+#include <hse/util/parse_num.h>
+#include <hse/util/fmt.h>
 
 #include <hse/mpool/mpool_structs.h>
 #include <hse/mpool/mpool.h>

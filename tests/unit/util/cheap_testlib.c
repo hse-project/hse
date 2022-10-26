@@ -3,9 +3,9 @@
  * Copyright (C) 2015-2020 Micron Technology, Inc.  All rights reserved.
  */
 
-#include <hse_util/page.h>
-#include <hse_util/cursor_heap.h>
-#include <hse_util/xrand.h>
+#include <hse/util/page.h>
+#include <hse/util/cursor_heap.h>
+#include <hse/util/xrand.h>
 
 #include <mtf/conditions.h>
 

@@ -6,7 +6,7 @@
 #include <mtf/framework.h>
 #include <mock/api.h>
 
-#include <hse_util/xrand.h>
+#include <hse/util/xrand.h>
 
 #include <kvdb/kvdb_ctxn_pfxlock.h>
 #include <kvdb/viewset.h>

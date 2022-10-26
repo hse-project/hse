@@ -5,9 +5,9 @@
 
 #include <mtf/framework.h>
 
-#include <hse_util/inttypes.h>
-#include <hse_util/key_util.h>
-#include <hse_util/minmax.h>
+#include <hse/util/inttypes.h>
+#include <hse/util/key_util.h>
+#include <hse/util/minmax.h>
 
 
 MTF_BEGIN_UTEST_COLLECTION(key_util_test);

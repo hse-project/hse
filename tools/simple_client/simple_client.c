@@ -14,7 +14,7 @@
 
 #include <hse/hse.h>
 
-#include <hse_util/compiler.h>
+#include <hse/util/compiler.h>
 
 const char *kfmt = "k%u";
 uint        kmax = 100;

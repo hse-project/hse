@@ -5,15 +5,15 @@
 
 #include <urcu/rculist.h>
 
-#include <hse_util/platform.h>
-#include <hse_util/event_counter.h>
-#include <hse_util/alloc.h>
-#include <hse_util/slab.h>
-#include <hse_util/log2.h>
-#include <hse_util/table.h>
-#include <hse_util/xrand.h>
-#include <hse_util/bonsai_tree.h>
-#include <hse_util/bkv_collection.h>
+#include <hse/util/platform.h>
+#include <hse/util/event_counter.h>
+#include <hse/util/alloc.h>
+#include <hse/util/slab.h>
+#include <hse/util/log2.h>
+#include <hse/util/table.h>
+#include <hse/util/xrand.h>
+#include <hse/util/bonsai_tree.h>
+#include <hse/util/bkv_collection.h>
 
 #include <hse_ikvdb/ikvdb.h>
 #include <hse_ikvdb/c0sk.h>

@@ -6,7 +6,7 @@
 #ifndef MPOOL_MDC_H
 #define MPOOL_MDC_H
 
-#include <hse_util/mutex.h>
+#include <hse/util/mutex.h>
 #include <hse/error/merr.h>
 
 #define MDC_FILES_MAX        10

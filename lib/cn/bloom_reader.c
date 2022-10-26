@@ -3,8 +3,8 @@
  * Copyright (C) 2015-2022 Micron Technology, Inc.  All rights reserved.
  */
 
-#include <hse_util/page.h>
-#include <hse_util/bloom_filter.h>
+#include <hse/util/page.h>
+#include <hse/util/bloom_filter.h>
 
 #include "bloom_reader.h"
 

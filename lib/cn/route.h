@@ -10,9 +10,9 @@ struct cn_tree;
 struct route_map;
 struct kvs_cparams;
 
-#include <hse_util/inttypes.h>
-#include <hse_util/minmax.h>
-#include <hse_util/keycmp.h>
+#include <hse/util/inttypes.h>
+#include <hse/util/minmax.h>
+#include <hse/util/keycmp.h>
 #include <hse/error/merr.h>
 
 #include <stdatomic.h>

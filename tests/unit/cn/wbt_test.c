@@ -5,8 +5,8 @@
 
 #include <mtf/framework.h>
 
-#include <hse_util/page.h>
-#include <hse_util/keycmp.h>
+#include <hse/util/page.h>
+#include <hse/util/keycmp.h>
 
 #include <hse/limits.h>
 

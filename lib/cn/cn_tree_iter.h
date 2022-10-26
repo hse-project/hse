@@ -6,7 +6,7 @@
 #ifndef HSE_KVDB_CN_CN_TREE_ITER_H
 #define HSE_KVDB_CN_CN_TREE_ITER_H
 
-#include <hse_util/inttypes.h>
+#include <hse/util/inttypes.h>
 
 #include <hse_ikvdb/cn_tree_view.h>
 

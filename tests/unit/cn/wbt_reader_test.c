@@ -5,7 +5,7 @@
 
 #include <mtf/framework.h>
 
-#include <hse_util/inttypes.h>
+#include <hse/util/inttypes.h>
 #include <hse/logging/logging.h>
 
 #include <cn/omf.h>

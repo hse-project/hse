@@ -8,9 +8,9 @@
 
 #include <urcu-bp.h>
 
-#include <hse_util/inttypes.h>
+#include <hse/util/inttypes.h>
 #include <hse/error/merr.h>
-#include <hse_util/mutex.h>
+#include <hse/util/mutex.h>
 
 #include <hse_ikvdb/ikvdb.h>
 #include <hse_ikvdb/cursor.h>

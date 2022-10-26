@@ -8,7 +8,7 @@
 
 #include <hse/error/merr.h>
 
-#include <hse_util/compiler.h>
+#include <hse/util/compiler.h>
 
 struct options_map;
 

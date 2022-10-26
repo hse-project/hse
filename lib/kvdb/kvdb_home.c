@@ -14,10 +14,10 @@
 
 #include <bsd/string.h>
 
-#include <hse_util/assert.h>
+#include <hse/util/assert.h>
 #include <hse/error/merr.h>
-#include <hse_util/inttypes.h>
-#include <hse_util/dax.h>
+#include <hse/util/inttypes.h>
+#include <hse/util/dax.h>
 
 #include <hse_ikvdb/kvdb_home.h>
 #include <hse/pidfile/pidfile.h>

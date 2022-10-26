@@ -8,7 +8,7 @@
 
 #include <stdint.h>
 
-#include <hse_util/storage.h>
+#include <hse/util/storage.h>
 
 #define MPOOL_MBLOCK_SIZE_MIN          (2ul << MB_SHIFT)
 #define MPOOL_MBLOCK_SIZE_MAX          (1024ul << MB_SHIFT)

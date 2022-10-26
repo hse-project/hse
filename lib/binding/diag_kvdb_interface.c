@@ -21,8 +21,8 @@
 #include <hse/logging/logging.h>
 #include <hse/pidfile/pidfile.h>
 
-#include <hse_util/event_counter.h>
-#include <hse_util/platform.h>
+#include <hse/util/event_counter.h>
+#include <hse/util/platform.h>
 
 #include <bsd/string.h>
 

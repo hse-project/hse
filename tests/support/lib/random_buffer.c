@@ -4,7 +4,7 @@
  */
 
 #include <support/random_buffer.h>
-#include <hse_util/xrand.h>
+#include <hse/util/xrand.h>
 
 #include <string.h>
 

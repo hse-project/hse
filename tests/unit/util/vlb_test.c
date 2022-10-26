@@ -3,9 +3,9 @@
  * Copyright (C) 2015-2020 Micron Technology, Inc.  All rights reserved.
  */
 
-#include <hse_util/platform.h>
-#include <hse_util/page.h>
-#include <hse_util/vlb.h>
+#include <hse/util/platform.h>
+#include <hse/util/page.h>
+#include <hse/util/vlb.h>
 
 #include <mtf/framework.h>
 
