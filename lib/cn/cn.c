@@ -168,7 +168,7 @@ cn_is_replay(const struct cn *cn)
 }
 
 struct mpool *
-cn_get_dataset(const struct cn *cn)
+cn_get_mpool(const struct cn *cn)
 {
     return cn->cn_dataset;
 }
@@ -413,6 +413,8 @@ cn_mblocks_destroy(
 {
     for (uint32_t i = 0; i < num_lists; i++) {
         delete_mblock(mp, list[i].hblk_id);
+        list[i].hblk_id = 0;
+
         delete_mblocks(mp, &list[i].kblks);
         if (!kcompact)
             delete_mblocks(mp, &list[i].vblks);

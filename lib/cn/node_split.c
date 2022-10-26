@@ -598,6 +598,7 @@ cn_split(struct cn_compaction_work *w)
                     /* Drop contiguous kvsets containing only ptombs, starting from the oldest.
                      */
                     delete_mblock(w->cw_mp, blks->hblk_id);
+                    blks->hblk_id = 0;
                     blk_list_free(result->ks[k].blks_commit);
                 } else {
                     w->cw_kvsetidv[idx] = cndb_kvsetid_mint(cndb);

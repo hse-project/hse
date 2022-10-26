@@ -73,7 +73,7 @@ test_setup(struct mtf_test_info *lcl_ti)
     mapi_inject_ptr(mapi_idx_cn_get_mclass_policy, &mocked_mpolicy);
 
     mapi_inject(mapi_idx_cn_get_cnid, 1001);
-    mapi_inject(mapi_idx_cn_get_dataset, 0);
+    mapi_inject(mapi_idx_cn_get_mpool, 0);
     mapi_inject(mapi_idx_cn_get_flags, 0);
 
     mapi_inject(mapi_idx_delete_mblock, 0);

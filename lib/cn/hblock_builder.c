@@ -164,7 +164,7 @@ hbb_create(struct hblock_builder **bld_out, const struct cn *const cn, struct pe
         return merr(ENOMEM);
 
     bld->nptombs = 0;
-    bld->mpool = cn_get_dataset(cn);
+    bld->mpool = cn_get_mpool(cn);
     bld->cn = cn;
     bld->pc = pc;
     bld->agegroup = HSE_MPOLICY_AGE_LEAF;

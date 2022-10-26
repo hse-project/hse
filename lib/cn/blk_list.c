@@ -51,7 +51,7 @@ commit_mblocks(struct mpool *mp, struct blk_list *blks)
     return 0;
 }
 
-merr_t
+void
 delete_mblock(struct mpool *mp, uint64_t mbid)
 {
     merr_t err;
@@ -61,8 +61,6 @@ delete_mblock(struct mpool *mp, uint64_t mbid)
     err = mpool_mblock_delete(mp, mbid);
     if (err)
         log_errx("Failed to delete mblock 0x%lx", err, mbid);
-
-    return err;
 }
 
 void
@@ -71,8 +69,10 @@ delete_mblocks(struct mpool *mp, struct blk_list *blks)
     INVARIANT(mp);
     INVARIANT(blks);
 
-    for (uint32_t i = 0; i < blks->idc; i++)
+    for (uint32_t i = 0; i < blks->idc; i++) {
         delete_mblock(mp, blks->idv[i]);
+        blks->idv[i] = 0;
+    }
 }
 
 void

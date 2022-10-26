@@ -342,15 +342,20 @@ kvset_builder_adopt_vblocks(
 void
 kvset_builder_destroy(struct kvset_builder *bld)
 {
+    struct mpool *mp;
+
     if (ev(!bld))
         return;
 
-    mpool_mblock_delete(cn_get_dataset(bld->cn), bld->hblk_id);
+    mp = cn_get_mpool(bld->cn);
 
-    delete_mblocks(cn_get_dataset(bld->cn), &bld->kblk_list);
+    delete_mblock(mp, bld->hblk_id);
+    bld->hblk_id = 0;
+
+    delete_mblocks(mp, &bld->kblk_list);
     blk_list_free(&bld->kblk_list);
 
-    delete_mblocks(cn_get_dataset(bld->cn), &bld->vblk_list);
+    delete_mblocks(mp, &bld->vblk_list);
     blk_list_free(&bld->vblk_list);
 
     hbb_destroy(bld->hbb);
@@ -412,7 +417,7 @@ kvset_builder_finish(struct kvset_builder *imp)
                 if (!err) {
                     imp->vtotal = vbb_vlen_get(imp->vbb);
                 } else {
-                    delete_mblocks(cn_get_dataset(imp->cn), &imp->vblk_list);
+                    delete_mblocks(cn_get_mpool(imp->cn), &imp->vblk_list);
                     return err;
                 }
             }
@@ -438,18 +443,20 @@ kvset_builder_finish(struct kvset_builder *imp)
     err = kbb_finish(imp->kbb, &imp->kblk_list);
     if (err) {
         if (!adopted_vbs)
-            delete_mblocks(cn_get_dataset(imp->cn), &imp->vblk_list);
+            delete_mblocks(cn_get_mpool(imp->cn), &imp->vblk_list);
 
         return err;
     }
 
-    err = hbb_finish(imp->hbb, &imp->hblk_id, imp->vgmap, NULL, NULL, imp->seqno_min, imp->seqno_max,
-                     imp->kblk_list.idc, imp->vblk_list.idc, hbb_get_nptombs(imp->hbb),
-                     kbb_get_composite_hlog(imp->kbb), NULL, NULL, 0);
+    err = hbb_finish(imp->hbb, &imp->hblk_id, imp->vgmap, NULL, NULL, imp->seqno_min,
+                     imp->seqno_max, imp->kblk_list.idc, imp->vblk_list.idc,
+                     hbb_get_nptombs(imp->hbb), kbb_get_composite_hlog(imp->kbb), NULL, NULL, 0);
     if (err) {
-        delete_mblocks(cn_get_dataset(imp->cn), &imp->kblk_list);
+        struct mpool *mp = cn_get_mpool(imp->cn);
+
+        delete_mblocks(mp, &imp->kblk_list);
         if (!adopted_vbs)
-            delete_mblocks(cn_get_dataset(imp->cn), &imp->vblk_list);
+            delete_mblocks(mp, &imp->vblk_list);
 
         return err;
     }
