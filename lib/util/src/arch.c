@@ -92,6 +92,10 @@ memlcpq(const void *s1, const void *s2, size_t len)
     return ((const char *)s1q - (const char *)s1);
 }
 
+#endif
+
+#if !__amd64__
+
 /* We call hse_getcpu() frequently enough that the vDSO based getcpu call
  * is too expensive for our purposes.  To ameliorate the expense, we sample
  * getcpu() every so often on a per-thread basis.  This works fairly well
