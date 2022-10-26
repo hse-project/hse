@@ -609,12 +609,16 @@ wal_replay_core(struct wal_replay *rep)
 {
     struct wal_replay_gen *cur, *next;
     struct ikvdb *ikvdb;
+    const struct kvdb_rparams *rp;
     uint32_t flags;
     uint64_t maxseqno = 0, last_gen = 0;
-    bool     need_sync = false;
+    bool     need_sync;
     merr_t   err;
 
     ikvdb = wal_ikvdb(rep->r_wal);
+    rp = ikvdb_get_rparams(ikvdb);
+    need_sync = !kvdb_mode_allows_user_writes(rp->mode);
+
     flags = HSE_BTF_MANAGED; /* Replay with MANAGED flag to let c0 share the mmaped wal files */
 
     /* Set c0sk to wal replay mode. This disables the c0kvms_should ingest() check and
@@ -683,7 +687,7 @@ wal_replay_core(struct wal_replay *rep)
     }
 
     /* This additional sync ensures that all replayed c0kvmses are ingested in the case of a
-     * gen rollback.
+     * gen rollback or if the KVDB is opened in rdonly_replay mode.
      */
     if (need_sync) {
         err = ikvdb_wal_replay_sync(ikvdb, 0);
