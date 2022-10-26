@@ -88,7 +88,7 @@ tests = {
         ],
     },
     'modes': {
-        'suites': ['smoke-ci', 'nightly-small'],
+        'suites': ['smoke'],
         'depends': [
             tool_targets['kvt'],
         ],

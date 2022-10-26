@@ -11,20 +11,20 @@
 trap kvdb_drop EXIT
 kvdb_create
 
-props="-oinodesc=3,datac=7"
+props="-oinodesc=2,datac=2"
 
-# Load 8K records
-kvt -i8k -cv -m1 "$props" "$home"
+# Load 1024 records
+kvt -i1k -cv -m1 "$props" "$home"
 
 # PUTs must fail on a KVDB opened in the following modes
 modes="rdonly rdonly_replay diag"
 for mode in $modes
 do
-    cmd -e kvt -T10,4 -l8 -m1 "$props" "$home" kvdb-oparms mode="$mode"
+    cmd -e kvt -T5,4 -l8 -m1 "$props" "$home" kvdb-oparms mode="$mode"
 done
 
 # Success
-cmd kvt -T10,4 -cv -l8 -m1 "$props" "$home"
+cmd kvt -T5,4 -cv -l8 -m1 "$props" "$home"
 
 # GETs must succeed on a KVDB opened in the following modes
 modes="rdonly rdonly_replay diag"
@@ -38,7 +38,7 @@ omode=$(stat -c %a "$home")
 cmd chmod 555 "$home"
 
 # PUTs must fail
-cmd -e kvt -T10,4 -l8 -m1 "$props" "$home"
+cmd -e kvt -T5,4 -l8 -m1 "$props" "$home"
 
 # Cannot open KVDB in the following modes without write permission on $home
 modes="rdonly_replay rdwr"
@@ -60,7 +60,7 @@ omode=$(stat -c %a "$home"/capacity)
 cmd chmod 555 "$home"/capacity
 
 # PUTs must fail
-cmd -e kvt -T10,4 -l8 -m1 "$props" "$home"
+cmd -e kvt -T5,4 -l8 -m1 "$props" "$home"
 
 # Cannot open KVDB in the following modes without write permission on the capacity FS
 modes="rdonly_replay rdwr"
