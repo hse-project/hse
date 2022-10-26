@@ -67,16 +67,16 @@ compression_default_stringify(
     size_t *const                  needed_sz)
 {
     int n;
-    enum vcomp_default deflt;
+    enum vcomp_default dflt;
     const char *param = NULL;
 
     INVARIANT(ps);
     INVARIANT(value);
     INVARIANT(buf);
 
-    deflt = *(enum vcomp_default *)value;
+    dflt = *(enum vcomp_default *)value;
 
-    switch (deflt) {
+    switch (dflt) {
     case VCOMP_DEFAULT_OFF:
         param = VCOMP_PARAM_OFF;
         break;
@@ -100,14 +100,14 @@ compression_default_stringify(
 static cJSON *
 compression_default_jsonify(const struct param_spec *const ps, const void *const value)
 {
-    enum vcomp_default deflt;
+    enum vcomp_default dflt;
 
     INVARIANT(ps);
     INVARIANT(value);
 
-    deflt = *(enum vcomp_default *)value;
+    dflt = *(enum vcomp_default *)value;
 
-    switch (deflt) {
+    switch (dflt) {
         case VCOMP_DEFAULT_OFF:
             return cJSON_CreateString(VCOMP_PARAM_OFF);
         case VCOMP_DEFAULT_ON:
@@ -671,12 +671,12 @@ static const struct param_spec pspecs[] = {
         },
     },
     {
-        .ps_name = "compression.default",
+        .ps_name = "value.compression.default",
         .ps_description = "Default value compression to on or off",
         .ps_flags = 0,
         .ps_type = PARAM_TYPE_ENUM,
-        .ps_offset = offsetof(struct kvs_rparams, compression.deflt),
-        .ps_size = PARAM_SZ(struct kvs_rparams, compression.deflt),
+        .ps_offset = offsetof(struct kvs_rparams, value.compression.dflt),
+        .ps_size = PARAM_SZ(struct kvs_rparams, value.compression.dflt),
         .ps_convert = compression_default_converter,
         .ps_validate = param_default_validator,
         .ps_stringify = compression_default_stringify,

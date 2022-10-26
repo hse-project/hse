@@ -609,36 +609,36 @@ MTF_DEFINE_UTEST_PRE(kvs_rparams_test, mclass_policy, test_pre)
     ASSERT_EQ(HSE_MPOLICY_NAME_LEN_MAX, ps->ps_bounds.as_string.ps_max_len);
 }
 
-MTF_DEFINE_UTEST_PRE(kvs_rparams_test, compression_default, test_pre)
+MTF_DEFINE_UTEST_PRE(kvs_rparams_test, value_compression_default, test_pre)
 {
     merr_t                   err;
     char                     buf[128];
     size_t                   needed_sz;
-    const struct param_spec *ps = ps_get("compression.default");
+    const struct param_spec *ps = ps_get("value.compression.default");
 
     ASSERT_NE(NULL, ps);
     ASSERT_NE(NULL, ps->ps_description);
     ASSERT_EQ(0, ps->ps_flags);
     ASSERT_EQ(PARAM_TYPE_ENUM, ps->ps_type);
-    ASSERT_EQ(offsetof(struct kvs_rparams, compression.deflt), ps->ps_offset);
+    ASSERT_EQ(offsetof(struct kvs_rparams, value.compression.dflt), ps->ps_offset);
     ASSERT_EQ(sizeof(enum vcomp_default), ps->ps_size);
     ASSERT_NE((uintptr_t)ps->ps_convert, (uintptr_t)param_default_converter);
     ASSERT_EQ((uintptr_t)ps->ps_validate, (uintptr_t)param_default_validator);
     ASSERT_NE((uintptr_t)ps->ps_stringify, (uintptr_t)param_default_stringify);
     ASSERT_NE((uintptr_t)ps->ps_jsonify, (uintptr_t)param_default_jsonify);
-    ASSERT_EQ(VCOMP_DEFAULT_OFF, params.compression.deflt);
+    ASSERT_EQ(VCOMP_DEFAULT_OFF, params.value.compression.dflt);
     ASSERT_EQ(VCOMP_DEFAULT_MIN, ps->ps_bounds.as_uscalar.ps_min);
     ASSERT_EQ(VCOMP_DEFAULT_MAX, ps->ps_bounds.as_uscalar.ps_max);
 
-    ps->ps_stringify(ps, &params.compression.deflt, buf, sizeof(buf), &needed_sz);
+    ps->ps_stringify(ps, &params.value.compression.dflt, buf, sizeof(buf), &needed_sz);
     ASSERT_STREQ("\"off\"", buf);
     ASSERT_EQ(5, needed_sz);
 
     /* clang-format off */
     err = check(
-        "compression.default=off", true,
-        "compression.default=on", true,
-        "compression.default=does-not-exist", false,
+        "value.compression.default=off", true,
+        "value.compression.default=on", true,
+        "value.compression.default=does-not-exist", false,
         NULL
     );
     /* clang-format on */

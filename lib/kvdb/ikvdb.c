@@ -2175,7 +2175,7 @@ ikvdb_kvs_open(
     kvs->kk_parent = self;
     kvs->kk_viewset = self->ikdb_cur_viewset;
 
-    kvs->kk_vcomp_default = params->compression.deflt;
+    kvs->kk_vcomp_default = params->value.compression.dflt;
     cops = vcomp_compress_ops[VCOMP_ALGO_LZ4];
     assert(cops && cops->cop_compress && cops->cop_estimate);
 
