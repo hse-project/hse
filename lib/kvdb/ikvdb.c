@@ -2884,29 +2884,49 @@ out:
     return ev(cur->kc_err);
 }
 
+/* Update a txn cursor's view
+ *
+ * If txn was committed or aborted since last cursor read and cursor is not
+ * configured to outlive the txn, return an error.
+ *
+ * If txn was committed or aborted since last cursor read and cursor is
+ * configured to outlive the txn, unbind the cursor from the txn and update the
+ * cursor's view.
+ *
+ * If txn is still active and has been updated since the last cursor read,
+ * update the cursor's view.
+ */
 static merr_t
-cursor_refresh(struct hse_kvs_cursor *cur)
+txn_cursor_update(struct hse_kvs_cursor *cur)
 {
     struct kvdb_ctxn_bind *bind = cur->kc_bind;
-    merr_t                 err = 0;
-    int                    up = 0;
+    merr_t err = 0;
+    bool update = false;
+
+    assert(bind);
 
     if (!bind->b_ctxn) {
-        /* canceled: txn was committed or aborted since last look */
+
+        if (ev(!(cur->kc_flags & HSE_CURSOR_CREATE_SURVIVE_TXN)))
+            return merr(EINVAL);
+
         err = cursor_unbind_txn(cur);
         if (ev(err))
             return err;
-        ++up;
+
+        update = true;
 
     } else if (atomic_read(&bind->b_gen) != cur->kc_gen) {
-        /* stale or canceled: txn was updated since last look */
-        ++up;
+
+        update = true;
     }
 
-    if (up)
+    if (update) {
         err = kvs_cursor_update(cur, cur->kc_bind ? cur->kc_bind->b_ctxn : 0, cur->kc_seq);
+        ev(err);
+    }
 
-    return ev(err);
+    return err;
 }
 
 merr_t
@@ -2931,7 +2951,7 @@ ikvdb_kvs_cursor_seek(
         return cur->kc_err;
 
     if (cur->kc_bind) {
-        cur->kc_err = cursor_refresh(cur);
+        cur->kc_err = txn_cursor_update(cur);
         if (ev(cur->kc_err))
             return cur->kc_err;
     }
@@ -2963,7 +2983,7 @@ ikvdb_kvs_cursor_read(
         return cur->kc_err;
 
     if (cur->kc_bind) {
-        cur->kc_err = cursor_refresh(cur);
+        cur->kc_err = txn_cursor_update(cur);
         if (ev(cur->kc_err))
             return cur->kc_err;
     }
@@ -3009,7 +3029,7 @@ ikvdb_kvs_cursor_read_copy(
         return cur->kc_err;
 
     if (cur->kc_bind) {
-        cur->kc_err = cursor_refresh(cur);
+        cur->kc_err = txn_cursor_update(cur);
         if (ev(cur->kc_err))
             return cur->kc_err;
     }

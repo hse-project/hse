@@ -23,6 +23,7 @@ extern "C" {
 
 /* hse_kvs_cursor_create() flags */
 #define HSE_CURSOR_CREATE_REV (1u << 0)
+#define HSE_CURSOR_CREATE_SURVIVE_TXN (1u << 1)
 
 #ifdef __cplusplus
 }
