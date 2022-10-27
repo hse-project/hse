@@ -421,6 +421,8 @@ sp3_log_progress(struct cn_compaction_work *w, struct cn_merge_stats *ms, bool f
         qt = pt = bt = ct = 0;
     }
 
+    sts_job_progress_set(&w->cw_job, progress * 100);
+
     vblk_read_efficiency =
         safe_div(1.0 * ms->ms_val_bytes_out, ms->ms_vblk_read1.op_size + ms->ms_vblk_read2.op_size);
 
@@ -1381,7 +1383,13 @@ sp3_work_complete(struct cn_compaction_work *w)
 static void
 sp3_work_progress(struct cn_compaction_work *w)
 {
+    const struct cn_work_est *est = &w->cw_est;
     struct cn_merge_stats ms;
+    uint progress;
+
+    progress = (w->cw_stats.ms_keys_in * 100) / est->cwe_keys;
+
+    sts_job_progress_set(&w->cw_job, progress);
 
     if (!(w->cw_debug & CW_DEBUG_PROGRESS))
         return;
@@ -1552,6 +1560,7 @@ sp3_job_serialize(struct sts_job *const job, void *const arg)
     bad |= !cJSON_AddNumberToObject(node, "leaf_compacted_length_mb",
             w->cw_est.cwe_samp.l_good >> MB_SHIFT);
     bad |= !cJSON_AddStringToObject(node, "wmesg", sts_job_wmesg_get(job));
+    bad |= !cJSON_AddNumberToObject(node, "progress", sts_job_progress_get(job));
     bad |= !cJSON_AddStringToObject(node, "time", tmbuf);
     bad |= !cJSON_AddStringToObject(node, "thread_name", w->cw_threadname);
     bad |= !cJSON_AddItemToArray(jobs, node);
