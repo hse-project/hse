@@ -42,7 +42,7 @@
 
 /**
  * struct vblock_builder - create vblocks from a stream of values
- * @ds:        mpool dataset
+ * @mp:        mpool handle
  * @pc:        performance counters
  * @vblk_list: list of vblocks
  * @wbuf:      write buffer
@@ -88,7 +88,7 @@
  *       -- set @vblk_off += @wbuff_off
  */
 struct vblock_builder {
-    struct mpool *             ds;
+    struct mpool *             mp;
     struct cn *                cn;
     struct perfc_set *         pc;
     struct cn_merge_stats *    mstats;
@@ -147,7 +147,7 @@ vblock_start(struct vblock_builder *bld, const struct key_obj *min_kobj)
     if (ev(mclass == HSE_MCLASS_INVALID))
         return merr(EINVAL);
 
-    err = mpool_mblock_alloc(bld->ds, mclass, 0, &blkid, &mbprop);
+    err = mpool_mblock_alloc(bld->mp, mclass, 0, &blkid, &mbprop);
     if (ev(err))
         return err;
 
@@ -158,7 +158,7 @@ vblock_start(struct vblock_builder *bld, const struct key_obj *min_kobj)
 
     err = blk_list_append(&bld->vblk_list, blkid);
     if (ev(err)) {
-        mpool_mblock_delete(bld->ds, blkid);
+        mpool_mblock_delete(bld->mp, blkid);
         return err;
     }
 
@@ -193,7 +193,7 @@ vblock_write(struct vblock_builder *bld)
      */
     tstart = get_time_ns();
 
-    err = mpool_mblock_write(bld->ds, bld->blkid, &iov, 1);
+    err = mpool_mblock_write(bld->mp, bld->blkid, &iov, 1);
 
     if (stats)
         count_ops(&stats->ms_vblk_write, 1, iov.iov_len, get_time_ns() - tstart);
@@ -287,7 +287,7 @@ vbb_create(
     memset(bld, 0, sizeof(*bld));
     bld->cn = cn;
     bld->pc = pc;
-    bld->ds = cn_get_dataset(cn);
+    bld->mp = cn_get_mpool(cn);
     bld->vgroup = vgroup;
     bld->agegroup = HSE_MPOLICY_AGE_LEAF;
     bld->wbuf = wbuf;
@@ -295,7 +295,7 @@ vbb_create(
     policy = cn_get_mclass_policy(bld->cn);
 
     err = mpool_mclass_props_get(
-        bld->ds, policy->mc_table[bld->agegroup][HSE_MPOLICY_DTYPE_VALUE], &props);
+        bld->mp, policy->mc_table[bld->agegroup][HSE_MPOLICY_DTYPE_VALUE], &props);
     if (err)
         return err;
 
@@ -313,7 +313,7 @@ vbb_destroy(struct vblock_builder *bld)
     if (ev(!bld))
         return;
 
-    delete_mblocks(bld->ds, &bld->vblk_list);
+    delete_mblocks(bld->mp, &bld->vblk_list);
     blk_list_free(&bld->vblk_list);
 
     vlb_free(bld->wbuf, WBUF_LEN_MAX + sizeof(*bld));
@@ -428,7 +428,7 @@ vbb_set_agegroup(struct vblock_builder *bld, enum hse_mclass_policy_age age)
     policy = cn_get_mclass_policy(bld->cn);
 
     err = mpool_mclass_props_get(
-        bld->ds, policy->mc_table[bld->agegroup][HSE_MPOLICY_DTYPE_VALUE], &props);
+        bld->mp, policy->mc_table[bld->agegroup][HSE_MPOLICY_DTYPE_VALUE], &props);
     if (err)
         return err;
 

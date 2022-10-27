@@ -89,7 +89,7 @@ cn_get_rp(const struct cn *cn);
 
 /* MTF_MOCK */
 struct mpool *
-cn_get_dataset(const struct cn *cn);
+cn_get_mpool(const struct cn *cn);
 
 /* MTF_MOCK */
 struct mclass_policy *

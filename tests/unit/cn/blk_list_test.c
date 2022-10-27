@@ -159,8 +159,7 @@ MTF_DEFINE_UTEST_PREPOST(blk_list_test, t_delete_mblock, pre, post)
     blk_list_init(&b);
     err = blk_list_append(&b, BLK_ID);
     ASSERT_EQ(err, 0);
-    err = delete_mblock(ds, b.idv[0]);
-    ASSERT_EQ(err, 0);
+    delete_mblock(ds, b.idv[0]);
     blk_list_free(&b);
 
     /* delete with handle and with mpool_mblock_delete failure */
@@ -169,8 +168,7 @@ MTF_DEFINE_UTEST_PREPOST(blk_list_test, t_delete_mblock, pre, post)
     blk_list_init(&b);
     err = blk_list_append(&b, BLK_ID);
     ASSERT_EQ(err, 0);
-    err = delete_mblock(ds, b.idv[0]);
-    ASSERT_NE(err, 0);
+    delete_mblock(ds, b.idv[0]);
     blk_list_free(&b);
     mapi_inject(api, 0);
 
@@ -178,8 +176,7 @@ MTF_DEFINE_UTEST_PREPOST(blk_list_test, t_delete_mblock, pre, post)
     blk_list_init(&b);
     err = blk_list_append(&b, BLK_ID);
     ASSERT_EQ(err, 0);
-    err = delete_mblock(ds, b.idv[0]);
-    ASSERT_EQ(err, 0);
+    delete_mblock(ds, b.idv[0]);
     blk_list_free(&b);
 }
 
@@ -194,6 +191,7 @@ MTF_DEFINE_UTEST_PREPOST(blk_list_test, t_delete_mblocks, pre, post)
     err = blk_list_append(&b, BLK_ID);
     ASSERT_EQ(err, 0);
     delete_mblocks(ds, &b);
+    ASSERT_EQ(b.idv[0], 0);
     blk_list_free(&b);
 
     blk_list_init(&b);

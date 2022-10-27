@@ -33,49 +33,52 @@ do
     cmd kvt -cv -m1 "$props" "$home" kvdb-oparms mode="$mode"
 done
 
-# Remove write permission from $home
-omode=$(stat -c %a "$home")
-cmd chmod 555 "$home"
+# Restricting write permission on $home works only for a non-root user
+if [[ $(id -u) -ne 0 ]]; then
+    # Remove write permission from $home
+    omode=$(stat -c %a "$home")
+    cmd chmod 555 "$home"
 
-# PUTs must fail
-cmd -e kvt -T5,4 -l8 -m1 "$props" "$home"
+    # PUTs must fail
+    cmd -e kvt -T5,4 -l8 -m1 "$props" "$home"
 
-# Cannot open KVDB in the following modes without write permission on $home
-modes="rdonly_replay rdwr"
-for mode in $modes
-do
-    cmd -e kvt -cv -m1 "$props" "$home" kvdb-oparms mode="$mode"
-done
+    # Cannot open KVDB in the following modes without write permission on $home
+    modes="rdonly_replay rdwr"
+    for mode in $modes
+    do
+        cmd -e kvt -cv -m1 "$props" "$home" kvdb-oparms mode="$mode"
+    done
 
-# GETs must succeed on a KVDB opened in the following modes without write permission on $home
-modes="rdonly diag"
-for mode in $modes
-do
-    cmd kvt -cv -m1 "$props" "$home" kvdb-oparms mode="$mode"
-done
-cmd chmod "$omode" "$home"
+    # GETs must succeed on a KVDB opened in the following modes without write permission on $home
+    modes="rdonly diag"
+    for mode in $modes
+    do
+        cmd kvt -cv -m1 "$props" "$home" kvdb-oparms mode="$mode"
+    done
+    cmd chmod "$omode" "$home"
 
-# Remove write permission from $home/capacity
-omode=$(stat -c %a "$home"/capacity)
-cmd chmod 555 "$home"/capacity
+    # Remove write permission from $home/capacity
+    omode=$(stat -c %a "$home"/capacity)
+    cmd chmod 555 "$home"/capacity
 
-# PUTs must fail
-cmd -e kvt -T5,4 -l8 -m1 "$props" "$home"
+    # PUTs must fail
+    cmd -e kvt -T5,4 -l8 -m1 "$props" "$home"
 
-# Cannot open KVDB in the following modes without write permission on the capacity FS
-modes="rdonly_replay rdwr"
-for mode in $modes
-do
-    cmd -e kvt -cv -m1 "$props" "$home" kvdb-oparms mode="$mode"
-done
+    # Cannot open KVDB in the following modes without write permission on the capacity FS
+    modes="rdonly_replay rdwr"
+    for mode in $modes
+    do
+        cmd -e kvt -cv -m1 "$props" "$home" kvdb-oparms mode="$mode"
+    done
 
-# GETs must succeed on a KVDB opened in the following modes without write perm on capacity FS
-modes="rdonly diag"
-for mode in $modes
-do
-    cmd kvt -cv -m1 "$props" "$home" kvdb-oparms mode="$mode"
-done
-cmd chmod "$omode" "$home"/capacity
+    # GETs must succeed on a KVDB opened in the following modes without write perm on capacity FS
+    modes="rdonly diag"
+    for mode in $modes
+    do
+        cmd kvt -cv -m1 "$props" "$home" kvdb-oparms mode="$mode"
+    done
+    cmd chmod "$omode" "$home"/capacity
+fi
 
 # Force the KVDB into dirty state by crashing kvt
 cmd -s 9 kvt -T30,4 -l8 -m1 -K9,5,7 "${props}" "$home"

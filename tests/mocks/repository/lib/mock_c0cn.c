@@ -658,7 +658,7 @@ static struct mapi_injection cn_inject_list[] = {
 
     { mapi_idx_cn_get_rp,            MAPI_RC_PTR, &mocked_kvs_rparams },
     { mapi_idx_cn_get_cparams,       MAPI_RC_PTR, &mocked_kvs_cparams },
-    { mapi_idx_cn_get_dataset,       MAPI_RC_PTR, NULL },
+    { mapi_idx_cn_get_mpool,         MAPI_RC_PTR, NULL },
     { mapi_idx_cn_get_mclass_policy, MAPI_RC_PTR, NULL },
     { mapi_idx_cn_get_ingest_perfc,  MAPI_RC_PTR, NULL },
 

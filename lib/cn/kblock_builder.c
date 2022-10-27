@@ -170,7 +170,7 @@ available_pgc(struct curr_kblock *kblk)
 
 /**
  * struct kblock_builder - Create kblocks from a stream of key/value pairs.
- * @ds: the dataset in which kblocks will be created
+ * @mp: the dataset in which kblocks will be created
  * @composite_hlog: hlog for the entire set of kblocks
  * @finished_kblks: list of finished kblocks (written, not committed)
  * @curr: the kblock currently being built
@@ -178,7 +178,7 @@ available_pgc(struct curr_kblock *kblk)
  * @max_size: Maximum mblock size of all configured media classes.
  */
 struct kblock_builder {
-    struct mpool *             ds;
+    struct mpool *             mp;
     struct cn *                cn;
     struct kvs_rparams *       rp;
     struct kvs_cparams *       cp;
@@ -253,7 +253,7 @@ mblk_blow_chunks(
      * For example, if ax == 2 and bx == 4, then write is called on iovec
      * segments 2, 3 and 4 as follows:
      *
-     *    mpool_mblock_write(ds, mbid, iov + ax, bx - ax + 1);
+     *    mpool_mblock_write(mp, mbid, iov + ax, bx - ax + 1);
      *
      * Note however that the first (ax==2) and last segments (bx==4)
      * may need to be trimmed.  Local vars aoff and alen identify
@@ -294,7 +294,7 @@ mblk_blow_chunks(
 
             if (stats)
                 dt = get_time_ns();
-            err = mpool_mblock_write(self->ds, mbid, iov + ax, 1);
+            err = mpool_mblock_write(self->mp, mbid, iov + ax, 1);
             if (ev(err))
                 return err;
             if (stats)
@@ -333,7 +333,7 @@ mblk_blow_chunks(
 
             if (stats)
                 dt = get_time_ns();
-            err = mpool_mblock_write(self->ds, mbid, iov + ax, bx - ax + 1);
+            err = mpool_mblock_write(self->mp, mbid, iov + ax, bx - ax + 1);
             if (ev(err))
                 return err;
             if (stats)
@@ -878,7 +878,7 @@ kblock_finish(struct kblock_builder *bld)
         goto errout;
     }
 
-    err = mpool_mclass_props_get(bld->ds, mclass, &mc_props);
+    err = mpool_mclass_props_get(bld->mp, mclass, &mc_props);
     if (ev(err))
         goto errout;
 
@@ -897,7 +897,7 @@ kblock_finish(struct kblock_builder *bld)
     if (stats)
         tstart = get_time_ns();
 
-    err = mpool_mblock_alloc(bld->ds, mclass, flags, &blkid, &mbprop);
+    err = mpool_mblock_alloc(bld->mp, mclass, flags, &blkid, &mbprop);
     if (ev(err))
         goto errout;
 
@@ -933,7 +933,7 @@ kblock_finish(struct kblock_builder *bld)
 
 errout:
     if (blkid)
-        mpool_mblock_delete(bld->ds, blkid);
+        mpool_mblock_delete(bld->mp, blkid);
     free(iov);
 
     /* unconditional reset */
@@ -963,7 +963,7 @@ kbb_create(struct kblock_builder **builder_out, struct cn *cn, struct perfc_set 
 
     bld->cn = cn;
 
-    bld->ds = cn_get_dataset(cn);
+    bld->mp = cn_get_mpool(cn);
     bld->rp = cn_get_rp(cn);
     bld->cp = cn_get_cparams(cn);
     bld->pc = pc;
@@ -972,7 +972,7 @@ kbb_create(struct kblock_builder **builder_out, struct cn *cn, struct perfc_set 
     policy = cn_get_mclass_policy(cn);
 
     err = mpool_mclass_props_get(
-        bld->ds, policy->mc_table[bld->agegroup][HSE_MPOLICY_DTYPE_KEY], &props);
+        bld->mp, policy->mc_table[bld->agegroup][HSE_MPOLICY_DTYPE_KEY], &props);
     if (ev(err))
         goto err_exit1;
 
@@ -1006,7 +1006,7 @@ kbb_destroy(struct kblock_builder *bld)
 
     hlog_destroy(bld->composite_hlog);
     kblock_free(&bld->curr);
-    delete_mblocks(bld->ds, &bld->finished_kblks);
+    delete_mblocks(bld->mp, &bld->finished_kblks);
     blk_list_free(&bld->finished_kblks);
     free(bld);
 }
@@ -1121,7 +1121,7 @@ kbb_set_agegroup(struct kblock_builder *bld, enum hse_mclass_policy_age age)
     policy = cn_get_mclass_policy(bld->cn);
 
     err = mpool_mclass_props_get(
-        bld->ds, policy->mc_table[bld->agegroup][HSE_MPOLICY_DTYPE_KEY], &props);
+        bld->mp, policy->mc_table[bld->agegroup][HSE_MPOLICY_DTYPE_KEY], &props);
     if (err)
         return err;
 

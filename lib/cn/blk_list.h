@@ -19,7 +19,7 @@ struct mpool;
 #define BLK_LIST_PRE_ALLOC 64
 
 /* MTF_MOCK */
-merr_t
+void
 delete_mblock(struct mpool *mp, uint64_t mbid);
 
 /* MTF_MOCK */

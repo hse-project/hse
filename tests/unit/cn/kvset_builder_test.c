@@ -46,7 +46,7 @@ pre(struct mtf_test_info *mtf)
     const char key = 'f';
 
     mapi_inject(mapi_idx_cn_get_cnid, TEST_DEF_UTAG);
-    mapi_inject(mapi_idx_cn_get_dataset, 0);
+    mapi_inject(mapi_idx_cn_get_mpool, 0);
     mapi_inject(mapi_idx_cn_get_flags, 0);
 
     mapi_inject(mapi_idx_delete_mblock, 0);
