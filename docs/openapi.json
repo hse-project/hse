@@ -1236,6 +1236,10 @@
                   "pointer": "/wmesg",
                   "justify": "right"
                 },
+                "PROG": {
+                  "pointer": "/progress",
+                  "justify": "right"
+                },
                 "TIME": {
                   "pointer": "/time",
                   "justify": "right"
@@ -1348,6 +1352,10 @@
                       },
                       "wmesg": {
                         "type": "string",
+                        "nullable": false
+                      },
+                      "progress": {
+                        "type": "integer",
                         "nullable": false
                       },
                       "time": {

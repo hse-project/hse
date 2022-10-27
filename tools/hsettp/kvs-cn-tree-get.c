@@ -328,7 +328,7 @@ kvs_cn_tree_get_parse_values(cJSON *const body, int *const len, char ***const va
 
                 job = cJSON_GetObjectItemCaseSensitive(k, "job");
                 if (cJSON_IsObject(job)) {
-                    uint id;
+                    uint id, progress;
                     ulong time;
                     const char *rule;
                     const char *wmesg;
@@ -350,12 +350,16 @@ kvs_cn_tree_get_parse_values(cJSON *const body, int *const len, char ***const va
                     assert(cJSON_IsString(entry));
                     wmesg = cJSON_GetStringValue(entry);
 
+                    entry = cJSON_GetObjectItemCaseSensitive(job, "progress");
+                    assert(cJSON_IsNumber(entry));
+                    progress = cJSON_GetNumberValue(entry);
+
                     entry = cJSON_GetObjectItemCaseSensitive(job, "time");
                     assert(cJSON_IsNumber(entry));
                     time = cJSON_GetNumberValue(entry);
 
-                    rc = snprintf(buf, sizeof(buf), "- %u %s/%s %lu:%02lu %s",
-                        id, action, rule, (time / 60) % 60, time % 60, wmesg);
+                    rc = snprintf(buf, sizeof(buf), "- %u %s,%s %s %u%% %lu:%02lu",
+                                  id, action, rule, wmesg, progress, (time / 60) % 60, time % 60);
                     assert(rc > 0);
                     (*values)[offset] = strdup(buf);
                     if (!(*values)[offset])

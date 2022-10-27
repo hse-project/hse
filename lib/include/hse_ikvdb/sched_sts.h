@@ -33,6 +33,7 @@ struct sts_job {
     struct list_head       sj_link;
     sts_job_fn            *sj_job_fn;
     uint                   sj_id;
+    uint                   sj_progress;
     struct sts            *sj_sts;
     const char * volatile *sj_wmesgp;
     struct work_struct     sj_work;
@@ -60,6 +61,7 @@ sts_job_init(struct sts_job *job, sts_job_fn *job_fn, uint id)
 {
     job->sj_job_fn = job_fn;
     job->sj_id = id;
+    job->sj_progress = 0;
 }
 
 static inline uint
@@ -72,6 +74,18 @@ static inline const char *
 sts_job_wmesg_get(const struct sts_job *job)
 {
     return job->sj_wmesgp ? *job->sj_wmesgp : "?";
+}
+
+static inline uint
+sts_job_progress_get(const struct sts_job *job)
+{
+    return job->sj_progress;
+}
+
+static inline void
+sts_job_progress_set(struct sts_job *job, uint progress)
+{
+    job->sj_progress = progress;
 }
 
 /* MTF_MOCK */

@@ -794,8 +794,9 @@ cn_tree_to_json(
                 bad |= !cJSON_AddNumberToObject(job, "id", sts_job_id_get(&w->cw_job));
                 bad |= !cJSON_AddStringToObject(job, "action", cn_action2str(w->cw_action));
                 bad |= !cJSON_AddStringToObject(job, "rule", cn_rule2str(w->cw_rule));
-                bad |= !cJSON_AddNumberToObject(job, "time", tm);
                 bad |= !cJSON_AddStringToObject(job, "wmesg", wmesg);
+                bad |= !cJSON_AddNumberToObject(job, "progress", sts_job_progress_get(&w->cw_job));
+                bad |= !cJSON_AddNumberToObject(job, "time", tm);
             } else {
                 bad |= !cJSON_AddNullToObject(kvset, "job");
             }
