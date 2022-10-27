@@ -21,19 +21,14 @@ MTF_BEGIN_UTEST_COLLECTION(perfc);
 MTF_DEFINE_UTEST(perfc, perfc_basic_create_find_and_remove)
 {
     size_t count;
-    struct dt_element *dte;
     int rc, n;
     char path[DT_PATH_MAX];
     struct perfc_name ctrnames = { 0 };
     struct perfc_set set = { 0 };
     size_t before;
     merr_t err;
-    cJSON *root = cJSON_CreateArray();
-    union dt_iterate_parameters dip = { .root = root };
 
-    ASSERT_NE(NULL, root);
-
-    before = dt_iterate_cmd(DT_OP_COUNT, DT_PATH_PERFC, NULL, NULL, NULL, NULL);
+    before = dt_count(PERFC_DT_PATH);
 
     ctrnames.pcn_name = "PERFC_BA_FAM_TEST";
     ctrnames.pcn_hdr = "whysoserious";
@@ -44,10 +39,10 @@ MTF_DEFINE_UTEST(perfc, perfc_basic_create_find_and_remove)
     err = perfc_alloc_impl(1, "villains", &ctrnames, 1, "joker", REL_FILE(__FILE__), __LINE__, &set);
     ASSERT_EQ(0, err);
 
-    count = dt_iterate_cmd(DT_OP_COUNT, DT_PATH_PERFC, NULL, NULL, NULL, NULL);
+    count = dt_count(PERFC_DT_PATH);
     ASSERT_EQ(before + 1, count);
 
-    count = dt_iterate_cmd(DT_OP_EMIT, DT_PATH_PERFC, &dip, NULL, NULL, NULL);
+    count = dt_count(PERFC_DT_PATH);
 
     /* 3, /data/perfc, /data/perfc/joker */
     ASSERT_EQ(before + 1, count);
@@ -56,29 +51,25 @@ MTF_DEFINE_UTEST(perfc, perfc_basic_create_find_and_remove)
         path,
         sizeof(path),
         "%s/%s/%s/%s",
-        DT_PATH_PERFC,
+        PERFC_DT_PATH,
         "villains",
         "FAM",
         "joker");
     ASSERT_TRUE(n > 0 && n < sizeof(path));
 
-    dte = dt_find(path, 1);
-    ASSERT_NE(dte, NULL);
+    err = dt_access(path, NULL, NULL);
+    ASSERT_EQ(0, merr_errno(err));
 
-    rc = dt_remove(dte);
+    rc = dt_remove(path);
     ASSERT_EQ(rc, 0);
 
-    dte = dt_find(path, 1);
-    ASSERT_EQ(dte, NULL);
-
-    cJSON_Delete(root);
+    err = dt_access(path, NULL, NULL);
+    ASSERT_EQ(ENOENT, merr_errno(err));
 }
 
 MTF_DEFINE_UTEST(perfc, perfc_basic_set)
 {
     size_t count;
-    union dt_iterate_parameters dip;
-    struct dt_element *dte;
     int rc, n;
     char path[DT_PATH_MAX];
     u64 new_value = 42;
@@ -90,7 +81,7 @@ MTF_DEFINE_UTEST(perfc, perfc_basic_set)
     size_t            before;
     merr_t            err;
 
-    before = dt_iterate_cmd(DT_OP_COUNT, DT_PATH_PERFC, NULL, NULL, NULL, NULL);
+    before = dt_count(PERFC_DT_PATH);
 
     ctrnames.pcn_name = "PERFC_BA_FAM_TEST";
     ctrnames.pcn_hdr = "whysoserious";
@@ -107,17 +98,17 @@ MTF_DEFINE_UTEST(perfc, perfc_basic_set)
         path,
         sizeof(path),
         "%s/%s/%s/%s",
-        DT_PATH_PERFC,
+        PERFC_DT_PATH,
         "villains",
         "FAM",
         "poison_ivy");
     ASSERT_TRUE(n > 0 && n < sizeof(path));
 
-    root = cJSON_CreateArray();
-    ASSERT_NE(NULL, root);
+    count = dt_count(PERFC_DT_PATH);
 
-    dip.root = root;
-    count = dt_iterate_cmd(DT_OP_EMIT, DT_PATH_PERFC, &dip, NULL, NULL, NULL);
+    err = dt_emit(PERFC_DT_PATH, &root);
+    printf("%s:%d\n", merr_file(err), merr_lineno(err));
+    ASSERT_EQ(0, merr_errno(err));
 
     /* 3, for /data/perfc, /data/perfc/poison_ivy */
     ASSERT_EQ(before + 1, count);
@@ -126,14 +117,14 @@ MTF_DEFINE_UTEST(perfc, perfc_basic_set)
     ASSERT_NE(NULL, output);
     ASSERT_NE(NULL, strstr(output, "\"value\":42"));
 
-    dte = dt_find(path, 1);
-    ASSERT_NE(dte, NULL);
+    err = dt_access(path, NULL, NULL);
+    ASSERT_EQ(0, merr_errno(err));
 
-    rc = dt_remove(dte);
+    rc = dt_remove(path);
     ASSERT_EQ(rc, 0);
 
-    dte = dt_find(path, 1);
-    ASSERT_EQ(dte, NULL);
+    err = dt_access(path, NULL, NULL);
+    ASSERT_EQ(ENOENT, merr_errno(err));
 
     free(output);
     cJSON_Delete(root);
@@ -189,7 +180,7 @@ MTF_DEFINE_UTEST(perfc, ctrset_path)
 
     err = perfc_alloc_impl(1, "n", &ctrnames, 1, "s", REL_FILE(__FILE__), __LINE__, &set);
     ASSERT_EQ(0, err);
-    ASSERT_EQ(0, strcmp(DT_PATH_PERFC "/n/FAM/s", perfc_ctrseti_path(&set)));
+    ASSERT_EQ(0, strcmp(PERFC_DT_PATH "/n/FAM/s", perfc_ctrseti_path(&set)));
 
     perfc_free(&set);
 }

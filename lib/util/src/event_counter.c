@@ -13,7 +13,7 @@
 #include <hse_util/data_tree.h>
 #include <hse_util/event_counter.h>
 
-void
+static void
 ev_get_timestamp(atomic_ulong *timestamp)
 {
     struct timeval tv;
@@ -23,7 +23,7 @@ ev_get_timestamp(atomic_ulong *timestamp)
     atomic_set(timestamp, (tv.tv_sec * USEC_PER_SEC) + tv.tv_usec);
 }
 
-size_t
+static size_t
 snprintf_timestamp(char *buf, size_t buf_sz, atomic_ulong *timestamp)
 {
     struct timeval tv;
@@ -51,95 +51,56 @@ snprintf_timestamp(char *buf, size_t buf_sz, atomic_ulong *timestamp)
     return ret;
 }
 
-bool
-ev_match_select_handler(struct dt_element *dte, char *field, char *value)
-{
-    struct event_counter *ec = dte->dte_data;
-
-    if (!strcmp(field, "level")) {
-        const int level = log_level_from_string(value);
-
-        if (ec->ev_level <= level)
-            return true;
-    }
-
-    return false;
-}
-
 /**
- * emit_handler output fits into a YAML document. spacing is driven by
- * YAML context.
- *
- * An event_counter (with its preceding data and event_counter elements
- * looks like this:
- * data:
- *   - event_counter:
- *     - path: /data/event_counter/ev_emit/event_counter_test.c/ev_emit/495
- *       odometer: 1
- *       odometer timestamp: 1463576343.291465
- *       trip odometer: 1
- *       trip odometer timestamp: 0.0
- *       priority: INFO
- *
- * Fields are indented 6 spaces.
+ * emit_handler output fits into a JSON document.
  */
-static size_t
+static merr_t
 ev_emit_handler(struct dt_element *const dte, cJSON *const root)
 {
-    char value[128];
-    cJSON *elem = cJSON_CreateObject();
+    cJSON *elem;
+    char buf[128];
+    bool bad = false;
     struct event_counter *ec = dte->dte_data;
     const unsigned long odometer = atomic_read(&ec->ev_odometer);
 
     INVARIANT(dte);
     INVARIANT(cJSON_IsArray(root));
 
-    cJSON_AddStringToObject(elem, "path", dte->dte_path);
-    cJSON_AddStringToObject(elem, "level", log_level_to_string(ec->ev_level));
-    cJSON_AddNumberToObject(elem, "odometer", odometer);
-    snprintf_timestamp(value, sizeof(value), &ec->ev_odometer_timestamp);
-    cJSON_AddStringToObject(elem, "odometer_timestamp", value);
+    elem = cJSON_CreateObject();
+    if (ev(!elem))
+        return merr(ENOMEM);
 
-    cJSON_AddItemToArray(root, elem);
+    snprintf_timestamp(buf, sizeof(buf), &ec->ev_odometer_timestamp);
 
-    return 1;
+    bad |= !cJSON_AddStringToObject(elem, "path", dte->dte_path);
+    bad |= !cJSON_AddStringToObject(elem, "level", log_level_to_string(ec->ev_level));
+    bad |= !cJSON_AddNumberToObject(elem, "odometer", odometer);
+    bad |= !cJSON_AddStringToObject(elem, "odometer_timestamp", buf);
+
+    if (ev(bad || !cJSON_AddItemToArray(root, elem)))
+        cJSON_Delete(elem);
+
+    return bad ? merr(ENOMEM) : 0;
 }
 
 struct dt_element_ops event_counter_ops = {
     .dto_emit = ev_emit_handler,
-    .dto_match_selector = ev_match_select_handler,
 };
 
-bool
-ev_root_match_select_handler(struct dt_element *dte, char *field, char *value)
-{
-    return true;
-}
+static struct dt_element_ops event_counter_root_ops = { 0 };
 
-static size_t
-ev_root_emit_handler(struct dt_element *dte, cJSON *root)
-{
-    return 1;
-}
-
-static struct dt_element_ops event_counter_root_ops = {
-    .dto_emit = ev_root_emit_handler,
-    .dto_match_selector = ev_root_match_select_handler,
-};
-
-/* Install the root node for event counters. This is important because we
- * need to identify it as a ROOT node to get the write emit() behavior.
+/* Install the root node for event counters. This is important because we need
+ * to identify it as a ROOT node to get the right emit() behavior.
  */
 void
 event_counter_init(void)
 {
     static struct dt_element hse_dte_event = {
         .dte_ops = &event_counter_root_ops,
-        .dte_is_root = true,
         .dte_file = REL_FILE(__FILE__),
         .dte_line = __LINE__,
         .dte_func = __func__,
-        .dte_path = DT_PATH_EVENT,
+        .dte_path = EV_DT_PATH,
     };
 
     dt_add(&hse_dte_event);
@@ -152,7 +113,7 @@ event_counter(struct event_counter *ec)
         struct dt_element *dte = &ec->ev_dte;
 
         snprintf(dte->dte_path, sizeof(dte->dte_path), "%s/%s/%s/%d",
-                 DT_PATH_EVENT, basename(dte->dte_file), dte->dte_func, dte->dte_line);
+                 EV_DT_PATH, basename(dte->dte_file), dte->dte_func, dte->dte_line);
 
         dt_add(dte);
     }
