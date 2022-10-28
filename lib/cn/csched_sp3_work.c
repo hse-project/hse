@@ -170,8 +170,11 @@ sp3_work_wtype_root(
 
     znode = cn_kvset_can_zspill(le->le_kvset, rmap);
 
-    /* Don't start a zspill if there the older busy kvsets.  This avoids
-     * tying up a spill thread that will just end up waiting on an rspill.
+    /* Don't start a zspill if there are older busy kvsets.  This ensures that when a zspill
+     * does run, it's the oldest spill running and wouldn't have to wait behind any other spill
+     * thread.  This is important because zspill uses cn_move() which unlinks the input kvsets
+     * immediately when cn_subspill_apply() is called.  There cannot be any older spills active
+     * when the input kvsets are unlinkd.
      */
     if (znode && list_next_entry_or_null(le, le_link, &tn->tn_kvset_list)) {
         ev_debug(1);
