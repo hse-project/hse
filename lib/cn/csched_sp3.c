@@ -409,7 +409,8 @@ sp3_log_progress(struct cn_compaction_work *w, struct cn_merge_stats *ms, bool f
 
     if (final) {
         msg_type = "final";
-        progress = 1.0 * ms->ms_keys_in / est->cwe_keys;
+        progress = (double)w->cw_stats.ms_keys_in /
+            clamp_t(uint64_t, est->cwe_keys, 1, est->cwe_keys);
         qt = w->cw_t1_qtime ? (w->cw_t1_qtime - w->cw_t0_enqueue) / 1000 : 0;
         pt = w->cw_t2_prep ? (w->cw_t2_prep - w->cw_t1_qtime) / 1000 : 0;
         bt = w->cw_t3_build ? (w->cw_t3_build - w->cw_t2_prep) / 1000 : 0;
@@ -417,7 +418,8 @@ sp3_log_progress(struct cn_compaction_work *w, struct cn_merge_stats *ms, bool f
 
     } else {
         msg_type = "progress";
-        progress = 1.0 * w->cw_stats.ms_keys_in / est->cwe_keys;
+        progress = (double)w->cw_stats.ms_keys_in /
+            clamp_t(uint64_t, est->cwe_keys, 1, est->cwe_keys);
         qt = pt = bt = ct = 0;
     }
 
@@ -1387,7 +1389,8 @@ sp3_work_progress(struct cn_compaction_work *w)
     struct cn_merge_stats ms;
     uint progress;
 
-    progress = (w->cw_stats.ms_keys_in * 100) / est->cwe_keys;
+    progress = (w->cw_stats.ms_keys_in * 100) /
+        clamp_t(uint64_t, est->cwe_keys, 1, est->cwe_keys);
 
     sts_job_progress_set(&w->cw_job, progress);
 
