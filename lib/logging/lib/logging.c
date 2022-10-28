@@ -9,8 +9,8 @@
 
 #include <hse/error/merr.h>
 #include <hse/logging/logging.h>
-#include <hse_util/minmax.h>
-#include <hse_util/timer.h>
+#include <hse/util/minmax.h>
+#include <hse/util/timer.h>
 
 /* The log_xxx() APIs are allowed to be used prior to calling logging_init().
  * In practice, this only includes code that deals with hse_gparams. That code

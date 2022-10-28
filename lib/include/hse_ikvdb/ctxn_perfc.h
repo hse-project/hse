@@ -13,7 +13,7 @@
 
 #include <hse/kvdb_perfc.h>
 
-#include <hse_util/perfc.h>
+#include <hse/util/perfc.h>
 
 extern struct perfc_name ctxn_perfc_op[];
 

@@ -4,7 +4,7 @@
  */
 
 #include <hse/logging/logging.h>
-#include <hse_util/spinlock.h>
+#include <hse/util/spinlock.h>
 
 #include <mtf/framework.h>
 

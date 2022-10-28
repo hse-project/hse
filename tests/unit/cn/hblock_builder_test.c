@@ -15,14 +15,14 @@
 #include <hse_ikvdb/kvs_cparams.h>
 #include <hse_ikvdb/kvset_builder.h>
 #include <hse_ikvdb/mclass_policy.h>
-#include <hse_util/alloc.h>
-#include <hse_util/assert.h>
-#include <hse_util/base.h>
+#include <hse/util/alloc.h>
+#include <hse/util/assert.h>
+#include <hse/util/base.h>
 #include <hse/error/merr.h>
-#include <hse_util/key_util.h>
-#include <hse_util/page.h>
-#include <hse_util/hlog.h>
-#include <hse_util/keycmp.h>
+#include <hse/util/key_util.h>
+#include <hse/util/page.h>
+#include <hse/util/hlog.h>
+#include <hse/util/keycmp.h>
 
 #include <cn/kvset.h>
 

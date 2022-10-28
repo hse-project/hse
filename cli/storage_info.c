@@ -14,9 +14,9 @@
 #include <hse/cli/tprint.h>
 #include <hse/pidfile/pidfile.h>
 
-#include <hse_util/assert.h>
-#include <hse_util/base.h>
-#include <hse_util/compiler.h>
+#include <hse/util/assert.h>
+#include <hse/util/base.h>
+#include <hse/util/compiler.h>
 
 int
 hse_storage_info(const char *const kvdb_home)

@@ -7,7 +7,7 @@
 #define WAL_REPLAY_H
 
 #include <hse/error/merr.h>
-#include <hse_util/spinlock.h>
+#include <hse/util/spinlock.h>
 
 struct wal;
 struct wal_replay_info;

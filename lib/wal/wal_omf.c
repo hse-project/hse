@@ -4,8 +4,8 @@
  */
 
 #include <crc32c.h>
-#include <hse_util/platform.h>
-#include <hse_util/page.h>
+#include <hse/util/platform.h>
+#include <hse/util/page.h>
 
 #include <hse_ikvdb/wal.h>
 #include <hse_ikvdb/tuple.h>

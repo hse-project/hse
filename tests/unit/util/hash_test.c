@@ -5,7 +5,7 @@
 
 #include <mtf/framework.h>
 
-#include <hse_util/hash.h>
+#include <hse/util/hash.h>
 #include <hse/error/merr.h>
 #include <hse/logging/logging.h>
 

@@ -4,11 +4,11 @@
  */
 
 #include <hse/error/merr.h>
-#include <hse_util/event_counter.h>
-#include <hse_util/workqueue.h>
-#include <hse_util/slab.h>
-#include <hse_util/bonsai_tree.h>
-#include <hse_util/rmlock.h>
+#include <hse/util/event_counter.h>
+#include <hse/util/workqueue.h>
+#include <hse/util/slab.h>
+#include <hse/util/bonsai_tree.h>
+#include <hse/util/rmlock.h>
 #include <hse/logging/logging.h>
 
 #include <rbtree.h>

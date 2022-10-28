@@ -13,8 +13,8 @@
 
 #include <hse/cli/tprint.h>
 #include <hse/error/merr.h>
-#include <hse_util/assert.h>
-#include <hse_util/compiler.h>
+#include <hse/util/assert.h>
+#include <hse/util/compiler.h>
 
 #include "utils.h"
 

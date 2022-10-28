@@ -9,7 +9,7 @@
 #include <cjson/cJSON.h>
 
 #include <hse/error/merr.h>
-#include <hse_util/inttypes.h>
+#include <hse/util/inttypes.h>
 
 #include "cn_metrics.h"
 #include "kcompact.h"

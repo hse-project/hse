@@ -15,9 +15,9 @@
 #include <hse/error/merr.h>
 #include <hse/experimental.h>
 #include <hse/pidfile/pidfile.h>
-#include <hse_util/inttypes.h>
-#include <hse_util/arch.h>
-#include <hse_util/parse_num.h>
+#include <hse/util/inttypes.h>
+#include <hse/util/arch.h>
+#include <hse/util/parse_num.h>
 
 static hse_err_t
 kvdb_info_props(

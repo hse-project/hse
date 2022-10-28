@@ -7,14 +7,14 @@
 #include <sys/mman.h>
 
 #include <hse/logging/logging.h>
-#include <hse_util/platform.h>
-#include <hse_util/assert.h>
-#include <hse_util/mutex.h>
-#include <hse_util/slab.h>
-#include <hse_util/event_counter.h>
-#include <hse_util/minmax.h>
-#include <hse_util/log2.h>
-#include <hse_util/page.h>
+#include <hse/util/platform.h>
+#include <hse/util/assert.h>
+#include <hse/util/mutex.h>
+#include <hse/util/slab.h>
+#include <hse/util/event_counter.h>
+#include <hse/util/minmax.h>
+#include <hse/util/log2.h>
+#include <hse/util/page.h>
 
 #include "mblock_file.h"
 #include "io.h"

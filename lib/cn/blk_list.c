@@ -8,10 +8,10 @@
 #include <hse_ikvdb/blk_list.h>
 #include <hse/logging/logging.h>
 #include <hse/error/merr.h>
-#include <hse_util/event_counter.h>
-#include <hse_util/alloc.h>
-#include <hse_util/slab.h>
-#include <hse_util/assert.h>
+#include <hse/util/event_counter.h>
+#include <hse/util/alloc.h>
+#include <hse/util/slab.h>
+#include <hse/util/assert.h>
 
 #include <hse/mpool/mpool.h>
 

@@ -9,7 +9,7 @@
 /* MTF_MOCK_DECL(wbt_builder) */
 
 #include <hse/error/merr.h>
-#include <hse_util/inttypes.h>
+#include <hse/util/inttypes.h>
 
 struct key_obj;
 struct wbb;

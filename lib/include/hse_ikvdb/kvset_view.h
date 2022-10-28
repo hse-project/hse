@@ -6,7 +6,7 @@
 #ifndef HSE_KVS_CN_KVSET_VIEW_H
 #define HSE_KVS_CN_KVSET_VIEW_H
 
-#include <hse_util/table.h>
+#include <hse/util/table.h>
 
 struct cn;
 struct kvset;

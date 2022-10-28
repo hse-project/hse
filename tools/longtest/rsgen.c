@@ -3,7 +3,7 @@
  * Copyright (C) 2015-2017 Micron Technology, Inc.  All rights reserved.
  */
 
-#include <hse_util/xrand.h>
+#include <hse/util/xrand.h>
 
 #include <assert.h>
 #include <stdlib.h>

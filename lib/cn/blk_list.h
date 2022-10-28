@@ -6,7 +6,7 @@
 #ifndef HSE_KVS_CN_BLK_LIST_H
 #define HSE_KVS_CN_BLK_LIST_H
 
-#include <hse_util/inttypes.h>
+#include <hse/util/inttypes.h>
 #include <hse/error/merr.h>
 
 /* MTF_MOCK_DECL(blk_list) */

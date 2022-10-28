@@ -6,11 +6,11 @@
 #include <mtf/conditions.h>
 #include <mock/api.h>
 
-#include <hse_util/arch.h>
-#include <hse_util/inttypes.h>
-#include <hse_util/assert.h>
-#include <hse_util/atomic.h>
-#include <hse_util/compiler.h>
+#include <hse/util/arch.h>
+#include <hse/util/inttypes.h>
+#include <hse/util/assert.h>
+#include <hse/util/atomic.h>
+#include <hse/util/compiler.h>
 
 union rc {
     u64   i;

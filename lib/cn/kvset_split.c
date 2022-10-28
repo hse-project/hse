@@ -5,11 +5,11 @@
 
 #include <sys/mman.h>
 
-#include <hse_util/event_counter.h>
-#include <hse_util/assert.h>
-#include <hse_util/keycmp.h>
+#include <hse/util/event_counter.h>
+#include <hse/util/assert.h>
+#include <hse/util/keycmp.h>
 #include <hse/logging/logging.h>
-#include <hse_util/perfc.h>
+#include <hse/util/perfc.h>
 
 #include <hse/limits.h>
 

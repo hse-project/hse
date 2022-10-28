@@ -29,8 +29,8 @@
 
 #include <hse/hse.h>
 
-#include <hse_util/compiler.h>
-#include <hse_util/inttypes.h>
+#include <hse/util/compiler.h>
+#include <hse/util/inttypes.h>
 
 const char *progname;
 

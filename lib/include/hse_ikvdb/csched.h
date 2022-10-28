@@ -6,7 +6,7 @@
 #ifndef HSE_IKVDB_CSCHED_H
 #define HSE_IKVDB_CSCHED_H
 
-#include <hse_util/inttypes.h>
+#include <hse/util/inttypes.h>
 
 #include <hse_ikvdb/csched_rp.h>
 

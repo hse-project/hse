@@ -15,7 +15,7 @@
 #include <hse_ikvdb/kvs_cparams.h>
 #include <hse_ikvdb/kvs_rparams.h>
 #include <hse_ikvdb/hse_gparams.h>
-#include <hse_util/compiler.h>
+#include <hse/util/compiler.h>
 #include <hse/error/merr.h>
 
 #include "logging.h"

@@ -7,7 +7,7 @@
 #include <mock/api.h>
 
 #include <hse/error/merr.h>
-#include <hse_util/seqno.h>
+#include <hse/util/seqno.h>
 
 #include <hse_ikvdb/c0.h>
 #include <hse_ikvdb/c0sk.h>

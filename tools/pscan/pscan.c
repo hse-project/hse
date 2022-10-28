@@ -28,10 +28,10 @@
 
 #include <xxhash.h>
 
-#include <hse_util/arch.h>
-#include <hse_util/event_timer.h>
-#include <hse_util/fmt.h>
-#include <hse_util/inttypes.h>
+#include <hse/util/arch.h>
+#include <hse/util/event_timer.h>
+#include <hse/util/fmt.h>
+#include <hse/util/inttypes.h>
 
 #include <tools/common.h>
 #include <tools/parm_groups.h>

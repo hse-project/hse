@@ -8,9 +8,9 @@
 
 #include "kvs_mblk_desc.h"
 
-#include <hse_util/inttypes.h>
-#include <hse_util/compiler.h>
-#include <hse_util/byteorder.h>
+#include <hse/util/inttypes.h>
+#include <hse/util/compiler.h>
+#include <hse/util/byteorder.h>
 
 #include "omf.h"
 

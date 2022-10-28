@@ -48,7 +48,7 @@
 
 #include <hse/types.h>
 
-#include <hse_util/compiler.h>
+#include <hse/util/compiler.h>
 
 #define EBUG (991)
 

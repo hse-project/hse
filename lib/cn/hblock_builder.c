@@ -14,13 +14,13 @@
 #include <hse_ikvdb/cn.h>
 #include <hse_ikvdb/kvset_builder.h>
 #include <hse_ikvdb/mclass_policy.h>
-#include <hse_util/alloc.h>
-#include <hse_util/event_counter.h>
+#include <hse/util/alloc.h>
+#include <hse/util/event_counter.h>
 #include <hse/error/merr.h>
-#include <hse_util/hlog.h>
-#include <hse_util/page.h>
-#include <hse_util/storage.h>
-#include <hse_util/perfc.h>
+#include <hse/util/hlog.h>
+#include <hse/util/page.h>
+#include <hse/util/storage.h>
+#include <hse/util/perfc.h>
 
 #include "hblock_builder.h"
 #include "omf.h"

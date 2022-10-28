@@ -4,7 +4,7 @@
  */
 
 #include <mtf/framework.h>
-#include <hse_util/log2.h>
+#include <hse/util/log2.h>
 
 MTF_BEGIN_UTEST_COLLECTION(log2);
 

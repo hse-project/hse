@@ -14,7 +14,7 @@
 
 #include <hse/error/merr.h>
 
-#include <hse_util/log2.h>
+#include <hse/util/log2.h>
 
 #include "buffer.h"
 

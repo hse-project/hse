@@ -10,11 +10,11 @@
 
 #include <hse/limits.h>
 
-#include <hse_util/arch.h>
-#include <hse_util/mutex.h>
-#include <hse_util/condvar.h>
-#include <hse_util/perfc.h>
-#include <hse_util/workqueue.h>
+#include <hse/util/arch.h>
+#include <hse/util/mutex.h>
+#include <hse/util/condvar.h>
+#include <hse/util/perfc.h>
+#include <hse/util/workqueue.h>
 
 #include <hse_ikvdb/kvdb_rparams.h>
 

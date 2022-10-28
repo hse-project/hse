@@ -3,9 +3,9 @@
  * Copyright (C) 2022 Micron Technology, Inc.  All rights reserved.
  */
 
-#include <hse_util/list.h>
+#include <hse/util/list.h>
 #include <hse/error/merr.h>
-#include <hse_util/event_counter.h>
+#include <hse/util/event_counter.h>
 
 #include <cn/kvset.h>
 

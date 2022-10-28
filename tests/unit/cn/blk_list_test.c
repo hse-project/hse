@@ -7,7 +7,7 @@
 #include <mtf/framework.h>
 #include <mock/api.h>
 
-#include <hse_util/inttypes.h>
+#include <hse/util/inttypes.h>
 
 #include <hse_ikvdb/cn.h>
 #include <hse_ikvdb/kvset_builder.h>

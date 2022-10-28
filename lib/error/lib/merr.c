@@ -10,8 +10,8 @@
 #include <bsd/string.h>
 
 #include <hse/error/merr.h>
-#include <hse_util/assert.h>
-#include <hse_util/page.h>
+#include <hse/util/assert.h>
+#include <hse/util/page.h>
 
 #define HSE_SW_BUG_MSG "HSE software bug"
 

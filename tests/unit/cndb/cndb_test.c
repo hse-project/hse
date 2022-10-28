@@ -7,7 +7,7 @@
 #include <mock/api.h>
 
 #include <hse/error/merr.h>
-#include <hse_util/list.h>
+#include <hse/util/list.h>
 
 #include <hse_ikvdb/cndb.h>
 #include <hse_ikvdb/kvdb_rparams.h>

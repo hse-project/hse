@@ -9,11 +9,11 @@
 #include <hse/limits.h>
 
 #include <hse_ikvdb/vcomp_params.h>
-#include <hse_util/atomic.h>
-#include <hse_util/inttypes.h>
-#include <hse_util/list.h>
-#include <hse_util/mutex.h>
-#include <hse_util/compression.h>
+#include <hse/util/atomic.h>
+#include <hse/util/inttypes.h>
+#include <hse/util/list.h>
+#include <hse/util/mutex.h>
+#include <hse/util/compression.h>
 
 struct ikvs;
 struct ikvdb_impl;

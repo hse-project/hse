@@ -3,8 +3,8 @@
  * Copyright (C) 2015-2021 Micron Technology, Inc.  All rights reserved.
  */
 
-#include <hse_util/platform.h>
-#include <hse_util/compression_lz4.h>
+#include <hse/util/platform.h>
+#include <hse/util/compression_lz4.h>
 #include <hse/logging/logging.h>
 
 #include <mtf/framework.h>

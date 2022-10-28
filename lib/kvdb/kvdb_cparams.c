@@ -10,7 +10,7 @@
 
 #include <bsd/string.h>
 
-#include <hse_util/storage.h>
+#include <hse/util/storage.h>
 
 #include <hse_ikvdb/kvdb_home.h>
 #include <hse_ikvdb/kvdb_cparams.h>

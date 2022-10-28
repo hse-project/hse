@@ -4,9 +4,9 @@
  *
  */
 
-#include <hse_util/platform.h>
-#include <hse_util/slab.h>
-#include <hse_util/event_counter.h>
+#include <hse/util/platform.h>
+#include <hse/util/slab.h>
+#include <hse/util/event_counter.h>
 
 #include <rbtree.h>
 

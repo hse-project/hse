@@ -8,7 +8,7 @@
 #include <mtf/framework.h>
 
 #include <hse/logging/logging.h>
-#include <hse_util/page.h>
+#include <hse/util/page.h>
 
 #include <cn/vblock_reader.h>
 #include <cn/omf.h>

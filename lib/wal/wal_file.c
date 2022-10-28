@@ -9,10 +9,10 @@
 
 #include <hse/logging/logging.h>
 
-#include <hse_util/event_counter.h>
-#include <hse_util/list.h>
-#include <hse_util/mutex.h>
-#include <hse_util/page.h>
+#include <hse/util/event_counter.h>
+#include <hse/util/list.h>
+#include <hse/util/mutex.h>
+#include <hse/util/page.h>
 
 #include <hse_ikvdb/cndb.h>
 

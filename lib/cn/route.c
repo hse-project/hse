@@ -7,16 +7,16 @@
 
 #include <hse_ikvdb/kvs_cparams.h>
 
-#include <hse_util/platform.h>
-#include <hse_util/alloc.h>
+#include <hse/util/platform.h>
+#include <hse/util/alloc.h>
 #include <hse/logging/logging.h>
-#include <hse_util/assert.h>
-#include <hse_util/keycmp.h>
-#include <hse_util/xrand.h>
-#include <hse_util/log2.h>
-#include <hse_util/byteorder.h>
-#include <hse_util/minmax.h>
-#include <hse_util/assert.h>
+#include <hse/util/assert.h>
+#include <hse/util/keycmp.h>
+#include <hse/util/xrand.h>
+#include <hse/util/log2.h>
+#include <hse/util/byteorder.h>
+#include <hse/util/minmax.h>
+#include <hse/util/assert.h>
 
 #include "cn_tree_internal.h"
 #include "route.h"

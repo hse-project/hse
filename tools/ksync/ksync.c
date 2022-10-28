@@ -13,8 +13,8 @@
 
 #include <hse/hse.h>
 
-#include <hse_util/inttypes.h>
-#include <hse_util/arch.h>
+#include <hse/util/inttypes.h>
+#include <hse/util/arch.h>
 
 #include <tools/parm_groups.h>
 

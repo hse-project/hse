@@ -3,8 +3,8 @@
  * Copyright (C) 2020 Micron Technology, Inc.  All rights reserved.
  */
 
-#include <hse_util/xrand.h>
-#include <hse_util/base.h>
+#include <hse/util/xrand.h>
+#include <hse/util/base.h>
 
 #include <mtf/framework.h>
 

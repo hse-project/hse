@@ -6,10 +6,10 @@
 #include <mtf/framework.h>
 
 #include <hse/logging/logging.h>
-#include <hse_util/bin_heap.h>
-#include <hse_util/keycmp.h>
-#include <hse_util/seqno.h>
-#include <hse_util/bonsai_tree.h>
+#include <hse/util/bin_heap.h>
+#include <hse/util/keycmp.h>
+#include <hse/util/seqno.h>
+#include <hse/util/bonsai_tree.h>
 
 #include <support/random_buffer.h>
 #include <hse_ikvdb/limits.h>

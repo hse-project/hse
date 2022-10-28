@@ -6,9 +6,9 @@
 #include <mtf/framework.h>
 
 #include <hse/logging/logging.h>
-#include <hse_util/element_source.h>
-#include <hse_util/seqno.h>
-#include <hse_util/keycmp.h>
+#include <hse/util/element_source.h>
+#include <hse/util/seqno.h>
+#include <hse/util/keycmp.h>
 
 #include <support/random_buffer.h>
 #include <hse_ikvdb/limits.h>

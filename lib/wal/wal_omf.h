@@ -6,7 +6,7 @@
 #ifndef WAL_OMF_H
 #define WAL_OMF_H
 
-#include <hse_util/omf.h>
+#include <hse/util/omf.h>
 
 #include <hse_ikvdb/omf_version.h>
 

@@ -31,9 +31,9 @@
 
 #include <hse/error/merr.h>
 #include <hse/hse.h>
-#include <hse_util/err_ctx.h>
-#include <hse_util/minmax.h>
-#include <hse_util/page.h>
+#include <hse/util/err_ctx.h>
+#include <hse/util/minmax.h>
+#include <hse/util/page.h>
 
 #include <hse/mpool/mpool.h>
 #include <hse/mpool/mcache.h>

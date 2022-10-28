@@ -5,7 +5,7 @@
 
 #include <mtf/framework.h>
 
-#include <hse_util/vlb.h>
+#include <hse/util/vlb.h>
 
 #include <hse_ikvdb/argv.h>
 #include <hse_ikvdb/limits.h>

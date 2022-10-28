@@ -6,7 +6,7 @@
 #include <mtf/framework.h>
 #include <mtf/common.h>
 
-#include <hse_util/data_tree.h>
+#include <hse/util/data_tree.h>
 
 #include "multithreaded_tester.h"
 

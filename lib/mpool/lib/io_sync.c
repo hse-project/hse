@@ -23,10 +23,10 @@
 
 #include <sys/mman.h>
 
-#include <hse_util/minmax.h>
-#include <hse_util/event_counter.h>
-#include <hse_util/assert.h>
-#include <hse_util/page.h>
+#include <hse/util/minmax.h>
+#include <hse/util/event_counter.h>
+#include <hse/util/assert.h>
+#include <hse/util/page.h>
 
 #include "io.h"
 

@@ -6,7 +6,7 @@
 #ifndef THREAD_TESTER_H
 #define THREAD_TESTER_H
 
-#include <hse_util/base.h>
+#include <hse/util/base.h>
 
 #define MAX_THREADS 32
 

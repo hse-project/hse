@@ -12,19 +12,19 @@
 #include <hse/flags.h>
 #include <hse/experimental.h>
 
-#include <hse_util/assert.h>
+#include <hse/util/assert.h>
 #include <hse/error/merr.h>
-#include <hse_util/event_counter.h>
-#include <hse_util/page.h>
-#include <hse_util/seqno.h>
-#include <hse_util/log2.h>
-#include <hse_util/atomic.h>
-#include <hse_util/vlb.h>
-#include <hse_util/compression_lz4.h>
-#include <hse_util/token_bucket.h>
-#include <hse_util/xrand.h>
-#include <hse_util/bkv_collection.h>
-#include <hse_util/alloc.h>
+#include <hse/util/event_counter.h>
+#include <hse/util/page.h>
+#include <hse/util/seqno.h>
+#include <hse/util/log2.h>
+#include <hse/util/atomic.h>
+#include <hse/util/vlb.h>
+#include <hse/util/compression_lz4.h>
+#include <hse/util/token_bucket.h>
+#include <hse/util/xrand.h>
+#include <hse/util/bkv_collection.h>
+#include <hse/util/alloc.h>
 
 #include <hse_ikvdb/config.h>
 #include <hse_ikvdb/argv.h>

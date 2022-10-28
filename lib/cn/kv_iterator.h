@@ -6,9 +6,9 @@
 #ifndef HSE_CN_KV_ITERATOR_H
 #define HSE_CN_KV_ITERATOR_H
 
-#include <hse_util/inttypes.h>
+#include <hse/util/inttypes.h>
 #include <hse/error/merr.h>
-#include <hse_util/bin_heap.h>
+#include <hse/util/bin_heap.h>
 
 #include <hse_ikvdb/tuple.h>
 

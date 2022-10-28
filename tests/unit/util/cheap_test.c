@@ -5,9 +5,9 @@
 
 #include <sys/mman.h>
 
-#include <hse_util/arch.h>
-#include <hse_util/cursor_heap.h>
-#include <hse_util/page.h>
+#include <hse/util/arch.h>
+#include <hse/util/cursor_heap.h>
+#include <hse/util/page.h>
 
 #include "cheap_testlib.h"
 

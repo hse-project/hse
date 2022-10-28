@@ -8,8 +8,8 @@
 
 #include <stdint.h>
 
-#include <hse_util/omf.h>
-#include <hse_util/compiler.h>
+#include <hse/util/omf.h>
+#include <hse/util/compiler.h>
 #include <hse/limits.h>
 #include <hse/error/merr.h>
 

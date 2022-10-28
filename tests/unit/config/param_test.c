@@ -6,8 +6,8 @@
 #include <mtf/framework.h>
 
 #include <hse_ikvdb/param.h>
-#include <hse_util/base.h>
-#include <hse_util/storage.h>
+#include <hse/util/base.h>
+#include <hse/util/storage.h>
 
 struct test_arr_type {
     int8_t field1;

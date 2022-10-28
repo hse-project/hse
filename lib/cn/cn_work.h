@@ -6,7 +6,7 @@
 #ifndef CN_WORK_H
 #define CN_WORK_H
 
-#include <hse_util/workqueue.h>
+#include <hse/util/workqueue.h>
 
 struct cn;
 struct cn_work;

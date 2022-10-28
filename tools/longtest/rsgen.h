@@ -5,7 +5,7 @@
 #ifndef RSGEN_H
 #define RSGEN_H
 
-#include <hse_util/inttypes.h>
+#include <hse/util/inttypes.h>
 
 /*
  * The approach used here to generate large random strings doesn't work too

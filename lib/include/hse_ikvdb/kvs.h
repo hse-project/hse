@@ -6,12 +6,12 @@
 #ifndef HSE_KVS_IKVS_H
 #define HSE_KVS_IKVS_H
 
-#include <hse_util/arch.h>
-#include <hse_util/list.h>
-#include <hse_util/inttypes.h>
+#include <hse/util/arch.h>
+#include <hse/util/list.h>
+#include <hse/util/inttypes.h>
 #include <hse/error/merr.h>
-#include <hse_util/mutex.h>
-#include <hse_util/perfc.h>
+#include <hse/util/mutex.h>
+#include <hse/util/perfc.h>
 
 #include <hse_ikvdb/tuple.h>
 #include <hse_ikvdb/kvdb_health.h>

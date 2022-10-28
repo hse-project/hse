@@ -28,11 +28,11 @@
 #include <hse/rest/method.h>
 #include <hse/rest/request.h>
 #include <hse/rest/response.h>
-#include <hse_util/assert.h>
-#include <hse_util/compiler.h>
-#include <hse_util/event_counter.h>
-#include <hse_util/list.h>
-#include <hse_util/mutex.h>
+#include <hse/util/assert.h>
+#include <hse/util/compiler.h>
+#include <hse/util/event_counter.h>
+#include <hse/util/list.h>
+#include <hse/util/mutex.h>
 #include <hse/rest/server.h>
 
 #include "status.h"

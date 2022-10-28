@@ -17,11 +17,11 @@
 #include <hse/hse.h>
 #include <hse/logging/logging.h>
 
-#include <hse_util/assert.h>
-#include <hse_util/dax.h>
-#include <hse_util/event_counter.h>
-#include <hse_util/page.h>
-#include <hse_util/workqueue.h>
+#include <hse/util/assert.h>
+#include <hse/util/dax.h>
+#include <hse/util/event_counter.h>
+#include <hse/util/page.h>
+#include <hse/util/workqueue.h>
 
 #include <hse/mpool/mpool.h>
 #include <hse/mpool/mpool_structs.h>

@@ -3,10 +3,10 @@
  * Copyright (C) 2015-2021 Micron Technology, Inc.  All rights reserved.
  */
 
-#include <hse_util/platform.h>
+#include <hse/util/platform.h>
 #include <hse/error/merr.h>
 #include <hse/logging/logging.h>
-#include <hse_util/perfc.h>
+#include <hse/util/perfc.h>
 
 #include <hse_ikvdb/c0sk_perfc.h>
 #include <hse_ikvdb/kvdb_perfc.h>

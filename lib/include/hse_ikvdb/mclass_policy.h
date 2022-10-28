@@ -8,7 +8,7 @@
 
 #include <stdint.h>
 
-#include <hse_util/compiler.h>
+#include <hse/util/compiler.h>
 #include <hse/error/merr.h>
 
 #include <hse/mpool/mpool.h>

@@ -9,7 +9,7 @@
 #include <rbtree.h>
 
 #include <hse/error/merr.h>
-#include <hse_util/compiler.h>
+#include <hse/util/compiler.h>
 
 #include "mclass.h"
 

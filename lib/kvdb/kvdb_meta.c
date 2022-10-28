@@ -20,8 +20,8 @@
 #include <hse_ikvdb/kvdb_meta.h>
 #include <hse_ikvdb/kvdb_home.h>
 #include <hse_ikvdb/omf_version.h>
-#include <hse_util/assert.h>
-#include <hse_util/base.h>
+#include <hse/util/assert.h>
+#include <hse/util/base.h>
 
 #include <hse/mpool/mpool.h>
 

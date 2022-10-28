@@ -8,7 +8,7 @@
 #include <mtf/framework.h>
 
 #include <hse/error/merr.h>
-#include <hse_util/inttypes.h>
+#include <hse/util/inttypes.h>
 
 #include <hse/mpool/mpool.h>
 

@@ -6,9 +6,9 @@
 #include <mtf/framework.h>
 #include <mock/api.h>
 
-#include <hse_util/bonsai_tree.h>
-#include <hse_util/seqno.h>
-#include <hse_util/keycmp.h>
+#include <hse/util/bonsai_tree.h>
+#include <hse/util/seqno.h>
+#include <hse/util/keycmp.h>
 
 #include <hse_ikvdb/tuple.h>
 #include <hse_ikvdb/lc.h>

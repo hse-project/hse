@@ -7,12 +7,12 @@
 #include <sys/statvfs.h>
 
 #include <hse/logging/logging.h>
-#include <hse_util/assert.h>
-#include <hse_util/event_counter.h>
-#include <hse_util/minmax.h>
-#include <hse_util/page.h>
-#include <hse_util/slab.h>
-#include <hse_util/storage.h>
+#include <hse/util/assert.h>
+#include <hse/util/event_counter.h>
+#include <hse/util/minmax.h>
+#include <hse/util/page.h>
+#include <hse/util/slab.h>
+#include <hse/util/storage.h>
 
 #include "omf.h"
 #include "mclass.h"

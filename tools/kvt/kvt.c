@@ -143,7 +143,7 @@
 #include <hse/hse.h>
 
 #include <tools/parm_groups.h>
-#include <hse_util/arch.h>
+#include <hse/util/arch.h>
 
 #include <xoroshiro.h>
 #include <xxhash.h>

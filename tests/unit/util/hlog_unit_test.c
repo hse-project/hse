@@ -4,8 +4,8 @@
  */
 
 #include <mtf/framework.h>
-#include <hse_util/hash.h>
-#include <hse_util/hlog.h>
+#include <hse/util/hash.h>
+#include <hse/util/hlog.h>
 
 MTF_BEGIN_UTEST_COLLECTION(hlog);
 

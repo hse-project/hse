@@ -8,8 +8,8 @@
 #include <mock/api.h>
 
 #include <hse/error/merr.h>
-#include <hse_util/inttypes.h>
-#include <hse_util/keycmp.h>
+#include <hse/util/inttypes.h>
+#include <hse/util/keycmp.h>
 
 #include <hse_ikvdb/limits.h>
 

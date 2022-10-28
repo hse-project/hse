@@ -3,8 +3,8 @@
  * Copyright (C) 2022 Micron Technology, Inc.  All rights reserved.
  */
 
-#include <hse_util/atomic.h>
-#include <hse_util/mutex.h>
+#include <hse/util/atomic.h>
+#include <hse/util/mutex.h>
 
 #include <endian.h>
 #include <errno.h>

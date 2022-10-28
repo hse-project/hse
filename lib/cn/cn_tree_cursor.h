@@ -6,9 +6,9 @@
 #ifndef HSE_KVDB_CN_CN_TREE_CURSOR_H
 #define HSE_KVDB_CN_CN_TREE_CURSOR_H
 
-#include <hse_util/inttypes.h>
+#include <hse/util/inttypes.h>
 #include <hse/error/merr.h>
-#include <hse_util/table.h>
+#include <hse/util/table.h>
 
 #include <hse_ikvdb/kvs.h>
 #include <hse_ikvdb/cursor.h>

@@ -16,9 +16,9 @@
 #include <hse/rest/headers.h>
 #include <hse/rest/status.h>
 
-#include <hse_util/base.h>
-#include <hse_util/data_tree.h>
-#include <hse_util/event_counter.h>
+#include <hse/util/base.h>
+#include <hse/util/data_tree.h>
+#include <hse/util/event_counter.h>
 
 char socket_path[PATH_MAX];
 char rest_socket_path_param[PATH_MAX + PATH_MAX / 2];

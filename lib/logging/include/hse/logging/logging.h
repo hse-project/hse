@@ -11,7 +11,7 @@
 #include <stdint.h>
 #include <syslog.h>
 
-#include <hse_util/compiler.h>
+#include <hse/util/compiler.h>
 
 #include <hse/error/merr.h>
 

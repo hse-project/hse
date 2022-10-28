@@ -9,7 +9,7 @@
 #include <stdlib.h>
 #include <hse/hse.h>
 
-#include <hse_util/compiler.h>
+#include <hse/util/compiler.h>
 
 extern int DEBUG;
 

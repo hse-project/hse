@@ -13,11 +13,11 @@ struct ikvdb;
 struct kvdb_health;
 struct csched;
 
-#include <hse_util/atomic.h>
-#include <hse_util/workqueue.h>
-#include <hse_util/inttypes.h>
-#include <hse_util/token_bucket.h>
-#include <hse_util/perfc.h>
+#include <hse/util/atomic.h>
+#include <hse/util/workqueue.h>
+#include <hse/util/inttypes.h>
+#include <hse/util/token_bucket.h>
+#include <hse/util/perfc.h>
 
 #include <hse/limits.h>
 #include <hse/mpool/mpool.h>

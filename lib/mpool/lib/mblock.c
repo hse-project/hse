@@ -3,7 +3,7 @@
  * Copyright (C) 2021 Micron Technology, Inc.  All rights reserved.
  */
 
-#include <hse_util/event_counter.h>
+#include <hse/util/event_counter.h>
 #include <hse/logging/logging.h>
 
 #include "mpool_internal.h"

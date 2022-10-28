@@ -14,7 +14,7 @@
 
 #include <hse/types.h>
 
-#include <hse_util/compiler.h>
+#include <hse/util/compiler.h>
 
 void warn(hse_err_t err, char *fmt, ...) HSE_PRINTF(2, 3);
 void fatal(hse_err_t err, char *fmt, ...) HSE_PRINTF(2, 3);

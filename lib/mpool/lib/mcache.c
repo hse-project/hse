@@ -7,8 +7,8 @@
 
 #include <hse/logging/logging.h>
 
-#include <hse_util/event_counter.h>
-#include <hse_util/page.h>
+#include <hse/util/event_counter.h>
+#include <hse/util/page.h>
 
 #include "mpool_internal.h"
 #include "mclass.h"

@@ -8,10 +8,10 @@
 
 /* MTF_MOCK_DECL(cn_tree_internal) */
 
-#include <hse_util/rmlock.h>
-#include <hse_util/mutex.h>
-#include <hse_util/spinlock.h>
-#include <hse_util/list.h>
+#include <hse/util/rmlock.h>
+#include <hse/util/mutex.h>
+#include <hse/util/spinlock.h>
+#include <hse/util/list.h>
 
 #include <hse/limits.h>
 

@@ -3,9 +3,9 @@
  * Copyright (C) 2022 Micron Technology, Inc.  All rights reserved.
  */
 
-#include <hse_util/inttypes.h>
-#include <hse_util/list.h>
-#include <hse_util/rmlock.h>
+#include <hse/util/inttypes.h>
+#include <hse/util/list.h>
+#include <hse/util/rmlock.h>
 
 #include <hse/error/merr.h>
 #include <hse/logging/logging.h>

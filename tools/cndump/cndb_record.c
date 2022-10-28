@@ -4,7 +4,7 @@
  */
 
 #include <cndb/omf.h>
-#include <hse_util/page.h>
+#include <hse/util/page.h>
 
 #include "cndb_record.h"
 #include "fatal.h"

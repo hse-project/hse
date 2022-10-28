@@ -6,7 +6,7 @@
 #ifndef HSE_KVDB_CN_CSCHED_OPS_H
 #define HSE_KVDB_CN_CSCHED_OPS_H
 
-#include <hse_util/inttypes.h>
+#include <hse/util/inttypes.h>
 
 #include <hse_ikvdb/sched_sts.h>
 

@@ -7,11 +7,11 @@
 #ifndef HSE_KVDB_CN_CN_TREE_COMPACT_H
 #define HSE_KVDB_CN_CN_TREE_COMPACT_H
 
-#include <hse_util/atomic.h>
-#include <hse_util/inttypes.h>
-#include <hse_util/list.h>
-#include <hse_util/workqueue.h>
-#include <hse_util/perfc.h>
+#include <hse/util/atomic.h>
+#include <hse/util/inttypes.h>
+#include <hse/util/list.h>
+#include <hse/util/workqueue.h>
+#include <hse/util/perfc.h>
 
 #include <hse_ikvdb/csched.h>
 #include <hse_ikvdb/sched_sts.h>

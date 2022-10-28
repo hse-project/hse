@@ -47,15 +47,15 @@ mocked_headers = [
     meson.project_source_root() / 'lib/kvdb/kvdb_pfxlock.h',
     meson.project_source_root() / 'lib/lc/bonsai_iter.h',
     meson.project_source_root() / 'lib/mpool/include/hse/mpool/mpool.h',
-    meson.project_source_root() / 'lib/util/include/hse_util/bin_heap.h',
-    meson.project_source_root() / 'lib/util/include/hse_util/dax.h',
-    meson.project_source_root() / 'lib/util/include/hse_util/hlog.h',
-    meson.project_source_root() / 'lib/util/include/hse_util/keylock.h',
-    meson.project_source_root() / 'lib/util/include/hse_util/perfc.h',
-    meson.project_source_root() / 'lib/util/include/hse_util/platform.h',
-    meson.project_source_root() / 'lib/util/include/hse_util/rmlock.h',
-    meson.project_source_root() / 'lib/util/include/hse_util/slab.h',
-    meson.project_source_root() / 'lib/util/include/hse_util/token_bucket.h',
+    meson.project_source_root() / 'lib/util/include/hse/util/bin_heap.h',
+    meson.project_source_root() / 'lib/util/include/hse/util/dax.h',
+    meson.project_source_root() / 'lib/util/include/hse/util/hlog.h',
+    meson.project_source_root() / 'lib/util/include/hse/util/keylock.h',
+    meson.project_source_root() / 'lib/util/include/hse/util/perfc.h',
+    meson.project_source_root() / 'lib/util/include/hse/util/platform.h',
+    meson.project_source_root() / 'lib/util/include/hse/util/rmlock.h',
+    meson.project_source_root() / 'lib/util/include/hse/util/slab.h',
+    meson.project_source_root() / 'lib/util/include/hse/util/token_bucket.h',
     meson.project_source_root() / 'tests/mocks/include/mock/allocation.h',
 ]
 
@@ -69,7 +69,7 @@ mapi_idx_h = custom_target(
         '@0@'.format(' '.join(mocked_headers)),
     ],
     depend_files: mocked_headers,
-    output: 'mapi_idx.h',
+    output: 'mapi_idx.h'
 )
 
 mocked_components = {
@@ -85,8 +85,8 @@ mocked_components = {
     'kvs': meson.project_source_root() / 'lib/kvs',
     'mpool': meson.project_source_root() / 'lib/mpool/include/hse/mpool',
     'mock': meson.project_source_root() / 'tests/mocks/include/mock',
-    'util': meson.project_source_root() / 'lib/util/include/hse_util',
-    'util-internal': meson.project_source_root() / 'lib/util/src',
+    'util': meson.project_source_root() / 'lib/util/include/hse/util',
+    'util-internal': meson.project_source_root() / 'lib/util/lib',
 }
 
 mocked_includes = include_directories('.')
@@ -100,7 +100,7 @@ foreach mc, source_dir : mocked_components
     ut_mock_decl_files_output = run_command(
         ut_mock_decl_files,
         source_dir,
-        check: true,
+        check: true
     ).stdout().strip()
 
     if ut_mock_decl_files_output == ''

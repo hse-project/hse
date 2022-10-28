@@ -5,7 +5,7 @@
 
 #include <mtf/framework.h>
 
-#include <hse_util/list.h>
+#include <hse/util/list.h>
 
 int
 list_test_pre(struct mtf_test_info *lcl_ti)

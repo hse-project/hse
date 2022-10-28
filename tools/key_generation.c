@@ -7,7 +7,7 @@
 #include <stdlib.h>
 #include <string.h>
 
-#include <hse_util/inttypes.h>
+#include <hse/util/inttypes.h>
 #include <tools/key_generation.h>
 
 #include "key_generation_private.h"

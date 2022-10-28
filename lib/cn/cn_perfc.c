@@ -3,7 +3,7 @@
  * Copyright (C) 2015-2022 Micron Technology, Inc.  All rights reserved.
  */
 
-#include <hse_util/platform.h>
+#include <hse/util/platform.h>
 #include <hse/logging/logging.h>
 
 #include <hse_ikvdb/tuple.h>

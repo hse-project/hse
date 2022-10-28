@@ -9,10 +9,10 @@
 #include <hse/logging/logging.h>
 #include <hse/rest/server.h>
 #include <hse_ikvdb/sched_sts.h>
-#include <hse_util/event_counter.h>
-#include <hse_util/mutex.h>
-#include <hse_util/platform.h>
-#include <hse_util/workqueue.h>
+#include <hse/util/event_counter.h>
+#include <hse/util/mutex.h>
+#include <hse/util/platform.h>
+#include <hse/util/workqueue.h>
 
 #include <bsd/string.h>
 

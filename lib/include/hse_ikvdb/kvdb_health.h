@@ -6,7 +6,7 @@
 #ifndef HSE_KVDB_HEALTH_H
 #define HSE_KVDB_HEALTH_H
 
-#include <hse_util/atomic.h>
+#include <hse/util/atomic.h>
 #include <hse/error/merr.h>
 
 struct kvdb_health_stat {

@@ -37,12 +37,12 @@
 #include <hse/hse.h>
 #include <hse/version.h>
 
-#include <hse_util/platform.h>
-#include <hse_util/compiler.h>
-#include <hse_util/page.h>
-#include <hse_util/timer.h>
-#include <hse_util/mutex.h>
-#include <hse_util/bonsai_tree.h>
+#include <hse/util/platform.h>
+#include <hse/util/compiler.h>
+#include <hse/util/page.h>
+#include <hse/util/timer.h>
+#include <hse/util/mutex.h>
+#include <hse/util/bonsai_tree.h>
 
 #include <xoroshiro.h>
 

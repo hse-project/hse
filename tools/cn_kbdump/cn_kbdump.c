@@ -7,13 +7,13 @@
  * cn_kbdump - print internal structure of a kblock
  */
 
-#include <hse_util/platform.h>
-#include <hse_util/page.h>
-#include <hse_util/minmax.h>
-#include <hse_util/table.h>
-#include <hse_util/fmt.h>
-#include <hse_util/event_counter.h>
-#include <hse_util/bloom_filter.h>
+#include <hse/util/platform.h>
+#include <hse/util/page.h>
+#include <hse/util/minmax.h>
+#include <hse/util/table.h>
+#include <hse/util/fmt.h>
+#include <hse/util/event_counter.h>
+#include <hse/util/bloom_filter.h>
 
 #include <hse/mpool/mpool.h>
 

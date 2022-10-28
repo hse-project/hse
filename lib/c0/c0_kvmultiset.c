@@ -7,14 +7,14 @@
 
 #include <urcu-bp.h>
 
-#include <hse_util/platform.h>
-#include <hse_util/slab.h>
-#include <hse_util/condvar.h>
-#include <hse_util/perfc.h>
-#include <hse_util/fmt.h>
-#include <hse_util/seqno.h>
-#include <hse_util/xrand.h>
-#include <hse_util/keycmp.h>
+#include <hse/util/platform.h>
+#include <hse/util/slab.h>
+#include <hse/util/condvar.h>
+#include <hse/util/perfc.h>
+#include <hse/util/fmt.h>
+#include <hse/util/seqno.h>
+#include <hse/util/xrand.h>
+#include <hse/util/keycmp.h>
 #include <hse/logging/logging.h>
 
 #include <hse_ikvdb/ikvdb.h>
@@ -29,7 +29,7 @@
 #include "c0_cursor.h"
 #include "c0_ingest_work.h"
 
-#include <hse_util/bonsai_tree.h>
+#include <hse/util/bonsai_tree.h>
 
 /* clang-format off */
 

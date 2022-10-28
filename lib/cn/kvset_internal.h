@@ -7,11 +7,11 @@
 #define HSE_KVS_CN_KVSET_INTERNAL_H
 
 #include <hse/error/merr.h>
-#include <hse_util/inttypes.h>
-#include <hse_util/list.h>
-#include <hse_util/atomic.h>
-#include <hse_util/workqueue.h>
-#include <hse_util/key_util.h>
+#include <hse/util/inttypes.h>
+#include <hse/util/list.h>
+#include <hse/util/atomic.h>
+#include <hse/util/workqueue.h>
+#include <hse/util/key_util.h>
 
 #include <hse_ikvdb/blk_list.h>
 #include <hse_ikvdb/tuple.h>

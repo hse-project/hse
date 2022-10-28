@@ -10,11 +10,11 @@
 #include <hse_ikvdb/c0_kvset.h>
 #include <hse_ikvdb/throttle.h>
 
-#include <hse_util/inttypes.h>
+#include <hse/util/inttypes.h>
 #include <hse/error/merr.h>
-#include <hse_util/workqueue.h>
-#include <hse_util/bin_heap.h>
-#include <hse_util/condvar.h>
+#include <hse/util/workqueue.h>
+#include <hse/util/bin_heap.h>
+#include <hse/util/condvar.h>
 
 /* MTF_MOCK_DECL(c0kvms) */
 

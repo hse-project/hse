@@ -7,9 +7,9 @@
 #define HSE_KVS_CN_VBLOCK_BUILDER_H
 
 #include <hse/error/merr.h>
-#include <hse_util/inttypes.h>
+#include <hse/util/inttypes.h>
 
-#include <hse_util/perfc.h>
+#include <hse/util/perfc.h>
 
 struct cn;
 struct vblock_builder;

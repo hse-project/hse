@@ -10,7 +10,7 @@
 
 #include <hse/error/merr.h>
 
-#include <hse_util/compiler.h>
+#include <hse/util/compiler.h>
 
 typedef merr_t (*rest_client_cb)(long status, const char *headers, size_t headers_len,
     const char *output, size_t output_len, void *arg);

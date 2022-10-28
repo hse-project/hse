@@ -7,10 +7,10 @@
 #define HSE_KVS_CN_KBLOCK_BUILDER_H
 
 #include <hse/error/merr.h>
-#include <hse_util/inttypes.h>
+#include <hse/util/inttypes.h>
 
-#include <hse_util/perfc.h>
-#include <hse_util/key_util.h>
+#include <hse/util/perfc.h>
+#include <hse/util/key_util.h>
 
 struct cn;
 struct cn_merge_stats;

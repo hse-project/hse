@@ -6,10 +6,10 @@
 #ifndef HSE_IKVS_KEY_HASH_H
 #define HSE_IKVS_KEY_HASH_H
 
-#include <hse_util/hash.h>
-#include <hse_util/key_util.h>
-#include <hse_util/inttypes.h>
-#include <hse_util/assert.h>
+#include <hse/util/hash.h>
+#include <hse/util/key_util.h>
+#include <hse/util/inttypes.h>
+#include <hse/util/assert.h>
 
 /*
  * This file defines the hash algorithm used for:

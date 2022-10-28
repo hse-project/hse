@@ -8,7 +8,7 @@
 
 #include <stddef.h>
 
-#include <hse_util/compiler.h>
+#include <hse/util/compiler.h>
 
 /**
  * Create parameter array from argv

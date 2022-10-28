@@ -22,7 +22,7 @@
 #include <unistd.h>
 
 #include <hse/hse.h>
-#include <hse_util/compiler.h>
+#include <hse/util/compiler.h>
 #include "stress_util.h"
 
 #define MAX_KEY_LEN 2048

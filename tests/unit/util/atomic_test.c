@@ -7,7 +7,7 @@
 
 #include <hse/error/merr.h>
 #include <hse/logging/logging.h>
-#include <hse_util/atomic.h>
+#include <hse/util/atomic.h>
 
 #include "multithreaded_tester.h"
 #include <mtf/framework.h>

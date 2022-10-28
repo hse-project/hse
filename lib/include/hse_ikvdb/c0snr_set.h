@@ -6,9 +6,9 @@
 #ifndef HSE_C0SNR_SET_H
 #define HSE_C0SNR_SET_H
 
-#include <hse_util/platform.h>
-#include <hse_util/event_counter.h>
-#include <hse_util/atomic.h>
+#include <hse/util/platform.h>
+#include <hse/util/event_counter.h>
+#include <hse/util/atomic.h>
 
 #define KVMS_GEN_INVALID             (~0UL)
 

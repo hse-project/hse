@@ -7,10 +7,10 @@
 
 #include <hse_ikvdb/tuple.h>
 
-#include <hse_util/inttypes.h>
+#include <hse/util/inttypes.h>
 #include <hse/logging/logging.h>
-#include <hse_util/page.h>
-#include <hse_util/bloom_filter.h>
+#include <hse/util/page.h>
+#include <hse/util/bloom_filter.h>
 
 #include <cn/omf.h>
 #include <cn/bloom_reader.h>

@@ -3,9 +3,9 @@
  * Copyright (C) 2015-2020 Micron Technology, Inc.  All rights reserved.
  */
 
-#include <hse_util/err_ctx.h>
-#include <hse_util/parse_num.h>
-#include <hse_util/storage.h>
+#include <hse/util/err_ctx.h>
+#include <hse/util/parse_num.h>
+#include <hse/util/storage.h>
 
 #include <mtf/framework.h>
 

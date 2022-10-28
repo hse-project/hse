@@ -6,11 +6,11 @@
 #include <mtf/framework.h>
 #include <mock/allocation.h>
 
-#include <hse_util/arch.h>
-#include <hse_util/inttypes.h>
-#include <hse_util/slab.h>
-#include <hse_util/minmax.h>
-#include <hse_util/page.h>
+#include <hse/util/arch.h>
+#include <hse/util/inttypes.h>
+#include <hse/util/slab.h>
+#include <hse/util/minmax.h>
+#include <hse/util/page.h>
 #include <hse/logging/logging.h>
 
 int

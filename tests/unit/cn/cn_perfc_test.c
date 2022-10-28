@@ -5,7 +5,7 @@
 
 #include <mtf/framework.h>
 
-#include <hse_util/platform.h>
+#include <hse/util/platform.h>
 
 #include <cn/cn_perfc_internal.h>
 

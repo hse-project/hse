@@ -10,7 +10,7 @@
 #include <stdatomic.h>
 
 #include <hse/error/merr.h>
-#include <hse_util/compiler.h>
+#include <hse/util/compiler.h>
 
 struct wal_fileset;
 struct wal_bufset;

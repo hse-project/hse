@@ -6,7 +6,7 @@
 #ifndef HSE_KVDB_CN_CN_TREE_CREATE_H
 #define HSE_KVDB_CN_CN_TREE_CREATE_H
 
-#include <hse_util/platform.h>
+#include <hse/util/platform.h>
 
 /* MTF_MOCK_DECL(cn_tree_create) */
 

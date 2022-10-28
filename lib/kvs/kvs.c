@@ -9,16 +9,16 @@
 
 #include <hse/kvdb_perfc.h>
 
-#include <hse_util/assert.h>
-#include <hse_util/platform.h>
-#include <hse_util/alloc.h>
-#include <hse_util/slab.h>
-#include <hse_util/event_counter.h>
-#include <hse_util/perfc.h>
-#include <hse_util/fmt.h>
-#include <hse_util/byteorder.h>
-#include <hse_util/slab.h>
-#include <hse_util/map.h>
+#include <hse/util/assert.h>
+#include <hse/util/platform.h>
+#include <hse/util/alloc.h>
+#include <hse/util/slab.h>
+#include <hse/util/event_counter.h>
+#include <hse/util/perfc.h>
+#include <hse/util/fmt.h>
+#include <hse/util/byteorder.h>
+#include <hse/util/slab.h>
+#include <hse/util/map.h>
 #include <hse/logging/logging.h>
 
 #include <hse_ikvdb/c0.h>

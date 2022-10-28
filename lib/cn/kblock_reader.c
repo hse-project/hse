@@ -4,14 +4,14 @@
  */
 
 #include <hse/error/merr.h>
-#include <hse_util/event_counter.h>
-#include <hse_util/page.h>
-#include <hse_util/alloc.h>
-#include <hse_util/slab.h>
-#include <hse_util/assert.h>
-#include <hse_util/compiler.h>
-#include <hse_util/arch.h>
-#include <hse_util/bloom_filter.h>
+#include <hse/util/event_counter.h>
+#include <hse/util/page.h>
+#include <hse/util/alloc.h>
+#include <hse/util/slab.h>
+#include <hse/util/assert.h>
+#include <hse/util/compiler.h>
+#include <hse/util/arch.h>
+#include <hse/util/bloom_filter.h>
 #include <hse/logging/logging.h>
 
 #include <hse_ikvdb/kvs_rparams.h>

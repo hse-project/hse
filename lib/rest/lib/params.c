@@ -13,8 +13,8 @@
 
 #include <hse/rest/params.h>
 
-#include <hse_util/assert.h>
-#include <hse_util/compiler.h>
+#include <hse/util/assert.h>
+#include <hse/util/compiler.h>
 
 static const char *
 get_value(const struct rest_params *const params, const char *const key)

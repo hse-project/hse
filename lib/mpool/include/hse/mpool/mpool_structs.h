@@ -13,7 +13,7 @@
 
 #include <hse/types.h>
 
-#include <hse_util/storage.h>
+#include <hse/util/storage.h>
 
 #define WAL_FILE_PFX           "wal"
 #define WAL_FILE_PFX_LEN       (sizeof(WAL_FILE_PFX) - 1)

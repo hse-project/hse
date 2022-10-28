@@ -4,8 +4,8 @@
  */
 
 #include <hse/limits.h>
-#include <hse_util/base.h>
-#include <hse_util/keycmp.h>
+#include <hse/util/base.h>
+#include <hse/util/keycmp.h>
 
 #include <support/ref_tree.h>
 
@@ -254,5 +254,3 @@ ref_tree_iter_read(struct ref_tree_iter *rt_iter, char **key, size_t *klen)
 
     return !rt_iter->eof;
 }
-
-

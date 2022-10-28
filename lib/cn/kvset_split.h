@@ -8,9 +8,9 @@
 
 #include <hse/error/merr.h>
 #include <hse_ikvdb/blk_list.h>
-#include <hse_util/inttypes.h>
-#include <hse_util/hlog.h>
-#include <hse_util/key_util.h>
+#include <hse/util/inttypes.h>
+#include <hse/util/hlog.h>
+#include <hse/util/key_util.h>
 
 #include "kblock_reader.h"
 #include "wbt_reader.h"

@@ -26,10 +26,10 @@
 #include <bsd/string.h>
 
 #include <hse/error/merr.h>
-#include <hse_util/atomic.h>
-#include <hse_util/err_ctx.h>
-#include <hse_util/platform.h>
-#include <hse_util/parse_num.h>
+#include <hse/util/atomic.h>
+#include <hse/util/err_ctx.h>
+#include <hse/util/platform.h>
+#include <hse/util/parse_num.h>
 
 #include <hse/hse.h>
 #include <hse/mpool/mpool.h>

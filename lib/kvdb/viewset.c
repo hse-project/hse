@@ -3,17 +3,17 @@
  * Copyright (C) 2015-2022 Micron Technology, Inc.  All rights reserved.
  */
 
-#include <hse_util/assert.h>
-#include <hse_util/platform.h>
-#include <hse_util/alloc.h>
-#include <hse_util/slab.h>
-#include <hse_util/minmax.h>
-#include <hse_util/spinlock.h>
-#include <hse_util/mutex.h>
-#include <hse_util/log2.h>
-#include <hse_util/page.h>
+#include <hse/util/assert.h>
+#include <hse/util/platform.h>
+#include <hse/util/alloc.h>
+#include <hse/util/slab.h>
+#include <hse/util/minmax.h>
+#include <hse/util/spinlock.h>
+#include <hse/util/mutex.h>
+#include <hse/util/log2.h>
+#include <hse/util/page.h>
 #include <hse/error/merr.h>
-#include <hse_util/event_counter.h>
+#include <hse/util/event_counter.h>
 
 #define MTF_MOCK_IMPL_viewset
 

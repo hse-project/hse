@@ -5,9 +5,9 @@
 
 #include <mtf/framework.h>
 
-#include <hse_util/slab.h>
+#include <hse/util/slab.h>
 #include <hse/error/merr.h>
-#include <hse_util/printbuf.h>
+#include <hse/util/printbuf.h>
 
 MTF_MODULE_UNDER_TEST(hse_platform);
 
