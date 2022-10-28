@@ -60,6 +60,14 @@ struct kvdb_ctxn_impl {
     struct viewset         *ctxn_viewset;
     void                   *ctxn_viewset_cookie;
 
+    // Document thread safety of this object.  Some notes:
+    // 1. relies on client serializing operations that use the same txn, which
+    //    includes the obvious hse_kvdb_txn_commit/abort/etc functions as well
+    //    as operations on cursors that are bound to a txn.
+    // 2. ctxns are also accessed by the following internal threads:
+    //    - the reaper
+    //    - anything else?
+    // 3. which fields are used by internal threads, and how are they protected?
     struct cds_list_head    ctxn_alloc_link HSE_ALIGNED(CAA_CACHE_LINE_SIZE);
     struct list_head        ctxn_free_link;
     struct list_head        ctxn_abort_link;

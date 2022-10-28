@@ -2779,6 +2779,10 @@ ikvdb_kvs_cursor_create(
         if (ev(err))
             return err;
     }
+    // The above check errors out if the txn is not active, but at this point we
+    // could be in a race with the reaper who may expire the txn.  We should
+    // omit this check and rely on the call to kvdb_ctxn_cursor_bind() which
+    // verifies txn state and makes the binding, both with the txn locked.
 
     /* The initialization sequence is driven by the way the sequence
      * number horizon is tracked, which requires atomically getting a
@@ -2804,6 +2808,8 @@ ikvdb_kvs_cursor_create(
     cur->kc_kvs = kk;
     cur->kc_gen = 0;
     cur->kc_bind = ctxn ? kvdb_ctxn_cursor_bind(ctxn) : NULL;
+    // If ctxn has gone inactive, then this kc_bind will point to a bind struct
+    // but without a ref on the bind struct.  See kvdb_ctxn_cursor_bind() for details.
 
     /* Temporarily lock a view until this cursor gets refs on cn kvsets. */
     err = cursor_view_acquire(cur, &tseqno);

@@ -51,6 +51,7 @@ struct kvdb_ctxn_bind {
     atomic_int        b_ref;
     bool              b_update;
 };
+// struct kvdb_ctxn_bind member "b_update" is not used.
 
 /* MTF_MOCK */
 struct kvdb_ctxn *

@@ -754,6 +754,11 @@ hse_kvs_put(
  * so that only one thread is actively performing an operation in the context of
  * a particular transaction at any particular time.
  *
+ * TODO: Add detail on thread safety, such as: client must serialize all
+ * operations that use a single txn, which includes includes the obvious
+ * hse_kvdb_txn_commit/abort/etc functions as well as operations on cursors that
+ * are bound to a txn.
+ *
  * The general lifecycle of a transaction is as follows:
  *
  *                       +----------+
@@ -783,12 +788,23 @@ hse_kvs_put(
  * outside of the transaction unless and until it is committed. All such
  * mutations become visible atomically when the transaction commits.
  *
+ * TODO: Improve state diagram
+ * - add events to the state diagram, including: txn abort, commit, expired,
+ *   write conflict detected
+ * - identify events that are internal to hse and asynchronous w/ client
+ *   activity (internal events, write conflict), and which are external.
+ * - mention txn free can be used from any state.
+ *
  * @anchor WRITE_CONFLICT
  *
  * Within a transaction whenever a write operation e.g., put, delete, etc.,
  * encounters a write conflict, that operation returns an error code of
  * ECANCELED. The caller is then expected to re-try the operation in a new
  * transaction, see @ref ERRORS.
+ *
+ * TODO: Add more detail: After a write conflict, the txn is dead and must be
+ * aborted or freed.  May not need to say too much if the above state diagram
+ * were complete.
  */
 /** @{ */
 

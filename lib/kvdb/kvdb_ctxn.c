@@ -75,6 +75,20 @@ struct kvdb_ctxn_set_impl {
 
 /* clang-format on */
 
+// Would love to document context in which txn functions can be called.
+// Possibilities include:
+//   - hse init/fini, kvdb open/close, client txn operations, client cursor
+//     operations, reaper, and probably delayed work.
+//
+// With so many possibilities it is hard to reason about the correctness of this
+// code.
+//
+// How about a standard way of identifying these contexts that we can use
+// throughout our code base? At minimum there are two contexts (client and
+// internal) but a more specific classification might be helpful (eg: hse
+// init/free, kvdb open/close, REST, reaper, compaction, etc.).
+
+
 static HSE_ALWAYS_INLINE merr_t
 kvdb_ctxn_trylock_impl(struct kvdb_ctxn_impl *ctxn)
 {
@@ -87,6 +101,7 @@ kvdb_ctxn_trylock_impl(struct kvdb_ctxn_impl *ctxn)
 
     return 0;
 }
+// kvdb_ctxn_trylock_impl() is a misleading name. How about kvdb_ctxn_lock_if_active()?
 
 static HSE_ALWAYS_INLINE void
 kvdb_ctxn_lock_impl(struct kvdb_ctxn_impl *ctxn)
@@ -99,6 +114,9 @@ kvdb_ctxn_unlock_impl(struct kvdb_ctxn_impl *ctxn)
 {
     mutex_unlock(&ctxn->ctxn_lock);
 }
+// Remove "_impl" from ctx lock functions?
+// Maybe even remove "kvdb_" since they are static?
+
 
 static inline void
 kvdb_ctxn_bind_putref(struct kvdb_ctxn_bind *bind)
@@ -108,6 +126,7 @@ kvdb_ctxn_bind_putref(struct kvdb_ctxn_bind *bind)
 
     if (kvdb_ctxn_trylock_impl(kvdb_ctxn_h2r(bind->b_ctxn)) != 0)
         return;
+    // How can a putref be ignored if txn is not active?
 
     refcnt = atomic_dec_return(&bind->b_ref);
     assert(refcnt >= 0);
@@ -179,6 +198,16 @@ kvdb_ctxn_reaper(struct work_struct *work)
         kvdb_ctxn_abort(&ctxn->ctxn_inner_handle);
         ctxn->ctxn_expired = true;
     }
+    // The above code could be in a race with the client, so a txn being on the abort
+    // list doesn't guarantee it will be expired. Thus:
+    //   1. the "Aborting %u transactions" log message might be misleading.
+    //   2. ctxn_expired may end up being set on txn committed or aborted by the client.
+    // Fix:
+    // - Change 'kvdb_ctxn_abort()' to return true if and only if transitioned txn to aborted state.
+    // - Add a "reason" param to kvdb_ctxn_abort() with reason set to "expired".
+    //
+    // Should the reaper reset ctxn->ctxn_abort_link? I don't think it's
+    // necessary, but it seems more hygienic.
 
     atomic_store(&ktn->ktn_reading, 0);
 
@@ -645,6 +674,8 @@ kvdb_ctxn_reset(struct kvdb_ctxn *handle)
     ctxn->ctxn_seqref = HSE_SQNREF_INVALID;
     ctxn->ctxn_expired = false;
 }
+// It is hard to believe that a txn reset only needs to initialize 2
+// members out of the large complicated ctxn struct?
 
 merr_t
 kvdb_ctxn_get_view_seqno(struct kvdb_ctxn *handle, u64 *view_seqno)
@@ -794,6 +825,8 @@ kvdb_ctxn_cursor_bind(struct kvdb_ctxn *handle)
 
     return bind;
 }
+// If bind->b_ctxn is NULL (above), shouldn't the attempt to bind fail rather
+// than return a ptr to abind struct w/o a reference?
 
 void
 kvdb_ctxn_cursor_unbind(struct kvdb_ctxn_bind *bind)
