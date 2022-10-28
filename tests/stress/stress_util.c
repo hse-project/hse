@@ -290,7 +290,7 @@ print_storage_info(struct hse_kvdb *kvdb)
             hse_strerror(err, buf, sizeof(buf));
             log_error("hse_kvdb_storage_info_get: errno=%d msg=\"%s\"", hse_err_to_errno(err), buf);
         } else {
-            log_info("%s: allocated_bytes=%ld used_bytes=%ld", hse_mclass_name_get(i),
+            log_info("%s: allocated_bytes=%ld used_bytes=%ld", hse_kvdb_mclass_name_get(i),
                 info.mi_allocated_bytes, info.mi_used_bytes);
         }
     }

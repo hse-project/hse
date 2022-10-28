@@ -100,7 +100,7 @@ hse_storage_info(const char *const kvdb_home)
     for (int i = HSE_MCLASS_BASE; i < HSE_MCLASS_COUNT; i++) {
         if (mc_present[i]) {
             const int base = rowid * NELEM(headers);
-            values[base] = hse_mclass_name_get(i);
+            values[base] = hse_kvdb_mclass_name_get(i);
 
             rc = snprintf(nums[rowid][0], sizeof(nums[rowid][0]), "%lu",
                           info[i].mi_allocated_bytes);

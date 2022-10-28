@@ -113,7 +113,7 @@ mclass_path_check(enum hse_mclass mclass, const char *path, bool rdonly)
 
         if (isdax != (mclass == HSE_MCLASS_PMEM)) {
             log_err("%s mclass path (%s) %s reside on a DAX filesystem",
-                    hse_mclass_name_get(mclass), path,
+                    hse_kvdb_mclass_name_get(mclass), path,
                     isdax ? "must not" : "must");
             return merr(ENOTSUP);
         }

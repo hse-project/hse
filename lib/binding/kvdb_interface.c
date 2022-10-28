@@ -919,7 +919,7 @@ hse_kvdb_mclass_reconfigure(const char *kvdb_home, enum hse_mclass mclass, const
 
     if (!path) {
         log_err("Cannot reconfigure %s mclass path for the KVDB (%s) if path is NULL",
-                hse_mclass_name_get(mclass), kvdb_home);
+                hse_kvdb_mclass_name_get(mclass), kvdb_home);
         return merr(EINVAL);
     }
 
@@ -1431,7 +1431,7 @@ hse_kvdb_sync(struct hse_kvdb *handle, const unsigned int flags)
 }
 
 const char *
-hse_mclass_name_get(const enum hse_mclass mclass)
+hse_kvdb_mclass_name_get(const enum hse_mclass mclass)
 {
     switch (mclass) {
     case HSE_MCLASS_CAPACITY:

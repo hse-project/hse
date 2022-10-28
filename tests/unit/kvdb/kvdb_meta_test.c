@@ -55,7 +55,7 @@ MTF_DEFINE_UTEST_POST(kvdb_meta_test, serde, destroy_post)
     meta.km_wal.oid2 = 4;
 
     for (int i = HSE_MCLASS_BASE; i < HSE_MCLASS_COUNT; i++)
-        strlcpy(meta.km_storage[i].path, hse_mclass_name_get(i),
+        strlcpy(meta.km_storage[i].path, hse_kvdb_mclass_name_get(i),
                 sizeof(meta.km_storage[i].path));
 
     err = kvdb_meta_create(mtf_kvdb_home);
@@ -74,7 +74,7 @@ MTF_DEFINE_UTEST_POST(kvdb_meta_test, serde, destroy_post)
     ASSERT_EQ(3, meta.km_wal.oid1);
     ASSERT_EQ(4, meta.km_wal.oid2);
     for (int i = HSE_MCLASS_BASE; i < HSE_MCLASS_COUNT; i++)
-        ASSERT_STREQ(hse_mclass_name_get(i), meta.km_storage[i].path);
+        ASSERT_STREQ(hse_kvdb_mclass_name_get(i), meta.km_storage[i].path);
 }
 
 MTF_DEFINE_UTEST_POST(kvdb_meta_test, null_storage_paths, destroy_post)

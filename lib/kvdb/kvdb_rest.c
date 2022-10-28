@@ -182,7 +182,7 @@ rest_kvdb_get_mclass(
 
     for (int i = 0; i < HSE_MCLASS_COUNT; i++) {
         if (mpool_mclass_is_configured(ikvdb_mpool_get(kvdb), i)) {
-            cJSON *mclass = cJSON_CreateString(hse_mclass_name_get(i));
+            cJSON *mclass = cJSON_CreateString(hse_kvdb_mclass_name_get(i));
             if (ev(!mclass)) {
                 status = REST_STATUS_INTERNAL_SERVER_ERROR;
                 goto out;
@@ -697,7 +697,7 @@ rest_kvdb_mclass_info_get(
     status = REST_STATUS_INTERNAL_SERVER_ERROR;
 
     for (int i = HSE_MCLASS_BASE; i < HSE_MCLASS_COUNT; i++) {
-        if (strstr(req->rr_actual, hse_mclass_name_get(i))) {
+        if (strstr(req->rr_actual, hse_kvdb_mclass_name_get(i))) {
             mclass = i;
             break;
         }
@@ -912,7 +912,7 @@ kvdb_rest_add_endpoints(struct ikvdb *const kvdb)
     }
 
     for (int i = HSE_MCLASS_BASE; i < HSE_MCLASS_COUNT; i++) {
-        const char *mclass = hse_mclass_name_get(i);
+        const char *mclass = hse_kvdb_mclass_name_get(i);
 
         err = rest_server_add_endpoint(REST_ENDPOINT_EXACT, handlers[4], kvdb,
             ENDPOINT_FMT_KVDB_MCLASS, alias, mclass);
@@ -952,7 +952,7 @@ kvdb_rest_remove_endpoints(struct ikvdb *const kvdb)
     rest_server_remove_endpoint(ENDPOINT_FMT_KVDB_KVS, alias);
     rest_server_remove_endpoint(ENDPOINT_FMT_KVDB_MCLASSES, alias);
     for (int i = HSE_MCLASS_BASE; i < HSE_MCLASS_COUNT; i++)
-        rest_server_remove_endpoint(ENDPOINT_FMT_KVDB_MCLASS, alias, hse_mclass_name_get(i));
+        rest_server_remove_endpoint(ENDPOINT_FMT_KVDB_MCLASS, alias, hse_kvdb_mclass_name_get(i));
     rest_server_remove_endpoint(ENDPOINT_FMT_KVDB_PARAMS, alias);
     rest_server_remove_endpoint(ENDPOINT_FMT_KVDB_PERFC, alias);
 }

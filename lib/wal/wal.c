@@ -733,11 +733,11 @@ wal_open(
         }
         mclass = i;
         assert(mclass < HSE_MCLASS_COUNT);
-        log_info("setting durability.mclass policy to \"%s\"", hse_mclass_name_get(mclass));
+        log_info("setting durability.mclass policy to \"%s\"", hse_kvdb_mclass_name_get(mclass));
     }
 
     if (mclass != wal->dur_mclass) {
-        const char *name = hse_mclass_name_get(mclass);
+        const char *name = hse_kvdb_mclass_name_get(mclass);
 
         if (!mpool_mclass_is_configured(mp, mclass)) {
             log_err("%s media not configured, cannot set durability.mclass to \"%s\"",

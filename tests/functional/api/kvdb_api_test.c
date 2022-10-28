@@ -527,10 +527,10 @@ MTF_DEFINE_UTEST(kvdb_api_test, mclass_name_invalid_mclass)
 {
     const char *name;
 
-    name = hse_mclass_name_get(-1);
+    name = hse_kvdb_mclass_name_get(-1);
     ASSERT_EQ(NULL, name);
 
-    name = hse_mclass_name_get(HSE_MCLASS_COUNT);
+    name = hse_kvdb_mclass_name_get(HSE_MCLASS_COUNT);
     ASSERT_EQ(NULL, name);
 }
 
@@ -538,13 +538,13 @@ MTF_DEFINE_UTEST(kvdb_api_test, mclass_name_success)
 {
     const char *name;
 
-    name = hse_mclass_name_get(HSE_MCLASS_CAPACITY);
+    name = hse_kvdb_mclass_name_get(HSE_MCLASS_CAPACITY);
     ASSERT_STREQ(HSE_MCLASS_CAPACITY_NAME, name);
 
-    name = hse_mclass_name_get(HSE_MCLASS_STAGING);
+    name = hse_kvdb_mclass_name_get(HSE_MCLASS_STAGING);
     ASSERT_STREQ(HSE_MCLASS_STAGING_NAME, name);
 
-    name = hse_mclass_name_get(HSE_MCLASS_PMEM);
+    name = hse_kvdb_mclass_name_get(HSE_MCLASS_PMEM);
     ASSERT_STREQ(HSE_MCLASS_PMEM_NAME, name);
 }
 

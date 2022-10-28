@@ -247,7 +247,7 @@ kvdb_get_configured_mclasses_cb(
         assert(cJSON_IsString(elem));
 
         for (int j = HSE_MCLASS_BASE; j < HSE_MCLASS_COUNT; j++) {
-            if (strcmp(mclass, hse_mclass_name_get(j)) == 0) {
+            if (strcmp(mclass, hse_kvdb_mclass_name_get(j)) == 0) {
                 configured[j] = true;
                 break;
             }
@@ -418,7 +418,7 @@ rest_kvdb_get_mclass_info(
     memset(info, 0, sizeof(*info));
 
     return rest_client_fetch("GET", NULL, NULL, 0, kvdb_get_mclass_info_cb, info,
-        "/kvdbs/%s/mclass/%s", alias, hse_mclass_name_get(mclass));
+        "/kvdbs/%s/mclass/%s", alias, hse_kvdb_mclass_name_get(mclass));
 }
 
 merr_t

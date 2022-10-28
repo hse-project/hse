@@ -436,7 +436,7 @@ hse_kvdb_sync(struct hse_kvdb *kvdb, unsigned int flags);
  *
  * @returns Name of media class.
  */
-const char *hse_mclass_name_get(enum hse_mclass mclass);
+const char *hse_kvdb_mclass_name_get(enum hse_mclass mclass);
 
 /**@} KVDB */
 

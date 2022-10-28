@@ -224,7 +224,7 @@ mclass_policies_converter(const struct param_spec *ps, const cJSON *node, void *
 
                 for (int k = HSE_MCLASS_BASE; k < HSE_MCLASS_COUNT; k++) {
                     ctx = cJSON_GetStringValue(dtype_json);
-                    if (!strcmp(ctx, hse_mclass_name_get(k))) {
+                    if (!strcmp(ctx, hse_kvdb_mclass_name_get(k))) {
                         mclass = (enum hse_mclass)k;
                         break;
                     }
@@ -337,15 +337,24 @@ mclass_policies_jsonify(const struct param_spec *const ps, const void *const val
         config = cJSON_AddObjectToObject(policy, "config");
 
         leaf = cJSON_AddObjectToObject(config, "leaf");
+
         leaf_k = cJSON_AddStringToObject(leaf, "keys",
-            hse_mclass_name_get(policies[i].mc_table[HSE_MPOLICY_AGE_LEAF][HSE_MPOLICY_DTYPE_KEY]));
+            hse_kvdb_mclass_name_get(
+                policies[i].mc_table[HSE_MPOLICY_AGE_LEAF][HSE_MPOLICY_DTYPE_KEY]));
+
         leaf_v = cJSON_AddStringToObject(leaf, "values",
-            hse_mclass_name_get(policies[i].mc_table[HSE_MPOLICY_AGE_LEAF][HSE_MPOLICY_DTYPE_VALUE]));
+            hse_kvdb_mclass_name_get(
+                policies[i].mc_table[HSE_MPOLICY_AGE_LEAF][HSE_MPOLICY_DTYPE_VALUE]));
+
         root = cJSON_AddObjectToObject(config, "root");
+
         root_k = cJSON_AddStringToObject(root, "keys",
-            hse_mclass_name_get(policies[i].mc_table[HSE_MPOLICY_AGE_ROOT][HSE_MPOLICY_DTYPE_KEY]));
+            hse_kvdb_mclass_name_get(
+                policies[i].mc_table[HSE_MPOLICY_AGE_ROOT][HSE_MPOLICY_DTYPE_KEY]));
+
         root_v = cJSON_AddStringToObject(root, "values",
-            hse_mclass_name_get(policies[i].mc_table[HSE_MPOLICY_AGE_ROOT][HSE_MPOLICY_DTYPE_VALUE]));
+            hse_kvdb_mclass_name_get(
+                policies[i].mc_table[HSE_MPOLICY_AGE_ROOT][HSE_MPOLICY_DTYPE_VALUE]));
 
         if (!policy || !name || !config || !leaf || !leaf_k || !leaf_v ||
             !root || !root_k || !root_v) {
@@ -386,7 +395,7 @@ dur_mclass_converter(
     }
 
     for (int i = HSE_MCLASS_BASE; i < HSE_MCLASS_COUNT; i++) {
-        if (!strcmp(hse_mclass_name_get(i), value)) {
+        if (!strcmp(hse_kvdb_mclass_name_get(i), value)) {
             *(uint8_t *)data = i;
             return true;
         }
@@ -415,7 +424,7 @@ dur_mclass_stringify(
     if (mc == HSE_MCLASS_AUTO)
         param = HSE_MCLASS_AUTO_NAME;
     else
-        param = hse_mclass_name_get((const enum hse_mclass)mc);
+        param = hse_kvdb_mclass_name_get((const enum hse_mclass)mc);
 
     n = snprintf(buf, buf_sz, "\"%s\"", param);
     if (n < 0)
@@ -439,7 +448,7 @@ dur_mclass_jsonify(const struct param_spec *const ps, const void *const value)
     if (mc == HSE_MCLASS_AUTO)
         name = HSE_MCLASS_AUTO_NAME;
     else
-        name = hse_mclass_name_get(*(enum hse_mclass *)value);
+        name = hse_kvdb_mclass_name_get(*(enum hse_mclass *)value);
 
     return cJSON_CreateString(name);
 }

@@ -453,7 +453,7 @@ ikvdb_attach(
             if (len == 0 || len == PATH_MAX) {
                 log_err("cannot attach KVDB (%s) from KVDB (%s): %s path is either of "
                         "zero length or longer than PATH_MAX", kvdb_home_tgt, kvdb_home_src,
-                        hse_mclass_name_get(i));
+                        hse_kvdb_mclass_name_get(i));
                 return merr(EINVAL);
             }
 
@@ -696,7 +696,7 @@ ikvdb_mclass_reconfigure(const char *kvdb_home, enum hse_mclass mclass, const ch
     err = kvdb_meta_deserialize(&meta, kvdb_home);
     if (err) {
         log_errx("cannot reconfigure %s mclass path for KVDB (%s), deserializing meta failed",
-                 err, hse_mclass_name_get(mclass), kvdb_home);
+                 err, hse_kvdb_mclass_name_get(mclass), kvdb_home);
         return err;
     }
     meta_orig = meta;
@@ -705,21 +705,21 @@ ikvdb_mclass_reconfigure(const char *kvdb_home, enum hse_mclass mclass, const ch
         err = merr(EPROTO);
         log_errx("cannot reconfigure %s mclass path for KVDB (%s), "
                  "out-of-date meta/on-media versions %u/%u",
-                 err, hse_mclass_name_get(mclass), kvdb_home, meta.km_version, meta.km_omf_version);
+                 err, hse_kvdb_mclass_name_get(mclass), kvdb_home, meta.km_version, meta.km_omf_version);
         return err;
     }
 
     if (meta.km_storage[mclass].path[0] == '\0') {
         err = merr(ENOENT);
         log_errx("cannot reconfigure %s mclass path for KVDB (%s), media class not configured",
-                 err, hse_mclass_name_get(mclass), kvdb_home);
+                 err, hse_kvdb_mclass_name_get(mclass), kvdb_home);
         return err;
     }
 
     len = strnlen(path, PATH_MAX);
     if (len == 0 || len == PATH_MAX) {
         log_err("cannot reconfigure %s mclass path for KVDB (%s), path is either of "
-                "zero length or longer than PATH_MAX", hse_mclass_name_get(mclass), kvdb_home);
+                "zero length or longer than PATH_MAX", hse_kvdb_mclass_name_get(mclass), kvdb_home);
         return merr(EINVAL);
     }
 
@@ -728,7 +728,7 @@ ikvdb_mclass_reconfigure(const char *kvdb_home, enum hse_mclass mclass, const ch
     err = kvdb_meta_serialize(&meta, kvdb_home);
     if (err) {
         log_errx("cannot reconfigure %s mclass path for KVDB (%s), serializing meta failed",
-                 err, hse_mclass_name_get(mclass), kvdb_home);
+                 err, hse_kvdb_mclass_name_get(mclass), kvdb_home);
         return err;
     }
 
@@ -739,7 +739,7 @@ ikvdb_mclass_reconfigure(const char *kvdb_home, enum hse_mclass mclass, const ch
     if (err) {
         kvdb_meta_serialize(&meta_orig, kvdb_home); /* restore original meta file */
         log_errx("cannot reconfigure %s mclass path for KVDB (%s), KVDB open failed",
-                 err, hse_mclass_name_get(mclass), kvdb_home);
+                 err, hse_kvdb_mclass_name_get(mclass), kvdb_home);
         return err;
     }
     ikvdb_close(kvdb);
@@ -2146,7 +2146,7 @@ ikvdb_kvs_open(
     }
 
     for (i = HSE_MCLASS_BASE; i < HSE_MCLASS_COUNT; i++) {
-        const char *name = hse_mclass_name_get(i);
+        const char *name = hse_kvdb_mclass_name_get(i);
 
         if (strstr(params->mclass_policy, name)) {
             if (!mpool_mclass_is_configured(self->ikdb_mp, i)) {

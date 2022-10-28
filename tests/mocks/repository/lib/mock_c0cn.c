@@ -821,7 +821,7 @@ _kvdb_meta_deserialize(struct kvdb_meta *meta, const char *kvdb_home)
     meta->km_wal.oid2 = 4;
 
     for (i = HSE_MCLASS_BASE; i < HSE_MCLASS_COUNT; i++)
-        strlcpy(meta->km_storage[i].path, hse_mclass_name_get(i),
+        strlcpy(meta->km_storage[i].path, hse_kvdb_mclass_name_get(i),
                 sizeof(meta->km_storage[i].path));
 
     return 0;
