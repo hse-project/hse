@@ -17,14 +17,14 @@
 #include <hse/util/keycmp.h>
 #include <hse/logging/logging.h>
 
-#include <hse_ikvdb/ikvdb.h>
-#include <hse_ikvdb/lc.h>
-#include <hse_ikvdb/c0sk.h>
-#include <hse_ikvdb/cn.h>
-#include <hse_ikvdb/c0_kvmultiset.h>
-#include <hse_ikvdb/c0_kvset.h>
-#include <hse_ikvdb/c0snr_set.h>
-#include <hse_ikvdb/kvdb_perfc.h>
+#include <hse/ikvdb/ikvdb.h>
+#include <hse/ikvdb/lc.h>
+#include <hse/ikvdb/c0sk.h>
+#include <hse/ikvdb/cn.h>
+#include <hse/ikvdb/c0_kvmultiset.h>
+#include <hse/ikvdb/c0_kvset.h>
+#include <hse/ikvdb/c0snr_set.h>
+#include <hse/ikvdb/kvdb_perfc.h>
 
 #include "c0_cursor.h"
 #include "c0_ingest_work.h"

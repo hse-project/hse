@@ -13,8 +13,8 @@
 #include <mtf/framework.h>
 
 #include <hse/util/base.h>
-#include <hse_ikvdb/limits.h>
-#include <hse_ikvdb/vcomp_params.h>
+#include <hse/ikvdb/limits.h>
+#include <hse/ikvdb/vcomp_params.h>
 
 struct hse_kvdb *kvdb_handle;
 struct hse_kvs  *kvs_handle;

@@ -9,7 +9,7 @@
 #include <hse/util/omf.h>
 #include <hse/error/merr.h>
 
-#include <hse_ikvdb/omf_version.h>
+#include <hse/ikvdb/omf_version.h>
 
 struct mdc_loghdr;
 struct mdc_rechdr;

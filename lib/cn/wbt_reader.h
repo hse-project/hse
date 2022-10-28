@@ -9,7 +9,7 @@
 #include <hse/util/inttypes.h>
 #include <hse/util/key_util.h>
 
-#include <hse_ikvdb/tuple.h>
+#include <hse/ikvdb/tuple.h>
 
 struct kvs_mblk_desc;
 struct mpool;

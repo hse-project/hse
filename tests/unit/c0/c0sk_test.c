@@ -8,23 +8,23 @@
 #include <hse/logging/logging.h>
 #include <hse/util/seqno.h>
 
-#include <hse_ikvdb/limits.h>
-#include <hse_ikvdb/c0.h>
-#include <hse_ikvdb/lc.h>
-#include <hse_ikvdb/c0sk.h>
-#include <hse_ikvdb/c0_kvmultiset.h>
-#include <hse_ikvdb/c0snr_set.h>
-#include <hse_ikvdb/kvs.h>
-#include <hse_ikvdb/kvset_builder.h>
-#include <hse_ikvdb/kvdb_health.h>
-#include <hse_ikvdb/cursor.h>
-#include <hse_ikvdb/throttle.h>
-#include <hse_ikvdb/kvdb_rparams.h>
-#include <hse_ikvdb/cndb.h>
+#include <hse/ikvdb/limits.h>
+#include <hse/ikvdb/c0.h>
+#include <hse/ikvdb/lc.h>
+#include <hse/ikvdb/c0sk.h>
+#include <hse/ikvdb/c0_kvmultiset.h>
+#include <hse/ikvdb/c0snr_set.h>
+#include <hse/ikvdb/kvs.h>
+#include <hse/ikvdb/kvset_builder.h>
+#include <hse/ikvdb/kvdb_health.h>
+#include <hse/ikvdb/cursor.h>
+#include <hse/ikvdb/throttle.h>
+#include <hse/ikvdb/kvdb_rparams.h>
+#include <hse/ikvdb/cndb.h>
 
 #include "cn_mock.h"
 #include <tools/key_generation.h>
-#include <hse_ikvdb/tuple.h>
+#include <hse/ikvdb/tuple.h>
 #include <support/random_buffer.h>
 
 #include <c0/c0sk_internal.h>

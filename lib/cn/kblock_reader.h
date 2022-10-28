@@ -7,7 +7,7 @@
 #define HSE_KVS_CN_KBLOCK_READER_H
 
 #include <hse/util/inttypes.h>
-#include <hse_ikvdb/tuple.h>
+#include <hse/ikvdb/tuple.h>
 
 struct cn;
 struct bloom_desc;

@@ -8,8 +8,8 @@
 #include <hse/util/base.h>
 #include <hse/util/keycmp.h>
 
-#include <hse_ikvdb/cn.h>
-#include <hse_ikvdb/omf_kmd.h>
+#include <hse/ikvdb/cn.h>
+#include <hse/ikvdb/omf_kmd.h>
 
 #include <cn/cn_tree_cursor.h>
 #include <cn/cn_tree_internal.h>

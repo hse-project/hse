@@ -8,7 +8,7 @@
 
 #include <hse/util/inttypes.h>
 
-#include <hse_ikvdb/csched_rp.h>
+#include <hse/ikvdb/csched_rp.h>
 
 /* MTF_MOCK_DECL(csched) */
 

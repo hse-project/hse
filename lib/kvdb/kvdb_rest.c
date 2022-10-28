@@ -26,16 +26,16 @@
 #include <hse/util/fmt.h>
 #include <hse/util/printbuf.h>
 
-#include <hse_ikvdb/ikvdb.h>
-#include <hse_ikvdb/kvs.h>
-#include <hse_ikvdb/kvset_view.h>
-#include <hse_ikvdb/cn.h>
-#include <hse_ikvdb/cn_tree_view.h>
-#include <hse_ikvdb/kvset_view.h>
-#include <hse_ikvdb/kvdb_cparams.h>
-#include <hse_ikvdb/kvdb_rparams.h>
-#include <hse_ikvdb/csched.h>
-#include <hse_ikvdb/hse_gparams.h>
+#include <hse/ikvdb/ikvdb.h>
+#include <hse/ikvdb/kvs.h>
+#include <hse/ikvdb/kvset_view.h>
+#include <hse/ikvdb/cn.h>
+#include <hse/ikvdb/cn_tree_view.h>
+#include <hse/ikvdb/kvset_view.h>
+#include <hse/ikvdb/kvdb_cparams.h>
+#include <hse/ikvdb/kvdb_rparams.h>
+#include <hse/ikvdb/csched.h>
+#include <hse/ikvdb/hse_gparams.h>
 
 #include "kvdb_rest.h"
 #include "kvdb_kvs.h"

@@ -8,8 +8,8 @@
 
 #include <hse/util/inttypes.h>
 
-#include <hse_ikvdb/encoders.h>
-#include <hse_ikvdb/omf_kmd_vtype.h>
+#include <hse/ikvdb/encoders.h>
+#include <hse/ikvdb/omf_kmd_vtype.h>
 
 /*
  * KMD Entry Members and their minimum, typical and maximum widths:

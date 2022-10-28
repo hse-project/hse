@@ -6,9 +6,9 @@
 #ifndef HSE_CORE_C0_KVMULTISET_H
 #define HSE_CORE_C0_KVMULTISET_H
 
-#include <hse_ikvdb/kvs.h>
-#include <hse_ikvdb/c0_kvset.h>
-#include <hse_ikvdb/throttle.h>
+#include <hse/ikvdb/kvs.h>
+#include <hse/ikvdb/c0_kvset.h>
+#include <hse/ikvdb/throttle.h>
 
 #include <hse/util/inttypes.h>
 #include <hse/error/merr.h>

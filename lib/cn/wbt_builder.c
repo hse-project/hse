@@ -11,8 +11,8 @@
 #include <hse/util/event_counter.h>
 #include <hse/util/key_util.h>
 
-#include <hse_ikvdb/limits.h>
-#include <hse_ikvdb/omf_kmd.h>
+#include <hse/ikvdb/limits.h>
+#include <hse/ikvdb/omf_kmd.h>
 
 #include <hse/limits.h>
 

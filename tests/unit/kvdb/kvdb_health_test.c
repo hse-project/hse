@@ -9,7 +9,7 @@
 #include <stdlib.h>
 #include <string.h>
 
-#include <hse_ikvdb/kvdb_health.h>
+#include <hse/ikvdb/kvdb_health.h>
 #include <hse/error/merr.h>
 
 MTF_BEGIN_UTEST_COLLECTION(kvdb_health_test)

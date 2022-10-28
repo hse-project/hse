@@ -10,9 +10,9 @@
 
 #include <hse/util/platform.h>
 
-#include <hse_ikvdb/throttle.h>
-#include <hse_ikvdb/throttle_perfc.h>
-#include <hse_ikvdb/kvdb_rparams.h>
+#include <hse/ikvdb/throttle.h>
+#include <hse/ikvdb/throttle_perfc.h>
+#include <hse/ikvdb/kvdb_rparams.h>
 
 #define KMIN 1
 

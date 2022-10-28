@@ -23,16 +23,16 @@
 #include <hse/rest/status.h>
 #include <hse/version.h>
 
-#include <hse_ikvdb/ikvdb.h>
-#include <hse_ikvdb/kvdb_ctxn.h>
-#include <hse_ikvdb/limits.h>
-#include <hse_ikvdb/kvdb_perfc.h>
-#include <hse_ikvdb/config.h>
-#include <hse_ikvdb/argv.h>
-#include <hse_ikvdb/kvdb_cparams.h>
-#include <hse_ikvdb/hse_gparams.h>
-#include <hse_ikvdb/kvdb_home.h>
-#include <hse_ikvdb/kvs.h>
+#include <hse/ikvdb/ikvdb.h>
+#include <hse/ikvdb/kvdb_ctxn.h>
+#include <hse/ikvdb/limits.h>
+#include <hse/ikvdb/kvdb_perfc.h>
+#include <hse/ikvdb/config.h>
+#include <hse/ikvdb/argv.h>
+#include <hse/ikvdb/kvdb_cparams.h>
+#include <hse/ikvdb/hse_gparams.h>
+#include <hse/ikvdb/kvdb_home.h>
+#include <hse/ikvdb/kvs.h>
 
 #include <hse/util/err_ctx.h>
 #include <hse/util/event_counter.h>

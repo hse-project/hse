@@ -20,14 +20,14 @@
 #include <hse/util/platform.h>
 #include <hse/util/slab.h>
 
-#include <hse_ikvdb/cn.h>
-#include <hse_ikvdb/ikvdb.h>
-#include <hse_ikvdb/kvdb_perfc.h>
-#include <hse_ikvdb/csched.h>
-#include <hse_ikvdb/sched_sts.h>
-#include <hse_ikvdb/throttle.h>
-#include <hse_ikvdb/kvdb_rparams.h>
-#include <hse_ikvdb/hse_gparams.h>
+#include <hse/ikvdb/cn.h>
+#include <hse/ikvdb/ikvdb.h>
+#include <hse/ikvdb/kvdb_perfc.h>
+#include <hse/ikvdb/csched.h>
+#include <hse/ikvdb/sched_sts.h>
+#include <hse/ikvdb/throttle.h>
+#include <hse/ikvdb/kvdb_rparams.h>
+#include <hse/ikvdb/hse_gparams.h>
 
 #include "csched_sp3.h"
 #include "csched_sp3_work.h"

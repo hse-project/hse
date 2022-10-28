@@ -8,7 +8,7 @@
 
 #include <hse/util/inttypes.h>
 
-#include <hse_ikvdb/sched_sts.h>
+#include <hse/ikvdb/sched_sts.h>
 
 struct csched_ops;
 struct cn_tree;

@@ -10,8 +10,8 @@
 #include <hse/error/merr.h>
 #include <hse/util/table.h>
 
-#include <hse_ikvdb/kvs.h>
-#include <hse_ikvdb/cursor.h>
+#include <hse/ikvdb/kvs.h>
+#include <hse/ikvdb/cursor.h>
 
 /* MTF_MOCK_DECL(cn_tree_cursor) */
 

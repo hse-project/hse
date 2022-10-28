@@ -8,7 +8,7 @@
 
 #include <urcu-bp.h>
 
-#include <hse_ikvdb/kvdb_ctxn.h>
+#include <hse/ikvdb/kvdb_ctxn.h>
 #include <hse/util/mutex.h>
 
 /* clang-format off */

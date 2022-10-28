@@ -8,9 +8,9 @@
 #include <hse/logging/logging.h>
 #include <hse/util/perfc.h>
 
-#include <hse_ikvdb/c0sk_perfc.h>
-#include <hse_ikvdb/kvdb_perfc.h>
-#include <hse_ikvdb/ikvdb.h>
+#include <hse/ikvdb/c0sk_perfc.h>
+#include <hse/ikvdb/kvdb_perfc.h>
+#include <hse/ikvdb/ikvdb.h>
 
 #include "c0sk_internal.h"
 

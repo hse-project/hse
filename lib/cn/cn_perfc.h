@@ -14,7 +14,7 @@
 #include <hse/kvdb_perfc.h>
 
 #include <hse/util/perfc.h>
-#include <hse_ikvdb/cn_perfc.h>
+#include <hse/ikvdb/cn_perfc.h>
 
 struct cn;
 

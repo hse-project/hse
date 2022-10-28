@@ -11,7 +11,7 @@
 
 #include <hse/hse.h>
 
-#include <hse_ikvdb/diag_kvdb.h>
+#include <hse/ikvdb/diag_kvdb.h>
 
 #include "cndb_reader.h"
 #include "cndb_record.h"

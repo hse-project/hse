@@ -9,12 +9,12 @@
 #include <hse/limits.h>
 #include <hse/kvdb_perfc.h>
 
-#include <hse_ikvdb/key_hash.h>
-#include <hse_ikvdb/tuple.h>
-#include <hse_ikvdb/limits.h>
-#include <hse_ikvdb/kvset_builder.h>
-#include <hse_ikvdb/cn.h>
-#include <hse_ikvdb/kvs_rparams.h>
+#include <hse/ikvdb/key_hash.h>
+#include <hse/ikvdb/tuple.h>
+#include <hse/ikvdb/limits.h>
+#include <hse/ikvdb/kvset_builder.h>
+#include <hse/ikvdb/cn.h>
+#include <hse/ikvdb/kvs_rparams.h>
 
 #include <hse/util/alloc.h>
 #include <hse/util/slab.h>

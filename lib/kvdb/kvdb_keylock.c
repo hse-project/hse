@@ -22,8 +22,8 @@
 
 #include <hse/kvdb_perfc.h>
 
-#include <hse_ikvdb/limits.h>
-#include <hse_ikvdb/kvdb_ctxn.h>
+#include <hse/ikvdb/limits.h>
+#include <hse/ikvdb/kvdb_ctxn.h>
 
 #include <rbtree.h>
 

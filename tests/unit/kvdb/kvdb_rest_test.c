@@ -20,7 +20,7 @@
 #include <hse/test/fixtures/kvdb.h>
 #include <hse/test/fixtures/kvs.h>
 
-#include <hse_ikvdb/ikvdb.h>
+#include <hse/ikvdb/ikvdb.h>
 #include <hse/util/base.h>
 #include <hse/mpool/mpool.h>
 

@@ -8,7 +8,7 @@
 
 #include <hse/limits.h>
 
-#include <hse_ikvdb/vcomp_params.h>
+#include <hse/ikvdb/vcomp_params.h>
 #include <hse/util/atomic.h>
 #include <hse/util/inttypes.h>
 #include <hse/util/list.h>

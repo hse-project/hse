@@ -9,7 +9,7 @@
 #include <hse/error/merr.h>
 #include <hse/util/keylock.h>
 
-#include <hse_ikvdb/ikvdb.h>
+#include <hse/ikvdb/ikvdb.h>
 
 /* MTF_MOCK_DECL(kvdb_ctxn) */
 

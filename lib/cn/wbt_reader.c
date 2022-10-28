@@ -17,8 +17,8 @@
 
 #include <hse/limits.h>
 
-#include <hse_ikvdb/tuple.h>
-#include <hse_ikvdb/omf_kmd.h>
+#include <hse/ikvdb/tuple.h>
+#include <hse/ikvdb/omf_kmd.h>
 
 #include "wbt_internal.h"
 #include "omf.h"

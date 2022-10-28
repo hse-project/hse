@@ -10,14 +10,14 @@
 #include <hse/util/event_counter.h>
 #include <hse/logging/logging.h>
 
-#include <hse_ikvdb/kvs_cparams.h>
-#include <hse_ikvdb/kvs_rparams.h>
-#include <hse_ikvdb/limits.h>
-#include <hse_ikvdb/tuple.h>
-#include <hse_ikvdb/kvset_builder.h>
-#include <hse_ikvdb/kvdb_perfc.h>
-#include <hse_ikvdb/cndb.h>
-#include <hse_ikvdb/cn.h>
+#include <hse/ikvdb/kvs_cparams.h>
+#include <hse/ikvdb/kvs_rparams.h>
+#include <hse/ikvdb/limits.h>
+#include <hse/ikvdb/tuple.h>
+#include <hse/ikvdb/kvset_builder.h>
+#include <hse/ikvdb/kvdb_perfc.h>
+#include <hse/ikvdb/cndb.h>
+#include <hse/ikvdb/cn.h>
 
 #define MTF_MOCK_IMPL_spill
 #include "spill.h"

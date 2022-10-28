@@ -13,7 +13,7 @@
 
 #include <hse/limits.h>
 
-#include <hse_ikvdb/cursor.h>
+#include <hse/ikvdb/cursor.h>
 
 #include "cn_metrics.h"
 #include "kvset.h"

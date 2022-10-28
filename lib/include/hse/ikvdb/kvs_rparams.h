@@ -12,8 +12,8 @@
 
 #include <cjson/cJSON.h>
 
-#include <hse_ikvdb/mclass_policy.h>
-#include <hse_ikvdb/vcomp_params.h>
+#include <hse/ikvdb/mclass_policy.h>
+#include <hse/ikvdb/vcomp_params.h>
 
 /*
  * Steps to add a new KVS parameter:

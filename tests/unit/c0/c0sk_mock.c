@@ -3,7 +3,7 @@
  * Copyright (C) 2015-2022 Micron Technology, Inc.  All rights reserved.
  */
 
-#include <hse_ikvdb/c0sk.h>
+#include <hse/ikvdb/c0sk.h>
 #include <support/random_buffer.h>
 
 #include <hse/util/platform.h>

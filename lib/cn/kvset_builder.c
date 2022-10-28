@@ -11,10 +11,10 @@
 #include <hse/util/event_counter.h>
 #include <hse/util/bonsai_tree.h>
 
-#include <hse_ikvdb/kvset_builder.h>
-#include <hse_ikvdb/key_hash.h>
-#include <hse_ikvdb/limits.h>
-#include <hse_ikvdb/cn.h>
+#include <hse/ikvdb/kvset_builder.h>
+#include <hse/ikvdb/key_hash.h>
+#include <hse/ikvdb/limits.h>
+#include <hse/ikvdb/cn.h>
 
 #include <hse/limits.h>
 

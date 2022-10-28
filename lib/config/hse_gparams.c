@@ -15,14 +15,14 @@
 
 #include <hse/logging/logging.h>
 
-#include <hse_ikvdb/hse_gparams.h>
-#include <hse_ikvdb/param.h>
-#include <hse_ikvdb/limits.h>
+#include <hse/ikvdb/hse_gparams.h>
+#include <hse/ikvdb/param.h>
+#include <hse/ikvdb/limits.h>
 #include <hse/util/compiler.h>
 #include <hse/util/perfc.h>
 #include <hse/util/vlb.h>
 
-#include <hse_ikvdb/limits.h>
+#include <hse/ikvdb/limits.h>
 
 #include "logging.h"
 

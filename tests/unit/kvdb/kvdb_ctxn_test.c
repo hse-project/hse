@@ -16,15 +16,15 @@
 #include <hse/util/seqno.h>
 #include <hse/util/keylock.h>
 
-#include <hse_ikvdb/c0.h>
-#include <hse_ikvdb/c0_kvset.h>
-#include <hse_ikvdb/c0snr_set.h>
-#include <hse_ikvdb/c0_kvmultiset.h>
-#include <hse_ikvdb/kvdb_ctxn.h>
-#include <hse_ikvdb/limits.h>
+#include <hse/ikvdb/c0.h>
+#include <hse/ikvdb/c0_kvset.h>
+#include <hse/ikvdb/c0snr_set.h>
+#include <hse/ikvdb/c0_kvmultiset.h>
+#include <hse/ikvdb/kvdb_ctxn.h>
+#include <hse/ikvdb/limits.h>
 
 #include <tools/key_generation.h>
-#include <hse_ikvdb/tuple.h>
+#include <hse/ikvdb/tuple.h>
 #include <support/random_buffer.h>
 
 #include <mocks/mock_c0cn.h>

@@ -15,12 +15,12 @@
 
 #include <hse/limits.h>
 
-#include <hse_ikvdb/kvs_rparams.h>
-#include <hse_ikvdb/kvs_cparams.h>
-#include <hse_ikvdb/kvset_builder.h>
-#include <hse_ikvdb/limits.h>
-#include <hse_ikvdb/cn.h>
-#include <hse_ikvdb/cndb.h>
+#include <hse/ikvdb/kvs_rparams.h>
+#include <hse/ikvdb/kvs_cparams.h>
+#include <hse/ikvdb/kvset_builder.h>
+#include <hse/ikvdb/limits.h>
+#include <hse/ikvdb/cn.h>
+#include <hse/ikvdb/cndb.h>
 
 #include <cn/cn_tree.h>
 #include <cn/cn_tree_create.h>

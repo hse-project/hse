@@ -12,7 +12,7 @@
 
 #include <hse/error/merr.h>
 
-#include <hse_ikvdb/kvdb_modes.h>
+#include <hse/ikvdb/kvdb_modes.h>
 
 /**
  * Converts the storage path to an absolute path

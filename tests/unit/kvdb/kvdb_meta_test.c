@@ -6,8 +6,8 @@
 #include <hse/error/merr.h>
 #include <mtf/framework.h>
 
-#include <hse_ikvdb/kvdb_meta.h>
-#include <hse_ikvdb/omf_version.h>
+#include <hse/ikvdb/kvdb_meta.h>
+#include <hse/ikvdb/omf_version.h>
 #include <hse/mpool/mpool.h>
 
 #include <bsd/string.h>

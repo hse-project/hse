@@ -7,7 +7,7 @@
 #include <hse/util/event_counter.h>
 #include <hse/util/page.h>
 
-#include <hse_ikvdb/omf_version.h>
+#include <hse/ikvdb/omf_version.h>
 
 #include <hse/mpool/mpool.h>
 

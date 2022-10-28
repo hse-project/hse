@@ -141,8 +141,8 @@
 #include <hse/error/merr.h>
 #include <hse/util/byteorder.h>
 
-#include <hse_ikvdb/kvs_rparams.h>
-#include <hse_ikvdb/kvs_cparams.h>
+#include <hse/ikvdb/kvs_rparams.h>
+#include <hse/ikvdb/kvs_cparams.h>
 
 #include <hse/mpool/mpool.h>
 
@@ -4090,9 +4090,9 @@ oom_score_adj_set(int adj)
     }
 }
 
-#include <hse_ikvdb/param.h>
-#include <hse_ikvdb/kvdb_rparams.h>
-#include <hse_ikvdb/kvdb_cparams.h>
+#include <hse/ikvdb/param.h>
+#include <hse/ikvdb/kvdb_rparams.h>
+#include <hse/ikvdb/kvdb_cparams.h>
 
 static int
 psortv_cmp(const void *lhs, const void *rhs)

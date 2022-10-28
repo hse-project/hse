@@ -14,9 +14,9 @@
 
 #include <hse/mpool/mpool.h>
 
-#include <hse_ikvdb/kvs.h>
-#include <hse_ikvdb/tuple.h>
-#include <hse_ikvdb/kvdb_health.h>
+#include <hse/ikvdb/kvs.h>
+#include <hse/ikvdb/tuple.h>
+#include <hse/ikvdb/kvdb_health.h>
 
 struct c0_kvmultiset;
 struct c0sk;

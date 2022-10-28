@@ -13,10 +13,10 @@
 
 #include <rbtree.h>
 
-#include <hse_ikvdb/ikvdb.h>
-#include <hse_ikvdb/kvdb_rparams.h>
-#include <hse_ikvdb/cndb.h>
-#include <hse_ikvdb/kvdb_modes.h>
+#include <hse/ikvdb/ikvdb.h>
+#include <hse/ikvdb/kvdb_rparams.h>
+#include <hse/ikvdb/cndb.h>
+#include <hse/ikvdb/kvdb_modes.h>
 
 #include "wal.h"
 #include "wal_replay.h"

@@ -5,9 +5,9 @@
 
 #include <mtf/framework.h>
 
-#include <hse_ikvdb/kvs.h>
-#include <hse_ikvdb/c0.h>
-#include <hse_ikvdb/lc.h>
+#include <hse/ikvdb/kvs.h>
+#include <hse/ikvdb/c0.h>
+#include <hse/ikvdb/lc.h>
 
 #include <hse/util/seqno.h>
 

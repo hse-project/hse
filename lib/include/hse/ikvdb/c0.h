@@ -12,8 +12,8 @@
 #include <hse/error/merr.h>
 #include <hse/util/mutex.h>
 
-#include <hse_ikvdb/ikvdb.h>
-#include <hse_ikvdb/cursor.h>
+#include <hse/ikvdb/ikvdb.h>
+#include <hse/ikvdb/cursor.h>
 
 #define CURSOR_FLAG_SEQNO_CHANGE 1
 #define CURSOR_FLAG_TOMBS_INV_KVMS 2

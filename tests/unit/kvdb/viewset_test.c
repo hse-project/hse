@@ -13,7 +13,7 @@
 #include <stdio.h>
 #include <sys/sysinfo.h>
 #include <unistd.h>
-#include <hse_ikvdb/limits.h>
+#include <hse/ikvdb/limits.h>
 
 MTF_BEGIN_UTEST_COLLECTION(viewset_test)
 

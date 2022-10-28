@@ -13,10 +13,10 @@
 
 #include <cjson/cJSON.h>
 
-#include <hse_ikvdb/ikvdb.h>
-#include <hse_ikvdb/kvdb_modes.h>
-#include <hse_ikvdb/mclass_policy.h>
-#include <hse_ikvdb/throttle.h>
+#include <hse/ikvdb/ikvdb.h>
+#include <hse/ikvdb/kvdb_modes.h>
+#include <hse/ikvdb/mclass_policy.h>
+#include <hse/ikvdb/throttle.h>
 #include <hse/error/merr.h>
 #include <hse/logging/logging.h>
 #include <hse/util/compiler.h>

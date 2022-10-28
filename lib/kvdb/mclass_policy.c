@@ -10,8 +10,8 @@
 
 #include <hse/mpool/mpool.h>
 
-#include <hse_ikvdb/mclass_policy.h>
-#include <hse_ikvdb/ikvdb.h>
+#include <hse/ikvdb/mclass_policy.h>
+#include <hse/ikvdb/ikvdb.h>
 
 const char *mclass_policy_names[] = { "capacity_only",
                                       "staging_only",

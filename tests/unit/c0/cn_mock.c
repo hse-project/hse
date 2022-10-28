@@ -8,8 +8,8 @@
 #include <hse/util/platform.h>
 #include <hse/util/event_counter.h>
 
-#include <hse_ikvdb/cn.h>
-#include <hse_ikvdb/c0_kvmultiset.h>
+#include <hse/ikvdb/cn.h>
+#include <hse/ikvdb/c0_kvmultiset.h>
 
 #include "cn_mock.h"
 

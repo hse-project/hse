@@ -7,7 +7,7 @@
 #define HSE_KVS_CURSOR_H
 
 #include <hse/util/inttypes.h>
-#include <hse_ikvdb/tuple.h>
+#include <hse/ikvdb/tuple.h>
 
 /**
  * per-cursor diagnostic summary

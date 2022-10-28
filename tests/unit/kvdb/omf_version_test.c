@@ -5,7 +5,7 @@
 
 #include <mtf/framework.h>
 
-#include <hse_ikvdb/omf_version.h>
+#include <hse/ikvdb/omf_version.h>
 
 MTF_BEGIN_UTEST_COLLECTION(omf_version_test)
 

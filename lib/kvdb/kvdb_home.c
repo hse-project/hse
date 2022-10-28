@@ -19,7 +19,7 @@
 #include <hse/util/inttypes.h>
 #include <hse/util/dax.h>
 
-#include <hse_ikvdb/kvdb_home.h>
+#include <hse/ikvdb/kvdb_home.h>
 #include <hse/pidfile/pidfile.h>
 
 static merr_t

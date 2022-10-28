@@ -9,7 +9,7 @@
 #include <hse/util/log2.h>
 #include <hse/logging/logging.h>
 
-#include <hse_ikvdb/limits.h>
+#include <hse/ikvdb/limits.h>
 
 #include <cn/cn_mblocks.h>
 

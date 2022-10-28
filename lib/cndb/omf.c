@@ -3,9 +3,9 @@
  * Copyright (C) 2022 Micron Technology, Inc.  All rights reserved.
  */
 
-#include <hse_ikvdb/omf_version.h>
+#include <hse/ikvdb/omf_version.h>
 
-#include <hse_ikvdb/cn.h>
+#include <hse/ikvdb/cn.h>
 
 #include <cn/kvset.h>
 

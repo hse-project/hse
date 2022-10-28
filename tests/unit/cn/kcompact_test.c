@@ -9,9 +9,9 @@
 #include <hse/util/platform.h>
 #include <hse/util/slab.h>
 
-#include <hse_ikvdb/tuple.h>
-#include <hse_ikvdb/kvs_rparams.h>
-#include <hse_ikvdb/kvset_builder.h>
+#include <hse/ikvdb/tuple.h>
+#include <hse/ikvdb/kvs_rparams.h>
+#include <hse/ikvdb/kvset_builder.h>
 
 #include <cn/cn_tree_compact.h>
 #include <cn/kcompact.h>

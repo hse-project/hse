@@ -9,13 +9,13 @@
 
 #include <hse/error/merr.h>
 
-#include <hse_ikvdb/kvdb_rparams.h>
-#include <hse_ikvdb/kvs_rparams.h>
-#include <hse_ikvdb/blk_list.h>
-#include <hse_ikvdb/kvdb_health.h>
-#include <hse_ikvdb/cn_kvdb.h>
-#include <hse_ikvdb/csched_rp.h>
-#include <hse_ikvdb/cn.h>
+#include <hse/ikvdb/kvdb_rparams.h>
+#include <hse/ikvdb/kvs_rparams.h>
+#include <hse/ikvdb/blk_list.h>
+#include <hse/ikvdb/kvdb_health.h>
+#include <hse/ikvdb/cn_kvdb.h>
+#include <hse/ikvdb/csched_rp.h>
+#include <hse/ikvdb/cn.h>
 
 #include <cn/csched_sp3.h>
 #include <cn/csched_sp3_work.h>

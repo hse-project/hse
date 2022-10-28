@@ -13,10 +13,10 @@
 #include <hse/util/mutex.h>
 #include <hse/util/perfc.h>
 
-#include <hse_ikvdb/tuple.h>
-#include <hse_ikvdb/kvdb_health.h>
-#include <hse_ikvdb/kvs_rparams.h>
-#include <hse_ikvdb/query_ctx.h>
+#include <hse/ikvdb/tuple.h>
+#include <hse/ikvdb/kvdb_health.h>
+#include <hse/ikvdb/kvs_rparams.h>
+#include <hse/ikvdb/query_ctx.h>
 
 #define TOMBSPAN_MIN_WIDTH 8
 

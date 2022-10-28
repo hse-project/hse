@@ -10,11 +10,11 @@
 #include <hse/util/perfc.h>
 #include <hse/util/page.h>
 
-#include <hse_ikvdb/throttle.h>
-#include <hse_ikvdb/throttle_perfc.h>
-#include <hse_ikvdb/ikvdb.h>
-#include <hse_ikvdb/kvdb_rparams.h>
-#include <hse_ikvdb/rparam_debug_flags.h>
+#include <hse/ikvdb/throttle.h>
+#include <hse/ikvdb/throttle_perfc.h>
+#include <hse/ikvdb/ikvdb.h>
+#include <hse/ikvdb/kvdb_rparams.h>
+#include <hse/ikvdb/rparam_debug_flags.h>
 
 #include <hse/kvdb_perfc.h>
 

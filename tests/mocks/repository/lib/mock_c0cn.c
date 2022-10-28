@@ -15,15 +15,15 @@
 #include <hse/util/spinlock.h>
 #include <hse/util/event_counter.h>
 
-#include <hse_ikvdb/kvs.h>
-#include <hse_ikvdb/cn.h>
+#include <hse/ikvdb/kvs.h>
+#include <hse/ikvdb/cn.h>
 #include <cn/cn_cursor.h>
-#include <hse_ikvdb/c0.h>
-#include <hse_ikvdb/cndb.h>
-#include <hse_ikvdb/wal.h>
-#include <hse_ikvdb/kvdb_health.h>
-#include <hse_ikvdb/kvdb_meta.h>
-#include <hse_ikvdb/omf_version.h>
+#include <hse/ikvdb/c0.h>
+#include <hse/ikvdb/cndb.h>
+#include <hse/ikvdb/wal.h>
+#include <hse/ikvdb/kvdb_health.h>
+#include <hse/ikvdb/kvdb_meta.h>
+#include <hse/ikvdb/omf_version.h>
 
 #include <mocks/mock_kvset_builder.h>
 #include <mocks/mock_mpool.h>

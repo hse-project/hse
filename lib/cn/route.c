@@ -5,7 +5,7 @@
 
 #define MTF_MOCK_IMPL_route
 
-#include <hse_ikvdb/kvs_cparams.h>
+#include <hse/ikvdb/kvs_cparams.h>
 
 #include <hse/util/platform.h>
 #include <hse/util/alloc.h>

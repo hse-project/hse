@@ -5,9 +5,9 @@
 
 #include <mtf/framework.h>
 
-#include <hse_ikvdb/argv.h>
-#include <hse_ikvdb/mclass_policy.h>
-#include <hse_ikvdb/kvdb_rparams.h>
+#include <hse/ikvdb/argv.h>
+#include <hse/ikvdb/mclass_policy.h>
+#include <hse/ikvdb/kvdb_rparams.h>
 #include <hse/mpool/mpool.h>
 
 /*

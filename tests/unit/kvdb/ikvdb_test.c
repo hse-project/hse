@@ -15,19 +15,19 @@
 #include <hse/error/merr.h>
 #include <hse/util/dax.h>
 
-#include <hse_ikvdb/kvs.h>
-#include <hse_ikvdb/ikvdb.h>
-#include <hse_ikvdb/cndb.h>
-#include <hse_ikvdb/kvdb_ctxn.h>
-#include <hse_ikvdb/kvdb_rparams.h>
-#include <hse_ikvdb/kvdb_cparams.h>
-#include <hse_ikvdb/kvs_rparams.h>
-#include <hse_ikvdb/kvs_cparams.h>
-#include <hse_ikvdb/c0.h>
-#include <hse_ikvdb/c0_kvset.h>
-#include <hse_ikvdb/c0_kvmultiset.h>
-#include <hse_ikvdb/rparam_debug_flags.h>
-#include <hse_ikvdb/argv.h>
+#include <hse/ikvdb/kvs.h>
+#include <hse/ikvdb/ikvdb.h>
+#include <hse/ikvdb/cndb.h>
+#include <hse/ikvdb/kvdb_ctxn.h>
+#include <hse/ikvdb/kvdb_rparams.h>
+#include <hse/ikvdb/kvdb_cparams.h>
+#include <hse/ikvdb/kvs_rparams.h>
+#include <hse/ikvdb/kvs_cparams.h>
+#include <hse/ikvdb/c0.h>
+#include <hse/ikvdb/c0_kvset.h>
+#include <hse/ikvdb/c0_kvmultiset.h>
+#include <hse/ikvdb/rparam_debug_flags.h>
+#include <hse/ikvdb/argv.h>
 
 #include <c0/c0_cursor.h>
 #include <c0/c0sk_internal.h>

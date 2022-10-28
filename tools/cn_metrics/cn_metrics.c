@@ -5,10 +5,10 @@
 
 #include <stdio.h>
 
-#include <hse_ikvdb/cn.h>
-#include <hse_ikvdb/limits.h>
-#include <hse_ikvdb/ikvdb.h>
-#include <hse_ikvdb/csched.h>
+#include <hse/ikvdb/cn.h>
+#include <hse/ikvdb/limits.h>
+#include <hse/ikvdb/ikvdb.h>
+#include <hse/ikvdb/csched.h>
 
 #include <cn/cn_metrics.h>
 #include <cn/cn_tree.h>

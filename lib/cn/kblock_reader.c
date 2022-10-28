@@ -14,8 +14,8 @@
 #include <hse/util/bloom_filter.h>
 #include <hse/logging/logging.h>
 
-#include <hse_ikvdb/kvs_rparams.h>
-#include <hse_ikvdb/tuple.h>
+#include <hse/ikvdb/kvs_rparams.h>
+#include <hse/ikvdb/tuple.h>
 
 #include <hse/mpool/mpool.h>
 

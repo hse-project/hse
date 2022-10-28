@@ -30,7 +30,7 @@
 #include <hse/util/list.h>
 #include <hse/util/atomic.h>
 
-#include <hse_ikvdb/hse_gparams.h>
+#include <hse/ikvdb/hse_gparams.h>
 
 #define WP_LATV_IDX(_wqp) ((_wqp)->wp_calls % NELEM((_wqp)->wp_latv))
 

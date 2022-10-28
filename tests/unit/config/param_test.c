@@ -5,7 +5,7 @@
 
 #include <mtf/framework.h>
 
-#include <hse_ikvdb/param.h>
+#include <hse/ikvdb/param.h>
 #include <hse/util/base.h>
 #include <hse/util/storage.h>
 

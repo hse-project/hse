@@ -15,7 +15,7 @@
 
 #include <hse/mpool/mpool.h>
 
-#include <hse_ikvdb/tuple.h>
+#include <hse/ikvdb/tuple.h>
 
 #include "omf.h"
 #include "vblock_reader.h"

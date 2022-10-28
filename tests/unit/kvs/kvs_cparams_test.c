@@ -5,10 +5,10 @@
 
 #include <mtf/framework.h>
 
-#include <hse_ikvdb/argv.h>
-#include <hse_ikvdb/limits.h>
-#include <hse_ikvdb/kvs_cparams.h>
-#include <hse_ikvdb/param.h>
+#include <hse/ikvdb/argv.h>
+#include <hse/ikvdb/limits.h>
+#include <hse/ikvdb/kvs_cparams.h>
+#include <hse/ikvdb/param.h>
 
 #include <stdarg.h>
 

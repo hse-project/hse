@@ -8,9 +8,9 @@
 
 #include <hse/limits.h>
 
-#include <hse_ikvdb/blk_list.h>
-#include <hse_ikvdb/kvset_builder.h>
-#include <hse_ikvdb/mclass_policy.h>
+#include <hse/ikvdb/blk_list.h>
+#include <hse/ikvdb/kvset_builder.h>
+#include <hse/ikvdb/mclass_policy.h>
 #include <hse/util/perfc.h>
 
 #include "cn_metrics.h"

@@ -11,10 +11,10 @@
 
 #include <hse/limits.h>
 
-#include <hse_ikvdb/kvs_rparams.h>
-#include <hse_ikvdb/limits.h>
-#include <hse_ikvdb/kvdb_health.h>
-#include <hse_ikvdb/cn.h>
+#include <hse/ikvdb/kvs_rparams.h>
+#include <hse/ikvdb/limits.h>
+#include <hse/ikvdb/kvdb_health.h>
+#include <hse/ikvdb/cn.h>
 
 #include <cn/cn_tree.h>
 #include <cn/cn_tree_iter.h>

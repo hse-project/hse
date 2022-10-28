@@ -6,9 +6,9 @@
 #include <hse/util/platform.h>
 #include <hse/util/event_counter.h>
 #include <hse/util/slab.h>
-#include <hse_ikvdb/limits.h>
-#include <hse_ikvdb/tuple.h>
-#include <hse_ikvdb/c0_kvset_iterator.h>
+#include <hse/ikvdb/limits.h>
+#include <hse/ikvdb/tuple.h>
+#include <hse/ikvdb/c0_kvset_iterator.h>
 
 #define c0_kvset_iterator_es_h2r(handle) container_of(handle, struct c0_kvset_iterator, c0it_handle)
 

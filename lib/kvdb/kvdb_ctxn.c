@@ -18,15 +18,15 @@
 #include <hse/util/xrand.h>
 #include <hse/util/event_counter.h>
 
-#include <hse_ikvdb/kvs.h>
-#include <hse_ikvdb/kvdb_ctxn.h>
-#include <hse_ikvdb/kvdb_rparams.h>
-#include <hse_ikvdb/c0_kvmultiset.h>
-#include <hse_ikvdb/c0.h>
-#include <hse_ikvdb/c0sk.h>
-#include <hse_ikvdb/c0snr_set.h>
-#include <hse_ikvdb/limits.h>
-#include <hse_ikvdb/wal.h>
+#include <hse/ikvdb/kvs.h>
+#include <hse/ikvdb/kvdb_ctxn.h>
+#include <hse/ikvdb/kvdb_rparams.h>
+#include <hse/ikvdb/c0_kvmultiset.h>
+#include <hse/ikvdb/c0.h>
+#include <hse/ikvdb/c0sk.h>
+#include <hse/ikvdb/c0snr_set.h>
+#include <hse/ikvdb/limits.h>
+#include <hse/ikvdb/wal.h>
 
 #include "viewset.h"
 #include "kvdb_ctxn_internal.h"

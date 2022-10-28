@@ -8,7 +8,7 @@
 #include <sys/stat.h>
 
 #include <hse/error/merr.h>
-#include <hse_ikvdb/kvdb_home.h>
+#include <hse/ikvdb/kvdb_home.h>
 #include <mtf/framework.h>
 #include <hse/pidfile/pidfile.h>
 

@@ -10,7 +10,7 @@
 #include <hse/util/element_source.h>
 #include <hse/util/bonsai_tree.h>
 
-#include <hse_ikvdb/cursor.h>
+#include <hse/ikvdb/cursor.h>
 
 /* MTF_MOCK_DECL(bonsai_iter) */
 

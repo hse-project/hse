@@ -8,8 +8,8 @@
 
 #include <hse/flags.h>
 
-#include <hse_ikvdb/tuple.h>
-#include <hse_ikvdb/diag_kvdb.h>
+#include <hse/ikvdb/tuple.h>
+#include <hse/ikvdb/diag_kvdb.h>
 
 #include <hse/util/inttypes.h>
 #include <hse/error/merr.h>

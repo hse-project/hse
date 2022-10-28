@@ -9,7 +9,7 @@
 
 #include <hse/util/inttypes.h>
 
-#include <hse_ikvdb/cn.h>
+#include <hse/ikvdb/cn.h>
 
 #include <cn/route.h>
 #include <cn/cn_tree_internal.h>

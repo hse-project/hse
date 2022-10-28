@@ -14,7 +14,7 @@
 #include <hse/util/minmax.h>
 #include <hse/util/compiler.h>
 
-#include <hse_ikvdb/limits.h>
+#include <hse/ikvdb/limits.h>
 
 #include <bsd/string.h>
 

@@ -42,17 +42,17 @@
 
 #include <hse/limits.h>
 
-#include <hse_ikvdb/key_hash.h>
-#include <hse_ikvdb/limits.h>
-#include <hse_ikvdb/cndb.h>
-#include <hse_ikvdb/kvdb_health.h>
-#include <hse_ikvdb/cn_tree_view.h>
-#include <hse_ikvdb/cn.h>
-#include <hse_ikvdb/cn_kvdb.h>
-#include <hse_ikvdb/cursor.h>
-#include <hse_ikvdb/sched_sts.h>
-#include <hse_ikvdb/csched.h>
-#include <hse_ikvdb/kvs_rparams.h>
+#include <hse/ikvdb/key_hash.h>
+#include <hse/ikvdb/limits.h>
+#include <hse/ikvdb/cndb.h>
+#include <hse/ikvdb/kvdb_health.h>
+#include <hse/ikvdb/cn_tree_view.h>
+#include <hse/ikvdb/cn.h>
+#include <hse/ikvdb/cn_kvdb.h>
+#include <hse/ikvdb/cursor.h>
+#include <hse/ikvdb/sched_sts.h>
+#include <hse/ikvdb/csched.h>
+#include <hse/ikvdb/kvs_rparams.h>
 
 #include <cn/cn_cursor.h>
 

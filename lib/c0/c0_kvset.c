@@ -11,9 +11,9 @@
 #include <hse/util/compression_lz4.h>
 #include <hse/util/event_counter.h>
 
-#include <hse_ikvdb/limits.h>
-#include <hse_ikvdb/c0_kvset.h>
-#include <hse_ikvdb/c0_kvset_iterator.h>
+#include <hse/ikvdb/limits.h>
+#include <hse/ikvdb/c0_kvset.h>
+#include <hse/ikvdb/c0_kvset_iterator.h>
 
 #include "c0_kvset_internal.h"
 #include "c0_cursor.h"

@@ -15,7 +15,7 @@
 #include <sysexits.h>
 
 #include <hse/logging/logging.h>
-#include <hse_ikvdb/kvdb_meta.h>
+#include <hse/ikvdb/kvdb_meta.h>
 
 #include <hse/hse.h>
 #include <hse/mpool/mpool.h>

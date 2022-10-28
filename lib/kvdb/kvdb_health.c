@@ -9,7 +9,7 @@
 #include <hse/util/event_counter.h>
 #include <hse/util/atomic.h>
 
-#include <hse_ikvdb/kvdb_health.h>
+#include <hse/ikvdb/kvdb_health.h>
 
 static bool
 get_atomics(

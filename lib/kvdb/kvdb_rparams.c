@@ -16,17 +16,17 @@
 #include <hse/hse.h>
 
 #include <hse/mpool/mpool.h>
-#include <hse_ikvdb/mclass_policy.h>
-#include <hse_ikvdb/param.h>
-#include <hse_ikvdb/kvdb_rparams.h>
-#include <hse_ikvdb/kvdb_cparams.h>
-#include <hse_ikvdb/limits.h>
-#include <hse_ikvdb/kvdb_home.h>
-#include <hse_ikvdb/wal.h>
+#include <hse/ikvdb/mclass_policy.h>
+#include <hse/ikvdb/param.h>
+#include <hse/ikvdb/kvdb_rparams.h>
+#include <hse/ikvdb/kvdb_cparams.h>
+#include <hse/ikvdb/limits.h>
+#include <hse/ikvdb/kvdb_home.h>
+#include <hse/ikvdb/wal.h>
 #include <hse/util/assert.h>
 #include <hse/util/storage.h>
 #include <hse/util/compiler.h>
-#include <hse_ikvdb/csched.h>
+#include <hse/ikvdb/csched.h>
 
 static void
 mclass_policies_default_builder(const struct param_spec *ps, void *data)

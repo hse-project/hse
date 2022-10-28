@@ -69,14 +69,14 @@
 
 #define MTF_MOCK_IMPL_lc
 
-#include <hse_ikvdb/lc.h>
-#include <hse_ikvdb/tuple.h>
-#include <hse_ikvdb/limits.h>
-#include <hse_ikvdb/cursor.h>
-#include <hse_ikvdb/kvdb_ctxn.h>
-#include <hse_ikvdb/c0_kvset.h>
-#include <hse_ikvdb/c0snr_set.h>
-#include <hse_ikvdb/kvdb_health.h>
+#include <hse/ikvdb/lc.h>
+#include <hse/ikvdb/tuple.h>
+#include <hse/ikvdb/limits.h>
+#include <hse/ikvdb/cursor.h>
+#include <hse/ikvdb/kvdb_ctxn.h>
+#include <hse/ikvdb/c0_kvset.h>
+#include <hse/ikvdb/c0snr_set.h>
+#include <hse/ikvdb/kvdb_health.h>
 
 #include <hse/util/alloc.h>
 #include <hse/util/slab.h>
