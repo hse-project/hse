@@ -324,7 +324,11 @@ c0sk_cningest_cb(void *rock, struct bonsai_kv *bkv, struct bonsai_val *vlist)
         if (ev(err))
             return err;
 
-        kvset_builder_set_agegroup(bldr, HSE_MPOLICY_AGE_ROOT);
+        err = kvset_builder_set_agegroup(bldr, HSE_MPOLICY_AGE_ROOT);
+        if (err) {
+            kvset_builder_destroy(bldr);
+            return err;
+        }
 
         kvbldrs[skidx] = bldr;
     }

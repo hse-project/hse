@@ -507,14 +507,21 @@ kvset_builder_get_mblocks(struct kvset_builder *self, struct kvset_mblocks *mblk
     return 0;
 }
 
-void
+merr_t
 kvset_builder_set_agegroup(struct kvset_builder *self, enum hse_mclass_policy_age age)
 {
+    merr_t err;
+
     INVARIANT(age < HSE_MPOLICY_AGE_CNT);
 
-    hbb_set_agegroup(self->hbb, age);
-    kbb_set_agegroup(self->kbb, age);
-    vbb_set_agegroup(self->vbb, age);
+    err = hbb_set_agegroup(self->hbb, age);
+    if (!err) {
+        err = kbb_set_agegroup(self->kbb, age);
+        if (!err)
+            err = vbb_set_agegroup(self->vbb, age);
+    }
+
+    return err;
 }
 
 void
