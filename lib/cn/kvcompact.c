@@ -144,7 +144,10 @@ cn_kvcompact(struct cn_compaction_work *w)
         goto out;
 
     kvset_builder_set_merge_stats(bldr, &w->cw_stats);
-    kvset_builder_set_agegroup(bldr, HSE_MPOLICY_AGE_LEAF);
+
+    err = kvset_builder_set_agegroup(bldr, HSE_MPOLICY_AGE_LEAF);
+    if (err)
+        goto out;
 
     new_key = true;
 
@@ -287,7 +290,7 @@ cn_kvcompact(struct cn_compaction_work *w)
         }
 
         if (err)
-            break;
+            goto out;
 
         prev_kobj = curr->kobj;
 

@@ -118,7 +118,7 @@ void
 kvset_mblocks_destroy(struct kvset_mblocks *kvset);
 
 /* MTF_MOCK */
-void
+merr_t
 kvset_builder_set_agegroup(struct kvset_builder *self, enum hse_mclass_policy_age age);
 
 /* MTF_MOCK */

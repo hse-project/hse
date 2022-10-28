@@ -259,7 +259,12 @@ cn_subspill(
     assert(child);
 
     kvset_builder_set_merge_stats(child, &w->cw_stats);
-    kvset_builder_set_agegroup(child, HSE_MPOLICY_AGE_LEAF);
+
+    err = kvset_builder_set_agegroup(child, HSE_MPOLICY_AGE_LEAF);
+    if (err) {
+        kvset_builder_destroy(child);
+        return err;
+    }
 
     /* Add ptomb to 'child' if a ptomb context is carried forward from the
      * previous node spill, i.e., this ptomb spans across multiple children.
@@ -415,7 +420,7 @@ cn_subspill(
         }
 
         if (err)
-            break;
+            goto out;
 
         prev_kobj = sctx->curr->kobj;
 
@@ -449,7 +454,7 @@ cn_subspill(
         if (emitted_val) {
             err = kvset_builder_add_key(child, &prev_kobj);
             if (err)
-                break;
+                goto out;
 
             ss->ss_added = true;
             w->cw_stats.ms_keys_out++;
@@ -476,7 +481,6 @@ cn_subspill(
     err = kvset_builder_get_mblocks(child, &ss->ss_mblks);
 
 out:
-
     /* The cached ptomb needs to be propagated only if the current node's edge key has the same
      * prefix as the cached ptomb.
      */

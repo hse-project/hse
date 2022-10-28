@@ -143,12 +143,14 @@ vblock_start(struct vblock_builder *bld, const struct key_obj *min_kobj)
 
     tstart = get_time_ns();
 
+    bld->destruct = true;
+
     mclass = mclass_policy_get_type(mpolicy, bld->agegroup, HSE_MPOLICY_DTYPE_VALUE);
-    if (ev(mclass == HSE_MCLASS_INVALID))
+    if (mclass == HSE_MCLASS_INVALID)
         return merr(EINVAL);
 
     err = mpool_mblock_alloc(bld->mp, mclass, 0, &blkid, &mbprop);
-    if (ev(err))
+    if (err)
         return err;
 
     if (stats)
@@ -157,7 +159,7 @@ vblock_start(struct vblock_builder *bld, const struct key_obj *min_kobj)
     assert(mbprop.mpr_alloc_cap == bld->max_size);
 
     err = blk_list_append(&bld->vblk_list, blkid);
-    if (ev(err)) {
+    if (err) {
         mpool_mblock_delete(bld->mp, blkid);
         return err;
     }
@@ -170,6 +172,8 @@ vblock_start(struct vblock_builder *bld, const struct key_obj *min_kobj)
      * It is written later to the vblock footer as the min key.
      */
     key_obj_copy(bld->cur_minkey, sizeof(bld->cur_minkey), &bld->cur_minklen, min_kobj);
+
+    bld->destruct = false;
 
     return 0;
 }
@@ -429,12 +433,14 @@ vbb_set_agegroup(struct vblock_builder *bld, enum hse_mclass_policy_age age)
 
     err = mpool_mclass_props_get(
         bld->mp, policy->mc_table[bld->agegroup][HSE_MPOLICY_DTYPE_VALUE], &props);
-    if (err)
+    if (err) {
+        bld->destruct = true;
         return err;
+    }
 
     bld->max_size = props.mc_mblocksz;
 
-    return err;
+    return 0;
 }
 
 enum hse_mclass_policy_age

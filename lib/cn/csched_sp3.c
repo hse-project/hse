@@ -798,7 +798,8 @@ sp3_node_unlink(struct sp3 *sp, struct sp3_node *spn)
 static void
 sp3_node_unlink_all(struct sp3 *sp, struct sp3_node *spn)
 {
-    assert(spn->spn_initialized);
+    if (ev(!spn->spn_initialized))
+        return;
 
     sp3_node_unlink(sp, spn);
     list_del_init(&spn->spn_rlink);
