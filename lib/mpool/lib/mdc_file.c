@@ -366,20 +366,18 @@ mdc_file_open(
         return merr(EINVAL);
 
     fd = openat(dirfd, name, rdonly ? O_RDONLY : O_RDWR);
-    if (fd < 0) {
-        err = merr(errno);
-        return err;
-    }
+    if (fd < 0)
+        return merr(errno);
 
     mfp = calloc(1, sizeof(*mfp));
     if (!mfp) {
-        err = merr(ENOMEM);
-        goto err_exit2;
+        close(fd);
+        return merr(ENOMEM);
     }
 
     err = mdc_file_size(fd, &mfp->size);
     if (err)
-        goto err_exit1;
+        goto err_exit;
 
     /* Automatic extension upto MDC_EXTEND_FACTOR x the original capacity */
     mfp->maxsz = MDC_EXTEND_FACTOR * mfp->size;
@@ -396,25 +394,26 @@ mdc_file_open(
 
     err = mdc_file_mmap(mfp, mfp->size, rdonly);
     if (err)
-        goto err_exit1;
+        goto err_exit;
 
+    /* On detecting an incomplete log header from a crash during mdc file erase,
+     * return ENOMSG with a valid log handle.
+     */
     err = mdc_file_validate(mfp, gclose, gen);
-    if (err) {
+    if (err && merr_errno(err) != ENOMSG) {
         mdc_file_unmap(mfp);
-        goto err_exit1;
+        goto err_exit;
     }
 
     mfp->syncoff = mfp->woff;
 
     *handle = mfp;
 
-    return 0;
+    return err;
 
-err_exit1:
-    free(mfp);
-
-err_exit2:
+err_exit:
     close(fd);
+    free(mfp);
 
     return err;
 }
