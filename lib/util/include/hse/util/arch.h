@@ -172,7 +172,7 @@ get_time_ns(void)
  * returning the maximum length at which they compare identical.
  */
 static HSE_ALWAYS_INLINE size_t
-memlcp(const void *s1, const void *s2, size_t len)
+memlcp(const void *s1, const void *s2, const size_t len)
 {
     const uint8_t *lhs = s1;
     const uint8_t *rhs = s2;
@@ -204,7 +204,7 @@ memlcp(const void *s1, const void *s2, size_t len)
  * rounded down to the nearest quadword.
  */
 static HSE_ALWAYS_INLINE size_t
-memlcpq(const void *s1, const void *s2, size_t len)
+memlcpq(const void *s1, const void *s2, const size_t len)
 {
     const uint8_t *lhs = s1;
     const uint8_t *rhs = s2;
