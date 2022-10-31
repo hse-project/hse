@@ -91,7 +91,7 @@ struct wbb {
 struct key_stage_entry_leaf {
     uint32_t kmd_off;
     uint16_t klen;
-    uint8_t  kdata[] HSE_ALIGNED(HSE_KEY_CPE_ALIGNMENT);
+    uint8_t  kdata[] HSE_ALIGNED(4);
 };
 
 static HSE_ALWAYS_INLINE size_t
@@ -195,16 +195,16 @@ wbb_lcp_len(struct wbb *wbb, const struct key_obj *ko)
         return 0;
 
     if (old_pfx_len < ko->ko_pfx_len)
-        return memlcp_cpe(wbb->cnode_first_key, ko->ko_pfx, old_pfx_len);
+        return memlcp(wbb->cnode_first_key, ko->ko_pfx, old_pfx_len);
 
     /* old_pfx_len >= ko->ko_pfx_len */
-    new_pfx_len = memlcp_cpe(wbb->cnode_first_key, ko->ko_pfx, ko->ko_pfx_len);
+    new_pfx_len = memlcp(wbb->cnode_first_key, ko->ko_pfx, ko->ko_pfx_len);
     if (new_pfx_len == ko->ko_pfx_len) {
         void *p = wbb->cnode_first_key + new_pfx_len;
         uint  cmplen = old_pfx_len - new_pfx_len;
 
         assert(old_pfx_len >= new_pfx_len);
-        new_pfx_len += memlcp_cpe(p, ko->ko_sfx, cmplen);
+        new_pfx_len += memlcp(p, ko->ko_sfx, cmplen);
     }
 
     return new_pfx_len;

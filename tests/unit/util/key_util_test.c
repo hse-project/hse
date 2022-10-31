@@ -8,6 +8,7 @@
 #include <hse/util/inttypes.h>
 #include <hse/util/key_util.h>
 #include <hse/util/minmax.h>
+#include <hse/util/arch.h>
 
 
 MTF_BEGIN_UTEST_COLLECTION(key_util_test);
