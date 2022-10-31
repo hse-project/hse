@@ -13,7 +13,7 @@
  * This tool is used for surgical tests of kvs internals,
  * and does not represent any possible real life application.
  * Keys are NOT verified -- this is left to visual inspection
- * with cn_kbdump.
+ * with cndump.
  */
 
 #include <arpa/inet.h>
