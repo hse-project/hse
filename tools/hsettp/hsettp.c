@@ -49,7 +49,7 @@ enum tablular_type {
 cJSON *openapi;
 struct options_map *options_map;
 
-const char *sockpath = "/mnt/hse";
+const char *fspath;
 const char *progname;
 int verbosity;
 
@@ -1538,10 +1538,9 @@ root_usage(FILE *const output)
     INVARIANT(openapi);
     INVARIANT(output);
 
-    fprintf(output, "Usage: hsettp [OPTION ...] <operation> [OPTION ...] [ARG ...]\n");
+    fprintf(output,
+        "Usage: %s [OPTION ...] <operation> [OPTION ...] <home/socket> [ARG ...]\n", progname);
     fprintf(output, "\nOptions:\n");
-    fprintf(output, "  -C, --path       Path to KVDB home or REST socket (default: %s).\n",
-            sockpath);
     fprintf(output, "  -h, --help       Show this help output.\n");
     fprintf(output, "  -v, --verbosity  Increase verbosity.\n");
     fprintf(output, "\nOperations:\n");
@@ -1552,8 +1551,7 @@ root_usage(FILE *const output)
         fprintf(output, "\nUse -hv to show all operations\n\n");
 }
 
-__attribute__((format(printf, 1, 2)))
-void
+static void HSE_PRINTF(1, 2)
 syntax(const char *fmt, ...)
 {
     char msg[256];
@@ -1571,7 +1569,6 @@ main(const int argc, char **const argv)
 {
     const struct option program_opts[] = {
         { "help", no_argument, NULL, 'h' },
-        { "socket", required_argument, NULL, 'C' },
         { "verbosity", no_argument, NULL, 'v' },
         { NULL },
     };
@@ -1603,11 +1600,8 @@ main(const int argc, char **const argv)
     }
     assert(cJSON_IsObject(openapi));
 
-    while ((c = getopt_long(argc, argv, "+:C:hv", program_opts, NULL)) != -1) {
+    while ((c = getopt_long(argc, argv, "+:hv", program_opts, NULL)) != -1) {
         switch (c) {
-        case 'C':
-            sockpath = optarg;
-            break;
         case 'h':
             help = true;
             break;
@@ -1661,6 +1655,14 @@ main(const int argc, char **const argv)
     if (rc || head_to_exit)
         goto out;
 
+    if (optind >= argc) {
+        syntax("KVDB home/socket path is required");
+        rc = EX_USAGE;
+        goto out;
+    }
+
+    fspath = argv[optind++];
+
     /* Validate number of remaining arguments */
     opargs_min = count_operation_arguments(path, method, &request_body);
     opargs_max = opargs_min;
@@ -1678,7 +1680,7 @@ main(const int argc, char **const argv)
     }
 
     if (argc - optind < opargs_min) {
-        syntax("insufficient arguments for mandatory parameters (%d required)", opargs_min);
+        syntax("Insufficient arguments for mandatory parameters (%d required)", opargs_min);
         rc = EX_USAGE;
         goto out;
     }
@@ -1717,10 +1719,10 @@ main(const int argc, char **const argv)
     if (rc)
         goto out;
 
-    rc = stat(sockpath, &sb);
+    rc = stat(fspath, &sb);
     if (-1 == rc) {
-        fprintf(stderr, "%s: unable to stat '%s': %s\n",
-                progname, sockpath, strerror(errno));
+        fprintf(stderr, "%s: Unable to stat '%s': %s\n",
+                progname, fspath, strerror(errno));
         rc = EX_OSERR;
         goto out;
     }
@@ -1728,23 +1730,23 @@ main(const int argc, char **const argv)
     if (S_ISDIR(sb.st_mode)) {
         static struct pidfile content;
 
-        err = pidfile_deserialize(sockpath, &content);
+        err = pidfile_deserialize(fspath, &content);
         if (err) {
             merr_strinfo(err, errbuf, sizeof(errbuf), 0, NULL);
-            fprintf(stderr, "%s: unable to deserialize pidfile '%s/%s': %s\n",
-                    progname, sockpath, PIDFILE_NAME, errbuf);
+            fprintf(stderr, "%s: Unable to deserialize pidfile '%s/%s': %s\n",
+                    progname, fspath, PIDFILE_NAME, errbuf);
             rc = EX_OSERR;
             goto out;
         }
 
-        sockpath = content.rest.socket_path;
+        fspath = content.rest.socket_path;
     } else if (!S_ISSOCK(sb.st_mode)) {
-        syntax("path '%s' is neither a directory nor socket", sockpath);
+        syntax("Path '%s' is neither a directory nor a socket", fspath);
         rc = EX_USAGE;
         goto out;
     }
 
-    err = rest_client_init(sockpath);
+    err = rest_client_init(fspath);
     if (err) {
         merr_strinfo(err, errbuf, sizeof(errbuf), (merr_stringify *)curl_easy_strerror, NULL);
         fprintf(stderr, "%s: Failed to initialize the REST client: %s\n", progname, errbuf);
