@@ -39,10 +39,6 @@ tools = {
             'parm_groups.c'
         ),
     },
-    'cn_kbdump': {
-        'dependencies': [hse_internal_dep],
-        'sources': files('cn_kbdump/cn_kbdump.c', 'parm_groups.c'),
-    },
     'cn_metrics': {
         'dependencies': [hse_internal_dep],
         'sources': files(
@@ -51,17 +47,17 @@ tools = {
             'parm_groups.c'
         ),
     },
-     'cndump': {
+    'cndump': {
         'dependencies': [hse_internal_dep],
-         'sources': files(
-             'cndump/cndb_dump.c',
-             'cndump/cndb_reader.c',
-             'cndump/cndb_record.c',
-             'cndump/cndump.c',
-             'cndump/fatal.c',
-             'cndump/kvset_dump.c',
-         ),
-     },
+        'sources': files(
+            'cndump/cndb_dump.c',
+            'cndump/cndb_reader.c',
+            'cndump/cndb_record.c',
+            'cndump/cndump.c',
+            'cndump/fatal.c',
+            'cndump/kvset_dump.c',
+        ),
+    },
     'ctxn_validation': {
         'dependencies': [
             hse_internal_dep,
