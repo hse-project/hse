@@ -10,9 +10,9 @@
 #include <hse/util/slab.h>
 #include <hse/logging/logging.h>
 
-#include <hse_ikvdb/cn.h>
-#include <hse_ikvdb/kvdb_rparams.h>
-#include <hse_ikvdb/kvs_rparams.h>
+#include <hse/ikvdb/cn.h>
+#include <hse/ikvdb/kvdb_rparams.h>
+#include <hse/ikvdb/kvs_rparams.h>
 
 #include "csched_sp3_work.h"
 

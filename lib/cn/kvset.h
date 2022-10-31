@@ -11,13 +11,13 @@
 #include <hse/util/list.h>
 #include <hse/util/perfc.h>
 
-#include <hse_ikvdb/blk_list.h>
-#include <hse_ikvdb/kvs_cparams.h>
-#include <hse_ikvdb/tuple.h>
-#include <hse_ikvdb/omf_kmd.h>
-#include <hse_ikvdb/kvset_view.h>
-#include <hse_ikvdb/cndb.h>
-#include <hse_ikvdb/csched.h>
+#include <hse/ikvdb/blk_list.h>
+#include <hse/ikvdb/kvs_cparams.h>
+#include <hse/ikvdb/tuple.h>
+#include <hse/ikvdb/omf_kmd.h>
+#include <hse/ikvdb/kvset_view.h>
+#include <hse/ikvdb/cndb.h>
+#include <hse/ikvdb/csched.h>
 
 #include "blk_list.h"
 #include "kv_iterator.h"

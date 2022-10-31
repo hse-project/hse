@@ -6,7 +6,7 @@
 #include <hse/util/platform.h>
 #include <hse/util/perfc.h>
 
-#include <hse_ikvdb/hse_gparams.h>
+#include <hse/ikvdb/hse_gparams.h>
 #include <hse/kvdb_perfc.h>
 
 /* clang-format off */

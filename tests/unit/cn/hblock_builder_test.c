@@ -11,10 +11,10 @@
 #include <cn/hblock_builder.h>
 #include <cn/omf.h>
 
-#include <hse_ikvdb/blk_list.h>
-#include <hse_ikvdb/kvs_cparams.h>
-#include <hse_ikvdb/kvset_builder.h>
-#include <hse_ikvdb/mclass_policy.h>
+#include <hse/ikvdb/blk_list.h>
+#include <hse/ikvdb/kvs_cparams.h>
+#include <hse/ikvdb/kvset_builder.h>
+#include <hse/ikvdb/mclass_policy.h>
 #include <hse/util/alloc.h>
 #include <hse/util/assert.h>
 #include <hse/util/base.h>

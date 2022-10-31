@@ -7,15 +7,15 @@
 
 #include <hse/mpool/mpool.h>
 
-#include <hse_ikvdb/ikvdb.h>
-#include <hse_ikvdb/diag_kvdb.h>
-#include <hse_ikvdb/kvdb_ctxn.h>
-#include <hse_ikvdb/limits.h>
-#include <hse_ikvdb/kvdb_perfc.h>
-#include <hse_ikvdb/config.h>
-#include <hse_ikvdb/argv.h>
-#include <hse_ikvdb/kvdb_home.h>
-#include <hse_ikvdb/kvdb_rparams.h>
+#include <hse/ikvdb/ikvdb.h>
+#include <hse/ikvdb/diag_kvdb.h>
+#include <hse/ikvdb/kvdb_ctxn.h>
+#include <hse/ikvdb/limits.h>
+#include <hse/ikvdb/kvdb_perfc.h>
+#include <hse/ikvdb/config.h>
+#include <hse/ikvdb/argv.h>
+#include <hse/ikvdb/kvdb_home.h>
+#include <hse/ikvdb/kvdb_rparams.h>
 
 #include <hse/version.h>
 #include <hse/logging/logging.h>

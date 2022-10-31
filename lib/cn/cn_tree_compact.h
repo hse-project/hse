@@ -13,8 +13,8 @@
 #include <hse/util/workqueue.h>
 #include <hse/util/perfc.h>
 
-#include <hse_ikvdb/csched.h>
-#include <hse_ikvdb/sched_sts.h>
+#include <hse/ikvdb/csched.h>
+#include <hse/ikvdb/sched_sts.h>
 
 #include "cn_metrics.h"
 #include "kcompact.h"

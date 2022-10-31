@@ -9,8 +9,8 @@
 
 #include <hse/hse.h>
 
-#include <hse_ikvdb/cndb.h>
-#include <hse_ikvdb/diag_kvdb.h>
+#include <hse/ikvdb/cndb.h>
+#include <hse/ikvdb/diag_kvdb.h>
 
 #include <hse/mpool/mpool.h>
 

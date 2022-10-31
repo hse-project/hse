@@ -13,10 +13,10 @@
 
 #include <hse/limits.h>
 
-#include <hse_ikvdb/cn.h>
-#include <hse_ikvdb/ikvdb.h>
-#include <hse_ikvdb/cndb.h>
-#include <hse_ikvdb/kvset_builder.h>
+#include <hse/ikvdb/cn.h>
+#include <hse/ikvdb/ikvdb.h>
+#include <hse/ikvdb/cndb.h>
+#include <hse/ikvdb/kvset_builder.h>
 
 #include <hse/mpool/mpool.h>
 

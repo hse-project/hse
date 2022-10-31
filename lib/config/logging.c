@@ -5,7 +5,7 @@
 
 #define MTF_MOCK_IMPL_logging
 
-#include <hse_ikvdb/param.h>
+#include <hse/ikvdb/param.h>
 
 #include "logging.h"
 

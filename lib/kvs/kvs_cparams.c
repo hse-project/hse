@@ -7,9 +7,9 @@
 #include <stddef.h>
 
 #include <hse/limits.h>
-#include <hse_ikvdb/limits.h>
-#include <hse_ikvdb/param.h>
-#include <hse_ikvdb/kvs_cparams.h>
+#include <hse/ikvdb/limits.h>
+#include <hse/ikvdb/param.h>
+#include <hse/ikvdb/kvs_cparams.h>
 #include <hse/util/base.h>
 
 static const struct param_spec pspecs[] = {

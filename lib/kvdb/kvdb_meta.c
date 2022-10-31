@@ -17,9 +17,9 @@
 #include <hse/hse.h>
 #include <hse/logging/logging.h>
 
-#include <hse_ikvdb/kvdb_meta.h>
-#include <hse_ikvdb/kvdb_home.h>
-#include <hse_ikvdb/omf_version.h>
+#include <hse/ikvdb/kvdb_meta.h>
+#include <hse/ikvdb/kvdb_home.h>
+#include <hse/ikvdb/omf_version.h>
 #include <hse/util/assert.h>
 #include <hse/util/base.h>
 

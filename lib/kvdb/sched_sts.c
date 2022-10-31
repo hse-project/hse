@@ -8,7 +8,7 @@
 #include <hse/error/merr.h>
 #include <hse/logging/logging.h>
 #include <hse/rest/server.h>
-#include <hse_ikvdb/sched_sts.h>
+#include <hse/ikvdb/sched_sts.h>
 #include <hse/util/event_counter.h>
 #include <hse/util/mutex.h>
 #include <hse/util/platform.h>

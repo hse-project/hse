@@ -5,8 +5,8 @@
 #ifndef WAL_INTERNAL_H
 #define WAL_INTERNAL_H
 
-#include <hse_ikvdb/wal.h>
-#include <hse_ikvdb/limits.h>
+#include <hse/ikvdb/wal.h>
+#include <hse/ikvdb/limits.h>
 
 /* clang-format off */
 

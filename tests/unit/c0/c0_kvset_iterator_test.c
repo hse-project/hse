@@ -11,9 +11,9 @@
 #include <hse/util/keycmp.h>
 
 #include <support/random_buffer.h>
-#include <hse_ikvdb/limits.h>
-#include <hse_ikvdb/c0_kvset.h>
-#include <hse_ikvdb/c0_kvset_iterator.h>
+#include <hse/ikvdb/limits.h>
+#include <hse/ikvdb/c0_kvset.h>
+#include <hse/ikvdb/c0_kvset_iterator.h>
 
 #include <c0/c0_kvset_internal.h>
 

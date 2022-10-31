@@ -10,12 +10,12 @@
 
 #include <hse/util/platform.h>
 
-#include <hse_ikvdb/c0_kvset.h>
-#include <hse_ikvdb/limits.h>
-#include <hse_ikvdb/kvset_builder.h>
-#include <hse_ikvdb/c0_kvmultiset.h>
-#include <hse_ikvdb/c0_kvset_iterator.h>
-#include <hse_ikvdb/lc.h>
+#include <hse/ikvdb/c0_kvset.h>
+#include <hse/ikvdb/limits.h>
+#include <hse/ikvdb/kvset_builder.h>
+#include <hse/ikvdb/c0_kvmultiset.h>
+#include <hse/ikvdb/c0_kvset_iterator.h>
+#include <hse/ikvdb/lc.h>
 
 /* clang-format off */
 

@@ -15,15 +15,15 @@
 
 #include <hse/kvdb_perfc.h>
 
-#include <hse_ikvdb/c0.h>
-#include <hse_ikvdb/lc.h>
-#include <hse_ikvdb/cn.h>
-#include <hse_ikvdb/kvs.h>
-#include <hse_ikvdb/limits.h>
-#include <hse_ikvdb/kvdb_ctxn.h>
-#include <hse_ikvdb/kvdb_perfc.h>
-#include <hse_ikvdb/tuple.h>
-#include <hse_ikvdb/cursor.h>
+#include <hse/ikvdb/c0.h>
+#include <hse/ikvdb/lc.h>
+#include <hse/ikvdb/cn.h>
+#include <hse/ikvdb/kvs.h>
+#include <hse/ikvdb/limits.h>
+#include <hse/ikvdb/kvdb_ctxn.h>
+#include <hse/ikvdb/kvdb_perfc.h>
+#include <hse/ikvdb/tuple.h>
+#include <hse/ikvdb/cursor.h>
 
 #include <c0/c0_cursor.h>
 #include <cn/cn_cursor.h>

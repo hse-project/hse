@@ -10,14 +10,14 @@
 #include <hse/util/event_counter.h>
 #include <hse/util/log2.h>
 
-#include <hse_ikvdb/ikvdb.h>
-#include <hse_ikvdb/kvs.h>
-#include <hse_ikvdb/limits.h>
-#include <hse_ikvdb/key_hash.h>
-#include <hse_ikvdb/kvdb_ctxn.h>
-#include <hse_ikvdb/kvdb_rparams.h>
-#include <hse_ikvdb/c0sk.h>
-#include <hse_ikvdb/omf_version.h>
+#include <hse/ikvdb/ikvdb.h>
+#include <hse/ikvdb/kvs.h>
+#include <hse/ikvdb/limits.h>
+#include <hse/ikvdb/key_hash.h>
+#include <hse/ikvdb/kvdb_ctxn.h>
+#include <hse/ikvdb/kvdb_rparams.h>
+#include <hse/ikvdb/c0sk.h>
+#include <hse/ikvdb/omf_version.h>
 
 #include <hse/hse.h>
 #include <hse/mpool/mpool.h>

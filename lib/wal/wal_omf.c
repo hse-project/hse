@@ -7,8 +7,8 @@
 #include <hse/util/platform.h>
 #include <hse/util/page.h>
 
-#include <hse_ikvdb/wal.h>
-#include <hse_ikvdb/tuple.h>
+#include <hse/ikvdb/wal.h>
+#include <hse/ikvdb/tuple.h>
 
 #include "wal_omf.h"
 #include "wal_replay.h"

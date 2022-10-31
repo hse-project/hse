@@ -8,9 +8,9 @@
 
 #include <hse/limits.h>
 
-#include <hse_ikvdb/c0_kvset_iterator.h>
-#include <hse_ikvdb/cursor.h>
-#include <hse_ikvdb/limits.h>
+#include <hse/ikvdb/c0_kvset_iterator.h>
+#include <hse/ikvdb/cursor.h>
+#include <hse/ikvdb/limits.h>
 
 /**
  * struct - c0_kvmultset_cursor - structure to iterate over one c0kvms

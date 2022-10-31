@@ -11,7 +11,7 @@
 
 #include <hse/limits.h>
 
-#include <hse_ikvdb/omf_version.h>
+#include <hse/ikvdb/omf_version.h>
 #include <hse/util/omf.h>
 #include <hse/util/page.h>
 

@@ -17,10 +17,10 @@
 #include <hse/logging/logging.h>
 #include <hse/util/list.h>
 
-#include <hse_ikvdb/kvset_view.h>
-#include <hse_ikvdb/sched_sts.h>
-#include <hse_ikvdb/cndb.h>
-#include <hse_ikvdb/cn.h>
+#include <hse/ikvdb/kvset_view.h>
+#include <hse/ikvdb/sched_sts.h>
+#include <hse/ikvdb/cndb.h>
+#include <hse/ikvdb/cn.h>
 
 #include "cn_tree.h"
 #include "cn_metrics.h"

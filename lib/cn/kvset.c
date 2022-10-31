@@ -24,11 +24,11 @@
 #include <hse/limits.h>
 #include <hse/kvdb_perfc.h>
 
-#include <hse_ikvdb/tuple.h>
-#include <hse_ikvdb/cn_kvdb.h>
-#include <hse_ikvdb/cn.h>
-#include <hse_ikvdb/ikvdb.h>
-#include <hse_ikvdb/kvs_rparams.h>
+#include <hse/ikvdb/tuple.h>
+#include <hse/ikvdb/cn_kvdb.h>
+#include <hse/ikvdb/cn.h>
+#include <hse/ikvdb/ikvdb.h>
+#include <hse/ikvdb/kvs_rparams.h>
 
 #include "kvs_mblk_desc.h"
 #include "vblock_reader.h"
@@ -37,7 +37,7 @@
 #define MTF_MOCK_IMPL_kvset
 #define MTF_MOCK_IMPL_kvset_view
 
-#include <hse_ikvdb/cndb.h>
+#include <hse/ikvdb/cndb.h>
 
 #include <hse/mpool/mpool.h>
 

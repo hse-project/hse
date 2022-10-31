@@ -12,10 +12,10 @@
 
 #include <hse/util/storage.h>
 
-#include <hse_ikvdb/kvdb_home.h>
-#include <hse_ikvdb/kvdb_cparams.h>
-#include <hse_ikvdb/param.h>
-#include <hse_ikvdb/wal.h>
+#include <hse/ikvdb/kvdb_home.h>
+#include <hse/ikvdb/kvdb_cparams.h>
+#include <hse/ikvdb/param.h>
+#include <hse/ikvdb/wal.h>
 #include <hse/mpool/mpool.h>
 
 static const struct param_spec pspecs[] = {

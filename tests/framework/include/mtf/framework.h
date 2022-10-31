@@ -8,7 +8,7 @@
 #include <hse/hse.h>
 
 #include <hse/error/merr.h>
-#include <hse_ikvdb/hse_gparams.h>
+#include <hse/ikvdb/hse_gparams.h>
 
 #if HSE_MOCKING
 #include <mock/api.h>

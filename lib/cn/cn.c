@@ -30,18 +30,18 @@
 #include <hse/util/vlb.h>
 #include <hse/util/xrand.h>
 
-#include <hse_ikvdb/cn.h>
-#include <hse_ikvdb/cn_kvdb.h>
-#include <hse_ikvdb/cndb.h>
-#include <hse_ikvdb/cursor.h>
-#include <hse_ikvdb/csched.h>
-#include <hse_ikvdb/hse_gparams.h>
-#include <hse_ikvdb/ikvdb.h>
-#include <hse_ikvdb/kvdb_health.h>
-#include <hse_ikvdb/kvs.h>
-#include <hse_ikvdb/kvs_cparams.h>
-#include <hse_ikvdb/kvset_builder.h>
-#include <hse_ikvdb/limits.h>
+#include <hse/ikvdb/cn.h>
+#include <hse/ikvdb/cn_kvdb.h>
+#include <hse/ikvdb/cndb.h>
+#include <hse/ikvdb/cursor.h>
+#include <hse/ikvdb/csched.h>
+#include <hse/ikvdb/hse_gparams.h>
+#include <hse/ikvdb/ikvdb.h>
+#include <hse/ikvdb/kvdb_health.h>
+#include <hse/ikvdb/kvs.h>
+#include <hse/ikvdb/kvs_cparams.h>
+#include <hse/ikvdb/kvset_builder.h>
+#include <hse/ikvdb/limits.h>
 
 #include <hse/mpool/mpool.h>
 

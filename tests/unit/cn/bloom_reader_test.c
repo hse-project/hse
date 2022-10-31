@@ -5,7 +5,7 @@
 
 #include <mtf/framework.h>
 
-#include <hse_ikvdb/tuple.h>
+#include <hse/ikvdb/tuple.h>
 
 #include <hse/util/inttypes.h>
 #include <hse/logging/logging.h>

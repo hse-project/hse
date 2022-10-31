@@ -17,12 +17,12 @@
 #include <hse/util/storage.h>
 #include <hse/util/storage.h>
 
-#include <hse_ikvdb/mclass_policy.h>
-#include <hse_ikvdb/ikvdb.h>
-#include <hse_ikvdb/param.h>
-#include <hse_ikvdb/kvs_rparams.h>
-#include <hse_ikvdb/limits.h>
-#include <hse_ikvdb/vcomp_params.h>
+#include <hse/ikvdb/mclass_policy.h>
+#include <hse/ikvdb/ikvdb.h>
+#include <hse/ikvdb/param.h>
+#include <hse/ikvdb/kvs_rparams.h>
+#include <hse/ikvdb/limits.h>
+#include <hse/ikvdb/vcomp_params.h>
 
 /*
  * Steps to add a new kvs run-time parameter(rparam):

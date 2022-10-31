@@ -10,10 +10,10 @@
 
 #include <hse/limits.h>
 
-#include <hse_ikvdb/blk_list.h>
-#include <hse_ikvdb/cn.h>
-#include <hse_ikvdb/kvset_builder.h>
-#include <hse_ikvdb/mclass_policy.h>
+#include <hse/ikvdb/blk_list.h>
+#include <hse/ikvdb/cn.h>
+#include <hse/ikvdb/kvset_builder.h>
+#include <hse/ikvdb/mclass_policy.h>
 #include <hse/util/alloc.h>
 #include <hse/util/event_counter.h>
 #include <hse/error/merr.h>

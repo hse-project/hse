@@ -10,9 +10,9 @@
 #include <hse/util/atomic.h>
 #include <hse/util/keylock.h>
 
-#include <hse_ikvdb/limits.h>
-#include <hse_ikvdb/tuple.h>
-#include <hse_ikvdb/kvdb_ctxn.h>
+#include <hse/ikvdb/limits.h>
+#include <hse/ikvdb/tuple.h>
+#include <hse/ikvdb/kvdb_ctxn.h>
 
 #include <kvdb/kvdb_keylock.h>
 

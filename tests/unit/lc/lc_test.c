@@ -10,10 +10,10 @@
 #include <hse/util/seqno.h>
 #include <hse/util/keycmp.h>
 
-#include <hse_ikvdb/tuple.h>
-#include <hse_ikvdb/lc.h>
-#include <hse_ikvdb/cursor.h>
-#include <hse_ikvdb/kvdb_health.h>
+#include <hse/ikvdb/tuple.h>
+#include <hse/ikvdb/lc.h>
+#include <hse/ikvdb/cursor.h>
+#include <hse/ikvdb/kvdb_health.h>
 
 struct lc *lc;
 struct kvdb_health mock_health;

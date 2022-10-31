@@ -10,7 +10,7 @@
 #include <hse/error/merr.h>
 #include <hse/util/bin_heap.h>
 
-#include <hse_ikvdb/tuple.h>
+#include <hse/ikvdb/tuple.h>
 
 /*
  *  The struct kv_iterator_ops definition specifies a generic interface for

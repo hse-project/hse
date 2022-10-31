@@ -8,7 +8,7 @@
 
 #include <hse/util/inttypes.h>
 
-#include <hse_ikvdb/cn_tree_view.h>
+#include <hse/ikvdb/cn_tree_view.h>
 
 /* MTF_MOCK_DECL(cn_tree_iter) */
 

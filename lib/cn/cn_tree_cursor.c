@@ -25,7 +25,7 @@
 #include <hse/util/keycmp.h>
 #include <hse/util/bin_heap.h>
 
-#include <hse_ikvdb/cn.h>
+#include <hse/ikvdb/cn.h>
 
 #include <cn/cn_cursor.h>
 

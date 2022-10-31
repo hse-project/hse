@@ -7,8 +7,8 @@
 #include <hse/util/slab.h>
 #include <hse/util/xrand.h>
 
-#include <hse_ikvdb/omf_kmd.h>
-#include <hse_ikvdb/limits.h>
+#include <hse/ikvdb/omf_kmd.h>
+#include <hse/ikvdb/limits.h>
 
 #include <byteswap.h>
 #include <getopt.h>

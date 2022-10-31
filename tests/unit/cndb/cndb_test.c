@@ -9,8 +9,8 @@
 #include <hse/error/merr.h>
 #include <hse/util/list.h>
 
-#include <hse_ikvdb/cndb.h>
-#include <hse_ikvdb/kvdb_rparams.h>
+#include <hse/ikvdb/cndb.h>
+#include <hse/ikvdb/kvdb_rparams.h>
 
 #include <hse/mpool/mpool.h>
 

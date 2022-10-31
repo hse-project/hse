@@ -12,8 +12,8 @@
 #include <hse/util/event_counter.h>
 #include <hse/util/vlb.h>
 
-#include <hse_ikvdb/hse_gparams.h>
-#include <hse_ikvdb/hse_gparams.h>
+#include <hse/ikvdb/hse_gparams.h>
+#include <hse/ikvdb/hse_gparams.h>
 
 #define VLB_NODES_MAX       (4) /* max numa nodes */
 #define VLB_BPN_MAX         (4) /* max per-cpu buckets per node */

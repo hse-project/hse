@@ -16,9 +16,9 @@
 #include <hse/util/vlb.h>
 #include <hse/util/event_counter.h>
 
-#include <hse_ikvdb/c0snr_set.h>
+#include <hse/ikvdb/c0snr_set.h>
 
-#include <hse_ikvdb/limits.h>
+#include <hse/ikvdb/limits.h>
 
 /* clang-format off */
 

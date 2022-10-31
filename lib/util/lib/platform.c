@@ -8,7 +8,7 @@
 #include <hse/version.h>
 #include <hse/logging/logging.h>
 
-#include <hse_ikvdb/hse_gparams.h>
+#include <hse/ikvdb/hse_gparams.h>
 
 #include <hse/util/data_tree.h>
 #include <hse/util/event_counter.h>

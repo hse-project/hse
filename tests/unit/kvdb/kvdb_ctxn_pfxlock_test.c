@@ -11,7 +11,7 @@
 #include <kvdb/kvdb_ctxn_pfxlock.h>
 #include <kvdb/viewset.h>
 
-#include <hse_ikvdb/key_hash.h>
+#include <hse/ikvdb/key_hash.h>
 
 volatile u64 g_txn_horizon;
 

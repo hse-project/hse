@@ -5,7 +5,7 @@
 
 #define MTF_MOCK_IMPL_blk_list
 
-#include <hse_ikvdb/blk_list.h>
+#include <hse/ikvdb/blk_list.h>
 #include <hse/logging/logging.h>
 #include <hse/error/merr.h>
 #include <hse/util/event_counter.h>

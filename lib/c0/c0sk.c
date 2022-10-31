@@ -20,18 +20,18 @@
 
 #define MTF_MOCK_IMPL_c0sk
 
-#include <hse_ikvdb/c0sk.h>
-#include <hse_ikvdb/c0sk_perfc.h>
-#include <hse_ikvdb/kvdb_perfc.h>
-#include <hse_ikvdb/c0.h>
-#include <hse_ikvdb/cn.h>
-#include <hse_ikvdb/c0_kvmultiset.h>
-#include <hse_ikvdb/c0_kvset.h>
-#include <hse_ikvdb/c0_kvset_iterator.h>
-#include <hse_ikvdb/kvdb_ctxn.h>
-#include <hse_ikvdb/cursor.h>
-#include <hse_ikvdb/kvdb_rparams.h>
-#include <hse_ikvdb/rparam_debug_flags.h>
+#include <hse/ikvdb/c0sk.h>
+#include <hse/ikvdb/c0sk_perfc.h>
+#include <hse/ikvdb/kvdb_perfc.h>
+#include <hse/ikvdb/c0.h>
+#include <hse/ikvdb/cn.h>
+#include <hse/ikvdb/c0_kvmultiset.h>
+#include <hse/ikvdb/c0_kvset.h>
+#include <hse/ikvdb/c0_kvset_iterator.h>
+#include <hse/ikvdb/kvdb_ctxn.h>
+#include <hse/ikvdb/cursor.h>
+#include <hse/ikvdb/kvdb_rparams.h>
+#include <hse/ikvdb/rparam_debug_flags.h>
 
 #include "c0sk_internal.h"
 #include "c0_cursor.h"

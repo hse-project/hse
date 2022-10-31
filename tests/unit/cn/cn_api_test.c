@@ -4,10 +4,10 @@
  */
 
 #include <mtf/framework.h>
-#include <hse_ikvdb/kvs.h>
-#include <hse_ikvdb/cn.h>
-#include <hse_ikvdb/cn_kvdb.h>
-#include <hse_ikvdb/kvdb_health.h>
+#include <hse/ikvdb/kvs.h>
+#include <hse/ikvdb/cn.h>
+#include <hse/ikvdb/cn_kvdb.h>
+#include <hse/ikvdb/kvdb_health.h>
 #include <hse/mpool/mpool.h>
 
 #include <cn/cn_internal.h>

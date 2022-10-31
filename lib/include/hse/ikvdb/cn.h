@@ -9,11 +9,11 @@
 #include <hse/error/merr.h>
 #include <hse/util/workqueue.h>
 
-#include <hse_ikvdb/kvs_cparams.h>
-#include <hse_ikvdb/tuple.h>
-#include <hse_ikvdb/limits.h>
-#include <hse_ikvdb/kvdb_health.h>
-#include <hse_ikvdb/kvs.h>
+#include <hse/ikvdb/kvs_cparams.h>
+#include <hse/ikvdb/tuple.h>
+#include <hse/ikvdb/limits.h>
+#include <hse/ikvdb/kvdb_health.h>
+#include <hse/ikvdb/kvs.h>
 
 /* MTF_MOCK_DECL(cn) */
 

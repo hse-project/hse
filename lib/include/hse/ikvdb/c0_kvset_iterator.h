@@ -10,7 +10,7 @@
 #include <hse/util/element_source.h>
 #include <hse/util/bonsai_tree.h>
 
-#include <hse_ikvdb/lc.h>
+#include <hse/ikvdb/lc.h>
 
 /**
  * c0_kvset_iterator - c0kvs iterator (used for in order traversal)

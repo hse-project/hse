@@ -5,12 +5,12 @@
 
 #include <mtf/framework.h>
 
-#include <hse_ikvdb/argv.h>
-#include <hse_ikvdb/limits.h>
-#include <hse_ikvdb/kvdb_rparams.h>
-#include <hse_ikvdb/csched.h>
-#include <hse_ikvdb/wal.h>
-#include <hse_ikvdb/param.h>
+#include <hse/ikvdb/argv.h>
+#include <hse/ikvdb/limits.h>
+#include <hse/ikvdb/kvdb_rparams.h>
+#include <hse/ikvdb/csched.h>
+#include <hse/ikvdb/wal.h>
+#include <hse/ikvdb/param.h>
 
 #include <stdarg.h>
 

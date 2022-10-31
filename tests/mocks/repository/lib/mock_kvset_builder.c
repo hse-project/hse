@@ -7,7 +7,7 @@
 
 #include <hse/error/merr.h>
 
-#include <hse_ikvdb/kvset_builder.h>
+#include <hse/ikvdb/kvset_builder.h>
 
 #include <mocks/mock_kvset_builder.h>
 

@@ -11,7 +11,7 @@
 
 #include <hse/limits.h>
 
-#include <hse_ikvdb/kvs_cparams.h>
+#include <hse/ikvdb/kvs_cparams.h>
 #include <hse/util/compiler.h>
 
 #include <cndb/omf.h>

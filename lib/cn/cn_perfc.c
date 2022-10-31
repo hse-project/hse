@@ -6,8 +6,8 @@
 #include <hse/util/platform.h>
 #include <hse/logging/logging.h>
 
-#include <hse_ikvdb/tuple.h>
-#include <hse_ikvdb/mclass_policy.h>
+#include <hse/ikvdb/tuple.h>
+#include <hse/ikvdb/mclass_policy.h>
 
 #include <hse/mpool/mpool.h>
 

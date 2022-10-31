@@ -21,17 +21,17 @@
 #include <hse/util/map.h>
 #include <hse/logging/logging.h>
 
-#include <hse_ikvdb/c0.h>
-#include <hse_ikvdb/lc.h>
-#include <hse_ikvdb/cn.h>
-#include <hse_ikvdb/kvs.h>
-#include <hse_ikvdb/limits.h>
-#include <hse_ikvdb/key_hash.h>
-#include <hse_ikvdb/kvdb_ctxn.h>
-#include <hse_ikvdb/tuple.h>
-#include <hse_ikvdb/kvdb_health.h>
-#include <hse_ikvdb/cursor.h>
-#include <hse_ikvdb/wal.h>
+#include <hse/ikvdb/c0.h>
+#include <hse/ikvdb/lc.h>
+#include <hse/ikvdb/cn.h>
+#include <hse/ikvdb/kvs.h>
+#include <hse/ikvdb/limits.h>
+#include <hse/ikvdb/key_hash.h>
+#include <hse/ikvdb/kvdb_ctxn.h>
+#include <hse/ikvdb/tuple.h>
+#include <hse/ikvdb/kvdb_health.h>
+#include <hse/ikvdb/cursor.h>
+#include <hse/ikvdb/wal.h>
 
 /* clang-format off */
 

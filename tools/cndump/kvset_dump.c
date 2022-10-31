@@ -11,9 +11,9 @@
 
 #include <hse/hse.h>
 
-#include <hse_ikvdb/diag_kvdb.h>
-#include <hse_ikvdb/ikvdb.h>
-#include <hse_ikvdb/omf_kmd.h>
+#include <hse/ikvdb/diag_kvdb.h>
+#include <hse/ikvdb/ikvdb.h>
+#include <hse/ikvdb/omf_kmd.h>
 
 #include <hse/util/parse_num.h>
 #include <hse/util/fmt.h>

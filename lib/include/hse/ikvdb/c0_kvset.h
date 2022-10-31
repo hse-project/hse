@@ -11,7 +11,7 @@
 #include <hse/util/inttypes.h>
 #include <hse/error/merr.h>
 
-#include <hse_ikvdb/kvs.h>
+#include <hse/ikvdb/kvs.h>
 
 struct c0_kvset {
 };

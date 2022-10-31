@@ -10,9 +10,9 @@
 #include <hse/error/merr.h>
 #include <hse/logging/logging.h>
 
-#include <hse_ikvdb/cndb.h>
-#include <hse_ikvdb/kvset_view.h>
-#include <hse_ikvdb/cn.h>
+#include <hse/ikvdb/cndb.h>
+#include <hse/ikvdb/kvset_view.h>
+#include <hse/ikvdb/cn.h>
 
 #include "cn_tree_compact.h"
 #include "cn_tree_internal.h"

@@ -11,7 +11,7 @@
 #include <hse/util/minmax.h>
 #include <hse/util/page.h>
 
-#include <hse_ikvdb/omf_version.h>
+#include <hse/ikvdb/omf_version.h>
 
 #include <hse/mpool/mpool.h>
 #include <mblock_file.h>

@@ -12,8 +12,8 @@
 #include <hse/util/key_util.h>
 #include <hse/util/seqno.h>
 
-#include <hse_ikvdb/key_hash.h>
-#include <hse_ikvdb/omf_kmd.h>
+#include <hse/ikvdb/key_hash.h>
+#include <hse/ikvdb/omf_kmd.h>
 
 /* clang-format off */
 

@@ -7,9 +7,9 @@
 
 #include <hse/mpool/mpool.h>
 
-#include <hse_ikvdb/ikvdb.h>
-#include <hse_ikvdb/kvs.h>
-#include <hse_ikvdb/tuple.h>
+#include <hse/ikvdb/ikvdb.h>
+#include <hse/ikvdb/kvs.h>
+#include <hse/ikvdb/tuple.h>
 
 #define HSE_WAL_DUR_MS_MIN         (1)
 #define HSE_WAL_DUR_MS_DFLT        (100)

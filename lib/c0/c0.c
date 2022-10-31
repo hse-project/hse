@@ -15,13 +15,13 @@
 
 #define MTF_MOCK_IMPL_c0
 
-#include <hse_ikvdb/ikvdb.h>
-#include <hse_ikvdb/kvdb_health.h>
-#include <hse_ikvdb/c0.h>
-#include <hse_ikvdb/c0sk.h>
-#include <hse_ikvdb/cn.h>
-#include <hse_ikvdb/c0_kvset.h>
-#include <hse_ikvdb/c0_kvmultiset.h>
+#include <hse/ikvdb/ikvdb.h>
+#include <hse/ikvdb/kvdb_health.h>
+#include <hse/ikvdb/c0.h>
+#include <hse/ikvdb/c0sk.h>
+#include <hse/ikvdb/cn.h>
+#include <hse/ikvdb/c0_kvset.h>
+#include <hse/ikvdb/c0_kvmultiset.h>
 
 #include <kvdb/kvdb_keylock.h>
 

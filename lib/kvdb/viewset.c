@@ -19,7 +19,7 @@
 
 #include "viewset.h"
 
-#include <hse_ikvdb/limits.h>
+#include <hse/ikvdb/limits.h>
 
 #include <semaphore.h>
 

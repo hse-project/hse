@@ -14,12 +14,12 @@
 #include <cjson/cJSON.h>
 #include <cjson/cJSON_Utils.h>
 
-#include <hse_ikvdb/param.h>
-#include <hse_ikvdb/hse_gparams.h>
-#include <hse_ikvdb/kvdb_cparams.h>
-#include <hse_ikvdb/kvdb_rparams.h>
-#include <hse_ikvdb/kvs_cparams.h>
-#include <hse_ikvdb/kvs_rparams.h>
+#include <hse/ikvdb/param.h>
+#include <hse/ikvdb/hse_gparams.h>
+#include <hse/ikvdb/kvdb_cparams.h>
+#include <hse/ikvdb/kvdb_rparams.h>
+#include <hse/ikvdb/kvs_cparams.h>
+#include <hse/ikvdb/kvs_rparams.h>
 
 #include <hse/util/assert.h>
 #include <hse/util/storage.h>

@@ -5,9 +5,9 @@
 
 #define MTF_MOCK_IMPL_bonsai_iter
 
-#include <hse_ikvdb/kvdb_ctxn.h>
-#include <hse_ikvdb/c0_kvset.h>
-#include <hse_ikvdb/cursor.h>
+#include <hse/ikvdb/kvdb_ctxn.h>
+#include <hse/ikvdb/c0_kvset.h>
+#include <hse/ikvdb/cursor.h>
 
 #include <hse/util/bonsai_tree.h>
 #include <hse/util/element_source.h>

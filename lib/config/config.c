@@ -19,11 +19,11 @@
 
 #include <hse/util/assert.h>
 #include <hse/error/merr.h>
-#include <hse_ikvdb/config.h>
-#include <hse_ikvdb/param.h>
-#include <hse_ikvdb/hse_gparams.h>
-#include <hse_ikvdb/kvdb_rparams.h>
-#include <hse_ikvdb/kvs_rparams.h>
+#include <hse/ikvdb/config.h>
+#include <hse/ikvdb/param.h>
+#include <hse/ikvdb/hse_gparams.h>
+#include <hse/ikvdb/kvdb_rparams.h>
+#include <hse/ikvdb/kvs_rparams.h>
 
 #include "logging.h"
 

@@ -12,9 +12,9 @@
 
 #include <hse/limits.h>
 #include <mtf/framework.h>
-#include <hse_ikvdb/config.h>
-#include <hse_ikvdb/kvdb_rparams.h>
-#include <hse_ikvdb/kvs_rparams.h>
+#include <hse/ikvdb/config.h>
+#include <hse/ikvdb/kvdb_rparams.h>
+#include <hse/ikvdb/kvs_rparams.h>
 
 const char *config_root;
 

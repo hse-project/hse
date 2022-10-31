@@ -7,7 +7,7 @@
 
 #include <hse/util/base.h>
 #include <hse/util/err_ctx.h>
-#include <hse_ikvdb/hse_gparams.h>
+#include <hse/ikvdb/hse_gparams.h>
 
 #include <getopt.h>
 #include <errno.h>

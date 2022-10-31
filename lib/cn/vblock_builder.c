@@ -20,12 +20,12 @@
 #include <hse/util/vlb.h>
 #include <hse/error/merr.h>
 
-#include <hse_ikvdb/blk_list.h>
-#include <hse_ikvdb/mclass_policy.h>
-#include <hse_ikvdb/tuple.h>
-#include <hse_ikvdb/limits.h>
-#include <hse_ikvdb/kvset_builder.h>
-#include <hse_ikvdb/cn.h>
+#include <hse/ikvdb/blk_list.h>
+#include <hse/ikvdb/mclass_policy.h>
+#include <hse/ikvdb/tuple.h>
+#include <hse/ikvdb/limits.h>
+#include <hse/ikvdb/kvset_builder.h>
+#include <hse/ikvdb/cn.h>
 
 #include <hse/limits.h>
 #include <hse/kvdb_perfc.h>

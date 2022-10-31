@@ -14,7 +14,7 @@
 #include <hse/util/mutex.h>
 #include <hse/util/page.h>
 
-#include <hse_ikvdb/cndb.h>
+#include <hse/ikvdb/cndb.h>
 
 #include "wal.h"
 #include "wal_file.h"

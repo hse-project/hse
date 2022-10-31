@@ -9,12 +9,12 @@
 #include <hse/error/merr.h>
 #include <hse/util/seqno.h>
 
-#include <hse_ikvdb/c0.h>
-#include <hse_ikvdb/c0sk.h>
-#include <hse_ikvdb/c0_kvmultiset.h>
-#include <hse_ikvdb/ikvdb.h>
-#include <hse_ikvdb/kvset_builder.h>
-#include <hse_ikvdb/tuple.h>
+#include <hse/ikvdb/c0.h>
+#include <hse/ikvdb/c0sk.h>
+#include <hse/ikvdb/c0_kvmultiset.h>
+#include <hse/ikvdb/ikvdb.h>
+#include <hse/ikvdb/kvset_builder.h>
+#include <hse/ikvdb/tuple.h>
 
 #include "cn_mock.h"
 #include "c0sk_mock.h"

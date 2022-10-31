@@ -12,11 +12,11 @@
 #include <hse/util/bonsai_tree.h>
 
 #include <support/random_buffer.h>
-#include <hse_ikvdb/limits.h>
+#include <hse/ikvdb/limits.h>
 
-#include <hse_ikvdb/c0_kvmultiset.h>
-#include <hse_ikvdb/c0_kvset.h>
-#include <hse_ikvdb/lc.h>
+#include <hse/ikvdb/c0_kvmultiset.h>
+#include <hse/ikvdb/c0_kvset.h>
+#include <hse/ikvdb/lc.h>
 
 #include <c0/c0_ingest_work.h>
 

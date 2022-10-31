@@ -8,9 +8,9 @@
 #include <hse/error/merr.h>
 #include <hse/util/inttypes.h>
 
-#include <hse_ikvdb/kvset_builder.h>
-#include <hse_ikvdb/kvs_rparams.h>
-#include <hse_ikvdb/cn.h>
+#include <hse/ikvdb/kvset_builder.h>
+#include <hse/ikvdb/kvs_rparams.h>
+#include <hse/ikvdb/cn.h>
 
 #include <hse/limits.h>
 

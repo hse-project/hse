@@ -8,7 +8,7 @@
 
 #include <hse/util/inttypes.h>
 #include <hse/util/workqueue.h>
-#include <hse_ikvdb/tuple.h>
+#include <hse/ikvdb/tuple.h>
 
 #include "kvs_mblk_desc.h"
 

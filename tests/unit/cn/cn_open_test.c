@@ -9,10 +9,10 @@
 #include <hse/error/merr.h>
 #include <hse/util/inttypes.h>
 
-#include <hse_ikvdb/kvs_cparams.h>
-#include <hse_ikvdb/cn.h>
-#include <hse_ikvdb/cn_kvdb.h>
-#include <hse_ikvdb/kvdb_health.h>
+#include <hse/ikvdb/kvs_cparams.h>
+#include <hse/ikvdb/cn.h>
+#include <hse/ikvdb/cn_kvdb.h>
+#include <hse/ikvdb/kvdb_health.h>
 
 #include <cn/cn_tree.h>
 #include <cn/cn_tree_create.h>

@@ -9,10 +9,10 @@
 #include <hse/error/merr.h>
 #include <hse/util/atomic.h>
 
-#include <hse_ikvdb/tuple.h>
-#include <hse_ikvdb/blk_list.h>
-#include <hse_ikvdb/omf_kmd.h>
-#include <hse_ikvdb/mclass_policy.h>
+#include <hse/ikvdb/tuple.h>
+#include <hse/ikvdb/blk_list.h>
+#include <hse/ikvdb/omf_kmd.h>
+#include <hse/ikvdb/mclass_policy.h>
 
 #include <hse/mpool/mpool.h>
 

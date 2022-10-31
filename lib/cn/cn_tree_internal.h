@@ -15,8 +15,8 @@
 
 #include <hse/limits.h>
 
-#include <hse_ikvdb/sched_sts.h>
-#include <hse_ikvdb/mclass_policy.h>
+#include <hse/ikvdb/sched_sts.h>
+#include <hse/ikvdb/mclass_policy.h>
 
 #include "cn_tree.h"
 #include "cn_tree_iter.h"

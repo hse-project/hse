@@ -16,7 +16,7 @@
 #include <hse/util/perfc.h>
 #include <hse/util/workqueue.h>
 
-#include <hse_ikvdb/kvdb_rparams.h>
+#include <hse/ikvdb/kvdb_rparams.h>
 
 #include <hse/mpool/mpool.h>
 

@@ -11,7 +11,7 @@
 #include <hse/util/inttypes.h>
 #include <hse/util/keycmp.h>
 
-#include <hse_ikvdb/limits.h>
+#include <hse/ikvdb/limits.h>
 
 #include <cn/kvset.h>
 #include <cn/cn_tree_internal.h>
