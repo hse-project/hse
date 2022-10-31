@@ -192,31 +192,6 @@ int
 key_disc_cmp(const struct key_disc *lhs, const struct key_disc *rhs);
 
 /**
- * memlcp() - return longest common prefix
- * @s1:     string one
- * @s2:     string two
- * @len:    max length to compare
- *
- * Return: %memlcp compares byte string %s1 to byte string %s2,
- * returning the maximum length at which they compare identical.
- */
-size_t
-memlcp(const void *s1, const void *s2, size_t len);
-
-/**
- * memlcpq() - return longest common prefix within nearest quadword
- * @s1:     string one
- * @s2:     string two
- * @len:    max length to compare
- *
- * Return: %memlcp compares byte string %s1 to byte string %s2,
- * returning the maximum length (to the nearest quadword) at which
- * they compare identical.
- */
-size_t
-memlcpq(const void *s1, const void *s2, size_t len);
-
-/**
  * struct key_obj - A composite key representation with a prefix and a suffix.
  * @ko_pfx:       pointer to prefix.
  * @ko_sfx:       pointer to suffix.

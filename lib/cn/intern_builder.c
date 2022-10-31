@@ -29,7 +29,7 @@ struct intern_node {
 struct intern_key {
     uint          child_idx;
     uint          klen;
-    unsigned char kdata[] HSE_ALIGNED(HSE_KEY_CPE_ALIGNMENT);
+    unsigned char kdata[] HSE_ALIGNED(4);
 };
 
 /**
@@ -185,16 +185,16 @@ ib_lcp_len(struct intern_level *ib, const struct key_obj *ko)
         return 0;
 
     if (old_pfxlen < ko->ko_pfx_len)
-        return memlcp_cpe(k->kdata, ko->ko_pfx, old_pfxlen);
+        return memlcp(k->kdata, ko->ko_pfx, old_pfxlen);
 
     /* old_pfxlen >= ko->ko_pfx_len */
-    new_pfxlen = memlcp_cpe(k->kdata, ko->ko_pfx, ko->ko_pfx_len);
+    new_pfxlen = memlcp(k->kdata, ko->ko_pfx, ko->ko_pfx_len);
     if (new_pfxlen == ko->ko_pfx_len) {
         void *p = k->kdata + new_pfxlen;
         uint  cmplen = old_pfxlen - new_pfxlen;
 
         assert(old_pfxlen >= new_pfxlen);
-        new_pfxlen += memlcp_cpe(p, ko->ko_sfx, cmplen);
+        new_pfxlen += memlcp(p, ko->ko_sfx, cmplen);
     }
 
     return new_pfxlen;

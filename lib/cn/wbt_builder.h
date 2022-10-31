@@ -16,31 +16,6 @@ struct wbb;
 struct wbt_hdr_omf;
 struct wbt_desc;
 
-/* Key common-prefix-elimination (CPE) is used by both intern_builder.c and wbt_builder.c.
- * CPE alignment is determined by the 'key-cpe' build option, which sets the alignment
- * to 4 if given "key-cpe=size", and to 8 if given "key-cpe=speed".
- *
- * If alignment is 4, we build for size by leveraging memlcp(), which allows common
- * key prefix elimination of any length, with an average wastage of 2-bytes per key.
- * The upside is that is requires less storage and/or memory, but currently has an
- * issue where the key metadata is not always laid out with natural alignment (i.e.,
- * this option will not currently work or will perform poorly on some architectures).
- *
- * If alignment is 8, we build for speed by leveraging the memlcpq(), which allows
- * eliminating common key prefixes of integral 8-byte lengths, with an average
- * wastage of 3.5-bytes per key.  This approach consumes more storage and/or RAM,
- * but can be faster if keys have long common prefixes.  It has no known issues
- * with alignment.
- */
-static_assert(HSE_KEY_CPE_ALIGNMENT == 4 || HSE_KEY_CPE_ALIGNMENT == 8,
-              "invalid alignment for structs key_state_entry_leaf and intern_key");
-
-#if HSE_KEY_CPE_ALIGNMENT == 8
-#define memlcp_cpe      memlcpq
-#else
-#define memlcp_cpe      memlcp
-#endif
-
 /* Create a wbtree builder
  *
  * Parameters:

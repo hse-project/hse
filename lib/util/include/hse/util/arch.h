@@ -162,8 +162,62 @@ get_time_ns(void)
 #define HSE_L1X_ALIGNED
 #endif
 
-size_t memlcp(const void *s1, const void *s2, size_t len);
-size_t memlcpq(const void *s1, const void *s2, size_t len);
+/**
+ * memlcp() - return longest common prefix
+ * @s1:     byte array one
+ * @s2:     byte array two
+ * @len:    max length to compare
+ *
+ * Return: %memlcp compares byte array %s1 to byte array %s2,
+ * returning the maximum length at which they compare identical.
+ */
+static HSE_ALWAYS_INLINE size_t
+memlcp(const void *s1, const void *s2, const size_t len)
+{
+    const uint8_t *lhs = s1;
+    const uint8_t *rhs = s2;
+    size_t i = 0;
+
+    while (i < (len & ~7ul)) {
+        if (memcmp(lhs + i, rhs + i, 8) != 0)
+            break;
+        i += 8;
+    }
+
+    while (i < len) {
+        if (lhs[i] != rhs[i])
+            break;
+        i++;
+    }
+
+    return i;
+}
+
+/**
+ * memlcpq() - return longest common prefix within nearest quadword
+ * @s1:     byte array one
+ * @s2:     byte array two
+ * @len:    max length to compare
+ *
+ * Return: %memlcpq compares byte array %s1 to byte array %s2,
+ * returning the maximum length at which they compare identical,
+ * rounded down to the nearest quadword.
+ */
+static HSE_ALWAYS_INLINE size_t
+memlcpq(const void *s1, const void *s2, const size_t len)
+{
+    const uint8_t *lhs = s1;
+    const uint8_t *rhs = s2;
+    size_t i = 0;
+
+    while (i < (len & ~7ul)) {
+        if (memcmp(lhs + i, rhs + i, 8) != 0)
+            break;
+        i += 8;
+    }
+
+    return i;
+}
 
 /* GCOV_EXCL_STOP */
 
