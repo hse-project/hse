@@ -280,11 +280,29 @@ jobs:
           path: subprojects/packagecache
           key: meson-packagecache-${{ hashFiles('subprojects/*.wrap') }}
 
+      - name: Export toolchain
+        shell: sh {0}
+        run: |
+          res=$(expr $(date +%d) % 2)
+          if [ $res -eq 1 ]; then
+            echo CC=gcc >> "$GITHUB_ENV"
+            echo CXX=g++ >> "$GITHUB_ENV"
+          else
+            echo CC=clang >> "$GITHUB_ENV"
+            echo CXX=clang++ >> "$GITHUB_ENV"
+          fi
+
       - name: Setup
         run: |
+          MESON_ARGS=
+          if [ "$CC" = "clang" ]; then
+            # Without this, linking will fail with undefined symbols.
+            MESON_ARGS="-Db_lundef=false"
+          fi
+
           meson setup builddir --werror --buildtype=${{ matrix.buildtype }} \
-            -Db_sanitize=address,undefined -Dtools=enabled -Ddocs=disabled \
-            -Dbindings=none
+            -Db_sanitize=address,undefined $MESON_ARGS -Dtools=enabled \
+            -Ddocs=disabled -Dbindings=none
 
       - name: Build
         run: |
@@ -324,10 +342,21 @@ jobs:
           path: subprojects/packagecache
           key: meson-packagecache-${{ hashFiles('subprojects/*.wrap') }}
 
-        # HSE doesn't work with gcc LTO at the moment, only clang.
+      - name: Export toolchain
+        shell: sh {0}
+        run: |
+          res=$(expr $(date +%d) % 2)
+          if [ $res -eq 0 ]; then
+            echo CC=gcc >> "$GITHUB_ENV"
+            echo CXX=g++ >> "$GITHUB_ENV"
+          else
+            echo CC=clang >> "$GITHUB_ENV"
+            echo CXX=clang++ >> "$GITHUB_ENV"
+          fi
+
       - name: Setup
         run: |
-          CC=clang CXX=clang++ meson setup builddir --werror \
+          meson setup builddir --fatal-meson-warnings --werror \
             --buildtype=${{ matrix.buildtype }} -Db_lto=true -Dtools=enabled \
             -Ddocs=disabled -Dbindings=none
 
