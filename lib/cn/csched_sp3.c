@@ -1592,32 +1592,43 @@ rest_csched_sp3_get(
     INVARIANT(resp);
     INVARIANT(arg);
 
-    status = REST_STATUS_INTERNAL_SERVER_ERROR;
     sp = arg;
 
     err = rest_params_get(req->rr_params, "pretty", &pretty, false);
-    if (err)
-        return REST_STATUS_BAD_REQUEST;
+    if (ev(err))
+        return rest_response_perror(resp, REST_STATUS_BAD_REQUEST,
+            "The 'pretty' query parameter must be a boolean", merr(EINVAL));
 
     root = cJSON_CreateArray();
     if (ev(!root))
-        return REST_STATUS_INTERNAL_SERVER_ERROR;
+        return rest_response_perror(resp, REST_STATUS_SERVICE_UNAVAILABLE, "Out of memory",
+            merr(ENOMEM));
 
     err = sts_foreach_job(sp->sts, sp3_job_serialize, root);
-    if (ev(err))
-        goto out;
+    if (ev(err)) {
+        switch (merr_errno(err)) {
+        case ENOMEM:
+            status = rest_response_perror(resp, REST_STATUS_SERVICE_UNAVAILABLE, "Out of memory",
+                err);
+            goto out;
+        default:
+            status = rest_response_perror(resp, REST_STATUS_INTERNAL_SERVER_ERROR,
+                "Unhandled error", err);
+            goto out;
+        }
+    }
 
     str = (pretty ? cJSON_Print : cJSON_PrintUnformatted)(root);
-    if (!str)
+    if (ev(!str)) {
+        status = rest_response_perror(resp, REST_STATUS_SERVICE_UNAVAILABLE, "Out of memory",
+            merr(ENOMEM));
         goto out;
+    }
 
     fputs(str, resp->rr_stream);
     cJSON_free(str);
 
-    err = rest_headers_set(resp->rr_headers, REST_HEADER_CONTENT_TYPE, REST_APPLICATION_JSON);
-    if (ev(err))
-        goto out;
-
+    rest_headers_set(resp->rr_headers, REST_HEADER_CONTENT_TYPE, REST_APPLICATION_JSON);
     status = REST_STATUS_OK;
 
 out:

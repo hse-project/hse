@@ -312,7 +312,6 @@ assert_slab_magic(struct kmc_slab *slab)
     assert(slab->slab_magic == (uint32_t)(uintptr_t)slab);
 }
 
-
 struct kmc_chunk *
 kmc_chunk_create(uint cpuid, bool tryhuge)
 {
@@ -1133,11 +1132,13 @@ rest_kmc_get_vmstat(const struct rest_request *req, struct rest_response *resp, 
 
     err = rest_params_get(req->rr_params, "pretty", &pretty, false);
     if (ev(err))
-        return REST_STATUS_BAD_REQUEST;
+        return rest_response_perror(resp, REST_STATUS_BAD_REQUEST,
+            "The 'pretty' query parameter must be a boolean", merr(EINVAL));
 
     root = cJSON_CreateArray();
     if (ev(!root))
-        return REST_STATUS_INTERNAL_SERVER_ERROR;
+        return rest_response_perror(resp, REST_STATUS_SERVICE_UNAVAILABLE, "Out of memory",
+            merr(ENOMEM));
 
     mutex_lock(&kmc.kmc_lock);
 
@@ -1153,7 +1154,8 @@ rest_kmc_get_vmstat(const struct rest_request *req, struct rest_response *resp, 
 
         elem = cJSON_CreateObject();
         if (ev(!elem)) {
-            status = REST_STATUS_INTERNAL_SERVER_ERROR;
+            status = rest_response_perror(resp, REST_STATUS_SERVICE_UNAVAILABLE, "Out of memory",
+                merr(ENOMEM));
             break;
         }
 
@@ -1206,7 +1208,8 @@ rest_kmc_get_vmstat(const struct rest_request *req, struct rest_response *resp, 
         free(addrv);
 
         if (ev(!cJSON_AddItemToArray(root, elem))) {
-            status = REST_STATUS_INTERNAL_SERVER_ERROR;
+            status = rest_response_perror(resp, REST_STATUS_SERVICE_UNAVAILABLE, "Out of memory",
+                merr(ENOMEM));
             goto out;
         }
 
@@ -1235,7 +1238,8 @@ rest_kmc_get_vmstat(const struct rest_request *req, struct rest_response *resp, 
         kmc_zone_unlock(zone);
 
         if (ev(bad)) {
-            status = REST_STATUS_INTERNAL_SERVER_ERROR;
+            status = rest_response_perror(resp, REST_STATUS_SERVICE_UNAVAILABLE, "Out of memory",
+                merr(ENOMEM));
             break;
         }
     }
@@ -1245,18 +1249,15 @@ rest_kmc_get_vmstat(const struct rest_request *req, struct rest_response *resp, 
     if (status == REST_STATUS_OK) {
         data = (pretty ? cJSON_Print : cJSON_PrintUnformatted)(root);
         if (ev(!data)) {
-            status = REST_STATUS_INTERNAL_SERVER_ERROR;
+            status = rest_response_perror(resp, REST_STATUS_SERVICE_UNAVAILABLE, "Out of memory",
+                merr(ENOMEM));
             goto out;
         }
 
         fputs(data, resp->rr_stream);
         cJSON_free(data);
 
-        err = rest_headers_set(resp->rr_headers, REST_HEADER_CONTENT_TYPE, REST_APPLICATION_JSON);
-        if (ev(err)) {
-            status = REST_STATUS_INTERNAL_SERVER_ERROR;
-            goto out;
-        }
+        rest_headers_set(resp->rr_headers, REST_HEADER_CONTENT_TYPE, REST_APPLICATION_JSON);
     }
 
 out:

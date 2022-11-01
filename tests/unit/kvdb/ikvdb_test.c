@@ -1994,7 +1994,7 @@ MTF_DEFINE_UTEST_PREPOST(ikvdb_test, get_param, test_pre, test_post)
     ASSERT_STREQ("\"rdwr\"", buf);
 
     err = ikvdb_param_get(kvdb, "does.not.exist", buf, sizeof(buf), NULL);
-    ASSERT_EQ(EINVAL, merr_errno(err));
+    ASSERT_EQ(ENOENT, merr_errno(err));
 
     err = ikvdb_param_get(kvdb, "mode", NULL, 0, &needed_sz);
     ASSERT_EQ(0, merr_errno(err));
@@ -2047,7 +2047,7 @@ MTF_DEFINE_UTEST_PREPOST(ikvdb_test, get_kvs_param, test_pre, test_post)
     ASSERT_STREQ("0", buf);
 
     err = ikvdb_kvs_param_get(kvs, "does.not.exist", buf, sizeof(buf), NULL);
-    ASSERT_EQ(EINVAL, merr_errno(err));
+    ASSERT_EQ(ENOENT, merr_errno(err));
 
     err = ikvdb_kvs_param_get(kvs, "prefix.length", NULL, 0, &needed_sz);
     ASSERT_EQ(0, merr_errno(err));

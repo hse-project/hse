@@ -35,6 +35,16 @@ MTF_DEFINE_UTEST(hse_api_test, param_mismatched_buf_buf_sz)
     ASSERT_EQ(EINVAL, hse_err_to_errno(err));
 }
 
+MTF_DEFINE_UTEST(hse_api_test, param_dne)
+{
+    hse_err_t err;
+    size_t    needed_sz;
+    char      buf[16];
+
+    err = hse_param_get("does.not.exist", buf, sizeof(buf), &needed_sz);
+    ASSERT_EQ(ENOENT, hse_err_to_errno(err));
+}
+
 /* This works because we have previously initialized HSE which sets up the
  * global hse_gparams struct even though HSE is not currently initialized when
  * this test is run.

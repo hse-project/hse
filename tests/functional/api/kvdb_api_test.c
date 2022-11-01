@@ -387,6 +387,16 @@ MTF_DEFINE_UTEST(kvdb_api_test, mode)
     ASSERT_EQ(0, hse_err_to_errno(err));
 }
 
+MTF_DEFINE_UTEST(kvdb_api_test, param_dne)
+{
+    hse_err_t err;
+    size_t    needed_sz;
+    char      buf[16];
+
+    err = hse_kvdb_param_get(kvdb_handle, "does.not.exist", buf, sizeof(buf), &needed_sz);
+    ASSERT_EQ(ENOENT, hse_err_to_errno(err));
+}
+
 MTF_DEFINE_UTEST(kvdb_api_test, param_null_kvdb)
 {
     hse_err_t err;

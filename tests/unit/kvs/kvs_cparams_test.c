@@ -96,7 +96,7 @@ MTF_DEFINE_UTEST(kvs_cparams_test, get)
     ASSERT_STREQ("0", buf);
 
     err = kvs_cparams_get(&p, "does.not.exist", buf, sizeof(buf), NULL);
-    ASSERT_EQ(EINVAL, merr_errno(err));
+    ASSERT_EQ(ENOENT, merr_errno(err));
 
     err = kvs_cparams_get(NULL, "prefix.length", buf, sizeof(buf), NULL);
     ASSERT_EQ(EINVAL, merr_errno(err));

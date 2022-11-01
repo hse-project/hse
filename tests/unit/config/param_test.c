@@ -1165,7 +1165,7 @@ MTF_DEFINE_UTEST_PRE(param_test, get, test_pre)
     ASSERT_STREQ("true", buf);
 
     err = param_get(&p, pspecs, NELEM(pspecs), "does.not.exist", buf, sizeof(buf), NULL);
-    ASSERT_EQ(EINVAL, merr_errno(err));
+    ASSERT_EQ(ENOENT, merr_errno(err));
 
     err = param_get(NULL, pspecs, NELEM(pspecs), "test1", buf, sizeof(buf), NULL);
     ASSERT_EQ(EINVAL, merr_errno(err));

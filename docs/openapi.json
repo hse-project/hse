@@ -78,6 +78,9 @@
                 }
               }
             }
+          },
+          "400": {
+            "$ref": "#/components/responses/badRequest"
           }
         }
       }
@@ -147,6 +150,9 @@
                 }
               }
             }
+          },
+          "400": {
+            "$ref": "#/components/responses/badRequest"
           }
         }
       }
@@ -219,6 +225,9 @@
                 }
               }
             }
+          },
+          "400": {
+            "$ref": "#/components/responses/badRequest"
           }
         }
       }
@@ -294,6 +303,9 @@
                 }
               }
             }
+          },
+          "400": {
+            "$ref": "#/components/responses/badRequest"
           }
         }
       }
@@ -501,6 +513,9 @@
                 }
               }
             }
+          },
+          "400": {
+            "$ref": "#/components/responses/badRequest"
           }
         }
       }
@@ -544,6 +559,9 @@
         "responses": {
           "200": {
             "$ref": "#/components/responses/paramsRetrieved"
+          },
+          "400": {
+            "$ref": "#/components/responses/badRequest"
           }
         }
       }
@@ -584,6 +602,9 @@
           "200": {
             "$ref": "#/components/responses/paramRetrieved"
           },
+          "400": {
+            "$ref": "#/components/responses/badRequest"
+          },
           "404": {
             "$ref": "#/components/responses/notFound"
           }
@@ -609,6 +630,9 @@
           },
           "404": {
             "$ref": "#/components/responses/notFound"
+          },
+          "423": {
+            "$ref": "#/components/responses/locked"
           }
         }
       }
@@ -650,6 +674,9 @@
                 }
               }
             }
+          },
+          "400": {
+            "$ref": "#/components/responses/badRequest"
           }
         }
       }
@@ -696,6 +723,9 @@
                 }
               }
             }
+          },
+          "400": {
+            "$ref": "#/components/responses/badRequest"
           }
         }
       }
@@ -745,6 +775,9 @@
                 }
               }
             }
+          },
+          "400": {
+            "$ref": "#/components/responses/badRequest"
           }
         }
       }
@@ -797,6 +830,9 @@
                 }
               }
             }
+          },
+          "400": {
+            "$ref": "#/components/responses/badRequest"
           }
         }
       }
@@ -1005,6 +1041,9 @@
                 }
               }
             }
+          },
+          "400": {
+            "$ref": "#/components/responses/badRequest"
           }
         }
       }
@@ -1082,6 +1121,9 @@
                 }
               }
             }
+          },
+          "400": {
+            "$ref": "#/components/responses/badRequest"
           },
           "404": {
             "$ref": "#/components/responses/notFound"
@@ -1372,6 +1414,9 @@
               }
             }
           },
+          "400": {
+            "$ref": "#/components/responses/badRequest"
+          },
           "404": {
             "$ref": "#/components/responses/notFound"
           }
@@ -1424,6 +1469,9 @@
               }
             }
           },
+          "400": {
+            "$ref": "#/components/responses/badRequest"
+          },
           "404": {
             "$ref": "#/components/responses/notFound"
           }
@@ -1475,6 +1523,9 @@
           "200": {
             "$ref": "#/components/responses/paramsRetrieved"
           },
+          "400": {
+            "$ref": "#/components/responses/badRequest"
+          },
           "404": {
             "$ref": "#/components/responses/notFound"
           }
@@ -1520,6 +1571,9 @@
           "200": {
             "$ref": "#/components/responses/paramRetrieved"
           },
+          "400": {
+            "$ref": "#/components/responses/badRequest"
+          },
           "404": {
             "$ref": "#/components/responses/notFound"
           }
@@ -1545,6 +1599,9 @@
           },
           "404": {
             "$ref": "#/components/responses/notFound"
+          },
+          "423": {
+            "$ref": "#/components/responses/locked"
           }
         }
       }
@@ -1596,6 +1653,9 @@
                 }
               }
             }
+          },
+          "400": {
+            "$ref": "#/components/responses/badRequest"
           },
           "404": {
             "$ref": "#/components/responses/notFound"
@@ -1666,6 +1726,9 @@
               }
             }
           },
+          "400": {
+            "$ref": "#/components/responses/badRequest"
+          },
           "404": {
             "$ref": "#/components/responses/notFound"
           }
@@ -1726,6 +1789,9 @@
               }
             }
           },
+          "400": {
+            "$ref": "#/components/responses/badRequest"
+          },
           "404": {
             "$ref": "#/components/responses/notFound"
           }
@@ -1774,6 +1840,9 @@
                 }
               }
             }
+          },
+          "400": {
+            "$ref": "#/components/responses/badRequest"
           }
         }
       }
@@ -1823,6 +1892,9 @@
                 }
               }
             }
+          },
+          "400": {
+            "$ref": "#/components/responses/badRequest"
           }
         }
       }
@@ -1875,6 +1947,9 @@
                 }
               }
             }
+          },
+          "400": {
+            "$ref": "#/components/responses/badRequest"
           }
         }
       }
@@ -2051,6 +2126,9 @@
                 }
               }
             }
+          },
+          "400": {
+            "$ref": "#/components/responses/badRequest"
           }
         }
       }
@@ -2103,6 +2181,9 @@
           "200": {
             "$ref": "#/components/responses/paramsRetrieved"
           },
+          "400": {
+            "$ref": "#/components/responses/badRequest"
+          },
           "404": {
             "$ref": "#/components/responses/notFound"
           }
@@ -2151,6 +2232,9 @@
           "200": {
             "$ref": "#/components/responses/paramRetrieved"
           },
+          "400": {
+            "$ref": "#/components/responses/badRequest"
+          },
           "404": {
             "$ref": "#/components/responses/notFound"
           }
@@ -2176,6 +2260,9 @@
           },
           "404": {
             "$ref": "#/components/responses/notFound"
+          },
+          "423": {
+            "$ref": "#/components/responses/locked"
           }
         }
       }
@@ -2225,6 +2312,9 @@
                 }
               }
             }
+          },
+          "400": {
+            "$ref": "#/components/responses/badRequest"
           }
         }
       }
@@ -2277,6 +2367,9 @@
                 }
               }
             }
+          },
+          "400": {
+            "$ref": "#/components/responses/badRequest"
           }
         }
       }
@@ -2332,6 +2425,9 @@
                 }
               }
             }
+          },
+          "400": {
+            "$ref": "#/components/responses/badRequest"
           }
         }
       }
@@ -2515,8 +2611,35 @@
       }
     },
     "responses": {
+      "badRequest": {
+        "description": "Bad Request",
+        "content": {
+          "application/problem+json": {
+            "schema": {
+              "$ref": "#/components/schemas/error"
+            }
+          }
+        }
+      },
+      "locked": {
+        "description": "Locked",
+        "content": {
+          "application/problem+json": {
+            "schema": {
+              "$ref": "#/components/schemas/error"
+            }
+          }
+        }
+      },
       "notFound": {
-        "description": "Entity not found."
+        "description": "Not Found",
+        "content": {
+          "application/problem+json": {
+            "schema": {
+              "$ref": "#/components/schemas/error"
+            }
+          }
+        }
       },
       "paramsRetrieved": {
         "description": "OK",
@@ -2671,6 +2794,53 @@
           "vblocks": {
             "type": "integer",
             "nullable": false
+          }
+        }
+      },
+      "error": {
+        "type": "object",
+        "description": "RFC7807-compliant error description",
+        "externalDocs": {
+          "url": "https://www.rfc-editor.org/rfc/rfc7807"
+        },
+        "nullable": false,
+        "properties": {
+          "title": {
+            "type": "string",
+            "description": "Summary of the problem",
+            "nullable": false
+          },
+          "status": {
+            "type": "integer",
+            "description": "HTTP status code",
+            "nullable": false
+          },
+          "detail": {
+            "type": "string",
+            "description": "Explanation specific to this occurrence of the problem",
+            "nullable": false
+          },
+          "origin": {
+            "type": "object",
+            "description": "Origin of where the error was generated",
+            "nullable": false,
+            "properties": {
+              "file": {
+                "type": "string",
+                "description": "File where the error was generated",
+                "nullable": false
+              },
+              "lineno": {
+                "type": "integer",
+                "description": "Line number where the error was generated",
+                "nullable": false
+              },
+              "errno": {
+                "type": "integer",
+                "description": "Errno value describing the error",
+                "nullable": false
+              }
+            }
           }
         }
       },

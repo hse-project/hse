@@ -548,6 +548,16 @@ MTF_DEFINE_UTEST_PREPOST(kvs_api_test, name_success, kvs_setup, kvs_teardown)
     ASSERT_STREQ(kvs_name, name);
 }
 
+MTF_DEFINE_UTEST_PREPOST(kvs_api_test, param_dnem, kvs_setup, kvs_teardown)
+{
+    hse_err_t err;
+    size_t    needed_sz;
+    char      buf[16];
+
+    err = hse_kvs_param_get(kvs_handle, "does.not.exist", buf, sizeof(buf), &needed_sz);
+    ASSERT_EQ(ENOENT, hse_err_to_errno(err));
+}
+
 MTF_DEFINE_UTEST(kvs_api_test, param_null_kvs)
 {
     hse_err_t err;

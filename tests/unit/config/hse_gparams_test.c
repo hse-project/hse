@@ -419,7 +419,7 @@ MTF_DEFINE_UTEST(hse_gparams_test, get)
     ASSERT_STREQ("true", buf);
 
     err = hse_gparams_get(&p, "does.not.exist", buf, sizeof(buf), &needed_sz);
-    ASSERT_EQ(EINVAL, merr_errno(err));
+    ASSERT_EQ(ENOENT, merr_errno(err));
 
     err = hse_gparams_get(NULL, "rest.enabled", buf, sizeof(buf), NULL);
     ASSERT_EQ(EINVAL, merr_errno(err));
@@ -446,7 +446,7 @@ MTF_DEFINE_UTEST(hse_gparams_test, set)
     ASSERT_EQ(EINVAL, merr_errno(err));
 
     err = hse_gparams_set(&p, "does.not.exist", "5");
-    ASSERT_EQ(EINVAL, merr_errno(err));
+    ASSERT_EQ(ENOENT, merr_errno(err));
 }
 
 MTF_DEFINE_UTEST(hse_gparams_test, to_json)

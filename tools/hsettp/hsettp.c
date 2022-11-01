@@ -89,6 +89,69 @@ tabular_type_from_string(const char *const type)
     }
 }
 
+static merr_t
+handle_error(
+    const long status,
+    const char *const headers,
+    const size_t headers_len,
+    const char *const output,
+    const size_t output_len,
+    void *const arg)
+{
+    int err;
+    int lineno;
+    const char *file;
+    const char *title;
+    const char *detail;
+    cJSON *body, *entry, *origin;
+
+    if (!strstr(headers, "Content-Type: application/problem+json"))
+        return merr(EBADMSG);
+
+    body = cJSON_ParseWithLength(output, output_len);
+    if (!body) {
+        if (cJSON_GetErrorPtr()) {
+            return merr(EBADMSG);
+        } else {
+            return merr(ENOMEM);
+        }
+    }
+
+    entry = cJSON_GetObjectItemCaseSensitive(body, "title");
+    assert(cJSON_IsString(entry));
+    title = cJSON_GetStringValue(entry);
+
+    entry = cJSON_GetObjectItemCaseSensitive(body, "status");
+    assert(cJSON_IsNumber(entry));
+    assert(cJSON_GetNumberValue(entry) == status);
+
+    entry = cJSON_GetObjectItemCaseSensitive(body, "detail");
+    assert(cJSON_IsString(entry));
+    detail = cJSON_GetStringValue(entry);
+
+    origin = cJSON_GetObjectItemCaseSensitive(body, "origin");
+    assert(cJSON_IsObject(origin));
+
+    entry = cJSON_GetObjectItemCaseSensitive(origin, "file");
+    assert(cJSON_IsString(entry));
+    file = cJSON_GetStringValue(entry);
+
+    entry = cJSON_GetObjectItemCaseSensitive(origin, "lineno");
+    assert(cJSON_IsNumber(entry));
+    lineno = cJSON_GetNumberValue(entry);
+
+    entry = cJSON_GetObjectItemCaseSensitive(origin, "errno");
+    assert(cJSON_IsNumber(entry));
+    err = cJSON_GetNumberValue(entry);
+
+    fprintf(stderr, "%s: %s:%d: %s (%ld): %s (%d)\n",
+        progname, file, lineno, title, status, detail, err);
+
+    *(bool *)arg = true;
+
+    return merr(EIO);
+}
+
 static void
 handle_json(
     const long status,
@@ -108,10 +171,10 @@ static merr_t
 handle_tabular(
     const long status,
     const char *const headers,
-    size_t headers_len,
+    const size_t headers_len,
     const char *const output,
-    size_t output_len,
-    void *arg)
+    const size_t output_len,
+    void *const arg)
 {
     cJSON *body;
     int len = 0;
@@ -313,7 +376,7 @@ rest_cb(
     INVARIANT(output);
 
     if (status >= 400)
-        return merr(EBADMSG);
+        return handle_error(status, headers, headers_len, output, output_len, arg);
 
     switch (output_format.type) {
     case FORMAT_JSON:
@@ -1583,6 +1646,7 @@ main(const int argc, char **const argv)
     char *data = NULL;
     size_t data_len = 0;
     bool head_to_exit = false;
+    bool handled_error = false;
     struct buffer endpoint = { 0 };
     enum request_body request_body;
     unsigned int opargs_min, opargs_max;
@@ -1758,10 +1822,12 @@ main(const int argc, char **const argv)
      * fetch function.
      */
     err = rest_client_fetch_s(capitalized_method(method->string), headers, data, data_len, rest_cb,
-        NULL, endpoint.data);
+        &handled_error, endpoint.data);
     if (err) {
-        merr_strinfo(err, errbuf, sizeof(errbuf), (merr_stringify *)curl_easy_strerror, NULL);
-        fprintf(stderr, "%s: Request failed: %s\n", progname, errbuf);
+        if (!handled_error) {
+            merr_strinfo(err, errbuf, sizeof(errbuf), (merr_stringify *)curl_easy_strerror, NULL);
+            fprintf(stderr, "%s: Request failed: %s\n", progname, errbuf);
+        }
         rc = EX_DATAERR;
         goto out;
     }

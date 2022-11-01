@@ -664,7 +664,7 @@ MTF_DEFINE_UTEST(kvs_rparams_test, get)
     ASSERT_STREQ("false", buf);
 
     err = kvs_rparams_get(&p, "does.not.exist", buf, sizeof(buf), NULL);
-    ASSERT_EQ(EINVAL, merr_errno(err));
+    ASSERT_EQ(ENOENT, merr_errno(err));
 
     err = kvs_rparams_get(NULL, "transactions.enabled", buf, sizeof(buf), NULL);
     ASSERT_EQ(EINVAL, merr_errno(err));
@@ -695,7 +695,7 @@ MTF_DEFINE_UTEST(kvs_rparams_test, set)
     ASSERT_EQ(32768, p.cn_compact_kblk_ra);
 
     err = kvs_rparams_set(&p, "does.not.exist", "5");
-    ASSERT_EQ(EINVAL, merr_errno(err));
+    ASSERT_EQ(ENOENT, merr_errno(err));
 
     /* Fail to parse */
     err = kvs_rparams_set(&p, "cn_compact_kblk_ra", "invalid");
