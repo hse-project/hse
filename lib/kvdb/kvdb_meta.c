@@ -507,6 +507,8 @@ parse_v2(const cJSON *const root, struct kvdb_meta *const meta, const char *cons
     return 0;
 }
 
+static_assert(KVDB_META_VERSION <= UINT_MAX, "Code assumes the version fits in a uint");
+
 merr_t
 kvdb_meta_deserialize(struct kvdb_meta *const meta, const char *const kvdb_home)
 {
@@ -573,8 +575,9 @@ kvdb_meta_deserialize(struct kvdb_meta *const meta, const char *const kvdb_home)
         goto out;
     }
     version_val = cJSON_GetNumberValue(version);
-    if (round(version_val) != version_val) {
-        log_err("'version' key in %s/kvdb.meta is not a whole number", kvdb_home);
+    if (round(version_val) != version_val || version_val < 0 || version_val > UINT_MAX) {
+        log_err("'version' key in %s/kvdb.meta must be a whole number between 0 and %u",
+            kvdb_home, UINT_MAX);
         err = merr(EPROTO);
         goto out;
     }
