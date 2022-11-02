@@ -6,7 +6,11 @@
 #ifndef HSE_KVDB_MODES_H
 #define HSE_KVDB_MODES_H
 
+#include <stdbool.h>
+#include <string.h>
+
 #include <hse/util/assert.h>
+#include <hse/util/compiler.h>
 
 /**
  * KVDB open mode behavior:
