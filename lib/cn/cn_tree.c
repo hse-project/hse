@@ -115,6 +115,8 @@ cn_node_alloc(struct cn_tree *tree, uint64_t nodeid)
     for (uint i = 0; i < NELEM(tn->tn_dnode_linkv); ++i)
         INIT_LIST_HEAD(&tn->tn_dnode_linkv[i]);
 
+    sp3_node_init(&tn->tn_sp3n);
+
     INIT_LIST_HEAD(&tn->tn_ss_list);
     atomic_set(&tn->tn_ss_spilling, 0);
 
