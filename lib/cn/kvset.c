@@ -2730,7 +2730,7 @@ kvset_madvise_capped(struct kvset *ks, int advice)
         for (uint j = 0; j < v->mbs_mblkc; j++) {
             struct vblock_desc *vbd = mbset_get_udata(v, j);
 
-            vbr_madvise_async(vbd, 0, vra_len, advice, wq);
+            vbr_madvise_async(vbd, 0, min_t(uint, vbd->vbd_len, vra_len), advice, wq);
         }
     }
 }

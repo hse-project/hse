@@ -74,12 +74,18 @@ merr_t
 mblk_madvise(const struct kvs_mblk_desc *md, size_t off, size_t len, int advice)
 {
     int rc;
+    const size_t wlen = md->wlen_pages * PAGE_SIZE;
+
+    assert(md->map_base);
 
     if (len == 0)
         return 0;
 
-    assert(off + len <= md->wlen_pages * PAGE_SIZE);
-    assert(md->map_base);
+    if (off >= wlen)
+        return merr(EINVAL);
+
+    if (off + len > wlen)
+        len = wlen - off;
 
     /* Cast away the const of map_base for madvise().
      */
