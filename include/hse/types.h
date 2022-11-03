@@ -62,7 +62,7 @@ enum hse_err_ctx {
 #define HSE_ERR_CTX_BASE HSE_ERR_CTX_NONE
 
 /** @brief Largest error context value */
-#define HSE_ERR_CTX_MAX HSE_ERR_CTX_NONE
+#define HSE_ERR_CTX_MAX HSE_ERR_CTX_TXN_EXPIRED
 
 /**@} ERRORS */
 

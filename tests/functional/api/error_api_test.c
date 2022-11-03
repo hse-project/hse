@@ -1,6 +1,6 @@
 /* SPDX-License-Identifier: Apache-2.0 */
 /*
- * Copyright (C) 2021 Micron Technology, Inc.  All rights reserved.
+ * Copyright (C) 2021-2022 Micron Technology, Inc.  All rights reserved.
  */
 
 #include <errno.h>
@@ -11,6 +11,22 @@
 #include <mtf/framework.h>
 
 MTF_BEGIN_UTEST_COLLECTION(error_api_test)
+
+MTF_DEFINE_UTEST(error_api_test, err_ctx)
+{
+    unsigned int matches = 0;
+
+    for (enum hse_err_ctx i = HSE_ERR_CTX_BASE; i < HSE_ERR_CTX_MAX; i++) {
+        switch (i) {
+        case HSE_ERR_CTX_NONE:
+        case HSE_ERR_CTX_TXN_EXPIRED:
+            matches++;
+            break;
+        }
+    }
+
+    ASSERT_EQ(HSE_ERR_CTX_MAX - HSE_ERR_CTX_BASE, matches);
+}
 
 MTF_DEFINE_UTEST(error_api_test, to_errno_no_err_is_0)
 {
