@@ -9,7 +9,8 @@
  *
  * The tool does its work in three mutually exclusive phases:
  *
- * (1) Init - Create n records in the testbed, each with a unique key.
+ * (1) Init - Create n records in the testbed, each with a unique key
+ *            based on record ID (from 0 to n - 1).
  *
  * (2) Test - Select two random records, swap them, repeat as desired.
  *
@@ -18,6 +19,8 @@
  *
  *
  * Examples:
+ *
+ *   TODO: This section is stale and needs to be updated.
  *
  *   Stress testing:
  *
@@ -194,14 +197,21 @@ malloc_stats(void);
 
 #include <mongoc/mongoc.h>
 
-#define MONGO_COLLECTIONS_MAX (1u << 8)
-#define MONGO_COLLECTION_MASK (MONGO_COLLECTIONS_MAX - 1)
+#define MONGO_COLLECTIONS_MAX   (1u << 8)
+#define MONGO_COLLECTION_MASK   (MONGO_COLLECTIONS_MAX - 1)
+
+#define KM_SWAPPCT_MODULUS      (1024 * 1024)
+#define WCMAJSCALE              (1u << 30)
+#define RETSIGTYPE              void
 
 #ifdef XKMT
 #undef RB_ROOT
 #undef RB_PROTOTYPE_INTERNAL
 #undef RB_GENERATE_INTERNAL
 #include <bsd/sys/tree.h>
+
+#define HSE_KVS_VALUE_LEN_MAX   (1024 * 1024)
+#define KM_REC_KEY_MAX          (128)
 
 typedef uint64_t hse_err_t;
 
@@ -211,41 +221,40 @@ hse_err_to_errno(hse_err_t err);
 #else
 
 #include <hse/hse.h>
+#include <hse/limits.h>
+#include <hse/types.h>
+
+#define KM_REC_KEY_MAX          HSE_KVS_KEY_LEN_MAX
 #endif
 
 #include <tools/parm_groups.h>
 
-#define KM_REC_KEY_MAX  (1024)
-#define KM_REC_SZ_MAX   (1024 * 1024 * 4)
-#define KM_REC_VLEN_MAX (KM_REC_SZ_MAX - sizeof(struct km_rec) - KM_REC_KEY_MAX)
 
-#define KM_SWAPPCT_MODULUS (1024 * 1024)
-
-#define RETSIGTYPE void
-#define WCMAJSCALE (1u << 30)
-
-const char *   cf_dir = "/var/tmp";
+const char    *cf_dir = "/var/tmp";
 char           chk_path[PATH_MAX];
 char           kvdb_home_realpath[PATH_MAX];
 uint64_t       chk_recmax = 1024 * 1024 * 1024;
 struct timeval tv_init;
-const char *   progname;
-char *         randbuf;
+const char    *progname;
+const char    *randbuf;
 size_t         randbufsz;
 int            verbosity;
-const char *   keyfmt;
+const char    *keyfmt;
 size_t         keybinmin = 8;
 size_t         keybinmax = 8;
-size_t         keydist = 8192;
+size_t         keydist = 1024;
 float          wpctf = 20;
 uint           swappct;
 uint           tdmax;
 bool           swapexcl = true;
 bool           swaptxn = false;
-bool           kvdb_mode = false;
 bool           latency = false;
 bool           recverify = true;
 bool           keybinary = false;
+bool           impl_dev;
+bool           impl_mpool;
+bool           impl_mongo;
+bool           impl_kvs;
 char          *fieldname_fmt = "field%u";
 int            fieldnamew_min; /* minimum fieldname width */
 int            fieldnamew_max; /* maximum fieldname width */
@@ -253,7 +262,6 @@ uint           fieldcount_max = 2048;
 uint           fieldcount = 1;
 size_t         fieldlength = 0;
 char          *fieldnamev;
-uint           mongo = 0;
 uint           cidshift = 20;
 uint           collectionc = 1;
 double         wcmajprob = 1.0 / 1000000.0;
@@ -274,7 +282,6 @@ size_t         secsz;
 size_t         vebsz = 4 * 1024 * 1024;
 int            dev_oflags = O_RDWR | O_DIRECT;
 int            oom_score_adj = -500;
-uint           c0putval = UINT_MAX;
 int            mclass = HSE_MCLASS_CAPACITY;
 long           sync_timeout_ms = 0;
 
@@ -378,27 +385,37 @@ struct km_stats {
  * its key is generated.  The rid is used to look up the record's
  * meta-data in the check file (see struct chk below).
  *
- * Each record in the test bed has a minimum size of sizeof(struct km_rec)
- * and a maximum size of KM_REC_SZ_MAX.
+ * The minimum and maximum value lengths per record are specified by
+ * the implementation structure (via the vlenmin and vlenmax_max fields).
  *
- * If c0putval mode is in effect and is less than the minimum record
- * size, then full value verification (via the hash) is inhibited.
+ * If the value length specified on the command line is less than the
+ * minimum record size (kvs and mongo mode only), then full value
+ * verification via the hash is inhibited (verification by rid is
+ * possible if the record size is at least 8 bytes long).
+ *
+ * Note: If you change the order of fields in this struct be sure
+ * to fix chk_verify() which presumes that rid precedes vlen and
+ * vlen precedes mbid.
  */
 struct km_rec {
-    uint64_t rid;  /* current rid, must be first */
+    uint64_t rid;  /* current rid */
     uint32_t vlen; /* value length */
     uint32_t klen; /* key length */
     union {
         uint64_t mbid;   /* mblock mode */
         off_t    offset; /* device mode */
     };
-    uint64_t rid0; /* creation rid */
     uint64_t hash;
     uint8_t  data[];
 };
 
-#define CHK_F_INPLACE   (0x02)
-#define CHK_F_KEYBINARY (0x04)
+static_assert(sizeof(struct km_rec) == 32, "unexpected struct km_rec size");
+
+#define CHK_F_KEYBINARY (0x01)
+#define CHK_F_BYRID     (0x02)
+#define CHK_F_BYHASH    (0x04)
+#define CHK_F_FOUND     (0x08)
+#define CHK_F_DUP       (0x10)
 
 /* The mmap'd check file contains a chk record for each record in the dataset
  * or device, which is sufficient to verify data-integrity of records
@@ -411,11 +428,16 @@ struct chk {
         off_t    offset; /* device mode */
     };
 
-    uint32_t hash32; /* mblock and device modes */
-    uint16_t vlen;
-    uint8_t  flags;
-    uint8_t  cnt;
+    uint32_t vlen : 24;
+    uint32_t flags : 8;
+
+    union {
+        uint32_t hash32; /* mblock and device modes */
+        uint32_t rid;    /* kvs and mongo modes */
+    };
 };
+
+static_assert(sizeof(struct chk) == 16, "unexpected struct chk size");
 
 struct km_inst;
 struct km_impl;
@@ -496,7 +518,7 @@ struct km_impl {
     uint64_t      recmax;
     size_t        vlenmin;
     size_t        vlenmax;
-    size_t        vlenmax_default;
+    const size_t  vlenmax_max;
     size_t        vlendiv;
     void *        kvdb;
     void *        kvs;
@@ -524,12 +546,12 @@ struct km_inst {
     mongoc_collection_t    *collectionv[MONGO_COLLECTIONS_MAX];
     mongoc_write_concern_t *wcmin;
     mongoc_write_concern_t *wcmaj;
-    void *                  tdval;
+    void                   *tdval;
     unsigned int            flags;
-    struct hse_kvdb_txn *   txn;
+    struct hse_kvdb_txn    *txn;
     char                    mode[32];
     pthread_t               td;
-    hse_err_t                  err;
+    hse_err_t               err;
     char *                  fmt;
     u32                     tid;
     void (*func)(struct km_inst *);
@@ -550,17 +572,23 @@ struct km_inst {
 #define km_rec_init(_inst, _rec, _rid, _tv)                     \
     ((_inst)->ops.km_rec_init((_inst), (_rec), (_rid), (_tv)))
 
-#define km_rec_swap(_inst, _rec1, _rec2) ((_inst)->ops.km_rec_swap((_inst), (_rec1), (_rec2)))
+#define km_rec_swap(_inst, _rec1, _rec2) \
+    ((_inst)->ops.km_rec_swap((_inst), (_rec1), (_rec2)))
 
-#define km_rec_get(_inst, _rec, _rid) ((_inst)->ops.km_rec_get((_inst), (_rec), (_rid)))
+#define km_rec_get(_inst, _rec, _rid) \
+    ((_inst)->ops.km_rec_get((_inst), (_rec), (_rid)))
 
-#define km_rec_put(_inst, _rec) ((_inst)->ops.km_rec_put((_inst), (_rec)))
+#define km_rec_put(_inst, _rec) \
+    ((_inst)->ops.km_rec_put((_inst), (_rec)))
 
-#define km_rec_del(_inst, _rid) ((_inst)->ops.km_rec_del((_inst), (_rid)))
+#define km_rec_del(_inst, _rid) \
+    ((_inst)->ops.km_rec_del((_inst), (_rid)))
 
-#define km_rec_verify(_inst, _rec) km_rec_verify_cmn((_inst), (_rec))
+#define km_rec_verify(_inst, _rec) \
+    km_rec_verify_cmn((_inst), (_rec))
 
-#define km_rec_print(_inst, _rec, _fmt, _err) km_rec_print_cmn((_inst), (_rec), (_fmt), (_err))
+#define km_rec_print(_inst, _rec, _fmt, _err) \
+    km_rec_print_cmn((_inst), (_rec), (_fmt), (_err))
 
 #define td_lock()   ((void)pthread_spin_lock(&td_exited_lock))
 #define td_unlock() ((void)pthread_spin_unlock(&td_exited_lock))
@@ -638,7 +666,7 @@ xrand32(void)
     return xoroshiro128plus(xrand_state);
 }
 
-#define SUPER_SZ    (2u << 20)
+#define SUPER_SZ    (2ul << 20)
 
 void *
 super_alloc(size_t sz)
@@ -648,6 +676,9 @@ super_alloc(size_t sz)
     void *mem;
 
     sz = ALIGN(sz, SUPER_SZ);
+
+    if (sz > (32ul << 20))
+        flags &= ~MAP_HUGETLB;
 
   again:
     mem = mmap(NULL, sz, prot, flags, -1, 0);
@@ -688,7 +719,7 @@ struct bkt {
 
 /* xkmt has a 4-to-1 mapping of buckets to locks, which consumes an entire
  * 2M super page.  Regular kmt has a 1-to-1 mapping of buckets to locks,
- * which cosumes a little of half of its super page.
+ * which cosumes a little over half of its super page.
  */
 #ifdef XKMT
 #define BKTLOCK_MAX     ((SUPER_SZ / 2) / sizeof(struct bktlock))
@@ -1302,10 +1333,10 @@ chk_pair_unlock(struct km_impl *impl, uint64_t ridx, uint64_t ridy)
 }
 
 hse_err_t
-chk_verify(struct km_inst *inst, struct km_rec *r)
+chk_verify(struct km_inst *inst, const struct km_rec *r)
 {
-    struct km_impl *impl = inst->impl;
-    struct chk *    chk;
+    const struct km_impl *impl = inst->impl;
+    const struct chk *chk;
 
     if (r->rid >= impl->recmax) {
         eprint("%s: invalid rid %lu >= recmax %lu\n", __func__, r->rid, impl->recmax);
@@ -1317,16 +1348,53 @@ chk_verify(struct km_inst *inst, struct km_rec *r)
 
     chk = &impl->chk[r->rid];
 
-    if (r->hash != chk->hash64) {
-        if (impl->kvs || mongo) {
+    /* If we have a full record then just verify the hash.
+     */
+    if (chk->vlen >= sizeof(*r)) {
+        bool match;
+
+        if (impl_kvs || impl_mongo)
+            match = r->hash == chk->hash64;
+        else
+            match = (uint32_t)r->hash == chk->hash32;
+
+        if (!match) {
             inst->fmt = "chkfile hash mismatch: %s";
             return EINVAL;
         }
 
-        if ((r->hash & 0xffffffff) != chk->hash32) {
-            inst->fmt = "chkfile hash mismatch: %s";
-            return EINVAL;
-        }
+        return 0;
+    }
+
+    /* We have a partial record, so just verify the fields that are complete.
+     * This check presumes that rid precedes vlen and vlen precedes mbid in
+     * struct km_rec.
+     */
+    if (chk->vlen < offsetof(typeof(*r), rid) + sizeof(r->rid))
+        return 0;
+
+    if (r->rid != chk->rid) {
+        inst->fmt = "chkfile rid mismatch: %s";
+        return EINVAL;
+    }
+
+    if (chk->vlen < offsetof(typeof(*r), vlen) + sizeof(r->vlen))
+        return 0;
+
+    if (r->vlen != chk->vlen) {
+        inst->fmt = "chkfile vlen mismatch: %s";
+        return EINVAL;
+    }
+
+    if (impl_kvs || impl_mongo)
+        return 0;
+
+    if (chk->mbid < offsetof(typeof(*r), mbid) + sizeof(r->mbid))
+        return 0;
+
+    if (r->mbid != chk->mbid) {
+        inst->fmt = "chkfile mbid mismatch: %s";
+        return EINVAL;
     }
 
     return 0;
@@ -1336,7 +1404,7 @@ void
 hash_update(struct km_rec *r)
 {
     r->hash = 0;
-    r->hash = XXH3_64bits(r, sizeof(*r) + r->vlen);
+    r->hash = XXH3_64bits(r, r->vlen);
 }
 
 void
@@ -1352,14 +1420,16 @@ chk_update(struct km_impl *impl, struct km_rec *r, bool reset_hash)
      */
     if (impl->chk) {
         chk = &impl->chk[r->rid];
-        chk->vlen = r->vlen;
 
-        if (impl->kvs || mongo) {
+        if (impl_kvs || impl_mongo) {
+            chk->rid = r->rid;
+            chk->vlen = r->vlen;
             chk->hash64 = r->hash;
         } else {
+            chk->vlen = r->vlen;
             chk->mbid = r->mbid;
+            chk->hash32 = r->hash;
         }
-        chk->hash32 = r->hash;
 
         if (keybinary)
             chk->flags |= CHK_F_KEYBINARY;
@@ -1373,12 +1443,11 @@ chk_init(struct km_impl *impl, uint64_t recmax)
 
     int   oflags = O_RDWR;
     int   mflags, prot;
-    bool  needmap;
     off_t length;
     int   fd;
     int   rc;
 
-    if (mongo) {
+    if (impl_mongo) {
         snprintf(chk_path, sizeof(chk_path), "%s/%s-mongodb-%s", cf_dir, progname, impl->kvsname);
     } else {
         char buf[128], *pc = buf;
@@ -1450,9 +1519,7 @@ chk_init(struct km_impl *impl, uint64_t recmax)
     /* Backends that cannot fabricate keys from record IDs require the
      * mapped check file into which they store their rid-to-key mappings.
      */
-    needmap = !(mongo || impl->kvsname);
-
-    if (!needmap && (impl->recmax > chk_recmax || !recverify)) {
+    if ((impl_kvs || impl_mongo) && (impl->recmax > chk_recmax)) {
         munmap(impl->chk, length);
         impl->chk = NULL;
     }
@@ -1471,13 +1538,17 @@ static void *rec_head;
 void
 km_rec_alloc_cmn(struct km_inst *inst, void **rp1, void **rp2)
 {
-    char  errbuf[128];
+    char errbuf[128];
+    size_t bufsz;
     void *r;
-    int   i;
+
+    /* Allocate space past the end of each buffer for the key.
+     */
+    bufsz = ALIGN(secsz + KM_REC_KEY_MAX, 4096);
 
     td_lock();
     if (!rec_head) {
-        r = super_alloc(secsz * tdmax * 2);
+        r = super_alloc(bufsz * tdmax * 2);
         if (!r) {
             eprint("%s: rec_alloc failed: %s\n",
                    __func__, strerror_r(errno, errbuf, sizeof(errbuf)));
@@ -1486,8 +1557,8 @@ km_rec_alloc_cmn(struct km_inst *inst, void **rp1, void **rp2)
 
         rec_head = r;
 
-        for (i = 0; i < tdmax * 2; ++i, r += secsz)
-            *(void **)r = r + secsz;
+        for (uint i = 0; i < tdmax * 2; ++i, r += bufsz)
+            *(void **)r = r + bufsz;
     }
 
     if (rp1) {
@@ -1569,21 +1640,20 @@ void
 km_rec_init_cmn(struct km_inst *inst, struct km_rec *r, uint64_t rid, const struct timeval *tv)
 {
     struct km_impl *impl = inst->impl;
-    char *          key = (char *)r + secsz - KM_REC_KEY_MAX;
+    char *key = (char *)r + secsz;
 
     memset(r, 0, sizeof(*r));
 
     r->rid = rid;
-    r->rid0 = rid;
     r->klen = km_rec_keygen_cmn(key, rid);
     r->vlen = 0;
 
     if (impl->vlenmax > 0) {
-        void *src = randbuf + (rid % randbufsz);
+        const void *src = randbuf + ((rid % randbufsz) * 8);
 
         r->vlen = impl->vlenmin + (rid % impl->vlendiv);
-        memmove(r->data, src, r->vlen);
-        r->data[r->vlen] = '\000';
+        if (r->vlen > sizeof(*r))
+            memcpy(r->data, src, r->vlen - sizeof(*r));
     }
 }
 
@@ -1592,13 +1662,16 @@ km_rec_verify_cmn(struct km_inst *inst, struct km_rec *r)
 {
     uint64_t save;
 
-    if (r->vlen > KM_REC_VLEN_MAX)
+    if (r->vlen < offsetof(typeof(*r), hash) + sizeof(r->hash))
+        return 0;
+
+    if (r->vlen > secsz)
         abort();
 
     save = r->hash;
 
     r->hash = 0;
-    r->hash = XXH3_64bits(r, sizeof(*r) + r->vlen);
+    r->hash = XXH3_64bits(r, r->vlen);
 
     if (r->hash != save) {
         inst->fmt = "computed hash mismatch: %s";
@@ -1621,8 +1694,8 @@ km_rec_print_cmn(struct km_inst *inst, struct km_rec *r, const char *fmt, hse_er
     int             i;
 
     if (!once++) {
-        printf("%7s %7s %17s %17s %5s %9s %16s %-32s\n",
-               "RID", "RID0",
+        printf("%7s %17s %17s %5s %9s %16s %-32s\n",
+               "RID",
                "HASH", "CHK_HASH",
                "KLEN", "VLEN",
                "MBID", "VALUE");
@@ -1632,7 +1705,7 @@ km_rec_print_cmn(struct km_inst *inst, struct km_rec *r, const char *fmt, hse_er
     if (impl->chk && r->rid < impl->recmax) {
         struct chk *chk = &impl->chk[r->rid];
 
-        if (impl->kvs || mongo)
+        if (impl_kvs || impl_mongo)
             chk_hash = chk->hash64;
         else
             chk_hash = chk->hash32;
@@ -1654,8 +1727,8 @@ km_rec_print_cmn(struct km_inst *inst, struct km_rec *r, const char *fmt, hse_er
     }
     *dst = '\000';
 
-    printf("%7lu %7lu %17lx %17lx %5u %9u %16lx %-32s %s\n",
-           r->rid, r->rid0,
+    printf("%7lu %17lx %17lx %5u %9u %16lx %-32s %s\n",
+           r->rid,
            r->hash, chk_hash,
            r->klen, r->vlen,
            r->mbid, vbuf, ebuf);
@@ -1666,8 +1739,8 @@ km_rec_swap_cmn(struct km_inst *inst, struct km_rec *x, struct km_rec *y)
 {
     struct km_impl *impl = inst->impl;
 
-    char *   xkey = (char *)x + secsz - KM_REC_KEY_MAX;
-    char *   ykey = (char *)y + secsz - KM_REC_KEY_MAX;
+    char *xkey = (char *)x + secsz;
+    char *ykey = (char *)y + secsz;
     uint64_t mbidx = x->mbid;
     uint64_t mbidy = y->mbid;
     uint64_t ridx = x->rid;
@@ -1679,10 +1752,11 @@ km_rec_swap_cmn(struct km_inst *inst, struct km_rec *x, struct km_rec *y)
     x->vlen = 0;
 
     if (impl->vlenmax > 0) {
-        void *src = randbuf + (xrand32() % randbufsz);
+        const void *src = randbuf + ((xrand32() % randbufsz) * 8);
 
         x->vlen = impl->vlenmin + (xrand32() % impl->vlendiv);
-        memmove(x->data, src, x->vlen);
+        if (x->vlen > sizeof(*x))
+            memcpy(x->data, src, x->vlen - sizeof(*x));
     }
 
     y->rid = ridx;
@@ -1691,10 +1765,11 @@ km_rec_swap_cmn(struct km_inst *inst, struct km_rec *x, struct km_rec *y)
     y->vlen = 0;
 
     if (impl->vlenmax > 0) {
-        void *src = randbuf + (xrand32() % randbufsz);
+        const void *src = randbuf + ((xrand32() % randbufsz) * 8);
 
         y->vlen = impl->vlenmin + (xrand32() % impl->vlendiv);
-        memmove(y->data, src, y->vlen);
+        if (y->vlen > sizeof(*y))
+            memcpy(y->data, src, y->vlen - sizeof(*y));
     }
 
     inst->stats.swap++;
@@ -1704,7 +1779,7 @@ hse_err_t
 km_rec_get_kvs(struct km_inst *inst, struct km_rec *r, uint64_t rid)
 {
     struct km_impl *impl = inst->impl;
-    char *          key = (char *)r + secsz - KM_REC_KEY_MAX;
+    char *key = (char *)r + secsz;
     size_t          klen, vlen;
     hse_err_t       err;
     u64             rc;
@@ -1736,30 +1811,18 @@ km_rec_get_kvs(struct km_inst *inst, struct km_rec *r, uint64_t rid)
         return ENOENT;
     }
 
-    if (r->rid != rid) {
-        if (c0putval >= sizeof(r->rid)) {
-            eprint("%s: corrupt value: (r->rid %lu != rid %lu)\n", __func__, r->rid, rid);
-            abort();
-        }
-
-        /* If (c0putval < 8) then we must trust that the value
-         * data we got back from hse_kvs_get() is valid.
-         */
+    if (vlen < offsetof(typeof(*r), rid) + sizeof(r->rid))
         r->rid = rid;
-    }
+
+    if (vlen < offsetof(typeof(*r), vlen) + sizeof(r->vlen))
+        r->vlen = vlen;
+
+    err = chk_verify(inst, r);
+    if (err)
+        return err;
 
     if (recverify) {
         inst->stats.op = OP_VERIFY;
-
-        if (vlen < sizeof(*r)) {
-            eprint("%s: invalid record size %zu (should be at least %zu)\n",
-                   __func__, vlen, sizeof(*r));
-            abort();
-        }
-
-        err = chk_verify(inst, r);
-        if (err)
-            return err;
 
         err = km_rec_verify(inst, r);
         if (err)
@@ -1777,10 +1840,8 @@ hse_err_t
 km_rec_put_kvs(struct km_inst *inst, struct km_rec *r)
 {
     struct km_impl *impl = inst->impl;
-    char *          key = (char *)r + secsz - KM_REC_KEY_MAX;
-    size_t          vlen;
-    u64             rc;
-    u64             ns;
+    char *key = (char *)r + secsz;
+    u64 rc, ns;
 
     if (r->rid >= impl->recmax)
         abort();
@@ -1796,14 +1857,11 @@ km_rec_put_kvs(struct km_inst *inst, struct km_rec *r)
     else
         hash_update(r);
 
-    vlen = sizeof(*r) + r->vlen;
-    vlen = min_t(size_t, vlen, c0putval);
-
     inst->stats.op = OP_KVS_PUT;
     inst->stats.put++;
-    inst->stats.putbytes += vlen;
+    inst->stats.putbytes += r->vlen;
 
-    rc = hse_kvs_put(impl->kvs, inst->flags, inst->txn, key, r->klen, r, vlen);
+    rc = hse_kvs_put(impl->kvs, inst->flags, inst->txn, key, r->klen, r, r->vlen);
 
     if (!rc)
         km_op_latency_record(inst, OP_KVS_PUT, ns);
@@ -1873,7 +1931,7 @@ km_rec_get_ds(struct km_inst *inst, struct km_rec *r, uint64_t rid)
     err = mpool_mblock_read(impl->ds, mbid, iov, 1, 0);
     if (err) {
         eprint("%s: mpool_mblock_read(0x%lx): rid=%lu mbid=%lx err=%lx\n",
-               __func__, mbid, (ulong)rid, (ulong)mbid, err);
+               __func__, mbid, rid, (ulong)mbid, err);
         return err;
     }
 
@@ -1883,12 +1941,12 @@ km_rec_get_ds(struct km_inst *inst, struct km_rec *r, uint64_t rid)
         abort();
     }
 
+    err = chk_verify(inst, r);
+    if (err)
+        return err;
+
     if (recverify) {
         inst->stats.op = OP_VERIFY;
-
-        err = chk_verify(inst, r);
-        if (err)
-            return err;
 
         err = km_rec_verify(inst, r);
         if (err)
@@ -2035,12 +2093,12 @@ km_rec_get_dev(struct km_inst *inst, struct km_rec *r, uint64_t rid)
         abort();
     }
 
+    err = chk_verify(inst, r);
+    if (err)
+        return err;
+
     if (recverify) {
         inst->stats.op = OP_VERIFY;
-
-        err = chk_verify(inst, r);
-        if (err)
-            return err;
 
         err = km_rec_verify(inst, r);
         if (err)
@@ -2173,9 +2231,9 @@ rid2cid(uint64_t rid)
 hse_err_t
 km_rec_get_mongo(struct km_inst *inst, struct km_rec *r, uint64_t rid)
 {
-    struct km_impl  *impl = inst->impl;
-    char            *key = (char *)r + secsz - KM_REC_KEY_MAX;
-    size_t           klen, vlen;
+    struct km_impl *impl = inst->impl;
+    char *key = (char *)r + secsz;
+    size_t           klen;
     uint             retries;
     uint             cid;
     const bson_t    *doc;
@@ -2196,7 +2254,6 @@ km_rec_get_mongo(struct km_inst *inst, struct km_rec *r, uint64_t rid)
     r->vlen = -1;
 
     klen = km_rec_keygen_cmn(key, rid);
-    vlen = 0;
 
     bson_append_utf8(&inst->query, "_id", 3, key, klen);
 
@@ -2217,25 +2274,9 @@ km_rec_get_mongo(struct km_inst *inst, struct km_rec *r, uint64_t rid)
     mongoc_cursor_destroy(cursor);
     bson_reinit(&inst->query);
 
-    /* since mongoc does not set vlen like hse_kvs_get */
-    vlen = sizeof(*r) + r->vlen;
-
-    if (r->rid != rid) {
-        if (c0putval >= sizeof(r->rid)) {
+    if (r->vlen >= offsetof(typeof(*r), rid) + sizeof(r->rid)) {
+        if (r->rid != rid) {
             eprint("%s: corrupt value: (r->rid %lu != rid %lu)\n", __func__, r->rid, rid);
-            abort();
-        }
-
-        r->rid = rid;
-    }
-
-    if (recverify) {
-        inst->stats.op = OP_VERIFY;
-
-        /* possibly remove since vlen is being set explicity  */
-        if (vlen < sizeof(*r)) {
-            eprint("%s: invalid record size %zu (should be at least %zu)\n",
-                   __func__, vlen, sizeof(*r));
             abort();
         }
 
@@ -2245,13 +2286,17 @@ km_rec_get_mongo(struct km_inst *inst, struct km_rec *r, uint64_t rid)
          */
         err = chk_verify(inst, r);
         if (err) {
-            if (mongo && retries-- > 0) {
-                usleep(100000);
+            if (retries-- > 0) {
+                usleep(100 * 1000);
                 goto again;
             }
 
             return err;
         }
+    }
+
+    if (recverify) {
+        inst->stats.op = OP_VERIFY;
 
         err = km_rec_verify(inst, r);
         if (err)
@@ -2259,7 +2304,7 @@ km_rec_get_mongo(struct km_inst *inst, struct km_rec *r, uint64_t rid)
     }
 
     inst->stats.get++;
-    inst->stats.getbytes += vlen;
+    inst->stats.getbytes += r->vlen;
 
     km_op_latency_record(inst, OP_KVS_GET, ns);
 
@@ -2270,7 +2315,7 @@ hse_err_t
 km_rec_put_mongo(struct km_inst *inst, struct km_rec *r)
 {
     struct km_impl *impl = inst->impl;
-    char           *key = (char *)r + secsz - KM_REC_KEY_MAX;
+    char *key = (char *)r + secsz;
     bson_t         *opts;
     uint            cid;
     bool            rc;
@@ -2283,7 +2328,7 @@ km_rec_put_mongo(struct km_inst *inst, struct km_rec *r)
 
     inst->stats.op = OP_KVS_PUT;
     inst->stats.put++;
-    inst->stats.putbytes += sizeof(*r) + r->vlen;
+    inst->stats.putbytes += r->vlen;
 
     chk_update(impl, r, true);
 
@@ -2731,7 +2776,6 @@ td_check(struct km_inst *inst)
     char            td_name[16];
     struct km_impl *impl;
     struct km_rec * r;
-    struct chk *    chk;
     hse_err_t          err;
 
     uint64_t start, stop;
@@ -2742,7 +2786,6 @@ td_check(struct km_inst *inst)
 
     strcpy(inst->mode, "check");
     impl = inst->impl;
-    chk = c0putval >= sizeof(*r) ? impl->chk : NULL;
     err = 0;
 
     xrand_init(inst->tid ^ seed);
@@ -2756,19 +2799,37 @@ td_check(struct km_inst *inst)
         for (rid = start; rid < stop && !sigint; ++rid) {
             err = km_rec_get(inst, r, rid);
 
-            if (chk && r->rid == rid) {
-                struct chk *p = chk + r->rid;
+            if (impl->chk) {
+                if (r->vlen >= sizeof(*r)) {
+                    struct chk *chk = impl->chk + r->rid;
 
-                if (p->cnt < 128 && (p->hash64 == r->hash || p->hash32 == (r->hash & 0xffffffff)))
-                    ++p->cnt;
+                    if (impl_kvs || impl_mongo) {
+                        if (r->hash == chk->hash64) {
+                            if (chk->flags & CHK_F_FOUND)
+                                chk->flags |= CHK_F_DUP;
+                            chk->flags |= (CHK_F_FOUND | CHK_F_BYHASH | CHK_F_BYRID);
+                        }
+                    } else {
+                        if ((uint32_t)r->hash == chk->hash32) {
+                            if (chk->flags & CHK_F_FOUND)
+                                chk->flags |= CHK_F_DUP;
+                            chk->flags |= (CHK_F_FOUND | CHK_F_BYHASH | CHK_F_BYRID);
+                        }
+                    }
+                } else if (r->vlen >= offsetof(typeof(*r), rid) + sizeof(r->rid)) {
+                    struct chk *chk = impl->chk + r->rid;
 
-                if (r->rid == r->rid0)
-                    p->flags |= CHK_F_INPLACE;
+                    if (r->rid == chk->rid) {
+                        if (chk->flags & CHK_F_FOUND)
+                            chk->flags |= CHK_F_DUP;
+                        chk->flags |= (CHK_F_FOUND | CHK_F_BYRID);
+                    }
+                }
             }
 
             if (verbosity > 2)
                 km_rec_print(inst, r, inst->fmt, err);
-            else if (err && !chk)
+            else if (err && !impl->chk)
                 break;
 
             inst->stats.op = OP_RUN;
@@ -2790,52 +2851,89 @@ td_check(struct km_inst *inst)
 void
 td_check_init(struct km_impl *impl)
 {
+    size_t vlenmax = 4096;
     uint64_t rid;
 
     if (!impl->chk)
         return;
 
     for (rid = 0; rid < impl->recmax; ++rid) {
-        impl->chk[rid].cnt = 0;
-        impl->chk[rid].flags &= ~CHK_F_INPLACE;
+        struct chk *chk = impl->chk + rid;
+
+        if (vlenmax < chk->vlen)
+            vlenmax = chk->vlen;
+
+        if (chk->flags & ~CHK_F_KEYBINARY)
+            chk->flags &= ~(CHK_F_FOUND | CHK_F_DUP | CHK_F_BYHASH | CHK_F_BYRID);
+    }
+
+    /* In kvs and mongo modes secsz must be large enough to accomodate
+     * any previously written record.  In device and mpool modes secsz
+     * must be the same size as previously written records.
+     */
+    if (impl_kvs || impl_mongo) {
+        if (secsz < vlenmax)
+            secsz = roundup(vlenmax, 4096);
+    } else {
+        secsz = roundup(vlenmax, 4096);
+    }
+
+    if (secsz < impl->vlenmax) {
+        impl->vlenmax = secsz;
+        impl->vlenmin = min_t(size_t, impl->vlenmin, impl->vlenmax);
+        impl->vlendiv = impl->vlenmax - impl->vlenmin + 1;
     }
 }
 
 void
 td_check_fini(struct km_impl *impl)
 {
-    uint64_t nmissing, ndups, nswapped;
+    uint64_t nmissing, ndups;
+    uint64_t nbyhash, nbyrid;
     uint64_t rid;
 
     if (!impl->chk || sigint)
         return;
 
-    nmissing = 0;
-    nswapped = 0;
-    ndups = 0;
+    nmissing = ndups = 0;
+    nbyhash = nbyrid = 0;
 
     for (rid = 0; rid < impl->recmax; ++rid) {
-        if (impl->chk[rid].cnt > 1)
-            ++ndups;
-        else if (impl->chk[rid].cnt == 0)
+        struct chk *chk = impl->chk + rid;
+
+        if (chk->flags & CHK_F_FOUND) {
+            if (chk->flags & CHK_F_DUP) {
+                ++ndups;
+            } else if (chk->flags & CHK_F_BYHASH) {
+                ++nbyhash;
+                ++nbyrid;
+            } else if (chk->flags & CHK_F_BYRID) {
+                ++nbyrid;
+            }
+        } else {
             ++nmissing;
-        if (!(impl->chk[rid].flags & CHK_F_INPLACE))
-            ++nswapped;
-        impl->chk[rid].cnt = 0;
-        impl->chk[rid].flags &= ~CHK_F_INPLACE;
+        }
+
+        impl->chk[rid].flags &= ~(CHK_F_FOUND | CHK_F_DUP | CHK_F_BYHASH | CHK_F_BYRID);
     }
 
-    if (verbosity > 1 || nmissing > 0 || ndups > 0)
-        printf(
-            "%s: total=%lu nmissing=%lu ndups=%lu nswapped=%lu\n",
-            __func__,
-            impl->recmax,
-            nmissing,
-            ndups,
-            nswapped);
+    if (nbyhash == impl->recmax || nbyrid == impl->recmax) {
+        if (nmissing | ndups) {
+            eprint("total=%lu missing=%lu dups=%lu byhash=%lu byrid=%lu\n",
+                   impl->recmax, nmissing, ndups, nbyhash, nbyrid);
+            _exit(EX_SOFTWARE);
+        }
+    }
 
-    if (nmissing > 0 || ndups > 0)
-        _exit(EX_SOFTWARE);
+    if (nbyrid < impl->recmax) {
+        eprint("unable to verify %lu of %lu records by rid (%.3lf%%)\n",
+               impl->recmax - nbyrid, impl->recmax,
+               (impl->recmax - nbyrid) * 100.0 / impl->recmax);
+    } else if (nbyhash < impl->recmax) {
+        eprint("unable to verify %lu of %lu records by hash (%.3lf%%)\n",
+               impl->recmax - nbyhash, impl->recmax,
+               (impl->recmax - nbyhash) * 100.0 / impl->recmax);
+    }
 }
 
 void
@@ -3073,7 +3171,7 @@ int width_tfs, width_tad;
 void
 status_init(void)
 {
-    if (swaptxn && testmode) {
+    if ((swaptxn && testmode) || impl_mongo) {
         width_tbfg = 7;
         width_tcup = 7;
     } else {
@@ -3082,7 +3180,7 @@ status_init(void)
     }
 
     width_xstats = 6;
-    width_sync = 6;
+    width_sync = 4;
     width_tfs = 6;
     width_tad = 4;
 
@@ -3113,7 +3211,7 @@ status(
     ulong  commit_total, icommit_total;
     ulong  abort_total, iabort_total;
     ulong  total_ms, usrsys;
-    long   avg_sync_latency_us = 0;
+    long   avg_sync_latency_ms = 0;
     int    nthreads;
     bool   show, txn;
     char   errmsg[128];
@@ -3143,12 +3241,14 @@ status(
     inst = instv;
 
     txn = swaptxn && testmode;
-    if (txn) {
+    if (txn || impl_mongo) {
         width_ibfg = (inst->stats.begin > 5000000) ? 9 : 7;
         width_icup = (inst->stats.commit > 5000000) ? 9 : 7;
         width_iad = (inst->stats.abort > 5000000) ? 9 : 7;
         if (width_tad < 6)
             width_tad = 6;
+        if (impl_mongo)
+            width_tad = 7;
     } else {
         width_ibfg = (inst->stats.get > 0) ? 8 : 4;
         width_icup = (inst->stats.put > 0) ? 7 : 4;
@@ -3168,16 +3268,17 @@ status(
 
     iters = atomic_read(&impl->km_sync_latency.km_sync_iterations);
     if (iters != 0) {
-        avg_sync_latency_us =
+        avg_sync_latency_ms =
             atomic_read(&impl->km_sync_latency.km_total_sync_latency_us) / iters;
+        avg_sync_latency_ms /= 1000;
     }
 
-    show = headers && (verbosity > 1 || mark == 0 || (hdrcnt++ % 32) == 0);
+    show = headers && (verbosity > 1 || mark == 0 || (hdrcnt++ % 25) == 0);
     if (show) {
         size_t sz;
         int n;
 
-        n = snprintf(NULL, 0, "%*ld", width_sync, avg_sync_latency_us);
+        n = snprintf(NULL, 0, "%*ld", width_sync, avg_sync_latency_ms);
         if (n > width_sync)
             width_sync = n;
 
@@ -3225,16 +3326,16 @@ status(
             "OP",
             width_xstats, xstats ? "tINMB" : "tGETMB",
             width_xstats, xstats ? "tOUMB" : "tPUTMB",
-            width_tbfg, txn ? "tBEGIN" : mongo ? "tFIND" : "tGET",
-            width_tcup, txn ? "tCOMMIT" : mongo ? "tUPSERT" : "tPUT",
-            width_tad, txn ? "tABORT" : mongo ? "tDELETE" : "tDEL",
-            width_ibfg, txn ? "iBEGIN" : mongo ? "iFIND" : "iGET",
-            width_icup, txn ? "iCOMMIT" : mongo ? "iUPSERT" : "iPUT",
-            width_iad, txn ? "iABORT" : mongo ? "iDELETE" : "iDEL",
+            width_tbfg, txn ? "tBEGIN" : impl_mongo ? "tFIND" : "tGET",
+            width_tcup, txn ? "tCOMMIT" : impl_mongo ? "tUPSERT" : "tPUT",
+            width_tad, txn ? "tABORT" : impl_mongo ? "tDELETE" : "tDEL",
+            width_ibfg, txn ? "iBEGIN" : impl_mongo ? "iFIND" : "iGET",
+            width_icup, txn ? "iCOMMIT" : impl_mongo ? "iUPSERT" : "iPUT",
+            width_iad, txn ? "iABORT" : impl_mongo ? "iDELETE" : "iDEL",
             width_tfs, xstats ? "MINFLT" : "tSWAPS",
             width_tfs, xstats ? "MAJFLT" : "iSWAPS",
             "USRSYS",
-            width_sync, "SYNCUS",
+            width_sync, "SYNC",
             width_secs, "MSECS",
             xstats ? 7 : 10, xstats ? "ELAPSED" : "DATE",
             "tRA", "tWA");
@@ -3359,7 +3460,7 @@ status(
         width_tfs, xstats ? rusage.ru_minflt : swap_total,
         width_tfs, xstats ? rusage.ru_majflt : iswap_total,
         usrsys,
-        width_sync, avg_sync_latency_us,
+        width_sync, avg_sync_latency_ms,
         width_secs, total_ms,
         xstats ? 7 : 10, tv_now.tv_sec - (xstats ? tv_init.tv_sec : 0),
         getbytes_total ? (double)(rusage.ru_inblock * 512) / getbytes_total : 0,
@@ -3420,7 +3521,7 @@ spawn_main(void *arg)
     char            collname[16];
     int             i;
 
-    if (mongo) {
+    if (impl_mongo) {
         inst->client = mongoc_client_pool_pop(inst->impl->client_pool);
         if (!inst->client)
             abort();
@@ -3480,7 +3581,7 @@ spawn_main(void *arg)
 
     inst->func(inst);
 
-    if (mongo) {
+    if (impl_mongo) {
         for (i = 0; i < collectionc; ++i)
             mongoc_collection_destroy(inst->collectionv[i]);
 
@@ -3846,8 +3947,9 @@ struct km_impl km_impl_kvs = {
         .km_rec_del     = km_rec_del_kvs,
     },
 
-    .vlenmax_default = 16,
-    .vlenmax = 1024 * 1024 - sizeof(struct km_rec),
+    .vlenmin = sizeof(struct km_rec),
+    .vlenmax = sizeof(struct km_rec),
+    .vlenmax_max = HSE_KVS_VALUE_LEN_MAX,
 };
 
 struct km_impl km_impl_ds = {
@@ -3863,8 +3965,9 @@ struct km_impl km_impl_ds = {
         .km_rec_del     = km_rec_del_ds,
     },
 
-    .vlenmax_default = 128,
-    .vlenmax = KM_REC_SZ_MAX - sizeof(struct km_rec),
+    .vlenmin = sizeof(struct km_rec),
+    .vlenmax = 128,
+    .vlenmax_max = 4ul << 20,
 };
 
 struct km_impl km_impl_dev = {
@@ -3880,8 +3983,9 @@ struct km_impl km_impl_dev = {
         .km_rec_del     = km_rec_del_dev,
     },
 
-    .vlenmax_default = 128,
-    .vlenmax = KM_REC_SZ_MAX - sizeof(struct km_rec),
+    .vlenmin = sizeof(struct km_rec),
+    .vlenmax = 128,
+    .vlenmax_max = 4ul << 20,
 };
 
 struct km_impl km_impl_mongo = {
@@ -3897,8 +4001,9 @@ struct km_impl km_impl_mongo = {
         .km_rec_del     = km_rec_del_mongo,
     },
 
-    .vlenmax_default = 1024,  /* possible to test 16MB MongoDB limit? */
-    .vlenmax = KM_REC_SZ_MAX - sizeof(struct km_rec),
+    .vlenmin = sizeof(struct km_rec),
+    .vlenmax = 1024,
+    .vlenmax_max = 4ul << 20,
 };
 
 __attribute__((format(printf, 1, 2))) void
@@ -4020,7 +4125,7 @@ prop_decode(const char *list, const char *sep, const char *valid)
         } else if (0 == strcmp(name, "adj")) {
             vebsz = cvt_strtoul(value, &end, &suftab_iec);
         } else if (0 == strcmp(name, "c0putval")) {
-            c0putval = cvt_strtoul(value, &end, &suftab_iec);
+            syntax("c0putval deprecated");
         } else if (0 == strcmp(name, "keydist")) {
             keydist = cvt_strtoul(value, &end, &suftab_iec);
         } else if (0 == strcmp(name, "fieldcount")) {
@@ -4247,7 +4352,6 @@ usage(struct km_impl *impl)
     printf("  NAME            VALUE  DESCRIPTION\n");
     printf("  adj         %10d  set oom_score_adjust\n", oom_score_adj);
     printf("  cidshift    %10u  bits to right-shift rid to obtain collection ID\n", cidshift);
-    printf("  c0putval    %10u  c0 ingest test value length\n", c0putval);
     printf("  directio    %10u  enable/disable directIO\n", !!(dev_oflags & O_DIRECT));
     printf("  fieldcount  %10u  like ycsb fieldcount, mongo mode only\n", fieldcount);
     printf("  fieldlength %10zu  like ycsb fieldlength, mongo mode only\n", fieldlength);
@@ -4285,11 +4389,11 @@ usage(struct km_impl *impl)
     printf("\n");
 
     printf("EXAMPLES:\n");
-    printf("  init:     %s -i 123456 mpool:/mnt/kvdb1\n", progname);
-    printf("  test:     %s -t60 -j32 -s10 mpool:/mnt/kvdb1\n", progname);
-    printf("  check:    %s -c -j32 mpool:/mnt/kvdb1\n", progname);
-    printf("  destroy:  %s -D mpool:/mnt/kvdb1\n", progname);
-    printf("  combo:    %s -i 123456 -t60 -cD -j32 mpool:/mnt/kvdb1\n", progname);
+    printf("  init:     %s -i 123456 mpool:/mnt/kvdb1/capacity\n", progname);
+    printf("  test:     %s -t60 -j32 -s10 mpool:/mnt/kvdb1/capacity\n", progname);
+    printf("  check:    %s -c -j32 mpool:/mnt/kvdb1/capacity\n", progname);
+    printf("  destroy:  %s -D mpool:/mnt/kvdb1/capacity\n", progname);
+    printf("  combo:    %s -i 123456 -t60 -cD -j32 mpool:/mnt/kvdb1/capacity\n", progname);
     printf("  device:   %s -i 393216 -t60 -bcDR -j768 -w0 -s1 /dev/nvme0n1p1\n", progname);
     printf("  kvs:      %s -i 128 -t60 -bcD -j48 -w50 -s1 /mnt/kvdb/kvdb1 kvs1\n", progname);
     printf("  mongo:    %s -i8m -t1m -cDx -j32 -p8 -s1 mongodb://localhost:27017\n", progname);
@@ -4326,13 +4430,13 @@ main(int argc, char **argv)
 
     impl = &km_impl_kvs;
 
-    secsz = PAGE_SIZE;
+    secsz = 4096;
 
     init = test = check = destroy = help = false;
     seed = tv_init.tv_usec;
     swsecs = INT_MAX;
-    vlenmax = ULONG_MAX;
-    vlenmin = 0;
+    vlenmax = SIZE_MAX;
+    vlenmin = SIZE_MAX;
     headers = true;
     recmax = 0;
     tdmax = 1;
@@ -4540,9 +4644,10 @@ main(int argc, char **argv)
 
         if (0 == strncmp(mpname, "/dev/", 5)) {
             impl = &km_impl_dev;
+            impl_dev = true;
         } else if (0 == strncmp(mpname, "mongodb://", 10)) {
             impl = &km_impl_mongo;
-            mongo = 1;
+            impl_mongo = true;
 
             kvsname = strchr(mpname + strlen("mongodb://"), '/');
             if (kvsname)
@@ -4555,7 +4660,10 @@ main(int argc, char **argv)
         } else if (0 == strncmp(mpname, "mpool:", 6)) {
             impl = &km_impl_ds;
             impl->mpname = mpname + 6;
+            impl_mpool = true;
         } else {
+            impl_kvs = true;
+
             if (argc < 2) {
                 syntax("missing kvs name");
                 exit(EX_USAGE);
@@ -4659,20 +4767,65 @@ main(int argc, char **argv)
     /* now convert to a more efficiently usable representation */
     swappct = (KM_SWAPPCT_MODULUS * swappctf);
 
-    if (c0putval < sizeof(struct km_rec))
+    /* Compute initial values for vlenmin, vlenmax, and vlenmod.
+     */
+    if (vlenmax >= SIZE_MAX)
+        vlenmax = impl->vlenmax;
+    vlenmax = min_t(size_t, vlenmax, impl->vlenmax_max);
+
+    impl->vlenmax = vlenmax;
+    impl->vlenmin = min_t(size_t, vlenmin, impl->vlenmax);
+    impl->vlendiv = impl->vlenmax - impl->vlenmin + 1;
+
+    if (impl->vlenmax < sizeof(struct km_rec))
         recverify = false;
 
-    if (vlenmax >= ULONG_MAX)
-        vlenmax = impl->vlenmax_default;
-    vlenmax = min_t(size_t, vlenmax, impl->vlenmax);
+    /* secsz is the i/o buffer size for device and mpool modes,
+     * and the value buffer size for kvs and mongo modes.
+     */
+    if (secsz < impl->vlenmax)
+        secsz = ALIGN(impl->vlenmax, 4096);
 
-    if (mongo) {
+    if (help) {
+        usage(impl);
+        exit(0);
+    }
+
+    if (!(init || test || check || destroy)) {
+        syntax("one or more of -i, -t, -c, -D is required");
+        exit(EX_USAGE);
+    }
+
+    if (argc < 1) {
+        syntax("insufficient arguments for mandatory parameters");
+        exit(EX_USAGE);
+    }
+
+    pthread_spin_init(&td_exited_lock, PTHREAD_PROCESS_PRIVATE);
+
+    bkt_init();
+    chk_init(impl, recmax);
+
+    /* Clear the transient bits in the check file and adjust secsz
+     * if necessary.
+     */
+    if ((test || check) && !init) {
+        if (impl->chk) {
+            td_check_init(impl);
+        } else {
+            if (impl_kvs || impl_mongo)
+                secsz = ALIGN(impl->vlenmax_max, 4096);
+        }
+    }
+
+    if (init || test || check)
+        km_rec_alloc_cmn(NULL, NULL, NULL);
+
+    if (impl_mongo) {
         int i;
 
-        if (keybinary) {
+        if (keybinary)
             keybinary = false;
-            ++mongo;
-        }
 
         wcmaj = wcmajprob * WCMAJSCALE;
 
@@ -4727,28 +4880,6 @@ main(int argc, char **argv)
         fieldnamev[fieldnamew_max * i] = '\000';
     }
 
-    impl->vlenmax = min_t(size_t, vlenmax, impl->vlenmax);
-    impl->vlenmin = min_t(size_t, vlenmin, impl->vlenmax);
-    impl->vlendiv = impl->vlenmax - impl->vlenmin + 1;
-
-    if (secsz < impl->vlenmax + (KM_REC_SZ_MAX - KM_REC_VLEN_MAX))
-        secsz = ALIGN(impl->vlenmax + (KM_REC_SZ_MAX - KM_REC_VLEN_MAX), PAGE_SIZE);
-
-    if (help) {
-        usage(impl);
-        exit(0);
-    }
-
-    if (!(init || test || check || destroy)) {
-        syntax("one or more of -i, -t, -c, -D is required");
-        exit(EX_USAGE);
-    }
-
-    if (argc < 1) {
-        syntax("insufficient arguments for mandatory parameters");
-        exit(EX_USAGE);
-    }
-
 #ifdef XKMT
     if (!init) {
         syntax("-i is always required in XKMT mode");
@@ -4763,25 +4894,24 @@ main(int argc, char **argv)
     }
 #endif
 
-    pthread_spin_init(&td_exited_lock, PTHREAD_PROCESS_PRIVATE);
-
     if ((init || test) && impl->vlenmax > 0) {
-        char *p, *end;
+        const char *end;
+        char *p;
 
         /* Construct the buffer of randomness such that we can
          * start from any offset from randbuf and access up to
          * vlenmax valid bytes.
          */
-        randbufsz = roundup(impl->vlenmax, PAGE_SIZE) * 2;
+        randbufsz = roundup(impl->vlenmax * 8, PAGE_SIZE) * 2;
 
-        randbuf = aligned_alloc(PAGE_SIZE, randbufsz);
-        if (!randbuf) {
+        p = aligned_alloc(PAGE_SIZE, randbufsz);
+        if (!p) {
             eprint("%s: malloc(%zu) randbuf failed\n", __func__, randbufsz);
             exit(EX_OSERR);
         }
 
-        end = randbuf + randbufsz;
-        p = randbuf;
+        end = p + randbufsz;
+        randbuf = p;
 
         if (vrunlen > 0) {
             char c; /* ASCII value that won't prevent data loss when stored as UTF-8 */
@@ -4805,11 +4935,8 @@ main(int argc, char **argv)
             }
         }
 
-        randbufsz /= 2;
+        randbufsz /= 16;
     }
-
-    bkt_init();
-    chk_init(impl, recmax);
 
     if (keyfmt) {
         char key1[KM_REC_KEY_MAX * 2] = {};
@@ -4852,7 +4979,7 @@ main(int argc, char **argv)
 
     oom_score_adj_set(oom_score_adj);
 
-    if (mongo)
+    if (impl_mongo)
         mongoc_init();
 
     if (latency)
@@ -4868,14 +4995,8 @@ main(int argc, char **argv)
         }
 
         initmode = false;
-    }
 
-    /* Clear the transient bits in the check file.  As a bonus,
-     * this should warm up the page cache such that it reduces
-     * some of the startup noise in test mode.
-     */
-    if (test || check)
-        td_check_init(impl);
+    }
 
     if (test) {
         bool orecverify = recverify;
@@ -4915,13 +5036,13 @@ main(int argc, char **argv)
      */
     super_free(g.bktlock, g.bktlocksz);
     free(fieldnamev);
-    free(randbuf);
+    free((char *)randbuf);
     free(mpname);
 
     if (latency)
         latency_finish(impl->km_latency, KMT_LAT_REC_CNT);
 
-    if (mongo)
+    if (impl_mongo)
         mongoc_cleanup();
 
     svec_reset(&hse_gparms);
