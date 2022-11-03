@@ -98,20 +98,21 @@ identify issues early on in their work.
 
 #### Documentation
 
-HSE's public API is annotated with Doxygen and includes a few graphs that can be
-rendered with Graphviz. Run the following to set it up:
+HSE's public API documentation is generated from the source code with Doxygen.
+The following commands will generate static HTML in `build/docs/doxygen/output/html`.
 
 ```shell
-meson setup -C build -Ddocs=true
-meson compile -C build doxygen
+meson setup build -Ddocs=enabled
+meson compile -C build docs
 ```
 
-Static HTML Doxygen files will be generated in `build/docs/doxygen/api/html`.
+A run target has also been provided to start a Python webserver that serves the
+generated HTML. The server's port number is designated by the kernel unless the
+environment variable `HSE_DOXYGEN_SERVE_PORT` is set to a port number.
 
-A run target has also been provided called `doxygen-serve`, which will start a
-Python webserver to serve the generated doxygen web pages. The assigned port
-is designated by the kernel by default unless the environment variable
-`HSE_DOXYGEN_SERVE_PORT` is set to a port number.
+```shell
+meson compile -C build doxygen-serve
+```
 
 ### Installing
 
