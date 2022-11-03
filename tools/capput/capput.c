@@ -459,7 +459,7 @@ reader(void *arg)
         if (err)
             fatal(err, "hse_kvs_cursor_create failure");
 
-        if (klast[0]) {
+        if (klast[1]) {
             klen = 0;
 
             ti->state = 's';
