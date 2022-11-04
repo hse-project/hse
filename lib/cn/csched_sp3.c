@@ -743,22 +743,6 @@ sp3_rb_insert(struct rb_root *root, struct sp3_rbe *new_node)
 }
 
 static void
-sp3_node_init(struct sp3 *sp, struct sp3_node *spn)
-{
-    spn->spn_initialized = true;
-
-    for (uint tx = 0; tx < NELEM(spn->spn_rbe); tx++)
-        RB_CLEAR_NODE(&spn->spn_rbe[tx].rbe_node);
-
-    INIT_LIST_HEAD(&spn->spn_rlink);
-    INIT_LIST_HEAD(&spn->spn_alink);
-
-    /* Append to list of all nodes from all managed trees.
-     */
-    list_add_tail(&spn->spn_alink, &sp->spn_alist);
-}
-
-static void
 sp3_node_insert(struct sp3 *sp, struct sp3_node *spn, uint tx, u64 weight)
 {
     struct rb_root *root = sp->rbt + tx;
@@ -796,11 +780,20 @@ sp3_node_unlink(struct sp3 *sp, struct sp3_node *spn)
 }
 
 static void
+sp3_node_link_all(struct sp3 *sp, struct sp3_node *spn)
+{
+    assert(!spn->spn_managed);
+
+    /* Append to list of all nodes from all managed trees.
+     */
+    list_add_tail(&spn->spn_alink, &sp->spn_alist);
+    spn->spn_managed = true;
+}
+
+static void
 sp3_node_unlink_all(struct sp3 *sp, struct sp3_node *spn)
 {
-    if (ev(!spn->spn_initialized))
-        return;
-
+    spn->spn_managed = false;
     sp3_node_unlink(sp, spn);
     list_del_init(&spn->spn_rlink);
     list_del_init(&spn->spn_alink);
@@ -816,7 +809,7 @@ sp3_dirty_node_locked(struct sp3 *sp, struct cn_tree_node *tn)
     uint garbage = 0, jobs;
     uint scatter = 0;
 
-    if (!spn->spn_initialized)
+    if (!spn->spn_managed)
         return;
 
     jobs = atomic_read_acq(&tn->tn_busycnt);
@@ -1145,7 +1138,24 @@ sp3_process_dirtylist(struct sp3 *sp)
              * and will remove it from the tree it under the tree write lock.
              */
             if (cn_node_isleaf(tn) && !tn->tn_route_node) {
-                list_add_tail(&tn->tn_dnode_linkv[idx], &joined);
+                const uint i = (idx + 1) % NELEM(sp->sp_dtree_listv);
+                bool busy;
+
+                /* We don't expect a joined node to be on both the stable and
+                 * active dirty lists, but if it is we must defer removing
+                 * it until the next call to sp3_process_dirtylist().
+                 */
+                mutex_lock(&sp->sp_dlist_lock);
+                busy = list_empty(&tn->tn_dnode_linkv[i]);
+                mutex_unlock(&sp->sp_dlist_lock);
+
+                if (busy) {
+                    log_warn("node %lu is busy, removal deferred", tn->tn_nodeid);
+                    assert(spn->spn_managed);
+                } else {
+                    list_add_tail(&tn->tn_dnode_linkv[idx], &joined);
+                }
+
                 sp3_node_unlink_all(sp, spn);
                 continue;
             }
@@ -1157,8 +1167,8 @@ sp3_process_dirtylist(struct sp3 *sp)
              * created by a node split operation and this must be the
              * first time that csched has seen it.
              */
-            if (!spn->spn_initialized)
-                sp3_node_init(sp, spn);
+            if (!spn->spn_managed)
+                sp3_node_link_all(sp, spn);
 
             sp3_dirty_node_locked(sp, tn);
         }
@@ -1236,7 +1246,7 @@ sp3_trees_add(struct sp3 *sp)
 
         rmlock_rlock(&tree->ct_lock, &lock);
         cn_tree_foreach_node(tn, tree) {
-            sp3_node_init(sp, tn2spn(tn));
+            sp3_node_link_all(sp, tn2spn(tn));
             sp3_dirty_node_locked(sp, tn);
         }
         rmlock_runlock(lock);

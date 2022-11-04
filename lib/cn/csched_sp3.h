@@ -35,7 +35,7 @@ struct sp3_node {
     struct sp3_rbe   spn_rbe[wtype_MAX];
     struct list_head spn_rlink;
     struct list_head spn_alink;
-    bool             spn_initialized;
+    bool             spn_managed;
 };
 
 /* Each sp3_tree maintains a list of dirty nodes (spt_dnode_listv).
@@ -52,6 +52,16 @@ struct sp3_tree {
     struct list_head spt_dnode_listv[2] HSE_L1D_ALIGNED;
     struct list_head spt_dtree_linkv[2];
 };
+
+static inline void
+sp3_node_init(struct sp3_node *spn)
+{
+    for (size_t tx = 0; tx < NELEM(spn->spn_rbe); ++tx)
+        RB_CLEAR_NODE(&spn->spn_rbe[tx].rbe_node);
+
+    INIT_LIST_HEAD(&spn->spn_rlink);
+    INIT_LIST_HEAD(&spn->spn_alink);
+}
 
 /* MTF_MOCK */
 merr_t

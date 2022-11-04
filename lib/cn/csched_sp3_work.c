@@ -517,11 +517,11 @@ sp3_work_joinable(struct cn_tree_node *right, const struct sp3_thresholds *thres
     struct cn_tree_node *left;
     size_t accum, pct;
 
-    if (!right || !tn2spn(right)->spn_initialized || right->tn_ss_splitting)
+    if (!right || !tn2spn(right)->spn_managed || right->tn_ss_splitting)
         return NULL;
 
     left = list_prev_entry(right, tn_link);
-    if (!left || !tn2spn(left)->spn_initialized || left->tn_ss_splitting)
+    if (!left || !tn2spn(left)->spn_managed || left->tn_ss_splitting)
         return NULL;
 
     /* tn_route_node will be NULL if left is the root node or was recently
