@@ -240,27 +240,19 @@ rest_kvdb_params_get(
         return rest_response_perror(resp, REST_STATUS_BAD_REQUEST,
             "The 'pretty' query parameter must be a boolean", merr(EINVAL));
 
-    /* Check for single parameter or all parameters */
+        /* Check for single parameter or all parameters */
     if (strcmp(req->rr_matched, req->rr_actual)) {
-        char *tmp;
-        char *buf;
         merr_t err;
+        char sbuf[128];
         size_t needed_sz;
         const char *param;
-        size_t buf_sz = 128;
-
-        buf = malloc(buf_sz * sizeof(*buf));
-        if (ev(!buf))
-            return rest_response_perror(resp, REST_STATUS_SERVICE_UNAVAILABLE, "Out of memory",
-                merr(ENOMEM));
 
         /* move past the final '/' */
         param = req->rr_actual + strlen(req->rr_matched) + 1;
 
-        err = ikvdb_param_get(kvdb, param, buf, buf_sz, &needed_sz);
+        err = ikvdb_param_get(kvdb, param, sbuf, sizeof(sbuf), &needed_sz);
         if (ev(err)) {
-            log_errx("Failed to read KVDB param (%s)", err, param);
-            free(buf);
+            log_errx("Failed to read HSE global param (%s)", err, param);
 
             switch (merr_errno(err)) {
             case EINVAL:
@@ -274,33 +266,24 @@ rest_kvdb_params_get(
             }
         }
 
-        if (needed_sz >= buf_sz) {
-            buf_sz = needed_sz + 1;
-            tmp = realloc(buf, buf_sz);
-            if (ev(!tmp)) {
-#if !defined(__clang__) && defined(__GNUC__) && __GNUC__ >= 12
-#pragma GCC diagnostic push
-#pragma GCC diagnostic ignored "-Wuse-after-free"
-#endif
-                free(buf);
-#if !defined(__clang__) && defined(__GNUC__) && __GNUC__ >= 12
-#pragma GCC diagnostic pop
-#endif
+        if (needed_sz >= sizeof(sbuf)) {
+            char *dbuf;
+            size_t dbuf_sz;
+
+            dbuf_sz = needed_sz + 1;
+            dbuf = malloc(dbuf_sz * sizeof(*dbuf));
+            if (ev(!dbuf))
                 return rest_response_perror(resp, REST_STATUS_SERVICE_UNAVAILABLE, "Out of memory",
                     merr(ENOMEM));
-            }
 
-            buf = tmp;
-
-            err = ikvdb_param_get(kvdb, param, buf, buf_sz, NULL);
+            err = ikvdb_param_get(kvdb, param, dbuf, dbuf_sz, NULL);
             assert(err == 0);
-        }
 
-        /* No way to support pretty printing here. API might need to be
-         * expanded. We could also just re-parse the buffer to JSON.
-         */
-        fputs(buf, resp->rr_stream);
-        free(buf);
+            fputs(dbuf, resp->rr_stream);
+            free(dbuf);
+        } else {
+            fputs(sbuf, resp->rr_stream);
+        }
     } else {
         char *data;
         struct kvdb_cparams cparams;
@@ -489,27 +472,19 @@ rest_kvs_params_get(
         return rest_response_perror(resp, REST_STATUS_BAD_REQUEST,
             "The 'pretty' query parameter must be a boolean", merr(EINVAL));
 
-    /* Check for single parameter or all parameters */
+        /* Check for single parameter or all parameters */
     if (strcmp(req->rr_matched, req->rr_actual)) {
-        char *tmp;
-        char *buf;
         merr_t err;
+        char sbuf[128];
         size_t needed_sz;
         const char *param;
-        size_t buf_sz = 128;
-
-        buf = malloc(buf_sz * sizeof(*buf));
-        if (ev(!buf))
-            return rest_response_perror(resp, REST_STATUS_SERVICE_UNAVAILABLE, "Out of memory",
-                merr(ENOMEM));
 
         /* move past the final '/' */
         param = req->rr_actual + strlen(req->rr_matched) + 1;
 
-        err = ikvdb_kvs_param_get((struct hse_kvs *)kvs, param, buf, buf_sz, &needed_sz);
+        err = ikvdb_kvs_param_get((struct hse_kvs *)kvs, param, sbuf, sizeof(sbuf), &needed_sz);
         if (ev(err)) {
-            log_errx("Failed to read KVS param (%s)", err, param);
-            free(buf);
+            log_errx("Failed to read HSE global param (%s)", err, param);
 
             switch (merr_errno(err)) {
             case EINVAL:
@@ -523,33 +498,24 @@ rest_kvs_params_get(
             }
         }
 
-        if (needed_sz >= buf_sz) {
-            buf_sz = needed_sz + 1;
-            tmp = realloc(buf, buf_sz);
-            if (ev(!tmp)) {
-#if !defined(__clang__) && defined(__GNUC__) && __GNUC__ >= 12
-#pragma GCC diagnostic push
-#pragma GCC diagnostic ignored "-Wuse-after-free"
-#endif
-                free(buf);
-#if !defined(__clang__) && defined(__GNUC__) && __GNUC__ >= 12
-#pragma GCC diagnostic pop
-#endif
+        if (needed_sz >= sizeof(sbuf)) {
+            char *dbuf;
+            size_t dbuf_sz;
+
+            dbuf_sz = needed_sz + 1;
+            dbuf = malloc(dbuf_sz * sizeof(*dbuf));
+            if (ev(!dbuf))
                 return rest_response_perror(resp, REST_STATUS_SERVICE_UNAVAILABLE, "Out of memory",
                     merr(ENOMEM));
-            }
 
-            buf = tmp;
-
-            err = ikvdb_kvs_param_get((struct hse_kvs *)kvs, param, buf, buf_sz, NULL);
+            err = ikvdb_kvs_param_get((struct hse_kvs *)kvs, param, dbuf, dbuf_sz, NULL);
             assert(err == 0);
-        }
 
-        /* No way to support pretty printing here. API might need to be
-         * expanded. We could also just re-parse the buffer to JSON.
-         */
-        fputs(buf, resp->rr_stream);
-        free(buf);
+            fputs(dbuf, resp->rr_stream);
+            free(dbuf);
+        } else {
+            fputs(sbuf, resp->rr_stream);
+        }
     } else {
         char *data;
         cJSON *merged, *cp_json, *rp_json;
