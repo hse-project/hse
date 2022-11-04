@@ -39,10 +39,16 @@
 #include <linux/fs.h>
 #endif
 
-#define container_of(ptr, type, member)                \
-    ({                                                 \
-        __typeof(((type *)0)->member) *_p = (ptr);     \
-        (type *)((char *)_p - offsetof(type, member)); \
+/** @brief Cast a member of a structure out to the containing structure.
+ *
+ * @param _ptr Pointer to the member.
+ * @param _type Type of the container struct this is embedded in.
+ * @param _member Name of the member within the struct.
+ */
+#define container_of(_ptr, _type, _member)            \
+    ({                                                \
+        void *mptr = (void *)(_ptr);                  \
+        ((_type *)(mptr - offsetof(_type, _member))); \
     })
 
 #define NELEM(_arr) (sizeof(_arr) / sizeof((_arr)[0]))

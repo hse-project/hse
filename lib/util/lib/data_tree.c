@@ -201,7 +201,7 @@ dt_add_pending(void)
 }
 
 merr_t
-dt_add(struct dt_element *dte)
+dt_add(struct dt_element *const dte)
 {
     merr_t err = 0;
     struct dt_element *item;
@@ -234,7 +234,7 @@ dt_add(struct dt_element *dte)
 
 /* Caller must hold tree lock. */
 static merr_t
-dt_remove_impl(struct dt_element *dte, bool force)
+dt_remove_impl(struct dt_element *const dte, const bool force)
 {
     if (dte->dte_ops->dto_remove || force)
         rb_erase(&dte->dte_node, &hse_dt_tree.dt_root);
@@ -308,9 +308,7 @@ dt_find(const char *const path, const size_t path_len, const bool exact)
 void
 dt_init(void)
 {
-    struct dt_tree *tree = &hse_dt_tree;
-
-    dt_add(&tree->dt_element);
+    dt_add(&hse_dt_tree.dt_element);
 }
 
 void
@@ -326,7 +324,7 @@ dt_fini(void)
 
     while (root->rb_node) {
         dte = container_of(root->rb_node, typeof(*dte), dte_node);
-        dt_remove_impl(dte, 1);
+        dt_remove_impl(dte, true);
     }
 
     dt_unlock();

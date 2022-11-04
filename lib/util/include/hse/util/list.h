@@ -13,7 +13,7 @@ struct list_head {
 };
 
 #define list_entry(addr, type, field) \
-    ((type *)((char *)(addr) - (uintptr_t)(&((type *)0)->field)))
+    container_of(addr, type, field)
 
 #define list_for_each(ptr, head) \
     for (ptr = (head)->next; ptr != (head); ptr = (ptr)->next)

@@ -68,7 +68,7 @@ merr_file(const merr_t err)
     if (off == 0)
         return NULL;
 
-    file = hse_merr_base + (off * MERR_ALIGN);
+    file = (char *)hse_merr_base + (off * MERR_ALIGN);
 
     if (file < (char *)&__start_hse_merr ||
           file >= (char *)&__stop_hse_merr)

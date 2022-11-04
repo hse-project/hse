@@ -527,6 +527,8 @@ config_from_kvdb_conf(const char *kvdb_home, struct config **conf)
     if (!kvdb_home || !conf)
         return merr(EINVAL);
 
+    *conf = NULL;
+
     n = snprintf(conf_file_path, sizeof(conf_file_path), "%s/kvdb.conf", kvdb_home);
     if (n >= sizeof(conf_file_path)) {
         log_err("Failed to create the %s/kvdb.conf file path because the path was too large",

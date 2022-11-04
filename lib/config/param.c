@@ -304,6 +304,9 @@ param_default_converter(const struct param_spec *ps, const cJSON *node, void *va
             break;
         }
         case PARAM_TYPE_I64: {
+            char *end;
+            int64_t tmp;
+            char buf[32];
             double to_conv;
 
             assert(!(ps->ps_flags & PARAM_FLAG_NULLABLE));
@@ -314,19 +317,24 @@ param_default_converter(const struct param_spec *ps, const cJSON *node, void *va
 
             to_conv = cJSON_GetNumberValue(node);
             if (!IS_WHOLE(to_conv)) {
-                log_err("%s must be a whole number", ps->ps_name);
+                log_err("Value of %s must be a whole number", ps->ps_name);
                 return false;
             }
-            if (to_conv < INT64_MIN || to_conv > (double)INT64_MAX) {
+
+            /* Converting a double to an int64_t is extremely difficult.
+             * Confirm that the double is a whole number, convert it to a
+             * string, and parse the string to an int64_t.
+             */
+            snprintf(buf, sizeof(buf), "%.0f", to_conv);
+            tmp = strtoll(buf, &end, 10);
+            if (*end != '\0') {
                 log_err(
-                    "Value of %s must be greater than or equal to %ld and less than or equal to "
-                    "%ld",
+                    "Value of %s must be greater than or equal to 0 and less than or equal to %ld",
                     ps->ps_name,
-                    INT64_MIN,
                     INT64_MAX);
                 return false;
             }
-            *(int64_t *)value = (int64_t)to_conv;
+            *(int64_t *)value = tmp;
             break;
         }
         case PARAM_TYPE_U8: {
@@ -402,6 +410,9 @@ param_default_converter(const struct param_spec *ps, const cJSON *node, void *va
             break;
         }
         case PARAM_TYPE_U64: {
+            char *end;
+            char buf[32];
+            uint64_t tmp;
             double to_conv;
 
             assert(!(ps->ps_flags & PARAM_FLAG_NULLABLE));
@@ -415,14 +426,21 @@ param_default_converter(const struct param_spec *ps, const cJSON *node, void *va
                 log_err("Value of %s must be a whole number", ps->ps_name);
                 return false;
             }
-            if (to_conv < 0 || to_conv > (double)UINT64_MAX) {
+
+            /* Converting a double to a uint64_t is extremely difficult.
+             * Confirm that the double is a whole number, convert it to a
+             * string, and parse the string to a uint64_t.
+             */
+            snprintf(buf, sizeof(buf), "%.0f", to_conv);
+            tmp = strtoull(buf, &end, 10);
+            if (to_conv < 0 || *end != '\0') {
                 log_err(
                     "Value of %s must be greater than or equal to 0 and less than or equal to %lu",
                     ps->ps_name,
                     UINT64_MAX);
                 return false;
             }
-            *(uint64_t *)value = (uint64_t)to_conv;
+            *(uint64_t *)value = tmp;
             break;
         }
         case PARAM_TYPE_ENUM: {
