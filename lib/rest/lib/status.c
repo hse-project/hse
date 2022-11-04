@@ -12,9 +12,9 @@
 #include "status.h"
 
 const char *
-status_to_reason(const enum rest_status code)
+status_to_reason(const enum rest_status status)
 {
-    switch (code) {
+    switch (status) {
     case REST_STATUS_OK:
         return "OK";
     case REST_STATUS_CREATED:

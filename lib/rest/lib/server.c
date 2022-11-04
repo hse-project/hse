@@ -25,16 +25,19 @@
 
 #include <hse/error/merr.h>
 #include <hse/logging/logging.h>
+#include <hse/rest/headers.h>
 #include <hse/rest/method.h>
 #include <hse/rest/request.h>
 #include <hse/rest/response.h>
 #include <hse/util/assert.h>
 #include <hse/util/compiler.h>
+#include <hse/util/err_ctx.h>
 #include <hse/util/event_counter.h>
 #include <hse/util/list.h>
 #include <hse/util/mutex.h>
 #include <hse/rest/server.h>
 
+#include "response.h"
 #include "status.h"
 
 #define REST_ROUTE_MASK (REST_ENDPOINT_EXACT)
@@ -110,6 +113,28 @@ evhttp_cmd_type_to_string(const enum evhttp_cmd_type cmd)
 }
 
 static void
+send_error(
+    struct evhttp_request *const req,
+    const enum rest_status status,
+    const char *const detail,
+    const merr_t origin)
+{
+    const char *reason;
+    struct evbuffer *evbuf;
+    struct evkeyvalq *headers;
+
+    reason = status_to_reason(status);
+    evbuf = evhttp_request_get_output_buffer(req);
+    headers = evhttp_request_get_output_headers(req);
+
+    evhttp_add_header(headers, REST_HEADER_CONTENT_TYPE, REST_APPLICATION_PROBLEM_JSON);
+    evbuffer_add_printf(evbuf, RFC7807_FMT, reason, status, detail, merr_file(origin),
+        merr_lineno(origin), merr_errno(origin));
+
+    evhttp_send_reply(req, status, reason, NULL);
+}
+
+static void
 handle_request(struct evhttp_request *const req, const struct endpoint *const endpoint)
 {
     int rc;
@@ -136,16 +161,15 @@ handle_request(struct evhttp_request *const req, const struct endpoint *const en
     resp_headers = evhttp_request_get_output_headers(req);
 
     if (!endpoint->handlers[evhttp_cmd_type_to_rest_method(cmd)]) {
-        evhttp_send_error(req, REST_STATUS_METHOD_NOT_ALLOWED,
-            status_to_reason(REST_STATUS_METHOD_NOT_ALLOWED));
+        send_error(req, REST_STATUS_METHOD_NOT_ALLOWED, "Method for endpoint does not exist",
+            merr(ENOENT));
         return;
     }
 
     if (query) {
         rc = evhttp_parse_query_str(query, &params);
         if (rc == -1) {
-            evhttp_send_error(req, REST_STATUS_BAD_REQUEST,
-                status_to_reason(REST_STATUS_BAD_REQUEST));
+            send_error(req, REST_STATUS_BAD_REQUEST, "Invalid query string", merr(EINVAL));
             return;
         }
     }
@@ -155,8 +179,7 @@ handle_request(struct evhttp_request *const req, const struct endpoint *const en
     if (req_data_len > 0) {
         req_data = malloc((req_data_len + 1) * sizeof(*req_data));
         if (ev(!req_data)) {
-            evhttp_send_error(req, REST_STATUS_SERVICE_UNAVAILABLE,
-                status_to_reason(REST_STATUS_SERVICE_UNAVAILABLE));
+            send_error(req, REST_STATUS_SERVICE_UNAVAILABLE, "Out of memory", merr(ENOMEM));
             return;
         }
         req_data[req_data_len] = '\0';
@@ -164,8 +187,8 @@ handle_request(struct evhttp_request *const req, const struct endpoint *const en
         rc = evbuffer_copyout(req_body, req_data, req_data_len + 1);
         if (rc == -1) {
             free(req_data);
-            evhttp_send_error(req, REST_STATUS_INTERNAL_SERVER_ERROR,
-                status_to_reason(REST_STATUS_INTERNAL_SERVER_ERROR));
+            send_error(req, REST_STATUS_INTERNAL_SERVER_ERROR, "Failed to copy data out of buffer",
+                merr(EBADE));
             return;
         }
     }
@@ -181,8 +204,8 @@ handle_request(struct evhttp_request *const req, const struct endpoint *const en
     hresp.rr_stream = open_memstream(&resp_data, &resp_data_len);
     if (ev(!hresp.rr_stream)) {
         free(req_data);
-        evhttp_send_error(req, REST_STATUS_INTERNAL_SERVER_ERROR,
-            status_to_reason(REST_STATUS_INTERNAL_SERVER_ERROR));
+        send_error(req, REST_STATUS_INTERNAL_SERVER_ERROR, "Failed to open memory stream",
+            merr(ENOSTR));
         return;
     }
 
@@ -200,15 +223,14 @@ handle_request(struct evhttp_request *const req, const struct endpoint *const en
     if (resp_data_len > 0) {
         resp_body = evbuffer_new();
         if (ev(!resp_body)) {
-            evhttp_send_error(req, REST_STATUS_INTERNAL_SERVER_ERROR,
-                status_to_reason(REST_STATUS_INTERNAL_SERVER_ERROR));
+            send_error(req, REST_STATUS_SERVICE_UNAVAILABLE, "Out of memory", merr(ENOMEM));
             return;
         }
 
         rc = evbuffer_add(resp_body, resp_data, resp_data_len);
         if (ev(rc == -1)) {
-            evhttp_send_error(req, REST_STATUS_INTERNAL_SERVER_ERROR,
-                status_to_reason(REST_STATUS_INTERNAL_SERVER_ERROR));
+            send_error(req, REST_STATUS_INTERNAL_SERVER_ERROR, "Failed to copy data to buffer",
+                merr(EBADE));
             return;
         }
     }
@@ -271,7 +293,7 @@ on_inexact_request(struct evhttp_request *const req, void *const arg)
     }
 
     if (!endpoint) {
-        evhttp_send_error(req, REST_STATUS_NOT_FOUND, status_to_reason(REST_STATUS_NOT_FOUND));
+        send_error(req, REST_STATUS_NOT_FOUND, "Endpoint does not exist", merr(ENOENT));
         return;
     }
 

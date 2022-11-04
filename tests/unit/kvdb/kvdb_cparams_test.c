@@ -376,7 +376,7 @@ MTF_DEFINE_UTEST(kvdb_cparams_test, get)
     ASSERT_STREQ("null", buf);
 
     err = kvdb_cparams_get(&p, "does.not.exist", buf, sizeof(buf), NULL);
-    ASSERT_EQ(EINVAL, merr_errno(err));
+    ASSERT_EQ(ENOENT, merr_errno(err));
 
     err = kvdb_cparams_get(NULL, "storage.capacity.path", buf, sizeof(buf), NULL);
     ASSERT_EQ(EINVAL, merr_errno(err));

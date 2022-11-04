@@ -130,37 +130,40 @@ rest_get_dt(
     enum rest_status status = REST_STATUS_OK;
 
     err = rest_params_get(req->rr_params, "pretty", &pretty, false);
-    if (err)
-        return REST_STATUS_BAD_REQUEST;
+    if (ev(err))
+        return rest_response_perror(resp, REST_STATUS_BAD_REQUEST,
+            "The 'pretty' query parameter must be a boolean", merr(EINVAL));
 
     snprintf(dt_path, sizeof(dt_path), DT_PATH_ROOT "%s", req->rr_actual);
 
     err = dt_emit(dt_path, &root);
-    if (err) {
+    if (ev(err)) {
         switch (merr_errno(err)) {
         case ENAMETOOLONG:
-            return REST_STATUS_BAD_REQUEST;
+            /* Impossible to get this error unless the path doesn't exist
+             * because it would be impossible tt register a data tree path
+             * that is too long.
+             */
         case ENOENT:
-            return REST_STATUS_NOT_FOUND;
+            return rest_response_perror(resp, REST_STATUS_NOT_FOUND,
+                "Data tree element does not exist", merr(ENOENT));
         default:
-            return REST_STATUS_INTERNAL_SERVER_ERROR;
+            return rest_response_perror(resp, REST_STATUS_INTERNAL_SERVER_ERROR,
+                "Unhandled error", merr(EBADMSG));
         }
     }
 
     data = (pretty ? cJSON_Print : cJSON_PrintUnformatted)(root);
     if (ev(!data)) {
-        status = REST_STATUS_INTERNAL_SERVER_ERROR;
+        status = rest_response_perror(resp, REST_STATUS_SERVICE_UNAVAILABLE, "Out of memory",
+            merr(ENOMEM));
         goto out;
     }
 
     fputs(data, resp->rr_stream);
     cJSON_free(data);
 
-    err = rest_headers_set(resp->rr_headers, REST_HEADER_CONTENT_TYPE, REST_APPLICATION_JSON);
-    if (ev(err)) {
-        status = REST_STATUS_INTERNAL_SERVER_ERROR;
-        goto out;
-    }
+    rest_headers_set(resp->rr_headers, REST_HEADER_CONTENT_TYPE, REST_APPLICATION_JSON);
 
 out:
     cJSON_Delete(root);
@@ -178,8 +181,9 @@ rest_global_params_get(
     bool pretty;
 
     err = rest_params_get(req->rr_params, "pretty", &pretty, false);
-    if (err)
-        return REST_STATUS_BAD_REQUEST;
+    if (ev(err))
+        return rest_response_perror(resp, REST_STATUS_BAD_REQUEST,
+            "The 'pretty' query parameter must be a boolean", merr(EINVAL));
 
     /* Check for single parameter or all parameters */
     if (strcmp(req->rr_matched, req->rr_actual)) {
@@ -192,23 +196,26 @@ rest_global_params_get(
 
         buf = malloc(buf_sz * sizeof(*buf));
         if (ev(!buf))
-            return REST_STATUS_INTERNAL_SERVER_ERROR;
+            return rest_response_perror(resp, REST_STATUS_SERVICE_UNAVAILABLE, "Out of memory",
+                merr(ENOMEM));
 
         /* move past the final '/' */
         param = req->rr_actual + strlen(req->rr_matched) + 1;
 
         err = hse_gparams_get(&hse_gparams, param, buf, buf_sz, &needed_sz);
         if (ev(err)) {
-            log_errx("Failed to read HSE global param (%s): @@e", err, param);
+            log_errx("Failed to read HSE global param (%s)", err, param);
             free(buf);
 
             switch (merr_errno(err)) {
             case EINVAL:
-                return REST_STATUS_NOT_FOUND;
-            case EROFS:
-                return REST_STATUS_LOCKED;
+                return rest_response_perror(resp, REST_STATUS_BAD_REQUEST, "No request body", err);
+            case ENOENT:
+                return rest_response_perror(resp, REST_STATUS_NOT_FOUND,
+                    "Parameter does not exist", err);
             default:
-                return REST_STATUS_INTERNAL_SERVER_ERROR;
+                return rest_response_perror(resp, REST_STATUS_INTERNAL_SERVER_ERROR,
+                    "Unhandled error", err);
             }
         }
 
@@ -224,7 +231,8 @@ rest_global_params_get(
 #if !defined(__clang__) && defined(__GNUC__) && __GNUC__ >= 12
 #pragma GCC diagnostic pop
 #endif
-                return REST_STATUS_INTERNAL_SERVER_ERROR;
+                return rest_response_perror(resp, REST_STATUS_SERVICE_UNAVAILABLE, "Out of memory",
+                    merr(ENOMEM));
             }
 
             buf = tmp;
@@ -244,20 +252,20 @@ rest_global_params_get(
 
         root = hse_gparams_to_json(&hse_gparams);
         if (ev(!root))
-            return REST_STATUS_INTERNAL_SERVER_ERROR;
+            return rest_response_perror(resp, REST_STATUS_SERVICE_UNAVAILABLE, "Out of memory",
+                merr(ENOMEM));
 
         data = (pretty ? cJSON_Print : cJSON_PrintUnformatted)(root);
         cJSON_Delete(root);
         if (ev(!data))
-            return REST_STATUS_INTERNAL_SERVER_ERROR;
+            return rest_response_perror(resp, REST_STATUS_SERVICE_UNAVAILABLE, "Out of memory",
+                merr(ENOMEM));
 
         fputs(data, resp->rr_stream);
         cJSON_free(data);
     }
 
-    err = rest_headers_set(resp->rr_headers, REST_HEADER_CONTENT_TYPE, REST_APPLICATION_JSON);
-    if (ev(err))
-        return REST_STATUS_INTERNAL_SERVER_ERROR;
+    rest_headers_set(resp->rr_headers, REST_HEADER_CONTENT_TYPE, REST_APPLICATION_JSON);
 
     return REST_STATUS_OK;
 }
@@ -274,27 +282,33 @@ rest_global_params_put(
     const bool has_param = strcmp(req->rr_matched, req->rr_actual);
 
     /* Check for case when no parameter is specified, /params */
-    if (!has_param)
-        return REST_STATUS_METHOD_NOT_ALLOWED;
+    if (ev(!has_param))
+        return rest_response_perror(resp, REST_STATUS_METHOD_NOT_ALLOWED,
+            "Method for endpoint does not exist", merr(ENOENT));
 
     content_type = rest_headers_get(req->rr_headers, REST_HEADER_CONTENT_TYPE);
-    if (!content_type || strcmp(content_type, REST_APPLICATION_JSON) != 0)
-        return REST_STATUS_BAD_REQUEST;
+    if (ev(!content_type || strcmp(content_type, REST_APPLICATION_JSON) != 0))
+        return rest_response_perror(resp, REST_STATUS_BAD_REQUEST,
+            "Invalid '"REST_HEADER_CONTENT_TYPE"' header", merr(EINVAL));
 
     /* move past the final '/' */
     param = req->rr_actual + strlen(req->rr_matched) + 1;
 
     err = hse_gparams_set(&hse_gparams, param, req->rr_data);
     if (ev(err)) {
-        log_errx("Failed to set HSE global parameter (%s): @@e", err, param);
+        log_errx("Failed to set HSE global parameter (%s)", err, param);
 
         switch (merr_errno(err)) {
-        case ENOMEM:
-            return REST_STATUS_INTERNAL_SERVER_ERROR;
+        case EINVAL:
+            return rest_response_perror(resp, REST_STATUS_BAD_REQUEST, "No request body", err);
+        case ENOENT:
+            return rest_response_perror(resp, REST_STATUS_NOT_FOUND, "Parameter does not exist",
+                err);
         case EROFS:
-            return REST_STATUS_LOCKED;
+            return rest_response_perror(resp, REST_STATUS_LOCKED, "Parameter is not writable", err);
         default:
-            return REST_STATUS_BAD_REQUEST;
+            return rest_response_perror(resp, REST_STATUS_INTERNAL_SERVER_ERROR,
+                "Unhandled error", err);
         }
     }
 

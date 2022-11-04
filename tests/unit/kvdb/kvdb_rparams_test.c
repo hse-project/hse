@@ -969,7 +969,7 @@ MTF_DEFINE_UTEST(kvdb_rparams_test, get)
     ASSERT_STREQ("\"rdwr\"", buf);
 
     err = kvdb_rparams_get(&p, "does.not.exist", buf, sizeof(buf), NULL);
-    ASSERT_EQ(EINVAL, merr_errno(err));
+    ASSERT_EQ(ENOENT, merr_errno(err));
 
     err = kvdb_rparams_get(NULL, "mode", buf, sizeof(buf), NULL);
     ASSERT_EQ(EINVAL, merr_errno(err));
@@ -1000,7 +1000,7 @@ MTF_DEFINE_UTEST(kvdb_rparams_test, set)
     ASSERT_EQ(76, p.csched_hi_th_pct);
 
     err = kvdb_rparams_set(&p, "does.not.exist", "5");
-    ASSERT_EQ(EINVAL, merr_errno(err));
+    ASSERT_EQ(ENOENT, merr_errno(err));
 
     /* Fail to parse */
     err = kvdb_rparams_set(&p, "csched_hi_th_pct", "invalid");

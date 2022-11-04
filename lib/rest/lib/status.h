@@ -10,6 +10,6 @@
 #include <hse/util/compiler.h>
 
 const char *
-status_to_reason(enum rest_status code) HSE_RETURNS_NONNULL;
+status_to_reason(enum rest_status status) HSE_RETURNS_NONNULL;
 
 #endif

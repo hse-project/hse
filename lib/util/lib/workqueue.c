@@ -658,15 +658,18 @@ rest_get_workqueues(
 
     err = rest_params_get(req->rr_params, "pretty", &pretty, false);
     if (ev(err))
-        return REST_STATUS_BAD_REQUEST;
-
-    proc_fd = open("/proc/self/task", O_DIRECTORY | O_RDONLY);
-    if (ev(proc_fd == -1))
-        return REST_STATUS_INTERNAL_SERVER_ERROR;
+        return rest_response_perror(resp, REST_STATUS_BAD_REQUEST,
+            "The 'pretty' query parameter must be a boolean", merr(EINVAL));
 
     root = cJSON_CreateArray();
-    if (ev(!root)) {
-        status = REST_STATUS_INTERNAL_SERVER_ERROR;
+    if (ev(!root))
+        return rest_response_perror(resp, REST_STATUS_SERVICE_UNAVAILABLE, "Out of memory",
+            merr(ENOMEM));
+
+    proc_fd = open("/proc/self/task", O_DIRECTORY | O_RDONLY);
+    if (ev(proc_fd == -1)) {
+        status = rest_response_perror(resp, REST_STATUS_SERVICE_UNAVAILABLE, "Out of memory",
+            merr(ENOMEM));
         goto out;
     }
 
@@ -689,8 +692,9 @@ rest_get_workqueues(
 
         n = hse_readfile(proc_fd, file_buf, line_buf, sizeof(line_buf), O_RDONLY);
         if (n < 0) {
-            status = REST_STATUS_INTERNAL_SERVER_ERROR;
-            goto out;
+            status = rest_response_perror(resp, REST_STATUS_INTERNAL_SERVER_ERROR,
+                "Failed to read the proc filesystem", merr(errno));
+            break;
         }
 
         str = line_buf;
@@ -727,13 +731,15 @@ rest_get_workqueues(
         }
 
         elem = cJSON_CreateObject();
-        if (!elem) {
-            status = REST_STATUS_INTERNAL_SERVER_ERROR;
+        if (ev(!elem)) {
+            status = rest_response_perror(resp, REST_STATUS_SERVICE_UNAVAILABLE, "Out of memory",
+                merr(ENOMEM));
             break;
         }
 
         if (ev(!cJSON_AddItemToArray(root, elem))) {
-            status = REST_STATUS_INTERNAL_SERVER_ERROR;
+            status = rest_response_perror(resp, REST_STATUS_SERVICE_UNAVAILABLE, "Out of memory",
+                merr(ENOMEM));
             break;
         }
 
@@ -757,7 +763,8 @@ rest_get_workqueues(
         bad |= !cJSON_AddStringToObject(elem, "thread_name", comm);
 
         if (ev(bad)) {
-            status = REST_STATUS_INTERNAL_SERVER_ERROR;
+            status = rest_response_perror(resp, REST_STATUS_SERVICE_UNAVAILABLE, "Out of memory",
+                merr(ENOMEM));
             break;
         }
     }
@@ -775,11 +782,7 @@ rest_get_workqueues(
         fputs(data, resp->rr_stream);
         cJSON_free(data);
 
-        err = rest_headers_set(resp->rr_headers, REST_HEADER_CONTENT_TYPE, REST_APPLICATION_JSON);
-        if (ev(err)) {
-            status = REST_STATUS_INTERNAL_SERVER_ERROR;
-            goto out;
-        }
+        rest_headers_set(resp->rr_headers, REST_HEADER_CONTENT_TYPE, REST_APPLICATION_JSON);
     }
 
 out:

@@ -1044,7 +1044,7 @@ param_get(
             ps = &pspecs[i];
 
     if (!ps)
-        return merr(EINVAL);
+        return merr(ENOENT);
 
     assert(ps->ps_stringify);
     return ps->ps_stringify(
@@ -1111,7 +1111,7 @@ param_set(
 
     if (!ps) {
         log_err("Unknown parameter %s", param);
-        err = merr(EINVAL);
+        err = merr(ENOENT);
         goto out;
     }
 

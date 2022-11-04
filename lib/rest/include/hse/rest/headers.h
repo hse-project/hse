@@ -14,6 +14,7 @@ struct rest_headers;
 
 #define REST_HEADER_CONTENT_TYPE "Content-Type"
 #define REST_APPLICATION_JSON "application/json"
+#define REST_APPLICATION_PROBLEM_JSON "application/problem+json"
 
 const char *
 rest_headers_get(const struct rest_headers *headers, const char *key);
