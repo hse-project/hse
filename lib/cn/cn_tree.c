@@ -2052,7 +2052,9 @@ cn_comp_cleanup(struct cn_compaction_work *w)
 
             /* Failed spills cause node to become "wedged"  */
             if (spill && !tree->ct_rspills_wedged) {
-                log_errx("root node wedged, spills disabled (cnid %lu)", w->cw_err, tree->cnid);
+                if (merr_errno(w->cw_err) != ESHUTDOWN)
+                    log_errx("root node wedged, spills disabled (cnid %lu)",
+                             w->cw_err, tree->cnid);
                 tree->ct_rspills_wedged = true;
             }
             rmlock_wunlock(&tree->ct_lock);
@@ -2738,12 +2740,15 @@ void
 cn_tree_ingest_update(struct cn_tree *tree, struct kvset *kvset, void *ptomb, uint ptlen, u64 ptseq)
 {
     struct cn_samp_stats pre, post;
+    size_t kwlen, vwlen;
 
     /* cn trees always have root nodes */
     assert(tree->ct_root);
 
     rmlock_wlock(&tree->ct_lock);
     kvset_list_add(kvset, &tree->ct_root->tn_kvset_list);
+    kwlen = kvset_get_kwlen(kvset);
+    vwlen = kvset_get_vwlen(kvset);
 
     cn_inc_ingest_dgen(tree->cn);
 
@@ -2765,7 +2770,8 @@ cn_tree_ingest_update(struct cn_tree *tree, struct kvset *kvset, void *ptomb, ui
 
     rmlock_wunlock(&tree->ct_lock);
 
-    csched_notify_ingest(cn_get_sched(tree->cn), tree, post.r_alen - pre.r_alen);
+    csched_notify_ingest(cn_get_sched(tree->cn), tree,
+                         post.r_alen - pre.r_alen, kwlen, vwlen);
 }
 
 void

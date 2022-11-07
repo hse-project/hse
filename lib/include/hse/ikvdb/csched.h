@@ -63,6 +63,7 @@ enum cn_rule {
     CN_RULE_LSPLIT,         /* left node kvset after a split */
     CN_RULE_RSPLIT,         /* right ndoe kvset after a split */
     CN_RULE_JOIN,           /* prev node is very small */
+    CN_RULE_MAX,
 };
 
 static inline const char *
@@ -113,10 +114,18 @@ cn_rule2str(enum cn_rule rule)
         return "right";
     case CN_RULE_JOIN:
         return "join";
+    case CN_RULE_MAX:
+        return "max";
     }
 
     return "invalid";
 }
+
+struct cn_rule_stats {
+    uint64_t read_bytes;
+    uint64_t write_bytes;
+    uint64_t jobs;
+};
 
 /* Default threads-per-queue for csched_qthreads kvdb rparam.
  */
@@ -151,7 +160,12 @@ csched_destroy(struct csched *csched);
 
 /* MTF_MOCK */
 void
-csched_notify_ingest(struct csched *handle, struct cn_tree *tree, size_t alen);
+csched_notify_ingest(
+    struct csched *handle,
+    struct cn_tree *tree,
+    size_t alen,
+    size_t kwlen,
+    size_t vwlen);
 
 /* MTF_MOCK */
 void

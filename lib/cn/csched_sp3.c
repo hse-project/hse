@@ -6,6 +6,7 @@
 #define MTF_MOCK_IMPL_csched_sp3
 
 #include <bsd/string.h>
+#include <sys/resource.h>
 
 #include <hse/experimental.h>
 #include <hse/rest/headers.h>
@@ -277,6 +278,9 @@ struct sp3 {
     atomic_int       sp_ingest_count;
     atomic_int       sp_trees_count;
 
+    struct cn_merge_stats sp_mstatsv[CN_RULE_MAX] HSE_L1D_ALIGNED;
+    struct rusage sp_rusage;
+
     /* The following fields are rarely touched.
      */
     struct workqueue_struct *mon_wq;
@@ -409,7 +413,6 @@ sp3_log_progress(struct cn_compaction_work *w, struct cn_merge_stats *ms, bool f
 
     if (final) {
         msg_type = "final";
-        progress = (double)w->cw_stats.ms_keys_in / max_t(uint64_t, 1, est->cwe_keys);
         qt = w->cw_t1_qtime ? (w->cw_t1_qtime - w->cw_t0_enqueue) / 1000 : 0;
         pt = w->cw_t2_prep ? (w->cw_t2_prep - w->cw_t1_qtime) / 1000 : 0;
         bt = w->cw_t3_build ? (w->cw_t3_build - w->cw_t2_prep) / 1000 : 0;
@@ -417,29 +420,29 @@ sp3_log_progress(struct cn_compaction_work *w, struct cn_merge_stats *ms, bool f
 
     } else {
         msg_type = "progress";
-        progress = (double)w->cw_stats.ms_keys_in / max_t(uint64_t, 1, est->cwe_keys);
         qt = pt = bt = ct = 0;
     }
 
+    progress = (double)w->cw_stats.ms_keys_in / max_t(uint64_t, 1, est->cwe_keys);
     sts_job_progress_set(&w->cw_job, progress * 100);
 
     vblk_read_efficiency =
         safe_div(1.0 * ms->ms_val_bytes_out, ms->ms_vblk_read1.op_size + ms->ms_vblk_read2.op_size);
 
     log_info(
-        "type=%s job=%u comp=%s rule=%s "
+        "type=%s job=%u action=%s rule=%s "
         "cnid=%lu nodeid=%lu leaf=%u pct=%3.1f "
         "vrd_eff=%.3f "
-        "kblk_alloc_ops=%ld kblk_alloc_sz=%ld "
-        "kblk_alloc_ns=%ld kblk_write_ops=%ld kblk_write_sz=%ld "
-        "kblk_write_ns=%ld vblk_alloc_ops=%ld vblk_alloc_sz=%ld "
-        "vblk_alloc_ns=%ld vblk_write_ops=%ld vblk_write_sz=%ld "
-        "vblk_write_ns=%ld vblk_read1_ops=%ld vblk_read1_sz=%ld "
-        "vblk_read1_ns=%ld vblk_read1wait_ops=%ld vblk_read1wait_ns=%ld "
-        "vblk_read2_ops=%ld vblk_read2_sz=%ld vblk_read2_ns=%ld "
-        "vblk_read2wait_ops=%ld vblk_read2wait_ns=%ld "
-        "kblk_write_ops=%ld kblk_write_sz=%ld kblk_write_ns=%ld "
-        "kblk_readwait_ops=%ld kblk_readwait_ns=%ld "
+        "kblk_alloc_ops=%u kblk_alloc_sz=%ld "
+        "kblk_alloc_ms=%u kblk_write_ops=%u kblk_write_sz=%ld "
+        "kblk_write_ms=%u vblk_alloc_ops=%u vblk_alloc_sz=%ld "
+        "vblk_alloc_ms=%u vblk_write_ops=%u vblk_write_sz=%ld "
+        "vblk_write_ms=%u vblk_read1_ops=%u vblk_read1_sz=%ld "
+        "vblk_read1_ms=%u vblk_read1wait_ops=%u vblk_read1wait_ms=%u "
+        "vblk_read2_ops=%u vblk_read2_sz=%ld vblk_read2_ms=%u "
+        "vblk_read2wait_ops=%u vblk_read2wait_ms=%u "
+        "kblk_write_ops=%u kblk_write_sz=%ld kblk_write_ms=%u "
+        "kblk_readwait_ops=%u kblk_readwait_ms=%u "
         "vblk_dbl_reads=%ld "
         "queue_us=%lu prep_us=%lu build_us=%lu commit_us=%lu",
         msg_type, w->cw_job.sj_id, cn_action2str(w->cw_action), cn_rule2str(w->cw_rule),
@@ -1055,6 +1058,8 @@ sp3_process_workitem(struct sp3 *sp, struct cn_compaction_work *w)
         tree->ct_rspill_dt = (tree->ct_rspill_dt + dt) / 2;
     }
 
+    cn_merge_stats_add(&sp->sp_mstatsv[w->cw_rule], &w->cw_stats);
+
     if (w->cw_debug & (CW_DEBUG_PROGRESS | CW_DEBUG_FINAL))
         sp3_log_progress(w, &w->cw_stats, true);
 
@@ -1516,6 +1521,9 @@ sp3_comp_thread_name(
     case CN_RULE_JOIN:
         r = "nj";
         break;
+    case CN_RULE_MAX:
+        r = "xx";
+        break;
     }
 
     snprintf(buf, bufsz, "hse_%s_%s_%lu", a, r, nodeid);
@@ -1717,6 +1725,9 @@ sp3_submit(struct sp3 *sp, struct cn_compaction_work *w, uint qnum)
     w->cw_prog_interval = nsecs_to_jiffies(NSEC_PER_SEC);
     w->cw_debug = csched_rp_dbg_comp(sp->rp);
     w->cw_qnum = qnum;
+
+    memset(&w->cw_stats, 0, sizeof(w->cw_stats));
+    w->cw_stats.ms_jobs = 1;
 
     cn_samp_add(&sp->samp_wip, &w->cw_est.cwe_samp);
 
@@ -2548,16 +2559,27 @@ sp3_compact_status_get(struct csched *handle, struct hse_kvdb_compact_status *st
  * sp3_notify_ingest() - External API: notify ingest job has completed
  */
 void
-sp3_notify_ingest(struct csched *handle, struct cn_tree *tree, size_t alen)
+sp3_notify_ingest(
+    struct csched *handle,
+    struct cn_tree *tree,
+    size_t alen,
+    size_t kwlen,
+    size_t vwlen)
 {
     struct sp3 *sp = (struct sp3 *)handle;
     struct sp3_tree *spt = tree2spt(tree);
+    struct cn_merge_stats *stats;
 
     if (!sp)
         return;
 
     if (alen == 0)
         abort();
+
+    stats = &sp->sp_mstatsv[CN_RULE_INGEST];
+    atomic_add((atomic_uint *)&stats->ms_jobs, 1);
+    atomic_add((atomic_ulong *)&stats->ms_kblk_write.op_size, kwlen);
+    atomic_add((atomic_ulong *)&stats->ms_vblk_write.op_size, vwlen);
 
     if (atomic_add_return(&spt->spt_ingest_alen, alen) == 0) {
         atomic_inc_rel(&sp->sp_ingest_count);
@@ -2673,6 +2695,44 @@ sp3_destroy(struct csched *handle)
 
     rest_server_remove_endpoint(ENDPOINT_FMT_KVDB_CSCED, sp->kvdb_alias);
 
+    if (1) {
+        struct rusage ru;
+
+        log_info("%8s %6s %12s %12s %7s %7s %7s %7s",
+                 "rule", "jobs",  "keysin", "keysout", "kbr", "kbw", "vbr", "vbw");
+
+        for (enum cn_rule r = CN_RULE_NONE; r < CN_RULE_MAX; ++r) {
+            const struct cn_merge_stats *stats = &sp->sp_mstatsv[CN_RULE_MAX - 1 - r];
+
+            if (stats->ms_jobs == 0)
+                continue;
+
+            log_info("%8s %6u %12lu %12lu %7lu %7lu %7lu %7lu",
+                     (stats == sp->sp_mstatsv) ? "total" : cn_rule2str(stats - sp->sp_mstatsv),
+                     stats->ms_jobs,
+                     stats->ms_keys_in, stats->ms_keys_out,
+                     stats->ms_kblk_read.op_size >> 20,
+                     stats->ms_kblk_write.op_size >> 20,
+                     (stats->ms_vblk_read1.op_size +
+                      stats->ms_vblk_read2.op_size) >> 20,
+                     stats->ms_vblk_write.op_size >> 20);
+
+            cn_merge_stats_add(&sp->sp_mstatsv[CN_RULE_NONE], stats);
+        }
+
+        getrusage(RUSAGE_SELF, &ru);
+
+        ru.ru_minflt -= sp->sp_rusage.ru_minflt;
+        ru.ru_majflt -= sp->sp_rusage.ru_majflt;
+        ru.ru_nswap -= sp->sp_rusage.ru_nswap;
+        ru.ru_inblock -= sp->sp_rusage.ru_inblock;
+        ru.ru_oublock -= sp->sp_rusage.ru_inblock;
+
+        log_info("minflt %lu, majflt %lu, nswap %lu, inbytes %lu, outbytes %lu",
+                 ru.ru_minflt, ru.ru_majflt,ru.ru_nswap,
+                 ru.ru_inblock * 512, ru.ru_oublock * 512);
+    }
+
     free(sp->wp);
     free(sp);
 }
@@ -2744,6 +2804,7 @@ sp3_create(
         goto err_exit;
     }
 
+    getrusage(RUSAGE_SELF, &sp->sp_rusage);
     sp->kvdb_alias = kvdb_alias;
 
     if (hse_gparams.gp_rest.enabled) {

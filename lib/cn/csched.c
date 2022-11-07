@@ -33,9 +33,14 @@ csched_destroy(struct csched *handle)
 }
 
 void
-csched_notify_ingest(struct csched *handle, struct cn_tree *tree, size_t alen)
+csched_notify_ingest(
+    struct csched *handle,
+    struct cn_tree *tree,
+    size_t alen,
+    size_t kwlen,
+    size_t vwlen)
 {
-    sp3_notify_ingest(handle, tree, alen);
+    sp3_notify_ingest(handle, tree, alen, kwlen, vwlen);
 }
 
 void
