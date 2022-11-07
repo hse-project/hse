@@ -1,4 +1,4 @@
 [wrap-git]
 url = https://github.com/hse-project/hse-python.git
-revision = master
+revision = v3.0
 depth = 1
