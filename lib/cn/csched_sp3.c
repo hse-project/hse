@@ -1146,7 +1146,7 @@ sp3_process_dirtylist(struct sp3 *sp)
                  * it until the next call to sp3_process_dirtylist().
                  */
                 mutex_lock(&sp->sp_dlist_lock);
-                busy = list_empty(&tn->tn_dnode_linkv[i]);
+                busy = !list_empty(&tn->tn_dnode_linkv[i]);
                 mutex_unlock(&sp->sp_dlist_lock);
 
                 if (busy) {

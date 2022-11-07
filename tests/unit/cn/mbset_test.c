@@ -1,6 +1,6 @@
 /* SPDX-License-Identifier: Apache-2.0 */
 /*
- * Copyright (C) 2015-2020 Micron Technology, Inc.  All rights reserved.
+ * Copyright (C) 2015-2022 Micron Technology, Inc.  All rights reserved.
  */
 
 #include <sys/mman.h>
@@ -70,7 +70,6 @@ static int
 pre(struct mtf_test_info *mtf)
 {
     mapi_inject(mapi_idx_mpool_mblock_delete, 0);
-    mapi_inject(mapi_idx_mblk_madvise, 0);
     MOCK_SET_FN(mblk_desc, mblk_mmap, mocked_mblk_mmap);
     MOCK_SET_FN(mblk_desc, mblk_munmap, mocked_mblk_munmap);
 
