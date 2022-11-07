@@ -117,7 +117,7 @@ jobs:
         shell: sh +e {0}
         run: |
           for p in hse-java hse-python; do
-            branch=master
+            branch=v3.0
             if [ "$GITHUB_EVENT_NAME" = "pull_request" ]; then
               git ls-remote --exit-code --heads \
                 "https://github.com/hse-project/$p.git" "$GITHUB_HEAD_REF" \
