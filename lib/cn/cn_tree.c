@@ -1643,6 +1643,8 @@ cn_comp_update_split(
                 kvset_list_add_tail(kvsets[k], &left->tn_kvset_list);
         }
 
+        left->tn_split_ns = get_time_ns() + 60 * NSEC_PER_SEC;
+        left->tn_split_ns += (left->tn_split_ns % 1048576) * 32;
         w->cw_split.nodev[LEFT] = left;
     }
 
@@ -1668,6 +1670,8 @@ cn_comp_update_split(
 
             assert(route_node_keycmp(w->cw_split.key, w->cw_split.klen, right->tn_route_node) < 0);
 
+            right->tn_split_ns = get_time_ns() + 60 * NSEC_PER_SEC;
+            right->tn_split_ns += (right->tn_split_ns % 1048576) * 32;
             w->cw_split.nodev[RIGHT] = right;
         }
 

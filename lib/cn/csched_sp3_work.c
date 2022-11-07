@@ -405,7 +405,7 @@ sp3_work_wtype_idle(
 bool
 sp3_work_splittable(struct cn_tree_node *tn, const struct sp3_thresholds *thresh)
 {
-    return !tn->tn_ss_joining && (cn_ns_kvsets(&tn->tn_ns) > 0) &&
+    return !tn->tn_ss_joining && (jclock_ns > tn->tn_split_ns) &&
         (cn_ns_wlen(&tn->tn_ns) >= tn->tn_split_size ||
          cn_ns_keys_uniq(&tn->tn_ns) >= thresh->lcomp_split_keys);
 }
@@ -859,7 +859,7 @@ sp3_work_wtype_length(
          * a small number of keys.
          */
         if (kvsets > runlen_max) {
-            uint64_t keys_max = 32ul << 20;
+            uint64_t keys_max = 16ul << 20;
 
             *action = CN_ACTION_COMPACT_K;
             *rule = CN_RULE_COMPC;
@@ -869,7 +869,7 @@ sp3_work_wtype_length(
             list_for_each_entry(le, head, le_link) {
                 const struct kvset_stats *stats = kvset_statsp(le->le_kvset);
 
-                if (stats->kst_keys > keys_max)
+                if (stats->kst_keys > keys_max / 2)
                     break;
 
                 keys_max -= stats->kst_keys;

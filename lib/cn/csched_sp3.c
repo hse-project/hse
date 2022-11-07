@@ -868,7 +868,7 @@ sp3_dirty_node_locked(struct sp3 *sp, struct cn_tree_node *tn)
             /* Leaf nodes sorted by vgroup scatter and garbage.
              */
             if (scatter > 0) {
-                weight = ((uint64_t)scatter << 32) | garbage;
+                weight = ((uint64_t)scatter << 32) | (UINT32_MAX - garbage);
 
                 sp3_node_insert(sp, spn, wtype_scatter, weight);
             } else {
@@ -1047,7 +1047,9 @@ sp3_process_workitem(struct sp3 *sp, struct cn_compaction_work *w)
 
     cn_samp_sub(&sp->samp_wip, &w->cw_est.cwe_samp);
 
-    if (w->cw_action == CN_ACTION_SPILL || w->cw_action == CN_ACTION_ZSPILL) {
+    cn_merge_stats_add(&sp->sp_mstatsv[w->cw_rule], &w->cw_stats);
+
+    if (w->cw_action == CN_ACTION_SPILL) {
         struct cn_tree *tree = w->cw_tree;
         uint64_t dt;
 
@@ -1057,8 +1059,6 @@ sp3_process_workitem(struct sp3 *sp, struct cn_compaction_work *w)
 
         tree->ct_rspill_dt = (tree->ct_rspill_dt + dt) / 2;
     }
-
-    cn_merge_stats_add(&sp->sp_mstatsv[w->cw_rule], &w->cw_stats);
 
     if (w->cw_debug & (CW_DEBUG_PROGRESS | CW_DEBUG_FINAL))
         sp3_log_progress(w, &w->cw_stats, true);
@@ -1151,7 +1151,7 @@ sp3_process_dirtylist(struct sp3 *sp)
                  * it until the next call to sp3_process_dirtylist().
                  */
                 mutex_lock(&sp->sp_dlist_lock);
-                busy = list_empty(&tn->tn_dnode_linkv[i]);
+                busy = !list_empty(&tn->tn_dnode_linkv[i]);
                 mutex_unlock(&sp->sp_dlist_lock);
 
                 if (busy) {
