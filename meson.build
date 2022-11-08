@@ -1,6 +1,6 @@
 project(
     'hse',
-    ['c'],
+    'c',
     version: files('VERSION'),
     license: 'Apache-2.0',
     default_options: [
@@ -434,7 +434,7 @@ if 'java' in bindings or 'auto' in bindings
         'hse-java',
         required: 'java' in bindings,
         default_options: [
-            'docs=disabled',
+            'docs=false',
             'tests=@0@'.format(get_option('tests')),
         ]
     )
