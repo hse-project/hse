@@ -8,6 +8,7 @@
 
 /* MTF_MOCK_DECL(hblock_reader) */
 
+#include <stdbool.h>
 #include <stdint.h>
 
 #include <hse/util/compiler.h>

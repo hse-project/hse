@@ -6,9 +6,9 @@
 #ifndef HSE_IKVDB_CSCHED_H
 #define HSE_IKVDB_CSCHED_H
 
-#include <hse/util/inttypes.h>
-
+#include <hse/error/merr.h>
 #include <hse/ikvdb/csched_rp.h>
+#include <hse/util/inttypes.h>
 
 /* MTF_MOCK_DECL(csched) */
 

@@ -2917,5 +2917,4 @@ cn_tree_fini(void)
 #include "cn_tree_create_ut_impl.i"
 #include "cn_tree_internal_ut_impl.i"
 #include "cn_tree_iter_ut_impl.i"
-#include "cn_tree_view_ut_impl.i"
 #endif /* HSE_MOCKING */

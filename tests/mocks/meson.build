@@ -30,7 +30,6 @@ mocked_headers = [
     meson.project_source_root() / 'lib/include/hse/ikvdb/c0sk.h',
     meson.project_source_root() / 'lib/include/hse/ikvdb/cn.h',
     meson.project_source_root() / 'lib/include/hse/ikvdb/cn_kvdb.h',
-    meson.project_source_root() / 'lib/include/hse/ikvdb/cn_tree_view.h',
     meson.project_source_root() / 'lib/include/hse/ikvdb/cndb.h',
     meson.project_source_root() / 'lib/include/hse/ikvdb/csched.h',
     meson.project_source_root() / 'lib/include/hse/ikvdb/ikvdb.h',
