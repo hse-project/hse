@@ -176,14 +176,14 @@ endif
 
 pkg.generate(
     hse,
-    description: 'Fast key-value storage for SSDs and persistent memory',
+    description: 'HSE is a fast embeddable key-value store designed for SSDs and persistent memory.',
     filebase: lib_name,
     name: meson.project_name(),
     version: meson.project_version(),
-    url: 'https://github.com/hse-project/hse',
+    url: 'https://github.com/hse-project',
     subdirs: [
         lib_name,
-    ],
+    ]
 )
 
 meson.override_dependency(lib_name, hse_dep)
