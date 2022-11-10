@@ -1289,13 +1289,17 @@ ikvdb_lowmem_adjust(struct ikvdb_impl *self, ulong memgb)
         rp->dur_bufsz_mb =
             min_t(uint32_t, HSE_WAL_DUR_BUFSZ_MB_MIN * scale, HSE_WAL_DUR_BUFSZ_MB_MAX);
 
+    if (rp->c0_ingest_threads == rpdef.c0_ingest_threads)
+        rp->c0_ingest_threads = HSE_C0_INGEST_THREADS_MIN;
+
     if (rp->c0_ingest_width == rpdef.c0_ingest_width)
         rp->c0_ingest_width = HSE_C0_INGEST_WIDTH_MIN;
 
     log_debug("Low mem config settings for %s: c0kvs_cache %lu c0kvs_cheap %lu "
-              "c0_width %u dur_bufsz_mb %u vlb cache %lu",
+              "c0_ingest_threads %u c0_width %u dur_bufsz_mb %u vlb cache %lu",
               self->ikdb_home, hse_gparams.gp_c0kvs_ccache_sz_max, hse_gparams.gp_c0kvs_cheap_sz,
-              rp->c0_ingest_width, rp->dur_bufsz_mb, hse_gparams.gp_vlb_cache_sz);
+              rp->c0_ingest_threads, rp->c0_ingest_width,
+              rp->dur_bufsz_mb, hse_gparams.gp_vlb_cache_sz);
 }
 
 static void

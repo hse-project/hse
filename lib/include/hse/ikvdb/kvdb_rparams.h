@@ -46,7 +46,6 @@
  * fields towards the end.
  */
 struct kvdb_rparams {
-    enum kvdb_open_mode mode;
     bool    throttle_disable;
     uint8_t perfc_level;
     uint8_t perfc_enable;
@@ -100,6 +99,7 @@ struct kvdb_rparams {
     uint32_t cndb_compact_hwm_pct;
 
     uint32_t keylock_tables;
+    enum kvdb_open_mode mode;
 
     bool   dio_enable[HSE_MCLASS_COUNT];
     struct mclass_policy mclass_policies[HSE_MPOLICY_COUNT];

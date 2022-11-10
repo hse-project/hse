@@ -165,7 +165,7 @@ MTF_DEFINE_UTEST_PRE(kvs_rparams_test, cn_split_size, test_pre)
     ASSERT_EQ((uintptr_t)ps->ps_validate, (uintptr_t)param_default_validator);
     ASSERT_EQ((uintptr_t)ps->ps_stringify, (uintptr_t)param_default_stringify);
     ASSERT_EQ((uintptr_t)ps->ps_jsonify, (uintptr_t)param_default_jsonify);
-    ASSERT_EQ(19, params.cn_split_size);
+    ASSERT_EQ(23, params.cn_split_size);
     ASSERT_EQ(8, ps->ps_bounds.as_uscalar.ps_min);
     ASSERT_EQ(1024, ps->ps_bounds.as_uscalar.ps_max);
 
@@ -173,7 +173,7 @@ MTF_DEFINE_UTEST_PRE(kvs_rparams_test, cn_split_size, test_pre)
     err = check(
         "cn_split_size=7", false,
         "cn_split_size=8", true,
-        "cn_split_size=19", true,
+        "cn_split_size=23", true,
         "cn_split_size=1024", true,
         "cn_split_size=1025", false,
         NULL
