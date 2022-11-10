@@ -309,6 +309,7 @@ struct sp3 {
 #define debug_qos(_sp)         (csched_rp_dbg_qos((_sp)->rp))
 #define debug_rbtree(_sp)      (csched_rp_dbg_rbtree((_sp)->rp))
 #define debug_tree_shape(_sp)  (csched_rp_dbg_tree_shape((_sp)->rp))
+#define debug_stats(_sp)       (csched_rp_dbg_stats((_sp)->rp))
 
 static void
 sp3_dirty_node(struct sp3 *sp, struct cn_tree_node *tn);
@@ -2346,6 +2347,51 @@ sp3_ucomp_check(struct sp3 *sp)
     }
 }
 
+static void
+sp3_stats(struct sp3 *sp)
+{
+    struct rusage ru;
+
+    if (!debug_stats(sp))
+        return;
+
+    log_info("%8s %6s %12s %12s %7s %7s %8s %8s",
+             "rule", "jobs",  "keysin", "keysout", "kbrM", "kbwM", "vbrM", "vbwM");
+
+    memset(&sp->sp_mstatsv[CN_RULE_NONE], 0, sizeof(sp->sp_mstatsv[0]));
+
+    for (enum cn_rule r = CN_RULE_NONE; r < CN_RULE_MAX; ++r) {
+        const struct cn_merge_stats *stats = &sp->sp_mstatsv[CN_RULE_MAX - 1 - r];
+
+        if (stats->ms_jobs == 0)
+            continue;
+
+        log_info("%8s %6u %12lu %12lu %7lu %7lu %8lu %8lu",
+                 (stats == sp->sp_mstatsv) ? "total" : cn_rule2str(stats - sp->sp_mstatsv),
+                 stats->ms_jobs,
+                 stats->ms_keys_in, stats->ms_keys_out,
+                 stats->ms_kblk_read.op_size >> 20,
+                 stats->ms_kblk_write.op_size >> 20,
+                 (stats->ms_vblk_read1.op_size +
+                  stats->ms_vblk_read2.op_size) >> 20,
+                 stats->ms_vblk_write.op_size >> 20);
+
+        cn_merge_stats_add(&sp->sp_mstatsv[CN_RULE_NONE], stats);
+    }
+
+    getrusage(RUSAGE_SELF, &ru);
+
+    ru.ru_minflt -= sp->sp_rusage.ru_minflt;
+    ru.ru_majflt -= sp->sp_rusage.ru_majflt;
+    ru.ru_nswap -= sp->sp_rusage.ru_nswap;
+    ru.ru_inblock -= sp->sp_rusage.ru_inblock;
+    ru.ru_oublock -= sp->sp_rusage.ru_inblock;
+
+    log_info("minflt %lu  majflt %lu  nswap %lu  inM %lu  outM %lu",
+             ru.ru_minflt, ru.ru_majflt,ru.ru_nswap,
+             (ru.ru_inblock * 512) >> 20, (ru.ru_oublock * 512) >> 20);
+}
+
 /*
  * sp3_update_samp() - update internal space amp metrics
  *
@@ -2418,6 +2464,7 @@ sp3_monitor(struct work_struct *work)
     struct periodic_check chk_sched   = { .interval = NSEC_PER_SEC * 3 };
     struct periodic_check chk_refresh = { .interval = NSEC_PER_SEC * 10 };
     struct periodic_check chk_shape   = { .interval = NSEC_PER_SEC * 20 };
+    struct periodic_check chk_stats   = { .interval = NSEC_PER_SEC * 300 };
 
     sp3_refresh_settings(sp);
 
@@ -2490,6 +2537,11 @@ sp3_monitor(struct work_struct *work)
                 for (uint tx = 0; tx < NELEM(sp->rbt); tx++)
                     sp3_rb_dump(sp, tx, 25);
             }
+        }
+
+        if (now > chk_stats.next) {
+            chk_stats.next = now + chk_stats.interval;
+            sp3_stats(sp);
         }
     }
 }
@@ -2695,43 +2747,7 @@ sp3_destroy(struct csched *handle)
 
     rest_server_remove_endpoint(ENDPOINT_FMT_KVDB_CSCED, sp->kvdb_alias);
 
-    if (1) {
-        struct rusage ru;
-
-        log_info("%8s %6s %12s %12s %7s %7s %7s %7s",
-                 "rule", "jobs",  "keysin", "keysout", "kbr", "kbw", "vbr", "vbw");
-
-        for (enum cn_rule r = CN_RULE_NONE; r < CN_RULE_MAX; ++r) {
-            const struct cn_merge_stats *stats = &sp->sp_mstatsv[CN_RULE_MAX - 1 - r];
-
-            if (stats->ms_jobs == 0)
-                continue;
-
-            log_info("%8s %6u %12lu %12lu %7lu %7lu %7lu %7lu",
-                     (stats == sp->sp_mstatsv) ? "total" : cn_rule2str(stats - sp->sp_mstatsv),
-                     stats->ms_jobs,
-                     stats->ms_keys_in, stats->ms_keys_out,
-                     stats->ms_kblk_read.op_size >> 20,
-                     stats->ms_kblk_write.op_size >> 20,
-                     (stats->ms_vblk_read1.op_size +
-                      stats->ms_vblk_read2.op_size) >> 20,
-                     stats->ms_vblk_write.op_size >> 20);
-
-            cn_merge_stats_add(&sp->sp_mstatsv[CN_RULE_NONE], stats);
-        }
-
-        getrusage(RUSAGE_SELF, &ru);
-
-        ru.ru_minflt -= sp->sp_rusage.ru_minflt;
-        ru.ru_majflt -= sp->sp_rusage.ru_majflt;
-        ru.ru_nswap -= sp->sp_rusage.ru_nswap;
-        ru.ru_inblock -= sp->sp_rusage.ru_inblock;
-        ru.ru_oublock -= sp->sp_rusage.ru_inblock;
-
-        log_info("minflt %lu, majflt %lu, nswap %lu, inbytes %lu, outbytes %lu",
-                 ru.ru_minflt, ru.ru_majflt,ru.ru_nswap,
-                 ru.ru_inblock * 512, ru.ru_oublock * 512);
-    }
+    sp3_stats(sp);
 
     free(sp->wp);
     free(sp);

@@ -341,28 +341,34 @@ sp3_work_wtype_idle(
         }
     }
 
-    /* Keep idle index nodes fully compacted to improve scanning
+    /* Keep idle index nodes fairly compacted to improve scanning
      * (e.g., mongod index nodes that rarely change after load).
      */
     if (cn_ns_vblks(ns) < kvsets) {
-        const uint keys_max = thresh->lcomp_split_keys / 2;
+        uint keys_max = thresh->lcomp_split_keys / 8;
+        uint runlen = 0;
 
-        /* Skip oldest kvsets with enormous key counts.
+        /* Compact youngest kvsets that eluded length-based compaction.
+         * Limit to keys_max to prevent excessive write amp.
          */
-        for (le = *mark; le; le = list_prev_entry_or_null(le, le_link, head)) {
+        list_for_each_entry(le, head, le_link) {
             const struct kvset_stats *stats = kvset_statsp(le->le_kvset);
 
-            if (stats->kst_keys < keys_max)
+            if (stats->kst_keys >= keys_max)
                 break;
 
-            kvsets--;
+            keys_max -= stats->kst_keys;
+            *mark = le;
+            runlen++;
         }
+
+        if (runlen < 2)
+            return 0;
 
         *action = CN_ACTION_COMPACT_KV;
         *rule = CN_RULE_IDLE_INDEX;
-        *mark = le;
 
-        return min_t(uint, kvsets, thresh->lcomp_runlen_max);
+        return min_t(uint, runlen, thresh->lcomp_runlen_max);
     }
 
     /* If the compacted size of the node is smaller than a single
@@ -665,7 +671,6 @@ sp3_work_wtype_garbage(
      */
     kvsets = sp3_work_wtype_idle(spn, thresh, mark, action, rule);
     if (kvsets > 0) {
-        *rule = CN_RULE_GARBAGE;
         ev_debug(1);
         return kvsets;
     }
