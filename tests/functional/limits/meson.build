@@ -1,5 +1,5 @@
 tests = {
-    'cursor_txn_test': {
+    'kvdb_limits_test': {
         'type': 'utest',
     },
     'max_key_cnt_test': {
