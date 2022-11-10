@@ -16,6 +16,9 @@
 #include <hse/util/compiler.h>
 #include <hse/util/event_counter.h>
 #include <hse/util/page.h>
+#include <hse/util/minmax.h>
+
+#include <hse/ikvdb/limits.h>
 
 #include "kvs_mblk_desc.h"
 
@@ -40,6 +43,7 @@ mblk_mmap(struct mpool *mp, uint64_t mbid, struct kvs_mblk_desc *md)
     md->map_base = (void *)base;
     md->alen_pages = props.mpr_alloc_cap / PAGE_SIZE;
     md->wlen_pages = props.mpr_write_len / PAGE_SIZE;
+    md->ra_pages = HSE_RA_PAGES_MAX;
     md->mclass = props.mpr_mclass;
     md->mbid = mbid;
 
@@ -71,38 +75,36 @@ mblk_munmap(struct mpool *mp, struct kvs_mblk_desc *md)
 }
 
 merr_t
-mblk_madvise(const struct kvs_mblk_desc *md, size_t off, size_t len, int advice)
-{
-    int rc;
-    const size_t wlen = md->wlen_pages * PAGE_SIZE;
-
-    assert(md->map_base);
-
-    if (len == 0)
-        return 0;
-
-    if (off >= wlen)
-        return merr(EINVAL);
-
-    if (off + len > wlen)
-        len = wlen - off;
-
-    /* Cast away the const of map_base for madvise().
-     */
-    rc = madvise((void *)md->map_base + off, len, advice);
-    if (rc)
-        return merr(errno);
-
-    return 0;
-}
-
-merr_t
 mblk_madvise_pages(const struct kvs_mblk_desc *md, size_t pg, size_t pg_cnt, int advice)
 {
+    const size_t wlen_pages = md->wlen_pages;
+    size_t ra_pages;
+    size_t chunk = 0;
+
+    if (pg >= wlen_pages)
+        return merr(EINVAL);
+
+    if (pg + pg_cnt > wlen_pages)
+        pg_cnt = wlen_pages - pg;
+
     if (pg_cnt == 0)
         return 0;
 
-    return mblk_madvise(md, pg * PAGE_SIZE, pg_cnt * PAGE_SIZE, advice);
+    ra_pages = (advice == MADV_WILLNEED) ? md->ra_pages : pg_cnt;
+
+    for (size_t pg_end = pg + pg_cnt; pg < pg_end; pg += chunk) {
+        int rc;
+
+        chunk = min_t(size_t, pg_end - pg, ra_pages);
+
+        /* Cast away the const of map_base for madvise().
+         */
+        rc = madvise((void *)md->map_base + (pg * PAGE_SIZE), chunk * PAGE_SIZE, advice);
+        if (rc)
+            return merr(errno);
+    }
+
+    return 0;
 }
 
 #if HSE_MOCKING

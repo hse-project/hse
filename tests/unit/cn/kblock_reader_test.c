@@ -143,15 +143,6 @@ init_kblock(struct kblock_hdr_omf *kbh)
 }
 
 merr_t
-mock_mblk_madvise(const struct kvs_mblk_desc *md, size_t off, size_t len, int advice)
-{
-    madvise_off = off;
-    madvise_len = len;
-    madvise_advice = advice;
-    return 0;
-}
-
-merr_t
 mock_mblk_madvise_pages(const struct kvs_mblk_desc *md, size_t pg_off, size_t pg_cnt, int advice)
 {
     madvise_off = pg_off * PAGE_SIZE;
@@ -179,7 +170,6 @@ pre(struct mtf_test_info *info)
     madvise_len = 12345;
     madvise_advice = 12345;
 
-    MOCK_SET_FN(mblk_desc, mblk_madvise, mock_mblk_madvise);
     MOCK_SET_FN(mblk_desc, mblk_madvise_pages, mock_mblk_madvise_pages);
 
     return 0;

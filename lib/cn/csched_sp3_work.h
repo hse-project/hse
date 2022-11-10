@@ -17,7 +17,7 @@
  */
 #define SP3_RSPILL_RUNLEN_MIN           (1u) /* root spill requires at least 1 kvset */
 #define SP3_RSPILL_RUNLEN_MAX           (UINT8_MAX)
-#define SP3_RSPILL_RUNLEN_MIN_DEFAULT   (5u)
+#define SP3_RSPILL_RUNLEN_MIN_DEFAULT   (7u)
 #define SP3_RSPILL_RUNLEN_MAX_DEFAULT   (9u)
 
 #define SP3_RSPILL_WLEN_MIN             (0u)

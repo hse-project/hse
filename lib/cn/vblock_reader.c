@@ -221,7 +221,7 @@ vbr_madvise_async(
 void
 vbr_madvise(struct vblock_desc *vbd, uint off, uint len, int advice)
 {
-    mblk_madvise(vbd->vbd_mblkdesc, off, len, advice);
+    mblk_madvise_pages(vbd->vbd_mblkdesc, off / PAGE_SIZE, len / PAGE_SIZE, advice);
 }
 
 /* off, len version */

@@ -151,6 +151,7 @@ struct cn_tree_node {
     struct route_node   *tn_route_node;
     struct list_head     tn_link;
     size_t               tn_split_size;
+    uint64_t             tn_split_ns;
 
     struct list_head     tn_kvset_list HSE_L1D_ALIGNED;
     u64                  tn_update_incr_dgen;
