@@ -20,6 +20,7 @@
 #define csched_rp_dbg_qos(_rp)        ((bool)((_rp)->csched_debug_mask & 0x0010))
 #define csched_rp_dbg_sched(_rp)      ((bool)((_rp)->csched_debug_mask & 0x0020))
 #define csched_rp_dbg_tree_shape(_rp) ((bool)((_rp)->csched_debug_mask & 0x0040))
+#define csched_rp_dbg_stats(_rp)      ((bool)((_rp)->csched_debug_mask & 0x0080))
 
 #define csched_rp_dbg_dirty_node(_rp) ((bool)((_rp)->csched_debug_mask & 0x0400))
 #define csched_rp_dbg_tree_life(_rp)  ((bool)((_rp)->csched_debug_mask & 0x0800))

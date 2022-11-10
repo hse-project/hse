@@ -26,6 +26,7 @@ struct kvs_mblk_desc {
     uint64_t mbid;          // mblock id
     uint16_t alen_pages;    // allocated length of mblock, in 4K pages
     uint16_t wlen_pages;    // written length of mblock, in 4K pages
+    uint16_t ra_pages;      // max readahead pages
     uint8_t  mclass;        // media class
 };
 
@@ -43,10 +44,6 @@ mblk_mmap(struct mpool *mp, uint64_t mbid, struct kvs_mblk_desc *md_out);
 /* MTF_MOCK */
 merr_t
 mblk_munmap(struct mpool *mp, struct kvs_mblk_desc *md);
-
-/* MTF_MOCK */
-merr_t
-mblk_madvise(const struct kvs_mblk_desc *md, size_t off, size_t len, int advice);
 
 /* MTF_MOCK */
 merr_t

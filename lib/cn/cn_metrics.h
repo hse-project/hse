@@ -201,35 +201,25 @@ cn_ns_samp(const struct cn_node_stats *ns)
 }
 
 struct cn_merge_stats_ops {
-    uint64_t op_cnt;
     uint64_t op_size;
-    uint64_t op_time;
+    uint32_t op_cnt;
+    uint32_t op_time;
 };
 
 static inline void
-count_ops(struct cn_merge_stats_ops *op, uint64_t count, uint64_t size, uint64_t time)
+count_ops(struct cn_merge_stats_ops *op, uint32_t count, uint64_t size, uint64_t time)
 {
-    op->op_cnt += count;
     op->op_size += size;
-    op->op_time += time;
-}
-
-static inline void
-cn_merge_stats_ops_diff(
-    struct cn_merge_stats_ops *      s,
-    const struct cn_merge_stats_ops *a,
-    const struct cn_merge_stats_ops *b)
-{
-    s->op_cnt = a->op_cnt - b->op_cnt;
-    s->op_size = a->op_size - b->op_size;
-    s->op_time = a->op_time - b->op_time;
+    op->op_cnt += count;
+    op->op_time += time / 1000000;
 }
 
 /**
  * Statistics related to kvset merge
  */
 struct cn_merge_stats {
-    uint64_t ms_srcs;           //<! number of input kvsets
+    uint32_t ms_jobs;           //<! number of jobs
+    uint32_t ms_srcs;           //<! number of input kvsets
     uint64_t ms_keys_in;        //<! number of input keys
     uint64_t ms_keys_out;       //<! number of output keys
     uint64_t ms_key_bytes_in;   //<! total length of input keys
@@ -257,11 +247,36 @@ struct cn_merge_stats {
 };
 
 static inline void
+cn_merge_stats_ops_diff(
+    struct cn_merge_stats_ops *      s,
+    const struct cn_merge_stats_ops *a,
+    const struct cn_merge_stats_ops *b)
+{
+    s->op_size = a->op_size - b->op_size;
+    s->op_cnt = a->op_cnt - b->op_cnt;
+    if (a->op_time >= b->op_time)
+        s->op_time = a->op_time - b->op_time;
+    else
+        s->op_time = a->op_time + (UINT32_MAX - b->op_time);
+}
+
+static inline void
+cn_merge_stats_ops_add(
+    struct cn_merge_stats_ops *lhs,
+    const struct cn_merge_stats_ops *rhs)
+{
+    lhs->op_cnt += rhs->op_cnt;
+    lhs->op_size += rhs->op_size;
+    lhs->op_time += rhs->op_time;
+}
+
+static inline void
 cn_merge_stats_diff(
     struct cn_merge_stats *      s,
     const struct cn_merge_stats *a,
     const struct cn_merge_stats *b)
 {
+    s->ms_jobs     = a->ms_jobs     - b->ms_jobs;
     s->ms_srcs     = a->ms_srcs     - b->ms_srcs;
     s->ms_keys_in  = a->ms_keys_in  - b->ms_keys_in;
     s->ms_keys_out = a->ms_keys_out - b->ms_keys_out;
@@ -289,6 +304,41 @@ cn_merge_stats_diff(
 
     cn_merge_stats_ops_diff(&s->ms_kblk_read,      &a->ms_kblk_read,      &b->ms_kblk_read);
     cn_merge_stats_ops_diff(&s->ms_kblk_read_wait, &a->ms_kblk_read_wait, &b->ms_kblk_read_wait);
+}
+
+static inline void
+cn_merge_stats_add(
+    struct cn_merge_stats *lhs,
+    const struct cn_merge_stats *rhs)
+{
+    lhs->ms_jobs += rhs->ms_jobs;
+    lhs->ms_srcs += rhs->ms_srcs;
+    lhs->ms_keys_in += rhs->ms_keys_in;
+    lhs->ms_keys_out += rhs->ms_keys_out;
+
+    lhs->ms_key_bytes_in += rhs->ms_key_bytes_in;
+    lhs->ms_key_bytes_out += rhs->ms_key_bytes_out;
+    lhs->ms_val_bytes_out += rhs->ms_val_bytes_out;
+
+    lhs->ms_vblk_wasted_reads += rhs->ms_vblk_wasted_reads;
+
+    cn_merge_stats_ops_add(&lhs->ms_hblk_alloc, &rhs->ms_hblk_alloc);
+    cn_merge_stats_ops_add(&lhs->ms_hblk_write, &rhs->ms_hblk_write);
+
+    cn_merge_stats_ops_add(&lhs->ms_kblk_alloc, &rhs->ms_kblk_alloc);
+    cn_merge_stats_ops_add(&lhs->ms_kblk_write, &rhs->ms_kblk_write);
+
+    cn_merge_stats_ops_add(&lhs->ms_vblk_alloc, &rhs->ms_vblk_alloc);
+    cn_merge_stats_ops_add(&lhs->ms_vblk_write, &rhs->ms_vblk_write);
+
+    cn_merge_stats_ops_add(&lhs->ms_vblk_read1,      &rhs->ms_vblk_read1);
+    cn_merge_stats_ops_add(&lhs->ms_vblk_read1_wait, &rhs->ms_vblk_read1_wait);
+
+    cn_merge_stats_ops_add(&lhs->ms_vblk_read2,      &rhs->ms_vblk_read2);
+    cn_merge_stats_ops_add(&lhs->ms_vblk_read2_wait, &rhs->ms_vblk_read2_wait);
+
+    cn_merge_stats_ops_add(&lhs->ms_kblk_read,      &rhs->ms_kblk_read);
+    cn_merge_stats_ops_add(&lhs->ms_kblk_read_wait, &rhs->ms_kblk_read_wait);
 }
 
 /**
