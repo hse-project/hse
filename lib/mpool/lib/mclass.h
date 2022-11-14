@@ -120,9 +120,11 @@ struct mblock_fset *
 mclass_fset(const struct media_class *mc);
 
 /**
- * mclass_ra_pages() - get read-ahead size in pages
+ * @brief Get the read-ahead size in pages.
  *
- * @mc: mclass handle
+ * @param mc: Media class handle
+ *
+ * @returns read-ahead size in pages
  */
 uint16_t
 mclass_ra_pages(const struct media_class *mc);

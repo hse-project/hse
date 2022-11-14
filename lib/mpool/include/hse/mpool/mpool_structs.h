@@ -34,10 +34,6 @@
 #define MPOOL_MBLOCK_PREALLOC   (1u << 0)   /* advisory */
 #define MPOOL_MBLOCK_PUNCH_HOLE (1u << 1)
 
-#define MPOOL_RA_PAGES_MIN      0
-#define MPOOL_RA_PAGES_MAX      ((1024 * 1024) / PAGE_SIZE)
-#define MPOOL_RA_PAGES_DFLT     ((128 * 1024) / PAGE_SIZE)
-
 /**
  * struct mpool_cparams - mpool create params
  *

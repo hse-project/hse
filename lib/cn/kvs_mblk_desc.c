@@ -91,9 +91,10 @@ mblk_madvise_pages(const struct kvs_mblk_desc *md, size_t pg, size_t pg_cnt, int
         return 0;
 
     ra_pages = (advice == MADV_WILLNEED) ? md->ra_pages : pg_cnt;
-    ev(!ra_pages);
+    if (ev(!ra_pages))
+        return 0;
 
-    for (size_t pg_end = pg + pg_cnt; ra_pages && (pg < pg_end); pg += chunk) {
+    for (size_t pg_end = pg + pg_cnt; pg < pg_end; pg += chunk) {
         int rc;
 
         chunk = min_t(size_t, pg_end - pg, ra_pages);

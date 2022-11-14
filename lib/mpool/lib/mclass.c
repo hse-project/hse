@@ -14,6 +14,7 @@
 #include <hse/util/assert.h>
 #include <hse/util/log2.h>
 #include <hse/util/minmax.h>
+#include <hse/util/platform.h>
 
 #include <hse/mpool/mpool_structs.h>
 
@@ -22,6 +23,10 @@
 #include "mdc_file.h"
 #include "mblock_fset.h"
 #include "io.h"
+
+#define MPOOL_RA_PAGES_MIN      0
+#define MPOOL_RA_PAGES_MAX      ((1024 * 1024) / PAGE_SIZE)
+#define MPOOL_RA_PAGES_DFLT     ((128 * 1024) / PAGE_SIZE)
 
 /**
  * struct media_class - mclass instance
@@ -47,14 +52,14 @@ struct media_class {
 };
 
 static merr_t
-get_read_ahead_pages(DIR *dirp, uint16_t *ra_pages)
+get_ra_pages(DIR *dirp, uint16_t *ra_pages)
 {
     struct stat sbuf;
     unsigned int major, minor;
-    char buf[PATH_MAX];
+    char path[PATH_MAX];
     char line[16];
     int fd, rc, n;
-    FILE *fp;
+    ssize_t cc;
 
     fd = dirfd(dirp);
     if (fd == -1)
@@ -69,27 +74,22 @@ get_read_ahead_pages(DIR *dirp, uint16_t *ra_pages)
     major = major(sbuf.st_dev);
     minor = minor(sbuf.st_dev);
 
-    n = snprintf(buf, sizeof(buf), "/sys/dev/block/%u:%u/queue/read_ahead_kb", major, minor);
-    if (ev(n < 0 || n >= sizeof(buf)))
+    n = snprintf(path, sizeof(path), "/sys/dev/block/%u:%u/queue/read_ahead_kb", major, minor);
+    if (ev(n < 0 || n >= sizeof(path)))
         return 0;
 
-    fp = fopen(buf, "r");
-    if (ev(!fp))
-        return 0;
+    cc = hse_readfile(-1, path, line, sizeof(line), O_RDONLY);
+    if (cc > 0) {
+        unsigned long val;
 
-    if (fgets(line, sizeof(line), fp)) {
-        uint32_t val;
+        line[cc - 1] = '\000';
 
-        n = sscanf(line, "%u", &val);
-        if (n == 1) {
+        val = strtoul(line, NULL, 10);
+        if (!ev(errno)) {
             val >>= (ilog2(PAGE_SIZE) - 10);
-            *ra_pages = clamp_t(uint32_t, val, MPOOL_RA_PAGES_MIN, MPOOL_RA_PAGES_MAX);
-        } else {
-            ev(1);
+            *ra_pages = (uint16_t)clamp_t(unsigned long, val, MPOOL_RA_PAGES_MIN, MPOOL_RA_PAGES_MAX);
         }
     }
-
-    fclose(fp);
 
     return 0;
 }
@@ -124,7 +124,7 @@ mclass_open(
     mc->dirp = dirp;
     mc->mcid = mclass_to_mcid(mclass);
 
-    err = get_read_ahead_pages(dirp, &mc->ra_pages);
+    err = get_ra_pages(dirp, &mc->ra_pages);
     if (err)
         goto err_exit1;
 
