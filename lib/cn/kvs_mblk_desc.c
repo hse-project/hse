@@ -43,7 +43,7 @@ mblk_mmap(struct mpool *mp, uint64_t mbid, struct kvs_mblk_desc *md)
     md->map_base = (void *)base;
     md->alen_pages = props.mpr_alloc_cap / PAGE_SIZE;
     md->wlen_pages = props.mpr_write_len / PAGE_SIZE;
-    md->ra_pages = HSE_RA_PAGES_MAX;
+    md->ra_pages = props.mpr_ra_pages;
     md->mclass = props.mpr_mclass;
     md->mbid = mbid;
 
@@ -91,8 +91,9 @@ mblk_madvise_pages(const struct kvs_mblk_desc *md, size_t pg, size_t pg_cnt, int
         return 0;
 
     ra_pages = (advice == MADV_WILLNEED) ? md->ra_pages : pg_cnt;
+    ev(!ra_pages);
 
-    for (size_t pg_end = pg + pg_cnt; pg < pg_end; pg += chunk) {
+    for (size_t pg_end = pg + pg_cnt; ra_pages && (pg < pg_end); pg += chunk) {
         int rc;
 
         chunk = min_t(size_t, pg_end - pg, ra_pages);

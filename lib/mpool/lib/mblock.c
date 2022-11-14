@@ -85,6 +85,7 @@ merr_t
 mpool_mblock_props_get(struct mpool *mp, uint64_t mbid, struct mblock_props *props)
 {
     struct media_class *mc;
+    merr_t err;
 
     if (!mp)
         return merr(EINVAL);
@@ -93,7 +94,14 @@ mpool_mblock_props_get(struct mpool *mp, uint64_t mbid, struct mblock_props *pro
     if (!mc)
         return merr(ENOENT);
 
-    return mblock_fset_find(mclass_fset(mc), &mbid, 1, props);
+    err = mblock_fset_find(mclass_fset(mc), &mbid, 1, props);
+    if (err)
+        return err;
+
+    if (props)
+        props->mpr_ra_pages = mclass_ra_pages(mc);
+
+    return 0;
 }
 
 merr_t

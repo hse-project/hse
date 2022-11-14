@@ -14,6 +14,7 @@
 #include <hse/types.h>
 
 #include <hse/util/storage.h>
+#include <hse/util/page.h>
 
 #define WAL_FILE_PFX           "wal"
 #define WAL_FILE_PFX_LEN       (sizeof(WAL_FILE_PFX) - 1)
@@ -32,6 +33,10 @@
 /* Both prealloc and punch hole flags are mutually exclusive */
 #define MPOOL_MBLOCK_PREALLOC   (1u << 0)   /* advisory */
 #define MPOOL_MBLOCK_PUNCH_HOLE (1u << 1)
+
+#define MPOOL_RA_PAGES_MIN      0
+#define MPOOL_RA_PAGES_MAX      ((1024 * 1024) / PAGE_SIZE)
+#define MPOOL_RA_PAGES_DFLT     ((128 * 1024) / PAGE_SIZE)
 
 /**
  * struct mpool_cparams - mpool create params
@@ -90,6 +95,7 @@ struct mpool_info {
 struct mpool_mclass_props {
     uint64_t mc_fmaxsz;
     uint32_t mc_mblocksz;
+    uint16_t mc_ra_pages;
     uint8_t  mc_filecnt;
     char     mc_path[PATH_MAX];
 };
@@ -110,12 +116,14 @@ struct mpool_props {
  * @mpr_alloc_cap:    allocated capacity in bytes
  * @mpr_write_len:    written user-data in bytes
  * @mpr_mclass:       media class
+ * @mpr_ra_pages:     read-ahead size in pages
  */
 struct mblock_props {
     uint64_t mpr_objid;
     uint32_t mpr_alloc_cap;
     uint32_t mpr_write_len;
     uint32_t mpr_mclass;
+    uint16_t mpr_ra_pages;
 };
 
 struct mpool_file_cb {
