@@ -1,13 +1,15 @@
 /* SPDX-License-Identifier: Apache-2.0 */
 /*
- * Copyright (C) 2015-2020 Micron Technology, Inc.  All rights reserved.
+ * Copyright (C) 2015-2022 Micron Technology, Inc.  All rights reserved.
  */
 
 #ifndef HSE_KVDB_CN_SPILL_H
 #define HSE_KVDB_CN_SPILL_H
 
 #include <hse/error/merr.h>
+#include <hse/ikvdb/blk_list.h>
 #include <hse/util/inttypes.h>
+#include <hse/util/list.h>
 
 #include "route.h"
 

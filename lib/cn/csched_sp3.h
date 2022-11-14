@@ -8,8 +8,9 @@
 
 #include <rbtree.h>
 
-#include <hse/util/atomic.h>
 #include <hse/error/merr.h>
+#include <hse/util/arch.h>
+#include <hse/util/atomic.h>
 #include <hse/util/list.h>
 
 #include "csched_sp3_work.h"
