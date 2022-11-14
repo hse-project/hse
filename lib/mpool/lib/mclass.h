@@ -84,7 +84,7 @@ mclass_destroy(const char *path, struct workqueue_struct *wq);
  * @mc: mclass handle
  */
 int
-mclass_id(struct media_class *mc);
+mclass_id(const struct media_class *mc);
 
 /**
  * mclass_dpath() - get directory path
@@ -92,7 +92,7 @@ mclass_id(struct media_class *mc);
  * @mc: mclass handle
  */
 const char *
-mclass_dpath(struct media_class *mc);
+mclass_dpath(const struct media_class *mc);
 
 /** @brief Get the user-given path.
  *
@@ -109,7 +109,7 @@ mclass_upath(const struct media_class *mc);
  * @mc: mclass handle
  */
 int
-mclass_dirfd(struct media_class *mc);
+mclass_dirfd(const struct media_class *mc);
 
 /**
  * mclass_fset() - get mblock fileset handle
@@ -117,7 +117,17 @@ mclass_dirfd(struct media_class *mc);
  * @mc: mclass handle
  */
 struct mblock_fset *
-mclass_fset(struct media_class *mc);
+mclass_fset(const struct media_class *mc);
+
+/**
+ * @brief Get the read-ahead size in pages.
+ *
+ * @param mc: Media class handle
+ *
+ * @returns read-ahead size in pages
+ */
+uint16_t
+mclass_ra_pages(const struct media_class *mc);
 
 /**
  * mclass_supports_directio() - check directio support
@@ -125,7 +135,7 @@ mclass_fset(struct media_class *mc);
  * @mc: mclass handle
  */
 bool
-mclass_supports_directio(struct media_class *mc);
+mclass_supports_directio(const struct media_class *mc);
 
 /**
  * mclass_to_mcid() - convert mclass to mclass ID
@@ -149,7 +159,7 @@ mcid_to_mclass(enum mclass_id mcid);
  * @mc: mclass handle
  */
 size_t
-mclass_mblocksz_get(struct media_class *mc);
+mclass_mblocksz_get(const struct media_class *mc);
 
 /**
  * mclass_mblocksz_set() - set mblock size
@@ -174,7 +184,7 @@ mclass_gclose_set(struct media_class *mc);
  * @mc:       mclass handle
  */
 bool
-mclass_gclose_get(struct media_class *mc);
+mclass_gclose_get(const struct media_class *mc);
 
 /**
  * mclass_io_ops_set() -  set io ops for the specified mclass
@@ -192,7 +202,7 @@ mclass_io_ops_set(enum hse_mclass mclass, struct io_ops *io);
  * @info: mclass info (output)
  */
 merr_t
-mclass_info_get(struct media_class *mc, struct hse_mclass_info *info);
+mclass_info_get(const struct media_class *mc, struct hse_mclass_info *info);
 
 /** @brief Get properties of a media class.
  *
@@ -200,7 +210,7 @@ mclass_info_get(struct media_class *mc, struct hse_mclass_info *info);
  * @param props: Media class properties.
  */
 void
-mclass_props_get(struct media_class *mc, struct mpool_mclass_props *props);
+mclass_props_get(const struct media_class *mc, struct mpool_mclass_props *props);
 
 /**
  * mclass_ftw() - walk mclass files matching prefix and invoke callback for each file

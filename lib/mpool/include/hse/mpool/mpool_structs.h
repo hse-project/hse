@@ -14,6 +14,7 @@
 #include <hse/types.h>
 
 #include <hse/util/storage.h>
+#include <hse/util/page.h>
 
 #define WAL_FILE_PFX           "wal"
 #define WAL_FILE_PFX_LEN       (sizeof(WAL_FILE_PFX) - 1)
@@ -90,6 +91,7 @@ struct mpool_info {
 struct mpool_mclass_props {
     uint64_t mc_fmaxsz;
     uint32_t mc_mblocksz;
+    uint16_t mc_ra_pages;
     uint8_t  mc_filecnt;
     char     mc_path[PATH_MAX];
 };
@@ -110,12 +112,14 @@ struct mpool_props {
  * @mpr_alloc_cap:    allocated capacity in bytes
  * @mpr_write_len:    written user-data in bytes
  * @mpr_mclass:       media class
+ * @mpr_ra_pages:     read-ahead size in pages
  */
 struct mblock_props {
     uint64_t mpr_objid;
     uint32_t mpr_alloc_cap;
     uint32_t mpr_write_len;
     uint32_t mpr_mclass;
+    uint16_t mpr_ra_pages;
 };
 
 struct mpool_file_cb {

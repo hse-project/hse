@@ -92,11 +92,6 @@
 #define HSE_LOWMEM_THRESHOLD_GB_DFLT   (32ul)
 #define HSE_LOWMEM_THRESHOLD_GB_MAX    (64ul)
 
-/* TODO: Get this from /sys/block/{device}/queue/read_ahead_kb
- * and store in kvs_mblk_desc for calls to madvise().
- */
-#define HSE_RA_PAGES_MAX               ((128 * 1024) / PAGE_SIZE)
-
 /* clang-format on */
 
 #endif
