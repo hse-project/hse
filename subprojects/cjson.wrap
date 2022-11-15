@@ -3,10 +3,10 @@ directory = cJSON-1.7.15
 source_url = https://github.com/DaveGamble/cJSON/archive/refs/tags/v1.7.15.tar.gz
 source_filename = v1.7.15.tar.gz
 source_hash = 5308fd4bd90cef7aa060558514de6a1a4a0819974a26e6ed13973c5f624c24b2
-patch_filename = cjson_1.7.15-4_patch.zip
-patch_url = https://wrapdb.mesonbuild.com/v2/cjson_1.7.15-4/get_patch
-patch_hash = fb50312a7dab98b7ab039b8228c226be7b0c46dd72facc6d4d1f95a631fc1606
-wrapdb_version = 1.7.15-4
+patch_filename = cjson_1.7.15-5_patch.zip
+patch_url = https://wrapdb.mesonbuild.com/v2/cjson_1.7.15-5/get_patch
+patch_hash = fca40f96b078f15bd6a1993f2802d14c0f4f4a573329a44fef0b364135f3c300
+wrapdb_version = 1.7.15-5
 
 [provide]
 libcjson = libcjson_dep
