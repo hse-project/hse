@@ -135,15 +135,18 @@ struct cn_tree {
 };
 
 /**
- * struct cn_tree_node - A node in a k-way cn_tree
+ * struct cn_tree_node - A node in a cn_tree
+ * @tn_nodeid:       0 if root node, otherwise unique within the kvdb
+ * @tn_tree:         ptr to tree struct
+ * @tn_split_size:   size in bytes at which the node should split
+ * @tn_split_ns:     time beyond which a node may split again
+ * @tn_readers:      non-zero if there have been readers in the node recently
+ * @tn_hlog:         hyperloglog structure
+ * @tn_ns:           metrics about node to guide node compaction decisions
  * @tn_compacting:   true if if an exclusive job is running on this node
  * @tn_busycnt:      count of jobs and kvsets being compacted/spilled
  * @tn_dnode_linkv:  dirty list linkage for csched
  * @tn_destroy_work: used for async destroy
- * @tn_hlog:         hyperloglog structure
- * @tn_ns:           metrics about node to guide node compaction decisions
- * @tn_pfx_spill:    true if spills/scans from this node use the prefix hash
- * @tn_tree:         ptr to tree struct
  */
 struct cn_tree_node {
     uint64_t             tn_nodeid;
@@ -152,6 +155,7 @@ struct cn_tree_node {
     struct list_head     tn_link;
     size_t               tn_split_size;
     uint64_t             tn_split_ns;
+    atomic_uint          tn_readers;
 
     struct list_head     tn_kvset_list HSE_L1D_ALIGNED;
     u64                  tn_update_incr_dgen;

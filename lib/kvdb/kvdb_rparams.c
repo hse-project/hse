@@ -910,7 +910,7 @@ static const struct param_spec pspecs[] = {
         .ps_name = "csched_max_vgroups",
         .ps_description = "leaf-scatter-remediation trigger threshold",
         .ps_flags = PARAM_FLAG_EXPERIMENTAL | PARAM_FLAG_WRITABLE,
-        .ps_type = PARAM_TYPE_U8,
+        .ps_type = PARAM_TYPE_U16,
         .ps_offset = offsetof(struct kvdb_rparams, csched_lscat_hwm),
         .ps_size = PARAM_SZ(struct kvdb_rparams, csched_lscat_hwm),
         .ps_convert = param_default_converter,
@@ -918,12 +918,12 @@ static const struct param_spec pspecs[] = {
         .ps_stringify = param_default_stringify,
         .ps_jsonify = param_default_jsonify,
         .ps_default_value = {
-            .as_uscalar = UINT8_MAX,
+            .as_uscalar = 1024,
         },
         .ps_bounds = {
             .as_uscalar = {
                 .ps_min = 1,
-                .ps_max = UINT8_MAX,
+                .ps_max = UINT16_MAX,
             },
         },
     },

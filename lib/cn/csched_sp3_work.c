@@ -685,11 +685,6 @@ sp3_work_wtype_garbage(
     ev_debug(1);
 
     kvsets = cn_ns_kvsets(&tn->tn_ns);
-    if (kvsets > thresh->lcomp_runlen_max) {
-        *action = CN_ACTION_COMPACT_K;
-        ev_debug(1);
-        return min_t(uint, kvsets, thresh->llen_runlen_max);
-    }
 
     return min_t(uint, kvsets, thresh->lcomp_runlen_max);
 }
@@ -766,6 +761,7 @@ sp3_work_wtype_length(
 
     if (kvsets >= runlen_min) {
         const struct kvset_stats *stats = NULL;
+        struct kvset_list_entry *prev = NULL;
         struct kvset_list_entry *le;
         struct list_head *head;
         uint compc = UINT_MAX;
@@ -777,6 +773,11 @@ sp3_work_wtype_length(
         *mark = list_last_entry(head, typeof(*le), le_link);
         *action = CN_ACTION_COMPACT_K;
         *rule = CN_RULE_LENGTH_MIN;
+
+        if (!atomic_read(&tn->tn_readers)) {
+            runlen_max *= 2;
+            runlen_min += 1;
+        }
 
         /* If the node has an unexpectedly large number of uncompacted kvsets
          * then limit keys_max to prefer kvsets with smaller key counts and
@@ -812,6 +813,7 @@ sp3_work_wtype_length(
                 const uint32_t tmp = kvset_get_compc(le->le_kvset);
 
                 if (compc != tmp || stats->kst_keys > keys_max) {
+                    prev = (tmp == compc - 1 && runlen == runlen_min - 1) ? *mark : NULL;
                     compc = tmp;
                     *mark = le;
                     runlen = 0;
@@ -843,6 +845,16 @@ sp3_work_wtype_length(
             } else if (vwlen < VBLOCK_MAX_SIZE) {
                 *action = CN_ACTION_COMPACT_KV;
                 *rule = CN_RULE_LENGTH_VWLEN;
+            }
+
+            /* If the current run is preceded by a run that is (runlen_min - 1)
+             * long then include it and trim the excess.  This only occurs when
+             * the prev's compc is odd, which is often enough to substantially
+             * reduce unnecessary write amp.
+             */
+            if (prev) {
+                runlen = (runlen_min * 2) - 1;
+                *mark = prev;
             }
 
             return runlen;

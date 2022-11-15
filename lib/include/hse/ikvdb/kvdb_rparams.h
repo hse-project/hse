@@ -64,7 +64,7 @@ struct kvdb_rparams {
     uint8_t  csched_hi_th_pct;
     uint8_t  csched_leaf_pct;
     uint8_t  csched_gc_pct;
-    uint8_t  csched_lscat_hwm;
+    uint16_t csched_lscat_hwm;
     uint8_t  csched_lscat_runlen_max;
     uint64_t csched_rspill_params;
     uint64_t csched_leaf_comp_params;
