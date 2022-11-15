@@ -8,7 +8,7 @@
 
 . common.subr
 
-trap kvdb_drop EXIT
+trap cleanup EXIT
 kvdb_create
 
 # add 3 KVSes to the KVDB

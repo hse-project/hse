@@ -5,9 +5,6 @@ tests = {
         'depends': [
             tool_targets['kmt'],
         ],
-        'env': environment({
-            'HSE_TEST_RUNNER_RUNNER': 'python',
-        })
     },
     'test_kmt_rw': {
         'suite': 'kmt',
@@ -15,9 +12,6 @@ tests = {
         'depends': [
             tool_targets['kmt'],
         ],
-        'env': environment({
-            'HSE_TEST_RUNNER_RUNNER': 'python',
-        })
     },
     'test_ycsb_2tb_putget': {
         'suite': 'ycsb',
@@ -26,10 +20,6 @@ tests = {
             hse_cli,
             hse_java_depends,
         ],
-        'env': environment({
-            'HSE_TEST_RUNNER_RUNNER': 'python',
-            'LD_LIBRARY_PATH': hse_java.found() ? fs.parent(hsejni.full_path()) : '',
-        })
     },
     'test_ycsb_2tb_scan': {
         'suite': 'ycsb',
@@ -39,9 +29,8 @@ tests = {
             hse_java_depends,
         ],
         'env': environment({
-            'HSE_TEST_RUNNER_RUNNER': 'python',
             'LD_LIBRARY_PATH': hse_java.found() ? fs.parent(hsejni.full_path()) : '',
-        })
+        }),
     }
 }
 

@@ -282,9 +282,6 @@ foreach t, params : tests
         depends: [
             hse_cli_symlink,
             params.get('depends', []),
-        ],
-        env: environment({
-            'HSE_TEST_RUNNER_RUNNER': 'bash',
-        })
+        ]
     )
 endforeach

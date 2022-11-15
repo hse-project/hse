@@ -1,7 +1,5 @@
 run_env.prepend('PYTHONPATH', meson.current_source_dir())
 
-test_runner = find_program('test-runner')
-
 # Suites to exclude based on varying factors
 additional_suite_exclusions = []
 
@@ -18,15 +16,8 @@ if get_option('b_sanitize') != 'none'
     endif
 endif
 
-wrapper = [
-    python,
-    test_runner,
-    '--',
-]
-
 add_test_setup(
     'default',
-    exe_wrapper: wrapper,
     env: run_env,
     is_default: not meson.is_subproject(),
     exclude_suites: ['long', 'non-deterministic', 'stress', 'stress-large', 'nightly-small'] + additional_suite_exclusions
@@ -34,14 +25,12 @@ add_test_setup(
 
 add_test_setup(
     'all',
-    exe_wrapper: wrapper,
     env: run_env,
     is_default: false
 )
 
 add_test_setup(
     'ci',
-    exe_wrapper: wrapper,
     env: run_env,
     is_default: false,
     exclude_suites: ['long', 'smoke', 'non-deterministic', 'stress', 'stress-large', 'nightly-small'] + additional_suite_exclusions

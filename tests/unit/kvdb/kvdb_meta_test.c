@@ -23,7 +23,7 @@ int
 collection_pre(struct mtf_test_info *info)
 {
     kvdb_meta_destroy(mtf_kvdb_home);
-    return !(info->ti_coll->tci_argc == 4);
+    return !(info->ti_coll->tci_argc == 2);
 }
 
 int

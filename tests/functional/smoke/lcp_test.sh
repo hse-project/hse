@@ -11,7 +11,7 @@
 
 . common.subr
 
-trap kvdb_drop EXIT
+trap cleanup EXIT
 kvdb_create
 
 kvs=$(kvs_create smoke-0)

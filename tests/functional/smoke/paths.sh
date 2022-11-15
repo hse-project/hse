@@ -8,6 +8,8 @@
 
 . common.subr
 
+trap cleanup EXIT
+
 pdir="$home/paths"
 cmd mkdir -p "$pdir"
 cmd pushd "$pdir"

@@ -46,9 +46,6 @@ foreach t, params : tests
         workdir: meson.current_source_dir(),
         depends: params.get('depends', []),
         suite: ['functional'] + params.get('suites', []),
-        timeout: 3600,
-        env: environment({
-            'HSE_TEST_RUNNER_RUNNER': 'python',
-        })
+        timeout: 3600
     )
 endforeach

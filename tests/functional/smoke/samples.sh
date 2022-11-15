@@ -2,7 +2,7 @@
 
 # SPDX-License-Identifier: Apache-2.0
 #
-# Copyright (C) 2021 Micron Technology, Inc. All rights reserved.
+# Copyright (C) 2021-2022 Micron Technology, Inc. All rights reserved.
 
 #doc: samples test
 
@@ -12,7 +12,7 @@ fbase="$home/large_val"
 
 end () {
     rm -fr "$fbase"*
-    kvdb_drop
+    cleanup
 }
 
 trap end EXIT

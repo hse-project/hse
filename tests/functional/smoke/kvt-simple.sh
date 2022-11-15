@@ -2,13 +2,13 @@
 
 # SPDX-License-Identifier: Apache-2.0
 #
-# Copyright (C) 2021 Micron Technology, Inc. All rights reserved.
+# Copyright (C) 2022 Micron Technology, Inc. All rights reserved.
 
 #doc: simple kvt test (non-transactional)
 
 . common.subr
 
-trap kvdb_drop EXIT
+trap cleanup EXIT
 kvdb_create
 
 # kvdb/kvs test

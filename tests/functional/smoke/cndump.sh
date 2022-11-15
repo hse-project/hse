@@ -8,6 +8,7 @@
 
 . common.subr
 
+trap cleanup EXIT
 kvdb_create
 
 kvs=$(kvs_create smoke-0)
