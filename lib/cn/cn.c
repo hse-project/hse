@@ -1111,11 +1111,6 @@ cn_open(
 
     cn_tree_samp_init(cn->cn_tree);
 
-    /* Increase the split size of the rightmost node to allow
-     * monotonically increasing loads to better leverage zspill.
-     */
-    tn->tn_split_size += (8ul << 30);
-
     /* Enable tree maintenance unless it's deliberately disabled
      * or we're in replay, diag, or read-only mode.
      */

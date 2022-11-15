@@ -42,7 +42,7 @@
 
 #define SP3_LCOMP_JOIN_PCT_MIN         (0u)
 #define SP3_LCOMP_JOIN_PCT_MAX         (100u)
-#define SP3_LCOMP_JOIN_PCT_DEFAULT     (75u)
+#define SP3_LCOMP_JOIN_PCT_DEFAULT     (50u)
 
 #define SP3_LCOMP_SPLIT_KEYS_MIN        (1u)
 #define SP3_LCOMP_SPLIT_KEYS_MAX        (UINT_MAX)
@@ -74,7 +74,7 @@ struct sp3_thresholds {
     uint8_t  lcomp_runlen_max;
     uint     lcomp_join_pct;      /* leaf node join-by-wlen percentage threshold */
     uint     lcomp_split_keys;    /* leaf node split-by-keys threshold */
-    uint8_t  lscat_hwm;
+    uint16_t lscat_hwm;
     uint8_t  lscat_runlen_max;
     uint8_t  llen_runlen_min;
     uint8_t  llen_runlen_max;

@@ -319,16 +319,16 @@ MTF_DEFINE_UTEST_PRE(kvdb_rparams_test, csched_lscat_hwm, test_pre)
     ASSERT_NE(NULL, ps);
     ASSERT_NE(NULL, ps->ps_description);
     ASSERT_EQ(PARAM_FLAG_EXPERIMENTAL | PARAM_FLAG_WRITABLE, ps->ps_flags);
-    ASSERT_EQ(PARAM_TYPE_U8, ps->ps_type);
+    ASSERT_EQ(PARAM_TYPE_U16, ps->ps_type);
     ASSERT_EQ(offsetof(struct kvdb_rparams, csched_lscat_hwm), ps->ps_offset);
-    ASSERT_EQ(sizeof(uint8_t), ps->ps_size);
+    ASSERT_EQ(sizeof(uint16_t), ps->ps_size);
     ASSERT_EQ((uintptr_t)ps->ps_convert, (uintptr_t)param_default_converter);
     ASSERT_EQ((uintptr_t)ps->ps_validate, (uintptr_t)param_default_validator);
     ASSERT_EQ((uintptr_t)ps->ps_stringify, (uintptr_t)param_default_stringify);
     ASSERT_EQ((uintptr_t)ps->ps_jsonify, (uintptr_t)param_default_jsonify);
-    ASSERT_EQ(UINT8_MAX, params.csched_lscat_hwm);
+    ASSERT_EQ(1024, params.csched_lscat_hwm);
     ASSERT_EQ(1, ps->ps_bounds.as_uscalar.ps_min);
-    ASSERT_EQ(UINT8_MAX, ps->ps_bounds.as_uscalar.ps_max);
+    ASSERT_EQ(UINT16_MAX, ps->ps_bounds.as_uscalar.ps_max);
 }
 
 MTF_DEFINE_UTEST_PRE(kvdb_rparams_test, csched_lscat_runlen_max, test_pre)

@@ -105,7 +105,9 @@ cn_node_alloc(struct cn_tree *tree, uint64_t nodeid)
     tn->tn_nodeid = nodeid;
     tn->tn_tree = tree;
     INIT_LIST_HEAD(&tn->tn_link);
+
     tn->tn_split_size = (size_t)tree->rp->cn_split_size << 30;
+    atomic_set(&tn->tn_readers, 0);
 
     INIT_LIST_HEAD(&tn->tn_kvset_list);
 
@@ -975,9 +977,14 @@ cn_tree_prefix_probe(
             struct kvset *kvset = le->le_kvset;
 
             err = kvset_pfx_lookup(kvset, kt, &kdisc, seq, res, wbti, kbuf, vbuf, qctx);
-            if (err || qctx->seen > 1 || *res == FOUND_PTMB)
+            if (err)
                 goto done;
 
+            if (qctx->seen > 1 || *res == FOUND_PTMB) {
+                if (!atomic_read(&node->tn_readers))
+                    atomic_inc(&node->tn_readers);
+                goto done;
+            }
         }
 
         if (cn_node_isleaf(node)) {
@@ -1067,8 +1074,14 @@ cn_tree_lookup(
             struct kvset *kvset = le->le_kvset;
 
             err = kvset_lookup(kvset, kt, &kdisc, seq, res, vbuf);
-            if (err || *res != NOT_FOUND)
+            if (err)
                 goto done;
+
+            if (*res != NOT_FOUND) {
+                if (!atomic_read(&node->tn_readers))
+                    atomic_inc(&node->tn_readers);
+                goto done;
+            }
 
             pc_cidx++;
         }

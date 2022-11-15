@@ -814,7 +814,7 @@ evaluate_format_option(
     cJSON *const method,
     const char *const str)
 {
-    int rc;
+    int rc = 0;
     cJSON *x_formats, *format, *config;
 
     INVARIANT(cJSON_IsObject(path));

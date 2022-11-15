@@ -100,6 +100,9 @@ cn_tree_kvset_refs(struct cn_tree_node *node, struct cn_level_cursor *lcur)
     struct table *tab = lcur->cnlc_kvref_tab;
     struct kvset_list_entry *le;
 
+    if (!atomic_read(&node->tn_readers))
+        atomic_inc(&node->tn_readers);
+
     lcur->cnlc_dgen_hi = lcur->cnlc_dgen_lo = 0;
     table_reset(tab);
 

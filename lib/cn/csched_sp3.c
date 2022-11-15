@@ -5,6 +5,7 @@
 
 #define MTF_MOCK_IMPL_csched_sp3
 
+#include <math.h>
 #include <bsd/string.h>
 #include <sys/resource.h>
 
@@ -276,7 +277,7 @@ struct sp3 {
     atomic_uint      sp_dlist_idx;
     struct list_head sp_dtree_listv[2];
     atomic_int       sp_ingest_count;
-    atomic_int       sp_trees_count;
+    atomic_int       sp_addprune_count;
 
     struct cn_merge_stats sp_mstatsv[CN_RULE_MAX] HSE_L1D_ALIGNED;
     struct rusage sp_rusage;
@@ -341,33 +342,16 @@ qthreads(struct sp3 *sp, uint qnum)
 static inline double
 safe_div(double numer, double denom)
 {
-    return denom == 0.0 ? 0.0 : numer / denom;
+    if (fabs(denom) < .001)
+        return numer * (denom < 0.0 ? -1000.0 : 1000.0);
+
+    return numer / denom;
 }
 
 static inline double
 scale2dbl(u64 samp)
 {
     return (1.0 / SCALE) * samp;
-}
-
-static inline uint
-samp_est(struct cn_samp_stats *s, uint scale)
-{
-    return scale * safe_div(s->l_alen + s->l_vgarb, s->l_good);
-}
-
-static inline uint
-samp_pct_leaves(struct cn_samp_stats *s, uint scale)
-{
-    return scale * safe_div(s->l_alen, s->r_alen + s->l_alen);
-}
-
-static inline uint
-samp_pct_garbage(struct cn_samp_stats *s, uint scale)
-{
-    assert(s->l_alen >= s->l_good);
-
-    return scale * safe_div(s->l_alen + s->l_vgarb - s->l_good, s->l_alen + s->l_vgarb);
 }
 
 static void
@@ -863,7 +847,7 @@ sp3_dirty_node_locked(struct sp3 *sp, struct cn_tree_node *tn)
             struct cn_tree_node *left;
             uint64_t weight;
 
-            garbage = samp_pct_garbage(&tn->tn_samp, 100);
+            garbage = cn_samp_pct_garbage(&tn->tn_samp, 100);
             scatter = cn_tree_node_scatter(tn);
 
             /* Leaf nodes sorted by vgroup scatter and garbage.
@@ -1245,13 +1229,27 @@ sp3_trees_add(struct sp3 *sp)
     list_for_each_entry_safe(tree, tmp, &list, ct_sched.sp3t.spt_tlink) {
         struct sp3_tree *spt = tree2spt(tree);
         struct cn_tree_node *tn;
+        size_t dsplit_size;
         void *lock;
 
         if (debug_tree_life(sp))
             log_info("sp3 acquire tree cnid %lu", (ulong)tree->cnid);
 
+        dsplit_size = tree->rp->cn_dsplit_size;
+        if (dsplit_size < tree->rp->cn_split_size)
+            dsplit_size = tree->rp->cn_split_size;
+        dsplit_size = dsplit_size << 30;
+
         rmlock_rlock(&tree->ct_lock, &lock);
         cn_tree_foreach_node(tn, tree) {
+            const uint64_t alen = cn_ns_alen(&tn->tn_ns);
+
+            if (alen < (1ul << 30))
+                tn->tn_split_size = dsplit_size;
+            else if (tn->tn_split_size < alen)
+                tn->tn_split_size = roundup(alen, tn->tn_split_size);
+            tn->tn_split_ns = get_time_ns() + 60 * NSEC_PER_SEC;
+
             sp3_node_link_all(sp, tn2spn(tn));
             sp3_dirty_node_locked(sp, tn);
         }
@@ -1263,6 +1261,7 @@ sp3_trees_add(struct sp3 *sp)
         list_del(&spt->spt_tlink);
         list_add(&spt->spt_tlink, &sp->mon_tlist);
 
+        atomic_dec(&sp->sp_addprune_count);
         sp->activity++;
     }
 }
@@ -1320,7 +1319,7 @@ sp3_trees_prune(struct sp3 *sp)
 
         sp->activity++;
 
-        if (0 == atomic_dec_return(&sp->sp_trees_count))
+        if (0 == atomic_dec_return(&sp->sp_addprune_count))
             break;
     }
 }
@@ -1328,7 +1327,7 @@ sp3_trees_prune(struct sp3 *sp)
 static void
 sp3_process_trees(struct sp3 *sp)
 {
-    if (atomic_read_acq(&sp->sp_trees_count) == 0)
+    if (atomic_read_acq(&sp->sp_addprune_count) == 0)
         return;
 
     sp3_trees_add(sp);
@@ -1904,8 +1903,8 @@ sp3_tree_shape_check(struct sp3 *sp)
     list_for_each_entry(tree, &sp->mon_tlist, ct_sched.sp3t.spt_tlink) {
         struct cn_tree_node *tn = tree->ct_root;
         uint8_t ekbuf[HSE_KVS_KEY_LEN_MAX];
+        uint readers, len;
         void *lock;
-        uint len;
 
         rmlock_rlock(&tree->ct_lock, &lock);
         len = cn_ns_kvsets(&tn->tn_ns);
@@ -1930,6 +1929,22 @@ sp3_tree_shape_check(struct sp3 *sp)
                     lsiz_node = tn;
                     lsiz = pcap;
                 }
+            }
+
+            readers = atomic_read(&tn->tn_readers);
+            if (readers > 0) {
+                if (!tn->tn_ss_splitting) {
+                    const size_t split_min = (size_t)tree->rp->cn_split_size << 30;
+
+                    if (tn->tn_split_size > split_min && get_time_ns() > tn->tn_split_ns) {
+                        tn->tn_split_size = max_t(size_t, tn->tn_split_size / 2, split_min);
+                        sp3_dirty_node_locked(sp, tn);
+                        ev_debug(1);
+                    }
+                }
+
+                atomic_sub(&tn->tn_readers, readers);
+                ev_debug(1);
             }
         }
         rmlock_runlock(lock);
@@ -2014,6 +2029,11 @@ sp3_tree_shape_check(struct sp3 *sp)
                  scale2dbl(sp->samp_max),
                  scale2dbl(sp->samp_targ));
         sp->shape_samp_bad = samp_bad;
+    }
+
+    if (debug_rbtree(sp)) {
+        for (uint tx = 0; tx < NELEM(sp->rbt); tx++)
+            sp3_rb_dump(sp, tx, 25);
     }
 }
 
@@ -2385,7 +2405,7 @@ sp3_stats(struct sp3 *sp)
     ru.ru_majflt -= sp->sp_rusage.ru_majflt;
     ru.ru_nswap -= sp->sp_rusage.ru_nswap;
     ru.ru_inblock -= sp->sp_rusage.ru_inblock;
-    ru.ru_oublock -= sp->sp_rusage.ru_inblock;
+    ru.ru_oublock -= sp->sp_rusage.ru_oublock;
 
     log_info("minflt %lu  majflt %lu  nswap %lu  inM %lu  outM %lu",
              ru.ru_minflt, ru.ru_majflt,ru.ru_nswap,
@@ -2410,10 +2430,10 @@ sp3_update_samp(struct sp3 *sp)
     struct cn_samp_stats targ;
 
     sp3_samp_target(sp, &targ);
-    sp->samp_targ = samp_est(&targ, SCALE);
-    sp->lpct_targ = samp_pct_leaves(&targ, SCALE);
+    sp->samp_targ = cn_samp_est(&targ, SCALE);
+    sp->lpct_targ = cn_samp_pct_leaves(&targ, SCALE);
 
-    sp->samp_curr = samp_est(&sp->samp, SCALE);
+    sp->samp_curr = cn_samp_est(&sp->samp, SCALE);
 
     /* Use low/high water marks to enable/disable garbage collection. */
     if (sp->samp_reduce) {
@@ -2450,9 +2470,8 @@ sp3_update_samp(struct sp3 *sp)
 }
 
 struct periodic_check {
-    u64 interval;
+    const u64 interval;
     u64 next;
-    u64 prev;
 };
 
 static void
@@ -2462,15 +2481,17 @@ sp3_monitor(struct work_struct *work)
 
     struct periodic_check chk_qos     = { .interval = NSEC_PER_SEC / 3 };
     struct periodic_check chk_sched   = { .interval = NSEC_PER_SEC * 3 };
-    struct periodic_check chk_refresh = { .interval = NSEC_PER_SEC * 10 };
-    struct periodic_check chk_shape   = { .interval = NSEC_PER_SEC * 20 };
+    struct periodic_check chk_refresh = { .interval = NSEC_PER_SEC * 17 };
+    struct periodic_check chk_shape   = { .interval = NSEC_PER_SEC * 23 };
     struct periodic_check chk_stats   = { .interval = NSEC_PER_SEC * 300 };
 
-    sp3_refresh_settings(sp);
+    chk_refresh.next = get_time_ns() + chk_refresh.interval;
+    chk_stats.next = get_time_ns() + chk_stats.interval;
 
     while (atomic_read(&sp->running)) {
         uint64_t now = get_time_ns();
         struct list_head work_list;
+        bool signaled;
         merr_t err;
 
         mutex_lock(&sp->mon_lock);
@@ -2484,14 +2505,18 @@ sp3_monitor(struct work_struct *work)
             now = get_time_ns();
         }
 
-        sp->mon_signaled = false;
         begin_stats_work();
 
-        /* Move completed work from shared list to private list.
-         */
-        INIT_LIST_HEAD(&work_list);
-        list_splice_tail(&sp->work_list, &work_list);
-        INIT_LIST_HEAD(&sp->work_list);
+        signaled = sp->mon_signaled;
+        if (signaled) {
+            sp->mon_signaled = false;
+
+            /* Move completed work from shared list to private list.
+             */
+            INIT_LIST_HEAD(&work_list);
+            list_splice_tail(&sp->work_list, &work_list);
+            INIT_LIST_HEAD(&sp->work_list);
+        }
         mutex_unlock(&sp->mon_lock);
 
         err = kvdb_health_check(sp->health, KVDB_HEALTH_FLAG_ALL);
@@ -2505,11 +2530,13 @@ sp3_monitor(struct work_struct *work)
         /* If any of the following "process" functions do work they will
          * increment sp->activity to trigger a call (below) to sp3_schedule().
          */
-        sp3_process_worklist(sp, &work_list);
-        sp3_process_dirtylist(sp);
-        sp3_process_ingest(sp);
-        sp3_process_trees(sp);
+        if (signaled) {
+            sp3_process_worklist(sp, &work_list);
+            sp3_process_dirtylist(sp);
+            sp3_process_ingest(sp);
+        }
 
+        sp3_process_trees(sp);
         sp3_update_samp(sp);
 
         if (now > chk_sched.next || sp->activity) {
@@ -2532,11 +2559,6 @@ sp3_monitor(struct work_struct *work)
         if (now > chk_shape.next) {
             chk_shape.next = now + chk_shape.interval;
             sp3_tree_shape_check(sp);
-
-            if (debug_rbtree(sp)) {
-                for (uint tx = 0; tx < NELEM(sp->rbt); tx++)
-                    sp3_rb_dump(sp, tx, 25);
-            }
         }
 
         if (now > chk_stats.next) {
@@ -2677,7 +2699,7 @@ sp3_tree_add(struct csched *handle, struct cn_tree *tree)
 
     mutex_lock(&sp->mon_lock);
     list_add(&spt->spt_tlink, &sp->add_tlist);
-    atomic_inc_rel(&sp->sp_trees_count);
+    atomic_inc_rel(&sp->sp_addprune_count);
     sp3_monitor_wakeup_locked(sp);
     mutex_unlock(&sp->mon_lock);
 }
@@ -2701,7 +2723,7 @@ sp3_tree_remove(struct csched *handle, struct cn_tree *tree, bool cancel)
      * out when no more jobs are pending.
      */
     atomic_set(&spt->spt_enabled, false);
-    atomic_inc_rel(&sp->sp_trees_count);
+    atomic_inc_rel(&sp->sp_addprune_count);
 
     sp3_monitor_wakeup(sp);
 }
@@ -2808,7 +2830,7 @@ sp3_create(
         INIT_LIST_HEAD(&sp->sp_dtree_listv[i]);
 
     atomic_set(&sp->sp_ingest_count, 0);
-    atomic_set(&sp->sp_trees_count, 0);
+    atomic_set(&sp->sp_addprune_count, 0);
 
     err = sts_create("hse_csched/%s", SP3_QNUM_MAX, &sp->sts, kvdb_alias);
     if (ev(err))
@@ -2831,6 +2853,9 @@ sp3_create(
             goto err_exit;
         }
     }
+
+    sp3_refresh_settings(sp);
+    sp3_update_samp(sp);
 
     INIT_WORK(&sp->mon_work, sp3_monitor);
     queue_work(sp->mon_wq, &sp->mon_work);

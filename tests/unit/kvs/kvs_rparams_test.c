@@ -165,7 +165,7 @@ MTF_DEFINE_UTEST_PRE(kvs_rparams_test, cn_split_size, test_pre)
     ASSERT_EQ((uintptr_t)ps->ps_validate, (uintptr_t)param_default_validator);
     ASSERT_EQ((uintptr_t)ps->ps_stringify, (uintptr_t)param_default_stringify);
     ASSERT_EQ((uintptr_t)ps->ps_jsonify, (uintptr_t)param_default_jsonify);
-    ASSERT_EQ(23, params.cn_split_size);
+    ASSERT_EQ(32, params.cn_split_size);
     ASSERT_EQ(8, ps->ps_bounds.as_uscalar.ps_min);
     ASSERT_EQ(1024, ps->ps_bounds.as_uscalar.ps_max);
 
@@ -173,7 +173,40 @@ MTF_DEFINE_UTEST_PRE(kvs_rparams_test, cn_split_size, test_pre)
     err = check(
         "cn_split_size=7", false,
         "cn_split_size=8", true,
-        "cn_split_size=23", true,
+        "cn_split_size=32", true,
+        "cn_split_size=1024", true,
+        "cn_split_size=1025", false,
+        NULL
+    );
+    /* clang-format on */
+
+    ASSERT_EQ(0, merr_errno(err));
+}
+
+MTF_DEFINE_UTEST_PRE(kvs_rparams_test, cn_dsplit_size, test_pre)
+{
+    merr_t                   err;
+    const struct param_spec *ps = ps_get("cn_dsplit_size");
+
+    ASSERT_NE(NULL, ps);
+    ASSERT_NE(NULL, ps->ps_description);
+    ASSERT_EQ(PARAM_FLAG_EXPERIMENTAL, ps->ps_flags);
+    ASSERT_EQ(PARAM_TYPE_U32, ps->ps_type);
+    ASSERT_EQ(offsetof(struct kvs_rparams, cn_dsplit_size), ps->ps_offset);
+    ASSERT_EQ(sizeof(uint32_t), ps->ps_size);
+    ASSERT_EQ((uintptr_t)ps->ps_convert, (uintptr_t)param_default_converter);
+    ASSERT_EQ((uintptr_t)ps->ps_validate, (uintptr_t)param_default_validator);
+    ASSERT_EQ((uintptr_t)ps->ps_stringify, (uintptr_t)param_default_stringify);
+    ASSERT_EQ((uintptr_t)ps->ps_jsonify, (uintptr_t)param_default_jsonify);
+    ASSERT_EQ(128, params.cn_dsplit_size);
+    ASSERT_EQ(8, ps->ps_bounds.as_uscalar.ps_min);
+    ASSERT_EQ(1024, ps->ps_bounds.as_uscalar.ps_max);
+
+    /* clang-format off */
+    err = check(
+        "cn_split_size=7", false,
+        "cn_split_size=8", true,
+        "cn_split_size=32", true,
         "cn_split_size=1024", true,
         "cn_split_size=1025", false,
         NULL

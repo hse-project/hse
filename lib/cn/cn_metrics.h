@@ -373,6 +373,36 @@ cn_samp_sub(
     lhs->l_vgarb -= rhs->l_vgarb;
 }
 
+static inline uint
+cn_samp_est(struct cn_samp_stats *s, uint scale)
+{
+    if (s->l_good > 0)
+        return (scale * s->l_alen) / s->l_good;
+
+    return scale;
+}
+
+static inline uint
+cn_samp_pct_leaves(struct cn_samp_stats *s, uint scale)
+{
+    if (s->r_alen + s->l_alen > 0)
+        return (scale * s->l_alen) / (s->r_alen + s->l_alen);
+
+    return scale;
+}
+
+static inline uint
+cn_samp_pct_garbage(struct cn_samp_stats *s, uint scale)
+{
+    assert(s->l_alen >= s->l_good);
+
+    if (s->l_alen > 0)
+        return (scale * (s->l_alen - s->l_good)) / s->l_alen;
+
+    return scale;
+}
+
+
 void
 kvset_stats_add(const struct kvset_stats *add, struct kvset_stats *result);
 

@@ -658,6 +658,8 @@ cn_split_nodes_alloc(
         if (!node)
             return merr(ENOMEM);
 
+        node->tn_split_size = w->cw_node->tn_split_size;
+
         /* Allocate a route node using the split key as its edge key.
          */
         node->tn_route_node =

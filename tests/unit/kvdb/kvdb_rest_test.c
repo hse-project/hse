@@ -165,7 +165,7 @@ check_compaction_status_cb(
         goto out;
     }
 
-    if (!cJSON_IsNumber(samp_curr_pct) || cJSON_GetNumberValue(samp_curr_pct) != 0) {
+    if (!cJSON_IsNumber(samp_curr_pct) || cJSON_GetNumberValue(samp_curr_pct) != 1000) {
         err = merr(EINVAL);
         goto out;
     }

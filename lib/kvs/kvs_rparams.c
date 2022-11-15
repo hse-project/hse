@@ -208,7 +208,28 @@ static const struct param_spec pspecs[] = {
         .ps_stringify = param_default_stringify,
         .ps_jsonify = param_default_jsonify,
         .ps_default_value = {
-            .as_uscalar = 23,
+            .as_uscalar = 32,
+        },
+        .ps_bounds = {
+            .as_uscalar = {
+                .ps_min = 8,
+                .ps_max = 1024,
+            },
+        },
+    },
+    {
+        .ps_name = "cn_dsplit_size",
+        .ps_description = "node deferred split size (GiB)",
+        .ps_flags = PARAM_FLAG_EXPERIMENTAL,
+        .ps_type = PARAM_TYPE_U32,
+        .ps_offset = offsetof(struct kvs_rparams, cn_dsplit_size),
+        .ps_size = PARAM_SZ(struct kvs_rparams, cn_dsplit_size),
+        .ps_convert = param_default_converter,
+        .ps_validate = param_default_validator,
+        .ps_stringify = param_default_stringify,
+        .ps_jsonify = param_default_jsonify,
+        .ps_default_value = {
+            .as_uscalar = 128,
         },
         .ps_bounds = {
             .as_uscalar = {
