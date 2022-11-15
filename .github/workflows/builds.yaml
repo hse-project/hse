@@ -231,12 +231,21 @@ jobs:
         run: |
           echo "CFLAGS=-Wno-deprecated ${CFLAGS}" >> "$GITHUB_ENV"
 
+        # We use the `unstable-external_project` Meson module to enable certain
+        # subprojects. Meson generates a warning just for importing it, so we
+        # have to not use --fatal-meson-warnings in environments where we have
+        # to use some of these subprojects.
+      - name: Export --fatal-meson-warnings conditionally
+        if: ${{ matrix.image != 'ubuntu-18.04' && !startsWith(matrix.image, 'cross') }}
+        run: |
+          echo "FATAL_MESON_WARNINGS=--fatal-meson-warnings" >> "$GITHUB_ENV"
+
         # Tools are disabled due to deprecated support in Meson for CMake
         # versions this old.
       - name: Setup
         if: ${{ steps.to-skip.outputs.skip == 'false' }}
         run: |
-          meson setup builddir --fatal-meson-warnings $WERROR $CROSS_ARGS \
+          meson setup builddir $FATAL_MESON_WARNINGS $WERROR $CROSS_ARGS \
             --buildtype=${{ matrix.buildtype }} -Dtools=enabled \
             -Ddocs=disabled -Dbindings=all
 

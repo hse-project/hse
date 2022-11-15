@@ -25,7 +25,7 @@ else
     error('Unable to translate "warning_level" for your compiler')
 endif
 
-extern = import('unstable_external_project')
+extern = import('unstable-external_project')
 
 run_command('autogen', check: true)
 
