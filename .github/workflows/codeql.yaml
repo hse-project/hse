@@ -49,7 +49,7 @@ jobs:
     needs:
       - determine-tag
     container:
-      image: ghcr.io/hse-project/ci-images/fedora-36:${{ needs.determine-tag.outputs.tag }}
+      image: ghcr.io/hse-project/ci-images/fedora-37:${{ needs.determine-tag.outputs.tag }}
 
     steps:
       - name: Checkout HSE
@@ -59,7 +59,7 @@ jobs:
         uses: actions/cache@v3
         with:
           path: subprojects/packagecache
-          key: meson-packagecache-fedora-36-${{ hashFiles('subprojects/*.wrap') }}
+          key: meson-packagecache-fedora-37-${{ hashFiles('subprojects/*.wrap') }}
 
       - name: Initialize CodeQL
         uses: github/codeql-action/init@v2

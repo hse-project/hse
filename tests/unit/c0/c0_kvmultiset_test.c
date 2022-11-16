@@ -1,6 +1,6 @@
 /* SPDX-License-Identifier: Apache-2.0 */
 /*
- * Copyright (C) 2015-2021 Micron Technology, Inc.  All rights reserved.
+ * Copyright (C) 2015-2022 Micron Technology, Inc.  All rights reserved.
  */
 
 #include <mtf/framework.h>
@@ -201,7 +201,7 @@ MTF_DEFINE_UTEST_PREPOST(c0_kvmultiset_test, ingest_sk, no_fail_pre, no_fail_pos
     u64             keys_out = 0, tombs_out = 0, keyb_out = 0, valb_out = 0;
     uintptr_t       seqno;
     struct c0_usage usage;
-    u64             db_put_cnt = 0, db_del_cnt = 0;
+    u64             db_put_cnt HSE_MAYBE_UNUSED = 0, db_del_cnt HSE_MAYBE_UNUSED = 0;
     const int       WIDTH = 3;
     int             i, j, k;
     uint            keys[WIDTH * WIDTH * WIDTH];
