@@ -23,7 +23,7 @@ jobs:
   clang-tidy:
     runs-on: ubuntu-latest
     container:
-      image: ghcr.io/hse-project/ci-images/fedora-36:${{ github.base_ref }}
+      image: ghcr.io/hse-project/ci-images/fedora-37:${{ github.base_ref }}
     strategy:
       fail-fast: false
       matrix:
@@ -37,7 +37,7 @@ jobs:
         uses: actions/cache@v3
         with:
           path: subprojects/packagecache
-          key: meson-packagecache-fedora-36-${{ hashFiles('subprojects/*.wrap') }}
+          key: meson-packagecache-fedora-37-${{ hashFiles('subprojects/*.wrap') }}
 
       - name: Setup clang toolchain
         run: |

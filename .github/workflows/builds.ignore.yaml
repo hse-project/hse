@@ -52,7 +52,7 @@ jobs:
           - almalinux-8
           - almalinux-9
           - cross-s390x
-          - fedora-36
+          - fedora-37
           - ubuntu-18.04
           - ubuntu-20.04
           - ubuntu-22.04

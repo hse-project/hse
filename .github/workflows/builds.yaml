@@ -77,7 +77,7 @@ jobs:
           - almalinux-8
           - almalinux-9
           - cross-s390x
-          - fedora-36
+          - fedora-37
           - ubuntu-18.04
           - ubuntu-20.04
           - ubuntu-22.04
@@ -264,7 +264,7 @@ jobs:
     needs:
       - determine-tag
     container:
-      image: ghcr.io/hse-project/ci-images/fedora-36:${{ needs.determine-tag.outputs.tag }}
+      image: ghcr.io/hse-project/ci-images/fedora-37:${{ needs.determine-tag.outputs.tag }}
     strategy:
       fail-fast: false
       matrix:
@@ -326,7 +326,7 @@ jobs:
     needs:
       - determine-tag
     container:
-      image: ghcr.io/hse-project/ci-images/fedora-36:${{ needs.determine-tag.outputs.tag }}
+      image: ghcr.io/hse-project/ci-images/fedora-37:${{ needs.determine-tag.outputs.tag }}
     strategy:
       fail-fast: false
       matrix:

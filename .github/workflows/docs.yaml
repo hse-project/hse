@@ -22,7 +22,7 @@ jobs:
   docs:
     runs-on: ubuntu-latest
     container:
-      image: ghcr.io/hse-project/ci-images/fedora-36:${{ github.base_ref }}
+      image: ghcr.io/hse-project/ci-images/fedora-37:${{ github.base_ref }}
 
     steps:
       - uses: actions/checkout@v3
