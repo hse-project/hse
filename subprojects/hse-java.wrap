@@ -1,4 +1,4 @@
 [wrap-git]
 url = https://github.com/hse-project/hse-java.git
-revision = v3.0
+revision = r3.0.0
 depth = 1
