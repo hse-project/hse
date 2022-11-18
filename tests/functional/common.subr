@@ -1,6 +1,6 @@
 # SPDX-License-Identifier: Apache-2.0
 #
-# Copyright (C) 2021 Micron Technology, Inc. All rights reserved.
+# Copyright (C) 2021-2022 Micron Technology, Inc. All rights reserved.
 
 # shellcheck shell=bash
 
@@ -34,8 +34,7 @@ usage() {
     echo "Usage: $0 [-C home]"
 }
 
-home=$(pwd)
-
+home=
 while getopts ":hC:" o; do
     case "${o}" in
         h) usage; exit 0;;
@@ -46,6 +45,19 @@ while getopts ":hC:" o; do
     esac
 done
 shift $((OPTIND-1))
+
+# If home wasn't provided, use a temporary directory.
+if [ -z "$home" ]; then
+    if [ -n "${HSE_TEST_RUNNER_DIR+x}" ]; then
+        tmpdir="$HSE_TEST_RUNNER_DIR"
+    elif [ -n "${MESON_BUILD_ROOT+x}" ]; then
+        tmpdir="$MESON_BUILD_ROOT"
+    else
+        tmpdir="/tmp"
+    fi
+
+    home=$(mktemp --directory --tmpdir="$tmpdir" -t "mtest-$(basename -- "$0" ".${0##*.}")-XXXXXX")
+fi
 
 cmd () {
     # reset OPTIND from global getopts
@@ -99,6 +111,20 @@ cmd () {
     if [ "$status" -ge 128 ] && [ "$status" -ne 255 ] && [ "$status" -ne "$check_signal" ]; then
         err -s "$status" Command terminated by signal $((status-128))
     fi
+}
+
+# This function should be run on test finalization. Usually this is done like:
+#
+# trap cleanup EXIT
+#
+# But in the event you need additional cleanup for your test, use it like so:
+#
+# custom () {
+#     cleanup
+#     # special cleanup
+# }
+cleanup () {
+    rm -rf "$home" >&2
 }
 
 kvdb_create () {

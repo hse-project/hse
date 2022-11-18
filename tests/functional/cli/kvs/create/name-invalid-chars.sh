@@ -2,8 +2,10 @@
 
 # SPDX-License-Identifier: Apache-2.0
 #
-# Copyright (C) 2021 Micron Technology, Inc. All rights reserved.
+# Copyright (C) 2021-2022 Micron Technology, Inc. All rights reserved.
 
 . common.subr
 
-cmd -e hse kvs create "$home" kvs!!
+trap cleanup EXIT
+
+cmd -e hse kvs create "$home" "kvs!!"

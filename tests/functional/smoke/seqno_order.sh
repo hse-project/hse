@@ -6,7 +6,7 @@
 
 . common.subr
 
-trap kvdb_drop EXIT
+trap cleanup EXIT
 kvdb_create
 
 # one thread does transactional PUTs while another periodically calls flush

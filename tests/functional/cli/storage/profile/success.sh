@@ -6,8 +6,7 @@
 
 . common.subr
 
-trap kvdb_drop EXIT
-
+trap cleanup EXIT
 kvdb_create
 
 output=$(cmd -i hse storage profile --quiet "$home")

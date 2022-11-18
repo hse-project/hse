@@ -9,13 +9,14 @@
 #include <hse/util/err_ctx.h>
 #include <hse/ikvdb/hse_gparams.h>
 
-#include <getopt.h>
 #include <errno.h>
-#include <stdio.h>
-#include <sysexits.h>
-#include <string.h>
-#include <stdlib.h>
+#include <getopt.h>
 #include <limits.h>
+#include <signal.h>
+#include <stdio.h>
+#include <stdlib.h>
+#include <string.h>
+#include <sysexits.h>
 
 #include <hse/hse.h>
 
@@ -24,6 +25,12 @@ int         mtf_verify_line;
 const char *mtf_verify_file;
 
 char mtf_kvdb_home[PATH_MAX];
+
+static void
+cleanup()
+{
+    rmdir(mtf_kvdb_home);
+}
 
 static inline void
 reset_mtf_test_coll_info(struct mtf_test_coll_info *tci)
@@ -143,13 +150,44 @@ mtf_main(int argc, char **argv, struct mtf_test_coll_info *tci)
     tci->tci_optind = optind;
 
     if (argv_home && !realpath(argv_home, mtf_kvdb_home)) {
-        fprintf(
-            stderr,
-            "%s: failed to resolve home directory %s: %s\n",
-            progname,
-            argv_home,
-            strerror(errno));
-        return EX_OSERR;
+        fprintf(stderr, "%s: failed to resolve home directory %s: %s\n",
+            progname, argv_home, strerror(errno));
+        return EX_USAGE;
+    } else {
+        /* If home wasn't provided, use a temporary directory. */
+
+        argv_home = getenv("HSE_TEST_RUNNER_DIR");
+        if (argv_home)
+            goto touch;
+        argv_home = getenv("MESON_BUILD_ROOT");
+        if (argv_home)
+            goto touch;
+        argv_home = "/tmp";
+
+    touch:
+        if (argv_home[0] == '\0') {
+            fprintf(stderr, "%s: Invalid home directory\n", progname);
+            return EX_USAGE;
+        }
+
+        snprintf(mtf_kvdb_home, sizeof(mtf_kvdb_home), "%s%smtest-%s-XXXXXX",
+            argv_home, argv_home[strlen(argv_home) - 1] == '/' ? "" : "/", progname);
+
+        if (!mkdtemp(mtf_kvdb_home)) {
+            fprintf(stderr, "%s: mkdtemp(3) failed to create directory in %s: %s",
+                progname, argv_home, strerror(errno));
+            return EX_OSERR;
+        }
+
+        atexit(cleanup);
+        for (int i = 0; i < NSIG; i++) {
+            struct sigaction nact = { 0 };
+
+            sigemptyset(&nact.sa_mask);
+            nact.sa_handler = cleanup;
+
+            sigaction(i, &nact, NULL);
+        }
     }
 
     mtf_get_global_params(&paramc, &paramv);

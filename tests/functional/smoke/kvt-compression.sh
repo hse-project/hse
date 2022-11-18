@@ -8,7 +8,7 @@
 
 . common.subr
 
-trap kvdb_drop EXIT
+trap cleanup EXIT
 kvdb_create
 
 jobs=$(($(nproc) / 4 + 3))

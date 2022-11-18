@@ -2,13 +2,13 @@
 
 # SPDX-License-Identifier: Apache-2.0
 #
-# Copyright (C) 2021 Micron Technology, Inc. All rights reserved.
+# Copyright (C) 2021-2022 Micron Technology, Inc. All rights reserved.
 
 #tdoc: quick mpool IO test using kmt (50%, 20% and 5% writes)
 
 . common.subr
 
-trap kvdb_drop EXIT
+trap cleanup EXIT
 kvdb_create
 
 seconds=30
