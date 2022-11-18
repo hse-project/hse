@@ -264,7 +264,6 @@ MTF_DEFINE_UTEST_PREPOST(mcache_test, mcache_invalid_args, mpool_test_pre, mpool
     struct mpool       *mp;
     struct mblock_fset *mbfsp;
     struct media_class *mc;
-    struct mblock_file *mbfp = (struct mblock_file *)0x1234;
 
     char    *addr = (char *)0x1234;
     uint64_t mbid;
@@ -292,15 +291,6 @@ MTF_DEFINE_UTEST_PREPOST(mcache_test, mcache_invalid_args, mpool_test_pre, mpool
     ASSERT_EQ(EINVAL, merr_errno(err));
 
     err = mblock_fset_unmap(mbfsp, 0xffffffff);
-    ASSERT_EQ(EINVAL, merr_errno(err));
-
-    err = mblock_map_getbase(NULL, mbid, &addr, NULL);
-    ASSERT_EQ(EINVAL, merr_errno(err));
-
-    err = mblock_map_getbase(mbfp, mbid, NULL, NULL);
-    ASSERT_EQ(EINVAL, merr_errno(err));
-
-    err = mblock_unmap(NULL, mbid);
     ASSERT_EQ(EINVAL, merr_errno(err));
 
     err = mpool_mblock_delete(mp, mbid);

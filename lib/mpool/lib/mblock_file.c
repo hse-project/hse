@@ -406,6 +406,13 @@ uniquifier(uint64_t mbid)
     return (mbid & MBID_UNIQ_MASK) >> MBID_UNIQ_SHIFT;
 }
 
+static off_t
+mblock_meta_offset(uint64_t mbid)
+{
+    return (MBLOCK_FILE_META_HDRLEN +
+            (block_id(mbid) * omf_mblock_oid_len(MBLOCK_METAHDR_VERSION)));
+}
+
 size_t
 mblock_file_meta_len(size_t fszmax, size_t mblocksz, uint32_t version)
 {
@@ -428,12 +435,8 @@ static void
 mblock_file_upgrade_log(char *ugaddr, uint64_t mbid, uint32_t wlen)
 {
     struct mblock_oid_info mbinfo;
-    uint32_t block;
 
-    block = block_id(mbid);
-
-    ugaddr += MBLOCK_FILE_META_HDRLEN;
-    ugaddr += (block * omf_mblock_oid_len(MBLOCK_METAHDR_VERSION));
+    ugaddr += mblock_meta_offset(mbid);
 
     mbinfo.mb_oid = mbid;
     mbinfo.mb_wlen = wlen;
@@ -536,24 +539,14 @@ static merr_t
 mblock_file_meta_log(struct mblock_file *mbfp, uint64_t *mbidv, int mbidc, bool delete)
 {
     struct mblock_oid_info mbinfo;
-    uint32_t block, wlen, oid_len;
-    char    *addr;
-    merr_t   err = 0;
+    uint32_t wlen;
+    merr_t err;
+    char *addr;
 
-    if (!mbfp || !mbidv)
-        return merr(EINVAL);
-
-    if (mbidc > 1)
-        return merr(ENOTSUP);
+    wlen = atomic_read(mbfp->wlenv + block_id(*mbidv));
 
     addr = mbfp->meta_addr;
-    block = block_id(*mbidv);
-
-    wlen = atomic_read(mbfp->wlenv + block);
-    oid_len = omf_mblock_oid_len(MBLOCK_METAHDR_VERSION);
-
-    addr += MBLOCK_FILE_META_HDRLEN;
-    addr += (block * oid_len);
+    addr += mblock_meta_offset(*mbidv);
 
     mutex_lock(&mbfp->meta_lock);
 
@@ -572,7 +565,7 @@ mblock_file_meta_log(struct mblock_file *mbfp, uint64_t *mbidv, int mbidc, bool 
         omf_mblock_oid_pack(&mbinfo, addr);
     }
 
-    err = mbfp->metaio.msync(addr, oid_len, MS_SYNC);
+    err = mbfp->metaio.msync(addr, omf_mblock_oid_len(MBLOCK_METAHDR_VERSION), MS_SYNC);
     mutex_unlock(&mbfp->meta_lock);
 
     return err;
@@ -583,13 +576,21 @@ mblock_file_meta_log(struct mblock_file *mbfp, uint64_t *mbidv, int mbidc, bool 
  */
 
 void
-mblock_wlen_set(struct mblock_file *mbfp, uint64_t mbid, uint32_t wlen, bool prealloc)
+mblock_wlen_set(
+    struct mblock_file *mbfp,
+    uint64_t            mbid,
+    uint32_t            wlen,
+    bool                prealloced,
+    bool                punched)
 {
     INVARIANT(mbfp);
     INVARIANT(wlen <= mbfp->mblocksz);
 
-    if (prealloc)
+    if (prealloced)
         wlen |= (1U << MBLOCK_WLEN_PREALLOC_SHIFT);
+
+    if (punched)
+        wlen |= (1U << MBLOCK_WLEN_PUNCH_SHIFT);
 
     atomic_set(mbfp->wlenv + block_id(mbid), wlen);
 }
@@ -601,20 +602,30 @@ mblock_wlen_get(const struct mblock_file *mbfp, uint64_t mbid)
 }
 
 static HSE_ALWAYS_INLINE bool
-mblock_is_prealloc(const struct mblock_file *mbfp, uint64_t mbid)
+mblock_is_prealloced(const struct mblock_file *mbfp, uint64_t mbid)
 {
     const uint32_t wlen = atomic_read(mbfp->wlenv + block_id(mbid));
 
-    return (wlen >> MBLOCK_WLEN_PREALLOC_SHIFT) == 1;
+    return ((wlen & MBLOCK_WLEN_PREALLOC_MASK) >> MBLOCK_WLEN_PREALLOC_SHIFT) == 1;
+}
+
+static HSE_ALWAYS_INLINE bool
+mblock_is_punched(const struct mblock_file *mbfp, uint64_t mbid)
+{
+    const uint32_t wlen = atomic_read(mbfp->wlenv + block_id(mbid));
+
+    return ((wlen & MBLOCK_WLEN_PUNCH_MASK) >> MBLOCK_WLEN_PUNCH_SHIFT) == 1;
 }
 
 static HSE_ALWAYS_INLINE void
 mblock_wlen_add(struct mblock_file *mbfp, uint64_t mbid, uint32_t len)
 {
-    bool prealloc = mblock_is_prealloc(mbfp, mbid);
+    bool prealloc = mblock_is_prealloced(mbfp, mbid);
     uint32_t wlen = mblock_wlen_get(mbfp, mbid);
 
-    mblock_wlen_set(mbfp, mbid, wlen + len, prealloc);
+    assert(!mblock_is_punched(mbfp, mbid));
+
+    mblock_wlen_set(mbfp, mbid, wlen + len, prealloc, false);
 }
 
 merr_t
@@ -797,16 +808,12 @@ mblock_uniq_gen(struct mblock_file *mbfp, uint32_t *uniqout)
 merr_t
 mblock_file_alloc(struct mblock_file *mbfp, uint32_t flags, int mbidc, uint64_t *mbidv)
 {
-    uint64_t mbid;
+    bool prealloc, punch_hole;
     uint32_t block, uniq;
-    merr_t   err;
-    bool     prealloc, punch_hole;
+    uint64_t mbid;
+    merr_t err;
 
-    if (!mbfp || !mbidv)
-        return merr(EINVAL);
-
-    if (mbidc > 1)
-        return merr(ENOTSUP);
+    INVARIANT(mbfp && mbidv && mbidc == 1);
 
     prealloc = (flags & MPOOL_MBLOCK_PREALLOC);
     punch_hole = (flags & MPOOL_MBLOCK_PUNCH_HOLE);
@@ -854,7 +861,10 @@ mblock_file_alloc(struct mblock_file *mbfp, uint32_t flags, int mbidc, uint64_t 
         }
     }
 
-    mblock_wlen_set(mbfp, mbid, 0, prealloc);
+    /* Unconditionally clearing the punch bit as the entire mblock is punched when
+     * PUNCH_HOLE flag is set and an mblock can be written only sequentially.
+     */
+    mblock_wlen_set(mbfp, mbid, 0, prealloc, false);
     atomic_inc(&mbfp->mbcnt);
 
     *mbidv = mbid;
@@ -866,23 +876,16 @@ static merr_t
 mblock_file_meta_validate(const struct mblock_file *mbfp, uint64_t *mbidv, int mbidc, bool exists)
 {
     struct mblock_oid_info mbinfo;
-    uint32_t               block, wlen;
-    char                  *addr;
-    merr_t                 err = 0;
+    uint32_t wlen;
+    merr_t err;
+    char *addr;
 
-    if (!mbfp || !mbidv)
-        return merr(EINVAL);
+    INVARIANT(mbfp && mbidv && mbidc == 1);
 
-    if (mbidc > 1)
-        return merr(ENOTSUP);
+    wlen = atomic_read(mbfp->wlenv + block_id(*mbidv));
 
     addr = mbfp->meta_addr;
-    block = block_id(*mbidv);
-
-    wlen = atomic_read(mbfp->wlenv + block);
-
-    addr += MBLOCK_FILE_META_HDRLEN;
-    addr += (block * omf_mblock_oid_len(MBLOCK_METAHDR_VERSION));
+    addr += mblock_meta_offset(*mbidv);
 
     err = omf_mblock_oid_unpack(addr, MBLOCK_METAHDR_VERSION, true, &mbinfo);
 
@@ -896,17 +899,50 @@ mblock_file_meta_validate(const struct mblock_file *mbfp, uint64_t *mbidv, int m
     return err;
 }
 
+static merr_t
+mblock_alen_get(struct mblock_file *mbfp, uint64_t mbid, uint32_t *alen)
+{
+    off_t start, cur, end;
+    size_t mblocksz;
+
+    INVARIANT(mbfp && alen);
+
+    mblocksz = mbfp->mblocksz;
+    start = block_off(mbid, mblocksz);
+    end = start + mblocksz - 1;
+
+    cur = lseek(mbfp->fd, start, SEEK_SET);
+    assert(cur == start);
+
+    *alen = mblocksz;
+    while ((cur = lseek(mbfp->fd, cur, SEEK_HOLE)) >= 0) {
+        off_t hole_start = cur;
+
+        if (hole_start > end)
+            break;
+
+        cur = lseek(mbfp->fd, cur, SEEK_DATA);
+        if (cur > end || (cur < 0 && errno == ENXIO)) {
+            assert(hole_start <= end);
+            *alen -= (end - hole_start + 1);
+            cur = 0;
+            break;
+        }
+
+        assert(hole_start <= cur);
+        *alen -= (cur - hole_start);
+    }
+
+    return cur < 0 ? merr(errno) : 0;
+}
+
 merr_t
 mblock_file_find(struct mblock_file *mbfp, uint64_t *mbidv, int mbidc, struct mblock_props *props)
 {
+    merr_t err, err2;
     uint32_t block;
-    merr_t   err, err2;
 
-    if (!mbfp || !mbidv)
-        return merr(EINVAL);
-
-    if (mbidc > 1)
-        return merr(ENOTSUP);
+    INVARIANT(mbfp && mbidv && mbidc == 1);
 
     block = block_id(*mbidv);
 
@@ -922,10 +958,17 @@ mblock_file_find(struct mblock_file *mbfp, uint64_t *mbidv, int mbidc, struct mb
         props->mpr_objid = *mbidv;
         props->mpr_mclass = mcid_to_mclass(mbfp->mcid);
         props->mpr_write_len = mblock_wlen_get(mbfp, *mbidv);
-        if (mblock_is_prealloc(mbfp, *mbidv))
+
+        if (mblock_is_punched(mbfp, *mbidv)) {
+            err2 = mblock_alen_get(mbfp, *mbidv, &props->mpr_alloc_cap);
+            if (!err2 && mblock_is_prealloced(mbfp, *mbidv))
+                props->mpr_alloc_cap += (mbfp->mblocksz - props->mpr_write_len);
+            assert(props->mpr_alloc_cap <= mbfp->mblocksz);
+        } else if (mblock_is_prealloced(mbfp, *mbidv)) {
             props->mpr_alloc_cap = mbfp->mblocksz;
-        else
+        } else {
             props->mpr_alloc_cap = props->mpr_write_len;
+        }
     }
     mutex_unlock(&mbfp->meta_lock);
 
@@ -935,15 +978,11 @@ mblock_file_find(struct mblock_file *mbfp, uint64_t *mbidv, int mbidc, struct mb
 merr_t
 mblock_file_commit(struct mblock_file *mbfp, uint64_t *mbidv, int mbidc)
 {
-    merr_t err;
     bool delete = false;
     uint32_t block;
+    merr_t err;
 
-    if (!mbfp || !mbidv)
-        return merr(EINVAL);
-
-    if (mbidc > 1)
-        return merr(ENOTSUP);
+    INVARIANT(mbfp && mbidv && mbidc == 1);
 
     block = block_id(*mbidv);
 
@@ -962,15 +1001,11 @@ merr_t
 mblock_file_delete(struct mblock_file *mbfp, uint64_t *mbidv, int mbidc)
 {
     uint32_t block;
-    off_t    mblocksz;
-    merr_t   err;
-    int      rc;
+    size_t mblocksz;
+    merr_t err;
+    int rc;
 
-    if (!mbfp || !mbidv)
-        return merr(EINVAL);
-
-    if (mbidc > 1)
-        return merr(ENOTSUP);
+    INVARIANT(mbfp && mbidv && mbidc == 1);
 
     block = block_id(*mbidv);
     err = mblock_rgn_find(&mbfp->rgnmap, block + 1);
@@ -987,7 +1022,10 @@ mblock_file_delete(struct mblock_file *mbfp, uint64_t *mbidv, int mbidc)
     ev(rc);
 
     atomic_sub(&mbfp->wlen, mblock_wlen_get(mbfp, *mbidv));
-    mblock_wlen_set(mbfp, *mbidv, 0, false);
+
+    /* Clear prelloc and punch bits at delete
+     */
+    mblock_wlen_set(mbfp, *mbidv, 0, false, false);
     atomic_dec(&mbfp->mbcnt);
 
     err = mblock_rgn_free(&mbfp->rgnmap, block + 1);
@@ -995,6 +1033,65 @@ mblock_file_delete(struct mblock_file *mbfp, uint64_t *mbidv, int mbidc)
         return err;
 
     return 0;
+}
+
+merr_t
+mblock_punch(struct mblock_file *mbfp, uint64_t mbid, off_t off, size_t len)
+{
+    struct mblock_oid_info mbinfo;
+    uint32_t block;
+    bool prealloced;
+    size_t wlen;
+    merr_t err;
+    char *addr;
+    int rc;
+
+    INVARIANT(mbfp);
+
+    if (!PAGE_ALIGNED(off) || !PAGE_ALIGNED(len))
+        return merr(EINVAL);
+
+    wlen = mblock_wlen_get(mbfp, mbid);
+
+    if (off < 0 || off >= wlen || off + len > wlen)
+        return merr(EINVAL);
+
+    prealloced = mblock_is_prealloced(mbfp, mbid);
+    if (len == 0 || off + len == wlen) {
+        len = prealloced ? mbfp->mblocksz - off : wlen - off;
+        assert(PAGE_ALIGNED(len));
+    }
+
+    block = block_id(mbid);
+    err = mblock_rgn_find(&mbfp->rgnmap, block + 1);
+    if (err)
+        return err;
+
+    rc = fallocate(mbfp->fd, FALLOC_FL_PUNCH_HOLE | FALLOC_FL_KEEP_SIZE,
+                   off + block_off(mbid, mbfp->mblocksz), len);
+    if (rc == -1)
+        return merr(errno);
+
+    /* Adjust wlen if the punch range includes the end of an mblock */
+    if (off + len >= wlen) {
+        wlen = off;
+        prealloced = false;
+    }
+
+    mblock_wlen_set(mbfp, mbid, wlen, prealloced, true);
+
+    addr = mbfp->meta_addr;
+    addr += mblock_meta_offset(mbid);
+
+    mbinfo.mb_oid = mbid;
+    mbinfo.mb_wlen = atomic_read(mbfp->wlenv + block);
+
+    mutex_lock(&mbfp->meta_lock);
+    omf_mblock_oid_pack(&mbinfo, addr);
+    err = mbfp->metaio.msync(addr, omf_mblock_oid_len(MBLOCK_METAHDR_VERSION), MS_SYNC);
+    mutex_unlock(&mbfp->meta_lock);
+
+    return err;
 }
 
 static merr_t
@@ -1025,8 +1122,7 @@ mblock_read(struct mblock_file *mbfp, uint64_t mbid, const struct iovec *iov, in
     size_t    len = 0, mblocksz, wlen;
     merr_t    err;
 
-    if (!mbfp || !iov)
-        return merr(EINVAL);
+    INVARIANT(mbfp && iov);
 
     if (iovc == 0)
         return 0;
@@ -1071,8 +1167,7 @@ mblock_write(struct mblock_file *mbfp, uint64_t mbid, const struct iovec *iov, i
     off_t woff, eoff, off;
     merr_t err;
 
-    if (!mbfp || !iov)
-        return merr(EINVAL);
+    INVARIANT(mbfp && iov);
 
     if (iovc == 0)
         return 0;
@@ -1158,8 +1253,7 @@ mblock_map_getbase(struct mblock_file *mbfp, uint64_t mbid, char **addr_out, uin
     size_t              mblocksz;
     merr_t              err = 0;
 
-    if (!mbfp || !addr_out)
-        return merr(EINVAL);
+    INVARIANT(mbfp && addr_out);
 
     mblocksz = mbfp->mblocksz;
     cidx = chunk_idx(mbid, mblocksz);
@@ -1218,8 +1312,7 @@ mblock_unmap(struct mblock_file *mbfp, uint64_t mbid)
     size_t              mblocksz;
     merr_t              err = 0;
 
-    if (!mbfp)
-        return merr(EINVAL);
+    INVARIANT(mbfp);
 
     mblocksz = mbfp->mblocksz;
     cidx = chunk_idx(mbid, mblocksz);
