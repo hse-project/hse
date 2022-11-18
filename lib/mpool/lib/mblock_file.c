@@ -409,8 +409,7 @@ uniquifier(uint64_t mbid)
 static off_t
 mblock_meta_offset(uint64_t mbid)
 {
-    return (MBLOCK_FILE_META_HDRLEN +
-            (block_id(mbid) * omf_mblock_oid_len(MBLOCK_METAHDR_VERSION)));
+    return MBLOCK_FILE_META_HDRLEN + (block_id(mbid) * omf_mblock_oid_len(MBLOCK_METAHDR_VERSION));
 }
 
 size_t
@@ -912,7 +911,6 @@ mblock_alen_get(struct mblock_file *mbfp, uint64_t mbid, uint32_t *alen)
     end = start + mblocksz - 1;
 
     cur = lseek(mbfp->fd, start, SEEK_SET);
-    assert(cur == start);
 
     *alen = mblocksz;
     while ((cur = lseek(mbfp->fd, cur, SEEK_HOLE)) >= 0) {
@@ -955,20 +953,24 @@ mblock_file_find(struct mblock_file *mbfp, uint64_t *mbidv, int mbidc, struct mb
 
     err2 = mblock_file_meta_validate(mbfp, mbidv, mbidc, !err);
     if (!err && !err2 && props) {
+        uint32_t alen = 0;
+
         props->mpr_objid = *mbidv;
         props->mpr_mclass = mcid_to_mclass(mbfp->mcid);
         props->mpr_write_len = mblock_wlen_get(mbfp, *mbidv);
 
         if (mblock_is_punched(mbfp, *mbidv)) {
-            err2 = mblock_alen_get(mbfp, *mbidv, &props->mpr_alloc_cap);
+            err2 = mblock_alen_get(mbfp, *mbidv, &alen);
             if (!err2 && mblock_is_prealloced(mbfp, *mbidv))
-                props->mpr_alloc_cap += (mbfp->mblocksz - props->mpr_write_len);
-            assert(props->mpr_alloc_cap <= mbfp->mblocksz);
+                alen += (mbfp->mblocksz - props->mpr_write_len);
         } else if (mblock_is_prealloced(mbfp, *mbidv)) {
-            props->mpr_alloc_cap = mbfp->mblocksz;
+            alen = mbfp->mblocksz;
         } else {
-            props->mpr_alloc_cap = props->mpr_write_len;
+            alen = props->mpr_write_len;
         }
+
+        assert(alen <= mbfp->mblocksz);
+        props->mpr_alloc_cap = alen;
     }
     mutex_unlock(&mbfp->meta_lock);
 

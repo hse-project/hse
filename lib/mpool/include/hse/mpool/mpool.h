@@ -440,7 +440,7 @@ mpool_mblock_read(struct mpool *mp, uint64_t mbid, const struct iovec *iov, int 
  * Requirements on `off' and `len':
  * - off must not be less than 0
  * - off and len must be page aligned
- * - len == 0 implies a clone of the entire source mblock from 'off' upto its written length
+ * - len == 0 implies a clone of the entire source mblock from 'off' up to its written length
  * - off + len must not be greater than the mblock write length
  *
  * For the target mblock:
@@ -468,12 +468,15 @@ mpool_mblock_clone(struct mpool *mp, uint64_t mbid, off_t off, size_t len, uint6
  * Requirements on `off' and `len':
  * - off must not be less than 0
  * - off and len must be page aligned
- * - len == 0 implies a punch of the entire mblock from 'off' upto its written length
+ * - len == 0 implies a punch of the entire mblock from 'off' up to its written length
  * - off + len must not be greater than wlen
  *
  * Notes:
- * - Reading the mblock from the punched region returns zeroes
- * - wlen is updated if the punched region covers mblock's written length
+ * - Reading an mblock from the punched region returns zeroes
+ * - The mblock's wlen property is updated when the punched region covers the tail end of
+ *   the mblock's written length
+ * - The mblock's alen property is calculated on the fly by using the lseek(HOLE/DATA)
+ *   technique, so it accounts for the punched regions in an mblock
  *
  * Return: %0 on success, <%0 on error
  */
