@@ -1,4 +1,5 @@
 subdir('api')
+subdir('limits')
 subdir('cli')
 subdir('kvpy')
 subdir('smoke')

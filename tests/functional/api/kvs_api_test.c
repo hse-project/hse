@@ -183,31 +183,6 @@ MTF_DEFINE_UTEST(kvs_api_test, create_null_kvdb)
     ASSERT_EQ(EINVAL, hse_err_to_errno(err));
 }
 
-MTF_DEFINE_UTEST(kvs_api_test, create_max)
-{
-    hse_err_t err;
-    char buf[8];
-
-    for (unsigned int i = 0; i < HSE_KVS_COUNT_MAX; i++) {
-        snprintf(buf, sizeof(buf), "%u", i);
-
-        err = hse_kvdb_kvs_create(kvdb_handle, buf, 0, NULL);
-        ASSERT_EQ(0, hse_err_to_errno(err));
-    }
-
-    snprintf(buf, sizeof(buf), "%u", HSE_KVS_COUNT_MAX);
-
-    err = hse_kvdb_kvs_create(kvdb_handle, buf, 0, NULL);
-    ASSERT_EQ(EINVAL, hse_err_to_errno(err));
-
-    for (unsigned int i = 0; i < HSE_KVS_COUNT_MAX; i++) {
-        snprintf(buf, sizeof(buf), "%u", i);
-
-        err = hse_kvdb_kvs_drop(kvdb_handle, buf);
-        ASSERT_EQ(0, hse_err_to_errno(err));
-    }
-}
-
 MTF_DEFINE_UTEST(kvs_api_test, create_null_name)
 {
     hse_err_t err;
