@@ -1,6 +1,6 @@
 /* SPDX-License-Identifier: Apache-2.0 */
 /*
- * Copyright (C) 2021 Micron Technology, Inc. All rights reserved.
+ * Copyright (C) 2021-2022 Micron Technology, Inc. All rights reserved.
  */
 
 #include <mtf/framework.h>
@@ -174,7 +174,7 @@ mtf_main(int argc, char **argv, struct mtf_test_coll_info *tci)
             argv_home, argv_home[strlen(argv_home) - 1] == '/' ? "" : "/", progname);
 
         if (!mkdtemp(mtf_kvdb_home)) {
-            fprintf(stderr, "%s: mkdtemp(3) failed to create directory in %s: %s",
+            fprintf(stderr, "%s: mkdtemp(3) failed to create directory in %s: %s\n",
                 progname, argv_home, strerror(errno));
             return EX_OSERR;
         }
