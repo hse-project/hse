@@ -19,13 +19,13 @@
 #include <bsd/string.h>
 
 #include <hse/cli/param.h>
+#include <hse/cli/program.h>
 #include <hse/hse.h>
 #include <hse/logging/logging.h>
 #include <hse/pidfile/pidfile.h>
-#include <hse/version.h>
-
 #include <hse/util/compiler.h>
 #include <hse/util/parse_num.h>
+#include <hse/version.h>
 
 #include "cli_util.h"
 #include "storage_profile.h"
@@ -1876,12 +1876,9 @@ int
 main(int argc, char **argv)
 {
     struct cli cli;
-    char *     prog;
     int        rc;
 
-    prog = strrchr(argv[0], '/');
-    if (prog)
-        argv[0] = prog + 1;
+    progname_set(argv[0]);
 
     cmd_tree_set_paths(&cli_root);
 

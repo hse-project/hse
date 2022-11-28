@@ -1,6 +1,6 @@
 /* SPDX-License-Identifier: Apache-2.0 */
 /*
- * Copyright (C) 2015-2017 Micron Technology, Inc. All rights reserved.
+ * Copyright (C) 2015-2022 Micron Technology, Inc. All rights reserved.
  */
 
 /*
@@ -12,7 +12,6 @@
 #define USE_EVENT_TIMER
 
 #include <getopt.h>
-#include <libgen.h>
 #include <pthread.h>
 #include <stdbool.h>
 #include <stdio.h>
@@ -20,8 +19,8 @@
 #include <string.h>
 #include <strings.h>
 
+#include <hse/cli/program.h>
 #include <hse/hse.h>
-
 #include <hse/util/event_timer.h>
 #include <hse/util/fmt.h>
 #include <hse/util/inttypes.h>
@@ -52,7 +51,7 @@ mk_val(char *buf, u64 val)
 }
 
 void
-usage(const char *prog)
+usage(void)
 {
     fprintf(
         stderr,
@@ -64,7 +63,7 @@ usage(const char *prog)
         "-U         update cursor (vs restart it)\n"
         "-v n       set verbosity to $n\n"
         "-Z config  path to global config file\n",
-        prog);
+        progname);
 
     exit(1);
 }
@@ -83,7 +82,7 @@ main(int argc, char **argv)
     static char kbuf[HSE_KVS_KEY_LEN_MAX];
     static char vbuf[HSE_KVS_VALUE_LEN_MAX];
 
-    const char *           mpname, *dsname, *kvname, *prog, *config = NULL;
+    const char *           mpname, *dsname, *kvname, *config = NULL;
     struct parm_groups *   pg = NULL;
     struct svec            hse_gparm = { 0 };
     struct svec            db_oparm = { 0 };
@@ -119,10 +118,11 @@ main(int argc, char **argv)
     EVENT_INIT(tu);
     EVENT_INIT(cl);
 
-    prog = basename(argv[0]);
     update = 0;
     c0 = 1;
     get = 0;
+
+    progname_set(argv[0]);
 
     rc = pg_create(&pg, PG_HSE_GLOBAL, PG_KVDB_OPEN, PG_KVS_OPEN, NULL);
     if (rc)
@@ -156,7 +156,7 @@ main(int argc, char **argv)
     }
 
     if (opt_help)
-        usage(prog);
+        usage();
 
     if (argc - optind < 3)
         fatal(0, "missing required parameters");

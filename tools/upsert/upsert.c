@@ -3,9 +3,6 @@
  * Copyright (C) 2022 Micron Technology, Inc.  All rights reserved.
  */
 
-#include <hse/util/atomic.h>
-#include <hse/util/mutex.h>
-
 #include <endian.h>
 #include <errno.h>
 #include <getopt.h>
@@ -19,43 +16,44 @@
 #include <sysexits.h>
 #include <unistd.h>
 
-#include <hse/experimental.h>
-#include <hse/hse.h>
-
 #include <xoroshiro.h>
 
 #include <hse/cli/param.h>
+#include <hse/cli/program.h>
+#include <hse/experimental.h>
+#include <hse/hse.h>
+#include <hse/util/atomic.h>
+#include <hse/util/mutex.h>
 
 #include "kvs_helper.h"
 
 const char *key_suffix = "AA";
 size_t key_sfxlen;
 
-const char *progname;
 volatile bool completed;
 atomic_int completed_cnt;
 
 atomic_long opcnt;
 
 enum run_mode {
-	MODE_PFX_PROBE = 0,
-	MODE_POINT_GET,
-	MODE_CURSOR,
-	MODE_CNT,
+    MODE_PFX_PROBE = 0,
+    MODE_POINT_GET,
+    MODE_CURSOR,
+    MODE_CNT,
 };
 
 struct opts {
-	uint64_t      nkeys;
-	uint64_t      stride;
-	unsigned int  nthreads;
-	unsigned int  laps;
-	enum run_mode mode;
+    uint64_t      nkeys;
+    uint64_t      stride;
+    unsigned int  nthreads;
+    unsigned int  laps;
+    enum run_mode mode;
 } opts = {
-	.nkeys = 1000 * 1000 * 1000,
-	.stride = 100,
-	.nthreads = 32,
-	.laps = 3,
-	.mode = MODE_PFX_PROBE,
+    .nkeys = 1000 * 1000 * 1000,
+    .stride = 100,
+    .nthreads = 32,
+    .laps = 3,
+    .mode = MODE_PFX_PROBE,
 };
 
 struct _test_ctx {
@@ -243,8 +241,8 @@ usage(void)
         "             1: Use point get\n"
         "             2: Use cursor\n"
         "-s stride  Batch size of keys processed by each thread\n"
-        "-Z config  Path to global config file\n"
-        , progname);
+        "-Z config  Path to global config file\n",
+        progname);
 
     printf("\n");
 }
@@ -252,20 +250,20 @@ usage(void)
 int
 main(int argc, char **argv)
 {
-	struct parm_groups *pg = 0;
-	struct svec hse_gparms = { 0 };
-	struct svec kvdb_oparms = { 0 };
-	struct svec kvs_cparms = { 0 };
-	struct svec kvs_oparms = { 0 };
+    struct parm_groups *pg = 0;
+    struct svec hse_gparms = { 0 };
+    struct svec kvdb_oparms = { 0 };
+    struct svec kvs_cparms = { 0 };
+    struct svec kvs_oparms = { 0 };
     const char *kvdbhome, *kvsname, *config = NULL;
     char sfx_param_buf[32];
     int c, rc;
 
-	progname = basename(argv[0]);
+    progname_set(argv[0]);
 
-	rc = pg_create(&pg, PG_HSE_GLOBAL, PG_KVDB_OPEN, PG_KVS_OPEN, PG_KVS_CREATE, NULL);
-	if (rc)
-		fatal(rc, "pg_create");
+    rc = pg_create(&pg, PG_HSE_GLOBAL, PG_KVDB_OPEN, PG_KVS_OPEN, PG_KVS_CREATE, NULL);
+    if (rc)
+        fatal(rc, "pg_create");
 
     while ((c = getopt(argc, argv, ":c:hj:l:m:s:Z:")) != -1) {
         char *errmsg = NULL, *end = NULL;
@@ -373,5 +371,5 @@ main(int argc, char **argv)
     svec_reset(&kvs_oparms);
     pg_destroy(pg);
 
-	return 0;
+    return 0;
 }

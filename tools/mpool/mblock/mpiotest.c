@@ -29,14 +29,14 @@
 
 #include <bsd/string.h>
 
+#include <hse/cli/program.h>
 #include <hse/error/merr.h>
 #include <hse/hse.h>
+#include <hse/mpool/mpool.h>
+#include <hse/mpool/mcache.h>
 #include <hse/util/err_ctx.h>
 #include <hse/util/minmax.h>
 #include <hse/util/page.h>
-
-#include <hse/mpool/mpool.h>
-#include <hse/mpool/mcache.h>
 
 #define MBLOCK_SIZE_MB_DEFAULT (32 << 20)
 #define WANDERMAX              (1024 * 128)
@@ -82,7 +82,6 @@ struct test {
 };
 
 const char *infile = "/dev/urandom";
-const char *progname;
 
 uint   mballoc_max = 1024 * 1024 * 8;
 size_t wbufsz = MBLOCK_SIZE_MB_DEFAULT;
@@ -1021,8 +1020,7 @@ main(int argc, char **argv)
     FILE    *fp;
     int      fd, rc, i, given[256] = { 0 };
 
-    progname = strrchr(argv[0], '/');
-    progname = (progname ? progname + 1 : argv[0]);
+    progname_set(argv[0]);
 
     seed = time(NULL);
     oflags = O_RDWR;

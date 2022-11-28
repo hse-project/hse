@@ -1,6 +1,6 @@
 /* SPDX-License-Identifier: Apache-2.0 */
 /*
- * Copyright (C) 2015-2021 Micron Technology, Inc.  All rights reserved.
+ * Copyright (C) 2015-2022 Micron Technology, Inc.  All rights reserved.
  */
 
 /**
@@ -25,14 +25,14 @@
 
 #include <bsd/string.h>
 
+#include <hse/cli/program.h>
 #include <hse/error/merr.h>
+#include <hse/hse.h>
+#include <hse/mpool/mpool.h>
 #include <hse/util/atomic.h>
 #include <hse/util/err_ctx.h>
 #include <hse/util/platform.h>
 #include <hse/util/parse_num.h>
-
-#include <hse/hse.h>
-#include <hse/mpool/mpool.h>
 
 struct oid_pair {
     u64 oid[2];
@@ -48,7 +48,6 @@ static struct options {
     bool     help;
 } opt;
 
-const char *progname = NULL;
 u8         *pattern;
 u32         pattern_len;
 
@@ -1052,8 +1051,7 @@ main(int argc, char **argv)
     merr_t             err;
     const char        *path;
 
-    progname = strrchr(argv[0], '/');
-    progname = progname ? progname + 1 : argv[0];
+    progname_set(argv[0]);
 
     options_defaults_set();
     options_parse(argc, argv, &last_arg);

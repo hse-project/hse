@@ -18,6 +18,7 @@ libcurl_dep = dependency(
 
 libhse_cli_sources = files(
     'param.c',
+    'program.c',
     'rest/api.c',
     'rest/buffer.c',
     'rest/client.c',

@@ -5,7 +5,6 @@
 #include <endian.h>
 #include <errno.h>
 #include <getopt.h>
-#include <libgen.h>
 #include <stdarg.h>
 #include <stdint.h>
 #include <stdio.h>
@@ -14,13 +13,12 @@
 #include <sysexits.h>
 #include <unistd.h>
 
-#include <hse/hse.h>
-
 #include <hse/cli/param.h>
+#include <hse/cli/program.h>
+#include <hse/hse.h>
 
 #include "kvs_helper.h"
 
-char *progname;
 int killthreads = 0;
 
 struct _opts {
@@ -90,11 +88,11 @@ usage(void)
 {
     printf(
         "usage: %s [options] kvdb kvs [param=value ...]\n"
+        "-h         Print this help menu\n"
         "-k nkeys   Number of keys\n"
         "-p nptombs Number of ptombs\n"
-        "-Z config  Path to global config file\n"
-        "-h      Print this help menu\n"
-        , progname);
+        "-Z config  Path to global config file\n",
+        progname);
 
     printf("\nDescription:\n");
     printf("Insert keys and ptombs\n");
@@ -114,7 +112,7 @@ main(int argc, char **argv)
     int                 c;
     int                 rc;
 
-    progname = basename(argv[0]);
+    progname_set(argv[0]);
 
     rc = pg_create(&pg, PG_HSE_GLOBAL, PG_KVDB_OPEN, PG_KVS_OPEN, PG_KVS_CREATE, NULL);
     if (rc)

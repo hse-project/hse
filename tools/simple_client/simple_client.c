@@ -1,6 +1,6 @@
 /* SPDX-License-Identifier: Apache-2.0 */
 /*
- * Copyright (C) 2015-2018,2021 Micron Technology, Inc.  All rights reserved.
+ * Copyright (C) 2015-2022 Micron Technology, Inc.  All rights reserved.
  */
 
 #include <assert.h>
@@ -12,8 +12,8 @@
 #include <sysexits.h>
 #include <string.h>
 
+#include <hse/cli/program.h>
 #include <hse/hse.h>
-
 #include <hse/util/compiler.h>
 
 const char *kfmt = "k%u";
@@ -22,9 +22,7 @@ uint        kmax = 100;
 struct hse_kvdb *kvdb;
 struct hse_kvs  *kvs;
 
-const char *progname;
-
-void
+void HSE_PRINTF(1, 2)
 syntax(const char *fmt, ...)
 {
     char msg[2048];
@@ -173,8 +171,7 @@ main(int argc, char **argv)
     const char *kvs_name;
     const char *config = NULL;
 
-    progname = strrchr(argv[0], '/');
-    progname = progname ? progname + 1 : argv[0];
+    progname_set(argv[0]);
 
     while (-1 != (c = getopt(argc, argv, ":c:f:hrvwZ:"))) {
         char *endptr = NULL;

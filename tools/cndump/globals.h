@@ -14,6 +14,5 @@ struct global_opts {
 };
 
 extern struct global_opts global_opts;
-extern const char *progname;
 
 #endif

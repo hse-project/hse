@@ -1,10 +1,9 @@
 /* SPDX-License-Identifier: Apache-2.0 */
 /*
- * Copyright (C) 2015-2019,2021-2022 Micron Technology, Inc.  All rights reserved.
+ * Copyright (C) 2015-2022 Micron Technology, Inc.  All rights reserved.
  */
 
 #include <errno.h>
-#include <libgen.h>
 #include <pthread.h>
 #include <stdalign.h>
 #include <stdarg.h>
@@ -15,9 +14,10 @@
 #include <sysexits.h>
 #include <signal.h>
 
-#include <hse/hse.h>
 #include <xoroshiro.h>
 
+#include <hse/cli/program.h>
+#include <hse/hse.h>
 #include <hse/util/arch.h>
 #include <hse/util/compiler.h>
 #include <hse/util/inttypes.h>
@@ -25,7 +25,7 @@
 
 #include <tools/parm_groups.h>
 
-const char *progname, *mp_name, *kvs_name;
+const char *mp_name, *kvs_name;
 sig_atomic_t done;
 ulong       secmax = 0;
 ulong       itermax = 1;
@@ -939,8 +939,7 @@ main(int argc, char **argv)
     ulong       i;
     int         rc;
 
-    progname = strrchr(argv[0], '/');
-    progname = progname ? progname + 1 : argv[0];
+    progname_set(argv[0]);
 
     seed = time(NULL);
 

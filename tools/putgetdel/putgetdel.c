@@ -1,6 +1,6 @@
 /* SPDX-License-Identifier: Apache-2.0 */
 /*
- * Copyright (C) 2015,2021-2022 Micron Technology, Inc.  All rights reserved.
+ * Copyright (C) 2015-2022 Micron Technology, Inc.  All rights reserved.
  */
 
 #include <assert.h>
@@ -17,8 +17,8 @@
 #include <sys/resource.h>
 #include <sys/time.h>
 
+#include <hse/cli/program.h>
 #include <hse/hse.h>
-
 #include <hse/util/compiler.h>
 #include <hse/util/inttypes.h>
 #include <hse/util/parse_num.h>
@@ -75,7 +75,6 @@ struct opts opt;
 struct parm_groups *pg;
 
 const char *mode = "";
-const char *progname = NULL;
 struct timeval tv_start;
 int verbose = 0;
 u32 errors = 0;
@@ -1024,10 +1023,9 @@ main(int argc, char **argv)
     hse_err_t         err;
     struct svec       hse_gparm = { 0 };
 
-    gettimeofday(&tv_start, NULL);
+    progname_set(argv[0]);
 
-    progname = strrchr(argv[0], '/');
-    progname = progname ? progname + 1 : argv[0];
+    gettimeofday(&tv_start, NULL);
 
     rc = pg_create(&pg, PG_HSE_GLOBAL, PG_KVDB_OPEN, PG_KVS_OPEN, NULL);
     if (rc)

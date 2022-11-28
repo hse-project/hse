@@ -1,6 +1,6 @@
 /* SPDX-License-Identifier: Apache-2.0 */
 /*
- * Copyright (C) 2017 Micron Technology, Inc.  All rights reserved.
+ * Copyright (C) 2017-2022 Micron Technology, Inc.  All rights reserved.
  */
 
 #include <stdarg.h>
@@ -11,14 +11,14 @@
 #include <sysexits.h>
 #include <sys/time.h>
 
+#include <hse/cli/program.h>
 #include <hse/hse.h>
-
 #include <hse/util/inttypes.h>
 #include <hse/util/arch.h>
 
 #include <tools/parm_groups.h>
 
-const char *progname, *mp_name, *kvs_name;
+const char *mp_name, *kvs_name;
 ulong       kwrite, kflush, ksync, ktxn;
 ulong       keymax;
 size_t      vlenmin = 0;
@@ -250,8 +250,7 @@ main(int argc, char **argv)
     bool        help = false;
     int         rc;
 
-    progname = strrchr(argv[0], '/');
-    progname = progname ? progname + 1 : argv[0];
+    progname_set(argv[0]);
 
     rc = pg_create(&pg, PG_HSE_GLOBAL, PG_KVDB_OPEN, PG_KVS_OPEN, NULL);
     if (rc) {

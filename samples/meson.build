@@ -17,6 +17,7 @@ foreach s : samples
             ['@0@.c'.format(s)],
             dependencies: [
                 hse_dep,
+                libhse_cli_dep,
             ],
             gnu_symbol_visibility: 'hidden',
         )

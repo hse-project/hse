@@ -21,12 +21,13 @@
 #include <cjson/cJSON_Utils.h>
 #include <curl/curl.h>
 
-#include <hse/error/merr.h>
+#include <hse/cli/program.h>
 #include <hse/cli/rest/client.h>
 #include <hse/cli/tprint.h>
+#include <hse/error/merr.h>
+#include <hse/pidfile/pidfile.h>
 #include <hse/util/assert.h>
 #include <hse/util/compiler.h>
-#include <hse/pidfile/pidfile.h>
 
 #include "buffer.h"
 #include "format.h"
@@ -50,7 +51,6 @@ cJSON *openapi;
 struct options_map *options_map;
 
 const char *fspath;
-const char *progname;
 int verbosity;
 
 struct {
@@ -1653,8 +1653,7 @@ main(const int argc, char **const argv)
     struct curl_slist *headers = NULL;
     cJSON *path = NULL, *method = NULL;
 
-    progname = strrchr(argv[0], '/');
-    progname = progname ? progname + 1 : argv[0];
+    progname_set(argv[0]);
 
     openapi = cJSON_ParseWithLength((char *)openapi_json, sizeof(openapi_json));
     if (!openapi) {

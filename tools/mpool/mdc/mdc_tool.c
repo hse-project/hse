@@ -14,17 +14,15 @@
 #include <stdarg.h>
 #include <sysexits.h>
 
-#include <hse/logging/logging.h>
-#include <hse/ikvdb/kvdb_meta.h>
-
+#include <hse/cli/program.h>
 #include <hse/hse.h>
+#include <hse/ikvdb/kvdb_meta.h>
+#include <hse/logging/logging.h>
 #include <hse/mpool/mpool.h>
 
 #include <bsd/string.h>
 
 #define ERROR_BUF_SIZE 256
-
-static const char *progname;
 
 /*
  * MDC logs will never exceed a few MB
@@ -114,7 +112,7 @@ main(int argc, char **argv)
     struct mpool_rparams params = {0};
     struct kvdb_meta     meta;
 
-    progname = basename(argv[0]);
+    progname_set(argv[0]);
 
     wpath = 0;
     ignore = 0;

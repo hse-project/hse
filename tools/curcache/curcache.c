@@ -1,10 +1,9 @@
 /* SPDX-License-Identifier: Apache-2.0 */
 /*
- * Copyright (C) 2015-2021 Micron Technology, Inc. All rights reserved.
+ * Copyright (C) 2015-2022 Micron Technology, Inc. All rights reserved.
  */
 #include <errno.h>
 #include <getopt.h>
-#include <libgen.h>
 #include <poll.h>
 #include <pthread.h>
 #include <stdarg.h>
@@ -12,8 +11,8 @@
 #include <stdlib.h>
 #include <string.h>
 
+#include <hse/cli/program.h>
 #include <hse/hse.h>
-
 #include <hse/util/compiler.h>
 
 int              verbose = 0;
@@ -234,7 +233,7 @@ stress(char *mp, char *kv)
 }
 
 void
-usage(char *prog)
+usage(void)
 {
     fprintf(
         stderr,
@@ -245,7 +244,7 @@ usage(char *prog)
         "-Z config  path to global config file\n"
         "stress test of kvs cursor caching:\n"
         "runs nthreads, each doing niter create/seek/read/destroy\n\n",
-        prog);
+        progname);
     exit(1);
 }
 
@@ -253,9 +252,10 @@ int
 main(int argc, char **argv)
 {
     const char *config = NULL;
-    char *      prog = basename(argv[0]);
     char *      parts[3];
     int         c, err;
+
+    progname_set(argv[0]);
 
     while ((c = getopt(argc, argv, "?vt:i:Z:")) != -1) {
         switch (c) {
@@ -273,7 +273,7 @@ main(int argc, char **argv)
                 break;
             case '?': /* fallthrough */
             default:
-                usage(prog);
+                usage();
         }
     }
 
@@ -284,7 +284,7 @@ main(int argc, char **argv)
     parts[1] = strsep(&argv[0], "/");
 
     if (!parts[0] || !parts[1])
-        usage(prog);
+        usage();
 
     err = hse_init(config, 0, NULL);
     if (err)

@@ -1,11 +1,10 @@
 /* SPDX-License-Identifier: Apache-2.0 */
 /*
- * Copyright (C) 2015-2020 Micron Technology, Inc. All rights reserved.
+ * Copyright (C) 2015-2022 Micron Technology, Inc. All rights reserved.
  */
 #include <assert.h>
 #include <errno.h>
 #include <getopt.h>
-#include <libgen.h>
 #include <stdarg.h>
 #include <stdbool.h>
 #include <stddef.h>
@@ -16,13 +15,12 @@
 #include <sysexits.h>
 #include <unistd.h>
 
-#include <hse/hse.h>
+#include <hse/cli/param.h>
+#include <hse/cli/program.h>
 #include <hse/flags.h>
-
+#include <hse/hse.h>
 #include <hse/util/arch.h>
 #include <hse/util/compiler.h>
-
-#include <hse/cli/param.h>
 
 #include "kvs_helper.h"
 
@@ -133,8 +131,6 @@ do_work(void *arg)
     rc = hse_kvs_cursor_destroy(c);
 }
 
-char *progname;
-
 void HSE_PRINTF(1, 2)
 syntax(const char *fmt, ...)
 {
@@ -186,7 +182,7 @@ main(
     int                 i;
     int                 rc;
 
-    progname = basename(argv[0]);
+    progname_set(argv[0]);
 
     while ((c = getopt(argc, argv, "c:hj:rZ:")) != -1) {
         char *errmsg, *end;

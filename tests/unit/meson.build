@@ -111,7 +111,6 @@ components = {
         'kvdb_rest_test': {
             'dependencies': [
                 cjson_dep,
-                libcurl_dep,
                 libhse_cli_dep,
                 hse_fixtures_dep,
             ],
@@ -129,7 +128,6 @@ components = {
         'kvs_rest_test': {
             'dependencies': [
                 cjson_dep,
-                libcurl_dep,
                 libhse_cli_dep,
                 hse_fixtures_dep,
             ],
@@ -180,7 +178,6 @@ components = {
         'global_rest_test': {
             'dependencies': [
                 cjson_dep,
-                libcurl_dep,
                 libhse_cli_dep,
             ],
         },

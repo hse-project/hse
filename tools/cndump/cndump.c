@@ -5,13 +5,11 @@
 
 #include <stdio.h>
 #include <stdarg.h>
-#include <libgen.h>
 
+#include <hse/cli/program.h>
 #include <hse/hse.h>
-
 #include <hse/ikvdb/cndb.h>
 #include <hse/ikvdb/diag_kvdb.h>
-
 #include <hse/mpool/mpool.h>
 
 #include <cndb/omf.h>
@@ -23,7 +21,6 @@
 #include "commands.h"
 
 /* globals */
-const char *progname;
 struct global_opts global_opts;
 
 static void
@@ -76,7 +73,7 @@ main(int argc, char **argv)
 {
     const char *cmd;
 
-    progname = basename(argv[0]);
+    progname_set(argv[0]);
 
     parse_args(argc, argv);
 

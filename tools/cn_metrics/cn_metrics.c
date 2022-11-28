@@ -5,19 +5,18 @@
 
 #include <stdio.h>
 
-#include <hse/ikvdb/cn.h>
-#include <hse/ikvdb/limits.h>
-#include <hse/ikvdb/ikvdb.h>
-#include <hse/ikvdb/csched.h>
-
 #include <cn/cn_metrics.h>
 #include <cn/cn_tree.h>
 #include <cn/cn_tree_internal.h>
 #include <cn/cn_tree_iter.h>
 #include <cn/kvset.h>
 
+#include <hse/cli/program.h>
 #include <hse/hse.h>
-
+#include <hse/ikvdb/cn.h>
+#include <hse/ikvdb/limits.h>
+#include <hse/ikvdb/ikvdb.h>
+#include <hse/ikvdb/csched.h>
 #include <hse/util/parse_num.h>
 
 #include <tools/parm_groups.h>
@@ -26,8 +25,6 @@
 #include <hse/mpool/mpool.h>
 
 #include <sysexits.h>
-
-const char *progname;
 
 void
 usage(void)
@@ -574,8 +571,7 @@ main(int argc, char **argv)
     struct svec         db_oparm = { 0 };
     struct svec         kv_oparm = { 0 };
 
-    progname = strrchr(argv[0], '/');
-    progname = progname ? progname + 1 : argv[0];
+    progname_set(argv[0]);
 
     rc = pg_create(&pg, PG_HSE_GLOBAL, PG_KVDB_OPEN, PG_KVS_OPEN, NULL);
     if (rc)

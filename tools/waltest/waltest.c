@@ -1,6 +1,6 @@
 /* SPDX-License-Identifier: Apache-2.0 */
 /*
- * Copyright (C) 2017 Micron Technology, Inc.  All rights reserved.
+ * Copyright (C) 2017-2022 Micron Technology, Inc.  All rights reserved.
  */
 
 #include <assert.h>
@@ -14,8 +14,8 @@
 #include <sys/resource.h>
 #include <sys/time.h>
 
+#include <hse/cli/program.h>
 #include <hse/hse.h>
-
 #include <hse/util/atomic.h>
 #include <hse/util/compiler.h>
 #include <hse/util/inttypes.h>
@@ -75,7 +75,6 @@ struct parm_groups *pg;
 struct svec kvs_oparms;
 
 const char *mode = "";
-const char *progname = NULL;
 struct timeval tv_start;
 int verbose = 0;
 atomic_ulong errors;
@@ -1393,8 +1392,7 @@ main(int argc, char **argv)
 {
     hse_err_t err;
 
-    progname = strrchr(argv[0], '/');
-    progname = progname ? progname + 1 : argv[0];
+    progname_set(argv[0]);
 
     ingest_mode = false;
     err = waltest_parse(argc, argv);
