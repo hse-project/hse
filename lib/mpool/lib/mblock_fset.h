@@ -204,4 +204,15 @@ mblock_fset_clone(
     size_t              len,
     uint64_t           *mbid_out);
 
+/**
+ * mblock_fset_punch() - punch an mblock
+ *
+ * @mbfsp: mblock fileset handle
+ * @mbid:  mblock id
+ * @off:   start offset
+ * @len:   number of bytes to punch
+ */
+merr_t
+mblock_fset_punch(struct mblock_fset *mbfsp, uint64_t mbid, off_t off, size_t len);
+
 #endif /* MPOOL_MBLOCK_FSET_H */

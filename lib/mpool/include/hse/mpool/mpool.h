@@ -440,8 +440,8 @@ mpool_mblock_read(struct mpool *mp, uint64_t mbid, const struct iovec *iov, int 
  * Requirements on `off' and `len':
  * - off must not be less than 0
  * - off and len must be page aligned
- * - len == 0 implies a clone of the entire source mblock upto its written length
- * - off + len must not be greater than the mblock size
+ * - len == 0 implies a clone of the entire source mblock from 'off' up to its written length
+ * - off + len must not be greater than the mblock write length
  *
  * For the target mblock:
  * - is uncommitted
@@ -457,9 +457,48 @@ mpool_mblock_read(struct mpool *mp, uint64_t mbid, const struct iovec *iov, int 
 merr_t
 mpool_mblock_clone(struct mpool *mp, uint64_t mbid, off_t off, size_t len, uint64_t *mbid_out);
 
+/**
+ * mpool_mblock_punch() - Punch a hole into the specified region of a committed mblock
+ *
+ * @mp:   mpool
+ * @mbid: mblock object ID to punch
+ * @off:  start offset
+ * @len:  number of bytes to punch
+ *
+ * Requirements on `off' and `len':
+ * - off must not be less than 0
+ * - off and len must be page aligned
+ * - len == 0 implies a punch of the entire mblock from 'off' up to its written length
+ * - off + len must not be greater than wlen
+ *
+ * Notes:
+ * - Reading an mblock from the punched region returns zeroes
+ * - The mblock's wlen property is updated when the punched region covers the tail end of
+ *   the mblock's written length
+ * - The mblock's alen property is calculated on the fly by using the lseek(HOLE/DATA)
+ *   technique, so it accounts for the punched regions in an mblock
+ *
+ * Return: %0 on success, <%0 on error
+ */
+merr_t
+mpool_mblock_punch(struct mpool *mp, uint64_t mbid, off_t off, size_t len);
+
+/**
+ * mpool_mblock_mmap() - memory map an mblock in the virtual address space of the calling process
+ *
+ * @mp:       mpool
+ * @mbid:     mblock id
+ * @addr_out: mapped address (output)
+ */
 merr_t
 mpool_mblock_mmap(struct mpool *mp, uint64_t mbid, const void **addr_out);
 
+/**
+ * mpool_mblock_munmap() - unmap an mblock
+ *
+ * @mp:   mpool
+ * @mbid: mblock id
+ */
 merr_t
 mpool_mblock_munmap(struct mpool *mp, uint64_t mbid);
 

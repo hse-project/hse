@@ -695,6 +695,15 @@ mblock_fset_delete(struct mblock_fset *mbfsp, uint64_t *mbidv, int mbidc)
 }
 
 merr_t
+mblock_fset_punch(struct mblock_fset *mbfsp, uint64_t mbid, off_t off, size_t len)
+{
+    if (!mbfsp || file_id(mbid) > mbfsp->mhdr.fcnt)
+        return merr(EINVAL);
+
+    return mblock_punch(mbfsp->filev[file_index(mbid)], mbid, off, len);
+}
+
+merr_t
 mblock_fset_find(struct mblock_fset *mbfsp, uint64_t *mbidv, int mbidc, struct mblock_props *props)
 {
     struct mblock_file *mbfp;
@@ -820,22 +829,29 @@ mblock_fset_clone(
     struct mblock_file *src_mbfp, *tgt_mbfp;
     struct mblock_file_mbinfo src_mbinfo, tgt_mbinfo;
     off_t src_off = off, tgt_off = off;
-    uint64_t tgt_mbid, mblksz;
+    uint64_t tgt_mbid;
+    size_t wlen;
     merr_t err;
 
     INVARIANT(mbfsp && mbid_out);
 
-    mblksz = mbfsp->mhdr.mblksz;
-    if (len == 0)
-        len = mblksz;
-
-    if (off < 0 || off + len > mblksz || !PAGE_ALIGNED(off) || !PAGE_ALIGNED(len))
+    if (!PAGE_ALIGNED(off) || !PAGE_ALIGNED(len))
         return merr(EINVAL);
 
     src_mbfp = mbfsp->filev[file_index(src_mbid)];
     err = mblock_info_get(src_mbfp, src_mbid, &src_mbinfo);
     if (err)
         return err;
+
+    wlen = src_mbinfo.wlen;
+
+    if (off < 0 || off >= wlen || off + len > wlen)
+        return merr(EINVAL);
+
+    if (len == 0) {
+        len = wlen - off;
+        assert(PAGE_ALIGNED(len));
+    }
 
     err = mblock_fset_alloc(mbfsp, MPOOL_MBLOCK_PUNCH_HOLE, 1, &tgt_mbid);
     if (err)
@@ -849,13 +865,12 @@ mblock_fset_clone(
 
     src_off += src_mbinfo.off;
     tgt_off += tgt_mbinfo.off;
-    len = min_t(size_t, src_mbinfo.wlen, len);
 
     err = mbfsp->io.clone(src_mbinfo.fd, src_off, tgt_mbinfo.fd, tgt_off, len, 0);
     if (err)
         goto errout;
 
-    mblock_wlen_set(tgt_mbfp, tgt_mbid, off + len, false);
+    mblock_wlen_set(tgt_mbfp, tgt_mbid, off + len, false, off > 0);
 
     *mbid_out = tgt_mbid;
 

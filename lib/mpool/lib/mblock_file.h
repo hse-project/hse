@@ -45,11 +45,18 @@
 #define MBID_BLOCK_MASK  (0x000000000000ffff)
 
 /*
- * The most significant bit of wlen (both in-memory and on-media) indicates whether an mblock
- * is pre-allocated (1) or not (0).
+ * The significant bits of an mblock's wlen (both in-memory and on-media) indicates the following:
+ * bit 31: whether this mblock is pre-allocated (1) or not (0).
+ * bit 30: whether this mblock is punched (1) or not (0).
+ *
+ * The remaining 30 bits can store a wlen upto 1G.
  */
-#define MBLOCK_WLEN_PREALLOC_SHIFT (31)
-#define MBLOCK_WLEN_MASK           (0x7fffffffU)
+#define MBLOCK_WLEN_PREALLOC_SHIFT  (31)
+#define MBLOCK_WLEN_PUNCH_SHIFT     (30)
+
+#define MBLOCK_WLEN_PREALLOC_MASK   (0x80000000U)
+#define MBLOCK_WLEN_PUNCH_MASK      (0x40000000U)
+#define MBLOCK_WLEN_MASK            (0x3fffffffU)
 
 
 _Static_assert(((1 << MBID_FILEID_BITS) - 1) == (MPOOL_MCLASS_FILECNT_MAX),
@@ -225,13 +232,24 @@ merr_t
 mblock_file_delete(struct mblock_file *mbfp, uint64_t *mbidv, int mbidc);
 
 /**
+ * mblock_punch() - punch an mblock object
+ *
+ * @mbfp: mblock file handle
+ * @mbid: mblock id
+ * @off:  start offset
+ * @len:  number of bytes
+ */
+merr_t
+mblock_punch(struct mblock_file *mbfp, uint64_t mbid, off_t off, size_t len);
+
+/**
  * mblock_read() - read an mblock object
  *
- * @mbfp:   mblock file handle
- * @mbid:   mblock id
- * @iov:    iovec ptr
- * @iovc:   iov count
- * @off:    offset
+ * @mbfp: mblock file handle
+ * @mbid: mblock id
+ * @iov:  iovec ptr
+ * @iovc: iov count
+ * @off:  offset
  */
 merr_t
 mblock_read(struct mblock_file *mbfp, uint64_t mbid, const struct iovec *iov, int iovc, off_t off);
@@ -239,10 +257,10 @@ mblock_read(struct mblock_file *mbfp, uint64_t mbid, const struct iovec *iov, in
 /**
  * mblock_write() - write an mblock object
  *
- * @mbfp:   mblock file handle
- * @mbid:   mblock id
- * @iov:    iovec ptr
- * @iovc:   iov count
+ * @mbfp: mblock file handle
+ * @mbid: mblock id
+ * @iov:  iovec ptr
+ * @iovc: iov count
  */
 merr_t
 mblock_write(struct mblock_file *mbfp, uint64_t mbid, const struct iovec *iov, int iovc);
@@ -310,12 +328,18 @@ mblock_info_get(struct mblock_file *mbfp, uint64_t mbid, struct mblock_file_mbin
 /**
  * mblock_wlen_set() - set the write length of an mblock (used by mblock clone)
  *
- * @mbfp:     mblock file handle
- * @mbid:     mblock ID
- * @wlen:     write length
- * @prealloc: preallocated mblock?
+ * @mbfp:       mblock file handle
+ * @mbid:       mblock ID
+ * @wlen:       write length
+ * @prealloced: preallocated mblock?
+ * @punched:    punched mblock?
  */
 void
-mblock_wlen_set(struct mblock_file *mbfp, uint64_t mbid, uint32_t wlen, bool prealloc);
+mblock_wlen_set(
+    struct mblock_file *mbfp,
+    uint64_t            mbid,
+    uint32_t            wlen,
+    bool                prealloced,
+    bool                punched);
 
 #endif /* MPOOL_MBLOCK_FILE_H */

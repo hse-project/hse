@@ -670,54 +670,6 @@ MTF_DEFINE_UTEST_PREPOST(mblock_test, mblock_invalid_args, mpool_test_pre, mpool
 
     mblock_file_close(NULL);
 
-    err = mblock_file_alloc(NULL, 0, 1, &mbid);
-    ASSERT_EQ(EINVAL, merr_errno(err));
-
-    err = mblock_file_alloc(mbfp, 0, 1, NULL);
-    ASSERT_EQ(EINVAL, merr_errno(err));
-
-    err = mblock_file_alloc(mbfp, 0, 2, &mbid);
-    ASSERT_EQ(ENOTSUP, merr_errno(err));
-
-    err = mblock_file_find(NULL, &mbid, 1, NULL);
-    ASSERT_EQ(EINVAL, merr_errno(err));
-
-    err = mblock_file_find(mbfp, NULL, 1, NULL);
-    ASSERT_EQ(EINVAL, merr_errno(err));
-
-    err = mblock_file_find(mbfp, &mbid, 2, NULL);
-    ASSERT_EQ(ENOTSUP, merr_errno(err));
-
-    err = mblock_file_commit(NULL, &mbid, 1);
-    ASSERT_EQ(EINVAL, merr_errno(err));
-
-    err = mblock_file_commit(mbfp, NULL, 1);
-    ASSERT_EQ(EINVAL, merr_errno(err));
-
-    err = mblock_file_commit(mbfp, &mbid, 2);
-    ASSERT_EQ(ENOTSUP, merr_errno(err));
-
-    err = mblock_file_delete(NULL, &mbid, 1);
-    ASSERT_EQ(EINVAL, merr_errno(err));
-
-    err = mblock_file_delete(mbfp, NULL, 1);
-    ASSERT_EQ(EINVAL, merr_errno(err));
-
-    err = mblock_file_delete(mbfp, &mbid, 2);
-    ASSERT_EQ(ENOTSUP, merr_errno(err));
-
-    err = mblock_read(NULL, mbid, iov, 1, 0);
-    ASSERT_EQ(EINVAL, merr_errno(err));
-
-    err = mblock_read(mbfp, mbid, NULL, 1, 0);
-    ASSERT_EQ(EINVAL, merr_errno(err));
-
-    err = mblock_write(NULL, mbid, iov, 1);
-    ASSERT_EQ(EINVAL, merr_errno(err));
-
-    err = mblock_write(mbfp, mbid, NULL, 1);
-    ASSERT_EQ(EINVAL, merr_errno(err));
-
     err = mpool_mblock_delete(mp, mbid);
     ASSERT_EQ(0, err);
 
@@ -811,7 +763,7 @@ MTF_DEFINE_UTEST_PREPOST(mblock_test, mblock_clone, mpool_test_pre, mpool_test_p
 
     err = mpool_mblock_props_get(mp, tgt_mbid, &props);
     ASSERT_EQ(props.mpr_write_len, 20 * MB);
-    ASSERT_EQ(props.mpr_alloc_cap, props.mpr_write_len);
+    ASSERT_EQ(props.mpr_alloc_cap, 4 * MB);
 
     randomize_buffer(rbuf, bufsz, 173);
     err = mblock_rw(mp, tgt_mbid, rbuf, 20 * MB, 0, !write);
@@ -826,7 +778,25 @@ MTF_DEFINE_UTEST_PREPOST(mblock_test, mblock_clone, mpool_test_pre, mpool_test_p
     err = mpool_mblock_delete(mp, tgt_mbid);
     ASSERT_EQ(0, err);
 
-    err = mpool_mblock_clone(mp, mbid, 0, 0, &tgt_mbid);
+    err = mpool_mblock_clone(mp, mbid, 0, 16 * MB, &tgt_mbid);
+    ASSERT_EQ(0, err);
+
+    err = mpool_mblock_commit(mp, tgt_mbid);
+    ASSERT_EQ(0, err);
+
+    err = mpool_mblock_props_get(mp, tgt_mbid, &props);
+    ASSERT_EQ(props.mpr_write_len, 16 * MB);
+    ASSERT_EQ(props.mpr_alloc_cap, 16 * MB);
+
+    randomize_buffer(rbuf, bufsz, 181);
+    err = mblock_rw(mp, tgt_mbid, rbuf, 16 * MB, 0, !write);
+    ASSERT_EQ(0, err);
+    ASSERT_EQ(0, memcmp(wbuf, rbuf, 16 * MB));
+
+    err = mpool_mblock_delete(mp, tgt_mbid);
+    ASSERT_EQ(0, err);
+
+    err = mpool_mblock_clone(mp, mbid, 16 * MB, 0, &tgt_mbid);
     ASSERT_EQ(0, err);
 
     err = mpool_mblock_commit(mp, tgt_mbid);
@@ -834,12 +804,24 @@ MTF_DEFINE_UTEST_PREPOST(mblock_test, mblock_clone, mpool_test_pre, mpool_test_p
 
     err = mpool_mblock_props_get(mp, tgt_mbid, &props);
     ASSERT_EQ(props.mpr_write_len, 32 * MB);
-    ASSERT_EQ(props.mpr_alloc_cap, props.mpr_write_len);
+    ASSERT_EQ(props.mpr_alloc_cap, 16 * MB);
+
+    err = mpool_close(mp);
+    ASSERT_EQ(0, err);
+
+    err = mpool_open(mtf_kvdb_home, &trparams, O_RDWR, &mp);
+    ASSERT_EQ(0, err);
+
+    err = mpool_mblock_props_get(mp, tgt_mbid, &props);
+    ASSERT_EQ(props.mpr_write_len, 32 * MB);
+    ASSERT_EQ(props.mpr_alloc_cap, 16 * MB);
 
     randomize_buffer(rbuf, bufsz, 181);
-    err = mblock_rw(mp, mbid, rbuf, bufsz, 0, !write);
+    err = mblock_rw(mp, tgt_mbid, rbuf, 32 * MB, 0, !write);
     ASSERT_EQ(0, err);
-    ASSERT_EQ(0, memcmp(wbuf, rbuf, bufsz));
+    ASSERT_EQ(0, memcmp(wbuf + 16 * MB, rbuf + 16 * MB, 16 * MB));
+    for (int i = 0; i < 16; i++)
+        ASSERT_EQ(0, memcmp(zbuf, rbuf + i * MB, MB));
 
     err = mpool_mblock_delete(mp, tgt_mbid);
     ASSERT_EQ(0, err);
@@ -861,6 +843,214 @@ MTF_DEFINE_UTEST_PREPOST(mblock_test, mblock_clone, mpool_test_pre, mpool_test_p
 
     err = mpool_mblock_clone(mp, mbid, 0, 1, &tgt_mbid);
     ASSERT_EQ(EINVAL, merr_errno(err));
+
+    err = mpool_close(mp);
+    ASSERT_EQ(0, err);
+
+    mpool_destroy(mtf_kvdb_home, &tdparams);
+
+    free(wbuf);
+}
+
+MTF_DEFINE_UTEST_PREPOST(mblock_test, mblock_punch_test, mpool_test_pre, mpool_test_post)
+{
+    struct mblock_props props = { 0 };
+    struct mpool *mp;
+    uint64_t mbid;
+    merr_t err;
+    int rc;
+    char *wbuf, *rbuf, *zbuf;
+    bool write = true;
+    size_t bufsz = 32 * MB, wlen, punchedb;
+
+    err = mpool_create(mtf_kvdb_home, &tcparams);
+    ASSERT_EQ(0, err);
+
+    err = mpool_open(mtf_kvdb_home, &trparams, O_RDWR, &mp);
+    ASSERT_EQ(0, err);
+
+    err = mpool_mblock_alloc(mp, HSE_MCLASS_CAPACITY, 0, &mbid, NULL);
+    ASSERT_EQ(0, err);
+
+    rc = posix_memalign((void **)&wbuf, PAGE_SIZE, (bufsz * 2) + MB);
+    ASSERT_EQ(0, rc);
+    rbuf = wbuf + bufsz;
+    zbuf = rbuf + bufsz;
+
+    randomize_buffer(wbuf, bufsz, 131);
+    randomize_buffer(rbuf, bufsz, 149);
+    memset(zbuf, 0, MB);
+
+    err = mblock_rw(mp, mbid, wbuf, bufsz, 0, write);
+    ASSERT_EQ(0, err);
+
+    err = mpool_mblock_commit(mp, mbid);
+    ASSERT_EQ(0, err);
+
+    err = mpool_mblock_props_get(mp, mbid, &props);
+    ASSERT_EQ(0, err);
+    ASSERT_EQ(props.mpr_write_len, 32 * MB);
+    ASSERT_EQ(props.mpr_alloc_cap, props.mpr_write_len);
+
+    err = mblock_rw(mp, mbid, rbuf, bufsz, 0, !write);
+    ASSERT_EQ(0, err);
+    ASSERT_EQ(0, memcmp(wbuf, rbuf, bufsz));
+
+    err = mpool_mblock_punch(mp, mbid, 0, 4096);
+    ASSERT_EQ(0, err);
+    punchedb = 4096;
+    memset(wbuf, 0, punchedb);
+
+    err = mpool_mblock_props_get(mp, mbid, &props);
+    ASSERT_EQ(0, err);
+    ASSERT_EQ(props.mpr_write_len, 32 * MB);
+    ASSERT_EQ(props.mpr_alloc_cap, 32 * MB - punchedb);
+
+    err = mpool_mblock_punch(mp, mbid, 0, 2 * 4096);
+    ASSERT_EQ(0, err);
+    punchedb += 4096;
+    memset(wbuf, 0, punchedb);
+
+    err = mblock_rw(mp, mbid, rbuf, punchedb, 0, !write);
+    ASSERT_EQ(0, err);
+    ASSERT_EQ(0, memcmp(zbuf, rbuf, punchedb));
+
+    err = mpool_mblock_props_get(mp, mbid, &props);
+    ASSERT_EQ(0, err);
+    ASSERT_EQ(props.mpr_write_len, 32 * MB);
+    ASSERT_EQ(props.mpr_alloc_cap, 32 * MB - punchedb);
+
+    err = mpool_mblock_punch(mp, mbid, MB, MB);
+    ASSERT_EQ(0, err);
+    memset(wbuf + MB, 0, MB);
+    punchedb += MB;
+
+    err = mpool_mblock_props_get(mp, mbid, &props);
+    ASSERT_EQ(0, err);
+    ASSERT_EQ(props.mpr_write_len, 32 * MB);
+    ASSERT_EQ(props.mpr_alloc_cap, 32 * MB - punchedb);
+
+    wlen = props.mpr_write_len;
+    err = mpool_mblock_punch(mp, mbid, wlen - 4096, 0);
+    ASSERT_EQ(0, err);
+    memset(wbuf + wlen - 4096, 0, 4096);
+    punchedb += 4096;
+
+    err = mpool_mblock_props_get(mp, mbid, &props);
+    ASSERT_EQ(0, err);
+    ASSERT_EQ(props.mpr_write_len, 32 * MB - 4096);
+    ASSERT_EQ(props.mpr_alloc_cap, 32 * MB - punchedb);
+
+    wlen = props.mpr_write_len;
+    err = mpool_mblock_punch(mp, mbid, wlen - 4096, 4096);
+    ASSERT_EQ(0, err);
+    memset(wbuf + wlen - 4096, 0, 4096);
+    punchedb += 4096;
+
+    err = mpool_mblock_props_get(mp, mbid, &props);
+    ASSERT_EQ(0, err);
+    ASSERT_EQ(props.mpr_write_len, 32 * MB - 2 * 4096);
+    ASSERT_EQ(props.mpr_alloc_cap, 32 * MB - punchedb);
+
+    err = mpool_close(mp);
+    ASSERT_EQ(0, err);
+
+    err = mpool_open(mtf_kvdb_home, &trparams, O_RDWR, &mp);
+    ASSERT_EQ(0, err);
+
+    err = mpool_mblock_props_get(mp, mbid, &props);
+    ASSERT_EQ(0, err);
+    ASSERT_EQ(props.mpr_write_len, 32 * MB - 2 * 4096);
+    ASSERT_EQ(props.mpr_alloc_cap, 32 * MB - punchedb);
+
+    randomize_buffer(rbuf, bufsz, 157);
+    wlen = props.mpr_write_len;
+    err = mblock_rw(mp, mbid, rbuf, wlen, 0, !write);
+    ASSERT_EQ(0, err);
+    ASSERT_EQ(0, memcmp(wbuf, rbuf, wlen));
+
+    err = mpool_mblock_punch(mp, mbid, wlen - 4096, 4097);
+    ASSERT_EQ(EINVAL, merr_errno(err));
+
+    err = mpool_mblock_punch(mp, mbid, wlen - 4095, 4096);
+    ASSERT_EQ(EINVAL, merr_errno(err));
+
+    err = mpool_mblock_punch(mp, mbid, 1, 1);
+    ASSERT_EQ(EINVAL, merr_errno(err));
+
+    err = mpool_mblock_punch(NULL, mbid, 0, bufsz);
+    ASSERT_EQ(EINVAL, merr_errno(err));
+
+    err = mpool_mblock_punch(mp, mbid, -1, bufsz);
+    ASSERT_EQ(EINVAL, merr_errno(err));
+
+    err = mpool_mblock_punch(mp, mbid, 0, bufsz + 1);
+    ASSERT_EQ(EINVAL, merr_errno(err));
+
+    err = mpool_mblock_punch(mp, mbid, bufsz, bufsz);
+    ASSERT_EQ(EINVAL, merr_errno(err));
+
+    err = mpool_mblock_punch(mp, mbid, wlen - 4096, 2 * 4096);
+    ASSERT_EQ(EINVAL, merr_errno(err));
+
+    err = mpool_mblock_punch(mp, mbid, 0, 0);
+    ASSERT_EQ(0, err);
+    err = mpool_mblock_props_get(mp, mbid, &props);
+    ASSERT_EQ(0, err);
+    ASSERT_EQ(props.mpr_write_len, 0);
+    ASSERT_EQ(props.mpr_alloc_cap, 0);
+
+    err = mpool_mblock_delete(mp, mbid);
+    ASSERT_EQ(0, err);
+
+    err = mpool_mblock_alloc(mp, HSE_MCLASS_CAPACITY, MPOOL_MBLOCK_PREALLOC, &mbid, NULL);
+    ASSERT_EQ(0, err);
+    err = mpool_mblock_props_get(mp, mbid, &props);
+    ASSERT_EQ(0, err);
+    ASSERT_EQ(props.mpr_write_len, 0);
+    ASSERT_EQ(props.mpr_alloc_cap, 32 * MB);
+
+    randomize_buffer(wbuf, bufsz, 177);
+    err = mblock_rw(mp, mbid, wbuf, bufsz / 2, 0, write);
+    ASSERT_EQ(0, err);
+
+    err = mpool_mblock_commit(mp, mbid);
+    ASSERT_EQ(0, err);
+
+    err = mpool_mblock_punch(mp, mbid, 0, bufsz / 4);
+    ASSERT_EQ(0, err);
+    memset(wbuf, 0, bufsz / 4);
+
+    err = mpool_mblock_props_get(mp, mbid, &props);
+    ASSERT_EQ(0, err);
+    ASSERT_EQ(props.mpr_write_len, bufsz / 2);
+    ASSERT_EQ(props.mpr_alloc_cap, (3 * bufsz) / 4);
+
+    err = mpool_mblock_punch(mp, mbid, props.mpr_write_len - MB, MB);
+    ASSERT_EQ(0, err);
+    memset(wbuf + props.mpr_write_len - MB, 0, MB);
+
+    err = mpool_mblock_props_get(mp, mbid, &props);
+    ASSERT_EQ(0, err);
+    ASSERT_EQ(props.mpr_write_len, bufsz / 2 - MB);
+    ASSERT_EQ(props.mpr_alloc_cap, bufsz / 4 - MB);
+
+    err = mpool_close(mp);
+    ASSERT_EQ(0, err);
+
+    err = mpool_open(mtf_kvdb_home, &trparams, O_RDWR, &mp);
+    ASSERT_EQ(0, err);
+
+    err = mpool_mblock_props_get(mp, mbid, &props);
+    ASSERT_EQ(0, err);
+    ASSERT_EQ(props.mpr_write_len, bufsz / 2 - MB);
+    ASSERT_EQ(props.mpr_alloc_cap, bufsz / 4 - MB);
+
+    randomize_buffer(rbuf, bufsz, 177);
+    wlen = props.mpr_write_len;
+    err = mblock_rw(mp, mbid, rbuf, wlen, 0, !write);
+    ASSERT_EQ(0, err);
+    ASSERT_EQ(0, memcmp(wbuf, rbuf, wlen));
 
     err = mpool_close(mp);
     ASSERT_EQ(0, err);
