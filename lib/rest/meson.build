@@ -26,6 +26,8 @@ hse_rest = static_library(
 hse_rest_dep = declare_dependency(
     link_with: hse_rest,
     include_directories: [
+        # Exposes merr_t in a public header
+        component_root_includes,
         rest_includes,
     ]
 )

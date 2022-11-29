@@ -3,10 +3,10 @@ subdir('lib')
 
 hse_error = static_library(
     '@0@-error'.format(meson.project_name()),
-    hse_error_sources,
+    error_sources,
     include_directories: [
         component_root_includes,
-        hse_error_includes,
+        error_includes,
         public_includes,
         util_includes,
     ],
@@ -19,7 +19,9 @@ hse_error = static_library(
 hse_error_dep = declare_dependency(
     link_with: hse_error,
     include_directories: [
-        hse_error_includes,
+        # Exposes merr_t in a public header
+        component_root_includes,
+        error_includes,
         public_includes,
         # TODO: Remove when compiler.h moves around
         util_includes,

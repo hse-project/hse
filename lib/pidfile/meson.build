@@ -3,9 +3,9 @@ subdir('lib')
 
 hse_pidfile = static_library(
     '@0@-pidfile'.format(meson.project_name()),
-    hse_pidfile_sources,
+    pidfile_sources,
     include_directories: [
-        hse_pidfile_includes,
+        pidfile_includes,
         component_root_includes,
     ],
     dependencies: [
@@ -18,5 +18,9 @@ hse_pidfile = static_library(
 
 hse_pidfile_dep = declare_dependency(
     link_with: hse_pidfile,
-    include_directories: hse_pidfile_includes
+    include_directories: [
+        # Exposes merr_t in a public header
+        component_root_includes,
+        pidfile_includes,
+    ]
 )

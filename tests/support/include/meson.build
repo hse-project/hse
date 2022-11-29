@@ -1,1 +1,1 @@
-support_includes = include_directories('.')
+test_support_includes = include_directories('.')

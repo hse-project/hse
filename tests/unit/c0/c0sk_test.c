@@ -25,7 +25,7 @@
 #include "cn_mock.h"
 #include <tools/key_generation.h>
 #include <hse/ikvdb/tuple.h>
-#include <support/random_buffer.h>
+#include <hse/test/support/random_buffer.h>
 
 #include <c0/c0sk_internal.h>
 #include <c0/c0_cursor.h>

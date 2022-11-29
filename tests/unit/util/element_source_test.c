@@ -4,7 +4,7 @@
  */
 
 #include <mtf/framework.h>
-#include <support/random_buffer.h>
+#include <hse/test/support/random_buffer.h>
 
 #include <hse/error/merr.h>
 #include <hse/util/inttypes.h>

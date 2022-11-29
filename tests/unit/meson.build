@@ -1,9 +1,20 @@
 components = {
     'c0': {
-        'c0_kvmultiset_test': {},
-        'c0_kvset_iterator_test': {},
+        'c0_kvmultiset_test': {
+            'dependencies': [
+                hse_test_support_dep,
+            ],
+        },
+        'c0_kvset_iterator_test': {
+            'dependencies': [
+                hse_test_support_dep,
+            ],
+        },
         'c0_kvset_test': {
             'c_args': cc.get_supported_arguments('-Wno-clobbered'),
+            'dependencies': [
+                hse_test_support_dep,
+            ],
         },
         'c0_test': {
             'sources': [
@@ -12,6 +23,9 @@ components = {
                     'c0/c0sk_mock.c',
                 ),
             ],
+            'dependencies': [
+                hse_test_support_dep,
+            ],
         },
         'c0sk_test': {
             'sources': [
@@ -19,6 +33,9 @@ components = {
                     'c0/cn_mock.c',
                     meson.project_source_root() / 'tools/key_generation.c'
                 ),
+            ],
+            'dependencies': [
+                hse_test_support_dep,
             ],
         },
     },
@@ -74,7 +91,11 @@ components = {
         #         meson.current_source_dir() / 'cn/mblock_images',
         #     ],
         # },
-        'wbt_test': {},
+        'wbt_test': {
+            'dependencies': [
+                hse_test_support_dep,
+            ],
+        },
     },
     'cndb': {
         'cndb_test': {},
@@ -94,7 +115,11 @@ components = {
         'merr_test': {},
     },
     'kvdb': {
-        'ikvdb_test': {},
+        'ikvdb_test': {
+            'dependencies': [
+                hse_test_support_dep,
+            ],
+        },
         'kvdb_cparams_test': {},
         'kvdb_ctxn_pfxlock_test': {},
         'kvdb_ctxn_test': {},
@@ -151,6 +176,9 @@ components = {
             'include_directories': [
                 mpool_internal_includes,
             ],
+            'dependencies': [
+                hse_test_support_dep,
+            ],
         },
         'mdc_test': {
             'sources': [
@@ -159,6 +187,9 @@ components = {
             'include_directories': [
                 mpool_internal_includes,
             ],
+            'dependencies': [
+                hse_test_support_dep,
+            ],
         },
         'mcache_test': {
             'sources': [
@@ -166,6 +197,9 @@ components = {
             ],
             'include_directories': [
                 mpool_internal_includes,
+            ],
+            'dependencies': [
+                hse_test_support_dep,
             ],
         },
     },
@@ -195,6 +229,9 @@ components = {
         },
         'bin_heap_test': {
             'sources': files('util/sample_element_source.c'),
+            'dependencies': [
+                hse_test_support_dep,
+            ],
         },
         'bloom_filter_test': {
             'env': {
@@ -209,6 +246,9 @@ components = {
          },
         'cheap_test': {
             'sources': files('util/cheap_testlib.c'),
+            'dependencies': [
+                hse_test_support_dep,
+            ],
         },
         'compression_test': {},
         'data_tree_test': {
@@ -216,6 +256,9 @@ components = {
         },
         'element_source_test': {
             'sources': files('util/sample_element_source.c'),
+            'dependencies': [
+                hse_test_support_dep,
+            ],
         },
         'event_counter_test': {},
         'event_timer_test': {},

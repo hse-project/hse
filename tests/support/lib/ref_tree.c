@@ -7,7 +7,7 @@
 #include <hse/util/base.h>
 #include <hse/util/keycmp.h>
 
-#include <support/ref_tree.h>
+#include <hse/test/support/ref_tree.h>
 
 #include <rbtree.h>
 
