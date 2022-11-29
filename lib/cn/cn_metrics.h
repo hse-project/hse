@@ -6,6 +6,7 @@
 #ifndef HSE_KVDB_CN_METRICS_H
 #define HSE_KVDB_CN_METRICS_H
 
+#include <assert.h>
 #include <stdint.h>
 #include <sys/types.h>
 

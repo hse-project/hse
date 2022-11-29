@@ -5,10 +5,6 @@
 
 #include <mtf/framework.h>
 
-#include <hse/util/base.h>
-#include <hse/util/err_ctx.h>
-#include <hse/ikvdb/hse_gparams.h>
-
 #include <errno.h>
 #include <getopt.h>
 #include <limits.h>
@@ -18,7 +14,11 @@
 #include <string.h>
 #include <sysexits.h>
 
+#include <hse/cli/program.h>
 #include <hse/hse.h>
+#include <hse/ikvdb/hse_gparams.h>
+#include <hse/util/base.h>
+#include <hse/util/err_ctx.h>
 
 int         mtf_verify_flag;
 int         mtf_verify_line;
@@ -95,7 +95,6 @@ mtf_main(int argc, char **argv, struct mtf_test_coll_info *tci)
     char **paramv;
     char errbuf[1024];
     hse_err_t err;
-    const char *progname = program_invocation_short_name;
     char *logging_level, *config = NULL, *argv_home = NULL;
 
     static const struct option long_options[] = {
@@ -103,6 +102,8 @@ mtf_main(int argc, char **argv, struct mtf_test_coll_info *tci)
         { "one", required_argument, NULL, '1' },           { "home", required_argument, NULL, 'C' },
         { "config", required_argument, NULL, 'c' },        { 0, 0, 0, 0 },
     };
+
+    progname_set(argv[0]);
 
     tci->tci_named = NULL;
 

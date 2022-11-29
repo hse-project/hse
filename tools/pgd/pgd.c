@@ -1,6 +1,6 @@
 /* SPDX-License-Identifier: Apache-2.0 */
 /*
- * Copyright (C) 2015-2017 Micron Technology, Inc. All rights reserved.
+ * Copyright (C) 2015-2022 Micron Technology, Inc. All rights reserved.
  */
 
 /*
@@ -21,14 +21,13 @@
 
 #include <errno.h>
 #include <getopt.h>
-#include <libgen.h>
 #include <stdint.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
 
+#include <hse/cli/program.h>
 #include <hse/hse.h>
-
 #include <hse/util/fmt.h>
 
 #include <tools/common.h>
@@ -73,7 +72,7 @@ do_open(
 }
 
 void
-usage(char *prog)
+usage(void)
 {
     fprintf(
         stderr,
@@ -84,7 +83,7 @@ usage(char *prog)
         "-V         verify puts, fails on first miss\n"
         "-C         show tunable parameters\n"
         "-Z config  path to global config file\n",
-        prog);
+        progname);
 
     exit(1);
 }
@@ -94,7 +93,7 @@ main(int argc, char **argv)
 {
     static char      buf[(HSE_KVS_KEY_LEN_MAX + HSE_KVS_VALUE_LEN_MAX) * 3];
     struct parm_groups *pg = NULL;
-    char *           mpname, *prog;
+    char *           mpname;
     const char *     kvsname;
     struct hse_kvdb *kvdb;
     struct hse_kvs * kvs;
@@ -105,7 +104,8 @@ main(int argc, char **argv)
     struct svec      hse_gparm = { 0 };
     const char *     config = NULL;
 
-    prog = basename(argv[0]);
+    progname_set(argv[0]);
+
     help = 0;
     action = PUT;
 
@@ -141,7 +141,7 @@ main(int argc, char **argv)
     }
 
     if (help == 1)
-        usage(prog);
+        usage();
 
     if (argc - optind < 2)
         fatal(0, "missing required params: kvdb and kvs");

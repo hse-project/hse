@@ -381,8 +381,6 @@ hse_init(const char *const config, const size_t paramc, const char *const *const
     if (hse_initialized)
         goto out;
 
-    hse_progname = program_invocation_name ? program_invocation_name : __func__;
-
     hse_gparams = hse_gparams_defaults();
 
     err = argv_deserialize_to_hse_gparams(paramc, paramv, &hse_gparams);
@@ -411,7 +409,11 @@ hse_init(const char *const config, const size_t paramc, const char *const *const
     }
 
     /* First log message w/ HSE version - after deserializing global params */
-    log_info("version %s, program %s", HSE_VERSION_STRING, hse_progname);
+#ifdef _GNU_SOURCE
+    log_info("version %s, program %s", HSE_VERSION_STRING, program_invocation_name);
+#else
+    log_info("version %s", HSE_VERSION_STRING);
+#endif
 
     hse_lowmem_adjust(&memgb);
     log_info("Memory available: %lu GiB", memgb);

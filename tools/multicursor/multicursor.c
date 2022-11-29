@@ -17,7 +17,6 @@
 #include <endian.h>
 #include <errno.h>
 #include <getopt.h>
-#include <libgen.h>
 #include <pthread.h>
 #include <stdarg.h>
 #include <stdbool.h>
@@ -27,12 +26,12 @@
 #include <sysexits.h>
 #include <unistd.h>
 
+#include <hse/cli/param.h>
+#include <hse/cli/program.h>
 #include <hse/util/arch.h>
 #include <hse/util/atomic.h>
 #include <hse/util/compiler.h>
 #include <hse/util/inttypes.h>
-
-#include <hse/cli/param.h>
 
 #include "kvs_helper.h"
 
@@ -229,8 +228,6 @@ print_stats(void *arg)
     }
 }
 
-char *progname;
-
 void
 usage(void)
 {
@@ -274,7 +271,7 @@ main(int argc, char **argv)
     uint                cur_per_thread;
     int                 rc;
 
-    progname = basename(argv[0]);
+    progname_set(argv[0]);
 
     rc = pg_create(&pg, PG_HSE_GLOBAL, PG_KVDB_OPEN, PG_KVS_OPEN, PG_KVS_CREATE, NULL);
     if (rc)

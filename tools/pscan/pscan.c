@@ -1,6 +1,6 @@
 /* SPDX-License-Identifier: Apache-2.0 */
 /*
- * Copyright (C) 2015-2017,2019,2021 Micron Technology, Inc.  All rights reserved.
+ * Copyright (C) 2015-2022 Micron Technology, Inc.  All rights reserved.
  */
 
 /*
@@ -13,7 +13,6 @@
 
 #include <errno.h>
 #include <getopt.h>
-#include <libgen.h>
 #include <pthread.h>
 #include <signal.h>
 #include <stdarg.h>
@@ -23,11 +22,11 @@
 #include <string.h>
 #include <sysexits.h>
 
-#include <hse/hse.h>
-#include <hse/flags.h>
-
 #include <xxhash.h>
 
+#include <hse/cli/program.h>
+#include <hse/flags.h>
+#include <hse/hse.h>
 #include <hse/util/arch.h>
 #include <hse/util/event_timer.h>
 #include <hse/util/fmt.h>
@@ -36,7 +35,6 @@
 #include <tools/common.h>
 #include <tools/parm_groups.h>
 
-const char * progname;
 int          verbosity;
 bool         headers = true;
 bool         uniq = false;
@@ -60,7 +58,7 @@ struct shr {
     pthread_t    tid;
 };
 
-void
+void HSE_PRINTF(1, 2)
 syntax(const char *fmt, ...)
 {
     char    msg[256];
@@ -74,7 +72,7 @@ syntax(const char *fmt, ...)
 }
 
 void
-usage()
+usage(void)
 {
     printf(
         "usage: %s [options] mp kvdb kvs [param=value ...]\n"
@@ -201,7 +199,6 @@ main(int argc, char **argv)
     EVENT_INIT(tr);
     EVENT_INIT(td);
 
-    progname = basename(argv[0]);
     countem = deletem = stats = false;
     showlen = seeklen = pfxlen = 0;
     cksum = true;
@@ -212,6 +209,8 @@ main(int argc, char **argv)
     Opts.kmax = HSE_KVS_KEY_LEN_MAX;
     Opts.vmax = HSE_KVS_VALUE_LEN_MAX;
     Opts.hexonly = 0;
+
+    progname_set(argv[0]);
 
     rc = pg_create(&pg, PG_HSE_GLOBAL, PG_KVDB_OPEN, PG_KVS_OPEN, NULL);
     if (rc)

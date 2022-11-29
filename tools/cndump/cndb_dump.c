@@ -9,8 +9,8 @@
 #include <stdlib.h>
 #include <unistd.h>
 
+#include <hse/cli/program.h>
 #include <hse/hse.h>
-
 #include <hse/ikvdb/diag_kvdb.h>
 
 #include "cndb_reader.h"

@@ -1,33 +1,29 @@
 /* SPDX-License-Identifier: Apache-2.0 */
 /*
- * Copyright (C) 2018-2019,2021 Micron Technology, Inc.  All rights reserved.
+ * Copyright (C) 2018-2022 Micron Technology, Inc.  All rights reserved.
  *
  * The user provides the number of prefixes and suffixes to use in the database.
  * Each prefix will get all the suffixes, i.e. the total number of keys in the
  * DB is the product of number of prefixes and suffixes.
  */
 
+#include <endian.h>
+#include <getopt.h>
+#include <sysexits.h>
+#include <stdlib.h>
+#include <sys/resource.h>
+
+#include <hdr/hdr_histogram.h>
+#include <xoroshiro.h>
+
+#include <hse/cli/param.h>
+#include <hse/cli/program.h>
 #include <hse/util/platform.h>
 #include <hse/util/atomic.h>
 #include <hse/util/compiler.h>
 #include <hse/util/inttypes.h>
 
-#include <xoroshiro.h>
-
-#include <endian.h>
-#include <getopt.h>
-#include <libgen.h>
-#include <sysexits.h>
-#include <stdlib.h>
-#include <sys/resource.h>
-
-#include <hse/cli/param.h>
-
 #include "kvs_helper.h"
-
-#include <hdr/hdr_histogram.h>
-
-const char *progname;
 
 struct thread_info {
     uint64_t key_start;
@@ -441,7 +437,7 @@ main(
     void               *tests_base HSE_MAYBE_UNUSED = NULL;
     void               *vsep_base HSE_MAYBE_UNUSED = NULL;
 
-    progname = basename(argv[0]);
+    progname_set(argv[0]);
 
     rc = pg_create(&pg, PG_HSE_GLOBAL, PG_KVDB_OPEN, PG_KVS_OPEN, PG_KVS_CREATE, NULL);
     if (rc)

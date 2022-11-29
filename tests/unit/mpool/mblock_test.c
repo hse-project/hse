@@ -18,7 +18,6 @@
 #include <mblock_fset.h>
 #include <mpool_internal.h>
 
-#include <libgen.h>
 #include <limits.h>
 #include <fcntl.h>
 #include <ftw.h>

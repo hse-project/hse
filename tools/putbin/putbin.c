@@ -1,6 +1,6 @@
 /* SPDX-License-Identifier: Apache-2.0 */
 /*
- * Copyright (C) 2015-2017,2021-2022 Micron Technology, Inc. All rights reserved.
+ * Copyright (C) 2015-2022 Micron Technology, Inc. All rights reserved.
  */
 
 /*
@@ -13,7 +13,6 @@
 #include <arpa/inet.h>
 #include <errno.h>
 #include <getopt.h>
-#include <libgen.h>
 #include <poll.h>
 #include <pthread.h>
 #include <stdlib.h>
@@ -22,8 +21,8 @@
 #include <time.h>
 #include <unistd.h>
 
+#include <hse/cli/program.h>
 #include <hse/hse.h>
-
 #include <hse/util/event_timer.h>
 
 #include <tools/common.h>
@@ -211,7 +210,7 @@ do_close(struct hse_kvdb *kvdb, bool sync)
 }
 
 void
-usage(char *prog)
+usage(void)
 {
     fprintf(
         stderr,
@@ -230,7 +229,7 @@ usage(char *prog)
         "-v n       set hse_log_pri to $n\n"
         "-X         exit with sync instead of close\n"
         "-Z config  path to global config file\n",
-        prog);
+        progname);
 
     exit(0);
 }
@@ -239,7 +238,7 @@ int
 main(int argc, char **argv)
 {
     const char *       config = NULL;
-    char *             mpname, *prog;
+    char *             mpname;
     struct parm_groups  *pg = NULL;
     const char *       kvname;
     unsigned char      data[4096];
@@ -254,7 +253,6 @@ main(int argc, char **argv)
     unsigned           opt_sync = 0;
     struct svec        hse_gparm = { 0 };
 
-    prog = basename(argv[0]);
     klen = 4;
     vlen = klen + 4;
     cnt = 1000;
@@ -265,6 +263,8 @@ main(int argc, char **argv)
     paws = 0;
     action = PUT;
     endian = BIG_ENDIAN;
+
+    progname_set(argv[0]);
 
     rc = pg_create(&pg, PG_HSE_GLOBAL, PG_KVDB_OPEN, PG_KVS_OPEN, NULL);
     if (rc)
@@ -314,7 +314,7 @@ main(int argc, char **argv)
                 config = optarg;
                 break;
             case 'h':
-                usage(prog);
+                usage();
                 break;
             case '?': /* fallthru */
             default:

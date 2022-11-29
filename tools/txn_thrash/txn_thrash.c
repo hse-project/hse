@@ -1,12 +1,11 @@
 /* SPDX-License-Identifier: Apache-2.0 */
 /*
- * Copyright (C) 2018-2019 Micron Technology, Inc.  All rights reserved.
+ * Copyright (C) 2018-2022 Micron Technology, Inc.  All rights reserved.
  */
 
 #include <endian.h>
 #include <errno.h>
 #include <getopt.h>
-#include <libgen.h>
 #include <malloc.h>
 #include <pthread.h>
 #include <stdbool.h>
@@ -17,11 +16,10 @@
 #include <sys/resource.h>
 #include <sysexits.h>
 
-#include <hse/hse.h>
-
-#include <hse/util/arch.h>
-
 #include <hse/cli/param.h>
+#include <hse/cli/program.h>
+#include <hse/hse.h>
+#include <hse/util/arch.h>
 
 #include "kvs_helper.h"
 
@@ -99,16 +97,14 @@ txn_puts(
     }
 }
 
-char *progname;
-
 void
 usage(void)
 {
     printf(
         "usage: %s [options] kvdb kvs [param=value ...]\n"
         "-c keys   Number of keys per thread\n"
-        "-j jobs   Number threads\n"
-        , progname);
+        "-j jobs   Number threads\n",
+        progname);
 }
 
 int
@@ -125,7 +121,7 @@ main(
     struct thread_info *ti;
     int rc, c;
 
-    progname = basename(argv[0]);
+    progname_set(argv[0]);
 
     rc = pg_create(&pg, PG_HSE_GLOBAL, PG_KVDB_OPEN, PG_KVS_OPEN, PG_KVS_CREATE, NULL);
     if (rc)

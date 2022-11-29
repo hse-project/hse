@@ -1,6 +1,6 @@
 /* SPDX-License-Identifier: Apache-2.0 */
 /*
- * Copyright (C) 2015-2020 Micron Technology, Inc. All rights reserved.
+ * Copyright (C) 2015-2022 Micron Technology, Inc. All rights reserved.
  */
 
 /*
@@ -18,7 +18,6 @@
 
 #include <arpa/inet.h>
 #include <getopt.h>
-#include <libgen.h>
 #include <stdarg.h>
 #include <stdint.h>
 #include <stdio.h>
@@ -27,12 +26,10 @@
 #include <sysexits.h>
 #include <unistd.h>
 
+#include <hse/cli/program.h>
 #include <hse/hse.h>
-
 #include <hse/util/compiler.h>
 #include <hse/util/inttypes.h>
-
-const char *progname;
 
 void HSE_PRINTF(2, 3)
 fatal(hse_err_t err, char *fmt, ...)
@@ -92,7 +89,8 @@ main(int argc, char **argv)
     int              i, c, last;
     u64              rc;
 
-    progname = basename(argv[0]);
+    progname_set(argv[0]);
+
     keylen = 4;
     cnt = 1000;
     start = 1;

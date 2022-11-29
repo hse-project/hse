@@ -34,15 +34,15 @@
 #include <term.h>
 #include <sys/sysinfo.h>
 
+#include <hse/cli/program.h>
 #include <hse/hse.h>
-#include <hse/version.h>
-
 #include <hse/util/platform.h>
 #include <hse/util/compiler.h>
 #include <hse/util/page.h>
 #include <hse/util/timer.h>
 #include <hse/util/mutex.h>
 #include <hse/util/bonsai_tree.h>
+#include <hse/version.h>
 
 #include <xoroshiro.h>
 
@@ -155,7 +155,6 @@ u_long testsecs = 60;
 
 u_int tjobsmax, cjobsmax;
 
-char *progname;
 char *tgs_clrtoeol;
 int verbosity;
 u_long mark;
@@ -790,11 +789,10 @@ main(int argc, char **argv)
     tsi_t tstart;
     int rc;
 
-    progname = strrchr(argv[0], '/');
-    progname = progname ? progname + 1 : argv[0];
-
     version = help = false;
     human = true;
+
+    progname_set(argv[0]);
 
     setvbuf(stdout, NULL, _IONBF, 0);
     xrand64_init(0);

@@ -46,11 +46,10 @@
 #include <errno.h>
 #include <linux/limits.h>
 
+#include <hse/cli/program.h>
 #include <hse/hse.h>
 
 #include "helper.h"
-
-char *progname;
 
 int
 extract_kv_to_files(struct hse_kvs *kvs, int file_cnt, char **files)
@@ -182,7 +181,7 @@ put_files_as_kv(struct hse_kvdb *kvdb, struct hse_kvs *kvs, int kv_cnt, char **k
 }
 
 int
-usage()
+usage(void)
 {
     printf(
         "usage: %s [options] <kvdb> <kvs> <file1> [<fileN> ...]\n"
@@ -205,7 +204,7 @@ main(int argc, char **argv)
                                   "rest.enabled=false" };
     const size_t     paramc = sizeof(paramv) / sizeof(paramv[0]);
 
-    progname = argv[0];
+    progname_set(argv[0]);
 
     while ((c = getopt(argc, argv, "xh")) != -1) {
         switch (c) {

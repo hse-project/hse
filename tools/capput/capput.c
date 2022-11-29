@@ -32,7 +32,6 @@
 
 #include <endian.h>
 #include <errno.h>
-#include <libgen.h>
 #include <pthread.h>
 #include <stdarg.h>
 #include <stdint.h>
@@ -42,15 +41,14 @@
 #include <sys/resource.h>
 #include <sysexits.h>
 
+#include <hse/cli/param.h>
+#include <hse/cli/program.h>
 #include <hse/hse.h>
-
 #include <hse/util/arch.h>
 #include <hse/util/atomic.h>
 #include <hse/util/compiler.h>
 #include <hse/util/inttypes.h>
 #include <hse/util/time.h>
-
-#include <hse/cli/param.h>
 
 #include "kvs_helper.h"
 
@@ -61,7 +59,6 @@ static uint64_t next_del HSE_ACP_ALIGNED;
 pthread_barrier_t   put_barrier1;
 pthread_barrier_t   put_barrier2;
 
-char *progname;
 int exrc;
 
 static volatile bool killthreads;
@@ -596,7 +593,7 @@ main(int argc, char **argv)
     int                 c;
     int                 rc;
 
-    progname = basename(argv[0]);
+    progname_set(argv[0]);
 
     rc = pg_create(&pg, PG_HSE_GLOBAL, PG_KVDB_OPEN, PG_KVS_OPEN, PG_KVS_CREATE, NULL);
     if (rc)

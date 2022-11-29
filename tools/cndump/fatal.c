@@ -7,6 +7,7 @@
 #include <sysexits.h>
 #include <stdarg.h>
 
+#include <hse/cli/program.h>
 #include <hse/hse.h>
 
 #include "fatal.h"
