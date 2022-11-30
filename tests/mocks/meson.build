@@ -157,7 +157,6 @@ hse_mock_c_args = ['-DHSE_MOCKING=1']
 hse_mock_include_directories = [
     hse_mock_includes,
     mocked_includes,
-    support_includes,
     tools_includes,
 ]
 
@@ -165,7 +164,6 @@ hse_mock = static_library(
     '@0@-mock'.format(lib_name),
     hse_sources,
     hse_mock_sources,
-    support_sources,
     mocked_sources,
     c_args: hse_mock_c_args,
     include_directories: [

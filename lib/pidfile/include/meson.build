@@ -1,1 +1,1 @@
-hse_pidfile_includes = include_directories('.')
+pidfile_includes = include_directories('.')

@@ -11,7 +11,7 @@
 #include <hse/util/seqno.h>
 #include <hse/util/bonsai_tree.h>
 
-#include <support/random_buffer.h>
+#include <hse/test/support/random_buffer.h>
 #include <hse/ikvdb/limits.h>
 
 #include <hse/ikvdb/c0_kvmultiset.h>

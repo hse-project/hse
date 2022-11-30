@@ -4,7 +4,7 @@
  */
 
 #include <hse/ikvdb/c0sk.h>
-#include <support/random_buffer.h>
+#include <hse/test/support/random_buffer.h>
 
 #include <hse/util/platform.h>
 

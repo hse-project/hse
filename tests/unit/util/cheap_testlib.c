@@ -11,7 +11,7 @@
 
 #include "cheap_testlib.h"
 
-#include <support/random_buffer.h>
+#include <hse/test/support/random_buffer.h>
 
 /*
  * cheap_fill_test

@@ -18,7 +18,7 @@
 #include <cn/kvs_mblk_desc.h>
 
 #include <mocks/mock_mpool.h>
-#include <support/ref_tree.h>
+#include <hse/test/support/ref_tree.h>
 
 #include <rbtree.h>
 

@@ -3,7 +3,7 @@
  * Copyright (C) 2015-2017 Micron Technology, Inc.  All rights reserved.
  */
 
-#include <support/random_buffer.h>
+#include <hse/test/support/random_buffer.h>
 #include <hse/util/xrand.h>
 
 #include <string.h>

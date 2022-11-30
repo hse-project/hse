@@ -1,1 +1,1 @@
-hse_test_framework_includes = include_directories('.')
+test_framework_includes = include_directories('.')

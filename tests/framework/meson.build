@@ -3,8 +3,8 @@ subdir('lib')
 
 hse_test_framework = static_library(
     '@0@-test-framework'.format(meson.project_name()),
-    hse_test_framework_sources,
-    include_directories: hse_test_framework_includes,
+    test_framework_sources,
+    include_directories: test_framework_includes,
     dependencies: [
         hse_internal_dep,
         libhse_cli_dep,
@@ -14,5 +14,9 @@ hse_test_framework = static_library(
 
 hse_test_framework_dep = declare_dependency(
     link_with: hse_test_framework,
-    include_directories: hse_test_framework_includes
+    include_directories: [
+        # Exposes merr_t in a public header
+        component_root_includes,
+        test_framework_includes,
+    ]
 )

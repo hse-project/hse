@@ -48,6 +48,8 @@ libhse_cli_dep = declare_dependency(
     link_with: libhse_cli,
     include_directories: [
         cli_includes,
+        # Exposes merr_t in a public header
+        component_root_includes,
     ],
     dependencies: [
         libcurl_dep,
