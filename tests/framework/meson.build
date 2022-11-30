@@ -7,6 +7,7 @@ hse_test_framework = static_library(
     include_directories: test_framework_includes,
     dependencies: [
         hse_internal_dep,
+        hse_test_fixtures_dep,
         libhse_cli_dep,
     ],
     gnu_symbol_visibility: 'hidden'

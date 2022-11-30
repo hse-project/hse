@@ -1,1 +1,1 @@
-hse_fixtures_includes = include_directories('.')
+test_fixtures_includes = include_directories('.')

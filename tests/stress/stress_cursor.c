@@ -6,6 +6,7 @@
 #include <assert.h>
 #include <errno.h>
 #include <getopt.h>
+#include <limits.h>
 #include <pthread.h>
 #include <stdatomic.h>
 #include <stdio.h>
@@ -17,8 +18,14 @@
 #include <sysexits.h>
 #include <unistd.h>
 
+#include <bsd/string.h>
+
+#include <hse/cli/program.h>
 #include <hse/hse.h>
+#include <hse/test/fixtures/scratch_directory.h>
 #include <hse/util/compiler.h>
+#include <hse/util/err_ctx.h>
+
 #include "stress_util.h"
 
 #define MAX_KEY_LEN HSE_KVS_KLEN_MAX
@@ -39,7 +46,7 @@ atomic_int kvdb_sync_flag;
 atomic_int verification_failure_count;
 
 struct cursor_test_data {
-    char *           kvdb_home;
+    char             kvdb_home[PATH_MAX];
     char *           kvs_name;
     long int         key_count;
     int              val_size;
@@ -938,6 +945,8 @@ main(int argc, char *argv[])
 
     para.kvs_name = "cursor_kvs";
 
+    progname_set(argv[0]);
+
     while ((option = getopt(argc, argv, "b:c:C:d:e:j:n:n:o:r:s:t:u:v:")) != -1) {
         switch (option) {
             case 'b':
@@ -948,9 +957,17 @@ main(int argc, char *argv[])
                 para.key_count = atoi(optarg);
                 break;
 
-            case 'C':
-                para.kvdb_home = optarg;
+            case 'C': {
+                size_t n;
+
+                n = strlcpy(para.kvdb_home, optarg, sizeof(para.kvdb_home));
+                if (n >= sizeof(para.kvdb_home)) {
+                    fprintf(stderr, "KVDB home directory too long\n");
+                    return EX_USAGE;
+                }
+
                 break;
+            }
 
             case 'd':
                 para.cursor_test = atoi(optarg);
@@ -1001,6 +1018,18 @@ main(int argc, char *argv[])
     if (argc == 1) {
         print_usage();
         exit(EXIT_FAILURE);
+    }
+
+    if (para.kvdb_home[0] == '\0') {
+        merr_t err;
+        char buf[256];
+
+        err = scratch_directory_setup(progname, para.kvdb_home, sizeof(para.kvdb_home));
+        if (err) {
+            fprintf(stderr, "%s: Failed to setup scratch directory: %s",
+                progname, merr_strinfo(err, buf, sizeof(buf), err_ctx_strerror, NULL));
+            return EX_CANTCREAT;
+        }
     }
 
     log_info("cursor_count                  = %ld", para.cursor_count);

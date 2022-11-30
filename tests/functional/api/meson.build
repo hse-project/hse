@@ -21,7 +21,7 @@ foreach t, params : tests
         dependencies: [
             hse_internal_dep,
             hse_dependencies,
-            hse_fixtures_dep,
+            hse_test_fixtures_dep,
             hse_test_framework_dep,
             params.get('dependencies', [])
         ],

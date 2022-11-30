@@ -137,7 +137,7 @@ components = {
             'dependencies': [
                 cjson_dep,
                 libhse_cli_dep,
-                hse_fixtures_dep,
+                hse_test_fixtures_dep,
             ],
             'suites': ['rest'],
         },
@@ -154,7 +154,7 @@ components = {
             'dependencies': [
                 cjson_dep,
                 libhse_cli_dep,
-                hse_fixtures_dep,
+                hse_test_fixtures_dep,
             ],
             'suites': ['rest'],
         },
