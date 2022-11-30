@@ -6,6 +6,7 @@
 #include <assert.h>
 #include <errno.h>
 #include <getopt.h>
+#include <limits.h>
 #include <pthread.h>
 #include <stdatomic.h>
 #include <stdio.h>
@@ -16,8 +17,15 @@
 #include <time.h>
 #include <unistd.h>
 
+#include <bsd/string.h>
+
+#include <hse/cli/program.h>
+#include <hse/error/merr.h>
 #include <hse/hse.h>
+#include <hse/test/fixtures/scratch_directory.h>
 #include <hse/util/compiler.h>
+#include <hse/util/err_ctx.h>
+
 #include "stress_util.h"
 
 #define MAX_KEY_LEN HSE_KVS_KLEN_MAX
@@ -34,7 +42,7 @@ atomic_long inserted_record_count;
 atomic_long queries_count;
 
 struct cursor_test_data {
-    char *           kvdb_home;
+    char             kvdb_home[PATH_MAX];
     char *           kvs_name;
     long int         key_count;
     int              val_size;
@@ -582,6 +590,8 @@ main(int argc, char *argv[])
 
     para.kvs_name = "kvs1";
 
+    progname_set(argv[0]);
+
     while ((option = getopt(argc, argv, "a:b:c:C:d:e:o:r:u:v:")) != -1) {
         switch (option) {
             case 'a':
@@ -596,9 +606,17 @@ main(int argc, char *argv[])
                 para.key_count = atoi(optarg);
                 break;
 
-            case 'C':
-                para.kvdb_home = optarg;
+            case 'C': {
+                size_t n;
+
+                n = strlcpy(para.kvdb_home, optarg, sizeof(para.kvdb_home));
+                if (n >= sizeof(para.kvdb_home)) {
+                    fprintf(stderr, "KVDB home directory too long\n");
+                    return EX_USAGE;
+                }
+
                 break;
+            }
 
             case 'd':
                 para.cursor_read_thread_count = atoi(optarg);
@@ -633,6 +651,18 @@ main(int argc, char *argv[])
     if (argc == 1) {
         print_usage();
         exit(EXIT_FAILURE);
+    }
+
+    if (para.kvdb_home[0] == '\0') {
+        merr_t err;
+        char buf[256];
+
+        err = scratch_directory_setup(progname, para.kvdb_home, sizeof(para.kvdb_home));
+        if (err) {
+            fprintf(stderr, "%s: Failed to setup scratch directory: %s",
+                progname, merr_strinfo(err, buf, sizeof(buf), err_ctx_strerror, NULL));
+            return EX_CANTCREAT;
+        }
     }
 
     assert(para.key_size > 0 || para.key_count > 0 || para.val_size > 0);

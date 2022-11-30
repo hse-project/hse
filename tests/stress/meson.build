@@ -173,7 +173,13 @@ foreach p, p_params: programs
         p,
         '@0@.c'.format(p),
         'stress_util.c',
-        dependencies: [hse_internal_dep, hse_dependencies],
+        dependencies: [
+            hse_internal_dep,
+            hse_test_fixtures_dep,
+            libbsd_dep,
+            libhse_cli_dep,
+            threads_dep,
+        ]
     )
 
     foreach t, t_params : p_params['small_tests']
@@ -183,7 +189,7 @@ foreach p, p_params: programs
             args: t_params['args'],
             is_parallel: false,
             suite: ['stress'],
-            timeout: params.get('timeout', 600),
+            timeout: params.get('timeout', 600)
         )
     endforeach
 
@@ -194,7 +200,7 @@ foreach p, p_params: programs
             args: t_params['args'],
             is_parallel: false,
             suite: ['stress-large'],
-            timeout: params.get('timeout', 7200),
+            timeout: params.get('timeout', 7200)
         )
     endforeach
 
@@ -205,7 +211,7 @@ foreach p, p_params: programs
             args: t_params['args'],
             is_parallel: false,
             suite: ['nightly-small'],
-            timeout: params.get('timeout', 1800),
+            timeout: params.get('timeout', 1800)
         )
     endforeach
 endforeach

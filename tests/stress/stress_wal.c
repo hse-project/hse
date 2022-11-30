@@ -6,6 +6,7 @@
 #include <assert.h>
 #include <errno.h>
 #include <getopt.h>
+#include <limits.h>
 #include <pthread.h>
 #include <stdatomic.h>
 #include <stdarg.h>
@@ -21,8 +22,15 @@
 #include <time.h>
 #include <unistd.h>
 
+#include <bsd/string.h>
+
+#include <hse/cli/program.h>
+#include <hse/error/merr.h>
 #include <hse/hse.h>
+#include <hse/test/fixtures/scratch_directory.h>
 #include <hse/util/compiler.h>
+#include <hse/util/err_ctx.h>
+
 #include "stress_util.h"
 
 #define MAX_KEY_LEN 2048
@@ -52,7 +60,7 @@ struct txn_info {
 };
 
 struct test_params {
-    char *           kvdb_home;
+    char             kvdb_home[PATH_MAX];
     char *           kvdb_name;
     char *           kvs_name;
     long int         key_count;
@@ -741,7 +749,7 @@ validate_arguments(struct test_params *params)
         log_error("val_size must be greater than 0");
         status = 1;
     }
-    if (params->kvdb_home == NULL) {
+    if (params->kvdb_home[0] == '\0') {
         log_error("kvdb_home is required");
         status = 1;
     }
@@ -803,6 +811,8 @@ main(int argc, char *argv[])
     params.kvs_name = "kvs1";
     params.sleep_after_load_ms = 200;
 
+    progname_set(argv[0]);
+
     while ((option = getopt(argc, argv, "b:c:C:e:i:n:o:p:t:q:r:s:u:v:y:")) != -1) {
         switch (option) {
             case 'b':
@@ -813,9 +823,17 @@ main(int argc, char *argv[])
                 params.key_count = atoi(optarg);
                 break;
 
-            case 'C':
-                params.kvdb_home = optarg;
+            case 'C': {
+                size_t n;
+
+                n = strlcpy(params.kvdb_home, optarg, sizeof(params.kvdb_home));
+                if (n >= sizeof(params.kvdb_home)) {
+                    fprintf(stderr, "KVDB home directory too long\n");
+                    return EX_USAGE;
+                }
+
                 break;
+            }
 
             case 'e':
                 params.shutdown_type = atoi(optarg);
@@ -874,6 +892,18 @@ main(int argc, char *argv[])
     if (argc == 1) {
         print_usage();
         exit(EXIT_FAILURE);
+    }
+
+    if (params.kvdb_home[0] == '\0') {
+        merr_t err;
+        char buf[256];
+
+        err = scratch_directory_setup(progname, params.kvdb_home, sizeof(params.kvdb_home));
+        if (err) {
+            fprintf(stderr, "%s: Failed to setup scratch directory: %s",
+                progname, merr_strinfo(err, buf, sizeof(buf), err_ctx_strerror, NULL));
+            return EX_CANTCREAT;
+        }
     }
 
     if (validate_arguments(&params)) {
