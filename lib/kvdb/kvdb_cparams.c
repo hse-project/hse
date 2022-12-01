@@ -14,7 +14,7 @@
 
 #include <hse/ikvdb/kvdb_home.h>
 #include <hse/ikvdb/kvdb_cparams.h>
-#include <hse/ikvdb/param.h>
+#include <hse/config/params.h>
 #include <hse/ikvdb/wal.h>
 #include <hse/mpool/mpool.h>
 
@@ -22,7 +22,7 @@ static const struct param_spec pspecs[] = {
     {
         .ps_name = "storage.capacity.file.max_size",
         .ps_description = "file size in capacity mclass (GiB)",
-        .ps_flags = PARAM_FLAG_EXPERIMENTAL,
+        .ps_flags = PARAM_EXPERIMENTAL,
         .ps_type = PARAM_TYPE_U64,
         .ps_offset = offsetof(struct kvdb_cparams, storage.mclass[HSE_MCLASS_CAPACITY].fmaxsz),
         .ps_size = PARAM_SZ(struct kvdb_cparams, storage.mclass[HSE_MCLASS_CAPACITY].fmaxsz),
@@ -43,7 +43,7 @@ static const struct param_spec pspecs[] = {
     {
         .ps_name = "storage.capacity.mblock.size",
         .ps_description = "object size in capacity mclass (MiB)",
-        .ps_flags = PARAM_FLAG_EXPERIMENTAL,
+        .ps_flags = PARAM_EXPERIMENTAL,
         .ps_type = PARAM_TYPE_U32,
         .ps_offset = offsetof(struct kvdb_cparams, storage.mclass[HSE_MCLASS_CAPACITY].mblocksz),
         .ps_size = PARAM_SZ(struct kvdb_cparams, storage.mclass[HSE_MCLASS_CAPACITY].mblocksz),
@@ -64,7 +64,7 @@ static const struct param_spec pspecs[] = {
     {
         .ps_name = "storage.capacity.file.count",
         .ps_description = "file count in capacity mclass",
-        .ps_flags = PARAM_FLAG_EXPERIMENTAL,
+        .ps_flags = PARAM_EXPERIMENTAL,
         .ps_type = PARAM_TYPE_U8,
         .ps_offset = offsetof(struct kvdb_cparams, storage.mclass[HSE_MCLASS_CAPACITY].filecnt),
         .ps_size = PARAM_SZ(struct kvdb_cparams, storage.mclass[HSE_MCLASS_CAPACITY].filecnt),
@@ -85,7 +85,7 @@ static const struct param_spec pspecs[] = {
     {
         .ps_name = "storage.capacity.path",
         .ps_description = "Storage path for capacity mclass",
-        .ps_flags = PARAM_FLAG_NULLABLE,
+        .ps_flags = PARAM_NULLABLE,
         .ps_type = PARAM_TYPE_STRING,
         .ps_offset = offsetof(struct kvdb_cparams, storage.mclass[HSE_MCLASS_CAPACITY].path),
         .ps_size = PARAM_SZ(struct kvdb_cparams, storage.mclass[HSE_MCLASS_CAPACITY].path),
@@ -105,7 +105,7 @@ static const struct param_spec pspecs[] = {
     {
         .ps_name = "storage.staging.file.max_size",
         .ps_description = "file size in staging mclass (GiB)",
-        .ps_flags = PARAM_FLAG_EXPERIMENTAL,
+        .ps_flags = PARAM_EXPERIMENTAL,
         .ps_type = PARAM_TYPE_U64,
         .ps_offset = offsetof(struct kvdb_cparams, storage.mclass[HSE_MCLASS_STAGING].fmaxsz),
         .ps_size = PARAM_SZ(struct kvdb_cparams, storage.mclass[HSE_MCLASS_STAGING].fmaxsz),
@@ -126,7 +126,7 @@ static const struct param_spec pspecs[] = {
     {
         .ps_name = "storage.staging.mblock.size",
         .ps_description = "object size in staging mclass (MiB)",
-        .ps_flags = PARAM_FLAG_EXPERIMENTAL,
+        .ps_flags = PARAM_EXPERIMENTAL,
         .ps_type = PARAM_TYPE_U32,
         .ps_offset = offsetof(struct kvdb_cparams, storage.mclass[HSE_MCLASS_STAGING].mblocksz),
         .ps_size = PARAM_SZ(struct kvdb_cparams, storage.mclass[HSE_MCLASS_STAGING].mblocksz),
@@ -147,7 +147,7 @@ static const struct param_spec pspecs[] = {
     {
         .ps_name = "storage.staging.file.count",
         .ps_description = "file count in staging mclass",
-        .ps_flags = PARAM_FLAG_EXPERIMENTAL,
+        .ps_flags = PARAM_EXPERIMENTAL,
         .ps_type = PARAM_TYPE_U8,
         .ps_offset = offsetof(struct kvdb_cparams, storage.mclass[HSE_MCLASS_STAGING].filecnt),
         .ps_size = PARAM_SZ(struct kvdb_cparams, storage.mclass[HSE_MCLASS_STAGING].filecnt),
@@ -168,7 +168,7 @@ static const struct param_spec pspecs[] = {
     {
         .ps_name = "storage.staging.path",
         .ps_description = "Storage path for staging mclass",
-        .ps_flags = PARAM_FLAG_NULLABLE,
+        .ps_flags = PARAM_NULLABLE,
         .ps_type = PARAM_TYPE_STRING,
         .ps_offset = offsetof(struct kvdb_cparams, storage.mclass[HSE_MCLASS_STAGING].path),
         .ps_size = PARAM_SZ(struct kvdb_cparams, storage.mclass[HSE_MCLASS_STAGING].path),
@@ -188,7 +188,7 @@ static const struct param_spec pspecs[] = {
     {
         .ps_name = "storage.pmem.file.max_size",
         .ps_description = "file size in pmem mclass (GiB)",
-        .ps_flags = PARAM_FLAG_EXPERIMENTAL,
+        .ps_flags = PARAM_EXPERIMENTAL,
         .ps_type = PARAM_TYPE_U64,
         .ps_offset = offsetof(struct kvdb_cparams, storage.mclass[HSE_MCLASS_PMEM].fmaxsz),
         .ps_size = PARAM_SZ(struct kvdb_cparams, storage.mclass[HSE_MCLASS_PMEM].fmaxsz),
@@ -209,7 +209,7 @@ static const struct param_spec pspecs[] = {
     {
         .ps_name = "storage.pmem.mblock.size",
         .ps_description = "object size in pmem mclass (MiB)",
-        .ps_flags = PARAM_FLAG_EXPERIMENTAL,
+        .ps_flags = PARAM_EXPERIMENTAL,
         .ps_type = PARAM_TYPE_U32,
         .ps_offset = offsetof(struct kvdb_cparams, storage.mclass[HSE_MCLASS_PMEM].mblocksz),
         .ps_size = PARAM_SZ(struct kvdb_cparams, storage.mclass[HSE_MCLASS_PMEM].mblocksz),
@@ -230,7 +230,7 @@ static const struct param_spec pspecs[] = {
     {
         .ps_name = "storage.pmem.file.count",
         .ps_description = "file count in pmem mclass",
-        .ps_flags = PARAM_FLAG_EXPERIMENTAL,
+        .ps_flags = PARAM_EXPERIMENTAL,
         .ps_type = PARAM_TYPE_U8,
         .ps_offset = offsetof(struct kvdb_cparams, storage.mclass[HSE_MCLASS_PMEM].filecnt),
         .ps_size = PARAM_SZ(struct kvdb_cparams, storage.mclass[HSE_MCLASS_PMEM].filecnt),
@@ -251,7 +251,7 @@ static const struct param_spec pspecs[] = {
     {
         .ps_name = "storage.pmem.path",
         .ps_description = "Storage path for pmem mclass",
-        .ps_flags = PARAM_FLAG_NULLABLE,
+        .ps_flags = PARAM_NULLABLE,
         .ps_type = PARAM_TYPE_STRING,
         .ps_offset = offsetof(struct kvdb_cparams, storage.mclass[HSE_MCLASS_PMEM].path),
         .ps_size = PARAM_SZ(struct kvdb_cparams, storage.mclass[HSE_MCLASS_PMEM].path),
@@ -282,12 +282,8 @@ struct kvdb_cparams
 kvdb_cparams_defaults()
 {
     struct kvdb_cparams params;
-    const struct params p = {
-        .p_params = { .as_kvdb_cp = &params },
-        .p_type = PARAMS_KVDB_CP,
-    };
 
-    param_default_populate(pspecs, NELEM(pspecs), &p);
+    params_from_defaults(&params, NELEM(pspecs), pspecs);
 
     return params;
 }
@@ -339,24 +335,25 @@ kvdb_cparams_get(
     const size_t                     buf_sz,
     size_t *const                    needed_sz)
 {
-    struct params p = {
-        .p_params = { .as_kvdb_cp = params },
-        .p_type = PARAMS_KVDB_CP,
-    };
+    return params_get(params, NELEM(pspecs), pspecs, param, buf, buf_sz, needed_sz);
+}
 
-    return param_get(&p, pspecs, NELEM(pspecs), param, buf, buf_sz, needed_sz);
+merr_t
+kvdb_cparams_from_paramv(
+    struct kvdb_cparams *const params,
+    const size_t               paramc,
+    const char *const *const   paramv)
+{
+    assert(params);
+
+    return params_from_paramv(params, paramc, paramv, NELEM(pspecs), pspecs);
 }
 
 cJSON *
 kvdb_cparams_to_json(const struct kvdb_cparams *const params)
 {
-    const struct params p = {
-        .p_params = { .as_kvdb_cp = params },
-        .p_type = PARAMS_KVDB_CP,
-    };
-
     if (!params)
         return NULL;
 
-    return param_to_json(&p, pspecs, NELEM(pspecs));
+    return params_to_json(params, NELEM(pspecs), pspecs);
 }

@@ -10,8 +10,9 @@
 #include <stdbool.h>
 #include <stddef.h>
 
-#include <hse/error/merr.h>
+#include <cjson/cJSON.h>
 
+#include <hse/error/merr.h>
 #include <hse/ikvdb/kvdb_modes.h>
 
 /**
@@ -56,9 +57,9 @@ kvdb_home_storage_realpath_get(
  */
 merr_t
 kvdb_home_pidfile_path_get(
-	const char *home,
-	char *buf,
-	const size_t buf_sz);
+    const char *home,
+    char *buf,
+    const size_t buf_sz);
 
 /**
  * Checks whether KVDB home is on a DAX filesystem
@@ -77,5 +78,14 @@ kvdb_home_is_fsdax(const char *home, bool *isdax);
  */
 merr_t
 kvdb_home_check_access(const char *home, enum kvdb_open_mode mode);
+
+/**
+ * Get the kvdb.conf config object
+ *
+ * @param home Home directory
+ * @param[out] conf Config object
+ */
+merr_t
+kvdb_home_get_config(const char *home, cJSON **conf);
 
 #endif

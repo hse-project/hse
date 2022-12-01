@@ -27,7 +27,6 @@
 #include <hse/ikvdb/c0_kvset.h>
 #include <hse/ikvdb/c0_kvmultiset.h>
 #include <hse/ikvdb/rparam_debug_flags.h>
-#include <hse/ikvdb/argv.h>
 
 #include <c0/c0_cursor.h>
 #include <c0/c0sk_internal.h>
@@ -210,7 +209,7 @@ MTF_DEFINE_UTEST_PREPOST(ikvdb_test, init, test_pre, test_post)
     const char *const   paramv[] = { "c0_diag_mode=true" };
     struct kvdb_rparams params = kvdb_rparams_defaults();
 
-    err = argv_deserialize_to_kvdb_rparams(NELEM(paramv), paramv, &params);
+    err = kvdb_rparams_from_paramv(&params, NELEM(paramv), paramv);
     ASSERT_EQ(0, err);
 
     err = ikvdb_open(mpool, &params, &store);
@@ -233,7 +232,7 @@ MTF_DEFINE_UTEST_PREPOST(ikvdb_test, init_fail, test_pre, test_post)
     const char *const   paramv[] = { "c0_diag_mode=true" };
     struct kvdb_rparams params = kvdb_rparams_defaults();
 
-    err = argv_deserialize_to_kvdb_rparams(NELEM(paramv), paramv, &params);
+    err = kvdb_rparams_from_paramv(&params, NELEM(paramv), paramv);
     ASSERT_EQ(0, err);
 
     mapi_inject_ptr(mapi_idx_malloc, 0);
@@ -250,7 +249,7 @@ MTF_DEFINE_UTEST_PREPOST(ikvdb_test, alias, test_pre, test_post)
     const char *const   paramv[] = { "c0_diag_mode=true" };
     struct kvdb_rparams params = kvdb_rparams_defaults();
 
-    err = argv_deserialize_to_kvdb_rparams(NELEM(paramv), paramv, &params);
+    err = kvdb_rparams_from_paramv(&params, NELEM(paramv), paramv);
     ASSERT_EQ(0, err);
 
     err = ikvdb_open(mpool, &params, &store);
@@ -279,7 +278,7 @@ MTF_DEFINE_UTEST_PREPOST(ikvdb_test, basic_txn_alloc, test_pre, test_post)
     const char *const    paramv[] = { "c0_diag_mode=true" };
     struct kvdb_rparams  params = kvdb_rparams_defaults();
 
-    err = argv_deserialize_to_kvdb_rparams(NELEM(paramv), paramv, &params);
+    err = kvdb_rparams_from_paramv(&params, NELEM(paramv), paramv);
     ASSERT_EQ(0, err);
 
     err = ikvdb_open(mpool, &params, &store);
@@ -309,7 +308,7 @@ MTF_DEFINE_UTEST_PREPOST(ikvdb_test, basic_lifecycle, test_pre, test_post)
     merr_t               err;
     struct kvdb_rparams  params = kvdb_rparams_defaults();
 
-    err = argv_deserialize_to_kvdb_rparams(NELEM(paramv), paramv, &params);
+    err = kvdb_rparams_from_paramv(&params, NELEM(paramv), paramv);
     ASSERT_EQ(0, err);
 
     err = ikvdb_open(mpool, &params, &store);
@@ -403,10 +402,10 @@ MTF_DEFINE_UTEST_PREPOST(ikvdb_test, ikvdb_kvs_open_test, test_pre, test_post)
     struct kvs_rparams  kvs_rp = kvs_rparams_defaults();
     struct kvs_cparams  kvs_cp = kvs_cparams_defaults();
 
-    err = argv_deserialize_to_kvdb_rparams(NELEM(kvdb_open_paramv), kvdb_open_paramv, &params);
+    err = kvdb_rparams_from_paramv(&params, NELEM(kvdb_open_paramv), kvdb_open_paramv);
     ASSERT_EQ(0, err);
 
-    err = argv_deserialize_to_kvs_rparams(NELEM(kvs_open_paramv), kvs_open_paramv, &kvs_rp);
+    err = kvs_rparams_from_paramv(&kvs_rp, NELEM(kvs_open_paramv), kvs_open_paramv);
     ASSERT_EQ(0, err);
 
     err = ikvdb_open(mpool, &params, &hdl);
@@ -452,7 +451,7 @@ MTF_DEFINE_UTEST_PREPOST(ikvdb_test, ikvdb_kvs_create_test, test_pre, test_post)
     struct kvdb_rparams params = kvdb_rparams_defaults();
     struct kvs_cparams  kvs_cp = kvs_cparams_defaults();
 
-    err = argv_deserialize_to_kvdb_rparams(NELEM(paramv), paramv, &params);
+    err = kvdb_rparams_from_paramv(&params, NELEM(paramv), paramv);
     ASSERT_EQ(0, err);
 
     err = ikvdb_open(mpool, &params, &hdl);
@@ -498,7 +497,7 @@ MTF_DEFINE_UTEST_PREPOST(ikvdb_test, ikvdb_kvs_destroy_test, test_pre, test_post
     struct kvdb_rparams params = kvdb_rparams_defaults();
     struct kvs_cparams  kvs_cp = kvs_cparams_defaults();
 
-    err = argv_deserialize_to_kvdb_rparams(NELEM(paramv), paramv, &params);
+    err = kvdb_rparams_from_paramv(&params, NELEM(paramv), paramv);
     ASSERT_EQ(0, err);
 
     err = ikvdb_open(mpool, &params, &hdl);
@@ -547,10 +546,10 @@ MTF_DEFINE_UTEST_PREPOST(ikvdb_test, txn_del_test, test_pre, test_post)
     /* we want a valid c0/c0sk here */
     mock_c0_unset();
 
-    err = argv_deserialize_to_kvdb_rparams(NELEM(kvdb_open_paramv), kvdb_open_paramv, &kvdb_rp);
+    err = kvdb_rparams_from_paramv(&kvdb_rp, NELEM(kvdb_open_paramv), kvdb_open_paramv);
     ASSERT_EQ(0, err);
 
-    err = argv_deserialize_to_kvs_rparams(NELEM(kvs_open_paramv), kvs_open_paramv, &kvs_rp);
+    err = kvs_rparams_from_paramv(&kvs_rp, NELEM(kvs_open_paramv), kvs_open_paramv);
     ASSERT_EQ(0, err);
 
     err = ikvdb_open(mpool, &kvdb_rp, &h);
@@ -676,10 +675,10 @@ MTF_DEFINE_UTEST_PREPOST(ikvdb_test, txn_put_test, test_pre, test_post)
     /* we want a valid c0/c0sk here */
     mock_c0_unset();
 
-    err = argv_deserialize_to_kvdb_rparams(NELEM(kvdb_open_paramv), kvdb_open_paramv, &kvdb_rp);
+    err = kvdb_rparams_from_paramv(&kvdb_rp, NELEM(kvdb_open_paramv), kvdb_open_paramv);
     ASSERT_EQ(0, err);
 
-    err = argv_deserialize_to_kvs_rparams(NELEM(kvs_open_paramv), kvs_open_paramv, &kvs_rp);
+    err = kvs_rparams_from_paramv(&kvs_rp, NELEM(kvs_open_paramv), kvs_open_paramv);
     ASSERT_EQ(0, err);
 
     err = ikvdb_open(mpool, &kvdb_rp, &h);
@@ -731,10 +730,10 @@ MTF_DEFINE_UTEST_PREPOST(ikvdb_test, aborted_txn_bind, test_pre, test_post)
     struct kvs_rparams     kvs_rp = kvs_rparams_defaults();
     struct kvs_cparams     kvs_cp = kvs_cparams_defaults();
 
-    err = argv_deserialize_to_kvdb_rparams(NELEM(kvdb_open_paramv), kvdb_open_paramv, &kvdb_rp);
+    err = kvdb_rparams_from_paramv(&kvdb_rp, NELEM(kvdb_open_paramv), kvdb_open_paramv);
     ASSERT_EQ(0, err);
 
-    err = argv_deserialize_to_kvs_rparams(NELEM(kvs_open_paramv), kvs_open_paramv, &kvs_rp);
+    err = kvs_rparams_from_paramv(&kvs_rp, NELEM(kvs_open_paramv), kvs_open_paramv);
     ASSERT_EQ(0, err);
 
     err = ikvdb_open(mpool, &kvdb_rp, &kvdb_h);
@@ -789,10 +788,10 @@ MTF_DEFINE_UTEST_PREPOST(ikvdb_test, cursor_0, test_pre, test_post)
     struct kvs_rparams     kvs_rp = kvs_rparams_defaults();
     struct kvs_cparams     kvs_cp = kvs_cparams_defaults();
 
-    err = argv_deserialize_to_kvdb_rparams(NELEM(kvdb_open_paramv), kvdb_open_paramv, &params);
+    err = kvdb_rparams_from_paramv(&params, NELEM(kvdb_open_paramv), kvdb_open_paramv);
     ASSERT_EQ(0, err);
 
-    err = argv_deserialize_to_kvs_rparams(NELEM(kvs_open_paramv), kvs_open_paramv, &kvs_rp);
+    err = kvs_rparams_from_paramv(&kvs_rp, NELEM(kvs_open_paramv), kvs_open_paramv);
     ASSERT_EQ(0, err);
 
     err = ikvdb_open(mpool, &params, &h);
@@ -869,10 +868,10 @@ MTF_DEFINE_UTEST_PREPOST(ikvdb_test, cursor_1, test_pre_c0, test_post_c0)
         { "AB", "AB_1" }, { "ABAA", "ABAA_1" }, { "ABC", "ABC_1" },   { "AC", "AC_1" },
     };
 
-    err = argv_deserialize_to_kvdb_rparams(NELEM(kvdb_open_paramv), kvdb_open_paramv, &params);
+    err = kvdb_rparams_from_paramv(&params, NELEM(kvdb_open_paramv), kvdb_open_paramv);
     ASSERT_EQ(0, err);
 
-    err = argv_deserialize_to_kvs_rparams(NELEM(kvs_open_paramv), kvs_open_paramv, &kvs_rp);
+    err = kvs_rparams_from_paramv(&kvs_rp, NELEM(kvs_open_paramv), kvs_open_paramv);
     ASSERT_EQ(0, err);
 
     err = ikvdb_open(mpool, &params, &h);
@@ -1041,10 +1040,10 @@ MTF_DEFINE_UTEST_PREPOST(ikvdb_test, cursor_tx, test_pre_c0, test_post_c0)
     };
     */
 
-    err = argv_deserialize_to_kvdb_rparams(NELEM(kvdb_open_paramv), kvdb_open_paramv, &kvdb_rp);
+    err = kvdb_rparams_from_paramv(&kvdb_rp, NELEM(kvdb_open_paramv), kvdb_open_paramv);
     ASSERT_EQ(0, err);
 
-    err = argv_deserialize_to_kvs_rparams(NELEM(kvs_open_paramv), kvs_open_paramv, &kvs_rp);
+    err = kvs_rparams_from_paramv(&kvs_rp, NELEM(kvs_open_paramv), kvs_open_paramv);
     ASSERT_EQ(0, err);
 
     err = ikvdb_open(mpool, &kvdb_rp, NULL, ds, NULL, &h);
@@ -1511,10 +1510,10 @@ MTF_DEFINE_UTEST_PREPOST(ikvdb_test, cursor_cache, test_pre_c0, test_post_c0)
     struct kvs_rparams  kvs_rp = kvs_rparams_defaults();
     struct kvs_cparams  kvs_cp = kvs_cparams_defaults();
 
-    err = argv_deserialize_to_kvdb_rparams(NELEM(kvdb_open_paramv), kvdb_open_paramv, &params);
+    err = kvdb_rparams_from_paramv(&params, NELEM(kvdb_open_paramv), kvdb_open_paramv);
     ASSERT_EQ(0, err);
 
-    err = argv_deserialize_to_kvs_rparams(NELEM(kvs_open_paramv), kvs_open_paramv, &kvs_rp);
+    err = kvs_rparams_from_paramv(&kvs_rp, NELEM(kvs_open_paramv), kvs_open_paramv);
     ASSERT_EQ(0, err);
 
     err = ikvdb_open(mpool, &params, &h);
@@ -1679,10 +1678,10 @@ MTF_DEFINE_UTEST_PREPOST(ikvdb_test, kvdb_sync_test, test_pre, test_post)
     struct kvs_rparams  kvs_rp = kvs_rparams_defaults();
     struct kvs_cparams  kvs_cp = kvs_cparams_defaults();
 
-    err = argv_deserialize_to_kvdb_rparams(NELEM(kvdb_open_paramv), kvdb_open_paramv, &params);
+    err = kvdb_rparams_from_paramv(&params, NELEM(kvdb_open_paramv), kvdb_open_paramv);
     ASSERT_EQ(0, err);
 
-    err = argv_deserialize_to_kvs_rparams(NELEM(kvs_open_paramv), kvs_open_paramv, &kvs_rp);
+    err = kvs_rparams_from_paramv(&kvs_rp, NELEM(kvs_open_paramv), kvs_open_paramv);
     ASSERT_EQ(0, err);
 
     err = ikvdb_open(mpool, &params, &h);
@@ -1742,7 +1741,7 @@ parallel_kvs_open(void *arg)
     struct kvs_rparams  kvs_rp = kvs_rparams_defaults();
     const char *const   kvs_open_paramv[] = { "mclass.policy=\"capacity_only\"" };
 
-    err = argv_deserialize_to_kvs_rparams(NELEM(kvs_open_paramv), kvs_open_paramv, &kvs_rp);
+    err = kvs_rparams_from_paramv(&kvs_rp, NELEM(kvs_open_paramv), kvs_open_paramv);
     if (!err) {
         err = ikvdb_kvs_open(info->h, "same_kvs", &kvs_rp, 0, &info->kvs_h);
         if (!err)
@@ -1766,7 +1765,7 @@ MTF_DEFINE_UTEST_PREPOST(ikvdb_test, kvdb_parallel_kvs_opens, test_pre, test_pos
     struct kvdb_rparams params = kvdb_rparams_defaults();
     struct kvs_cparams  kvs_cp = kvs_cparams_defaults();
 
-    err = argv_deserialize_to_kvdb_rparams(NELEM(paramv), paramv, &params);
+    err = kvdb_rparams_from_paramv(&params, NELEM(paramv), paramv);
     ASSERT_EQ(0, err);
 
     err = ikvdb_open(mpool, &params, &h);
@@ -1830,7 +1829,7 @@ MTF_DEFINE_UTEST_PREPOST(ikvdb_test, kvdb_parallel_kvs_makes, test_pre, test_pos
     unsigned int        kvs_cnt;
     struct kvdb_rparams params = kvdb_rparams_defaults();
 
-    err = argv_deserialize_to_kvdb_rparams(NELEM(paramv), paramv, &params);
+    err = kvdb_rparams_from_paramv(&params, NELEM(paramv), paramv);
     ASSERT_EQ(0, err);
 
     err = ikvdb_open(mpool, &params, &info.h);
@@ -1867,13 +1866,13 @@ MTF_DEFINE_UTEST_PREPOST(ikvdb_test, prefix_delete_test, test_pre, test_post)
     struct kvs_rparams  kvs_rp = kvs_rparams_defaults();
 
 
-    err = argv_deserialize_to_kvdb_rparams(NELEM(kvdb_open_paramv), kvdb_open_paramv, &kvdb_rp);
+    err = kvdb_rparams_from_paramv(&kvdb_rp, NELEM(kvdb_open_paramv), kvdb_open_paramv);
     ASSERT_EQ(0, err);
 
-    err = argv_deserialize_to_kvs_cparams(NELEM(kvs_make_paramv), kvs_make_paramv, &g_kvs_cp);
+    err = kvs_cparams_from_paramv(&g_kvs_cp, NELEM(kvs_make_paramv), kvs_make_paramv);
     ASSERT_EQ(0, err);
 
-    err = argv_deserialize_to_kvs_rparams(NELEM(kvs_open_paramv), kvs_open_paramv, &kvs_rp);
+    err = kvs_rparams_from_paramv(&kvs_rp, NELEM(kvs_open_paramv), kvs_open_paramv);
     ASSERT_EQ(0, err);
 
     err = ikvdb_open(__func__, &kvdb_rp, &kvdb);
@@ -2016,7 +2015,7 @@ MTF_DEFINE_UTEST_PREPOST(ikvdb_test, get_kvs_param, test_pre, test_post)
     struct kvs_rparams  kvs_rp = kvs_rparams_defaults();
     struct kvs_cparams  kvs_cp = kvs_cparams_defaults();
 
-    err = argv_deserialize_to_kvs_rparams(NELEM(kvs_open_paramv), kvs_open_paramv, &kvs_rp);
+    err = kvs_rparams_from_paramv(&kvs_rp, NELEM(kvs_open_paramv), kvs_open_paramv);
     ASSERT_EQ(0, err);
 
     err = ikvdb_open("mpool", &kvdb_rp, &kvdb);

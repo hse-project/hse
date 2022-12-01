@@ -1,1 +1,1 @@
-hse_logging_includes = include_directories('.')
+logging_includes = include_directories('.')

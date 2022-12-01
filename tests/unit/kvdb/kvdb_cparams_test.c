@@ -1,16 +1,16 @@
 /* SPDX-License-Identifier: Apache-2.0 */
 /*
- * Copyright (C) 2021 Micron Technology, Inc.  All rights reserved.
+ * Copyright (C) 2021-2022 Micron Technology, Inc.  All rights reserved.
  */
+
+#include <stdarg.h>
 
 #include <mtf/framework.h>
 
-#include <hse/ikvdb/argv.h>
 #include <hse/ikvdb/limits.h>
 #include <hse/ikvdb/kvdb_cparams.h>
-#include <hse/ikvdb/param.h>
-
-#include <stdarg.h>
+#include <hse/config/params.h>
+#include <hse/util/base.h>
 
 MTF_BEGIN_UTEST_COLLECTION(kvdb_cparams_test)
 
@@ -61,8 +61,7 @@ check(const char *const arg, ...)
 
         success = !!va_arg(ap, int);
 
-        err = argv_deserialize_to_kvdb_cparams(paramc, paramv, &params);
-
+        err = kvdb_cparams_from_paramv(&params, paramc, paramv);
         if (success != !err) {
             break;
         } else {
@@ -84,7 +83,7 @@ MTF_DEFINE_UTEST_PRE(kvdb_cparams_test, storage_capacity_file_max_size, test_pre
 
     ASSERT_NE(NULL, ps);
     ASSERT_NE(NULL, ps->ps_description);
-    ASSERT_EQ(PARAM_FLAG_EXPERIMENTAL, ps->ps_flags);
+    ASSERT_EQ(PARAM_EXPERIMENTAL, ps->ps_flags);
     ASSERT_EQ(PARAM_TYPE_U64, ps->ps_type);
     ASSERT_EQ(offsetof(struct kvdb_cparams, storage.mclass[HSE_MCLASS_CAPACITY].fmaxsz), ps->ps_offset);
     ASSERT_EQ(sizeof(uint64_t), ps->ps_size);
@@ -114,7 +113,7 @@ MTF_DEFINE_UTEST_PRE(kvdb_cparams_test, storage_capacity_mblock_size, test_pre)
 
     ASSERT_NE(NULL, ps);
     ASSERT_NE(NULL, ps->ps_description);
-    ASSERT_EQ(PARAM_FLAG_EXPERIMENTAL, ps->ps_flags);
+    ASSERT_EQ(PARAM_EXPERIMENTAL, ps->ps_flags);
     ASSERT_EQ(PARAM_TYPE_U32, ps->ps_type);
     ASSERT_EQ(
         offsetof(struct kvdb_cparams, storage.mclass[HSE_MCLASS_CAPACITY].mblocksz), ps->ps_offset);
@@ -143,7 +142,7 @@ MTF_DEFINE_UTEST_PRE(kvdb_cparams_test, storage_capacity_file_count, test_pre)
 
     ASSERT_NE(NULL, ps);
     ASSERT_NE(NULL, ps->ps_description);
-    ASSERT_EQ(PARAM_FLAG_EXPERIMENTAL, ps->ps_flags);
+    ASSERT_EQ(PARAM_EXPERIMENTAL, ps->ps_flags);
     ASSERT_EQ(PARAM_TYPE_U8, ps->ps_type);
     ASSERT_EQ(
         offsetof(struct kvdb_cparams, storage.mclass[HSE_MCLASS_CAPACITY].filecnt), ps->ps_offset);
@@ -163,7 +162,7 @@ MTF_DEFINE_UTEST_PRE(kvdb_cparams_test, storage_capacity_path, test_pre)
 
     ASSERT_NE(NULL, ps);
     ASSERT_NE(NULL, ps->ps_description);
-    ASSERT_EQ(PARAM_FLAG_NULLABLE, ps->ps_flags);
+    ASSERT_EQ(PARAM_NULLABLE, ps->ps_flags);
     ASSERT_EQ(PARAM_TYPE_STRING, ps->ps_type);
     ASSERT_EQ(offsetof(struct kvdb_cparams, storage.mclass[HSE_MCLASS_CAPACITY].path), ps->ps_offset);
     ASSERT_EQ(PATH_MAX, ps->ps_size);
@@ -183,7 +182,7 @@ MTF_DEFINE_UTEST_PRE(kvdb_cparams_test, storage_staging_file_max_size, test_pre)
 
     ASSERT_NE(NULL, ps);
     ASSERT_NE(NULL, ps->ps_description);
-    ASSERT_EQ(PARAM_FLAG_EXPERIMENTAL, ps->ps_flags);
+    ASSERT_EQ(PARAM_EXPERIMENTAL, ps->ps_flags);
     ASSERT_EQ(PARAM_TYPE_U64, ps->ps_type);
     ASSERT_EQ(offsetof(struct kvdb_cparams, storage.mclass[HSE_MCLASS_STAGING].fmaxsz), ps->ps_offset);
     ASSERT_EQ(sizeof(uint64_t), ps->ps_size);
@@ -213,7 +212,7 @@ MTF_DEFINE_UTEST_PRE(kvdb_cparams_test, storage_staging_mblock_size, test_pre)
 
     ASSERT_NE(NULL, ps);
     ASSERT_NE(NULL, ps->ps_description);
-    ASSERT_EQ(PARAM_FLAG_EXPERIMENTAL, ps->ps_flags);
+    ASSERT_EQ(PARAM_EXPERIMENTAL, ps->ps_flags);
     ASSERT_EQ(PARAM_TYPE_U32, ps->ps_type);
     ASSERT_EQ(
         offsetof(struct kvdb_cparams, storage.mclass[HSE_MCLASS_STAGING].mblocksz), ps->ps_offset);
@@ -242,7 +241,7 @@ MTF_DEFINE_UTEST_PRE(kvdb_cparams_test, storage_staging_file_count, test_pre)
 
     ASSERT_NE(NULL, ps);
     ASSERT_NE(NULL, ps->ps_description);
-    ASSERT_EQ(PARAM_FLAG_EXPERIMENTAL, ps->ps_flags);
+    ASSERT_EQ(PARAM_EXPERIMENTAL, ps->ps_flags);
     ASSERT_EQ(PARAM_TYPE_U8, ps->ps_type);
     ASSERT_EQ(offsetof(struct kvdb_cparams, storage.mclass[HSE_MCLASS_STAGING].filecnt), ps->ps_offset);
     ASSERT_EQ(sizeof(uint8_t), ps->ps_size);
@@ -261,7 +260,7 @@ MTF_DEFINE_UTEST_PRE(kvdb_cparams_test, storage_staging_path, test_pre)
 
     ASSERT_NE(NULL, ps);
     ASSERT_NE(NULL, ps->ps_description);
-    ASSERT_EQ(PARAM_FLAG_NULLABLE, ps->ps_flags);
+    ASSERT_EQ(PARAM_NULLABLE, ps->ps_flags);
     ASSERT_EQ(PARAM_TYPE_STRING, ps->ps_type);
     ASSERT_EQ(offsetof(struct kvdb_cparams, storage.mclass[HSE_MCLASS_STAGING].path), ps->ps_offset);
     ASSERT_EQ(PATH_MAX, ps->ps_size);
@@ -280,7 +279,7 @@ MTF_DEFINE_UTEST_PRE(kvdb_cparams_test, storage_pmem_file_max_size, test_pre)
 
     ASSERT_NE(NULL, ps);
     ASSERT_NE(NULL, ps->ps_description);
-    ASSERT_EQ(PARAM_FLAG_EXPERIMENTAL, ps->ps_flags);
+    ASSERT_EQ(PARAM_EXPERIMENTAL, ps->ps_flags);
     ASSERT_EQ(PARAM_TYPE_U64, ps->ps_type);
     ASSERT_EQ(offsetof(struct kvdb_cparams, storage.mclass[HSE_MCLASS_PMEM].fmaxsz), ps->ps_offset);
     ASSERT_EQ(sizeof(uint64_t), ps->ps_size);
@@ -304,7 +303,7 @@ MTF_DEFINE_UTEST_PRE(kvdb_cparams_test, storage_pmem_mblock_size, test_pre)
 
     ASSERT_NE(NULL, ps);
     ASSERT_NE(NULL, ps->ps_description);
-    ASSERT_EQ(PARAM_FLAG_EXPERIMENTAL, ps->ps_flags);
+    ASSERT_EQ(PARAM_EXPERIMENTAL, ps->ps_flags);
     ASSERT_EQ(PARAM_TYPE_U32, ps->ps_type);
     ASSERT_EQ(offsetof(struct kvdb_cparams, storage.mclass[HSE_MCLASS_PMEM].mblocksz), ps->ps_offset);
     ASSERT_EQ(sizeof(uint32_t), ps->ps_size);
@@ -327,7 +326,7 @@ MTF_DEFINE_UTEST_PRE(kvdb_cparams_test, storage_pmem_file_count, test_pre)
 
     ASSERT_NE(NULL, ps);
     ASSERT_NE(NULL, ps->ps_description);
-    ASSERT_EQ(PARAM_FLAG_EXPERIMENTAL, ps->ps_flags);
+    ASSERT_EQ(PARAM_EXPERIMENTAL, ps->ps_flags);
     ASSERT_EQ(PARAM_TYPE_U8, ps->ps_type);
     ASSERT_EQ(offsetof(struct kvdb_cparams, storage.mclass[HSE_MCLASS_PMEM].filecnt), ps->ps_offset);
     ASSERT_EQ(sizeof(uint8_t), ps->ps_size);
@@ -346,7 +345,7 @@ MTF_DEFINE_UTEST_PRE(kvdb_cparams_test, storage_pmem_path, test_pre)
 
     ASSERT_NE(NULL, ps);
     ASSERT_NE(NULL, ps->ps_description);
-    ASSERT_EQ(PARAM_FLAG_NULLABLE, ps->ps_flags);
+    ASSERT_EQ(PARAM_NULLABLE, ps->ps_flags);
     ASSERT_EQ(PARAM_TYPE_STRING, ps->ps_type);
     ASSERT_EQ(offsetof(struct kvdb_cparams, storage.mclass[HSE_MCLASS_PMEM].path), ps->ps_offset);
     ASSERT_EQ(PATH_MAX, ps->ps_size);

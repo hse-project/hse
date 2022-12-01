@@ -33,7 +33,24 @@ kvs_cparams_get(
     size_t                    buf_sz,
     size_t *                  needed_sz);
 
+/**
+ * Deserialize list of key=value parameters to KVS cparams
+ *
+ * @param paramc: Number of parameters
+ * @param paramv: List of key=value strings
+ * @param params: Params struct
+ *
+ * @returns Error status
+ * @retval 0 success
+ * @retval !0 failure
+ */
+merr_t
+kvs_cparams_from_paramv(
+    struct kvs_cparams *params,
+    size_t              paramc,
+    const char *const * paramv);
+
 cJSON *
-kvs_cparams_to_json(const struct kvs_cparams *params);
+kvs_cparams_to_json(const struct kvs_cparams *params) HSE_WARN_UNUSED_RESULT;
 
 #endif

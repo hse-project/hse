@@ -95,11 +95,41 @@ kvs_rparams_get(
 
 merr_t
 kvs_rparams_set(
-    const struct kvs_rparams *params,
-    const char *              param,
-    const char *              value);
+    struct kvs_rparams *params,
+    const char *        param,
+    const char *        value);
+
+/**
+ * Deserialize a config into KVS rparams
+ *
+ * @param params KVS rparams
+ * @param config Configuration
+ * @param kvs_name Name of KVS
+ */
+merr_t
+kvs_rparams_from_config(
+    struct kvs_rparams *params,
+    cJSON *config,
+    const char *kvs_name);
+
+/**
+ * Deserialize list of key=value parameters to KVS rparams
+ *
+ * @param paramc Number of parameters
+ * @param paramv List of key=value strings
+ * @param params Params struct
+ *
+ * @returns Error status
+ * @retval 0 success
+ * @retval !0 failure
+ */
+merr_t
+kvs_rparams_from_paramv(
+    struct kvs_rparams *params,
+    size_t              paramc,
+    const char *const * paramv);
 
 cJSON *
-kvs_rparams_to_json(const struct kvs_rparams *params);
+kvs_rparams_to_json(const struct kvs_rparams *params) HSE_WARN_UNUSED_RESULT;
 
 #endif /* HSE_KVS_RPARAMS_H */

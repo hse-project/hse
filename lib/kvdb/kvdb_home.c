@@ -16,11 +16,13 @@
 
 #include <hse/util/assert.h>
 #include <hse/error/merr.h>
+#include <hse/config/config.h>
+#include <hse/ikvdb/kvdb_home.h>
+#include <hse/ikvdb/kvdb_rparams.h>
+#include <hse/ikvdb/kvs_rparams.h>
+#include <hse/pidfile/pidfile.h>
 #include <hse/util/inttypes.h>
 #include <hse/util/dax.h>
-
-#include <hse/ikvdb/kvdb_home.h>
-#include <hse/pidfile/pidfile.h>
 
 static merr_t
 path_join(const char *home, const char *path, char *buf, const size_t buf_sz)
@@ -164,4 +166,73 @@ kvdb_home_check_access(const char *home, enum kvdb_open_mode mode)
         rc = access(home, R_OK | X_OK);
 
     return (rc == -1) ? merr(errno) : 0;
+}
+
+static merr_t
+kvdb_conf_validate(cJSON *const root)
+{
+    merr_t err;
+    cJSON *kvs;
+    int num_kvs = 0;
+    struct kvdb_rparams kvdb_rp;
+
+    INVARIANT(root);
+
+    err = kvdb_rparams_from_config(&kvdb_rp, root);
+    if (err)
+        return err;
+
+    kvs = cJSON_GetObjectItemCaseSensitive(root, "kvs");
+    if (!kvs)
+        return 0;
+    if (!cJSON_IsObject(kvs))
+        return merr(EINVAL);
+
+    for (cJSON *block = kvs->child; block; block = block->next) {
+        struct kvs_rparams kvs_rp;
+
+        if (!cJSON_IsObject(block))
+            return merr(EINVAL);
+
+        if (!strcmp(block->string, "default"))
+            continue;
+
+        kvs_rp = kvs_rparams_defaults();
+
+        num_kvs++;
+
+        err = kvs_rparams_from_config(&kvs_rp, root, block->string);
+        if (err)
+            return err;
+    }
+
+    if (num_kvs == 0) {
+        struct kvs_rparams kvs_rp = kvs_rparams_defaults();
+
+        /* Provide a random KVS name just to validate the default block */
+        err = kvs_rparams_from_config(&kvs_rp, root, "dummy");
+        if (err)
+            return err;
+    }
+
+    return err;
+}
+
+merr_t
+kvdb_home_get_config(const char *home, cJSON **conf)
+{
+    int n;
+    char conf_file_path[PATH_MAX];
+
+    if (!home || !conf)
+        return merr(EINVAL);
+
+    n = snprintf(conf_file_path, sizeof(conf_file_path), "%s/kvdb.conf", home);
+    if (n >= sizeof(conf_file_path)) {
+        return merr(ENAMETOOLONG);
+    } else if (n < 0) {
+        return merr(EBADMSG);
+    }
+
+    return config_open(conf_file_path, kvdb_conf_validate, conf);
 }

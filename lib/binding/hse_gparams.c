@@ -16,15 +16,13 @@
 #include <hse/logging/logging.h>
 
 #include <hse/ikvdb/hse_gparams.h>
-#include <hse/ikvdb/param.h>
+#include <hse/config/params.h>
 #include <hse/ikvdb/limits.h>
 #include <hse/util/compiler.h>
 #include <hse/util/perfc.h>
 #include <hse/util/vlb.h>
 
 #include <hse/ikvdb/limits.h>
-
-#include "logging.h"
 
 struct hse_gparams hse_gparams;
 
@@ -210,7 +208,7 @@ static const struct param_spec pspecs[] = {
     {
         .ps_name = "logging.squelch_ns",
         .ps_description = "drop messages repeated within nsec window",
-        .ps_flags = PARAM_FLAG_EXPERIMENTAL,
+        .ps_flags = PARAM_EXPERIMENTAL,
         .ps_type = PARAM_TYPE_U64,
         .ps_offset = offsetof(struct hse_gparams, gp_logging.lp_squelch_ns),
         .ps_size = PARAM_SZ(struct hse_gparams, gp_logging.lp_squelch_ns),
@@ -231,7 +229,7 @@ static const struct param_spec pspecs[] = {
     {
         .ps_name = "vlb_cache_sz",
         .ps_description = "size of vlb cache (bytes)",
-        .ps_flags = PARAM_FLAG_EXPERIMENTAL,
+        .ps_flags = PARAM_EXPERIMENTAL,
         .ps_type = PARAM_TYPE_U64,
         .ps_offset = offsetof(struct hse_gparams, gp_vlb_cache_sz),
         .ps_size = PARAM_SZ(struct hse_gparams, gp_vlb_cache_sz),
@@ -252,7 +250,7 @@ static const struct param_spec pspecs[] = {
     {
         .ps_name = "c0kvs_ccache_sz_max",
         .ps_description = "max size of c0kvs cheap cache (bytes)",
-        .ps_flags = PARAM_FLAG_EXPERIMENTAL,
+        .ps_flags = PARAM_EXPERIMENTAL,
         .ps_type = PARAM_TYPE_U64,
         .ps_offset = offsetof(struct hse_gparams, gp_c0kvs_ccache_sz_max),
         .ps_size = PARAM_SZ(struct hse_gparams, gp_c0kvs_ccache_sz_max),
@@ -273,7 +271,7 @@ static const struct param_spec pspecs[] = {
     {
         .ps_name = "c0kvs_ccache_sz",
         .ps_description = "size of c0kvs cheap cache (bytes)",
-        .ps_flags = PARAM_FLAG_EXPERIMENTAL,
+        .ps_flags = PARAM_EXPERIMENTAL,
         .ps_type = PARAM_TYPE_U64,
         .ps_offset = offsetof(struct hse_gparams, gp_c0kvs_ccache_sz),
         .ps_size = PARAM_SZ(struct hse_gparams, gp_c0kvs_ccache_sz),
@@ -294,7 +292,7 @@ static const struct param_spec pspecs[] = {
     {
         .ps_name = "c0kvs_cheap_sz",
         .ps_description = "set c0kvs cheap size (bytes)",
-        .ps_flags = PARAM_FLAG_EXPERIMENTAL,
+        .ps_flags = PARAM_EXPERIMENTAL,
         .ps_type = PARAM_TYPE_U64,
         .ps_offset = offsetof(struct hse_gparams, gp_c0kvs_cheap_sz),
         .ps_size = PARAM_SZ(struct hse_gparams, gp_c0kvs_cheap_sz),
@@ -315,7 +313,7 @@ static const struct param_spec pspecs[] = {
     {
         .ps_name = "workqueue_tcdelay",
         .ps_description = "set workqueue thread-create delay (milliseconds)",
-        .ps_flags = PARAM_FLAG_EXPERIMENTAL,
+        .ps_flags = PARAM_EXPERIMENTAL,
         .ps_type = PARAM_TYPE_U32,
         .ps_offset = offsetof(struct hse_gparams, gp_workqueue_tcdelay),
         .ps_size = PARAM_SZ(struct hse_gparams, gp_workqueue_tcdelay),
@@ -336,7 +334,7 @@ static const struct param_spec pspecs[] = {
     {
         .ps_name = "workqueue_idle_ttl",
         .ps_description = "set workqueue idle thread time-to-live (seconds)",
-        .ps_flags = PARAM_FLAG_EXPERIMENTAL,
+        .ps_flags = PARAM_EXPERIMENTAL,
         .ps_type = PARAM_TYPE_U32,
         .ps_offset = offsetof(struct hse_gparams, gp_workqueue_idle_ttl),
         .ps_size = PARAM_SZ(struct hse_gparams, gp_workqueue_idle_ttl),
@@ -357,7 +355,7 @@ static const struct param_spec pspecs[] = {
     {
         .ps_name = "perfc.level",
         .ps_description = "set kvs perf counter enagagement level (min:0 default:2 max:9)",
-        .ps_flags = PARAM_FLAG_EXPERIMENTAL,
+        .ps_flags = PARAM_EXPERIMENTAL,
         .ps_type = PARAM_TYPE_U8,
         .ps_offset = offsetof(struct hse_gparams, gp_perfc_level),
         .ps_size = PARAM_SZ(struct hse_gparams, gp_perfc_level),
@@ -393,7 +391,7 @@ static const struct param_spec pspecs[] = {
     {
         .ps_name = "rest.socket_path",
         .ps_description = "UNIX socket path to start REST server on",
-        .ps_flags = PARAM_FLAG_DEFAULT_BUILDER,
+        .ps_flags = PARAM_DEFAULT_BUILDER,
         .ps_type = PARAM_TYPE_STRING,
         .ps_offset = offsetof(struct hse_gparams, gp_rest.socket_path),
         .ps_size = PARAM_SZ(struct hse_gparams, gp_rest.socket_path),
@@ -424,12 +422,8 @@ struct hse_gparams
 hse_gparams_defaults()
 {
     struct hse_gparams params;
-    const struct params p = {
-        .p_params = { .as_hse_gp = &params },
-        .p_type = PARAMS_HSE_GP,
-    };
 
-    param_default_populate(pspecs, NELEM(pspecs), &p);
+    params_from_defaults(&params, NELEM(pspecs), pspecs);
 
     return params;
 }
@@ -442,41 +436,44 @@ hse_gparams_get(
     const size_t                    buf_sz,
     size_t *const                   needed_sz)
 {
-    const struct params p = {
-        .p_params = { .as_hse_gp = params },
-        .p_type = PARAMS_HSE_GP,
-    };
-
-    return param_get(&p, pspecs, NELEM(pspecs), param, buf, buf_sz, needed_sz);
+    return params_get(params, NELEM(pspecs), pspecs, param, buf, buf_sz, needed_sz);
 }
 
 merr_t
 hse_gparams_set(
-    const struct hse_gparams *const params,
+    struct hse_gparams *const params,
     const char *const               param,
     const char *const               value)
 {
-    const struct params p = {
-        .p_params = { .as_hse_gp = params },
-        .p_type = PARAMS_HSE_GP,
-    };
-
     if (!params || !param || !value)
         return merr(EINVAL);
 
-    return param_set(&p, pspecs, NELEM(pspecs), param, value);
+    return params_set(params, sizeof(*params), NELEM(pspecs), pspecs, param, value);
+}
+
+merr_t
+hse_gparams_from_config(struct hse_gparams *params, cJSON *config)
+{
+    if (!params || !cJSON_IsObject(config))
+        return merr(EINVAL);
+
+    return params_from_config(params, NELEM(pspecs), pspecs, 0, NULL, 1, config);
+}
+
+merr_t
+hse_gparams_from_paramv(
+    struct hse_gparams *const params,
+    const size_t              paramc,
+    const char *const *const  paramv)
+{
+    return params_from_paramv(params, paramc, paramv, NELEM(pspecs), pspecs);
 }
 
 cJSON *
 hse_gparams_to_json(const struct hse_gparams *const params)
 {
-    const struct params p = {
-        .p_params = { .as_hse_gp = params },
-        .p_type = PARAMS_HSE_GP,
-    };
-
     if (!params)
         return NULL;
 
-    return param_to_json(&p, pspecs, NELEM(pspecs));
+    return params_to_json(params, NELEM(pspecs), pspecs);
 }

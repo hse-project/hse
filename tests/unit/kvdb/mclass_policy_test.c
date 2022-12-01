@@ -1,11 +1,10 @@
 /* SPDX-License-Identifier: Apache-2.0 */
 /*
- * Copyright (C) 2021 Micron Technology, Inc.  All rights reserved.
+ * Copyright (C) 2021-2022 Micron Technology, Inc.  All rights reserved.
  */
 
 #include <mtf/framework.h>
 
-#include <hse/ikvdb/argv.h>
 #include <hse/ikvdb/mclass_policy.h>
 #include <hse/ikvdb/kvdb_rparams.h>
 #include <hse/mpool/mpool.h>
@@ -73,7 +72,7 @@ MTF_DEFINE_UTEST_PRE(mclass_policy_test, mclass_policy_default, general_pre)
             dpolicies[5].mc_table[i][j] = HSE_MCLASS_PMEM;
     dpolicies[5].mc_table[HSE_MPOLICY_AGE_LEAF][HSE_MPOLICY_DTYPE_VALUE] = HSE_MCLASS_CAPACITY;
 
-    err = argv_deserialize_to_kvdb_rparams(NELEM(paramv), paramv, &params);
+    err = kvdb_rparams_from_paramv(&params, NELEM(paramv), paramv);
     ASSERT_EQ(0, err);
 
     /* Validate that the parsed policies match the hardcoded matrices for the default policies. */
@@ -99,7 +98,7 @@ MTF_DEFINE_UTEST_PRE(mclass_policy_test, mclass_policy_default, general_pre)
      * and validate that the remaining entries are populated from the default template
      * i.e. staging_capacity_nofallback
      */
-    err = argv_deserialize_to_kvdb_rparams(NELEM(paramv), paramv, &params);
+    err = kvdb_rparams_from_paramv(&params, NELEM(paramv), paramv);
     ASSERT_EQ(err, 0);
     ASSERT_EQ(strcmp(params.mclass_policies[6].mc_name, "test_only"), 0);
 
@@ -128,7 +127,7 @@ MTF_DEFINE_UTEST(mclass_policy_test, overwrite_default_policy)
     struct kvdb_rparams params = kvdb_rparams_defaults();
     merr_t              err;
 
-    err = argv_deserialize_to_kvdb_rparams(NELEM(paramv), paramv, &params);
+    err = kvdb_rparams_from_paramv(&params, NELEM(paramv), paramv);
     ASSERT_NE(err, 0);
 }
 
@@ -170,38 +169,38 @@ MTF_DEFINE_UTEST(mclass_policy_test, incorrect_schema)
         "mclass_policies=[{\"name\": \"test_only\", \"config\": "
         "{\"leaf\": {\"values\": \"test\"}}}]" };
 
-    err = argv_deserialize_to_kvdb_rparams(
-        NELEM(paramv_policy_unknown_key), paramv_policy_unknown_key, &params);
+    err = kvdb_rparams_from_paramv(
+        &params, NELEM(paramv_policy_unknown_key), paramv_policy_unknown_key);
     ASSERT_NE(err, 0);
-    err = argv_deserialize_to_kvdb_rparams(
-        NELEM(paramv_age_unknown_key), paramv_age_unknown_key, &params);
+    err = kvdb_rparams_from_paramv(
+        &params, NELEM(paramv_age_unknown_key), paramv_age_unknown_key);
     ASSERT_NE(err, 0);
-    err = argv_deserialize_to_kvdb_rparams(
-        NELEM(paramv_dtype_unknown_key), paramv_dtype_unknown_key, &params);
+    err = kvdb_rparams_from_paramv(
+        &params, NELEM(paramv_dtype_unknown_key), paramv_dtype_unknown_key);
     ASSERT_NE(err, 0);
 
-    err = argv_deserialize_to_kvdb_rparams(
-        NELEM(paramv_mclass_policies_schema), paramv_mclass_policies_schema, &params);
+    err = kvdb_rparams_from_paramv(
+        &params, NELEM(paramv_mclass_policies_schema), paramv_mclass_policies_schema);
     ASSERT_NE(err, 0);
-    err = argv_deserialize_to_kvdb_rparams(
-        NELEM(paramv_policy_name_schema), paramv_policy_name_schema, &params);
+    err = kvdb_rparams_from_paramv(
+        &params, NELEM(paramv_policy_name_schema), paramv_policy_name_schema);
     ASSERT_NE(err, 0);
-    err = argv_deserialize_to_kvdb_rparams(
-        NELEM(paramv_policy_config_schema), paramv_policy_config_schema, &params);
+    err = kvdb_rparams_from_paramv(
+        &params, NELEM(paramv_policy_config_schema), paramv_policy_config_schema);
     ASSERT_NE(err, 0);
-    err = argv_deserialize_to_kvdb_rparams(NELEM(paramv_age_schema), paramv_age_schema, &params);
+    err = kvdb_rparams_from_paramv(&params, NELEM(paramv_age_schema), paramv_age_schema);
     ASSERT_NE(err, 0);
-    err = argv_deserialize_to_kvdb_rparams(
-        NELEM(paramv_dtype_schema1), paramv_dtype_schema1, &params);
+    err = kvdb_rparams_from_paramv(
+        &params, NELEM(paramv_dtype_schema1), paramv_dtype_schema1);
     ASSERT_NE(err, 0);
-    err = argv_deserialize_to_kvdb_rparams(
-        NELEM(paramv_dtype_schema2), paramv_dtype_schema2, &params);
+    err = kvdb_rparams_from_paramv(
+        &params, NELEM(paramv_dtype_schema2), paramv_dtype_schema2);
     ASSERT_NE(err, 0);
-    err = argv_deserialize_to_kvdb_rparams(
-        NELEM(paramv_dtype_schema3), paramv_dtype_schema3, &params);
+    err = kvdb_rparams_from_paramv(
+        &params, NELEM(paramv_dtype_schema3), paramv_dtype_schema3);
     ASSERT_NE(err, 0);
-    err = argv_deserialize_to_kvdb_rparams(
-        NELEM(paramv_dtype_schema4), paramv_dtype_schema4, &params);
+    err = kvdb_rparams_from_paramv(
+        &params, NELEM(paramv_dtype_schema4), paramv_dtype_schema4);
     ASSERT_NE(err, 0);
 }
 

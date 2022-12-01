@@ -7,10 +7,10 @@
 
 #include <hse/util/vlb.h>
 
-#include <hse/ikvdb/argv.h>
 #include <hse/ikvdb/limits.h>
 #include <hse/ikvdb/hse_gparams.h>
-#include <hse/ikvdb/param.h>
+#include <hse/config/params.h>
+#include <hse/util/perfc.h>
 
 #include <stdarg.h>
 
@@ -63,8 +63,7 @@ check(const char *const arg, ...)
 
         success = !!va_arg(ap, int);
 
-        err = argv_deserialize_to_hse_gparams(paramc, paramv, &params);
-
+        err = hse_gparams_from_paramv(&params, paramc, paramv);
         if (success != !err) {
             break;
         } else {
@@ -84,7 +83,7 @@ MTF_DEFINE_UTEST_PRE(hse_gparams_test, c0kvs_ccache_sz_max, test_pre)
 
     ASSERT_NE(NULL, ps);
     ASSERT_NE(NULL, ps->ps_description);
-    ASSERT_EQ(PARAM_FLAG_EXPERIMENTAL, ps->ps_flags);
+    ASSERT_EQ(PARAM_EXPERIMENTAL, ps->ps_flags);
     ASSERT_EQ(PARAM_TYPE_U64, ps->ps_type);
     ASSERT_EQ(offsetof(struct hse_gparams, gp_c0kvs_ccache_sz_max), ps->ps_offset);
     ASSERT_EQ(sizeof(uint64_t), ps->ps_size);
@@ -103,7 +102,7 @@ MTF_DEFINE_UTEST_PRE(hse_gparams_test, c0kvs_ccache_sz, test_pre)
 
     ASSERT_NE(NULL, ps);
     ASSERT_NE(NULL, ps->ps_description);
-    ASSERT_EQ(PARAM_FLAG_EXPERIMENTAL, ps->ps_flags);
+    ASSERT_EQ(PARAM_EXPERIMENTAL, ps->ps_flags);
     ASSERT_EQ(PARAM_TYPE_U64, ps->ps_type);
     ASSERT_EQ(offsetof(struct hse_gparams, gp_c0kvs_ccache_sz), ps->ps_offset);
     ASSERT_EQ(sizeof(uint64_t), ps->ps_size);
@@ -122,7 +121,7 @@ MTF_DEFINE_UTEST_PRE(hse_gparams_test, c0kvs_cheap_sz, test_pre)
 
     ASSERT_NE(NULL, ps);
     ASSERT_NE(NULL, ps->ps_description);
-    ASSERT_EQ(PARAM_FLAG_EXPERIMENTAL, ps->ps_flags);
+    ASSERT_EQ(PARAM_EXPERIMENTAL, ps->ps_flags);
     ASSERT_EQ(PARAM_TYPE_U64, ps->ps_type);
     ASSERT_EQ(offsetof(struct hse_gparams, gp_c0kvs_cheap_sz), ps->ps_offset);
     ASSERT_EQ(sizeof(uint64_t), ps->ps_size);
@@ -141,7 +140,7 @@ MTF_DEFINE_UTEST_PRE(hse_gparams_test, vlb_cache_sz, test_pre)
 
     ASSERT_NE(NULL, ps);
     ASSERT_NE(NULL, ps->ps_description);
-    ASSERT_EQ(PARAM_FLAG_EXPERIMENTAL, ps->ps_flags);
+    ASSERT_EQ(PARAM_EXPERIMENTAL, ps->ps_flags);
     ASSERT_EQ(PARAM_TYPE_U64, ps->ps_type);
     ASSERT_EQ(offsetof(struct hse_gparams, gp_vlb_cache_sz), ps->ps_offset);
     ASSERT_EQ(sizeof(uint64_t), ps->ps_size);
@@ -160,7 +159,7 @@ MTF_DEFINE_UTEST_PRE(hse_gparams_test, workqueue_tcdelay, test_pre)
 
     ASSERT_NE(NULL, ps);
     ASSERT_NE(NULL, ps->ps_description);
-    ASSERT_EQ(PARAM_FLAG_EXPERIMENTAL, ps->ps_flags);
+    ASSERT_EQ(PARAM_EXPERIMENTAL, ps->ps_flags);
     ASSERT_EQ(PARAM_TYPE_U32, ps->ps_type);
     ASSERT_EQ(offsetof(struct hse_gparams, gp_workqueue_tcdelay), ps->ps_offset);
     ASSERT_EQ(sizeof(uint32_t), ps->ps_size);
@@ -179,7 +178,7 @@ MTF_DEFINE_UTEST_PRE(hse_gparams_test, workqueue_idle_ttl, test_pre)
 
     ASSERT_NE(NULL, ps);
     ASSERT_NE(NULL, ps->ps_description);
-    ASSERT_EQ(PARAM_FLAG_EXPERIMENTAL, ps->ps_flags);
+    ASSERT_EQ(PARAM_EXPERIMENTAL, ps->ps_flags);
     ASSERT_EQ(PARAM_TYPE_U32, ps->ps_type);
     ASSERT_EQ(offsetof(struct hse_gparams, gp_workqueue_idle_ttl), ps->ps_offset);
     ASSERT_EQ(sizeof(uint32_t), ps->ps_size);
@@ -198,7 +197,7 @@ MTF_DEFINE_UTEST_PRE(hse_gparams_test, perfc_level, test_pre)
 
     ASSERT_NE(NULL, ps);
     ASSERT_NE(NULL, ps->ps_description);
-    ASSERT_EQ(PARAM_FLAG_EXPERIMENTAL, ps->ps_flags);
+    ASSERT_EQ(PARAM_EXPERIMENTAL, ps->ps_flags);
     ASSERT_EQ(PARAM_TYPE_U8, ps->ps_type);
     ASSERT_EQ((uintptr_t)ps->ps_convert, (uintptr_t)param_default_converter);
     ASSERT_EQ((uintptr_t)ps->ps_validate, (uintptr_t)param_default_validator);
@@ -248,7 +247,7 @@ MTF_DEFINE_UTEST_PRE(hse_gparams_test, socket_path, test_pre)
 
     ASSERT_NE(NULL, ps);
     ASSERT_NE(NULL, ps->ps_description);
-    ASSERT_EQ(PARAM_FLAG_DEFAULT_BUILDER, ps->ps_flags);
+    ASSERT_EQ(PARAM_DEFAULT_BUILDER, ps->ps_flags);
     ASSERT_EQ(PARAM_TYPE_STRING, ps->ps_type);
     ASSERT_EQ(offsetof(struct hse_gparams, gp_rest.socket_path), ps->ps_offset);
     ASSERT_EQ(sizeof(((struct sockaddr_un *)0)->sun_path), ps->ps_size);
@@ -366,7 +365,7 @@ MTF_DEFINE_UTEST_PRE(hse_gparams_test, logging_squelch_ns, test_pre)
 
     ASSERT_NE(NULL, ps);
     ASSERT_NE(NULL, ps->ps_description);
-    ASSERT_EQ(PARAM_FLAG_EXPERIMENTAL, ps->ps_flags);
+    ASSERT_EQ(PARAM_EXPERIMENTAL, ps->ps_flags);
     ASSERT_EQ(PARAM_TYPE_U64, ps->ps_type);
     ASSERT_EQ(offsetof(struct hse_gparams, gp_logging.lp_squelch_ns), ps->ps_offset);
     ASSERT_EQ(sizeof(uint64_t), ps->ps_size);
@@ -437,7 +436,7 @@ MTF_DEFINE_UTEST(hse_gparams_test, set)
 {
     merr_t err;
 
-    const struct hse_gparams p = hse_gparams_defaults();
+    struct hse_gparams p = hse_gparams_defaults();
 
     err = hse_gparams_set(&p, NULL, "false");
     ASSERT_EQ(EINVAL, merr_errno(err));

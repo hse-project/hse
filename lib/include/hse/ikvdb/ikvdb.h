@@ -22,9 +22,6 @@
 
 #define HSE_KVDB_SYNC_REFWAIT HSE_KVDB_SYNC_RSVD1
 
-struct yaml_context;
-
-struct config;
 struct ikvdb;
 struct ikvdb_impl;
 struct kvdb_txn;
@@ -257,7 +254,7 @@ ikvdb_alias(struct ikvdb *kvdb);
  * ikvdb_home() - get the config object
  * @kvdb: kvdb handle
  */
-struct config *
+struct cJSON *
 ikvdb_config(struct ikvdb *kvdb);
 
 /** @brief Get KVDB rparams.
@@ -266,7 +263,7 @@ ikvdb_config(struct ikvdb *kvdb);
  *
  * @returns KVDB rparams.
  */
-const struct kvdb_rparams * HSE_RETURNS_NONNULL
+struct kvdb_rparams * HSE_RETURNS_NONNULL
 ikvdb_rparams(struct ikvdb *kvdb);
 
 /** @brief Get KVDB cparams.
@@ -284,11 +281,11 @@ ikvdb_cparams(struct ikvdb *kvdb, struct kvdb_cparams *cparams) HSE_NONNULL(1, 2
 /**
  * Attach a config object to the lifetime of the KVDB
  *
- * @param kvdb: KVDB handle
- * @param conf: Config handle
+ * @param kvdb KVDB handle
+ * @param config JSON object
  */
 void
-ikvdb_config_attach(struct ikvdb *kvdb, struct config *conf);
+ikvdb_config_attach(struct ikvdb *kvdb, cJSON *config);
 
 /**
  * ikvdb_allows_user_writes() - checks whether puts/dels are allowed on the specified kvdb

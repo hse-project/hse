@@ -12,10 +12,10 @@
 #include <hse/ikvdb/kvdb_ctxn.h>
 #include <hse/ikvdb/limits.h>
 #include <hse/ikvdb/kvdb_perfc.h>
-#include <hse/ikvdb/config.h>
-#include <hse/ikvdb/argv.h>
+#include <hse/config/config.h>
 #include <hse/ikvdb/kvdb_home.h>
 #include <hse/ikvdb/kvdb_rparams.h>
+#include <hse/ikvdb/hse_gparams.h>
 
 #include <hse/version.h>
 #include <hse/logging/logging.h>
@@ -41,20 +41,20 @@ diag_kvdb_open(
     struct pidfile      content;
     char                pidfile_path[PATH_MAX];
     size_t              n;
-    struct config *     conf;
+    cJSON *             conf;
 
     if (ev(!kvdb_home || !handle))
         return merr(EINVAL);
 
-    err = argv_deserialize_to_kvdb_rparams(paramc, paramv, &params);
+    err = kvdb_rparams_from_paramv(&params, paramc, paramv);
     if (err)
         goto close_mp;
 
-    err = config_from_kvdb_conf(kvdb_home, &conf);
+    err = kvdb_home_get_config(kvdb_home, &conf);
     if (err)
         goto close_mp;
 
-    err = config_deserialize_to_kvdb_rparams(conf, &params);
+    err = kvdb_rparams_from_config(&params, conf);
     if (err)
         goto close_mp;
 

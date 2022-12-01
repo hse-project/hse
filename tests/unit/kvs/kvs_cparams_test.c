@@ -5,10 +5,9 @@
 
 #include <mtf/framework.h>
 
-#include <hse/ikvdb/argv.h>
 #include <hse/ikvdb/limits.h>
 #include <hse/ikvdb/kvs_cparams.h>
-#include <hse/ikvdb/param.h>
+#include <hse/config/params.h>
 
 #include <stdarg.h>
 
@@ -65,7 +64,7 @@ MTF_DEFINE_UTEST_PRE(kvs_cparams_test, kvs_ext01, test_pre)
 
     ASSERT_NE(NULL, ps);
     ASSERT_NE(NULL, ps->ps_description);
-    ASSERT_EQ(PARAM_FLAG_EXPERIMENTAL, ps->ps_flags);
+    ASSERT_EQ(PARAM_EXPERIMENTAL, ps->ps_flags);
     ASSERT_EQ(PARAM_TYPE_U32, ps->ps_type);
     ASSERT_EQ(offsetof(struct kvs_cparams, kvs_ext01), ps->ps_offset);
     ASSERT_EQ(sizeof(uint32_t), ps->ps_size);

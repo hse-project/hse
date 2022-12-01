@@ -65,9 +65,9 @@ soversion = '0'
 subdir('util')
 subdir('error')
 subdir('logging')
+subdir('config')
 subdir('include')
 subdir('binding')
-subdir('config')
 subdir('kvs')
 subdir('c0')
 subdir('lc')
@@ -84,7 +84,6 @@ hse_sources = [
     binding_sources,
     c0_sources,
     lc_sources,
-    config_sources,
     cn_sources,
     cndb_sources,
     kvdb_sources,
@@ -112,6 +111,7 @@ hse_dependencies = [
     cjson_utils_dep,
     hyperloglog_dep,
     libbsd_dep,
+    hse_config_dep,
     hse_error_dep,
     hse_logging_dep,
     hse_pidfile_dep,

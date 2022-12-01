@@ -7,8 +7,7 @@
 #define HSE_CONFIG_HSE_GPARAMS_H
 
 #include <stdbool.h>
-#include <inttypes.h>
-#include <limits.h>
+#include <stdint.h>
 #include <stddef.h>
 #include <sys/un.h>
 
@@ -16,7 +15,6 @@
 
 #include <hse/error/merr.h>
 #include <hse/logging/logging.h>
-
 #include <hse/util/compiler.h>
 
 struct hse_gparams {
@@ -54,11 +52,37 @@ hse_gparams_get(
 
 merr_t
 hse_gparams_set(
-    const struct hse_gparams *params,
-    const char *              param,
-    const char *              value);
+    struct hse_gparams *params,
+    const char *        param,
+    const char *        value);
+
+/**
+ * Deserialize a config to HSE gparams
+ *
+ * @param config Configuration
+ * @param params HSE global params
+ */
+merr_t
+hse_gparams_from_config(struct hse_gparams *params, cJSON *conf);
+
+/**
+ * Deserialize list of key=value parameters to HSE gparams
+ *
+ * @param paramc Number of parameters
+ * @param paramv List of key=value strings
+ * @param params Params struct
+ *
+ * @returns Error status
+ * @retval 0 success
+ * @retval !0 failure
+ */
+merr_t
+hse_gparams_from_paramv(
+    struct hse_gparams *params,
+    size_t              paramc,
+    const char *const * paramv);
 
 cJSON *
-hse_gparams_to_json(const struct hse_gparams *params);
+hse_gparams_to_json(const struct hse_gparams *params) HSE_WARN_UNUSED_RESULT;
 
 #endif

@@ -4195,7 +4195,7 @@ oom_score_adj_set(int adj)
     }
 }
 
-#include <hse/ikvdb/param.h>
+#include <hse/config/params.h>
 #include <hse/ikvdb/kvdb_rparams.h>
 #include <hse/ikvdb/kvdb_cparams.h>
 
@@ -4284,7 +4284,7 @@ usage_parms(size_t *npsp, const struct param_spec *psv, const char *hdr)
             }
 
             printf("  %-*s  %*s%s  %s\n", wname, ps->ps_name, wvalue, buf,
-                   (ps->ps_flags & PARAM_FLAG_WRITABLE) ? "*" : " ",
+                   (ps->ps_flags & PARAM_WRITABLE) ? "*" : " ",
                    ps->ps_description);
         }
     }
