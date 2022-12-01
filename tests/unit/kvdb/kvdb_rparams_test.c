@@ -1,6 +1,6 @@
 /* SPDX-License-Identifier: Apache-2.0 */
 /*
- * Copyright (C) 2021 Micron Technology, Inc.  All rights reserved.
+ * Copyright (C) 2021-2022 Micron Technology, Inc.  All rights reserved.
  */
 
 #include <mtf/framework.h>
@@ -840,6 +840,25 @@ MTF_DEFINE_UTEST_PRE(kvdb_rparams_test, cn_io_threads, test_pre)
     ASSERT_EQ(17, params.cn_io_threads);
     ASSERT_EQ(1, ps->ps_bounds.as_uscalar.ps_min);
     ASSERT_EQ(256, ps->ps_bounds.as_uscalar.ps_max);
+}
+
+MTF_DEFINE_UTEST_PRE(kvdb_rparams_test, cndb_compact_hwm_pct, test_pre)
+{
+    const struct param_spec *ps = ps_get("cndb_compact_hwm_pct");
+
+    ASSERT_NE(NULL, ps);
+    ASSERT_NE(NULL, ps->ps_description);
+    ASSERT_EQ(PARAM_FLAG_EXPERIMENTAL, ps->ps_flags);
+    ASSERT_EQ(PARAM_TYPE_DOUBLE, ps->ps_type);
+    ASSERT_EQ(offsetof(struct kvdb_rparams, cndb_compact_hwm_pct), ps->ps_offset);
+    ASSERT_EQ(sizeof(double), ps->ps_size);
+    ASSERT_EQ((uintptr_t)ps->ps_convert, (uintptr_t)param_default_converter);
+    ASSERT_EQ((uintptr_t)ps->ps_validate, (uintptr_t)param_default_validator);
+    ASSERT_EQ((uintptr_t)ps->ps_stringify, (uintptr_t)param_default_stringify);
+    ASSERT_EQ((uintptr_t)ps->ps_jsonify, (uintptr_t)param_default_jsonify);
+    ASSERT_EQ(HSE_CNDB_COMPACT_HWM_PCT_DEFAULT, params.cndb_compact_hwm_pct);
+    ASSERT_EQ(0, ps->ps_bounds.as_double.ps_min);
+    ASSERT_EQ(100, ps->ps_bounds.as_double.ps_max);
 }
 
 MTF_DEFINE_UTEST_PRE(kvdb_rparams_test, keylock_tables, test_pre)

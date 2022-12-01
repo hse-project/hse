@@ -1,6 +1,6 @@
 /* SPDX-License-Identifier: Apache-2.0 */
 /*
- * Copyright (C) 2015-2021 Micron Technology, Inc.  All rights reserved.
+ * Copyright (C) 2015-2022 Micron Technology, Inc.  All rights reserved.
  */
 
 #ifndef HSE_KVDB_RPARAMS_H
@@ -96,7 +96,7 @@ struct kvdb_rparams {
     uint32_t c0_ingest_threads;
     uint16_t cn_maint_threads;
     uint16_t cn_io_threads;
-    uint32_t cndb_compact_hwm_pct;
+    double cndb_compact_hwm_pct;
 
     uint32_t keylock_tables;
     enum kvdb_open_mode mode;
