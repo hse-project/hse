@@ -253,6 +253,7 @@ struct sp3 {
     uint64_t ucomp_report_ns;
     volatile bool ucomp_active;
     volatile bool ucomp_canceled;
+    bool ucomp_full;
 
     /* Tree shape report */
     bool shape_rlen_bad;
@@ -580,7 +581,8 @@ sp3_refresh_thresholds(struct sp3 *sp)
         thresh.rspill_wlen_max = ((v >> 16) & 0xffff) << 20;
     } else {
         thresh.rspill_runlen_max = SP3_RSPILL_RUNLEN_MAX_DEFAULT;
-        thresh.rspill_runlen_min = SP3_RSPILL_RUNLEN_MIN_DEFAULT;
+        thresh.rspill_runlen_min = sp->rp->csched_full_compact ? 1 :
+                                   SP3_RSPILL_RUNLEN_MIN_DEFAULT;
         thresh.rspill_wlen_max = SP3_RSPILL_WLEN_MAX_DEFAULT;
     }
 
@@ -637,7 +639,7 @@ sp3_refresh_thresholds(struct sp3 *sp)
     /* vgroup leaf-scatter remediation settings
      */
     thresh.lscat_runlen_max = sp->rp->csched_lscat_runlen_max;
-    thresh.lscat_hwm = sp->rp->csched_lscat_hwm;
+    thresh.lscat_hwm = sp->rp->csched_full_compact ? 1 : sp->rp->csched_lscat_hwm;
 
     thresh.split_cnt_max = qthreads(sp, SP3_QNUM_SPLIT);
 
@@ -864,7 +866,7 @@ sp3_dirty_node_locked(struct sp3 *sp, struct cn_tree_node *tn)
              * We use inverse scatter as a secondary discriminant so as to
              * prefer scatter jobs over kcompactions when scatter is high.
              */
-            if (nkvsets >= sp->thresh.llen_runlen_min) {
+            if (nkvsets >= sp->thresh.llen_runlen_min || sp->rp->csched_full_compact) {
                 weight = (nkvsets << 32) | (UINT32_MAX - scatter);
 
                 if (nkvsets > sp->thresh.llen_runlen_max * 2) {
@@ -1496,6 +1498,10 @@ sp3_comp_thread_name(
         break;
     case CN_RULE_LENGTH_CLEN:
         r = "lc";
+        break;
+    case CN_RULE_LENGTH_FULL_K:
+    case CN_RULE_LENGTH_FULL_KV:
+        r = "lf";
         break;
     case CN_RULE_INDEX:
         r = "li";
@@ -2353,8 +2359,19 @@ sp3_ucomp_report(struct sp3 *sp, bool final)
 static void
 sp3_ucomp_check(struct sp3 *sp)
 {
+    /* If a user-initiated compaction is underway, it can be considered complete when:
+     *
+     *  1. The compaction operation was cancelled, or
+     *  2. Spaceamp has reached the low water mark, and so sp3_reduce is false.
+     *
+     *  If the user has requested a full compaction, in addition to the second condition
+     *  above, also wait until all ongoing jobs have finished, i.e. the sts queues are
+     *  empty.
+     */
     if (sp->ucomp_active) {
-        const bool completed = sp->ucomp_canceled || !sp->samp_reduce;
+        const bool no_ongoing_jobs = sts_jobcnt(sp->sts) == 0;
+        const bool completed = sp->ucomp_canceled ||
+                               (!sp->samp_reduce && (!sp->ucomp_full || no_ongoing_jobs));
         const ulong now = jclock_ns;
 
         if (completed)
@@ -2465,8 +2482,6 @@ sp3_update_samp(struct sp3 *sp)
             sp->samp_reduce = true;
         }
     }
-
-    sp3_ucomp_check(sp);
 }
 
 struct periodic_check {
@@ -2546,6 +2561,8 @@ sp3_monitor(struct work_struct *work)
             sp3_schedule(sp);
         }
 
+        sp3_ucomp_check(sp);
+
         if (now > chk_refresh.next) {
             chk_refresh.next = now + chk_refresh.interval;
             sp3_refresh_settings(sp);
@@ -2606,6 +2623,12 @@ sp3_compact_request(struct csched *handle, unsigned int flags)
 
         sp->ucomp_canceled = false;
         sp->ucomp_active = true;
+    } else if (flags & HSE_KVDB_COMPACT_FULL) {
+        msg = sp->ucomp_active ? "restarting..." : "starting...";
+
+        sp->ucomp_canceled = false;
+        sp->ucomp_active = true;
+        sp->ucomp_full = true;
     }
 
     log_info("user-initiated compaction %s", msg);

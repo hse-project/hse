@@ -43,6 +43,12 @@ sts_job_run(struct work_struct *work)
     job->sj_job_fn(job);
 }
 
+int
+sts_jobcnt(struct sts *self)
+{
+    return self->sts_jobcnt;
+}
+
 void
 sts_job_submit(struct sts *self, struct sts_job *job)
 {

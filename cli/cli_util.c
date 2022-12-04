@@ -115,8 +115,13 @@ kvdb_compact_request(const char *kvdb_home, const char *request_type, u32 timeou
     uint   sleep_secs = 2;
     char **namev;
     size_t namec;
+    bool   full = strcmp(request_type, "request_full") == 0;
+    const char *kvdb_paramv[] = { "csched_full_compact=true" };
 
-    err = hse_kvdb_open(kvdb_home, 0, NULL, &handle);
+    err = hse_kvdb_open(kvdb_home,
+                        full ? NELEM(kvdb_paramv) : 0,
+                        full ? kvdb_paramv : NULL,
+                        &handle);
     if (err) {
         handle = 0;
         if (hse_err_to_errno(err) != EEXIST && hse_err_to_errno(err) != EBUSY) {
@@ -139,8 +144,13 @@ kvdb_compact_request(const char *kvdb_home, const char *request_type, u32 timeou
 
         for (size_t i = 0; i < namec; i++) {
             struct hse_kvs *k;
+            const char *kvs_paramv[] = { "cn_close_wait=true" };
 
-            err = hse_kvdb_kvs_open(handle, namev[i], 0, NULL, &k);
+            err = hse_kvdb_kvs_open(handle,
+                                    namev[i],
+                                    full ? NELEM(kvs_paramv) : 0,
+                                    full ? kvs_paramv : NULL,
+                                    &k);
             if (err) {
                 char buf[256];
                 hse_strerror(err, buf, sizeof(buf));
@@ -173,8 +183,8 @@ kvdb_compact_request(const char *kvdb_home, const char *request_type, u32 timeou
         goto err_out;
     }
 
-    if (strcmp(request_type, "request") == 0) {
-        err = rest_kvdb_compact(content.alias);
+    if (strcmp(request_type, "request") == 0 || full) {
+        err = rest_kvdb_compact(content.alias, full);
         if (err) {
             char buf[256];
             hse_strerror(err, buf, sizeof(buf));

@@ -92,6 +92,10 @@ sts_job_progress_set(struct sts_job *job, uint progress)
 void
 sts_job_submit(struct sts *s, struct sts_job *job);
 
+/* MTF_MOCK */
+int
+sts_jobcnt(struct sts *self);
+
 /**
  * sts_job_detach() - Detach job from callback thread context
  *

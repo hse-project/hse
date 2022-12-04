@@ -16,6 +16,7 @@
 
 #include "csched_sp3_work.h"
 
+#include "cn_internal.h"
 #include "cn_tree_compact.h"
 #include "cn_tree_internal.h"
 #include "kvset.h"
@@ -756,6 +757,7 @@ sp3_work_wtype_length(
     uint runlen_min = thresh->llen_runlen_min;
     uint runlen_max = thresh->llen_runlen_max;
     uint kvsets;
+    const struct kvdb_rparams *rp = ikvdb_rparams(tn->tn_tree->cn->ikvdb);
 
     kvsets = cn_ns_kvsets(&tn->tn_ns);
 
@@ -774,7 +776,7 @@ sp3_work_wtype_length(
         *action = CN_ACTION_COMPACT_K;
         *rule = CN_RULE_LENGTH_MIN;
 
-        if (!atomic_read(&tn->tn_readers)) {
+        if (!rp->csched_full_compact && !atomic_read(&tn->tn_readers)) {
             runlen_max *= 2;
             runlen_min += 1;
         }
@@ -906,6 +908,22 @@ sp3_work_wtype_length(
         }
     }
 
+    if (rp->csched_full_compact && kvsets > 1) {
+        struct kvset_list_entry *le;
+
+        *mark = list_last_entry(&tn->tn_kvset_list, typeof(*le), le_link);
+        *action = CN_ACTION_COMPACT_KV;
+        *rule = CN_RULE_LENGTH_FULL_KV;
+
+        if (kvsets > runlen_max) {
+            *rule = CN_RULE_LENGTH_FULL_K;
+            *action = CN_ACTION_COMPACT_K;
+            return runlen_max;
+        }
+
+        return kvsets;
+    }
+
     return 0;
 }
 
@@ -1019,6 +1037,8 @@ sp3_work(
 
         case wtype_length:
             n_kvsets = sp3_work_wtype_length(spn, thresh, &mark, &action, &rule);
+            if (n_kvsets)
+                log_err("gsr picked %u kvsets", n_kvsets);
             break;
 
         case wtype_idle:

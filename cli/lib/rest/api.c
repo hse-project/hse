@@ -131,15 +131,16 @@ rest_kvdb_cancel_compaction(const char *const alias)
 }
 
 merr_t
-rest_kvdb_compact(const char *const alias)
+rest_kvdb_compact(const char *const alias, bool full)
 {
     long status = REST_STATUS_ACCEPTED;
+    const char *fmt = "/kvdbs/%s/compact?full=%s";
 
     if (!alias)
         return merr(EINVAL);
 
-    return rest_client_fetch("POST", NULL, NULL, 0, check_status_cb, &status, "/kvdbs/%s/compact",
-        alias);
+    return rest_client_fetch("POST", NULL, NULL, 0, check_status_cb, &status, fmt,
+                             alias, QUERY_VALUE_FROM_BOOL(full));
 }
 
 void

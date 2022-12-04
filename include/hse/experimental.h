@@ -29,6 +29,7 @@ extern "C" {
 /* hse_kvdb_compact() flags */
 #define HSE_KVDB_COMPACT_CANCEL   (1u << 0)
 #define HSE_KVDB_COMPACT_SAMP_LWM (1u << 1)
+#define HSE_KVDB_COMPACT_FULL     (1u << 2)
 
 /** @addtogroup KVDB Key-Value Database (KVDB)
  * @{

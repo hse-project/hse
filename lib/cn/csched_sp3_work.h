@@ -28,6 +28,7 @@
  */
 #define SP3_LLEN_RUNLEN_MIN             (2u) /* length reduction requires at least 2 kvsets */
 #define SP3_LLEN_RUNLEN_MAX             (UINT8_MAX)
+
 #define SP3_LLEN_RUNLEN_MIN_DEFAULT     (4u)
 #define SP3_LLEN_RUNLEN_MAX_DEFAULT     (8u)
 

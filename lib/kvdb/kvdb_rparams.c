@@ -886,6 +886,21 @@ static const struct param_spec pspecs[] = {
         },
     },
     {
+        .ps_name = "csched_full_compact",
+        .ps_description = "Fully compact KVDB",
+        .ps_flags = PARAM_FLAG_EXPERIMENTAL,
+        .ps_type = PARAM_TYPE_BOOL,
+        .ps_offset = offsetof(struct kvdb_rparams, csched_full_compact),
+        .ps_size = PARAM_SZ(struct kvdb_rparams, csched_full_compact),
+        .ps_convert = param_default_converter,
+        .ps_validate = param_default_validator,
+        .ps_stringify = param_default_stringify,
+        .ps_jsonify = param_default_jsonify,
+        .ps_default_value = {
+            .as_bool = false,
+        },
+    },
+    {
         .ps_name = "csched_gc_pct",
         .ps_description = "per-node garbage collection threshold",
         .ps_flags = PARAM_FLAG_EXPERIMENTAL | PARAM_FLAG_WRITABLE,

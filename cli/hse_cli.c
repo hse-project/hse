@@ -686,6 +686,7 @@ static int
 cli_hse_kvdb_compact_impl(
     struct cli *cli,
     const char *home,
+    bool        full,
     bool        status,
     bool        cancel,
     uint32_t    timeout_secs)
@@ -699,6 +700,8 @@ cli_hse_kvdb_compact_impl(
         req = "status";
     else if (cancel)
         req = "cancel";
+    else if (full)
+        req = "request_full";
     else
         req = "request";
 
@@ -944,6 +947,7 @@ cli_hse_kvdb_compact(struct cli_cmd *self, struct cli *cli)
         .optionv =
             {
                 OPTION_HELP,
+                { "-f, --full", "Full compaction" },
                 { "-s, --status", "Get status of compaction request" },
                 { "-t, --timeout=SECS", "Set compaction timeout in seconds" },
                 { "-x, --cancel", "Cancel compaction request" },
@@ -951,6 +955,7 @@ cli_hse_kvdb_compact(struct cli_cmd *self, struct cli *cli)
             },
         .longoptv =
             {
+                { "full", no_argument, 0, 'f' },
                 { "help", no_argument, 0, 'h' },
                 { "timeout", required_argument, 0, 't' },
                 { "status", no_argument, 0, 's' },
@@ -972,6 +977,7 @@ cli_hse_kvdb_compact(struct cli_cmd *self, struct cli *cli)
     const char *kvdb_home = NULL;
     uint32_t    timeout_secs = 300;
     bool        status = false;
+    bool        full = false;
     bool        cancel = false;
     bool        help = false;
     int         c;
@@ -981,6 +987,9 @@ cli_hse_kvdb_compact(struct cli_cmd *self, struct cli *cli)
 
     while (-1 != (c = cli_getopt(cli))) {
         switch (c) {
+            case 'f':
+                full = true;
+                break;
             case 'h':
                 help = true;
                 break;
@@ -1014,7 +1023,7 @@ cli_hse_kvdb_compact(struct cli_cmd *self, struct cli *cli)
         return help ? 0 : EX_USAGE;
     }
 
-    return cli_hse_kvdb_compact_impl(cli, kvdb_home, status, cancel, timeout_secs);
+    return cli_hse_kvdb_compact_impl(cli, kvdb_home, full, status, cancel, timeout_secs);
 }
 
 static int

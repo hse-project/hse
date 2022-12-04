@@ -70,6 +70,7 @@ struct kvdb_rparams {
     uint64_t csched_leaf_comp_params;
     uint64_t csched_leaf_len_params;
     uint64_t csched_node_min_ttl;
+    bool     csched_full_compact;
 
     uint32_t dur_bufsz_mb;
     uint32_t dur_intvl_ms;
