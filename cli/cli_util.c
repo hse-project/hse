@@ -20,6 +20,8 @@
 #include <hse/util/arch.h>
 #include <hse/util/parse_num.h>
 
+#include "cli_util.h"
+
 static hse_err_t
 kvdb_info_props(
     const char          *kvdb_home,
@@ -105,21 +107,43 @@ kvdb_info_print(
 }
 
 int
-kvdb_compact_request(const char *kvdb_home, const char *request_type, uint32_t timeout_sec)
+kvdb_compact_request(
+    const char                 *kvdb_home,
+    enum kvdb_compact_request   request,
+    uint32_t                    timeout_sec)
 {
     hse_err_t                      err;
     struct hse_kvdb *              handle = 0;
     struct hse_kvdb_compact_status status;
     struct pidfile                 content;
 
-    uint64_t stop_ts;
-    uint     sleep_secs = 2;
-    char   **namev;
-    size_t   namec;
+    u64    stop_ts;
+    uint   sleep_secs = 2;
+    char **namev;
+    size_t namec;
+    size_t kvdb_paramc = 0;
+    const char *kvdb_paramv[1] = { 0 };
+    size_t kvs_paramc = 0;
+    const char *kvs_paramv[1] = { 0 };
 
-    err = hse_kvdb_open(kvdb_home, 0, NULL, &handle);
+    /* Full compactions need a few extra params.
+     */
+    if (request == req_compact_full) {
+        kvdb_paramv[kvdb_paramc++] = "csched_full_compact=true";
+        assert(kvdb_paramc <= NELEM(kvdb_paramv));
+        kvs_paramv[kvs_paramc++] = "cn_close_wait=true";
+        assert(kvs_paramc <= NELEM(kvs_paramv));
+    }
+
+    err = hse_kvdb_open(kvdb_home, kvdb_paramc, kvdb_paramv, &handle);
     if (err) {
         handle = 0;
+        if (hse_err_to_errno(err) == EBUSY && request == req_compact_full) {
+            fprintf(stderr, "Unable to start full compaction KVDB because "
+                "it is open by another process.\n");
+            goto err_out;
+
+        }
         if (hse_err_to_errno(err) != EEXIST && hse_err_to_errno(err) != EBUSY) {
             char buf[256];
             hse_strerror(err, buf, sizeof(buf));
@@ -134,14 +158,15 @@ kvdb_compact_request(const char *kvdb_home, const char *request_type, uint32_t t
         if (err) {
             char buf[256];
             hse_strerror(err, buf, sizeof(buf));
-            fprintf(stderr, "Failed to retrieve the KVS names of the KVDB (%s): %s\n", kvdb_home, buf);
+            fprintf(stderr, "Failed to retrieve the KVS names of the KVDB (%s): %s\n",
+                kvdb_home, buf);
             goto err_out;
         }
 
         for (size_t i = 0; i < namec; i++) {
             struct hse_kvs *k;
 
-            err = hse_kvdb_kvs_open(handle, namev[i], 0, NULL, &k);
+            err = hse_kvdb_kvs_open(handle, namev[i], kvs_paramc, kvs_paramv, &k);
             if (err) {
                 char buf[256];
                 hse_strerror(err, buf, sizeof(buf));
@@ -174,8 +199,11 @@ kvdb_compact_request(const char *kvdb_home, const char *request_type, uint32_t t
         goto err_out;
     }
 
-    if (strcmp(request_type, "request") == 0) {
-        err = rest_kvdb_compact(content.alias);
+    switch (request) {
+
+    case req_compact:
+    case req_compact_full:
+        err = rest_kvdb_compact(content.alias, request == req_compact_full);
         if (err) {
             char buf[256];
             hse_strerror(err, buf, sizeof(buf));
@@ -203,7 +231,8 @@ kvdb_compact_request(const char *kvdb_home, const char *request_type, uint32_t t
             if (err) {
                 char buf[256];
                 hse_strerror(err, buf, sizeof(buf));
-                fprintf(stderr, "Compaction request failed for the KVDB (%s): %s\n", kvdb_home, buf);
+                fprintf(stderr, "Compaction request failed for the KVDB (%s): %s\n",
+                    kvdb_home, buf);
                 goto err_out;
             }
 
@@ -217,7 +246,8 @@ kvdb_compact_request(const char *kvdb_home, const char *request_type, uint32_t t
                 if (err) {
                     char buf[256];
                     hse_strerror(err, buf, sizeof(buf));
-                    fprintf(stderr, "Failed to cancel compaction for the KVDB (%s): %s\n", kvdb_home, buf);
+                    fprintf(stderr, "Failed to cancel compaction for the KVDB (%s): %s\n",
+                        kvdb_home, buf);
                 } else {
                     err = ETIMEDOUT;
                 }
@@ -226,8 +256,11 @@ kvdb_compact_request(const char *kvdb_home, const char *request_type, uint32_t t
             }
         }
 
-        printf("Compaction request was %s for KVDB (%s)\n", status.kvcs_canceled ? "canceled" : "successful", kvdb_home);
-    } else if (strcmp(request_type, "cancel") == 0) {
+        printf("Compaction request was %s for KVDB (%s)\n",
+            status.kvcs_canceled ? "canceled" : "successful", kvdb_home);
+        break;
+
+    case req_cancel:
         err = rest_kvdb_cancel_compaction(content.alias);
         if (err) {
             char buf[256];
@@ -237,12 +270,15 @@ kvdb_compact_request(const char *kvdb_home, const char *request_type, uint32_t t
         }
 
         printf("Successfully canceled the compaction request for the KVDB (%s)\n", kvdb_home);
-    } else if (strcmp(request_type, "status") == 0) {
+        break;
+
+    case req_status:
         err = rest_kvdb_get_compaction_status(&status, content.alias);
         if (err) {
             char buf[256];
             hse_strerror(err, buf, sizeof(buf));
-            fprintf(stderr, "Failed to retrieve current compaction status of the KVDB (%s): %s\n", kvdb_home, buf);
+            fprintf(stderr, "Failed to retrieve current compaction status of the KVDB (%s): %s\n",
+                kvdb_home, buf);
             goto err_out;
         }
 
@@ -257,6 +293,7 @@ kvdb_compact_request(const char *kvdb_home, const char *request_type, uint32_t t
             status.kvcs_samp_curr / 1000.0,
             status.kvcs_active ? "true" : "false",
             status.kvcs_canceled ? "true" : "false");
+        break;
     }
 
 err_out:

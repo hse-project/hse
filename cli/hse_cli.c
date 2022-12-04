@@ -688,22 +688,9 @@ static int
 cli_hse_kvdb_compact_impl(
     struct cli *cli,
     const char *home,
-    bool        status,
-    bool        cancel,
-    uint32_t    timeout_secs)
+    enum kvdb_compact_request request,
+    uint32_t timeout_secs)
 {
-    const char *req;
-
-    /* check status first so '-sx' results in status
-     * but not cancel.
-     */
-    if (status)
-        req = "status";
-    else if (cancel)
-        req = "cancel";
-    else
-        req = "request";
-
     if (cli_hse_init_rest(cli))
         return -1;
 
@@ -712,7 +699,7 @@ cli_hse_kvdb_compact_impl(
         return EINVAL;
     }
 
-    return kvdb_compact_request(home, req, timeout_secs);
+    return kvdb_compact_request(home, request, timeout_secs);
 }
 
 static int
@@ -946,6 +933,7 @@ cli_hse_kvdb_compact(struct cli_cmd *self, struct cli *cli)
         .optionv =
             {
                 OPTION_HELP,
+                { "-f, --full", "Full compaction" },
                 { "-s, --status", "Get status of compaction request" },
                 { "-t, --timeout=SECS", "Set compaction timeout in seconds" },
                 { "-x, --cancel", "Cancel compaction request" },
@@ -953,6 +941,7 @@ cli_hse_kvdb_compact(struct cli_cmd *self, struct cli *cli)
             },
         .longoptv =
             {
+                { "full", no_argument, 0, 'f' },
                 { "help", no_argument, 0, 'h' },
                 { "timeout", required_argument, 0, 't' },
                 { "status", no_argument, 0, 's' },
@@ -972,35 +961,36 @@ cli_hse_kvdb_compact(struct cli_cmd *self, struct cli *cli)
     };
 
     const char *kvdb_home = NULL;
-    uint32_t    timeout_secs = 300;
-    bool        status = false;
-    bool        cancel = false;
-    bool        help = false;
-    int         c;
+    uint32_t timeout_secs = 300;
+    enum kvdb_compact_request request = req_compact;
+    bool help = false;
+    int c, requests = 0;
 
     if (cli_hook(cli, self, &spec))
         return 0;
 
+    requests = 0;
     while (-1 != (c = cli_getopt(cli))) {
         switch (c) {
+            case 'f':
+                request = req_compact_full;
+                requests++;
+                break;
             case 'h':
                 help = true;
                 break;
             case 's':
-                status = true;
+                request = req_status;
+                requests++;
                 break;
             case 'x':
-                cancel = true;
+                request = req_cancel;
+                requests++;
                 break;
             case 't':
                 if (parse_u32(optarg, &timeout_secs)) {
-                    fprintf(
-                        stderr,
-                        "%s: unable to parse"
-                        " '%s' as an unsigned 32-bit"
-                        " scalar value\n",
-                        self->cmd_path,
-                        optarg);
+                    fprintf(stderr, "%s: unable to parse '%s' as an unsigned 32-bit scalar value\n",
+                        self->cmd_path, optarg);
                     return EX_USAGE;
                 }
                 break;
@@ -1016,7 +1006,12 @@ cli_hse_kvdb_compact(struct cli_cmd *self, struct cli *cli)
         return help ? 0 : EX_USAGE;
     }
 
-    return cli_hse_kvdb_compact_impl(cli, kvdb_home, status, cancel, timeout_secs);
+    if (requests > 1) {
+        fprintf(stderr, "%s: can only set one of -f, -s and -x\n", self->cmd_path);
+        return EX_USAGE;
+    }
+
+    return cli_hse_kvdb_compact_impl(cli, kvdb_home, request, timeout_secs);
 }
 
 static int

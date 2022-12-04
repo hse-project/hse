@@ -767,11 +767,19 @@ rest_kvdb_compact_request(
     void *const ctx)
 {
     struct ikvdb *kvdb;
-    const int flags = HSE_KVDB_COMPACT_SAMP_LWM;
+    bool full = false;
+    int flags = HSE_KVDB_COMPACT_SAMP_LWM;
+    merr_t err;
+
+    err = rest_params_get(req->rr_params, "full", &full, false);
+    if (ev(err))
+        return REST_STATUS_BAD_REQUEST;
 
     INVARIANT(req);
     INVARIANT(resp);
     INVARIANT(ctx);
+
+    flags = full ? HSE_KVDB_COMPACT_FULL : HSE_KVDB_COMPACT_SAMP_LWM;
 
     kvdb = ctx;
 
