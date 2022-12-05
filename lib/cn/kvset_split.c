@@ -27,6 +27,7 @@
 #include "kblock_builder.h"
 #include "kblock_reader.h"
 #include "vblock_reader.h"
+#include "hblock_builder.h"
 #include "hblock_reader.h"
 #include "wbt_reader.h"
 #include "omf.h"
@@ -298,7 +299,7 @@ get_kblk_split_index(struct kvset *ks, const struct key_obj *split_kobj, bool *o
 static merr_t
 kblocks_split(
     struct kvset            *ks,
-    const struct key_obj    *split_kobj,
+    const struct key_obj    *split_key,
     struct kvset_split_work  work[static 2],
     struct kvset_split_res  *result)
 {
@@ -310,7 +311,7 @@ kblocks_split(
     uint32_t split_idx;
     merr_t err = 0;
 
-    split_idx = get_kblk_split_index(ks, split_kobj, &overlap);
+    split_idx = get_kblk_split_index(ks, split_key, &overlap);
     assert(split_idx <= ks->ks_st.kst_kblks);
 
     /* Add kblocks in [0, split_idx - 1] to the left kvset
@@ -343,7 +344,7 @@ kblocks_split(
             blk_list_init(&kblks[i]);
 
         /* split kblock at split_idx */
-        err = kblock_split(&kbd, split_kobj, kblks, hlogs, vused);
+        err = kblock_split(&kbd, split_key, kblks, hlogs, vused);
 
         assert((kblks[LEFT].idc > 0 && kblks[RIGHT].idc > 0) || err);
 
@@ -412,12 +413,11 @@ kblocks_split(
  */
 static uint16_t
 get_vblk_split_index(
-    struct kvset *ks,
-    uint16_t      start, /* inclusive */
-    uint16_t      end,   /* inclusive */
-    const void   *split_key,
-    uint32_t      split_klen,
-    bool         *overlap)
+    struct kvset *const ks,
+    const uint16_t start, /* inclusive */
+    const uint16_t end,  /* inclusive */
+    const struct key_obj *const split_key,
+    bool *const overlap)
 {
     uint16_t v;
 
@@ -427,18 +427,22 @@ get_vblk_split_index(
     assert(start <= end && end < kvset_get_num_vblocks(ks));
 
     for (v = start; v <= end; v++) {
+        struct key_obj min_key = { 0 };
         struct vblock_desc *vbd = kvset_get_nth_vblock_desc(ks, v);
-        const void *min_key = vbd->vbd_mblkdesc->map_base + vbd->vbd_min_koff;
 
-        if (keycmp(split_key, split_klen, min_key, vbd->vbd_min_klen) < 0)
+        key2kobj(&min_key, vbd->vbd_mblkdesc->map_base + vbd->vbd_min_koff, vbd->vbd_min_klen);
+
+        if (key_obj_cmp(split_key, &min_key) < 0)
             break;
     }
 
     if (v > start) {
+        struct key_obj max_key = { 0 };
         struct vblock_desc *vbd = kvset_get_nth_vblock_desc(ks, v - 1);
-        const void *max_key = vbd->vbd_mblkdesc->map_base + vbd->vbd_max_koff;
 
-        if (keycmp(split_key, split_klen, max_key, vbd->vbd_max_klen) < 0) {
+        key2kobj(&max_key, vbd->vbd_mblkdesc->map_base + vbd->vbd_max_koff, vbd->vbd_max_klen);
+
+        if (key_obj_cmp(split_key, &max_key) < 0) {
             *overlap = true;
             return v - 1;
         }
@@ -455,7 +459,7 @@ get_vblk_split_index(
 static merr_t
 vblocks_split(
     struct kvset            *ks,
-    const struct key_obj    *split_kobj,
+    const struct key_obj    *split_key,
     struct kvset_split_work  work[static 2],
     struct perfc_set        *pc,
     struct kvset_split_res  *result)
@@ -467,8 +471,7 @@ vblocks_split(
     struct kvset_mblocks *blks_right = result->ks[RIGHT].blks;
     uint16_t vbidx_left = 0, vbidx_right = 0;
     uint32_t vgidx_left = 0, vgidx_right = 0;
-    char split_key[HSE_KVS_KEY_LEN_MAX];
-    uint32_t split_klen, nvgroups = kvset_get_vgroups(ks), perfc_rwc = 0;
+    uint32_t nvgroups = kvset_get_vgroups(ks), perfc_rwc = 0;
     bool move_left = (blks_right->kblks.idc == 0);
     bool move_right = (blks_left->kblks.idc == 0);
     uint64_t perfc_rwb = 0;
@@ -478,8 +481,6 @@ vblocks_split(
         assert(nvgroups == 0);
         return 0;
     }
-
-    key_obj_copy(split_key, sizeof(split_key), &split_klen, split_kobj);
 
     for (uint32_t i = 0; i < nvgroups; i++) {
         uint16_t src_start, src_end, src_split, end;
@@ -498,8 +499,7 @@ vblocks_split(
             src_split = move_right ? src_start : src_end + 1;
             assert(!overlap);
         } else {
-            src_split = get_vblk_split_index(ks, src_start, src_end,
-                                             split_key, split_klen, &overlap);
+            src_split = get_vblk_split_index(ks, src_start, src_end, split_key, &overlap);
         }
         assert(src_split >= src_start && src_split <= src_end + 1);
 
@@ -656,24 +656,24 @@ hblock_split(
 static merr_t
 kvset_split(
     struct kvset           *ks,
-    const struct key_obj   *split_kobj,
+    const struct key_obj   *split_key,
     struct perfc_set       *pc,
     struct kvset_split_res *result)
 {
     struct kvset_split_work work[2] = { 0 };
     merr_t err;
 
-    INVARIANT(ks && split_kobj && result);
+    INVARIANT(ks && split_key && result);
 
     err = alloc_work(ks, pc, work);
     if (err)
         return err;
 
-    err = kblocks_split(ks, split_kobj, work, result);
+    err = kblocks_split(ks, split_key, work, result);
     if (err)
         goto errout;
 
-    err = vblocks_split(ks, split_kobj, work, pc, result);
+    err = vblocks_split(ks, split_key, work, pc, result);
     if (err)
         goto errout;
 
