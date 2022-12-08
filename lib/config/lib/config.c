@@ -32,13 +32,11 @@ config_open(const char *const path, config_validator_t validate, cJSON **const c
     fd = open(path, O_RDONLY);
     if (fd == -1) {
         err = merr(errno);
-        log_errx("Failed to open %s", err, path);
         return err;
     }
 
     if (fstat(fd, &st) == -1) {
         err = merr(errno);
-        log_errx("Failed to get the size of %s", err, path);
         goto out;
     }
 
@@ -50,14 +48,12 @@ config_open(const char *const path, config_validator_t validate, cJSON **const c
 
     if (read(fd, str, st.st_size) == -1) {
         err = merr(errno);
-        log_errx("Failed to read %s", err, path);
         goto out;
     }
 
     impl = cJSON_ParseWithLength(str, st.st_size);
     if (!impl) {
         if (cJSON_GetErrorPtr()) {
-            log_err("%s is not a valid config file: %s", path, cJSON_GetErrorPtr());
             err = merr(EINVAL);
         } else {
             err = merr(ENOMEM);
@@ -66,16 +62,13 @@ config_open(const char *const path, config_validator_t validate, cJSON **const c
     }
 
     if (!cJSON_IsObject(impl)) {
-        log_err("%s is not a valid config file", path);
         err = merr(EINVAL);
         goto out;
     }
 
     err = validate ? validate(impl) : 0;
-    if (err) {
-        log_errx("Failed to validate %s", err, path);
+    if (err)
         goto out;
-    }
 
     *config = impl;
 
