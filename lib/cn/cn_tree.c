@@ -1812,6 +1812,8 @@ cn_comp_commit(struct cn_compaction_work *w)
         alloc_len += sizeof(*cnts) * w->cw_kvset_cnt;
     }
 
+    /* Round up alloc_len so that cookiev is correctly aligned */
+    alloc_len = roundup(alloc_len, __alignof__(*cookiev));
     kvsets = calloc(1, alloc_len + (w->cw_outc * sizeof(*cookiev)));
     if (!kvsets) {
         err = merr(ENOMEM);
