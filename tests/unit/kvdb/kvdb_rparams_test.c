@@ -5,12 +5,11 @@
 
 #include <mtf/framework.h>
 
-#include <hse/ikvdb/argv.h>
 #include <hse/ikvdb/limits.h>
 #include <hse/ikvdb/kvdb_rparams.h>
 #include <hse/ikvdb/csched.h>
 #include <hse/ikvdb/wal.h>
-#include <hse/ikvdb/param.h>
+#include <hse/config/params.h>
 
 #include <stdarg.h>
 
@@ -63,8 +62,7 @@ check(const char *const arg, ...)
 
         success = !!va_arg(ap, int);
 
-        err = argv_deserialize_to_kvdb_rparams(paramc, paramv, &params);
-
+        err = kvdb_rparams_from_paramv(&params, paramc, paramv);
         if (success != !err) {
             break;
         } else {
@@ -109,7 +107,7 @@ MTF_DEFINE_UTEST_PRE(kvdb_rparams_test, perfc_level, test_pre)
 
     ASSERT_NE(NULL, ps);
     ASSERT_NE(NULL, ps->ps_description);
-    ASSERT_EQ(PARAM_FLAG_EXPERIMENTAL, ps->ps_flags);
+    ASSERT_EQ(PARAM_EXPERIMENTAL, ps->ps_flags);
     ASSERT_EQ(PARAM_TYPE_U8, ps->ps_type);
     ASSERT_EQ(offsetof(struct kvdb_rparams, perfc_level), ps->ps_offset);
     ASSERT_EQ(sizeof(uint8_t), ps->ps_size);
@@ -128,7 +126,7 @@ MTF_DEFINE_UTEST_PRE(kvdb_rparams_test, c0_debug, test_pre)
 
     ASSERT_NE(NULL, ps);
     ASSERT_NE(NULL, ps->ps_description);
-    ASSERT_EQ(PARAM_FLAG_EXPERIMENTAL | PARAM_FLAG_WRITABLE, ps->ps_flags);
+    ASSERT_EQ(PARAM_EXPERIMENTAL | PARAM_WRITABLE, ps->ps_flags);
     ASSERT_EQ(PARAM_TYPE_U8, ps->ps_type);
     ASSERT_EQ(offsetof(struct kvdb_rparams, c0_debug), ps->ps_offset);
     ASSERT_EQ(sizeof(uint8_t), ps->ps_size);
@@ -147,7 +145,7 @@ MTF_DEFINE_UTEST_PRE(kvdb_rparams_test, c0_ingest_width, test_pre)
 
     ASSERT_NE(NULL, ps);
     ASSERT_NE(NULL, ps->ps_description);
-    ASSERT_EQ(PARAM_FLAG_EXPERIMENTAL, ps->ps_flags);
+    ASSERT_EQ(PARAM_EXPERIMENTAL, ps->ps_flags);
     ASSERT_EQ(PARAM_TYPE_U32, ps->ps_type);
     ASSERT_EQ(offsetof(struct kvdb_rparams, c0_ingest_width), ps->ps_offset);
     ASSERT_EQ(sizeof(uint32_t), ps->ps_size);
@@ -166,7 +164,7 @@ MTF_DEFINE_UTEST_PRE(kvdb_rparams_test, txn_timeout, test_pre)
 
     ASSERT_NE(NULL, ps);
     ASSERT_NE(NULL, ps->ps_description);
-    ASSERT_EQ(PARAM_FLAG_EXPERIMENTAL, ps->ps_flags);
+    ASSERT_EQ(PARAM_EXPERIMENTAL, ps->ps_flags);
     ASSERT_EQ(PARAM_TYPE_U64, ps->ps_type);
     ASSERT_EQ(offsetof(struct kvdb_rparams, txn_timeout), ps->ps_offset);
     ASSERT_EQ(sizeof(uint64_t), ps->ps_size);
@@ -185,7 +183,7 @@ MTF_DEFINE_UTEST_PRE(kvdb_rparams_test, csched_policy, test_pre)
 
     ASSERT_NE(NULL, ps);
     ASSERT_NE(NULL, ps->ps_description);
-    ASSERT_EQ(PARAM_FLAG_EXPERIMENTAL | PARAM_FLAG_WRITABLE, ps->ps_flags);
+    ASSERT_EQ(PARAM_EXPERIMENTAL | PARAM_WRITABLE, ps->ps_flags);
     ASSERT_EQ(PARAM_TYPE_U32, ps->ps_type);
     ASSERT_EQ(offsetof(struct kvdb_rparams, csched_policy), ps->ps_offset);
     ASSERT_EQ(sizeof(uint32_t), ps->ps_size);
@@ -204,7 +202,7 @@ MTF_DEFINE_UTEST_PRE(kvdb_rparams_test, csched_debug_mask, test_pre)
 
     ASSERT_NE(NULL, ps);
     ASSERT_NE(NULL, ps->ps_description);
-    ASSERT_EQ(PARAM_FLAG_EXPERIMENTAL | PARAM_FLAG_WRITABLE, ps->ps_flags);
+    ASSERT_EQ(PARAM_EXPERIMENTAL | PARAM_WRITABLE, ps->ps_flags);
     ASSERT_EQ(PARAM_TYPE_U64, ps->ps_type);
     ASSERT_EQ(offsetof(struct kvdb_rparams, csched_debug_mask), ps->ps_offset);
     ASSERT_EQ(sizeof(uint64_t), ps->ps_size);
@@ -223,7 +221,7 @@ MTF_DEFINE_UTEST_PRE(kvdb_rparams_test, csched_samp_max, test_pre)
 
     ASSERT_NE(NULL, ps);
     ASSERT_NE(NULL, ps->ps_description);
-    ASSERT_EQ(PARAM_FLAG_EXPERIMENTAL | PARAM_FLAG_WRITABLE, ps->ps_flags);
+    ASSERT_EQ(PARAM_EXPERIMENTAL | PARAM_WRITABLE, ps->ps_flags);
     ASSERT_EQ(PARAM_TYPE_U64, ps->ps_type);
     ASSERT_EQ(offsetof(struct kvdb_rparams, csched_samp_max), ps->ps_offset);
     ASSERT_EQ(sizeof(uint64_t), ps->ps_size);
@@ -242,7 +240,7 @@ MTF_DEFINE_UTEST_PRE(kvdb_rparams_test, csched_lo_th_pct, test_pre)
 
     ASSERT_NE(NULL, ps);
     ASSERT_NE(NULL, ps->ps_description);
-    ASSERT_EQ(PARAM_FLAG_EXPERIMENTAL | PARAM_FLAG_WRITABLE, ps->ps_flags);
+    ASSERT_EQ(PARAM_EXPERIMENTAL | PARAM_WRITABLE, ps->ps_flags);
     ASSERT_EQ(PARAM_TYPE_U8, ps->ps_type);
     ASSERT_EQ(offsetof(struct kvdb_rparams, csched_lo_th_pct), ps->ps_offset);
     ASSERT_EQ(sizeof(uint8_t), ps->ps_size);
@@ -261,7 +259,7 @@ MTF_DEFINE_UTEST_PRE(kvdb_rparams_test, csched_hi_th_pct, test_pre)
 
     ASSERT_NE(NULL, ps);
     ASSERT_NE(NULL, ps->ps_description);
-    ASSERT_EQ(PARAM_FLAG_EXPERIMENTAL | PARAM_FLAG_WRITABLE, ps->ps_flags);
+    ASSERT_EQ(PARAM_EXPERIMENTAL | PARAM_WRITABLE, ps->ps_flags);
     ASSERT_EQ(PARAM_TYPE_U8, ps->ps_type);
     ASSERT_EQ(offsetof(struct kvdb_rparams, csched_hi_th_pct), ps->ps_offset);
     ASSERT_EQ(sizeof(uint8_t), ps->ps_size);
@@ -280,7 +278,7 @@ MTF_DEFINE_UTEST_PRE(kvdb_rparams_test, csched_leaf_pct, test_pre)
 
     ASSERT_NE(NULL, ps);
     ASSERT_NE(NULL, ps->ps_description);
-    ASSERT_EQ(PARAM_FLAG_EXPERIMENTAL | PARAM_FLAG_WRITABLE, ps->ps_flags);
+    ASSERT_EQ(PARAM_EXPERIMENTAL | PARAM_WRITABLE, ps->ps_flags);
     ASSERT_EQ(PARAM_TYPE_U8, ps->ps_type);
     ASSERT_EQ(offsetof(struct kvdb_rparams, csched_leaf_pct), ps->ps_offset);
     ASSERT_EQ(sizeof(uint8_t), ps->ps_size);
@@ -299,7 +297,7 @@ MTF_DEFINE_UTEST_PRE(kvdb_rparams_test, csched_gc_pct, test_pre)
 
     ASSERT_NE(NULL, ps);
     ASSERT_NE(NULL, ps->ps_description);
-    ASSERT_EQ(PARAM_FLAG_EXPERIMENTAL | PARAM_FLAG_WRITABLE, ps->ps_flags);
+    ASSERT_EQ(PARAM_EXPERIMENTAL | PARAM_WRITABLE, ps->ps_flags);
     ASSERT_EQ(PARAM_TYPE_U8, ps->ps_type);
     ASSERT_EQ(offsetof(struct kvdb_rparams, csched_gc_pct), ps->ps_offset);
     ASSERT_EQ(sizeof(uint8_t), ps->ps_size);
@@ -318,7 +316,7 @@ MTF_DEFINE_UTEST_PRE(kvdb_rparams_test, csched_lscat_hwm, test_pre)
 
     ASSERT_NE(NULL, ps);
     ASSERT_NE(NULL, ps->ps_description);
-    ASSERT_EQ(PARAM_FLAG_EXPERIMENTAL | PARAM_FLAG_WRITABLE, ps->ps_flags);
+    ASSERT_EQ(PARAM_EXPERIMENTAL | PARAM_WRITABLE, ps->ps_flags);
     ASSERT_EQ(PARAM_TYPE_U16, ps->ps_type);
     ASSERT_EQ(offsetof(struct kvdb_rparams, csched_lscat_hwm), ps->ps_offset);
     ASSERT_EQ(sizeof(uint16_t), ps->ps_size);
@@ -337,7 +335,7 @@ MTF_DEFINE_UTEST_PRE(kvdb_rparams_test, csched_lscat_runlen_max, test_pre)
 
     ASSERT_NE(NULL, ps);
     ASSERT_NE(NULL, ps->ps_description);
-    ASSERT_EQ(PARAM_FLAG_EXPERIMENTAL | PARAM_FLAG_WRITABLE, ps->ps_flags);
+    ASSERT_EQ(PARAM_EXPERIMENTAL | PARAM_WRITABLE, ps->ps_flags);
     ASSERT_EQ(PARAM_TYPE_U8, ps->ps_type);
     ASSERT_EQ(offsetof(struct kvdb_rparams, csched_lscat_runlen_max), ps->ps_offset);
     ASSERT_EQ(sizeof(uint8_t), ps->ps_size);
@@ -356,7 +354,7 @@ MTF_DEFINE_UTEST_PRE(kvdb_rparams_test, csched_qthreads, test_pre)
 
     ASSERT_NE(NULL, ps);
     ASSERT_NE(NULL, ps->ps_description);
-    ASSERT_EQ(PARAM_FLAG_EXPERIMENTAL | PARAM_FLAG_WRITABLE, ps->ps_flags);
+    ASSERT_EQ(PARAM_EXPERIMENTAL | PARAM_WRITABLE, ps->ps_flags);
     ASSERT_EQ(PARAM_TYPE_U64, ps->ps_type);
     ASSERT_EQ(offsetof(struct kvdb_rparams, csched_qthreads), ps->ps_offset);
     ASSERT_EQ(sizeof(uint64_t), ps->ps_size);
@@ -375,7 +373,7 @@ MTF_DEFINE_UTEST_PRE(kvdb_rparams_test, csched_rspill_params, test_pre)
 
     ASSERT_NE(NULL, ps);
     ASSERT_NE(NULL, ps->ps_description);
-    ASSERT_EQ(PARAM_FLAG_EXPERIMENTAL | PARAM_FLAG_WRITABLE, ps->ps_flags);
+    ASSERT_EQ(PARAM_EXPERIMENTAL | PARAM_WRITABLE, ps->ps_flags);
     ASSERT_EQ(PARAM_TYPE_U64, ps->ps_type);
     ASSERT_EQ(offsetof(struct kvdb_rparams, csched_rspill_params), ps->ps_offset);
     ASSERT_EQ(sizeof(uint64_t), ps->ps_size);
@@ -394,7 +392,7 @@ MTF_DEFINE_UTEST_PRE(kvdb_rparams_test, csched_leaf_comp_params, test_pre)
 
     ASSERT_NE(NULL, ps);
     ASSERT_NE(NULL, ps->ps_description);
-    ASSERT_EQ(PARAM_FLAG_EXPERIMENTAL | PARAM_FLAG_WRITABLE, ps->ps_flags);
+    ASSERT_EQ(PARAM_EXPERIMENTAL | PARAM_WRITABLE, ps->ps_flags);
     ASSERT_EQ(PARAM_TYPE_U64, ps->ps_type);
     ASSERT_EQ(offsetof(struct kvdb_rparams, csched_leaf_comp_params), ps->ps_offset);
     ASSERT_EQ(sizeof(uint64_t), ps->ps_size);
@@ -413,7 +411,7 @@ MTF_DEFINE_UTEST_PRE(kvdb_rparams_test, csched_leaf_len_params, test_pre)
 
     ASSERT_NE(NULL, ps);
     ASSERT_NE(NULL, ps->ps_description);
-    ASSERT_EQ(PARAM_FLAG_EXPERIMENTAL | PARAM_FLAG_WRITABLE, ps->ps_flags);
+    ASSERT_EQ(PARAM_EXPERIMENTAL | PARAM_WRITABLE, ps->ps_flags);
     ASSERT_EQ(PARAM_TYPE_U64, ps->ps_type);
     ASSERT_EQ(offsetof(struct kvdb_rparams, csched_leaf_len_params), ps->ps_offset);
     ASSERT_EQ(sizeof(uint64_t), ps->ps_size);
@@ -432,7 +430,7 @@ MTF_DEFINE_UTEST_PRE(kvdb_rparams_test, csched_node_min_ttl, test_pre)
 
     ASSERT_NE(NULL, ps);
     ASSERT_NE(NULL, ps->ps_description);
-    ASSERT_EQ(PARAM_FLAG_EXPERIMENTAL, ps->ps_flags);
+    ASSERT_EQ(PARAM_EXPERIMENTAL, ps->ps_flags);
     ASSERT_EQ(PARAM_TYPE_U64, ps->ps_type);
     ASSERT_EQ(offsetof(struct kvdb_rparams, csched_node_min_ttl), ps->ps_offset);
     ASSERT_EQ(sizeof(uint64_t), ps->ps_size);
@@ -487,7 +485,7 @@ MTF_DEFINE_UTEST_PRE(kvdb_rparams_test, durability_replay_force, test_pre)
 
     ASSERT_NE(NULL, ps);
     ASSERT_NE(NULL, ps->ps_description);
-    ASSERT_EQ(PARAM_FLAG_EXPERIMENTAL, ps->ps_flags);
+    ASSERT_EQ(PARAM_EXPERIMENTAL, ps->ps_flags);
     ASSERT_EQ(PARAM_TYPE_BOOL, ps->ps_type);
     ASSERT_EQ(offsetof(struct kvdb_rparams, dur_replay_force), ps->ps_offset);
     ASSERT_EQ(sizeof(bool), ps->ps_size);
@@ -504,7 +502,7 @@ MTF_DEFINE_UTEST_PRE(kvdb_rparams_test, durability_size, test_pre)
 
     ASSERT_NE(NULL, ps);
     ASSERT_NE(NULL, ps->ps_description);
-    ASSERT_EQ(PARAM_FLAG_EXPERIMENTAL, ps->ps_flags);
+    ASSERT_EQ(PARAM_EXPERIMENTAL, ps->ps_flags);
     ASSERT_EQ(PARAM_TYPE_U32, ps->ps_type);
     ASSERT_EQ(offsetof(struct kvdb_rparams, dur_size_bytes), ps->ps_offset);
     ASSERT_EQ(sizeof(uint32_t), ps->ps_size);
@@ -523,7 +521,7 @@ MTF_DEFINE_UTEST_PRE(kvdb_rparams_test, durability_buffer_size, test_pre)
 
     ASSERT_NE(NULL, ps);
     ASSERT_NE(NULL, ps->ps_description);
-    ASSERT_EQ(PARAM_FLAG_EXPERIMENTAL, ps->ps_flags);
+    ASSERT_EQ(PARAM_EXPERIMENTAL, ps->ps_flags);
     ASSERT_EQ(PARAM_TYPE_U32, ps->ps_type);
     ASSERT_EQ(offsetof(struct kvdb_rparams, dur_bufsz_mb), ps->ps_offset);
     ASSERT_EQ(sizeof(uint32_t), ps->ps_size);
@@ -542,7 +540,7 @@ MTF_DEFINE_UTEST_PRE(kvdb_rparams_test, durability_throttling_threshold_low, tes
 
     ASSERT_NE(NULL, ps);
     ASSERT_NE(NULL, ps->ps_description);
-    ASSERT_EQ(PARAM_FLAG_EXPERIMENTAL, ps->ps_flags);
+    ASSERT_EQ(PARAM_EXPERIMENTAL, ps->ps_flags);
     ASSERT_EQ(PARAM_TYPE_U8, ps->ps_type);
     ASSERT_EQ(offsetof(struct kvdb_rparams, dur_throttle_lo_th), ps->ps_offset);
     ASSERT_EQ(sizeof(uint8_t), ps->ps_size);
@@ -561,7 +559,7 @@ MTF_DEFINE_UTEST_PRE(kvdb_rparams_test, durability_throttling_threshold_high, te
 
     ASSERT_NE(NULL, ps);
     ASSERT_NE(NULL, ps->ps_description);
-    ASSERT_EQ(PARAM_FLAG_EXPERIMENTAL, ps->ps_flags);
+    ASSERT_EQ(PARAM_EXPERIMENTAL, ps->ps_flags);
     ASSERT_EQ(PARAM_TYPE_U8, ps->ps_type);
     ASSERT_EQ(offsetof(struct kvdb_rparams, dur_throttle_hi_th), ps->ps_offset);
     ASSERT_EQ(sizeof(uint8_t), ps->ps_size);
@@ -580,7 +578,7 @@ MTF_DEFINE_UTEST_PRE(kvdb_rparams_test, durability_buffer_managed, test_pre)
 
     ASSERT_NE(NULL, ps);
     ASSERT_NE(NULL, ps->ps_description);
-    ASSERT_EQ(PARAM_FLAG_EXPERIMENTAL, ps->ps_flags);
+    ASSERT_EQ(PARAM_EXPERIMENTAL, ps->ps_flags);
     ASSERT_EQ(PARAM_TYPE_BOOL, ps->ps_type);
     ASSERT_EQ(offsetof(struct kvdb_rparams, dur_buf_managed), ps->ps_offset);
     ASSERT_EQ(sizeof(bool), ps->ps_size);
@@ -635,7 +633,7 @@ MTF_DEFINE_UTEST_PRE(kvdb_rparams_test, throttle_disable, test_pre)
 
     ASSERT_NE(NULL, ps);
     ASSERT_NE(NULL, ps->ps_description);
-    ASSERT_EQ(PARAM_FLAG_EXPERIMENTAL, ps->ps_flags);
+    ASSERT_EQ(PARAM_EXPERIMENTAL, ps->ps_flags);
     ASSERT_EQ(PARAM_TYPE_BOOL, ps->ps_type);
     ASSERT_EQ(offsetof(struct kvdb_rparams, throttle_disable), ps->ps_offset);
     ASSERT_EQ(sizeof(bool), ps->ps_size);
@@ -652,7 +650,7 @@ MTF_DEFINE_UTEST_PRE(kvdb_rparams_test, throttle_update_ns, test_pre)
 
     ASSERT_NE(NULL, ps);
     ASSERT_NE(NULL, ps->ps_description);
-    ASSERT_EQ(PARAM_FLAG_EXPERIMENTAL | PARAM_FLAG_WRITABLE, ps->ps_flags);
+    ASSERT_EQ(PARAM_EXPERIMENTAL | PARAM_WRITABLE, ps->ps_flags);
     ASSERT_EQ(PARAM_TYPE_U64, ps->ps_type);
     ASSERT_EQ(offsetof(struct kvdb_rparams, throttle_update_ns), ps->ps_offset);
     ASSERT_EQ(sizeof(uint64_t), ps->ps_size);
@@ -671,7 +669,7 @@ MTF_DEFINE_UTEST_PRE(kvdb_rparams_test, throttle_debug_intvl_s, test_pre)
 
     ASSERT_NE(NULL, ps);
     ASSERT_NE(NULL, ps->ps_description);
-    ASSERT_EQ(PARAM_FLAG_EXPERIMENTAL | PARAM_FLAG_WRITABLE, ps->ps_flags);
+    ASSERT_EQ(PARAM_EXPERIMENTAL | PARAM_WRITABLE, ps->ps_flags);
     ASSERT_EQ(PARAM_TYPE_U32, ps->ps_type);
     ASSERT_EQ(offsetof(struct kvdb_rparams, throttle_debug), ps->ps_offset);
     ASSERT_EQ(sizeof(uint32_t), ps->ps_size);
@@ -715,7 +713,7 @@ MTF_DEFINE_UTEST_PRE(kvdb_rparams_test, throttle_burst, test_pre)
 
     ASSERT_NE(NULL, ps);
     ASSERT_NE(NULL, ps->ps_description);
-    ASSERT_EQ(PARAM_FLAG_EXPERIMENTAL | PARAM_FLAG_WRITABLE, ps->ps_flags);
+    ASSERT_EQ(PARAM_EXPERIMENTAL | PARAM_WRITABLE, ps->ps_flags);
     ASSERT_EQ(PARAM_TYPE_U64, ps->ps_type);
     ASSERT_EQ(offsetof(struct kvdb_rparams, throttle_burst), ps->ps_offset);
     ASSERT_EQ(sizeof(uint64_t), ps->ps_size);
@@ -734,7 +732,7 @@ MTF_DEFINE_UTEST_PRE(kvdb_rparams_test, throttle_rate, test_pre)
 
     ASSERT_NE(NULL, ps);
     ASSERT_NE(NULL, ps->ps_description);
-    ASSERT_EQ(PARAM_FLAG_EXPERIMENTAL | PARAM_FLAG_WRITABLE, ps->ps_flags);
+    ASSERT_EQ(PARAM_EXPERIMENTAL | PARAM_WRITABLE, ps->ps_flags);
     ASSERT_EQ(PARAM_TYPE_U64, ps->ps_type);
     ASSERT_EQ(offsetof(struct kvdb_rparams, throttle_rate), ps->ps_offset);
     ASSERT_EQ(sizeof(uint64_t), ps->ps_size);
@@ -753,7 +751,7 @@ MTF_DEFINE_UTEST_PRE(kvdb_rparams_test, txn_wkth_delay, test_pre)
 
     ASSERT_NE(NULL, ps);
     ASSERT_NE(NULL, ps->ps_description);
-    ASSERT_EQ(PARAM_FLAG_EXPERIMENTAL, ps->ps_flags);
+    ASSERT_EQ(PARAM_EXPERIMENTAL, ps->ps_flags);
     ASSERT_EQ(PARAM_TYPE_U64, ps->ps_type);
     ASSERT_EQ(offsetof(struct kvdb_rparams, txn_wkth_delay), ps->ps_offset);
     ASSERT_EQ(sizeof(uint64_t), ps->ps_size);
@@ -772,7 +770,7 @@ MTF_DEFINE_UTEST_PRE(kvdb_rparams_test, c0_maint_threads, test_pre)
 
     ASSERT_NE(NULL, ps);
     ASSERT_NE(NULL, ps->ps_description);
-    ASSERT_EQ(PARAM_FLAG_EXPERIMENTAL, ps->ps_flags);
+    ASSERT_EQ(PARAM_EXPERIMENTAL, ps->ps_flags);
     ASSERT_EQ(PARAM_TYPE_U32, ps->ps_type);
     ASSERT_EQ(offsetof(struct kvdb_rparams, c0_maint_threads), ps->ps_offset);
     ASSERT_EQ(sizeof(uint32_t), ps->ps_size);
@@ -791,7 +789,7 @@ MTF_DEFINE_UTEST_PRE(kvdb_rparams_test, c0_ingest_threads, test_pre)
 
     ASSERT_NE(NULL, ps);
     ASSERT_NE(NULL, ps->ps_description);
-    ASSERT_EQ(PARAM_FLAG_EXPERIMENTAL, ps->ps_flags);
+    ASSERT_EQ(PARAM_EXPERIMENTAL, ps->ps_flags);
     ASSERT_EQ(PARAM_TYPE_U32, ps->ps_type);
     ASSERT_EQ(offsetof(struct kvdb_rparams, c0_ingest_threads), ps->ps_offset);
     ASSERT_EQ(sizeof(uint32_t), ps->ps_size);
@@ -810,7 +808,7 @@ MTF_DEFINE_UTEST_PRE(kvdb_rparams_test, cn_maint_threads, test_pre)
 
     ASSERT_NE(NULL, ps);
     ASSERT_NE(NULL, ps->ps_description);
-    ASSERT_EQ(PARAM_FLAG_EXPERIMENTAL, ps->ps_flags);
+    ASSERT_EQ(PARAM_EXPERIMENTAL, ps->ps_flags);
     ASSERT_EQ(PARAM_TYPE_U16, ps->ps_type);
     ASSERT_EQ(offsetof(struct kvdb_rparams, cn_maint_threads), ps->ps_offset);
     ASSERT_EQ(sizeof(uint16_t), ps->ps_size);
@@ -829,7 +827,7 @@ MTF_DEFINE_UTEST_PRE(kvdb_rparams_test, cn_io_threads, test_pre)
 
     ASSERT_NE(NULL, ps);
     ASSERT_NE(NULL, ps->ps_description);
-    ASSERT_EQ(PARAM_FLAG_EXPERIMENTAL, ps->ps_flags);
+    ASSERT_EQ(PARAM_EXPERIMENTAL, ps->ps_flags);
     ASSERT_EQ(PARAM_TYPE_U16, ps->ps_type);
     ASSERT_EQ(offsetof(struct kvdb_rparams, cn_io_threads), ps->ps_offset);
     ASSERT_EQ(sizeof(uint16_t), ps->ps_size);
@@ -848,7 +846,7 @@ MTF_DEFINE_UTEST_PRE(kvdb_rparams_test, cndb_compact_hwm_pct, test_pre)
 
     ASSERT_NE(NULL, ps);
     ASSERT_NE(NULL, ps->ps_description);
-    ASSERT_EQ(PARAM_FLAG_EXPERIMENTAL, ps->ps_flags);
+    ASSERT_EQ(PARAM_EXPERIMENTAL, ps->ps_flags);
     ASSERT_EQ(PARAM_TYPE_DOUBLE, ps->ps_type);
     ASSERT_EQ(offsetof(struct kvdb_rparams, cndb_compact_hwm_pct), ps->ps_offset);
     ASSERT_EQ(sizeof(double), ps->ps_size);
@@ -867,7 +865,7 @@ MTF_DEFINE_UTEST_PRE(kvdb_rparams_test, keylock_tables, test_pre)
 
     ASSERT_NE(NULL, ps);
     ASSERT_NE(NULL, ps->ps_description);
-    ASSERT_EQ(PARAM_FLAG_EXPERIMENTAL, ps->ps_flags);
+    ASSERT_EQ(PARAM_EXPERIMENTAL, ps->ps_flags);
     ASSERT_EQ(PARAM_TYPE_U32, ps->ps_type);
     ASSERT_EQ(offsetof(struct kvdb_rparams, keylock_tables), ps->ps_offset);
     ASSERT_EQ(sizeof(uint32_t), ps->ps_size);
@@ -886,7 +884,7 @@ MTF_DEFINE_UTEST_PRE(kvdb_rparams_test, storage_capacity_directio_enabled, test_
 
     ASSERT_NE(NULL, ps);
     ASSERT_NE(NULL, ps->ps_description);
-    ASSERT_EQ(PARAM_FLAG_EXPERIMENTAL, ps->ps_flags);
+    ASSERT_EQ(PARAM_EXPERIMENTAL, ps->ps_flags);
     ASSERT_EQ(PARAM_TYPE_BOOL, ps->ps_type);
     ASSERT_EQ(offsetof(struct kvdb_rparams, dio_enable[HSE_MCLASS_CAPACITY]), ps->ps_offset);
     ASSERT_EQ(sizeof(bool), ps->ps_size);
@@ -903,7 +901,7 @@ MTF_DEFINE_UTEST_PRE(kvdb_rparams_test, storage_staging_directio_enabled, test_p
 
     ASSERT_NE(NULL, ps);
     ASSERT_NE(NULL, ps->ps_description);
-    ASSERT_EQ(PARAM_FLAG_EXPERIMENTAL, ps->ps_flags);
+    ASSERT_EQ(PARAM_EXPERIMENTAL, ps->ps_flags);
     ASSERT_EQ(PARAM_TYPE_BOOL, ps->ps_type);
     ASSERT_EQ(offsetof(struct kvdb_rparams, dio_enable[HSE_MCLASS_STAGING]), ps->ps_offset);
     ASSERT_EQ(sizeof(bool), ps->ps_size);
@@ -920,7 +918,7 @@ MTF_DEFINE_UTEST_PRE(kvdb_rparams_test, storage_pmem_directio_enabled, test_pre)
 
     ASSERT_NE(NULL, ps);
     ASSERT_NE(NULL, ps->ps_description);
-    ASSERT_EQ(PARAM_FLAG_EXPERIMENTAL, ps->ps_flags);
+    ASSERT_EQ(PARAM_EXPERIMENTAL, ps->ps_flags);
     ASSERT_EQ(PARAM_TYPE_BOOL, ps->ps_type);
     ASSERT_EQ(offsetof(struct kvdb_rparams, dio_enable[HSE_MCLASS_PMEM]), ps->ps_offset);
     ASSERT_EQ(sizeof(bool), ps->ps_size);
@@ -944,7 +942,7 @@ MTF_DEFINE_UTEST_PRE(kvdb_rparams_test, mclass_policies, test_pre)
 
     ASSERT_NE(NULL, ps);
     ASSERT_NE(NULL, ps->ps_description);
-    ASSERT_EQ(PARAM_FLAG_EXPERIMENTAL | PARAM_FLAG_DEFAULT_BUILDER, ps->ps_flags);
+    ASSERT_EQ(PARAM_EXPERIMENTAL | PARAM_DEFAULT_BUILDER, ps->ps_flags);
     ASSERT_EQ(PARAM_TYPE_ARRAY, ps->ps_type);
     ASSERT_EQ(offsetof(struct kvdb_rparams, mclass_policies), ps->ps_offset);
     ASSERT_EQ(sizeof(struct mclass_policy) * HSE_MPOLICY_COUNT, ps->ps_size);
@@ -1005,7 +1003,7 @@ MTF_DEFINE_UTEST(kvdb_rparams_test, set)
 {
     merr_t err;
 
-    const struct kvdb_rparams p = kvdb_rparams_defaults();
+    struct kvdb_rparams p = kvdb_rparams_defaults();
 
     err = kvdb_rparams_set(&p, "csched_hi_th_pct", "76");
     ASSERT_EQ(0, merr_errno(err));

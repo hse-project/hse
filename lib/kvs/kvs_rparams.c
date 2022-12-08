@@ -19,7 +19,7 @@
 
 #include <hse/ikvdb/mclass_policy.h>
 #include <hse/ikvdb/ikvdb.h>
-#include <hse/ikvdb/param.h>
+#include <hse/config/params.h>
 #include <hse/ikvdb/kvs_rparams.h>
 #include <hse/ikvdb/limits.h>
 #include <hse/ikvdb/vcomp_params.h>
@@ -121,7 +121,7 @@ static const struct param_spec pspecs[] = {
     {
         .ps_name = "kvs_cursor_ttl",
         .ps_description = "cached cursor time-to-live (ms)",
-        .ps_flags = PARAM_FLAG_EXPERIMENTAL,
+        .ps_flags = PARAM_EXPERIMENTAL,
         .ps_type = PARAM_TYPE_U64,
         .ps_offset = offsetof(struct kvs_rparams, kvs_cursor_ttl),
         .ps_size = PARAM_SZ(struct kvs_rparams, kvs_cursor_ttl),
@@ -142,7 +142,7 @@ static const struct param_spec pspecs[] = {
     {
         .ps_name = "kvs_sfx_len",
         .ps_description = "Suffix length (used by prefix probe)",
-        .ps_flags = PARAM_FLAG_EXPERIMENTAL,
+        .ps_flags = PARAM_EXPERIMENTAL,
         .ps_type = PARAM_TYPE_U32,
         .ps_offset = offsetof(struct kvs_rparams, kvs_sfxlen),
         .ps_size = PARAM_SZ(struct kvs_rparams, kvs_sfxlen),
@@ -178,7 +178,7 @@ static const struct param_spec pspecs[] = {
     {
         .ps_name = "perfc.level",
         .ps_description = "set kvs perf counter enagagement level (min:0 default:2 max:9)",
-        .ps_flags = PARAM_FLAG_EXPERIMENTAL,
+        .ps_flags = PARAM_EXPERIMENTAL,
         .ps_type = PARAM_TYPE_U8,
         .ps_offset = offsetof(struct kvs_rparams, perfc_level),
         .ps_size = PARAM_SZ(struct kvs_rparams, perfc_level),
@@ -199,7 +199,7 @@ static const struct param_spec pspecs[] = {
     {
         .ps_name = "cn_split_size",
         .ps_description = "node split size (GiB)",
-        .ps_flags = PARAM_FLAG_EXPERIMENTAL,
+        .ps_flags = PARAM_EXPERIMENTAL,
         .ps_type = PARAM_TYPE_U32,
         .ps_offset = offsetof(struct kvs_rparams, cn_split_size),
         .ps_size = PARAM_SZ(struct kvs_rparams, cn_split_size),
@@ -220,7 +220,7 @@ static const struct param_spec pspecs[] = {
     {
         .ps_name = "cn_dsplit_size",
         .ps_description = "node deferred split size (GiB)",
-        .ps_flags = PARAM_FLAG_EXPERIMENTAL,
+        .ps_flags = PARAM_EXPERIMENTAL,
         .ps_type = PARAM_TYPE_U32,
         .ps_offset = offsetof(struct kvs_rparams, cn_dsplit_size),
         .ps_size = PARAM_SZ(struct kvs_rparams, cn_dsplit_size),
@@ -241,7 +241,7 @@ static const struct param_spec pspecs[] = {
     {
         .ps_name = "cn_compact_vblk_ra",
         .ps_description = "compaction vblk read-ahead (bytes)",
-        .ps_flags = PARAM_FLAG_EXPERIMENTAL,
+        .ps_flags = PARAM_EXPERIMENTAL,
         .ps_type = PARAM_TYPE_U64,
         .ps_offset = offsetof(struct kvs_rparams, cn_compact_vblk_ra),
         .ps_size = PARAM_SZ(struct kvs_rparams, cn_compact_vblk_ra),
@@ -262,7 +262,7 @@ static const struct param_spec pspecs[] = {
     {
         .ps_name = "cn_compact_vra",
         .ps_description = "compaction vblk memory map read-ahead",
-        .ps_flags = PARAM_FLAG_EXPERIMENTAL,
+        .ps_flags = PARAM_EXPERIMENTAL,
         .ps_type = PARAM_TYPE_U64,
         .ps_offset = offsetof(struct kvs_rparams, cn_compact_vra),
         .ps_size = PARAM_SZ(struct kvs_rparams, cn_compact_vra),
@@ -283,7 +283,7 @@ static const struct param_spec pspecs[] = {
     {
         .ps_name = "cn_compact_kblk_ra",
         .ps_description = "compaction kblk read-ahead (bytes)",
-        .ps_flags = PARAM_FLAG_EXPERIMENTAL | PARAM_FLAG_WRITABLE,
+        .ps_flags = PARAM_EXPERIMENTAL | PARAM_WRITABLE,
         .ps_type = PARAM_TYPE_U64,
         .ps_offset = offsetof(struct kvs_rparams, cn_compact_kblk_ra),
         .ps_size = PARAM_SZ(struct kvs_rparams, cn_compact_kblk_ra),
@@ -304,7 +304,7 @@ static const struct param_spec pspecs[] = {
     {
         .ps_name = "cn_capped_ttl",
         .ps_description = "cn cursor cache TTL (ms) for capped kvs",
-        .ps_flags = PARAM_FLAG_EXPERIMENTAL,
+        .ps_flags = PARAM_EXPERIMENTAL,
         .ps_type = PARAM_TYPE_U64,
         .ps_offset = offsetof(struct kvs_rparams, cn_capped_ttl),
         .ps_size = PARAM_SZ(struct kvs_rparams, cn_capped_ttl),
@@ -325,7 +325,7 @@ static const struct param_spec pspecs[] = {
     {
         .ps_name = "cn_capped_vra",
         .ps_description = "capped cursor vblk madvise-ahead (bytes)",
-        .ps_flags = PARAM_FLAG_EXPERIMENTAL,
+        .ps_flags = PARAM_EXPERIMENTAL,
         .ps_type = PARAM_TYPE_U64,
         .ps_offset = offsetof(struct kvs_rparams, cn_capped_vra),
         .ps_size = PARAM_SZ(struct kvs_rparams, cn_capped_vra),
@@ -346,7 +346,7 @@ static const struct param_spec pspecs[] = {
     {
         .ps_name = "cn_cursor_vra",
         .ps_description = "cursor vblk memory map read-ahead",
-        .ps_flags = PARAM_FLAG_EXPERIMENTAL,
+        .ps_flags = PARAM_EXPERIMENTAL,
         .ps_type = PARAM_TYPE_U64,
         .ps_offset = offsetof(struct kvs_rparams, cn_cursor_vra),
         .ps_size = PARAM_SZ(struct kvs_rparams, cn_cursor_vra),
@@ -367,7 +367,7 @@ static const struct param_spec pspecs[] = {
     {
         .ps_name = "cn_cursor_kra",
         .ps_description = "cursor kblk madvise-ahead (boolean)",
-        .ps_flags = PARAM_FLAG_EXPERIMENTAL,
+        .ps_flags = PARAM_EXPERIMENTAL,
         .ps_type = PARAM_TYPE_BOOL,
         .ps_offset = offsetof(struct kvs_rparams, cn_cursor_kra),
         .ps_size = PARAM_SZ(struct kvs_rparams, cn_cursor_kra),
@@ -382,7 +382,7 @@ static const struct param_spec pspecs[] = {
     {
         .ps_name = "cn_cursor_seq",
         .ps_description = "optimize cn_tree for longer sequential cursor accesses",
-        .ps_flags = PARAM_FLAG_EXPERIMENTAL,
+        .ps_flags = PARAM_EXPERIMENTAL,
         .ps_type = PARAM_TYPE_U64,
         .ps_offset = offsetof(struct kvs_rparams, cn_cursor_seq),
         .ps_size = PARAM_SZ(struct kvs_rparams, cn_cursor_seq),
@@ -404,7 +404,7 @@ static const struct param_spec pspecs[] = {
         /* [HSE_REVISIT]: convert this to an enum */
         .ps_name = "cn_mcache_wbt",
         .ps_description = "eagerly cache wbt nodes (1:internal, 2:leaves, 3:both)",
-        .ps_flags = PARAM_FLAG_EXPERIMENTAL,
+        .ps_flags = PARAM_EXPERIMENTAL,
         .ps_type = PARAM_TYPE_U8,
         .ps_offset = offsetof(struct kvs_rparams, cn_mcache_wbt),
         .ps_size = PARAM_SZ(struct kvs_rparams, cn_mcache_wbt),
@@ -425,7 +425,7 @@ static const struct param_spec pspecs[] = {
     {
         .ps_name = "cn_mcache_vmax",
         .ps_description = "value size at/above which to always read values directly from media",
-        .ps_flags = PARAM_FLAG_EXPERIMENTAL | PARAM_FLAG_WRITABLE,
+        .ps_flags = PARAM_EXPERIMENTAL | PARAM_WRITABLE,
         .ps_type = PARAM_TYPE_U32,
         .ps_offset = offsetof(struct kvs_rparams, cn_mcache_vmax),
         .ps_size = PARAM_SZ(struct kvs_rparams, cn_mcache_vmax),
@@ -446,7 +446,7 @@ static const struct param_spec pspecs[] = {
     {
         .ps_name = "cn_mcache_kra_params",
         .ps_description = "kblock readahead [willneed]",
-        .ps_flags = PARAM_FLAG_EXPERIMENTAL,
+        .ps_flags = PARAM_EXPERIMENTAL,
         .ps_type = PARAM_TYPE_U8,
         .ps_offset = offsetof(struct kvs_rparams, cn_mcache_kra_params),
         .ps_size = PARAM_SZ(struct kvs_rparams, cn_mcache_kra_params),
@@ -467,7 +467,7 @@ static const struct param_spec pspecs[] = {
     {
         .ps_name = "cn_mcache_vra_params",
         .ps_description = "vblock readahead [willneed]",
-        .ps_flags = PARAM_FLAG_EXPERIMENTAL,
+        .ps_flags = PARAM_EXPERIMENTAL,
         .ps_type = PARAM_TYPE_U8,
         .ps_offset = offsetof(struct kvs_rparams, cn_mcache_vra_params),
         .ps_size = PARAM_SZ(struct kvs_rparams, cn_mcache_vra_params),
@@ -488,7 +488,7 @@ static const struct param_spec pspecs[] = {
     {
         .ps_name = "cn_maint_disable",
         .ps_description = "disable cn maintenance",
-        .ps_flags = PARAM_FLAG_EXPERIMENTAL | PARAM_FLAG_WRITABLE,
+        .ps_flags = PARAM_EXPERIMENTAL | PARAM_WRITABLE,
         .ps_type = PARAM_TYPE_BOOL,
         .ps_offset = offsetof(struct kvs_rparams, cn_maint_disable),
         .ps_size = PARAM_SZ(struct kvs_rparams, cn_maint_disable),
@@ -503,7 +503,7 @@ static const struct param_spec pspecs[] = {
     {
         .ps_name = "cn_bloom_create",
         .ps_description = "enable bloom creation",
-        .ps_flags = PARAM_FLAG_EXPERIMENTAL,
+        .ps_flags = PARAM_EXPERIMENTAL,
         .ps_type = PARAM_TYPE_BOOL,
         .ps_offset = offsetof(struct kvs_rparams, cn_bloom_create),
         .ps_size = PARAM_SZ(struct kvs_rparams, cn_bloom_create),
@@ -518,7 +518,7 @@ static const struct param_spec pspecs[] = {
     {
         .ps_name = "cn_bloom_preload",
         .ps_description = "preload memory mapped bloom filters",
-        .ps_flags = PARAM_FLAG_EXPERIMENTAL,
+        .ps_flags = PARAM_EXPERIMENTAL,
         .ps_type = PARAM_TYPE_BOOL,
         .ps_offset = offsetof(struct kvs_rparams, cn_bloom_preload),
         .ps_size = PARAM_SZ(struct kvs_rparams, cn_bloom_preload),
@@ -533,7 +533,7 @@ static const struct param_spec pspecs[] = {
     {
         .ps_name = "cn_bloom_prob",
         .ps_description = "bloom create probability",
-        .ps_flags = PARAM_FLAG_EXPERIMENTAL,
+        .ps_flags = PARAM_EXPERIMENTAL,
         .ps_type = PARAM_TYPE_U64,
         .ps_offset = offsetof(struct kvs_rparams, cn_bloom_prob),
         .ps_size = PARAM_SZ(struct kvs_rparams, cn_bloom_prob),
@@ -554,7 +554,7 @@ static const struct param_spec pspecs[] = {
     {
         .ps_name = "cn_bloom_capped",
         .ps_description = "bloom create probability (capped kvs)",
-        .ps_flags = PARAM_FLAG_EXPERIMENTAL,
+        .ps_flags = PARAM_EXPERIMENTAL,
         .ps_type = PARAM_TYPE_U64,
         .ps_offset = offsetof(struct kvs_rparams, cn_bloom_capped),
         .ps_size = PARAM_SZ(struct kvs_rparams, cn_bloom_capped),
@@ -575,7 +575,7 @@ static const struct param_spec pspecs[] = {
     {
         .ps_name = "cn_compaction_debug",
         .ps_description = "cn compaction debug flags",
-        .ps_flags = PARAM_FLAG_EXPERIMENTAL | PARAM_FLAG_WRITABLE,
+        .ps_flags = PARAM_EXPERIMENTAL | PARAM_WRITABLE,
         .ps_type = PARAM_TYPE_U8,
         .ps_offset = offsetof(struct kvs_rparams, cn_compaction_debug),
         .ps_size = PARAM_SZ(struct kvs_rparams, cn_compaction_debug),
@@ -596,7 +596,7 @@ static const struct param_spec pspecs[] = {
     {
         .ps_name = "cn_maint_delay",
         .ps_description = "ms of delay between checks when idle",
-        .ps_flags = PARAM_FLAG_EXPERIMENTAL,
+        .ps_flags = PARAM_EXPERIMENTAL,
         .ps_type = PARAM_TYPE_U32,
         .ps_offset = offsetof(struct kvs_rparams, cn_maint_delay),
         .ps_size = PARAM_SZ(struct kvs_rparams, cn_maint_delay),
@@ -617,7 +617,7 @@ static const struct param_spec pspecs[] = {
     {
         .ps_name = "cn_close_wait",
         .ps_description = "force close to wait until all active compactions have completed",
-        .ps_flags = PARAM_FLAG_EXPERIMENTAL,
+        .ps_flags = PARAM_EXPERIMENTAL,
         .ps_type = PARAM_TYPE_BOOL,
         .ps_offset = offsetof(struct kvs_rparams, cn_close_wait),
         .ps_size = PARAM_SZ(struct kvs_rparams, cn_close_wait),
@@ -632,7 +632,7 @@ static const struct param_spec pspecs[] = {
     {
         .ps_name = "cn_kcachesz",
         .ps_description = "max per-kvset key cache size (in bytes)",
-        .ps_flags = PARAM_FLAG_EXPERIMENTAL,
+        .ps_flags = PARAM_EXPERIMENTAL,
         .ps_type = PARAM_TYPE_U64,
         .ps_offset = offsetof(struct kvs_rparams, cn_kcachesz),
         .ps_size = PARAM_SZ(struct kvs_rparams, cn_kcachesz),
@@ -653,7 +653,7 @@ static const struct param_spec pspecs[] = {
     {
         .ps_name = "capped_evict_ttl",
         .ps_description = "",
-        .ps_flags = PARAM_FLAG_EXPERIMENTAL,
+        .ps_flags = PARAM_EXPERIMENTAL,
         .ps_type = PARAM_TYPE_U64,
         .ps_offset = offsetof(struct kvs_rparams, capped_evict_ttl),
         .ps_size = PARAM_SZ(struct kvs_rparams, capped_evict_ttl),
@@ -726,12 +726,8 @@ struct kvs_rparams
 kvs_rparams_defaults()
 {
     struct kvs_rparams  params;
-    const struct params p = {
-        .p_params = { .as_kvs_rp = &params },
-        .p_type = PARAMS_KVS_RP,
-    };
 
-    param_default_populate(pspecs, NELEM(pspecs), &p);
+    params_from_defaults(&params, NELEM(pspecs), pspecs);
 
     return params;
 }
@@ -744,41 +740,73 @@ kvs_rparams_get(
     const size_t                    buf_sz,
     size_t *const                   needed_sz)
 {
-    const struct params p = {
-        .p_params = { .as_kvs_rp = params },
-        .p_type = PARAMS_KVS_RP,
-    };
-
-    return param_get(&p, pspecs, NELEM(pspecs), param, buf, buf_sz, needed_sz);
+    return params_get(params, NELEM(pspecs), pspecs, param, buf, buf_sz, needed_sz);
 }
 
 merr_t
 kvs_rparams_set(
-    const struct kvs_rparams *const params,
-    const char *const               param,
-    const char *const               value)
+    struct kvs_rparams *const params,
+    const char *const         param,
+    const char *const         value)
 {
-    const struct params p = {
-        .p_params = { .as_kvs_rp = params },
-        .p_type = PARAMS_KVS_RP,
-    };
-
     if (!params || !param || !value)
         return merr(EINVAL);
 
-    return param_set(&p, pspecs, NELEM(pspecs), param, value);
+    return params_set(params, sizeof(*params), NELEM(pspecs), pspecs, param, value);
+}
+
+merr_t
+kvs_rparams_from_config(
+    struct kvs_rparams *const params,
+    cJSON *const config,
+    const char *const kvs_name)
+{
+    size_t num_configs = 0;
+    cJSON *kvs, *named_kvs, *default_kvs;
+
+    if (!kvs_name || !params || !cJSON_IsObject(config))
+        return merr(EINVAL);
+
+    kvs = cJSON_GetObjectItemCaseSensitive(config, "kvs");
+    if (!kvs)
+        return 0;
+    if (!cJSON_IsObject(kvs))
+        return merr(EINVAL);
+
+    default_kvs = cJSON_GetObjectItemCaseSensitive(kvs, "default");
+    if (default_kvs && !cJSON_IsObject(default_kvs))
+        return merr(EINVAL);
+    if (default_kvs) {
+        log_debug("Found a default config node for KVS (%s)", kvs_name);
+        num_configs++;
+    }
+
+    named_kvs = cJSON_GetObjectItemCaseSensitive(kvs, kvs_name);
+    if (named_kvs) {
+        log_debug("Found a named config node for KVS (%s)", kvs_name);
+        num_configs++;
+    }
+
+    return params_from_config(params, NELEM(pspecs), pspecs, 0, NULL, num_configs, default_kvs,
+        named_kvs);
+}
+
+merr_t
+kvs_rparams_from_paramv(
+    struct kvs_rparams *const params,
+    const size_t              paramc,
+    const char *const *const  paramv)
+{
+    assert(params);
+
+    return params_from_paramv(params, paramc, paramv, NELEM(pspecs), pspecs);
 }
 
 cJSON *
 kvs_rparams_to_json(const struct kvs_rparams *const params)
 {
-    const struct params p = {
-        .p_params = { .as_kvs_rp = params },
-        .p_type = PARAMS_KVS_RP,
-    };
-
     if (!params)
         return NULL;
 
-    return param_to_json(&p, pspecs, NELEM(pspecs));
+    return params_to_json(params, NELEM(pspecs), pspecs);
 }

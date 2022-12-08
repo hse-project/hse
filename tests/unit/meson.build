@@ -102,12 +102,7 @@ components = {
         'cndb_txn_test': {},
     },
     'config': {
-        'argv_test': {},
-        'config_test': {
-            'args': [
-                meson.current_source_dir() / 'config',
-            ],
-        },
+        'config_test': {},
         'hse_gparams_test': {},
         'param_test': {},
     },
@@ -124,7 +119,11 @@ components = {
         'kvdb_ctxn_pfxlock_test': {},
         'kvdb_ctxn_test': {},
         'kvdb_health_test': {},
-        'kvdb_home_test': {},
+        'kvdb_home_test': {
+            'args': [
+                meson.current_source_dir() / 'kvdb/kvdb-conf-files',
+            ],
+        },
         'kvdb_keylock_test': {},
         'kvdb_meta_test': {
             'args': [

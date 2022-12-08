@@ -35,6 +35,23 @@ kvdb_cparams_get(
     size_t                     buf_sz,
     size_t *                   needed_sz);
 
+/**
+ * Deserialize list of key=value parameters to KVDB cparams
+ *
+ * @param params Params struct
+ * @param paramc Number of parameters
+ * @param paramv List of key=value strings
+ *
+ * @returns Error status
+ * @retval 0 success
+ * @retval !0 failure
+ */
+merr_t
+kvdb_cparams_from_paramv(
+    struct kvdb_cparams *params,
+    size_t               paramc,
+    const char *const *  paramv);
+
 cJSON *
 kvdb_cparams_to_json(const struct kvdb_cparams *params);
 

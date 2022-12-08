@@ -5,7 +5,7 @@
 
 #include <mtf/framework.h>
 
-#include <hse/ikvdb/param.h>
+#include <hse/config/params.h>
 #include <hse/util/base.h>
 #include <hse/util/storage.h>
 
@@ -38,24 +38,10 @@ struct test_params {
 
 } params;
 
-merr_t
-argv_deserialize_to_params(
-    const size_t             paramc,
-    const char *const *      paramv,
-    const size_t             pspecs_sz,
-    const struct param_spec *pspecs,
-    const struct params *    params);
-
-size_t
-params_size(const struct params *const params)
-{
-    return sizeof(struct test_params);
-}
-
 bool
-relation_validate(const struct param_spec *const ps, const struct params *const params)
+relation_validate(const struct param_spec *const ps, const void *const params)
 {
-    const struct test_params *p = params->p_params.as_generic;
+    const struct test_params *p = params;
 
     return p->test_uint32a > p->test_uint8;
 }
@@ -98,11 +84,11 @@ array_default_builder(const struct param_spec *const ps, void *const data)
 }
 
 bool
-array_relation_validate(const struct param_spec *const ps, const struct params *p)
+array_relation_validate(const struct param_spec *const ps, const void *const params)
 {
-    const struct test_params *params = p->p_params.as_generic;
+    const struct test_params *p = params;
 
-    return params->test_array[0].field1 < params->test_int32 && params->test_array[1].field1 < params->test_int16;
+    return p->test_array[0].field1 < p->test_int32 && p->test_array[1].field1 < p->test_int16;
 }
 
 merr_t
@@ -159,7 +145,7 @@ const struct param_spec pspecs[] = {
     {
         .ps_name = "test1",
         .ps_description = "test1",
-        .ps_flags = PARAM_FLAG_WRITABLE,
+        .ps_flags = PARAM_WRITABLE,
         .ps_type = PARAM_TYPE_BOOL,
         .ps_offset = offsetof(struct test_params, test1),
         .ps_size = PARAM_SZ(struct test_params, test1),
@@ -174,7 +160,7 @@ const struct param_spec pspecs[] = {
     {
         .ps_name = "test_uint8",
         .ps_description = "test_uint8",
-        .ps_flags = PARAM_FLAG_WRITABLE,
+        .ps_flags = PARAM_WRITABLE,
         .ps_type = PARAM_TYPE_U8,
         .ps_offset = offsetof(struct test_params, test_uint8),
         .ps_size = PARAM_SZ(struct test_params, test_uint8),
@@ -382,7 +368,7 @@ const struct param_spec pspecs[] = {
     {
         .ps_name = "test_array",
         .ps_description = "test_array",
-        .ps_flags = PARAM_FLAG_DEFAULT_BUILDER,
+        .ps_flags = PARAM_DEFAULT_BUILDER,
         .ps_type = PARAM_TYPE_ARRAY,
         .ps_offset = offsetof(struct test_params, test_array),
         .ps_convert = array_converter,
@@ -481,7 +467,7 @@ const struct param_spec pspecs[] = {
     {
         .ps_name = "test_uint32a",
         .ps_description = "test_uint32a",
-        .ps_flags = PARAM_FLAG_WRITABLE,
+        .ps_flags = PARAM_WRITABLE,
         .ps_type = PARAM_TYPE_U32,
         .ps_offset = offsetof(struct test_params, test_uint32a),
         .ps_size = PARAM_SZ(struct test_params, test_uint32a),
@@ -503,7 +489,7 @@ const struct param_spec pspecs[] = {
     {
         .ps_name = "test_double",
         .ps_description = "test_double",
-        .ps_flags = PARAM_FLAG_WRITABLE,
+        .ps_flags = PARAM_WRITABLE,
         .ps_type = PARAM_TYPE_DOUBLE,
         .ps_offset = offsetof(struct test_params, test_double),
         .ps_size = PARAM_SZ(struct test_params, test_double),
@@ -526,9 +512,7 @@ const struct param_spec pspecs[] = {
 int
 test_pre(struct mtf_test_info *ti)
 {
-    const struct params p = { .p_type = PARAMS_GEN, .p_params = { .as_generic = &params } };
-
-    param_default_populate(pspecs, NELEM(pspecs), &p);
+    params_from_defaults(&params, NELEM(pspecs), pspecs);
 
     return 0;
 }
@@ -557,8 +541,6 @@ check(const char *const arg, ...)
     const char *a = arg;
     va_list     ap;
 
-    const struct params p = { .p_type = PARAMS_GEN, .p_params = { .as_generic = &params } };
-
     assert(arg);
 
     va_start(ap, arg);
@@ -569,8 +551,7 @@ check(const char *const arg, ...)
 
         success = !!va_arg(ap, int);
 
-        err = argv_deserialize_to_params(paramc, paramv, NELEM(pspecs), pspecs, &p);
-
+        err = params_from_paramv(&params, paramc, paramv, NELEM(pspecs), pspecs);
         if (success != !err) {
             if (!err)
                 err = merr(EINVAL);
@@ -1113,9 +1094,8 @@ MTF_DEFINE_UTEST_PRE(param_test, jsonify, test_pre)
 {
     char *str;
     cJSON *root;
-    const struct params p = { .p_params = { .as_generic = &params }, .p_type = PARAMS_GEN };
 
-    root = param_to_json(&p, pspecs, NELEM(pspecs));
+    root = params_to_json(&params, NELEM(pspecs), pspecs);
     ASSERT_NE(NULL, root);
 
     str = cJSON_PrintUnformatted(root);
@@ -1153,30 +1133,28 @@ MTF_DEFINE_UTEST_PRE(param_test, get, test_pre)
     char   buf[128];
     size_t needed_sz;
 
-    const struct params p = { .p_params = { .as_generic = &params }, .p_type = PARAMS_GEN };
-
-    err = param_get(&p, pspecs, NELEM(pspecs), "test1", buf, sizeof(buf), &needed_sz);
+    err = params_get(&params, NELEM(pspecs), pspecs, "test1", buf, sizeof(buf), &needed_sz);
     ASSERT_EQ(0, merr_errno(err));
     ASSERT_STREQ("true", buf);
     ASSERT_EQ(4, needed_sz);
 
-    err = param_get(&p, pspecs, NELEM(pspecs), "test1", buf, sizeof(buf), NULL);
+    err = params_get(&params, NELEM(pspecs), pspecs, "test1", buf, sizeof(buf), NULL);
     ASSERT_EQ(0, merr_errno(err));
     ASSERT_STREQ("true", buf);
 
-    err = param_get(&p, pspecs, NELEM(pspecs), "does.not.exist", buf, sizeof(buf), NULL);
+    err = params_get(&params, NELEM(pspecs), pspecs, "does.not.exist", buf, sizeof(buf), NULL);
     ASSERT_EQ(ENOENT, merr_errno(err));
 
-    err = param_get(NULL, pspecs, NELEM(pspecs), "test1", buf, sizeof(buf), NULL);
+    err = params_get(NULL, NELEM(pspecs), pspecs, "test1", buf, sizeof(buf), NULL);
     ASSERT_EQ(EINVAL, merr_errno(err));
 
-    err = param_get(&p, NULL, NELEM(pspecs), "test1", buf, sizeof(buf), NULL);
+    err = params_get(&params, NELEM(pspecs), NULL, "test1", buf, sizeof(buf), NULL);
     ASSERT_EQ(EINVAL, merr_errno(err));
 
-    err = param_get(&p, pspecs, NELEM(pspecs), NULL, buf, sizeof(buf), NULL);
+    err = params_get(&params, NELEM(pspecs), pspecs, NULL, buf, sizeof(buf), NULL);
     ASSERT_EQ(EINVAL, merr_errno(err));
 
-    err = param_get(&p, pspecs, NELEM(pspecs), "test1", NULL, 0, &needed_sz);
+    err = params_get(&params, NELEM(pspecs), pspecs, "test1", NULL, 0, &needed_sz);
     ASSERT_EQ(0, merr_errno(err));
     ASSERT_EQ(4, needed_sz);
 }
@@ -1185,37 +1163,85 @@ MTF_DEFINE_UTEST_PRE(param_test, set, test_pre)
 {
     merr_t err;
 
-    const struct params p = { .p_params = { .as_generic = &params }, .p_type = PARAMS_GEN };
-
     ASSERT_TRUE(params.test1); /* default value */
-    err = param_set(&p, pspecs, NELEM(pspecs), "test1", "false");
+    err = params_set(&params, sizeof(params), NELEM(pspecs), pspecs, "test1", "false");
     ASSERT_EQ(0, merr_errno(err));
     ASSERT_FALSE(params.test1);
 
     /* Test not WRITABLE */
-    err = param_set(&p, pspecs, NELEM(pspecs), "test_uint16", "10");
+    err = params_set(&params, sizeof(params), NELEM(pspecs), pspecs, "test_uint16", "10");
     ASSERT_EQ(EROFS, merr_errno(err));
     ASSERT_EQ(3, params.test_uint16); /* value set from above */
 
     /* Fail to parse */
-    err = param_set(&p, pspecs, NELEM(pspecs), "test1", "invalid");
+    err = params_set(&params, sizeof(params), NELEM(pspecs), pspecs, "test1", "invalid");
     ASSERT_EQ(EINVAL, merr_errno(err));
     ASSERT_FALSE(params.test1); /* value set from above */
 
     /* Fail to convert */
-    err = param_set(&p, pspecs, NELEM(pspecs), "test_uint8", "\"convert\"");
+    err = params_set(&params, sizeof(params), NELEM(pspecs), pspecs, "test_uint8", "\"convert\"");
     ASSERT_EQ(EINVAL, merr_errno(err));
     ASSERT_EQ(2, params.test_uint8); /* default value */
 
     /* Fail to validate */
-    err = param_set(&p, pspecs, NELEM(pspecs), "test_uint32a", "65536");
+    err = params_set(&params, sizeof(params), NELEM(pspecs), pspecs, "test_uint32a", "65536");
     ASSERT_EQ(EINVAL, merr_errno(err));
     ASSERT_EQ(1000, params.test_uint32a); /* default value */
 
     /* Fail to validate relationships */
-    err = param_set(&p, pspecs, NELEM(pspecs), "test_uint32a", "1");
+    err = params_set(&params, sizeof(params), NELEM(pspecs), pspecs, "test_uint32a", "1");
     ASSERT_EQ(EINVAL, merr_errno(err));
     ASSERT_EQ(1000, params.test_uint32a); /* default value */
+}
+
+MTF_DEFINE_UTEST(param_test, from_paramv_malformed_kv_pair)
+{
+    merr_t err;
+    const char *paramv[] = { "test_uint8", "test_uint8=" };
+
+    err = params_from_paramv(&params, 1, paramv, NELEM(pspecs), pspecs);
+    ASSERT_EQ(EINVAL, merr_errno(err));
+
+    err = params_from_paramv(&params, 1, paramv + 1, NELEM(pspecs), pspecs);
+    ASSERT_EQ(EINVAL, merr_errno(err));
+}
+
+MTF_DEFINE_UTEST(param_test, from_paramv_invalid_param)
+{
+    merr_t err;
+    const char *paramv[] = { "invalid=0" };
+
+    err = params_from_paramv(&params, 1, paramv, NELEM(pspecs), pspecs);
+    ASSERT_EQ(EINVAL, merr_errno(err));
+}
+
+MTF_DEFINE_UTEST(param_test, from_paramv_invalid_value)
+{
+    merr_t err;
+    const char *paramv[] = { "test_uint8=-1" };
+
+    err = params_from_paramv(&params, 1, paramv, NELEM(pspecs), pspecs);
+    ASSERT_EQ(EINVAL, merr_errno(err));
+}
+
+MTF_DEFINE_UTEST(param_test, from_paramv)
+{
+    merr_t err;
+    const char *paramv[] = { "test_uint8=7" };
+
+    err = params_from_paramv(&params, NELEM(paramv), paramv, NELEM(pspecs), pspecs);
+    ASSERT_EQ(0, err);
+    ASSERT_EQ(7, params.test_uint8);
+}
+
+MTF_DEFINE_UTEST(param_test, from_paramv_overwrite)
+{
+    merr_t err;
+    const char *paramv[] = { "test_uint8=8", "test_uint8=7" };
+
+    err = params_from_paramv(&params, NELEM(paramv), paramv, NELEM(pspecs), pspecs);
+    ASSERT_EQ(0, err);
+    ASSERT_EQ(7, params.test_uint8);
 }
 
 MTF_END_UTEST_COLLECTION(param_test)

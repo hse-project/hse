@@ -8,7 +8,7 @@
 
 #include <hse/limits.h>
 #include <hse/ikvdb/limits.h>
-#include <hse/ikvdb/param.h>
+#include <hse/config/params.h>
 #include <hse/ikvdb/kvs_cparams.h>
 #include <hse/util/base.h>
 
@@ -37,7 +37,7 @@ static const struct param_spec pspecs[] = {
     {
         .ps_name = "kvs_ext01",
         .ps_description = "kvs_ext01",
-        .ps_flags = PARAM_FLAG_EXPERIMENTAL,
+        .ps_flags = PARAM_EXPERIMENTAL,
         .ps_type = PARAM_TYPE_U32,
         .ps_offset = offsetof(struct kvs_cparams, kvs_ext01),
         .ps_size = PARAM_SZ(struct kvs_cparams, kvs_ext01),
@@ -68,13 +68,9 @@ kvs_cparams_pspecs_get(size_t *pspecs_sz)
 struct kvs_cparams
 kvs_cparams_defaults()
 {
-    struct kvs_cparams  params;
-    const struct params p = {
-        .p_params = { .as_kvs_cp = &params },
-        .p_type = PARAMS_KVS_CP,
-    };
+    struct kvs_cparams params;
 
-    param_default_populate(pspecs, NELEM(pspecs), &p);
+    params_from_defaults(&params, NELEM(pspecs), pspecs);
 
     return params;
 }
@@ -87,24 +83,25 @@ kvs_cparams_get(
     const size_t                    buf_sz,
     size_t *const                   needed_sz)
 {
-    const struct params p = {
-        .p_params = { .as_kvs_cp = params },
-        .p_type = PARAMS_KVS_CP,
-    };
+    return params_get(params, NELEM(pspecs), pspecs, param, buf, buf_sz, needed_sz);
+}
 
-    return param_get(&p, pspecs, NELEM(pspecs), param, buf, buf_sz, needed_sz);
+merr_t
+kvs_cparams_from_paramv(
+    struct kvs_cparams *const params,
+    const size_t              paramc,
+    const char *const *const  paramv)
+{
+    assert(params);
+
+    return params_from_paramv(params, paramc, paramv, NELEM(pspecs), pspecs);
 }
 
 cJSON *
 kvs_cparams_to_json(const struct kvs_cparams *const params)
 {
-    const struct params p = {
-        .p_params = { .as_kvs_cp = params },
-        .p_type = PARAMS_KVS_CP,
-    };
-
     if (!params)
         return NULL;
 
-    return param_to_json(&p, pspecs, NELEM(pspecs));
+    return params_to_json(params, NELEM(pspecs), pspecs);
 }

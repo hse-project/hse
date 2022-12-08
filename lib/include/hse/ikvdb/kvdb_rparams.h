@@ -121,11 +121,37 @@ kvdb_rparams_get(
 
 merr_t
 kvdb_rparams_set(
-    const struct kvdb_rparams *params,
-    const char *               param,
-    const char *               value);
+    struct kvdb_rparams *params,
+    const char *         param,
+    const char *         value);
+
+/**
+ * Deserialize a config into KVDB rparams
+ *
+ * @param params KVDB rparams
+ * @param config Configuration
+ */
+merr_t
+kvdb_rparams_from_config(struct kvdb_rparams *params, cJSON *config);
+
+/**
+ * Deserialize list of key=value parameters to KVDB rparams
+ *
+ * @param params params struct
+ * @param paramc number of parameters
+ * @param paramv list of key=value strings
+ *
+ * @returns Error status
+ * @retval 0 success
+ * @retval !0 failure
+ */
+merr_t
+kvdb_rparams_from_paramv(
+    struct kvdb_rparams *params,
+    size_t               paramc,
+    const char *const *  paramv);
 
 cJSON *
-kvdb_rparams_to_json(const struct kvdb_rparams *params);
+kvdb_rparams_to_json(const struct kvdb_rparams *params) HSE_WARN_UNUSED_RESULT;
 
 #endif /* HSE_KVDB_PARAMS_H */

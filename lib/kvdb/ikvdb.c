@@ -8,12 +8,51 @@
 
 #include <stdbool.h>
 
-#include <hse/hse.h>
-#include <hse/flags.h>
-#include <hse/experimental.h>
+#include <bsd/libutil.h>
+#include <bsd/string.h>
+#include <cjson/cJSON.h>
+#include <xxhash.h>
 
-#include <hse/util/assert.h>
 #include <hse/error/merr.h>
+#include <hse/experimental.h>
+#include <hse/flags.h>
+#include <hse/hse.h>
+#include <hse/ikvdb/c0.h>
+#include <hse/ikvdb/c0_kvset.h>
+#include <hse/ikvdb/c0sk.h>
+#include <hse/ikvdb/c0sk_perfc.h>
+#include <hse/ikvdb/c0snr_set.h>
+#include <hse/ikvdb/cn.h>
+#include <hse/ikvdb/cn_kvdb.h>
+#include <hse/ikvdb/cn_perfc.h>
+#include <hse/ikvdb/cndb.h>
+#include <hse/config/config.h>
+#include <hse/ikvdb/csched.h>
+#include <hse/ikvdb/diag_kvdb.h>
+#include <hse/ikvdb/key_hash.h>
+#include <hse/ikvdb/hse_gparams.h>
+#include <hse/ikvdb/ikvdb.h>
+#include <hse/ikvdb/kvdb_cparams.h>
+#include <hse/ikvdb/kvdb_ctxn.h>
+#include <hse/ikvdb/kvdb_health.h>
+#include <hse/ikvdb/kvdb_home.h>
+#include <hse/ikvdb/kvdb_meta.h>
+#include <hse/ikvdb/kvdb_perfc.h>
+#include <hse/ikvdb/kvdb_rparams.h>
+#include <hse/ikvdb/kvs.h>
+#include <hse/ikvdb/kvs_cparams.h>
+#include <hse/ikvdb/kvs_rparams.h>
+#include <hse/ikvdb/lc.h>
+#include <hse/ikvdb/limits.h>
+#include <hse/ikvdb/mclass_policy.h>
+#include <hse/ikvdb/omf_version.h>
+#include <hse/ikvdb/rparam_debug_flags.h>
+#include <hse/ikvdb/throttle.h>
+#include <hse/ikvdb/throttle_perfc.h>
+#include <hse/ikvdb/wal.h>
+#include <hse/mpool/mpool.h>
+#include <hse/pidfile/pidfile.h>
+#include <hse/util/assert.h>
 #include <hse/util/event_counter.h>
 #include <hse/util/page.h>
 #include <hse/util/seqno.h>
@@ -26,56 +65,12 @@
 #include <hse/util/bkv_collection.h>
 #include <hse/util/alloc.h>
 
-#include <hse/ikvdb/config.h>
-#include <hse/ikvdb/argv.h>
-#include <hse/ikvdb/ikvdb.h>
-#include <hse/ikvdb/kvdb_health.h>
-#include <hse/ikvdb/kvs.h>
-#include <hse/ikvdb/c0.h>
-#include <hse/ikvdb/c0sk.h>
-#include <hse/ikvdb/c0sk_perfc.h>
-#include <hse/ikvdb/lc.h>
-#include <hse/ikvdb/cn.h>
-#include <hse/ikvdb/cn_kvdb.h>
-#include <hse/ikvdb/cn_perfc.h>
-#include <hse/ikvdb/kvdb_perfc.h>
-#include <hse/ikvdb/cndb.h>
-#include <hse/ikvdb/kvdb_ctxn.h>
-#include <hse/ikvdb/c0snr_set.h>
-#include <hse/ikvdb/limits.h>
-#include <hse/ikvdb/key_hash.h>
-#include <hse/ikvdb/diag_kvdb.h>
-#include <hse/ikvdb/c0_kvset.h>
-#include <hse/ikvdb/csched.h>
-#include <hse/ikvdb/throttle.h>
-#include <hse/ikvdb/throttle_perfc.h>
-#include <hse/ikvdb/rparam_debug_flags.h>
-#include <hse/ikvdb/mclass_policy.h>
-#include <hse/ikvdb/kvdb_cparams.h>
-#include <hse/ikvdb/kvdb_rparams.h>
-#include <hse/ikvdb/kvs_cparams.h>
-#include <hse/ikvdb/kvs_rparams.h>
-#include <hse/ikvdb/hse_gparams.h>
-#include <hse/ikvdb/wal.h>
-#include <hse/ikvdb/kvdb_meta.h>
-#include <hse/ikvdb/omf_version.h>
-#include <hse/ikvdb/kvdb_home.h>
-
-#include "kvdb_kvs.h"
-#include "viewset.h"
-#include "kvdb_keylock.h"
-#include "kvdb_pfxlock.h"
 #include "kvdb_ctxn_pfxlock.h"
-
-#include <hse/mpool/mpool.h>
-#include <hse/pidfile/pidfile.h>
-
-#include <xxhash.h>
-#include <cjson/cJSON.h>
-#include <bsd/libutil.h>
-#include <bsd/string.h>
-
+#include "kvdb_keylock.h"
+#include "kvdb_kvs.h"
+#include "kvdb_pfxlock.h"
 #include "kvdb_rest.h"
+#include "viewset.h"
 
 /* clang-format off */
 
@@ -219,7 +214,7 @@ struct ikvdb_impl {
 
     unsigned int     ikdb_omf_version;
     struct pidfh    *ikdb_pidfh;
-    struct config   *ikdb_config;
+    struct cJSON    *ikdb_config;
     char             ikdb_alias[PIDFILE_ALIAS_LEN_MAX];
     const char       ikdb_home[]; /* flexible array */
 };
@@ -1704,7 +1699,7 @@ ikvdb_alias(struct ikvdb *kvdb)
     return self->ikdb_alias;
 }
 
-struct config *
+cJSON *
 ikvdb_config(struct ikvdb *kvdb)
 {
     struct ikvdb_impl *self = ikvdb_h2r(kvdb);
@@ -1712,7 +1707,7 @@ ikvdb_config(struct ikvdb *kvdb)
     return self->ikdb_config;
 }
 
-const struct kvdb_rparams *
+struct kvdb_rparams *
 ikvdb_rparams(struct ikvdb *const kvdb)
 {
     struct ikvdb_impl *self = ikvdb_h2r(kvdb);
@@ -1755,7 +1750,7 @@ ikvdb_cparams(struct ikvdb *const kvdb, struct kvdb_cparams *const cparams)
 }
 
 void
-ikvdb_config_attach(struct ikvdb *kvdb, struct config *conf)
+ikvdb_config_attach(struct ikvdb *kvdb, cJSON *conf)
 {
     struct ikvdb_impl *self;
 
@@ -2131,9 +2126,11 @@ ikvdb_kvs_open(
 
     self = ikvdb_h2r(handle);
 
-    err = config_deserialize_to_kvs_rparams(self->ikdb_config, kvs_name, params);
-    if (ev(err))
-        return err;
+    if (self->ikdb_config) {
+        err = kvs_rparams_from_config(params, self->ikdb_config, kvs_name);
+        if (ev(err))
+            return err;
+    }
 
     if (!strcmp(params->mclass_policy, HSE_MPOLICY_AUTO_NAME)) {
         const char *policy = mclass_policy_default_get(handle);

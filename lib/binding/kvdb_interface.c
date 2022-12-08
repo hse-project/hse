@@ -9,11 +9,25 @@
 
 #include <string.h>
 
-#include <hse/mpool/mpool.h>
+#include <bsd/libutil.h>
+#include <bsd/string.h>
 
-#include <hse/hse.h>
 #include <hse/experimental.h>
+#include <hse/hse.h>
+#include <hse/config/config.h>
+#include <hse/ikvdb/hse_gparams.h>
+#include <hse/ikvdb/ikvdb.h>
+#include <hse/ikvdb/kvdb_cparams.h>
+#include <hse/ikvdb/kvdb_ctxn.h>
+#include <hse/ikvdb/kvdb_home.h>
+#include <hse/ikvdb/kvdb_perfc.h>
+#include <hse/ikvdb/kvdb_rparams.h>
+#include <hse/ikvdb/kvs.h>
+#include <hse/ikvdb/kvs_cparams.h>
+#include <hse/ikvdb/kvs_rparams.h>
+#include <hse/ikvdb/limits.h>
 #include <hse/logging/logging.h>
+#include <hse/mpool/mpool.h>
 #include <hse/pidfile/pidfile.h>
 #include <hse/rest/headers.h>
 #include <hse/rest/params.h>
@@ -21,27 +35,12 @@
 #include <hse/rest/response.h>
 #include <hse/rest/server.h>
 #include <hse/rest/status.h>
-#include <hse/version.h>
-
-#include <hse/ikvdb/ikvdb.h>
-#include <hse/ikvdb/kvdb_ctxn.h>
-#include <hse/ikvdb/limits.h>
-#include <hse/ikvdb/kvdb_perfc.h>
-#include <hse/ikvdb/config.h>
-#include <hse/ikvdb/argv.h>
-#include <hse/ikvdb/kvdb_cparams.h>
-#include <hse/ikvdb/hse_gparams.h>
-#include <hse/ikvdb/kvdb_home.h>
-#include <hse/ikvdb/kvs.h>
-
 #include <hse/util/err_ctx.h>
 #include <hse/util/event_counter.h>
 #include <hse/util/mutex.h>
 #include <hse/util/platform.h>
 #include <hse/util/vlb.h>
-
-#include <bsd/libutil.h>
-#include <bsd/string.h>
+#include <hse/version.h>
 
 /* clang-format off */
 
@@ -366,12 +365,22 @@ out:
     return err;
 }
 
+static merr_t
+hse_conf_validate(cJSON *config)
+{
+    struct hse_gparams params;
+
+    INVARIANT(config);
+
+    return hse_gparams_from_config(&params, config);
+}
+
 hse_err_t
 hse_init(const char *const config, const size_t paramc, const char *const *const paramv)
 {
     ulong memgb;
     merr_t err = 0;
-    struct config *conf = NULL;
+    cJSON *conf = NULL;
 
     if (HSE_UNLIKELY(paramc > 0 && !paramv))
         return merr(EINVAL);
@@ -383,23 +392,25 @@ hse_init(const char *const config, const size_t paramc, const char *const *const
 
     hse_gparams = hse_gparams_defaults();
 
-    err = argv_deserialize_to_hse_gparams(paramc, paramv, &hse_gparams);
+    err = hse_gparams_from_paramv(&hse_gparams, paramc, paramv);
     if (err) {
         log_errx("Failed to deserialize paramv for HSE gparams", err);
         goto out;
     }
 
-    err = config_from_hse_conf(config, &conf);
-    if (err) {
-        log_errx("Failed to read HSE config file (%s)", err, config);
-        goto out;
-    }
+    if (config) {
+        err = config_open(config, hse_conf_validate, &conf);
+        if (err) {
+            log_errx("Failed to read HSE config file (%s)", err, config);
+            goto out;
+        }
 
-    err = config_deserialize_to_hse_gparams(conf, &hse_gparams);
-    config_destroy(conf);
-    if (err) {
-        log_errx("Failed to deserialize config file (%s) for HSE gparams", err, config);
-        goto out;
+        err = hse_gparams_from_config(&hse_gparams, conf);
+        cJSON_Delete(conf);
+        if (err) {
+            log_errx("Failed to deserialize config file (%s) for HSE gparams", err, config);
+            goto out;
+        }
     }
 
     err = logging_init(&hse_gparams.gp_logging, err_ctx_strerror);
@@ -525,7 +536,7 @@ hse_kvdb_create(const char *kvdb_home, size_t paramc, const char *const *const p
     tstart = perfc_lat_start(&kvdb_pkvdbl_pc);
     perfc_inc(&kvdb_pc, PERFC_RA_KVDBOP_KVDB_CREATE);
 
-    err = argv_deserialize_to_kvdb_cparams(paramc, paramv, &dbparams);
+    err = kvdb_cparams_from_paramv(&dbparams, paramc, paramv);
     if (ev(err)) {
         log_errx("Failed to deserialize paramv for KVDB (%s) cparams", err, kvdb_home);
         return err;
@@ -625,11 +636,11 @@ hse_kvdb_open(
     size_t n;
     merr_t err;
     uint64_t tstart;
+    cJSON *config = NULL;
     struct pidfh *pfh = NULL;
     char pidfile_path[PATH_MAX];
     struct ikvdb *ikvdb = NULL;
-    struct config *conf = NULL;
-    struct pidfile content = {};
+    struct pidfile content = { 0 };
     struct kvdb_rparams params = kvdb_rparams_defaults();
 
     static_assert(
@@ -661,22 +672,24 @@ hse_kvdb_open(
     tstart = perfc_lat_start(&kvdb_pkvdbl_pc);
     perfc_inc(&kvdb_pc, PERFC_RA_KVDBOP_KVDB_OPEN);
 
-    err = argv_deserialize_to_kvdb_rparams(paramc, paramv, &params);
+    err = kvdb_rparams_from_paramv(&params, paramc, paramv);
     if (ev(err)) {
         log_errx("Failed to deserialize paramv for KVDB (%s) rparams", err, kvdb_home);
         return err;
     }
 
-    err = config_from_kvdb_conf(kvdb_home, &conf);
-    if (ev(err)) {
+    err = kvdb_home_get_config(kvdb_home, &config);
+    if (ev(err && merr_errno(err) != ENOENT)) {
         log_errx("Failed to read KVDB config file (%s/kvdb.conf)", err, kvdb_home);
         return err;
     }
 
-    err = config_deserialize_to_kvdb_rparams(conf, &params);
-    if (ev(err)) {
-        log_errx("Failed to deserialize config file for KVDB (%s) rparams", err, kvdb_home);
-        goto out;
+    if (config) {
+        err = kvdb_rparams_from_config(&params, config);
+        if (ev(err)) {
+            log_errx("Failed to deserialize config file for KVDB (%s) rparams", err, kvdb_home);
+            goto out;
+        }
     }
 
     err = kvdb_home_check_access(kvdb_home, params.mode);
@@ -719,7 +732,7 @@ hse_kvdb_open(
         goto out;
     }
 
-    ikvdb_config_attach(ikvdb, conf);
+    ikvdb_config_attach(ikvdb, config);
     ikvdb_pidfh_attach(ikvdb, pfh);
 
     *handle = (struct hse_kvdb *)ikvdb;
@@ -729,7 +742,7 @@ hse_kvdb_open(
 out:
     if (err) {
         pidfile_remove(pfh);
-        config_destroy(conf);
+        cJSON_Delete(config);
         ikvdb_close(ikvdb);
     }
 
@@ -740,15 +753,15 @@ hse_err_t
 hse_kvdb_close(struct hse_kvdb *handle)
 {
     merr_t err;
+    cJSON *config;
     struct pidfh *pfh;
-    struct config *conf;
 
     if (!handle)
         return merr(EINVAL);
 
     perfc_inc(&kvdb_pc, PERFC_RA_KVDBOP_KVDB_CLOSE);
 
-    conf = ikvdb_config((struct ikvdb *)handle);
+    config = ikvdb_config((struct ikvdb *)handle);
     pfh = ikvdb_pidfh((struct ikvdb *)handle);
     assert(pfh);
 
@@ -760,7 +773,7 @@ hse_kvdb_close(struct hse_kvdb *handle)
     mutex_unlock(&hse_lock);
 
     pidfile_remove(pfh);
-    config_destroy(conf);
+    cJSON_Delete(config);
 
     return err;
 }
@@ -976,7 +989,7 @@ hse_kvdb_kvs_create(
         return err;
     }
 
-    err = argv_deserialize_to_kvs_cparams(paramc, paramv, &params);
+    err = kvs_cparams_from_paramv(&params, paramc, paramv);
     if (ev(err)) {
         log_errx("Failed to deserialize paramv for KVS (%s) cparams", err, kvs_name);
         return err;
@@ -1035,7 +1048,7 @@ hse_kvdb_kvs_open(
     tstart = perfc_lat_start(&kvdb_pkvdbl_pc);
     perfc_inc(&kvdb_pc, PERFC_RA_KVDBOP_KVDB_KVS_OPEN);
 
-    err = argv_deserialize_to_kvs_rparams(paramc, paramv, &params);
+    err = kvs_rparams_from_paramv(&params, paramc, paramv);
     if (ev(err)) {
         log_errx("Failed to deserialize paramv for KVS (%s) rparams", err, kvs_name);
         return err;
@@ -1119,7 +1132,7 @@ hse_kvdb_storage_add(const char *kvdb_home, size_t paramc, const char *const *co
         return err;
     }
 
-    err = argv_deserialize_to_kvdb_cparams(paramc, paramv, &cparams);
+    err = kvdb_cparams_from_paramv(&cparams, paramc, paramv);
     if (err) {
         log_errx("Failed to deserialize paramv for KVDB (%s) cparams", err, kvdb_home);
         return err;
