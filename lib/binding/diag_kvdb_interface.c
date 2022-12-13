@@ -51,7 +51,7 @@ diag_kvdb_open(
         goto close_mp;
 
     err = kvdb_home_get_config(kvdb_home, &conf);
-    if (err)
+    if (err && merr_errno(err) != ENOENT)
         goto close_mp;
 
     err = kvdb_rparams_from_config(&params, conf);
