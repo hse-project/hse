@@ -1772,7 +1772,7 @@ kvset_get_nth_vblock_id(struct kvset *ks, u32 index)
     return (index < ks->ks_st.kst_vblks ? lvx2mbid(ks, index) : 0);
 }
 
-u64
+uint32_t
 kvset_get_nth_vblock_len(struct kvset *ks, u32 index)
 {
     struct vblock_desc *vbd = lvx2vbd(ks, index);
@@ -2581,7 +2581,7 @@ kvset_iter_create(
         iter->reverse = reverse;
     }
 
-    iter->vra_len = min_t(u32, iter->vra_len, 1024 * 1024);
+    iter->vra_len = min_t(u32, iter->vra_len, HSE_KVS_VALUE_LEN_MAX);
     iter->vra_wq = vra_wq;
 
     iter->workq = io_workq;
@@ -2793,7 +2793,8 @@ kvset_iter_seek(struct kv_iterator *handle, const void *key, s32 len, bool *eof)
 
         if (cmp > 0) {
             kvset_iter_mark_eof(handle);
-            *eof = true;
+            if (eof)
+                *eof = true;
             return 0;
         }
     }
@@ -2882,7 +2883,8 @@ kvset_iter_seek(struct kv_iterator *handle, const void *key, s32 len, bool *eof)
 
     iter->last = SRC_NONE;
 
-    *eof = handle->kvi_eof = iter->pti_meta.eof && iter->wbti_meta.eof;
+    if (eof)
+        *eof = handle->kvi_eof = iter->pti_meta.eof && iter->wbti_meta.eof;
 
     wbti_destroy(wbti);
     wbti_destroy(pti);

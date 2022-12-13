@@ -365,7 +365,7 @@ _kvset_get_nth_vblock_id(struct kvset *kvset, u32 index)
     return (index < mk->stats.kst_vblks ? mk->ids[vblk_index_base + index] : 0);
 }
 
-static u64
+static uint32_t
 _kvset_get_nth_vblock_len(struct kvset *kvset, u32 index)
 {
     struct mock_kvset *mk = (void *)kvset;

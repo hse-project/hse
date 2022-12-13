@@ -353,7 +353,7 @@ kvset_set_rule(struct kvset *ks, enum cn_rule rule);
  * kvset_get_nth_vblock_len() - Get len of useful data in nth vblock
  */
 /* MTF_MOCK */
-u64
+uint32_t
 kvset_get_nth_vblock_len(struct kvset *km, u32 index);
 
 /* MTF_MOCK */
