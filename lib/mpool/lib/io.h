@@ -1,10 +1,16 @@
 /* SPDX-License-Identifier: Apache-2.0 */
 /*
- * Copyright (C) 2021 Micron Technology, Inc.  All rights reserved.
+ * Copyright (C) 2021-2022 Micron Technology, Inc.  All rights reserved.
  */
 
 #ifndef MPOOL_IO_H
 #define MPOOL_IO_H
+
+#include "build_config.h"
+
+#include <stddef.h>
+#include <stdio.h>
+#include <sys/uio.h>
 
 #include <hse/error/merr.h>
 
@@ -16,9 +22,9 @@
  */
 struct io_ops {
     merr_t (*read)(int src_fd, off_t off, const struct iovec *iov,
-		   int iovcnt, int flags, size_t *rdlen);
+       int iovcnt, int flags, size_t *rdlen);
     merr_t (*write)(int dst_fd, off_t off, const struct iovec *iov,
-		    int iovcnt, int flags, size_t *wrlen);
+        int iovcnt, int flags, size_t *wrlen);
     merr_t (*mmap)(void **addr, size_t len, int prot, int flags, int fd, off_t offset);
     merr_t (*munmap)(void *addr, size_t len);
     merr_t (*msync)(void *addr, size_t len, int flags);
