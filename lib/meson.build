@@ -136,11 +136,6 @@ hse = library(
     gnu_symbol_visibility: 'hidden',
 )
 
-hse_variables = {
-    'source-root': meson.project_source_root(),
-    'build-root': meson.project_build_root(),
-}
-
 hse_dep = declare_dependency(
     link_with: hse,
     version: meson.project_version(),
@@ -149,16 +144,21 @@ hse_dep = declare_dependency(
     ],
     include_directories: [
         public_includes,
-    ],
-    variables: hse_variables,
+    ]
 )
 
 if get_option('tools').allowed() or get_option('tests')
-    hse_internal = static_library(
-        '@0@-internal'.format(lib_name),
-        objects: hse.extract_all_objects(recursive: true),
-        gnu_symbol_visibility: 'hidden'
-    )
+    if get_option('default_library') == 'shared'
+        hse_internal = static_library(
+            '@0@-internal'.format(lib_name),
+            objects: hse.extract_all_objects(recursive: true),
+            gnu_symbol_visibility: 'hidden'
+        )
+    elif get_option('default_library') == 'static'
+        hse_internal = hse
+    elif get_option('default_library') == 'both'
+        hse_internal = hse.get_static_lib()
+    endif
 
     hse_internal_dep = declare_dependency(
         link_with: hse_internal,
@@ -167,8 +167,7 @@ if get_option('tools').allowed() or get_option('tests')
             version_h,
         ],
         include_directories: hse_include_directories,
-        dependencies: hse_dependencies,
-        variables: hse_variables
+        dependencies: hse_dependencies
     )
 else
     hse_internal_dep = disabler()
