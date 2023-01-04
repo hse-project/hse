@@ -41,7 +41,7 @@ diag_kvdb_open(
     struct pidfile      content;
     char                pidfile_path[PATH_MAX];
     size_t              n;
-    cJSON *             conf;
+    cJSON *             conf = NULL;
 
     if (ev(!kvdb_home || !handle))
         return merr(EINVAL);
@@ -54,9 +54,11 @@ diag_kvdb_open(
     if (err && merr_errno(err) != ENOENT)
         goto close_mp;
 
-    err = kvdb_rparams_from_config(&params, conf);
-    if (err)
-        goto close_mp;
+    if (conf) {
+        err = kvdb_rparams_from_config(&params, conf);
+        if (err)
+            goto close_mp;
+    }
 
     params.mode = KVDB_MODE_DIAG; /* override mode param to DIAG */
 
