@@ -583,8 +583,7 @@ sp3_refresh_thresholds(struct sp3 *sp)
         thresh.rspill_wlen_max = ((v >> 16) & 0xffff) << 20;
     } else {
         thresh.rspill_runlen_max = SP3_RSPILL_RUNLEN_MAX_DEFAULT;
-        thresh.rspill_runlen_min = sp->rp->csched_full_compact ? 1 :
-                                   SP3_RSPILL_RUNLEN_MIN_DEFAULT;
+        thresh.rspill_runlen_min = SP3_RSPILL_RUNLEN_MIN_DEFAULT;
         thresh.rspill_wlen_max = SP3_RSPILL_WLEN_MAX_DEFAULT;
     }
 
@@ -641,7 +640,7 @@ sp3_refresh_thresholds(struct sp3 *sp)
     /* vgroup leaf-scatter remediation settings
      */
     thresh.lscat_runlen_max = sp->rp->csched_lscat_runlen_max;
-    thresh.lscat_hwm = sp->rp->csched_full_compact ? 1 : sp->rp->csched_lscat_hwm;
+    thresh.lscat_hwm = sp->rp->csched_lscat_hwm;
 
     thresh.split_cnt_max = qthreads(sp, SP3_QNUM_SPLIT);
 
@@ -2311,7 +2310,11 @@ sp3_schedule(struct sp3 *sp)
                     break;
             }
 
-            thresh = (uint64_t)sp->thresh.lscat_hwm << 32;
+            {
+                uint64_t hwm = sp->rp->csched_full_compact ? 1 : sp->thresh.lscat_hwm;
+
+                thresh = hwm << 32;
+            }
 
             job = sp3_check_rb_tree(sp, sp->rr_wtype, thresh, qnum);
             if (job)

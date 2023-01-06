@@ -153,6 +153,7 @@ sp3_work_wtype_root(
     uint runlen_min, runlen_max, runlen;
     struct kvset_list_entry *le;
     size_t wlen_max, wlen;
+    const struct kvdb_rparams *kvdb_rp = ikvdb_rparams(tn->tn_tree->cn->ikvdb);
 
     *action = CN_ACTION_SPILL;
     *rule = CN_RULE_RSPILL;
@@ -185,7 +186,7 @@ sp3_work_wtype_root(
     wlen = kvset_get_kwlen(le->le_kvset) + kvset_get_vwlen(le->le_kvset);
     wlen_max = thresh->rspill_wlen_max;
 
-    runlen_min = thresh->rspill_runlen_min;
+    runlen_min = kvdb_rp->csched_full_compact ? 1 : thresh->rspill_runlen_min;
     runlen_max = thresh->rspill_runlen_max;
     runlen = 1;
 
