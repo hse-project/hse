@@ -175,9 +175,9 @@ endif
 
 pkg.generate(
     hse,
+    name: 'Heterogeneous-Memory Storage Engine',
     description: 'HSE is a fast embeddable key-value store designed for SSDs and persistent memory.',
     filebase: lib_name,
-    name: meson.project_name(),
     version: meson.project_version(),
     url: 'https://github.com/hse-project',
     subdirs: [
