@@ -4,6 +4,7 @@ subdir('lib')
 hse_rest = static_library(
     '@0@-rest'.format(meson.project_name()),
     rest_sources,
+    c_args: cc.get_supported_arguments('-Wconversion'),
     include_directories: [
         component_root_includes,
         public_includes,

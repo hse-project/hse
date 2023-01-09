@@ -131,7 +131,7 @@ send_error(
     evbuffer_add_printf(evbuf, RFC7807_FMT, reason, status, detail, merr_file(origin),
         merr_lineno(origin), merr_errno(origin));
 
-    evhttp_send_reply(req, status, reason, NULL);
+    evhttp_send_reply(req, (int)status, reason, NULL);
 }
 
 static void
@@ -177,6 +177,8 @@ handle_request(struct evhttp_request *const req, const struct endpoint *const en
     req_body = evhttp_request_get_input_buffer(req);
     req_data_len = evbuffer_get_length(req_body);
     if (req_data_len > 0) {
+        ssize_t len;
+
         req_data = malloc((req_data_len + 1) * sizeof(*req_data));
         if (ev(!req_data)) {
             send_error(req, REST_STATUS_SERVICE_UNAVAILABLE, "Out of memory", merr(ENOMEM));
@@ -184,8 +186,8 @@ handle_request(struct evhttp_request *const req, const struct endpoint *const en
         }
         req_data[req_data_len] = '\0';
 
-        rc = evbuffer_copyout(req_body, req_data, req_data_len + 1);
-        if (rc == -1) {
+        len = evbuffer_copyout(req_body, req_data, req_data_len + 1);
+        if (len == -1) {
             free(req_data);
             send_error(req, REST_STATUS_INTERNAL_SERVER_ERROR, "Failed to copy data out of buffer",
                 merr(EBADE));
@@ -238,7 +240,7 @@ handle_request(struct evhttp_request *const req, const struct endpoint *const en
     fclose(hresp.rr_stream);
     free(resp_data);
 
-    evhttp_send_reply(req, status, status_to_reason(status), resp_body);
+    evhttp_send_reply(req, (int)status, status_to_reason(status), resp_body);
 
     if (resp_body)
         evbuffer_free(resp_body);
