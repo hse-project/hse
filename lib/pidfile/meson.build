@@ -4,6 +4,7 @@ subdir('lib')
 hse_pidfile = static_library(
     '@0@-pidfile'.format(meson.project_name()),
     pidfile_sources,
+    c_args: cc.get_supported_arguments('-Wconversion'),
     include_directories: [
         pidfile_includes,
         component_root_includes,

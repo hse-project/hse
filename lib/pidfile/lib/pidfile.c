@@ -83,7 +83,8 @@ merr_t
 pidfile_deserialize(const char *home, struct pidfile *content)
 {
     int fd;
-    size_t n = 0;
+    int rc;
+    size_t n;
     merr_t err = 0;
     struct stat st;
     FILE *pidf = NULL;
@@ -94,8 +95,8 @@ pidfile_deserialize(const char *home, struct pidfile *content)
     if (!home || !content)
         return merr(EINVAL);
 
-    n = snprintf(pidfile_path, sizeof(pidfile_path), "%s/" PIDFILE_NAME, home);
-    if (n >= sizeof(pidfile_path))
+    rc = snprintf(pidfile_path, sizeof(pidfile_path), "%s/" PIDFILE_NAME, home);
+    if (rc >= sizeof(pidfile_path))
         return merr(ENAMETOOLONG);
 
     pidf = fopen(pidfile_path, "r");
@@ -115,13 +116,13 @@ pidfile_deserialize(const char *home, struct pidfile *content)
         goto out;
     }
 
-    str = malloc(st.st_size + 1);
+    str = malloc((size_t)st.st_size + 1);
     if (!str) {
         err = merr(ENOMEM);
         goto out;
     }
 
-    n = fread(str, st.st_size, 1, pidf);
+    n = fread(str, (size_t)st.st_size, 1, pidf);
     if (n != 1 || ferror(pidf)) {
         err = merr(EIO);
         goto out;
@@ -129,7 +130,7 @@ pidfile_deserialize(const char *home, struct pidfile *content)
 
     str[st.st_size] = '\0';
 
-    root = cJSON_ParseWithLength(str, st.st_size);
+    root = cJSON_ParseWithLength(str, (size_t)st.st_size);
     if (!root) {
         if (cJSON_GetErrorPtr()) {
             err = merr(EPROTO);
