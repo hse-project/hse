@@ -19,6 +19,7 @@ struct test_params {
     uint16_t             test_uint16;
     uint32_t             test_uint32;
     uint64_t             test_uint64;
+    size_t               test_size;
     int                  test_int;
     int8_t               test_int8;
     int16_t              test_int16;
@@ -238,6 +239,27 @@ const struct param_spec pspecs[] = {
             .as_uscalar = {
                 .ps_min = 0,
                 .ps_max = UINT64_MAX,
+            },
+        },
+    },
+    {
+        .ps_name = "test_size",
+        .ps_description = "test_size",
+        .ps_flags = 0,
+        .ps_type = PARAM_TYPE_SIZE,
+        .ps_offset = offsetof(struct test_params, test_size),
+        .ps_size = PARAM_SZ(struct test_params, test_size),
+        .ps_convert = param_default_converter,
+        .ps_validate = param_default_validator,
+        .ps_stringify = param_default_stringify,
+        .ps_jsonify = param_default_jsonify,
+        .ps_default_value = {
+            .as_uscalar = 6,
+        },
+        .ps_bounds = {
+            .as_uscalar = {
+                .ps_min = 0,
+                .ps_max = SIZE_MAX,
             },
         },
     },
@@ -577,6 +599,7 @@ MTF_DEFINE_UTEST_PRE(param_test, defaults, test_pre)
     ASSERT_EQ(3, params.test_uint16);
     ASSERT_EQ(4, params.test_uint32);
     ASSERT_EQ(5, params.test_uint64);
+    ASSERT_EQ(6, params.test_size);
     ASSERT_EQ(6, params.test_int);
     ASSERT_EQ(7, params.test_int8);
     ASSERT_EQ(8, params.test_int16);
@@ -714,12 +737,52 @@ MTF_DEFINE_UTEST_PRE(param_test, param_type_u64, test_pre)
     err = check(
         "test_uint64=0", true,
         "test_uint64=12", true,
-        "test_uint64=18446744073709551615", true,
+        "test_uint64=18446744073709551615", false,
         /* out of range or invalid syntax */
-        "test_uint64=18446744073709551616", true,
+        "test_uint64=18446744073709551616", false,
         "test_uint64=-1", false,
         "test_uint64=1.5", false,
         "test_uint64=wrong", false,
+        NULL
+    );
+    /* clang-format on */
+
+    ASSERT_EQ(0, merr_errno(err));
+}
+
+MTF_DEFINE_UTEST_PRE(param_test, param_type_size, test_pre)
+{
+    merr_t err;
+    char   buf[128];
+    size_t needed_sz;
+
+    const struct param_spec *ps = ps_get("test_size");
+
+    err = ps->ps_stringify(ps, &params.test_uint64, buf, sizeof(buf), &needed_sz);
+    ASSERT_EQ(0, merr_errno(err));
+    ASSERT_EQ(1, needed_sz);
+    ASSERT_STREQ("5", buf);
+
+    /* clang-format off */
+    err = check(
+        "test_size=0", true,
+        "test_size=12", true,
+#if SIZE_MAX == UINT64_MAX
+        "test_size=18446744073709551615", false,
+        /* out of range or invalid syntax */
+        "test_size=18446744073709551616", false,
+#elif SIZE_MAX == UINT32_MAX
+        "test_size=4294967295", true,
+        "test_size=4294967296", false,
+#elif SIZE_MAX == UINT16_MAX
+        "test_size=65535", true,
+        "test_size=65536", false,
+#else
+#warning "Unhandled size_t width"
+#endif
+        "test_size=-1", false,
+        "test_size=1.5", false,
+        "test_size=wrong", false,
         NULL
     );
     /* clang-format on */
@@ -860,11 +923,11 @@ MTF_DEFINE_UTEST_PRE(param_test, param_type_i64, test_pre)
 
     /* clang-format off */
     err = check(
-        //"test_int64=-9223372036854775809", false,  (deserialize BUG?)
-        //"test_int64=-9223372036854775808", true,   (deserialize BUG?)
+        "test_int64=-9223372036854775809", true,
+        "test_int64=-9223372036854775808", true,
         "test_int64=12", true,
-        "test_int64=9223372036854775807", true,
-        //"test_int64=9223372036854775808", false,   (deserialize BUG?)
+        "test_int64=9223372036854775807", false,
+        "test_int64=9223372036854775808", false,
         "test_int64=1.5", false,
         "test_int64=wrong", false,
         NULL
@@ -1109,6 +1172,7 @@ MTF_DEFINE_UTEST_PRE(param_test, jsonify, test_pre)
         "\"test_uint16\":3,"
         "\"test_uint32\":4,"
         "\"test_uint64\":5,"
+        "\"test_size\":6,"
         "\"test_int\":6,"
         "\"test_int8\":7,"
         "\"test_int16\":8,"

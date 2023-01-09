@@ -297,9 +297,10 @@ param_default_converter(const struct param_spec *ps, const cJSON *node, void *va
              * Confirm that the double is a whole number, convert it to a
              * string, and parse the string to an int64_t.
              */
-            snprintf(buf, sizeof(buf), "%.0f", to_conv);
+            snprintf(buf, sizeof(buf), "%.0lf", to_conv);
+            errno = 0;
             tmp = strtoll(buf, &end, 10);
-            if (*end != '\0') {
+            if ((tmp == LLONG_MAX && errno == ERANGE) || *end != '\0') {
                 log_err(
                     "Value of %s must be greater than or equal to 0 and less than or equal to %ld",
                     ps->ps_name,
@@ -403,9 +404,10 @@ param_default_converter(const struct param_spec *ps, const cJSON *node, void *va
              * Confirm that the double is a whole number, convert it to a
              * string, and parse the string to a uint64_t.
              */
-            snprintf(buf, sizeof(buf), "%.0f", to_conv);
+            snprintf(buf, sizeof(buf), "%.0lf", to_conv);
+            errno = 0;
             tmp = strtoull(buf, &end, 10);
-            if (to_conv < 0 || *end != '\0') {
+            if (to_conv < 0 || (tmp == ULLONG_MAX && errno == ERANGE) || *end != '\0') {
                 log_err(
                     "Value of %s must be greater than or equal to 0 and less than or equal to %lu",
                     ps->ps_name,
@@ -413,6 +415,49 @@ param_default_converter(const struct param_spec *ps, const cJSON *node, void *va
                 return false;
             }
             *(uint64_t *)value = tmp;
+            break;
+        }
+        case PARAM_TYPE_SIZE: {
+            char *end;
+            char buf[32];
+            double to_conv;
+            unsigned long long tmp;
+            unsigned long long error;
+
+            assert(!(ps->ps_flags & PARAM_NULLABLE));
+            if (!cJSON_IsNumber(node)) {
+                log_err("Value of %s must be a number", ps->ps_name);
+                return false;
+            }
+
+            to_conv = cJSON_GetNumberValue(node);
+            if (!IS_WHOLE(to_conv)) {
+                log_err("Value of %s must be a whole number", ps->ps_name);
+                return false;
+            }
+
+            /* Converting a double to a 64-bit size_t is extremely difficult.
+             * Confirm that the double is a whole number, convert it to a
+             * string, and parse the string to a size_t.
+             */
+            snprintf(buf, sizeof(buf), "%.0lf", to_conv);
+            errno = 0;
+#if SIZE_MAX == UINT64_MAX
+            error = ULLONG_MAX;
+            tmp = strtoull(buf, &end, 10);
+#else
+            error = ULONG_MAX;
+            tmp = strtoul(buf, &end, 10);
+#endif
+            if (to_conv < 0 || (tmp == error && errno == ERANGE) || tmp > SIZE_MAX ||
+                    *end != '\0') {
+                log_err(
+                    "Value of %s must be greater than or equal to 0 and less than or equal to %zu",
+                    ps->ps_name,
+                    SIZE_MAX);
+                return false;
+            }
+            *(size_t *)value = tmp;
             break;
         }
         case PARAM_TYPE_ENUM: {
@@ -506,6 +551,8 @@ param_default_jsonify(const struct param_spec *const ps, const void *const value
             return cJSON_CreateNumber(*(uint32_t *)value);
         case PARAM_TYPE_U64:
             return cJSON_CreateNumber(*(uint64_t *)value);
+        case PARAM_TYPE_SIZE:
+            return cJSON_CreateNumber(*(size_t *)value);
         case PARAM_TYPE_INT:
         case PARAM_TYPE_ENUM:
             return cJSON_CreateNumber(*(int *)value);
@@ -562,12 +609,15 @@ param_default_stringify(
         case PARAM_TYPE_U64:
             n = snprintf(buf, buf_sz, "%lu", *(uint64_t *)value);
             break;
+        case PARAM_TYPE_SIZE:
+            n = snprintf(buf, buf_sz, "%zu", *(size_t *)value);
+            break;
         case PARAM_TYPE_INT:
         case PARAM_TYPE_ENUM:
             n = snprintf(buf, buf_sz, "%d", *(int *)value);
             break;
         case PARAM_TYPE_DOUBLE:
-            n = snprintf(buf, buf_sz, "%f", *(double *)value);
+            n = snprintf(buf, buf_sz, "%lf", *(double *)value);
             break;
         case PARAM_TYPE_STRING:
             if (((char *)value)[0] == '\0') {
@@ -689,6 +739,17 @@ param_default_validator(const struct param_spec *ps, const void *value)
         }
         case PARAM_TYPE_U64: {
             const uint64_t tmp = *(uint64_t *)value;
+            if (tmp >= ps->ps_bounds.as_uscalar.ps_min && tmp <= ps->ps_bounds.as_uscalar.ps_max)
+                return true;
+            log_err(
+                "Value of %s must be greater than or equal to %lu and less than or equal to %lu",
+                ps->ps_name,
+                ps->ps_bounds.as_uscalar.ps_min,
+                ps->ps_bounds.as_uscalar.ps_max);
+            break;
+        }
+        case PARAM_TYPE_SIZE: {
+            const size_t tmp = *(size_t *)value;
             if (tmp >= ps->ps_bounds.as_uscalar.ps_min && tmp <= ps->ps_bounds.as_uscalar.ps_max)
                 return true;
             log_err(
@@ -884,7 +945,7 @@ param_roundup_pow2(const struct param_spec *ps, const cJSON *node, void *value)
                 *(int32_t *)value = (uint32_t)tmp;                                                \
                 break;                                                                            \
             case PARAM_TYPE_U64:                                                                  \
-                if (tmp < 0 || tmp > (double)UINT64_MAX) {                                        \
+                if (tmp < 0 || tmp > (long double)UINT64_MAX) {                                   \
                     log_err(                                                                      \
                         "Number of bytes of %s is not within the bounds of an unsigned 64-bit "   \
                         "integer",                                                                \
@@ -892,6 +953,15 @@ param_roundup_pow2(const struct param_spec *ps, const cJSON *node, void *value)
                     return false;                                                                 \
                 }                                                                                 \
                 *(int64_t *)value = (uint64_t)tmp;                                                \
+                break;                                                                            \
+            case PARAM_TYPE_SIZE:                                                                 \
+                if (tmp < 0 || tmp > (long double)SIZE_MAX) {                                     \
+                    log_err(                                                                      \
+                        "Number of bytes of %s is not within the bounds of a size_t",             \
+                        ps->ps_name);                                                             \
+                    return false;                                                                 \
+                }                                                                                 \
+                *(size_t *)value = (size_t)tmp;                                                   \
                 break;                                                                            \
             default:                                                                              \
                 abort();                                                                          \
@@ -978,6 +1048,9 @@ STORAGE_JSONIFY(TB)
                 break;                                                              \
             case PARAM_TYPE_U64:                                                    \
                 n = snprintf(buf, buf_sz, "%lu", *(uint64_t *)value / (uint64_t)X); \
+                break;                                                              \
+            case PARAM_TYPE_SIZE:                                                   \
+                n = snprintf(buf, buf_sz, "%zu", *(size_t *)value / (size_t)X);     \
                 break;                                                              \
             default:                                                                \
                 abort();                                                            \
@@ -1099,6 +1172,9 @@ params_from_defaults(
                 break;
             case PARAM_TYPE_U64:
                 *(uint64_t *)data = ps.ps_default_value.as_uscalar;
+                break;
+            case PARAM_TYPE_SIZE:
+                *(size_t *)data = ps.ps_default_value.as_uscalar;
                 break;
             case PARAM_TYPE_INT:
             case PARAM_TYPE_ENUM:
