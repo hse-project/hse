@@ -4,6 +4,7 @@ subdir('lib')
 hse_config = static_library(
     '@0@-config'.format(meson.project_name()),
     config_sources,
+    c_args: cc.get_supported_arguments('-Wconversion'),
     include_directories: [
         component_root_includes,
         config_includes,

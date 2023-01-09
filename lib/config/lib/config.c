@@ -40,18 +40,18 @@ config_open(const char *const path, config_validator_t validate, cJSON **const c
         goto out;
     }
 
-    str = malloc(st.st_size);
+    str = malloc((size_t)st.st_size);
     if (!str) {
         err = merr(ENOMEM);
         goto out;
     }
 
-    if (read(fd, str, st.st_size) == -1) {
+    if (read(fd, str, (size_t)st.st_size) == -1) {
         err = merr(errno);
         goto out;
     }
 
-    impl = cJSON_ParseWithLength(str, st.st_size);
+    impl = cJSON_ParseWithLength(str, (size_t)st.st_size);
     if (!impl) {
         if (cJSON_GetErrorPtr()) {
             err = merr(EINVAL);

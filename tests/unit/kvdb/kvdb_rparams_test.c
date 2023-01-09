@@ -93,8 +93,8 @@ MTF_DEFINE_UTEST_PRE(kvdb_rparams_test, kvdb_open_mode, test_pre)
     ASSERT_NE((uintptr_t)ps->ps_stringify, (uintptr_t)param_default_stringify);
     ASSERT_NE((uintptr_t)ps->ps_jsonify, (uintptr_t)param_default_jsonify);
     ASSERT_EQ(KVDB_MODE_RDWR, params.mode);
-    ASSERT_EQ(KVDB_MODE_RDONLY, ps->ps_bounds.as_uscalar.ps_min);
-    ASSERT_EQ(KVDB_MODE_RDWR, ps->ps_bounds.as_uscalar.ps_max);
+    ASSERT_EQ(KVDB_MODE_RDONLY, ps->ps_bounds.as_enum.ps_min);
+    ASSERT_EQ(KVDB_MODE_RDWR, ps->ps_bounds.as_enum.ps_max);
 
     ps->ps_stringify(ps, &params.mode, buf, sizeof(buf), &needed_sz);
     ASSERT_STREQ("\"rdwr\"", buf);
@@ -607,8 +607,8 @@ MTF_DEFINE_UTEST_PRE(kvdb_rparams_test, durability_mclass, test_pre)
     ASSERT_NE((uintptr_t)ps->ps_stringify, (uintptr_t)param_default_stringify);
     ASSERT_NE((uintptr_t)ps->ps_jsonify, (uintptr_t)param_default_jsonify);
     ASSERT_EQ(HSE_MCLASS_AUTO, params.dur_mclass);
-    ASSERT_EQ(HSE_MCLASS_BASE, ps->ps_bounds.as_enum.ps_min);
-    ASSERT_EQ(HSE_MCLASS_AUTO, ps->ps_bounds.as_enum.ps_max);
+    ASSERT_EQ(HSE_MCLASS_BASE, ps->ps_bounds.as_uscalar.ps_min);
+    ASSERT_EQ(HSE_MCLASS_AUTO, ps->ps_bounds.as_uscalar.ps_max);
 
     ps->ps_stringify(ps, &params.dur_mclass, buf, sizeof(buf), &needed_sz);
     ASSERT_STREQ("\"" HSE_MCLASS_AUTO_NAME "\"", buf);
@@ -699,8 +699,8 @@ MTF_DEFINE_UTEST_PRE(kvdb_rparams_test, thorttling_init_policy, test_pre)
     ASSERT_NE((uintptr_t)ps->ps_stringify, (uintptr_t)param_default_stringify);
     ASSERT_NE((uintptr_t)ps->ps_jsonify, (uintptr_t)param_default_jsonify);
     ASSERT_EQ(THROTTLE_DELAY_START_AUTO, params.throttle_init_policy);
-    ASSERT_EQ(THROTTLE_DELAY_START_LIGHT, ps->ps_bounds.as_uscalar.ps_min);
-    ASSERT_EQ(THROTTLE_DELAY_START_AUTO, ps->ps_bounds.as_uscalar.ps_max);
+    ASSERT_EQ(THROTTLE_DELAY_START_LIGHT, ps->ps_bounds.as_enum.ps_min);
+    ASSERT_EQ(THROTTLE_DELAY_START_AUTO, ps->ps_bounds.as_enum.ps_max);
 
     ps->ps_stringify(ps, &params.throttle_init_policy, buf, sizeof(buf), &needed_sz);
     ASSERT_STREQ("\"auto\"", buf);
