@@ -139,7 +139,7 @@ merr_errno(merr_t err)
 static HSE_ALWAYS_INLINE unsigned int
 merr_ctx(merr_t err)
 {
-    return (err & MERR_CTX_MASK) >> MERR_CTX_SHIFT;
+    return (unsigned int)((err & MERR_CTX_MASK) >> MERR_CTX_SHIFT);
 }
 
 /**

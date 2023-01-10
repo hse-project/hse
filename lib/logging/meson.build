@@ -4,7 +4,7 @@ subdir('lib')
 hse_logging = static_library(
     '@0@-logging'.format(meson.project_name()),
     logging_sources,
-    c_args: cc.get_supported_arguments('-Wconversion'),
+    c_args: cc_supported_arguments,
     include_directories: [
         logging_includes,
         util_includes,

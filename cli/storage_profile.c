@@ -28,6 +28,8 @@
 #include <linux/magic.h>
 #endif
 
+#include <hse/util/time.h>
+
 /* We use 128KiB writes in all cases */
 #define PROF_BLOCK_SIZE            (128u * 1024)
 #define PROF_FILE_SIZE_PER_THREAD  (1ul << 30)
@@ -114,7 +116,7 @@ get_time_ns(void)
 
     clock_gettime(CLOCK_MONOTONIC, &ts);
 
-    return (uint64_t)(ts.tv_sec * 1000000000 + ts.tv_nsec);
+    return (uint64_t)(ts.tv_sec * NSEC_PER_SEC + ts.tv_nsec);
 }
 
 static void*

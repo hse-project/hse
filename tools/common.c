@@ -79,22 +79,21 @@ atobin(char c)
     return dp ? (unsigned char)((uintptr_t)dp - (uintptr_t)hex) : UCHAR_MAX;
 }
 
+/*
+ * If str begins with "0x", convert to binary:
+ * format is BE, bytes in order: 0x010203 results in 010203
+ * NB: this does not need to be a proper int:
+ * the str 0xc creates a single byte 0x0c;
+ * but longer partial keys implicitly add a trailing zero:
+ * the str 0x012 creates a two byte buffer 0120.
+ *
+ * Allows embedded spaces, dashes, colons for readability:
+ *    "0x00010203-04050607:08090a0b 0c0d0e0f"
+ * which parses as 16 bytes from 00-0f.
+ */
 size_t
 fmt_data(char *out, char *in)
 {
-    /*
-     * If str begins with "0x", convert to binary:
-     * format is BE, bytes in order: 0x010203 results in 010203
-     * NB: this does not need to be a proper int:
-     * the str 0xc creates a single byte 0x0c;
-     * but longer partial keys implicitly add a trailing zero:
-     * the str 0x012 creates a two byte buffer 0120.
-     *
-     * Allows embedded spaces, dashes, colons for readability:
-     *	"0x00010203-04050607:08090a0b 0c0d0e0f"
-     * which parses as 16 bytes from 00-0f.
-     */
-
     unsigned char *buf = (void *)out;
     size_t         len;
 

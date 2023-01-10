@@ -55,7 +55,7 @@ usecs_to_jiffies(const unsigned int m)
     if ((int)m < 0)
         return MAX_JIFFY_OFFSET;
 
-    return (m + (USEC_PER_SEC / HSE_HZ) - 1) / (USEC_PER_SEC / HSE_HZ);
+    return (unsigned long)((m + (USEC_PER_SEC / HSE_HZ) - 1) / (USEC_PER_SEC / HSE_HZ));
 }
 
 static HSE_ALWAYS_INLINE unsigned long

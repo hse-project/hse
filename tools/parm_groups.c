@@ -49,7 +49,7 @@ pg_name_match(const char *match_list, const char *name)
     match = match_list;
     while (*match) {
         match_end = strchrnul(match, LIST_SEP_CHAR);
-        match_len = (uintptr_t)match_end - (uintptr_t)match;
+        match_len = match_end - match;
         if (match_len == name_len && !strncmp(name, match, name_len))
             return true;
         match = match_end;

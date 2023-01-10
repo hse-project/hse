@@ -15,7 +15,7 @@ foreach s : samples
         e = executable(
             s,
             ['@0@.c'.format(s)],
-            c_args: cc.get_supported_arguments('-Wconversion'),
+            c_args: cc_supported_arguments,
             dependencies: [
                 hse_dep,
                 libhse_cli_dep,

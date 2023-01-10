@@ -42,7 +42,7 @@ hse_storage_info(const char *const kvdb_home)
 
     err = hse_kvdb_open(kvdb_home, 0, NULL, &kvdb);
     if (!err) {
-        for (uint i = HSE_MCLASS_BASE; i < HSE_MCLASS_COUNT; i++) {
+        for (enum hse_mclass i = HSE_MCLASS_BASE; i < HSE_MCLASS_COUNT; i++) {
             err = hse_kvdb_mclass_info_get(kvdb, i, &info[i]);
             if (err) {
                 if (hse_err_to_errno(err) == ENOENT) {
@@ -98,9 +98,9 @@ hse_storage_info(const char *const kvdb_home)
     }
 
     rowid = 0;
-    for (uint i = HSE_MCLASS_BASE; i < HSE_MCLASS_COUNT; i++) {
+    for (enum hse_mclass i = HSE_MCLASS_BASE; i < HSE_MCLASS_COUNT; i++) {
         if (mc_present[i]) {
-            const ulong base = rowid * NELEM(headers);
+            const size_t base = rowid * NELEM(headers);
             values[base] = hse_mclass_name_get(i);
 
             rc = snprintf(nums[rowid][0], sizeof(nums[rowid][0]), "%lu",

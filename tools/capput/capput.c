@@ -391,7 +391,7 @@ print_stats(void *arg)
 
         pfx_lag = (puts - reads) / keys_per_pfx;
 
-        lag = (double)(puts - reads) / ((double)(reads - reads_last) + 0.000001);
+        lag = (puts - reads) / ((reads - reads_last) + 0.000001);
         if (lag > 99999)
             lag = 99999.99;
 

@@ -16,8 +16,9 @@ hse_test_framework = static_library(
 hse_test_framework_dep = declare_dependency(
     link_with: hse_test_framework,
     include_directories: [
-        # Exposes merr_t in a public header
-        component_root_includes,
         test_framework_includes,
+    ],
+    dependencies: [
+        hse_error_dep,
     ]
 )

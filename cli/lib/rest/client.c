@@ -45,7 +45,7 @@ rest_client_init(const char *const socket_path)
         curl_easy_cleanup(parent);
         parent = NULL;
         curl_global_cleanup();
-        return merrx(EINVAL, (int16_t)code);
+        return merrx(EINVAL, code);
     }
 
     return 0;
@@ -141,20 +141,20 @@ rest_client_fetch_s(
 
     code = curl_easy_setopt(req, CURLOPT_URL, buf);
     if (code != CURLE_OK) {
-        err = merrx(ECANCELED, (int16_t)code);
+        err = merrx(ECANCELED, code);
         goto out;
     }
 
     if (data) {
         code = curl_easy_setopt(req, CURLOPT_POSTFIELDS, data);
         if (code != CURLE_OK) {
-            err = merrx(ECANCELED, (int16_t)code);
+            err = merrx(ECANCELED, code);
             goto out;
         }
 
         code = curl_easy_setopt(req, CURLOPT_POSTFIELDSIZE_LARGE, (curl_off_t)data_len);
         if (code != CURLE_OK) {
-            err = merrx(ECANCELED, (int16_t)code);
+            err = merrx(ECANCELED, code);
             goto out;
         }
     }
@@ -162,50 +162,50 @@ rest_client_fetch_s(
     if (headers) {
         code = curl_easy_setopt(req, CURLOPT_HTTPHEADER, headers);
         if (code != CURLE_OK) {
-            err = merrx(ECANCELED, (int16_t)code);
+            err = merrx(ECANCELED, code);
             goto out;
         }
     }
 
     code = curl_easy_setopt(req, CURLOPT_CUSTOMREQUEST, method);
     if (code != CURLE_OK) {
-        err = merrx(ECANCELED, (int16_t)code);
+        err = merrx(ECANCELED, code);
         goto out;
     }
 
     code = curl_easy_setopt(req, CURLOPT_WRITEFUNCTION, collect_data);
     if (code != CURLE_OK) {
-        err = merrx(ECANCELED, (int16_t)code);
+        err = merrx(ECANCELED, code);
         goto out;
     }
 
     code = curl_easy_setopt(req, CURLOPT_WRITEDATA, &output_buf);
     if (code != CURLE_OK) {
-        err = merrx(ECANCELED, (int16_t)code);
+        err = merrx(ECANCELED, code);
         goto out;
     }
 
     code = curl_easy_setopt(req, CURLOPT_HEADERFUNCTION, collect_data);
     if (code != CURLE_OK) {
-        err = merrx(ECANCELED, (int16_t)code);
+        err = merrx(ECANCELED, code);
         goto out;
     }
 
     code = curl_easy_setopt(req, CURLOPT_HEADERDATA, &headers_buf);
     if (code != CURLE_OK) {
-        err = merrx(ECANCELED, (int16_t)code);
+        err = merrx(ECANCELED, code);
         goto out;
     }
 
     code = curl_easy_perform(req);
     if (code != CURLE_OK) {
-        err = merrx(ECANCELED, (int16_t)code);
+        err = merrx(ECANCELED, code);
         goto out;
     }
 
     code = curl_easy_getinfo(req, CURLINFO_RESPONSE_CODE, &status);
     if (code != CURLE_OK) {
-        err = merrx(ECANCELED, (int16_t)code);
+        err = merrx(ECANCELED, code);
         goto out;
     }
 
