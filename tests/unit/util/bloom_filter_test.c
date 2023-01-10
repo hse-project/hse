@@ -1,6 +1,6 @@
 /* SPDX-License-Identifier: Apache-2.0 */
 /*
- * Copyright (C) 2015-2021 Micron Technology, Inc.  All rights reserved.
+ * Copyright (C) 2015-2022 Micron Technology, Inc.  All rights reserved.
  */
 
 #include <mtf/framework.h>
@@ -9,7 +9,6 @@
 #include <hse/util/inttypes.h>
 #include <hse/util/hash.h>
 #include <hse/util/page.h>
-#include <hse/util/bitmap.h>
 #include <hse/util/bloom_filter.h>
 
 MTF_BEGIN_UTEST_COLLECTION(bloom_filter_basic);

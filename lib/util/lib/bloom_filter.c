@@ -1,14 +1,26 @@
 /* SPDX-License-Identifier: Apache-2.0 */
 /*
- * Copyright (C) 2015-2020,2022 Micron Technology, Inc.  All rights reserved.
+ * Copyright (C) 2015-2022 Micron Technology, Inc.  All rights reserved.
  */
 
-#include <hse/util/bitmap.h>
 #include <hse/util/bloom_filter.h>
 #include <hse/logging/logging.h>
 #include <hse/util/page.h>
 
 #include "bf_size2bits.i"
+
+/* BF_BKTSHIFT defines the number of bits per bucket for newly created
+ * bloom filters (i.e. 2^n bits per bucket, where n is BF_BKTSHIFT).
+ * May not exceed one page worth of bits.
+ *
+ * BF_ROTL is used to obtain the nth hash from one 64-bit hash via
+ * successive iterative rotation of the hash.
+ */
+#define BF_BKTSHIFT (9)
+#define BF_ROTL (11)
+
+_Static_assert(BF_BKTSHIFT >= 9 && BF_BKTSHIFT <= 15, "BF_BKTSHIFT is too large or too small");
+_Static_assert(BF_ROTL >= 1 && BF_ROTL <= 63, "BF_ROTL is too large or too small");
 
 struct bf_prob_range {
     u32                    bfpr_min;
