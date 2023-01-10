@@ -762,6 +762,16 @@ sp3_work_wtype_length(
 
     kvsets = cn_ns_kvsets(&tn->tn_ns);
 
+    if (rp->csched_full_compact && kvsets > 1) {
+        struct kvset_list_entry *le;
+
+        *mark = list_last_entry(&tn->tn_kvset_list, typeof(*le), le_link);
+        *action = CN_ACTION_COMPACT_KV;
+        *rule = CN_RULE_LENGTH_FULL_KV;
+
+        return kvsets;
+    }
+
     if (kvsets >= runlen_min) {
         const struct kvset_stats *stats = NULL;
         struct kvset_list_entry *prev = NULL;
@@ -907,22 +917,6 @@ sp3_work_wtype_length(
                 return min_t(uint, runlen, runlen_max);
             }
         }
-    }
-
-    if (rp->csched_full_compact && kvsets > 1) {
-        struct kvset_list_entry *le;
-
-        *mark = list_last_entry(&tn->tn_kvset_list, typeof(*le), le_link);
-        *action = CN_ACTION_COMPACT_KV;
-        *rule = CN_RULE_LENGTH_FULL_KV;
-
-        if (kvsets > runlen_max) {
-            *rule = CN_RULE_LENGTH_FULL_K;
-            *action = CN_ACTION_COMPACT_K;
-            return runlen_max;
-        }
-
-        return kvsets;
     }
 
     return 0;
