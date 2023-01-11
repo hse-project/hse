@@ -1,6 +1,6 @@
 /* SPDX-License-Identifier: Apache-2.0 */
 /*
- * Copyright (C) 2015-2021 Micron Technology, Inc.  All rights reserved.
+ * Copyright (C) 2015-2023 Micron Technology, Inc.  All rights reserved.
  */
 
 #ifndef HSE_LIMITS_H
@@ -20,11 +20,11 @@ extern "C" {
 
 /** @brief Maximum key length.
  *
- * A common requirement clients have for key length is 1024.
- * Combined with a discriminant and (potentially) a chunk key, this pushes us to
- * 1030 bytes keys. Looking at the packing for the on-media format for data, we
- * can have at most 3 keys of such large size in a 4k page. Lopping off 64-bytes
- * for other data, and we can have 3 keys of 1344 bytes.
+ * A common requirement clients have for key length is 1024. Combined with a
+ * discriminant and (potentially) a chunk key, this pushes us to 1030 bytes
+ * keys. Looking at the packing for the on-media format for data, we can have at
+ * most 3 keys of such large size in a 4k page. Lopping off 64-bytes for other
+ * data, and we can have 3 keys of 1344 bytes.
  *
  * Keys need not be NULL-terminated.
  */
@@ -33,14 +33,14 @@ extern "C" {
 /** @brief Maximum length of a KVS name.
  *
  * KVS names are NULL-terminated strings. The string plus the NULL-terminator
- * must fit into a @p HSE_KVS_NAME_LEN_MAX byte buffer.
+ * must fit into an @p HSE_KVS_NAME_LEN_MAX byte buffer.
  */
 #define HSE_KVS_NAME_LEN_MAX 32
 
-/** @brief Max key prefix length. */
+/** @brief Maximum key prefix length. */
 #define HSE_KVS_PFX_LEN_MAX 32
 
-/** @brief Max value length is 1MiB.
+/** @brief Maximum value length.
  *
  * Values need not be NULL-terminated.
  */
