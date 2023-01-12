@@ -19,6 +19,7 @@ merr_t
 config_open(const char *const path, config_validator_t validate, cJSON **const config)
 {
     int fd;
+    size_t sz;
     struct stat st;
     merr_t err = 0;
     char *str = NULL;
@@ -40,18 +41,20 @@ config_open(const char *const path, config_validator_t validate, cJSON **const c
         goto out;
     }
 
-    str = malloc(st.st_size);
+    sz = (size_t)st.st_size;
+
+    str = malloc(sz);
     if (!str) {
         err = merr(ENOMEM);
         goto out;
     }
 
-    if (read(fd, str, st.st_size) == -1) {
+    if (read(fd, str, sz) == -1) {
         err = merr(errno);
         goto out;
     }
 
-    impl = cJSON_ParseWithLength(str, st.st_size);
+    impl = cJSON_ParseWithLength(str, sz);
     if (!impl) {
         if (cJSON_GetErrorPtr()) {
             err = merr(EINVAL);

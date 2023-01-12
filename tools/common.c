@@ -35,8 +35,8 @@ error(hse_err_t err, char *fmt, va_list ap)
     vsnprintf(user_msg, sizeof(user_msg), fmt, ap);
 
     if (err) {
-        off += hse_strerror(err, err_msg + off, sizeof(err_msg) - off);
-        off += snprintf(err_msg + off, sizeof(err_msg) - off, " (0x%lx)", err);
+        off += hse_strerror(err, err_msg + off, sizeof(err_msg) - (ulong)off);
+        off += (size_t)snprintf(err_msg + off, sizeof(err_msg) - (ulong)off, " (0x%lx)", err);
     }
 
     user_msg_empty = user_msg[0] == '\0';
@@ -70,33 +70,32 @@ fatal(hse_err_t err, char *fmt, ...)
     exit(1);
 }
 
-static inline unsigned int
+static inline unsigned char
 atobin(char c)
 {
     static const char hex[] = "0123456789abcdef";
     const char *      dp = __builtin_strchr(hex, c | 32); /* gcc4.4 bug 36513 */
 
-    return dp ? dp - hex : -1;
+    return dp ? (unsigned char)((uintptr_t)dp - (uintptr_t)hex) : UCHAR_MAX;
 }
 
-int
+/*
+ * If str begins with "0x", convert to binary:
+ * format is BE, bytes in order: 0x010203 results in 010203
+ * NB: this does not need to be a proper int:
+ * the str 0xc creates a single byte 0x0c;
+ * but longer partial keys implicitly add a trailing zero:
+ * the str 0x012 creates a two byte buffer 0120.
+ *
+ * Allows embedded spaces, dashes, colons for readability:
+ *    "0x00010203-04050607:08090a0b 0c0d0e0f"
+ * which parses as 16 bytes from 00-0f.
+ */
+size_t
 fmt_data(char *out, char *in)
 {
-    /*
-	 * If str begins with "0x", convert to binary:
-	 * format is BE, bytes in order: 0x010203 results in 010203
-	 * NB: this does not need to be a proper int:
-	 * the str 0xc creates a single byte 0x0c;
-	 * but longer partial keys implicitly add a trailing zero:
-	 * the str 0x012 creates a two byte buffer 0120.
-	 *
-	 * Allows embedded spaces, dashes, colons for readability:
-	 *	"0x00010203-04050607:08090a0b 0c0d0e0f"
-	 * which parses as 16 bytes from 00-0f.
-	 */
-
     unsigned char *buf = (void *)out;
-    int            len;
+    size_t         len;
 
     if (!in)
         return 0;
@@ -107,7 +106,7 @@ fmt_data(char *out, char *in)
         for (len = 0; *in; ++len) {
             if (*in == '-' || *in == ':' || *in == ' ')
                 ++in;
-            buf[len] = atobin(*in++) << 4;
+            buf[len] = (unsigned char)(atobin(*in++) << 4);
             if (*in)
                 buf[len] |= atobin(*in++);
             else if (len == 1)
@@ -125,9 +124,9 @@ fmt_data(char *out, char *in)
 void
 show(const void *key, size_t klen, const void *val, size_t vlen, int showlen)
 {
+    int koff, voff;
     static char kbuf[HSE_KVS_KEY_LEN_MAX * 3];
     static char vbuf[HSE_KVS_VALUE_LEN_MAX * 3];
-    size_t      koff, voff;
 
     kbuf[0] = vbuf[0] = '\000';
     koff = voff = 0;
@@ -157,9 +156,9 @@ show(const void *key, size_t klen, const void *val, size_t vlen, int showlen)
 void
 show_hex(const void *key, size_t klen, const void *val, size_t vlen, int showlen)
 {
+    int koff, voff;
     static char kbuf[HSE_KVS_KEY_LEN_MAX * 2 + 8];
     static char vbuf[HSE_KVS_VALUE_LEN_MAX * 2 + 8];
-    size_t      koff, voff;
 
     kbuf[0] = vbuf[0] = '\000';
     koff = voff = 0;

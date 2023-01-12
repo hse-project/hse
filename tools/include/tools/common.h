@@ -23,7 +23,7 @@ void fatal(hse_err_t err, char *fmt, ...) HSE_PRINTF(2, 3);
  * key/value formatting
  */
 char *fmt(void *out, int max, const void *data, int len);
-int   fmt_data(char *out, char *in);
+size_t fmt_data(char *out, char *in);
 
 /*
  * globals: control the max of key and value displays in show
@@ -43,8 +43,8 @@ int   fmt_data(char *out, char *in);
 
 struct app_opts {
     int lineno;
-    int kmax;
-    int vmax;
+    size_t kmax;
+    size_t vmax;
     int hexonly;
     int zero;
 };

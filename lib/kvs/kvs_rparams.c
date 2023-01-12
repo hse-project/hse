@@ -706,7 +706,7 @@ static const struct param_spec pspecs[] = {
             .as_enum = VCOMP_DEFAULT_OFF,
         },
         .ps_bounds = {
-            .as_uscalar = {
+            .as_enum = {
                 .ps_min = VCOMP_DEFAULT_OFF,
                 .ps_max = VCOMP_DEFAULT_ON,
             },

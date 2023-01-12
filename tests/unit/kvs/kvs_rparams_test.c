@@ -659,8 +659,8 @@ MTF_DEFINE_UTEST_PRE(kvs_rparams_test, value_compression_default, test_pre)
     ASSERT_NE((uintptr_t)ps->ps_stringify, (uintptr_t)param_default_stringify);
     ASSERT_NE((uintptr_t)ps->ps_jsonify, (uintptr_t)param_default_jsonify);
     ASSERT_EQ(VCOMP_DEFAULT_OFF, params.value.compression.dflt);
-    ASSERT_EQ(VCOMP_DEFAULT_MIN, ps->ps_bounds.as_uscalar.ps_min);
-    ASSERT_EQ(VCOMP_DEFAULT_MAX, ps->ps_bounds.as_uscalar.ps_max);
+    ASSERT_EQ(VCOMP_DEFAULT_MIN, ps->ps_bounds.as_enum.ps_min);
+    ASSERT_EQ(VCOMP_DEFAULT_MAX, ps->ps_bounds.as_enum.ps_max);
 
     ps->ps_stringify(ps, &params.value.compression.dflt, buf, sizeof(buf), &needed_sz);
     ASSERT_STREQ("\"off\"", buf);

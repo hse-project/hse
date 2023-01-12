@@ -138,7 +138,7 @@ if get_option('omf-byte-order') != 'native'
 endif
 
 add_project_arguments(
-    cc.get_supported_arguments([
+    cc.get_supported_arguments(
         '-D_GNU_SOURCE',
         '-D_LGPL_SOURCE',
         '-Wdeclaration-after-statement',
@@ -150,9 +150,11 @@ add_project_arguments(
         '-DLOG_DEFAULT=@0@'.format(log_pri_default),
         '-DLEVEL1_DCACHE_LINESIZE=@0@'.format(level1_dcache_linesize),
         '-DURCU_INLINE_SMALL_FUNCTIONS',
-    ]),
+    ),
     language: 'c'
 )
+
+cc_supported_arguments = cc.get_supported_arguments('-Wconversion')
 
 threads_dep = dependency('threads')
 liburcu_bp_dep = dependency(

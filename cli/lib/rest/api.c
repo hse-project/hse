@@ -187,11 +187,11 @@ kvdb_get_compaction_status_cb(
     assert(cJSON_IsBool(active));
     assert(cJSON_IsBool(canceled));
 
-    comp_status->kvcs_samp_lwm = cJSON_GetNumberValue(samp_lwm_pct);
-    comp_status->kvcs_samp_hwm = cJSON_GetNumberValue(samp_hwm_pct);
-    comp_status->kvcs_samp_curr = cJSON_GetNumberValue(samp_curr_pct);
-    comp_status->kvcs_active = cJSON_IsTrue(active);
-    comp_status->kvcs_canceled = cJSON_IsTrue(canceled);
+    comp_status->kvcs_samp_lwm = (unsigned int)cJSON_GetNumberValue(samp_lwm_pct);
+    comp_status->kvcs_samp_hwm = (unsigned int)cJSON_GetNumberValue(samp_hwm_pct);
+    comp_status->kvcs_samp_curr = (unsigned int)cJSON_GetNumberValue(samp_curr_pct);
+    comp_status->kvcs_active = (unsigned int)cJSON_IsTrue(active);
+    comp_status->kvcs_canceled = (unsigned int)cJSON_IsTrue(canceled);
 
     cJSON_Delete(body);
 
@@ -246,7 +246,7 @@ kvdb_get_configured_mclasses_cb(
 
         assert(cJSON_IsString(elem));
 
-        for (int j = HSE_MCLASS_BASE; j < HSE_MCLASS_COUNT; j++) {
+        for (enum hse_mclass j = HSE_MCLASS_BASE; j < HSE_MCLASS_COUNT; j++) {
             if (strcmp(mclass, hse_mclass_name_get(j)) == 0) {
                 configured[j] = true;
                 break;
@@ -296,7 +296,7 @@ kvdb_get_kvs_names_cb(
     const size_t output_len,
     void *const arg)
 {
-    int len;
+    size_t len;
     merr_t err;
     char *name;
     cJSON *body;
@@ -318,7 +318,7 @@ kvdb_get_kvs_names_cb(
 
     assert(cJSON_IsArray(body));
 
-    len = cJSON_GetArraySize(body);
+    len = (size_t)cJSON_GetArraySize(body);
     namev = calloc(len, sizeof(*namev) + HSE_KVS_NAME_LEN_MAX);
     if (!namev) {
         err = merr(ENOMEM);
@@ -397,8 +397,8 @@ kvdb_get_mclass_info_cb(
     assert(cJSON_IsNumber(used_bytes));
     assert(cJSON_IsNumber(allocated_bytes));
 
-    info->mi_allocated_bytes = cJSON_GetNumberValue(allocated_bytes);
-    info->mi_used_bytes = cJSON_GetNumberValue(used_bytes);
+    info->mi_allocated_bytes = (uint64_t)cJSON_GetNumberValue(allocated_bytes);
+    info->mi_used_bytes = (uint64_t)cJSON_GetNumberValue(used_bytes);
     strlcpy(info->mi_path, cJSON_GetStringValue(path), sizeof(info->mi_path));
 
     cJSON_Delete(body);

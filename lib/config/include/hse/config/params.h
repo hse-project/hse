@@ -66,7 +66,7 @@ struct param_spec {
         bool     as_bool;
         uint64_t as_uscalar;
         int64_t  as_scalar;
-        uint64_t as_enum;
+        int      as_enum;
         double   as_double;
         char *   as_string;
         param_default_builder_t *as_builder /* Used for arrays and objects */;
@@ -81,8 +81,8 @@ struct param_spec {
             uint64_t ps_max;
         } as_uscalar;
         struct {
-            uint64_t ps_min;
-            uint64_t ps_max;
+            int ps_min;
+            int ps_max;
         } as_enum;
         struct {
             double ps_min;

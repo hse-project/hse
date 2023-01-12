@@ -28,7 +28,8 @@ hse_storage_info(const char *const kvdb_home)
     hse_err_t               err = 0;
     struct hse_kvdb *       kvdb = NULL;
     struct hse_mclass_info  info[HSE_MCLASS_COUNT];
-    int                     rc = 0, rowid;
+    int                     rc = 0;
+    unsigned int            rowid;
     struct pidfile          content;
     char                    nums[HSE_MCLASS_COUNT][2][21];
     const char *            values[NELEM(headers) * HSE_MCLASS_COUNT];
@@ -41,7 +42,7 @@ hse_storage_info(const char *const kvdb_home)
 
     err = hse_kvdb_open(kvdb_home, 0, NULL, &kvdb);
     if (!err) {
-        for (int i = HSE_MCLASS_BASE; i < HSE_MCLASS_COUNT; i++) {
+        for (enum hse_mclass i = HSE_MCLASS_BASE; i < HSE_MCLASS_COUNT; i++) {
             err = hse_kvdb_mclass_info_get(kvdb, i, &info[i]);
             if (err) {
                 if (hse_err_to_errno(err) == ENOENT) {
@@ -73,7 +74,7 @@ hse_storage_info(const char *const kvdb_home)
 
         used_rest = true;
 
-        for (int i = HSE_MCLASS_BASE; i < HSE_MCLASS_COUNT; i++) {
+        for (enum hse_mclass i = HSE_MCLASS_BASE; i < HSE_MCLASS_COUNT; i++) {
             err = rest_kvdb_get_mclass_info(&info[i], content.alias, i);
             if (err) {
                 if (hse_err_to_errno(err) == ENOENT) {
@@ -97,9 +98,9 @@ hse_storage_info(const char *const kvdb_home)
     }
 
     rowid = 0;
-    for (int i = HSE_MCLASS_BASE; i < HSE_MCLASS_COUNT; i++) {
+    for (enum hse_mclass i = HSE_MCLASS_BASE; i < HSE_MCLASS_COUNT; i++) {
         if (mc_present[i]) {
-            const int base = rowid * NELEM(headers);
+            const size_t base = rowid * NELEM(headers);
             values[base] = hse_mclass_name_get(i);
 
             rc = snprintf(nums[rowid][0], sizeof(nums[rowid][0]), "%lu",

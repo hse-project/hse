@@ -4,6 +4,7 @@ subdir('lib')
 hse_rest = static_library(
     '@0@-rest'.format(meson.project_name()),
     rest_sources,
+    c_args: cc_supported_arguments,
     include_directories: [
         component_root_includes,
         public_includes,
@@ -26,8 +27,9 @@ hse_rest = static_library(
 hse_rest_dep = declare_dependency(
     link_with: hse_rest,
     include_directories: [
-        # Exposes merr_t in a public header
-        component_root_includes,
         rest_includes,
+    ],
+    dependencies: [
+        hse_error_dep,
     ]
 )

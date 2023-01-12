@@ -28,6 +28,7 @@ libhse_cli_sources = files(
 libhse_cli = static_library(
     'hse-cli',
     libhse_cli_sources,
+    c_args: cc_supported_arguments,
     include_directories: [
         cli_includes,
         component_root_includes,
@@ -48,10 +49,9 @@ libhse_cli_dep = declare_dependency(
     link_with: libhse_cli,
     include_directories: [
         cli_includes,
-        # Exposes merr_t in a public header
-        component_root_includes,
     ],
     dependencies: [
+        hse_error_dep,
         libcurl_dep,
     ]
 )

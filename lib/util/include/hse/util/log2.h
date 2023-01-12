@@ -1,6 +1,6 @@
 /* SPDX-License-Identifier: Apache-2.0 */
 /*
- * Copyright (C) 2015-2021 Micron Technology, Inc.  All rights reserved.
+ * Copyright (C) 2015-2023 Micron Technology, Inc.  All rights reserved.
  */
 
 #ifndef HSE_LOG2_H
@@ -11,12 +11,12 @@
 #include <hse/util/compiler.h>
 
 static HSE_ALWAYS_INLINE HSE_CONST
-unsigned int
+unsigned long
 ilog2(unsigned long n)
 {
     INVARIANT(n > 0);
 
-    return (CHAR_BIT * sizeof(n) - 1) - __builtin_clzl(n);
+    return (CHAR_BIT * sizeof(n) - 1) - (unsigned int)__builtin_clzl(n);
 }
 
 static HSE_ALWAYS_INLINE HSE_CONST

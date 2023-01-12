@@ -1,13 +1,14 @@
 /* SPDX-License-Identifier: Apache-2.0 */
 /*
- * Copyright (C) 2015-2021 Micron Technology, Inc.  All rights reserved.
+ * Copyright (C) 2015-2023 Micron Technology, Inc.  All rights reserved.
  */
 
 #ifndef HSE_PLATFORM_ARCH_H
 #define HSE_PLATFORM_ARCH_H
 
-#include <hse/util/inttypes.h>
 #include <hse/util/compiler.h>
+#include <hse/util/inttypes.h>
+#include <hse/util/time.h>
 
 /* clang-format off */
 
@@ -138,7 +139,7 @@ get_time_ns(void)
 
     clock_gettime(CLOCK_MONOTONIC, &ts);
 
-    return (uint64_t)ts.tv_sec * 1000000000ULL + ts.tv_nsec;
+    return (uint64_t)(ts.tv_sec * NSEC_PER_SEC + ts.tv_nsec);
 }
 #endif
 

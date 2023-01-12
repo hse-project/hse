@@ -476,8 +476,8 @@ param_default_converter(const struct param_spec *ps, const cJSON *node, void *va
             }
             if (to_conv < ps->ps_bounds.as_enum.ps_min || to_conv > ps->ps_bounds.as_enum.ps_max) {
                 log_err(
-                    "Value of %s must be greater than or equal to %lu and less than or equal to "
-                    "%lu",
+                    "Value of %s must be greater than or equal to %d and less than or equal to "
+                    "%d",
                     ps->ps_name,
                     ps->ps_bounds.as_enum.ps_min,
                     ps->ps_bounds.as_enum.ps_max);
@@ -542,7 +542,7 @@ param_default_jsonify(const struct param_spec *const ps, const void *const value
         case PARAM_TYPE_I32:
             return cJSON_CreateNumber(*(int32_t *)value);
         case PARAM_TYPE_I64:
-            return cJSON_CreateNumber(*(int64_t *)value);
+            return cJSON_CreateNumber((double)(*(int64_t *)value));
         case PARAM_TYPE_U8:
             return cJSON_CreateNumber(*(uint8_t *)value);
         case PARAM_TYPE_U16:
@@ -550,9 +550,9 @@ param_default_jsonify(const struct param_spec *const ps, const void *const value
         case PARAM_TYPE_U32:
             return cJSON_CreateNumber(*(uint32_t *)value);
         case PARAM_TYPE_U64:
-            return cJSON_CreateNumber(*(uint64_t *)value);
+            return cJSON_CreateNumber((double)(*(uint64_t *)value));
         case PARAM_TYPE_SIZE:
-            return cJSON_CreateNumber(*(size_t *)value);
+            return cJSON_CreateNumber((double)(*(size_t *)value));
         case PARAM_TYPE_INT:
         case PARAM_TYPE_ENUM:
             return cJSON_CreateNumber(*(int *)value);
@@ -634,7 +634,7 @@ param_default_stringify(
     if (n < 0)
         return merr(EBADMSG);
     if (needed_sz)
-        *needed_sz = n;
+        *needed_sz = (size_t)n;
 
     return 0;
 }
@@ -823,7 +823,7 @@ param_roundup_pow2(const struct param_spec *ps, const cJSON *node, void *value)
                     UINT32_MAX);
                 return false;
             }
-            *(uint32_t *)value = roundup_pow_of_two((unsigned long)to_conv);
+            *(uint32_t *)value = (uint32_t)roundup_pow_of_two((unsigned long)to_conv);
             break;
         default:
             abort();
@@ -942,7 +942,7 @@ param_roundup_pow2(const struct param_spec *ps, const cJSON *node, void *value)
                         ps->ps_name);                                                             \
                     return false;                                                                 \
                 }                                                                                 \
-                *(int32_t *)value = (uint32_t)tmp;                                                \
+                *(uint32_t *)value = (uint32_t)tmp;                                               \
                 break;                                                                            \
             case PARAM_TYPE_U64:                                                                  \
                 if (tmp < 0 || tmp > (long double)UINT64_MAX) {                                   \
@@ -952,7 +952,7 @@ param_roundup_pow2(const struct param_spec *ps, const cJSON *node, void *value)
                         ps->ps_name);                                                             \
                     return false;                                                                 \
                 }                                                                                 \
-                *(int64_t *)value = (uint64_t)tmp;                                                \
+                *(uint64_t *)value = (uint64_t)tmp;                                               \
                 break;                                                                            \
             case PARAM_TYPE_SIZE:                                                                 \
                 if (tmp < 0 || tmp > (long double)SIZE_MAX) {                                     \
@@ -982,23 +982,23 @@ STORAGE_CONVERTER(TB)
     {                                                                                             \
         switch (ps->ps_type) {                                                                    \
             case PARAM_TYPE_INT:                                                                  \
-                return cJSON_CreateNumber(*(int *)value / (double)X);                             \
+                return cJSON_CreateNumber((double)(*(int *)value / (int64_t)X));                  \
             case PARAM_TYPE_I8:                                                                   \
-                return cJSON_CreateNumber(*(int8_t *)value / (double)X);                          \
+                return cJSON_CreateNumber((double)(*(int8_t *)value / (int64_t)X));               \
             case PARAM_TYPE_I16:                                                                  \
-                return cJSON_CreateNumber(*(int16_t *)value / (double)X);                         \
+                return cJSON_CreateNumber((double)(*(int16_t *)value / (int64_t)X));              \
             case PARAM_TYPE_I32:                                                                  \
-                return cJSON_CreateNumber(*(int32_t *)value / (double)X);                         \
+                return cJSON_CreateNumber((double)(*(int32_t *)value / (int64_t)X));              \
             case PARAM_TYPE_I64:                                                                  \
-                return cJSON_CreateNumber(*(int64_t *)value / (double)X);                         \
+                return cJSON_CreateNumber((double)(*(int64_t *)value / (int64_t)X));              \
             case PARAM_TYPE_U8:                                                                   \
-                return cJSON_CreateNumber(*(uint8_t *)value / (double)X);                         \
+                return cJSON_CreateNumber((double)(*(uint8_t *)value / X));                       \
             case PARAM_TYPE_U16:                                                                  \
-                return cJSON_CreateNumber(*(uint16_t *)value / (double)X);                        \
+                return cJSON_CreateNumber((double)(*(uint16_t *)value / X));                      \
             case PARAM_TYPE_U32:                                                                  \
-                return cJSON_CreateNumber(*(uint32_t *)value / (double)X);                        \
+                return cJSON_CreateNumber((double)(*(uint32_t *)value / X));                      \
             case PARAM_TYPE_U64:                                                                  \
-                return cJSON_CreateNumber(*(uint64_t *)value / (double)X);                        \
+                return cJSON_CreateNumber((double)(*(uint64_t *)value / X));                      \
             default:                                                                              \
                 abort();                                                                          \
         }                                                                                         \
@@ -1059,7 +1059,7 @@ STORAGE_JSONIFY(TB)
         if (n < 0)                                                                  \
             return merr(EBADMSG);                                                   \
         if (needed_sz)                                                              \
-            *needed_sz = n;                                                         \
+            *needed_sz = (size_t)n;                                                 \
                                                                                     \
         return 0;                                                                   \
     }
@@ -1150,25 +1150,25 @@ params_from_defaults(
                 *(bool *)data = ps.ps_default_value.as_bool;
                 break;
             case PARAM_TYPE_I8:
-                *(int8_t *)data = ps.ps_default_value.as_scalar;
+                *(int8_t *)data = (int8_t)ps.ps_default_value.as_scalar;
                 break;
             case PARAM_TYPE_I16:
-                *(int16_t *)data = ps.ps_default_value.as_scalar;
+                *(int16_t *)data = (int16_t)ps.ps_default_value.as_scalar;
                 break;
             case PARAM_TYPE_I32:
-                *(int32_t *)data = ps.ps_default_value.as_scalar;
+                *(int32_t *)data = (int32_t)ps.ps_default_value.as_scalar;
                 break;
             case PARAM_TYPE_I64:
                 *(int64_t *)data = ps.ps_default_value.as_scalar;
                 break;
             case PARAM_TYPE_U8:
-                *(uint8_t *)data = ps.ps_default_value.as_uscalar;
+                *(uint8_t *)data = (uint8_t)ps.ps_default_value.as_uscalar;
                 break;
             case PARAM_TYPE_U16:
-                *(uint16_t *)data = ps.ps_default_value.as_uscalar;
+                *(uint16_t *)data = (uint16_t)ps.ps_default_value.as_uscalar;
                 break;
             case PARAM_TYPE_U32:
-                *(uint32_t *)data = ps.ps_default_value.as_uscalar;
+                *(uint32_t *)data = (uint32_t)ps.ps_default_value.as_uscalar;
                 break;
             case PARAM_TYPE_U64:
                 *(uint64_t *)data = ps.ps_default_value.as_uscalar;
@@ -1244,7 +1244,7 @@ params_from_paramv(
         }
 
         for (size_t j = 0; j < pspecs_sz; j++) {
-            if (!strncmp(pspecs[j].ps_name, key, value - key)) {
+            if (!strncmp(pspecs[j].ps_name, key, (uintptr_t)value - (uintptr_t)key)) {
                 ps = &pspecs[j];
                 break;
             }
@@ -1278,7 +1278,7 @@ params_from_paramv(
             const size_t buf_sz = strlen(value) + 3;
             char *       buf = malloc(buf_sz);
 
-            HSE_MAYBE_UNUSED const size_t n = snprintf(buf, buf_sz, "\"%s\"", value);
+            HSE_MAYBE_UNUSED const int n = snprintf(buf, buf_sz, "\"%s\"", value);
             assert(n < buf_sz);
 
             node = cJSON_Parse(buf);
@@ -1502,7 +1502,7 @@ params_to_json(
 
         while (check) {
             cJSON *stash;
-            const ptrdiff_t idx = (uintptr_t)check - (uintptr_t)key;
+            const ptrdiff_t idx = check - key;
 
             key[idx] = '\0';
             stash = node;

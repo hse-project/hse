@@ -1,6 +1,6 @@
 /* SPDX-License-Identifier: Apache-2.0 */
 /*
- * Copyright (C) 2015-2020 Micron Technology, Inc.  All rights reserved.
+ * Copyright (C) 2015-2023 Micron Technology, Inc.  All rights reserved.
  */
 
 #include <mtf/framework.h>
@@ -18,7 +18,7 @@ struct testparms {
 void
 test_macros(struct mtf_test_info *lcl_ti)
 {
-    u32 res;
+    unsigned long res;
 
     res = ilog2(1);
     ASSERT_EQ(0, res);
@@ -61,7 +61,7 @@ test_macros(struct mtf_test_info *lcl_ti)
 void
 test_runtime(u64 val, struct testparms *parm, struct mtf_test_info *lcl_ti)
 {
-    u32  res;
+    unsigned long res;
 
     res = ilog2(val);
     ASSERT_EQ(parm->e_log2, res);
@@ -148,13 +148,13 @@ MTF_END_UTEST_COLLECTION(log2)
 /* The following functions exist only for the purpose of examining
  * the generated code with objdump.
  */
-static __attribute__((const, used)) u32
+static HSE_CONST HSE_USED unsigned long
 ilog2_test(u64 n)
 {
     return ilog2(n);
 }
 
-static __attribute__((const, used)) u64
+static HSE_CONST HSE_USED unsigned long
 roundup_pow_of_two_test(u64 n)
 {
     return roundup_pow_of_two(n);
