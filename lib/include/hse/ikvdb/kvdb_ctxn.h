@@ -40,16 +40,13 @@ struct kvdb_ctxn {
 /**
  * struct kvdb_ctxn_bind - used to bind cursors and transactions
  * @b_ctxn:     pointer to originating transaction; invalid when null
- * @b_seq:      seqno if committed
  * @b_gen:      generation count; if mismatch, must update
  * @b_ref:      reference counts; last one in frees
- * @b_update:   updated by cursor when it changes the tombspan
  */
 struct kvdb_ctxn_bind {
     struct kvdb_ctxn *b_ctxn;
     atomic_ulong      b_gen;
     atomic_int        b_ref;
-    bool              b_update;
 };
 
 /* MTF_MOCK */
