@@ -248,6 +248,13 @@ tests = {
             tool_targets['upsert'],
         ],
     },
+    'full-compaction': {
+        'suites': ['smoke'],
+        'depends': [
+            tool_targets['cn_metrics'],
+            tool_targets['kmt'],
+        ],
+    },
 
     #
     # These tests started failing around 2021-03-10:
