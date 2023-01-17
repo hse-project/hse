@@ -7,7 +7,6 @@
 #include <mtf/framework.h>
 #include <mock/api.h>
 
-#include <hse/util/inttypes.h>
 #include <hse/logging/logging.h>
 #include <hse/util/atomic.h>
 
@@ -30,11 +29,11 @@ static struct mpool *mock_ds = (void *)-1;
 
 static struct kvdb_health mock_health;
 
-static u64 mblk_id = 1000000;
+static uint64_t mblk_id = 1000000;
 
 struct injections {
-    u64 rc;
-    u32 api;
+    uint64_t rc;
+    uint32_t api;
 };
 
 struct injections injections[] = {
@@ -187,8 +186,8 @@ MTF_DEFINE_UTEST_PRE(cn_ingest_test, commit_delete, test_pre)
     struct kvset_mblocks m[4];
     uint                 n_kvsets = NELEM(m);
 
-    u32    k, v;
-    merr_t err;
+    uint32_t k, v;
+    merr_t   err;
 
     /*
      * Test cn_mblocks_commit w/ cndb_txn_txc set to succeed
@@ -231,7 +230,7 @@ MTF_DEFINE_UTEST_PRE(cn_ingest_test, worker, test_pre)
     struct kvset_mblocks m[1];
     uint                 n_kvsets = NELEM(m);
 
-    u32                k, v;
+    uint32_t           k, v;
     merr_t             err;
     struct cn          cn = {};
     struct kvs_rparams rp;
@@ -253,7 +252,7 @@ MTF_DEFINE_UTEST_PRE(cn_ingest_test, worker, test_pre)
     /* The kblocks contain no keys, so the ingest should fail.
      */
     init_mblks(m, n_kvsets, &k, &v);
-    err = cn_ingestv(cnv, mbv, kvsetidv, NELEM(cnv), U64_MAX, U64_MAX, NULL, NULL);
+    err = cn_ingestv(cnv, mbv, kvsetidv, NELEM(cnv), UINT64_MAX, UINT64_MAX, NULL, NULL);
     ASSERT_NE(0, err);
     free_mblks(m, n_kvsets);
 
@@ -265,7 +264,7 @@ MTF_DEFINE_UTEST_PRE(cn_ingest_test, fail_cleanup, test_pre)
     struct kvset_mblocks m[1];
     uint                 n_kvsets = NELEM(m);
 
-    u32                k, v;
+    uint32_t           k, v;
     merr_t             err;
     struct cn          cn = {};
     struct kvs_rparams rp;
@@ -287,7 +286,7 @@ MTF_DEFINE_UTEST_PRE(cn_ingest_test, fail_cleanup, test_pre)
     /* kvset create failure */
     init_mblks(m, n_kvsets, &k, &v);
     mapi_inject(mapi_idx_kvset_open, merr(EBADF));
-    err = cn_ingestv(cnv, mbv, kvsetidv, NELEM(cnv), U64_MAX, U64_MAX, NULL, NULL);
+    err = cn_ingestv(cnv, mbv, kvsetidv, NELEM(cnv), UINT64_MAX, UINT64_MAX, NULL, NULL);
     ASSERT_EQ(merr_errno(err), EBADF);
     mapi_inject(mapi_idx_kvset_open, 0);
     free_mblks(m, n_kvsets);

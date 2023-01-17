@@ -1,15 +1,16 @@
 /* SPDX-License-Identifier: Apache-2.0 */
 /*
- * Copyright (C) 2015-2021 Micron Technology, Inc.  All rights reserved.
+ * Copyright (C) 2015-2022 Micron Technology, Inc.  All rights reserved.
  */
+
+#include <stdint.h>
 
 #include <mtf/framework.h>
 
-#include <hse/util/inttypes.h>
+#include <hse/util/base.h>
 #include <hse/util/key_util.h>
 #include <hse/util/minmax.h>
 #include <hse/util/arch.h>
-
 
 MTF_BEGIN_UTEST_COLLECTION(key_util_test);
 
@@ -68,7 +69,7 @@ MTF_DEFINE_UTEST(key_util_test, check_key_immediate_index)
     const char *         key = "cat";
     size_t               key_len = strlen(key);
     struct key_immediate key_imm;
-    u32                  res;
+    uint32_t             res;
     int                  i;
 
     for (i = 0; i < HSE_KVS_COUNT_MAX; ++i) {
@@ -78,7 +79,7 @@ MTF_DEFINE_UTEST(key_util_test, check_key_immediate_index)
     }
 }
 
-u16 index0_array[] = {
+uint16_t index0_array[] = {
     0, 1, 2, 3, 7, 8, 9, 12, 15, 16, 17, 31, 32, 33, 63, 64, 65,
     HSE_KVS_COUNT_MAX / 2 - 1, HSE_KVS_COUNT_MAX / 2, HSE_KVS_COUNT_MAX / 2 + 1,
     HSE_KVS_COUNT_MAX - 2, HSE_KVS_COUNT_MAX - 1
@@ -92,10 +93,10 @@ MTF_DEFINE_UTEST_CP2(
     key_util_test,
     vary_index1,
     MTF_ST_IVALUES,
-    u16,
+    uint16_t,
     idx0,
     MTF_ST_IRANGE,
-    u16,
+    uint16_t,
     idx1)
 {
     const char *         k0 = "cat";
@@ -134,14 +135,14 @@ MTF_DEFINE_UTEST_CP2(
     key_util_test,
     vary_index2,
     MTF_ST_IVALUES,
-    u16,
+    uint16_t,
     idx0,
     MTF_ST_IRANGE,
-    u16,
+    uint16_t,
     idx2)
 {
     static thread_local bool inited;
-    u8 key[KI_DLEN_MAX + 7];
+    uint8_t key[KI_DLEN_MAX + 7];
     size_t klen;
     struct key_immediate im0, im1;
     int                  res;
@@ -199,7 +200,15 @@ MTF_DEFINE_UTEST_CP2(
 }
 MTF_END_CP2
 
-MTF_DEFINE_UTEST_CP2(key_util_test, vary_index3, MTF_ST_IRANGE, u16, idx1, MTF_ST_IRANGE, u16, idx2)
+MTF_DEFINE_UTEST_CP2(
+    key_util_test,
+    vary_index3,
+    MTF_ST_IRANGE,
+    uint16_t,
+    idx1,
+    MTF_ST_IRANGE,
+    uint16_t,
+    idx2)
 {
     const char *         k0 = "Mr. Freeze";
     size_t               k0_len = strlen(k0);
@@ -343,10 +352,10 @@ MTF_DEFINE_UTEST_CP2(
     key_util_test,
     vary_key_data,
     MTF_ST_IRANGE,
-    u32,
+    uint32_t,
     karr_idx0,
     MTF_ST_IRANGE,
-    u32,
+    uint32_t,
     karr_idx1)
 {
     const char *         k0 = key_arr0[karr_idx0];
@@ -474,8 +483,8 @@ MTF_DEFINE_UTEST(key_util_test, key_disc_cmp_basic)
  */
 MTF_DEFINE_UTEST(key_util_test, memlcp_test)
 {
-    u8     s1[1024], s2[1024];
-    size_t i, j, lcp, max;
+    uint8_t s1[1024], s2[1024];
+    size_t  i, j, lcp, max;
 
     srand(time(NULL));
 

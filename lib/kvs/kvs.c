@@ -7,6 +7,8 @@
  * Exported API of the HSE struct ikvs
  */
 
+#include <stdint.h>
+
 #include <hse/kvdb_perfc.h>
 
 #include <hse/util/assert.h>
@@ -97,7 +99,7 @@ kvs_perfc_alloc(const char *kvdb_alias, const char *kvs_name, struct ikvs *kvs)
  * Currently, this function is called with the ikdb_lock held, ugh...
  */
 void
-kvs_maint_task(struct ikvs *kvs, u64 now)
+kvs_maint_task(struct ikvs *kvs, uint64_t now)
 {
     cn_periodic(kvs->ikv_cn, now);
 }
@@ -138,7 +140,7 @@ kvs_open(
     merr_t       err;
     struct ikvs *ikvs = 0;
     const char * kvs_name = kvdb_kvs_name(kvs);
-    u64          cnid = kvdb_kvs_cnid(kvs);
+    uint64_t     cnid = kvdb_kvs_cnid(kvs);
 
     assert(kvdb);
     assert(health);
@@ -278,8 +280,8 @@ kvs_put(
     struct kvdb_ctxn *ctxn = txn ? kvdb_ctxn_h2h(txn) : 0;
     struct perfc_set *pkvsl_pc = kvs_perfc_pkvsl(kvs);
     struct wal_record rec;
-    u64               tstart;
-    u64               seqno;
+    uint64_t          tstart;
+    uint64_t          seqno;
     merr_t            err;
 
     tstart = perfc_lat_start(pkvsl_pc);
@@ -297,8 +299,8 @@ kvs_put(
      * to hash collisions within the write conflict detection apparatus).
      */
     if (ctxn) {
-        u64 hash = kt->kt_hash ^ kvs->ikv_gen;
-        u64 pfxhash = 0;
+        uint64_t hash = kt->kt_hash ^ kvs->ikv_gen;
+        uint64_t pfxhash = 0;
 
         if (kvs->ikv_pfx_len && kt->kt_len >= kvs->ikv_pfx_len)
             pfxhash = key_hash64_seed(kt->kt_data, kvs->ikv_pfx_len, kvs->ikv_gen);
@@ -329,7 +331,7 @@ kvs_get(
     struct ikvs *              kvs,
     struct hse_kvdb_txn *const txn,
     struct kvs_ktuple *        kt,
-    u64                        seqno,
+    uint64_t                   seqno,
     enum key_lookup_res *      res,
     struct kvs_buf *           vbuf)
 {
@@ -339,7 +341,7 @@ kvs_get(
     struct lc *       lc = kvs->ikv_lc;
     struct cn *       cn = kvs->ikv_cn;
     uintptr_t         seqnoref = 0;
-    u64               tstart;
+    uint64_t          tstart;
     merr_t            err;
 
     tstart = perfc_lat_start(pkvsl_pc);
@@ -378,8 +380,8 @@ kvs_del(struct ikvs *kvs, struct hse_kvdb_txn *const txn, struct kvs_ktuple *kt,
     struct perfc_set *pkvsl_pc = kvs_perfc_pkvsl(kvs);
     struct kvdb_ctxn *ctxn = txn ? kvdb_ctxn_h2h(txn) : 0;
     struct wal_record rec;
-    u64               tstart;
-    u64               seqno;
+    uint64_t          tstart;
+    uint64_t          seqno;
     merr_t            err;
 
     tstart = perfc_lat_start(pkvsl_pc);
@@ -392,8 +394,8 @@ kvs_del(struct ikvs *kvs, struct hse_kvdb_txn *const txn, struct kvs_ktuple *kt,
     /* Exclusively lock txn for c0 update (with write collision detection).
      */
     if (ctxn) {
-        u64 hash = kt->kt_hash ^ kvs->ikv_gen;
-        u64 pfxhash = 0;
+        uint64_t hash = kt->kt_hash ^ kvs->ikv_gen;
+        uint64_t pfxhash = 0;
 
         if (kvs->ikv_pfx_len && kt->kt_len >= kvs->ikv_pfx_len)
             pfxhash = key_hash64_seed(kt->kt_data, kvs->ikv_pfx_len, kvs->ikv_gen);
@@ -428,8 +430,8 @@ kvs_prefix_del(
     struct perfc_set *pkvsl_pc = kvs_perfc_pkvsl(kvs);
     struct kvdb_ctxn *ctxn = txn ? kvdb_ctxn_h2h(txn) : 0;
     struct wal_record rec;
-    u64               tstart;
-    u64               seqno;
+    uint64_t          tstart;
+    uint64_t          seqno;
     merr_t            err;
 
     tstart = perfc_lat_start(pkvsl_pc);
@@ -443,7 +445,7 @@ kvs_prefix_del(
     /* Exclusively lock txn for c0 update (no write collision detection.
      */
     if (ctxn) {
-        u64 pfxhash = 0;
+        uint64_t pfxhash = 0;
 
         if (kvs->ikv_pfx_len && kt->kt_len >= kvs->ikv_pfx_len)
             pfxhash = key_hash64_seed(kt->kt_data, kvs->ikv_pfx_len, kvs->ikv_gen);
@@ -473,7 +475,7 @@ kvs_pfx_probe(
     struct ikvs *              kvs,
     struct hse_kvdb_txn *const txn,
     struct kvs_ktuple *        kt,
-    u64                        seqno,
+    uint64_t                   seqno,
     enum key_lookup_res *      res,
     struct kvs_buf *           kbuf,
     struct kvs_buf *           vbuf)
@@ -485,7 +487,7 @@ kvs_pfx_probe(
     struct cn *       cn = kvs->ikv_cn;
     uintptr_t         seqnoref = 0;
     struct query_ctx  qctx = { 0 };
-    u64               tstart;
+    uint64_t          tstart;
     merr_t            err;
 
     tstart = perfc_lat_start(pkvsl_pc);

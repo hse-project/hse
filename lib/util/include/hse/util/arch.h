@@ -6,8 +6,12 @@
 #ifndef HSE_PLATFORM_ARCH_H
 #define HSE_PLATFORM_ARCH_H
 
+#include <stdint.h>
+#include <string.h>
+#include <sys/types.h>
+#include <time.h>
+
 #include <hse/util/compiler.h>
-#include <hse/util/inttypes.h>
 #include <hse/util/time.h>
 
 /* clang-format off */

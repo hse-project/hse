@@ -1,12 +1,14 @@
 /* SPDX-License-Identifier: Apache-2.0 */
 /*
- * Copyright (C) 2015-2020 Micron Technology, Inc.  All rights reserved.
+ * Copyright (C) 2015-2022 Micron Technology, Inc.  All rights reserved.
  */
 
 #ifndef HSE_PLATFORM_ELEMENT_SOURCE_H
 #define HSE_PLATFORM_ELEMENT_SOURCE_H
 
-#include <hse/util/inttypes.h>
+#include <stdbool.h>
+#include <stdint.h>
+
 #include <hse/error/merr.h>
 
 struct element_source;
@@ -35,7 +37,7 @@ struct element_source {
     element_source_unget *   es_unget;
     struct element_source *  es_next_src;
     bool                     es_eof;
-    s64                      es_sort;
+    int64_t                  es_sort;
 };
 
 static inline struct element_source

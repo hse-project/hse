@@ -1,6 +1,6 @@
 /* SPDX-License-Identifier: Apache-2.0 */
 /*
- * Copyright (C) 2015-2020 Micron Technology, Inc.  All rights reserved.
+ * Copyright (C) 2015-2022 Micron Technology, Inc.  All rights reserved.
  */
 
 #ifndef HSE_KVS_C0_INGEST_WORK_H
@@ -49,26 +49,26 @@ struct c0_ingest_work {
     struct kvset_mblocks     c0iw_mblocks[HSE_KVS_COUNT_MAX];
     uint64_t                 c0iw_kvsetidv[HSE_KVS_COUNT_MAX];
     struct c0_kvmultiset    *c0iw_c0kvms;
-    u32                      c0iw_kvms_iterc;
-    u32                      c0iw_lc_iterc;
+    uint32_t                 c0iw_kvms_iterc;
+    uint32_t                 c0iw_lc_iterc;
     struct kvset_mblocks    *c0iw_mbv[HSE_KVS_COUNT_MAX];
 
     BIN_HEAP_DEFINE(c0iw_kvms_minheap, HSE_C0_INGEST_WIDTH_MAX);
     BIN_HEAP_DEFINE(c0iw_lc_minheap, LC_SOURCE_CNT_MAX);
 
     struct c0_usage c0iw_usage;
-    u64             c0iw_tenqueued;
-    u64             c0iw_tingesting;
+    uint64_t        c0iw_tenqueued;
+    uint64_t        c0iw_tingesting;
 
     /* Debug stats produced by c0_ingest_worker().
      */
-    u64 t0, t3, t4, t5, t6, t7, t8, t9, t10;
-    u64 gencur, gen;
+    uint64_t t0, t3, t4, t5, t6, t7, t8, t9, t10;
+    uint64_t gencur, gen;
 
     /* Establishing view for ingest */
-    u64 c0iw_ingest_max_seqno;
-    u64 c0iw_ingest_min_seqno;
-    u64 c0iw_ingest_order;
+    uint64_t c0iw_ingest_max_seqno;
+    uint64_t c0iw_ingest_min_seqno;
+    uint64_t c0iw_ingest_order;
 
     /* c0iw_magic is last field to verify it didn't get clobbered
      * by c0kvs_reset().

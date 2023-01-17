@@ -3,7 +3,6 @@
  * Copyright (C) 2022 Micron Technology, Inc.  All rights reserved.
  */
 
-#include <hse/util/inttypes.h>
 #include <hse/util/list.h>
 #include <hse/util/rmlock.h>
 

@@ -15,8 +15,9 @@
  * are allocated.
  */
 
+#include <stdint.h>
+
 #include <hse/util/base.h>
-#include <hse/util/inttypes.h>
 #include <hse/error/merr.h>
 
 #ifdef HSE_BUILD_RELEASE
@@ -30,11 +31,11 @@
  */
 struct cheap {
     size_t    alignment;
-    u64       cursorp;
+    uint64_t  cursorp;
     size_t    size;
-    u64       lastp;
-    u64       base;
-    u64       brk;
+    uint64_t  lastp;
+    uint64_t  base;
+    uint64_t  brk;
     void *    mem;
     uintptr_t magic;
 };

@@ -1,10 +1,12 @@
 /* SPDX-License-Identifier: Apache-2.0 */
 /*
- * Copyright (C) 2015-2020 Micron Technology, Inc.  All rights reserved.
+ * Copyright (C) 2015-2022 Micron Technology, Inc.  All rights reserved.
  */
 
 #ifndef HSE_CORE_C0_KVSET_ITERATOR_H
 #define HSE_CORE_C0_KVSET_ITERATOR_H
+
+#include <stdint.h>
 
 #include <hse/error/merr.h>
 #include <hse/util/element_source.h>
@@ -101,7 +103,7 @@ void
 c0_kvset_iterator_seek(
     struct c0_kvset_iterator *iter,
     const void *              seek,
-    u32                       seeklen,
+    uint32_t                  seeklen,
     struct kvs_ktuple *       kt);
 
 /**

@@ -3,6 +3,8 @@
  * Copyright (C) 2015-2022 Micron Technology, Inc.  All rights reserved.
  */
 
+#include <stdint.h>
+
 #include <bsd/string.h>
 #include <cjson/cJSON.h>
 
@@ -69,7 +71,7 @@ static struct test_params {
     cJSON *inp_kvset_nodev;
     int inp_kvset_nodec;
     int test_number;
-    u64 horizon;
+    uint64_t horizon;
     bool drop_tombs;
     int fanout;
 
@@ -80,7 +82,7 @@ static struct test_params {
 
     /* Initialized when a new ptomb is encountered (spread mode only) */
     int  last_pt_key;
-    u64  last_pt_seq;
+    uint64_t  last_pt_seq;
     int  pt_count;
 } tp;
 
@@ -311,7 +313,7 @@ kvset_get_nth_val(
     cJSON *kvset_node,
     int nth_key,
     int nth_value,
-    u64 *seq_out,
+    uint64_t *seq_out,
     enum kmd_vtype *vtype_out,
     const void **vdata_out,
     uint *vlen_out)
@@ -392,10 +394,10 @@ static merr_t
 _kvset_builder_add_key(struct kvset_builder *builder, const struct key_obj *kobj)
 {
     cJSON *key;
-    uint  ref_nvals;
-    bool  eof;
-    u8    kdata[HSE_KVS_KEY_LEN_MAX];
-    uint  klen;
+    uint ref_nvals;
+    bool eof;
+    uint8_t kdata[HSE_KVS_KEY_LEN_MAX];
+    uint klen;
 
     key_obj_copy(kdata, sizeof(kdata), &klen, kobj);
 
@@ -429,13 +431,13 @@ _kvset_builder_add_key(struct kvset_builder *builder, const struct key_obj *kobj
 static void
 _kvset_builder_add_val_internal(
     struct kvset_builder *self,
-    u64                   seq,
+    uint64_t              seq,
     enum kmd_vtype        vtype,
     const void *          vdata,
     uint                  vlen)
 {
     bool           ref_eof;
-    u64            ref_seq = 0;
+    uint64_t       ref_seq = 0;
     enum kmd_vtype ref_vtype = VTYPE_UCVAL;
     const void *   ref_vdata = NULL;
     uint           ref_vlen = 0;
@@ -505,13 +507,13 @@ _kvset_builder_add_val_internal(
 static merr_t
 _kvset_builder_add_vref(
     struct kvset_builder *self,
-    u64                   seq,
+    uint64_t              seq,
     uint                  vbidx_kvset_node,
     uint                  vboff_nth_key,
     uint                  vlen_nth_val,
     uint                  complen)
 {
-    u64 tmp_seq;
+    uint64_t tmp_seq;
     enum kmd_vtype vtype;
     const void *vdata;
     uint vlen;
@@ -543,7 +545,7 @@ _kvset_builder_add_val(
     const struct key_obj   *kobj,
     const void *            vdata,
     uint                    vlen,
-    u64                     seq,
+    uint64_t                seq,
     uint                    complen)
 {
     enum kmd_vtype vtype;
@@ -564,7 +566,7 @@ _kvset_builder_add_val(
 }
 
 static merr_t
-_kvset_builder_add_nonval(struct kvset_builder *self, u64 seq, enum kmd_vtype vtype)
+_kvset_builder_add_nonval(struct kvset_builder *self, uint64_t seq, enum kmd_vtype vtype)
 {
     _kvset_builder_add_val_internal(self, seq, vtype, 0, 0);
     return 0;
@@ -577,8 +579,8 @@ struct kv_spill_test_kvi {
     struct kv_iterator  kvi;
     struct test_params *test;
     cJSON *kvset_node;
-    u32 src;
-    u32 cursor;
+    uint32_t src;
+    uint32_t cursor;
 };
 
 static struct kvset *
@@ -637,7 +639,7 @@ static bool
 _kvset_iter_next_vref(
     struct kv_iterator *    kvi,
     struct kvset_iter_vctx *vc,
-    u64 *                   seq,
+    uint64_t *              seq,
     enum kmd_vtype *        vtype,
     uint *                  vbidx,
     uint *                  vboff,
@@ -723,7 +725,7 @@ _kvset_iter_val_get(
     cJSON* kvset_node;
     int nth_key;
     int nth_val;
-    u64 seq;
+    uint64_t seq;
 
     const void *vdata;
     bool        end;
@@ -809,7 +811,7 @@ static merr_t
 kv_spill_test_kvi_create(
     struct kv_iterator ** kvi_out,
     struct test_params *  tp,
-    u32                   src,
+    uint32_t              src,
     struct mtf_test_info *lcl_ti)
 {
     struct kv_spill_test_kvi *iter =
@@ -841,7 +843,7 @@ init_work(
     struct mpool *             ds,
     struct kvs_rparams *       rp,
     struct cn_tree *           tree,
-    u64                        horizon,
+    uint64_t                   horizon,
     uint                       num_sources,
     struct kv_iterator **      sources,
     uint                       shift,
@@ -1005,8 +1007,8 @@ run_testcase(struct mtf_test_info *lcl_ti, int mode, const char *info)
         /* kcompact */
         struct kvset_vblk_map vbmap;
         struct vgmap *vgmap, *vgmap2;
-        u64 *blkv = mapi_safe_malloc(sizeof(*blkv) * iterc);
-        u32 *map = mapi_safe_malloc(sizeof(*map) * iterc);
+        uint64_t *blkv = mapi_safe_malloc(sizeof(*blkv) * iterc);
+        uint32_t *map = mapi_safe_malloc(sizeof(*map) * iterc);
 
         ASSERT_TRUE(blkv != 0);
         ASSERT_TRUE(map != 0);

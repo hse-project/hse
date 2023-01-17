@@ -6,6 +6,7 @@
 #include <dirent.h>
 #include <pthread.h>
 #include <signal.h>
+#include <stdint.h>
 #include <sys/types.h>
 #include <syscall.h>
 
@@ -565,7 +566,7 @@ bool
 queue_delayed_work(struct workqueue_struct *wq, struct delayed_work *dwork, unsigned long delay)
 {
     bool pending;
-    u64  expires;
+    uint64_t expires;
 
     assert(dwork->timer.function == delayed_work_timer_fn);
     assert(dwork->timer.data == (ulong)dwork);

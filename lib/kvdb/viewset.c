@@ -3,6 +3,9 @@
  * Copyright (C) 2015-2022 Micron Technology, Inc.  All rights reserved.
  */
 
+#include <stdint.h>
+
+#include <hse/error/merr.h>
 #include <hse/util/assert.h>
 #include <hse/util/platform.h>
 #include <hse/util/alloc.h>
@@ -12,7 +15,6 @@
 #include <hse/util/mutex.h>
 #include <hse/util/log2.h>
 #include <hse/util/page.h>
-#include <hse/error/merr.h>
 #include <hse/util/event_counter.h>
 
 #define MTF_MOCK_IMPL_viewset
@@ -48,7 +50,7 @@ struct viewset {
  */
 struct viewset_bkt {
     struct viewset_tree *vsb_tree;
-    volatile u64         vsb_min_view_sns;
+    volatile uint64_t    vsb_min_view_sns;
     atomic_int           vsb_active HSE_ACP_ALIGNED;
 };
 
@@ -73,9 +75,9 @@ struct viewset_impl {
     struct viewset_bkt *vs_bkt_first;
     struct viewset_bkt *vs_bkt_last;
 
-    volatile u64   vs_min_view_sn HSE_ACP_ALIGNED;
+    volatile uint64_t vs_min_view_sn HSE_ACP_ALIGNED;
     volatile void *vs_min_view_bkt;
-    atomic_ulong   vs_horizon;
+    atomic_ulong vs_horizon;
 
     struct {
         sem_t  vs_sema HSE_ACP_ALIGNED;
@@ -96,7 +98,7 @@ struct viewset_entry {
     struct list_head    vse_link HSE_L1D_ALIGNED;
     struct viewset_bkt *vse_bkt;
     union {
-        u64   vse_view_sn;
+        uint64_t vse_view_sn;
         void *vse_next;
     };
 };
@@ -118,7 +120,7 @@ struct viewset_tree {
 };
 
 static merr_t
-viewset_tree_create(u32 max_elts, u32 index, struct viewset_tree **tree)
+viewset_tree_create(uint32_t max_elts, uint32_t index, struct viewset_tree **tree)
 {
     struct viewset_tree *self;
     size_t sz;
@@ -177,7 +179,7 @@ viewset_create(struct viewset **handle, atomic_ulong *kvdb_seqno_addr, atomic_ul
 {
     struct viewset_impl *self;
     merr_t err = 0;
-    u32 max_elts;
+    uint32_t max_elts;
     int i;
 
     max_elts = HSE_VIEWSET_ELTS_MAX / VIEWSET_BKT_MAX;
@@ -192,7 +194,7 @@ viewset_create(struct viewset **handle, atomic_ulong *kvdb_seqno_addr, atomic_ul
         struct viewset_bkt *bkt = self->vs_bktv + i;
 
         atomic_set(&bkt->vsb_active, 0);
-        bkt->vsb_min_view_sns = U64_MAX;
+        bkt->vsb_min_view_sns = UINT64_MAX;
 
         err = viewset_tree_create(max_elts, i, &bkt->vsb_tree);
         if (ev(err))
@@ -245,13 +247,13 @@ viewset_destroy(struct viewset *handle)
     free(self);
 }
 
-u64
+uint64_t
 viewset_horizon(struct viewset *handle)
 {
     struct viewset_impl *self = viewset_h2r(handle);
 
-    u64 newh = atomic_read(self->vs_seqno_addr);
-    u64 oldh = atomic_read(&self->vs_horizon);
+    uint64_t newh = atomic_read(self->vs_seqno_addr);
+    uint64_t oldh = atomic_read(&self->vs_horizon);
     int i;
 
     /* Read old horizon and KVDB seqno before checking active txn cnt */
@@ -282,7 +284,7 @@ viewset_horizon(struct viewset *handle)
     return oldh;
 }
 
-u64
+uint64_t
 viewset_min_view(struct viewset *handle)
 {
     struct viewset_impl *self = viewset_h2r(handle);
@@ -298,16 +300,16 @@ viewset_min_view(struct viewset *handle)
  * This function must be called with the vse_lock held.
  */
 static inline bool
-viewset_update(struct viewset_impl *self, u64 entry_sn)
+viewset_update(struct viewset_impl *self, uint64_t entry_sn)
 {
     struct viewset_bkt *min_bkt, *bkt;
-    u64 min_sn;
+    uint64_t min_sn;
 
-    min_sn = U64_MAX;
+    min_sn = UINT64_MAX;
     min_bkt = NULL;
 
     for (bkt = self->vs_bkt_first; bkt < self->vs_bkt_last; ++bkt) {
-        u64 old = bkt->vsb_min_view_sns;
+        uint64_t old = bkt->vsb_min_view_sns;
 
         if (old < min_sn) {
             min_sn = old;
@@ -319,7 +321,7 @@ viewset_update(struct viewset_impl *self, u64 entry_sn)
         return false;
 
     /* No active transaction in the system after a remove. */
-    if (min_sn == U64_MAX) {
+    if (min_sn == UINT64_MAX) {
         assert(entry_sn != 0);
         min_sn = entry_sn;
     }
@@ -332,7 +334,7 @@ viewset_update(struct viewset_impl *self, u64 entry_sn)
 }
 
 merr_t
-viewset_insert(struct viewset *handle, u64 *viewp, u64 *tseqnop, void **cookiep)
+viewset_insert(struct viewset *handle, uint64_t *viewp, uint64_t *tseqnop, void **cookiep)
 {
     struct viewset_impl *self = viewset_h2r(handle);
     struct viewset_entry *   entry;
@@ -373,7 +375,7 @@ viewset_insert(struct viewset *handle, u64 *viewp, u64 *tseqnop, void **cookiep)
     list_add_tail(&entry->vse_link, &tree->vst_head);
 
     if (changed) {
-        assert(bkt->vsb_min_view_sns == U64_MAX);
+        assert(bkt->vsb_min_view_sns == UINT64_MAX);
         bkt->vsb_min_view_sns = entry->vse_view_sn;
     }
     treelock_unlock(tree);
@@ -436,14 +438,14 @@ void
 viewset_remove(
     struct viewset *handle,
     void           *cookie,
-    u32            *min_changed,
-    u64            *min_view_sn)
+    uint32_t       *min_changed,
+    uint64_t       *min_view_sn)
 {
     struct viewset_impl *self = viewset_h2r(handle);
     struct viewset_entry *entry, *first;
     struct viewset_tree *tree;
     struct viewset_bkt *bkt;
-    u64 entry_sn, min_sn;
+    uint64_t entry_sn, min_sn;
     bool changed;
 
     INVARIANT(handle && cookie && min_changed && min_view_sn);
@@ -461,7 +463,7 @@ viewset_remove(
 
     if (changed) {
         first = list_first_entry_or_null(&tree->vst_head, typeof(*first), vse_link);
-        min_sn = first ? first->vse_view_sn : U64_MAX;
+        min_sn = first ? first->vse_view_sn : UINT64_MAX;
 
         bkt->vsb_min_view_sns = min_sn;
     }
@@ -478,7 +480,7 @@ viewset_remove(
 
         if (viewlock_trylock(self)) {
             if (entry_sn >= self->vs_min_view_sn) {
-                u64 seq = atomic_read(self->vs_seqno_addr);
+                uint64_t seq = atomic_read(self->vs_seqno_addr);
 
                 viewset_update(self, seq);
             }

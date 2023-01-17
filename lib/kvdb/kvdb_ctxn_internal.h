@@ -6,6 +6,8 @@
 #ifndef HSE_KVDB_TXN_INTERNAL_H
 #define HSE_KVDB_TXN_INTERNAL_H
 
+#include <stdint.h>
+
 #include <urcu-bp.h>
 
 #include <hse/ikvdb/kvdb_ctxn.h>
@@ -42,7 +44,7 @@ struct kvdb_ctxn_impl {
     struct mutex            ctxn_lock;
     bool                    ctxn_can_insert;
     uintptr_t               ctxn_seqref;
-    u64                     ctxn_view_seqno;
+    uint64_t                ctxn_view_seqno;
 
     struct kvdb_keylock      *ctxn_kvdb_keylock;
     struct kvdb_ctxn_locks   *ctxn_locks_handle;
@@ -63,7 +65,7 @@ struct kvdb_ctxn_impl {
     struct cds_list_head    ctxn_alloc_link HSE_ALIGNED(CAA_CACHE_LINE_SIZE);
     struct list_head        ctxn_free_link;
     struct list_head        ctxn_abort_link;
-    u64                     ctxn_begin_ts;
+    uint64_t                ctxn_begin_ts;
     bool                    ctxn_expired;
 };
 

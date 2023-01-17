@@ -3,6 +3,8 @@
  * Copyright (C) 2015-2022 Micron Technology, Inc.  All rights reserved.
  */
 
+#include <stdint.h>
+
 #include <hse/util/platform.h>
 #include <hse/logging/logging.h>
 
@@ -82,7 +84,7 @@ static_assert(PERFC_RA_CNGET_MULTIPLE == 5 && FOUND_MULTIPLE == 5,
 /* clang-format on */
 
 void
-cn_perfc_bkts_create(struct perfc_name *pcn, int edgec, u64 *edgev, uint sample_pct)
+cn_perfc_bkts_create(struct perfc_name *pcn, int edgec, uint64_t *edgev, uint sample_pct)
 {
     merr_t            err;
     struct perfc_ivl *ivl;
@@ -145,7 +147,7 @@ cn_perfc_free(struct cn *cn)
 void
 cn_perfc_init(void)
 {
-    u64 cncmp_vget_bkts[PERFC_IVL_MAX];
+    uint64_t cncmp_vget_bkts[PERFC_IVL_MAX];
     uint sample_pct = 7;
 
     cncmp_vget_bkts[0] = 1;

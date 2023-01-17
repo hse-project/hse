@@ -6,8 +6,11 @@
 #ifndef HSE_KVDB_CN_CSCHED_SP3_WORK_H
 #define HSE_KVDB_CN_CSCHED_SP3_WORK_H
 
+#include <stdbool.h>
+#include <stdint.h>
+#include <sys/types.h>
+
 #include <hse/error/merr.h>
-#include <hse/util/inttypes.h>
 
 /* MTF_MOCK_DECL(csched_sp3_work) */
 

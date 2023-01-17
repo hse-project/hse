@@ -8,7 +8,6 @@
 
 #include <hse/util/arch.h>
 #include <hse/util/compiler.h>
-#include <hse/util/inttypes.h>
 #include <hse/util/spinlock.h>
 #include <hse/util/time.h>
 
@@ -16,18 +15,18 @@
 
 /* Struct tbkt members should be considered private.  */
 struct tbkt {
-    u64         tb_rate HSE_ACP_ALIGNED;
-    u64         tb_dt_max;
-    u64         tb_burst;
+    uint64_t tb_rate HSE_ACP_ALIGNED;
+    uint64_t tb_dt_max;
+    uint64_t tb_burst;
 
-    spinlock_t  tb_lock HSE_L1D_ALIGNED;
-    u64         tb_delay;
-    u64         tb_refill_time;
-    u64         tb_balance;
+    spinlock_t tb_lock HSE_L1D_ALIGNED;
+    uint64_t   tb_delay;
+    uint64_t   tb_refill_time;
+    uint64_t   tb_balance;
 };
 
 static inline void
-tbkt_delay(u64 nsec)
+tbkt_delay(uint64_t nsec)
 {
     struct timespec timespec;
 
@@ -44,23 +43,23 @@ tbkt_delay(u64 nsec)
 
 /* MTF_MOCK */
 void
-tbkt_init(struct tbkt *tb, u64 burst, u64 rate);
+tbkt_init(struct tbkt *tb, uint64_t burst, uint64_t rate);
 
 /* MTF_MOCK */
-u64
-tbkt_request(struct tbkt *tb, u64 tokens, u64 *now);
+uint64_t
+tbkt_request(struct tbkt *tb, uint64_t tokens, uint64_t *now);
 
 /* MTF_MOCK */
-u64
+uint64_t
 tbkt_burst_get(struct tbkt *self);
 
 /* MTF_MOCK */
-u64
+uint64_t
 tbkt_rate_get(struct tbkt *self);
 
 /* MTF_MOCK */
 void
-tbkt_adjust(struct tbkt *self, u64 burst, u64 rate);
+tbkt_adjust(struct tbkt *self, uint64_t burst, uint64_t rate);
 
 #if HSE_MOCKING
 #include "token_bucket_ut.h"

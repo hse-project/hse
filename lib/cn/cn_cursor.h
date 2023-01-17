@@ -6,12 +6,12 @@
 #ifndef HSE_KVDB_CN_CURSOR_H
 #define HSE_KVDB_CN_CURSOR_H
 
+#include <stdint.h>
+
 #include <hse/error/merr.h>
-#include <hse/util/inttypes.h>
+#include <hse/limits.h>
 #include <hse/util/bin_heap.h>
 #include <hse/util/table.h>
-
-#include <hse/limits.h>
 
 #include <hse/ikvdb/cursor.h>
 

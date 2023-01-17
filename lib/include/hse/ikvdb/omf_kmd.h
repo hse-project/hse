@@ -6,7 +6,7 @@
 #ifndef HSE_KVDB_OMF_KMD_H
 #define HSE_KVDB_OMF_KMD_H
 
-#include <hse/util/inttypes.h>
+#include <stdint.h>
 
 #include <hse/ikvdb/encoders.h>
 #include <hse/ikvdb/omf_kmd_vtype.h>
@@ -89,47 +89,47 @@ kmd_set_count(void *kmd, size_t *off, uint count)
 }
 
 static inline void
-kmd_add_tomb(void *kmd, size_t *off, u64 seq)
+kmd_add_tomb(void *kmd, size_t *off, uint64_t seq)
 {
-    ((u8 *)kmd)[*off] = VTYPE_TOMB;
+    ((uint8_t *)kmd)[*off] = VTYPE_TOMB;
     *off += 1;
     encode_hg64(kmd, off, seq);
 }
 
 static inline void
-kmd_add_ptomb(void *kmd, size_t *off, u64 seq)
+kmd_add_ptomb(void *kmd, size_t *off, uint64_t seq)
 {
-    ((u8 *)kmd)[*off] = VTYPE_PTOMB;
+    ((uint8_t *)kmd)[*off] = VTYPE_PTOMB;
     *off += 1;
     encode_hg64(kmd, off, seq);
 }
 
 static inline void
-kmd_add_zval(void *kmd, size_t *off, u64 seq)
+kmd_add_zval(void *kmd, size_t *off, uint64_t seq)
 {
-    ((u8 *)kmd)[*off] = VTYPE_ZVAL;
+    ((uint8_t *)kmd)[*off] = VTYPE_ZVAL;
     *off += 1;
     encode_hg64(kmd, off, seq);
 }
 
 static inline void
-kmd_add_ival(void *kmd, size_t *off, u64 seq, const void *vdata, u8 vlen)
+kmd_add_ival(void *kmd, size_t *off, uint64_t seq, const void *vdata, uint8_t vlen)
 {
-    ((u8 *)kmd)[*off] = VTYPE_IVAL;
+    ((uint8_t *)kmd)[*off] = VTYPE_IVAL;
     *off += 1;
     encode_hg64(kmd, off, seq);
-    ((u8 *)kmd)[*off] = vlen;
+    ((uint8_t *)kmd)[*off] = vlen;
     *off += 1;
-    memcpy(((u8 *)kmd) + *off, vdata, vlen);
+    memcpy(((uint8_t *)kmd) + *off, vdata, vlen);
     *off += vlen;
 }
 
 static inline void
-kmd_add_val(void *kmd, size_t *off, u64 seq, uint vbidx, uint vboff, uint vlen)
+kmd_add_val(void *kmd, size_t *off, uint64_t seq, uint vbidx, uint vboff, uint vlen)
 {
     __be32 val32;
 
-    ((u8 *)kmd)[*off] = VTYPE_UCVAL;
+    ((uint8_t *)kmd)[*off] = VTYPE_UCVAL;
     *off += 1;
     encode_hg64(kmd, off, seq);
     encode_hg16_32k(kmd, off, vbidx);
@@ -140,11 +140,11 @@ kmd_add_val(void *kmd, size_t *off, u64 seq, uint vbidx, uint vboff, uint vlen)
 }
 
 static inline void
-kmd_add_cval(void *kmd, size_t *off, u64 seq, uint vbidx, uint vboff, uint vlen, uint complen)
+kmd_add_cval(void *kmd, size_t *off, uint64_t seq, uint vbidx, uint vboff, uint vlen, uint complen)
 {
     __be32 val32;
 
-    ((u8 *)kmd)[*off] = VTYPE_CVAL;
+    ((uint8_t *)kmd)[*off] = VTYPE_CVAL;
     *off += 1;
     encode_hg64(kmd, off, seq);
     encode_hg16_32k(kmd, off, vbidx);
@@ -162,9 +162,9 @@ kmd_count(const void *kmd, size_t *off)
 }
 
 static inline void
-kmd_type_seq(const void *kmd, size_t *off, enum kmd_vtype *vtype, u64 *seq)
+kmd_type_seq(const void *kmd, size_t *off, enum kmd_vtype *vtype, uint64_t *seq)
 {
-    *vtype = ((const u8 *)kmd)[*off];
+    *vtype = ((const uint8_t *)kmd)[*off];
     *off += 1;
     *seq = decode_hg64(kmd, off);
 }
@@ -197,9 +197,9 @@ kmd_cval(const void *kmd, size_t *off, uint *vbidx, uint *vboff, uint *vlen, uin
 static inline void
 kmd_ival(const void *kmd, size_t *off, const void **vbase, uint *vlen)
 {
-    *vlen = ((const u8 *)kmd)[*off];
+    *vlen = ((const uint8_t *)kmd)[*off];
     *off += 1;
-    *vbase = ((const u8 *)kmd) + *off;
+    *vbase = ((const uint8_t *)kmd) + *off;
     *off += *vlen;
 }
 #endif

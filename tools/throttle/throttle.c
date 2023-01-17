@@ -4,6 +4,8 @@
  */
 
 #include <assert.h>
+#include <ctype.h>
+#include <errno.h>
 #include <getopt.h>
 #include <pthread.h>
 #include <stdarg.h>
@@ -20,7 +22,6 @@
 #include <hse/util/arch.h>
 #include <hse/util/atomic.h>
 #include <hse/util/compiler.h>
-#include <hse/util/inttypes.h>
 #include <hse/util/parse_num.h>
 #include <hse/util/time.h>
 
@@ -41,7 +42,7 @@ struct opts {
     char   *mpool;
     char   *kvs;
     char   *weight;
-    u64     keys;
+    uint64_t keys;
     uint    klen;
     uint    vlen;
     uint    threads;
@@ -49,12 +50,12 @@ struct opts {
     bool    dryrun;
     bool    close;
     bool    binary;
-    u64     kstart;
-    u32     errcnt;
-    u32     ingiters;
-    u64     ingestcycle;
-    u64     sleepcycle;
-    u64     runtime;
+    uint64_t kstart;
+    uint32_t errcnt;
+    uint32_t ingiters;
+    uint64_t ingestcycle;
+    uint64_t sleepcycle;
+    uint64_t runtime;
 };
 
 
@@ -68,7 +69,7 @@ struct opts opt;
 const char *mode = "";
 struct timeval tv_start;
 int verbose = 0;
-u32 errors = 0;
+uint32_t errors = 0;
 
 static struct key_generator *key_gen;
 static const long key_space_size = 4000000000UL;
@@ -106,8 +107,8 @@ struct thread_info {
 
     void       *pfx;
     int         pfxlen;
-    u64         ops;
-    u64         time;
+    uint64_t    ops;
+    uint64_t    time;
 };
 
 static void syntax(const char *fmt, ...);
@@ -144,11 +145,10 @@ syntax(const char *fmt, ...)
     exit(EX_USAGE);
 }
 
-static
-void
+static void
 _error_quit(
     const char *detail,
-    u64         err,
+    hse_err_t    err,
     const char *file,
     int         line)
 {
@@ -482,7 +482,7 @@ usage(void)
 void
 test_open_kvdb(void)
 {
-    u64 rc;
+    hse_err_t rc;
 
     if (kvdb)
         return;
@@ -497,7 +497,7 @@ test_open_kvdb(void)
 void
 test_close_kvdb(void)
 {
-    u64 rc;
+    hse_err_t rc;
 
     if (!kvdb)
         return;
@@ -512,7 +512,7 @@ test_close_kvdb(void)
 void
 test_open_kvs(char *kvs_name, struct hse_kvs **kvs)
 {
-    u64 rc;
+    hse_err_t rc;
 
     if (kvs && *kvs)
         return;
@@ -525,7 +525,7 @@ test_open_kvs(char *kvs_name, struct hse_kvs **kvs)
 void
 test_close_kvs(char *kvs_name, struct hse_kvs *kvs)
 {
-    u64 rc;
+    hse_err_t rc;
 
     if (!kvs)
         return;
@@ -542,7 +542,7 @@ fmt_string(
     int max_len,
     char fill,
     char *fmt,
-    u64 fmt_arg1,
+    uint64_t fmt_arg1,
     int fmt_arg2)
 {
     int i;
@@ -574,12 +574,12 @@ fmt_key(
 
     if (key_gen) {
         get_key(key_gen, str, num);
-        *(u32 *)str = ti->id;
+        *(uint32_t *)str = ti->id;
         str[len-1] = 0;
     } else {
         v = atomic_inc_return(&u);
-        *(u32 *)str       = ti->id;
-        *(u32 *)(str + 4) = v;
+        *(uint32_t *)str       = ti->id;
+        *(uint32_t *)(str + 4) = v;
         for (len -= 8, str += 8; len > 0; --len)
             *str++ = v & 255;
     }
@@ -589,10 +589,7 @@ int key_showlen;
 int val_showlen;
 
 void
-set_kv(
-    struct thread_info          *ti,
-    u64                        keynum,
-    uint                       salt)
+set_kv(struct thread_info *ti, uint64_t keynum, uint salt)
 {
     if (opt.binary) {
         uint32_t *pdata = (uint32_t *)ti->ref_val;
@@ -645,12 +642,12 @@ void
 test_put_impl(
     struct thread_info *ti,
     uint salt,
-    u64  time)
+    uint64_t time)
 {
     hse_err_t  err;
-    u64     tmelapsed = 0;
-    u64     i;
-    u64     start;
+    uint64_t   tmelapsed = 0;
+    uint64_t   i;
+    uint64_t   start;
     int     idx;
     int     cnt;
 
@@ -712,7 +709,7 @@ test_put(struct thread_info *ti, uint salt)
 {
     struct timespec req = {0};
 
-    u32 i;
+    uint32_t i;
 
     ti->ops  = 0;
     ti->time = 0;
@@ -910,16 +907,16 @@ main(int argc, char **argv)
     struct thread_info *threads = NULL;
 
     int     rc;
-    hse_err_t  err;
+    hse_err_t err;
     uint    i;
-    u64     time;
+    uint64_t time;
     int     cnt;
     char   *kvs;
     char   *weight;
-    u64     tot_opsmin = 0;
-    u64     tot_opsmax = 0;
-    u64     tot_opsavg = 0;
-    u64     tot_time   = 0;
+    uint64_t tot_opsmin = 0;
+    uint64_t tot_opsmax = 0;
+    uint64_t tot_opsavg = 0;
+    uint64_t tot_time   = 0;
 
     progname_set(argv[0]);
 
@@ -1019,14 +1016,14 @@ main(int argc, char **argv)
 
     cnt = 0;
     while ((get_time_ns() - time) < opt.runtime) {
-        u64 minops;
-        u64 maxops;
-        u64 ops;
-        u64 tmp;
-        u64 avgtime;
-        u64 mintime;
-        u64 maxtime;
-        u64 runtime;
+        uint64_t minops;
+        uint64_t maxops;
+        uint64_t ops;
+        uint64_t tmp;
+        uint64_t avgtime;
+        uint64_t mintime;
+        uint64_t maxtime;
+        uint64_t runtime;
 
         if (!(cnt++ % 20))
             print_header();

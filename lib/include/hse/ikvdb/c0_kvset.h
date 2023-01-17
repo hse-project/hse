@@ -6,9 +6,10 @@
 #ifndef HSE_C0_C0_KVSET_H
 #define HSE_C0_C0_KVSET_H
 
+#include <stdint.h>
+
 #include <urcu-bp.h>
 
-#include <hse/util/inttypes.h>
 #include <hse/error/merr.h>
 
 #include <hse/ikvdb/kvs.h>
@@ -143,7 +144,7 @@ c0kvs_alloc(struct c0_kvset *handle, size_t align, size_t sz);
 merr_t
 c0kvs_put(
     struct c0_kvset *        set,
-    u16                      skidx,
+    uint16_t                 skidx,
     struct kvs_ktuple       *key,
     const struct kvs_vtuple *value,
     uintptr_t                seqnoref);
@@ -162,7 +163,7 @@ c0kvs_put(
  * Return: [HSE_REVISIT]
  */
 merr_t
-c0kvs_del(struct c0_kvset *set, u16 skidx, struct kvs_ktuple *key, const uintptr_t seqno);
+c0kvs_del(struct c0_kvset *set, uint16_t skidx, struct kvs_ktuple *key, const uintptr_t seqno);
 
 /**
  * c0kvs_prefix_del() - delete the key/value pair matching the given key
@@ -178,7 +179,7 @@ c0kvs_del(struct c0_kvset *set, u16 skidx, struct kvs_ktuple *key, const uintptr
 merr_t
 c0kvs_prefix_del(
     struct c0_kvset *        set,
-    u16                      skidx,
+    uint16_t                 skidx,
     struct kvs_ktuple       *key,
     const uintptr_t          seqno);
 
@@ -219,9 +220,9 @@ c0kvs_prefix_del(
 merr_t
 c0kvs_get_rcu(
     struct c0_kvset *        handle,
-    u16                      skidx,
+    uint16_t                 skidx,
     const struct kvs_ktuple *key,
-    u64                      view_seqno,
+    uint64_t                 view_seqno,
     uintptr_t                seqnoref,
     enum key_lookup_res *    res,
     struct kvs_buf *         vbuf,
@@ -230,9 +231,9 @@ c0kvs_get_rcu(
 merr_t
 c0kvs_get_excl(
     struct c0_kvset *        handle,
-    u16                      skidx,
+    uint16_t                 skidx,
     const struct kvs_ktuple *key,
-    u64                      view_seqno,
+    uint64_t                 view_seqno,
     uintptr_t                seqnoref,
     enum key_lookup_res *    res,
     struct kvs_buf *         vbuf,
@@ -241,28 +242,28 @@ c0kvs_get_excl(
 merr_t
 c0kvs_pfx_probe_rcu(
     struct c0_kvset *        handle,
-    u16                      skidx,
+    uint16_t                 skidx,
     const struct kvs_ktuple *key,
-    u64                      view_seqno,
+    uint64_t                 view_seqno,
     uintptr_t                seqref,
     enum key_lookup_res *    res,
     struct query_ctx *       qctx,
     struct kvs_buf *         kbuf,
     struct kvs_buf *         vbuf,
-    u64                      pt_seq);
+    uint64_t                 pt_seq);
 
 merr_t
 c0kvs_pfx_probe_excl(
     struct c0_kvset *        handle,
-    u16                      skidx,
+    uint16_t                 skidx,
     const struct kvs_ktuple *key,
-    u64                      view_seqno,
+    uint64_t                 view_seqno,
     uintptr_t                seqref,
     enum key_lookup_res *    res,
     struct query_ctx *       qctx,
     struct kvs_buf *         kbuf,
     struct kvs_buf *         vbuf,
-    u64                      pt_seq);
+    uint64_t                 pt_seq);
 
 /**
  * c0kvs_prefix_get_rcu() - given a key, retrieve a value from a struct c0_kvset
@@ -281,21 +282,21 @@ c0kvs_pfx_probe_excl(
 void
 c0kvs_prefix_get_rcu(
     struct c0_kvset *        handle,
-    u16                      skidx,
+    uint16_t                 skidx,
     const struct kvs_ktuple *key,
-    u64                      view_seqno,
+    uint64_t                 view_seqno,
     uintptr_t                seqnoref,
-    u32                      pfx_len,
+    uint32_t                 pfx_len,
     uintptr_t *              oseqnoref);
 
 void
 c0kvs_prefix_get_excl(
     struct c0_kvset *        handle,
-    u16                      skidx,
+    uint16_t                 skidx,
     const struct kvs_ktuple *key,
-    u64                      view_seqno,
+    uint64_t                 view_seqno,
     uintptr_t                seqnoref,
-    u32                      pfx_len,
+    uint32_t                 pfx_len,
     uintptr_t *              oseqnoref);
 
 /**
@@ -311,7 +312,7 @@ struct bonsai_val;
 struct bonsai_kv;
 
 struct bonsai_val *
-c0kvs_findval(struct bonsai_kv *kv, u64 view_seqno, uintptr_t seqnoref);
+c0kvs_findval(struct bonsai_kv *kv, uint64_t view_seqno, uintptr_t seqnoref);
 
 /**
  * c0kvs_get_element_count() - return the number of elements in the c0_kvset
@@ -319,10 +320,10 @@ c0kvs_findval(struct bonsai_kv *kv, u64 view_seqno, uintptr_t seqnoref);
  *
  * Return: sum of the number of key/value entries and tombstones
  */
-u64
+uint64_t
 c0kvs_get_element_count(struct c0_kvset *set);
 
-u64
+uint64_t
 c0kvs_get_element_count2(struct c0_kvset *set, uint *heightp, uint *keyvalsp, size_t *kvbytesp);
 
 /**

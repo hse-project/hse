@@ -3,6 +3,8 @@
  * Copyright (C) 2015-2022 Micron Technology, Inc.  All rights reserved.
  */
 
+#include <stdint.h>
+
 #include <mtf/framework.h>
 
 #include <hse/logging/logging.h>
@@ -58,7 +60,7 @@ MTF_DEFINE_UTEST_PREPOST(c0_kvmultiset_test, basic, no_fail_pre, no_fail_post)
     struct c0_kvmultiset *kvms;
     struct c0_kvset *     p;
     merr_t                err;
-    u32                   rc;
+    uint32_t              rc;
 
     err = c0kvms_create(1, 0, NULL, &kvms);
     ASSERT_EQ(0, err);
@@ -198,10 +200,10 @@ MTF_DEFINE_UTEST_PREPOST(c0_kvmultiset_test, ingest_sk, no_fail_pre, no_fail_pos
     struct c0_kvset *     p = 0;
     merr_t                err;
 
-    u64             keys_out = 0, tombs_out = 0, keyb_out = 0, valb_out = 0;
+    uint64_t        keys_out = 0, tombs_out = 0, keyb_out = 0, valb_out = 0;
     uintptr_t       seqno;
     struct c0_usage usage;
-    u64             db_put_cnt HSE_MAYBE_UNUSED = 0, db_del_cnt HSE_MAYBE_UNUSED = 0;
+    uint64_t        db_put_cnt HSE_MAYBE_UNUSED = 0, db_del_cnt HSE_MAYBE_UNUSED = 0;
     const int       WIDTH = 3;
     int             i, j, k;
     uint            keys[WIDTH * WIDTH * WIDTH];
@@ -220,7 +222,7 @@ MTF_DEFINE_UTEST_PREPOST(c0_kvmultiset_test, ingest_sk, no_fail_pre, no_fail_pos
 
     generate_random_u32_sequence_unique(0, 1000000000, keys, NELEM(keys));
     for (i = 0, k = 0; i <= WIDTH; ++i) {
-        u32               kbuf[1];
+        uint32_t          kbuf[1];
         char              vbuf[1];
         struct kvs_ktuple kt;
         struct kvs_vtuple vt;
@@ -229,7 +231,7 @@ MTF_DEFINE_UTEST_PREPOST(c0_kvmultiset_test, ingest_sk, no_fail_pre, no_fail_pos
         ASSERT_NE((struct c0_kvset *)NULL, p);
 
         for (j = i + WIDTH; j >= 0; --j) {
-            u16 skidx;
+            uint16_t skidx;
 
             kbuf[0] = keys[k++];
             vbuf[0] = i + j + 3;
@@ -262,8 +264,8 @@ MTF_DEFINE_UTEST_PREPOST(c0_kvmultiset_test, ingest_sk, no_fail_pre, no_fail_pos
         struct kvs_ktuple  kt;
         struct kvs_vtuple  vt;
         struct bonsai_val *val;
-        u32                key0;
-        u16                skidx;
+        uint32_t           key0;
+        uint16_t           skidx;
 
         val = bkv->bkv_values;
         while (val) {
@@ -289,7 +291,7 @@ MTF_DEFINE_UTEST_PREPOST(c0_kvmultiset_test, ingest_sk, no_fail_pre, no_fail_pos
         if (vt.vt_data == HSE_CORE_TOMB_REG)
             ++tombs_out;
 
-        key0 = *(u32 *)kt.kt_data;
+        key0 = *(uint32_t *)kt.kt_data;
         ASSERT_EQ(skidx, key0 % 256);
 
         if (!first_time) {

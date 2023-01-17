@@ -1,7 +1,9 @@
 /* SPDX-License-Identifier: Apache-2.0 */
 /*
- * Copyright (C) 2015-2021 Micron Technology, Inc.  All rights reserved.
+ * Copyright (C) 2015-2022 Micron Technology, Inc.  All rights reserved.
  */
+
+#include <stdint.h>
 
 #include <mtf/framework.h>
 
@@ -40,7 +42,12 @@ no_fail_post(struct mtf_test_info *info)
 }
 
 static void
-c0kvs_get_content_metrics(struct c0_kvset *c0kvs, u64 *num_entries, u64 *num_tombs, u64 *key_bytes, u64 *val_bytes)
+c0kvs_get_content_metrics(
+    struct c0_kvset *c0kvs,
+    uint64_t *num_entries,
+    uint64_t *num_tombs,
+    uint64_t *key_bytes,
+    uint64_t *val_bytes)
 {
     struct c0_usage u;
 
@@ -73,7 +80,7 @@ MTF_DEFINE_UTEST_PREPOST(c0_kvset_test, basic_put_get, no_fail_pre, no_fail_post
     merr_t           err = 0;
     char             kbuf[100], vbuf[1000];
     uintptr_t        iseqnoref, oseqnoref;
-    u64              view_seqno;
+    uint64_t         view_seqno;
     int              i;
     int              seq;
 
@@ -127,7 +134,7 @@ MTF_DEFINE_UTEST_PREPOST(c0_kvset_test, basic_put_get, no_fail_pre, no_fail_post
             ASSERT_EQ(HSE_SQNREF_TO_ORDNL(oseqnoref), view_seqno);
 
             for (j = 0; j < vb.b_len; ++j)
-                sum += ((u8 *)vb.b_buf)[j];
+                sum += ((uint8_t *)vb.b_buf)[j];
 
             ASSERT_EQ(sum, i * seq);
 
@@ -164,7 +171,7 @@ MTF_DEFINE_UTEST_PREPOST(c0_kvset_test, basic_put_get, no_fail_pre, no_fail_post
 
                 ASSERT_EQ(res, FOUND_VAL);
                 for (j = 0; j < vb.b_len; ++j)
-                    sum += ((u8 *)vb.b_buf)[j];
+                    sum += ((uint8_t *)vb.b_buf)[j];
 
                 ASSERT_EQ(sum, i * seq);
             } else {
@@ -279,7 +286,7 @@ MTF_DEFINE_UTEST_PREPOST(c0_kvset_test, basic_repeated_put, no_fail_pre, no_fail
     struct kvs_buf      vb;
     enum key_lookup_res res;
     uintptr_t           iseqnoref, oseqnoref;
-    u64                 view_seqno;
+    uint64_t            view_seqno;
     int                 i;
 
     err = c0kvs_create(NULL, NULL, &kvs);
@@ -305,7 +312,7 @@ MTF_DEFINE_UTEST_PREPOST(c0_kvset_test, basic_repeated_put, no_fail_pre, no_fail
     err = c0kvs_get_excl(kvs, 0, &kt, view_seqno, 0, &res, &vb, &oseqnoref);
     ASSERT_EQ(err, 0);
     ASSERT_EQ(res, FOUND_VAL);
-    ASSERT_EQ(3, ((u8 *)vb.b_buf)[0]);
+    ASSERT_EQ(3, ((uint8_t *)vb.b_buf)[0]);
     ASSERT_TRUE(HSE_SQNREF_ORDNL_P(oseqnoref));
     ASSERT_EQ(HSE_SQNREF_TO_ORDNL(oseqnoref), view_seqno);
 
@@ -320,7 +327,7 @@ MTF_DEFINE_UTEST_PREPOST(c0_kvset_test, basic_repeated_put, no_fail_pre, no_fail
     err = c0kvs_get_excl(kvs, 0, &kt, view_seqno, 0, &res, &vb, &oseqnoref);
     ASSERT_EQ(err, 0);
     ASSERT_EQ(res, FOUND_VAL);
-    ASSERT_EQ(4, ((u8 *)vb.b_buf)[0]);
+    ASSERT_EQ(4, ((uint8_t *)vb.b_buf)[0]);
     ASSERT_TRUE(HSE_SQNREF_ORDNL_P(oseqnoref));
     ASSERT_EQ(HSE_SQNREF_TO_ORDNL(oseqnoref), view_seqno);
 
@@ -338,7 +345,7 @@ MTF_DEFINE_UTEST_PREPOST(c0_kvset_test, basic_repeated_put, no_fail_pre, no_fail
     err = c0kvs_get_excl(kvs, 0, &kt, view_seqno, 0, &res, &vb, &oseqnoref);
     ASSERT_EQ(err, 0);
     ASSERT_EQ(res, FOUND_VAL);
-    ASSERT_EQ(1, ((u8 *)vb.b_buf)[0]);
+    ASSERT_EQ(1, ((uint8_t *)vb.b_buf)[0]);
     ASSERT_EQ(HSE_SQNREF_TO_ORDNL(oseqnoref), 2);
 
     vbuf[0] = 0;
@@ -347,7 +354,7 @@ MTF_DEFINE_UTEST_PREPOST(c0_kvset_test, basic_repeated_put, no_fail_pre, no_fail
     err = c0kvs_get_excl(kvs, 0, &kt, view_seqno, 0, &res, &vb, &oseqnoref);
     ASSERT_EQ(err, 0);
     ASSERT_EQ(res, FOUND_VAL);
-    ASSERT_EQ(4, ((u8 *)vb.b_buf)[0]);
+    ASSERT_EQ(4, ((uint8_t *)vb.b_buf)[0]);
     ASSERT_EQ(HSE_SQNREF_TO_ORDNL(oseqnoref), 0);
 
     iseqnoref = HSE_ORDNL_TO_SQNREF(3);
@@ -398,7 +405,7 @@ MTF_DEFINE_UTEST_PREPOST(c0_kvset_test, ctxn_put, no_fail_pre, no_fail_post)
     struct kvs_vtuple   vt;
     struct kvs_buf      vb;
     uintptr_t           iseqnoref;
-    u64                 ctxn_priv_1[10], ctxn_priv_2[10];
+    uint64_t            ctxn_priv_1[10], ctxn_priv_2[10];
     int                 i;
 
     err = c0kvs_create(NULL, NULL, &kvs);
@@ -551,24 +558,24 @@ MTF_DEFINE_UTEST_PREPOST(c0_kvset_test, advanced_repeated_put, no_fail_pre, no_f
     struct c0_kvset *        kvs;
     merr_t                   err = 0;
     struct call_rcu_data *   rcu_thrd;
-    u32                      kbuf[1], vbuf[1];
-    const u32                insert_count = 10000;
-    const u32                reinsert_count = 1000;
-    u32                      keys[insert_count];
+    uint32_t                 kbuf[1], vbuf[1];
+    const uint32_t           insert_count = 10000;
+    const uint32_t           reinsert_count = 1000;
+    uint32_t                 keys[insert_count];
     struct kvs_ktuple        kt;
     struct kvs_vtuple        vt;
     struct c0_kvset_iterator iter;
     struct kvs_buf           vb;
     struct element_source *  source;
     enum key_lookup_res      res;
-    u32                      indexes[reinsert_count];
+    uint32_t                 indexes[reinsert_count];
     int                      i, j;
-    u64                      num_entries, num_tombs;
-    u64                      key_bytes, val_bytes;
-    u64                      tr_keys HSE_MAYBE_UNUSED = 0, tr_tombs HSE_MAYBE_UNUSED = 0;
-    u64                      tr_key_bytes HSE_MAYBE_UNUSED = 0, tr_val_bytes HSE_MAYBE_UNUSED = 0;
+    uint64_t                 num_entries, num_tombs;
+    uint64_t                 key_bytes, val_bytes;
+    uint64_t                 tr_keys HSE_MAYBE_UNUSED = 0, tr_tombs HSE_MAYBE_UNUSED = 0;
+    uint64_t                 tr_key_bytes HSE_MAYBE_UNUSED = 0, tr_val_bytes HSE_MAYBE_UNUSED = 0;
     uintptr_t                iseqnoref, oseqnoref;
-    u64                      view_seqno;
+    uint64_t                 view_seqno;
     struct bonsai_kv *       bkv;
     struct bonsai_val *      val;
     void *                   last_key, *key;
@@ -638,7 +645,7 @@ MTF_DEFINE_UTEST_PREPOST(c0_kvset_test, advanced_repeated_put, no_fail_pre, no_f
             err = c0kvs_get_excl(kvs, 0, &kt, view_seqno, 0, &res, &vb, &oseqnoref);
             ASSERT_EQ(err, 0);
             ASSERT_EQ(res, FOUND_VAL);
-            ASSERT_EQ(indexes[i] + j, ((u32 *)vb.b_buf)[0]);
+            ASSERT_EQ(indexes[i] + j, ((uint32_t *)vb.b_buf)[0]);
             ASSERT_EQ(HSE_SQNREF_TO_ORDNL(oseqnoref), view_seqno);
         }
     }
@@ -718,7 +725,7 @@ MTF_DEFINE_UTEST_PREPOST(c0_kvset_test, basic_put_get_del, no_fail_pre, no_fail_
     enum key_lookup_res res;
     int                 i;
     uintptr_t           iseqnoref, oseqnoref;
-    u64                 view_seqno;
+    uint64_t            view_seqno;
 
     err = c0kvs_create(NULL, NULL, &kvs);
     ASSERT_NE((struct c0_kvset *)0, kvs);
@@ -758,7 +765,7 @@ MTF_DEFINE_UTEST_PREPOST(c0_kvset_test, basic_put_get_del, no_fail_pre, no_fail_
         ASSERT_GT(view_seqno, HSE_SQNREF_TO_ORDNL(oseqnoref));
 
         for (j = 0; j < vb.b_len; ++j)
-            sum += ((u8 *)vb.b_buf)[j];
+            sum += ((uint8_t *)vb.b_buf)[j];
 
         ASSERT_EQ(i, sum);
     }
@@ -854,11 +861,11 @@ MTF_DEFINE_UTEST_PREPOST(c0_kvset_test, get_content_metrics, no_fail_pre, no_fai
 {
     struct c0_kvset * kvs;
     merr_t            err = 0;
-    u64               num_entries;
-    u64               num_tombstones;
-    u64               total_key_bytes;
-    u64               total_value_bytes;
-    u32               kbuf[1];
+    uint64_t          num_entries;
+    uint64_t          num_tombstones;
+    uint64_t          total_key_bytes;
+    uint64_t          total_value_bytes;
+    uint32_t          kbuf[1];
     char              vbuf[3];
     int               i;
     const int         initial_insert_count = 273;
@@ -1000,7 +1007,7 @@ MTF_DEFINE_UTEST_PREPOST(c0_kvset_test, finalize, no_fail_pre, no_fail_post)
         ASSERT_EQ(oseqno, HSE_ORDNL_TO_SQNREF(0));
 
         for (j = 0; j < vb.b_len; ++j)
-            sum += ((u8 *)vb.b_buf)[j];
+            sum += ((uint8_t *)vb.b_buf)[j];
 
         ASSERT_EQ(i, sum);
     }
@@ -1108,7 +1115,7 @@ MTF_DEFINE_UTEST_PREPOST(c0_kvset_test, iterator, no_fail_pre, no_fail_post)
         source = c0_kvset_iterator_get_es(&iter);
 
         for (c = 'b'; source->es_get_next(source, (void *)&bkv); ++c) {
-            u16 klen = key_imm_klen(&bkv->bkv_key_imm);
+            uint16_t klen = key_imm_klen(&bkv->bkv_key_imm);
 
             ASSERT_EQ(1, klen);
             ASSERT_EQ(c, bkv->bkv_key[0]);
@@ -1129,7 +1136,7 @@ MTF_DEFINE_UTEST_PREPOST(c0_kvset_test, iterator, no_fail_pre, no_fail_post)
         source = c0_kvset_iterator_get_es(&iter);
 
         for (c = 'y'; source->es_get_next(source, (void *)&bkv); --c) {
-            u16 klen = key_imm_klen(&bkv->bkv_key_imm);
+            uint16_t klen = key_imm_klen(&bkv->bkv_key_imm);
 
             ASSERT_EQ(1, klen);
             ASSERT_EQ(c, bkv->bkv_key[0]);

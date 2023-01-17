@@ -7,6 +7,7 @@
 #define MTF_MOCK_IMPL_kvs
 
 #include <stdbool.h>
+#include <stdint.h>
 
 #include <bsd/libutil.h>
 #include <bsd/string.h>
@@ -159,7 +160,7 @@ struct ikvdb_impl {
     struct ikvdb            ikdb_handle;
     bool                    ikdb_allow_writes;
     bool                    ikdb_work_stop;
-    u32                     ikdb_tb_dbg;
+    uint32_t                ikdb_tb_dbg;
     bool                    ikdb_pmem_only;
     struct kvdb_ctxn_set   *ikdb_ctxn_set;
     struct c0snr_set       *ikdb_c0snr_set;
@@ -185,23 +186,23 @@ struct ikvdb_impl {
     struct kvdb_ctxn_bkt    ikdb_ctxn_cache[KVDB_CTXN_BKT_MAX];
 
     atomic_int              ikdb_curcnt HSE_ACP_ALIGNED;
-    u32                     ikdb_curcnt_max;
+    uint32_t                ikdb_curcnt_max;
 
     atomic_ulong            ikdb_tb_dbg_ops HSE_L1X_ALIGNED;
     atomic_ulong            ikdb_tb_dbg_bytes;
     atomic_ulong            ikdb_tb_dbg_sleep_ns;
-    u64                     ikdb_tb_dbg_next;
-    u64                     ikdb_tb_burst;
-    u64                     ikdb_tb_rate;
+    uint64_t                ikdb_tb_dbg_next;
+    uint64_t                ikdb_tb_burst;
+    uint64_t                ikdb_tb_rate;
 
     atomic_ulong            ikdb_seqno HSE_ACP_ALIGNED;
     struct work_struct      ikdb_throttle_work;
     struct work_struct      ikdb_maint_work;
 
-    u64                     ikdb_cndb_oid1;
-    u64                     ikdb_cndb_oid2;
-    u64                     ikdb_wal_oid1;
-    u64                     ikdb_wal_oid2;
+    uint64_t ikdb_cndb_oid1;
+    uint64_t ikdb_cndb_oid2;
+    uint64_t ikdb_wal_oid1;
+    uint64_t ikdb_wal_oid2;
 
     struct kvdb_rparams     ikdb_rp HSE_ACP_ALIGNED;
     struct mclass_policy    ikdb_mpolicies[HSE_MPOLICY_COUNT];
@@ -209,7 +210,7 @@ struct ikvdb_impl {
     struct workqueue_struct *ikdb_workqueue;
 
     struct mutex     ikdb_lock;
-    u32              ikdb_kvs_cnt;
+    uint32_t         ikdb_kvs_cnt;
     struct kvdb_kvs *ikdb_kvs_vec[HSE_KVS_COUNT_MAX];
 
     unsigned int     ikdb_omf_version;
@@ -743,7 +744,7 @@ ikvdb_mclass_reconfigure(const char *kvdb_home, enum hse_mclass mclass, const ch
 }
 
 static inline void
-ikvdb_tb_configure(struct ikvdb_impl *self, u64 burst, u64 rate, bool initialize)
+ikvdb_tb_configure(struct ikvdb_impl *self, uint64_t burst, uint64_t rate, bool initialize)
 {
     if (initialize)
         tbkt_init(&self->ikdb_tb, burst, rate);
@@ -752,9 +753,9 @@ ikvdb_tb_configure(struct ikvdb_impl *self, u64 burst, u64 rate, bool initialize
 }
 
 static void
-ikvdb_rate_limit_set(struct ikvdb_impl *self, u64 rate)
+ikvdb_rate_limit_set(struct ikvdb_impl *self, uint64_t rate)
 {
-    u64 burst = rate / 2;
+    uint64_t burst = rate / 2;
 
     /* cache debug params from KVDB runtime params */
     self->ikdb_tb_dbg = self->ikdb_rp.throttle_debug & THROTTLE_DEBUG_TB_MASK;
@@ -773,7 +774,7 @@ ikvdb_rate_limit_set(struct ikvdb_impl *self, u64 rate)
 
     if (self->ikdb_tb_dbg) {
 
-        u64 now = get_time_ns();
+        uint64_t now = get_time_ns();
 
         if (now > self->ikdb_tb_dbg_next) {
 
@@ -840,8 +841,8 @@ static void
 ikvdb_maint_task(struct work_struct *work)
 {
     struct ikvdb_impl *self;
-    u64                curcnt_warn = 0;
-    u64                maxdelay;
+    uint64_t           curcnt_warn = 0;
+    uint64_t           maxdelay;
 
     self = container_of(work, struct ikvdb_impl, ikdb_maint_work);
 
@@ -849,7 +850,7 @@ ikvdb_maint_task(struct work_struct *work)
 
     while (!self->ikdb_work_stop) {
         uint64_t vadd = 0, vsub = 0, curcnt;
-        u64      tstart = get_time_ns();
+        uint64_t tstart = get_time_ns();
         uint     i;
 
         /* Lazily sample the active cursor count and update ikdb_curcnt if necessary.
@@ -1230,7 +1231,7 @@ kvdb_kvs_cb(uint64_t cnid, struct kvs_cparams *cp, const char *name, void *ctx)
  * @ingestid:   ingest id (output)
  */
 static merr_t
-ikvdb_cndb_open(struct ikvdb_impl *self, u64 *seqno, u64 *ingestid, u64 *txhorizon)
+ikvdb_cndb_open(struct ikvdb_impl *self, uint64_t *seqno, uint64_t *ingestid, uint64_t *txhorizon)
 {
     merr_t            err = 0;
     struct kvdb_kvs **kvsp;
@@ -1849,13 +1850,13 @@ kvdb_kvs_cparams(struct kvdb_kvs *kk)
     return kk->kk_cparams;
 }
 
-u32
+uint32_t
 kvdb_kvs_flags(struct kvdb_kvs *kk)
 {
     return kk->kk_flags;
 }
 
-u64
+uint64_t
 kvdb_kvs_cnid(struct kvdb_kvs *kk)
 {
     return kk->kk_cnid;
@@ -2377,13 +2378,13 @@ ikvdb_close(struct ikvdb *handle)
 }
 
 static void
-ikvdb_throttle(struct ikvdb_impl *self, u64 bytes, u64 tstart)
+ikvdb_throttle(struct ikvdb_impl *self, uint64_t bytes, uint64_t tstart)
 {
-    u64 sleep_ns, now;
+    uint64_t sleep_ns, now;
 
     sleep_ns = tbkt_request(&self->ikdb_tb, bytes, &now);
     if (sleep_ns > 0) {
-        u64 dly = now - tstart;
+        uint64_t dly = now - tstart;
 
         if (sleep_ns > dly) {
             if (sleep_ns - dly > timer_slack / 2) {
@@ -2523,7 +2524,7 @@ ikvdb_kvs_pfx_probe(
 {
     struct kvdb_kvs *  kk = (struct kvdb_kvs *)handle;
     struct ikvdb_impl *p;
-    u64                view_seqno;
+    uint64_t           view_seqno;
 
     if (ev(!handle))
         return merr(EINVAL);
@@ -2559,7 +2560,7 @@ ikvdb_kvs_get(
 {
     struct kvdb_kvs *  kk = (struct kvdb_kvs *)handle;
     struct ikvdb_impl *p;
-    u64                view_seqno;
+    uint64_t           view_seqno;
 
     if (ev(!handle))
         return merr(EINVAL);
@@ -2593,7 +2594,7 @@ ikvdb_kvs_del(
 {
     struct kvdb_kvs *  kk = (struct kvdb_kvs *)handle;
     struct ikvdb_impl *parent;
-    u64                seqnoref;
+    uint64_t           seqnoref;
     merr_t             err;
 
     if (ev(!handle))
@@ -2624,7 +2625,7 @@ ikvdb_kvs_prefix_delete(
 {
     struct kvdb_kvs *  kk = (struct kvdb_kvs *)handle;
     struct ikvdb_impl *parent;
-    u64                seqnoref;
+    uint64_t           seqnoref;
     merr_t             err;
 
     INVARIANT(handle);
@@ -2703,8 +2704,8 @@ ikvdb_kvs_prefix_delete(
 static void
 cursor_view_release(struct hse_kvs_cursor *cursor)
 {
-    u64 minview;
-    u32 minchg;
+    uint64_t minview;
+    uint32_t minchg;
 
     if (!cursor->kc_on_list)
         return;
@@ -2714,7 +2715,7 @@ cursor_view_release(struct hse_kvs_cursor *cursor)
 }
 
 static merr_t
-cursor_view_acquire(struct hse_kvs_cursor *cur, u64 *tseqnop)
+cursor_view_acquire(struct hse_kvs_cursor *cur, uint64_t *tseqnop)
 {
     merr_t err;
 
@@ -2758,7 +2759,7 @@ ikvdb_kvs_cursor_create(
     struct kvdb_ctxn *     ctxn = 0;
     struct hse_kvs_cursor *cur = 0;
     merr_t                 err;
-    u64                    ts, vseq, tstart, tseqno;
+    uint64_t               ts, vseq, tstart, tseqno;
     struct perfc_set *     pkvsl_pc;
 
     *cursorp = NULL;
@@ -2843,7 +2844,7 @@ out:
 merr_t
 ikvdb_kvs_cursor_update_view(struct hse_kvs_cursor *cur, unsigned int flags)
 {
-    u64 tstart, tseqno;
+    uint64_t tstart, tseqno;
     merr_t err;
 
     tstart = perfc_lat_start(cur->kc_pkvsl_pc);
@@ -2921,7 +2922,7 @@ ikvdb_kvs_cursor_seek(
     struct kvs_ktuple *    kt)
 {
     merr_t err;
-    u64    tstart;
+    uint64_t tstart;
 
     tstart = perfc_lat_start(cur->kc_pkvsl_pc);
 
@@ -2938,7 +2939,7 @@ ikvdb_kvs_cursor_seek(
     }
 
     /* errors on seek are not fatal */
-    err = kvs_cursor_seek(cur, key, (u32)len, limit, (u32)limit_len, kt);
+    err = kvs_cursor_seek(cur, key, (uint32_t)len, limit, (uint32_t)limit_len, kt);
 
     perfc_lat_record(cur->kc_pkvsl_pc, PERFC_LT_PKVSL_KVS_CURSOR_SEEK, tstart);
 
@@ -2955,8 +2956,8 @@ ikvdb_kvs_cursor_read(
     size_t *               val_len,
     bool *                 eof)
 {
-    merr_t             err;
-    u64                tstart;
+    merr_t   err;
+    uint64_t tstart;
 
     tstart = perfc_lat_start(cur->kc_pkvsl_pc);
 
@@ -3001,8 +3002,8 @@ ikvdb_kvs_cursor_read_copy(
     size_t *               val_len,
     bool *                 eof)
 {
-    merr_t             err;
-    u64                tstart;
+    merr_t   err;
+    uint64_t tstart;
 
     tstart = perfc_lat_start(cur->kc_pkvsl_pc);
 
@@ -3039,7 +3040,7 @@ merr_t
 ikvdb_kvs_cursor_destroy(struct hse_kvs_cursor *cur)
 {
     struct perfc_set *pkvsl_pc;
-    u64               tstart, ctime;
+    uint64_t          tstart, ctime;
 
     if (!cur)
         return 0;
@@ -3096,26 +3097,26 @@ ikvdb_sync(struct ikvdb *handle, const unsigned int flags)
     return c0sk_sync(self->ikdb_c0sk, flags);
 }
 
-u64
+uint64_t
 ikvdb_horizon(struct ikvdb *handle)
 {
     struct ikvdb_impl *self = ikvdb_h2r(handle);
-    u64                horizon;
-    u64                b, c;
+    uint64_t           horizon;
+    uint64_t           b, c;
 
     b = viewset_horizon(self->ikdb_cur_viewset);
     c = viewset_horizon(self->ikdb_txn_viewset);
 
-    horizon = min_t(u64, b, c);
+    horizon = min_t(uint64_t, b, c);
 
     if (HSE_UNLIKELY(perfc_ison(&kvdb_metrics_pc, PERFC_BA_KVDBMETRICS_SEQNO))) {
-        u64 a;
+        uint64_t a;
 
         /* Must read a after b and c to test assertions. */
         atomic_thread_fence(memory_order_release);
 
         a = atomic_read(&self->ikdb_seqno);
-        assert(b == U64_MAX || a >= b);
+        assert(b == UINT64_MAX || a >= b);
         assert(a >= c);
 
         perfc_set(&kvdb_metrics_pc, PERFC_BA_KVDBMETRICS_SEQNO, a);
@@ -3126,7 +3127,7 @@ ikvdb_horizon(struct ikvdb *handle)
     return horizon;
 }
 
-u64
+uint64_t
 ikvdb_txn_horizon(struct ikvdb *handle)
 {
     struct ikvdb_impl *self = ikvdb_h2r(handle);
@@ -3227,7 +3228,7 @@ ikvdb_txn_commit(struct ikvdb *handle, struct hse_kvdb_txn *txn)
     struct ikvdb_impl *self = ikvdb_h2r(handle);
     struct kvdb_ctxn * ctxn = kvdb_ctxn_h2h(txn);
     merr_t             err;
-    u64                lstart;
+    uint64_t           lstart;
 
     lstart = perfc_lat_startu(&self->ikdb_ctxn_op, PERFC_LT_CTXNOP_COMMIT);
     perfc_inc(&self->ikdb_ctxn_op, PERFC_RA_CTXNOP_COMMIT);
@@ -3336,7 +3337,7 @@ ikvdb_wal_replay_close(struct ikvdb *ikvdb, struct ikvdb_kvs_hdl *ikvsh)
 }
 
 static struct kvdb_kvs *
-ikvdb_wal_replay_kvs_get(struct ikvdb_kvs_hdl *ikvsh, u64 cnid)
+ikvdb_wal_replay_kvs_get(struct ikvdb_kvs_hdl *ikvsh, uint64_t cnid)
 {
     int i;
 
@@ -3359,8 +3360,8 @@ merr_t
 ikvdb_wal_replay_put(
     struct ikvdb         *ikvdb,
     struct ikvdb_kvs_hdl *ikvsh,
-    u64                   cnid,
-    u64                   seqno,
+    uint64_t              cnid,
+    uint64_t              seqno,
     struct kvs_ktuple    *kt,
     struct kvs_vtuple    *vt)
 {
@@ -3384,8 +3385,8 @@ merr_t
 ikvdb_wal_replay_del(
     struct ikvdb         *ikvdb,
     struct ikvdb_kvs_hdl *ikvsh,
-    u64                   cnid,
-    u64                   seqno,
+    uint64_t              cnid,
+    uint64_t              seqno,
     struct kvs_ktuple    *kt)
 {
     struct kvdb_kvs *kk;
@@ -3408,8 +3409,8 @@ merr_t
 ikvdb_wal_replay_prefix_del(
     struct ikvdb         *ikvdb,
     struct ikvdb_kvs_hdl *ikvsh,
-    u64                   cnid,
-    u64                   seqno,
+    uint64_t              cnid,
+    uint64_t              seqno,
     struct kvs_ktuple    *kt)
 {
     struct kvdb_kvs *kk;
@@ -3451,7 +3452,7 @@ ikvdb_wal_replay_seqno_set(struct ikvdb *ikvdb, uint64_t seqno)
 }
 
 void
-ikvdb_wal_replay_gen_set(struct ikvdb *ikvdb, u64 gen)
+ikvdb_wal_replay_gen_set(struct ikvdb *ikvdb, uint64_t gen)
 {
     struct ikvdb_impl *self;
 

@@ -9,6 +9,8 @@
 #define MTF_MOCK_IMPL_cn_comp
 #define MTF_MOCK_IMPL_cn_internal
 
+#include <stdint.h>
+
 #include <bsd/string.h>
 #include <cjson/cJSON.h>
 
@@ -137,7 +139,7 @@ cn_fini(void)
     wbti_fini();
 }
 
-u64
+uint64_t
 cn_get_ingest_dgen(struct cn *cn)
 {
     return atomic_read(&cn->cn_ingest_dgen);
@@ -179,7 +181,7 @@ cn_get_tree(const struct cn *handle)
     return handle->cn_tree;
 }
 
-u64
+uint64_t
 cn_get_seqno_horizon(struct cn *cn)
 {
     return ikvdb_horizon(cn->ikvdb);
@@ -279,7 +281,7 @@ cn_ref_wait(struct cn *cn)
     }
 }
 
-u64
+uint64_t
 cn_get_cnid(const struct cn *handle)
 {
     return handle->cn_cnid;
@@ -297,7 +299,7 @@ cn_get_cn_kvdb(const struct cn *handle)
     return handle ? handle->cn_kvdb : 0;
 }
 
-u32
+uint32_t
 cn_get_flags(const struct cn *handle)
 {
     return handle->cn_cflags;
@@ -309,10 +311,10 @@ cn_get_ingest_perfc(const struct cn *cn)
     return cn ? &((struct cn *)cn)->cn_pc_ingest : 0;
 }
 
-u32
+uint32_t
 cn_cp2cflags(const struct kvs_cparams *cp)
 {
-    u32 flags = 0;
+    uint32_t flags = 0;
 
     if (cp->kvs_ext01)
         flags |= CN_CFLAG_CAPPED;
@@ -346,7 +348,7 @@ merr_t
 cn_get(
     struct cn *          cn,
     struct kvs_ktuple *  kt,
-    u64                  seq,
+    uint64_t             seq,
     enum key_lookup_res *res,
     struct kvs_buf *     vbuf)
 {
@@ -357,7 +359,7 @@ merr_t
 cn_pfx_probe(
     struct cn *          cn,
     struct kvs_ktuple *  kt,
-    u64                  seq,
+    uint64_t             seq,
     enum key_lookup_res *res,
     struct query_ctx *   qctx,
     struct kvs_buf *     kbuf,
@@ -369,12 +371,12 @@ cn_pfx_probe(
 merr_t
 cn_mblocks_commit(
     struct mpool         *mp,
-    u32                   num_lists,
+    uint32_t              num_lists,
     struct kvset_mblocks *list,
     enum cn_mutation      mutation)
 {
     merr_t err = 0;
-    u32    i;
+    uint32_t i;
 
     for (i = 0; i < num_lists; i++) {
         /* This check is similar to the check in commit_mblocks() where the
@@ -407,7 +409,7 @@ cn_mblocks_commit(
 void
 cn_mblocks_destroy(
     struct mpool *        mp,
-    u32                   num_lists,
+    uint32_t              num_lists,
     struct kvset_mblocks *list,
     bool                  kcompact)
 {
@@ -509,8 +511,8 @@ cn_ingest_prep(
     struct kvset **       kvsetp,
     void                **cookie)
 {
-    struct kvset_meta km = {};
-    u64               dgen;
+    struct kvset_meta km = { 0 };
+    uint64_t          dgen;
     merr_t            err = 0;
 
     if (ev(!mblocks))
@@ -579,10 +581,10 @@ cn_ingestv(
     struct kvset_mblocks **mbv,
     uint64_t              *kvsetidv,
     uint                   ingestc,
-    u64                    ingestid,
-    u64                    txhorizon,
-    u64 *                  min_seqno_out,
-    u64 *                  max_seqno_out)
+    uint64_t               ingestid,
+    uint64_t               txhorizon,
+    uint64_t *             min_seqno_out,
+    uint64_t *             max_seqno_out)
 {
     struct kvset **    kvsetv = NULL;
     struct kvset_stats kst = {};
@@ -592,10 +594,10 @@ cn_ingestv(
     void **cookiev;
 
     merr_t err = 0;
-    uint   i, first, last, count, check;
-    u64    seqno_max = 0, seqno_min = UINT64_MAX;
-    bool   log_ingest = false;
-    u64    dgen = 0;
+    uint i, first, last, count, check;
+    uint64_t seqno_max = 0, seqno_min = UINT64_MAX;
+    bool log_ingest = false;
+    uint64_t    dgen = 0;
 
     /* Ingestc can be large (256), and is typically sparse.
      * Remember the first and last index so we don't have
@@ -606,8 +608,8 @@ cn_ingestv(
         if (!cn[i] || !mbv[i])
             continue;
 
-        seqno_max = max_t(u64, seqno_max, mbv[i]->bl_seqno_max);
-        seqno_min = min_t(u64, seqno_min, mbv[i]->bl_seqno_min);
+        seqno_max = max_t(uint64_t, seqno_max, mbv[i]->bl_seqno_max);
+        seqno_min = min_t(uint64_t, seqno_min, mbv[i]->bl_seqno_min);
 
         if (ev(seqno_min > seqno_max)) {
             err = merr(EINVAL);
@@ -816,7 +818,7 @@ cndb_cn_ctx_fini(struct cndb_cn_ctx *ctx)
  * the tree nodes as needed.
  */
 static merr_t
-cndb_cn_callback(void *arg, struct kvset_meta *km, u64 kvsetid)
+cndb_cn_callback(void *arg, struct kvset_meta *km, uint64_t kvsetid)
 {
     struct cndb_cn_ctx *ctx = arg;
     struct cn_tree_node *node;
@@ -922,7 +924,7 @@ cn_open(
     struct mpool *      mp,
     struct kvdb_kvs *   kvs,
     struct cndb *       cndb,
-    u64                 cnid,
+    uint64_t            cnid,
     struct kvs_rparams *rp,
     const char *        kvdb_alias,
     const char *        kvs_name,
@@ -1241,7 +1243,7 @@ cn_close(struct cn *cn)
 }
 
 void
-cn_periodic(struct cn *cn, u64 now)
+cn_periodic(struct cn *cn, uint64_t now)
 {
     if (kvdb_health_check(cn->cn_kvdb_health, KVDB_HEALTH_FLAG_ALL))
         cn->rp->cn_maint_disable = true;
@@ -1332,10 +1334,10 @@ cn_cursor_free(struct cn_cursor *cur)
 merr_t
 cn_cursor_create(
     struct cn *            cn,
-    u64                    seqno,
+    uint64_t               seqno,
     bool                   reverse,
     const void *           prefix,
-    u32                    pfx_len,
+    uint32_t               pfx_len,
     struct cursor_summary *summary,
     struct cn_cursor **    cursorp)
 {
@@ -1376,9 +1378,9 @@ cn_cursor_create(
 }
 
 merr_t
-cn_cursor_update(struct cn_cursor *cur, u64 seqno, bool *updated)
+cn_cursor_update(struct cn_cursor *cur, uint64_t seqno, bool *updated)
 {
-    u64    dgen = atomic_read(&cur->cncur_cn->cn_ingest_dgen);
+    uint64_t dgen = atomic_read(&cur->cncur_cn->cn_ingest_dgen);
     merr_t err;
 
     if (updated)
@@ -1407,7 +1409,7 @@ cn_cursor_update(struct cn_cursor *cur, u64 seqno, bool *updated)
 }
 
 merr_t
-cn_cursor_seek(struct cn_cursor *cursor, const void *key, u32 len, struct kc_filter *filter)
+cn_cursor_seek(struct cn_cursor *cursor, const void *key, uint32_t len, struct kc_filter *filter)
 {
     return cn_tree_cursor_seek(cursor, key, len, filter);
 }
@@ -1455,12 +1457,12 @@ cn_cursor_destroy(struct cn_cursor *cur)
 }
 
 merr_t
-cn_cursor_active_kvsets(struct cn_cursor *cursor, u32 *active, u32 *total)
+cn_cursor_active_kvsets(struct cn_cursor *cursor, uint32_t *active, uint32_t *total)
 {
     return cn_tree_cursor_active_kvsets(cursor, active, total);
 }
 
-u64
+uint64_t
 cn_mpool_dev_zone_alloc_unit_default(struct cn *cn, enum hse_mclass mclass)
 {
     return cn->cn_mpool_props.mclass[mclass].mc_mblocksz;

@@ -6,6 +6,8 @@
 #include <assert.h>
 #include <errno.h>
 #include <limits.h>
+#include <stdint.h>
+#include <unistd.h>
 
 #include <cjson/cJSON.h>
 
@@ -15,7 +17,6 @@
 #include <hse/error/merr.h>
 #include <hse/experimental.h>
 #include <hse/pidfile/pidfile.h>
-#include <hse/util/inttypes.h>
 #include <hse/util/arch.h>
 #include <hse/util/parse_num.h>
 
@@ -104,17 +105,17 @@ kvdb_info_print(
 }
 
 int
-kvdb_compact_request(const char *kvdb_home, const char *request_type, u32 timeout_sec)
+kvdb_compact_request(const char *kvdb_home, const char *request_type, uint32_t timeout_sec)
 {
     hse_err_t                      err;
     struct hse_kvdb *              handle = 0;
     struct hse_kvdb_compact_status status;
     struct pidfile                 content;
 
-    u64    stop_ts;
-    uint   sleep_secs = 2;
-    char **namev;
-    size_t namec;
+    uint64_t stop_ts;
+    uint     sleep_secs = 2;
+    char   **namev;
+    size_t   namec;
 
     err = hse_kvdb_open(kvdb_home, 0, NULL, &handle);
     if (err) {

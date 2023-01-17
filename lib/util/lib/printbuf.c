@@ -73,7 +73,7 @@ strlcpy_append(char *dst, const char *src, size_t dstsz, size_t *offset)
 }
 
 int
-u64_to_string(void *dst, size_t dstsz, u64 value)
+u64_to_string(void *dst, size_t dstsz, uint64_t value)
 {
     const uint base = 10;
     char *     right = dst;
@@ -84,7 +84,7 @@ u64_to_string(void *dst, size_t dstsz, u64 value)
         return 0;
 
     do {
-        u64 tmp = value;
+        uint64_t tmp = value;
 
         value /= base;
         *right++ = '0' + tmp - value * base;
@@ -105,7 +105,7 @@ u64_to_string(void *dst, size_t dstsz, u64 value)
 }
 
 int
-u64_append(char *dst, size_t dstsz, u64 val, int width, size_t *offp)
+u64_append(char *dst, size_t dstsz, uint64_t val, int width, size_t *offp)
 {
     int n;
 

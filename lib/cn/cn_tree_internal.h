@@ -8,6 +8,8 @@
 
 /* MTF_MOCK_DECL(cn_tree_internal) */
 
+#include <stdint.h>
+
 #include <hse/util/rmlock.h>
 #include <hse/util/mutex.h>
 #include <hse/util/spinlock.h>
@@ -92,7 +94,7 @@ struct cn_tree {
     struct cn_tree_node *ct_root;
     struct list_head     ct_nodes;
     uint16_t             ct_fanout;
-    u16                  ct_pfx_len;
+    uint16_t             ct_pfx_len;
     bool                 ct_rspills_wedged;
     struct cn           *cn;
     struct mpool        *mp;
@@ -102,7 +104,7 @@ struct cn_tree {
     struct cndb *       cndb;
     struct cn_kvdb *    cn_kvdb;
     struct kvs_cparams *ct_cp;
-    u64                 cnid;
+    uint64_t            cnid;
 
     struct cn_samp_stats ct_samp;
 
@@ -119,15 +121,15 @@ struct cn_tree {
         struct sp3_tree sp3t HSE_L1D_ALIGNED;
     } ct_sched;
 
-    u64                      ct_capped_ttl;
-    u64                      ct_capped_dgen;
+    uint64_t                 ct_capped_ttl;
+    uint64_t                 ct_capped_dgen;
     struct kvset_list_entry *ct_capped_le;
 
     struct kvdb_health *ct_kvdb_health HSE_L1D_ALIGNED;
 
-    u64 ct_last_ptseq;
-    u32 ct_last_ptlen;
-    u8  ct_last_ptomb[HSE_KVS_PFX_LEN_MAX];
+    uint64_t ct_last_ptseq;
+    uint32_t ct_last_ptlen;
+    uint8_t  ct_last_ptomb[HSE_KVS_PFX_LEN_MAX];
 
     struct cn_kle_cache ct_kle_cache HSE_L1D_ALIGNED;
 
@@ -158,7 +160,7 @@ struct cn_tree_node {
     atomic_uint          tn_readers;
 
     struct list_head     tn_kvset_list HSE_L1D_ALIGNED;
-    u64                  tn_update_incr_dgen;
+    uint64_t             tn_update_incr_dgen;
     struct hlog         *tn_hlog;
     struct cn_node_stats tn_ns;
     struct cn_samp_stats tn_samp;

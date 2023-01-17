@@ -6,8 +6,6 @@
 #ifndef HSE_KVDB_CN_CN_TREE_ITER_H
 #define HSE_KVDB_CN_CN_TREE_ITER_H
 
-#include <hse/util/inttypes.h>
-
 #include <hse/ikvdb/cn_tree_view.h>
 
 /* MTF_MOCK_DECL(cn_tree_iter) */

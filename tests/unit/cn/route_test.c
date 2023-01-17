@@ -7,8 +7,6 @@
 #include <mtf/framework.h>
 #include <mock/api.h>
 
-#include <hse/util/inttypes.h>
-
 #include <hse/ikvdb/cn.h>
 
 #include <cn/route.h>

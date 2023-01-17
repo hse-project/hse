@@ -7,8 +7,9 @@
 #ifndef HSE_KVDB_CN_CN_TREE_COMPACT_H
 #define HSE_KVDB_CN_CN_TREE_COMPACT_H
 
+#include <stdint.h>
+
 #include <hse/util/atomic.h>
-#include <hse/util/inttypes.h>
 #include <hse/util/list.h>
 #include <hse/util/workqueue.h>
 #include <hse/util/perfc.h>
@@ -79,9 +80,9 @@ typedef void (*cn_work_callback)(struct cn_compaction_work *w);
  */
 struct cn_work_est {
     struct cn_samp_stats cwe_samp;
-    s64                  cwe_read_sz;  /* must be signed */
-    s64                  cwe_write_sz; /* must be signed */
-    u64                  cwe_keys;
+    int64_t              cwe_read_sz;  /* must be signed */
+    int64_t              cwe_write_sz; /* must be signed */
+    uint64_t             cwe_keys;
 };
 
 /**
@@ -125,7 +126,7 @@ struct cn_work_est {
  */
 struct cn_compaction_work {
     struct work_struct       cw_work;
-    u64                      cw_horizon;
+    uint64_t                 cw_horizon;
     uint                     cw_iter_flags;
     uint                     cw_debug;
     bool                     cw_canceled;
@@ -174,7 +175,7 @@ struct cn_compaction_work {
     struct cn_merge_stats cw_stats_prev;
 
     /* Progress tracking */
-    u64 cw_prog_interval;
+    uint64_t cw_prog_interval;
 
     uint                     cw_outc;
     bool                     cw_drop_tombs;
@@ -205,13 +206,13 @@ struct cn_compaction_work {
     } cw_zspill;
 
     /* used in cleanup if debug enabled */
-    u64  cw_t0_enqueue;
-    u64  cw_t1_qtime;
-    u64  cw_t2_prep;
-    u64  cw_t3_build;
-    u64  cw_t4_commit;
-    u64  cw_t5_finish;
-    char cw_threadname[16];
+    uint64_t cw_t0_enqueue;
+    uint64_t cw_t1_qtime;
+    uint64_t cw_t2_prep;
+    uint64_t cw_t3_build;
+    uint64_t cw_t4_commit;
+    uint64_t cw_t5_finish;
+    char     cw_threadname[16];
 };
 
 /* MTF_MOCK */
@@ -221,7 +222,7 @@ cn_tree_ingest_update(
     struct kvset *  kvset,
     void *          ptomb,
     uint            ptlen,
-    u64             ptseq);
+    uint64_t        ptseq);
 
 /* MTF_MOCK */
 void

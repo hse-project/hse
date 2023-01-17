@@ -3,6 +3,8 @@
  * Copyright (C) 2015-2022 Micron Technology, Inc.  All rights reserved.
  */
 
+#include <stdint.h>
+
 #include <hse/util/slab.h>
 #include <hse/util/log2.h>
 #include <hse/util/fmt.h>
@@ -111,15 +113,15 @@ c0kvs_ccache_free(struct c0_kvset_impl *set)
 static void
 c0kvs_ior_stats(
     struct c0_kvset_impl *c0kvs,
-    u32                   code,
+    uint32_t              code,
     const void *          old_key,
-    u32                   old_key_len,
+    uint32_t              old_key_len,
     const void *          old_value,
-    u32                   old_value_len,
+    uint32_t              old_value_len,
     const void *          new_key,
-    u32                   new_key_len,
+    uint32_t              new_key_len,
     const void *          new_value,
-    u32                   new_value_len,
+    uint32_t              new_value_len,
     uint                  height,
     uint                  keyvals)
 {
@@ -182,11 +184,11 @@ c0kvs_ior_stats(
  *   if (kvms_seqno != HSE_SQNREF_INVALID):
  *     s = kvms_seqno
  */
-static u64
+static uint64_t
 c0kvs_seqno_set(struct c0_kvset_impl *c0kvs, struct bonsai_val *bv)
 {
     atomic_ulong *sref = c0kvs->c0s_kvdb_seqno;
-    u64 seq;
+    uint64_t seq;
 
     /* [HSE_REVISIT]
      * If an operation (such as txBegin or cursorCreate) obtains a view
@@ -244,12 +246,12 @@ c0kvs_ior_cb(
     enum hse_seqno_state  state;
 
     uintptr_t    seqnoref;
-    u64          seqno = 0;
+    uint64_t     seqno = 0;
     const void * o_val;
     unsigned int o_vlen;
     const void * n_val;
     unsigned int n_vlen;
-    u16          klen;
+    uint16_t     klen;
 
     c0kvs = c0_kvset_h2r(cli_rock);
     klen = key_imm_klen(&kv->bkv_key_imm);
@@ -395,10 +397,10 @@ c0kvs_ior_cb(
  * @seqnoref:
  */
 struct bonsai_val *
-c0kvs_findval(struct bonsai_kv *kv, u64 view_seqno, uintptr_t seqnoref)
+c0kvs_findval(struct bonsai_kv *kv, uint64_t view_seqno, uintptr_t seqnoref)
 {
     struct bonsai_val *val_ge, *val;
-    u64                diff_ge, diff;
+    uint64_t           diff_ge, diff;
 
     diff_ge = ULONG_MAX;
     val_ge = NULL;
@@ -575,7 +577,7 @@ c0kvs_putdel(
     struct c0_kvset_impl *self,
     struct bonsai_skey   *skey,
     struct bonsai_sval   *sval,
-    u64                  *seqno)
+    uint64_t             *seqno)
 {
     merr_t err;
 
@@ -600,7 +602,7 @@ c0kvs_putdel(
 merr_t
 c0kvs_put(
     struct c0_kvset *        handle,
-    u16                      skidx,
+    uint16_t                 skidx,
     struct kvs_ktuple       *kt,
     const struct kvs_vtuple *vt,
     uintptr_t                seqnoref)
@@ -616,7 +618,7 @@ c0kvs_put(
 }
 
 merr_t
-c0kvs_del(struct c0_kvset *handle, u16 skidx, struct kvs_ktuple *key, uintptr_t seqnoref)
+c0kvs_del(struct c0_kvset *handle, uint16_t skidx, struct kvs_ktuple *key, uintptr_t seqnoref)
 {
     struct c0_kvset_impl *self = c0_kvset_h2r(handle);
     struct bonsai_skey    skey;
@@ -631,7 +633,7 @@ c0kvs_del(struct c0_kvset *handle, u16 skidx, struct kvs_ktuple *key, uintptr_t 
 merr_t
 c0kvs_prefix_del(
     struct c0_kvset *        handle,
-    u16                      skidx,
+    uint16_t                 skidx,
     struct kvs_ktuple       *key,
     uintptr_t                seqnoref)
 {
@@ -645,7 +647,7 @@ c0kvs_prefix_del(
     return c0kvs_putdel(self, &skey, &sval, &key->kt_seqno);
 }
 
-u64
+uint64_t
 c0kvs_get_element_count(struct c0_kvset *handle)
 {
     struct c0_kvset_impl *self = c0_kvset_h2r(handle);
@@ -653,7 +655,7 @@ c0kvs_get_element_count(struct c0_kvset *handle)
     return self->c0s_num_entries;
 }
 
-u64
+uint64_t
 c0kvs_get_element_count2(struct c0_kvset *handle, uint *heightp, uint *keyvalsp, size_t *kvbytesp)
 {
     struct c0_kvset_impl *self = c0_kvset_h2r(handle);
@@ -691,9 +693,9 @@ c0kvs_usage(struct c0_kvset *handle, struct c0_usage *usage)
 merr_t
 c0kvs_get_excl(
     struct c0_kvset *        handle,
-    u16                      skidx,
+    uint16_t                 skidx,
     const struct kvs_ktuple *key,
-    u64                      view_seqno,
+    uint64_t                 view_seqno,
     uintptr_t                seqnoref,
     enum key_lookup_res *    res,
     struct kvs_buf *         vbuf,
@@ -763,9 +765,9 @@ c0kvs_get_excl(
 merr_t
 c0kvs_get_rcu(
     struct c0_kvset *        handle,
-    u16                      skidx,
+    uint16_t                 skidx,
     const struct kvs_ktuple *key,
-    u64                      view_seqno,
+    uint64_t                 view_seqno,
     uintptr_t                seqnoref,
     enum key_lookup_res *    res,
     struct kvs_buf *         vbuf,
@@ -779,22 +781,22 @@ c0kvs_get_rcu(
 merr_t
 c0kvs_pfx_probe_cmn(
     struct bonsai_root *     root,
-    u16                      skidx,
+    uint16_t                 skidx,
     const struct kvs_ktuple *key,
-    u64                      view_seqno,
+    uint64_t                 view_seqno,
     uintptr_t                seqnoref,
     enum key_lookup_res *    res,
     struct query_ctx *       qctx,
     struct kvs_buf *         kbuf,
     struct kvs_buf *         vbuf,
-    u64                      pt_seq,
-    u64                      max_seq)
+    uint64_t                 pt_seq,
+    uint64_t                 max_seq)
 {
     struct bonsai_skey skey;
     struct bonsai_kv * kv;
     struct bonsai_val *val;
     bool               found;
-    u64                val_seq;
+    uint64_t           val_seq;
     merr_t             err = 0;
 
     bn_skey_init(key->kt_data, key->kt_len, 0, skidx, &skey);
@@ -815,7 +817,7 @@ c0kvs_pfx_probe_cmn(
 
     /* found a key with the requested pfx */
     for (; kv != &root->br_kv; kv = kv->bkv_next) {
-        u32 klen = key_imm_klen(&kv->bkv_key_imm);
+        uint32_t klen = key_imm_klen(&kv->bkv_key_imm);
 
         if (keycmp_prefix(key->kt_data, key->kt_len, kv->bkv_key, klen))
             break; /* eof */
@@ -894,15 +896,15 @@ c0kvs_pfx_probe_cmn(
 merr_t
 c0kvs_pfx_probe_excl(
     struct c0_kvset *        handle,
-    u16                      skidx,
+    uint16_t                 skidx,
     const struct kvs_ktuple *key,
-    u64                      view_seqno,
+    uint64_t                 view_seqno,
     uintptr_t                seqnoref,
     enum key_lookup_res *    res,
     struct query_ctx *       qctx,
     struct kvs_buf *         kbuf,
     struct kvs_buf *         vbuf,
-    u64                      pt_seq)
+    uint64_t                 pt_seq)
 {
     struct c0_kvset_impl *self = c0_kvset_h2r(handle);
     struct bonsai_root *  root = self->c0s_broot;
@@ -914,15 +916,15 @@ c0kvs_pfx_probe_excl(
 merr_t
 c0kvs_pfx_probe_rcu(
     struct c0_kvset *        handle,
-    u16                      skidx,
+    uint16_t                 skidx,
     const struct kvs_ktuple *key,
-    u64                      view_seqno,
+    uint64_t                 view_seqno,
     uintptr_t                seqnoref,
     enum key_lookup_res *    res,
     struct query_ctx *       qctx,
     struct kvs_buf *         kbuf,
     struct kvs_buf *         vbuf,
-    u64                      pt_seq)
+    uint64_t                 pt_seq)
 {
     assert(rcu_read_ongoing());
 
@@ -938,11 +940,11 @@ c0kvs_pfx_probe_rcu(
 void
 c0kvs_prefix_get_excl(
     struct c0_kvset *        handle,
-    u16                      skidx,
+    uint16_t                 skidx,
     const struct kvs_ktuple *key,
-    u64                      view_seqno,
+    uint64_t                 view_seqno,
     uintptr_t                seqnoref,
-    u32                      pfx_len,
+    uint32_t                 pfx_len,
     uintptr_t *              oseqnoref)
 {
     struct c0_kvset_impl *self;
@@ -969,11 +971,11 @@ c0kvs_prefix_get_excl(
 void
 c0kvs_prefix_get_rcu(
     struct c0_kvset *        handle,
-    u16                      skidx,
+    uint16_t                 skidx,
     const struct kvs_ktuple *key,
-    u64                      view_seqno,
+    uint64_t                 view_seqno,
     uintptr_t                seqnoref,
-    u32                      pfx_len,
+    uint32_t                 pfx_len,
     uintptr_t *              oseqnoref)
 {
     assert(rcu_read_ongoing());
@@ -1024,7 +1026,7 @@ c0kvs_debug(struct c0_kvset *handle, void *key, int klen)
         printf("\t%s: ", disp);
 
         for (v = rcu_dereference(kv->bkv_values); v; v = rcu_dereference(v->bv_next)) {
-            u64   seqno = HSE_SQNREF_TO_ORDNL(v->bv_seqnoref);
+            uint64_t seqno = HSE_SQNREF_TO_ORDNL(v->bv_seqnoref);
             char *label = HSE_CORE_IS_TOMB(v->bv_value) ? "tomb" : "len";
 
             printf(

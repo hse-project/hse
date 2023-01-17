@@ -3,6 +3,8 @@
  * Copyright (C) 2015-2022 Micron Technology, Inc.  All rights reserved.
  */
 
+#include <stdint.h>
+
 #include <urcu/rculist.h>
 
 #include <hse/util/platform.h>
@@ -144,7 +146,7 @@ static void
 c0sk_rsvd_sn_set(struct c0sk_impl *c0sk, struct c0_kvmultiset *kvms)
 {
     unsigned int inc = 2;
-    u64          res;
+    uint64_t     res;
 
     if (HSE_UNLIKELY(atomic_read(&c0sk->c0sk_replaying) > 0))
         return;
@@ -166,7 +168,7 @@ c0sk_install_c0kvms(struct c0sk_impl *self, struct c0_kvmultiset *old, struct c0
      * ingest thread.
      */
     if (old) {
-        u64 seqno;
+        uint64_t seqno;
 
         c0kvms_txhorizon_set(old, c0sk_txhorizon_get(self));
 
@@ -199,7 +201,7 @@ c0sk_install_c0kvms(struct c0sk_impl *self, struct c0_kvmultiset *old, struct c0
 }
 
 static void
-c0sk_signal_waiters(struct c0sk_impl *c0sk, u64 gen)
+c0sk_signal_waiters(struct c0sk_impl *c0sk, uint64_t gen)
 {
     struct c0sk_waiter *p;
 
@@ -220,9 +222,9 @@ c0sk_signal_waiters(struct c0sk_impl *c0sk, u64 gen)
  *  0 : seqno == prev
  */
 static HSE_ALWAYS_INLINE int
-seq_prev_cmp(void *valp, u64 seq, u64 seq_prev, u64 pt_seq_prev)
+seq_prev_cmp(void *valp, uint64_t seq, uint64_t seq_prev, uint64_t pt_seq_prev)
 {
-    u64 prev;
+    uint64_t prev;
 
     prev = HSE_CORE_IS_PTOMB(valp) ? pt_seq_prev : seq_prev;
 
@@ -236,9 +238,9 @@ static void
 c0sk_bkv_sort_vals(struct bonsai_kv *bkv, struct bonsai_val **val_head)
 {
     struct bonsai_val *val, *next;
-    u64                seqno_prev, pt_seqno_prev;
-    u64                seqno;
-    u32                unsorted;
+    uint64_t           seqno_prev, pt_seqno_prev;
+    uint64_t           seqno;
+    uint32_t           unsorted;
 
     seqno = 0;
 
@@ -250,8 +252,8 @@ c0sk_bkv_sort_vals(struct bonsai_kv *bkv, struct bonsai_val **val_head)
     do {
         struct bonsai_val **tailp, **prevp;
 
-        seqno_prev = U64_MAX;
-        pt_seqno_prev = U64_MAX;
+        seqno_prev = UINT64_MAX;
+        pt_seqno_prev = UINT64_MAX;
         tailp = val_head;
         prevp = NULL;
         unsorted = 0;
@@ -302,10 +304,10 @@ c0sk_cningest_cb(void *rock, struct bonsai_kv *bkv, struct bonsai_val *vlist)
     struct c0_ingest_work *ingest = rock;
     struct bonsai_val *    val;
     merr_t                 err;
-    u64                    seqno_prev, pt_seqno_prev;
+    uint64_t               seqno_prev, pt_seqno_prev;
     struct key_obj         ko;
 
-    u16                    skidx = key_immediate_index(&bkv->bkv_key_imm);
+    uint16_t               skidx = key_immediate_index(&bkv->bkv_key_imm);
     struct c0sk_impl *     c0sk = c0sk_h2r(ingest->c0iw_c0sk);
     struct cn *            cn = c0sk->c0sk_cnv[skidx];
     struct kvset_builder **kvbldrs = ingest->c0iw_bldrs;
@@ -335,14 +337,14 @@ c0sk_cningest_cb(void *rock, struct bonsai_kv *bkv, struct bonsai_val *vlist)
 
     c0sk_bkv_sort_vals(bkv, &vlist);
 
-    seqno_prev = U64_MAX;
-    pt_seqno_prev = U64_MAX;
+    seqno_prev = UINT64_MAX;
+    pt_seqno_prev = UINT64_MAX;
     key2kobj(&ko, bkv->bkv_key, key_imm_klen(&bkv->bkv_key_imm));
 
     for (val = vlist; val; val = val->bv_priv) {
         enum hse_seqno_state state HSE_MAYBE_UNUSED;
         int                        rc;
-        u64                        seqno = 0;
+        uint64_t                   seqno = 0;
 
         state = seqnoref_to_seqno(val->bv_seqnoref, &seqno);
         assert(state == HSE_SQNREF_STATE_DEFINED);
@@ -374,7 +376,7 @@ c0sk_cningest_cb(void *rock, struct bonsai_kv *bkv, struct bonsai_val *vlist)
 }
 
 static void
-c0sk_ingest_rec_perfc(struct perfc_set *perfc, u32 sidx, u64 cycles)
+c0sk_ingest_rec_perfc(struct perfc_set *perfc, uint32_t sidx, uint64_t cycles)
 {
     if (!PERFC_ISON(perfc))
         return;
@@ -387,9 +389,9 @@ c0sk_ingest_rec_perfc(struct perfc_set *perfc, u32 sidx, u64 cycles)
 static void
 c0sk_cningest_walcb(
     struct c0sk_impl *c0sk,
-    u64               seqno,
-    u64               gen,
-    u64               txhorizon,
+    uint64_t          seqno,
+    uint64_t          gen,
+    uint64_t          txhorizon,
     bool              post_ingest)
 {
     struct ikvdb *ikvdb;
@@ -408,16 +410,16 @@ c0sk_cningest_walcb(
 static merr_t
 c0sk_merge_loop(
     struct bin_heap *      minheap,
-    u64                    min_seqno,
-    u64                    max_seqno,
-    u64                    kvms_gen,
+    uint64_t               min_seqno,
+    uint64_t               max_seqno,
+    uint64_t               kvms_gen,
     struct bkv_collection *cn_list,
     struct lc_builder *    lc_list)
 {
     struct bonsai_kv *  bkv, *bkv_prev;
     struct bonsai_val * cn_val_head, *lc_val_head;
     struct bonsai_val **cn_val_tailp, **lc_val_tailp;
-    u16                 skidx_prev;
+    uint16_t            skidx_prev;
     merr_t              err = 0;
 
     /* Init value ptrs for cn ingest list and lc. */
@@ -432,7 +434,7 @@ c0sk_merge_loop(
     while (bin_heap_pop(minheap, (void **)&bkv)) {
         struct bonsai_val *val;
         bool               from_lc = bkv->bkv_flags & BKV_FLAG_FROM_LC;
-        u16                skidx = key_immediate_index(&bkv->bkv_key_imm);
+        uint16_t           skidx = key_immediate_index(&bkv->bkv_key_imm);
 
         if ((lc_val_head || cn_val_head) && ((bn_kv_cmp(bkv, bkv_prev) || skidx != skidx_prev))) {
             /* Close out val lists */
@@ -470,10 +472,10 @@ c0sk_merge_loop(
             bool                 add_to_lc = true;
             bool                 seqno_in_view;
             bool                 all_txn_entries;
-            u64                  seqno = 0;
+            uint64_t             seqno = 0;
 
             state = seqnoref_to_seqno(val->bv_seqnoref, &seqno);
-            assert(seqno < U64_MAX);
+            assert(seqno < UINT64_MAX);
 
             if (state == HSE_SQNREF_STATE_ABORTED)
                 continue;
@@ -580,17 +582,17 @@ c0sk_ingest_worker(struct work_struct *work)
     struct bin_heap *      kvms_minheap, *lc_minheap;
     struct bkv_collection *cn_list[2] = { 0 };
     struct lc_builder *    lc_list = { 0 };
-    u64                    kvms_gen = c0kvms_gen_read(kvms);
-    u64                    txhorizon = c0kvms_txhorizon_get(kvms);
+    uint64_t               kvms_gen = c0kvms_gen_read(kvms);
+    uint64_t               txhorizon = c0kvms_txhorizon_get(kvms);
     int                    i;
-    u64                    go = 0;
+    uint64_t               go = 0;
     bool                   debug = c0sk->c0sk_kvdb_rp->c0_debug & C0_DEBUG_INGSPILL;
     bool                   accumulate = c0sk->c0sk_kvdb_rp->c0_debug & C0_DEBUG_ACCUMULATE;
     merr_t                 err = 0;
 
     /* Ingest everything in the range [min_seq, max_seq]. */
-    u64 min_seq = ingest->c0iw_ingest_min_seqno;
-    u64 max_seq = ingest->c0iw_ingest_max_seqno;
+    uint64_t min_seq = ingest->c0iw_ingest_min_seqno;
+    uint64_t max_seq = ingest->c0iw_ingest_max_seqno;
 
     assert(min_seq >= lc_ingest_seqno_get(lc));
 
@@ -649,7 +651,7 @@ c0sk_ingest_worker(struct work_struct *work)
      */
     mutex_lock(&c0sk->c0sk_kvms_mutex);
     while (1) {
-        u64 next = atomic_read_acq(&c0sk->c0sk_ingest_order_next);
+        uint64_t next = atomic_read_acq(&c0sk->c0sk_ingest_order_next);
 
         if (ingest->c0iw_ingest_order == next)
             break;
@@ -741,7 +743,7 @@ exit_err:
         err = kvdb_health_check(c0sk->c0sk_kvdb_health, KVDB_HEALTH_FLAG_ALL);
 
     if (HSE_LIKELY(!err && c0sk_allows_ingest(c0sk))) {
-        u64 cn_min = 0, cn_max = 0;
+        uint64_t cn_min = 0, cn_max = 0;
 
         c0sk_ingest_rec_perfc(&c0sk->c0sk_pc_ingest, PERFC_DI_C0SKING_PREP, go);
         go = perfc_lat_start(&c0sk->c0sk_pc_ingest);
@@ -943,7 +945,7 @@ void
 c0sk_release_multiset(struct c0sk_impl *self, struct c0_kvmultiset *multiset)
 {
     struct c0_kvmultiset *p;
-    u64                   gen;
+    uint64_t                   gen;
 
     gen = c0kvms_gen_read(multiset);
 
@@ -1126,7 +1128,7 @@ c0sk_queue_ingest(struct c0sk_impl *self, struct c0_kvmultiset *old)
  * For sync(), we need to know when this c0kvms has been ingested.
  */
 merr_t
-c0sk_flush_current_multiset(struct c0sk_impl *self, u64 *genp, bool destroywait)
+c0sk_flush_current_multiset(struct c0sk_impl *self, uint64_t *genp, bool destroywait)
 {
     struct c0_kvmultiset *old;
     merr_t                err;
@@ -1199,7 +1201,7 @@ c0sk_flush_current_multiset(struct c0sk_impl *self, u64 *genp, bool destroywait)
 merr_t
 c0sk_putdel(
     struct c0sk_impl *       self,
-    u32                      skidx,
+    uint32_t                 skidx,
     enum c0sk_op             op,
     struct kvs_ktuple       *kt,
     const struct kvs_vtuple *vt,
@@ -1207,7 +1209,7 @@ c0sk_putdel(
 {
     uintptr_t *priv = (uintptr_t *)seqnoref;
     bool       is_txn = (!HSE_SQNREF_SINGLE_P(seqnoref) && !HSE_SQNREF_ORDNL_P(seqnoref));
-    u64        dst_gen = 0;
+    uint64_t   dst_gen = 0;
     merr_t     err;
 
     while (1) {
@@ -1235,7 +1237,7 @@ c0sk_putdel(
 
         dst_gen = c0kvms_gen_read(dst);
         if (is_txn) {
-            u64 curr_gen = c0snr_get_cgen(priv);
+            uint64_t curr_gen = c0snr_get_cgen(priv);
 
             if (curr_gen != dst_gen) {
                 /* This is the first put for the given txn.

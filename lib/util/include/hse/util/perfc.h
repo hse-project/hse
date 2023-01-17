@@ -6,6 +6,8 @@
 #ifndef HSE_PLATFORM_PERFC_H
 #define HSE_PLATFORM_PERFC_H
 
+#include <stdint.h>
+
 #include <hse/error/merr.h>
 #include <hse/util/assert.h>
 #include <hse/util/atomic.h>
@@ -116,7 +118,7 @@ perfc_fini(void) HSE_COLD;
  */
 /* MTF_MOCK */
 merr_t
-perfc_ivl_create(int boundc, const u64 *boundv, struct perfc_ivl **ivlp);
+perfc_ivl_create(int boundc, const uint64_t *boundv, struct perfc_ivl **ivlp);
 
 /**
  * perfc_ivl_destroy() - destroy a dis/lat counter interval object
@@ -353,7 +355,7 @@ perfc_ivl_destroy(struct perfc_ivl *ivl);
 #define PERFC_INC_RU(_pc, _cid)                         \
     do {                                                \
         static thread_local struct {                    \
-            u64 cnt;                                    \
+            uint64_t cnt;                               \
         } ru;                                           \
                                                         \
         if (HSE_UNLIKELY(++ru.cnt >= PERFC_RU_MAX)) {   \
@@ -365,8 +367,8 @@ perfc_ivl_destroy(struct perfc_ivl *ivl);
 #define PERFC_INCADD_RU(_pc, _cidx1, _cidx2, _val2)                     \
     do {                                                                \
         static thread_local struct {                                    \
-            u64 cnt;                                                    \
-            u64 sum;                                                    \
+            uint64_t cnt;                                               \
+            uint64_t sum;                                               \
         } ru;                                                           \
                                                                         \
         ru.sum += (_val2);                                              \
@@ -381,7 +383,7 @@ perfc_ivl_destroy(struct perfc_ivl *ivl);
 #define PERFC_DEC_RU(_pc, _cid)                         \
     do {                                                \
         static thread_local struct {                    \
-            u64 cnt;                                    \
+            uint64_t cnt;                               \
         } ru;                                           \
                                                         \
         if (HSE_UNLIKELY(++ru.cnt >= PERFC_RU_MAX)) {   \
@@ -414,9 +416,9 @@ perfc_ivl_destroy(struct perfc_ivl *ivl);
  * @il_bound:   vector of interval boundaries
  */
 struct perfc_ivl {
-    u8  ivl_cnt;
-    u8  ivl_map[63];
-    u64 ivl_bound[];
+    uint8_t  ivl_cnt;
+    uint8_t  ivl_map[63];
+    uint64_t ivl_bound[];
 };
 
 /**
@@ -486,8 +488,8 @@ struct perfc_bkt {
  */
 struct perfc_ctr_hdr {
     enum perfc_type     pch_type;
-    u32                 pch_flags;
-    u32                 pch_level;
+    uint32_t            pch_flags;
+    uint32_t            pch_level;
 
     union {
         struct perfc_val   *pch_val;
@@ -515,8 +517,8 @@ struct perfc_basic {
  */
 struct perfc_rate {
     struct perfc_ctr_hdr pcr_hdr; /* Must be first field */
-    u64                  pcr_old_val;
-    u64                  pcr_old_time_ns;
+    uint64_t             pcr_old_val;
+    uint64_t             pcr_old_time_ns;
 };
 
 /**
@@ -530,9 +532,9 @@ struct perfc_rate {
  */
 struct perfc_dis {
     struct perfc_ctr_hdr    pdi_hdr; /* Must be first field */
-    u32                     pdi_pct;
-    u64                     pdi_min;
-    u64                     pdi_max;
+    uint32_t                pdi_pct;
+    uint64_t                pdi_min;
+    uint64_t                pdi_max;
     const struct perfc_ivl *pdi_ivl;
 };
 
@@ -560,7 +562,7 @@ union perfc_ctru {
  *                             // set is enabled
  */
 struct perfc_set {
-    u64                ps_bitmap;
+    uint64_t           ps_bitmap;
     struct perfc_seti *ps_seti;
 };
 
@@ -585,7 +587,7 @@ struct perfc_seti {
     char                     pcs_path[DT_PATH_MAX];
     char                     pcs_famname[DT_PATH_ELEMENT_MAX];
     char                     pcs_ctrseti_name[DT_PATH_ELEMENT_MAX];
-    u32                      pcs_ctrc;
+    uint32_t                 pcs_ctrc;
     struct perfc_set *       pcs_handle;
     const struct perfc_name *pcs_ctrnamev;
     union perfc_ctru         pcs_ctrv[];
@@ -600,7 +602,7 @@ struct perfc_seti {
  * %sample is the latency start time obtained by calling perfc_lat_start().
  */
 void
-perfc_lat_record_impl(struct perfc_dis *dis, u64 sample);
+perfc_lat_record_impl(struct perfc_dis *dis, uint64_t sample);
 
 /**
  * perfc_dis_record_impl() - Record a sample to get its distribution
@@ -612,7 +614,7 @@ perfc_lat_record_impl(struct perfc_dis *dis, u64 sample);
  * put into the histogram.
  */
 void
-perfc_dis_record_impl(struct perfc_dis *dis, u64 sample);
+perfc_dis_record_impl(struct perfc_dis *dis, uint64_t sample);
 
 /**
  * perfc_read() - return sum totals of all operations made to a counter
@@ -626,7 +628,7 @@ perfc_dis_record_impl(struct perfc_dis *dis, u64 sample);
  * However, results are eventually consistent.
  */
 void
-perfc_read(struct perfc_set *pcs, const u32 cidx, u64 *vadd, u64 *vsub);
+perfc_read(struct perfc_set *pcs, const uint32_t cidx, uint64_t *vadd, uint64_t *vsub);
 
 
 /* [HSE_REVISIT] Add unit tests for all these predicates...
@@ -651,7 +653,7 @@ PERFC_ISON(struct perfc_set *pcs)
  * implementation object.
  */
 static HSE_ALWAYS_INLINE struct perfc_seti *
-perfc_ison(struct perfc_set *pcs, u32 cidx)
+perfc_ison(struct perfc_set *pcs, uint32_t cidx)
 {
     if (pcs && pcs->ps_bitmap & (1ull << cidx))
         return pcs->ps_seti;
@@ -669,7 +671,7 @@ perfc_ison(struct perfc_set *pcs, u32 cidx)
  * Return: 0 if no counters from the family are enabled, otherwise
  * returns the current time in nanoseconds
  */
-static HSE_ALWAYS_INLINE u64
+static HSE_ALWAYS_INLINE uint64_t
 perfc_lat_start(struct perfc_set *pcs)
 {
     return PERFC_ISON(pcs) ? get_cycles() : 0;
@@ -685,8 +687,8 @@ perfc_lat_start(struct perfc_set *pcs)
  * Return: 0 if the given counter is not enabled, otherwise
  * returns the current time in nanoseconds
  */
-static HSE_ALWAYS_INLINE u64
-perfc_lat_startu(struct perfc_set *pcs, const u32 cidx)
+static HSE_ALWAYS_INLINE uint64_t
+perfc_lat_startu(struct perfc_set *pcs, const uint32_t cidx)
 {
     struct perfc_seti *pcsi;
 
@@ -707,8 +709,8 @@ perfc_lat_startu(struct perfc_set *pcs, const u32 cidx)
  * Return: 0 if the given counter is not enabled, otherwise
  * returns the current time in nanoseconds
  */
-static HSE_ALWAYS_INLINE u64
-perfc_lat_startl(struct perfc_set *pcs, const u32 cidx)
+static HSE_ALWAYS_INLINE uint64_t
+perfc_lat_startl(struct perfc_set *pcs, const uint32_t cidx)
 {
     struct perfc_seti *pcsi;
 
@@ -723,7 +725,7 @@ perfc_lat_startl(struct perfc_set *pcs, const u32 cidx)
  * perfc_lat_record() - record a latency distribution measurement
  */
 static HSE_ALWAYS_INLINE void
-perfc_lat_record(struct perfc_set *pcs, const u32 cidx, const u64 start)
+perfc_lat_record(struct perfc_set *pcs, const uint32_t cidx, const uint64_t start)
 {
     struct perfc_seti *pcsi;
 
@@ -739,11 +741,11 @@ perfc_lat_record(struct perfc_set *pcs, const u32 cidx, const u64 start)
  * perfc_sl_record() - record a simple latency measurement
  */
 static HSE_ALWAYS_INLINE void
-perfc_sl_record(struct perfc_set *pcs, const u32 cidx, const u64 start)
+perfc_sl_record(struct perfc_set *pcs, const uint32_t cidx, const uint64_t start)
 {
     struct perfc_ctr_hdr   *hdr;
     struct perfc_seti      *pcsi;
-    u64                     val;
+    uint64_t                val;
     uint                    i;
 
     if (!start)
@@ -769,7 +771,7 @@ perfc_sl_record(struct perfc_set *pcs, const u32 cidx, const u64 start)
  * perfc_dis_record() - record a distribution sample
  */
 static HSE_ALWAYS_INLINE void
-perfc_dis_record(struct perfc_set *pcs, const u32 cidx, const u64 val)
+perfc_dis_record(struct perfc_set *pcs, const uint32_t cidx, const uint64_t val)
 {
     struct perfc_seti *pcsi;
 
@@ -791,7 +793,7 @@ perfc_dis_record(struct perfc_set *pcs, const u32 cidx, const u64 val)
  * counter is created before any of the other perfc functions).
  */
 static inline void
-perfc_set(struct perfc_set *pcs, const u32 cidx, const u64 val)
+perfc_set(struct perfc_set *pcs, const uint32_t cidx, const uint64_t val)
 {
     struct perfc_seti *pcsi;
 
@@ -806,7 +808,7 @@ perfc_set(struct perfc_set *pcs, const u32 cidx, const u64 val)
 /* Increment a performance counter.
  */
 static HSE_ALWAYS_INLINE void
-perfc_inc(struct perfc_set *pcs, const u32 cidx)
+perfc_inc(struct perfc_set *pcs, const uint32_t cidx)
 {
     struct perfc_seti  *pcsi;
     uint                i;
@@ -824,7 +826,7 @@ perfc_inc(struct perfc_set *pcs, const u32 cidx)
 /* Decrement a performance counter.
  */
 static HSE_ALWAYS_INLINE void
-perfc_dec(struct perfc_set *pcs, const u32 cidx)
+perfc_dec(struct perfc_set *pcs, const uint32_t cidx)
 {
     struct perfc_seti  *pcsi;
     uint                i;
@@ -842,7 +844,7 @@ perfc_dec(struct perfc_set *pcs, const u32 cidx)
 /* Add a value to a performance counter.
  */
 static HSE_ALWAYS_INLINE void
-perfc_add(struct perfc_set *pcs, const u32 cidx, const u64 val)
+perfc_add(struct perfc_set *pcs, const uint32_t cidx, const uint64_t val)
 {
     struct perfc_seti  *pcsi;
     uint                i;
@@ -860,7 +862,12 @@ perfc_add(struct perfc_set *pcs, const u32 cidx, const u64 val)
 /* Add values to two performance counters from the same family.
  */
 static HSE_ALWAYS_INLINE void
-perfc_add2(struct perfc_set *pcs, const u32 cidx1, const u64 val1, const u32 cidx2, const u64 val2)
+perfc_add2(
+    struct perfc_set *pcs,
+    const uint32_t cidx1,
+    const uint64_t val1,
+    const uint32_t cidx2,
+    const uint64_t val2)
 {
     struct perfc_seti  *pcsi;
     uint                i;
@@ -881,7 +888,7 @@ perfc_add2(struct perfc_set *pcs, const u32 cidx1, const u64 val1, const u32 cid
 /* Subtract a value from a performance counter.
  */
 static HSE_ALWAYS_INLINE void
-perfc_sub(struct perfc_set *pcs, const u32 cidx, const u64 val)
+perfc_sub(struct perfc_set *pcs, const uint32_t cidx, const uint64_t val)
 {
     struct perfc_seti  *pcsi;
     uint                i;

@@ -4,6 +4,7 @@
  */
 
 #include <pthread.h>
+#include <stdint.h>
 #include <unistd.h>
 
 #include <mtf/framework.h>
@@ -32,10 +33,8 @@
 #include <kvdb/kvdb_keylock.h>
 #include <kvdb/viewset.h>
 
-#define MOCK_SET(group, func) mtfm_##group##func##_set(func)
-
-u64                   tn_delay = 256 * 1000;
-u64                   tn_timeout = 1000 * 60 * 5;
+uint64_t              tn_delay = 256 * 1000;
+uint64_t              tn_timeout = 1000 * 60 * 5;
 struct kvdb_ctxn_set *kvdb_ctxn_set;
 
 int
@@ -159,7 +158,7 @@ MTF_DEFINE_UTEST_PREPOST(kvdb_ctxn_test, begin, mapi_pre, mapi_post)
     struct c0snr_set       *css;
     struct kvdb_ctxn_impl  *ctxn;
     atomic_ulong            kvdb_seq, tseqno;
-    const u64               initial_seq = 117UL;
+    const uint64_t          initial_seq = 117UL;
     merr_t                  err;
     struct kvs_ktuple       kt;
     struct kvs_vtuple       vt;
@@ -237,7 +236,7 @@ MTF_DEFINE_UTEST_PREPOST(kvdb_ctxn_test, basic_commit, mapi_pre, mapi_post)
     struct c0snr_set       *css;
     struct kvdb_keylock    *klock;
     struct kvdb_ctxn_impl  *ctxn;
-    const u64               initial_seq = 117UL;
+    const uint64_t          initial_seq = 117UL;
     merr_t                  err;
     struct kvs_ktuple       kt;
     struct kvs_vtuple       vt;
@@ -315,7 +314,7 @@ MTF_DEFINE_UTEST_PREPOST(kvdb_ctxn_test, basic_commit_twice, mapi_pre, mapi_post
     struct c0snr_set       *css;
     struct kvdb_keylock    *klock;
     struct c0              *c0 = NULL; /* c0 is mocked */
-    const u64               initial_seq = 117UL;
+    const uint64_t          initial_seq = 117UL;
     atomic_ulong            kvdb_seq, tseqno;
     merr_t                  err;
 
@@ -372,7 +371,7 @@ MTF_DEFINE_UTEST_PREPOST(kvdb_ctxn_test, basic_commit_proto, mapi_pre, mapi_post
     struct c0snr_set       *css;
     struct kvdb_keylock    *klock;
     struct c0              *c0 = NULL; /* c0 is mocked */
-    const u64               initial_seq = 117UL;
+    const uint64_t          initial_seq = 117UL;
     merr_t                  err;
 
     err = kvdb_keylock_create(&klock, 16);
@@ -425,7 +424,7 @@ MTF_DEFINE_UTEST_PREPOST(kvdb_ctxn_test, basic_commit_seqno, mapi_pre, mapi_post
     struct viewset         *vs;
     struct c0snr_set       *css;
     struct kvdb_keylock    *klock;
-    const u64               initial_seq = 117UL;
+    const uint64_t          initial_seq = 117UL;
     merr_t                  err;
     struct kvs_ktuple       kt;
     struct kvs_vtuple       vt;
@@ -489,7 +488,7 @@ MTF_DEFINE_UTEST_PREPOST(kvdb_ctxn_test, basic_abort, mapi_pre, mapi_post)
     struct c0              *c0 = NULL; /* c0 is mocked */
     merr_t                  err;
     atomic_ulong            kvdb_seq, tseqno;
-    const u64               initial_seq = 117UL;
+    const uint64_t          initial_seq = 117UL;
 
     atomic_set(&kvdb_seq, initial_seq);
     atomic_set(&tseqno, 0);
@@ -540,7 +539,7 @@ MTF_DEFINE_UTEST_PREPOST(kvdb_ctxn_test, basic_abort_twice, mapi_pre, mapi_post)
     struct c0snr_set   *css;
     struct c0          *c0 = NULL; /* c0 is mocked */
     merr_t              err;
-    const u64           initial_seq = 117UL;
+    const uint64_t      initial_seq = 117UL;
     atomic_ulong        kvdb_seq, tseqno;
 
     atomic_set(&kvdb_seq, initial_seq);
@@ -590,8 +589,8 @@ MTF_DEFINE_UTEST_PREPOST(kvdb_ctxn_test, get_view_seqno, mapi_pre, mapi_post)
     struct c0snr_set       *css;
     struct kvdb_keylock    *klock;
     struct c0              *c0 = NULL; /* c0 is mocked */
-    const u64               initial_seq = 117UL;
-    u64                     view_seqno;
+    const uint64_t          initial_seq = 117UL;
+    uint64_t                view_seqno;
     merr_t                  err;
     atomic_ulong            kvdb_seq, tseqno;
 
@@ -652,7 +651,7 @@ MTF_DEFINE_UTEST_PREPOST(kvdb_ctxn_test, get_state, mapi_pre, mapi_post)
     struct c0snr_set       *css;
     struct kvdb_keylock    *klock;
     struct c0              *c0 = NULL; /* c0 is mocked */
-    const u64               initial_seq = 117UL;
+    const uint64_t          initial_seq = 117UL;
     enum kvdb_ctxn_state    state;
     merr_t                  err;
     atomic_ulong            kvdb_seq, tseqno;
@@ -722,11 +721,11 @@ MTF_DEFINE_UTEST_PREPOST(kvdb_ctxn_test, put_get_del, mapi_pre, mapi_post)
     struct c0snr_set       *css;
     struct kvdb_keylock    *klock;
     enum kvdb_ctxn_state    state;
-    const u64               initial_value = 117UL;
+    const uint64_t          initial_value = 117UL;
     struct kvs_ktuple       kt;
     struct kvs_vtuple       vt;
     merr_t                  err;
-    u64                     key, val, buf;
+    uint64_t                key, val, buf;
 //    enum key_lookup_res     res;
     struct kvs_buf          vbuf = {};
     struct c0              *c0 = NULL; /* c0 is mocked */
@@ -845,11 +844,11 @@ MTF_DEFINE_UTEST_PREPOST(kvdb_ctxn_test, put_get_pdel, mapi_pre, mapi_post)
     struct c0snr_set       *css;
     struct kvdb_keylock    *klock;
     enum kvdb_ctxn_state    state;
-    const u64               initial_value = 117UL;
+    const uint64_t          initial_value = 117UL;
     struct kvs_ktuple       kt, pkt;
     struct kvs_vtuple       vt;
     merr_t                  err;
-    u64                     key[2], val, buf;
+    uint64_t                key[2], val, buf;
     struct kvs_buf          vbuf = {};
     struct c0              *c0 = NULL; /* c0 is mocked */
     atomic_ulong            kvdb_seq, tseqno;
@@ -945,12 +944,12 @@ MTF_DEFINE_UTEST_PREPOST(kvdb_ctxn_test, txn_timeout, mapi_pre, mapi_post)
     struct kvdb_ctxn_impl  *ctxn;
     struct kvdb_keylock    *klock;
     struct kvdb_ctxn       *handles[num_txns];
-    const u64               initial_value = 117UL;
+    const uint64_t          initial_value = 117UL;
     struct kvs_ktuple       kt;
     struct kvs_vtuple       vt;
     char                    kbuf[16], vbuf[16];
     struct c0              *c0 = NULL; /* c0 is mocked */
-    u32                     delay_ms = 500;
+    uint32_t                delay_ms = 500;
     atomic_ulong            kvdb_seq, tseqno;
 
     err = kvdb_keylock_create(&klock, 16);
@@ -1027,7 +1026,7 @@ MTF_DEFINE_UTEST_PREPOST(kvdb_ctxn_test, txn_cleanup, mapi_pre, mapi_post)
     struct c0snr_set       *css;
     struct kvdb_keylock    *klock;
     struct kvdb_ctxn       *handles[num_txns];
-    const u64               initial_value = 117UL;
+    const uint64_t          initial_value = 117UL;
     struct kvs_ktuple       kt;
     struct kvs_vtuple       vt;
     char                    kbuf[16], vbuf[16];
@@ -1282,13 +1281,13 @@ MTF_DEFINE_UTEST_PREPOST(kvdb_ctxn_test, txn_seq, mapi_pre, mapi_post)
     struct c0snr_set       *css;
     struct kvdb_keylock    *klock;
     struct kvdb_ctxn       *handles[num_txns];
-    const u64               initial_value = 117UL;
+    const uint64_t          initial_value = 117UL;
     struct kvs_ktuple       kt;
     struct kvs_vtuple       vt;
     char                    kbuf[16], vbuf[16];
     struct c0              *c0 = NULL; /* c0 is mocked */
-    u64                     horizon, curr_seq;
-    u32                     delay_us;
+    uint64_t                horizon, curr_seq;
+    uint32_t                delay_us;
     atomic_ulong            kvdb_seq, tseqno;
 
     err = kvdb_keylock_create(&klock, 16);
@@ -1432,14 +1431,14 @@ MTF_DEFINE_UTEST_PREPOST(kvdb_ctxn_test, multiple_ctxn_commit, mapi_pre, mapi_po
     struct c0              *c0 = NULL; /* c0 is mocked */
     struct kvdb_ctxn       *handles[num_txns];
     atomic_int             *owner_thread[32] = {};
-    const u64               initial_value = 117UL;
+    const uint64_t          initial_value = 117UL;
     atomic_ulong            kvdb_seq, tseqno;
 
     err = kvdb_keylock_create(&klock, 16);
     ASSERT_EQ(0, err);
     ASSERT_NE(0, klock);
 
-    mapi_inject(mapi_idx_c0_get_pfx_len, sizeof(u64));
+    mapi_inject(mapi_idx_c0_get_pfx_len, sizeof(uint64_t));
 
     atomic_set(&kvdb_seq, initial_value);
     atomic_set(&tseqno, 0);

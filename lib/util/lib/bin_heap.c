@@ -5,6 +5,8 @@
 
 #define MTF_MOCK_IMPL_bin_heap
 
+#include <stdint.h>
+
 #include <hse/logging/logging.h>
 #include <hse/util/bin_heap.h>
 #include <hse/util/event_counter.h>
@@ -58,14 +60,14 @@ restart:
     }
 }
 
-u32
+uint32_t
 bin_heap_width(struct bin_heap *bh)
 {
     return bh ? bh->bh_width : 0;
 }
 
 void
-bin_heap_init(u32 max_width, bin_heap_compare_fn *cmp, struct bin_heap *bh)
+bin_heap_init(uint32_t max_width, bin_heap_compare_fn *cmp, struct bin_heap *bh)
 {
     assert(max_width > 0 && cmp && bh);
 
@@ -75,7 +77,7 @@ bin_heap_init(u32 max_width, bin_heap_compare_fn *cmp, struct bin_heap *bh)
 }
 
 merr_t
-bin_heap_create(u32 max_width, bin_heap_compare_fn *cmp, struct bin_heap **bh_out)
+bin_heap_create(uint32_t max_width, bin_heap_compare_fn *cmp, struct bin_heap **bh_out)
 {
     size_t sz;
     struct bin_heap *bh;
@@ -110,7 +112,7 @@ bin_heap_reset(struct bin_heap *bh)
 }
 
 merr_t
-bin_heap_prepare(struct bin_heap *bh, u32 width, struct element_source *es[])
+bin_heap_prepare(struct bin_heap *bh, uint32_t width, struct element_source *es[])
 {
     int i, j;
 
@@ -138,7 +140,7 @@ bin_heap_prepare(struct bin_heap *bh, u32 width, struct element_source *es[])
 }
 
 merr_t
-bin_heap_prepare_list(struct bin_heap *bh, u32 width, struct element_source *es)
+bin_heap_prepare_list(struct bin_heap *bh, uint32_t width, struct element_source *es)
 {
     int i, j;
 
@@ -173,7 +175,7 @@ bin_heap_prepare_list(struct bin_heap *bh, u32 width, struct element_source *es)
  *   > 0 : es1 > es2
  *  == 0 : es1 == es2
  */
-s64
+int64_t
 bin_heap_age_cmp(struct element_source *es1, struct element_source *es2)
 {
     return es1->es_sort - es2->es_sort;

@@ -6,11 +6,13 @@
 #ifndef MOCKS_MOCK_KVSET_H
 #define MOCKS_MOCK_KVSET_H
 
+#include <stdint.h>
+
 #include <hse/util/page.h>
 
-#include <arpa/inet.h> /* ntohl, htonl */
-
+#include <cn/cn_metrics.h>
 #include <cn/kv_iterator.h>
+#include <cn/kvset.h>
 
 /**
  * struct mock_kvset - test harness
@@ -37,7 +39,7 @@ struct mock_kvset {
     uint64_t                nodeid;
     const void             *work;
     uint32_t                compc;
-    u64                     ids[];
+    uint64_t                ids[];
 };
 
 enum val_mix { VMX_S32 = 1, VMX_BUF = 2, VMX_MIXED = 3 };
@@ -51,7 +53,7 @@ struct nkv_tab {
     int          val1;
     enum val_mix vmix;
     int          be;
-    u64          dgen;
+    uint64_t     dgen;
 };
 
 /* Values for 'int be` member of struct nkv_tab */

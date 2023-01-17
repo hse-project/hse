@@ -5,6 +5,7 @@
 
 #include <assert.h>
 #include <stdbool.h>
+#include <stdint.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <unistd.h>
@@ -239,7 +240,7 @@ static bool
 val_get_next(const void *kmd, size_t *off, struct kmd_vref *vref)
 {
     const void *vdata;
-    u32         vlen;
+    uint32_t    vlen;
 
     vref->vbidx = vref->vboff = vref->vlen = 0;
 

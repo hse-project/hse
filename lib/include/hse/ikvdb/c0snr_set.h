@@ -1,10 +1,12 @@
 /* SPDX-License-Identifier: Apache-2.0 */
 /*
- * Copyright (C) 2021 Micron Technology, Inc.  All rights reserved.
+ * Copyright (C) 2022 Micron Technology, Inc.  All rights reserved.
  */
 
 #ifndef HSE_C0SNR_SET_H
 #define HSE_C0SNR_SET_H
+
+#include <stdint.h>
 
 #include <hse/util/platform.h>
 #include <hse/util/event_counter.h>
@@ -57,14 +59,14 @@ c0snr_txn_is_active(uintptr_t *priv);
  *
  */
 void
-c0snr_getref(uintptr_t *priv, u64 c0ms_gen);
+c0snr_getref(uintptr_t *priv, uint64_t c0ms_gen);
 
 /**
  * c0snr_getref() - get KVMS generation of last put that used this C0SNR
  * @priv:     c0snr
  *
  */
-u64
+uint64_t
 c0snr_get_cgen(uintptr_t *priv);
 
 /**

@@ -1,13 +1,13 @@
 /* SPDX-License-Identifier: Apache-2.0 */
 /*
- * Copyright (C) 2015-2021 Micron Technology, Inc.  All rights reserved.
+ * Copyright (C) 2015-2022 Micron Technology, Inc.  All rights reserved.
  */
+
+#include <stdint.h>
 
 #include <mtf/conditions.h>
 #include <mtf/framework.h>
 #include <mock/api.h>
-
-#include <hse/util/inttypes.h>
 
 #include <hse/ikvdb/cn.h>
 #include <hse/ikvdb/kvset_builder.h>
@@ -61,8 +61,8 @@ MTF_DEFINE_UTEST_PREPOST(blk_list_test, t_blk_list_append, pre, post)
     int             i, add;
     merr_t          err;
     struct blk_list b;
-    u64             blkid = BLK_ID;
-    u64             blkid_start;
+    uint64_t        blkid = BLK_ID;
+    uint64_t        blkid_start;
 
     blk_list_init(&b);
 
@@ -127,7 +127,7 @@ MTF_DEFINE_UTEST_PREPOST(blk_list_test, t_commit_mblock, pre, post)
 {
     merr_t          err;
     struct blk_list b;
-    u32             api;
+    uint32_t        api;
 
     /* commit with handle */
     blk_list_init(&b);
@@ -153,7 +153,7 @@ MTF_DEFINE_UTEST_PREPOST(blk_list_test, t_delete_mblock, pre, post)
 {
     merr_t          err;
     struct blk_list b;
-    u32             api;
+    uint32_t        api;
 
     /* delete with handle */
     blk_list_init(&b);
@@ -185,7 +185,7 @@ MTF_DEFINE_UTEST_PREPOST(blk_list_test, t_delete_mblocks, pre, post)
     int             i, N = 5;
     merr_t          err;
     struct blk_list b;
-    u32             api;
+    uint32_t        api;
 
     blk_list_init(&b);
     err = blk_list_append(&b, BLK_ID);

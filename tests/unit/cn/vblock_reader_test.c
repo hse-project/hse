@@ -3,6 +3,7 @@
  * Copyright (C) 2015-2022 Micron Technology, Inc.  All rights reserved.
  */
 
+#include <stdint.h>
 #include <sys/mman.h>
 
 #include <mtf/framework.h>
@@ -142,7 +143,7 @@ MTF_DEFINE_UTEST_PRE(vblock_reader_test, t_vbr_desc_update, pre)
     merr_t                   err;
     struct vblock_desc       vblk_desc;
     uint                     vgroups = 0;
-    u64                      argv[2];
+    uint64_t                 argv[2];
 
     err = mock_mblk_setup(8323);
     ASSERT_EQ(0, err);
@@ -220,7 +221,7 @@ MTF_DEFINE_UTEST_PRE(vblock_reader_test, t_vbr_read_ahead, pre)
 {
     merr_t                   err;
     struct vblock_desc       vblk_desc;
-    u32                      ra_len;
+    uint32_t                 ra_len;
     off_t                    off;
     size_t                   len;
     struct ra_hist           rahv[1] = { { 0 } };
@@ -261,7 +262,7 @@ MTF_DEFINE_UTEST_PRE(vblock_reader_test, t_vbr_madvise_async, pre)
     struct workqueue_struct *vbr_wq;
     merr_t                   err;
     struct vblock_desc       vblk_desc;
-    u32                      ra_len;
+    uint32_t                 ra_len;
     struct ra_hist           rahv[8] = { 0 };
     int                      rc;
 

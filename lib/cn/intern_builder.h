@@ -1,16 +1,20 @@
 /* SPDX-License-Identifier: Apache-2.0 */
 /*
- * Copyright (C) 2015-2020 Micron Technology, Inc.  All rights reserved.
+ * Copyright (C) 2015-2022 Micron Technology, Inc.  All rights reserved.
  */
 
 #ifndef HSE_KVS_INTERN_BUILDER_H
 #define HSE_KVS_INTERN_BUILDER_H
 
-#include <hse/error/merr.h>
-#include <hse/util/inttypes.h>
+#include <stdbool.h>
+#include <sys/types.h>
 
-struct wbb;
+#include <hse/error/merr.h>
+
 struct intern_builder;
+struct iovec;
+struct key_obj;
+struct wbb;
 
 merr_t
 ib_key_add(struct intern_builder *ib, struct key_obj *right_edge, uint *node_cnt, bool count_only);

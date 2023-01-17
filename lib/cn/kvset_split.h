@@ -10,7 +10,6 @@
 
 #include <hse/error/merr.h>
 #include <hse/ikvdb/blk_list.h>
-#include <hse/util/inttypes.h>
 #include <hse/util/hlog.h>
 #include <hse/util/key_util.h>
 #include <hse/util/workqueue.h>

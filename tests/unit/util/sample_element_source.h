@@ -1,13 +1,14 @@
 /* SPDX-License-Identifier: Apache-2.0 */
 /*
- * Copyright (C) 2015-2020 Micron Technology, Inc.  All rights reserved.
+ * Copyright (C) 2015-2022 Micron Technology, Inc.  All rights reserved.
  */
 
 #ifndef HSE_PLATFORM_SAMPLE_ELEMENT_SOURCE_H
 #define HSE_PLATFORM_SAMPLE_ELEMENT_SOURCE_H
 
+#include <stdint.h>
+
 #include <hse/util/element_source.h>
-#include <hse/util/inttypes.h>
 #include <hse/error/merr.h>
 
 enum sample_es_mode {
@@ -20,17 +21,17 @@ enum sample_es_mode {
 struct sample_es;
 
 merr_t
-sample_es_create(struct sample_es **es_out, u32 elt_cnt, enum sample_es_mode mode);
+sample_es_create(struct sample_es **es_out, uint32_t elt_cnt, enum sample_es_mode mode);
 
 void
-sample_es_set_elt(struct sample_es *es, u32 elt);
+sample_es_set_elt(struct sample_es *es, uint32_t elt);
 
 merr_t
 sample_es_create_srcid(
     struct sample_es ** es_out,
-    u32                 elt_cnt,
-    u32                 start,
-    u32                 srcid,
+    uint32_t            elt_cnt,
+    uint32_t            start,
+    uint32_t            srcid,
     enum sample_es_mode mode);
 
 struct element_source *

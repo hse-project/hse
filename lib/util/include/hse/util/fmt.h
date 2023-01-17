@@ -1,12 +1,12 @@
 /* SPDX-License-Identifier: Apache-2.0 */
 /*
- * Copyright (C) 2015-2021 Micron Technology, Inc.  All rights reserved.
+ * Copyright (C) 2015-2022 Micron Technology, Inc.  All rights reserved.
  */
 
 #ifndef HSE_PLATFORM_FMT_H
 #define HSE_PLATFORM_FMT_H
 
-#include <hse/util/inttypes.h>
+#include <stddef.h>
 
 /**
  * fmt_pe - format binary data in url compatible percent-encoded form
@@ -30,7 +30,6 @@ fmt_pe_buf_size(size_t len)
 {
     return 3 * len + 1;
 }
-
 
 /**
  * fmt_hexp - format binary data as a null-terminated printable hex string

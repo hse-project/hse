@@ -4,6 +4,7 @@
  */
 
 #include <stdlib.h>
+#include <stdint.h>
 #include <sys/mman.h>
 
 #include <hse/util/platform.h>
@@ -40,7 +41,7 @@ wbt_read_kmd_vref(
     const void            *kmd,
     struct vgmap          *vgmap,
     size_t                *off,
-    u64                   *seq,
+    uint64_t              *seq,
     struct kvs_vtuple_ref *vref)
 {
     enum kmd_vtype vtype;
@@ -56,9 +57,9 @@ wbt_read_kmd_vref(
         case VTYPE_UCVAL:
             kmd_val(kmd, off, &vbidx, &vboff, &vlen);
             /* assert no truncation */
-            assert(vbidx <= U16_MAX);
-            assert(vboff <= U32_MAX);
-            assert(vlen <= U32_MAX);
+            assert(vbidx <= UINT16_MAX);
+            assert(vboff <= UINT32_MAX);
+            assert(vlen <= UINT32_MAX);
             vref->vb.vr_index = vbidx;
             vref->vb.vr_off = vboff;
             vref->vb.vr_len = vlen;
@@ -67,10 +68,10 @@ wbt_read_kmd_vref(
         case VTYPE_CVAL:
             kmd_cval(kmd, off, &vbidx, &vboff, &vlen, &complen);
             /* assert no truncation */
-            assert(vbidx <= U16_MAX);
-            assert(vboff <= U32_MAX);
-            assert(vlen <= U32_MAX);
-            assert(complen <= U32_MAX);
+            assert(vbidx <= UINT16_MAX);
+            assert(vboff <= UINT32_MAX);
+            assert(vlen <= UINT32_MAX);
+            assert(complen <= UINT32_MAX);
             vref->vb.vr_index = vbidx;
             vref->vb.vr_off = vboff;
             vref->vb.vr_len = vlen;
@@ -79,7 +80,7 @@ wbt_read_kmd_vref(
         case VTYPE_IVAL:
             kmd_ival(kmd, off, &vdata, &vlen);
             /* assert no truncation */
-            assert(vlen <= U32_MAX);
+            assert(vlen <= UINT32_MAX);
             vref->vi.vr_data = vdata;
             vref->vi.vr_len = vlen;
             break;
@@ -101,7 +102,7 @@ wbt_read_kmd_vref(
 }
 
 static void
-wbti_get_page(struct wbti *self, u32 node_idx)
+wbti_get_page(struct wbti *self, uint32_t node_idx)
 {
     size_t mblock_offset;
 
@@ -622,7 +623,7 @@ wbti_node_prev(struct wbti *self)
 static void
 wbti_node_advance(struct wbti *self)
 {
-    u32 max_idx = self->wbd->wbd_leaf + self->wbd->wbd_leaf_cnt;
+    uint32_t max_idx = self->wbd->wbd_leaf + self->wbd->wbd_leaf_cnt;
 
     if (self->node_idx + 1 < max_idx) {
         wbti_get_page(self, self->node_idx + 1);
@@ -641,7 +642,7 @@ wbti_next_fwd(struct wbti *self, const void **kdata, uint *klen, const void **km
     const struct wbt_lfe_omf *lfe;
     size_t off;
 
-    u64 seq HSE_MAYBE_UNUSED;
+    uint64_t seq HSE_MAYBE_UNUSED;
     uint cnt HSE_MAYBE_UNUSED;
 
     if (self->node_idx == NODE_EOF)
@@ -676,7 +677,7 @@ wbti_next_rev(struct wbti *self, const void **kdata, uint *klen, const void **km
     const struct wbt_lfe_omf *lfe;
     size_t              off;
 
-    u64 seq HSE_MAYBE_UNUSED;
+    uint64_t seq HSE_MAYBE_UNUSED;
     uint cnt HSE_MAYBE_UNUSED;
 
     if (self->node_idx == NODE_EOF)
@@ -815,8 +816,8 @@ wbtr_read_vref(
             /* Found key */
             const void *kmd;
             size_t off;
-            u64    vseq;
-            uint   nvals;
+            uint64_t vseq;
+            uint nvals;
 
             kmd = base + PAGE_SIZE * (wbd->wbd_first_page + wbd->wbd_root + 1);
 

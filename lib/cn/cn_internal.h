@@ -6,21 +6,22 @@
 #ifndef HSE_KVS_CN_INTERNAL_H
 #define HSE_KVS_CN_INTERNAL_H
 
+#include <stdint.h>
+
+#include <hse/util/atomic.h>
+#include <hse/util/workqueue.h>
+#include <hse/util/token_bucket.h>
+#include <hse/util/perfc.h>
+
+#include <hse/limits.h>
+#include <hse/mpool/mpool.h>
+
 struct cn_tree;
 struct kvs_rparams;
 struct cndb;
 struct ikvdb;
 struct kvdb_health;
 struct csched;
-
-#include <hse/util/atomic.h>
-#include <hse/util/workqueue.h>
-#include <hse/util/inttypes.h>
-#include <hse/util/token_bucket.h>
-#include <hse/util/perfc.h>
-
-#include <hse/limits.h>
-#include <hse/mpool/mpool.h>
 
 struct cn {
     struct cn_tree *  cn_tree;
@@ -29,7 +30,7 @@ struct cn {
     struct mpool *    cn_dataset;
     struct cndb *     cn_cndb;
     struct tbkt *     cn_tbkt_maint;
-    u64               cn_cnid;
+    uint64_t          cn_cnid;
 
     atomic_ulong cn_ingest_dgen;
 
@@ -65,7 +66,7 @@ struct cn {
     struct kvdb_health *  cn_kvdb_health;
     struct mclass_policy *cn_mpolicy;
 
-    u32 cn_cflags;
+    uint32_t cn_cflags;
 
     const char *cn_kvdb_alias;
     const char *cn_kvs_name;

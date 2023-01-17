@@ -1,8 +1,9 @@
 /* SPDX-License-Identifier: Apache-2.0 */
 /*
  * Copyright (C) 2021 Micron Technology, Inc.  All rights reserved.
- *
  */
+
+#include <stdint.h>
 
 #include <hse/util/platform.h>
 #include <hse/util/slab.h>
@@ -16,7 +17,7 @@
 
 struct kvdb_ctxn_pfxlock_entry {
     struct rb_node ktpe_node;
-    u64            ktpe_hash;
+    uint64_t       ktpe_hash;
     void          *ktpe_cookie;
     bool           ktpe_excl;
     bool           ktpe_freeme;
@@ -25,7 +26,7 @@ struct kvdb_ctxn_pfxlock_entry {
 struct kvdb_ctxn_pfxlock {
     struct rb_root       ktp_tree;
     struct kvdb_pfxlock *ktp_pfxlock;
-    u64                  ktp_view_seqno;
+    uint64_t             ktp_view_seqno;
     int                  ktp_entryc;
 
     struct kvdb_ctxn_pfxlock_entry ktp_entryv[4];
@@ -39,7 +40,7 @@ static struct kmem_cache *ctxn_pfxlock_entry_cache;
 merr_t
 kvdb_ctxn_pfxlock_create(
     struct kvdb_pfxlock *      pfxlock,
-    u64                        view_seqno,
+    uint64_t                   view_seqno,
     struct kvdb_ctxn_pfxlock **ktp_out)
 {
     struct kvdb_ctxn_pfxlock *ktp;
@@ -67,7 +68,7 @@ kvdb_ctxn_pfxlock_destroy(struct kvdb_ctxn_pfxlock *ktp)
 static struct rb_node **
 kvdb_ctxn_pfxlock_lookup(
     struct kvdb_ctxn_pfxlock        *ktp,
-    u64                              hash,
+    uint64_t                         hash,
     struct rb_node                 **parent_out,
     struct kvdb_ctxn_pfxlock_entry **entry_out)
 {
@@ -91,7 +92,7 @@ kvdb_ctxn_pfxlock_lookup(
 }
 
 merr_t
-kvdb_ctxn_pfxlock_shared(struct kvdb_ctxn_pfxlock *ktp, u64 hash)
+kvdb_ctxn_pfxlock_shared(struct kvdb_ctxn_pfxlock *ktp, uint64_t hash)
 {
     struct rb_node **               link, *parent;
     struct kvdb_ctxn_pfxlock_entry *entry;
@@ -129,7 +130,7 @@ kvdb_ctxn_pfxlock_shared(struct kvdb_ctxn_pfxlock *ktp, u64 hash)
 }
 
 merr_t
-kvdb_ctxn_pfxlock_excl(struct kvdb_ctxn_pfxlock *ktp, u64 hash)
+kvdb_ctxn_pfxlock_excl(struct kvdb_ctxn_pfxlock *ktp, uint64_t hash)
 {
     struct rb_node **               link, *parent;
     struct kvdb_ctxn_pfxlock_entry *entry;
@@ -177,7 +178,7 @@ kvdb_ctxn_pfxlock_excl(struct kvdb_ctxn_pfxlock *ktp, u64 hash)
 }
 
 void
-kvdb_ctxn_pfxlock_seqno_pub(struct kvdb_ctxn_pfxlock *ktp, u64 end_seqno)
+kvdb_ctxn_pfxlock_seqno_pub(struct kvdb_ctxn_pfxlock *ktp, uint64_t end_seqno)
 {
     if (ktp->ktp_tree.rb_node) {
         struct kvdb_ctxn_pfxlock_entry *entry, *next;

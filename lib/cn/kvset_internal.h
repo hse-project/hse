@@ -7,7 +7,6 @@
 #define HSE_KVS_CN_KVSET_INTERNAL_H
 
 #include <hse/error/merr.h>
-#include <hse/util/inttypes.h>
 #include <hse/util/list.h>
 #include <hse/util/atomic.h>
 #include <hse/util/workqueue.h>
@@ -53,14 +52,14 @@ struct kvset_kblk {
     struct kvs_mblk_desc kb_kblk_desc; /* kblock descriptor */
     struct wbt_desc      kb_wbt_desc;  /* wbtree descriptor */
 
-    u8              kb_ksmall[64]; /* small key cache */
+    uint8_t         kb_ksmall[64]; /* small key cache */
     struct key_disc kb_kdisc_max;  /* kdisc of largest key in kblk */
     struct key_disc kb_kdisc_min;  /* kdisc of smallest key */
     const uint8_t  *kb_hlog;       /* ptr to hlog region in kblk */
     const void     *kb_koff_max;   /* ptr to largest key in kblk */
     const void     *kb_koff_min;   /* ptr to smallest key in kblk */
-    u16             kb_klen_max;   /* length of largest key */
-    u16             kb_klen_min;   /* length of smallest key */
+    uint16_t             kb_klen_max;   /* length of largest key */
+    uint16_t             kb_klen_min;   /* length of smallest key */
 
     struct bloom_desc kb_blm_desc;  /* Bloom descriptor */
 
@@ -73,17 +72,17 @@ struct kvset {
     uint64_t      ks_dgen_hi; /* relative age of entries (hi) */
     uint64_t      ks_dgen_lo; /* relative age of entries (lo) */
     struct mpool *ks_mp;
-    u32           ks_pfx_len; /* cn tree pfx_len */
+    uint32_t      ks_pfx_len; /* cn tree pfx_len */
     uint16_t      ks_rule;
-    u64           ks_nodeid;
-    u32           ks_vmin;
-    u32           ks_vmax;
+    uint64_t      ks_nodeid;
+    uint32_t      ks_vmin;
+    uint32_t      ks_vmax;
     uint64_t      ks_vra_len;
     uint32_t      ks_compc;
 
     struct kvs_rparams *ks_rp;
-    u64                 ks_seqno_max;
-    u64                 ks_cnid;
+    uint64_t            ks_seqno_max;
+    uint64_t            ks_cnid;
     struct cn_kvdb *    ks_cn_kvdb;
     struct cn_tree *    ks_tree;
     struct kvset_stats  ks_st;
@@ -92,10 +91,10 @@ struct kvset {
     struct cndb        *ks_cndb;
     struct cndb_txn    *ks_delete_txn;
     void               *ks_delete_cookie;
-    u64                 ks_kvsetid;
+    uint64_t            ks_kvsetid;
 
     /* new compaction metrics */
-    u8 * ks_hlog;
+    uint8_t * ks_hlog;
 
     struct vgmap *ks_vgmap;
     bool          ks_use_vgmap; /* consult vgmap during query/compaction? */
@@ -114,7 +113,7 @@ struct kvset {
 
     struct kvset_hblk ks_hblk;
 
-    const u8 *                ks_klarge; /* large key cache */
+    const uint8_t *           ks_klarge; /* large key cache */
     struct mbset **           ks_vbsetv;
     uint                      ks_vbsetc;
 
@@ -122,17 +121,17 @@ struct kvset {
 
     const void *ks_maxkey;  /* largest key in kvset */
     const void *ks_minkey;  /* smallest key in kvset */
-    u16         ks_maxklen; /* length of largest key */
-    u16         ks_minklen; /* length of smallest key */
+    uint16_t         ks_maxklen; /* length of largest key */
+    uint16_t         ks_minklen; /* length of smallest key */
 
     atomic_int ks_ref HSE_L1D_ALIGNED; /* reference count */
-    u32        ks_deleted;             /* DEL_NONE, DEL_KEEPV, DEL_ALL */
+    uint32_t   ks_deleted;             /* DEL_NONE, DEL_KEEPV, DEL_ALL */
     atomic_int ks_delete_error;
     atomic_int ks_mbset_callbacks;
     bool       ks_mbset_cb_pending;
-    u64        ks_seqno_min;
+    uint64_t   ks_seqno_min;
     size_t     ks_kvset_sz;
-    u64        ks_ctime;
+    uint64_t   ks_ctime;
 
     struct blk_list ks_purge; /* used by kvset split */
 

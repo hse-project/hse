@@ -1,7 +1,9 @@
 /* SPDX-License-Identifier: Apache-2.0 */
 /*
- * Copyright (C) 2015-2021 Micron Technology, Inc.  All rights reserved.
+ * Copyright (C) 2015-2022 Micron Technology, Inc.  All rights reserved.
  */
+
+#include <stdint.h>
 
 #include <mtf/framework.h>
 #include <hse/error/merr.h>
@@ -79,8 +81,8 @@ MTF_DEFINE_UTEST(seqno_test, seqno_check_ref)
 MTF_DEFINE_UTEST(seqno_test, seqno_test_seqnoref_ext_diff)
 {
     uintptr_t ref;
-    u64       ord;
-    u64       diff;
+    uint64_t  ord;
+    uint64_t  diff;
 
     ref = HSE_ORDNL_TO_SQNREF(50);
 
@@ -105,8 +107,8 @@ MTF_DEFINE_UTEST(seqno_test, seqno_test_seqnoref_ext_diff)
 MTF_DEFINE_UTEST(seqno_test, seqno_test_seqnoref_diff)
 {
     uintptr_t ref0, ref1;
-    u64       ord;
-    u64       diff;
+    uint64_t  ord;
+    uint64_t  diff;
 
     ref0 = HSE_ORDNL_TO_SQNREF(50);
 

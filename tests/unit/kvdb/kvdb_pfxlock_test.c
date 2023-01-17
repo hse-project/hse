@@ -1,7 +1,9 @@
 /* SPDX-License-Identifier: Apache-2.0 */
 /*
- * Copyright (C) 2021 Micron Technology, Inc.  All rights reserved.
+ * Copyright (C) 2021-2022 Micron Technology, Inc.  All rights reserved.
  */
+
+#include <stdint.h>
 
 #include <mtf/framework.h>
 #include <mock/api.h>
@@ -13,9 +15,9 @@
 
 #include <hse/ikvdb/key_hash.h>
 
-volatile u64 g_txn_horizon;
+volatile uint64_t g_txn_horizon;
 
-u64
+uint64_t
 _viewset_horizon(struct viewset *handle)
 {
     return g_txn_horizon;
@@ -52,9 +54,9 @@ MTF_BEGIN_UTEST_COLLECTION(kvdb_pfxlock_test)
 
 MTF_DEFINE_UTEST_PREPOST(kvdb_pfxlock_test, basic, mapi_pre, mapi_post)
 {
-    const u64 hash = xrand64_tls();
-    merr_t    err;
-    void *    lock;
+    const uint64_t hash = xrand64_tls();
+    merr_t err;
+    void *lock;
 
     err = kvdb_pfxlock_shared(kpl, hash, 1, &lock); /* put */
     ASSERT_EQ(0, err);
@@ -79,10 +81,10 @@ MTF_DEFINE_UTEST_PREPOST(kvdb_pfxlock_test, basic, mapi_pre, mapi_post)
 
 MTF_DEFINE_UTEST_PREPOST(kvdb_pfxlock_test, ptomb_before_put, mapi_pre, mapi_post)
 {
-    const u64 hash = xrand64_tls();
-    merr_t    err;
-    void *    lock = NULL;
-    void *    lock2;
+    const uint64_t hash = xrand64_tls();
+    merr_t err;
+    void *lock = NULL;
+    void *lock2;
 
     g_txn_horizon = 0;
     err = kvdb_pfxlock_excl(kpl, hash, 3, &lock); /* pdel */
@@ -114,10 +116,10 @@ MTF_DEFINE_UTEST_PREPOST(kvdb_pfxlock_test, ptomb_before_put, mapi_pre, mapi_pos
 
 MTF_DEFINE_UTEST_PREPOST(kvdb_pfxlock_test, ptomb_after_put, mapi_pre, mapi_post)
 {
-    const u64 hash = xrand64_tls();
-    merr_t    err;
-    void *    lock1 = NULL;
-    void *    lock2 = NULL;
+    const uint64_t hash = xrand64_tls();
+    merr_t err;
+    void *lock1 = NULL;
+    void *lock2 = NULL;
 
     g_txn_horizon = 0;
     err = kvdb_pfxlock_shared(kpl, hash, 1, &lock1); /* put 1 */
@@ -139,9 +141,9 @@ MTF_DEFINE_UTEST_PREPOST(kvdb_pfxlock_test, ptomb_after_put, mapi_pre, mapi_post
 
 MTF_DEFINE_UTEST_PREPOST(kvdb_pfxlock_test, long_txn, mapi_pre, mapi_post)
 {
-    const u64 hash = xrand64_tls();
-    merr_t    err;
-    void *    lockv[32] = { NULL };
+    const uint64_t hash = xrand64_tls();
+    merr_t err;
+    void *lockv[32] = { NULL };
 
     g_txn_horizon = 0;
     err = kvdb_pfxlock_excl(kpl, hash, 100, &lockv[0]); /* pdel */

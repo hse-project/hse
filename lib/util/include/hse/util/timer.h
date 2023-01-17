@@ -1,10 +1,12 @@
 /* SPDX-License-Identifier: Apache-2.0 */
 /*
- * Copyright (C) 2015-2021 Micron Technology, Inc.  All rights reserved.
+ * Copyright (C) 2015-2022 Micron Technology, Inc.  All rights reserved.
  */
 
 #ifndef HSE_PLATFORM_TIMER_H
 #define HSE_PLATFORM_TIMER_H
+
+#include <stdint.h>
 
 #include <hse/util/arch.h>
 #include <hse/util/atomic.h>
@@ -59,7 +61,7 @@ usecs_to_jiffies(const unsigned int m)
 }
 
 static HSE_ALWAYS_INLINE unsigned long
-nsecs_to_jiffies(const u64 m)
+nsecs_to_jiffies(const uint64_t m)
 {
     return (m + (NSEC_PER_SEC / HSE_HZ) - 1) / (NSEC_PER_SEC / HSE_HZ);
 }

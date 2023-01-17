@@ -1,10 +1,12 @@
 /* SPDX-License-Identifier: Apache-2.0 */
 /*
- * Copyright (C) 2015-2021 Micron Technology, Inc.  All rights reserved.
+ * Copyright (C) 2015-2022 Micron Technology, Inc.  All rights reserved.
  */
 
 #ifndef HSE_KVDB_CTXN_H
 #define HSE_KVDB_CTXN_H
+
+#include <stdint.h>
 
 #include <hse/error/merr.h>
 #include <hse/util/keylock.h>
@@ -87,7 +89,7 @@ kvdb_ctxn_reset(struct kvdb_ctxn *txn);
 
 /* MTF_MOCK */
 merr_t
-kvdb_ctxn_get_view_seqno(struct kvdb_ctxn *txn, u64 *view_seqno);
+kvdb_ctxn_get_view_seqno(struct kvdb_ctxn *txn, uint64_t *view_seqno);
 
 /* MTF_MOCK */
 bool
@@ -96,7 +98,7 @@ kvdb_ctxn_lock_inherit(uint32_t desc, uint64_t start_seq);
 /* Exclusively lock a txn for reading (e.g., get, prefix probe)  */
 /* MTF_MOCK */
 merr_t
-kvdb_ctxn_trylock_read(struct kvdb_ctxn *handle, uintptr_t *seqref, u64 *view_seqno);
+kvdb_ctxn_trylock_read(struct kvdb_ctxn *handle, uintptr_t *seqref, uint64_t *view_seqno);
 
 /* Exclusively lock a txn for write (e.g., put, delete)  */
 /* MTF_MOCK */
@@ -104,11 +106,11 @@ merr_t
 kvdb_ctxn_trylock_write(
     struct kvdb_ctxn *handle,
     uintptr_t        *seqref,
-    u64              *view_seqno,
+    uint64_t         *view_seqno,
     int64_t          *cookie,
     bool              is_ptomb,
-    u64               pfxhash,
-    u64               keyhash);
+    uint64_t          pfxhash,
+    uint64_t          keyhash);
 
 /* MTF_MOCK */
 void
@@ -135,11 +137,11 @@ kvdb_ctxn_cursor_unbind(struct kvdb_ctxn_bind *bind);
 /* -- list of allocated transactions -- */
 /* MTF_MOCK */
 merr_t
-kvdb_ctxn_set_create(struct kvdb_ctxn_set **handle_out, u64 txn_timeout, u64 msecs);
+kvdb_ctxn_set_create(struct kvdb_ctxn_set **handle_out, uint64_t txn_timeout, uint64_t msecs);
 
 /* MTF_MOCK */
 void
-kvdb_ctxn_set_wait_commits(struct kvdb_ctxn_set *handle, u64 head);
+kvdb_ctxn_set_wait_commits(struct kvdb_ctxn_set *handle, uint64_t head);
 
 /* MTF_MOCK */
 void

@@ -27,8 +27,8 @@ struct key_stats {
     uint nvals;
     uint ntombs;
     uint nptombs;
-    u64  tot_vlen;
-    u64  tot_vused;
+    uint64_t tot_vlen;
+    uint64_t tot_vused;
 };
 
 /* MTF_MOCK_DECL(kvset_builder) */
@@ -38,7 +38,7 @@ kvset_builder_create(
     struct kvset_builder **builder_out,
     struct cn *            cn,
     struct perfc_set *     pc,
-    u64                    vgroup);
+    uint64_t               vgroup);
 
 /* MTF_MOCK */
 merr_t
@@ -83,14 +83,14 @@ kvset_builder_add_val(
     const struct key_obj   *kobj,
     const void *            vdata,
     uint                    vlen,
-    u64                     seq,
+    uint64_t                seq,
     uint                    complen);
 
 /* MTF_MOCK */
 merr_t
 kvset_builder_add_vref(
     struct kvset_builder   *self,
-    u64                     seq,
+    uint64_t                seq,
     uint                    vbidx,
     uint                    vboff,
     uint                    vlen,
@@ -98,7 +98,7 @@ kvset_builder_add_vref(
 
 /* MTF_MOCK */
 merr_t
-kvset_builder_add_nonval(struct kvset_builder *self, u64 seq, enum kmd_vtype vtype);
+kvset_builder_add_nonval(struct kvset_builder *self, uint64_t seq, enum kmd_vtype vtype);
 
 /* MTF_MOCK */
 void

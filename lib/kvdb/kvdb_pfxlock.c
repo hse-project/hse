@@ -17,6 +17,8 @@
  * acquire the prefix lock from each and every tree within the range.
  */
 
+#include <stdint.h>
+
 #include <hse/util/platform.h>
 #include <hse/util/printbuf.h>
 #include <hse/util/event_counter.h>
@@ -48,13 +50,13 @@ struct kvdb_pfxlock_entry {
         struct rb_node  kple_node;
         void           *kple_next;
     };
-    u64            kple_hash;
+    uint64_t       kple_hash;
     int            kple_refcnt;
     ushort         kple_treeidx;
     bool           kple_excl;
     bool           kple_stale;
-    u64            kple_end_seqno;
-    u64            kple_end_seqno_excl;
+    uint64_t       kple_end_seqno;
+    uint64_t       kple_end_seqno_excl;
 } HSE_ALIGNED(64);
 
 struct kvdb_pfxlock_tree {
@@ -73,7 +75,7 @@ struct kvdb_pfxlock {
     struct kvdb_pfxlock_tree   kpl_tree[KVDB_PFXLOCK_TREES_MAX];
     struct workqueue_struct   *kpl_gc_wq;
     struct kvdb_pfxlock_gc     kpl_gc;
-    u64                        kpl_gc_delay_ms;
+    uint64_t                   kpl_gc_delay_ms;
     struct viewset            *kpl_txn_viewset;
 };
 
@@ -248,7 +250,7 @@ kvdb_pfxlock_hash2treeidx(uint64_t hash, bool shared)
 }
 
 merr_t
-kvdb_pfxlock_excl(struct kvdb_pfxlock *pfxlock, u64 hash, u64 start_seqno, void **cookie)
+kvdb_pfxlock_excl(struct kvdb_pfxlock *pfxlock, uint64_t hash, uint64_t start_seqno, void **cookie)
 {
     struct kvdb_pfxlock_entry *entry;
     struct kvdb_pfxlock_tree *tree;
@@ -389,7 +391,11 @@ kvdb_pfxlock_excl(struct kvdb_pfxlock *pfxlock, u64 hash, u64 start_seqno, void 
 }
 
 merr_t
-kvdb_pfxlock_shared(struct kvdb_pfxlock *pfxlock, u64 hash, u64 start_seqno, void **cookie)
+kvdb_pfxlock_shared(
+    struct kvdb_pfxlock *pfxlock,
+    uint64_t hash,
+    uint64_t start_seqno,
+    void **cookie)
 {
     struct kvdb_pfxlock_entry *entry;
     struct kvdb_pfxlock_tree *tree;
@@ -445,7 +451,7 @@ kvdb_pfxlock_shared(struct kvdb_pfxlock *pfxlock, u64 hash, u64 start_seqno, voi
 }
 
 void
-kvdb_pfxlock_seqno_pub(struct kvdb_pfxlock *pfxlock, u64 end_seqno, void *cookie)
+kvdb_pfxlock_seqno_pub(struct kvdb_pfxlock *pfxlock, uint64_t end_seqno, void *cookie)
 {
     struct kvdb_pfxlock_entry *entry;
     struct kvdb_pfxlock_tree *tree;
@@ -489,10 +495,10 @@ kvdb_pfxlock_seqno_pub(struct kvdb_pfxlock *pfxlock, u64 end_seqno, void *cookie
 void
 kvdb_pfxlock_prune(struct kvdb_pfxlock *pfxlock)
 {
-    u64    txn_horizon = viewset_horizon(pfxlock->kpl_txn_viewset);
-    uint   skipped HSE_MAYBE_UNUSED = 0;
-    uint   scanned HSE_MAYBE_UNUSED = 0;
-    uint   pruned HSE_MAYBE_UNUSED = 0;
+    uint64_t txn_horizon = viewset_horizon(pfxlock->kpl_txn_viewset);
+    uint skipped HSE_MAYBE_UNUSED = 0;
+    uint scanned HSE_MAYBE_UNUSED = 0;
+    uint pruned HSE_MAYBE_UNUSED = 0;
 
 #ifndef HSE_BUILD_RELEASE
     uint64_t tstart = get_time_ns();

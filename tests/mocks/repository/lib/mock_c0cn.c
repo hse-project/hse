@@ -3,6 +3,7 @@
  * Copyright (C) 2015-2022 Micron Technology, Inc.  All rights reserved.
  */
 
+#include <stdint.h>
 #include <sys/mman.h>
 
 #include <mock/api.h>
@@ -53,8 +54,8 @@ struct c0;
 #define KEY_CNT 5200
 
 struct c0_data {
-    int  klen;
-    u64  xlen;
+    int klen;
+    uint64_t xlen;
     char key[KEY_LEN];
     char val[KEY_LEN];
 };
@@ -86,8 +87,8 @@ struct mock_c0 {
     struct c0       handle;
     struct c0_data  data[KEY_CNT];
     struct c0sk    *c0_c0sk;
-    u64             hash;
-    u32             index;
+    uint64_t        hash;
+    uint32_t        index;
 
     spinlock_t             cc_lock;
     struct mock_c0_cursor *cc_head;
@@ -99,7 +100,7 @@ struct mock_cn_cursor {
     struct element_source es;
     struct kvs_cursor_element elem;
     struct c0_data *data;
-    u64             seqno;
+    uint64_t        seqno;
     int             pfx_len;
     int             i;
     bool            eof;
@@ -177,7 +178,7 @@ _c0_close(struct c0 *h)
     return 0;
 }
 
-static u16
+static uint16_t
 _c0_index(struct c0 *handle)
 {
     struct mock_c0 *m0 = mock_c0_h2r(handle);
@@ -188,7 +189,7 @@ _c0_index(struct c0 *handle)
 static merr_t
 _c0_cursor_create(
     struct c0 *            handle,
-    u64                    seqno,
+    uint64_t               seqno,
     bool                   reverse,
     const void *           prefix,
     size_t                 pfx_len,
@@ -320,7 +321,7 @@ static merr_t
 _c0_get(
     struct c0 *              handle,
     const struct kvs_ktuple *kt,
-    u64                      view_seqno,
+    uint64_t                 view_seqno,
     uintptr_t                seqnoref,
     enum key_lookup_res *    res,
     struct kvs_buf *         vbuf)
@@ -333,7 +334,7 @@ _c0_get(
 
     for (i = 0; i < KEY_CNT; ++i) {
         if (m0->data[i].klen && memcmp(m0->data[i].key, kt->kt_data, kt->kt_len) == 0) {
-            u32 copylen;
+            uint32_t copylen;
 
             vbuf->b_len = c0_data_vlen(&m0->data[i]);
 
@@ -352,7 +353,7 @@ static merr_t
 _cn_get(
     struct cn *          handle,
     struct kvs_ktuple *  kt,
-    u64                  seq,
+    uint64_t             seq,
     enum key_lookup_res *res,
     struct kvs_buf *     vbuf)
 {
@@ -380,7 +381,7 @@ _c0_del(struct c0 *handle, struct kvs_ktuple *kt, const uintptr_t seqno)
 }
 
 static merr_t
-_c0_prefix_del(struct c0 *handle, struct kvs_ktuple *kt, u64 seqno)
+_c0_prefix_del(struct c0 *handle, struct kvs_ktuple *kt, uint64_t seqno)
 {
     struct mock_c0 *m0 = mock_c0_h2r(handle);
     int             i;
@@ -405,7 +406,7 @@ _cn_open(
     struct mpool *      ds,
     struct kvdb_kvs *   kvs,
     struct cndb *       cndb,
-    u64                 cnid,
+    uint64_t            cnid,
     struct kvs_rparams *rp,
     const char *        mp_name,
     const char *        kvs_name,
@@ -482,10 +483,10 @@ cmp(const void *a_, const void *b_)
 static merr_t
 _cn_cursor_create(
     struct cn *            cn,
-    u64                    seqno,
+    uint64_t               seqno,
     bool                   reverse,
     const void *           prefix,
-    u32                    pfx_len,
+    uint32_t               pfx_len,
     struct cursor_summary *summary,
     struct cn_cursor **    cursorp)
 {
@@ -542,7 +543,7 @@ _cn_cursor_destroy(struct cn_cursor *cursor)
 }
 
 static merr_t
-_cn_cursor_update(struct cn_cursor *cursor, u64 seqno, bool *updated)
+_cn_cursor_update(struct cn_cursor *cursor, uint64_t seqno, bool *updated)
 {
     struct mock_cn_cursor *cur = (void *)cursor;
 
@@ -582,7 +583,7 @@ static merr_t
 _cn_cursor_seek(
     struct cn_cursor * cursor,
     const void *       key,
-    u32                len,
+    uint32_t           len,
     struct kc_filter * filter)
 {
     struct mock_cn_cursor *cur = (void *)cursor;
@@ -632,7 +633,7 @@ _cn_cursor_es_get(struct cn_cursor *cncur) {
 }
 
 merr_t
-_cn_cursor_active_kvsets(struct cn_cursor *cursor, u32 *active, u32 *total)
+_cn_cursor_active_kvsets(struct cn_cursor *cursor, uint32_t *active, uint32_t *total)
 {
     *active = 0;
     *total = 0;
@@ -845,7 +846,7 @@ mock_kvdb_meta_unset(void)
  * CNDB Mock
  */
 
-static u64 cndb_id_mocked;
+static uint64_t cndb_id_mocked;
 
 static merr_t
 _cndb_record_kvs_add(struct cndb *cndb, const struct kvs_cparams *cp, uint64_t *cnid_out, const char *name)

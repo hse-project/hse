@@ -28,7 +28,7 @@ snprintf_timestamp(char *buf, size_t buf_sz, atomic_ulong *timestamp)
 {
     struct timeval tv;
     size_t         ret;
-    u64            t = atomic_read(timestamp);
+    uint64_t       t = atomic_read(timestamp);
     struct tm      tm;
 
     tv.tv_sec = t / USEC_PER_SEC;

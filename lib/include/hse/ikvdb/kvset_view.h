@@ -6,6 +6,8 @@
 #ifndef HSE_KVS_CN_KVSET_VIEW_H
 #define HSE_KVS_CN_KVSET_VIEW_H
 
+#include <stdint.h>
+
 #include <hse/util/table.h>
 
 struct cn;
@@ -50,29 +52,29 @@ kvset_get_hblock_id(struct kvset *ks);
  * kvset_get_num_kblocks() - Get number of kblocks in kvset
  */
 /* MTF_MOCK */
-u32
+uint32_t
 kvset_get_num_kblocks(struct kvset *kvset);
 
 /**
  * kvset_get_num_vblocks() - Get number of vblocks in kvset
  */
 /* MTF_MOCK */
-u32
+uint32_t
 kvset_get_num_vblocks(struct kvset *kvset);
 
 /**
  * kvset_get_nth_kblock_id() - Get mblock id of the nth kblock in kvset
  */
 /* MTF_MOCK */
-u64
-kvset_get_nth_kblock_id(struct kvset *kvset, u32 index);
+uint64_t
+kvset_get_nth_kblock_id(struct kvset *kvset, uint32_t index);
 
 /**
  * kvset_get_nth_vblock_id() - Get mblock id of the nth vblock in kvset
  */
 /* MTF_MOCK */
-u64
-kvset_get_nth_vblock_id(struct kvset *kvset, u32 index);
+uint64_t
+kvset_get_nth_vblock_id(struct kvset *kvset, uint32_t index);
 
 /* MTF_MOCK */
 uint64_t
@@ -83,7 +85,7 @@ uint64_t
 kvset_get_dgen(const struct kvset *kvset);
 
 /* MTF_MOCK */
-u64
+uint64_t
 kvset_get_seqno_max(struct kvset *kvset);
 
 #if HSE_MOCKING

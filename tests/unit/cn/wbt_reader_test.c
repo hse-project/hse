@@ -3,9 +3,10 @@
  * Copyright (C) 2015-2022 Micron Technology, Inc.  All rights reserved.
  */
 
+#include <stdint.h>
+
 #include <mtf/framework.h>
 
-#include <hse/util/inttypes.h>
 #include <hse/logging/logging.h>
 
 #include <cn/omf.h>
@@ -68,7 +69,7 @@ t_wbtr_read_vref_helper(struct mtf_test_info *lcl_ti, const char *kblock_image_f
     int                   i, nkeys;
     char                  filename[PATH_MAX];
     struct kvs_mblk_desc  blkdesc = {};
-    u64                   seqno, blkid;
+    uint64_t              seqno, blkid;
     int                   rc;
 
     rc = snprintf(filename, sizeof(filename), "%s/%s", data_path, kblock_image_file);

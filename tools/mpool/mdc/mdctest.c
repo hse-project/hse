@@ -1,7 +1,9 @@
 /* SPDX-License-Identifier: Apache-2.0 */
 /*
- * Copyright (C) 2015-2021 Micron Technology, Inc.  All rights reserved.
+ * Copyright (C) 2015-2022 Micron Technology, Inc.  All rights reserved.
  */
+
+#include <stdint.h>
 
 #include <bsd/string.h>
 
@@ -47,8 +49,8 @@ mdc_correctness_simple(const char *path)
 {
     struct mpool_rparams params = {0};
     merr_t err = 0, original_err = 0;
-    char   errbuf[ERROR_BUFFER_SIZE];
-    u64    oid[2];
+    char errbuf[ERROR_BUFFER_SIZE];
+    uint64_t oid[2];
 
     struct mpool     *mp;
     struct mpool_mdc *mdc;
@@ -185,8 +187,8 @@ mdc_correctness_mp_release(const char *path)
 {
     struct mpool_rparams params = {0};
     merr_t err = 0, original_err = 0;
-    char   errbuf[ERROR_BUFFER_SIZE];
-    u64    oid[2];
+    char errbuf[ERROR_BUFFER_SIZE];
+    uint64_t oid[2];
 
     struct mpool     *mp;
     struct mpool_mdc *mdc;
@@ -327,15 +329,15 @@ close_mp:
 int
 verify_buf(char *buf_in, size_t buf_len, char val)
 {
-    char  buf[buf_len];
+    char buf[buf_len];
     pid_t pid = getpid();
-    u8   *p, *p1;
+    uint8_t *p, *p1;
 
     memset(buf, val, buf_len);
 
     if (memcmp(buf, buf_in, buf_len)) {
-        p = (u8 *)buf;
-        p1 = (u8 *)buf_in;
+        p = (uint8_t *)buf;
+        p1 = (uint8_t *)buf_in;
         fprintf(stdout, "[%d] expect %d got %d\n", pid, (int)*p, (int)*p1);
         return 1;
     }
@@ -348,11 +350,11 @@ mdc_correctness_multi_reader_single_app(const char *path)
 {
     struct mpool_rparams params = {0};
     merr_t err = 0, original_err = 0;
-    int    i, rc;
-    char   errbuf[ERROR_BUFFER_SIZE];
-    u64    oid[2];
-    char   buf[BUF_SIZE], buf_in[BUF_SIZE];
-    char   largebuf[PAGE_SIZE], largebuf_in[PAGE_SIZE];
+    int i, rc;
+    char errbuf[ERROR_BUFFER_SIZE];
+    uint64_t oid[2];
+    char buf[BUF_SIZE], buf_in[BUF_SIZE];
+    char largebuf[PAGE_SIZE], largebuf_in[PAGE_SIZE];
     size_t read_len;
 
     struct mpool     *mp;
@@ -651,11 +653,11 @@ mdc_correctness_reader_then_writer(const char *path)
 {
     struct mpool_rparams params = {0};
     merr_t err = 0, original_err = 0;
-    int    i, rc;
-    char   errbuf[ERROR_BUFFER_SIZE];
-    u64    oid[2];
-    char   buf[BUF_SIZE], buf_in[BUF_SIZE];
-    char   largebuf[PAGE_SIZE], largebuf_in[PAGE_SIZE];
+    int i, rc;
+    char errbuf[ERROR_BUFFER_SIZE];
+    uint64_t oid[2];
+    char buf[BUF_SIZE], buf_in[BUF_SIZE];
+    char largebuf[PAGE_SIZE], largebuf_in[PAGE_SIZE];
     size_t read_len;
 
     struct mpool     *mp;
@@ -889,11 +891,11 @@ mdc_correctness_writer_then_reader(const char *path)
 {
     struct mpool_rparams params = {0};
     merr_t err = 0, original_err = 0;
-    int    i, rc;
-    char   errbuf[ERROR_BUFFER_SIZE];
-    u64    oid[2];
-    char   buf[BUF_SIZE], buf_in[BUF_SIZE];
-    char   largebuf[PAGE_SIZE], largebuf_in[PAGE_SIZE];
+    int i, rc;
+    char errbuf[ERROR_BUFFER_SIZE];
+    uint64_t oid[2];
+    char buf[BUF_SIZE], buf_in[BUF_SIZE];
+    char largebuf[PAGE_SIZE], largebuf_in[PAGE_SIZE];
     size_t read_len;
 
     struct mpool     *mp;
@@ -1078,14 +1080,14 @@ mdc_correctness_multi_mdc(const char *path)
 {
     struct mpool_rparams params = {0};
     merr_t err = 0, original_err = 0;
-    int    i, j, rc;
-    char   errbuf[ERROR_BUFFER_SIZE];
-    char   buf[BUF_SIZE], buf_in[BUF_SIZE];
-    u32    mdc_cnt = 4;
+    int i, j, rc;
+    char errbuf[ERROR_BUFFER_SIZE];
+    char buf[BUF_SIZE], buf_in[BUF_SIZE];
+    uint32_t mdc_cnt = 4;
     size_t read_len;
 
     struct oid_s {
-        u64 oid[2];
+        uint64_t oid[2];
     } * oid;
 
     struct mpool     *mp;

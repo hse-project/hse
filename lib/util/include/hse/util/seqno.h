@@ -1,13 +1,15 @@
 /* SPDX-License-Identifier: Apache-2.0 */
 /*
- * Copyright (C) 2015-2021 Micron Technology, Inc.  All rights reserved.
+ * Copyright (C) 2015-2022 Micron Technology, Inc.  All rights reserved.
  */
 
 #ifndef HSE_PLATFORM_SEQNO_H
 #define HSE_PLATFORM_SEQNO_H
 
+#include <stdbool.h>
+#include <stdint.h>
+
 #include <hse/util/assert.h>
-#include <hse/util/inttypes.h>
 
 /* A sequence number reference is an entity that is resolvable to one of three
  * values:
@@ -59,7 +61,7 @@ enum hse_seqno_state {
 };
 
 static inline enum hse_seqno_state
-seqnoref_to_seqno(uintptr_t seqnoref, u64 *seqno)
+seqnoref_to_seqno(uintptr_t seqnoref, uint64_t *seqno)
 {
     uintptr_t oseqnoref = 0;
 
@@ -99,15 +101,15 @@ restart:
  * Return:  The difference between seq0 and seq1 if sqnref1 resolves
  * to an ordinal value and (seq0 >= seq1).  Otherwise ULONG_MAX.
  */
-static inline u64
-seqnoref_ext_diff(u64 seq0, uintptr_t sqnref1)
+static inline uint64_t
+seqnoref_ext_diff(uint64_t seq0, uintptr_t sqnref1)
 {
-    u64 seq1;
+    uint64_t seq1;
 
     if (seqnoref_to_seqno(sqnref1, &seq1) != HSE_SQNREF_STATE_DEFINED)
-        return ULONG_MAX;
+        return UINT64_MAX;
 
-    return seq0 < seq1 ? ULONG_MAX : seq0 - seq1;
+    return seq0 < seq1 ? UINT64_MAX : seq0 - seq1;
 }
 
 /**
@@ -120,13 +122,13 @@ seqnoref_ext_diff(u64 seq0, uintptr_t sqnref1)
  * Return:  The difference between seq0 and seq1 if both sqnref0 and sqnref1
  * resolve to ordinal values and (seq0 >= seq1).  Otherwise ULONG_MAX.
  */
-static inline u64
+static inline uint64_t
 seqnoref_diff(uintptr_t sqnref0, uintptr_t sqnref1)
 {
-    u64 seq0;
+    uint64_t seq0;
 
     if (seqnoref_to_seqno(sqnref0, &seq0) != HSE_SQNREF_STATE_DEFINED)
-        return ULONG_MAX;
+        return UINT64_MAX;
 
     return seqnoref_ext_diff(seq0, sqnref1);
 }
@@ -134,8 +136,8 @@ seqnoref_diff(uintptr_t sqnref0, uintptr_t sqnref1)
 static inline bool
 seqnoref_gt(uintptr_t sqnref0, uintptr_t sqnref1)
 {
-    u64                     seq0 = 0, seq1 = 0;
-    enum hse_seqno_state    state0;
+    uint64_t             seq0 = 0, seq1 = 0;
+    enum hse_seqno_state state0;
 
     state0 = seqnoref_to_seqno(sqnref0, &seq0);
 
@@ -168,7 +170,7 @@ seqnoref_gt(uintptr_t sqnref0, uintptr_t sqnref1)
 static inline bool
 seqnoref_ge(uintptr_t sqnref0, uintptr_t sqnref1)
 {
-    u64 seq0 = 0, seq1 = 0;
+    uint64_t seq0 = 0, seq1 = 0;
 
     if (seqnoref_to_seqno(sqnref0, &seq0) != HSE_SQNREF_STATE_DEFINED) {
         assert(0);

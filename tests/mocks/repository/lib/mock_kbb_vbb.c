@@ -3,8 +3,9 @@
  * Copyright (C) 2015-2022 Micron Technology, Inc.  All rights reserved.
  */
 
+#include <stdint.h>
+
 #include <hse/error/merr.h>
-#include <hse/util/inttypes.h>
 
 #include <mock/api.h>
 
@@ -34,7 +35,7 @@ _vbb_create(
     struct vblock_builder **bld_out,
     struct cn *             cn,
     struct perfc_set *      pc,
-    u64                     vgroup)
+    uint64_t                vgroup)
 {
     *bld_out = (struct vblock_builder *)0x3333;
     return 0;

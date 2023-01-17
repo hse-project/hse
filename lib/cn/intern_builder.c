@@ -3,6 +3,8 @@
  * Copyright (C) 2015-2022 Micron Technology, Inc.  All rights reserved.
  */
 
+#include <stdint.h>
+
 #include <hse/limits.h>
 
 #include <hse/util/platform.h>
@@ -290,7 +292,7 @@ ib_node_publish(struct intern_level *ib, uint last_child)
     sfxp = cnode + PAGE_SIZE;
 
     for (i = 0; i < nkey; i++) {
-        u16 sfx_len = k->klen - lcp_len;
+        uint16_t sfx_len = k->klen - lcp_len;
 
         sfxp -= sfx_len;
         memcpy(sfxp, k->kdata + lcp_len, sfx_len);

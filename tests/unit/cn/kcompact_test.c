@@ -3,6 +3,8 @@
  * Copyright (C) 2015-2022 Micron Technology, Inc.  All rights reserved.
  */
 
+#include <stdint.h>
+
 #include <mtf/framework.h>
 #include <mock/api.h>
 
@@ -168,7 +170,7 @@ _kvset_builder_add_key(struct kvset_builder *builder, const struct key_obj *kobj
 }
 
 static merr_t
-_kvset_builder_add_vref(struct kvset_builder *self, u64 seq,
+_kvset_builder_add_vref(struct kvset_builder *self, uint64_t seq,
     uint vbidx, uint vboff, uint vlen, uint complen)
 {
     VERIFY_EQ_RET(st.have.nvals, 0, __LINE__);
@@ -185,7 +187,7 @@ _kvset_builder_add_vref(struct kvset_builder *self, u64 seq,
 }
 
 static merr_t
-_kvset_builder_add_nonval(struct kvset_builder *self, u64 seq, enum kmd_vtype vtype)
+_kvset_builder_add_nonval(struct kvset_builder *self, uint64_t seq, enum kmd_vtype vtype)
 {
     VERIFY_EQ_RET(st.have.nvals, 0, __LINE__);
 
@@ -202,7 +204,7 @@ _kvset_builder_add_val(
     const struct key_obj   *kobj,
     const void *            vdata,
     uint                    vlen,
-    u64                     seq,
+    uint64_t                seq,
     uint                    complen)
 {
     VERIFY_EQ_RET(st.have.nvals, 0, __LINE__);
@@ -265,7 +267,7 @@ MTF_DEFINE_UTEST_PRE(kcompact_test, four_into_one, pre)
     uint64_t                  kvsetidv = 1;
     struct nkv_tab            nkv;
     atomic_int                c;
-    u64                       dgen = 0;
+    uint64_t                  dgen = 0;
     int                       i;
     merr_t                    err;
 
@@ -333,7 +335,7 @@ MTF_DEFINE_UTEST_PRE(kcompact_test, all_gone, pre)
     struct kv_iterator *      itv[5] = { 0 };
     struct nkv_tab            nkv;
     atomic_int                c;
-    u64                       dgen = 0;
+    uint64_t                  dgen = 0;
     int                       i;
     merr_t                    err;
 
@@ -405,7 +407,7 @@ MTF_DEFINE_UTEST_PREPOST(kcompact_test, all_gone_mixed, mixed_pre, mixed_post)
     struct kv_iterator *      itv[5] = { 0 };
     struct nkv_tab            nkv;
     atomic_int                c;
-    u64                       dgen = 0;
+    uint64_t                  dgen = 0;
     int                       i;
     merr_t                    err;
 
@@ -477,7 +479,7 @@ MTF_DEFINE_UTEST_PREPOST(kcompact_test, four_into_one_mixed, mixed_pre, mixed_po
     uint64_t                  kvsetidv = 1;
     struct nkv_tab            nkv;
     atomic_int                c;
-    u64                       dgen = 0;
+    uint64_t                  dgen = 0;
     int                       i;
     merr_t                    err;
 
@@ -542,7 +544,7 @@ run_kcompact(struct mtf_test_info *lcl_ti, int expect)
     struct kv_iterator *      itv[5] = { 0 };
     struct nkv_tab            nkv;
     atomic_int                c;
-    u64                       dgen = 0;
+    uint64_t                  dgen = 0;
     int                       i;
     merr_t                    err;
 
@@ -602,7 +604,7 @@ run_kcompact(struct mtf_test_info *lcl_ti, int expect)
 
 MTF_DEFINE_UTEST_PRE(kcompact_test, kcompact_fail, pre)
 {
-    u32 api;
+    uint32_t api;
 
     if (run_kcompact(lcl_ti, 0))
         return;

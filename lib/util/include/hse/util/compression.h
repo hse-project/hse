@@ -1,12 +1,13 @@
 /* SPDX-License-Identifier: Apache-2.0 */
 /*
- * Copyright (C) 2020 Micron Technology, Inc.  All rights reserved.
+ * Copyright (C) 2020-2022 Micron Technology, Inc.  All rights reserved.
  */
 #ifndef HSE_UTIL_COMPRESSION_H
 #define HSE_UTIL_COMPRESSION_H
 
+#include <sys/types.h>
+
 #include <hse/error/merr.h>
-#include <hse/util/inttypes.h>
 
 typedef uint compress_op_estimate_t(
     const void *data,

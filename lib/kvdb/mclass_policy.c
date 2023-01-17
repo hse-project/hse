@@ -1,11 +1,12 @@
 /* SPDX-License-Identifier: Apache-2.0 */
 /*
- * Copyright (C) 2021 Micron Technology, Inc.  All rights reserved.
+ * Copyright (C) 2021-2022 Micron Technology, Inc.  All rights reserved.
  */
+
+#include <stdint.h>
 
 #include <hse/util/assert.h>
 #include <hse/util/base.h>
-#include <hse/util/inttypes.h>
 #include <hse/util/event_counter.h>
 
 #include <hse/mpool/mpool.h>
@@ -62,7 +63,7 @@ mclass_policy_default_get(struct ikvdb *handle)
 {
     struct mpool *mp;
     int i;
-    u8  config = 0;
+    uint8_t  config = 0;
 
     INVARIANT(handle);
 
@@ -126,7 +127,7 @@ mclass_policy_get_num_map_entries(int index)
 }
 
 enum hse_mclass
-mclass_policy_get_type(struct mclass_policy *policy, u8 age, u8 dtype)
+mclass_policy_get_type(struct mclass_policy *policy, uint8_t age, uint8_t dtype)
 {
     enum hse_mclass mtype = HSE_MCLASS_INVALID;
 

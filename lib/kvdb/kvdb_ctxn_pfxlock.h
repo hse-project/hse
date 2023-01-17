@@ -1,10 +1,12 @@
 /* SPDX-License-Identifier: Apache-2.0 */
 /*
- * Copyright (C) 2021 Micron Technology, Inc.  All rights reserved.
+ * Copyright (C) 2021-2022 Micron Technology, Inc.  All rights reserved.
  */
 
 #ifndef HSE_KVDB_PFXLOCK_H
 #define HSE_KVDB_PFXLOCK_H
+
+#include <stdint.h>
 
 #include <hse/error/merr.h>
 
@@ -22,19 +24,19 @@ kvdb_ctxn_pfxlock_fini(void) HSE_COLD;
 merr_t
 kvdb_ctxn_pfxlock_create(
     struct kvdb_pfxlock *      kvdb_pfxlock,
-    u64                        view_seqno,
+    uint64_t                   view_seqno,
     struct kvdb_ctxn_pfxlock **kpl_out);
 
 void
 kvdb_ctxn_pfxlock_destroy(struct kvdb_ctxn_pfxlock *kpl);
 
 merr_t
-kvdb_ctxn_pfxlock_shared(struct kvdb_ctxn_pfxlock *kpl, u64 hash);
+kvdb_ctxn_pfxlock_shared(struct kvdb_ctxn_pfxlock *kpl, uint64_t hash);
 
 merr_t
-kvdb_ctxn_pfxlock_excl(struct kvdb_ctxn_pfxlock *kpl, u64 hash);
+kvdb_ctxn_pfxlock_excl(struct kvdb_ctxn_pfxlock *kpl, uint64_t hash);
 
 void
-kvdb_ctxn_pfxlock_seqno_pub(struct kvdb_ctxn_pfxlock *kpl, u64 end_seqno);
+kvdb_ctxn_pfxlock_seqno_pub(struct kvdb_ctxn_pfxlock *kpl, uint64_t end_seqno);
 
 #endif

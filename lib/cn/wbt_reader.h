@@ -6,7 +6,9 @@
 #ifndef HSE_KVS_CN_WBT_READER_H
 #define HSE_KVS_CN_WBT_READER_H
 
-#include <hse/util/inttypes.h>
+#include <stdbool.h>
+#include <stdint.h>
+
 #include <hse/util/key_util.h>
 
 #include <hse/ikvdb/tuple.h>
@@ -18,7 +20,7 @@ struct vgmap;
 
 /* MTF_MOCK_DECL(wbt_reader) */
 
-#define NODE_EOF ((u32)-1)
+#define NODE_EOF ((uint32_t)-1)
 
 /**
  * struct wbt_desc - a descriptor for accessing a KBLOCK's WBT
@@ -74,7 +76,7 @@ wbtr_read_vref(
     const void *base,
     const struct wbt_desc *wbd,
     const struct kvs_ktuple *kt,
-    u64 seq,
+    uint64_t seq,
     enum key_lookup_res *lookup_res,
     struct vgmap *vgmap,
     struct kvs_vtuple_ref *vref);
@@ -157,7 +159,7 @@ wbt_read_kmd_vref(
     const void *kmd,
     struct vgmap *vgmap,
     size_t *off,
-    u64 *seq,
+    uint64_t *seq,
     struct kvs_vtuple_ref *vref);
 
 merr_t

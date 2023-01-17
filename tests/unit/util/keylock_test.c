@@ -3,6 +3,8 @@
  * Copyright (C) 2015-2022 Micron Technology, Inc.  All rights reserved.
  */
 
+#include <stdint.h>
+
 #include <mtf/framework.h>
 #include <mock/api.h>
 
@@ -54,8 +56,8 @@ MTF_DEFINE_UTEST(keylock_test, keylock_lock_unlock)
     struct keylock *     handle = NULL;
     int                  i;
     uint                 index;
-    u64                  hash, num_entries = 0;
-    u64                  entries[table_size * 2];
+    uint64_t             hash, num_entries = 0;
+    uint64_t             entries[table_size * 2];
     bool                 inherited;
 
     /* [HSE_REVISIT] mapi breaks initialization of handle.
@@ -130,7 +132,7 @@ MTF_DEFINE_UTEST(keylock_test, keylock_psl)
     struct keylock *handle;
     uint            table_size;
     bool            inherited;
-    u64             hash;
+    uint64_t        hash;
     merr_t          err;
 
     err = keylock_create(NULL, &handle);
@@ -144,7 +146,7 @@ MTF_DEFINE_UTEST(keylock_test, keylock_psl)
      * the probe sequence length to the max.
      */
     for (uint i = 0; i < table_size + 1; i++) {
-        hash = (u64)i * table_size;
+        hash = (uint64_t)i * table_size;
 
         err = keylock_lock(handle, hash, 1, 0, &inherited);
         if (err) {
@@ -161,7 +163,7 @@ MTF_DEFINE_UTEST(keylock_test, keylock_psl)
     }
 
     for (uint i = 0; i < table_size; i++) {
-        hash = (u64)i * table_size;
+        hash = (uint64_t)i * table_size;
 
         keylock_unlock(handle, hash, 0);
         keylock_unlock(handle, hash, 1);

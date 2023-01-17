@@ -4,6 +4,9 @@
  */
 
 #define MTF_MOCK_IMPL_kblock_builder
+
+#include <stdint.h>
+
 #include "kblock_builder.h"
 
 #include <hse/limits.h>
@@ -226,7 +229,7 @@ struct kblock_builder {
 static merr_t
 mblk_blow_chunks(
     struct kblock_builder *self,
-    u64                    mbid,
+    uint64_t               mbid,
     struct iovec *         iov,
     uint                   iov_cnt,
     uint                   chunk_len)
@@ -241,7 +244,7 @@ mblk_blow_chunks(
     uint bx, blen_orig;
     uint wlen, need;
 
-    u64                    dt = 0;
+    uint64_t               dt = 0;
     struct cn_merge_stats *stats = self->mstats;
 
     /* ax, aoff, alen, bx, blen explained:
@@ -761,7 +764,7 @@ kblock_make_header(
 size_t
 kbb_estimate_alen(struct cn *cn, size_t wlen, enum hse_mclass mclass)
 {
-    u64 zonealloc_unit;
+    uint64_t zonealloc_unit;
 
     zonealloc_unit = cn_mpool_dev_zone_alloc_unit_default(cn, mclass);
     return cn_mb_est_alen(
@@ -795,10 +798,10 @@ kblock_finish(struct kblock_builder *bld)
     size_t        wlen;
     uint32_t      flags = 0;
 
-    merr_t err;
-    u64    blkid = 0;
-    u64    tstart = 0;
-    u64    kblocksz;
+    merr_t   err;
+    uint64_t blkid = 0;
+    uint64_t tstart = 0;
+    uint64_t kblocksz;
 
     enum hse_mclass mclass;
 
@@ -1020,9 +1023,9 @@ kbb_add_entry(
     uint                   kmd_len,
     struct key_stats *     stats)
 {
-    merr_t err;
-    bool   added;
-    u64    hash;
+    merr_t   err;
+    bool     added;
+    uint64_t hash;
 
     assert(!bld->finished);
     assert(key_obj_len(kobj) > 0);

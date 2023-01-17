@@ -1,18 +1,19 @@
 /* SPDX-License-Identifier: Apache-2.0 */
 /*
- * Copyright (C) 2020-2021 Micron Technology, Inc.  All rights reserved.
+ * Copyright (C) 2020-2022 Micron Technology, Inc.  All rights reserved.
  */
 
 #ifndef HSE_XRAND_H
 #define HSE_XRAND_H
 
-#include <hse/util/inttypes.h>
+#include <stdint.h>
+
 #include <hse/util/compiler.h>
 
 #include <xoroshiro.h>
 
 struct xrand {
-    u64 xr_state[2];
+    uint64_t xr_state[2];
 };
 
 extern thread_local struct xrand    xrand_tls;
@@ -22,10 +23,9 @@ extern thread_local struct xrand    xrand_tls;
  * They are not thread safe.
  */
 
-void xrand_init(struct xrand *xr, u64 seed);
+void xrand_init(struct xrand *xr, uint64_t seed);
 
-static HSE_ALWAYS_INLINE
-u64
+static HSE_ALWAYS_INLINE uint64_t
 xrand64(struct xrand *xr)
 {
     return xoroshiro128plus(xr->xr_state);
@@ -35,8 +35,7 @@ xrand64(struct xrand *xr)
  * The PRNG is automatically initialized on the first call to xrand64_tls().
  * This function is thread safe.
  */
-static HSE_ALWAYS_INLINE
-u64
+static HSE_ALWAYS_INLINE uint64_t
 xrand64_tls(void)
 {
     if (HSE_UNLIKELY(!xrand_tls.xr_state[0])) {
@@ -46,7 +45,7 @@ xrand64_tls(void)
     return xrand64(&xrand_tls);
 }
 
-u64
-xrand_range64(struct xrand *xr, u64 lo, u64 hi);
+uint64_t
+xrand_range64(struct xrand *xr, uint64_t lo, uint64_t hi);
 
 #endif

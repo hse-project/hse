@@ -1,10 +1,12 @@
 /* SPDX-License-Identifier: Apache-2.0 */
 /*
- * Copyright (C) 2015-2020 Micron Technology, Inc.  All rights reserved.
+ * Copyright (C) 2015-2022 Micron Technology, Inc.  All rights reserved.
  */
 
 #ifndef HSE_KVDB_CN_MBSET_H
 #define HSE_KVDB_CN_MBSET_H
+
+#include <stdint.h>
 
 #include <hse/util/platform.h>
 #include <hse/util/atomic.h>
@@ -50,7 +52,7 @@ merr_t
 mbset_create(
     struct mpool *      ds,
     uint                idc,
-    u64 *               idv,
+    uint64_t *          idv,
     size_t              udata_sz,
     mbset_udata_init_fn udata_init_fn,
     struct mbset **     handle);
@@ -77,19 +79,19 @@ mbset_get_mp(struct mbset *self)
     return self->mbs_mp;
 }
 
-static HSE_ALWAYS_INLINE u64
+static HSE_ALWAYS_INLINE uint64_t
 mbset_get_wlen(struct mbset *self)
 {
     return self->mbs_wlen;
 }
 
-static HSE_ALWAYS_INLINE u64
+static HSE_ALWAYS_INLINE uint64_t
 mbset_get_alen(struct mbset *self)
 {
     return self->mbs_alen;
 }
 
-static HSE_ALWAYS_INLINE u64
+static HSE_ALWAYS_INLINE uint64_t
 mbset_get_mbid(struct mbset *self, uint blk_num)
 {
     bool valid = blk_num < self->mbs_mblkc;

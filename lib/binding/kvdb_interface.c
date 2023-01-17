@@ -7,6 +7,7 @@
 
 #include "build_config.h"
 
+#include <stdint.h>
 #include <string.h>
 
 #include <bsd/libutil.h>
@@ -72,14 +73,14 @@ rest_get_workqueues(const struct rest_request *req, struct rest_response *resp, 
 extern enum rest_status
 rest_kmc_get_vmstat(const struct rest_request *req, struct rest_response *resp, void *arg);
 
-static HSE_ALWAYS_INLINE u64
-kvdb_lat_startu(const u32 cidx)
+static HSE_ALWAYS_INLINE uint64_t
+kvdb_lat_startu(const uint32_t cidx)
 {
     return perfc_lat_startu(&kvdb_pkvdbl_pc, cidx);
 }
 
 static HSE_ALWAYS_INLINE void
-kvdb_lat_record(const u32 cidx, const u64 start)
+kvdb_lat_record(const uint32_t cidx, const uint64_t start)
 {
     perfc_lat_record(&kvdb_pkvdbl_pc, cidx, start);
 }
@@ -502,8 +503,8 @@ hse_kvdb_create(const char *kvdb_home, size_t paramc, const char *const *const p
 {
     size_t n;
     merr_t err;
-    u64 tstart;
     bool pmem_only;
+    uint64_t tstart;
     struct pidfh *pfh = NULL;
     char pidfile_path[PATH_MAX];
     struct kvdb_cparams dbparams = kvdb_cparams_defaults();
@@ -1425,8 +1426,8 @@ hse_kvs_prefix_delete(
 hse_err_t
 hse_kvdb_sync(struct hse_kvdb *handle, const unsigned int flags)
 {
-    merr_t err;
-    u64    tstart;
+    merr_t   err;
+    uint64_t tstart;
 
     if (HSE_UNLIKELY(!handle || flags & ~HSE_KVDB_SYNC_MASK))
         return merr(EINVAL);
@@ -1482,8 +1483,8 @@ hse_kvdb_txn_free(struct hse_kvdb *handle, struct hse_kvdb_txn *txn)
 hse_err_t
 hse_kvdb_txn_begin(struct hse_kvdb *handle, struct hse_kvdb_txn *txn)
 {
-    merr_t err;
-    u64    tstart;
+    merr_t   err;
+    uint64_t tstart;
 
     if (HSE_UNLIKELY(!handle || !txn))
         return merr(EINVAL);
@@ -1502,8 +1503,8 @@ hse_kvdb_txn_begin(struct hse_kvdb *handle, struct hse_kvdb_txn *txn)
 hse_err_t
 hse_kvdb_txn_commit(struct hse_kvdb *handle, struct hse_kvdb_txn *txn)
 {
-    merr_t err;
-    u64    tstart;
+    merr_t   err;
+    uint64_t tstart;
 
     if (HSE_UNLIKELY(!handle || !txn))
         return merr(EINVAL);
@@ -1522,8 +1523,8 @@ hse_kvdb_txn_commit(struct hse_kvdb *handle, struct hse_kvdb_txn *txn)
 hse_err_t
 hse_kvdb_txn_abort(struct hse_kvdb *handle, struct hse_kvdb_txn *txn)
 {
-    merr_t err;
-    u64    tstart;
+    merr_t   err;
+    uint64_t tstart;
 
     if (HSE_UNLIKELY(!handle || !txn))
         return merr(EINVAL);
@@ -1587,8 +1588,8 @@ hse_kvs_cursor_create(
     size_t                     pfx_len,
     struct hse_kvs_cursor **   cursor)
 {
-    merr_t err;
-    u64    t_cur;
+    merr_t   err;
+    uint64_t t_cur;
 
     if (HSE_UNLIKELY(!handle || !cursor || (pfx_len && !prefix) || flags & ~HSE_CURSOR_CREATE_MASK))
         return merr(EINVAL);

@@ -3,6 +3,8 @@
  * Copyright (C) 2015-2022 Micron Technology, Inc.  All rights reserved.
  */
 
+#include <stdint.h>
+
 #include <mock/api.h>
 #include <mtf/framework.h>
 
@@ -18,8 +20,8 @@ MTF_BEGIN_UTEST_COLLECTION(bin_heap_test);
 int
 u32_cmp(const void *a, const void *b)
 {
-    const u32 a_val = *((u32 *)a);
-    const u32 b_val = *((u32 *)b);
+    const uint32_t a_val = *((uint32_t *)a);
+    const uint32_t b_val = *((uint32_t *)b);
 
     return a_val - b_val;
 }
@@ -27,15 +29,15 @@ u32_cmp(const void *a, const void *b)
 int
 ks_cmp(const void *a, const void *b)
 {
-    const u32 *a_val = a;
-    const u32 *b_val = b;
+    const uint32_t *a_val = a;
+    const uint32_t *b_val = b;
 
     return (*a_val & 0xffffff) - (*b_val & 0xffffff);
 }
 
 MTF_DEFINE_UTEST(bin_heap_test, bin_heap_creation)
 {
-    const u32 WIDTH = 17;
+    const uint32_t WIDTH = 17;
 
     struct bin_heap *bh;
     merr_t            err;
@@ -63,7 +65,7 @@ MTF_DEFINE_UTEST(bin_heap_test, bin_heap_creation)
 
 MTF_DEFINE_UTEST(bin_heap_test, bin_heap_one)
 {
-    const u32  WIDTH = 7;
+    const uint32_t  WIDTH = 7;
     const char set[] = "XAQBTCM";
     const char ordered[] = "ABCMQTX";
 
@@ -74,7 +76,7 @@ MTF_DEFINE_UTEST(bin_heap_test, bin_heap_one)
     merr_t                 err;
     int                    i;
     void *                 item = NULL;
-    u32                    v, last;
+    uint32_t                    v, last;
 
     for (i = 0; i < WIDTH; ++i) {
         err = sample_es_create(&es[i], set[i], SES_ONE);
@@ -86,7 +88,7 @@ MTF_DEFINE_UTEST(bin_heap_test, bin_heap_one)
     bin_heap_prepare(bh, WIDTH, handles);
 
     for (i = 0, last = 0; bin_heap_pop(bh, &item); last = v) {
-        v = *(u32 *)item;
+        v = *(uint32_t *)item;
         ASSERT_LE(last, v);
         printf("%c ", v);
         out[i++] = v;
@@ -102,18 +104,18 @@ MTF_DEFINE_UTEST(bin_heap_test, bin_heap_one)
 
 MTF_DEFINE_UTEST(bin_heap_test, bin_heap_insert_remove)
 {
-    const u32  WIDTH = 7;
+    const uint32_t  WIDTH = 7;
     const char set[] = "XAQBTCM";
     const char ordered[] = "ABCMQTX";
 
-    struct bin_heap *     bh;
+    struct bin_heap *      bh;
     struct sample_es *     es[WIDTH];
     struct element_source *handles[WIDTH + 1];
     char                   out[WIDTH];
     merr_t                 err;
     int                    i, j;
     void *                 item = NULL;
-    u32                    v, last;
+    uint32_t               v, last;
 
     for (i = 0; i < WIDTH; ++i) {
         err = sample_es_create(&es[i], set[i], SES_ONE);
@@ -129,13 +131,13 @@ MTF_DEFINE_UTEST(bin_heap_test, bin_heap_insert_remove)
         err = bin_heap_insert_src(bh, handles[i]);
         ASSERT_EQ(0, err);
         bin_heap_peek(bh, &item);
-        v = *(u32 *)item;
+        v = *(uint32_t *)item;
         ASSERT_LE(v, last);
         last = v;
     }
 
     for (i = 0, last = 0; bin_heap_pop(bh, &item); last = v) {
-        v = *(u32 *)item;
+        v = *(uint32_t *)item;
         ASSERT_LE(last, v);
         printf("%c ", v);
         ASSERT_LE(i, WIDTH);
@@ -164,7 +166,7 @@ MTF_DEFINE_UTEST(bin_heap_test, bin_heap_insert_remove)
 
         printf("removed %c: ", set[j]);
         for (i = 0, last = 0; bin_heap_pop(bh, &item); last = v) {
-            v = *(u32 *)item;
+            v = *(uint32_t *)item;
             ASSERT_LE(last, v);
             printf("%c ", v);
             last = v;
@@ -197,7 +199,7 @@ MTF_DEFINE_UTEST(bin_heap_test, bin_heap_insert_remove)
 
 MTF_DEFINE_UTEST(bin_heap_test, bin_heap_replace_test)
 {
-    const u32 WIDTH = 7;
+    const uint32_t WIDTH = 7;
     char      set[] = "XBQCTDM";
     char *    expected;
 
@@ -207,7 +209,7 @@ MTF_DEFINE_UTEST(bin_heap_test, bin_heap_replace_test)
     merr_t                 err;
     int                    i, j;
     void *                 item = NULL;
-    u32                    v;
+    uint32_t               v;
 
     bin_heap_create(WIDTH, u32_cmp, &bh);
 
@@ -224,7 +226,7 @@ MTF_DEFINE_UTEST(bin_heap_test, bin_heap_replace_test)
         bin_heap_replace_src(bh, handles[j]);
         printf("replaced %c with %c\n", set[j], 'A');
         bin_heap_pop(bh, &item);
-        v = *(u32 *)item;
+        v = *(uint32_t *)item;
         ASSERT_EQ('A', v);
         sample_es_set_elt(es[j], set[j]);
 
@@ -250,7 +252,7 @@ MTF_DEFINE_UTEST(bin_heap_test, bin_heap_replace_test)
         if (set[j] > 'E')
             bin_heap_pop(bh, &item);
 
-        v = *(u32 *)item;
+        v = *(uint32_t *)item;
         ASSERT_EQ('E', v);
         sample_es_set_elt(es[j], set[j]);
 
@@ -276,7 +278,7 @@ MTF_DEFINE_UTEST(bin_heap_test, bin_heap_replace_test)
     printf("replaced %s with %s\n", set, expected);
     for (i = 0; i < WIDTH; i++) {
         bin_heap_pop(bh, &item);
-        v = *(u32 *)item;
+        v = *(uint32_t *)item;
         ASSERT_EQ(expected[i], v);
     }
 
@@ -288,7 +290,7 @@ MTF_DEFINE_UTEST(bin_heap_test, bin_heap_replace_test)
 
 MTF_DEFINE_UTEST(bin_heap_test, bin_heap_basic)
 {
-    const u32 WIDTH = 17;
+    const uint32_t WIDTH = 17;
 
     struct bin_heap *     bh;
     struct sample_es *     es[WIDTH];
@@ -296,7 +298,7 @@ MTF_DEFINE_UTEST(bin_heap_test, bin_heap_basic)
     merr_t                 err;
     int                    i;
     void *                 item = NULL;
-    u32                    value, last;
+    uint32_t               value, last;
 
     for (i = 0; i < WIDTH; ++i) {
         err = sample_es_create(&es[i], 1123, SES_LINEAR);
@@ -309,10 +311,10 @@ MTF_DEFINE_UTEST(bin_heap_test, bin_heap_basic)
     bin_heap_prepare(bh, WIDTH, handles);
 
     bin_heap_pop(bh, &item);
-    last = *(u32 *)item;
+    last = *(uint32_t *)item;
 
     while (bin_heap_pop(bh, &item)) {
-        value = *(u32 *)item;
+        value = *(uint32_t *)item;
         ASSERT_LE(last, value);
         last = value;
     }
@@ -334,10 +336,10 @@ MTF_DEFINE_UTEST(bin_heap_test, bin_heap_basic)
     bin_heap_prepare(bh, WIDTH, handles);
 
     bin_heap_pop(bh, &item);
-    last = *(u32 *)item;
+    last = *(uint32_t *)item;
 
     while (bin_heap_pop(bh, &item)) {
-        value = *(u32 *)item;
+        value = *(uint32_t *)item;
         ASSERT_LE(last, value);
         last = value;
     }
@@ -353,15 +355,15 @@ MTF_DEFINE_UTEST(bin_heap_test, bin_heap_basic)
 
 MTF_DEFINE_UTEST(bin_heap_test, bin_heap_dups)
 {
-    const u32 WIDTH = 3;
+    const uint32_t WIDTH = 3;
 
     struct bin_heap *     bh;
     struct sample_es *     es[WIDTH];
     struct element_source *handles[WIDTH];
-    u32 *                  item = NULL, *dup = NULL;
+    uint32_t *             item = NULL, *dup = NULL;
     merr_t                 err;
     int                    i;
-    u32                    last, src;
+    uint32_t               last, src;
 
     /* create sample es's with identical keys, differing srcids */
     for (i = 0; i < WIDTH; ++i) {
@@ -410,7 +412,7 @@ MTF_DEFINE_UTEST(bin_heap_test, bin_heap_dups)
 
 MTF_DEFINE_UTEST(bin_heap_test, bin_heap_usage_error)
 {
-    const u32 WIDTH = 17;
+    const uint32_t WIDTH = 17;
 
     struct bin_heap *     bh;
     struct sample_es *     es[WIDTH];

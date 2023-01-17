@@ -3,6 +3,7 @@
  * Copyright (C) 2015-2022 Micron Technology, Inc.  All rights reserved.
  */
 
+#include <stdint.h>
 #include <stdio.h>
 
 #include <cn/cn_metrics.h>
@@ -98,11 +99,11 @@ bn_width(enum bn_fmt fmt, uint col)
 }
 
 char *
-bn64(char *buf, size_t buf_sz, enum bn_fmt fmt, u64 value)
+bn64(char *buf, size_t buf_sz, enum bn_fmt fmt, uint64_t value)
 {
     const char *suffix = "\0kmgtpezy";
     unsigned exp = 0;
-    u64      pv = 0;
+    uint64_t pv = 0;
     int n;
 
     switch (fmt) {
@@ -252,8 +253,8 @@ process_options(int argc, char *argv[])
 struct rollup {
     struct kvset_metrics km;
     struct kvset_stats   ks;
-    u64                  dgen;
-    u64                  nodeid;
+    uint64_t             dgen;
+    uint64_t             nodeid;
 };
 
 void
@@ -336,8 +337,8 @@ static void
 print_ids(
     struct ctx *ctx,
     struct kvset *kvset,
-    u32 (*get_count)(struct kvset *),
-    u64 (*get_nth)(struct kvset *, u32),
+    uint32_t (*get_count)(struct kvset *),
+    uint64_t (*get_nth)(struct kvset *, uint32_t),
     int max)
 {
     int i, n;

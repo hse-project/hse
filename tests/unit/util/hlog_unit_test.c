@@ -1,7 +1,9 @@
 /* SPDX-License-Identifier: Apache-2.0 */
 /*
- * Copyright (C) 2015-2020 Micron Technology, Inc.  All rights reserved.
+ * Copyright (C) 2015-2022 Micron Technology, Inc.  All rights reserved.
  */
+
+#include <stdint.h>
 
 #include <mtf/framework.h>
 #include <hse/util/hash.h>
@@ -40,9 +42,9 @@ MTF_DEFINE_UTEST(hlog, t_hlog_create)
 }
 
 static void
-add(struct hlog *hlog, u64 start, u64 count)
+add(struct hlog *hlog, uint64_t start, uint64_t count)
 {
-    u64 i, h;
+    uint64_t i, h;
 
     for (i = 0; i < count; i++) {
         h = hse_hash64_seed(&start, 8, 0xabcd123400112233ull);
@@ -52,11 +54,11 @@ add(struct hlog *hlog, u64 start, u64 count)
 }
 
 static int
-check(struct mtf_test_info *lcl_ti, uint precision, u64 count)
+check(struct mtf_test_info *lcl_ti, uint precision, uint64_t count)
 {
     merr_t       err;
     struct hlog *hlog;
-    u64          i, est, est2;
+    uint64_t     i, est, est2;
     double       pct;
 
     err = hlog_create(&hlog, precision);

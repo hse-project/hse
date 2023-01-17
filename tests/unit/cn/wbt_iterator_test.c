@@ -6,7 +6,6 @@
 #include <mtf/framework.h>
 
 #include <hse/error/merr.h>
-#include <hse/util/inttypes.h>
 #include <hse/logging/logging.h>
 #include <hse/util/keycmp.h>
 
@@ -158,7 +157,7 @@ load_kblock(
     struct wbt_desc *     desc)
 {
     merr_t err;
-    u64    blkid;
+    uint64_t blkid;
     char   filename[PATH_MAX];
     void * wbt_hdr;
 
@@ -196,7 +195,7 @@ MTF_DEFINE_UTEST_PREPOST(wbti_test, t_wbti_create_fail_nomem, pre, post)
     struct wbti *        wbti;
     struct kvs_mblk_desc kbd;
     struct wbt_desc      desc;
-    u32                  cache_spill_wbt = 1;
+    uint32_t             cache_spill_wbt = 1;
 
     if (load_kblock(lcl_ti, kblocks[0].file, &kbd, &desc))
         return;
@@ -221,7 +220,7 @@ t_iterate_helper(struct mtf_test_info *lcl_ti, struct test_kblock *kblock)
     struct wbt_desc      desc = {};
     int                  cnt, inc;
     bool                 eof;
-    u32                  cache_spill_wbt = 1;
+    uint32_t             cache_spill_wbt = 1;
     const void *         kdata;
     const void *         kmd;
     uint                 klen, xlen;
@@ -270,10 +269,10 @@ reverse:
         xlen = strlen(keyv[cnt]) - plen + (kblock->null_terminated ? 1 : 0);
         ASSERT_EQ(klen, xlen);
 
-		if (pfx) {
-			rc = memcmp(pfx, keyv[cnt], plen);
-			ASSERT_EQ(0, rc);
-		}
+        if (pfx) {
+            rc = memcmp(pfx, keyv[cnt], plen);
+            ASSERT_EQ(0, rc);
+        }
         rc = memcmp(kdata, keyv[cnt] + plen, klen);
         ASSERT_EQ(0, rc);
 
@@ -309,7 +308,7 @@ t_seek_helper(struct mtf_test_info *lcl_ti, struct test_kblock *kblock, bool rev
     struct kvs_ktuple    seek;
     int                  exp, inc, idx, cnt;
     bool                 eof;
-    u32                  cache_leaves = 1;
+    uint32_t             cache_leaves = 1;
     const void *         kdata;
     const void *         kmd;
     uint                 klen, xlen;

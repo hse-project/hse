@@ -182,7 +182,7 @@ cn_subspill_pop(struct cn_tree_node *tn)
 merr_t
 cn_tree_create(
     struct cn_tree **   handle,
-    u32                 cn_cflags,
+    uint32_t                 cn_cflags,
     struct kvs_cparams *cp,
     struct kvdb_health *health,
     struct kvs_rparams *rp)
@@ -288,7 +288,7 @@ cn_tree_setup(
     struct cn *         cn,
     struct kvs_rparams *rp,
     struct cndb *       cndb,
-    u64                 cnid,
+    uint64_t            cnid,
     struct cn_kvdb *    cn_kvdb)
 {
     tree->mp = mp;
@@ -329,7 +329,7 @@ cn_tree_get_cndb(const struct cn_tree *tree)
     return tree->cndb;
 }
 
-u64
+uint64_t
 cn_tree_get_cnid(const struct cn_tree *tree)
 {
     return tree->cnid;
@@ -379,7 +379,7 @@ tn_samp_clear(struct cn_tree_node *tn)
 static bool
 tn_samp_update_incr(struct cn_tree_node *tn, struct kvset *kvset, bool force)
 {
-    u64 dgen = kvset_get_dgen(kvset);
+    uint64_t dgen = kvset_get_dgen(kvset);
 
     if (!force && dgen <= tn->tn_update_incr_dgen)
         return false;
@@ -426,10 +426,10 @@ tn_samp_update_finish(struct cn_tree_node *tn)
     }
 
     {
-        u64 cur_alen = s->ns_kst.kst_kalen;
-        u64 new_wlen = s->ns_kst.kst_kwlen * pct / pct_scale;
+        uint64_t cur_alen = s->ns_kst.kst_kalen;
+        uint64_t new_wlen = s->ns_kst.kst_kwlen * pct / pct_scale;
         enum hse_mclass mclass;
-        u64 new_clen;
+        uint64_t new_clen;
 
         mclass = cn_tree_node_mclass(tn, HSE_MPOLICY_DTYPE_KEY);
         assert(mclass != HSE_MCLASS_INVALID);
@@ -438,10 +438,10 @@ tn_samp_update_finish(struct cn_tree_node *tn)
     }
 
     {
-        u64 cur_alen = s->ns_kst.kst_valen;
-        u64 cur_wlen = s->ns_kst.kst_vulen * pct / pct_scale;
+        uint64_t cur_alen = s->ns_kst.kst_valen;
+        uint64_t cur_wlen = s->ns_kst.kst_vulen * pct / pct_scale;
         enum hse_mclass mclass;
-        u64 new_clen;
+        uint64_t new_clen;
 
         mclass = cn_tree_node_mclass(tn, HSE_MPOLICY_DTYPE_VALUE);
         assert(mclass != HSE_MCLASS_INVALID);
@@ -1157,9 +1157,9 @@ cn_tree_capped_evict(
 {
     struct kvset_list_entry *prev;
     struct kvset *           kvset;
-    u64                      now;
-    u64                      ttl;
-    u64                      ctime;
+    uint64_t                 now;
+    uint64_t                 ttl;
+    uint64_t                 ctime;
 
     now = get_time_ns();
 
@@ -1203,13 +1203,13 @@ cn_tree_capped_compact(struct cn_tree *tree)
     struct list_head *       head, retired;
     struct cndb_txn         *cndb_txn;
 
-    u8     pt_key[sizeof(tree->ct_last_ptomb)];
-    void * lock;
-    merr_t err;
-    u64    horizon;
-    u64    pt_seq;
-    uint   pt_len;
-    uint   kvset_cnt;
+    uint8_t  pt_key[sizeof(tree->ct_last_ptomb)];
+    void    *lock;
+    merr_t   err;
+    uint64_t horizon;
+    uint64_t pt_seq;
+    uint     pt_len;
+    uint     kvset_cnt;
 
     node = tree->ct_root;
     head = &node->tn_kvset_list;
@@ -2756,7 +2756,12 @@ cn_compact(struct cn_compaction_work *w)
  * @ptseq: seqno of @ptomb.
  */
 void
-cn_tree_ingest_update(struct cn_tree *tree, struct kvset *kvset, void *ptomb, uint ptlen, u64 ptseq)
+cn_tree_ingest_update(
+    struct cn_tree *tree,
+    struct kvset *kvset,
+    void *ptomb,
+    uint ptlen,
+    uint64_t ptseq)
 {
     struct cn_samp_stats pre, post;
     size_t kwlen, vwlen;
@@ -2804,11 +2809,11 @@ cn_tree_perfc_shape_report(
     void *               lock;
 
     struct {
-        u64 nodec;
-        u64 avglen;
-        u64 maxlen;
-        u64 avgsize;
-        u64 maxsize;
+        uint64_t nodec;
+        uint64_t avglen;
+        uint64_t maxlen;
+        uint64_t avgsize;
+        uint64_t maxsize;
     } ssv[2];
 
     memset(ssv, 0, sizeof(ssv));

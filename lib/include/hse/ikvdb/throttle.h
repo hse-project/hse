@@ -1,13 +1,14 @@
 /* SPDX-License-Identifier: Apache-2.0 */
 /*
- * Copyright (C) 2015-2021 Micron Technology, Inc.  All rights reserved.
+ * Copyright (C) 2015-2022 Micron Technology, Inc.  All rights reserved.
  */
 
 #ifndef HSE_KVDB_THROTTLE_H
 #define HSE_KVDB_THROTTLE_H
 
+#include <stdint.h>
+
 #include <hse/util/atomic.h>
-#include <hse/util/inttypes.h>
 #include <hse/util/compiler.h>
 #include <hse/util/arch.h>
 #include <hse/util/spinlock.h>
@@ -222,12 +223,11 @@ throttle_debug(struct throttle *self);
 void
 throttle_reduce_debug(struct throttle *self, uint value, uint mavg);
 
-static inline
-u64
+static inline uint64_t
 throttle_raw_to_rate(unsigned raw_delay)
 {
     if (HSE_UNLIKELY(raw_delay == 0))
-        return U64_MAX;
+        return UINT64_MAX;
 
     return (500000ul * THROTTLE_DELAY_MAX) / raw_delay;
 }

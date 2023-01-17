@@ -7,6 +7,7 @@
 #define MPOOL_MDC_FILE_H
 
 #include <stdint.h>
+#include <stdio.h>
 
 #include <hse/error/merr.h>
 #include <hse/ikvdb/omf_version.h>

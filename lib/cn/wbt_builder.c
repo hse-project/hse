@@ -1,7 +1,9 @@
 /* SPDX-License-Identifier: Apache-2.0 */
 /*
- * Copyright (C) 2015-2021 Micron Technology, Inc.  All rights reserved.
+ * Copyright (C) 2015-2022 Micron Technology, Inc.  All rights reserved.
  */
+
+#include <stdint.h>
 
 #include <hse/util/platform.h>
 #include <hse/util/alloc.h>
@@ -74,8 +76,8 @@ struct wbb {
     uint  cnode_key_extra_cnt;
     void *cnode_first_key;
     void *cnode_last_key;
-    u16   cnode_first_klen;
-    u16   cnode_last_klen;
+    uint16_t cnode_first_klen;
+    uint16_t cnode_last_klen;
 
     struct intern_builder *ibldr;
 
@@ -290,18 +292,18 @@ wbt_leaf_publish(struct wbb *wbb)
     sfxp = wbb->cnode + PAGE_SIZE;
 
     for (i = 0; i < wbb->cnode_nkeys; i++) {
-        u16  sfx_len = kin->klen - pfx_len;
-        uint key_extra = kin->kmd_off < U16_MAX ? 0 : 4;
+        uint16_t sfx_len = kin->klen - pfx_len;
+        uint key_extra = kin->kmd_off < UINT16_MAX ? 0 : 4;
 
         sfxp -= sfx_len + key_extra;
         assert((void *)entry < sfxp);
 
         if (key_extra) {
             /* kmdoff is too large for u16 */
-            omf_set_lfe_kmd(entry, U16_MAX);
-            *(u32 *)sfxp = cpu_to_omf32(kin->kmd_off);
+            omf_set_lfe_kmd(entry, UINT16_MAX);
+            *(uint32_t *)sfxp = cpu_to_omf32(kin->kmd_off);
         } else {
-            omf_set_lfe_kmd(entry, (u16)(kin->kmd_off));
+            omf_set_lfe_kmd(entry, (uint16_t)(kin->kmd_off));
         }
 
         assert((void *)kin >= wbb->cnode_key_stage_base);
@@ -370,7 +372,7 @@ wbb_add_entry(
         assert(0);
         return merr(ev(EBUG));
     }
-    key_extra = entry_kmd_off - wbb->cnode_kmd_off >= U16_MAX ? 4 : 0;
+    key_extra = entry_kmd_off - wbb->cnode_kmd_off >= UINT16_MAX ? 4 : 0;
     if (key_extra)
         ++wbb->cnode_key_extra_cnt;
 
@@ -396,7 +398,7 @@ wbb_add_entry(
     /* Create a new node if space exceeds PAGE_SIZE */
     space = sizeof(struct wbt_node_hdr_omf) + new_pfx_len +
             ((wbb->cnode_nkeys + 1) * sizeof(struct wbt_lfe_omf)) + wbb->cnode_sumlen +
-            (sizeof(u32) * wbb->cnode_key_extra_cnt) - ((wbb->cnode_nkeys + 1) * new_pfx_len);
+            (sizeof(uint32_t) * wbb->cnode_key_extra_cnt) - ((wbb->cnode_nkeys + 1) * new_pfx_len);
 
     if (space > PAGE_SIZE) {
         /* close out current node */
@@ -552,7 +554,7 @@ wbb_freeze(
         return merr(ev(EBUG));
 
     /* write node header in the leaf node that was in progress */
-    assert(wbb->cnode_nkeys <= U16_MAX);
+    assert(wbb->cnode_nkeys <= UINT16_MAX);
     wbt_leaf_publish(wbb);
 
     /* get num_leaf_nodes now, b/c wbb->lnodec
@@ -576,7 +578,7 @@ wbb_freeze(
      * This assert can fail with kblocks larger than 256MB (which is
      * beyond the current limit).
      */
-    assert(wbb->used_pgc <= U16_MAX);
+    assert(wbb->used_pgc <= UINT16_MAX);
 
     /* format the wbtree header */
     memset(hdr, 0, sizeof(*hdr));

@@ -9,6 +9,7 @@
 #include <stdarg.h>
 #include <stdbool.h>
 #include <stdio.h>
+#include <stdint.h>
 #include <string.h>
 #include <sys/resource.h>
 #include <sysexits.h>
@@ -19,8 +20,8 @@
 #include <hse/cli/program.h>
 #include <hse/hse.h>
 #include <hse/util/arch.h>
+#include <hse/util/base.h>
 #include <hse/util/compiler.h>
-#include <hse/util/inttypes.h>
 #include <hse/util/minmax.h>
 
 #include <tools/parm_groups.h>
@@ -163,8 +164,8 @@ ctxn_validation_init(void)
 void
 ctxn_validation_fini(void)
 {
-    char        errbuf[300];
-    u64         rc;
+    char     errbuf[300];
+    uint64_t rc;
 
     if (!kvdb)
         return;
@@ -182,7 +183,7 @@ void
 ctxn_validation_init_c0(void)
 {
     int         i;
-    u64         rc;
+    uint64_t    rc;
     size_t      klen;
     char        key[1024];
     struct hse_kvdb_txn *txn;
@@ -227,10 +228,10 @@ basic_collision_main(void *arg)
     pthread_barrier_t      *barriers = tdargs->barriers;
     struct stats           *stats = &tdargs->stats;
     int                     i;
-    u64                     rc;
+    uint64_t                rc;
     size_t                  klen;
     char                    key[256];
-    u32                     vtxn;
+    uint32_t                vtxn;
 
     rc = hse_kvdb_txn_begin(kvdb, txn);
     if (rc)
@@ -289,10 +290,10 @@ ctxn_validation_basic_collision(void)
     struct tdargs          *tdargsv;
     pthread_barrier_t       barriers[4];
     int                     i;
-    u64                     rc;
+    uint64_t                rc;
     size_t                  klen;
     char                    key[64];
-    u32                     vtxn;
+    uint32_t                vtxn;
 
     tdargsv = aligned_alloc(__alignof__(*tdargsv), sizeof(*tdargsv) * jobsmax);
     if (!tdargsv)
@@ -397,8 +398,8 @@ ctxn_validation_perf(
     struct stats           *stats = &tdargs->stats;
     struct hse_kvdb_txn    *txn;
     int                     i;
-    u64                     rc;
-    u64                     vtxn = 0;
+    uint64_t                rc;
+    uint64_t                vtxn = 0;
     size_t                  klen;
     char                    key[1024];
     size_t                  vtxnlen;
@@ -481,12 +482,12 @@ ctxn_validation_stress(
     struct stats           *stats = &tdargs->stats;
     struct hse_kvdb_txn    *txn;
 
-    size_t      klen, vlen, vcurlen, vtxnlen;
-    u64         val, vcur, vtxn;
-    char        key[64];
-    bool        found;
-    u64         rc;
-    ulong       i;
+    size_t   klen, vlen, vcurlen, vtxnlen;
+    uint64_t val, vcur, vtxn;
+    char     key[64];
+    bool     found;
+    uint64_t rc;
+    ulong    i;
 
     txn = tdargs->txn;
     if (!txn) {
@@ -645,12 +646,12 @@ ctxn_validation_basic(void)
 {
     struct hse_kvdb_txn    *txn;
 
-    size_t      klen, klen_lg = 0, vlen, vcurlen, vtxnlen;
-    char        key[64], key_lg[64];
-    u64         val, vcur;
-    bool        found;
-    u64         vtxn;
-    u64         rc;
+    size_t   klen, klen_lg = 0, vlen, vcurlen, vtxnlen;
+    char     key[64], key_lg[64];
+    uint64_t val, vcur;
+    bool     found;
+    uint64_t vtxn;
+    uint64_t rc;
 
     if (keybase_random)
         keybase = xrand();

@@ -1,10 +1,12 @@
 /* SPDX-License-Identifier: Apache-2.0 */
 /*
- * Copyright (C) 2021 Micron Technology, Inc.  All rights reserved.
+ * Copyright (C) 2021-2022 Micron Technology, Inc.  All rights reserved.
  */
 
 #ifndef HSE_KVDB_PFX_RMLOCK_H
 #define HSE_KVDB_PFX_RMLOCK_H
+
+#include <stdint.h>
 
 #include <hse/error/merr.h>
 
@@ -44,7 +46,11 @@ kvdb_pfxlock_destroy(struct kvdb_pfxlock *pfx_lock);
  */
 /* MTF_MOCK */
 merr_t
-kvdb_pfxlock_shared(struct kvdb_pfxlock *pfx_lock, u64 hash, u64 start_seqno, void **cookie);
+kvdb_pfxlock_shared(
+    struct kvdb_pfxlock *pfx_lock,
+    uint64_t hash,
+    uint64_t start_seqno,
+    void **cookie);
 
 /**
  * kvdb_pfxlock_excl() - Acquire an exclusive lock on pfx
@@ -57,7 +63,11 @@ kvdb_pfxlock_shared(struct kvdb_pfxlock *pfx_lock, u64 hash, u64 start_seqno, vo
  */
 /* MTF_MOCK */
 merr_t
-kvdb_pfxlock_excl(struct kvdb_pfxlock *pfx_lock, u64 hash, u64 start_seqno, void **cookie);
+kvdb_pfxlock_excl(
+    struct kvdb_pfxlock *pfx_lock,
+    uint64_t hash,
+    uint64_t start_seqno,
+    void **cookie);
 
 /**
  * kvdb_pfxlock_seqno_pub() - Publish end seqno to all entries of a pfx
@@ -68,7 +78,7 @@ kvdb_pfxlock_excl(struct kvdb_pfxlock *pfx_lock, u64 hash, u64 start_seqno, void
  */
 /* MTF_MOCK */
 void
-kvdb_pfxlock_seqno_pub(struct kvdb_pfxlock *pfx_lock, u64 end_seqno, void *cookie);
+kvdb_pfxlock_seqno_pub(struct kvdb_pfxlock *pfx_lock, uint64_t end_seqno, void *cookie);
 
 #if HSE_MOCKING
 #include "kvdb_pfxlock_ut.h"

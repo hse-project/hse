@@ -1,18 +1,21 @@
 /* SPDX-License-Identifier: Apache-2.0 */
 /*
- * Copyright (C) 2015-2017 Micron Technology, Inc.  All rights reserved.
+ * Copyright (C) 2015-2022 Micron Technology, Inc.  All rights reserved.
  */
+
+#include <assert.h>
+#include <stdint.h>
+#include <string.h>
+#include <sys/types.h>
 
 #include <hse/test/support/random_buffer.h>
 #include <hse/util/xrand.h>
-
-#include <string.h>
 
 void
 randomize_buffer(void *buf, size_t len, unsigned int seed)
 {
     unsigned int *  tmp = (unsigned int *)buf;
-    u_int           last;
+    uint            last;
     long int        remain = len;
     int             i;
     struct xrand xr;
@@ -67,16 +70,16 @@ validate_random_buffer(void *buf, size_t len, unsigned int seed)
 
 /* Get a random value in the range [min, max]. Note that the max is an inclusive upper bound.
  */
-u32
-generate_random_u32(u32 min, u32 max)
+uint32_t
+generate_random_u32(uint32_t min, uint32_t max)
 {
     return (xrand64_tls() % (max - min + 1)) + min;
 }
 
 void
-permute_u32_sequence(u32 *values, u32 num_values)
+permute_u32_sequence(uint32_t *values, uint32_t num_values)
 {
-    u32 i, j, tmp_val;
+    uint32_t i, j, tmp_val;
 
     for (i = num_values - 1; i > 0; --i) {
         j = generate_random_u32(0, i - 1);
@@ -87,9 +90,13 @@ permute_u32_sequence(u32 *values, u32 num_values)
 }
 
 void
-generate_random_u32_sequence(u32 min_value, u32 max_value, u32 *values, u32 num_values)
+generate_random_u32_sequence(
+    uint32_t min_value,
+    uint32_t max_value,
+    uint32_t *values,
+    uint32_t num_values)
 {
-    u32 i;
+    uint32_t i;
 
     for (i = 0; i < num_values; ++i)
         values[i] = generate_random_u32(min_value, max_value);
@@ -98,16 +105,20 @@ generate_random_u32_sequence(u32 min_value, u32 max_value, u32 *values, u32 num_
 }
 
 void
-generate_random_u32_sequence_unique(u32 min_value, u32 max_value, u32 *values, u32 num_values)
+generate_random_u32_sequence_unique(
+    uint32_t min_value,
+    uint32_t max_value,
+    uint32_t *values,
+    uint32_t num_values)
 {
-    u32 i;
-    u32 stride = (max_value - min_value) / num_values;
+    uint32_t i;
+    uint32_t stride = (max_value - min_value) / num_values;
 
     assert(stride > 0);
 
     for (i = 0; i < num_values; ++i) {
-        u32 min = i * stride;
-        u32 max = min + stride - 1;
+        uint32_t min = i * stride;
+        uint32_t max = min + stride - 1;
 
         if (i == num_values - 1)
             max = max_value;

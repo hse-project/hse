@@ -1,12 +1,16 @@
 /* SPDX-License-Identifier: Apache-2.0 */
 /*
- * Copyright (C) 2015-2020 Micron Technology, Inc.  All rights reserved.
+ * Copyright (C) 2015-2022 Micron Technology, Inc.  All rights reserved.
  */
 
 #ifndef HSE_KEY_UTIL_H
 #define HSE_KEY_UTIL_H
 
-#include <hse/util/inttypes.h>
+#include <limits.h>
+#include <stdint.h>
+#include <string.h>
+#include <sys/types.h>
+
 #include <hse/util/minmax.h>
 #include <hse/util/assert.h>
 #include <hse/util/compiler.h>
@@ -41,16 +45,16 @@
  * @ki_data:  array of bytes
  */
 struct key_immediate {
-    u64 ki_data[4];
+    uint64_t ki_data[4];
 };
 
-static HSE_ALWAYS_INLINE u32
+static HSE_ALWAYS_INLINE uint32_t
 key_immediate_index(const struct key_immediate *imm)
 {
     return imm->ki_data[0] >> 56;
 }
 
-static HSE_ALWAYS_INLINE u32
+static HSE_ALWAYS_INLINE uint32_t
 key_imm_klen(const struct key_immediate *imm)
 {
     return imm->ki_data[3] & 0xfffful;
@@ -64,9 +68,9 @@ key_imm_klen(const struct key_immediate *imm)
  * @immediate: Pointer to struct key_immediate to fill out
  */
 void
-key_immediate_init(const void *key, size_t key_len, u16 index, struct key_immediate *immediate);
+key_immediate_init(const void *key, size_t key_len, uint16_t index, struct key_immediate *immediate);
 
-static HSE_ALWAYS_INLINE s32
+static HSE_ALWAYS_INLINE int32_t
 key_immediate_cmp(const struct key_immediate *imm0, const struct key_immediate *imm1)
 {
     /* The first comparison includes the skidx.
@@ -91,7 +95,7 @@ key_immediate_cmp(const struct key_immediate *imm0, const struct key_immediate *
      */
     if (key_imm_klen(imm0) > KI_DLEN_MAX &&
         key_imm_klen(imm1) > KI_DLEN_MAX)
-        return S32_MIN;
+        return INT32_MIN;
 
     /* Otherwise, the result comes down to the key lengths. */
     return (key_imm_klen(imm0) - key_imm_klen(imm1));
@@ -120,18 +124,18 @@ key_inner_cmp(const void *key0, int key0_len, const void *key1, int key1_len)
     return rc ? rc : (key0_len - key1_len);
 }
 
-static HSE_ALWAYS_INLINE s32
+static HSE_ALWAYS_INLINE int32_t
 key_full_cmp(
     const struct key_immediate *imm0,
     const void *                key0,
     const struct key_immediate *imm1,
     const void *                key1)
 {
-    s32 rc;
+    int32_t rc;
 
     rc = key_immediate_cmp(imm0, imm1);
 
-    if (rc == S32_MIN) {
+    if (rc == INT32_MIN) {
         rc = key_inner_cmp(
             key0 + KI_DLEN_MAX,
             key_imm_klen(imm0) - KI_DLEN_MAX,
@@ -150,7 +154,7 @@ key_full_cmp(
  * via this "noinline" wrapper helps to ensure the test code should see
  * the same optimized version of key_full_cmp() as seen in production.
  */
-s32
+int32_t
 key_full_cmp_noinline(
     const struct key_immediate *imm0,
     const void *                key0,
@@ -166,7 +170,7 @@ key_full_cmp_noinline(
  * integer comparison and yield a lexicographic comparison.
  */
 struct key_disc {
-    u64 kdisc[4];
+    uint64_t kdisc[4];
 };
 
 /**
@@ -267,12 +271,12 @@ key_obj_len(const struct key_obj *kobj)
 static HSE_ALWAYS_INLINE int
 key_obj_ncmp(const struct key_obj *ko1, const struct key_obj *ko2, uint cmplen)
 {
-    uint      klen1 = key_obj_len(ko1);
-    uint      klen2 = key_obj_len(ko2);
-    uint      minlen = min_t(uint, klen1, klen2);
-    int       len, rc, pos;
-    int       limitv[3];
-    const u8 *k1, *k2;
+    uint           klen1 = key_obj_len(ko1);
+    uint           klen2 = key_obj_len(ko2);
+    uint           minlen = min_t(uint, klen1, klen2);
+    int            len, rc, pos;
+    int            limitv[3];
+    const uint8_t *k1, *k2;
 
     limitv[0] = min_t(uint, ko1->ko_pfx_len, ko2->ko_pfx_len);
     limitv[1] = max_t(uint, ko1->ko_pfx_len, ko2->ko_pfx_len);

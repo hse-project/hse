@@ -21,6 +21,7 @@
 #include <stdlib.h>
 #include <string.h>
 #include <sysexits.h>
+#include <unistd.h>
 
 #include <xxhash.h>
 
@@ -30,7 +31,6 @@
 #include <hse/util/arch.h>
 #include <hse/util/event_timer.h>
 #include <hse/util/fmt.h>
-#include <hse/util/inttypes.h>
 
 #include <tools/common.h>
 #include <tools/parm_groups.h>
@@ -52,10 +52,10 @@ struct svec         kv_oparm = { 0 };
  * @uniq:       total number of unique keys retrieved
  */
 struct shr {
-    volatile u64 count;
-    volatile u32 mark;
-    u64          uniq;
-    pthread_t    tid;
+    volatile uint64_t count;
+    volatile uint32_t mark;
+    uint64_t          uniq;
+    pthread_t         tid;
 };
 
 void HSE_PRINTF(1, 2)
@@ -109,8 +109,8 @@ void *
 status(void *arg)
 {
     struct shr *shr = arg;
-    u64         tstart, tprev, now;
-    u64         cnt, cntprev, delta;
+    uint64_t    tstart, tprev, now;
+    uint64_t    cnt, cntprev, delta;
     char        hdr[128], fmt[128];
     uint        line;
 
@@ -177,13 +177,13 @@ main(int argc, char **argv)
     struct hse_kvs_cursor *cursor;
     struct hse_kvdb *      kvdb_h;
     struct hse_kvs *       kvs_h;
-    u64                    keyhash, valhash;
+    uint64_t               keyhash, valhash;
     int                    showlen;
     int                    seeklen, pfxlen;
     bool                   eof, countem, cksum, deletem, stats;
     bool                   reverse = false;
     unsigned               opt_help = 0, flags = 0;
-    u64                    iter, max_iter;
+    uint64_t               iter, max_iter;
     int                    c, rc, err;
     struct shr             shr = { 0 };
 

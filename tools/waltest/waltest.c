@@ -4,21 +4,26 @@
  */
 
 #include <assert.h>
+#include <ctype.h>
+#include <errno.h>
 #include <getopt.h>
 #include <pthread.h>
+#include <signal.h>
 #include <stdarg.h>
 #include <stdbool.h>
+#include <stdint.h>
 #include <stdio.h>
 #include <stdlib.h>
+#include <string.h>
 #include <sysexits.h>
 #include <sys/resource.h>
 #include <sys/time.h>
+#include <unistd.h>
 
 #include <hse/cli/program.h>
 #include <hse/hse.h>
 #include <hse/util/atomic.h>
 #include <hse/util/compiler.h>
-#include <hse/util/inttypes.h>
 #include <hse/util/parse_num.h>
 #include <tools/key_generation.h>
 #include <tools/parm_groups.h>
@@ -30,14 +35,13 @@
 #define KLEN_MAX  1000
 #define VLEN_MAX  (10*1024)
 
-
 struct opts {
     bool    help;
     bool    version;
     char   *config;
     char   *kvdb;
     char   *kvs;
-    u64     keys;
+    uint64_t keys;
     uint    klen;
     uint    vlen;
     uint    threads;
@@ -57,8 +61,8 @@ struct opts {
     bool    binary;
     bool    do_txn;
     bool    ingest;
-    u64     kstart;
-    u32     errcnt;
+    uint64_t kstart;
+    uint32_t     errcnt;
     bool    params;
 };
 
@@ -79,7 +83,7 @@ struct timeval tv_start;
 int verbose = 0;
 atomic_ulong errors;
 static bool ingest_mode;
-static u32 sync_time;
+static uint32_t sync_time;
 
 static struct key_generator *key_gen;
 static const long key_space_size = 4000000000UL;
@@ -262,8 +266,7 @@ strerror(int errnum)
 }
 
 
-static
-void
+static void
 options_default(
     struct opts *opt)
 {
@@ -275,18 +278,39 @@ options_default(
     opt->vlen = VLEN_DEFAULT;
 }
 
-#define GET_VALUE(TYPE, OPTARG, VALUE)					\
-    do {                                                                \
-	if (parse_##TYPE(OPTARG, VALUE)) {				\
-            syntax("Unable to parse "#TYPE" number: '%s'", OPTARG);	\
-	}								\
+#define GET_INT(TYPE, OPTARG, VALUE)                                \
+    do {                                                            \
+        if (parse_int(OPTARG, VALUE)) {                             \
+            syntax("Unable to parse "#TYPE" number: '%s'", OPTARG); \
+        }                                                           \
+    } while (0)
+
+#define GET_UINT(TYPE, OPTARG, VALUE)                               \
+    do {                                                            \
+        if (parse_uint(OPTARG, VALUE)) {                            \
+            syntax("Unable to parse "#TYPE" number: '%s'", OPTARG); \
+        }                                                           \
+    } while (0)
+
+#define GET_UINT32(TYPE, OPTARG, VALUE)                             \
+    do {                                                            \
+        if (parse_u32(OPTARG, VALUE)) {                             \
+            syntax("Unable to parse "#TYPE" number: '%s'", OPTARG); \
+        }                                                           \
+    } while (0)
+
+#define GET_UINT64(TYPE, OPTARG, VALUE)                             \
+    do {                                                            \
+        if (parse_u64(OPTARG, VALUE)) {                             \
+            syntax("Unable to parse "#TYPE" number: '%s'", OPTARG); \
+        }                                                           \
     } while (0)
 
 #define GET_DOUBLE(OPTARG, VALUE)                               \
     do {                                                        \
-	if (1 != sscanf(OPTARG, "%lg", VALUE)) {                \
-            syntax("Unable to parse double: '%s'", OPTARG);     \
-	}                                                       \
+        if (1 != sscanf(OPTARG, "%lg", VALUE)) {                \
+                syntax("Unable to parse double: '%s'", OPTARG); \
+        }                                                       \
     } while (0)
 
 void
@@ -353,18 +377,18 @@ options_parse(
             break;
 
         case opt_kstart:
-            GET_VALUE(u64, optarg, &opt->kstart);
+            GET_UINT64(uint64_t, optarg, &opt->kstart);
             break;
 
         case opt_errcnt:
-            GET_VALUE(u32, optarg, &opt->errcnt);
+            GET_UINT32(uint32_t, optarg, &opt->errcnt);
             if (opt->errcnt == 0)
                 opt->errcnt = (1L<<32) - 1;
             break;
 
         case opt_verbose:
             if (optarg)
-                GET_VALUE(int, optarg, &verbose);
+                GET_INT(int, optarg, &verbose);
             else
                 ++verbose;
             opt->show_ops = (verbose > 1);
@@ -375,23 +399,23 @@ options_parse(
             break;
 
         case opt_keys:
-            GET_VALUE(u64, optarg, &opt->keys);
+            GET_UINT64(uint64_t, optarg, &opt->keys);
             break;
 
         case opt_klen:
-            GET_VALUE(uint, optarg, &opt->klen);
+            GET_UINT(uint, optarg, &opt->klen);
             break;
 
         case opt_vlen:
-            GET_VALUE(uint, optarg, &opt->vlen);
+            GET_UINT(uint, optarg, &opt->vlen);
             break;
 
         case opt_threads:
-            GET_VALUE(uint, optarg, &opt->threads);
+            GET_UINT(uint, optarg, &opt->threads);
             break;
 
         case opt_pfxlen:
-            GET_VALUE(uint, optarg, &opt->pfxlen);
+            GET_UINT(uint, optarg, &opt->pfxlen);
             break;
 
         case opt_dryrun:
@@ -449,7 +473,7 @@ options_parse(
             break;
 
         case opt_time:
-            GET_VALUE(uint, optarg, &sync_time);
+            GET_UINT(uint, optarg, &sync_time);
             break;
 
         default:
@@ -642,7 +666,7 @@ fmt_string(
     int max_len,
     char fill,
     char *fmt,
-    u64 fmt_arg1,
+    uint64_t fmt_arg1,
     int fmt_arg2)
 {
     int i;
@@ -675,10 +699,10 @@ fmt_key(
         get_key(key_gen, str, num);
         str[len-1] = 0;
     } else {
-        u32 v;
+        uint32_t v;
 
         v = atomic_inc_return(&u);
-        *(u32 *)str = v;
+        *(uint32_t *)str = v;
         for (len -= 4, str += 4; len > 0; --len)
             *str++ = v & 255;
     }
@@ -693,7 +717,7 @@ int val_showlen;
 void
 set_kv(
     struct thread_info *ti,
-    u64                 keynum,
+    uint64_t                 keynum,
     uint                salt)
 {
     if (opt.binary) {
@@ -749,7 +773,7 @@ void
 test_put(struct thread_info *ti, uint salt, bool istxn)
 {
     hse_err_t err;
-    u64       i, last_key;
+    uint64_t       i, last_key;
 
     struct hse_kvdb_txn    *txn = NULL;
 
@@ -823,7 +847,7 @@ test_delete(
     bool                istxn)
 {
     hse_err_t err;
-    u64 i, last_key;
+    uint64_t i, last_key;
     uint salt = -1; /* not important for delete */
 
     struct hse_kvdb_txn    *txn = NULL;
@@ -870,7 +894,7 @@ test_delete(
 void
 test_put_verify(struct thread_info *ti, uint salt, bool istxn)
 {
-    u64 i, last_key;
+    uint64_t i, last_key;
     size_t get_vlen;
     void  *get_val = ti->get_val;
 
@@ -995,7 +1019,7 @@ void
 test_delete_verify(
     struct thread_info *ti)
 {
-    u64 i, last_key;
+    uint64_t i, last_key;
     uint salt = -1; /* not important for delete */
     size_t get_vlen;
     void  *get_val = ti->get_val;

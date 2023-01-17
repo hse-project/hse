@@ -6,6 +6,8 @@
 #ifndef HSE_KVS_C0SK_INTERNAL_H
 #define HSE_KVS_C0SK_INTERNAL_H
 
+#include <stdint.h>
+
 #include <urcu/rculist.h>
 
 #include <hse/limits.h>
@@ -92,8 +94,8 @@ struct c0sk_impl {
 
     struct mutex         c0sk_kvms_mutex HSE_ACP_ALIGNED;
     struct cds_list_head c0sk_kvmultisets;
-    u64                  c0sk_release_gen;
-    s32                  c0sk_kvmultisets_cnt;
+    uint64_t             c0sk_release_gen;
+    int32_t              c0sk_kvmultisets_cnt;
     uint                 c0sk_ingest_finlat;
     ulong                c0sk_ingest_ctime;
     atomic_ulong         c0sk_ingest_order_curr;
@@ -111,7 +113,7 @@ struct c0sk_impl {
     atomic_int   c0sk_ingest_ldrcnt;
     sem_t        c0sk_sync_sema;
 
-    u32        c0sk_ingest_width HSE_L1D_ALIGNED;
+    uint32_t   c0sk_ingest_width HSE_L1D_ALIGNED;
     int        c0sk_boost;
     char      *c0sk_kvdb_alias;
     void * _Atomic c0sk_stash;
@@ -141,7 +143,7 @@ c0sk_allows_ingest(struct c0sk_impl *self)
  */
 struct c0sk_waiter {
     struct list_head c0skw_link;
-    u64              c0skw_gen;
+    uint64_t         c0skw_gen;
     struct cv        c0skw_cv;
     merr_t           c0skw_err;
 };
@@ -176,7 +178,7 @@ c0sk_release_multiset(struct c0sk_impl *self, struct c0_kvmultiset *multiset);
  *
  */
 merr_t
-c0sk_flush_current_multiset(struct c0sk_impl *self, u64 *genp, bool destroywaitflag);
+c0sk_flush_current_multiset(struct c0sk_impl *self, uint64_t *genp, bool destroywaitflag);
 
 /**
  * c0sk_merge_impl() - merge the 'from' kvms into the 'first' kvms
@@ -217,14 +219,14 @@ enum c0sk_op {
 merr_t
 c0sk_putdel(
     struct c0sk_impl *       self,
-    u32                      skidx,
+    uint32_t                 skidx,
     enum c0sk_op             op,
     struct kvs_ktuple       *kt,
     const struct kvs_vtuple *vt,
     uintptr_t                seqnoref);
 
 struct cn *
-c0sk_get_cn(struct c0sk_impl *c0sk, u64 skidx);
+c0sk_get_cn(struct c0sk_impl *c0sk, uint64_t skidx);
 
 #if HSE_MOCKING
 #include "c0sk_internal_ut.h"

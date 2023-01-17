@@ -60,10 +60,10 @@ merr_t
 kbr_read_blm_region_desc(struct kvs_mblk_desc *kbd, struct bloom_desc *desc)
 {
     const struct kblock_hdr_omf *hdr = kbd->map_base;
-    const struct bloom_hdr_omf *blm_omf = NULL;
-    ulong                  mbid;
-    u32                    magic;
-    u32                    version;
+    const struct bloom_hdr_omf  *blm_omf = NULL;
+    ulong                        mbid;
+    uint32_t                     magic;
+    uint32_t                     version;
 
     memset(desc, 0, sizeof(*desc));
     mbid = kbd->mbid;

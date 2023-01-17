@@ -1,7 +1,9 @@
 /* SPDX-License-Identifier: Apache-2.0 */
 /*
- * Copyright (C) 2021 Micron Technology, Inc.  All rights reserved.
+ * Copyright (C) 2022 Micron Technology, Inc.  All rights reserved.
  */
+
+#include <stdint.h>
 
 #include <mtf/framework.h>
 #include <mock/api.h>
@@ -60,8 +62,8 @@ struct v_elem {
 };
 
 struct kv_elem {
-    const u16     skidx;
-    char *        key;
+    const uint16_t skidx;
+    char * key;
     struct v_elem val[MAX_VALS_PER_KV];
 };
 

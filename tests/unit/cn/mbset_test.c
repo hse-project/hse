@@ -3,13 +3,12 @@
  * Copyright (C) 2015-2022 Micron Technology, Inc.  All rights reserved.
  */
 
+#include <stdint.h>
 #include <sys/mman.h>
 
 #include <mtf/framework.h>
 
 #include <hse/error/merr.h>
-#include <hse/util/inttypes.h>
-
 #include <hse/mpool/mpool.h>
 
 #include <cn/mbset.h>
@@ -20,7 +19,7 @@
 #define mock_wlen_pages 353
 
 struct udata {
-    u64  cookie;
+    uint64_t cookie;
 };
 
 #define ufn t_udata_init
@@ -30,7 +29,7 @@ int mocked_mblk_mmap_errno = 0;
 int mocked_mblk_munmap_errno = 0;
 
 merr_t
-mocked_mblk_mmap(struct mpool *mp, u64 mbid, struct kvs_mblk_desc *md)
+mocked_mblk_mmap(struct mpool *mp, uint64_t mbid, struct kvs_mblk_desc *md)
 {
     if (mocked_mblk_mmap_errno)
         return merr(mocked_mblk_mmap_errno);
@@ -114,14 +113,14 @@ static merr_t
 t_udata_update(
     struct udata   *u,
     uint           *vgroupc,
-    u64            *vgroupv)
+    uint64_t       *vgroupv)
 {
     return 0;
 }
 #endif
 
 void
-idv_init(u64 *idv, uint idc)
+idv_init(uint64_t *idv, uint idc)
 {
     for (uint i = 0; i < idc; i++)
         idv[i] = 1000 + i;
@@ -131,7 +130,7 @@ MTF_BEGIN_UTEST_COLLECTION_PREPOST(test, init, fini);
 
 MTF_DEFINE_UTEST_PREPOST(test, t_mbset_create_simple, pre, post)
 {
-    u64 idv[32];
+    uint64_t idv[32];
     uint idc = NELEM(idv);
     struct mbset *mbs;
     merr_t        err;
@@ -145,7 +144,7 @@ MTF_DEFINE_UTEST_PREPOST(test, t_mbset_create_simple, pre, post)
 
 MTF_DEFINE_UTEST_PREPOST(test, t_mbset_create_invalid_params, pre, post)
 {
-    u64 idv[2];
+    uint64_t idv[2];
     uint idc = NELEM(idv);
     struct mbset *mbs;
     merr_t err;
@@ -167,7 +166,7 @@ MTF_DEFINE_UTEST_PREPOST(test, t_mbset_create_invalid_params, pre, post)
 
 MTF_DEFINE_UTEST_PREPOST(test, t_mbset_create_alloc_fail, pre, post)
 {
-    u64 idv[2];
+    uint64_t idv[2];
     uint idc = NELEM(idv);
     struct mbset *mbs;
     merr_t err;
@@ -182,7 +181,7 @@ MTF_DEFINE_UTEST_PREPOST(test, t_mbset_create_alloc_fail, pre, post)
 
 MTF_DEFINE_UTEST_PREPOST(test, t_mbset_create_mblk_map_fail, pre, post)
 {
-    u64 idv[2];
+    uint64_t idv[2];
     uint idc = NELEM(idv);
     struct mbset *mbs;
     merr_t err;
@@ -197,7 +196,7 @@ MTF_DEFINE_UTEST_PREPOST(test, t_mbset_create_mblk_map_fail, pre, post)
 
 MTF_DEFINE_UTEST_PREPOST(test, t_mbset_create_mblk_unmap_errors, pre, post)
 {
-    u64 idv[2];
+    uint64_t idv[2];
     uint idc = NELEM(idv);
     struct mbset *mbs;
     merr_t err;
@@ -214,7 +213,7 @@ MTF_DEFINE_UTEST_PREPOST(test, t_mbset_create_mblk_unmap_errors, pre, post)
 
 MTF_DEFINE_UTEST_PREPOST(test, t_mbset_getters, pre, post)
 {
-    u64 idv[19];
+    uint64_t idv[19];
     uint idc = NELEM(idv);
     struct mbset *mbs;
     merr_t err;
@@ -246,7 +245,7 @@ MTF_DEFINE_UTEST_PREPOST(test, t_mbset_callback, pre, post)
 {
     merr_t        err;
     struct mbset *mbs;
-    u64           idv[4];
+    uint64_t      idv[4];
     uint          idc = NELEM(idv);
     struct t_callback_info actual;
     struct t_callback_info expect;

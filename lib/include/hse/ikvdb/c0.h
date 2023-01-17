@@ -6,9 +6,9 @@
 #ifndef HSE_C0_C0_H
 #define HSE_C0_C0_H
 
-#include <urcu-bp.h>
+#include <stdint.h>
 
-#include <hse/util/inttypes.h>
+#include <urcu-bp.h>
 #include <hse/error/merr.h>
 #include <hse/util/mutex.h>
 
@@ -73,7 +73,7 @@ c0_close(struct c0 *c0);
  * Return: [HSE_REVISIT]
  */
 /* MTF_MOCK */
-u16
+uint16_t
 c0_index(struct c0 *handle);
 
 /**
@@ -82,11 +82,11 @@ c0_index(struct c0 *handle);
  *
  * Return: [HSE_REVISIT]
  */
-u32
+uint32_t
 c0_get_width(struct c0 *self);
 
 /* MTF_MOCK */
-s32
+int32_t
 c0_get_pfx_len(struct c0 *c0);
 
 /**
@@ -118,7 +118,7 @@ merr_t
 c0_get(
     struct c0 *              self,
     const struct kvs_ktuple *key,
-    u64                      view_seqno,
+    uint64_t                 view_seqno,
     uintptr_t                seqnoref,
     enum key_lookup_res *    res,
     struct kvs_buf *         vbuf);
@@ -139,7 +139,7 @@ merr_t
 c0_pfx_probe(
     struct c0 *              handle,
     const struct kvs_ktuple *kt,
-    u64                      view_seqno,
+    uint64_t                      view_seqno,
     uintptr_t                seqnoref,
     enum key_lookup_res *    res,
     struct query_ctx *       qctx,
@@ -174,7 +174,7 @@ c0_sync(struct c0 *self);
 merr_t
 c0_cursor_create(
     struct c0 *            self,
-    u64                    seqno,
+    uint64_t               seqno,
     bool                   dir,
     const void *           prefix,
     size_t                 pfx_len,
@@ -197,10 +197,10 @@ c0_cursor_bind_txn(struct c0_cursor *c0cur, struct kvdb_ctxn *ctxn);
 /* MTF_MOCK */
 merr_t
 c0_cursor_seek(
-    struct c0_cursor * c0cur,
-    const void *       prefix,
-    size_t             pfx_len,
-    struct kc_filter * filter);
+    struct c0_cursor *c0cur,
+    const void *      prefix,
+    size_t            pfx_len,
+    struct kc_filter *filter);
 
 /**
  * c0_cursor_read() - read key/value at current position
@@ -221,9 +221,9 @@ c0_cursor_read(struct c0_cursor *c0cur, struct kvs_cursor_element *elem, bool *e
 /* MTF_MOCK */
 merr_t
 c0_cursor_update(
-    struct c0_cursor *       cur,
-    u64                      seqno,
-    u32 *                    flags_out);
+    struct c0_cursor *cur,
+    uint64_t          seqno,
+    uint32_t *        flags_out);
 
 /**
  * c0_cursor_destroy() - destroy existing iterators over c0

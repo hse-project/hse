@@ -1,19 +1,24 @@
 /* SPDX-License-Identifier: Apache-2.0 */
 /*
- * Copyright (C) 2015-2020 Micron Technology, Inc.  All rights reserved.
+ * Copyright (C) 2015-2022 Micron Technology, Inc.  All rights reserved.
  */
 
 #ifndef HSE_CHEAP_TESTLIB_H
 #define HSE_CHEAP_TESTLIB_H
 
+#include <stddef.h>
+#include <stdint.h>
+
+struct cheap;
+
 int
 cheap_fill_test(struct cheap *h, size_t size);
 
 int
-cheap_verify_test1(struct cheap *h, u32 min_size, u32 max_size);
+cheap_verify_test1(struct cheap *h, uint32_t min_size, uint32_t max_size);
 
 int
-cheap_zero_test1(struct cheap *h, u32 min_size, u32 max_size);
+cheap_zero_test1(struct cheap *h, uint32_t min_size, uint32_t max_size);
 
 enum which_strict_test {
     OVERSIZE_FREE,
@@ -25,6 +30,10 @@ enum which_strict_test {
 };
 
 int
-cheap_strict_test1(struct cheap *h, u32 min_size, u32 max_size, enum which_strict_test which);
+cheap_strict_test1(
+    struct cheap *h,
+    uint32_t min_size,
+    uint32_t max_size,
+    enum which_strict_test which);
 
 #endif

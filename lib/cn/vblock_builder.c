@@ -9,7 +9,6 @@
 #include <stddef.h>
 #include <stdint.h>
 
-
 #include <hse/util/alloc.h>
 #include <hse/util/slab.h>
 #include <hse/util/event_counter.h>
@@ -123,7 +122,7 @@ vblock_unused_media_space(const struct vblock_builder *bld)
 size_t
 vbb_estimate_alen(struct cn *cn, size_t wlen, enum hse_mclass mclass)
 {
-    u64 zonealloc_unit;
+    uint64_t zonealloc_unit;
 
     zonealloc_unit = cn_mpool_dev_zone_alloc_unit_default(cn, mclass);
     return cn_mb_est_alen(
@@ -135,8 +134,8 @@ vblock_start(struct vblock_builder *bld, const struct key_obj *min_kobj)
 {
     merr_t                 err = 0;
     struct mblock_props    mbprop;
-    u64                    blkid;
-    u64                    tstart;
+    uint64_t               blkid;
+    uint64_t               tstart;
     struct cn_merge_stats *stats = bld->mstats;
     enum hse_mclass      mclass;
     struct mclass_policy * mpolicy = cn_get_mclass_policy(bld->cn);
@@ -184,7 +183,7 @@ vblock_write(struct vblock_builder *bld)
     merr_t                 err;
     struct iovec           iov;
     struct cn_merge_stats *stats = bld->mstats;
-    u64                    tstart;
+    uint64_t               tstart;
 
     assert(bld->blkid);
 
@@ -272,7 +271,7 @@ vbb_create(
     struct vblock_builder **builder_out,
     struct cn *             cn,
     struct perfc_set *      pc,
-    u64                     vgroup)
+    uint64_t                vgroup)
 {
     struct mpool_mclass_props props;
     struct mclass_policy     *policy;
@@ -330,7 +329,7 @@ vbb_add_entry(
     const struct key_obj  *kobj,
     const void *           vdata,
     uint                   vlen, /* on-media length */
-    u64 *                  vbidout,
+    uint64_t *             vbidout,
     uint *                 vbidxout,
     uint *                 vboffout)
 {

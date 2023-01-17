@@ -3,10 +3,11 @@
  * Copyright (C) 2015-2022 Micron Technology, Inc.  All rights reserved.
  */
 
+#include <stdint.h>
+
+#include <hse/logging/logging.h>
 #include <hse/util/minmax.h>
 #include <hse/util/assert.h>
-#include <hse/util/inttypes.h>
-#include <hse/logging/logging.h>
 #include <hse/util/perfc.h>
 #include <hse/util/page.h>
 
@@ -62,7 +63,7 @@ throttle_init(struct throttle *self, struct kvdb_rparams *rp, const char *kvdb_a
 void
 throttle_init_params(struct throttle *self, struct kvdb_rparams *rp)
 {
-    u32 time_ms;
+    uint32_t time_ms;
 
     self->thr_delay = rp->throttle_init_policy;
 
@@ -292,12 +293,12 @@ uint
 throttle_update(struct throttle *self)
 {
     struct throttle_mavg *mavg = &self->thr_mavg;
-    u32                   max_val = 0;
-    u64                   debug = self->thr_rp->throttle_debug;
+    uint32_t              max_val = 0;
+    uint64_t              debug = self->thr_rp->throttle_debug;
 
     for (int i = 0; i < THROTTLE_SENSOR_CNT; i++) {
-        u32  tmp = atomic_read(&self->thr_sensorv[i].ts_sensor);
-        u32  cidx = UINT_MAX;
+        uint32_t  tmp = atomic_read(&self->thr_sensorv[i].ts_sensor);
+        uint32_t  cidx = UINT_MAX;
 
         tmp = min_t(uint, tmp, 2 * THROTTLE_SENSOR_SCALE);
 
@@ -447,7 +448,7 @@ throttle_update(struct throttle *self)
 
     self->thr_cycles++;
     if (debug & THROTTLE_DEBUG_DELAYV) {
-        u32 debug_intvl_cycles = 40U * self->thr_rp->throttle_debug_intvl_s;
+        uint32_t debug_intvl_cycles = 40U * self->thr_rp->throttle_debug_intvl_s;
 
         if (self->thr_cycles % debug_intvl_cycles == 0)
             throttle_debug(self);

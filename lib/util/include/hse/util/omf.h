@@ -1,13 +1,16 @@
 /* SPDX-License-Identifier: Apache-2.0 */
 /*
- * Copyright (C) 2015-2021 Micron Technology, Inc.  All rights reserved.
+ * Copyright (C) 2015-2022 Micron Technology, Inc.  All rights reserved.
  */
 
 #ifndef HSE_PLATFORM_OMF_H
 #define HSE_PLATFORM_OMF_H
 
+#include <assert.h>
+#include <stdint.h>
+#include <string.h>
+
 #include <hse/util/byteorder.h>
-#include <hse/util/inttypes.h>
 
 /* Write to media in host byte order by default...
  */
@@ -29,7 +32,7 @@
 #define cpu_to_be8(_x)      (_x)
 
 #define OMF_SETGET(_type, _member, _bits)                               \
-    static HSE_ALWAYS_INLINE u ## _bits                                 \
+    static HSE_ALWAYS_INLINE uint ## _bits ## _t                        \
     omf_ ## _member(const _type *s)                                     \
     {                                                                   \
         static_assert(sizeof(((_type *)0)->_member) * 8 == (_bits),     \
@@ -37,13 +40,13 @@
         return be ## _bits ## _to_cpu(s->_member);                      \
     }                                                                   \
     static HSE_ALWAYS_INLINE void                                       \
-    omf_set_ ## _member(_type *s, u ## _bits val)                       \
+    omf_set_ ## _member(_type *s, uint ## _bits ## _t val)              \
     {                                                                   \
         s->_member = cpu_to_be ## _bits(val);                           \
     }
 
 #define OMF_GET_VER(_type, _member, _bits, _ver)                        \
-    static HSE_ALWAYS_INLINE u ## _bits                                 \
+    static HSE_ALWAYS_INLINE uint ## _bits ## _t                        \
     omf_ ## _member ## _ ## _ver(const _type *s)                        \
     {                                                                   \
         static_assert(sizeof(((_type *)0)->_member) * 8 == (_bits),     \
@@ -62,7 +65,7 @@
 #define cpu_to_le8(_x)      (_x)
 
 #define OMF_SETGET(_type, _member, _bits)                               \
-    static HSE_ALWAYS_INLINE u ## _bits                                 \
+    static HSE_ALWAYS_INLINE uint ## _bits ## _t                        \
     omf_ ## _member(const _type *s)                                     \
     {                                                                   \
         static_assert(sizeof(((_type *)0)->_member) * 8 == (_bits),     \
@@ -70,13 +73,13 @@
         return le ## _bits ## _to_cpu(s->_member);                      \
     }                                                                   \
     static HSE_ALWAYS_INLINE void                                       \
-    omf_set_ ## _member(_type *s, u ## _bits val)                       \
+    omf_set_ ## _member(_type *s, uint ## _bits ## _t val)              \
     {                                                                   \
         s->_member = cpu_to_le ## _bits(val);                           \
     }
 
 #define OMF_GET_VER(_type, _member, _bits, _ver)                        \
-    static HSE_ALWAYS_INLINE u ## _bits                                 \
+    static HSE_ALWAYS_INLINE uint ## _bits ## _t                        \
     omf_ ## _member ## _ ## _ver(const _type *s)                        \
     {                                                                   \
         static_assert(sizeof(((_type *)0)->_member) * 8 == (_bits),     \

@@ -1,33 +1,35 @@
 /* SPDX-License-Identifier: Apache-2.0 */
 /*
- * Copyright (C) 2015-2017 Micron Technology, Inc.  All rights reserved.
+ * Copyright (C) 2015-2022 Micron Technology, Inc.  All rights reserved.
  */
 
 #ifndef HSE_KEY_GENERATION_PRIVATE_H
 #define HSE_KEY_GENERATION_PRIVATE_H
 
-#include <hse/util/inttypes.h>
+#include <stdbool.h>
+#include <stddef.h>
+#include <stdint.h>
 
 static char symbols[] = { 'a', 'b', 'c', 'd', 'e', 'f', 'g', 'h', 'i', 'j', 'k', 'l',
                           'm', 'n', 'o', 'p', 'q', 'r', 's', 't', 'u', 'v', 'w', 'x',
                           'y', 'z', '0', '1', '2', '3', '4', '5', '6', '7', '8', '9' };
 
 struct key_generator {
-    size_t key_space_sz;
-    size_t key_width;
-    size_t field_width;
-    s32    num_fields;
-    s32    elem_per_field;
-    char *elems;
+    size_t  key_space_sz;
+    size_t  key_width;
+    size_t  field_width;
+    int32_t num_fields;
+    int32_t elem_per_field;
+    char   *elems;
 };
 
-s32
-elements_per_field(u64 key_space_sz, s32 key_width, s32 field_width, s32 sym_cnt);
+int32_t
+elements_per_field(uint64_t key_space_sz, int32_t key_width, int32_t field_width, int32_t sym_cnt);
 
 void
-increment_multifield_index(s32 *index, s32 index_width, s32 wrap);
+increment_multifield_index(int32_t *index, int32_t index_width, int32_t wrap);
 
 bool
-generate_elements(char *elements, s32 width, s32 count);
+generate_elements(char *elements, int32_t width, int32_t count);
 
 #endif

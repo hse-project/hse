@@ -1,9 +1,12 @@
 /* SPDX-License-Identifier: Apache-2.0 */
 /*
- * Copyright (C) 2015-2021 Micron Technology, Inc.  All rights reserved.
+ * Copyright (C) 2015-2022 Micron Technology, Inc.  All rights reserved.
  */
 
-#include <hse/util/inttypes.h>
+#include <stdbool.h>
+#include <stddef.h>
+
+#include <hse/util/base.h>
 
 /* Append a single byte to buffer at given offset and update offset by 1.
  * If buffer is full, byte is not appended but offset is still updated.

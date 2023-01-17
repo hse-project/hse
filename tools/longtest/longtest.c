@@ -3,19 +3,23 @@
  * Copyright (C) 2015-2022 Micron Technology, Inc.  All rights reserved.
  */
 
+#include <ctype.h>
+#include <errno.h>
 #include <getopt.h>
 #include <math.h>
 #include <pthread.h>
 #include <stdarg.h>
 #include <stdio.h>
+#include <stdint.h>
 #include <stdlib.h>
+#include <string.h>
 #include <sysexits.h>
 #include <sys/time.h>
+#include <unistd.h>
 
 #include <hse/cli/program.h>
 #include <hse/hse.h>
 #include <hse/util/atomic.h>
-#include <hse/util/inttypes.h>
 #include <hse/util/parse_num.h>
 #include <hse/version.h>
 
@@ -200,26 +204,26 @@ struct opts {
     const char *mpool;
     const char *kvs;
 
-    u64 keys;
-    u64 duration;
-    u64 num_iters;
+    uint64_t keys;
+    uint64_t duration;
+    uint64_t num_iters;
 
-    u32 kmin, kmax, vmin, vmax;
+    uint32_t kmin, kmax, vmin, vmax;
 
-    u32 verify;
-    u32 seed;
-    u32 test_threads;
+    uint32_t verify;
+    uint32_t seed;
+    uint32_t test_threads;
 
-    u32 verbose;
-    u32 sync;
+    uint32_t verbose;
+    uint32_t sync;
     int mthread;
     enum phase mphase;
     bool cursor;
     bool   distr_is_exp;
     double distr_param;
 
-    s32  max_errors;
-    u32  seqnum_pfx;
+    int32_t max_errors;
+    uint32_t seqnum_pfx;
 
     bool version;
     bool help;
@@ -240,10 +244,10 @@ struct svec         kv_oparms = { 0 };
 struct tstate {
 
     /* constant for duration of test */
-    u32     id;
-    u64     key_space_offset;
-    u64     num_keys;
-    u64     num_iters;
+    uint32_t id;
+    uint64_t key_space_offset;
+    uint64_t num_keys;
+    uint64_t num_iters;
 
     /* if using cursors, there is a prefix of the thread id */
     char    pfxbuf[2];
@@ -251,13 +255,13 @@ struct tstate {
     size_t  pfxlen;
 
     /* current iteration */
-    u64     iter_cnt;
+    uint64_t iter_cnt;
 
     /* stats */
-    u64     put_cnt;
-    u64     upd_cnt;
-    u64     get_cnt;
-    u64     del_cnt;
+    uint64_t put_cnt;
+    uint64_t upd_cnt;
+    uint64_t get_cnt;
+    uint64_t del_cnt;
 
     /* thread management */
     pthread_t   thread;
@@ -274,12 +278,12 @@ struct tstate {
 
 
 struct test_stats {
-    u64 puts;
-    u64 upds;
-    u64 gets;
-    u64 dels;
-    u64 iters;
-    u64 ops;
+    uint64_t puts;
+    uint64_t upds;
+    uint64_t gets;
+    uint64_t dels;
+    uint64_t iters;
+    uint64_t ops;
 };
 
 struct test {
@@ -287,14 +291,14 @@ struct test {
     void               *kvs_h;
     struct rsgen        kgen;
     struct rsgen        vgen;
-    u64                 start_time;
-    u32                 stat_rows_no_hdr;
-    u32                 running_threads;
+    uint64_t            start_time;
+    uint32_t            stat_rows_no_hdr;
+    uint32_t            running_threads;
     pthread_barrier_t   bar_sync;
     atomic_int          errors;
     atomic_int          test_complete;
     atomic_int          hard_stop;
-    u8                 *seqnum_pfx_key;
+    uint8_t            *seqnum_pfx_key;
     struct test_stats   tot;
     struct test_stats   stats[MAX_THREADS];
     struct tstate       ts[MAX_THREADS];
@@ -698,13 +702,14 @@ syntax(const char *fmt, ...)
 
 
 /* get time of day as a count of micro seconds */
-u64 gtod_usec(void)
+uint64_t
+gtod_usec(void)
 {
     struct timeval ctime;
 
     gettimeofday(&ctime, 0);
-    return (u64)ctime.tv_sec * (u64)1000000
-        + (u64)ctime.tv_usec;
+    return (uint64_t)ctime.tv_sec * (uint64_t)1000000
+        + (uint64_t)ctime.tv_usec;
 }
 
 /**
@@ -722,9 +727,9 @@ u64 gtod_usec(void)
  * - Larger values might make sense for can be used for 1M+ keys.
  */
 int
-poly_dist(double degree, u32 len, double *results)
+poly_dist(double degree, uint32_t len, double *results)
 {
-    u32 i;
+    uint32_t i;
     double total;
 
     if (degree < 0.0) {
@@ -763,9 +768,9 @@ poly_dist(double degree, u32 len, double *results)
  * - Larger values might make sense for can be used for 1M+ keys.
  */
 int
-exp_dist(double m, u32 len, double *dist)
+exp_dist(double m, uint32_t len, double *dist)
 {
-    u32 i;
+    uint32_t i;
     double total;
 
     if (m <= 0.0) {
@@ -789,20 +794,20 @@ exp_dist(double m, u32 len, double *dist)
 }
 
 int
-normalize_dist(double *distr, u32 len, u64 scale, u64 *results)
+normalize_dist(double *distr, uint32_t len, uint64_t scale, uint64_t *results)
 {
-    u64 tot = 0;
+    uint64_t tot = 0;
     int i;
 
     for (i = 0; i < len; i++) {
         double val = round(distr[i] * scale);
 
-        if (val > (double)(U64_MAX)) {
+        if (val > (double)(UINT64_MAX)) {
             fprintf(stderr, "Error: overflow: "
                 "try a more uniform distribution\n");
             return -1;
         }
-        results[i] = (u64)val;
+        results[i] = (uint64_t)val;
         tot += results[i];
     }
 
@@ -810,19 +815,19 @@ normalize_dist(double *distr, u32 len, u64 scale, u64 *results)
         double adjust = (double)scale - (double)tot;
         double val = (double)results[len-1] + adjust;
 
-        if (val > (double)(U64_MAX)) {
+        if (val > (double)(UINT64_MAX)) {
             fprintf(stderr, "Error: overflow: "
                 "try a more uniform distribution\n");
             return -1;
         }
-        results[len-1] = (u64)val;
+        results[len-1] = (uint64_t)val;
     }
 
     return 0;
 
 }
 
-u64
+uint64_t
 xkvdb_kvs_open(
     struct test        *t,
     unsigned int       *idxv,
@@ -831,7 +836,7 @@ xkvdb_kvs_open(
 {
     struct hse_kvdb    *kvdb_h;
     struct hse_kvs     *kvs_h;
-    u64                 err;
+    uint64_t            err;
 
     if (opt.dryrun)
         return 0;
@@ -856,13 +861,13 @@ xkvdb_kvs_open(
     return err;
 }
 
-u64
+uint64_t
 xkvdb_kvs_close(struct test *t)
 {
     return opt.dryrun ? 0 : hse_kvdb_close(t->kvdb_h);
 }
 
-u64
+uint64_t
 xkvs_put(
     struct test  *t,
     void         *key,
@@ -876,7 +881,7 @@ xkvs_put(
     return hse_kvs_put(t->kvs_h, 0, NULL, key, klen, val, vlen);
 }
 
-u64
+uint64_t
 xkvs_get(
     struct test  *t,
     void         *key,
@@ -895,7 +900,7 @@ xkvs_get(
                val, *vlen, vlen);
 }
 
-u64
+uint64_t
 xkvs_del(
     struct test  *t,
     void         *key,
@@ -904,7 +909,7 @@ xkvs_del(
     return opt.dryrun ? 0UL : hse_kvs_delete(t->kvs_h, 0, NULL, key, klen);
 }
 
-u64
+uint64_t
 xkvs_prefix_delete(
     struct test  *t,
     void         *key,
@@ -914,7 +919,7 @@ xkvs_prefix_delete(
                             key, klen);
 }
 
-u64
+uint64_t
 xkvdb_scan_begin(
     struct test    *t,
     void           *pfx,
@@ -931,7 +936,7 @@ xkvdb_scan_begin(
                          (struct hse_kvs_cursor **)cur);
 }
 
-u64
+uint64_t
 xkvdb_scan_read(
     void       *cur,
     void      **key,
@@ -939,7 +944,7 @@ xkvdb_scan_read(
     void      **val,
     size_t     *vlen)
 {
-    u64         err;
+    uint64_t    err;
     bool        eof;
 
     if (opt.dryrun)
@@ -956,7 +961,7 @@ xkvdb_scan_read(
     return err;
 }
 
-u64
+uint64_t
 xkvdb_scan_end(
     void                    *cur)
 {
@@ -988,8 +993,8 @@ hexstr(
         size_t i;
 
         for (i = 0; i < data_len; i++) {
-            out[i * 2] = nybble2xdigit[ ((u8)data[i] >> 4) ];
-            out[i * 2 + 1] = nybble2xdigit[ ((u8)data[i] & 0xfu) ];
+            out[i * 2] = nybble2xdigit[ ((uint8_t)data[i] >> 4) ];
+            out[i * 2 + 1] = nybble2xdigit[ ((uint8_t)data[i] & 0xfu) ];
         }
         out[data_len * 2] = '\000';
     } else {
@@ -1053,9 +1058,9 @@ start_threads(void)
 void
 join_threads(void)
 {
-    u64         last_report = gtod_usec();
+    uint64_t    last_report = gtod_usec();
     unsigned    joined = 0;
-    u64         now;
+    uint64_t    now;
     int         i;
 
     while (joined != test.running_threads) {
@@ -1132,15 +1137,15 @@ interact(
 void
 do_puts(
     struct tstate  *ts,
-    u64             first_key,
-    u64             num_keys,
+    uint64_t        first_key,
+    uint64_t        num_keys,
     char           *key_range_name,
     char            tag)
 {
-    u64     keynum;
-    u32     vlen;
-    u32     klen;
-    u64     rc;
+    uint64_t keynum;
+    uint32_t vlen;
+    uint32_t klen;
+    uint64_t rc;
     int     i;
 
     if (opt.verbose > 2 || opt.interactive)
@@ -1202,14 +1207,14 @@ do_puts(
 void
 do_deletes(
     struct tstate  *ts,
-    u64             first_key,
-    u64             num_keys,
+    uint64_t        first_key,
+    uint64_t        num_keys,
     char           *key_range_name)
 {
-    u64     i;
-    u64     keynum;
-    u32     klen;
-    u64     rc;
+    uint64_t     i;
+    uint64_t     keynum;
+    uint32_t     klen;
+    uint64_t     rc;
 
     if (opt.verbose > 2 || opt.interactive)
         printf("T%03u I%lu: delete(%s) %lu keys\n",
@@ -1253,15 +1258,15 @@ do_deletes(
 bool
 do_error(
     struct tstate    *ts,
-    u64               keynum,
+    uint64_t          keynum,
     char             *key_range_name,
     const char       *errmsg,
     void             *key,
-    u32               klen,
+    uint32_t          klen,
     void             *val,
-    u32               vlen,
+    uint32_t          vlen,
     void             *exp,
-    u32               explen,
+    uint32_t          explen,
     int               verify_delete,
     int               found)
 {
@@ -1328,9 +1333,9 @@ do_error(
 void
 do_cursor_verify(
     struct tstate  *ts,
-    u64             d1_len,
-    u64             u_len,
-    u64             p_len)
+    uint64_t        d1_len,
+    uint64_t        u_len,
+    uint64_t        p_len)
 {
     int        err;
     void         *key = 0, *val = 0, *exp = 0;
@@ -1338,16 +1343,16 @@ do_cursor_verify(
     uint          explen;
     void         *cur;
     const char   *errmsg;
-    u64           keynum, iter, count;
-    u32           phase;
+    uint64_t      keynum, iter, count;
+    uint32_t      phase;
 
     /*
      * keys < key_first or > key_last are found deleted keys
      * keys < key_upd have a value tag U, else value tag P
      */
-    u64 key_first = ts->key_space_offset + d1_len;
-    u64 key_last  = ts->key_space_offset + p_len - d1_len;
-    u64 key_upd   = ts->key_space_offset + u_len;
+    uint64_t key_first = ts->key_space_offset + d1_len;
+    uint64_t key_last  = ts->key_space_offset + p_len - d1_len;
+    uint64_t key_upd   = ts->key_space_offset + u_len;
 
     /*
      * phases can alter this key map:
@@ -1391,8 +1396,8 @@ do_cursor_verify(
 
     count = 0;
     for (;;) {
-        u16     tid;
-        bool    vd = false;
+        uint16_t tid;
+        bool     vd = false;
 
         err = xkvdb_scan_read(cur, &key, &klen, &val, &vlen);
         if (err || klen == 0)
@@ -1463,19 +1468,19 @@ do_cursor_verify(
 void
 do_verifies(
     struct tstate  *ts,
-    u64             first_key,
-    u64             num_keys,
+    uint64_t        first_key,
+    uint64_t        num_keys,
     char           *key_range_name,
     char            tag)
 {
-    u64         rc;
+    uint64_t    rc;
     void       *key, *exp;
     size_t      klen, vlen;
     uint        gen_klen;
     uint        explen;
     bool        found;
     bool        verify_delete = (tag == 'D');
-    u64         i, stop_at, keynum;
+    uint64_t    i, stop_at, keynum;
     const char *errmsg;
 
     if (opt.verify == 0)
@@ -1485,7 +1490,7 @@ do_verifies(
         /* TODO: select a random sample to verify
          * instead of stopping after the first N
          * entries */
-        stop_at = (u64)(num_keys * (opt.verify/100.0));
+        stop_at = (uint64_t)(num_keys * (opt.verify/100.0));
         if (stop_at < 5)
             stop_at = 5;
         if (stop_at > num_keys)
@@ -1568,7 +1573,7 @@ void
 do_one_iteration(
     struct tstate  *ts)
 {
-    u64     u_len, d1_len, d2_len;
+    uint64_t     u_len, d1_len, d2_len;
 
     /* Setup ranges for this iteration as follows:
      *
@@ -1665,7 +1670,7 @@ seqnum_pfx_thread(
     void *rock)
 {
     struct tstate      *ts = (struct tstate *)rock;
-    u64                 rc;
+    uint64_t            rc;
 
     bar_sync();
 
@@ -1730,16 +1735,16 @@ int
 test_init(
     void)
 {
-    double *dist = 0;
-    u64    *keys = 0;
-    u64     assigned_keys = 0;
-    u32     i;
-    u32     max_iter = 0;
+    double   *dist = 0;
+    uint64_t *keys = 0;
+    uint64_t  assigned_keys = 0;
+    uint32_t  i;
+    uint32_t  max_iter = 0;
 
     memset(&test, 0, sizeof(test));
 
     dist = (double *)malloc(sizeof(double) * opt.test_threads);
-    keys = (u64 *)malloc(sizeof(u64) * opt.test_threads);
+    keys = (uint64_t *)malloc(sizeof(uint64_t) * opt.test_threads);
     if (!dist || !keys) {
         fprintf(stderr, "Error: out of memory\n");
         goto error;
@@ -1772,7 +1777,7 @@ test_init(
     /* flip the distribution so thread 0 has the most keys */
     for (i = 0; i < opt.test_threads; i++) {
         struct tstate *ts = test.ts + i;
-        u64 nkeys = keys[opt.test_threads-1-i];
+        uint64_t nkeys = keys[opt.test_threads-1-i];
 
         ts->key_space_offset = assigned_keys;
         ts->num_keys  = nkeys;
@@ -1870,11 +1875,11 @@ test_stats_header(
 
 void
 get_stats(
-    struct test_stats   curr[MAX_THREADS],
+    struct test_stats   curr[static MAX_THREADS],
     struct test_stats  *tot,
-    u64                *elapsed_time)
+    uint64_t            *elapsed_time)
 {
-    u32 i;
+    uint32_t i;
 
     /* get "snapshot" of thread counters */
     for (i = 0; i < opt.test_threads; i++) {
@@ -1903,12 +1908,11 @@ get_stats(
     }
 }
 
-
 void
 test_stats(
     void)
 {
-    u64 elapsed_time;
+    uint64_t elapsed_time;
 
     struct test_stats curr[MAX_THREADS];
     struct test_stats tot;
@@ -1953,8 +1957,8 @@ void
 test_summary(
     void)
 {
-    int     i;
-    u64     elapsed_time;
+    int      i;
+    uint64_t elapsed_time;
 
     struct test_stats   curr[MAX_THREADS];
     struct test_stats   tot;
@@ -1989,9 +1993,6 @@ test_summary(
            s->puts + s->upds + s->dels + s->gets);
 }
 
-
-
-
 bool
 test_threads_running(
     void)
@@ -2009,9 +2010,9 @@ test_run(
     void)
 {
     int             errors;
-    u64             rc;
-    u64             elapsed_time;
-    u64             last_report = 0;
+    uint64_t        rc;
+    uint64_t        elapsed_time;
+    uint64_t        last_report = 0;
     unsigned int    idxv;
 
     rc = xkvdb_kvs_open(&test, &idxv, opt.mpool, opt.kvs);
@@ -2173,7 +2174,7 @@ main(int argc, char **argv)
     }
 
     if (!opt.seed)
-        opt.seed = (u32)gtod_usec();
+        opt.seed = (uint32_t)gtod_usec();
 
     if (opt.verbose || opt.show)
         opts_show(&opt);

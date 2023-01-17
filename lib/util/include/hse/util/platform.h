@@ -1,10 +1,12 @@
 /* SPDX-License-Identifier: Apache-2.0 */
 /*
- * Copyright (C) 2015-2020,2022 Micron Technology, Inc.  All rights reserved.
+ * Copyright (C) 2015-2022 Micron Technology, Inc.  All rights reserved.
  */
 
 #ifndef HSE_PLATFORM_PLATFORM_H
 #define HSE_PLATFORM_PLATFORM_H
+
+#include <stdint.h>
 
 #include <hse/util/base.h>
 #include <hse/util/arch.h>
@@ -94,8 +96,8 @@ hse_meminfo(unsigned long *freep, unsigned long *availp, unsigned int shift);
 extern volatile unsigned long hse_tsc_freq;
 extern volatile unsigned int hse_tsc_mult;
 
-static HSE_ALWAYS_INLINE u64
-cycles_to_nsecs(u64 cycles)
+static HSE_ALWAYS_INLINE uint64_t
+cycles_to_nsecs(uint64_t cycles)
 {
     return ((__uint128_t)cycles * hse_tsc_mult) >> HSE_TSC_SHIFT;
 }

@@ -1,14 +1,15 @@
 /* SPDX-License-Identifier: Apache-2.0 */
 /*
- * Copyright (C) 2015-2020 Micron Technology, Inc.  All rights reserved.
+ * Copyright (C) 2015-2022 Micron Technology, Inc.  All rights reserved.
  */
 
 #ifndef HSE_PLATFORM_KEYCMP_H
 #define HSE_PLATFORM_KEYCMP_H
 
+#include <stdint.h>
+
 #include <hse/util/base.h>
 #include <hse/util/compiler.h>
-#include <hse/util/inttypes.h>
 
 /*
  * Return value:
@@ -17,7 +18,7 @@
  *   positive int : key1 is "greater than" key2
  */
 static inline int
-keycmp(const void *key1, u32 len1, const void *key2, u32 len2)
+keycmp(const void *key1, uint32_t len1, const void *key2, uint32_t len2)
 {
     /*
      * If memcmp returns 0, then either (1) keys are equal or (2)
@@ -40,7 +41,7 @@ keycmp(const void *key1, u32 len1, const void *key2, u32 len2)
  *   positive int : pfx is "greater than" key
  */
 static HSE_ALWAYS_INLINE int
-keycmp_prefix(const void *pfx, u32 pfxlen, const void *key, u32 keylen)
+keycmp_prefix(const void *pfx, uint32_t pfxlen, const void *key, uint32_t keylen)
 {
     if (keylen < pfxlen) {
         int rc = memcmp(pfx, key, keylen);

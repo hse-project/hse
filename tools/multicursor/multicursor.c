@@ -20,7 +20,10 @@
 #include <pthread.h>
 #include <stdarg.h>
 #include <stdbool.h>
+#include <stdint.h>
+#include <stdio.h>
 #include <stdlib.h>
+#include <string.h>
 #include <sys/resource.h>
 #include <sys/time.h>
 #include <sysexits.h>
@@ -31,7 +34,6 @@
 #include <hse/util/arch.h>
 #include <hse/util/atomic.h>
 #include <hse/util/compiler.h>
-#include <hse/util/inttypes.h>
 
 #include "kvs_helper.h"
 

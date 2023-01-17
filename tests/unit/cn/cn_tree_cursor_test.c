@@ -3,6 +3,8 @@
  * Copyright (C) 2022 Micron Technology, Inc.  All rights reserved.
  */
 
+#include <stdint.h>
+
 #include <mtf/framework.h>
 
 #include <hse/util/base.h>
@@ -39,7 +41,7 @@ struct kv {
     char              kdata[32];
     uint              klen;
     enum kmd_vtype    vtype;
-    u64               seqno;
+    uint64_t          seqno;
     struct kv        *next;
     struct kv        *prev;
 } *head, *curr;
@@ -51,7 +53,7 @@ kv_start()
 }
 
 void
-kv_add(struct kv *kv, const char *keystr, u64 seqno, enum kmd_vtype vtype)
+kv_add(struct kv *kv, const char *keystr, uint64_t seqno, enum kmd_vtype vtype)
 {
     snprintf(kv->kdata, sizeof(kv->kdata), "%s", keystr);
     kv->klen = strlen(keystr);
@@ -116,7 +118,7 @@ bool
 _kvset_iter_next_vref(
     struct kv_iterator *    handle,
     struct kvset_iter_vctx *vc,
-    u64 *                   seq,
+    uint64_t *              seq,
     enum kmd_vtype *        vtype,
     uint *                  vbidx,
     uint *                  vboff,
@@ -190,7 +192,7 @@ merr_t
 cn_lcur_seek(
     struct cn_level_cursor *lcur,
     const void             *key,
-    u32                     len)
+    uint32_t                len)
 {
     curr = head;
     while (curr) {

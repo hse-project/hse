@@ -1,9 +1,11 @@
 /* SPDX-License-Identifier: Apache-2.0 */
 /*
- * Copyright (C) 2021 Micron Technology, Inc.  All rights reserved.
+ * Copyright (C) 2021-2022 Micron Technology, Inc.  All rights reserved.
  */
 
 #define MTF_MOCK_IMPL_bonsai_iter
+
+#include <stdint.h>
 
 #include <hse/ikvdb/kvdb_ctxn.h>
 #include <hse/ikvdb/c0_kvset.h>
@@ -20,8 +22,8 @@ bonsai_iter_init(
     struct bonsai_iter * iter,
     struct bonsai_root **root,
     int                  skidx,
-    u64                  view_seq,
-    u64                  horizon_seq,
+    uint64_t             view_seq,
+    uint64_t             horizon_seq,
     uintptr_t            seqnoref,
     bool                 reverse,
     bool                 ptomb_tree)
@@ -37,7 +39,7 @@ bonsai_iter_init(
 }
 
 void
-bonsai_iter_update(struct bonsai_iter *iter, u64 view_seq, u64 horizon_seq)
+bonsai_iter_update(struct bonsai_iter *iter, uint64_t view_seq, uint64_t horizon_seq)
 {
     iter->bi_seq_view = view_seq;
     iter->bi_seq_horizon = horizon_seq;
@@ -132,7 +134,7 @@ bonsai_iter_next(struct element_source *es, void **element)
 
     do {
         enum hse_seqno_state state;
-        u64                  seqno;
+        uint64_t             seqno;
 
         bkv = get_next(iter);
         if (!bkv) {
@@ -208,7 +210,7 @@ bonsai_ingest_iter_next(struct element_source *es, void **element)
          * thread.
          */
         for (val = rcu_dereference(bkv->bkv_values); val; val = rcu_dereference(val->bv_next)) {
-            u64                  seqno;
+            uint64_t             seqno;
             enum hse_seqno_state state;
 
             state = seqnoref_to_seqno(val->bv_seqnoref, &seqno);
@@ -233,8 +235,8 @@ bonsai_ingest_iter_next(struct element_source *es, void **element)
 struct element_source *
 bonsai_ingest_iter_init(
     struct bonsai_ingest_iter *iter,
-    u64                        min_seqno,
-    u64                        max_seqno,
+    uint64_t                   min_seqno,
+    uint64_t                   max_seqno,
     struct bonsai_root **      rootp)
 {
     iter->bii_rootp = rootp;

@@ -3,16 +3,18 @@
  * Copyright (C) 2015-2023 Micron Technology, Inc.  All rights reserved.
  */
 
+#include <stdint.h>
+
 #include <mtf/framework.h>
 #include <hse/util/log2.h>
 
 MTF_BEGIN_UTEST_COLLECTION(log2);
 
 struct testparms {
-    u32  e_log2;
-    bool e_pow2;
-    u64  e_rup2;
-    u64  e_rdown2;
+    uint32_t e_log2;
+    bool     e_pow2;
+    uint64_t e_rup2;
+    uint64_t e_rdown2;
 };
 
 void
@@ -59,7 +61,7 @@ test_macros(struct mtf_test_info *lcl_ti)
 }
 
 void
-test_runtime(u64 val, struct testparms *parm, struct mtf_test_info *lcl_ti)
+test_runtime(uint64_t val, struct testparms *parm, struct mtf_test_info *lcl_ti)
 {
     unsigned long res;
 
@@ -149,13 +151,13 @@ MTF_END_UTEST_COLLECTION(log2)
  * the generated code with objdump.
  */
 static HSE_CONST HSE_USED unsigned long
-ilog2_test(u64 n)
+ilog2_test(uint64_t n)
 {
     return ilog2(n);
 }
 
 static HSE_CONST HSE_USED unsigned long
-roundup_pow_of_two_test(u64 n)
+roundup_pow_of_two_test(uint64_t n)
 {
     return roundup_pow_of_two(n);
 }

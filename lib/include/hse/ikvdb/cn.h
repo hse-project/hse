@@ -1,10 +1,12 @@
 /* SPDX-License-Identifier: Apache-2.0 */
 /*
- * Copyright (C) 2015-2020 Micron Technology, Inc.  All rights reserved.
+ * Copyright (C) 2015-2022 Micron Technology, Inc.  All rights reserved.
  */
 
 #ifndef HSE_IKVS_CN_H
 #define HSE_IKVS_CN_H
+
+#include <stdint.h>
 
 #include <hse/error/merr.h>
 #include <hse/util/workqueue.h>
@@ -39,7 +41,7 @@ cn_open(
     struct mpool *      mp,
     struct kvdb_kvs *   kvs,
     struct cndb *       cndb,
-    u64                 cnid,
+    uint64_t            cnid,
     struct kvs_rparams *rp,
     const char *        kvdb_home,
     const char *        kvs_name,
@@ -52,7 +54,7 @@ merr_t
 cn_close(struct cn *cn);
 
 /* MTF_MOCK */
-u32
+uint32_t
 cn_cp2cflags(const struct kvs_cparams *cp);
 
 /* MTF_MOCK */
@@ -65,7 +67,7 @@ cn_is_replay(const struct cn *cn);
 
 /* MTF_MOCK */
 void
-cn_periodic(struct cn *cn, u64 now);
+cn_periodic(struct cn *cn, uint64_t now);
 
 /* MTF_MOCK */
 merr_t
@@ -76,7 +78,7 @@ void
 cn_fini(void);
 
 /* MTF_MOCK */
-u64
+uint64_t
 cn_get_ingest_dgen(struct cn *cn);
 
 /* MTF_MOCK */
@@ -108,7 +110,7 @@ merr_t
 cn_get(
     struct cn *          cn,
     struct kvs_ktuple *  kt,
-    u64                  seq,
+    uint64_t             seq,
     enum key_lookup_res *res,
     struct kvs_buf *     vbuf);
 
@@ -118,7 +120,7 @@ merr_t
 cn_pfx_probe(
     struct cn *          cn,
     struct kvs_ktuple *  kt,
-    u64                  seq,
+    uint64_t             seq,
     enum key_lookup_res *res,
     struct query_ctx *   qctx,
     struct kvs_buf *     kbuf,
@@ -141,10 +143,10 @@ cn_ingestv(
     struct kvset_mblocks **mbv,
     uint64_t              *kvsetidv,
     uint                   ingestc,
-    u64                    ingestid,
-    u64                    txhorizon,
-    u64                   *min_seqno_out,
-    u64                   *max_seqno_out);
+    uint64_t               ingestid,
+    uint64_t               txhorizon,
+    uint64_t              *min_seqno_out,
+    uint64_t              *max_seqno_out);
 
 /* MTF_MOCK */
 struct perfc_set *
@@ -155,7 +157,7 @@ void *
 cn_get_tree(const struct cn *cn);
 
 /* MTF_MOCK */
-u64
+uint64_t
 cn_get_seqno_horizon(struct cn *cn);
 
 /* MTF_MOCK */
@@ -198,7 +200,7 @@ struct kvs_cparams *
 cn_get_cparams(const struct cn *handle);
 
 /* MTF_MOCK */
-u64
+uint64_t
 cn_get_cnid(const struct cn *cn);
 
 /* MTF_MOCK */
@@ -210,11 +212,11 @@ struct cn_kvdb *
 cn_get_cn_kvdb(const struct cn *handle);
 
 /* MTF_MOCK */
-u32
+uint32_t
 cn_get_flags(const struct cn *handle);
 
 /* MTF_MOCK */
-u64
+uint64_t
 cn_mpool_dev_zone_alloc_unit_default(struct cn *cn, enum hse_mclass mclass);
 
 #if HSE_MOCKING

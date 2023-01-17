@@ -3,6 +3,7 @@
  * Copyright (C) 2015-2022 Micron Technology, Inc.  All rights reserved.
  */
 
+#include <stdint.h>
 #include <sys/mman.h>
 
 #include <hse/util/arch.h>
@@ -194,7 +195,7 @@ MTF_DEFINE_UTEST(cheap_test, cheap_test_used)
 {
     struct cheap *h;
     size_t        used, avail;
-    u8 *          p;
+    uint8_t *     p;
     int           i;
 
     h = cheap_create(0, 4096);
@@ -228,7 +229,7 @@ MTF_DEFINE_UTEST(cheap_test, cheap_test_used)
 MTF_DEFINE_UTEST(cheap_test, cheap_test_poison)
 {
     struct cheap *h;
-    u8 *          p;
+    uint8_t *     p;
     int           i;
 
     ASSERT_GT(CHEAP_POISON_SZ, 0);

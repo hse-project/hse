@@ -6,7 +6,6 @@
 #include <mtf/framework.h>
 
 #include <hse/error/merr.h>
-#include <hse/util/inttypes.h>
 
 #include <hse/ikvdb/kvset_builder.h>
 #include <hse/ikvdb/kvs_rparams.h>
@@ -80,7 +79,7 @@ MTF_BEGIN_UTEST_COLLECTION_PREPOST(test, init, fini);
 
 MTF_DEFINE_UTEST_PREPOST(test, t_kvset_builder_create, pre, post)
 {
-    u32                   api;
+    uint32_t                   api;
     merr_t                err;
     struct kvset_builder *bld = 0;
 
@@ -202,9 +201,9 @@ MTF_DEFINE_UTEST_PREPOST(test, t_kvset_builder_add_val_fail1, pre, post)
 {
     struct kvset_builder *bld = 0;
 
-    u32    api;
+    uint32_t api;
     merr_t err;
-    u64    seq = 1;
+    uint64_t seq = 1;
 
     const char *value = "foobarbazquxquuxcorgegraultgarplywaldofredplugh";
 
@@ -225,7 +224,7 @@ MTF_DEFINE_UTEST_PREPOST(test, t_kvset_builder_add_val_fail1, pre, post)
 MTF_DEFINE_UTEST_PREPOST(test, t_reserve_kmd1, pre, post)
 {
     merr_t err;
-    u64    seq = 0x1122334455667788ULL;
+    uint64_t seq = 0x1122334455667788ULL;
     uint   vbidx = 300;
     uint   vboff = 128 * 1000 * 1000;
     uint   vlen = 1000 * 1000;
@@ -249,9 +248,9 @@ MTF_DEFINE_UTEST_PREPOST(test, t_reserve_kmd1, pre, post)
 MTF_DEFINE_UTEST_PREPOST(test, t_reserve_kmd2, pre, post)
 {
     /* just like t_reserve_kmd1 but with memory allocation failures */
-    u32    api;
+    uint32_t    api;
     merr_t err;
-    u64    seq = 0x1122334455667788ULL;
+    uint64_t seq = 0x1122334455667788ULL;
     uint   vbidx = 300;
     uint   vboff = 128 * 1000 * 1000;
     uint   vlen = 1000 * 1000;
@@ -305,9 +304,9 @@ MTF_DEFINE_UTEST_PREPOST(test, t_kvset_mblocks_destroy, pre, post)
 
 MTF_DEFINE_UTEST_PREPOST(test, t_kvset_builder_get_mblocks, pre, post)
 {
-    u32                   api;
+    uint32_t                   api;
     merr_t                err;
-    u32                   seq = 1;
+    uint32_t                   seq = 1;
     struct kvset_builder *bld = 0;
     struct kvset_mblocks  blks;
     struct key_obj        ko;

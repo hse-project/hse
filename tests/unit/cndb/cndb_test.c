@@ -3,6 +3,8 @@
  * Copyright (C) 2015-2022 Micron Technology, Inc.  All rights reserved.
  */
 
+#include <stdint.h>
+
 #include <mtf/framework.h>
 #include <mock/api.h>
 
@@ -477,7 +479,7 @@ MTF_DEFINE_UTEST_PREPOST(cndb_test, replay_full, test_pre, test_post)
 }
 
 static merr_t
-assert_ingest_kvset(void *ctx, struct kvset_meta *km, u64 kvsetid)
+assert_ingest_kvset(void *ctx, struct kvset_meta *km, uint64_t kvsetid)
 {
     ++g_cb_ctr;
 
@@ -567,7 +569,7 @@ MTF_DEFINE_UTEST_PREPOST(cndb_test, rollback, test_pre, test_post)
 }
 
 static merr_t
-assert_two_kvsets(void *ctx, struct kvset_meta *km, u64 kvsetid)
+assert_two_kvsets(void *ctx, struct kvset_meta *km, uint64_t kvsetid)
 {
     uint64_t *remv = (uint64_t *)ctx;
 

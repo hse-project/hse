@@ -3,8 +3,10 @@
  * Copyright (C) 2015-2022 Micron Technology, Inc.  All rights reserved.
  */
 
-#include <hse/util/bloom_filter.h>
+#include <stdint.h>
+
 #include <hse/logging/logging.h>
+#include <hse/util/bloom_filter.h>
 #include <hse/util/page.h>
 
 #include "bf_size2bits.i"
@@ -23,8 +25,8 @@ _Static_assert(BF_BKTSHIFT >= 9 && BF_BKTSHIFT <= 15, "BF_BKTSHIFT is too large 
 _Static_assert(BF_ROTL >= 1 && BF_ROTL <= 63, "BF_ROTL is too large or too small");
 
 struct bf_prob_range {
-    u32                    bfpr_min;
-    u32                    bfpr_max;
+    uint32_t               bfpr_min;
+    uint32_t               bfpr_max;
     struct bf_bithash_desc bfpr_bhdesc;
 };
 
@@ -123,7 +125,7 @@ static const struct bf_prob_range bf_ranges[] = {
 };
 
 struct bf_bithash_desc
-bf_compute_bithash_est(u32 probability)
+bf_compute_bithash_est(uint32_t probability)
 {
     int i;
 
@@ -134,13 +136,13 @@ bf_compute_bithash_est(u32 probability)
     return bf_ranges[i].bfpr_bhdesc;
 }
 
-u32
-bf_size_estimate(struct bf_bithash_desc desc, u32 num_elmnts)
+uint32_t
+bf_size_estimate(struct bf_bithash_desc desc, uint32_t num_elmnts)
 {
     return 1 + ((num_elmnts * desc.bhd_bits_per_elt) >> BYTE_SHIFT);
 }
 
-u32
+uint32_t
 bf_element_estimate(struct bf_bithash_desc desc, size_t size_in_bytes)
 {
     return (size_in_bytes << BYTE_SHIFT) / desc.bhd_bits_per_elt;
@@ -150,8 +152,8 @@ void
 bf_filter_init(
     struct bloom_filter *  filter,
     struct bf_bithash_desc desc,
-    u32                    exp_elmts,
-    u8 *                   storage,
+    uint32_t               exp_elmts,
+    uint8_t *              storage,
     size_t                 storage_sz)
 {
     assert(IS_ALIGNED(storage_sz, PAGE_SIZE));
@@ -174,13 +176,13 @@ bf_filter_init(
 }
 
 void
-bf_filter_insert_by_hash(struct bloom_filter *bf, u64 hash)
+bf_filter_insert_by_hash(struct bloom_filter *bf, uint64_t hash)
 {
     bf_populate(bf, hash);
 }
 
 void
-bf_filter_insert_by_hashv(struct bloom_filter *bf, u64 *keyv, u32 keyc)
+bf_filter_insert_by_hashv(struct bloom_filter *bf, uint64_t *keyv, uint32_t keyc)
 {
     int i;
 

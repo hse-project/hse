@@ -1,7 +1,9 @@
 /* SPDX-License-Identifier: Apache-2.0 */
 /*
- * Copyright (C) 2021 Micron Technology, Inc.  All rights reserved.
+ * Copyright (C) 2022 Micron Technology, Inc.  All rights reserved.
  */
+
+#include <stdint.h>
 
 #include <mtf/framework.h>
 #include <mock/api.h>
@@ -13,9 +15,9 @@
 
 #include <hse/ikvdb/key_hash.h>
 
-volatile u64 g_txn_horizon;
+volatile uint64_t g_txn_horizon;
 
-u64
+uint64_t
 _viewset_horizon(struct viewset *handle)
 {
     return g_txn_horizon;
@@ -52,8 +54,8 @@ MTF_BEGIN_UTEST_COLLECTION(kvdb_ctxn_pfxlock_test)
 
 MTF_DEFINE_UTEST_PREPOST(kvdb_ctxn_pfxlock_test, basic, mapi_pre, mapi_post)
 {
-    const u64 hash = 0;
-    merr_t    err;
+    const uint64_t hash = 0;
+    merr_t err;
 
     struct kvdb_ctxn_pfxlock *txn1, *txn2, *txn3;
 
@@ -92,8 +94,8 @@ MTF_DEFINE_UTEST_PREPOST(kvdb_ctxn_pfxlock_test, basic, mapi_pre, mapi_post)
  */
 MTF_DEFINE_UTEST_PREPOST(kvdb_ctxn_pfxlock_test, prefix_party, mapi_pre, mapi_post)
 {
-    u64 view = (xrand64_tls() % 1024) + 100;
-    const u64 hash = xrand64_tls();
+    uint64_t view = (xrand64_tls() % 1024) + 100;
+    const uint64_t hash = xrand64_tls();
     struct kvdb_ctxn_pfxlock *txn;
     merr_t err;
     int i, j;
@@ -120,8 +122,8 @@ MTF_DEFINE_UTEST_PREPOST(kvdb_ctxn_pfxlock_test, prefix_party, mapi_pre, mapi_po
 
 MTF_DEFINE_UTEST_PREPOST(kvdb_ctxn_pfxlock_test, write_conflict, mapi_pre, mapi_post)
 {
-    const u64 hash = 1;
-    merr_t    err;
+    const uint64_t hash = 1;
+    merr_t err;
 
     struct kvdb_ctxn_pfxlock *txn1, *txn2;
 
@@ -157,8 +159,8 @@ MTF_DEFINE_UTEST_PREPOST(kvdb_ctxn_pfxlock_test, write_conflict, mapi_pre, mapi_
 
 MTF_DEFINE_UTEST_PREPOST(kvdb_ctxn_pfxlock_test, excl_inheritance, mapi_pre, mapi_post)
 {
-    const u64 hash = 1;
-    merr_t    err;
+    const uint64_t hash = 1;
+    merr_t err;
 
     struct kvdb_ctxn_pfxlock *txn1, *txn2, *txn3, *txn4;
 

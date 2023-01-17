@@ -1,16 +1,17 @@
 /* SPDX-License-Identifier: Apache-2.0 */
 /*
- * Copyright (C) 2015-2021 Micron Technology, Inc.  All rights reserved.
+ * Copyright (C) 2015-2022 Micron Technology, Inc.  All rights reserved.
  */
 
 #ifndef HSE_CORE_C0_KVMULTISET_H
 #define HSE_CORE_C0_KVMULTISET_H
 
+#include <stdint.h>
+
 #include <hse/ikvdb/kvs.h>
 #include <hse/ikvdb/c0_kvset.h>
 #include <hse/ikvdb/throttle.h>
 
-#include <hse/util/inttypes.h>
 #include <hse/error/merr.h>
 #include <hse/util/workqueue.h>
 #include <hse/util/bin_heap.h>
@@ -58,7 +59,7 @@ struct c0_kvmultiset {
  */
 merr_t
 c0kvms_create(
-    u32                    num_sets,
+    uint32_t                    num_sets,
     atomic_ulong          *kvdb_seq,
     void * _Atomic        *stashp,
     struct c0_kvmultiset **multiset);
@@ -69,7 +70,7 @@ c0kvms_destroy_cache(void * _Atomic *stashp);
 void
 c0kvms_seqno_set(struct c0_kvmultiset *handle, uint64_t kvdb_seq);
 
-u64
+uint64_t
 c0kvms_seqno_get(struct c0_kvmultiset *handle);
 
 void
@@ -100,7 +101,7 @@ c0kvms_refcnt(struct c0_kvmultiset *handle);
  * c0kvms_gen_read() - return the given c0kvms' generation count
  * @mset:       struct c0_kvset from which to obtain the gen count
  */
-u64
+uint64_t
 c0kvms_gen_read(struct c0_kvmultiset *mset);
 
 uint64_t
@@ -109,7 +110,7 @@ c0kvms_gen_current(void);
 void
 c0kvms_cb_setup(struct c0_kvmultiset *handle, struct kvdb_callback *cb);
 
-u64
+uint64_t
 c0kvms_ingest_seqno_get(struct c0_kvmultiset *handle);
 
 /**
@@ -121,11 +122,11 @@ c0kvms_ingest_seqno_get(struct c0_kvmultiset *handle);
  *
  * Return: The new kvms generation count
  */
-u64
+uint64_t
 c0kvms_gen_update(struct c0_kvmultiset *mset);
 
 void
-c0kvms_gen_init(u64 dgen);
+c0kvms_gen_init(uint64_t dgen);
 
 void
 c0kvms_gen_set(struct c0_kvmultiset *mset, uint64_t gen);
@@ -144,7 +145,7 @@ c0kvms_size(struct c0_kvmultiset *handle);
  * Return: Struct c0_kvset pointer
  */
 struct c0_kvset *
-c0kvms_get_hashed_c0kvset(struct c0_kvmultiset *mset, u64 hash);
+c0kvms_get_hashed_c0kvset(struct c0_kvmultiset *mset, uint64_t hash);
 
 /**
  * c0kvms_finalize() - freeze the elements of the c0_kvmultiset
@@ -171,7 +172,7 @@ c0kvms_is_finalized(struct c0_kvmultiset *mset);
  * @mset:   struct c0_kvmultiset
  */
 /* MTF_MOCK */
-u64
+uint64_t
 c0kvms_rsvd_sn_get(struct c0_kvmultiset *mset);
 
 /**
@@ -190,7 +191,7 @@ c0kvms_rsvd_sn_get(struct c0_kvmultiset *mset);
  */
 /* MTF_MOCK */
 void
-c0kvms_rsvd_sn_set(struct c0_kvmultiset *mset, u64 seqno);
+c0kvms_rsvd_sn_set(struct c0_kvmultiset *mset, uint64_t seqno);
 
 /**
  * c0kvms_ingesting() - mark the c0_kvmultiset as ingesting
@@ -241,7 +242,7 @@ c0kvms_is_ingesting(struct c0_kvmultiset *mset);
  *
  * Return: The total number of entries and tombstones
  */
-u64
+uint64_t
 c0kvms_get_element_count(struct c0_kvmultiset *mset);
 
 /**
@@ -261,22 +262,22 @@ c0kvms_should_ingest(struct c0_kvmultiset *handle);
  *
  * Return: Number of contained sets
  */
-u32
+uint32_t
 c0kvms_width(struct c0_kvmultiset *mset);
 
 merr_t
 c0kvms_pfx_probe_rcu(
     struct c0_kvmultiset *   kvms,
-    u16                      skidx,
+    uint16_t                 skidx,
     const struct kvs_ktuple *key,
-    u64                      view_seqno,
+    uint64_t                 view_seqno,
     uintptr_t                seqref,
     uint32_t                 sfxlen,
     enum key_lookup_res *    res,
     struct query_ctx *       qctx,
     struct kvs_buf *         kbuf,
     struct kvs_buf *         vbuf,
-    u64                      pt_seqno);
+    uint64_t                 pt_seqno);
 
 /**
  * c0kvms_cursor_seek() - move iteration cursor
@@ -290,8 +291,8 @@ void
 c0kvms_cursor_seek(
     struct c0_kvmultiset_cursor *cursor,
     const void *                 prefix,
-    u32                          pfx_len,
-    u32                          ct_pfx_len);
+    uint32_t                     pfx_len,
+    uint32_t                     ct_pfx_len);
 
 void
 c0kvms_cursor_prepare(struct c0_kvmultiset_cursor *cur);
@@ -305,7 +306,7 @@ c0kvms_cursor_prepare(struct c0_kvmultiset_cursor *cur);
  * Update this @mset for iteration via a c0_cursor.
  */
 bool
-c0kvms_cursor_update(struct c0_kvmultiset_cursor *cursor, u32 ct_pfx_len);
+c0kvms_cursor_update(struct c0_kvmultiset_cursor *cursor, uint32_t ct_pfx_len);
 
 /**
  * c0kvms_cursor_get_source() - get the element source for this cursor

@@ -1,9 +1,15 @@
 /* SPDX-License-Identifier: Apache-2.0 */
 /*
- * Copyright (C) 2021 Micron Technology, Inc.  All rights reserved.
+ * Copyright (C) 2021-2022 Micron Technology, Inc.  All rights reserved.
  */
 
+#include <stdbool.h>
+#include <errno.h>
+#include <stdint.h>
+#include <string.h>
+
 #include <crc32c.h>
+
 #include <hse/error/merr.h>
 #include <hse/logging/logging.h>
 #include <hse/util/page.h>

@@ -1,7 +1,9 @@
 /* SPDX-License-Identifier: Apache-2.0 */
 /*
- * Copyright (C) 2015-2021 Micron Technology, Inc.  All rights reserved.
+ * Copyright (C) 2015-2022 Micron Technology, Inc.  All rights reserved.
  */
+
+#include <stdint.h>
 
 #include <mtf/framework.h>
 #include <mock/api.h>
@@ -25,9 +27,9 @@ pre_collection(struct mtf_test_info *info)
 MTF_BEGIN_UTEST_COLLECTION_PRE(test, pre_collection)
 
 static int
-tbkt_check_delay(struct mtf_test_info *lcl_ti, u64 delay, uint tolerance_pct, int debug)
+tbkt_check_delay(struct mtf_test_info *lcl_ti, uint64_t delay, uint tolerance_pct, int debug)
 {
-    u64  lo, hi;
+    uint64_t lo, hi;
     bool result;
 
     lo = delay * (100 - tolerance_pct) / 100;
@@ -50,17 +52,17 @@ tbkt_check_delay(struct mtf_test_info *lcl_ti, u64 delay, uint tolerance_pct, in
 }
 
 static int
-tbkt_test(struct mtf_test_info *lcl_ti, u64 burst, u64 rate)
+tbkt_test(struct mtf_test_info *lcl_ti, uint64_t burst, uint64_t rate)
 {
     struct tbkt tb;
-    u64         grow, req, req_tot;
-    u64         delay, now;
+    uint64_t    grow, req, req_tot;
+    uint64_t    delay, now;
     int         debug = 1;
     int         i;
     uint        tolerance = 10;
 
-    ASSERT_GE_RET((u64)burst, (u64)0, -1);
-    ASSERT_GT_RET((u64)rate, (u64)0, -1);
+    ASSERT_GE_RET((uint64_t)burst, (uint64_t)0, -1);
+    ASSERT_GT_RET((uint64_t)rate, (uint64_t)0, -1);
 
     tbkt_init(&tb, burst, rate);
     log_debug("burst %ld, rate %ld", burst, rate);
@@ -77,7 +79,7 @@ tbkt_test(struct mtf_test_info *lcl_ti, u64 burst, u64 rate)
         delay = tbkt_request(&tb, req, &now);
         ASSERT_EQ_RET(delay, 0, -1);
 
-        if (grow < S64_MAX / 2)
+        if (grow < INT64_MAX / 2)
             grow += grow;
     }
 
@@ -105,11 +107,11 @@ tbkt_test(struct mtf_test_info *lcl_ti, u64 burst, u64 rate)
 
 MTF_DEFINE_UTEST(test, t_token_bucket)
 {
-    u64 bursts[] = {
+    uint64_t bursts[] = {
         0, 1 * K, 12 * K, 123 * K, 1 * M, 12 * M, 123 * M, 1 * G, 2 * G, 3 * G, 100 * G
     };
 
-    u64 rates[] = { 1 * M, 10 * M, 50 * M, 1 * G, 5 * G };
+    uint64_t rates[] = { 1 * M, 10 * M, 50 * M, 1 * G, 5 * G };
 
     uint bx, rx;
     int  rc;

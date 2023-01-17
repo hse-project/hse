@@ -3,12 +3,13 @@
  * Copyright (C) 2015-2022 Micron Technology, Inc.  All rights reserved.
  */
 
+#include <arpa/inet.h>
+#include <stdint.h>
 #include <sys/mman.h>
 
 #include <mock/api.h>
 
 #include <hse/error/merr.h>
-#include <hse/util/inttypes.h>
 #include <hse/util/keycmp.h>
 
 #include <hse/ikvdb/limits.h>
@@ -33,7 +34,7 @@
  *      Tombstones are val of -1.
  */
 
-static u64 dgen;
+static uint64_t dgen;
 
 struct kvdata {
     int key;
@@ -67,13 +68,13 @@ _make_data(struct nkv_tab *nkv)
             assert(nkv->vmix != 0);
             if (nkv->vmix == VMX_S32) {
                 d[i].val = v++;
-                d[i].val_len = sizeof(s32);
+                d[i].val_len = sizeof(int32_t);
             } else if (nkv->vmix == VMX_BUF) {
                 d[i].val = v++;
                 d[i].val_len = buflen;
             } else if (nkv->vmix == VMX_MIXED) {
                 if (v % 3 == 0)
-                    d[i].val_len = sizeof(u32);
+                    d[i].val_len = sizeof(uint32_t);
                 else if (v % 10 == 0)
                     d[i].val_len = 0;
                 else
@@ -131,7 +132,7 @@ mock_make_kvi(struct kv_iterator **kvi, int src, struct kvs_rparams *rp, struct 
 {
     struct kvset_meta km;
     struct kvdata *   ds = 0;
-    u64               kid, vid;
+    uint64_t          kid, vid;
     merr_t            err;
 
     memset(&km, 0, sizeof(km));
@@ -163,7 +164,7 @@ merr_t
 mock_make_vblocks(struct kv_iterator **kvi, struct kvs_rparams *rp, int nv)
 {
     struct kvset_meta km;
-    u64               kid;
+    uint64_t          kid;
     merr_t            err;
     int               i;
     uint64_t         *vblk_ids;
@@ -219,7 +220,7 @@ _kvset_open(struct cn_tree *tree, uint64_t kvsetid, struct kvset_meta *km, struc
     int                i = 0, j;
 
     /* +1 for the singular hblock */
-    alloc_sz = sizeof(*mk) + (sizeof(u64) * (1 + km->km_kblk_list.idc + km->km_vblk_list.idc));
+    alloc_sz = sizeof(*mk) + (sizeof(uint64_t) * (1 + km->km_kblk_list.idc + km->km_vblk_list.idc));
     alloc_sz = ALIGN(alloc_sz, PAGE_SIZE);
 
     mk = mmap(NULL, alloc_sz, PROT_READ | PROT_WRITE, MAP_ANON | MAP_PRIVATE, -1, 0);
@@ -291,7 +292,7 @@ _kvset_set_work(struct kvset *kvset, const void *work)
 }
 
 
-static u32
+static uint32_t
 _kvset_get_num_kblocks(struct kvset *kvset)
 {
     struct mock_kvset *mk = (void *)kvset;
@@ -299,7 +300,7 @@ _kvset_get_num_kblocks(struct kvset *kvset)
     return mk->stats.kst_kblks;
 }
 
-static u32
+static uint32_t
 _kvset_get_num_vblocks(struct kvset *kvset)
 {
     struct mock_kvset *mk = (void *)kvset;
@@ -348,25 +349,25 @@ _kvset_get_compc(const struct kvset *kvset)
     return mk->compc;
 }
 
-static u64
-_kvset_get_nth_kblock_id(struct kvset *kvset, u32 index)
+static uint64_t
+_kvset_get_nth_kblock_id(struct kvset *kvset, uint32_t index)
 {
     struct mock_kvset *mk = (void *)kvset;
 
     return index < mk->stats.kst_kblks ? mk->ids[index] : 0;
 }
 
-static u64
-_kvset_get_nth_vblock_id(struct kvset *kvset, u32 index)
+static uint64_t
+_kvset_get_nth_vblock_id(struct kvset *kvset, uint32_t index)
 {
     struct mock_kvset *mk = (void *)kvset;
-    u32                vblk_index_base = mk->stats.kst_kblks;
+    uint32_t           vblk_index_base = mk->stats.kst_kblks;
 
     return (index < mk->stats.kst_vblks ? mk->ids[vblk_index_base + index] : 0);
 }
 
 static uint32_t
-_kvset_get_nth_vblock_len(struct kvset *kvset, u32 index)
+_kvset_get_nth_vblock_len(struct kvset *kvset, uint32_t index)
 {
     struct mock_kvset *mk = (void *)kvset;
     struct kvdata *    iterv = mk->iter_data;
@@ -600,7 +601,7 @@ _kvset_iter_val_get(
         } else if (entry->val_len == 4) {
             u32val = entry->val;
             *vdata = &u32val;
-            *vlen = sizeof(u32);
+            *vlen = sizeof(uint32_t);
         } else {
             memset(valbuf, entry->val & 0xff, sizeof(valbuf));
             valbuf[0] = entry->val;
@@ -622,7 +623,7 @@ static bool
 _kvset_iter_next_vref(
     struct kv_iterator *    kvi,
     struct kvset_iter_vctx *vc,
-    u64 *                   seq,
+    uint64_t *              seq,
     enum kmd_vtype *        vtype,
     uint *                  vbidx,
     uint *                  vboff,

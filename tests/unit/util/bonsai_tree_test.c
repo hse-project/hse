@@ -3,6 +3,8 @@
  * Copyright (C) 2015-2022 Micron Technology, Inc.  All rights reserved.
  */
 
+#include <stdint.h>
+
 #include <hse/error/merr.h>
 #include <hse/logging/logging.h>
 
@@ -73,7 +75,7 @@ static thread_local struct xrand xr;
 static void
 bonsai_xrand_init(uint64_t seed64)
 {
-    u32 seed32 = seed64;
+    uint32_t seed32 = seed64;
 
     if (seed64 == 0) {
         seed32 = get_cycles();
@@ -169,8 +171,8 @@ cmpKey(const void *p1, const void *p2)
     return key_full_cmp(&skp1->bsk_key_imm, skp1->bsk_key, &skp2->bsk_key_imm, skp2->bsk_key);
 }
 
-static u64
-decrement_key(u64 key, int numeric)
+static uint64_t
+decrement_key(uint64_t key, int numeric)
 {
     if (numeric)
         return key - 1;
@@ -178,8 +180,8 @@ decrement_key(u64 key, int numeric)
         return ((key & 0x00ffffffffffffff) | 0x2000000000000000);
 }
 
-static u64
-increment_key(u64 key, int numeric)
+static uint64_t
+increment_key(uint64_t key, int numeric)
 {
     if (numeric)
         return key + 1;
@@ -215,10 +217,10 @@ init_tree(struct bonsai_root **tree, enum bonsai_alloc_mode allocm)
  * sequence numbers.
  */
 static struct bonsai_val *
-findValue(struct bonsai_kv *kv, u64 view_seqno, uintptr_t seqnoref)
+findValue(struct bonsai_kv *kv, uint64_t view_seqno, uintptr_t seqnoref)
 {
     struct bonsai_val *val_ge, *val;
-    u64                diff_ge, diff;
+    uint64_t           diff_ge, diff;
 
     diff_ge = ULONG_MAX;
     val_ge = NULL;
@@ -457,7 +459,7 @@ bonsai_client_lcp_test(void *arg)
      * Each key is inserted with a unique value to identify the keynum, skidx.
      */
     for (i = 0; i < 26; i++) {
-        val = (u64)i << 32 | tid;
+        val = (uint64_t)i << 32 | tid;
 
         key[KI_DLEN_MAX + 26] = 'a' + i;
 
@@ -507,12 +509,12 @@ bonsai_client_lcp_test(void *arg)
 
         v = rcu_dereference(kv->bkv_values);
         memcpy(&val, v->bv_value, sizeof(val));
-        assert(val == ((u64)i << 32 | tid));
+        assert(val == ((uint64_t)i << 32 | tid));
 
         key[KI_DLEN_MAX + 26] = 'a';
 
         if (lcp > 0) {
-            assert(key_immediate_cmp(ki, &kv->bkv_key_imm) == S32_MIN);
+            assert(key_immediate_cmp(ki, &kv->bkv_key_imm) == INT32_MIN);
             assert(memcmp(key, kv->bkv_key, lcp) == 0);
         }
         rcu_read_unlock();
@@ -825,7 +827,7 @@ bonsai_client_singlethread_test(enum bonsai_alloc_mode allocm)
 
     for (i = i - 1; i >= 0; i--) {
         struct bonsai_val *v;
-        u64                val;
+        uint64_t           val;
 
         /* Initialize Key */
         bn_skey_init(&a[i], sizeof(a[i]), 0, 0, &skey);
@@ -1245,7 +1247,7 @@ MTF_DEFINE_UTEST_PREPOST(bonsai_tree_test, odd_key_size_test, no_fail_pre, no_fa
 void
 bonsai_weight_test(enum bonsai_alloc_mode allocm, struct mtf_test_info *lcl_ti)
 {
-    u8                  list[] = { 0, 1, 2, 127, 128, 129, 253, 254, 255 };
+    uint8_t             list[] = { 0, 1, 2, 127, 128, 129, 253, 254, 255 };
     const int           maxlen = 37;
     struct bonsai_root *tree;
     uintptr_t           seqno;
@@ -1260,7 +1262,7 @@ bonsai_weight_test(enum bonsai_alloc_mode allocm, struct mtf_test_info *lcl_ti)
 
     for (i = 0; i < NELEM(list); ++i) {
         for (j = 1; j < maxlen; ++j) {
-            u8 key[maxlen];
+            uint8_t key[maxlen];
 
             memset(key, list[i], j);
             bn_skey_init(&key, j, 0, 0, &skey);
@@ -1278,7 +1280,7 @@ bonsai_weight_test(enum bonsai_alloc_mode allocm, struct mtf_test_info *lcl_ti)
 
     for (i = 0; i < NELEM(list); ++i) {
         for (j = 1; j < maxlen; ++j) {
-            u8 key[maxlen];
+            uint8_t key[maxlen];
             bool b;
 
             memset(key, list[i], j);
@@ -1329,7 +1331,7 @@ bonsai_basic_test(enum bonsai_alloc_mode allocm, struct mtf_test_info *lcl_ti)
     init_tree(&tree, allocm);
 
     for (i = 0; i < LEN; ++i) {
-        u64 key = i % 2 ? i : -i;
+        uint64_t key = i % 2 ? i : -i;
 
         op_seqno = 3;
         seqnoref = HSE_ORDNL_TO_SQNREF(op_seqno);
@@ -1362,8 +1364,8 @@ bonsai_basic_test(enum bonsai_alloc_mode allocm, struct mtf_test_info *lcl_ti)
 
     for (i = 0; i < LEN / 2; ++i) {
         struct bonsai_val *v;
-        u64                key;
-        u64                val;
+        uint64_t           key;
+        uint64_t           val;
 
         key = i % 2 ? i : -i;
         v = NULL;
@@ -1412,10 +1414,10 @@ bonsai_update_test(enum bonsai_alloc_mode allocm, struct mtf_test_info *lcl_ti)
 {
     const int           MAX_VALUES = 17;
     const int           LEN = 4003 * MAX_VALUES;
-    u64                 op_seqno;
+    uint64_t            op_seqno;
     uintptr_t           seqnoref;
-    u64                 value;
-    u64                 key;
+    uint64_t            value;
+    uint64_t            key;
     int                 i;
     merr_t              err;
     bool                found;
@@ -1446,7 +1448,7 @@ bonsai_update_test(enum bonsai_alloc_mode allocm, struct mtf_test_info *lcl_ti)
 
     for (i = 0; i < MAX_VALUES; ++i) {
         struct bonsai_val *v;
-        u64                val;
+        uint64_t           val;
 
         op_seqno = i;
 
@@ -1479,13 +1481,13 @@ bonsai_original_test(enum bonsai_alloc_mode allocm, struct mtf_test_info *lcl_ti
 {
     enum { LEN = 5 };
     struct bonsai_root *tree;
-    u64                 keys[LEN];
+    uint64_t            keys[LEN];
     struct bonsai_skey  skeys[LEN];
     struct bonsai_skey  skey = { 0 };
     struct bonsai_sval  sval = { 0 };
     int                 i;
     int                 numeric = 0;
-    u64                 op_seqno = 343;
+    uint64_t            op_seqno = 343;
     uintptr_t           seqnoref = HSE_ORDNL_TO_SQNREF(op_seqno);
     merr_t              err;
     bool                finalize = false;
@@ -1494,7 +1496,7 @@ bonsai_original_test(enum bonsai_alloc_mode allocm, struct mtf_test_info *lcl_ti
     init_tree(&tree, allocm);
 
     for (i = 0; i < LEN; ++i) {
-        u64 key;
+        uint64_t key;
 
         /* Ensure keys are unique and non-consecutive. */
         key = (i << 16) | (bonsai_xrand() & 0xffff);
@@ -1516,15 +1518,15 @@ bonsai_original_test(enum bonsai_alloc_mode allocm, struct mtf_test_info *lcl_ti
 
 again:
     for (i = 0; i < LEN; ++i) {
-        u64                 key, key0;
-        u32                 sz = sizeof(key);
+        uint64_t            key, key0;
+        uint32_t            sz = sizeof(key);
         struct bonsai_kv *  kv;
         struct bonsai_val * pval;
         struct bonsai_skey *next;
-        u16                 sid;
+        uint16_t            sid;
 
         kv = NULL;
-        key0 = *(u64 *)skeys[i].bsk_key;
+        key0 = *(uint64_t *)skeys[i].bsk_key;
 
         /* Assumes no two keys are consecutive */
         sid = key_immediate_index(&skeys[i].bsk_key_imm);
@@ -1647,12 +1649,12 @@ MTF_DEFINE_UTEST_PREPOST(bonsai_tree_test, original, no_fail_pre, no_fail_post)
 MTF_DEFINE_UTEST_PREPOST(bonsai_tree_test, complicated, no_fail_pre, no_fail_post)
 {
     enum { LEN = 349 };
-    u64                 keys[LEN], ord_vals[LEN], key, value;
-    u64                 op_seqno;
+    uint64_t            keys[LEN], ord_vals[LEN], key, value;
+    uint64_t            op_seqno;
     uintptr_t           seqnoref;
     struct bonsai_root *tree;
     struct bonsai_val * pval;
-    u32                 sz = sizeof(key);
+    uint32_t            sz = sizeof(key);
     int                 i, j, rand_num;
     int                 MAX_VALUES_PER_KEY;
     merr_t              err;

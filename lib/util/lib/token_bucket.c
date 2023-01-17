@@ -1,9 +1,11 @@
 /* SPDX-License-Identifier: Apache-2.0 */
 /*
- * Copyright (C) 2015-2021 Micron Technology, Inc.  All rights reserved.
+ * Copyright (C) 2015-2022 Micron Technology, Inc.  All rights reserved.
  */
 
 #define MTF_MOCK_IMPL_token_bucket
+
+#include <stdint.h>
 
 #include <hse/util/arch.h>
 #include <hse/util/timer.h>
@@ -25,12 +27,12 @@ tbkti_in_debt(struct tbkt *self)
 }
 
 static inline bool
-tbkti_status(struct tbkt *self, u64 *amount)
+tbkti_status(struct tbkt *self, uint64_t *amount)
 {
     bool in_debt = tbkti_in_debt(self);
 
     if (in_debt)
-        *amount = U64_MAX - self->tb_balance + 1;
+        *amount = UINT64_MAX - self->tb_balance + 1;
     else
         *amount = self->tb_balance;
 
@@ -39,7 +41,7 @@ tbkti_status(struct tbkt *self, u64 *amount)
 
 
 static void
-tbkti_burst_set(struct tbkt *self, u64 burst)
+tbkti_burst_set(struct tbkt *self, uint64_t burst)
 {
     bool had_debt;
     bool still_have_debt;
@@ -61,7 +63,7 @@ tbkti_burst_set(struct tbkt *self, u64 burst)
      */
     if (had_debt && !still_have_debt) {
         self->tb_balance = burst + 1u;
-        assert(burst == U64_MAX || tbkti_in_debt(self));
+        assert(burst == UINT64_MAX || tbkti_in_debt(self));
     }
     else if (!had_debt && still_have_debt) {
         self->tb_balance = burst;
@@ -71,7 +73,7 @@ tbkti_burst_set(struct tbkt *self, u64 burst)
 }
 
 static void
-tbkti_rate_set(struct tbkt *self, u64 rate)
+tbkti_rate_set(struct tbkt *self, uint64_t rate)
 {
     /* self->tb_dt_max is used to avoid unsigned int overflow
      * when multiplying a time delta by the rate.   For example
@@ -83,11 +85,11 @@ tbkti_rate_set(struct tbkt *self, u64 rate)
      * updating the token bucket's balance.
      */
     self->tb_rate = rate;
-    self->tb_dt_max = rate ? U64_MAX / rate : U64_MAX;
+    self->tb_dt_max = rate ? UINT64_MAX / rate : UINT64_MAX;
 }
 
 static void
-tbkti_init(struct tbkt *self, u64 burst, u64 rate)
+tbkti_init(struct tbkt *self, uint64_t burst, uint64_t rate)
 {
     tbkti_burst_set(self, burst);
     tbkti_rate_set(self, rate);
@@ -99,11 +101,11 @@ tbkti_init(struct tbkt *self, u64 burst, u64 rate)
  * parameter 'now'.  This function has no side effects. Caller is expected to
  * update token bucket's balance and refill time.
  */
-static u64
-tbkti_balance(struct tbkt *self, u64 now)
+static uint64_t
+tbkti_balance(struct tbkt *self, uint64_t now)
 {
-    u64 dt;
-    u64 refill;
+    uint64_t dt;
+    uint64_t refill;
 
     /* Don't expect time to move backward, but if it does just return the
      * current balance.
@@ -126,7 +128,7 @@ tbkti_balance(struct tbkt *self, u64 now)
     if (((self->tb_rate | dt) >> 32) == 0) {
         refill = (self->tb_rate * dt) / NSEC_PER_SEC;
     } else {
-        refill = (u64) ((double) self->tb_rate * dt * 1e-9);
+        refill = (uint64_t)((double) self->tb_rate * dt * 1e-9);
     }
 
     if (refill > self->tb_burst - self->tb_balance)
@@ -136,14 +138,14 @@ tbkti_balance(struct tbkt *self, u64 now)
 }
 
 static void
-tbkti_refill(struct tbkt *self, u64 now)
+tbkti_refill(struct tbkt *self, uint64_t now)
 {
     self->tb_balance = tbkti_balance(self, now);
     self->tb_refill_time = now;
 }
 
 void
-tbkt_adjust(struct tbkt *self, u64 burst, u64 rate)
+tbkt_adjust(struct tbkt *self, uint64_t burst, uint64_t rate)
 {
     spin_lock(&self->tb_lock);
     tbkti_burst_set(self, burst);
@@ -153,20 +155,20 @@ tbkt_adjust(struct tbkt *self, u64 burst, u64 rate)
 }
 
 void
-tbkt_init(struct tbkt *self, u64 burst, u64 rate)
+tbkt_init(struct tbkt *self, uint64_t burst, uint64_t rate)
 {
     memset(self, 0, sizeof(*self));
     spin_lock_init(&self->tb_lock);
     tbkti_init(self, burst, rate);
 }
 
-u64
+uint64_t
 tbkt_burst_get(struct tbkt *self)
 {
     return self->tb_burst;
 }
 
-u64
+uint64_t
 tbkt_rate_get(struct tbkt *self)
 {
     return self->tb_rate;
@@ -210,11 +212,11 @@ struct tstats {
 static __thread struct tstats tstats;
 #endif
 
-u64
-tbkt_request(struct tbkt *self, u64 request, u64 *now)
+uint64_t
+tbkt_request(struct tbkt *self, uint64_t request, uint64_t *now)
 {
-    u64 delay, rate, amount;
-    u64 request_max;
+    uint64_t delay, rate, amount;
+    uint64_t request_max;
     bool debt;
 
     if (HSE_UNLIKELY(request == 0 || self->tb_rate == 0))
