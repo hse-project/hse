@@ -2311,7 +2311,7 @@ sp3_schedule(struct sp3 *sp)
             }
 
             {
-                uint64_t hwm = sp->rp->csched_full_compact ? 1 : sp->thresh.lscat_hwm;
+                const uint64_t hwm = sp->rp->csched_full_compact ? 1 : sp->thresh.lscat_hwm;
 
                 thresh = hwm << 32;
             }

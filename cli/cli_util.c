@@ -19,6 +19,7 @@
 #include <hse/pidfile/pidfile.h>
 #include <hse/util/arch.h>
 #include <hse/util/parse_num.h>
+#include <hse/util/base.h>
 
 #include "cli_util.h"
 
@@ -117,8 +118,8 @@ kvdb_compact_request(
     struct hse_kvdb_compact_status status;
     struct pidfile                 content;
 
-    u64    stop_ts;
-    uint   sleep_secs = 2;
+    uint64_t stop_ts;
+    uint sleep_secs = 2;
     char **namev;
     size_t namec;
     size_t kvdb_paramc = 0;
@@ -139,13 +140,16 @@ kvdb_compact_request(
     if (err) {
         handle = 0;
         if (hse_err_to_errno(err) == EBUSY && request == req_compact_full) {
-            fprintf(stderr, "Unable to start full compaction KVDB because "
-                "it is open by another process.\n");
-            goto err_out;
+            char buf[256];
 
+            hse_strerror(err, buf, sizeof(buf));
+            fprintf(stderr, "Failed to open the KVDB (%s): %s\n", kvdb_home, buf);
+            goto err_out;
         }
+
         if (hse_err_to_errno(err) != EEXIST && hse_err_to_errno(err) != EBUSY) {
             char buf[256];
+
             hse_strerror(err, buf, sizeof(buf));
             fprintf(stderr, "Failed to open the KVDB (%s): %s\n", kvdb_home, buf);
             goto err_out;
