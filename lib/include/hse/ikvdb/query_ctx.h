@@ -6,7 +6,10 @@
 #ifndef HSE_KVS_QCTX_H
 #define HSE_KVS_QCTX_H
 
+#include <stdbool.h>
+
 #include <hse/error/merr.h>
+
 /**
  * struct query_ctx - context for special queries (pfx probe)
  * @tomb_map: map for tombstones

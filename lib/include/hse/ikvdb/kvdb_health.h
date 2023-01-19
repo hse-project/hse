@@ -6,6 +6,9 @@
 #ifndef HSE_KVDB_HEALTH_H
 #define HSE_KVDB_HEALTH_H
 
+#include <sys/types.h>
+#include <stddef.h>
+
 #include <hse/util/atomic.h>
 #include <hse/error/merr.h>
 
