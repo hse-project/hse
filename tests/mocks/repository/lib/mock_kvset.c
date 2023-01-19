@@ -367,7 +367,17 @@ _kvset_get_nth_vblock_id(struct kvset *kvset, uint32_t index)
 }
 
 static uint32_t
-_kvset_get_nth_vblock_len(struct kvset *kvset, uint32_t index)
+_kvset_get_nth_vblock_alen(struct kvset *kvset, uint32_t index)
+{
+    /* In the event mpool_mblock_punch() or mpool_mblock_clone() gets mocked,
+     * this should more than likely change since those seem to be the only 2
+     * ways to affect an mblock's allocated length.
+     */
+    return MPOOL_MBLOCK_SIZE_DEFAULT;
+}
+
+static uint32_t
+_kvset_get_nth_vblock_wlen(struct kvset *kvset, uint32_t index)
 {
     struct mock_kvset *mk = (void *)kvset;
     struct kvdata *    iterv = mk->iter_data;
@@ -729,7 +739,8 @@ mock_kvset_set(void)
     MOCK_SET(kvset, _kvset_open);
     MOCK_SET(kvset, _kvset_set_work);
     MOCK_SET(kvset, _kvset_get_work);
-    MOCK_SET(kvset, _kvset_get_nth_vblock_len);
+    MOCK_SET(kvset, _kvset_get_nth_vblock_alen);
+    MOCK_SET(kvset, _kvset_get_nth_vblock_wlen);
     MOCK_SET(kvset, _kvset_list_add);
     MOCK_SET(kvset, _kvset_list_add_tail);
     MOCK_SET(kvset, _kvset_get_ref);
@@ -763,7 +774,8 @@ mock_kvset_unset(void)
     mapi_inject_list_unset(inject_list);
 
     MOCK_UNSET(kvset, _kvset_open);
-    MOCK_UNSET(kvset, _kvset_get_nth_vblock_len);
+    MOCK_UNSET(kvset, _kvset_get_nth_vblock_alen);
+    MOCK_UNSET(kvset, _kvset_get_nth_vblock_wlen);
     MOCK_UNSET(kvset, _kvset_list_add);
     MOCK_UNSET(kvset, _kvset_list_add_tail);
     MOCK_UNSET(kvset, _kvset_get_ref);

@@ -93,7 +93,7 @@ kvset_keep_vblocks(
 
         for (uint32_t j = 0; j < cnt; ++j) {
             vbm->vbm_blkv[nv] = kvset_get_nth_vblock_id(kvset, j);
-            vbm->vbm_tot += kvset_get_nth_vblock_len(kvset, j);
+            vbm->vbm_tot += kvset_get_nth_vblock_wlen(kvset, j);
 
             if (j == vgmap_vbidx_out_end(kvset, kvg)) {
                 merr_t err;

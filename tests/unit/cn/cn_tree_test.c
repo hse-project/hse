@@ -344,7 +344,8 @@ struct mapi_injection inject_list[] = {
     { mapi_idx_kvset_get_hblock_id, MAPI_RC_SCALAR, 0xabc001 },
     { mapi_idx_kvset_get_nth_kblock_id, MAPI_RC_SCALAR, 0xabc002 },
     { mapi_idx_kvset_get_nth_vblock_id, MAPI_RC_SCALAR, 0xabc003 },
-    { mapi_idx_kvset_get_nth_vblock_len, MAPI_RC_SCALAR, 128 * 1024 },
+    { mapi_idx_kvset_get_nth_vblock_alen, MAPI_RC_SCALAR, 128 * 1024 },
+    { mapi_idx_kvset_get_nth_vblock_wlen, MAPI_RC_SCALAR, 128 * 1024 },
 
     /* we need kvset_iter_create, but we should never
      * need the guts of an iterator b/c we mock

@@ -27,9 +27,10 @@ vbr_desc_read(
     const struct kvs_mblk_desc *mblk,
     struct vblock_desc *vblk_desc)
 {
+    uint32_t alen, wlen;
     struct vblock_footer_omf *footer;
-    uint32_t wlen;
 
+    alen = mblk->alen_pages * PAGE_SIZE;
     wlen = mblk->wlen_pages * PAGE_SIZE;
     footer = mblk->map_base + wlen - VBLOCK_FOOTER_LEN;
 
@@ -43,9 +44,10 @@ vbr_desc_read(
 
     vblk_desc->vbd_mblkdesc = mblk;
     vblk_desc->vbd_off = 0;
-    vblk_desc->vbd_len = wlen - VBLOCK_FOOTER_LEN;
+    vblk_desc->vbd_alen = alen - VBLOCK_FOOTER_LEN;
+    vblk_desc->vbd_wlen = wlen - VBLOCK_FOOTER_LEN;
     vblk_desc->vbd_vgroup = omf_vbf_vgroup(footer);
-    vblk_desc->vbd_min_koff = vblk_desc->vbd_len + VBLOCK_FOOTER_LEN - (2 * HSE_KVS_KEY_LEN_MAX);
+    vblk_desc->vbd_min_koff = vblk_desc->vbd_wlen + VBLOCK_FOOTER_LEN - (2 * HSE_KVS_KEY_LEN_MAX);
     vblk_desc->vbd_min_klen = omf_vbf_min_klen(footer);
     vblk_desc->vbd_max_koff = vblk_desc->vbd_min_koff + HSE_KVS_KEY_LEN_MAX;
     vblk_desc->vbd_max_klen = omf_vbf_max_klen(footer);
@@ -156,7 +158,7 @@ vbr_readahead(
             end = (bkt + 2) * ra_len;
         if (rah->vgidx == vgidx && bkt - 1 == rah->bkt)
             voff = (bkt + 1) * ra_len;
-        if (voff >= vbd->vbd_len)
+        if (voff >= vbd->vbd_wlen)
             return;
         voff &= PAGE_MASK;
     }
@@ -164,8 +166,8 @@ vbr_readahead(
 willneed:
     ra_len = end - voff;
 
-    if (voff + ra_len > vbd->vbd_len)
-        ra_len = vbd->vbd_len - voff;
+    if (voff + ra_len > vbd->vbd_wlen)
+        ra_len = vbd->vbd_wlen - voff;
 
     rah->vgidx = vgidx;
     rah->bkt = bkt;
@@ -230,6 +232,6 @@ void *
 vbr_value(struct vblock_desc *vbd, uint vboff, uint vlen)
 {
     assert(vbd->vbd_mblkdesc->map_base);
-    assert(vboff + vlen <= vbd->vbd_len);
+    assert(vboff + vlen <= vbd->vbd_wlen);
     return vbd->vbd_mblkdesc->map_base + vbd->vbd_off + vboff;
 }

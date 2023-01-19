@@ -1775,11 +1775,19 @@ kvset_get_nth_vblock_id(struct kvset *ks, uint32_t index)
 }
 
 uint32_t
-kvset_get_nth_vblock_len(struct kvset *ks, uint32_t index)
+kvset_get_nth_vblock_alen(struct kvset *ks, uint32_t index)
 {
-    struct vblock_desc *vbd = lvx2vbd(ks, index);
+    const struct vblock_desc *vbd = lvx2vbd(ks, index);
 
-    return vbd ? vbd->vbd_len : 0;
+    return vbd ? vbd->vbd_alen : 0;
+}
+
+uint32_t
+kvset_get_nth_vblock_wlen(struct kvset *ks, uint32_t index)
+{
+    const struct vblock_desc *vbd = lvx2vbd(ks, index);
+
+    return vbd ? vbd->vbd_wlen : 0;
 }
 
 struct vblock_desc *
@@ -2299,7 +2307,7 @@ vr_start_read(
     /* update mblock properties */
     assert(lvx2vbd(ks, vbidx));
     vr->vr_mblk_dstart = lvx2vbd(ks, vbidx)->vbd_off;
-    vr->vr_mblk_dlen = lvx2vbd(ks, vbidx)->vbd_len;
+    vr->vr_mblk_dlen = lvx2vbd(ks, vbidx)->vbd_wlen;
     vr->vr_mbid = lvx2mbid(ks, vbidx);
 
     /* set io fields for async mblock read */
@@ -2710,7 +2718,7 @@ kvset_madvise_vblks(struct kvset *ks, int advice)
         for (j = 0; j < v->mbs_mblkc; j++) {
             struct vblock_desc *vbd = mbset_get_udata(v, j);
 
-            vbr_madvise_async(vbd, 0, vbd->vbd_len, advice, wq);
+            vbr_madvise_async(vbd, 0, vbd->vbd_wlen, advice, wq);
         }
     }
 }
@@ -2732,7 +2740,7 @@ kvset_madvise_capped(struct kvset *ks, int advice)
         for (uint j = 0; j < v->mbs_mblkc; j++) {
             struct vblock_desc *vbd = mbset_get_udata(v, j);
 
-            vbr_madvise_async(vbd, 0, min_t(uint, vbd->vbd_len, vra_len), advice, wq);
+            vbr_madvise_async(vbd, 0, min_t(uint, vbd->vbd_wlen, vra_len), advice, wq);
         }
     }
 }
@@ -2748,7 +2756,7 @@ kvset_madvise_vmaps(struct kvset *ks, int advice)
         for (uint j = 0; j < v->mbs_mblkc; j++) {
             struct vblock_desc *vbd = mbset_get_udata(v, j);
 
-            vbr_madvise(vbd, 0, vbd->vbd_len, advice);
+            vbr_madvise(vbd, 0, vbd->vbd_wlen, advice);
         }
     }
 }

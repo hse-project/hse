@@ -134,7 +134,8 @@ MTF_DEFINE_UTEST_PRE(vblock_reader_test, t_vbr_desc_read, pre)
     ASSERT_EQ(17, vblk_desc.vbd_min_klen);
     ASSERT_EQ(18, vblk_desc.vbd_max_klen);
     ASSERT_EQ(19, vblk_desc.vbd_vgroup);
-    ASSERT_EQ(ALIGN(value_bytes, PAGE_SIZE), vblk_desc.vbd_len);
+    ASSERT_EQ(ALIGN(value_bytes, PAGE_SIZE), vblk_desc.vbd_alen);
+    ASSERT_EQ(ALIGN(value_bytes, PAGE_SIZE), vblk_desc.vbd_wlen);
     ASSERT_EQ(1, atomic_read(&vblk_desc.vbd_vgidx));
 }
 

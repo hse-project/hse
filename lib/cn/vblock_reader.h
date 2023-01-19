@@ -51,7 +51,8 @@ struct vbr_madvise_work {
 struct vblock_desc {
     const struct kvs_mblk_desc *vbd_mblkdesc; /* underlying block descriptor */
     uint32_t             vbd_off;      /* byte offset of vblock data (always 0!) */
-    uint32_t             vbd_len;      /* byte length of vblock data (not including footer) */
+    uint32_t             vbd_wlen;     /* written byte length of vblock data (not including footer) */
+    uint32_t             vbd_alen;     /* allocated byte length of vblock data (not including footer) */
     uint32_t             vbd_min_koff; /* min key offset */
     uint32_t             vbd_max_koff; /* max key offset */
     uint16_t             vbd_min_klen; /* min key length */
