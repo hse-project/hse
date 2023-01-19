@@ -367,7 +367,7 @@ _kvset_get_nth_vblock_id(struct kvset *kvset, uint32_t index)
 }
 
 static uint32_t
-_kvset_get_nth_vblock_alen(struct kvset *kvset, uint32_t index)
+_kvset_get_nth_vblock_alen(const struct kvset *kvset, uint32_t index)
 {
     /* In the event mpool_mblock_punch() or mpool_mblock_clone() gets mocked,
      * this should more than likely change since those seem to be the only 2
@@ -377,7 +377,7 @@ _kvset_get_nth_vblock_alen(struct kvset *kvset, uint32_t index)
 }
 
 static uint32_t
-_kvset_get_nth_vblock_wlen(struct kvset *kvset, uint32_t index)
+_kvset_get_nth_vblock_wlen(const struct kvset *kvset, uint32_t index)
 {
     struct mock_kvset *mk = (void *)kvset;
     struct kvdata *    iterv = mk->iter_data;

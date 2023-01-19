@@ -1,6 +1,6 @@
 /* SPDX-License-Identifier: Apache-2.0 */
 /*
- * Copyright (C) 2022 Micron Technology, Inc.  All rights reserved.
+ * Copyright (C) 2022-2023 Micron Technology, Inc.  All rights reserved.
  */
 
 #include <sys/mman.h>
@@ -428,7 +428,7 @@ get_vblk_split_index(
 
     for (v = start; v <= end; v++) {
         struct key_obj min_key = { 0 };
-        struct vblock_desc *vbd = kvset_get_nth_vblock_desc(ks, v);
+        const struct vblock_desc *vbd = kvset_get_nth_vblock_desc(ks, v);
 
         key2kobj(&min_key, vbd->vbd_mblkdesc->map_base + vbd->vbd_min_koff, vbd->vbd_min_klen);
 
@@ -438,7 +438,7 @@ get_vblk_split_index(
 
     if (v > start) {
         struct key_obj max_key = { 0 };
-        struct vblock_desc *vbd = kvset_get_nth_vblock_desc(ks, v - 1);
+        const struct vblock_desc *vbd = kvset_get_nth_vblock_desc(ks, v - 1);
 
         key2kobj(&max_key, vbd->vbd_mblkdesc->map_base + vbd->vbd_max_koff, vbd->vbd_max_klen);
 

@@ -1,6 +1,6 @@
 /* SPDX-License-Identifier: Apache-2.0 */
 /*
- * Copyright (C) 2015-2022 Micron Technology, Inc.  All rights reserved.
+ * Copyright (C) 2015-2023 Micron Technology, Inc.  All rights reserved.
  */
 
 #include <stdint.h>
@@ -195,7 +195,7 @@ vbr_madvise_async_cb(struct work_struct *work)
 
 bool
 vbr_madvise_async(
-    struct vblock_desc *     vbd,
+    struct vblock_desc *vbd,
     uint                     off,
     uint                     len,
     int                      advice,
@@ -222,14 +222,14 @@ vbr_madvise_async(
 }
 
 void
-vbr_madvise(struct vblock_desc *vbd, uint off, uint len, int advice)
+vbr_madvise(const struct vblock_desc *vbd, uint off, uint len, int advice)
 {
     mblk_madvise_pages(vbd->vbd_mblkdesc, off / PAGE_SIZE, len / PAGE_SIZE, advice);
 }
 
 /* off, len version */
 void *
-vbr_value(struct vblock_desc *vbd, uint vboff, uint vlen)
+vbr_value(const struct vblock_desc *vbd, uint vboff, uint vlen)
 {
     assert(vbd->vbd_mblkdesc->map_base);
     assert(vboff + vlen <= vbd->vbd_wlen);
