@@ -4,33 +4,32 @@
  */
 
 #include <fcntl.h>
-#include <stdint.h>
-
-#include <mtf/framework.h>
-#include <mock/api.h>
-#include <hse/test/support/random_buffer.h>
-
-#include <hse/error/merr.h>
-#include <hse/util/minmax.h>
-
-#include <hse/mpool/mpool.h>
 #include <mdc.h>
 #include <mdc_file.h>
+#include <stdint.h>
+
+#include <mock/api.h>
+#include <mtf/framework.h>
+
+#include <hse/error/merr.h>
+#include <hse/mpool/mpool.h>
+#include <hse/test/support/random_buffer.h>
+#include <hse/util/minmax.h>
 
 #include "common.h"
 
-#define MDC_TEST_CAP (1 << 20)
+#define MDC_TEST_CAP   (1 << 20)
 #define MDC_TEST_MAGIC (0xabbaabba)
 
 MTF_BEGIN_UTEST_COLLECTION_PRE(mdc_test, mpool_collection_pre)
 
 MTF_DEFINE_UTEST_PREPOST(mdc_test, mdc_abc, mpool_test_pre, mpool_test_post)
 {
-    struct mpool     *mp;
+    struct mpool *mp;
     struct mpool_mdc *mdc;
-    uint64_t          logid1, logid2, logid3, logid4;
-    merr_t            err;
-    size_t            used, alloc, size;
+    uint64_t logid1, logid2, logid3, logid4;
+    merr_t err;
+    size_t used, alloc, size;
 
     err = mpool_create(mtf_kvdb_home, &tcparams);
     ASSERT_EQ(0, err);
@@ -38,7 +37,8 @@ MTF_DEFINE_UTEST_PREPOST(mdc_test, mdc_abc, mpool_test_pre, mpool_test_post)
     err = mpool_open(mtf_kvdb_home, &trparams, O_RDWR, &mp);
     ASSERT_EQ(0, err);
 
-    err = mpool_mdc_alloc(NULL, MDC_TEST_MAGIC, MDC_TEST_CAP, HSE_MCLASS_CAPACITY, &logid1, &logid2);
+    err =
+        mpool_mdc_alloc(NULL, MDC_TEST_MAGIC, MDC_TEST_CAP, HSE_MCLASS_CAPACITY, &logid1, &logid2);
     ASSERT_EQ(EINVAL, merr_errno(err));
 
     err = mpool_mdc_alloc(mp, MDC_TEST_MAGIC, 1024, HSE_MCLASS_CAPACITY, &logid1, &logid2);
@@ -209,14 +209,14 @@ MTF_DEFINE_UTEST_PREPOST(mdc_test, mdc_abc, mpool_test_pre, mpool_test_post)
 
 MTF_DEFINE_UTEST_PREPOST(mdc_test, mdc_io_basic, mpool_test_pre, mpool_test_post)
 {
-    struct mpool     *mp;
+    struct mpool *mp;
     struct mpool_mdc *mdc;
 
     uint64_t logid1, logid2;
-    merr_t   err;
-    int      iter;
-    char    *buf, *rdbuf;
-    size_t   bufsz = 16 << 10, rdlen;
+    merr_t err;
+    int iter;
+    char *buf, *rdbuf;
+    size_t bufsz = 16 << 10, rdlen;
 
     err = mpool_create(mtf_kvdb_home, &tcparams);
     ASSERT_EQ(0, err);
@@ -323,20 +323,20 @@ MTF_DEFINE_UTEST_PREPOST(mdc_test, mdc_io_basic, mpool_test_pre, mpool_test_post
 static void
 mdc_rw_test(
     struct mtf_test_info *lcl_ti,
-    struct mpool         *mp,
-    uint64_t              logid1,
-    uint64_t              logid2,
-    char                 *buf,
-    size_t                bufsz,
-    bool                  large)
+    struct mpool *mp,
+    uint64_t logid1,
+    uint64_t logid2,
+    char *buf,
+    size_t bufsz,
+    bool large)
 {
     struct mpool_mdc *mdc;
 
     merr_t err;
-    char  *rdbuf;
+    char *rdbuf;
     size_t rdlen, reclen, rectot, reccnt, used, alloc, size;
-    off_t  start;
-    bool   sync;
+    off_t start;
+    bool sync;
     uint16_t reopen_freq, sync_freq;
 
     if (large) {
@@ -424,9 +424,9 @@ MTF_DEFINE_UTEST_PREPOST(mdc_test, mdc_io_advanced, mpool_test_pre, mpool_test_p
 {
     struct mpool *mp;
 
-    merr_t   err;
-    char    *buf;
-    size_t   bufsz = 128 << 10;
+    merr_t err;
+    char *buf;
+    size_t bufsz = 128 << 10;
     uint64_t logid1, logid2;
 
     err = mpool_create(mtf_kvdb_home, &tcparams);
@@ -470,13 +470,13 @@ MTF_DEFINE_UTEST_PREPOST(mdc_test, mdc_io_advanced, mpool_test_pre, mpool_test_p
 
 MTF_DEFINE_UTEST_PREPOST(mdc_test, mdc_io_overlap, mpool_test_pre, mpool_test_post)
 {
-    struct mpool     *mp;
+    struct mpool *mp;
     struct mpool_mdc *mdc;
 
-    merr_t   err;
+    merr_t err;
     uint64_t logid1, logid2;
-    char    *buf, *rdbuf;
-    size_t   bufsz = 128 << 10, wdlen, rdlen, reclen, wdcnt, wdstart;
+    char *buf, *rdbuf;
+    size_t bufsz = 128 << 10, wdlen, rdlen, reclen, wdcnt, wdstart;
 
     err = mpool_create(mtf_kvdb_home, &tcparams);
     ASSERT_EQ(0, err);
@@ -558,13 +558,13 @@ MTF_DEFINE_UTEST_PREPOST(mdc_test, mdc_io_overlap, mpool_test_pre, mpool_test_po
 
 MTF_DEFINE_UTEST_PREPOST(mdc_test, mdc_io_reopen, mpool_test_pre, mpool_test_post)
 {
-    struct mpool     *mp;
+    struct mpool *mp;
     struct mpool_mdc *mdc;
 
-    merr_t   err;
+    merr_t err;
     uint64_t logid1, logid2;
-    char    *buf, *rdbuf;
-    size_t   bufsz = 128 << 10, wdlen, rdlen, reclen, wdcnt, wdstart;
+    char *buf, *rdbuf;
+    size_t bufsz = 128 << 10, wdlen, rdlen, reclen, wdcnt, wdstart;
 
     err = mpool_create(mtf_kvdb_home, &tcparams);
     ASSERT_EQ(0, err);

@@ -14,19 +14,19 @@
 #include <mock/api.h>
 #endif
 
+#include <errno.h>
+#include <getopt.h>
+#include <math.h>
+#include <stdint.h>
+#include <sysexits.h>
+#include <time.h>
+
 #include "common.h"
 #include "conditions.h"
 #include "framework_cp.h"
 
-#include <math.h>
-#include <time.h>
-#include <sysexits.h>
-#include <getopt.h>
-#include <errno.h>
-#include <stdint.h>
-
-extern int         mtf_verify_flag;
-extern int         mtf_verify_line;
+extern int mtf_verify_flag;
+extern int mtf_verify_line;
 extern const char *mtf_verify_file;
 
 extern char mtf_kvdb_home[PATH_MAX];
@@ -35,11 +35,11 @@ extern char mtf_kvdb_home[PATH_MAX];
 
 /* ========================================================================= */
 
-#define ___MTF_INNER_BEGIN_UTEST_COLLECTION_SHARED(name, pre_hook, post_hook)            \
-                                                                                         \
-    int utest_collection_##name __attribute__((unused)) = 0;                             \
-                                                                                         \
-    struct mtf_test_coll_info    _mtf_##name##_tci = { .tci_coll_name = #name,           \
+#define ___MTF_INNER_BEGIN_UTEST_COLLECTION_SHARED(name, pre_hook, post_hook)         \
+                                                                                      \
+    int utest_collection_##name __attribute__((unused)) = 0;                          \
+                                                                                      \
+    struct mtf_test_coll_info _mtf_##name##_tci = { .tci_coll_name = #name,           \
                                                     .tci_num_tests = 0,               \
                                                     .tci_pre_run_hook = (pre_hook),   \
                                                     .tci_post_run_hook = (post_hook), \
@@ -55,7 +55,7 @@ extern char mtf_kvdb_home[PATH_MAX];
                                                                                   \
     union ___mtf_floatint {                                                       \
         float fv;                                                                 \
-        int   iv;                                                                 \
+        int iv;                                                                   \
     };                                                                            \
                                                                                   \
     __attribute__((unused)) static int ___mtf_almost_equal_ulps_and_abs(          \
@@ -64,8 +64,8 @@ extern char mtf_kvdb_home[PATH_MAX];
         union ___mtf_floatint x_fi = { .fv = x };                                 \
         union ___mtf_floatint y_fi = { .fv = y };                                 \
                                                                                   \
-        int   x_i = x_fi.iv;                                                      \
-        int   y_i = y_fi.iv;                                                      \
+        int x_i = x_fi.iv;                                                        \
+        int y_i = y_fi.iv;                                                        \
         float x_f = x_fi.fv;                                                      \
         float y_f = y_fi.fv;                                                      \
                                                                                   \
@@ -170,10 +170,10 @@ mtf_run_tests_preamble(struct mtf_test_coll_info *tci);
 int
 mtf_run_test(
     struct mtf_test_coll_info *tci,
-    int                        test_index,
-    int *                      success_cnt,
-    int *                      failed_cnt,
-    int *                      elapsed_time);
+    int test_index,
+    int *success_cnt,
+    int *failed_cnt,
+    int *elapsed_time);
 
 merr_t
 mtf_run_tests_postamble(struct mtf_test_coll_info *tci);
@@ -181,9 +181,9 @@ mtf_run_tests_postamble(struct mtf_test_coll_info *tci);
 void
 mtf_run_tests_wrapup(
     struct mtf_test_coll_info *tci,
-    int                        success_cnt,
-    int                        failed_cnt,
-    int                        total_time);
+    int success_cnt,
+    int failed_cnt,
+    int total_time);
 
 merr_t
 mtf_run_tests(struct mtf_test_coll_info *tci);
@@ -269,7 +269,7 @@ enum MTF_SET_TYPE { MTF_ST_IRANGE = 1, MTF_ST_IVALUES, MTF_ST_EVALUES, MTF_ST_BO
 /* ========================================================================= */
 
 #define ___MTF_VALUE_DECLARE(N, type, var) \
-    int  index##N;                         \
+    int index##N;                          \
     type var;
 
 #define ___MTF_CALL_GENERATOR(var)     \

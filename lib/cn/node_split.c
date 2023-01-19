@@ -7,30 +7,30 @@
 #include <stdbool.h>
 #include <stdint.h>
 #include <stdlib.h>
+
 #include <sys/mman.h>
 
-#include <hse/util/element_source.h>
-#include <hse/util/event_counter.h>
 #include <hse/error/merr.h>
-#include <hse/util/assert.h>
-#include <hse/util/keycmp.h>
-#include <hse/logging/logging.h>
-#include <hse/util/list.h>
-
+#include <hse/ikvdb/cn.h>
+#include <hse/ikvdb/cndb.h>
 #include <hse/ikvdb/kvset_view.h>
 #include <hse/ikvdb/sched_sts.h>
-#include <hse/ikvdb/cndb.h>
-#include <hse/ikvdb/cn.h>
+#include <hse/logging/logging.h>
+#include <hse/util/assert.h>
+#include <hse/util/element_source.h>
+#include <hse/util/event_counter.h>
+#include <hse/util/keycmp.h>
+#include <hse/util/list.h>
 
-#include "cn_tree.h"
 #include "cn_metrics.h"
-#include "cn_tree_internal.h"
+#include "cn_tree.h"
 #include "cn_tree_compact.h"
+#include "cn_tree_internal.h"
 #include "kvset.h"
-#include "node_split.h"
 #include "kvset_internal.h"
-#include "wbt_internal.h"
+#include "node_split.h"
 #include "route.h"
+#include "wbt_internal.h"
 
 struct reverse_kblk_iterator {
     struct kvset *ks;
@@ -71,9 +71,7 @@ reverse_kblk_iterator_next(struct element_source *source, void **data)
 }
 
 static void
-reverse_kblk_iterator_init(
-    struct reverse_kblk_iterator *const iter,
-    struct kvset *const ks)
+reverse_kblk_iterator_init(struct reverse_kblk_iterator * const iter, struct kvset * const ks)
 {
     INVARIANT(iter);
     INVARIANT(ks);
@@ -95,22 +93,22 @@ reverse_kblk_iterator_init(
  *  -  positive int : first key in A < first key in B
  */
 static int
-kblk_compare(const void *const a, const void *const b)
+kblk_compare(const void * const a, const void * const b)
 {
     const struct kvset_kblk *kblk_a = a, *kblk_b = b;
 
     INVARIANT(a);
     INVARIANT(b);
 
-    return -1 * keycmp(kblk_a->kb_koff_min, kblk_a->kb_klen_min, kblk_b->kb_koff_min,
-        kblk_b->kb_klen_min);
+    return -1 *
+        keycmp(kblk_a->kb_koff_min, kblk_a->kb_klen_min, kblk_b->kb_koff_min, kblk_b->kb_klen_min);
 }
 
 static merr_t
 find_inflection_points(
-    const struct cn_tree_node *const tn,
-    uint64_t *const seen_kvlen,
-    uint32_t *const offsets)
+    const struct cn_tree_node * const tn,
+    uint64_t * const seen_kvlen,
+    uint32_t * const offsets)
 {
     merr_t err;
     struct bin_heap *bh;
@@ -144,7 +142,7 @@ find_inflection_points(
     iters = buf;
     srcs = buf + num_kvsets * sizeof(*iters);
 
-    list_for_each_entry(le, &tn->tn_kvset_list, le_link) {
+    list_for_each_entry (le, &tn->tn_kvset_list, le_link) {
         struct kvset_metrics metrics;
         struct reverse_kblk_iterator *iter = &iters[kvset_idx];
 
@@ -165,8 +163,9 @@ find_inflection_points(
      */
     limit = total_kvlen / 2;
 
-    log_debug("node %lu inflection limit: %lu/%lu (%lf%%)",
-        tn->tn_nodeid, limit, total_kvlen, (double)limit * 100 / total_kvlen);
+    log_debug(
+        "node %lu inflection limit: %lu/%lu (%lf%%)", tn->tn_nodeid, limit, total_kvlen,
+        (double)limit * 100 / total_kvlen);
 
     err = bin_heap_prepare(bh, num_kvsets, srcs);
     if (ev(err))
@@ -176,8 +175,9 @@ find_inflection_points(
         kvlen += inflection_kblk->kb_metrics.tot_kvlen;
     assert(inflection_kblk);
 
-    log_debug("node %lu inflection key kvlen: %lu/%lu (%lf%%)",
-        tn->tn_nodeid, kvlen, total_kvlen, (double)kvlen * 100 / total_kvlen);
+    log_debug(
+        "node %lu inflection key kvlen: %lu/%lu (%lf%%)", tn->tn_nodeid, kvlen, total_kvlen,
+        (double)kvlen * 100 / total_kvlen);
 
     /* Gather the offsets we ended at for each kvset. These will seed the
      * starting positions of the element sources in the next bin heap.
@@ -195,16 +195,19 @@ find_inflection_points(
 
         curr = ks->ks_kblks + iter->offset;
         if (curr == inflection_kblk) {
-            log_debug("node %lu iterator %lu inflection point (kvset, kblock): (%lu, %u)",
-                tn->tn_nodeid, i, i, iter->offset);
+            log_debug(
+                "node %lu iterator %lu inflection point (kvset, kblock): (%lu, %u)", tn->tn_nodeid,
+                i, i, iter->offset);
             continue;
         }
 
-        res = keycmp(curr->kb_koff_min, curr->kb_klen_min, inflection_kblk->kb_koff_min,
+        res = keycmp(
+            curr->kb_koff_min, curr->kb_klen_min, inflection_kblk->kb_koff_min,
             inflection_kblk->kb_klen_min);
         if (res >= 0) {
-            log_debug("node %lu iterator %lu inflection point (kvset, kblock): (%lu, %u)",
-                tn->tn_nodeid, i, i, iter->offset);
+            log_debug(
+                "node %lu iterator %lu inflection point (kvset, kblock): (%lu, %u)", tn->tn_nodeid,
+                i, i, iter->offset);
             continue;
         }
 
@@ -213,14 +216,17 @@ find_inflection_points(
          * or equal to the inflection key.
          */
         if (iter->offset < ks->ks_st.kst_kblks - 1 &&
-                keycmp(curr->kb_koff_max, curr->kb_klen_max, inflection_kblk->kb_koff_min,
-                    inflection_kblk->kb_klen_min) <= 0) {
+            keycmp(
+                curr->kb_koff_max, curr->kb_klen_max, inflection_kblk->kb_koff_min,
+                inflection_kblk->kb_klen_min) <= 0)
+        {
             iter->offset++;
             curr++;
         }
 
-        log_debug("node %lu iterator %lu inflection point (kvset, kblock): (%lu, %u)",
-            tn->tn_nodeid, i, i, iter->offset);
+        log_debug(
+            "node %lu iterator %lu inflection point (kvset, kblock): (%lu, %u)", tn->tn_nodeid, i,
+            i, iter->offset);
         offsets[i] = iter->offset;
     }
 
@@ -243,8 +249,9 @@ find_inflection_points(
     }
     assert(kvlen <= total_kvlen / 2);
 
-    log_debug("node %lu seen kvlen: %lu/%lu (%lf%%)",
-        tn->tn_nodeid, kvlen, total_kvlen, (double)kvlen * 100 / total_kvlen);
+    log_debug(
+        "node %lu seen kvlen: %lu/%lu (%lf%%)", tn->tn_nodeid, kvlen, total_kvlen,
+        (double)kvlen * 100 / total_kvlen);
 
     *seen_kvlen = kvlen;
 
@@ -260,7 +267,8 @@ forward_wbt_leaf_iterator_next(struct element_source *source, void **data)
 {
     struct kvset_kblk *kblk;
     struct wbt_desc *desc;
-    struct forward_wbt_leaf_iterator *iter = container_of(source, struct forward_wbt_leaf_iterator, es);
+    struct forward_wbt_leaf_iterator *iter =
+        container_of(source, struct forward_wbt_leaf_iterator, es);
 
     INVARIANT(source);
     INVARIANT(data);
@@ -299,8 +307,8 @@ forward_wbt_leaf_iterator_next(struct element_source *source, void **data)
 
 static void
 forward_wbt_leaf_iterator_init(
-    struct forward_wbt_leaf_iterator *const iter,
-    struct kvset *const ks,
+    struct forward_wbt_leaf_iterator * const iter,
+    struct kvset * const ks,
     const uint32_t kblk_idx)
 {
     INVARIANT(ks);
@@ -320,7 +328,7 @@ forward_wbt_leaf_iterator_init(
  *  -  positive int : first key in A > first key in B
  */
 static int
-wbt_leaf_compare(const void *const a, const void *const b)
+wbt_leaf_compare(const void * const a, const void * const b)
 {
     const struct wbt_node_hdr_omf *wbt_node_a = a, *wbt_node_b = b;
     const struct wbt_lfe_omf *lfe_a, *lfe_b;
@@ -343,12 +351,12 @@ wbt_leaf_compare(const void *const a, const void *const b)
 
 static merr_t
 find_split_key(
-    const struct cn_tree_node *const tn,
+    const struct cn_tree_node * const tn,
     uint64_t seen_kvlen,
-    const uint32_t *const offsets,
-    void *const key_buf,
+    const uint32_t * const offsets,
+    void * const key_buf,
     const size_t key_buf_sz,
-    unsigned int *const key_len)
+    unsigned int * const key_len)
 {
     merr_t err;
     struct bin_heap *bh;
@@ -388,7 +396,7 @@ find_split_key(
     iters = buf;
     srcs = buf + num_kvsets * sizeof(*iters);
 
-    list_for_each_entry(le, &tn->tn_kvset_list, le_link) {
+    list_for_each_entry (le, &tn->tn_kvset_list, le_link) {
         struct kvset_metrics metrics;
         struct forward_wbt_leaf_iterator *iter = &iters[kvset_idx];
 
@@ -407,8 +415,9 @@ find_split_key(
      */
     limit = total_kvlen / 2;
 
-    log_debug("node %lu split limit: %lu/%lu (%lf%%)",
-        tn->tn_nodeid, limit, total_kvlen, (double)limit * 100 / total_kvlen);
+    log_debug(
+        "node %lu split limit: %lu/%lu (%lf%%)", tn->tn_nodeid, limit, total_kvlen,
+        (double)limit * 100 / total_kvlen);
 
     assert(seen_kvlen <= total_kvlen / 2);
     assert(kvset_idx == num_kvsets);
@@ -421,8 +430,9 @@ find_split_key(
         seen_kvlen += omf_wbn_kvlen(wnode);
     assert(wnode);
 
-    log_debug("node %lu split key kvlen: %lu/%lu (%lf%%)",
-        tn->tn_nodeid, seen_kvlen, total_kvlen, (double)seen_kvlen * 100 / total_kvlen);
+    log_debug(
+        "node %lu split key kvlen: %lu/%lu (%lf%%)", tn->tn_nodeid, seen_kvlen, total_kvlen,
+        (double)seen_kvlen * 100 / total_kvlen);
 
     assert(omf_wbn_num_keys(wnode) > 0);
 
@@ -458,10 +468,10 @@ out:
  */
 static merr_t HSE_NONNULL(1, 2, 4)
 get_split_key(
-    const struct cn_tree_node *const node,
-    void *const key_buf,
+    const struct cn_tree_node * const node,
+    void * const key_buf,
     const size_t key_buf_sz,
-    unsigned int *const key_len)
+    unsigned int * const key_len)
 {
     merr_t err;
     uint64_t kvlen = 0;
@@ -561,8 +571,8 @@ cn_split(struct cn_compaction_work *w)
     atomic_set(&inflight, w->cw_kvset_cnt);
 
     for (i = 0, le = list_first_entry(&w->cw_node->tn_kvset_list, typeof(*le), le_link);
-         i < w->cw_kvset_cnt;
-         i++, le = list_next_entry(le, le_link)) {
+         i < w->cw_kvset_cnt; i++, le = list_next_entry(le, le_link))
+    {
 
         INIT_WORK(&wargs[i].work, kvset_split_worker);
         wargs[i].ks = le->le_kvset;
@@ -582,9 +592,7 @@ cn_split(struct cn_compaction_work *w)
      * flush_workqueue() here, but that can severely stall new requests.
      */
     while (atomic_read(&inflight) > 0) {
-        const struct timespec req = {
-            .tv_nsec = 100 * 1000
-        };
+        const struct timespec req = { .tv_nsec = 100 * 1000 };
 
         hse_nanosleep(&req, NULL, "nodesplt");
     }
@@ -658,8 +666,8 @@ check_valid_kvsets(const struct cn_compaction_work *w, enum split_side side)
 merr_t
 cn_split_nodes_alloc(
     const struct cn_compaction_work *w,
-    uint64_t                         nodeidv[static 2],
-    struct cn_tree_node             *nodev[static 2])
+    uint64_t nodeidv[static 2],
+    struct cn_tree_node *nodev[static 2])
 {
     nodev[LEFT] = nodev[RIGHT] = NULL;
 
@@ -713,7 +721,7 @@ void
 cn_split_node_stats_dump(
     struct cn_compaction_work *w,
     const struct cn_tree_node *node,
-    const char                *pos)
+    const char *pos)
 {
     const struct cn_node_stats *ns;
 
@@ -727,8 +735,6 @@ cn_split_node_stats_dump(
         "kvsets=%u keys=%lu "
         "hblks=%u kblks=%u vblks=%u "
         "alen=%lu",
-        sts_job_id_get(&w->cw_job), w->cw_tree->cnid, node->tn_nodeid, pos,
-        cn_ns_kvsets(ns), cn_ns_keys(ns),
-        cn_ns_hblks(ns), cn_ns_kblks(ns), cn_ns_vblks(ns),
-        cn_ns_alen(ns));
+        sts_job_id_get(&w->cw_job), w->cw_tree->cnid, node->tn_nodeid, pos, cn_ns_kvsets(ns),
+        cn_ns_keys(ns), cn_ns_hblks(ns), cn_ns_kblks(ns), cn_ns_vblks(ns), cn_ns_alen(ns));
 }

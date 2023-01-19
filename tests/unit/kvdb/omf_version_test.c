@@ -19,7 +19,7 @@ MTF_DEFINE_UTEST(omf_version_test, omf_version)
      * this test will need to be updated accordingly.
      */
 
-     /* Global OMF version */
+    /* Global OMF version */
     ASSERT_EQ(GLOBAL_OMF_VERSION, 4);
 
     /* Low-level OMF versions */

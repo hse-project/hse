@@ -22,7 +22,7 @@ void
 event_sample_ts(struct event_timer *t, unsigned long t1, unsigned long t2)
 {
     unsigned long d;
-    int           loop = 0;
+    int loop = 0;
 
     /* non-deterministic in tests -- do not count for coverage */
     /* GCOV_EXCL_START */
@@ -81,7 +81,7 @@ invsqrt(float x)
     float xhalf = 0.5f * x;
     union {
         float x;
-        int   i;
+        int i;
     } u;
     u.x = x;
     u.i = 0x5f3759df - (u.i >> 1);
@@ -93,27 +93,16 @@ void
 event_report(struct event_timer *t, const char *what)
 {
     struct event_timer copy = *t;
-    double             var = copy.s / ((copy.n - 1) ?: 1);
-    double             stddev = 1 / invsqrt(var);
+    double var = copy.s / ((copy.n - 1) ?: 1);
+    double stddev = 1 / invsqrt(var);
 
     if (copy.n < 2)
         snprintf(
-            t->buf,
-            sizeof(t->buf),
-            "%s: (ns) cnt %ld max %ld",
-            what,
-            (ulong)copy.n,
+            t->buf, sizeof(t->buf), "%s: (ns) cnt %ld max %ld", what, (ulong)copy.n,
             (ulong)copy.max);
     else
         snprintf(
-            t->buf,
-            sizeof(t->buf),
-            "%s: (ns) cnt %ld min %ld mode %ld max %ld mean %.1f std %g",
-            what,
-            (ulong)copy.n,
-            (ulong)copy.min,
-            (ulong)copy.mode,
-            (ulong)copy.max,
-            copy.m,
+            t->buf, sizeof(t->buf), "%s: (ns) cnt %ld min %ld mode %ld max %ld mean %.1f std %g",
+            what, (ulong)copy.n, (ulong)copy.min, (ulong)copy.mode, (ulong)copy.max, copy.m,
             stddev);
 }

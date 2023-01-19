@@ -10,20 +10,25 @@
  */
 
 #include <stdint.h>
+
 #include <sys/types.h>
 
 #include <hse/types.h>
 
 #include <hse/util/compiler.h>
 
-void warn(hse_err_t err, char *fmt, ...) HSE_PRINTF(2, 3);
-void fatal(hse_err_t err, char *fmt, ...) HSE_PRINTF(2, 3);
+void
+warn(hse_err_t err, char *fmt, ...) HSE_PRINTF(2, 3);
+void
+fatal(hse_err_t err, char *fmt, ...) HSE_PRINTF(2, 3);
 
 /*
  * key/value formatting
  */
-char *fmt(void *out, int max, const void *data, int len);
-size_t fmt_data(char *out, char *in);
+char *
+fmt(void *out, int max, const void *data, int len);
+size_t
+fmt_data(char *out, char *in);
 
 /*
  * globals: control the max of key and value displays in show
@@ -53,10 +58,10 @@ extern struct app_opts Opts;
 /*
  * key/value display
  */
-void show(const void *key, size_t klen,
-    const void *val, size_t vlen, int showlen);
+void
+show(const void *key, size_t klen, const void *val, size_t vlen, int showlen);
 
-void show_hex(const void *key, size_t klen,
-    const void *val, size_t vlen, int showlen);
+void
+show_hex(const void *key, size_t klen, const void *val, size_t vlen, int showlen);
 
 #endif

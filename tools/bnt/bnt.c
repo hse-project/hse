@@ -5,46 +5,46 @@
  * This program stress tests the Bonsai tree insert and delete capabilities.
  */
 
+#include <assert.h>
+#include <ctype.h>
+#include <curses.h>
+#include <errno.h>
+#include <getopt.h>
+#include <math.h>
+#include <pthread.h>
+#include <signal.h>
 #include <stdalign.h>
+#include <stdarg.h>
 #include <stdio.h>
 #include <stdlib.h>
-#include <stdarg.h>
-#include <unistd.h>
-#include <signal.h>
 #include <string.h>
-#include <errno.h>
-#include <assert.h>
-#include <getopt.h>
-#include <ctype.h>
 #include <sysexits.h>
-#include <pthread.h>
-#include <math.h>
-#include <sys/types.h>
-#include <sys/param.h>
-#include <sys/file.h>
-#include <sys/time.h>
-#include <sys/mman.h>
-#include <sys/poll.h>
-#include <sys/stat.h>
-#include <sys/ioctl.h>
-#include <sys/resource.h>
+#include <term.h>
+#include <unistd.h>
+#include <xoroshiro.h>
 
 #include <bsd/string.h>
-#include <curses.h>
-#include <term.h>
+#include <sys/file.h>
+#include <sys/ioctl.h>
+#include <sys/mman.h>
+#include <sys/param.h>
+#include <sys/poll.h>
+#include <sys/resource.h>
+#include <sys/stat.h>
 #include <sys/sysinfo.h>
+#include <sys/time.h>
+#include <sys/types.h>
 
-#include <hse/cli/program.h>
 #include <hse/hse.h>
-#include <hse/util/platform.h>
-#include <hse/util/compiler.h>
-#include <hse/util/page.h>
-#include <hse/util/timer.h>
-#include <hse/util/mutex.h>
-#include <hse/util/bonsai_tree.h>
 #include <hse/version.h>
 
-#include <xoroshiro.h>
+#include <hse/cli/program.h>
+#include <hse/util/bonsai_tree.h>
+#include <hse/util/compiler.h>
+#include <hse/util/mutex.h>
+#include <hse/util/page.h>
+#include <hse/util/platform.h>
+#include <hse/util/timer.h>
 
 /* clang-format off */
 

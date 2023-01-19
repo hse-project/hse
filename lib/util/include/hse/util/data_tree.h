@@ -6,13 +6,12 @@
 #ifndef HSE_UTIL_DATA_TREE_H
 #define HSE_UTIL_DATA_TREE_H
 
+#include <rbtree.h>
 #include <stdbool.h>
 
 #include <cjson/cJSON.h>
-#include <rbtree.h>
 
 #include <hse/error/merr.h>
-
 #include <hse/util/compiler.h>
 #include <hse/util/list.h>
 
@@ -21,38 +20,42 @@
 /* DT_PATH_MAX restricts the path size of a statically allocated dt_element to
  * avoid wasting too much space.
  */
-#define DT_PATH_ELEMENT_MAX       (32)
-#define DTE_PATH_OFFSET           (72)
-#define DT_PATH_MAX               (192 - DTE_PATH_OFFSET)
-#define DT_PATH_ROOT              "/data"
+#define DT_PATH_ELEMENT_MAX (32)
+#define DTE_PATH_OFFSET     (72)
+#define DT_PATH_MAX         (192 - DTE_PATH_OFFSET)
+#define DT_PATH_ROOT        "/data"
 
-#define _dt_section               __attribute__((section("hse_dt")))
+#define _dt_section __attribute__((section("hse_dt")))
 
 struct dt_element {
     union {
-        struct rb_node      dte_node;
-        struct list_head    dte_list;
+        struct rb_node dte_node;
+        struct list_head dte_list;
     };
-    struct dt_element_ops  *dte_ops;
-    void                   *dte_data;
-    const char             *dte_file;
-    int                     dte_line;
-    const char             *dte_func;
-    char                    dte_path[DT_PATH_MAX]; /* whole path */
+    struct dt_element_ops *dte_ops;
+    void *dte_data;
+    const char *dte_file;
+    int dte_line;
+    const char *dte_func;
+    char dte_path[DT_PATH_MAX]; /* whole path */
 } HSE_ALIGNED(64);
 
-static_assert(offsetof(struct dt_element, dte_path) == DTE_PATH_OFFSET,
-              "invalid pre-computed dte_path offset");
+static_assert(
+    offsetof(struct dt_element, dte_path) == DTE_PATH_OFFSET,
+    "invalid pre-computed dte_path offset");
 
 /* clang-format on */
 
-typedef void dt_remove_handler_t(struct dt_element *);
-typedef merr_t dt_emit_handler_t(struct dt_element *, cJSON *);
-typedef merr_t dt_access_t(void *, void *);
+typedef void
+dt_remove_handler_t(struct dt_element *);
+typedef merr_t
+dt_emit_handler_t(struct dt_element *, cJSON *);
+typedef merr_t
+dt_access_t(void *, void *);
 
 struct dt_element_ops {
     dt_remove_handler_t *dto_remove;
-    dt_emit_handler_t   *dto_emit;
+    dt_emit_handler_t *dto_emit;
 };
 
 /* Data Tree's Interface */

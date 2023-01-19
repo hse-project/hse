@@ -23,27 +23,24 @@
  * rw (default)     Replay       Full replay   Yes        Yes         Yes         Error
  */
 enum kvdb_open_mode {
-    KVDB_MODE_RDONLY        = 0,
-    KVDB_MODE_DIAG          = 1,
+    KVDB_MODE_RDONLY = 0,
+    KVDB_MODE_DIAG = 1,
     KVDB_MODE_RDONLY_REPLAY = 2,
-    KVDB_MODE_RDWR          = 3,
+    KVDB_MODE_RDWR = 3,
 };
 
-#define KVDB_MODE_MIN          KVDB_MODE_RDONLY
-#define KVDB_MODE_MAX          KVDB_MODE_RDWR
+#define KVDB_MODE_MIN KVDB_MODE_RDONLY
+#define KVDB_MODE_MAX KVDB_MODE_RDWR
 
-#define KVDB_MODE_RDONLY_STR           "rdonly"
-#define KVDB_MODE_DIAG_STR             "diag"
-#define KVDB_MODE_RDONLY_REPLAY_STR    "rdonly_replay"
-#define KVDB_MODE_RDWR_STR             "rdwr"
-#define KVDB_MODE_INVALID_STR          "invalid"
+#define KVDB_MODE_RDONLY_STR        "rdonly"
+#define KVDB_MODE_DIAG_STR          "diag"
+#define KVDB_MODE_RDONLY_REPLAY_STR "rdonly_replay"
+#define KVDB_MODE_RDWR_STR          "rdwr"
+#define KVDB_MODE_INVALID_STR       "invalid"
 
-#define KVDB_MODE_LIST_STR \
-    KVDB_MODE_RDONLY_STR " " \
-    KVDB_MODE_DIAG_STR " " \
-    KVDB_MODE_RDONLY_REPLAY_STR " " \
-    KVDB_MODE_RDWR_STR
-
+#define KVDB_MODE_LIST_STR                                                      \
+    KVDB_MODE_RDONLY_STR " " KVDB_MODE_DIAG_STR " " KVDB_MODE_RDONLY_REPLAY_STR \
+                         " " KVDB_MODE_RDWR_STR
 
 static HSE_ALWAYS_INLINE bool
 kvdb_mode_allows_user_writes(enum kvdb_open_mode mode)

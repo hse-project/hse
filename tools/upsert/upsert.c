@@ -11,17 +11,18 @@
 #include <stdint.h>
 #include <stdio.h>
 #include <string.h>
-#include <sys/resource.h>
-#include <sys/time.h>
 #include <sysexits.h>
 #include <unistd.h>
-
 #include <xoroshiro.h>
+
+#include <sys/resource.h>
+#include <sys/time.h>
+
+#include <hse/experimental.h>
+#include <hse/hse.h>
 
 #include <hse/cli/param.h>
 #include <hse/cli/program.h>
-#include <hse/experimental.h>
-#include <hse/hse.h>
 #include <hse/util/atomic.h>
 #include <hse/util/mutex.h>
 
@@ -43,10 +44,10 @@ enum run_mode {
 };
 
 struct opts {
-    uint64_t      nkeys;
-    uint64_t      stride;
-    unsigned int  nthreads;
-    unsigned int  laps;
+    uint64_t nkeys;
+    uint64_t stride;
+    unsigned int nthreads;
+    unsigned int laps;
     enum run_mode mode;
 } opts = {
     .nkeys = 1000 * 1000 * 1000,
@@ -58,7 +59,7 @@ struct opts {
 
 struct _test_ctx {
     struct mutex lock;
-    uint64_t     startidx;
+    uint64_t startidx;
     unsigned int curr_lap;
 } test_ctx;
 
@@ -69,8 +70,7 @@ struct probe_ctx {
     size_t vlen;
 };
 
-bool
-(*probe)(struct hse_kvs *, struct probe_ctx *);
+bool (*probe)(struct hse_kvs *, struct probe_ctx *);
 
 bool
 point_get(struct hse_kvs *kvs, struct probe_ctx *pc)
@@ -78,8 +78,7 @@ point_get(struct hse_kvs *kvs, struct probe_ctx *pc)
     hse_err_t err;
     bool found;
 
-    err = hse_kvs_get(kvs, 0, 0, pc->kbuf, pc->klen, &found,
-                      pc->vbuf, sizeof(pc->vbuf), &pc->vlen);
+    err = hse_kvs_get(kvs, 0, 0, pc->kbuf, pc->klen, &found, pc->vbuf, sizeof(pc->vbuf), &pc->vlen);
     if (err)
         fatal(err, "Point get failed");
 
@@ -92,9 +91,9 @@ prefix_probe(struct hse_kvs *kvs, struct probe_ctx *pc)
     hse_err_t err;
     enum hse_kvs_pfx_probe_cnt found;
 
-    err = hse_kvs_prefix_probe(kvs, 0, 0, pc->kbuf, pc->klen - key_sfxlen, &found,
-                               pc->kbuf, sizeof(pc->kbuf), &pc->klen,
-                               pc->vbuf, sizeof(pc->vbuf), &pc->vlen);
+    err = hse_kvs_prefix_probe(
+        kvs, 0, 0, pc->kbuf, pc->klen - key_sfxlen, &found, pc->kbuf, sizeof(pc->kbuf), &pc->klen,
+        pc->vbuf, sizeof(pc->vbuf), &pc->vlen);
     if (err)
         fatal(err, "Prefix probe failed");
 
@@ -116,8 +115,8 @@ cursor_probe(struct hse_kvs *kvs, struct probe_ctx *pc)
     if (err)
         fatal(err, "Cursor seek failed");
 
-    err = hse_kvs_cursor_read_copy(c, 0, pc->kbuf, sizeof(pc->kbuf), &pc->klen,
-                                   pc->vbuf, sizeof(pc->vbuf), &pc->vlen, &eof);
+    err = hse_kvs_cursor_read_copy(
+        c, 0, pc->kbuf, sizeof(pc->kbuf), &pc->klen, pc->vbuf, sizeof(pc->vbuf), &pc->vlen, &eof);
     if (err)
         fatal(err, "Cursor read failed");
 
@@ -207,7 +206,8 @@ print_stats(void *arg)
             printf("\n%8s %12s %8s %8s\n", "seconds", "opcnt", "ops/s", "lap");
         }
 
-        printf("%8u %12lu %8lu %8u\n", second, curr_opcnt, curr_opcnt - last_opcnt, test_ctx.curr_lap);
+        printf(
+            "%8u %12lu %8lu %8u\n", second, curr_opcnt, curr_opcnt - last_opcnt, test_ctx.curr_lap);
 
         last_opcnt = curr_opcnt;
         usleep(999 * 1000);
@@ -217,7 +217,7 @@ print_stats(void *arg)
 void HSE_PRINTF(1, 2)
 syntax(const char *fmt, ...)
 {
-    char    msg[256];
+    char msg[256];
     va_list ap;
 
     va_start(ap, fmt);
@@ -332,8 +332,7 @@ main(int argc, char **argv)
             fatal(0, "unknown parameter: %s", argv[optind]);
         break;
     case EINVAL:
-        fatal(0, "missing group name (e.g. %s) before parameter %s\n",
-              PG_KVDB_OPEN, argv[optind]);
+        fatal(0, "missing group name (e.g. %s) before parameter %s\n", PG_KVDB_OPEN, argv[optind]);
         break;
     default:
         fatal(rc, "error processing parameter %s\n", argv[optind]);

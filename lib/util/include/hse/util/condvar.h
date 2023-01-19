@@ -24,7 +24,7 @@
 #include <hse/util/mutex.h>
 
 struct cv {
-    int            cv_waiters;
+    int cv_waiters;
     pthread_cond_t cv_waitq;
 };
 

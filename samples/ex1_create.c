@@ -8,8 +8,8 @@
  * KVSes to it.
  */
 
-#include <stdio.h>
 #include <errno.h>
+#include <stdio.h>
 
 #include <hse/hse.h>
 
@@ -20,13 +20,12 @@ main(int argc, char **argv)
 {
     struct hse_kvdb *kvdb;
 
-    char       *kvdb_home;
-    char      **kvs_list;
-    int         kvs_cnt;
-    hse_err_t   rc, rc2;
+    char *kvdb_home;
+    char **kvs_list;
+    int kvs_cnt;
+    hse_err_t rc, rc2;
 
-    const char * paramv[] = { "logging.destination=stdout",
-                             "logging.level=3",
+    const char *paramv[] = { "logging.destination=stdout", "logging.level=3",
                              "rest.enabled=false" };
     const size_t paramc = sizeof(paramv) / sizeof(paramv[0]);
 

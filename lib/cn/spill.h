@@ -24,19 +24,19 @@ struct zspill {
 };
 
 struct subspill {
-    struct list_head           ss_link;
+    struct list_head ss_link;
     struct cn_compaction_work *ss_work;
 
     union {
         struct kvset_mblocks ss_mblks;
-        struct zspill        ss_zspill;
+        struct zspill ss_zspill;
     };
 
-    uint64_t                   ss_kvsetid;
-    uint64_t                   ss_sgen;
-    struct cn_tree_node       *ss_node;
-    bool                       ss_added;
-    bool                       ss_is_zspill;
+    uint64_t ss_kvsetid;
+    uint64_t ss_sgen;
+    struct cn_tree_node *ss_node;
+    bool ss_added;
+    bool ss_is_zspill;
 };
 
 /* MTF_MOCK_DECL(spill) */
@@ -68,13 +68,12 @@ struct subspill {
 /* MTF_MOCK */
 merr_t
 cn_subspill(
-    struct subspill           *ss,
-    struct spillctx           *sctx,
-    struct cn_tree_node       *node,
-    uint64_t                   node_dgen,
-    const void                *ekey,
-    uint                       eklen);
-
+    struct subspill *ss,
+    struct spillctx *sctx,
+    struct cn_tree_node *node,
+    uint64_t node_dgen,
+    const void *ekey,
+    uint eklen);
 
 /* MTF_MOCK */
 merr_t

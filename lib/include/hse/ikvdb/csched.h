@@ -152,9 +152,9 @@ struct cn_rule_stats {
 merr_t
 csched_create(
     struct kvdb_rparams *rp,
-    const char *         kvdb_home,
-    struct kvdb_health  *health,
-    struct csched **     csched);
+    const char *kvdb_home,
+    struct kvdb_health *health,
+    struct csched **csched);
 
 /* MTF_MOCK */
 void

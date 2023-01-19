@@ -22,13 +22,14 @@
 #include <string.h>
 #include <strings.h>
 
-#include <hse/cli/program.h>
-#include <hse/hse.h>
-#include <hse/util/event_timer.h>
-#include <hse/util/fmt.h>
-
 #include <tools/common.h>
 #include <tools/parm_groups.h>
+
+#include <hse/hse.h>
+
+#include <hse/cli/program.h>
+#include <hse/util/event_timer.h>
+#include <hse/util/fmt.h>
 
 void
 showkey(const void *key, size_t klen)
@@ -84,28 +85,28 @@ main(int argc, char **argv)
     static char kbuf[HSE_KVS_KEY_LEN_MAX];
     static char vbuf[HSE_KVS_VALUE_LEN_MAX];
 
-    const char *           mpname, *dsname, *kvname, *config = NULL;
-    struct parm_groups *   pg = NULL;
-    struct svec            hse_gparm = { 0 };
-    struct svec            db_oparm = { 0 };
-    struct svec            kv_oparm = { 0 };
+    const char *mpname, *dsname, *kvname, *config = NULL;
+    struct parm_groups *pg = NULL;
+    struct svec hse_gparm = { 0 };
+    struct svec db_oparm = { 0 };
+    struct svec kv_oparm = { 0 };
     struct hse_kvs_cursor *cur;
-    struct hse_kvdb *      h;
-    struct hse_kvs *       kvs;
-    uint64_t                    start = 0;
-    uint64_t                    incr = 100000;
-    int                    update, c0, get;
-    int                    c;
-    int                    rc;
-    hse_err_t              err;
-    unsigned               opt_help = 0;
+    struct hse_kvdb *h;
+    struct hse_kvs *kvs;
+    uint64_t start = 0;
+    uint64_t incr = 100000;
+    int update, c0, get;
+    int c;
+    int rc;
+    hse_err_t err;
+    unsigned opt_help = 0;
 
-    uint64_t         key = start;
-    uint64_t         end = start + incr;
-    size_t           klen, vlen;
-    bool             eof;
-    time_t           t, tnext = 0;
-    char *           errmsg = 0;
+    uint64_t key = start;
+    uint64_t end = start + incr;
+    size_t klen, vlen;
+    bool eof;
+    time_t t, tnext = 0;
+    char *errmsg = 0;
     struct sigaction sact;
 
     EVENT_TIMER(tb);
@@ -132,28 +133,28 @@ main(int argc, char **argv)
 
     while ((c = getopt(argc, argv, "?U0gi:s:Z:")) != -1) {
         switch (c) {
-            case 'Z':
-                config = optarg;
-                break;
-            case 'U':
-                update = 1;
-                break;
-            case '0':
-                c0 = 0;
-                break;
-            case 'g':
-                ++get;
-                break;
-            case 's':
-                start = strtoull(optarg, 0, 0);
-                break;
-            case 'i':
-                incr = strtoull(optarg, 0, 0);
-                break;
-            case '?': /* fallthru */
-            default:
-                opt_help++;
-                break;
+        case 'Z':
+            config = optarg;
+            break;
+        case 'U':
+            update = 1;
+            break;
+        case '0':
+            c0 = 0;
+            break;
+        case 'g':
+            ++get;
+            break;
+        case 's':
+            start = strtoull(optarg, 0, 0);
+            break;
+        case 'i':
+            incr = strtoull(optarg, 0, 0);
+            break;
+        case '?': /* fallthru */
+        default:
+            opt_help++;
+            break;
         }
     }
 
@@ -169,23 +170,22 @@ main(int argc, char **argv)
 
     rc = pg_parse_argv(pg, argc, argv, &optind);
     switch (rc) {
-        case 0:
-            if (optind < argc)
-                fatal(0, "unknown parameter: %s", argv[optind]);
-            break;
-        case EINVAL:
-            fatal(0, "missing group name (e.g. %s) before parameter %s\n",
-                PG_KVDB_OPEN, argv[optind]);
-            break;
-        default:
-            fatal(rc, "error processing parameter %s\n", argv[optind]);
-            break;
+    case 0:
+        if (optind < argc)
+            fatal(0, "unknown parameter: %s", argv[optind]);
+        break;
+    case EINVAL:
+        fatal(0, "missing group name (e.g. %s) before parameter %s\n", PG_KVDB_OPEN, argv[optind]);
+        break;
+    default:
+        fatal(rc, "error processing parameter %s\n", argv[optind]);
+        break;
     }
 
     rc = rc ?: svec_append_pg(&hse_gparm, pg, PG_HSE_GLOBAL, NULL);
     rc = rc ?: svec_append_pg(&db_oparm, pg, PG_KVDB_OPEN, NULL);
-    rc = rc ?: svec_append_pg(&kv_oparm, pg, PG_KVS_OPEN,
-                              "cn_mcache_wbt=0", "cn_bloom_lookup=0", NULL);
+    rc = rc
+        ?: svec_append_pg(&kv_oparm, pg, PG_KVS_OPEN, "cn_mcache_wbt=0", "cn_bloom_lookup=0", NULL);
     if (rc)
         fatal(rc, "svec_apppend_pg failed");
 
@@ -244,35 +244,35 @@ main(int argc, char **argv)
         }
     }
 
-#define begin()                                                \
-    do {                                                       \
-        EVENT_START(tb);                                       \
-        err = hse_kvs_cursor_create(kvs, 0, 0, 0, 0, &cur);    \
-        EVENT_SAMPLE(tb);                                      \
-        if (err) {                                             \
-            errmsg = "cannot begin scan";                      \
-            break;                                             \
-        }                                                      \
+#define begin()                                             \
+    do {                                                    \
+        EVENT_START(tb);                                    \
+        err = hse_kvs_cursor_create(kvs, 0, 0, 0, 0, &cur); \
+        EVENT_SAMPLE(tb);                                   \
+        if (err) {                                          \
+            errmsg = "cannot begin scan";                   \
+            break;                                          \
+        }                                                   \
     } while (0)
 
-#define seek()                                                          \
-    do {                                                                \
-        EVENT_START(ts);                                                \
+#define seek()                                                    \
+    do {                                                          \
+        EVENT_START(ts);                                          \
         err = hse_kvs_cursor_seek(cur, 0, kbuf, klen, &k, &vlen); \
-        EVENT_SAMPLE(ts);                                               \
-        if (err) {                                                      \
-            errmsg = "cannot seek";                                     \
-            break;                                                      \
-        }                                                               \
-                                                                        \
-        if (vlen != klen || memcmp(kbuf, k, vlen) != 0) {               \
-            printf("wanted: ");                                         \
-            showkey(kbuf, klen);                                        \
-            printf("found: ");                                          \
-            showkey(k, vlen);                                           \
-            errmsg = "seek did not return match";                       \
-            break;                                                      \
-        }                                                               \
+        EVENT_SAMPLE(ts);                                         \
+        if (err) {                                                \
+            errmsg = "cannot seek";                               \
+            break;                                                \
+        }                                                         \
+                                                                  \
+        if (vlen != klen || memcmp(kbuf, k, vlen) != 0) {         \
+            printf("wanted: ");                                   \
+            showkey(kbuf, klen);                                  \
+            printf("found: ");                                    \
+            showkey(k, vlen);                                     \
+            errmsg = "seek did not return match";                 \
+            break;                                                \
+        }                                                         \
     } while (0)
 
 #define cread()                                                        \
@@ -304,7 +304,7 @@ main(int argc, char **argv)
     key = start;
     while (!_sig && ++key < end) {
         const void *k, *v;
-        uint64_t         n = 1;
+        uint64_t n = 1;
 
         klen = mk_key(kbuf, key);
 
@@ -326,8 +326,8 @@ main(int argc, char **argv)
         }
 
         if (get == 1 || get == 3) {
-            char   xbuf[1024];
-            bool   fnd = 0;
+            char xbuf[1024];
+            bool fnd = 0;
             size_t xlen;
 
             err = hse_kvs_get(kvs, 0, NULL, kbuf, klen, &fnd, xbuf, sizeof(xbuf), &xlen);
@@ -367,15 +367,17 @@ main(int argc, char **argv)
         if (*(uint64_t *)v != n) {
             const void *x = vbuf;
 
-            printf("key %ld  val %ld  wrote %ld  expect %ld\n", key, *(uint64_t *)v, *(uint64_t *)x, n);
+            printf(
+                "key %ld  val %ld  wrote %ld  expect %ld\n", key, *(uint64_t *)v, *(uint64_t *)x,
+                n);
             err = key;
             errmsg = "value not updated!";
             break;
         }
 
         if (get > 1) {
-            char   xbuf[1024];
-            bool   fnd = 0;
+            char xbuf[1024];
+            bool fnd = 0;
             size_t xlen;
 
             err = hse_kvs_get(kvs, 0, NULL, kbuf, klen, &fnd, xbuf, sizeof(xbuf), &xlen);

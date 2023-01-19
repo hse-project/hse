@@ -5,18 +5,16 @@
 
 #include <stdint.h>
 
-#include <mtf/framework.h>
+#include <kvdb/kvdb_keylock.h>
 #include <mock/api.h>
+#include <mtf/framework.h>
 
 #include <hse/error/merr.h>
-#include <hse/util/atomic.h>
-#include <hse/util/keylock.h>
-
+#include <hse/ikvdb/kvdb_ctxn.h>
 #include <hse/ikvdb/limits.h>
 #include <hse/ikvdb/tuple.h>
-#include <hse/ikvdb/kvdb_ctxn.h>
-
-#include <kvdb/kvdb_keylock.h>
+#include <hse/util/atomic.h>
+#include <hse/util/keylock.h>
 
 #define MOCK_SET(group, func) mtfm_##group##func##_set(func)
 
@@ -45,7 +43,7 @@ MTF_BEGIN_UTEST_COLLECTION(kvdb_keylock_test)
 MTF_DEFINE_UTEST_PREPOST(kvdb_keylock_test, kvdb_keylock_alloc, mapi_pre, mapi_post)
 {
     struct kvdb_keylock *handle;
-    merr_t               err = 0;
+    merr_t err = 0;
 
     ASSERT_EQ(0, mapi_calls(mapi_idx_malloc));
     ASSERT_EQ(0, mapi_calls(mapi_idx_free));
@@ -79,9 +77,9 @@ MTF_DEFINE_UTEST_PREPOST(kvdb_keylock_test, kvdb_keylock_alloc, mapi_pre, mapi_p
 
 MTF_DEFINE_UTEST_PREPOST(kvdb_keylock_test, kvdb_ctxn_locks_alloc, mapi_pre, mapi_post)
 {
-    struct kvdb_keylock *   klock_handle;
+    struct kvdb_keylock *klock_handle;
     struct kvdb_ctxn_locks *locks_handle;
-    merr_t                  err = 0;
+    merr_t err = 0;
 
     ASSERT_EQ(0, mapi_calls(mapi_idx_malloc));
     ASSERT_EQ(0, mapi_calls(mapi_idx_free));
@@ -104,13 +102,13 @@ MTF_DEFINE_UTEST_PREPOST(kvdb_keylock_test, kvdb_ctxn_locks_alloc, mapi_pre, map
 
 MTF_DEFINE_UTEST_PREPOST(kvdb_keylock_test, keylock_lock_one_ctxn, mapi_pre, mapi_post)
 {
-    int                     i = 0;
-    const int               num_keys = 500;
-    struct kvdb_keylock *   klock_handle;
+    int i = 0;
+    const int num_keys = 500;
+    struct kvdb_keylock *klock_handle;
     struct kvdb_ctxn_locks *locks_handle;
-    merr_t                  err = 0;
-    uint64_t                magic = 0x12345678UL << 32;
-    uint64_t                hash = magic;
+    merr_t err = 0;
+    uint64_t magic = 0x12345678UL << 32;
+    uint64_t hash = magic;
 
     err = kvdb_keylock_create(&klock_handle, 16);
     ASSERT_EQ(0, err);
@@ -195,11 +193,11 @@ MTF_DEFINE_UTEST_PREPOST(kvdb_keylock_test, keylock_lock_one_ctxn, mapi_pre, map
 
 MTF_DEFINE_UTEST_PREPOST(kvdb_keylock_test, keylock_lock_ctxn_max, mapi_pre, mapi_post)
 {
-    int                     i = 0;
-    int                     num_keys;
-    struct kvdb_keylock *   klock_handle;
+    int i = 0;
+    int num_keys;
+    struct kvdb_keylock *klock_handle;
     struct kvdb_ctxn_locks *locks_handle;
-    merr_t                  err = 0;
+    merr_t err = 0;
 
     err = kvdb_keylock_create(&klock_handle, 16);
     ASSERT_EQ(0, err);
@@ -226,27 +224,27 @@ MTF_DEFINE_UTEST_PREPOST(kvdb_keylock_test, keylock_lock_ctxn_max, mapi_pre, map
 }
 
 struct parallel_lock_arg {
-    struct kvdb_keylock *   klock_handle;
+    struct kvdb_keylock *klock_handle;
     struct kvdb_ctxn_locks *locks_handle;
-    pthread_barrier_t *     lock_barrier;
-    int                     num_hash;
-    atomic_int             *owner_thread;
-    int                     num;
+    pthread_barrier_t *lock_barrier;
+    int num_hash;
+    atomic_int *owner_thread;
+    int num;
 };
 
 void *
 parallel_lock_helper(void *arg)
 {
     struct parallel_lock_arg *p = (struct parallel_lock_arg *)arg;
-    struct kvdb_keylock *     klock_handle = p->klock_handle;
-    struct kvdb_ctxn_locks *  locks_handle = p->locks_handle;
-    pthread_barrier_t *       barrier = p->lock_barrier;
-    int                       num_hash = p->num_hash;
-    int                       num = p->num;
-    atomic_int               *owner_thread = p->owner_thread;
-    merr_t                    err = 0;
-    int                       i;
-    uint64_t                  hash = 0x12345678UL << 32;
+    struct kvdb_keylock *klock_handle = p->klock_handle;
+    struct kvdb_ctxn_locks *locks_handle = p->locks_handle;
+    pthread_barrier_t *barrier = p->lock_barrier;
+    int num_hash = p->num_hash;
+    int num = p->num;
+    atomic_int *owner_thread = p->owner_thread;
+    merr_t err = 0;
+    int i;
+    uint64_t hash = 0x12345678UL << 32;
 
     for (i = 0; i < num_hash; i++) {
         err = kvdb_keylock_lock(klock_handle, locks_handle, hash | i, 0);
@@ -286,16 +284,16 @@ parallel_lock_helper(void *arg)
 
 MTF_DEFINE_UTEST_PREPOST(kvdb_keylock_test, keylock_lock_multiple_ctxn, mapi_pre, mapi_post)
 {
-    const int                num_threads = 32;
-    const int                num_hash = 10000;
-    pthread_t                thread_idv[num_threads];
-    pthread_barrier_t        lock_barrier;
+    const int num_threads = 32;
+    const int num_hash = 10000;
+    pthread_t thread_idv[num_threads];
+    pthread_barrier_t lock_barrier;
     struct parallel_lock_arg argstruct[num_threads];
-    struct kvdb_keylock *    klock_handle;
-    struct kvdb_ctxn_locks * locks_handle[num_threads];
-    atomic_int               owner_thread[10000] = {};
-    merr_t                   err;
-    int                      i, rc;
+    struct kvdb_keylock *klock_handle;
+    struct kvdb_ctxn_locks *locks_handle[num_threads];
+    atomic_int owner_thread[10000] = {};
+    merr_t err;
+    int i, rc;
 
     err = kvdb_keylock_create(&klock_handle, 16);
     ASSERT_EQ(0, err);
@@ -342,24 +340,24 @@ end_ctxn(bool commit, uint64_t *end_seqno)
 }
 
 struct parallel_ctxn_arg {
-    struct kvdb_keylock *   klock_handle;
+    struct kvdb_keylock *klock_handle;
     struct kvdb_ctxn_locks *locks_handle;
-    pthread_barrier_t *     lock_barrier;
-    uint64_t                view_seqno;
-    int                     num;
+    pthread_barrier_t *lock_barrier;
+    uint64_t view_seqno;
+    int num;
 };
 
 void *
 parallel_ctxn_helper(void *arg)
 {
     struct parallel_ctxn_arg *p = (struct parallel_ctxn_arg *)arg;
-    struct kvdb_keylock *     klock_handle = p->klock_handle;
-    struct kvdb_ctxn_locks *  locks_handle = p->locks_handle;
-    uint64_t                  end_seqno, view_seqno, lockcnt = 0;
-    uint64_t                  num_hash = 100;
-    bool                      commit = true;
-    void *                    cookie;
-    int                       i;
+    struct kvdb_keylock *klock_handle = p->klock_handle;
+    struct kvdb_ctxn_locks *locks_handle = p->locks_handle;
+    uint64_t end_seqno, view_seqno, lockcnt = 0;
+    uint64_t num_hash = 100;
+    bool commit = true;
+    void *cookie;
+    int i;
 
     usleep(rand() % 256);
     begin_ctxn(&view_seqno);
@@ -396,13 +394,13 @@ parallel_ctxn_helper(void *arg)
 
 MTF_DEFINE_UTEST_PREPOST(kvdb_keylock_test, multiple_ctxn_end, mapi_pre, mapi_post)
 {
-    const int                num_threads = 96;
-    struct kvdb_keylock *    klock_handle;
-    pthread_t                thread_idv[num_threads];
+    const int num_threads = 96;
+    struct kvdb_keylock *klock_handle;
+    pthread_t thread_idv[num_threads];
     struct parallel_ctxn_arg argstruct[num_threads];
-    struct kvdb_ctxn_locks * locks_handle[num_threads];
-    merr_t                   err;
-    int                      i, rc;
+    struct kvdb_ctxn_locks *locks_handle[num_threads];
+    merr_t err;
+    int i, rc;
 
     atomic_set(&kvdb_seq, 3234UL);
 

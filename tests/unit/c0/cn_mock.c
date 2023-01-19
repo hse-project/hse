@@ -8,18 +8,18 @@
 #include <hse/ikvdb/c0_kvmultiset.h>
 #include <hse/ikvdb/cn.h>
 #include <hse/test/support/random_buffer.h>
-#include <hse/util/platform.h>
 #include <hse/util/event_counter.h>
+#include <hse/util/platform.h>
 
 #include "cn_mock.h"
 
 #define INTEGRITY_CHECK 0x12345678
 
 struct mock_cn {
-    int                 integrity_check;
-    int                 delay_merge;
-    int                 random_release;
-    int                 ingest_count;
+    int integrity_check;
+    int delay_merge;
+    int random_release;
+    int ingest_count;
     struct kvs_cparams *cp;
 
     struct kvs_rparams rp;
@@ -35,7 +35,7 @@ _cn_ingest(struct cn *cn, struct kvset_mblocks *childv, uint64_t txid)
     if (mock_cn->delay_merge) {
 
         struct timespec delay;
-        uint32_t        mmd_delay;
+        uint32_t mmd_delay;
 
         if (mock_cn->random_release)
             mmd_delay = generate_random_u32(1, 2000);
@@ -52,16 +52,16 @@ _cn_ingest(struct cn *cn, struct kvset_mblocks *childv, uint64_t txid)
 
 merr_t
 _cn_ingestv(
-    struct cn **           cn,
+    struct cn **cn,
     struct kvset_mblocks **mbv,
-    uint64_t              *kvsetidv,
-    uint                   ingestc,
-    uint64_t               ingestid,
-    uint64_t               txhorizon,
-    uint64_t              *min_seqno_out,
-    uint64_t              *max_seqno_out)
+    uint64_t *kvsetidv,
+    uint ingestc,
+    uint64_t ingestid,
+    uint64_t txhorizon,
+    uint64_t *min_seqno_out,
+    uint64_t *max_seqno_out)
 {
-    int    i;
+    int i;
     merr_t err = 0;
 
     for (i = 0; !err && i < ingestc; i++) {
@@ -106,20 +106,13 @@ mock_cn_best_ingest_count(struct cn *cn, unsigned avg_key_len)
  * maintenance (will not break when the mocked function signature
  * changes).
  */
-struct mapi_injection inject_list[] = {
-    { mapi_idx_cn_disable_maint, MAPI_RC_SCALAR, 0},
-    { mapi_idx_cn_get_cnid, MAPI_RC_SCALAR, 1},
-    { mapi_idx_cn_disable_maint, MAPI_RC_SCALAR, 0},
-    { -1 }
-};
-
+struct mapi_injection inject_list[] = { { mapi_idx_cn_disable_maint, MAPI_RC_SCALAR, 0 },
+                                        { mapi_idx_cn_get_cnid, MAPI_RC_SCALAR, 1 },
+                                        { mapi_idx_cn_disable_maint, MAPI_RC_SCALAR, 0 },
+                                        { -1 } };
 
 merr_t
-create_mock_cn(
-    struct cn **cn,
-    bool        delay_merge,
-    bool        random_release,
-    uint32_t    pfx_len)
+create_mock_cn(struct cn **cn, bool delay_merge, bool random_release, uint32_t pfx_len)
 {
     struct mock_cn *mock_cn;
 

@@ -12,13 +12,13 @@
 #ifndef HSE_EXPERIMENTAL_H
 #define HSE_EXPERIMENTAL_H
 
-#include <hse/types.h>
-
+#include <limits.h>
 #include <stdbool.h>
 #include <stddef.h>
 #include <stdint.h>
 #include <stdlib.h>
-#include <limits.h>
+
+#include <hse/types.h>
 
 #ifdef __cplusplus
 extern "C" {
@@ -136,18 +136,18 @@ enum hse_kvs_pfx_probe_cnt {
  */
 hse_err_t
 hse_kvs_prefix_probe(
-    struct hse_kvs *            kvs,
-    unsigned int                flags,
-    struct hse_kvdb_txn        *txn,
-    const void *                pfx,
-    size_t                      pfx_len,
+    struct hse_kvs *kvs,
+    unsigned int flags,
+    struct hse_kvdb_txn *txn,
+    const void *pfx,
+    size_t pfx_len,
     enum hse_kvs_pfx_probe_cnt *found,
-    void *                      keybuf,
-    size_t                      keybuf_sz,
-    size_t *                    key_len,
-    void *                      valbuf,
-    size_t                      valbuf_sz,
-    size_t *                    val_len);
+    void *keybuf,
+    size_t keybuf_sz,
+    size_t *key_len,
+    void *valbuf,
+    size_t valbuf_sz,
+    size_t *val_len);
 
 /**@} KVS */
 

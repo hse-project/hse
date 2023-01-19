@@ -5,11 +5,11 @@
 
 #include <stdint.h>
 
+#include <mtf/framework.h>
+
 #include <hse/util/err_ctx.h>
 #include <hse/util/parse_num.h>
 #include <hse/util/storage.h>
-
-#include <mtf/framework.h>
 
 #define HSE_SUCCESS 0
 
@@ -35,7 +35,7 @@ struct test_s64 {
 
     struct {
         merr_t status;
-        int64_t    result;
+        int64_t result;
     } output;
 };
 
@@ -51,42 +51,35 @@ struct test_size {
     } output;
 };
 
-#define DO_TEST(_func, _t, _i, _j, _fmt, _fmtx)                                          \
-    do {                                                                                 \
-        merr_t err;                                                                      \
-        char *endptr;                                                                    \
-        char buf[256];                                                                   \
-                                                                                         \
-        printf(                                                                          \
-            "test[%02d.%d]: %s(\"%s\", use_endptr=\"%s\")\n",                            \
-            _i,                                                                          \
-            _j,                                                                          \
-            #_func,                                                                      \
-            _t->input.str,                                                               \
-            _t->input.endptr ? "yes" : "no");                                            \
-                                                                                         \
-        result = ~_t->output.result;                                                     \
-                                                                                         \
-        err = (*_func)(_t->input.str, _t->input.endptr ? &endptr : NULL, 0, 0, &result); \
-        merr_strinfo(err, buf, sizeof(buf), err_ctx_strerror, NULL);                     \
-                                                                                         \
-        printf(                                                                          \
-            "-> "_fmtx                                                                   \
-            " ("_fmt                                                                     \
-            ") end=\"%s\" %s\n",                                                         \
-            result,                                                                      \
-            result,                                                                      \
-            _t->input.endptr ? endptr : "n/a",                                           \
-            buf);                                                                        \
-                                                                                         \
-        ASSERT_EQ(_t->output.status, merr_errno(err));                                   \
-        if (EINVAL == merr_errno(err))                                                   \
-            ASSERT_EQ(0, result);                                                        \
-        else                                                                             \
-            ASSERT_EQ(_t->output.result, result);                                        \
-                                                                                         \
-        if (_t->input.endptr)                                                            \
-            ASSERT_EQ(*_t->input.endptr, *endptr);                                       \
+#define DO_TEST(_func, _t, _i, _j, _fmt, _fmtx)                                              \
+    do {                                                                                     \
+        merr_t err;                                                                          \
+        char *endptr;                                                                        \
+        char buf[256];                                                                       \
+                                                                                             \
+        printf(                                                                              \
+            "test[%02d.%d]: %s(\"%s\", use_endptr=\"%s\")\n", _i, _j, #_func, _t->input.str, \
+            _t->input.endptr ? "yes" : "no");                                                \
+                                                                                             \
+        result = ~_t->output.result;                                                         \
+                                                                                             \
+        err = (*_func)(_t->input.str, _t->input.endptr ? &endptr : NULL, 0, 0, &result);     \
+        merr_strinfo(err, buf, sizeof(buf), err_ctx_strerror, NULL);                         \
+                                                                                             \
+        printf(                                                                              \
+            "-> "_fmtx                                                                       \
+            " ("_fmt                                                                         \
+            ") end=\"%s\" %s\n",                                                             \
+            result, result, _t->input.endptr ? endptr : "n/a", buf);                         \
+                                                                                             \
+        ASSERT_EQ(_t->output.status, merr_errno(err));                                       \
+        if (EINVAL == merr_errno(err))                                                       \
+            ASSERT_EQ(0, result);                                                            \
+        else                                                                                 \
+            ASSERT_EQ(_t->output.result, result);                                            \
+                                                                                             \
+        if (_t->input.endptr)                                                                \
+            ASSERT_EQ(*_t->input.endptr, *endptr);                                           \
     } while (0)
 
 #define DO_TEST_SIZE(_func, _t, _i, _j, _fmt, _fmtx)                          \
@@ -105,9 +98,7 @@ struct test_size {
             "-> "_fmtx                                                        \
             " ("_fmt                                                          \
             ") %s\n",                                                         \
-            result,                                                           \
-            result,                                                           \
-            buf);                                                             \
+            result, result, buf);                                             \
                                                                               \
         ASSERT_EQ(_t->output.status, merr_errno(err));                        \
         if (EINVAL == merr_errno(err))                                        \
@@ -594,8 +585,8 @@ MTF_DEFINE_UTEST(parse_num_basic, test_parse_s64_range_bounds)
 {
     const char *underflow = "-18446744073709551619";
     const char *overflow = "18446744073709551619";
-    merr_t      err;
-    int64_t         r;
+    merr_t err;
+    int64_t r;
 
     r = 666;
     err = parse_s64_range("8", NULL, -3, 7, &r);
@@ -621,8 +612,8 @@ MTF_DEFINE_UTEST(parse_num_basic, test_parse_s64_range_bounds)
 MTF_DEFINE_UTEST(parse_num_basic, test_parse_u64_range_bounds)
 {
     const char *overflow = "18446744073709551619";
-    merr_t      err;
-    uint64_t    r;
+    merr_t err;
+    uint64_t r;
 
     r = 666;
     err = parse_u64_range("8", NULL, 3, 7, &r);
@@ -648,8 +639,8 @@ MTF_DEFINE_UTEST(parse_num_basic, test_parse_u64_range_bounds)
 MTF_DEFINE_UTEST(parse_num_basic, test_parse_size_range_bounds)
 {
     const char *overflow = "18446744073709551619";
-    merr_t      err;
-    uint64_t    r;
+    merr_t err;
+    uint64_t r;
 
     r = 666;
     err = parse_size_range("8", 3, 7, &r);

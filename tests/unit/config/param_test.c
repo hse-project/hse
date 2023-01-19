@@ -14,18 +14,18 @@ struct test_arr_type {
 };
 
 struct test_params {
-    bool                 test1;
-    uint8_t              test_uint8;
-    uint16_t             test_uint16;
-    uint32_t             test_uint32;
-    uint64_t             test_uint64;
-    size_t               test_size;
-    int                  test_int;
-    int8_t               test_int8;
-    int16_t              test_int16;
-    int32_t              test_int32;
-    int64_t              test_int64;
-    char                 test_string[12];
+    bool test1;
+    uint8_t test_uint8;
+    uint16_t test_uint16;
+    uint32_t test_uint32;
+    uint64_t test_uint64;
+    size_t test_size;
+    int test_int;
+    int8_t test_int8;
+    int16_t test_int16;
+    int32_t test_int32;
+    int64_t test_int64;
+    char test_string[12];
     struct test_arr_type test_array[2];
 
     uint64_t test_uint64a;
@@ -35,12 +35,12 @@ struct test_params {
 
     uint32_t test_uint32a;
 
-    double   test_double;
+    double test_double;
 
 } params;
 
 bool
-relation_validate(const struct param_spec *const ps, const void *const params)
+relation_validate(const struct param_spec * const ps, const void * const params)
 {
     const struct test_params *p = params;
 
@@ -48,9 +48,9 @@ relation_validate(const struct param_spec *const ps, const void *const params)
 }
 
 bool
-array_converter(const struct param_spec *const ps, const cJSON *const node, void *const data)
+array_converter(const struct param_spec * const ps, const cJSON * const node, void * const data)
 {
-    int                   i = 0;
+    int i = 0;
     struct test_arr_type *arr = data;
 
     if (!cJSON_IsArray(node))
@@ -68,7 +68,7 @@ array_converter(const struct param_spec *const ps, const cJSON *const node, void
 }
 
 bool
-array_validator(const struct param_spec *const ps, const void *const data)
+array_validator(const struct param_spec * const ps, const void * const data)
 {
     const struct test_arr_type *arr = data;
 
@@ -76,7 +76,7 @@ array_validator(const struct param_spec *const ps, const void *const data)
 }
 
 void
-array_default_builder(const struct param_spec *const ps, void *const data)
+array_default_builder(const struct param_spec * const ps, void * const data)
 {
     struct test_arr_type *arr = data;
 
@@ -85,7 +85,7 @@ array_default_builder(const struct param_spec *const ps, void *const data)
 }
 
 bool
-array_relation_validate(const struct param_spec *const ps, const void *const params)
+array_relation_validate(const struct param_spec * const ps, const void * const params)
 {
     const struct test_params *p = params;
 
@@ -94,14 +94,14 @@ array_relation_validate(const struct param_spec *const ps, const void *const par
 
 merr_t
 array_stringify(
-    const struct param_spec *const ps,
-    const void *const              value,
-    char *const                    buf,
-    const size_t                   buf_sz,
-    size_t *const                  needed_sz)
+    const struct param_spec * const ps,
+    const void * const value,
+    char * const buf,
+    const size_t buf_sz,
+    size_t * const needed_sz)
 {
     const struct test_arr_type *arr = (struct test_arr_type *)value;
-    int                         n;
+    int n;
 
     n = snprintf(buf, buf_sz, "[{\"field1\": %d}, {\"field1\": %d}]", arr[0].field1, arr[1].field1);
     assert(n >= 0);
@@ -113,7 +113,7 @@ array_stringify(
 }
 
 cJSON *
-array_jsonify(const struct param_spec *const ps, const void *const value)
+array_jsonify(const struct param_spec * const ps, const void * const value)
 {
     cJSON *node;
     const struct test_arr_type *arr;
@@ -540,7 +540,7 @@ test_pre(struct mtf_test_info *ti)
 }
 
 const struct param_spec *
-ps_get(const char *const name)
+ps_get(const char * const name)
 {
     assert(name);
 
@@ -556,19 +556,19 @@ ps_get(const char *const name)
  * Check the validity of various key=value combinations
  */
 merr_t HSE_SENTINEL
-check(const char *const arg, ...)
+check(const char * const arg, ...)
 {
-    merr_t      err;
-    bool        success;
+    merr_t err;
+    bool success;
     const char *a = arg;
-    va_list     ap;
+    va_list ap;
 
     assert(arg);
 
     va_start(ap, arg);
 
     do {
-        const char * paramv[] = { a };
+        const char *paramv[] = { a };
         const size_t paramc = NELEM(paramv);
 
         success = !!va_arg(ap, int);
@@ -611,7 +611,7 @@ MTF_DEFINE_UTEST_PRE(param_test, defaults, test_pre)
 MTF_DEFINE_UTEST_PRE(param_test, param_type_bool, test_pre)
 {
     merr_t err;
-    char   buf[128];
+    char buf[128];
     size_t needed_sz;
 
     const struct param_spec *ps = ps_get("test1");
@@ -636,7 +636,7 @@ MTF_DEFINE_UTEST_PRE(param_test, param_type_bool, test_pre)
 MTF_DEFINE_UTEST_PRE(param_test, param_type_u8, test_pre)
 {
     merr_t err;
-    char   buf[128];
+    char buf[128];
     size_t needed_sz;
 
     const struct param_spec *ps = ps_get("test_uint8");
@@ -665,7 +665,7 @@ MTF_DEFINE_UTEST_PRE(param_test, param_type_u8, test_pre)
 MTF_DEFINE_UTEST_PRE(param_test, param_type_u16, test_pre)
 {
     merr_t err;
-    char   buf[128];
+    char buf[128];
     size_t needed_sz;
 
     const struct param_spec *ps = ps_get("test_uint16");
@@ -694,7 +694,7 @@ MTF_DEFINE_UTEST_PRE(param_test, param_type_u16, test_pre)
 MTF_DEFINE_UTEST_PRE(param_test, param_type_u32, test_pre)
 {
     merr_t err;
-    char   buf[128];
+    char buf[128];
     size_t needed_sz;
 
     const struct param_spec *ps = ps_get("test_uint32");
@@ -723,7 +723,7 @@ MTF_DEFINE_UTEST_PRE(param_test, param_type_u32, test_pre)
 MTF_DEFINE_UTEST_PRE(param_test, param_type_u64, test_pre)
 {
     merr_t err;
-    char   buf[128];
+    char buf[128];
     size_t needed_sz;
 
     const struct param_spec *ps = ps_get("test_uint64");
@@ -753,7 +753,7 @@ MTF_DEFINE_UTEST_PRE(param_test, param_type_u64, test_pre)
 MTF_DEFINE_UTEST_PRE(param_test, param_type_size, test_pre)
 {
     merr_t err;
-    char   buf[128];
+    char buf[128];
     size_t needed_sz;
 
     const struct param_spec *ps = ps_get("test_size");
@@ -793,7 +793,7 @@ MTF_DEFINE_UTEST_PRE(param_test, param_type_size, test_pre)
 MTF_DEFINE_UTEST_PRE(param_test, param_type_int, test_pre)
 {
     merr_t err;
-    char   buf[128];
+    char buf[128];
     size_t needed_sz;
 
     const struct param_spec *ps = ps_get("test_int");
@@ -824,7 +824,7 @@ MTF_DEFINE_UTEST_PRE(param_test, param_type_int, test_pre)
 MTF_DEFINE_UTEST_PRE(param_test, param_type_i8, test_pre)
 {
     merr_t err;
-    char   buf[128];
+    char buf[128];
     size_t needed_sz;
 
     const struct param_spec *ps = ps_get("test_int8");
@@ -853,7 +853,7 @@ MTF_DEFINE_UTEST_PRE(param_test, param_type_i8, test_pre)
 MTF_DEFINE_UTEST_PRE(param_test, param_type_i16, test_pre)
 {
     merr_t err;
-    char   buf[128];
+    char buf[128];
     size_t needed_sz;
 
     const struct param_spec *ps = ps_get("test_int16");
@@ -882,7 +882,7 @@ MTF_DEFINE_UTEST_PRE(param_test, param_type_i16, test_pre)
 MTF_DEFINE_UTEST_PRE(param_test, param_type_i32, test_pre)
 {
     merr_t err;
-    char   buf[128];
+    char buf[128];
     size_t needed_sz;
 
     const struct param_spec *ps = ps_get("test_int32");
@@ -911,7 +911,7 @@ MTF_DEFINE_UTEST_PRE(param_test, param_type_i32, test_pre)
 MTF_DEFINE_UTEST_PRE(param_test, param_type_i64, test_pre)
 {
     merr_t err;
-    char   buf[128];
+    char buf[128];
     size_t needed_sz;
 
     const struct param_spec *ps = ps_get("test_int64");
@@ -940,7 +940,7 @@ MTF_DEFINE_UTEST_PRE(param_test, param_type_i64, test_pre)
 MTF_DEFINE_UTEST_PRE(param_test, param_type_double, test_pre)
 {
     merr_t err;
-    char   buf[128];
+    char buf[128];
     size_t needed_sz;
 
     const struct param_spec *ps = ps_get("test_double");
@@ -951,9 +951,7 @@ MTF_DEFINE_UTEST_PRE(param_test, param_type_double, test_pre)
     ASSERT_STREQ("0.000000", buf);
 
     err = check(
-        "test_double=12", true,
-        "test_double=1.5", true,
-        "test_double=-0.01", true,
+        "test_double=12", true, "test_double=1.5", true, "test_double=-0.01", true,
         "test_double=100.", true,
 
         /* Range checks based on min/max set in param spec.
@@ -967,19 +965,16 @@ MTF_DEFINE_UTEST_PRE(param_test, param_type_double, test_pre)
 
         /* Invalid syntax.
          */
-        "test_double=.1", false,
-        "test_double=9223372036854775808", false,
-        "test_double=wrong", false,
+        "test_double=.1", false, "test_double=9223372036854775808", false, "test_double=wrong",
+        false,
 
         /* These should fail due to invalid syntax, but cJSON parse allows
          * it. Leaving them here as "expect success" so they can be converted to
          * "expect failures" if/when we replace cJSON.
          */
-        "test_double=1.1FOOBAR", true,
-        "test_double=1.1z", true,
+        "test_double=1.1FOOBAR", true, "test_double=1.1z", true,
 
-        NULL
-    );
+        NULL);
 
     ASSERT_EQ(0, merr_errno(err));
 }
@@ -987,7 +982,7 @@ MTF_DEFINE_UTEST_PRE(param_test, param_type_double, test_pre)
 MTF_DEFINE_UTEST_PRE(param_test, param_type_string, test_pre)
 {
     merr_t err;
-    char   buf[128];
+    char buf[128];
     size_t needed_sz;
 
     const struct param_spec *ps = ps_get("test_string");
@@ -1013,7 +1008,7 @@ MTF_DEFINE_UTEST_PRE(param_test, param_type_string, test_pre)
 MTF_DEFINE_UTEST_PRE(param_test, param_type_array, test_pre)
 {
     merr_t err;
-    char   buf[128];
+    char buf[128];
     size_t needed_sz;
 
     const struct param_spec *ps = ps_get("test_array");
@@ -1038,7 +1033,7 @@ MTF_DEFINE_UTEST_PRE(param_test, param_type_array, test_pre)
 MTF_DEFINE_UTEST_PRE(param_test, to_bytes_from_KB, test_pre)
 {
     merr_t err;
-    char   buf[128];
+    char buf[128];
     size_t needed_sz;
 
     const struct param_spec *ps = ps_get("test_uint64a");
@@ -1063,7 +1058,7 @@ MTF_DEFINE_UTEST_PRE(param_test, to_bytes_from_KB, test_pre)
 MTF_DEFINE_UTEST_PRE(param_test, to_bytes_from_MB, test_pre)
 {
     merr_t err;
-    char   buf[128];
+    char buf[128];
     size_t needed_sz;
 
     const struct param_spec *ps = ps_get("test_uint64b");
@@ -1088,7 +1083,7 @@ MTF_DEFINE_UTEST_PRE(param_test, to_bytes_from_MB, test_pre)
 MTF_DEFINE_UTEST_PRE(param_test, to_bytes_from_GB, test_pre)
 {
     merr_t err;
-    char   buf[128];
+    char buf[128];
     size_t needed_sz;
 
     const struct param_spec *ps = ps_get("test_uint64c");
@@ -1113,7 +1108,7 @@ MTF_DEFINE_UTEST_PRE(param_test, to_bytes_from_GB, test_pre)
 MTF_DEFINE_UTEST_PRE(param_test, to_bytes_from_TB, test_pre)
 {
     merr_t err;
-    char   buf[128];
+    char buf[128];
     size_t needed_sz;
 
     const struct param_spec *ps = ps_get("test_uint64d");
@@ -1194,7 +1189,7 @@ MTF_DEFINE_UTEST_PRE(param_test, jsonify, test_pre)
 MTF_DEFINE_UTEST_PRE(param_test, get, test_pre)
 {
     merr_t err;
-    char   buf[128];
+    char buf[128];
     size_t needed_sz;
 
     err = params_get(&params, NELEM(pspecs), pspecs, "test1", buf, sizeof(buf), &needed_sz);

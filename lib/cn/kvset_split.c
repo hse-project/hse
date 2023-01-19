@@ -5,44 +5,42 @@
 
 #include <sys/mman.h>
 
-#include <hse/util/event_counter.h>
-#include <hse/util/assert.h>
-#include <hse/util/keycmp.h>
-#include <hse/logging/logging.h>
-#include <hse/util/perfc.h>
-
 #include <hse/limits.h>
 
 #include <hse/ikvdb/cn.h>
-#include <hse/ikvdb/ikvdb.h>
 #include <hse/ikvdb/cndb.h>
+#include <hse/ikvdb/ikvdb.h>
 #include <hse/ikvdb/kvset_builder.h>
-
+#include <hse/logging/logging.h>
 #include <hse/mpool/mpool.h>
+#include <hse/util/assert.h>
+#include <hse/util/event_counter.h>
+#include <hse/util/keycmp.h>
+#include <hse/util/perfc.h>
 
-#include "kvs_mblk_desc.h"
-#include "kvset.h"
-#include "kvset_split.h"
-#include "kvset_internal.h"
-#include "kblock_builder.h"
-#include "kblock_reader.h"
-#include "vblock_reader.h"
+#include "cn_perfc.h"
+#include "cn_tree.h"
+#include "cn_tree_internal.h"
 #include "hblock_builder.h"
 #include "hblock_reader.h"
-#include "wbt_reader.h"
+#include "kblock_builder.h"
+#include "kblock_reader.h"
+#include "kvs_mblk_desc.h"
+#include "kvset.h"
+#include "kvset_internal.h"
+#include "kvset_split.h"
 #include "omf.h"
-#include "cn_tree.h"
-#include "cn_perfc.h"
-#include "cn_tree_internal.h"
+#include "vblock_reader.h"
 #include "vgmap.h"
+#include "wbt_reader.h"
 
 /**
  * struct kvset_split_work - work struct for kvset split
  */
 struct kvset_split_work {
-    struct hlog           *hlog;    /* composite hlog */
-    struct hblock_builder *hbb;     /* hblock builder */
-    struct vgmap          *vgmap;   /* vgroup map */
+    struct hlog *hlog;          /* composite hlog */
+    struct hblock_builder *hbb; /* hblock builder */
+    struct vgmap *vgmap;        /* vgroup map */
 };
 
 static void
@@ -56,10 +54,7 @@ free_work(struct kvset_split_work work[static 2])
 }
 
 static merr_t
-alloc_work(
-    struct kvset            *ks,
-    struct perfc_set        *pc,
-    struct kvset_split_work  work[static 2])
+alloc_work(struct kvset *ks, struct perfc_set *pc, struct kvset_split_work work[static 2])
 {
     struct cn *cn = cn_tree_get_cn(ks->ks_tree);
     merr_t err;
@@ -109,12 +104,12 @@ errout:
  */
 static merr_t
 kblock_copy_range(
-    struct kblock_desc   *kbd,
+    struct kblock_desc *kbd,
     const struct key_obj *start, /* exclusive */
     const struct key_obj *end,   /* inclusive */
-    struct blk_list      *kblks_out,
-    struct hlog          *hlog,
-    uint64_t             *vused)
+    struct blk_list *kblks_out,
+    struct hlog *hlog,
+    uint64_t *vused)
 {
     struct wbti *wbti = NULL;
     struct kblock_builder *kbb;
@@ -224,11 +219,11 @@ kblock_copy_range(
  */
 static merr_t
 kblock_split(
-    struct kblock_desc    *kbd,
-    const struct key_obj  *split_key,
-    struct blk_list       *kblks,
-    struct hlog           *hlogs[static 2],
-    uint64_t               vused[static 2])
+    struct kblock_desc *kbd,
+    const struct key_obj *split_key,
+    struct blk_list *kblks,
+    struct hlog *hlogs[static 2],
+    uint64_t vused[static 2])
 {
     merr_t err;
 
@@ -298,10 +293,10 @@ get_kblk_split_index(struct kvset *ks, const struct key_obj *split_kobj, bool *o
 
 static merr_t
 kblocks_split(
-    struct kvset            *ks,
-    const struct key_obj    *split_key,
-    struct kvset_split_work  work[static 2],
-    struct kvset_split_res  *result)
+    struct kvset *ks,
+    const struct key_obj *split_key,
+    struct kvset_split_work work[static 2],
+    struct kvset_split_res *result)
 {
     struct hlog *hlog_left = work[LEFT].hlog;
     struct hlog *hlog_right = work[RIGHT].hlog;
@@ -360,7 +355,6 @@ kblocks_split(
 
                 err = blk_list_append(result->ks[LEFT].blks_commit, blkid);
             }
-
         }
 
         for (uint32_t i = 0; i < kblks[RIGHT].idc && !err; i++) {
@@ -413,11 +407,11 @@ kblocks_split(
  */
 static uint16_t
 get_vblk_split_index(
-    struct kvset *const ks,
+    struct kvset * const ks,
     const uint16_t start, /* inclusive */
-    const uint16_t end,  /* inclusive */
-    const struct key_obj *const split_key,
-    bool *const overlap)
+    const uint16_t end,   /* inclusive */
+    const struct key_obj * const split_key,
+    bool * const overlap)
 {
     uint16_t v;
 
@@ -458,11 +452,11 @@ get_vblk_split_index(
  */
 static merr_t
 vblocks_split(
-    struct kvset            *ks,
-    const struct key_obj    *split_key,
-    struct kvset_split_work  work[static 2],
-    struct perfc_set        *pc,
-    struct kvset_split_res  *result)
+    struct kvset *ks,
+    const struct key_obj *split_key,
+    struct kvset_split_work work[static 2],
+    struct perfc_set *pc,
+    struct kvset_split_res *result)
 {
     struct vgmap *vgmap_src = ks->ks_vgmap;
     struct vgmap *vgmap_left = work[LEFT].vgmap;
@@ -606,7 +600,7 @@ vblocks_split(
  */
 static merr_t
 hblock_split(
-    struct kvset           *ks,
+    struct kvset *ks,
     struct kvset_split_work work[static 2],
     struct kvset_split_res *result)
 {
@@ -633,19 +627,19 @@ hblock_split(
      * to the purge list.
      */
     if (blks_left->kblks.idc > 0 || ptree) {
-        err = hbb_finish(work[LEFT].hbb, &blks_left->hblk_id, work[LEFT].vgmap, &min_pfx, &max_pfx,
-                         min_seqno, max_seqno, blks_left->kblks.idc, blks_left->vblks.idc,
-                         num_ptombs, hlog_data(work[LEFT].hlog),
-                         ptree, &ks->ks_hblk.kh_ptree_desc, ptree_pgc);
+        err = hbb_finish(
+            work[LEFT].hbb, &blks_left->hblk_id, work[LEFT].vgmap, &min_pfx, &max_pfx, min_seqno,
+            max_seqno, blks_left->kblks.idc, blks_left->vblks.idc, num_ptombs,
+            hlog_data(work[LEFT].hlog), ptree, &ks->ks_hblk.kh_ptree_desc, ptree_pgc);
         if (!err)
             err = blk_list_append(result->ks[LEFT].blks_commit, blks_left->hblk_id);
     }
 
     if (!err && (blks_right->kblks.idc > 0 || ptree)) {
-        err = hbb_finish(work[RIGHT].hbb, &blks_right->hblk_id, work[RIGHT].vgmap, &min_pfx, &max_pfx,
-                         min_seqno, max_seqno, blks_right->kblks.idc, blks_right->vblks.idc,
-                         num_ptombs, hlog_data(work[RIGHT].hlog),
-                         ptree, &ks->ks_hblk.kh_ptree_desc, ptree_pgc);
+        err = hbb_finish(
+            work[RIGHT].hbb, &blks_right->hblk_id, work[RIGHT].vgmap, &min_pfx, &max_pfx, min_seqno,
+            max_seqno, blks_right->kblks.idc, blks_right->vblks.idc, num_ptombs,
+            hlog_data(work[RIGHT].hlog), ptree, &ks->ks_hblk.kh_ptree_desc, ptree_pgc);
         if (!err)
             err = blk_list_append(result->ks[RIGHT].blks_commit, blks_right->hblk_id);
     }
@@ -655,9 +649,9 @@ hblock_split(
 
 static merr_t
 kvset_split(
-    struct kvset           *ks,
-    const struct key_obj   *split_key,
-    struct perfc_set       *pc,
+    struct kvset *ks,
+    const struct key_obj *split_key,
+    struct perfc_set *pc,
     struct kvset_split_res *result)
 {
     struct kvset_split_work work[2] = { 0 };

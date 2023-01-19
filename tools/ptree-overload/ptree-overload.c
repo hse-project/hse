@@ -13,9 +13,10 @@
 #include <sysexits.h>
 #include <unistd.h>
 
+#include <hse/hse.h>
+
 #include <hse/cli/param.h>
 #include <hse/cli/program.h>
-#include <hse/hse.h>
 
 #include "kvs_helper.h"
 
@@ -42,8 +43,7 @@ dostuff(void *arg)
         uint64_t *k = (uint64_t *)key;
 
         *k = htole64(i);
-        rc = hse_kvs_put(targ->kvs, 0, NULL, key, sizeof(key),
-                         key, sizeof(key));
+        rc = hse_kvs_put(targ->kvs, 0, NULL, key, sizeof(key), key, sizeof(key));
         if (rc) {
             killthreads = 1;
             fprintf(stderr, "Failed to put key: %d\n", rc);
@@ -73,7 +73,7 @@ dostuff(void *arg)
 void
 syntax(const char *fmt, ...)
 {
-    char    msg[256];
+    char msg[256];
     va_list ap;
 
     va_start(ap, fmt);
@@ -104,13 +104,13 @@ int
 main(int argc, char **argv)
 {
     struct parm_groups *pg = NULL;
-    struct svec         hse_gparms = { 0 };
-    struct svec         kvdb_oparms = { 0 };
-    struct svec         kvs_cparms = { 0 };
-    struct svec         kvs_oparms = { 0 };
-    const char         *mpool, *kvs, *config = NULL;
-    int                 c;
-    int                 rc;
+    struct svec hse_gparms = { 0 };
+    struct svec kvdb_oparms = { 0 };
+    struct svec kvs_cparms = { 0 };
+    struct svec kvs_oparms = { 0 };
+    const char *mpool, *kvs, *config = NULL;
+    int c;
+    int rc;
 
     progname_set(argv[0]);
 
@@ -164,7 +164,7 @@ main(int argc, char **argv)
     }
 
     mpool = argv[optind++];
-    kvs   = argv[optind++];
+    kvs = argv[optind++];
 
     rc = pg_parse_argv(pg, argc, argv, &optind);
     switch (rc) {
@@ -173,8 +173,7 @@ main(int argc, char **argv)
             fatal(0, "unknown parameter: %s", argv[optind]);
         break;
     case EINVAL:
-        fatal(0, "missing group name (e.g. %s) before parameter %s\n",
-              PG_KVDB_OPEN, argv[optind]);
+        fatal(0, "missing group name (e.g. %s) before parameter %s\n", PG_KVDB_OPEN, argv[optind]);
         break;
     default:
         fatal(rc, "error processing parameter %s\n", argv[optind]);
@@ -192,7 +191,7 @@ main(int argc, char **argv)
 
     kh_register_kvs(kvs, 0, &kvs_cparms, &kvs_oparms, &dostuff, 0);
 
-    while(!killthreads)
+    while (!killthreads)
         sleep(1);
 
     kh_wait();

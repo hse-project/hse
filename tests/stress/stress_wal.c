@@ -8,25 +8,26 @@
 #include <getopt.h>
 #include <limits.h>
 #include <pthread.h>
-#include <stdatomic.h>
 #include <stdarg.h>
+#include <stdatomic.h>
 #include <stdint.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
-#include <sys/mman.h>
-#include <sys/time.h>
-#include <sys/types.h>
-#include <sys/wait.h>
 #include <sysexits.h>
 #include <time.h>
 #include <unistd.h>
 
 #include <bsd/string.h>
+#include <sys/mman.h>
+#include <sys/time.h>
+#include <sys/types.h>
+#include <sys/wait.h>
+
+#include <hse/hse.h>
 
 #include <hse/cli/program.h>
 #include <hse/error/merr.h>
-#include <hse/hse.h>
 #include <hse/test/fixtures/scratch_directory.h>
 #include <hse/util/compiler.h>
 #include <hse/util/err_ctx.h>
@@ -56,33 +57,33 @@ atomic_int verification_failure_count;
 
 struct txn_info {
     struct hse_kvdb_txn *txn;
-    struct hse_kvs *     kvs;
+    struct hse_kvs *kvs;
 };
 
 struct test_params {
-    char             kvdb_home[PATH_MAX];
-    char *           kvdb_name;
-    char *           kvs_name;
-    long int         key_count;
-    int              val_size;
-    int              thread_count;
-    int              shutdown_type;
-    int              sleep_after_load_ms;
-    int              sync;
-    int              key_size;
-    int              transaction;
-    int              variable_key_size;
-    int              variable_val_size;
-    int              wal_disable;
-    int              transaction_count;
-    long int         key_count_per_thread;
-    long int         transactions_per_thread;
-    struct hse_kvs * kvs;
+    char kvdb_home[PATH_MAX];
+    char *kvdb_name;
+    char *kvs_name;
+    long int key_count;
+    int val_size;
+    int thread_count;
+    int shutdown_type;
+    int sleep_after_load_ms;
+    int sync;
+    int key_size;
+    int transaction;
+    int variable_key_size;
+    int variable_val_size;
+    int wal_disable;
+    int transaction_count;
+    long int key_count_per_thread;
+    long int transactions_per_thread;
+    struct hse_kvs *kvs;
     struct hse_kvdb *kvdb;
-    int              rank;                   /* thread specific */
-    long int         thread_start_key_index; /* thread specific */
-    char             data[MAX_VAL_LEN];
-    char             data2[MAX_VAL_LEN]; /* alternate data if -p and -q specified */
+    int rank;                        /* thread specific */
+    long int thread_start_key_index; /* thread specific */
+    char data[MAX_VAL_LEN];
+    char data2[MAX_VAL_LEN]; /* alternate data if -p and -q specified */
 };
 
 void
@@ -111,23 +112,23 @@ print_usage(void)
 void *
 do_inserts(void *args)
 {
-    struct test_params * params = (struct test_params *)args;
-    long int             txn_idx, i, key_index_offset;
-    long int             keys_per_txn;
-    long int             transactions_per_thread;
+    struct test_params *params = (struct test_params *)args;
+    long int txn_idx, i, key_index_offset;
+    long int keys_per_txn;
+    long int transactions_per_thread;
     struct hse_kvdb_txn *txn;
-    struct hse_kvs *     kvs;
-    char                 kvs_name[31];
-    int                  key_len;
-    int                  val_len;
-    char                 key_buf[MAX_KEY_LEN];
-    char                 val_buf[MAX_VAL_LEN];
-    hse_err_t            err;
-    unsigned int         flags;
-    char *               expected_val_data;
-    char                 msg[100];
-    int                  status;
-    int                  transactions_enable;
+    struct hse_kvs *kvs;
+    char kvs_name[31];
+    int key_len;
+    int val_len;
+    char key_buf[MAX_KEY_LEN];
+    char val_buf[MAX_VAL_LEN];
+    hse_err_t err;
+    unsigned int flags;
+    char *expected_val_data;
+    char msg[100];
+    int status;
+    int transactions_enable;
     struct txn_info *txn_table;
 
     if (params->transaction) {
@@ -179,10 +180,7 @@ do_inserts(void *args)
                 hse_strerror(err, msg, sizeof(msg));
                 log_error(
                     "hse_kvdb_txn_begin: errno=%d msg=\"%s\" rank=%d txn=%ld",
-                    hse_err_to_errno(err),
-                    msg,
-                    params->rank,
-                    txn_idx);
+                    hse_err_to_errno(err), msg, params->rank, txn_idx);
 
                 hse_kvdb_txn_free(params->kvdb, txn);
                 log_debug("hse_kvdb_txn_free: rank=%d txn=%ld", params->rank, txn_idx);
@@ -212,14 +210,8 @@ do_inserts(void *args)
             }
 
             generate_record(
-                key_buf,
-                sizeof(key_buf),
-                val_buf,
-                sizeof(val_buf),
-                key_len,
-                val_len,
-                expected_val_data,
-                i);
+                key_buf, sizeof(key_buf), val_buf, sizeof(val_buf), key_len, val_len,
+                expected_val_data, i);
 
             if (params->transaction) {
                 err = hse_kvs_put(kvs, flags, txn, key_buf, key_len, val_buf, val_len);
@@ -227,11 +219,7 @@ do_inserts(void *args)
                     hse_strerror(err, msg, sizeof(msg));
                     log_error(
                         "hse_kvs_put: errno=%d msg=\"%s\" rank=%d txn=%ld key=\"%s\"",
-                        hse_err_to_errno(err),
-                        msg,
-                        params->rank,
-                        txn_idx,
-                        key_buf);
+                        hse_err_to_errno(err), msg, params->rank, txn_idx, key_buf);
                     ++error_count;
                     goto clean_up;
                 } else {
@@ -244,10 +232,7 @@ do_inserts(void *args)
                     hse_strerror(err, msg, sizeof(msg));
                     log_error(
                         "hse_kvs_put: errno=%d msg=\"%s\" rank=%d key=\"%s\"",
-                        hse_err_to_errno(err),
-                        msg,
-                        params->rank,
-                        key_buf);
+                        hse_err_to_errno(err), msg, params->rank, key_buf);
                     ++error_count;
                     goto clean_up;
                 } else {
@@ -271,10 +256,7 @@ clean_up:
                     hse_strerror(err, msg, sizeof(msg));
                     log_error(
                         "hse_kvdb_txn_abort: errno=%d msg=\"%s\" rank=%d txn=%ld",
-                        hse_err_to_errno(err),
-                        msg,
-                        params->rank,
-                        txn_idx);
+                        hse_err_to_errno(err), msg, params->rank, txn_idx);
                     ++error_count;
                 } else {
                     log_debug("hse_kvdb_txn_abort: rank=%d txn=%ld", params->rank, txn_idx);
@@ -285,10 +267,7 @@ clean_up:
                     hse_strerror(err, msg, sizeof(msg));
                     log_error(
                         "hse_kvdb_txn_commit: errno=%d msg=\"%s\" rank=%d txn=%ld",
-                        hse_err_to_errno(err),
-                        msg,
-                        params->rank,
-                        txn_idx);
+                        hse_err_to_errno(err), msg, params->rank, txn_idx);
                     ++error_count;
                 } else {
                     log_debug("hse_kvdb_txn_commit: rank=%d txn=%ld", params->rank, txn_idx);
@@ -306,10 +285,7 @@ clean_up:
                     hse_strerror(err, msg, sizeof(msg));
                     log_error(
                         "hse_kvdb_kvs_close: errno=%d msg=\"%s\" rank=%d txn=%ld",
-                        hse_err_to_errno(err),
-                        msg,
-                        params->rank,
-                        txn_idx);
+                        hse_err_to_errno(err), msg, params->rank, txn_idx);
                     ++error_count;
                 } else {
                     log_info("hse_kvdb_kvs_close: rank=%d txn=%ld", params->rank, txn_idx);
@@ -327,22 +303,22 @@ void *
 verify_records(void *args)
 {
     struct test_params *params = (struct test_params *)args;
-    long int            txn_idx, i, key_index_offset;
-    long int            keys_per_txn;
-    long int            transactions_per_thread;
-    char                kvs_name[31];
-    struct hse_kvs *    kvs;
-    int                 key_len;
-    int                 val_len;
-    char                key_buf[MAX_KEY_LEN];
-    char                val_buf[MAX_VAL_LEN];
-    bool                found = false;
-    size_t              vlen;
-    hse_err_t           err;
-    char                expected_key_buf[MAX_KEY_LEN];
-    char                expected_val_buf[MAX_VAL_LEN];
-    char *              expected_val_data;
-    char                msg[100];
+    long int txn_idx, i, key_index_offset;
+    long int keys_per_txn;
+    long int transactions_per_thread;
+    char kvs_name[31];
+    struct hse_kvs *kvs;
+    int key_len;
+    int val_len;
+    char key_buf[MAX_KEY_LEN];
+    char val_buf[MAX_VAL_LEN];
+    bool found = false;
+    size_t vlen;
+    hse_err_t err;
+    char expected_key_buf[MAX_KEY_LEN];
+    char expected_val_buf[MAX_VAL_LEN];
+    char *expected_val_data;
+    char msg[100];
 
     key_index_offset = params->thread_start_key_index;
     kvs = params->kvs;
@@ -365,19 +341,13 @@ verify_records(void *args)
                 hse_strerror(err, msg, sizeof(msg));
                 log_error(
                     "hse_kvdb_kvs_open: errno=%d msg=\"%s\" kvs_name=\"%s\" rank=%d txn_idx=%ld",
-                    hse_err_to_errno(err),
-                    msg,
-                    kvs_name,
-                    params->rank,
-                    txn_idx);
+                    hse_err_to_errno(err), msg, kvs_name, params->rank, txn_idx);
                 ++error_count;
                 break;
             } else {
                 log_debug(
-                    "hse_kvdb_kvs_open: kvs_name=\"%s\" rank=%d txn_idx=%ld",
-                    kvs_name,
-                    params->rank,
-                    txn_idx);
+                    "hse_kvdb_kvs_open: kvs_name=\"%s\" rank=%d txn_idx=%ld", kvs_name,
+                    params->rank, txn_idx);
             }
         }
 
@@ -393,14 +363,8 @@ verify_records(void *args)
             }
 
             generate_record(
-                expected_key_buf,
-                sizeof(expected_key_buf),
-                expected_val_buf,
-                sizeof(expected_val_buf),
-                key_len,
-                val_len,
-                expected_val_data,
-                i);
+                expected_key_buf, sizeof(expected_key_buf), expected_val_buf,
+                sizeof(expected_val_buf), key_len, val_len, expected_val_data, i);
 
             err = hse_kvs_get(
                 kvs, 0, NULL, expected_key_buf, key_len, &found, val_buf, val_len, &vlen);
@@ -409,18 +373,12 @@ verify_records(void *args)
                 hse_strerror(err, msg, sizeof(msg));
                 log_error(
                     "hse_kvs_get: errno=%d msg=\"%s\" rank=%d txn_idx=%ld key_idx=%ld",
-                    hse_err_to_errno(err),
-                    msg,
-                    params->rank,
-                    txn_idx,
-                    i);
+                    hse_err_to_errno(err), msg, params->rank, txn_idx, i);
                 ++error_count;
                 break;
             } else {
                 log_debug(
-                    "hse_kvs_get: rank=%d txn_idx=%ld key=\"%s\"",
-                    params->rank,
-                    txn_idx,
+                    "hse_kvs_get: rank=%d txn_idx=%ld key=\"%s\"", params->rank, txn_idx,
                     expected_key_buf);
             }
 
@@ -430,16 +388,12 @@ verify_records(void *args)
                 if (found && !should_find) {
                     log_error(
                         "hse_kvs_get: aborted txn key found rank=%d key_idx=%ld key=\"%s\"",
-                        params->rank,
-                        i,
-                        expected_key_buf);
+                        params->rank, i, expected_key_buf);
                     aborted_txn_found_count++;
                     break;
                 } else if (!found && should_find) {
                     log_error(
-                        "hse_kvs_get: key missing rank=%d key_idx=%ld key=\"%s\"",
-                        params->rank,
-                        i,
+                        "hse_kvs_get: key missing rank=%d key_idx=%ld key=\"%s\"", params->rank, i,
                         expected_key_buf);
                     verification_failure_count++;
                     break;
@@ -450,9 +404,7 @@ verify_records(void *args)
             } else {
                 if (!found) {
                     log_error(
-                        "hse_kvs_get: key missing rank=%d key_idx=%ld key=\"%s\"",
-                        params->rank,
-                        i,
+                        "hse_kvs_get: key missing rank=%d key_idx=%ld key=\"%s\"", params->rank, i,
                         expected_key_buf);
                     verification_failure_count++;
                     break;
@@ -463,18 +415,14 @@ verify_records(void *args)
                 log_error(
                     "FAILED value length verfication: "
                     "actual_val_len=%ld expected_val_len=%d",
-                    vlen,
-                    params->val_size);
+                    vlen, params->val_size);
                 ++verification_failure_count;
                 break;
             } else if (memcmp(expected_val_buf, val_buf, val_len) != 0) {
                 log_error(
                     "FAILED value verification: key_idx=%ld "
                     "key=\"%s\" value=\"%s\" expected_value=\"%s\"",
-                    i,
-                    key_buf,
-                    val_buf,
-                    expected_val_buf);
+                    i, key_buf, val_buf, expected_val_buf);
                 ++verification_failure_count;
                 break;
             }
@@ -487,18 +435,12 @@ verify_records(void *args)
                 hse_strerror(err, msg, sizeof(msg));
                 log_error(
                     "hse_kvdb_kvs_close: errno=%d msg=\"%s\" kvs_name=\"%s\" rank=%d txn_idx=%ld",
-                    hse_err_to_errno(err),
-                    msg,
-                    kvs_name,
-                    params->rank,
-                    txn_idx);
+                    hse_err_to_errno(err), msg, kvs_name, params->rank, txn_idx);
                 ++error_count;
             } else {
                 log_debug(
-                    "hse_kvdb_kvs_close: kvs_name=\"%s\" rank=%d txn_idx=%ld",
-                    kvs_name,
-                    params->rank,
-                    txn_idx);
+                    "hse_kvdb_kvs_close: kvs_name=\"%s\" rank=%d txn_idx=%ld", kvs_name,
+                    params->rank, txn_idx);
             }
         }
 
@@ -514,11 +456,11 @@ verify_records(void *args)
 void
 spawn_threads(struct test_params *params, void *thread_fun, char *fun_name)
 {
-    pthread_t          thread_info[MAX_THREAD];
+    pthread_t thread_info[MAX_THREAD];
     struct test_params args[MAX_THREAD];
-    int                thread;
-    char               buf[100];
-    int                pthread_errno;
+    int thread;
+    char buf[100];
+    int pthread_errno;
 
     log_info("spawning %d thread(s), fun_name=\"%s\"", params->thread_count, fun_name);
 
@@ -553,7 +495,7 @@ spawn_threads(struct test_params *params, void *thread_fun, char *fun_name)
 int
 do_sync(struct test_params *params)
 {
-    char      msg[100];
+    char msg[100];
     hse_err_t err;
 
     log_info("begin sync kvdb \"%s\"", params->kvdb_home);
@@ -573,7 +515,7 @@ do_sync(struct test_params *params)
 int
 do_close(struct test_params *params)
 {
-    char      msg[100];
+    char msg[100];
     hse_err_t err;
 
     print_storage_info(params->kvdb);
@@ -600,9 +542,9 @@ do_close(struct test_params *params)
 int
 execute_test(struct test_params *params, int argc, char *argv[])
 {
-    int       status;
-    int       transactions_enable = 0;
-    pid_t     pid;
+    int status;
+    int transactions_enable = 0;
+    pid_t pid;
     hse_err_t err;
 
     srand(time(NULL));
@@ -629,14 +571,8 @@ execute_test(struct test_params *params, int argc, char *argv[])
         }
 
         status = create_or_open_kvdb_and_kvs(
-            params->kvdb_home,
-            params->kvs_name,
-            &params->kvdb,
-            &params->kvs,
-            true,
-            params->wal_disable,
-            0,
-            transactions_enable);
+            params->kvdb_home, params->kvs_name, &params->kvdb, &params->kvs, true,
+            params->wal_disable, 0, transactions_enable);
 
         if (status)
             exit(EXIT_FAILURE);
@@ -693,14 +629,8 @@ execute_test(struct test_params *params, int argc, char *argv[])
     }
 
     status = create_or_open_kvdb_and_kvs(
-        params->kvdb_home,
-        params->kvs_name,
-        &params->kvdb,
-        &params->kvs,
-        false,
-        params->wal_disable,
-        0,
-        transactions_enable);
+        params->kvdb_home, params->kvs_name, &params->kvdb, &params->kvs, false,
+        params->wal_disable, 0, transactions_enable);
 
     if (status) {
         return 1;
@@ -803,9 +733,9 @@ validate_arguments(struct test_params *params)
 int
 main(int argc, char *argv[])
 {
-    int                option = 0;
+    int option = 0;
     struct test_params params;
-    int                status;
+    int status;
 
     memset(&params, 0, sizeof(params));
     params.kvs_name = "kvs1";
@@ -815,77 +745,77 @@ main(int argc, char *argv[])
 
     while ((option = getopt(argc, argv, "b:c:C:e:i:n:o:p:t:q:r:s:u:v:y:")) != -1) {
         switch (option) {
-            case 'b':
-                params.key_size = atoi(optarg);
-                break;
+        case 'b':
+            params.key_size = atoi(optarg);
+            break;
 
-            case 'c':
-                params.key_count = atoi(optarg);
-                break;
+        case 'c':
+            params.key_count = atoi(optarg);
+            break;
 
-            case 'C': {
-                size_t n;
+        case 'C': {
+            size_t n;
 
-                n = strlcpy(params.kvdb_home, optarg, sizeof(params.kvdb_home));
-                if (n >= sizeof(params.kvdb_home)) {
-                    fprintf(stderr, "KVDB home directory too long\n");
-                    return EX_USAGE;
-                }
-
-                break;
+            n = strlcpy(params.kvdb_home, optarg, sizeof(params.kvdb_home));
+            if (n >= sizeof(params.kvdb_home)) {
+                fprintf(stderr, "KVDB home directory too long\n");
+                return EX_USAGE;
             }
 
-            case 'e':
-                params.shutdown_type = atoi(optarg);
-                break;
+            break;
+        }
 
-            case 'i':
-                params.sync = atoi(optarg);
-                break;
+        case 'e':
+            params.shutdown_type = atoi(optarg);
+            break;
 
-            case 'n':
-                params.kvs_name = optarg;
-                break;
+        case 'i':
+            params.sync = atoi(optarg);
+            break;
 
-            case 'o':
-                params.thread_count = atoi(optarg);
-                break;
+        case 'n':
+            params.kvs_name = optarg;
+            break;
 
-            case 'p':
-                params.variable_key_size = atoi(optarg);
-                break;
+        case 'o':
+            params.thread_count = atoi(optarg);
+            break;
 
-            case 't':
-                params.transaction = atoi(optarg);
-                break;
+        case 'p':
+            params.variable_key_size = atoi(optarg);
+            break;
 
-            case 'q':
-                params.variable_val_size = atoi(optarg);
-                break;
+        case 't':
+            params.transaction = atoi(optarg);
+            break;
 
-            case 'r':
-                params.wal_disable = atoi(optarg);
-                break;
+        case 'q':
+            params.variable_val_size = atoi(optarg);
+            break;
 
-            case 's':
-                params.transaction_count = atoi(optarg);
-                break;
+        case 'r':
+            params.wal_disable = atoi(optarg);
+            break;
 
-            case 'u':
-                DEBUG = atoi(optarg);
-                break;
+        case 's':
+            params.transaction_count = atoi(optarg);
+            break;
 
-            case 'v':
-                params.val_size = atoi(optarg);
-                break;
+        case 'u':
+            DEBUG = atoi(optarg);
+            break;
 
-            case 'y':
-                params.sleep_after_load_ms = atoi(optarg);
-                break;
+        case 'v':
+            params.val_size = atoi(optarg);
+            break;
 
-            default:
-                print_usage();
-                exit(EXIT_FAILURE);
+        case 'y':
+            params.sleep_after_load_ms = atoi(optarg);
+            break;
+
+        default:
+            print_usage();
+            exit(EXIT_FAILURE);
         }
     }
 
@@ -900,8 +830,9 @@ main(int argc, char *argv[])
 
         err = scratch_directory_setup(progname, params.kvdb_home, sizeof(params.kvdb_home));
         if (err) {
-            fprintf(stderr, "%s: Failed to setup scratch directory: %s",
-                progname, merr_strinfo(err, buf, sizeof(buf), err_ctx_strerror, NULL));
+            fprintf(
+                stderr, "%s: Failed to setup scratch directory: %s", progname,
+                merr_strinfo(err, buf, sizeof(buf), err_ctx_strerror, NULL));
             return EX_CANTCREAT;
         }
     }
@@ -918,8 +849,7 @@ main(int argc, char *argv[])
     log_info("thread_count                  = %d", params.thread_count);
     log_info("transaction_count             = %d", params.transaction_count);
     log_info(
-        "transaction                   = %d [%s]",
-        params.transaction,
+        "transaction                   = %d [%s]", params.transaction,
         test_names[params.transaction]);
     log_info("shutdown_type                 = %d", params.shutdown_type);
     log_info("sleep_after_load_ms           = %d", params.sleep_after_load_ms);

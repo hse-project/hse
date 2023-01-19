@@ -10,9 +10,9 @@
 
 #include <cjson/cJSON.h>
 
-#include <hse/util/compiler.h>
 #include <hse/error/merr.h>
 #include <hse/mpool/mpool_structs.h>
+#include <hse/util/compiler.h>
 
 struct kvdb_cparams {
     struct mpool_cparams storage;
@@ -30,10 +30,10 @@ kvdb_cparams_resolve(struct kvdb_cparams *params, const char *home, bool pmem_on
 merr_t
 kvdb_cparams_get(
     const struct kvdb_cparams *params,
-    const char *               param,
-    char *                     buf,
-    size_t                     buf_sz,
-    size_t *                   needed_sz);
+    const char *param,
+    char *buf,
+    size_t buf_sz,
+    size_t *needed_sz);
 
 /**
  * Deserialize list of key=value parameters to KVDB cparams
@@ -47,10 +47,7 @@ kvdb_cparams_get(
  * @retval !0 failure
  */
 merr_t
-kvdb_cparams_from_paramv(
-    struct kvdb_cparams *params,
-    size_t               paramc,
-    const char *const *  paramv);
+kvdb_cparams_from_paramv(struct kvdb_cparams *params, size_t paramc, const char * const *paramv);
 
 cJSON *
 kvdb_cparams_to_json(const struct kvdb_cparams *params);

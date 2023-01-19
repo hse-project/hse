@@ -5,25 +5,24 @@
 #ifndef HSE_WAL_H
 #define HSE_WAL_H
 
-#include <hse/mpool/mpool.h>
-
 #include <hse/ikvdb/ikvdb.h>
 #include <hse/ikvdb/kvs.h>
 #include <hse/ikvdb/tuple.h>
+#include <hse/mpool/mpool.h>
 
-#define HSE_WAL_DUR_MS_MIN         (1)
-#define HSE_WAL_DUR_MS_DFLT        (100)
-#define HSE_WAL_DUR_MS_MAX         (1000)
+#define HSE_WAL_DUR_MS_MIN  (1)
+#define HSE_WAL_DUR_MS_DFLT (100)
+#define HSE_WAL_DUR_MS_MAX  (1000)
 
 /* Durability size threshold for all wal buffers combined */
-#define HSE_WAL_DUR_SIZE_BYTES_MIN     (32 * 1024u)
-#define HSE_WAL_DUR_SIZE_BYTES_DFLT    (8 * 1024 * 1024u)
-#define HSE_WAL_DUR_SIZE_BYTES_MAX     (128 * 1024 * 1024u)
+#define HSE_WAL_DUR_SIZE_BYTES_MIN  (32 * 1024u)
+#define HSE_WAL_DUR_SIZE_BYTES_DFLT (8 * 1024 * 1024u)
+#define HSE_WAL_DUR_SIZE_BYTES_MAX  (128 * 1024 * 1024u)
 
 /* Per wal buffer size */
-#define HSE_WAL_DUR_BUFSZ_MB_MIN   (256ul)
-#define HSE_WAL_DUR_BUFSZ_MB_DFLT  (4096ul)
-#define HSE_WAL_DUR_BUFSZ_MB_MAX   (8192ul)
+#define HSE_WAL_DUR_BUFSZ_MB_MIN  (256ul)
+#define HSE_WAL_DUR_BUFSZ_MB_DFLT (4096ul)
+#define HSE_WAL_DUR_BUFSZ_MB_MAX  (8192ul)
 
 struct wal;
 struct throttle_sensor;
@@ -31,20 +30,20 @@ struct throttle_sensor;
 /* MTF_MOCK_DECL(wal) */
 
 struct wal_record {
-    void    *recbuf;
+    void *recbuf;
     uint64_t offset;
-    uint     wbidx;
-    size_t   len;
-    int64_t  cookie;
+    uint wbidx;
+    size_t len;
+    int64_t cookie;
 };
 
 struct wal_replay_info {
-    uint64_t  mdcid1;
-    uint64_t  mdcid2;
-    uint64_t  gen;
-    uint64_t  seqno;
-    uint64_t  txhorizon;
-    bool      replay_force;
+    uint64_t mdcid1;
+    uint64_t mdcid2;
+    uint64_t gen;
+    uint64_t seqno;
+    uint64_t txhorizon;
+    bool replay_force;
 };
 
 /* MTF_MOCK */
@@ -58,12 +57,12 @@ wal_destroy(struct mpool *mp, uint64_t mdcid1, uint64_t mdcid2);
 /* MTF_MOCK */
 merr_t
 wal_open(
-    struct mpool           *mp,
-    struct kvdb_rparams    *rp,
+    struct mpool *mp,
+    struct kvdb_rparams *rp,
     struct wal_replay_info *rinfo,
-    struct ikvdb           *ikdb,
-    struct kvdb_health     *health,
-    struct wal            **wal_out);
+    struct ikvdb *ikdb,
+    struct kvdb_health *health,
+    struct wal **wal_out);
 
 /* MTF_MOCK */
 void
@@ -115,10 +114,10 @@ wal_op_finish(struct wal *wal, struct wal_record *rec, uint64_t seqno, uint64_t 
 void
 wal_cningest_cb(
     struct wal *wal,
-    uint64_t    seqno,
-    uint64_t    gen,
-    uint64_t    txhorizon,
-    bool        post_ingest);
+    uint64_t seqno,
+    uint64_t gen,
+    uint64_t txhorizon,
+    bool post_ingest);
 
 void
 wal_bufrel_cb(struct wal *wal, uint64_t gen);

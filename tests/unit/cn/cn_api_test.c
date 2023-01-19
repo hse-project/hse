@@ -3,17 +3,17 @@
  * Copyright (C) 2015-2022 Micron Technology, Inc.  All rights reserved.
  */
 
-#include <mtf/framework.h>
-#include <hse/ikvdb/kvs.h>
-#include <hse/ikvdb/cn.h>
-#include <hse/ikvdb/cn_kvdb.h>
-#include <hse/ikvdb/kvdb_health.h>
-#include <hse/mpool/mpool.h>
-
 #include <cn/cn_internal.h>
 #include <cn/cn_tree.h>
 #include <cn/cn_tree_compact.h>
 #include <kvdb/kvdb_kvs.h>
+#include <mtf/framework.h>
+
+#include <hse/ikvdb/cn.h>
+#include <hse/ikvdb/cn_kvdb.h>
+#include <hse/ikvdb/kvdb_health.h>
+#include <hse/ikvdb/kvs.h>
+#include <hse/mpool/mpool.h>
 
 static struct kvdb_health mock_health;
 
@@ -54,8 +54,8 @@ MTF_DEFINE_UTEST_PRE(cn_api, basic, pre)
 
     enum key_lookup_res res;
     struct kvs_rparams *rp_out;
-    struct kvs_ktuple   kt = { 0 };
-    struct kvs_rparams  rp = { 0 };
+    struct kvs_ktuple kt = { 0 };
+    struct kvs_rparams rp = { 0 };
 
     kt.kt_data = "123";
     kt.kt_len = 3;

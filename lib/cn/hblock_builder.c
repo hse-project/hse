@@ -3,41 +3,41 @@
  * Copyright (C) 2022 Micron Technology, Inc.  All rights reserved.
  */
 
- #define MTF_MOCK_IMPL_hblock_builder
+#define MTF_MOCK_IMPL_hblock_builder
 
 #include <errno.h>
 #include <stdlib.h>
 
 #include <hse/limits.h>
 
+#include <hse/error/merr.h>
 #include <hse/ikvdb/blk_list.h>
 #include <hse/ikvdb/cn.h>
 #include <hse/ikvdb/kvset_builder.h>
 #include <hse/ikvdb/mclass_policy.h>
 #include <hse/util/alloc.h>
 #include <hse/util/event_counter.h>
-#include <hse/error/merr.h>
 #include <hse/util/hlog.h>
 #include <hse/util/page.h>
-#include <hse/util/storage.h>
 #include <hse/util/perfc.h>
+#include <hse/util/storage.h>
 
-#include "hblock_builder.h"
-#include "omf.h"
-#include "wbt_builder.h"
 #include "blk_list.h"
-#include "kvset.h"
 #include "cn_perfc.h"
+#include "hblock_builder.h"
+#include "kvset.h"
+#include "omf.h"
 #include "vgmap.h"
+#include "wbt_builder.h"
 
 struct hblock_builder {
-    struct mpool              *mpool;
-    const struct cn           *cn;
-    struct wbb                *ptree;
-    struct perfc_set          *pc;
-    unsigned int               ptree_pgc;
-    uint32_t                   max_size;
-    uint32_t                   nptombs;
+    struct mpool *mpool;
+    const struct cn *cn;
+    struct wbb *ptree;
+    struct perfc_set *pc;
+    unsigned int ptree_pgc;
+    uint32_t max_size;
+    uint32_t nptombs;
     enum hse_mclass_policy_age agegroup;
 };
 
@@ -57,8 +57,8 @@ make_header(
     const uint32_t num_vblocks,
     const uint32_t ptree_pgc,
     const uint32_t vgmap_pgc,
-    const struct key_obj *const min_pfx,
-    const struct key_obj *const max_pfx)
+    const struct key_obj * const min_pfx,
+    const struct key_obj * const max_pfx)
 {
     /* If we have one, we must have both */
     assert(((min_pfx && max_pfx) || (!min_pfx && !max_pfx)));
@@ -132,19 +132,20 @@ make_vgroup_map(const struct vgmap *vgmap, void *outbuf)
 
 merr_t
 hbb_add_ptomb(
-    struct hblock_builder *const bld,
-    const struct key_obj *const kobj,
-    const void *const kmd,
+    struct hblock_builder * const bld,
+    const struct key_obj * const kobj,
+    const void * const kmd,
     uint kmd_len,
-    struct key_stats *const stats)
+    struct key_stats * const stats)
 {
     merr_t err;
-    bool   added = false;
+    bool added = false;
 
     assert(stats->nptombs > 0);
 
-    err = wbb_add_entry(bld->ptree, kobj, stats->nptombs, 0, kmd, kmd_len,
-        bld->max_size / PAGE_SIZE, &bld->ptree_pgc, &added);
+    err = wbb_add_entry(
+        bld->ptree, kobj, stats->nptombs, 0, kmd, kmd_len, bld->max_size / PAGE_SIZE,
+        &bld->ptree_pgc, &added);
 
     bld->nptombs += stats->nptombs;
 
@@ -152,7 +153,7 @@ hbb_add_ptomb(
 }
 
 merr_t
-hbb_create(struct hblock_builder **bld_out, const struct cn *const cn, struct perfc_set *pc)
+hbb_create(struct hblock_builder **bld_out, const struct cn * const cn, struct perfc_set *pc)
 {
     merr_t err;
     struct hblock_builder *bld;
@@ -205,19 +206,19 @@ hbb_destroy(struct hblock_builder *bld)
 merr_t
 hbb_finish(
     struct hblock_builder *bld,
-    uint64_t              *hblk_id_out,
-    const struct vgmap    *vgmap,
-    struct key_obj        *min_pfxp,
-    struct key_obj        *max_pfxp,
-    const uint64_t         min_seqno,
-    const uint64_t         max_seqno,
-    const uint32_t         num_kblocks,
-    const uint32_t         num_vblocks,
-    const uint32_t         num_ptombs,
-    const uint8_t         *hlog,
-    const uint8_t         *ptree,
-    struct wbt_desc       *ptree_desc,
-    uint32_t               ptree_pgc)
+    uint64_t *hblk_id_out,
+    const struct vgmap *vgmap,
+    struct key_obj *min_pfxp,
+    struct key_obj *max_pfxp,
+    const uint64_t min_seqno,
+    const uint64_t max_seqno,
+    const uint32_t num_kblocks,
+    const uint32_t num_vblocks,
+    const uint32_t num_ptombs,
+    const uint8_t *hlog,
+    const uint8_t *ptree,
+    struct wbt_desc *ptree_desc,
+    uint32_t ptree_pgc)
 {
     merr_t err;
     enum hse_mclass mclass;
@@ -316,8 +317,9 @@ hbb_finish(
         wbb_min_max_keys(bld->ptree, min_pfxp, max_pfxp);
     }
 
-    make_header(hdr, min_seqno, max_seqno, num_ptombs, num_kblocks, num_vblocks,
-                ptree_pgc, vgmap_pgc, min_pfxp, max_pfxp);
+    make_header(
+        hdr, min_seqno, max_seqno, num_ptombs, num_kblocks, num_vblocks, ptree_pgc, vgmap_pgc,
+        min_pfxp, max_pfxp);
 
     if (vgmap)
         make_vgroup_map(vgmap, ((char *)hdr) + HBLOCK_HDR_LEN);
@@ -360,10 +362,10 @@ out:
 }
 
 merr_t
-hbb_set_agegroup(struct hblock_builder *const bld, const enum hse_mclass_policy_age age)
+hbb_set_agegroup(struct hblock_builder * const bld, const enum hse_mclass_policy_age age)
 {
-    merr_t                    err;
-    struct mclass_policy *    policy;
+    merr_t err;
+    struct mclass_policy *policy;
     struct mpool_mclass_props props;
 
     bld->agegroup = age;

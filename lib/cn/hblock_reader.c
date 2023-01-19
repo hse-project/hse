@@ -10,22 +10,22 @@
 #include <stdbool.h>
 #include <stdint.h>
 
+#include <hse/error/merr.h>
 #include <hse/util/compiler.h>
 #include <hse/util/event_counter.h>
-#include <hse/error/merr.h>
 
-#include "kvset.h"
 #include "hblock_reader.h"
 #include "kvs_mblk_desc.h"
+#include "kvset.h"
 #include "omf.h"
-#include "wbt_reader.h"
 #include "vgmap.h"
+#include "wbt_reader.h"
 
 static bool HSE_NONNULL(1)
 hblock_hdr_valid(const struct hblock_hdr_omf *omf)
 {
     const uint32_t version = omf_hbh_version(omf);
-    const uint32_t magic   = omf_hbh_magic(omf);
+    const uint32_t magic = omf_hbh_magic(omf);
 
     return HSE_LIKELY(magic == HBLOCK_HDR_MAGIC && version == HBLOCK_HDR_VERSION);
 }
@@ -34,7 +34,7 @@ void
 hbr_madvise_kmd(struct kvs_mblk_desc *md, struct wbt_desc *wbd, int advice)
 {
     merr_t err;
-    const uint32_t pg  = wbd->wbd_first_page + wbd->wbd_root + 1;
+    const uint32_t pg = wbd->wbd_first_page + wbd->wbd_root + 1;
     const uint32_t pgc = wbd->wbd_kmd_pgc;
 
     if (pgc) {
@@ -47,7 +47,7 @@ void
 hbr_madvise_wbt_leaf_nodes(struct kvs_mblk_desc *md, struct wbt_desc *wbd, int advice)
 {
     merr_t err;
-    const uint32_t pg  = wbd->wbd_first_page;
+    const uint32_t pg = wbd->wbd_first_page;
     const uint32_t pgc = wbd->wbd_leaf_cnt;
 
     if (pgc) {
@@ -60,7 +60,7 @@ void
 hbr_madvise_wbt_int_nodes(struct kvs_mblk_desc *md, struct wbt_desc *wbd, int advice)
 {
     merr_t err;
-    const uint32_t pg  = wbd->wbd_first_page + wbd->wbd_leaf_cnt;
+    const uint32_t pg = wbd->wbd_first_page + wbd->wbd_leaf_cnt;
     const uint32_t pgc = wbd->wbd_n_pages - wbd->wbd_leaf_cnt - wbd->wbd_kmd_pgc;
 
     if (pgc) {
@@ -177,9 +177,9 @@ hbr_read_vgroup_map(const struct kvs_mblk_desc *hbd, struct vgmap *vgmap, bool *
 void
 hbr_read_ptree(
     const struct kvs_mblk_desc *hbd,
-    const struct wbt_desc      *ptd,
-    uint8_t                   **ptree,
-    uint32_t                   *ptree_pgc)
+    const struct wbt_desc *ptd,
+    uint8_t **ptree,
+    uint32_t *ptree_pgc)
 {
     INVARIANT(hbd && ptd && ptree && ptree_pgc);
 

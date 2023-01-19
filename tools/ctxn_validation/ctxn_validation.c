@@ -5,86 +5,88 @@
 
 #include <errno.h>
 #include <pthread.h>
+#include <signal.h>
 #include <stdalign.h>
 #include <stdarg.h>
 #include <stdbool.h>
-#include <stdio.h>
 #include <stdint.h>
+#include <stdio.h>
 #include <string.h>
-#include <sys/resource.h>
 #include <sysexits.h>
-#include <signal.h>
-
 #include <xoroshiro.h>
 
-#include <hse/cli/program.h>
+#include <sys/resource.h>
+#include <tools/parm_groups.h>
+
 #include <hse/hse.h>
+
+#include <hse/cli/program.h>
 #include <hse/util/arch.h>
 #include <hse/util/base.h>
 #include <hse/util/compiler.h>
 #include <hse/util/minmax.h>
 
-#include <tools/parm_groups.h>
-
 const char *mp_name, *kvs_name;
 sig_atomic_t done;
-ulong       secmax = 0;
-ulong       itermax = 1;
-ulong       jobsmax = 1;
-ulong       keymax = 1;
-bool        keybase_random = true;
+ulong secmax = 0;
+ulong itermax = 1;
+ulong jobsmax = 1;
+ulong keymax = 1;
+bool keybase_random = true;
 const char *keybase_fmt = "k%lx";
-ulong       keybase = 0;
-bool        reusetxn = false;
-int         verbosity;
-ulong       perfmode = 0;
-bool        commit = true;
-bool        mode_put = true;
-bool        mixed_sz = false;
-uint        seed;
-int         cpustart = -1;
-int         cpuskip = 1;
-ulong       viter;
+ulong keybase = 0;
+bool reusetxn = false;
+int verbosity;
+ulong perfmode = 0;
+bool commit = true;
+bool mode_put = true;
+bool mixed_sz = false;
+uint seed;
+int cpustart = -1;
+int cpuskip = 1;
+ulong viter;
 
-struct hse_kvdb    *kvdb;
-struct hse_kvs     *kvs;
+struct hse_kvdb *kvdb;
+struct hse_kvs *kvs;
 
 struct parm_groups *pg;
-struct svec         db_oparm = { 0 };
-struct svec         kv_oparm = { 0 };
-struct svec         hse_gparm = { 0 };
+struct svec db_oparm = { 0 };
+struct svec kv_oparm = { 0 };
+struct svec hse_gparm = { 0 };
 
 struct stats {
-    ulong       puts_c0;
-    ulong       gets_c0;
-    ulong       puts_txn;
-    ulong       gets_txn;
-    ulong       puts_fail;
-    ulong       begin_fail;
-    ulong       commits;
-    ulong       aborts;
-    ulong       topen;
-    ulong       tstart;
-    ulong       tstop;
-    ulong       tclose;
+    ulong puts_c0;
+    ulong gets_c0;
+    ulong puts_txn;
+    ulong gets_txn;
+    ulong puts_fail;
+    ulong begin_fail;
+    ulong commits;
+    ulong aborts;
+    ulong topen;
+    ulong tstart;
+    ulong tstop;
+    ulong tclose;
 } stats;
 
 struct tdargs;
-typedef void spawn_cb_t(struct tdargs *);
+typedef void
+spawn_cb_t(struct tdargs *);
 
 struct tdargs {
-    pthread_t               tid;
-    ulong                   tidx;
-    spawn_cb_t             *func;
-    ulong                   keybase;
-    ulong                   viter;
-    struct hse_kvdb_txn    *txn;
-    pthread_barrier_t      *barriers;
-    cpu_set_t               cpuset;
-    struct stats            stats;
+    pthread_t tid;
+    ulong tidx;
+    spawn_cb_t *func;
+    ulong keybase;
+    ulong viter;
+    struct hse_kvdb_txn *txn;
+    pthread_barrier_t *barriers;
+    cpu_set_t cpuset;
+    struct stats stats;
 } HSE_ALIGNED(128);
 
-static void ctxn_validation_fini(void);
+static void
+ctxn_validation_fini(void);
 
 static thread_local uint64_t xrand_state[2];
 
@@ -100,12 +102,11 @@ xrand(void)
     return xoroshiro128plus(xrand_state);
 }
 
-__attribute__((format(printf, 1, 2)))
-static void
+__attribute__((format(printf, 1, 2))) static void
 eprint(const char *fmt, ...)
 {
-    char        msg[256];
-    va_list     ap;
+    char msg[256];
+    va_list ap;
 
     va_start(ap, fmt);
     vsnprintf(msg, sizeof(msg), fmt, ap);
@@ -114,12 +115,11 @@ eprint(const char *fmt, ...)
     fprintf(stderr, "%s: %s", progname, msg);
 }
 
-__attribute__((format(printf, 1, 2)))
-void
+__attribute__((format(printf, 1, 2))) void
 syntax(const char *fmt, ...)
 {
-    char        msg[256];
-    va_list     ap;
+    char msg[256];
+    va_list ap;
 
     va_start(ap, fmt);
     vsnprintf(msg, sizeof(msg), fmt, ap);
@@ -128,12 +128,11 @@ syntax(const char *fmt, ...)
     fprintf(stderr, "%s: %s, use -h for help\n", progname, msg);
 }
 
-__attribute__((format(printf, 2, 3), __noreturn__))
-void
+__attribute__((format(printf, 2, 3), __noreturn__)) void
 fatal(uint64_t err, const char *fmt, ...)
 {
-    char        msg[128], errbuf[300];
-    va_list     ap;
+    char msg[128], errbuf[300];
+    va_list ap;
 
     va_start(ap, fmt);
     vsnprintf(msg, sizeof(msg), fmt, ap);
@@ -150,7 +149,7 @@ fatal(uint64_t err, const char *fmt, ...)
 void
 ctxn_validation_init(void)
 {
-    uint64_t    rc;
+    uint64_t rc;
 
     rc = hse_kvdb_open(mp_name, db_oparm.strc, db_oparm.strv, &kvdb);
     if (rc)
@@ -164,7 +163,7 @@ ctxn_validation_init(void)
 void
 ctxn_validation_fini(void)
 {
-    char     errbuf[300];
+    char errbuf[300];
     uint64_t rc;
 
     if (!kvdb)
@@ -182,10 +181,10 @@ ctxn_validation_fini(void)
 void
 ctxn_validation_init_c0(void)
 {
-    int         i;
-    uint64_t    rc;
-    size_t      klen;
-    char        key[1024];
+    int i;
+    uint64_t rc;
+    size_t klen;
+    char key[1024];
     struct hse_kvdb_txn *txn;
 
     if (keybase_random)
@@ -223,15 +222,15 @@ ctxn_validation_init_c0(void)
 void *
 basic_collision_main(void *arg)
 {
-    struct tdargs          *tdargs = arg;
-    struct hse_kvdb_txn    *txn = tdargs->txn;
-    pthread_barrier_t      *barriers = tdargs->barriers;
-    struct stats           *stats = &tdargs->stats;
-    int                     i;
-    uint64_t                rc;
-    size_t                  klen;
-    char                    key[256];
-    uint32_t                vtxn;
+    struct tdargs *tdargs = arg;
+    struct hse_kvdb_txn *txn = tdargs->txn;
+    pthread_barrier_t *barriers = tdargs->barriers;
+    struct stats *stats = &tdargs->stats;
+    int i;
+    uint64_t rc;
+    size_t klen;
+    char key[256];
+    uint32_t vtxn;
 
     rc = hse_kvdb_txn_begin(kvdb, txn);
     if (rc)
@@ -286,14 +285,14 @@ basic_collision_main(void *arg)
 void
 ctxn_validation_basic_collision(void)
 {
-    struct hse_kvdb_txn    *txn[jobsmax];
-    struct tdargs          *tdargsv;
-    pthread_barrier_t       barriers[4];
-    int                     i;
-    uint64_t                rc;
-    size_t                  klen;
-    char                    key[64];
-    uint32_t                vtxn;
+    struct hse_kvdb_txn *txn[jobsmax];
+    struct tdargs *tdargsv;
+    pthread_barrier_t barriers[4];
+    int i;
+    uint64_t rc;
+    size_t klen;
+    char key[64];
+    uint32_t vtxn;
 
     tdargsv = aligned_alloc(__alignof__(*tdargsv), sizeof(*tdargsv) * jobsmax);
     if (!tdargsv)
@@ -356,7 +355,7 @@ ctxn_validation_basic_collision(void)
     pthread_barrier_wait(&barriers[3]);
 
     for (i = 0; i < jobsmax - 1; i++) {
-        struct tdargs  *args = tdargsv + i;
+        struct tdargs *args = tdargsv + i;
 
         rc = pthread_join(args->tid, NULL);
         if (rc)
@@ -392,18 +391,17 @@ ctxn_validation_basic_collision(void)
 }
 
 void
-ctxn_validation_perf(
-    struct tdargs *tdargs)
+ctxn_validation_perf(struct tdargs *tdargs)
 {
-    struct stats           *stats = &tdargs->stats;
-    struct hse_kvdb_txn    *txn;
-    int                     i;
-    uint64_t                rc;
-    uint64_t                vtxn = 0;
-    size_t                  klen;
-    char                    key[1024];
-    size_t                  vtxnlen;
-    bool                    found;
+    struct stats *stats = &tdargs->stats;
+    struct hse_kvdb_txn *txn;
+    int i;
+    uint64_t rc;
+    uint64_t vtxn = 0;
+    size_t klen;
+    char key[1024];
+    size_t vtxnlen;
+    bool found;
 
     txn = tdargs->txn;
     if (!txn) {
@@ -435,19 +433,16 @@ ctxn_validation_perf(
     }
 
     for (i = 0; i < keymax; ++i) {
-        klen = snprintf(key, sizeof(key), keybase_fmt,
-                        tdargs->keybase + i);
+        klen = snprintf(key, sizeof(key), keybase_fmt, tdargs->keybase + i);
 
         if (mode_put) {
-            rc = hse_kvs_put(kvs, 0, txn, key, klen, &vtxn,
-                             sizeof(vtxn));
+            rc = hse_kvs_put(kvs, 0, txn, key, klen, &vtxn, sizeof(vtxn));
             if (rc)
                 stats->puts_fail++;
 
             stats->puts_txn++;
         } else {
-            rc = hse_kvs_get(kvs, 0, txn, key, klen, &found, &vtxn,
-                             sizeof(vtxn), &vtxnlen);
+            rc = hse_kvs_get(kvs, 0, txn, key, klen, &found, &vtxn, sizeof(vtxn), &vtxnlen);
             if (rc)
                 fatal(rc, "kvdb_txn_get");
 
@@ -476,18 +471,17 @@ ctxn_validation_perf(
 }
 
 void
-ctxn_validation_stress(
-    struct tdargs *tdargs)
+ctxn_validation_stress(struct tdargs *tdargs)
 {
-    struct stats           *stats = &tdargs->stats;
-    struct hse_kvdb_txn    *txn;
+    struct stats *stats = &tdargs->stats;
+    struct hse_kvdb_txn *txn;
 
-    size_t   klen, vlen, vcurlen, vtxnlen;
+    size_t klen, vlen, vcurlen, vtxnlen;
     uint64_t val, vcur, vtxn;
-    char     key[64];
-    bool     found;
+    char key[64];
+    bool found;
     uint64_t rc;
-    ulong    i;
+    ulong i;
 
     txn = tdargs->txn;
     if (!txn) {
@@ -516,8 +510,7 @@ ctxn_validation_stress(
      * and value are unique).
      */
     for (i = 0; i < keymax; ++i) {
-        klen = snprintf(key, sizeof(key), keybase_fmt,
-                        tdargs->keybase + i);
+        klen = snprintf(key, sizeof(key), keybase_fmt, tdargs->keybase + i);
 
         vcur = ++tdargs->viter;
         rc = hse_kvs_put(kvs, 0, txn, key, klen, &vcur, sizeof(vcur));
@@ -545,8 +538,7 @@ ctxn_validation_stress(
      * but with values disjoint from the above set.
      */
     for (i = 0; i < keymax; ++i) {
-        klen = snprintf(key, sizeof(key), keybase_fmt,
-                        tdargs->keybase + i);
+        klen = snprintf(key, sizeof(key), keybase_fmt, tdargs->keybase + i);
 
         vtxn = ++tdargs->viter;
         rc = hse_kvs_put(kvs, 0, txn, key, klen, &vtxn, sizeof(vtxn));
@@ -570,8 +562,7 @@ ctxn_validation_stress(
         vcurlen = vtxnlen = 0;
         vcur = vtxn = 0;
 
-        rc = hse_kvs_get(kvs, 0, NULL, key, klen, &found,
-                         &vcur, sizeof(vcur), &vcurlen);
+        rc = hse_kvs_get(kvs, 0, NULL, key, klen, &found, &vcur, sizeof(vcur), &vcurlen);
         if (rc)
             fatal(rc, "kvdb_getco 1");
 
@@ -580,8 +571,7 @@ ctxn_validation_stress(
 
         ++stats->gets_c0;
 
-        rc = hse_kvs_get(kvs, 0, txn, key, klen, &found,
-                         &vtxn, sizeof(vtxn), &vtxnlen);
+        rc = hse_kvs_get(kvs, 0, txn, key, klen, &found, &vtxn, sizeof(vtxn), &vtxnlen);
         if (rc)
             fatal(rc, "kvdb_getco 2");
 
@@ -613,14 +603,12 @@ ctxn_validation_stress(
      * values from txn.
      */
     for (i = 0; i < keymax; ++i) {
-        klen = snprintf(key, sizeof(key), keybase_fmt,
-                        tdargs->keybase + i);
+        klen = snprintf(key, sizeof(key), keybase_fmt, tdargs->keybase + i);
 
         vlen = 0;
         val = 0;
 
-        rc = hse_kvs_get(kvs, 0, NULL, key, klen, &found,
-                         &val, sizeof(val), &vlen);
+        rc = hse_kvs_get(kvs, 0, NULL, key, klen, &found, &val, sizeof(val), &vlen);
         if (rc)
             fatal(rc, "kvdb_getco 3");
         ++stats->gets_c0;
@@ -644,12 +632,12 @@ ctxn_validation_stress(
 void
 ctxn_validation_basic(void)
 {
-    struct hse_kvdb_txn    *txn;
+    struct hse_kvdb_txn *txn;
 
-    size_t   klen, klen_lg = 0, vlen, vcurlen, vtxnlen;
-    char     key[64], key_lg[64];
+    size_t klen, klen_lg = 0, vlen, vcurlen, vtxnlen;
+    char key[64], key_lg[64];
     uint64_t val, vcur;
-    bool     found;
+    bool found;
     uint64_t vtxn;
     uint64_t rc;
 
@@ -691,7 +679,7 @@ ctxn_validation_basic(void)
     ++stats.puts_txn;
 
     if (mixed_sz) {
-        char    val_lg[237];
+        char val_lg[237];
 
         rc = hse_kvs_put(kvs, 0, txn, key_lg, klen_lg, &val_lg, sizeof(val_lg));
         if (rc)
@@ -763,7 +751,7 @@ ctxn_validation_basic(void)
 void *
 spawn_main(void *arg)
 {
-    struct tdargs  *tdargs = arg;
+    struct tdargs *tdargs = arg;
     int rc, i;
 
     rc = pthread_setaffinity_np(tdargs->tid, sizeof(tdargs->cpuset), &tdargs->cpuset);
@@ -870,7 +858,7 @@ spawn(spawn_cb_t *func)
     }
 
     while (i-- > 0) {
-        struct tdargs  *args = tdargsv + i;
+        struct tdargs *args = tdargsv + i;
 
         rc = pthread_join(args->tid, NULL);
         if (rc)
@@ -895,8 +883,7 @@ spawn(spawn_cb_t *func)
 void
 usage(void)
 {
-    printf("usage: %s [options] <kvdb> <kvs> [param=value ...]\n",
-           progname);
+    printf("usage: %s [options] <kvdb> <kvs> [param=value ...]\n", progname);
     printf("usage: %s -h [-v]\n", progname);
 
     printf("-a affine   affine each job to one logical cpu (requires {-p | -s}\n");
@@ -932,13 +919,13 @@ usage(void)
 int
 main(int argc, char **argv)
 {
-    char        perfc_buf[] = "perfc.level=0";
+    char perfc_buf[] = "perfc.level=0";
     const char *config = NULL;
-    hse_err_t   err;
-    uint8_t     given[256] = { };
-    bool        help = false;
-    ulong       i;
-    int         rc;
+    hse_err_t err;
+    uint8_t given[256] = {};
+    bool help = false;
+    ulong i;
+    int rc;
 
     progname_set(argv[0]);
 
@@ -949,8 +936,8 @@ main(int argc, char **argv)
         fatal(rc, "pg_create");
 
     while (1) {
-        char   *errmsg, *end;
-        int     c;
+        char *errmsg, *end;
+        int c;
 
         c = getopt(argc, argv, ":a:cf:hi:j:K:k:p:rS:st:VvwmZ:");
         if (-1 == c)
@@ -1009,8 +996,7 @@ main(int argc, char **argv)
             break;
 
         case 'p':
-            if (strlen(optarg) != 2 ||
-                (optarg[0] != 'p' && optarg[0] != 'g') ||
+            if (strlen(optarg) != 2 || (optarg[0] != 'p' && optarg[0] != 'g') ||
                 (optarg[1] != 'a' && optarg[1] != 'c'))
                 errno = EINVAL;
             errmsg = "Invalid perf mode argument";
@@ -1085,23 +1071,22 @@ main(int argc, char **argv)
     /* get hse parms from command line */
     rc = pg_parse_argv(pg, argc, argv, &optind);
     switch (rc) {
-        case 0:
-            if (optind < argc)
-                fatal(0, "unknown parameter: %s", argv[optind]);
-            break;
-        case EINVAL:
-            fatal(0, "missing group name (e.g. %s) before parameter %s\n",
-                PG_KVDB_OPEN, argv[optind]);
-            break;
-        default:
-            fatal(rc, "error processing parameter %s\n", argv[optind]);
-            break;
+    case 0:
+        if (optind < argc)
+            fatal(0, "unknown parameter: %s", argv[optind]);
+        break;
+    case EINVAL:
+        fatal(0, "missing group name (e.g. %s) before parameter %s\n", PG_KVDB_OPEN, argv[optind]);
+        break;
+    default:
+        fatal(rc, "error processing parameter %s\n", argv[optind]);
+        break;
     }
 
     rc = rc ?: svec_append_pg(&hse_gparm, pg, PG_HSE_GLOBAL, perfc_buf, NULL);
     rc = rc ?: svec_append_pg(&db_oparm, pg, PG_KVDB_OPEN, perfc_buf, NULL);
-    rc = rc ?: svec_append_pg(&kv_oparm, pg, PG_KVS_OPEN, perfc_buf,
-                              "transactions.enabled=true", NULL);
+    rc = rc
+        ?: svec_append_pg(&kv_oparm, pg, PG_KVS_OPEN, perfc_buf, "transactions.enabled=true", NULL);
     if (rc)
         fatal(rc, "svec_apppend_pg failed");
 
@@ -1165,16 +1150,13 @@ main(int argc, char **argv)
             printf(
                 "%4lu %lu %lu %lu %lu %lu %lu %9lu %lu %lu %.0lf "
                 "%9lu %8.0lf %7lu %6lu %lu %lu %.3lf %.3lf %.3lf %.3lf\n",
-                jobsmax, secmax, secmax ? 0 : itermax,
-                stats.puts_c0, stats.gets_c0,
-                stats.puts_txn, stats.puts_fail, stats.gets_txn, stats.begin_fail,
-                stats.commits, (stats.commits * 1000000.0) / usecs,
-                stats.aborts, (stats.aborts * 1000000.0) / usecs,
+                jobsmax, secmax, secmax ? 0 : itermax, stats.puts_c0, stats.gets_c0, stats.puts_txn,
+                stats.puts_fail, stats.gets_txn, stats.begin_fail, stats.commits,
+                (stats.commits * 1000000.0) / usecs, stats.aborts,
+                (stats.aborts * 1000000.0) / usecs,
                 rusage.ru_utime.tv_sec * 1000 + rusage.ru_utime.tv_usec / 1000,
-                rusage.ru_stime.tv_sec * 1000 + rusage.ru_stime.tv_usec / 1000,
-                rusage.ru_majflt, rusage.ru_minflt,
-                usecs / 1000000.0,
-                (stats.tstart - stats.topen) / 1000000000.0,
+                rusage.ru_stime.tv_sec * 1000 + rusage.ru_stime.tv_usec / 1000, rusage.ru_majflt,
+                rusage.ru_minflt, usecs / 1000000.0, (stats.tstart - stats.topen) / 1000000000.0,
                 (stats.tclose - stats.tstop) / 1000000000.0,
                 (stats.tclose - stats.topen) / 1000000000.0);
         } else {
@@ -1188,27 +1170,21 @@ main(int argc, char **argv)
             printf("%12lu  txn gets\n", stats.gets_txn);
             printf("%12lu  begin_fail\n", stats.begin_fail);
             printf("%12lu  commits\n", stats.commits);
-            printf("%12.0lf  commits/sec\n",
-                   (stats.commits * 1000000.0) / usecs);
+            printf("%12.0lf  commits/sec\n", (stats.commits * 1000000.0) / usecs);
             printf("%12lu  aborts\n", stats.aborts);
-            printf("%12.0lf  aborts/sec\n",
-                   (stats.aborts * 1000000.0) / usecs);
-            printf("%12lu  utime(ms)\n",
-                   rusage.ru_utime.tv_sec * 1000 +
-                   rusage.ru_utime.tv_usec / 1000);
-            printf("%12lu  stime(ms)\n",
-                   rusage.ru_stime.tv_sec * 1000 +
-                   rusage.ru_stime.tv_usec / 1000);
+            printf("%12.0lf  aborts/sec\n", (stats.aborts * 1000000.0) / usecs);
+            printf(
+                "%12lu  utime(ms)\n",
+                rusage.ru_utime.tv_sec * 1000 + rusage.ru_utime.tv_usec / 1000);
+            printf(
+                "%12lu  stime(ms)\n",
+                rusage.ru_stime.tv_sec * 1000 + rusage.ru_stime.tv_usec / 1000);
             printf("%12lu  majflt\n", rusage.ru_majflt);
             printf("%12lu  minflt\n", rusage.ru_minflt);
-            printf("%12.3lf  test elapsed secs\n",
-                   usecs / 1000000.0);
-            printf("%12.3lf  open elapsed secs\n",
-                   (stats.tstart - stats.topen) / 1000000000.0);
-            printf("%12.3lf  close elapsed secs\n",
-                   (stats.tclose - stats.tstop) / 1000000000.0);
-            printf("%12.3lf  total elapsed secs\n",
-                   (stats.tclose - stats.topen) / 1000000000.0);
+            printf("%12.3lf  test elapsed secs\n", usecs / 1000000.0);
+            printf("%12.3lf  open elapsed secs\n", (stats.tstart - stats.topen) / 1000000000.0);
+            printf("%12.3lf  close elapsed secs\n", (stats.tclose - stats.tstop) / 1000000000.0);
+            printf("%12.3lf  total elapsed secs\n", (stats.tclose - stats.topen) / 1000000000.0);
         }
     }
 
@@ -1223,14 +1199,16 @@ main(int argc, char **argv)
     if (secmax == 0) {
         if (commit) {
             if (stats.commits < itermax * jobsmax) {
-                fprintf(stderr, "%s: commits %lu < expected %lu\n",
-                        progname, stats.commits, itermax * jobsmax);
+                fprintf(
+                    stderr, "%s: commits %lu < expected %lu\n", progname, stats.commits,
+                    itermax * jobsmax);
                 exit(2);
             }
         } else {
             if (stats.aborts < itermax * jobsmax) {
-                fprintf(stderr, "%s: aborts %lu < expected %lu\n",
-                        progname, stats.aborts, itermax * jobsmax);
+                fprintf(
+                    stderr, "%s: aborts %lu < expected %lu\n", progname, stats.aborts,
+                    itermax * jobsmax);
                 exit(2);
             }
         }

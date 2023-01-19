@@ -7,14 +7,14 @@
 #include <errno.h>
 #include <stdarg.h>
 #include <stddef.h>
+#include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
-#include <stdio.h>
 
 int
 params_from_argv(const int argc, char **argv, int *idx, size_t *paramc, char ***paramv, ...)
 {
-    int     rc = 0;
+    int rc = 0;
     va_list params;
 
     if ((paramc && !paramv) || (!paramc && paramv))
@@ -47,7 +47,7 @@ params_from_argv(const int argc, char **argv, int *idx, size_t *paramc, char ***
 
 non_va:
     for (int i = idx ? *idx : 0; i < argc; i++) {
-        char *      param = argv[i];
+        char *param = argv[i];
         const char *value = strstr(param, "=");
 
         if (!value || value[1] == '\0')

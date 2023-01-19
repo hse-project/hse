@@ -7,15 +7,14 @@
 
 #include <mtf/framework.h>
 
-#include <hse/logging/logging.h>
-#include <hse/util/element_source.h>
-#include <hse/util/seqno.h>
-#include <hse/util/keycmp.h>
-
-#include <hse/test/support/random_buffer.h>
-#include <hse/ikvdb/limits.h>
 #include <hse/ikvdb/c0_kvset.h>
 #include <hse/ikvdb/c0_kvset_iterator.h>
+#include <hse/ikvdb/limits.h>
+#include <hse/logging/logging.h>
+#include <hse/test/support/random_buffer.h>
+#include <hse/util/element_source.h>
+#include <hse/util/keycmp.h>
+#include <hse/util/seqno.h>
 
 int
 test_collection_setup(struct mtf_test_info *info)
@@ -64,7 +63,7 @@ MTF_BEGIN_UTEST_COLLECTION_PREPOST(c0_kvset_test, test_collection_setup, test_co
 MTF_DEFINE_UTEST_PREPOST(c0_kvset_test, basic, no_fail_pre, no_fail_post)
 {
     struct c0_kvset *kvs;
-    merr_t           err = 0;
+    merr_t err = 0;
 
     err = c0kvs_create(NULL, NULL, &kvs);
     ASSERT_EQ(0, err);
@@ -77,12 +76,12 @@ MTF_DEFINE_UTEST_PREPOST(c0_kvset_test, basic, no_fail_pre, no_fail_post)
 MTF_DEFINE_UTEST_PREPOST(c0_kvset_test, basic_put_get, no_fail_pre, no_fail_post)
 {
     struct c0_kvset *kvs;
-    merr_t           err = 0;
-    char             kbuf[100], vbuf[1000];
-    uintptr_t        iseqnoref, oseqnoref;
-    uint64_t         view_seqno;
-    int              i;
-    int              seq;
+    merr_t err = 0;
+    char kbuf[100], vbuf[1000];
+    uintptr_t iseqnoref, oseqnoref;
+    uint64_t view_seqno;
+    int i;
+    int seq;
 
     err = c0kvs_create(NULL, NULL, &kvs);
     ASSERT_NE((struct c0_kvset *)0, kvs);
@@ -113,8 +112,8 @@ MTF_DEFINE_UTEST_PREPOST(c0_kvset_test, basic_put_get, no_fail_pre, no_fail_post
     }
 
     for (i = 9; i >= 0; --i) {
-        struct kvs_ktuple   kt;
-        struct kvs_buf      vb;
+        struct kvs_ktuple kt;
+        struct kvs_buf vb;
         enum key_lookup_res res;
 
         sprintf(kbuf, "c0%03dsnapple%03d", i, i);
@@ -149,8 +148,8 @@ MTF_DEFINE_UTEST_PREPOST(c0_kvset_test, basic_put_get, no_fail_pre, no_fail_post
     }
 
     for (i = 9; i >= 0; --i) {
-        struct kvs_ktuple   kt;
-        struct kvs_buf      vb;
+        struct kvs_ktuple kt;
+        struct kvs_buf vb;
         enum key_lookup_res res;
 
         sprintf(kbuf, "c0%03dsnapple%03d", i, i);
@@ -189,15 +188,15 @@ MTF_DEFINE_UTEST_PREPOST(c0_kvset_test, basic_put_get, no_fail_pre, no_fail_post
 MTF_DEFINE_UTEST_PREPOST(c0_kvset_test, basic_put_get_fail, no_fail_pre, no_fail_post)
 {
     uint64_t key;
-    struct c0_kvset * kvs;
+    struct c0_kvset *kvs;
     struct kvs_ktuple kt;
     struct kvs_vtuple vt;
-    merr_t            err;
-    size_t            avail;
-    uintptr_t         seqnoref;
-    char *            bigly;
-    void             *mem;
-    int               n;
+    merr_t err;
+    size_t avail;
+    uintptr_t seqnoref;
+    char *bigly;
+    void *mem;
+    int n;
 
     /* Allocate largest possible kvs.
      */
@@ -278,16 +277,16 @@ MTF_DEFINE_UTEST_PREPOST(c0_kvset_test, basic_put_get_fail, no_fail_pre, no_fail
 
 MTF_DEFINE_UTEST_PREPOST(c0_kvset_test, basic_repeated_put, no_fail_pre, no_fail_post)
 {
-    struct c0_kvset *   kvs;
-    merr_t              err = 0;
-    char                kbuf[1], vbuf[1];
-    struct kvs_ktuple   kt;
-    struct kvs_vtuple   vt;
-    struct kvs_buf      vb;
+    struct c0_kvset *kvs;
+    merr_t err = 0;
+    char kbuf[1], vbuf[1];
+    struct kvs_ktuple kt;
+    struct kvs_vtuple vt;
+    struct kvs_buf vb;
     enum key_lookup_res res;
-    uintptr_t           iseqnoref, oseqnoref;
-    uint64_t            view_seqno;
-    int                 i;
+    uintptr_t iseqnoref, oseqnoref;
+    uint64_t view_seqno;
+    int i;
 
     err = c0kvs_create(NULL, NULL, &kvs);
     ASSERT_NE((struct c0_kvset *)0, kvs);
@@ -398,15 +397,15 @@ MTF_DEFINE_UTEST_PREPOST(c0_kvset_test, basic_repeated_put, no_fail_pre, no_fail
 
 MTF_DEFINE_UTEST_PREPOST(c0_kvset_test, ctxn_put, no_fail_pre, no_fail_post)
 {
-    struct c0_kvset *   kvs;
-    merr_t              err = 0;
-    char                kbuf[1], vbuf[1];
-    struct kvs_ktuple   kt;
-    struct kvs_vtuple   vt;
-    struct kvs_buf      vb;
-    uintptr_t           iseqnoref;
-    uint64_t            ctxn_priv_1[10], ctxn_priv_2[10];
-    int                 i;
+    struct c0_kvset *kvs;
+    merr_t err = 0;
+    char kbuf[1], vbuf[1];
+    struct kvs_ktuple kt;
+    struct kvs_vtuple vt;
+    struct kvs_buf vb;
+    uintptr_t iseqnoref;
+    uint64_t ctxn_priv_1[10], ctxn_priv_2[10];
+    int i;
 
     err = c0kvs_create(NULL, NULL, &kvs);
     ASSERT_NE((struct c0_kvset *)0, kvs);
@@ -555,32 +554,32 @@ MTF_DEFINE_UTEST_PREPOST(c0_kvset_test, ctxn_put, no_fail_pre, no_fail_post)
 
 MTF_DEFINE_UTEST_PREPOST(c0_kvset_test, advanced_repeated_put, no_fail_pre, no_fail_post)
 {
-    struct c0_kvset *        kvs;
-    merr_t                   err = 0;
-    struct call_rcu_data *   rcu_thrd;
-    uint32_t                 kbuf[1], vbuf[1];
-    const uint32_t           insert_count = 10000;
-    const uint32_t           reinsert_count = 1000;
-    uint32_t                 keys[insert_count];
-    struct kvs_ktuple        kt;
-    struct kvs_vtuple        vt;
+    struct c0_kvset *kvs;
+    merr_t err = 0;
+    struct call_rcu_data *rcu_thrd;
+    uint32_t kbuf[1], vbuf[1];
+    const uint32_t insert_count = 10000;
+    const uint32_t reinsert_count = 1000;
+    uint32_t keys[insert_count];
+    struct kvs_ktuple kt;
+    struct kvs_vtuple vt;
     struct c0_kvset_iterator iter;
-    struct kvs_buf           vb;
-    struct element_source *  source;
-    enum key_lookup_res      res;
-    uint32_t                 indexes[reinsert_count];
-    int                      i, j;
-    uint64_t                 num_entries, num_tombs;
-    uint64_t                 key_bytes, val_bytes;
-    uint64_t                 tr_keys HSE_MAYBE_UNUSED = 0, tr_tombs HSE_MAYBE_UNUSED = 0;
-    uint64_t                 tr_key_bytes HSE_MAYBE_UNUSED = 0, tr_val_bytes HSE_MAYBE_UNUSED = 0;
-    uintptr_t                iseqnoref, oseqnoref;
-    uint64_t                 view_seqno;
-    struct bonsai_kv *       bkv;
-    struct bonsai_val *      val;
-    void *                   last_key, *key;
-    size_t                   last_key_len, key_len;
-    bool                     found;
+    struct kvs_buf vb;
+    struct element_source *source;
+    enum key_lookup_res res;
+    uint32_t indexes[reinsert_count];
+    int i, j;
+    uint64_t num_entries, num_tombs;
+    uint64_t key_bytes, val_bytes;
+    uint64_t tr_keys HSE_MAYBE_UNUSED = 0, tr_tombs HSE_MAYBE_UNUSED = 0;
+    uint64_t tr_key_bytes HSE_MAYBE_UNUSED = 0, tr_val_bytes HSE_MAYBE_UNUSED = 0;
+    uintptr_t iseqnoref, oseqnoref;
+    uint64_t view_seqno;
+    struct bonsai_kv *bkv;
+    struct bonsai_val *val;
+    void *last_key, *key;
+    size_t last_key_len, key_len;
+    bool found;
 
     ASSERT_LE(reinsert_count, insert_count);
 
@@ -716,16 +715,16 @@ MTF_DEFINE_UTEST_PREPOST(c0_kvset_test, advanced_repeated_put, no_fail_pre, no_f
 
 MTF_DEFINE_UTEST_PREPOST(c0_kvset_test, basic_put_get_del, no_fail_pre, no_fail_post)
 {
-    struct c0_kvset *   kvs;
-    merr_t              err = 0;
-    char                kbuf[100], vbuf[1000];
-    struct kvs_ktuple   kt;
-    struct kvs_vtuple   vt;
-    struct kvs_buf      vb;
+    struct c0_kvset *kvs;
+    merr_t err = 0;
+    char kbuf[100], vbuf[1000];
+    struct kvs_ktuple kt;
+    struct kvs_vtuple vt;
+    struct kvs_buf vb;
     enum key_lookup_res res;
-    int                 i;
-    uintptr_t           iseqnoref, oseqnoref;
-    uint64_t            view_seqno;
+    int i;
+    uintptr_t iseqnoref, oseqnoref;
+    uint64_t view_seqno;
 
     err = c0kvs_create(NULL, NULL, &kvs);
     ASSERT_NE((struct c0_kvset *)0, kvs);
@@ -859,21 +858,21 @@ MTF_DEFINE_UTEST_PREPOST(c0_kvset_test, basic_put_get_del, no_fail_pre, no_fail_
 
 MTF_DEFINE_UTEST_PREPOST(c0_kvset_test, get_content_metrics, no_fail_pre, no_fail_post)
 {
-    struct c0_kvset * kvs;
-    merr_t            err = 0;
-    uint64_t          num_entries;
-    uint64_t          num_tombstones;
-    uint64_t          total_key_bytes;
-    uint64_t          total_value_bytes;
-    uint32_t          kbuf[1];
-    char              vbuf[3];
-    int               i;
-    const int         initial_insert_count = 273;
+    struct c0_kvset *kvs;
+    merr_t err = 0;
+    uint64_t num_entries;
+    uint64_t num_tombstones;
+    uint64_t total_key_bytes;
+    uint64_t total_value_bytes;
+    uint32_t kbuf[1];
+    char vbuf[3];
+    int i;
+    const int initial_insert_count = 273;
     struct kvs_ktuple kt;
     struct kvs_vtuple vt;
-    const int         delete_count = 7;
-    const int         delete_step = 3;
-    uintptr_t         seqno;
+    const int delete_count = 7;
+    const int delete_step = 3;
+    uintptr_t seqno;
 
     err = c0kvs_create(NULL, NULL, &kvs);
     ASSERT_NE((struct c0_kvset *)0, kvs);
@@ -925,11 +924,11 @@ MTF_DEFINE_UTEST_PREPOST(c0_kvset_test, get_content_metrics, no_fail_pre, no_fai
     c0kvs_destroy(kvs);
 }
 
-#include <signal.h>
 #include <setjmp.h>
+#include <signal.h>
 
 static sig_atomic_t sigabrt_cnt;
-sigjmp_buf          env;
+sigjmp_buf env;
 
 void
 sigabrt_isr(int sig)
@@ -957,15 +956,15 @@ signal_reliable(int signo, __sighandler_t func)
 
 MTF_DEFINE_UTEST_PREPOST(c0_kvset_test, finalize, no_fail_pre, no_fail_post)
 {
-    struct c0_kvset *   kvs;
-    merr_t              err = 0;
-    char                kbuf[100], vbuf[1000];
-    struct kvs_ktuple   kt;
-    struct kvs_vtuple   vt;
-    struct kvs_buf      vb;
+    struct c0_kvset *kvs;
+    merr_t err = 0;
+    char kbuf[100], vbuf[1000];
+    struct kvs_ktuple kt;
+    struct kvs_vtuple vt;
+    struct kvs_buf vb;
     enum key_lookup_res res;
-    int                 i;
-    uintptr_t           iseqno, oseqno;
+    int i;
+    uintptr_t iseqno, oseqno;
 
     err = c0kvs_create(NULL, NULL, &kvs);
     ASSERT_NE((struct c0_kvset *)0, kvs);
@@ -1072,16 +1071,16 @@ MTF_DEFINE_UTEST_PREPOST(c0_kvset_test, finalize, no_fail_pre, no_fail_post)
  */
 MTF_DEFINE_UTEST_PREPOST(c0_kvset_test, iterator, no_fail_pre, no_fail_post)
 {
-    struct c0_kvset * kvs;
+    struct c0_kvset *kvs;
     struct kvs_ktuple kt;
     struct kvs_vtuple vt;
     struct bonsai_kv *bkv;
-    merr_t            err;
-    char              kbuf, vbuf;
-    uintptr_t         iseqno;
-    bool              found;
-    int               i;
-    char              c;
+    merr_t err;
+    char kbuf, vbuf;
+    uintptr_t iseqno;
+    bool found;
+    int i;
+    char c;
 
     err = c0kvs_create(NULL, NULL, &kvs);
     ASSERT_NE(NULL, kvs);
@@ -1109,7 +1108,7 @@ MTF_DEFINE_UTEST_PREPOST(c0_kvset_test, iterator, no_fail_pre, no_fail_post)
      */
     for (i = 0; i < 3; ++i) {
         struct c0_kvset_iterator iter;
-        struct element_source *  source;
+        struct element_source *source;
 
         c0kvs_iterator_init(kvs, &iter, 0, 0);
         source = c0_kvset_iterator_get_es(&iter);
@@ -1130,7 +1129,7 @@ MTF_DEFINE_UTEST_PREPOST(c0_kvset_test, iterator, no_fail_pre, no_fail_post)
      */
     for (i = 0; i < 3; ++i) {
         struct c0_kvset_iterator iter;
-        struct element_source *  source;
+        struct element_source *source;
 
         c0kvs_iterator_init(kvs, &iter, C0_KVSET_ITER_FLAG_REVERSE, 0);
         source = c0_kvset_iterator_get_es(&iter);

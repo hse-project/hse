@@ -40,7 +40,7 @@ MTF_DEFINE_UTEST(bin_heap_test, bin_heap_creation)
     const uint32_t WIDTH = 17;
 
     struct bin_heap *bh;
-    merr_t            err;
+    merr_t err;
 
     err = bin_heap_create(WIDTH, u32_cmp, &bh);
     ASSERT_EQ(0, err);
@@ -65,18 +65,18 @@ MTF_DEFINE_UTEST(bin_heap_test, bin_heap_creation)
 
 MTF_DEFINE_UTEST(bin_heap_test, bin_heap_one)
 {
-    const uint32_t  WIDTH = 7;
+    const uint32_t WIDTH = 7;
     const char set[] = "XAQBTCM";
     const char ordered[] = "ABCMQTX";
 
-    struct bin_heap *     bh;
-    struct sample_es *     es[WIDTH];
+    struct bin_heap *bh;
+    struct sample_es *es[WIDTH];
     struct element_source *handles[WIDTH];
-    char                   out[WIDTH];
-    merr_t                 err;
-    int                    i;
-    void *                 item = NULL;
-    uint32_t                    v, last;
+    char out[WIDTH];
+    merr_t err;
+    int i;
+    void *item = NULL;
+    uint32_t v, last;
 
     for (i = 0; i < WIDTH; ++i) {
         err = sample_es_create(&es[i], set[i], SES_ONE);
@@ -104,18 +104,18 @@ MTF_DEFINE_UTEST(bin_heap_test, bin_heap_one)
 
 MTF_DEFINE_UTEST(bin_heap_test, bin_heap_insert_remove)
 {
-    const uint32_t  WIDTH = 7;
+    const uint32_t WIDTH = 7;
     const char set[] = "XAQBTCM";
     const char ordered[] = "ABCMQTX";
 
-    struct bin_heap *      bh;
-    struct sample_es *     es[WIDTH];
+    struct bin_heap *bh;
+    struct sample_es *es[WIDTH];
     struct element_source *handles[WIDTH + 1];
-    char                   out[WIDTH];
-    merr_t                 err;
-    int                    i, j;
-    void *                 item = NULL;
-    uint32_t               v, last;
+    char out[WIDTH];
+    merr_t err;
+    int i, j;
+    void *item = NULL;
+    uint32_t v, last;
 
     for (i = 0; i < WIDTH; ++i) {
         err = sample_es_create(&es[i], set[i], SES_ONE);
@@ -200,16 +200,16 @@ MTF_DEFINE_UTEST(bin_heap_test, bin_heap_insert_remove)
 MTF_DEFINE_UTEST(bin_heap_test, bin_heap_replace_test)
 {
     const uint32_t WIDTH = 7;
-    char      set[] = "XBQCTDM";
-    char *    expected;
+    char set[] = "XBQCTDM";
+    char *expected;
 
-    struct bin_heap *     bh;
-    struct sample_es *     es[WIDTH];
+    struct bin_heap *bh;
+    struct sample_es *es[WIDTH];
     struct element_source *handles[WIDTH + 1];
-    merr_t                 err;
-    int                    i, j;
-    void *                 item = NULL;
-    uint32_t               v;
+    merr_t err;
+    int i, j;
+    void *item = NULL;
+    uint32_t v;
 
     bin_heap_create(WIDTH, u32_cmp, &bh);
 
@@ -292,13 +292,13 @@ MTF_DEFINE_UTEST(bin_heap_test, bin_heap_basic)
 {
     const uint32_t WIDTH = 17;
 
-    struct bin_heap *     bh;
-    struct sample_es *     es[WIDTH];
+    struct bin_heap *bh;
+    struct sample_es *es[WIDTH];
     struct element_source *handles[WIDTH];
-    merr_t                 err;
-    int                    i;
-    void *                 item = NULL;
-    uint32_t               value, last;
+    merr_t err;
+    int i;
+    void *item = NULL;
+    uint32_t value, last;
 
     for (i = 0; i < WIDTH; ++i) {
         err = sample_es_create(&es[i], 1123, SES_LINEAR);
@@ -357,13 +357,13 @@ MTF_DEFINE_UTEST(bin_heap_test, bin_heap_dups)
 {
     const uint32_t WIDTH = 3;
 
-    struct bin_heap *     bh;
-    struct sample_es *     es[WIDTH];
+    struct bin_heap *bh;
+    struct sample_es *es[WIDTH];
     struct element_source *handles[WIDTH];
-    uint32_t *             item = NULL, *dup = NULL;
-    merr_t                 err;
-    int                    i;
-    uint32_t               last, src;
+    uint32_t *item = NULL, *dup = NULL;
+    merr_t err;
+    int i;
+    uint32_t last, src;
 
     /* create sample es's with identical keys, differing srcids */
     for (i = 0; i < WIDTH; ++i) {
@@ -414,11 +414,11 @@ MTF_DEFINE_UTEST(bin_heap_test, bin_heap_usage_error)
 {
     const uint32_t WIDTH = 17;
 
-    struct bin_heap *     bh;
-    struct sample_es *     es[WIDTH];
+    struct bin_heap *bh;
+    struct sample_es *es[WIDTH];
     struct element_source *handles[WIDTH];
-    merr_t                 err;
-    int                    i;
+    merr_t err;
+    int i;
 
     for (i = 0; i < WIDTH; ++i) {
         err = sample_es_create(&es[i], 1123, SES_LINEAR);
@@ -448,7 +448,7 @@ MTF_DEFINE_UTEST(bin_heap_test, bin_heap_usage_error)
 MTF_DEFINE_UTEST(bin_heap_test, bin_heap_age_cmp_test)
 {
     struct element_source e1, e2;
-    int                   rc;
+    int rc;
 
     e1.es_sort = 10;
     e2.es_sort = 12;

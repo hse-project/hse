@@ -7,7 +7,6 @@
 #define WAL_FILE_H
 
 #include <hse/error/merr.h>
-
 #include <hse/mpool/mpool.h>
 
 struct wal;
@@ -18,18 +17,18 @@ struct wal_replay_info;
 
 struct wal_fileset *
 wal_fileset_open(
-    struct mpool     *mp,
+    struct mpool *mp,
     enum hse_mclass mclass,
-    size_t            capacity,
-    uint32_t          magic,
-    uint32_t          vers);
+    size_t capacity,
+    uint32_t magic,
+    uint32_t vers);
 
 void
 wal_fileset_close(
     struct wal_fileset *wfset,
-    uint64_t            ingestseq,
-    uint64_t            ingestgen,
-    uint64_t            txhorizon);
+    uint64_t ingestseq,
+    uint64_t ingestgen,
+    uint64_t txhorizon);
 
 void
 wal_fileset_mclass_set(struct wal_fileset *wfset, enum hse_mclass mclass);
@@ -43,10 +42,10 @@ wal_fileset_flags_set(struct wal_fileset *wfset, uint32_t flags);
 merr_t
 wal_file_open(
     struct wal_fileset *wfset,
-    uint64_t            gen,
-    int                 fileid,
-    bool                replay,
-    struct wal_file   **handle);
+    uint64_t gen,
+    int fileid,
+    bool replay,
+    struct wal_file **handle);
 
 merr_t
 wal_file_close(struct wal_file *walf);
@@ -72,19 +71,19 @@ wal_file_minmax_update(struct wal_file *wfile, struct wal_minmax_info *info);
 merr_t
 wal_fileset_reclaim(
     struct wal_fileset *wfset,
-    uint64_t            seqno,
-    uint64_t            gen,
-    uint64_t            txhorizon,
-    bool                closing);
+    uint64_t seqno,
+    uint64_t gen,
+    uint64_t txhorizon,
+    bool closing);
 
 merr_t
 wal_file_complete(struct wal_fileset *wfset, struct wal_file *wfile);
 
 merr_t
 wal_fileset_replay(
-    struct wal_fileset          *wfset,
-    struct wal_replay_info      *rinfo,
-    uint32_t                    *cnt_out,
+    struct wal_fileset *wfset,
+    struct wal_replay_info *rinfo,
+    uint32_t *cnt_out,
     struct wal_replay_gen_info **rginfo_out);
 
 void

@@ -4,21 +4,20 @@
  */
 
 #include <errno.h>
+#include <rbtree.h>
 #include <stdarg.h>
 #include <stdio.h>
 
-#include <hse/util/assert.h>
-#include <hse/util/platform.h>
-#include <hse/util/alloc.h>
-#include <hse/util/slab.h>
-#include <hse/util/mutex.h>
-#include <hse/util/list.h>
-#include <hse/util/event_counter.h>
-#include <hse/util/data_tree.h>
-
-#include <rbtree.h>
-
 #include <bsd/string.h>
+
+#include <hse/util/alloc.h>
+#include <hse/util/assert.h>
+#include <hse/util/data_tree.h>
+#include <hse/util/event_counter.h>
+#include <hse/util/list.h>
+#include <hse/util/mutex.h>
+#include <hse/util/platform.h>
+#include <hse/util/slab.h>
 
 /* clang-format off */
 
@@ -34,7 +33,8 @@ struct dt_tree {
 
 /* clang-format on */
 
-static size_t dt_root_emit_handler(struct dt_element *, cJSON *);
+static size_t
+dt_root_emit_handler(struct dt_element *, cJSON *);
 
 static struct dt_element_ops dt_root_ops = {
     .dto_emit = dt_root_emit_handler,
@@ -201,7 +201,7 @@ dt_add_pending(void)
 }
 
 merr_t
-dt_add(struct dt_element *const dte)
+dt_add(struct dt_element * const dte)
 {
     merr_t err = 0;
     struct dt_element *item;
@@ -217,7 +217,7 @@ dt_add(struct dt_element *const dte)
     /* Check the pending list to protect against broken or malicious callers
      * trying to add the same dte more than once.
      */
-    list_for_each_entry(item, &hse_dt_tree.dt_pending_list, dte_list) {
+    list_for_each_entry (item, &hse_dt_tree.dt_pending_list, dte_list) {
         if (item == dte || 0 == strcmp(item->dte_path, dte->dte_path)) {
             err = merr(EEXIST);
             break;
@@ -234,7 +234,7 @@ dt_add(struct dt_element *const dte)
 
 /* Caller must hold tree lock. */
 static merr_t
-dt_remove_impl(struct dt_element *const dte, const bool force)
+dt_remove_impl(struct dt_element * const dte, const bool force)
 {
     if (dte->dte_ops->dto_remove || force)
         rb_erase(&dte->dte_node, &hse_dt_tree.dt_root);
@@ -252,14 +252,14 @@ dt_remove_impl(struct dt_element *const dte, const bool force)
 
 /* Assumes that dt_lock is held */
 static struct dt_element *
-dt_find(const char *const path, const size_t path_len, const bool exact)
+dt_find(const char * const path, const size_t path_len, const bool exact)
 {
-    struct rb_root *   root;
-    struct rb_node *   node;
+    struct rb_root *root;
+    struct rb_node *node;
     struct dt_element *dte = NULL;
     struct dt_element *last_valid = NULL;
-    int                result;
-    int                prev = 0;
+    int result;
+    int prev = 0;
 
     dt_add_pending();
 
@@ -296,7 +296,7 @@ dt_find(const char *const path, const size_t path_len, const bool exact)
         dte = NULL;
     }
 
-  out:
+out:
     if ((exact == 0) && (dte == NULL)) {
         /* We've passed what we were looking for */
         dte = last_valid;
@@ -331,7 +331,7 @@ dt_fini(void)
 }
 
 merr_t
-dt_access(const char *const path, dt_access_t access, void *const ctx)
+dt_access(const char * const path, dt_access_t access, void * const ctx)
 {
     merr_t err = 0;
     size_t path_len;
@@ -362,7 +362,7 @@ out:
 }
 
 unsigned int
-dt_count(const char *const path)
+dt_count(const char * const path)
 {
     size_t path_len;
     unsigned int count = 0;
@@ -399,7 +399,7 @@ dt_count(const char *const path)
 
 /* Assumes data tree lock is held */
 static merr_t
-emit_roots_upto(const char *const path, cJSON *const root)
+emit_roots_upto(const char * const path, cJSON * const root)
 {
     merr_t err = 0;
     size_t path_len;
@@ -435,7 +435,7 @@ emit_roots_upto(const char *const path, cJSON *const root)
 }
 
 merr_t
-dt_emit(const char *const path, cJSON **const root)
+dt_emit(const char * const path, cJSON ** const root)
 {
     merr_t err;
     cJSON *tmp;
@@ -496,7 +496,7 @@ out:
 }
 
 merr_t
-dt_remove(const char *const path)
+dt_remove(const char * const path)
 {
     merr_t err = 0;
     size_t path_len;
@@ -524,7 +524,7 @@ dt_remove(const char *const path)
 }
 
 merr_t
-dt_remove_recursive(const char *const path)
+dt_remove_recursive(const char * const path)
 {
     merr_t err = 0;
     size_t path_len;

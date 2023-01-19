@@ -4,30 +4,28 @@
  */
 
 #include <stdint.h>
-#include <sys/mman.h>
-
-#include <mtf/framework.h>
 
 #include <cn/hblock_builder.h>
 #include <cn/hblock_reader.h>
 #include <cn/kvs_mblk_desc.h>
-#include <cn/omf.h>
-#include <cn/wbt_reader.h>
-#include <cn/vgmap.h>
 #include <cn/kvset.h>
+#include <cn/omf.h>
+#include <cn/vgmap.h>
+#include <cn/wbt_reader.h>
+#include <mtf/framework.h>
+#include <sys/mman.h>
 
-#include <hse/util/hlog.h>
 #include <hse/error/merr.h>
+#include <hse/util/hlog.h>
 #include <hse/util/keycmp.h>
 #include <hse/util/page.h>
 
 /* 1 header page, HLOG_PGC hlog pages, 3 ptree pages */
 #define FAKE_HBLOCK_SIZE ((HBLOCK_HDR_PAGES + HLOG_PGC + 3) * PAGE_SIZE)
-#define PFX_MAX "BBBB"
-#define PFX_MAX_LEN 4
-#define PFX_MIN "AAAA"
-#define PFX_MIN_LEN 4
-
+#define PFX_MAX          "BBBB"
+#define PFX_MAX_LEN      4
+#define PFX_MIN          "AAAA"
+#define PFX_MIN_LEN      4
 
 size_t madvise_advice;
 size_t madvise_off;
@@ -66,14 +64,12 @@ const struct hblock_hdr_omf hbh_ro = {
     .hbh_min_pfx_off = HBLOCK_HDR_LEN - 1 * HSE_KVS_PFX_LEN_MAX,
     .hbh_min_pfx_len = PFX_MIN_LEN,
 
-    .hbh_ptree_hdr = {
-        .wbt_magic = WBT_TREE_MAGIC,
-        .wbt_version = WBT_TREE_VERSION,
-        .wbt_root = 20,
-        .wbt_leaf = 0,
-        .wbt_leaf_cnt = 10,
-        .wbt_kmd_pgc = 5
-    },
+    .hbh_ptree_hdr = { .wbt_magic = WBT_TREE_MAGIC,
+                       .wbt_version = WBT_TREE_VERSION,
+                       .wbt_root = 20,
+                       .wbt_leaf = 0,
+                       .wbt_leaf_cnt = 10,
+                       .wbt_kmd_pgc = 5 },
 };
 
 void
@@ -96,12 +92,12 @@ init_hblock(struct hblock_hdr_omf *hbh)
     omf_set_hbh_ptree_data_off_pg(hbh, hbh_ro.hbh_ptree_data_off_pg);
     omf_set_hbh_ptree_data_len_pg(hbh, hbh_ro.hbh_ptree_data_len_pg);
 
-    omf_set_wbt_magic(&hbh->hbh_ptree_hdr,    hbh_ro.hbh_ptree_hdr.wbt_magic);
-    omf_set_wbt_version(&hbh->hbh_ptree_hdr,  hbh_ro.hbh_ptree_hdr.wbt_version);
-    omf_set_wbt_root(&hbh->hbh_ptree_hdr,     hbh_ro.hbh_ptree_hdr.wbt_root);
-    omf_set_wbt_leaf(&hbh->hbh_ptree_hdr,     hbh_ro.hbh_ptree_hdr.wbt_leaf);
+    omf_set_wbt_magic(&hbh->hbh_ptree_hdr, hbh_ro.hbh_ptree_hdr.wbt_magic);
+    omf_set_wbt_version(&hbh->hbh_ptree_hdr, hbh_ro.hbh_ptree_hdr.wbt_version);
+    omf_set_wbt_root(&hbh->hbh_ptree_hdr, hbh_ro.hbh_ptree_hdr.wbt_root);
+    omf_set_wbt_leaf(&hbh->hbh_ptree_hdr, hbh_ro.hbh_ptree_hdr.wbt_leaf);
     omf_set_wbt_leaf_cnt(&hbh->hbh_ptree_hdr, hbh_ro.hbh_ptree_hdr.wbt_leaf_cnt);
-    omf_set_wbt_kmd_pgc(&hbh->hbh_ptree_hdr,  hbh_ro.hbh_ptree_hdr.wbt_kmd_pgc);
+    omf_set_wbt_kmd_pgc(&hbh->hbh_ptree_hdr, hbh_ro.hbh_ptree_hdr.wbt_kmd_pgc);
 
     omf_set_vgm_magic(vgm, VGROUP_MAP_MAGIC);
     omf_set_vgm_version(vgm, VGROUP_MAP_VERSION);
@@ -170,13 +166,13 @@ MTF_DEFINE_UTEST_PREPOST(hblock_reader_test, t_hbr_read_ptree_region_desc, test_
     ASSERT_EQ(err, 0);
 
     ASSERT_EQ(s.wbd_first_page, hbh_ro.hbh_ptree_data_off_pg);
-    ASSERT_EQ(s.wbd_n_pages,    hbh_ro.hbh_ptree_data_len_pg);
+    ASSERT_EQ(s.wbd_n_pages, hbh_ro.hbh_ptree_data_len_pg);
 
-    ASSERT_EQ(s.wbd_version,    hbh_ro.hbh_ptree_hdr.wbt_version);
-    ASSERT_EQ(s.wbd_root,       hbh_ro.hbh_ptree_hdr.wbt_root);
-    ASSERT_EQ(s.wbd_leaf,       hbh_ro.hbh_ptree_hdr.wbt_leaf);
-    ASSERT_EQ(s.wbd_leaf_cnt,   hbh_ro.hbh_ptree_hdr.wbt_leaf_cnt);
-    ASSERT_EQ(s.wbd_kmd_pgc,    hbh_ro.hbh_ptree_hdr.wbt_kmd_pgc);
+    ASSERT_EQ(s.wbd_version, hbh_ro.hbh_ptree_hdr.wbt_version);
+    ASSERT_EQ(s.wbd_root, hbh_ro.hbh_ptree_hdr.wbt_root);
+    ASSERT_EQ(s.wbd_leaf, hbh_ro.hbh_ptree_hdr.wbt_leaf);
+    ASSERT_EQ(s.wbd_leaf_cnt, hbh_ro.hbh_ptree_hdr.wbt_leaf_cnt);
+    ASSERT_EQ(s.wbd_kmd_pgc, hbh_ro.hbh_ptree_hdr.wbt_kmd_pgc);
 }
 
 MTF_DEFINE_UTEST_PREPOST(hblock_reader_test, t_hbr_read_seqno_range, test_pre, test_post)
@@ -294,7 +290,6 @@ MTF_DEFINE_UTEST_PREPOST(hblock_reader_test, t_hbr_madvise_wbt_int_nodes, test_p
     ASSERT_EQ(madvise_advice, adv);
     ASSERT_EQ(madvise_off, PAGE_SIZE * pg);
     ASSERT_EQ(madvise_len, PAGE_SIZE * pg_cnt);
-
 }
 
 MTF_END_UTEST_COLLECTION(hblock_reader_test)

@@ -6,54 +6,51 @@
 #include <sys/sysinfo.h>
 
 #include <hse/logging/logging.h>
-
 #include <hse/util/condvar.h>
 #include <hse/util/event_counter.h>
 #include <hse/util/list.h>
 #include <hse/util/mutex.h>
-#include <hse/util/platform.h>
 #include <hse/util/page.h>
+#include <hse/util/platform.h>
 #include <hse/util/slab.h>
 
 #include "wal.h"
 #include "wal_file.h"
 
-static struct kmem_cache       *iowcache HSE_READ_MOSTLY;
+static struct kmem_cache *iowcache HSE_READ_MOSTLY;
 static struct workqueue_struct *iowq HSE_READ_MOSTLY;
 
 struct wal_io_work {
-    struct list_head  iow_list;
-    struct wal_io    *iow_io;
+    struct list_head iow_list;
+    struct wal_io *iow_io;
     struct wal_minmax_info iow_info;
 
-    char       *iow_buf;
-    uint64_t    iow_len;
-    uint64_t    iow_gen;
-    uint32_t    iow_index;
-    bool        iow_bufwrap;
+    char *iow_buf;
+    uint64_t iow_len;
+    uint64_t iow_gen;
+    uint32_t iow_index;
+    bool iow_bufwrap;
 } HSE_L1D_ALIGNED;
 
-
 struct wal_io {
-    struct mutex     io_lock HSE_ACP_ALIGNED;
+    struct mutex io_lock HSE_ACP_ALIGNED;
     struct list_head io_active;
-    bool             io_stop;
-    struct cv        io_cv;
+    bool io_stop;
+    struct cv io_cv;
 
-    atomic_long         io_pend HSE_L1D_ALIGNED;
-    atomic_long         io_comp;
-    atomic_ulong        io_gen;
-    atomic_ulong       *io_doff;
-    atomic_int          io_stopped;
+    atomic_long io_pend HSE_L1D_ALIGNED;
+    atomic_long io_comp;
+    atomic_ulong io_gen;
+    atomic_ulong *io_doff;
+    atomic_int io_stopped;
 
     struct wal_fileset *io_wfset;
-    struct wal_file    *io_wfile;
-    struct wal_iocb    *io_cb;
-    atomic_long         io_err;
-    uint32_t            io_index;
-    struct work_struct  io_work;
+    struct wal_file *io_wfile;
+    struct wal_iocb *io_cb;
+    atomic_long io_err;
+    uint32_t io_index;
+    struct work_struct io_work;
 };
-
 
 static merr_t
 wal_io_submit(struct wal_io_work *iow)
@@ -141,7 +138,7 @@ wal_io_worker(struct work_struct *work)
         INIT_LIST_HEAD(&io->io_active);
         mutex_unlock(&io->io_lock);
 
-        list_for_each_entry_safe(iow, next, &active, iow_list) {
+        list_for_each_entry_safe (iow, next, &active, iow_list) {
             if (atomic_read(&io->io_err) == 0) {
                 merr_t err;
 
@@ -164,12 +161,12 @@ wal_io_worker(struct work_struct *work)
 
 merr_t
 wal_io_enqueue(
-    struct wal_io          *io,
-    char                   *buf,
-    uint64_t                len,
-    uint64_t                gen,
+    struct wal_io *io,
+    char *buf,
+    uint64_t len,
+    uint64_t gen,
     struct wal_minmax_info *info,
-    bool                    bufwrap)
+    bool bufwrap)
 {
     struct wal_io_work *iow;
     merr_t err;
@@ -199,19 +196,15 @@ wal_io_enqueue(
 
 #ifndef NDEBUG
     if (atomic_read(&io->io_pend) % 1536 == 0)
-        log_debug("IO stats: pend %lu comp %lu",
-                  atomic_read(&io->io_pend), atomic_read(&io->io_comp));
+        log_debug(
+            "IO stats: pend %lu comp %lu", atomic_read(&io->io_pend), atomic_read(&io->io_comp));
 #endif
 
     return 0;
 }
 
 struct wal_io *
-wal_io_create(
-    struct wal_fileset *wfset,
-    uint32_t            index,
-    atomic_ulong       *doff,
-    struct wal_iocb    *iocb)
+wal_io_create(struct wal_fileset *wfset, uint32_t index, atomic_ulong *doff, struct wal_iocb *iocb)
 {
     struct wal_io *io;
     size_t sz;
@@ -265,8 +258,8 @@ wal_io_destroy(struct wal_io *io)
 merr_t
 wal_io_init(uint32_t threads)
 {
-    iowcache = kmem_cache_create("wal-iowork", sizeof(struct wal_io_work),
-                                 alignof(struct wal_io_work), 0, NULL);
+    iowcache = kmem_cache_create(
+        "wal-iowork", sizeof(struct wal_io_work), alignof(struct wal_io_work), 0, NULL);
     if (!iowcache)
         return merr(ENOMEM);
 

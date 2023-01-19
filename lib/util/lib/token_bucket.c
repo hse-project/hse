@@ -19,7 +19,6 @@
  * - If (burst < balance <= U64_MAX), the bucket has a debt of (U64_MAX - balance + 1) tokens.
  */
 
-
 static inline bool
 tbkti_in_debt(struct tbkt *self)
 {
@@ -38,7 +37,6 @@ tbkti_status(struct tbkt *self, uint64_t *amount)
 
     return in_debt;
 }
-
 
 static void
 tbkti_burst_set(struct tbkt *self, uint64_t burst)
@@ -64,12 +62,10 @@ tbkti_burst_set(struct tbkt *self, uint64_t burst)
     if (had_debt && !still_have_debt) {
         self->tb_balance = burst + 1u;
         assert(burst == UINT64_MAX || tbkti_in_debt(self));
-    }
-    else if (!had_debt && still_have_debt) {
+    } else if (!had_debt && still_have_debt) {
         self->tb_balance = burst;
         assert(!tbkti_in_debt(self));
     }
-
 }
 
 static void
@@ -128,7 +124,7 @@ tbkti_balance(struct tbkt *self, uint64_t now)
     if (((self->tb_rate | dt) >> 32) == 0) {
         refill = (self->tb_rate * dt) / NSEC_PER_SEC;
     } else {
-        refill = (uint64_t)((double) self->tb_rate * dt * 1e-9);
+        refill = (uint64_t)((double)self->tb_rate * dt * 1e-9);
     }
 
     if (refill > self->tb_burst - self->tb_balance)
@@ -261,10 +257,9 @@ tbkt_request(struct tbkt *self, uint64_t request, uint64_t *now)
 
 #if HSE_TBKT_DEBUG
     if (++tstats.updates % 1048576 == 0) {
-        log_info("%8lu %8lu %4lu, %8lu %lu",
-                 tstats.calls, tstats.updates,
-                 (tstats.updates * 1000) / tstats.calls,
-                 rate, delay);
+        log_info(
+            "%8lu %8lu %4lu, %8lu %lu", tstats.calls, tstats.updates,
+            (tstats.updates * 1000) / tstats.calls, rate, delay);
         tstats.updates /= 2;
         tstats.calls /= 2;
     }

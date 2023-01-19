@@ -34,11 +34,11 @@
 struct kvs_rparams {
     uint64_t kvs_cursor_ttl;
 
-    bool     transactions_enable;
-    bool     cn_maint_disable;
-    bool     cn_close_wait;
-    uint8_t  perfc_level;
-    uint8_t  cn_compaction_debug; /* 1=compact, 2=ingest */
+    bool transactions_enable;
+    bool cn_maint_disable;
+    bool cn_close_wait;
+    uint8_t perfc_level;
+    uint8_t cn_compaction_debug; /* 1=compact, 2=ingest */
 
     uint32_t cn_maint_delay;
     uint32_t cn_split_size;
@@ -54,15 +54,15 @@ struct kvs_rparams {
 
     uint64_t cn_cursor_seq;
     uint64_t cn_cursor_vra;
-    bool     cn_cursor_kra;
+    bool cn_cursor_kra;
 
-    uint8_t  cn_mcache_kra_params;
-    uint8_t  cn_mcache_vra_params;
-    uint8_t  cn_mcache_wbt;
+    uint8_t cn_mcache_kra_params;
+    uint8_t cn_mcache_vra_params;
+    uint8_t cn_mcache_wbt;
     uint32_t cn_mcache_vmax;
 
-    bool     cn_bloom_create;
-    bool     cn_bloom_preload;
+    bool cn_bloom_create;
+    bool cn_bloom_preload;
     uint64_t cn_bloom_prob;
     uint64_t cn_bloom_capped;
 
@@ -88,16 +88,13 @@ kvs_rparams_defaults(void) HSE_CONST;
 merr_t
 kvs_rparams_get(
     const struct kvs_rparams *params,
-    const char *              param,
-    char *                    buf,
-    size_t                    buf_sz,
-    size_t *                  needed_sz);
+    const char *param,
+    char *buf,
+    size_t buf_sz,
+    size_t *needed_sz);
 
 merr_t
-kvs_rparams_set(
-    struct kvs_rparams *params,
-    const char *        param,
-    const char *        value);
+kvs_rparams_set(struct kvs_rparams *params, const char *param, const char *value);
 
 /**
  * Deserialize a config into KVS rparams
@@ -107,10 +104,7 @@ kvs_rparams_set(
  * @param kvs_name Name of KVS
  */
 merr_t
-kvs_rparams_from_config(
-    struct kvs_rparams *params,
-    cJSON *config,
-    const char *kvs_name);
+kvs_rparams_from_config(struct kvs_rparams *params, cJSON *config, const char *kvs_name);
 
 /**
  * Deserialize list of key=value parameters to KVS rparams
@@ -124,10 +118,7 @@ kvs_rparams_from_config(
  * @retval !0 failure
  */
 merr_t
-kvs_rparams_from_paramv(
-    struct kvs_rparams *params,
-    size_t              paramc,
-    const char *const * paramv);
+kvs_rparams_from_paramv(struct kvs_rparams *params, size_t paramc, const char * const *paramv);
 
 cJSON *
 kvs_rparams_to_json(const struct kvs_rparams *params) HSE_WARN_UNUSED_RESULT;

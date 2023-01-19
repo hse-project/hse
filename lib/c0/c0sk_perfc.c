@@ -5,14 +5,13 @@
 
 #include <stdint.h>
 
-#include <hse/util/platform.h>
 #include <hse/error/merr.h>
+#include <hse/ikvdb/c0sk_perfc.h>
+#include <hse/ikvdb/ikvdb.h>
+#include <hse/ikvdb/kvdb_perfc.h>
 #include <hse/logging/logging.h>
 #include <hse/util/perfc.h>
-
-#include <hse/ikvdb/c0sk_perfc.h>
-#include <hse/ikvdb/kvdb_perfc.h>
-#include <hse/ikvdb/ikvdb.h>
+#include <hse/util/platform.h>
 
 #include "c0sk_internal.h"
 

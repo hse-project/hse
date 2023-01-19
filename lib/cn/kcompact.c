@@ -7,23 +7,21 @@
 
 #include <stdint.h>
 
-#include <hse/util/platform.h>
-#include <hse/util/event_counter.h>
-#include <hse/logging/logging.h>
-
 #include <hse/ikvdb/kvs_rparams.h>
+#include <hse/ikvdb/kvset_builder.h>
 #include <hse/ikvdb/limits.h>
 #include <hse/ikvdb/tuple.h>
-#include <hse/ikvdb/kvset_builder.h>
+#include <hse/logging/logging.h>
+#include <hse/util/event_counter.h>
+#include <hse/util/platform.h>
 
-#include "kcompact.h"
-
-#include "kvset.h"
 #include "cn_metrics.h"
-#include "kv_iterator.h"
 #include "cn_tree.h"
-#include "cn_tree_internal.h"
 #include "cn_tree_compact.h"
+#include "cn_tree_internal.h"
+#include "kcompact.h"
+#include "kv_iterator.h"
+#include "kvset.h"
 #include "vgmap.h"
 
 static int
@@ -55,15 +53,15 @@ kcompact(struct cn_compaction_work *w, struct kvset_builder *bldr)
     struct element_source **sources = NULL;
 
     enum kmd_vtype vtype;
-    uint           vbidx, vboff, vlen, complen;
-    const void *   vdata;
+    uint vbidx, vboff, vlen, complen;
+    const void *vdata;
 
     uint64_t seq, emitted_seq = 0, emitted_seq_pt = 0;
     bool emitted_val, horizon, more;
 
     struct key_obj prev_kobj, pt_kobj = { 0 };
 
-    bool     pt_set = false;
+    bool pt_set = false;
     uint64_t pt_seq = 0;
     uint64_t tprog = 0;
 
@@ -144,8 +142,10 @@ kcompact(struct cn_compaction_work *w, struct kvset_builder *bldr)
         w->cw_stats.ms_keys_in++;
         w->cw_stats.ms_key_bytes_in += key_obj_len(&curr->kobj);
 
-        while (horizon && kvset_iter_next_vref(iter, &curr->vctx, &seq, &vtype, &vbidx, &vboff,
-                &vdata, &vlen, &complen)) {
+        while (horizon &&
+               kvset_iter_next_vref(
+                   iter, &curr->vctx, &seq, &vtype, &vbidx, &vboff, &vdata, &vlen, &complen))
+        {
             bool should_emit = false;
 
             /* Assertion logic:
@@ -303,11 +303,7 @@ cn_kcompact(struct cn_compaction_work *w)
 
     w->cw_kvsetidv[0] = cndb_kvsetid_mint(cn_tree_get_cndb(w->cw_tree));
 
-    err = kvset_builder_create(
-        &bldr,
-        cn_tree_get_cn(w->cw_tree),
-        w->cw_pc,
-        w->cw_kvsetidv[0]);
+    err = kvset_builder_create(&bldr, cn_tree_get_cn(w->cw_tree), w->cw_pc, w->cw_kvsetidv[0]);
     if (ev(err))
         return err;
 
@@ -328,8 +324,8 @@ cn_kcompact(struct cn_compaction_work *w)
         struct vgmap *vgmap = w->cw_vgmap[0];
 
         assert(vgmap && w->cw_input_vgroups == vgmap->nvgroups);
-        kvset_builder_adopt_vblocks(bldr, w->cw_vbmap.vbm_blkc, w->cw_vbmap.vbm_blkv,
-                                    w->cw_vbmap.vbm_tot, vgmap);
+        kvset_builder_adopt_vblocks(
+            bldr, w->cw_vbmap.vbm_blkc, w->cw_vbmap.vbm_blkv, w->cw_vbmap.vbm_tot, vgmap);
         w->cw_vgmap[0] = NULL; /* reset after adopting the vgmap to the kvset builder */
 
         w->cw_vbmap.vbm_blkv = NULL;

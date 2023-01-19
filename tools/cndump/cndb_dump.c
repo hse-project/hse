@@ -9,20 +9,21 @@
 #include <stdlib.h>
 #include <unistd.h>
 
-#include <hse/cli/program.h>
 #include <hse/hse.h>
+
+#include <hse/cli/program.h>
 #include <hse/ikvdb/diag_kvdb.h>
 
 #include "cndb_reader.h"
 #include "cndb_record.h"
-#include "globals.h"
 #include "commands.h"
 #include "fatal.h"
+#include "globals.h"
 
 /* command line options for cndb sub-command */
 struct opts {
-    bool oneline;               // print each record on a single line
-    const char *home;           // KVDB home dir
+    bool oneline;     // print each record on a single line
+    const char *home; // KVDB home dir
 };
 
 static struct opts opts;
@@ -31,11 +32,10 @@ static void
 help(void)
 {
     printf("usage: %s %s [options] <kvdb_home>\n", progname, CNDB_COMMAND_NAME);
-    printf(
-        "  -h           print help\n"
-        "  -v           verbose\n"
-        "  -l           show each record on a single line\n"
-        "  <kvdb_home>  KVDB home directory\n");
+    printf("  -h           print help\n"
+           "  -v           verbose\n"
+           "  -l           show each record on a single line\n"
+           "  <kvdb_home>  KVDB home directory\n");
 
     if (!global_opts.verbose) {
         printf("use '-hv' for more detail\n");
@@ -46,9 +46,9 @@ help(void)
     printf("The CNDB log is a transactional log containing CN tree mutations.  It shows\n");
     printf("information such as CN tree node IDs, KVS names, kvset IDs, hblock, kbock and \n");
     printf("vblock IDs.  Use this command to get kvset and mblock IDs that can be used\n");
-    printf("with '%s %s' and '%s %s'.\n",
-        CNDB_COMMAND_NAME, KVSET_COMMAND_NAME,
-        CNDB_COMMAND_NAME, MBLOCK_COMMAND_NAME);
+    printf(
+        "with '%s %s' and '%s %s'.\n", CNDB_COMMAND_NAME, KVSET_COMMAND_NAME, CNDB_COMMAND_NAME,
+        MBLOCK_COMMAND_NAME);
 }
 
 static void

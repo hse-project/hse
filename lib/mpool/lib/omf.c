@@ -3,21 +3,20 @@
  * Copyright (C) 2021-2022 Micron Technology, Inc.  All rights reserved.
  */
 
-#include <stdbool.h>
+#include <crc32c.h>
 #include <errno.h>
+#include <stdbool.h>
 #include <stdint.h>
 #include <string.h>
-
-#include <crc32c.h>
 
 #include <hse/error/merr.h>
 #include <hse/logging/logging.h>
 #include <hse/util/page.h>
 
-#include "omf.h"
 #include "mblock_file.h"
 #include "mblock_fset.h"
 #include "mdc_file.h"
+#include "omf.h"
 
 static HSE_ALWAYS_INLINE uint64_t
 crc_valid_bit_set(uint32_t crc32)
@@ -73,7 +72,7 @@ static merr_t
 omf_mdc_loghdr_unpack_v1(const char *inbuf, struct mdc_loghdr *lh)
 {
     struct mdc_loghdr_omf_v1 *lhomf;
-    uint32_t                  crc;
+    uint32_t crc;
 
     lhomf = (struct mdc_loghdr_omf_v1 *)inbuf;
 
@@ -92,8 +91,8 @@ static merr_t
 omf_mdc_loghdr_unpack_latest(const char *inbuf, bool gclose, struct mdc_loghdr *lh)
 {
     struct mdc_loghdr_omf *lhomf;
-    uint64_t               crc;
-    uint32_t               crc32;
+    uint64_t crc;
+    uint32_t crc32;
 
     lhomf = (struct mdc_loghdr_omf *)inbuf;
 
@@ -165,10 +164,10 @@ omf_mdc_rechdr_pack(void *data, size_t len, void *outbuf)
 
 static merr_t
 omf_mdc_rechdr_unpack_v1(
-    const char        *inbuf,
-    off_t              curoff,
-    size_t             len,
-    bool               crc_verify,
+    const char *inbuf,
+    off_t curoff,
+    size_t len,
+    bool crc_verify,
     struct mdc_rechdr *rh)
 {
     struct mdc_rechdr_omf_v1 *rhomf;
@@ -194,8 +193,8 @@ omf_mdc_rechdr_unpack_v1(
 
         data = inbuf + omf_mdc_rechdr_len(MDC_LOGHDR_VERSION1);
 
-        crc = omf_rechdr_crc_get((const uint8_t *)&rhomf->rh_size, hdrlen,
-                                 (const uint8_t *)data, rh->size);
+        crc = omf_rechdr_crc_get(
+            (const uint8_t *)&rhomf->rh_size, hdrlen, (const uint8_t *)data, rh->size);
         if (crc != rh->crc)
             return merr(ENOMSG);
     }
@@ -205,11 +204,11 @@ omf_mdc_rechdr_unpack_v1(
 
 static merr_t
 omf_mdc_rechdr_unpack_latest(
-    const char        *inbuf,
-    off_t              curoff,
-    size_t             len,
-    bool               gclose,
-    bool               crc_verify,
+    const char *inbuf,
+    off_t curoff,
+    size_t len,
+    bool gclose,
+    bool crc_verify,
     struct mdc_rechdr *rh)
 {
     struct mdc_rechdr_omf *rhomf;
@@ -228,13 +227,15 @@ omf_mdc_rechdr_unpack_latest(
     if (crc_verify) {
         uint8_t hdrlen = sizeof(rhomf->rh_size);
 
-        crc32 = omf_rechdr_crc_get((const uint8_t *)&rhomf->rh_size, hdrlen,
-                                   (const uint8_t *)rhomf->rh_data, rh->size);
+        crc32 = omf_rechdr_crc_get(
+            (const uint8_t *)&rhomf->rh_size, hdrlen, (const uint8_t *)rhomf->rh_data, rh->size);
         if (crc32 != rh->crc || !crc_valid_bit_isset(crc)) {
             const struct mdc_rechdr_omf ref = { 0 };
 
-            return ((memcmp(rhomf, &ref, sizeof(*rhomf)) == 0) ? merr(ENODATA) :
-                    (gclose ? merr(EBADMSG) : merr(ENOMSG)));
+            return (
+                (memcmp(rhomf, &ref, sizeof(*rhomf)) == 0)
+                    ? merr(ENODATA)
+                    : (gclose ? merr(EBADMSG) : merr(ENOMSG)));
         }
     }
 
@@ -243,12 +244,12 @@ omf_mdc_rechdr_unpack_latest(
 
 merr_t
 omf_mdc_rechdr_unpack(
-    const char        *inbuf,
-    uint32_t           version,
-    off_t              curoff,
-    size_t             len,
-    bool               gclose,
-    bool               crc_verify,
+    const char *inbuf,
+    uint32_t version,
+    off_t curoff,
+    size_t len,
+    bool gclose,
+    bool crc_verify,
     struct mdc_rechdr *rh)
 {
     merr_t err = 0;
@@ -351,8 +352,10 @@ omf_mblock_metahdr_unpack_latest(const char *inbuf, struct mblock_metahdr *mh)
     if ((crc32 != (crc & CRC_MASK)) || !crc_valid_bit_isset(crc)) {
         const struct mblock_metahdr_omf ref = { 0 };
 
-        return ((memcmp(mhomf, &ref, sizeof(*mhomf)) == 0) ? merr(ENODATA) :
-                (mh->gclose ? merr(EBADMSG) : merr(ENOMSG)));
+        return (
+            (memcmp(mhomf, &ref, sizeof(*mhomf)) == 0)
+                ? merr(ENODATA)
+                : (mh->gclose ? merr(EBADMSG) : merr(ENOMSG)));
     }
 
     return 0;
@@ -365,20 +368,19 @@ omf_mblock_metahdr_unpack(const void *inbuf, struct mblock_metahdr *mh)
 
     mh->magic = omf_mh_magic(inbuf);
 
-	if (mh->magic != MBLOCK_METAHDR_MAGIC) {
-		bool big = (HSE_OMF_BYTE_ORDER == __ORDER_BIG_ENDIAN__);
+    if (mh->magic != MBLOCK_METAHDR_MAGIC) {
+        bool big = (HSE_OMF_BYTE_ORDER == __ORDER_BIG_ENDIAN__);
 
-		if (mh->magic != bswap_32(MBLOCK_METAHDR_MAGIC))
-			return merr(EBADMSG);
+        if (mh->magic != bswap_32(MBLOCK_METAHDR_MAGIC))
+            return merr(EBADMSG);
 
-		log_err("MDC format is %s endian, but libhse is configured to use %s endian,"
-                        "try reconfiguring with -Domf-byte-order=%s",
-                        big ? "little" : "big",
-                        big ? "big" : "little",
-                        big ? "little" : "big");
+        log_err(
+            "MDC format is %s endian, but libhse is configured to use %s endian,"
+            "try reconfiguring with -Domf-byte-order=%s",
+            big ? "little" : "big", big ? "big" : "little", big ? "little" : "big");
 
-		return merr(EPROTO);
-	}
+        return merr(EPROTO);
+    }
 
     mh->vers = omf_mh_vers(inbuf);
 
@@ -455,8 +457,9 @@ omf_mblock_filehdr_unpack_latest(const char *inbuf, bool gclose, struct mblock_f
     if ((crc32 != (crc & CRC_MASK)) || !crc_valid_bit_isset(crc)) {
         const struct mblock_filehdr_omf ref = { 0 };
 
-        return ((memcmp(fhomf, &ref, sizeof(*fhomf)) == 0) ? merr(ENODATA) :
-                (gclose ? merr(EBADMSG) : merr(ENOMSG)));
+        return (
+            (memcmp(fhomf, &ref, sizeof(*fhomf)) == 0) ? merr(ENODATA)
+                                                       : (gclose ? merr(EBADMSG) : merr(ENOMSG)));
     }
 
     return 0;
@@ -464,9 +467,9 @@ omf_mblock_filehdr_unpack_latest(const char *inbuf, bool gclose, struct mblock_f
 
 merr_t
 omf_mblock_filehdr_unpack(
-    const char            *inbuf,
-    uint32_t               version,
-    bool                   gclose,
+    const char *inbuf,
+    uint32_t version,
+    bool gclose,
     struct mblock_filehdr *fh)
 {
     merr_t err = 0;
@@ -560,8 +563,9 @@ omf_mblock_oid_unpack_latest(const char *inbuf, bool gclose, struct mblock_oid_i
     if ((crc32 != (crc & CRC_MASK)) || !crc_valid_bit_isset(crc)) {
         const struct mblock_oid_omf ref = { 0 };
 
-        return ((memcmp(mbomf, &ref, sizeof(*mbomf)) == 0) ? 0 :
-                (gclose ? merr(EBADMSG) : merr(ENOMSG)));
+        return (
+            (memcmp(mbomf, &ref, sizeof(*mbomf)) == 0) ? 0
+                                                       : (gclose ? merr(EBADMSG) : merr(ENOMSG)));
     }
 
     return 0;
@@ -569,9 +573,9 @@ omf_mblock_oid_unpack_latest(const char *inbuf, bool gclose, struct mblock_oid_i
 
 merr_t
 omf_mblock_oid_unpack(
-    const char             *inbuf,
-    uint32_t                version,
-    bool                    gclose,
+    const char *inbuf,
+    uint32_t version,
+    bool gclose,
     struct mblock_oid_info *mbinfo)
 {
     merr_t err = 0;

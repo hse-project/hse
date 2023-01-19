@@ -14,42 +14,42 @@
 #include <stdlib.h>
 #include <string.h>
 #include <sysexits.h>
+
 #include <sys/resource.h>
 #include <sys/time.h>
+#include <tools/key_generation.h>
+#include <tools/parm_groups.h>
+
+#include <hse/hse.h>
 
 #include <hse/cli/program.h>
-#include <hse/hse.h>
 #include <hse/util/arch.h>
 #include <hse/util/atomic.h>
 #include <hse/util/compiler.h>
 #include <hse/util/parse_num.h>
 #include <hse/util/time.h>
 
-#include <tools/parm_groups.h>
-
-#include <tools/key_generation.h>
-
 /* Default key/value lengths */
-#define KLEN_DEFAULT   23
-#define VLEN_DEFAULT   1018
+#define KLEN_DEFAULT 23
+#define VLEN_DEFAULT 1018
 
-#define KLEN_MAX  1000
-#define VLEN_MAX  (10*1024)
+#define KLEN_MAX 1000
+#define VLEN_MAX (10 * 1024)
 
 struct opts {
-    bool    help;
-    char   *config;
-    char   *mpool;
-    char   *kvs;
-    char   *weight;
+    bool help;
+    char *config;
+    char *mpool;
+    char *kvs;
+    char *weight;
     uint64_t keys;
-    uint    klen;
-    uint    vlen;
-    uint    threads;
-    bool    show_ops;
-    bool    dryrun;
-    bool    close;
-    bool    binary;
+    uint klen;
+    uint vlen;
+    uint threads;
+    bool show_ops;
+    bool dryrun;
+    bool close;
+    bool binary;
     uint64_t kstart;
     uint32_t errcnt;
     uint32_t ingiters;
@@ -58,9 +58,8 @@ struct opts {
     uint64_t runtime;
 };
 
-
-#define KEY_SHOWLEN  23
-#define VAL_SHOWLEN  35
+#define KEY_SHOWLEN 23
+#define VAL_SHOWLEN 35
 
 char *VAL_PREFIX = "V%016lx_%016u";
 
@@ -74,46 +73,49 @@ uint32_t errors = 0;
 static struct key_generator *key_gen;
 static const long key_space_size = 4000000000UL;
 
-pthread_barrier_t   barrier;
+pthread_barrier_t barrier;
 struct hse_kvdb *kvdb;
-struct hse_kvs  **kvs_h;
+struct hse_kvs **kvs_h;
 char **kvs_names;
-uint  *kvs_weight;
+uint *kvs_weight;
 char **kvswt_param;
-uint   kvs_cnt;
+uint kvs_cnt;
 
 struct parm_groups *pg;
-struct svec         hse_gparm = { 0 };
-struct svec         db_oparm = { 0 };
-struct svec         kv_oparm = { 0 };
+struct svec hse_gparm = { 0 };
+struct svec db_oparm = { 0 };
+struct svec kv_oparm = { 0 };
 
 struct thread_info {
-    struct hse_kvs         *kvs;
-    pthread_t           tid;
-    uint                id;
+    struct hse_kvs *kvs;
+    pthread_t tid;
+    uint id;
 
-    bool        joined;
+    bool joined;
 
     /* reference key */
-    void       *ref_key;
-    size_t      ref_klen;
+    void *ref_key;
+    size_t ref_klen;
 
     /* reference value */
-    void       *ref_val;
-    size_t      ref_vlen;
+    void *ref_val;
+    size_t ref_vlen;
 
     /* buffer for kvdb_get */
-    void       *get_val;
+    void *get_val;
 
-    void       *pfx;
-    int         pfxlen;
-    uint64_t    ops;
-    uint64_t    time;
+    void *pfx;
+    int pfxlen;
+    uint64_t ops;
+    uint64_t time;
 };
 
-static void syntax(const char *fmt, ...);
-static void quit(const char *fmt, ...);
-static void usage(void);
+static void
+syntax(const char *fmt, ...);
+static void
+quit(const char *fmt, ...);
+static void
+usage(void);
 
 static void
 quit(const char *fmt, ...)
@@ -146,23 +148,16 @@ syntax(const char *fmt, ...)
 }
 
 static void
-_error_quit(
-    const char *detail,
-    hse_err_t    err,
-    const char *file,
-    int         line)
+_error_quit(const char *detail, hse_err_t err, const char *file, int line)
 {
     char err_buf[300];
 
     hse_strerror(err, err_buf, sizeof(err_buf));
 
-    quit("%s:%d: %s: %s", file, line,
-         (detail && *detail) ? detail : "",
-         err_buf);
+    quit("%s:%d: %s: %s", file, line, (detail && *detail) ? detail : "", err_buf);
 }
 
-#define error_quit(detail, err) \
-    _error_quit(detail, err, REL_FILE(__FILE__), __LINE__)
+#define error_quit(detail, err) _error_quit(detail, err, REL_FILE(__FILE__), __LINE__)
 
 void
 announce_header(void)
@@ -170,8 +165,7 @@ announce_header(void)
     if (!verbose)
         return;
 
-    printf("*** %8s %7s %7s %7s %8s  %s\n",
-           "TID", "USER", "SYS", "REAL", "MODE", "MESSAGE");
+    printf("*** %8s %7s %7s %7s %8s  %s\n", "TID", "USER", "SYS", "REAL", "MODE", "MESSAGE");
 }
 
 void
@@ -192,15 +186,12 @@ announce(const char *msg)
 
         rtime = (tv_now.tv_sec - tv_start.tv_sec) * 1000000;
         rtime += (tv_now.tv_usec - tv_start.tv_usec);
-        utime = rusage.ru_utime.tv_sec * 1000000
-            + rusage.ru_utime.tv_usec;
-        stime = rusage.ru_stime.tv_sec * 1000000
-            + rusage.ru_stime.tv_usec;
+        utime = rusage.ru_utime.tv_sec * 1000000 + rusage.ru_utime.tv_usec;
+        stime = rusage.ru_stime.tv_sec * 1000000 + rusage.ru_stime.tv_usec;
 
-        printf("*** %8lx %7ld %7ld %7ld %8s  %s\n",
-               pthread_self() & 0xffffffffu,
-               utime / 1000, stime / 1000, rtime / 1000,
-               mode, msg);
+        printf(
+            "*** %8lx %7ld %7ld %7ld %8s  %s\n", pthread_self() & 0xffffffffu, utime / 1000,
+            stime / 1000, rtime / 1000, mode, msg);
     }
 }
 
@@ -210,45 +201,42 @@ announce(const char *msg)
 
 enum opt_enum {
     opt_config = 'Z',
-    opt_binary	= 'b',
-    opt_keys	= 'c',
-    opt_help	= 'h',
-    opt_klen        = 'l',
-    opt_vlen        = 'L',
-    opt_dryrun	= 'n',
-    opt_close       = 'x',
+    opt_binary = 'b',
+    opt_keys = 'c',
+    opt_help = 'h',
+    opt_klen = 'l',
+    opt_vlen = 'L',
+    opt_dryrun = 'n',
+    opt_close = 'x',
 
-    opt_verbose	= 'v',
-    opt_kstart      = 's',
-    opt_threads     = 't',
+    opt_verbose = 'v',
+    opt_kstart = 's',
+    opt_threads = 't',
     opt_ingestcycle = 'i',
-    opt_sleepcycle  = 'S',
-    opt_ingiters    = 'I',
-    opt_runtime     = 'T',
+    opt_sleepcycle = 'S',
+    opt_ingiters = 'I',
+    opt_runtime = 'T',
 };
 
+struct option longopts[] = { { "config", required_argument, NULL, opt_config },
+                             { "binary", no_argument, NULL, opt_binary },
+                             { "dryrun", no_argument, NULL, opt_dryrun },
+                             { "close", no_argument, NULL, opt_close },
+                             { "help", no_argument, NULL, opt_help },
+                             { "keys", required_argument, NULL, opt_keys },
+                             { "klen", required_argument, NULL, opt_klen },
+                             { "vlen", required_argument, NULL, opt_vlen },
+                             { "threads", required_argument, NULL, opt_threads },
 
-struct option longopts[] = {
-    { "config",      required_argument,  NULL,  opt_config},
-    { "binary",      no_argument,        NULL,  opt_binary },
-    { "dryrun",      no_argument,        NULL,  opt_dryrun },
-    { "close",       no_argument,        NULL,  opt_close},
-    { "help",        no_argument,        NULL,  opt_help },
-    { "keys",        required_argument,  NULL,  opt_keys },
-    { "klen",        required_argument,  NULL,  opt_klen },
-    { "vlen",        required_argument,  NULL,  opt_vlen },
-    { "threads",     required_argument,  NULL,  opt_threads },
+                             { "ingestcycle", required_argument, NULL, opt_ingestcycle },
+                             { "ingiters", required_argument, NULL, opt_ingiters },
+                             { "sleepcycle", required_argument, NULL, opt_sleepcycle },
+                             { "runtime", required_argument, NULL, opt_runtime },
 
-    { "ingestcycle", required_argument,  NULL,  opt_ingestcycle },
-    { "ingiters",    required_argument,  NULL,  opt_ingiters },
-    { "sleepcycle",  required_argument,  NULL,  opt_sleepcycle },
-    { "runtime",     required_argument,  NULL,  opt_runtime },
+                             { "verbose", optional_argument, NULL, opt_verbose },
+                             { "kstart", required_argument, NULL, opt_kstart },
 
-    { "verbose",     optional_argument,  NULL,  opt_verbose },
-    { "kstart",      required_argument,  NULL,  opt_kstart  },
-
-    { 0, 0, 0, 0 }
-};
+                             { 0, 0, 0, 0 } };
 
 /* A thread-safe version of strerror().
  */
@@ -260,11 +248,8 @@ strerror(int errnum)
     return strerror_r(errnum, tls_errbuf, sizeof(tls_errbuf));
 }
 
-
-static
-void
-options_default(
-    struct opts *opt)
+static void
+options_default(struct opts *opt)
 {
     memset(opt, 0, sizeof(*opt));
     opt->keys = 10;
@@ -273,46 +258,42 @@ options_default(
     opt->klen = KLEN_DEFAULT;
     opt->vlen = VLEN_DEFAULT;
 
-    opt->ingestcycle  = 30;
+    opt->ingestcycle = 30;
     opt->ingestcycle *= NSEC_PER_SEC;
-    opt->sleepcycle   = NSEC_PER_SEC;
-    opt->ingiters     = 1;
-    opt->runtime      = 180UL * NSEC_PER_SEC;
-    opt->dryrun       = false;
-    opt->close        = false;
+    opt->sleepcycle = NSEC_PER_SEC;
+    opt->ingiters = 1;
+    opt->runtime = 180UL * NSEC_PER_SEC;
+    opt->dryrun = false;
+    opt->close = false;
 }
 
-#define GET_VALUE(TYPE, OPTARG, VALUE)					\
-    do {                                                                \
-	if (parse_##TYPE(OPTARG, VALUE)) {				\
-            syntax("Unable to parse "#TYPE" number: '%s'", OPTARG);	\
-	}								\
+#define GET_VALUE(TYPE, OPTARG, VALUE)                                \
+    do {                                                              \
+        if (parse_##TYPE(OPTARG, VALUE)) {                            \
+            syntax("Unable to parse " #TYPE " number: '%s'", OPTARG); \
+        }                                                             \
     } while (0)
 
-#define GET_DOUBLE(OPTARG, VALUE)                               \
-    do {                                                        \
-	if (1 != sscanf(OPTARG, "%lg", VALUE)) {                \
-            syntax("Unable to parse double: '%s'", OPTARG);     \
-	}                                                       \
+#define GET_DOUBLE(OPTARG, VALUE)                           \
+    do {                                                    \
+        if (1 != sscanf(OPTARG, "%lg", VALUE)) {            \
+            syntax("Unable to parse double: '%s'", OPTARG); \
+        }                                                   \
     } while (0)
 
 void
-options_parse(
-    int argc,
-    char **argv,
-    struct opts *opt)
+options_parse(int argc, char **argv, struct opts *opt)
 {
     int done;
 
     /* Dynamically build optstring from longopts[] for getopt_long_only().
      */
-    const size_t optstringsz =
-        (sizeof(longopts) / sizeof(longopts[0])) * 3 + 3;
+    const size_t optstringsz = (sizeof(longopts) / sizeof(longopts[0])) * 3 + 3;
     char optstring[optstringsz + 1];
     const struct option *longopt;
     char *pc = optstring;
 
-    *pc++ = ':';    /* Disable getopt error messages */
+    *pc++ = ':'; /* Disable getopt error messages */
 
     for (longopt = longopts; longopt->name; ++longopt) {
         if (!longopt->flag && isprint(longopt->val)) {
@@ -402,8 +383,7 @@ options_parse(
             break;
 
         case ':':
-            syntax("missing argument for option '%s'",
-                   argv[curind]);
+            syntax("missing argument for option '%s'", argv[curind]);
             break;
 
         case opt_runtime:
@@ -412,14 +392,13 @@ options_parse(
             break;
 
         case '?':
-            syntax("invalid option '%s'", argv[optind-1]);
+            syntax("invalid option '%s'", argv[optind - 1]);
             break;
 
         default:
             if (c == 0) {
                 if (!longopt[longidx].flag) {
-                    syntax("unhandled option '--%s'",
-                           longopts[longidx].name);
+                    syntax("unhandled option '--%s'", longopts[longidx].name);
                 }
             } else {
                 syntax("unhandled option '%s'", argv[curind]);
@@ -435,8 +414,10 @@ options_parse(
 static void
 usage(void)
 {
-    printf("usage: %s [options] <kvdb> <kvslist> <weight> "
-           "[param=value ...]\n", progname);
+    printf(
+        "usage: %s [options] <kvdb> <kvslist> <weight> "
+        "[param=value ...]\n",
+        progname);
 
     printf("Key/value count and format:\n"
            "  -t, --threads     number of threads\n"
@@ -536,14 +517,7 @@ test_close_kvs(char *kvs_name, struct hse_kvs *kvs)
 }
 
 void
-fmt_string(
-    char *str,
-    int len,
-    int max_len,
-    char fill,
-    char *fmt,
-    uint64_t fmt_arg1,
-    int fmt_arg2)
+fmt_string(char *str, int len, int max_len, char fill, char *fmt, uint64_t fmt_arg1, int fmt_arg2)
 {
     int i;
 
@@ -552,16 +526,13 @@ fmt_string(
 
     snprintf(str, len, fmt, fmt_arg1, fmt_arg2);
     i = strlen(str);
-    while (i+1 < len)
+    while (i + 1 < len)
         str[i++] = fill;
     str[i] = '\0';
 }
 
 void
-fmt_key(
-    struct thread_info *ti,
-    int len,
-    unsigned long num)
+fmt_key(struct thread_info *ti, int len, unsigned long num)
 {
     static atomic_int u;
     unsigned char *str = ti->ref_key;
@@ -575,10 +546,10 @@ fmt_key(
     if (key_gen) {
         get_key(key_gen, str, num);
         *(uint32_t *)str = ti->id;
-        str[len-1] = 0;
+        str[len - 1] = 0;
     } else {
         v = atomic_inc_return(&u);
-        *(uint32_t *)str       = ti->id;
+        *(uint32_t *)str = ti->id;
         *(uint32_t *)(str + 4) = v;
         for (len -= 8, str += 8; len > 0; --len)
             *str++ = v & 255;
@@ -615,12 +586,10 @@ set_kv(struct thread_info *ti, uint64_t keynum, uint salt)
     fmt_key(ti, opt.klen, keynum);
 
     if (opt.vlen > 0)
-        fmt_string(ti->ref_val,
-                   opt.vlen, VLEN_MAX, '*', VAL_PREFIX,
-                   keynum, salt);
+        fmt_string(ti->ref_val, opt.vlen, VLEN_MAX, '*', VAL_PREFIX, keynum, salt);
 
-    ti->ref_klen  = opt.klen;
-    ti->ref_vlen  = opt.vlen;
+    ti->ref_klen = opt.klen;
+    ti->ref_vlen = opt.vlen;
 
     key_showlen = ti->ref_klen;
     val_showlen = ti->ref_vlen;
@@ -639,23 +608,20 @@ set_kv(struct thread_info *ti, uint64_t keynum, uint salt)
 }
 
 void
-test_put_impl(
-    struct thread_info *ti,
-    uint salt,
-    uint64_t time)
+test_put_impl(struct thread_info *ti, uint salt, uint64_t time)
 {
-    hse_err_t  err;
-    uint64_t   tmelapsed = 0;
-    uint64_t   i;
-    uint64_t   start;
-    int     idx;
-    int     cnt;
+    hse_err_t err;
+    uint64_t tmelapsed = 0;
+    uint64_t i;
+    uint64_t start;
+    int idx;
+    int cnt;
 
     start = get_time_ns();
-    idx   = 0;
-    cnt   = 0;
+    idx = 0;
+    cnt = 0;
 
-    for (i = opt.kstart; ; i++) {
+    for (i = opt.kstart;; i++) {
         tmelapsed = get_time_ns() - start;
 
         if (tmelapsed >= time)
@@ -663,24 +629,19 @@ test_put_impl(
 
         set_kv(ti, i, salt);
         if (opt.show_ops) {
-            printf("T%u: PUT(%lu,%u): key[%zu]=%.*s..."
-                   " val[%zu]=%.*s...\n",
-                   ti->id, i, salt, ti->ref_klen,
-                   key_showlen,
-                   (char *)ti->ref_key,
-                   ti->ref_vlen,
-                   val_showlen,
-                   (char *)ti->ref_val);
+            printf(
+                "T%u: PUT(%lu,%u): key[%zu]=%.*s..."
+                " val[%zu]=%.*s...\n",
+                ti->id, i, salt, ti->ref_klen, key_showlen, (char *)ti->ref_key, ti->ref_vlen,
+                val_showlen, (char *)ti->ref_val);
         }
 
         if (opt.dryrun)
             continue;
 
-        err = hse_kvs_put(kvs_h[idx], 0, NULL,
-                          (char *)ti->ref_key,
-                          ti->ref_klen,
-                          (char *)ti->ref_val,
-                          ti->ref_vlen);
+        err = hse_kvs_put(
+            kvs_h[idx], 0, NULL, (char *)ti->ref_key, ti->ref_klen, (char *)ti->ref_val,
+            ti->ref_vlen);
         if (err)
             error_quit("kvdb_put failed", err);
 
@@ -701,17 +662,16 @@ test_put_impl(
     tmelapsed = get_time_ns() - start;
 
     ti->time += tmelapsed;
-
 }
 
 void
 test_put(struct thread_info *ti, uint salt)
 {
-    struct timespec req = {0};
+    struct timespec req = { 0 };
 
     uint32_t i;
 
-    ti->ops  = 0;
+    ti->ops = 0;
     ti->time = 0;
 
     for (i = 0; i < opt.ingiters; i++) {
@@ -719,12 +679,11 @@ test_put(struct thread_info *ti, uint salt)
         if (!opt.sleepcycle)
             continue;
 
-        req.tv_sec  = opt.sleepcycle / NSEC_PER_SEC;
+        req.tv_sec = opt.sleepcycle / NSEC_PER_SEC;
         req.tv_nsec = opt.sleepcycle % NSEC_PER_SEC;
 
         nanosleep(&req, 0);
     }
-
 }
 
 void *
@@ -752,9 +711,9 @@ extract_fields(char *str, uint max, char **fields, uint *out)
 {
     char *pctx; /* parse context */
     char *cp;   /* generic char ptr */
-    uint  count;
+    uint count;
 
-    pctx  = str;
+    pctx = str;
     count = 0;
 
     while (1) {
@@ -789,17 +748,14 @@ extract_fields(char *str, uint max, char **fields, uint *out)
 }
 
 int
-run_test(
-    struct thread_info *threads,
-    char               *kvs,
-    char               *weight)
+run_test(struct thread_info *threads, char *kvs, char *weight)
 {
     struct thread_info *ti;
 
-    uint   kvsc;
-    uint   kvswtc;
-    int    rc;
-    uint   i;
+    uint kvsc;
+    uint kvswtc;
+    int rc;
+    uint i;
 
     kvsc = 0;
 
@@ -845,8 +801,7 @@ run_test(
     for (i = 0, ti = threads; i < opt.threads; i++, ti++) {
         rc = pthread_create(&ti->tid, NULL, thread_main, ti);
         if (rc) {
-            printf("%s: pthread_create failed: %s\n",
-                   progname, strerror(rc));
+            printf("%s: pthread_create failed: %s\n", progname, strerror(rc));
             ti->joined = true;
             continue;
         }
@@ -865,8 +820,7 @@ run_test(
 
         rc = pthread_join(ti->tid, NULL);
         if (rc && rc != EINVAL && rc != ESRCH) {
-            printf("%s: pthread_join failed: %s\n",
-                   progname, strerror(rc));
+            printf("%s: pthread_join failed: %s\n", progname, strerror(rc));
             continue;
         }
 
@@ -896,9 +850,9 @@ run_test(
 static void
 print_header(void)
 {
-    printf("%5s %10s %10s %10s %12s %10s %10s %10s %12s %10s\n",
-           "idx", "ops_min", "ops_max", "ops_avg", "ops_aggr",
-           "bps_min", "bps_max", "bps_avg", "bps_aggr", "msec");
+    printf(
+        "%5s %10s %10s %10s %12s %10s %10s %10s %12s %10s\n", "idx", "ops_min", "ops_max",
+        "ops_avg", "ops_aggr", "bps_min", "bps_max", "bps_avg", "bps_aggr", "msec");
 }
 
 int
@@ -906,17 +860,17 @@ main(int argc, char **argv)
 {
     struct thread_info *threads = NULL;
 
-    int     rc;
+    int rc;
     hse_err_t err;
-    uint    i;
+    uint i;
     uint64_t time;
-    int     cnt;
-    char   *kvs;
-    char   *weight;
+    int cnt;
+    char *kvs;
+    char *weight;
     uint64_t tot_opsmin = 0;
     uint64_t tot_opsmax = 0;
     uint64_t tot_opsavg = 0;
-    uint64_t tot_time   = 0;
+    uint64_t tot_time = 0;
 
     progname_set(argv[0]);
 
@@ -935,24 +889,23 @@ main(int argc, char **argv)
     if (argc - optind < 3)
         syntax("missing required parameters");
 
-    opt.mpool  = argv[optind++];
-    opt.kvs    = argv[optind++];
+    opt.mpool = argv[optind++];
+    opt.kvs = argv[optind++];
     opt.weight = argv[optind++];
 
     /* get hse parms from command line */
     rc = pg_parse_argv(pg, argc, argv, &optind);
     switch (rc) {
-        case 0:
-            if (optind < argc)
-                quit("unknown parameter: %s", argv[optind]);
-            break;
-        case EINVAL:
-            quit("missing group name (e.g. %s) before parameter %s\n",
-                PG_KVDB_OPEN, argv[optind]);
-            break;
-        default:
-            quit("error processing parameter %s\n", argv[optind]);
-            break;
+    case 0:
+        if (optind < argc)
+            quit("unknown parameter: %s", argv[optind]);
+        break;
+    case EINVAL:
+        quit("missing group name (e.g. %s) before parameter %s\n", PG_KVDB_OPEN, argv[optind]);
+        break;
+    default:
+        quit("error processing parameter %s\n", argv[optind]);
+        break;
     }
 
     rc = rc ?: svec_append_pg(&hse_gparm, pg, PG_HSE_GLOBAL, NULL);
@@ -965,17 +918,16 @@ main(int argc, char **argv)
         syntax("number of keys must be > 0");
 
     /* pgd expects null-terminated strings, thus klen-1 */
-    key_gen = create_key_generator(key_space_size, opt.klen-1);
+    key_gen = create_key_generator(key_space_size, opt.klen - 1);
     if (!key_gen && opt.klen < 8)
-        key_gen = create_key_generator(key_space_size/100, opt.klen-1);
+        key_gen = create_key_generator(key_space_size / 100, opt.klen - 1);
 
     if (opt.threads == 0)
         opt.threads = 1;
 
     threads = calloc(opt.threads, sizeof(*threads));
     if (!threads)
-        quit("unable to calloc %zu bytes for thread_info",
-             opt.threads * sizeof(*threads));
+        quit("unable to calloc %zu bytes for thread_info", opt.threads * sizeof(*threads));
 
     kvs_h = calloc(1024 * sizeof(*kvs_h), 1024 * sizeof(*kvs_h));
     if (!kvs_h)
@@ -995,13 +947,12 @@ main(int argc, char **argv)
 
     gettimeofday(&tv_start, NULL);
 
-    printf("Ingest cycle %ld sec. sleep cycle %ld sec. iterations %ld "
-           "runtime %ld sec. threads %d klen %d vlen %d",
-           (unsigned long)opt.ingestcycle / NSEC_PER_SEC,
-           (unsigned long)opt.sleepcycle / NSEC_PER_SEC,
-           (unsigned long)opt.ingiters,
-           (unsigned long)opt.runtime / NSEC_PER_SEC,
-           opt.threads, opt.klen, opt.vlen);
+    printf(
+        "Ingest cycle %ld sec. sleep cycle %ld sec. iterations %ld "
+        "runtime %ld sec. threads %d klen %d vlen %d",
+        (unsigned long)opt.ingestcycle / NSEC_PER_SEC, (unsigned long)opt.sleepcycle / NSEC_PER_SEC,
+        (unsigned long)opt.ingiters, (unsigned long)opt.runtime / NSEC_PER_SEC, opt.threads,
+        opt.klen, opt.vlen);
 
     if (opt.dryrun)
         printf("dryrun");
@@ -1028,7 +979,6 @@ main(int argc, char **argv)
         if (!(cnt++ % 20))
             print_header();
 
-
         kvs = strdup(opt.kvs);
         weight = strdup(opt.weight);
         if (!kvs || !weight)
@@ -1042,16 +992,14 @@ main(int argc, char **argv)
         free(weight);
 
         avgtime = threads[0].time;
-        minops  = (threads[0].ops * NSEC_PER_SEC) /
-            threads[0].time;
-        maxops  = minops;
-        ops     = minops;
+        minops = (threads[0].ops * NSEC_PER_SEC) / threads[0].time;
+        maxops = minops;
+        ops = minops;
 
         mintime = maxtime = avgtime;
 
         for (i = 1; i < opt.threads; i++) {
-            tmp = (threads[i].ops * NSEC_PER_SEC) /
-                threads[i].time;
+            tmp = (threads[i].ops * NSEC_PER_SEC) / threads[i].time;
 
             if (minops > tmp)
                 minops = tmp;
@@ -1072,24 +1020,20 @@ main(int argc, char **argv)
 
         tot_time += runtime;
 
-        minops  = (minops * NSEC_PER_SEC) / mintime;
-        maxops  = (maxops * NSEC_PER_SEC) / maxtime;
+        minops = (minops * NSEC_PER_SEC) / mintime;
+        maxops = (maxops * NSEC_PER_SEC) / maxtime;
         avgtime = avgtime / opt.threads;
-        ops     = (ops * NSEC_PER_SEC) / avgtime;
+        ops = (ops * NSEC_PER_SEC) / avgtime;
 
-        printf("%5d %10ld %10ld %10ld %12ld %10ld %10ld %10ld "
-               "%12ld %10ld\n",
-               (unsigned int)cnt,
-               (unsigned long)minops,
-               (unsigned long)maxops,
-               (unsigned long)ops / opt.threads,
-               (unsigned long)ops,
-               (unsigned long)minops * (opt.klen + opt.vlen),
-               (unsigned long)maxops * (opt.klen + opt.vlen),
-               (unsigned long)(ops * (opt.klen + opt.vlen)) /
-               opt.threads,
-               (unsigned long)ops * (opt.klen + opt.vlen),
-               (unsigned long)tot_time / (1000 * 1000));
+        printf(
+            "%5d %10ld %10ld %10ld %12ld %10ld %10ld %10ld "
+            "%12ld %10ld\n",
+            (unsigned int)cnt, (unsigned long)minops, (unsigned long)maxops,
+            (unsigned long)ops / opt.threads, (unsigned long)ops,
+            (unsigned long)minops * (opt.klen + opt.vlen),
+            (unsigned long)maxops * (opt.klen + opt.vlen),
+            (unsigned long)(ops * (opt.klen + opt.vlen)) / opt.threads,
+            (unsigned long)ops * (opt.klen + opt.vlen), (unsigned long)tot_time / (1000 * 1000));
 
         memset(threads, 0, opt.threads * sizeof(*threads));
         tot_opsmin += minops;
@@ -1097,18 +1041,15 @@ main(int argc, char **argv)
         tot_opsavg += ops / opt.threads;
     }
 
-    printf("%5s %10ld %10ld %10ld %12ld %10ld %10ld %10ld %12ld %10ld\n",
-           "exit",
-           (unsigned long)tot_opsmin / cnt,
-           (unsigned long)tot_opsmax / cnt,
-           (unsigned long)tot_opsavg / cnt,
-           (unsigned long)tot_opsavg * opt.threads / cnt,
-           (unsigned long)tot_opsmin * (opt.klen + opt.vlen) / cnt,
-           (unsigned long)tot_opsmax  * (opt.klen + opt.vlen) / cnt,
-           (unsigned long)(tot_opsavg * (opt.klen + opt.vlen)) / cnt,
-           (unsigned long)(tot_opsavg * (opt.klen + opt.vlen) *
-                           opt.threads) / cnt,
-           (unsigned long)tot_time / (1000 * 1000));
+    printf(
+        "%5s %10ld %10ld %10ld %12ld %10ld %10ld %10ld %12ld %10ld\n", "exit",
+        (unsigned long)tot_opsmin / cnt, (unsigned long)tot_opsmax / cnt,
+        (unsigned long)tot_opsavg / cnt, (unsigned long)tot_opsavg * opt.threads / cnt,
+        (unsigned long)tot_opsmin * (opt.klen + opt.vlen) / cnt,
+        (unsigned long)tot_opsmax * (opt.klen + opt.vlen) / cnt,
+        (unsigned long)(tot_opsavg * (opt.klen + opt.vlen)) / cnt,
+        (unsigned long)(tot_opsavg * (opt.klen + opt.vlen) * opt.threads) / cnt,
+        (unsigned long)tot_time / (1000 * 1000));
 
     if (!opt.close) {
         for (i = 0; i < kvs_cnt; i++) {
@@ -1136,37 +1077,28 @@ main(int argc, char **argv)
 
             rtime = (tv_stop.tv_sec - tv_start.tv_sec) * 1000000;
             rtime += (tv_stop.tv_usec - tv_start.tv_usec);
-            utime = rusage.ru_utime.tv_sec * 1000000
-                + rusage.ru_utime.tv_usec;
-            stime = rusage.ru_stime.tv_sec * 1000000
-                + rusage.ru_stime.tv_usec;
+            utime = rusage.ru_utime.tv_sec * 1000000 + rusage.ru_utime.tv_usec;
+            stime = rusage.ru_stime.tv_sec * 1000000 + rusage.ru_stime.tv_usec;
 
-            printf("%s: resource usage:\n"
-                   "%12ld  real time (milliseconds)\n"
-                   "%12ld  user time (milliseconds)\n"
-                   "%12ld  system time (milliseconds)\n"
-                   "%12ld  max resident set size (KiB)\n"
-                   "%12ld  page reclaims\n"
-                   "%12ld  page faults\n"
-                   "%12ld  block input operations\n"
-                   "%12ld  block output operations\n"
-                   "%12ld  voluntary context switches\n"
-                   "%12ld  involuntary context switches\n",
-                   progname,
-                   rtime / 1000,
-                   utime / 1000,
-                   stime / 1000,
-                   rusage.ru_minflt,
-                   rusage.ru_majflt,
-                   rusage.ru_inblock,
-                   rusage.ru_oublock,
-                   rusage.ru_nvcsw,
-                   rusage.ru_nivcsw,
-                   rusage.ru_maxrss);
+            printf(
+                "%s: resource usage:\n"
+                "%12ld  real time (milliseconds)\n"
+                "%12ld  user time (milliseconds)\n"
+                "%12ld  system time (milliseconds)\n"
+                "%12ld  max resident set size (KiB)\n"
+                "%12ld  page reclaims\n"
+                "%12ld  page faults\n"
+                "%12ld  block input operations\n"
+                "%12ld  block output operations\n"
+                "%12ld  voluntary context switches\n"
+                "%12ld  involuntary context switches\n",
+                progname, rtime / 1000, utime / 1000, stime / 1000, rusage.ru_minflt,
+                rusage.ru_majflt, rusage.ru_inblock, rusage.ru_oublock, rusage.ru_nvcsw,
+                rusage.ru_nivcsw, rusage.ru_maxrss);
         }
     }
 
-  done:
+done:
     free(threads);
     pg_destroy(pg);
     svec_reset(&hse_gparm);

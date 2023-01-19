@@ -28,10 +28,10 @@ ctx_strerror(const unsigned int ctx)
 
 MTF_DEFINE_UTEST(hse_err_test, merr_test_1)
 {
-    char   errinfo[256];
-    char   errbuf[300], *errmsg;
+    char errinfo[256];
+    char errbuf[300], *errmsg;
     const char *file;
-    int    rval, i;
+    int rval, i;
     merr_t err;
 
     rval = 0;
@@ -69,7 +69,7 @@ MTF_DEFINE_UTEST(hse_err_test, merr_test_1)
     ASSERT_EQ(NULL, merr_file(err));
 
     /* testing an invalid file pointer out side the merr section */
-    file = (char*)&__stop_hse_merr;
+    file = (char *)&__stop_hse_merr;
     err = merr_pack(EAGAIN, 0, file, 456);
     ASSERT_EQ(EAGAIN, merr_errno(err));
     ASSERT_EQ(456, merr_lineno(err));
@@ -79,7 +79,7 @@ MTF_DEFINE_UTEST(hse_err_test, merr_test_1)
      * testing a file pointer that is within merr the section
      * that is not properly aligned
      */
-    err = merr_pack(EBUG, 0, (char*)&__start_hse_merr + 1, 123);
+    err = merr_pack(EBUG, 0, (char *)&__start_hse_merr + 1, 123);
     ASSERT_EQ(EBUG, merr_errno(err));
     ASSERT_EQ(123, merr_lineno(err));
     ASSERT_EQ(0, strcmp(merr_file(err), hse_merr_bug1));
@@ -111,20 +111,22 @@ MTF_DEFINE_UTEST(hse_err_test, ctx)
     err = merr(EUSERS);
     ASSERT_EQ(0, merr_ctx(err));
 
-    err = merrx(ERESTART, 1); line = __LINE__;
+    err = merrx(ERESTART, 1);
+    line = __LINE__;
     rc = merr_errno(err);
     ctx = merr_ctx(err);
     ASSERT_EQ(ERESTART, rc);
     ASSERT_EQ(1, ctx);
 
-    actual_sz = snprintf(expected, sizeof(expected), "%s:%d: %s (%d): %s (%u)",
-        REL_FILE(__FILE__), line, strerror(rc), rc, ctx_strerror(ctx), ctx);
+    actual_sz = snprintf(
+        expected, sizeof(expected), "%s:%d: %s (%d): %s (%u)", REL_FILE(__FILE__), line,
+        strerror(rc), rc, ctx_strerror(ctx), ctx);
     merr_strinfo(err, actual, sizeof(actual), ctx_strerror, &needed_sz);
     ASSERT_EQ(actual_sz, needed_sz);
     ASSERT_STREQ(expected, actual);
 
-    actual_sz = snprintf(expected, sizeof(expected), "%s:%d: %s (%d)",
-        REL_FILE(__FILE__), line, strerror(rc), rc);
+    actual_sz = snprintf(
+        expected, sizeof(expected), "%s:%d: %s (%d)", REL_FILE(__FILE__), line, strerror(rc), rc);
     merr_strinfo(err, actual, sizeof(actual), NULL, &needed_sz);
     ASSERT_STREQ(expected, actual);
     ASSERT_EQ(actual_sz, needed_sz);

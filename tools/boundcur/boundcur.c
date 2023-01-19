@@ -15,10 +15,11 @@
 #include <sysexits.h>
 #include <unistd.h>
 
-#include <hse/cli/param.h>
-#include <hse/cli/program.h>
 #include <hse/flags.h>
 #include <hse/hse.h>
+
+#include <hse/cli/param.h>
+#include <hse/cli/program.h>
 #include <hse/util/arch.h>
 #include <hse/util/compiler.h>
 
@@ -31,8 +32,8 @@ struct opts {
     ulong count;
     bool reverse;
 } opts = {
-    .nthread  = 64,
-    .count    = 3000000,
+    .nthread = 64,
+    .count = 3000000,
     .reverse = false,
 };
 
@@ -47,19 +48,19 @@ void
 do_work(void *arg)
 {
     hse_err_t rc;
-    struct kh_thread_arg  *targ = arg;
+    struct kh_thread_arg *targ = arg;
     struct thread_info *ti = targ->arg;
     struct hse_kvdb_txn *txn;
     unsigned int flags = 0;
-    char                val[VLEN];
-    char                key[sizeof(uint64_t)];
-    uint64_t           *k = (void *)key;
-    struct hse_kvs_cursor  *c;
-    int                 cnt;
-    const void         *kdata, *vdata;
-    size_t              klen, vlen;
-    bool                eof = false;
-    int                 attempts = 5;
+    char val[VLEN];
+    char key[sizeof(uint64_t)];
+    uint64_t *k = (void *)key;
+    struct hse_kvs_cursor *c;
+    int cnt;
+    const void *kdata, *vdata;
+    size_t klen, vlen;
+    bool eof = false;
+    int attempts = 5;
 
     txn = hse_kvdb_txn_alloc(targ->kvdb);
 
@@ -69,8 +70,7 @@ do_work(void *arg)
     for (uint64_t i = ti->start; i < ti->end; i++) {
         *k = htobe64(i);
 
-        rc = hse_kvs_put(targ->kvs, 0, txn, key, sizeof(key),
-                 val, sizeof(val));
+        rc = hse_kvs_put(targ->kvs, 0, txn, key, sizeof(key), val, sizeof(val));
         if (rc)
             fatal(rc, "Failed to put key");
     }
@@ -98,7 +98,7 @@ do_work(void *arg)
     sleep(1); /* allow KVMSes to be ingested */
 
     /* seek to beginning */
-    do  {
+    do {
         rc = hse_kvs_cursor_seek(c, 0, key, sizeof(key), &kdata, &klen);
         if (rc == EAGAIN)
             usleep(1000 * 1000);
@@ -106,14 +106,14 @@ do_work(void *arg)
     } while (rc == EAGAIN && attempts-- > 0);
 
     if (rc || klen != sizeof(key) || memcmp(key, kdata, sizeof(key)))
-        fatal(rc ? rc : ENOKEY, "Seek: found unexpected key. "
-              "Expected %lu got %lu\n",
-              be64toh(*k),
-              be64toh(*(uint64_t *)kdata));
+        fatal(
+            rc ? rc : ENOKEY,
+            "Seek: found unexpected key. "
+            "Expected %lu got %lu\n",
+            be64toh(*k), be64toh(*(uint64_t *)kdata));
 
     for (uint64_t i = ti->start; i < ti->end; i++) {
-        rc = hse_kvs_cursor_read(c, 0, &kdata, &klen, &vdata,
-                     &vlen, &eof);
+        rc = hse_kvs_cursor_read(c, 0, &kdata, &klen, &vdata, &vlen, &eof);
         if (rc || eof)
             break;
 
@@ -121,9 +121,11 @@ do_work(void *arg)
     }
 
     if (cnt < ti->end - ti->start) {
-        fatal(ENOANO, "Found incorrect number of records: "
-                  "Expected %lu Got %d",
-                  ti->end - ti->start, cnt);
+        fatal(
+            ENOANO,
+            "Found incorrect number of records: "
+            "Expected %lu Got %d",
+            ti->end - ti->start, cnt);
 
         ++errcnt;
     }
@@ -134,7 +136,7 @@ do_work(void *arg)
 void HSE_PRINTF(1, 2)
 syntax(const char *fmt, ...)
 {
-    char    msg[256];
+    char msg[256];
     va_list ap;
 
     va_start(ap, fmt);
@@ -152,34 +154,32 @@ usage(void)
         "-c keys    Number of keys\n"
         "-j jobs    Number of threads\n"
         "-r         Use reverse cursors\n"
-        "-Z config  Path to global config file\n"
-        , progname);
+        "-Z config  Path to global config file\n",
+        progname);
 
     printf("\nDescription:\n");
     printf("Number of kv-pairs per prefix = "
-        "chunk_size * number_of_put_threads\n");
+           "chunk_size * number_of_put_threads\n");
     printf("Each cursor thread will read a max of 'batch size' "
-        "(set using the '-b' option) kv-pairs before it updates the "
-        "cursor and continues reading. The default value (0) will let "
-        "it read to EOF\n");
+           "(set using the '-b' option) kv-pairs before it updates the "
+           "cursor and continues reading. The default value (0) will let "
+           "it read to EOF\n");
     printf("\n");
     exit(0);
 }
 
 int
-main(
-    int       argc,
-    char    **argv)
+main(int argc, char **argv)
 {
     struct parm_groups *pg = NULL;
-    struct svec         hse_gparms = { 0 };
-    struct svec         db_oparms = { 0 };
-    struct svec         kv_cparms = { 0 };
-    struct svec         kv_oparms = { 0 };
+    struct svec hse_gparms = { 0 };
+    struct svec db_oparms = { 0 };
+    struct svec kv_cparms = { 0 };
+    struct svec kv_oparms = { 0 };
 
-    const char         *mpool, *kvs, *config = NULL;
-    int                 c;
-    merr_t              rc;
+    const char *mpool, *kvs, *config = NULL;
+    int c;
+    merr_t rc;
 
     progname_set(argv[0]);
 
@@ -226,7 +226,7 @@ main(
     }
 
     mpool = argv[optind++];
-    kvs   = argv[optind++];
+    kvs = argv[optind++];
 
     rc = pg_create(&pg, PG_HSE_GLOBAL, PG_KVDB_OPEN, PG_KVS_OPEN, PG_KVS_CREATE, NULL);
     if (rc)
@@ -239,8 +239,7 @@ main(
             fatal(0, "unknown parameter: %s", argv[optind]);
         break;
     case EINVAL:
-        fatal(0, "missing group name (e.g. %s) before parameter %s\n",
-            PG_KVDB_OPEN, argv[optind]);
+        fatal(0, "missing group name (e.g. %s) before parameter %s\n", PG_KVDB_OPEN, argv[optind]);
         break;
     default:
         fatal(rc, "error processing parameter %s\n", argv[optind]);
@@ -262,11 +261,11 @@ main(
 
     for (ulong i = 0; i < opts.nthread; i++) {
         uint64_t stride = opts.count / opts.nthread;
-        bool     last = i == (opts.nthread - 1);
+        bool last = i == (opts.nthread - 1);
 
         g_ti[i].start = i * stride;
-        g_ti[i].end   = g_ti[i].start + stride;
-        g_ti[i].end  += last ? (opts.count % opts.nthread) : 0;
+        g_ti[i].end = g_ti[i].start + stride;
+        g_ti[i].end += last ? (opts.count % opts.nthread) : 0;
         kh_register_kvs(kvs, 0, &kv_cparms, &kv_oparms, &do_work, &g_ti[i]);
     }
 

@@ -3,22 +3,19 @@
  * Copyright (C) 2015-2022 Micron Technology, Inc.  All rights reserved.
  */
 
-#include <arpa/inet.h>
 #include <stdint.h>
+
+#include <arpa/inet.h>
+#include <cn/cn_tree_internal.h>
+#include <cn/kvset.h>
+#include <mock/api.h>
+#include <mocks/mock_kvset.h>
+#include <mocks/mock_mpool.h>
 #include <sys/mman.h>
 
-#include <mock/api.h>
-
 #include <hse/error/merr.h>
-#include <hse/util/keycmp.h>
-
 #include <hse/ikvdb/limits.h>
-
-#include <cn/kvset.h>
-#include <cn/cn_tree_internal.h>
-
-#include <mocks/mock_mpool.h>
-#include <mocks/mock_kvset.h>
+#include <hse/util/keycmp.h>
 
 /* ------------------------------------------------------------
  * Fake kvset data
@@ -47,7 +44,7 @@ int mock_kvset_verbose = 0;
 static struct kvdata *
 _make_data(struct nkv_tab *nkv)
 {
-    int            nkeys = nkv->nkeys;
+    int nkeys = nkv->nkeys;
     struct kvdata *d = calloc(nkeys + 1, sizeof(*d));
 
     if (d) {
@@ -91,7 +88,7 @@ void *
 mock_vref_to_vdata(struct kv_iterator *kvi, uint vboff)
 {
     struct mock_kv_iterator *iter = container_of(kvi, typeof(*iter), kvi);
-    struct kvdata *          d = iter->kvset->iter_data;
+    struct kvdata *d = iter->kvset->iter_data;
 
     return &d[vboff].val;
 }
@@ -99,15 +96,15 @@ mock_vref_to_vdata(struct kv_iterator *kvi, uint vboff)
 static merr_t
 _make_common(
     struct kv_iterator **kvi,
-    int                  src,
-    struct mpool *       ds,
-    struct kvs_rparams * rp,
-    struct kvset_meta *  km)
+    int src,
+    struct mpool *ds,
+    struct kvs_rparams *rp,
+    struct kvset_meta *km)
 {
-    struct cn_tree           tree;
+    struct cn_tree tree;
     struct mock_kv_iterator *iter;
-    struct kvset *           kvset;
-    merr_t                   err;
+    struct kvset *kvset;
+    merr_t err;
 
     memset(&tree, 0, sizeof(tree));
     tree.mp = ds;
@@ -131,9 +128,9 @@ merr_t
 mock_make_kvi(struct kv_iterator **kvi, int src, struct kvs_rparams *rp, struct nkv_tab *nkv)
 {
     struct kvset_meta km;
-    struct kvdata *   ds = 0;
-    uint64_t          kid, vid;
-    merr_t            err;
+    struct kvdata *ds = 0;
+    uint64_t kid, vid;
+    merr_t err;
 
     memset(&km, 0, sizeof(km));
 
@@ -164,12 +161,12 @@ merr_t
 mock_make_vblocks(struct kv_iterator **kvi, struct kvs_rparams *rp, int nv)
 {
     struct kvset_meta km;
-    uint64_t          kid;
-    merr_t            err;
-    int               i;
-    uint64_t         *vblk_ids;
-    struct nkv_tab    nkv;
-    struct kvdata    *kvdata;
+    uint64_t kid;
+    merr_t err;
+    int i;
+    uint64_t *vblk_ids;
+    struct nkv_tab nkv;
+    struct kvdata *kvdata;
 
     nkv.nkeys = nv + 1;
     nkv.key1 = 1;
@@ -216,8 +213,8 @@ static merr_t
 _kvset_open(struct cn_tree *tree, uint64_t kvsetid, struct kvset_meta *km, struct kvset **handle)
 {
     struct mock_kvset *mk;
-    size_t             alloc_sz;
-    int                i = 0, j;
+    size_t alloc_sz;
+    int i = 0, j;
 
     /* +1 for the singular hblock */
     alloc_sz = sizeof(*mk) + (sizeof(uint64_t) * (1 + km->km_kblk_list.idc + km->km_vblk_list.idc));
@@ -291,7 +288,6 @@ _kvset_set_work(struct kvset *kvset, const void *work)
     mk->work = work;
 }
 
-
 static uint32_t
 _kvset_get_num_kblocks(struct kvset *kvset)
 {
@@ -329,8 +325,7 @@ _kvset_younger(const struct kvset *ks1, const struct kvset *ks2)
 {
     uint64_t hi1 = _kvset_get_dgen(ks1), hi2 = _kvset_get_dgen(ks2);
 
-    return (hi1 > hi2 ||
-            (hi1 == hi2 && _kvset_get_dgen_lo(ks1) >= _kvset_get_dgen_lo(ks2)));
+    return (hi1 > hi2 || (hi1 == hi2 && _kvset_get_dgen_lo(ks1) >= _kvset_get_dgen_lo(ks2)));
 }
 
 static uint64_t
@@ -361,7 +356,7 @@ static uint64_t
 _kvset_get_nth_vblock_id(struct kvset *kvset, uint32_t index)
 {
     struct mock_kvset *mk = (void *)kvset;
-    uint32_t           vblk_index_base = mk->stats.kst_kblks;
+    uint32_t vblk_index_base = mk->stats.kst_kblks;
 
     return (index < mk->stats.kst_vblks ? mk->ids[vblk_index_base + index] : 0);
 }
@@ -370,8 +365,8 @@ static uint32_t
 _kvset_get_nth_vblock_len(struct kvset *kvset, uint32_t index)
 {
     struct mock_kvset *mk = (void *)kvset;
-    struct kvdata *    iterv = mk->iter_data;
-    int                i, kvcnt, vcnt = 0;
+    struct kvdata *iterv = mk->iter_data;
+    int i, kvcnt, vcnt = 0;
 
     if (index >= mk->stats.kst_vblks)
         return 0;
@@ -452,7 +447,7 @@ static void
 _kvset_put_ref(struct kvset *kvset)
 {
     struct mock_kvset *mk = (void *)kvset;
-    int                cnt;
+    int cnt;
 
     if (!kvset)
         return;
@@ -492,7 +487,7 @@ static merr_t
 _kvset_iter_next_key(struct kv_iterator *kvi, struct key_obj *kobj, struct kvset_iter_vctx *vc)
 {
     struct mock_kv_iterator *iter = container_of(kvi, typeof(*iter), kvi);
-    struct kvdata *          d = iter->kvset->iter_data;
+    struct kvdata *d = iter->kvset->iter_data;
 
     if (kvi->kvi_eof || iter->nextkey == d[0].key) {
         kvi->kvi_eof = true;
@@ -523,7 +518,7 @@ static bool
 _kvset_cursor_next(struct element_source *es, void **element)
 {
     struct kv_iterator *kvi = kvset_cursor_es_h2r(es);
-    struct cn_kv_item * kv = &kvi->kvi_kv;
+    struct cn_kv_item *kv = &kvi->kvi_kv;
 
     *element = 0;
 
@@ -539,12 +534,12 @@ _kvset_cursor_next(struct element_source *es, void **element)
 
 merr_t
 _kvset_iter_create(
-    struct kvset *           kvset,
+    struct kvset *kvset,
     struct workqueue_struct *workq,
     struct workqueue_struct *vra_wq,
-    struct perfc_set *       pc,
-    enum kvset_iter_flags    flags,
-    struct kv_iterator **    handle)
+    struct perfc_set *pc,
+    enum kvset_iter_flags flags,
+    struct kv_iterator **handle)
 {
     struct mock_kv_iterator *iter;
 
@@ -570,20 +565,20 @@ static int valbuf[1 + CN_SMALL_VALUE_THRESHOLD];
 
 static merr_t
 _kvset_iter_val_get(
-    struct kv_iterator *    kvi,
+    struct kv_iterator *kvi,
     struct kvset_iter_vctx *vc,
-    enum kmd_vtype          vtype,
-    uint                    vbidx,
-    uint                    vboff,
-    const void **           vdata,
-    uint *                  vlen,
-    uint *                  complen)
+    enum kmd_vtype vtype,
+    uint vbidx,
+    uint vboff,
+    const void **vdata,
+    uint *vlen,
+    uint *complen)
 {
     struct mock_kv_iterator *iter = container_of(kvi, typeof(*iter), kvi);
-    struct kvdata *          entry = iter->kvset->iter_data;
-    uint                     keyindex;
-    static uint              u32val;
-    static char              valbuf[1 + CN_SMALL_VALUE_THRESHOLD];
+    struct kvdata *entry = iter->kvset->iter_data;
+    uint keyindex;
+    static uint u32val;
+    static char valbuf[1 + CN_SMALL_VALUE_THRESHOLD];
 
     /* only one value per key */
     if (vc->next != 0)
@@ -621,19 +616,19 @@ _kvset_iter_val_get(
 
 static bool
 _kvset_iter_next_vref(
-    struct kv_iterator *    kvi,
+    struct kv_iterator *kvi,
     struct kvset_iter_vctx *vc,
-    uint64_t *              seq,
-    enum kmd_vtype *        vtype,
-    uint *                  vbidx,
-    uint *                  vboff,
-    const void **           vdata,
-    uint *                  vlen,
-    uint *                  complen)
+    uint64_t *seq,
+    enum kmd_vtype *vtype,
+    uint *vbidx,
+    uint *vboff,
+    const void **vdata,
+    uint *vlen,
+    uint *complen)
 {
     struct mock_kv_iterator *iter = container_of(kvi, typeof(*iter), kvi);
-    struct kvdata *          entry = iter->kvset->iter_data;
-    uint                     keyindex;
+    struct kvdata *entry = iter->kvset->iter_data;
+    uint keyindex;
 
     *vlen = 0;
     *complen = 0;
@@ -685,9 +680,9 @@ merr_t
 _kvset_iter_seek(struct kv_iterator *kvi, const void *key, int len, bool *eof)
 {
     struct mock_kv_iterator *iter = container_of(kvi, typeof(*iter), kvi);
-    struct kvdata *          d = iter->kvset->iter_data;
-    size_t                   sz = sizeof(d[0].key);
-    int                      i, rc, nkeys;
+    struct kvdata *d = iter->kvset->iter_data;
+    size_t sz = sizeof(d[0].key);
+    int i, rc, nkeys;
 
     /* find the first key larger than us */
     nkeys = (len == 0) ? 0 : d[0].key;
@@ -713,11 +708,9 @@ _kvset_iter_seek(struct kv_iterator *kvi, const void *key, int len, bool *eof)
  * maintenance (will not break when the mocked function signature
  * changes).
  */
-static struct mapi_injection inject_list[] = {
-    { mapi_idx_kvset_kblk_start, MAPI_RC_SCALAR, 0},
-    { mapi_idx_kvset_set_rule, MAPI_RC_SCALAR, 0},
-    { -1 }
-};
+static struct mapi_injection inject_list[] = { { mapi_idx_kvset_kblk_start, MAPI_RC_SCALAR, 0 },
+                                               { mapi_idx_kvset_set_rule, MAPI_RC_SCALAR, 0 },
+                                               { -1 } };
 
 void
 mock_kvset_set(void)

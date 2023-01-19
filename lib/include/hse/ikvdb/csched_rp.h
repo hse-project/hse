@@ -7,14 +7,14 @@
 #define HSE_IKVDB_CSCHED_RP_H
 
 /* runtime param to get kvset iterator behavior */
-#define csched_rp_kvset_iter(_rp)   ((_rp)->csched_policy)
+#define csched_rp_kvset_iter(_rp) ((_rp)->csched_policy)
 
 #define csched_rp_kvset_iter_async 0
-#define csched_rp_kvset_iter_sync 1
-#define csched_rp_kvset_iter_mmap 2
+#define csched_rp_kvset_iter_sync  1
+#define csched_rp_kvset_iter_mmap  2
 
 /* Compaction stats */
-#define csched_rp_dbg_comp(_rp)       ((uint)((_rp)->csched_debug_mask & 0x000f))
+#define csched_rp_dbg_comp(_rp) ((uint)((_rp)->csched_debug_mask & 0x000f))
 
 /* SP3 Debug */
 #define csched_rp_dbg_qos(_rp)        ((bool)((_rp)->csched_debug_mask & 0x0010))
@@ -25,6 +25,6 @@
 #define csched_rp_dbg_dirty_node(_rp) ((bool)((_rp)->csched_debug_mask & 0x0400))
 #define csched_rp_dbg_tree_life(_rp)  ((bool)((_rp)->csched_debug_mask & 0x0800))
 
-#define csched_rp_dbg_rbtree(_rp)     ((bool)((_rp)->csched_debug_mask & 0x1000))
+#define csched_rp_dbg_rbtree(_rp) ((bool)((_rp)->csched_debug_mask & 0x1000))
 
 #endif

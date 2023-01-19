@@ -7,15 +7,14 @@
 #define HSE_KVS_IKVS_H
 
 #include <hse/error/merr.h>
+#include <hse/ikvdb/kvdb_health.h>
+#include <hse/ikvdb/kvs_rparams.h>
+#include <hse/ikvdb/query_ctx.h>
+#include <hse/ikvdb/tuple.h>
 #include <hse/util/arch.h>
 #include <hse/util/list.h>
 #include <hse/util/mutex.h>
 #include <hse/util/perfc.h>
-
-#include <hse/ikvdb/tuple.h>
-#include <hse/ikvdb/kvdb_health.h>
-#include <hse/ikvdb/kvs_rparams.h>
-#include <hse/ikvdb/query_ctx.h>
 
 #define TOMBSPAN_MIN_WIDTH 8
 
@@ -39,31 +38,31 @@ struct viewset;
 
 struct kc_filter {
     const void *kcf_maxkey;
-    size_t      kcf_maxklen;
+    size_t kcf_maxklen;
 };
 
 struct hse_kvs_cursor {
-    struct perfc_set *     kc_pkvsl_pc;
-    struct kvdb_kvs *      kc_kvs;
+    struct perfc_set *kc_pkvsl_pc;
+    struct kvdb_kvs *kc_kvs;
     struct kvdb_ctxn_bind *kc_bind;
-    uint64_t               kc_gen;
-    uint64_t               kc_seq;
-    uint64_t               kc_create_time;
-    volatile bool          kc_on_list;
-    unsigned int           kc_flags;
-    merr_t                 kc_err;
-    struct kc_filter       kc_filter;
-    void *                 kc_viewcookie;
+    uint64_t kc_gen;
+    uint64_t kc_seq;
+    uint64_t kc_create_time;
+    volatile bool kc_on_list;
+    unsigned int kc_flags;
+    merr_t kc_err;
+    struct kc_filter kc_filter;
+    void *kc_viewcookie;
 };
 
 struct ikvs {
     uint64_t ikv_gen HSE_ACP_ALIGNED;
-    uint64_t         ikv_cnid;
-    uint             ikv_pfx_len;
-    struct c0 *      ikv_c0;
-    struct cn *      ikv_cn;
-    struct lc *      ikv_lc;
-    struct wal *     ikv_wal;
+    uint64_t ikv_cnid;
+    uint ikv_pfx_len;
+    struct c0 *ikv_c0;
+    struct cn *ikv_cn;
+    struct lc *ikv_lc;
+    struct wal *ikv_wal;
     struct perfc_set ikv_pkvsl_pc; /* Public kvs interfaces Lat. */
     struct perfc_set ikv_cc_pc;
     struct perfc_set ikv_cd_pc;
@@ -77,16 +76,16 @@ struct ikvs {
  */
 merr_t
 kvs_open(
-    struct ikvdb *      kvdb,
-    struct kvdb_kvs *   kvs,
-    struct mpool *      ds,
-    struct cndb *       cndb,
-    struct lc *         lc,
-    struct wal         *wal,
+    struct ikvdb *kvdb,
+    struct kvdb_kvs *kvs,
+    struct mpool *ds,
+    struct cndb *cndb,
+    struct lc *lc,
+    struct wal *wal,
     struct kvs_rparams *rp,
     struct kvdb_health *health,
-    struct cn_kvdb *    cn_kvdb,
-    uint                kvs_oflags);
+    struct cn_kvdb *cn_kvdb,
+    uint kvs_oflags);
 
 merr_t
 kvs_close(struct ikvs *ikvs);
@@ -115,37 +114,37 @@ kvs_fini(void) HSE_COLD;
 merr_t
 kvs_cursor_seek(
     struct hse_kvs_cursor *cursor,
-    const void *           key,
-    uint32_t               len,
-    const void *           limit,
-    uint32_t               limit_len,
-    struct kvs_ktuple *    kt);
+    const void *key,
+    uint32_t len,
+    const void *limit,
+    uint32_t limit_len,
+    struct kvs_ktuple *kt);
 
 merr_t
 kvs_cursor_read(struct hse_kvs_cursor *cursor, unsigned int flags, bool *eof);
 
 void
 kvs_cursor_key_copy(
-    struct hse_kvs_cursor  *cursor,
-    void                   *buf,
-    size_t                  bufsz,
-    const void            **key_out,
-    size_t                 *klen_out);
+    struct hse_kvs_cursor *cursor,
+    void *buf,
+    size_t bufsz,
+    const void **key_out,
+    size_t *klen_out);
 
 merr_t
 kvs_cursor_val_copy(
-    struct hse_kvs_cursor  *cursor,
-    void                   *buf,
-    size_t                  bufsz,
-    const void            **val_out,
-    size_t                 *vlen_out);
+    struct hse_kvs_cursor *cursor,
+    void *buf,
+    size_t bufsz,
+    const void **val_out,
+    size_t *vlen_out);
 
 void
 kvs_cursor_perfc_alloc(
-    uint                prio,
-    const char         *dbname,
-    struct perfc_set   *pcs_cc,
-    struct perfc_set   *pcs_cd);
+    uint prio,
+    const char *dbname,
+    struct perfc_set *pcs_cc,
+    struct perfc_set *pcs_cd);
 
 void
 kvs_cursor_perfc_free(struct perfc_set *pcs_cc, struct perfc_set *pcs_cd);
@@ -167,33 +166,33 @@ kvs_perfc_pkvsl(struct ikvs *ikvs);
 
 merr_t
 kvs_put(
-    struct ikvs *            ikvs,
-    struct hse_kvdb_txn *    txn,
-    struct kvs_ktuple *      kt,
-    struct kvs_vtuple       *vt,
-    uint64_t                 seqno);
+    struct ikvs *ikvs,
+    struct hse_kvdb_txn *txn,
+    struct kvs_ktuple *kt,
+    struct kvs_vtuple *vt,
+    uint64_t seqno);
 
 merr_t
 kvs_get(
-    struct ikvs *        ikvs,
+    struct ikvs *ikvs,
     struct hse_kvdb_txn *txn,
-    struct kvs_ktuple *  key,
-    uint64_t             seqno,
+    struct kvs_ktuple *key,
+    uint64_t seqno,
     enum key_lookup_res *res,
-    struct kvs_buf *     vbuf);
+    struct kvs_buf *vbuf);
 
 merr_t
 kvs_del(struct ikvs *ikvs, struct hse_kvdb_txn *txn, struct kvs_ktuple *key, uint64_t seqno);
 
 merr_t
 kvs_pfx_probe(
-    struct ikvs *        kvs,
+    struct ikvs *kvs,
     struct hse_kvdb_txn *txn,
-    struct kvs_ktuple *  kt,
-    uint64_t             seqno,
+    struct kvs_ktuple *kt,
+    uint64_t seqno,
     enum key_lookup_res *res,
-    struct kvs_buf *     kbuf,
-    struct kvs_buf *     vbuf);
+    struct kvs_buf *kbuf,
+    struct kvs_buf *vbuf);
 
 merr_t
 kvs_prefix_del(struct ikvs *ikvs, struct hse_kvdb_txn *txn, struct kvs_ktuple *key, uint64_t seqno);

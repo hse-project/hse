@@ -17,7 +17,7 @@ struct cndb;
 
 struct diag_kvdb_kvs_list {
     unsigned long kdl_cnid;
-    char          kdl_name[HSE_KVS_NAME_LEN_MAX];
+    char kdl_name[HSE_KVS_NAME_LEN_MAX];
 };
 
 /**
@@ -44,10 +44,10 @@ diag_kvdb_kvslist(struct hse_kvdb *kvdb, struct diag_kvdb_kvs_list *list, int le
  */
 merr_t
 diag_kvdb_open(
-    const char *       kvdb_home,
-    size_t             paramc,
-    const char *const *paramv,
-    struct hse_kvdb ** kvdb);
+    const char *kvdb_home,
+    size_t paramc,
+    const char * const *paramv,
+    struct hse_kvdb **kvdb);
 
 /**
  * diag_kvdb_close() - close a kvdb opened for diagnostic purposes

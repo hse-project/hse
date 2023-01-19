@@ -3,24 +3,22 @@
  * Copyright (C) 2015-2022 Micron Technology, Inc.  All rights reserved.
  */
 
-#include <mtf/framework.h>
+#include <rbtree.h>
 
-#include <hse/util/page.h>
-#include <hse/util/keycmp.h>
-
-#include <hse/limits.h>
-
-#include <cn/omf.h>
 #include <cn/kblock_reader.h>
+#include <cn/kvs_mblk_desc.h>
+#include <cn/omf.h>
 #include <cn/wbt_builder.h>
 #include <cn/wbt_internal.h>
 #include <cn/wbt_reader.h>
-#include <cn/kvs_mblk_desc.h>
-
 #include <mocks/mock_mpool.h>
-#include <hse/test/support/ref_tree.h>
+#include <mtf/framework.h>
 
-#include <rbtree.h>
+#include <hse/limits.h>
+
+#include <hse/test/support/ref_tree.h>
+#include <hse/util/keycmp.h>
+#include <hse/util/page.h>
 
 struct ref_tree *rtree;
 
@@ -28,23 +26,23 @@ struct ref_tree *rtree;
  * WBTree test structs and helper functions.
  */
 unsigned char kmd[PAGE_SIZE];
-size_t        kmd_used;
+size_t kmd_used;
 
 struct wbb *wbb;
-uint        wbt_pgc;
-uint        max_pgc = 1024;
+uint wbt_pgc;
+uint max_pgc = 1024;
 
 /* Raw list of keys. Use key_iter to iterate through the buffer. */
 struct key_list {
-    void * buf;
+    void *buf;
     size_t bufsz;
-    uint   buf_used;
-    uint   nkeys;
+    uint buf_used;
+    uint nkeys;
 } key_list;
 
 struct key_iter {
-    size_t        klen;
-    char          kdata[];
+    size_t klen;
+    char kdata[];
 };
 
 void *
@@ -103,9 +101,9 @@ post_test(struct mtf_test_info *lcl_ti)
 void *
 wbtree_write(struct iovec *iov, uint iov_cnt)
 {
-    int    i;
+    int i;
     size_t wlen;
-    void * tree, *t;
+    void *tree, *t;
 
     for (i = 0, wlen = 0; i < iov_cnt; i++)
         wlen += iov[i].iov_len;
@@ -144,11 +142,11 @@ add_key(struct key_list *kl, void *key, size_t klen)
 int
 tree_construct(struct mtf_test_info *lcl_ti, void **tree_out, struct wbt_hdr_omf *hdr)
 {
-    int              i;
-    struct iovec     iov[4096];
-    uint             iov_cnt;
-    merr_t           err;
-    void *           tree; /* serialized nodes and kmd region */
+    int i;
+    struct iovec iov[4096];
+    uint iov_cnt;
+    merr_t err;
+    void *tree; /* serialized nodes and kmd region */
     struct key_iter *k = key_list.buf;
 
     for (i = 0; i < key_list.nkeys; i++) {
@@ -180,10 +178,10 @@ tree_construct(struct mtf_test_info *lcl_ti, void **tree_out, struct wbt_hdr_omf
 int
 cursor_verify(
     struct mtf_test_info *lcl_ti,
-    void *                tree,
-    struct wbt_hdr_omf *  hdr,
-    struct key_list *     kl,
-    bool                  reverse)
+    void *tree,
+    struct wbt_hdr_omf *hdr,
+    struct key_list *kl,
+    bool reverse)
 {
     struct kvs_mblk_desc kbd = {
         .map_base = tree,
@@ -199,13 +197,13 @@ cursor_verify(
         .wbd_kmd_pgc = omf_wbt_kmd_pgc(hdr),
     };
 
-    struct wbti *     wbti;
+    struct wbti *wbti;
     struct kvs_ktuple kt;
-    struct key_obj    ko;
-    const void *      kmd_read;
-    bool              found;
-    int               i;
-    struct key_iter * k = kl->buf;
+    struct key_obj ko;
+    const void *kmd_read;
+    bool found;
+    int i;
+    struct key_iter *k = kl->buf;
 
     k = kl->buf;
     for (i = 0; i < kl->nkeys; i++) {
@@ -274,12 +272,12 @@ get_verify(struct mtf_test_info *lcl_ti, void *tree, struct wbt_hdr_omf *hdr, st
     };
 
     struct kvs_ktuple kt;
-    struct key_obj    ko_ref;
-    int               i;
+    struct key_obj ko_ref;
+    int i;
 
-    enum key_lookup_res   lookup_res;
+    enum key_lookup_res lookup_res;
     struct kvs_vtuple_ref vref;
-    struct key_iter *     k = kl->buf;
+    struct key_iter *k = kl->buf;
 
     k = kl->buf;
     for (i = 0; i < kl->nkeys; i++) {
@@ -312,7 +310,7 @@ load_and_test(struct mtf_test_info *lcl_ti, struct key_list *kl)
     /* Step 1: Insert keys and construct the wb tree.
      */
     struct wbt_hdr_omf hdr;
-    void *             tree;
+    void *tree;
 
     tree_construct(lcl_ti, &tree, &hdr);
 
@@ -332,8 +330,8 @@ load_and_test(struct mtf_test_info *lcl_ti, struct key_list *kl)
 
 MTF_DEFINE_UTEST_PREPOST(wbt_test, basic, pre_test, post_test)
 {
-    int              i, rc;
-    char             buf[HSE_KVS_KEY_LEN_MAX];
+    int i, rc;
+    char buf[HSE_KVS_KEY_LEN_MAX];
     struct key_list *ql = &key_list; /* query list */
 
     memset(buf, 0xfe, sizeof(buf));
@@ -354,9 +352,9 @@ MTF_DEFINE_UTEST_PREPOST(wbt_test, basic, pre_test, post_test)
 
 MTF_DEFINE_UTEST_PREPOST(wbt_test, one_key, pre_test, post_test)
 {
-    int             i, rc;
-    char            buf[64];
-    bool            added;
+    int i, rc;
+    char buf[64];
+    bool added;
     struct key_list ql = { 0 }; /* query list */
 
     ql.bufsz = 2 * BUF_SIZE;
@@ -384,9 +382,9 @@ MTF_DEFINE_UTEST_PREPOST(wbt_test, one_key, pre_test, post_test)
 
 MTF_DEFINE_UTEST_PREPOST(wbt_test, few_keys, pre_test, post_test)
 {
-    int              i, rc;
-    char             buf[64];
-    size_t           nkeys = 100;
+    int i, rc;
+    char buf[64];
+    size_t nkeys = 100;
     struct key_list *ql = &key_list; /* query list */
 
     memset(buf, 0xfe, sizeof(buf));
@@ -407,9 +405,9 @@ MTF_DEFINE_UTEST_PREPOST(wbt_test, few_keys, pre_test, post_test)
 
 MTF_DEFINE_UTEST_PREPOST(wbt_test, increasing_length, pre_test, post_test)
 {
-    int              i, rc;
-    char             buf[HSE_KVS_KEY_LEN_MAX];
-    size_t           nkeys;
+    int i, rc;
+    char buf[HSE_KVS_KEY_LEN_MAX];
+    size_t nkeys;
     struct key_list *ql = &key_list; /* query list */
 
     memset(buf, 0xfe, sizeof(buf));
@@ -431,13 +429,13 @@ MTF_DEFINE_UTEST_PREPOST(wbt_test, increasing_length, pre_test, post_test)
 
 MTF_DEFINE_UTEST_PREPOST(wbt_test, large_last_key, pre_test, post_test)
 {
-    int              i, rc;
-    char             buf[HSE_KVS_KEY_LEN_MAX];
-    size_t           nkeys = 3000;
-    size_t           klen = 128;
-    const uint       lcp = 23;
-    const uint       lfe_sz = sizeof(struct wbt_lfe_omf);
-    const uint       hdr_sz = sizeof(struct wbt_node_hdr_omf);
+    int i, rc;
+    char buf[HSE_KVS_KEY_LEN_MAX];
+    size_t nkeys = 3000;
+    size_t klen = 128;
+    const uint lcp = 23;
+    const uint lfe_sz = sizeof(struct wbt_lfe_omf);
+    const uint hdr_sz = sizeof(struct wbt_node_hdr_omf);
     struct key_list *ql = &key_list; /* query list */
 
     /*
@@ -455,7 +453,7 @@ MTF_DEFINE_UTEST_PREPOST(wbt_test, large_last_key, pre_test, post_test)
     memset(buf, 0xfe, sizeof(buf));
 
     for (i = 1; i <= nkeys; i++) {
-        bool   added;
+        bool added;
         size_t kl = klen;
 
         /* Changing this key format will affect lcp too. */
@@ -475,10 +473,10 @@ MTF_DEFINE_UTEST_PREPOST(wbt_test, large_last_key, pre_test, post_test)
 
 MTF_DEFINE_UTEST(wbt_test, varying_large_key)
 {
-    int              i, j, rc;
-    char             buf[HSE_KVS_KEY_LEN_MAX];
-    size_t           nkeys = 3000;
-    size_t           klen = 64;
+    int i, j, rc;
+    char buf[HSE_KVS_KEY_LEN_MAX];
+    size_t nkeys = 3000;
+    size_t klen = 64;
     struct key_list *ql = &key_list; /* query list */
 
     memset(buf, 0xfe, sizeof(buf));
@@ -486,7 +484,7 @@ MTF_DEFINE_UTEST(wbt_test, varying_large_key)
     for (i = 3; i < 100; i++) {
         pre_test(lcl_ti);
         for (j = 1; j < nkeys; j++) {
-            bool   added;
+            bool added;
             size_t kl = klen;
 
             snprintf(buf, sizeof(buf), "key-%020d", j);
@@ -507,17 +505,17 @@ MTF_DEFINE_UTEST(wbt_test, varying_large_key)
 
 MTF_DEFINE_UTEST_PREPOST(wbt_test, small_last_key, pre_test, post_test)
 {
-    int              i, rc;
-    char             buf[HSE_KVS_KEY_LEN_MAX];
-    size_t           nkeys = 2000;
-    size_t           large_klen = HSE_KVS_KEY_LEN_MAX;
-    const int        keys_per_node = 4;
+    int i, rc;
+    char buf[HSE_KVS_KEY_LEN_MAX];
+    size_t nkeys = 2000;
+    size_t large_klen = HSE_KVS_KEY_LEN_MAX;
+    const int keys_per_node = 4;
     struct key_list *ql = &key_list; /* query list */
 
     memset(buf, 0xfe, sizeof(buf));
 
     for (i = 1; i <= nkeys; i++) {
-        bool   added;
+        bool added;
         size_t klen = large_klen;
 
         snprintf(buf, sizeof(buf), "key-%08d", i);
@@ -536,10 +534,10 @@ MTF_DEFINE_UTEST_PREPOST(wbt_test, small_last_key, pre_test, post_test)
 
 MTF_DEFINE_UTEST_PREPOST(wbt_test, skip_keys, pre_test, post_test)
 {
-    int             i, rc;
-    char            buf[HSE_KVS_KEY_LEN_MAX];
-    size_t          nkeys = 100 * 1000;
-    size_t          klen = 64;
+    int i, rc;
+    char buf[HSE_KVS_KEY_LEN_MAX];
+    size_t nkeys = 100 * 1000;
+    size_t klen = 64;
     struct key_list ql = { 0 }; /* query list */
 
     memset(buf, 0xfe, sizeof(buf));

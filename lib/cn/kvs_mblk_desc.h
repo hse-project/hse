@@ -6,15 +6,13 @@
 #ifndef HSE_MBLK_DESC_H
 #define HSE_MBLK_DESC_H
 
-#include <inttypes.h>
 #include <assert.h>
-
-#include <hse/error/merr.h>
-
-#include <hse/util/page.h>
+#include <inttypes.h>
 
 #include <hse/types.h>
 
+#include <hse/error/merr.h>
+#include <hse/util/page.h>
 
 /* MTF_MOCK_DECL(mblk_desc) */
 
@@ -22,15 +20,16 @@ struct mpool;
 
 /* Mblock descriptor */
 struct kvs_mblk_desc {
-    void *map_base;         // memory mapped address of mblock
-    uint64_t mbid;          // mblock id
-    uint16_t alen_pages;    // allocated length of mblock, in 4K pages
-    uint16_t wlen_pages;    // written length of mblock, in 4K pages
-    uint16_t ra_pages;      // max readahead pages
-    uint8_t  mclass;        // media class
+    void *map_base;      // memory mapped address of mblock
+    uint64_t mbid;       // mblock id
+    uint16_t alen_pages; // allocated length of mblock, in 4K pages
+    uint16_t wlen_pages; // written length of mblock, in 4K pages
+    uint16_t ra_pages;   // max readahead pages
+    uint8_t mclass;      // media class
 };
 
-static_assert(HSE_MCLASS_MAX <= UINT8_MAX,
+static_assert(
+    HSE_MCLASS_MAX <= UINT8_MAX,
     "struct kvs_mblk_desc member mclass too small to hold enum hse_mclass");
 
 /* Map an mblock and initialize an mblock descriptor.

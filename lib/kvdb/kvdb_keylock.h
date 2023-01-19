@@ -38,10 +38,10 @@ kvdb_keylock_perfc_init(struct kvdb_keylock *handle_out, struct perfc_set *perfc
 /* MTF_MOCK */
 merr_t
 kvdb_keylock_lock(
-    struct kvdb_keylock *   hklock,
+    struct kvdb_keylock *hklock,
     struct kvdb_ctxn_locks *hlocks,
-    uint64_t                hash,
-    uint64_t                start_seq);
+    uint64_t hash,
+    uint64_t start_seq);
 
 merr_t
 kvdb_ctxn_locks_init(void) HSE_COLD;

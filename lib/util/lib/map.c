@@ -3,23 +3,23 @@
  * Copyright (C) 2022 Micron Technology, Inc.  All rights reserved.
  */
 
-#include <hse/util/list.h>
-#include <hse/util/event_counter.h>
-#include <hse/util/map.h>
-
 #include <rbtree.h>
+
+#include <hse/util/event_counter.h>
+#include <hse/util/list.h>
+#include <hse/util/map.h>
 
 #define BLOCKCNT_DEFAULT 4096
 
 struct map_node {
     struct rb_node rb_node;
-    uint64_t       key;
-    uintptr_t      blob;
+    uint64_t key;
+    uintptr_t blob;
 };
 
 struct map_mem_block {
     struct list_head link;
-    struct map_node  mem[];
+    struct map_node mem[];
 } HSE_ALIGNED(64);
 
 /* A dictionary with uint64_t keys and uintptr_t values.
@@ -28,11 +28,11 @@ struct map_mem_block {
  * maps that grow large and then shrink consume more memory than necessary.
  */
 struct map {
-    struct rb_root    root;
-    struct list_head  memlist;
-    size_t            map_mem_blockcnt;
-    uint              elem_cnt;
-    uintptr_t         map_node_freelist;
+    struct rb_root root;
+    struct list_head memlist;
+    size_t map_mem_blockcnt;
+    uint elem_cnt;
+    uintptr_t map_node_freelist;
 };
 
 /* Return a map element to the map's free list */
@@ -116,7 +116,7 @@ map_destroy(struct map *map)
     if (!map)
         return;
 
-    list_for_each_entry_safe(p, next, &map->memlist, link) {
+    list_for_each_entry_safe (p, next, &map->memlist, link) {
         free(p);
     }
 
@@ -133,7 +133,7 @@ map_insert_cmn(struct map *map, uint64_t key, uintptr_t value, bool allow_dups)
 {
     struct map_node *mn;
     struct rb_node **link;
-    struct rb_node  *parent;
+    struct rb_node *parent;
 
     link = &map->root.rb_node;
     parent = 0;
@@ -251,7 +251,6 @@ map_remove(struct map *map, uint64_t key, uintptr_t *val)
             map_mem_free(map, this);
             return true;
         }
-
     }
 
     return false;
@@ -262,7 +261,8 @@ map_reset(struct map *map)
 {
     struct map_node *entry, *next;
 
-    rbtree_postorder_for_each_entry_safe(entry, next, &map->root, rb_node) {
+    rbtree_postorder_for_each_entry_safe(entry, next, &map->root, rb_node)
+    {
         map_mem_free(map, entry);
     }
 

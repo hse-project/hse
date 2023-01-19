@@ -4,24 +4,22 @@
  */
 
 #include <fcntl.h>
-#include <stdint.h>
-#include <sys/mman.h>
-
-#include <mtf/framework.h>
-#include <mock/api.h>
-#include <hse/test/support/random_buffer.h>
-
-#include <hse/error/merr.h>
-#include <hse/util/minmax.h>
-#include <hse/util/page.h>
-
-#include <hse/mpool/mpool.h>
-#include <hse/mpool/mcache.h>
-
 #include <mblock_file.h>
 #include <mblock_fset.h>
 #include <mclass.h>
 #include <mpool_internal.h>
+#include <stdint.h>
+
+#include <mock/api.h>
+#include <mtf/framework.h>
+#include <sys/mman.h>
+
+#include <hse/error/merr.h>
+#include <hse/mpool/mcache.h>
+#include <hse/mpool/mpool.h>
+#include <hse/test/support/random_buffer.h>
+#include <hse/util/minmax.h>
+#include <hse/util/page.h>
 
 #include "common.h"
 
@@ -31,12 +29,12 @@ static merr_t
 mblock_write_test(struct mpool *mp, uint64_t mbid, void *buf, size_t len)
 {
     struct iovec *iov;
-    int           iovc;
-    char         *pos;
-    size_t        left;
-    int           i;
-    merr_t        err;
-    int           uaoff = (int)((uint64_t)buf & (PAGE_SIZE - 1));
+    int iovc;
+    char *pos;
+    size_t left;
+    int i;
+    merr_t err;
+    int uaoff = (int)((uint64_t)buf & (PAGE_SIZE - 1));
 
     iovc = (len + uaoff + PAGE_SIZE - 1) / PAGE_SIZE;
 
@@ -71,14 +69,14 @@ mblock_write_test(struct mpool *mp, uint64_t mbid, void *buf, size_t len)
 
 MTF_DEFINE_UTEST_PREPOST(mcache_test, mcache_api, mpool_test_pre, mpool_test_post)
 {
-    struct mpool            *mp;
+    struct mpool *mp;
     struct mpool_mcache_map *map;
 
     uint64_t mbidv[32];
-    merr_t   err;
-    int      rc, i;
-    size_t   bufsz;
-    char    *buf, *addr;
+    merr_t err;
+    int rc, i;
+    size_t bufsz;
+    char *buf, *addr;
 
     err = mpool_create(mtf_kvdb_home, &tcparams);
     ASSERT_EQ(0, err);
@@ -134,7 +132,7 @@ MTF_DEFINE_UTEST_PREPOST(mcache_test, mcache_api, mpool_test_pre, mpool_test_pos
         off_t pagenumv[32];
         void *addrv[32];
         char *addr;
-        int   j;
+        int j;
 
         addr = mpool_mcache_getbase(map, i);
         ASSERT_NE(NULL, addr);
@@ -198,8 +196,8 @@ MTF_DEFINE_UTEST_PREPOST(mcache_test, mcache_api, mpool_test_pre, mpool_test_pos
     ASSERT_EQ(0, merr_errno(err));
 
     for (i = 0; i < 32; i++) {
-        err = mpool_mblock_alloc(mp, i % 2 ? HSE_MCLASS_CAPACITY : HSE_MCLASS_STAGING, 0,
-                                 &mbidv[i], NULL);
+        err = mpool_mblock_alloc(
+            mp, i % 2 ? HSE_MCLASS_CAPACITY : HSE_MCLASS_STAGING, 0, &mbidv[i], NULL);
         ASSERT_EQ(0, err);
 
         err = mblock_write_test(mp, mbidv[i], buf, PAGE_SIZE * (i + 1));
@@ -216,7 +214,7 @@ MTF_DEFINE_UTEST_PREPOST(mcache_test, mcache_api, mpool_test_pre, mpool_test_pos
         off_t pagenumv[32];
         void *addrv[32];
         char *addr;
-        int   j;
+        int j;
 
         addr = mpool_mcache_getbase(map, i);
         ASSERT_NE(NULL, addr);
@@ -261,13 +259,13 @@ MTF_DEFINE_UTEST_PREPOST(mcache_test, mcache_api, mpool_test_pre, mpool_test_pos
 
 MTF_DEFINE_UTEST_PREPOST(mcache_test, mcache_invalid_args, mpool_test_pre, mpool_test_post)
 {
-    struct mpool       *mp;
+    struct mpool *mp;
     struct mblock_fset *mbfsp;
     struct media_class *mc;
 
-    char    *addr = (char *)0x1234;
+    char *addr = (char *)0x1234;
     uint64_t mbid;
-    merr_t   err;
+    merr_t err;
 
     err = mpool_create(mtf_kvdb_home, &tcparams);
     ASSERT_EQ(0, err);

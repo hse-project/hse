@@ -40,11 +40,11 @@ struct mblock_metahdr {
     uint32_t magic;
     uint64_t fszmax;
     uint64_t mblksz;
-    uint8_t  mcid;
-    uint8_t  fcnt;
-    uint8_t  blkbits;
-    uint8_t  mcbits;
-    bool     gclose;
+    uint8_t mcid;
+    uint8_t fcnt;
+    uint8_t blkbits;
+    uint8_t mcbits;
+    bool gclose;
 };
 
 /**
@@ -58,10 +58,10 @@ struct mblock_metahdr {
  */
 merr_t
 mblock_fset_open(
-    struct media_class  *mc,
-    uint8_t              fcnt,
-    size_t               fszmax,
-    int                  flags,
+    struct media_class *mc,
+    uint8_t fcnt,
+    size_t fszmax,
+    int flags,
     struct mblock_fset **mbfsp);
 
 /**
@@ -126,10 +126,10 @@ mblock_fset_write(struct mblock_fset *mbfsp, uint64_t mbid, const struct iovec *
 merr_t
 mblock_fset_read(
     struct mblock_fset *mbfsp,
-    uint64_t            mbid,
+    uint64_t mbid,
     const struct iovec *iov,
-    int                 iovc,
-    off_t               off);
+    int iovc,
+    off_t off);
 
 /**
  * mblock_fset_find() - find an mblock and return props
@@ -187,7 +187,7 @@ mblock_fset_filecnt_get(const struct mblock_fset *mbfsp);
  * @returns File max size.
  */
 size_t
-mblock_fset_fmaxsz_get(const struct mblock_fset *const mbfsp);
+mblock_fset_fmaxsz_get(const struct mblock_fset * const mbfsp);
 
 /**
  * mblock_fset_clone() - clone an mblock
@@ -201,10 +201,10 @@ mblock_fset_fmaxsz_get(const struct mblock_fset *const mbfsp);
 merr_t
 mblock_fset_clone(
     struct mblock_fset *mbfsp,
-    uint64_t            src_mbid,
-    off_t               off,
-    size_t              len,
-    uint64_t           *mbid_out);
+    uint64_t src_mbid,
+    off_t off,
+    size_t len,
+    uint64_t *mbid_out);
 
 /**
  * mblock_fset_punch() - punch an mblock

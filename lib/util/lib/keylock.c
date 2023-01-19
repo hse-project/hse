@@ -5,16 +5,16 @@
 
 #define MTF_MOCK_IMPL_keylock
 
+#include <hse/error/merr.h>
+#include <hse/logging/logging.h>
 #include <hse/util/alloc.h>
 #include <hse/util/arch.h>
-#include <hse/util/slab.h>
 #include <hse/util/atomic.h>
-#include <hse/error/merr.h>
-#include <hse/util/page.h>
+#include <hse/util/keylock.h>
 #include <hse/util/minmax.h>
 #include <hse/util/mutex.h>
-#include <hse/logging/logging.h>
-#include <hse/util/keylock.h>
+#include <hse/util/page.h>
+#include <hse/util/slab.h>
 
 /* clang-format off */
 
@@ -59,8 +59,8 @@ merr_t
 keylock_create(keylock_cb_fn *cb_func, struct keylock **handle_out)
 {
     struct keylock_impl *table;
-    size_t               sz;
-    void                *mem;
+    size_t sz;
+    void *mem;
 
     *handle_out = 0;
 
@@ -101,14 +101,14 @@ keylock_destroy(struct keylock *handle)
 merr_t
 keylock_lock(
     struct keylock *handle,
-    uint64_t        hash,
-    uint32_t        owner,
-    uint64_t        start_seq,
-    bool *          inherited)
+    uint64_t hash,
+    uint32_t owner,
+    uint64_t start_seq,
+    bool *inherited)
 {
-    struct keylock_impl * table = keylock_h2r(handle);
-    struct keylock_entry  entry, *curr;
-    bool                  displaced, almostfull;
+    struct keylock_impl *table = keylock_h2r(handle);
+    struct keylock_entry entry, *curr;
+    bool displaced, almostfull;
 
     curr = table->kli_bucketv + (hash % KLE_PSL_MAX);
     __builtin_prefetch(curr);
@@ -209,15 +209,15 @@ void
 keylock_unlock(struct keylock *handle, uint64_t hash, uint32_t owner)
 {
     struct keylock_impl *table = keylock_h2r(handle);
-    uint                 plen = 0, index, free;
+    uint plen = 0, index, free;
 
     index = (hash + plen) % KLE_PSL_MAX;
 
     mutex_lock(&table->kli_kmutex);
 
-    while (table->kli_bucketv[index].kle_busy &&
-           table->kli_bucketv[index].kle_hash != hash &&
-           table->kli_bucketv[index].kle_plen >= plen) {
+    while (table->kli_bucketv[index].kle_busy && table->kli_bucketv[index].kle_hash != hash &&
+           table->kli_bucketv[index].kle_plen >= plen)
+    {
         plen++;
         index = (index + 1) % KLE_PSL_MAX;
     }
@@ -228,9 +228,9 @@ keylock_unlock(struct keylock *handle, uint64_t hash, uint32_t owner)
      * Verify that the hash is the same i.e. has not been removed previously
      * by another thread that owns the lock.
      */
-    if (!table->kli_bucketv[index].kle_busy ||
-        table->kli_bucketv[index].kle_hash != hash ||
-        table->kli_bucketv[index].kle_owner != owner) {
+    if (!table->kli_bucketv[index].kle_busy || table->kli_bucketv[index].kle_hash != hash ||
+        table->kli_bucketv[index].kle_owner != owner)
+    {
 
         mutex_unlock(&table->kli_kmutex);
 
@@ -265,15 +265,14 @@ void
 keylock_search(struct keylock *handle, uint64_t hash, uint *pos)
 {
     struct keylock_impl *table = keylock_h2r(handle);
-    uint                 plen = 0, index;
+    uint plen = 0, index;
 
     index = (hash + plen) % KLE_PSL_MAX;
     *pos = KLE_PSL_MAX;
 
     mutex_lock(&table->kli_kmutex);
 
-    while (table->kli_bucketv[index].kle_busy &&
-           table->kli_bucketv[index].kle_plen >= plen) {
+    while (table->kli_bucketv[index].kle_busy && table->kli_bucketv[index].kle_plen >= plen) {
 
         if (table->kli_bucketv[index].kle_hash == hash) {
             *pos = index;

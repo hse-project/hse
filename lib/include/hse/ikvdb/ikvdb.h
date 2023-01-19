@@ -6,16 +6,15 @@
 #ifndef HSE_IKVDB_API_H
 #define HSE_IKVDB_API_H
 
+#include <bsd/libutil.h>
+
 #include <hse/flags.h>
 
-#include <hse/ikvdb/tuple.h>
-#include <hse/ikvdb/diag_kvdb.h>
-
 #include <hse/error/merr.h>
+#include <hse/ikvdb/diag_kvdb.h>
+#include <hse/ikvdb/tuple.h>
 #include <hse/util/perfc.h>
 #include <hse/util/workqueue.h>
-
-#include <bsd/libutil.h>
 
 /* MTF_MOCK_DECL(ikvdb) */
 
@@ -39,8 +38,7 @@ struct kvs;
 struct ikvdb_kvs_hdl;
 enum hse_mclass;
 
-struct hse_kvdb_txn {
-};
+struct hse_kvdb_txn {};
 
 /**
  * ikvdb_init() - prepare the ikvdb subsystem for use
@@ -167,10 +165,7 @@ ikvdb_diag_kvslist(struct ikvdb *handle, struct diag_kvdb_kvs_list *list, int le
  * @handle:         (output) handle to access the opened KVDB
  */
 merr_t
-ikvdb_diag_open(
-    const char *         kvdb_home,
-    struct kvdb_rparams *params,
-    struct ikvdb **      handle);
+ikvdb_diag_open(const char *kvdb_home, struct kvdb_rparams *params, struct ikvdb **handle);
 
 /**
  * ikvdb_diag_close() - close relevant data streams with minimial processing
@@ -186,10 +181,7 @@ ikvdb_diag_close(struct ikvdb *handle);
  * @kvdb:        (output) handle to access the opened KVDB
  */
 merr_t
-ikvdb_open(
-    const char *         kvdb_home,
-    struct kvdb_rparams *params,
-    struct ikvdb **      kvdb);
+ikvdb_open(const char *kvdb_home, struct kvdb_rparams *params, struct ikvdb **kvdb);
 
 #define IKVS_OFLAG_NONE   0
 #define IKVS_OFLAG_REPLAY 1 /* used when wal opens ikvs/kvs/cn for replay */
@@ -205,11 +197,11 @@ ikvdb_open(
  */
 merr_t
 ikvdb_kvs_open(
-    struct ikvdb *      kvdb,
-    const char *        kvs_name,
+    struct ikvdb *kvdb,
+    const char *kvs_name,
     struct kvs_rparams *rparams,
-    uint                ikvs_oflags,
-    struct hse_kvs **   kvs_out);
+    uint ikvs_oflags,
+    struct hse_kvs **kvs_out);
 
 /**
  * ikvdb_pidfh() - get the PID file handle associated with the KVDB
@@ -339,12 +331,7 @@ struct cn *
 ikvdb_kvs_get_cn(struct hse_kvs *kvs);
 
 merr_t
-ikvdb_param_get(
-    struct ikvdb *kvdb,
-    const char *  param,
-    char *        buf,
-    size_t        buf_sz,
-    size_t *      needed_sz);
+ikvdb_param_get(struct ikvdb *kvdb, const char *param, char *buf, size_t buf_sz, size_t *needed_sz);
 
 /**
  * ikvdb_kvs_names_get() -
@@ -413,11 +400,11 @@ ikvdb_mpool_get(struct ikvdb *kvdb);
 /* MTF_MOCK */
 merr_t
 ikvdb_kvs_put(
-    struct hse_kvs *         kvs,
-    unsigned int             flags,
-    struct hse_kvdb_txn *    txn,
-    struct kvs_ktuple *      kt,
-    struct kvs_vtuple       *vt);
+    struct hse_kvs *kvs,
+    unsigned int flags,
+    struct hse_kvdb_txn *txn,
+    struct kvs_ktuple *kt,
+    struct kvs_vtuple *vt);
 
 /**
  * ikvdb_kvs_get() - search for the given key within the KVS. HSE allocates
@@ -425,12 +412,12 @@ ikvdb_kvs_put(
  */
 merr_t
 ikvdb_kvs_get(
-    struct hse_kvs *     kvs,
-    unsigned int         flags,
+    struct hse_kvs *kvs,
+    unsigned int flags,
     struct hse_kvdb_txn *txn,
-    struct kvs_ktuple *  kt,
+    struct kvs_ktuple *kt,
     enum key_lookup_res *res,
-    struct kvs_buf *     vbuf);
+    struct kvs_buf *vbuf);
 
 /**
  * ikvdb_kvs_del() - remove the supplied key and associated value from the KVS
@@ -439,21 +426,21 @@ ikvdb_kvs_get(
 /* MTF_MOCK */
 merr_t
 ikvdb_kvs_del(
-    struct hse_kvs *     kvs,
-    unsigned int         flags,
+    struct hse_kvs *kvs,
+    unsigned int flags,
     struct hse_kvdb_txn *txn,
-    struct kvs_ktuple *  kt);
+    struct kvs_ktuple *kt);
 
 /* MTF_MOCK */
 merr_t
 ikvdb_kvs_pfx_probe(
-    struct hse_kvs *     handle,
-    unsigned int         flags,
+    struct hse_kvs *handle,
+    unsigned int flags,
     struct hse_kvdb_txn *txn,
-    struct kvs_ktuple *  kt,
+    struct kvs_ktuple *kt,
     enum key_lookup_res *res,
-    struct kvs_buf *     kbuf,
-    struct kvs_buf *     vbuf);
+    struct kvs_buf *kbuf,
+    struct kvs_buf *vbuf);
 
 /**
  * ikvdb_kvs_prefix_delete() - remove all key/value pairs with the given prefix
@@ -463,18 +450,18 @@ ikvdb_kvs_pfx_probe(
 /* MTF_MOCK */
 merr_t
 ikvdb_kvs_prefix_delete(
-    struct hse_kvs *     kvs,
-    unsigned int         flags,
+    struct hse_kvs *kvs,
+    unsigned int flags,
     struct hse_kvdb_txn *txn,
-    struct kvs_ktuple *  kt);
+    struct kvs_ktuple *kt);
 
 merr_t
 ikvdb_kvs_param_get(
     struct hse_kvs *kvs,
-    const char *    param,
-    char *          buf,
-    size_t          buf_sz,
-    size_t *        needed_sz);
+    const char *param,
+    char *buf,
+    size_t buf_sz,
+    size_t *needed_sz);
 
 /**
  * ikvdb_sync() - sync data in all of the KVSes to stable media.
@@ -542,20 +529,18 @@ ikvdb_txn_state(struct ikvdb *kvdb, struct hse_kvdb_txn *txn);
  */
 merr_t
 ikvdb_kvs_cursor_create(
-    struct hse_kvs *        kvs,
-    unsigned int            flags,
-    struct hse_kvdb_txn *   txn,
-    const void *            prefix,
-    size_t                  pfx_len,
+    struct hse_kvs *kvs,
+    unsigned int flags,
+    struct hse_kvdb_txn *txn,
+    const void *prefix,
+    size_t pfx_len,
     struct hse_kvs_cursor **cursor);
 
 /**
  * ikvdb_kvs_cursor_update() - incorporate updates since cursor created
  */
 merr_t
-ikvdb_kvs_cursor_update_view(
-    struct hse_kvs_cursor *cursor,
-    unsigned int           flags);
+ikvdb_kvs_cursor_update_view(struct hse_kvs_cursor *cursor, unsigned int flags);
 
 /**
  * ikvdb_kvs_cursor_seek() - move the cursor to the closet match to @key.
@@ -564,12 +549,12 @@ ikvdb_kvs_cursor_update_view(
 merr_t
 ikvdb_kvs_cursor_seek(
     struct hse_kvs_cursor *cursor,
-    unsigned int           flags,
-    const void *           key,
-    size_t                 key_len,
-    const void *           limit,
-    size_t                 limit_len,
-    struct kvs_ktuple *    kt);
+    unsigned int flags,
+    const void *key,
+    size_t key_len,
+    const void *limit,
+    size_t limit_len,
+    struct kvs_ktuple *kt);
 
 /**
  * ikvdb_kvs_cursor_read() - iteratively access the elements pointed to by
@@ -578,24 +563,24 @@ ikvdb_kvs_cursor_seek(
 merr_t
 ikvdb_kvs_cursor_read(
     struct hse_kvs_cursor *cursor,
-    unsigned int           flags,
-    const void **          key,
-    size_t *               key_len,
-    const void **          val,
-    size_t *               val_len,
-    bool *                 eof);
+    unsigned int flags,
+    const void **key,
+    size_t *key_len,
+    const void **val,
+    size_t *val_len,
+    bool *eof);
 
 merr_t
 ikvdb_kvs_cursor_read_copy(
     struct hse_kvs_cursor *cur,
-    unsigned int           flags,
-    void *                 keybuf,
-    size_t                 keybuf_sz,
-    size_t *               key_len,
-    void *                 valbuf,
-    size_t                 valbuf_sz,
-    size_t *               val_len,
-    bool *                 eof);
+    unsigned int flags,
+    void *keybuf,
+    size_t keybuf_sz,
+    size_t *key_len,
+    void *valbuf,
+    size_t valbuf_sz,
+    size_t *val_len,
+    bool *eof);
 
 /**
  * ikvdb_kvs_cursor_destroy() - allow the caller to indicate that is is done
@@ -627,9 +612,9 @@ ikvdb_lowmem_scale(unsigned long memgb);
 
 merr_t
 ikvdb_pmem_only_from_cparams(
-    const char                *kvdb_home,
+    const char *kvdb_home,
     const struct kvdb_cparams *cparams,
-    bool                      *pmem_only);
+    bool *pmem_only);
 
 /*
  * [HSE_REVISIT] - This whole callback setup up needs to be reworked.
@@ -643,8 +628,12 @@ ikvdb_pmem_only_from_cparams(
  */
 struct kvdb_callback {
     struct ikvdb *kc_cbarg;
-    void (*kc_cningest_cb)(struct ikvdb *ikdb, uint64_t seqno, uint64_t gen,
-        uint64_t txhorizon, bool post_ingest);
+    void (*kc_cningest_cb)(
+        struct ikvdb *ikdb,
+        uint64_t seqno,
+        uint64_t gen,
+        uint64_t txhorizon,
+        bool post_ingest);
     void (*kc_bufrel_cb)(struct ikvdb *ikdb, uint64_t gen);
 };
 
@@ -660,28 +649,28 @@ ikvdb_wal_replay_close(struct ikvdb *ikvdb, struct ikvdb_kvs_hdl *ikvsh);
 
 merr_t
 ikvdb_wal_replay_put(
-    struct ikvdb         *ikvdb,
+    struct ikvdb *ikvdb,
     struct ikvdb_kvs_hdl *ikvsh,
-    uint64_t              cnid,
-    uint64_t              seqno,
-    struct kvs_ktuple    *kt,
-    struct kvs_vtuple    *vt);
+    uint64_t cnid,
+    uint64_t seqno,
+    struct kvs_ktuple *kt,
+    struct kvs_vtuple *vt);
 
 merr_t
 ikvdb_wal_replay_del(
-    struct ikvdb         *ikvdb,
+    struct ikvdb *ikvdb,
     struct ikvdb_kvs_hdl *ikvsh,
-    uint64_t              cnid,
-    uint64_t              seqno,
-    struct kvs_ktuple    *kt);
+    uint64_t cnid,
+    uint64_t seqno,
+    struct kvs_ktuple *kt);
 
 merr_t
 ikvdb_wal_replay_prefix_del(
-    struct ikvdb         *ikvdb,
+    struct ikvdb *ikvdb,
     struct ikvdb_kvs_hdl *ikvsh,
-    uint64_t              cnid,
-    uint64_t              seqno,
-    struct kvs_ktuple    *kt);
+    uint64_t cnid,
+    uint64_t seqno,
+    struct kvs_ktuple *kt);
 
 merr_t
 ikvdb_wal_replay_sync(struct ikvdb *handle, const unsigned int flags);

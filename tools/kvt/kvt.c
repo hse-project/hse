@@ -115,38 +115,37 @@
  *
  */
 
-#include <stdio.h>
-#include <stdlib.h>
-#include <stdint.h>
-#include <stdalign.h>
-#include <unistd.h>
 #include <assert.h>
 #include <ctype.h>
+#include <curses.h>
 #include <errno.h>
-#include <signal.h>
 #include <getopt.h>
-#include <sysexits.h>
 #include <math.h>
 #include <pthread.h>
-#include <sys/types.h>
-#include <sys/param.h>
-#include <sys/time.h>
-#include <sys/file.h>
-#include <sys/stat.h>
-#include <sys/poll.h>
-#include <sys/resource.h>
+#include <signal.h>
+#include <stdalign.h>
+#include <stdint.h>
+#include <stdio.h>
+#include <stdlib.h>
+#include <sysexits.h>
+#include <term.h>
+#include <unistd.h>
+#include <xoroshiro.h>
+#include <xxhash.h>
 
 #include <bsd/string.h>
-#include <curses.h>
-#include <term.h>
+#include <sys/file.h>
+#include <sys/param.h>
+#include <sys/poll.h>
+#include <sys/resource.h>
+#include <sys/stat.h>
+#include <sys/time.h>
+#include <sys/types.h>
+#include <tools/parm_groups.h>
 
 #include <hse/hse.h>
 
-#include <tools/parm_groups.h>
 #include <hse/util/arch.h>
-
-#include <xoroshiro.h>
-#include <xxhash.h>
 
 /* clang-format off */
 
@@ -247,95 +246,95 @@ struct stats {
 
 struct tdargs {
     struct stats stats;
-    uint64_t     hash;
-    size_t       databufsz;
-    char *       databuf;
-    pthread_t    tid;
-    uint64_t     seed;
-    u_int        job;
-    bool         full;
-    bool         dump;
+    uint64_t hash;
+    size_t databufsz;
+    char *databuf;
+    pthread_t tid;
+    uint64_t seed;
+    u_int job;
+    bool full;
+    bool dump;
 };
 
 struct work {
     struct work *next;
-    u_long       rid;
-    u_long       span;
-    size_t       fnlen;
-    const char * keyfmt;
-    char         fn[HSE_KVS_KEY_LEN_MAX + 1];
+    u_long rid;
+    u_long span;
+    size_t fnlen;
+    const char *keyfmt;
+    char fn[HSE_KVS_KEY_LEN_MAX + 1];
 };
 
 struct workq {
     u_long rid __aligned(64 * 2); /* updated atomically */
 
-    bool   running __aligned(64);
-    u_int  lwm;
-    u_int  hwm;
-    char * randbuf;
+    bool running __aligned(64);
+    u_int lwm;
+    u_int hwm;
+    char *randbuf;
     size_t randbufsz;
 
     pthread_mutex_t mtx __aligned(64);
-    struct work * head;
+    struct work *head;
     struct work **tail;
-    struct work * free;
-    u_int         cnt;
+    struct work *free;
+    u_int cnt;
 
-    u_long         p_waits __aligned(64);
-    u_long         p_wakeups;
+    u_long p_waits __aligned(64);
+    u_long p_wakeups;
     pthread_cond_t p_cv; /* producer */
 
-    u_long         c_waits __aligned(64);
-    u_long         c_wakeups;
+    u_long c_waits __aligned(64);
+    u_long c_wakeups;
     pthread_cond_t c_cv; /* consumer */
 };
 
-const u_char u64tostrtab[] __aligned(64) =
-    "0123456789ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz";
+const u_char
+    u64tostrtab[] __aligned(64) = "0123456789ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz";
 uint8_t strtou64tab[256] __read_mostly;
 
 struct hse_kvdb *kvdb __read_mostly;
-sig_atomic_t sigint   __read_mostly;
-sig_atomic_t sigusr1  __read_mostly;
-sig_atomic_t sigalrm  __read_mostly;
-size_t ridlockc       __read_mostly;
-u_int *ridlockv       __read_mostly;
+sig_atomic_t sigint __read_mostly;
+sig_atomic_t sigusr1 __read_mostly;
+sig_atomic_t sigalrm __read_mostly;
+size_t ridlockc __read_mostly;
+u_int *ridlockv __read_mostly;
 
-u_long ridmax                __read_mostly;
-u_long kvs_datac             __read_mostly;
-u_long kvs_inodesc           __read_mostly;
-struct hse_kvs *kvs_rids     __read_mostly;
-struct hse_kvs *kvs_tombs    __read_mostly;
+u_long ridmax __read_mostly;
+u_long kvs_datac __read_mostly;
+u_long kvs_inodesc __read_mostly;
+struct hse_kvs *kvs_rids __read_mostly;
+struct hse_kvs *kvs_tombs __read_mostly;
 struct hse_kvs **kvs_inodesv __read_mostly;
-struct hse_kvs **kvs_datav   __read_mostly;
+struct hse_kvs **kvs_datav __read_mostly;
 
 u_long txncdlyprob __read_mostly;
 u_long txnfreeprob __read_mostly;
-u_long updateprob  __read_mostly;
-u_long tombprob    __read_mostly;
+u_long updateprob __read_mostly;
+u_long tombprob __read_mostly;
 
 pthread_barrier_t kvt_test_barrier;
-uint64_t          hash0;
-struct workq      workq;
+uint64_t hash0;
+struct workq workq;
 
 u_long killsecs = ULONG_MAX;
 u_long testsecs;
-int    killsig;
-u_int  ridkeybase = NELEM(u64tostrtab) - 1;
+int killsig;
+u_int ridkeybase = NELEM(u64tostrtab) - 1;
 size_t vlenmax = 127;
 size_t vlenmin;
 size_t vrunlen;
 size_t ridpfxlen;
 bool vcomp;
 
-u_int     ijobsmax, tjobsmax, cjobsmax;
+u_int ijobsmax, tjobsmax, cjobsmax;
 cpu_set_t cpuset;
 // ends in _ because it will conflict with tsc_freq defined in hse/src/util/src/timer.c
 u_long tsc_freq_;
 
-char * progname, *mpname;
-char * tgs_clrtoeol;
-int    verbosity;
+char *progname, *mpname;
+char *tgs_clrtoeol;
+int verbosity;
 u_long mark;
 
 bool initchkdups;
@@ -345,7 +344,7 @@ bool dryrun;
 bool human;
 bool force;
 
-bool  sync_enabled = false;
+bool sync_enabled = false;
 ulong sync_timeout_ms = 0;
 
 struct parm_groups *pg;
@@ -361,14 +360,8 @@ struct svec empty_parms = { 0 };
 char perfc_buf[32];
 int perfc = -1;
 
-
 static int
-kvt_create(
-    const char *       mpname,
-    const char *       keyfile,
-    const char *       keyfmt,
-    u_long             keymax,
-    bool *             dump);
+kvt_create(const char *mpname, const char *keyfile, const char *keyfmt, u_long keymax, bool *dump);
 
 static int
 kvt_open(size_t kvs_listc, char **kvs_listv);
@@ -434,10 +427,10 @@ tsi_delta(tsi_t *startp)
     return now.tv_sec * 1000000 + now.tv_nsec / 1000;
 }
 
-static thread_local char    dmsg[256], emsg[256];
-static thread_local int     dmsglen, emsglen;
+static thread_local char dmsg[256], emsg[256];
+static thread_local int dmsglen, emsglen;
 static thread_local ssize_t dcc, ecc;
-static thread_local u_int   job = UINT_MAX;
+static thread_local u_int job = UINT_MAX;
 
 int
 dputc(int c)
@@ -450,9 +443,9 @@ dputc(int c)
 __attribute__((format(printf, 2, 3))) void
 dprint(int lvl, const char *fmt, ...)
 {
-    size_t  dmsgsz = sizeof(dmsg) - 8;
+    size_t dmsgsz = sizeof(dmsg) - 8;
     va_list ap;
-    int     n;
+    int n;
 
     if (lvl > verbosity)
         return;
@@ -490,9 +483,9 @@ eputc(int c)
 __attribute__((format(printf, 2, 3))) void
 eprint(hse_err_t err, const char *fmt, ...)
 {
-    size_t  emsgsz = sizeof(emsg) - 8;
+    size_t emsgsz = sizeof(emsg) - 8;
     va_list ap;
-    int     n;
+    int n;
 
     emsglen = snprintf(emsg, emsgsz, "%s: ", progname);
 
@@ -525,9 +518,9 @@ eprint(hse_err_t err, const char *fmt, ...)
 __attribute__((format(printf, 1, 2))) void
 status(const char *fmt, ...)
 {
-    size_t  dmsgsz = sizeof(dmsg) - 8;
+    size_t dmsgsz = sizeof(dmsg) - 8;
     va_list ap;
-    int     n;
+    int n;
 
     if (verbosity < 1)
         return;
@@ -579,7 +572,7 @@ uint64_t
 strtou64(const void *str, char **endp, u_int base)
 {
     const uint8_t *p8 = str;
-    uint64_t       acc = 0, val;
+    uint64_t acc = 0, val;
 
     while (isspace(*p8))
         ++p8;
@@ -605,9 +598,9 @@ int
 u64tostr(void *buf, size_t bufsz, uint64_t num, u_int base)
 {
     uint64_t val = num;
-    char *   right = buf;
-    char *   left;
-    int      len;
+    char *right = buf;
+    char *left;
+    int len;
 
     assert(buf && base >= 2 && base < NELEM(u64tostrtab));
 
@@ -651,7 +644,7 @@ strtou64_init(void)
 u_long
 cvt_strtoul(const char *str, char **endp, const struct suftab *suftab)
 {
-    char * pc, *end;
+    char *pc, *end;
     u_long val;
 
     errno = 0;
@@ -781,9 +774,7 @@ parm_vec_fini(void)
 }
 
 enum kvs_type
-decode_kvs_name(
-    const char *name,
-    int *instance)
+decode_kvs_name(const char *name, int *instance)
 {
     *instance = 0;
 
@@ -793,10 +784,10 @@ decode_kvs_name(
     if (!strcmp(name, KVS_TOMBS_NAME))
         return kvs_type_tombs;
 
-    if (1 == sscanf(name, KVS_INODES_NAME"%d", instance))
+    if (1 == sscanf(name, KVS_INODES_NAME "%d", instance))
         return kvs_type_tombs;
 
-    if (1 == sscanf(name, KVS_DATA_NAME"%d", instance))
+    if (1 == sscanf(name, KVS_DATA_NAME "%d", instance))
         return kvs_type_data;
 
     return kvs_type_unknown;
@@ -969,7 +960,7 @@ prop_decode(const char *list, const char *sep, const char *valid)
 {
     char *nvlist, *nvlist_base;
     char *name, *value;
-    int   rc;
+    int rc;
 
     if (!list)
         return EINVAL;
@@ -1057,10 +1048,8 @@ prop_decode(const char *list, const char *sep, const char *valid)
 void *
 periodic_sync(void *arg)
 {
-    struct timespec timeout = {
-        .tv_sec = sync_timeout_ms / 1000,
-        .tv_nsec = (sync_timeout_ms % 1000) * 1000000
-    };
+    struct timespec timeout = { .tv_sec = sync_timeout_ms / 1000,
+                                .tv_nsec = (sync_timeout_ms % 1000) * 1000000 };
     sigset_t sigmask;
     hse_err_t err;
     int rc;
@@ -1092,8 +1081,7 @@ usage(void)
     printf("usage: %s -V\n", progname);
     printf(
         "-b base   specify rid-to-key base [2 <= base <= %zu] (default: %u)\n",
-        NELEM(u64tostrtab) - 1,
-        ridkeybase);
+        NELEM(u64tostrtab) - 1, ridkeybase);
     printf("-c         perform a full data integrity check of the kvdb\n");
     printf("-f file    initialize kvdb using keys from file (one key per line)\n");
     printf("-h         show this help list\n");
@@ -1102,8 +1090,7 @@ usage(void)
     printf("-K ksig    kill test workers at end of test (test mode only)\n");
     printf("-k kfmt    specify key generator snprintf format\n");
     printf(
-        "-l vlen    specify min/max value length during load (default: %lu,%lu)\n",
-        vlenmin,
+        "-l vlen    specify min/max value length during load (default: %lu,%lu)\n", vlenmin,
         vlenmax);
     printf("-m mark    show test status every mark seconds\n");
     printf("-n         dry run\n");
@@ -1131,14 +1118,18 @@ usage(void)
     printf("  inodesc      specify number of inodes tables (default: %lu)\n", kvs_inodesc);
     printf("  perfc        set perfc_level for all perf counters (default: %d)\n", perfc);
     printf("  ridpfxlen    set prefix len of rid kvs (default:  %zu)\n", ridpfxlen);
-    printf("  tombprob     probability to entomb an inode (default: %lf)\n",
-           (double)tombprob / (double)ULONG_MAX);
-    printf("  txncdlyprob  probabilty to delay a commit (default: %lf)\n",
-           (double)txncdlyprob / (double)ULONG_MAX);
-    printf("  txnfreeprob  probability to free a txn buffer (default: %lf)\n",
-           (double)txnfreeprob / (double)ULONG_MAX);
-    printf("  updateprob   probability to update a key (default: %lf)\n",
-           (double)updateprob / (double)ULONG_MAX);
+    printf(
+        "  tombprob     probability to entomb an inode (default: %lf)\n",
+        (double)tombprob / (double)ULONG_MAX);
+    printf(
+        "  txncdlyprob  probabilty to delay a commit (default: %lf)\n",
+        (double)txncdlyprob / (double)ULONG_MAX);
+    printf(
+        "  txnfreeprob  probability to free a txn buffer (default: %lf)\n",
+        (double)txnfreeprob / (double)ULONG_MAX);
+    printf(
+        "  updateprob   probability to update a key (default: %lf)\n",
+        (double)updateprob / (double)ULONG_MAX);
     printf("  vcomp        enable value compression for data and tomb kvs (default: %d)\n", vcomp);
     printf("  vrunlen      generated ascii value run length (default: %zu)\n", vrunlen);
 
@@ -1157,15 +1148,15 @@ int
 main(int argc, char **argv)
 {
     const char *config = NULL;
-    char        area[64], *areap = area;
-    bool        help, dump;
-    u_long      killmin, killmax;
-    char *      keyfile = NULL;
-    char *      keyfmt = NULL;
-    int         check, rc;
-    u_long      keymax;
-    hse_err_t   err;
-    tsi_t       tstart;
+    char area[64], *areap = area;
+    bool help, dump;
+    u_long killmin, killmax;
+    char *keyfile = NULL;
+    char *keyfmt = NULL;
+    int check, rc;
+    u_long keymax;
+    hse_err_t err;
+    tsi_t tstart;
 
     progname = strrchr(argv[0], '/');
     progname = progname ? progname + 1 : argv[0];
@@ -1205,7 +1196,7 @@ main(int argc, char **argv)
 
         fp = popen("lscpu | sed -En 's/^Model.*([0-9].[0-9]+.)Hz$/\\1/p'", "r");
         if (fp) {
-            char   line[256], *end;
+            char line[256], *end;
             double val;
 
             if (fgets(line, sizeof(line), fp)) {
@@ -1223,9 +1214,9 @@ main(int argc, char **argv)
 #endif
 
     while (1) {
-        char *   errmsg, *end;
+        char *errmsg, *end;
         uint64_t seed;
-        int      c;
+        int c;
 
         c = getopt(argc, argv, ":b:cDFf:hi:j:K:k:l:m:no:pS:T:t:vy:Z:");
         if (-1 == c)
@@ -1499,8 +1490,7 @@ main(int argc, char **argv)
         }
         break;
     case EINVAL:
-        eprint(0, "missing group name (e.g. %s) before parameter %s\n",
-               PG_KVDB_OPEN, argv[optind]);
+        eprint(0, "missing group name (e.g. %s) before parameter %s\n", PG_KVDB_OPEN, argv[optind]);
         exit(EX_USAGE);
         break;
     default:
@@ -1557,17 +1547,17 @@ main(int argc, char **argv)
 
     rc = kvt_check(check, dump);
 
-  errout:
-	if (kvdb) {
-		tsi_start(&tstart);
-		status("closing kvdb %s...", mpname);
+errout:
+    if (kvdb) {
+        tsi_start(&tstart);
+        status("closing kvdb %s...", mpname);
 
-		err = hse_kvdb_close(kvdb);
-		if (err)
-			eprint(err, "unable to close kvdb `%s'", mpname);
+        err = hse_kvdb_close(kvdb);
+        if (err)
+            eprint(err, "unable to close kvdb `%s'", mpname);
 
-		dprint(1, "closed kvdb %s in %.3lf seconds", mpname, tsi_delta(&tstart) / 1000000.0);
-	}
+        dprint(1, "closed kvdb %s in %.3lf seconds", mpname, tsi_delta(&tstart) / 1000000.0);
+    }
 
     free(kvs_inodesv);
     hse_fini();
@@ -1580,12 +1570,12 @@ main(int argc, char **argv)
 
 static int
 fnrec_encode(
-    char *   buf,
-    size_t   bufsz,
-    u_long   rid,
-    u_long   datasz,
-    u_long   shift,
-    u_long   flags,
+    char *buf,
+    size_t bufsz,
+    u_long rid,
+    u_long datasz,
+    u_long shift,
+    u_long flags,
     uint64_t hash)
 {
     char *pc = buf;
@@ -1630,11 +1620,11 @@ fnrec_encode(
 
 static void
 fnrec_decode(
-    char *    str,
-    u_long *  ridp,
-    u_long *  dataszp,
-    u_long *  shiftp,
-    u_long *  flagsp,
+    char *str,
+    u_long *ridp,
+    u_long *dataszp,
+    u_long *shiftp,
+    u_long *flagsp,
     uint64_t *hashp)
 {
     u_int base;
@@ -1669,22 +1659,17 @@ fnrec_decode(
 }
 
 static int
-kvt_create(
-    const char *       mpname,
-    const char *       keyfile,
-    const char *       keyfmt,
-    u_long             keymax,
-    bool *             dump)
+kvt_create(const char *mpname, const char *keyfile, const char *keyfmt, u_long keymax, bool *dump)
 {
-    char         key[128], val[128];
-    char **      kvs_listv = NULL;
-    size_t       kvs_listc = 0;
-    char         kvsname[32];
-    int          klen, vlen;
-    hse_err_t    err;
-    tsi_t        tstart;
-    int          rc;
-    size_t       i;
+    char key[128], val[128];
+    char **kvs_listv = NULL;
+    size_t kvs_listc = 0;
+    char kvsname[32];
+    int klen, vlen;
+    hse_err_t err;
+    tsi_t tstart;
+    int rc;
+    size_t i;
     struct svec *parms;
 
     err = hse_kvdb_kvs_names_get(kvdb, &kvs_listc, &kvs_listv);
@@ -1775,12 +1760,9 @@ kvt_create(
     }
 
     klen = snprintf(key, sizeof(key), ".root");
-    vlen = snprintf(val, sizeof(val),
-                    "%lx %x %lx %lx %lx %lx",
-                    0ul, ridkeybase,
-                    kvs_inodesc,
-                    kvs_datac,
-                    0ul, 0ul);
+    vlen = snprintf(
+        val, sizeof(val), "%lx %x %lx %lx %lx %lx", 0ul, ridkeybase, kvs_inodesc, kvs_datac, 0ul,
+        0ul);
 
     if (klen < 1 || klen >= sizeof(key) || vlen < 1 || vlen >= sizeof(val)) {
         eprint(errno, "unable to format root record");
@@ -1807,7 +1789,7 @@ kvt_create(
 
     kvs_rids = NULL;
 
-  open:
+open:
     rc = kvt_open(kvs_listc, kvs_listv);
     hse_kvdb_kvs_names_free(kvdb, kvs_listv);
     if (rc)
@@ -1827,13 +1809,13 @@ kvt_create(
 static int
 kvt_open(size_t kvs_listc, char **kvs_listv)
 {
-    char         key[128], val[128];
-    int          klen, rc, n, i;
-    hse_err_t    err;
-    tsi_t        tstart;
-    size_t       vlen;
-    bool         found;
-    size_t       sz;
+    char key[128], val[128];
+    int klen, rc, n, i;
+    hse_err_t err;
+    tsi_t tstart;
+    size_t vlen;
+    bool found;
+    size_t sz;
     struct svec *parms;
 
     tsi_start(&tstart);
@@ -1863,8 +1845,9 @@ kvt_open(size_t kvs_listc, char **kvs_listv)
         return EX_DATAERR;
     }
 
-    dprint(2, "root: ridmax %lu, ridkeybase %u, kvs_inodesc %lu, kvs_datac %lu, %lx",
-           ridmax, ridkeybase, kvs_inodesc, kvs_datac, hash0);
+    dprint(
+        2, "root: ridmax %lu, ridkeybase %u, kvs_inodesc %lu, kvs_datac %lu, %lx", ridmax,
+        ridkeybase, kvs_inodesc, kvs_datac, hash0);
 
     assert(kvs_inodesc > 0 && kvs_inodesc < 256);
     assert(kvs_datac > 0 && kvs_datac < 256);
@@ -1884,10 +1867,10 @@ kvt_open(size_t kvs_listc, char **kvs_listv)
 
     for (i = 0; i < kvs_listc; ++i) {
         struct hse_kvs *kvs;
-        const char *    pc;
-        hse_err_t       err;
-        char *          end;
-        long            id;
+        const char *pc;
+        hse_err_t err;
+        char *end;
+        long id;
 
         if (0 == strcmp(KVS_RIDS_NAME, kvs_listv[i]))
             continue;
@@ -1913,9 +1896,9 @@ kvt_open(size_t kvs_listc, char **kvs_listv)
         end = NULL;
         id = strtol(pc, &end, 10);
         if (errno || *end || id < 0 || id > kvs_datac) {
-            eprint(errno, "%s invalid kvs `%s' (id %ld)",
-                   force ? "ignoring" : "found",
-                   kvs_listv[i], id);
+            eprint(
+                errno, "%s invalid kvs `%s' (id %ld)", force ? "ignoring" : "found", kvs_listv[i],
+                id);
             if (force)
                 continue;
 
@@ -1963,20 +1946,20 @@ kvt_open(size_t kvs_listc, char **kvs_listv)
 static int
 kvt_init(const char *keyfile, const char *keyfmt, u_long keymax, bool dump)
 {
-    char           key[128], val[128];
-    sigset_t       sigmask_block, sigmask_orig;
-    u_long         iters_status, delta, n, x;
+    char key[128], val[128];
+    sigset_t sigmask_block, sigmask_orig;
+    u_long iters_status, delta, n, x;
     struct tdargs *tdargv;
-    struct workq   batchq;
-    FILE *         fpin = stdin;
-    struct work *  work;
-    size_t         fpinmax;
-    int            klen, vlen;
-    hse_err_t      err;
-    tsi_t          tstart;
-    bool           skip;
-    int            rc, i;
-    pthread_t      sync_thread;
+    struct workq batchq;
+    FILE *fpin = stdin;
+    struct work *work;
+    size_t fpinmax;
+    int klen, vlen;
+    hse_err_t err;
+    tsi_t tstart;
+    bool skip;
+    int rc, i;
+    pthread_t sync_thread;
 
     if (!ijobsmax) {
         ijobsmax = CPU_COUNT(&cpuset);
@@ -2012,7 +1995,7 @@ kvt_init(const char *keyfile, const char *keyfmt, u_long keymax, bool dump)
         if (keymax >= ULONG_MAX && 0 == fstat(fileno(fpin), &sb))
             fpinmax = sb.st_size / 80;
     } else {
-        char * randbuf, *end, *pc;
+        char *randbuf, *end, *pc;
         size_t randbufsz;
 
         /* Construct the buffer of randomness such that we can start
@@ -2033,7 +2016,7 @@ kvt_init(const char *keyfile, const char *keyfmt, u_long keymax, bool dump)
         if (vrunlen > 0) {
             uint64_t runlen = vrunlen;
             uint64_t r = xrand64() >> 1;
-            u_char   c = (r & 0x3f) + 32;
+            u_char c = (r & 0x3f) + 32;
 
             /* Generate random ASCII data with the given run length of repitition.
              */
@@ -2065,10 +2048,9 @@ kvt_init(const char *keyfile, const char *keyfmt, u_long keymax, bool dump)
     }
 
     if (dump) {
-        dprint(0, "%4s %9s %8s %9s %7s %5s %16s %5s %s",
-               "job", "rid", "ridkey", "datarid",
-               "shift", "flags", "minhash",
-               "fnlen", "fn");
+        dprint(
+            0, "%4s %9s %8s %9s %7s %5s %16s %5s %s", "job", "rid", "ridkey", "datarid", "shift",
+            "flags", "minhash", "fnlen", "fn");
     } else {
         status("loading...");
     }
@@ -2123,8 +2105,8 @@ kvt_init(const char *keyfile, const char *keyfmt, u_long keymax, bool dump)
 
     while (n < keymax && !sigint) {
         u_long span = 1, ips;
-        char * itersuf = "";
-        char * ipssuf = "";
+        char *itersuf = "";
+        char *ipssuf = "";
         size_t fnlen;
         double pct;
 
@@ -2230,8 +2212,8 @@ kvt_init(const char *keyfile, const char *keyfmt, u_long keymax, bool dump)
             humanize(&x, &itersuf);
         }
 
-        status("loading %lu %lu%s (%lu%s/s) %.2lf%%",
-               delta / 1000000, x, itersuf, ips, ipssuf, pct);
+        status(
+            "loading %lu %lu%s (%lu%s/s) %.2lf%%", delta / 1000000, x, itersuf, ips, ipssuf, pct);
     }
 
     pthread_mutex_lock(&workq.mtx);
@@ -2250,7 +2232,7 @@ kvt_init(const char *keyfile, const char *keyfmt, u_long keymax, bool dump)
 
     for (i = 0; i < ijobsmax; ++i) {
         struct tdargs *args = tdargv + i;
-        void *         val;
+        void *val;
 
         rc = pthread_join(args->tid, &val);
         if (rc) {
@@ -2270,15 +2252,11 @@ kvt_init(const char *keyfile, const char *keyfmt, u_long keymax, bool dump)
 
     ridmax = __atomic_load_n(&workq.rid, __ATOMIC_RELAXED);
 
-    dprint(1, "loaded %lu of %lu %s in %.2lfs (%lu/s), %lx (wakeups %lu %lu)%s",
-           ridmax,
-           (keymax < ULONG_MAX) ? keymax : n,
-           keyfmt ? "keys" : "files",
-           delta / 1000000.0,
-           (ridmax * 1000000) / delta,
-           hash0,
-           workq.p_wakeups, workq.c_wakeups,
-           sigint ? " (interrupted)" : "");
+    dprint(
+        1, "loaded %lu of %lu %s in %.2lfs (%lu/s), %lx (wakeups %lu %lu)%s", ridmax,
+        (keymax < ULONG_MAX) ? keymax : n, keyfmt ? "keys" : "files", delta / 1000000.0,
+        (ridmax * 1000000) / delta, hash0, workq.p_wakeups, workq.c_wakeups,
+        sigint ? " (interrupted)" : "");
 
     if (dryrun) {
         assert(ridmax == n);
@@ -2288,8 +2266,8 @@ kvt_init(const char *keyfile, const char *keyfmt, u_long keymax, bool dump)
     /* Write the number of records and the hash sums to the root record.
      */
     klen = snprintf(key, sizeof(key), ".root");
-    vlen = snprintf(val, sizeof(val), "%lx %x %lx %lx %lx",
-                    ridmax, ridkeybase, kvs_inodesc, kvs_datac, hash0);
+    vlen = snprintf(
+        val, sizeof(val), "%lx %x %lx %lx %lx", ridmax, ridkeybase, kvs_inodesc, kvs_datac, hash0);
 
     if (testtxn) {
         struct hse_kvdb_txn *txn;
@@ -2319,7 +2297,6 @@ kvt_init(const char *keyfile, const char *keyfmt, u_long keymax, bool dump)
             eprint(err, "put root key=%s val=%s", key, val);
     }
 
-
     err = hse_kvdb_sync(kvdb, 0);
     if (err)
         eprint(err, "kvdb sync");
@@ -2346,14 +2323,14 @@ kvt_init(const char *keyfile, const char *keyfmt, u_long keymax, bool dump)
 static void *
 kvt_init_main(void *arg)
 {
-    char           fnrec[512], key[128];
+    char fnrec[512], key[128];
     struct tdargs *args = arg;
-    int            fnreclen, klen;
-    struct work *  work;
-    size_t         databufsz;
-    hse_err_t      err;
-    char *         databuf;
-    u_long         flags;
+    int fnreclen, klen;
+    struct work *work;
+    size_t databufsz;
+    hse_err_t err;
+    char *databuf;
+    u_long flags;
     struct hse_kvdb_txn *txn = NULL;
 
     job = args->job;
@@ -2361,7 +2338,7 @@ kvt_init_main(void *arg)
 
     if (1) {
         struct sched_param param;
-        int                policy, rc;
+        int policy, rc;
 
         pthread_getschedparam(pthread_self(), &policy, &param);
 
@@ -2390,11 +2367,11 @@ kvt_init_main(void *arg)
 
     while (1) {
         uint64_t hash;
-        u_long   datarid, rid;
-        ssize_t  cc = 0;
-        char *   datasrc;
-        bool     found;
-        int      fd;
+        u_long datarid, rid;
+        ssize_t cc = 0;
+        char *datasrc;
+        bool found;
+        int fd;
 
         if (!work || --work->span == 0) {
             pthread_mutex_lock(&workq.mtx);
@@ -2464,7 +2441,7 @@ kvt_init_main(void *arg)
         datarid = (rid << 8) | (rid & 0xfflu);
 
         if (initchkdups) {
-            char   vbuf[32];
+            char vbuf[32];
             size_t vlen;
 
             /* Check to verify that the record doesn't exist in the tomb...
@@ -2477,8 +2454,9 @@ kvt_init_main(void *arg)
             }
 
             if (found) {
-                eprint(err, "duplicate key %lu vlen=%zu vbuf=[%.16s] key=%s",
-                       rid, vlen, vbuf, work->fn);
+                eprint(
+                    err, "duplicate key %lu vlen=%zu vbuf=[%.16s] key=%s", rid, vlen, vbuf,
+                    work->fn);
                 goto errout;
             }
         }
@@ -2498,19 +2476,21 @@ kvt_init_main(void *arg)
 
         err = hse_kvs_put(rid2data_kvs(datarid), 0, testtxn ? txn : NULL, key, klen, datasrc, cc);
         if (err) {
-            eprint(err, "put %s%u %lu key=%s cc=%ld fn=%s",
-                   KVS_DATA_NAME, rid2data_idx(datarid),
-                   datarid, key, cc, work->fn);
+            eprint(
+                err, "put %s%u %lu key=%s cc=%ld fn=%s", KVS_DATA_NAME, rid2data_idx(datarid),
+                datarid, key, cc, work->fn);
             goto errout;
         }
 
         /* Load all file name keys into the tombs table so that we can attempt
          * to detect duplicates during initial load.
          */
-        err = hse_kvs_put(kvs_tombs, 0, testtxn ? txn : NULL, work->fn, work->fnlen, fnrec, fnreclen);
+        err =
+            hse_kvs_put(kvs_tombs, 0, testtxn ? txn : NULL, work->fn, work->fnlen, fnrec, fnreclen);
         if (err) {
-            eprint(err, "put %s %lu vlen=%d val=[%s] key=%s",
-                   KVS_TOMBS_NAME, rid, fnreclen, fnrec, work->fn);
+            eprint(
+                err, "put %s %lu vlen=%d val=[%s] key=%s", KVS_TOMBS_NAME, rid, fnreclen, fnrec,
+                work->fn);
             goto errout;
         }
 
@@ -2527,9 +2507,9 @@ kvt_init_main(void *arg)
         }
 
         if (args->dump) {
-            dprint(0, "%9lu %8s %9lx %7lu %5lx %16lx %5zu %s",
-                   rid, key, datarid, 0ul, flags, hash,
-                   work->fnlen, work->fn);
+            dprint(
+                0, "%9lu %8s %9lx %7lu %5lx %16lx %5zu %s", rid, key, datarid, 0ul, flags, hash,
+                work->fnlen, work->fn);
         }
 
         hash = XXH3_64bits(datasrc, cc);
@@ -2542,7 +2522,7 @@ kvt_init_main(void *arg)
             eprint(err, "hse_kvdb_txn_free");
     }
 
-  errout:
+errout:
     if (err)
         kill(getpid(), SIGINT); /* Awaken main thread */
 
@@ -2555,20 +2535,20 @@ kvt_init_main(void *arg)
 static int
 kvt_check(int check, bool dump)
 {
-    char           msg[128];
-    sigset_t       sigmask_block, sigmask_orig;
-    uint64_t       hash_sum = 0;
-    u_long         iters_status, iters;
-    u_long         vgetlen, vputlen;
+    char msg[128];
+    sigset_t sigmask_block, sigmask_orig;
+    uint64_t hash_sum = 0;
+    u_long iters_status, iters;
+    u_long vgetlen, vputlen;
     struct tdargs *tdargv;
-    u_long         delta, nerrs;
-    u_long         rid, ridcnt;
-    u_long         skip, span;
-    struct work *  work;
-    tsi_t          tstart;
-    u_int          cjobs;
-    bool           full;
-    int            rc, i;
+    u_long delta, nerrs;
+    u_long rid, ridcnt;
+    u_long skip, span;
+    struct work *work;
+    tsi_t tstart;
+    u_int cjobs;
+    bool full;
+    int rc, i;
 
     if (sigint)
         return 0;
@@ -2595,10 +2575,9 @@ kvt_check(int check, bool dump)
     }
 
     if (dump) {
-        dprint(0, "%4s %9s %8s %9s %7s %5s %16s %5s %s",
-               "job", "rid", "ridkey", "datarid",
-               "shift", "flags", "minhash",
-               "fnlen", "fn");
+        dprint(
+            0, "%4s %9s %8s %9s %7s %5s %16s %5s %s", "job", "rid", "ridkey", "datarid", "shift",
+            "flags", "minhash", "fnlen", "fn");
     } else {
         status("checking...");
     }
@@ -2653,8 +2632,8 @@ kvt_check(int check, bool dump)
     work = NULL;
 
     for (rid = 0; rid < ridmax && !sigint; rid += span) {
-        char * ridsuf = "";
-        char * ipssuf = "";
+        char *ridsuf = "";
+        char *ipssuf = "";
         u_long ips, n;
 
         if (rid + span >= ridmax)
@@ -2717,11 +2696,9 @@ kvt_check(int check, bool dump)
             humanize(&n, &ridsuf);
         }
 
-        status("checking %lu %lu%s (%lu%s/s) %.2lf%%",
-               delta / 1000000,
-               n, ridsuf,
-               ips, ipssuf,
-               (rid * 100.0) / ridmax);
+        status(
+            "checking %lu %lu%s (%lu%s/s) %.2lf%%", delta / 1000000, n, ridsuf, ips, ipssuf,
+            (rid * 100.0) / ridmax);
     }
 
     pthread_mutex_lock(&workq.mtx);
@@ -2731,7 +2708,7 @@ kvt_check(int check, bool dump)
 
     for (i = 0; i < cjobs; ++i) {
         struct tdargs *args = tdargv + i;
-        void *         val;
+        void *val;
 
         rc = pthread_join(args->tid, &val);
         if (rc) {
@@ -2759,17 +2736,14 @@ kvt_check(int check, bool dump)
         }
     }
 
-    snprintf(msg, sizeof(msg),
-             "checked %lu of %lu records in %.2lfs (%lu/s), valMB %lu (%lu MB/s)",
-             ridcnt, ridmax,
-             delta / 1000000.0,
-             (ridcnt * 1000000) / delta,
-             vgetlen >> 20,
-             vgetlen / delta);
+    snprintf(
+        msg, sizeof(msg), "checked %lu of %lu records in %.2lfs (%lu/s), valMB %lu (%lu MB/s)",
+        ridcnt, ridmax, delta / 1000000.0, (ridcnt * 1000000) / delta, vgetlen >> 20,
+        vgetlen / delta);
 
-    dprint(1, "%s, %lx, (wakeups %lu %lu) errs %ld%s",
-           msg, hash_sum, workq.p_wakeups, workq.c_wakeups,
-           nerrs, sigint ? " (interrupted)" : "");
+    dprint(
+        1, "%s, %lx, (wakeups %lu %lu) errs %ld%s", msg, hash_sum, workq.p_wakeups, workq.c_wakeups,
+        nerrs, sigint ? " (interrupted)" : "");
 
     free(work);
     while ((work = workq.free)) {
@@ -2788,20 +2762,20 @@ kvt_check(int check, bool dump)
 static void *
 kvt_check_main(void *arg)
 {
-    char           fnrec[512], key[128], fn[HSE_KVS_KEY_LEN_MAX * 2];
-    size_t         databuflen, databufsz, datasz;
+    char fnrec[512], key[128], fn[HSE_KVS_KEY_LEN_MAX * 2];
+    size_t databuflen, databufsz, datasz;
     struct tdargs *args = arg;
-    struct work *  work;
-    char *         databuf;
-    hse_err_t      err;
-    long           nerrs;
-    int            klen;
+    struct work *work;
+    char *databuf;
+    hse_err_t err;
+    long nerrs;
+    int klen;
 
     job = args->job;
 
     if (1) {
         struct sched_param param;
-        int                policy, rc;
+        int policy, rc;
 
         pthread_getschedparam(pthread_self(), &policy, &param);
 
@@ -2825,11 +2799,11 @@ kvt_check_main(void *arg)
 
     while (1) {
         uint64_t hash = 0, minhash;
-        size_t   fnlen, fnreclen;
-        u_long   datarid, rid;
-        u_long   shift, flags;
-        bool     exhumed;
-        bool     found;
+        size_t fnlen, fnreclen;
+        u_long datarid, rid;
+        u_long shift, flags;
+        bool exhumed;
+        bool found;
 
         if (work && --work->span > 0) {
             ++work->rid;
@@ -2874,8 +2848,9 @@ kvt_check_main(void *arg)
         }
 
         if (fnlen > HSE_KVS_KEY_LEN_MAX) {
-            eprint(err, "unexpectedly large value (%zu) for rid %lu from %s",
-                   fnlen, rid, KVS_RIDS_NAME);
+            eprint(
+                err, "unexpectedly large value (%zu) for rid %lu from %s", fnlen, rid,
+                KVS_RIDS_NAME);
             abort();
         }
 
@@ -2891,10 +2866,12 @@ kvt_check_main(void *arg)
         }
 
         if (!found) {
-            err = hse_kvs_get(kvs_tombs, 0, NULL, fn, fnlen, &found, fnrec, sizeof(fnrec), &fnreclen);
+            err =
+                hse_kvs_get(kvs_tombs, 0, NULL, fn, fnlen, &found, fnrec, sizeof(fnrec), &fnreclen);
             if (err || !found) {
-                eprint(err, "record not found in %s%u nor %s: rid=%lu key=%s",
-                       KVS_INODES_NAME, rid2inodes_idx(rid), KVS_TOMBS_NAME, rid, fn);
+                eprint(
+                    err, "record not found in %s%u nor %s: rid=%lu key=%s", KVS_INODES_NAME,
+                    rid2inodes_idx(rid), KVS_TOMBS_NAME, rid, fn);
                 ++nerrs;
                 continue;
             }
@@ -2909,9 +2886,9 @@ kvt_check_main(void *arg)
         fnrec_decode(fnrec, &datarid, &datasz, &shift, &flags, &minhash);
 
         if (args->dump)
-            dprint(0, "%9lu %8s %9lx %7lu %5lx %16lx %5zu %s",
-                   rid, key, datarid, shift,
-                   flags, minhash, fnlen, fn);
+            dprint(
+                0, "%9lu %8s %9lx %7lu %5lx %16lx %5zu %s", rid, key, datarid, shift, flags,
+                minhash, fnlen, fn);
 
         if (datarid >> 8 != rid)
             abort();
@@ -2923,10 +2900,9 @@ kvt_check_main(void *arg)
             rid2data_kvs(datarid), 0, NULL, key, klen, &found, databuf, databufsz, &databuflen);
         if (err || !found) {
             if (nerrs < 8 || verbosity > 2) {
-                eprint(err, "get %s%u datarid=%lu key=%s %s(fn=%s)",
-                       KVS_DATA_NAME, rid2data_idx(datarid), datarid, key,
-                       err ? "" : "not found ",
-                       fn);
+                eprint(
+                    err, "get %s%u datarid=%lu key=%s %s(fn=%s)", KVS_DATA_NAME,
+                    rid2data_idx(datarid), datarid, key, err ? "" : "not found ", fn);
             }
             ++nerrs;
             continue;
@@ -2951,23 +2927,20 @@ kvt_check_main(void *arg)
                 p64[0] = xoroshiro_rotl(p64[0], 64 - (shift % 64));
             }
 
-            eprint(0,
-                   "minhash miscompare rid=%lx datarid=%lx key=[%s] %zu fn=[%s] shift=%lu flags=%lx "
-                   "vlen=%lu val=[%02x%02x%02x%02x%02x%02x%02x%02x] from %s%u%s",
-                   rid, datarid, key, fnlen, fn,
-                   shift, flags, databuflen,
-                   p8[0], p8[1], p8[2], p8[3],
-                   p8[4], p8[5], p8[6], p8[7],
-                   exhumed ? KVS_TOMBS_NAME : KVS_INODES_NAME,
-                   rid2inodes_idx(rid),
-                   exhumed ? "\b" : "");
+            eprint(
+                0,
+                "minhash miscompare rid=%lx datarid=%lx key=[%s] %zu fn=[%s] shift=%lu flags=%lx "
+                "vlen=%lu val=[%02x%02x%02x%02x%02x%02x%02x%02x] from %s%u%s",
+                rid, datarid, key, fnlen, fn, shift, flags, databuflen, p8[0], p8[1], p8[2], p8[3],
+                p8[4], p8[5], p8[6], p8[7], exhumed ? KVS_TOMBS_NAME : KVS_INODES_NAME,
+                rid2inodes_idx(rid), exhumed ? "\b" : "");
             ++nerrs;
         }
 
         if (args->full) {
             if (shift % 64) {
                 uint64_t *p64 = (uint64_t *)databuf;
-                uint64_t  val;
+                uint64_t val;
 
                 p64[0] = xoroshiro_rotl(p64[0], 64 - (shift % 64));
 
@@ -2994,11 +2967,11 @@ kvt_check_main(void *arg)
 static void
 kvt_test_summary(struct tdargs *tdargv)
 {
-    const char * fmt = "test %4u %*.2lf %*lu %7lu %*lu %*lu %*lu %*lu %*lu %*lu %*lu %5lu";
-    int          witers, wsecs, wgets, wgetsps, wcommits, waborts, wvgetlen;
+    const char *fmt = "test %4u %*.2lf %*lu %7lu %*lu %*lu %*lu %*lu %*lu %*lu %*lu %5lu";
+    int witers, wsecs, wgets, wgetsps, wcommits, waborts, wvgetlen;
     struct stats stats = { 0 };
-    u_long       usecs;
-    int          i;
+    u_long usecs;
+    int i;
 
     for (i = 0; i < tjobsmax; ++i) {
         struct tdargs *args = tdargv + i;
@@ -3024,62 +2997,40 @@ kvt_test_summary(struct tdargs *tdargv)
     wvgetlen = snprintf(NULL, 0, "%5lu", stats.vgetlen >> 20);
 
     if (headers) {
-        dprint(1, "test %4s %*s %*s %7s %*s %*s %*s %*s %*s %*s %*s %5s",
-               "job",
-               wsecs, "secs",
-               witers, "iters", "iters/s",
-               wgets, "gets",
-               wgetsps, "gets/s",
-               wgets, "puts",
-               wgets, "dels",
-               wcommits, "commit",
-               waborts, "abort",
-               wvgetlen, "valMB",
-               "MB/s");
+        dprint(
+            1, "test %4s %*s %*s %7s %*s %*s %*s %*s %*s %*s %*s %5s", "job", wsecs, "secs", witers,
+            "iters", "iters/s", wgets, "gets", wgetsps, "gets/s", wgets, "puts", wgets, "dels",
+            wcommits, "commit", waborts, "abort", wvgetlen, "valMB", "MB/s");
     }
 
     for (i = 0; i < tjobsmax && verbosity > 1; ++i) {
         struct tdargs *args = tdargv + i;
 
-        dprint(1, fmt,
-               i,
-               wsecs, args->stats.usecs / 1000000.0,
-               witers, args->stats.iters,
-               (args->stats.iters * 1000000) / args->stats.usecs,
-               wgets, args->stats.gets,
-               wgetsps, (args->stats.gets * 1000000) / args->stats.usecs,
-               wgets, args->stats.puts,
-               wgets, args->stats.dels,
-               wcommits, args->stats.commits,
-               waborts, args->stats.aborts,
-               wvgetlen, args->stats.vgetlen >> 20,
-               args->stats.vgetlen / args->stats.usecs);
+        dprint(
+            1, fmt, i, wsecs, args->stats.usecs / 1000000.0, witers, args->stats.iters,
+            (args->stats.iters * 1000000) / args->stats.usecs, wgets, args->stats.gets, wgetsps,
+            (args->stats.gets * 1000000) / args->stats.usecs, wgets, args->stats.puts, wgets,
+            args->stats.dels, wcommits, args->stats.commits, waborts, args->stats.aborts, wvgetlen,
+            args->stats.vgetlen >> 20, args->stats.vgetlen / args->stats.usecs);
     }
 
-    dprint(1, fmt,
-           tjobsmax,
-           wsecs, usecs / 1000000.0,
-           witers, stats.iters, (stats.iters * 1000000) / usecs,
-           wgets, stats.gets,
-           wgetsps, (stats.gets * 1000000) / usecs,
-           wgets, stats.puts,
-           wgets, stats.dels,
-           wcommits, stats.commits,
-           waborts, stats.aborts,
-           wvgetlen, stats.vgetlen >> 20,
-           stats.vgetlen / usecs);
+    dprint(
+        1, fmt, tjobsmax, wsecs, usecs / 1000000.0, witers, stats.iters,
+        (stats.iters * 1000000) / usecs, wgets, stats.gets, wgetsps, (stats.gets * 1000000) / usecs,
+        wgets, stats.puts, wgets, stats.dels, wcommits, stats.commits, waborts, stats.aborts,
+        wvgetlen, stats.vgetlen >> 20, stats.vgetlen / usecs);
 }
 
 static int
 kvt_test(void)
 {
-    sigset_t         sigmask_block, sigmask_orig;
-    struct tdargs *  tdargv;
+    sigset_t sigmask_block, sigmask_orig;
+    struct tdargs *tdargv;
     struct itimerval itv;
-    double           uspercycle;
-    tsi_t            tstart;
-    u_int            done;
-    int              rc, i;
+    double uspercycle;
+    tsi_t tstart;
+    u_int done;
+    int rc, i;
 
     char *itersuf = "";
     char *getsuf = "";
@@ -3178,7 +3129,7 @@ kvt_test(void)
         u_long latmax = 0, latavg = 0;
         u_long latmin = ULONG_MAX;
         u_long delta, ips;
-        char * ipssuf = "";
+        char *ipssuf = "";
 
         usleep(mark * 1000000);
         done = 0;
@@ -3226,24 +3177,15 @@ kvt_test(void)
         status(
             "testing %lu %lu%s (%lu%s/s) %.2lf%%, get %lu%s, put %lu%s, del %lu%s, commit %lu%s, "
             "abort %lu%s, entomb %lu%s, delay %lu, latency %lu %lu %lu",
-            delta,
-            iters, itersuf,
-            ips, ipssuf,
-            (delta * 100.0) / testsecs,
-            gets, getsuf,
-            puts, putsuf,
-            dels, delsuf,
-            commits, comsuf,
-            aborts, absuf,
-            entombs, entsuf,
-            delays,
-            latmin, latavg, latmax);
+            delta, iters, itersuf, ips, ipssuf, (delta * 100.0) / testsecs, gets, getsuf, puts,
+            putsuf, dels, delsuf, commits, comsuf, aborts, absuf, entombs, entsuf, delays, latmin,
+            latavg, latmax);
     }
 
-  join:
+join:
     for (i = 0; i < tjobsmax; ++i) {
         struct tdargs *args = tdargv + i;
-        void *         val;
+        void *val;
 
         rc = pthread_join(args->tid, &val);
         if (rc) {
@@ -3271,11 +3213,11 @@ kvt_test(void)
 static void *
 kvt_test_main(void *arg)
 {
-    struct tdargs *        args = arg;
-    struct hse_kvdb_txn *  txn;
-    hse_err_t              err;
-    tsi_t                  tstart;
-    int                    rc;
+    struct tdargs *args = arg;
+    struct hse_kvdb_txn *txn;
+    hse_err_t err;
+    tsi_t tstart;
+    int rc;
 
     job = args->job;
     xrand64_init(args->seed);
@@ -3384,7 +3326,7 @@ kvt_test_main(void *arg)
             }
         }
 
-      unlock:
+    unlock:
         ridlock_unlock(rid); /* no-op in txn mode */
 
         cycles = get_cycles() - cycles;
@@ -3410,18 +3352,18 @@ kvt_test_main(void *arg)
 static int
 kvt_test_impl(struct tdargs *args, unsigned int oflags, struct hse_kvdb_txn *txn, u_long rid)
 {
-    char            fnrec[512], key[128], fn[HSE_KVS_KEY_LEN_MAX * 2];
+    char fnrec[512], key[128], fn[HSE_KVS_KEY_LEN_MAX * 2];
     struct hse_kvs *kvs_inodes_src, *kvs_inodes_dst;
     struct hse_kvs *kvs_data_src, *kvs_data_dst;
-    size_t          fnlen, fnreclen, databufsz, databuflen;
-    u_long          odatarid, datarid, shift, flags;
-    uint64_t        hash, minhash;
-    size_t          datasz;
-    char *          databuf;
-    hse_err_t       err;
-    int             klen, rc;
-    bool            exhumed;
-    bool            found;
+    size_t fnlen, fnreclen, databufsz, databuflen;
+    u_long odatarid, datarid, shift, flags;
+    uint64_t hash, minhash;
+    size_t datasz;
+    char *databuf;
+    hse_err_t err;
+    int klen, rc;
+    bool exhumed;
+    bool found;
 
     databufsz = args->databufsz;
     databuf = args->databuf;
@@ -3454,20 +3396,24 @@ kvt_test_impl(struct tdargs *args, unsigned int oflags, struct hse_kvdb_txn *txn
     kvs_inodes_dst = kvs_inodes_src;
     found = exhumed = false;
 
-    err = hse_kvs_get(kvs_inodes_src, oflags, txn, fn, fnlen, &found, fnrec, sizeof(fnrec), &fnreclen);
+    err = hse_kvs_get(
+        kvs_inodes_src, oflags, txn, fn, fnlen, &found, fnrec, sizeof(fnrec), &fnreclen);
     if (err) {
-        eprint(err, "cannot find key %s in inodes%u: rid=%lu ridkey=%s",
-               fn, rid2inodes_idx(rid), rid, key);
+        eprint(
+            err, "cannot find key %s in inodes%u: rid=%lu ridkey=%s", fn, rid2inodes_idx(rid), rid,
+            key);
         return hse_err_to_errno(err);
     }
 
     /* If not found then someone must have moved it to the tomb...
      */
     if (!found) {
-        err = hse_kvs_get(kvs_tombs, oflags, txn, fn, fnlen, &found, fnrec, sizeof(fnrec), &fnreclen);
+        err =
+            hse_kvs_get(kvs_tombs, oflags, txn, fn, fnlen, &found, fnrec, sizeof(fnrec), &fnreclen);
         if (err || !found) {
-            eprint(err, "cannot find key %s in %s%u nor %s: rid=%lu ridkey=%s",
-                   fn, KVS_INODES_NAME, rid2inodes_idx(rid), KVS_TOMBS_NAME, rid, key);
+            eprint(
+                err, "cannot find key %s in %s%u nor %s: rid=%lu ridkey=%s", fn, KVS_INODES_NAME,
+                rid2inodes_idx(rid), KVS_TOMBS_NAME, rid, key);
             return err ? hse_err_to_errno(err) : ENOENT;
         }
 
@@ -3479,12 +3425,10 @@ kvt_test_impl(struct tdargs *args, unsigned int oflags, struct hse_kvdb_txn *txn
     args->stats.vgetlen += fnreclen;
 
     if (fnreclen >= sizeof(fnrec)) {
-        eprint(err, "unexpectedly large value (%zu) for rid %lu from %s%u%s, fn %s",
-               fnreclen, rid,
-               exhumed ? KVS_TOMBS_NAME : KVS_INODES_NAME,
-               rid2inodes_idx(rid),
-               exhumed ? "\b" : "",
-               fn);
+        eprint(
+            err, "unexpectedly large value (%zu) for rid %lu from %s%u%s, fn %s", fnreclen, rid,
+            exhumed ? KVS_TOMBS_NAME : KVS_INODES_NAME, rid2inodes_idx(rid), exhumed ? "\b" : "",
+            fn);
         abort();
     }
 
@@ -3500,10 +3444,9 @@ kvt_test_impl(struct tdargs *args, unsigned int oflags, struct hse_kvdb_txn *txn
         bool entombed = flags & KF_ENTOMBED;
 
         if ((entombed && !exhumed) || (exhumed && !entombed)) {
-            eprint(0, "%s but %s rid %lu, fn%s",
-                   entombed ? "entombed" : "exhumed",
-                   exhumed ? "not entombed" : "not exhumed",
-                   rid, fn);
+            eprint(
+                0, "%s but %s rid %lu, fn%s", entombed ? "entombed" : "exhumed",
+                exhumed ? "not entombed" : "not exhumed", rid, fn);
             return EINVAL;
         }
     }
@@ -3514,10 +3457,12 @@ kvt_test_impl(struct tdargs *args, unsigned int oflags, struct hse_kvdb_txn *txn
 
     /* Now, retrieve the file data...
      */
-    err = hse_kvs_get(kvs_data_src, oflags, txn, key, klen, &found, databuf, databufsz, &databuflen);
+    err =
+        hse_kvs_get(kvs_data_src, oflags, txn, key, klen, &found, databuf, databufsz, &databuflen);
     if (err || !found) {
-        eprint(err, "cannot find datarid %lx in data%u: rid=%lx key=%s",
-               datarid, rid2data_idx(datarid), rid, key);
+        eprint(
+            err, "cannot find datarid %lx in data%u: rid=%lx key=%s", datarid,
+            rid2data_idx(datarid), rid, key);
         return err ? hse_err_to_errno(err) : ENOENT;
     }
 
@@ -3530,8 +3475,9 @@ kvt_test_impl(struct tdargs *args, unsigned int oflags, struct hse_kvdb_txn *txn
     if (databuflen != datasz) {
         assert(databufsz == HSE_KVS_VALUE_LEN_MAX);
 
-        eprint(0, "data size miscompare for rid %lu in data%u: key=%s (exp %zu, got %zu)",
-               datarid, rid2data_idx(datarid), key, datasz, databuflen);
+        eprint(
+            0, "data size miscompare for rid %lu in data%u: key=%s (exp %zu, got %zu)", datarid,
+            rid2data_idx(datarid), key, datasz, databuflen);
         return EINVAL;
     }
 
@@ -3553,15 +3499,9 @@ kvt_test_impl(struct tdargs *args, unsigned int oflags, struct hse_kvdb_txn *txn
             0,
             "minhash miscompare rid=%lx datarid=%lx key=[%s] fnlen=%zu fn=[%s] shift=%lu/%lu "
             "flags=%lx vlen=%zu val=[%02x%02x%02x%02x%02x%02x%02x%02x] (%lx != %lx) from %s%u%s",
-            rid, datarid, key, fnlen, fn,
-            shift, shift % 64,
-            flags, databuflen,
-            p8[0], p8[1], p8[2], p8[3],
-            p8[4], p8[5], p8[6], p8[7],
-            minhash, hash,
-            exhumed ? KVS_TOMBS_NAME : KVS_INODES_NAME,
-            rid2inodes_idx(rid),
-            exhumed ? "\b" : "");
+            rid, datarid, key, fnlen, fn, shift, shift % 64, flags, databuflen, p8[0], p8[1], p8[2],
+            p8[3], p8[4], p8[5], p8[6], p8[7], minhash, hash,
+            exhumed ? KVS_TOMBS_NAME : KVS_INODES_NAME, rid2inodes_idx(rid), exhumed ? "\b" : "");
         return EINVAL;
     }
 
@@ -3573,7 +3513,7 @@ kvt_test_impl(struct tdargs *args, unsigned int oflags, struct hse_kvdb_txn *txn
      */
     if (databuflen >= sizeof(uint64_t)) {
         uint64_t *p64 = (uint64_t *)databuf;
-        uint64_t  val;
+        uint64_t val;
 
         p64[0] = xoroshiro_rotl(p64[0], 1);
 
@@ -3626,11 +3566,10 @@ kvt_test_impl(struct tdargs *args, unsigned int oflags, struct hse_kvdb_txn *txn
     if (err) {
         rc = hse_err_to_errno(err);
         if (rc != ECANCELED) {
-            eprint(err, "put %s%u%s key=%s val=%s",
-                   (flags & KF_ENTOMBED) ? KVS_TOMBS_NAME : KVS_INODES_NAME,
-                   rid2inodes_idx(rid),
-                   (flags & KF_ENTOMBED) ? "\b" : "",
-                   fn, fnrec);
+            eprint(
+                err, "put %s%u%s key=%s val=%s",
+                (flags & KF_ENTOMBED) ? KVS_TOMBS_NAME : KVS_INODES_NAME, rid2inodes_idx(rid),
+                (flags & KF_ENTOMBED) ? "\b" : "", fn, fnrec);
         }
         return rc;
     }
@@ -3648,11 +3587,10 @@ kvt_test_impl(struct tdargs *args, unsigned int oflags, struct hse_kvdb_txn *txn
         if (err) {
             rc = hse_err_to_errno(err);
             if (rc != ECANCELED)
-                eprint(err, "delete %s%u%s key=%s",
-                       (kvs_inodes_src == kvs_tombs) ? KVS_TOMBS_NAME : KVS_INODES_NAME,
-                       rid2inodes_idx(rid),
-                       kvs_inodes_src == kvs_tombs ? "\b" : "",
-                       fn);
+                eprint(
+                    err, "delete %s%u%s key=%s",
+                    (kvs_inodes_src == kvs_tombs) ? KVS_TOMBS_NAME : KVS_INODES_NAME,
+                    rid2inodes_idx(rid), kvs_inodes_src == kvs_tombs ? "\b" : "", fn);
             return rc;
         }
 
@@ -3669,8 +3607,9 @@ kvt_test_impl(struct tdargs *args, unsigned int oflags, struct hse_kvdb_txn *txn
         if (err) {
             rc = hse_err_to_errno(err);
             if (rc != ECANCELED)
-                eprint(err, "delete datarid %lx from data%u key=%s",
-                       odatarid, rid2data_idx(odatarid), key);
+                eprint(
+                    err, "delete datarid %lx from data%u key=%s", odatarid, rid2data_idx(odatarid),
+                    key);
             return rc;
         }
 

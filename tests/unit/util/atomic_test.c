@@ -5,12 +5,13 @@
 
 #include <stdatomic.h>
 
+#include <mtf/framework.h>
+
 #include <hse/error/merr.h>
 #include <hse/logging/logging.h>
 #include <hse/util/atomic.h>
 
 #include "multithreaded_tester.h"
-#include <mtf/framework.h>
 
 MTF_BEGIN_UTEST_COLLECTION(atomic_test);
 
@@ -66,8 +67,8 @@ MTF_DEFINE_UTEST(atomic_test, basic)
 MTF_DEFINE_UTEST(atomic_test, basic64)
 {
     atomic_long v;
-    long        i;
-    uint64_t    s;
+    long i;
+    uint64_t s;
 
     ASSERT_EQ(sizeof(i), 8);
     ASSERT_EQ(sizeof(v), 8);
@@ -159,20 +160,20 @@ enum test_case {
 };
 
 struct worker_state {
-    int  ev32; /* expected value for 32-bit tests */
+    int ev32;  /* expected value for 32-bit tests */
     long ev64; /* expected value for 64-bit tests */
 };
 
 struct test_params {
     enum test_case tc;
-    int            width;
-    int            iters;
-    int            threads;
+    int width;
+    int iters;
+    int threads;
 };
 
 struct test {
     /* test infrastructure */
-    struct mtest *        mtest;
+    struct mtest *mtest;
     struct mtf_test_info *mtf;
 
     /* test params */
@@ -181,10 +182,10 @@ struct test {
     /* global/shared state
      * - ptrs to shared vars
      */
-    int *        nav32; /* 32-bit non-atomic */
-    atomic_int  *av32;  /* 32-bit atomic */
-    long *       nav64; /* 64-bit non-atomic */
-    atomic_long *av64;  /* 64-bit atomic */
+    int *nav32;        /* 32-bit non-atomic */
+    atomic_int *av32;  /* 32-bit atomic */
+    long *nav64;       /* 64-bit non-atomic */
+    atomic_long *av64; /* 64-bit atomic */
 
     /* per-worker state */
     struct worker_state **wstate;
@@ -194,18 +195,18 @@ const char *
 tc_str(enum test_case tc)
 {
     switch (tc) {
-        case TC_INC:
-            return "INC";
-        case TC_DEC:
-            return "DEC";
-        case TC_ADD:
-            return "ADD";
-        case TC_SUB:
-            return "SUB";
-        case TC_UPDOWN:
-            return "UPDOWN";
-        case TC_MIXED:
-            return "MIXED";
+    case TC_INC:
+        return "INC";
+    case TC_DEC:
+        return "DEC";
+    case TC_ADD:
+        return "ADD";
+    case TC_SUB:
+        return "SUB";
+    case TC_UPDOWN:
+        return "UPDOWN";
+    case TC_MIXED:
+        return "MIXED";
     }
     return "Invalid!!!!";
 }
@@ -231,135 +232,135 @@ test_thread(void *context, int tnum)
 
     switch (t->p.tc) {
 
-        case TC_INC:
-            if (t->p.width == 64) {
-                for (i = 0; i < t->p.iters; i++)
-                    atomic_inc(t->av64);
-                for (i = 0; i < t->p.iters; i++)
-                    UPDATE64(1);
-            } else {
-                for (i = 0; i < t->p.iters; i++)
-                    atomic_inc(t->av32);
-                for (i = 0; i < t->p.iters; i++)
-                    UPDATE32(1);
-            }
-            break;
+    case TC_INC:
+        if (t->p.width == 64) {
+            for (i = 0; i < t->p.iters; i++)
+                atomic_inc(t->av64);
+            for (i = 0; i < t->p.iters; i++)
+                UPDATE64(1);
+        } else {
+            for (i = 0; i < t->p.iters; i++)
+                atomic_inc(t->av32);
+            for (i = 0; i < t->p.iters; i++)
+                UPDATE32(1);
+        }
+        break;
 
-        case TC_DEC:
-            if (t->p.width == 64) {
-                for (i = 0; i < t->p.iters; i++)
-                    atomic_dec(t->av64);
-                for (i = 0; i < t->p.iters; i++)
-                    UPDATE64(-1);
-            } else {
-                for (i = 0; i < t->p.iters; i++)
-                    atomic_dec(t->av32);
-                for (i = 0; i < t->p.iters; i++)
-                    UPDATE32(-1);
-            }
-            break;
+    case TC_DEC:
+        if (t->p.width == 64) {
+            for (i = 0; i < t->p.iters; i++)
+                atomic_dec(t->av64);
+            for (i = 0; i < t->p.iters; i++)
+                UPDATE64(-1);
+        } else {
+            for (i = 0; i < t->p.iters; i++)
+                atomic_dec(t->av32);
+            for (i = 0; i < t->p.iters; i++)
+                UPDATE32(-1);
+        }
+        break;
 
-        case TC_ADD:
-            if (t->p.width == 64) {
-                for (i = 0; i < t->p.iters; i++)
-                    atomic_add(t->av64, 4);
-                for (i = 0; i < t->p.iters; i++)
-                    UPDATE64(4);
-            } else {
-                for (i = 0; i < t->p.iters; i++)
-                    atomic_add(t->av32, 4);
-                for (i = 0; i < t->p.iters; i++)
-                    UPDATE32(4);
-            }
-            break;
+    case TC_ADD:
+        if (t->p.width == 64) {
+            for (i = 0; i < t->p.iters; i++)
+                atomic_add(t->av64, 4);
+            for (i = 0; i < t->p.iters; i++)
+                UPDATE64(4);
+        } else {
+            for (i = 0; i < t->p.iters; i++)
+                atomic_add(t->av32, 4);
+            for (i = 0; i < t->p.iters; i++)
+                UPDATE32(4);
+        }
+        break;
 
-        case TC_SUB:
-            if (t->p.width == 64) {
-                for (i = 0; i < t->p.iters; i++)
-                    atomic_sub(t->av64, 4);
-                for (i = 0; i < t->p.iters; i++)
-                    UPDATE64(-4);
-            } else {
-                for (i = 0; i < t->p.iters; i++)
-                    atomic_sub(t->av32, 4);
-                for (i = 0; i < t->p.iters; i++)
-                    UPDATE32(-4);
-            }
-            break;
+    case TC_SUB:
+        if (t->p.width == 64) {
+            for (i = 0; i < t->p.iters; i++)
+                atomic_sub(t->av64, 4);
+            for (i = 0; i < t->p.iters; i++)
+                UPDATE64(-4);
+        } else {
+            for (i = 0; i < t->p.iters; i++)
+                atomic_sub(t->av32, 4);
+            for (i = 0; i < t->p.iters; i++)
+                UPDATE32(-4);
+        }
+        break;
 
-        case TC_UPDOWN:
-            if (t->p.width == 64) {
-                for (i = 0; i < t->p.iters; i++)
-                    atomic_add(t->av64, i);
-                for (i = 0; i < t->p.iters; i++)
-                    atomic_sub(t->av64, i);
-                for (i = 0; i < t->p.iters; i++)
-                    UPDATE64(i);
-                for (i = 0; i < t->p.iters; i++)
-                    UPDATE64(-i);
-            } else {
-                for (i = 0; i < t->p.iters; i++)
-                    atomic_add(t->av32, i);
-                for (i = 0; i < t->p.iters; i++)
-                    atomic_sub(t->av32, i);
-                for (i = 0; i < t->p.iters; i++)
-                    UPDATE32(i);
-                for (i = 0; i < t->p.iters; i++)
-                    UPDATE32(-i);
-            }
-            break;
+    case TC_UPDOWN:
+        if (t->p.width == 64) {
+            for (i = 0; i < t->p.iters; i++)
+                atomic_add(t->av64, i);
+            for (i = 0; i < t->p.iters; i++)
+                atomic_sub(t->av64, i);
+            for (i = 0; i < t->p.iters; i++)
+                UPDATE64(i);
+            for (i = 0; i < t->p.iters; i++)
+                UPDATE64(-i);
+        } else {
+            for (i = 0; i < t->p.iters; i++)
+                atomic_add(t->av32, i);
+            for (i = 0; i < t->p.iters; i++)
+                atomic_sub(t->av32, i);
+            for (i = 0; i < t->p.iters; i++)
+                UPDATE32(i);
+            for (i = 0; i < t->p.iters; i++)
+                UPDATE32(-i);
+        }
+        break;
 
-        case TC_MIXED:
-            for (i = 0; i < t->p.iters; i++) {
-                if (t->p.width == 64) {
-                    atomic_inc(t->av64);
-                    UPDATE64(1);
-                    atomic_inc(t->av64);
-                    UPDATE64(1);
-                    atomic_add(t->av64, 10);
-                    UPDATE64(10);
-                    atomic_sub(t->av64, 2);
-                    UPDATE64(-2);
-                    atomic_dec(t->av64);
-                    UPDATE64(-1);
-                    atomic_dec(t->av64);
-                    UPDATE64(-1);
-                    atomic_add(t->av64, tnum);
-                    UPDATE64(tnum);
-                    atomic_add(t->av64, i + 20);
-                    UPDATE64(i + 20);
-                    atomic_sub(t->av64, i + 10);
-                    UPDATE64(-(i + 10));
-                } else {
-                    atomic_inc(t->av32);
-                    UPDATE32(1);
-                    atomic_inc(t->av32);
-                    UPDATE32(1);
-                    atomic_add(t->av32, 10);
-                    UPDATE32(10);
-                    atomic_sub(t->av32, 2);
-                    UPDATE32(-2);
-                    atomic_dec(t->av32);
-                    UPDATE32(-1);
-                    atomic_dec(t->av32);
-                    UPDATE32(-1);
-                    atomic_add(t->av32, tnum);
-                    UPDATE32(tnum);
-                    atomic_add(t->av32, i + 20);
-                    UPDATE32(i + 20);
-                    atomic_sub(t->av32, i + 10);
-                    UPDATE32(-(i + 10));
-                }
+    case TC_MIXED:
+        for (i = 0; i < t->p.iters; i++) {
+            if (t->p.width == 64) {
+                atomic_inc(t->av64);
+                UPDATE64(1);
+                atomic_inc(t->av64);
+                UPDATE64(1);
+                atomic_add(t->av64, 10);
+                UPDATE64(10);
+                atomic_sub(t->av64, 2);
+                UPDATE64(-2);
+                atomic_dec(t->av64);
+                UPDATE64(-1);
+                atomic_dec(t->av64);
+                UPDATE64(-1);
+                atomic_add(t->av64, tnum);
+                UPDATE64(tnum);
+                atomic_add(t->av64, i + 20);
+                UPDATE64(i + 20);
+                atomic_sub(t->av64, i + 10);
+                UPDATE64(-(i + 10));
+            } else {
+                atomic_inc(t->av32);
+                UPDATE32(1);
+                atomic_inc(t->av32);
+                UPDATE32(1);
+                atomic_add(t->av32, 10);
+                UPDATE32(10);
+                atomic_sub(t->av32, 2);
+                UPDATE32(-2);
+                atomic_dec(t->av32);
+                UPDATE32(-1);
+                atomic_dec(t->av32);
+                UPDATE32(-1);
+                atomic_add(t->av32, tnum);
+                UPDATE32(tnum);
+                atomic_add(t->av32, i + 20);
+                UPDATE32(i + 20);
+                atomic_sub(t->av32, i + 10);
+                UPDATE32(-(i + 10));
             }
-            break;
+        }
+        break;
     }
 }
 
 void
 test_report(void *context, double elapsed_time)
 {
-    int                   i;
-    struct test *         t = (struct test *)context;
+    int i;
+    struct test *t = (struct test *)context;
     struct mtf_test_info *lcl_ti = t->mtf;
 
     if (t->p.width == 64) {
@@ -370,10 +371,7 @@ test_report(void *context, double elapsed_time)
         printf(
             "Test: %8s_64 :: expected = %12ld, atomic = %12ld,"
             " non_atomic = %12ld\n",
-            tc_str(t->p.tc),
-            ev64,
-            atomic_read(t->av64),
-            *t->nav64);
+            tc_str(t->p.tc), ev64, atomic_read(t->av64), *t->nav64);
         ASSERT_EQ(atomic_read(t->av64), ev64);
     } else {
         int ev32 = 0;
@@ -383,10 +381,7 @@ test_report(void *context, double elapsed_time)
         printf(
             "Test: %8s_32 :: expected = %12d, atomic = %12d,"
             " non_atomic = %12d;\n",
-            tc_str(t->p.tc),
-            ev32,
-            atomic_read(t->av32),
-            *t->nav32);
+            tc_str(t->p.tc), ev32, atomic_read(t->av32), *t->nav32);
         ASSERT_EQ(atomic_read(t->av32), ev32);
     }
 }
@@ -399,11 +394,9 @@ test_init(struct test *t, struct test_params *params, struct mtf_test_info *lcl_
     memset(t, 0, sizeof(*t));
     t->p = *params;
     t->mtf = lcl_ti;
-    log_info("Test Params: %s width=%d iters=%d workers=%d",
-             tc_str(t->p.tc),
-             t->p.width,
-             t->p.iters,
-             t->p.threads);
+    log_info(
+        "Test Params: %s width=%d iters=%d workers=%d", tc_str(t->p.tc), t->p.width, t->p.iters,
+        t->p.threads);
 
     ASSERT_GT(t->p.iters, 0);
 
@@ -452,7 +445,10 @@ test_fini(struct test *t)
     MTF_DEFINE_UTEST(atomic_test, V1##_##N2##V2##_##N3##V3##_##N4##V4) \
     {                                                                  \
         struct test_params tp = {                                      \
-            .N1 = V1, .N2 = V2, .N3 = V3, .N4 = V4,                    \
+            .N1 = V1,                                                  \
+            .N2 = V2,                                                  \
+            .N3 = V3,                                                  \
+            .N4 = V4,                                                  \
         };                                                             \
         struct test test;                                              \
         test_init(&test, &tp, lcl_ti);                                 \

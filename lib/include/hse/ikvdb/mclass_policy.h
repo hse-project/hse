@@ -8,10 +8,9 @@
 
 #include <stdint.h>
 
-#include <hse/util/compiler.h>
 #include <hse/error/merr.h>
-
 #include <hse/mpool/mpool.h>
+#include <hse/util/compiler.h>
 
 struct ikvdb;
 
@@ -38,7 +37,7 @@ enum hse_mclass_policy_dtype {
 #define HSE_MPOLICY_COUNT 24
 
 struct mclass_policy {
-    char    mc_name[HSE_MPOLICY_NAME_LEN_MAX];
+    char mc_name[HSE_MPOLICY_NAME_LEN_MAX];
     uint8_t mc_table[HSE_MPOLICY_AGE_CNT][HSE_MPOLICY_DTYPE_CNT];
 };
 
@@ -81,7 +80,7 @@ mclass_policy_get_type(struct mclass_policy *policy, uint8_t agegroup, uint8_t d
  * @mc_enum:    mapping from field name to mclass enum
  */
 struct mclass_policy_map {
-    int   mc_enum;
+    int mc_enum;
     char *mc_kname;
 };
 

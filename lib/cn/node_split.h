@@ -8,8 +8,8 @@
 
 #include <stddef.h>
 
-#include <hse/util/compiler.h>
 #include <hse/error/merr.h>
+#include <hse/util/compiler.h>
 
 #include "kvset_split.h"
 
@@ -54,8 +54,8 @@ cn_split(struct cn_compaction_work *w) HSE_NONNULL(1);
 merr_t
 cn_split_nodes_alloc(
     const struct cn_compaction_work *w,
-    uint64_t                         nodeidv[static 2],
-    struct cn_tree_node             *nodev[static 2]);
+    uint64_t nodeidv[static 2],
+    struct cn_tree_node *nodev[static 2]);
 
 /**
  * cn_split_nodes_free() - Free output nodes allocated for node split
@@ -70,6 +70,6 @@ void
 cn_split_node_stats_dump(
     struct cn_compaction_work *w,
     const struct cn_tree_node *node,
-    const char                *pos);
+    const char *pos);
 
 #endif

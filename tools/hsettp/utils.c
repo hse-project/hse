@@ -13,11 +13,10 @@
 #include <cjson/cJSON.h>
 
 #include <hse/error/merr.h>
-
 #include <hse/util/assert.h>
 
 merr_t
-flatten(cJSON *const in, const char *const prefix, cJSON *const out)
+flatten(cJSON * const in, const char * const prefix, cJSON * const out)
 {
     merr_t err = 0;
     char *tmp = NULL;
@@ -65,7 +64,7 @@ out:
 }
 
 char *
-rawify(cJSON *const node)
+rawify(cJSON * const node)
 {
     char *printed;
     size_t len;
@@ -85,7 +84,7 @@ rawify(cJSON *const node)
 }
 
 unsigned int
-strchrrep(char *const str, const char old, const char new)
+strchrrep(char * const str, const char old, const char new)
 {
     char *ix = str;
     unsigned int n = 0;
@@ -93,7 +92,7 @@ strchrrep(char *const str, const char old, const char new)
     if (!str)
         return 0;
 
-    while((ix = strchr(ix, old))) {
+    while ((ix = strchr(ix, old))) {
         *ix++ = new;
         n++;
     }

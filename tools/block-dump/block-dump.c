@@ -7,11 +7,11 @@
 #include <limits.h>
 #include <stdio.h>
 #include <string.h>
-#include <sys/stat.h>
 #include <sysexits.h>
 
-#include <hse/error/merr.h>
+#include <sys/stat.h>
 
+#include <hse/error/merr.h>
 #include <hse/util/table.h>
 
 static const char *program;
@@ -144,7 +144,6 @@ main(int argc, char **argv)
     if (S_ISDIR(st.st_mode)) {
 
     } else {
-
     }
 
 out:

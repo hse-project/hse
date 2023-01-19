@@ -11,30 +11,31 @@
 #include <stdlib.h>
 #include <string.h>
 #include <sysexits.h>
+
 #include <sys/time.h>
-
-#include <hse/cli/program.h>
-#include <hse/hse.h>
-#include <hse/util/arch.h>
-
 #include <tools/parm_groups.h>
 
+#include <hse/hse.h>
+
+#include <hse/cli/program.h>
+#include <hse/util/arch.h>
+
 const char *mp_name, *kvs_name;
-ulong       kwrite, kflush, ksync, ktxn;
-ulong       keymax;
-size_t      vlenmin = 0;
-size_t      vlenmax = 1024;
-int         verbosity;
+ulong kwrite, kflush, ksync, ktxn;
+ulong keymax;
+size_t vlenmin = 0;
+size_t vlenmax = 1024;
+int verbosity;
 
 struct parm_groups *pg;
-struct svec         hse_gparm = { 0 };
-struct svec         db_oparm = { 0 };
-struct svec         kv_oparm = { 0 };
+struct svec hse_gparm = { 0 };
+struct svec db_oparm = { 0 };
+struct svec kv_oparm = { 0 };
 
 __attribute__((format(printf, 2, 3))) void
 herr_print(uint64_t herr, char *fmt, ...)
 {
-    char    msg_buf[256];
+    char msg_buf[256];
     va_list ap;
 
     va_start(ap, fmt);
@@ -77,13 +78,13 @@ stuff(void)
     struct timeval tstart, tstop, tdiff;
 
     struct hse_kvdb *kvdb;
-    struct hse_kvs * kvs;
-    size_t           klen, vlen;
-    uint64_t         key;
-    uint64_t *       val;
-    long             usecs;
-    uint64_t         herr;
-    uint             i;
+    struct hse_kvs *kvs;
+    size_t klen, vlen;
+    uint64_t key;
+    uint64_t *val;
+    long usecs;
+    uint64_t herr;
+    uint i;
 
     klen = sizeof(key);
     key = 0;
@@ -173,7 +174,7 @@ stuff(void)
     }
 
     if (ktxn > 0) {
-        struct hse_kvdb_txn *  txn;
+        struct hse_kvdb_txn *txn;
 
         gettimeofday(&tstart, NULL);
 
@@ -247,9 +248,9 @@ int
 main(int argc, char **argv)
 {
     const char *config = NULL;
-    uint64_t    herr;
-    bool        help = false;
-    int         rc;
+    uint64_t herr;
+    bool help = false;
+    int rc;
 
     progname_set(argv[0]);
 
@@ -261,7 +262,7 @@ main(int argc, char **argv)
 
     while (1) {
         char *errmsg, *end;
-        int   c;
+        int c;
 
         c = getopt(argc, argv, ":hf:j:k:l:s:t:VvZ:");
         if (-1 == c)
@@ -271,59 +272,59 @@ main(int argc, char **argv)
         errno = 0;
 
         switch (c) {
-            case 'Z':
-                config = optarg;
-                break;
+        case 'Z':
+            config = optarg;
+            break;
 
-            case 'f':
-                kflush = strtoul(optarg, &end, 0);
-                errmsg = "invalid flush count";
-                break;
+        case 'f':
+            kflush = strtoul(optarg, &end, 0);
+            errmsg = "invalid flush count";
+            break;
 
-            case 'h':
-                help = true;
-                break;
+        case 'h':
+            help = true;
+            break;
 
-            case 'k':
-                keymax = strtoul(optarg, &end, 0);
-                errmsg = "invalid keymax count";
-                break;
+        case 'k':
+            keymax = strtoul(optarg, &end, 0);
+            errmsg = "invalid keymax count";
+            break;
 
-            case 'l':
-                vlenmax = strtoul(optarg, &end, 0);
-                vlenmin = vlenmax;
-                if (*end == ':')
-                    vlenmax = strtoul(end + 1, &end, 0);
-                if (vlenmax < vlenmin)
-                    vlenmax = vlenmin;
-                errmsg = "invalid value length";
-                break;
+        case 'l':
+            vlenmax = strtoul(optarg, &end, 0);
+            vlenmin = vlenmax;
+            if (*end == ':')
+                vlenmax = strtoul(end + 1, &end, 0);
+            if (vlenmax < vlenmin)
+                vlenmax = vlenmin;
+            errmsg = "invalid value length";
+            break;
 
-            case 's':
-                ksync = strtoul(optarg, &end, 0);
-                errmsg = "invalid sync count";
-                break;
+        case 's':
+            ksync = strtoul(optarg, &end, 0);
+            errmsg = "invalid sync count";
+            break;
 
-            case 't':
-                ktxn = strtoul(optarg, &end, 0);
-                errmsg = "invalid transacton count";
-                break;
+        case 't':
+            ktxn = strtoul(optarg, &end, 0);
+            errmsg = "invalid transacton count";
+            break;
 
-            case 'v':
-                ++verbosity;
-                break;
+        case 'v':
+            ++verbosity;
+            break;
 
-            case '?':
-                syntax("invalid option -%c", optopt);
-                exit(EX_USAGE);
+        case '?':
+            syntax("invalid option -%c", optopt);
+            exit(EX_USAGE);
 
-            case ':':
-                syntax("option -%c requires a parameter", optopt);
-                exit(EX_USAGE);
+        case ':':
+            syntax("option -%c requires a parameter", optopt);
+            exit(EX_USAGE);
 
-            default:
-                eprint("option -%c ignored\n", c);
-                break;
+        default:
+            eprint("option -%c ignored\n", c);
+            break;
         }
 
         if (errmsg && errno) {
@@ -345,26 +346,25 @@ main(int argc, char **argv)
         exit(EX_USAGE);
     }
 
-    mp_name  = argv[optind++];
+    mp_name = argv[optind++];
     kvs_name = argv[optind++];
 
     rc = pg_parse_argv(pg, argc, argv, &optind);
     switch (rc) {
-        case 0:
-            if (optind < argc) {
-                eprint("unknown parameter: %s", argv[optind]);
-                exit(EX_USAGE);
-            }
-            break;
-        case EINVAL:
-            eprint("missing group name (e.g. %s) before parameter %s\n",
-                PG_KVDB_OPEN, argv[optind]);
+    case 0:
+        if (optind < argc) {
+            eprint("unknown parameter: %s", argv[optind]);
             exit(EX_USAGE);
-            break;
-        default:
-            eprint("error processing parameter %s\n", argv[optind]);
-            exit(EX_OSERR);
-            break;
+        }
+        break;
+    case EINVAL:
+        eprint("missing group name (e.g. %s) before parameter %s\n", PG_KVDB_OPEN, argv[optind]);
+        exit(EX_USAGE);
+        break;
+    default:
+        eprint("error processing parameter %s\n", argv[optind]);
+        exit(EX_OSERR);
+        break;
     }
 
     rc = rc ?: svec_append_pg(&hse_gparm, pg, PG_HSE_GLOBAL, NULL);

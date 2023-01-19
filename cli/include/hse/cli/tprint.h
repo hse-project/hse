@@ -18,7 +18,13 @@ enum tprint_justify {
 };
 
 merr_t
-tprint(FILE *fp, size_t nrow, size_t ncol, const char *const *headers,
-    const char **values, const enum tprint_justify *justify, const bool *enabled);
+tprint(
+    FILE *fp,
+    size_t nrow,
+    size_t ncol,
+    const char * const *headers,
+    const char **values,
+    const enum tprint_justify *justify,
+    const bool *enabled);
 
 #endif

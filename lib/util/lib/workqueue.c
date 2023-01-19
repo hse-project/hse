@@ -7,12 +7,13 @@
 #include <pthread.h>
 #include <signal.h>
 #include <stdint.h>
-#include <sys/types.h>
 #include <syscall.h>
 
 #include <cjson/cJSON.h>
 #include <cjson/cJSON_Utils.h>
+#include <sys/types.h>
 
+#include <hse/ikvdb/hse_gparams.h>
 #include <hse/logging/logging.h>
 #include <hse/rest/headers.h>
 #include <hse/rest/method.h>
@@ -20,18 +21,15 @@
 #include <hse/rest/request.h>
 #include <hse/rest/response.h>
 #include <hse/rest/status.h>
-
-#include <hse/util/platform.h>
 #include <hse/util/assert.h>
-#include <hse/util/mutex.h>
-#include <hse/util/condvar.h>
-#include <hse/util/minmax.h>
-#include <hse/util/event_counter.h>
-#include <hse/util/workqueue.h>
-#include <hse/util/list.h>
 #include <hse/util/atomic.h>
-
-#include <hse/ikvdb/hse_gparams.h>
+#include <hse/util/condvar.h>
+#include <hse/util/event_counter.h>
+#include <hse/util/list.h>
+#include <hse/util/minmax.h>
+#include <hse/util/mutex.h>
+#include <hse/util/platform.h>
+#include <hse/util/workqueue.h>
 
 #define WP_LATV_IDX(_wqp) ((_wqp)->wp_calls % NELEM((_wqp)->wp_latv))
 
@@ -47,15 +45,15 @@
  * @wp_latv:   Vector of most recent callback latencies
  */
 struct wq_priv {
-    struct list_head  wp_link HSE_ACP_ALIGNED;
-    void             *wp_wq;
-    pid_t             wp_tid;
-    uint              wp_barid;
-    ulong             wp_tstart;
-    ulong             wp_cstart;
-    ulong             wp_calls;
+    struct list_head wp_link HSE_ACP_ALIGNED;
+    void *wp_wq;
+    pid_t wp_tid;
+    uint wp_barid;
+    ulong wp_tstart;
+    ulong wp_cstart;
+    ulong wp_calls;
     const char * volatile *wp_wmesgp;
-    ulong             wp_latv[8] HSE_L1X_ALIGNED;
+    ulong wp_latv[8] HSE_L1X_ALIGNED;
 };
 
 /**
@@ -63,8 +61,8 @@ struct wq_priv {
  */
 struct wq_barrier {
     struct work_struct wqb_work;
-    uint               wqb_visitors;
-    uint               wqb_barid;
+    uint wqb_visitors;
+    uint wqb_barid;
 };
 
 /**
@@ -87,33 +85,31 @@ struct wq_barrier {
  * @wq_name:        workqueue name
  */
 struct workqueue_struct {
-    struct mutex      wq_lock HSE_ACP_ALIGNED;
-    struct list_head  wq_pending;
-    bool              wq_running;
-    bool              wq_growing;
-    int               wq_refcnt;
-    int               wq_dlycnt;
-    int               wq_tdcnt;
-    int               wq_tdmax;
-    int               wq_tdmin;
-    uint              wq_barid;
-    uint              wq_tcdelay;
-    struct cv         wq_idle;
-    struct cv         wq_barrier;
-    struct list_head  wq_delayed;
+    struct mutex wq_lock HSE_ACP_ALIGNED;
+    struct list_head wq_pending;
+    bool wq_running;
+    bool wq_growing;
+    int wq_refcnt;
+    int wq_dlycnt;
+    int wq_tdcnt;
+    int wq_tdmax;
+    int wq_tdmin;
+    uint wq_barid;
+    uint wq_tcdelay;
+    struct cv wq_idle;
+    struct cv wq_barrier;
+    struct list_head wq_delayed;
     struct timer_list wq_grow;
-    char              wq_name[16];
+    char wq_name[16];
 };
 
 struct workqueue_globals {
-    struct mutex     wg_lock HSE_ACP_ALIGNED;
+    struct mutex wg_lock HSE_ACP_ALIGNED;
     struct list_head wg_tlist;
-    bool             wg_inited;
+    bool wg_inited;
 };
 
-static struct workqueue_globals hse_wg = {
-    .wg_lock = { PTHREAD_MUTEX_INITIALIZER }
-};
+static struct workqueue_globals hse_wg = { .wg_lock = { PTHREAD_MUTEX_INITIALIZER } };
 
 static thread_local struct wq_priv hse_wp_tls;
 
@@ -176,7 +172,7 @@ grow_workqueue_cb(ulong arg)
 
 struct workqueue_struct *
 valloc_workqueue(
-    const char *const fmt,
+    const char * const fmt,
     const unsigned int flags,
     int min_active,
     int max_active,
@@ -249,7 +245,7 @@ valloc_workqueue(
 
 struct workqueue_struct *
 alloc_workqueue(
-    const char *const fmt,
+    const char * const fmt,
     const unsigned int flags,
     const int min_active,
     const int max_active,
@@ -300,7 +296,7 @@ destroy_workqueue(struct workqueue_struct *wq)
      */
     do {
         mutex_lock(&hse_wg.wg_lock);
-        list_for_each_entry(priv, &hse_wg.wg_tlist, wp_link) {
+        list_for_each_entry (priv, &hse_wg.wg_tlist, wp_link) {
             if (priv->wp_wq == wq)
                 break;
         }
@@ -345,7 +341,6 @@ queue_work_locked(struct workqueue_struct *wq, struct work_struct *work)
                 wq->wq_tdcnt++;
             }
         }
-
     }
 
     return enqueued;
@@ -363,7 +358,7 @@ void
 flush_workqueue(struct workqueue_struct *wq)
 {
     struct wq_barrier barrier;
-    bool              enqueued;
+    bool enqueued;
 
     if (ev(!wq))
         return;
@@ -537,9 +532,9 @@ void
 delayed_work_timer_fn(unsigned long data)
 {
     struct workqueue_struct *wq;
-    struct delayed_work *    dwork;
-    bool                     enqueued;
-    bool                     pending;
+    struct delayed_work *dwork;
+    bool enqueued;
+    bool pending;
 
     dwork = (struct delayed_work *)data;
     wq = dwork->wq;
@@ -598,7 +593,7 @@ bool
 cancel_delayed_work(struct delayed_work *dwork)
 {
     struct workqueue_struct *wq = dwork->wq;
-    bool                     pending;
+    bool pending;
 
     mutex_lock(&wq->wq_lock);
     pending = work_pending(&dwork->work);
@@ -639,14 +634,30 @@ begin_stats_work(void)
 
 enum rest_status
 rest_get_workqueues(
-    const struct rest_request *const req,
-    struct rest_response *const resp,
-    void *const arg)
+    const struct rest_request * const req,
+    struct rest_response * const resp,
+    void * const arg)
 {
-    static const ulong divtab[] = {
-        1, 0, 1, 1, 1e3, 10, 1e6, 10, 1e9, 10, 1e9 * 3600, 2, 1e9 * 86400, 1,
-        1e9 * 86400 * 365, 1, 1e9 * 86400 * 365 * 100, 1, ULONG_MAX, 1
-    };
+    static const ulong divtab[] = { 1,
+                                    0,
+                                    1,
+                                    1,
+                                    1e3,
+                                    10,
+                                    1e6,
+                                    10,
+                                    1e9,
+                                    10,
+                                    1e9 * 3600,
+                                    2,
+                                    1e9 * 86400,
+                                    1,
+                                    1e9 * 86400 * 365,
+                                    1,
+                                    1e9 * 86400 * 365 * 100,
+                                    1,
+                                    ULONG_MAX,
+                                    1 };
 
     char *data;
     merr_t err;
@@ -659,24 +670,25 @@ rest_get_workqueues(
 
     err = rest_params_get(req->rr_params, "pretty", &pretty, false);
     if (ev(err))
-        return rest_response_perror(resp, REST_STATUS_BAD_REQUEST,
-            "The 'pretty' query parameter must be a boolean", merr(EINVAL));
+        return rest_response_perror(
+            resp, REST_STATUS_BAD_REQUEST, "The 'pretty' query parameter must be a boolean",
+            merr(EINVAL));
 
     root = cJSON_CreateArray();
     if (ev(!root))
-        return rest_response_perror(resp, REST_STATUS_SERVICE_UNAVAILABLE, "Out of memory",
-            merr(ENOMEM));
+        return rest_response_perror(
+            resp, REST_STATUS_SERVICE_UNAVAILABLE, "Out of memory", merr(ENOMEM));
 
     proc_fd = open("/proc/self/task", O_DIRECTORY | O_RDONLY);
     if (ev(proc_fd == -1)) {
-        status = rest_response_perror(resp, REST_STATUS_SERVICE_UNAVAILABLE, "Out of memory",
-            merr(ENOMEM));
+        status = rest_response_perror(
+            resp, REST_STATUS_SERVICE_UNAVAILABLE, "Out of memory", merr(ENOMEM));
         goto out;
     }
 
     mutex_lock(&hse_wg.wg_lock);
 
-    list_for_each_entry(priv, &hse_wg.wg_tlist, wp_link) {
+    list_for_each_entry (priv, &hse_wg.wg_tlist, wp_link) {
         bool bad;
         char *str;
         ssize_t n;
@@ -693,8 +705,9 @@ rest_get_workqueues(
 
         n = hse_readfile(proc_fd, file_buf, line_buf, sizeof(line_buf), O_RDONLY);
         if (n < 0) {
-            status = rest_response_perror(resp, REST_STATUS_INTERNAL_SERVER_ERROR,
-                "Failed to read the proc filesystem", merr(errno));
+            status = rest_response_perror(
+                resp, REST_STATUS_INTERNAL_SERVER_ERROR, "Failed to read the proc filesystem",
+                merr(errno));
             break;
         }
 
@@ -733,14 +746,14 @@ rest_get_workqueues(
 
         elem = cJSON_CreateObject();
         if (ev(!elem)) {
-            status = rest_response_perror(resp, REST_STATUS_SERVICE_UNAVAILABLE, "Out of memory",
-                merr(ENOMEM));
+            status = rest_response_perror(
+                resp, REST_STATUS_SERVICE_UNAVAILABLE, "Out of memory", merr(ENOMEM));
             break;
         }
 
         if (ev(!cJSON_AddItemToArray(root, elem))) {
-            status = rest_response_perror(resp, REST_STATUS_SERVICE_UNAVAILABLE, "Out of memory",
-                merr(ENOMEM));
+            status = rest_response_perror(
+                resp, REST_STATUS_SERVICE_UNAVAILABLE, "Out of memory", merr(ENOMEM));
             break;
         }
 
@@ -750,8 +763,8 @@ rest_get_workqueues(
         bad |= !cJSON_AddNumberToObject(elem, "maximum_threads", wq->wq_tdmax);
         bad |= !cJSON_AddNumberToObject(elem, "current_threads", wq->wq_tdcnt);
         bad |= !cJSON_AddNumberToObject(elem, "busy", wq->wq_idle.cv_waiters);
-        bad |= !cJSON_AddNumberToObject(elem, "working", wq->wq_refcnt - wq->wq_dlycnt
-            - wq->wq_tdcnt);
+        bad |=
+            !cJSON_AddNumberToObject(elem, "working", wq->wq_refcnt - wq->wq_dlycnt - wq->wq_tdcnt);
         bad |= !cJSON_AddNumberToObject(elem, "delayed", wq->wq_dlycnt);
         bad |= !cJSON_AddNumberToObject(elem, "barrier_id", wq->wq_barid);
         bad |= !cJSON_AddNumberToObject(elem, "calls", priv->wp_calls);
@@ -764,8 +777,8 @@ rest_get_workqueues(
         bad |= !cJSON_AddStringToObject(elem, "thread_name", comm);
 
         if (ev(bad)) {
-            status = rest_response_perror(resp, REST_STATUS_SERVICE_UNAVAILABLE, "Out of memory",
-                merr(ENOMEM));
+            status = rest_response_perror(
+                resp, REST_STATUS_SERVICE_UNAVAILABLE, "Out of memory", merr(ENOMEM));
             break;
         }
     }
@@ -808,13 +821,13 @@ dump_workqueue_locked(struct workqueue_struct *wq)
     struct work_struct *w;
     int i, n;
 
-    log_warn("%s %p: pid %d, refcnt %d, dlycnt %d tdcnt %d, tdmin %d, tdmax %d, growing %d",
-             wq->wq_name, wq, getpid(), wq->wq_refcnt, wq->wq_dlycnt,
-             wq->wq_tdcnt, wq->wq_tdmin, wq->wq_tdmax,
-             wq->wq_growing);
+    log_warn(
+        "%s %p: pid %d, refcnt %d, dlycnt %d tdcnt %d, tdmin %d, tdmax %d, growing %d", wq->wq_name,
+        wq, getpid(), wq->wq_refcnt, wq->wq_dlycnt, wq->wq_tdcnt, wq->wq_tdmin, wq->wq_tdmax,
+        wq->wq_growing);
 
     i = 0;
-    list_for_each_entry(w, &wq->wq_pending, entry) {
+    list_for_each_entry (w, &wq->wq_pending, entry) {
         struct wq_barrier *b;
         char buf[128];
 
@@ -823,19 +836,19 @@ dump_workqueue_locked(struct workqueue_struct *wq)
         if (!w->func) {
             b = container_of(w, struct wq_barrier, wqb_work);
 
-            snprintf(buf + n, sizeof(buf) - n,
-                     ", barid %4u, visitors %4d",
-                     b->wqb_barid,
-                     b->wqb_visitors);
+            snprintf(
+                buf + n, sizeof(buf) - n, ", barid %4u, visitors %4d", b->wqb_barid,
+                b->wqb_visitors);
         }
 
         log_warn("%s %p: %s", wq->wq_name, wq, buf);
     }
 
     i = 0;
-    list_for_each_entry(d, &wq->wq_delayed, work.entry) {
-        log_warn("%s %p: dwork %3d %p, expires in %lu jiffies",
-                 wq->wq_name, wq, i++, d, (ulong)d->timer.expires - jiffies);
+    list_for_each_entry (d, &wq->wq_delayed, work.entry) {
+        log_warn(
+            "%s %p: dwork %3d %p, expires in %lu jiffies", wq->wq_name, wq, i++, d,
+            (ulong)d->timer.expires - jiffies);
     }
 }
 

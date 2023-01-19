@@ -11,12 +11,12 @@
 
 #include <cjson/cJSON.h>
 
-#include <hse/util/compiler.h>
 #include <hse/error/merr.h>
+#include <hse/util/compiler.h>
 
 struct kvs_cparams {
-    uint32_t  pfx_len;
-    uint32_t  kvs_ext01;
+    uint32_t pfx_len;
+    uint32_t kvs_ext01;
 };
 
 const struct param_spec *
@@ -28,10 +28,10 @@ kvs_cparams_defaults() HSE_CONST;
 merr_t
 kvs_cparams_get(
     const struct kvs_cparams *params,
-    const char *              param,
-    char *                    buf,
-    size_t                    buf_sz,
-    size_t *                  needed_sz);
+    const char *param,
+    char *buf,
+    size_t buf_sz,
+    size_t *needed_sz);
 
 /**
  * Deserialize list of key=value parameters to KVS cparams
@@ -45,10 +45,7 @@ kvs_cparams_get(
  * @retval !0 failure
  */
 merr_t
-kvs_cparams_from_paramv(
-    struct kvs_cparams *params,
-    size_t              paramc,
-    const char *const * paramv);
+kvs_cparams_from_paramv(struct kvs_cparams *params, size_t paramc, const char * const *paramv);
 
 cJSON *
 kvs_cparams_to_json(const struct kvs_cparams *params) HSE_WARN_UNUSED_RESULT;

@@ -10,13 +10,12 @@
 
 #include <bsd/string.h>
 
-#include <hse/util/storage.h>
-
-#include <hse/ikvdb/kvdb_home.h>
-#include <hse/ikvdb/kvdb_cparams.h>
 #include <hse/config/params.h>
+#include <hse/ikvdb/kvdb_cparams.h>
+#include <hse/ikvdb/kvdb_home.h>
 #include <hse/ikvdb/wal.h>
 #include <hse/mpool/mpool.h>
+#include <hse/util/storage.h>
 
 static const struct param_spec pspecs[] = {
     {
@@ -293,12 +292,15 @@ kvdb_storage_defaults_set(struct kvdb_cparams *params, bool pmem_only)
 {
     if (pmem_only) {
         if (params->storage.mclass[HSE_MCLASS_PMEM].path[0] == '\0')
-            strlcpy(params->storage.mclass[HSE_MCLASS_PMEM].path, MPOOL_PMEM_MCLASS_DEFAULT_PATH,
-                    sizeof(params->storage.mclass[HSE_MCLASS_PMEM].path));
+            strlcpy(
+                params->storage.mclass[HSE_MCLASS_PMEM].path, MPOOL_PMEM_MCLASS_DEFAULT_PATH,
+                sizeof(params->storage.mclass[HSE_MCLASS_PMEM].path));
     } else {
         if (params->storage.mclass[HSE_MCLASS_CAPACITY].path[0] == '\0')
-            strlcpy(params->storage.mclass[HSE_MCLASS_CAPACITY].path, MPOOL_CAPACITY_MCLASS_DEFAULT_PATH,
-                    sizeof(params->storage.mclass[HSE_MCLASS_CAPACITY].path));
+            strlcpy(
+                params->storage.mclass[HSE_MCLASS_CAPACITY].path,
+                MPOOL_CAPACITY_MCLASS_DEFAULT_PATH,
+                sizeof(params->storage.mclass[HSE_MCLASS_CAPACITY].path));
     }
 }
 
@@ -309,7 +311,8 @@ kvdb_cparams_resolve(struct kvdb_cparams *params, const char *home, bool pmem_on
     char buf[PATH_MAX];
 
     static_assert(
-        sizeof(buf) == sizeof(params->storage.mclass[HSE_MCLASS_BASE].path), "mismatched buffer sizes");
+        sizeof(buf) == sizeof(params->storage.mclass[HSE_MCLASS_BASE].path),
+        "mismatched buffer sizes");
 
     assert(params);
     assert(home);
@@ -329,20 +332,20 @@ kvdb_cparams_resolve(struct kvdb_cparams *params, const char *home, bool pmem_on
 
 merr_t
 kvdb_cparams_get(
-    const struct kvdb_cparams *const params,
-    const char *const                param,
-    char *const                      buf,
-    const size_t                     buf_sz,
-    size_t *const                    needed_sz)
+    const struct kvdb_cparams * const params,
+    const char * const param,
+    char * const buf,
+    const size_t buf_sz,
+    size_t * const needed_sz)
 {
     return params_get(params, NELEM(pspecs), pspecs, param, buf, buf_sz, needed_sz);
 }
 
 merr_t
 kvdb_cparams_from_paramv(
-    struct kvdb_cparams *const params,
-    const size_t               paramc,
-    const char *const *const   paramv)
+    struct kvdb_cparams * const params,
+    const size_t paramc,
+    const char * const * const paramv)
 {
     assert(params);
 
@@ -350,7 +353,7 @@ kvdb_cparams_from_paramv(
 }
 
 cJSON *
-kvdb_cparams_to_json(const struct kvdb_cparams *const params)
+kvdb_cparams_to_json(const struct kvdb_cparams * const params)
 {
     if (!params)
         return NULL;

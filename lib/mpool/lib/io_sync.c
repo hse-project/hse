@@ -23,9 +23,9 @@
 
 #include <sys/mman.h>
 
-#include <hse/util/minmax.h>
-#include <hse/util/event_counter.h>
 #include <hse/util/assert.h>
+#include <hse/util/event_counter.h>
+#include <hse/util/minmax.h>
 #include <hse/util/page.h>
 
 #include "io.h"
@@ -42,13 +42,7 @@ iolen(const struct iovec *iov, int cnt)
 }
 
 merr_t
-io_sync_read(
-    int                 src_fd,
-    off_t               off,
-    const struct iovec *iov,
-    int                 iovcnt,
-    int                 flags,
-    size_t             *rdlen)
+io_sync_read(int src_fd, off_t off, const struct iovec *iov, int iovcnt, int flags, size_t *rdlen)
 {
     const struct iovec *curiov;
     int left;
@@ -61,7 +55,7 @@ io_sync_read(
     while (left > 0) {
         ssize_t cc;
         size_t len;
-        int    cnt;
+        int cnt;
 
         cnt = min_t(int, left, IOV_MAX);
 
@@ -90,13 +84,7 @@ out:
 }
 
 merr_t
-io_sync_write(
-    int                 dst_fd,
-    off_t               off,
-    const struct iovec *iov,
-    int                 iovcnt,
-    int                 flags,
-    size_t             *wrlen)
+io_sync_write(int dst_fd, off_t off, const struct iovec *iov, int iovcnt, int flags, size_t *wrlen)
 {
     const struct iovec *curiov;
     int left;
@@ -108,7 +96,7 @@ io_sync_write(
 
     while (left > 0) {
         size_t cc, len;
-        int    cnt;
+        int cnt;
 
         cnt = min_t(int, left, IOV_MAX);
 

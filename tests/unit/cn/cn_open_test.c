@@ -5,20 +5,18 @@
 
 #include <stdint.h>
 
-#include <mtf/framework.h>
+#include <cn/cn_internal.h>
+#include <cn/cn_perfc.h>
+#include <cn/cn_tree.h>
+#include <cn/cn_tree_create.h>
 #include <mock/api.h>
+#include <mtf/framework.h>
 
 #include <hse/error/merr.h>
-
-#include <hse/ikvdb/kvs_cparams.h>
 #include <hse/ikvdb/cn.h>
 #include <hse/ikvdb/cn_kvdb.h>
 #include <hse/ikvdb/kvdb_health.h>
-
-#include <cn/cn_tree.h>
-#include <cn/cn_tree_create.h>
-#include <cn/cn_internal.h>
-#include <cn/cn_perfc.h>
+#include <hse/ikvdb/kvs_cparams.h>
 
 static int
 init(struct mtf_test_info *lcl_ti)
@@ -33,18 +31,17 @@ fini(struct mtf_test_info *lcl_ti)
 }
 
 /* cn_open params */
-struct cn_kvdb    *cn_kvdb;
-struct mpool *     ds;
-struct kvdb_kvs *  kk;
-struct cndb *      cndb;
-uint64_t           cnid;
+struct cn_kvdb *cn_kvdb;
+struct mpool *ds;
+struct kvdb_kvs *kk;
+struct cndb *cndb;
+uint64_t cnid;
 struct kvs_rparams rp_struct, *rp;
-const char *       mp;
-const char *       kvs;
+const char *mp;
+const char *kvs;
 struct kvdb_health health, *h;
-uint               flags;
-struct kvs_cparams cp = {
-};
+uint flags;
+struct kvs_cparams cp = {};
 
 #define CN_OPEN_ARGS cn_kvdb, ds, kk, cndb, cnid, rp, mp, kvs, h, flags
 
@@ -55,25 +52,24 @@ struct kvs_cparams cp = {
  * maintenance (will not break when the mocked function signature
  * changes).
  */
-struct mapi_injection inject_list[] = {
-    { mapi_idx_ikvdb_get_csched, MAPI_RC_PTR, (void *)-1 },
-    { mapi_idx_ikvdb_kvdb_handle, MAPI_RC_PTR, (void *)-1 },
-    { mapi_idx_ikvdb_get_mclass_policy, MAPI_RC_PTR, (void *)5 },
-    { mapi_idx_kvdb_kvs_cparams, MAPI_RC_PTR, &cp },
+struct mapi_injection inject_list[] = { { mapi_idx_ikvdb_get_csched, MAPI_RC_PTR, (void *)-1 },
+                                        { mapi_idx_ikvdb_kvdb_handle, MAPI_RC_PTR, (void *)-1 },
+                                        { mapi_idx_ikvdb_get_mclass_policy, MAPI_RC_PTR,
+                                          (void *)5 },
+                                        { mapi_idx_kvdb_kvs_cparams, MAPI_RC_PTR, &cp },
 
-    { mapi_idx_mpool_props_get, MAPI_RC_SCALAR, 0 },
-    { mapi_idx_mpool_mclass_props_get, MAPI_RC_SCALAR, 0 },
+                                        { mapi_idx_mpool_props_get, MAPI_RC_SCALAR, 0 },
+                                        { mapi_idx_mpool_mclass_props_get, MAPI_RC_SCALAR, 0 },
 
-    { mapi_idx_kvdb_kvs_flags, MAPI_RC_SCALAR, 0 },
+                                        { mapi_idx_kvdb_kvs_flags, MAPI_RC_SCALAR, 0 },
 
-    { mapi_idx_cndb_cn_instantiate, MAPI_RC_SCALAR, 0 },
-    { mapi_idx_cndb_nodeid_mint, MAPI_RC_SCALAR, 1 },
+                                        { mapi_idx_cndb_cn_instantiate, MAPI_RC_SCALAR, 0 },
+                                        { mapi_idx_cndb_nodeid_mint, MAPI_RC_SCALAR, 1 },
 
-    { mapi_idx_csched_tree_add, MAPI_RC_SCALAR, 0 },
-    { mapi_idx_csched_tree_remove, MAPI_RC_SCALAR, 0 },
+                                        { mapi_idx_csched_tree_add, MAPI_RC_SCALAR, 0 },
+                                        { mapi_idx_csched_tree_remove, MAPI_RC_SCALAR, 0 },
 
-    { -1 }
-};
+                                        { -1 } };
 
 static void
 setup_mocks(void)
@@ -117,7 +113,7 @@ MTF_BEGIN_UTEST_COLLECTION_PREPOST(cn_open_test, init, fini);
 
 MTF_DEFINE_UTEST_PREPOST(cn_open_test, cn_open_basic, pre, post)
 {
-    merr_t     err;
+    merr_t err;
     struct cn *cn;
 
     /* test w/ caller provided rparams */
@@ -135,9 +131,9 @@ MTF_DEFINE_UTEST_PREPOST(cn_open_test, cn_open_basic, pre, post)
 
 MTF_DEFINE_UTEST_PREPOST(cn_open_test, cn_open_repeat, pre, post)
 {
-    merr_t     err;
+    merr_t err;
     struct cn *cn;
-    int        i;
+    int i;
 
     for (i = 0; i < 5; i++) {
         err = cn_open(CN_OPEN_ARGS, &cn);
@@ -148,7 +144,7 @@ MTF_DEFINE_UTEST_PREPOST(cn_open_test, cn_open_repeat, pre, post)
 
 MTF_DEFINE_UTEST_PREPOST(cn_open_test, cn_open_rp, pre, post)
 {
-    merr_t     err;
+    merr_t err;
     struct cn *cn;
 
     /* test w/ rp == 0 */
@@ -160,9 +156,9 @@ MTF_DEFINE_UTEST_PREPOST(cn_open_test, cn_open_rp, pre, post)
 
 MTF_DEFINE_UTEST_PREPOST(cn_open_test, cn_open_enomem, pre, post)
 {
-    merr_t     err = 0;
+    merr_t err = 0;
     struct cn *cn;
-    uint       i;
+    uint i;
 
     for (i = 0; !err && i < 100; i++) {
 
@@ -180,7 +176,7 @@ MTF_DEFINE_UTEST_PREPOST(cn_open_test, cn_open_enomem, pre, post)
 
 MTF_DEFINE_UTEST_PREPOST(cn_open_test, cn_open_err_path, pre, post)
 {
-    merr_t     err;
+    merr_t err;
     struct cn *cn;
 
     setup_mocks();

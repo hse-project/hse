@@ -26,7 +26,7 @@ extern uint8_t __stop_hse_merr;
 merr_t
 merr_pack(const int errno_value, const unsigned int ctx, const char *file, const int line)
 {
-    merr_t  err = 0;
+    merr_t err = 0;
     int64_t off;
 
     INVARIANT(errno_value >= 0 && errno_value <= INT16_MAX);
@@ -36,8 +36,7 @@ merr_pack(const int errno_value, const unsigned int ctx, const char *file, const
     if (errno_value == 0)
         return 0;
 
-    if (file < (char *)&__start_hse_merr ||
-        file >= (char *)&__stop_hse_merr) {
+    if (file < (char *)&__start_hse_merr || file >= (char *)&__stop_hse_merr) {
         file = hse_merr_bug0;
     } else if (!IS_ALIGNED((uintptr_t)file, MERR_ALIGN)) {
         file = hse_merr_bug1;
@@ -59,7 +58,7 @@ const char *
 merr_file(const merr_t err)
 {
     const char *file;
-    int32_t     off;
+    int32_t off;
 
     if (err == 0 || err == -1)
         return NULL;
@@ -70,14 +69,13 @@ merr_file(const merr_t err)
 
     file = (char *)hse_merr_base + (off * MERR_ALIGN);
 
-    if (file < (char *)&__start_hse_merr ||
-          file >= (char *)&__stop_hse_merr)
+    if (file < (char *)&__start_hse_merr || file >= (char *)&__stop_hse_merr)
         return hse_merr_bug2;
 
 #ifdef HSE_REL_SRC_DIR
     if ((uintptr_t)file == (uintptr_t)hse_merr_bug0 ||
-        (uintptr_t)file == (uintptr_t)hse_merr_bug1 ||
-        (uintptr_t)file == (uintptr_t)hse_merr_bug2) {
+        (uintptr_t)file == (uintptr_t)hse_merr_bug1 || (uintptr_t)file == (uintptr_t)hse_merr_bug2)
+    {
         return file;
     }
 
@@ -91,7 +89,7 @@ merr_file(const merr_t err)
 }
 
 size_t
-merr_strerror(const merr_t err, char *const buf, const size_t buf_sz)
+merr_strerror(const merr_t err, char * const buf, const size_t buf_sz)
 {
     char errbuf[1024], *errmsg;
     int errno_value = merr_errno(err);
@@ -118,10 +116,10 @@ merr_strerror(const merr_t err, char *const buf, const size_t buf_sz)
 char *
 merr_strinfo(
     const merr_t err,
-    char *const buf,
+    char * const buf,
     const size_t buf_sz,
     merr_stringify ctx_stringify,
-    size_t *const need_sz)
+    size_t * const need_sz)
 {
     int ret = 0;
     size_t sz = 0;

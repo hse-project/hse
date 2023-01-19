@@ -9,9 +9,8 @@
 #include <stdbool.h>
 
 #include <hse/error/merr.h>
-#include <hse/util/bin_heap.h>
-
 #include <hse/ikvdb/tuple.h>
+#include <hse/util/bin_heap.h>
 
 /*
  *  The struct kv_iterator_ops definition specifies a generic interface for
@@ -33,25 +32,25 @@ struct kv_iterator_ops {
  */
 struct kvset_iter_vctx {
     const void *kmd;
-    uint64_t    dgen;
-    size_t      off;
-    uint        nvals;
-    uint        next;
-    bool        is_ptomb;
+    uint64_t dgen;
+    size_t off;
+    uint nvals;
+    uint next;
+    bool is_ptomb;
 };
 
 struct cn_kv_item {
-    struct key_obj         kobj;
+    struct key_obj kobj;
     struct kvset_iter_vctx vctx;
     struct element_source *src;
 };
 
 struct kv_iterator {
     struct kv_iterator_ops *kvi_ops;
-    struct kvs_rparams *    kvi_rparams;
-    bool                    kvi_eof;
-    struct element_source   kvi_es;
-    struct cn_kv_item       kvi_kv;
+    struct kvs_rparams *kvi_rparams;
+    bool kvi_eof;
+    struct element_source kvi_es;
+    struct cn_kv_item kvi_kv;
 };
 
 static inline void

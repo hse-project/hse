@@ -8,12 +8,12 @@
 
 #include <stdint.h>
 
+#include <hse/util/arch.h>
 #include <hse/util/atomic.h>
 #include <hse/util/compiler.h>
-#include <hse/util/arch.h>
-#include <hse/util/spinlock.h>
-#include <hse/util/perfc.h>
 #include <hse/util/condvar.h>
+#include <hse/util/perfc.h>
+#include <hse/util/spinlock.h>
 
 /* clang-format off */
 
@@ -160,35 +160,35 @@ struct throttle_mavg {
  * @thr_sensorv:        vector of throttle sensors
  */
 struct throttle {
-    atomic_int           thr_pct;
-    atomic_ulong         thr_next;
-    uint                 thr_delay;
-    spinlock_t           thr_lock;
+    atomic_int thr_pct;
+    atomic_ulong thr_next;
+    uint thr_delay;
+    spinlock_t thr_lock;
 
     struct throttle_mavg thr_mavg HSE_L1D_ALIGNED;
-    ulong                thr_reduce_sum;
-    uint                 thr_delay_min;
-    uint                 thr_lmin_cycles;
-    uint                 thr_update_ms;
-    uint                 thr_reduce_cycles;
-    uint                 thr_inject_cycles;
-    uint                 thr_delta_cycles;
-    uint                 thr_skip_cycles;
-    uint                 thr_cycles;
-    ulong                thr_update;
-    enum throttle_state  thr_state;
-    uint                 thr_delay_prev;
-    uint                 thr_delay_idelta;
-    uint                 thr_delay_test;
-    uint                 thr_inject_cnt;
-    uint                 thr_skip_cnt;
-    uint                 thr_monitor_cnt;
-    uint                 thr_longest_run;
-    uint                 thr_num_tries;
-    uint                 thr_max_tries;
+    ulong thr_reduce_sum;
+    uint thr_delay_min;
+    uint thr_lmin_cycles;
+    uint thr_update_ms;
+    uint thr_reduce_cycles;
+    uint thr_inject_cycles;
+    uint thr_delta_cycles;
+    uint thr_skip_cycles;
+    uint thr_cycles;
+    ulong thr_update;
+    enum throttle_state thr_state;
+    uint thr_delay_prev;
+    uint thr_delay_idelta;
+    uint thr_delay_test;
+    uint thr_inject_cnt;
+    uint thr_skip_cnt;
+    uint thr_monitor_cnt;
+    uint thr_longest_run;
+    uint thr_num_tries;
+    uint thr_max_tries;
     struct kvdb_rparams *thr_rp;
-    struct perfc_set     thr_sensor_perfc;
-    struct perfc_set     thr_sleep_perfc;
+    struct perfc_set thr_sensor_perfc;
+    struct perfc_set thr_sleep_perfc;
 
     struct throttle_sensor thr_sensorv[THROTTLE_SENSOR_CNT];
 };

@@ -3,30 +3,28 @@
  * Copyright (C) 2022 Micron Technology, Inc.  All rights reserved.
  */
 
+#include <hse/error/merr.h>
+#include <hse/ikvdb/cn.h>
+#include <hse/ikvdb/cndb.h>
+#include <hse/ikvdb/kvset_view.h>
+#include <hse/logging/logging.h>
 #include <hse/util/list.h>
 #include <hse/util/rmlock.h>
 
-#include <hse/error/merr.h>
-#include <hse/logging/logging.h>
-
-#include <hse/ikvdb/cndb.h>
-#include <hse/ikvdb/kvset_view.h>
-#include <hse/ikvdb/cn.h>
-
+#include "cn_tree.h"
 #include "cn_tree_compact.h"
 #include "cn_tree_internal.h"
-#include "cn_tree.h"
 #include "kvset.h"
 #include "route.h"
 
 merr_t
 cn_move(
     struct cn_compaction_work *w,
-    struct cn_tree_node       *src_node,
-    struct kvset_list_entry   *src_list,
-    uint32_t                   src_cnt,
-    bool                       src_del,
-    struct cn_tree_node       *tgt_node)
+    struct cn_tree_node *src_node,
+    struct kvset_list_entry *src_list,
+    uint32_t src_cnt,
+    bool src_del,
+    struct cn_tree_node *tgt_node)
 {
     struct kvset_list_entry *src, *tgt;
     struct list_head *src_head, *tgt_head;
@@ -65,8 +63,9 @@ cn_move(
         assert(!src_del || !src);
         rmlock_runlock(lock);
 
-        err = cndb_record_kvsetv_move(cn_get_cndb(tree->cn), tree->cnid, src_node->tn_nodeid,
-                                      tgt_node->tn_nodeid, src_cnt, src_ksidv);
+        err = cndb_record_kvsetv_move(
+            cn_get_cndb(tree->cn), tree->cnid, src_node->tn_nodeid, tgt_node->tn_nodeid, src_cnt,
+            src_ksidv);
 
         free(src_ksidv);
 
@@ -129,7 +128,7 @@ cn_move(
     {
         struct kvset_list_entry *le;
 
-        list_for_each_entry(le, &tgt_node->tn_kvset_list, le_link) {
+        list_for_each_entry (le, &tgt_node->tn_kvset_list, le_link) {
             bool from_src = kvset_get_nodeid(le->le_kvset) == src_nodeid;
 
             /* If source node was deleted, update all kvsets in tgt, otherwise only update the
@@ -173,12 +172,13 @@ cn_join(struct cn_compaction_work *w)
     err = cn_move(w, src_node, src_list, src_cnt, src_del, tgt_node);
     if (!err) {
         assert(cn_ns_kvsets(&tgt_node->tn_ns) == src_cnt + tgt_cnt);
-        log_debug("src %lu (%u) -> tgt %lu (%u)",
-                  src_node->tn_nodeid, src_cnt, tgt_node->tn_nodeid, tgt_cnt);
+        log_debug(
+            "src %lu (%u) -> tgt %lu (%u)", src_node->tn_nodeid, src_cnt, tgt_node->tn_nodeid,
+            tgt_cnt);
     }
 
     if (err) {
-        list_for_each_entry(le, &src_node->tn_kvset_list, le_link) {
+        list_for_each_entry (le, &src_node->tn_kvset_list, le_link) {
             assert(kvset_get_work(le->le_kvset) == w);
             kvset_set_work(le->le_kvset, NULL);
         }

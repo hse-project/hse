@@ -13,8 +13,8 @@ typedef void(mapi_alloc_tester_clean_fn)(struct mtf_test_info *);
 
 int
 mapi_alloc_tester(
-    struct mtf_test_info *      lcl_ti,
-    mapi_alloc_tester_run_fn *  run,
+    struct mtf_test_info *lcl_ti,
+    mapi_alloc_tester_run_fn *run,
     mapi_alloc_tester_clean_fn *clean);
 
 #endif

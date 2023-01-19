@@ -3,8 +3,8 @@
  * Copyright (C) 2015-2022 Micron Technology, Inc.  All rights reserved.
  */
 
-#include <hse/util/platform.h>
 #include <hse/util/condvar.h>
+#include <hse/util/platform.h>
 
 void
 cv_init(struct cv *cv)

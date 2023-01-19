@@ -5,21 +5,21 @@
 
 #include <sys/mman.h>
 
-#include <hse/util/event_counter.h>
 #include <hse/error/merr.h>
 #include <hse/logging/logging.h>
+#include <hse/util/event_counter.h>
 
-#include "mpool_internal.h"
-#include "mclass.h"
 #include "io.h"
+#include "mclass.h"
+#include "mpool_internal.h"
 
 struct mpool_file {
-    struct mpool       *mp;
+    struct mpool *mp;
     struct media_class *mc;
-    struct io_ops       io;
-    char  *addr;
+    struct io_ops io;
+    char *addr;
     size_t size;
-    int    fd;
+    int fd;
     const char name[];
 };
 
@@ -29,17 +29,17 @@ mpool_file_unmap(struct mpool_file *file);
 
 merr_t
 mpool_file_open(
-    struct mpool       *mp,
-    enum hse_mclass     mclass,
-    const char         *name,
-    int                 flags,
-    size_t              capacity,
-    bool                sparse,
+    struct mpool *mp,
+    enum hse_mclass mclass,
+    const char *name,
+    int flags,
+    size_t capacity,
+    bool sparse,
     struct mpool_file **handle)
 {
-    struct mpool_file  *mfp;
+    struct mpool_file *mfp;
     struct media_class *mc;
-    int    dirfd, fd, rc;
+    int dirfd, fd, rc;
     merr_t err;
     bool create = false;
     size_t sz;
@@ -119,7 +119,7 @@ merr_t
 mpool_file_close(struct mpool_file *file)
 {
     merr_t err;
-    int    rc;
+    int rc;
 
     if (!file)
         return merr(EINVAL);
@@ -141,7 +141,7 @@ merr_t
 mpool_file_destroy(struct mpool *mp, enum hse_mclass mclass, const char *name)
 {
     struct media_class *mc;
-    int  dirfd, rc;
+    int dirfd, rc;
 
     if (!mp || !name || mclass > HSE_MCLASS_COUNT)
         return merr(EINVAL);
@@ -184,10 +184,10 @@ mpool_file_read(struct mpool_file *file, off_t offset, char *buf, size_t buflen,
 merr_t
 mpool_file_write(
     struct mpool_file *file,
-    off_t              offset,
-    const char        *buf,
-    size_t             buflen,
-    size_t            *wrlen)
+    off_t offset,
+    const char *buf,
+    size_t buflen,
+    size_t *wrlen)
 {
     struct iovec iov;
     merr_t err;

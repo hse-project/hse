@@ -3,24 +3,23 @@
  * Copyright (C) 2015-2021 Micron Technology, Inc.  All rights reserved.
  */
 
-#include <mtf/framework.h>
-#include <mock/api.h>
-#include <hse/util/xrand.h>
 #include <mock/alloc_tester.h>
+#include <mock/api.h>
+#include <mtf/framework.h>
 
-#include <hse/util/platform.h>
-
+#include <hse/ikvdb/kvdb_rparams.h>
 #include <hse/ikvdb/throttle.h>
 #include <hse/ikvdb/throttle_perfc.h>
-#include <hse/ikvdb/kvdb_rparams.h>
+#include <hse/util/platform.h>
+#include <hse/util/xrand.h>
 
 #define KMIN 1
 
-struct throttle         throttlebuf;
-struct throttle *       t = &throttlebuf;
-const int               sc = THROTTLE_SENSOR_CNT;
+struct throttle throttlebuf;
+struct throttle *t = &throttlebuf;
+const int sc = THROTTLE_SENSOR_CNT;
 struct throttle_sensor *sv[THROTTLE_SENSOR_CNT];
-struct kvdb_rparams     kvdb_rp;
+struct kvdb_rparams kvdb_rp;
 
 void
 init(void)
@@ -53,7 +52,7 @@ MTF_BEGIN_UTEST_COLLECTION_PRE(test, pre_collection)
 MTF_DEFINE_UTEST_PRE(test, t_init, pre_test)
 {
     struct throttle thr;
-    int             i;
+    int i;
 
     for (i = 0; i <= 1; i++) {
         kvdb_rp = kvdb_rparams_defaults();
@@ -212,9 +211,9 @@ MTF_DEFINE_UTEST_PRE(test, t_range, pre_test)
     }
 
     for (i = 0; i < 500000; i++) {
-        int  index = rand() % 5;
-        int  vmin = (index > 0) ? ranges[index - 1] : 0;
-        int  vmax = ranges[index];
+        int index = rand() % 5;
+        int vmin = (index > 0) ? ranges[index - 1] : 0;
+        int vmax = ranges[index];
         uint range = vmax - vmin;
 
         value1 = vmin + rand() % range;

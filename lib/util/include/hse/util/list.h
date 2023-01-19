@@ -12,11 +12,9 @@ struct list_head {
     struct list_head *prev, *next;
 };
 
-#define list_entry(addr, type, field) \
-    container_of(addr, type, field)
+#define list_entry(addr, type, field) container_of(addr, type, field)
 
-#define list_for_each(ptr, head) \
-    for (ptr = (head)->next; ptr != (head); ptr = (ptr)->next)
+#define list_for_each(ptr, head) for (ptr = (head)->next; ptr != (head); ptr = (ptr)->next)
 
 /* The original for-each macros exhibit undefined behavior per the C spec
  * (6.2.3.2 (7)) when they generate an invalid item pointer with incorrect
@@ -25,26 +23,24 @@ struct list_head {
  * of the iteration the item pointer is now NULL rather than pointing to
  * the head of the list.
  */
-#define list_for_each_entry(item, head, field)                          \
-    for (item = list_first_entry_or_null((head), typeof(*(item)), field); \
-         (item);                                                        \
+#define list_for_each_entry(item, head, field)                                    \
+    for (item = list_first_entry_or_null((head), typeof(*(item)), field); (item); \
          item = list_next_entry_or_null((item), field, (head)))
 
-#define list_for_each_entry_reverse(item, head, field)                  \
-    for (item = list_last_entry_or_null((head), typeof(*(item)), field); \
-         (item);                                                        \
+#define list_for_each_entry_reverse(item, head, field)                           \
+    for (item = list_last_entry_or_null((head), typeof(*(item)), field); (item); \
          item = list_prev_entry_or_null((item), field, (head)))
 
-#define list_for_each_entry_safe(item, nitem, head, field)              \
-    for (item = list_first_entry_or_null((head), typeof(*(item)), field), \
-             nitem = (item) ? list_next_entry_or_null((item), field, (head)) : NULL; \
-         (item);                                                        \
+#define list_for_each_entry_safe(item, nitem, head, field)                      \
+    for (item = list_first_entry_or_null((head), typeof(*(item)), field),       \
+        nitem = (item) ? list_next_entry_or_null((item), field, (head)) : NULL; \
+         (item);                                                                \
          item = (nitem), nitem = (item) ? list_next_entry_or_null((item), field, (head)) : NULL)
 
 #define list_for_each_entry_reverse_safe(item, nitem, head, field)              \
-    for (item = list_last_entry_or_null((head), typeof(*(item)), field), \
-             nitem = (item) ? list_prev_entry_or_null((item), field, (head)) : NULL; \
-         (item);                                                        \
+    for (item = list_last_entry_or_null((head), typeof(*(item)), field),        \
+        nitem = (item) ? list_prev_entry_or_null((item), field, (head)) : NULL; \
+         (item);                                                                \
          item = (nitem), nitem = (item) ? list_prev_entry_or_null((item), field, (head)) : NULL)
 
 static inline void

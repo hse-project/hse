@@ -6,17 +6,17 @@
 #include <errno.h>
 #include <fcntl.h>
 #include <stdlib.h>
-#include <sys/stat.h>
 #include <unistd.h>
 
 #include <cjson/cJSON.h>
+#include <sys/stat.h>
 
 #include <hse/config/config.h>
 #include <hse/error/merr.h>
 #include <hse/logging/logging.h>
 
 merr_t
-config_open(const char *const path, config_validator_t validate, cJSON **const config)
+config_open(const char * const path, config_validator_t validate, cJSON ** const config)
 {
     int fd;
     size_t sz;

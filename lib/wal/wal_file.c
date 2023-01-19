@@ -3,28 +3,24 @@
  * Copyright (C) 2021-2022 Micron Technology, Inc.  All rights reserved.
  */
 
+#include <bsd/string.h>
 #include <sys/mman.h>
 
-#include <bsd/string.h>
-
+#include <hse/ikvdb/cndb.h>
 #include <hse/logging/logging.h>
-
 #include <hse/util/event_counter.h>
 #include <hse/util/list.h>
 #include <hse/util/mutex.h>
 #include <hse/util/page.h>
-
-#include <hse/ikvdb/cndb.h>
 
 #include "wal.h"
 #include "wal_file.h"
 #include "wal_omf.h"
 #include "wal_replay.h"
 
-#define WAL_FILE_HDR_LEN       (PAGE_SIZE)
-#define WAL_FILE_HDR_OFF       (0)
-#define WAL_FILE_NAME_LEN_MAX  (64)
-
+#define WAL_FILE_HDR_LEN      (PAGE_SIZE)
+#define WAL_FILE_HDR_OFF      (0)
+#define WAL_FILE_NAME_LEN_MAX (64)
 
 struct wal_fileset {
     struct mutex lock HSE_ACP_ALIGNED;
@@ -34,12 +30,12 @@ struct wal_fileset {
 
     struct mpool *mp HSE_L1D_ALIGNED;
     enum hse_mclass mclass;
-    size_t   capacity;
+    size_t capacity;
     uint32_t magic;
     uint32_t version;
     uint32_t flags;
-    merr_t   err;
-    void    *repbuf;
+    merr_t err;
+    void *repbuf;
 };
 
 struct wal_file {
@@ -54,18 +50,16 @@ struct wal_file {
     struct mpool_file *mpf HSE_L1D_ALIGNED;
     struct wal_fileset *wfset;
     uint64_t gen;
-    char    *addr;
-    int      fileid;
-    bool     close;
-    char     name[WAL_FILE_NAME_LEN_MAX];
-
+    char *addr;
+    int fileid;
+    bool close;
+    char name[WAL_FILE_NAME_LEN_MAX];
 };
-
 
 static merr_t
 wal_file_format(struct wal_file *wfile, off_t soff, off_t eoff, bool closing)
 {
-    char buf[WAL_FILE_HDR_LEN] HSE_ALIGNED(PAGE_SIZE) = {0};
+    char buf[WAL_FILE_HDR_LEN] HSE_ALIGNED(PAGE_SIZE) = { 0 };
     struct wal_fileset *wfset = wfile->wfset;
 
     wal_filehdr_pack(wfset->magic, wfset->version, &wfile->info, soff, eoff, closing, buf);
@@ -97,10 +91,10 @@ wal_file_minmax_update(struct wal_file *wfile, struct wal_minmax_info *info)
 merr_t
 wal_fileset_reclaim(
     struct wal_fileset *wfset,
-    uint64_t            seqno,
-    uint64_t            gen,
-    uint64_t            txhorizon,
-    bool                closing)
+    uint64_t seqno,
+    uint64_t gen,
+    uint64_t txhorizon,
+    bool closing)
 {
     struct wal_file *cur, *next;
     struct list_head reclaim;
@@ -108,7 +102,7 @@ wal_fileset_reclaim(
     INIT_LIST_HEAD(&reclaim);
 
     mutex_lock(&wfset->lock);
-    list_for_each_entry_safe(cur, next, &wfset->complete, link) {
+    list_for_each_entry_safe (cur, next, &wfset->complete, link) {
         struct wal_minmax_info *info = &cur->info;
         bool seqno_valid, txid_valid, seqno_reclaim, txid_reclaim = false;
 
@@ -135,17 +129,17 @@ wal_fileset_reclaim(
     }
     mutex_unlock(&wfset->lock);
 
-    list_for_each_entry_safe(cur, next, &reclaim, link) {
+    list_for_each_entry_safe (cur, next, &reclaim, link) {
         uint64_t gen = cur->gen;
         int fileid = cur->fileid;
 
 #ifndef NDEBUG
         struct wal_minmax_info *info = &cur->info;
 
-        log_debug("Reclaiming gen %lu [%lu, %lu] seqno %lu [%lu, %lu] txid %lu [%lu, %lu]",
-                  gen, info->min_gen, info->max_gen,
-                  seqno, info->min_seqno, info->max_seqno,
-                  txhorizon, info->min_txid, info->max_txid);
+        log_debug(
+            "Reclaiming gen %lu [%lu, %lu] seqno %lu [%lu, %lu] txid %lu [%lu, %lu]", gen,
+            info->min_gen, info->max_gen, seqno, info->min_seqno, info->max_seqno, txhorizon,
+            info->min_txid, info->max_txid);
 #endif
 
         list_del(&cur->link);
@@ -177,11 +171,11 @@ wal_fileset_flags_set(struct wal_fileset *wfset, uint32_t flags)
 
 struct wal_fileset *
 wal_fileset_open(
-    struct mpool     *mp,
-    enum hse_mclass   mclass,
-    size_t            capacity,
-    uint32_t          magic,
-    uint32_t          vers)
+    struct mpool *mp,
+    enum hse_mclass mclass,
+    size_t capacity,
+    uint32_t magic,
+    uint32_t vers)
 {
     struct wal_fileset *wfset;
 
@@ -209,9 +203,9 @@ wal_fileset_open(
 void
 wal_fileset_close(
     struct wal_fileset *wfset,
-    uint64_t            ingestseq,
-    uint64_t            ingestgen,
-    uint64_t            txhorizon)
+    uint64_t ingestseq,
+    uint64_t ingestgen,
+    uint64_t txhorizon)
 {
     if (!wfset)
         return;
@@ -227,12 +221,12 @@ wal_fileset_close(
 merr_t
 wal_file_open(
     struct wal_fileset *wfset,
-    uint64_t            gen,
-    int                 fileid,
-    bool                replay,
-    struct wal_file   **handle)
+    uint64_t gen,
+    int fileid,
+    bool replay,
+    struct wal_file **handle)
 {
-    struct wal_file   *wfile, *cur = NULL, *next;
+    struct wal_file *wfile, *cur = NULL, *next;
     struct mpool_file *mpf;
     merr_t err;
     char name[WAL_FILE_NAME_LEN_MAX];
@@ -273,7 +267,7 @@ wal_file_open(
     INIT_LIST_HEAD(&wfile->link);
 
     mutex_lock(&wfset->lock);
-    list_for_each_entry_safe(cur, next, &wfset->active, link) {
+    list_for_each_entry_safe (cur, next, &wfset->active, link) {
         if (cur->gen <= wfile->gen) {
             list_add_tail(&wfile->link, &cur->link);
             break;
@@ -333,7 +327,7 @@ wal_file_complete(struct wal_fileset *wfset, struct wal_file *wfile)
 
     mutex_lock(&wfset->lock);
     list_del_init(&wfile->link);
-    list_for_each_entry_safe(cur, next, &wfset->complete, link) {
+    list_for_each_entry_safe (cur, next, &wfset->complete, link) {
         if (cur->gen >= wfile->gen) {
             list_add_tail(&wfile->link, &cur->link);
             break;
@@ -485,7 +479,6 @@ wal_file_write(struct wal_file *wfile, char *buf, size_t len, bool bufwrap)
     return 0;
 }
 
-
 /*
  * WAL fileset replay interfaces
  */
@@ -542,9 +535,9 @@ err_exit:
 
 merr_t
 wal_fileset_replay(
-    struct wal_fileset          *wfset,
-    struct wal_replay_info      *rinfo,
-    uint32_t                    *rgcnt_out,
+    struct wal_fileset *wfset,
+    struct wal_replay_info *rinfo,
+    uint32_t *rgcnt_out,
     struct wal_replay_gen_info **rginfo_out)
 {
     struct mpool_file_cb cb;
@@ -579,28 +572,31 @@ wal_fileset_replay(
      * working on this list.
      */
     fcnt = 0;
-    list_for_each_entry_reverse_safe(cur, next, &wfset->active, link) {
+    list_for_each_entry_reverse_safe (cur, next, &wfset->active, link) {
         bool discard = false;
 
         err = wal_file_mmap(cur, MADV_SEQUENTIAL);
         if (err) {
             if (merr_errno(err) == EINVAL && wal_file_size(cur) == 0) {
                 /* Possible that the crash happened just after file creation */
-                log_info("WAL replay: Discarding empty wal file: gen %lu fileid %u",
-                         cur->gen, cur->fileid);
+                log_info(
+                    "WAL replay: Discarding empty wal file: gen %lu fileid %u", cur->gen,
+                    cur->fileid);
                 discard = true;
                 goto discard;
             }
             goto exit;
         }
 
-        err = wal_filehdr_unpack(cur->addr, wfset->magic, wfset->version, &cur->close,
-                                 &cur->soff, &cur->woff, &cur->info);
+        err = wal_filehdr_unpack(
+            cur->addr, wfset->magic, wfset->version, &cur->close, &cur->soff, &cur->woff,
+            &cur->info);
         if (err) {
             if (cur->gen == maxgen && merr_errno(err) == ENODATA) {
                 /* Can safely delete this empty file */
-                log_info("WAL replay: Discarding empty wal file, gen %lu fileid %u",
-                         cur->gen, cur->fileid);
+                log_info(
+                    "WAL replay: Discarding empty wal file, gen %lu fileid %u", cur->gen,
+                    cur->fileid);
                 discard = true;
                 goto discard;
             }
@@ -609,9 +605,10 @@ wal_fileset_replay(
              * then all the files belonging to this corrupted gen can be destroyed.
              * TODO: Address this when adding force replay support.
              */
-            log_errx("WAL replay: Need force replay support to recover data, "
-                     "gen %lu fileid %u maxgen %lu",
-                     err, cur->gen, cur->fileid, maxgen);
+            log_errx(
+                "WAL replay: Need force replay support to recover data, "
+                "gen %lu fileid %u maxgen %lu",
+                err, cur->gen, cur->fileid, maxgen);
             goto exit;
         }
 
@@ -625,13 +622,15 @@ wal_fileset_replay(
             bool seqno_discard, txid_discard;
 
             seqno_discard = (info->max_seqno != 0 && info->max_seqno <= rinfo->seqno);
-            txid_discard = (seqno_discard && rinfo->txhorizon != CNDB_INVAL_HORIZON &&
-                            info->max_txid < rinfo->txhorizon);
+            txid_discard =
+                (seqno_discard && rinfo->txhorizon != CNDB_INVAL_HORIZON &&
+                 info->max_txid < rinfo->txhorizon);
 
             if (seqno_discard && txid_discard) {
-                log_info("WAL replay: Skipping wal file, gen %lu fileid %u, "
-                         "cndb seqno %lu txhorizon %lu gen %lu",
-                         cur->gen, cur->fileid, rinfo->seqno, rinfo->txhorizon, rinfo->gen);
+                log_info(
+                    "WAL replay: Skipping wal file, gen %lu fileid %u, "
+                    "cndb seqno %lu txhorizon %lu gen %lu",
+                    cur->gen, cur->fileid, rinfo->seqno, rinfo->txhorizon, rinfo->gen);
                 discard = true;
                 goto discard;
             } else {
@@ -641,7 +640,7 @@ wal_fileset_replay(
             }
         }
 
-discard:
+    discard:
         if (discard) {
             uint64_t gen = cur->gen;
             int fileid = cur->fileid;
@@ -664,7 +663,7 @@ discard:
     wfset->repbuf = rginfo;
 
     i = 0;
-    list_for_each_entry_safe(cur, next, &wfset->replay, link) {
+    list_for_each_entry_safe (cur, next, &wfset->replay, link) {
         rginfo[i].info_valid = cur->close;
         rginfo[i].info = cur->info;
         rginfo[i].gen = cur->gen;
@@ -700,13 +699,13 @@ wal_fileset_replay_free(struct wal_fileset *wfset, bool failed)
         return;
 
     /* The active list would be non-empty for a failed wal_fileset_replay() */
-    list_for_each_entry_safe(cur, next, &wfset->active, link) {
+    list_for_each_entry_safe (cur, next, &wfset->active, link) {
         list_del_init(&cur->link);
         err = wal_file_close(cur);
         ev(err);
     }
 
-    list_for_each_entry_safe(cur, next, &wfset->replay, link) {
+    list_for_each_entry_safe (cur, next, &wfset->replay, link) {
         uint64_t gen = cur->gen;
         uint32_t fileid = cur->fileid;
 

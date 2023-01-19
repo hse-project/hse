@@ -54,8 +54,7 @@ struct s_list_head {
 
 #define s_list_for_each_entry_safe(pos, n, head, member)                                           \
     for (pos = s_list_first_entry(head, typeof(*pos), member), n = s_list_next_entry(pos, member); \
-         &pos->member != (head);                                                                   \
-         pos = n, n = s_list_next_entry(pos, member))
+         &pos->member != (head); pos = n, n = s_list_next_entry(pos, member))
 
 static inline void
 INIT_S_LIST_HEAD(struct s_list_head *head)

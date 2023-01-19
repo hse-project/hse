@@ -13,10 +13,10 @@
 #include <hse/util/xrand.h>
 
 #include "wal.h"
-#include "wal_omf.h"
 #include "wal_buffer.h"
 #include "wal_file.h"
 #include "wal_io.h"
+#include "wal_omf.h"
 
 /* clang-format off */
 
@@ -137,7 +137,7 @@ restart:
 
         rgen = omf_rh_gen(rhdr);
         assert(rgen);
-        cgen = cgen ? : rgen;
+        cgen = cgen ?: rgen;
 
         /* Mark flush boundary on encountering a gen increase */
         if (rgen > cgen)
@@ -205,9 +205,10 @@ restart:
 
 #ifndef NDEBUG
     if (atomic_inc_return(&wb->wb_flushc) % 1536 == 0)
-        log_debug("Flush stats: coff %lu,%lu foff %lu doff %lu igen %lu",
-                  atomic_read(&wb->wb_offset_head), atomic_read(&wb->wb_offset_tail),
-                  foff, atomic_read(&wb->wb_doff), atomic_read(wb->wb_bs->wbs_ingestgen));
+        log_debug(
+            "Flush stats: coff %lu,%lu foff %lu doff %lu igen %lu",
+            atomic_read(&wb->wb_offset_head), atomic_read(&wb->wb_offset_tail), foff,
+            atomic_read(&wb->wb_doff), atomic_read(wb->wb_bs->wbs_ingestgen));
 #endif
 
 exit:
@@ -224,10 +225,10 @@ exit:
 struct wal_bufset *
 wal_bufset_open(
     struct wal_fileset *wfset,
-    size_t              bufsz,
-    uint32_t            dur_bytes,
-    atomic_ulong       *ingestgen,
-    struct wal_iocb    *iocb)
+    size_t bufsz,
+    uint32_t dur_bytes,
+    atomic_ulong *ingestgen,
+    struct wal_iocb *iocb)
 {
     struct wal_bufset *wbs;
     uint32_t i, j, k;
@@ -246,8 +247,9 @@ wal_bufset_open(
     wbs->wbs_ingestgen = ingestgen;
 
     wbs->wbs_buf_sz = bufsz;
-    wbs->wbs_buf_allocsz = ALIGN(bufsz + wal_reclen(WAL_VERSION) + HSE_KVS_KEY_LEN_MAX +
-                                 HSE_KVS_VALUE_LEN_MAX, 2ul << MB_SHIFT);
+    wbs->wbs_buf_allocsz = ALIGN(
+        bufsz + wal_reclen(WAL_VERSION) + HSE_KVS_KEY_LEN_MAX + HSE_KVS_VALUE_LEN_MAX,
+        2ul << MB_SHIFT);
 
     for (i = 0; i < WAL_NODE_MAX; ++i) {
         struct wal_buffer *wb;
@@ -334,9 +336,10 @@ wal_bufset_stats_dump(struct wal_bufset *wbs)
     for (int i = 0; i < wbs->wbs_bufc; ++i) {
         struct wal_buffer *wb = wbs->wbs_bufv + i;
 
-        log_debug("WAL closing - Offsets (%d - %lu, %lu : %lu : %lu)",
-                  i, atomic_read(&wb->wb_offset_head), atomic_read(&wb->wb_offset_tail),
-                  atomic_read(&wb->wb_foff), atomic_read(&wb->wb_doff));
+        log_debug(
+            "WAL closing - Offsets (%d - %lu, %lu : %lu : %lu)", i,
+            atomic_read(&wb->wb_offset_head), atomic_read(&wb->wb_offset_tail),
+            atomic_read(&wb->wb_foff), atomic_read(&wb->wb_doff));
     }
 }
 #endif
@@ -367,10 +370,10 @@ wal_bufset_close(struct wal_bufset *wbs)
 void *
 wal_bufset_alloc(
     struct wal_bufset *wbs,
-    size_t             len,
-    uint64_t          *offout,
-    uint32_t          *wbidx,
-    int64_t           *cookie)
+    size_t len,
+    uint64_t *offout,
+    uint32_t *wbidx,
+    int64_t *cookie)
 {
     const size_t hwm = wbs->wbs_buf_sz - (8u << MB_SHIFT);
     struct wal_buffer *wb;
@@ -492,7 +495,8 @@ wal_bufset_flush(struct wal_bufset *wbs, struct wal_flush_stats *wbfsp)
         wbfsp->flush_soff[i] = atomic_read(&wb->wb_foff);
 
         if (wb->wb_buf && atomic_read(&wb->wb_offset_head) > PAGE_SIZE &&
-            atomic_cas(&wb->wb_flushing, 0, 1)) {
+            atomic_cas(&wb->wb_flushing, 0, 1))
+        {
             atomic_set(&wb->wb_flushb, 0);
             queue_work(wq, &wb->wb_fwork);
         }

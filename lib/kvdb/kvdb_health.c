@@ -3,21 +3,20 @@
  * Copyright (C) 2015-2020,2022 Micron Technology, Inc.  All rights reserved.
  */
 
-#include <hse/util/platform.h>
-#include <hse/logging/logging.h>
 #include <hse/error/merr.h>
-#include <hse/util/event_counter.h>
-#include <hse/util/atomic.h>
-
 #include <hse/ikvdb/kvdb_health.h>
+#include <hse/logging/logging.h>
+#include <hse/util/atomic.h>
+#include <hse/util/event_counter.h>
+#include <hse/util/platform.h>
 
 static bool
 get_atomics(
     struct kvdb_health *health,
-    uint                event,
-    atomic_ulong      **tpp,
-    atomic_ulong      **opp,
-    atomic_long       **epp)
+    uint event,
+    atomic_ulong **tpp,
+    atomic_ulong **opp,
+    atomic_long **epp)
 {
     switch (event) {
     case KVDB_HEALTH_FLAG_NOMEM:

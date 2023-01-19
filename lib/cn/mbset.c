@@ -5,15 +5,14 @@
 
 #define MTF_MOCK_IMPL_mbset
 
-#include <hse/util/alloc.h>
-#include <hse/util/slab.h>
-#include <hse/util/minmax.h>
-#include <hse/util/event_counter.h>
-
 #include <hse/logging/logging.h>
+#include <hse/util/alloc.h>
+#include <hse/util/event_counter.h>
+#include <hse/util/minmax.h>
+#include <hse/util/slab.h>
 
-#include "mbset.h"
 #include "kvs_mblk_desc.h"
+#include "mbset.h"
 
 /*
  * An "mbset" is a reference counted set of mblocks with associated object
@@ -94,8 +93,9 @@ mbset_mblk_del(struct mbset *self)
     }
 
     if (err_report)
-        log_errx("%u of %u mblocks could not be deleted, mbid 0x%lx",
-            err_report, count, self->mbs_mblkc, mbid_report);
+        log_errx(
+            "%u of %u mblocks could not be deleted, mbid 0x%lx", err_report, count, self->mbs_mblkc,
+            mbid_report);
 
     return err_report;
 }
@@ -145,8 +145,9 @@ mbset_munmap(struct mbset *self)
     }
 
     if (err_report)
-        log_errx("%u of %u mblocks could not be unmapped, mbid 0x%lx",
-            err_report, count, self->mbs_mblkc, mbid_report);
+        log_errx(
+            "%u of %u mblocks could not be unmapped, mbid 0x%lx", err_report, count,
+            self->mbs_mblkc, mbid_report);
 }
 
 /**
@@ -154,16 +155,16 @@ mbset_munmap(struct mbset *self)
  */
 merr_t
 mbset_create(
-    struct mpool *      mp,
-    uint                idc,
-    uint64_t *          idv,
-    size_t              udata_sz,
+    struct mpool *mp,
+    uint idc,
+    uint64_t *idv,
+    size_t udata_sz,
     mbset_udata_init_fn udata_init,
-    struct mbset **     handle)
+    struct mbset **handle)
 {
     struct mbset *self;
-    size_t        alloc_len;
-    merr_t        err;
+    size_t alloc_len;
+    merr_t err;
 
     if (ev(!mp || !handle || !idv || !idc))
         return merr(EINVAL);
@@ -173,7 +174,7 @@ mbset_create(
      * - array of kvs_mblk_desc
      * - array of udata elements
      */
-    alloc_len  = sizeof(*self);
+    alloc_len = sizeof(*self);
     alloc_len += idc * sizeof(*self->mbs_mblkv);
     alloc_len += idc * udata_sz;
 
@@ -249,10 +250,10 @@ mbset_get_ref(struct mbset *self)
 void
 mbset_put_ref(struct mbset *self)
 {
-    bool            delete_errors = false;
+    bool delete_errors = false;
     mbset_callback *callback;
-    void *          rock;
-    int             v;
+    void *rock;
+    int v;
 
     v = atomic_dec_return(&self->mbs_ref);
 

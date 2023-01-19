@@ -7,10 +7,9 @@
 
 #include <stdint.h>
 
-#include <hse/ikvdb/kvdb_ctxn.h>
 #include <hse/ikvdb/c0_kvset.h>
 #include <hse/ikvdb/cursor.h>
-
+#include <hse/ikvdb/kvdb_ctxn.h>
 #include <hse/util/bonsai_tree.h>
 #include <hse/util/element_source.h>
 #include <hse/util/key_util.h>
@@ -19,14 +18,14 @@
 
 void
 bonsai_iter_init(
-    struct bonsai_iter * iter,
+    struct bonsai_iter *iter,
     struct bonsai_root **root,
-    int                  skidx,
-    uint64_t             view_seq,
-    uint64_t             horizon_seq,
-    uintptr_t            seqnoref,
-    bool                 reverse,
-    bool                 ptomb_tree)
+    int skidx,
+    uint64_t view_seq,
+    uint64_t horizon_seq,
+    uintptr_t seqnoref,
+    bool reverse,
+    bool ptomb_tree)
 {
     iter->bi_root = root;
     iter->bi_kv = NULL; /* Set at first read */
@@ -48,10 +47,10 @@ bonsai_iter_update(struct bonsai_iter *iter, uint64_t view_seq, uint64_t horizon
 void
 bonsai_iter_seek(struct bonsai_iter *iter, const void *key, size_t klen)
 {
-    struct bonsai_skey  skey;
-    struct bonsai_kv *  kv = NULL;
+    struct bonsai_skey skey;
+    struct bonsai_kv *kv = NULL;
     struct bonsai_root *root;
-    bool                found;
+    bool found;
 
     assert(rcu_read_ongoing());
 
@@ -69,10 +68,10 @@ bonsai_iter_seek(struct bonsai_iter *iter, const void *key, size_t klen)
 void
 bonsai_iter_position(struct bonsai_iter *iter, const void *key, size_t klen)
 {
-    struct bonsai_skey  skey;
-    struct bonsai_kv *  kv = NULL;
+    struct bonsai_skey skey;
+    struct bonsai_kv *kv = NULL;
     struct bonsai_root *root;
-    bool                found;
+    bool found;
 
     assert(rcu_read_ongoing());
 
@@ -91,7 +90,7 @@ bonsai_iter_position(struct bonsai_iter *iter, const void *key, size_t klen)
 static struct bonsai_kv *
 get_next(struct bonsai_iter *iter)
 {
-    struct bonsai_kv *  bkv;
+    struct bonsai_kv *bkv;
     struct bonsai_root *root;
 
     if (!iter->bi_kv)
@@ -118,9 +117,9 @@ get_next(struct bonsai_iter *iter)
 static bool
 bonsai_iter_next(struct element_source *es, void **element)
 {
-    struct bonsai_iter *       iter = container_of(es, struct bonsai_iter, bi_es);
-    struct bonsai_kv *         bkv;
-    struct bonsai_val *        val;
+    struct bonsai_iter *iter = container_of(es, struct bonsai_iter, bi_es);
+    struct bonsai_kv *bkv;
+    struct bonsai_val *val;
     struct kvs_cursor_element *elem;
 
     if (es->es_eof)
@@ -134,7 +133,7 @@ bonsai_iter_next(struct element_source *es, void **element)
 
     do {
         enum hse_seqno_state state;
-        uint64_t             seqno;
+        uint64_t seqno;
 
         bkv = get_next(iter);
         if (!bkv) {
@@ -184,7 +183,7 @@ static bool
 bonsai_ingest_iter_next(struct element_source *es, void **element)
 {
     struct bonsai_ingest_iter *iter = container_of(es, struct bonsai_ingest_iter, bii_es);
-    struct bonsai_root *       root;
+    struct bonsai_root *root;
 
     rcu_read_lock();
 
@@ -194,7 +193,7 @@ bonsai_ingest_iter_next(struct element_source *es, void **element)
         iter->bii_kv = &root->br_kv;
 
     while (!es->es_eof) {
-        struct bonsai_kv * bkv;
+        struct bonsai_kv *bkv;
         struct bonsai_val *val;
 
         iter->bii_kv = bkv = rcu_dereference(iter->bii_kv->bkv_next);
@@ -210,7 +209,7 @@ bonsai_ingest_iter_next(struct element_source *es, void **element)
          * thread.
          */
         for (val = rcu_dereference(bkv->bkv_values); val; val = rcu_dereference(val->bv_next)) {
-            uint64_t             seqno;
+            uint64_t seqno;
             enum hse_seqno_state state;
 
             state = seqnoref_to_seqno(val->bv_seqnoref, &seqno);
@@ -235,9 +234,9 @@ bonsai_ingest_iter_next(struct element_source *es, void **element)
 struct element_source *
 bonsai_ingest_iter_init(
     struct bonsai_ingest_iter *iter,
-    uint64_t                   min_seqno,
-    uint64_t                   max_seqno,
-    struct bonsai_root **      rootp)
+    uint64_t min_seqno,
+    uint64_t max_seqno,
+    struct bonsai_root **rootp)
 {
     iter->bii_rootp = rootp;
     iter->bii_es = es_make(bonsai_ingest_iter_next, 0, 0);

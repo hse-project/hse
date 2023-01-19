@@ -37,25 +37,25 @@ cn_tree_route_put(struct cn_tree *tree, struct route_node *node);
 /* MTF_MOCK */
 merr_t
 cn_tree_lookup(
-    struct cn_tree *     tree,
-    struct perfc_set *   pc,
-    struct kvs_ktuple *  kt,
-    uint64_t             seq,
+    struct cn_tree *tree,
+    struct perfc_set *pc,
+    struct kvs_ktuple *kt,
+    uint64_t seq,
     enum key_lookup_res *res,
-    struct kvs_buf *     kbuf,
-    struct kvs_buf *     vbuf);
+    struct kvs_buf *kbuf,
+    struct kvs_buf *vbuf);
 
 /* MTF_MOCK */
 merr_t
 cn_tree_prefix_probe(
-    struct cn_tree *     tree,
-    struct perfc_set *   pc,
-    struct kvs_ktuple *  kt,
-    uint64_t             seq,
+    struct cn_tree *tree,
+    struct perfc_set *pc,
+    struct kvs_ktuple *kt,
+    uint64_t seq,
     enum key_lookup_res *res,
-    struct query_ctx *   qctx,
-    struct kvs_buf *     kbuf,
-    struct kvs_buf *     vbuf);
+    struct query_ctx *qctx,
+    struct kvs_buf *kbuf,
+    struct kvs_buf *vbuf);
 
 /* Return true if the cn_tree is capped. */
 bool

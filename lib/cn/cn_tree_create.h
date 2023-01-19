@@ -35,8 +35,8 @@ struct cn_tree_node;
 /* MTF_MOCK */
 merr_t
 cn_tree_create(
-    struct cn_tree **   tree,
-    uint32_t            cn_cflags,
+    struct cn_tree **tree,
+    uint32_t cn_cflags,
     struct kvs_cparams *cp,
     struct kvdb_health *health,
     struct kvs_rparams *rp);
@@ -64,13 +64,13 @@ cn_tree_destroy(struct cn_tree *tree);
 /* MTF_MOCK */
 void
 cn_tree_setup(
-    struct cn_tree *    tree,
-    struct mpool *      mp,
-    struct cn *         cn,
+    struct cn_tree *tree,
+    struct mpool *mp,
+    struct cn *cn,
     struct kvs_rparams *rp,
-    struct cndb *       cndb,
-    uint64_t            cnid,
-    struct cn_kvdb *    cn_kvdb);
+    struct cndb *cndb,
+    uint64_t cnid,
+    struct cn_kvdb *cn_kvdb);
 
 /**
  * cn_tree_insert_kvset() - Add kvset to a tree node during tree initialization

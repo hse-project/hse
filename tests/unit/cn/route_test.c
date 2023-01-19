@@ -3,14 +3,13 @@
  * Copyright (C) 2022 Micron Technology, Inc.  All rights reserved.
  */
 
+#include <cn/cn_tree_internal.h>
+#include <cn/route.h>
+#include <mock/api.h>
 #include <mtf/conditions.h>
 #include <mtf/framework.h>
-#include <mock/api.h>
 
 #include <hse/ikvdb/cn.h>
-
-#include <cn/route.h>
-#include <cn/cn_tree_internal.h>
 
 MTF_BEGIN_UTEST_COLLECTION(route_test)
 

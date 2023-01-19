@@ -4,9 +4,9 @@
  */
 
 #include <errno.h>
-#include <sysexits.h>
 #include <stddef.h>
 #include <stdio.h>
+#include <sysexits.h>
 
 #include <hse/hse.h>
 
@@ -25,9 +25,8 @@
 int
 main(int argc, const char **argv)
 {
-    hse_err_t    err = 0;
-    const char * paramv[] = { "logging.destination=stdout",
-                             "logging.level=3",
+    hse_err_t err = 0;
+    const char *paramv[] = { "logging.destination=stdout", "logging.level=3",
                              "rest.enabled=false" };
     const size_t paramc = sizeof(paramv) / sizeof(paramv[0]);
 
@@ -46,7 +45,7 @@ main(int argc, const char **argv)
     }
 
     if (hse_err_to_errno(err) == EINVAL) {
-        char   buf[256];
+        char buf[256];
         size_t n;
 
         n = hse_strerror(err, buf, sizeof(buf));

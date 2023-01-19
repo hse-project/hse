@@ -53,12 +53,12 @@ fmt_pe_buf_size(size_t len)
  */
 size_t
 fmt_hexp(
-    void *      dst,
-    size_t      dst_len,
+    void *dst,
+    size_t dst_len,
     const void *src,
-    size_t      src_len,
+    size_t src_len,
     const char *prefix,
-    size_t      grp,
+    size_t grp,
     const char *grp_sep,
     const char *suffix);
 

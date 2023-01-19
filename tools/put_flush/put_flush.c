@@ -10,10 +10,10 @@
 #include <errno.h>
 #include <stdbool.h>
 #include <stdint.h>
-#include <string.h>
-#include <unistd.h>
 #include <stdio.h>
+#include <string.h>
 #include <sysexits.h>
+#include <unistd.h>
 
 #include <hse/hse.h>
 #include <hse/limits.h>
@@ -22,7 +22,7 @@
 
 #include "kvs_helper.h"
 
-static int  err;
+static int err;
 static bool killthreads;
 
 void
@@ -32,7 +32,7 @@ flush_kvs(void *arg)
 
     while (!killthreads) {
         hse_kvdb_sync(targ->kvdb, HSE_KVDB_SYNC_ASYNC);
-        usleep(10*1000);
+        usleep(10 * 1000);
     }
 }
 
@@ -54,14 +54,13 @@ put(void *arg)
             killthreads = true;
         }
     }
-
 }
 
 void
 seq_inc(void *arg)
 {
-    struct kh_thread_arg  *targ = arg;
-    struct hse_kvdb_txn    *txn = hse_kvdb_txn_alloc(targ->kvdb);
+    struct kh_thread_arg *targ = arg;
+    struct hse_kvdb_txn *txn = hse_kvdb_txn_alloc(targ->kvdb);
 
     while (!killthreads) {
 
@@ -76,11 +75,11 @@ int
 main(int argc, char **argv)
 {
     struct parm_groups *pg = NULL;
-    struct svec         hse_gparms = { 0 };
-    struct svec         kvdb_oparms = { 0 };
-    struct svec         kvs_cparms = { 0 };
-    struct svec         kvs_oparms = { 0 };
-    const char *        mpool;
+    struct svec hse_gparms = { 0 };
+    struct svec kvdb_oparms = { 0 };
+    struct svec kvs_cparms = { 0 };
+    struct svec kvs_oparms = { 0 };
+    const char *mpool;
     int i;
     int rc;
     int optindex = 0;
@@ -103,8 +102,7 @@ main(int argc, char **argv)
             fatal(0, "unknown parameter: %s", argv[optind]);
         break;
     case EINVAL:
-        fatal(0, "missing group name (e.g. %s) before parameter %s\n",
-            PG_KVDB_OPEN, argv[optind]);
+        fatal(0, "missing group name (e.g. %s) before parameter %s\n", PG_KVDB_OPEN, argv[optind]);
         break;
     default:
         fatal(rc, "error processing parameter %s\n", argv[optind]);

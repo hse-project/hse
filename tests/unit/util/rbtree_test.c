@@ -3,16 +3,14 @@
  * Copyright (C) 2015-2022 Micron Technology, Inc.  All rights reserved.
  */
 
+#include <rbtree.h>
 #include <stdint.h>
 
-#include <rbtree.h>
-
-#include <hse/util/base.h>
-#include <hse/util/xrand.h>
+#include <mtf/framework.h>
 
 #include <hse/logging/logging.h>
-
-#include <mtf/framework.h>
+#include <hse/util/base.h>
+#include <hse/util/xrand.h>
 
 int verbose = 0;
 
@@ -20,14 +18,14 @@ static struct rb_root tree;
 
 struct entry {
     struct rb_node entry_node;
-    int            key;
-    int            value;
+    int key;
+    int value;
 };
 
 #define key2value(KEY) ((KEY) + 0x12340000)
 
 struct test_set {
-    int  num_entries;
+    int num_entries;
     int *ordered_keys;
     int *shuffled_keys;
 };
@@ -35,10 +33,10 @@ struct test_set {
 struct test_set *
 test_set_create(int num_entries, uint32_t seed)
 {
-    struct xrand     xr;
+    struct xrand xr;
     struct test_set *ts;
-    int              key;
-    int              i;
+    int key;
+    int i;
 
     if (num_entries < 0 || num_entries > 100000) {
         log_err("num_entries out of range!\n");
@@ -121,9 +119,9 @@ static void
 insert(int key, bool expect_success, struct mtf_test_info *lcl_ti)
 {
     struct rb_node **link = &tree.rb_node;
-    struct rb_node * parent = NULL;
+    struct rb_node *parent = NULL;
 
-    int  value = key2value(key);
+    int value = key2value(key);
     bool found = false;
 
     if (verbose)
@@ -162,8 +160,8 @@ static void
 _remove_entry(int key, bool expect_success, int value, struct mtf_test_info *lcl_ti)
 {
     struct rb_node *node = tree.rb_node;
-    struct entry *  entry = NULL;
-    bool            found = false;
+    struct entry *entry = NULL;
+    bool found = false;
 
     /* Needed for ASSERT* macros */
 
@@ -202,8 +200,8 @@ static void
 lookup(int key, bool expect_success, struct mtf_test_info *lcl_ti)
 {
     struct rb_node *node = tree.rb_node;
-    struct entry *  entry = NULL;
-    bool            found = false;
+    struct entry *entry = NULL;
+    bool found = false;
 
     if (verbose)
         log_info("lookup %d %d\n", key, expect_success);
@@ -298,7 +296,8 @@ test_case_post(struct mtf_test_info *ti)
 {
     struct entry *node, *next;
 
-    rbtree_postorder_for_each_entry_safe(node, next, &tree, entry_node) {
+    rbtree_postorder_for_each_entry_safe(node, next, &tree, entry_node)
+    {
         free(node);
     }
 
@@ -350,10 +349,10 @@ MTF_DEFINE_UTEST_PREPOST(rbtree, remove_non_existing, test_case_pre, test_case_p
 
 MTF_DEFINE_UTEST_PREPOST(rbtree, iterate, test_case_pre, test_case_post)
 {
-    int             i;
-    int             count = 100;
+    int i;
+    int count = 100;
     struct rb_node *node;
-    struct entry *  entry;
+    struct entry *entry;
 
     /* insert in order */
     for (i = 0; i < count; i++)
@@ -390,8 +389,8 @@ MTF_DEFINE_UTEST_PREPOST(rbtree, shuffle_test, test_case_pre, test_case_post)
     int num_entries = 1000;
     uint32_t seed = 1111;
 
-    struct rb_node * node;
-    struct entry *   entry;
+    struct rb_node *node;
+    struct entry *entry;
     struct test_set *ts;
 
     ts = test_set_create(num_entries, seed);
@@ -426,8 +425,8 @@ MTF_DEFINE_UTEST_PREPOST(rbtree, mixed, test_case_pre, test_case_post)
     int num_entries = 1000;
     uint32_t seed = 2222;
 
-    struct rb_node * node;
-    struct entry *   entry;
+    struct rb_node *node;
+    struct entry *entry;
     struct test_set *ts;
 
     ts = test_set_create(num_entries, seed);

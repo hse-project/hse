@@ -5,16 +5,14 @@
 
 #include <stdint.h>
 
+#include <cn/kblock_reader.h>
+#include <cn/omf.h>
+#include <cn/wbt_internal.h>
+#include <cn/wbt_reader.h>
+#include <mocks/mock_mpool.h>
 #include <mtf/framework.h>
 
 #include <hse/logging/logging.h>
-
-#include <cn/omf.h>
-#include <cn/wbt_reader.h>
-#include <cn/wbt_internal.h>
-#include <cn/kblock_reader.h>
-
-#include <mocks/mock_mpool.h>
 
 char data_path[PATH_MAX];
 
@@ -30,7 +28,7 @@ int
 test_collection_setup(struct mtf_test_info *info)
 {
     struct mtf_test_coll_info *coll_info = info->ti_coll;
-    int                        len, idx;
+    int len, idx;
 
     if (coll_info->tci_argc - coll_info->tci_optind != 1) {
         log_err("Usage: %s [test framework options] <mblock_image_dir>", coll_info->tci_argv[0]);
@@ -58,19 +56,19 @@ test_collection_teardown(struct mtf_test_info *info)
 void
 t_wbtr_read_vref_helper(struct mtf_test_info *lcl_ti, const char *kblock_image_file)
 {
-    merr_t                err;
-    struct mpool *        mp_ds = (void *)-1;
-    struct wbt_desc       desc = {};
-    void *                wbt_hdr;
-    char                  keybuf[100];
-    struct kvs_ktuple     ktuple;
-    enum key_lookup_res   lookup_res;
+    merr_t err;
+    struct mpool *mp_ds = (void *)-1;
+    struct wbt_desc desc = {};
+    void *wbt_hdr;
+    char keybuf[100];
+    struct kvs_ktuple ktuple;
+    enum key_lookup_res lookup_res;
     struct kvs_vtuple_ref vref;
-    int                   i, nkeys;
-    char                  filename[PATH_MAX];
-    struct kvs_mblk_desc  blkdesc = {};
-    uint64_t              seqno, blkid;
-    int                   rc;
+    int i, nkeys;
+    char filename[PATH_MAX];
+    struct kvs_mblk_desc blkdesc = {};
+    uint64_t seqno, blkid;
+    int rc;
 
     rc = snprintf(filename, sizeof(filename), "%s/%s", data_path, kblock_image_file);
     ASSERT_LT(rc, sizeof(filename));
@@ -110,9 +108,9 @@ t_wbtr_read_vref_helper(struct mtf_test_info *lcl_ti, const char *kblock_image_f
     }
 
     struct wbti *wbti;
-    const void * kdata;
-    uint         klen;
-    const void * kmd;
+    const void *kdata;
+    uint klen;
+    const void *kmd;
 
     snprintf(keybuf, sizeof(keybuf), "key");
     ktuple.kt_hash = 0;

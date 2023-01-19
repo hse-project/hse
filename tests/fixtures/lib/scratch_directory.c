@@ -21,10 +21,10 @@ static char *scratch_directory_copy;
 
 static int
 remove_cb(
-    const char *const fpath,
-    const struct stat *const sb,
+    const char * const fpath,
+    const struct stat * const sb,
     int typeflag,
-    struct FTW *const ftwbuf)
+    struct FTW * const ftwbuf)
 {
     remove(fpath);
     return 0;
@@ -45,7 +45,7 @@ cleanup()
 }
 
 merr_t
-scratch_directory_setup(const char *const ident, char *const buf, const size_t buf_sz)
+scratch_directory_setup(const char * const ident, char * const buf, const size_t buf_sz)
 {
     int rc;
     const char *parent;
@@ -65,8 +65,9 @@ touch:
     if (parent[0] == '\0')
         return merr(EINVAL);
 
-    rc = snprintf(buf, buf_sz, "%s%smtest-%s-XXXXXX",
-        parent, parent[strlen(parent) - 1] == '/' ? "" : "/", ident);
+    rc = snprintf(
+        buf, buf_sz, "%s%smtest-%s-XXXXXX", parent, parent[strlen(parent) - 1] == '/' ? "" : "/",
+        ident);
     if (rc >= buf_sz) {
         return merr(ENAMETOOLONG);
     } else if (rc < 0) {

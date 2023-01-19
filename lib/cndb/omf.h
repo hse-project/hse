@@ -8,10 +8,11 @@
 
 #include <stdint.h>
 
-#include <hse/util/omf.h>
-#include <hse/util/compiler.h>
 #include <hse/limits.h>
+
 #include <hse/error/merr.h>
+#include <hse/util/compiler.h>
+#include <hse/util/omf.h>
 
 struct mpool_mdc;
 struct kvs_cparams;
@@ -70,7 +71,6 @@ struct cndb_kvsetid_omf {
 
 OMF_SETGET(struct cndb_kvsetid_omf, cndb_kvsetid, 64);
 
-
 /**
  * struct cndb_hdr_omf - Identify the type and length of a record.
  */
@@ -82,28 +82,26 @@ struct cndb_hdr_omf {
 OMF_SETGET(struct cndb_hdr_omf, cnhdr_type, 32);
 OMF_SETGET(struct cndb_hdr_omf, cnhdr_len, 32);
 
-
 /**
  * struct cndb_ver_omf
  */
 struct cndb_ver_omf {
     struct cndb_hdr_omf hdr;
-    uint32_t            cnver_magic;
-    uint32_t            cnver_version;
-    uint64_t            cnver_captgt;
+    uint32_t cnver_magic;
+    uint32_t cnver_version;
+    uint64_t cnver_captgt;
 } HSE_PACKED;
 
 OMF_SETGET(struct cndb_ver_omf, cnver_magic, 32);
 OMF_SETGET(struct cndb_ver_omf, cnver_version, 32);
 OMF_SETGET(struct cndb_ver_omf, cnver_captgt, 64);
 
-
 struct cndb_kvs_add_omf {
     struct cndb_hdr_omf hdr;
-    uint32_t            kvs_add_pfxlen;
-    uint32_t            kvs_add_flags;
-    uint64_t            kvs_add_cnid;
-    uint8_t             kvs_add_name[HSE_KVS_NAME_LEN_MAX];
+    uint32_t kvs_add_pfxlen;
+    uint32_t kvs_add_flags;
+    uint64_t kvs_add_cnid;
+    uint8_t kvs_add_name[HSE_KVS_NAME_LEN_MAX];
 } HSE_PACKED;
 
 OMF_SETGET(struct cndb_kvs_add_omf, kvs_add_pfxlen, 32);
@@ -113,7 +111,7 @@ OMF_SETGET_CHBUF(struct cndb_kvs_add_omf, kvs_add_name);
 
 struct cndb_kvs_del_omf {
     struct cndb_hdr_omf hdr;
-    uint64_t            kvs_del_cnid;
+    uint64_t kvs_del_cnid;
 } HSE_PACKED;
 
 OMF_SETGET(struct cndb_kvs_del_omf, kvs_del_cnid, 64);
@@ -125,21 +123,20 @@ OMF_SETGET(struct cndb_kvs_del_omf, kvs_del_cnid, 64);
  */
 struct cndb_meta_omf {
     struct cndb_hdr_omf hdr;
-    uint64_t            cnmeta_seqno_max;
+    uint64_t cnmeta_seqno_max;
 } HSE_PACKED;
 
 OMF_SETGET(struct cndb_meta_omf, cnmeta_seqno_max, 64);
 
-
 struct cndb_txstart_omf {
     struct cndb_hdr_omf hdr;
-    uint64_t            txstart_id;
-    uint64_t            txstart_seqno;
-    uint64_t            txstart_ingestid;
-    uint64_t            txstart_txhorizon;
-    uint16_t            txstart_add_cnt;
-    uint16_t            txstart_del_cnt;
-    uint32_t            txstart_del_pad;
+    uint64_t txstart_id;
+    uint64_t txstart_seqno;
+    uint64_t txstart_ingestid;
+    uint64_t txstart_txhorizon;
+    uint16_t txstart_add_cnt;
+    uint16_t txstart_del_cnt;
+    uint32_t txstart_del_pad;
 } HSE_PACKED;
 
 OMF_SETGET(struct cndb_txstart_omf, txstart_id, 64);
@@ -171,20 +168,20 @@ OMF_SETGET(struct cndb_txstart_omf, txstart_del_cnt, 16);
  */
 struct cndb_kvset_add_omf {
     struct cndb_hdr_omf hdr;
-    uint64_t            kvset_add_cnid;
-    uint64_t            kvset_add_txid;
-    uint64_t            kvset_add_kvsetid;
-    uint64_t            kvset_add_nodeid;
-    uint64_t            kvset_add_dgen_hi;
-    uint64_t            kvset_add_dgen_lo;
-    uint64_t            kvset_add_vused;
-    uint64_t            kvset_add_vgarb;
-    uint32_t            kvset_add_compc;
-    uint16_t            kvset_add_rule;
-    uint16_t            kvset_add_pad;
-    uint64_t            kvset_add_hblkid;
-    uint32_t            kvset_add_kblk_cnt;
-    uint32_t            kvset_add_vblk_cnt;
+    uint64_t kvset_add_cnid;
+    uint64_t kvset_add_txid;
+    uint64_t kvset_add_kvsetid;
+    uint64_t kvset_add_nodeid;
+    uint64_t kvset_add_dgen_hi;
+    uint64_t kvset_add_dgen_lo;
+    uint64_t kvset_add_vused;
+    uint64_t kvset_add_vgarb;
+    uint32_t kvset_add_compc;
+    uint16_t kvset_add_rule;
+    uint16_t kvset_add_pad;
+    uint64_t kvset_add_hblkid;
+    uint32_t kvset_add_kblk_cnt;
+    uint32_t kvset_add_vblk_cnt;
 } HSE_PACKED;
 
 OMF_SETGET(struct cndb_kvset_add_omf, kvset_add_cnid, 64);
@@ -220,9 +217,9 @@ OMF_SETGET(struct cndb_kvset_add_omf, kvset_add_vblk_cnt, 32);
  */
 struct cndb_kvset_del_omf {
     struct cndb_hdr_omf hdr;
-    uint64_t            kvset_del_txid;
-    uint64_t            kvset_del_cnid;
-    uint64_t            kvset_del_kvsetid;
+    uint64_t kvset_del_txid;
+    uint64_t kvset_del_cnid;
+    uint64_t kvset_del_kvsetid;
     /* an array of kvset_del_id_cnt mblock OIDs appears here */
 } HSE_PACKED;
 
@@ -238,12 +235,12 @@ OMF_SETGET(struct cndb_kvset_del_omf, kvset_del_kvsetid, 64);
  */
 struct cndb_kvset_move_omf {
     struct cndb_hdr_omf hdr;
-    uint64_t            kvset_move_cnid;
-    uint64_t            kvset_move_src_nodeid;
-    uint64_t            kvset_move_tgt_nodeid;
-    uint32_t            kvset_move_pad;
-    uint32_t            kvset_move_kvset_idc;
-    uint64_t            kvset_move_kvset_idv[];
+    uint64_t kvset_move_cnid;
+    uint64_t kvset_move_src_nodeid;
+    uint64_t kvset_move_tgt_nodeid;
+    uint32_t kvset_move_pad;
+    uint32_t kvset_move_kvset_idc;
+    uint64_t kvset_move_kvset_idv[];
 } HSE_PACKED;
 
 OMF_SETGET(struct cndb_kvset_move_omf, kvset_move_cnid, 64);
@@ -275,11 +272,11 @@ enum {
  */
 struct cndb_ack_omf {
     struct cndb_hdr_omf hdr;
-    uint64_t            ack_txid;
-    uint64_t            ack_cnid;
-    uint64_t            ack_kvsetid;
-    uint32_t            ack_type;
-    uint32_t            ack_pad;
+    uint64_t ack_txid;
+    uint64_t ack_cnid;
+    uint64_t ack_kvsetid;
+    uint32_t ack_type;
+    uint32_t ack_pad;
 } HSE_PACKED;
 
 OMF_SETGET(struct cndb_ack_omf, ack_txid, 64);
@@ -287,13 +284,12 @@ OMF_SETGET(struct cndb_ack_omf, ack_type, 32);
 OMF_SETGET(struct cndb_ack_omf, ack_kvsetid, 64);
 OMF_SETGET(struct cndb_ack_omf, ack_cnid, 64);
 
-
 /**
  * struct cndb_nak_omf
  */
 struct cndb_nak_omf {
     struct cndb_hdr_omf hdr;
-    uint64_t            nak_txid;
+    uint64_t nak_txid;
 } HSE_PACKED;
 
 OMF_SETGET(struct cndb_nak_omf, nak_txid, 64);
@@ -310,10 +306,10 @@ cndb_omf_meta_write(struct mpool_mdc *mdc, uint64_t seqno_max);
 
 merr_t
 cndb_omf_kvs_add_write(
-    struct mpool_mdc    *mdc,
-    uint64_t             cnid,
-    struct kvs_cparams  *cp,
-    const char          *name);
+    struct mpool_mdc *mdc,
+    uint64_t cnid,
+    struct kvs_cparams *cp,
+    const char *name);
 
 merr_t
 cndb_omf_kvs_del_write(struct mpool_mdc *mdc, uint64_t cnid);
@@ -321,55 +317,51 @@ cndb_omf_kvs_del_write(struct mpool_mdc *mdc, uint64_t cnid);
 merr_t
 cndb_omf_txstart_write(
     struct mpool_mdc *mdc,
-    uint64_t          txid,
-    uint64_t          seqno,
-    uint64_t          ingestid,
-    uint64_t          txhorizon,
-    uint16_t          add_cnt,
-    uint16_t          del_cnt);
+    uint64_t txid,
+    uint64_t seqno,
+    uint64_t ingestid,
+    uint64_t txhorizon,
+    uint16_t add_cnt,
+    uint16_t del_cnt);
 
 merr_t
 cndb_omf_kvset_add_write(
     struct mpool_mdc *mdc,
-    uint64_t          txid,
-    uint64_t          cnid,
-    uint64_t          kvsetid,
-    uint64_t          nodeid,
-    uint64_t          dgen_hi,
-    uint64_t          dgen_lo,
-    uint64_t          vused,
-    uint64_t          vgarb,
-    uint32_t          compc,
-    uint16_t          rule,
-    uint64_t          hblkid,
-    uint32_t          kblkc,
-    uint64_t         *kblkv,
-    uint32_t          vblkc,
-    uint64_t         *vblkv);
+    uint64_t txid,
+    uint64_t cnid,
+    uint64_t kvsetid,
+    uint64_t nodeid,
+    uint64_t dgen_hi,
+    uint64_t dgen_lo,
+    uint64_t vused,
+    uint64_t vgarb,
+    uint32_t compc,
+    uint16_t rule,
+    uint64_t hblkid,
+    uint32_t kblkc,
+    uint64_t *kblkv,
+    uint32_t vblkc,
+    uint64_t *vblkv);
 
 merr_t
-cndb_omf_kvset_del_write(
-    struct mpool_mdc *mdc,
-    uint64_t          txid,
-    uint64_t          cnid,
-    uint64_t          kvsetid);
+cndb_omf_kvset_del_write(struct mpool_mdc *mdc, uint64_t txid, uint64_t cnid, uint64_t kvsetid);
 
 merr_t
 cndb_omf_kvset_move_write(
     struct mpool_mdc *mdc,
-    uint64_t          cnid,
-    uint64_t          src_nodeid,
-    uint64_t          tgt_nodeid,
-    uint32_t          kvset_idc,
-    const uint64_t   *kvset_idv);
+    uint64_t cnid,
+    uint64_t src_nodeid,
+    uint64_t tgt_nodeid,
+    uint32_t kvset_idc,
+    const uint64_t *kvset_idv);
 
 merr_t
 cndb_omf_ack_write(
     struct mpool_mdc *mdc,
-    uint64_t          txid,
-    uint64_t          cnid,
-    unsigned int      type,
-    uint64_t          kvsetid);
+    uint64_t txid,
+    uint64_t cnid,
+    unsigned int type,
+    uint64_t kvsetid);
 
 merr_t
 cndb_omf_nak_write(struct mpool_mdc *mdc, uint64_t txid);
@@ -381,83 +373,73 @@ cndb_omf_nak_write(struct mpool_mdc *mdc, uint64_t txid);
 struct kvset_meta;
 
 void
-cndb_omf_ver_read(
-    struct cndb_ver_omf *omf,
-    uint32_t            *magic,
-    uint16_t            *version,
-    size_t              *size);
+cndb_omf_ver_read(struct cndb_ver_omf *omf, uint32_t *magic, uint16_t *version, size_t *size);
 
 void
-cndb_omf_meta_read(
-    struct cndb_meta_omf *omf,
-    uint64_t            *seqno_max);
+cndb_omf_meta_read(struct cndb_meta_omf *omf, uint64_t *seqno_max);
 
 void
 cndb_omf_kvs_add_read(
     struct cndb_kvs_add_omf *omf,
-    struct kvs_cparams      *cp,
-    uint64_t                *cnid,
-    char                    *namebuf,
-    size_t                   namebufsz);
+    struct kvs_cparams *cp,
+    uint64_t *cnid,
+    char *namebuf,
+    size_t namebufsz);
 
 void
-cndb_omf_kvs_del_read(
-    struct cndb_kvs_del_omf *omf,
-    uint64_t                *cnid);
+cndb_omf_kvs_del_read(struct cndb_kvs_del_omf *omf, uint64_t *cnid);
 
 void
 cndb_omf_kvset_move_read(
     struct cndb_kvset_move_omf *omf,
-    uint64_t                   *cnid,
-    uint64_t                   *src_nodeid,
-    uint64_t                   *tgt_nodeid,
-    uint32_t                   *kvset_idc,
-    uint64_t                  **kvset_idv);
+    uint64_t *cnid,
+    uint64_t *src_nodeid,
+    uint64_t *tgt_nodeid,
+    uint32_t *kvset_idc,
+    uint64_t **kvset_idv);
 
 void
 cndb_omf_txstart_read(
     struct cndb_txstart_omf *omf,
-    uint64_t                *txid,
-    uint64_t                *seqno,
-    uint64_t                *ingestid,
-    uint64_t                *txhorizon,
-    uint16_t                *add_cnt,
-    uint16_t                *del_cnt);
+    uint64_t *txid,
+    uint64_t *seqno,
+    uint64_t *ingestid,
+    uint64_t *txhorizon,
+    uint16_t *add_cnt,
+    uint16_t *del_cnt);
 
 /* This function modifies the input buffer (omf).
  */
 void
 cndb_omf_kvset_add_read(
     struct cndb_kvset_add_omf *omf,
-    uint64_t                  *txid,
-    uint64_t                  *cnid,
-    uint64_t                  *kvsetid,
-    uint64_t                  *nodeid,
-    uint64_t                  *hblkid,
-    unsigned int              *kblkc,
-    uint64_t                 **kblkv,
-    unsigned int              *vblkc,
-    uint64_t                 **vblkv,
-    struct kvset_meta         *km);
+    uint64_t *txid,
+    uint64_t *cnid,
+    uint64_t *kvsetid,
+    uint64_t *nodeid,
+    uint64_t *hblkid,
+    unsigned int *kblkc,
+    uint64_t **kblkv,
+    unsigned int *vblkc,
+    uint64_t **vblkv,
+    struct kvset_meta *km);
 
 void
 cndb_omf_kvset_del_read(
     struct cndb_kvset_del_omf *omf,
-    uint64_t                  *txid,
-    uint64_t                  *cnid,
-    uint64_t                  *kvsetid);
+    uint64_t *txid,
+    uint64_t *cnid,
+    uint64_t *kvsetid);
 
 void
 cndb_omf_ack_read(
     struct cndb_ack_omf *omf,
-    uint64_t            *txid,
-    uint64_t            *cnid,
-    unsigned int        *type,
-    uint64_t            *kvsetid);
+    uint64_t *txid,
+    uint64_t *cnid,
+    unsigned int *type,
+    uint64_t *kvsetid);
 
 void
-cndb_omf_nak_read(
-    struct cndb_nak_omf *omf,
-    uint64_t            *txid);
+cndb_omf_nak_read(struct cndb_nak_omf *omf, uint64_t *txid);
 
 #endif /* HSE_KVS_CNDB_OMF_H */

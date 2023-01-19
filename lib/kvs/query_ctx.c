@@ -3,11 +3,10 @@
  * Copyright (C) 2015-2020 Micron Technology, Inc.  All rights reserved.
  */
 
-#include <hse/util/hash.h>
-#include <hse/util/event_counter.h>
-#include <hse/util/map.h>
-
 #include <hse/ikvdb/query_ctx.h>
+#include <hse/util/event_counter.h>
+#include <hse/util/hash.h>
+#include <hse/util/map.h>
 
 merr_t
 qctx_tomb_insert(struct query_ctx *qctx, const void *key, size_t klen)

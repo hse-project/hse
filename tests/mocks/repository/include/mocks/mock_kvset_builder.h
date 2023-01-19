@@ -11,7 +11,7 @@ struct kvs_rparams;
 struct mtf_test_info;
 
 struct mock_kvset_builder {
-    struct kvs_rparams *  rp;
+    struct kvs_rparams *rp;
     struct mtf_test_info *lcl_ti;
 };
 

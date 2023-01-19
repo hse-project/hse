@@ -11,17 +11,17 @@
 #include <getopt.h>
 #include <stdint.h>
 #include <stdlib.h>
-#include <sys/resource.h>
 #include <sysexits.h>
+#include <xoroshiro.h>
 
 #include <hdr/hdr_histogram.h>
-#include <xoroshiro.h>
+#include <sys/resource.h>
 
 #include <hse/cli/param.h>
 #include <hse/cli/program.h>
-#include <hse/util/platform.h>
 #include <hse/util/atomic.h>
 #include <hse/util/compiler.h>
+#include <hse/util/platform.h>
 
 #include "kvs_helper.h"
 
@@ -52,22 +52,22 @@ enum phase {
 struct opts {
     char *blens;
     char *vsep;
-    uint  threads;
-    uint  phase;
-    uint  nkeys;
-    uint  vlen;
-    uint  duration;
-    uint  range;
-    bool  verify;
-    bool  use_update;
-    uint  warmup;
+    uint threads;
+    uint phase;
+    uint nkeys;
+    uint vlen;
+    uint duration;
+    uint range;
+    bool verify;
+    bool use_update;
+    uint warmup;
     char *tests;
     char *keyfmt;
 } opts = {
     .threads = 96,
     .phase = NONE,
-    .vlen  = 1024,
-    .nkeys  = 100,
+    .vlen = 1024,
+    .nkeys = 100,
     .duration = 300,
     .range = 42,
     .verify = false,
@@ -83,15 +83,13 @@ atomic_ulong n_write HSE_ACP_ALIGNED;
 atomic_ulong n_get HSE_ACP_ALIGNED;
 atomic_ulong n_read HSE_ACP_ALIGNED;
 
-
 uint64_t
 gtod_usec(void)
 {
     struct timeval ctime;
 
     gettimeofday(&ctime, 0);
-    return (uint64_t)ctime.tv_sec * (uint64_t)1000000
-        + (uint64_t)ctime.tv_usec;
+    return (uint64_t)ctime.tv_sec * (uint64_t)1000000 + (uint64_t)ctime.tv_usec;
 }
 
 long
@@ -138,12 +136,12 @@ make_key(int idx, char *kbuf, size_t kbufsz)
 void
 loader(void *arg)
 {
-    struct kh_thread_arg    *targ = arg;
-    struct thread_info   *ti = targ->arg;
-    int                   i;
-    char                  kbuf[HSE_KVS_KEY_LEN_MAX] = {};
-    unsigned char        *val;
-    uint64_t              nwrite;
+    struct kh_thread_arg *targ = arg;
+    struct thread_info *ti = targ->arg;
+    int i;
+    char kbuf[HSE_KVS_KEY_LEN_MAX] = {};
+    unsigned char *val;
+    uint64_t nwrite;
 
     val = malloc(opts.vlen);
     if (!val)
@@ -178,14 +176,14 @@ rand_key(void)
 void
 point_get(void *arg)
 {
-    struct kh_thread_arg    *targ = arg;
-    struct lat_hist      *lat = targ->arg;
-    unsigned char        *vbuf;
-    size_t                vlen;
-    char                  kbuf[HSE_KVS_KEY_LEN_MAX] = {};
+    struct kh_thread_arg *targ = arg;
+    struct lat_hist *lat = targ->arg;
+    unsigned char *vbuf;
+    size_t vlen;
+    char kbuf[HSE_KVS_KEY_LEN_MAX] = {};
 
-    uint64_t              nget;
-    pthread_t             tid = pthread_self();
+    uint64_t nget;
+    pthread_t tid = pthread_self();
 
     xrand64_init(tid);
     pthread_setname_np(tid, __func__);
@@ -196,9 +194,9 @@ point_get(void *arg)
 
     nget = 0;
     while (!stopthreads) {
-        bool     found;
+        bool found;
         uint64_t t_start, dt, i, key_start;
-        uint     klen;
+        uint klen;
 
         key_start = rand_key();
 
@@ -227,15 +225,15 @@ point_get(void *arg)
 void
 cursor(void *arg)
 {
-    struct kh_thread_arg    *targ = arg;
-    struct lat_hist      *lat = targ->arg;
-    char                  kbuf[HSE_KVS_KEY_LEN_MAX] = {};
-    uint                  kbuf_klen;
-    unsigned char        *vbuf;
-    bool                  eof = false;
+    struct kh_thread_arg *targ = arg;
+    struct lat_hist *lat = targ->arg;
+    char kbuf[HSE_KVS_KEY_LEN_MAX] = {};
+    uint kbuf_klen;
+    unsigned char *vbuf;
+    bool eof = false;
 
-    uint64_t              nread;
-    pthread_t             tid = pthread_self();
+    uint64_t nread;
+    pthread_t tid = pthread_self();
 
     xrand64_init(tid);
     pthread_setname_np(tid, __func__);
@@ -246,7 +244,7 @@ cursor(void *arg)
 
     nread = 0;
     while (!stopthreads) {
-        int      i;
+        int i;
         uint64_t t_start;
         uint64_t t_create, t_seek, t_read, t_full;
         uint64_t key_start;
@@ -267,7 +265,7 @@ cursor(void *arg)
         /* read the range of keys */
         for (i = key_start; i < key_start + opts.range; i++) {
             const void *key, *val;
-            size_t      klen, vlen;
+            size_t klen, vlen;
 
             eof = kh_cursor_read(c, &key, &klen, &val, &vlen);
             if (eof)
@@ -314,18 +312,17 @@ print_stats()
         ng = atomic_read(&n_get);
 
         if (second % 20 == 0)
-            printf("\n%18s %8s %12s %8s %12s %8s %12s %8s\n",
-                   "timestamp", "elapsed", "tPut", "iPut", "tRead", "iRead", "tGet", "iGet");
+            printf(
+                "\n%18s %8s %12s %8s %12s %8s %12s %8s\n", "timestamp", "elapsed", "tPut", "iPut",
+                "tRead", "iRead", "tGet", "iGet");
 
-        printf("%18lu %8u %12lu %8lu %12lu %8lu %12lu %8lu\n",
-                gtod_usec(), second,
-                nw, nw - last_writes,
-                nr, nr - last_reads,
-                ng, ng - last_gets);
+        printf(
+            "%18lu %8u %12lu %8lu %12lu %8lu %12lu %8lu\n", gtod_usec(), second, nw,
+            nw - last_writes, nr, nr - last_reads, ng, ng - last_gets);
 
         last_writes = nw;
-        last_reads  = nr;
-        last_gets   = ng;
+        last_reads = nr;
+        last_gets = ng;
 
         second++;
     }
@@ -335,7 +332,7 @@ print_stats()
 void
 syntax(const char *fmt, ...)
 {
-    char    msg[256];
+    char msg[256];
     va_list ap;
 
     va_start(ap, fmt);
@@ -367,11 +364,9 @@ usage(void)
         "-w         Warmup the cache (default: %s)\n"
         "-Z config  path to global config file\n"
         "\n",
-        progname, opts.vsep,
-        opts.duration,  opts.keyfmt ?: "binary", opts.nkeys,
-        opts.threads, opts.tests, opts.use_update ? "true" : "false",
-        opts.verify ? "true" : "false",
-        opts.vlen, opts.warmup ? "true" : "false");
+        progname, opts.vsep, opts.duration, opts.keyfmt ?: "binary", opts.nkeys, opts.threads,
+        opts.tests, opts.use_update ? "true" : "false", opts.verify ? "true" : "false", opts.vlen,
+        opts.warmup ? "true" : "false");
 
     printf(
         "Examples:\n\n"
@@ -379,7 +374,8 @@ usage(void)
         "    %s /mnt/kvdb kvs1 -j96 -p4 -s10000 -l\n\n"
         "  2. Exec:\n"
         "    %s /mnt/kvdb kvs1 -j96 -p4 -s10000 -e -b10,20,25 -d60 -w\n"
-        "\n", progname, progname);
+        "\n",
+        progname, progname);
 }
 
 static void
@@ -399,7 +395,8 @@ print_hist_one(const char *opname, unsigned long cnt, struct hdr_histogram *hist
     lat999 = hdr_value_at_percentile(hist, 99.9);
     lat9999 = hdr_value_at_percentile(hist, 99.99);
 
-    printf(lat_fmt, opname, sample_cnt, min, max, mean, stdev, lat90, lat95, lat99, lat999, lat9999);
+    printf(
+        lat_fmt, opname, sample_cnt, min, max, mean, stdev, lat90, lat95, lat99, lat999, lat9999);
 }
 
 void
@@ -407,7 +404,9 @@ print_hist(struct lat_hist *lat, unsigned long cur_cnt, unsigned long get_cnt)
 {
     const char *hdr_fmt = "%12s %17s %8s %12s %8s %8s %8s %8s %8s %8s %12s\n";
 
-    printf(hdr_fmt, "operation", "samples", "min", "max", "mean", "stddev", "90.0", "95.0", "99.0", "99.9", "99.99");
+    printf(
+        hdr_fmt, "operation", "samples", "min", "max", "mean", "stddev", "90.0", "95.0", "99.0",
+        "99.9", "99.99");
     if (strcasestr(opts.tests, "cursor")) {
         print_hist_one("cur_create", cur_cnt, lat->lat[LAT_CUR_CREATE]);
         print_hist_one("cur_seek", cur_cnt, lat->lat[LAT_CUR_SEEK]);
@@ -420,23 +419,21 @@ print_hist(struct lat_hist *lat, unsigned long cur_cnt, unsigned long get_cnt)
 }
 
 int
-main(
-    int       argc,
-    char    **argv)
+main(int argc, char **argv)
 {
     struct parm_groups *pg = NULL;
-    struct svec         hse_gparms = { 0 };
-    struct svec         kvdb_oparms = { 0 };
-    struct svec         kvs_cparms = { 0 };
-    struct svec         kvs_oparms = { 0 };
-    int                 rc;
-    const char         *mpool, *kvs, *config = NULL;
-    int                 c;
+    struct svec hse_gparms = { 0 };
+    struct svec kvdb_oparms = { 0 };
+    struct svec kvs_cparms = { 0 };
+    struct svec kvs_oparms = { 0 };
+    int rc;
+    const char *mpool, *kvs, *config = NULL;
+    int c;
     struct thread_info *ti = 0;
-    void               *blens_base HSE_MAYBE_UNUSED = NULL;
-    void               *keyfmt_base HSE_MAYBE_UNUSED = NULL;
-    void               *tests_base HSE_MAYBE_UNUSED = NULL;
-    void               *vsep_base HSE_MAYBE_UNUSED = NULL;
+    void *blens_base HSE_MAYBE_UNUSED = NULL;
+    void *keyfmt_base HSE_MAYBE_UNUSED = NULL;
+    void *tests_base HSE_MAYBE_UNUSED = NULL;
+    void *vsep_base HSE_MAYBE_UNUSED = NULL;
 
     progname_set(argv[0]);
 
@@ -537,29 +534,28 @@ main(
     }
 
     mpool = argv[optind++];
-    kvs   = argv[optind++];
+    kvs = argv[optind++];
 
     rc = pg_parse_argv(pg, argc, argv, &optind);
     switch (rc) {
-        case 0:
-            if (optind < argc)
-                fatal(0, "unknown parameter: %s", argv[optind]);
-            break;
-        case EINVAL:
-            fatal(0, "missing group name (e.g. %s) before parameter %s\n",
-                PG_KVDB_OPEN, argv[optind]);
-            break;
-        default:
-            fatal(rc, "error processing parameter %s\n", argv[optind]);
-            break;
+    case 0:
+        if (optind < argc)
+            fatal(0, "unknown parameter: %s", argv[optind]);
+        break;
+    case EINVAL:
+        fatal(0, "missing group name (e.g. %s) before parameter %s\n", PG_KVDB_OPEN, argv[optind]);
+        break;
+    default:
+        fatal(rc, "error processing parameter %s\n", argv[optind]);
+        break;
     }
 
-	rc = rc ?: svec_append_pg(&hse_gparms, pg, PG_HSE_GLOBAL, NULL);
-	rc = rc ?: svec_append_pg(&kvdb_oparms, pg, PG_KVDB_OPEN, NULL);
-	rc = rc ?: svec_append_pg(&kvs_cparms, pg, PG_KVS_CREATE, NULL);
-	rc = rc ?: svec_append_pg(&kvs_oparms, pg, PG_KVS_OPEN, NULL);
-	if (rc)
-		fatal(rc, "failed to parse params\n");
+    rc = rc ?: svec_append_pg(&hse_gparms, pg, PG_HSE_GLOBAL, NULL);
+    rc = rc ?: svec_append_pg(&kvdb_oparms, pg, PG_KVDB_OPEN, NULL);
+    rc = rc ?: svec_append_pg(&kvs_cparms, pg, PG_KVS_CREATE, NULL);
+    rc = rc ?: svec_append_pg(&kvs_oparms, pg, PG_KVS_OPEN, NULL);
+    if (rc)
+        fatal(rc, "failed to parse params\n");
 
     kh_init(config, mpool, &hse_gparms, &kvdb_oparms);
 
@@ -580,7 +576,7 @@ main(
         /* distribute suffixes across jobs */
         for (unsigned int i = 0; i < opts.threads; i++) {
             ti[i].key_start = (uint64_t)thread_share * i;
-            ti[i].key_end   = ti[i].key_start + thread_share;
+            ti[i].key_end = ti[i].key_start + thread_share;
 
             if (i == opts.threads - 1)
                 ti[i].key_end += thread_extra;
@@ -624,7 +620,7 @@ main(
             /* 1. Warm up memory cache using point gets */
             printf("System memory %lu\n", tot_mem);
             printf("Warmup keycnt %u\n", warmup_nkeys);
-            opts.range=1;
+            opts.range = 1;
             atomic_set(&n_get, 0);
             atomic_set(&n_read, 0);
 
@@ -644,15 +640,15 @@ main(
         s = strsep(&opts.blens, ",.;:/");
         while (s) {
             uint duration;
-            unsigned long get_cnt= 0;
-            unsigned long cur_cnt= 0;
+            unsigned long get_cnt = 0;
+            unsigned long cur_cnt = 0;
             int j;
             struct op {
                 const char *opname;
                 kh_func *opfunc;
             } op[2] = {
-                {.opname = "cursor", .opfunc = &cursor},
-                {.opname = "get",    .opfunc = &point_get},
+                { .opname = "cursor", .opfunc = &cursor },
+                { .opname = "get", .opfunc = &point_get },
             };
 
             /* hdr_reset takes a while, so reset the histograms upfront before all the op
@@ -719,10 +715,10 @@ main(
     free(vsep_base);
 
     pg_destroy(pg);
-	svec_reset(&hse_gparms);
-	svec_reset(&kvdb_oparms);
-	svec_reset(&kvs_cparms);
-	svec_reset(&kvs_oparms);
+    svec_reset(&hse_gparms);
+    svec_reset(&kvdb_oparms);
+    svec_reset(&kvs_cparms);
+    svec_reset(&kvs_oparms);
 
     return 0;
 }

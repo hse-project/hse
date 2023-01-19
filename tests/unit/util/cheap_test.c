@@ -4,6 +4,8 @@
  */
 
 #include <stdint.h>
+
+#include <mtf/framework.h>
 #include <sys/mman.h>
 
 #include <hse/util/arch.h>
@@ -12,14 +14,12 @@
 
 #include "cheap_testlib.h"
 
-#include <mtf/framework.h>
-
 MTF_BEGIN_UTEST_COLLECTION(cheap_test);
 
 /* Create a pool with invalid alignment (not power of 2) */
 MTF_DEFINE_UTEST(cheap_test, invalid_create1)
 {
-    size_t        total = 1048576;
+    size_t total = 1048576;
     struct cheap *h;
 
     h = cheap_create(3, total);
@@ -30,7 +30,7 @@ MTF_DEFINE_UTEST(cheap_test, invalid_create1)
 /* Valid create with alignment=1 */
 MTF_DEFINE_UTEST(cheap_test, valid_create0)
 {
-    size_t        total = 1048576;
+    size_t total = 1048576;
     struct cheap *h;
 
     h = cheap_create(1, total);
@@ -41,7 +41,7 @@ MTF_DEFINE_UTEST(cheap_test, valid_create0)
 /* Valid create with alignment=2 */
 MTF_DEFINE_UTEST(cheap_test, valid_create1)
 {
-    size_t        total = 1048576;
+    size_t total = 1048576;
     struct cheap *h;
 
     h = cheap_create(2, total);
@@ -52,9 +52,9 @@ MTF_DEFINE_UTEST(cheap_test, valid_create1)
 /* Valid create with alignment=8 */
 MTF_DEFINE_UTEST(cheap_test, valid_fill0)
 {
-    int           rc;
-    size_t        size = 4096;
-    size_t        total = 1048576;
+    int rc;
+    size_t size = 4096;
+    size_t total = 1048576;
     struct cheap *h = 0;
 
     h = cheap_create(8, total);
@@ -70,8 +70,8 @@ MTF_DEFINE_UTEST(cheap_test, valid_fill0)
 /* Valid create with alignment=8 */
 MTF_DEFINE_UTEST(cheap_test, verify_test1)
 {
-    int           rc;
-    size_t        total = 1048576;
+    int rc;
+    size_t total = 1048576;
     struct cheap *h = 0;
 
     h = cheap_create(8, total);
@@ -85,8 +85,8 @@ MTF_DEFINE_UTEST(cheap_test, verify_test1)
 /* Valid create with alignment=8 */
 MTF_DEFINE_UTEST(cheap_test, verify_test2)
 {
-    int           rc;
-    size_t        total = 104857600;
+    int rc;
+    size_t total = 104857600;
     struct cheap *h = 0;
 
     h = cheap_create(8, total);
@@ -100,8 +100,8 @@ MTF_DEFINE_UTEST(cheap_test, verify_test2)
 /* Fill and verify, alignment 0 */
 MTF_DEFINE_UTEST(cheap_test, verify_test3)
 {
-    int           rc;
-    size_t        total = 104857600;
+    int rc;
+    size_t total = 104857600;
     struct cheap *h = 0;
 
     h = cheap_create(0, total);
@@ -115,8 +115,8 @@ MTF_DEFINE_UTEST(cheap_test, verify_test3)
 /* Fill and verify, alignment 0 */
 MTF_DEFINE_UTEST(cheap_test, verify_test4)
 {
-    int           rc;
-    size_t        total = 104857600;
+    int rc;
+    size_t total = 104857600;
     struct cheap *h = 0;
 
     h = cheap_create(0, total);
@@ -131,8 +131,8 @@ MTF_DEFINE_UTEST(cheap_test, verify_test4)
 /* Valid create with alignment=4 */
 MTF_DEFINE_UTEST(cheap_test, zero_test1)
 {
-    int           rc;
-    size_t        total = 1048576;
+    int rc;
+    size_t total = 1048576;
     struct cheap *h = 0;
 
     h = cheap_create(8, total);
@@ -146,8 +146,8 @@ MTF_DEFINE_UTEST(cheap_test, zero_test1)
 /* Valid create with alignment=4 */
 MTF_DEFINE_UTEST(cheap_test, zero_test2)
 {
-    int           rc;
-    size_t        total = 104857600;
+    int rc;
+    size_t total = 104857600;
     struct cheap *h = 0;
 
     h = cheap_create(8, total);
@@ -161,8 +161,8 @@ MTF_DEFINE_UTEST(cheap_test, zero_test2)
 /* Fill and zero, alignment 0 */
 MTF_DEFINE_UTEST(cheap_test, zero_test3)
 {
-    int           rc;
-    size_t        total = 104857600;
+    int rc;
+    size_t total = 104857600;
     struct cheap *h = 0;
 
     h = cheap_create(0, total);
@@ -176,8 +176,8 @@ MTF_DEFINE_UTEST(cheap_test, zero_test3)
 /* Fill and verify, alignment 0 */
 MTF_DEFINE_UTEST(cheap_test, zero_test4)
 {
-    int           rc;
-    size_t        total = 104857600;
+    int rc;
+    size_t total = 104857600;
     struct cheap *h = 0;
 
     h = cheap_create(0, total);
@@ -194,9 +194,9 @@ MTF_DEFINE_UTEST(cheap_test, zero_test4)
 MTF_DEFINE_UTEST(cheap_test, cheap_test_used)
 {
     struct cheap *h;
-    size_t        used, avail;
-    uint8_t *     p;
-    int           i;
+    size_t used, avail;
+    uint8_t *p;
+    int i;
 
     h = cheap_create(0, 4096);
     ASSERT_NE(NULL, h);
@@ -229,8 +229,8 @@ MTF_DEFINE_UTEST(cheap_test, cheap_test_used)
 MTF_DEFINE_UTEST(cheap_test, cheap_test_poison)
 {
     struct cheap *h;
-    uint8_t *     p;
-    int           i;
+    uint8_t *p;
+    int i;
 
     ASSERT_GT(CHEAP_POISON_SZ, 0);
 
@@ -257,10 +257,10 @@ MTF_DEFINE_UTEST(cheap_test, cheap_test_poison)
 /* Verify cheap_memalign() works as expected. */
 MTF_DEFINE_UTEST(cheap_test, cheap_test_memalign)
 {
-    size_t        total = 1024 * 1024 * 1024;
+    size_t total = 1024 * 1024 * 1024;
     struct cheap *h;
-    size_t        align, sz;
-    void *        p;
+    size_t align, sz;
+    void *p;
 
     h = cheap_create(0, total);
     ASSERT_NE(0UL, h);
@@ -298,13 +298,13 @@ MTF_DEFINE_UTEST(cheap_test, cheap_test_memalign)
 MTF_DEFINE_UTEST(cheap_test, cheap_test_free)
 {
     struct cheap *h;
-    size_t        align;
+    size_t align;
 
     for (align = 1; align < 128; align *= 2) {
-        size_t   free, avail, alloc;
-        size_t   cheapsz, allocmax;
-        uint     i, itermax;
-        void *   p0, *p1;
+        size_t free, avail, alloc;
+        size_t cheapsz, allocmax;
+        uint i, itermax;
+        void *p0, *p1;
         uint8_t *prev[256];
 
         itermax = ((get_cycles() >> 1) % 128) + 3;
@@ -379,8 +379,8 @@ static size_t
 rss(void *mem, size_t maxpg, unsigned char *vec)
 {
     size_t sz = 0;
-    int    rc;
-    int    i;
+    int rc;
+    int i;
 
     memset(vec, 0, maxpg);
 
@@ -399,12 +399,12 @@ rss(void *mem, size_t maxpg, unsigned char *vec)
 /* Verify cheap_trim() works as expected. */
 MTF_DEFINE_UTEST(cheap_test, cheap_test_trim)
 {
-    size_t        maxpg = 256;
+    size_t maxpg = 256;
     unsigned char vec[maxpg];
-    size_t        sz;
+    size_t sz;
     struct cheap *h;
-    void *        p;
-    int           i;
+    void *p;
+    int i;
 
     h = cheap_create(0, maxpg * PAGE_SIZE);
     ASSERT_NE(NULL, h);

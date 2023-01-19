@@ -6,9 +6,10 @@
 #ifndef HSE_KVDB_CN_ENCODERS_H
 #define HSE_KVDB_CN_ENCODERS_H
 
-#include <linux/types.h>
 #include <stdint.h>
 #include <string.h>
+
+#include <linux/types.h>
 #include <sys/types.h>
 
 #include <hse/util/assert.h>
@@ -26,7 +27,7 @@ static inline __attribute__((always_inline)) void
 encode_hg16_32k(void *base, size_t *off, uint64_t val)
 {
     uint8_t *p = base + *off;
-    __be16  val16;
+    __be16 val16;
 
     assert(val <= HG16_32K_MAX);
     if (val < 0x80) {
@@ -120,9 +121,9 @@ encode_hg32_1024m(void *base, size_t *off, uint64_t val)
 {
     const unsigned m1 = UINT8_MAX >> 1;
     const unsigned m2 = UINT16_MAX >> 2;
-    void *         p = base + *off;
-    __be32         val32;
-    __be16         val16;
+    void *p = base + *off;
+    __be32 val32;
+    __be16 val16;
 
     assert(val <= HG32_1024M_MAX);
 
@@ -144,9 +145,9 @@ static HSE_ALWAYS_INLINE uint64_t
 decode_hg32_1024m(const void *base, size_t *off)
 {
     const void *p = base + *off;
-    uint        code = *(const uint8_t *)p;
-    __be32      val32;
-    __be16      val16;
+    uint code = *(const uint8_t *)p;
+    __be32 val32;
+    __be16 val16;
 
     if (!(code & 0x80)) {
         *off += 1;
@@ -229,31 +230,31 @@ decode_hg64(const void *base, size_t *off)
     __be16 val16;
 
     switch (code) {
-        case 0:
-            *off += sizeof(val16);
-            memcpy(&val16, p, sizeof(val16));
-            val = be16_to_cpu(val16);
-            break;
-        case 1:
-            *off += sizeof(val32);
-            memcpy(&val32, p, sizeof(val32));
-            val = be32_to_cpu(val32) & HG64_MAX_4B;
-            break;
-        case 2:
-            *off += sizeof(val16) + sizeof(val32);
-            memcpy(&val16, p, sizeof(val16));
-            val = be16_to_cpu(val16);
-            val <<= 32;
-            memcpy(&val32, p + sizeof(val16), sizeof(val32));
-            val |= be32_to_cpu(val32);
-            val &= HG64_MAX_6B;
-            break;
-        case 3:
-        default:
-            *off += sizeof(val64);
-            memcpy(&val64, p, sizeof(val64));
-            val = be64_to_cpu(val64) & HG64_MAX;
-            break;
+    case 0:
+        *off += sizeof(val16);
+        memcpy(&val16, p, sizeof(val16));
+        val = be16_to_cpu(val16);
+        break;
+    case 1:
+        *off += sizeof(val32);
+        memcpy(&val32, p, sizeof(val32));
+        val = be32_to_cpu(val32) & HG64_MAX_4B;
+        break;
+    case 2:
+        *off += sizeof(val16) + sizeof(val32);
+        memcpy(&val16, p, sizeof(val16));
+        val = be16_to_cpu(val16);
+        val <<= 32;
+        memcpy(&val32, p + sizeof(val16), sizeof(val32));
+        val |= be32_to_cpu(val32);
+        val &= HG64_MAX_6B;
+        break;
+    case 3:
+    default:
+        *off += sizeof(val64);
+        memcpy(&val64, p, sizeof(val64));
+        val = be64_to_cpu(val64) & HG64_MAX;
+        break;
     }
 
     return val;
@@ -282,8 +283,8 @@ static HSE_ALWAYS_INLINE uint64_t
 decode_varint(const void *base, size_t *off)
 {
     const uint8_t *p = base + *off;
-    uint8_t        tmp, byte;
-    uint64_t       v;
+    uint8_t tmp, byte;
+    uint64_t v;
 
     byte = 0;
     tmp = *p++;

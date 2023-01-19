@@ -7,9 +7,9 @@
 #define HSE_PIDFILE_PIDFILE_H
 
 #include <limits.h>
-#include <sys/un.h>
 
 #include <bsd/libutil.h>
+#include <sys/un.h>
 
 #include <hse/error/merr.h>
 
@@ -18,7 +18,7 @@
 
 struct pidfile {
     pid_t pid;
-    char  alias[PIDFILE_ALIAS_LEN_MAX];
+    char alias[PIDFILE_ALIAS_LEN_MAX];
     struct {
         char socket_path[sizeof(((struct sockaddr_un *)NULL)->sun_path)];
     } rest;

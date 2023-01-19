@@ -14,7 +14,6 @@
 
 #include <hse/cli/rest/client.h>
 #include <hse/error/merr.h>
-
 #include <hse/util/compiler.h>
 
 #include "buffer.h"
@@ -24,7 +23,7 @@
 static CURL *parent;
 
 merr_t
-rest_client_init(const char *const socket_path)
+rest_client_init(const char * const socket_path)
 {
     CURLcode code;
 
@@ -52,7 +51,7 @@ rest_client_init(const char *const socket_path)
 }
 
 static size_t
-collect_data(char *const ptr, const size_t size, const size_t nmemb, void *const user_data)
+collect_data(char * const ptr, const size_t size, const size_t nmemb, void * const user_data)
 {
     merr_t err;
     struct buffer *buf = user_data;
@@ -67,13 +66,13 @@ collect_data(char *const ptr, const size_t size, const size_t nmemb, void *const
 
 merr_t
 rest_client_fetch(
-    const char *const method,
-    struct curl_slist *const headers,
-    const char *const data,
+    const char * const method,
+    struct curl_slist * const headers,
+    const char * const data,
     const size_t data_len,
     const rest_client_cb cb,
     void *arg,
-    const char *const path_format,
+    const char * const path_format,
     ...)
 {
     int rc;

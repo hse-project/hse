@@ -3,13 +3,13 @@
  * Copyright (C) 2022 Micron Technology, Inc.  All rights reserved.
  */
 
+#include <rbtree.h>
+
 #include <hse/limits.h>
-#include <hse/util/base.h>
-#include <hse/util/keycmp.h>
 
 #include <hse/test/support/ref_tree.h>
-
-#include <rbtree.h>
+#include <hse/util/base.h>
+#include <hse/util/keycmp.h>
 
 /*
  * Reference Tree API
@@ -21,20 +21,20 @@ struct ref_tree {
 /* Each ref_tree_node contains one key. */
 struct ref_tree_node {
     struct rb_node rbnode;
-    char *         key;
-    size_t         klen;
-    uint64_t       seqno;
+    char *key;
+    size_t klen;
+    uint64_t seqno;
 };
 
 struct ref_tree_iter {
     struct ref_tree_node *curr;
-    struct ref_tree      *rt;
+    struct ref_tree *rt;
 
-    unsigned char   pfx[HSE_KVS_KEY_LEN_MAX];
-    size_t          pfxlen;
-    uint64_t        view_seq;
-    bool            reverse;
-    bool            eof;
+    unsigned char pfx[HSE_KVS_KEY_LEN_MAX];
+    size_t pfxlen;
+    uint64_t view_seq;
+    bool reverse;
+    bool eof;
 };
 
 enum query_type {
@@ -46,9 +46,9 @@ enum query_type {
 static struct ref_tree_node *
 rt_lookup(struct ref_tree *rt, char *kdata, size_t klen, enum query_type qtype)
 {
-    struct rb_node *  rbnode;
-    struct rb_node *  last_smaller = rb_first(&rt->rt_root);
-    struct rb_node *  last_larger = rb_last(&rt->rt_root);
+    struct rb_node *rbnode;
+    struct rb_node *last_smaller = rb_first(&rt->rt_root);
+    struct rb_node *last_larger = rb_last(&rt->rt_root);
     struct ref_tree_node *rtn = NULL;
 
     rbnode = rt->rt_root.rb_node;
@@ -72,24 +72,24 @@ rt_lookup(struct ref_tree *rt, char *kdata, size_t klen, enum query_type qtype)
     }
 
     switch (qtype) {
-        case QTYPE_GET:
+    case QTYPE_GET:
+        rtn = NULL;
+        if (rbnode)
+            rtn = container_of(rbnode, struct ref_tree_node, rbnode);
+
+        break;
+    case QTYPE_SEEK_FWD:
+        rtn = container_of(last_larger, struct ref_tree_node, rbnode);
+        if (keycmp(rtn->key, rtn->klen, kdata, klen) < 0)
             rtn = NULL;
-            if (rbnode)
-                rtn = container_of(rbnode, struct ref_tree_node, rbnode);
 
-            break;
-        case QTYPE_SEEK_FWD:
-            rtn = container_of(last_larger, struct ref_tree_node, rbnode);
-            if (keycmp(rtn->key, rtn->klen, kdata, klen) < 0)
-                rtn = NULL;
+        break;
+    case QTYPE_SEEK_REV:
+        rtn = container_of(last_smaller, struct ref_tree_node, rbnode);
+        if (keycmp(rtn->key, rtn->klen, kdata, klen) > 0)
+            rtn = NULL;
 
-            break;
-        case QTYPE_SEEK_REV:
-            rtn = container_of(last_smaller, struct ref_tree_node, rbnode);
-            if (keycmp(rtn->key, rtn->klen, kdata, klen) > 0)
-                rtn = NULL;
-
-            break;
+        break;
     }
 
     return rtn;
@@ -129,9 +129,9 @@ ref_tree_destroy(struct ref_tree *rt)
 bool
 ref_tree_insert(struct ref_tree *rt, char *key, size_t klen, uint64_t seqno)
 {
-    struct rb_node ** link;
-    struct rb_node *  parent;
-    struct rb_root *  root;
+    struct rb_node **link;
+    struct rb_node *parent;
+    struct rb_root *root;
     struct ref_tree_node *rtn;
 
     root = &rt->rt_root;

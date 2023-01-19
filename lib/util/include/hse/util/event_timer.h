@@ -7,8 +7,8 @@
 #define HSE_PLATFORM_EVENT_TIMER_H
 
 #include <hse/util/arch.h>
-#include <hse/util/compiler.h>
 #include <hse/util/atomic.h>
+#include <hse/util/compiler.h>
 
 /*
  * EVENT_TIMER is intended to provide an opaque, convenient, accurate,
@@ -47,9 +47,9 @@ struct event_timer {
     unsigned long min, max;
     unsigned long mode, mcnt;
     unsigned long n;
-    atomic_int    busy;
-    double        om, m, os, s;
-    char          buf[128];
+    atomic_int busy;
+    double om, m, os, s;
+    char buf[128];
 };
 
 void
@@ -76,11 +76,11 @@ event_report(struct event_timer *, const char *);
     } while (0)
 #define EVENT_WRAP_PTR(p, stmts) EVENT_WRAP(*(struct event_timer *)p, stmts)
 
-#define EVENT_START_TS(t1) unsigned long t1 = get_time_ns()
+#define EVENT_START_TS(t1)     unsigned long t1 = get_time_ns()
 #define EVENT_SAMPLE_TS(t1, t) event_sample_ts(&(t), (t1), get_time_ns())
 
-#define EVENT_START(t) ((t).t1 = get_time_ns())
-#define EVENT_SAMPLE(t) event_sample(&(t), get_time_ns())
+#define EVENT_START(t)     ((t).t1 = get_time_ns())
+#define EVENT_SAMPLE(t)    event_sample(&(t), get_time_ns())
 #define EVENT_REPORT(t, w) event_report(&(t), w)
 
 #define EVENT_PRINT(t, w)        \
@@ -91,7 +91,7 @@ event_report(struct event_timer *, const char *);
 
 #else
 
-#define EVENT_WRAP(t, stmts) stmts
+#define EVENT_WRAP(t, stmts)     stmts
 #define EVENT_WRAP_PTR(t, stmts) stmts
 #define EVENT_START_TS(t1)
 #define EVENT_SAMPLE_TS(t1, t)

@@ -7,14 +7,14 @@
 
 #include <hse/limits.h>
 
-#include <hse/util/platform.h>
-#include <hse/util/slab.h>
-#include <hse/util/page.h>
 #include <hse/util/event_counter.h>
 #include <hse/util/key_util.h>
+#include <hse/util/page.h>
+#include <hse/util/platform.h>
+#include <hse/util/slab.h>
 
-#include "omf.h"
 #include "intern_builder.h"
+#include "omf.h"
 #include "wbt_builder.h"
 
 /**
@@ -24,13 +24,13 @@
  * @next: next node;
  */
 struct intern_node {
-    unsigned char      *buf;
+    unsigned char *buf;
     struct intern_node *next;
 };
 
 struct intern_key {
-    uint          child_idx;
-    uint          klen;
+    uint child_idx;
+    uint klen;
     unsigned char kdata[] HSE_ALIGNED(4);
 };
 
@@ -49,19 +49,19 @@ struct intern_key {
  * @sbuf_used:      used bytes in @sbuf
  */
 struct intern_level {
-    uint                    curr_rkeys_sum;
-    uint                    curr_rkeys_cnt;
-    uint                    curr_child;
-    uint                    full_node_cnt;
-    uint                    level;
-    uint                    node_lcp_len;
-    struct intern_node     *node_head;
-    struct intern_node     *node_curr;
-    unsigned char          *sbuf;
-    size_t                  sbuf_sz;
-    size_t                  sbuf_used;
-    struct intern_level    *parent;
-    struct intern_builder  *ibldr;
+    uint curr_rkeys_sum;
+    uint curr_rkeys_cnt;
+    uint curr_child;
+    uint full_node_cnt;
+    uint level;
+    uint node_lcp_len;
+    struct intern_node *node_head;
+    struct intern_node *node_curr;
+    unsigned char *sbuf;
+    size_t sbuf_sz;
+    size_t sbuf_used;
+    struct intern_level *parent;
+    struct intern_builder *ibldr;
 };
 
 /**
@@ -80,14 +80,14 @@ struct intern_level {
  * of reference when accessing any part of the builder.
  */
 struct intern_builder {
-    struct intern_level    *base;
-    struct wbb             *wbb;
-    u_char                 *sbufs;
-    uint                    nodec;
-    uint                    levelc;
-    struct intern_level     levelv[2];
-    struct intern_node      nodev[48];
-    u_char                  sbufv[];
+    struct intern_level *base;
+    struct wbb *wbb;
+    u_char *sbufs;
+    uint nodec;
+    uint levelc;
+    struct intern_level levelv[2];
+    struct intern_node nodev[48];
+    u_char sbufv[];
 };
 
 /* Max sizes of objects embedded into struct intern_builder.  For release
@@ -97,24 +97,25 @@ struct intern_builder {
  * the realloc() path.
  */
 #ifdef HSE_BUILD_RELEASE
-#define IB_ESBUFSZ_KMC      (1u << 16) /* 64K ibldr kmem cache size */
+#define IB_ESBUFSZ_KMC (1u << 16) /* 64K ibldr kmem cache size */
 #else
-#define IB_ESBUFSZ_KMC      (1u << 13) /* 8K ibldr kmem cache size */
+#define IB_ESBUFSZ_KMC (1u << 13) /* 8K ibldr kmem cache size */
 #endif
 
-#define IB_ENODEV_MAX       NELEM(((struct intern_builder *)0)->nodev)
-#define IB_ELEVELV_MAX      NELEM(((struct intern_builder *)0)->levelv)
-#define IB_ESBUFSZ_MAX                                                               \
-    roundup(                                                                         \
-        ((IB_ESBUFSZ_KMC - sizeof(struct intern_builder)) / IB_ELEVELV_MAX),         \
-          alignof(struct intern_key))
+#define IB_ENODEV_MAX  NELEM(((struct intern_builder *)0)->nodev)
+#define IB_ELEVELV_MAX NELEM(((struct intern_builder *)0)->levelv)
+#define IB_ESBUFSZ_MAX                                                       \
+    roundup(                                                                 \
+        ((IB_ESBUFSZ_KMC - sizeof(struct intern_builder)) / IB_ELEVELV_MAX), \
+        alignof(struct intern_key))
 
-static_assert(IB_ESBUFSZ_KMC > IB_ESBUFSZ_MAX,
-              "IB_ESBUFSZ_MAX must not be larger than the allocation size");
+static_assert(
+    IB_ESBUFSZ_KMC > IB_ESBUFSZ_MAX,
+    "IB_ESBUFSZ_MAX must not be larger than the allocation size");
 
-static_assert(IB_ESBUFSZ_MAX > HSE_KVS_KEY_LEN_MAX + sizeof(struct intern_key),
-              "IB_ESBUFSZ_MAX too small for max key length");
-
+static_assert(
+    IB_ESBUFSZ_MAX > HSE_KVS_KEY_LEN_MAX + sizeof(struct intern_key),
+    "IB_ESBUFSZ_MAX too small for max key length");
 
 static struct kmem_cache *ib_node_cache HSE_READ_MOSTLY;
 static struct kmem_cache *ib_cache HSE_READ_MOSTLY;
@@ -174,7 +175,7 @@ static int
 ib_lcp_len(struct intern_level *ib, const struct key_obj *ko)
 {
     struct intern_key *k;
-    uint               new_pfxlen, old_pfxlen;
+    uint new_pfxlen, old_pfxlen;
 
     if (ib->curr_rkeys_cnt == 0)
         return key_obj_len(ko);
@@ -193,7 +194,7 @@ ib_lcp_len(struct intern_level *ib, const struct key_obj *ko)
     new_pfxlen = memlcp(k->kdata, ko->ko_pfx, ko->ko_pfx_len);
     if (new_pfxlen == ko->ko_pfx_len) {
         void *p = k->kdata + new_pfxlen;
-        uint  cmplen = old_pfxlen - new_pfxlen;
+        uint cmplen = old_pfxlen - new_pfxlen;
 
         assert(old_pfxlen >= new_pfxlen);
         new_pfxlen += memlcp(p, ko->ko_sfx, cmplen);
@@ -261,14 +262,14 @@ ib_sbuf_key_add(struct intern_level *l, uint child_idx, struct key_obj *kobj)
 static void
 ib_node_publish(struct intern_level *ib, uint last_child)
 {
-    void *                   cnode;
+    void *cnode;
     struct wbt_node_hdr_omf *node_hdr;
 
-    size_t              lcp_len = ib->node_lcp_len;
+    size_t lcp_len = ib->node_lcp_len;
     struct wbt_ine_omf *entry; /* (out) current key entry ptr */
-    void *              sfxp;  /* (out) current suffix ptr */
-    int                 i;
-    uint                nkey = ib->curr_rkeys_cnt;
+    void *sfxp;                /* (out) current suffix ptr */
+    int i;
+    uint nkey = ib->curr_rkeys_cnt;
 
     struct intern_key *k = (void *)ib->sbuf;
 
@@ -429,8 +430,8 @@ ib_reset(struct intern_builder *ib)
         ib_level_destroy(l);
     }
 
-    ib->nodec  = 0;
-    ib->levelc  = 0;
+    ib->nodec = 0;
+    ib->levelc = 0;
 }
 
 void
@@ -452,16 +453,12 @@ ib_destroy(struct intern_builder *ib)
 }
 
 static merr_t
-key_add(
-    struct intern_builder *ibldr,
-    struct key_obj *       right_edge,
-    uint *                 node_cnt,
-    bool                   count_only)
+key_add(struct intern_builder *ibldr, struct key_obj *right_edge, uint *node_cnt, bool count_only)
 {
     struct intern_level *l;
-    int                  cnt = 0;
-    merr_t               err;
-    uint                 right_edge_klen = right_edge ? key_obj_len(right_edge) : 0;
+    int cnt = 0;
+    merr_t err;
+    uint right_edge_klen = right_edge ? key_obj_len(right_edge) : 0;
 
     /* As long as there's just one leaf node, the tree needs exactly one
      * internal node (root). This happens when creating the first leaf node.
@@ -495,7 +492,7 @@ key_add(
          * used = hdr_sz + lcp_len + tot_klen - lcp_savings + ines
          */
         used = hdr_sz + lcp_len + l->curr_rkeys_sum - (l->curr_rkeys_cnt * lcp_len) +
-               ((1 + l->curr_rkeys_cnt) * ine_sz);
+            ((1 + l->curr_rkeys_cnt) * ine_sz);
 
         /* Check if this key will prompt a new node at this level */
         if (used + ine_sz + right_edge_klen - lcp_len > PAGE_SIZE) {
@@ -587,11 +584,11 @@ err_exit:
 merr_t
 ib_key_add(
     struct intern_builder *ibldr,
-    struct key_obj *       right_edge,
-    uint *                 node_cnt,
-    bool                   count_only)
+    struct key_obj *right_edge,
+    uint *node_cnt,
+    bool count_only)
 {
-    uint   max_inodec = 0;
+    uint max_inodec = 0;
     merr_t err;
 
     err = key_add(ibldr, right_edge, &max_inodec, true);
@@ -616,7 +613,7 @@ void
 ib_child_update(struct intern_builder *ibldr, uint num_leaves)
 {
     struct intern_level *l;
-    uint                 prev[2];
+    uint prev[2];
 
     uint dbg_lvl_cnt HSE_MAYBE_UNUSED;
     uint dbg_tot_cnt HSE_MAYBE_UNUSED;
@@ -640,10 +637,10 @@ ib_child_update(struct intern_builder *ibldr, uint num_leaves)
 
         while (n) {
             struct wbt_node_hdr_omf *node_hdr = (void *)n->buf;
-            size_t                   pfxlen;
-            struct wbt_ine_omf *     k;
-            uint                     nkey, max;
-            int                      i;
+            size_t pfxlen;
+            struct wbt_ine_omf *k;
+            uint nkey, max;
+            int i;
 
             pfxlen = omf_wbn_pfx_len(node_hdr);
             nkey = omf_wbn_num_keys(node_hdr);
@@ -671,8 +668,8 @@ ib_child_update(struct intern_builder *ibldr, uint num_leaves)
 uint
 ib_iovec_construct(struct intern_builder *ibldr, struct iovec *iov)
 {
-    int                  i;
-    struct intern_node * n;
+    int i;
+    struct intern_node *n;
     struct intern_level *l = ibldr->base;
 
     if (!ibldr->base)

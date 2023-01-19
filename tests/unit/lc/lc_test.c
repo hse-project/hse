@@ -5,17 +5,16 @@
 
 #include <stdint.h>
 
-#include <mtf/framework.h>
 #include <mock/api.h>
+#include <mtf/framework.h>
 
-#include <hse/util/bonsai_tree.h>
-#include <hse/util/seqno.h>
-#include <hse/util/keycmp.h>
-
-#include <hse/ikvdb/tuple.h>
-#include <hse/ikvdb/lc.h>
 #include <hse/ikvdb/cursor.h>
 #include <hse/ikvdb/kvdb_health.h>
+#include <hse/ikvdb/lc.h>
+#include <hse/ikvdb/tuple.h>
+#include <hse/util/bonsai_tree.h>
+#include <hse/util/keycmp.h>
+#include <hse/util/seqno.h>
 
 struct lc *lc;
 struct kvdb_health mock_health;
@@ -58,12 +57,12 @@ test_post(struct mtf_test_info *ti)
 
 struct v_elem {
     uintptr_t seqnoref;
-    char *    val;
+    char *val;
 };
 
 struct kv_elem {
     const uint16_t skidx;
-    char * key;
+    char *key;
     struct v_elem val[MAX_VALS_PER_KV];
 };
 
@@ -80,12 +79,12 @@ struct kv_elem {
 static void
 insert_keys(struct mtf_test_info *lcl_ti, uint elemc, struct kv_elem *elemv)
 {
-    struct bonsai_kv * bkv_vec;
+    struct bonsai_kv *bkv_vec;
     struct bonsai_val *val_vec;
     struct lc_builder *lcb;
-    uint               num_vals;
-    int                i, j, v;
-    merr_t             err;
+    uint num_vals;
+    int i, j, v;
+    merr_t err;
 
     num_vals = 0;
     for (i = 0; i < elemc; i++)
@@ -102,10 +101,10 @@ insert_keys(struct mtf_test_info *lcl_ti, uint elemc, struct kv_elem *elemv)
     ASSERT_EQ(0, err);
 
     for (i = 0, v = 0; i < elemc; i++) {
-        int                 j = 0;
-        struct bonsai_val * vlist = NULL;
+        int j = 0;
+        struct bonsai_val *vlist = NULL;
         struct bonsai_val **vprev;
-        struct bonsai_kv *  bkv;
+        struct bonsai_kv *bkv;
 
         bkv = &bkv_vec[i];
         bkv->bkv_key = elemv[i].key;
@@ -114,7 +113,7 @@ insert_keys(struct mtf_test_info *lcl_ti, uint elemc, struct kv_elem *elemv)
 
         vprev = &vlist;
         while (elemv[i].val[j].val) {
-            struct v_elem *    ve = &elemv[i].val[j++];
+            struct v_elem *ve = &elemv[i].val[j++];
             struct bonsai_val *val = &val_vec[v++];
 
             val->bv_seqnoref = ve->seqnoref;
@@ -268,14 +267,14 @@ _lc_cursor_seek(struct lc_cursor *cur, const void *seek, size_t seeklen, struct 
 
 static void
 check_kv(
-    struct mtf_test_info *     lcl_ti,
+    struct mtf_test_info *lcl_ti,
     struct kvs_cursor_element *e,
-    bool                       eof,
-    const char *               key,
-    const char *               val)
+    bool eof,
+    const char *key,
+    const char *val)
 {
     unsigned char kbuf[32];
-    uint          klen;
+    uint klen;
 
     ASSERT_EQ(false, eof);
 

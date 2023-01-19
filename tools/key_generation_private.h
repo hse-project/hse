@@ -15,12 +15,12 @@ static char symbols[] = { 'a', 'b', 'c', 'd', 'e', 'f', 'g', 'h', 'i', 'j', 'k',
                           'y', 'z', '0', '1', '2', '3', '4', '5', '6', '7', '8', '9' };
 
 struct key_generator {
-    size_t  key_space_sz;
-    size_t  key_width;
-    size_t  field_width;
+    size_t key_space_sz;
+    size_t key_width;
+    size_t field_width;
     int32_t num_fields;
     int32_t elem_per_field;
-    char   *elems;
+    char *elems;
 };
 
 int32_t

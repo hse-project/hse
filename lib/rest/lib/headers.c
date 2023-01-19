@@ -4,22 +4,23 @@
  */
 
 #include <assert.h>
-#include <string.h>
-#include <sys/queue.h>
-
 #include <event.h>
+#include <string.h>
+
 #include <event2/http.h>
+#include <sys/queue.h>
 
 #include <hse/error/merr.h>
 #include <hse/rest/headers.h>
 #include <hse/util/compiler.h>
 
 const char *
-rest_headers_get(const struct rest_headers *const headers, const char *const key)
+rest_headers_get(const struct rest_headers * const headers, const char * const key)
 {
     struct evkeyval *header;
 
-    TAILQ_FOREACH(header, (struct evkeyvalq *)headers, next) {
+    TAILQ_FOREACH(header, (struct evkeyvalq *)headers, next)
+    {
         if (strcasecmp(header->key, key) == 0)
             return header->value;
     }
@@ -28,7 +29,10 @@ rest_headers_get(const struct rest_headers *const headers, const char *const key
 }
 
 merr_t
-rest_headers_set(struct rest_headers *const headers, const char *const key, const char *const value)
+rest_headers_set(
+    struct rest_headers * const headers,
+    const char * const key,
+    const char * const value)
 {
     int rc;
 

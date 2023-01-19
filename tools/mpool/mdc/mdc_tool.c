@@ -14,13 +14,14 @@
 #include <stdarg.h>
 #include <sysexits.h>
 
-#include <hse/cli/program.h>
+#include <bsd/string.h>
+
 #include <hse/hse.h>
+
+#include <hse/cli/program.h>
 #include <hse/ikvdb/kvdb_meta.h>
 #include <hse/logging/logging.h>
 #include <hse/mpool/mpool.h>
-
-#include <bsd/string.h>
 
 #define ERROR_BUF_SIZE 256
 
@@ -43,7 +44,7 @@ fatal(char *who, hse_err_t err)
 void
 syntax(const char *fmt, ...)
 {
-    char    msg[256];
+    char msg[256];
     va_list ap;
 
     va_start(ap, fmt);
@@ -64,7 +65,7 @@ dump(char *buf, size_t sz)
  * MDC open and close dance
  */
 void
-eopen_mdc(struct mpool *const mp, const struct kvdb_meta *const meta, struct mpool_mdc **mdc)
+eopen_mdc(struct mpool * const mp, const struct kvdb_meta * const meta, struct mpool_mdc **mdc)
 {
     merr_t err;
 
@@ -101,16 +102,16 @@ usage(void)
 int
 main(int argc, char **argv)
 {
-    struct mpool_mdc    *mdc;
-    char                *wpath;
-    FILE                *fp;
-    hse_err_t            err;
-    int                  ignore, c;
-    const char          *home;
-    const char          *config = NULL;
-    struct mpool        *mp;
-    struct mpool_rparams params = {0};
-    struct kvdb_meta     meta;
+    struct mpool_mdc *mdc;
+    char *wpath;
+    FILE *fp;
+    hse_err_t err;
+    int ignore, c;
+    const char *home;
+    const char *config = NULL;
+    struct mpool *mp;
+    struct mpool_rparams params = { 0 };
+    struct kvdb_meta meta;
 
     progname_set(argv[0]);
 
@@ -119,33 +120,33 @@ main(int argc, char **argv)
 
     while ((c = getopt(argc, argv, ":hiw:Z:")) != -1) {
         switch (c) {
-            case 'h':
-                usage();
-                exit(0);
+        case 'h':
+            usage();
+            exit(0);
 
-            case 'i':
-                ignore = 1;
-                break;
+        case 'i':
+            ignore = 1;
+            break;
 
-            case 'w':
-                wpath = optarg;
-                break;
+        case 'w':
+            wpath = optarg;
+            break;
 
-            case 'Z':
-                config = optarg;
-                break;
+        case 'Z':
+            config = optarg;
+            break;
 
-            case '?':
-                syntax("invalid option -%c", optopt);
-                exit(EX_USAGE);
+        case '?':
+            syntax("invalid option -%c", optopt);
+            exit(EX_USAGE);
 
-            case ':':
-                syntax("option -%c requires a parameter", optopt);
-                exit(EX_USAGE);
+        case ':':
+            syntax("option -%c requires a parameter", optopt);
+            exit(EX_USAGE);
 
-            default:
-                syntax("option -%c ignored\n", c);
-                break;
+        default:
+            syntax("option -%c ignored\n", c);
+            break;
         }
     }
 

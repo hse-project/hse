@@ -31,9 +31,9 @@ MTF_BEGIN_UTEST_COLLECTION_PREPOST(timer_test, timer_test_pre, timer_test_post);
 
 struct cb {
     struct timer_list timer;
-    ulong             tinit;
-    volatile ulong    tdispatch;
-    volatile ulong    value;
+    ulong tinit;
+    volatile ulong tdispatch;
+    volatile ulong value;
 };
 
 void
@@ -112,10 +112,10 @@ MTF_DEFINE_UTEST(timer_test, timer_test_jiffies)
 MTF_DEFINE_UTEST(timer_test, timer_test_basic)
 {
     struct cb cb;
-    ulong     tdiff;
-    int       retries;
-    int       rc;
-    int       i;
+    ulong tdiff;
+    int retries;
+    int rc;
+    int i;
 
     for (i = 1; i < 9; ++i) {
         while (1) {
@@ -157,7 +157,7 @@ MTF_DEFINE_UTEST(timer_test, timer_test_basic)
 MTF_DEFINE_UTEST(timer_test, timer_test_delete)
 {
     struct cb cb;
-    int       rc;
+    int rc;
 
     cb_init(&cb, timer_test_basic_cb, (ulong)&cb, 1000);
     add_timer(&cb.timer);
@@ -191,8 +191,8 @@ timer_test_resched_cb(unsigned long data)
 MTF_DEFINE_UTEST(timer_test, timer_resched)
 {
     struct cb cb;
-    int       retries;
-    int       rc;
+    int retries;
+    int rc;
 
     cb_init(&cb, timer_test_resched_cb, (ulong)&cb, 30);
     add_timer(&cb.timer);

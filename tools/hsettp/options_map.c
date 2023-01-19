@@ -50,7 +50,7 @@ err:
 }
 
 void
-options_map_destroy(struct options_map *const map)
+options_map_destroy(struct options_map * const map)
 {
     if (!map)
         return;
@@ -61,7 +61,7 @@ options_map_destroy(struct options_map *const map)
 }
 
 const char *
-options_map_get(struct options_map *const map, const char *const key)
+options_map_get(struct options_map * const map, const char * const key)
 {
     for (size_t i = 0; i < map->len; i++) {
         if (strcmp(map->keys[i], key) == 0)
@@ -72,7 +72,7 @@ options_map_get(struct options_map *const map, const char *const key)
 }
 
 merr_t
-options_map_put(struct options_map *const map, const char *const key, const char *const value)
+options_map_put(struct options_map * const map, const char * const key, const char * const value)
 {
     size_t idx = map->len;
 

@@ -9,11 +9,10 @@
 #include <stdint.h>
 
 #include <hse/error/merr.h>
-#include <hse/util/key_util.h>
-#include <hse/util/seqno.h>
-
 #include <hse/ikvdb/key_hash.h>
 #include <hse/ikvdb/omf_kmd.h>
+#include <hse/util/key_util.h>
+#include <hse/util/seqno.h>
 
 /* clang-format off */
 
@@ -38,12 +37,12 @@ enum key_lookup_res {
 /* clang-format on */
 
 struct kvs_ktuple {
-    uint64_t    kt_hash;
+    uint64_t kt_hash;
     const void *kt_data;
-    int32_t     kt_len;
-    uint32_t    kt_flags;
-    uint64_t    kt_seqno;
-    uint64_t    kt_dgen;
+    int32_t kt_len;
+    uint32_t kt_flags;
+    uint64_t kt_seqno;
+    uint64_t kt_dgen;
 };
 
 /**
@@ -56,12 +55,12 @@ struct kvs_ktuple {
  * instead encodes a special value (e.g., a tomb).
  */
 struct kvs_vtuple {
-    void    *vt_data;
+    void *vt_data;
     uint64_t vt_xlen;
 };
 
 struct kvs_buf {
-    void    *b_buf;
+    void *b_buf;
     uint32_t b_buf_sz;
     uint32_t b_len;
 };
@@ -81,7 +80,7 @@ struct kvs_vtuple_ref {
             uint32_t vr_complen;
         } vb;
         struct {
-            uint16_t    vr_len;
+            uint16_t vr_len;
             const void *vr_data;
         } vi;
     };

@@ -8,9 +8,9 @@
 
 #include <stdint.h>
 
-#include <hse/util/base.h>
-#include <hse/util/arch.h>
 #include <hse/error/merr.h>
+#include <hse/util/arch.h>
+#include <hse/util/base.h>
 
 /* MTF_MOCK_DECL(platform) */
 
@@ -91,7 +91,7 @@ hse_meminfo(unsigned long *freep, unsigned long *availp, unsigned int shift);
  * by hse_tsc_mult and a division by 2^hse_tsc_shift (i.e., the division
  * reduces to a simple shift by hse_tsc_shift).
  */
-#define HSE_TSC_SHIFT   (21u)
+#define HSE_TSC_SHIFT (21u)
 
 extern volatile unsigned long hse_tsc_freq;
 extern volatile unsigned int hse_tsc_mult;
@@ -104,8 +104,10 @@ cycles_to_nsecs(uint64_t cycles)
 
 extern const char *hse_progname;
 
-extern merr_t hse_platform_init(void);
-extern void hse_platform_fini(void);
+extern merr_t
+hse_platform_init(void);
+extern void
+hse_platform_fini(void);
 
 #if HSE_MOCKING
 #include "platform_ut.h"

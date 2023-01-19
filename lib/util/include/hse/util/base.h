@@ -10,33 +10,34 @@
  * Other hse_util header files should include this file.
  */
 
-#include <stdio.h>
-#include <stdlib.h>
-#include <stdint.h>
-#include <stdbool.h>
-#include <stdalign.h>
-#include <stddef.h>
-#include <stdarg.h>
-#include <strings.h>
-#include <unistd.h>
-#include <string.h>
+#include <assert.h>
 #include <ctype.h>
 #include <errno.h>
-#include <assert.h>
-#include <time.h>
 #include <fcntl.h>
-#include <sched.h>
 #include <pthread.h>
-#include <sys/types.h>
-#include <sys/param.h>
-#include <sys/time.h>
-#include <sys/uio.h>
-#include <sys/stat.h>
+#include <sched.h>
+#include <stdalign.h>
+#include <stdarg.h>
+#include <stdbool.h>
+#include <stddef.h>
+#include <stdint.h>
+#include <stdio.h>
+#include <stdlib.h>
+#include <string.h>
+#include <strings.h>
+#include <time.h>
+#include <unistd.h>
+
 #include <sys/file.h>
+#include <sys/param.h>
+#include <sys/stat.h>
+#include <sys/time.h>
+#include <sys/types.h>
+#include <sys/uio.h>
 
 #if __linux__
-#include <sys/sysinfo.h>
 #include <linux/fs.h>
+#include <sys/sysinfo.h>
 #endif
 
 /** @brief Cast a member of a structure out to the containing structure.

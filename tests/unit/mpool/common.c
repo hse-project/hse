@@ -8,15 +8,14 @@
 #include <ftw.h>
 #include <stdio.h>
 #include <string.h>
-#include <sys/stat.h>
 
 #include <bsd/string.h>
-
-#include <hse/util/storage.h>
-
 #include <mtf/common.h>
 #include <mtf/framework.h>
+#include <sys/stat.h>
+
 #include <hse/mpool/mpool.h>
+#include <hse/util/storage.h>
 
 #include "common.h"
 
@@ -166,8 +165,9 @@ unset_mclass(const enum hse_mclass mc)
 void
 setup_mclass_with_params(const enum hse_mclass mc, uint8_t fcnt, uint32_t mbsz, uint64_t fmaxsz)
 {
-    const char *path = (mc == HSE_MCLASS_CAPACITY) ? capacity_path :
-        (mc == HSE_MCLASS_STAGING ? staging_path : pmem_path);
+    const char *path = (mc == HSE_MCLASS_CAPACITY)
+        ? capacity_path
+        : (mc == HSE_MCLASS_STAGING ? staging_path : pmem_path);
 
     strlcpy(tcparams.mclass[mc].path, path, sizeof(tcparams.mclass[mc].path));
     strlcpy(trparams.mclass[mc].path, path, sizeof(trparams.mclass[mc].path));
@@ -181,12 +181,12 @@ setup_mclass_with_params(const enum hse_mclass mc, uint8_t fcnt, uint32_t mbsz, 
 void
 setup_mclass(const enum hse_mclass mc)
 {
-    setup_mclass_with_params(mc, MPOOL_MCLASS_FILECNT_DEFAULT, MPOOL_MBLOCK_SIZE_DEFAULT,
-                             MPOOL_MCLASS_FILESZ_DEFAULT);
+    setup_mclass_with_params(
+        mc, MPOOL_MCLASS_FILECNT_DEFAULT, MPOOL_MBLOCK_SIZE_DEFAULT, MPOOL_MCLASS_FILESZ_DEFAULT);
 }
 
 uint64_t
-allocated_bytes_summation(const struct mpool_info *const info)
+allocated_bytes_summation(const struct mpool_info * const info)
 {
     uint64_t sum = 0;
 
@@ -197,7 +197,7 @@ allocated_bytes_summation(const struct mpool_info *const info)
 }
 
 uint64_t
-used_bytes_summation(const struct mpool_info *const info)
+used_bytes_summation(const struct mpool_info * const info)
 {
     uint64_t sum = 0;
 

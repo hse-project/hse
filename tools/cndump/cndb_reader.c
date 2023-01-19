@@ -3,9 +3,8 @@
  * Copyright (C) 2022 Micron Technology, Inc.  All rights reserved.
  */
 
-#include <hse/mpool/mpool.h>
-
 #include <hse/ikvdb/diag_kvdb.h>
+#include <hse/mpool/mpool.h>
 
 #include "cndb_reader.h"
 #include "cndb_record.h"

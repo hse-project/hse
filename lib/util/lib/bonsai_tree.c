@@ -5,12 +5,12 @@
 
 #include <stdint.h>
 
-#include <hse/util/log2.h>
 #include <hse/logging/logging.h>
+#include <hse/util/log2.h>
 
 #include "bonsai_tree_pvt.h"
 
-#define BN_INSERT_FLAG_RIGHT    (0x01u)
+#define BN_INSERT_FLAG_RIGHT (0x01u)
 
 int
 bn_summary(struct bonsai_root *tree, char *buf, size_t bufsz)
@@ -34,9 +34,9 @@ bn_summary(struct bonsai_root *tree, char *buf, size_t bufsz)
         slabinfo->bsi_nodec += slab->bs_nodec;
 
         if (slabinfo->bsi_nodec > 0 && n < sizeof(sibuf)) {
-            n += snprintf(sibuf + n, sizeof(sibuf) - n, "  %u,%lu,%lu,%u",
-                          i, slabinfo->bsi_nodec, slabinfo->bsi_rnodec,
-                          slabinfo->bsi_slabc);
+            n += snprintf(
+                sibuf + n, sizeof(sibuf) - n, "  %u,%lu,%lu,%u", i, slabinfo->bsi_nodec,
+                slabinfo->bsi_rnodec, slabinfo->bsi_slabc);
         }
 
         rnodec += slabinfo->bsi_rnodec;
@@ -49,22 +49,19 @@ bn_summary(struct bonsai_root *tree, char *buf, size_t bufsz)
 
     return snprintf(
         buf, bufsz, "%2d %2d  keys %lu  vals %lu  nodes %lu,%lu,%u  %.2lf  (%u %lu %3lu) %s",
-        tree->br_height, atomic_read(&tree->br_bounds),
-        tree->br_key_alloc, tree->br_key_alloc + tree->br_val_alloc,
-        nodec, rnodec, slabc,
-        (double)(nodec + rnodec) / tree->br_key_alloc,
-        atomic_read(&tree->br_gc_rcugen_done),
+        tree->br_height, atomic_read(&tree->br_bounds), tree->br_key_alloc,
+        tree->br_key_alloc + tree->br_val_alloc, nodec, rnodec, slabc,
+        (double)(nodec + rnodec) / tree->br_key_alloc, atomic_read(&tree->br_gc_rcugen_done),
         (tree->br_gc_latsum_gp / 1000000) / atomic_read(&tree->br_gc_rcugen_done),
-        (tree->br_gc_latsum_gc / 1000) / atomic_read(&tree->br_gc_rcugen_done),
-        sibuf);
+        (tree->br_gc_latsum_gc / 1000) / atomic_read(&tree->br_gc_rcugen_done), sibuf);
 }
 
 static struct bonsai_node *
 bn_ior_replace(
-    struct bonsai_root *      tree,
+    struct bonsai_root *tree,
     const struct bonsai_skey *skey,
-    struct bonsai_sval       *sval,
-    struct bonsai_node       *node)
+    struct bonsai_sval *sval,
+    struct bonsai_node *node)
 {
     struct bonsai_val *oldv = NULL, *v;
     enum bonsai_ior_code code;
@@ -90,14 +87,14 @@ bn_ior_replace(
 
 static struct bonsai_node *
 bn_ior_insert(
-    struct bonsai_root         *tree,
-    const struct bonsai_skey   *skey,
-    struct bonsai_sval         *sval,
-    struct bonsai_kv           *kvlist,
-    uint32_t                    flags)
+    struct bonsai_root *tree,
+    const struct bonsai_skey *skey,
+    struct bonsai_sval *sval,
+    struct bonsai_kv *kvlist,
+    uint32_t flags)
 {
     struct bonsai_node *node;
-    struct bonsai_val  *val;
+    struct bonsai_val *val;
     enum bonsai_ior_code code;
 
     node = bn_kvnode_alloc(tree, skey, sval);
@@ -128,17 +125,15 @@ bn_ior_insert(
  * of the bonsai node pointer to remember which way it went when
  * searching for the insertion point.
  */
-#define BN_IOR_RIGHT    ((uintptr_t)BN_INSERT_FLAG_RIGHT)
-#define BN_IOR_MASK     ((uintptr_t)(sizeof(uintptr_t) - 1))
+#define BN_IOR_RIGHT ((uintptr_t)BN_INSERT_FLAG_RIGHT)
+#define BN_IOR_MASK  ((uintptr_t)(sizeof(uintptr_t) - 1))
 
-_Static_assert(BN_IOR_RIGHT > 0 && BN_IOR_RIGHT < BN_IOR_MASK,
-               "bn_ior_impl() requires BN_INSERT_FLAG_RIGHT to be 1 or 2");
+_Static_assert(
+    BN_IOR_RIGHT > 0 && BN_IOR_RIGHT < BN_IOR_MASK,
+    "bn_ior_impl() requires BN_INSERT_FLAG_RIGHT to be 1 or 2");
 
 static struct bonsai_node *
-bn_ior_impl(
-    struct bonsai_root         *tree,
-    const struct bonsai_skey   *skey,
-    struct bonsai_sval         *sval)
+bn_ior_impl(struct bonsai_root *tree, const struct bonsai_skey *skey, struct bonsai_sval *sval)
 {
     const struct key_immediate *key_imm;
     struct bonsai_node *node;
@@ -221,9 +216,9 @@ bn_ior_impl(
 
 static merr_t
 bn_delete_impl(
-    struct bonsai_root       *tree,
+    struct bonsai_root *tree,
     const struct bonsai_skey *skey,
-    struct bonsai_node      **newrootp)
+    struct bonsai_node **newrootp)
 {
     const struct key_immediate *key_imm;
     struct bonsai_node *dnode, *dnparentdup;
@@ -316,8 +311,7 @@ bn_delete_impl(
                 dnparentdup = parent;
             }
         }
-    }
-    else {
+    } else {
         struct bonsai_node *snode = dnode->bn_right;
 
         /* To delete an interior node we must replace it with its successor node,
@@ -383,16 +377,19 @@ bn_delete_impl(
 }
 
 static inline struct bonsai_kv *
-bn_find_next_pfx(struct bonsai_root *tree, const struct bonsai_skey *skey, enum bonsai_match_type mtype)
+bn_find_next_pfx(
+    struct bonsai_root *tree,
+    const struct bonsai_skey *skey,
+    enum bonsai_match_type mtype)
 {
-    struct bonsai_node *        node;
-    struct bonsai_node *        node_gt, *node_lt;
+    struct bonsai_node *node;
+    struct bonsai_node *node_gt, *node_lt;
     const struct key_immediate *ki;
-    const void *                key;
+    const void *key;
 
     uint klen;
     int32_t res;
-    uint32_t  skidx;
+    uint32_t skidx;
 
     /* [HSE_REVISIT] Optimize using lcp */
 
@@ -436,7 +433,7 @@ bn_find_impl(struct bonsai_root *tree, const struct bonsai_skey *skey, enum bons
     const struct key_immediate *ki;
     const void *key;
     uint klen;
-    int  bounds;
+    int bounds;
     int32_t res;
 
     ki = &skey->bsk_key_imm;
@@ -459,8 +456,8 @@ bn_find_impl(struct bonsai_root *tree, const struct bonsai_skey *skey, enum bons
         /* br_bounds is set to 1 + the lcp to use. */
         lcp = min_t(uint, klen, bounds - 1);
 
-        if (lcp > KI_DLEN_MAX &&
-            key_immediate_index(ki) == key_immediate_index(&bkv->bkv_key_imm)) {
+        if (lcp > KI_DLEN_MAX && key_immediate_index(ki) == key_immediate_index(&bkv->bkv_key_imm))
+        {
 
             lcp = memlcpq(key, bkv->bkv_key, lcp);
             if (lcp > KI_DLEN_MAX) {
@@ -500,8 +497,7 @@ search:
             /* At this point we are assured that both keys'
              * ki_dlen are greater than KI_DLEN_MAX.
              */
-            res = key_inner_cmp(
-                key, klen, node->bn_kv->bkv_key, key_imm_klen(&node->bn_key_imm));
+            res = key_inner_cmp(key, klen, node->bn_kv->bkv_key, key_imm_klen(&node->bn_key_imm));
         }
 
         if (HSE_UNLIKELY(res == 0))
@@ -527,9 +523,9 @@ search:
 
 merr_t
 bn_insert_or_replace(
-    struct bonsai_root *      tree,
+    struct bonsai_root *tree,
     const struct bonsai_skey *skey,
-     struct bonsai_sval      *sval)
+    struct bonsai_sval *sval)
 {
     struct bonsai_node *newroot;
 
@@ -550,9 +546,7 @@ bn_insert_or_replace(
 }
 
 merr_t
-bn_delete(
-    struct bonsai_root       *tree,
-    const struct bonsai_skey *skey)
+bn_delete(struct bonsai_root *tree, const struct bonsai_skey *skey)
 {
     struct bonsai_node *newroot;
     merr_t err;
@@ -673,7 +667,7 @@ void
 bn_finalize(struct bonsai_root *tree)
 {
     const struct bonsai_kv *kmin, *kmax;
-    uint                    lcp, set_lcp = 0;
+    uint lcp, set_lcp = 0;
 
     kmin = rcu_dereference(tree->br_kv.bkv_next);
     kmax = rcu_dereference(tree->br_kv.bkv_prev);
@@ -687,7 +681,8 @@ bn_finalize(struct bonsai_root *tree)
         lcp = min_t(uint, key_imm_klen(&kmin->bkv_key_imm), key_imm_klen(&kmax->bkv_key_imm));
 
         if (lcp > KI_DLEN_MAX &&
-            key_immediate_index(&kmin->bkv_key_imm) == key_immediate_index(&kmax->bkv_key_imm)) {
+            key_immediate_index(&kmin->bkv_key_imm) == key_immediate_index(&kmax->bkv_key_imm))
+        {
 
             lcp = memlcpq(kmin->bkv_key, kmax->bkv_key, lcp);
             if (lcp > KI_DLEN_MAX) {
@@ -712,19 +707,19 @@ bn_reset_impl(struct bonsai_root *tree)
 
     bn_kv_free(tree->br_vfkeys);
 
-    while (( kv = tree->br_rfkeys )) {
+    while ((kv = tree->br_rfkeys)) {
         tree->br_rfkeys = kv->bkv_next;
         bn_kv_free(kv);
     }
 
-    while (( kv = tree->br_gc_vfkeys )) {
+    while ((kv = tree->br_gc_vfkeys)) {
         tree->br_gc_vfkeys = kv->bkv_next;
         bn_kv_free(kv);
     }
 
     tree->br_kv.bkv_prev->bkv_next = NULL;
 
-    while (( kv = tree->br_kv.bkv_next )) {
+    while ((kv = tree->br_kv.bkv_next)) {
         tree->br_kv.bkv_next = kv->bkv_next;
         bn_kv_free(kv);
     }
@@ -733,20 +728,20 @@ bn_reset_impl(struct bonsai_root *tree)
      * queues.  Freeing all the slabs destroys all the nodes in the
      * tree without having to actually walk the tree.
      */
-    while (( slab = tree->br_gc_waitq )) {
+    while ((slab = tree->br_gc_waitq)) {
         tree->br_gc_waitq = slab->bs_next;
         bn_slab_free(slab);
     }
 
     assert(!tree->br_gc_readyq);
 
-    list_for_each_entry_safe(slab, next, &tree->br_gc_holdq, bs_entry)
+    list_for_each_entry_safe (slab, next, &tree->br_gc_holdq, bs_entry)
         bn_slab_free(slab);
 
     for (int i = 0; i < NELEM(tree->br_slabinfov); ++i) {
         struct bonsai_slabinfo *slabinfo = tree->br_slabinfov + i;
 
-        list_for_each_entry_safe(slab, next, &slabinfo->bsi_freeq, bs_entry)
+        list_for_each_entry_safe (slab, next, &slabinfo->bsi_freeq, bs_entry)
             bn_slab_free(slab);
 
         bn_slab_free(slabinfo->bsi_slab);
@@ -770,7 +765,8 @@ bn_reset(struct bonsai_root *tree)
 
 #ifdef HSE_BUILD_DEBUG
     if ((tree->br_oomslab || bn_summary_calls_tls++ % 8 == 0) &&
-        bn_summary(tree, buf, sizeof(buf)) > 0) {
+        bn_summary(tree, buf, sizeof(buf)) > 0)
+    {
 
         log_debug("%s", buf);
     }
@@ -809,11 +805,7 @@ bn_reset(struct bonsai_root *tree)
 }
 
 merr_t
-bn_create(
-    struct cheap        *cheap,
-    bonsai_ior_cb        cb,
-    void                *cbarg,
-    struct bonsai_root **tree)
+bn_create(struct cheap *cheap, bonsai_ior_cb cb, void *cbarg, struct bonsai_root **tree)
 {
     struct bonsai_root *r;
     size_t sz;
@@ -865,8 +857,7 @@ bn_destroy(struct bonsai_root *tree)
         free(tree);
 }
 
-__attribute__((__cold__))
-static void
+__attribute__((__cold__)) static void
 bn_traverse_impl(struct bonsai_node *node)
 {
     if (!node)
@@ -878,8 +869,7 @@ bn_traverse_impl(struct bonsai_node *node)
     bn_traverse_impl(rcu_dereference(node->bn_right));
 }
 
-__attribute__((__cold__))
-void
+__attribute__((__cold__)) void
 bn_traverse(struct bonsai_root *tree)
 {
     bn_traverse_impl(rcu_dereference(tree->br_root));

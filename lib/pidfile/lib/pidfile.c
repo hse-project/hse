@@ -11,13 +11,13 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
-#include <sys/file.h>
 #include <unistd.h>
-#include <sys/stat.h>
 
-#include <cjson/cJSON.h>
-#include <bsd/string.h>
 #include <bsd/libutil.h>
+#include <bsd/string.h>
+#include <cjson/cJSON.h>
+#include <sys/file.h>
+#include <sys/stat.h>
 
 #include <hse/error/merr.h>
 #include <hse/pidfile/pidfile.h>
@@ -26,7 +26,7 @@ merr_t
 pidfile_serialize(struct pidfh *pfh, const struct pidfile *content)
 {
     merr_t err = 0;
-    char * str = NULL;
+    char *str = NULL;
     cJSON *root = NULL, *rest = NULL;
 
     if (!pfh || !content)
@@ -173,7 +173,8 @@ pidfile_deserialize(const char *home, struct pidfile *content)
         memset(content->rest.socket_path, 0, sizeof(content->rest.socket_path));
     } else {
         n = strlcpy(
-            content->rest.socket_path, cJSON_GetStringValue(socket_path), sizeof(content->rest.socket_path));
+            content->rest.socket_path, cJSON_GetStringValue(socket_path),
+            sizeof(content->rest.socket_path));
         if (n >= sizeof(content->rest.socket_path)) {
             err = merr(ENAMETOOLONG);
             goto out;

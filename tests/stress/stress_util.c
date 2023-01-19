@@ -3,7 +3,6 @@
  * Copyright (C) 2021-2022 Micron Technology, Inc.  All rights reserved.
  */
 
-#include "stress_util.h"
 #include <assert.h>
 #include <errno.h>
 #include <poll.h>
@@ -12,20 +11,24 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
-#include <sys/time.h>
-#include <sys/timerfd.h>
 #include <time.h>
 #include <unistd.h>
 
+#include <sys/time.h>
+#include <sys/timerfd.h>
+
 #include <hse/experimental.h>
+
 #include <hse/util/compiler.h>
+
+#include "stress_util.h"
 
 int DEBUG = 0;
 
-static const char *       level_names[] = { "DEBUG", "INFO", "WARN", "ERROR", "FATAL" };
-static pthread_t          g_thread_id;
+static const char *level_names[] = { "DEBUG", "INFO", "WARN", "ERROR", "FATAL" };
+static pthread_t g_thread_id;
 static struct timer_node *g_head;
-static const int          MAX_PARAMS = 10;
+static const int MAX_PARAMS = 10;
 
 #define MAX_TIMER_COUNT 1000
 
@@ -33,7 +36,7 @@ long long
 current_timestamp_ms()
 {
     struct timeval te;
-    long long      milliseconds;
+    long long milliseconds;
 
     gettimeofday(&te, NULL);
     milliseconds = te.tv_sec * 1000LL + te.tv_usec / 1000;
@@ -44,9 +47,9 @@ current_timestamp_ms()
 void
 log_print(int level, const char *fmt, ...)
 {
-    char       buf[32];
-    va_list    args;
-    time_t     t = time(NULL);
+    char buf[32];
+    va_list args;
+    time_t t = time(NULL);
     struct tm *lt = localtime(&t);
     int n HSE_MAYBE_UNUSED;
 
@@ -75,7 +78,7 @@ void
 fillrandom(char *dest, size_t dest_size)
 {
     /* This does NOT null terminate the data; caller must do so if needed */
-    int               n = 0;
+    int n = 0;
     static const char charset[] = "abcdefghijklmnopqrstuvwxyz"
                                   "ABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789_";
 
@@ -90,14 +93,14 @@ fillrandom(char *dest, size_t dest_size)
 
 void
 generate_record(
-    char *      key_buf,
-    size_t      key_buf_size,
-    char *      val_buf,
-    size_t      val_buf_size,
-    int         key_len,
-    int         val_len,
+    char *key_buf,
+    size_t key_buf_size,
+    char *val_buf,
+    size_t val_buf_size,
+    int key_len,
+    int val_len,
     const char *val_data,
-    long        key_idx)
+    long key_idx)
 {
     int n HSE_MAYBE_UNUSED;
 
@@ -124,16 +127,16 @@ generate_record(
 int
 create_or_open_kvs(
     struct hse_kvdb *kvdb,
-    const char *     kvs_name,
+    const char *kvs_name,
     struct hse_kvs **kvs_out,
-    int              transactions_enable)
+    int transactions_enable)
 {
     struct hse_kvs *kvs;
-    hse_err_t       err;
-    int             status = 0;
-    const char *    paramv[MAX_PARAMS];
-    int             paramc = 0;
-    char            msg[100];
+    hse_err_t err;
+    int status = 0;
+    const char *paramv[MAX_PARAMS];
+    int paramc = 0;
+    char msg[100];
 
     if (transactions_enable) {
         paramv[paramc] = "transactions.enabled=true";
@@ -179,21 +182,21 @@ errout:
 
 int
 create_or_open_kvdb_and_kvs(
-    char *            kvdb_home,
-    char *            kvs_name,
+    char *kvdb_home,
+    char *kvs_name,
     struct hse_kvdb **kvdb_out,
-    struct hse_kvs ** kvs_out,
-    bool              drop,
-    int               wal_disable,
-    uint64_t          txn_timeout,
-    int               transactions_enable)
+    struct hse_kvs **kvs_out,
+    bool drop,
+    int wal_disable,
+    uint64_t txn_timeout,
+    int transactions_enable)
 {
     struct hse_kvdb *kvdb;
-    struct hse_kvs * kvs;
-    hse_err_t        err;
-    clock_t          t1, t2;
-    int              status;
-    char             msg[100];
+    struct hse_kvs *kvs;
+    hse_err_t err;
+    clock_t t1, t2;
+    int status;
+    char msg[100];
 
     status = 0;
 
@@ -280,9 +283,9 @@ errout:
 void
 print_storage_info(struct hse_kvdb *kvdb)
 {
-    hse_err_t              err;
+    hse_err_t err;
     struct hse_mclass_info info;
-    char                   buf[256];
+    char buf[256];
 
     for (int i = HSE_MCLASS_BASE; i < HSE_MCLASS_COUNT; i++) {
         err = hse_kvdb_mclass_info_get(kvdb, i, &info);
@@ -290,7 +293,8 @@ print_storage_info(struct hse_kvdb *kvdb)
             hse_strerror(err, buf, sizeof(buf));
             log_error("hse_kvdb_storage_info_get: errno=%d msg=\"%s\"", hse_err_to_errno(err), buf);
         } else {
-            log_info("%s: allocated_bytes=%ld used_bytes=%ld", hse_mclass_name_get(i),
+            log_info(
+                "%s: allocated_bytes=%ld used_bytes=%ld", hse_mclass_name_get(i),
                 info.mi_allocated_bytes, info.mi_used_bytes);
         }
     }
@@ -298,15 +302,15 @@ print_storage_info(struct hse_kvdb *kvdb)
 
 int
 timer_start(
-    unsigned int        interval,
-    time_handler        handler,
-    t_timer             type,
-    void *              user_data,
+    unsigned int interval,
+    time_handler handler,
+    t_timer type,
+    void *user_data,
     struct timer_node **node_out)
 {
     struct timer_node *new_node = NULL;
-    struct itimerspec  new_value;
-    int                rc;
+    struct itimerspec new_value;
+    int rc;
 
     new_node = (struct timer_node *)malloc(sizeof(struct timer_node));
 
@@ -355,7 +359,7 @@ int
 timer_stop(struct timer_node *node)
 {
     struct timer_node *tmp = NULL;
-    int                rc;
+    int rc;
 
     if (node == NULL)
         return 0;
@@ -408,11 +412,11 @@ _get_timer_from_fd(int fd)
 void *
 _timer_thread(void *data)
 {
-    struct pollfd      ufds[MAX_TIMER_COUNT] = { { 0 } };
-    int                iMaxCount = 0;
+    struct pollfd ufds[MAX_TIMER_COUNT] = { { 0 } };
+    int iMaxCount = 0;
     struct timer_node *tmp = NULL;
-    int                read_fds = 0, i, s;
-    uint64_t           exp;
+    int read_fds = 0, i, s;
+    uint64_t exp;
 
     while (1) {
         pthread_setcancelstate(PTHREAD_CANCEL_ENABLE, NULL);

@@ -12,16 +12,10 @@
 #include <hse/types.h>
 
 hse_err_t
-kvdb_info_print(
-    const char *         kvdb_home,
-    const size_t         paramc,
-    const char *const *  paramv);
+kvdb_info_print(const char *kvdb_home, const size_t paramc, const char * const *paramv);
 
 bool
-kvdb_storage_info_print(
-    const char *         kvdb_home,
-    const size_t         paramc,
-    const char *const *  paramv);
+kvdb_storage_info_print(const char *kvdb_home, const size_t paramc, const char * const *paramv);
 
 int
 kvdb_compact_request(const char *kvdb_home, const char *request_type, unsigned timeout_sec);

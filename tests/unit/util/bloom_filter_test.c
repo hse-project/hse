@@ -8,22 +8,22 @@
 #include <mtf/framework.h>
 
 #include <hse/error/merr.h>
+#include <hse/util/bloom_filter.h>
 #include <hse/util/hash.h>
 #include <hse/util/page.h>
-#include <hse/util/bloom_filter.h>
 
 MTF_BEGIN_UTEST_COLLECTION(bloom_filter_basic);
 
 MTF_DEFINE_UTEST(bloom_filter_basic, DoesAnything)
 {
     struct bf_bithash_desc desc;
-    struct bloom_filter    f;
-    uint8_t                bit_block[PAGE_SIZE];
-    const uint             nkeys = sizeof(bit_block) / 3;
+    struct bloom_filter f;
+    uint8_t bit_block[PAGE_SIZE];
+    const uint nkeys = sizeof(bit_block) / 3;
 
     const char *buf1 = "The cow jumped over the moon";
     const char *buf2 = "Now just wait a damp minute";
-    uint64_t    val1, val2;
+    uint64_t val1, val2;
 
     desc = bf_compute_bithash_est(20000);
     bf_filter_init(&f, desc, nkeys, bit_block, sizeof(bit_block));
@@ -38,8 +38,8 @@ MTF_DEFINE_UTEST(bloom_filter_basic, BloomParameters)
     struct bf_bithash_desc desc;
 
     uint32_t last_bpe, last_num_hashes;
-    double   ratio;
-    int      i;
+    double ratio;
+    int i;
 
     desc = bf_compute_bithash_est(200);
     last_bpe = desc.bhd_bits_per_elt;
@@ -68,9 +68,9 @@ MTF_DEFINE_UTEST(bloom_filter_basic, BloomParameters)
 MTF_DEFINE_UTEST(bloom_filter_basic, Initialization)
 {
     struct bf_bithash_desc desc;
-    struct bloom_filter    f;
-    uint8_t                bits[PAGE_SIZE * 7];
-    const uint             nkeys = sizeof(bits) / 3;
+    struct bloom_filter f;
+    uint8_t bits[PAGE_SIZE * 7];
+    const uint nkeys = sizeof(bits) / 3;
 
     desc = bf_compute_bithash_est(20000);
     bf_filter_init(&f, desc, nkeys, bits, sizeof(bits));
@@ -87,18 +87,18 @@ MTF_DEFINE_UTEST(bloom_filter_basic, Initialization)
 MTF_DEFINE_UTEST(bloom_filter_basic, BasicInsert)
 {
     struct bf_bithash_desc desc;
-    struct bloom_filter    f;
-    uint8_t *              bits;
-    uint32_t               n_elts;
-    uint32_t               i, n, prob;
-    uint64_t               hash;
-    char                   buf[100];
+    struct bloom_filter f;
+    uint8_t *bits;
+    uint32_t n_elts;
+    uint32_t i, n, prob;
+    uint64_t hash;
+    char buf[100];
 
     n_elts = 10000;
 
     for (prob = 1000; prob < 90000; prob += 1773) {
         uint32_t fpc = 0;
-        size_t   sz;
+        size_t sz;
 
         desc = bf_compute_bithash_est(prob);
 
@@ -117,7 +117,7 @@ MTF_DEFINE_UTEST(bloom_filter_basic, BasicInsert)
 
         for (i = 0; i < n_elts; ++i) {
             const uint8_t *bitmap = bits;
-            bool           hit;
+            bool hit;
 
             n = sprintf(buf, "%x:%d", i, i);
             hash = hse_hash64(buf, n);
@@ -142,7 +142,7 @@ MTF_DEFINE_UTEST(bloom_filter_basic, RepeatableBasic)
 {
     const char *buf1 = "The cow jumped over the moon";
     const char *buf2 = "Now just wait a damp minute";
-    uint64_t    val1, val2;
+    uint64_t val1, val2;
 
     val1 = hse_hash64(buf1, strlen(buf1));
     val2 = hse_hash64(buf1, strlen(buf1));
@@ -156,7 +156,7 @@ MTF_DEFINE_UTEST(bloom_filter_basic, RepeatableBasic)
 MTF_DEFINE_UTEST(bloom_filter_basic, RepeatableEmpty)
 {
     const char *buf1 = "";
-    uint64_t    val1, val2;
+    uint64_t val1, val2;
 
     val1 = hse_hash64(buf1, strlen(buf1));
     val2 = hse_hash64(buf1, strlen(buf1));

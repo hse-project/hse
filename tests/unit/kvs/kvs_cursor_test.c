@@ -3,19 +3,15 @@
  * Copyright (C) 2015-2021 Micron Technology, Inc.  All rights reserved.
  */
 
+#include <bsd/string.h>
+#include <kvdb/kvdb_kvs.h>
+#include <mocks/mock_c0cn.h>
 #include <mtf/framework.h>
 
-#include <hse/ikvdb/kvs.h>
 #include <hse/ikvdb/c0.h>
+#include <hse/ikvdb/kvs.h>
 #include <hse/ikvdb/lc.h>
-
 #include <hse/util/seqno.h>
-
-#include <kvdb/kvdb_kvs.h>
-
-#include <mocks/mock_c0cn.h>
-
-#include <bsd/string.h>
 
 static struct ikvs *kvs;
 static struct lc *lc;
@@ -24,10 +20,10 @@ static struct kvdb_health mock_health;
 static int
 test_pre(struct mtf_test_info *lcl_ti)
 {
-    merr_t             err;
-    void *             dummy = (void *)-1;
+    merr_t err;
+    void *dummy = (void *)-1;
     struct kvs_rparams rp = kvs_rparams_defaults();
-    struct kvdb_kvs    kvdb_kvs;
+    struct kvdb_kvs kvdb_kvs;
 
     strlcpy(kvdb_kvs.kk_name, "dummy", sizeof(kvdb_kvs.kk_name));
 
@@ -66,7 +62,7 @@ insert_key(struct mtf_test_info *lcl_ti, char *key)
 {
     struct kvs_ktuple kt;
     struct kvs_vtuple vt;
-    merr_t            err;
+    merr_t err;
 
     kvs_ktuple_init(&kt, key, strlen(key));
     kvs_vtuple_init(&vt, key, strlen(key));
@@ -117,7 +113,8 @@ expect_pfx(struct mtf_test_info *lcl_ti, const void *key, size_t klen, const cha
     ASSERT_EQ(0, rc);
 }
 
-void verify_range(struct mtf_test_info *lcl_ti, const char *pfx, int start, int cnt)
+void
+verify_range(struct mtf_test_info *lcl_ti, const char *pfx, int start, int cnt)
 {
     int i;
     int c = 0;
@@ -143,7 +140,7 @@ void verify_range(struct mtf_test_info *lcl_ti, const char *pfx, int start, int 
     }
 
     for (i = start;; i++) {
-        const void  *key;
+        const void *key;
         char keybuf[32];
         size_t key_len;
         bool eof;
@@ -199,11 +196,11 @@ MTF_DEFINE_UTEST(kvs_cursor_test, val_copy_null_cursor)
 
 MTF_DEFINE_UTEST_PREPOST(kvs_cursor_test, val_copy_null_val_out, test_pre, test_post)
 {
-    merr_t                 err;
+    merr_t err;
     struct hse_kvs_cursor *cur;
-    size_t                 value_len = 0;
-    char *                 data = "test";
-    bool                   eof = false;
+    size_t value_len = 0;
+    char *data = "test";
+    bool eof = false;
 
     insert_key(lcl_ti, data);
 

@@ -47,16 +47,19 @@
 #include <stddef.h>
 
 #include <hse/types.h>
+
 #include <hse/util/compiler.h>
 
 #define EBUG (991)
 
 /* Alignment of _hse_merr_file in section "hse_merr"
  */
-#define MERR_ALIGN      (1 << 6)
+#define MERR_ALIGN (1 << 6)
 
 #define _merr_section __attribute__((section("hse_merr")))
-#define _merr_attributes _merr_section HSE_ALIGNED(MERR_ALIGN) HSE_MAYBE_UNUSED
+#define _merr_attributes                  \
+    _merr_section HSE_ALIGNED(MERR_ALIGN) \
+    HSE_MAYBE_UNUSED
 
 static char _hse_merr_file[MERR_ALIGN] _merr_attributes = __BASE_FILE__;
 
@@ -84,7 +87,8 @@ extern char hse_merr_bug2[];
 #define MERR_ERRNO_MASK (0x000000000000fffful)
 
 typedef hse_err_t merr_t;
-typedef const char *merr_stringify(unsigned int);
+typedef const char *
+merr_stringify(unsigned int);
 
 /**
  * merr() - Pack given errno and call-site info into a merr_t
@@ -111,12 +115,7 @@ merr_strerror(merr_t err, char *buf, size_t buf_sz);
  * merr_strinfo() - Format file, line, ctx, and errno from merr_t
  */
 char *
-merr_strinfo(
-    merr_t err,
-    char *buf,
-    size_t buf_sz,
-    merr_stringify ctx_stringify,
-    size_t *need_sz);
+merr_strinfo(merr_t err, char *buf, size_t buf_sz, merr_stringify ctx_stringify, size_t *need_sz);
 
 /**
  * merr_file() - Return file name ptr from merr_t

@@ -9,34 +9,35 @@
 #include <cjson/cJSON.h>
 
 #include <hse/hse.h>
+
 #include <hse/cli/rest/api.h>
 #include <hse/cli/rest/client.h>
 #include <hse/cli/tprint.h>
 #include <hse/pidfile/pidfile.h>
-
 #include <hse/util/assert.h>
 #include <hse/util/base.h>
 #include <hse/util/compiler.h>
 
 int
-hse_storage_info(const char *const kvdb_home)
+hse_storage_info(const char * const kvdb_home)
 {
-    static const char *const headers[] = { "MEDIA_CLASS", "ALLOCATED_BYTES", "USED_BYTES", "PATH" };
+    static const char * const headers[] = { "MEDIA_CLASS", "ALLOCATED_BYTES", "USED_BYTES",
+                                            "PATH" };
     static const enum tprint_justify justify[] = { TP_JUSTIFY_LEFT, TP_JUSTIFY_RIGHT,
-        TP_JUSTIFY_RIGHT, TP_JUSTIFY_LEFT };
+                                                   TP_JUSTIFY_RIGHT, TP_JUSTIFY_LEFT };
 
-    hse_err_t               err = 0;
-    struct hse_kvdb *       kvdb = NULL;
-    struct hse_mclass_info  info[HSE_MCLASS_COUNT];
-    int                     rc = 0;
-    unsigned int            rowid;
-    struct pidfile          content;
-    char                    nums[HSE_MCLASS_COUNT][2][21];
-    const char *            values[NELEM(headers) * HSE_MCLASS_COUNT];
+    hse_err_t err = 0;
+    struct hse_kvdb *kvdb = NULL;
+    struct hse_mclass_info info[HSE_MCLASS_COUNT];
+    int rc = 0;
+    unsigned int rowid;
+    struct pidfile content;
+    char nums[HSE_MCLASS_COUNT][2][21];
+    const char *values[NELEM(headers) * HSE_MCLASS_COUNT];
     HSE_MAYBE_UNUSED size_t n;
-    bool                    mc_present[HSE_MCLASS_COUNT] = { 0 };
-    bool                    used_rest = false;
-    char                    buf[256];
+    bool mc_present[HSE_MCLASS_COUNT] = { 0 };
+    bool used_rest = false;
+    char buf[256];
 
     INVARIANT(kvdb_home);
 
@@ -103,8 +104,8 @@ hse_storage_info(const char *const kvdb_home)
             const size_t base = rowid * NELEM(headers);
             values[base] = hse_mclass_name_get(i);
 
-            rc = snprintf(nums[rowid][0], sizeof(nums[rowid][0]), "%lu",
-                          info[i].mi_allocated_bytes);
+            rc =
+                snprintf(nums[rowid][0], sizeof(nums[rowid][0]), "%lu", info[i].mi_allocated_bytes);
             if (rc < 0) {
                 rc = EBADMSG;
                 goto out;

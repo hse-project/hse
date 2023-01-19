@@ -11,9 +11,8 @@
 #include <stdint.h>
 
 #include <hse/error/merr.h>
-
-#include <hse/util/perfc.h>
 #include <hse/util/key_util.h>
+#include <hse/util/perfc.h>
 
 struct cn;
 struct cn_merge_stats;
@@ -88,10 +87,10 @@ kbb_destroy(struct kblock_builder *bld);
 merr_t
 kbb_add_entry(
     struct kblock_builder *bld,
-    const struct key_obj * kobj,
-    const void *           kmd,
-    uint                   kmd_len,
-    struct key_stats *     stats);
+    const struct key_obj *kobj,
+    const void *kmd,
+    uint kmd_len,
+    struct key_stats *stats);
 
 /**
  * kbb_finish() - ensure all kblocks have been written to media and
@@ -135,8 +134,8 @@ kbb_is_empty(struct kblock_builder *bld);
 void
 kbb_curr_kblk_min_max_keys(
     struct kblock_builder *bld,
-    struct key_obj        *min_kobj,
-    struct key_obj        *max_kobj);
+    struct key_obj *min_kobj,
+    struct key_obj *max_kobj);
 
 #if HSE_MOCKING
 #include "kblock_builder_ut.h"

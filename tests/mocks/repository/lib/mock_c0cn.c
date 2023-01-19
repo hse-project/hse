@@ -4,32 +4,29 @@
  */
 
 #include <stdint.h>
-#include <sys/mman.h>
 
+#include <bsd/string.h>
+#include <cn/cn_cursor.h>
 #include <mock/api.h>
+#include <mocks/mock_kvset_builder.h>
+#include <mocks/mock_mpool.h>
+#include <sys/mman.h>
 
 #include <hse/hse.h>
 
-#include <hse/util/page.h>
-#include <hse/util/keycmp.h>
-#include <hse/util/table.h>
-#include <hse/util/spinlock.h>
-#include <hse/util/event_counter.h>
-
-#include <hse/ikvdb/kvs.h>
-#include <hse/ikvdb/cn.h>
-#include <cn/cn_cursor.h>
 #include <hse/ikvdb/c0.h>
+#include <hse/ikvdb/cn.h>
 #include <hse/ikvdb/cndb.h>
-#include <hse/ikvdb/wal.h>
 #include <hse/ikvdb/kvdb_health.h>
 #include <hse/ikvdb/kvdb_meta.h>
+#include <hse/ikvdb/kvs.h>
 #include <hse/ikvdb/omf_version.h>
-
-#include <mocks/mock_kvset_builder.h>
-#include <mocks/mock_mpool.h>
-
-#include <bsd/string.h>
+#include <hse/ikvdb/wal.h>
+#include <hse/util/event_counter.h>
+#include <hse/util/keycmp.h>
+#include <hse/util/page.h>
+#include <hse/util/spinlock.h>
+#include <hse/util/table.h>
 
 /* ------------------------------------------------------------
  * Mocked c0/cn
@@ -66,8 +63,7 @@ c0_data_vlen(struct c0_data *d)
     return d->xlen & 0xfffffffful;
 }
 
-struct c0 {
-};
+struct c0 {};
 
 #define mock_c0_h2r(h) container_of(h, struct mock_c0, handle)
 
@@ -83,45 +79,44 @@ struct mock_c0_cursor {
 };
 
 struct mock_c0 {
-    char            tripwire[PAGE_SIZE * 7]; /* must be first field */
-    struct c0       handle;
-    struct c0_data  data[KEY_CNT];
-    struct c0sk    *c0_c0sk;
-    uint64_t        hash;
-    uint32_t        index;
+    char tripwire[PAGE_SIZE * 7]; /* must be first field */
+    struct c0 handle;
+    struct c0_data data[KEY_CNT];
+    struct c0sk *c0_c0sk;
+    uint64_t hash;
+    uint32_t index;
 
-    spinlock_t             cc_lock;
+    spinlock_t cc_lock;
     struct mock_c0_cursor *cc_head;
 };
 
 struct mock_cn_cursor {
-    char            tripwire[PAGE_SIZE * 7]; /* must be first field! */
-    char            prefix[KEY_LEN];
+    char tripwire[PAGE_SIZE * 7]; /* must be first field! */
+    char prefix[KEY_LEN];
     struct element_source es;
     struct kvs_cursor_element elem;
     struct c0_data *data;
-    uint64_t        seqno;
-    int             pfx_len;
-    int             i;
-    bool            eof;
+    uint64_t seqno;
+    int pfx_len;
+    int i;
+    bool eof;
     struct mock_cn *cn;
-    void           *cc_next;
+    void *cc_next;
 };
 
 struct mock_cn {
-    char            tripwire[PAGE_SIZE * 7]; /* must be first field */
+    char tripwire[PAGE_SIZE * 7]; /* must be first field */
     struct c0_data *data;
-    struct cndb *   cndb;
-    atomic_int      refcnt;
+    struct cndb *cndb;
+    atomic_int refcnt;
 
-    spinlock_t             cc_lock;
+    spinlock_t cc_lock;
     struct mock_cn_cursor *cc_head;
 } HSE_ALIGNED(PAGE_SIZE);
 
 static atomic_int mocked_c0_open_count;
 static struct kvs_rparams mocked_kvs_rparams;
 static struct kvs_cparams mocked_kvs_cparams;
-
 
 /*
  * c0_open receives the mock cn in its arguments.
@@ -188,13 +183,13 @@ _c0_index(struct c0 *handle)
 
 static merr_t
 _c0_cursor_create(
-    struct c0 *            handle,
-    uint64_t               seqno,
-    bool                   reverse,
-    const void *           prefix,
-    size_t                 pfx_len,
+    struct c0 *handle,
+    uint64_t seqno,
+    bool reverse,
+    const void *prefix,
+    size_t pfx_len,
     struct cursor_summary *summary,
-    struct c0_cursor **    c0cur)
+    struct c0_cursor **c0cur)
 {
     struct mock_c0 *c0 = mock_c0_h2r(handle);
     struct mock_c0_cursor *cur;
@@ -247,18 +242,15 @@ _c0_cursor_read(struct c0_cursor *cur, struct kvs_cursor_element *elem, bool *eo
 }
 
 static merr_t
-_c0_cursor_seek(
-    struct c0_cursor * cur,
-    const void *       prefix,
-    size_t             pfx_len,
-    struct kc_filter * filter)
+_c0_cursor_seek(struct c0_cursor *cur, const void *prefix, size_t pfx_len, struct kc_filter *filter)
 {
     return 0;
 }
 
 /* Make sure this is in sync with the function in c0.c */
 static bool
-c0cur_next(struct element_source *es, void **element) {
+c0cur_next(struct element_source *es, void **element)
+{
     struct mock_c0_cursor *c0cur = container_of(es, struct mock_c0_cursor, c0cur_es);
     bool eof;
     merr_t err;
@@ -273,18 +265,16 @@ c0cur_next(struct element_source *es, void **element) {
 }
 
 struct element_source *
-_c0_cursor_es_make(
-    struct c0_cursor * c0cur)
+_c0_cursor_es_make(struct c0_cursor *c0cur)
 {
     struct mock_c0_cursor *cur = (void *)c0cur;
 
-	cur->c0cur_es = es_make(c0cur_next, 0, 0);
+    cur->c0cur_es = es_make(c0cur_next, 0, 0);
     return &cur->c0cur_es;
 }
 
 struct element_source *
-_c0_cursor_es_get(
-    struct c0_cursor * c0cur)
+_c0_cursor_es_get(struct c0_cursor *c0cur)
 {
     struct mock_c0_cursor *cur = (void *)c0cur;
 
@@ -293,13 +283,13 @@ _c0_cursor_es_get(
 
 static merr_t
 _c0_put(
-    struct c0 *              handle,
-    struct kvs_ktuple       *kt,
+    struct c0 *handle,
+    struct kvs_ktuple *kt,
     const struct kvs_vtuple *vt,
-    const uintptr_t          seqnoref)
+    const uintptr_t seqnoref)
 {
     struct mock_c0 *m0 = mock_c0_h2r(handle);
-    int             i;
+    int i;
 
     if (kt->kt_len > KEY_LEN || kvs_vtuple_vlen(vt) > VAL_LEN)
         return merr(ev(EINVAL));
@@ -319,15 +309,15 @@ _c0_put(
 
 static merr_t
 _c0_get(
-    struct c0 *              handle,
+    struct c0 *handle,
     const struct kvs_ktuple *kt,
-    uint64_t                 view_seqno,
-    uintptr_t                seqnoref,
-    enum key_lookup_res *    res,
-    struct kvs_buf *         vbuf)
+    uint64_t view_seqno,
+    uintptr_t seqnoref,
+    enum key_lookup_res *res,
+    struct kvs_buf *vbuf)
 {
     struct mock_c0 *m0 = mock_c0_h2r(handle);
-    int             i;
+    int i;
 
     if (kt->kt_len > KEY_LEN || vbuf->b_buf_sz > VAL_LEN)
         return merr(ev(EINVAL));
@@ -351,11 +341,11 @@ _c0_get(
 
 static merr_t
 _cn_get(
-    struct cn *          handle,
-    struct kvs_ktuple *  kt,
-    uint64_t             seq,
+    struct cn *handle,
+    struct kvs_ktuple *kt,
+    uint64_t seq,
     enum key_lookup_res *res,
-    struct kvs_buf *     vbuf)
+    struct kvs_buf *vbuf)
 {
     *res = NOT_FOUND;
     return 0;
@@ -365,7 +355,7 @@ static merr_t
 _c0_del(struct c0 *handle, struct kvs_ktuple *kt, const uintptr_t seqno)
 {
     struct mock_c0 *m0 = mock_c0_h2r(handle);
-    int             i;
+    int i;
 
     if (kt->kt_len > KEY_LEN)
         return merr(ev(EINVAL));
@@ -384,7 +374,7 @@ static merr_t
 _c0_prefix_del(struct c0 *handle, struct kvs_ktuple *kt, uint64_t seqno)
 {
     struct mock_c0 *m0 = mock_c0_h2r(handle);
-    int             i;
+    int i;
 
     if (kt->kt_len > KEY_LEN)
         return merr(ev(EINVAL));
@@ -399,20 +389,19 @@ _c0_prefix_del(struct c0 *handle, struct kvs_ktuple *kt, uint64_t seqno)
     return 0;
 }
 
-
 static merr_t
 _cn_open(
-    struct cn_kvdb *    cn_kvdb,
-    struct mpool *      ds,
-    struct kvdb_kvs *   kvs,
-    struct cndb *       cndb,
-    uint64_t            cnid,
+    struct cn_kvdb *cn_kvdb,
+    struct mpool *ds,
+    struct kvdb_kvs *kvs,
+    struct cndb *cndb,
+    uint64_t cnid,
     struct kvs_rparams *rp,
-    const char *        mp_name,
-    const char *        kvs_name,
+    const char *mp_name,
+    const char *kvs_name,
     struct kvdb_health *health,
-    uint                flags,
-    struct cn **        out)
+    uint flags,
+    struct cn **out)
 {
     /* CN is called first, then c0_open is called with returned handle */
     struct mock_cn *cn;
@@ -482,15 +471,15 @@ cmp(const void *a_, const void *b_)
 
 static merr_t
 _cn_cursor_create(
-    struct cn *            cn,
-    uint64_t               seqno,
-    bool                   reverse,
-    const void *           prefix,
-    uint32_t               pfx_len,
+    struct cn *cn,
+    uint64_t seqno,
+    bool reverse,
+    const void *prefix,
+    uint32_t pfx_len,
     struct cursor_summary *summary,
-    struct cn_cursor **    cursorp)
+    struct cn_cursor **cursorp)
 {
-    struct mock_cn *  mn = (void *)cn;
+    struct mock_cn *mn = (void *)cn;
     struct mock_cn_cursor *cur;
 
     spin_lock(&mn->cc_lock);
@@ -580,11 +569,7 @@ _cn_cursor_read(struct cn_cursor *cursor, struct kvs_cursor_element *elem, bool 
 }
 
 static merr_t
-_cn_cursor_seek(
-    struct cn_cursor * cursor,
-    const void *       key,
-    uint32_t           len,
-    struct kc_filter * filter)
+_cn_cursor_seek(struct cn_cursor *cursor, const void *key, uint32_t len, struct kc_filter *filter)
 {
     struct mock_cn_cursor *cur = (void *)cursor;
 
@@ -603,7 +588,8 @@ missed:
 }
 
 static bool
-cncur_next(struct element_source *es, void **element) {
+cncur_next(struct element_source *es, void **element)
+{
     struct mock_cn_cursor *cncur = container_of(es, struct mock_cn_cursor, es);
     bool eof;
     merr_t err;
@@ -618,18 +604,20 @@ cncur_next(struct element_source *es, void **element) {
 }
 
 struct element_source *
-_cn_cursor_es_make(struct cn_cursor *cncur) {
+_cn_cursor_es_make(struct cn_cursor *cncur)
+{
     struct mock_cn_cursor *cur = (void *)cncur;
 
-	cur->es = es_make(cncur_next, 0, 0);
-	return &cur->es;
+    cur->es = es_make(cncur_next, 0, 0);
+    return &cur->es;
 }
 
 struct element_source *
-_cn_cursor_es_get(struct cn_cursor *cncur) {
+_cn_cursor_es_get(struct cn_cursor *cncur)
+{
     struct mock_cn_cursor *cur = (void *)cncur;
 
-	return &cur->es;
+    return &cur->es;
 }
 
 merr_t
@@ -652,16 +640,16 @@ _cn_cursor_active_kvsets(struct cn_cursor *cursor, uint32_t *active, uint32_t *t
  */
 static struct mapi_injection cn_inject_list[] = {
 
-    { mapi_idx_cn_ingestv,           MAPI_RC_SCALAR, 0 },
-    { mapi_idx_cn_periodic,          MAPI_RC_SCALAR, 0 },
-    { mapi_idx_cn_is_capped,         MAPI_RC_SCALAR, 0 },
-    { mapi_idx_cn_disable_maint,     MAPI_RC_SCALAR, 0 },
+    { mapi_idx_cn_ingestv, MAPI_RC_SCALAR, 0 },
+    { mapi_idx_cn_periodic, MAPI_RC_SCALAR, 0 },
+    { mapi_idx_cn_is_capped, MAPI_RC_SCALAR, 0 },
+    { mapi_idx_cn_disable_maint, MAPI_RC_SCALAR, 0 },
 
-    { mapi_idx_cn_get_rp,            MAPI_RC_PTR, &mocked_kvs_rparams },
-    { mapi_idx_cn_get_cparams,       MAPI_RC_PTR, &mocked_kvs_cparams },
-    { mapi_idx_cn_get_mpool,         MAPI_RC_PTR, NULL },
+    { mapi_idx_cn_get_rp, MAPI_RC_PTR, &mocked_kvs_rparams },
+    { mapi_idx_cn_get_cparams, MAPI_RC_PTR, &mocked_kvs_cparams },
+    { mapi_idx_cn_get_mpool, MAPI_RC_PTR, NULL },
     { mapi_idx_cn_get_mclass_policy, MAPI_RC_PTR, NULL },
-    { mapi_idx_cn_get_ingest_perfc,  MAPI_RC_PTR, NULL },
+    { mapi_idx_cn_get_ingest_perfc, MAPI_RC_PTR, NULL },
 
     { -1 },
 };
@@ -725,8 +713,8 @@ mock_cn_unset()
  * changes).
  */
 static struct mapi_injection c0_inject_list[] = {
-    { mapi_idx_c0_cursor_update,    MAPI_RC_SCALAR, 0 },
-    { mapi_idx_c0_cursor_bind_txn,  MAPI_RC_SCALAR, 0 },
+    { mapi_idx_c0_cursor_update, MAPI_RC_SCALAR, 0 },
+    { mapi_idx_c0_cursor_bind_txn, MAPI_RC_SCALAR, 0 },
     { -1 },
 };
 
@@ -797,10 +785,10 @@ mock_c0cn_unset()
  * changes).
  */
 static struct mapi_injection kvdb_meta_inject_list[] = {
-    { mapi_idx_kvdb_meta_create,           MAPI_RC_SCALAR, 0 },
-    { mapi_idx_kvdb_meta_destroy,          MAPI_RC_SCALAR, 0 },
-    { mapi_idx_kvdb_meta_serialize,        MAPI_RC_SCALAR, 0 },
-    { mapi_idx_kvdb_meta_upgrade,            MAPI_RC_SCALAR, 0 },
+    { mapi_idx_kvdb_meta_create, MAPI_RC_SCALAR, 0 },
+    { mapi_idx_kvdb_meta_destroy, MAPI_RC_SCALAR, 0 },
+    { mapi_idx_kvdb_meta_serialize, MAPI_RC_SCALAR, 0 },
+    { mapi_idx_kvdb_meta_upgrade, MAPI_RC_SCALAR, 0 },
     { mapi_idx_kvdb_meta_to_mpool_rparams, MAPI_RC_SCALAR, 0 },
     { mapi_idx_kvdb_meta_to_mpool_dparams, MAPI_RC_SCALAR, 0 },
     { -1 },
@@ -822,8 +810,7 @@ _kvdb_meta_deserialize(struct kvdb_meta *meta, const char *kvdb_home)
     meta->km_wal.oid2 = 4;
 
     for (i = HSE_MCLASS_BASE; i < HSE_MCLASS_COUNT; i++)
-        strlcpy(meta->km_storage[i].path, hse_mclass_name_get(i),
-                sizeof(meta->km_storage[i].path));
+        strlcpy(meta->km_storage[i].path, hse_mclass_name_get(i), sizeof(meta->km_storage[i].path));
 
     return 0;
 }
@@ -849,7 +836,11 @@ mock_kvdb_meta_unset(void)
 static uint64_t cndb_id_mocked;
 
 static merr_t
-_cndb_record_kvs_add(struct cndb *cndb, const struct kvs_cparams *cp, uint64_t *cnid_out, const char *name)
+_cndb_record_kvs_add(
+    struct cndb *cndb,
+    const struct kvs_cparams *cp,
+    uint64_t *cnid_out,
+    const char *name)
 {
     *cnid_out = ++cndb_id_mocked;
     return 0;
@@ -863,18 +854,18 @@ _cndb_record_kvs_add(struct cndb *cndb, const struct kvs_cparams *cp, uint64_t *
  * changes).
  */
 static struct mapi_injection cndb_inject_list[] = {
-    { mapi_idx_cndb_create,               MAPI_RC_SCALAR, 0 },
-    { mapi_idx_cndb_kvs_info,             MAPI_RC_SCALAR, 0 },
-    { mapi_idx_cndb_kvs_count,            MAPI_RC_SCALAR, 0 },
-    { mapi_idx_cndb_open,                 MAPI_RC_SCALAR, 0 },
-    { mapi_idx_cndb_replay,               MAPI_RC_SCALAR, 0 },
-    { mapi_idx_cndb_close,                MAPI_RC_SCALAR, 0 },
-    { mapi_idx_cndb_record_txstart,       MAPI_RC_SCALAR, 0 },
-    { mapi_idx_cndb_record_kvset_add,     MAPI_RC_SCALAR, 0 },
-    { mapi_idx_cndb_record_kvset_del,     MAPI_RC_SCALAR, 0 },
+    { mapi_idx_cndb_create, MAPI_RC_SCALAR, 0 },
+    { mapi_idx_cndb_kvs_info, MAPI_RC_SCALAR, 0 },
+    { mapi_idx_cndb_kvs_count, MAPI_RC_SCALAR, 0 },
+    { mapi_idx_cndb_open, MAPI_RC_SCALAR, 0 },
+    { mapi_idx_cndb_replay, MAPI_RC_SCALAR, 0 },
+    { mapi_idx_cndb_close, MAPI_RC_SCALAR, 0 },
+    { mapi_idx_cndb_record_txstart, MAPI_RC_SCALAR, 0 },
+    { mapi_idx_cndb_record_kvset_add, MAPI_RC_SCALAR, 0 },
+    { mapi_idx_cndb_record_kvset_del, MAPI_RC_SCALAR, 0 },
     { mapi_idx_cndb_record_kvset_add_ack, MAPI_RC_SCALAR, 0 },
     { mapi_idx_cndb_record_kvset_del_ack, MAPI_RC_SCALAR, 0 },
-    { mapi_idx_cndb_record_nak,           MAPI_RC_SCALAR, 0 },
+    { mapi_idx_cndb_record_nak, MAPI_RC_SCALAR, 0 },
     { -1 },
 };
 
@@ -897,15 +888,15 @@ mock_cndb_unset()
  */
 
 static struct mapi_injection wal_inject_list[] = {
-    { mapi_idx_wal_create,     MAPI_RC_SCALAR, 0 },
-    { mapi_idx_wal_destroy,    MAPI_RC_SCALAR, 0 },
-    { mapi_idx_wal_open,       MAPI_RC_SCALAR, 0 },
-    { mapi_idx_wal_close,      MAPI_RC_SCALAR, 0 },
-    { mapi_idx_wal_put,        MAPI_RC_SCALAR, 0 },
-    { mapi_idx_wal_del,        MAPI_RC_SCALAR, 0 },
-    { mapi_idx_wal_del_pfx,    MAPI_RC_SCALAR, 0 },
-    { mapi_idx_wal_txn_begin,  MAPI_RC_SCALAR, 0 },
-    { mapi_idx_wal_txn_abort,  MAPI_RC_SCALAR, 0 },
+    { mapi_idx_wal_create, MAPI_RC_SCALAR, 0 },
+    { mapi_idx_wal_destroy, MAPI_RC_SCALAR, 0 },
+    { mapi_idx_wal_open, MAPI_RC_SCALAR, 0 },
+    { mapi_idx_wal_close, MAPI_RC_SCALAR, 0 },
+    { mapi_idx_wal_put, MAPI_RC_SCALAR, 0 },
+    { mapi_idx_wal_del, MAPI_RC_SCALAR, 0 },
+    { mapi_idx_wal_del_pfx, MAPI_RC_SCALAR, 0 },
+    { mapi_idx_wal_txn_begin, MAPI_RC_SCALAR, 0 },
+    { mapi_idx_wal_txn_abort, MAPI_RC_SCALAR, 0 },
     { mapi_idx_wal_txn_commit, MAPI_RC_SCALAR, 0 },
     { -1 },
 };

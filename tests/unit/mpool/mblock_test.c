@@ -3,29 +3,26 @@
  * Copyright (C) 2021-2022 Micron Technology, Inc.  All rights reserved.
  */
 
-#include <mtf/framework.h>
-#include <mock/api.h>
-#include <hse/test/support/random_buffer.h>
-
-#include <hse/error/merr.h>
-#include <hse/util/minmax.h>
-#include <hse/util/page.h>
-
-#include <hse/ikvdb/omf_version.h>
-
-#include <hse/mpool/mpool.h>
+#include <fcntl.h>
+#include <ftw.h>
+#include <limits.h>
 #include <mblock_file.h>
 #include <mblock_fset.h>
 #include <mpool_internal.h>
-
-#include <limits.h>
-#include <fcntl.h>
-#include <ftw.h>
-#include <stdlib.h>
 #include <stdint.h>
-#include <sys/stat.h>
+#include <stdlib.h>
 
 #include <bsd/string.h>
+#include <mock/api.h>
+#include <mtf/framework.h>
+#include <sys/stat.h>
+
+#include <hse/error/merr.h>
+#include <hse/ikvdb/omf_version.h>
+#include <hse/mpool/mpool.h>
+#include <hse/test/support/random_buffer.h>
+#include <hse/util/minmax.h>
+#include <hse/util/page.h>
 
 #include "common.h"
 
@@ -33,11 +30,11 @@ MTF_BEGIN_UTEST_COLLECTION_PRE(mblock_test, mpool_collection_pre)
 
 MTF_DEFINE_UTEST_PREPOST(mblock_test, mblock_abc, mpool_test_pre, mpool_test_post)
 {
-    struct mpool *      mp;
+    struct mpool *mp;
     struct mblock_props props = {};
-    struct mpool_info   info = {};
-    uint64_t            mbid, mbid1, bpalloc, apalloc;
-    merr_t              err;
+    struct mpool_info info = {};
+    uint64_t mbid, mbid1, bpalloc, apalloc;
+    merr_t err;
 
     err = mpool_create(mtf_kvdb_home, &tcparams);
     ASSERT_EQ(0, merr_errno(err));
@@ -286,7 +283,8 @@ MTF_DEFINE_UTEST_PREPOST(mblock_test, mblock_abc, mpool_test_pre, mpool_test_pos
     ASSERT_LT(used_bytes_summation(&info), 140 << 20);
     ASSERT_EQ(
         0, strncmp(capacity_path, info.mclass[HSE_MCLASS_CAPACITY].mi_path, sizeof(capacity_path)));
-    ASSERT_EQ(0, strncmp(staging_path, info.mclass[HSE_MCLASS_STAGING].mi_path, sizeof(staging_path)));
+    ASSERT_EQ(
+        0, strncmp(staging_path, info.mclass[HSE_MCLASS_STAGING].mi_path, sizeof(staging_path)));
 
     err = mpool_mblock_delete(mp, mbid1);
     ASSERT_EQ(0, merr_errno(err));
@@ -328,12 +326,12 @@ static merr_t
 mblock_rw(struct mpool *mp, uint64_t mbid, void *buf, size_t len, uint64_t boff, bool is_write)
 {
     struct iovec *iov;
-    int           iovc;
-    char         *pos;
-    size_t        left;
-    int           i;
-    merr_t        err;
-    int           uaoff = (int)((uint64_t)buf & (PAGE_SIZE - 1));
+    int iovc;
+    char *pos;
+    size_t left;
+    int i;
+    merr_t err;
+    int uaoff = (int)((uint64_t)buf & (PAGE_SIZE - 1));
 
     iovc = (len + uaoff + PAGE_SIZE - 1) / PAGE_SIZE;
 
@@ -389,16 +387,16 @@ mblock_rw(struct mpool *mp, uint64_t mbid, void *buf, size_t len, uint64_t boff,
 
 MTF_DEFINE_UTEST_PREPOST(mblock_test, mblock_io, mpool_test_pre, mpool_test_post)
 {
-    struct mpool       *mp;
+    struct mpool *mp;
     struct mblock_props props = {};
-    struct mpool_info   info = {};
+    struct mpool_info info = {};
 
     uint64_t mbid;
-    merr_t   err;
-    int      rc;
-    char    *buf, *bufx, *badbuf;
-    bool     write = true;
-    size_t   mbsz = 32 << 20, wlen;
+    merr_t err;
+    int rc;
+    char *buf, *bufx, *badbuf;
+    bool write = true;
+    size_t mbsz = 32 << 20, wlen;
 
     err = mpool_create(mtf_kvdb_home, &tcparams);
     ASSERT_EQ(0, err);
@@ -463,8 +461,8 @@ MTF_DEFINE_UTEST_PREPOST(mblock_test, mblock_io, mpool_test_pre, mpool_test_post
     ASSERT_EQ(0, err);
     ASSERT_GE(allocated_bytes_summation(&info), wlen + (64 << 20));
     ASSERT_GE(used_bytes_summation(&info), wlen + (64 << 20));
-    ASSERT_EQ(0, strncmp(capacity_path, info.mclass[HSE_MCLASS_CAPACITY].mi_path,
-                         sizeof(capacity_path)));
+    ASSERT_EQ(
+        0, strncmp(capacity_path, info.mclass[HSE_MCLASS_CAPACITY].mi_path, sizeof(capacity_path)));
 
     err = mpool_mblock_props_get(mp, mbid, &props);
     ASSERT_EQ(0, err);
@@ -567,15 +565,15 @@ MTF_DEFINE_UTEST_PREPOST(mblock_test, mblock_io, mpool_test_pre, mpool_test_post
 
 MTF_DEFINE_UTEST_PREPOST(mblock_test, mblock_invalid_args, mpool_test_pre, mpool_test_post)
 {
-    struct mpool *             mp;
-    struct mblock_fset        *mbfsp;
-    struct media_class        *mc;
+    struct mpool *mp;
+    struct mblock_fset *mbfsp;
+    struct media_class *mc;
     struct mblock_file_params *params = (struct mblock_file_params *)0x1234;
-    struct mblock_file *       mbfp = (struct mblock_file *)0x1234;
-    struct iovec              *iov = (struct iovec *)0x1234;
+    struct mblock_file *mbfp = (struct mblock_file *)0x1234;
+    struct iovec *iov = (struct iovec *)0x1234;
 
     uint64_t mbid, bad_mbid = 0xffffffff;
-    merr_t   err;
+    merr_t err;
 
     err = mpool_create(mtf_kvdb_home, &tcparams);
     ASSERT_EQ(0, err);
@@ -685,11 +683,11 @@ MTF_DEFINE_UTEST_PREPOST(mblock_test, mblock_clone, mpool_test_pre, mpool_test_p
     struct mblock_props props = { 0 };
 
     uint64_t mbid, tgt_mbid;
-    merr_t   err;
-    int      rc;
-    char    *wbuf, *rbuf, *zbuf;
-    bool     write = true;
-    size_t   bufsz = 32 * MB;
+    merr_t err;
+    int rc;
+    char *wbuf, *rbuf, *zbuf;
+    bool write = true;
+    size_t bufsz = 32 * MB;
 
     err = mpool_create(mtf_kvdb_home, &tcparams);
     ASSERT_EQ(0, err);

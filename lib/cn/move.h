@@ -33,11 +33,11 @@ struct kvset_list_entry;
 merr_t
 cn_move(
     struct cn_compaction_work *w,
-    struct cn_tree_node       *src_node,
-    struct kvset_list_entry   *src_list,
-    uint32_t                   src_cnt,
-    bool                       src_del,
-    struct cn_tree_node       *tgt_node);
+    struct cn_tree_node *src_node,
+    struct kvset_list_entry *src_list,
+    uint32_t src_cnt,
+    bool src_del,
+    struct cn_tree_node *tgt_node);
 
 /**
  * cn_join() - join w->cw_join and w->cw_node

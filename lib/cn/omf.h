@@ -7,6 +7,7 @@
 #define HSE_KVDB_CN_OMF_H
 
 #include <stdint.h>
+
 #include <sys/param.h>
 
 #include <hse/limits.h>
@@ -156,7 +157,8 @@ OMF_SETGET(struct hblock_hdr_omf, hbh_max_pfx_len, 8)
 OMF_SETGET(struct hblock_hdr_omf, hbh_min_pfx_off, 32)
 OMF_SETGET(struct hblock_hdr_omf, hbh_min_pfx_len, 8)
 
-static_assert(HSE_KVS_PFX_LEN_MAX <= UINT8_MAX,
+static_assert(
+    HSE_KVS_PFX_LEN_MAX <= UINT8_MAX,
     "uint8_t is not enough to hold HSE_KVS_PFX_LEN_MAX");
 
 #define HBLOCK_HDR_PAGES \
@@ -165,14 +167,13 @@ static_assert(HSE_KVS_PFX_LEN_MAX <= UINT8_MAX,
 
 static_assert(HBLOCK_HDR_PAGES == 1, "Hblock header spanning more than 1 page has not been tested");
 
-
 /*****************************************************************
  *
  * Vgroup Map OMF
  *
  ****************************************************************/
 
-#define VGROUP_MAP_MAGIC   ((uint32_t)('v' << 24 | 'g' << 16 | 'p' << 8 | 'm'))
+#define VGROUP_MAP_MAGIC ((uint32_t)('v' << 24 | 'g' << 16 | 'p' << 8 | 'm'))
 
 struct vgroup_map_entry_omf {
     uint16_t vgme_vbidx;
@@ -182,12 +183,11 @@ struct vgroup_map_entry_omf {
 OMF_SETGET(struct vgroup_map_entry_omf, vgme_vbidx, 16)
 OMF_SETGET(struct vgroup_map_entry_omf, vgme_vbadj, 16)
 
-
 struct vgroup_map_omf {
-    uint32_t                    vgm_magic;
-    uint32_t                    vgm_version;
-    uint32_t                    vgm_count;
-    uint32_t                    vgm_rsvd;
+    uint32_t vgm_magic;
+    uint32_t vgm_version;
+    uint32_t vgm_count;
+    uint32_t vgm_rsvd;
     struct vgroup_map_entry_omf vgm_entries[0];
 } HSE_PACKED;
 
@@ -195,7 +195,6 @@ OMF_SETGET(struct vgroup_map_omf, vgm_magic, 32)
 OMF_SETGET(struct vgroup_map_omf, vgm_version, 32)
 OMF_SETGET(struct vgroup_map_omf, vgm_count, 32)
 OMF_SETGET(struct vgroup_map_omf, vgm_rsvd, 32)
-
 
 /*****************************************************************
  *
@@ -310,8 +309,8 @@ struct bloom_hdr_omf {
     uint32_t bh_modulus;
     uint32_t bh_bktshift;
     uint16_t bh_rsvd1;
-    uint8_t  bh_rotl;
-    uint8_t  bh_n_hashes;
+    uint8_t bh_rotl;
+    uint8_t bh_n_hashes;
     uint32_t bh_rsvd2;
     uint32_t bh_rsvd3;
 } HSE_PACKED;

@@ -5,13 +5,12 @@
 
 #define MTF_MOCK_IMPL_cn_kvdb
 
-#include <hse/util/alloc.h>
-#include <hse/util/slab.h>
-#include <hse/util/atomic.h>
 #include <hse/error/merr.h>
-#include <hse/util/event_counter.h>
-
 #include <hse/ikvdb/cn_kvdb.h>
+#include <hse/util/alloc.h>
+#include <hse/util/atomic.h>
+#include <hse/util/event_counter.h>
+#include <hse/util/slab.h>
 
 merr_t
 cn_kvdb_create(uint cn_maint_threads, uint cn_io_threads, struct cn_kvdb **out)

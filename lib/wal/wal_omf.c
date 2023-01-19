@@ -4,11 +4,11 @@
  */
 
 #include <crc32c.h>
-#include <hse/util/platform.h>
-#include <hse/util/page.h>
 
-#include <hse/ikvdb/wal.h>
 #include <hse/ikvdb/tuple.h>
+#include <hse/ikvdb/wal.h>
+#include <hse/util/page.h>
+#include <hse/util/platform.h>
 
 #include "wal_omf.h"
 #include "wal_replay.h"
@@ -70,11 +70,11 @@ wal_rechdr_crc_pack(char *recbuf, size_t len)
 void
 wal_rec_pack(
     enum wal_op op,
-    uint64_t    cnid,
-    uint64_t    txid,
-    uint32_t    klen,
-    size_t      vxlen,
-    void       *outbuf)
+    uint64_t cnid,
+    uint64_t txid,
+    uint32_t klen,
+    size_t vxlen,
+    void *outbuf)
 {
     struct wal_rec_omf *romf = outbuf;
 
@@ -126,7 +126,8 @@ wal_rec_skip(struct wal_rechdr *hdr)
 bool
 wal_rec_is_txnmeta(struct wal_rechdr *hdr)
 {
-    return (hdr->type == WAL_RT_TXBEGIN || hdr->type == WAL_RT_TXABORT || hdr->type == WAL_RT_TXCOMMIT);
+    return (
+        hdr->type == WAL_RT_TXBEGIN || hdr->type == WAL_RT_TXABORT || hdr->type == WAL_RT_TXCOMMIT);
 }
 
 static HSE_ALWAYS_INLINE bool
@@ -210,18 +211,18 @@ wal_update_minmax_txid(const void *buf, uint32_t rtype, struct wal_minmax_info *
 
 bool
 wal_rec_is_valid(
-    const void             *inbuf,
-    off_t                   foff,
-    size_t                  fsize,
-    uint64_t               *recoff,
-    uint64_t                gen,
-    uint32_t                version,
-    struct wal_rechdr      *hdr,
+    const void *inbuf,
+    off_t foff,
+    size_t fsize,
+    uint64_t *recoff,
+    uint64_t gen,
+    uint32_t version,
+    struct wal_rechdr *hdr,
     struct wal_minmax_info *info)
 {
     uint64_t roff;
-    size_t   len;
-    size_t   fbytes_left = fsize - foff;
+    size_t len;
+    size_t fbytes_left = fsize - foff;
 
     if (fbytes_left < wal_rechdr_len(version))
         return false;
@@ -242,7 +243,8 @@ wal_rec_is_valid(
         return false;
 
     len = hdr->len;
-    if (len > (wal_reclen(version) + HSE_KVS_KEY_LEN_MAX + HSE_KVS_VALUE_LEN_MAX + 2 * sizeof(uint64_t)))
+    if (len >
+        (wal_reclen(version) + HSE_KVS_KEY_LEN_MAX + HSE_KVS_VALUE_LEN_MAX + 2 * sizeof(uint64_t)))
         return false;
 
     if (fbytes_left < wal_rechdr_len(version) + len)
@@ -434,7 +436,11 @@ wal_txn_rec_unpack_latest(const void *inbuf, struct wal_rechdr *hdr, struct wal_
 }
 
 void
-wal_txn_rec_unpack(const void *inbuf, struct wal_rechdr *hdr, uint32_t version, struct wal_txmeta_rec *trec)
+wal_txn_rec_unpack(
+    const void *inbuf,
+    struct wal_rechdr *hdr,
+    uint32_t version,
+    struct wal_txmeta_rec *trec)
 {
     switch (version) {
     case WAL_VERSION1:
@@ -467,13 +473,13 @@ wal_txn_reclen(uint32_t version)
 
 void
 wal_filehdr_pack(
-    uint32_t                magic,
-    uint32_t                version,
+    uint32_t magic,
+    uint32_t version,
     struct wal_minmax_info *info,
-    off_t                   soff,
-    off_t                   eoff,
-    bool                    close,
-    void                   *outbuf)
+    off_t soff,
+    off_t eoff,
+    bool close,
+    void *outbuf)
 {
     struct wal_filehdr_omf *fhomf = outbuf;
     uint64_t crc;
@@ -501,11 +507,11 @@ wal_filehdr_pack(
 
 static merr_t
 wal_filehdr_unpack_v1(
-    const void             *inbuf,
-    uint32_t                magic,
-    bool                   *close,
-    off_t                  *soff,
-    off_t                  *eoff,
+    const void *inbuf,
+    uint32_t magic,
+    bool *close,
+    off_t *soff,
+    off_t *eoff,
     struct wal_minmax_info *info)
 {
     const struct wal_filehdr_omf_v1 *fhomf = inbuf;
@@ -527,7 +533,7 @@ wal_filehdr_unpack_v1(
     crc = crc32c(0, inbuf + ignore, len - ignore);
     crcomf = omf_fh_cksum_v1(fhomf);
     if (crc != crcomf) {
-        const struct wal_filehdr_omf_v1 ref = {0};
+        const struct wal_filehdr_omf_v1 ref = { 0 };
 
         return ((memcmp(fhomf, &ref, sizeof(*fhomf)) == 0) ? merr(ENODATA) : merr(EBADMSG));
     }
@@ -540,11 +546,11 @@ wal_filehdr_unpack_v1(
 
 static merr_t
 wal_filehdr_unpack_latest(
-    const void             *inbuf,
-    uint32_t                magic,
-    bool                   *close,
-    off_t                  *soff,
-    off_t                  *eoff,
+    const void *inbuf,
+    uint32_t magic,
+    bool *close,
+    off_t *soff,
+    off_t *eoff,
     struct wal_minmax_info *info)
 {
     const struct wal_filehdr_omf *fhomf = inbuf;
@@ -567,7 +573,7 @@ wal_filehdr_unpack_latest(
     crc32 = crc32c(0, inbuf, len - ignore);
     crc = omf_fh_cksum(fhomf);
     if ((crc32 != (crc & CRC_MASK)) || !crc_valid_bit_isset(crc)) {
-        const struct wal_filehdr_omf ref = {0};
+        const struct wal_filehdr_omf ref = { 0 };
 
         return ((memcmp(fhomf, &ref, sizeof(*fhomf)) == 0) ? merr(ENODATA) : merr(EBADMSG));
     }
@@ -580,12 +586,12 @@ wal_filehdr_unpack_latest(
 
 merr_t
 wal_filehdr_unpack(
-    const void             *inbuf,
-    uint32_t                magic,
-    uint32_t                version,
-    bool                   *close,
-    off_t                  *soff,
-    off_t                  *eoff,
+    const void *inbuf,
+    uint32_t magic,
+    uint32_t version,
+    bool *close,
+    off_t *soff,
+    off_t *eoff,
     struct wal_minmax_info *info)
 {
     merr_t err;

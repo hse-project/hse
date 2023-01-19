@@ -7,42 +7,39 @@
 
 #include <stdint.h>
 
-#include "kblock_builder.h"
-
-#include <hse/limits.h>
 #include <hse/kvdb_perfc.h>
+#include <hse/limits.h>
 
-#include <hse/ikvdb/key_hash.h>
-#include <hse/ikvdb/tuple.h>
-#include <hse/ikvdb/limits.h>
-#include <hse/ikvdb/kvset_builder.h>
 #include <hse/ikvdb/cn.h>
+#include <hse/ikvdb/key_hash.h>
 #include <hse/ikvdb/kvs_rparams.h>
-
+#include <hse/ikvdb/kvset_builder.h>
+#include <hse/ikvdb/limits.h>
+#include <hse/ikvdb/tuple.h>
+#include <hse/logging/logging.h>
+#include <hse/mpool/mpool.h>
 #include <hse/util/alloc.h>
-#include <hse/util/slab.h>
-#include <hse/util/page.h>
 #include <hse/util/assert.h>
 #include <hse/util/bloom_filter.h>
 #include <hse/util/event_counter.h>
-#include <hse/util/perfc.h>
 #include <hse/util/hlog.h>
-#include <hse/util/log2.h>
-#include <hse/util/vlb.h>
-#include <hse/logging/logging.h>
 #include <hse/util/keycmp.h>
+#include <hse/util/log2.h>
+#include <hse/util/page.h>
+#include <hse/util/perfc.h>
+#include <hse/util/slab.h>
+#include <hse/util/vlb.h>
 
-#include "omf.h"
 #include "blk_list.h"
-#include "kblock_reader.h"
-#include "wbt_builder.h"
-#include "wbt_reader.h"
 #include "cn_mblocks.h"
 #include "cn_metrics.h"
 #include "cn_perfc.h"
+#include "kblock_builder.h"
+#include "kblock_reader.h"
 #include "kvs_mblk_desc.h"
-
-#include <hse/mpool/mpool.h>
+#include "omf.h"
+#include "wbt_builder.h"
+#include "wbt_reader.h"
 
 extern struct tbkt sp3_tbkt;
 
@@ -51,8 +48,9 @@ extern struct tbkt sp3_tbkt;
  * can cache it.  This eliminates many trips into the kernel that would otherwise
  * have to modify the address map.
  */
-#define HSP_HASH_MAX_KEYS \
-    ((VLB_ALLOCSZ_MAX - 4096 - sizeof(struct hash_set_part)) / sizeof(((struct hash_set_part *)0))->hashvec[0])
+#define HSP_HASH_MAX_KEYS                                      \
+    ((VLB_ALLOCSZ_MAX - 4096 - sizeof(struct hash_set_part)) / \
+     sizeof(((struct hash_set_part *)0))->hashvec[0])
 
 /**
  * DOC: Overview
@@ -75,9 +73,9 @@ extern struct tbkt sp3_tbkt;
  */
 struct hash_set_part {
     struct list_head part_link;
-    uint32_t         n_hashes;
-    size_t           vlb_mem_used;
-    uint64_t         hashvec[];
+    uint32_t n_hashes;
+    size_t vlb_mem_used;
+    uint64_t hashvec[];
 };
 
 /**
@@ -86,7 +84,7 @@ struct hash_set_part {
  * @curr_part: the current part, not yet full
  */
 struct hash_set {
-    struct list_head      part_list;
+    struct list_head part_list;
     struct hash_set_part *curr_part;
 };
 
@@ -130,10 +128,10 @@ struct hash_set {
  */
 struct curr_kblock {
 
-    struct wbb *        wbtree;
+    struct wbb *wbtree;
     struct kvs_rparams *rp;
     struct kvs_cparams *cp;
-    struct perfc_set *  pc;
+    struct perfc_set *pc;
 
     uint64_t total_kvlen;
     uint64_t total_key_bytes;
@@ -147,16 +145,16 @@ struct curr_kblock {
     uint32_t blm_pgc;
     uint32_t wbt_pgc;
 
-    uint                   blm_elt_cap;
-    struct hash_set        hash_set;
+    uint blm_elt_cap;
+    struct hash_set hash_set;
     struct bf_bithash_desc desc;
 
     void *kblk_hdr;
     struct hlog *hlog;
     void *bloom;
-    uint  bloom_len;
-    uint  bloom_alloc_len;
-    uint  bloom_used_max;
+    uint bloom_len;
+    uint bloom_alloc_len;
+    uint bloom_used_max;
 };
 
 static HSE_ALWAYS_INLINE uint32_t
@@ -181,20 +179,20 @@ available_pgc(struct curr_kblock *kblk)
  * @max_size: Maximum mblock size of all configured media classes.
  */
 struct kblock_builder {
-    struct mpool *             mp;
-    struct cn *                cn;
-    struct kvs_rparams *       rp;
-    struct kvs_cparams *       cp;
-    struct perfc_set *         pc;
-    struct hlog *              composite_hlog;
-    struct cn_merge_stats *    mstats;
-    struct blk_list            finished_kblks;
-    struct curr_kblock         curr;
+    struct mpool *mp;
+    struct cn *cn;
+    struct kvs_rparams *rp;
+    struct kvs_cparams *cp;
+    struct perfc_set *pc;
+    struct hlog *composite_hlog;
+    struct cn_merge_stats *mstats;
+    struct blk_list finished_kblks;
+    struct curr_kblock curr;
     enum hse_mclass_policy_age agegroup;
-    bool                       finished;
-    uint                       pt_pgc;
-    uint                       pt_max_pgc;
-    uint32_t                   max_size;
+    bool finished;
+    uint pt_pgc;
+    uint pt_max_pgc;
+    uint32_t max_size;
 };
 
 /**
@@ -229,10 +227,10 @@ struct kblock_builder {
 static merr_t
 mblk_blow_chunks(
     struct kblock_builder *self,
-    uint64_t               mbid,
-    struct iovec *         iov,
-    uint                   iov_cnt,
-    uint                   chunk_len)
+    uint64_t mbid,
+    struct iovec *iov,
+    uint iov_cnt,
+    uint chunk_len)
 {
     merr_t err;
 
@@ -244,7 +242,7 @@ mblk_blow_chunks(
     uint bx, blen_orig;
     uint wlen, need;
 
-    uint64_t               dt = 0;
+    uint64_t dt = 0;
     struct cn_merge_stats *stats = self->mstats;
 
     /* ax, aoff, alen, bx, blen explained:
@@ -430,7 +428,7 @@ hash_set_free(struct hash_set *hs)
 {
     struct hash_set_part *part, *next;
 
-    list_for_each_entry_safe(part, next, &hs->part_list, part_link)
+    list_for_each_entry_safe (part, next, &hs->part_list, part_link)
         vlb_free(part, part->vlb_mem_used);
 }
 
@@ -463,8 +461,8 @@ kblock_init(
     struct curr_kblock *kblk,
     struct kvs_cparams *cp,
     struct kvs_rparams *rp,
-    struct perfc_set *  pc,
-    uint32_t            max_size)
+    struct perfc_set *pc,
+    uint32_t max_size)
 {
     merr_t err;
 
@@ -545,12 +543,12 @@ kblock_is_empty(struct curr_kblock *kblk)
  */
 static merr_t
 kblock_add_entry(
-    struct curr_kblock *  kblk,
+    struct curr_kblock *kblk,
     const struct key_obj *kobj,
-    const void *          kmd,
-    uint                  kmd_len,
-    struct key_stats *    stats,
-    bool *                added)
+    const void *kmd,
+    uint kmd_len,
+    struct key_stats *stats,
+    bool *added)
 {
     merr_t err = 0;
 
@@ -576,15 +574,8 @@ kblock_add_entry(
 
     /* update wbtree */
     err = wbb_add_entry(
-        kblk->wbtree,
-        kobj,
-        stats->nvals,
-        stats->tot_vlen,
-        kmd,
-        kmd_len,
-        kblk->wbt_pgc + available_pgc(kblk),
-        &kblk->wbt_pgc,
-        added);
+        kblk->wbtree, kobj, stats->nvals, stats->tot_vlen, kmd, kmd_len,
+        kblk->wbt_pgc + available_pgc(kblk), &kblk->wbt_pgc, added);
     /* Out of space indicated by err==0 and added==false. */
     if (ev(err) || !*added)
         return err;
@@ -604,7 +595,7 @@ kblock_add_entry(
 static merr_t
 kblock_finish_bloom(struct curr_kblock *kblk, struct bloom_hdr_omf *blm_hdr)
 {
-    struct bloom_filter   bloom;
+    struct bloom_filter bloom;
     struct hash_set_part *part;
 
     if (kblk->num_keys == 0 || kblk->rp->cn_bloom_create == 0) {
@@ -661,15 +652,15 @@ kblock_finish_bloom(struct curr_kblock *kblk, struct bloom_hdr_omf *blm_hdr)
  */
 static void
 kblock_make_header(
-    struct curr_kblock    *kblk,
-    struct wbt_hdr_omf    *wbt_hdr,
-    struct bloom_hdr_omf  *blm_hdr,
+    struct curr_kblock *kblk,
+    struct wbt_hdr_omf *wbt_hdr,
+    struct bloom_hdr_omf *blm_hdr,
     struct kblock_hdr_omf *hdr)
 {
-    void *          base;
-    struct key_obj  min_kobj = { 0 }, max_kobj = { 0 };
-    unsigned        off;
-    const unsigned  align = 7;
+    void *base;
+    struct key_obj min_kobj = { 0 }, max_kobj = { 0 };
+    unsigned off;
+    const unsigned align = 7;
 
     assert(kblk->num_keys > 0);
 
@@ -734,8 +725,8 @@ kblock_make_header(
     omf_set_kbh_max_klen(hdr, key_obj_len(&max_kobj));
 
     /* make sure bloom header doesn't overlap with max key */
-    assert(omf_kbh_max_koff(hdr) >=
-        (omf_kbh_blm_doff_pg(hdr) + omf_kbh_blm_dlen_pg(hdr)) * PAGE_SIZE);
+    assert(
+        omf_kbh_max_koff(hdr) >= (omf_kbh_blm_doff_pg(hdr) + omf_kbh_blm_dlen_pg(hdr)) * PAGE_SIZE);
 
     /* make sure max key doesn't overlap with min key */
     assert(omf_kbh_min_koff(hdr) >= omf_kbh_max_koff(hdr) + key_obj_len(&max_kobj));
@@ -782,23 +773,23 @@ kbb_estimate_alen(struct cn *cn, size_t wlen, enum hse_mclass mclass)
 static merr_t
 kblock_finish(struct kblock_builder *bld)
 {
-    struct bloom_hdr_omf      blm_hdr;
-    struct wbt_hdr_omf        wbt_hdr = { 0 };
-    struct mblock_props       mbprop;
+    struct bloom_hdr_omf blm_hdr;
+    struct wbt_hdr_omf wbt_hdr = { 0 };
+    struct mblock_props mbprop;
     struct mpool_mclass_props mc_props;
 
-    struct curr_kblock *   kblk = &bld->curr;
+    struct curr_kblock *kblk = &bld->curr;
     struct cn_merge_stats *stats = bld->mstats;
-    struct mclass_policy * mpolicy = cn_get_mclass_policy(bld->cn);
+    struct mclass_policy *mpolicy = cn_get_mclass_policy(bld->cn);
 
     struct iovec *iov = NULL;
-    uint          iov_cnt = 0;
-    uint          iov_max;
-    uint          i, chunk;
-    size_t        wlen;
-    uint32_t      flags = 0;
+    uint iov_cnt = 0;
+    uint iov_max;
+    uint i, chunk;
+    size_t wlen;
+    uint32_t flags = 0;
 
-    merr_t   err;
+    merr_t err;
     uint64_t blkid = 0;
     uint64_t tstart = 0;
     uint64_t kblocksz;
@@ -837,13 +828,8 @@ kblock_finish(struct kblock_builder *bld)
     wbb_hdr_init(&wbt_hdr);
     if (wbb_entries(kblk->wbtree)) {
         err = wbb_freeze(
-            kblk->wbtree,
-            &wbt_hdr,
-            kblk->wbt_pgc + available_pgc(kblk),
-            &kblk->wbt_pgc,
-            iov + iov_cnt,
-            iov_max,
-            &i);
+            kblk->wbtree, &wbt_hdr, kblk->wbt_pgc + available_pgc(kblk), &kblk->wbt_pgc,
+            iov + iov_cnt, iov_max, &i);
         if (ev(err))
             goto errout;
         iov_cnt += i;
@@ -953,10 +939,10 @@ errout:
 merr_t
 kbb_create(struct kblock_builder **builder_out, struct cn *cn, struct perfc_set *pc)
 {
-    merr_t                    err;
-    struct kblock_builder *   bld;
+    merr_t err;
+    struct kblock_builder *bld;
     struct mpool_mclass_props props;
-    struct mclass_policy *    policy;
+    struct mclass_policy *policy;
 
     assert(builder_out);
 
@@ -1018,13 +1004,13 @@ kbb_destroy(struct kblock_builder *bld)
 merr_t
 kbb_add_entry(
     struct kblock_builder *bld,
-    const struct key_obj * kobj,
-    const void *           kmd,
-    uint                   kmd_len,
-    struct key_stats *     stats)
+    const struct key_obj *kobj,
+    const void *kmd,
+    uint kmd_len,
+    struct key_stats *stats)
 {
-    merr_t   err;
-    bool     added;
+    merr_t err;
+    bool added;
     uint64_t hash;
 
     assert(!bld->finished);
@@ -1107,7 +1093,7 @@ kbb_finish(struct kblock_builder *bld, struct blk_list *kblks)
 }
 
 const uint8_t *
-kbb_get_composite_hlog(const struct kblock_builder *const bld)
+kbb_get_composite_hlog(const struct kblock_builder * const bld)
 {
     return hlog_data(bld->composite_hlog);
 }
@@ -1115,8 +1101,8 @@ kbb_get_composite_hlog(const struct kblock_builder *const bld)
 merr_t
 kbb_set_agegroup(struct kblock_builder *bld, enum hse_mclass_policy_age age)
 {
-    merr_t                    err;
-    struct mclass_policy *    policy;
+    merr_t err;
+    struct mclass_policy *policy;
     struct mpool_mclass_props props;
 
     bld->agegroup = age;
@@ -1148,8 +1134,8 @@ kbb_is_empty(struct kblock_builder *bld)
 void
 kbb_curr_kblk_min_max_keys(
     struct kblock_builder *bld,
-    struct key_obj        *min_kobj,
-    struct key_obj        *max_kobj)
+    struct key_obj *min_kobj,
+    struct key_obj *max_kobj)
 {
     wbb_min_max_keys(bld->curr.wbtree, min_kobj, max_kobj);
 }

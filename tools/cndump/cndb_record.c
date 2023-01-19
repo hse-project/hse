@@ -4,6 +4,7 @@
  */
 
 #include <cndb/omf.h>
+
 #include <hse/util/page.h>
 
 #include "cndb_record.h"
@@ -13,16 +14,26 @@ const char *
 cndb_rec_type_name(enum cndb_rec_type rtype)
 {
     switch (rtype) {
-    case CNDB_TYPE_VERSION:     return "version";
-    case CNDB_TYPE_META:        return "meta";
-    case CNDB_TYPE_TXSTART:     return "txstart";
-    case CNDB_TYPE_KVS_ADD:     return "kvs_add";
-    case CNDB_TYPE_KVS_DEL:     return "kvs_del";
-    case CNDB_TYPE_KVSET_ADD:   return "kvset_add";
-    case CNDB_TYPE_KVSET_DEL:   return "kvset_del";
-    case CNDB_TYPE_KVSET_MOVE:  return "kvset_move";
-    case CNDB_TYPE_ACK:         return "ack";
-    case CNDB_TYPE_NAK:         return "nak";
+    case CNDB_TYPE_VERSION:
+        return "version";
+    case CNDB_TYPE_META:
+        return "meta";
+    case CNDB_TYPE_TXSTART:
+        return "txstart";
+    case CNDB_TYPE_KVS_ADD:
+        return "kvs_add";
+    case CNDB_TYPE_KVS_DEL:
+        return "kvs_del";
+    case CNDB_TYPE_KVSET_ADD:
+        return "kvset_add";
+    case CNDB_TYPE_KVSET_DEL:
+        return "kvset_del";
+    case CNDB_TYPE_KVSET_MOVE:
+        return "kvset_move";
+    case CNDB_TYPE_ACK:
+        return "ack";
+    case CNDB_TYPE_NAK:
+        return "nak";
     }
     return "unknown";
 }
@@ -107,15 +118,16 @@ cndb_rec_parse(struct cndb_rec *rec)
 
     case CNDB_TYPE_TXSTART: {
         struct cndb_rec_txstart *r = &rec->rec.txstart;
-        cndb_omf_txstart_read(rec->buf, &r->txid, &r->seqno, &r->ingestid, &r->txhorizon,
-            &r->add_cnt, &r->del_cnt);
+        cndb_omf_txstart_read(
+            rec->buf, &r->txid, &r->seqno, &r->ingestid, &r->txhorizon, &r->add_cnt, &r->del_cnt);
         break;
     }
 
     case CNDB_TYPE_KVSET_ADD: {
         struct cndb_rec_kvset_add *r = &rec->rec.kvset_add;
-        cndb_omf_kvset_add_read(rec->buf, &r->txid, &r->cnid, &r->kvsetid, &r->nodeid,
-            &r->hblkid, &r->kblkc, &r->kblkv, &r->vblkc, &r->vblkv, &r->km);
+        cndb_omf_kvset_add_read(
+            rec->buf, &r->txid, &r->cnid, &r->kvsetid, &r->nodeid, &r->hblkid, &r->kblkc, &r->kblkv,
+            &r->vblkc, &r->vblkv, &r->km);
         break;
     }
 
@@ -127,8 +139,8 @@ cndb_rec_parse(struct cndb_rec *rec)
 
     case CNDB_TYPE_KVSET_MOVE: {
         struct cndb_rec_kvset_move *r = &rec->rec.kvset_move;
-        cndb_omf_kvset_move_read(rec->buf, &r->cnid, &r->src_nodeid, &r->tgt_nodeid,
-            &r->kvset_idc, &r->kvset_idv);
+        cndb_omf_kvset_move_read(
+            rec->buf, &r->cnid, &r->src_nodeid, &r->tgt_nodeid, &r->kvset_idc, &r->kvset_idv);
         break;
     }
 
@@ -141,8 +153,8 @@ cndb_rec_parse(struct cndb_rec *rec)
     case CNDB_TYPE_NAK: {
         struct cndb_rec_nak *r = &rec->rec.nak;
         cndb_omf_nak_read(rec->buf, &r->txid);
-            break;
-        }
+        break;
+    }
     }
 }
 
@@ -169,8 +181,9 @@ cndb_rec_print(const struct cndb_rec *rec, bool oneline)
 
     case CNDB_TYPE_VERSION: {
         const struct cndb_rec_version *r = &rec->rec.version;
-        printf("%*s version %u magic 0x%x size %lu reclen %zu\n",
-            indent, rec_type_name, r->version, r->magic, r->size, reclen);
+        printf(
+            "%*s version %u magic 0x%x size %lu reclen %zu\n", indent, rec_type_name, r->version,
+            r->magic, r->size, reclen);
         break;
     }
 
@@ -182,9 +195,9 @@ cndb_rec_print(const struct cndb_rec *rec, bool oneline)
 
     case CNDB_TYPE_KVS_ADD: {
         const struct cndb_rec_kvs_add *r = &rec->rec.kvs_add;
-        printf("%*s name %s cnid %lu pfxlen %u capped %c reclen %zu\n",
-            indent, rec_type_name, r->name, r->cnid, r->cp.pfx_len,
-            r->cp.kvs_ext01 ? 'y' : 'n', reclen);
+        printf(
+            "%*s name %s cnid %lu pfxlen %u capped %c reclen %zu\n", indent, rec_type_name, r->name,
+            r->cnid, r->cp.pfx_len, r->cp.kvs_ext01 ? 'y' : 'n', reclen);
         break;
     }
 
@@ -196,9 +209,10 @@ cndb_rec_print(const struct cndb_rec *rec, bool oneline)
 
     case CNDB_TYPE_TXSTART: {
         const struct cndb_rec_txstart *r = &rec->rec.txstart;
-        printf("%*s txid %lu seqno %lu ingestid %lu txhorizon %lu add %u del %u reclen %zu\n",
-            indent, rec_type_name, r->txid, r->seqno, r->ingestid,
-            r->txhorizon, r->add_cnt, r->del_cnt, reclen);
+        printf(
+            "%*s txid %lu seqno %lu ingestid %lu txhorizon %lu add %u del %u reclen %zu\n", indent,
+            rec_type_name, r->txid, r->seqno, r->ingestid, r->txhorizon, r->add_cnt, r->del_cnt,
+            reclen);
         break;
     }
 
@@ -206,10 +220,11 @@ cndb_rec_print(const struct cndb_rec *rec, bool oneline)
 
         const struct cndb_rec_kvset_add *r = &rec->rec.kvset_add;
 
-        printf("%*s txid %lu cnid %lu kvsetid %lu nodeid %lu dgen_hi %lu dgen_lo %lu "
+        printf(
+            "%*s txid %lu cnid %lu kvsetid %lu nodeid %lu dgen_hi %lu dgen_lo %lu "
             "vused %lu compc %u reclen %zu",
-            indent, rec_type_name, r->txid, r->cnid, r->kvsetid, r->nodeid,
-            r->km.km_dgen_hi, r->km.km_dgen_lo, r->km.km_vused, r->km.km_compc, reclen);
+            indent, rec_type_name, r->txid, r->cnid, r->kvsetid, r->nodeid, r->km.km_dgen_hi,
+            r->km.km_dgen_lo, r->km.km_vused, r->km.km_compc, reclen);
 
         print_long_line_break(oneline, indent);
         printf("hblock 0x%lx", r->hblkid);
@@ -230,15 +245,17 @@ cndb_rec_print(const struct cndb_rec *rec, bool oneline)
 
     case CNDB_TYPE_KVSET_DEL: {
         const struct cndb_rec_kvset_del *r = &rec->rec.kvset_del;
-        printf("%*s txid %lu cnid %lu kvsetid %lu reclen %zu\n",
-            indent, rec_type_name, r->txid, r->cnid, r->kvsetid, reclen);
+        printf(
+            "%*s txid %lu cnid %lu kvsetid %lu reclen %zu\n", indent, rec_type_name, r->txid,
+            r->cnid, r->kvsetid, reclen);
         break;
     }
 
     case CNDB_TYPE_KVSET_MOVE: {
         const struct cndb_rec_kvset_move *r = &rec->rec.kvset_move;
-        printf("%*s cnid %lu src_nodeid %lu tgt_nodeid %lu reclen %zu",
-            indent, rec_type_name, r->cnid, r->src_nodeid, r->tgt_nodeid, reclen);
+        printf(
+            "%*s cnid %lu src_nodeid %lu tgt_nodeid %lu reclen %zu", indent, rec_type_name, r->cnid,
+            r->src_nodeid, r->tgt_nodeid, reclen);
         print_long_line_break(oneline, indent);
         printf("kvsets %u", r->kvset_idc);
         for (uint32_t i = 0; i < r->kvset_idc; i++)
@@ -250,10 +267,12 @@ cndb_rec_print(const struct cndb_rec *rec, bool oneline)
     case CNDB_TYPE_ACK: {
         const struct cndb_rec_ack *r = &rec->rec.ack;
         char modified_name[32];
-        snprintf(modified_name, sizeof(modified_name), "%s%s",
-            rec_type_name, r->ack_type == CNDB_ACK_TYPE_ADD ? "_add" : "_del");
-        printf("%*s txid %lu cnid %lu kvsetid %lu reclen %zu\n",
-            indent, modified_name, r->txid, r->cnid, r->kvsetid, reclen);
+        snprintf(
+            modified_name, sizeof(modified_name), "%s%s", rec_type_name,
+            r->ack_type == CNDB_ACK_TYPE_ADD ? "_add" : "_del");
+        printf(
+            "%*s txid %lu cnid %lu kvsetid %lu reclen %zu\n", indent, modified_name, r->txid,
+            r->cnid, r->kvsetid, reclen);
         break;
     }
 

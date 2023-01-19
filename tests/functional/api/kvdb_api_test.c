@@ -4,14 +4,14 @@
  */
 
 #include <errno.h>
-#include <sys/stat.h>
-
-#include <hse/hse.h>
-#include <hse/experimental.h>
-#include <hse/test/fixtures/kvdb.h>
 
 #include <mtf/framework.h>
+#include <sys/stat.h>
 
+#include <hse/experimental.h>
+#include <hse/hse.h>
+
+#include <hse/test/fixtures/kvdb.h>
 #include <hse/util/base.h>
 
 struct hse_kvdb *kvdb_handle;
@@ -81,7 +81,7 @@ MTF_DEFINE_UTEST(kvdb_api_test, create_home_zero_length)
 MTF_DEFINE_UTEST(kvdb_api_test, create_home_too_long)
 {
     hse_err_t err;
-    char      buf[PATH_MAX + 1];
+    char buf[PATH_MAX + 1];
 
     memset(buf, 'a', sizeof(buf));
     buf[PATH_MAX] = '\0';
@@ -126,7 +126,7 @@ MTF_DEFINE_UTEST(kvdb_api_test, drop_home_zero_length)
 MTF_DEFINE_UTEST(kvdb_api_test, drop_home_too_long)
 {
     hse_err_t err;
-    char      buf[PATH_MAX + 1];
+    char buf[PATH_MAX + 1];
 
     memset(buf, 'a', sizeof(buf));
     buf[PATH_MAX] = '\0';
@@ -178,8 +178,8 @@ MTF_DEFINE_UTEST(kvdb_api_test, kvs_names_null_namev)
 MTF_DEFINE_UTEST(kvdb_api_test, kvs_name_success)
 {
     hse_err_t err;
-    size_t    namec;
-    char    **namev;
+    size_t namec;
+    char **namev;
 
     err = hse_kvdb_kvs_names_get(kvdb_handle, &namec, &namev);
     ASSERT_EQ(0, hse_err_to_errno(err));
@@ -229,11 +229,12 @@ MTF_DEFINE_UTEST(kvdb_api_test, mclass_info_null_info)
 
 MTF_DEFINE_UTEST(kvdb_api_test, mclass_info_success)
 {
-    hse_err_t              err;
+    hse_err_t err;
     struct hse_mclass_info info;
-    char                   buf[PATH_MAX + sizeof("capacity")];
+    char buf[PATH_MAX + sizeof("capacity")];
 
-    snprintf(buf, sizeof(buf), "%s%s%s", mtf_kvdb_home,
+    snprintf(
+        buf, sizeof(buf), "%s%s%s", mtf_kvdb_home,
         mtf_kvdb_home[strlen(mtf_kvdb_home)] == '/' ? "" : "/", "capacity");
 
     err = hse_kvdb_mclass_info_get(kvdb_handle, HSE_MCLASS_CAPACITY, &info);
@@ -289,7 +290,7 @@ MTF_DEFINE_UTEST(kvdb_api_test, open_home_zero_length)
 MTF_DEFINE_UTEST(kvdb_api_test, open_home_too_long)
 {
     hse_err_t err;
-    char      buf[PATH_MAX + 1];
+    char buf[PATH_MAX + 1];
 
     memset(buf, 'a', sizeof(buf));
     buf[PATH_MAX] = '\0';
@@ -390,8 +391,8 @@ MTF_DEFINE_UTEST(kvdb_api_test, mode)
 MTF_DEFINE_UTEST(kvdb_api_test, param_dne)
 {
     hse_err_t err;
-    size_t    needed_sz;
-    char      buf[16];
+    size_t needed_sz;
+    char buf[16];
 
     err = hse_kvdb_param_get(kvdb_handle, "does.not.exist", buf, sizeof(buf), &needed_sz);
     ASSERT_EQ(ENOENT, hse_err_to_errno(err));
@@ -424,8 +425,8 @@ MTF_DEFINE_UTEST(kvdb_api_test, param_mismatched_buf_buf_sz)
 MTF_DEFINE_UTEST(kvdb_api_test, param_success)
 {
     hse_err_t err;
-    size_t    needed_sz;
-    char      buf[8];
+    size_t needed_sz;
+    char buf[8];
 
     err = hse_kvdb_param_get(kvdb_handle, "mode", NULL, 0, &needed_sz);
     ASSERT_EQ(0, hse_err_to_errno(err));
@@ -471,7 +472,7 @@ MTF_DEFINE_UTEST(kvdb_api_test, storage_add_null_paramv)
 
 MTF_DEFINE_UTEST(kvdb_api_test, storage_add_open)
 {
-    hse_err_t   err;
+    hse_err_t err;
     const char *paramv[] = { "storage." HSE_MCLASS_STAGING_NAME ".path=staging" };
 
     err = hse_kvdb_storage_add(mtf_kvdb_home, NELEM(paramv), paramv);
@@ -480,19 +481,14 @@ MTF_DEFINE_UTEST(kvdb_api_test, storage_add_open)
 
 MTF_DEFINE_UTEST(kvdb_api_test, storage_add_success)
 {
-    hse_err_t   err;
-    int         rc;
-    char        staging_path[2 * PATH_MAX];
+    hse_err_t err;
+    int rc;
+    char staging_path[2 * PATH_MAX];
     const char *paramv[] = { staging_path };
 
     snprintf(
-        staging_path,
-        sizeof(staging_path),
-        "storage.%s.path=%s%s%s",
-        HSE_MCLASS_STAGING_NAME,
-        mtf_kvdb_home,
-        mtf_kvdb_home[strlen(mtf_kvdb_home)] == '/' ? "" : "/",
-        "staging");
+        staging_path, sizeof(staging_path), "storage.%s.path=%s%s%s", HSE_MCLASS_STAGING_NAME,
+        mtf_kvdb_home, mtf_kvdb_home[strlen(mtf_kvdb_home)] == '/' ? "" : "/", "staging");
 
     rc = mkdir(
         staging_path + sizeof("storage." HSE_MCLASS_STAGING_NAME ".path=") - 1,

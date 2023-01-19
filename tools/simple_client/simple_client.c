@@ -9,18 +9,19 @@
 #include <stdarg.h>
 #include <stdio.h>
 #include <stdlib.h>
-#include <sysexits.h>
 #include <string.h>
+#include <sysexits.h>
+
+#include <hse/hse.h>
 
 #include <hse/cli/program.h>
-#include <hse/hse.h>
 #include <hse/util/compiler.h>
 
 const char *kfmt = "k%u";
-uint        kmax = 100;
+uint kmax = 100;
 
 struct hse_kvdb *kvdb;
-struct hse_kvs  *kvs;
+struct hse_kvs *kvs;
 
 void HSE_PRINTF(1, 2)
 syntax(const char *fmt, ...)
@@ -72,27 +73,20 @@ usage(void)
 }
 
 void
-simple_client(
-    const char *mp_name,
-    const char *kvs_name,
-    bool        read,
-    bool        write,
-    bool        verbose)
+simple_client(const char *mp_name, const char *kvs_name, bool read, bool write, bool verbose)
 {
-    char    key[HSE_KVS_KEY_LEN_MAX + 1];
-    char    val[32], xval[32];
-    size_t  klen, klenmax;
-    size_t  vlen, vlenmax;
-    size_t  xlen;
-    bool    found;
-    uint    i;
+    char key[HSE_KVS_KEY_LEN_MAX + 1];
+    char val[32], xval[32];
+    size_t klen, klenmax;
+    size_t vlen, vlenmax;
+    size_t xlen;
+    bool found;
+    uint i;
     hse_err_t err;
 
     klenmax = snprintf(key, sizeof(key), kfmt, kmax, kmax, kmax);
     if (klenmax > sizeof(key) - 1)
-        fatal(EINVAL,
-              "key format at %u yields key longer than %zu bytes",
-              kmax, sizeof(key) - 1);
+        fatal(EINVAL, "key format at %u yields key longer than %zu bytes", kmax, sizeof(key) - 1);
 
     vlenmax = snprintf(val, sizeof(val), "v%08d", kmax);
 
@@ -111,25 +105,21 @@ simple_client(
         /* Every other value is longer than 8 bytes in order
          * to exercise both kblock and vblock value storage.
          */
-        vlen = snprintf(val, sizeof(val),
-                        (i & 1) ? "v%08u" : "v%u", i);
+        vlen = snprintf(val, sizeof(val), (i & 1) ? "v%08u" : "v%u", i);
         assert(vlen > 1 && vlen < sizeof(val));
 
         if (verbose)
-            printf("put %8d:  %*s  %*s\n",
-                   i, (int)klenmax, key, (int)vlenmax, val);
+            printf("put %8d:  %*s  %*s\n", i, (int)klenmax, key, (int)vlenmax, val);
 
         err = hse_kvs_put(kvs, 0, NULL, key, klen, val, vlen);
         if (err)
-            fatal(err, "hse_kvs_put(%s, %zu, %s, %zu) failed",
-                  key, klen, val, vlen);
+            fatal(err, "hse_kvs_put(%s, %zu, %s, %zu) failed", key, klen, val, vlen);
     }
 
     for (i = 0; read && i < kmax; i++) {
         klen = snprintf(key, sizeof(key), kfmt, i, i, i);
 
-        err = hse_kvs_get(kvs, 0, NULL, key, klen, &found,
-                          val, sizeof(val), &vlen);
+        err = hse_kvs_get(kvs, 0, NULL, key, klen, &found, val, sizeof(val), &vlen);
         if (err)
             fatal(err, "hse_kvs_get(%s, %zu) failed", key, klen);
         if (!found)
@@ -137,22 +127,16 @@ simple_client(
 
         val[vlen] = '\000';
 
-        xlen = snprintf(xval, sizeof(xval),
-                        (i & 1) ? "v%08u" : "v%u", i);
+        xlen = snprintf(xval, sizeof(xval), (i & 1) ? "v%08u" : "v%u", i);
 
         if (verbose)
-            printf("get %8d:  %*s  %*s\n",
-                   i, (int)klenmax, key, (int)vlenmax, val);
+            printf("get %8d:  %*s  %*s\n", i, (int)klenmax, key, (int)vlenmax, val);
 
         if (xlen != vlen)
-            fatal(EINVAL,
-                  "value length mismatch: key %s, exp %zu, got %zu",
-                  key, xlen, vlen);
+            fatal(EINVAL, "value length mismatch: key %s, exp %zu, got %zu", key, xlen, vlen);
 
         if (0 != strcmp(xval, val))
-            fatal(EINVAL,
-                  "value data mismatch: key %s, exp %s, got %s",
-                  key, xval, val);
+            fatal(EINVAL, "value data mismatch: key %s, exp %s, got %s", key, xval, val);
     }
 
     err = hse_kvdb_close(kvdb);
@@ -236,8 +220,8 @@ main(int argc, char **argv)
     if (!read && !write)
         read = write = true;
 
-    mp_name   = argv[0];
-    kvs_name  = argv[1];
+    mp_name = argv[0];
+    kvs_name = argv[1];
 
     if (verbose) {
         printf("mpool %s\n", mp_name);

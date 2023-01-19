@@ -16,7 +16,6 @@
  * with cndump.
  */
 
-#include <arpa/inet.h>
 #include <getopt.h>
 #include <stdarg.h>
 #include <stdint.h>
@@ -26,8 +25,11 @@
 #include <sysexits.h>
 #include <unistd.h>
 
-#include <hse/cli/program.h>
+#include <arpa/inet.h>
+
 #include <hse/hse.h>
+
+#include <hse/cli/program.h>
 #include <hse/util/compiler.h>
 
 void HSE_PRINTF(2, 3)
@@ -48,7 +50,7 @@ fatal(hse_err_t err, char *fmt, ...)
 void HSE_PRINTF(1, 2)
 syntax(const char *fmt, ...)
 {
-    char    msg[256];
+    char msg[256];
     va_list ap;
 
     va_start(ap, fmt);
@@ -100,42 +102,42 @@ main(int argc, char **argv)
 
     while ((c = getopt(argc, argv, ":a:c:e:hl:o:r:s:Z:")) != -1) {
         switch (c) {
-            case 'a':
-                alen = strtoul(optarg, 0, 0);
-                break;
-            case 'c':
-                cnt = (int)strtoul(optarg, 0, 0);
-                break;
-            case 'e':
-                every = (int)strtoul(optarg, 0, 0);
-                break;
-            case 'Z':
-                config = optarg;
-                break;
-            case 'h':
-                usage();
-                exit(0);
-            case 'l':
-                keylen = strtoul(optarg, 0, 0);
-                break;
-            case 'r':
-                rdm = (int)strtoul(optarg, 0, 0);
-                break;
-            case 's':
-                start = (int)strtoul(optarg, 0, 0);
-                break;
+        case 'a':
+            alen = strtoul(optarg, 0, 0);
+            break;
+        case 'c':
+            cnt = (int)strtoul(optarg, 0, 0);
+            break;
+        case 'e':
+            every = (int)strtoul(optarg, 0, 0);
+            break;
+        case 'Z':
+            config = optarg;
+            break;
+        case 'h':
+            usage();
+            exit(0);
+        case 'l':
+            keylen = strtoul(optarg, 0, 0);
+            break;
+        case 'r':
+            rdm = (int)strtoul(optarg, 0, 0);
+            break;
+        case 's':
+            start = (int)strtoul(optarg, 0, 0);
+            break;
 
-            case '?':
-                syntax("invalid option -%c", optopt);
-                exit(EX_USAGE);
+        case '?':
+            syntax("invalid option -%c", optopt);
+            exit(EX_USAGE);
 
-            case ':':
-                syntax("option -%c requires a parameter", optopt);
-                exit(EX_USAGE);
+        case ':':
+            syntax("option -%c requires a parameter", optopt);
+            exit(EX_USAGE);
 
-            default:
-                syntax("option -%c ignored\n", c);
-                break;
+        default:
+            syntax("option -%c ignored\n", c);
+            break;
         }
     }
 
@@ -175,7 +177,7 @@ main(int argc, char **argv)
 
     last = start + cnt;
     for (int i = start; i < last; ++i) {
-        void * key, *val;
+        void *key, *val;
         size_t klen, vlen;
 
         *seq = htonl((uint32_t)i);

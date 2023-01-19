@@ -5,19 +5,18 @@
 
 #include <stdint.h>
 
-#include <hse/logging/logging.h>
-#include <hse/util/minmax.h>
-#include <hse/util/assert.h>
-#include <hse/util/perfc.h>
-#include <hse/util/page.h>
+#include <hse/kvdb_perfc.h>
 
-#include <hse/ikvdb/throttle.h>
-#include <hse/ikvdb/throttle_perfc.h>
 #include <hse/ikvdb/ikvdb.h>
 #include <hse/ikvdb/kvdb_rparams.h>
 #include <hse/ikvdb/rparam_debug_flags.h>
-
-#include <hse/kvdb_perfc.h>
+#include <hse/ikvdb/throttle.h>
+#include <hse/ikvdb/throttle_perfc.h>
+#include <hse/logging/logging.h>
+#include <hse/util/assert.h>
+#include <hse/util/minmax.h>
+#include <hse/util/page.h>
+#include <hse/util/perfc.h>
 
 /* clang-format off */
 
@@ -68,8 +67,9 @@ throttle_init_params(struct throttle *self, struct kvdb_rparams *rp)
     self->thr_delay = rp->throttle_init_policy;
 
     if (self->thr_rp->throttle_debug_intvl_s == 0) {
-        log_warn("Invalid setting for throttle_debug_intvl_s: %u, using 1",
-                 self->thr_rp->throttle_debug_intvl_s);
+        log_warn(
+            "Invalid setting for throttle_debug_intvl_s: %u, using 1",
+            self->thr_rp->throttle_debug_intvl_s);
         self->thr_rp->throttle_debug_intvl_s = 1U;
     }
 
@@ -77,7 +77,7 @@ throttle_init_params(struct throttle *self, struct kvdb_rparams *rp)
     self->thr_update_ms = rp->throttle_update_ns / 1000000;
 
     self->thr_inject_cycles = THROTTLE_INJECT_MS / self->thr_update_ms +
-                              (THROTTLE_INJECT_MS % self->thr_update_ms ? 1 : 0);
+        (THROTTLE_INJECT_MS % self->thr_update_ms ? 1 : 0);
 
     /* Evaluate if we can go faster every 5 seconds) */
     time_ms = THROTTLE_REDUCE_CYCLES * self->thr_update_ms;
@@ -102,13 +102,9 @@ throttle_init_params(struct throttle *self, struct kvdb_rparams *rp)
         time_ms / self->thr_update_ms + (time_ms % self->thr_update_ms ? 1 : 0);
 
     log_info(
-        "delay %d u_ms %d rcycles %d icycles %d scycles %d dcycles %d",
-        self->thr_delay,
-        self->thr_update_ms,
-        self->thr_reduce_cycles,
-        self->thr_inject_cycles,
-        self->thr_skip_cycles,
-        self->thr_delta_cycles);
+        "delay %d u_ms %d rcycles %d icycles %d scycles %d dcycles %d", self->thr_delay,
+        self->thr_update_ms, self->thr_reduce_cycles, self->thr_inject_cycles,
+        self->thr_skip_cycles, self->thr_delta_cycles);
 }
 
 void
@@ -133,13 +129,8 @@ void
 throttle_reduce_debug(struct throttle *self, uint sensor, uint mavg)
 {
     log_info(
-        "icnt %u raw %d prev %d trial %d mcnt %d v %d cmavg %d",
-        self->thr_inject_cnt,
-        self->thr_delay,
-        self->thr_delay_prev,
-        self->thr_delay_test,
-        self->thr_monitor_cnt,
-        sensor,
+        "icnt %u raw %d prev %d trial %d mcnt %d v %d cmavg %d", self->thr_inject_cnt,
+        self->thr_delay, self->thr_delay_prev, self->thr_delay_test, self->thr_monitor_cnt, sensor,
         mavg);
 }
 
@@ -210,7 +201,7 @@ static void
 throttle_decrease(struct throttle *self, uint svalue)
 {
     ulong debug = self->thr_rp->throttle_debug;
-    int   delta = self->thr_delay_prev - self->thr_delay_test;
+    int delta = self->thr_delay_prev - self->thr_delay_test;
 
     assert(delta > 0);
 
@@ -249,7 +240,8 @@ throttle_decrease(struct throttle *self, uint svalue)
          */
         self->thr_monitor_cnt++;
         if (self->thr_monitor_cnt >=
-            (self->thr_inject_cycles * (self->thr_num_tries + 1) + self->thr_delta_cycles)) {
+            (self->thr_inject_cycles * (self->thr_num_tries + 1) + self->thr_delta_cycles))
+        {
             self->thr_longest_run = 0;
             self->thr_monitor_cnt = 0;
             self->thr_num_tries++;
@@ -293,25 +285,25 @@ uint
 throttle_update(struct throttle *self)
 {
     struct throttle_mavg *mavg = &self->thr_mavg;
-    uint32_t              max_val = 0;
-    uint64_t              debug = self->thr_rp->throttle_debug;
+    uint32_t max_val = 0;
+    uint64_t debug = self->thr_rp->throttle_debug;
 
     for (int i = 0; i < THROTTLE_SENSOR_CNT; i++) {
-        uint32_t  tmp = atomic_read(&self->thr_sensorv[i].ts_sensor);
-        uint32_t  cidx = UINT_MAX;
+        uint32_t tmp = atomic_read(&self->thr_sensorv[i].ts_sensor);
+        uint32_t cidx = UINT_MAX;
 
         tmp = min_t(uint, tmp, 2 * THROTTLE_SENSOR_SCALE);
 
         switch (i) {
-            case THROTTLE_SENSOR_CNROOT:
-                cidx = PERFC_BA_THSR_CNROOT;
-                break;
-            case THROTTLE_SENSOR_C0SK:
-                cidx = PERFC_BA_THSR_C0SK;
-                break;
-            case THROTTLE_SENSOR_WAL:
-                cidx = PERFC_BA_THSR_WAL;
-                break;
+        case THROTTLE_SENSOR_CNROOT:
+            cidx = PERFC_BA_THSR_CNROOT;
+            break;
+        case THROTTLE_SENSOR_C0SK:
+            cidx = PERFC_BA_THSR_C0SK;
+            break;
+        case THROTTLE_SENSOR_WAL:
+            cidx = PERFC_BA_THSR_WAL;
+            break;
         }
 
         /* Ignore csched sensor while calculating mavg. */
@@ -372,9 +364,9 @@ throttle_update(struct throttle *self)
         if (mavg->tm_curr >= THROTTLE_SENSOR_SCALE) {
             throttle_switch_state(self, THROTTLE_INCREASE, max_val);
         } else {
-            const uint cmavg_hi  = THROTTLE_SENSOR_SCALE * 90 / 100;
+            const uint cmavg_hi = THROTTLE_SENSOR_SCALE * 90 / 100;
             const uint cmavg_mid = THROTTLE_SENSOR_SCALE * 25 / 100;
-            const uint cmavg_lo  = THROTTLE_SENSOR_SCALE * 10 / 100;
+            const uint cmavg_lo = THROTTLE_SENSOR_SCALE * 10 / 100;
             bool reduce = false;
             uint cmavg;
 
@@ -461,12 +453,7 @@ void
 throttle_debug(struct throttle *self)
 {
     log_info(
-        "delay %d min %d mavg %d cnt %d state %d sensors %d %d",
-        self->thr_delay,
-        self->thr_delay_min,
-        self->thr_mavg.tm_curr,
-        self->thr_monitor_cnt,
-        self->thr_state,
-        atomic_read(&self->thr_sensorv[0].ts_sensor),
-        atomic_read(&self->thr_sensorv[1].ts_sensor));
+        "delay %d min %d mavg %d cnt %d state %d sensors %d %d", self->thr_delay,
+        self->thr_delay_min, self->thr_mavg.tm_curr, self->thr_monitor_cnt, self->thr_state,
+        atomic_read(&self->thr_sensorv[0].ts_sensor), atomic_read(&self->thr_sensorv[1].ts_sensor));
 }

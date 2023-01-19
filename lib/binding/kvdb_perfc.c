@@ -5,11 +5,11 @@
 
 #include <stdint.h>
 
-#include <hse/util/platform.h>
-#include <hse/util/perfc.h>
+#include <hse/kvdb_perfc.h>
 
 #include <hse/ikvdb/hse_gparams.h>
-#include <hse/kvdb_perfc.h>
+#include <hse/util/perfc.h>
+#include <hse/util/platform.h>
 
 /* clang-format off */
 

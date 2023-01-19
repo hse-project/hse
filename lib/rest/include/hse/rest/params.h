@@ -21,18 +21,10 @@
 struct rest_params;
 
 merr_t
-rest_params_get_bool(
-    const struct rest_params *params,
-    const char *key,
-    bool *value,
-    bool def);
+rest_params_get_bool(const struct rest_params *params, const char *key, bool *value, bool def);
 
 merr_t
-rest_params_get_size(
-    const struct rest_params *params,
-    const char *key,
-    size_t *value,
-    size_t def);
+rest_params_get_size(const struct rest_params *params, const char *key, size_t *value, size_t def);
 
 merr_t
 rest_params_get_string(

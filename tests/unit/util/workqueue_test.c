@@ -5,9 +5,9 @@
 
 #include <mtf/framework.h>
 
+#include <hse/logging/logging.h>
 #include <hse/util/platform.h>
 #include <hse/util/workqueue.h>
-#include <hse/logging/logging.h>
 
 int verbose = 0;
 
@@ -61,8 +61,8 @@ simple_worker(struct work_struct *wstruct)
 
 struct wait_work {
     struct work_struct work;
-    int                wait_counter;
-    ulong              delay_ms;
+    int wait_counter;
+    ulong delay_ms;
 };
 
 void
@@ -79,12 +79,12 @@ wait_worker(struct work_struct *wstruct)
 }
 
 struct mywork {
-    struct work_struct       wstruct;
-    struct delayed_work      dwstruct;
+    struct work_struct wstruct;
+    struct delayed_work dwstruct;
     struct workqueue_struct *wqueue;
-    int                      id;
-    int                      counter;
-    int                      chain;
+    int id;
+    int counter;
+    int chain;
 };
 
 void
@@ -125,10 +125,10 @@ myworker_delayed(struct work_struct *wstruct)
 MTF_DEFINE_UTEST(workqueue_test, run)
 {
     struct workqueue_struct *q = NULL;
-    struct mywork **         myworks = NULL;
-    const int                num_works = 32;
-    int                      max_active = 5;
-    int                      i, expected, actual;
+    struct mywork **myworks = NULL;
+    const int num_works = 32;
+    int max_active = 5;
+    int i, expected, actual;
 
     expected = 0;
     atomic_set(&counter, 0);
@@ -162,8 +162,7 @@ MTF_DEFINE_UTEST(workqueue_test, run)
         usleep(1000);
     }
     actual = atomic_read(&counter);
-    log_debug("Finished %d of %d delayed jobs in %d milliseconds",
-              actual, expected, i);
+    log_debug("Finished %d of %d delayed jobs in %d milliseconds", actual, expected, i);
     ASSERT_EQ(expected, actual);
 
     destroy_workqueue(q);
@@ -173,12 +172,12 @@ MTF_DEFINE_UTEST(workqueue_test, run)
 MTF_DEFINE_UTEST(workqueue_test, run_delay)
 {
     struct workqueue_struct *q = NULL;
-    struct mywork **         myworks = NULL;
-    const int                num_works = 10;
-    int                      max_active = 5;
-    int                      i, expected, actual;
-    u_long                   delta, deltamax;
-    bool                     b;
+    struct mywork **myworks = NULL;
+    const int num_works = 10;
+    int max_active = 5;
+    int i, expected, actual;
+    u_long delta, deltamax;
+    bool b;
 
     expected = 0;
     atomic_set(&counter, 0);
@@ -220,8 +219,7 @@ MTF_DEFINE_UTEST(workqueue_test, run_delay)
     }
     delta = nsecs_to_jiffies(get_time_ns() - delta);
     actual = atomic_read(&counter);
-    log_debug("Finished %d of %d delayed jobs in %d milliseconds",
-              actual, expected, i);
+    log_debug("Finished %d of %d delayed jobs in %d milliseconds", actual, expected, i);
     ASSERT_EQ(expected, actual);
     ASSERT_GE(delta, deltamax);
 
@@ -232,12 +230,12 @@ MTF_DEFINE_UTEST(workqueue_test, run_delay)
 MTF_DEFINE_UTEST(workqueue_test, t_delayed_work)
 {
     struct workqueue_struct *q;
-    struct delayed_work      work;
+    struct delayed_work work;
 
     ulong worker_delay_ms, delta;
-    int   cnt;
-    int   i;
-    bool  b;
+    int cnt;
+    int i;
+    bool b;
 
     q = alloc_workqueue("test", 0, 5, 5);
     ASSERT_TRUE(q);
@@ -272,12 +270,12 @@ MTF_DEFINE_UTEST(workqueue_test, t_cancel_delayed_work)
     struct workqueue_struct *q = NULL;
 
     struct delayed_work *workv;
-    int                  workc = 1;
-    int                  max_active = 1;
-    ulong                worker_delay_ms;
-    int                  cnt;
-    int                  i;
-    bool                 b;
+    int workc = 1;
+    int max_active = 1;
+    ulong worker_delay_ms;
+    int cnt;
+    int i;
+    bool b;
 
     workv = calloc(workc, sizeof(*workv));
     ASSERT_TRUE(workv != NULL);
@@ -326,11 +324,11 @@ MTF_DEFINE_UTEST(workqueue_test, t_cancel_delayed_work)
 MTF_DEFINE_UTEST(workqueue_test, t_queue_work_twice)
 {
     struct workqueue_struct *q = NULL;
-    struct wait_work *       workv;
-    int                      max_active = 1;
-    int                      workc = 4 * max_active;
-    int                      i;
-    bool                     enqueued;
+    struct wait_work *workv;
+    int max_active = 1;
+    int workc = 4 * max_active;
+    int i;
+    bool enqueued;
 
     workv = calloc(workc, sizeof(*workv));
     ASSERT_TRUE(workv != NULL);
@@ -392,11 +390,11 @@ MTF_DEFINE_UTEST(workqueue_test, destroy_simple)
 MTF_DEFINE_UTEST(workqueue_test, destroy_pending)
 {
     struct workqueue_struct *q = NULL;
-    struct wait_work *       workv;
-    int                      max_active = 1;
-    int                      workc = 4 * max_active;
-    int                      i;
-    bool                     enqueued;
+    struct wait_work *workv;
+    int max_active = 1;
+    int workc = 4 * max_active;
+    int i;
+    bool enqueued;
 
     workv = calloc(workc, sizeof(*workv));
     ASSERT_TRUE(workv != NULL);
@@ -433,13 +431,13 @@ MTF_DEFINE_UTEST(workqueue_test, destroy_delayed)
     struct workqueue_struct *q = NULL;
 
     struct delayed_work *workv;
-    int                  workc = 1000;
-    ulong                worker_delay_ms;
-    ulong                my_delay_ms;
-    int                  cnt, i;
-    uint                 idle_ttl;
-    uint                 tcdelay;
-    bool                 b;
+    int workc = 1000;
+    ulong worker_delay_ms;
+    ulong my_delay_ms;
+    int cnt, i;
+    uint idle_ttl;
+    uint tcdelay;
+    bool b;
 
     idle_ttl = hse_gparams.gp_workqueue_idle_ttl;
     tcdelay = hse_gparams.gp_workqueue_tcdelay;
@@ -498,10 +496,10 @@ sleep_and_count(struct work_struct *wstruct)
 MTF_DEFINE_UTEST(workqueue_test, flush_test)
 {
     struct workqueue_struct *q = NULL;
-    const int                num_works = 32;
-    struct work_struct *     myworks;
-    int                      i, actual;
-    bool                     b;
+    const int num_works = 32;
+    struct work_struct *myworks;
+    int i, actual;
+    bool b;
 
     q = alloc_workqueue("test_flush", 0, num_works, num_works);
     ASSERT_TRUE(q);
@@ -548,9 +546,9 @@ destroy_test_cb(struct work_struct *work)
 MTF_DEFINE_UTEST(workqueue_test, destroy_test)
 {
     struct workqueue_struct *wq;
-    struct mywork *          workv;
-    int                      i, n;
-    bool                     b;
+    struct mywork *workv;
+    int i, n;
+    bool b;
 
     workv = calloc(128, sizeof(*workv));
     ASSERT_TRUE(workv != NULL);
@@ -578,24 +576,21 @@ MTF_DEFINE_UTEST(workqueue_test, destroy_test)
 
         workc *= 3;
 
-        log_debug("Waiting for %d of %d jobs to complete by %d workers",
-                  workc - atomic_read(&counter),
-                  workc,
-                  n + 1);
+        log_debug(
+            "Waiting for %d of %d jobs to complete by %d workers", workc - atomic_read(&counter),
+            workc, n + 1);
 
         flush_workqueue(wq);
 
-        log_debug("Waiting for %d of %d jobs to complete by %d workers",
-                  workc - atomic_read(&counter),
-                  workc,
-                  n + 1);
+        log_debug(
+            "Waiting for %d of %d jobs to complete by %d workers", workc - atomic_read(&counter),
+            workc, n + 1);
 
         flush_workqueue(wq);
 
-        log_debug("Waiting for %d of %d jobs to complete by %d workers",
-                  workc - atomic_read(&counter),
-                  workc,
-                  n + 1);
+        log_debug(
+            "Waiting for %d of %d jobs to complete by %d workers", workc - atomic_read(&counter),
+            workc, n + 1);
 
         destroy_workqueue(wq);
 
@@ -626,24 +621,21 @@ MTF_DEFINE_UTEST(workqueue_test, destroy_test)
 
         workc *= 3;
 
-        log_debug("Waiting for %d of %d jobs to complete by %d workers",
-                  workc - atomic_read(&counter),
-                  workc,
-                  n + 1);
+        log_debug(
+            "Waiting for %d of %d jobs to complete by %d workers", workc - atomic_read(&counter),
+            workc, n + 1);
 
         flush_workqueue(wq);
 
-        log_debug("Waiting for %d of %d jobs to complete by %d workers",
-                  workc - atomic_read(&counter),
-                  workc,
-                  n + 1);
+        log_debug(
+            "Waiting for %d of %d jobs to complete by %d workers", workc - atomic_read(&counter),
+            workc, n + 1);
 
         flush_workqueue(wq);
 
-        log_debug("Waiting for %d of %d jobs to complete by %d workers",
-                  workc - atomic_read(&counter),
-                  workc,
-                  n + 1);
+        log_debug(
+            "Waiting for %d of %d jobs to complete by %d workers", workc - atomic_read(&counter),
+            workc, n + 1);
 
         destroy_workqueue(wq);
 
@@ -680,8 +672,8 @@ static void *
 flush_destroy_main(void *arg)
 {
     struct workqueue_struct *wq = arg;
-    struct mywork            work;
-    bool                     b;
+    struct mywork work;
+    bool b;
 
     memset(&work, 0, sizeof(work));
 
@@ -706,9 +698,9 @@ MTF_DEFINE_UTEST(workqueue_test, flush_destroy)
 {
     const int itermax = 5;
     const int tdmax = 17;
-    int       wqtdmax;
-    int       i, j;
-    int       rc;
+    int wqtdmax;
+    int i, j;
+    int rc;
 
     for (i = 0; i < itermax; ++i) {
         struct workqueue_struct *wq;
@@ -782,13 +774,13 @@ flush_party_cb(struct work_struct *work)
 MTF_DEFINE_UTEST(workqueue_test, flush_party)
 {
     struct mywork *workv;
-    const int      workmax = 1000;
-    const int      itermax = 30;
-    const int      tdmax = 13;
-    pthread_t      tdv[tdmax];
-    int            wqtdmax;
-    int            i, j;
-    int            rc;
+    const int workmax = 1000;
+    const int itermax = 30;
+    const int tdmax = 13;
+    pthread_t tdv[tdmax];
+    int wqtdmax;
+    int i, j;
+    int rc;
 
     workv = calloc(workmax, sizeof(*workv));
     ASSERT_TRUE(workv != NULL);
@@ -856,8 +848,8 @@ MTF_DEFINE_UTEST(workqueue_test, requeue)
     struct workqueue_struct *wq;
 
     struct mywork *workv, *w;
-    const int      workmax = 3;
-    bool           b;
+    const int workmax = 3;
+    bool b;
 
     workv = calloc(workmax, sizeof(*workv));
     ASSERT_TRUE(workv != NULL);

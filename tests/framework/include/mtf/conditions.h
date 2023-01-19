@@ -91,25 +91,26 @@ mtf_test_failure(void);
 
 /* ------------------------------------------------------------------------- */
 
-#define ___MTF_INNER_EQ(assert, reference, actual, rc)                                                    \
-    do {                                                                                                  \
-        struct mtf_test_coll_info *tci = lcl_ti->ti_coll;                                                 \
-        __typeof__(actual)         ___mtf_val = (actual);                                                 \
-                                                                                                          \
-        tci = tci;                                                                                        \
-        if (mtf_verify_flag || (__typeof__(actual))(reference) != (___mtf_val)) {                         \
-            if (!mtf_verify_flag) {                                                                       \
-                mtf_print(                                                                                \
-                    tci, "%s:%d: Failure %s == %s\n", REL_FILE(__FILE__), __LINE__, #reference, #actual); \
-                mtf_print(tci, "\t%ld == %ld --> false\n", (long)(reference), (long)(___mtf_val));        \
-                mtf_test_failure();                                                                       \
-            }                                                                                             \
-            lcl_ti->ti_status = 0;                                                                        \
-            if (assert)                                                                                   \
-                return rc;                                                                                \
-        } else {                                                                                          \
-            lcl_ti->ti_status = lcl_ti->ti_status ? 1 : 0;                                                \
-        }                                                                                                 \
+#define ___MTF_INNER_EQ(assert, reference, actual, rc)                                             \
+    do {                                                                                           \
+        struct mtf_test_coll_info *tci = lcl_ti->ti_coll;                                          \
+        __typeof__(actual) ___mtf_val = (actual);                                                  \
+                                                                                                   \
+        tci = tci;                                                                                 \
+        if (mtf_verify_flag || (__typeof__(actual))(reference) != (___mtf_val)) {                  \
+            if (!mtf_verify_flag) {                                                                \
+                mtf_print(                                                                         \
+                    tci, "%s:%d: Failure %s == %s\n", REL_FILE(__FILE__), __LINE__, #reference,    \
+                    #actual);                                                                      \
+                mtf_print(tci, "\t%ld == %ld --> false\n", (long)(reference), (long)(___mtf_val)); \
+                mtf_test_failure();                                                                \
+            }                                                                                      \
+            lcl_ti->ti_status = 0;                                                                 \
+            if (assert)                                                                            \
+                return rc;                                                                         \
+        } else {                                                                                   \
+            lcl_ti->ti_status = lcl_ti->ti_status ? 1 : 0;                                         \
+        }                                                                                          \
     } while (0)
 
 #define ___MTF_VERIFY_EQ(reference, actual, rc) ___MTF_VERIFY_INNER(((reference) == (actual)), rc)
@@ -122,25 +123,26 @@ mtf_test_failure(void);
 #define ASSERT_EQ_RET(reference, actual, rc) ___MTF_INNER_EQ(1, (reference), (actual), rc)
 #define VERIFY_EQ_RET(reference, actual, rc) ___MTF_VERIFY_EQ((reference), (actual), rc)
 
-#define ___MTF_INNER_NE(assert, reference, actual, rc)                                                    \
-    do {                                                                                                  \
-        struct mtf_test_coll_info *tci = lcl_ti->ti_coll;                                                 \
-        __typeof__(actual)         ___mtf_val = (actual);                                                 \
-                                                                                                          \
-        tci = tci;                                                                                        \
-        if (mtf_verify_flag || ((__typeof__(actual))(reference) == (___mtf_val))) {                       \
-            if (!mtf_verify_flag) {                                                                       \
-                mtf_print(                                                                                \
-                    tci, "%s:%d: Failure %s == %s\n", REL_FILE(__FILE__), __LINE__, #reference, #actual); \
-                mtf_print(tci, "\t%ld != %ld --> false\n", (long)(reference), (long)(___mtf_val));        \
-                mtf_test_failure();                                                                       \
-            }                                                                                             \
-            lcl_ti->ti_status = 0;                                                                        \
-            if (assert)                                                                                   \
-                return rc;                                                                                \
-        } else {                                                                                          \
-            lcl_ti->ti_status = lcl_ti->ti_status ? 1 : 0;                                                \
-        }                                                                                                 \
+#define ___MTF_INNER_NE(assert, reference, actual, rc)                                             \
+    do {                                                                                           \
+        struct mtf_test_coll_info *tci = lcl_ti->ti_coll;                                          \
+        __typeof__(actual) ___mtf_val = (actual);                                                  \
+                                                                                                   \
+        tci = tci;                                                                                 \
+        if (mtf_verify_flag || ((__typeof__(actual))(reference) == (___mtf_val))) {                \
+            if (!mtf_verify_flag) {                                                                \
+                mtf_print(                                                                         \
+                    tci, "%s:%d: Failure %s == %s\n", REL_FILE(__FILE__), __LINE__, #reference,    \
+                    #actual);                                                                      \
+                mtf_print(tci, "\t%ld != %ld --> false\n", (long)(reference), (long)(___mtf_val)); \
+                mtf_test_failure();                                                                \
+            }                                                                                      \
+            lcl_ti->ti_status = 0;                                                                 \
+            if (assert)                                                                            \
+                return rc;                                                                         \
+        } else {                                                                                   \
+            lcl_ti->ti_status = lcl_ti->ti_status ? 1 : 0;                                         \
+        }                                                                                          \
     } while (0)
 
 #define ___MTF_VERIFY_NE(reference, actual, rc) ___MTF_VERIFY_INNER(((reference) != (actual)), rc)
@@ -158,7 +160,7 @@ mtf_test_failure(void);
 #define ___MTF_INNER_LT(assert, reference, actual, rc)                                            \
     do {                                                                                          \
         struct mtf_test_coll_info *tci = lcl_ti->ti_coll;                                         \
-        __typeof__(actual)         ___mtf_val = (actual);                                         \
+        __typeof__(actual) ___mtf_val = (actual);                                                 \
                                                                                                   \
         tci = tci;                                                                                \
         if (mtf_verify_flag || !((__typeof__(actual))(reference) < (___mtf_val))) {               \
@@ -189,7 +191,7 @@ mtf_test_failure(void);
 #define ___MTF_INNER_LE(assert, reference, actual, rc)                                             \
     do {                                                                                           \
         struct mtf_test_coll_info *tci = lcl_ti->ti_coll;                                          \
-        __typeof__(actual)         ___mtf_val = (actual);                                          \
+        __typeof__(actual) ___mtf_val = (actual);                                                  \
                                                                                                    \
         tci = tci;                                                                                 \
         if (mtf_verify_flag || !((__typeof__(actual))(reference) <= (___mtf_val))) {               \
@@ -220,7 +222,7 @@ mtf_test_failure(void);
 #define ___MTF_INNER_GT(assert, reference, actual, rc)                                            \
     do {                                                                                          \
         struct mtf_test_coll_info *tci = lcl_ti->ti_coll;                                         \
-        __typeof__(actual)         ___mtf_val = (actual);                                         \
+        __typeof__(actual) ___mtf_val = (actual);                                                 \
                                                                                                   \
         tci = tci;                                                                                \
         if (mtf_verify_flag || !((__typeof__(actual))(reference) > (___mtf_val))) {               \
@@ -251,7 +253,7 @@ mtf_test_failure(void);
 #define ___MTF_INNER_GE(assert, reference, actual, rc)                                             \
     do {                                                                                           \
         struct mtf_test_coll_info *tci = lcl_ti->ti_coll;                                          \
-        __typeof__(actual)         ___mtf_val = (actual);                                          \
+        __typeof__(actual) ___mtf_val = (actual);                                                  \
                                                                                                    \
         tci = tci;                                                                                 \
         if (mtf_verify_flag || !((__typeof__(actual))(reference) >= (___mtf_val))) {               \
@@ -281,29 +283,25 @@ mtf_test_failure(void);
 
 /* ------------------------------------------------------------------------- */
 
-#define ___MTF_INNER_STREQ(assert, reference, actual, rc)                \
-    do {                                                                 \
-        struct mtf_test_coll_info *tci = lcl_ti->ti_coll;                \
-        int                        result = strcmp(reference, actual);   \
-                                                                         \
-        tci = tci;                                                       \
-        if (mtf_verify_flag || (result != 0)) {                          \
-            if (!mtf_verify_flag) {                                      \
-                mtf_print(                                               \
-                    tci,                                                 \
-                    "\n\ttest %s failed at line %d, %s == %s --> false", \
-                    lcl_ti->ti_name,                                     \
-                    __LINE__,                                            \
-                    (reference),                                         \
-                    (actual));                                           \
-                mtf_test_failure();                                      \
-            }                                                            \
-            lcl_ti->ti_status = 0;                                       \
-            if (assert)                                                  \
-                return rc;                                               \
-        } else {                                                         \
-            lcl_ti->ti_status = lcl_ti->ti_status ? 1 : 0;               \
-        }                                                                \
+#define ___MTF_INNER_STREQ(assert, reference, actual, rc)                                      \
+    do {                                                                                       \
+        struct mtf_test_coll_info *tci = lcl_ti->ti_coll;                                      \
+        int result = strcmp(reference, actual);                                                \
+                                                                                               \
+        tci = tci;                                                                             \
+        if (mtf_verify_flag || (result != 0)) {                                                \
+            if (!mtf_verify_flag) {                                                            \
+                mtf_print(                                                                     \
+                    tci, "\n\ttest %s failed at line %d, %s == %s --> false", lcl_ti->ti_name, \
+                    __LINE__, (reference), (actual));                                          \
+                mtf_test_failure();                                                            \
+            }                                                                                  \
+            lcl_ti->ti_status = 0;                                                             \
+            if (assert)                                                                        \
+                return rc;                                                                     \
+        } else {                                                                               \
+            lcl_ti->ti_status = lcl_ti->ti_status ? 1 : 0;                                     \
+        }                                                                                      \
     } while (0)
 
 #define ___MTF_VERIFY_STREQ(reference, actual, rc) \
@@ -319,29 +317,25 @@ mtf_test_failure(void);
 
 #define VERIFY_STREQ_RET(reference, actual, rc) ___MTF_VERIFY_STREQ((reference), (actual), rc)
 
-#define ___MTF_INNER_STRNE(assert, reference, actual, rc)                \
-    do {                                                                 \
-        struct mtf_test_coll_info *tci = lcl_ti->ti_coll;                \
-        int                        result = strcmp(reference, actual);   \
-                                                                         \
-        tci = tci;                                                       \
-        if (mtf_verify_flag || (result == 0)) {                          \
-            if (!mtf_verify_flag) {                                      \
-                mtf_print(                                               \
-                    tci,                                                 \
-                    "\n\ttest %s failed at line %d, %s != %s --> false", \
-                    lcl_ti->ti_name,                                     \
-                    __LINE__,                                            \
-                    (reference),                                         \
-                    (actual));                                           \
-                mtf_test_failure();                                      \
-            }                                                            \
-            lcl_ti->ti_status = 0;                                       \
-            if (assert)                                                  \
-                return rc;                                               \
-        } else {                                                         \
-            lcl_ti->ti_status = lcl_ti->ti_status ? 1 : 0;               \
-        }                                                                \
+#define ___MTF_INNER_STRNE(assert, reference, actual, rc)                                      \
+    do {                                                                                       \
+        struct mtf_test_coll_info *tci = lcl_ti->ti_coll;                                      \
+        int result = strcmp(reference, actual);                                                \
+                                                                                               \
+        tci = tci;                                                                             \
+        if (mtf_verify_flag || (result == 0)) {                                                \
+            if (!mtf_verify_flag) {                                                            \
+                mtf_print(                                                                     \
+                    tci, "\n\ttest %s failed at line %d, %s != %s --> false", lcl_ti->ti_name, \
+                    __LINE__, (reference), (actual));                                          \
+                mtf_test_failure();                                                            \
+            }                                                                                  \
+            lcl_ti->ti_status = 0;                                                             \
+            if (assert)                                                                        \
+                return rc;                                                                     \
+        } else {                                                                               \
+            lcl_ti->ti_status = lcl_ti->ti_status ? 1 : 0;                                     \
+        }                                                                                      \
     } while (0)
 
 #define ___MTF_VERIFY_STRNE(reference, actual, rc) \

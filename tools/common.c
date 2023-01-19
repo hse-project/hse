@@ -13,12 +13,12 @@
 #include <stdlib.h>
 #include <string.h>
 
+#include <tools/common.h>
+
 #include <hse/hse.h>
 
 #include <hse/util/fmt.h>
 #include <hse/util/minmax.h>
-
-#include <tools/common.h>
 
 struct app_opts Opts;
 
@@ -40,13 +40,11 @@ error(hse_err_t err, char *fmt, va_list ap)
     }
 
     user_msg_empty = user_msg[0] == '\0';
-    need_newline = off > 0 && err_msg[off-1] != '\n';
+    need_newline = off > 0 && err_msg[off - 1] != '\n';
 
-    fprintf(stderr, "%s%s%s%s", user_msg,
-        user_msg_empty ? "" : " ",
-        err_msg, need_newline ? "\n" : "");
+    fprintf(
+        stderr, "%s%s%s%s", user_msg, user_msg_empty ? "" : " ", err_msg, need_newline ? "\n" : "");
 }
-
 
 void
 warn(hse_err_t err, char *fmt, ...)
@@ -74,7 +72,7 @@ static inline unsigned char
 atobin(char c)
 {
     static const char hex[] = "0123456789abcdef";
-    const char *      dp = __builtin_strchr(hex, c | 32); /* gcc4.4 bug 36513 */
+    const char *dp = __builtin_strchr(hex, c | 32); /* gcc4.4 bug 36513 */
 
     return dp ? (unsigned char)((uintptr_t)dp - (uintptr_t)hex) : UCHAR_MAX;
 }
@@ -95,7 +93,7 @@ size_t
 fmt_data(char *out, char *in)
 {
     unsigned char *buf = (void *)out;
-    size_t         len;
+    size_t len;
 
     if (!in)
         return 0;

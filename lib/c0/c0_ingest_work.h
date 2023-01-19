@@ -8,14 +8,13 @@
 
 #include <hse/limits.h>
 
-#include <hse/util/platform.h>
-
-#include <hse/ikvdb/c0_kvset.h>
-#include <hse/ikvdb/limits.h>
-#include <hse/ikvdb/kvset_builder.h>
 #include <hse/ikvdb/c0_kvmultiset.h>
+#include <hse/ikvdb/c0_kvset.h>
 #include <hse/ikvdb/c0_kvset_iterator.h>
+#include <hse/ikvdb/kvset_builder.h>
 #include <hse/ikvdb/lc.h>
+#include <hse/ikvdb/limits.h>
+#include <hse/util/platform.h>
 
 /* clang-format off */
 

@@ -13,21 +13,21 @@ struct wal_mdc;
 
 merr_t
 wal_mdc_create(
-    struct mpool     *mp,
+    struct mpool *mp,
     enum hse_mclass mclass,
-    size_t            capacity,
-    uint64_t         *mdcid1,
-    uint64_t         *mdcid2);
+    size_t capacity,
+    uint64_t *mdcid1,
+    uint64_t *mdcid2);
 
 void
 wal_mdc_destroy(struct mpool *mp, uint64_t mdcid1, uint64_t mdcid2);
 
 merr_t
 wal_mdc_open(
-    struct mpool    *mp,
-    uint64_t         mdcid1,
-    uint64_t         mdcid2,
-    bool             allow_writes,
+    struct mpool *mp,
+    uint64_t mdcid1,
+    uint64_t mdcid2,
+    bool allow_writes,
     struct wal_mdc **handle);
 
 merr_t

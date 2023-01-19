@@ -7,18 +7,17 @@
 #define HSE_C0_C0_H
 
 #include <stdint.h>
-
 #include <urcu-bp.h>
+
 #include <hse/error/merr.h>
+#include <hse/ikvdb/cursor.h>
+#include <hse/ikvdb/ikvdb.h>
 #include <hse/util/mutex.h>
 
-#include <hse/ikvdb/ikvdb.h>
-#include <hse/ikvdb/cursor.h>
-
-#define CURSOR_FLAG_SEQNO_CHANGE 1
+#define CURSOR_FLAG_SEQNO_CHANGE   1
 #define CURSOR_FLAG_TOMBS_INV_KVMS 2
 #define CURSOR_FLAG_TOMBS_INV_PUTS 4
-#define CURSOR_FLAG_TOMBS_FLUSH 8
+#define CURSOR_FLAG_TOMBS_FLUSH    8
 
 struct c0;
 struct c0_cursor;
@@ -116,12 +115,12 @@ c0_put(struct c0 *self, struct kvs_ktuple *key, const struct kvs_vtuple *value, 
 /* MTF_MOCK */
 merr_t
 c0_get(
-    struct c0 *              self,
+    struct c0 *self,
     const struct kvs_ktuple *key,
-    uint64_t                 view_seqno,
-    uintptr_t                seqnoref,
-    enum key_lookup_res *    res,
-    struct kvs_buf *         vbuf);
+    uint64_t view_seqno,
+    uintptr_t seqnoref,
+    enum key_lookup_res *res,
+    struct kvs_buf *vbuf);
 
 /**
  * c0_del() - delete any value associated with the given key
@@ -137,14 +136,14 @@ c0_del(struct c0 *self, struct kvs_ktuple *key, uintptr_t seqnoref);
 
 merr_t
 c0_pfx_probe(
-    struct c0 *              handle,
+    struct c0 *handle,
     const struct kvs_ktuple *kt,
-    uint64_t                      view_seqno,
-    uintptr_t                seqnoref,
-    enum key_lookup_res *    res,
-    struct query_ctx *       qctx,
-    struct kvs_buf *         kbuf,
-    struct kvs_buf *         vbuf);
+    uint64_t view_seqno,
+    uintptr_t seqnoref,
+    enum key_lookup_res *res,
+    struct query_ctx *qctx,
+    struct kvs_buf *kbuf,
+    struct kvs_buf *vbuf);
 
 /**
  * c0_prefix_del() - delete any value with the prefix key
@@ -173,13 +172,13 @@ c0_sync(struct c0 *self);
 /* MTF_MOCK */
 merr_t
 c0_cursor_create(
-    struct c0 *            self,
-    uint64_t               seqno,
-    bool                   dir,
-    const void *           prefix,
-    size_t                 pfx_len,
+    struct c0 *self,
+    uint64_t seqno,
+    bool dir,
+    const void *prefix,
+    size_t pfx_len,
     struct cursor_summary *summary,
-    struct c0_cursor **    c0cur);
+    struct c0_cursor **c0cur);
 
 /**
  * c0_cursor_bind_txn() - Assign ctxn to c0 cursor
@@ -198,8 +197,8 @@ c0_cursor_bind_txn(struct c0_cursor *c0cur, struct kvdb_ctxn *ctxn);
 merr_t
 c0_cursor_seek(
     struct c0_cursor *c0cur,
-    const void *      prefix,
-    size_t            pfx_len,
+    const void *prefix,
+    size_t pfx_len,
     struct kc_filter *filter);
 
 /**
@@ -220,10 +219,7 @@ c0_cursor_read(struct c0_cursor *c0cur, struct kvs_cursor_element *elem, bool *e
  */
 /* MTF_MOCK */
 merr_t
-c0_cursor_update(
-    struct c0_cursor *cur,
-    uint64_t          seqno,
-    uint32_t *        flags_out);
+c0_cursor_update(struct c0_cursor *cur, uint64_t seqno, uint32_t *flags_out);
 
 /**
  * c0_cursor_destroy() - destroy existing iterators over c0

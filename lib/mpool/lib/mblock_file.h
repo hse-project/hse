@@ -6,10 +6,10 @@
 #ifndef MPOOL_MBLOCK_FILE_H
 #define MPOOL_MBLOCK_FILE_H
 
-#include <stdint.h>
-#include <sys/uio.h>
-
 #include <rbtree.h>
+#include <stdint.h>
+
+#include <sys/uio.h>
 
 #include <hse/error/merr.h>
 #include <hse/util/compiler.h>
@@ -82,7 +82,7 @@ struct io_ops;
  */
 struct mblock_filehdr {
     uint32_t uniq;
-    uint8_t  fileid;
+    uint8_t fileid;
 };
 
 /**
@@ -99,13 +99,13 @@ struct mblock_filehdr {
  */
 struct mblock_file_params {
     struct kmem_cache *rmcache;
-    struct io_ops     *metaio;
-    char  *meta_addr;
-    char  *meta_ugaddr;
+    struct io_ops *metaio;
+    char *meta_addr;
+    char *meta_ugaddr;
     size_t fszmax;
     size_t mblocksz;
-    int    fileid;
-    bool   gclose;
+    int fileid;
+    bool gclose;
 };
 
 /**
@@ -142,8 +142,8 @@ struct mblock_file_mbinfo {
  */
 struct mblock_rgn {
     struct rb_node rgn_node;
-    uint32_t       rgn_start;
-    uint32_t       rgn_end;
+    uint32_t rgn_start;
+    uint32_t rgn_end;
 };
 
 /**
@@ -188,12 +188,12 @@ mclassid(uint64_t mbid)
  */
 merr_t
 mblock_file_open(
-    struct mblock_fset        *mbfsp,
-    struct media_class        *mc,
+    struct mblock_fset *mbfsp,
+    struct media_class *mc,
     struct mblock_file_params *params,
-    int                        flags,
-    uint32_t                   version,
-    struct mblock_file       **handle);
+    int flags,
+    uint32_t version,
+    struct mblock_file **handle);
 
 /**
  * mblock_file_close() - close an mblock file
@@ -340,9 +340,9 @@ mblock_info_get(struct mblock_file *mbfp, uint64_t mbid, struct mblock_file_mbin
 void
 mblock_wlen_set(
     struct mblock_file *mbfp,
-    uint64_t            mbid,
-    uint32_t            wlen,
-    bool                prealloced,
-    bool                punched);
+    uint64_t mbid,
+    uint32_t wlen,
+    bool prealloced,
+    bool punched);
 
 #endif /* MPOOL_MBLOCK_FILE_H */

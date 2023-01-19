@@ -5,20 +5,20 @@
 
 #include <errno.h>
 
-#include <hse/hse.h>
-#include <hse/experimental.h>
-#include <hse/test/fixtures/kvdb.h>
-#include <hse/test/fixtures/kvs.h>
-
 #include <mtf/framework.h>
 
-#include <hse/util/base.h>
+#include <hse/experimental.h>
+#include <hse/hse.h>
+
 #include <hse/ikvdb/limits.h>
 #include <hse/ikvdb/vcomp_params.h>
+#include <hse/test/fixtures/kvdb.h>
+#include <hse/test/fixtures/kvs.h>
+#include <hse/util/base.h>
 
 struct hse_kvdb *kvdb_handle;
-struct hse_kvs  *kvs_handle;
-const char      *kvs_name = "kvs";
+struct hse_kvs *kvs_handle;
+const char *kvs_name = "kvs";
 
 #define FILTER      "key"
 #define FILTER_LEN  (sizeof(FILTER) - 1)
@@ -51,8 +51,8 @@ test_collection_teardown(struct mtf_test_info *lcl_ti)
 int
 kvs_setup(struct mtf_test_info *lcl_ti)
 {
-    hse_err_t   err;
-    char        prefix_length_param[32];
+    hse_err_t err;
+    char prefix_length_param[32];
     const char *cparamv[] = { prefix_length_param };
 
     snprintf(prefix_length_param, sizeof(prefix_length_param), "prefix.length=%lu", PFX_LEN);
@@ -65,8 +65,8 @@ kvs_setup(struct mtf_test_info *lcl_ti)
 int
 transactional_kvs_setup(struct mtf_test_info *lcl_ti)
 {
-    hse_err_t   err;
-    char        prefix_length_param[32];
+    hse_err_t err;
+    char prefix_length_param[32];
     const char *cparamv[] = { prefix_length_param };
     const char *rparamv[] = { "transactions.enabled=true" };
 
@@ -82,10 +82,10 @@ transactional_kvs_setup(struct mtf_test_info *lcl_ti)
 int
 kvs_setup_with_data(struct mtf_test_info *lcl_ti)
 {
-    hse_err_t   err;
-    char        prefix_length_param[32];
+    hse_err_t err;
+    char prefix_length_param[32];
     const char *cparamv[] = { prefix_length_param };
-    char        key_buf[8], val_buf[8];
+    char key_buf[8], val_buf[8];
 
     snprintf(prefix_length_param, sizeof(prefix_length_param), "prefix.length=%lu", PFX_LEN);
 
@@ -114,11 +114,11 @@ kvs_setup_with_data(struct mtf_test_info *lcl_ti)
 int
 transactional_kvs_setup_with_data(struct mtf_test_info *lcl_ti)
 {
-    hse_err_t            err;
-    char                 prefix_length_param[32];
-    const char          *cparamv[] = { prefix_length_param };
-    const char          *rparamv[] = { "transactions.enabled=true" };
-    char                 key_buf[8], val_buf[8];
+    hse_err_t err;
+    char prefix_length_param[32];
+    const char *cparamv[] = { prefix_length_param };
+    const char *rparamv[] = { "transactions.enabled=true" };
+    char key_buf[8], val_buf[8];
     struct hse_kvdb_txn *txn;
 
     snprintf(prefix_length_param, sizeof(prefix_length_param), "prefix.length=%lu", PFX_LEN);
@@ -193,7 +193,7 @@ MTF_DEFINE_UTEST(kvs_api_test, create_null_name)
 
 MTF_DEFINE_UTEST(kvs_api_test, create_invalid_name)
 {
-    hse_err_t   err;
+    hse_err_t err;
     const char *namev[] = { "",  "!", "@", "#",  "$", "%", "^", "&", "*",  "(",
                             ")", "<", ">", "?",  ",", ".", "/", ":", "\"", ";",
                             "'", "{", "}", "\\", "[", "]", "|", "+", "=" };
@@ -230,7 +230,7 @@ MTF_DEFINE_UTEST(kvs_api_test, drop_null_name)
 
 MTF_DEFINE_UTEST(kvs_api_test, drop_invalid_name)
 {
-    hse_err_t   err;
+    hse_err_t err;
     const char *namev[] = { "",  "!", "@", "#",  "$", "%", "^", "&", "*",  "(",
                             ")", "<", ">", "?",  ",", ".", "/", ":", "\"", ";",
                             "'", "{", "}", "\\", "[", "]", "|", "+", "=" };
@@ -259,7 +259,7 @@ MTF_DEFINE_UTEST(kvs_api_test, open_null_name)
 
 MTF_DEFINE_UTEST(kvs_api_test, open_invalid_name)
 {
-    hse_err_t   err;
+    hse_err_t err;
     const char *namev[] = { "",  "!", "@", "#",  "$", "%", "^", "&", "*",  "(",
                             ")", "<", ">", "?",  ",", ".", "/", ":", "\"", ";",
                             "'", "{", "}", "\\", "[", "]", "|", "+", "=" };
@@ -280,7 +280,7 @@ MTF_DEFINE_UTEST(kvs_api_test, open_mismatched_paramc_paramv)
 
 MTF_DEFINE_UTEST(kvs_api_test, lifecycle_test)
 {
-    hse_err_t       err;
+    hse_err_t err;
     struct hse_kvs *kvs;
 
     err = hse_kvdb_kvs_create(kvdb_handle, __func__, 0, NULL);
@@ -339,8 +339,8 @@ MTF_DEFINE_UTEST(kvs_api_test, delete_key_len_is_0)
 MTF_DEFINE_UTEST_PREPOST(kvs_api_test, delete_success, kvs_setup_with_data, kvs_teardown)
 {
     hse_err_t err;
-    bool      found;
-    size_t    val_len;
+    bool found;
+    size_t val_len;
 
     err = hse_kvs_delete(kvs_handle, 0, NULL, "key0", sizeof("key0") - 1);
     ASSERT_EQ(0, hse_err_to_errno(err));
@@ -356,9 +356,9 @@ MTF_DEFINE_UTEST_PREPOST(
     transactional_kvs_setup,
     kvs_teardown)
 {
-    hse_err_t            err;
-    bool                 found;
-    size_t               val_len;
+    hse_err_t err;
+    bool found;
+    size_t val_len;
     struct hse_kvdb_txn *txn;
 
     txn = hse_kvdb_txn_alloc(kvdb_handle);
@@ -443,14 +443,7 @@ MTF_DEFINE_UTEST(kvs_api_test, get_key_len_too_long)
     hse_err_t err;
 
     err = hse_kvs_get(
-        (struct hse_kvs *)-1,
-        0,
-        NULL,
-        (void *)-1,
-        HSE_KVS_KEY_LEN_MAX + 1,
-        (bool *)-1,
-        NULL,
-        0,
+        (struct hse_kvs *)-1, 0, NULL, (void *)-1, HSE_KVS_KEY_LEN_MAX + 1, (bool *)-1, NULL, 0,
         (size_t *)-1);
     ASSERT_EQ(ENAMETOOLONG, hse_err_to_errno(err));
 }
@@ -467,9 +460,9 @@ MTF_DEFINE_UTEST(kvs_api_test, get_key_len_is_0)
 MTF_DEFINE_UTEST_PREPOST(kvs_api_test, get_success, kvs_setup_with_data, kvs_teardown)
 {
     hse_err_t err;
-    bool      found;
-    char      valbuf[8];
-    size_t    val_len;
+    bool found;
+    char valbuf[8];
+    size_t val_len;
 
     err = hse_kvs_get(
         kvs_handle, 0, NULL, "key0", sizeof("key0") - 1, &found, valbuf, sizeof(valbuf), &val_len);
@@ -484,10 +477,10 @@ MTF_DEFINE_UTEST_PREPOST(
     transactional_kvs_setup,
     kvs_teardown)
 {
-    hse_err_t            err;
-    bool                 found;
-    char                 valbuf[8];
-    size_t               val_len;
+    hse_err_t err;
+    bool found;
+    char valbuf[8];
+    size_t val_len;
     struct hse_kvdb_txn *txn;
 
     txn = hse_kvdb_txn_alloc(kvdb_handle);
@@ -526,8 +519,8 @@ MTF_DEFINE_UTEST_PREPOST(kvs_api_test, name_success, kvs_setup, kvs_teardown)
 MTF_DEFINE_UTEST_PREPOST(kvs_api_test, param_dnem, kvs_setup, kvs_teardown)
 {
     hse_err_t err;
-    size_t    needed_sz;
-    char      buf[16];
+    size_t needed_sz;
+    char buf[16];
 
     err = hse_kvs_param_get(kvs_handle, "does.not.exist", buf, sizeof(buf), &needed_sz);
     ASSERT_EQ(ENOENT, hse_err_to_errno(err));
@@ -560,8 +553,8 @@ MTF_DEFINE_UTEST(kvs_api_test, param_mismatched_buf_buf_sz)
 MTF_DEFINE_UTEST_PREPOST(kvs_api_test, param_success, kvs_setup, kvs_teardown)
 {
     hse_err_t err;
-    size_t    needed_sz;
-    char      buf[8];
+    size_t needed_sz;
+    char buf[8];
 
     err = hse_kvs_param_get(kvs_handle, "transactions.enabled", NULL, 0, &needed_sz);
     ASSERT_EQ(0, hse_err_to_errno(err));
@@ -628,10 +621,10 @@ MTF_DEFINE_UTEST_PREPOST(
 MTF_DEFINE_UTEST_PREPOST(kvs_api_test, prefix_delete_success, kvs_setup_with_data, kvs_teardown)
 {
     hse_err_t err;
-    char      key_buf[8];
-    size_t    val_len;
-    bool      found;
-    int       n;
+    char key_buf[8];
+    size_t val_len;
+    bool found;
+    int n;
 
     err = hse_kvs_prefix_delete(kvs_handle, 0, NULL, PFX, PFX_LEN);
     ASSERT_EQ(0, hse_err_to_errno(err));
@@ -651,12 +644,12 @@ MTF_DEFINE_UTEST_PREPOST(
     transactional_kvs_setup_with_data,
     kvs_teardown)
 {
-    hse_err_t            err;
+    hse_err_t err;
     struct hse_kvdb_txn *txn;
-    char                 key_buf[8], val_buf[8];
-    size_t               key_len, val_len;
-    bool                 found;
-    int                  n;
+    char key_buf[8], val_buf[8];
+    size_t key_len, val_len;
+    bool found;
+    int n;
 
     txn = hse_kvdb_txn_alloc(kvdb_handle);
     ASSERT_NE(NULL, txn);
@@ -762,8 +755,9 @@ MTF_DEFINE_UTEST_PREPOST(kvs_api_test, put_vcomp_exclusivity, kvs_setup_with_dat
 
     memset(buf, 1, sizeof(buf));
 
-    err = hse_kvs_put(kvs_handle, HSE_KVS_PUT_VCOMP_ON | HSE_KVS_PUT_VCOMP_OFF, NULL, "vcomp", 5,
-        buf, sizeof(buf));
+    err = hse_kvs_put(
+        kvs_handle, HSE_KVS_PUT_VCOMP_ON | HSE_KVS_PUT_VCOMP_OFF, NULL, "vcomp", 5, buf,
+        sizeof(buf));
     ASSERT_EQ(EINVAL, merr_errno(err));
 }
 
@@ -772,18 +766,8 @@ MTF_DEFINE_UTEST(kvs_api_test, prefix_probe_null_kvs)
     hse_err_t err;
 
     err = hse_kvs_prefix_probe(
-        NULL,
-        0,
-        NULL,
-        (void *)-1,
-        1,
-        (enum hse_kvs_pfx_probe_cnt *)-1,
-        (void *)-1,
-        HSE_KVS_KEY_LEN_MAX,
-        (size_t *)-1,
-        NULL,
-        0,
-        (size_t *)-1);
+        NULL, 0, NULL, (void *)-1, 1, (enum hse_kvs_pfx_probe_cnt *)-1, (void *)-1,
+        HSE_KVS_KEY_LEN_MAX, (size_t *)-1, NULL, 0, (size_t *)-1);
     ASSERT_EQ(EINVAL, hse_err_to_errno(err));
 }
 
@@ -792,18 +776,8 @@ MTF_DEFINE_UTEST(kvs_api_test, prefix_probe_invalid_flags)
     hse_err_t err;
 
     err = hse_kvs_prefix_probe(
-        (struct hse_kvs *)-1,
-        ~0,
-        NULL,
-        (void *)-1,
-        1,
-        (enum hse_kvs_pfx_probe_cnt *)-1,
-        (void *)-1,
-        HSE_KVS_KEY_LEN_MAX,
-        (size_t *)-1,
-        NULL,
-        0,
-        (size_t *)-1);
+        (struct hse_kvs *)-1, ~0, NULL, (void *)-1, 1, (enum hse_kvs_pfx_probe_cnt *)-1, (void *)-1,
+        HSE_KVS_KEY_LEN_MAX, (size_t *)-1, NULL, 0, (size_t *)-1);
     ASSERT_EQ(EINVAL, hse_err_to_errno(err));
 }
 
@@ -812,18 +786,8 @@ MTF_DEFINE_UTEST(kvs_api_test, prefix_probe_null_pfx)
     hse_err_t err;
 
     err = hse_kvs_prefix_probe(
-        (struct hse_kvs *)-1,
-        0,
-        NULL,
-        NULL,
-        1,
-        (enum hse_kvs_pfx_probe_cnt *)-1,
-        (void *)-1,
-        HSE_KVS_KEY_LEN_MAX,
-        (size_t *)-1,
-        NULL,
-        0,
-        (size_t *)-1);
+        (struct hse_kvs *)-1, 0, NULL, NULL, 1, (enum hse_kvs_pfx_probe_cnt *)-1, (void *)-1,
+        HSE_KVS_KEY_LEN_MAX, (size_t *)-1, NULL, 0, (size_t *)-1);
     ASSERT_EQ(EINVAL, hse_err_to_errno(err));
 }
 
@@ -832,18 +796,8 @@ MTF_DEFINE_UTEST(kvs_api_test, prefix_probe_null_found)
     hse_err_t err;
 
     err = hse_kvs_prefix_probe(
-        (struct hse_kvs *)-1,
-        0,
-        NULL,
-        (void *)-1,
-        1,
-        NULL,
-        (void *)-1,
-        HSE_KVS_KEY_LEN_MAX,
-        (size_t *)-1,
-        NULL,
-        0,
-        (size_t *)-1);
+        (struct hse_kvs *)-1, 0, NULL, (void *)-1, 1, NULL, (void *)-1, HSE_KVS_KEY_LEN_MAX,
+        (size_t *)-1, NULL, 0, (size_t *)-1);
     ASSERT_EQ(EINVAL, hse_err_to_errno(err));
 }
 
@@ -852,18 +806,8 @@ MTF_DEFINE_UTEST(kvs_api_test, prefix_probe_null_val_len)
     hse_err_t err;
 
     err = hse_kvs_prefix_probe(
-        (struct hse_kvs *)-1,
-        0,
-        NULL,
-        (void *)-1,
-        1,
-        (enum hse_kvs_pfx_probe_cnt *)-1,
-        (void *)-1,
-        HSE_KVS_KEY_LEN_MAX,
-        (size_t *)-1,
-        NULL,
-        0,
-        NULL);
+        (struct hse_kvs *)-1, 0, NULL, (void *)-1, 1, (enum hse_kvs_pfx_probe_cnt *)-1, (void *)-1,
+        HSE_KVS_KEY_LEN_MAX, (size_t *)-1, NULL, 0, NULL);
     ASSERT_EQ(EINVAL, hse_err_to_errno(err));
 }
 
@@ -872,18 +816,8 @@ MTF_DEFINE_UTEST(kvs_api_test, prefix_probe_mismatched_valbuf_valbuf_sz)
     hse_err_t err;
 
     err = hse_kvs_prefix_probe(
-        (struct hse_kvs *)-1,
-        0,
-        NULL,
-        (void *)-1,
-        1,
-        (enum hse_kvs_pfx_probe_cnt *)-1,
-        (void *)-1,
-        HSE_KVS_KEY_LEN_MAX,
-        (size_t *)-1,
-        NULL,
-        1,
-        (size_t *)-1);
+        (struct hse_kvs *)-1, 0, NULL, (void *)-1, 1, (enum hse_kvs_pfx_probe_cnt *)-1, (void *)-1,
+        HSE_KVS_KEY_LEN_MAX, (size_t *)-1, NULL, 1, (size_t *)-1);
     ASSERT_EQ(EINVAL, hse_err_to_errno(err));
 }
 
@@ -892,18 +826,8 @@ MTF_DEFINE_UTEST(kvs_api_test, prefix_probe_pfx_len_is_0)
     hse_err_t err;
 
     err = hse_kvs_prefix_probe(
-        (struct hse_kvs *)-1,
-        0,
-        NULL,
-        (void *)-1,
-        0,
-        (enum hse_kvs_pfx_probe_cnt *)-1,
-        (void *)-1,
-        HSE_KVS_KEY_LEN_MAX,
-        (size_t *)-1,
-        NULL,
-        0,
-        (size_t *)-1);
+        (struct hse_kvs *)-1, 0, NULL, (void *)-1, 0, (enum hse_kvs_pfx_probe_cnt *)-1, (void *)-1,
+        HSE_KVS_KEY_LEN_MAX, (size_t *)-1, NULL, 0, (size_t *)-1);
     ASSERT_EQ(ENOENT, hse_err_to_errno(err));
 }
 
@@ -912,17 +836,8 @@ MTF_DEFINE_UTEST(kvs_api_test, prefix_probe_pfx_len_too_long)
     hse_err_t err;
 
     err = hse_kvs_prefix_probe(
-        (struct hse_kvs *)-1,
-        0,
-        NULL,
-        (void *)-1,
-        HSE_KVS_KEY_LEN_MAX + 1,
-        (enum hse_kvs_pfx_probe_cnt *)-1,
-        (void *)-1,
-        HSE_KVS_KEY_LEN_MAX,
-        (size_t *)-1,
-        NULL,
-        0,
+        (struct hse_kvs *)-1, 0, NULL, (void *)-1, HSE_KVS_KEY_LEN_MAX + 1,
+        (enum hse_kvs_pfx_probe_cnt *)-1, (void *)-1, HSE_KVS_KEY_LEN_MAX, (size_t *)-1, NULL, 0,
         (size_t *)-1);
     ASSERT_EQ(ENAMETOOLONG, hse_err_to_errno(err));
 }
@@ -932,45 +847,25 @@ MTF_DEFINE_UTEST(kvs_api_test, prefix_probe_keybuf_sz_mismatch)
     hse_err_t err;
 
     err = hse_kvs_prefix_probe(
-        (struct hse_kvs *)-1,
-        0,
-        NULL,
-        (void *)-1,
-        1,
-        (enum hse_kvs_pfx_probe_cnt *)-1,
-        (void *)-1,
-        HSE_KVS_KEY_LEN_MAX - 1,
-        (size_t *)-1,
-        NULL,
-        0,
-        (size_t *)-1);
+        (struct hse_kvs *)-1, 0, NULL, (void *)-1, 1, (enum hse_kvs_pfx_probe_cnt *)-1, (void *)-1,
+        HSE_KVS_KEY_LEN_MAX - 1, (size_t *)-1, NULL, 0, (size_t *)-1);
     ASSERT_EQ(EINVAL, hse_err_to_errno(err));
 }
 
 MTF_DEFINE_UTEST_PREPOST(kvs_api_test, prefix_probe_success, kvs_setup, kvs_teardown)
 {
-    hse_err_t                  err;
+    hse_err_t err;
     enum hse_kvs_pfx_probe_cnt found;
-    char                       key_buf[HSE_KVS_KEY_LEN_MAX], val_buf[8];
-    size_t                     key_len, val_len;
+    char key_buf[HSE_KVS_KEY_LEN_MAX], val_buf[8];
+    size_t key_len, val_len;
 
     err = hse_kvs_put(
         kvs_handle, 0, NULL, "key0", sizeof("key0") - 1, "value0", sizeof("value0") - 1);
     ASSERT_EQ(0, hse_err_to_errno(err));
 
     err = hse_kvs_prefix_probe(
-        kvs_handle,
-        0,
-        NULL,
-        PFX,
-        PFX_LEN,
-        &found,
-        key_buf,
-        sizeof(key_buf),
-        &key_len,
-        val_buf,
-        sizeof(val_buf),
-        &val_len);
+        kvs_handle, 0, NULL, PFX, PFX_LEN, &found, key_buf, sizeof(key_buf), &key_len, val_buf,
+        sizeof(val_buf), &val_len);
     ASSERT_EQ(0, hse_err_to_errno(err));
     ASSERT_EQ(HSE_KVS_PFX_FOUND_ONE, found);
     ASSERT_EQ(0, memcmp(key_buf, "key0", key_len));
@@ -981,18 +876,8 @@ MTF_DEFINE_UTEST_PREPOST(kvs_api_test, prefix_probe_success, kvs_setup, kvs_tear
     ASSERT_EQ(0, hse_err_to_errno(err));
 
     err = hse_kvs_prefix_probe(
-        kvs_handle,
-        0,
-        NULL,
-        PFX,
-        PFX_LEN,
-        &found,
-        key_buf,
-        sizeof(key_buf),
-        &key_len,
-        val_buf,
-        sizeof(val_buf),
-        &val_len);
+        kvs_handle, 0, NULL, PFX, PFX_LEN, &found, key_buf, sizeof(key_buf), &key_len, val_buf,
+        sizeof(val_buf), &val_len);
     ASSERT_EQ(0, hse_err_to_errno(err));
     ASSERT_EQ(HSE_KVS_PFX_FOUND_MUL, found);
 
@@ -1004,18 +889,8 @@ MTF_DEFINE_UTEST_PREPOST(kvs_api_test, prefix_probe_success, kvs_setup, kvs_tear
         ASSERT_TRUE(0);
 
     err = hse_kvs_prefix_probe(
-        kvs_handle,
-        0,
-        NULL,
-        "xyz",
-        sizeof("xyz") - 1,
-        &found,
-        key_buf,
-        sizeof(key_buf),
-        &key_len,
-        val_buf,
-        sizeof(val_buf),
-        &val_len);
+        kvs_handle, 0, NULL, "xyz", sizeof("xyz") - 1, &found, key_buf, sizeof(key_buf), &key_len,
+        val_buf, sizeof(val_buf), &val_len);
     ASSERT_EQ(0, hse_err_to_errno(err));
     ASSERT_EQ(HSE_KVS_PFX_FOUND_ZERO, found);
 }
@@ -1026,11 +901,11 @@ MTF_DEFINE_UTEST_PREPOST(
     transactional_kvs_setup,
     kvs_teardown)
 {
-    hse_err_t                  err;
+    hse_err_t err;
     enum hse_kvs_pfx_probe_cnt found;
-    char                       key_buf[HSE_KVS_KEY_LEN_MAX], val_buf[8];
-    size_t                     key_len, val_len;
-    struct hse_kvdb_txn       *txn;
+    char key_buf[HSE_KVS_KEY_LEN_MAX], val_buf[8];
+    size_t key_len, val_len;
+    struct hse_kvdb_txn *txn;
 
     txn = hse_kvdb_txn_alloc(kvdb_handle);
     ASSERT_NE(NULL, txn);
@@ -1043,18 +918,8 @@ MTF_DEFINE_UTEST_PREPOST(
     ASSERT_EQ(0, hse_err_to_errno(err));
 
     err = hse_kvs_prefix_probe(
-        kvs_handle,
-        0,
-        txn,
-        PFX,
-        PFX_LEN,
-        &found,
-        key_buf,
-        sizeof(key_buf),
-        &key_len,
-        val_buf,
-        sizeof(val_buf),
-        &val_len);
+        kvs_handle, 0, txn, PFX, PFX_LEN, &found, key_buf, sizeof(key_buf), &key_len, val_buf,
+        sizeof(val_buf), &val_len);
     ASSERT_EQ(0, hse_err_to_errno(err));
     ASSERT_EQ(HSE_KVS_PFX_FOUND_ONE, found);
     ASSERT_EQ(0, memcmp(key_buf, "key0", key_len));
@@ -1074,18 +939,8 @@ MTF_DEFINE_UTEST_PREPOST(
     ASSERT_EQ(0, hse_err_to_errno(err));
 
     err = hse_kvs_prefix_probe(
-        kvs_handle,
-        0,
-        txn,
-        PFX,
-        PFX_LEN,
-        &found,
-        key_buf,
-        sizeof(key_buf),
-        &key_len,
-        val_buf,
-        sizeof(val_buf),
-        &val_len);
+        kvs_handle, 0, txn, PFX, PFX_LEN, &found, key_buf, sizeof(key_buf), &key_len, val_buf,
+        sizeof(val_buf), &val_len);
     ASSERT_EQ(0, hse_err_to_errno(err));
     ASSERT_EQ(HSE_KVS_PFX_FOUND_MUL, found);
 
@@ -1097,18 +952,8 @@ MTF_DEFINE_UTEST_PREPOST(
         ASSERT_TRUE(0);
 
     err = hse_kvs_prefix_probe(
-        kvs_handle,
-        0,
-        txn,
-        "xyz",
-        sizeof("xyz") - 1,
-        &found,
-        key_buf,
-        sizeof(key_buf),
-        &key_len,
-        val_buf,
-        sizeof(val_buf),
-        &val_len);
+        kvs_handle, 0, txn, "xyz", sizeof("xyz") - 1, &found, key_buf, sizeof(key_buf), &key_len,
+        val_buf, sizeof(val_buf), &val_len);
     ASSERT_EQ(0, hse_err_to_errno(err));
     ASSERT_EQ(HSE_KVS_PFX_FOUND_ZERO, found);
 

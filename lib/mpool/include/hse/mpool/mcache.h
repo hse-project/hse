@@ -12,7 +12,6 @@
 
 #include <hse/error/merr.h>
 
-
 struct mpool_mcache_map; /* opaque mcache map handle */
 struct mpool;
 
@@ -39,10 +38,10 @@ struct mpool;
 merr_t
 mpool_mcache_madvise(
     struct mpool_mcache_map *map,
-    uint32_t                 mbidx,
-    off_t                    offset,
-    size_t                   length,
-    int                      advice);
+    uint32_t mbidx,
+    off_t offset,
+    size_t length,
+    int advice);
 
 /**
  * mpool_mcache_getbase() - Get the base address of a memory-mapped mblock in an mcache map
@@ -75,10 +74,10 @@ mpool_mcache_getbase(struct mpool_mcache_map *map, const uint32_t mbidx);
 merr_t
 mpool_mcache_getpages(
     struct mpool_mcache_map *map,
-    const uint32_t           pagec,
-    const uint32_t           mbidx,
-    const off_t              offsetv[],
-    void *                   pagev[]);
+    const uint32_t pagec,
+    const uint32_t mbidx,
+    const off_t offsetv[],
+    void *pagev[]);
 
 /**
  * mpool_mcache_mmap() - Create an mcache map
@@ -128,8 +127,8 @@ mpool_mcache_purge(struct mpool_mcache_map *map, const struct mpool *mp);
 merr_t
 mpool_mcache_mincore(
     struct mpool_mcache_map *map,
-    const struct mpool *     mp,
-    size_t *                 rssp,
-    size_t *                 vssp);
+    const struct mpool *mp,
+    size_t *rssp,
+    size_t *vssp);
 
 #endif /* MPOOL_MCACHE_H */

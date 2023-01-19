@@ -11,29 +11,27 @@
 
 #include <hse/kvdb_perfc.h>
 
-#include <hse/util/assert.h>
-#include <hse/util/platform.h>
-#include <hse/util/alloc.h>
-#include <hse/util/slab.h>
-#include <hse/util/event_counter.h>
-#include <hse/util/perfc.h>
-#include <hse/util/fmt.h>
-#include <hse/util/byteorder.h>
-#include <hse/util/slab.h>
-#include <hse/util/map.h>
-#include <hse/logging/logging.h>
-
 #include <hse/ikvdb/c0.h>
-#include <hse/ikvdb/lc.h>
 #include <hse/ikvdb/cn.h>
-#include <hse/ikvdb/kvs.h>
-#include <hse/ikvdb/limits.h>
+#include <hse/ikvdb/cursor.h>
 #include <hse/ikvdb/key_hash.h>
 #include <hse/ikvdb/kvdb_ctxn.h>
-#include <hse/ikvdb/tuple.h>
 #include <hse/ikvdb/kvdb_health.h>
-#include <hse/ikvdb/cursor.h>
+#include <hse/ikvdb/kvs.h>
+#include <hse/ikvdb/lc.h>
+#include <hse/ikvdb/limits.h>
+#include <hse/ikvdb/tuple.h>
 #include <hse/ikvdb/wal.h>
+#include <hse/logging/logging.h>
+#include <hse/util/alloc.h>
+#include <hse/util/assert.h>
+#include <hse/util/byteorder.h>
+#include <hse/util/event_counter.h>
+#include <hse/util/fmt.h>
+#include <hse/util/map.h>
+#include <hse/util/perfc.h>
+#include <hse/util/platform.h>
+#include <hse/util/slab.h>
 
 /* clang-format off */
 
@@ -126,21 +124,21 @@ kvs_perfc_free(struct ikvs *kvs)
  */
 merr_t
 kvs_open(
-    struct ikvdb *      kvdb,
-    struct kvdb_kvs *   kvs,
-    struct mpool *      ds,
-    struct cndb *       cndb,
-    struct lc *         lc,
-    struct wal *        wal,
+    struct ikvdb *kvdb,
+    struct kvdb_kvs *kvs,
+    struct mpool *ds,
+    struct cndb *cndb,
+    struct lc *lc,
+    struct wal *wal,
     struct kvs_rparams *rp,
     struct kvdb_health *health,
-    struct cn_kvdb *    cn_kvdb,
-    uint                flags)
+    struct cn_kvdb *cn_kvdb,
+    uint flags)
 {
-    merr_t       err;
+    merr_t err;
     struct ikvs *ikvs = 0;
-    const char * kvs_name = kvdb_kvs_name(kvs);
-    uint64_t     cnid = kvdb_kvs_cnid(kvs);
+    const char *kvs_name = kvdb_kvs_name(kvs);
+    uint64_t cnid = kvdb_kvs_cnid(kvs);
 
     assert(kvdb);
     assert(health);
@@ -171,16 +169,7 @@ kvs_open(
     rp = 0;
 
     err = cn_open(
-        cn_kvdb,
-        ds,
-        kvs,
-        cndb,
-        cnid,
-        &ikvs->ikv_rp,
-        ikvdb_alias(kvdb),
-        kvs_name,
-        health,
-        flags,
+        cn_kvdb, ds, kvs, cndb, cnid, &ikvs->ikv_rp, ikvdb_alias(kvdb), kvs_name, health, flags,
         &ikvs->ikv_cn);
     if (ev(err))
         goto err_exit;
@@ -271,18 +260,18 @@ kvs_txn_is_enabled(struct ikvs *kvs)
 
 merr_t
 kvs_put(
-    struct ikvs *              kvs,
-    struct hse_kvdb_txn *const txn,
-    struct kvs_ktuple *        kt,
-    struct kvs_vtuple *        vt,
-    uintptr_t                  seqnoref)
+    struct ikvs *kvs,
+    struct hse_kvdb_txn * const txn,
+    struct kvs_ktuple *kt,
+    struct kvs_vtuple *vt,
+    uintptr_t seqnoref)
 {
     struct kvdb_ctxn *ctxn = txn ? kvdb_ctxn_h2h(txn) : 0;
     struct perfc_set *pkvsl_pc = kvs_perfc_pkvsl(kvs);
     struct wal_record rec;
-    uint64_t          tstart;
-    uint64_t          seqno;
-    merr_t            err;
+    uint64_t tstart;
+    uint64_t seqno;
+    merr_t err;
 
     tstart = perfc_lat_start(pkvsl_pc);
 
@@ -328,21 +317,21 @@ kvs_put(
 
 merr_t
 kvs_get(
-    struct ikvs *              kvs,
-    struct hse_kvdb_txn *const txn,
-    struct kvs_ktuple *        kt,
-    uint64_t                   seqno,
-    enum key_lookup_res *      res,
-    struct kvs_buf *           vbuf)
+    struct ikvs *kvs,
+    struct hse_kvdb_txn * const txn,
+    struct kvs_ktuple *kt,
+    uint64_t seqno,
+    enum key_lookup_res *res,
+    struct kvs_buf *vbuf)
 {
     struct kvdb_ctxn *ctxn = txn ? kvdb_ctxn_h2h(txn) : 0;
     struct perfc_set *pkvsl_pc = kvs_perfc_pkvsl(kvs);
-    struct c0 *       c0 = kvs->ikv_c0;
-    struct lc *       lc = kvs->ikv_lc;
-    struct cn *       cn = kvs->ikv_cn;
-    uintptr_t         seqnoref = 0;
-    uint64_t          tstart;
-    merr_t            err;
+    struct c0 *c0 = kvs->ikv_c0;
+    struct lc *lc = kvs->ikv_lc;
+    struct cn *cn = kvs->ikv_cn;
+    uintptr_t seqnoref = 0;
+    uint64_t tstart;
+    merr_t err;
 
     tstart = perfc_lat_start(pkvsl_pc);
 
@@ -375,14 +364,18 @@ kvs_get(
 }
 
 merr_t
-kvs_del(struct ikvs *kvs, struct hse_kvdb_txn *const txn, struct kvs_ktuple *kt, uintptr_t seqnoref)
+kvs_del(
+    struct ikvs *kvs,
+    struct hse_kvdb_txn * const txn,
+    struct kvs_ktuple *kt,
+    uintptr_t seqnoref)
 {
     struct perfc_set *pkvsl_pc = kvs_perfc_pkvsl(kvs);
     struct kvdb_ctxn *ctxn = txn ? kvdb_ctxn_h2h(txn) : 0;
     struct wal_record rec;
-    uint64_t          tstart;
-    uint64_t          seqno;
-    merr_t            err;
+    uint64_t tstart;
+    uint64_t seqno;
+    merr_t err;
 
     tstart = perfc_lat_start(pkvsl_pc);
 
@@ -422,17 +415,17 @@ kvs_del(struct ikvs *kvs, struct hse_kvdb_txn *const txn, struct kvs_ktuple *kt,
 
 merr_t
 kvs_prefix_del(
-    struct ikvs               *kvs,
-    struct hse_kvdb_txn *const txn,
-    struct kvs_ktuple         *kt,
-    uintptr_t                  seqnoref)
+    struct ikvs *kvs,
+    struct hse_kvdb_txn * const txn,
+    struct kvs_ktuple *kt,
+    uintptr_t seqnoref)
 {
     struct perfc_set *pkvsl_pc = kvs_perfc_pkvsl(kvs);
     struct kvdb_ctxn *ctxn = txn ? kvdb_ctxn_h2h(txn) : 0;
     struct wal_record rec;
-    uint64_t          tstart;
-    uint64_t          seqno;
-    merr_t            err;
+    uint64_t tstart;
+    uint64_t seqno;
+    merr_t err;
 
     tstart = perfc_lat_start(pkvsl_pc);
 
@@ -472,23 +465,23 @@ kvs_prefix_del(
 
 merr_t
 kvs_pfx_probe(
-    struct ikvs *              kvs,
-    struct hse_kvdb_txn *const txn,
-    struct kvs_ktuple *        kt,
-    uint64_t                   seqno,
-    enum key_lookup_res *      res,
-    struct kvs_buf *           kbuf,
-    struct kvs_buf *           vbuf)
+    struct ikvs *kvs,
+    struct hse_kvdb_txn * const txn,
+    struct kvs_ktuple *kt,
+    uint64_t seqno,
+    enum key_lookup_res *res,
+    struct kvs_buf *kbuf,
+    struct kvs_buf *vbuf)
 {
     struct perfc_set *pkvsl_pc = kvs_perfc_pkvsl(kvs);
     struct kvdb_ctxn *ctxn = txn ? kvdb_ctxn_h2h(txn) : 0;
-    struct c0 *       c0 = kvs->ikv_c0;
-    struct lc *       lc = kvs->ikv_lc;
-    struct cn *       cn = kvs->ikv_cn;
-    uintptr_t         seqnoref = 0;
-    struct query_ctx  qctx = { 0 };
-    uint64_t          tstart;
-    merr_t            err;
+    struct c0 *c0 = kvs->ikv_c0;
+    struct lc *lc = kvs->ikv_lc;
+    struct cn *cn = kvs->ikv_cn;
+    uintptr_t seqnoref = 0;
+    struct query_ctx qctx = { 0 };
+    uint64_t tstart;
+    merr_t err;
 
     tstart = perfc_lat_start(pkvsl_pc);
 
@@ -507,8 +500,8 @@ kvs_pfx_probe(
     if (err || *res == FOUND_PTMB || qctx.seen > 1)
         goto exit;
 
-    err = lc_pfx_probe(lc, kt, c0_index(c0), seqno, seqnoref, c0_get_pfx_len(c0),
-                       res, &qctx, kbuf, vbuf);
+    err = lc_pfx_probe(
+        lc, kt, c0_index(c0), seqno, seqnoref, c0_get_pfx_len(c0), res, &qctx, kbuf, vbuf);
     if (err || *res == FOUND_PTMB || qctx.seen > 1)
         goto exit;
 
@@ -527,18 +520,19 @@ exit:
     if (ev(err))
         return err;
 
-    perfc_dis_record(&kvs->ikv_cd_pc, PERFC_DI_CD_TOMBSPERPROBE,
-                     qctx.tomb_map ? map_count_get(qctx.tomb_map) : 0);
+    perfc_dis_record(
+        &kvs->ikv_cd_pc, PERFC_DI_CD_TOMBSPERPROBE,
+        qctx.tomb_map ? map_count_get(qctx.tomb_map) : 0);
 
     switch (qctx.seen) {
-        case 0:
-            *res = NOT_FOUND;
-            break;
-        case 1:
-            *res = FOUND_VAL;
-            break;
-        default:
-            *res = FOUND_MULTIPLE;
+    case 0:
+        *res = NOT_FOUND;
+        break;
+    case 1:
+        *res = FOUND_VAL;
+        break;
+    default:
+        *res = FOUND_MULTIPLE;
     }
 
     perfc_lat_record(pkvsl_pc, PERFC_LT_PKVSL_KVS_PFX_PROBE, tstart);

@@ -7,11 +7,11 @@
 #define HSE_CONFIG_HSE_GPARAMS_H
 
 #include <stdbool.h>
-#include <stdint.h>
 #include <stddef.h>
-#include <sys/un.h>
+#include <stdint.h>
 
 #include <cjson/cJSON.h>
+#include <sys/un.h>
 
 #include <hse/error/merr.h>
 #include <hse/logging/logging.h>
@@ -24,7 +24,7 @@ struct hse_gparams {
     uint64_t gp_vlb_cache_sz;
     uint32_t gp_workqueue_tcdelay;
     uint32_t gp_workqueue_idle_ttl;
-    uint8_t  gp_perfc_level;
+    uint8_t gp_perfc_level;
 
     struct {
         bool enabled;
@@ -45,16 +45,13 @@ hse_gparams_defaults(void) HSE_CONST;
 merr_t
 hse_gparams_get(
     const struct hse_gparams *params,
-    const char *              param,
-    char *                    buf,
-    size_t                    buf_sz,
-    size_t *                  needed_sz);
+    const char *param,
+    char *buf,
+    size_t buf_sz,
+    size_t *needed_sz);
 
 merr_t
-hse_gparams_set(
-    struct hse_gparams *params,
-    const char *        param,
-    const char *        value);
+hse_gparams_set(struct hse_gparams *params, const char *param, const char *value);
 
 /**
  * Deserialize a config to HSE gparams
@@ -77,10 +74,7 @@ hse_gparams_from_config(struct hse_gparams *params, cJSON *conf);
  * @retval !0 failure
  */
 merr_t
-hse_gparams_from_paramv(
-    struct hse_gparams *params,
-    size_t              paramc,
-    const char *const * paramv);
+hse_gparams_from_paramv(struct hse_gparams *params, size_t paramc, const char * const *paramv);
 
 cJSON *
 hse_gparams_to_json(const struct hse_gparams *params) HSE_WARN_UNUSED_RESULT;

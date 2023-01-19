@@ -9,8 +9,9 @@
 #include <stdbool.h>
 #include <stddef.h>
 
-#include <hse/error/merr.h>
 #include <hse/types.h>
+
+#include <hse/error/merr.h>
 
 struct hse_kvdb_compact_status;
 
@@ -65,11 +66,7 @@ rest_kvs_get_param(
     bool pretty);
 
 merr_t
-rest_kvs_get_params(
-    const char *alias,
-    const char *name,
-    bool pretty,
-    char **config);
+rest_kvs_get_params(const char *alias, const char *name, bool pretty, char **config);
 
 merr_t
 rest_kvs_set_param(const char *alias, const char *name, const char *param, const char *value);

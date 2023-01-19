@@ -9,35 +9,34 @@
 #include <stddef.h>
 #include <stdint.h>
 
-#include <hse/util/alloc.h>
-#include <hse/util/slab.h>
-#include <hse/util/event_counter.h>
-#include <hse/util/page.h>
-#include <hse/util/assert.h>
-#include <hse/logging/logging.h>
-#include <hse/util/perfc.h>
-#include <hse/util/vlb.h>
-#include <hse/error/merr.h>
+#include <hse/kvdb_perfc.h>
+#include <hse/limits.h>
 
+#include <hse/error/merr.h>
 #include <hse/ikvdb/blk_list.h>
+#include <hse/ikvdb/cn.h>
+#include <hse/ikvdb/kvset_builder.h>
+#include <hse/ikvdb/limits.h>
 #include <hse/ikvdb/mclass_policy.h>
 #include <hse/ikvdb/tuple.h>
-#include <hse/ikvdb/limits.h>
-#include <hse/ikvdb/kvset_builder.h>
-#include <hse/ikvdb/cn.h>
-
-#include <hse/limits.h>
-#include <hse/kvdb_perfc.h>
+#include <hse/logging/logging.h>
 #include <hse/mpool/mpool.h>
+#include <hse/util/alloc.h>
+#include <hse/util/assert.h>
+#include <hse/util/event_counter.h>
+#include <hse/util/page.h>
+#include <hse/util/perfc.h>
+#include <hse/util/slab.h>
+#include <hse/util/vlb.h>
 
-#include "vblock_builder.h"
-#include "omf.h"
 #include "blk_list.h"
 #include "cn_mblocks.h"
 #include "cn_metrics.h"
 #include "cn_perfc.h"
+#include "omf.h"
+#include "vblock_builder.h"
 
-#define WBUF_LEN_MAX      ((1024 * 1024) + VBLOCK_FOOTER_LEN)
+#define WBUF_LEN_MAX ((1024 * 1024) + VBLOCK_FOOTER_LEN)
 
 /**
  * struct vblock_builder - create vblocks from a stream of values
@@ -87,24 +86,24 @@
  *       -- set @vblk_off += @wbuff_off
  */
 struct vblock_builder {
-    struct mpool *             mp;
-    struct cn *                cn;
-    struct perfc_set *         pc;
-    struct cn_merge_stats *    mstats;
-    struct blk_list            vblk_list;
+    struct mpool *mp;
+    struct cn *cn;
+    struct perfc_set *pc;
+    struct cn_merge_stats *mstats;
+    struct blk_list vblk_list;
     enum hse_mclass_policy_age agegroup;
-    uint64_t                   vsize;
-    uint64_t                   blkid;
-    uint32_t                   max_size;
-    off_t                      vblk_off;
-    void *                     wbuf;
-    off_t                      wbuf_off;
-    unsigned int               wbuf_len;
-    uint64_t                   vgroup;
-    uint64_t                   tot_vlen;
-    bool                       destruct;
-    uint32_t                   cur_minklen;
-    char                       cur_minkey[HSE_KVS_KEY_LEN_MAX];
+    uint64_t vsize;
+    uint64_t blkid;
+    uint32_t max_size;
+    off_t vblk_off;
+    void *wbuf;
+    off_t wbuf_off;
+    unsigned int wbuf_len;
+    uint64_t vgroup;
+    uint64_t tot_vlen;
+    bool destruct;
+    uint32_t cur_minklen;
+    char cur_minkey[HSE_KVS_KEY_LEN_MAX];
 };
 
 static inline bool
@@ -132,13 +131,13 @@ vbb_estimate_alen(struct cn *cn, size_t wlen, enum hse_mclass mclass)
 static merr_t
 vblock_start(struct vblock_builder *bld, const struct key_obj *min_kobj)
 {
-    merr_t                 err = 0;
-    struct mblock_props    mbprop;
-    uint64_t               blkid;
-    uint64_t               tstart;
+    merr_t err = 0;
+    struct mblock_props mbprop;
+    uint64_t blkid;
+    uint64_t tstart;
     struct cn_merge_stats *stats = bld->mstats;
-    enum hse_mclass      mclass;
-    struct mclass_policy * mpolicy = cn_get_mclass_policy(bld->cn);
+    enum hse_mclass mclass;
+    struct mclass_policy *mpolicy = cn_get_mclass_policy(bld->cn);
 
     tstart = get_time_ns();
 
@@ -180,10 +179,10 @@ vblock_start(struct vblock_builder *bld, const struct key_obj *min_kobj)
 static merr_t
 vblock_write(struct vblock_builder *bld)
 {
-    merr_t                 err;
-    struct iovec           iov;
+    merr_t err;
+    struct iovec iov;
     struct cn_merge_stats *stats = bld->mstats;
-    uint64_t               tstart;
+    uint64_t tstart;
 
     assert(bld->blkid);
 
@@ -269,15 +268,15 @@ vblock_finish(struct vblock_builder *bld, const struct key_obj *max_kobj)
 merr_t
 vbb_create(
     struct vblock_builder **builder_out,
-    struct cn *             cn,
-    struct perfc_set *      pc,
-    uint64_t                vgroup)
+    struct cn *cn,
+    struct perfc_set *pc,
+    uint64_t vgroup)
 {
     struct mpool_mclass_props props;
-    struct mclass_policy     *policy;
-    struct vblock_builder    *bld;
-    void                     *wbuf;
-    merr_t                    err;
+    struct mclass_policy *policy;
+    struct vblock_builder *bld;
+    void *wbuf;
+    merr_t err;
 
     assert(builder_out);
 
@@ -326,15 +325,15 @@ vbb_destroy(struct vblock_builder *bld)
 merr_t
 vbb_add_entry(
     struct vblock_builder *bld,
-    const struct key_obj  *kobj,
-    const void *           vdata,
-    uint                   vlen, /* on-media length */
-    uint64_t *             vbidout,
-    uint *                 vbidxout,
-    uint *                 vboffout)
+    const struct key_obj *kobj,
+    const void *vdata,
+    uint vlen, /* on-media length */
+    uint64_t *vbidout,
+    uint *vbidxout,
+    uint *vboffout)
 {
     merr_t err;
-    uint   voff, space, bytes;
+    uint voff, space, bytes;
 
     assert(!bld->destruct);
 
@@ -422,8 +421,8 @@ vbb_finish(struct vblock_builder *bld, struct blk_list *vblks, const struct key_
 merr_t
 vbb_set_agegroup(struct vblock_builder *bld, enum hse_mclass_policy_age age)
 {
-    merr_t                    err;
-    struct mclass_policy *    policy;
+    merr_t err;
+    struct mclass_policy *policy;
     struct mpool_mclass_props props;
 
     bld->agegroup = age;

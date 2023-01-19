@@ -5,18 +5,17 @@
 
 #include <assert.h>
 #include <errno.h>
-#include <stdlib.h>
 #include <stdarg.h>
 #include <stdbool.h>
+#include <stdlib.h>
 
 #include <bsd/string.h>
+#include <tools/parm_groups.h>
 
 #include <hse/error/merr.h>
 
-#include <tools/parm_groups.h>
-
 struct grp {
-    char        grp_name[PG_NAME_MAX];
+    char grp_name[PG_NAME_MAX];
     struct svec grp_svec;
     struct grp *grp_next;
 };
@@ -59,7 +58,6 @@ pg_name_match(const char *match_list, const char *name)
 
     return false;
 }
-
 
 static struct svec *
 pg_find_grp(struct parm_groups *self, const char *name)
@@ -111,8 +109,7 @@ svec_init(struct svec *self)
     self->strc_max = 0;
 }
 
-static
-void
+static void
 svec_truncate(struct svec *self, size_t len, bool deep)
 {
     for (size_t i = len; i < self->strc; i++) {
@@ -125,8 +122,7 @@ svec_truncate(struct svec *self, size_t len, bool deep)
         self->strc = len;
 }
 
-static
-void
+static void
 svec_free(struct svec *self, bool deep)
 {
     svec_truncate(self, 0, deep);
@@ -326,11 +322,7 @@ pg_set_parms(struct parm_groups *self, const char *group_name, ...)
 }
 
 merr_t
-pg_svec_alloc(
-    struct parm_groups *self,
-    const char *        group_name,
-    struct svec *       sv,
-    ...)
+pg_svec_alloc(struct parm_groups *self, const char *group_name, struct svec *sv, ...)
 {
     merr_t err = 0;
     struct svec sv_tmp = {};

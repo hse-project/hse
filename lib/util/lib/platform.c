@@ -6,10 +6,9 @@
 #define MTF_MOCK_IMPL_platform
 
 #include <hse/version.h>
-#include <hse/logging/logging.h>
 
 #include <hse/ikvdb/hse_gparams.h>
-
+#include <hse/logging/logging.h>
 #include <hse/util/data_tree.h>
 #include <hse/util/event_counter.h>
 #include <hse/util/minmax.h>
@@ -190,9 +189,9 @@ hse_cpu_init(void)
 
     hse_tsc_mult = (NSEC_PER_SEC << HSE_TSC_SHIFT) / hse_tsc_freq;
 
-    log_info("bogomips %d, freq %lu, shift %u, mult %u, L1D_CLSZ %d",
-             bogomips, hse_tsc_freq, HSE_TSC_SHIFT, hse_tsc_mult,
-             LEVEL1_DCACHE_LINESIZE);
+    log_info(
+        "bogomips %d, freq %lu, shift %u, mult %u, L1D_CLSZ %d", bogomips, hse_tsc_freq,
+        HSE_TSC_SHIFT, hse_tsc_mult, LEVEL1_DCACHE_LINESIZE);
 
     return 0;
 }
@@ -203,8 +202,8 @@ hse_platform_init(void)
     merr_t err;
 
     if (PAGE_SIZE != getpagesize()) {
-        log_err("compile-time PAGE_SIZE (%lu) != run-time getpagesize (%d)",
-            PAGE_SIZE, getpagesize());
+        log_err(
+            "compile-time PAGE_SIZE (%lu) != run-time getpagesize (%d)", PAGE_SIZE, getpagesize());
 
         return merr(EINVAL);
     }

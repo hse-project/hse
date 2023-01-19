@@ -3,25 +3,25 @@
  * Copyright (C) 2020-2023 Micron Technology, Inc. All rights reserved.
  */
 
-#include <sysexits.h>
+#include <dirent.h>
+#include <errno.h>
+#include <fcntl.h>
+#include <ftw.h>
+#include <math.h>
+#include <pthread.h>
+#include <signal.h>
 #include <stdbool.h>
 #include <stdint.h>
 #include <stdio.h>
 #include <stdlib.h>
-#include <errno.h>
 #include <string.h>
-#include <ftw.h>
-#include <dirent.h>
-#include <pthread.h>
-#include <signal.h>
-#include <unistd.h>
-#include <math.h>
-#include <fcntl.h>
+#include <sysexits.h>
 #include <time.h>
+#include <unistd.h>
 
-#include <sys/types.h>
 #include <sys/statvfs.h>
 #include <sys/time.h>
+#include <sys/types.h>
 #include <sys/uio.h>
 #include <sys/vfs.h>
 #if __linux__
@@ -31,15 +31,15 @@
 #include <hse/util/time.h>
 
 /* We use 128KiB writes in all cases */
-#define PROF_BLOCK_SIZE            (128u * 1024)
-#define PROF_FILE_SIZE_PER_THREAD  (1ul << 30)
+#define PROF_BLOCK_SIZE           (128u * 1024)
+#define PROF_FILE_SIZE_PER_THREAD (1ul << 30)
 
-#define PAGE_SIZE                  (4096)
+#define PAGE_SIZE (4096)
 
-#define MIN_EXPECTED_LAT_NS        (1L)
-#define MAX_EXPECTED_LAT_NS        (10L * 1000L * 1000L * 1000L)
+#define MIN_EXPECTED_LAT_NS (1L)
+#define MAX_EXPECTED_LAT_NS (10L * 1000L * 1000L * 1000L)
 
-#define PROF_TMP_DIR               "storage_profile.tmp"
+#define PROF_TMP_DIR "storage_profile.tmp"
 
 static int test_time_secs = 60;
 static sig_atomic_t sigint;
@@ -51,15 +51,15 @@ struct storage_info {
 };
 
 struct storage_profile_work {
-    int       dirfd;
+    int dirfd;
     pthread_t tid;
-    uint32_t  index;
-    uint32_t  thrcnt;
-    uint32_t  num_samples;
-    uint64_t  file_sz;
-    uint64_t  block_sz;
-    int       rc;
-    bool      tmpfs;
+    uint32_t index;
+    uint32_t thrcnt;
+    uint32_t num_samples;
+    uint64_t file_sz;
+    uint64_t block_sz;
+    int rc;
+    bool tmpfs;
     uint64_t *samples;
 };
 
@@ -101,7 +101,7 @@ sigalrm_handler(int signum)
 static int
 sighandler_install(int signum, __sighandler_t func)
 {
-    struct sigaction act = {0};
+    struct sigaction act = { 0 };
 
     act.sa_handler = func;
     sigemptyset(&act.sa_mask);
@@ -119,21 +119,21 @@ get_time_ns(void)
     return (uint64_t)(ts.tv_sec * NSEC_PER_SEC + ts.tv_nsec);
 }
 
-static void*
+static void *
 profile_worker(void *rock)
 {
     struct storage_profile_work *work;
-    uint64_t  file_sz;
-    uint64_t  block_sz;
+    uint64_t file_sz;
+    uint64_t block_sz;
     uint64_t *samples;
-    void     *buf;
-    uint64_t  start, stop;
-    uint32_t  sample_idx;
-    int       block, dirfd, fd, flags;
-    uint64_t  num_blocks;
-    char      fname[32];
-    off_t     woff;
-    char      errbuf[128];
+    void *buf;
+    uint64_t start, stop;
+    uint32_t sample_idx;
+    int block, dirfd, fd, flags;
+    uint64_t num_blocks;
+    char fname[32];
+    off_t woff;
+    char errbuf[128];
 
     work = rock;
 
@@ -162,8 +162,9 @@ profile_worker(void *rock)
     fd = openat(dirfd, fname, flags, S_IRUSR | S_IWUSR);
     if (fd < 0) {
         work->rc = errno;
-        fprintf(stderr, "Failed to create file %s: %s\n", fname,
-                strerror_r(errno, errbuf, sizeof(errbuf)));
+        fprintf(
+            stderr, "Failed to create file %s: %s\n", fname,
+            strerror_r(errno, errbuf, sizeof(errbuf)));
         goto out;
     }
 
@@ -182,8 +183,9 @@ profile_worker(void *rock)
             cc = pwritev(fd, &iov, 1, woff);
             if (cc == -1) {
                 work->rc = errno;
-                fprintf(stderr, "Failed to write to profile file %s: %s\n", fname,
-                        strerror_r(errno, errbuf, sizeof(errbuf)));
+                fprintf(
+                    stderr, "Failed to write to profile file %s: %s\n", fname,
+                    strerror_r(errno, errbuf, sizeof(errbuf)));
                 break;
             }
 
@@ -216,11 +218,11 @@ out:
 
 static int
 perform_profile_run(
-    int       dirfd,
-    uint32_t  thread_cnt,
-    uint64_t  file_sz,
-    uint64_t  block_sz,
-    double   *score)
+    int dirfd,
+    uint32_t thread_cnt,
+    uint64_t file_sz,
+    uint64_t block_sz,
+    double *score)
 {
     struct storage_profile_work *work_specs;
     struct storage_prof_stat stats;
@@ -291,8 +293,9 @@ perform_profile_run(
         if (work_specs[i].rc) {
             rc = work_specs[i].rc;
             if (rc != EINTR)
-                fprintf(stderr, "Profiling by thread index %d count %d failed: %s\n",
-                        i, thread_cnt, strerror(rc));
+                fprintf(
+                    stderr, "Profiling by thread index %d count %d failed: %s\n", i, thread_cnt,
+                    strerror(rc));
 
             goto err_exit;
         }
@@ -341,7 +344,7 @@ static int
 profile_storage(const char *path, uint32_t thread_cnt, double *score)
 {
     uint64_t block_sz = PROF_BLOCK_SIZE;
-    int      rc;
+    int rc;
 
     DIR *dirp;
 
@@ -407,8 +410,8 @@ profile_dir_remove(const char *path)
 int
 hse_storage_profile(const char *path, bool quiet, bool verbose)
 {
-    struct storage_info info = {0};
-    struct itimerval timer = {0};
+    struct storage_info info = { 0 };
+    struct itimerval timer = { 0 };
     const unsigned int thread_counts[] = { 16, 20, 24, 32, 40, 48 };
     const int num_thread_counts = sizeof(thread_counts) / sizeof(thread_counts[0]);
     double scores[num_thread_counts], avg_score;
@@ -522,8 +525,7 @@ err_exit:
         return rc ? -1 : 0;
 
     printf("\n");
-    printf(
-        "The performance profile suggests a setting of \"%s\" for the\n", result);
+    printf("The performance profile suggests a setting of \"%s\" for the\n", result);
     printf("KVDB throttling.init_policy configuration parameter.\n");
     printf("\n");
     printf("If you are using the KVDB home config file ($kvdb_home/kvdb.conf),\n");

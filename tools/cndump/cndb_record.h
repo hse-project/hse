@@ -6,16 +6,16 @@
 #ifndef CNDUMP_CNDB_RECORD_H
 #define CNDUMP_CNDB_RECORD_H
 
-#include <stdint.h>
 #include <stdbool.h>
+#include <stdint.h>
+
+#include <cn/kvset.h>
+#include <cndb/omf.h>
 
 #include <hse/limits.h>
 
 #include <hse/ikvdb/kvs_cparams.h>
 #include <hse/util/compiler.h>
-
-#include <cndb/omf.h>
-#include <cn/kvset.h>
 
 struct cndb_rec_version {
     uint16_t version;
@@ -104,8 +104,7 @@ struct cndb_rec {
 };
 
 const char *
-cndb_rec_type_name(enum cndb_rec_type rtype)
-    HSE_RETURNS_NONNULL;
+cndb_rec_type_name(enum cndb_rec_type rtype) HSE_RETURNS_NONNULL;
 
 void
 cndb_rec_init(struct cndb_rec *rec);

@@ -5,16 +5,14 @@
 
 #include <stdint.h>
 
-#include <hse/error/merr.h>
-
-#include <mock/api.h>
-
 #include <cn/hblock_builder.h>
 #include <cn/kblock_builder.h>
 #include <cn/vblock_builder.h>
-
+#include <mock/api.h>
 #include <mocks/mock_kbb_vbb.h>
 #include <mocks/mock_mpool.h>
+
+#include <hse/error/merr.h>
 
 static merr_t
 _hbb_create(struct hblock_builder **bld_out, const struct cn *cn, struct perfc_set *pc)
@@ -31,11 +29,7 @@ _kbb_create(struct kblock_builder **bld_out, struct cn *cn, struct perfc_set *pc
 }
 
 static merr_t
-_vbb_create(
-    struct vblock_builder **bld_out,
-    struct cn *             cn,
-    struct perfc_set *      pc,
-    uint64_t                vgroup)
+_vbb_create(struct vblock_builder **bld_out, struct cn *cn, struct perfc_set *pc, uint64_t vgroup)
 {
     *bld_out = (struct vblock_builder *)0x3333;
     return 0;
@@ -57,7 +51,7 @@ static struct mapi_injection inject_list[] = {
     { mapi_idx_kbb_destroy, MAPI_RC_SCALAR, 0 },
     { mapi_idx_kbb_add_entry, MAPI_RC_SCALAR, 0 },
     { mapi_idx_kbb_finish, MAPI_RC_SCALAR, 0 },
-    { mapi_idx_kbb_is_empty, MAPI_RC_SCALAR, 1},
+    { mapi_idx_kbb_is_empty, MAPI_RC_SCALAR, 1 },
     /* vblock builder */
     { mapi_idx_vbb_destroy, MAPI_RC_SCALAR, 0 },
     { mapi_idx_vbb_add_entry, MAPI_RC_SCALAR, 0 },

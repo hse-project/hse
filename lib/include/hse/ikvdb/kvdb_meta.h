@@ -13,8 +13,8 @@
 #include <stdint.h>
 #include <stdio.h>
 
-#include <hse/mpool/mpool.h>
 #include <hse/error/merr.h>
+#include <hse/mpool/mpool.h>
 
 struct kvdb_meta {
     unsigned int km_version;
@@ -87,7 +87,7 @@ kvdb_meta_deserialize(struct kvdb_meta *meta, const char *kvdb_home);
  */
 /* MTF_MOCK */
 merr_t
-kvdb_meta_upgrade(struct kvdb_meta *const meta, const char *const kvdb_home);
+kvdb_meta_upgrade(struct kvdb_meta * const meta, const char * const kvdb_home);
 
 /**
  * Add new mclass storage paths to the kvdb.meta file
@@ -102,8 +102,8 @@ kvdb_meta_upgrade(struct kvdb_meta *const meta, const char *const kvdb_home);
 /* MTF_MOCK */
 merr_t
 kvdb_meta_storage_add(
-    struct kvdb_meta           *meta,
-    const char                 *kvdb_home,
+    struct kvdb_meta *meta,
+    const char *kvdb_home,
     const struct mpool_cparams *cparams);
 
 /**
@@ -119,8 +119,8 @@ kvdb_meta_storage_add(
 /* MTF_MOCK */
 void
 kvdb_meta_from_mpool_cparams(
-    struct kvdb_meta *          meta,
-    const char *                kvdb_home,
+    struct kvdb_meta *meta,
+    const char *kvdb_home,
     const struct mpool_cparams *params);
 
 /**
@@ -137,8 +137,8 @@ kvdb_meta_from_mpool_cparams(
 merr_t
 kvdb_meta_to_mpool_rparams(
     const struct kvdb_meta *meta,
-    const char *            kvdb_home,
-    struct mpool_rparams *  params);
+    const char *kvdb_home,
+    struct mpool_rparams *params);
 
 /**
  * Deserializes KVDB metadata into mpool dparams
@@ -153,9 +153,9 @@ kvdb_meta_to_mpool_rparams(
 /* MTF_MOCK */
 merr_t
 kvdb_meta_to_mpool_dparams(
-    const struct kvdb_meta *const meta,
-    const char *const             kvdb_home,
-    struct mpool_dparams *const   params);
+    const struct kvdb_meta * const meta,
+    const char * const kvdb_home,
+    struct mpool_dparams * const params);
 
 #if HSE_MOCKING
 #include "kvdb_meta_ut.h"

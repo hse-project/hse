@@ -10,27 +10,24 @@
 #include <string.h>
 #include <unistd.h>
 
-#include <cjson/cJSON.h>
 #include <bsd/string.h>
+#include <cjson/cJSON.h>
 
-#include <hse/logging/logging.h>
-
-#include <hse/ikvdb/hse_gparams.h>
 #include <hse/config/params.h>
+#include <hse/ikvdb/hse_gparams.h>
 #include <hse/ikvdb/limits.h>
+#include <hse/logging/logging.h>
 #include <hse/util/compiler.h>
 #include <hse/util/perfc.h>
 #include <hse/util/vlb.h>
-
-#include <hse/ikvdb/limits.h>
 
 struct hse_gparams hse_gparams;
 
 static bool HSE_NONNULL(1, 2, 3)
 logging_destination_converter(
-    const struct param_spec *const ps,
-    const cJSON *const             node,
-    void *const                    data)
+    const struct param_spec * const ps,
+    const cJSON * const node,
+    void * const data)
 {
     const char *setting;
     enum log_destination log_dest;
@@ -65,11 +62,11 @@ logging_destination_converter(
 
 static merr_t
 logging_destination_stringify(
-    const struct param_spec *const ps,
-    const void *const              value,
-    char *const                    buf,
-    const size_t                   buf_sz,
-    size_t *const                  needed_sz)
+    const struct param_spec * const ps,
+    const void * const value,
+    char * const buf,
+    const size_t buf_sz,
+    size_t * const needed_sz)
 {
     static const char *values[] = { "stdout", "stderr", "file", "syslog" };
 
@@ -84,22 +81,22 @@ logging_destination_stringify(
 }
 
 static cJSON *
-logging_destination_jsonify(const struct param_spec *const ps, const void *const value)
+logging_destination_jsonify(const struct param_spec * const ps, const void * const value)
 {
     assert(ps);
     assert(value);
 
     switch (*(enum log_destination *)value) {
-        case LOG_DEST_STDOUT:
-            return cJSON_CreateString("stdout");
-        case LOG_DEST_STDERR:
-            return cJSON_CreateString("stderr");
-        case LOG_DEST_FILE:
-            return cJSON_CreateString("file");
-        case LOG_DEST_SYSLOG:
-            return cJSON_CreateString("syslog");
-        default:
-            abort();
+    case LOG_DEST_STDOUT:
+        return cJSON_CreateString("stdout");
+    case LOG_DEST_STDERR:
+        return cJSON_CreateString("stderr");
+    case LOG_DEST_FILE:
+        return cJSON_CreateString("file");
+    case LOG_DEST_SYSLOG:
+        return cJSON_CreateString("syslog");
+    default:
+        abort();
     }
 }
 
@@ -122,7 +119,8 @@ rest_socket_path_default(const struct param_spec *ps, void *value)
     if (!dir || *dir != '/')
         dir = "/tmp";
 
-    n = snprintf(value, sizeof(hse_gparams.gp_rest.socket_path), "%s%shse-%d.sock", dir,
+    n = snprintf(
+        value, sizeof(hse_gparams.gp_rest.socket_path), "%s%shse-%d.sock", dir,
         dir[strlen(dir) - 1] == '/' ? "" : "/", getpid());
     assert(n < sizeof(hse_gparams.gp_rest.socket_path) && n > 0);
 }
@@ -430,20 +428,20 @@ hse_gparams_defaults()
 
 merr_t
 hse_gparams_get(
-    const struct hse_gparams *const params,
-    const char *const               param,
-    char *const                     buf,
-    const size_t                    buf_sz,
-    size_t *const                   needed_sz)
+    const struct hse_gparams * const params,
+    const char * const param,
+    char * const buf,
+    const size_t buf_sz,
+    size_t * const needed_sz)
 {
     return params_get(params, NELEM(pspecs), pspecs, param, buf, buf_sz, needed_sz);
 }
 
 merr_t
 hse_gparams_set(
-    struct hse_gparams *const params,
-    const char *const               param,
-    const char *const               value)
+    struct hse_gparams * const params,
+    const char * const param,
+    const char * const value)
 {
     if (!params || !param || !value)
         return merr(EINVAL);
@@ -462,15 +460,15 @@ hse_gparams_from_config(struct hse_gparams *params, cJSON *config)
 
 merr_t
 hse_gparams_from_paramv(
-    struct hse_gparams *const params,
-    const size_t              paramc,
-    const char *const *const  paramv)
+    struct hse_gparams * const params,
+    const size_t paramc,
+    const char * const * const paramv)
 {
     return params_from_paramv(params, paramc, paramv, NELEM(pspecs), pspecs);
 }
 
 cJSON *
-hse_gparams_to_json(const struct hse_gparams *const params)
+hse_gparams_to_json(const struct hse_gparams * const params)
 {
     if (!params)
         return NULL;

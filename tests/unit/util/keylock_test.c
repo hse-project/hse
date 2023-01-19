@@ -5,13 +5,13 @@
 
 #include <stdint.h>
 
-#include <mtf/framework.h>
 #include <mock/api.h>
+#include <mtf/framework.h>
 
 #include <hse/error/merr.h>
-#include <hse/util/xrand.h>
 #include <hse/logging/logging.h>
 #include <hse/util/keylock.h>
+#include <hse/util/xrand.h>
 
 int
 test_collection_pre(struct mtf_test_info *lcl_ti)
@@ -51,14 +51,14 @@ MTF_DEFINE_UTEST(keylock_test, keylock_create_destroy)
 
 MTF_DEFINE_UTEST(keylock_test, keylock_lock_unlock)
 {
-    uint                 table_size = KLE_PSL_MAX;
-    merr_t               err = 0;
-    struct keylock *     handle = NULL;
-    int                  i;
-    uint                 index;
-    uint64_t             hash, num_entries = 0;
-    uint64_t             entries[table_size * 2];
-    bool                 inherited;
+    uint table_size = KLE_PSL_MAX;
+    merr_t err = 0;
+    struct keylock *handle = NULL;
+    int i;
+    uint index;
+    uint64_t hash, num_entries = 0;
+    uint64_t entries[table_size * 2];
+    bool inherited;
 
     /* [HSE_REVISIT] mapi breaks initialization of handle.
      */
@@ -130,10 +130,10 @@ MTF_DEFINE_UTEST(keylock_test, keylock_lock_unlock)
 MTF_DEFINE_UTEST(keylock_test, keylock_psl)
 {
     struct keylock *handle;
-    uint            table_size;
-    bool            inherited;
-    uint64_t        hash;
-    merr_t          err;
+    uint table_size;
+    bool inherited;
+    uint64_t hash;
+    merr_t err;
 
     err = keylock_create(NULL, &handle);
     ASSERT_EQ(0, err);
@@ -172,7 +172,7 @@ MTF_DEFINE_UTEST(keylock_test, keylock_psl)
     keylock_destroy(handle);
 }
 
-#define  ITERMAX (1000)
+#define ITERMAX (1000)
 uint64_t seqnov[ITERMAX + 1];
 
 bool
@@ -183,12 +183,12 @@ keylock_test_inheritable(uint32_t owner, uint64_t start_seq)
 
 MTF_DEFINE_UTEST(keylock_test, keylock_inheritance)
 {
-    uint            table_size;
-    merr_t          err;
+    uint table_size;
+    merr_t err;
     struct keylock *handle;
-    uint            index, i;
-    bool            inherited;
-    uint64_t        hash;
+    uint index, i;
+    bool inherited;
+    uint64_t hash;
 
     hash = xrand64_tls();
 

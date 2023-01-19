@@ -9,7 +9,6 @@
 #include <hse/error/merr.h>
 #include <hse/rest/forward.h>
 #include <hse/rest/method.h>
-
 #include <hse/util/compiler.h>
 
 #define REST_ENDPOINT_EXACT (1U << 1)
@@ -23,8 +22,8 @@
  *
  * @returns HTTP status code.
  */
-typedef enum rest_status rest_handler
-    (const struct rest_request *req, struct rest_response *resp, void *ctx);
+typedef enum rest_status
+rest_handler(const struct rest_request *req, struct rest_response *resp, void *ctx);
 
 merr_t
 rest_server_add_endpoint(

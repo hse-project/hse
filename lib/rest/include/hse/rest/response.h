@@ -6,8 +6,8 @@
 #ifndef HSE_REST_RESPONSE_H
 #define HSE_REST_RESPONSE_H
 
-#include <stdio.h>
 #include <stddef.h>
+#include <stdio.h>
 
 #include <hse/error/merr.h>
 #include <hse/rest/forward.h>

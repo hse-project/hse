@@ -5,12 +5,13 @@
 
 #include <stdint.h>
 
-#include <hse/util/xrand.h>
-#include <hse/util/base.h>
-
 #include <mtf/framework.h>
 
-int compare_u64(const void *ptr_a, const void *ptr_b)
+#include <hse/util/base.h>
+#include <hse/util/xrand.h>
+
+int
+compare_u64(const void *ptr_a, const void *ptr_b)
 {
     uint64_t a = *(uint64_t *)ptr_a;
     uint64_t b = *(uint64_t *)ptr_b;
@@ -29,10 +30,8 @@ int compare_u64(const void *ptr_a, const void *ptr_b)
  * doesn't add much value and will increase the time it takes to run
  * the test.
  */
-#define SEQUENCE_LEN       (10 * 1000)
-#define SEQUENCE_LEN_TLS   (100)
-
-
+#define SEQUENCE_LEN     (10 * 1000)
+#define SEQUENCE_LEN_TLS (100)
 
 MTF_BEGIN_UTEST_COLLECTION(xrand_test);
 
@@ -116,10 +115,10 @@ MTF_DEFINE_UTEST(xrand_test, norepeat)
                 printf("> rv  0x%016lx\n", (ulong)values[i]);
             else if (i == 5)
                 printf("> rv  ...\n");
-            else if (i > iters-5)
-                printf("> rv  0x%016lx\n", (ulong)values[i+1]);
+            else if (i > iters - 5)
+                printf("> rv  0x%016lx\n", (ulong)values[i + 1]);
 
-            ASSERT_NE(values[i], values[i+1]);
+            ASSERT_NE(values[i], values[i + 1]);
         }
     }
 
@@ -153,18 +152,18 @@ MTF_DEFINE_UTEST(xrand_test, tls_norepeat)
             printf("> rv  0x%016lx\n", (ulong)values[i]);
         else if (i == 5)
             printf("> rv  ...\n");
-        else if (i > iters-5)
-            printf("> rv  0x%016lx\n", (ulong)values[i+1]);
+        else if (i > iters - 5)
+            printf("> rv  0x%016lx\n", (ulong)values[i + 1]);
 
-        ASSERT_NE(values[i], values[i+1]);
+        ASSERT_NE(values[i], values[i + 1]);
     }
 
     mapi_safe_free(values);
 }
 
 struct tinfo {
-    pthread_t   tid;
-    uint64_t    values[SEQUENCE_LEN_TLS];
+    pthread_t tid;
+    uint64_t values[SEQUENCE_LEN_TLS];
 };
 
 void *
@@ -202,7 +201,7 @@ MTF_DEFINE_UTEST(xrand_test, tls_correctness)
     }
 
     for (uint i = 0; i < nvals; i++) {
-        printf("rv %d: 0x%016lx",i,tinfo[0].values[i]);
+        printf("rv %d: 0x%016lx", i, tinfo[0].values[i]);
         for (uint tx = 1; tx < threads; tx++) {
             printf("  0x%016lx", tinfo[tx].values[i]);
             ASSERT_NE(tinfo[0].values[i], tinfo[tx].values[i]);
@@ -210,6 +209,5 @@ MTF_DEFINE_UTEST(xrand_test, tls_correctness)
         printf("\n");
     }
 }
-
 
 MTF_END_UTEST_COLLECTION(xrand_test)

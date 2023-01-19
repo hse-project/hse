@@ -4,28 +4,25 @@
  */
 
 #include <stdint.h>
+
 #include <sys/mman.h>
 
 #include <hse/error/merr.h>
+#include <hse/ikvdb/tuple.h>
+#include <hse/mpool/mpool.h>
+#include <hse/util/alloc.h>
+#include <hse/util/arch.h>
+#include <hse/util/assert.h>
 #include <hse/util/event_counter.h>
 #include <hse/util/page.h>
-#include <hse/util/alloc.h>
 #include <hse/util/slab.h>
-#include <hse/util/assert.h>
-#include <hse/util/arch.h>
 
-#include <hse/mpool/mpool.h>
-
-#include <hse/ikvdb/tuple.h>
-
+#include "kvs_mblk_desc.h"
 #include "omf.h"
 #include "vblock_reader.h"
-#include "kvs_mblk_desc.h"
 
 merr_t
-vbr_desc_read(
-    const struct kvs_mblk_desc *mblk,
-    struct vblock_desc *vblk_desc)
+vbr_desc_read(const struct kvs_mblk_desc *mblk, struct vblock_desc *vblk_desc)
 {
     struct vblock_footer_omf *footer;
     uint32_t wlen;
@@ -57,12 +54,9 @@ vbr_desc_read(
 }
 
 merr_t
-vbr_desc_update_vgidx(
-    struct vblock_desc *vblk_desc,
-    uint               *vgroupc,
-    uint64_t           *vgroupv)
+vbr_desc_update_vgidx(struct vblock_desc *vblk_desc, uint *vgroupc, uint64_t *vgroupv)
 {
-    uint64_t  vgroup = vblk_desc->vbd_vgroup;
+    uint64_t vgroup = vblk_desc->vbd_vgroup;
     uint i;
 
     /* Map omf vgroup IDs (i.e., kvset ids) to a monotonically increasing
@@ -84,20 +78,20 @@ vbr_desc_update_vgidx(
 
 void
 vbr_readahead(
-    struct vblock_desc *     vbd,
-    uint32_t                 voff,
-    size_t                   vlen,
-    uint32_t                 ra_flags,
-    size_t                   ra_len,
-    uint32_t                 rahc,
-    struct ra_hist *         rahv,
+    struct vblock_desc *vbd,
+    uint32_t voff,
+    size_t vlen,
+    uint32_t ra_flags,
+    size_t ra_len,
+    uint32_t rahc,
+    struct ra_hist *rahv,
     struct workqueue_struct *wq)
 {
     struct ra_hist *rah;
-    size_t          end;
-    uint16_t        bkt;
-    uint16_t        vgidx;
-    bool            reverse;
+    size_t end;
+    uint16_t bkt;
+    uint16_t vgidx;
+    bool reverse;
 
     assert(ra_len >= PAGE_SIZE);
 
@@ -193,10 +187,10 @@ vbr_madvise_async_cb(struct work_struct *work)
 
 bool
 vbr_madvise_async(
-    struct vblock_desc *     vbd,
-    uint                     off,
-    uint                     len,
-    int                      advice,
+    struct vblock_desc *vbd,
+    uint off,
+    uint len,
+    int advice,
     struct workqueue_struct *wq)
 {
     struct vbr_madvise_work *w;

@@ -9,13 +9,12 @@
 #include <stdint.h>
 
 #include <hse/error/merr.h>
-#include <hse/util/workqueue.h>
-
-#include <hse/ikvdb/kvs_cparams.h>
-#include <hse/ikvdb/tuple.h>
-#include <hse/ikvdb/limits.h>
 #include <hse/ikvdb/kvdb_health.h>
 #include <hse/ikvdb/kvs.h>
+#include <hse/ikvdb/kvs_cparams.h>
+#include <hse/ikvdb/limits.h>
+#include <hse/ikvdb/tuple.h>
+#include <hse/util/workqueue.h>
 
 /* MTF_MOCK_DECL(cn) */
 
@@ -37,17 +36,17 @@ enum hse_mclass;
 /* MTF_MOCK */
 merr_t
 cn_open(
-    struct cn_kvdb *    cn_kvdb,
-    struct mpool *      mp,
-    struct kvdb_kvs *   kvs,
-    struct cndb *       cndb,
-    uint64_t            cnid,
+    struct cn_kvdb *cn_kvdb,
+    struct mpool *mp,
+    struct kvdb_kvs *kvs,
+    struct cndb *cndb,
+    uint64_t cnid,
     struct kvs_rparams *rp,
-    const char *        kvdb_home,
-    const char *        kvs_name,
+    const char *kvdb_home,
+    const char *kvs_name,
     struct kvdb_health *health,
-    uint                flags,
-    struct cn **        cn_out);
+    uint flags,
+    struct cn **cn_out);
 
 /* MTF_MOCK */
 merr_t
@@ -108,23 +107,23 @@ cn_disable_maint(struct cn *handle, bool onoff);
 /* MTF_MOCK */
 merr_t
 cn_get(
-    struct cn *          cn,
-    struct kvs_ktuple *  kt,
-    uint64_t             seq,
+    struct cn *cn,
+    struct kvs_ktuple *kt,
+    uint64_t seq,
     enum key_lookup_res *res,
-    struct kvs_buf *     vbuf);
+    struct kvs_buf *vbuf);
 
 struct query_ctx;
 
 merr_t
 cn_pfx_probe(
-    struct cn *          cn,
-    struct kvs_ktuple *  kt,
-    uint64_t             seq,
+    struct cn *cn,
+    struct kvs_ktuple *kt,
+    uint64_t seq,
     enum key_lookup_res *res,
-    struct query_ctx *   qctx,
-    struct kvs_buf *     kbuf,
-    struct kvs_buf *     vbuf);
+    struct query_ctx *qctx,
+    struct kvs_buf *kbuf,
+    struct kvs_buf *vbuf);
 
 /**
  * cn_ingestv() - A vectored version of cn_ingest
@@ -139,14 +138,14 @@ cn_pfx_probe(
 /* MTF_MOCK */
 merr_t
 cn_ingestv(
-    struct cn **           cn,
+    struct cn **cn,
     struct kvset_mblocks **mbv,
-    uint64_t              *kvsetidv,
-    uint                   ingestc,
-    uint64_t               ingestid,
-    uint64_t               txhorizon,
-    uint64_t              *min_seqno_out,
-    uint64_t              *max_seqno_out);
+    uint64_t *kvsetidv,
+    uint ingestc,
+    uint64_t ingestid,
+    uint64_t txhorizon,
+    uint64_t *min_seqno_out,
+    uint64_t *max_seqno_out);
 
 /* MTF_MOCK */
 struct perfc_set *

@@ -94,21 +94,28 @@ parse_long(const char *str, long *result);
 
 /* definitions */
 __parse_unsigned_func(parse_u8, uint8_t, (uint8_t)0, UINT8_MAX)
-__parse_signed_func(parse_s8, int8_t, INT8_MIN, INT8_MAX)
+    __parse_signed_func(parse_s8, int8_t, INT8_MIN, INT8_MAX)
 
-__parse_unsigned_func(parse_u16, uint16_t, (uint16_t)0, UINT16_MAX)
-__parse_signed_func(parse_s16, int16_t, INT16_MIN, INT16_MAX)
+        __parse_unsigned_func(parse_u16, uint16_t, (uint16_t)0, UINT16_MAX)
+            __parse_signed_func(parse_s16, int16_t, INT16_MIN, INT16_MAX)
 
-__parse_unsigned_func(parse_u32, uint32_t, (uint32_t)0, UINT32_MAX)
-__parse_signed_func(parse_s32, int32_t, INT32_MIN, INT32_MAX)
+                __parse_unsigned_func(parse_u32, uint32_t, (uint32_t)0, UINT32_MAX)
+                    __parse_signed_func(parse_s32, int32_t, INT32_MIN, INT32_MAX)
 
-__parse_unsigned_func(parse_u64, uint64_t, (uint64_t)0, UINT64_MAX)
-__parse_signed_func(parse_s64, int64_t, INT64_MIN, INT64_MAX)
+                        __parse_unsigned_func(parse_u64, uint64_t, (uint64_t)0, UINT64_MAX)
+                            __parse_signed_func(parse_s64, int64_t, INT64_MIN, INT64_MAX)
 
-__parse_unsigned_func(parse_uint, unsigned int, (unsigned int)0, UINT_MAX)
-__parse_signed_func(parse_int, int, INT_MIN, INT_MAX)
+                                __parse_unsigned_func(
+                                    parse_uint,
+                                    unsigned int,
+                                    (unsigned int)0,
+                                    UINT_MAX) __parse_signed_func(parse_int, int, INT_MIN, INT_MAX)
 
-__parse_unsigned_func(parse_ulong, unsigned long, (unsigned long)0, ULONG_MAX)
-__parse_signed_func(parse_long, long, LONG_MIN, LONG_MAX)
+                                    __parse_unsigned_func(
+                                        parse_ulong,
+                                        unsigned long,
+                                        (unsigned long)0,
+                                        ULONG_MAX)
+                                        __parse_signed_func(parse_long, long, LONG_MIN, LONG_MAX)
 
 #endif

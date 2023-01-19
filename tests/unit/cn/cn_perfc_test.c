@@ -5,11 +5,10 @@
 
 #include <stdint.h>
 
+#include <cn/cn_perfc_internal.h>
 #include <mtf/framework.h>
 
 #include <hse/util/platform.h>
-
-#include <cn/cn_perfc_internal.h>
 
 MTF_BEGIN_UTEST_COLLECTION(test);
 

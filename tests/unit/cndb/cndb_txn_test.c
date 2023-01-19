@@ -3,16 +3,16 @@
  * Copyright (C) 2015-2022 Micron Technology, Inc.  All rights reserved.
  */
 
-#include <mtf/framework.h>
-#include <mock/api.h>
-
 #include <cn/kvset.c>
 #include <cndb/txn.h>
+#include <mock/api.h>
+#include <mtf/framework.h>
 
-#define CHECK_TRUE(cond) if (!(cond)) {                                      \
-                            fprintf(stderr, "Assert at line:%d\n", __LINE__); \
-                                return merr(EBUG);                          \
-                        }
+#define CHECK_TRUE(cond)                                  \
+    if (!(cond)) {                                        \
+        fprintf(stderr, "Assert at line:%d\n", __LINE__); \
+        return merr(EBUG);                                \
+    }
 
 MTF_BEGIN_UTEST_COLLECTION(cndb_txn_test);
 
@@ -48,8 +48,9 @@ MTF_DEFINE_UTEST(cndb_txn_test, basic)
         .km_dgen_lo = 1,
     };
 
-    err = cndb_txn_create(1, seqno, CNDB_INVAL_INGESTID, CNDB_INVAL_HORIZON,
-                          (uint16_t)(num_kvsets / 2), (uint16_t)(num_kvsets / 2), &tx);
+    err = cndb_txn_create(
+        1, seqno, CNDB_INVAL_INGESTID, CNDB_INVAL_HORIZON, (uint16_t)(num_kvsets / 2),
+        (uint16_t)(num_kvsets / 2), &tx);
     ASSERT_EQ(0, err);
     ASSERT_NE(NULL, tx);
 

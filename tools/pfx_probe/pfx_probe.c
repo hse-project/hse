@@ -11,20 +11,21 @@
 #include <stdbool.h>
 #include <stdint.h>
 #include <string.h>
-#include <sys/resource.h>
-#include <sys/time.h>
 #include <sysexits.h>
 #include <unistd.h>
+#include <xoroshiro.h>
+
+#include <sys/resource.h>
+#include <sys/time.h>
+
+#include <hse/experimental.h>
+#include <hse/hse.h>
 
 #include <hse/cli/param.h>
 #include <hse/cli/program.h>
-#include <hse/experimental.h>
-#include <hse/hse.h>
 #include <hse/util/arch.h>
 #include <hse/util/atomic.h>
 #include <hse/util/compiler.h>
-
-#include <xoroshiro.h>
 
 #include "kvs_helper.h"
 
@@ -84,7 +85,7 @@ xrand(void)
 void
 loader(void *arg)
 {
-    struct kh_thread_arg  *ta = arg;
+    struct kh_thread_arg *ta = arg;
     struct thread_info *ti = ta->arg;
     char key[sizeof(ti->pfx) + sizeof(ti->core) + sizeof(ti->sfx)];
     char val[VLEN];
@@ -93,8 +94,8 @@ loader(void *arg)
     uint64_t rc;
 
     rc = hse_kvs_prefix_delete(ta->kvs, 0, NULL, 0, 0);
-        if (err)
-            fatal(rc, "prefix delete failed");
+    if (err)
+        fatal(rc, "prefix delete failed");
 
     memset(val, 0xa1, sizeof(val));
 
@@ -107,8 +108,7 @@ loader(void *arg)
         *c = htobe64(i);
         for (j = 0; j < ti->sfx; j++) {
             *s = htobe64(j);
-            rc = hse_kvs_put(ta->kvs, 0, NULL, key, sizeof(key),
-                     val, sizeof(val));
+            rc = hse_kvs_put(ta->kvs, 0, NULL, key, sizeof(key), val, sizeof(val));
             if (rc)
                 fatal(rc, "put failure");
         }
@@ -125,18 +125,18 @@ atomic_ulong rd_time;
 enum hse_kvs_pfx_probe_cnt
 _pfx_probe(
     struct hse_kvs *kvs,
-    void           *pfx,
-    size_t          pfxlen,
-    void           *kbuf,
-    size_t          kbufsz,
-    void           *vbuf,
-    size_t          vbufsz)
+    void *pfx,
+    size_t pfxlen,
+    void *kbuf,
+    size_t kbufsz,
+    void *vbuf,
+    size_t vbufsz)
 {
-    size_t      klen, vlen;
-    uint64_t    rc;
-    uint64_t    start, dt;
+    size_t klen, vlen;
+    uint64_t rc;
+    uint64_t start, dt;
 
-    enum hse_kvs_pfx_probe_cnt  pc;
+    enum hse_kvs_pfx_probe_cnt pc;
 
     start = get_time_ns();
 
@@ -167,36 +167,33 @@ _pfx_probe(
         }
 
         pc = HSE_KVS_PFX_FOUND_MUL;
-done:
+    done:
         kh_cursor_destroy(c);
     } else if (opts.use_gets) {
         bool found;
-        char key[3 * sizeof(uint64_t)] = {0};
+        char key[3 * sizeof(uint64_t)] = { 0 };
         uint64_t *s;
 
         memcpy(key, pfx, pfxlen);
         s = (uint64_t *)(key + pfxlen);
 
         pc = HSE_KVS_PFX_FOUND_ZERO;
-        rc = hse_kvs_get(kvs, 0, NULL, key, sizeof(key), &found,
-                 vbuf, vbufsz, &vlen);
+        rc = hse_kvs_get(kvs, 0, NULL, key, sizeof(key), &found, vbuf, vbufsz, &vlen);
         if (rc)
             fatal(rc, "get failure");
         if (found)
             pc = HSE_KVS_PFX_FOUND_ONE;
 
         *s = htobe64(1);
-        rc = hse_kvs_get(kvs, 0, NULL, key, sizeof(key), &found,
-                 vbuf, vbufsz, &vlen);
+        rc = hse_kvs_get(kvs, 0, NULL, key, sizeof(key), &found, vbuf, vbufsz, &vlen);
         if (rc)
             fatal(rc, "get failure");
         if (found)
             pc = HSE_KVS_PFX_FOUND_MUL;
     } else {
 
-        rc = hse_kvs_prefix_probe(kvs, 0, NULL, pfx, pfxlen, &pc,
-                          kbuf, kbufsz, &klen,
-                          vbuf, vbufsz, &vlen);
+        rc = hse_kvs_prefix_probe(
+            kvs, 0, NULL, pfx, pfxlen, &pc, kbuf, kbufsz, &klen, vbuf, vbufsz, &vlen);
         if (rc)
             fatal(rc, "prefix probe failure");
     }
@@ -212,7 +209,7 @@ done:
 void
 reader(void *arg)
 {
-    struct kh_thread_arg  *ta = arg;
+    struct kh_thread_arg *ta = arg;
     char pfxbuf[2 * sizeof(uint64_t)];
     uint64_t *p, *c;
 
@@ -222,9 +219,9 @@ reader(void *arg)
     c = p + 1;
 
     while (!killthreads) {
-        char        kbuf[HSE_KVS_KEY_LEN_MAX] = {0};
-        char        vbuf[VLEN];
-        uint64_t    pfx, core;
+        char kbuf[HSE_KVS_KEY_LEN_MAX] = { 0 };
+        char vbuf[VLEN];
+        uint64_t pfx, core;
 
         enum hse_kvs_pfx_probe_cnt pc HSE_MAYBE_UNUSED;
 
@@ -236,8 +233,8 @@ reader(void *arg)
         *p = htobe64(pfx);
         *c = htobe64(core);
 
-        pc = _pfx_probe(ta->kvs, (void *)pfxbuf, sizeof(pfxbuf),
-                   kbuf, sizeof(kbuf), vbuf, sizeof(vbuf));
+        pc = _pfx_probe(
+            ta->kvs, (void *)pfxbuf, sizeof(pfxbuf), kbuf, sizeof(kbuf), vbuf, sizeof(vbuf));
 
         if (pfx % 5 == 0 && pc != HSE_KVS_PFX_FOUND_ZERO) {
             killthreads = true;
@@ -258,7 +255,7 @@ reader(void *arg)
 void
 syncme(void *arg)
 {
-    struct kh_thread_arg  *ta = arg;
+    struct kh_thread_arg *ta = arg;
 
     while (!killthreads) {
         hse_kvdb_sync(ta->kvdb, 0);
@@ -282,8 +279,7 @@ print_stats(void *arg)
         uint64_t load_pct = 100;
 
         if (second % 20 == 0)
-            printf("\n%8s %6s %9s %12s\n",
-                   "seconds", "load", "reads", "time/probe");
+            printf("\n%8s %6s %9s %12s\n", "seconds", "load", "reads", "time/probe");
 
         ++second;
         if (phase == LOAD_PHASE) {
@@ -291,9 +287,9 @@ print_stats(void *arg)
             load_pct /= total_puts ?: 1;
         }
 
-        printf("%8u %5lu%% %9lu %12lu\n",
-               second, load_pct, cnt,
-               (dt - last_dt)/(1 + cnt - last_cnt));
+        printf(
+            "%8u %5lu%% %9lu %12lu\n", second, load_pct, cnt,
+            (dt - last_dt) / (1 + cnt - last_cnt));
         usleep(999 * 1000);
 
         last_dt = dt;
@@ -315,28 +311,26 @@ usage(void)
         "-s nsfx    Suffixes per soft prefix\n"
         "-v         Only verify (default: use hse_kvs_prefix_probe)\n"
         "-x         Use cursors (in addition to -v)\n"
-        "-Z config  path to global config file\n"
-        , progname);
+        "-Z config  path to global config file\n",
+        progname);
 
     printf("\n");
     exit(0);
 }
 
 int
-main(
-    int       argc,
-    char    **argv)
+main(int argc, char **argv)
 {
     struct parm_groups *pg = NULL;
-    struct svec         hse_gparms = { 0 };
-    struct svec         db_oparms = { 0 };
-    struct svec         kv_cparms = { 0 };
-    struct svec         kv_oparms = { 0 };
-    const char         *mpool, *kvs, *config = NULL;
+    struct svec hse_gparms = { 0 };
+    struct svec db_oparms = { 0 };
+    struct svec kv_cparms = { 0 };
+    struct svec kv_oparms = { 0 };
+    const char *mpool, *kvs, *config = NULL;
     struct thread_info *ti;
-    int                 c;
-    int                 i;
-    int                 rc;
+    int c;
+    int i;
+    int rc;
 
     progname_set(argv[0]);
     xrand_init(time(NULL));
@@ -384,14 +378,13 @@ main(
         }
     }
 
-
     if (argc - optind < 2) {
         fprintf(stderr, "missing required parameters");
         exit(EX_USAGE);
     }
 
     mpool = argv[optind++];
-    kvs   = argv[optind++];
+    kvs = argv[optind++];
 
     rc = pg_parse_argv(pg, argc, argv, &optind);
     switch (rc) {
@@ -400,8 +393,7 @@ main(
             fatal(0, "unknown parameter: %s", argv[optind]);
         break;
     case EINVAL:
-        fatal(0, "missing group name (e.g. %s) before parameter %s\n",
-            PG_KVDB_OPEN, argv[optind]);
+        fatal(0, "missing group name (e.g. %s) before parameter %s\n", PG_KVDB_OPEN, argv[optind]);
         break;
     default:
         fatal(rc, "error processing parameter %s\n", argv[optind]);

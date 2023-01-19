@@ -11,26 +11,26 @@
 #include <cjson/cJSON.h>
 #include <cjson/cJSON_Utils.h>
 
-#include <hse/util/platform.h>
+#include <hse/logging/logging.h>
 #include <hse/util/alloc.h>
-#include <hse/util/slab.h>
 #include <hse/util/data_tree.h>
+#include <hse/util/event_counter.h>
+#include <hse/util/log2.h>
 #include <hse/util/minmax.h>
 #include <hse/util/parse_num.h>
-#include <hse/util/log2.h>
-#include <hse/util/event_counter.h>
-#include <hse/util/xrand.h>
-#include <hse/logging/logging.h>
 #include <hse/util/perfc.h>
+#include <hse/util/platform.h>
+#include <hse/util/slab.h>
+#include <hse/util/xrand.h>
 
-static const char *const perfc_ctr_type2name[] = {
+static const char * const perfc_ctr_type2name[] = {
     "Invalid", "Basic", "Rate", "Latency", "Distribution", "SimpleLatency",
 };
 
 struct perfc_ivl *perfc_di_ivl HSE_READ_MOSTLY;
 
 static bool
-perfc_ra_emit(struct perfc_rate *const rate, cJSON *const ctr)
+perfc_ra_emit(struct perfc_rate * const rate, cJSON * const ctr)
 {
     bool bad = false;
     struct perfc_val *val;
@@ -82,7 +82,7 @@ perfc_ra_emit(struct perfc_rate *const rate, cJSON *const ctr)
 }
 
 static bool
-perfc_di_emit(struct perfc_dis *const dis, cJSON *const ctr)
+perfc_di_emit(struct perfc_dis * const dis, cJSON * const ctr)
 {
     bool bad = false;
     cJSON *histogram;
@@ -143,8 +143,8 @@ perfc_di_emit(struct perfc_dis *const dis, cJSON *const ctr)
      */
     bad |= !cJSON_AddNumberToObject(ctr, "sum", sum);
     bad |= !cJSON_AddNumberToObject(ctr, "hits", samples ? samples : 1);
-    bad |= !cJSON_AddNumberToObject(ctr, "percentage",
-        dis->pdi_pct * 100 / (1.0 * PERFC_PCT_SCALE));
+    bad |=
+        !cJSON_AddNumberToObject(ctr, "percentage", dis->pdi_pct * 100 / (1.0 * PERFC_PCT_SCALE));
 
 out:
     if (bad)
@@ -182,7 +182,7 @@ perfc_read(struct perfc_set *pcs, const uint32_t cidx, uint64_t *vadd, uint64_t 
 }
 
 static size_t
-perfc_emit_handler_ctrset(struct dt_element *const dte, cJSON *const root)
+perfc_emit_handler_ctrset(struct dt_element * const dte, cJSON * const root)
 {
     cJSON *ctrs;
     cJSON *ctrset;
@@ -231,8 +231,8 @@ perfc_emit_handler_ctrset(struct dt_element *const dte, cJSON *const root)
         bad |= !cJSON_AddStringToObject(ctr, "description", seti->pcs_ctrnamev[cidx].pcn_desc);
         bad |= !cJSON_AddStringToObject(ctr, "type", perfc_ctr_type2name[ctr_hdr->pch_type]);
         bad |= !cJSON_AddNumberToObject(ctr, "level", ctr_hdr->pch_level);
-        bad |= !cJSON_AddNumberToObject(ctr, "enabled",
-            (seti->pcs_handle->ps_bitmap & (1ul << cidx)) >> cidx);
+        bad |= !cJSON_AddNumberToObject(
+            ctr, "enabled", (seti->pcs_handle->ps_bitmap & (1ul << cidx)) >> cidx);
 
         switch (ctr_hdr->pch_type) {
         case PERFC_TYPE_BA:
@@ -298,7 +298,7 @@ out:
  * Fields are indented 6 spaces.
  */
 static merr_t
-perfc_emit_handler(struct dt_element *const dte, cJSON *const ctrset)
+perfc_emit_handler(struct dt_element * const dte, cJSON * const ctrset)
 {
     return perfc_emit_handler_ctrset(dte, ctrset);
 }
@@ -410,8 +410,8 @@ merr_t
 perfc_ivl_create(int boundc, const uint64_t *boundv, struct perfc_ivl **ivlp)
 {
     struct perfc_ivl *ivl;
-    size_t            sz;
-    int               i, j;
+    size_t sz;
+    int i, j;
 
     *ivlp = NULL;
 
@@ -489,14 +489,14 @@ perfc_access_dte(void *data, void *ctx)
 
 merr_t
 perfc_alloc_impl(
-    uint                     prio,
-    const char              *group,
+    uint prio,
+    const char *group,
     const struct perfc_name *ctrv,
-    size_t                   ctrc,
-    const char              *ctrseti_name,
-    const char              *file,
-    int                      line,
-    struct perfc_set *       setp)
+    size_t ctrc,
+    const char *ctrseti_name,
+    const char *file,
+    int line,
+    struct perfc_set *setp)
 {
     enum perfc_type typev[PERFC_CTRS_MAX];
     char family[DT_PATH_ELEMENT_MAX];
@@ -569,8 +569,7 @@ perfc_alloc_impl(
 
     assert(familylen > 0);
 
-    sz = snprintf(path, sizeof(path), "%s/%s/%s/%s",
-                  PERFC_DT_PATH, group, family, ctrseti_name);
+    sz = snprintf(path, sizeof(path), "%s/%s/%s/%s", PERFC_DT_PATH, group, family, ctrseti_name);
     if (sz >= sizeof(path)) {
         err = merr(EINVAL);
         goto errout;
@@ -636,8 +635,8 @@ perfc_alloc_impl(
      */
     for (i = 0; i < ctrc; i++) {
         const struct perfc_name *entry = &ctrv[i];
-        struct perfc_ctr_hdr *   pch;
-        const struct perfc_ivl * ivl;
+        struct perfc_ctr_hdr *pch;
+        const struct perfc_ivl *ivl;
         enum perfc_type type;
 
         ivl = entry->pcn_ivl ?: perfc_di_ivl;
@@ -686,10 +685,11 @@ perfc_alloc_impl(
             err = merr(rc);
     }
 
-  errout:
+errout:
     if (err) {
-        log_warnx("unable to alloc perf counter %s/%s/%s from %s:%d",
-                  err, group, family, ctrseti_name, file, line);
+        log_warnx(
+            "unable to alloc perf counter %s/%s/%s from %s:%d", err, group, family, ctrseti_name,
+            file, line);
         setp->ps_bitmap = 0;
         setp->ps_seti = NULL;
         free(seti);
@@ -733,7 +733,7 @@ static HSE_ALWAYS_INLINE void
 perfc_latdis_record(struct perfc_dis *dis, uint64_t sample)
 {
     struct perfc_bkt *bkt;
-    uint32_t          i;
+    uint32_t i;
 
     if (sample > dis->pdi_max)
         dis->pdi_max = sample;

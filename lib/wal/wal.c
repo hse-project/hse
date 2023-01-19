@@ -5,28 +5,27 @@
 
 #define MTF_MOCK_IMPL_wal
 
+#include <hse/hse.h>
+
 #include <hse/error/merr.h>
+#include <hse/ikvdb/c0sk.h>
+#include <hse/ikvdb/ikvdb.h>
+#include <hse/ikvdb/key_hash.h>
+#include <hse/ikvdb/kvdb_ctxn.h>
+#include <hse/ikvdb/kvdb_rparams.h>
+#include <hse/ikvdb/kvs.h>
+#include <hse/ikvdb/limits.h>
+#include <hse/ikvdb/omf_version.h>
+#include <hse/mpool/mpool.h>
 #include <hse/util/bonsai_tree.h>
 #include <hse/util/event_counter.h>
 #include <hse/util/log2.h>
 
-#include <hse/ikvdb/ikvdb.h>
-#include <hse/ikvdb/kvs.h>
-#include <hse/ikvdb/limits.h>
-#include <hse/ikvdb/key_hash.h>
-#include <hse/ikvdb/kvdb_ctxn.h>
-#include <hse/ikvdb/kvdb_rparams.h>
-#include <hse/ikvdb/c0sk.h>
-#include <hse/ikvdb/omf_version.h>
-
-#include <hse/hse.h>
-#include <hse/mpool/mpool.h>
-
 #include "wal.h"
 #include "wal_buffer.h"
 #include "wal_file.h"
-#include "wal_omf.h"
 #include "wal_mdc.h"
+#include "wal_omf.h"
 #include "wal_replay.h"
 
 /* clang-format off */
@@ -226,8 +225,8 @@ wal_timer(struct work_struct *work)
             flushc = wal_bufset_flushoff(wal->wbs, WAL_BUF_MAX, flushv);
 
             while (!atomic_read(&wal->closing) && !atomic_read(&wal->error)) {
-                int rc = cv_timedwait(&wal->timer_cv, &wal->timer_mutex,
-                                      NSEC_TO_MSEC(intvl), "waltmslp");
+                int rc = cv_timedwait(
+                    &wal->timer_cv, &wal->timer_mutex, NSEC_TO_MSEC(intvl), "waltmslp");
                 if (rc != ETIMEDOUT)
                     break;
 
@@ -270,9 +269,9 @@ wal_sync_notifier(struct work_struct *work)
             err = kvdb_health_check(wal->health, KVDB_HEALTH_FLAG_ALL);
         closing = !!atomic_read(&wal->closing);
 
-        list_for_each_entry(swait, &wal->sync_waiters, ws_link) {
-            if (err ||
-                swait->ws_bufcnt <= wal_bufset_durcnt(wal->wbs, WAL_BUF_MAX, swait->ws_offv)) {
+        list_for_each_entry (swait, &wal->sync_waiters, ws_link) {
+            if (err || swait->ws_bufcnt <= wal_bufset_durcnt(wal->wbs, WAL_BUF_MAX, swait->ws_offv))
+            {
                 swait->ws_err = err;
                 cv_signal(&swait->ws_cv);
             }
@@ -334,7 +333,7 @@ wal_sync_impl(struct wal *wal, struct wal_sync_waiter *swait)
 merr_t
 wal_sync(struct wal *wal)
 {
-    struct wal_sync_waiter swait = {0};
+    struct wal_sync_waiter swait = { 0 };
 
     if (!wal)
         return merr(EINVAL);
@@ -350,7 +349,7 @@ wal_sync(struct wal *wal)
 static merr_t
 wal_cond_sync(struct wal *wal, uint64_t gen)
 {
-    struct wal_sync_waiter swait = {0};
+    struct wal_sync_waiter swait = { 0 };
     uint64_t start, end;
     uint32_t dur;
     merr_t err;
@@ -371,7 +370,6 @@ wal_cond_sync(struct wal *wal, uint64_t gen)
 
     return err;
 }
-
 
 /*
  * WAL data plane
@@ -507,11 +505,11 @@ wal_del_pfx(
 static merr_t
 wal_txn(
     struct wal *wal,
-    uint32_t    rtype,
-    uint64_t    txid,
-    uint64_t    seqno,
-    uint64_t    cid,
-    int64_t    *cookie)
+    uint32_t rtype,
+    uint64_t txid,
+    uint64_t seqno,
+    uint64_t cid,
+    int64_t *cookie)
 {
     struct wal_txnrec_omf *rec;
     uint64_t rid, offset, gen;
@@ -576,7 +574,7 @@ wal_op_finish(struct wal *wal, struct wal_record *rec, uint64_t seqno, uint64_t 
             else
                 rec->offset = WAL_ROFF_UNRECOV_ERR;
 
-            gen = gen ? : c0sk_gen_current();
+            gen = gen ?: c0sk_gen_current();
         }
 
         assert(gen);
@@ -592,9 +590,9 @@ wal_op_finish(struct wal *wal, struct wal_record *rec, uint64_t seqno, uint64_t 
 merr_t
 wal_create(struct mpool *mp, uint64_t *mdcid1, uint64_t *mdcid2)
 {
-    struct wal_mdc *          mdc;
-    merr_t                    err;
-    int                       i;
+    struct wal_mdc *mdc;
+    merr_t err;
+    int i;
 
     for (i = HSE_MCLASS_COUNT - 1; i >= HSE_MCLASS_BASE; i--) {
         if (mpool_mclass_is_configured(mp, i))
@@ -633,12 +631,12 @@ wal_destroy(struct mpool *mp, uint64_t oid1, uint64_t oid2)
 
 merr_t
 wal_open(
-    struct mpool           *mp,
-    struct kvdb_rparams    *rp,
+    struct mpool *mp,
+    struct kvdb_rparams *rp,
     struct wal_replay_info *rinfo,
-    struct ikvdb           *ikdb,
-    struct kvdb_health     *health,
-    struct wal            **wal_out)
+    struct ikvdb *ikdb,
+    struct kvdb_health *health,
+    struct wal **wal_out)
 {
     struct wal *wal;
     uint8_t mclass;
@@ -683,8 +681,8 @@ wal_open(
     if (err)
         goto errout;
 
-    wal->wfset = wal_fileset_open(mp, wal->dur_mclass, WAL_FILE_SIZE_BYTES,
-                                  WAL_MAGIC, wal->version);
+    wal->wfset =
+        wal_fileset_open(mp, wal->dur_mclass, WAL_FILE_SIZE_BYTES, WAL_MAGIC, wal->version);
     if (!wal->wfset) {
         err = merr(ENOMEM);
         goto errout;
@@ -711,8 +709,8 @@ wal_open(
         wal->dur_ms = clamp_t(uint32_t, rp->dur_intvl_ms, HSE_WAL_DUR_MS_MIN, HSE_WAL_DUR_MS_MAX);
 
     if (rp->dur_size_bytes != HSE_WAL_DUR_SIZE_BYTES_DFLT)
-        wal->dur_bytes = clamp_t(uint32_t, rp->dur_size_bytes,
-                                 HSE_WAL_DUR_SIZE_BYTES_MIN, HSE_WAL_DUR_SIZE_BYTES_MAX);
+        wal->dur_bytes = clamp_t(
+            uint32_t, rp->dur_size_bytes, HSE_WAL_DUR_SIZE_BYTES_MIN, HSE_WAL_DUR_SIZE_BYTES_MAX);
 
     if (rp->dur_bufsz_mb != HSE_WAL_DUR_BUFSZ_MB_DFLT)
         wal->dur_bufsz = (size_t)rp->dur_bufsz_mb << MB_SHIFT;
@@ -740,8 +738,7 @@ wal_open(
         const char *name = hse_mclass_name_get(mclass);
 
         if (!mpool_mclass_is_configured(mp, mclass)) {
-            log_err("%s media not configured, cannot set durability.mclass to \"%s\"",
-                    name, name);
+            log_err("%s media not configured, cannot set durability.mclass to \"%s\"", name, name);
             err = merr(ENOENT);
             goto errout;
         }
@@ -763,8 +760,8 @@ wal_open(
 
     wal->wiocb.iocb = wal_ionotify_cb;
     wal->wiocb.cbarg = wal;
-    wal->wbs = wal_bufset_open(wal->wfset, wal->dur_bufsz, wal->dur_bytes,
-                               &wal->wal_ingestgen, &wal->wiocb);
+    wal->wbs = wal_bufset_open(
+        wal->wfset, wal->dur_bufsz, wal->dur_bytes, &wal->wal_ingestgen, &wal->wiocb);
     if (!wal->wbs) {
         err = merr(ENOMEM);
         goto errout;
@@ -813,8 +810,9 @@ wal_close(struct wal *wal)
     }
 
     wal_bufset_close(wal->wbs);
-    wal_fileset_close(wal->wfset, atomic_read(&wal->wal_ingestseq),
-                      atomic_read(&wal->wal_ingestgen), atomic_read(&wal->wal_txhorizon));
+    wal_fileset_close(
+        wal->wfset, atomic_read(&wal->wal_ingestseq), atomic_read(&wal->wal_ingestgen),
+        atomic_read(&wal->wal_txhorizon));
 
     /* Ensure that the notify thread exits after all pending IOs are drained */
     if (wal->sync_notifier_running) {
@@ -839,7 +837,6 @@ wal_close(struct wal *wal)
 
     free(wal);
 }
-
 
 static void
 wal_reclaim(struct wal *wal, uint64_t seqno, uint64_t gen, uint64_t txhorizon)

@@ -10,12 +10,12 @@ struct cn_tree;
 struct route_map;
 struct kvs_cparams;
 
-#include <hse/util/minmax.h>
-#include <hse/util/keycmp.h>
-#include <hse/error/merr.h>
-
-#include <stdatomic.h>
 #include <rbtree.h>
+#include <stdatomic.h>
+
+#include <hse/error/merr.h>
+#include <hse/util/keycmp.h>
+#include <hse/util/minmax.h>
 
 /* MTF_MOCK_DECL(route) */
 
@@ -37,24 +37,20 @@ struct kvs_cparams;
  */
 struct route_node {
     union {
-        struct rb_node     rtn_node;
+        struct rb_node rtn_node;
         struct route_node *rtn_next;
     };
-    uint16_t           rtn_keylen;
-    bool               rtn_isfirst;
-    bool               rtn_islast;
-    uint32_t           rtn_keybufsz;
-    void              *rtn_tnode;
-    uint8_t           *rtn_keybufp;
-    uint8_t            rtn_keybuf[72];
+    uint16_t rtn_keylen;
+    bool rtn_isfirst;
+    bool rtn_islast;
+    uint32_t rtn_keybufsz;
+    void *rtn_tnode;
+    uint8_t *rtn_keybufp;
+    uint8_t rtn_keybuf[72];
 };
 
 struct route_node *
-route_map_insert(
-    struct route_map *map,
-    void             *tnode,
-    const void       *edge_key,
-    uint              edge_klen);
+route_map_insert(struct route_map *map, void *tnode, const void *edge_key, uint edge_klen);
 
 struct route_node *
 route_map_insert_by_node(struct route_map *map, struct route_node *node);
@@ -134,10 +130,10 @@ route_node_keycpy(struct route_node *node, void *kbuf, size_t kbuf_sz, uint *kle
 
 merr_t
 route_node_key_modify(
-    struct route_map  *map,
+    struct route_map *map,
     struct route_node *node,
-    const void        *edge_key,
-    uint               edge_klen);
+    const void *edge_key,
+    uint edge_klen);
 
 static HSE_ALWAYS_INLINE int
 route_node_keycmp(const void *key, uint klen, const struct route_node *node)
@@ -150,7 +146,6 @@ route_node_keycmp_prefix(const void *pfx, uint pfxlen, const struct route_node *
 {
     return keycmp_prefix(pfx, pfxlen, node->rtn_keybufp, node->rtn_keylen);
 }
-
 
 #if HSE_MOCKING
 #include "route_ut.h"

@@ -8,14 +8,13 @@
 
 #include <stdint.h>
 
-#include <hse/ikvdb/kvs.h>
-#include <hse/ikvdb/c0_kvset.h>
-#include <hse/ikvdb/throttle.h>
-
 #include <hse/error/merr.h>
-#include <hse/util/workqueue.h>
+#include <hse/ikvdb/c0_kvset.h>
+#include <hse/ikvdb/kvs.h>
+#include <hse/ikvdb/throttle.h>
 #include <hse/util/bin_heap.h>
 #include <hse/util/condvar.h>
+#include <hse/util/workqueue.h>
 
 /* MTF_MOCK_DECL(c0kvms) */
 
@@ -37,7 +36,7 @@ struct kvdb_callback;
  */
 struct c0_kvmultiset {
     struct cds_list_head c0ms_link;
-    struct list_head     c0ms_rcu;
+    struct list_head c0ms_rcu;
 };
 
 /**
@@ -59,13 +58,13 @@ struct c0_kvmultiset {
  */
 merr_t
 c0kvms_create(
-    uint32_t                    num_sets,
-    atomic_ulong          *kvdb_seq,
-    void * _Atomic        *stashp,
+    uint32_t num_sets,
+    atomic_ulong *kvdb_seq,
+    void *_Atomic *stashp,
     struct c0_kvmultiset **multiset);
 
 void
-c0kvms_destroy_cache(void * _Atomic *stashp);
+c0kvms_destroy_cache(void *_Atomic *stashp);
 
 void
 c0kvms_seqno_set(struct c0_kvmultiset *handle, uint64_t kvdb_seq);
@@ -267,17 +266,17 @@ c0kvms_width(struct c0_kvmultiset *mset);
 
 merr_t
 c0kvms_pfx_probe_rcu(
-    struct c0_kvmultiset *   kvms,
-    uint16_t                 skidx,
+    struct c0_kvmultiset *kvms,
+    uint16_t skidx,
     const struct kvs_ktuple *key,
-    uint64_t                 view_seqno,
-    uintptr_t                seqref,
-    uint32_t                 sfxlen,
-    enum key_lookup_res *    res,
-    struct query_ctx *       qctx,
-    struct kvs_buf *         kbuf,
-    struct kvs_buf *         vbuf,
-    uint64_t                 pt_seqno);
+    uint64_t view_seqno,
+    uintptr_t seqref,
+    uint32_t sfxlen,
+    enum key_lookup_res *res,
+    struct query_ctx *qctx,
+    struct kvs_buf *kbuf,
+    struct kvs_buf *vbuf,
+    uint64_t pt_seqno);
 
 /**
  * c0kvms_cursor_seek() - move iteration cursor
@@ -290,9 +289,9 @@ c0kvms_pfx_probe_rcu(
 void
 c0kvms_cursor_seek(
     struct c0_kvmultiset_cursor *cursor,
-    const void *                 prefix,
-    uint32_t                     pfx_len,
-    uint32_t                     ct_pfx_len);
+    const void *prefix,
+    uint32_t pfx_len,
+    uint32_t ct_pfx_len);
 
 void
 c0kvms_cursor_prepare(struct c0_kvmultiset_cursor *cur);
@@ -328,13 +327,13 @@ c0kvms_cursor_get_source(struct c0_kvmultiset_cursor *cursor);
  */
 merr_t
 c0kvms_cursor_create(
-    struct c0_kvmultiset *       kvms,
+    struct c0_kvmultiset *kvms,
     struct c0_kvmultiset_cursor *cursor,
-    int                          skidx,
-    const void *                 pfx,
-    size_t                       pfx_len,
-    size_t                       ct_pfx_len,
-    bool                         reverse);
+    int skidx,
+    const void *pfx,
+    size_t pfx_len,
+    size_t ct_pfx_len,
+    bool reverse);
 
 /**
  * c0kvms_cursor_destroy() - release the c0kvms cursor memory

@@ -3,20 +3,20 @@
  * Copyright (C) 2021-2022 Micron Technology, Inc.  All rights reserved.
  */
 
-#include <sys/mman.h>
+#include <crc32c.h>
 
 #include <bsd/string.h>
-#include <crc32c.h>
+#include <sys/mman.h>
 
 #include <hse/logging/logging.h>
 #include <hse/util/event_counter.h>
 #include <hse/util/page.h>
 
+#include "io.h"
+#include "mclass.h"
 #include "mdc.h"
 #include "mdc_file.h"
-#include "mclass.h"
 #include "omf.h"
-#include "io.h"
 
 /**
  * struct mdc_file - MDC file handle
@@ -42,19 +42,19 @@ struct mdc_file {
     struct mdc_loghdr lh;
 
     uint64_t logid;
-    int      fd;
-    bool     need_dsync;
+    int fd;
+    bool need_dsync;
 
-    off_t  raoff;
-    off_t  woff;
-    off_t  roff;
-    off_t  syncoff;
+    off_t raoff;
+    off_t woff;
+    off_t roff;
+    off_t syncoff;
     size_t size;
     size_t maxsz;
 
     struct io_ops io;
-    char         *addr;
-    char          name[MDC_NAME_LENGTH_MAX];
+    char *addr;
+    char name[MDC_NAME_LENGTH_MAX];
 };
 
 static void
@@ -72,7 +72,7 @@ loghdr_update_byfd(int fd, struct mdc_loghdr *lh, uint64_t gen)
     struct mdc_loghdr_omf lhomf;
     merr_t err;
     size_t len;
-    int    cc, rc;
+    int cc, rc;
 
     loghdr_init(lh, gen);
 
@@ -113,7 +113,7 @@ static merr_t
 loghdr_validate(struct mdc_file *mfp, bool gclose, uint64_t *gen)
 {
     struct mdc_loghdr *lh;
-    merr_t             err;
+    merr_t err;
 
     lh = &mfp->lh;
 
@@ -152,14 +152,14 @@ logrec_validate(struct mdc_file *mfp, char *addr, bool gclose, size_t *recsz)
 
 merr_t
 mdc_file_create(
-    int             dirfd,
-    const char     *name,
-    int             flags,
-    int             mode,
+    int dirfd,
+    const char *name,
+    int flags,
+    int mode,
     enum hse_mclass mclass,
-    size_t          capacity)
+    size_t capacity)
 {
-    int    fd, rc;
+    int fd, rc;
     merr_t err = 0;
 
     fd = openat(dirfd, name, flags, mode);
@@ -199,7 +199,7 @@ errout:
 merr_t
 mdc_file_destroy(int dirfd, const char *name)
 {
-    int  rc;
+    int rc;
 
     rc = unlinkat(dirfd, name, 0);
     if (rc == 0)
@@ -213,8 +213,8 @@ merr_t
 mdc_file_commit(int dirfd, const char *name)
 {
     struct mdc_loghdr lh;
-    merr_t            err = 0;
-    int               fd;
+    merr_t err = 0;
+    int fd;
 
     fd = openat(dirfd, name, O_RDWR);
     if (fd < 0)
@@ -273,10 +273,10 @@ mdc_file_unmap(struct mdc_file *mfp)
 static merr_t
 mdc_file_validate(struct mdc_file *mfp, bool gclose, uint64_t *gen)
 {
-    char  *addr;
+    char *addr;
     merr_t err;
-    int    rc;
-    int    rhlen;
+    int rc;
+    int rhlen;
 
     if (!mfp)
         return merr(EINVAL);
@@ -336,7 +336,7 @@ merr_t
 mdc_file_size(int fd, size_t *size)
 {
     struct stat s;
-    int         rc;
+    int rc;
 
     rc = fstat(fd, &s);
     if (rc == -1)
@@ -350,16 +350,16 @@ mdc_file_size(int fd, size_t *size)
 merr_t
 mdc_file_open(
     struct mpool_mdc *mdc,
-    int               dirfd,
-    const char       *name,
-    uint64_t          logid,
-    bool              rdonly,
-    bool              gclose,
-    uint64_t         *gen,
+    int dirfd,
+    const char *name,
+    uint64_t logid,
+    bool rdonly,
+    bool gclose,
+    uint64_t *gen,
     struct mdc_file **handle)
 {
     struct mdc_file *mfp;
-    int    fd;
+    int fd;
     merr_t err;
 
     if (!mdc)
@@ -437,7 +437,7 @@ merr_t
 mdc_file_erase(struct mdc_file *mfp, uint64_t newgen)
 {
     merr_t err;
-    int    rc;
+    int rc;
 
     if (!mfp)
         return merr(EINVAL);
@@ -451,8 +451,9 @@ mdc_file_erase(struct mdc_file *mfp, uint64_t newgen)
         if (err)
             return err;
 
-        rc = fallocate(mfp->fd, FALLOC_FL_ZERO_RANGE | FALLOC_FL_KEEP_SIZE,
-                       MDC_LOGHDR_LEN, mfp->size - MDC_LOGHDR_LEN);
+        rc = fallocate(
+            mfp->fd, FALLOC_FL_ZERO_RANGE | FALLOC_FL_KEEP_SIZE, MDC_LOGHDR_LEN,
+            mfp->size - MDC_LOGHDR_LEN);
         if (rc == -1) {
             if (errno != EOPNOTSUPP)
                 return merr(errno);
@@ -500,7 +501,7 @@ mdc_file_gen(struct mdc_file *mfp, uint64_t *gen)
 merr_t
 mdc_file_exists(int dirfd, const char *name1, const char *name2, bool *exist)
 {
-    int    rc;
+    int rc;
     merr_t err;
 
     *exist = false;
@@ -593,9 +594,9 @@ merr_t
 mdc_file_read(struct mdc_file *mfp, void *data, size_t len, bool verify, size_t *rdlen)
 {
     struct mdc_rechdr rh;
-    char             *addr;
-    int               rhlen, rc;
-    merr_t            err;
+    char *addr;
+    int rhlen, rc;
+    merr_t err;
 
     if (!mfp || (len && !data))
         return merr(EINVAL);
@@ -654,7 +655,7 @@ static merr_t
 mdc_file_extend(struct mdc_file *mfp, size_t minsz)
 {
     merr_t err;
-    int    rc;
+    int rc;
     size_t sz;
 
     sz = 2 * mfp->size;
@@ -693,8 +694,8 @@ static merr_t
 mdc_file_append_sys(struct mdc_file *mfp, void *data, size_t len)
 {
     struct mdc_rechdr_omf rhomf = {};
-    struct iovec          iov[2];
-    merr_t   err;
+    struct iovec iov[2];
+    merr_t err;
 
     omf_mdc_rechdr_pack(data, len, &rhomf);
 
@@ -717,7 +718,7 @@ static merr_t
 mdc_file_append_mem(struct mdc_file *mfp, void *data, size_t len)
 {
     struct mdc_rechdr_omf *rhomf;
-    char    *addr;
+    char *addr;
 
     addr = mfp->addr + mfp->woff;
     assert(IS_ALIGNED((unsigned long)addr, sizeof(uint64_t)));

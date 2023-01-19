@@ -3,22 +3,23 @@
  * Copyright (C) 2022 Micron Technology, Inc.  All rights reserved.
  */
 
-#include <stdio.h>
 #include <stdarg.h>
+#include <stdio.h>
+
+#include <cn/kvset.h>
+#include <cndb/omf.h>
+
+#include <hse/hse.h>
 
 #include <hse/cli/program.h>
-#include <hse/hse.h>
 #include <hse/ikvdb/cndb.h>
 #include <hse/ikvdb/diag_kvdb.h>
 #include <hse/mpool/mpool.h>
 
-#include <cndb/omf.h>
-#include <cn/kvset.h>
-
 #include "cndb_reader.h"
+#include "commands.h"
 #include "fatal.h"
 #include "globals.h"
-#include "commands.h"
 
 /* globals */
 struct global_opts global_opts;

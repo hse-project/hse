@@ -3,17 +3,15 @@
  * Copyright (C) 2022 Micron Technology, Inc.  All rights reserved.
  */
 
-#include <mtf/framework.h>
-#include <mock/api.h>
-
-#include <hse/util/platform.h>
-
 #include <cn/cn_tree_compact.h>
 #include <cn/cn_tree_internal.h>
 #include <cn/kvset.h>
 #include <cn/move.h>
-
+#include <mock/api.h>
 #include <mocks/mock_kvset.h>
+#include <mtf/framework.h>
+
+#include <hse/util/platform.h>
 
 int
 pre(struct mtf_test_info *info)
@@ -41,13 +39,13 @@ init_node(struct cn_tree_node *tn, uint64_t nodeid)
 
 static merr_t
 create_kvset(
-    struct cn_tree      *tree,
+    struct cn_tree *tree,
     struct cn_tree_node *tn,
-    uint64_t             kvsetid,
-    uint64_t             dgen_hi,
-    uint64_t             dgen_lo,
-    uint32_t             compc,
-    struct kvset       **kvset)
+    uint64_t kvsetid,
+    uint64_t dgen_hi,
+    uint64_t dgen_lo,
+    uint32_t compc,
+    struct kvset **kvset)
 {
     struct kvset_meta km = { 0 };
 
@@ -65,7 +63,7 @@ get_kvset_cnt(struct cn_tree_node *tn)
     struct list_head *node;
     uint cnt = 0;
 
-    list_for_each(node, &tn->tn_kvset_list) {
+    list_for_each (node, &tn->tn_kvset_list) {
         cnt++;
     }
 
@@ -329,7 +327,7 @@ MTF_DEFINE_UTEST_PRE(move_test, dgen_compc_order, pre)
     ASSERT_EQ(6, get_kvset_cnt(&tn));
 
     prev = NULL;
-    list_for_each_entry(cur, &tn.tn_kvset_list, le_link) {
+    list_for_each_entry (cur, &tn.tn_kvset_list, le_link) {
         if (prev) {
             ASSERT_LE(kvset_get_compc(prev->le_kvset), kvset_get_compc(cur->le_kvset));
             ASSERT_EQ(true, kvset_younger(prev->le_kvset, cur->le_kvset));

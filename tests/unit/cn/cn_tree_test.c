@@ -5,30 +5,27 @@
 
 #include <stdint.h>
 
+#include <cn/cn_internal.h>
+#include <cn/cn_tree.h>
+#include <cn/cn_tree_compact.h>
+#include <cn/cn_tree_create.h>
+#include <cn/cn_tree_internal.h>
+#include <cn/cn_tree_iter.h>
+#include <cn/kv_iterator.h>
+#include <cn/kvset.h>
 #include <mtf/framework.h>
-
-#include <hse/error/merr.h>
-#include <hse/logging/logging.h>
-#include <hse/util/keycmp.h>
 
 #include <hse/limits.h>
 
+#include <hse/error/merr.h>
+#include <hse/ikvdb/cn.h>
+#include <hse/ikvdb/kvdb_health.h>
 #include <hse/ikvdb/kvs_rparams.h>
 #include <hse/ikvdb/limits.h>
-#include <hse/ikvdb/kvdb_health.h>
-#include <hse/ikvdb/cn.h>
+#include <hse/logging/logging.h>
+#include <hse/util/keycmp.h>
 
-#include <cn/cn_tree.h>
-#include <cn/cn_tree_iter.h>
-#include <cn/cn_tree_internal.h>
-#include <cn/cn_tree_create.h>
-#include <cn/cn_tree_compact.h>
-
-#include <cn/cn_internal.h>
-#include <cn/kvset.h>
-#include <cn/kv_iterator.h>
-
-struct mpool *     mock_ds = (void *)0x1234abcd;
+struct mpool *mock_ds = (void *)0x1234abcd;
 struct kvdb_health mock_health;
 struct kvs_rparams rp_struct, *rp;
 
@@ -39,20 +36,20 @@ struct kvs_rparams rp_struct, *rp;
  */
 struct fake_kvset {
     struct kvset_list_entry kle;
-    uint64_t                nodeid;
-    uint32_t                timestamp;
-    uint32_t                kvsets_in_node;
-    uint32_t                nk;
-    uint32_t                nv;
-    uint64_t                dgen_hi;
-    uint64_t                dgen_lo;
-    uint64_t                vused;
-    const void             *work;
-    struct kvset_stats      stats;
-    struct vgmap           *vgmap;
-    char                    min_key;
-    char                    max_key;
-    struct fake_kvset *     next;
+    uint64_t nodeid;
+    uint32_t timestamp;
+    uint32_t kvsets_in_node;
+    uint32_t nk;
+    uint32_t nv;
+    uint64_t dgen_hi;
+    uint64_t dgen_lo;
+    uint64_t vused;
+    const void *work;
+    struct kvset_stats stats;
+    struct vgmap *vgmap;
+    char min_key;
+    char max_key;
+    struct fake_kvset *next;
 };
 
 const struct kvset_stats fake_kvset_stats = {
@@ -119,14 +116,10 @@ fake_kvset_open(struct fake_kvset **head, uint64_t dgen)
 }
 
 static struct fake_kvset *
-fake_kvset_open_add(
-    struct fake_kvset **head,
-    struct cn_tree *    tree,
-    uint64_t            nodeid,
-    uint64_t            dgen)
+fake_kvset_open_add(struct fake_kvset **head, struct cn_tree *tree, uint64_t nodeid, uint64_t dgen)
 {
     struct fake_kvset *kvset;
-    merr_t             err;
+    merr_t err;
 
     kvset = fake_kvset_open(head, dgen);
     if (!kvset)
@@ -168,8 +161,7 @@ _kvset_younger(const struct kvset *ks1, const struct kvset *ks2)
 {
     uint64_t hi1 = _kvset_get_dgen(ks1), hi2 = _kvset_get_dgen(ks2);
 
-    return (hi1 > hi2 ||
-            (hi1 == hi2 && _kvset_get_dgen_lo(ks1) >= _kvset_get_dgen_lo(ks2)));
+    return (hi1 > hi2 || (hi1 == hi2 && _kvset_get_dgen_lo(ks1) >= _kvset_get_dgen_lo(ks2)));
 }
 
 static const void *
@@ -227,12 +219,12 @@ struct mocked_kvset_iter {
 
 static merr_t
 _kvset_iter_create(
-    struct kvset *           kvset,
+    struct kvset *kvset,
     struct workqueue_struct *workq,
     struct workqueue_struct *vra_wq,
-    struct perfc_set *       pc,
-    enum kvset_iter_flags    flags,
-    struct kv_iterator **    handle)
+    struct perfc_set *pc,
+    enum kvset_iter_flags flags,
+    struct kv_iterator **handle)
 {
     struct mocked_kvset_iter *mk;
 
@@ -281,7 +273,7 @@ struct mapi_injection inject_list[] = {
     { mapi_idx_kvset_get_ref, MAPI_RC_SCALAR, 0 },
     { mapi_idx_kvset_delete_log_record, MAPI_RC_SCALAR, 0 },
     { mapi_idx_kvset_mark_mblocks_for_delete, MAPI_RC_SCALAR, 0 },
-    { mapi_idx_kvset_madvise_hblk, MAPI_RC_SCALAR, 0},
+    { mapi_idx_kvset_madvise_hblk, MAPI_RC_SCALAR, 0 },
     { mapi_idx_kvset_madvise_kblks, MAPI_RC_SCALAR, 0 },
     { mapi_idx_kvset_madvise_vblks, MAPI_RC_SCALAR, 0 },
     { mapi_idx_kvset_madvise_vmaps, MAPI_RC_SCALAR, 0 },
@@ -292,7 +284,7 @@ struct mapi_injection inject_list[] = {
     { mapi_idx_kvset_get_hlog, MAPI_RC_SCALAR, 0 },
     { mapi_idx_kvset_get_vbsetv, MAPI_RC_SCALAR, 0 },
     { mapi_idx_kvset_get_vgroups, MAPI_RC_SCALAR, 1 },
-    { mapi_idx_vgmap_vbidx_out_end, MAPI_RC_SCALAR, 0},
+    { mapi_idx_vgmap_vbidx_out_end, MAPI_RC_SCALAR, 0 },
 
     /* cn */
     { mapi_idx_cn_kcompact, MAPI_RC_SCALAR, 0 },
@@ -410,9 +402,9 @@ MTF_BEGIN_UTEST_COLLECTION_PREPOST(test, preload, postload);
 
 MTF_DEFINE_UTEST_PRE(test, t_create_error_paths, test_setup)
 {
-    merr_t             err;
-    struct cn_tree *   tree = 0;
-    uint32_t           api = mapi_idx_malloc;
+    merr_t err;
+    struct cn_tree *tree = 0;
+    uint32_t api = mapi_idx_malloc;
     struct kvs_cparams cp;
 
     memset(&cp, 0, sizeof(cp));
@@ -453,9 +445,8 @@ MTF_DEFINE_UTEST_PRE(test, t_simple_api, test_setup)
 {
     merr_t err;
 
-    struct cn_tree *    tree = 0;
-    struct kvs_cparams *out,
-        cp = { .pfx_len = 12 };
+    struct cn_tree *tree = 0;
+    struct kvs_cparams *out, cp = { .pfx_len = 12 };
 
     err = cn_tree_create(&tree, 0, &cp, &mock_health, rp);
     ASSERT_EQ(err, 0);
@@ -469,15 +460,14 @@ MTF_DEFINE_UTEST_PRE(test, t_simple_api, test_setup)
 
 MTF_DEFINE_UTEST_PRE(test, t_cn_tree_ingest_update, test_setup)
 {
-    struct cn_tree *         tree;
-    struct cn_tree_node *    node;
-    merr_t                   err;
-    struct kvset *           kvsetv[4];
+    struct cn_tree *tree;
+    struct cn_tree_node *node;
+    merr_t err;
+    struct kvset *kvsetv[4];
     struct kvset_list_entry *le;
-    uint                     i;
+    uint i;
 
-    struct kvs_cparams cp = {
-    };
+    struct kvs_cparams cp = {};
 
     err = cn_tree_create(&tree, 0, &cp, &mock_health, rp);
     ASSERT_EQ(err, 0);
@@ -522,15 +512,15 @@ struct iter_verify {
     uint32_t counter;
     uint32_t prev_kvset_timestamp;
     uint64_t prev_nodeid;
-    bool     order_oldest_first;
+    bool order_oldest_first;
 };
 
 struct test {
     struct mtf_test_info *mtf;
-    struct test_params    p;
-    struct iter_verify    iter;
-    struct fake_kvset *   kvset_list;
-    struct cn_tree *      tree;
+    struct test_params p;
+    struct iter_verify iter;
+    struct fake_kvset *kvset_list;
+    struct cn_tree *tree;
 };
 
 static void
@@ -549,14 +539,14 @@ num_kvsets_in_node(uint64_t nodeid)
 
 static int
 tree_iter_callback(
-    void *               rock,
-    struct cn_tree *     tree,
+    void *rock,
+    struct cn_tree *tree,
     struct cn_tree_node *node,
-    struct kvset *       handle)
+    struct kvset *handle)
 {
-    struct test          *t = rock;
+    struct test *t = rock;
     struct mtf_test_info *lcl_ti = t->mtf;
-    struct fake_kvset *   kvset = (struct fake_kvset *)handle;
+    struct fake_kvset *kvset = (struct fake_kvset *)handle;
 
     if (!handle)
         return 0;
@@ -674,7 +664,7 @@ static void
 test_tree(struct test *t)
 {
     struct mtf_test_info *lcl_ti = t->mtf;
-    merr_t                err;
+    merr_t err;
 
     err = test_tree_create(t);
     ASSERT_TRUE(err == 0);
@@ -689,11 +679,10 @@ static void
 create(struct test *t)
 {
     struct mtf_test_info *lcl_ti = t->mtf;
-    merr_t                err;
-    struct cn_tree *      tree = 0;
+    merr_t err;
+    struct cn_tree *tree = 0;
 
-    struct kvs_cparams cp = {
-    };
+    struct kvs_cparams cp = {};
 
     err = cn_tree_create(&tree, 0, &cp, &mock_health, rp);
     ASSERT_TRUE(err == 0);
@@ -708,15 +697,15 @@ cn_comp_work_completion(struct cn_compaction_work *w)
 
 static void
 cn_comp_work_init(
-    struct test *              t,
-    struct cn_tree_node *      tn,
+    struct test *t,
+    struct cn_tree_node *tn,
     struct cn_compaction_work *w,
-    enum cn_action             action,
-    bool                       use_token)
+    enum cn_action action,
+    bool use_token)
 {
     struct kvset_list_entry *le;
-    struct list_head *       head = &tn->tn_kvset_list;
-    struct kvset_stats *     stats;
+    struct list_head *head = &tn->tn_kvset_list;
+    struct kvset_stats *stats;
 
     memset(w, 0, sizeof(*w));
 
@@ -728,7 +717,8 @@ cn_comp_work_init(
 
     /* walk from tail (oldest), skip kvsets that are busy */
     for (le = list_last_entry(head, typeof(*le), le_link); &le->le_link != head;
-         le = list_prev_entry(le, le_link)) {
+         le = list_prev_entry(le, le_link))
+    {
 
         if (!w->cw_mark) {
             w->cw_mark = le;
@@ -768,10 +758,10 @@ MTF_DEFINE_UTEST_PRE(test, t_cn_comp, test_setup)
         for (int cancel = 0; cancel < 2; cancel++) {
 
             struct test_params tp = {};
-            struct test        t = {};
-            merr_t             err;
+            struct test t = {};
+            merr_t err;
 
-            struct cn_tree_node *     tn;
+            struct cn_tree_node *tn;
             struct cn_compaction_work w;
 
             tp.fanout_bits = 4;
@@ -848,7 +838,8 @@ MTF_DEFINE_UTEST_PRE(test, cn_node_get_minmax, test_setup)
     MTF_DEFINE_UTEST_PRE(test, NAME##_##N1##V1, test_setup) \
     {                                                       \
         struct test_params tp = {                           \
-            .N1 = V1, .verbose = VERBOSE,                   \
+            .N1 = V1,                                       \
+            .verbose = VERBOSE,                             \
         };                                                  \
         struct test test;                                   \
                                                             \
@@ -860,7 +851,9 @@ MTF_DEFINE_UTEST_PRE(test, cn_node_get_minmax, test_setup)
     MTF_DEFINE_UTEST_PRE(test, NAME##_##N1##V1##_##N2##V2, test_setup) \
     {                                                                  \
         struct test_params tp = {                                      \
-            .N1 = V1, .N2 = V2, .verbose = VERBOSE,                    \
+            .N1 = V1,                                                  \
+            .N2 = V2,                                                  \
+            .verbose = VERBOSE,                                        \
         };                                                             \
         struct test test;                                              \
                                                                        \

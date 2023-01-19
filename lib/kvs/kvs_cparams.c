@@ -7,9 +7,10 @@
 #include <stddef.h>
 
 #include <hse/limits.h>
-#include <hse/ikvdb/limits.h>
+
 #include <hse/config/params.h>
 #include <hse/ikvdb/kvs_cparams.h>
+#include <hse/ikvdb/limits.h>
 #include <hse/util/base.h>
 
 static const struct param_spec pspecs[] = {
@@ -77,20 +78,20 @@ kvs_cparams_defaults()
 
 merr_t
 kvs_cparams_get(
-    const struct kvs_cparams *const params,
-    const char *const               param,
-    char *const                     buf,
-    const size_t                    buf_sz,
-    size_t *const                   needed_sz)
+    const struct kvs_cparams * const params,
+    const char * const param,
+    char * const buf,
+    const size_t buf_sz,
+    size_t * const needed_sz)
 {
     return params_get(params, NELEM(pspecs), pspecs, param, buf, buf_sz, needed_sz);
 }
 
 merr_t
 kvs_cparams_from_paramv(
-    struct kvs_cparams *const params,
-    const size_t              paramc,
-    const char *const *const  paramv)
+    struct kvs_cparams * const params,
+    const size_t paramc,
+    const char * const * const paramv)
 {
     assert(params);
 
@@ -98,7 +99,7 @@ kvs_cparams_from_paramv(
 }
 
 cJSON *
-kvs_cparams_to_json(const struct kvs_cparams *const params)
+kvs_cparams_to_json(const struct kvs_cparams * const params)
 {
     if (!params)
         return NULL;

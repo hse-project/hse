@@ -4,17 +4,17 @@
  */
 
 #include <hse/util/alloc.h>
-#include <hse/util/slab.h>
-#include <hse/util/page.h>
 #include <hse/util/event_counter.h>
+#include <hse/util/page.h>
+#include <hse/util/slab.h>
 #include <hse/util/table.h>
 
 struct table *
 table_create(uint capacity, size_t elemsz, bool zerofill)
 {
     struct table *tab;
-    void *        mem;
-    size_t        sz;
+    void *mem;
+    size_t sz;
 
     if (capacity == 0)
         capacity = 1;
@@ -88,7 +88,7 @@ static void *
 table_grow(struct table *tab, uint n)
 {
     size_t sz;
-    void * p;
+    void *p;
 
     if (ev(n > tab->capacity)) {
         if (n < tab->capacity * 2)

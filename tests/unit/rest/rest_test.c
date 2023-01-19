@@ -9,24 +9,23 @@
 #include <mtf/framework.h>
 
 #include <hse/cli/rest/client.h>
+#include <hse/error/merr.h>
 #include <hse/rest/headers.h>
 #include <hse/rest/request.h>
 #include <hse/rest/response.h>
 #include <hse/rest/server.h>
 #include <hse/rest/status.h>
 
-#include <hse/error/merr.h>
-
 char socket_path[PATH_MAX];
 
 enum rest_status
-ok(const struct rest_request *const req, struct rest_response *const resp, void *const ctx)
+ok(const struct rest_request * const req, struct rest_response * const resp, void * const ctx)
 {
     return REST_STATUS_OK;
 }
 
 enum rest_status
-body(const struct rest_request *const req, struct rest_response *const resp, void *const ctx)
+body(const struct rest_request * const req, struct rest_response * const resp, void * const ctx)
 {
     merr_t err;
 
@@ -51,16 +50,17 @@ static rest_handler *handlers[][REST_METHOD_COUNT] = {
 };
 
 int
-collection_pre(struct mtf_test_info *const lcl_ti)
+collection_pre(struct mtf_test_info * const lcl_ti)
 {
-    snprintf(socket_path, sizeof(socket_path), "/tmp/hse-%s-%d.sock",
-        lcl_ti->ti_coll->tci_coll_name, getpid());
+    snprintf(
+        socket_path, sizeof(socket_path), "/tmp/hse-%s-%d.sock", lcl_ti->ti_coll->tci_coll_name,
+        getpid());
 
     return merr_errno(rest_client_init(socket_path));
 }
 
 int
-collection_post(struct mtf_test_info *const lcl_ti)
+collection_post(struct mtf_test_info * const lcl_ti)
 {
     rest_client_fini();
 
@@ -68,7 +68,7 @@ collection_post(struct mtf_test_info *const lcl_ti)
 }
 
 int
-test_pre(struct mtf_test_info *const lcl_ti)
+test_pre(struct mtf_test_info * const lcl_ti)
 {
     merr_t err;
 
@@ -123,19 +123,18 @@ MTF_DEFINE_UTEST_PREPOST(rest_test, remove_endpoint, test_pre, test_post)
     ASSERT_EQ(ENOENT, merr_errno(err));
 }
 
-struct response_ctx
-{
+struct response_ctx {
     enum rest_status status;
 };
 
 static merr_t
 get_status(
     const long status,
-    const char *const headers,
+    const char * const headers,
     const size_t headers_len,
-    const char *const output,
+    const char * const output,
     const size_t output_len,
-    void *const arg)
+    void * const arg)
 {
     struct response_ctx *ctx = arg;
 
@@ -253,11 +252,11 @@ MTF_DEFINE_UTEST_PREPOST(rest_test, inexact, test_pre, test_post)
 static merr_t
 check_response_body(
     const long status,
-    const char *const headers,
+    const char * const headers,
     const size_t headers_len,
-    const char *const output,
+    const char * const output,
     const size_t output_len,
-    void *const arg)
+    void * const arg)
 {
     struct response_ctx *ctx = arg;
 
@@ -266,8 +265,7 @@ check_response_body(
     if (strncmp(output, "\"hello world\"", output_len) != 0)
         return merr(EINVAL);
 
-    if (!strstr(headers, REST_MAKE_STATIC_HEADER(REST_HEADER_CONTENT_TYPE,
-            REST_APPLICATION_JSON)))
+    if (!strstr(headers, REST_MAKE_STATIC_HEADER(REST_HEADER_CONTENT_TYPE, REST_APPLICATION_JSON)))
         return merr(EINVAL);
 
     return 0;

@@ -5,33 +5,31 @@
 
 #include <stdint.h>
 
+#include <c0/c0_kvset_internal.h>
 #include <mtf/framework.h>
 
 #include <hse/error/merr.h>
-#include <hse/util/seqno.h>
-#include <hse/util/keycmp.h>
-
-#include <hse/test/support/random_buffer.h>
-#include <hse/ikvdb/limits.h>
 #include <hse/ikvdb/c0_kvset.h>
 #include <hse/ikvdb/c0_kvset_iterator.h>
-
-#include <c0/c0_kvset_internal.h>
+#include <hse/ikvdb/limits.h>
+#include <hse/test/support/random_buffer.h>
+#include <hse/util/keycmp.h>
+#include <hse/util/seqno.h>
 
 MTF_BEGIN_UTEST_COLLECTION(c0_kvset_iterator_test);
 
 MTF_DEFINE_UTEST(c0_kvset_iterator_test, basic_construction)
 {
-    struct c0_kvset *        kvs;
-    merr_t                   err = 0;
-    struct call_rcu_data *   rcu_thrd;
-    uint32_t                 kbuf[1], vbuf[1];
-    const uint32_t           insert_count = 10000;
-    struct kvs_ktuple        kt;
-    struct kvs_vtuple        vt;
+    struct c0_kvset *kvs;
+    merr_t err = 0;
+    struct call_rcu_data *rcu_thrd;
+    uint32_t kbuf[1], vbuf[1];
+    const uint32_t insert_count = 10000;
+    struct kvs_ktuple kt;
+    struct kvs_vtuple vt;
     struct c0_kvset_iterator iter, riter;
-    int                      i;
-    uint                     keys[insert_count];
+    int i;
+    uint keys[insert_count];
 
     rcu_thrd = create_call_rcu_data(0, -1);
     ASSERT_TRUE(rcu_thrd);
@@ -64,21 +62,21 @@ MTF_DEFINE_UTEST(c0_kvset_iterator_test, basic_construction)
 
 MTF_DEFINE_UTEST(c0_kvset_iterator_test, element_source)
 {
-    merr_t                   err = 0;
-    struct call_rcu_data *   rcu_thrd;
-    struct c0_kvset *        kvs;
-    struct c0_kvset_impl *   kvs_impl;
+    merr_t err = 0;
+    struct call_rcu_data *rcu_thrd;
+    struct c0_kvset *kvs;
+    struct c0_kvset_impl *kvs_impl;
     struct c0_kvset_iterator iter, riter;
-    const uint32_t           insert_count = 10000;
-    uint32_t                 kbuf[1], vbuf[1];
-    struct kvs_ktuple        kt;
-    struct kvs_vtuple        vt;
-    int                      i;
-    struct element_source *  es;
-    bool                     br;
-    int                      source_count;
-    struct bonsai_kv *       last_bkv, *bkv;
-    uint                     keys[insert_count];
+    const uint32_t insert_count = 10000;
+    uint32_t kbuf[1], vbuf[1];
+    struct kvs_ktuple kt;
+    struct kvs_vtuple vt;
+    int i;
+    struct element_source *es;
+    bool br;
+    int source_count;
+    struct bonsai_kv *last_bkv, *bkv;
+    uint keys[insert_count];
 
     rcu_thrd = create_call_rcu_data(0, -1);
     ASSERT_TRUE(rcu_thrd);
@@ -146,9 +144,7 @@ MTF_DEFINE_UTEST(c0_kvset_iterator_test, element_source)
 
         /* Validate that the keys are traversed in order */
         int rc = keycmp(
-            last_bkv->bkv_key,
-            key_imm_klen(&last_bkv->bkv_key_imm),
-            bkv->bkv_key,
+            last_bkv->bkv_key, key_imm_klen(&last_bkv->bkv_key_imm), bkv->bkv_key,
             key_imm_klen(&bkv->bkv_key_imm));
 
         if (source_count)
@@ -186,9 +182,7 @@ MTF_DEFINE_UTEST(c0_kvset_iterator_test, element_source)
 
         /* Validate that the keys are traversed in order */
         int rc = keycmp(
-            bkv->bkv_key,
-            key_imm_klen(&bkv->bkv_key_imm),
-            last_bkv->bkv_key,
+            bkv->bkv_key, key_imm_klen(&bkv->bkv_key_imm), last_bkv->bkv_key,
             key_imm_klen(&last_bkv->bkv_key_imm));
 
         if (source_count)
@@ -214,25 +208,25 @@ MTF_DEFINE_UTEST(c0_kvset_iterator_test, element_source)
 
 MTF_DEFINE_UTEST(c0_kvset_iterator_test, seek)
 {
-    merr_t                   err = 0;
-    struct call_rcu_data *   rcu_thrd;
-    struct c0_kvset *        kvs;
-    struct c0_kvset_impl *   kvs_impl;
+    merr_t err = 0;
+    struct call_rcu_data *rcu_thrd;
+    struct c0_kvset *kvs;
+    struct c0_kvset_impl *kvs_impl;
     struct c0_kvset_iterator iter, riter;
     struct c0_kvset_iterator bkvs_iter, bkvs_riter;
     struct c0_kvset_iterator gkvs_iter, gkvs_riter;
-    const uint32_t           insert_count = 10000;
-    uint32_t                 kbuf[1], vbuf[1];
-    struct kvs_ktuple        kt;
-    struct kvs_vtuple        vt;
-    int                      i;
-    struct element_source *  es;
-    bool                     br;
-    int                      source_count;
-    struct bonsai_kv *       last_bkv = NULL, *bkv;
-    void *                   seek;
-    int                      seeklen;
-    uint                     keys[insert_count];
+    const uint32_t insert_count = 10000;
+    uint32_t kbuf[1], vbuf[1];
+    struct kvs_ktuple kt;
+    struct kvs_vtuple vt;
+    int i;
+    struct element_source *es;
+    bool br;
+    int source_count;
+    struct bonsai_kv *last_bkv = NULL, *bkv;
+    void *seek;
+    int seeklen;
+    uint keys[insert_count];
 
     rcu_thrd = create_call_rcu_data(0, -1);
     ASSERT_TRUE(rcu_thrd);

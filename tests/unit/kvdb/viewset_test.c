@@ -3,16 +3,16 @@
  * Copyright (C) 2015-2021 Micron Technology, Inc.  All rights reserved.
  */
 
-#include <mtf/framework.h>
-#include <mock/api.h>
-#include <mock/alloc_tester.h>
-
-#include <kvdb/viewset.h>
-
 #include <pthread.h>
 #include <stdio.h>
-#include <sys/sysinfo.h>
 #include <unistd.h>
+
+#include <kvdb/viewset.h>
+#include <mock/alloc_tester.h>
+#include <mock/api.h>
+#include <mtf/framework.h>
+#include <sys/sysinfo.h>
+
 #include <hse/ikvdb/limits.h>
 
 MTF_BEGIN_UTEST_COLLECTION(viewset_test)
@@ -20,9 +20,9 @@ MTF_BEGIN_UTEST_COLLECTION(viewset_test)
 MTF_DEFINE_UTEST(viewset_test, t_viewset_create)
 {
     struct viewset *vs;
-    merr_t         err;
-    atomic_ulong   seqno;
-    atomic_ulong   tseqno;
+    merr_t err;
+    atomic_ulong seqno;
+    atomic_ulong tseqno;
 
     err = viewset_create(&vs, &seqno, &tseqno);
     ASSERT_EQ(err, 0);
@@ -34,10 +34,10 @@ MTF_DEFINE_UTEST(viewset_test, t_viewset_create)
 MTF_DEFINE_UTEST(viewset_test, t_viewset_create_enomem)
 {
     struct viewset *vs;
-    merr_t          err;
-    atomic_ulong    seqno;
-    atomic_ulong    tseqno;
-    int             rc;
+    merr_t err;
+    atomic_ulong seqno;
+    atomic_ulong tseqno;
+    int rc;
 
     void run(struct mtf_test_info * lcl_ti, uint i, uint j)
     {
@@ -62,15 +62,15 @@ MTF_DEFINE_UTEST(viewset_test, t_viewset_create_enomem)
 MTF_DEFINE_UTEST(viewset_test, t_viewset_insert)
 {
     struct viewset *vs;
-    atomic_ulong    vs_seqno;
-    atomic_ulong    vs_tseqno;
-    long            start_seqno;
-    merr_t          err;
-    int             show;
-    int             inserted;
-    int             max_inserts;
-    void          **cookies;
-    uint64_t       *views, tseqno;
+    atomic_ulong vs_seqno;
+    atomic_ulong vs_tseqno;
+    long start_seqno;
+    merr_t err;
+    int show;
+    int inserted;
+    int max_inserts;
+    void **cookies;
+    uint64_t *views, tseqno;
 
     start_seqno = 1234;
     atomic_set(&vs_seqno, start_seqno);
@@ -100,8 +100,9 @@ MTF_DEFINE_UTEST(viewset_test, t_viewset_insert)
         ASSERT_NE(cookies[i], NULL);
         inserted++;
         if (i < show)
-            printf("insert %5u with view %5lu --> viewset_horizon %lu\n",
-                i, views[i], viewset_horizon(vs));
+            printf(
+                "insert %5u with view %5lu --> viewset_horizon %lu\n", i, views[i],
+                viewset_horizon(vs));
         ASSERT_EQ(viewset_horizon(vs), start_seqno);
 
         if (inserted % 500)
@@ -110,8 +111,9 @@ MTF_DEFINE_UTEST(viewset_test, t_viewset_insert)
 
     ASSERT_GT(inserted, 0);
 
-    printf("...\ninsert %5u with view %5lu --> viewset_horizon %lu\n",
-        inserted-1, views[inserted-1], viewset_horizon(vs));
+    printf(
+        "...\ninsert %5u with view %5lu --> viewset_horizon %lu\n", inserted - 1,
+        views[inserted - 1], viewset_horizon(vs));
 
     ASSERT_LT(inserted, max_inserts);
 
@@ -120,18 +122,19 @@ MTF_DEFINE_UTEST(viewset_test, t_viewset_insert)
         uint64_t min_view_sn;
         viewset_remove(vs, cookies[i], &min_changed, &min_view_sn);
         if (i < show)
-            printf("remove %5u with view %5lu --> viewset_horizon %lu\n",
-                i, views[i], viewset_horizon(vs));
+            printf(
+                "remove %5u with view %5lu --> viewset_horizon %lu\n", i, views[i],
+                viewset_horizon(vs));
         ASSERT_EQ(viewset_horizon(vs), start_seqno + i + 1);
     }
 
-    printf("...\nremove %5u with view %5lu --> viewset_horizon %lu\n",
-        inserted-1, views[inserted-1], viewset_horizon(vs));
+    printf(
+        "...\nremove %5u with view %5lu --> viewset_horizon %lu\n", inserted - 1,
+        views[inserted - 1], viewset_horizon(vs));
 
     viewset_destroy(vs);
     mapi_safe_free(views);
     mapi_safe_free(cookies);
 }
-
 
 MTF_END_UTEST_COLLECTION(viewset_test);

@@ -26,15 +26,15 @@
  *    to bytes 2*4096 to 5*4096-1 (end of page 4).
  */
 struct bloom_desc {
-    uint8_t  *bd_bitmap;
-    uint32_t  bd_n_pages;
-    uint32_t  bd_modulus;
-    uint32_t  bd_bktshift;
-    uint32_t  bd_n_hashes;
-    uint32_t  bd_rotl;
-    uint32_t  bd_bktmask;
-    uint32_t  bd_first_page;
-    uint32_t  bd_bktsz;
+    uint8_t *bd_bitmap;
+    uint32_t bd_n_pages;
+    uint32_t bd_modulus;
+    uint32_t bd_bktshift;
+    uint32_t bd_n_hashes;
+    uint32_t bd_rotl;
+    uint32_t bd_bktmask;
+    uint32_t bd_first_page;
+    uint32_t bd_bktsz;
 };
 
 /**
@@ -43,8 +43,6 @@ struct bloom_desc {
  * @hash:  hash of key to lookup
  */
 bool
-bloom_reader_lookup(
-    const struct bloom_desc *desc,
-    uint64_t                 hash);
+bloom_reader_lookup(const struct bloom_desc *desc, uint64_t hash);
 
 #endif

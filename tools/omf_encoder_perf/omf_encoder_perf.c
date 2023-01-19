@@ -8,12 +8,11 @@
 #include <stdint.h>
 #include <stdio.h>
 
+#include <hse/ikvdb/limits.h>
+#include <hse/ikvdb/omf_kmd.h>
 #include <hse/util/platform.h>
 #include <hse/util/slab.h>
 #include <hse/util/xrand.h>
-
-#include <hse/ikvdb/omf_kmd.h>
-#include <hse/ikvdb/limits.h>
 
 #define GiB 1024 * 1024 * 1024
 #define MiB 1024 * 1024
@@ -31,7 +30,6 @@ int failed;
 
 #define DECODER(NAME) \
     static inline __attribute__((always_inline)) uint64_t NAME(const void *base, size_t *off)
-
 
 /*****************************************************************
  *
@@ -183,45 +181,40 @@ DECODER(decode_le64)
     return le64toh(*p);
 }
 
-
-#define CODEC(NAME,ENC_FN,DEC_FN)                               \
-    void NAME(                                                  \
-        bool encode,                                            \
-        uint64_t *ops_out,                                      \
-        uint64_t *bytes_out,                                    \
-        uint64_t *xor_out)                                      \
-    {                                                           \
-        uint64_t xor = 0;                                       \
-        uint64_t off = 0;                                       \
-        uint64_t ops = 0;                                       \
-        uint64_t val;                                           \
-                                                                \
-        if (encode) {                                           \
-                                                                \
-            while (off + 128 < mem_size) {                      \
-                val = randv[(randc - 1) & ops];                 \
-                xor ^= val;                                     \
-                ENC_FN(mem, &off, val);                         \
-                ops++;                                          \
-            }                                                   \
-                                                                \
-        } else {                                                \
-                                                                \
-            while (off + 128 < mem_size) {                      \
-                val = DEC_FN(mem, &off);                        \
-                xor ^= val;                                     \
-                assert(randv[(randc - 1) & ops] == val);        \
-                assert(off < mem_size);                         \
-                ops++;                                          \
-            }                                                   \
-        }                                                       \
-                                                                \
-        *ops_out = ops;                                         \
-        *bytes_out = off;                                       \
-        *xor_out = xor;                                         \
+#define CODEC(NAME, ENC_FN, DEC_FN)                                                   \
+    void NAME(bool encode, uint64_t *ops_out, uint64_t *bytes_out, uint64_t *xor_out) \
+    {                                                                                 \
+        uint64_t xor = 0;                                                             \
+        uint64_t off = 0;                                                             \
+        uint64_t ops = 0;                                                             \
+        uint64_t val;                                                                 \
+                                                                                      \
+        if (encode) {                                                                 \
+                                                                                      \
+            while (off + 128 < mem_size) {                                            \
+                val = randv[(randc - 1) & ops];                                       \
+                xor ^= val;                                                           \
+                ENC_FN(mem, &off, val);                                               \
+                ops++;                                                                \
+            }                                                                         \
+                                                                                      \
+        } else {                                                                      \
+                                                                                      \
+            while (off + 128 < mem_size) {                                            \
+                val = DEC_FN(mem, &off);                                              \
+                xor ^= val;                                                           \
+                assert(randv[(randc - 1) & ops] == val);                              \
+                assert(off < mem_size);                                               \
+                ops++;                                                                \
+            }                                                                         \
+        }                                                                             \
+                                                                                      \
+        *ops_out = ops;                                                               \
+        *bytes_out = off;                                                             \
+        *xor_out = xor;                                                               \
     }
 
-CODEC(codec_n8,  encode_n8,  decode_n8);
+CODEC(codec_n8, encode_n8, decode_n8);
 CODEC(codec_n16, encode_n16, decode_n16);
 CODEC(codec_n32, encode_n32, decode_n32);
 CODEC(codec_n64, encode_n64, decode_n64);
@@ -234,18 +227,18 @@ CODEC(codec_le16, encode_le16, decode_le16);
 CODEC(codec_le32, encode_le32, decode_le32);
 CODEC(codec_le64, encode_le64, decode_le64);
 
-CODEC(codec_hg16_32k,   encode_hg16_32k,   decode_hg16_32k);
-CODEC(codec_hg24_4m,    encode_hg24_4m,    decode_hg24_4m);
+CODEC(codec_hg16_32k, encode_hg16_32k, decode_hg16_32k);
+CODEC(codec_hg24_4m, encode_hg24_4m, decode_hg24_4m);
 CODEC(codec_hg32_1024m, encode_hg32_1024m, decode_hg32_1024m);
-CODEC(codec_hg64,       encode_hg64,       decode_hg64);
+CODEC(codec_hg64, encode_hg64, decode_hg64);
 
-CODEC(codec_varint,     encode_varint,     decode_varint);
+CODEC(codec_varint, encode_varint, decode_varint);
 
 void
 report(
-    const char *   name,
-    unsigned long  op_count,
-    unsigned long  byte_count,
+    const char *name,
+    unsigned long op_count,
+    unsigned long byte_count,
     struct timeval enc,
     struct timeval dec)
 {
@@ -264,60 +257,35 @@ report(
         printf("\n# Encoder performance (values scaled by 1024*1024)\n");
 
         printf(
-            "%-*s  %8s  %8s  %8s  %8s  %8s  %8s\n",
-            len,
-            "",
-            "",
-            "",
-            "Encode",
-            "Encode",
-            "Decode",
+            "%-*s  %8s  %8s  %8s  %8s  %8s  %8s\n", len, "", "", "", "Encode", "Encode", "Decode",
             "Decode");
 
         printf(
-            "%-*s  %8s  %8s  %8s  %8s  %8s  %8s\n",
-            len,
-            "Test",
-            "Ops",
-            "Bytes",
-            "ops/s",
-            "bytes/s",
-            "ops/s",
-            "bytes/s");
+            "%-*s  %8s  %8s  %8s  %8s  %8s  %8s\n", len, "Test", "Ops", "Bytes", "ops/s", "bytes/s",
+            "ops/s", "bytes/s");
         printf(
-            "%-*s  %.8s  %.8s  %.8s  %.8s  %.8s  %.8s\n",
-            len,
-            "-----------------",
-            "-----------------",
-            "-----------------",
-            "-----------------",
-            "-----------------",
-            "-----------------",
-            "-----------------");
+            "%-*s  %.8s  %.8s  %.8s  %.8s  %.8s  %.8s\n", len, "-----------------",
+            "-----------------", "-----------------", "-----------------", "-----------------",
+            "-----------------", "-----------------");
     }
     printf(
-        "%s  %8.0f  %8.0f  %8.0f  %8.0f  %8.0f  %8.0f\n",
-        name,
-        ops,
-        bytes,
-        ops / enc1,
-        bytes / enc1,
-        ops / dec1,
-        bytes / dec1);
+        "%s  %8.0f  %8.0f  %8.0f  %8.0f  %8.0f  %8.0f\n", name, ops, bytes, ops / enc1,
+        bytes / enc1, ops / dec1, bytes / dec1);
 }
 
 static inline void
-test(const char *NAME,
+test(
+    const char *NAME,
     void (*codec)(bool encode, uint64_t *ops_inout, uint64_t *bytes_out, uint64_t *xor_out),
     uint64_t MAX_MASK,
     int MODE)
 {
-    struct timeval  prev, now, diff1, diff2;
+    struct timeval prev, now, diff1, diff2;
     struct xrand xr;
 
-    uint64_t  xor1 = 0, xor2 = 0;
-    uint64_t  ops1 = 0, ops2 = 0;
-    uint64_t  bytes1 = 0, bytes2 = 0;
+    uint64_t xor1 = 0, xor2 = 0;
+    uint64_t ops1 = 0, ops2 = 0;
+    uint64_t bytes1 = 0, bytes2 = 0;
     char tnam[256];
     char modestr[32];
     uint64_t mode_mask;
@@ -349,16 +317,13 @@ test(const char *NAME,
     if (ops1 == 0) {
         failed = 1;
         printf("%s: BUG: no values encoded\n", NAME);
-    }
-    else if (ops1 != ops2) {
+    } else if (ops1 != ops2) {
         failed = 1;
         printf("%s: BUG: encode ops != decode ops: %lu != %lu\n", NAME, ops1, ops2);
-    }
-    else if (bytes1 != bytes2) {
+    } else if (bytes1 != bytes2) {
         failed = 1;
         printf("%s: BUG: encode bytes != decode bytes: %lu != %lu\n", NAME, bytes1, bytes2);
-    }
-    else if (xor1 != xor2) {
+    } else if (xor1 != xor2) {
         failed = 1;
         printf("%s: BUG: XOR mismatch: %lx ! = %lx\n", NAME, xor1, xor2);
     }
@@ -370,7 +335,7 @@ run_encoder_perf(uint32_t seed)
     test("warmup", codec_n8, UINT8_MAX, 1);
     printf("\n");
 
-    test("native8",  codec_n8,  UINT8_MAX,  1);
+    test("native8", codec_n8, UINT8_MAX, 1);
     test("native16", codec_n16, UINT16_MAX, 2);
     test("native32", codec_n32, UINT32_MAX, 4);
     test("native64", codec_n64, UINT64_MAX, 8);
@@ -429,22 +394,22 @@ static const char *
 test_enc_name(enum test_enc enc)
 {
     switch (enc) {
-        case enc_short:
-            return "short";
-        case enc_med:
-            return "med";
-        case enc_long:
-            return "long";
+    case enc_short:
+        return "short";
+    case enc_med:
+        return "med";
+    case enc_long:
+        return "long";
     }
     return "unknown";
 }
 
 struct kmd_test_profile {
-    struct xrand    xr;
-    unsigned        max_keys;
-    unsigned        max_ents_per_key;
-    enum test_enc   enc;
-    enum test_mix   mix;
+    struct xrand xr;
+    unsigned max_keys;
+    unsigned max_ents_per_key;
+    enum test_enc enc;
+    enum test_mix mix;
 };
 
 unsigned
@@ -456,16 +421,16 @@ tp_next_count(struct kmd_test_profile *tp)
 void
 tp_next_entry(
     struct kmd_test_profile *tp,
-    enum kmd_vtype *         vtype,
-    uint64_t *               seq,
-    uint *                   vbidx,
-    uint *                   vboff,
-    const void **            vdata,
-    uint *                   vlen,
-    uint *                   clen)
+    enum kmd_vtype *vtype,
+    uint64_t *seq,
+    uint *vbidx,
+    uint *vboff,
+    const void **vdata,
+    uint *vlen,
+    uint *clen)
 {
     static char valbuf[CN_SMALL_VALUE_THRESHOLD] = { 17, 23, 42, 211, 164, 96, 11, 7 };
-    uint32_t    rv;
+    uint32_t rv;
 
     *seq = xrand64(&tp->xr) & HG64_MAX;
 
@@ -536,7 +501,7 @@ run_kmd_write_perf(struct kmd_test_stats *s)
 {
     uint64_t off, seq, rx, rval;
     unsigned count;
-    uint     vbidx, vboff, vlen;
+    uint vbidx, vboff, vlen;
 
     off = 0;
     rx = 0;
@@ -574,11 +539,11 @@ run_kmd_write_perf(struct kmd_test_stats *s)
 void
 run_kmd_read_perf(struct kmd_test_stats *s)
 {
-    uint64_t       off, seq, rx, rval;
-    unsigned       i, count;
+    uint64_t off, seq, rx, rval;
+    unsigned i, count;
     enum kmd_vtype vtype;
-    uint           vbidx, vboff, vlen, clen;
-    const void *   vdata;
+    uint vbidx, vboff, vlen, clen;
+    const void *vdata;
 
     off = 0;
     rx = 0;
@@ -604,25 +569,25 @@ run_kmd_read_perf(struct kmd_test_stats *s)
             kmd_type_seq(mem, &off, &vtype, &seq);
             assert(exp_seq + i == seq);
             switch (vtype) {
-                case VTYPE_IVAL:
-                    kmd_ival(mem, &off, &vdata, &vlen);
-                    s->nvals++;
-                    break;
-                case VTYPE_UCVAL:
-                    kmd_val(mem, &off, &vbidx, &vboff, &vlen);
-                    s->nvals++;
-                    break;
-                case VTYPE_CVAL:
-                    kmd_cval(mem, &off, &vbidx, &vboff, &vlen, &clen);
-                    s->nvals++;
-                    break;
-                case VTYPE_ZVAL:
-                    s->nvals++;
-                    break;
-                case VTYPE_PTOMB:
-                case VTYPE_TOMB:
-                    s->ntombs++;
-                    break;
+            case VTYPE_IVAL:
+                kmd_ival(mem, &off, &vdata, &vlen);
+                s->nvals++;
+                break;
+            case VTYPE_UCVAL:
+                kmd_val(mem, &off, &vbidx, &vboff, &vlen);
+                s->nvals++;
+                break;
+            case VTYPE_CVAL:
+                kmd_cval(mem, &off, &vbidx, &vboff, &vlen, &clen);
+                s->nvals++;
+                break;
+            case VTYPE_ZVAL:
+                s->nvals++;
+                break;
+            case VTYPE_PTOMB:
+            case VTYPE_TOMB:
+                s->ntombs++;
+                break;
             }
         }
     }
@@ -632,11 +597,11 @@ run_kmd_read_perf(struct kmd_test_stats *s)
 void
 run_kmd_tp(struct kmd_test_profile *tp, struct kmd_test_stats *s, bool writing)
 {
-    uint64_t       off, seq;
-    unsigned       count, actual_count, may_need;
+    uint64_t off, seq;
+    unsigned count, actual_count, may_need;
     enum kmd_vtype vtype;
-    uint           i, vbidx, vboff, vlen, clen;
-    const void *   vdata;
+    uint i, vbidx, vboff, vlen, clen;
+    const void *vdata;
 
     off = 0;
 
@@ -664,78 +629,78 @@ run_kmd_tp(struct kmd_test_profile *tp, struct kmd_test_stats *s, bool writing)
         for (i = 0; i < count; i++) {
             tp_next_entry(tp, &vtype, &seq, &vbidx, &vboff, &vdata, &vlen, &clen);
             switch (vtype) {
-                case VTYPE_TOMB:
-                    s->ntombs++;
-                    break;
-                case VTYPE_PTOMB:
-                    s->nptombs++;
-                    break;
-                case VTYPE_ZVAL:
-                    s->nzvals++;
-                    break;
-                case VTYPE_IVAL:
-                    s->nivals++;
-                    break;
-                case VTYPE_CVAL:
-                case VTYPE_UCVAL:
-                    s->nvals++;
-                    break;
+            case VTYPE_TOMB:
+                s->ntombs++;
+                break;
+            case VTYPE_PTOMB:
+                s->nptombs++;
+                break;
+            case VTYPE_ZVAL:
+                s->nzvals++;
+                break;
+            case VTYPE_IVAL:
+                s->nivals++;
+                break;
+            case VTYPE_CVAL:
+            case VTYPE_UCVAL:
+                s->nvals++;
+                break;
             }
             if (writing) {
                 switch (vtype) {
-                    case VTYPE_TOMB:
-                        kmd_add_tomb(mem, &off, seq);
-                        break;
-                    case VTYPE_PTOMB:
-                        kmd_add_ptomb(mem, &off, seq);
-                        break;
-                    case VTYPE_ZVAL:
-                        kmd_add_zval(mem, &off, seq);
-                        break;
-                    case VTYPE_IVAL:
-                        kmd_add_ival(mem, &off, seq, vdata, vlen);
-                        break;
-                    case VTYPE_CVAL:
-                        kmd_add_cval(mem, &off, seq, vbidx, vboff, vlen, clen);
-                        break;
-                    case VTYPE_UCVAL:
-                        kmd_add_val(mem, &off, seq, vbidx, vboff, vlen);
-                        break;
+                case VTYPE_TOMB:
+                    kmd_add_tomb(mem, &off, seq);
+                    break;
+                case VTYPE_PTOMB:
+                    kmd_add_ptomb(mem, &off, seq);
+                    break;
+                case VTYPE_ZVAL:
+                    kmd_add_zval(mem, &off, seq);
+                    break;
+                case VTYPE_IVAL:
+                    kmd_add_ival(mem, &off, seq, vdata, vlen);
+                    break;
+                case VTYPE_CVAL:
+                    kmd_add_cval(mem, &off, seq, vbidx, vboff, vlen, clen);
+                    break;
+                case VTYPE_UCVAL:
+                    kmd_add_val(mem, &off, seq, vbidx, vboff, vlen);
+                    break;
                 }
             } else {
-                uint64_t       actual_seq;
+                uint64_t actual_seq;
                 enum kmd_vtype actual_vtype;
-                uint           actual_vbidx;
-                uint           actual_vboff;
-                uint           actual_vlen;
-                uint           actual_clen;
-                const void *   actual_vdata;
+                uint actual_vbidx;
+                uint actual_vboff;
+                uint actual_vlen;
+                uint actual_clen;
+                const void *actual_vdata;
 
                 kmd_type_seq(mem, &off, &actual_vtype, &actual_seq);
                 assert(vtype == actual_vtype);
                 assert(seq == actual_seq);
                 switch (vtype) {
-                    case VTYPE_UCVAL:
-                        kmd_val(mem, &off, &actual_vbidx, &actual_vboff, &actual_vlen);
-                        assert(actual_vbidx == vbidx);
-                        assert(actual_vboff == vboff);
-                        assert(actual_vlen == vlen);
-                        break;
-                    case VTYPE_CVAL:
-                        kmd_cval(mem, &off, &actual_vbidx, &actual_vboff, &actual_vlen, &actual_clen);
-                        assert(actual_vbidx == vbidx);
-                        assert(actual_vboff == vboff);
-                        assert(actual_vlen == vlen);
-                        assert(actual_clen == clen);
-                        break;
-                    case VTYPE_IVAL:
-                        kmd_ival(mem, &off, &actual_vdata, &actual_vlen);
-                        assert(actual_vlen == vlen);
-                        break;
-                    case VTYPE_TOMB:
-                    case VTYPE_PTOMB:
-                    case VTYPE_ZVAL:
-                        break;
+                case VTYPE_UCVAL:
+                    kmd_val(mem, &off, &actual_vbidx, &actual_vboff, &actual_vlen);
+                    assert(actual_vbidx == vbidx);
+                    assert(actual_vboff == vboff);
+                    assert(actual_vlen == vlen);
+                    break;
+                case VTYPE_CVAL:
+                    kmd_cval(mem, &off, &actual_vbidx, &actual_vboff, &actual_vlen, &actual_clen);
+                    assert(actual_vbidx == vbidx);
+                    assert(actual_vboff == vboff);
+                    assert(actual_vlen == vlen);
+                    assert(actual_clen == clen);
+                    break;
+                case VTYPE_IVAL:
+                    kmd_ival(mem, &off, &actual_vdata, &actual_vlen);
+                    assert(actual_vlen == vlen);
+                    break;
+                case VTYPE_TOMB:
+                case VTYPE_PTOMB:
+                case VTYPE_ZVAL:
+                    break;
                 }
             }
         }
@@ -757,7 +722,7 @@ run_kmd_profile(struct kmd_test_profile *tp)
     double tot_tombs;
     double pct_tombs;
 
-    struct kmd_test_stats  read = {}, write = {};
+    struct kmd_test_stats read = {}, write = {};
     struct kmd_test_stats *s;
 
     memset(mem, 0xab, mem_size);
@@ -788,12 +753,8 @@ run_kmd_profile(struct kmd_test_profile *tp)
             "%-5s  %9s  %8s  %10s  %10s\n", "-----", "------", "--------", "--------", "--------");
     }
     printf(
-        "%-5s  %8.0f%%  %8.1f  %10.1f  %10.1f\n",
-        test_enc_name(tp->enc),
-        pct_tombs,
-        ents_per_key,
-        bytes_per_key,
-        bytes_per_seq);
+        "%-5s  %8.0f%%  %8.1f  %10.1f  %10.1f\n", test_enc_name(tp->enc), pct_tombs, ents_per_key,
+        bytes_per_key, bytes_per_seq);
 
     if (memcmp(&read, &write, sizeof(read))) {
         printf("ERROR: read stats != write stats\n");
@@ -801,24 +762,12 @@ run_kmd_profile(struct kmd_test_profile *tp)
         printf(
             "write: %lu bytes, %lu keys, %lu seqs, %lu vals, "
             "%lu tombs, %lu ptombs, %lu zvals\n",
-            s->nbytes,
-            s->nkeys,
-            s->nseqs,
-            s->nvals,
-            s->ntombs,
-            s->nptombs,
-            s->nzvals);
+            s->nbytes, s->nkeys, s->nseqs, s->nvals, s->ntombs, s->nptombs, s->nzvals);
         s = &read;
         printf(
             "read: %lu bytes, %lu keys, %lu seqs, %lu vals, "
             "%lu tombs, %lu ptombs, %lu zvals\n",
-            s->nbytes,
-            s->nkeys,
-            s->nseqs,
-            s->nvals,
-            s->ntombs,
-            s->nptombs,
-            s->nzvals);
+            s->nbytes, s->nkeys, s->nseqs, s->nvals, s->ntombs, s->nptombs, s->nzvals);
     }
 }
 
@@ -826,11 +775,11 @@ void
 run_kmd_perf(void)
 {
     struct kmd_test_stats read = {}, write = {};
-    struct timeval        t1, t2, tmp;
-    struct xrand          xr;
-    double                M = 1024 * 1024;
-    double                rtime, wtime;
-    uint64_t              i;
+    struct timeval t1, t2, tmp;
+    struct xrand xr;
+    double M = 1024 * 1024;
+    double rtime, wtime;
+    uint64_t i;
 
     xrand_init(&xr, seed);
     for (i = 0; i < randc; i++)
@@ -854,26 +803,20 @@ run_kmd_perf(void)
     printf(
         "kmd write %5.0f M keys, %5.0f M ents, %5.0f M bytes"
         ": %5.0f M ents/sec, %5.0f MBytes/sec\n",
-        write.nkeys / M,
-        write.nseqs / M,
-        write.nbytes / M,
-        write.nseqs / wtime / M,
+        write.nkeys / M, write.nseqs / M, write.nbytes / M, write.nseqs / wtime / M,
         write.nbytes / wtime / M);
 
     printf(
         "kmd read  %5.0f M keys, %5.0f M ents, %5.0f M bytes"
         ": %5.0f M ents/sec, %5.0f MBytes/sec\n",
-        read.nkeys / M,
-        read.nseqs / M,
-        read.nbytes / M,
-        read.nseqs / wtime / M,
+        read.nkeys / M, read.nseqs / M, read.nbytes / M, read.nseqs / wtime / M,
         read.nbytes / rtime / M);
 }
 
 void
 run_kmd_overhead(void)
 {
-    unsigned      t_epk[] = { 1, 2, 10, 1000 };
+    unsigned t_epk[] = { 1, 2, 10, 1000 };
     enum test_enc t_enc[] = { enc_short, enc_med, enc_long };
     enum test_mix t_mix[] = { vals_only, mixed, tombs_only };
 
@@ -903,7 +846,7 @@ usage(void)
 int
 main(int argc, char *argv[])
 {
-    int  opt;
+    int opt;
     bool general = false;
     bool kmd_overhead = false;
     bool kmd_perf = false;
@@ -912,22 +855,22 @@ main(int argc, char *argv[])
 
     while ((opt = getopt(argc, argv, "s:goph")) != -1) {
         switch (opt) {
-            case 's':
-                seed = atoi(optarg);
-                break;
-            case 'g':
-                general = true;
-                break;
-            case 'o':
-                kmd_overhead = true;
-                break;
-            case 'p':
-                kmd_perf = true;
-                break;
-            case 'h':
-            default:
-                usage();
-                exit(opt == 'h' ? 0 : -1);
+        case 's':
+            seed = atoi(optarg);
+            break;
+        case 'g':
+            general = true;
+            break;
+        case 'o':
+            kmd_overhead = true;
+            break;
+        case 'p':
+            kmd_perf = true;
+            break;
+        case 'h':
+        default:
+            usage();
+            exit(opt == 'h' ? 0 : -1);
         }
     }
 

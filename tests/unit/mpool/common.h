@@ -55,7 +55,7 @@ void
 setup_mclass_with_params(const enum hse_mclass mc, uint8_t fcnt, uint32_t mbsz, uint64_t fmaxsz);
 
 uint64_t
-allocated_bytes_summation(const struct mpool_info *const info);
+allocated_bytes_summation(const struct mpool_info * const info);
 
 uint64_t
-used_bytes_summation(const struct mpool_info *const info);
+used_bytes_summation(const struct mpool_info * const info);

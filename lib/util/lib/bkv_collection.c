@@ -3,38 +3,38 @@
  * Copyright (C) 2021 Micron Technology, Inc.  All rights reserved.
  */
 
-#include <hse/util/event_counter.h>
 #include <hse/util/bkv_collection.h>
 #include <hse/util/bonsai_tree.h>
-#include <hse/util/vlb.h>
+#include <hse/util/event_counter.h>
 #include <hse/util/slab.h>
+#include <hse/util/vlb.h>
 
 static struct kmem_cache *bkv_collection_cache;
 
 struct bkv_collection_entry {
-    struct bonsai_kv * bkv;
+    struct bonsai_kv *bkv;
     struct bonsai_val *vlist;
 };
 
 struct bkv_collection {
-    void *                       bkvcol_cbarg;
-    bkv_collection_cb *          bkvcol_cb;
-    size_t                       bkvcol_cnt;
-    size_t                       bkvcol_cnt_max;
-    size_t                       bkvcol_cnt_initial;
+    void *bkvcol_cbarg;
+    bkv_collection_cb *bkvcol_cb;
+    size_t bkvcol_cnt;
+    size_t bkvcol_cnt_max;
+    size_t bkvcol_cnt_initial;
     struct bkv_collection_entry *bkvcol_entry;
 };
 
 merr_t
 bkv_collection_create(
     struct bkv_collection **collection,
-    size_t                  cnt,
-    bkv_collection_cb *     cb,
-    void *                  cbarg)
+    size_t cnt,
+    bkv_collection_cb *cb,
+    void *cbarg)
 {
     struct bkv_collection *bkvc;
-    size_t                 alloc_cnt;
-    size_t                 sz;
+    size_t alloc_cnt;
+    size_t sz;
 
     bkvc = kmem_cache_alloc(bkv_collection_cache);
     if (ev(!bkvc))
@@ -88,7 +88,7 @@ bkv_collection_add(struct bkv_collection *bkvc, struct bonsai_kv *bkv, struct bo
     struct bkv_collection_entry *entry;
 
     if (HSE_UNLIKELY(bkvc->bkvcol_cnt >= bkvc->bkvcol_cnt_max)) {
-        void * mem;
+        void *mem;
         size_t newsz, oldsz, usedsz;
 
         oldsz = bkvc->bkvcol_cnt_max * sizeof(*bkvc->bkvcol_entry);
@@ -129,13 +129,13 @@ bkv_collection_rock_get(struct bkv_collection *bkvc)
 merr_t
 bkv_collection_apply(struct bkv_collection *bkvc)
 {
-    int    i;
+    int i;
     merr_t err = 0;
 
     for (i = 0; i < bkvc->bkvcol_cnt; i++) {
         struct bkv_collection_entry *e = &bkvc->bkvcol_entry[i];
-        struct bonsai_kv *           bkv = e->bkv;
-        struct bonsai_val *          vlist = e->vlist;
+        struct bonsai_kv *bkv = e->bkv;
+        struct bonsai_val *vlist = e->vlist;
 
         err = bkvc->bkvcol_cb(bkvc->bkvcol_cbarg, bkv, vlist);
         if (ev(err))
@@ -147,13 +147,13 @@ bkv_collection_apply(struct bkv_collection *bkvc)
 
 struct bkv_collection_pair {
     struct bkv_collection *bkvc[2];
-    int                    idx[2];
+    int idx[2];
 };
 
 static void
 bkv_collection_pair_init(
-    struct bkv_collection *     bkvc1,
-    struct bkv_collection *     bkvc2,
+    struct bkv_collection *bkvc1,
+    struct bkv_collection *bkvc2,
     struct bkv_collection_pair *pair)
 {
     pair->bkvc[0] = bkvc1;
@@ -164,12 +164,12 @@ bkv_collection_pair_init(
 static bool
 bkv_collection_pair_next(
     struct bkv_collection_pair *pair,
-    struct bonsai_kv **         bkv,
-    struct bonsai_val **        vlist)
+    struct bonsai_kv **bkv,
+    struct bonsai_val **vlist)
 {
     struct bkv_collection_entry *e1, *e2;
-    int                          rc, idx1, idx2;
-    bool                         eof1, eof2;
+    int rc, idx1, idx2;
+    bool eof1, eof2;
 
     idx1 = pair->idx[0];
     e1 = &pair->bkvc[0]->bkvcol_entry[idx1];
@@ -218,10 +218,10 @@ bkv_collection_pair_next(
 merr_t
 bkv_collection_finish_pair(struct bkv_collection *bkvc1, struct bkv_collection *bkvc2)
 {
-    merr_t                     err = 0;
+    merr_t err = 0;
     struct bkv_collection_pair p;
-    struct bonsai_kv *         bkv;
-    struct bonsai_val *        vlist;
+    struct bonsai_kv *bkv;
+    struct bonsai_val *vlist;
 
     assert(bkvc1->bkvcol_cb == bkvc2->bkvcol_cb);
     assert(bkvc1->bkvcol_cbarg == bkvc2->bkvcol_cbarg);
@@ -243,11 +243,8 @@ merr_t
 bkv_collection_init(void)
 {
     bkv_collection_cache = kmem_cache_create(
-        "bkv_collection",
-        sizeof(struct bkv_collection),
-        alignof(struct bkv_collection),
-        SLAB_PACKED,
-        NULL);
+        "bkv_collection", sizeof(struct bkv_collection), alignof(struct bkv_collection),
+        SLAB_PACKED, NULL);
 
     if (!bkv_collection_cache)
         return merr(ENOMEM);

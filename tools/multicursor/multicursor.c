@@ -24,10 +24,11 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
-#include <sys/resource.h>
-#include <sys/time.h>
 #include <sysexits.h>
 #include <unistd.h>
+
+#include <sys/resource.h>
+#include <sys/time.h>
 
 #include <hse/cli/param.h>
 #include <hse/cli/program.h>
@@ -37,7 +38,7 @@
 
 #include "kvs_helper.h"
 
-static int  err;
+static int err;
 static volatile bool killthreads;
 
 struct opts {
@@ -47,20 +48,20 @@ struct opts {
     bool load;
     int verify;
 } opts = {
-    .count   = 1000 * 1000 * 1000,
+    .count = 1000 * 1000 * 1000,
     .ncursor = 20000,
     .threads = 20,
-    .load    = false,
-    .verify  = 0,
+    .load = false,
+    .verify = 0,
 };
 
 struct thread_info {
-    int           start HSE_ACP_ALIGNED;
-    int           end;
-    int           num_cursors;
-    atomic_ulong  puts;
-    atomic_ulong  reads;
-    atomic_ulong  cursors;
+    int start HSE_ACP_ALIGNED;
+    int end;
+    int num_cursors;
+    atomic_ulong puts;
+    atomic_ulong reads;
+    atomic_ulong cursors;
 };
 
 struct thread_info *g_ti;
@@ -79,7 +80,7 @@ do_things(void *arg)
     struct hse_kvs_cursor *cursorv[ti->num_cursors];
     struct timespec pause = { .tv_nsec = 1000 * 100 };
 
-    char kbuf[KLEN] = {0};
+    char kbuf[KLEN] = { 0 };
     char vbuf[VLEN];
 
     pthread_setname_np(pthread_self(), __func__);
@@ -94,8 +95,7 @@ do_things(void *arg)
             int retries = 5;
 
             do {
-                err = hse_kvs_cursor_create(targ->kvs, 0, NULL, 0, 0,
-                               &cursorv[i]);
+                err = hse_kvs_cursor_create(targ->kvs, 0, NULL, 0, 0, &cursorv[i]);
                 if (hse_err_to_errno(err) == EAGAIN)
                     nanosleep(&pause, 0);
             } while (hse_err_to_errno(err) == EAGAIN && retries-- > 0);
@@ -113,8 +113,7 @@ do_things(void *arg)
         i = ti->start;
         for (i = ti->start; i < ti->end; i++) {
             *key = htobe64(i); /* key */
-            err = hse_kvs_put(targ->kvs, 0, txn, kbuf, sizeof(kbuf),
-                     vbuf, sizeof(vbuf));
+            err = hse_kvs_put(targ->kvs, 0, txn, kbuf, sizeof(kbuf), vbuf, sizeof(vbuf));
             if (err)
                 fatal(err, "Put failed");
 
@@ -141,7 +140,6 @@ do_things(void *arg)
 
             if (err)
                 fatal(err, "Failed to update cursor");
-
         }
 
         for (i = 0; i < num_cursors; i++) {
@@ -152,8 +150,7 @@ do_things(void *arg)
             end = start + stride;
 
             *key = htobe64(start); /* seek key */
-            err = hse_kvs_cursor_seek(cursorv[i], 0, kbuf,
-                         sizeof(kbuf), 0, 0);
+            err = hse_kvs_cursor_seek(cursorv[i], 0, kbuf, sizeof(kbuf), 0, 0);
             if (err)
                 fatal(err, "Failed to seek cursor");
 
@@ -162,12 +159,11 @@ do_things(void *arg)
                 end = ti->end;
 
             for (j = start; j < end; j++) {
-                const void  *cur_key, *cur_val;
-                size_t       cur_klen, cur_vlen;
+                const void *cur_key, *cur_val;
+                size_t cur_klen, cur_vlen;
 
-                err = hse_kvs_cursor_read(cursorv[i], 0,
-                             &cur_key, &cur_klen,
-                             &cur_val, &cur_vlen, &eof);
+                err = hse_kvs_cursor_read(
+                    cursorv[i], 0, &cur_key, &cur_klen, &cur_val, &cur_vlen, &eof);
                 if (err || eof)
                     break;
 
@@ -176,15 +172,14 @@ do_things(void *arg)
                     bool match;
 
                     *key = htobe64(j); /* expected key */
-                    match = cur_klen == sizeof(kbuf) &&
-                    !memcmp(kbuf, cur_key, cur_klen);
+                    match = cur_klen == sizeof(kbuf) && !memcmp(kbuf, cur_key, cur_klen);
 
                     if (!match)
-                        fatal(ENOKEY, "key mismatch: "
-                              "expected %d found %ld", j,
-                              be64toh(*(uint64_t *)
-                                  cur_key));
-
+                        fatal(
+                            ENOKEY,
+                            "key mismatch: "
+                            "expected %d found %ld",
+                            j, be64toh(*(uint64_t *)cur_key));
                 }
 
                 count++;
@@ -195,10 +190,11 @@ do_things(void *arg)
                 fatal(err, "Cursor read failed");
 
             if (eof && count != (end - start))
-                fatal(ENODATA,
-                      "Cursor encountered premature eof. "
-                      "Expected %u Got %u",
-                      ti->end - ti->start, count);
+                fatal(
+                    ENODATA,
+                    "Cursor encountered premature eof. "
+                    "Expected %u Got %u",
+                    ti->end - ti->start, count);
         }
 
         for (i = 0; i < num_cursors; i++)
@@ -223,8 +219,8 @@ print_stats(void *arg)
             tot_cursors += atomic_read(&g_ti[i].cursors);
         }
 
-        printf("seconds %u cursors %u puts %u reads %u\n",
-               seconds, tot_cursors, tot_puts, tot_reads);
+        printf(
+            "seconds %u cursors %u puts %u reads %u\n", seconds, tot_cursors, tot_puts, tot_reads);
         sleep(1);
         ++seconds;
     }
@@ -241,8 +237,8 @@ usage(void)
         "-l         Run the load phase\n"
         "-r curs    Number of cursors\n"
         "-v         Run the exec phase\n"
-        "-Z config  Path to global config file\n"
-        , progname);
+        "-Z config  Path to global config file\n",
+        progname);
 }
 
 void
@@ -262,16 +258,16 @@ int
 main(int argc, char **argv)
 {
     struct parm_groups *pg = NULL;
-    struct svec         hse_gparms = { 0 };
-    struct svec         kvdb_oparms = { 0 };
-    struct svec         kvs_cparms = { 0 };
-    struct svec         kvs_oparms = { 0 };
-    const char         *mpool, *kvs, *config = NULL;
-    size_t              sz;
-    uint                i, stride;
-    int                 c;
-    uint                cur_per_thread;
-    int                 rc;
+    struct svec hse_gparms = { 0 };
+    struct svec kvdb_oparms = { 0 };
+    struct svec kvs_cparms = { 0 };
+    struct svec kvs_oparms = { 0 };
+    const char *mpool, *kvs, *config = NULL;
+    size_t sz;
+    uint i, stride;
+    int c;
+    uint cur_per_thread;
+    int rc;
 
     progname_set(argv[0]);
 
@@ -335,7 +331,7 @@ main(int argc, char **argv)
     }
 
     mpool = argv[optind++];
-    kvs   = argv[optind++];
+    kvs = argv[optind++];
 
     rc = pg_parse_argv(pg, argc, argv, &optind);
     switch (rc) {
@@ -344,8 +340,7 @@ main(int argc, char **argv)
             fatal(0, "unknown parameter: %s", argv[optind]);
         break;
     case EINVAL:
-        fatal(0, "missing group name (e.g. %s) before parameter %s\n",
-            PG_KVDB_OPEN, argv[optind]);
+        fatal(0, "missing group name (e.g. %s) before parameter %s\n", PG_KVDB_OPEN, argv[optind]);
         break;
     default:
         fatal(rc, "error processing parameter %s\n", argv[optind]);
@@ -381,15 +376,15 @@ main(int argc, char **argv)
 
     for (i = 0; i < opts.threads; i++) {
         g_ti[i].start = i * stride;
-        g_ti[i].end   = g_ti[i].start + stride;
+        g_ti[i].end = g_ti[i].start + stride;
         atomic_set(&g_ti[i].puts, 0);
-        g_ti[i].num_cursors  = cur_per_thread;
+        g_ti[i].num_cursors = cur_per_thread;
         kh_register_kvs(kvs, 0, &kvs_cparms, &kvs_oparms, &do_things, &g_ti[i]);
     }
 
     kh_wait();
 
-    sleep(1); /* allow detached threads to finish up */
+    sleep(1);           /* allow detached threads to finish up */
     killthreads = true; /* for stats */
 
     kh_fini();

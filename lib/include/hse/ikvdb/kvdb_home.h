@@ -25,11 +25,7 @@
  * @returns error status
  */
 merr_t
-kvdb_home_storage_path_get(
-    const char * home,
-    const char * path,
-    char *       buf,
-    const size_t buf_sz);
+kvdb_home_storage_path_get(const char *home, const char *path, char *buf, const size_t buf_sz);
 
 /**
  * Converts the storage path to an absolute real path
@@ -42,10 +38,10 @@ kvdb_home_storage_path_get(
  */
 merr_t
 kvdb_home_storage_realpath_get(
-    const char * home,
-    const char * path,
-    char         buf[PATH_MAX],
-    bool         resolved_path);
+    const char *home,
+    const char *path,
+    char buf[PATH_MAX],
+    bool resolved_path);
 
 /**
  * Puts the path to the hse.pid file in the buffer
@@ -56,10 +52,7 @@ kvdb_home_storage_realpath_get(
  * @returns error status
  */
 merr_t
-kvdb_home_pidfile_path_get(
-    const char *home,
-    char *buf,
-    const size_t buf_sz);
+kvdb_home_pidfile_path_get(const char *home, char *buf, const size_t buf_sz);
 
 /**
  * Checks whether KVDB home is on a DAX filesystem

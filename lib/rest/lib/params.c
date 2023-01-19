@@ -3,21 +3,20 @@
  * Copyright (C) 2022 Micron Technology, Inc.  All rights reserved.
  */
 
+#include <event.h>
 #include <stddef.h>
 #include <stdlib.h>
 #include <string.h>
+
+#include <event2/http.h>
 #include <sys/queue.h>
 
-#include <event.h>
-#include <event2/http.h>
-
 #include <hse/rest/params.h>
-
 #include <hse/util/assert.h>
 #include <hse/util/compiler.h>
 
 static const char *
-get_value(const struct rest_params *const params, const char *const key)
+get_value(const struct rest_params * const params, const char * const key)
 {
     struct evkeyval *param;
 
@@ -26,7 +25,8 @@ get_value(const struct rest_params *const params, const char *const key)
     if (!params)
         return NULL;
 
-    TAILQ_FOREACH(param, (struct evkeyvalq *)params, next) {
+    TAILQ_FOREACH(param, (struct evkeyvalq *)params, next)
+    {
         if (strcmp(param->key, key) == 0)
             return param->value;
     }
@@ -36,9 +36,9 @@ get_value(const struct rest_params *const params, const char *const key)
 
 merr_t
 rest_params_get_bool(
-    const struct rest_params *const params,
-    const char *const key,
-    bool *const value,
+    const struct rest_params * const params,
+    const char * const key,
+    bool * const value,
     const bool def)
 {
     const char *data;
@@ -67,9 +67,9 @@ rest_params_get_bool(
 
 merr_t
 rest_params_get_size(
-    const struct rest_params *const params,
-    const char *const key,
-    size_t *const value,
+    const struct rest_params * const params,
+    const char * const key,
+    size_t * const value,
     const size_t def)
 {
     char *endptr;
@@ -96,10 +96,10 @@ rest_params_get_size(
 
 merr_t
 rest_params_get_string(
-    const struct rest_params *const params,
-    const char *const key,
+    const struct rest_params * const params,
+    const char * const key,
     const char **value,
-    const char *const def)
+    const char * const def)
 {
     const char *data;
 

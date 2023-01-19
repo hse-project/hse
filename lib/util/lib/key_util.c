@@ -5,23 +5,21 @@
 
 #include <stdint.h>
 
-#include <hse/util/platform.h>
-#include <hse/util/minmax.h>
-#include <hse/util/key_util.h>
 #include <hse/limits.h>
+
+#include <hse/util/key_util.h>
+#include <hse/util/minmax.h>
+#include <hse/util/platform.h>
 
 /* If you change the size of struct key_immediate then you'll need to update
  * key_immediate_init(), key_imm_klen(), and key_immediate_cmp_full().
  */
-_Static_assert(sizeof(struct key_immediate) == 32,
-               "size of key_immediate changed");
+_Static_assert(sizeof(struct key_immediate) == 32, "size of key_immediate changed");
 
 /* If HSE_KVS_COUNT_MAX becomes larger than 256 then you'll need
  * to update key_immediate_init() and key_immediate_index().
  */
-_Static_assert(HSE_KVS_COUNT_MAX <= 256,
-               "HSE_KVS_COUNT_MAX larger than expected");
-
+_Static_assert(HSE_KVS_COUNT_MAX <= 256, "HSE_KVS_COUNT_MAX larger than expected");
 
 /* This function may look expensive, but since the size of ki_data[]
  * is known, fixed, and small the optimizer won't generate any calls
@@ -50,19 +48,17 @@ key_immediate_init(const void *key, size_t klen, uint16_t index, struct key_imme
 int32_t
 key_full_cmp_noinline(
     const struct key_immediate *imm0,
-    const void *                key0,
+    const void *key0,
     const struct key_immediate *imm1,
-    const void *                key1)
+    const void *key1)
 {
     return key_full_cmp(imm0, key0, imm1, key1);
 }
 
-
 /* If you change the size of struct key_disc then you'll need
  * to update key_disc_init() and key_disc_cmp().
  */
-_Static_assert(sizeof(struct key_disc) == 32,
-               "size of key_disc changed");
+_Static_assert(sizeof(struct key_disc) == 32, "size of key_disc changed");
 
 void
 key_disc_init(const void *key, size_t len, struct key_disc *kdisc)

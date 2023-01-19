@@ -12,17 +12,16 @@
 #define HSE_BONSAI_TREE_H
 
 #include <stdint.h>
-
 #include <urcu-bp.h>
 
-#include <hse/util/arch.h>
-#include <hse/util/page.h>
-#include <hse/util/atomic.h>
-#include <hse/util/spinlock.h>
-#include <hse/util/key_util.h>
-#include <hse/util/cursor_heap.h>
 #include <hse/error/merr.h>
+#include <hse/util/arch.h>
+#include <hse/util/atomic.h>
+#include <hse/util/cursor_heap.h>
+#include <hse/util/key_util.h>
 #include <hse/util/list.h>
+#include <hse/util/page.h>
+#include <hse/util/spinlock.h>
 
 /* clang-format off */
 

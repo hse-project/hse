@@ -7,20 +7,19 @@
 #include <errno.h>
 #include <stdarg.h>
 #include <stddef.h>
-#include <stdlib.h>
 #include <stdio.h>
+#include <stdlib.h>
 #include <string.h>
 
 #include <bsd/string.h>
 
 #include <hse/error/merr.h>
-
 #include <hse/util/log2.h>
 
 #include "buffer.h"
 
 static merr_t
-buffer_grow(struct buffer *const buf, const size_t needed)
+buffer_grow(struct buffer * const buf, const size_t needed)
 {
     char *tmp;
     size_t capacity;
@@ -41,7 +40,7 @@ buffer_grow(struct buffer *const buf, const size_t needed)
 }
 
 merr_t
-buffer_append(struct buffer *const buf, const char *const data, const size_t data_len)
+buffer_append(struct buffer * const buf, const char * const data, const size_t data_len)
 {
     size_t needed;
 
@@ -68,7 +67,7 @@ buffer_append(struct buffer *const buf, const char *const data, const size_t dat
 }
 
 void
-buffer_destroy(struct buffer *const buf)
+buffer_destroy(struct buffer * const buf)
 {
     if (!buf)
         return;
@@ -79,14 +78,14 @@ buffer_destroy(struct buffer *const buf)
 }
 
 void
-buffer_erase(struct buffer *const buf, const unsigned int chars)
+buffer_erase(struct buffer * const buf, const unsigned int chars)
 {
     memset(buf->data + buf->len - chars, '\0', chars);
     buf->len -= chars;
 }
 
 merr_t
-buffer_init(struct buffer *const buf, const size_t initial_size)
+buffer_init(struct buffer * const buf, const size_t initial_size)
 {
     const size_t adjusted = roundup_pow_of_two(initial_size);
 
@@ -104,7 +103,7 @@ buffer_init(struct buffer *const buf, const size_t initial_size)
 }
 
 merr_t
-buffer_putc(struct buffer *const buf, char c)
+buffer_putc(struct buffer * const buf, char c)
 {
     size_t available;
 
@@ -126,7 +125,7 @@ buffer_putc(struct buffer *const buf, char c)
 }
 
 merr_t
-buffer_sprintf(struct buffer *const buf, const char *const fmt, ...)
+buffer_sprintf(struct buffer * const buf, const char * const fmt, ...)
 {
     int rc;
     va_list args;

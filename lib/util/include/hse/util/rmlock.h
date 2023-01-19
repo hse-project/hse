@@ -8,14 +8,13 @@
 
 /* MTF_MOCK_DECL(rmlock) */
 
+#include <pthread.h>
 #include <stdint.h>
 
+#include <hse/error/merr.h>
 #include <hse/util/arch.h>
 #include <hse/util/atomic.h>
 #include <hse/util/compiler.h>
-#include <hse/error/merr.h>
-
-#include <pthread.h>
 
 /* clang-format off */
 

@@ -38,33 +38,35 @@
  * the file names inserted or the data will not be found.
  */
 
+#include <errno.h>
+#include <fcntl.h>
+#include <stdarg.h>
 #include <stdio.h>
 #include <string.h>
-#include <stdarg.h>
 #include <unistd.h>
-#include <fcntl.h>
-#include <errno.h>
+
 #include <linux/limits.h>
 
-#include <hse/cli/program.h>
 #include <hse/hse.h>
+
+#include <hse/cli/program.h>
 
 #include "helper.h"
 
 int
 extract_kv_to_files(struct hse_kvs *kvs, int file_cnt, char **files)
 {
-    int                    err = 0, fd, i;
+    int err = 0, fd, i;
     struct hse_kvs_cursor *cur;
-    hse_err_t              rc;
+    hse_err_t rc;
 
     for (i = 0; i < file_cnt; i++) {
-        char        pfx[HSE_KVS_KEY_LEN_MAX];
-        char        outfile[NAME_MAX + 8]; /* Extra bytes for '.out' suffix */
+        char pfx[HSE_KVS_KEY_LEN_MAX];
+        char outfile[NAME_MAX + 8]; /* Extra bytes for '.out' suffix */
         const void *key, *val;
-        size_t      klen, vlen;
-        bool        eof;
-        bool        data_found = false;
+        size_t klen, vlen;
+        bool eof;
+        bool data_found = false;
 
         snprintf(outfile, sizeof(outfile), "%s.%s", files[i], "out");
         snprintf(pfx, sizeof(pfx), "%s|", files[i]);
@@ -103,14 +105,14 @@ extract_kv_to_files(struct hse_kvs *kvs, int file_cnt, char **files)
             }
         } while (!eof);
 
-      cursor_cleanup:
+    cursor_cleanup:
         rc = hse_kvs_cursor_destroy(cur);
         if (rc) {
             error(rc, "Failed to destroy cursor");
             err = hse_err_to_errno(rc);
         }
 
-      close_file:
+    close_file:
         if (close(fd) == -1 && !rc)
             err = errno;
 
@@ -127,14 +129,14 @@ extract_kv_to_files(struct hse_kvs *kvs, int file_cnt, char **files)
 int
 put_files_as_kv(struct hse_kvdb *kvdb, struct hse_kvs *kvs, int kv_cnt, char **keys)
 {
-    int       err = 0, err2, fd, i;
+    int err = 0, err2, fd, i;
     hse_err_t rc;
 
     for (i = 0; i < kv_cnt; i++) {
-        char    val[HSE_KVS_VALUE_LEN_MAX];
-        char    key_chunk[HSE_KVS_KEY_LEN_MAX];
+        char val[HSE_KVS_VALUE_LEN_MAX];
+        char key_chunk[HSE_KVS_KEY_LEN_MAX];
         ssize_t len;
-        int     chunk_nr;
+        int chunk_nr;
 
         printf("Inserting chunks for %s\n", (char *)keys[i]);
         fd = open(keys[i], O_RDONLY);
@@ -193,16 +195,15 @@ usage(void)
 int
 main(int argc, char **argv)
 {
-    char *           kvdb_home, *kvs_name;
+    char *kvdb_home, *kvs_name;
     struct hse_kvdb *kvdb;
-    struct hse_kvs * kvs;
-    int              c;
-    bool             extract = false;
-    hse_err_t        rc, rc2;
-    const char *     paramv[] = { "logging.destination=stdout",
-                                  "logging.level=3",
-                                  "rest.enabled=false" };
-    const size_t     paramc = sizeof(paramv) / sizeof(paramv[0]);
+    struct hse_kvs *kvs;
+    int c;
+    bool extract = false;
+    hse_err_t rc, rc2;
+    const char *paramv[] = { "logging.destination=stdout", "logging.level=3",
+                             "rest.enabled=false" };
+    const size_t paramc = sizeof(paramv) / sizeof(paramv[0]);
 
     progname_set(argv[0]);
 
@@ -253,13 +254,13 @@ main(int argc, char **argv)
     if (rc2)
         error(rc2, "Failed to close KVS (%s)", kvs_name);
     rc = rc ?: rc2;
-  kvdb_cleanup:
+kvdb_cleanup:
     rc2 = hse_kvdb_close(kvdb);
     if (rc2)
         error(rc2, "Failed to close KVDB (%s)", kvdb_home);
     rc = rc ?: rc2;
-  hse_cleanup:
+hse_cleanup:
     hse_fini();
-  out:
+out:
     return hse_err_to_errno(rc);
 }

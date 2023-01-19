@@ -6,6 +6,7 @@
 #include <stdint.h>
 
 #include <mtf/framework.h>
+
 #include <hse/error/merr.h>
 #include <hse/util/seqno.h>
 
@@ -34,8 +35,8 @@ MTF_DEFINE_UTEST(seqno_test, seqno_check_pred)
 
 MTF_DEFINE_UTEST(seqno_test, seqno_check_ord)
 {
-    uintptr_t            seqno;
-    uintptr_t            ord, chk;
+    uintptr_t seqno;
+    uintptr_t ord, chk;
     enum hse_seqno_state state;
 
     for (ord = 0; ord < 100; ++ord) {
@@ -50,9 +51,9 @@ MTF_DEFINE_UTEST(seqno_test, seqno_check_ord)
 
 MTF_DEFINE_UTEST(seqno_test, seqno_check_ref)
 {
-    uintptr_t            seqno;
-    uintptr_t            ref;
-    uintptr_t            ord, chk = 0;
+    uintptr_t seqno;
+    uintptr_t ref;
+    uintptr_t ord, chk = 0;
     enum hse_seqno_state state;
 
     for (ord = 0; ord < 100; ++ord) {
@@ -81,8 +82,8 @@ MTF_DEFINE_UTEST(seqno_test, seqno_check_ref)
 MTF_DEFINE_UTEST(seqno_test, seqno_test_seqnoref_ext_diff)
 {
     uintptr_t ref;
-    uint64_t  ord;
-    uint64_t  diff;
+    uint64_t ord;
+    uint64_t diff;
 
     ref = HSE_ORDNL_TO_SQNREF(50);
 
@@ -107,8 +108,8 @@ MTF_DEFINE_UTEST(seqno_test, seqno_test_seqnoref_ext_diff)
 MTF_DEFINE_UTEST(seqno_test, seqno_test_seqnoref_diff)
 {
     uintptr_t ref0, ref1;
-    uint64_t  ord;
-    uint64_t  diff;
+    uint64_t ord;
+    uint64_t diff;
 
     ref0 = HSE_ORDNL_TO_SQNREF(50);
 
@@ -137,11 +138,11 @@ MTF_DEFINE_UTEST(seqno_test, seqno_test_seqnoref_diff)
     ASSERT_EQ(ULONG_MAX, diff);
 }
 
-#include <signal.h>
 #include <setjmp.h>
+#include <signal.h>
 
 static sig_atomic_t sigabrt_cnt;
-sigjmp_buf          env;
+sigjmp_buf env;
 
 void
 sigabrt_isr(int sig)
@@ -170,7 +171,7 @@ signal_reliable(int signo, __sighandler_t func)
 MTF_DEFINE_UTEST(seqno_test, seqno_test_assert)
 {
     enum hse_seqno_state state;
-    uintptr_t            seqno, ref, chk;
+    uintptr_t seqno, ref, chk;
 
     /* seqnoref_to_state() calls abort() if the seqno is garbage.
      * So we catch the call to abort.
@@ -184,7 +185,7 @@ MTF_DEFINE_UTEST(seqno_test, seqno_test_assert)
     if (0 == sigsetjmp(env, 1))
         state = seqnoref_to_seqno(seqno, &chk);
 
-    /* If assert() is enabled then seqnoref_to_seqno() will quietly
+        /* If assert() is enabled then seqnoref_to_seqno() will quietly
      * succeed and return HSE_SQNREF_STATE_INVALID.  Otherwise, the
      * assert will trigger and the we'll jump back to a context in
      * which state contains its initial value.

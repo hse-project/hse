@@ -3,9 +3,9 @@
  * Copyright (C) 2015-2020 Micron Technology, Inc.  All rights reserved.
  */
 
-#include <hse/util/platform.h>
 #include <hse/logging/logging.h>
 #include <hse/util/bonsai_tree.h>
+#include <hse/util/platform.h>
 
 #include "c0_ingest_work.h"
 
@@ -17,11 +17,9 @@ c0_ingest_work_init(struct c0_ingest_work *c0iw)
     memset(c0iw, 0, sizeof(*c0iw));
     c0iw->c0iw_magic = (uintptr_t)c0iw;
 
-    bin_heap_init(HSE_C0_INGEST_WIDTH_MAX, bn_kv_cmp,
-                   (struct bin_heap *)&c0iw->c0iw_kvms_minheap);
+    bin_heap_init(HSE_C0_INGEST_WIDTH_MAX, bn_kv_cmp, (struct bin_heap *)&c0iw->c0iw_kvms_minheap);
 
-    bin_heap_init(LC_SOURCE_CNT_MAX, bn_kv_cmp,
-                   (struct bin_heap *)&c0iw->c0iw_lc_minheap);
+    bin_heap_init(LC_SOURCE_CNT_MAX, bn_kv_cmp, (struct bin_heap *)&c0iw->c0iw_lc_minheap);
 }
 
 void
@@ -50,25 +48,14 @@ c0_ingest_work_fini(struct c0_ingest_work *w)
             "merge_loop1 %lu merge_loop2 %lu "
             "lc_finish %lu cn_finish %lu bldr_destroy %lu "
             "serialize_wait %lu ingestv %lu total %lu",
-            (ulong)w->gen,
-            (ulong)w->gencur,
-            w->c0iw_usage.u_count,
-            w->c0iw_kvms_iterc,
-            (ulong)(u->u_keys + u->u_tombs),
-            (ulong)u->u_tombs,
-            (ulong)u->u_keyb / 1024,
-            (ulong)u->u_valb / 1024,
-            (ulong)(w->c0iw_tenqueued - w->c0iw_tingesting) / 1000,
-            (ulong)(w->t0 - w->c0iw_tenqueued) / 1000,
-            (ulong)(w->t3 - w->t0) / 1000,
-            (ulong)(w->t4 - w->t3) / 1000,
-            (ulong)(w->t5 - w->t4) / 1000,
-            (ulong)(w->t6 - w->t5) / 1000,
-            (ulong)(w->t7 - w->t6) / 1000,
-            (ulong)(w->t8 - w->t7) / 1000,
-            (ulong)(w->t9 - w->t8) / 1000,
-            (ulong)(w->t10 - w->t9) / 1000,
-            (ulong)(w->t10 - w->t0) / 1000);
+            (ulong)w->gen, (ulong)w->gencur, w->c0iw_usage.u_count, w->c0iw_kvms_iterc,
+            (ulong)(u->u_keys + u->u_tombs), (ulong)u->u_tombs, (ulong)u->u_keyb / 1024,
+            (ulong)u->u_valb / 1024, (ulong)(w->c0iw_tenqueued - w->c0iw_tingesting) / 1000,
+            (ulong)(w->t0 - w->c0iw_tenqueued) / 1000, (ulong)(w->t3 - w->t0) / 1000,
+            (ulong)(w->t4 - w->t3) / 1000, (ulong)(w->t5 - w->t4) / 1000,
+            (ulong)(w->t6 - w->t5) / 1000, (ulong)(w->t7 - w->t6) / 1000,
+            (ulong)(w->t8 - w->t7) / 1000, (ulong)(w->t9 - w->t8) / 1000,
+            (ulong)(w->t10 - w->t9) / 1000, (ulong)(w->t10 - w->t0) / 1000);
     }
 
     /* GCOV_EXCL_STOP */

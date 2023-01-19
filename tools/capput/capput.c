@@ -37,14 +37,16 @@
 #include <stdint.h>
 #include <stdio.h>
 #include <string.h>
+#include <sysexits.h>
 #include <unistd.h>
+
 #include <sys/param.h>
 #include <sys/resource.h>
-#include <sysexits.h>
+
+#include <hse/hse.h>
 
 #include <hse/cli/param.h>
 #include <hse/cli/program.h>
-#include <hse/hse.h>
 #include <hse/util/arch.h>
 #include <hse/util/atomic.h>
 #include <hse/util/compiler.h>
@@ -56,8 +58,8 @@ static atomic_ulong pfx HSE_ACP_ALIGNED;
 static atomic_ulong sfx HSE_ACP_ALIGNED;
 static uint64_t next_del HSE_ACP_ALIGNED;
 
-pthread_barrier_t   put_barrier1;
-pthread_barrier_t   put_barrier2;
+pthread_barrier_t put_barrier1;
+pthread_barrier_t put_barrier2;
 
 int exrc;
 
@@ -88,10 +90,9 @@ struct opts {
     .tombs = false,
 };
 
-
 struct thread_info {
-    uint          idx;
-    atomic_ulong  ops HSE_L1D_ALIGNED;
+    uint idx;
+    atomic_ulong ops HSE_L1D_ALIGNED;
     volatile char state;
 };
 
@@ -111,9 +112,9 @@ del_ptombs(void *arg)
     pthread_setname_np(pthread_self(), __func__);
 
     while (!killthreads) {
-        char      key[sizeof(uint64_t)];
-        uint64_t  curr_safe;
-        uint64_t  curr;
+        char key[sizeof(uint64_t)];
+        uint64_t curr_safe;
+        uint64_t curr;
         uint64_t *p;
 
         /* Compute how many entries is it safe to delete */
@@ -188,7 +189,7 @@ del_tombs(void *arg)
             continue;
         }
 
-      retry:
+    retry:
         err = hse_kvdb_txn_begin(targ->kvdb, txn);
         if (err)
             fatal(err, "Failed to begin txn");
@@ -234,7 +235,7 @@ txput(void *arg)
 {
     struct kh_thread_arg *targ = arg;
     struct thread_info *ti = targ->arg;
-    struct hse_kvdb_txn    *txn;
+    struct hse_kvdb_txn *txn;
     uint64_t *p = 0; /* prefix */
     uint64_t *s = 0; /* suffix */
     hse_err_t err;
@@ -345,25 +346,25 @@ syncme(void *arg)
 void
 print_stats(void *arg)
 {
-    char     statev[opts.put_threads + opts.cur_threads + 1];
+    char statev[opts.put_threads + opts.cur_threads + 1];
     uint32_t second = 0;
     uint64_t puts_last, reads_last;
     uint64_t puts, reads;
     uint64_t start;
-    long     minflt = 0;
-    long     majflt = 0;
-    uint     i;
-    uint     keys_per_pfx = opts.chunk * opts.put_threads;
+    long minflt = 0;
+    long majflt = 0;
+    uint i;
+    uint keys_per_pfx = opts.chunk * opts.put_threads;
 
     puts_last = reads_last = 0;
 
     start = get_time_ns();
     while (!killthreads) {
         struct thread_info *t = &g_ti[0];
-        struct rusage       rusage;
-        uint64_t            dt;
-        double              lag;
-        ulong               pfx_lag;
+        struct rusage rusage;
+        uint64_t dt;
+        double lag;
+        ulong pfx_lag;
 
         usleep(999 * 1000);
         getrusage(RUSAGE_SELF, &rusage);
@@ -397,18 +398,14 @@ print_stats(void *arg)
 
         dt = get_time_ns() - start;
         if (second % 20 == 0)
-            printf("\n%8s %8s %8s %10s %10s %8s %8s %8s %8s %8s %8s %s\n",
-                   "seconds", "cpfx", "dpfx", "puts",
-                   "reads", "lag", "pfxLag", "pRate", "rRate",
-                   "majflt", "minflt", "state");
+            printf(
+                "\n%8s %8s %8s %10s %10s %8s %8s %8s %8s %8s %8s %s\n", "seconds", "cpfx", "dpfx",
+                "puts", "reads", "lag", "pfxLag", "pRate", "rRate", "majflt", "minflt", "state");
 
-        printf("%8lu %8lu %8lu %10lu %10lu %8.2lf %8lu %8lu %8lu %8ld %8ld %s\n",
-               dt / NSEC_PER_SEC,
-               atomic_read(&pfx), next_del,
-               puts, reads, lag, pfx_lag,
-               puts - puts_last, reads - reads_last,
-               rusage.ru_majflt - majflt,
-               rusage.ru_minflt - minflt, statev);
+        printf(
+            "%8lu %8lu %8lu %10lu %10lu %8.2lf %8lu %8lu %8lu %8ld %8ld %s\n", dt / NSEC_PER_SEC,
+            atomic_read(&pfx), next_del, puts, reads, lag, pfx_lag, puts - puts_last,
+            reads - reads_last, rusage.ru_majflt - majflt, rusage.ru_minflt - minflt, statev);
         fflush(stdout);
 
         reads_last = reads;
@@ -423,17 +420,17 @@ print_stats(void *arg)
 void
 reader(void *arg)
 {
-    struct kh_thread_arg  *targ = arg;
+    struct kh_thread_arg *targ = arg;
     struct thread_info *ti = targ->arg;
     struct hse_kvdb_txn *txn;
-    struct hse_kvs_cursor  *c;
-    uint32_t            cnt;
-    bool                eof = false;
-    uint64_t            klast[2] = { 0 };
-    const void         *key, *val;
-    const uint64_t     *key64;
-    size_t              klen, vlen;
-    hse_err_t           err;
+    struct hse_kvs_cursor *c;
+    uint32_t cnt;
+    bool eof = false;
+    uint64_t klast[2] = { 0 };
+    const void *key, *val;
+    const uint64_t *key64;
+    size_t klen, vlen;
+    hse_err_t err;
 
     pthread_setname_np(pthread_self(), __func__);
 
@@ -467,13 +464,13 @@ reader(void *arg)
             if (klen != sizeof(klast) || memcmp(klast, key, klen)) {
                 key64 = key;
 
-                fatal(ENOENT, "Lost capped position at seek: "
-                      "expected %lu-%lu found %lu-%lu "
-                      "next del %lu",
-                      be64toh(klast[0]), be64toh(klast[1]),
-                      key ? be64toh(key64[0]) : 0,
-                      key ? be64toh(key64[1]) : 0,
-                      next_del);
+                fatal(
+                    ENOENT,
+                    "Lost capped position at seek: "
+                    "expected %lu-%lu found %lu-%lu "
+                    "next del %lu",
+                    be64toh(klast[0]), be64toh(klast[1]), key ? be64toh(key64[0]) : 0,
+                    key ? be64toh(key64[1]) : 0, next_del);
             }
 
             ti->state = 'r';
@@ -501,11 +498,10 @@ reader(void *arg)
 
                 found[0] = be64toh(key64[0]);
                 found[1] = be64toh(key64[1]);
-                last[0]  = be64toh(klast[0]);
-                last[1]  = be64toh(klast[1]);
+                last[0] = be64toh(klast[0]);
+                last[1] = be64toh(klast[1]);
 
-                if (!(found[1] == 1 + last[1] ||
-                      (found[1] == 0 && found[0] == 1 + last[0])))
+                if (!(found[1] == 1 + last[1] || (found[1] == 0 && found[0] == 1 + last[0])))
                     fatal(EINVAL, "Found unexpected key\n");
             }
 
@@ -539,7 +535,7 @@ reader(void *arg)
 void
 syntax(const char *fmt, ...)
 {
-    char    msg[256];
+    char msg[256];
     va_list ap;
 
     va_start(ap, fmt);
@@ -566,8 +562,8 @@ usage(void)
         "-t         Delete via one-tomb-per-key versus using ptombs\n"
         "-v         Verify data\n"
         "-w         Wide output (i.e., show put threads state)\n"
-        "-Z config  Path to global config file\n"
-        , progname);
+        "-Z config  Path to global config file\n",
+        progname);
 
     printf("\nDescription:\n");
     printf("Number of kv-pairs per prefix = "
@@ -583,15 +579,15 @@ int
 main(int argc, char **argv)
 {
     struct parm_groups *pg = 0;
-    struct svec         hse_gparms = { 0 };
-    struct svec         kvdb_oparms = { 0 };
-    struct svec         kvs_cparms = { 0 };
-    struct svec         kvs_oparms = { 0 };
-    const char         *mpool, *kvs, *config = NULL;
-    size_t              sz;
-    uint                i;
-    int                 c;
-    merr_t              rc;
+    struct svec hse_gparms = { 0 };
+    struct svec kvdb_oparms = { 0 };
+    struct svec kvs_cparms = { 0 };
+    struct svec kvs_oparms = { 0 };
+    const char *mpool, *kvs, *config = NULL;
+    size_t sz;
+    uint i;
+    int c;
+    merr_t rc;
 
     progname_set(argv[0]);
 
@@ -687,8 +683,7 @@ main(int argc, char **argv)
             fatal(0, "unknown parameter: %s", argv[optind]);
         break;
     case EINVAL:
-        fatal(0, "missing group name (e.g. %s) before parameter %s\n",
-              PG_KVDB_OPEN, argv[optind]);
+        fatal(0, "missing group name (e.g. %s) before parameter %s\n", PG_KVDB_OPEN, argv[optind]);
         break;
     default:
         fatal(rc, "error processing parameter %s\n", argv[optind]);

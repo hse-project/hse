@@ -3,8 +3,8 @@
  * Copyright (C) 2015-2022 Micron Technology, Inc.  All rights reserved.
  */
 
-#include <hse/util/page.h>
 #include <hse/util/bloom_filter.h>
+#include <hse/util/page.h>
 
 #include "bloom_reader.h"
 
@@ -18,9 +18,7 @@
  * the details.
  */
 bool
-bloom_reader_lookup(
-    const struct bloom_desc *desc,
-    uint64_t                 hash)
+bloom_reader_lookup(const struct bloom_desc *desc, uint64_t hash)
 {
     const uint8_t *bitmap = desc->bd_bitmap;
     size_t bkt;

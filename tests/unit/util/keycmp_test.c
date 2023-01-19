@@ -5,8 +5,8 @@
 
 #include <mtf/framework.h>
 
-#include <hse/util/keycmp.h>
 #include <hse/error/merr.h>
+#include <hse/util/keycmp.h>
 
 MTF_MODULE_UNDER_TEST(hse_platform);
 
@@ -16,7 +16,7 @@ MTF_DEFINE_UTEST(keycmp_test, basic)
 {
     const unsigned char key1[] = { 0, 1, 2, 3, 4, 5 };
     const unsigned char key2[] = { 0, 1, 2, 3, 5, 4 };
-    int                 rc;
+    int rc;
 
     rc = keycmp(key1, sizeof(key1), key1, sizeof(key1));
     ASSERT_EQ(rc, 0);
@@ -46,7 +46,7 @@ MTF_DEFINE_UTEST(keycmp_test, prefix)
     const unsigned char key1[8] = { 0, 1, 2, 3, 0xaa, 0xbb };
     const unsigned char key2[8] = { 0, 1, 2, 0xaa, 0xbb };
     const unsigned char key3[8] = { 0, 1, 2 };
-    int                 rc;
+    int rc;
 
     /* NOTE: All buffer are the same size to avert buggy asan warnings.
      */

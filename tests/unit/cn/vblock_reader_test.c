@@ -4,15 +4,14 @@
  */
 
 #include <stdint.h>
-#include <sys/mman.h>
 
+#include <cn/omf.h>
+#include <cn/vblock_reader.h>
 #include <mtf/framework.h>
+#include <sys/mman.h>
 
 #include <hse/logging/logging.h>
 #include <hse/util/page.h>
-
-#include <cn/vblock_reader.h>
-#include <cn/omf.h>
 
 struct workqueue_struct *vbr_wq;
 
@@ -23,7 +22,7 @@ pre(struct mtf_test_info *info)
 }
 
 uint64_t blkid_counter = 1000;
-uint8_t mblock_data[8<<20];
+uint8_t mblock_data[8 << 20];
 struct kvs_mblk_desc mblk;
 
 merr_t
@@ -92,7 +91,6 @@ mock_mblk_setup_impl(size_t value_bytes, uint32_t magic, uint32_t version)
     return err;
 }
 
-
 merr_t
 mock_mblk_setup(size_t value_bytes)
 {
@@ -111,15 +109,13 @@ mock_mblk_setup_version(size_t value_bytes, uint32_t version)
     return mock_mblk_setup_impl(value_bytes, VBLOCK_FOOTER_MAGIC, version);
 }
 
-
-
 MTF_BEGIN_UTEST_COLLECTION(vblock_reader_test);
 
 MTF_DEFINE_UTEST_PRE(vblock_reader_test, t_vbr_desc_read, pre)
 {
-    merr_t                   err;
-    struct vblock_desc       vblk_desc;
-    size_t                   value_bytes;
+    merr_t err;
+    struct vblock_desc vblk_desc;
+    size_t value_bytes;
 
     value_bytes = 12345;
 
@@ -140,10 +136,10 @@ MTF_DEFINE_UTEST_PRE(vblock_reader_test, t_vbr_desc_read, pre)
 
 MTF_DEFINE_UTEST_PRE(vblock_reader_test, t_vbr_desc_update, pre)
 {
-    merr_t                   err;
-    struct vblock_desc       vblk_desc;
-    uint                     vgroups = 0;
-    uint64_t                 argv[2];
+    merr_t err;
+    struct vblock_desc vblk_desc;
+    uint vgroups = 0;
+    uint64_t argv[2];
 
     err = mock_mblk_setup(8323);
     ASSERT_EQ(0, err);
@@ -219,12 +215,12 @@ MTF_DEFINE_UTEST_PRE(vblock_reader_test, t_vbr_value, pre)
 
 MTF_DEFINE_UTEST_PRE(vblock_reader_test, t_vbr_read_ahead, pre)
 {
-    merr_t                   err;
-    struct vblock_desc       vblk_desc;
-    uint32_t                 ra_len;
-    off_t                    off;
-    size_t                   len;
-    struct ra_hist           rahv[1] = { { 0 } };
+    merr_t err;
+    struct vblock_desc vblk_desc;
+    uint32_t ra_len;
+    off_t off;
+    size_t len;
+    struct ra_hist rahv[1] = { { 0 } };
 
     err = mock_mblk_setup(4000000);
     ASSERT_EQ(0, err);
@@ -260,11 +256,11 @@ MTF_DEFINE_UTEST_PRE(vblock_reader_test, t_vbr_read_ahead, pre)
 MTF_DEFINE_UTEST_PRE(vblock_reader_test, t_vbr_madvise_async, pre)
 {
     struct workqueue_struct *vbr_wq;
-    merr_t                   err;
-    struct vblock_desc       vblk_desc;
-    uint32_t                 ra_len;
-    struct ra_hist           rahv[8] = { 0 };
-    int                      rc;
+    merr_t err;
+    struct vblock_desc vblk_desc;
+    uint32_t ra_len;
+    struct ra_hist rahv[8] = { 0 };
+    int rc;
 
     err = mock_mblk_setup(4000000);
     ASSERT_EQ(0, err);

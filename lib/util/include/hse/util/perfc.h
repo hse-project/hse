@@ -350,58 +350,56 @@ perfc_ivl_destroy(struct perfc_ivl *ivl);
 /* GCOV_EXCL_START */
 
 #ifdef HSE_BUILD_RELEASE
-#define PERFC_RU_MAX        (128)
+#define PERFC_RU_MAX (128)
 
-#define PERFC_INC_RU(_pc, _cid)                         \
-    do {                                                \
-        static thread_local struct {                    \
-            uint64_t cnt;                               \
-        } ru;                                           \
-                                                        \
-        if (HSE_UNLIKELY(++ru.cnt >= PERFC_RU_MAX)) {   \
-            perfc_add((_pc), (_cid), ru.cnt);           \
-            ru.cnt = 0;                                 \
-        }                                               \
+#define PERFC_INC_RU(_pc, _cid)                       \
+    do {                                              \
+        static thread_local struct {                  \
+            uint64_t cnt;                             \
+        } ru;                                         \
+                                                      \
+        if (HSE_UNLIKELY(++ru.cnt >= PERFC_RU_MAX)) { \
+            perfc_add((_pc), (_cid), ru.cnt);         \
+            ru.cnt = 0;                               \
+        }                                             \
     } while (0)
 
-#define PERFC_INCADD_RU(_pc, _cidx1, _cidx2, _val2)                     \
-    do {                                                                \
-        static thread_local struct {                                    \
-            uint64_t cnt;                                               \
-            uint64_t sum;                                               \
-        } ru;                                                           \
-                                                                        \
-        ru.sum += (_val2);                                              \
-                                                                        \
-        if (HSE_UNLIKELY(++ru.cnt >= PERFC_RU_MAX)) {                   \
-            perfc_add2((_pc), (_cidx1), ru.cnt, (_cidx2), ru.sum);      \
-            ru.cnt = 0;                                                 \
-            ru.sum = 0;                                                 \
-        }                                                               \
+#define PERFC_INCADD_RU(_pc, _cidx1, _cidx2, _val2)                \
+    do {                                                           \
+        static thread_local struct {                               \
+            uint64_t cnt;                                          \
+            uint64_t sum;                                          \
+        } ru;                                                      \
+                                                                   \
+        ru.sum += (_val2);                                         \
+                                                                   \
+        if (HSE_UNLIKELY(++ru.cnt >= PERFC_RU_MAX)) {              \
+            perfc_add2((_pc), (_cidx1), ru.cnt, (_cidx2), ru.sum); \
+            ru.cnt = 0;                                            \
+            ru.sum = 0;                                            \
+        }                                                          \
     } while (0)
 
-#define PERFC_DEC_RU(_pc, _cid)                         \
-    do {                                                \
-        static thread_local struct {                    \
-            uint64_t cnt;                               \
-        } ru;                                           \
-                                                        \
-        if (HSE_UNLIKELY(++ru.cnt >= PERFC_RU_MAX)) {   \
-            perfc_sub((_pc), (_cid), ru.cnt);           \
-            ru.cnt = 0;                                 \
-        }                                               \
+#define PERFC_DEC_RU(_pc, _cid)                       \
+    do {                                              \
+        static thread_local struct {                  \
+            uint64_t cnt;                             \
+        } ru;                                         \
+                                                      \
+        if (HSE_UNLIKELY(++ru.cnt >= PERFC_RU_MAX)) { \
+            perfc_sub((_pc), (_cid), ru.cnt);         \
+            ru.cnt = 0;                               \
+        }                                             \
     } while (0)
 
 #else
 
-#define PERFC_INC_RU(_pc, _cid) \
-    perfc_inc((_pc), (_cid))
+#define PERFC_INC_RU(_pc, _cid) perfc_inc((_pc), (_cid))
 
 #define PERFC_INCADD_RU(_pc, _cidx1, _cidx2, _val2) \
     perfc_add2((_pc), (_cidx1), 1, (_cidx2), (_val2))
 
-#define PERFC_DEC_RU(_pc, _cid) \
-    perfc_dec((_pc), (_cid))
+#define PERFC_DEC_RU(_pc, _cid) perfc_dec((_pc), (_cid))
 
 #endif
 
@@ -416,8 +414,8 @@ perfc_ivl_destroy(struct perfc_ivl *ivl);
  * @il_bound:   vector of interval boundaries
  */
 struct perfc_ivl {
-    uint8_t  ivl_cnt;
-    uint8_t  ivl_map[63];
+    uint8_t ivl_cnt;
+    uint8_t ivl_map[63];
     uint64_t ivl_bound[];
 };
 
@@ -435,12 +433,12 @@ struct perfc_ivl {
  * for all other counter types.
  */
 struct perfc_name {
-    const char *      pcn_name;
-    const char *      pcn_desc;
-    const char *      pcn_hdr;
-    uint8_t           pcn_flags;
-    uint8_t           pcn_prio;
-    uint32_t          pcn_samplepct;
+    const char *pcn_name;
+    const char *pcn_desc;
+    const char *pcn_hdr;
+    uint8_t pcn_flags;
+    uint8_t pcn_prio;
+    uint32_t pcn_samplepct;
     struct perfc_ivl *pcn_ivl;
 };
 
@@ -487,13 +485,13 @@ struct perfc_bkt {
  * constitutes one bucket in the distribution.
  */
 struct perfc_ctr_hdr {
-    enum perfc_type     pch_type;
-    uint32_t            pch_flags;
-    uint32_t            pch_level;
+    enum perfc_type pch_type;
+    uint32_t pch_flags;
+    uint32_t pch_level;
 
     union {
-        struct perfc_val   *pch_val;
-        struct perfc_bkt   *pch_bktv;
+        struct perfc_val *pch_val;
+        struct perfc_bkt *pch_bktv;
     };
 };
 
@@ -517,8 +515,8 @@ struct perfc_basic {
  */
 struct perfc_rate {
     struct perfc_ctr_hdr pcr_hdr; /* Must be first field */
-    uint64_t             pcr_old_val;
-    uint64_t             pcr_old_time_ns;
+    uint64_t pcr_old_val;
+    uint64_t pcr_old_time_ns;
 };
 
 /**
@@ -531,10 +529,10 @@ struct perfc_rate {
  * perfc_dis "is-a" perfc_ctr_hdr.
  */
 struct perfc_dis {
-    struct perfc_ctr_hdr    pdi_hdr; /* Must be first field */
-    uint32_t                pdi_pct;
-    uint64_t                pdi_min;
-    uint64_t                pdi_max;
+    struct perfc_ctr_hdr pdi_hdr; /* Must be first field */
+    uint32_t pdi_pct;
+    uint64_t pdi_min;
+    uint64_t pdi_max;
     const struct perfc_ivl *pdi_ivl;
 };
 
@@ -543,9 +541,9 @@ struct perfc_dis {
  */
 union perfc_ctru {
     struct perfc_ctr_hdr hdr;
-    struct perfc_basic   basic;
-    struct perfc_rate    rate;
-    struct perfc_dis     dis;
+    struct perfc_basic basic;
+    struct perfc_rate rate;
+    struct perfc_dis dis;
 } HSE_L1D_ALIGNED;
 
 /**
@@ -562,7 +560,7 @@ union perfc_ctru {
  *                             // set is enabled
  */
 struct perfc_set {
-    uint64_t           ps_bitmap;
+    uint64_t ps_bitmap;
     struct perfc_seti *ps_seti;
 };
 
@@ -584,13 +582,13 @@ struct perfc_set {
  * Internal structure corresponding to a handle struct perfc_set.
  */
 struct perfc_seti {
-    char                     pcs_path[DT_PATH_MAX];
-    char                     pcs_famname[DT_PATH_ELEMENT_MAX];
-    char                     pcs_ctrseti_name[DT_PATH_ELEMENT_MAX];
-    uint32_t                 pcs_ctrc;
-    struct perfc_set *       pcs_handle;
+    char pcs_path[DT_PATH_MAX];
+    char pcs_famname[DT_PATH_ELEMENT_MAX];
+    char pcs_ctrseti_name[DT_PATH_ELEMENT_MAX];
+    uint32_t pcs_ctrc;
+    struct perfc_set *pcs_handle;
     const struct perfc_name *pcs_ctrnamev;
-    union perfc_ctru         pcs_ctrv[];
+    union perfc_ctru pcs_ctrv[];
 };
 
 /**
@@ -629,7 +627,6 @@ perfc_dis_record_impl(struct perfc_dis *dis, uint64_t sample);
  */
 void
 perfc_read(struct perfc_set *pcs, const uint32_t cidx, uint64_t *vadd, uint64_t *vsub);
-
 
 /* [HSE_REVISIT] Add unit tests for all these predicates...
  */
@@ -743,10 +740,10 @@ perfc_lat_record(struct perfc_set *pcs, const uint32_t cidx, const uint64_t star
 static HSE_ALWAYS_INLINE void
 perfc_sl_record(struct perfc_set *pcs, const uint32_t cidx, const uint64_t start)
 {
-    struct perfc_ctr_hdr   *hdr;
-    struct perfc_seti      *pcsi;
-    uint64_t                val;
-    uint                    i;
+    struct perfc_ctr_hdr *hdr;
+    struct perfc_seti *pcsi;
+    uint64_t val;
+    uint i;
 
     if (!start)
         return;
@@ -810,8 +807,8 @@ perfc_set(struct perfc_set *pcs, const uint32_t cidx, const uint64_t val)
 static HSE_ALWAYS_INLINE void
 perfc_inc(struct perfc_set *pcs, const uint32_t cidx)
 {
-    struct perfc_seti  *pcsi;
-    uint                i;
+    struct perfc_seti *pcsi;
+    uint i;
 
     pcsi = perfc_ison(pcs, cidx);
     if (!pcsi)
@@ -828,8 +825,8 @@ perfc_inc(struct perfc_set *pcs, const uint32_t cidx)
 static HSE_ALWAYS_INLINE void
 perfc_dec(struct perfc_set *pcs, const uint32_t cidx)
 {
-    struct perfc_seti  *pcsi;
-    uint                i;
+    struct perfc_seti *pcsi;
+    uint i;
 
     pcsi = perfc_ison(pcs, cidx);
     if (!pcsi)
@@ -846,8 +843,8 @@ perfc_dec(struct perfc_set *pcs, const uint32_t cidx)
 static HSE_ALWAYS_INLINE void
 perfc_add(struct perfc_set *pcs, const uint32_t cidx, const uint64_t val)
 {
-    struct perfc_seti  *pcsi;
-    uint                i;
+    struct perfc_seti *pcsi;
+    uint i;
 
     pcsi = perfc_ison(pcs, cidx);
     if (!pcsi)
@@ -869,8 +866,8 @@ perfc_add2(
     const uint32_t cidx2,
     const uint64_t val2)
 {
-    struct perfc_seti  *pcsi;
-    uint                i;
+    struct perfc_seti *pcsi;
+    uint i;
 
     pcsi = perfc_ison(pcs, cidx1);
     if (!pcsi)
@@ -890,8 +887,8 @@ perfc_add2(
 static HSE_ALWAYS_INLINE void
 perfc_sub(struct perfc_set *pcs, const uint32_t cidx, const uint64_t val)
 {
-    struct perfc_seti  *pcsi;
-    uint                i;
+    struct perfc_seti *pcsi;
+    uint i;
 
     pcsi = perfc_ison(pcs, cidx);
     if (!pcsi)
@@ -907,9 +904,10 @@ perfc_sub(struct perfc_set *pcs, const uint32_t cidx, const uint64_t val)
 
 extern struct perfc_ivl *perfc_di_ivl;
 
-#define perfc_alloc(_ctrv, _group, _name, _prio, _setp)                \
-    perfc_alloc_impl((_prio), (_group), (_ctrv), NELEM((_ctrv)),       \
-                     (_name), REL_FILE(__FILE__), __LINE__, (_setp))
+#define perfc_alloc(_ctrv, _group, _name, _prio, _setp)                                    \
+    perfc_alloc_impl(                                                                      \
+        (_prio), (_group), (_ctrv), NELEM((_ctrv)), (_name), REL_FILE(__FILE__), __LINE__, \
+        (_setp))
 
 /*
  * perfc_alloc_impl() - allocate a counter set instance
@@ -954,14 +952,14 @@ extern struct perfc_ivl *perfc_di_ivl;
 /* MTF_MOCK */
 merr_t
 perfc_alloc_impl(
-    uint                     prio,
-    const char              *group,
+    uint prio,
+    const char *group,
     const struct perfc_name *ctrv,
-    size_t                   ctrc,
-    const char              *name,
-    const char              *file,
-    int                      line,
-    struct perfc_set *       set);
+    size_t ctrc,
+    const char *name,
+    const char *file,
+    int line,
+    struct perfc_set *set);
 
 /**
  * perfc_free() - free a counter set instance.

@@ -8,6 +8,7 @@
 #include "build_config.h"
 
 #include <stdio.h>
+
 #include <sys/stat.h>
 
 #ifdef HAVE_PMEM
@@ -16,10 +17,11 @@
 #else
 #include <dirent.h>
 #include <fcntl.h>
+#include <unistd.h>
+
 #include <linux/mman.h>
 #include <sys/mman.h>
 #include <sys/types.h>
-#include <unistd.h>
 #endif
 
 #include <hse/error/merr.h>

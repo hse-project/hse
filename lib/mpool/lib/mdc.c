@@ -7,16 +7,15 @@
 
 #define MTF_MOCK_IMPL_mpool
 
-#include <hse/util/event_counter.h>
 #include <hse/error/merr.h>
 #include <hse/logging/logging.h>
-
 #include <hse/mpool/mpool.h>
+#include <hse/util/event_counter.h>
 
-#include "mpool_internal.h"
 #include "mclass.h"
 #include "mdc.h"
 #include "mdc_file.h"
+#include "mpool_internal.h"
 
 /**
  * struct mpool_mdc - MDC handle
@@ -27,7 +26,7 @@
  * mfpa: active mdc file handle (either mfp1 or mfp2)
  */
 struct mpool_mdc {
-    struct mutex     lock;
+    struct mutex lock;
     struct mdc_file *mfp1;
     struct mdc_file *mfp2;
     struct mdc_file *mfpa;
@@ -35,17 +34,17 @@ struct mpool_mdc {
 
 merr_t
 mpool_mdc_alloc(
-    struct mpool     *mp,
-    uint32_t          magic,
-    size_t            capacity,
-    enum hse_mclass   mclass,
-    uint64_t         *logid1,
-    uint64_t         *logid2)
+    struct mpool *mp,
+    uint32_t magic,
+    size_t capacity,
+    enum hse_mclass mclass,
+    uint64_t *logid1,
+    uint64_t *logid2)
 {
     enum mclass_id mcid;
     uint64_t id[2];
-    merr_t   err;
-    int      dirfd, flags, mode, i, rc;
+    merr_t err;
+    int dirfd, flags, mode, i, rc;
 
     if (!mp || mclass >= HSE_MCLASS_COUNT || capacity < MDC_LOGHDR_LEN || !logid1 || !logid2)
         return merr(EINVAL);
@@ -92,8 +91,8 @@ mpool_mdc_alloc(
 merr_t
 mpool_mdc_commit(struct mpool *mp, uint64_t logid1, uint64_t logid2)
 {
-    merr_t   err;
-    int      dirfd, mcid, i;
+    merr_t err;
+    int dirfd, mcid, i;
     uint64_t id[] = { logid1, logid2 };
 
     if (!mp || !logids_valid(logid1, logid2))
@@ -126,9 +125,9 @@ mpool_mdc_commit(struct mpool *mp, uint64_t logid1, uint64_t logid2)
 merr_t
 mpool_mdc_delete(struct mpool *mp, uint64_t logid1, uint64_t logid2)
 {
-    merr_t              err, rval = 0;
-    int                 dirfd, mcid;
-    uint64_t            id[] = { logid1, logid2 };
+    merr_t err, rval = 0;
+    int dirfd, mcid;
+    uint64_t id[] = { logid1, logid2 };
 
     if (!mp || !logids_valid(logid1, logid2))
         return merr(EINVAL);
@@ -158,20 +157,20 @@ mpool_mdc_abort(struct mpool *mp, uint64_t logid1, uint64_t logid2)
 
 merr_t
 mpool_mdc_open(
-    struct mpool       *mp,
-    uint64_t           logid1,
-    uint64_t           logid2,
-    bool               rdonly,
+    struct mpool *mp,
+    uint64_t logid1,
+    uint64_t logid2,
+    bool rdonly,
     struct mpool_mdc **handle)
 {
-    struct mdc_file  *mfp[2] = {};
+    struct mdc_file *mfp[2] = {};
     struct mpool_mdc *mdc;
-    enum mclass_id    mcid;
-    merr_t   err, err1, err2;
-    int      dirfd;
+    enum mclass_id mcid;
+    merr_t err, err1, err2;
+    int dirfd;
     uint64_t gen1, gen2;
-    bool     gclose;
-    char     name[2][MDC_NAME_LENGTH_MAX];
+    bool gclose;
+    char name[2][MDC_NAME_LENGTH_MAX];
 
     if (!mp || !handle || !logids_valid(logid1, logid2))
         return merr(EINVAL);
@@ -206,8 +205,9 @@ mpool_mdc_open(
 
     if (err || (!err && gen1 && gen1 == gen2)) {
         err = err ?: merr(EINVAL);
-        log_err("MDC (%lu:%lu) corrupt: bad pair err (%d, %d) gen (%lu, %lu)",
-                logid1, logid2, merr_errno(err1), merr_errno(err2), gen1, gen2);
+        log_err(
+            "MDC (%lu:%lu) corrupt: bad pair err (%d, %d) gen (%lu, %lu)", logid1, logid2,
+            merr_errno(err1), merr_errno(err2), gen1, gen2);
     } else {
         /* active log is valid log with smallest gen */
         if (gen2 < gen1) {
@@ -223,8 +223,9 @@ mpool_mdc_open(
             if (!rdonly) {
                 err = mdc_file_erase(mfp[0], gen2 + 1);
                 if (err)
-                    log_errx("mdc file1 logid %lu erase failed, gen (%lu, %lu)",
-                             err, logid1, gen1, gen2);
+                    log_errx(
+                        "mdc file1 logid %lu erase failed, gen (%lu, %lu)", err, logid1, gen1,
+                        gen2);
             }
         } else {
             mdc->mfpa = mfp[0];
@@ -232,8 +233,9 @@ mpool_mdc_open(
             if (!rdonly) {
                 err = mdc_file_erase(mfp[1], gen1 + 1);
                 if (err)
-                    log_errx("mdc file2 logid %lu erase failed, gen (%lu, %lu)",
-                             err, logid2, gen1, gen2);
+                    log_errx(
+                        "mdc file2 logid %lu erase failed, gen (%lu, %lu)", err, logid2, gen1,
+                        gen2);
             }
         }
     }
@@ -284,7 +286,7 @@ merr_t
 mpool_mdc_cstart(struct mpool_mdc *mdc)
 {
     struct mdc_file *tgth;
-    merr_t           err;
+    merr_t err;
 
     if (!mdc)
         return merr(EINVAL);
@@ -312,8 +314,8 @@ merr_t
 mpool_mdc_cend(struct mpool_mdc *mdc)
 {
     struct mdc_file *srch, *tgth;
-    merr_t           err;
-    uint64_t         gentgt = 0;
+    merr_t err;
+    uint64_t gentgt = 0;
 
     if (!mdc)
         return merr(EINVAL);
@@ -376,7 +378,7 @@ merr_t
 mpool_mdc_read(struct mpool_mdc *mdc, void *data, size_t len, size_t *rdlen)
 {
     merr_t err;
-    bool   verify = false;
+    bool verify = false;
 
     if (!mdc)
         return merr(EINVAL);
@@ -385,8 +387,7 @@ mpool_mdc_read(struct mpool_mdc *mdc, void *data, size_t len, size_t *rdlen)
     err = mdc_file_read(mdc->mfpa, data, len, verify, rdlen);
     mutex_unlock(&mdc->lock);
     if (err && (merr_errno(err) != EOVERFLOW))
-        log_errx("mdc %p read failed, mdc file %p len %lu",
-                 err, mdc, mdc->mfpa, len);
+        log_errx("mdc %p read failed, mdc file %p len %lu", err, mdc, mdc->mfpa, len);
 
     return err;
 }
@@ -403,8 +404,8 @@ mpool_mdc_append(struct mpool_mdc *mdc, void *data, size_t len, bool sync)
     err = mdc_file_append(mdc->mfpa, data, len, sync);
     mutex_unlock(&mdc->lock);
     if (err)
-        log_errx("mdc %p append failed, mdc file %p, len %lu sync %d",
-                 err, mdc, mdc->mfpa, len, sync);
+        log_errx(
+            "mdc %p append failed, mdc file %p, len %lu sync %d", err, mdc, mdc->mfpa, len, sync);
 
     return err;
 }
@@ -412,7 +413,7 @@ mpool_mdc_append(struct mpool_mdc *mdc, void *data, size_t len, bool sync)
 merr_t
 mpool_mdc_usage(struct mpool_mdc *mdc, uint64_t *size, uint64_t *allocated, uint64_t *used)
 {
-    merr_t   err;
+    merr_t err;
 
     if (!mdc || !size || !allocated || !used)
         return merr(EINVAL);

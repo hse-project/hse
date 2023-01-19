@@ -14,9 +14,23 @@
 #include <bsd/string.h>
 #include <cjson/cJSON.h>
 
-#include <hse/error/merr.h>
 #include <hse/limits.h>
+
+#include <hse/error/merr.h>
+#include <hse/ikvdb/cn.h>
+#include <hse/ikvdb/cn_kvdb.h>
+#include <hse/ikvdb/cndb.h>
+#include <hse/ikvdb/csched.h>
+#include <hse/ikvdb/cursor.h>
+#include <hse/ikvdb/hse_gparams.h>
+#include <hse/ikvdb/ikvdb.h>
+#include <hse/ikvdb/kvdb_health.h>
+#include <hse/ikvdb/kvs.h>
+#include <hse/ikvdb/kvs_cparams.h>
+#include <hse/ikvdb/kvset_builder.h>
+#include <hse/ikvdb/limits.h>
 #include <hse/logging/logging.h>
+#include <hse/mpool/mpool.h>
 #include <hse/rest/headers.h>
 #include <hse/rest/params.h>
 #include <hse/rest/request.h>
@@ -32,45 +46,28 @@
 #include <hse/util/vlb.h>
 #include <hse/util/xrand.h>
 
-#include <hse/ikvdb/cn.h>
-#include <hse/ikvdb/cn_kvdb.h>
-#include <hse/ikvdb/cndb.h>
-#include <hse/ikvdb/cursor.h>
-#include <hse/ikvdb/csched.h>
-#include <hse/ikvdb/hse_gparams.h>
-#include <hse/ikvdb/ikvdb.h>
-#include <hse/ikvdb/kvdb_health.h>
-#include <hse/ikvdb/kvs.h>
-#include <hse/ikvdb/kvs_cparams.h>
-#include <hse/ikvdb/kvset_builder.h>
-#include <hse/ikvdb/limits.h>
-
-#include <hse/mpool/mpool.h>
-
+#include "blk_list.h"
+#include "bloom_reader.h"
+#include "cn_cursor.h"
 #include "cn_internal.h"
-
-#include "cn_work.h"
+#include "cn_mblocks.h"
+#include "cn_perfc.h"
 #include "cn_tree.h"
-#include "cn_tree_cursor.h"
-#include "cn_tree_create.h"
 #include "cn_tree_compact.h"
+#include "cn_tree_create.h"
+#include "cn_tree_cursor.h"
 #include "cn_tree_internal.h"
 #include "cn_tree_stats.h"
-#include "cn_mblocks.h"
-#include "cn_cursor.h"
-#include "route.h"
-
-#include "omf.h"
-#include "kvset.h"
-#include "spill.h"
-#include "blk_list.h"
+#include "cn_work.h"
+#include "intern_builder.h"
 #include "kv_iterator.h"
+#include "kvset.h"
+#include "kvset_internal.h"
+#include "omf.h"
+#include "route.h"
+#include "spill.h"
 #include "vblock_reader.h"
 #include "wbt_reader.h"
-#include "intern_builder.h"
-#include "bloom_reader.h"
-#include "cn_perfc.h"
-#include "kvset_internal.h"
 
 #define ENDPOINT_FMT_CN_TREE "/kvdbs/%s/kvs/%s/cn/tree"
 
@@ -83,8 +80,8 @@ merr_t
 cn_init(void)
 {
     struct kmem_cache *cache;
-    uint               sz;
-    merr_t             err;
+    uint sz;
+    merr_t err;
 
     err = wbti_init();
     if (err)
@@ -346,34 +343,34 @@ cn_get_cparams(const struct cn *handle)
 
 merr_t
 cn_get(
-    struct cn *          cn,
-    struct kvs_ktuple *  kt,
-    uint64_t             seq,
+    struct cn *cn,
+    struct kvs_ktuple *kt,
+    uint64_t seq,
     enum key_lookup_res *res,
-    struct kvs_buf *     vbuf)
+    struct kvs_buf *vbuf)
 {
     return cn_tree_lookup(cn->cn_tree, &cn->cn_pc_get, kt, seq, res, NULL, vbuf);
 }
 
 merr_t
 cn_pfx_probe(
-    struct cn *          cn,
-    struct kvs_ktuple *  kt,
-    uint64_t             seq,
+    struct cn *cn,
+    struct kvs_ktuple *kt,
+    uint64_t seq,
     enum key_lookup_res *res,
-    struct query_ctx *   qctx,
-    struct kvs_buf *     kbuf,
-    struct kvs_buf *     vbuf)
+    struct query_ctx *qctx,
+    struct kvs_buf *kbuf,
+    struct kvs_buf *vbuf)
 {
     return cn_tree_prefix_probe(cn->cn_tree, &cn->cn_pc_get, kt, seq, res, qctx, kbuf, vbuf);
 }
 
 merr_t
 cn_mblocks_commit(
-    struct mpool         *mp,
-    uint32_t              num_lists,
+    struct mpool *mp,
+    uint32_t num_lists,
     struct kvset_mblocks *list,
-    enum cn_mutation      mutation)
+    enum cn_mutation mutation)
 {
     merr_t err = 0;
     uint32_t i;
@@ -407,11 +404,7 @@ cn_mblocks_commit(
 }
 
 void
-cn_mblocks_destroy(
-    struct mpool *        mp,
-    uint32_t              num_lists,
-    struct kvset_mblocks *list,
-    bool                  kcompact)
+cn_mblocks_destroy(struct mpool *mp, uint32_t num_lists, struct kvset_mblocks *list, bool kcompact)
 {
     for (uint32_t i = 0; i < num_lists; i++) {
         delete_mblock(mp, list[i].hblk_id);
@@ -457,9 +450,9 @@ cn_mb_est_alen(size_t full_captgt, size_t mb_alloc_unit, size_t wlen, uint flags
     size_t full_alen; /* allocated len of one full mblock */
     size_t alen;      /* sum allocated len for all mblocks */
     size_t extra;
-    bool   prealloc;
-    bool   truncate;
-    bool   pow2;
+    bool prealloc;
+    bool truncate;
+    bool pow2;
 
     if (!full_captgt || !mb_alloc_unit || !wlen)
         return 0;
@@ -504,16 +497,16 @@ cn_mb_est_alen(size_t full_captgt, size_t mb_alloc_unit, size_t wlen, uint flags
  */
 static merr_t
 cn_ingest_prep(
-    struct cn *           cn,
+    struct cn *cn,
     struct kvset_mblocks *mblocks,
-    uint64_t              kvsetid,
-    struct cndb_txn      *txn,
-    struct kvset **       kvsetp,
-    void                **cookie)
+    uint64_t kvsetid,
+    struct cndb_txn *txn,
+    struct kvset **kvsetp,
+    void **cookie)
 {
     struct kvset_meta km = { 0 };
-    uint64_t          dgen;
-    merr_t            err = 0;
+    uint64_t dgen;
+    merr_t err = 0;
 
     if (ev(!mblocks))
         return merr(EINVAL);
@@ -552,11 +545,9 @@ cn_ingest_prep(
         goto done;
     }
 
-    err = cndb_record_kvset_add(cn->cn_cndb, txn, cn->cn_cnid, km.km_nodeid, &km, kvsetid,
-                                mblocks->hblk_id,
-                                km.km_kblk_list.idc, km.km_kblk_list.idv,
-                                km.km_vblk_list.idc, km.km_vblk_list.idv,
-                                cookie);
+    err = cndb_record_kvset_add(
+        cn->cn_cndb, txn, cn->cn_cnid, km.km_nodeid, &km, kvsetid, mblocks->hblk_id,
+        km.km_kblk_list.idc, km.km_kblk_list.idv, km.km_vblk_list.idc, km.km_vblk_list.idv, cookie);
     if (ev(err))
         goto done;
 
@@ -577,19 +568,19 @@ done:
 
 merr_t
 cn_ingestv(
-    struct cn **           cn,
+    struct cn **cn,
     struct kvset_mblocks **mbv,
-    uint64_t              *kvsetidv,
-    uint                   ingestc,
-    uint64_t               ingestid,
-    uint64_t               txhorizon,
-    uint64_t *             min_seqno_out,
-    uint64_t *             max_seqno_out)
+    uint64_t *kvsetidv,
+    uint ingestc,
+    uint64_t ingestid,
+    uint64_t txhorizon,
+    uint64_t *min_seqno_out,
+    uint64_t *max_seqno_out)
 {
-    struct kvset **    kvsetv = NULL;
+    struct kvset **kvsetv = NULL;
     struct kvset_stats kst = {};
 
-    struct cndb     *cndb = NULL;
+    struct cndb *cndb = NULL;
     struct cndb_txn *cndb_txn = NULL;
     void **cookiev;
 
@@ -597,7 +588,7 @@ cn_ingestv(
     uint i, first, last, count, check;
     uint64_t seqno_max = 0, seqno_min = UINT64_MAX;
     bool log_ingest = false;
-    uint64_t    dgen = 0;
+    uint64_t dgen = 0;
 
     /* Ingestc can be large (256), and is typically sparse.
      * Remember the first and last index so we don't have
@@ -697,10 +688,7 @@ cn_ingestv(
         }
 
         cn_tree_ingest_update(
-            cn[i]->cn_tree,
-            kvsetv[i],
-            mbv[i]->bl_last_ptomb,
-            mbv[i]->bl_last_ptlen,
+            cn[i]->cn_tree, kvsetv[i], mbv[i]->bl_last_ptomb, mbv[i]->bl_last_ptlen,
             mbv[i]->bl_last_ptseq);
 
         kvsetv[i] = NULL;
@@ -719,8 +707,7 @@ cn_ingestv(
             "kvsets=%u keys=%lu kblks=%u vblks=%u "
             "halen_mb=%3lu kalen_mb=%3lu valen_mb=%3lu "
             "hwlen%%=%3lu kwlen%%=%3lu vwlen%%=%3lu",
-            dgen, ingestid,
-            kst.kst_kvsets, kst.kst_keys, kst.kst_kblks, kst.kst_vblks,
+            dgen, ingestid, kst.kst_kvsets, kst.kst_keys, kst.kst_kblks, kst.kst_vblks,
             kst.kst_halen >> MB_SHIFT, kst.kst_kalen >> MB_SHIFT, kst.kst_valen >> MB_SHIFT,
             hwlen_pct, kwlen_pct, vwlen_pct);
     }
@@ -762,14 +749,14 @@ cn_maint_task(struct work_struct *work)
     else if (cn_is_capped(cn))
         cn_tree_capped_compact(cn->cn_tree);
 
-    queue_delayed_work(cn->cn_maint_wq, &cn->cn_maint_dwork,
-                       msecs_to_jiffies(cn->rp->cn_maint_delay));
+    queue_delayed_work(
+        cn->cn_maint_wq, &cn->cn_maint_dwork, msecs_to_jiffies(cn->rp->cn_maint_delay));
 }
 
 struct cndb_cn_ctx {
     struct cn_tree *tree;
-    struct map     *nodemap;
-    uint64_t        max_dgen;
+    struct map *nodemap;
+    uint64_t max_dgen;
 };
 
 static merr_t
@@ -855,9 +842,9 @@ cndb_cn_callback(void *arg, struct kvset_meta *km, uint64_t kvsetid)
 
 static enum rest_status
 rest_cn_tree(
-    const struct rest_request *const req,
-    struct rest_response *const resp,
-    void *const ctx)
+    const struct rest_request * const req,
+    struct rest_response * const resp,
+    void * const ctx)
 {
     char *data;
     merr_t err;
@@ -920,25 +907,25 @@ out:
 
 merr_t
 cn_open(
-    struct cn_kvdb *    cn_kvdb,
-    struct mpool *      mp,
-    struct kvdb_kvs *   kvs,
-    struct cndb *       cndb,
-    uint64_t            cnid,
+    struct cn_kvdb *cn_kvdb,
+    struct mpool *mp,
+    struct kvdb_kvs *kvs,
+    struct cndb *cndb,
+    uint64_t cnid,
     struct kvs_rparams *rp,
-    const char *        kvdb_alias,
-    const char *        kvs_name,
+    const char *kvdb_alias,
+    const char *kvs_name,
     struct kvdb_health *health,
-    uint                flags,
-    struct cn **        cn_out)
+    uint flags,
+    struct cn **cn_out)
 {
     static rest_handler *handlers[REST_METHOD_COUNT] = {
         [REST_METHOD_GET] = rest_cn_tree,
     };
 
-    merr_t      err;
-    struct cn * cn;
-    size_t      sz;
+    merr_t err;
+    struct cn *cn;
+    size_t sz;
 
     struct cndb_cn_ctx ctx;
     struct mpool_props mpprops;
@@ -1030,13 +1017,13 @@ cn_open(
      * and insert them into the route map (i.e., all nodes except the root
      * node, which always has node ID 0).
      */
-    cn_tree_foreach_leaf_safe(tn, tn_next, cn->cn_tree) {
+    cn_tree_foreach_leaf_safe (tn, tn_next, cn->cn_tree) {
         cn_tree_node_get_max_key(tn, kbuf, sizeof(kbuf), &klen);
 
         if (klen == 0) {
             struct kvset_list_entry *le, *tmp;
 
-            list_for_each_entry_safe(le, tmp, &tn->tn_kvset_list, le_link) {
+            list_for_each_entry_safe (le, tmp, &tn->tn_kvset_list, le_link) {
                 struct kvset *ks = le->le_kvset;
 
                 err = cndb_kvset_delete(cndb, cnid, kvset_get_id(ks));
@@ -1127,7 +1114,7 @@ cn_open(
         ulong hshift, kshift, vshift;
         char hszsuf, kszsuf, vszsuf;
 
-        cn_tree_foreach_node(tn, cn->cn_tree) {
+        cn_tree_foreach_node (tn, cn->cn_tree) {
             cn_node_stats_get(tn, &ns);
             kvset_stats_add(&ns.ns_kst, &kvs_stats);
         }
@@ -1147,10 +1134,8 @@ cn_open(
             (ulong)kvs_stats.kst_halen >> (hshift * 10), hszsuf, (ulong)kvs_stats.kst_hblks,
             (ulong)kvs_stats.kst_kalen >> (kshift * 10), kszsuf, (ulong)kvs_stats.kst_kblks,
             (ulong)kvs_stats.kst_valen >> (vshift * 10), vszsuf, (ulong)kvs_stats.kst_vblks,
-            rp->mclass_policy,
-            rp->cn_maint_disable ? " !maint" : "",
-            cn_is_capped(cn) ? " capped" : "",
-            cn->cn_replay ? " replay" : "");
+            rp->mclass_policy, rp->cn_maint_disable ? " !maint" : "",
+            cn_is_capped(cn) ? " capped" : "", cn->cn_replay ? " replay" : "");
     }
 
     /* Start maintenance.
@@ -1172,8 +1157,8 @@ cn_open(
             }
 
             INIT_DELAYED_WORK(&cn->cn_maint_dwork, cn_maint_task);
-            queue_delayed_work(cn->cn_maint_wq, &cn->cn_maint_dwork,
-                               msecs_to_jiffies(rp->cn_maint_delay));
+            queue_delayed_work(
+                cn->cn_maint_wq, &cn->cn_maint_dwork, msecs_to_jiffies(rp->cn_maint_delay));
         } else {
             cn->csched = ikvdb_get_csched(cn->ikvdb);
 
@@ -1182,11 +1167,12 @@ cn_open(
     }
 
     if (hse_gparams.gp_rest.enabled) {
-        err = rest_server_add_endpoint(REST_ENDPOINT_EXACT,  handlers, cn,
-            ENDPOINT_FMT_CN_TREE, kvdb_alias, kvs_name);
+        err = rest_server_add_endpoint(
+            REST_ENDPOINT_EXACT, handlers, cn, ENDPOINT_FMT_CN_TREE, kvdb_alias, kvs_name);
         if (err) {
-            log_errx("Failed to add REST endpoint (" ENDPOINT_FMT_CN_TREE ")", err,
-                kvdb_alias, kvs_name);
+            log_errx(
+                "Failed to add REST endpoint (" ENDPOINT_FMT_CN_TREE ")", err, kvdb_alias,
+                kvs_name);
             goto err_exit;
         }
     }
@@ -1262,7 +1248,7 @@ void
 cn_work_wrapper(struct work_struct *context)
 {
     struct cn_work *work = container_of(context, struct cn_work, cnw_work);
-    struct cn *     cn = work->cnw_cnref;
+    struct cn *cn = work->cnw_cnref;
 
     work->cnw_handler(work);
     cn_ref_put(cn);
@@ -1333,15 +1319,15 @@ cn_cursor_free(struct cn_cursor *cur)
  */
 merr_t
 cn_cursor_create(
-    struct cn *            cn,
-    uint64_t               seqno,
-    bool                   reverse,
-    const void *           prefix,
-    uint32_t               pfx_len,
+    struct cn *cn,
+    uint64_t seqno,
+    bool reverse,
+    const void *prefix,
+    uint32_t pfx_len,
     struct cursor_summary *summary,
-    struct cn_cursor **    cursorp)
+    struct cn_cursor **cursorp)
 {
-    int    ct_pfx_len = cn->cp->pfx_len;
+    int ct_pfx_len = cn->cp->pfx_len;
     merr_t err;
 
     struct cn_cursor *cur;
@@ -1424,8 +1410,8 @@ static bool
 cncur_next(struct element_source *es, void **element)
 {
     struct cn_cursor *cncur = container_of(es, struct cn_cursor, cncur_es);
-    bool              eof;
-    merr_t            err;
+    bool eof;
+    merr_t err;
 
     err = cn_cursor_read(cncur, &cncur->cncur_elem, &eof);
     if (ev(err) || eof)
@@ -1469,7 +1455,7 @@ cn_mpool_dev_zone_alloc_unit_default(struct cn *cn, enum hse_mclass mclass)
 }
 
 #if HSE_MOCKING
-#include "cn_ut_impl.i"
 #include "cn_cursor_ut_impl.i"
 #include "cn_mblocks_ut_impl.i"
+#include "cn_ut_impl.i"
 #endif /* HSE_MOCKING */

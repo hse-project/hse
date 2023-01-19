@@ -3,13 +3,13 @@
  * Copyright (C) 2021-2022 Micron Technology, Inc.  All rights reserved.
  */
 
+#include <stdarg.h>
+
 #include <mtf/framework.h>
 
-#include <hse/ikvdb/limits.h>
-#include <hse/ikvdb/kvs_cparams.h>
 #include <hse/config/params.h>
-
-#include <stdarg.h>
+#include <hse/ikvdb/kvs_cparams.h>
+#include <hse/ikvdb/limits.h>
 
 MTF_BEGIN_UTEST_COLLECTION(kvs_cparams_test)
 
@@ -26,7 +26,7 @@ test_pre(struct mtf_test_info *ti)
 const struct param_spec *
 ps_get(const char *name)
 {
-    size_t                   sz = 0;
+    size_t sz = 0;
     const struct param_spec *pspecs = kvs_cparams_pspecs_get(&sz);
 
     assert(name);
@@ -80,7 +80,7 @@ MTF_DEFINE_UTEST_PRE(kvs_cparams_test, kvs_ext01, test_pre)
 MTF_DEFINE_UTEST(kvs_cparams_test, get)
 {
     merr_t err;
-    char   buf[128];
+    char buf[128];
     size_t needed_sz;
 
     const struct kvs_cparams p = kvs_cparams_defaults();

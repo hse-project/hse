@@ -5,15 +5,14 @@
 
 #include <stdint.h>
 
+#include <cn/blk_list.h>
+#include <mock/api.h>
 #include <mtf/conditions.h>
 #include <mtf/framework.h>
-#include <mock/api.h>
 
 #include <hse/ikvdb/cn.h>
-#include <hse/ikvdb/kvset_builder.h>
 #include <hse/ikvdb/kvs_rparams.h>
-
-#include <cn/blk_list.h>
+#include <hse/ikvdb/kvset_builder.h>
 
 struct mpool *ds = (struct mpool *)0xface;
 
@@ -58,11 +57,11 @@ MTF_DEFINE_UTEST_PREPOST(blk_list_test, t_blk_list_init_free, pre, post)
 
 MTF_DEFINE_UTEST_PREPOST(blk_list_test, t_blk_list_append, pre, post)
 {
-    int             i, add;
-    merr_t          err;
+    int i, add;
+    merr_t err;
     struct blk_list b;
-    uint64_t        blkid = BLK_ID;
-    uint64_t        blkid_start;
+    uint64_t blkid = BLK_ID;
+    uint64_t blkid_start;
 
     blk_list_init(&b);
 
@@ -125,9 +124,9 @@ MTF_DEFINE_UTEST_PREPOST(blk_list_test, t_blk_list_append, pre, post)
 
 MTF_DEFINE_UTEST_PREPOST(blk_list_test, t_commit_mblock, pre, post)
 {
-    merr_t          err;
+    merr_t err;
     struct blk_list b;
-    uint32_t        api;
+    uint32_t api;
 
     /* commit with handle */
     blk_list_init(&b);
@@ -151,9 +150,9 @@ MTF_DEFINE_UTEST_PREPOST(blk_list_test, t_commit_mblock, pre, post)
 
 MTF_DEFINE_UTEST_PREPOST(blk_list_test, t_delete_mblock, pre, post)
 {
-    merr_t          err;
+    merr_t err;
     struct blk_list b;
-    uint32_t        api;
+    uint32_t api;
 
     /* delete with handle */
     blk_list_init(&b);
@@ -182,10 +181,10 @@ MTF_DEFINE_UTEST_PREPOST(blk_list_test, t_delete_mblock, pre, post)
 
 MTF_DEFINE_UTEST_PREPOST(blk_list_test, t_delete_mblocks, pre, post)
 {
-    int             i, N = 5;
-    merr_t          err;
+    int i, N = 5;
+    merr_t err;
     struct blk_list b;
-    uint32_t        api;
+    uint32_t api;
 
     blk_list_init(&b);
     err = blk_list_append(&b, BLK_ID);

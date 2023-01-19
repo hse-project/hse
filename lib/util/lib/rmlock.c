@@ -7,15 +7,14 @@
 
 #include <stdint.h>
 
-#include <hse/util/platform.h>
 #include <hse/util/alloc.h>
 #include <hse/util/minmax.h>
+#include <hse/util/platform.h>
 #include <hse/util/rmlock.h>
 
-#define RMLOCK_MAX      (128)
+#define RMLOCK_MAX (128)
 
-#define rmlock_cmpxchg(_ptr, _oldp, _new) \
-    atomic_cmpxchg((_ptr), (_oldp), (_new))
+#define rmlock_cmpxchg(_ptr, _oldp, _new) atomic_cmpxchg((_ptr), (_oldp), (_new))
 
 static HSE_ALWAYS_INLINE uint
 rmlock_bktidx(struct rmlock *lock)

@@ -4,6 +4,7 @@
  */
 
 #include <mtf/framework.h>
+
 #include <hse/ikvdb/kvdb_modes.h>
 
 MTF_BEGIN_UTEST_COLLECTION(kvdb_modes_test)

@@ -3,28 +3,26 @@
  * Copyright (C) 2015-2022 Micron Technology, Inc.  All rights reserved.
  */
 
+#include <cn/kblock_reader.h>
+#include <cn/kvs_mblk_desc.h>
+#include <cn/omf.h>
+#include <cn/wbt_internal.h>
+#include <cn/wbt_reader.h>
+#include <mocks/mock_mpool.h>
 #include <mtf/framework.h>
+
+#include <hse/limits.h>
 
 #include <hse/error/merr.h>
 #include <hse/logging/logging.h>
 #include <hse/util/keycmp.h>
 
-#include <hse/limits.h>
-
-#include <cn/omf.h>
-#include <cn/kblock_reader.h>
-#include <cn/wbt_internal.h>
-#include <cn/wbt_reader.h>
-#include <cn/kvs_mblk_desc.h>
-
-#include <mocks/mock_mpool.h>
-
 char data_path[PATH_MAX / 2];
 
 struct test_kblock {
-    uint  n_keys;
-    bool  null_terminated;
-    uint  key_modifier;
+    uint n_keys;
+    bool null_terminated;
+    uint key_modifier;
     char *key_fmt;
     char *file;
 };
@@ -51,8 +49,8 @@ struct test_kblock kblocks[] = {
 int
 keyv_cmp(const void *lhs, const void *rhs)
 {
-    const char *const *l = lhs;
-    const char *const *r = rhs;
+    const char * const *l = lhs;
+    const char * const *r = rhs;
 
     return keycmp(*l, strlen(*l), *r, strlen(*r));
 }
@@ -60,9 +58,9 @@ keyv_cmp(const void *lhs, const void *rhs)
 char **
 keyv_create(struct test_kblock *kblock)
 {
-    char   keybuf[128];
+    char keybuf[128];
     char **keyv;
-    uint   i;
+    uint i;
 
     keyv = calloc(kblock->n_keys, sizeof(*keyv));
     assert(keyv);
@@ -100,7 +98,7 @@ int
 setup(struct mtf_test_info *lcl_ti)
 {
     struct mtf_test_coll_info *coll_info = lcl_ti->ti_coll;
-    int                        len, idx;
+    int len, idx;
 
     if (coll_info->tci_argc - coll_info->tci_optind != 1) {
         log_err("Usage: %s [test framework options] <mblock_image_dir>", coll_info->tci_argv[0]);
@@ -127,7 +125,7 @@ int
 pre(struct mtf_test_info *lcl_ti)
 {
     struct mtf_test_coll_info *coll_info = lcl_ti->ti_coll;
-    merr_t                     err;
+    merr_t err;
 
     err = wbti_init();
     if (err) {
@@ -152,14 +150,14 @@ post(struct mtf_test_info *lcl_ti)
 int
 load_kblock(
     struct mtf_test_info *lcl_ti,
-    const char *          kblock_file,
+    const char *kblock_file,
     struct kvs_mblk_desc *kblk_desc,
-    struct wbt_desc *     desc)
+    struct wbt_desc *desc)
 {
     merr_t err;
     uint64_t blkid;
-    char   filename[PATH_MAX];
-    void * wbt_hdr;
+    char filename[PATH_MAX];
+    void *wbt_hdr;
 
     memset(desc, 0, sizeof(*desc));
     memset(kblk_desc, 0, sizeof(*kblk_desc));
@@ -191,11 +189,11 @@ MTF_BEGIN_UTEST_COLLECTION_PREPOST(wbti_test, setup, teardown);
 
 MTF_DEFINE_UTEST_PREPOST(wbti_test, t_wbti_create_fail_nomem, pre, post)
 {
-    merr_t               err;
-    struct wbti *        wbti;
+    merr_t err;
+    struct wbti *wbti;
     struct kvs_mblk_desc kbd;
-    struct wbt_desc      desc;
-    uint32_t             cache_spill_wbt = 1;
+    struct wbt_desc desc;
+    uint32_t cache_spill_wbt = 1;
 
     if (load_kblock(lcl_ti, kblocks[0].file, &kbd, &desc))
         return;
@@ -214,19 +212,19 @@ MTF_DEFINE_UTEST_PREPOST(wbti_test, t_wbti_destroy, pre, post)
 void
 t_iterate_helper(struct mtf_test_info *lcl_ti, struct test_kblock *kblock)
 {
-    merr_t               err;
-    struct wbti *        wbti;
+    merr_t err;
+    struct wbti *wbti;
     struct kvs_mblk_desc kbd = {};
-    struct wbt_desc      desc = {};
-    int                  cnt, inc;
-    bool                 eof;
-    uint32_t             cache_spill_wbt = 1;
-    const void *         kdata;
-    const void *         kmd;
-    uint                 klen, xlen;
-    unsigned char        seekbuf[HSE_KVS_KEY_LEN_MAX];
-    struct kvs_ktuple    seek = { 0, 0 };
-    char **              keyv;
+    struct wbt_desc desc = {};
+    int cnt, inc;
+    bool eof;
+    uint32_t cache_spill_wbt = 1;
+    const void *kdata;
+    const void *kmd;
+    uint klen, xlen;
+    unsigned char seekbuf[HSE_KVS_KEY_LEN_MAX];
+    struct kvs_ktuple seek = { 0, 0 };
+    char **keyv;
 
     if (load_kblock(lcl_ti, kblock->file, &kbd, &desc))
         return;
@@ -256,8 +254,8 @@ reverse:
 
     while (1) {
         const void *pfx;
-        uint        plen = 0;
-        int         rc;
+        uint plen = 0;
+        int rc;
 
         if (!wbti_next(wbti, &kdata, &klen, &kmd))
             break;
@@ -301,20 +299,20 @@ reverse:
 void
 t_seek_helper(struct mtf_test_info *lcl_ti, struct test_kblock *kblock, bool reverse, bool full)
 {
-    merr_t               err;
-    struct wbti *        wbti;
+    merr_t err;
+    struct wbti *wbti;
     struct kvs_mblk_desc kbd;
-    struct wbt_desc      desc;
-    struct kvs_ktuple    seek;
-    int                  exp, inc, idx, cnt;
-    bool                 eof;
-    uint32_t             cache_leaves = 1;
-    const void *         kdata;
-    const void *         kmd;
-    uint                 klen, xlen;
-    char **              keyv;
-    const void *         pfx;
-    uint                 plen;
+    struct wbt_desc desc;
+    struct kvs_ktuple seek;
+    int exp, inc, idx, cnt;
+    bool eof;
+    uint32_t cache_leaves = 1;
+    const void *kdata;
+    const void *kmd;
+    uint klen, xlen;
+    char **keyv;
+    const void *pfx;
+    uint plen;
 
     if (load_kblock(lcl_ti, kblock->file, &kbd, &desc))
         return;
@@ -352,10 +350,10 @@ t_seek_helper(struct mtf_test_info *lcl_ti, struct test_kblock *kblock, bool rev
         xlen = strlen(keyv[idx]) - plen + (kblock->null_terminated ? 1 : 0);
         ASSERT_EQ(klen, xlen);
 
-		if (pfx) {
-        	rc = memcmp(pfx, keyv[idx], plen);
-        	ASSERT_EQ(0, rc);
-		}
+        if (pfx) {
+            rc = memcmp(pfx, keyv[idx], plen);
+            ASSERT_EQ(0, rc);
+        }
         rc = memcmp(kdata, keyv[idx] + plen, klen);
         ASSERT_EQ(0, rc);
         idx += inc;

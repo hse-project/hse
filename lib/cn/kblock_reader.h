@@ -27,9 +27,9 @@ struct kblk_metrics {
 };
 
 struct kblock_desc {
-    struct cn            *cn;
+    struct cn *cn;
     struct kvs_mblk_desc *kd_mbd;
-    struct wbt_desc      *kd_wbd;
+    struct wbt_desc *kd_wbd;
 };
 
 /**

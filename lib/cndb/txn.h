@@ -12,12 +12,12 @@ struct cndb_txn;
 
 merr_t
 cndb_txn_create(
-    uint64_t         txid,
-    uint64_t         seqno,
-    uint64_t         ingestid,
-    uint64_t         txhorizon,
-    uint16_t         add_cnt,
-    uint16_t         del_cnt,
+    uint64_t txid,
+    uint64_t seqno,
+    uint64_t ingestid,
+    uint64_t txhorizon,
+    uint16_t add_cnt,
+    uint16_t del_cnt,
     struct cndb_txn **tx_out);
 
 uint64_t
@@ -28,24 +28,20 @@ cndb_txn_destroy(struct cndb_txn *tx);
 
 merr_t
 cndb_txn_kvset_add(
-    struct cndb_txn    *tx,
-    uint64_t           cnid,
-    uint64_t           kvsetid,
-    uint64_t           nodeid,
+    struct cndb_txn *tx,
+    uint64_t cnid,
+    uint64_t kvsetid,
+    uint64_t nodeid,
     struct kvset_meta *km,
-    uint64_t           hblkid,
-    size_t             kblkc,
-    uint64_t          *kblkv,
-    size_t             vblkc,
-    uint64_t          *vblkv,
-    void             **cookie);
+    uint64_t hblkid,
+    size_t kblkc,
+    uint64_t *kblkv,
+    size_t vblkc,
+    uint64_t *vblkv,
+    void **cookie);
 
 merr_t
-cndb_txn_kvset_del(
-    struct cndb_txn    *tx,
-    uint64_t           cnid,
-    uint64_t           kvsetid,
-    void             **cookie);
+cndb_txn_kvset_del(struct cndb_txn *tx, uint64_t cnid, uint64_t kvsetid, void **cookie);
 
 typedef merr_t
 cndb_txn_cb(struct cndb_txn *, struct cndb_kvset *, bool, bool, void *);

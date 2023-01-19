@@ -15,13 +15,14 @@
  * for s390x based VMs with low CPU counts, but likely we'll want to
  * revisit this for other architectures or use cases.
  */
-#include <hse/util/atomic.h>
 #include <syscall.h>
+
+#include <hse/util/atomic.h>
 
 struct hse_getcpu_tls {
     ulong cnt HSE_ALIGNED(sizeof(ulong) * 2);
-    uint  vcpu;
-    uint  node;
+    uint vcpu;
+    uint node;
 };
 
 static thread_local struct hse_getcpu_tls hse_getcpu_tls;

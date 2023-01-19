@@ -15,21 +15,20 @@
 #include <cjson/cJSON.h>
 
 #include <hse/hse.h>
-#include <hse/logging/logging.h>
 
-#include <hse/ikvdb/kvdb_meta.h>
 #include <hse/ikvdb/kvdb_home.h>
+#include <hse/ikvdb/kvdb_meta.h>
 #include <hse/ikvdb/omf_version.h>
+#include <hse/logging/logging.h>
+#include <hse/mpool/mpool.h>
 #include <hse/util/assert.h>
 #include <hse/util/base.h>
-
-#include <hse/mpool/mpool.h>
 
 #define KVDB_META       "kvdb.meta"
 #define KVDB_META_PERMS (S_IRUSR | S_IWUSR)
 
 static merr_t
-kvdb_meta_open(const char *const kvdb_home, FILE **meta_file, bool allow_writes)
+kvdb_meta_open(const char * const kvdb_home, FILE **meta_file, bool allow_writes)
 {
     char buf[PATH_MAX];
     int meta_fd, n, flags;
@@ -59,11 +58,11 @@ kvdb_meta_open(const char *const kvdb_home, FILE **meta_file, bool allow_writes)
 }
 
 merr_t
-kvdb_meta_create(const char *const kvdb_home)
+kvdb_meta_create(const char * const kvdb_home)
 {
     char buf[PATH_MAX];
-    int  meta_fd;
-    int  n;
+    int meta_fd;
+    int n;
 
     assert(kvdb_home);
 
@@ -84,10 +83,10 @@ kvdb_meta_create(const char *const kvdb_home)
 }
 
 merr_t
-kvdb_meta_destroy(const char *const kvdb_home)
+kvdb_meta_destroy(const char * const kvdb_home)
 {
     char buf[PATH_MAX];
-    int  n;
+    int n;
 
     assert(kvdb_home);
 
@@ -104,14 +103,14 @@ kvdb_meta_destroy(const char *const kvdb_home)
 }
 
 merr_t
-kvdb_meta_serialize(const struct kvdb_meta *const meta, const char *const kvdb_home)
+kvdb_meta_serialize(const struct kvdb_meta * const meta, const char * const kvdb_home)
 {
     merr_t err = 0;
     cJSON *root, *wal, *cndb, *storage, *mclass[HSE_MCLASS_COUNT];
-    char * str = NULL;
+    char *str = NULL;
     size_t str_sz;
     size_t written;
-    FILE * meta_file = NULL;
+    FILE *meta_file = NULL;
     int i;
 
     assert(kvdb_home);
@@ -213,7 +212,7 @@ out:
 }
 
 static bool
-check_keys(const cJSON *const node, const size_t keys_sz, const char *const *const keys)
+check_keys(const cJSON * const node, const size_t keys_sz, const char * const * const keys)
 {
     assert(node);
     assert(keys);
@@ -235,7 +234,7 @@ check_keys(const cJSON *const node, const size_t keys_sz, const char *const *con
 }
 
 static bool
-check_root_keys(const cJSON *const root)
+check_root_keys(const cJSON * const root)
 {
     static const char *keys[] = { "cndb", "wal", "storage", "version", "omf_version" };
 
@@ -245,7 +244,7 @@ check_root_keys(const cJSON *const root)
 }
 
 static bool
-check_cndb_keys(const cJSON *const node)
+check_cndb_keys(const cJSON * const node)
 {
     static const char *keys[] = { "oid1", "oid2" };
 
@@ -255,7 +254,7 @@ check_cndb_keys(const cJSON *const node)
 }
 
 static bool
-check_wal_keys(const cJSON *const node)
+check_wal_keys(const cJSON * const node)
 {
     static const char *keys[] = { "oid1", "oid2" };
 
@@ -265,7 +264,7 @@ check_wal_keys(const cJSON *const node)
 }
 
 static bool
-check_storage_keys(const cJSON *const node)
+check_storage_keys(const cJSON * const node)
 {
     assert(node);
 
@@ -286,7 +285,7 @@ check_storage_keys(const cJSON *const node)
 }
 
 static bool
-check_media_class_keys(const cJSON *const node)
+check_media_class_keys(const cJSON * const node)
 {
     static const char *keys[] = { "path" };
 
@@ -296,7 +295,7 @@ check_media_class_keys(const cJSON *const node)
 }
 
 static merr_t
-parse_v1(const cJSON *const root, struct kvdb_meta *const meta, const char *const kvdb_home)
+parse_v1(const cJSON * const root, struct kvdb_meta * const meta, const char * const kvdb_home)
 {
     size_t n;
     double omf_version_val, cndb_oid1_val, cndb_oid2_val, wal_oid1_val, wal_oid2_val;
@@ -355,10 +354,12 @@ parse_v1(const cJSON *const root, struct kvdb_meta *const meta, const char *cons
 
     omf_version_val = cJSON_GetNumberValue(omf_version);
     if (round(omf_version_val) != omf_version_val || omf_version_val <= 0.0 ||
-        omf_version_val > UINT_MAX) {
-        log_err("'omf_version' key in %s/kvdb.meta must be a whole number greater than 0 and "
-                "less than or equal to %d, found %f",
-                kvdb_home, UINT_MAX, omf_version_val);
+        omf_version_val > UINT_MAX)
+    {
+        log_err(
+            "'omf_version' key in %s/kvdb.meta must be a whole number greater than 0 and "
+            "less than or equal to %d, found %f",
+            kvdb_home, UINT_MAX, omf_version_val);
         return merr(EPROTO);
     }
 
@@ -396,8 +397,9 @@ parse_v1(const cJSON *const root, struct kvdb_meta *const meta, const char *cons
                 assert(i != HSE_MCLASS_CAPACITY);
                 memset(meta->km_storage[i].path, 0, sizeof(meta->km_storage[i].path));
             } else {
-                n = strlcpy(meta->km_storage[i].path, cJSON_GetStringValue(mclass_path[i]),
-                            sizeof(meta->km_storage[i].path));
+                n = strlcpy(
+                    meta->km_storage[i].path, cJSON_GetStringValue(mclass_path[i]),
+                    sizeof(meta->km_storage[i].path));
                 if (n >= sizeof(meta->km_storage[i].path))
                     return merr(ENAMETOOLONG);
             }
@@ -408,7 +410,7 @@ parse_v1(const cJSON *const root, struct kvdb_meta *const meta, const char *cons
 }
 
 static merr_t
-parse_v2(const cJSON *const root, struct kvdb_meta *const meta, const char *const kvdb_home)
+parse_v2(const cJSON * const root, struct kvdb_meta * const meta, const char * const kvdb_home)
 {
     size_t n;
     double omf_version_val, cndb_oid1_val, cndb_oid2_val, wal_oid1_val, wal_oid2_val;
@@ -460,10 +462,12 @@ parse_v2(const cJSON *const root, struct kvdb_meta *const meta, const char *cons
 
     omf_version_val = cJSON_GetNumberValue(omf_version);
     if (round(omf_version_val) != omf_version_val || omf_version_val <= 0.0 ||
-        omf_version_val > UINT_MAX) {
-        log_err("'omf_version' key in %s/kvdb.meta must be a whole number greater than 0 and "
-                "less than or equal to %d, found %f",
-                kvdb_home, UINT_MAX, omf_version_val);
+        omf_version_val > UINT_MAX)
+    {
+        log_err(
+            "'omf_version' key in %s/kvdb.meta must be a whole number greater than 0 and "
+            "less than or equal to %d, found %f",
+            kvdb_home, UINT_MAX, omf_version_val);
         return merr(EPROTO);
     }
 
@@ -497,8 +501,9 @@ parse_v2(const cJSON *const root, struct kvdb_meta *const meta, const char *cons
         if (cJSON_IsNull(mclass_path[i])) {
             memset(meta->km_storage[i].path, 0, sizeof(meta->km_storage[i].path));
         } else {
-            n = strlcpy(meta->km_storage[i].path, cJSON_GetStringValue(mclass_path[i]),
-                        sizeof(meta->km_storage[i].path));
+            n = strlcpy(
+                meta->km_storage[i].path, cJSON_GetStringValue(mclass_path[i]),
+                sizeof(meta->km_storage[i].path));
             if (n >= sizeof(meta->km_storage[i].path))
                 return merr(ENAMETOOLONG);
         }
@@ -510,15 +515,15 @@ parse_v2(const cJSON *const root, struct kvdb_meta *const meta, const char *cons
 static_assert(KVDB_META_VERSION <= UINT_MAX, "Code assumes the version fits in a uint");
 
 merr_t
-kvdb_meta_deserialize(struct kvdb_meta *const meta, const char *const kvdb_home)
+kvdb_meta_deserialize(struct kvdb_meta * const meta, const char * const kvdb_home)
 {
-    merr_t      err = 0;
-    cJSON *     root = NULL, *version;
-    char *      meta_data = NULL;
-    size_t      n;
-    double      version_val;
-    FILE *      meta_file;
-    int         meta_fd;
+    merr_t err = 0;
+    cJSON *root = NULL, *version;
+    char *meta_data = NULL;
+    size_t n;
+    double version_val;
+    FILE *meta_file;
+    int meta_fd;
     struct stat st;
 
     assert(kvdb_home);
@@ -576,8 +581,9 @@ kvdb_meta_deserialize(struct kvdb_meta *const meta, const char *const kvdb_home)
     }
     version_val = cJSON_GetNumberValue(version);
     if (round(version_val) != version_val || version_val < 0 || version_val > UINT_MAX) {
-        log_err("'version' key in %s/kvdb.meta must be a whole number between 0 and %u",
-            kvdb_home, UINT_MAX);
+        log_err(
+            "'version' key in %s/kvdb.meta must be a whole number between 0 and %u", kvdb_home,
+            UINT_MAX);
         err = merr(EPROTO);
         goto out;
     }
@@ -591,15 +597,17 @@ kvdb_meta_deserialize(struct kvdb_meta *const meta, const char *const kvdb_home)
         err = parse_v2(root, meta, kvdb_home);
         break;
     default:
-        log_err("Unknown 'version' in %s/kvdb.meta, %u != %u", kvdb_home, meta->km_version,
-                KVDB_META_VERSION);
+        log_err(
+            "Unknown 'version' in %s/kvdb.meta, %u != %u", kvdb_home, meta->km_version,
+            KVDB_META_VERSION);
         err = merr(EPROTO);
         goto out;
     }
 
     if (!err && meta->km_omf_version > GLOBAL_OMF_VERSION) {
-        log_err("Unknown 'omf_version' in %s/kvdb.meta, %u != %u, please upgrade HSE",
-                kvdb_home, meta->km_omf_version, GLOBAL_OMF_VERSION);
+        log_err(
+            "Unknown 'omf_version' in %s/kvdb.meta, %u != %u, please upgrade HSE", kvdb_home,
+            meta->km_omf_version, GLOBAL_OMF_VERSION);
         err = merr(EPROTO);
         goto out;
     }
@@ -615,7 +623,7 @@ out:
 }
 
 merr_t
-kvdb_meta_upgrade(struct kvdb_meta *const meta, const char *const kvdb_home)
+kvdb_meta_upgrade(struct kvdb_meta * const meta, const char * const kvdb_home)
 {
     unsigned int omvers;
     merr_t err;
@@ -632,13 +640,15 @@ kvdb_meta_upgrade(struct kvdb_meta *const meta, const char *const kvdb_home)
 
     err = kvdb_meta_serialize(meta, kvdb_home);
     if (err) {
-        log_err("Failed to upgrade KVDB global on-media version from %u to %u",
-                omvers, meta->km_omf_version);
+        log_err(
+            "Failed to upgrade KVDB global on-media version from %u to %u", omvers,
+            meta->km_omf_version);
         return merr(EPROTO);
     }
 
-    log_info("Successfully upgraded KVDB global on-media version from %u to %u",
-             omvers, meta->km_omf_version);
+    log_info(
+        "Successfully upgraded KVDB global on-media version from %u to %u", omvers,
+        meta->km_omf_version);
 
     return 0;
 }
@@ -660,9 +670,9 @@ static_assert(
 
 void
 kvdb_meta_from_mpool_cparams(
-    struct kvdb_meta *const           meta,
-    const char *const                 kvdb_home,
-    const struct mpool_cparams *const params)
+    struct kvdb_meta * const meta,
+    const char * const kvdb_home,
+    const struct mpool_cparams * const params)
 {
     size_t offset;
 
@@ -684,18 +694,17 @@ kvdb_meta_from_mpool_cparams(
     for (int i = HSE_MCLASS_BASE; i < HSE_MCLASS_COUNT; i++) {
         const char *path = params->mclass[i].path;
 
-        strlcpy(meta->km_storage[i].path,
-                strstr(path, kvdb_home) == path ?
-                path + offset : path,
-                sizeof(meta->km_storage[i].path));
+        strlcpy(
+            meta->km_storage[i].path, strstr(path, kvdb_home) == path ? path + offset : path,
+            sizeof(meta->km_storage[i].path));
     }
 }
 
 merr_t
 kvdb_meta_to_mpool_rparams(
-    const struct kvdb_meta *const meta,
-    const char *const             kvdb_home,
-    struct mpool_rparams *const   params)
+    const struct kvdb_meta * const meta,
+    const char * const kvdb_home,
+    struct mpool_rparams * const params)
 {
     assert(meta);
     assert(kvdb_home);
@@ -704,8 +713,9 @@ kvdb_meta_to_mpool_rparams(
     for (int i = HSE_MCLASS_BASE; i < HSE_MCLASS_COUNT; i++) {
         merr_t err;
 
-        err = kvdb_home_storage_path_get(kvdb_home, meta->km_storage[i].path,
-                                         params->mclass[i].path, sizeof(params->mclass[i].path));
+        err = kvdb_home_storage_path_get(
+            kvdb_home, meta->km_storage[i].path, params->mclass[i].path,
+            sizeof(params->mclass[i].path));
         if (err)
             return err;
     }
@@ -715,9 +725,9 @@ kvdb_meta_to_mpool_rparams(
 
 merr_t
 kvdb_meta_to_mpool_dparams(
-    const struct kvdb_meta *const meta,
-    const char *const             kvdb_home,
-    struct mpool_dparams *const   params)
+    const struct kvdb_meta * const meta,
+    const char * const kvdb_home,
+    struct mpool_dparams * const params)
 {
     assert(meta);
     assert(kvdb_home);
@@ -726,8 +736,9 @@ kvdb_meta_to_mpool_dparams(
     for (int i = HSE_MCLASS_BASE; i < HSE_MCLASS_COUNT; i++) {
         merr_t err;
 
-        err = kvdb_home_storage_path_get(kvdb_home, meta->km_storage[i].path,
-                                         params->mclass[i].path, sizeof(params->mclass[i].path));
+        err = kvdb_home_storage_path_get(
+            kvdb_home, meta->km_storage[i].path, params->mclass[i].path,
+            sizeof(params->mclass[i].path));
         if (err)
             return err;
     }
@@ -737,8 +748,8 @@ kvdb_meta_to_mpool_dparams(
 
 merr_t
 kvdb_meta_storage_add(
-    struct kvdb_meta *          meta,
-    const char *                kvdb_home,
+    struct kvdb_meta *meta,
+    const char *kvdb_home,
     const struct mpool_cparams *cparams)
 {
     size_t offset;
@@ -765,10 +776,9 @@ kvdb_meta_storage_add(
         if (path[0] != '\0') {
             assert(meta->km_storage[i].path[0] == '\0');
 
-            strlcpy(meta->km_storage[i].path,
-                    strstr(path, kvdb_home) == path ?
-                    path + offset : path,
-                    sizeof(meta->km_storage[i].path));
+            strlcpy(
+                meta->km_storage[i].path, strstr(path, kvdb_home) == path ? path + offset : path,
+                sizeof(meta->km_storage[i].path));
             added = true;
         }
     }

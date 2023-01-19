@@ -9,10 +9,9 @@
 #include <stdint.h>
 #include <stdlib.h>
 
-#include <hse/util/omf.h>
 #include <hse/error/merr.h>
-
 #include <hse/ikvdb/omf_version.h>
+#include <hse/util/omf.h>
 
 struct mdc_loghdr;
 struct mdc_rechdr;
@@ -20,9 +19,9 @@ struct mblock_metahdr;
 struct mblock_filehdr;
 struct mblock_oid_info;
 
-#define CRC_VALID_SHIFT    (32)
-#define CRC_VALID_MASK     (0x0000000100000000)
-#define CRC_MASK           (0x00000000ffffffff)
+#define CRC_VALID_SHIFT (32)
+#define CRC_VALID_MASK  (0x0000000100000000)
+#define CRC_MASK        (0x00000000ffffffff)
 
 /*
  * MDC OMF
@@ -52,7 +51,7 @@ OMF_GET_VER(struct mdc_loghdr_omf_v1, lh_gen, 64, v1);
 OMF_GET_VER(struct mdc_loghdr_omf_v1, lh_rsvd, 32, v1);
 OMF_GET_VER(struct mdc_loghdr_omf_v1, lh_crc, 32, v1);
 
-#define MDC_LOGHDR_OMFLEN_V1  (sizeof(struct mdc_loghdr_omf_v1))
+#define MDC_LOGHDR_OMFLEN_V1 (sizeof(struct mdc_loghdr_omf_v1))
 
 /**
  * struct mdc_loghdr_omf - OMF for MDC log header
@@ -75,7 +74,7 @@ OMF_SETGET(struct mdc_loghdr_omf, lh_magic, 32);
 OMF_SETGET(struct mdc_loghdr_omf, lh_gen, 64);
 OMF_SETGET(struct mdc_loghdr_omf, lh_crc, 64);
 
-#define MDC_LOGHDR_OMFLEN  (sizeof(struct mdc_loghdr_omf))
+#define MDC_LOGHDR_OMFLEN (sizeof(struct mdc_loghdr_omf))
 
 static HSE_ALWAYS_INLINE uint32_t
 omf_mdc_loghdr_len(uint32_t version)
@@ -110,7 +109,7 @@ OMF_GET_VER(struct mdc_rechdr_omf_v1, rh_crc, 32, v1);
 OMF_GET_VER(struct mdc_rechdr_omf_v1, rh_rsvd, 32, v1);
 OMF_GET_VER(struct mdc_rechdr_omf_v1, rh_size, 64, v1);
 
-#define MDC_RECHDR_LEN_V1  (sizeof(struct mdc_rechdr_omf_v1))
+#define MDC_RECHDR_LEN_V1 (sizeof(struct mdc_rechdr_omf_v1))
 
 /**
  * struct mdc_rechdr_omf - OMF for MDC record header
@@ -123,14 +122,14 @@ OMF_GET_VER(struct mdc_rechdr_omf_v1, rh_size, 64, v1);
 struct mdc_rechdr_omf {
     uint64_t rh_crc;
     uint64_t rh_size;
-    uint8_t  rh_data[0];
-} __attribute__((packed,aligned(sizeof(uint64_t))));
+    uint8_t rh_data[0];
+} __attribute__((packed, aligned(sizeof(uint64_t))));
 
 /* Define set/get methods for mdc_rechdr_omf */
 OMF_SETGET(struct mdc_rechdr_omf, rh_crc, 64);
 OMF_SETGET(struct mdc_rechdr_omf, rh_size, 64);
 
-#define MDC_RECHDR_LEN  (sizeof(struct mdc_rechdr_omf))
+#define MDC_RECHDR_LEN (sizeof(struct mdc_rechdr_omf))
 
 static HSE_ALWAYS_INLINE uint32_t
 omf_mdc_rechdr_len(uint32_t version)
@@ -182,12 +181,12 @@ omf_mdc_rechdr_pack(void *data, size_t len, void *outbuf);
  */
 merr_t
 omf_mdc_rechdr_unpack(
-    const char        *inbuf,
-    uint32_t           version,
-    off_t              curoff,
-    size_t             len,
-    bool               gclose,
-    bool               crc_verify,
+    const char *inbuf,
+    uint32_t version,
+    off_t curoff,
+    size_t len,
+    bool gclose,
+    bool crc_verify,
     struct mdc_rechdr *rh);
 /*
  * Mblock Meta OMF
@@ -201,10 +200,10 @@ struct mblock_metahdr_omf_v1 {
     uint32_t mh_magic;
     uint32_t mh_fszmax_gb;
     uint32_t mh_mblksz_sec;
-    uint8_t  mh_mcid;
-    uint8_t  mh_fcnt;
-    uint8_t  mh_blkbits;
-    uint8_t  mh_mcbits;
+    uint8_t mh_mcid;
+    uint8_t mh_fcnt;
+    uint8_t mh_blkbits;
+    uint8_t mh_mcbits;
 } HSE_PACKED;
 
 /* Define set/get methods for mblock_metahdr_omf_v1 */
@@ -217,7 +216,7 @@ OMF_GET_VER(struct mblock_metahdr_omf_v1, mh_fcnt, 8, v1);
 OMF_GET_VER(struct mblock_metahdr_omf_v1, mh_blkbits, 8, v1);
 OMF_GET_VER(struct mblock_metahdr_omf_v1, mh_mcbits, 8, v1);
 
-#define MBLOCK_METAHDR_LEN_V1  (sizeof(struct mblock_metahdr_omf_v1))
+#define MBLOCK_METAHDR_LEN_V1 (sizeof(struct mblock_metahdr_omf_v1))
 
 /**
  * struct mblock_metahdr_omf - mblock fset meta header
@@ -239,10 +238,10 @@ struct mblock_metahdr_omf {
     uint32_t mh_magic;
     uint32_t mh_fszmax_gb;
     uint32_t mh_mblksz_sec;
-    uint8_t  mh_mcid;
-    uint8_t  mh_fcnt;
-    uint8_t  mh_blkbits;
-    uint8_t  mh_mcbits;
+    uint8_t mh_mcid;
+    uint8_t mh_fcnt;
+    uint8_t mh_blkbits;
+    uint8_t mh_mcbits;
     uint64_t mh_crc;
     uint32_t mh_gclose;
 } HSE_PACKED;
@@ -259,7 +258,7 @@ OMF_SETGET(struct mblock_metahdr_omf, mh_mcbits, 8);
 OMF_SETGET(struct mblock_metahdr_omf, mh_crc, 64);
 OMF_SETGET(struct mblock_metahdr_omf, mh_gclose, 32);
 
-#define MBLOCK_METAHDR_LEN     (sizeof(struct mblock_metahdr_omf))
+#define MBLOCK_METAHDR_LEN (sizeof(struct mblock_metahdr_omf))
 
 static HSE_ALWAYS_INLINE uint32_t
 omf_mblock_metahdr_len(uint32_t version)
@@ -281,8 +280,8 @@ omf_mblock_metahdr_len(uint32_t version)
  */
 struct mblock_filehdr_omf_v1 {
     uint32_t fh_uniq;
-    uint8_t  fh_fileid;
-    uint8_t  fh_rsvd1;
+    uint8_t fh_fileid;
+    uint8_t fh_rsvd1;
     uint16_t fh_rsvd2;
 } HSE_PACKED;
 
@@ -292,7 +291,7 @@ OMF_GET_VER(struct mblock_filehdr_omf_v1, fh_fileid, 8, v1);
 OMF_GET_VER(struct mblock_filehdr_omf_v1, fh_rsvd1, 8, v1);
 OMF_GET_VER(struct mblock_filehdr_omf_v1, fh_rsvd2, 16, v1);
 
-#define MBLOCK_FILEHDR_LEN_V1     (sizeof(struct mblock_filehdr_omf_v1))
+#define MBLOCK_FILEHDR_LEN_V1 (sizeof(struct mblock_filehdr_omf_v1))
 
 /**
  * struct mblock_filehdr_omf - mblock file meta header
@@ -305,8 +304,8 @@ OMF_GET_VER(struct mblock_filehdr_omf_v1, fh_rsvd2, 16, v1);
  */
 struct mblock_filehdr_omf {
     uint32_t fh_uniq;
-    uint8_t  fh_fileid;
-    uint8_t  fh_rsvd1;
+    uint8_t fh_fileid;
+    uint8_t fh_rsvd1;
     uint16_t fh_rsvd2;
     uint64_t fh_crc;
 } HSE_PACKED;
@@ -318,7 +317,7 @@ OMF_SETGET(struct mblock_filehdr_omf, fh_rsvd1, 8);
 OMF_SETGET(struct mblock_filehdr_omf, fh_rsvd2, 16);
 OMF_SETGET(struct mblock_filehdr_omf, fh_crc, 64);
 
-#define MBLOCK_FILEHDR_LEN     (sizeof(struct mblock_filehdr_omf))
+#define MBLOCK_FILEHDR_LEN (sizeof(struct mblock_filehdr_omf))
 
 static HSE_ALWAYS_INLINE uint32_t
 omf_mblock_filehdr_len(uint32_t version)
@@ -439,9 +438,9 @@ omf_mblock_filehdr_pack(struct mblock_filehdr *fh, char *outbuf);
  */
 merr_t
 omf_mblock_filehdr_unpack(
-    const char            *inbuf,
-    uint32_t               version,
-    bool                   gclose,
+    const char *inbuf,
+    uint32_t version,
+    bool gclose,
     struct mblock_filehdr *fh);
 
 /**
@@ -471,9 +470,9 @@ omf_mblock_oid_pack_zero(char *outbuf);
  */
 merr_t
 omf_mblock_oid_unpack(
-    const char             *inbuf,
-    uint32_t                version,
-    bool                    gclose,
+    const char *inbuf,
+    uint32_t version,
+    bool gclose,
     struct mblock_oid_info *mbinfo);
 
 #endif /* MPOOL_OMF_H */

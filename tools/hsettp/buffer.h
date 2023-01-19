@@ -9,7 +9,6 @@
 #include <stddef.h>
 
 #include <hse/error/merr.h>
-
 #include <hse/util/compiler.h>
 
 struct buffer {

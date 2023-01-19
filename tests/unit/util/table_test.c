@@ -3,8 +3,8 @@
  * Copyright (C) 2015-2020 Micron Technology, Inc.  All rights reserved.
  */
 
-#include <mtf/framework.h>
 #include <mock/api.h>
+#include <mtf/framework.h>
 
 #include <hse/util/table.h>
 
@@ -39,17 +39,17 @@ MTF_DEFINE_UTEST(table, table_create_test)
 }
 
 const int limit = 1000;
-char      buf[100];
+char buf[100];
 struct object {
-    int   i;
+    int i;
     char *p;
 };
 
 MTF_DEFINE_UTEST(table, grow1)
 {
     struct object *o;
-    struct table * tab;
-    int            i;
+    struct table *tab;
+    int i;
 
     mapi_inject_unset(mapi_idx_malloc);
 
@@ -79,8 +79,8 @@ MTF_DEFINE_UTEST(table, grow1)
 MTF_DEFINE_UTEST(table, grow13)
 {
     struct object *o, obj;
-    struct table * tab;
-    int            i;
+    struct table *tab;
+    int i;
 
     tab = table_create(0, sizeof(*o), true);
     ASSERT_NE(NULL, tab);
@@ -128,7 +128,7 @@ applyargfunc(void *p, void *a)
 MTF_DEFINE_UTEST(table, apply)
 {
     struct table *tab;
-    int           i;
+    int i;
 
     tab = table_create(100, sizeof(i), true);
     ASSERT_NE(NULL, tab);
@@ -145,7 +145,7 @@ MTF_DEFINE_UTEST(table, apply)
 MTF_DEFINE_UTEST(table, apply_arg)
 {
     struct table *tab;
-    int           i;
+    int i;
 
     tab = table_create(100, sizeof(i), true);
     ASSERT_NE(NULL, tab);
@@ -163,7 +163,7 @@ MTF_DEFINE_UTEST(table, apply_arg)
 MTF_DEFINE_UTEST(table, apply_rev)
 {
     struct table *tab;
-    int           i;
+    int i;
 
     tab = table_create(100, sizeof(i), true);
     ASSERT_NE(NULL, tab);
@@ -198,7 +198,7 @@ MTF_DEFINE_UTEST(table, random_access)
 MTF_DEFINE_UTEST(table, reset)
 {
     struct table *tab;
-    int           i;
+    int i;
 
     tab = table_create(100, sizeof(i), true);
     ASSERT_NE(NULL, tab);

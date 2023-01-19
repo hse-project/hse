@@ -7,7 +7,6 @@
 #define HSE_KVDB_TXN_INTERNAL_H
 
 #include <stdint.h>
-
 #include <urcu-bp.h>
 
 #include <hse/ikvdb/kvdb_ctxn.h>
@@ -75,14 +74,14 @@ static inline enum kvdb_ctxn_state
 seqnoref_to_state(uintptr_t seqnoref)
 {
     switch (seqnoref) {
-        case HSE_SQNREF_UNDEFINED:
-            return KVDB_CTXN_ACTIVE;
+    case HSE_SQNREF_UNDEFINED:
+        return KVDB_CTXN_ACTIVE;
 
-        case HSE_SQNREF_ABORTED:
-            return KVDB_CTXN_ABORTED;
+    case HSE_SQNREF_ABORTED:
+        return KVDB_CTXN_ABORTED;
 
-        case HSE_SQNREF_INVALID:
-            return KVDB_CTXN_INVALID;
+    case HSE_SQNREF_INVALID:
+        return KVDB_CTXN_INVALID;
     }
 
     if (HSE_SQNREF_ORDNL_P(seqnoref))

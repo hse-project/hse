@@ -6,11 +6,11 @@
 #ifndef HSE_BONSAI_TREE_PVT_H
 #define HSE_BONSAI_TREE_PVT_H
 
-#include <hse/util/arch.h>
 #include <hse/util/alloc.h>
-#include <hse/util/slab.h>
-#include <hse/util/bonsai_tree.h>
+#include <hse/util/arch.h>
 #include <hse/util/assert.h>
+#include <hse/util/bonsai_tree.h>
+#include <hse/util/slab.h>
 
 enum bonsai_match_type {
     B_MATCH_EQ = 0,
@@ -23,9 +23,11 @@ enum bonsai_match_type {
 struct bonsai_slab *
 bn_slab_init(struct bonsai_slab *slab, struct bonsai_slabinfo *slabinfo, bool canfree);
 
-void bn_slab_free(struct bonsai_slab *slab);
+void
+bn_slab_free(struct bonsai_slab *slab);
 
-uint bn_gc_reclaim(struct bonsai_root *tree, struct bonsai_slab *slab);
+uint
+bn_gc_reclaim(struct bonsai_root *tree, struct bonsai_slab *slab);
 
 /**
  * bn_node_alloc() - allocate and initialize a node plus key and value
@@ -37,11 +39,12 @@ uint bn_gc_reclaim(struct bonsai_root *tree, struct bonsai_slab *slab);
  */
 struct bonsai_node *
 bn_kvnode_alloc(
-    struct bonsai_root       *tree,
+    struct bonsai_root *tree,
     const struct bonsai_skey *skey,
     const struct bonsai_sval *sval);
 
-void bn_kv_free(struct bonsai_kv *freekeys);
+void
+bn_kv_free(struct bonsai_kv *freekeys);
 
 /**
  * bn_val_alloc() - allocate and initialize a value
@@ -111,7 +114,6 @@ bn_kv_rcufree(struct bonsai_root *tree, struct bonsai_kv *dkv)
     dkv->bkv_free = tree->br_vfkeys;
     tree->br_vfkeys = dkv;
 }
-
 
 /**
  * bn_balance() - balance subtree given by %node
