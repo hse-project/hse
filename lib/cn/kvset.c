@@ -729,6 +729,8 @@ kvset_open(struct cn_tree *tree, uint64_t kvsetid, struct kvset_meta *km, struct
     if (idc) {
         err = mbset_create(cn_tree_get_mp(tree), idc, idv, sizeof(struct vblock_desc),
             vblock_udata_init, &vbset);
+        if (ev(err))
+            return err;
         len = 1;
         vbsetc = 1;
     }
